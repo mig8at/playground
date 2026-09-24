@@ -1,10 +1,10 @@
-// archivos.go — de los MENSAJES de una traza a los ARCHIVOS que los emitieron.
+// trace_files.go — de los MENSAJES de una traza a los ARCHIVOS que los emitieron.
 //
 // POR QUÉ ACÁ. El trazador ya contesta «hasta dónde llegó y por qué se rompió»; lo que no decía es
 // DÓNDE, en el código. Esa pregunta es la siguiente que hace cualquiera que lea una traza, y hasta
 // ahora obligaba a irse a otra herramienta con el mensaje copiado a mano.
 //
-// ⚠ DE DÓNDE SALE EL MAPA. Lo arma `indice_logs.go` (`-indexar-logs`) leyendo el código de los repos, y
+// ⚠ DE DÓNDE SALE EL MAPA. Lo arma `log_index.go` (`-indexar-logs`) leyendo el código de los repos, y
 // queda en `trazador/logs.json`. Hasta el 2026-09-24 lo construía Python (`workers/logs.py`) y acá se
 // reimplementaban la búsqueda y la normalización, con una prueba que comparaba las dos: ya nos había
 // costado dos veces tener lo mismo en dos lenguajes. Ahora el constructor y el lector usan LA MISMA

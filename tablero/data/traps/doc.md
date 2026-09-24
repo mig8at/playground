@@ -6102,7 +6102,7 @@ dos. **No se sabe cuántos diagnósticos viejos eran esto.**
         (los que hay: development · local · testing) — se consultó SIN filtrar.
         ⚠ Y mientras tanto estás viendo dev y qa MEZCLADOS: comparten stack y no hay etiqueta que los separe.
 
-  El trazador ya lo tenía (`fetchLines` en `trazador/server/etapas.go`, con `labelValues`); lo que
+  El trazador ya lo tenía (`fetchLines` en `trazador/server/stages.go`, con `labelValues`); lo que
   faltaba era el harness, que ahora hace lo mismo en `harness/pkg/loki.ts`. ⚠ La consulta extra se paga
   **sólo cuando cambiaría la respuesta** —si el filtro dejó algo, no hay nada que desmentir—, así que no
   encarece las corridas sanas. Medido: la misma consulta que devolvía «cero anclas» ahora devuelve **256

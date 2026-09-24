@@ -1,4 +1,4 @@
-// arbol.go — DÓNDE QUEDÓ, con el detalle fino: los 39 pasos del árbol de negocio.
+// tree.go — DÓNDE QUEDÓ, con el detalle fino: los 39 pasos del árbol de negocio.
 //
 // POR QUÉ SUMA, teniendo ya las etapas. Las 7 etapas de esta herramienta contestan «hasta dónde
 // llegó» a grano grueso, y están ancladas en la BD —son hechos—. El árbol contesta lo mismo con 39

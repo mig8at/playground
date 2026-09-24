@@ -1,4 +1,4 @@
-// etapas.go — el TRAZADOR propiamente: hasta dónde llegó una solicitud y por qué se rompió.
+// stages.go — el TRAZADOR propiamente: hasta dónde llegó una solicitud y por qué se rompió.
 //
 // EL MODELO DE ETAPAS NO ES NUEVO. Sale del diseño que ya existía en `playground/soporte/`, borrado el
 // 2026-07-22 y recuperable con `git show 3a01e53^:soporte/docs/ARQUITECTURA-TRACING.md`. De ahí vienen las
@@ -183,7 +183,7 @@ func outcomeOf(status int) string {
 	}
 }
 
-// LOS PATRONES YA NO VIVEN ACÁ. Están declarados en `mapa/etapas.json` y los resuelve `mapa.go`.
+// LOS PATRONES YA NO VIVEN ACÁ. Están declarados en `mapa/etapas.json` y los resuelve `stage_map.go`.
 //
 // ⚠ POR QUÉ SE MOVIERON, y no fue por prolijidad: la versión anterior era un `map[string]*regexp.Regexp`
 // que se iteraba con `range` y cortaba en el primer match. **El orden de iteración de un map en Go es
@@ -296,7 +296,7 @@ type Trace struct {
 	// para que soporte lea cinco renglones y sepa dónde abrir, en vez de escanear el árbol buscando rojos.
 	Findings []string `json:"hallazgos,omitempty"`
 	// Files: QUÉ CÓDIGO dejó rastro en esta traza, en orden de primera aparición. Sale de resolver
-	// cada mensaje contra `trazador/logs.json` (ver archivos.go e indice_logs.go). Es la pregunta que sigue a «¿por qué
+	// cada mensaje contra `trazador/logs.json` (ver trace_files.go e log_index.go). Es la pregunta que sigue a «¿por qué
 	// se rompió?» y hasta ahora obligaba a copiar el mensaje a otra herramienta.
 	// ⚠ Dice qué archivos DEJARON RASTRO, no cuáles se ejecutaron: uno sin logs es invisible acá, y
 	// eso no prueba que no corrió — la misma regla que rige toda esta herramienta.
@@ -306,7 +306,7 @@ type Trace struct {
 	// ahora vivía en otro comando. No hace falta un mapa: la llave (`loan_request_<n>`) ya existe.
 	// Tree: los 39 pasos del árbol de negocio, con cuántas líneas tocó cada uno. Contesta «dónde
 	// quedó» con grano fino — no «falló la validación» sino «falló en la cascada de identidad, y la
-	// biometría ni se intentó». Se deriva de `mapa/negocio.json`; ver arbol.go.
+	// biometría ni se intentó». Se deriva de `mapa/negocio.json`; ver tree.go.
 	Tree       []ReachedStep `json:"arbol,omitempty"`
 	TreeLast   int           `json:"arbolUltimo,omitempty"`
 	Screens    []SeenScreen  `json:"pantallas,omitempty"`
@@ -1903,7 +1903,7 @@ func hhmm(t time.Time) string { return t.Local().Format("15:04:05") }
 // dateTime: la MISMA hora local que muestra el árbol, con la fecha. Va en la evidencia, y ahí la zona no
 // es cosmética: la evidencia se copia y se pega en Redash junto al `created_at` de la consulta. Formatear
 // en UTC mientras el árbol dice Bogotá manda a buscar en una ventana cinco horas corrida — el mismo tipo
-// de desfase que ya se corrigió al parsear (`fecha`, en fuentes.go).
+// de desfase que ya se corrigió al parsear (`fecha`, en sources.go).
 func dateTime(t time.Time) string { return t.Local().Format("2006-01-02 15:04:05") }
 
 // statusAt busca cuándo se registró un estado puntual. Se usa para la etapa de muerte: tomar "la

@@ -227,8 +227,8 @@ el 18/9 tenía un mes (1.576 mensajes); regenerado dio **1.978**. Antes de creer
 chequeo, mirá la fecha del archivo y reconstruilo con `make trazador-indexar-logs`, que actualiza las
 refs remotas antes de recorrer — indexar el `main` LOCAL de cada clon, que nadie actualiza, describía un
 código de días atrás (estaba 14 commits detrás). Hasta el 2026-09-24 lo construía Python, en `workers/`;
-se portó a Go (`indice_logs.go`) comparando el JSON byte a byte.
-Esto no es sólo del chequeo: **`archivos.go` usa ese mismo índice en cada traza** para decir qué código
+se portó a Go (`log_index.go`) comparando el JSON byte a byte.
+Esto no es sólo del chequeo: **`trace_files.go` usa ese mismo índice en cada traza** para decir qué código
 dejó rastro.
 
 ## Las pruebas: la lógica que ya dio un diagnóstico equivocado
@@ -373,7 +373,7 @@ El contexto curado describe **CreditOp**, y esto describe **esta herramienta**: 
 **(2026-09-19) Re-verificado entero, cuando esto era un nodo del árbol.** 15 afirmaciones auditadas —9 contra el código del trazador
 y 6 de dato re-medidas contra producción—, cero chequeos débiles y **ninguna falsa**. Era el nodo que
 mejor resistió de los veintidós: la estructura del mapa está exacta —`go:embed mapa/*.json` en
-`server/mapa.go:30`, los tres JSON, las nueve etapas en su orden, y `bd.estados` / `bd.cierran` /
+`server/stage_map.go:30`, los tres JSON, las nueve etapas en su orden, y `bd.estados` / `bd.cierran` /
 `bd.detienen` en las cuatro etapas que los tienen—, y **las cuatro mediciones de atribución se
 sostuvieron todas**: `deceval_logs` sigue al 100 %, las dos mudas siguen en cero. Lo único agregado es
 la distinción `id` contra `label`, que me hizo tropezar al verificarlo. ⚠ Un conteo para mirar cuando

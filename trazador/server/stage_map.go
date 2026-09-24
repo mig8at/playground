@@ -1,6 +1,6 @@
-// mapa.go — el flujo declarado como DATO, no como código.
+// stage_map.go — el flujo declarado como DATO, no como código.
 //
-// POR QUÉ: hasta ahora las etapas y sus patrones vivían hardcodeados en `etapas.go`. Eso tiene dos
+// POR QUÉ: hasta ahora las etapas y sus patrones vivían hardcodeados en `stages.go`. Eso tiene dos
 // problemas que se notan enseguida:
 //  1. Nadie puede revisar el mapa sin leer Go, y el mapa es conocimiento de NEGOCIO — quién lo sabe de
 //     verdad no necesariamente lee Go.
@@ -391,7 +391,7 @@ func (m *Map) StageStatus() map[int]string {
 }
 
 // ClosingStatus y StoppingStatus derivan la SEMÁNTICA de los estados desde el mapa, igual que StageStatus
-// deriva la pertenencia. Vivían hardcodeados en etapas.go y `bd.estados` era letra muerta: un estado
+// deriva la pertenencia. Vivían hardcodeados en stages.go y `bd.estados` era letra muerta: un estado
 // agregado al JSON no movía nada, y eso no fallaba — daba un mapa distinto del que el JSON afirmaba.
 func (m *Map) ClosingStatus() map[int]bool {
 	out := map[int]bool{}

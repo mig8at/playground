@@ -1,4 +1,4 @@
-// fuentes.go — de dónde salen los datos estructurados, sin que el trazador se entere.
+// sources.go — de dónde salen los datos estructurados, sin que el trazador se entere.
 //
 // Qué base atiende cada ambiente (MySQL directo en local · dev · qa · staging; Redash en prod), sus
 // credenciales, el ciclo de Redash, la guarda de inyección de sus argumentos y en qué zona vienen las

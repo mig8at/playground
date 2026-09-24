@@ -1,11 +1,11 @@
 package main
 
-// indice_logs.go — el MAPA de mensajes de log → archivo que los emite, construido desde el código.
+// log_index.go — el MAPA de mensajes de log → archivo que los emite, construido desde el código.
 //
 // QUÉ RESUELVE. Una traza son decenas de líneas y la pregunta es «¿qué archivos corrieron?». Resolverlas
 // de a una con `git grep` no escala; acá el mapa se construye UNA vez leyendo el código de los repos, y
-// después cada traza se resuelve en memoria (`archivos.go`), y `-chequeo` cruza los matchers del mapa de
-// etapas contra lo que el código de verdad emite (`chequeo.go`).
+// después cada traza se resuelve en memoria (`trace_files.go`), y `-chequeo` cruza los matchers del mapa de
+// etapas contra lo que el código de verdad emite (`check.go`).
 //
 // Lo construía Python (`workers/logs.py`) hasta el 2026-09-24; al retirarse workers se portó acá, que
 // es su único lector, comparando el JSON byte a byte contra el de Python.

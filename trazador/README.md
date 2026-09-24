@@ -184,7 +184,7 @@ mensaje a otra herramienta:
        9×  …/OtpService.php                   :376,364,358,392,415,438,488,499
 
 ⚠ **El mapa se construye UNA vez y se consume en cada traza.** `make trazador-indexar-logs`
-(`indice_logs.go`) lee los 12 repos y arma `trazador/logs.json`; `archivos.go` lo consume. La
+(`log_index.go`) lee los 12 repos y arma `trazador/logs.json`; `trace_files.go` lo consume. La
 normalización del mensaje es UNA función que usan los dos lados: una divergencia acá no fallaría —
 **atribuiría líneas al archivo equivocado**, que es peor—, y por eso la prueba arma un repo de juguete,
 lo indexa y resuelve contra él mensajes de runtime: `go test ./... -run Index`. (Hasta el 2026-09-24 lo
@@ -213,7 +213,7 @@ lag de ingesta), así que los logs **explican** pero nunca dictaminan.
 **La base no la abre el trazador: la abre `connectors/sql`**, que es el único lugar del playground que
 sabe qué fuente atiende cada ambiente, con las credenciales de `connectors/.env.<target>` (plantilla en
 `connectors/.env.example`). El trazador le pide la fuente de su ambiente y le pasa sus consultas; lo que
-sigue siendo suyo son esas consultas y cómo se leen las filas (`server/fuentes.go`).
+sigue siendo suyo son esas consultas y cómo se leen las filas (`server/sources.go`).
 
 ### La tercera fuente: PostHog dice qué VIO el cliente
 
