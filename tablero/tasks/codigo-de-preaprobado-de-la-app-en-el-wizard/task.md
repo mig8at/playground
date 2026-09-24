@@ -307,10 +307,18 @@ servicio real y lo imprime con el enlace a la pantalla:
     make harness-codigo-qa                                     # Pullman ec977139, primera entidad, un SYNTH PRUEBA
     make harness-codigo-qa COMERCIO=<hash> ENTIDAD=<lender_id> USUARIO=<user_id>
 
-**Y la página, si hace falta explicarlo:** la página [Código de preaprobado](https://claude.ai/artifact/1GXiuTAyaMTUGYgwC3ikDN)
-(el archivo vive en `artifacts/`, variante `canje-en-qa`) arma estos mismos pasos para las 15 sucursales
-de Colombia con asesores y entidades activas en `qa`, con los usuarios de prueba y lo que significa cada
-`CCO00x`. Los datos son de la base de `qa` del 2026-09-24: si cambian las sucursales, se regenera.
+**Los códigos guardados para QA:** [Códigos de preaprobado](https://claude.ai/artifact/1GXiuTAyaMTUGYgwC3ikDN)
+(archivo en `artifacts/`, variante `canje-en-qa`) — 10 por cada uno de los 13 comercios de Colombia con
+asesores en `qa`, con el enlace a la pantalla de canje de su sucursal; QA marca cuál ya usó y lo ve todo
+el equipo (estado en el almacén `db` de la página, colección `codes`). Salen del lote:
+
+    make harness-codigo-qa LOTE=10        # → harness/.runs/codigos-qa.json (130 códigos, 2026-09-24)
+
+⚠ **Vencen el último día del mes: al empezar el siguiente se corre el lote de nuevo** y se recarga la
+colección (un `set` por documento, id `a<comercio>-u<cliente>-l<entidad>`, con `used: false`). El id es
+la combinación, no el código, así que regenerar pisa el código viejo en la misma fila. Cada código usa un
+cliente sintético distinto porque el servicio devuelve el MISMO código mientras siga activo para el mismo
+cliente, comercio y entidad.
 
 **El canje REAL en `qa`** (VPN de dev; la sesión de `cognito-state.qa.json` es MIGUEL TEST, en
 `ec977139`). El `merchant_id` es el `allied_id` de la sucursal (Pullman = 94); el usuario, uno de PRUEBA

@@ -33,6 +33,72 @@ function fallar(msg: string): never {
     process.exit(1);
 }
 
+async function generar(userId: number, merchantId: number, lenderId: number): Promise<{ code: string; expired_at: string }> {
+    let res: Response;
+    try {
+        res = await fetch(`${SERVICIO}/api/v1/generate/code`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'X-User-Id': String(userId) },
+            body: JSON.stringify({ merchant_id: merchantId, lender_id: lenderId }),
+            signal: AbortSignal.timeout(15_000),
+        });
+    } catch (e: any) {
+        fallar(`no llegué al servicio de códigos (${SERVICIO}): ${e.cause?.code || e.message}. ¿Estás en la VPN de desarrollo?`);
+    }
+    const cuerpo: any = await res.json().catch(() => ({}));
+    if (!res.ok || !cuerpo.code) fallar(`el servicio respondió HTTP ${res.status}: ${JSON.stringify(cuerpo)}`);
+    return cuerpo;
+}
+
+// LOTE=<n>: n códigos por comercio de Colombia, para la lista de QA. Un comercio = su sucursal con más
+// asesores con cuenta (el asesor sólo entra a la suya). Cada código usa un cliente sintético DISTINTO:
+// el servicio devuelve el mismo código mientras siga activo para el mismo cliente, comercio y entidad,
+// así que repetir el cliente no daría códigos nuevos. Las entidades se reparten en rueda.
+// Escribe `.runs/codigos-qa.json`, que es lo que se carga en la página.
+const LOTE = Number(arg('LOTE') || 0);
+if (LOTE > 0) {
+    try {
+        const sucursales = await query(
+            `SELECT ab.id, ab.hash, ab.name AS sucursal, a.id AS allied_id, a.name AS comercio,
+                    (SELECT COUNT(*) FROM users u WHERE u.allied_branch_id = ab.id AND u.cognito_id IS NOT NULL) AS asesores
+               FROM allied_branches ab JOIN allieds a ON a.id = ab.allied_id AND a.country_id = 47
+              WHERE ab.status = 1 AND ab.name NOT LIKE 'Ecommerce%'
+                AND EXISTS (SELECT 1 FROM lenders_by_allied_branches lab WHERE lab.allied_branch_id = ab.id AND lab.status = 1)
+             HAVING asesores > 0 ORDER BY asesores DESC, ab.id`);
+        const porComercio = new Map<number, any>();
+        for (const s of sucursales) if (!porComercio.has(s.allied_id)) porComercio.set(s.allied_id, s);
+        const clientes = await query(
+            `SELECT id FROM users WHERE full_name = 'SYNTH PRUEBA' AND email LIKE '%@creditop.com'
+               AND cell_phone <> '' AND cognito_id IS NULL ORDER BY id DESC LIMIT ?`, [LOTE]);
+        if (clientes.length < LOTE) fallar(`hay ${clientes.length} clientes sintéticos y pediste ${LOTE} códigos por comercio.`);
+
+        const generado = new Date().toISOString();
+        const codigos: any[] = [];
+        for (const s of porComercio.values()) {
+            const entidades = await query(
+                `SELECT l.id, l.name FROM lenders_by_allied_branches lab JOIN lenders l ON l.id = lab.lender_id
+                  WHERE lab.allied_branch_id = ? AND lab.status = 1 ORDER BY l.id`, [s.id]);
+            for (let i = 0; i < LOTE; i++) {
+                const e = entidades[i % entidades.length], u = clientes[i].id;
+                const r = await generar(u, s.allied_id, e.id);
+                codigos.push({
+                    id: `a${s.allied_id}-u${u}-l${e.id}`, code: r.code, expired_at: r.expired_at,
+                    allied_id: s.allied_id, comercio: s.comercio, branch_id: s.id, sucursal: s.sucursal.trim(), hash: s.hash,
+                    lender_id: e.id, lender: e.name, user_id: u, generated_at: generado,
+                });
+            }
+            console.log(`✔ ${s.comercio} · ${s.sucursal.trim()} (${s.hash}): ${LOTE} códigos, ${Math.min(LOTE, entidades.length)} entidad(es)`);
+        }
+        const fs = await import('node:fs');
+        fs.mkdirSync('.runs', { recursive: true });
+        fs.writeFileSync('.runs/codigos-qa.json', JSON.stringify(codigos, null, 1));
+        console.log(`\n${codigos.length} códigos en ${porComercio.size} comercios → harness/.runs/codigos-qa.json (vencen el ${codigos[0]?.expired_at})`);
+    } finally {
+        await close();
+    }
+    process.exit(0);
+}
+
 try {
     const [suc] = await query(
         `SELECT ab.id, ab.name AS sucursal, ab.allied_id, a.name AS comercio, a.country_id
@@ -56,19 +122,7 @@ try {
     if (!cliente) fallar(USUARIO ? `el usuario ${USUARIO} no existe o no tiene celular y correo: el canje daría CCO007.`
                                  : 'no hay clientes sintéticos en qa; pasá USUARIO=<id>.');
 
-    let res: Response;
-    try {
-        res = await fetch(`${SERVICIO}/api/v1/generate/code`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json', 'X-User-Id': String(cliente.id) },
-            body: JSON.stringify({ merchant_id: Number(suc.allied_id), lender_id: Number(entidad.id) }),
-            signal: AbortSignal.timeout(15_000),
-        });
-    } catch (e: any) {
-        fallar(`no llegué al servicio de códigos (${SERVICIO}): ${e.cause?.code || e.message}. ¿Estás en la VPN de desarrollo?`);
-    }
-    const cuerpo: any = await res.json().catch(() => ({}));
-    if (!res.ok || !cuerpo.code) fallar(`el servicio respondió HTTP ${res.status}: ${JSON.stringify(cuerpo)}`);
+    const cuerpo = await generar(Number(cliente.id), Number(suc.allied_id), Number(entidad.id));
 
     console.log(`✔ código ${cuerpo.code}   (vence el ${cuerpo.expired_at})`);
     console.log(`   comercio  ${suc.comercio} · ${suc.sucursal} (sucursal ${suc.id} · comercio ${suc.allied_id} · hash ${HASH})`);
