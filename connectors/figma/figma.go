@@ -2,6 +2,10 @@
 // de un archivo (páginas y frames), el árbol de un nodo con sus textos, los comentarios y los enlaces
 // para exportar un nodo como imagen. No escribe nada: ni comentarios, ni variables, ni archivos.
 //
+// Y lee cómo está ARMADO un diseño (`Structure`, en structure.go): los carriles, el orden de cada
+// recorrido, el título y los botones de cada pantalla, las decisiones, las flechas, el prototipo y las
+// variantes. Eso es lo que hace falta para entender un flujo; el árbol de nodos solo no lo dice.
+//
 // Nació el 2026-09-24, cuando el `FIGMA_TOKEN` suelto del `.env` de la raíz —que no leía ningún
 // código— pasó a `connectors/.env`.
 package figma

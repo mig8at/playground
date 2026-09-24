@@ -255,3 +255,165 @@ func runFigmaComments(args []string) int {
 	fmt.Printf("\n%d comentario(s)\n", shown)
 	return 0
 }
+
+func runFigmaMap(args []string) int {
+	fs := flag.NewFlagSet("figma map", flag.ContinueOnError)
+	id := fs.String("id", "", "el nodo a leer (una sección, una página o un marco), si la URL no trae node-id")
+	asJSON := fs.Bool("json", false, "la estructura en JSON")
+	noComments := fs.Bool("no-comments", false, "sin contar comentarios abiertos (un pedido menos)")
+	ref, code := figmaRef(fs, args)
+	if code != 0 {
+		return code
+	}
+	nodeID := ref.NodeID
+	if *id != "" {
+		nodeID = strings.ReplaceAll(*id, "-", ":")
+	}
+	if nodeID == "" {
+		return fail(2, "falta qué leer: una URL con node-id (una sección o una página), o --id 1:2. Las páginas y secciones las lista `pg figma file`")
+	}
+	cl, code := figmaClient()
+	if cl == nil {
+		return code
+	}
+	st, err := cl.Structure(context.Background(), ref.FileKey, nodeID, !*noComments)
+	if err != nil {
+		return fail(1, "%v", err)
+	}
+	if *asJSON {
+		return printJSON(st)
+	}
+	printStructure(st, 0)
+	fmt.Println("\n⚠ el carril y el título se DEDUCEN: el carril, de la posición en el lienzo y de los rótulos grandes;")
+	fmt.Println("  el título, del texto más grande de cada pantalla. El resto sale tal cual del archivo.")
+	fmt.Println("  Una pantalla entera: pg figma node <url> --id <id> --depth 8 --text")
+	return 0
+}
+
+func printStructure(st figma.Structure, level int) {
+	in := strings.Repeat("  ", level)
+	var kinds []string
+	for k, n := range st.Kinds {
+		kinds = append(kinds, fmt.Sprintf("%d %s", n, kindName(k)))
+	}
+	sort.Strings(kinds)
+	summary := strings.Join(kinds, " · ")
+	if summary == "" {
+		summary = fmt.Sprintf("%d sección(es) adentro", len(st.Sections))
+	}
+	fmt.Printf("%s%s «%s» (%s) — %s\n", in, strings.ToLower(st.Type), st.Name, st.ID, summary)
+	if len(st.Lanes) > 0 {
+		fmt.Printf("\n%sCARRILES — cada fila del lienzo, de izquierda a derecha, con el rótulo que le puso el diseñador\n", in)
+	}
+	for _, l := range st.Lanes {
+		name := l.Label
+		if name == "" {
+			name = "(fila sin rótulo)"
+		} else {
+			name = "«" + name + "»"
+		}
+		fmt.Printf("\n%s▸ %s — %d pantalla(s)\n", in, name, len(l.Screens))
+		for i, sc := range l.Screens {
+			title := sc.Title
+			switch {
+			case title == "":
+				title = "(sin título: " + sc.Name + ")"
+			case sc.TitleFrom == "capa":
+				title += "  (nombre de la capa)"
+			}
+			extra := ""
+			if len(sc.Actions) > 0 {
+				extra = "  → " + strings.Join(quoteAll(sc.Actions), " · ")
+			}
+			if sc.Comments > 0 {
+				extra += fmt.Sprintf("  💬 %d", sc.Comments)
+			}
+			fmt.Printf("%s  %2d. %-9s %-11s %s%s\n", in, i+1, kindName(sc.Kind), sc.ID, title, extra)
+		}
+	}
+	if len(st.Choices) > 0 {
+		var cs []string
+		for _, c := range st.Choices {
+			cs = append(cs, fmt.Sprintf("%s (%s)", c.Title, c.ID))
+		}
+		fmt.Printf("\n%sDECISIONES — casillas y rombos: %s\n", in, strings.Join(cs, " · "))
+	}
+	if len(st.Arrows) > 0 {
+		fmt.Printf("\n%sFLECHAS QUE DIBUJÓ EL DISEÑADOR\n", in)
+		for _, e := range st.Arrows {
+			via := ""
+			if e.Via != "" {
+				via = "  «" + e.Via + "»"
+			}
+			fmt.Printf("%s  %s → %s%s\n", in, e.FromName, e.ToName, via)
+		}
+	}
+	if len(st.Links) > 0 {
+		fmt.Printf("\n%sPROTOTIPO — qué lleva a qué pantalla, por carril\n", in)
+		byLane := map[string][]figma.Edge{}
+		var order []string
+		for _, e := range st.Links {
+			if _, ok := byLane[e.Lane]; !ok {
+				order = append(order, e.Lane)
+			}
+			byLane[e.Lane] = append(byLane[e.Lane], e)
+		}
+		for _, lane := range order {
+			name := lane
+			if name == "" {
+				name = "(sin rótulo)"
+			}
+			fmt.Printf("%s  en «%s»\n", in, name)
+			for _, e := range byLane[lane] {
+				fmt.Printf("%s    %s —[%s]→ %s\n", in, e.FromName, e.Via, e.ToName)
+			}
+		}
+	}
+	if len(st.Variants) > 0 {
+		fmt.Printf("\n%sVARIANTES — pantallas que dicen lo mismo en otro estado o carril\n", in)
+		for _, v := range st.Variants {
+			fmt.Printf("%s  «%s» ×%d  en %s\n", in, v.Title, len(v.Screens), strings.Join(quoteAll(v.Lanes), ", "))
+		}
+	}
+	if len(st.Components) > 0 {
+		var cs []string
+		for i, c := range st.Components {
+			if i == 12 {
+				cs = append(cs, fmt.Sprintf("… y %d más", len(st.Components)-12))
+				break
+			}
+			cs = append(cs, fmt.Sprintf("%s ×%d", c.Name, c.Uses))
+		}
+		fmt.Printf("\n%sCOMPONENTES más usados: %s\n", in, strings.Join(cs, " · "))
+	}
+	if len(st.References) > 0 {
+		fmt.Printf("%sREFERENCIAS pegadas en el lienzo (capturas, fotos): %d\n", in, len(st.References))
+	}
+	for _, sub := range st.Sections {
+		fmt.Println()
+		printStructure(sub, level+1)
+	}
+}
+
+func quoteAll(list []string) []string {
+	out := make([]string, len(list))
+	for i, s := range list {
+		out[i] = "«" + s + "»"
+	}
+	return out
+}
+
+// kindName traduce el tipo de pantalla para leerlo; el JSON lleva el id.
+func kindName(k string) string {
+	switch k {
+	case "mobile":
+		return "móvil"
+	case "textless":
+		return "sin texto"
+	case "choice":
+		return "decisión"
+	case "reference":
+		return "referencia"
+	}
+	return k
+}
