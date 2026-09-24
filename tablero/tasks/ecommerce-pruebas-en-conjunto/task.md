@@ -6,25 +6,31 @@ created: "2026-09-23T17:30:00-05:00"
 canon: []
 jira: [CORE-543]
 jira_title: "Ecommerce: pruebas en conjunto de todo el flujo"
-ramas: feat/ecommerce-checkout-por-settings
+ramas: feat/ecommerce-checkout-por-settings, fix/restaurar-ecommerce-en-qa
 ---
 
 ## Pendientes
 
-- [ ] **Mergear `legacy-application#201` a `develop`**; termina cuando el checkout de un comercio no
-      habilitado en `settings` se quede en `aliados` en dev.
-- [ ] **Habilitar en QA las sucursales ecommerce que se van a probar por el wizard** (hash en
-      `new_frontend_allied_branches`); termina cuando su rebote aparezca en la sonda de abajo.
-      Depende de: #201 desplegado. Hoy ninguna sucursal ecommerce está habilitada.
-- [ ] **Decidir a qué wizard rebota `aliados.dev`**: cambiar `NEW_FRONTEND_BASE_URL` del secreto
-      `dev/legacy-application` (arrastra los otros seis flujos del monolito) o darle al checkout una
-      variable propia. Termina cuando la sonda devuelva `originaciones-qa`.
+- [ ] **Mergear `frontend-monorepo#1051` a `qa` y redesplegar el front de QA**; termina cuando
+      `https://originaciones-qa.dev.creditop.com/ecommerce/13874eb6/checkout` deje de dar 404.
+      Repone lo que el merge de #1048 revirtió en `qa`.
+- [ ] **Preguntarle a Santi si su front de Credito365 quedó sin pushear**: #1048 no trae ningún cambio
+      de Credito365. Termina con su respuesta.
+- [ ] **Correr el flujo de punta a punta en QA con Pullman** (entrada `aliados`) una vez desplegado
+      #1051; termina cuando la compra llegue al listado y el veredicto a la bandeja de webhook.site.
+- [ ] **Actualizar el artefacto**: el destino medido del rebote sigue diciendo `originaciones.qa`;
+      hoy es `originaciones-qa.dev` (medido 19:13).
+- [x] ~~Mergear `legacy-application#201` a `develop`~~ — mergeado y desplegado: AHL (no habilitado)
+      se queda en el checkout viejo (`412` con el contrato falso de la sonda).
+- [x] ~~Habilitar a Pullman~~ — el comercio entero (`"94": true` en `new_frontend_allieds`, 23/9 16:11):
+      sus 112 sucursales, incluido el flujo de asesor de las 109 físicas.
+- [x] ~~Decidir a qué wizard rebota `aliados.dev`~~ — Oscar corrigió `NEW_FRONTEND_BASE_URL`, que
+      había quedado mal escrita (`originaciones.qa.creditop.com`, sin DNS), y redesplegó: rebota a
+      `originaciones-qa.dev.creditop.com`.
 - [ ] **Unificar la lista de Corbeta**: el código de #169 tiene `[24, 209, 210, 211, 311]` y
       `settings.corbeta_allieds` dice `[209, 210, 211]` (y la fila está duplicada, ids 21 y 26).
 - [ ] **Leer `new_frontend_allied_branches` y `new_frontend_allieds` en producción** antes de llevar
       #201 a `main` (pide la VPN de prod).
-- [ ] Cuando se despliegue #201, actualizar el artefacto si cambian los valores de `settings` (están
-      fijos en la página, leídos el 23/9).
 
 ## Objetivo
 
@@ -79,6 +85,7 @@ webhook y el retorno se miran en webhook.site (la bandeja viene puesta).
 ## Referencias
 
 - [legacy-application#201](https://github.com/Creditop-SAS/legacy-application/pull/201) — el checkout decide por `settings`.
+- [frontend-monorepo#1051](https://github.com/Creditop-SAS/frontend-monorepo/pull/1051) — repone en `qa` lo que revirtió el merge de #1048.
 - Tarea `ecommerce-stateless` (CORE-30) — lo que llega hasta el listado, el webhook y el retorno.
 
 ## Tarea (publicable)
