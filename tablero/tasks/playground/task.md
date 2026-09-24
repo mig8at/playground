@@ -33,7 +33,9 @@ jira_title: ""
 
 **Objetivo.** Una sola forma de preguntar «datos, logs o eventos en tal ambiente», y **toda** la lógica
 en `connectors/`: qué fuente atiende cada ambiente, las credenciales, el chequeo de sólo lectura y la
-normalización de lo que vuelve. Las herramientas (tablero, trazador, harness, workers) sólo llaman.
+normalización de lo que vuelve. Y lo mismo para los servicios (canon, Jira, Confluence, Slack, Jev),
+con su propia regla: leer es libre y escribir hacia afuera se muestra antes de ejecutarse. Las
+herramientas (tablero, trazador, harness, workers) sólo llaman.
 
 **Por qué, medido el 2026-09-23.** Hay clientes repetidos, y ya no coinciden entre sí:
 
@@ -73,6 +75,31 @@ herramientas, con nombres distintos para lo mismo (`TABLERO_DB_*`, `E2E_DB_*`, `
 | `staging` | la misma base que `dev` | Loki `creditopdev`, ? | ? |
 | `prod` | Redash, auditado a nombre del token | Loki `creditop` | PostHog de producción |
 
+**Y los servicios: la segunda familia de `connectors/`.** canon, Jira, Confluence, Slack y Jev también
+viven ahí, pero su riesgo no es el ambiente sino ESCRIBIR hacia afuera: un issue, un mensaje, una
+revisión de canon que lee todo el equipo. Hoy:
+
+| servicio | cliente de hoy | lee | escribe |
+|---|---|---|---|
+| `canon` | `tablero/server/internal/canon` + `tools/canon.py` (envoltorio) | buscar, leer, código | borrador → piezas → cierre |
+| `atlassian/jira` | `tablero/server/internal/atlassian` + `cmd/jira-mcp` hecho a mano | issues, sprint | crear, mover, worklog |
+| `atlassian/confluence` | sólo `tools/confluence.py` | espacios, páginas | — |
+| `slack` | `tablero/server/internal/slack` + `cmd/slack-mcp` hecho a mano | canales, hilos | enviar |
+| `jev` | sólo `tablero/tools/jev_transport.py` | — | — (sin uso cableado desde el 2026-09-23) |
+
+Jira y Confluence comparten credenciales y cliente HTTP: son UN conector `atlassian` con dos partes.
+
+El contrato de esta familia:
+- **Leer es libre.** Escribir es un verbo aparte que **por defecto sólo muestra** lo que haría, y
+  ejecuta con `--apply`. Es lo que ya hacen `jira-create` con su vista previa y `canon-propose` frente
+  a `canon-write`, ahora como regla de todos.
+- **Todo texto que sale** a Jira o a Slack pasa por el guard (`internal/guard`), que se muda con ellos:
+  hoy lo aplica cada comando por su cuenta.
+- canon es el único con ambiente (`local` · `prod`), y es obligatorio igual que en los datos: lo que
+  se escribe en el local no lo ve el equipo.
+- Jev se porta como transporte y nada más: la regla del 2026-09-23 es no cablearlo a la interfaz hasta
+  que haya un uso decidido.
+
 **Fases** — cada una termina con el A/B idéntico, la copia vieja borrada y un chequeo que falla si
 vuelve a aparecer un cliente fuera de `connectors/` (se cablea, no se escribe):
 
@@ -89,11 +116,20 @@ vuelve a aparecer un cliente fuera de `connectors/` (se cablea, no se escribe):
    vez. El harness conserva su forense, pero su cliente HTTP (`pkg/loki.ts`) pasa a ser `pg logs
    --json`; lo mismo `workers/datos.py`.
 3. **`connectors/events`.** Lo mismo con PostHog: `trazador/server/posthog.go` + `harness/pkg/posthog.ts`.
-4. **Las credenciales, en un solo lugar por ambiente**, y fuera de los `.env` de cada herramienta las
-   claves que el conector ya resuelve. Se reescribe §«Variables de entorno» del `CLAUDE.md` raíz.
-5. **El registro de comandos**: `pg help --json` sale de la misma lista que el binario, y de ahí el
-   catálogo del hook de inicio y un servidor MCP con `sql`, `logs` y `events` como herramientas nativas
-   del agente.
+4. **Los servicios que ya están en Go se mudan**: `canon`, `atlassian/jira` y `slack` salen de
+   `tablero/server/internal` a `connectors/`, con el guard. Es mover y reapuntar imports: el A/B es la
+   consola del tablero y sus pruebas, antes y después, sin escribir nada afuera (las escrituras se
+   comparan en su modo de vista previa).
+5. **Los que están en Python se portan**: `atlassian/confluence` (`tools/confluence.py`, con `make
+   confluence` comparado verbo por verbo) y `jev` (el transporte, con sus pruebas offline). Con esto
+   `tools/canon.py` deja de ser necesario en cuanto `workers/` lea canon por el conector.
+6. **Las credenciales, en un solo lugar por ambiente y por servicio**, y fuera de los `.env` de cada
+   herramienta las claves que el conector ya resuelve. Se reescribe §«Variables de entorno» del
+   `CLAUDE.md` raíz.
+7. **El registro de comandos**: `pg help --json` sale de la misma lista que el binario, y de ahí el
+   catálogo del hook de inicio y UN servidor MCP con los conectores como herramientas nativas del agente
+   —los de lectura, y los de escritura con su vista previa—. Reemplaza a `jira-mcp` y `slack-mcp`, que
+   hoy se mantienen a mano.
 
 **Lo que NO entra.**
 - **Escribir.** La siembra del harness y su guarda (`pkg/db-safe.ts`) son lógica del harness, no del
