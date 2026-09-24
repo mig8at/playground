@@ -25,9 +25,9 @@ import { fileURLToPath } from 'node:url';
 
 /** Lo que el shell no toca. Todo lo demás se entrecomilla: un `CASOS='a@b=c;d'` lleva `@`, `=` y `;`,
  *  y pegarlo sin comillas es un comando que falla en la cara de quien confió en él. */
-const SEGURO_EN_SHELL = /^[A-Za-z0-9_@%+=:,./-]+$/;
+const SHELL_SAFE = /^[A-Za-z0-9_@%+=:,./-]+$/;
 
-const comillar = (v: string) => (SEGURO_EN_SHELL.test(v) ? v : `'${v.replaceAll("'", `'\\''`)}'`);
+const quote = (v: string) => (SHELL_SAFE.test(v) ? v : `'${v.replaceAll("'", `'\\''`)}'`);
 
 /**
  * El comando de `make` que reproduce la corrida.
@@ -40,15 +40,15 @@ const comillar = (v: string) => (SEGURO_EN_SHELL.test(v) ? v : `'${v.replaceAll(
  * en `dev` si nadie lo dice (`pkg/db.ts`). Una salida sin ambiente no se puede repetir ni contrastar, y
  * en esta casa dev y staging comparten la misma base: es la trampa de F-53 escrita en una anotación.
  */
-export function cmdMake(nombre: string, target: string, kv: Record<string, string | number | undefined> = {}): string {
-      const partes = [`make ${nombre}`];
+export function cmdMake(name: string, target: string, kv: Record<string, string | number | undefined> = {}): string {
+      const parts = [`make ${name}`];
       for (const [k, v] of Object.entries(kv)) {
             if (v === undefined || v === '' || v === 0) continue;
-            partes.push(`${k}=${comillar(String(v))}`);
+            parts.push(`${k}=${quote(String(v))}`);
       }
       // El target al final y siempre: se lee como la firma de la corrida.
-      partes.push(`TARGET=${target}`);
-      return partes.join(' ');
+      parts.push(`TARGET=${target}`);
+      return parts.join(' ');
 }
 
 /**
@@ -56,10 +56,10 @@ export function cmdMake(nombre: string, target: string, kv: Record<string, strin
  * son las líneas de apoyo; una vacía deja un renglón en blanco DENTRO de la cita, que es como se separa
  * un bloque sin salirse de ella.
  */
-export function anotacionMD(resumen: string, cmd: string, evidencia: string[] = []): string {
-      const hoy = new Date().toLocaleDateString('sv-SE');  // sv-SE da YYYY-MM-DD en hora LOCAL
-      const out = [`> **MEDICIÓN · ${hoy}** — ${resumen}`];
-      for (const l of evidencia) out.push(l.trim() === '' ? '>' : `> ${l}`);
+export function annotationMD(summary: string, cmd: string, evidence: string[] = []): string {
+      const today = new Date().toLocaleDateString('sv-SE');  // sv-SE da YYYY-MM-DD en hora LOCAL
+      const out = [`> **MEDICIÓN · ${today}** — ${summary}`];
+      for (const l of evidence) out.push(l.trim() === '' ? '>' : `> ${l}`);
       out.push(`> **Cómo se vuelve a comprobar:** \`${cmd}\``);
       return out.join('\n') + '\n';
 }
@@ -84,12 +84,12 @@ export const pie = (cmd: string) => `\n     ↻ ${cmd}`;
 export const PLAYGROUND = fileURLToPath(new URL('../../', import.meta.url));
 
 /** Lo que el validador rechazaría por forma, no por contenido: HTML y rutas de esta máquina. */
-const limpiar = (s: string) => s.replace(/[\r\n]+/g, ' ').replaceAll('<', '‹').replaceAll('>', '›')
+const clean = (s: string) => s.replace(/[\r\n]+/g, ' ').replaceAll('<', '‹').replaceAll('>', '›')
       .replace(/\/(?:Users|home)\/[^/\s]+\//g, '…/').replace(/(^|\s)~\//g, '$1…/').trim();
 
 /** El título es la conclusión en UNA línea de hasta 120 caracteres: el resumen de la corrida. */
-export function tituloBloque(resumen: string): string {
-      const t = limpiar(resumen).replace(/\.$/, '');
+export function blockTitle(summary: string): string {
+      const t = clean(summary).replace(/\.$/, '');
       return [...t].length <= 120 ? t : [...t].slice(0, 119).join('') + '…';
 }
 
@@ -97,10 +97,10 @@ export function tituloBloque(resumen: string): string {
  * El bloque en el Markdown que recibe `make tarea-bloque`: `# título`, y el comando en su caja con lo que
  * dio. `resultado` es la evidencia por caso, en una línea; sin evidencia, el resumen.
  */
-export function bloqueMD(resumen: string, cmd: string, evidencia: string[] = []): string {
-      const resultado = evidencia.map(limpiar).filter(Boolean).join('; ') || limpiar(resumen);
-      const corto = [...resultado].length <= 2000 ? resultado : [...resultado].slice(0, 1999).join('') + '…';
-      return `# ${tituloBloque(resumen)}\n\n\`\`\`harness\n${cmd}\n\`\`\`\nResultado: ${corto}\n`;
+export function blockMD(summary: string, cmd: string, evidence: string[] = []): string {
+      const result = evidence.map(clean).filter(Boolean).join('; ') || clean(summary);
+      const short = [...result].length <= 2000 ? result : [...result].slice(0, 1999).join('') + '…';
+      return `# ${blockTitle(summary)}\n\n\`\`\`harness\n${cmd}\n\`\`\`\nResultado: ${short}\n`;
 }
 
 /**
@@ -110,11 +110,11 @@ export function bloqueMD(resumen: string, cmd: string, evidencia: string[] = [])
  * por MAKEFLAGS las variables de la línea de comando del padre (`TARGET=`, `CASOS=`…). No rompería hoy,
  * pero un `N=` o un `SECO=` que viniera de afuera cambiaría a qué tarea va el bloque sin decirlo.
  */
-export function agregarBloque(tarea: string, md: string, seco = false): { ok: boolean; salida: string } {
+export function addBlock(task: string, md: string, dry = false): { ok: boolean; salida: string } {
       const env = { ...process.env };
       for (const k of ['MAKEFLAGS', 'MFLAGS', 'MAKELEVEL', 'MAKEOVERRIDES']) delete env[k];
-      const r = spawnSync('make', ['-s', '-C', PLAYGROUND, 'tarea-bloque', `N=${tarea}`, 'ARCHIVO=-', 'VIA=harness',
-            ...(seco ? ['SECO=1'] : [])], { input: md, encoding: 'utf8', env });
+      const r = spawnSync('make', ['-s', '-C', PLAYGROUND, 'tarea-bloque', `N=${task}`, 'ARCHIVO=-', 'VIA=harness',
+            ...(dry ? ['SECO=1'] : [])], { input: md, encoding: 'utf8', env });
       return { ok: r.status === 0, salida: `${r.stdout ?? ''}${r.stderr ?? ''}`.trim() };
 }
 
@@ -123,11 +123,11 @@ export function agregarBloque(tarea: string, md: string, seco = false): { ok: bo
  * Un bloque que no entra no cambia el desenlace de la corrida —la corrida pasó o no pasó igual—, pero
  * se dice fuerte, porque «no se agregó» leído como «se agregó» es una tarea sin su prueba.
  */
-export function emitir(resumen: string, cmd: string, evidencia: string[] = []): void {
-      if (process.env.MD === '1') console.log('\n' + anotacionMD(resumen, cmd, evidencia));
-      const tarea = process.env.BLOQUE;
-      if (!tarea) return;
-      const { ok, salida } = agregarBloque(tarea, bloqueMD(resumen, cmd, evidencia));
-      console.log(ok ? `\n  ▸ bloque agregado a la pila de la tarea ${tarea}`
-            : `\n  ✗ el bloque NO se agregó a la tarea ${tarea}:\n     ${salida.split('\n').slice(-3).join('\n     ')}`);
+export function emit(summary: string, cmd: string, evidence: string[] = []): void {
+      if (process.env.MD === '1') console.log('\n' + annotationMD(summary, cmd, evidence));
+      const task = process.env.BLOQUE;
+      if (!task) return;
+      const { ok, salida: output } = addBlock(task, blockMD(summary, cmd, evidence));
+      console.log(ok ? `\n  ▸ bloque agregado a la pila de la tarea ${task}`
+            : `\n  ✗ el bloque NO se agregó a la tarea ${task}:\n     ${output.split('\n').slice(-3).join('\n     ')}`);
 }

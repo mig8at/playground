@@ -43,13 +43,13 @@ process.env.CFE_TARGET ||= 'local';
    2026-09-09: con el import estático `TARGET` es `dev` y el host la RDS; con este orden es `local` y
    127.0.0.1. Por eso los imports de `db`/`inject` de más abajo ya eran dinámicos — a este le faltaba.
    Si lo «ordenás» subiéndolo, vuelve el defecto y no falla: cambia de base en silencio. */
-const { telefonoDeLaSucursal } = await import('../pkg/telefonos.ts');
+const { branchPhone } = await import('../pkg/telefonos.ts');
 const { one, exec, query, close } = await import('../pkg/db.ts');
 const { synthFill } = await import('../pkg/inject.ts');
 // Misma capa de aserción que el camino VISUAL (dev/guided.spec.ts). Que "pasó" signifique lo mismo en
 // los dos es lo que hace informativa una divergencia: mismas aserciones + distinto transporte ⇒ la
 // diferencia ES el frontend.
-const traza = await import('../pkg/trace.ts');
+const trace = await import('../pkg/trace.ts');
 // El forense de logs es un módulo APARTE del de aserciones y así debe quedar: `traza` decide, `loki`
 // explica. Mezclarlos sería el primer paso para que una ausencia de log empiece a fallar corridas.
 const loki = await import('../pkg/loki.ts');
@@ -77,12 +77,12 @@ const UA = 'Mozilla/5.0 (iPhone; CPU iPhone OS 16_5 like Mac OS X) AppleWebKit/6
 // `.env`: la clave sólo existe en `.env.qa` y `.env.staging`, así que contra esos targets este runner
 // mandaba el asesor del catálogo LOCAL —o ninguno— con el aplomo de haberlo leído. Import dinámico
 // porque este archivo fuerza `E2E_TARGET` arriba y un import estático corre antes (F-187).
-const { subDelAsesor } = await import('../pkg/preflight-sucursal.ts');
-const { crearCliente } = await import('../pkg/http.ts');
-const ASESOR_SUB = subDelAsesor();
+const { advisorSubject } = await import('../pkg/preflight-sucursal.ts');
+const { createCustomer } = await import('../pkg/http.ts');
+const ADVISOR_SUB = advisorSubject();
 const HDRS: Record<string, string> = {
     'content-type': 'application/json', accept: 'application/json', 'user-agent': UA,
-    ...(ASESOR_SUB ? { 'x-cognito-identity-id': ASESOR_SUB } : {}),
+    ...(ADVISOR_SUB ? { 'x-cognito-identity-id': ADVISOR_SUB } : {}),
 };
 
 const flows = flowsRaw;
@@ -93,14 +93,14 @@ function scrub(): void {
 
 // El cliente vive en `pkg/http.ts`: había CINCO copias de esto, y las cinco confundían un
 // timeout con una caída y no anotaban nada. `http` queda como el verbo de siempre.
-const cliente = crearCliente({ base: API, headers: HDRS, timeoutMs: 60_000, recorte: 160 });
-const http = (method: string, path: string, body?: unknown): Promise<{ status: number; json: any }> => cliente.llamar(method, path, body);
+const customer = createCustomer({ base: API, headers: HDRS, timeoutMs: 60_000, recorte: 160 });
+const http = (method: string, path: string, body?: unknown): Promise<{ status: number; json: any }> => customer.llamar(method, path, body);
 
 /** register + INSERT del uReq + buró sintético. Devuelve el id, o '' si falló. */
 async function seed(hash: string, amount: number): Promise<string> {
     /* El largo del móvil lo valida el país del COMERCIO: contra uno de fuera de Colombia el registro
        se cae con un 422 y el sweep reporta «seed falló» sin decir por qué. */
-    PHONE = await telefonoDeLaSucursal(hash, Number(PHONE));
+    PHONE = await branchPhone(hash, Number(PHONE));
     scrub();
     const reg = await http('POST', '/api/onboarding/phone/register', {
         phone_number: PHONE, phoneNumber: PHONE, terms: true, policies: true,
@@ -112,9 +112,9 @@ async function seed(hash: string, amount: number): Promise<string> {
     if (!br) return '';
     // El asesor sale del sub de Cognito que exporta bin/asesor (mismo criterio que guided.spec.ts);
     // si no está en el entorno, se cae al primer asesor del comercio para no dejarlo NULL.
-    const asesorSub = ASESOR_SUB;
-    const asesorId = (asesorSub
-        ? (await one<{ id: number }>('SELECT id FROM users WHERE cognito_id=? LIMIT 1', [asesorSub]).catch(() => null))?.id
+    const advisorSub = ADVISOR_SUB;
+    const advisorId = (advisorSub
+        ? (await one<{ id: number }>('SELECT id FROM users WHERE cognito_id=? LIMIT 1', [advisorSub]).catch(() => null))?.id
         : null)
         ?? (await one<{ id: number }>('SELECT id FROM users WHERE allied_branch_id=? AND cognito_id IS NOT NULL LIMIT 1', [br.b]).catch(() => null))?.id
         ?? null;
@@ -124,7 +124,7 @@ async function seed(hash: string, amount: number): Promise<string> {
         // el login y los results de Ábaco mueren con "Column 'corporate_user_id' cannot be null".
         // `guided.spec.ts` ya lo sembraba; acá faltaba.
         'INSERT INTO user_requests (user_id, allied_id, allied_branch_id, lender_id, amount, original_amount, user_request_status_id, corporate_user_id, credit_line_id, fee_number, fee_value, rate, created_at, updated_at) VALUES (?,?,?,NULL,?,?,1,?,1,0,0,0,NOW(),NOW())',
-        [uid, br.a, br.b, amount, amount, asesorId],
+        [uid, br.a, br.b, amount, amount, advisorId],
     ).catch(() => null);
     if (!ins?.insertId) return '';
     await synthFill(ins.insertId, { income: 2_500_000, score: 700 });
@@ -198,13 +198,13 @@ async function closeRt2(slug: string, lenderId: number, amount: number): Promise
     if (!ur) { console.log('✗ seed falló'); return; }
     console.log(`■ cierre headless · ${slug} · lender #${lenderId} · uReq ${ur} · monto ${amount.toLocaleString('es-CO')}`);
 
-    traza.trazarUReq(ur);
+    trace.traceUReq(ur);
     const step = async (name: string, method: string, path: string, body?: unknown) => {
         const r = await http(method, path, body);
         console.log(`  ${r.status === 200 ? '●' : '✗'} ${name.padEnd(24)} HTTP ${r.status} · ${trim(r.json)}`);
         // cada llamada es el equivalente headless de una pantalla → misma traza contrastada que el visual
-        traza.paso('API', name);
-        await traza.drenar();
+        trace.step('API', name);
+        await trace.drain();
         return r;
     };
 
@@ -212,7 +212,7 @@ async function closeRt2(slug: string, lenderId: number, amount: number): Promise
     if (!sel.json?.data?.standBy) {
         console.log('  ⚠ la selección NO devolvió standBy — esto no es un cierre in-platform; corto acá.');
         // Y se JUZGA igual: cortar en el primer paso es "quedó a mitad" (exit 2), no un cierre exitoso.
-        await cerrarYJuzgar(ur);
+        await closeAndJudge(ur);
         return;
     }
 
@@ -257,7 +257,7 @@ async function closeRt2(slug: string, lenderId: number, amount: number): Promise
         await step('authorize', 'POST', '/api/loans/requests/promissory-note/validate/authorize', { user_request_id: Number(ur) });
     }
 
-    await cerrarYJuzgar(ur);
+    await closeAndJudge(ur);
 }
 
 /**
@@ -267,9 +267,9 @@ async function closeRt2(slug: string, lenderId: number, amount: number): Promise
  * una corrida que no pasó del primer paso. Es exactamente el bug que el comentario de acá abajo dice
  * haber arreglado, sobreviviendo en el otro camino. Toda salida pasa por acá.
  */
-async function cerrarYJuzgar(ur: number | string): Promise<void> {
-    await traza.resumen();
-    const v = await traza.veredicto(ur, process.env.E2E_RESULT ?? 'success');
+async function closeAndJudge(ur: number | string): Promise<void> {
+    await trace.summary();
+    const v = await trace.verdict(ur, process.env.E2E_RESULT ?? 'success');
     // Antes esto era un console.log y sweep SIEMPRE salía 0: podía imprimir "estado final: 8 Cancelado"
     // y reportar éxito. Ahora el desenlace decide el exit code, que es lo que lo vuelve usable en cadena.
     if (!v.existe || v.malo || v.miente.length) process.exitCode = 1;
@@ -277,7 +277,7 @@ async function cerrarYJuzgar(ur: number | string): Promise<void> {
 
     // El POR QUÉ, solo cuando hizo falta. Va DESPUÉS del exit code a propósito: el forense no lo toca —
     // la BD ya dictó el veredicto y esto solo lo explica. Si cerró bien, ni consulta.
-    await loki.forenseAlCerrar(ur, v);
+    await loki.forensicOnClose(ur, v);
 }
 
 // ───────────────────────────── abaco (renting) ─────────────────────────────
@@ -294,24 +294,24 @@ async function abacoFlow(slug: string, lenderId: number): Promise<void> {
     });
     console.log(`  ● select                 HTTP ${sel.status}`);
 
-    const paso = async (n: string, p: string, b: unknown) => {
+    const stepItem = async (n: string, p: string, b: unknown) => {
         const r = await http('POST', p, b);
         console.log(`  ${r.json?.code?.startsWith?.('ABAC') || r.json?.code === 'MOTV1001' ? '●' : '✗'} ${n.padEnd(22)} ${r.json?.code ?? r.status} · ${String(r.json?.message ?? '').slice(0, 52)}`);
         return r.json;
     };
 
-    const req = await paso('requiere Ábaco', '/api/onboarding/motai/check-abaco-requirement', { userRequestId: Number(ur) });
+    const req = await stepItem('requiere Ábaco', '/api/onboarding/motai/check-abaco-requirement', { userRequestId: Number(ur) });
     if (req?.code !== 'MOTV1001') { console.log('  ⚠ este lender NO pide Ábaco (¿product != renting?) — corto acá.'); return; }
 
-    const init = await paso('init/gig-economy', '/api/onboarding/scraping/init/gig-economy', { partnerBranchId: hash, creditProcessId: Number(ur) });
+    const init = await stepItem('init/gig-economy', '/api/onboarding/scraping/init/gig-economy', { partnerBranchId: hash, creditProcessId: Number(ur) });
     const d = init?.data ?? {};
     if (!d.customerId) { console.log('  ⚠ init sin customerId — revisá mock-abaco (los campos van al nivel RAÍZ).'); return; }
 
-    const comun = { token: d.token, platform: 'uber', customerId: d.customerId, creditProcessId: Number(ur), sessionId: d.sessionId };
-    await paso('login step-1', '/api/onboarding/scraping/login/step-1', { ...comun, credentials: { phone: PHONE } });
+    const common = { token: d.token, platform: 'uber', customerId: d.customerId, creditProcessId: Number(ur), sessionId: d.sessionId };
+    await stepItem('login step-1', '/api/onboarding/scraping/login/step-1', { ...common, credentials: { phone: PHONE } });
     // step-2 es el que marca `auth: '200 - OK'` en el log; sin él el fixture local no genera ingresos.
-    await paso('login step-2', '/api/onboarding/scraping/login/step-2', { ...comun, _sessionCookie: '', credentials: { code: '1234' } });
-    await paso('results', '/api/onboarding/scraping/results', { customerId: d.customerId, creditProcessId: Number(ur) });
+    await stepItem('login step-2', '/api/onboarding/scraping/login/step-2', { ...common, _sessionCookie: '', credentials: { code: '1234' } });
+    await stepItem('results', '/api/onboarding/scraping/results', { customerId: d.customerId, creditProcessId: Number(ur) });
 
     const log = await one<{ d: string }>("SELECT CAST(data_json AS CHAR) d FROM user_request_additional_information WHERE user_request_id=? AND type_data='Abaco results' ORDER BY id DESC LIMIT 1", [ur]).catch(() => null);
     if (log) {

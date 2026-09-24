@@ -37,7 +37,7 @@ import { env } from './env.ts';
 const ROOT = join(dirname(new URL(import.meta.url).pathname), '..');
 
 /** El hash que declara `.flows.json` para un slug, por target. Espeja `branchHashForSlug` del panel. */
-export function hashDelCatalogo(slug: string, target = 'local'): string {
+export function catalogHash(slug: string, target = 'local'): string {
       try {
             const j = JSON.parse(readFileSync(join(ROOT, '.flows.json'), 'utf8'));
             const m = j?.merchants?.[slug];
@@ -57,13 +57,13 @@ export function hashDelCatalogo(slug: string, target = 'local'): string {
  * `.env.<target>` y, si no está, `asesor.sub` de `.flows.json`.
  *
  * ⚠ Vive acá porque los tres que preguntan lo resolvían cada uno a su manera: `bin/asesor` con
- * `envget` + `fget`, el panel con `asesorSub()`, y el caminador leía sólo la variable de entorno — que
+ * `envget` + `fget`, el panel con `advisorSub()`, y el caminador leía sólo la variable de entorno — que
  * en `local` no está, así que su chequeo se saltaba sin decir nada y parecía que no había desajuste.
  * Tres implementaciones de la misma pregunta es como una se queda atrás.
  */
-export function subDelAsesor(): string {
-      const deEnv = env('E2E_ASESOR_SUB').trim();
-      if (deEnv) return deEnv;
+export function advisorSubject(): string {
+      const fromEnv = env('E2E_ASESOR_SUB').trim();
+      if (fromEnv) return fromEnv;
       try {
             const j = JSON.parse(readFileSync(join(ROOT, '.flows.json'), 'utf8'));
             return String(j?.asesor?.sub ?? '').trim();
@@ -78,7 +78,7 @@ function apiBase(): string {
       return b.replace(/\/+$/, '').replace(/\/api$/, '');
 }
 
-export interface SucursalDelAsesor {
+export interface AdvisorBranch {
       userId: number | null;
       hash: string;
       nombre: string;
@@ -95,7 +95,7 @@ export interface SucursalDelAsesor {
  *
  * Devuelve `null` si el backend no contesta o no reconoce al sub (sin inventar nada).
  */
-export async function sucursalDelAsesor(sub: string, timeoutMs = 20_000): Promise<SucursalDelAsesor | null> {
+export async function advisorBranch(sub: string, timeoutMs = 20_000): Promise<AdvisorBranch | null> {
       if (!sub.trim()) return null;
       try {
             const res = await fetch(`${apiBase()}/api/onboarding/loan-application/user`, {
@@ -118,7 +118,7 @@ export async function sucursalDelAsesor(sub: string, timeoutMs = 20_000): Promis
       }
 }
 
-export interface Desajuste {
+export interface Mismatch {
       /** `true` sólo cuando se pudo comprobar Y coinciden. Un `false` con `motivo` de «no se pudo» NO es un desajuste. */
       coincide: boolean;
       /** `true` cuando se comprobó de verdad (el backend contestó). */
@@ -126,7 +126,7 @@ export interface Desajuste {
       slug: string;
       target: string;
       esperada: string;
-      asesor: SucursalDelAsesor | null;
+      asesor: AdvisorBranch | null;
       sub: string;
       motivo: string;
 }
@@ -136,29 +136,29 @@ export interface Desajuste {
  *
  * No es el chequeo completo —falta la tercera fuente, la sesión cacheada, que no se puede leer sin
  * loguear (el `storageState` guarda cookies cifradas, no un JWT)—, y por eso existe además
- * `avisoDeRedireccion()`: esa mitad se caza EN la corrida, cuando el wizard redirige.
+ * `redirectNotice()`: esa mitad se caza EN la corrida, cuando el wizard redirige.
  */
-export async function preflightSucursal(slug: string, target: string, sub: string): Promise<Desajuste> {
-      const esperada = hashDelCatalogo(slug, target);
-      const base: Desajuste = {
-            coincide: false, comprobado: false, slug, target, esperada, asesor: null, sub, motivo: '',
+export async function preflightBranch(slug: string, target: string, sub: string): Promise<Mismatch> {
+      const expectedOne = catalogHash(slug, target);
+      const base: Mismatch = {
+            coincide: false, comprobado: false, slug, target, esperada: expectedOne, asesor: null, sub, motivo: '',
       };
-      if (!esperada) return { ...base, motivo: `no sé el hash de la sucursal de '${slug}'` };
+      if (!expectedOne) return { ...base, motivo: `no sé el hash de la sucursal de '${slug}'` };
       if (!sub.trim()) return { ...base, motivo: `sin E2E_ASESOR_SUB para ${target}: no hay a quién preguntarle` };
 
-      const asesor = await sucursalDelAsesor(sub);
-      if (!asesor) {
+      const advisor = await advisorBranch(sub);
+      if (!advisor) {
             return { ...base, motivo: `el backend de ${target} no contestó, o no reconoce ese sub — no se pudo comprobar` };
       }
-      if (!asesor.hash) {
-            return { ...base, comprobado: true, asesor, motivo: 'el asesor no tiene sucursal asignada' };
+      if (!advisor.hash) {
+            return { ...base, comprobado: true, asesor: advisor, motivo: 'el asesor no tiene sucursal asignada' };
       }
       return {
             ...base,
             comprobado: true,
-            coincide: asesor.hash === esperada,
-            asesor,
-            motivo: asesor.hash === esperada ? 'coinciden' : 'el catálogo y el backend dan sucursales distintas',
+            coincide: advisor.hash === expectedOne,
+            asesor: advisor,
+            motivo: advisor.hash === expectedOne ? 'coinciden' : 'el catálogo y el backend dan sucursales distintas',
       };
 }
 
@@ -168,7 +168,7 @@ export async function preflightSucursal(slug: string, target: string, sub: strin
  * Se devuelve como texto y no se imprime acá porque los dos que llaman formatean distinto: el panel lo
  * mete en su rastro y `bin/asesor` lo saca por stdout.
  */
-export function avisoDesajuste(d: Desajuste): string[] {
+export function mismatchNotice(d: Mismatch): string[] {
       if (d.coincide) return [];
       if (!d.comprobado) return [`⚠ sucursal sin verificar: ${d.motivo}`];
       const real = d.asesor?.hash ? `${d.asesor.hash} (${d.asesor.nombre || '?'})` : '(ninguna)';
@@ -190,12 +190,12 @@ export function avisoDesajuste(d: Desajuste): string[] {
  * `bin/asesor` y los runners ya ven ese 302 y lo imprimen como un salto más de la navegación. Esto lo
  * convierte en lo que es: el aviso de que el anuncio caducó.
  */
-export function avisoDeRedireccion(pedida: string, aterrizada: string): string[] {
-      if (!pedida || !aterrizada || pedida === aterrizada) return [];
+export function redirectNotice(requested: string, landed: string): string[] {
+      if (!requested || !landed || requested === landed) return [];
       return [
-            `⚠ EL WIZARD TE MOVIÓ DE SUCURSAL: pediste ${pedida} y aterrizaste en ${aterrizada}.`,
-            `  Las entidades que anunció el panel son las de ${pedida} — las que vas a ver son las de`,
-            `  ${aterrizada}. Es la sucursal que el backend tiene asignada al asesor logueado, y gana`,
+            `⚠ EL WIZARD TE MOVIÓ DE SUCURSAL: pediste ${requested} y aterrizaste en ${landed}.`,
+            `  Las entidades que anunció el panel son las de ${requested} — las que vas a ver son las de`,
+            `  ${landed}. Es la sucursal que el backend tiene asignada al asesor logueado, y gana`,
             `  siempre sobre la del catálogo. Si la sesión de .auth/ quedó de otra corrida, puede ser`,
             `  incluso otro asesor: borrala y volvé a loguear.`,
       ];

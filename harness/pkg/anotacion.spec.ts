@@ -8,33 +8,33 @@
 // una tarea. Se prueba porque el modo de falla es silencioso: una forma que el tablero no reconoce se
 // ve bien en el markdown y nadie se entera de que no es lo que dice ser.
 import { expect, test } from '@playwright/test';
-import { agregarBloque, anotacionMD, bloqueMD, cmdMake } from './anotacion.ts';
+import { addBlock, annotationMD, blockMD, cmdMake } from './anotacion.ts';
 import { existsSync, readFileSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { join } from 'node:path';
 
-const HOY = new Date().toLocaleDateString('sv-SE');
+const TODAY = new Date().toLocaleDateString('sv-SE');
 
 test.describe('la anotación tiene la forma que el tablero parsea', () => {
       test('el marcador con tipo y fecha arranca la primera línea', () => {
-            const md = anotacionMD('1/1 cerraron.', 'make harness-caso CASOS=pullman TARGET=local');
-            expect(md.startsWith(`> **MEDICIÓN · ${HOY}** — `)).toBe(true);
+            const md = annotationMD('1/1 cerraron.', 'make harness-caso CASOS=pullman TARGET=local');
+            expect(md.startsWith(`> **MEDICIÓN · ${TODAY}** — `)).toBe(true);
       });
 
       test('NINGUNA línea se sale de la cita', () => {
             // Una línea fuera de `>` corta el bloque, y todo lo que sigue deja de ser parte de la
             // anotación: el `Cómo` queda huérfano y la medición pierde justo su fuente.
-            const md = anotacionMD('x', 'make harness-caso TARGET=local', ['una', '', 'otra']);
+            const md = annotationMD('x', 'make harness-caso TARGET=local', ['una', '', 'otra']);
             for (const l of md.trimEnd().split('\n')) expect(l.startsWith('>')).toBe(true);
       });
 
       test('el comando cierra como «Cómo se vuelve a comprobar»', () => {
             const cmd = 'make harness-caso CASOS=pullman TARGET=local';
-            expect(anotacionMD('x', cmd)).toContain(`**Cómo se vuelve a comprobar:** \`${cmd}\``);
+            expect(annotationMD('x', cmd)).toContain(`**Cómo se vuelve a comprobar:** \`${cmd}\``);
       });
 
       test('una línea vacía separa sin salirse de la cita', () => {
-            expect(anotacionMD('x', 'make y TARGET=local', ['a', '', 'b'])).toContain('\n>\n');
+            expect(annotationMD('x', 'make y TARGET=local', ['a', '', 'b'])).toContain('\n>\n');
       });
 });
 
@@ -62,29 +62,29 @@ test.describe('el comando que se ofrece es pegable', () => {
 // exactamente el error que ya costó caro con los mocks (un mock no puede contradecir el documento del
 // que nació).
 test('la forma coincide con el regex REAL con que el tablero reconoce una anotación', () => {
-      const fuente = join(homedir(),
+      const source = join(homedir(),
             'Desktop/CREDITOP/playground/tablero/server/internal/store/annotations.go');
-      test.skip(!existsSync(fuente), `no está ${fuente}: el contrato queda SIN contrastar`);
+      test.skip(!existsSync(source), `no está ${source}: el contrato queda SIN contrastar`);
 
-      const go = readFileSync(fuente, 'utf8');
+      const go = readFileSync(source, 'utf8');
       const m = /reAnnotation\s*=\s*regexp\.MustCompile\(`([^`]+)`\)/.exec(go);
       expect(m, 'no encontré `reAnnotation` en annotations.go — ¿se renombró?').toBeTruthy();
 
       // El patrón de Go es compatible con JS salvo el flag inline `(?i)`, que JS no acepta inline.
-      const patron = m![1].replace('(?i)', '');
-      const re = new RegExp(patron, 'i');
-      const primera = anotacionMD('uReq 1 en `local`: cerró.', 'make harness-caso TARGET=local').split('\n')[0];
-      expect(re.test(primera.trim()),
-            `el tablero NO reconoce la primera línea:\n  ${primera}\n  patrón: ${patron}`).toBe(true);
+      const pattern = m![1].replace('(?i)', '');
+      const re = new RegExp(pattern, 'i');
+      const first = annotationMD('uReq 1 en `local`: cerró.', 'make harness-caso TARGET=local').split('\n')[0];
+      expect(re.test(first.trim()),
+            `el tablero NO reconoce la primera línea:\n  ${first}\n  patrón: ${pattern}`).toBe(true);
 });
 
 test.describe('el bloque que emite con BLOQUE=<tarea> es el que el tablero acepta', () => {
       test('título en una línea de hasta 120, el comando en su caja y lo que dio', () => {
-            const md = bloqueMD('x'.repeat(200) + '.', 'make harness-caso TARGET=local',
+            const md = blockMD('x'.repeat(200) + '.', 'make harness-caso TARGET=local',
                   ['✔ pullman · cerró', '✘ otro · <div> en /Users/yo/log']);
-            const [titulo] = md.split('\n');
-            expect(titulo.startsWith('# ')).toBe(true);
-            expect([...titulo.slice(2)].length).toBeLessThanOrEqual(120);
+            const [title] = md.split('\n');
+            expect(title.startsWith('# ')).toBe(true);
+            expect([...title.slice(2)].length).toBeLessThanOrEqual(120);
             // El HTML y las rutas de esta máquina se neutralizan antes: el validador los rechazaría, y un
             // mensaje de error de la corrida no puede dejar a la tarea sin su bloque.
             expect(md).toContain('```harness\nmake harness-caso TARGET=local\n```\nResultado: ✔ pullman · cerró; ✘ otro · ‹div› en …/log');
@@ -94,10 +94,10 @@ test.describe('el bloque que emite con BLOQUE=<tarea> es el que el tablero acept
       // le pregunta al de verdad y en seco (`make tarea-bloque … SECO=1`): si allá cambia una regla, acá se
       // nota — que es lo que una copia de sus reglas en TypeScript no haría nunca.
       test('el validador del tablero lo acepta, en seco', () => {
-            const md = bloqueMD('2/2 caso(s) en `local`.', cmdMake('harness-caso', 'local', { CASOS: 'pullman@meddipay=rechaza' }),
+            const md = blockMD('2/2 caso(s) en `local`.', cmdMake('harness-caso', 'local', { CASOS: 'pullman@meddipay=rechaza' }),
                   ['✔ pullman · uReq 123 · listado [23, 141]']);
-            const { ok, salida } = agregarBloque('tablero', md, true);
-            expect(salida).toContain('-n: no se escribió');
+            const { ok, salida: output } = addBlock('tablero', md, true);
+            expect(output).toContain('-n: no se escribió');
             expect(ok).toBe(true);
       });
 });

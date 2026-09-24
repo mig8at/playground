@@ -74,16 +74,16 @@ export interface EcommerceUrl { merchant: string; hash: string; amount: number; 
  * `E2E_DOC` gana sobre el caso a propósito: es el override por corrida de `dev/ecommerce.ts`, que
  * necesita un documento nuevo cada vez (son UNIQUE en `users`).
  */
-export function identidadDelCaso(): PersonalInfo {
-    const partes = (process.env.E2E_SYNTH_NAME || '').trim().split(/\s+/).filter(Boolean);
+export function caseIdentity(): PersonalInfo {
+    const parts = (process.env.E2E_SYNTH_NAME || '').trim().split(/\s+/).filter(Boolean);
     const doc = process.env.E2E_DOC || process.env.E2E_SYNTH_DOC || '1032456789';
     return {
         docType: process.env.E2E_SYNTH_DOCTYPE || 'CC',
         doc,
-        name: partes[0] || 'SYNTH',
-        surname: partes.slice(1).join(' ') || 'ECOM',
+        name: parts[0] || 'SYNTH',
+        surname: parts.slice(1).join(' ') || 'ECOM',
         // El default sigue el documento para que dos casos distintos no compartan correo: es UNIQUE.
-        email: process.env.E2E_SYNTH_EMAIL || (partes.length ? `synth-${doc}@creditop.com` : 'synth-ecom@creditop.com'),
+        email: process.env.E2E_SYNTH_EMAIL || (parts.length ? `synth-${doc}@creditop.com` : 'synth-ecom@creditop.com'),
     };
 }
 
@@ -106,7 +106,7 @@ export async function buildEcommerceUrl(merchantQ: string, phone = '', amount = 
     const amt = amount || 600000;
     // billing del contrato → pre-llena (y bloquea) el form personal-info del wizard. document_number configurable
     // con E2E_DOC (default sintético). En el harness, synthFill luego fija el doc real del user para el buró.
-    const p: PersonalInfo = identidadDelCaso();
+    const p: PersonalInfo = caseIdentity();
     // process_url al que el backend notifica al sellar Estado 11 (configurable con E2E_WEBHOOK_URL).
     // ecommerce_id=1 (Woo) concatena el order_identifier al process_url → normalizamos con '/' final
     // para que un receptor tipo webhook.site capture la notificación en .../{token}/{orderId}.
@@ -210,15 +210,15 @@ export async function vtexInit(
  * comercio ya no se disparaba. Es el mismo defecto que `ecommerceContract` documenta arriba y que
  * resolvió con una clave única por corrida.
  */
-export async function contratoParaSpec(
+export async function contractForSpec(
     merchantQ = 'amoblar',
-    opciones: { processUrl?: string; amount?: number; phone?: string } = {},
+    options: { processUrl?: string; amount?: number; phone?: string } = {},
 ) {
-    if (opciones.processUrl) process.env.E2E_WEBHOOK_URL = opciones.processUrl;
+    if (options.processUrl) process.env.E2E_WEBHOOK_URL = options.processUrl;
     // `phone` viaja DENTRO del contrato (billing.phone) porque así funciona el canal: el comercio ya
     // conoce al comprador y el wizard recibe el campo prellenado y BLOQUEADO. Un spec que necesite un
     // celular único por corrida —lo son en `users`— tiene que ponerlo acá, no tipearlo en la pantalla.
-    const u = await buildEcommerceUrl(merchantQ, opciones.phone ?? '', opciones.amount ?? 600_000);
+    const u = await buildEcommerceUrl(merchantQ, options.phone ?? '', options.amount ?? 600_000);
     const q = new URLSearchParams(u.checkout_path.split('?')[1]);
     return {
         hash: u.hash,

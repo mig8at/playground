@@ -2,7 +2,7 @@ import { test, expect } from '@playwright/test';
 import { config } from '../pkg/config';
 import { cognitoStorageState } from '../pkg/cognito';
 import { IPHONE_UA, openA } from '../pkg/windows';
-import { elegirEntidad } from '../pkg/wizard-navegador';
+import { chooseEntity } from '../pkg/wizard-navegador';
 
 /**
  * asesor-destino — ¿A DÓNDE MANDA EL FRONT al elegir una entidad, en el canal del ASESOR?
@@ -21,9 +21,9 @@ import { elegirEntidad } from '../pkg/wizard-navegador';
  */
 const UREQ = process.env.E2E_UREQ ?? '';
 const HASH = process.env.E2E_ASESOR_HASH ?? config.partnerHash;
-const NOMBRE = process.env.E2E_LENDER_NOMBRE ?? '';
+const NAME = process.env.E2E_LENDER_NOMBRE ?? '';
 
-test.skip(!UREQ || !NOMBRE, 'asesor-destino: pide E2E_UREQ y E2E_LENDER_NOMBRE');
+test.skip(!UREQ || !NAME, 'asesor-destino: pide E2E_UREQ y E2E_LENDER_NOMBRE');
 
 test('asesor · a dónde manda el front al elegir la entidad', async ({ browser }) => {
       test.setTimeout(120_000);
@@ -34,8 +34,8 @@ test('asesor · a dónde manda el front al elegir la entidad', async ({ browser 
             storageState: cognitoStorageState(),
       });
 
-      const listado = `/merchant/${HASH}/${UREQ}/lenders?amount=2000000`;
-      await page.goto(listado, { waitUntil: 'domcontentloaded' });
+      const listing = `/merchant/${HASH}/${UREQ}/lenders?amount=2000000`;
+      await page.goto(listing, { waitUntil: 'domcontentloaded' });
 
       // Si la sesión murió, el front desvía al Hosted UI y no hay nada que medir: cortar con un
       // mensaje que diga qué hacer, en vez de fallar en un selector que no existe.
@@ -43,19 +43,19 @@ test('asesor · a dónde manda el front al elegir la entidad', async ({ browser 
 
       // ⚠ Se usa el helper del harness y NO un localizador propio: el primer intento con
       // `locator('div').filter(...)` clickeó un botón que no era y la selección nunca llegó a la base
-      // (uReq 502397 quedó con `lender_id` NULL). `elegirEntidad` ya resuelve el caso de varios
+      // (uReq 502397 quedó con `lender_id` NULL). `chooseEntity` ya resuelve el caso de varios
       // botones con el mismo texto, y además devuelve los que VIO, que es lo que permite explicar un
       // fallo en vez de sólo reportarlo.
-      const antes = page.url();
-      const sel = await elegirEntidad(page, NOMBRE);
+      const before = page.url();
+      const sel = await chooseEntity(page, NAME);
       if (!sel.ok) {
             console.log(`BOTONES VISIBLES · ${sel.visibles.join(' | ')}`);
       }
-      expect(sel.ok, `no se pudo elegir ${NOMBRE}; visibles: ${sel.visibles.join(' | ')}`).toBe(true);
+      expect(sel.ok, `no se pudo elegir ${NAME}; visibles: ${sel.visibles.join(' | ')}`).toBe(true);
 
-      await page.waitForURL((u) => u.toString() !== antes, { timeout: 60_000 }).catch(() => {});
+      await page.waitForURL((u) => u.toString() !== before, { timeout: 60_000 }).catch(() => {});
       await page.waitForTimeout(3_000);
 
-      const destino = new URL(page.url()).pathname + new URL(page.url()).search;
-      console.log(`DESTINO · ${NOMBRE} · uReq ${UREQ} · canal asesor → ${destino}`);
+      const target = new URL(page.url()).pathname + new URL(page.url()).search;
+      console.log(`DESTINO · ${NAME} · uReq ${UREQ} · canal asesor → ${target}`);
 });

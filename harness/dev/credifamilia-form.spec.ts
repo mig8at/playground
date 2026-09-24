@@ -19,7 +19,7 @@ import { IPHONE_UA } from '../pkg/windows';
 const HASH = '76db47f5';
 const ALLIED_ID = 26;
 const BRANCH_ID = 3;
-const ASESOR_ID = 1827080;    // a.arismendy@uniandes.edu.co (corporate_user_id de la sesión)
+const ADVISOR_ID = 1827080;    // a.arismendy@uniandes.edu.co (corporate_user_id de la sesión)
 const CLIENT_ID = 1827671;    // usuario cliente existente en dev (dueño del user_request)
 const AMOUNT = 600000;
 
@@ -30,7 +30,7 @@ test('captura additional-info Credifamilia (form 6)', async ({ browser }) => {
     //    trae el schema 6 por URL, no depende de la resolución de form-type por lender.
     const ins = await exec(
         'INSERT INTO user_requests (user_id, allied_id, allied_branch_id, lender_id, amount, original_amount, user_request_status_id, corporate_user_id, credit_line_id, fee_number, fee_value, rate, created_at, updated_at) VALUES (?,?,?,NULL,?,?,9,?,1,0,0,0,NOW(),NOW())',
-        [CLIENT_ID, ALLIED_ID, BRANCH_ID, AMOUNT, AMOUNT, ASESOR_ID],
+        [CLIENT_ID, ALLIED_ID, BRANCH_ID, AMOUNT, AMOUNT, ADVISOR_ID],
     );
     const ur = ins.insertId;
     console.log(`\n>>> user_request sembrado: ${ur}  (para limpiar: DELETE FROM user_requests WHERE id=${ur})\n`);
@@ -40,7 +40,7 @@ test('captura additional-info Credifamilia (form 6)', async ({ browser }) => {
     const page = await ctx.newPage();
     page.on('console', (m) => { if (/error|form|schema/i.test(m.text())) console.log('  [browser]', m.text().slice(0, 160)); });
 
-    // 3) Salto directo al formulario dinámico. Flow = SELF-SERVICE (el que llena el CLIENTE): es público
+    // 3) Salto directo al formulario dinámico. Flow = SELF-SERVICE (el que llena el CUSTOMER): es público
     //    (public-layout solo acepta ecommerce|self-service; 'merchant' rebota a "/"). No necesita sesión.
     const url = `${config.feBaseUrl}/self-service/${HASH}/${ur}/additional-info/6`;
     console.log('>>> navegando a', url);

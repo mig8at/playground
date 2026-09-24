@@ -33,7 +33,7 @@ function flowIdOf(userRequestId: string): number | null {
     return (JSON.parse(out).flowId ?? null) as number | null;
 }
 
-/** code del trigger de buró: RKV24029 = Experian OMITIDO porque el flujo ya trae pre-aprobados. */
+/** code del trigger de buró: RKV24029 = Experian OMITTED porque el flujo ya trae pre-aprobados. */
 function experianTriggerCode(userRequestId: string): string {
     const out = execSync(
         `curl -s -H 'Host: ${HOST}' ${BACKEND}/api/v2/risk/check-hard-rules-trigger/experian-acierta/${userRequestId}`,

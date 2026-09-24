@@ -41,12 +41,12 @@ async function main(): Promise<void> {
     // piden reacciones opuestas del panel: al primero lo arregla el pre-login; al segundo no hay chequeo ni
     // warm posible y bloquear el launch por eso sería un falso muro (la corrida levanta el front y loguea).
     let cookies: Array<{ name: string; value: string; domain: string }> = [];
-    let hayCache = false;
+    let cacheExists = false;
     if (existsSync(COGNITO_STATE_PATH)) {
         try {
             const state = JSON.parse(readFileSync(COGNITO_STATE_PATH, 'utf8'));
             cookies = Array.isArray(state.cookies) ? state.cookies : [];
-            hayCache = true;
+            cacheExists = true;
         } catch { /* cache ilegible = como si no existiera */ }
     }
 
@@ -79,7 +79,7 @@ async function main(): Promise<void> {
     // `/merchant` con sesión válida → 302 a /merchant/{sucursal}/solicitar (o 200). Sin sesión → 302 a /login/Cognito.
     const toCognito = /login\.creditop\.com|auth\.[\w.-]*creditop\.com|amazoncognito|\/login(\?|$)|[?&]client_id=/i.test(loc);
     if (toCognito) {
-        if (!applicable.length) out({ status: 'missing', detail: hayCache ? 'el cache no tiene cookies para el front — falta el pre-login' : 'sin cache de sesión (nunca se logueó en este target)' });
+        if (!applicable.length) out({ status: 'missing', detail: cacheExists ? 'el cache no tiene cookies para el front — falta el pre-login' : 'sin cache de sesión (nunca se logueó en este target)' });
         out({ status: 'invalid', detail: `el front rebota a login → ${loc.slice(0, 80)}` });
     }
     if (r.status >= 200 && r.status < 400) out({ status: 'valid', detail: `HTTP ${r.status}${loc ? ` → ${loc.slice(0, 60)}` : ''}` });

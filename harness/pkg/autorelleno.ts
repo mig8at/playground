@@ -28,7 +28,7 @@
 // identidad propia, la persona de la pantalla no sería la de la solicitud sembrada y la corrida dejaría
 // de ser una sola historia.
 //
-// DOS REGLAS QUE LO HACEN PREDECIBLE, y no son negociables:
+// DOS RULES QUE LO HACEN PREDECIBLE, y no son negociables:
 //   · **nunca pisa lo que ya está escrito** — si tocaste un campo, es tuyo;
 //   · **nunca aprieta un botón de avanzar** — el «Continuar» lo das vos. Es lo que separa «me ahorra
 //     el tipeo» de «se me fue solo y no vi la pantalla».
@@ -44,9 +44,9 @@
 // Se apaga con `E2E_AUTORELLENO=0`.
 import { readFileSync } from 'node:fs';
 import type { BrowserContext, Page } from '@playwright/test';
-import { fechasSinteticas, fuenteInyectable } from './fecha-trio.ts';
+import { syntheticDates, injectableSource } from './fecha-trio.ts';
 
-export interface DatosAutorelleno {
+export interface AutofillData {
     telefono: string; otp: string; otpFirma: string; documento: string; email: string;
     nombre: string; segundoNombre: string; apellido: string; segundoApellido: string;
     nacimiento: string; expedicion: string; ingreso: string; monto: string;
@@ -64,21 +64,21 @@ export interface DatosAutorelleno {
  * quedó pegado el anterior», y no lo está: es la ventana vieja. Con el nombre a la vista, una ventana
  * sobreviviente se reconoce de un vistazo.
  */
-function comerciosDeFlows(): Record<string, string> {
+function flowMerchants(): Record<string, string> {
     try {
         const flows = JSON.parse(readFileSync(new URL('../.flows.json', import.meta.url), 'utf8'));
-        const mapa: Record<string, string> = {};
+        const stepMap: Record<string, string> = {};
         for (const [slug, m] of Object.entries<any>(flows?.merchants ?? {})) {
             for (const h of [m?.branch_hash, ...Object.values<any>(m?.por_target ?? {})]) {
-                if (typeof h === 'string' && h) mapa[h] = m?.name || slug;
+                if (typeof h === 'string' && h) stepMap[h] = m?.name || slug;
             }
         }
-        return mapa;
+        return stepMap;
     } catch { return {}; }
 }
 
 /** Los datos, de la misma cadena de env que usa `bin/asesor`. */
-export function datosDeEnv(): DatosAutorelleno {
+export function envData(): AutofillData {
     const tel = process.env.E2E_OTP_BYPASS_PHONE || '3131010101';
     return {
         telefono: tel,
@@ -89,7 +89,7 @@ export function datosDeEnv(): DatosAutorelleno {
         nombre: 'CARLOS', segundoNombre: 'ANDRES', apellido: 'RAMIREZ', segundoApellido: 'GOMEZ',
         // Las dos fechas, del módulo que también las usa del lado de Playwright (ahí está el porqué
         // de que sean años plausibles y no «hoy»).
-        ...fechasSinteticas(),
+        ...syntheticDates(),
         // ⚠ El ingreso sale de la MISMA cadena que el resto (el panel lo exporta como
         // `E2E_SYNTH_INCOME` desde su perfil). Estaba quemado en 2.500.000 y la perilla del panel no
         // llegaba a ninguna parte: el panel anunciaba «ingreso $X» y el wizard recibía otro número.
@@ -97,7 +97,7 @@ export function datosDeEnv(): DatosAutorelleno {
         ingreso: process.env.E2E_SYNTH_INCOME || '2500000', monto: '2000000',
         direccion: 'CALLE 90 # 15 - 20', empresa: 'HARNESS QA SAS',
         placa: 'ABC12D', serie: '9C2KC0810JR000001',
-        comercios: comerciosDeFlows(),
+        comercios: flowMerchants(),
     };
 }
 
@@ -113,23 +113,23 @@ export function datosDeEnv(): DatosAutorelleno {
  * (`pkg/fecha-trio.ts`)—; el segundo es el guion, que la usa. Van separados porque `addInitScript(fn)`
  * SERIALIZA la función: el guion no puede importar nada, así que la regla tiene que llegar por el
  * único canal que hay, que es otro script. Al revés no funciona: el guion correría sin la regla. */
-export async function instalarAutorelleno(context: BrowserContext, datos = datosDeEnv()): Promise<void> {
+export async function installAutofill(context: BrowserContext, data = envData()): Promise<void> {
     if (process.env.E2E_AUTORELLENO === '0') return;
-    await context.addInitScript({ content: fuenteInyectable() });
-    await context.addInitScript(guion, datos);
+    await context.addInitScript({ content: injectableSource() });
+    await context.addInitScript(script, data);
 }
 
 /** Para un `Page` suelto (specs que no pasan por `openWindow`). */
-export async function instalarAutorellenoEnPagina(page: Page, datos = datosDeEnv()): Promise<void> {
+export async function installAutofillOnPage(page: Page, data = envData()): Promise<void> {
     if (process.env.E2E_AUTORELLENO === '0') return;
-    await page.addInitScript({ content: fuenteInyectable() });
-    await page.addInitScript(guion, datos);
+    await page.addInitScript({ content: injectableSource() });
+    await page.addInitScript(script, data);
 }
 
 /* ── EL GUION QUE CORRE EN LA PÁGINA ────────────────────────────────────────────────────────────────
  * Se declara como función y se pasa a `addInitScript`, que la serializa: no puede cerrar sobre nada de
  * este módulo, así que todo lo que necesita entra por `datos`. */
-function guion(datos: DatosAutorelleno) {
+function script(data: AutofillData) {
     if ((window as any).__autorelleno) return;
     (window as any).__autorelleno = true;
 
@@ -146,12 +146,12 @@ function guion(datos: DatosAutorelleno) {
      * Es el mismo problema que el `seedField` del spec resuelve reintentando tecla por tecla contra el
      * `MoneyInput`; acá se ataca por la otra punta, que desde dentro de la página es la barata.
      */
-    function escribir(el: HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement, valor: string) {
+    function write(el: HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement, value: string) {
         const proto = el instanceof HTMLTextAreaElement ? HTMLTextAreaElement.prototype
             : el instanceof HTMLSelectElement ? HTMLSelectElement.prototype
                 : HTMLInputElement.prototype;
         const setter = Object.getOwnPropertyDescriptor(proto, 'value')?.set;
-        if (setter) setter.call(el, valor); else (el as any).value = valor;
+        if (setter) setter.call(el, value); else (el as any).value = value;
         el.dispatchEvent(new Event('input', { bubbles: true }));
         el.dispatchEvent(new Event('change', { bubbles: true }));
     }
@@ -162,18 +162,18 @@ function guion(datos: DatosAutorelleno) {
     };
 
     /** La pista de un campo: todo lo que lo describe, junto. Incluye el `<label>` asociado. */
-    function pista(el: HTMLElement): string {
-        const partes = [el.getAttribute('name'), el.id, el.getAttribute('placeholder'),
+    function hint(el: HTMLElement): string {
+        const parts = [el.getAttribute('name'), el.id, el.getAttribute('placeholder'),
             el.getAttribute('autocomplete'), el.getAttribute('aria-label'), el.getAttribute('inputmode')];
         if (el.id) {
             const lab = document.querySelector(`label[for="${CSS.escape(el.id)}"]`);
-            if (lab) partes.push(lab.textContent);
+            if (lab) parts.push(lab.textContent);
         }
-        const envuelto = el.closest('label');
-        if (envuelto) partes.push(envuelto.textContent);
-        const grupo = el.closest('[class*="field"],[class*="form-item"],[data-slot="form-item"]');
-        if (grupo) partes.push(grupo.querySelector('label,legend')?.textContent ?? '');
-        return norm(partes.filter(Boolean).join(' | '));
+        const wrapped = el.closest('label');
+        if (wrapped) parts.push(wrapped.textContent);
+        const group = el.closest('[class*="field"],[class*="form-item"],[data-slot="form-item"]');
+        if (group) parts.push(group.querySelector('label,legend')?.textContent ?? '');
+        return norm(parts.filter(Boolean).join(' | '));
     }
 
     /**
@@ -191,48 +191,48 @@ function guion(datos: DatosAutorelleno) {
      * de validación. La regla que queda: **para decidir QUÉ dato va, sólo la metadata del campo; el
      * texto de alrededor únicamente para controles que no tienen metadata.**
      */
-    function pistaConContexto(el: HTMLElement): string {
-        const partes = [pista(el)];
+    function hintWithContext(el: HTMLElement): string {
+        const parts = [hint(el)];
         let sube: HTMLElement | null = el.parentElement;
         for (let i = 0; i < 3 && sube; i++, sube = sube.parentElement) {
             const t = (sube.textContent || '').trim();
-            if (t && t.length < 400) partes.push(norm(t));
+            if (t && t.length < 400) parts.push(norm(t));
         }
-        return partes.filter(Boolean).join(' | ');
+        return parts.filter(Boolean).join(' | ');
     }
 
-    /* LAS REGLAS, EN ORDEN: la primera que matchea gana, así que van de lo más específico a lo más
+    /* LAS RULES, EN ORDEN: la primera que matchea gana, así que van de lo más específico a lo más
      * genérico. El orden no es cosmético — «segundo apellido» tiene que probarse antes que «apellido»,
      * y «fecha de expedicion» antes que cualquier `date`. */
-    const REGLAS: [RegExp, string][] = [
-        [/otp|codigo de verificacion|codigo sms|verification/, datos.otp],
-        [/segundo nombre|middle/, datos.segundoNombre],
-        [/segundo apellido|second last|apellido materno/, datos.segundoApellido],
-        [/primer apellido|apellido paterno|last ?name|apellidos?/, datos.apellido],
-        [/primer nombre|first ?name|nombres?(?! de la)/, datos.nombre],
-        [/fecha de expedicion|expedicion|issue ?date/, datos.expedicion],
-        [/fecha de nacimiento|nacimiento|birth/, datos.nacimiento],
-        [/celular|telefono|movil|phone|\btel\b/, datos.telefono],
-        [/correo|email|\bmail\b/, datos.email],
+    const RULES: [RegExp, string][] = [
+        [/otp|codigo de verificacion|codigo sms|verification/, data.otp],
+        [/segundo nombre|middle/, data.segundoNombre],
+        [/segundo apellido|second last|apellido materno/, data.segundoApellido],
+        [/primer apellido|apellido paterno|last ?name|apellidos?/, data.apellido],
+        [/primer nombre|first ?name|nombres?(?! de la)/, data.nombre],
+        [/fecha de expedicion|expedicion|issue ?date/, data.expedicion],
+        [/fecha de nacimiento|nacimiento|birth/, data.nacimiento],
+        [/celular|telefono|movil|phone|\btel\b/, data.telefono],
+        [/correo|email|\bmail\b/, data.email],
         /* ⚠ LOS TOKENS CORTOS VAN ANCLADOS, y costó una captura entender por qué. Sin `\b`, `nit`
          * matchea DENTRO de `initialFee` —«i-nit-ialFee»— así que el campo «Cuota inicial» del
-         * marketplace recibía el NÚMERO DE DOCUMENTO. Y eso no quedaba en un campo raro: con una cuota
+         * marketplace recibía el NÚMERO DE DOCUMENT. Y eso no quedaba en un campo raro: con una cuota
          * inicial de 1.096.734.490 el monto financiado se va a negativo y la tarjeta de la entidad
          * muestra «el monto solicitado es inferior al mínimo requerido», o sea que el autorelleno
          * fabricaba un error de NEGOCIO que se lee como un problema de la entidad.
          * La regla general: un token de tres letras se ancla o no se usa. */
-        [/documento|cedula|identificacion|\bdni\b|\bnit\b|document/, datos.documento],
-        [/ingreso|salario|income|salary|remuneracion/, datos.ingreso],
-        [/monto|valor a financiar|amount|financiar/, datos.monto],
-        [/direccion|address|residencia/, datos.direccion],
-        [/empresa|empleador|company|employer|razon social/, datos.empresa],
-        [/placa|patente|plate/, datos.placa],
-        [/chasis|motor|serial|vin|serie/, datos.serie],
+        [/documento|cedula|identificacion|\bdni\b|\bnit\b|document/, data.documento],
+        [/ingreso|salario|income|salary|remuneracion/, data.ingreso],
+        [/monto|valor a financiar|amount|financiar/, data.monto],
+        [/direccion|address|residencia/, data.direccion],
+        [/empresa|empleador|company|employer|razon social/, data.empresa],
+        [/placa|patente|plate/, data.placa],
+        [/chasis|motor|serial|vin|serie/, data.serie],
         [/anio|ano de|year|modelo/, '2024'],
     ];
 
     /**
-     * CAMPOS QUE NO SE TOCAN, aunque estén vacíos y aunque una regla los matchee.
+     * FIELDS QUE NO SE TOCAN, aunque estén vacíos y aunque una regla los matchee.
      *
      * No es lo mismo «ahorrar tipeo» que «elegir por el que prueba». La CUOTA INICIAL cambia la oferta:
      * mueve el monto financiado, la cuota y hasta si la entidad aplica —con un valor inventado la
@@ -245,32 +245,32 @@ function guion(datos: DatosAutorelleno) {
      * backend con la config de la entidad, así que usarlo no es adivinar — y si la pantalla no dice
      * ningún mínimo, el campo se queda vacío, que es su estado válido.
      */
-    const ES_CUOTA_INICIAL = /cuota inicial|initial ?fee|enganche|down ?payment/;
+    const IS_DOWN_PAYMENT = /cuota inicial|initial ?fee|enganche|down ?payment/;
 
     /** El mínimo que la pantalla declara para la cuota inicial, en dígitos. `null` si no dice ninguno. */
-    function minimoDeclarado(): string | null {
+    function declaredMinimum(): string | null {
         const m = (document.body.innerText || '')
             .match(/cuota inicial m[ií]nima (?:es|de)\s*\$?\s*([\d.,]+)/i);
-        const digitos = m?.[1]?.replace(/\D/g, '') ?? '';
-        return digitos ? digitos : null;
+        const digits = m?.[1]?.replace(/\D/g, '') ?? '';
+        return digits ? digits : null;
     }
 
     /** Qué poner en un campo de texto, por su pista y, si no dice nada, por su `type`. */
-    function valorPara(el: HTMLInputElement | HTMLTextAreaElement): string | null {
-        const p = pista(el);
-        if (ES_CUOTA_INICIAL.test(p)) return minimoDeclarado();
-        for (const [re, valor] of REGLAS) if (re.test(p)) return valor;
-        const tipo = (el as HTMLInputElement).type || 'text';
-        if (tipo === 'email') return datos.email;
-        if (tipo === 'tel') return datos.telefono;
-        if (tipo === 'date') return datos.nacimiento;
-        if (tipo === 'number') return datos.ingreso;
-        if (tipo === 'password') return null;   // no se adivinan credenciales
+    function valueFor(el: HTMLInputElement | HTMLTextAreaElement): string | null {
+        const p = hint(el);
+        if (IS_DOWN_PAYMENT.test(p)) return declaredMinimum();
+        for (const [re, value] of RULES) if (re.test(p)) return value;
+        const kind = (el as HTMLInputElement).type || 'text';
+        if (kind === 'email') return data.email;
+        if (kind === 'tel') return data.telefono;
+        if (kind === 'date') return data.nacimiento;
+        if (kind === 'number') return data.ingreso;
+        if (kind === 'password') return null;   // no se adivinan credenciales
         // Un texto sin pista: el maxLength delata a los códigos cortos (OTP partido en casillas).
         const max = Number(el.getAttribute('maxlength') || 0);
-        if (max > 0 && max <= 2) return datos.otp.slice(0, max);
-        if (max === 4) return datos.otp;
-        if (max === 6) return datos.otpFirma;
+        if (max > 0 && max <= 2) return data.otp.slice(0, max);
+        if (max === 4) return data.otp;
+        if (max === 6) return data.otpFirma;
         return null;
     }
 
@@ -283,12 +283,12 @@ function guion(datos: DatosAutorelleno) {
      * ayuda de tipeo, porque parece que no hizo nada. Medido con una captura en la pantalla de fecha de
      * expedición.
      */
-    const esAceptacion = (p: string) =>
+    const isAcceptance = (p: string) =>
         /acepto|autorizo|terminos|condiciones|politic|declaro|habeas|tratamiento|consentimiento|agree/.test(p)
         || /confirm|titular|es correcto|son correctos|corresponde/.test(p);
 
     /* LA REGLA DE FECHA VIENE DEL MÓDULO COMPARTIDO (`pkg/fecha-trio.ts`), inyectado como
-     * `window.__trioFecha` por el `addInitScript` de más arriba. Antes vivía acá —`MESES`,
+     * `window.__trioFecha` por el `addInitScript` de más arriba. Antes vivía acá —`MONTHS`,
      * `fechaDelContexto` y la deducción por texto—, y el otro autorrelleno del harness no la tenía:
      * escribía `1 / Enero / <año actual>` como fecha de expedición, o sea el día de hoy. Tener la
      * regla en un solo lugar es lo que arregla eso sin que los dos archivos se fundan.
@@ -301,27 +301,27 @@ function guion(datos: DatosAutorelleno) {
         parteDeCombo: (t: string, e: string, i: number, m: string[]) => 'dia' | 'mes' | 'anio' | null;
         valorBuscado: (p: 'dia' | 'mes' | 'anio', f: string, m: string[]) => string[];
         fechaDeLaPantalla: (arriba: string, nac: string, exp: string) => string;
-        yaMuestra: (t: string, buscado: string[]) => boolean;
-        esTrioDeFecha: (partes: Array<'dia' | 'mes' | 'anio' | null>) => boolean;
+        yaMuestra: (t: string, searched: string[]) => boolean;
+        esTrioDeFecha: (parts: Array<'dia' | 'mes' | 'anio' | null>) => boolean;
     } | undefined;
 
     /** La fecha que pide ESTA pantalla, según el texto de arriba. */
-    const fechaDeAca = () => TRIO
-        ? TRIO.fechaDeLaPantalla((document.body.innerText || '').slice(0, 400), datos.nacimiento, datos.expedicion)
+    const localDate = () => TRIO
+        ? TRIO.fechaDeLaPantalla((document.body.innerText || '').slice(0, 400), data.nacimiento, data.expedicion)
         : '';
 
-    async function rellenar(): Promise<number> {
+    async function fill(): Promise<number> {
         let n = 0;
 
         // 1 · texto, número, fecha, textarea. Sólo VACÍOS: lo que escribiste es tuyo.
         for (const el of Array.from(document.querySelectorAll<HTMLInputElement | HTMLTextAreaElement>('input, textarea'))) {
             if (el.disabled || el.readOnly || !visible(el)) continue;
-            const tipo = (el as HTMLInputElement).type;
-            if (['checkbox', 'radio', 'hidden', 'file', 'submit', 'button', 'password'].includes(tipo)) continue;
+            const kind = (el as HTMLInputElement).type;
+            if (['checkbox', 'radio', 'hidden', 'file', 'submit', 'button', 'password'].includes(kind)) continue;
             if (el.value) continue;
-            const v = valorPara(el);
+            const v = valueFor(el);
             if (v == null) continue;
-            escribir(el, v);
+            write(el, v);
             n++;
         }
 
@@ -340,39 +340,39 @@ function guion(datos: DatosAutorelleno) {
          * relleno del componente y no una decisión humana. Se tocan UNA vez —`tocados` lo recuerda—, así
          * que si después elegís otra fecha, es tuya y no se vuelve a pisar. */
         /** Elige la opción que representa `texto`, comparando por value y por etiqueta. */
-        function elegirOpcion(sel: HTMLSelectElement, candidatos: string[]): boolean {
-            for (const c of candidatos) {
+        function chooseOption(sel: HTMLSelectElement, candidates: string[]): boolean {
+            for (const c of candidates) {
                 const opt = Array.from(sel.options).find((o) =>
                     o.value === c || norm(o.textContent || '') === norm(c)
                     || (/^\d+$/.test(c) && Number(o.value) === Number(c)));
-                if (opt) { escribir(sel, opt.value); return true; }
+                if (opt) { write(sel, opt.value); return true; }
             }
             return false;
         }
 
         for (const sel of Array.from(document.querySelectorAll<HTMLSelectElement>('select'))) {
             if (sel.disabled || !visible(sel)) continue;
-            const p = pista(sel);
-            const esFecha = /\bdia\b|\bday\b|\bmes\b|\bmonth\b|\banio\b|\bano\b|\byear\b/.test(p);
+            const p = hint(sel);
+            const isDate = /\bdia\b|\bday\b|\bmes\b|\bmonth\b|\banio\b|\bano\b|\byear\b/.test(p);
 
-            if (esFecha) {
+            if (isDate) {
                 if (!TRIO) continue;
                 // La parte sale de la PISTA del select (tiene `name`/`label`, a diferencia de los de
                 // Radix), y el valor de la regla compartida.
-                const parte = TRIO.parteDeCombo('', p, 9, TRIO.MESES);
-                if (!parte) continue;
-                const cand = TRIO.valorBuscado(parte, fechaDeAca(), TRIO.MESES);
+                const part = TRIO.parteDeCombo('', p, 9, TRIO.MESES);
+                if (!part) continue;
+                const cand = TRIO.valorBuscado(part, localDate(), TRIO.MESES);
                 // Idempotente igual que el trío de Radix: si ya está elegido, no se vuelve a tocar.
                 const actual = sel.options[sel.selectedIndex]?.textContent ?? sel.value;
                 if (TRIO.yaMuestra(actual, cand)) continue;
-                if (elegirOpcion(sel, cand)) n++;
+                if (chooseOption(sel, cand)) n++;
                 continue;
             }
 
             if (sel.value) continue;
             const opt = Array.from(sel.options).find((o) => o.value && !/seleccion|elegi|choose|select/i.test(o.textContent || ''));
             if (!opt) continue;
-            escribir(sel, opt.value);
+            write(sel, opt.value);
             n++;
         }
 
@@ -380,8 +380,8 @@ function guion(datos: DatosAutorelleno) {
         //     checkbox suelto puede ser una opción de producto, y tildarla cambiaría lo que se prueba.
         for (const el of Array.from(document.querySelectorAll<HTMLInputElement>('input[type=checkbox]'))) {
             if (el.disabled || el.checked || !visible(el)) continue;
-            const p = pistaConContexto(el);
-            if (!esAceptacion(p) && !el.required && el.getAttribute('aria-required') !== 'true') continue;
+            const p = hintWithContext(el);
+            if (!isAcceptance(p) && !el.required && el.getAttribute('aria-required') !== 'true') continue;
             el.click();
             n++;
         }
@@ -395,8 +395,8 @@ function guion(datos: DatosAutorelleno) {
         for (const el of Array.from(document.querySelectorAll<HTMLElement>('[role=checkbox]'))) {
             if (!visible(el) || el.getAttribute('aria-checked') !== 'false') continue;
             if (el.getAttribute('aria-disabled') === 'true') continue;
-            const p = pistaConContexto(el);
-            if (!esAceptacion(p) && el.getAttribute('aria-required') !== 'true') continue;
+            const p = hintWithContext(el);
+            if (!isAcceptance(p) && el.getAttribute('aria-required') !== 'true') continue;
             el.click();
             n++;
         }
@@ -421,11 +421,11 @@ function guion(datos: DatosAutorelleno) {
          * puede decidir eso por quien prueba; el otro autorrelleno, el de Playwright, lo resuelve
          * pidiendo explícitamente «No» (`preferirRadio`), que es una decisión de la corrida, no del
          * relleno. */
-        const grupos = new Set<string>();
+        const groups = new Set<string>();
         for (const el of Array.from(document.querySelectorAll<HTMLInputElement>('input[type=radio]'))) {
-            if (el.disabled || !visible(el) || !el.name || grupos.has(el.name)) continue;
+            if (el.disabled || !visible(el) || !el.name || groups.has(el.name)) continue;
             if (el.getAttribute('aria-hidden') === 'true' || getComputedStyle(el).pointerEvents === 'none') continue;
-            grupos.add(el.name);
+            groups.add(el.name);
             if (document.querySelector<HTMLInputElement>(`input[type=radio][name="${CSS.escape(el.name)}"]:checked`)) continue;
             el.click();
             n++;
@@ -438,7 +438,7 @@ function guion(datos: DatosAutorelleno) {
          *     siguiente (el clásico departamento → ciudad).
          *     Se elige la PRIMERA opción: alcanza para avanzar, y si la prueba necesita una ciudad
          *     concreta la cambiás vos — el autorelleno no la vuelve a pisar. */
-        const espera = (ms: number) => new Promise((r) => setTimeout(r, ms));
+        const wait = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
         /** Cierra el popover de un trigger de radix DE VERDAD, y lo comprueba.
          *
@@ -447,24 +447,24 @@ function guion(datos: DatosAutorelleno) {
          *  El popover quedaba colgado — y como la busqueda de opciones era global (ver abajo), el
          *  siguiente trigger abria el suyo y quedaban DOS listas abiertas, una encima de la otra.
          *  Escape es la salida que radix si escucha siempre. */
-        async function cerrarPopover(trigger: HTMLElement): Promise<void> {
-            for (const intento of [0, 1]) {
+        async function closePopover(trigger: HTMLElement): Promise<void> {
+            for (const attempt of [0, 1]) {
                 if (trigger.getAttribute('aria-expanded') !== 'true') return;
                 const ev = { key: 'Escape', code: 'Escape', bubbles: true, cancelable: true } as KeyboardEventInit;
                 (document.activeElement ?? trigger).dispatchEvent(new KeyboardEvent('keydown', ev));
-                await espera(intento === 0 ? 80 : 200);
+                await wait(attempt === 0 ? 80 : 200);
             }
             // Ultimo recurso: un pointerdown afuera, que es la otra forma en que radix cierra.
             if (trigger.getAttribute('aria-expanded') === 'true') {
                 document.body.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true }));
-                await espera(80);
+                await wait(80);
             }
         }
 
         /** Abre un trigger de radix y clickea la opción que matchee, o la primera si no se pide ninguna. */
-        async function elegirEnPopover(trigger: HTMLElement, buscado?: string[]): Promise<boolean> {
+        async function chooseInPopover(trigger: HTMLElement, searched?: string[]): Promise<boolean> {
             trigger.click();
-            await espera(200);
+            await wait(200);
             /* ⚠ LAS OPCIONES SE BUSCAN DENTRO DEL POPOVER DE **ESTE** TRIGGER, no en el documento.
              * Era `document.querySelectorAll('[role=option]')`, global: con dos popovers abiertos
              * juntaba las opciones de los dos y `opciones[0]` podía ser de OTRA tarjeta. En
@@ -472,18 +472,18 @@ function guion(datos: DatosAutorelleno) {
              * equivocada. Radix pone el id del contenido en `aria-controls` del trigger. */
             const panelId = trigger.getAttribute('aria-controls');
             const panel = panelId ? document.getElementById(panelId) : null;
-            const raiz: ParentNode = panel ?? document;
-            const opciones = Array.from(raiz.querySelectorAll<HTMLElement>('[role=option]:not([aria-disabled=true])'));
-            if (!opciones.length) { await cerrarPopover(trigger); return false; }
-            const elegida = buscado
-                ? opciones.find((o) => buscado.some((b) => norm(o.textContent || '') === norm(b)))
-                : opciones[0];
-            if (!elegida) { await cerrarPopover(trigger); return false; }
-            elegida.click();
-            await espera(180);
+            const root: ParentNode = panel ?? document;
+            const options = Array.from(root.querySelectorAll<HTMLElement>('[role=option]:not([aria-disabled=true])'));
+            if (!options.length) { await closePopover(trigger); return false; }
+            const chosenOne = searched
+                ? options.find((o) => searched.some((b) => norm(o.textContent || '') === norm(b)))
+                : options[0];
+            if (!chosenOne) { await closePopover(trigger); return false; }
+            chosenOne.click();
+            await wait(180);
             // Elegir CIERRA el popover en radix; si no cerro, el click no se registro como seleccion
             // y dejarlo abierto es lo que se ve como «el select quedo pegado».
-            await cerrarPopover(trigger);
+            await closePopover(trigger);
             return true;
         }
 
@@ -497,38 +497,38 @@ function guion(datos: DatosAutorelleno) {
 
         /* Se pregunta por el subconjunto que PARECE fecha, no por todos los combos de la pantalla: un
            selector de cuotas también cae en «uno o dos dígitos» y no es un día. */
-        const textos = triggers.map((t) => (t.textContent || '').trim());
-        const candidatos = TRIO
-            ? triggers.map((t, i) => ({ p: TRIO.parteDeCombo(textos[i], pista(t), i, TRIO.MESES), i }))
+        const texts = triggers.map((t) => (t.textContent || '').trim());
+        const candidates = TRIO
+            ? triggers.map((t, i) => ({ p: TRIO.parteDeCombo(texts[i], hint(t), i, TRIO.MESES), i }))
                 .filter((x) => x.p !== null)
             : [];
-        const esFechaCompleta = TRIO ? TRIO.esTrioDeFecha(candidatos.map((x) => x.p)) : false;
-        const indicesDeFecha = new Set(esFechaCompleta ? candidatos.map((x) => x.i) : []);
+        const isFullDate = TRIO ? TRIO.esTrioDeFecha(candidates.map((x) => x.p)) : false;
+        const dateIndices = new Set(isFullDate ? candidates.map((x) => x.i) : []);
 
-        if (TRIO && esFechaCompleta) {
+        if (TRIO && isFullDate) {
             {
-                const fecha = fechaDeAca();
-                for (const { p, i } of candidatos) {
-                    const buscado = TRIO.valorBuscado(p!, fecha, TRIO.MESES);
+                const date = localDate();
+                for (const { p, i } of candidates) {
+                    const searched = TRIO.valorBuscado(p!, date, TRIO.MESES);
                     /* ⚠ SI YA MUESTRA LO QUE QUEREMOS, NO SE TOCA. Esto reemplazó a `tocados`, que NO
                        alcanzaba: era un WeakSet keyeado por el ELEMENTO, y Radix REEMPLAZA el nodo del
                        trigger cuando cambia su valor — en la pasada siguiente el nodo es otro,
                        `tocados.has(t)` da falso y la fecha se volvía a elegir. Eso es lo que se veía
                        como «la fecha de expedición cambia dos veces». */
-                    if (TRIO.yaMuestra(textos[i], buscado)) continue;
-                    if (await elegirEnPopover(triggers[i], buscado)) n++;
+                    if (TRIO.yaMuestra(texts[i], searched)) continue;
+                    if (await chooseInPopover(triggers[i], searched)) n++;
                 }
             }
         }
 
         for (let i = 0; i < triggers.length; i++) {
             const trigger = triggers[i];
-            if (indicesDeFecha.has(i)) continue;   // ya lo resolvió el trío
+            if (dateIndices.has(i)) continue;   // ya lo resolvió el trío
             // `data-placeholder` (o un texto que diga «Seleccion…») delata que todavía no eligió nada.
-            const vacio = trigger.hasAttribute('data-placeholder')
+            const empty = trigger.hasAttribute('data-placeholder')
                 || /seleccion|elegi|choose|select/i.test(trigger.textContent || '');
-            if (!vacio) continue;
-            if (await elegirEnPopover(trigger)) n++;
+            if (!empty) continue;
+            if (await chooseInPopover(trigger)) n++;
         }
 
         return n;
@@ -538,17 +538,17 @@ function guion(datos: DatosAutorelleno) {
     // Existe para que el autorelleno sea VISIBLE y apagable. Una ayuda invisible que toca el formulario
     // es indistinguible de un bug del front: al ver un campo lleno que nadie escribió, lo primero que
     // se piensa es que la app lo trajo de algún lado.
-    function chapita() {
+    function badge() {
         if (document.getElementById('__autorelleno_chip')) return;
         const box = document.createElement('div');
         box.id = '__autorelleno_chip';
         /* LA ETIQUETA DEL COMERCIO. El hash de la sucursal está en la URL (`/merchant/<hash>/…` o
            `/self-service/<hash>/…`), y `.flows.json` sabe de quién es. Se dibuja aunque no lo conozca:
            el hash solo ya alcanza para ver que estás en OTRA ventana. */
-        const hashEnUrl = location.pathname.match(/\/(?:merchant|self-service|ecommerce)\/([0-9a-f]{6,})/i)?.[1];
-        if (hashEnUrl) {
+        const hashInUrl = location.pathname.match(/\/(?:merchant|self-service|ecommerce)\/([0-9a-f]{6,})/i)?.[1];
+        if (hashInUrl) {
             const et = document.createElement('span');
-            et.textContent = `${datos.comercios?.[hashEnUrl] ?? '?'} · ${hashEnUrl}`;
+            et.textContent = `${data.comercios?.[hashInUrl] ?? '?'} · ${hashInUrl}`;
             et.title = 'El comercio de ESTA ventana. Si no es el que elegiste en el panel, estás mirando la ventana de una corrida anterior.';
             et.style.cssText = 'background:#161b22;padding:7px 9px;border-radius:6px;color:#8b949e;font-weight:500';
             box.appendChild(et);
@@ -564,22 +564,22 @@ function guion(datos: DatosAutorelleno) {
         btn.style.cssText = 'all:unset;cursor:pointer;background:#1f6feb;padding:7px 10px;border-radius:6px';
         const auto = document.createElement('button');
         auto.style.cssText = btn.style.cssText + ';background:#30363d';
-        let encendido = true;
-        const pintar = () => { auto.textContent = encendido ? 'auto: sí' : 'auto: no'; };
-        pintar();
-        auto.onclick = () => { encendido = !encendido; pintar(); };
+        let enabled = true;
+        const paint = () => { auto.textContent = enabled ? 'auto: sí' : 'auto: no'; };
+        paint();
+        auto.onclick = () => { enabled = !enabled; paint(); };
         auto.title = 'Con auto, cada pantalla nueva se rellena sola. Sin auto, sólo cuando apretás Rellenar.';
-        const cuantos = (n: number) => { btn.textContent = n ? `⌨ ${n} campo${n === 1 ? '' : 's'}` : '⌨ nada que llenar';
+        const howMany = (n: number) => { btn.textContent = n ? `⌨ ${n} campo${n === 1 ? '' : 's'}` : '⌨ nada que llenar';
             setTimeout(() => { btn.textContent = '⌨ Rellenar'; }, 1400); };
         // `disparar` existe aparte del handler para poder llamarlo desde el atajo de teclado: invocar
         // `btn.onclick` a mano obliga a fabricar un PointerEvent que a nadie le importa.
-        const disparar = async () => cuantos(await rellenar());   // manual: SIEMPRE corre, aunque el auto esté apagado
-        btn.onclick = disparar;
+        const fire = async () => howMany(await fill());   // manual: SIEMPRE corre, aunque el auto esté apagado
+        btn.onclick = fire;
         box.append(btn, auto);
         document.body.appendChild(box);
 
         window.addEventListener('keydown', (e) => {
-            if (e.altKey && (e.key === 'r' || e.key === 'R')) { e.preventDefault(); void disparar(); }
+            if (e.altKey && (e.key === 'r' || e.key === 'R')) { e.preventDefault(); void fire(); }
         });
 
         /* AUTO: se rellena cuando aparece un formulario nuevo. Va con `debounce` y no en cada mutación
@@ -594,21 +594,21 @@ function guion(datos: DatosAutorelleno) {
          * se re-escribe aunque ya tenga valor.
          * `corriendo` corta el lazo: mientras rellena, las mutaciones que él produce no cuentan. El
          * `finally` es lo que evita que una excepción deje el autorrelleno apagado para siempre. */
-        let corriendo = false;
-        const rellenarUnaVez = async () => {
-            if (corriendo) return;
-            corriendo = true;
-            try { await rellenar(); } finally { corriendo = false; }
+        let running = false;
+        const fillOnce = async () => {
+            if (running) return;
+            running = true;
+            try { await fill(); } finally { running = false; }
         };
         const obs = new MutationObserver(() => {
-            if (!encendido || corriendo) return;
+            if (!enabled || running) return;
             clearTimeout(t);
-            t = window.setTimeout(() => { void rellenarUnaVez(); }, 420);
+            t = window.setTimeout(() => { void fillOnce(); }, 420);
         });
         obs.observe(document.body, { childList: true, subtree: true });
-        if (encendido) setTimeout(() => { void rellenarUnaVez(); }, 700);
+        if (enabled) setTimeout(() => { void fillOnce(); }, 700);
     }
 
-    if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', chapita);
-    else chapita();
+    if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', badge);
+    else badge();
 }

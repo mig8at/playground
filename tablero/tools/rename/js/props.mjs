@@ -37,9 +37,9 @@ function props(code, offset, asExpression, cssKeys = false) {
     const member = p && (p.type === 'MemberExpression' || p.type === 'OptionalMemberExpression') && k === 'property';
     const objKey = p && (p.type === 'ObjectProperty' || p.type === 'ObjectMethod') && k === 'key' && !p.computed;
     if (n.type === 'Identifier' && member && !p.computed) {
-      out.push({ name: n.name, start: n.start + offset, end: n.end + offset, role: 'member' });
+      out.push({ name: n.name, start: n.start + offset, end: n.start + offset + n.name.length, role: 'member' });
     } else if (n.type === 'Identifier' && objKey) {
-      out.push({ name: n.name, start: n.start + offset, end: n.end + offset, role: p.shorthand ? 'shorthand' : 'key', css: cssKeys });
+      out.push({ name: n.name, start: n.start + offset, end: n.start + offset + n.name.length, role: p.shorthand ? 'shorthand' : 'key', css: cssKeys });
     } else if (n.type === 'StringLiteral' && ((member && p.computed) || objKey)) {
       out.push({ name: n.value, start: n.start + offset + 1, end: n.end + offset - 1, role: 'str', css: cssKeys && objKey });
     }

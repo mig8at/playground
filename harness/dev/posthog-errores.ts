@@ -19,7 +19,7 @@
 // dice frecuencia; la gravedad la pone quien lee.
 process.env.E2E_TARGET ||= 'qa';
 export {};
-const { posthogConfig, porQueNo, erroresPorPantalla, patronesDeError } = await import('../pkg/posthog.ts');
+const { posthogConfig, whyNot, errorsByScreen, errorPatterns } = await import('../pkg/posthog.ts');
 const { TARGET } = await import('../pkg/env.ts');
 
 const arg = (n: string, d = ''): string => {
@@ -28,25 +28,25 @@ const arg = (n: string, d = ''): string => {
 };
 
 const c = posthogConfig();
-const no = porQueNo(c);
+const no = whyNot(c);
 if (no) { console.log(`\n  PostHog: no se consulta — ${no}\n`); process.exit(2); }
 
-const dias = Number(arg('dias', '7')) || 7;
-console.log(`\n  ERRORES DEL FRONT · target ${TARGET} · environment=${c.env} · últimos ${dias} día(s)\n`);
+const days = Number(arg('dias', '7')) || 7;
+console.log(`\n  ERRORES DEL FRONT · target ${TARGET} · environment=${c.env} · últimos ${days} día(s)\n`);
 
-const porPantalla = await erroresPorPantalla(c, dias);
-if (!porPantalla.length) {
+const byScreen = await errorsByScreen(c, days);
+if (!byScreen.length) {
     console.log('  ▸ ni un error en la ventana. warn y error no se muestrean, así que el silencio vale.\n');
     process.exit(0);
 }
-const total = porPantalla.reduce((a, x) => a + x.n, 0);
-console.log(`  ▸ ── DÓNDE · ${total} error(es) en ${porPantalla.length} combinación(es) de pantalla · etapa · error ──`);
-for (const r of porPantalla.slice(0, 20)) {
-    const donde = `${r.pantalla.replace(/^routes\//, '')}${r.etapa !== '—' ? ` ${r.etapa}` : ''}`;
-    console.log(`  ${String(r.n).padStart(5)}  ${donde.padEnd(52)} ${r.err.padEnd(12)} ${r.tipo.padEnd(32)} último ${r.ultimo.slice(0, 16)}`);
+const total = byScreen.reduce((a, x) => a + x.n, 0);
+console.log(`  ▸ ── DÓNDE · ${total} error(es) en ${byScreen.length} combinación(es) de pantalla · etapa · error ──`);
+for (const r of byScreen.slice(0, 20)) {
+    const where = `${r.pantalla.replace(/^routes\//, '')}${r.etapa !== '—' ? ` ${r.etapa}` : ''}`;
+    console.log(`  ${String(r.n).padStart(5)}  ${where.padEnd(52)} ${r.err.padEnd(12)} ${r.tipo.padEnd(32)} último ${r.ultimo.slice(0, 16)}`);
 }
 
-const patrones = await patronesDeError(c, dias);
+const patterns = await errorPatterns(c, days);
 console.log(`\n  ▸ ── QUÉ · los mensajes agrupados por patrón ──`);
-for (const p of patrones.slice(0, 15)) console.log(`  ${String(p.n).padStart(5)}  ${p.patron.slice(0, 120)}`);
+for (const p of patterns.slice(0, 15)) console.log(`  ${String(p.n).padStart(5)}  ${p.patron.slice(0, 120)}`);
 console.log(`\n  para una solicitud concreta: make harness-posthog UREQ=<n>\n`);

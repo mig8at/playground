@@ -22,10 +22,10 @@ export {};
 const { one, query, exec, close, appKey } = await import('../pkg/db.ts');
 const { encryptLaravelString } = await import('../pkg/laravel-crypt.ts');
 
-const MOLDE = 170;                       // Motai RB: mismo comercio, producto `rto`
-const TIPO_TITULAR = 1, TIPO_COSIGNER = 3;
+const TEMPLATE_ROW = 170;                       // Motai RB: mismo comercio, producto `rto`
+const HOLDER_TYPE = 1, COSIGNER_TYPE = 3;
 
-const paso = (t: string, d = '') => console.log(`  ${t}${d ? ` · ${d}` : ''}`);
+const step = (t: string, d = '') => console.log(`  ${t}${d ? ` · ${d}` : ''}`);
 
 const rto = await one<{ id: number }>("SELECT id FROM lenders WHERE slug='rent-to-own' LIMIT 1");
 if (!rto) {
@@ -38,28 +38,28 @@ const DEST = rto.id;
 console.log(`\n  Rent to Own = lender ${DEST}   ⚠ el id NO es estable entre ambientes (en qa es 205, en prod 193)\n`);
 
 /** Copia filas de una tabla hija del molde al destino, sin pisar lo que ya haya. */
-async function copiar(tabla: string, extra: (r: any) => Record<string, unknown> = () => ({})) {
-    const ya = await query<any>(`SELECT id FROM ${tabla} WHERE lender_id=?`, [DEST]);
-    if (ya.length) { paso(`${tabla}`, `ya tiene ${ya.length}, no se toca`); return 0; }
-    const src = await query<any>(`SELECT * FROM ${tabla} WHERE lender_id=?`, [MOLDE]);
+async function copy(table: string, extra: (r: any) => Record<string, unknown> = () => ({})) {
+    const already = await query<any>(`SELECT id FROM ${table} WHERE lender_id=?`, [DEST]);
+    if (already.length) { step(`${table}`, `ya tiene ${already.length}, no se toca`); return 0; }
+    const src = await query<any>(`SELECT * FROM ${table} WHERE lender_id=?`, [TEMPLATE_ROW]);
     for (const r of src) {
-        const sobre = extra(r);
+        const over = extra(r);
         const cols = Object.keys(r).filter((k) => !['id', 'created_at', 'updated_at'].includes(k));
         await exec(
-            `INSERT INTO ${tabla} (${cols.map((c) => '`' + c + '`').join(',')}, created_at, updated_at) ` +
+            `INSERT INTO ${table} (${cols.map((c) => '`' + c + '`').join(',')}, created_at, updated_at) ` +
             `VALUES (${cols.map(() => '?').join(',')}, NOW(), NOW())`,
-            cols.map((k) => k === 'lender_id' ? DEST : (k in sobre ? sobre[k] : r[k])));
+            cols.map((k) => k === 'lender_id' ? DEST : (k in over ? over[k] : r[k])));
     }
-    paso(`${tabla}`, `copiadas ${src.length} del ${MOLDE}`);
+    step(`${table}`, `copiadas ${src.length} del ${TEMPLATE_ROW}`);
     return src.length;
 }
 
 // 1· CATEGORÍAS + sus reglas. ⚠ Van las CUATRO: con una sola —la «Premium», la más estricta— un
 //    cliente que no la pasa se queda sin categoría y la card desaparece del listado.
 const cats = await query<any>('SELECT id FROM lender_users_categories WHERE lender_id=?', [DEST]);
-if (cats.length) paso('lender_users_categories', `ya tiene ${cats.length}, no se toca`);
+if (cats.length) step('lender_users_categories', `ya tiene ${cats.length}, no se toca`);
 else {
-    const src = await query<any>('SELECT * FROM lender_users_categories WHERE lender_id=? ORDER BY id', [MOLDE]);
+    const src = await query<any>('SELECT * FROM lender_users_categories WHERE lender_id=? ORDER BY id', [TEMPLATE_ROW]);
     for (const c of src) {
         const cols = Object.keys(c).filter((k) => !['id', 'created_at', 'updated_at'].includes(k));
         const r = await exec(
@@ -72,29 +72,29 @@ else {
             const rc = Object.keys(g).filter((k) => !['id', 'created_at', 'updated_at'].includes(k));
             // ⚠ y una copia de cada regla con tipo COSIGNER (3): la política del codeudor es de otro
             // TIPO que la del titular, y sin ella el endpoint de cupo tipo 3 no responde `has_quota`
-            for (const tipo of [TIPO_TITULAR, TIPO_COSIGNER]) {
+            for (const kind of [HOLDER_TYPE, COSIGNER_TYPE]) {
                 await exec(
                     `INSERT INTO lender_users_category_rules (${rc.map((x) => '`' + x + '`').join(',')}, created_at, updated_at) ` +
                     `VALUES (${rc.map(() => '?').join(',')}, NOW(), NOW())`,
                     rc.map((k) => k === 'lender_id' ? DEST
                            : k === 'lender_users_category_id' ? r.insertId
-                           : k === 'lender_users_category_type_id' ? tipo : g[k]));
+                           : k === 'lender_users_category_type_id' ? kind : g[k]));
             }
         }
     }
-    paso('lender_users_categories', `copiadas ${src.length} con reglas de tipo titular Y codeudor`);
+    step('lender_users_categories', `copiadas ${src.length} con reglas de tipo titular Y codeudor`);
 }
 
 // 2· Proveedores de identidad — sin esto, `validation/providers` responde
 //    «Lender has no primary identity validation provider configured».
-await copiar('lender_identity_validation_types');
+await copy('lender_identity_validation_types');
 
 // 3· Reglas duras POR SUCURSAL. Cuelgan de `group_rules` (que es por sucursal), así que se copian
 //    dentro de cada grupo donde el molde las tenga.
 const gr = await query<any>(
-    'SELECT r.* FROM lender_rules r JOIN group_rules g ON g.id=r.group_rule_id WHERE r.lender_id=?', [MOLDE]);
-const yaGr = await query<any>('SELECT id FROM lender_rules WHERE lender_id=?', [DEST]);
-if (yaGr.length) paso('lender_rules', `ya tiene ${yaGr.length}, no se toca`);
+    'SELECT r.* FROM lender_rules r JOIN group_rules g ON g.id=r.group_rule_id WHERE r.lender_id=?', [TEMPLATE_ROW]);
+const alreadyGr = await query<any>('SELECT id FROM lender_rules WHERE lender_id=?', [DEST]);
+if (alreadyGr.length) step('lender_rules', `ya tiene ${alreadyGr.length}, no se toca`);
 else {
     for (const r of gr) {
         const cols = Object.keys(r).filter((k) => !['id', 'created_at', 'updated_at'].includes(k));
@@ -103,7 +103,7 @@ else {
             `VALUES (${cols.map(() => '?').join(',')}, NOW(), NOW())`,
             cols.map((k) => k === 'lender_id' ? DEST : r[k]));
     }
-    paso('lender_rules', `copiadas ${gr.length} del ${MOLDE}`);
+    step('lender_rules', `copiadas ${gr.length} del ${TEMPLATE_ROW}`);
 }
 
 console.log(`

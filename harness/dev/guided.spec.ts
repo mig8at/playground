@@ -3,21 +3,21 @@ import { mkdirSync } from 'node:fs';
 import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import type { Page } from '@playwright/test';
-import { avisoIdentidadSinProveedor, avisoLogsDelBackend, config, cognitoCreds } from '../pkg/config';
+import { identityWithoutProviderNotice, backendLogsNotice, config, cognitoCreds } from '../pkg/config';
 import { cognitoLogin, cognitoStorageState, persistCognitoState } from '../pkg/cognito';
-import { avisoDeEmpleoPisado, reponerEmpleo, synthFill, requestEstado11, validacionManual } from '../pkg/inject';
-import { avisoDeCupoSinSalida, rt0ActivasDeLaSucursal } from '../pkg/merchants';
+import { overwrittenEmploymentNotice, restoreEmployment, synthFill, requestStatus11, manualValidation } from '../pkg/inject';
+import { quotaWithoutExitNotice, branchActiveRt0 } from '../pkg/merchants';
 import { closeCreditopX, resolveRequestStatus } from '../pkg/close';
 import { one, exec } from '../pkg/db';
-import * as traza from '../pkg/trace';
+import * as trace from '../pkg/trace';
 // Importado con nombre propio y no como `* as loki` para que en el cuerpo se lea qué hace: `traza` dicta
 // el veredicto, esto solo lo explica. Ver la sección de forense en CLAUDE.md.
-import { forenseAlCerrar as lokiForense } from '../pkg/loki';
-import { lineasDeEscrituras, volcarEscrituras } from '../pkg/db';
-import { urlCheckout } from '../pkg/checkout-b64';   // `seguirCheckout` se quitó: estaba importado y nunca se usaba
-import { avisoDeRedireccion } from '../pkg/preflight-sucursal.ts';
-import { qrEntryUrl, corbetaBranch, sucursalUsable } from '../pkg/qr';
-import { autorrellenarQr } from '../pkg/qr-steps';   // fillQrRegister/fillQrOtp los usan los specs de channel/, no el guiado: acá el harness rellena y el usuario clickea
+import { forensicOnClose as lokiForensic } from '../pkg/loki';
+import { writeLines, dumpWrites } from '../pkg/db';
+import { urlCheckout } from '../pkg/checkout-b64';   // `followCheckout` se quitó: estaba importado y nunca se usaba
+import { redirectNotice } from '../pkg/preflight-sucursal.ts';
+import { qrEntryUrl, corbetaBranch, usableBranch } from '../pkg/qr';
+import { autofillQr } from '../pkg/qr-steps';   // fillQrRegister/fillQrOtp los usan los specs de channel/, no el guiado: acá el harness rellena y el usuario clickea
 import { close } from '../pkg/db';
 import { PREVIEW, IPHONE_UA, isExternalUrl, openA, openB } from '../pkg/windows';
 import { mockWompiHostedCheckout } from '../pkg/wompi-mock';
@@ -25,7 +25,7 @@ import { mockClosingDocuments } from '../pkg/pdf-mock';
 import { mockPayvalidaCheckout, PAYVALIDA_SENTINEL } from '../pkg/payvalida-mock';
 
 /**
- * GUIADO (semiautomático) — el demo SIEMBRA cada pantalla por detrás y VOS das "Continuar" para avanzar,
+ * GUIADO (semiautomático) — el demo SEED cada pantalla por detrás y VOS das "Continuar" para avanzar,
  * así navegás el flujo pantalla por pantalla sin trabarte en captura de datos / KYC real.
  *
  *   monto      → (prellenado) vos das Continuar
@@ -48,7 +48,7 @@ const AMOUNT = process.env.E2E_AMOUNT ?? '600000';
 const RESULT = process.env.E2E_RESULT ?? 'success';                    // cómo resuelve el crédito (auto): success | rejected | pending
 // user_request_status_id esperado por desenlace (11=Autorizada, 6=Negada, 10=Pendiente). Definido UNA
 // sola vez en pkg/trace.ts y compartido con dev/sweep.ts — tener dos copias es como empiezan a derivar.
-const RESULT_STATUS = traza.ESTADO_ESPERADO;
+const RESULT_STATUS = trace.EXPECTED_STATUS;
 const ENTRY = process.env.E2E_ENTRY ?? 'cognito';               // 'cognito' (asesor) | 'self-service' (el cliente solo) | 'ecommerce' (checkout base64) | 'qr' (caja Corbeta)
 /**
  * ¿HAY UN SOLO DISPOSITIVO EN ESTE CANAL? El handoff a «la ventana B» modela el paso del dispositivo
@@ -61,14 +61,14 @@ const ENTRY = process.env.E2E_ENTRY ?? 'cognito';               // 'cognito' (as
  * su browser. El canal QR tampoco tiene asesor, pero su recorrido es otro (no pasa por este bloque) y
  * no se toca acá.
  */
-const UN_SOLO_DISPOSITIVO = ENTRY === 'self-service' || ENTRY === 'ecommerce';
+const SINGLE_DEVICE = ENTRY === 'self-service' || ENTRY === 'ecommerce';
 const CHECKOUT_URL = process.env.E2E_CHECKOUT_URL ?? '';
 const STORE = process.env.E2E_STORE === '1';
 const AUTH = join(process.cwd(), '.auth');
 
 /** El loan_request_id en la URL del wizard. Anclado por el segmento SIGUIENTE porque el teléfono ocupa
  *  la MISMA posición (`/merchant/{hash}/{phone}/otp`) y sin ancla se capturaba el celular como uReq. */
-const UREQ_EN_URL = new RegExp(
+const UREQ_IN_URL = new RegExp(
     `\\/(?:merchant|ecommerce|self-service)\\/[^/]+\\/(\\d+)\\/(?:${'personal-info|employment-info|kyc-processing|kyc-status|lenders|confirmation|additional-info|sign-documents|otp-validation|first-payment-date|payment-schedule|payment-reminder|identity-validation|additional-identity-validation|retry-validation|request-canceled|loan-approved|request-sent|security-validation|abaco|validation-status|aws-validation-status|lender-results|identity-validation-providers|identity-validation-switch-provider|rate-limit-exceeded'})(?:[/?#]|$)`,
 );
 const MOCK_STORE = pathToFileURL(join(process.cwd(), 'mock-store', 'index.html')).href;
@@ -173,8 +173,8 @@ async function holdOpen(...pages: Page[]) {
     // cerrar el celular (B) dejaba la corrida colgada sin nada que la termine — y cerrar «las ventanas»
     // es el gesto natural para decir "terminé" (pasó el 2026-08-19). El spec no cierra A ni B por su
     // cuenta (sólo popups externos), así que un close SIEMPRE es del humano.
-    const vivas = pages.filter(Boolean);
-    await Promise.race(vivas.map((p) => p.waitForEvent('close', { timeout: 0 }))).catch(() => {});
+    const aliveOnes = pages.filter(Boolean);
+    await Promise.race(aliveOnes.map((p) => p.waitForEvent('close', { timeout: 0 }))).catch(() => {});
 }
 
 // fill robusto contra hidratación: el MoneyInput/SSR pierde fill() si React no ató el onChange → reintenta
@@ -242,8 +242,8 @@ test('guided (semiautomático)', async ({ browser }) => {
     // Foto POR NAVEGACIÓN, para la consola del panel (que pinta la miniatura bajo cada línea 📸). Viewport,
     // no fullPage: es "lo que se veía", y es más rápida. Corre dentro de la cola de la traza — si la página
     // ya navegó de nuevo o el shot falla, devuelve null y la línea queda sin foto (mejor eso que romper).
-    const fotoNav = (pg: Page, ventana: string) => async (num: number): Promise<string | null> => {
-        const name = `nav-${String(num).padStart(2, '0')}-${ventana}.png`;
+    const navSnapshot = (pg: Page, window: string) => async (num: number): Promise<string | null> => {
+        const name = `nav-${String(num).padStart(2, '0')}-${window}.png`;
         try { await pg.screenshot({ path: join(AUTH, name), timeout: 4000 }); return name; }
         catch { return null; }
     };
@@ -251,7 +251,7 @@ test('guided (semiautomático)', async ({ browser }) => {
         if (f !== page.mainFrame()) return;
         const u = f.url();
         let p = u; try { p = new URL(u).pathname; } catch { /* about:blank / data: */ }
-        traza.paso('A', p, fotoNav(page, 'A'));
+        trace.step('A', p, navSnapshot(page, 'A'));
         if (isExternal(u)) externalUrl = u;
     });
     page.context().on('page', async (pp) => { const u = pp.url(); if (isExternal(u)) { externalUrl = u; log(`popup externo → ${u}`); } await pp.close().catch(() => {}); });
@@ -263,15 +263,15 @@ test('guided (semiautomático)', async ({ browser }) => {
     //
     // B NO hereda la sesión de A, a propósito: `/self-service/*` matchea `route(":flow", public-layout.tsx)`
     // en el wizard → layout PÚBLICO, sin `requireUserWithSession` (eso solo lo exige `/merchant/*` vía
-    // default-layout). Es el celular del CLIENTE: en la vida real abre el link sin la sesión del asesor.
+    // default-layout). Es el celular del CUSTOMER: en la vida real abre el link sin la sesión del asesor.
     // ⚠ EN AUTOGESTIÓN NO SE ABRE B, y no es un detalle de prolijidad: abrir una segunda ventana dice
     // «el proceso se le entregó a alguien», que es exactamente lo contrario de lo que pasa. El cliente
     // ya está en A y sigue ahí. `B` queda apuntando a A para que el resto del archivo no tenga que
     // preguntar por el canal — y las dos funciones que ESCRIBEN en B (`bCard`, que le pone una tarjeta,
     // y `wakeB`, que la navega) se vuelven no-op abajo. Sin esas dos guardas, con `B === A` la tarjeta
     // de «Esperando…» le borraría la pantalla al cliente.
-    const UNA_VENTANA = ENTRY === 'self-service';
-    const { page: B } = UNA_VENTANA ? { page } : await openB(browser, { baseURL: config.feBaseUrl, userAgent: IPHONE_UA }); // B mitad DERECHA
+    const ONE_WINDOW = ENTRY === 'self-service';
+    const { page: B } = ONE_WINDOW ? { page } : await openB(browser, { baseURL: config.feBaseUrl, userAgent: IPHONE_UA }); // B mitad DERECHA
 
     // ¿ESTE uReq requiere ÁBACO? (product renting/rto). Best-effort, pero decide la BIFURCACIÓN del flujo,
     // así que REINTENTA en vez de rendirse al primer error: un solo intento con `.catch(() => false)`
@@ -324,11 +324,11 @@ test('guided (semiautomático)', async ({ browser }) => {
     // ⚠ En AUTOGESTIÓN no se engancha, porque `B` ES `A`: enganchar los mismos listeners dos veces
     // duplicaba TODO el log —`01 A`, `02 B`, `03 A`… la misma URL alternando— y hacía parecer que la
     // segunda ventana seguía abierta cuando no se abrió ninguna. La traza de A ya cubre el recorrido.
-    if (!UNA_VENTANA) {
+    if (!ONE_WINDOW) {
         B.on('framenavigated', (f) => {
             if (f !== B.mainFrame()) return;
             let p = f.url(); try { p = new URL(f.url()).pathname; } catch { /* about:blank / data: */ }
-            if (p !== 'about:blank') traza.paso('B', p, fotoNav(B, 'B'));
+            if (p !== 'about:blank') trace.step('B', p, navSnapshot(B, 'B'));
         });
         B.on('console', (m) => {
             const t = m.type();
@@ -362,7 +362,7 @@ test('guided (semiautomático)', async ({ browser }) => {
         await mockPayvalidaCheckout(page).catch(() => {});
     }
     // Tarjeta de estado de B (mientras no haya una pantalla real que mostrar).
-    const bCard = (kicker: string, title: string, body: string, dots = true) => UNA_VENTANA
+    const bCard = (kicker: string, title: string, body: string, dots = true) => ONE_WINDOW
         ? Promise.resolve()   // B es A: escribirle una tarjeta le borraría la pantalla al cliente
         : B.setContent(
         `<!doctype html><meta charset="utf-8"><title>B · celular del cliente</title>
@@ -376,7 +376,7 @@ test('guided (semiautomático)', async ({ browser }) => {
     await bCard('Ventana B · celular del cliente', 'Esperando…',
         'Elegí el lender en la ventana A (izquierda). Según la rama que tome el flujo, esta ventana abre lo que le toca al cliente.');
 
-    // De la URL de A (/merchant|/ecommerce/{hash}/{ur}/…) al link del CLIENTE (/self-service/{hash}/{ur}/confirmation).
+    // De la URL de A (/merchant|/ecommerce/{hash}/{ur}/…) al link del CUSTOMER (/self-service/{hash}/{ur}/confirmation).
     // ⚠ `self-service` está en la alternancia a propósito: en el canal de AUTOGESTIÓN la ventana A ya ES
     // el celular del cliente, así que la conversión es la identidad y no hay que tratarla como un caso
     // aparte — sin eso, el enrutador de B se quedaba con la cadena vacía y no abría nada.
@@ -385,7 +385,7 @@ test('guided (semiautomático)', async ({ browser }) => {
         return m ? `${m[1]}/self-service/${m[2]}/${m[3]}/confirmation` : '';
     };
 
-    // ── ENRUTADOR DE B: una vez que A resuelve, B abre lo que le corresponde al CLIENTE en esa rama. ──
+    // ── ENRUTADOR DE B: una vez que A resuelve, B abre lo que le corresponde al CUSTOMER en esa rama. ──
     //  · 'creditopx'  (rt=2 in-platform) → el link del cliente, journey real in-platform.
     //  · 'agregador'  (modal self-management, ej. Sistecrédito/Meddipay) → portal del lender (mock-bank). En la
     //    vida real el cliente sigue por el link de WhatsApp EN SU CELULAR: eso ES un 2º dispositivo, y hasta
@@ -397,17 +397,17 @@ test('guided (semiautomático)', async ({ browser }) => {
     // el Hosted UI de Cognito (navegación externa al arrancar) y el copy "en tu celular" del OTP (matchea el
     // regex del modal). Se prende al pasar por /lenders.
     let seenLenders = false;
-    let empleoRepuesto = false;   // el empleo se repone UNA vez (F-218)
+    let employmentRestored = false;   // el empleo se repone UNA vez (F-218)
     // ¿el SERVER rebotó /lenders → /solicitar (302 real)? Lo prende el response-listener de abajo. Sirve para
     // que el diagnóstico del salto directo NO mienta: "no llegó a /lenders" tiene dos causas opuestas —
     // el front lo rechazó (esto en true) vs. el salto ni se pidió (carrera post-login, esto en false). F-66.
     let lendersBounced = false;
-    let avisoSucursalDado = false;   // el aviso de cambio de sucursal va UNA vez por corrida
+    let givenBranchNotice = false;   // el aviso de cambio de sucursal va UNA vez por corrida
     const wakeB = async (kind: 'creditopx' | 'agregador' | 'redirect', aUrl: string, lender = ''): Promise<void> => {
         // Autogestión: no hay a quién despertar. ⚠ Esta guarda es la que faltaba en la primera versión
         // del canal: el watcher del modo MANUAL llama acá en cuanto la URL de A toca `/continue` o
         // `/confirmation`, así que B se abría igual aunque el recorrido del bloque rt=2 ya usara A.
-        if (UNA_VENTANA) {
+        if (ONE_WINDOW) {
             if (!bWoke) {
                 bWoke = true;
                 // Y de paso se DIAGNOSTICA dónde quedó el cliente, porque las dos posibilidades se ven
@@ -427,10 +427,10 @@ test('guided (semiautomático)', async ({ browser }) => {
                     // silencio es peor que uno que se muere: la próxima persona no se enteraría de que
                     // el flujo real está cortado. Cuando el arreglo mergee, esta rama deja de tocarse
                     // sola —el front ya no pasa por `/continue`— y no hay que sacar nada.
-                    const destino = selfServiceLinkFrom(aUrl);
-                    if (destino) {
-                        log(`   → te llevo a ${new URL(destino).pathname} para que puedas seguir (lo hace el HARNESS, no el front).`);
-                        await B.goto(destino, { waitUntil: 'domcontentloaded', timeout: 60_000 }).catch(() => {});
+                    const target = selfServiceLinkFrom(aUrl);
+                    if (target) {
+                        log(`   → te llevo a ${new URL(target).pathname} para que puedas seguir (lo hace el HARNESS, no el front).`);
+                        await B.goto(target, { waitUntil: 'domcontentloaded', timeout: 60_000 }).catch(() => {});
                     } else {
                         log('   ✗ y no pude armar el link de continuación desde esa url — seguí a mano.');
                     }
@@ -456,8 +456,8 @@ test('guided (semiautomático)', async ({ browser }) => {
             // llegaba a `loan-approved` sin pasar nunca por Ábaco. Con renting dejamos a B en
             // confirmation para que el "Continuar" dispare el redirect real.
             const urB = link.match(/\/(\d+)\/confirmation$/)?.[1] ?? '';
-            const pideAbaco = await abacoRequired(urB);
-            if (pideAbaco) {
+            const asksAbaco = await abacoRequired(urB);
+            if (asksAbaco) {
                 log('B: este lender pide ÁBACO (renting) → NO salteo el ADO; el paso está ANTES.');
                 log('B: dale "Continuar" en confirmation y el wizard te lleva a /abaco (plataformas gig).');
                 return;
@@ -512,7 +512,7 @@ test('guided (semiautomático)', async ({ browser }) => {
             if (bWoke) return;
             // Sin segundo dispositivo no hay a quién entregarle: despertar B acá es lo que hacía
             // que una corrida de ecommerce terminara en dos ventanas.
-            if (!UN_SOLO_DISPOSITIVO && /\/(continue|confirmation)(\?|$)/.test(u)) void wakeB('creditopx', u);
+            if (!SINGLE_DEVICE && /\/(continue|confirmation)(\?|$)/.test(u)) void wakeB('creditopx', u);
             else if (seenLenders && isExternal(u)) void wakeB('redirect', u);
         });
     }
@@ -535,11 +535,11 @@ test('guided (semiautomático)', async ({ browser }) => {
          * CrediPullman · Cierre X) y se aterrizó en `ec977139` (Addi · Vanti · CrediPullman ·
          * Crédito 365). El dato ya estaba en el log; lo que faltaba era decir qué significa.
          * Una sola vez: repetirlo en cada request lo vuelve ruido. */
-        if (!avisoSucursalDado) {
-            const hDe = /\/merchant\/([0-9a-f]{8})\//.exec(from)?.[1] ?? '';
+        if (!givenBranchNotice) {
+            const hOf = /\/merchant\/([0-9a-f]{8})\//.exec(from)?.[1] ?? '';
             const hA = /\/merchant\/([0-9a-f]{8})\//.exec(loc)?.[1] ?? '';
-            const lineas = avisoDeRedireccion(hDe, hA);
-            if (lineas.length) { avisoSucursalDado = true; for (const l of lineas) log(`  ${l}`); }
+            const lines = redirectNotice(hOf, hA);
+            if (lines.length) { givenBranchNotice = true; for (const l of lines) log(`  ${l}`); }
         }
         /* ⚠ REPONER EL EMPLEO EN CUANTO AGILDATA CONTESTA (F-218).
          * Va acá y no en la navegación a `/lenders` porque el `.data` del listado se pide ANTES de que
@@ -547,18 +547,18 @@ test('guided (semiautomático)', async ({ browser }) => {
          * del envío de `personal-info` ya trae a Agildata hecho —es dentro de `storePersonalInfo`—, así
          * que la pantalla siguiente lee los valores repuestos.
          * Una sola vez: el formulario se puede reenviar y el aviso se volvería ruido. */
-        if (!empleoRepuesto && /personal-info/.test(from) && resp.request().method() !== 'GET') {
-            empleoRepuesto = true;
+        if (!employmentRestored && /personal-info/.test(from) && resp.request().method() !== 'GET') {
+            employmentRestored = true;
             void (async () => {
                 // El id sale de la URL del propio request: es la misma fuente que usa el resto del
                 // spec y no depende de que la traza ya lo tenga anclado.
-                const ur = from.match(UREQ_EN_URL)?.[1] ?? page.url().match(UREQ_EN_URL)?.[1] ?? '';
+                const ur = from.match(UREQ_IN_URL)?.[1] ?? page.url().match(UREQ_IN_URL)?.[1] ?? '';
                 if (!ur) return;
-                const r = await reponerEmpleo(Number(ur), {
+                const r = await restoreEmployment(Number(ur), {
                     income: Number(process.env.E2E_SYNTH_INCOME) || undefined,
                     occupation: process.env.E2E_SYNTH_OCC || undefined,
                 }).catch(() => null);
-                for (const l of avisoDeEmpleoPisado(r)) log(`  ${l}`);
+                for (const l of overwrittenEmploymentNotice(r)) log(`  ${l}`);
             })();
         }
         if (/lenders/.test(from) && /solicitar/.test(loc)) lendersBounced = true;   // rebote REAL del front (F-66)
@@ -668,7 +668,7 @@ test('guided (semiautomático)', async ({ browser }) => {
         }), prepIds).catch(() => {});
     }
 
-    // ── SIEMBRA HEADLESS: register del teléfono + INSERT del user_request + buró sintético. ──
+    // ── SEED HEADLESS: register del teléfono + INSERT del user_request + buró sintético. ──
     // Es HTTP + BD pura: NO toca el navegador. Por eso puede correr ANTES de cualquier navegación.
     // Devuelve el id del uReq, o '' si no se pudo sembrar. Va marcando los pasos de la pantalla "preparando".
     async function seedHeadless(): Promise<string> {
@@ -682,8 +682,8 @@ test('guided (semiautomático)', async ({ browser }) => {
         const userId = reg?.data?.user?.id ?? null;
         const br = userId ? await one<{ branch_id: number; allied_id: number }>('SELECT id AS branch_id, allied_id FROM allied_branches WHERE hash=? LIMIT 1', [HASH]).catch(() => null) : null;
         // asesor → corporate_user_id (como el flujo real, para que /lenders lo autorice). bin/asesor exporta E2E_ASESOR_SUB.
-        const asesorSub = process.env.E2E_ASESOR_SUB || '';
-        const asesorId = asesorSub ? ((await one<{ id: number }>('SELECT id FROM users WHERE cognito_id=? LIMIT 1', [asesorSub]).catch(() => null))?.id ?? null) : null;
+        const advisorSub = process.env.E2E_ASESOR_SUB || '';
+        const advisorId = advisorSub ? ((await one<{ id: number }>('SELECT id FROM users WHERE cognito_id=? LIMIT 1', [advisorSub]).catch(() => null))?.id ?? null) : null;
         if (!userId || !br) {
             log(`✗ no pude sembrar el uReq headless (user=${userId ?? '?'} · branch=${br ? 'ok' : 'no'}) — probá "Saltar a: Datos" (visual)`);
             return '';
@@ -693,10 +693,10 @@ test('guided (semiautomático)', async ({ browser }) => {
         // el fallo opaco: devolvía un id sin fila en `users`, se sembraba la solicitud igual, y
         // `lenders-v2` reventaba con "Attempt to read property id on null" → 500 en pantalla cinco
         // minutos de cold-boot después. Se verifica contra la BD ANTES de insertar nada.
-        const cliente = await one<{ id: number }>('SELECT id FROM users WHERE id=? LIMIT 1', [userId]).catch(() => null);
-        if (!cliente) {
-            const porTel = await one<{ id: number }>('SELECT id FROM users WHERE cell_phone=? ORDER BY id DESC LIMIT 1', [PHONE]).catch(() => null);
-            log(`✗ el register devolvió user ${userId} pero NO hay esa fila en \`users\` (por teléfono ${PHONE}: ${porTel?.id ?? 'tampoco'}).`);
+        const customer = await one<{ id: number }>('SELECT id FROM users WHERE id=? LIMIT 1', [userId]).catch(() => null);
+        if (!customer) {
+            const byPhone = await one<{ id: number }>('SELECT id FROM users WHERE cell_phone=? ORDER BY id DESC LIMIT 1', [PHONE]).catch(() => null);
+            log(`✗ el register devolvió user ${userId} pero NO hay esa fila en \`users\` (por teléfono ${PHONE}: ${byPhone?.id ?? 'tampoco'}).`);
             log(`   Sembrar igual dejaría la solicitud HUÉRFANA y /lenders daría 500. Se aborta acá.`);
             log(`   respuesta cruda del register: ${JSON.stringify(reg).slice(0, 400)}`);
             log(`   Mientras tanto usá "Saltar a: Monto" — ahí el cliente lo crea el wizard real.`);
@@ -709,7 +709,7 @@ test('guided (semiautomático)', async ({ browser }) => {
             // sembrada. En una corrida manual sana, al estar en /lenders la solicitud está en 9, y
             // `synthFill` (abajo) llena justamente ese perfil. Sembrar en 9 deja el mismo estado.
             'INSERT INTO user_requests (user_id, allied_id, allied_branch_id, lender_id, amount, original_amount, user_request_status_id, corporate_user_id, credit_line_id, fee_number, fee_value, rate, created_at, updated_at) VALUES (?,?,?,NULL,?,?,9,?,1,0,0,0,NOW(),NOW())',
-            [userId, br.allied_id, br.branch_id, Number(AMOUNT), Number(AMOUNT), asesorId],
+            [userId, br.allied_id, br.branch_id, Number(AMOUNT), Number(AMOUNT), advisorId],
         ).catch(() => null);
         const ur = ins?.insertId ? String(ins.insertId) : '';
         if (!ur) { log('✗ el INSERT del user_request falló'); return ''; }
@@ -719,19 +719,19 @@ test('guided (semiautomático)', async ({ browser }) => {
         // SOLO rt=0. Dos condiciones ya dadas: la firma exige estado asignable (1 o 9) y sembramos en 9; y el
         // comercio debe estar autorizado. Si el backend rechaza, NO se finge: se sigue estándar y se dice el
         // código, porque el rechazo viaja en HTTP 200 (F-58).
-        let cupoConfirmado = false;
+        let confirmedQuota = false;
         if (process.env.E2E_OMIT_EXPERIAN === '1') {
             const fr = await fetch(`${config.mockUrl}/api/v1/user-request/${ur}/flow-signature/already-confirmed-pre-approval`,
                 { method: 'POST', headers: { accept: 'application/json' } }).then((x) => x.json()).catch(() => null);
-            cupoConfirmado = fr?.code === 'URV13000';
-            log(cupoConfirmado
+            confirmedQuota = fr?.code === 'URV13000';
+            log(confirmedQuota
                 ? `cupo ya confirmado: flujo firmado (already-confirmed-pre-approval) → el backend NO consulta el buró; /lenders listará solo rt=0`
                 : `✗ no se pudo firmar el flujo de cupo (${fr?.code ?? 'sin respuesta'}${fr?.message ? `: ${fr.message}` : ''}) → sigue el flujo ESTÁNDAR`);
         }
         // Con el cupo confirmado no se forja el buró: el backend tampoco lo va a consultar.
-        const r = await synthFill(Number(ur), { ...synthOptsFromEnv(), skipBuro: cupoConfirmado });
-        log(`uReq ${ur} sembrado headless (user ${userId} · asesor ${asesorId ?? '-'} · Experian ${r.datacredito_forged})`);
-        traza.trazarUReq(ur);
+        const r = await synthFill(Number(ur), { ...synthOptsFromEnv(), skipBuro: confirmedQuota });
+        log(`uReq ${ur} sembrado headless (user ${userId} · asesor ${advisorId ?? '-'} · Experian ${r.datacredito_forged})`);
+        trace.traceUReq(ur);
         // Aviso TEMPRANO: si el lender que elijas pide cuota inicial, el flujo va al checkout de Wompi y
         // `/initial-fee-payment/initiate` necesita la credencial del lender Wompi (#52) EN ESTA SUCURSAL.
         // Sin ella tira, y te enterás recién a mitad del cierre. Es una consulta barata, así que se avisa acá.
@@ -777,7 +777,7 @@ test('guided (semiautomático)', async ({ browser }) => {
 
     // ¿Estamos parados en el Hosted UI de Cognito? Solo entonces hay login que hacer. Preguntarlo evita los
     // 15s que cognitoLogin() tarda en descubrir que no hay form (su espera del input de usuario).
-    // Detecta el Hosted UI de Cognito. Los dominios varían por CLIENTE y por entorno: dev usa uno,
+    // Detecta el Hosted UI de Cognito. Los dominios varían por CUSTOMER y por entorno: dev usa uno,
     // el client `merchant` de staging redirige a `auth.merchant.creditop.com/login` — que NO matcheaba
     // `login.creditop.com` (el orden real es `creditop.com/login`), ni `amazoncognito`, ni
     // `/oauth2/authorize` (su path es `/login`). Resultado: no se llamaba a cognitoLogin, el formulario
@@ -803,10 +803,10 @@ test('guided (semiautomático)', async ({ browser }) => {
         // Se pregunta por el hash QUE SE VA A USAR, no se compara con el preferido: `corbetaBranch()`
         // devuelve UNA sucursal (la 946 por default) y comparar contra ella acusaba de "no ser Corbeta" a
         // cualquier otra sucursal válida — la 944 de la tarjeta Alkosto tiene 68 y 100 y salía advertida.
-        const propia = await corbetaBranch().catch(() => null);
-        if (propia && !(await sucursalUsable(HASH))) {
+        const own = await corbetaBranch().catch(() => null);
+        if (own && !(await usableBranch(HASH))) {
             log(`⚠ el hash del panel (${HASH}) no tiene 68 y 100 habilitados, o no está en corbeta_allieds.`);
-            log(`   sugerida: sucursal ${propia.id} (allied ${propia.alliedId}) hash=${propia.hash}`);
+            log(`   sugerida: sucursal ${own.id} (allied ${own.alliedId}) hash=${own.hash}`);
         }
         const url = qrEntryUrl(HASH);
         log(`entrada QR: ${url}`);
@@ -821,7 +821,7 @@ test('guided (semiautomático)', async ({ browser }) => {
         // Lo único que hace el usuario es dar Continuar: el harness escribe, no clickea. Se engancha a
         // CADA navegación porque el recorrido tiene 7 formularios y su orden depende del producto que
         // resuelva el OTP — una secuencia cableada se rompe con cada rama (ver pkg/qr-steps.ts).
-        const datosQr = {
+        const qrData = {
             phone: PHONE,
             document: process.env.E2E_SYNTH_DOC || String(2_900_000_000 + (Number(AMOUNT) || 0) % 90_000_000),
             amount: Number(AMOUNT) || undefined,
@@ -831,21 +831,21 @@ test('guided (semiautomático)', async ({ browser }) => {
             address: 'Cal 123 # 12-122',
             income: Number(process.env.E2E_SYNTH_INCOME) || 2_500_000,
         };
-        let rellenando = false;
-        // El autorrelleno es para los formularios DEL CLIENTE. Fuera del recorrido no tiene nada que hacer:
+        let filling = false;
+        // El autorrelleno es para los formularios DEL CUSTOMER. Fuera del recorrido no tiene nada que hacer:
         // en `/login` (Cognito, asesor) y `/merchant/*` llegó a escribir `firstName=SYNTH` en el login
         // cuando el regreso del banco se desviaba para allá. Ahí se calla.
-        const ajeno = () => /^\/(login|logout|merchant|auth)(\/|$)/.test(new URL(page.url()).pathname);
-        const rellenar = async (motivo: string) => {
-            if (rellenando) return;                 // una pasada a la vez: navegar dispara varios eventos
-            if (ajeno()) return;
-            rellenando = true;
+        const foreign = () => /^\/(login|logout|merchant|auth)(\/|$)/.test(new URL(page.url()).pathname);
+        const fill = async (reason: string) => {
+            if (filling) return;                 // una pasada a la vez: navegar dispara varios eventos
+            if (foreign()) return;
+            filling = true;
             try {
                 await page.waitForTimeout(700);      // que hidrate: si se escribe antes, React lo pisa
-                const hechos = await autorrellenarQr(page, datosQr);
-                if (hechos.length) log(`autorrelleno (${motivo}): ${hechos.join(' · ')}`);
+                const facts = await autofillQr(page, qrData);
+                if (facts.length) log(`autorrelleno (${reason}): ${facts.join(' · ')}`);
             } catch { /* el autorrelleno es un extra: nunca frena la corrida */ }
-            rellenando = false;
+            filling = false;
         };
 
         // ── EL REGRESO DEL BANCO ────────────────────────────────────────────────────────────────────
@@ -859,32 +859,32 @@ test('guided (semiautomático)', async ({ browser }) => {
         // Y no puede deducirse del referrer: el wizard (:5174) y el mock (:8104) son orígenes distintos, el
         // browser recorta el referrer a "http://localhost:5174/" (sin path) y el regreso caía en `/` →
         // `/merchant` → **`/login`**, el login de asesor en un canal autoasistido (F-86).
-        let retornoPuesto = '';
-        const registrarRetorno = async () => {
+        let returnSet = '';
+        const registerReturn = async () => {
             const m = page.url().match(/\/bancolombia\/(bnpl|consumo)\//);
             if (!m) return;
-            const destino = new URL(page.url());
-            destino.pathname = `/bancolombia/${m[1]}/redirect`;
-            destino.search = '';
-            destino.searchParams.set('code', 'mock-auth-code');
-            if (destino.toString() === retornoPuesto) return;
-            retornoPuesto = destino.toString();
+            const target = new URL(page.url());
+            target.pathname = `/bancolombia/${m[1]}/redirect`;
+            target.search = '';
+            target.searchParams.set('code', 'mock-auth-code');
+            if (target.toString() === returnSet) return;
+            returnSet = target.toString();
             const bc = process.env.MOCK_BC_URL || 'http://localhost:8104';
             const ok = await fetch(`${bc}/_control/retorno`, {
                 method: 'POST',
                 headers: { 'content-type': 'application/json' },
-                body: JSON.stringify({ url: retornoPuesto }),
+                body: JSON.stringify({ url: returnSet }),
             }).then((r) => r.ok).catch(() => false);
-            log(ok ? `retorno del banco registrado: ${retornoPuesto}` : `⚠ no pude registrar el retorno en el mock (${bc})`);
+            log(ok ? `retorno del banco registrado: ${returnSet}` : `⚠ no pude registrar el retorno en el mock (${bc})`);
         };
 
         page.on('framenavigated', (f) => {
             if (f !== page.mainFrame()) return;
-            void registrarRetorno();
-            void rellenar('nav');
+            void registerReturn();
+            void fill('nav');
         });
-        await registrarRetorno();
-        await rellenar('aterrizaje');
+        await registerReturn();
+        await fill('aterrizaje');
         tip('Todo lo rellenable ya está puesto: vos sólo dale CONTINUAR en cada pantalla.');
 
         // ⚠ EL CANAL QR TERMINA ACÁ, en los DOS modos: `holdOpen` + `return`.
@@ -920,20 +920,20 @@ test('guided (semiautomático)', async ({ browser }) => {
         //
         // ⚠ OJO AL LEER ESTO: cuando venís del panel, este `pedido` NO es el que viaja. `bin/asesor`
         // ya armó el contrato y exportó `E2E_CHECKOUT_URL`, que gana en la línea de abajo. El caso
-        // igual llega, pero por el otro camino: `identidadDelCaso()` en `pkg/ecommerce.ts` lee las
+        // igual llega, pero por el otro camino: `caseIdentity()` en `pkg/ecommerce.ts` lee las
         // mismas E2E_SYNTH_*, y el monto va como 3er argumento de `dbops ecommerce-url`.
         // `urlCheckout(HASH, pedido)` es el camino de abajo: sólo corre si NADIE armó la URL antes.
         // Hasta el 2026-09-14 el de arriba ignoraba el caso y este comentario describía algo que no
         // pasaba — el panel decía «CC 2941056394 · $2.000.000» y por la tienda entraba
         // «CC 1032456789 · $600.000», sin un solo error a la vista.
-        const nombre = (process.env.E2E_SYNTH_NAME || 'SYNTH TEST USER').trim().split(/\s+/);
-        const pedido = {
+        const nameValue = (process.env.E2E_SYNTH_NAME || 'SYNTH TEST USER').trim().split(/\s+/);
+        const order = {
             total: Number(AMOUNT) || 1_500_000,
             phone: PHONE,
             documentNumber: process.env.E2E_SYNTH_DOC || String(2_900_000_000 + Math.floor(Number(AMOUNT) || 0) % 90_000_000),
             documentType: process.env.E2E_SYNTH_DOCTYPE || 'CC',
-            firstName: nombre[0] || 'SYNTH',
-            lastName: nombre.slice(1).join(' ') || 'TEST USER',
+            firstName: nameValue[0] || 'SYNTH',
+            lastName: nameValue.slice(1).join(' ') || 'TEST USER',
             email: process.env.E2E_SYNTH_EMAIL || undefined,
             returnUrl: RETURN_URL,
         };
@@ -947,22 +947,22 @@ test('guided (semiautomático)', async ({ browser }) => {
         // «el producto me canceló la solicitud».
         let url = CHECKOUT_URL;
         if (!url) {
-            const { corbetaDeLaSucursal } = await import('../pkg/merchants.ts');
-            const esCorbeta = await corbetaDeLaSucursal(HASH).then((x) => x.corbeta).catch(() => false);
-            if (!esCorbeta) {
+            const { branchCorbeta } = await import('../pkg/merchants.ts');
+            const isCorbeta = await branchCorbeta(HASH).then((x) => x.corbeta).catch(() => false);
+            if (!isCorbeta) {
                 log(`⚠ sin E2E_CHECKOUT_URL y este comercio NO es Corbeta: el único checkout que queda es el de Corbeta,`);
                 log(`   y su resolvedor cancelaría la solicitud. Entrá por el panel (canal ecommerce) o exportá E2E_CHECKOUT_URL`);
                 log(`   (node bin/dbops.ts ecommerce-url <comercio> te la arma).`);
                 throw new Error('canal ecommerce sin URL de checkout genérica, y el comercio no es Corbeta');
             }
             log('sin E2E_CHECKOUT_URL: este comercio SÍ es Corbeta → se entra por su checkout (`pkg/checkout-b64.ts`)');
-            url = urlCheckout(HASH, pedido);
+            url = urlCheckout(HASH, order);
         }
         // OJO: NO pre-seguimos el checkout acá. Cada GET a esa URL CREA una solicitud, así que hacerlo
         // headless y además navegar el browser generaba DOS (y dejaba la primera huérfana). El browser
-        // recorre el 302 real; el uReq lo leemos del aterrizaje. `seguirCheckout()` queda para el camino
+        // recorre el 302 real; el uReq lo leemos del aterrizaje. `followCheckout()` queda para el camino
         // RÁPIDO (sin navegador), donde sí es el que ejecuta.
-        log(`entrada ecommerce: URL base64 → ${HASH} · total ${pedido.total.toLocaleString('es-CO')}`);
+        log(`entrada ecommerce: URL base64 → ${HASH} · total ${order.total.toLocaleString('es-CO')}`);
 
         if (STORE) {
             await page.goto(`${MOCK_STORE}?to=${encodeURIComponent(url)}`, { waitUntil: 'domcontentloaded', timeout: 30_000 }).catch(() => {});
@@ -979,7 +979,7 @@ test('guided (semiautomático)', async ({ browser }) => {
 
         const urEcom = page.url().match(/resolve-ecommerce-flow\/(\d+)|\/(?:merchant|ecommerce|self-service)\/[^/]+\/(\d+)\//);
         const idEcom = urEcom?.[1] ?? urEcom?.[2];
-        if (idEcom) traza.trazarUReq(idEcom);
+        if (idEcom) trace.traceUReq(idEcom);
 
         // ⚠ `resolve-ecommerce-flow` es el resolvedor de BANCOLOMBIA (título "Validando información -
         // Bancolombia", flowTypes bnpl|consumo). Con un comercio CreditopX el flowType sale
@@ -1034,8 +1034,8 @@ test('guided (semiautomático)', async ({ browser }) => {
         // confirma el aterrizaje es el needsCognito()/waitForURL de abajo, no este waitUntil.
         // El tronco lo decide el CANAL: `/merchant/*` exige sesión y en autogestión no hay ninguna, así
         // que el mismo salto contra ese tronco terminaría en el login en vez del marketplace.
-        const tronco = ENTRY === 'self-service' ? 'self-service' : 'merchant';
-        const jump = `/${tronco}/${HASH}/${ur}/lenders?amount=${AMOUNT}`;
+        const trunk = ENTRY === 'self-service' ? 'self-service' : 'merchant';
+        const jump = `/${trunk}/${HASH}/${ur}/lenders?amount=${AMOUNT}`;
         const navErr = await page.goto(jump, { waitUntil: 'commit', timeout: 30_000 })
             .then(() => null, (e: Error) => e);
         if (navErr) {
@@ -1050,16 +1050,16 @@ test('guided (semiautomático)', async ({ browser }) => {
         // cadena de redirects del callback (callback → /merchant → /solicitar) que TODAVÍA estaba en vuelo
         // —cognitoLogin volvía apenas la URL tocaba el host, antes de asentar—: el goto se abortaba y
         // quedabas en /solicitar, sin que el server rebotara nada. Ese era el "salto a /lenders rebota en
-        // staging" (F-66). Ahora cognitoLogin ESPERA a que el callback descanse (ver pkg/cognito.ts), y el
+        // staging" (F-66). Ahora cognitoLogin WAIT a que el callback descanse (ver pkg/cognito.ts), y el
         // salto va después, con la sesión asentada.
         if (needsCognito()) await cognitoLogin(page);
         // El salto, ya con sesión. REINTENTO: aun asentado, el primer goto post-login puede pisarse con la
         // cola de navegación; reintentar hasta ver /lenders es barato y mata el flake. Cada intento espera un
         // destino REAL (lenders, o el rebote a solicitar), no el domcontentloaded de una ruta de tránsito.
-        for (let intento = 1; intento <= 3 && !/\/lenders/.test(page.url()); intento++) {
+        for (let attempt = 1; attempt <= 3 && !/\/lenders/.test(page.url()); attempt++) {
             await page.goto(jump, { waitUntil: 'commit', timeout: 30_000 }).catch(() => {});   // commit, no DCL (streaming: ver el salto de arriba)
             await page.waitForURL(/\/(lenders|solicitar)/, { timeout: 30_000 }).catch(() => {});
-            if (!/\/lenders/.test(page.url())) log(`   reintento ${intento}/3 del salto (quedó en ${hereOf(page)})`);
+            if (!/\/lenders/.test(page.url())) log(`   reintento ${attempt}/3 del salto (quedó en ${hereOf(page)})`);
         }
         // El log NO puede cantar "entrada DIRECTA" sin haber llegado. Y si NO llegó, distingue las dos causas
         // OPUESTAS en vez de asumir "el front rebotó" (que fue el diagnóstico equivocado de F-66): `lendersBounced`
@@ -1131,8 +1131,8 @@ test('guided (semiautomático)', async ({ browser }) => {
                 // anunció «uReq 3023234233» (era el celular) y synthFill murió con «no hay user_id para el
                 // request 3023234233», un error que apuntaba a la BD cuando el problema era el parseo. Se
                 // ancla por el segmento SIGUIENTE, que sí distingue.
-                const id = page.url().match(UREQ_EN_URL)?.[1] ?? '';
-                if (id) traza.trazarUReq(id);   // idempotente: se llama en cada paso, con el mismo id
+                const id = page.url().match(UREQ_IN_URL)?.[1] ?? '';
+                if (id) trace.traceUReq(id);   // idempotente: se llama en cada paso, con el mismo id
                 return id;
             };
 
@@ -1149,8 +1149,8 @@ test('guided (semiautomático)', async ({ browser }) => {
                     // escenario y hace ininterpretable el resultado. Sin inyectar, que aparezca una
                     // fila después significa que la omisión NO funcionó: prueba válida y gratis.
                     const flow = await one<{ flow_id: number | null }>('SELECT flow_id FROM user_requests WHERE id=? LIMIT 1', [ur]).catch(() => null);
-                    const firmado = Number(flow?.flow_id) === 2;
-                    if (firmado) {
+                    const signed = Number(flow?.flow_id) === 2;
+                    if (signed) {
                         log('flujo already-confirmed-pre-approval detectado → NO inyecto el buró (así "no hay fila" prueba la omisión)');
                         /* ⚠ Y ACÁ SE SABE YA SI EL LISTADO VA A SALIR VACÍO (F-214), así que se dice.
                          * El panel avisa ANTES y en condicional («si contestás Sí…»), y por eso se lee y se
@@ -1159,19 +1159,19 @@ test('guided (semiautomático)', async ({ browser }) => {
                          * ti». Éste sale cuando el resultado ya está decidido y antes de verlo, que es el
                          * único momento en que sirve. Queda además como ALERTA, para que aparezca en el
                          * resumen y no sólo en el scroll. */
-                        const hSuc = /\/(?:merchant|ecommerce|self-service)\/([0-9a-f]{8})\//.exec(page.url())?.[1] ?? '';
-                        if (hSuc) {
-                            const rt0 = await rt0ActivasDeLaSucursal(hSuc);
-                            const lineas = avisoDeCupoSinSalida(rt0, hSuc, ur, config.mockUrl);
-                            for (const l of lineas) log(`  ${l}`);
-                            if (lineas.length) {
-                                traza.alertas.push(
+                        const hBranch = /\/(?:merchant|ecommerce|self-service)\/([0-9a-f]{8})\//.exec(page.url())?.[1] ?? '';
+                        if (hBranch) {
+                            const rt0 = await branchActiveRt0(hBranch);
+                            const lines = quotaWithoutExitNotice(rt0, hBranch, ur, config.mockUrl);
+                            for (const l of lines) log(`  ${l}`);
+                            if (lines.length) {
+                                trace.alerts.push(
                                     `flujo firmado (flow_id=2) en una sucursal SIN entidades rt=0 activas: el listado sale vacío (F-214)`,
                                 );
                             }
                         }
                     }
-                    const r = await synthFill(Number(ur), { ...synthOptsFromEnv(), skipIdentity: true, skipBuro: firmado });
+                    const r = await synthFill(Number(ur), { ...synthOptsFromEnv(), skipIdentity: true, skipBuro: signed });
                     log(`buró inyectado para uReq ${ur} (Experian ${r.datacredito_forged}) — seguí a /lenders`);
 
                     /* ⚠ LA IDENTIDAD: SIN PROVEEDOR CONFIGURADO, LA PANTALLA QUEDA MUERTA (F-220).
@@ -1190,9 +1190,9 @@ test('guided (semiautomático)', async ({ browser }) => {
                      * ⚠ Y SE DICE, con todas las letras. Es un bypass —no prueba que un humano aprobaría—,
                      * igual que el buró sintético. Hacerlo en silencio sería la clase de verde que tapa un
                      * defecto, que es justo lo que este arnés viene a no hacer. */
-                    const sinProveedor = avisoIdentidadSinProveedor((process.env.E2E_TARGET || '').toLowerCase());
-                    if (sinProveedor.length) {
-                        for (const l of sinProveedor) log(`  ${l}`);
+                    const withoutProvider = identityWithoutProviderNotice((process.env.E2E_TARGET || '').toLowerCase());
+                    if (withoutProvider.length) {
+                        for (const l of withoutProvider) log(`  ${l}`);
                         const u = await one<{ user_id: number }>('SELECT user_id FROM user_requests WHERE id=? LIMIT 1', [ur]).catch(() => null);
                         if (u?.user_id) {
                             const doc = process.env.E2E_SYNTH_DOC || String(ur);
@@ -1201,8 +1201,8 @@ test('guided (semiautomático)', async ({ browser }) => {
                                 [`https://mock-s3.local/front-web/users/documents/synth/${doc}/frontal.jpg`,
                                  `https://mock-s3.local/front-web/users/documents/synth/${doc}/reverso.jpg`, u.user_id],
                             ).catch(() => null);
-                            const filas = await validacionManual(u.user_id).catch(() => 0);
-                            log(filas
+                            const rowList = await manualValidation(u.user_id).catch(() => 0);
+                            log(rowList
                                 ? '  → identidad APROBADA A MANO (bypass, como el admin): la pantalla de validación se saltea'
                                 : '  → no pude aprobar la identidad: la pantalla de validación va a quedar muerta igual');
                         }
@@ -1322,8 +1322,8 @@ test('guided (semiautomático)', async ({ browser }) => {
 
     // ───────────────────────── PERSONAL-INFO (BYPASS invisible, auto) ─────────────────────────
     let url = page.url();
-    const uReqID = url.match(UREQ_EN_URL)?.[1] ?? '';
-    if (uReqID) traza.trazarUReq(uReqID);   // entrada manual: recién acá aparece el id en la URL
+    const uReqID = url.match(UREQ_IN_URL)?.[1] ?? '';
+    if (uReqID) trace.traceUReq(uReqID);   // entrada manual: recién acá aparece el id en la URL
     const base = url.replace(/\/(personal-info|employment-info|lenders).*$/, '');
     if (/personal-info|employment-info/.test(url) && uReqID) {
         log(`personal-info: BYPASS datacrédito (synthFill: KYC + Experian forjado) — invisible, no toques nada acá`);
@@ -1387,13 +1387,13 @@ test('guided (semiautomático)', async ({ browser }) => {
         //
         // ⚠ Y forzar `${base}/continue` acá daría 404: esa ruta existe SÓLO bajo `/merchant/*`, que es
         // justamente el defecto que el canal de autogestión vino a destapar (F-191).
-        const autogestion = UN_SOLO_DISPOSITIVO;
-        const cliente = autogestion ? page : B;
+        const selfService = SINGLE_DEVICE;
+        const customer = selfService ? page : B;
         // Cómo se NOMBRA esa ventana en el log. Decir «ventana B» cuando el recorrido va en A es
         // exactamente la confusión que ya costó una vuelta: el rastro tiene que nombrar lo que hay.
-        const vent = autogestion ? 'cliente' : 'B (celular)';
+        const win = selfService ? 'cliente' : 'B (celular)';
 
-        log(autogestion
+        log(selfService
             ? `${ENTRY} → un solo dispositivo: el cliente sigue en la MISMA ventana (sin handoff) · ${after}`
             : `CreditopX → A: handoff \`continue\` natural (variant por flujo) · ${after}`);
         /* ⚠ Y SI EL FRONT LO DEJÓ EN LA PANTALLA DE ENTREGA, SE DICE — no se pasa por encima en silencio.
@@ -1404,18 +1404,18 @@ test('guided (semiautomático)', async ({ browser }) => {
          * haberlo mandado es justo lo que impide continuar ahí mismo.
          * El arnés sigue el recorrido que el cliente haría si el producto continuara solo, pero dejar el
          * salto invisible convertiría este bloque en un verde que tapa el defecto. */
-        if (autogestion && /\/continue(\?|$)/.test(hereOf(page))) {
+        if (selfService && /\/continue(\?|$)/.test(hereOf(page))) {
             log('⚠ el front dejó al cliente en `/continue` (la pantalla de ENTREGA) aunque no hay segundo');
             log('  dispositivo ni nada que entregar: el link que manda apunta a esta misma app. Es F-219.');
             log('  El arnés sigue a `/confirmation`, que es donde el producto debería haber continuado solo.');
         }
-        if (!autogestion) {
+        if (!selfService) {
             if (!/continue/.test(hereOf(page))) {
                 await page.goto(`${base}/continue`, { waitUntil: 'domcontentloaded', timeout: 60_000 }).catch(() => {});
             }
             await page.getByText(/Solicitud en validación|Escanea este código|Usa tu celular|Continuá/i).first().waitFor({ state: 'visible', timeout: 8_000 }).catch(() => {});
         }
-        await shot(page, autogestion ? 'A-autogestion' : 'A-handoff');
+        await shot(page, selfService ? 'A-autogestion' : 'A-handoff');
 
         // ── B = OTRA ventana (el celular del cliente): abre el link en /self-service/.../confirmation y VOS dale
         //    "Continuar" en B para avanzar (igual que A). Lo NO automatizable (captura de identidad por foto, firma
@@ -1423,11 +1423,11 @@ test('guided (semiautomático)', async ({ browser }) => {
         const selfServiceBase = base.replace(/\/(merchant|ecommerce)\//, '/self-service/');
         // B ya está abierta desde el arranque (mitad derecha, con el mock de validation-status montado y
         // esperando en su placeholder) — acá solo la llevamos al link del cliente.
-        log(`${autogestion ? 'autogestión' : 'B (celular del cliente)'}: ${new URL(`${selfServiceBase}/confirmation`).pathname}`);
-        await cliente.goto(`${selfServiceBase}/confirmation`, { waitUntil: 'domcontentloaded', timeout: 60_000 }).catch(() => {});
-        await cliente.waitForTimeout(STEP_LINGER).catch(() => {});
-        await shot(cliente, 'B-confirmation');
-        // ¿El producto elegido pide ÁBACO? Se decide por PRODUCTO (des-motaización): el uReq llega a
+        log(`${selfService ? 'autogestión' : 'B (celular del cliente)'}: ${new URL(`${selfServiceBase}/confirmation`).pathname}`);
+        await customer.goto(`${selfServiceBase}/confirmation`, { waitUntil: 'domcontentloaded', timeout: 60_000 }).catch(() => {});
+        await customer.waitForTimeout(STEP_LINGER).catch(() => {});
+        await shot(customer, 'B-confirmation');
+        // ¿El producto elegido pide ÁBACO? Se decide por PRODUCT (des-motaización): el uReq llega a
         // confirmación con el lender del producto en user_requests.lender_id (verificado: renting/rto →
         // lender del producto), y check-abaco-requirement lo lee. Antes el guiado saltaba SIEMPRE a
         // first-payment y se comía el paso de Ábaco; ahora, si lo pide, clickeamos "Continuar" para
@@ -1436,105 +1436,105 @@ test('guided (semiautomático)', async ({ browser }) => {
             'SELECT ur.lender_id, l.product FROM user_requests ur LEFT JOIN lenders l ON l.id = ur.lender_id WHERE ur.id = ?',
             [Number(uReqID)],
         ).catch(() => null);
-        const pideAbacoB = await abacoRequired(String(uReqID));
-        log(`  Ábaco: uReq ${uReqID} lender_id=${diagAbaco?.lender_id ?? 'NULL'} product=${diagAbaco?.product ?? 'NULL'} → ${pideAbacoB ? 'REQUERIDO' : 'no'}`);
+        const asksAbacoB = await abacoRequired(String(uReqID));
+        log(`  Ábaco: uReq ${uReqID} lender_id=${diagAbaco?.lender_id ?? 'NULL'} product=${diagAbaco?.product ?? 'NULL'} → ${asksAbacoB ? 'REQUERIDO' : 'no'}`);
         if (RESULT === 'success') {  // success = journey real (firma → loan-approved); rejected/pending = resultado directo (else, abajo)
-        if (pideAbacoB) {
+        if (asksAbacoB) {
             // RENTING/RTO: NO saltear. "Continuar" dispara el redirect real a /abaco, y desde ahí AUTO-MANEJAMOS
             // las pantallas gig (ingresos por apps). El mock-abaco aprueba con CUALQUIER credencial/OTP: /login
             // basta con `success` y /results devuelve el fixture (AbacoFixture) en local — así que credencial y
             // código son de relleno. Antes el guiado se comía este paso saltando directo a first-payment.
-            log(`${vent}: pide ÁBACO (renting/rto) → "Continuar" → /abaco → auto-manejo las plataformas gig.`);
-            await cliente.getByRole('button', { name: /continuar|continúa|confirmar/i }).first().click({ timeout: 12_000 }).catch(() => {});
-            await cliente.waitForURL(/\/abaco/, { timeout: 30_000 }).catch(() => {});
-            await cliente.waitForURL(/\/abaco\/platforms/, { timeout: 20_000 }).catch(() => {}); // /abaco redirige a /platforms
-            await shot(cliente, 'B-abaco-platforms');
+            log(`${win}: pide ÁBACO (renting/rto) → "Continuar" → /abaco → auto-manejo las plataformas gig.`);
+            await customer.getByRole('button', { name: /continuar|continúa|confirmar/i }).first().click({ timeout: 12_000 }).catch(() => {});
+            await customer.waitForURL(/\/abaco/, { timeout: 30_000 }).catch(() => {});
+            await customer.waitForURL(/\/abaco\/platforms/, { timeout: 20_000 }).catch(() => {}); // /abaco redirige a /platforms
+            await shot(customer, 'B-abaco-platforms');
             // 1) plataforma (uber, presente en abaco_config) → 2) credencial (el mock no la valida)
-            await cliente.getByRole('button', { name: /uber/i }).first().click({ timeout: 12_000 }).catch(() => {});
-            await cliente.getByPlaceholder(/3176580381|creditop\.com/i).first().fill('3176580381', { timeout: 8_000 }).catch(() => {});
+            await customer.getByRole('button', { name: /uber/i }).first().click({ timeout: 12_000 }).catch(() => {});
+            await customer.getByPlaceholder(/3176580381|creditop\.com/i).first().fill('3176580381', { timeout: 8_000 }).catch(() => {});
             // 3) Guardar (pide el OTP al mock) → 4) Continuar (→ pantalla de OTP)
-            await cliente.getByRole('button', { name: /^\s*guardar\s*$/i }).click({ timeout: 12_000 }).catch(() => {});
-            await cliente.getByRole('button', { name: /^\s*continuar\s*$/i }).click({ timeout: 15_000 }).catch(() => {});
-            await cliente.waitForURL(/platform-otp-validation/, { timeout: 20_000 }).catch(() => {});
-            await shot(cliente, 'B-abaco-otp');
+            await customer.getByRole('button', { name: /^\s*guardar\s*$/i }).click({ timeout: 12_000 }).catch(() => {});
+            await customer.getByRole('button', { name: /^\s*continuar\s*$/i }).click({ timeout: 15_000 }).catch(() => {});
+            await customer.waitForURL(/platform-otp-validation/, { timeout: 20_000 }).catch(() => {});
+            await shot(customer, 'B-abaco-otp');
             // 5) OTP: el mock no valida el código; 6 ceros (InputOTP trunca a su maxLength: 4 uber / 6 otras) → verificar
-            await cliente.locator('input').first().click({ timeout: 8_000 }).catch(() => {});
-            await cliente.keyboard.type('000000', { delay: 80 }).catch(() => {});
-            await cliente.getByRole('button', { name: /verificar|validar|continuar/i }).first().click({ timeout: 12_000 }).catch(() => {});
-            log(`${vent}: Ábaco auto-manejado (plataforma gig + OTP mock) → sigo a plazos.`);
+            await customer.locator('input').first().click({ timeout: 8_000 }).catch(() => {});
+            await customer.keyboard.type('000000', { delay: 80 }).catch(() => {});
+            await customer.getByRole('button', { name: /verificar|validar|continuar/i }).first().click({ timeout: 12_000 }).catch(() => {});
+            log(`${win}: Ábaco auto-manejado (plataforma gig + OTP mock) → sigo a plazos.`);
             tip('En B: si Ábaco quedó trabado en alguna pantalla, completá plataforma/OTP a mano — el mock aprueba cualquiera.');
         } else {
             // identidad (ADO, por foto) NO automatizable → el sistema la da por validada y B llega al plan de cuotas.
-            await cliente.goto(`${selfServiceBase}/first-payment-date`, { waitUntil: 'domcontentloaded', timeout: 60_000 }).catch(() => {});
+            await customer.goto(`${selfServiceBase}/first-payment-date`, { waitUntil: 'domcontentloaded', timeout: 60_000 }).catch(() => {});
         }
-        await cliente.waitForURL(/first-payment-date|payment-schedule/, { timeout: PICK_TIMEOUT }).catch(() => {});
+        await customer.waitForURL(/first-payment-date|payment-schedule/, { timeout: PICK_TIMEOUT }).catch(() => {});
 
         // Plazos: INTERACTIVO — vos dale "Continuar" en la ventana del cliente.
-        await cliente.getByText(/fecha de pago|primera cuota|primer pago|plazo/i).first().waitFor({ state: 'visible', timeout: 10_000 }).catch(() => {});
-        log(`${vent}: plazos · ${hereOf(cliente)}`);
-        await shot(cliente, 'B-plazos');
-        tip(`En la ventana del ${vent}: dale "Continuar" para avanzar al plan de cuotas.`);
-        await cliente.waitForURL(/payment-schedule/, { timeout: PICK_TIMEOUT }).catch(() => {});
+        await customer.getByText(/fecha de pago|primera cuota|primer pago|plazo/i).first().waitFor({ state: 'visible', timeout: 10_000 }).catch(() => {});
+        log(`${win}: plazos · ${hereOf(customer)}`);
+        await shot(customer, 'B-plazos');
+        tip(`En la ventana del ${win}: dale "Continuar" para avanzar al plan de cuotas.`);
+        await customer.waitForURL(/payment-schedule/, { timeout: PICK_TIMEOUT }).catch(() => {});
 
         // B-cronograma: INTERACTIVO — vos dale "Continuar"/"Confirmar" en la ventana del cliente.
-        await cliente.getByText(/confirma tu plazo|n[úu]mero de cuotas|plan de pagos|cronograma|cuotas/i).first().waitFor({ state: 'visible', timeout: 10_000 }).catch(() => {});
-        log(`${vent}: cronograma · ${hereOf(cliente)}`);
-        await shot(cliente, 'B-cronograma');
+        await customer.getByText(/confirma tu plazo|n[úu]mero de cuotas|plan de pagos|cronograma|cuotas/i).first().waitFor({ state: 'visible', timeout: 10_000 }).catch(() => {});
+        log(`${win}: cronograma · ${hereOf(customer)}`);
+        await shot(customer, 'B-cronograma');
         tip('En B: revisá el plan y dale "Continuar"/"Confirmar" para ir a la firma.');
-        await cliente.waitForURL(/otp-validation|sign-documents/, { timeout: PICK_TIMEOUT }).catch(() => {});
+        await customer.waitForURL(/otp-validation|sign-documents/, { timeout: PICK_TIMEOUT }).catch(() => {});
 
         // ── B-firma: INTERACTIVO. La firma del pagaré es por OTP. El teléfono es qa-bypass → el código es conocido
         //    (PHONE.slice(-6), los últimos 6) → lo sembramos (como el OTP de A) y VOS dale el botón para FIRMAR. ──
-        await cliente.waitForURL(/otp-validation/, { timeout: 15_000 }).catch(() => {}); // sign-documents → redirige a la firma OTP
-        const firmaOtp = cliente.getByTestId('otp-input').or(cliente.locator('input:not([type="hidden"])').first());
-        await firmaOtp.waitFor({ state: 'visible', timeout: 10_000 }).catch(() => {});
-        await firmaOtp.click().catch(() => {});
-        await cliente.keyboard.type(PHONE.slice(-6), { delay: 80 }).catch(() => {});
-        log(`${vent}: firma (OTP del pagaré sembrado: ${PHONE.slice(-6)}) · ${hereOf(cliente)}`);
-        await shot(cliente, 'B-firma');
-        tip(`En la ventana del ${vent}: el código del pagaré ya está (qa-bypass) → dale el botón para FIRMAR.`);
-        await cliente.waitForURL(/loan-approved|approved/, { timeout: PICK_TIMEOUT }).catch(() => {});
+        await customer.waitForURL(/otp-validation/, { timeout: 15_000 }).catch(() => {}); // sign-documents → redirige a la firma OTP
+        const otpSignature = customer.getByTestId('otp-input').or(customer.locator('input:not([type="hidden"])').first());
+        await otpSignature.waitFor({ state: 'visible', timeout: 10_000 }).catch(() => {});
+        await otpSignature.click().catch(() => {});
+        await customer.keyboard.type(PHONE.slice(-6), { delay: 80 }).catch(() => {});
+        log(`${win}: firma (OTP del pagaré sembrado: ${PHONE.slice(-6)}) · ${hereOf(customer)}`);
+        await shot(customer, 'B-firma');
+        tip(`En la ventana del ${win}: el código del pagaré ya está (qa-bypass) → dale el botón para FIRMAR.`);
+        await customer.waitForURL(/loan-approved|approved/, { timeout: PICK_TIMEOUT }).catch(() => {});
 
         // la firma por UI cierra el crédito (Estado 11). Verificamos; safety net por backend si la UI no cerró.
-        const st = await requestEstado11(Number(uReqID));
+        const st = await requestStatus11(Number(uReqID));
         if (!st.sealed11) { await closeCreditopX(Number(uReqID), {}); }
         log(`  estado: ${st.sealed11 ? 'Estado 11 ✓ (firmado en B)' : 'sellado por backend (safety net)'}`);
 
         // B: crédito COMPLETADO (loan-approved). A: sigue en el handoff (no cambia).
-        if (!/loan-approved/.test(hereOf(cliente))) {
-            await cliente.goto(`${selfServiceBase}/loan-approved`, { waitUntil: 'domcontentloaded', timeout: 60_000 }).catch(() => {});
+        if (!/loan-approved/.test(hereOf(customer))) {
+            await customer.goto(`${selfServiceBase}/loan-approved`, { waitUntil: 'domcontentloaded', timeout: 60_000 }).catch(() => {});
         }
-        await cliente.getByText(/felicidades|desembolsad|monto utilizado|aprobad/i).first().waitFor({ state: 'visible', timeout: 8_000 }).catch(() => {});
-        await shot(cliente, 'B-final');
-        log(`${vent}: crédito COMPLETADO (loan-approved)`);
+        await customer.getByText(/felicidades|desembolsad|monto utilizado|aprobad/i).first().waitFor({ state: 'visible', timeout: 8_000 }).catch(() => {});
+        await shot(customer, 'B-final');
+        log(`${win}: crédito COMPLETADO (loan-approved)`);
         } else {
             // ── rejected / pending: el crédito NO se aprueba → seteamos el estado por backend (resolveRequestStatus:
             //    simulador si hay ecommerce_request, si no UPDATE directo — en asesor no hay link) y B muestra el
             //    resultado en lender-result?status=… . Sin journey ni firma. ──
             const statusId = RESULT_STATUS[RESULT] ?? 6;
             const r = await resolveRequestStatus(Number(uReqID), statusId).catch((e) => ({ via: 'err', httpStatus: null, statusId, note: String(e) } as const));
-            const stR = await requestEstado11(Number(uReqID));
+            const stR = await requestStatus11(Number(uReqID));
             const viaLabel = r.via === 'db' ? (r.httpStatus ? `UPDATE directo (simulador ${r.httpStatus}, sin ecommerce_request en asesor)` : 'UPDATE directo') : `simulador HTTP ${r.httpStatus}`;
             log(`B: resultado=${RESULT} → estado ${stR.statusId ?? statusId} (${RESULT === 'rejected' ? 'Negada' : 'Pendiente'}) · ${viaLabel}`);
             const lr = RESULT === 'rejected' ? 'rechazado' : 'en-proceso';
-            await cliente.goto(`${selfServiceBase}/lender-result?status=${lr}`, { waitUntil: 'domcontentloaded', timeout: 60_000 }).catch(() => {});
-            await cliente.getByText(/no fue aprobada|no aprobad|rechaz|procesando|en validaci|en proceso|solicitud/i).first().waitFor({ state: 'visible', timeout: 8_000 }).catch(() => {});
-            await shot(cliente, RESULT === 'rejected' ? 'B-rechazado' : 'B-pendiente');
-            log(`${vent}: crédito ${RESULT === 'rejected' ? 'RECHAZADO' : 'PENDIENTE'} (lender-result)`);
+            await customer.goto(`${selfServiceBase}/lender-result?status=${lr}`, { waitUntil: 'domcontentloaded', timeout: 60_000 }).catch(() => {});
+            await customer.getByText(/no fue aprobada|no aprobad|rechaz|procesando|en validaci|en proceso|solicitud/i).first().waitFor({ state: 'visible', timeout: 8_000 }).catch(() => {});
+            await shot(customer, RESULT === 'rejected' ? 'B-rechazado' : 'B-pendiente');
+            log(`${win}: crédito ${RESULT === 'rejected' ? 'RECHAZADO' : 'PENDIENTE'} (lender-result)`);
         }
 
         // ── ecommerce: el wizard ahora muestra el botón NATIVO "Volver al comercio" (cuando la solicitud tiene
         //    return_url en BD) → vos lo clickeás en B y vuelve al comercio (return_url). En asesor/cognito el botón
         //    sigue siendo "Ver mi perfil" (sin return_url) y no hay retorno. ──
         if (ENTRY === 'ecommerce') {
-            const volver = cliente.getByRole('button', { name: /volver al comercio|ir al comercio/i })
-                .or(cliente.getByText(/volver al comercio|ir al comercio/i));
-            if (await volver.first().isVisible({ timeout: 10_000 }).catch(() => false)) {
-                await shot(cliente, 'B-volver-comercio');
+            const goBack = customer.getByRole('button', { name: /volver al comercio|ir al comercio/i })
+                .or(customer.getByText(/volver al comercio|ir al comercio/i));
+            if (await goBack.first().isVisible({ timeout: 10_000 }).catch(() => false)) {
+                await shot(customer, 'B-volver-comercio');
                 tip('En B (celular): dale "Volver al comercio" para cerrar el flujo (te lleva al return_url del comercio).');
-                await cliente.waitForURL((u) => !u.pathname.includes('loan-approved') && !u.pathname.includes('lender-result'), { timeout: PICK_TIMEOUT }).catch(() => {});
-                await shot(cliente, 'B-en-comercio');
-                log(`${vent}: volvió al comercio (return_url) — fin del flujo ecommerce CreditopX`);
+                await customer.waitForURL((u) => !u.pathname.includes('loan-approved') && !u.pathname.includes('lender-result'), { timeout: PICK_TIMEOUT }).catch(() => {});
+                await shot(customer, 'B-en-comercio');
+                log(`${win}: volvió al comercio (return_url) — fin del flujo ecommerce CreditopX`);
             } else {
                 log('B: el botón nativo quedó "Ver mi perfil" → la solicitud no tiene return_url en BD (el checkout no lo sembró). Reviso el checkout si lo necesitás.');
             }
@@ -1552,7 +1552,7 @@ test('guided (semiautomático)', async ({ browser }) => {
         await shot(B, 'B-portal-lender');
         tip('En B (celular del cliente): recorré el portal del lender. El resultado real llega por webhook.');
         const r = await resolveRequestStatus(Number(uReqID), RESULT_STATUS[RESULT] ?? 11);
-        const st = await requestEstado11(Number(uReqID));
+        const st = await requestStatus11(Number(uReqID));
         log(`  resultado → vía ${r.via}${r.httpStatus ? ` (HTTP ${r.httpStatus})` : ''} · estado ${st.sealed11 ? 'Estado 11 ✓' : st.statusId ?? '?'}`);
     } else if (externalUrl) {
         // ── REDIRECT externo REAL (rt=1 que redirige, ej. Bancolombia): para el demo mostramos el portal mock;
@@ -1560,8 +1560,8 @@ test('guided (semiautomático)', async ({ browser }) => {
         let host = externalUrl; try { host = new URL(externalUrl).host; } catch { /* */ }
         log(`Redirect externo (${host}) → portal del banco (mock); la entidad devuelve al COMERCIO (return_url)`);
         await wakeB('redirect', externalUrl);   // B explica que esta rama se resuelve en A (no queda en "Esperando…")
-        const volver = encodeURIComponent(RETURN_URL);
-        await page.goto(`${MOCK_BANK}?lender=${encodeURIComponent(lenderName)}&monto=${AMOUNT}&volver=${volver}`, { waitUntil: 'domcontentloaded', timeout: 30_000 }).catch(() => {});
+        const goBack = encodeURIComponent(RETURN_URL);
+        await page.goto(`${MOCK_BANK}?lender=${encodeURIComponent(lenderName)}&monto=${AMOUNT}&volver=${goBack}`, { waitUntil: 'domcontentloaded', timeout: 30_000 }).catch(() => {});
         await page.getByText(/continuá tu compra/i).first().waitFor({ state: 'visible', timeout: 8_000 }).catch(() => {});
         await shot(page, 'banco-bienvenida');
         tip('Recorré el portal del banco (Continuar → Aprobar → Volver al comercio).');
@@ -1573,7 +1573,7 @@ test('guided (semiautomático)', async ({ browser }) => {
         //    Sellamos por webhook (best-effort) y dejamos A donde quedó, para verlo (ver el log de nav arriba). ──
         log(`handoff no estándar → el wizard quedó en "${after}". Sello el estado (best-effort), SIN forzar navegación.`);
         const r = await resolveRequestStatus(Number(uReqID), RESULT_STATUS[RESULT] ?? 11);
-        const st = await requestEstado11(Number(uReqID));
+        const st = await requestStatus11(Number(uReqID));
         log(`  resultado → vía ${r.via}${r.httpStatus ? ` (HTTP ${r.httpStatus})` : ''} · estado ${st.sealed11 ? 'Estado 11 ✓' : st.statusId ?? '?'}`);
     }
 
@@ -1586,16 +1586,16 @@ test('guided (semiautomático)', async ({ browser }) => {
     // "existe el uReq" → cualquier desenlace daba "1 passed". Acá leemos el estado REAL y lo mostramos
     // siempre; se FALLA solo cuando el desenlace es inequívocamente malo (cancelada/negada sin pedirlo),
     // porque el guiado es semi-manual y abandonarlo a mitad es legítimo.
-    await traza.resumen();
+    await trace.summary();
 
     // El veredicto vive en pkg/trace.ts y lo comparte el camino RÁPIDO (dev/sweep.ts): "pasó" significa
     // exactamente lo mismo en los dos. Acá solo traducimos ese veredicto al lenguaje de Playwright.
-    const v = await traza.veredicto(uReqID, RESULT);
+    const v = await trace.verdict(uReqID, RESULT);
 
     // ANTES de los expect, no después: `expect` LANZA, así que un forense puesto abajo no correría nunca
     // justo en los fallos que vino a explicar. Acá el bloque se imprime primero y el expect falla después,
     // así el porqué queda arriba del mensaje de error. No toca el veredicto y no consulta si cerró bien.
-    await lokiForense(uReqID, v);
+    await lokiForensic(uReqID, v);
 
     /* LO QUE EL ARNÉS LE ESCRIBIÓ A LA BASE, del registro directo de `pkg/db.ts`.
      *
@@ -1606,20 +1606,20 @@ test('guided (semiautomático)', async ({ browser }) => {
      *
      * El volcado es para el panel, que corre este spec como HIJO: su registro vive en la memoria de
      * este proceso y de otra forma se pierde al terminar. */
-    for (const l of lineasDeEscrituras('  ')) console.log(l);
-    volcarEscrituras('.runs/escrituras-guiado.json');
+    for (const l of writeLines('  ')) console.log(l);
+    dumpWrites('.runs/escrituras-guiado.json');
 
     /* ⚠ Y SI EL DESENLACE FUE MALO, decir si la causa del backend quedó en alguna parte. En local
      * suele ser NO — `LOG_CHANNEL=loki` con Loki abajo pierde los errores de runtime en silencio—, y
      * enterarse ahora cambia lo que hacés después: en vez de buscar en un log vacío, le repetís el
      * endpoint. El aviso trae el comando con la solicitud ya puesta. */
     if (v.malo || v.miente?.length) {
-        for (const l of await avisoLogsDelBackend((process.env.E2E_TARGET || '').toLowerCase(), uReqID)) console.log(`  ${l}`);
+        for (const l of await backendLogsNotice((process.env.E2E_TARGET || '').toLowerCase(), uReqID)) console.log(`  ${l}`);
     }
 
     if (v.existe) {
         expect(v.malo, `la solicitud ${uReqID} terminó en estado ${v.st} «${v.estado}» ` +
-            `(esperado ${traza.ESTADO_ESPERADO[RESULT] ?? 11} para result=${RESULT}). El navegador puede haber ` +
+            `(esperado ${trace.EXPECTED_STATUS[RESULT] ?? 11} para result=${RESULT}). El navegador puede haber ` +
             `mostrado una pantalla de éxito igual: la BD manda. Ver findings F-50.`).toBe(false);
         // Una pantalla de éxito sin respaldo en la BD es un fallo por sí solo, aunque el estado final no
         // sea "malo": el front afirmó un desenlace que la BD no tiene.

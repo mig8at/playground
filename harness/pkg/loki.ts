@@ -114,20 +114,20 @@ export function lokiConfig(): LokiConfig {
  * porque la base local es un dump de dev y los ids se solapan— las decide el conector (`Missing`, en
  * `connectors/logs`): acá sólo se suma la perilla propia del harness.
  */
-export function porQueNo(c: LokiConfig): string | null {
+export function whyNot(c: LokiConfig): string | null {
     if (!c.enabled) return 'E2E_LOKI_ENABLED no está en true';
     if (c.missing) return c.missing;
     return null;
 }
 
 /** ¿La URL apunta a un Loki de esta máquina? `host.docker.internal` cuenta: es cómo lo ve el contenedor. */
-export const esLokiLocal = (u: string) =>
+export const isLocalLoki = (u: string) =>
     /(^|\/\/)(localhost|127\.0\.0\.1|\[::1\]|host\.docker\.internal)(:|\/|$)/.test(u.trim());
 
 // ─── transporte ─────────────────────────────────────────────────────────────────────────────────────
 
 /** Una línea de Loki, ya parseada. `ctx` es el `context` de LokiHandler cuando es objeto. */
-export type Linea = {
+export type Line = {
     ts: number;                   // epoch ms
     service: string;
     level: string;
@@ -152,22 +152,22 @@ const ns = (ms: number) => `${Math.round(ms)}000000`;
  * en esas horas no aparece. Por eso esto sólo sirve para DESMENTIR un filtro (si el valor no está en una
  * ventana donde sí hay líneas, ese filtro no matcheó nada acá), no para afirmar que no existe nunca.
  */
-async function valoresDeEtiqueta(c: LokiConfig, etiqueta: string, fromMs: number, toMs: number): Promise<string[]> {
+async function labelValues(c: LokiConfig, label: string, fromMs: number, toMs: number): Promise<string[]> {
     try {
-        const body = JSON.parse(await lokiRaw(`label/${etiqueta}/values`, { start: ns(fromMs), end: ns(toMs) })) as { data?: string[] };
+        const body = JSON.parse(await lokiRaw(`label/${label}/values`, { start: ns(fromMs), end: ns(toMs) })) as { data?: string[] };
         return (body.data ?? []).sort();
     } catch {
         return [];   // el diagnóstico es un extra: si falla, se sigue como antes
     }
 }
 
-async function query(c: LokiConfig, logql: string, fromMs: number, toMs: number, limit = 5000): Promise<Linea[]> {
-    const crudo = await lokiRaw('query_range', {
+async function query(c: LokiConfig, logql: string, fromMs: number, toMs: number, limit = 5000): Promise<Line[]> {
+    const rawText = await lokiRaw('query_range', {
         query: logql, start: ns(fromMs), end: ns(toMs), limit: String(limit), direction: 'forward',
     });
-    const body = JSON.parse(crudo) as { data?: { result?: Array<{ stream: Record<string, string>; values: [string, string][] }> } };
+    const body = JSON.parse(rawText) as { data?: { result?: Array<{ stream: Record<string, string>; values: [string, string][] }> } };
 
-    const out: Linea[] = [];
+    const out: Line[] = [];
     for (const st of body.data?.result ?? []) {
         for (const [tsNano, raw] of st.values) {
             let msg = raw, ctx: Record<string, unknown> = {};
@@ -195,7 +195,7 @@ async function query(c: LokiConfig, logql: string, fromMs: number, toMs: number,
 
 // ─── el join de dos fases ───────────────────────────────────────────────────────────────────────────
 
-export type Cobertura = {
+export type Coverage = {
     lineasConTexto: number;                        // cuántas líneas mencionaban el uReq
     anclas: Record<string, string[]>;              // traceId → campos del context donde apareció
     traces: string[];
@@ -223,7 +223,7 @@ export type Cobertura = {
 
 /** El ambiente de una línea, mirando las DOS convenciones: Laravel usa `environment`, OTel
  *  `deployment_environment`, y en este stack conviven (más `develop` vs `development`, ya en los datos). */
-const ambienteDe = (l: Linea) => l.environment || l.deploymentEnvironment || '(sin ambiente)';
+const environmentOf = (l: Line) => l.environment || l.deploymentEnvironment || '(sin ambiente)';
 
 /**
  * FASE 1 — anclas. Busca el uReq como TEXTO (es lo único que Loki puede filtrar sin índice) y después
@@ -231,29 +231,29 @@ const ambienteDe = (l: Linea) => l.environment || l.deploymentEnvironment || '(s
  * un `document_number` o un `user_id` que contenga los mismos dígitos ancla un trace ajeno, y el forense
  * termina explicando la solicitud de otra persona.
  */
-async function anclar(c: LokiConfig, ureq: string, fromMs: number, toMs: number) {
-    const crudas = await query(c, `{service_name=~".+"} |= "${ureq}"`, fromMs, toMs);
-    const anclas: Record<string, string[]> = {};
-    const sinTrace: Linea[] = [];
-    for (const l of crudas) {
-        const campos = Object.entries(l.ctx).filter(([, v]) => String(v) === ureq).map(([k]) => k);
-        if (!campos.length) continue;
+async function anchor(c: LokiConfig, ureq: string, fromMs: number, toMs: number) {
+    const rawOnes = await query(c, `{service_name=~".+"} |= "${ureq}"`, fromMs, toMs);
+    const anchors: Record<string, string[]> = {};
+    const withoutTrace: Line[] = [];
+    for (const l of rawOnes) {
+        const fields = Object.entries(l.ctx).filter(([, v]) => String(v) === ureq).map(([k]) => k);
+        if (!fields.length) continue;
         // Sin `trace_id` no se puede expandir, pero la línea igual es del uReq: se guarda para el modo
         // degradado en vez de descartarla. Descartarla era decir "cero anclas" habiendo evidencia.
-        if (!l.traceId) { sinTrace.push(l); continue; }
-        anclas[l.traceId] = [...new Set([...(anclas[l.traceId] ?? []), ...campos])];
+        if (!l.traceId) { withoutTrace.push(l); continue; }
+        anchors[l.traceId] = [...new Set([...(anchors[l.traceId] ?? []), ...fields])];
     }
-    return { crudas, anclas, sinTrace };
+    return { crudas: rawOnes, anclas: anchors, sinTrace: withoutTrace };
 }
 
 /** FASE 2 — expansión: cada trace anclado, completo, por etiqueta (indexado y barato). */
-export async function forense(c: LokiConfig, ureq: string | number, ventanaMs: number) {
+export async function forensic(c: LokiConfig, ureq: string | number, windowMs: number) {
     const toMs = Date.now() + c.padMs;
-    const fromMs = toMs - ventanaMs - c.padMs;
+    const fromMs = toMs - windowMs - c.padMs;
     const id = String(ureq);
 
-    const { crudas, anclas, sinTrace } = await anclar(c, id, fromMs, toMs);
-    const traces = Object.keys(anclas);
+    const { crudas: rawOnes, anclas: anchors, sinTrace: withoutTrace } = await anchor(c, id, fromMs, toMs);
+    const traces = Object.keys(anchors);
 
     /**
      * Filtra por ambiente, y si el filtro se lleva TODO por delante pregunta si ese valor existe.
@@ -263,19 +263,19 @@ export async function forense(c: LokiConfig, ureq: string | number, ventanaMs: n
      * ninguno— y se deja escrito en la cobertura para que el resumen lo diga en vez de dejar creer que
      * el backend no logueó. Es la misma guarda que el trazador ya tenía y a este runner le faltaba.
      */
-    const porAmbiente = async (ls: Linea[]): Promise<{ lineas: Linea[]; extra: Partial<Cobertura> }> => {
+    const byEnvironment = async (ls: Line[]): Promise<{ lineas: Line[]; extra: Partial<Coverage> }> => {
         if (!c.env || !ls.length) return { lineas: ls, extra: { filtroEnv: c.env } };
         const re = new RegExp(`^(?:${c.env})$`);
-        const filtradas = ls.filter((l) => re.test(ambienteDe(l)));
-        if (filtradas.length) return { lineas: filtradas, extra: { filtroEnv: c.env } };
-        const valores = await valoresDeEtiqueta(c, 'environment', fromMs, toMs);
-        if (valores.length && !c.env.split('|').some((v) => valores.includes(v.trim()))) {
-            return { lineas: ls, extra: { filtroEnv: '', filtroInexistente: c.env, valoresEnv: valores } };
+        const filtered = ls.filter((l) => re.test(environmentOf(l)));
+        if (filtered.length) return { lineas: filtered, extra: { filtroEnv: c.env } };
+        const values = await labelValues(c, 'environment', fromMs, toMs);
+        if (values.length && !c.env.split('|').some((v) => values.includes(v.trim()))) {
+            return { lineas: ls, extra: { filtroEnv: '', filtroInexistente: c.env, valoresEnv: values } };
         }
-        return { lineas: filtradas, extra: { filtroEnv: c.env } };
+        return { lineas: filtered, extra: { filtroEnv: c.env } };
     };
-    const vacia = (extra: Partial<Cobertura> = {}): Cobertura => ({
-        lineasConTexto: crudas.length, anclas: {}, traces: [], lineas: 0,
+    const emptyOne = (extra: Partial<Coverage> = {}): Coverage => ({
+        lineasConTexto: rawOnes.length, anclas: {}, traces: [], lineas: 0,
         ambientes: {}, filtroEnv: c.env, degradado: false, porVentana: false, ...extra,
     });
 
@@ -283,19 +283,19 @@ export async function forense(c: LokiConfig, ureq: string | number, ventanaMs: n
     // en un Loki local igual se puede mostrar lo que se logueó en la ventana de la corrida: sos el único
     // que escribe ahí, así que "lo que pasó en esos minutos" es tu corrida. Contra un Loki compartido esto
     // sería una fuente de diagnósticos falsos (verías la corrida de otro), y por eso está atado a
-    // `esLokiLocal` y NO a una perilla: una opción que se puede prender es una opción que alguien prende.
+    // `isLocalLoki` y NO a una perilla: una opción que se puede prender es una opción que alguien prende.
     // Se marca como correlación por TIEMPO, no por uReq, para que nadie lo lea como lo mismo.
-    if (!traces.length && !sinTrace.length && esLokiLocal(c.url)) {
+    if (!traces.length && !withoutTrace.length && isLocalLoki(c.url)) {
         const sel = c.env ? `{environment=~"${c.env}"}` : '{service_name=~".+"}';
-        const todas = await query(c, sel, fromMs, toMs);
-        if (todas.length) {
-            const ambientes: Record<string, number> = {};
-            for (const l of todas) { const a = ambienteDe(l); ambientes[a] = (ambientes[a] ?? 0) + 1; }
+        const all = await query(c, sel, fromMs, toMs);
+        if (all.length) {
+            const environments: Record<string, number> = {};
+            for (const l of all) { const a = environmentOf(l); environments[a] = (environments[a] ?? 0) + 1; }
             return {
-                lineas: todas,
+                lineas: all,
                 cobertura: {
-                    lineasConTexto: crudas.length, anclas: {}, traces: [], lineas: todas.length,
-                    ambientes, filtroEnv: c.env, degradado: true, porVentana: true,
+                    lineasConTexto: rawOnes.length, anclas: {}, traces: [], lineas: all.length,
+                    ambientes: environments, filtroEnv: c.env, degradado: true, porVentana: true,
                 },
             };
         }
@@ -308,34 +308,34 @@ export async function forense(c: LokiConfig, ureq: string | number, ventanaMs: n
     // Loki sin Tempo —el caso de una máquina local— produce líneas perfectamente útiles y no joinables.
     // Devolver "cero anclas" ahí sería mentir teniendo la evidencia en la mano.
     if (!traces.length) {
-        if (!sinTrace.length) return { lineas: [] as Linea[], cobertura: vacia() };
-        const ambientes: Record<string, number> = {};
-        for (const l of sinTrace) { const a = ambienteDe(l); ambientes[a] = (ambientes[a] ?? 0) + 1; }
-        const { lineas, extra } = await porAmbiente(sinTrace);
+        if (!withoutTrace.length) return { lineas: [] as Line[], cobertura: emptyOne() };
+        const environments: Record<string, number> = {};
+        for (const l of withoutTrace) { const a = environmentOf(l); environments[a] = (environments[a] ?? 0) + 1; }
+        const { lineas: lines, extra } = await byEnvironment(withoutTrace);
         return {
-            lineas,
+            lineas: lines,
             cobertura: {
-                lineasConTexto: crudas.length, anclas: {}, traces: [],
-                lineas: lineas.length, ambientes, filtroEnv: c.env, degradado: true, porVentana: false, ...extra,
+                lineasConTexto: rawOnes.length, anclas: {}, traces: [],
+                lineas: lines.length, ambientes: environments, filtroEnv: c.env, degradado: true, porVentana: false, ...extra,
             },
         };
     }
 
-    const todas = await query(c, `{trace_id=~"${traces.join('|')}"}`, fromMs, toMs);
+    const all = await query(c, `{trace_id=~"${traces.join('|')}"}`, fromMs, toMs);
 
     // El desglose por ambiente se calcula sobre TODO lo traído, antes de filtrar: es la única forma de
     // poder decir "también hay líneas de qa para este uReq" en vez de esconderlas.
-    const ambientes: Record<string, number> = {};
-    for (const l of todas) {
-        const a = ambienteDe(l);
-        ambientes[a] = (ambientes[a] ?? 0) + 1;
+    const environments: Record<string, number> = {};
+    for (const l of all) {
+        const a = environmentOf(l);
+        environments[a] = (environments[a] ?? 0) + 1;
     }
-    const { lineas, extra } = await porAmbiente(todas);
+    const { lineas: lines, extra } = await byEnvironment(all);
 
     return {
-        lineas,
+        lineas: lines,
         cobertura: {
-            lineasConTexto: crudas.length, anclas, traces, lineas: lineas.length, ambientes,
+            lineasConTexto: rawOnes.length, anclas: anchors, traces, lineas: lines.length, ambientes: environments,
             filtroEnv: c.env, degradado: false, porVentana: false, ...extra,
         },
     };
@@ -349,12 +349,12 @@ export async function forense(c: LokiConfig, ureq: string | number, ventanaMs: n
 // líneas (`Evaluando` + `Resultado`). Colapsando eso se pasa de 405 líneas a ~35 sin perder señal.
 
 /** Líneas ceremoniales: no aportan por sí solas, marcan que un paso arrancó. */
-const CEREMONIA = /:\s*(entered|received input parameters|forwarding to|calling |returning )/i;
+const CEREMONY = /:\s*(entered|received input parameters|forwarding to|calling |returning )/i;
 /** `Clase::metodo` al inicio del mensaje — es el nombre del paso. */
-const PASO = /^([A-Za-z][\w\\]*?(?:Controller|Service|Repository|Orchestrator))::(\w+)/;
+const STEP = /^([A-Za-z][\w\\]*?(?:Controller|Service|Repository|Orchestrator))::(\w+)/;
 
-export type Paso = { ts: number; nombre: string; lineas: number; durMs: number; error?: string };
-export type Falla = { code: string; sub?: string; msg: string; veces: number; desde: number; hasta: number; ctx: Record<string, unknown> };
+export type Step = { ts: number; nombre: string; lineas: number; durMs: number; error?: string };
+export type Failure = { code: string; sub?: string; msg: string; veces: number; desde: number; hasta: number; ctx: Record<string, unknown> };
 
 /**
  * Una entidad evaluada. `ruleId` es la regla del VEREDICTO y sale SOLO de la línea «Resultado de
@@ -365,7 +365,7 @@ export type Falla = { code: string; sub?: string; msg: string; veces: number; de
  * veredicto con la regla que justamente había rechazado una categoría. Las rechazadas van aparte, que es
  * su lugar: son un detalle interesante (una categoría cayó aunque la entidad quedó aprobada), no el fallo.
  */
-export type Entidad = {
+export type Entity = {
     lenderId: string;
     nombre?: string;
     ruleId?: string;
@@ -373,15 +373,15 @@ export type Entidad = {
     categoriasRechazadas: string[];
 };
 
-export type Resumen = {
+export type Summary = {
     ureq: string;
     identidad: Record<string, string>;
-    pasos: Paso[];
-    fallas: Falla[];
-    entidades: Entidad[];
+    pasos: Step[];
+    fallas: Failure[];
+    entidades: Entity[];
     tramos: Array<{ traceId: string; ts: number; lineas: number; durMs: number; huecoMs: number }>;
     porNivel: Record<string, number>;
-    cobertura: Cobertura;
+    cobertura: Coverage;
 };
 
 /**
@@ -389,11 +389,11 @@ export type Resumen = {
  * distingue un rate limit de un 401 de un proveedor — y son diagnósticos opuestos. Se saca del mensaje,
  * que en esos casos ya dice lo que pasó.
  */
-function etiquetaFalla(msg: string): string {
+function failureLabel(msg: string): string {
     const http = /status code (\d{3})/.exec(msg);
     if (http) return `HTTP ${http[1]}`;
-    const onb = /\b(ONB\d{3}|[A-Z]{2,}_[A-Z_]{3,})\b/.exec(msg);
-    if (onb) return onb[1];
+    const onbValue = /\b(ONB\d{3}|[A-Z]{2,}_[A-Z_]{3,})\b/.exec(msg);
+    if (onbValue) return onbValue[1];
     return msg.split(/[:\n]/)[0].slice(0, 44).trim() || '(sin código)';
 }
 
@@ -406,17 +406,17 @@ function pick(ctx: Record<string, unknown>, keys: string[]): string | undefined 
     return undefined;
 }
 
-export function resumir(ureq: string, lineas: Linea[], cobertura: Cobertura): Resumen {
-    const identidad: Record<string, string> = {};
-    const porNivel: Record<string, number> = {};
-    const pasosMap = new Map<string, Paso>();
-    const fallasMap = new Map<string, Falla>();
-    const entidades = new Map<string, Entidad>();
-    const porTrace = new Map<string, Linea[]>();
+export function summarize(ureq: string, lines: Line[], coverage: Coverage): Summary {
+    const identity: Record<string, string> = {};
+    const byLevel: Record<string, number> = {};
+    const stepsMap = new Map<string, Step>();
+    const failuresMap = new Map<string, Failure>();
+    const entities = new Map<string, Entity>();
+    const byTrace = new Map<string, Line[]>();
 
-    for (const l of lineas) {
-        porNivel[l.level] = (porNivel[l.level] ?? 0) + 1;
-        porTrace.set(l.traceId, [...(porTrace.get(l.traceId) ?? []), l]);
+    for (const l of lines) {
+        byLevel[l.level] = (byLevel[l.level] ?? 0) + 1;
+        byTrace.set(l.traceId, [...(byTrace.get(l.traceId) ?? []), l]);
 
         // Identidad: lo primero que aparezca gana; sirve para saber DE QUIÉN es esta solicitud.
         for (const [dst, keys] of [
@@ -424,18 +424,18 @@ export function resumir(ureq: string, lineas: Linea[], cobertura: Cobertura): Re
             ['tipo_doc', ['document_type']], ['sucursal', ['partner_branch_id']],
             ['telefono', ['cell_phone']], ['monto', ['amount']],
         ] as const) {
-            if (!identidad[dst]) { const v = pick(l.ctx, keys as unknown as string[]); if (v) identidad[dst] = v; }
+            if (!identity[dst]) { const v = pick(l.ctx, keys as unknown as string[]); if (v) identity[dst] = v; }
         }
 
         // ── pasos: una línea por invocación de controller/servicio, no 3-6 ──
-        const m = PASO.exec(l.msg);
+        const m = STEP.exec(l.msg);
         if (m) {
-            const nombre = `${m[1].split('\\').pop()}::${m[2]}`;
-            const prev = pasosMap.get(nombre);
+            const name = `${m[1].split('\\').pop()}::${m[2]}`;
+            const prev = stepsMap.get(name);
             const err = pick(l.ctx, ['error_code']);
-            pasosMap.set(nombre, {
+            stepsMap.set(name, {
                 ts: prev?.ts ?? l.ts,
-                nombre,
+                nombre: name,
                 lineas: (prev?.lineas ?? 0) + 1,
                 durMs: l.ts - (prev?.ts ?? l.ts),
                 error: err ?? prev?.error,
@@ -443,39 +443,39 @@ export function resumir(ureq: string, lineas: Linea[], cobertura: Cobertura): Re
         }
 
         // ── fallas: deduplicadas por código, con contador y rango ──
-        const code = pick(l.ctx, ['error_code']) ?? etiquetaFalla(l.msg);
-        const esError = l.level === 'error';
-        if (esError || pick(l.ctx, ['error_code'])) {
+        const code = pick(l.ctx, ['error_code']) ?? failureLabel(l.msg);
+        const isError = l.level === 'error';
+        if (isError || pick(l.ctx, ['error_code'])) {
             const sub = pick(l.ctx, ['error_subcode', 'subcode']);
             const key = `${code}|${sub ?? ''}`;
-            const prev = fallasMap.get(key);
-            const limpio: Record<string, unknown> = {};
+            const prev = failuresMap.get(key);
+            const cleanOne: Record<string, unknown> = {};
             for (const [k, v] of Object.entries(l.ctx)) {
                 if (k === 'headers' || typeof v === 'object') continue;
-                limpio[k] = v;
+                cleanOne[k] = v;
             }
-            fallasMap.set(key, {
+            failuresMap.set(key, {
                 code, sub, msg: prev?.msg ?? l.msg,
                 veces: (prev?.veces ?? 0) + 1,
                 desde: prev?.desde ?? l.ts, hasta: l.ts,
-                ctx: prev?.ctx ?? limpio,
+                ctx: prev?.ctx ?? cleanOne,
             });
         }
 
         // ── entidades: `Evaluando`+`Resultado` colapsan a una fila por lender ──
         const lenderId = pick(l.ctx, ['lender_id']);
         if (lenderId && /reglas para entidad|CATEGORY_|RULE_|QUOTA_/i.test(l.msg)) {
-            const prev = entidades.get(lenderId) ?? { lenderId, categoriasRechazadas: [] };
+            const prev = entities.get(lenderId) ?? { lenderId, categoriasRechazadas: [] };
             const rule = pick(l.ctx, ['rule_id']);
             // El veredicto SOLO se lee de la línea «Resultado de evaluación»; las demás no lo tienen.
-            const esVeredicto = /Resultado de evaluaci/i.test(l.msg);
-            const rechazoCategoria = /CATEGORY_RULE_REJECTED/i.test(l.msg);
-            entidades.set(lenderId, {
+            const isVerdict = /Resultado de evaluaci/i.test(l.msg);
+            const categoryRejection = /CATEGORY_RULE_REJECTED/i.test(l.msg);
+            entities.set(lenderId, {
                 lenderId,
                 nombre: pick(l.ctx, ['lender_name']) ?? prev.nombre,
-                ruleId: esVeredicto ? (rule ?? prev.ruleId) : prev.ruleId,
-                result: esVeredicto ? (pick(l.ctx, ['result', 'resultado']) ?? prev.result) : prev.result,
-                categoriasRechazadas: rechazoCategoria && rule && !prev.categoriasRechazadas.includes(rule)
+                ruleId: isVerdict ? (rule ?? prev.ruleId) : prev.ruleId,
+                result: isVerdict ? (pick(l.ctx, ['result', 'resultado']) ?? prev.result) : prev.result,
+                categoriasRechazadas: categoryRejection && rule && !prev.categoriasRechazadas.includes(rule)
                     ? [...prev.categoriasRechazadas, rule]
                     : prev.categoriasRechazadas,
             });
@@ -483,7 +483,7 @@ export function resumir(ureq: string, lineas: Linea[], cobertura: Cobertura): Re
     }
 
     // ── tramos: los traces en orden, con el silencio entre uno y otro (= el usuario en una pantalla) ──
-    const tramos = [...porTrace.entries()]
+    const segments = [...byTrace.entries()]
         .map(([traceId, ls]) => ({ traceId, ts: ls[0].ts, fin: ls[ls.length - 1].ts, lineas: ls.length }))
         .sort((a, b) => a.ts - b.ts)
         .map((t, i, arr) => ({
@@ -493,11 +493,11 @@ export function resumir(ureq: string, lineas: Linea[], cobertura: Cobertura): Re
         }));
 
     return {
-        ureq, identidad, porNivel, cobertura,
-        pasos: [...pasosMap.values()].sort((a, b) => a.ts - b.ts),
-        fallas: [...fallasMap.values()].sort((a, b) => a.desde - b.desde),
-        entidades: [...entidades.values()],
-        tramos,
+        ureq, identidad: identity, porNivel: byLevel, cobertura: coverage,
+        pasos: [...stepsMap.values()].sort((a, b) => a.ts - b.ts),
+        fallas: [...failuresMap.values()].sort((a, b) => a.desde - b.desde),
+        entidades: [...entities.values()],
+        tramos: segments,
     };
 }
 
@@ -505,19 +505,19 @@ export function resumir(ureq: string, lineas: Linea[], cobertura: Cobertura): Re
 //
 // El mapa del recorrido NO se duplica acá: los nombres de ramal son los de `panel/steps.json`
 // (agregador · creditopx · redirect) y el ramal se resuelve del `response_type` del lender en la BD,
-// como ya lo hace `pkg/close.ts`. Lo único que vive acá es qué se ESPERA ver en los logs por ramal, y a
+// como ya lo hace `pkg/close.ts`. Lo único que vive acá es qué se WAIT ver en los logs por ramal, y a
 // nivel `service_name` —no de clase— porque la instrumentación no es global: `Modules\Loans` no emite
 // Starting/Ending, así que exigir clases produciría falsas alarmas en cascada.
 
-export type Ramal = 'creditopx' | 'agregador' | 'redirect';
+export type Lane = 'creditopx' | 'agregador' | 'redirect';
 
-export function ramalDeRt(rt: number): Ramal {
+export function laneOfRt(rt: number): Lane {
     if (rt === 2 || rt === 3 || rt === 4) return 'creditopx';
     if (rt === 1) return 'agregador';
     return 'redirect';
 }
 
-export const ESPERADO: Record<Ramal, { nota: string }> = {
+export const EXPECTED: Record<Lane, { nota: string }> = {
     creditopx: { nota: 'decide in-platform en legacy-backend; preapprovals-service no es central' },
     agregador: { nota: 'la API externa del lender decide: debería haber consulta al proveedor' },
     redirect: { nota: 'el desenlace es externo (UTM/redirect): puede no haber decisión en los logs' },
@@ -530,7 +530,7 @@ export const ESPERADO: Record<Ramal, { nota: string }> = {
  * `trace.ts` arrastra `db.ts` (driver de MySQL) y este módulo es HTTP puro. La dependencia iría al revés
  * de lo que conviene — el forense no debe poder romperse porque la BD no responde.
  */
-export type VeredictoMin = { existe: boolean; ok: boolean; malo: boolean; miente: string[] };
+export type MinVerdict = { existe: boolean; ok: boolean; malo: boolean; miente: string[] };
 
 /**
  * Lo llaman los dos runners DESPUÉS de `veredicto()`, y no cambia nada de él: si la corrida cerró bien,
@@ -539,18 +539,18 @@ export type VeredictoMin = { existe: boolean; ok: boolean; malo: boolean; miente
  * Es best-effort de punta a punta: cualquier error se traga. Un forense que tumba la corrida que venía a
  * explicar es peor que no tenerlo.
  */
-export async function forenseAlCerrar(
+export async function forensicOnClose(
     ureq: number | string,
-    v: VeredictoMin,
-    opts: { ramal?: Ramal; ventanaMs?: number; pii?: boolean } = {},
+    v: MinVerdict,
+    opts: { ramal?: Lane; ventanaMs?: number; pii?: boolean } = {},
 ): Promise<void> {
-    const fallo = !v.existe || v.malo || v.miente.length > 0;
-    const aMitad = v.existe && !v.ok && !v.malo;
-    if (!fallo && !aMitad) return;                       // cerró como se pedía: no hay nada que explicar
+    const failed = !v.existe || v.malo || v.miente.length > 0;
+    const halfway = v.existe && !v.ok && !v.malo;
+    if (!failed && !halfway) return;                       // cerró como se pedía: no hay nada que explicar
     if (!ureq || Number(ureq) <= 0) return;
 
     const c = lokiConfig();
-    const no = porQueNo(c);
+    const no = whyNot(c);
     if (no) {
         console.log('');
         log(gray(`(sin forense de logs: ${no})`));
@@ -563,14 +563,14 @@ export async function forenseAlCerrar(
             log(gray(`esperando ${Math.round(c.settleMs / 1000)}s el flush de logs antes de consultar Loki…`));
             await new Promise((r) => setTimeout(r, c.settleMs));
         }
-        const { lineas, cobertura } = await forense(c, ureq, opts.ventanaMs ?? 2 * 3600_000);
-        if (!lineas.length) {
+        const { lineas: lines, cobertura: coverage } = await forensic(c, ureq, opts.ventanaMs ?? 2 * 3600_000);
+        if (!lines.length) {
             console.log('');
             log(gray(`(el forense no encontró logs para el uReq ${ureq}: `
-                + `${cobertura.lineasConTexto} líneas lo mencionaban, ${cobertura.traces.length} traces anclados)`));
+                + `${coverage.lineasConTexto} líneas lo mencionaban, ${coverage.traces.length} traces anclados)`));
             return;
         }
-        imprimirForense(resumir(String(ureq), lineas, cobertura), opts.ramal, { pii: opts.pii });
+        printForensic(summarize(String(ureq), lines, coverage), opts.ramal, { pii: opts.pii });
     } catch (e) {
         console.log('');
         log(gray(`(el forense de logs falló, y no afecta el veredicto: ${(e as Error).message.slice(0, 120)})`));
@@ -591,7 +591,7 @@ const yellow = (s: string) => c('33', s);
 const green = (s: string) => c('32', s);
 
 const log = (s = '') => console.log(s ? `  ▸ ${s}` : '');
-const hora = (ms: number) => new Date(ms).toLocaleTimeString('es-CO', { hour12: false }) +
+const time = (ms: number) => new Date(ms).toLocaleTimeString('es-CO', { hour12: false }) +
     '.' + String(ms % 1000).padStart(3, '0');
 const dur = (ms: number) => (ms >= 10_000 ? `${(ms / 1000).toFixed(0)}s` : ms >= 1000 ? `${(ms / 1000).toFixed(1)}s` : `${ms}ms`);
 
@@ -600,7 +600,7 @@ const dur = (ms: number) => (ms >= 10_000 ? `${(ms / 1000).toFixed(0)}s` : ms >=
  * para leerse de arriba hacia abajo y parar cuando ya entendiste — primero QUÉ falló, después el
  * recorrido, y al final la cobertura con sus límites.
  */
-export function imprimirForense(r: Resumen, ramal?: Ramal, opts: { pii?: boolean } = {}): void {
+export function printForensic(r: Summary, lane?: Lane, opts: { pii?: boolean } = {}): void {
     console.log('');
     log(bold(`── FORENSE · uReq ${r.ureq} · Loki (legacy-backend) ──`));
 
@@ -608,36 +608,36 @@ export function imprimirForense(r: Resumen, ramal?: Ramal, opts: { pii?: boolean
     // real, y un bloque forense termina pegado en un ticket o en una captura. El sidecar de .runs/
     // guarda el valor completo (es local y ya es el convenio para el volcado), y `--pii` lo muestra
     // acá cuando de verdad hace falta correlacionar a mano.
-    const enmascarar = (v: string) => (v.length <= 6 ? v : `${v.slice(0, 3)}${'*'.repeat(v.length - 6)}${v.slice(-3)}`);
+    const mask = (v: string) => (v.length <= 6 ? v : `${v.slice(0, 3)}${'*'.repeat(v.length - 6)}${v.slice(-3)}`);
     // Por NOMBRE de clave y no por lista fija de campos: el mismo dato aparece como `documento` en la
     // cabecera y como `document_number` dentro del context de una falla. Enmascarar solo uno de los dos
     // es no enmascarar nada.
     // Las dos lenguas a propósito: las claves del context son en inglés (`document_number`, `cell_phone`)
     // y las de la cabecera que arma `resumir()` son en español (`documento`, `telefono`). Cubrir solo una
     // deja la mitad de los datos sensibles al aire — que es justo lo que pasó en la primera versión.
-    const esSensible = (k: string) => /document|cedula|phone|cell|telefono|email|correo/i.test(k);
-    const vista = (k: string, v: string) => (!opts.pii && esSensible(k) ? enmascarar(v) : v);
+    const isSensitive = (k: string) => /document|cedula|phone|cell|telefono|email|correo/i.test(k);
+    const vista = (k: string, v: string) => (!opts.pii && isSensitive(k) ? mask(v) : v);
     // Los mensajes traen JSON multilínea (el 401 de un proveedor, por ejemplo) y eso rompe el bloque.
-    const plano = (s: string, n: number) => s.replace(/\s+/g, ' ').trim().slice(0, n);
+    const plain = (s: string, n: number) => s.replace(/\s+/g, ' ').trim().slice(0, n);
 
-    const idPartes = Object.entries(r.identidad).map(([k, v]) => `${k} ${vista(k, v)}`);
-    if (idPartes.length) log(`   ${idPartes.join(' · ')}${!opts.pii ? gray('   (--pii para ver cédula/teléfono)') : ''}`);
-    if (ramal) log(gray(`   ramal ${ramal}: ${ESPERADO[ramal].nota}`));
+    const idParts = Object.entries(r.identidad).map(([k, v]) => `${k} ${vista(k, v)}`);
+    if (idParts.length) log(`   ${idParts.join(' · ')}${!opts.pii ? gray('   (--pii para ver cédula/teléfono)') : ''}`);
+    if (lane) log(gray(`   ramal ${lane}: ${EXPECTED[lane].nota}`));
 
-    const niveles = Object.entries(r.porNivel).map(([k, v]) => `${k} ${v}`).join(' · ');
-    log(gray(`   ${r.cobertura.lineas} líneas en ${r.cobertura.traces.length} traces · ${niveles}`));
+    const levels = Object.entries(r.porNivel).map(([k, v]) => `${k} ${v}`).join(' · ');
+    log(gray(`   ${r.cobertura.lineas} líneas en ${r.cobertura.traces.length} traces · ${levels}`));
 
     // ── FALLAS primero: es la razón por la que alguien abre esto ──
     if (r.fallas.length) {
         console.log('');
         log(red(bold(`── ${r.fallas.length} FALLA(S) ──`)));
         for (const f of r.fallas) {
-            const rango = f.veces > 1 ? ` ${yellow(`×${f.veces}`)} (${hora(f.desde)} → ${hora(f.hasta)})` : ` (${hora(f.desde)})`;
-            const cod = f.code + (f.sub ? `/${f.sub}` : '');
-            log(`   ${red(cod)}${rango}`);
-            log(gray(`      ${plano(f.msg, 130)}`));
+            const range = f.veces > 1 ? ` ${yellow(`×${f.veces}`)} (${time(f.desde)} → ${time(f.hasta)})` : ` (${time(f.desde)})`;
+            const codeValue = f.code + (f.sub ? `/${f.sub}` : '');
+            log(`   ${red(codeValue)}${range}`);
+            log(gray(`      ${plain(f.msg, 130)}`));
             const ctx = Object.entries(f.ctx).filter(([k]) => !/^(user_request_id|user_id)$/.test(k));
-            if (ctx.length) log(gray(`      ${plano(ctx.map(([k, v]) => `${k}=${vista(k, String(v))}`).join(' '), 160)}`));
+            if (ctx.length) log(gray(`      ${plain(ctx.map(([k, v]) => `${k}=${vista(k, String(v))}`).join(' '), 160)}`));
         }
     } else {
         console.log('');
@@ -663,7 +663,7 @@ export function imprimirForense(r: Resumen, ramal?: Ramal, opts: { pii?: boolean
         log(bold('── RECORRIDO (backend) ──'));
         for (const p of r.pasos) {
             const err = p.error ? red(`  ← ${p.error}`) : '';
-            log(`   ${hora(p.ts)}  ${p.nombre.slice(0, 52).padEnd(52)} ${gray(`${p.lineas} líneas`)}${err}`);
+            log(`   ${time(p.ts)}  ${p.nombre.slice(0, 52).padEnd(52)} ${gray(`${p.lineas} líneas`)}${err}`);
         }
     }
 
@@ -672,8 +672,8 @@ export function imprimirForense(r: Resumen, ramal?: Ramal, opts: { pii?: boolean
         console.log('');
         log(bold('── TRAMOS (una petición HTTP cada uno) ──'));
         for (const t of r.tramos) {
-            const hueco = t.huecoMs > 3000 ? yellow(`  +${dur(t.huecoMs)} de silencio antes`) : '';
-            log(gray(`   ${hora(t.ts)}  ${t.traceId.slice(0, 12)}…  ${String(t.lineas).padStart(3)} líneas  ${dur(t.durMs).padStart(6)}`) + hueco);
+            const gap = t.huecoMs > 3000 ? yellow(`  +${dur(t.huecoMs)} de silencio antes`) : '';
+            log(gray(`   ${time(t.ts)}  ${t.traceId.slice(0, 12)}…  ${String(t.lineas).padStart(3)} líneas  ${dur(t.durMs).padStart(6)}`) + gap);
         }
     }
 
@@ -681,13 +681,13 @@ export function imprimirForense(r: Resumen, ramal?: Ramal, opts: { pii?: boolean
     console.log('');
     log(bold('── COBERTURA (leer antes de concluir de una ausencia) ──'));
     log(gray(`   ${r.cobertura.lineasConTexto} líneas mencionaban «${r.ureq}» → ${r.cobertura.traces.length} traces anclados → ${r.cobertura.lineas} líneas`));
-    const campos = [...new Set(Object.values(r.cobertura.anclas).flat())];
-    log(gray(`   anclado por: ${campos.join(', ') || '(ninguno)'}`));
+    const fields = [...new Set(Object.values(r.cobertura.anclas).flat())];
+    log(gray(`   anclado por: ${fields.join(', ') || '(ninguno)'}`));
 
     // Dev y staging comparten stack Y base de datos: si el mismo uReq tiene líneas de dos ambientes, eso
     // NO es ruido — es que dos ramas de código tocaron la misma solicitud, y hay que saberlo.
-    const amb = Object.entries(r.cobertura.ambientes);
-    log(gray(`   ambientes: ${amb.map(([k, v]) => `${k} ${v}`).join(' · ') || '(ninguno)'}` +
+    const envName = Object.entries(r.cobertura.ambientes);
+    log(gray(`   ambientes: ${envName.map(([k, v]) => `${k} ${v}`).join(' · ') || '(ninguno)'}` +
         (r.cobertura.filtroEnv ? `  · filtro LOKI_ENV=${r.cobertura.filtroEnv}` : '  · sin filtro')));
     // ⚠ EL FILTRO QUE NO MATCHEA NADA. Va ANTES que el resto porque cambia qué significan las otras dos
     // líneas: sin esto, un `E2E_LOKI_ENV` que no existe se lee como «esta solicitud no dejó rastro en tu
@@ -700,11 +700,11 @@ export function imprimirForense(r: Resumen, ramal?: Ramal, opts: { pii?: boolean
         log(yellow(`     esto se dice en vez de contestar cero. Arreglalo en connectors/.env.${TARGET}, o dejalo vacío.`));
         log(yellow('     ⚠ Y mientras tanto estás viendo dev y qa MEZCLADOS: comparten stack y no hay etiqueta que los separe.'));
     }
-    const fuera = amb.filter(([k]) => r.cobertura.filtroEnv && !new RegExp(`^(?:${r.cobertura.filtroEnv})$`).test(k));
-    if (fuera.length) {
-        log(yellow(`   ⚠ este uReq TAMBIÉN tiene líneas en ${fuera.map(([k, v]) => `${k} (${v})`).join(', ')} — `
+    const outside = envName.filter(([k]) => r.cobertura.filtroEnv && !new RegExp(`^(?:${r.cobertura.filtroEnv})$`).test(k));
+    if (outside.length) {
+        log(yellow(`   ⚠ este uReq TAMBIÉN tiene líneas en ${outside.map(([k, v]) => `${k} (${v})`).join(', ')} — `
             + 'dev y staging comparten la BD, así que lo tocaron dos ramas de código. Filtradas acá.'));
-    } else if (amb.length > 1 && !r.cobertura.filtroEnv && !r.cobertura.filtroInexistente) {
+    } else if (envName.length > 1 && !r.cobertura.filtroEnv && !r.cobertura.filtroInexistente) {
         log(yellow('   ⚠ hay más de un ambiente y no hay filtro: estás mirando dos ramas de código mezcladas. '
             + `Definí LOKI_ENV en connectors/.env.${TARGET}.`));
     }

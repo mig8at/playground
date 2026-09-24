@@ -16,9 +16,9 @@ import { close, one, query, scalar, exec, assertWriteAllowed, TARGET } from '../
 import { whois, assign, revoke, scrubphone, scrubHarnessUsers } from '../pkg/asesor.ts';
 import { listMerchants, listEcommerce } from '../pkg/merchants.ts';
 import { buildEcommerceUrl } from '../pkg/ecommerce.ts';
-import { corbetaDeLaSucursal } from '../pkg/merchants.ts';
-import { preflightSucursal, avisoDesajuste } from '../pkg/preflight-sucursal.ts';
-import { synthFill, requestEstado11 } from '../pkg/inject.ts';
+import { branchCorbeta } from '../pkg/merchants.ts';
+import { preflightBranch, mismatchNotice } from '../pkg/preflight-sucursal.ts';
+import { synthFill, requestStatus11 } from '../pkg/inject.ts';
 import { verifyLaravelMac } from '../pkg/laravel-crypt.ts';
 import { appKey } from '../pkg/db.ts';
 
@@ -38,7 +38,7 @@ try {
         case 'synth-fill':
             r = await synthFill(num(a[0]), { lender: a[1] || undefined, income: num(a[2]) || undefined, score: num(a[3]) || undefined });
             break;
-        case 'estado11': case 'creditopx': r = await requestEstado11(num(a[0])); break;
+        case 'estado11': case 'creditopx': r = await requestStatus11(num(a[0])); break;
         case 'lender-rt': // response_type del lender por nombre o id (2=creditopx, 1=integración, 0=estándar)
             r = await one(
                 "SELECT id, COALESCE(name,'') AS name, response_type AS rt FROM lenders WHERE status=1 AND (CAST(id AS CHAR)=? OR name LIKE ?) ORDER BY id LIMIT 1",
@@ -68,19 +68,19 @@ try {
             // LA MISMA REGLA QUE EL FRONT (`resolvePrefillDelComercio`): cuenta como dato lo que no está vacío
             // y no es un «---». Es lo que decide qué campos llegan prellenados y bloqueados.
             const real = (v: unknown) => typeof v === 'string' && v.trim() !== '' && !/^-+$/.test(v.trim());
-            const CAMPOS: Record<string, string> = {
+            const FIELDS: Record<string, string> = {
                 first_name: 'nombre', last_name: 'apellido', document_number: 'documento',
                 document_type: 'tipo doc', email: 'email', phone: 'celular',
             };
-            const conDato = Object.entries(CAMPOS).filter(([k]) => real(billing[k])).map(([, n]) => n);
-            const sinDato = Object.entries(CAMPOS).filter(([k]) => !real(billing[k])).map(([, n]) => n);
+            const withData = Object.entries(FIELDS).filter(([k]) => real(billing[k])).map(([, n]) => n);
+            const withoutData = Object.entries(FIELDS).filter(([k]) => !real(billing[k])).map(([, n]) => n);
             r = {
                 ureq,
                 vinculada: !!link,
                 ecommerceRequestId: link?.ecommerce_request_id ?? null,
                 orderKey: er?.order_key ?? null,
                 processed: er ? Number(er.processed) === 1 : null,
-                conDato, sinDato,
+                conDato: withData, sinDato: withoutData,
             };
             break;
         }
@@ -110,10 +110,10 @@ try {
             // comía el error, dibujaba el recorrido vacío como si el comercio no tuviera flujos (F-64).
             // Se degrada a `product = NULL`, que el panel sabe leer (agrupa por rt y lo avisa).
             {
-            const hayProduct = (await query(`SHOW COLUMNS FROM lenders LIKE 'product'`)).length > 0;
-            const productoExpr = hayProduct ? `COALESCE(l.product,'credit')` : `NULL`;
+            const productExists = (await query(`SHOW COLUMNS FROM lenders LIKE 'product'`)).length > 0;
+            const productExpr = productExists ? `COALESCE(l.product,'credit')` : `NULL`;
             r = await query(
-                `SELECT l.id, COALESCE(l.name,'') AS name, l.response_type AS rt, ${productoExpr} AS product, COALESCE(p.name,'default') AS path, l.status AS lender_status, lab.status AS branch_status, COALESCE(la.sort, 9999) AS allied_sort
+                `SELECT l.id, COALESCE(l.name,'') AS name, l.response_type AS rt, ${productExpr} AS product, COALESCE(p.name,'default') AS path, l.status AS lender_status, lab.status AS branch_status, COALESCE(la.sort, 9999) AS allied_sort
                  FROM allied_branches ab
                  JOIN lenders_by_allied_branches lab ON lab.allied_branch_id = ab.id
                  JOIN lenders l ON l.id = lab.lender_id
@@ -135,19 +135,19 @@ try {
             // POR QUÉ IMPORTA: con un APP_KEY equivocado, injectDatacredito escribe un blob que Laravel no
             // puede desencriptar. No hay error: /lenders simplemente no ofrece nada, igual que si el perfil
             // no calificara. `appKey()` solo valida PRESENCIA, no que sea la correcta.
-            const fila = await one<{ data: string; doc: string }>(
+            const row = await one<{ data: string; doc: string }>(
                 `SELECT CAST(rcud.data AS CHAR) AS data, COALESCE(u.document_number,'') AS doc
                    FROM risk_central_user_data rcud
                    JOIN users u ON u.id = rcud.user_id
                   WHERE rcud.data IS NOT NULL AND COALESCE(u.document_number,'') NOT LIKE '29%'
                   ORDER BY rcud.id DESC LIMIT 1`);
-            if (!fila) { r = { ok: false, msg: 'no hay ninguna fila Experian REAL para probar (solo sintéticas)' }; break; }
-            let payload = fila.data;
-            try { const j = JSON.parse(fila.data); payload = typeof j === 'string' ? j : fila.data; } catch { /* ya es el payload */ }
+            if (!row) { r = { ok: false, msg: 'no hay ninguna fila Experian REAL para probar (solo sintéticas)' }; break; }
+            let payload = row.data;
+            try { const j = JSON.parse(row.data); payload = typeof j === 'string' ? j : row.data; } catch { /* ya es el payload */ }
             const ok = verifyLaravelMac(payload, appKey());
             r = {
                 ok,
-                probado_contra: `documento ${fila.doc.slice(0, 4)}… (fila real, no sintética)`,
+                probado_contra: `documento ${row.doc.slice(0, 4)}… (fila real, no sintética)`,
                 msg: ok
                     ? 'el APP_KEY es el de este target: el MAC de una fila real valida'
                     : '⚠ APP_KEY EQUIVOCADO — la inyección de buró va a escribir un blob ilegible y /lenders no va a ofrecer nada, SIN error visible',
@@ -211,7 +211,7 @@ try {
             // `extra` es una expresión SQL opcional que da contexto legible en el hover. Cada tabla va en
             // su propio try: si una columna no existe en este ambiente, se pierde ESA tabla y no la vista
             // entera (la lección de F-64, donde un `l.product` ausente dejaba el panel en blanco).
-            const TABLAS: Array<{ t: string; where: string; extra?: string }> = [
+            const TABLES: Array<{ t: string; where: string; extra?: string }> = [
                 { t: 'users', where: 'id = ?', extra: "CONCAT('doc ', COALESCE(document_number,'—'))" },
                 { t: 'user_requests', where: 'user_id = ?', extra: "CONCAT('estado ', user_request_status_id, COALESCE(CONCAT(' · flow ', flow_id), ''))" },
                 { t: 'user_request_records', where: 'user_id = ?' },
@@ -231,41 +231,41 @@ try {
             // Las 9 tablas EN PARALELO: son SELECT independientes (cada uno con su try) y contra dev cada
             // uno paga ~100ms de round-trip. En serie eran ~1s por tick, y el panel pollea cada 2s durante
             // TODA la corrida → cargaba la BD (compartida) casi a la mitad del tiempo. En paralelo baja a
-            // ~el más lento. Se preserva el ORDEN de TABLAS (mapa por índice) para que la vista no baile.
-            const tablas = (await Promise.all(TABLAS.map(async (d) => {
+            // ~el más lento. Se preserva el ORDEN de TABLES (mapa por índice) para que la vista no baile.
+            const tables = (await Promise.all(TABLES.map(async (d) => {
                 try {
-                    const filas = await query(
+                    const rowList = await query(
                         `SELECT id, updated_at AS at,
                                 (created_at >= NOW() - INTERVAL ? SECOND) AS nuevo,
                                 ${d.extra ?? "''"} AS detalle
                            FROM \`${d.t}\`
                           WHERE ${d.where} AND updated_at >= NOW() - INTERVAL ? SECOND
                           ORDER BY updated_at, id LIMIT 60`, [seg, uid, seg]);
-                    if (!filas.length) return null;
-                    return { tabla: d.t, eventos: filas.map((f: any) => ({
+                    if (!rowList.length) return null;
+                    return { tabla: d.t, eventos: rowList.map((f: any) => ({
                         id: f.id, at: f.at, op: Number(f.nuevo) === 1 ? 'INSERT' : 'UPDATE', detalle: String(f.detalle ?? ''),
                     })) };
                 } catch { return null; /* tabla o columna ausente en este ambiente: se omite, no tumba la vista */ }
             }))).filter(Boolean);
-            r = { user: uid, ventanaSeg: seg, tablas };
+            r = { user: uid, ventanaSeg: seg, tablas: tables };
             break;
         }
         case 'orphans': { // solicitudes que apuntan a un usuario INEXISTENTE. `--fix` las borra.
             // Las produce mezclar ambientes: un `user_id` de una base insertado en otra (F-65). Quedan
             // como minas en la base COMPARTIDA — el siguiente que abra esa solicitud se come un 500
             // opaco de `lenders-v2` sin ningún contexto. Sin `--fix` solo reporta.
-            const filas = await query(
+            const rowList = await query(
                 `SELECT ur.id, ur.user_id, ur.allied_id, ur.user_request_status_id AS estado, ur.created_at
                    FROM user_requests ur LEFT JOIN users u ON u.id = ur.user_id
                   WHERE u.id IS NULL ORDER BY ur.id DESC LIMIT 200`);
-            if (a[0] === '--fix' && filas.length) {
+            if (a[0] === '--fix' && rowList.length) {
                 assertWriteAllowed();
-                const ids = filas.map((x: any) => x.id);
+                const ids = rowList.map((x: any) => x.id);
                 await exec('DELETE FROM user_requests WHERE id IN (?)', [ids]);
-                r = { huerfanas: filas.length, borradas: ids.length, ids };
+                r = { huerfanas: rowList.length, borradas: ids.length, ids };
             } else {
-                r = { huerfanas: filas.length, filas,
-                      nota: filas.length ? 'corré con --fix para borrarlas (exige el guard de escritura)' : 'sin huérfanas' };
+                r = { huerfanas: rowList.length, filas: rowList,
+                      nota: rowList.length ? 'corré con --fix para borrarlas (exige el guard de escritura)' : 'sin huérfanas' };
             }
             break;
         }
@@ -317,15 +317,15 @@ try {
         case 'is-corbeta': { // ¿esta SUCURSAL pertenece al grupo Corbeta? → {hash, alliedId, corbeta, selfManaged, allieds}
             // La lógica vive en `pkg/merchants.ts` porque la comparten este subcomando y `guided.spec.ts`.
             const hash = String(a[0] ?? '');
-            r = { hash, ...(await corbetaDeLaSucursal(hash)) };
+            r = { hash, ...(await branchCorbeta(hash)) };
             break;
         }
         case 'sucursal-check': { // ¿la sucursal ANUNCIADA es la que el backend le da a ese asesor? → {coincide, esperada, asesor, aviso[]}
             // SÓLO LECTURA: le pregunta al backend por el sub (lo mismo que hace el wizard) y lo
             // compara con el hash del catálogo. No escribe, no reasigna, no borra sesiones — devuelve
             // el desajuste y quien llama decide. Ver la cabecera de `pkg/preflight-sucursal.ts`.
-            const d = await preflightSucursal(String(a[0] ?? ''), TARGET, String(a[1] ?? ''));
-            r = { ...d, aviso: avisoDesajuste(d) };
+            const d = await preflightBranch(String(a[0] ?? ''), TARGET, String(a[1] ?? ''));
+            r = { ...d, aviso: mismatchNotice(d) };
             break;
         }
         default:

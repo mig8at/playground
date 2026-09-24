@@ -43,7 +43,7 @@ const json = (res, code, body) => {
 };
 
 // Rutas con forma CONOCIDA (verificadas leyendo app/Actions/Lenders/*).
-const RUTAS = [
+const PATHS = [
     {
         // SistecreditoPos::register → GET /{pos}/getCreditToken. El backend pasa la respuesta tal cual como
         // `transaction.data`, sin exigir campos → alcanza con algo plausible.
@@ -57,7 +57,7 @@ const RUTAS = [
         // (F-140).
         lender: 'meddipay',
         test: (p) => /\/User\/Login$/.test(p),
-        body: (q, doc) => (modoDe('meddipay', doc) === 'rechaza'
+        body: (q, doc) => (modeOf('meddipay', doc) === 'rechaza'
             ? { data: null, message: 'Credenciales inválidas', errorCode: 'AUTH_FAILED' }
             : { data: { token: 'MOCK-MEDDIPAY-' + Date.now(), expiresIn: 3600 }, message: 'OK', errorCode: null }),
     },
@@ -73,8 +73,8 @@ const RUTAS = [
         lender: 'meddipay',
         test: (p) => /\/Customer\/CreateOrder$/.test(p),
         body: (q, doc) => {
-            const modo = modoDe('meddipay', doc);
-            const result = modo === 'rechaza' ? 'DEN' : modo === 'reserva' ? 'HOL' : 'APP';
+            const mode = modeOf('meddipay', doc);
+            const result = mode === 'rechaza' ? 'DEN' : mode === 'reserva' ? 'HOL' : 'APP';
             return {
                 data: {
                     order_id: 'MOCK-ORDER-' + Date.now(),
@@ -115,13 +115,13 @@ const RUTAS = [
 // global, dos casos simultáneos que quieran «Meddipay aprueba» y «Meddipay rechaza» se pisan y el
 // resultado depende de quién dictó último — un fallo que no se ve, porque los dos terminan bien.
 // La clave por documento es la misma idea que usa la lambda de centrales para lo mismo.
-const escenarios = new Map();          // `${lender}` (global) o `${lender}:${doc}` (por cédula)
-const modoDe = (lender, doc) =>
-    (doc && escenarios.get(`${lender}:${doc}`)) || escenarios.get(lender) || 'aprueba';
+const scenarios = new Map();          // `${lender}` (global) o `${lender}:${doc}` (por cédula)
+const modeOf = (lender, doc) =>
+    (doc && scenarios.get(`${lender}:${doc}`)) || scenarios.get(lender) || 'aprueba';
 
 /** La cédula que viaja en el cuerpo, para resolver el escenario del caso. Meddipay la manda en
  *  `document.number`; si algún proveedor la mandara distinto, se agrega acá y no en cada ruta. */
-const docDe = (body) => {
+const docOf = (body) => {
     try {
         const b = JSON.parse(body || '{}');
         return String(b?.document?.number ?? b?.documentNumber ?? b?.idDocument ?? '') || null;
@@ -134,25 +134,25 @@ const server = http.createServer((req, res) => {
     // → toda petición caía en el handler raíz y no se logueaba. Colapsamos las barras iniciales primero.
     const url = new URL(String(req.url).replace(/^\/{2,}/, '/'), `http://localhost:${PORT}`);
     if (req.method === 'GET' && url.pathname === '/') {
-        return json(res, 200, { mock: 'lenders-gateway', port: PORT, fail: FAIL, rutasConocidas: RUTAS.length });
+        return json(res, 200, { mock: 'lenders-gateway', port: PORT, fail: FAIL, rutasConocidas: PATHS.length });
     }
 
     let body = '';
     req.on('data', (c) => (body += c));
     req.on('end', () => {
         if (url.pathname === '/__mock/escenario') {
-            if (req.method === 'GET') return json(res, 200, Object.fromEntries(escenarios));
-            if (req.method === 'DELETE') { escenarios.clear(); log('escenarios limpiados'); return json(res, 200, {}); }
+            if (req.method === 'GET') return json(res, 200, Object.fromEntries(scenarios));
+            if (req.method === 'DELETE') { scenarios.clear(); log('escenarios limpiados'); return json(res, 200, {}); }
             if (req.method === 'POST') {
                 let p = {};
                 try { p = JSON.parse(body || '{}'); } catch { return json(res, 400, { error: 'JSON inválido' }); }
                 if (!p.lender || !['aprueba', 'rechaza', 'reserva', 'falla'].includes(p.modo)) {
                     return json(res, 400, { error: 'se espera {lender, modo: aprueba|rechaza|reserva|falla}' });
                 }
-                const clave = p.doc ? `${p.lender}:${p.doc}` : p.lender;
-                escenarios.set(clave, p.modo);
-                log(`escenario dictado: ${clave} → ${p.modo}`);
-                return json(res, 200, Object.fromEntries(escenarios));
+                const key = p.doc ? `${p.lender}:${p.doc}` : p.lender;
+                scenarios.set(key, p.modo);
+                log(`escenario dictado: ${key} → ${p.modo}`);
+                return json(res, 200, Object.fromEntries(scenarios));
             }
             return json(res, 405, { error: 'método no soportado' });
         }
@@ -160,17 +160,17 @@ const server = http.createServer((req, res) => {
             log(`FAIL forzado ← ${req.method} ${url.pathname}`);
             return json(res, 500, { message: 'Fallo simulado del proveedor', errorCode: 'MOCK_FAIL' });
         }
-        const hit = RUTAS.find((r) => r.test(url.pathname));
+        const hit = PATHS.find((r) => r.test(url.pathname));
         if (hit) {
             // `falla` se resuelve ACÁ y no en el cuerpo: es un fallo de TRANSPORTE (500), no una
             // respuesta de negocio. Mezclarlos haría que «el proveedor se cayó» y «el proveedor dijo
             // que no» se vieran igual desde el backend, que es justo lo que F-140 mostró que confunde.
-            if (hit.lender && modoDe(hit.lender, docDe(body)) === 'falla') {
+            if (hit.lender && modeOf(hit.lender, docOf(body)) === 'falla') {
                 log(`${req.method} ${url.pathname} → FALLA dictada para ${hit.lender}`);
                 return json(res, 500, { message: 'Fallo simulado del proveedor', errorCode: 'MOCK_FAIL' });
             }
-            log(`${req.method} ${url.pathname}${url.search} → conocida${hit.lender ? ` (${hit.lender}: ${modoDe(hit.lender, docDe(body))}${docDe(body) ? ' doc ' + docDe(body) : ''})` : ''}`);
-            return json(res, 200, hit.body(url.searchParams, docDe(body)));
+            log(`${req.method} ${url.pathname}${url.search} → conocida${hit.lender ? ` (${hit.lender}: ${modeOf(hit.lender, docOf(body))}${docOf(body) ? ' doc ' + docOf(body) : ''})` : ''}`);
+            return json(res, 200, hit.body(url.searchParams, docOf(body)));
         }
         // Lo importante: que un endpoint no mapeado sea RUIDOSO, no silencioso.
         log(`⚠ RUTA NO MAPEADA ← ${req.method} ${url.pathname}${url.search}${body ? ' body=' + body.slice(0, 300) : ''}`);

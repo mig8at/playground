@@ -188,7 +188,7 @@ comentario del `<script>` lo termina y el mock no arranca (`missing ) after argu
 
 ### 3 · Los formularios: SSR + react-hook-form + Radix
 
-**El harness AUTORRELLENA y no clickea.** `autorrellenarQr()` (`pkg/qr-steps.ts`) se engancha a **cada
+**El harness AUTORRELLENA y no clickea.** `autofillQr()` (`pkg/qr-steps.ts`) se engancha a **cada
 navegación** en los dos modos y llena lo que reconozca. **Nunca aprieta Continuar** — si lo hiciera, el
 camino visual dejaría de ser visual. Va por navegación y no como secuencia fija porque el recorrido tiene
 **7 formularios** y su orden depende del producto que resuelva el OTP.

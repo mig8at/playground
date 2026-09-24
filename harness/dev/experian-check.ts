@@ -6,7 +6,7 @@
 // Existe porque "no hay fila nueva de buró" NO prueba la omisión: hay tres cosas distintas que
 // producen ese mismo silencio, y hay que descartar dos antes de creerle a la tercera.
 //
-//   1. FIRMA DE FLUJO   `user_requests.flow_id = 2` (already-confirmed-pre-approval). Si no está,
+//   1. FIRMA DE FLOW   `user_requests.flow_id = 2` (already-confirmed-pre-approval). Si no está,
 //                       no hubo nada que omitir — el selector se vio pero no se selló.
 //   2. COMPUERTA        `DatacreditoQueryByAlliedController` decide ANTES, por frecuencia del aliado.
 //                       Si corta ahí, `Experian.php` ni se invoca y el corte por flujo nunca se
@@ -55,9 +55,9 @@ line('monto', `${money(ur.amount)} · estado ${ur.user_request_status_id} · cre
 line('usuario', String(ur.user_id));
 
 // ── 1 · ¿se firmó el flujo que omite el buró? ────────────────────────────────────────────────────
-const firmada = Number(ur.flow_id) === FLOW_ALREADY_CONFIRMED;
+const signedOne = Number(ur.flow_id) === FLOW_ALREADY_CONFIRMED;
 console.log('\n  1 · FIRMA DE FLUJO');
-line('', firmada
+line('', signedOne
     ? `flow_id = 2 → FIRMADA (already-confirmed-pre-approval: no se consulta Experian)`
     : `flow_id = ${ur.flow_id ?? 'NULL'} → NO firmada (flujo estándar: el buró SÍ se consulta)`);
 
@@ -65,28 +65,28 @@ line('', firmada
 const freq = await one<Row>(`SELECT frequency, every FROM datacredito_frequencies WHERE allied_id = ?`, [ur.allied_id]);
 // El contexto del veredicto va en `logs.request` (no en `response`, que queda vacío): `Log::create`
 // mete ahí el JSON con `reason`. Se leen las tres por si el modelo cambia.
-const veredictos = await query<Row>(
+const verdicts = await query<Row>(
     `SELECT name, COALESCE(NULLIF(request,''), NULLIF(response,''), description) AS payload, created_at
        FROM logs WHERE user_request_id = ? AND controller = 'DatacreditoQueryByAlliedController'
       ORDER BY id DESC LIMIT 3`,
     [ur.id],
 );
-const razon = (p: any) => { try { return JSON.parse(p)?.reason ?? '?'; } catch { return '?'; } };
+const reason = (p: any) => { try { return JSON.parse(p)?.reason ?? '?'; } catch { return '?'; } };
 console.log('\n  2 · COMPUERTA (frecuencia del aliado)');
 line('regla', freq
     ? `frequency=${freq.frequency ?? 'NULL'} every=${freq.every}` +
       (freq.frequency === null ? ' → "consultar siempre" (nunca enmascara)' : ` → throttle: consulta 1 de cada ${freq.every}`)
     : 'SIN REGLA → el aliado nunca consulta Experian (enmascara siempre)');
-if (!veredictos.length) {
+if (!verdicts.length) {
     line('veredicto', 'sin registro en `logs` para esta solicitud → la compuerta no llegó a evaluarse');
 } else {
-    for (const v of veredictos) line('veredicto', `${v.name} · ${razon(v.payload)} (${v.created_at})`);
+    for (const v of verdicts) line('veredicto', `${v.name} · ${reason(v.payload)} (${v.created_at})`);
 }
-const disparo = veredictos.some((v) => v.name === 'EXPERIAN_TRIGGERED');
-const corto = veredictos.some((v) => v.name === 'EXPERIAN_NOT_TRIGGERED');
+const triggered = verdicts.some((v) => v.name === 'EXPERIAN_TRIGGERED');
+const short = verdicts.some((v) => v.name === 'EXPERIAN_NOT_TRIGGERED');
 
 // ── 3 · la caché de 1 mes, que produce el mismo silencio que la omisión ──────────────────────────
-const previa = await one<Row>(
+const previous = await one<Row>(
     `SELECT rcud.id, rc.name, rcud.created_at
        FROM risk_central_user_data rcud JOIN risk_centrals rc ON rc.id = rcud.risk_central_id
       WHERE rcud.user_id = ? AND rcud.risk_central_id IN (?) AND rcud.created_at < ?
@@ -94,12 +94,12 @@ const previa = await one<Row>(
     [ur.user_id, EXPERIAN, ur.created_at],
 );
 // Misma ventana que `Experian::performRequest`: created_at > now()-1mes, medida contra la solicitud.
-const cacheVigente = previa
-    ? new Date(previa.created_at).getTime() > new Date(ur.created_at).getTime() - 30 * 864e5
+const cacheFresh = previous
+    ? new Date(previous.created_at).getTime() > new Date(ur.created_at).getTime() - 30 * 864e5
     : false;
 console.log('\n  3 · CACHÉ (1 mes, por user_id + central)');
-line('', previa
-    ? `previa #${previa.id} '${previa.name}' ${previa.created_at} → ${cacheVigente ? 'VIGENTE (enmascara)' : 'vencida (no enmascara)'}`
+line('', previous
+    ? `previa #${previous.id} '${previous.name}' ${previous.created_at} → ${cacheFresh ? 'VIGENTE (enmascara)' : 'vencida (no enmascara)'}`
     : 'sin reporte Experian previo → caché FRÍA (no enmascara)');
 
 // ── 4 · ¿se consultó el buró PARA ESTA solicitud? ────────────────────────────────────────────────
@@ -108,7 +108,7 @@ line('', previa
 // falso "sí se consultó" (me pasó con la 464334, que se comió una fila del día siguiente).
 // La tabla ata el reporte que quedó pegado a la solicitud venga de consulta fresca o de CACHÉ, así que
 // la fecha sigue importando: anterior a la solicitud = reusado; posterior = consultado de verdad.
-const atados = await query<Row>(
+const tied = await query<Row>(
     `SELECT rcud.id, rc.name, rcud.created_at
        FROM user_request_risk_central_user_data urr
        JOIN risk_central_user_data rcud ON rcud.id = urr.risk_central_user_data_id
@@ -132,56 +132,56 @@ const atados = await query<Row>(
 // falso negativo silencioso, justo en las corridas nuevas, que son las que se miran. Ver F-107.
 //
 // La guarda se apaga sola si alguien vuelve a correr el SP (o lo agenda): el techo se mueve con él.
-const [cobertura] = await query<{ hasta: string | null; filas: number }>(
+const [coverage] = await query<{ hasta: string | null; filas: number }>(
     'SELECT MAX(created_at) AS hasta, COUNT(*) AS filas FROM user_request_risk_central_user_data',
 );
-const sinVinculo = !Number(cobertura?.filas)
-    || (cobertura.hasta != null && new Date(ur.created_at) > new Date(cobertura.hasta));
+const withoutLink = !Number(coverage?.filas)
+    || (coverage.hasta != null && new Date(ur.created_at) > new Date(coverage.hasta));
 
 const desc = (r: Row) => `#${r.id} '${r.name}' ${r.created_at}`;
-const nuevas = atados.filter((r) => new Date(r.created_at) >= new Date(ur.created_at));
-const reusados = atados.filter((r) => new Date(r.created_at) < new Date(ur.created_at));
+const newOnes = tied.filter((r) => new Date(r.created_at) >= new Date(ur.created_at));
+const reused = tied.filter((r) => new Date(r.created_at) < new Date(ur.created_at));
 console.log('\n  4 · CONSULTA (reportes Experian atados a esta solicitud)');
-line('consultado', nuevas.length
-    ? nuevas.map(desc).join('\n               ')
-    : sinVinculo
-        ? `SIN DATO — la tabla de vínculo no cubre esta solicitud (llega hasta ${cobertura?.hasta ?? 'nunca: está vacía'}).\n               No es "no se consultó": es que no se puede saber por acá.`
+line('consultado', newOnes.length
+    ? newOnes.map(desc).join('\n               ')
+    : withoutLink
+        ? `SIN DATO — la tabla de vínculo no cubre esta solicitud (llega hasta ${coverage?.hasta ?? 'nunca: está vacía'}).\n               No es "no se consultó": es que no se puede saber por acá.`
         : 'ninguno — no se consultó el buró para esta solicitud');
-if (reusados.length) line('reusado', `${reusados.map(desc).join('\n               ')}  ← anterior a la solicitud: vino de caché`);
+if (reused.length) line('reusado', `${reused.map(desc).join('\n               ')}  ← anterior a la solicitud: vino de caché`);
 
 // ── veredicto ────────────────────────────────────────────────────────────────────────────────────
 let code = 2;
-let texto: string;
-if (nuevas.length) {
+let text: string;
+if (newOnes.length) {
     code = 1;
-    texto = firmada
+    text = signedOne
         ? '✗ SE CONSULTÓ el buró pese a la firma — la omisión NO funcionó. Es el caso que había que cazar.'
         : '✗ SE CONSULTÓ el buró, como corresponde a una solicitud sin firmar. No prueba nada sobre la omisión.';
-} else if (sinVinculo) {
+} else if (withoutLink) {
     // Va PRIMERO entre las no-concluyentes: si el vínculo no cubre la solicitud, las otras tres causas
     // ni siquiera se pueden evaluar — el silencio de la sección 4 no significa nada todavía.
-    texto = '— NO CONCLUYENTE: la tabla `user_request_risk_central_user_data` NO cubre esta solicitud,\n'
-        + `    así que la ausencia de filas no prueba nada (cubre hasta ${cobertura?.hasta ?? 'nunca: está vacía'}).\n`
+    text = '— NO CONCLUYENTE: la tabla `user_request_risk_central_user_data` NO cubre esta solicitud,\n'
+        + `    así que la ausencia de filas no prueba nada (cubre hasta ${coverage?.hasta ?? 'nunca: está vacía'}).\n`
         + '    Esa tabla NO la escribe el producto: se pobló de un backfill y no se mantiene (F-107).\n'
         + '    Para afirmar algo sobre esta solicitud hace falta otra vía — los logs (`dev/loki-trace.ts`)\n'
         + '    o el trazador, que lee las centrales por `user_id` y avisa de la contaminación.';
-} else if (!firmada) {
-    texto = '— NO CONCLUYENTE: la solicitud no está firmada, así que no había nada que omitir.\n'
+} else if (!signedOne) {
+    text = '— NO CONCLUYENTE: la solicitud no está firmada, así que no había nada que omitir.\n'
         + '    Ver el selector no alcanza: hay que elegirlo y que el backend selle el flujo (pasa al verificar el OTP).';
-} else if (corto || !disparo) {
-    texto = '— NO CONCLUYENTE: la compuerta de frecuencia cortó (o nunca corrió), así que `Experian.php`\n'
+} else if (short || !triggered) {
+    text = '— NO CONCLUYENTE: la compuerta de frecuencia cortó (o nunca corrió), así que `Experian.php`\n'
         + '    no se invocó y el corte por flujo no llegó a ejercerse. Probá en un comercio con\n'
         + '    frequency = NULL (ej. Mediarte, allied 91). Ver F-60.';
-} else if (cacheVigente) {
-    texto = '— NO CONCLUYENTE: la compuerta disparó y no hay fila nueva, pero el usuario tenía caché\n'
+} else if (cacheFresh) {
+    text = '— NO CONCLUYENTE: la compuerta disparó y no hay fila nueva, pero el usuario tenía caché\n'
         + '    Experian vigente — el silencio se explica igual sin la omisión. Hace falta un usuario\n'
         + '    con caché fría (sin reporte Experian en el último mes).';
 } else {
     code = 0;
-    texto = '✓ OMISIÓN PROBADA: el flujo está firmado, la compuerta disparó (así que se llegó a\n'
+    text = '✓ OMISIÓN PROBADA: el flujo está firmado, la compuerta disparó (así que se llegó a\n'
         + '    `Experian.php`) y la caché estaba fría — lo único que pudo frenar la consulta es el flujo.';
 }
-console.log(`\n  VEREDICTO\n  ${texto}\n`);
+console.log(`\n  VEREDICTO\n  ${text}\n`);
 
 await close();
 process.exit(code);

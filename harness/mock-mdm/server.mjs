@@ -20,7 +20,7 @@
 //   env: MOCK_MDM_PORT (8098) · MOCK_MDM_EMPTY=1 → simula "IMEI no encontrado" (devices: [])
 //        MOCK_MDM_TENANT_REQUIRED=1 → exige `X-Lb-Tenant-Id` como lo hace producción
 //
-// FALLOS DICTADOS (agregado 2026-08-22 para reproducir F-156). El ciclo de cobranza sólo se entiende
+// FAILURES DICTADOS (agregado 2026-08-22 para reproducir F-156). El ciclo de cobranza sólo se entiende
 // cuando FALLA: en producción 28 equipos reales nunca llegaron a bloquearse, y cada intento escribe
 // una fila nueva. Sin poder provocar el fallo, esa parte del código no se ejercita nunca en local.
 //   POST /admin/dictar  { imei, resultCode }   → el próximo lock/unlock/release de ese IMEI falla así
@@ -36,25 +36,25 @@ const TENANT_REQUIRED = process.env.MOCK_MDM_TENANT_REQUIRED === '1';
 const log = (...a) => console.log(new Date().toISOString(), ...a);
 
 // Catálogo determinista: el mismo IMEI devuelve SIEMPRE el mismo equipo (útil para reproducir un caso).
-const CATALOGO = [
+const CATALOG = [
     { marketName: 'Galaxy A15', model: 'SM-A155M', manufacturer: 'Samsung' },
     { marketName: 'Moto G24', model: 'XT2423-1', manufacturer: 'Motorola' },
     { marketName: 'Galaxy A06', model: 'SM-A065M', manufacturer: 'Samsung' },
     { marketName: 'Redmi 13C', model: '23100RN82L', manufacturer: 'Xiaomi' },
 ];
-const equipoDe = (imei) => {
+const deviceOf = (imei) => {
     const n = String(imei).split('').reduce((a, c) => a + (Number(c) || 0), 0);
-    return CATALOGO[n % CATALOGO.length];
+    return CATALOG[n % CATALOG.length];
 };
 
 // Copiados de producción, no inventados: son los cuatro que aparecen en `api_response`.
-const FALLOS = {
+const FAILURES = {
     DEVICE_INVALID_STATE: 'The device is unable to assign Action, please check the device state',
     STATE_TRANSITION: 'This imei [{imei}] is in State transition, please try again later',
     device_not_found: 'Not found the device with imei [{imei}]',
     external_service: 'External service error',
 };
-const dictado = new Map();   // imei → resultCode
+const dictated = new Map();   // imei → resultCode
 
 const json = (res, code, body) => {
     res.writeHead(code, { 'content-type': 'application/json' });
@@ -68,7 +68,7 @@ const server = http.createServer((req, res) => {
     if (req.method === 'GET' && url.pathname === '/') {
         return json(res, 200, {
             mock: 'mdm/device-locking', port: PORT, empty: EMPTY,
-            tenantRequired: TENANT_REQUIRED, dictados: Object.fromEntries(dictado),
+            tenantRequired: TENANT_REQUIRED, dictados: Object.fromEntries(dictated),
         });
     }
 
@@ -84,7 +84,7 @@ const server = http.createServer((req, res) => {
     if (req.method === 'GET' && url.pathname === '/device-locking/devices/status') {
         const imei = url.searchParams.get('deviceIds') || '';
         if (EMPTY) { log(`status imei=${imei} → devices:[] (MOCK_MDM_EMPTY)`); return json(res, 200, { devices: [] }); }
-        const eq = equipoDe(imei);
+        const eq = deviceOf(imei);
         log(`status imei=${imei} tenant=${tenant} → ${eq.manufacturer} ${eq.marketName}`);
         return json(res, 200, { devices: [{ deviceId: imei, state: 'ENROLLED', locked: false, ...eq }] });
     }
@@ -97,14 +97,14 @@ const server = http.createServer((req, res) => {
         const imei = p.imei ?? p.deviceId ?? (Array.isArray(p.deviceIds) ? p.deviceIds.join(',') : '');
 
         if (req.method === 'POST' && url.pathname === '/admin/dictar') {
-            const code = FALLOS[p.resultCode] ? p.resultCode : null;
-            if (!code || !p.imei) return json(res, 400, { error: 'pedí { imei, resultCode }', codigos: Object.keys(FALLOS) });
-            dictado.set(String(p.imei), code);
+            const code = FAILURES[p.resultCode] ? p.resultCode : null;
+            if (!code || !p.imei) return json(res, 400, { error: 'pedí { imei, resultCode }', codigos: Object.keys(FAILURES) });
+            dictated.set(String(p.imei), code);
             log(`dictado imei=${p.imei} → ${code}`);
             return json(res, 200, { imei: p.imei, resultCode: code });
         }
         if (req.method === 'POST' && url.pathname === '/admin/limpiar') {
-            dictado.clear();
+            dictated.clear();
             return json(res, 200, { limpiado: true });
         }
 
@@ -119,20 +119,20 @@ const server = http.createServer((req, res) => {
             // respuesta se lee con `data_get($response, 'results.0')`. Devolver `{deviceId, state}` plano deja
             // el device_lock en `failed` aunque el mock diga success (fue exactamente lo que pasó la 1ª vez).
             if (/\/device-locking\/devices\/(lock|unlock|release)$/.test(url.pathname)) {
-                const accion = url.pathname.split('/').pop();
+                const action = url.pathname.split('/').pop();
                 const devices = Array.isArray(p.devices) ? p.devices : [{ deviceId: imei }];
-                const estado = { lock: 'LOCKED', unlock: 'UNLOCKED', release: 'RELEASED' }[accion];
-                log(`${accion} devices=${devices.map((d) => d.deviceId).join(',') || '(vacío)'} tenant=${tenant}`);
+                const status = { lock: 'LOCKED', unlock: 'UNLOCKED', release: 'RELEASED' }[action];
+                log(`${action} devices=${devices.map((d) => d.deviceId).join(',') || '(vacío)'} tenant=${tenant}`);
                 // El fallo va con HTTP 200 y `success:false` dentro de `results`, igual que el proveedor:
                 // el backend lee `results.0`, así que un 5xx probaría otro camino del que nos interesa.
                 return json(res, 200, {
                     async: false,
                     results: devices.map((d) => {
-                        const code = dictado.get(String(d.deviceId));
-                        if (!code) return { deviceId: d.deviceId, state: estado, success: true, message: 'OK' };
+                        const code = dictated.get(String(d.deviceId));
+                        if (!code) return { deviceId: d.deviceId, state: status, success: true, message: 'OK' };
                         return {
                             deviceId: d.deviceId, success: false, resultCode: code,
-                            resultMessage: FALLOS[code].replace('{imei}', String(d.deviceId)),
+                            resultMessage: FAILURES[code].replace('{imei}', String(d.deviceId)),
                         };
                     }),
                 });

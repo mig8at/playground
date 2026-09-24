@@ -8,7 +8,7 @@
 // `expedition_date = 2026-01-01`). Acá vive la DECISIÓN, una vez, y cada autorrelleno hace su parte
 // mecánica con la respuesta:
 //
-//   · `pkg/autorelleno.ts` (una `r`) corre DENTRO de la página, inyectado — usa `fuenteInyectable()`.
+//   · `pkg/autorelleno.ts` (una `r`) corre DENTRO de la página, inyectado — usa `injectableSource()`.
 //   · `pkg/autorrelleno.ts` (dos `r`) maneja Playwright desde afuera — importa las funciones.
 //
 // ⚠ NO se unificaron los dos ARCHIVOS, y es a propósito: uno vive en el DOM de la página y el otro
@@ -27,7 +27,7 @@
  * tenía uno. `process.env` sólo se lee de este lado: las funciones que se serializan para la página
  * están más abajo y reciben la fecha ya resuelta por parámetro.
  */
-export function fechasSinteticas(): { nacimiento: string; expedicion: string } {
+export function syntheticDates(): { nacimiento: string; expedicion: string } {
       return {
             nacimiento: process.env.E2E_SYNTH_NACIMIENTO || '1990-05-14',
             expedicion: process.env.E2E_SYNTH_EXPEDICION || '2010-08-20',
@@ -35,27 +35,27 @@ export function fechasSinteticas(): { nacimiento: string; expedicion: string } {
 }
 
 /** Los meses en minúsculas y sin acentos, en el orden del calendario (índice 0 = enero). */
-export const MESES = [
+export const MONTHS = [
       'enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio',
       'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre',
 ];
 
 /** Qué parte de una fecha es un combo. `null` = no parece parte de una fecha. */
-export type ParteDeFecha = 'dia' | 'mes' | 'anio';
+export type DatePart = 'dia' | 'mes' | 'anio';
 
 // ───────────────────────────────────────────────────────────────────────────────────────────────────
 // ⚠ LAS CUATRO FUNCIONES DE ABAJO SE SERIALIZAN con `Function.prototype.toString()` para inyectarlas
-// en la página (`fuenteInyectable`). Eso impone dos reglas, y romperlas falla en el navegador y no
+// en la página (`injectableSource`). Eso impone dos reglas, y romperlas falla en el navegador y no
 // acá:
 //
-//   1 · no pueden cerrar sobre NADA de este módulo — ni `MESES`, que se les pasa por parámetro;
+//   1 · no pueden cerrar sobre NADA de este módulo — ni `MONTHS`, que se les pasa por parámetro;
 //   2 · su cuerpo tiene que sobrevivir el borrado de tipos de Node, que reemplaza las anotaciones por
 //       espacios. Hoy sobrevive; `fecha-trio.spec.ts` lo comprueba evaluando la fuente generada, así
 //       que si una versión de Node cambia eso, se cae una prueba en vez de un flujo.
 // ───────────────────────────────────────────────────────────────────────────────────────────────────
 
 /** Minúsculas y sin acentos: la pista de un campo llega escrita de las dos formas. */
-export function normalizarTexto(s: string): string {
+export function normalizeText(s: string): string {
       return (s || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').trim();
 }
 
@@ -73,19 +73,19 @@ export function normalizarTexto(s: string): string {
  *       que es el de este front. Si algún día una pantalla los pone al revés, esta es la señal que
  *       miente — y las otras dos la tapan mientras haya valor o etiqueta.
  */
-export function parteDeCombo(
-      texto: string, etiqueta: string, indice: number, meses: string[],
-): ParteDeFecha | null {
-      const norma = (s: string) => (s || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').trim();
-      const t = norma(texto);
+export function comboPart(
+      text: string, label: string, index: number, months: string[],
+): DatePart | null {
+      const norm = (s: string) => (s || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').trim();
+      const t = norm(text);
 
       // 1 · por el valor que muestra
-      if (meses.indexOf(t) >= 0) return 'mes';
+      if (months.indexOf(t) >= 0) return 'mes';
       if (/^\d{4}$/.test(t)) return 'anio';
       if (/^\d{1,2}$/.test(t)) return 'dia';
 
       // 2 · por el placeholder o la etiqueta
-      const e = norma(etiqueta) + ' ' + t;
+      const e = norm(label) + ' ' + t;
       if (/\bmes\b|\bmonth\b/.test(e)) return 'mes';
       if (/\bano\b|\banio\b|\byear\b/.test(e)) return 'anio';
       if (/\bdia\b|\bday\b/.test(e)) return 'dia';
@@ -94,7 +94,7 @@ export function parteDeCombo(
       //
       // ⚠ ESTO ERA UN FALLBACK CIEGO y clasificaba CUALQUIER terna de combos como día/mes/año.
       // Medido el 2026-09-15 en `/lenders`: los tres selectores de PLAZO de las tarjetas —«12
-      // cuotas», «24 cuotas», «60 cuotas»— salían `["dia","mes","anio"]` y `esTrioDeFecha` daba
+      // cuotas», «24 cuotas», «60 cuotas»— salían `["dia","mes","anio"]` y `isDateTrio` daba
       // `true`, así que el autorrelleno los abría los TRES buscando una fecha adentro. Ninguno la
       // tenía, y quedaban abiertos uno encima del otro: se veía como «el select se quedó pegado y no
       // cierra». El archivo ya avisaba que «un selector de cuotas también cae en uno o dos dígitos»,
@@ -103,12 +103,12 @@ export function parteDeCombo(
       // Un combo de una fecha, cuando no muestra un valor de fecha, muestra su PLACEHOLDER («Día*»,
       // que el paso 2 ya reconoce) o está vacío. Si muestra un texto CONCRETO que no es de fecha,
       // no es parte de una fecha y adivinarlo por el orden en que apareció es inventar.
-      const pareceVacio = t === '' || /seleccion|elegi|choose|select|^-+$|^dd$|^mm$|^aa+$|^yy+$/.test(t);
-      if (!pareceVacio) return null;
+      const looksEmpty = t === '' || /seleccion|elegi|choose|select|^-+$|^dd$|^mm$|^aa+$|^yy+$/.test(t);
+      if (!looksEmpty) return null;
 
-      if (indice === 0) return 'dia';
-      if (indice === 1) return 'mes';
-      if (indice === 2) return 'anio';
+      if (index === 0) return 'dia';
+      if (index === 1) return 'mes';
+      if (index === 2) return 'anio';
       return null;
 }
 
@@ -116,13 +116,13 @@ export function parteDeCombo(
  * Los textos que sirven para elegir esa parte, del más probable al menos. Se devuelven VARIOS porque
  * el mismo día se escribe `5` o `05` según la pantalla, y el mes puede venir por nombre o por número.
  */
-export function valorBuscado(parte: ParteDeFecha, fecha: string, meses: string[]): string[] {
-      const partes = (fecha || '').split('-');
-      const aa = partes[0] || '';
-      const mm = partes[1] || '';
-      const dd = partes[2] || '';
-      if (parte === 'anio') return [aa];
-      if (parte === 'mes') return [meses[Number(mm) - 1] || '', String(Number(mm)), mm].filter(Boolean);
+export function searchedValue(part: DatePart, date: string, months: string[]): string[] {
+      const parts = (date || '').split('-');
+      const aa = parts[0] || '';
+      const mm = parts[1] || '';
+      const dd = parts[2] || '';
+      if (part === 'anio') return [aa];
+      if (part === 'mes') return [months[Number(mm) - 1] || '', String(Number(mm)), mm].filter(Boolean);
       return [String(Number(dd)), dd].filter(Boolean);
 }
 
@@ -133,9 +133,9 @@ export function valorBuscado(parte: ParteDeFecha, fecha: string, meses: string[]
  * ⚠ Límite conocido, heredado y sin resolver: si una pantalla pidiera las DOS fechas a la vez, esto
  * no las distinguiría. Hoy no existe, y el día que exista la señal tiene que venir del componente.
  */
-export function fechaDeLaPantalla(textoDeArriba: string, nacimiento: string, expedicion: string): string {
-      const norma = (s: string) => (s || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').trim();
-      return /expedicion|expedid|issue/.test(norma(textoDeArriba)) ? expedicion : nacimiento;
+export function screenDate(textAbove: string, birth: string, issuance: string): string {
+      const norm = (s: string) => (s || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').trim();
+      return /expedicion|expedid|issue/.test(norm(textAbove)) ? issuance : birth;
 }
 
 /**
@@ -144,10 +144,10 @@ export function fechaDeLaPantalla(textoDeArriba: string, nacimiento: string, exp
  * una memoria por elemento no sobrevive a la segunda pasada — y la fecha se volvía a elegir. Eso es lo
  * que se veía como «la fecha de expedición cambia dos veces».
  */
-export function yaMuestra(texto: string, buscado: string[]): boolean {
-      const norma = (s: string) => (s || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').trim();
-      const t = norma(texto);
-      return t !== '' && buscado.some((b) => norma(b) === t);
+export function alreadyShows(text: string, searched: string[]): boolean {
+      const norm = (s: string) => (s || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').trim();
+      const t = norm(text);
+      return t !== '' && searched.some((b) => norm(b) === t);
 }
 
 /**
@@ -155,8 +155,8 @@ export function yaMuestra(texto: string, buscado: string[]): boolean {
  * haya al menos tres y que entre ellos aparezcan las tres partes distintas — con un solo combo que
  * diga «5» no se puede afirmar nada.
  */
-export function esTrioDeFecha(partes: Array<ParteDeFecha | null>): boolean {
-      const vistas = partes.filter(Boolean);
+export function isDateTrio(parts: Array<DatePart | null>): boolean {
+      const vistas = parts.filter(Boolean);
       return vistas.length >= 3
             && vistas.indexOf('dia') >= 0 && vistas.indexOf('mes') >= 0 && vistas.indexOf('anio') >= 0;
 }
@@ -169,14 +169,14 @@ export function esTrioDeFecha(partes: Array<ParteDeFecha | null>): boolean {
  * función como texto, así que no puede importar. La alternativa era duplicar la regla, que es
  * exactamente lo que este módulo vino a evitar.
  */
-export function fuenteInyectable(): string {
+export function injectableSource(): string {
       return `window.__trioFecha = {
-    MESES: ${JSON.stringify(MESES)},
-    normalizarTexto: ${normalizarTexto},
-    parteDeCombo: ${parteDeCombo},
-    valorBuscado: ${valorBuscado},
-    fechaDeLaPantalla: ${fechaDeLaPantalla},
-    yaMuestra: ${yaMuestra},
-    esTrioDeFecha: ${esTrioDeFecha},
+    MESES: ${JSON.stringify(MONTHS)},
+    normalizarTexto: ${normalizeText},
+    parteDeCombo: ${comboPart},
+    valorBuscado: ${searchedValue},
+    fechaDeLaPantalla: ${screenDate},
+    yaMuestra: ${alreadyShows},
+    esTrioDeFecha: ${isDateTrio},
 };`;
 }

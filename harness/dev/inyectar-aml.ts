@@ -23,7 +23,7 @@ const { one, exec, close, appKey } = await import('../pkg/db.ts');
 const { encryptLaravelString } = await import('../pkg/laravel-crypt.ts');
 
 const USER = Number(process.argv[2] ?? 0);
-const CON_HALLAZGOS = process.argv.includes('--con-hallazgos');
+const WITH_FINDINGS = process.argv.includes('--con-hallazgos');
 if (!USER) {
     console.log('\n  uso: node dev/inyectar-aml.ts <user_id> [--con-hallazgos]\n');
     await close();
@@ -37,7 +37,7 @@ if (!rc) {
 }
 // ⚠ `data` va ENCRIPTADA igual que el cast `encrypted:collection` de Laravel — escribirla en claro
 // hace que el backend falle al desencriptar, y el error no menciona el cifrado.
-const payload = CON_HALLAZGOS
+const payload = WITH_FINDINGS
     ? { estado: 'finalizado', hallazgo: [{ tipo: 'lista_restrictiva', nivel: 'alto' }] }
     : { estado: 'finalizado', hallazgos: [] };
 await exec('DELETE FROM risk_central_user_data WHERE user_id=? AND risk_central_id=?', [USER, rc.id]);
@@ -45,5 +45,5 @@ await exec(
     'INSERT INTO risk_central_user_data (uuid, user_id, risk_central_id, score, data, created_at, updated_at) ' +
     'VALUES (UUID(), ?, ?, 0, ?, NOW(), NOW())',
     [USER, rc.id, encryptLaravelString(JSON.stringify(payload), appKey())]);
-console.log(`  AML inyectado · user ${USER} · ${CON_HALLAZGOS ? 'CON hallazgos (debe rechazar)' : 'limpio'}`);
+console.log(`  AML inyectado · user ${USER} · ${WITH_FINDINGS ? 'CON hallazgos (debe rechazar)' : 'limpio'}`);
 await close();

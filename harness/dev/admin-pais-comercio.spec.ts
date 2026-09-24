@@ -29,7 +29,7 @@ const BASE = process.env.E2E_ADMIN_URL ?? 'http://admin.localhost:8000';
  * `094d1218` no falla — PHP lo castea a entero y da 94, o sea que te lleva a OTRO comercio sin avisar.
  * Costó una corrida: el test medía Amoblando Pullman (39.976 solicitudes) creyendo que miraba uno vacío.
  */
-const CASOS = {
+const CASES = {
       conSucursalesSinSolicitudes: process.env.E2E_ALLIED_B ?? '33',
       conSolicitudes: process.env.E2E_ALLIED_C ?? '14',
       /** Entidad (no comercio) que arrastra tipos de otro país: smartpay, en un país sin catálogo. */
@@ -41,8 +41,8 @@ test.use({ baseURL: BASE });
 test.beforeEach(async ({ context }) => {
       // Sin contraseña: `bin/admin-sesion` emite la cookie de sesión directamente. Se pasa `url` y no
       // `domain` porque Chromium descarta un dominio con punto inicial (`.localhost` es sufijo público).
-      const salida = execFileSync(join(process.cwd(), 'bin/admin-sesion'), { encoding: 'utf8' });
-      const s = JSON.parse(salida.trim()) as { cookie: string; value: string; roles: string[] };
+      const output = execFileSync(join(process.cwd(), 'bin/admin-sesion'), { encoding: 'utf8' });
+      const s = JSON.parse(output.trim()) as { cookie: string; value: string; roles: string[] };
       expect(s.roles).toContain('Administrador');
       await context.addCookies([
             { name: s.cookie, value: s.value, url: BASE, httpOnly: true, secure: false, sameSite: 'Lax' },
@@ -52,7 +52,7 @@ test.beforeEach(async ({ context }) => {
 test('un comercio con sucursales y sin solicitudes puede corregir su país', async ({ page }) => {
       // `/editar` no renderiza: hace un meta-refresh a la pestaña de puntos de venta, que es donde vive
       // el formulario (el layout es compartido por las pestañas, por eso los datos van en el share).
-      await page.goto(`/aliados/${CASOS.conSucursalesSinSolicitudes}/editar`);
+      await page.goto(`/aliados/${CASES.conSucursalesSinSolicitudes}/editar`);
       await page.waitForURL(/\/aliados\/\d+\//, { timeout: 15_000 });
       // Sin esto se consulta el DOM antes de que Vue monte y todo da «element not found», que se
       // lee como «la regla bloqueó» en vez de «todavía no dibujó».
@@ -79,7 +79,7 @@ test('un comercio con sucursales y sin solicitudes puede corregir su país', asy
 });
 
 test('un comercio con solicitudes ve el campo, pero deshabilitado y con el motivo', async ({ page }) => {
-      await page.goto(`/aliados/${CASOS.conSolicitudes}/editar`);
+      await page.goto(`/aliados/${CASES.conSolicitudes}/editar`);
       await page.waitForURL(/\/aliados\/\d+\//, { timeout: 15_000 });
       // Sin esto se consulta el DOM antes de que Vue monte y todo da «element not found», que se
       // lee como «la regla bloqueó» en vez de «todavía no dibujó».
@@ -110,7 +110,7 @@ test('un comercio con solicitudes ve el campo, pero deshabilitado y con el motiv
  * sin forma de sacarlo, que se volvía a guardar tal cual.
  */
 test('los tipos de documento ajenos al país se ven, se explican y se pueden quitar', async ({ page }) => {
-      await page.goto(`/entidades/${CASOS.entidadConTiposAjenos}/editar`);
+      await page.goto(`/entidades/${CASES.entidadConTiposAjenos}/editar`);
       await page.waitForLoadState('networkidle');
 
       // El aviso dice cuáles sobran y por qué.
@@ -134,13 +134,13 @@ test('los tipos de documento ajenos al país se ven, se explican y se pueden qui
  * cambio es de `app-select` a ése y nada más.
  */
 test('el selector de país filtra al escribir', async ({ page }) => {
-      await page.goto(`/aliados/${CASOS.conSucursalesSinSolicitudes}/editar`);
+      await page.goto(`/aliados/${CASES.conSucursalesSinSolicitudes}/editar`);
       await page.waitForURL(/\/aliados\/\d+\//, { timeout: 15_000 });
       await page.waitForLoadState('networkidle');
 
       // El input del autocomplete: es el que está dentro del campo cuyo hint ya conocemos.
-      const campo = page.locator('.v-input').filter({ hasText: 'País' }).first();
-      const input = campo.locator('input').first();
+      const field = page.locator('.v-input').filter({ hasText: 'País' }).first();
+      const input = field.locator('input').first();
       await input.click();
 
       // Sin filtrar están todos.

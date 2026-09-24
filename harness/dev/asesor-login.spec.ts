@@ -51,12 +51,12 @@ test('asesor login (dev)', async ({ browser }) => {
     console.log(`ASESOR_LANDING_URL=${url}`);
 
     // ¿El asesor tiene comercio asignado? (el backend de dev resuelve la asociación por cognito_id).
-    const noComercio = await page
+    const noMerchant = await page
         .getByText(/no tienes un comercio asignado/i)
         .isVisible()
         .catch(() => false);
-    const onWizard = /\/(merchant)\/[^/]+\/(solicitar|.*)/.test(url) && !noComercio;
-    if (noComercio) {
+    const onWizard = /\/(merchant)\/[^/]+\/(solicitar|.*)/.test(url) && !noMerchant;
+    if (noMerchant) {
         console.log('⚠ LOGIN OK contra dev, pero el asesor NO tiene comercio asignado.');
         console.log('  → falta asociar este cognito_id a la sucursal del comercio en DEV (paso siguiente).');
     } else if (onWizard) {

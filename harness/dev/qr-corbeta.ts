@@ -14,7 +14,7 @@
 // en la CAJA de un comercio Corbeta, y reporta cada paso con su HTTP status + lo que se movió en la BD.
 // Es el camino RÁPIDO (el del agente): segundos, exit code = veredicto. El visual es el panel.
 //
-// EL DESENLACE DE ESTE FLUJO NO ES EL ESTADO 11. Ojo con esto, porque cambia qué se considera "cerró":
+// EL DESENLACE DE ESTE FLOW NO ES EL ESTADO 11. Ojo con esto, porque cambia qué se considera "cerró":
 //   BNPL origination devuelve `PENDIENTE DESEMBOLSO` → si el allied está en `Setting('corbeta_allieds')`,
 //   `BancolombiaBnplController.php:1395` sella **estado 25 ("Pendiente de facturación")** y de ahí se
 //   emite el CÓDIGO. El desembolso real llega DESPUÉS y por afuera: el cliente factura en la caja y los
@@ -64,8 +64,8 @@ const { corbetaBranch, qrEntryUrl, bancolombiaEncryptCode } = await import('../p
 // MISMA capa de aserción que el camino VISUAL (dev/guided.spec.ts) y que el otro rápido (dev/sweep.ts).
 // Que "pasó" signifique lo mismo en los tres es lo que hace informativa una divergencia: mismas
 // aserciones + distinto transporte ⇒ la diferencia ES el frontend. Por eso el desenlace de este canal
-// (estado 25) se agregó a `ESTADO_ESPERADO` en pkg/trace.ts en vez de tener un veredicto propio acá.
-const traza = await import('../pkg/trace.ts');
+// (estado 25) se agregó a `EXPECTED_STATUS` en pkg/trace.ts en vez de tener un veredicto propio acá.
+const trace = await import('../pkg/trace.ts');
 
 const API = e2eConfig.mockUrl;
 const WIZARD = e2eConfig.feBaseUrl;
@@ -77,12 +77,12 @@ const UA = 'Mozilla/5.0 (iPhone; CPU iPhone OS 16_5 like Mac OS X) AppleWebKit/6
 // `.env`: la clave sólo existe en `.env.qa` y `.env.staging`, así que contra esos targets este runner
 // mandaba el asesor del catálogo LOCAL —o ninguno— con el aplomo de haberlo leído. Import dinámico
 // porque este archivo fuerza `E2E_TARGET` arriba y un import estático corre antes (F-187).
-const { subDelAsesor } = await import('../pkg/preflight-sucursal.ts');
-const { crearCliente } = await import('../pkg/http.ts');
-const ASESOR_SUB = subDelAsesor();
+const { advisorSubject } = await import('../pkg/preflight-sucursal.ts');
+const { createCustomer } = await import('../pkg/http.ts');
+const ADVISOR_SUB = advisorSubject();
 const HDRS: Record<string, string> = {
     'content-type': 'application/json', accept: 'application/json', 'user-agent': UA,
-    ...(ASESOR_SUB ? { 'x-cognito-identity-id': ASESOR_SUB } : {}),
+    ...(ADVISOR_SUB ? { 'x-cognito-identity-id': ADVISOR_SUB } : {}),
 };
 
 // ── argumentos ────────────────────────────────────────────────────────────────────────────────────
@@ -90,14 +90,14 @@ const argv = process.argv.slice(2);
 const flag = (n: string) => argv.includes(n);
 const opt = (n: string, d = '') => { const i = argv.indexOf(n); return i >= 0 ? (argv[i + 1] ?? d) : d; };
 const AMOUNT = Number(opt('--amount', '1500000')) || 1_500_000;
-const FACTURAR = flag('--facturar');
+const INVOICE = flag('--facturar');
 const KEEP = flag('--keep');
 /** `bnpl` (lender 68) o `consumo` (lender 100). Son DOS integraciones distintas, no un flag cosmético. */
-const PRODUCTO = (opt('--producto', 'bnpl') || 'bnpl').toLowerCase() === 'consumo' ? 'consumo' : 'bnpl';
-const LENDER = PRODUCTO === 'consumo' ? 100 : 68;
+const PRODUCT = (opt('--producto', 'bnpl') || 'bnpl').toLowerCase() === 'consumo' ? 'consumo' : 'bnpl';
+const LENDER = PRODUCT === 'consumo' ? 100 : 68;
 // El insumo que cada producto persiste en `lender_integration_flows` y que el servicio nuevo de
 // Bancolombia va a exigir como `transactionId` para emitir el código.
-const CLAVE_TX = PRODUCTO === 'consumo' ? 'loan_validate_key' : 'bnpl_transaction_id';
+const TX_KEY = PRODUCT === 'consumo' ? 'loan_validate_key' : 'bnpl_transaction_id';
 /**
  * El documento que el cliente teclea en la PRIMERA pantalla del canal.
  *
@@ -112,25 +112,25 @@ const CLAVE_TX = PRODUCTO === 'consumo' ? 'loan_validate_key' : 'bnpl_transactio
  * `--documento ''` vuelve al comportamiento viejo (registrar sin documento), que sigue siendo un caso
  * legítimo: es el cliente que entra por un canal que no lo pide.
  */
-const DOCUMENTO = argv.includes('--documento') ? opt('--documento', '') : '1014257745';
+const DOCUMENT = argv.includes('--documento') ? opt('--documento', '') : '1014257745';
 // El paso que la ESCRIBE (el único, en los dos productos).
-const PASO_TX = PRODUCTO === 'consumo' ? 'user-validate' : 'retrieve-quota';
+const TX_STEP = PRODUCT === 'consumo' ? 'user-validate' : 'retrieve-quota';
 
 // ── salida ────────────────────────────────────────────────────────────────────────────────────────
-const pasos: Array<{ n: string; ok: boolean | null; detalle: string }> = [];
-let paso = 0;
-const P = (n: string, ok: boolean | null, detalle = '') => {
-    paso++;
-    const icono = ok === null ? '·' : ok ? '✓' : '✗';
-    console.log(`${icono} ${String(paso).padStart(2)} ${n.padEnd(22)} ${detalle}`);
-    pasos.push({ n, ok, detalle });
+const steps: Array<{ n: string; ok: boolean | null; detalle: string }> = [];
+let step = 0;
+const P = (n: string, ok: boolean | null, detail = '') => {
+    step++;
+    const icon = ok === null ? '·' : ok ? '✓' : '✗';
+    console.log(`${icon} ${String(step).padStart(2)} ${n.padEnd(22)} ${detail}`);
+    steps.push({ n, ok, detalle: detail });
 };
 const trim = (j: any, n = 150) => JSON.stringify(j?.data ?? j ?? {}).slice(0, n);
 
 // El cliente vive en `pkg/http.ts`: había CINCO copias de esto, y las cinco confundían un
 // timeout con una caída y no anotaban nada. `http` queda como el verbo de siempre.
-const cliente = crearCliente({ base: API, headers: HDRS, timeoutMs: 60_000, recorte: 200 });
-const http = (method: string, path: string, body?: unknown): Promise<{ status: number; json: any }> => cliente.llamar(method, path, body);
+const customer = createCustomer({ base: API, headers: HDRS, timeoutMs: 60_000, recorte: 200 });
+const http = (method: string, path: string, body?: unknown): Promise<{ status: number; json: any }> => customer.llamar(method, path, body);
 
 /** POST al control del mock de Corbeta (no al backend). */
 async function mock(path: string, body?: unknown): Promise<any> {
@@ -144,11 +144,11 @@ async function mock(path: string, body?: unknown): Promise<any> {
     return await r.json().catch(() => null);
 }
 
-const estado = (ur: string) => one<{ s: number; l: number | null }>(
+const status = (ur: string) => one<{ s: number; l: number | null }>(
     'SELECT user_request_status_id AS s, lender_id AS l FROM user_requests WHERE id=?', [ur]);
 
 // ── 0 · PREFLIGHT ─────────────────────────────────────────────────────────────────────────────────
-console.log(`\n▶ CANAL QR · Corbeta · producto ${PRODUCTO.toUpperCase()} (lender ${LENDER}) — flujo por API (target ${process.env.E2E_TARGET})\n`);
+console.log(`\n▶ CANAL QR · Corbeta · producto ${PRODUCT.toUpperCase()} (lender ${LENDER}) — flujo por API (target ${process.env.E2E_TARGET})\n`);
 
 const branchArg = opt('--branch');
 const br = branchArg
@@ -194,24 +194,24 @@ spawnSync('node', ['bin/dbops.ts', 'scrubphone', PHONE], { cwd: new URL('..', im
 const reg = await http('POST', '/api/onboarding/phone/register', {
     phone_number: PHONE, phoneNumber: PHONE, terms: true, policies: true,
     otp_length: 4, otpLength: 4, partner_branch_hash: br.hash, partnerBranchHash: br.hash,
-    // Como lo manda el front de autogestión: el número, sin el tipo. Ver `DOCUMENTO`.
-    ...(DOCUMENTO ? { document_number: DOCUMENTO, documentNumber: DOCUMENTO } : {}),
+    // Como lo manda el front de autogestión: el número, sin el tipo. Ver `DOCUMENT`.
+    ...(DOCUMENT ? { document_number: DOCUMENT, documentNumber: DOCUMENT } : {}),
 });
 const uid = reg.json?.data?.user?.id;
 P('register', !!uid, `HTTP ${reg.status} · user=${uid ?? trim(reg.json, 90)}`
-    + (DOCUMENTO ? ` · documento ${DOCUMENTO} (como la primera pantalla del canal)` : ' · SIN documento'));
+    + (DOCUMENT ? ` · documento ${DOCUMENT} (como la primera pantalla del canal)` : ' · SIN documento'));
 
 // El tipo con que nació la ficha. Es el dato que decide si el payload del lender va a ser aceptado: el
 // builder lo manda crudo y el banco lo valida contra su lista.
 if (uid) {
-    const fila = await one<{ document_type: string; document_number: string }>(
+    const row = await one<{ document_type: string; document_number: string }>(
         'SELECT document_type, document_number FROM users WHERE id=?', [uid],
     ).catch(() => null);
-    const tipo = fila?.document_type ?? '?';
-    const docReal = !String(fila?.document_number ?? '').startsWith('TEMP-');
-    P('tipo de documento de la ficha', !(docReal && tipo === '-'),
-        `document_type=${JSON.stringify(tipo)} · document_number=${docReal ? 'real' : 'TEMP-…'}`
-        + (docReal && tipo === '-'
+    const kind = row?.document_type ?? '?';
+    const docReal = !String(row?.document_number ?? '').startsWith('TEMP-');
+    P('tipo de documento de la ficha', !(docReal && kind === '-'),
+        `document_type=${JSON.stringify(kind)} · document_number=${docReal ? 'real' : 'TEMP-…'}`
+        + (docReal && kind === '-'
             ? ' ← INCOHERENTE: documento real con el centinela. El banco va a rechazar el payload con SA400.'
             : ''));
 }
@@ -219,33 +219,33 @@ if (!uid) { await close(); process.exit(2); }
 
 // El asesor NO existe en este canal (es autogestión), pero `corporate_user_id` es NOT NULL para los logs
 // de pasos, así que se resuelve igual que en sweep.ts: sub del entorno, o el primer asesor de la sucursal.
-const asesorId = (ASESOR_SUB
-    ? (await one<{ id: number }>('SELECT id FROM users WHERE cognito_id=? LIMIT 1', [ASESOR_SUB]).catch(() => null))?.id
+const advisorId = (ADVISOR_SUB
+    ? (await one<{ id: number }>('SELECT id FROM users WHERE cognito_id=? LIMIT 1', [ADVISOR_SUB]).catch(() => null))?.id
     : null)
     ?? (await one<{ id: number }>('SELECT id FROM users WHERE allied_branch_id=? AND cognito_id IS NOT NULL LIMIT 1', [br.id]).catch(() => null))?.id
     ?? null;
 
 const ins = await exec(
     'INSERT INTO user_requests (user_id, allied_id, allied_branch_id, lender_id, amount, original_amount, user_request_status_id, corporate_user_id, credit_line_id, fee_number, fee_value, rate, created_at, updated_at) VALUES (?,?,?,?,?,?,1,?,1,0,0,0,NOW(),NOW())',
-    [uid, br.alliedId, br.id, LENDER, AMOUNT, AMOUNT, asesorId],
+    [uid, br.alliedId, br.id, LENDER, AMOUNT, AMOUNT, advisorId],
 ).catch((e) => { P('uReq', false, String(e).slice(0, 120)); return null; });
 if (!ins?.insertId) { await close(); process.exit(2); }
 const UR = String(ins.insertId);
-traza.trazarUReq(UR);
+trace.traceUReq(UR);
 P('uReq creado', true, `#${UR} · lender ${LENDER} · monto ${AMOUNT.toLocaleString('es-CO')} · estado 1`);
 
 // `keepDocumentType` respeta el ORDEN REAL del canal: acá el cliente todavía no declaró su tipo de
 // documento —la primera pantalla pide teléfono y número, nada más—, así que el relleno sintético no
 // puede inventarlo. Si lo inventa, la compuerta del lender ve un tipo válido y el recorrido cierra en
 // verde tapando lo que en producción se cancela.
-await synthFill(ins.insertId, { income: 2_500_000, score: 700, keepDocumentType: !!DOCUMENTO });
-P('buró sintético', true, `ingreso 2.500.000 · score 700${DOCUMENTO ? ' · tipo de documento SIN tocar (lo puso el alta)' : ''}`);
+await synthFill(ins.insertId, { income: 2_500_000, score: 700, keepDocumentType: !!DOCUMENT });
+P('buró sintético', true, `ingreso 2.500.000 · score 700${DOCUMENT ? ' · tipo de documento SIN tocar (lo puso el alta)' : ''}`);
 console.log(`   ↳ encryptCode = ${bancolombiaEncryptCode(ins.insertId, br.hash)}  (pantallas /bancolombia/…/{code})`);
 
 // ── 4..12 · la máquina BNPL ────────────────────────────────────────────────────────────────────────
 // Los datos del cliente que varios pasos revalidan (accept-terms exige los 5: code/name/surname/
 // email/address). Salen del sintético, no de aire, para que el payload sea el que manda el wizard.
-const CLIENTE = {
+const CUSTOMER = {
     code: 'mock-auth-code',
     name: 'SYNTH', surname: 'TEST USER',
     email: `synth.${UR}@gmail.com`,
@@ -253,100 +253,100 @@ const CLIENTE = {
 };
 const B = '/api/onboarding/bancolombia-bnpl';
 const C = '/api/onboarding/bancolombia-consumer-loan';
-const secuenciaBnpl: Array<[string, string, unknown?]> = [
+const bnplSequence: Array<[string, string, unknown?]> = [
     ['pre-aprobación', `/api/onboarding/bancolombia/validate-preapproved/${UR}`],
     ['login-redirect', `${B}/login-redirect/${UR}`],
-    ['retrieve-quota', `${B}/retrieve-quota/${UR}`, CLIENTE],
-    ['list-accts-quota', `${B}/list-accounts-and-quota/${UR}`, { ...CLIENTE, amount: AMOUNT }],
-    ['account-select', `${B}/account-select/${UR}`, { ...CLIENTE, accountId: '1' }],
-    ['fetch-terms', `${B}/fetch-terms-and-conditions/${UR}`, CLIENTE],
-    ['accept-terms', `${B}/accept-terms-and-conditions/${UR}`, CLIENTE],
-    ['dynamic-key', `${B}/dynamic-key-signature/${UR}`, CLIENTE],
-    ['origination', `${B}/origination/${UR}`, CLIENTE],
+    ['retrieve-quota', `${B}/retrieve-quota/${UR}`, CUSTOMER],
+    ['list-accts-quota', `${B}/list-accounts-and-quota/${UR}`, { ...CUSTOMER, amount: AMOUNT }],
+    ['account-select', `${B}/account-select/${UR}`, { ...CUSTOMER, accountId: '1' }],
+    ['fetch-terms', `${B}/fetch-terms-and-conditions/${UR}`, CUSTOMER],
+    ['accept-terms', `${B}/accept-terms-and-conditions/${UR}`, CUSTOMER],
+    ['dynamic-key', `${B}/dynamic-key-signature/${UR}`, CUSTOMER],
+    ['origination', `${B}/origination/${UR}`, CUSTOMER],
 ];
 // Consumo tiene DOS pasos más que BNPL y su propio orden (routes/api.php:75-90). El paso que escribe
 // el insumo equivalente al `bnpl_transaction_id` es `redirect-user-validate` → `loan_validate_key`.
-const secuenciaConsumo: Array<[string, string, unknown?]> = [
+const consumerSequence: Array<[string, string, unknown?]> = [
     ['pre-aprobación', `/api/onboarding/bancolombia/validate-preapproved/${UR}`],
-    ['login-redirect', `${C}/login-redirect/${UR}`, CLIENTE],
-    ['user-validate', `${C}/redirect-user-validate/${UR}`, CLIENTE],
-    ['fetch-terms', `${C}/fetch-terms-and-conditions/${UR}`, CLIENTE],
-    ['register-terms', `${C}/register-terms/${UR}`, CLIENTE],
-    ['enable-offers', `${C}/enable-offers/${UR}`, { ...CLIENTE, amount: AMOUNT }],
-    ['simulación', `${C}/get-detail-simulation/${UR}`, { ...CLIENTE, amount: AMOUNT, fee_number: 12, feeNumber: 12 }],
-    ['accept-terms', `${C}/accept-terms-and-conditions/${UR}`, CLIENTE],
+    ['login-redirect', `${C}/login-redirect/${UR}`, CUSTOMER],
+    ['user-validate', `${C}/redirect-user-validate/${UR}`, CUSTOMER],
+    ['fetch-terms', `${C}/fetch-terms-and-conditions/${UR}`, CUSTOMER],
+    ['register-terms', `${C}/register-terms/${UR}`, CUSTOMER],
+    ['enable-offers', `${C}/enable-offers/${UR}`, { ...CUSTOMER, amount: AMOUNT }],
+    ['simulación', `${C}/get-detail-simulation/${UR}`, { ...CUSTOMER, amount: AMOUNT, fee_number: 12, feeNumber: 12 }],
+    ['accept-terms', `${C}/accept-terms-and-conditions/${UR}`, CUSTOMER],
     // ⚠ TOLERADO (no cuenta como muro): `select-insurance` lee del flow `payment_day`, `insurance_type`,
     // `interest_rate` y `account.{type,number}` (BancolombiaLoanController.php:1421) — datos que RECOGE LA
     // UI en pantallas previas y que este camino por API no llena. El flujo cierra sin él (el estado 25 lo
     // sella `origination`), así que se ejercita para dejar constancia, no se exige.
-    ['select-insurance (tolerado)', `${C}/select-insurance/${UR}`, { ...CLIENTE, insurance: true }],
-    ['e-sign-document', `${C}/e-sign-document/${UR}`, CLIENTE],
-    ['origination', `${C}/origination/${UR}`, CLIENTE],
+    ['select-insurance (tolerado)', `${C}/select-insurance/${UR}`, { ...CUSTOMER, insurance: true }],
+    ['e-sign-document', `${C}/e-sign-document/${UR}`, CUSTOMER],
+    ['origination', `${C}/origination/${UR}`, CUSTOMER],
 ];
-const secuencia = PRODUCTO === 'consumo' ? secuenciaConsumo : secuenciaBnpl;
-for (const [nombre, path, body] of secuencia) {
+const sequence = PRODUCT === 'consumo' ? consumerSequence : bnplSequence;
+for (const [name, path, body] of sequence) {
     const r = await http('POST', path, body ?? {});
-    traza.paso('API', nombre);            // la traza contrasta cada paso contra la BD
-    await traza.drenar();
+    trace.step('API', name);            // la traza contrasta cada paso contra la BD
+    await trace.drain();
     const ok = r.status >= 200 && r.status < 300;
     // Si el backend no pudo ni resolver el host del proveedor, decirlo con nombre y apellido: es el muro
     // más común en local (`BANCOLOMBIA_HOST=https://bancolombia.fake` es un placeholder a propósito) y
     // sin esta línea se lee como "internal error BNPL999", que no dice nada.
     const ex = r.json?.errors?.payload?.exception_message ?? '';
     const dns = /Could not resolve host: ([\w.-]+)/.exec(ex);
-    P(nombre, nombre.includes('tolerado') ? (ok ? true : null) : ok, dns
+    P(name, name.includes('tolerado') ? (ok ? true : null) : ok, dns
         ? `HTTP ${r.status} · NO RESUELVE el host del proveedor: ${dns[1]} → falta mock-bancolombia + BANCOLOMBIA_HOST`
         : `HTTP ${r.status} · ${trim(r.json, 110)}`);
     // El paso 6 es el que escribe el insumo que Bancolombia va a exigir para emitir el código.
-    if (nombre === PASO_TX) {
+    if (name === TX_STEP) {
         const f = await one<{ v: string | null }>(
-            `SELECT JSON_UNQUOTE(JSON_EXTRACT(data,'$.${CLAVE_TX}')) v FROM lender_integration_flows WHERE user_request_id=? AND lender_id=?`, [UR, LENDER]);
-        P(`  ↳ ${CLAVE_TX}`, !!f?.v, f?.v ? `escrito en el flow: ${String(f.v).slice(0, 60)}${String(f.v).length > 60 ? '…' : ''}` : 'NO se escribió (sin él no se puede emitir el código nuevo)');
+            `SELECT JSON_UNQUOTE(JSON_EXTRACT(data,'$.${TX_KEY}')) v FROM lender_integration_flows WHERE user_request_id=? AND lender_id=?`, [UR, LENDER]);
+        P(`  ↳ ${TX_KEY}`, !!f?.v, f?.v ? `escrito en el flow: ${String(f.v).slice(0, 60)}${String(f.v).length > 60 ? '…' : ''}` : 'NO se escribió (sin él no se puede emitir el código nuevo)');
     }
 }
-const trasOrig = await estado(UR);
-P('estado tras origination', trasOrig?.s === 25, `estado ${trasOrig?.s ?? '?'} (se espera 25 «Pendiente de facturación»)`);
+const afterOrig = await status(UR);
+P('estado tras origination', afterOrig?.s === 25, `estado ${afterOrig?.s ?? '?'} (se espera 25 «Pendiente de facturación»)`);
 
 // ── 13..14 · el código de compra ──────────────────────────────────────────────────────────────────
 const pc = await http('POST', `/api/onboarding/purchase-code/generate/${UR}`);
-const codigo = pc.json?.data?.code ?? null;
-const muestra = pc.json?.data?.showBarCode;
+const code = pc.json?.data?.code ?? null;
+const sample = pc.json?.data?.showBarCode;
 // Ojo con el envelope: PCS002 = «Código generado correctamente» (recién emitido) y PCS001 = «Código
 // consultado» (ya existía). Van al revés de lo que sugiere el número, y el handoff los documenta
 // invertidos — ver `PurchaseCodeService.php:63-68`.
-P('purchase-code', pc.status >= 200 && pc.status < 300 && !!codigo,
-    `HTTP ${pc.status} · code=${codigo ?? '—'} · showBarCode=${muestra ?? '—'} · ${pc.json?.code ?? ''}${pc.json?.code === 'PCS002' ? ' (emitido)' : pc.json?.code === 'PCS001' ? ' (ya existía)' : ''}`);
+P('purchase-code', pc.status >= 200 && pc.status < 300 && !!code,
+    `HTTP ${pc.status} · code=${code ?? '—'} · showBarCode=${sample ?? '—'} · ${pc.json?.code ?? ''}${pc.json?.code === 'PCS002' ? ' (emitido)' : pc.json?.code === 'PCS001' ? ' (ya existía)' : ''}`);
 
-if (codigo) {
-    const enMock = (await mock('/'))?.ordenes?.some((o: any) => o.pin === codigo);
-    const enBd = await one<{ v: string | null }>(
+if (code) {
+    const inMock = (await mock('/'))?.ordenes?.some((o: any) => o.pin === code);
+    const inDatabase = await one<{ v: string | null }>(
         "SELECT JSON_UNQUOTE(JSON_EXTRACT(data_json,'$.verification_token')) v FROM user_request_additional_information WHERE user_request_id=? AND type_data LIKE '%barcode%' ORDER BY id DESC LIMIT 1", [UR]);
-    P('PIN en el proveedor', !!enMock, enMock ? 'la orden existe en el mock' : 'el mock no tiene esa orden');
-    P('PIN persistido', enBd?.v === codigo, `verification_token=${enBd?.v ?? '—'}`);
+    P('PIN en el proveedor', !!inMock, inMock ? 'la orden existe en el mock' : 'el mock no tiene esa orden');
+    P('PIN persistido', inDatabase?.v === code, `verification_token=${inDatabase?.v ?? '—'}`);
 
     // ── 15 · el cliente factura en la caja ───────────────────────────────────────────────────────
-    if (FACTURAR) {
-        const f = await mock('/_control/facturar', { pin: codigo });
+    if (INVOICE) {
+        const f = await mock('/_control/facturar', { pin: code });
         P('facturar en caja', !!f?.ok, f?.ok ? `estado 3 · factura ${f.orden.noFactura}` : trim(f, 90));
         const pc2 = await http('POST', `/api/onboarding/purchase-code/generate/${UR}`);
-        const muestra2 = pc2.json?.data?.showBarCode;
+        const sample2 = pc2.json?.data?.showBarCode;
         // Hoy esto sale del FILTRO (`EstadoOrden=2`), no de una regla escrita. Es exactamente el
         // comportamiento que el reemplazo por Bancolombia tiene que preservar de forma explícita.
-        P('ya facturada → oculta', muestra2 === false, `showBarCode=${muestra2 ?? '—'} (se espera false)`);
+        P('ya facturada → oculta', sample2 === false, `showBarCode=${sample2 ?? '—'} (se espera false)`);
     }
 }
 
 // ── veredicto ─────────────────────────────────────────────────────────────────────────────────────
 // La traza contrastada + el veredicto salen de pkg/trace.ts (compartidos con el visual). Lo único
 // propio de este canal es la línea del CÓDIGO: el estado 25 sin código emitido no es un cierre.
-await traza.resumen();
-const v = await traza.veredicto(UR, 'facturacion');
-const rojos = pasos.filter((p) => p.ok === false);
-const cerro = v.ok && !!codigo;
-console.log(`   código de compra: ${codigo ?? 'NO se emitió'}`);
-console.log(`   pasos: ${pasos.filter((p) => p.ok === true).length} ok · ${rojos.length} en rojo${pasos.some((p) => p.ok === null) ? ` · ${pasos.filter((p) => p.ok === null).length} informativos/tolerados` : ''}`);
+await trace.summary();
+const v = await trace.verdict(UR, 'facturacion');
+const rojos = steps.filter((p) => p.ok === false);
+const closedIt = v.ok && !!code;
+console.log(`   código de compra: ${code ?? 'NO se emitió'}`);
+console.log(`   pasos: ${steps.filter((p) => p.ok === true).length} ok · ${rojos.length} en rojo${steps.some((p) => p.ok === null) ? ` · ${steps.filter((p) => p.ok === null).length} informativos/tolerados` : ''}`);
 if (rojos.length) console.log(`   primer muro: ${rojos[0].n} → ${rojos[0].detalle.slice(0, 120)}`);
-console.log(`   lectura: ${cerro
+console.log(`   lectura: ${closedIt
     ? '✓ CERRÓ para este canal — estado 25 + código emitido. El desembolso real es posterior y por afuera: el cliente factura en caja y los crons llevan al 26.'
     : v.ok ? '✗ llegó al estado 25 pero NO se emitió el código'
     : v.malo ? `✗ desenlace de muerte (estado ${v.st}) — el canal no llegó a facturación`
@@ -355,4 +355,4 @@ if (!KEEP) console.log(`   (la solicitud queda en la BD; el próximo run scrubbe
 
 await close();
 // Mismo contrato de exit code que dev/sweep.ts: 0 cerró · 1 desenlace malo o muro · 2 quedó a mitad.
-process.exit(cerro ? 0 : (v.malo || rojos.length) ? 1 : 2);
+process.exit(closedIt ? 0 : (v.malo || rojos.length) ? 1 : 2);

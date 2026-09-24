@@ -24,8 +24,8 @@
 //   que por eso arrancó con su propia copia de esta lógica — exactamente la duplicación que
 //   `harness/CLAUDE.md` prohíbe («tener dos definiciones de pasó es como empiezan a derivar»).
 //
-//   Ahora: `crearTraza()` devuelve una instancia con su propio estado, y las funciones de módulo
-//   (`paso`, `trazarUReq`, `resumen`, `veredicto`, `drenar`) siguen existiendo como delegación a UNA
+//   Ahora: `createTrace()` devuelve una instancia con su propio estado, y las funciones de módulo
+//   (`paso`, `traceUReq`, `resumen`, `veredicto`, `drenar`) siguen existiendo como delegación a UNA
 //   instancia por defecto. No son dos implementaciones: es la misma clase, invocada de dos maneras. Los
 //   runners de un caso no cambian una línea; los paralelos piden una instancia por caso.
 //
@@ -43,16 +43,16 @@ const gray = (s: string) => c('90', s);
 const bold = (s: string) => c('1', s);
 
 /** Estados que sellan un desenlace: llegar acá es el objetivo. */
-const SELLADOS = new Set([11, 28]);
+const SEALED = new Set([11, 28]);
 /** Estados de muerte: llegar acá sin pedirlo es un fallo, no un matiz. */
-const MALOS = new Set([6, 8]);
+const BAD = new Set([6, 8]);
 /** Rutas que el front presenta como éxito — si la BD no acompaña, es F-50. */
-const RUTA_EXITO = /loan-approved|credito-aprobado|solicitud-aprobada/i;
+const SUCCESS_PATH = /loan-approved|credito-aprobado|solicitud-aprobada/i;
 
 type Snap = { st: number | null; estado: string | null; lender: string | null; ctpx: number };
-type Paso = { n: number; ventana: string; ruta: string; st: number | null; estado: string | null; cambio: boolean };
+type Step = { n: number; ventana: string; ruta: string; st: number | null; estado: string | null; cambio: boolean };
 
-export type Veredicto = {
+export type Verdict = {
     existe: boolean;
     st: number | null;
     estado: string | null;
@@ -73,9 +73,9 @@ export type Veredicto = {
  * Se agrega acá —y no en un veredicto propio del runner— porque la regla de la casa es que "pasó"
  * tenga UNA sola definición: dos definiciones es como los dos caminos empiezan a derivar.
  */
-export const ESTADO_ESPERADO: Record<string, number> = { success: 11, rejected: 6, pending: 10, facturacion: 25 };
+export const EXPECTED_STATUS: Record<string, number> = { success: 11, rejected: 6, pending: 10, facturacion: 25 };
 
-export type TrazaOpts = {
+export type TraceOpts = {
     /** A dónde van las líneas. Por defecto a consola; en paralelo, al buffer del caso. */
     salida?: (linea: string) => void;
     /** Prefijo para distinguir de quién es la línea cuando varias trazas comparten salida. */
@@ -87,11 +87,11 @@ export type TrazaOpts = {
 };
 
 /** UNA traza: una solicitud, su contador, sus alertas y su cola. Instanciá una por caso. */
-export class Traza {
+export class Trace {
     private uReq = 0;
     private n = 0;
     private previo: Snap | null = null;
-    private readonly linea: Paso[] = [];
+    private readonly linea: Step[] = [];
     /** Las alertas en caliente. Las lee `veredicto()` para el patrón F-50. */
     readonly alertas: string[] = [];
     private cola: Promise<void> = Promise.resolve();
@@ -99,7 +99,7 @@ export class Traza {
     private readonly prefijo: string;
     private readonly ancho: number;
 
-    constructor(opts: TrazaOpts = {}) {
+    constructor(opts: TraceOpts = {}) {
         this.salida = opts.salida ?? ((l) => console.log(l));
         this.prefijo = opts.prefijo ?? '';
         this.ancho = opts.ancho ?? (useColor ? 62 : 54);
@@ -141,7 +141,7 @@ export class Traza {
      *  pegada a SU navegación y no mezclada— y devuelve el nombre del archivo, o null si no pudo.
      *  `sufijo` (opcional): se pega al final de la línea. Lo usan los runners que además tienen algo que
      *  decir de ESE paso (el HTTP y el tiempo, en el caminador por endpoints). */
-    paso(ventana: string, ruta: string, foto?: (n: number) => Promise<string | null>, sufijo?: string): void {
+    paso(window: string, path: string, snapshot?: (n: number) => Promise<string | null>, suffix?: string): void {
         this.cola = this.cola.then(async () => {
             this.n += 1;
             const n = this.n;
@@ -149,48 +149,48 @@ export class Traza {
             const idx = String(n).padStart(2, '0');
             // `ventana` vacía es legítima (el runner de endpoints no tiene A/B): sin esto queda un
             // espacio doble en cada línea.
-            const izq = `${idx} ${ventana ? `${bold(ventana)} ` : ''}${ruta}`.padEnd(this.ancho);
-            const cola = sufijo ? `   ${gray(sufijo)}` : '';
-            const foto_ = async () => {
-                if (!foto) return;
-                const f = await foto(n).catch(() => null);
+            const left = `${idx} ${window ? `${bold(window)} ` : ''}${path}`.padEnd(this.ancho);
+            const queue = suffix ? `   ${gray(suffix)}` : '';
+            const snapshot_ = async () => {
+                if (!snapshot) return;
+                const f = await snapshot(n).catch(() => null);
                 this.log(f ? `     📸 ${f}` : red(`     📸 ✗ (el screenshot del paso ${n} falló)`));
             };
 
             if (!this.uReq) {
-                this.log(`${izq}${gray('│ BD  —  (sin solicitud todavía)')}${cola}`);
-                this.linea.push({ n, ventana, ruta, st: null, estado: null, cambio: false });
-                await foto_();
+                this.log(`${left}${gray('│ BD  —  (sin solicitud todavía)')}${queue}`);
+                this.linea.push({ n, ventana: window, ruta: path, st: null, estado: null, cambio: false });
+                await snapshot_();
                 return;
             }
             if (!s) {
-                this.log(`${izq}${red('│ BD  ✗ la solicitud no está en la BD')}${cola}`);
-                this.linea.push({ n, ventana, ruta, st: null, estado: null, cambio: false });
-                await foto_();
+                this.log(`${left}${red('│ BD  ✗ la solicitud no está en la BD')}${queue}`);
+                this.linea.push({ n, ventana: window, ruta: path, st: null, estado: null, cambio: false });
+                await snapshot_();
                 return;
             }
 
-            const cambio = !this.previo || this.previo.st !== s.st;
-            const etiqueta = `${s.st} «${s.estado ?? '?'}»`;
+            const change = !this.previo || this.previo.st !== s.st;
+            const label = `${s.st} «${s.estado ?? '?'}»`;
             let der: string;
-            if (!this.previo) der = `│ BD  ${etiqueta}`;
-            else if (cambio) der = `│ BD  ${green(`${this.previo.st} → ${etiqueta}`)}  ▲`;
-            else der = gray(`│ BD  ${etiqueta}`);
+            if (!this.previo) der = `│ BD  ${label}`;
+            else if (change) der = `│ BD  ${green(`${this.previo.st} → ${label}`)}  ▲`;
+            else der = gray(`│ BD  ${label}`);
 
             // ── detectores en caliente (no esperan al final) ──
-            if (s.st !== null && MALOS.has(s.st) && (!this.previo || !MALOS.has(this.previo.st ?? -1))) {
-                this.alertas.push(`la solicitud pasó a estado ${s.st} «${s.estado}» en el paso ${n} (${ventana} ${ruta})`);
+            if (s.st !== null && BAD.has(s.st) && (!this.previo || !BAD.has(this.previo.st ?? -1))) {
+                this.alertas.push(`la solicitud pasó a estado ${s.st} «${s.estado}» en el paso ${n} (${window} ${path})`);
                 der += red('  ← DESENLACE MALO');
             }
-            if (RUTA_EXITO.test(ruta) && s.st !== null && !SELLADOS.has(s.st)) {
-                this.alertas.push(`pantalla de ÉXITO (${ruta}) con la BD en estado ${s.st} «${s.estado}» — el front miente (ver F-50)`);
+            if (SUCCESS_PATH.test(path) && s.st !== null && !SEALED.has(s.st)) {
+                this.alertas.push(`pantalla de ÉXITO (${path}) con la BD en estado ${s.st} «${s.estado}» — el front miente (ver F-50)`);
                 der += red('  ← ÉXITO SIN RESPALDO EN BD');
             }
 
-            this.log(`${izq}${der}${cola}`);
-            this.linea.push({ n, ventana, ruta, st: s.st, estado: s.estado, cambio });
+            this.log(`${left}${der}${queue}`);
+            this.linea.push({ n, ventana: window, ruta: path, st: s.st, estado: s.estado, cambio: change });
             this.previo = s;
-            await foto_();
+            await snapshot_();
         }).catch(() => { /* nunca romper la corrida por la traza */ });
     }
 
@@ -213,13 +213,13 @@ export class Traza {
 
         // Tramo ciego = pantallas seguidas sin ninguna transición. Un tramo largo suele ser un flujo que
         // "se ve bien" pero no persiste, o un muro donde el usuario da vueltas.
-        let racha = 0, peor = 0, peorDesde = '';
+        let streak = 0, worst = 0, worstSince = '';
         for (const p of this.linea) {
-            if (p.cambio) { racha = 0; continue; }
-            racha += 1;
-            if (racha > peor) { peor = racha; peorDesde = p.ruta; }
+            if (p.cambio) { streak = 0; continue; }
+            streak += 1;
+            if (streak > worst) { worst = streak; worstSince = p.ruta; }
         }
-        if (peor >= 5) this.log(yellow(`   ⚠ tramo ciego más largo: ${peor} pantallas sin transición (hasta ${peorDesde})`));
+        if (worst >= 5) this.log(yellow(`   ⚠ tramo ciego más largo: ${worst} pantallas sin transición (hasta ${worstSince})`));
 
         if (this.alertas.length) {
             this.salida('');
@@ -237,11 +237,11 @@ export class Traza {
      *
      * No lanza ni falla: imprime y devuelve. Cada camino decide cómo señalar el fallo (expect / exit code).
      */
-    async veredicto(uReqID: number | string, result = 'success'): Promise<Veredicto> {
+    async veredicto(uReqID: number | string, result = 'success'): Promise<Verdict> {
         await this.drenar();
         const id = Number(uReqID);
-        const esperado = ESTADO_ESPERADO[result] ?? 11;
-        const vacio: Veredicto = { existe: false, st: null, estado: null, lender: null, ok: false, malo: false, miente: [] };
+        const expected = EXPECTED_STATUS[result] ?? 11;
+        const empty: Verdict = { existe: false, st: null, estado: null, lender: null, ok: false, malo: false, miente: [] };
 
         const r = await one<{ id: number; st: number; estado: string | null; lender: string | null }>(
             `SELECT ur.id, ur.user_request_status_id AS st, s.name AS estado, l.name AS lender
@@ -253,38 +253,38 @@ export class Traza {
         this.salida('');
         if (!r) {
             this.log(yellow(`⚠ VEREDICTO: la uReq ${id} no está en la BD (¿la borró un scrub posterior? ver .runs/)`));
-            return vacio;
+            return empty;
         }
 
-        const ok = r.st === esperado;
-        const malo = MALOS.has(r.st) && !(result === 'rejected' && r.st === 6);
-        const miente = this.alertas.filter((a) => /éxito/i.test(a));
+        const ok = r.st === expected;
+        const badOne = BAD.has(r.st) && !(result === 'rejected' && r.st === 6);
+        const lies = this.alertas.filter((a) => /éxito/i.test(a));
 
         this.log(bold('── VEREDICTO (BD, no navegador) ──'));
         this.log(`   uReq ${r.id} · lender ${r.lender ?? '?'} · estado ${r.st} «${r.estado ?? '?'}»`);
-        this.log(`   esperado para result=${result}: ${esperado} · ${ok ? green('✓ coincide') : red('✗ NO coincide')}`);
-        if (malo) this.log(red(`   ✗ desenlace de muerte: la solicitud terminó en «${r.estado}»`));
+        this.log(`   esperado para result=${result}: ${expected} · ${ok ? green('✓ coincide') : red('✗ NO coincide')}`);
+        if (badOne) this.log(red(`   ✗ desenlace de muerte: la solicitud terminó en «${r.estado}»`));
         else if (!ok) this.log(gray('   (a mitad de flujo — legítimo si cortaste el guiado a mano)'));
 
-        return { existe: true, st: r.st, estado: r.estado, lender: r.lender, ok, malo, miente };
+        return { existe: true, st: r.st, estado: r.estado, lender: r.lender, ok, malo: badOne, miente: lies };
     }
 }
 
 /** Una traza nueva, con su propio estado. Es lo que piden los runners que corren varios casos a la vez. */
-export function crearTraza(opts: TrazaOpts = {}): Traza { return new Traza(opts); }
+export function createTrace(opts: TraceOpts = {}): Trace { return new Trace(opts); }
 
 // ─── la instancia POR DEFECTO, para los runners de un solo caso ─────────────────────────────────
 // No es una segunda implementación: es esta misma clase con una instancia compartida por el proceso.
 // `dev/guided.spec.ts`, `dev/sweep.ts` y `dev/qr-corbeta.ts` siguen un solo flujo cada uno, así que
 // para ellos el estado de proceso es correcto y no tienen que cambiar nada.
-const porDefecto = new Traza();
+const byDefault = new Trace();
 
-export const trazarUReq = (id: number | string): void => porDefecto.trazarUReq(id);
-export const paso = (ventana: string, ruta: string, foto?: (n: number) => Promise<string | null>, sufijo?: string): void =>
-    porDefecto.paso(ventana, ruta, foto, sufijo);
-export const drenar = (): Promise<void> => porDefecto.drenar();
-export const resumen = (): Promise<{ alertas: string[]; transiciones: number }> => porDefecto.resumen();
-export const veredicto = (uReqID: number | string, result = 'success'): Promise<Veredicto> =>
-    porDefecto.veredicto(uReqID, result);
+export const traceUReq = (id: number | string): void => byDefault.trazarUReq(id);
+export const step = (window: string, path: string, snapshot?: (n: number) => Promise<string | null>, suffix?: string): void =>
+    byDefault.paso(window, path, snapshot, suffix);
+export const drain = (): Promise<void> => byDefault.drenar();
+export const summary = (): Promise<{ alertas: string[]; transiciones: number }> => byDefault.resumen();
+export const verdict = (uReqID: number | string, result = 'success'): Promise<Verdict> =>
+    byDefault.veredicto(uReqID, result);
 /** Las alertas de la traza por defecto (mismo array, no una copia). */
-export const alertas = porDefecto.alertas;
+export const alerts = byDefault.alertas;

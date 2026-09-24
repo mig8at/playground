@@ -1,5 +1,5 @@
 import type { Browser, BrowserContext, BrowserContextOptions, Page } from '@playwright/test';
-import { instalarAutorelleno } from './autorelleno.ts';
+import { installAutofill } from './autorelleno.ts';
 
 /**
  * windows — fuente ÚNICA del manejo de ventanas A/B del suite e2e (preview/headed).
@@ -92,7 +92,7 @@ export async function openWindow(browser: Browser, col: number, opts: OpenWindow
        ventanas: engancharlo una vez lo deja disponible en A, en B y en cualquier spec futuro sin que
        nadie se acuerde de instalarlo. Es `addInitScript` sobre el CONTEXTO, así que sobrevive a las
        navegaciones y a las pestañas que abre el wizard. Se apaga con `E2E_AUTORELLENO=0`. */
-    await instalarAutorelleno(context);
+    await installAutofill(context);
     const page = await context.newPage();
     await tileWindow(page, col);
     return { context, page };

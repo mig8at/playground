@@ -28,7 +28,7 @@
 // captura de documento y selfie. Sin el flag el runner cierra igual —el camino por API no pasa por esa
 // pantalla— así que sirve para dos cosas distintas: probar el flujo COMO SI la identidad estuviera
 // resuelta, y no depender de que el paso de identidad esté bien configurado en el ambiente. El detalle
-// de las dos columnas y por qué no va por la API: `pkg/inject.ts::validacionManual`.
+// de las dos columnas y por qué no va por la API: `pkg/inject.ts::manualValidation`.
 //
 // EL CASO COMPLETO, con `--cerrar`: buró dictado → listado → integración del proveedor dictada →
 // pre-aprobación (la que haría el front) → SELECCIÓN del lender CreditopX del comercio y cierre hasta
@@ -87,17 +87,17 @@ process.env.CFE_TARGET ||= 'local';
 const { execFile } = await import('node:child_process');
 // El desenlace que llega de afuera (rt=0 y rt=1) vive en `pkg/`: lo usan este runner y el panel, y dos
 // definiciones de «cómo contesta una entidad» derivarían hacia estados distintos.
-const { webhookIntegracion, webhookSelfManager, WELLI_IDS, ESTADOS_WEBHOOK, APP_VIEJA } =
+const { integrationWebhook, webhookSelfManager, WELLI_IDS, WEBHOOK_STATUSES, OLD_APP } =
     await import('../pkg/webhook-entidad.ts');
 const { scalar, one, query, exec, close } = await import('../pkg/db.ts');
-const { synthFill, validacionManual } = await import('../pkg/inject.ts');
+const { synthFill, manualValidation } = await import('../pkg/inject.ts');
 const { config: e2eConfig } = await import('../pkg/config.ts');
 const { appKey } = await import('../pkg/db.ts');
 const { encryptLaravelString } = await import('../pkg/laravel-crypt.ts');
-const { forenseAlCerrar } = await import('../pkg/loki.ts');
-const { registrarBypass, restaurarBypass } = await import('../pkg/otp-bypass.ts');
-const { telefonoSintetico, telefonoDelCodeudor } = await import('../pkg/telefonos.ts');
-const { buscarSucursal, tipoDeDocumentoDelComercio: tipoDeDocumento } = await import('../pkg/merchants.ts');
+const { forensicOnClose } = await import('../pkg/loki.ts');
+const { registerBypass, restoreBypass } = await import('../pkg/otp-bypass.ts');
+const { syntheticPhone, coSignerPhone } = await import('../pkg/telefonos.ts');
+const { findBranch, merchantDocumentType: documentType } = await import('../pkg/merchants.ts');
 
 const API = e2eConfig.mockUrl;
 const UA = 'Mozilla/5.0 (iPhone; CPU iPhone OS 16_5 like Mac OS X) AppleWebKit/605.1.15 '
@@ -135,7 +135,7 @@ const PREAPPROVALS = process.env.PREAPPROVALS_URL ?? 'http://localhost:8095/v1/p
 // El `lending_product_key` NO es el slug siempre — el contrato lo arma
 // `fetch-lender-preapproval.ts:148-153` del monorepo, y son tres casos:
 const CREDITOP_X_PRODUCT_KEY = 'creditop_x';   // rt 2 y 3 comparten UN producto
-const claveDeProducto = (rt: number, id: number, slug: string) =>
+const productKey = (rt: number, id: number, slug: string) =>
     (rt === 2 || rt === 3) ? CREDITOP_X_PRODUCT_KEY : WELLI_IDS.includes(id) ? 'welli' : slug;
 
 /** EL CIERRE rt=2. La secuencia NO se dedujo: es la misma de `dev/sweep.ts close`, que a su vez la
@@ -147,16 +147,16 @@ const claveDeProducto = (rt: number, id: number, slug: string) =>
  *  ⚠ Si el comercio NO tiene una entidad rt=2, esto NO es un fallo: es un hecho del comercio. Se
  *  reporta «sin CreditopX» y el caso cierra bien. Contarlo como error haría que la mitad del catálogo
  *  se viera rota. */
-/** ⚠ EL NÚMERO DE CUOTAS NO ES LIBRE: cada entidad acepta los suyos, y pedir uno que no ofrece corta
+/** ⚠ EL NÚMERO DE INSTALLMENTS NO ES LIBRE: cada entidad acepta los suyos, y pedir uno que no ofrece corta
  *  el cierre con `CP050` («error durante el cálculo del plan de pagos») — un mensaje que no menciona
  *  las cuotas por ningún lado. Medido en producción: Credifamilia va en 24, 36, 48, 12, 6, 18 y 9 —
  *  **nunca en 4**, que es el default histórico de este runner. Se pasa por caso: `@cuotas=24`. */
-async function cerrarCreditopX(arr: any[], ur: number, tel: string, amount: number,
-                               post: any, get: any, pedido: number | null = null, cuotas = 4) {
+async function closeCreditopX(arr: any[], ur: number, tel: string, amount: number,
+                               post: any, get: any, order: number | null = null, installments = 4) {
     // Si el caso pidió una entidad concreta (`#hash:173`), se cierra por ÉSA. Sin pedido, el primer
     // rt=2 — que con varios CreditopX en el mismo comercio es arbitrario y llevaría a cerrar por otro.
-    const ctopx = pedido
-        ? arr.find((l) => Number(l.id) === pedido)
+    const ctopx = order
+        ? arr.find((l) => Number(l.id) === order)
         : arr.find((l) => Number(l.response_type) === 2);
 
     // ⚠ ENTIDADES MUERTAS QUE IGUAL LISTAN. El dump local conserva lenders que en producción están
@@ -172,11 +172,11 @@ async function cerrarCreditopX(arr: any[], ur: number, tel: string, amount: numb
         console.log(`      ⚠ «${ctopx.name}» está marcada como INACTIVA en su propio nombre —`
             + ' el dump local la lista igual. Lo que salga de acá probablemente no dice nada del negocio.');
     }
-    if (pedido && !ctopx) return { cerro: false, motivo: `la entidad ${pedido} no salió en el listado`, estado: null };
+    if (order && !ctopx) return { cerro: false, motivo: `la entidad ${order} no salió en el listado`, estado: null };
     if (!ctopx) return { cerro: false, motivo: 'sin CreditopX', estado: null as number | null };
 
     const sel = await post(`/api/onboarding/loan-application/update-user-request/${ur}`, {
-        lender_id: Number(ctopx.id), fee_number: cuotas, original_amount: amount, amount,
+        lender_id: Number(ctopx.id), fee_number: installments, original_amount: amount, amount,
         initial_fee: 0, rate: '0', transaction_data: null });
     // `standBy` es la marca de in-platform: sin eso el flujo se va por otro lado y el cierre no aplica.
     //
@@ -187,10 +187,10 @@ async function cerrarCreditopX(arr: any[], ur: number, tel: string, amount: numb
     // buscar una causa donde no hay nada roto. Se marca aparte, con el rt que lo explica.
     if (!sel.json?.data?.standBy) {
         const rt = Number(ctopx.response_type);
-        const afuera = rt === 0 || rt === 1;
+        const outside = rt === 0 || rt === 1;
         return {
-            cerro: false, estado: null, fueraDePlataforma: afuera,
-            motivo: afuera
+            cerro: false, estado: null, fueraDePlataforma: outside,
+            motivo: outside
                 ? `${ctopx.name}: decide FUERA de la plataforma (rt=${rt}) — no hay cierre que probar acá`
                 : `${ctopx.name}: no devolvió standBy`,
         };
@@ -212,11 +212,11 @@ async function cerrarCreditopX(arr: any[], ur: number, tel: string, amount: numb
            JOIN lender_users_categories c ON c.id = g.lender_users_category_id
           WHERE r.id = ? ORDER BY g.id DESC LIMIT 1`, [ur]).catch(() => null);
 
-    let tokenCodeudor: string | undefined;
+    let coSignerToken: string | undefined;
     if (pol?.rc) {
-        const cod = await resolverCodeudor(ur, pol.hash, tel, amount, post, get);
-        if (!cod.ok) return { cerro: false, motivo: `${ctopx.name}: ${cod.motivo}`, estado: null };
-        tokenCodeudor = cod.token;
+        const codeValue = await resolveCoSigner(ur, pol.hash, tel, amount, post, get);
+        if (!codeValue.ok) return { cerro: false, motivo: `${ctopx.name}: ${codeValue.motivo}`, estado: null };
+        coSignerToken = codeValue.token;
     }
 
     const dates = await get(`${PN}/${ur}/select-payment-date`);
@@ -230,8 +230,8 @@ async function cerrarCreditopX(arr: any[], ur: number, tel: string, amount: numb
     // un arreglo: el runner terminaba con UN objeto sin `fee_number` y creía que la entidad no ofrecía
     // plazos. Nunca leyó los que ofrece.
     const cycles = sim.json?.data?.paymentSchedule ?? sim.json?.data?.payment_schedule ?? [];
-    const lista: any[] = Array.isArray(cycles) ? cycles : [cycles].filter(Boolean);
-    const plazoDe = (x: any) => Number(x?.fee_number ?? x?.feeNumber ?? 0);
+    const list: any[] = Array.isArray(cycles) ? cycles : [cycles].filter(Boolean);
+    const termOf = (x: any) => Number(x?.fee_number ?? x?.feeNumber ?? 0);
 
     // ⚠ EL PLAZO QUE QUEDA GUARDADO SALE DE ACÁ, NO DE LA SELECCIÓN DE ENTIDAD. Antes se tomaba
     // `cycles[0]` siempre, así que `@cuotas=36` viajaba en el update de arriba —donde sí decide si el
@@ -239,18 +239,18 @@ async function cerrarCreditopX(arr: any[], ur: number, tel: string, amount: numb
     // 2026-08-23: pedir 12, 24 o 36 dejaba `user_requests.fee_number` en **4** en los tres casos, y el
     // caso igual daba verde. Un runner que informa un plazo que no corrió miente en la dirección más
     // cara: la de creer que se probó algo que no se probó.
-    const elegido = lista.find((x) => plazoDe(x) === cuotas);
-    const cyc = elegido ?? lista[0];
-    if (!elegido && lista.length) {
-        const ofrecidos = lista.map(plazoDe).filter(Boolean).join(', ') || '(la simulación no trae plazos)';
-        console.log(`      ⚠ el plazo pedido (${cuotas}) NO está entre los que simula la entidad: ${ofrecidos}`);
-        console.log(`        se cierra con ${plazoDe(cyc) || '?'} — el resultado NO prueba el plazo pedido`);
+    const chosen = list.find((x) => termOf(x) === installments);
+    const cyc = chosen ?? list[0];
+    if (!chosen && list.length) {
+        const offered = list.map(termOf).filter(Boolean).join(', ') || '(la simulación no trae plazos)';
+        console.log(`      ⚠ el plazo pedido (${installments}) NO está entre los que simula la entidad: ${offered}`);
+        console.log(`        se cierra con ${termOf(cyc) || '?'} — el resultado NO prueba el plazo pedido`);
     }
 
     const urRow = await one<{ a: number }>('SELECT allied_id a FROM user_requests WHERE id=?', [ur]).catch(() => null);
     await post(`${PN}/${ur}/confirm-payment-schedule`, {
         user_request_id: ur, amount, lender_id: Number(ctopx.id), allied_id: urRow?.a,
-        fee_number: plazoDe(cyc) || cuotas, selected_cycle: cyc ?? {} });
+        fee_number: termOf(cyc) || installments, selected_cycle: cyc ?? {} });
 
     // GENERA LOS DOCUMENTOS — y hay que MIRAR si salió bien.
     //
@@ -283,12 +283,12 @@ async function cerrarCreditopX(arr: any[], ur: number, tel: string, amount: numb
     // NULL). O sea que el runner reportaba «cerró en 11» sobre un crédito que se saltó la garantía —un
     // verde falso, que es peor que un rojo—. `authorize` no tiene guarda para este path: la tiene para
     // el codeudor y no para esto (F-157).
-    const esImei = await one<{ p: string }>(
+    const isImei = await one<{ p: string }>(
         `SELECT pa.name p FROM lenders l JOIN paths pa ON pa.id = l.path_id WHERE l.id = ?`,
         [Number(ctopx.id)]).catch(() => null);
 
     let aut;
-    if (esImei?.p === 'IMEI') {
+    if (isImei?.p === 'IMEI') {
         // IMEI derivado del uReq: 15 dígitos, estable por caso y distinto entre casos paralelos.
         const imei = String(35000000000000 + (ur % 1_000_000_000)).slice(0, 15).padEnd(15, '0');
         const reg = await post('/api/loans/requests/device/register', { user_request_id: ur, imei });
@@ -305,10 +305,10 @@ async function cerrarCreditopX(arr: any[], ur: number, tel: string, amount: numb
     // es exactamente la trampa que el nodo `codeudor` documenta.
     // ⚠ La marca viene DENTRO de `data.user_request`, no en `data`. Mirar sólo el nivel de arriba deja
     // la solicitud en 29 y el runner reporta «no cerró · HTTP 200» — un mensaje que se contradice solo.
-    const difirio = aut.json?.data?.user_request?.deferred_for_cosigner
+    const differed = aut.json?.data?.user_request?.deferred_for_cosigner
         ?? aut.json?.data?.deferred_for_cosigner;
-    if (tokenCodeudor && difirio) {
-        const f = await firmaDelCodeudor(tokenCodeudor, post, get);
+    if (coSignerToken && differed) {
+        const f = await coSignerSignature(coSignerToken, post, get);
         if (!f.ok) {
             const e = await one<{ e: number }>('SELECT user_request_status_id e FROM user_requests WHERE id=?', [ur])
                 .catch(() => null);
@@ -316,11 +316,11 @@ async function cerrarCreditopX(arr: any[], ur: number, tel: string, amount: numb
         }
     }
 
-    const fin = await one<{ e: number }>(
+    const end = await one<{ e: number }>(
         'SELECT user_request_status_id e FROM user_requests WHERE id=?', [ur]).catch(() => null);
     // ⚠ El MOTIVO, no sólo el status. Un `HTTP 422` a secas manda a adivinar: puede ser el pagaré, el
     // OTP, el cupo o el cronograma. El cuerpo lo dice, y sin él el diagnóstico cuesta una sesión.
-    const porQue = aut.status === 200 ? '' :
+    const why = aut.status === 200 ? '' :
         ' · ' + String(aut.json?.errors?.payload
             ? JSON.stringify(aut.json.errors.payload)
             : aut.json?.message ?? aut.json?.raw ?? '').split('\n')[0].slice(0, 90);
@@ -338,21 +338,21 @@ async function cerrarCreditopX(arr: any[], ur: number, tel: string, amount: numb
           WHERE t.user_request_id = ? ORDER BY t.id DESC LIMIT 1`, [ur]).catch(() => null);
 
     return {
-        cerro: fin?.e === 11,
-        motivo: `${ctopx.name} · HTTP ${aut.status}${porQue}`
+        cerro: end?.e === 11,
+        motivo: `${ctopx.name} · HTTP ${aut.status}${why}`
             + (rad?.n ? ` · radicación ${rad.n}${rad.n === 'CREDIT_COMPLETED' ? '' : ' ⚠'}` : ''),
-        estado: fin?.e ?? null,
+        estado: end?.e ?? null,
         radicacion: rad?.n ?? null,
     };
 }
 
 /** Lo que el wizard dispara por cada entidad elegible después de recibir el listado.
  *  ⚠ Sólo para `response_type !== 0`: las STANDARD nunca usan el microservicio. */
-async function preAprobar(lender: any, ureq: number, userId: number, alliedId: number,
-                          hash: string, amount: number, estadoMock?: string) {
+async function preApprove(lender: any, ureq: number, userId: number, alliedId: number,
+                          hash: string, amount: number, mockStatus?: string) {
     const payload: Record<string, unknown> = {
         applicant_id: userId,
-        lending_product_key: claveDeProducto(Number(lender.response_type), Number(lender.id), String(lender.slug ?? '')),
+        lending_product_key: productKey(Number(lender.response_type), Number(lender.id), String(lender.slug ?? '')),
         lending_product_id: String(lender.id),
         merchant_id: alliedId,
         user_request_id: ureq,
@@ -365,7 +365,7 @@ async function preAprobar(lender: any, ureq: number, userId: number, alliedId: n
     // también acepta `x-mock-status` y `body.force_status`. Va en la URL y no en el cuerpo a
     // propósito — el cuerpo tiene que seguir siendo EXACTAMENTE el que manda el front, o la prueba
     // deja de probar el contrato real. Contra el MS de verdad, este parámetro se ignora.
-    const url = estadoMock ? `${PREAPPROVALS}?status=${encodeURIComponent(estadoMock)}` : PREAPPROVALS;
+    const url = mockStatus ? `${PREAPPROVALS}?status=${encodeURIComponent(mockStatus)}` : PREAPPROVALS;
     const r = await fetch(url, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
@@ -389,23 +389,23 @@ const arg = (n: string, d = ''): string => {
  *  baste sola: quien la corre —una persona apurada o un LLM— no tiene que saber que este archivo
  *  necesita `--cerrar` para significar algo. Sin esto, olvidarse del flag no da un resultado falso
  *  (el verificador lo marca como no verificado) pero sí una corrida perdida de dos minutos. */
-const implicitos = new Set<string>();
-const flag = (n: string) => process.argv.includes(`--${n}`) || implicitos.has(n);
+const implicit = new Set<string>();
+const flag = (n: string) => process.argv.includes(`--${n}`) || implicit.has(n);
 
 // Base 313 + 7 dígitos. El índice del caso va al final para que dos casos NUNCA compartan usuario;
 // se imprime en el reporte porque es lo que hace falta para ir a mirar la solicitud después.
 /** La forma del celular de cada país donde se opera. */
-// `FORMA_DEL_CELULAR` vive en `pkg/telefonos.ts`: la compartían este runner y `telefonoDeLaSucursal`,
+// `PHONE_SHAPE` vive en `pkg/telefonos.ts`: la compartían este runner y `branchPhone`,
 // cada uno con media lección. Ver el encabezado de ese archivo.
 
 
 /** Lo que un caso DECLARA que debería pasar. Sin esto el runner sólo narra; con esto contesta
  *  «¿sigue valiendo?», que es la pregunta que se hace después de tocar código.
  *
- *  ⚠ UNA EXPECTATIVA QUE NO SE PUDO EVALUAR CUENTA COMO FALLA, no como éxito. Si un caso espera un
+ *  ⚠ UNA EXPECTATIVA QUE NO SE PUDO EVALUAR ACCOUNT COMO FALLA, no como éxito. Si un caso espera un
  *  cierre y la corrida no lleva `--cerrar`, eso es un error de la suite: darlo por bueno sería
  *  exactamente el verde falso que este harness ya se comió una vez. */
-type Espera = {
+type Wait = {
     enListado?: boolean;      // ¿la entidad pedida salió en el listado?
     cierra?: boolean;         // ¿la solicitud llegó a cerrar?
     estado?: number;          // estado final exacto (11 autorizada, 28 pendiente desembolso, …)
@@ -423,21 +423,21 @@ type Espera = {
     pais?: boolean | { iso?: string; documento?: string | string[]; celular?: number; moneda?: string };
 };
 
-type Caso = {
+type Case = {
     comercio: string; lender: number | null;
-    nombre?: string; espera?: Espera;
-    /** `Empleado` (default) | `Independiente`. Se DEDUCE del buró, no se inyecta — ver `respuestaAgildata`. */
+    nombre?: string; espera?: Wait;
+    /** `Empleado` (default) | `Independiente`. Se DEDUCE del buró, no se inyecta — ver `agildataAnswer`. */
     ocupacion?: string;
-    /** Cuántas cuotas pedir. ⚠ NO todas las entidades aceptan cualquier número — ver `cerrarCreditopX`. */
+    /** Cuántas cuotas pedir. ⚠ NO todas las entidades aceptan cualquier número — ver `closeCreditopX`. */
     cuotas?: number;
     /** `@webhook=fulfilled` — dispara el webhook REAL de la entidad en `legacy-application` para darle
      *  desenlace a un rt=1. Es OPT-IN a propósito: nunca debe pasar solo, porque el código que corre no
      *  es el de `legacy-backend` (F-170) y un desenlace automático se leería como si lo fuera. */
     webhook?: string;
-    /** Este caso es una vuelta POSTERIOR del mismo cliente: ya está registrado. Ver `correrPasos`. */
+    /** Este caso es una vuelta POSTERIOR del mismo cliente: ya está registrado. Ver `runSteps`. */
     recurrente?: boolean;
-    /** Solicitudes SUCESIVAS del mismo cliente. Ver `correrPasos`. */
-    pasos?: Array<{ nombre?: string; lender?: number | null; amount?: number; espera?: Espera }>;
+    /** Solicitudes SUCESIVAS del mismo cliente. Ver `runSteps`. */
+    pasos?: Array<{ nombre?: string; lender?: number | null; amount?: number; espera?: Wait }>;
     amount?: number; income?: number; score?: number;
     // qué debe contestar cada integración PARA ESTE CASO: `pullman@meddipay=rechaza`
     escenarios?: Record<string, string>;
@@ -449,10 +449,10 @@ type Caso = {
  * comparar: dos corridas idénticas sólo prueban que el sistema es determinista (útil una vez), y
  * dos que difieren en UN dato muestran qué mueve ese dato. Medido: con `score=300,income=900000`
  * CrediPullman desaparece del listado y con el default no — el cupo rt=2 filtra de verdad. */
-function parseCaso(spec: string, dflt: { amount: number; income: number; score: number }): Caso {
-    const [izq, params] = spec.split('@');
-    const [comercio, l] = izq.split(':');
-    const c: Caso = { comercio, lender: l ? Number(l) : null, ...dflt };
+function parseCase(spec: string, dflt: { amount: number; income: number; score: number }): Case {
+    const [left, params] = spec.split('@');
+    const [merchant, l] = left.split(':');
+    const c: Case = { comercio: merchant, lender: l ? Number(l) : null, ...dflt };
     for (const kv of (params ?? '').split(',').filter(Boolean)) {
         const [k, v] = kv.split('=');
         if (k === 'amount' || k === 'income' || k === 'score') { c[k] = Number(v); continue; }
@@ -477,66 +477,66 @@ function parseCaso(spec: string, dflt: { amount: number; income: number; score: 
  *    {
  *      "nombre": "rt=2 de Motai",
  *      "requiere": ["cerrar", "lambda", "paralelo"],
- *      "porDefecto": { "amount": 2000000, "income": 2500000, "score": 700 },
+ *      "byDefault": { "amount": 2000000, "income": 2500000, "score": 700 },
  *      "casos": [
  *        { "nombre": "el RTO exige codeudor",
  *          "comercio": "motai", "lender": 173,
- *          "espera": { "enListado": true, "estado": 17 } }
+ *          "espera": { "inListing": true, "estado": 17 } }
  *      ]
  *    }
  *
- *  `porDefecto` de la suite pisa a los flags de la corrida, y lo de cada caso pisa a `porDefecto`:
+ *  `byDefault` de la suite pisa a los flags de la corrida, y lo de cada caso pisa a `byDefault`:
  *  así una suite es reproducible sin depender de con qué flags la invocaron. */
-async function cargarSuite(ruta: string, dflt: { amount: number; income: number; score: number }): Promise<Caso[]> {
+async function loadSuite(path: string, dflt: { amount: number; income: number; score: number }): Promise<Case[]> {
     const { readFile } = await import('node:fs/promises');
     let json: any;
     try {
-        json = JSON.parse(await readFile(ruta, 'utf8'));
+        json = JSON.parse(await readFile(path, 'utf8'));
     } catch (e) {
-        throw new Error(`no pude leer la suite ${ruta}: ${e}`);
+        throw new Error(`no pude leer la suite ${path}: ${e}`);
     }
     if (!Array.isArray(json?.casos) || json.casos.length === 0) {
-        throw new Error(`la suite ${ruta} no tiene un array \`casos\` con al menos un caso`);
+        throw new Error(`la suite ${path} no tiene un array \`casos\` con al menos un caso`);
     }
     // `requiere` deja que la suite prenda lo que necesita: `["cerrar", "lambda"]`.
-    for (const f of (Array.isArray(json.requiere) ? json.requiere : [])) implicitos.add(String(f));
+    for (const f of (Array.isArray(json.requiere) ? json.requiere : [])) implicit.add(String(f));
 
-    // `porDefecto` alimenta TODOS los campos del caso, no sólo los tres numéricos. Al principio sólo
+    // `byDefault` alimenta TODOS los campos del caso, no sólo los tres numéricos. Al principio sólo
     // cubría `amount`/`income`/`score` y nadie lo notó porque las suites repetían comercio y entidad en
     // cada caso; una suite que los declaraba una vez arriba fallaba con «falta comercio», que suena a
     // suite mal escrita y no a un defecto por defecto que no se aplica.
     const base = { ...dflt, ...(json.porDefecto ?? {}) };
     return json.casos.map((c: any, i: number) => {
-        const comercio = c?.comercio ?? (base as any).comercio;
-        if (!comercio) throw new Error(`caso ${i} de la suite: falta \`comercio\` (ni en el caso ni en \`porDefecto\`)`);
+        const merchant = c?.comercio ?? (base as any).comercio;
+        if (!merchant) throw new Error(`caso ${i} de la suite: falta \`comercio\` (ni en el caso ni en \`porDefecto\`)`);
         if (Array.isArray(c.pasos) && c.pasos.length === 0) {
             throw new Error(`caso ${i} de la suite: \`pasos\` está vacío — un cliente sin solicitudes no prueba nada`);
         }
         // `lender` acepta `null` explícito en el caso —«terminá en el listado»— y eso NO es lo mismo que
         // omitirlo, que sí hereda del default. Por eso se mira la CLAVE, no el valor.
         const lender = 'lender' in (c ?? {}) ? c.lender : (base as any).lender;
-        const ocupacion = c.ocupacion ?? (base as any).ocupacion;
-        const cuotas = c.cuotas ?? (base as any).cuotas;
+        const occupation = c.ocupacion ?? (base as any).ocupacion;
+        const installments = c.cuotas ?? (base as any).cuotas;
         const webhook = c.webhook ?? (base as any).webhook;
         return {
-            comercio: String(comercio),
+            comercio: String(merchant),
             lender: lender == null ? null : Number(lender),
             nombre: c.nombre ? String(c.nombre) : undefined,
             espera: c.espera,
-            ocupacion: ocupacion ? String(ocupacion) : undefined,
-            cuotas: cuotas ? Number(cuotas) : undefined,
+            ocupacion: occupation ? String(occupation) : undefined,
+            cuotas: installments ? Number(installments) : undefined,
             webhook: webhook ? String(webhook) : undefined,
             pasos: Array.isArray(c.pasos) ? c.pasos : undefined,
             escenarios: c.escenarios,
             amount: Number(c.amount ?? base.amount),
             income: Number(c.income ?? base.income),
             score: Number(c.score ?? base.score),
-        } as Caso;
+        } as Case;
     });
 }
 
 type Res = {
-    caso: Caso; ok: boolean; ur?: number; phone: string; nombre?: string;
+    caso: Case; ok: boolean; ur?: number; phone: string; nombre?: string;
     enListado?: boolean; listado?: number[]; conducta?: string; detalle?: string;
     com?: string;
     preaprobados?: { id: number; estado: string; cupo?: unknown }[];
@@ -550,7 +550,7 @@ type Res = {
 };
 
 /** Clasifica por los MISMOS campos que mira el front (mismo criterio que `sweep.ts`). */
-function conductaDe(d: any): string {
+function behaviorOf(d: any): string {
     if (!d) return 'sin data';
     if (d.standBy) return 'standBy (in-platform)';
     if (d.showModal) return 'modal (autogestión)';
@@ -575,11 +575,11 @@ const BASE_DOC = 1090000000 + ((Date.now() / 100) % 9_000_000 | 0);
  *  ⚠ Para un CENSO hay que usar hash. Con nombre resuelve por `LIKE %x%` y se queda con la sucursal
  *  de más entidades, así que dos comercios que comparten prefijo se pisan y uno de los dos NUNCA se
  *  prueba: el barrido quedaría corto sin que nada avise. */
-type LineaBase = { users: number; ureqs: number } | null;
+type BaseLine = { users: number; ureqs: number } | null;
 
 /** Los MAX(id) de `users` y `user_requests` antes de arrancar. Null si la base no contesta: la
  *  conciliación es información, no puede frenar la corrida. */
-async function lineaBaseDeLaBase(): Promise<LineaBase> {
+async function dbBaseline(): Promise<BaseLine> {
     try {
         const users = Number(await scalar<number>('SELECT MAX(id) FROM users')) || 0;
         const ureqs = Number(await scalar<number>('SELECT MAX(id) FROM user_requests')) || 0;
@@ -596,13 +596,13 @@ async function lineaBaseDeLaBase(): Promise<LineaBase> {
  * nada» lleva a repetir la corrida y duplicar los datos. Acá se cuenta lo que quedó desde la línea base,
  * y si el runner dijo cero pero la base creció, se dice con todas las letras.
  */
-async function conciliarConLaBase(lb: LineaBase, okSegunRunner: number): Promise<void> {
+async function reconcileWithDb(lb: BaseLine, okPerRunner: number): Promise<void> {
     if (!lb) return;
     try {
         const users = Number(await scalar<number>('SELECT COUNT(*) FROM users WHERE id > ?', [lb.users])) || 0;
         const ureqs = Number(await scalar<number>('SELECT COUNT(*) FROM user_requests WHERE id > ?', [lb.ureqs])) || 0;
         console.log(`  base: quedaron ${users} usuario(s) y ${ureqs} solicitud(es) nuevos (desde user ${lb.users} · ureq ${lb.ureqs})`);
-        if (okSegunRunner === 0 && (users > 0 || ureqs > 0)) {
+        if (okPerRunner === 0 && (users > 0 || ureqs > 0)) {
             console.log('  ⚠ el runner dice CERO pero la base creció: el fallo fue DESPUÉS de escribir (gateway o guard).'
                 + ' No repitas la corrida sin mirar esos usuarios — ver F-176 y F-180.');
         }
@@ -619,7 +619,7 @@ async function conciliarConLaBase(lb: LineaBase, okSegunRunner: number): Promise
  *
  * Entre varias sucursales del mismo comercio gana la que más entidades tiene: es la que más flujo cubre.
  */
-// `buscarSucursal` vive en `pkg/merchants.ts` — ver ahí las TRES resoluciones que había.
+// `findBranch` vive en `pkg/merchants.ts` — ver ahí las TRES resoluciones que había.
 
 /** El teléfono de un caso. DERIVADO, como la cédula — no sale de una lista.
  *
@@ -650,12 +650,12 @@ async function conciliarConLaBase(lb: LineaBase, okSegunRunner: number): Promise
  */
 /** Los dos últimos dígitos son el índice del caso: es lo que garantiza uno distinto por caso, que es
  *  la condición del paralelo. El resto se rellena con la base de la corrida, recortada al largo. */
-const telefonoDe = (i: number, iso = 'COL'): string => telefonoSintetico(iso, i, BASE_DOC);
+const phoneOf = (i: number, iso = 'COL'): string => syntheticPhone(iso, i, BASE_DOC);
 
-// `telefonoDelCodeudor` vive en `pkg/telefonos.ts`, con el porqué de que esté separado.
+// `coSignerPhone` vive en `pkg/telefonos.ts`, con el porqué de que esté separado.
 
 /** El ISO-3 del país del comercio, del mismo payload del que ya sale el tipo de documento. */
-const isoPorComercio = new Map<string, string>();
+const isoByMerchant = new Map<string, string>();
 /**
  * ⚠ SI NO PUEDE RESOLVER EL PAÍS, DEVUELVE null — NO ADIVINA. Hasta el 2026-09-02 caía a Colombia en
  * silencio cuando el payload tardaba más de 20 s. Contra un backend saturado eso hizo que el comercio
@@ -665,18 +665,18 @@ const isoPorComercio = new Map<string, string>();
  *
  * Reintenta UNA vez antes de rendirse: un timeout aislado no debería tumbar un caso, dos seguidos sí.
  */
-async function paisDelComercio(hash: string): Promise<string | null> {
-    const cacheado = isoPorComercio.get(hash);
-    if (cacheado) return cacheado;
+async function merchantCountry(hash: string): Promise<string | null> {
+    const cached = isoByMerchant.get(hash);
+    if (cached) return cached;
 
-    for (let intento = 1; intento <= 2; intento++) {
+    for (let attempt = 1; attempt <= 2; attempt++) {
         try {
             const r = await fetch(`${API}/api/loans/allied/${hash}`, { signal: AbortSignal.timeout(20_000) });
             const j = await r.json() as { data?: { country?: { iso_code?: string } } };
-            const publicado = j?.data?.country?.iso_code;
-            if (typeof publicado === 'string' && publicado.length === 3) {
-                const iso = publicado.toUpperCase();
-                isoPorComercio.set(hash, iso);     // sólo se cachea lo que sí se resolvió
+            const published = j?.data?.country?.iso_code;
+            if (typeof published === 'string' && published.length === 3) {
+                const iso = published.toUpperCase();
+                isoByMerchant.set(hash, iso);     // sólo se cachea lo que sí se resolvió
                 return iso;
             }
             return null;                          // respondió, pero sin país: no es un timeout, no se reintenta
@@ -685,7 +685,7 @@ async function paisDelComercio(hash: string): Promise<string | null> {
     return null;
 }
 
-const SIN_PAIS = 'no pude resolver el país del comercio: su payload no respondió dos veces (¿backend saturado?)';
+const NO_COUNTRY = 'no pude resolver el país del comercio: su payload no respondió dos veces (¿backend saturado?)';
 
 /** ⚠ PARA CERRAR hace falta que el teléfono esté en `qa_otp_bypass_phones`, y no es capricho: son DOS
  *  mecanismos de OTP distintos y sólo uno acepta cualquier teléfono.
@@ -708,7 +708,7 @@ const SIN_PAIS = 'no pude resolver el país del comercio: su payload no respondi
  *  `user_requests`, y correrla en lote al principio de cada tanda es exactamente la clase de operación
  *  que ya vació una base compartida (CORE-431). Para un teléfono conocido está bien; para una tanda, no.
  *
- *  Acá no hace falta borrar nada: **cada caso ya deriva su propio teléfono** (`telefonoDe`), así que
+ *  Acá no hace falta borrar nada: **cada caso ya deriva su propio teléfono** (`phoneOf`), así que
  *  alcanza con decirle al backend que esos derivados están bypasseados. Usuario virgen por caso, sin
  *  historia que arrastrar, sin techo y sin un solo DELETE.
  *
@@ -720,12 +720,12 @@ const SIN_PAIS = 'no pude resolver el país del comercio: su payload no respondi
 /** Lo que ESTA corrida agregó a la lista. De módulo y no local a `main()` para poder limpiarlo aunque
  *  la corrida termine mal: una lista que crece sola con teléfonos de tandas viejas es basura que
  *  después nadie sabe de dónde salió. */
-let bypassPuesto: { agregados: string[]; comodin: boolean } | null = null;
+let bypassSet: { agregados: string[]; comodin: boolean } | null = null;
 
 /** Le dicta a la lambda qué contesta cada central PARA ESA CÉDULA. Es el paso que vuelve el caso
  *  hipotético: se pide de antemano la respuesta que se quiere recibir. */
 /** ⚠ LEE DESPUÉS DE ESCRIBIR, y reintenta. La lambda es serverless y sus global-vars viven en la
- *  MEMORIA DEL CONTENEDOR: el POST puede caer en un contenedor y la lectura del backend en otro, y
+ *  MEMORIA DEL CONTAINER: el POST puede caer en un contenedor y la lectura del backend en otro, y
  *  entonces se sirve la respuesta POR DEFECTO como si nada. No es sólo un problema de concurrencia
  *  —medido el 2026-08-18 con UN caso solo— y el síntoma no se parece a la causa: la default trae
  *  períodos de hace diez meses, así que el backend calcula `employed: false` y `personal-info`
@@ -733,21 +733,21 @@ let bypassPuesto: { agregados: string[]; comodin: boolean } | null = null;
  *  información laboral y el problema es que el buró nunca contestó lo que se le pidió.
  *
  *  Confirmar cuesta una petición y convierte un fallo intermitente en uno que no ocurre. */
-async function confirmarDictado(doc: string, central: string, esperado: string): Promise<boolean> {
-    const rutas: Record<string, string> = {
+async function confirmDictation(doc: string, central: string, expected: string): Promise<boolean> {
+    const paths: Record<string, string> = {
         agildata: `/agildata/agildata-services/rest/afiliado/historicoDetalladoEmpleo/1/${doc}`,
     };
-    const ruta = rutas[central];
-    if (!ruta) return true;                       // sin ruta conocida no se puede confirmar: no se bloquea
-    const r = await fetch(`${LAMBDA}${ruta}`, { signal: AbortSignal.timeout(15_000) }).catch(() => null);
+    const path = paths[central];
+    if (!path) return true;                       // sin ruta conocida no se puede confirmar: no se bloquea
+    const r = await fetch(`${LAMBDA}${path}`, { signal: AbortSignal.timeout(15_000) }).catch(() => null);
     if (!r?.ok) return false;
-    return (await r.text()).includes(esperado);
+    return (await r.text()).includes(expected);
 }
 
-async function dictar(doc: string, central: string, valor: unknown): Promise<boolean> {
+async function dictate(doc: string, central: string, value: unknown): Promise<boolean> {
     // ⚠ Mockoon NO valida el JSON que se le dicta: lo emite tal cual con 200, y un JSON roto se lee
     // después como «respuesta inválida del proveedor». Se serializa acá y se falla acá si no es válido.
-    const v = typeof valor === 'string' ? valor : JSON.stringify(valor);
+    const v = typeof value === 'string' ? value : JSON.stringify(value);
     try { JSON.parse(v); } catch { return false; }
     const r = await fetch(`${LAMBDA}/mockoon-admin/global-vars`, {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
@@ -767,7 +767,7 @@ async function dictar(doc: string, central: string, valor: unknown): Promise<boo
  *
  * Se cachea por hash porque un barrido corre el mismo comercio muchas veces.
  */
-const tipoDeDocumentoDelComercio = (hash: string) => tipoDeDocumento(API, hash);
+const merchantDocumentType = (hash: string) => documentType(API, hash);
 
 /** EL recorrido: register → otp-validate → personal-info. No usa `synthFill` — justamente porque
  *  synthFill escribe la fila de `risk_central_user_data` y entonces el backend la reusa (caché de un
@@ -777,7 +777,7 @@ const tipoDeDocumentoDelComercio = (hash: string) => tipoDeDocumento(API, hash);
  *  electrónico ya se encuentra registrado» — un error que no se parece a su causa. Peor: la caché de
  *  un mes de `risk_central_user_data` habría servido la consulta anterior en vez de llamar a la
  *  central, que es justo lo que se quiere ejercitar. */
-const cedulaDe = (i: number) => String(BASE_DOC + i);
+const idNumberOf = (i: number) => String(BASE_DOC + i);
 
 /** La respuesta que se le pide a la central para este caso. El ingreso del caso se vuelve el `ibc`
  *  (Ingreso Base de Cotización) de los pagos: el backend NO lo recibe inyectado, lo descubre
@@ -792,21 +792,21 @@ const cedulaDe = (i: number) => String(BASE_DOC + i);
  *  Y esto NO es un detalle de laboratorio: la regla de Credifamilia exige `ocupación = Independiente`,
  *  así que con el empleador por defecto esa entidad **nunca sale en el listado** — y el síntoma es una
  *  ausencia silenciosa, no un rechazo visible. */
-function respuestaAgildata(doc: string, ibc: number, ocupacion?: string) {
+function agildataAnswer(doc: string, ibc: number, occupation?: string) {
     // ⚠ EL PERÍODO ES `YYYYMM` Y NO SE PUEDE RESTAR COMO ENTERO. `202603 - k` parece razonable y a
     // partir del cuarto pago da 202599, 202598… meses que no existen. El backend calcula la
     // continuidad (3/6/12 meses) contando períodos, así que con basura ahí devuelve `employed: false`,
     // continuidad en cero y `approximate_real_salary: 0` — el ingreso llega y NO SIRVE. El caso que
     // uno creyó plantar («alguien que gana 15M») termina siendo «alguien sin empleo», y el listado no
     // cambia por la razón equivocada.
-    const pagos = Array.from({ length: 8 }, (_, k) => {
+    const payments = Array.from({ length: 8 }, (_, k) => {
         // ⚠ RELATIVO A HOY, no a una fecha fija. `validateContractType` compara el último período
         // contra la fecha de la solicitud: una serie que termina hace cinco meses da `employed:false`
         // por vieja, no por el caso que se quiso plantear. Una fecha horneada acá envejece sola y
         // rompe el runner en silencio unos meses después.
-        const hoy = new Date();
-        const meses = hoy.getFullYear() * 12 + hoy.getMonth() - k;
-        const [y, m] = [Math.floor(meses / 12), (meses % 12) + 1];
+        const today = new Date();
+        const months = today.getFullYear() * 12 + today.getMonth() - k;
+        const [y, m] = [Math.floor(months / 12), (months % 12) + 1];
         const mm = String(m).padStart(2, '0');
         return {
             id: k + 1, ibc, periodo: Number(`${y}${mm}`),
@@ -823,9 +823,9 @@ function respuestaAgildata(doc: string, ibc: number, ocupacion?: string) {
                             genero: 'M', nombre: 'CARLOS RUIZ MENDOZA', tipoId: 'CC',
                             numeroId: doc, viabilidad: null },
             detalladoEmpleos: [{
-                id: 1, pagos,
+                id: 1, pagos: payments,
                 // Empleador = la persona → Independiente. Distinto → Empleado. Ver la cabecera.
-                nombreEmpleador: String(ocupacion ?? '').toLowerCase() === 'independiente'
+                nombreEmpleador: String(occupation ?? '').toLowerCase() === 'independiente'
                     ? 'CARLOS RUIZ MENDOZA'
                     : 'STANGERSON SAS',
                 telefonoEmpleador: null,
@@ -835,54 +835,54 @@ function respuestaAgildata(doc: string, ibc: number, ocupacion?: string) {
     };
 }
 
-const dictados = new Set<string>();
+const dictatedOnes = new Set<string>();
 
 /** ⚠ DICTAR VA EN SERIE, AUNQUE LOS CASOS CORRAN EN PARALELO. La lambda es serverless y sus
- *  global-vars viven en la MEMORIA DEL CONTENEDOR: tres POST concurrentes caen en contenedores
+ *  global-vars viven en la MEMORIA DEL CONTAINER: tres POST concurrentes caen en contenedores
  *  distintos y dos de los tres dictados se pierden — medido el 2026-08-17, y no es una carrera que se
  *  resuelva sola: la cédula perdida devuelve la respuesta por defecto para siempre. El síntoma es
  *  cruel, porque el flujo TERMINA BIEN con datos que nadie pidió, y uno concluye «el ingreso no
  *  cambia el listado» cuando en realidad el ingreso nunca llegó. En serie, las tres quedan. */
-async function dictarTodos(casos: Caso[]): Promise<string[]> {
-    const fallos: string[] = [];
-    for (let i = 0; i < casos.length; i++) {
-        const doc = cedulaDe(i);
+async function dictateAll(cases: Case[]): Promise<string[]> {
+    const failures: string[] = [];
+    for (let i = 0; i < cases.length; i++) {
+        const doc = idNumberOf(i);
         // el escenario de cada integración va acá también: es preparación del caso, y se dicta
         // POR CÉDULA para que dos casos en paralelo puedan pedir cosas opuestas de la misma entidad
-        for (const [lender, modo] of Object.entries(casos[i].escenarios ?? {})) {
+        for (const [lender, mode] of Object.entries(cases[i].escenarios ?? {})) {
             // ⚠ `preaprobado` NO es una entidad: es el estado que debe devolver el MICROSERVICIO de
             // pre-aprobados, y se aplica en su propia llamada. Mandarlo al admin API del mock de
             // integraciones lo rechaza y hace fallar la preparación del caso entero.
             if (lender === 'preaprobado') continue;
             const r = await fetch(`${MOCK_LENDERS}/__mock/escenario`, {
                 method: 'POST', headers: { 'content-type': 'application/json' },
-                body: JSON.stringify({ lender, modo, doc }), signal: AbortSignal.timeout(8_000),
+                body: JSON.stringify({ lender, modo: mode, doc }), signal: AbortSignal.timeout(8_000),
             }).catch(() => null);
-            if (!r?.ok) fallos.push(`${lender}=${modo}`);
+            if (!r?.ok) failures.push(`${lender}=${mode}`);
         }
         // ⚠ EL `score` DEL CASO NO LLEGABA A NINGÚN LADO en este camino: el buró lo sirve el mock y
         // devolvía siempre el del fixture (707). O sea que `score=750` era un **no-op silencioso** —el
         // caso corría, terminaba bien, y uno concluía «el score no mueve el listado» cuando el score
         // nunca cambió. Es la misma familia que F-139. El mock ya sabe pisarlo por cédula.
-        if (casos[i].score) {
+        if (cases[i].score) {
             // ⚠ Antes iba con `.catch(() => {})`: si el dictado del score fallaba, el caso seguía con el
             // score por defecto del mock y el reporte decía igual «buró dictado». Agildata sí se
             // verificaba; Experian no. Un caso que declara score 700 y corre con otro no prueba lo que
             // dice — y nada avisaba. Ahora cuenta como dictado fallido, igual que Agildata.
-            const okScore = await dictar(doc, 'experian_score', String(casos[i].score)).catch(() => false);
-            if (!okScore) fallos.push(`${doc}:experian_score`);
+            const okScore = await dictate(doc, 'experian_score', String(cases[i].score)).catch(() => false);
+            if (!okScore) failures.push(`${doc}:experian_score`);
         }
 
         // hasta 4 intentos: cada POST puede caer en un contenedor distinto, así que reintentar
         // NO es supersticioso — es lo que hace que alguno pegue en el que después atiende la lectura
         let ok = false;
-        for (let intento = 0; intento < 4 && !ok; intento++) {
-            await dictar(doc, 'agildata', respuestaAgildata(doc, casos[i].income!, casos[i].ocupacion));
-            ok = await confirmarDictado(doc, 'agildata', String(casos[i].income!));
+        for (let attempt = 0; attempt < 4 && !ok; attempt++) {
+            await dictate(doc, 'agildata', agildataAnswer(doc, cases[i].income!, cases[i].ocupacion));
+            ok = await confirmDictation(doc, 'agildata', String(cases[i].income!));
         }
-        if (ok) dictados.add(doc); else fallos.push(doc);
+        if (ok) dictatedOnes.add(doc); else failures.push(doc);
     }
-    return fallos;
+    return failures;
 }
 
 /** Envoltorio: corre el caso y SIEMPRE deja su bitácora, salga como salga. Está separado del motor
@@ -899,58 +899,58 @@ async function dictarTodos(casos: Caso[]): Promise<string[]> {
  * `--lambda` ya no elige camino: sólo DICTA el buró (la respuesta de cada central para esa cédula). Sin el
  * flag, el buró contesta lo que el ambiente tenga —el mock local o el de qa—, que es lo que ve un cliente.
  */
-async function correr(c: Caso, i: number): Promise<Res> {
-    const r = await recorrer(c, i);
-    await volcarBitacora(r, bitacoras.get(r.phone) ?? []);
-    bitacoras.delete(r.phone);
+async function correr(c: Case, i: number): Promise<Res> {
+    const r = await traverse(c, i);
+    await dumpLogbook(r, logbooks.get(r.phone) ?? []);
+    logbooks.delete(r.phone);
 
     // LAS DOS MITADES DE UNA CORRIDA FALLIDA. La bitácora dice qué SE PIDIÓ —es nuestra y no tiene
     // ambigüedad—; la forense de Loki dice qué DECIDIÓ el backend, que es lo que la bitácora no puede
     // saber: una regla que excluyó una entidad no mueve ningún estado ni cambia ningún status HTTP.
     //
-    // ⚠ Se dispara SÓLO si el caso salió mal, y eso no es tacañería: `forenseAlCerrar` paga un settle
+    // ⚠ Se dispara SÓLO si el caso salió mal, y eso no es tacañería: `forensicOnClose` paga un settle
     // más una consulta, y explicar un éxito no le sirve a nadie. Se traga cualquier error a propósito.
     if (!r.ok && r.ur) {
-        await forenseAlCerrar(r.ur, { existe: true, ok: false, malo: false, miente: [] })
+        await forensicOnClose(r.ur, { existe: true, ok: false, malo: false, miente: [] })
             .catch(() => { /* un forense que tumba la corrida que vino a explicar es peor que no tenerlo */ });
     }
     return r;
 }
 
-async function recorrer(c: Caso, i: number): Promise<Res> {
-    const doc = cedulaDe(i);
+async function traverse(c: Case, i: number): Promise<Res> {
+    const doc = idNumberOf(i);
     const base: Res = { caso: c, ok: false, phone: '' };
 
     // ⚠ El teléfono ya no se puede armar antes de conocer el comercio: su forma sale del país. Por eso
     // la sucursal se resuelve PRIMERO y el teléfono después — al revés de como estaba.
-    const br = await buscarSucursal(c.comercio);
+    const br = await findBranch(c.comercio);
     if (!br) return { ...base, detalle: `no encontré el comercio «${c.comercio}»` };
 
-    const iso = await paisDelComercio(br.hash);
-    if (iso === null) return { ...base, detalle: SIN_PAIS };
-    const tel = telefonoDe(i, iso);   // el mismo para listar y para cerrar
+    const iso = await merchantCountry(br.hash);
+    if (iso === null) return { ...base, detalle: NO_COUNTRY };
+    const tel = phoneOf(i, iso);   // el mismo para listar y para cerrar
     base.phone = tel;
 
-    // ⚠ `x.id AS allied` NO es cosmético: `preAprobar` lo manda como `merchant_id` y este lookup no
+    // ⚠ `x.id AS allied` NO es cosmético: `preApprove` lo manda como `merchant_id` y este lookup no
     // lo seleccionaba, así que viajaba `undefined`. El mock no valida ese campo y por eso el bug
     // sobrevivió — contra el microservicio real habría fallado. Los mocks permisivos esconden
     // exactamente esta clase de error (misma lección que F-140).
     base.com = br.com;
 
     // Sólo si se pidió dictar: sin `--lambda` el buró contesta lo del ambiente, y eso es un resultado válido.
-    if (flag('lambda') && !dictados.has(doc)) return { ...base, detalle: 'la respuesta del buró no quedó dictada' };
+    if (flag('lambda') && !dictatedOnes.has(doc)) return { ...base, detalle: 'la respuesta del buró no quedó dictada' };
 
     const H = { 'content-type': 'application/json', accept: 'application/json', 'user-agent': UA };
-    // Cada llamada queda anotada (ver `volcarBitacora`). El costo es un push a un array; el beneficio
+    // Cada llamada queda anotada (ver `dumpLogbook`). El costo es un push a un array; el beneficio
     // es no tener que repetir una corrida de 90 s para ver qué se pidió.
-    const bitacora: Llamada[] = [];
-    bitacoras.set(tel, bitacora);
-    const t0Caso = Date.now();
-    const anotar = (metodo: string, ruta: string, status: number, ms: number, cuerpo?: string) => {
-        bitacora.push({ t: Date.now() - t0Caso, metodo, ruta, status, ms,
+    const logbook: Call[] = [];
+    logbooks.set(tel, logbook);
+    const t0Case = Date.now();
+    const annotate = (method: string, path: string, status: number, ms: number, reqBody?: string) => {
+        logbook.push({ t: Date.now() - t0Case, metodo: method, ruta: path, status, ms,
             // El cuerpo entero SÓLO cuando falló: es cuando hace falta, y evita volcar datos
             // personales de las respuestas buenas.
-            ...(status >= 200 && status < 300 ? {} : { cuerpo: (cuerpo ?? '').slice(0, 600) }) });
+            ...(status >= 200 && status < 300 ? {} : { cuerpo: (reqBody ?? '').slice(0, 600) }) });
     };
 
     // UN SOLO HELPER HTTP, y `get`/`post` son dos verbos sobre él. Hasta el 2026-09-02 eran dos
@@ -965,27 +965,27 @@ async function recorrer(c: Caso, i: number): Promise<Res> {
     // concurrencia se serializan). Decir cuál de las dos cosas fue cambia dónde se busca la causa.
     //
     // `extra` existe para el CODEUDOR: su credencial es un header (`X-Cosigner-Token`), no una sesión.
-    const llamar = async (metodo: 'GET' | 'POST', ruta: string, body?: unknown,
-                          extra: Record<string, string> = {}, timeoutMs = metodo === 'POST' ? 150_000 : 90_000) => {
+    const call = async (method: 'GET' | 'POST', path: string, body?: unknown,
+                          extra: Record<string, string> = {}, timeoutMs = method === 'POST' ? 150_000 : 90_000) => {
         const t0 = Date.now();
-        const r = await fetch(`${API}${ruta}`, { method: metodo, headers: { ...H, ...extra },
+        const r = await fetch(`${API}${path}`, { method: method, headers: { ...H, ...extra },
             body: body === undefined ? undefined : JSON.stringify(body), signal: AbortSignal.timeout(timeoutMs) })
             .catch((e) => e as Error);
         if (r instanceof Error) {
             const ms = Date.now() - t0;
-            const expiro = /timeout|abort/i.test(String(r));
-            anotar(metodo, ruta, 0, ms, String(r).slice(0, 200));
-            const motivo = expiro ? `se pasó de los ${Math.round(ms / 1000)} s de espera (no falló: tardó)`
+            const expiredIt = /timeout|abort/i.test(String(r));
+            annotate(method, path, 0, ms, String(r).slice(0, 200));
+            const reason = expiredIt ? `se pasó de los ${Math.round(ms / 1000)} s de espera (no falló: tardó)`
                                   : String(r.message).slice(0, 120);
-            return { status: 0, json: { message: motivo } as any, motivo };
+            return { status: 0, json: { message: reason } as any, motivo: reason };
         }
         const t = await r.text();
-        anotar(metodo, ruta, r.status, Date.now() - t0, t);
+        annotate(method, path, r.status, Date.now() - t0, t);
         try { return { status: r.status, json: JSON.parse(t) as any }; }
         catch { return { status: r.status, json: { raw: t.slice(0, 200) } as any }; }
     };
-    const get = (ruta: string, extra: Record<string, string> = {}) => llamar('GET', ruta, undefined, extra);
-    const post = (ruta: string, body: unknown, extra: Record<string, string> = {}) => llamar('POST', ruta, body, extra);
+    const get = (path: string, extra: Record<string, string> = {}) => call('GET', path, undefined, extra);
+    const post = (path: string, body: unknown, extra: Record<string, string> = {}) => call('POST', path, body, extra);
 
     const reg = await post('/api/onboarding/phone/register', {
         phone_number: tel, phoneNumber: tel, terms: true, policies: true,
@@ -1010,7 +1010,7 @@ async function recorrer(c: Caso, i: number): Promise<Res> {
     if (!ur) return { ...base, detalle: `otp-validate sin uReq (HTTP ${otp.status})` };
     base.ur = ur;
 
-    // EL CLIENTE QUE VUELVE NO SE REGISTRA DE NUEVO.
+    // EL CUSTOMER QUE VUELVE NO SE REGISTRA DE NUEVO.
     //
     // `personal-info` es el paso que CREA la persona: cédula, nombre, correo, fechas. En la segunda
     // solicitud del mismo cliente esos datos ya existen, y mandarlos otra vez hace que el backend
@@ -1021,16 +1021,16 @@ async function recorrer(c: Caso, i: number): Promise<Res> {
     // selección, cierre— es EL MISMO. Si un cliente recurrente viera un listado distinto, eso es
     // justamente lo que se quiere medir, y sólo se puede medir si lo demás no cambia.
     if (!c.recurrente) {
-        // EL TIPO DE DOCUMENTO SALE DEL COMERCIO, no de acá.
+        // EL TIPO DE DOCUMENT SALE DEL COMERCIO, no de acá.
         //
         // ⚠ Estaba quemado en `'CC'`, y por eso este runner no podía probar un comercio que no fuera
         // colombiano: contra el dominicano el backend contesta —bien— «El tipo de documento no está
         // habilitado en este punto de venta». El backend ya publica la lista en el payload del comercio,
         // así que se pide y se usa la primera. Si no la publica (backend viejo), se cae a `CC`, que es lo
         // que había.
-        const tipoDoc = await tipoDeDocumentoDelComercio(br.hash);
+        const docKind = await merchantDocumentType(br.hash);
         const pi = await post(`/api/onboarding/loan-application/personal-info/${br.hash}/${ur}`, {
-            document_type: tipoDoc, document_number: doc, name: 'CARLOS', surname: 'RUIZ',
+            document_type: docKind, document_number: doc, name: 'CARLOS', surname: 'RUIZ',
             email: `qa${doc}@gmail.com`,
             expedition_day: 10, expedition_month: 5, expedition_year: 2019,
             birth_day: 10, birth_month: 5, birth_year: 2001,
@@ -1085,7 +1085,7 @@ async function recorrer(c: Caso, i: number): Promise<Res> {
     // camino por API no pasa por esa pantalla. Con `--manual` la solicitud queda en el estado en el
     // que la deja un humano del admin, y ahí `no_validation_required` sale del backend y no de que el
     // runner se salteó un paso. Es la diferencia entre esquivar la identidad y resolverla.
-    if (flag('manual')) await validacionManual(uid);
+    if (flag('manual')) await manualValidation(uid);
 
     // ⚠ EL MONTO VA EN LA QUERY, y sin él el backend usa 180.000 por default
     // (`ListLenderController::index:39` — `$request->query('amount', 180000)`), NO el monto de la
@@ -1109,10 +1109,10 @@ async function recorrer(c: Caso, i: number): Promise<Res> {
     // cliente ve, y una ausencia ahí se lee como regla de negocio cuando es el endpoint equivocado.
     // Va por el helper y no por `fetch` crudo: es LA llamada que da sentido al caso y hasta el 2026-09-02
     // era la única del recorrido que no quedaba en la bitácora — la que uno más quería ver al fallar.
-    const pedirListado = async () => (await get(`/api/onboarding/loan-application/lenders-v2/${ur}?amount=${c.amount}`)).json;
+    const requestListing = async () => (await get(`/api/onboarding/loan-application/lenders-v2/${ur}?amount=${c.amount}`)).json;
 
-    let lis = await pedirListado();
-    if (await espejarBuroParaPerfilamiento(ur)) lis = (await pedirListado()) ?? lis;
+    let lis = await requestListing();
+    if (await mirrorBureauForProfiling(ur)) lis = (await requestListing()) ?? lis;
     // ⚠ «CERO ENTIDADES» Y «LA LLAMADA FALLÓ» NO SON LO MISMO, y hasta el 2026-08-18 esto los
     // reportaba igual: un comercio cuyo listado reventaba salía como «0 entidades», que se lee como
     // un hecho de negocio («no ofrece nada») cuando es una excepción de PHP. Pasó de verdad — un
@@ -1122,17 +1122,17 @@ async function recorrer(c: Caso, i: number): Promise<Res> {
         return { ...base, ok: false, nombre: `doc ${doc}`, conducta: 'el LISTADO falló',
                  detalle: String(lis.message ?? lis.exception).split('\n')[0].slice(0, 110) };
     }
-    const crudo = lis?.data ?? lis;
-    const arr: any[] = Array.isArray(crudo) ? crudo : Array.isArray(crudo?.lenders) ? crudo.lenders : [];
+    const raw = lis?.data ?? lis;
+    const arr: any[] = Array.isArray(raw) ? raw : Array.isArray(raw?.lenders) ? raw.lenders : [];
     base.listado = arr.map((x) => Number(x.id ?? x.lender_id)).filter(Boolean);
 
     // LO QUE HARÍA EL FRONT. Sin esto la corrida termina en el listado y la pre-aprobación NO ocurre
     // —sin fallar, que es lo peor (F-141)—. Se dispara una por entidad elegible y en paralelo, igual
     // que el loader del wizard, con el payload de `fetch-lender-preapproval.ts:154-170`.
     if (flag('preaprobados')) {
-        const elegibles = arr.filter((l) => Number(l.response_type) !== 0);
-        base.preaprobados = await Promise.all(elegibles.map((l) =>
-            preAprobar(l, ur, uid, br.allied, br.hash, c.amount!, c.escenarios?.preaprobado)));
+        const eligible = arr.filter((l) => Number(l.response_type) !== 0);
+        base.preaprobados = await Promise.all(eligible.map((l) =>
+            preApprove(l, ur, uid, br.allied, br.hash, c.amount!, c.escenarios?.preaprobado)));
     }
 
     // ⚠ Cuando había dos caminos (hasta el 2026-09-02), éste NO calculaba esto y el reporte decía SIEMPRE «la pedida NO estaba»,
@@ -1142,11 +1142,11 @@ async function recorrer(c: Caso, i: number): Promise<Res> {
     // y sólo una completa.)
     if (c.lender !== null) base.enListado = base.listado!.includes(c.lender);
 
-    let cierre = '';
+    let closing = '';
     if (flag('cerrar')) {
-        const r = await cerrarCreditopX(arr, ur, tel, c.amount!, post, get, c.lender, c.cuotas ?? 4);
+        const r = await closeCreditopX(arr, ur, tel, c.amount!, post, get, c.lender, c.cuotas ?? 4);
         base.cierre = r;
-        cierre = r.cerro ? ` · CERRÓ en estado ${r.estado} (${r.motivo})`
+        closing = r.cerro ? ` · CERRÓ en estado ${r.estado} (${r.motivo})`
                          : ` · NO cerró: ${r.motivo}${r.estado ? ` (quedó en estado ${r.estado})` : ''}`;
 
         // El desenlace de un rt=1 llega DESPUÉS y por otro lado: la entidad avisa por webhook. Sólo se
@@ -1159,17 +1159,17 @@ async function recorrer(c: Caso, i: number): Promise<Res> {
             const fam = await one<{ rt: number }>(
                 'SELECT response_type rt FROM lenders WHERE id=?', [c.lender]).catch(() => null);
             const w = fam?.rt === 0 ? await webhookSelfManager(ur, c.lender!, c.webhook)
-                : fam?.rt === 1 && WELLI_IDS.includes(c.lender!) ? await webhookIntegracion(ur, c.webhook)
+                : fam?.rt === 1 && WELLI_IDS.includes(c.lender!) ? await integrationWebhook(ur, c.webhook)
                 : { ok: false, detalle: fam?.rt === 1
                         ? `rt=1 fuera de la familia Welli: su webhook existe pero este runner sólo maneja el de Welli`
                         : `\`@webhook=\` no aplica a rt=${fam?.rt ?? '?'}: esa familia cierra en plataforma` };
             base.cierre = { ...r, webhook: w.detalle };
-            cierre += `\n        ${w.ok ? '↩' : '⚠'} ${w.detalle}`;
+            closing += `\n        ${w.ok ? '↩' : '⚠'} ${w.detalle}`;
         }
     }
 
     return { ...base, ok: arr.length > 0, nombre: `doc ${doc}`,
-             conducta: `listado con ${arr.length} entidades · buró dictado: ibc ${c.income!.toLocaleString('es-CO')}${cierre}` };
+             conducta: `listado con ${arr.length} entidades · buró dictado: ibc ${c.income!.toLocaleString('es-CO')}${closing}` };
 }
 
 /** Contrasta lo que cada caso DECLARA contra lo que pasó.
@@ -1186,84 +1186,84 @@ async function recorrer(c: Caso, i: number): Promise<Res> {
  * Nació el 2026-09-02 de comprobar a mano, con SQL, lo mismo tres veces: que el cliente quedara con el
  * país de su comercio, con un documento de ese país y con el celular del largo de ese país. Cada vez
  * salió bien y cada vez costó escribir la consulta. Acá queda declarada, y falla CERRADO: si la
- * solicitud no se creó, «no lo verifiqué» cuenta como desvío, igual que en `verificarEsperas`.
+ * solicitud no se creó, «no lo verifiqué» cuenta como desvío, igual que en `verifyWaits`.
  */
-async function verificarPaises(res: Res[]): Promise<Array<{ res: Res; linea: string }>> {
+async function verifyCountries(res: Res[]): Promise<Array<{ res: Res; linea: string }>> {
     const out: Array<{ res: Res; linea: string }> = [];
     for (const r of res) {
         const e = r.caso.espera?.pais;
         if (e === undefined || e === false) continue;
-        const quien = r.caso.nombre ?? `${r.caso.comercio}${r.caso.lender ? ':' + r.caso.lender : ''}`;
-        if (!r.ur) { out.push({ res: r, linea: `${quien}: espera \`pais\` y la solicitud ni se creó (${r.detalle ?? 'sin detalle'})` }); continue; }
+        const who = r.caso.nombre ?? `${r.caso.comercio}${r.caso.lender ? ':' + r.caso.lender : ''}`;
+        if (!r.ur) { out.push({ res: r, linea: `${who}: espera \`pais\` y la solicitud ni se creó (${r.detalle ?? 'sin detalle'})` }); continue; }
 
-        const fila = await one<{ uc: number; ac: number; iso3: string; doc: string; tel: string; largo: number; moneda: string; docs: string }>(
+        const rowItem = await one<{ uc: number; ac: number; iso3: string; doc: string; tel: string; largo: number; moneda: string; docs: string }>(
             `SELECT u.country_id AS uc, a.country_id AS ac, c.iso_code_2 AS iso3, u.document_type AS doc,
                     u.cell_phone AS tel, c.cell_phone_lenght AS largo, c.currency AS moneda, c.document_types AS docs
                FROM user_requests r JOIN users u ON u.id = r.user_id JOIN allieds a ON a.id = r.allied_id
                JOIN countries c ON c.id = a.country_id WHERE r.id = ?`, [r.ur]).catch(() => null);
-        if (!fila) { out.push({ res: r, linea: `${quien}: espera \`pais\` y no pude leer la solicitud ${r.ur} de la base` }); continue; }
+        if (!rowItem) { out.push({ res: r, linea: `${who}: espera \`pais\` y no pude leer la solicitud ${r.ur} de la base` }); continue; }
 
         // ⚠ mysql2 devuelve una columna JSON ya PARSEADA (array), no un string: un `JSON.parse` encima
         // revienta y el catálogo sale «vacío» para todos los países. Costó una corrida en verde falso.
-        let catalogo: string[] = [];
-        const crudo: unknown = (fila as any).docs;
-        if (Array.isArray(crudo)) catalogo = crudo.map(String);
-        else if (typeof crudo === 'string') { try { catalogo = JSON.parse(crudo); } catch { /* sin catálogo: desvío abajo */ } }
-        const largoTel = String(fila.tel ?? '').replace(/\D/g, '').length;
+        let catalog: string[] = [];
+        const raw: unknown = (rowItem as any).docs;
+        if (Array.isArray(raw)) catalog = raw.map(String);
+        else if (typeof raw === 'string') { try { catalog = JSON.parse(raw); } catch { /* sin catálogo: desvío abajo */ } }
+        const phoneLength = String(rowItem.tel ?? '').replace(/\D/g, '').length;
 
         // La REGLA, siempre que se pidió `pais` (true u objeto).
-        if (Number(fila.uc) !== Number(fila.ac)) out.push({ res: r, linea: `${quien}: el cliente quedó con country_id ${fila.uc} y su comercio es ${fila.ac} (${fila.iso3}) — nació con otro país` });
-        if (!catalogo.length) out.push({ res: r, linea: `${quien}: el país ${fila.iso3} no tiene catálogo de documentos en \`countries.document_types\`: la regla no se puede evaluar` });
-        else if (!catalogo.includes(String(fila.doc))) out.push({ res: r, linea: `${quien}: documento \`${fila.doc}\` no está en el catálogo de ${fila.iso3} [${catalogo.join(', ')}]` });
-        if (Number(fila.largo) > 0 && largoTel !== Number(fila.largo)) out.push({ res: r, linea: `${quien}: el celular tiene ${largoTel} dígitos y ${fila.iso3} pide ${fila.largo}` });
+        if (Number(rowItem.uc) !== Number(rowItem.ac)) out.push({ res: r, linea: `${who}: el cliente quedó con country_id ${rowItem.uc} y su comercio es ${rowItem.ac} (${rowItem.iso3}) — nació con otro país` });
+        if (!catalog.length) out.push({ res: r, linea: `${who}: el país ${rowItem.iso3} no tiene catálogo de documentos en \`countries.document_types\`: la regla no se puede evaluar` });
+        else if (!catalog.includes(String(rowItem.doc))) out.push({ res: r, linea: `${who}: documento \`${rowItem.doc}\` no está en el catálogo de ${rowItem.iso3} [${catalog.join(', ')}]` });
+        if (Number(rowItem.largo) > 0 && phoneLength !== Number(rowItem.largo)) out.push({ res: r, linea: `${who}: el celular tiene ${phoneLength} dígitos y ${rowItem.iso3} pide ${rowItem.largo}` });
 
         // Los valores FIJADOS, si los hay.
         if (typeof e === 'object') {
-            if (e.iso && String(fila.iso3).toUpperCase() !== e.iso.toUpperCase()) out.push({ res: r, linea: `${quien}: esperaba país ${e.iso} y el comercio es ${fila.iso3}` });
-            if (e.documento) { const ok = ([] as string[]).concat(e.documento); if (!ok.includes(String(fila.doc))) out.push({ res: r, linea: `${quien}: esperaba documento ${ok.join('|')} y quedó \`${fila.doc}\`` }); }
-            if (e.celular && largoTel !== e.celular) out.push({ res: r, linea: `${quien}: esperaba celular de ${e.celular} dígitos y tiene ${largoTel}` });
-            if (e.moneda && String(fila.moneda).toUpperCase() !== e.moneda.toUpperCase()) out.push({ res: r, linea: `${quien}: esperaba moneda ${e.moneda} y el país tiene ${fila.moneda}` });
+            if (e.iso && String(rowItem.iso3).toUpperCase() !== e.iso.toUpperCase()) out.push({ res: r, linea: `${who}: esperaba país ${e.iso} y el comercio es ${rowItem.iso3}` });
+            if (e.documento) { const ok = ([] as string[]).concat(e.documento); if (!ok.includes(String(rowItem.doc))) out.push({ res: r, linea: `${who}: esperaba documento ${ok.join('|')} y quedó \`${rowItem.doc}\`` }); }
+            if (e.celular && phoneLength !== e.celular) out.push({ res: r, linea: `${who}: esperaba celular de ${e.celular} dígitos y tiene ${phoneLength}` });
+            if (e.moneda && String(rowItem.moneda).toUpperCase() !== e.moneda.toUpperCase()) out.push({ res: r, linea: `${who}: esperaba moneda ${e.moneda} y el país tiene ${rowItem.moneda}` });
         }
     }
     return out;
 }
 
-function verificarEsperas(res: Res[]): Array<{ res: Res; linea: string }> {
+function verifyWaits(res: Res[]): Array<{ res: Res; linea: string }> {
     const out: Array<{ res: Res; linea: string }> = [];
     for (const r of res) {
         const e = r.caso.espera;
         if (!e) continue;
-        const quien = r.caso.nombre ?? `${r.caso.comercio}${r.caso.lender ? ':' + r.caso.lender : ''}`;
+        const who = r.caso.nombre ?? `${r.caso.comercio}${r.caso.lender ? ':' + r.caso.lender : ''}`;
 
         if (e.enListado !== undefined) {
             if (r.caso.lender === null) {
-                out.push({ res: r, linea: `${quien}: espera \`enListado\` pero el caso no pide ninguna entidad` });
+                out.push({ res: r, linea: `${who}: espera \`enListado\` pero el caso no pide ninguna entidad` });
             } else if (r.listado === undefined) {
-                out.push({ res: r, linea: `${quien}: espera \`enListado\` y el listado ni se obtuvo (${r.detalle ?? 'sin detalle'})` });
+                out.push({ res: r, linea: `${who}: espera \`enListado\` y el listado ni se obtuvo (${r.detalle ?? 'sin detalle'})` });
             } else if (!!r.enListado !== e.enListado) {
-                out.push({ res: r, linea: `${quien}: esperaba que la entidad ${r.caso.lender} ${e.enListado ? 'SÍ' : 'NO'}`
+                out.push({ res: r, linea: `${who}: esperaba que la entidad ${r.caso.lender} ${e.enListado ? 'SÍ' : 'NO'}`
                     + ` estuviera en el listado, y ${r.enListado ? 'sí' : 'no'} estaba — listado: [${(r.listado ?? []).join(', ')}]` });
             }
         }
 
         if (e.entidades?.length) {
             if (r.listado === undefined) {
-                out.push({ res: r, linea: `${quien}: espera entidades en el listado y el listado ni se obtuvo` });
+                out.push({ res: r, linea: `${who}: espera entidades en el listado y el listado ni se obtuvo` });
             } else {
-                const faltan = e.entidades.filter((x) => !r.listado!.includes(x));
-                if (faltan.length) {
-                    out.push({ res: r, linea: `${quien}: faltaron en el listado [${faltan.join(', ')}] — vino [${r.listado.join(', ')}]` });
+                const missing = e.entidades.filter((x) => !r.listado!.includes(x));
+                if (missing.length) {
+                    out.push({ res: r, linea: `${who}: faltaron en el listado [${missing.join(', ')}] — vino [${r.listado.join(', ')}]` });
                 }
             }
         }
 
         if (e.noEntidades?.length) {
             if (r.listado === undefined) {
-                out.push({ res: r, linea: `${quien}: espera entidades AUSENTES y el listado ni se obtuvo` });
+                out.push({ res: r, linea: `${who}: espera entidades AUSENTES y el listado ni se obtuvo` });
             } else {
-                const colados = e.noEntidades.filter((x) => r.listado!.includes(x));
-                if (colados.length) {
-                    out.push({ res: r, linea: `${quien}: no debían estar [${colados.join(', ')}] y aparecieron`
+                const leaked = e.noEntidades.filter((x) => r.listado!.includes(x));
+                if (leaked.length) {
+                    out.push({ res: r, linea: `${who}: no debían estar [${leaked.join(', ')}] y aparecieron`
                         + ` — vino [${r.listado.join(', ')}]` });
                 }
             }
@@ -1271,21 +1271,21 @@ function verificarEsperas(res: Res[]): Array<{ res: Res; linea: string }> {
 
         if (e.cierra !== undefined || e.estado !== undefined || e.radicacion !== undefined) {
             if (!r.cierre) {
-                out.push({ res: r, linea: `${quien}: declara algo del cierre pero la corrida no cerró nada`
+                out.push({ res: r, linea: `${who}: declara algo del cierre pero la corrida no cerró nada`
                     + ' — ¿faltó `CERRAR=1`? (sin eso, esto NO está verificado)' });
             } else {
                 if (e.cierra !== undefined && r.cierre.cerro !== e.cierra) {
-                    out.push({ res: r, linea: `${quien}: esperaba que ${e.cierra ? 'CERRARA' : 'NO cerrara'} y ${r.cierre.cerro ? 'cerró' : 'no cerró'}`
+                    out.push({ res: r, linea: `${who}: esperaba que ${e.cierra ? 'CERRARA' : 'NO cerrara'} y ${r.cierre.cerro ? 'cerró' : 'no cerró'}`
                         + ` — ${r.cierre.motivo}` });
                 }
                 if (e.estado !== undefined && r.cierre.estado !== e.estado) {
-                    out.push({ res: r, linea: `${quien}: esperaba estado ${e.estado} y quedó en ${r.cierre.estado ?? '—'}`
+                    out.push({ res: r, linea: `${who}: esperaba estado ${e.estado} y quedó en ${r.cierre.estado ?? '—'}`
                         + ` — ${r.cierre.motivo}` });
                 }
                 // La radicación se exige aparte del estado a propósito: son dos preguntas y la
-                // segunda puede fallar con la primera en verde (ver el comentario en `cerrarCreditopX`).
+                // segunda puede fallar con la primera en verde (ver el comentario en `closeCreditopX`).
                 if (e.radicacion !== undefined && r.cierre.radicacion !== e.radicacion) {
-                    out.push({ res: r, linea: `${quien}: esperaba radicación \`${e.radicacion}\` y quedó en `
+                    out.push({ res: r, linea: `${who}: esperaba radicación \`${e.radicacion}\` y quedó en `
                         + `\`${r.cierre.radicacion ?? 'sin transacción'}\` — el crédito puede estar autorizado y NO radicado`
                         + ` — ${r.cierre.motivo}` });
                 }
@@ -1315,27 +1315,27 @@ function verificarEsperas(res: Res[]): Array<{ res: Res; linea: string }> {
  *
  *  ⚠ Los milisegundos son de la LLAMADA, no del backend: incluyen la red y la cola del servidor de
  *  desarrollo. Con un solo worker, un número alto puede ser espera y no trabajo. */
-type Llamada = { t: number; metodo: string; ruta: string; status: number; ms: number; cuerpo?: string };
+type Call = { t: number; metodo: string; ruta: string; status: number; ms: number; cuerpo?: string };
 
 /** Bitácora por caso. La clave es el TELÉFONO porque es lo único único por caso desde el primer
  *  instante — el `uReq` recién existe a la tercera llamada, y para entonces ya hay cosas que anotar. */
-const bitacoras = new Map<string, Llamada[]>();
+const logbooks = new Map<string, Call[]>();
 
-async function volcarBitacora(res: Res, llamadas: Llamada[]): Promise<void> {
-    if (!llamadas.length) return;
+async function dumpLogbook(res: Res, calls: Call[]): Promise<void> {
+    if (!calls.length) return;
     try {
         const { mkdir, writeFile } = await import('node:fs/promises');
         const dir = new URL('../.runs/', import.meta.url);
         await mkdir(dir, { recursive: true });
-        const nombre = `caso-${res.ur ?? 'sin-ureq'}-${res.phone}.json`;
-        await writeFile(new URL(nombre, dir), JSON.stringify({
+        const name = `caso-${res.ur ?? 'sin-ureq'}-${res.phone}.json`;
+        await writeFile(new URL(name, dir), JSON.stringify({
             caso: res.caso.nombre ?? `${res.caso.comercio}${res.caso.lender ? ':' + res.caso.lender : ''}`,
             comercio: res.caso.comercio, lender: res.caso.lender,
             parametros: { amount: res.caso.amount, income: res.caso.income, score: res.caso.score },
             uReq: res.ur ?? null, telefono: res.phone,
             resultado: { ok: res.ok, conducta: res.conducta ?? null, detalle: res.detalle ?? null,
                          listado: res.listado ?? null, cierre: res.cierre ?? null },
-            llamadas,
+            llamadas: calls,
         }, null, 2) + '\n', 'utf8');
     } catch { /* la bitácora nunca puede tumbar la corrida que vino a explicar */ }
 }
@@ -1354,7 +1354,7 @@ async function volcarBitacora(res: Res, llamadas: Llamada[]): Promise<void> {
  *
  *  Se copia la fila tal cual (mismo score, mismo `data`, mismo `additional_info`) porque el objetivo es
  *  que la etapa CORRA con los datos del caso, no cambiar lo que la etapa vería. */
-async function espejarBuroParaPerfilamiento(ur: number): Promise<boolean> {
+async function mirrorBureauForProfiling(ur: number): Promise<boolean> {
     try {
         const orig = await one<{ id: number; user_id: number; score: number; data: string; info: string }>(
             `SELECT d.id, d.user_id, d.score, d.data, d.additional_info info
@@ -1365,18 +1365,18 @@ async function espejarBuroParaPerfilamiento(ur: number): Promise<boolean> {
               ORDER BY d.id DESC LIMIT 1`, [ur]);
         if (!orig) return false;
 
-        const destino = await one<{ id: number }>(
+        const target = await one<{ id: number }>(
             "SELECT id FROM risk_centrals WHERE name = 'Experian - Acierta' LIMIT 1");
-        if (!destino) return false;
+        if (!target) return false;
 
         await exec('DELETE FROM risk_central_user_data WHERE user_id=? AND risk_central_id=?',
-                   [orig.user_id, destino.id]);
+                   [orig.user_id, target.id]);
         await exec(
             'INSERT INTO risk_central_user_data (uuid, user_id, risk_central_id, score, data, additional_info, created_at, updated_at) '
             + 'VALUES (UUID(), ?, ?, ?, ?, ?, NOW(), NOW())',
             // ⚠ `additional_info` es una columna JSON y el driver la devuelve YA parseada como objeto.
             // Reinsertarla tal cual da «Invalid JSON text» — hay que volver a serializarla.
-            [orig.user_id, destino.id, orig.score, orig.data,
+            [orig.user_id, target.id, orig.score, orig.data,
              typeof orig.info === 'string' ? orig.info : JSON.stringify(orig.info ?? {})]);
         return true;
     } catch (e) {
@@ -1387,7 +1387,7 @@ async function espejarBuroParaPerfilamiento(ur: number): Promise<boolean> {
     return false;
 }
 
-/** EL SUB-FLUJO DEL CODEUDOR, de punta a punta.
+/** EL SUB-FLOW DEL CODEUDOR, de punta a punta.
  *
  *  POR QUÉ ESTÁ ACÁ Y NO SE HACE A MANO. Es el camino más frágil de rt=2 —de acá salieron F-150, F-151
  *  y F-153— y hasta hoy era el único que pedía manos: ocho endpoints, dos actores y un token que no
@@ -1407,11 +1407,11 @@ async function espejarBuroParaPerfilamiento(ur: number): Promise<boolean> {
  *  ⚠ Y el buró del codeudor se inyecta con `userId`, no derivándolo de la solicitud: **comparte la
  *  `user_request` del titular**, así que sin eso los datos irían al titular y el codeudor quedaría sin
  *  buró — con su elegibilidad fallando al LEER en vez de al decidir (F-153). */
-async function resolverCodeudor(
-    ur: number, hash: string, telTitular: string, amount: number, post: any, get: any,
+async function resolveCoSigner(
+    ur: number, hash: string, holderPhone: string, amount: number, post: any, get: any,
 ): Promise<{ ok: boolean; motivo: string; token?: string; tel?: string }> {
 
-    const tel = telefonoDelCodeudor(telTitular);
+    const tel = coSignerPhone(holderPhone);
     const doc = String(2_900_000_000 + ur);
 
     const ini = await post(`/api/v1/user-request/${ur}/cosigner-flow/start`, {});
@@ -1420,36 +1420,36 @@ async function resolverCodeudor(
     const reg = await post(`/api/v1/user-request/${ur}/cosigner`, { cellPhone: tel });
     if (reg.status !== 200) return { ok: false, motivo: `registrar codeudor HTTP ${reg.status}` };
 
-    const fila = await one<{ t: string }>(
+    const rowItem = await one<{ t: string }>(
         'SELECT invitation_token t FROM cosigners WHERE user_request_id=? AND is_active=1 ORDER BY id DESC LIMIT 1',
         [ur]).catch(() => null);
-    if (!fila?.t) return { ok: false, motivo: 'el codeudor no quedó con token de invitación' };
-    const token = fila.t;
+    if (!rowItem?.t) return { ok: false, motivo: 'el codeudor no quedó con token de invitación' };
+    const token = rowItem.t;
 
     // A partir de acá TODO va con el token: es la credencial del codeudor, no hay sesión.
-    const conToken = (extra: Record<string, string> = {}) => ({ 'X-Cosigner-Token': token, ...extra });
+    const withToken = (extra: Record<string, string> = {}) => ({ 'X-Cosigner-Token': token, ...extra });
 
-    const inv = await get(`/api/v1/user-request/cosigner/invitation/${token}`, conToken());
+    const inv = await get(`/api/v1/user-request/cosigner/invitation/${token}`, withToken());
     if (inv.status !== 200) return { ok: false, motivo: `el token de invitación no resolvió (HTTP ${inv.status})` };
 
     await post('/api/onboarding/phone/register', {
         phone_number: tel, phoneNumber: tel, terms: true, policies: true,
-        otp_length: 4, otpLength: 4, partner_branch_hash: hash, partnerBranchHash: hash }, conToken());
+        otp_length: 4, otpLength: 4, partner_branch_hash: hash, partnerBranchHash: hash }, withToken());
 
     // ⚠ Esto NO crea una solicitud nueva: con el token, el backend devuelve la del TITULAR. Es la
     // señal de que el codeudor se está uniendo y no abriendo su propio crédito.
     const otp = await post(`/api/onboarding/loan-application/otp-validate/${hash}`, {
-        cell_phone: tel, otp_code: tel.slice(-4), original_amount: amount, amount }, conToken());
-    const urCod = otp.json?.errors?.payload?.user_request_id ?? otp.json?.data?.payload?.user_request_id;
-    if (Number(urCod) !== ur) {
-        return { ok: false, motivo: `el codeudor abrió otra solicitud (${urCod ?? '—'}) en vez de unirse a ${ur}` };
+        cell_phone: tel, otp_code: tel.slice(-4), original_amount: amount, amount }, withToken());
+    const urCode = otp.json?.errors?.payload?.user_request_id ?? otp.json?.data?.payload?.user_request_id;
+    if (Number(urCode) !== ur) {
+        return { ok: false, motivo: `el codeudor abrió otra solicitud (${urCode ?? '—'}) en vez de unirse a ${ur}` };
     }
 
     const pi = await post(`/api/onboarding/loan-application/personal-info/${hash}/${ur}`, {
         document_type: 'CC', document_number: doc, name: 'ANA', surname: 'GOMEZ',
         email: `qa${doc}@gmail.com`,
         expedition_day: 10, expedition_month: 5, expedition_year: 2019,
-        birth_day: 10, birth_month: 5, birth_year: 2001 }, conToken());
+        birth_day: 10, birth_month: 5, birth_year: 2001 }, withToken());
     if (pi.json?.success !== true) {
         return { ok: false, motivo: `personal-info del codeudor: ${String(pi.json?.message ?? '').slice(0, 60)}` };
     }
@@ -1471,40 +1471,40 @@ async function resolverCodeudor(
     // El codeudor tiene su PROPIA identidad que resolver: la elegibilidad la evalúa por él, no por el
     // titular. Con `--manual` se le aprueba igual que al titular — si no, `evaluate-eligibility` puede
     // devolverlo sin evaluar y el motivo que imprime este runner ya sospecha de esto.
-    if (flag('manual')) await validacionManual(uid.u);
+    if (flag('manual')) await manualValidation(uid.u);
 
-    const ele = await post(`/api/v1/user-request/${ur}/cosigner/evaluate-eligibility`, {}, conToken());
+    const ele = await post(`/api/v1/user-request/${ur}/cosigner/evaluate-eligibility`, {}, withToken());
     const est = ele.json?.data ?? {};
     if (est.cosignerStatus !== 'approved') {
         return { ok: false, motivo: `el codeudor quedó ${est.cosignerStatus ?? '—'}`
             + (est.evaluated === false ? ' y NO se evaluó (¿le falta AML o identidad?)' : '') };
     }
 
-    const etapa = await post(`/api/v1/user-request/${ur}/cosigner/enter-signature-stage`, {}, conToken());
-    if (etapa.status !== 200) return { ok: false, motivo: `enter-signature-stage HTTP ${etapa.status}` };
+    const stage = await post(`/api/v1/user-request/${ur}/cosigner/enter-signature-stage`, {}, withToken());
+    if (stage.status !== 200) return { ok: false, motivo: `enter-signature-stage HTTP ${stage.status}` };
 
     return { ok: true, motivo: 'codeudor aprobado y en etapa de firma', token, tel };
 }
 
 /** La firma del codeudor, DESPUÉS de la del titular. Cierra el crédito de verdad. */
-async function firmaDelCodeudor(token: string, post: any, get: any): Promise<{ ok: boolean; motivo: string }> {
-    const conToken = { 'X-Cosigner-Token': token };
+async function coSignerSignature(token: string, post: any, get: any): Promise<{ ok: boolean; motivo: string }> {
+    const withToken = { 'X-Cosigner-Token': token };
     const V = '/api/v1/user-request/cosigner/signature';
 
-    await get(`${V}/context`, conToken);
-    await get(`${V}/documents`, conToken);
+    await get(`${V}/context`, withToken);
+    await get(`${V}/documents`, withToken);
 
-    const env = await post(`${V}/otp`, {}, conToken);
+    const env = await post(`${V}/otp`, {}, withToken);
     if (env.status !== 200) {
         return { ok: false, motivo: `el OTP de firma del codeudor falló (${env.json?.code ?? env.status})`
             + ' — si es URV25003, mirá `OTP_SERVICE_HOST` (F-151)' };
     }
     // ⚠ El campo se llama `otp`, no `code`: con `code` responde URV27002 «datos de entrada».
-    const ver = await post(`${V}/otp/verify`, { otp: '123456' }, conToken);
-    if (ver.json?.code !== 'URV27000') {
-        return { ok: false, motivo: `verify del codeudor: ${ver.json?.code ?? ver.status} ${String(ver.json?.message ?? '').slice(0, 50)}` };
+    const see = await post(`${V}/otp/verify`, { otp: '123456' }, withToken);
+    if (see.json?.code !== 'URV27000') {
+        return { ok: false, motivo: `verify del codeudor: ${see.json?.code ?? see.status} ${String(see.json?.message ?? '').slice(0, 50)}` };
     }
-    return { ok: true, motivo: `firmado · ${ver.json?.data?.cosignerStatus ?? ''}` };
+    return { ok: true, motivo: `firmado · ${see.json?.data?.cosignerStatus ?? ''}` };
 }
 
 /** PASOS: varias solicitudes SUCESIVAS del MISMO cliente.
@@ -1531,19 +1531,19 @@ async function firmaDelCodeudor(token: string, post: any, get: any): Promise<{ o
  *  `recurrente`, que saltea ese paso: la solicitud la crea `otp-validate`, antes. Es la diferencia
  *  real entre un cliente nuevo y uno que vuelve, y hasta hoy este harness sólo sabía probar el
  *  primero. */
-async function correrPasos(c: Caso, i: number): Promise<Res[]> {
+async function runSteps(c: Case, i: number): Promise<Res[]> {
     const out: Res[] = [];
     for (let k = 0; k < c.pasos!.length; k++) {
-        const paso = c.pasos![k];
-        const nombreBase = c.nombre ?? c.comercio;
-        const sub: Caso = {
+        const step = c.pasos![k];
+        const baseName = c.nombre ?? c.comercio;
+        const sub: Case = {
             ...c,
             pasos: undefined,
-            nombre: `${nombreBase} · paso ${k + 1}${paso.nombre ? ` (${paso.nombre})` : ''}`,
+            nombre: `${baseName} · paso ${k + 1}${step.nombre ? ` (${step.nombre})` : ''}`,
             recurrente: k > 0,
-            lender: paso.lender === undefined ? c.lender : paso.lender,
-            amount: paso.amount ?? c.amount,
-            espera: paso.espera,
+            lender: step.lender === undefined ? c.lender : step.lender,
+            amount: step.amount ?? c.amount,
+            espera: step.espera,
         };
         out.push(await correr(sub, i));
     }
@@ -1558,54 +1558,54 @@ async function correrPasos(c: Caso, i: number): Promise<Res[]> {
  *    · `CREDIFAMILIA_HOST_OAUTH` ausente → el listado revienta → «el comercio no ofrece nada» (F-142)
  *  Las tres se leen como hechos del negocio. Por eso esto avisa ANTES, en vez de dejar que el próximo
  *  las descubra una por una como pasó el 2026-08-18. */
-async function prevuelo(casos: Caso[] = []): Promise<string[]> {
-    const faltan: string[] = [];
-    const vivo = async (url: string) =>
+async function preflightCheck(cases: Case[] = []): Promise<string[]> {
+    const missing: string[] = [];
+    const alive = async (url: string) =>
         !!(await fetch(url, { signal: AbortSignal.timeout(5_000) }).catch(() => null));
 
-    if (!(await vivo(`${API}/`))) faltan.push(`el backend no responde en ${API}`);
-    if (!(await vivo(`${MOCK_LENDERS}/`))) {
-        faltan.push(`mock de integraciones caído (${MOCK_LENDERS}) → las rt=1 desaparecen del listado`
+    if (!(await alive(`${API}/`))) missing.push(`el backend no responde en ${API}`);
+    if (!(await alive(`${MOCK_LENDERS}/`))) {
+        missing.push(`mock de integraciones caído (${MOCK_LENDERS}) → las rt=1 desaparecen del listado`
             + ' y parece regla de negocio (F-140). Levantalo: node mock-lenders/server.mjs');
     }
-    if (flag('preaprobados') && !(await vivo(PREAPPROVALS.replace(/\/v1\/.*$/, '/')))) {
-        faltan.push(`mock de pre-aprobados caído (${PREAPPROVALS}). Levantalo: node mock-preapprovals/server.mjs`);
+    if (flag('preaprobados') && !(await alive(PREAPPROVALS.replace(/\/v1\/.*$/, '/')))) {
+        missing.push(`mock de pre-aprobados caído (${PREAPPROVALS}). Levantalo: node mock-preapprovals/server.mjs`);
     }
-    if (flag('lambda') && !(await vivo(`${LAMBDA}/agildata/agildata-services/rest/afiliado/historicoDetalladoEmpleo/1/1`))) {
-        faltan.push(`la lambda de centrales no responde (${LAMBDA})`);
+    if (flag('lambda') && !(await alive(`${LAMBDA}/agildata/agildata-services/rest/afiliado/historicoDetalladoEmpleo/1/1`))) {
+        missing.push(`la lambda de centrales no responde (${LAMBDA})`);
     }
     // Los dos de Credifamilia (rt=4). No se piden siempre porque sólo su cierre los toca, pero cuando
     // faltan el síntoma es el MISMO que un rechazo del negocio: la solicitud queda en estado 28 con
     // «Error de comunicación con Deceval» o con un secreto ausente, y ninguno de los dos mensajes
     // nombra al mock. Ver F-165.
     if (flag('cerrar')) {
-        if (!(await vivo(DECEVAL))) {
-            faltan.push(`mock de Deceval caído (${DECEVAL}) → Credifamilia se traba en estado 28 y parece`
+        if (!(await alive(DECEVAL))) {
+            missing.push(`mock de Deceval caído (${DECEVAL}) → Credifamilia se traba en estado 28 y parece`
                 + ' un rechazo del pagaré (F-165). Levantalo: bin/mock-deceval start');
         }
-        if (!(await vivo(NETCO))) {
-            faltan.push(`mock de Netco caído (${NETCO}) → la firma de Credifamilia falla en estado 28`
+        if (!(await alive(NETCO))) {
+            missing.push(`mock de Netco caído (${NETCO}) → la firma de Credifamilia falla en estado 28`
                 + ' (F-165). Levantalo: bin/mock-netco start');
         }
         // Éste NO traba la solicitud: sin él el backend sale al sandbox REAL del lender, la
         // solicitud llega igual a estado 11 y sólo la RADICACIÓN queda en CREDIT_ERROR. O sea que
         // faltando este mock el runner dice «cerró» y el crédito nunca se radicó.
-        if (!(await vivo(CREDIFAMILIA))) {
-            faltan.push(`mock de radicación de Credifamilia caído (${CREDIFAMILIA}) → el backend sale al`
+        if (!(await alive(CREDIFAMILIA))) {
+            missing.push(`mock de radicación de Credifamilia caído (${CREDIFAMILIA}) → el backend sale al`
                 + ' sandbox REAL del lender y la radicación queda en CREDIT_ERROR con la solicitud igual en'
                 + ' estado 11. Levantalo: bin/mock-credifamilia start');
         }
     }
     // El monolito viejo, y SÓLO si algún caso pidió el webhook: es una dependencia pesada (otro Laravel
     // entero) y exigirla siempre volvería obligatorio levantarla para correr cualquier cosa.
-    if (casos.some((c) => c.webhook)) {
-        if (!(await vivo(`${APP_VIEJA}/`))) {
-            faltan.push(`un caso pidió \`@webhook=\` y \`legacy-application\` no responde en ${APP_VIEJA}.`
+    if (cases.some((c) => c.webhook)) {
+        if (!(await alive(`${OLD_APP}/`))) {
+            missing.push(`un caso pidió \`@webhook=\` y \`legacy-application\` no responde en ${OLD_APP}.`
                 + ' Es el ÚNICO que recibe los webhooks de rt=1 (F-170). Levantalo:'
                 + ' cd ~/Desktop/CREDITOP/github/legacy-application && php artisan serve --port=8000');
         }
     }
-    return faltan;
+    return missing;
 }
 
 
@@ -1613,21 +1613,21 @@ async function prevuelo(casos: Caso[] = []): Promise<string[]> {
 /** POSTVUELO del buró: ¿el ingreso que se DICTÓ llegó de verdad? Es la única comprobación que
  *  distingue «el parámetro no influye» de «el parámetro nunca llegó», y las dos se ven igual en el
  *  listado. Si los drivers KYC están en `fake`, acá salta. */
-async function buroLlego(res: Res[]): Promise<string | null> {
-    const conUr = res.filter((r) => r.ur && r.caso.income);
-    if (!conUr.length) return null;
-    const vistos = new Set<number>();
-    for (const r of conUr) {
+async function bureauArrived(res: Res[]): Promise<string | null> {
+    const withUr = res.filter((r) => r.ur && r.caso.income);
+    if (!withUr.length) return null;
+    const seen = new Set<number>();
+    for (const r of withUr) {
         const row = await one<{ a: string }>(
             'SELECT s.agildata a FROM user_requests u JOIN user_summaries s ON s.user_id=u.user_id WHERE u.id=?',
             [r.ur]).catch(() => null);
         const m = /"last_payment_value":\s*(\d+)/.exec(row?.a ?? '');
-        if (m) vistos.add(Number(m[1]));
+        if (m) seen.add(Number(m[1]));
     }
-    const pedidos = new Set(conUr.map((r) => r.caso.income!));
-    if (vistos.size === 1 && pedidos.size > 1) {
-        return `el buró devolvió SIEMPRE ${[...vistos][0].toLocaleString('es-CO')} pese a que se`
-            + ` dictaron ${pedidos.size} ingresos distintos → los drivers KYC están en \`fake\` e`
+    const orders = new Set(withUr.map((r) => r.caso.income!));
+    if (seen.size === 1 && orders.size > 1) {
+        return `el buró devolvió SIEMPRE ${[...seen][0].toLocaleString('es-CO')} pese a que se`
+            + ` dictaron ${orders.size} ingresos distintos → los drivers KYC están en \`fake\` e`
             + ' interceptan antes que la lambda (F-139). No concluyas nada de estas corridas.';
     }
     return null;
@@ -1639,31 +1639,31 @@ async function main(): Promise<number> {
         income: Number(arg('income', '2500000')),
         score: Number(arg('score', '700')),
     };
-    const casos: Caso[] = arg('suite')
-        ? await cargarSuite(arg('suite'), dflt)
+    const cases: Case[] = arg('suite')
+        ? await loadSuite(arg('suite'), dflt)
         : arg('casos')
-            ? arg('casos').split(';').map((x) => parseCaso(x, dflt))
-            : [parseCaso(`${arg('comercio', 'pullman')}${arg('lender') ? ':' + arg('lender') : ''}`, dflt)];
+            ? arg('casos').split(';').map((x) => parseCase(x, dflt))
+            : [parseCase(`${arg('comercio', 'pullman')}${arg('lender') ? ':' + arg('lender') : ''}`, dflt)];
     const par = flag('paralelo');
 
-    console.log(`\n  CASOS · ${casos.length} · ${par ? 'EN PARALELO' : 'en serie'} · ${API}\n`);
+    console.log(`\n  CASOS · ${cases.length} · ${par ? 'EN PARALELO' : 'en serie'} · ${API}\n`);
     // La línea base para conciliar al final: qué había en la base ANTES de que este runner tocara nada.
     // Son dos lecturas, así que pasan sin el permiso de escritura (que sólo cubre lo que escribe).
-    const lineaBase = await lineaBaseDeLaBase();
-    const faltan = await prevuelo(casos);
-    if (faltan.length) {
+    const baseline = await dbBaseline();
+    const missing = await preflightCheck(cases);
+    if (missing.length) {
         console.log('  ⚠ PREVUELO — falta algo, y sin esto el resultado MIENTE:\n');
-        for (const f of faltan) console.log(`      · ${f}`);
+        for (const f of missing) console.log(`      · ${f}`);
         console.log('');
         return 2;
     }
     if (flag('lambda')) {
-        const fallos = await dictarTodos(casos);
-        console.log(`  respuestas del buró pedidas a la lambda: ${casos.length - fallos.length}/${casos.length}`
-            + (fallos.length ? `  ⚠ fallaron ${fallos.join(', ')}` : '') + '\n');
+        const failures = await dictateAll(cases);
+        console.log(`  respuestas del buró pedidas a la lambda: ${cases.length - failures.length}/${cases.length}`
+            + (failures.length ? `  ⚠ fallaron ${failures.join(', ')}` : '') + '\n');
     }
     // Los teléfonos de esta tanda entran a la lista de bypass ANTES de arrancar, de una y en serie
-    // (ver `registrarBypass`). Sólo si se va a cerrar: para el listado el driver fake no mira el
+    // (ver `registerBypass`). Sólo si se va a cerrar: para el listado el driver fake no mira el
     // teléfono, así que ampliar la lista sería tocar la BD sin necesidad.
     if (flag('cerrar')) {
         // ⚠ Tiene que resolver el país ANTES, igual que el motor: si acá se arma el teléfono con la
@@ -1676,17 +1676,17 @@ async function main(): Promise<number> {
         // decide la POLÍTICA de la categoría en la que caiga el usuario, no el caso—, así que se
         // registran los dos siempre: el par cuesta una entrada en una lista que se restaura al
         // terminar, y su ausencia trababa el cierre de toda entidad con codeudor.
-        const tels = (await Promise.all(casos.map(async (c, i) => {
-            const br = await buscarSucursal(c.comercio);
-            if (!br) return telefonoDe(i, 'COL');            // el caso va a fallar solo con «no encontré»
-            const iso = await paisDelComercio(br.hash);
-            if (iso === null) throw new Error(`${c.comercio}: ${SIN_PAIS}`);
-            return telefonoDe(i, iso);
-        }))).flatMap((t) => [t, telefonoDelCodeudor(t)]);
+        const tels = (await Promise.all(cases.map(async (c, i) => {
+            const br = await findBranch(c.comercio);
+            if (!br) return phoneOf(i, 'COL');            // el caso va a fallar solo con «no encontré»
+            const iso = await merchantCountry(br.hash);
+            if (iso === null) throw new Error(`${c.comercio}: ${NO_COUNTRY}`);
+            return phoneOf(i, iso);
+        }))).flatMap((t) => [t, coSignerPhone(t)]);
         // ⚠ El aviso NOMBRA la causa. Sin eso, la corrida no muere acá: muere en la firma, con 422 y la
         // solicitud en estado 10 — un síntoma que no se parece en nada a «faltó un permiso de escritura».
-        const r = await registrarBypass(tels).catch((e) => ({ ok: false as const, motivo: e instanceof Error ? e.message : String(e) }));
-        if (r.ok) bypassPuesto = r.puesto;
+        const r = await registerBypass(tels).catch((e) => ({ ok: false as const, motivo: e instanceof Error ? e.message : String(e) }));
+        if (r.ok) bypassSet = r.puesto;
         else {
             console.log(`  ⚠ no se pudo ampliar \`qa_otp_bypass_phones\`, así que la firma del pagaré va a fallar`
                 + ` con 422 y la solicitud va a quedar en estado 10, que no se parece a la causa: ${r.motivo}\n`);
@@ -1696,16 +1696,16 @@ async function main(): Promise<number> {
     const t0 = Date.now();
     // Un caso con `pasos` devuelve VARIOS resultados; uno normal, uno. Se aplana para que el resto del
     // reporte —y el verificador— no tengan que saber de la diferencia.
-    const unCaso = (c: Caso, i: number): Promise<Res[]> =>
-        (c.pasos?.length ? correrPasos(c, i) : correr(c, i).then((r) => [r]))
+    const oneCase = (c: Case, i: number): Promise<Res[]> =>
+        (c.pasos?.length ? runSteps(c, i) : correr(c, i).then((r) => [r]))
             .catch((e) => [{ caso: c, ok: false, phone: '', detalle: String(e).slice(0, 90) } as Res]);
 
     const res = par
-        ? (await Promise.all(casos.map((c, i) => unCaso(c, i)))).flat()
+        ? (await Promise.all(cases.map((c, i) => oneCase(c, i)))).flat()
         : await (async () => {
             const out: Res[] = [];
-            for (let i = 0; i < casos.length; i++) {
-                out.push(...await unCaso(casos[i], i));
+            for (let i = 0; i < cases.length; i++) {
+                out.push(...await oneCase(cases[i], i));
             }
             return out;
         })();
@@ -1730,22 +1730,22 @@ async function main(): Promise<number> {
     }
     // EL CONTRASTE, que es para lo que sirve correr varios. Una lista por caso obliga a diffear a
     // ojo, y el ojo se equivoca justo cuando los conjuntos son parecidos — que es el caso interesante.
-    const conListado = res.filter((r) => r.listado?.length);
-    if (conListado.length > 1) {
-        const sets = conListado.map((r) => new Set(r.listado!));
-        const comun = [...sets[0]].filter((x) => sets.every((s) => s.has(x)));
+    const withListing = res.filter((r) => r.listado?.length);
+    if (withListing.length > 1) {
+        const sets = withListing.map((r) => new Set(r.listado!));
+        const common = [...sets[0]].filter((x) => sets.every((s) => s.has(x)));
         console.log(`\n  EN QUÉ SE DIFERENCIAN\n`);
-        console.log(`    en TODOS los casos : ${comun.length ? comun.join(', ') : '(ninguna)'}`);
-        for (let k = 0; k < conListado.length; k++) {
-            const solo = conListado[k].listado!.filter((x) => !sets.every((s) => s.has(x)));
-            const c = conListado[k].caso;
-            const etiq = `${c.comercio}${c.lender === null ? '' : ':' + c.lender}`;
-            console.log(`    sólo en ${etiq.padEnd(18)}: ${solo.length ? solo.join(', ') : '(nada propio)'}`);
+        console.log(`    en TODOS los casos : ${common.length ? common.join(', ') : '(ninguna)'}`);
+        for (let k = 0; k < withListing.length; k++) {
+            const only = withListing[k].listado!.filter((x) => !sets.every((s) => s.has(x)));
+            const c = withListing[k].caso;
+            const lbl = `${c.comercio}${c.lender === null ? '' : ':' + c.lender}`;
+            console.log(`    sólo en ${lbl.padEnd(18)}: ${only.length ? only.join(', ') : '(nada propio)'}`);
         }
         // ⚠ listados IDÉNTICOS no significan «el parámetro no influye»: puede significar que el
         // parámetro nunca llegó. Con `--lambda`, la comprobación es que `approximate_real_salary` en
         // `user_summaries` sea distinto por caso (ver F-139).
-        if (conListado.every((r) => r.listado!.length === comun.length)) {
+        if (withListing.every((r) => r.listado!.length === common.length)) {
             console.log(`\n    ⚠ todos idénticos. Antes de concluir «no influye», verificá que el dato`);
             console.log(`      LLEGÓ: SELECT agildata FROM user_summaries WHERE user_id=… (F-139)`);
         }
@@ -1753,63 +1753,63 @@ async function main(): Promise<number> {
 
     // El recuento del cierre va aparte del de casos: «sin CreditopX» NO es un fallo, es un hecho del
     // comercio, y mezclarlos haría ver rota la mitad del catálogo.
-    const conCierre = res.filter((r) => r.cierre);
-    if (conCierre.length) {
-        const cerraron = conCierre.filter((r) => r.cierre!.cerro).length;
-        const sinCtopx = conCierre.filter((r) => r.cierre!.motivo === 'sin CreditopX').length;
+    const withClosing = res.filter((r) => r.cierre);
+    if (withClosing.length) {
+        const closedOnes = withClosing.filter((r) => r.cierre!.cerro).length;
+        const withoutCtopx = withClosing.filter((r) => r.cierre!.motivo === 'sin CreditopX').length;
         // Los que deciden AFUERA (rt=0/1) no se cuentan como trabados: no hay cierre que probar acá.
-        const afuera = conCierre.filter((r) => r.cierre!.fueraDePlataforma).length;
-        const trabados = conCierre.length - cerraron - sinCtopx - afuera;
+        const outside = withClosing.filter((r) => r.cierre!.fueraDePlataforma).length;
+        const stuck = withClosing.length - closedOnes - withoutCtopx - outside;
         // El encabezado decía «CIERRE rt=2» siempre, incluso corriendo rt=3 y rt=4 — un rótulo que
         // contradice a la línea de abajo y hace dudar de cuál de las dos es la cierta.
         // Un caso que cerró POR WEBHOOK no cerró «en plataforma», pero tampoco se quedó sin desenlace:
         // contarlo sólo como «decide afuera» lo esconde, que es el error contrario al que se arregló
         // antes. Se cuenta aparte, con su propia palabra.
-        const porWebhook = conCierre.filter((r) => r.cierre!.webhook?.startsWith('webhook')).length;
-        console.log(`\n  CIERRE — ${cerraron} cerraron en estado 11 · ${sinCtopx} sin CreditopX`
-            + (afuera ? ` · ${afuera} deciden afuera (rt=0/1)` : '')
-            + (porWebhook ? ` · ${porWebhook} con desenlace por webhook` : '')
-            + (trabados ? ` · ⚠ ${trabados} se trabaron` : ''));
-        for (const r of conCierre.filter((x) => !x.cierre!.cerro && x.cierre!.motivo !== 'sin CreditopX'
+        const byWebhook = withClosing.filter((r) => r.cierre!.webhook?.startsWith('webhook')).length;
+        console.log(`\n  CIERRE — ${closedOnes} cerraron en estado 11 · ${withoutCtopx} sin CreditopX`
+            + (outside ? ` · ${outside} deciden afuera (rt=0/1)` : '')
+            + (byWebhook ? ` · ${byWebhook} con desenlace por webhook` : '')
+            + (stuck ? ` · ⚠ ${stuck} se trabaron` : ''));
+        for (const r of withClosing.filter((x) => !x.cierre!.cerro && x.cierre!.motivo !== 'sin CreditopX'
                                                && !x.cierre!.fueraDePlataforma)) {
             console.log(`      ⚠ ${r.caso.comercio}: ${r.cierre!.motivo}`
                 + (r.cierre!.estado ? ` · quedó en estado ${r.cierre!.estado}` : ''));
         }
     }
 
-    const mentira = await buroLlego(res);
-    if (mentira) console.log(`\n  ⚠ ${mentira}`);
+    const lie = await bureauArrived(res);
+    if (lie) console.log(`\n  ⚠ ${lie}`);
 
-    const malos = res.filter((r) => !r.ok).length;
-    console.log(`\n  ${res.length - malos}/${res.length} cerraron · ${((Date.now() - t0) / 1000).toFixed(1)}s`);
-    await conciliarConLaBase(lineaBase, res.length - malos);
+    const badList = res.filter((r) => !r.ok).length;
+    console.log(`\n  ${res.length - badList}/${res.length} cerraron · ${((Date.now() - t0) / 1000).toFixed(1)}s`);
+    await reconcileWithDb(baseline, res.length - badList);
 
-    const desvios = [...verificarEsperas(res), ...await verificarPaises(res)];
-    if (desvios.length) {
+    const deviations = [...verifyWaits(res), ...await verifyCountries(res)];
+    if (deviations.length) {
         console.log('\n  ⚠ NO CUMPLIERON LO QUE DECLARAN:\n');
-        for (const d of desvios) console.log(`      · ${d.linea}`);
+        for (const d of deviations) console.log(`      · ${d.linea}`);
         console.log('');
 
         // Y para los que se desviaron, la otra mitad: qué DECIDIÓ el backend. «La entidad no salió en
         // el listado» es el desvío más común, y una regla que excluye una entidad **no mueve ningún
         // estado ni cambia ningún status HTTP** — así que la bitácora no puede explicarlo y el log de
         // reglas sí. Se pide una sola vez por solicitud aunque haya varios desvíos del mismo caso.
-        for (const ur of new Set(desvios.map((d) => d.res.ur).filter(Boolean))) {
-            await forenseAlCerrar(ur!, { existe: true, ok: false, malo: false, miente: [] }).catch(() => {});
+        for (const ur of new Set(deviations.map((d) => d.res.ur).filter(Boolean))) {
+            await forensicOnClose(ur!, { existe: true, ok: false, malo: false, miente: [] }).catch(() => {});
         }
         return 1;
     }
     if (res.some((r) => r.caso.espera)) {
-        const conEspera = res.filter((r) => r.caso.espera).length;
-        console.log(`  ✓ ${conEspera} ${conEspera === 1 ? 'caso cumplió' : 'casos cumplieron'} lo que declaran\n`);
+        const withWait = res.filter((r) => r.caso.espera).length;
+        console.log(`  ✓ ${withWait} ${withWait === 1 ? 'caso cumplió' : 'casos cumplieron'} lo que declaran\n`);
     }
     // ⚠ uReq REPETIDO entre casos sería la señal de que se pisaron. Con teléfono por caso no debería
     // pasar nunca; si pasa, hay un recurso compartido de verdad y hay que ir a buscarlo.
-    const urs = res.map((r) => r.ur).filter(Boolean);
-    if (new Set(urs).size !== urs.length) console.log('  ⚠ DOS CASOS COMPARTIERON SOLICITUD — se pisaron');
+    const urList = res.map((r) => r.ur).filter(Boolean);
+    if (new Set(urList).size !== urList.length) console.log('  ⚠ DOS CASOS COMPARTIERON SOLICITUD — se pisaron');
     console.log();
-    await anotar(res, malos);
-    return malos ? 1 : 0;
+    await annotate(res, badList);
+    return badList ? 1 : 0;
 }
 
 /**
@@ -1819,41 +1819,41 @@ async function main(): Promise<number> {
  * tarea tres semanas después: lo que se pega tiene que decir QUÉ entidades salieron y DÓNDE terminó
  * cada caso, que es lo que alguien va a querer contrastar. El conteo va igual, pero de segundo.
  */
-async function anotar(res: Res[], malos: number): Promise<void> {
+async function annotate(res: Res[], badList: number): Promise<void> {
     if (process.env.MD !== '1' && !process.env.BLOQUE) return;
-    const { emitir, cmdMake } = await import('../pkg/anotacion.ts');
+    const { emit, cmdMake } = await import('../pkg/anotacion.ts');
     // El target sale del env, que es donde este runner lo fija (arriba, con `||=`): no hay una
     // constante que importar, y leer otra cosa sería inventar un segundo lugar donde vive el ambiente.
     const TARGET = process.env.E2E_TARGET || 'local';
-    const conCierre = res.filter((r) => r.cierre);
-    const cerraron = conCierre.filter((r) => r.cierre!.cerro).length;
+    const withClosing = res.filter((r) => r.cierre);
+    const closedOnes = withClosing.filter((r) => r.cierre!.cerro).length;
 
-    const resumen = `${res.length - malos}/${res.length} caso(s) en \`${TARGET}\``
-        + (conCierre.length ? ` · ${cerraron}/${conCierre.length} cerraron en estado 11` : ' (sin `CERRAR`: llega al listado)')
+    const summary = `${res.length - badList}/${res.length} caso(s) en \`${TARGET}\``
+        + (withClosing.length ? ` · ${closedOnes}/${withClosing.length} cerraron en estado 11` : ' (sin `CERRAR`: llega al listado)')
         + '.';
     // Una línea por caso: qué se pidió, qué le salió y dónde terminó. El listado va con los ids porque
     // es la respuesta a «¿por qué a este comercio le sale ESA entidad?», que es para lo que se corre.
-    const evidencia = res.map((r) => {
-        const partes = [`${r.ok ? '✔' : '✘'} ${r.caso.comercio}`];
-        if (r.caso.lender) partes.push(`entidad ${r.caso.lender}`);
-        if (r.ur) partes.push(`uReq ${r.ur}`);
-        if (r.listado?.length) partes.push(`listado [${r.listado.join(', ')}]`);
+    const evidence = res.map((r) => {
+        const parts = [`${r.ok ? '✔' : '✘'} ${r.caso.comercio}`];
+        if (r.caso.lender) parts.push(`entidad ${r.caso.lender}`);
+        if (r.ur) parts.push(`uReq ${r.ur}`);
+        if (r.listado?.length) parts.push(`listado [${r.listado.join(', ')}]`);
         if (r.cierre) {
-            partes.push(r.cierre.cerro
+            parts.push(r.cierre.cerro
                 ? `cerró${r.cierre.estado ? ` en estado ${r.cierre.estado}` : ''}`
                 : `NO cerró: ${r.cierre.motivo}`);
         }
-        if (!r.ok && r.detalle) partes.push(r.detalle);
-        return partes.join(' · ');
+        if (!r.ok && r.detalle) parts.push(r.detalle);
+        return parts.join(' · ');
     });
-    emitir(resumen, cmdMake('harness-caso', TARGET, {
+    emit(summary, cmdMake('harness-caso', TARGET, {
         SUITE: arg('suite'), CASOS: arg('casos'), COMERCIO: arg('comercio'), LENDER: arg('lender'),
         MONTO: arg('amount'), PAR: flag('paralelo') ? 1 : '', LAMBDA: flag('lambda') ? 1 : '',
         PRE: flag('preaprobados') ? 1 : '', CERRAR: flag('cerrar') ? 1 : '', MANUAL: flag('manual') ? 1 : '',
-    }), evidencia);
+    }), evidence);
 }
 
 const code = await main().catch((e) => { console.error('\n  ✗', e); return 1; });
-await restaurarBypass(bypassPuesto);
+await restoreBypass(bypassSet);
 await close().catch(() => {});
 process.exit(code);

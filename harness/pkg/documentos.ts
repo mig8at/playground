@@ -1,5 +1,5 @@
 /**
- * El NÚMERO DE DOCUMENTO sintético, con la forma que pide el país del comercio.
+ * El NÚMERO DE DOCUMENT sintético, con la forma que pide el país del comercio.
  *
  * POR QUÉ EXISTE. El caminador generaba siempre un documento de 10 dígitos —forma colombiana— y lo
  * usaba en todos los comercios. Contra CeluRD (República Dominicana) el recorrido moría en
@@ -18,17 +18,17 @@
  * `CED`/`NUI`, `DNI`/`CE`) pero **no el largo**. Quien vaya a buscarlo ahí no lo va a encontrar.
  */
 
-/** Cuántos dígitos pide cada país. La clave es el ISO-3 que devuelve `formaDeLaSucursal`. */
-export const LARGO_DEL_DOCUMENTO: Record<string, number> = {
+/** Cuántos dígitos pide cada país. La clave es el ISO-3 que devuelve `branchShape`. */
+export const DOCUMENT_LENGTH: Record<string, number> = {
       COL: 10,   // cédula de ciudadanía
       DOM: 11,   // cédula dominicana — el front lo valida como EXACTAMENTE 11
       PER: 8,    // DNI
 };
 
 /**
- * El TECHO numérico, que es una regla distinta del largo y por eso va en su propia tabla.
+ * El CEILING numérico, que es una regla distinta del largo y por eso va en su propia tabla.
  *
- * ⚠ NO ES DEL DOCUMENTO: es del proveedor de KYC (TusDatos), y el backend lo dice con todas las letras
+ * ⚠ NO ES DEL DOCUMENT: es del proveedor de KYC (TusDatos), y el backend lo dice con todas las letras
  * en los DOS módulos —`Modules/Onboarding/App/Http/Requests/PersonalInfoRequest.php:125` y
  * `Modules/OnboardingV2/App/Http/Requests/StorePersonalInfoRequest.php:164`, verificados contra `main` el
  * 2026-09-18—. Aplica **sólo a un `CC` numérico**, que hoy existe únicamente en Colombia; por eso la
@@ -37,34 +37,34 @@ export const LARGO_DEL_DOCUMENTO: Record<string, number> = {
  * El piso (10.000) lo cumple cualquier número de 5 dígitos o más con el primero distinto de 0, así que
  * no hace falta tabularlo: lo garantiza el armado.
  */
-export const TECHO_DEL_DOCUMENTO: Record<string, number> = {
+export const DOCUMENT_CEILING: Record<string, number> = {
       COL: 3_000_000_000,
 };
 
 /** El largo por defecto cuando el país no está en la tabla: el respaldo que usa el front. */
-export const LARGO_POR_DEFECTO = 10;
+export const DEFAULT_LENGTH = 10;
 
 /**
  * Un documento con la forma del país, distinto por caso y reproducible dentro de una corrida.
  *
- * Los DOS ÚLTIMOS dígitos son el índice del caso —igual que en `telefonoSintetico`— porque es lo que
+ * Los DOS ÚLTIMOS dígitos son el índice del caso —igual que en `syntheticPhone`— porque es lo que
  * garantiza uno por caso, que es la condición para correr en paralelo. El resto sale de la base.
  */
-export function documentoSintetico(iso: string, indice: number, base: number): string {
-      const largo = LARGO_DEL_DOCUMENTO[(iso || '').toUpperCase()] ?? LARGO_POR_DEFECTO;
-      const idx = String(indice % 100).padStart(2, '0');
+export function syntheticDocument(iso: string, index: number, base: number): string {
+      const length = DOCUMENT_LENGTH[(iso || '').toUpperCase()] ?? DEFAULT_LENGTH;
+      const idx = String(index % 100).padStart(2, '0');
       // Se repite la base para tener siempre dígitos de sobra, y se toma la COLA: lo que varía entre
-      // corridas está al final (misma razón que en `telefonoSintetico`; rellenar desde el principio hace
+      // corridas está al final (misma razón que en `syntheticPhone`; rellenar desde el principio hace
       // que dos tandas del mismo día produzcan casi el mismo número y choquen de usuario).
-      const digitos = String(base).replace(/\D/g, '').repeat(3);
-      const cuerpo = digitos.slice(digitos.length - Math.max(largo - idx.length, 0));
+      const digits = String(base).replace(/\D/g, '').repeat(3);
+      const body = digits.slice(digits.length - Math.max(length - idx.length, 0));
 
-      const armado = (cuerpo + idx).slice(-largo);
+      const built = (body + idx).slice(-length);
 
       // ⚠ EL PRIMER DÍGITO SE CORRIGE POR DOS MOTIVOS DISTINTOS, y el segundo costó una corrida entera.
       //
       //   1. no puede ser 0: varios validadores lo leen como número y el largo se pierde;
-      //   2. y donde hay TECHO tampoco puede ser cualquiera. Tomar la COLA de la base es justo lo que
+      //   2. y donde hay CEILING tampoco puede ser cualquiera. Tomar la COLA de la base es justo lo que
       //      tira el prefijo que la hacía válida: el caminador arranca de `BASE_DOC ≈ 1.09e9` —elegida
       //      dentro del rango— y la cola de 8 dígitos de `1095536491` es `95536491`, o sea un documento
       //      de **9.553.649.100**, tres veces por encima del techo.
@@ -79,8 +79,8 @@ export function documentoSintetico(iso: string, indice: number, base: number): s
       //
       // Forzar el `1` alcanza mientras el techo esté por encima de 2·10^(largo-1) (con 10 dígitos, todo
       // lo que empiece en 1 es < 2e9 < 3e9). `documentos.spec.ts` fija el rango, no esta línea.
-      const techo = TECHO_DEL_DOCUMENTO[(iso || '').toUpperCase()];
-      const seExcede = techo !== undefined && Number(armado) > techo;
+      const ceiling = DOCUMENT_CEILING[(iso || '').toUpperCase()];
+      const exceeds = ceiling !== undefined && Number(built) > ceiling;
 
-      return (armado.startsWith('0') || seExcede) ? `1${armado.slice(1)}` : armado;
+      return (built.startsWith('0') || exceeds) ? `1${built.slice(1)}` : built;
 }

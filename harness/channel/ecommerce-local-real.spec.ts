@@ -1,7 +1,7 @@
 import { expect, test } from '@playwright/test';
 import { execFileSync } from 'node:child_process';
 import { fillAmountStep, fillPhoneStep } from '../channel/steps';
-import { contratoParaSpec } from '../pkg/ecommerce';
+import { contractForSpec } from '../pkg/ecommerce';
 import { Flow } from '../pkg/flow';
 
 /**
@@ -38,7 +38,7 @@ async function buildCheckoutPath(phone?: string): Promise<string> {
     // ÚNICO por corrida, así que cada run crea una fila fresca en vez de reusar la misma.
     // El celular va DENTRO del contrato: en ecommerce el input llega prellenado y bloqueado, así
     // que es el único lugar donde un spec puede fijar uno único por corrida.
-    const c = await contratoParaSpec('amoblar', phone ? { phone } : {});
+    const c = await contractForSpec('amoblar', phone ? { phone } : {});
     return c.checkout_path;
 }
 

@@ -7,15 +7,15 @@
 // caminador del wizard hacía falta exactamente lo mismo con OTRO mapa de campos, y copiarla habría dejado
 // dos implementaciones divergiendo: la trampa que `harness/CLAUDE.md` prohíbe explícitamente.
 //
-// Ahora es una sola implementación con dos mapas: `CAMPOS_QR` en `pkg/qr-steps.ts` y `CAMPOS_WIZARD` en
+// Ahora es una sola implementación con dos mapas: `QR_FIELDS` en `pkg/qr-steps.ts` y `WIZARD_FIELDS` en
 // `pkg/wizard-navegador.ts`. Lo específico de cada canal es QUÉ campos hay y qué valor va; lo genérico
 // —cómo se llena y cómo se verifica que quedó— vive acá.
 import type { Page } from '@playwright/test';
-import { MESES, esTrioDeFecha, fechaDeLaPantalla, fechasSinteticas, parteDeCombo, valorBuscado, yaMuestra } from './fecha-trio.ts';
+import { MONTHS, isDateTrio, screenDate, syntheticDates, comboPart, searchedValue, alreadyShows } from './fecha-trio.ts';
 
 /** Un campo de la pantalla, con el valor YA resuelto. Se busca por testid, por etiqueta y por `name`,
  *  en ese orden: los tres existen en este front y ninguno solo alcanza para todas las pantallas. */
-export type Campo = {
+export type Field = {
     /** `data-testid`, que es lo más estable donde el front lo pone. */
     testId?: string;
     /** Etiqueta visible. Es el fallback preferido: el input controlado suele NO tener `name`. */
@@ -36,14 +36,14 @@ export type Campo = {
  * La sonda es un checkbox de Radix: se le hace click hasta que su `data-state` responde `checked`. Si la
  * pantalla no tiene ninguno no hay sonda posible y se devuelve `true` (no se puede afirmar, no se bloquea).
  */
-export async function esperarHidratacion(page: Page, timeout = 15_000): Promise<boolean> {
-    const cajas = page.locator('button[role="checkbox"]');
-    await cajas.first().waitFor({ state: 'visible', timeout }).catch(() => {});
-    if (!(await cajas.count().catch(() => 0))) return true;
-    const hasta = Date.now() + timeout;
-    while (Date.now() < hasta) {
-        await cajas.first().click({ timeout: 2_000 }).catch(() => {});
-        if ((await cajas.first().getAttribute('data-state').catch(() => null)) === 'checked') return true;
+export async function waitForHydration(page: Page, timeout = 15_000): Promise<boolean> {
+    const boxes = page.locator('button[role="checkbox"]');
+    await boxes.first().waitFor({ state: 'visible', timeout }).catch(() => {});
+    if (!(await boxes.count().catch(() => 0))) return true;
+    const until = Date.now() + timeout;
+    while (Date.now() < until) {
+        await boxes.first().click({ timeout: 2_000 }).catch(() => {});
+        if ((await boxes.first().getAttribute('data-state').catch(() => null)) === 'checked') return true;
         await page.waitForTimeout(250);
     }
     return false;
@@ -57,17 +57,17 @@ export async function esperarHidratacion(page: Page, timeout = 15_000): Promise<
  * garantiza que el valor sobreviva —hidratación, o una máscara que rechaza el formato—. Si no quedó,
  * reintenta una vez y si tampoco, lo reporta con `⚠no quedó` en vez de dar por hecho que se llenó.
  */
-export async function autorrellenar(page: Page, campos: Campo[],
+export async function autofill(page: Page, fields: Field[],
     opts: {
         hidratar?: boolean; t?: number; preferirRadio?: RegExp;
-        /** Las dos fechas sintéticas. Ausente → las del entorno (`fechasSinteticas()`). */
+        /** Las dos fechas sintéticas. Ausente → las del entorno (`syntheticDates()`). */
         fechas?: { nacimiento: string; expedicion: string };
     } = {}): Promise<string[]> {
-    const hechos: string[] = [];
+    const facts: string[] = [];
     const t = opts.t ?? 3_000;
-    if (opts.hidratar !== false) await esperarHidratacion(page, 10_000);
+    if (opts.hidratar !== false) await waitForHydration(page, 10_000);
 
-    for (const c of campos) {
+    for (const c of fields) {
         if (!c.valor) continue;
         // ⚠ El nombre que se reporta es el de la estrategia que MATCHEÓ, no el primero de la lista. La
         // primera versión reportaba siempre el testid y decía `docnum-input=…` cuando en realidad había
@@ -88,7 +88,7 @@ export async function autorrellenar(page: Page, campos: Campo[],
         if (!(await loc.isVisible().catch(() => false))) continue;
         if (await loc.inputValue().catch(() => '')) continue;      // ya tenía valor: no se pisa
 
-        const escribir = async () => {
+        const write = async () => {
             if (c.tecleado) {
                 await loc!.click({ timeout: t }).catch(() => {});
                 await loc!.pressSequentially(c.valor!, { delay: 40, timeout: t }).catch(() => {});
@@ -96,10 +96,10 @@ export async function autorrellenar(page: Page, campos: Campo[],
                 await loc!.fill(c.valor!, { timeout: t }).catch(() => {});
             }
         };
-        await escribir();
-        let quedo = (await loc.inputValue().catch(() => '')) !== '';
-        if (!quedo) { await page.waitForTimeout(400); await escribir(); quedo = (await loc.inputValue().catch(() => '')) !== ''; }
-        hechos.push(`${via || 'campo'}=${c.valor}${quedo ? '' : ' ⚠no quedó'}`);
+        await write();
+        let remained = (await loc.inputValue().catch(() => '')) !== '';
+        if (!remained) { await page.waitForTimeout(400); await write(); remained = (await loc.inputValue().catch(() => '')) !== ''; }
+        facts.push(`${via || 'campo'}=${c.valor}${remained ? '' : ' ⚠no quedó'}`);
     }
 
     // Selects sin elegir → primera opción real (la 0 suele ser el placeholder «Selecciona…»).
@@ -107,9 +107,9 @@ export async function autorrellenar(page: Page, campos: Campo[],
     for (let i = 0; i < (await selects.count().catch(() => 0)); i += 1) {
         const s = selects.nth(i);
         if (await s.inputValue().catch(() => '')) continue;
-        const opciones = await s.locator('option').evaluateAll((els) =>
+        const options = await s.locator('option').evaluateAll((els) =>
             els.map((e) => (e as HTMLOptionElement).value).filter((v) => v && v !== '0')).catch(() => []);
-        if (opciones.length) await s.selectOption(opciones[0]).then(() => hechos.push(`select→${opciones[0]}`)).catch(() => {});
+        if (options.length) await s.selectOption(options[0]).then(() => facts.push(`select→${options[0]}`)).catch(() => {});
     }
 
     // SELECTS DE RADIX (`Select`/`SelectTrigger` del UI kit) — no son `<select>` y el bloque de arriba no
@@ -118,7 +118,7 @@ export async function autorrellenar(page: Page, campos: Campo[],
     // un mensaje de error. El trigger es un `button[role=combobox]` y las opciones se renderizan en un
     // PORTAL (fuera del form) como `[role=option]`, así que hay que abrir y clickear, no `selectOption`.
     const combos = page.locator('button[role="combobox"]:visible');
-    const cuantosCombos = await combos.count().catch(() => 0);
+    const comboCount = await combos.count().catch(() => 0);
 
     /* ── EL TRÍO DE FECHA, PRIMERO Y CON LA REGLA COMPARTIDA ──────────────────────────────────────
      * ⚠ Sin esto, el bloque genérico de abajo elegía `[role=option].first()` en cada combo y armaba
@@ -129,27 +129,27 @@ export async function autorrellenar(page: Page, campos: Campo[],
      * ahora los dos la leen de `pkg/fecha-trio.ts`.
      *
      * Se resuelve ANTES que el loop genérico y marca sus índices para que aquél no los repise. */
-    const indicesDeFecha = new Set<number>();
-    if (cuantosCombos >= 3) {
-        const textos: string[] = [];
-        for (let i = 0; i < cuantosCombos; i += 1) {
-            textos.push(((await combos.nth(i).textContent().catch(() => '')) ?? '').trim());
+    const dateIndices = new Set<number>();
+    if (comboCount >= 3) {
+        const texts: string[] = [];
+        for (let i = 0; i < comboCount; i += 1) {
+            texts.push(((await combos.nth(i).textContent().catch(() => '')) ?? '').trim());
         }
         /* La ETIQUETA es la misma señal que el texto acá: un combo de Radix vacío muestra su
-           placeholder («Día*»), que es exactamente lo que `parteDeCombo` sabe leer. */
-        const partes = textos.map((txt, i) => parteDeCombo(txt, txt, i, MESES));
-        const candidatos = partes.map((p, i) => ({ p, i })).filter((x) => x.p !== null);
+           placeholder («Día*»), que es exactamente lo que `comboPart` sabe leer. */
+        const parts = texts.map((txt, i) => comboPart(txt, txt, i, MONTHS));
+        const candidates = parts.map((p, i) => ({ p, i })).filter((x) => x.p !== null);
 
-        if (esTrioDeFecha(candidatos.map((x) => x.p))) {
-            const arriba = ((await page.locator('body').innerText().catch(() => '')) ?? '').slice(0, 400);
-            const { nacimiento, expedicion } = opts.fechas ?? fechasSinteticas();
-            const fecha = fechaDeLaPantalla(arriba, nacimiento, expedicion);
+        if (isDateTrio(candidates.map((x) => x.p))) {
+            const up = ((await page.locator('body').innerText().catch(() => '')) ?? '').slice(0, 400);
+            const { nacimiento: birth, expedicion: issuance } = opts.fechas ?? syntheticDates();
+            const date = screenDate(up, birth, issuance);
 
             /* EN ORDEN, y no en paralelo: en este trío el siguiente combo se habilita al elegir el
                anterior (día → mes → año), así que saltárselo deja los dos últimos deshabilitados. */
-            for (const { p, i } of candidatos) {
-                const buscado = valorBuscado(p!, fecha, MESES);
-                if (yaMuestra(textos[i], buscado)) { indicesDeFecha.add(i); continue; }   // idempotente: ya está elegido
+            for (const { p, i } of candidates) {
+                const searched = searchedValue(p!, date, MONTHS);
+                if (alreadyShows(texts[i], searched)) { dateIndices.add(i); continue; }   // idempotente: ya está elegido
                 const cb = combos.nth(i);
                 if (!(await cb.isEnabled().catch(() => false))) continue;
                 await cb.click({ timeout: t }).catch(() => {});
@@ -157,21 +157,21 @@ export async function autorrellenar(page: Page, campos: Campo[],
                    `05` y el mes por nombre o por número según la pantalla; quedarse con `buscado[0]`
                    dejaba sin elegir a la mitad de las variantes — y el match es ANCLADO a propósito,
                    porque `hasText` sin anclar haría que «5» matcheara «15» y «25». */
-                let elegido: string | null = null;
-                for (const cand of buscado) {
-                    const escapado = cand.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-                    const opcion = page.locator('[role="option"]:visible')
-                        .filter({ hasText: new RegExp(`^\\s*${escapado}\\s*$`, 'i') }).first();
-                    if (!(await opcion.count().catch(() => 0))) continue;
-                    const ok = await opcion.click({ timeout: t }).then(() => true).catch(() => false);
-                    if (ok) { elegido = cand; break; }
+                let chosen: string | null = null;
+                for (const cand of searched) {
+                    const escaped = cand.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+                    const option = page.locator('[role="option"]:visible')
+                        .filter({ hasText: new RegExp(`^\\s*${escaped}\\s*$`, 'i') }).first();
+                    if (!(await option.count().catch(() => 0))) continue;
+                    const ok = await option.click({ timeout: t }).then(() => true).catch(() => false);
+                    if (ok) { chosen = cand; break; }
                 }
-                if (elegido) { hechos.push(`fecha ${p}→${elegido}`); indicesDeFecha.add(i); }
+                if (chosen) { facts.push(`fecha ${p}→${chosen}`); dateIndices.add(i); }
                 else {
                     // No se inventa otro valor: se cierra y se reporta, que es lo que deja ver el hueco.
                     await page.keyboard.press('Escape').catch(() => {});
-                    hechos.push(`⚠fecha ${p}: no encontré ninguno de «${buscado.join('» «')}»`);
-                    /* ⚠ Y NO SE MARCA COMO PROPIO. Antes `indicesDeFecha.add(i)` estaba arriba del todo,
+                    facts.push(`⚠fecha ${p}: no encontré ninguno de «${searched.join('» «')}»`);
+                    /* ⚠ Y NO SE MARCA COMO PROPIO. Antes `dateIndices.add(i)` estaba arriba del todo,
                      * o sea que este trío reclamaba el combo ANTES de saber si podía llenarlo — y el
                      * bucle genérico de abajo lo salteaba para siempre.
                      *
@@ -202,32 +202,32 @@ export async function autorrellenar(page: Page, campos: Campo[],
      *
      * Se corta cuando una pasada no llena nada: sin progreso no hay cascada que esperar, y así un
      * formulario sin dependencias sigue costando una sola vuelta. */
-    for (let pasada = 0; pasada < 4; pasada += 1) {
-        let llenados = 0;
-        const cuantos = await combos.count().catch(() => 0);
-        for (let i = 0; i < cuantos; i += 1) {
+    for (let pass = 0; pass < 4; pass += 1) {
+        let filled = 0;
+        const howMany = await combos.count().catch(() => 0);
+        for (let i = 0; i < howMany; i += 1) {
             // El trío de fecha ya está resuelto; sus índices sólo son fiables mientras la lista no cambie
             // de tamaño (una cascada puede agregar combos y correrlos). Después manda el chequeo de vacío,
             // que es el que de verdad decide.
-            if (cuantos === cuantosCombos && indicesDeFecha.has(i)) continue;
+            if (howMany === comboCount && dateIndices.has(i)) continue;
             const cb = combos.nth(i);
             // Con valor elegido, Radix pone `data-placeholder` sólo cuando está VACÍO: es la señal de "sin elegir".
-            const vacio = (await cb.getAttribute('data-placeholder').catch(() => null)) !== null
+            const empty = (await cb.getAttribute('data-placeholder').catch(() => null)) !== null
                 || !(await cb.textContent().catch(() => ''))?.trim();
-            if (!vacio) continue;
+            if (!empty) continue;
             if (!(await cb.isEnabled().catch(() => false))) continue;
             await cb.click({ timeout: t }).catch(() => {});
-            const opcion = page.locator('[role="option"]:visible').first();
-            if (await opcion.count().catch(() => 0)) {
-                const etiqueta = (await opcion.textContent().catch(() => '')) ?? '';
-                await opcion.click({ timeout: t })
-                    .then(() => { hechos.push(`combo→${etiqueta.trim().slice(0, 18)}`); llenados += 1; })
+            const option = page.locator('[role="option"]:visible').first();
+            if (await option.count().catch(() => 0)) {
+                const label = (await option.textContent().catch(() => '')) ?? '';
+                await option.click({ timeout: t })
+                    .then(() => { facts.push(`combo→${label.trim().slice(0, 18)}`); filled += 1; })
                     .catch(() => {});
             } else {
                 await page.keyboard.press('Escape').catch(() => {});   // no dejar el listbox abierto tapando el resto
             }
         }
-        if (!llenados) break;
+        if (!filled) break;
         // Lo que tarda el dependiente en traer sus opciones de la API.
         await page.waitForTimeout(700).catch(() => {});
     }
@@ -244,41 +244,41 @@ export async function autorrellenar(page: Page, campos: Campo[],
      * ⚠ La opción se elige POR POSICIÓN —la primera que aparece debajo del input— y no por clase: las
      * clases de Tailwind de ese desplegable cambian con cualquier retoque visual, y un selector atado a
      * ellas se rompe sin que nadie lo note. La geometría es lo estable. */
-    const buscables = page.locator('input[placeholder*="Buscar" i]:visible');
-    for (let i = 0; i < Math.min(await buscables.count().catch(() => 0), 4); i += 1) {
-        const inp = buscables.nth(i);
+    const searchable = page.locator('input[placeholder*="Buscar" i]:visible');
+    for (let i = 0; i < Math.min(await searchable.count().catch(() => 0), 4); i += 1) {
+        const inp = searchable.nth(i);
         if ((await inp.inputValue().catch(() => 'x'))?.trim()) continue;   // ya tiene algo elegido
-        const cajaInput = await inp.boundingBox().catch(() => null);
-        if (!cajaInput) continue;
+        const inputBox = await inp.boundingBox().catch(() => null);
+        if (!inputBox) continue;
 
         await inp.click({ timeout: t }).catch(() => {});
         await page.waitForTimeout(500).catch(() => {});
 
-        const opciones = page.locator('button[type="button"]:visible');
-        const n = await opciones.count().catch(() => 0);
-        let elegida: string | null = null;
-        for (let k = 0; k < n && !elegida; k += 1) {
-            const b = opciones.nth(k);
-            const caja = await b.boundingBox().catch(() => null);
+        const options = page.locator('button[type="button"]:visible');
+        const n = await options.count().catch(() => 0);
+        let chosenOne: string | null = null;
+        for (let k = 0; k < n && !chosenOne; k += 1) {
+            const b = options.nth(k);
+            const box = await b.boundingBox().catch(() => null);
             // Debajo del input y cerca: eso es el desplegable, no un botón del resto de la pantalla.
-            if (!caja || caja.y <= cajaInput.y || caja.y - cajaInput.y > 420) continue;
+            if (!box || box.y <= inputBox.y || box.y - inputBox.y > 420) continue;
             const txt = ((await b.textContent().catch(() => '')) ?? '').trim();
             if (!txt) continue;
-            if (await b.click({ timeout: t }).then(() => true).catch(() => false)) elegida = txt;
+            if (await b.click({ timeout: t }).then(() => true).catch(() => false)) chosenOne = txt;
         }
-        if (elegida) hechos.push(`buscable→${elegida.slice(0, 22)}`);
+        if (chosenOne) facts.push(`buscable→${chosenOne.slice(0, 22)}`);
         else {
             await page.keyboard.press('Escape').catch(() => {});
-            hechos.push('⚠buscable: se abrió y no había opciones debajo');
+            facts.push('⚠buscable: se abrió y no había opciones debajo');
         }
     }
 
     // Radios NATIVOS: el primero de cada grupo.
-    const grupos = new Set(await page.locator('input[type=radio]:visible').evaluateAll((els) =>
+    const groups = new Set(await page.locator('input[type=radio]:visible').evaluateAll((els) =>
         els.map((e) => (e as HTMLInputElement).name).filter(Boolean)).catch(() => []));
-    for (const g of grupos) {
+    for (const g of groups) {
         const r = page.locator(`input[type=radio][name="${g}"]:visible`).first();
-        if (!(await r.isChecked().catch(() => true))) await r.check({ timeout: t }).then(() => hechos.push(`radio ${g}`)).catch(() => {});
+        if (!(await r.isChecked().catch(() => true))) await r.check({ timeout: t }).then(() => facts.push(`radio ${g}`)).catch(() => {});
     }
 
     // RADIOS DE RADIX. Son `button[role=radio]` con el estado en `aria-checked`, y el `<input>` nativo que
@@ -288,41 +288,41 @@ export async function autorrellenar(page: Page, campos: Campo[],
     // ⚠ Y CUÁL SE ELIGE IMPORTA, no es cosmético: la primera pantalla pregunta «¿el cliente tiene cupo
     // disponible?» y contestar «Sí» firma el flujo `already-confirmed-pre-approval`, que SALTA el buró y
     // recorta el listado a las rt=0. Con `preferirRadio` el canal dice qué quiere; el default es el primero.
-    const gruposRadix = page.locator('[role="radiogroup"]:visible');
-    for (let i = 0; i < (await gruposRadix.count().catch(() => 0)); i += 1) {
-        const g = gruposRadix.nth(i);
+    const radixGroups = page.locator('[role="radiogroup"]:visible');
+    for (let i = 0; i < (await radixGroups.count().catch(() => 0)); i += 1) {
+        const g = radixGroups.nth(i);
         const radios = g.locator('[role="radio"]');
         const n = await radios.count().catch(() => 0);
         if (!n) continue;
-        let yaElegido = false;
+        let alreadyChosen = false;
         for (let j = 0; j < n; j++) {
-            if ((await radios.nth(j).getAttribute('aria-checked').catch(() => null)) === 'true') { yaElegido = true; break; }
+            if ((await radios.nth(j).getAttribute('aria-checked').catch(() => null)) === 'true') { alreadyChosen = true; break; }
         }
-        if (yaElegido) continue;
+        if (alreadyChosen) continue;
         // ⚠ POR NOMBRE ACCESIBLE, no por `textContent`. En Radix la etiqueta («Sí» / «No») es un `<label>`
         // HERMANO, así que el `textContent` del botón viene VACÍO y el fallback caía al primero: eligió
         // «Sí» a la pregunta de confirmación de cupo, que firma otro flujo. Se vio el 2026-09-03: el log
         // decía `radio→1`, un valor que no es ninguna de las dos respuestas.
-        let elegido = null as null | typeof radios;
+        let chosen = null as null | typeof radios;
         let nom = '';
         if (opts.preferirRadio) {
-            const porNombre = g.getByRole('radio', { name: opts.preferirRadio });
-            if (await porNombre.count().catch(() => 0)) { elegido = porNombre.first() as any; nom = String(opts.preferirRadio); }
+            const byName = g.getByRole('radio', { name: opts.preferirRadio });
+            if (await byName.count().catch(() => 0)) { chosen = byName.first() as any; nom = String(opts.preferirRadio); }
         }
-        if (!elegido) { elegido = radios.first() as any; nom = '(el primero)'; }
-        await (elegido as any).click({ timeout: t }).then(() => hechos.push(`radio→${nom}`)).catch(() => {});
+        if (!chosen) { chosen = radios.first() as any; nom = '(el primero)'; }
+        await (chosen as any).click({ timeout: t }).then(() => facts.push(`radio→${nom}`)).catch(() => {});
     }
 
     // Checkboxes de Radix (términos, políticas, «acepto»). Son BUTTON, viven fuera del `<form>`, y su
     // estado está en `data-state`.
-    const cajas = page.locator('button[role="checkbox"]');
-    for (let i = 0; i < (await cajas.count().catch(() => 0)); i += 1) {
-        const c = cajas.nth(i);
+    const boxes = page.locator('button[role="checkbox"]');
+    for (let i = 0; i < (await boxes.count().catch(() => 0)); i += 1) {
+        const c = boxes.nth(i);
         if ((await c.getAttribute('data-state').catch(() => null)) !== 'checked') {
-            await c.click({ timeout: t }).then(() => hechos.push('checkbox')).catch(() => {});
+            await c.click({ timeout: t }).then(() => facts.push('checkbox')).catch(() => {});
         }
     }
-    return hechos;
+    return facts;
 }
 
 /**
@@ -338,22 +338,22 @@ export async function autorrellenar(page: Page, campos: Campo[],
  * Se hace con `scrollTop = scrollHeight` desde el DOM: eso dispara el `scroll` que React escucha. Y es
  * genérico a propósito — cualquier modal que exija leer antes de aceptar se satisface igual.
  */
-export async function leerHastaElFinal(page: Page): Promise<number> {
+export async function readToEnd(page: Page): Promise<number> {
     return page.evaluate(() => {
-        const dialogos = Array.from(document.querySelectorAll('[role="dialog"]'))
+        const dialogs = Array.from(document.querySelectorAll('[role="dialog"]'))
             .filter((d) => (d as HTMLElement).offsetParent !== null || d.getClientRects().length > 0);
-        let movidos = 0;
-        for (const d of dialogos) {
-            const candidatos = [d, ...Array.from(d.querySelectorAll('*'))] as HTMLElement[];
-            for (const el of candidatos) {
+        let moved = 0;
+        for (const d of dialogs) {
+            const candidates = [d, ...Array.from(d.querySelectorAll('*'))] as HTMLElement[];
+            for (const el of candidates) {
                 if (el.scrollHeight > el.clientHeight + 1) {
                     el.scrollTop = el.scrollHeight;
                     el.dispatchEvent(new Event('scroll', { bubbles: true }));
-                    movidos += 1;
+                    moved += 1;
                 }
             }
         }
-        return movidos;
+        return moved;
     }).catch(() => 0);
 }
 
@@ -365,7 +365,7 @@ export async function leerHastaElFinal(page: Page): Promise<number> {
 // arma desde el esquema que manda el backend— cierra con «Enviar», así que el caminador se paraba ahí
 // diciendo «ningún botón de avance». Esa pantalla nunca se había caminado con navegador, y el motivo
 // era esta palabra. Medido el 2026-09-18.
-export const AVANZAR = /continuar|siguiente|aceptar|validar|verificar|confirmar|firmar|autenticarme|solicit|entendido|finalizar|ver mi|empezar|comenzar|activar|iniciar|enviar/i;
+export const ADVANCE = /continuar|siguiente|aceptar|validar|verificar|confirmar|firmar|autenticarme|solicit|entendido|finalizar|ver mi|empezar|comenzar|activar|iniciar|enviar/i;
 
 /**
  * El botón para avanzar: el primero VISIBLE y HABILITADO de verdad.
@@ -375,14 +375,14 @@ export const AVANZAR = /continuar|siguiente|aceptar|validar|verificar|confirmar|
  * moría por timeout con el nombre ya leído — parecía un muro de la pantalla cuando era el caminador
  * eligiendo mal. Devuelve el nombre del botón clickeado, o los candidatos que encontró si ninguno servía.
  */
-export async function clickearAvanzar(page: Page, patron = AVANZAR): Promise<{ ok: true; nombre: string } | { ok: false; candidatos: string[]; motivo?: string }> {
-    const cand = page.getByRole('button', { name: patron });
+export async function clickAdvance(page: Page, pattern = ADVANCE): Promise<{ ok: true; nombre: string } | { ok: false; candidatos: string[]; motivo?: string }> {
+    const cand = page.getByRole('button', { name: pattern });
     const n = await cand.count().catch(() => 0);
     for (let i = 0; i < n; i++) {
         const c = cand.nth(i);
         if (!(await c.isVisible().catch(() => false))) continue;
         if (!(await c.isEnabled().catch(() => false))) continue;
-        const nombre = ((await c.textContent().catch(() => '')) ?? '').trim();
+        const name = ((await c.textContent().catch(() => '')) ?? '').trim();
         /* ⚠ EL CLICK NO PUEDE FALLAR EN SILENCIO. Acá había `.catch(() => {})` y un `ok: true` fijo
          * debajo: si el click se caía por timeout —el botón tapado, la pantalla repintándose, un
          * overlay— la función contestaba que TODO BIEN y con el nombre del botón puesto. El caminador
@@ -393,23 +393,23 @@ export async function clickearAvanzar(page: Page, patron = AVANZAR): Promise<{ o
          * el log, ninguno real, 480 s hasta el tope — y el botón, clickeado a mano en un navegador,
          * navegaba a la primera. Es F-03 otra vez: el `.catch` vacío en el paso que da sentido a la
          * corrida. */
-        const falla = await c.click({ timeout: 15_000 }).then(() => null)
+        const failure = await c.click({ timeout: 15_000 }).then(() => null)
             // 300 y no 110: cuando Playwright no puede clickear, el dato que sirve —«<div …> intercepts
             // pointer events», «element is not stable»— viene DESPUÉS de «Timeout exceeded», así que
             // recortar corto deja el síntoma sin la causa. Es el mismo error que ya se cometió con los
             // mensajes de consola.
             .catch((e) => String(e?.message ?? e).replace(/\s+/g, ' ').slice(0, 300));
-        if (falla) return { ok: false, candidatos: [nombre], motivo: `el click sobre «${nombre}» falló: ${falla}` };
-        return { ok: true, nombre };
+        if (failure) return { ok: false, candidatos: [name], motivo: `el click sobre «${name}» falló: ${failure}` };
+        return { ok: true, nombre: name };
     }
     // ⚠ CUANDO NO MATCHEA NADA, LOS BOTONES DE LA PANTALLA — no los que pasaron el patrón, que por
     // definición son cero. Antes se reportaba `cand.allTextContents()`, o sea el resultado del MISMO
     // filtro que acababa de fallar: el mensaje quedaba en «ningún botón de avance en la pantalla», que
     // suena a pantalla rota y manda a buscar un bug del front. Con la lista de verdad, el diagnóstico
-    // se lee solo: «los botones eran: Enviar» dice que falta una palabra en `AVANZAR`, no que el
+    // se lee solo: «los botones eran: Enviar» dice que falta una palabra en `ADVANCE`, no que el
     // producto esté mal. Es lo que costó descubrir por qué el formulario de BCP nunca se caminó.
-    const delPatron = (await cand.allTextContents().catch(() => [])).map((x) => x.trim()).filter(Boolean);
-    if (delPatron.length) return { ok: false, candidatos: delPatron };
+    const fromPattern = (await cand.allTextContents().catch(() => [])).map((x) => x.trim()).filter(Boolean);
+    if (fromPattern.length) return { ok: false, candidatos: fromPattern };
 
     const todos = page.getByRole('button');
     const n2 = await todos.count().catch(() => 0);
@@ -418,8 +418,8 @@ export async function clickearAvanzar(page: Page, patron = AVANZAR): Promise<{ o
         const b = todos.nth(i);
         if (!(await b.isVisible().catch(() => false))) continue;
         const t = ((await b.textContent().catch(() => '')) ?? '').trim();
-        const apagado = !(await b.isEnabled().catch(() => true));
-        if (t) visibles.push(apagado ? `${t} (deshabilitado)` : t);
+        const disabled = !(await b.isEnabled().catch(() => true));
+        if (t) visibles.push(disabled ? `${t} (deshabilitado)` : t);
     }
     return { ok: false, candidatos: visibles };
 }
@@ -429,18 +429,18 @@ export async function clickearAvanzar(page: Page, patron = AVANZAR): Promise<{ o
  * caminador dice que no puede avanzar y no dice POR QUÉ, y el que lee sale a buscar un bug del front
  * cuando lo que falta es un campo que el caminador no supo llenar.
  */
-export async function erroresDeValidacion(page: Page): Promise<string[]> {
+export async function validationErrors(page: Page): Promise<string[]> {
     // ⚠ Los marcadores de «campo obligatorio» comparten clase con los mensajes de error, así que un `*`
     // suelto entraba a la lista y a veces era lo ÚNICO que se reportaba: el caminador decía
     // «lo que dice: *» teniendo «Cuota Inicial es requerido» en la misma pantalla. Medido el 2026-09-18.
     const trivial = (t: string) => t.replace(/[\s*·.:-]/g, '').length < 3;
-    const vistos = new Set<string>();
+    const seen = new Set<string>();
     for (const sel of ['[role="alert"]', '[aria-invalid="true"]', '[data-slot="form-message"]', '.text-destructive', 'p.text-red-500']) {
         const loc = page.locator(`${sel}:visible`);
         for (let i = 0; i < Math.min(await loc.count().catch(() => 0), 8); i++) {
             const txt = ((await loc.nth(i).textContent().catch(() => '')) ?? '').replace(/\s+/g, ' ').trim();
-            if (txt && txt.length < 120 && !trivial(txt)) vistos.add(txt);
+            if (txt && txt.length < 120 && !trivial(txt)) seen.add(txt);
         }
     }
-    return [...vistos];
+    return [...seen];
 }

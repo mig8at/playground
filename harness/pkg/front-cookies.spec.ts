@@ -9,13 +9,13 @@
 // cookies. Guardarlas igual dejaba el frasco con valores vacíos y el runner mandando basura para
 // siempre, sin poder distinguir «no tengo sesión» de «tengo una vacía».
 import { expect, test } from '@playwright/test';
-import { SesionFront } from './front.ts';
+import { FrontSession } from './front.ts';
 
-const sesion = () => new SesionFront('https://ejemplo.test');
+const session = () => new FrontSession('https://ejemplo.test');
 
 test.describe('el frasco de cookies', () => {
       test('guarda lo que el servidor manda', () => {
-            const s = sesion().aplicarSetCookie([
+            const s = session().aplicarSetCookie([
                   '_at=nuevo123; Path=/; HttpOnly; SameSite=Lax; Max-Age=240',
                   '_rt=refresco456; Path=/; HttpOnly; Max-Age=2592000',
             ]);
@@ -25,7 +25,7 @@ test.describe('el frasco de cookies', () => {
 
       // 🔴 El caso que hace que la sesión sobreviva: llega un token renovado y pisa al viejo.
       test('un token renovado reemplaza al anterior', () => {
-            const s = sesion()
+            const s = session()
                   .conCookiesDe({ cookies: [{ name: '_at', value: 'viejo' }, { name: '_rt', value: 'refresco' }] })
                   .aplicarSetCookie(['_at=renovado; Path=/; Max-Age=240']);
 
@@ -36,7 +36,7 @@ test.describe('el frasco de cookies', () => {
       // 🔴 Las tres formas de decir «borrala». Medido contra qa: cuando el refresco falla, el 302 al
       // login viene con las tres cookies de sesión expiradas en la misma respuesta.
       test('`Max-Age=0` borra la cookie en vez de guardarla vacía', () => {
-            const s = sesion()
+            const s = session()
                   .conCookiesDe({ cookies: [{ name: '_at', value: 'algo' }] })
                   .aplicarSetCookie(['_at=; Path=/; HttpOnly; SameSite=Lax; Max-Age=0']);
 
@@ -44,7 +44,7 @@ test.describe('el frasco de cookies', () => {
       });
 
       test('una fecha pasada también borra', () => {
-            const s = sesion()
+            const s = session()
                   .conCookiesDe({ cookies: [{ name: '_session', value: 'algo' }] })
                   .aplicarSetCookie(['_session=; Domain=.ejemplo.test; Path=/; Expires=Thu, 01 Jan 1970 00:00:00 GMT']);
 
@@ -52,7 +52,7 @@ test.describe('el frasco de cookies', () => {
       });
 
       test('un valor vacío también borra', () => {
-            const s = sesion()
+            const s = session()
                   .conCookiesDe({ cookies: [{ name: '_rt', value: 'algo' }] })
                   .aplicarSetCookie(['_rt=; Path=/']);
 
@@ -62,14 +62,14 @@ test.describe('el frasco de cookies', () => {
       // 🔴 Y una fecha FUTURA no borra: si el chequeo no mirara el valor de `Expires` sino su mera
       // presencia, cada cookie normal se borraría sola y la sesión no duraría una petición.
       test('una fecha futura NO borra', () => {
-            const dentroDeUnAño = new Date(Date.now() + 365 * 24 * 3600 * 1000).toUTCString();
-            const s = sesion().aplicarSetCookie([`_at=vigente; Path=/; Expires=${dentroDeUnAño}`]);
+            const withinAYear = new Date(Date.now() + 365 * 24 * 3600 * 1000).toUTCString();
+            const s = session().aplicarSetCookie([`_at=vigente; Path=/; Expires=${withinAYear}`]);
 
             expect(s.frascoDeCookies()._at).toBe('vigente');
       });
 
       test('el borrado de una no se lleva a las demás', () => {
-            const s = sesion()
+            const s = session()
                   .conCookiesDe({ cookies: [{ name: '_at', value: 'a' }, { name: 'lang', value: 'es' }] })
                   .aplicarSetCookie(['_at=; Max-Age=0']);
 

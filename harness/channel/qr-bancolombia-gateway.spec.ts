@@ -32,13 +32,13 @@ import { fileURLToPath } from 'node:url';
  * al vuelo con `openssl` (viene en macOS y en la imagen de CI).
  */
 
-// ⚠ UN PUERTO POR WORKER. Playwright reparte el archivo entre varios procesos y `beforeAll` corre una
+// ⚠ UN PORT POR WORKER. Playwright reparte el archivo entre varios procesos y `beforeAll` corre una
 // vez EN CADA UNO: con un puerto fijo, el primero liga y los demás mueren con EADDRINUSE — pero su
 // sonda de arranque ve vivo al mock AJENO y siguen igual, hasta que ese worker termina y les cierra el
 // socket. El síntoma era `ECONNRESET` en tests salteados, que se lee como un mock inestable.
-const PUERTO = Number(process.env.MOCK_BC_TEST_PORT || 8914) + Number(process.env.TEST_WORKER_INDEX || 0);
-const BASE = `http://127.0.0.1:${PUERTO}`;
-const SECRETO = 'secreto-de-prueba-del-harness';
+const PORT = Number(process.env.MOCK_BC_TEST_PORT || 8914) + Number(process.env.TEST_WORKER_INDEX || 0);
+const BASE = `http://127.0.0.1:${PORT}`;
+const SECRET = 'secreto-de-prueba-del-harness';
 
 let mock: ChildProcess;
 let dir: string;
@@ -54,22 +54,22 @@ const b64url = (b: Buffer | string) =>
 
 const jwt = (op: { key?: string; exp?: number } = {}) => {
     const iat = Math.floor(Date.now() / 1000);
-    const cuerpo = { iss: 'harness', sub: 'cliente', aud: 'gw', iat, exp: op.exp ?? iat + 60, nonce: randomBytes(8).toString('hex') };
-    const firmar = `${b64url(JSON.stringify({ typ: 'JWT', alg: 'RS256' }))}.${b64url(JSON.stringify(cuerpo))}`;
-    return `${firmar}.${b64url(createSign('RSA-SHA256').update(firmar).sign(op.key ?? privkey))}`;
+    const reqBody = { iss: 'harness', sub: 'cliente', aud: 'gw', iat, exp: op.exp ?? iat + 60, nonce: randomBytes(8).toString('hex') };
+    const sign = `${b64url(JSON.stringify({ typ: 'JWT', alg: 'RS256' }))}.${b64url(JSON.stringify(reqBody))}`;
+    return `${sign}.${b64url(createSign('RSA-SHA256').update(sign).sign(op.key ?? privkey))}`;
 };
 
 const H = (): Record<string, string> => ({
     'Client-Id': 'cliente-de-prueba',
-    'Client-Secret': SECRETO,
+    'Client-Secret': SECRET,
     'json-web-token': jwt(),
     'x-client-certificate': certHeader(),
     'message-id': randomUUID(),
 });
-const sin = (k: string) => { const h = H(); delete h[k]; return h; };
+const without = (k: string) => { const h = H(); delete h[k]; return h; };
 
 /** El sobre ANIDADO que el banco exige: plano responde SA400. */
-const sobre = (tx: string, address = 'Calle 45 #12-34', cityCode = '11001', departmentCode = '01') =>
+const over = (tx: string, address = 'Calle 45 #12-34', cityCode = '11001', departmentCode = '01') =>
     ({ data: { security: { transactionId: tx }, customer: { contactInformation: { address, cityCode, departmentCode } } } });
 
 const post = async (body: unknown, headers: Record<string, string> = H()) => {
@@ -97,13 +97,13 @@ test.beforeAll(async () => {
 
     const server = fileURLToPath(new URL('../mock-bancolombia/server.mjs', import.meta.url));
     mock = spawn(process.execPath, [server], {
-        env: { ...process.env, MOCK_BC_PORT: String(PUERTO), MOCK_BC_CLIENT_SECRET: SECRETO, MOCK_BC_FAIL: '' },
+        env: { ...process.env, MOCK_BC_PORT: String(PORT), MOCK_BC_CLIENT_SECRET: SECRET, MOCK_BC_FAIL: '' },
         stdio: 'ignore',
     });
 
     for (let i = 0; i < 60; i++) {
-        const vivo = await fetch(`${BASE}/`, { signal: AbortSignal.timeout(1_000) }).then((r) => r.ok).catch(() => false);
-        if (vivo) return;
+        const alive = await fetch(`${BASE}/`, { signal: AbortSignal.timeout(1_000) }).then((r) => r.ok).catch(() => false);
+        if (alive) return;
         await new Promise((r) => setTimeout(r, 100));
     }
     throw new Error(`el mock no levantó en ${BASE} — ¿puerto ocupado? (MOCK_BC_TEST_PORT)`);
@@ -120,7 +120,7 @@ test.afterAll(() => {
 
 test.describe('el sobre y las longitudes', () => {
     test('camino feliz → 200 con billingCode', async () => {
-        const r = await post(sobre(randomUUID()));
+        const r = await post(over(randomUUID()));
         expect(r.status).toBe(200);
         expect(r.billingCode).toMatch(/^[0-9a-f]{20}$/);
     });
@@ -144,7 +144,7 @@ test.describe('el sobre y las longitudes', () => {
     // 🔴 Esto es lo que sostiene la decisión de NO truncar en el llamador: los 35 caracteres mueren en el
     // GATEWAY, antes de que el negocio del banco los vea. «Que Bancolombia se encargue» no existe.
     test('address de 35 chars → 400 SA400 en el gateway', async () => {
-        const r = await post(sobre(randomUUID(), 'Carrera 77 b # 64 h 50 apto 301 t 6'));
+        const r = await post(over(randomUUID(), 'Carrera 77 b # 64 h 50 apto 301 t 6'));
         expect(r.status).toBe(400);
         expect(r.code).toBe('SA400');
     });
@@ -153,11 +153,11 @@ test.describe('el sobre y las longitudes', () => {
 test.describe('la seguridad — y el banco NO la aplana en un solo código', () => {
     // 🔴 Los cuatro del JWT dan 403 SA403, no 400. Antes el mock contestaba 400 SA400 a todo.
     test('sin json-web-token → 403 SA403', async () => {
-        expect(await post(sobre(randomUUID()), sin('json-web-token'))).toMatchObject({ status: 403, code: 'SA403' });
+        expect(await post(over(randomUUID()), without('json-web-token'))).toMatchObject({ status: 403, code: 'SA403' });
     });
 
     test('json-web-token basura → 403 SA403', async () => {
-        expect(await post(sobre(randomUUID()), { ...H(), 'json-web-token': 'no-soy-un-jwt' }))
+        expect(await post(over(randomUUID()), { ...H(), 'json-web-token': 'no-soy-un-jwt' }))
             .toMatchObject({ status: 403, code: 'SA403' });
     });
 
@@ -165,34 +165,34 @@ test.describe('la seguridad — y el banco NO la aplana en un solo código', () 
     // que verifica la firma contra NUESTRO certificado. Es lo único que puede atrapar en local una
     // regresión de `generateJsonWebToken` — y hasta hoy sólo lo veía el sandbox.
     test('JWT firmado con otra llave → 403 SA403', async () => {
-        const otra = generateKeyPairSync('rsa', { modulusLength: 2048 }).privateKey
+        const anotherOne = generateKeyPairSync('rsa', { modulusLength: 2048 }).privateKey
             .export({ type: 'pkcs8', format: 'pem' }) as string;
-        expect(await post(sobre(randomUUID()), { ...H(), 'json-web-token': jwt({ key: otra }) }))
+        expect(await post(over(randomUUID()), { ...H(), 'json-web-token': jwt({ key: anotherOne }) }))
             .toMatchObject({ status: 403, code: 'SA403' });
     });
 
     test('JWT vencido → 403 SA403', async () => {
-        expect(await post(sobre(randomUUID()), { ...H(), 'json-web-token': jwt({ exp: Math.floor(Date.now() / 1000) - 3600 }) }))
+        expect(await post(over(randomUUID()), { ...H(), 'json-web-token': jwt({ exp: Math.floor(Date.now() / 1000) - 3600 }) }))
             .toMatchObject({ status: 403, code: 'SA403' });
     });
 
     // 🔴 400 con código SA500. Raro, pero es lo medido: no lo "arregles" a SA400.
     test('sin x-client-certificate → 400 SA500', async () => {
-        expect(await post(sobre(randomUUID()), sin('x-client-certificate'))).toMatchObject({ status: 400, code: 'SA500' });
+        expect(await post(over(randomUUID()), without('x-client-certificate'))).toMatchObject({ status: 400, code: 'SA500' });
     });
 
     // 🔴 El 401 es la firma de «la credencial rotó», que es la falla operativa más común.
     test('Client-Secret incorrecto → 401', async () => {
-        expect(await post(sobre(randomUUID()), { ...H(), 'Client-Secret': '0'.repeat(32) })).toMatchObject({ status: 401 });
+        expect(await post(over(randomUUID()), { ...H(), 'Client-Secret': '0'.repeat(32) })).toMatchObject({ status: 401 });
     });
 
     test('sin message-id → 400 SA400', async () => {
-        expect(await post(sobre(randomUUID()), sin('message-id'))).toMatchObject({ status: 400, code: 'SA400' });
+        expect(await post(over(randomUUID()), without('message-id'))).toMatchObject({ status: 400, code: 'SA400' });
     });
 
     // 🔴 La bomba de `Str::orderedUuid()`: genera v1 y el schema del banco valida v4 por regex.
     test('message-id UUID v1 → 400 SA400', async () => {
-        expect(await post(sobre(randomUUID()), { ...H(), 'message-id': 'c4e6bd04-5149-11e7-b114-b2f933d5fe68' }))
+        expect(await post(over(randomUUID()), { ...H(), 'message-id': 'c4e6bd04-5149-11e7-b114-b2f933d5fe68' }))
             .toMatchObject({ status: 400, code: 'SA400' });
     });
 });
@@ -208,7 +208,7 @@ test.describe('la sonda de conectividad', () => {
     });
 
     test('con Client-Id y Client-Secret → 200', async () => {
-        expect(await head({ 'Client-Id': 'cliente-de-prueba', 'Client-Secret': SECRETO })).toBe(200);
+        expect(await head({ 'Client-Id': 'cliente-de-prueba', 'Client-Secret': SECRET })).toBe(200);
     });
 
     // 🔴 Lo que hacía inútil la sonda en local: sin esta ruta, `/health` caía en el catch-all del mock
@@ -235,7 +235,7 @@ test('retrieve-order-details con código desconocido → 404 de negocio, NO el S
 // Y los 5 headers también se exigen en el GET: `billingHeaders()` los arma una vez para los dos métodos.
 test('retrieve-order-details sin JWT → 403 SA403', async () => {
     const r = await fetch(`${BASE}/retrieve-order-details?billingCode=x`, {
-        method: 'GET', headers: { ...sin('json-web-token'), Accept: 'application/json' }, signal: AbortSignal.timeout(10_000),
+        method: 'GET', headers: { ...without('json-web-token'), Accept: 'application/json' }, signal: AbortSignal.timeout(10_000),
     });
     expect(r.status).toBe(403);
 });

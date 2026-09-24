@@ -6,6 +6,9 @@ const babel = require('@babel/parser');
 const sfc = require('@vue/compiler-sfc');
 
 const PARSE = { sourceType: 'module', plugins: [], errorRecovery: false };
+// TypeScript (el harness): el mismo parser con su plugin. Los tipos traen identificadores nuevos —el
+// campo de una interface, el miembro de un enum—, que `role` trata como propiedades: son contrato.
+const PARSE_TS = { ...PARSE, plugins: ['typescript'] };
 
 // visita genérica: llama cb(node, parent, key) sobre todo el árbol
 function walk(node, cb, parent = null, key = null) {
@@ -28,16 +31,21 @@ function role(node, parent, key) {
   }
   if (parent.type === 'ObjectProperty' && key === 'value' && parent.shorthand) return 'skip'; // lo cubre la clave
   if (parent.type === 'LabeledStatement' || parent.type === 'BreakStatement' || parent.type === 'ContinueStatement') return 'prop';
+  if ((parent.type === 'TSPropertySignature' || parent.type === 'TSMethodSignature') && key === 'key' && !parent.computed) return 'prop';
+  if (parent.type === 'TSEnumMember' && key === 'id') return 'prop';
+  if (parent.type === 'TSQualifiedName' && key === 'right') return 'prop';
+  if (parent.type === 'ClassPrivateProperty' || parent.type === 'ClassAccessorProperty') return key === 'key' ? 'prop' : 'ref';
   if (parent.type === 'ImportSpecifier' && key === 'imported' && parent.imported !== parent.local) return 'prop';
   if (parent.type === 'ExportSpecifier' && key === 'exported' && parent.exported !== parent.local) return 'prop';
   return 'ref';
 }
 
 // ids(code, offset) → [{name, start, end, role}] del código JS
-export function jsIds(code, offset = 0, asExpression = false) {
+export function jsIds(code, offset = 0, asExpression = false, ts = false) {
   let ast;
-  if (asExpression) ast = babel.parseExpression(code, PARSE);
-  else ast = babel.parse(code, PARSE);
+  const opts = ts ? PARSE_TS : PARSE;
+  if (asExpression) ast = babel.parseExpression(code, opts);
+  else ast = babel.parse(code, opts);
   const out = [];
   walk(asExpression ? ast : ast.program, (n, p, k) => {
     if (n.type === 'Identifier') {
@@ -47,7 +55,8 @@ export function jsIds(code, offset = 0, asExpression = false) {
       if (p && p.type === 'ImportSpecifier' && k === 'imported' && p.imported.start === p.local.start) return;
       if (p && p.type === 'ExportSpecifier' && k === 'exported' && p.exported.start === p.local.start) return;
       const decl = p && ((p.type === 'VariableDeclarator' && k === 'id') || (/Function/.test(p.type) && (k === 'id' || k === 'params')) || p.type === 'ImportSpecifier' || p.type === 'ImportDefaultSpecifier' || (p.type === 'CatchClause' && k === 'param'));
-      out.push({ name: n.name, start: n.start + offset, end: n.end + offset, role: r, decl: !!decl });
+      // el fin es el del NOMBRE: en TypeScript Babel extiende el nodo hasta el final de su anotación de tipo
+      out.push({ name: n.name, start: n.start + offset, end: n.start + offset + n.name.length, role: r, decl: !!decl });
     }
   });
   return out;
@@ -96,5 +105,5 @@ export function sfcIds(src, file) {
 }
 
 export function fileIds(src, file) {
-  return file.endsWith('.vue') ? sfcIds(src, file) : jsIds(src, 0);
+  return file.endsWith('.vue') ? sfcIds(src, file) : jsIds(src, 0, false, /\.[mc]?ts$/.test(file));
 }

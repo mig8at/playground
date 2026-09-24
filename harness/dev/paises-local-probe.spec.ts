@@ -17,22 +17,22 @@ test(`prefijo del pais (${TAG})`, async ({ page }) => {
     console.log(`\n### [${TAG}] request-amount aterrizo en: ${page.url()}`);
 
     // el schema del mock trae selector de equipo: elegir uno primero
-    const buscador = page.getByRole('textbox', { name: /buscar celular/i });
-    if (await buscador.count()) {
-        const equipo = page.getByRole('button', { name: /motorola|samsung|honor|xiaomi|funda|odontolog|rehabilitaci|ortodoncia|general|implante/i });
-        for (let intento = 0; intento < 4 && !(await equipo.count()); intento++) {
-            await buscador.click();
-            await buscador.fill('');
-            await buscador.pressSequentially('a', { delay: 80 });
-            await equipo.first().waitFor({ timeout: 4000 }).catch(() => {});
+    const searcher = page.getByRole('textbox', { name: /buscar celular/i });
+    if (await searcher.count()) {
+        const device = page.getByRole('button', { name: /motorola|samsung|honor|xiaomi|funda|odontolog|rehabilitaci|ortodoncia|general|implante/i });
+        for (let attempt = 0; attempt < 4 && !(await device.count()); attempt++) {
+            await searcher.click();
+            await searcher.fill('');
+            await searcher.pressSequentially('a', { delay: 80 });
+            await device.first().waitFor({ timeout: 4000 }).catch(() => {});
         }
-        if (await equipo.count()) await equipo.first().click();
+        if (await device.count()) await device.first().click();
         else console.log('    (no aparecieron equipos en el buscador)');
     }
     // monto: MoneyInput pierde fill() por hidratación → click + teclear
-    const monto = page.getByRole('textbox', { name: /monto a solicitar/i });
-    await monto.click();
-    await monto.pressSequentially('20000', { delay: 40 });
+    const amount = page.getByRole('textbox', { name: /monto a solicitar/i });
+    await amount.click();
+    await amount.pressSequentially('20000', { delay: 40 });
     await page.getByRole('button', { name: /iniciar solicitud/i }).click();
     await page.waitForURL('**/request-phone**', { timeout: 30_000 }).catch(() => {});
     await page.waitForLoadState('networkidle').catch(() => {});

@@ -52,36 +52,36 @@ let current: { child: ReturnType<typeof spawn>; slug: string; target: string; in
 // la corrida (polling cada 2s); se dejó de pollear porque cargaba la BD compartida arrancando un
 // proceso+conexión por tick — una sola foto al final alcanza y es más barata.
 const RUNS_DIR = resolve(ROOT, '.runs');
-const ULTIMA = join(RUNS_DIR, 'ultima-corrida.json');
-let bitacora: { user: number | null; eventos: Map<string, any>; ecommerce?: any } = { user: null, eventos: new Map() };
+const LAST = join(RUNS_DIR, 'ultima-corrida.json');
+let logbook: { user: number | null; eventos: Map<string, any>; ecommerce?: any } = { user: null, eventos: new Map() };
 
 /** Mezcla lo que devolvió `dbops activity` en la bitácora. Clave = tabla+id+op+at → idempotente (hoy se
  *  llama una sola vez, al cierre; el dedup por clave queda por si vuelve a haber más de una fuente). */
-function acumular(a: any): void {
+function accumulate(a: any): void {
     if (!a || !Array.isArray(a.tablas)) return;
-    if (a.user) bitacora.user = a.user;
+    if (a.user) logbook.user = a.user;
     for (const t of a.tablas) {
         for (const e of t.eventos || []) {
-            bitacora.eventos.set(`${t.tabla}|${e.id}|${e.op}|${e.at}`, { at: e.at, op: e.op, tabla: t.tabla, id: e.id, detalle: e.detalle || '' });
+            logbook.eventos.set(`${t.tabla}|${e.id}|${e.op}|${e.at}`, { at: e.at, op: e.op, tabla: t.tabla, id: e.id, detalle: e.detalle || '' });
         }
     }
 }
 
 /** Vuelca la bitácora a `.runs/` (un archivo fijo + uno por corrida) y DEVUELVE el análisis (veredicto +
  *  resumen por tabla) para volcarlo también a la consola. Null si no hay corrida. */
-function volcarBitacora(): { veredicto: Record<string, unknown>; resumen: Record<string, { altas: number; cambios: number }> } | null {
+function dumpLogbook(): { veredicto: Record<string, unknown>; resumen: Record<string, { altas: number; cambios: number }> } | null {
     if (!current) return null;
-    const eventos = [...bitacora.eventos.values()].sort((x, y) => String(x.at).localeCompare(String(y.at)));
-    const resumen: Record<string, { altas: number; cambios: number }> = {};
-    for (const e of eventos) {
-        const r = (resumen[e.tabla] ??= { altas: 0, cambios: 0 });
+    const events = [...logbook.eventos.values()].sort((x, y) => String(x.at).localeCompare(String(y.at)));
+    const summary: Record<string, { altas: number; cambios: number }> = {};
+    for (const e of events) {
+        const r = (summary[e.tabla] ??= { altas: 0, cambios: 0 });
         if (e.op === 'INSERT') r.altas++; else r.cambios++;
     }
     // ── VEREDICTO ────────────────────────────────────────────────────────────────────────────────
     // Se DERIVA de los eventos ya recolectados, sin una sola consulta nueva: la bitácora ya trae el
     // estado y el flujo en el `detalle` de `user_requests`, y qué central se escribió en el de
     // `risk_central_user_data`. Es la conclusión que hoy reconstruís a mano abriendo la base.
-    const ESTADOS: Record<string, string> = {
+    const STATUSES: Record<string, string> = {
         '1': 'Validación OTP', '3': 'Seleccionó entidad', '9': 'Formulario de perfil',
         '10': 'Pendiente de autorización', '11': 'Autorizada',
         // Faltaban los tres desenlaces que NO son el 11, y sin ellos el panel decía «?» justo donde
@@ -95,54 +95,54 @@ function volcarBitacora(): { veredicto: Record<string, unknown>; resumen: Record
      *  ⚠ SIN ESTO EL PANEL MIENTE. Si la radicación falla, la solicitud queda igual en 11, el endpoint
      *  devuelve 200 y el panel muestra «Autorizada ✓» — con el crédito jamás enviado al lender (F-168).
      *  Sólo `lender_transactions` lo sabe, y sólo `CREDIT_COMPLETED` significa que llegó. */
-    const radicacion = (() => {
-        const t = eventos.filter((e) => e.tabla === 'lender_transactions');
+    const filing = (() => {
+        const t = events.filter((e) => e.tabla === 'lender_transactions');
         if (!t.length) return null;                       // la entidad no radica por transacción
         const m = /estado ([A-Z_]+)/.exec(t[t.length - 1].detalle);
         return m ? m[1] : null;
     })();
     const EXPERIAN = ['1', '8', '9'];   // Acierta · Quanto · Acierta+Quanto (`risk_centrals`)
-    const ur = eventos.filter((e) => e.tabla === 'user_requests');
-    const ultimo = ur.length ? ur[ur.length - 1] : null;
-    const mEstado = ultimo ? /estado (\d+)/.exec(ultimo.detalle) : null;
-    const mFlujo = ur.map((e) => /flow (\d+)/.exec(e.detalle)).filter(Boolean).pop();
-    const buro = eventos.filter((e) => e.tabla === 'risk_central_user_data'
+    const ur = events.filter((e) => e.tabla === 'user_requests');
+    const last = ur.length ? ur[ur.length - 1] : null;
+    const mStatus = last ? /estado (\d+)/.exec(last.detalle) : null;
+    const mFlow = ur.map((e) => /flow (\d+)/.exec(e.detalle)).filter(Boolean).pop();
+    const bureau = events.filter((e) => e.tabla === 'risk_central_user_data'
         && EXPERIAN.includes((/central (\d+)/.exec(e.detalle) || [])[1] ?? ''));
-    const firmado = mFlujo?.[1] === '2';
-    const veredicto = {
-        solicitud: ultimo ? `#${ultimo.id}` : null,
-        estadoFinal: mEstado ? `${mEstado[1]} «${ESTADOS[mEstado[1]] ?? '?'}»` : 'sin transiciones registradas',
-        radicacion,
+    const signed = mFlow?.[1] === '2';
+    const verdict = {
+        solicitud: last ? `#${last.id}` : null,
+        estadoFinal: mStatus ? `${mStatus[1]} «${STATUSES[mStatus[1]] ?? '?'}»` : 'sin transiciones registradas',
+        radicacion: filing,
         // El 11 es el final del lado NUESTRO. Cuando la entidad radica, el final de verdad es que el
         // paquete haya llegado — y son dos cosas distintas que nada más distingue.
-        radicoBien: radicacion === null ? null : radicacion === 'CREDIT_COMPLETED',
-        flujo: mFlujo ? (firmado ? '2 · already-confirmed-pre-approval (omite buró)' : `${mFlujo[1]} · estándar`) : 'sin firmar',
+        radicoBien: filing === null ? null : filing === 'CREDIT_COMPLETED',
+        flujo: mFlow ? (signed ? '2 · already-confirmed-pre-approval (omite buró)' : `${mFlow[1]} · estándar`) : 'sin firmar',
         // Canal ECOMMERCE: lo único que ese canal promete es que la solicitud quede ATADA al pedido de la
         // tienda — sin eso el comercio no recibe el veredicto, y el formulario ni se prellena ni bloquea
         // nada. Este resumen no lo miraba: el 2026-09-14 una corrida por UI llegó a /lenders, acá decía
         // todo bien, y el vínculo era 0. La consulta la hace `dbops ecommerce-vinculo` al cerrar.
-        ...(bitacora.ecommerce ? {
-            comercio: bitacora.ecommerce.vinculada
-                ? `✓ atada al pedido #${bitacora.ecommerce.ecommerceRequestId} (${bitacora.ecommerce.orderKey}) · el comercio entregó ${bitacora.ecommerce.conDato.length}/6 campos: ${bitacora.ecommerce.conDato.join(', ')} → el front los prellena y BLOQUEA${bitacora.ecommerce.sinDato.length ? ` · sin dato (editables): ${bitacora.ecommerce.sinDato.join(', ')}` : ''}`
+        ...(logbook.ecommerce ? {
+            comercio: logbook.ecommerce.vinculada
+                ? `✓ atada al pedido #${logbook.ecommerce.ecommerceRequestId} (${logbook.ecommerce.orderKey}) · el comercio entregó ${logbook.ecommerce.conDato.length}/6 campos: ${logbook.ecommerce.conDato.join(', ')} → el front los prellena y BLOQUEA${logbook.ecommerce.sinDato.length ? ` · sin dato (editables): ${logbook.ecommerce.sinDato.join(', ')}` : ''}`
                 : '✗ SIN ATAR a ningún pedido — el comercio no recibirá el veredicto, y el formulario no se prellena ni bloquea nada. Causa conocida: el OTP salió sin `ecommerce_request_id` (frontend-monorepo#997)',
         } : {}),
         // En modo SINTÉTICO la fila de Experian la escribe `synthFill`, NO la consulta el backend.
         // Contarla como consulta daba un falso negativo: "flujo firmado pero se consultó Experian",
         // acusando a la lógica de omisión de algo que hizo el propio harness. Un veredicto equivocado
         // es peor que ninguno, así que en ese modo se dice que no aplica en vez de concluir.
-        experian: current.inject ? `${buro.length} fila/s INYECTADAS por el harness (modo sintético)`
-            : buro.length ? `CONSULTADO (${buro.length} reporte/s)` : 'no se consultó',
+        experian: current.inject ? `${bureau.length} fila/s INYECTADAS por el harness (modo sintético)`
+            : bureau.length ? `CONSULTADO (${bureau.length} reporte/s)` : 'no se consultó',
         // La lectura combinada es lo que importa; el resto son datos sueltos.
-        lectura: !ultimo ? 'la corrida no llegó a crear ni tocar una solicitud'
+        lectura: !last ? 'la corrida no llegó a crear ni tocar una solicitud'
             // La regla que vale SIEMPRE: si no hay NINGUNA fila de buró, nadie inyectó y nadie
             // consultó — la ausencia es evidencia y el modo da igual. Solo cuando SÍ hay filas y
             // estamos en sintético no se puede concluir: ahí la fila pudo ponerla el harness, y "hay
             // buró" deja de distinguir quién la escribió. Condicionar por modo en vez de por la
             // evidencia fue lo que produjo dos falsos negativos seguidos.
-            : current.inject && buro.length ? 'modo sintético con buró inyectado: NO se puede concluir sobre la omisión — la fila pudo ponerla el harness, no el backend'
-            : firmado && !buro.length ? '✓ flujo firmado y sin consulta a Experian: la omisión se aplicó'
-            : firmado && buro.length ? '✗ flujo firmado PERO se consultó Experian — la omisión no funcionó'
-            : buro.length ? 'flujo estándar con consulta a Experian (lo esperado sin la firma)'
+            : current.inject && bureau.length ? 'modo sintético con buró inyectado: NO se puede concluir sobre la omisión — la fila pudo ponerla el harness, no el backend'
+            : signed && !bureau.length ? '✓ flujo firmado y sin consulta a Experian: la omisión se aplicó'
+            : signed && bureau.length ? '✗ flujo firmado PERO se consultó Experian — la omisión no funcionó'
+            : bureau.length ? 'flujo estándar con consulta a Experian (lo esperado sin la firma)'
             : 'flujo estándar sin consulta: puede ser caché vigente o la compuerta de frecuencia (ver F-60/F-63)',
     };
 
@@ -153,19 +153,19 @@ function volcarBitacora(): { veredicto: Record<string, unknown>; resumen: Record
             fin: new Date().toISOString(),
             duracionSeg: Math.round((Date.now() - current.startedAt) / 1000),
         },
-        usuario: bitacora.user,
+        usuario: logbook.user,
         // El alcance viaja DENTRO del archivo: quien lo lea meses después no tiene por qué saber que
         // esto no es un binlog, y un registro que aparenta ser completo es peor que no tenerlo.
         alcance: '9 tablas curadas, solo filas del usuario de esta corrida. NO incluye DELETEs ni escrituras de otras personas (dev/staging son compartidas).',
-        veredicto, resumen, eventos,
+        veredicto: verdict, resumen: summary, eventos: events,
     };
     try {
         if (!existsSync(RUNS_DIR)) mkdirSync(RUNS_DIR, { recursive: true });
         const s = JSON.stringify(doc, null, 2) + '\n';
-        writeFileSync(ULTIMA, s);
+        writeFileSync(LAST, s);
         writeFileSync(join(RUNS_DIR, `corrida-${new Date(current.startedAt).toISOString().replace(/[:.]/g, '-').slice(0, 19)}-${current.slug}.json`), s);
     } catch { /* el volcado nunca debe tumbar la corrida */ }
-    return { veredicto, resumen };
+    return { veredicto: verdict, resumen: summary };
 }
 
 /**
@@ -180,16 +180,16 @@ function volcarBitacora(): { veredicto: Record<string, unknown>; resumen: Record
  * Silencioso si no hay volcado (una corrida vieja, o un spec que murió antes): un bloque que aparece
  * vacío ensucia el reporte sin aportar.
  */
-function escriturasDelArnes(): string[] {
+function harnessWrites(): string[] {
     try {
         const j = JSON.parse(readFileSync(join(RUNS_DIR, 'escrituras-guiado.json'), 'utf8'));
         const r: Array<{ tabla: string; ops: string; filas: number }> = j?.resumen ?? [];
         if (!r.length) return [];
-        const conBorrado = r.filter((x) => x.ops.includes('DELETE')).map((x) => x.tabla);
+        const withDeletion = r.filter((x) => x.ops.includes('DELETE')).map((x) => x.tabla);
         return [
             `  arnés:      ${r.map((x) => `${x.tabla} (${x.ops} ${x.filas})`).join(' · ')}`,
             `              ↑ lo que escribió el ARNÉS (siembra y bypasses), ${j.sentencias?.length ?? '?'} sentencia(s)`
-            + (conBorrado.length ? ` — con BORRADOS en ${conBorrado.join(', ')}, que la línea «tablas» no puede ver` : ''),
+            + (withDeletion.length ? ` — con BORRADOS en ${withDeletion.join(', ')}, que la línea «tablas» no puede ver` : ''),
         ];
     } catch {
         return [];
@@ -197,10 +197,10 @@ function escriturasDelArnes(): string[] {
 }
 
 /** Formatea el veredicto + resumen para la CONSOLA de la corrida (texto, queda después de terminar). */
-function comprobacionTexto(info: { veredicto: Record<string, any>; resumen: Record<string, { altas: number; cambios: number }> } | null, nEventos: number, uiErrors = 0): string {
+function verificationText(info: { veredicto: Record<string, any>; resumen: Record<string, { altas: number; cambios: number }> } | null, nEvents: number, uiErrors = 0): string {
     if (!info) return '  (sin corrida)\n';
     const v = info.veredicto;
-    const tablas = Object.entries(info.resumen)
+    const tables = Object.entries(info.resumen)
         .map(([t, r]) => `${t} (${[r.altas ? `${r.altas} alta${r.altas > 1 ? 's' : ''}` : '', r.cambios ? `${r.cambios} cambio${r.cambios > 1 ? 's' : ''}` : ''].filter(Boolean).join(' · ')})`)
         .join(' · ') || '(ninguna)';
     return [
@@ -212,9 +212,9 @@ function comprobacionTexto(info: { veredicto: Record<string, any>; resumen: Reco
         ...(v.comercio ? [`  comercio:   ${v.comercio}`] : []),
         `  experian:   ${v.experian}`,
         `  lectura:    ${v.lectura}`,
-        `  tablas:     ${tablas}`,
-        `  detalle completo → .runs/ultima-corrida.json (${nEventos} operación/es de BD)`,
-        ...escriturasDelArnes(),
+        `  tablas:     ${tables}`,
+        `  detalle completo → .runs/ultima-corrida.json (${nEvents} operación/es de BD)`,
+        ...harnessWrites(),
         ...(uiErrors ? [`  ⚠ UI:        ${uiErrors} error(es) en pantalla durante la corrida (ver .auth/guided-ERROR-*.png) — "passed" es del harness, no de la app`] : []),
         '',
     ].join('\n') + '\n';
@@ -271,7 +271,7 @@ function dbopsJson(args: string[], target: string): Promise<any> {
  * minutos. Se resuelve diciendo la verdad: en local y dev se imprime POR QUÉ no hay nada que mirar, y en
  * qa/staging se deja el comando listo con el uReq y la hora ya puestos.
  */
-function forenseDeLogs(ureq: number | string, target: string): Promise<string> {
+function logsForensic(ureq: number | string, target: string): Promise<string> {
     return new Promise((ok) => {
         execFile('node', ['dev/loki-trace.ts', String(ureq)],
             { cwd: ROOT, env: envFor(target), timeout: 60_000, maxBuffer: 4 * 1024 * 1024 },
@@ -285,13 +285,13 @@ function forenseDeLogs(ureq: number | string, target: string): Promise<string> {
 }
 
 /** Lo que el panel puede decir de PostHog sin bloquearse esperando la ingesta. */
-function pistaPostHog(ureq: number | string, target: string, desde: Date): string {
-    // Se replica el motivo en vez de importar `porQueNo`, por lo mismo que arriba: importar ataría el
+function postHogHint(ureq: number | string, target: string, since: Date): string {
+    // Se replica el motivo en vez de importar `whyNot`, por lo mismo que arriba: importar ataría el
     // target. Son dos casos y están medidos — `pkg/posthog.ts` los documenta con su fecha.
     if (target === 'local') return '  ▸ PostHog: no hay nada que mirar — el front local no escribe (APP_ENV=local apaga getServerPostHog)';
     if (target === 'dev') return '  ▸ PostHog: no hay nada que mirar — el target dev sirve el front LOCAL, que tampoco escribe';
     return `  ▸ PostHog: disponible, pero su ingesta tarda minutos y bloquearía este cierre.\n`
-        + `  ▸   make harness-posthog UREQ=${ureq} DESDE=${new Date(desde.getTime() - 60_000).toISOString()}`;
+        + `  ▸   make harness-posthog UREQ=${ureq} DESDE=${new Date(since.getTime() - 60_000).toISOString()}`;
 }
 
 // hash de la SUCURSAL que usa el LAUNCH para un slug (de .flows.json, igual que bin/asesor). Es ese branch
@@ -329,7 +329,7 @@ function branchHashForSlug(slug: string, target = 'local'): string {
  * tiene sentido si el mock es quien contesta. Atarlo a una lista de targets se desincroniza el día que
  * alguien cambia `E2E_REAL_PREAPPROVALS`, y quedaría una perilla que no mueve nada.
  */
-function usaMockPA(target: string): Promise<boolean> {
+function usesMockPA(target: string): Promise<boolean> {
     return new Promise((ok) => {
         execFile('node', ['bin/envget.ts', 'E2E_REAL_PREAPPROVALS', '0'],
             { cwd: ROOT, env: envFor(target), timeout: 10000 },
@@ -341,10 +341,10 @@ function usaMockPA(target: string): Promise<boolean> {
  * URL del front DESPLEGADO del target, por la MISMA cadena que usa `bin/asesor` (envget). Cadena vacía =
  * ese target no tiene deploy configurado (su E2E_BASE_URL apunta a localhost), así que la opción "del
  * ambiente" NO existe para él y el panel la deshabilita: una perilla que no mueve nada es peor que no
- * tenerla. Se resuelve por la cadena y no con una lista de targets, igual que `usaMockPA`: el día que
+ * tenerla. Se resuelve por la cadena y no con una lista de targets, igual que `usesMockPA`: el día que
  * `dev` tenga front desplegado, ponerlo en `.env.dev` alcanza para que la opción aparezca sola.
  */
-function frontDelAmbiente(target: string): Promise<string> {
+function environmentFront(target: string): Promise<string> {
     return new Promise((ok) => {
         execFile('node', ['bin/envget.ts', 'E2E_BASE_URL', 'http://localhost:5174'],
             { cwd: ROOT, env: envFor(target), timeout: 10000 },
@@ -439,12 +439,12 @@ async function bootPrewarm(): Promise<void> {
 
 // SUB del asesor por target — la MISMA cadena que usa bin/asesor (envget E2E_ASESOR_SUB), con fallback
 // a `.flows.json` (asesor.sub). Si se leyera del shell del panel, ponerlo en .env.<target> no haría nada.
-function asesorSub(target: string): Promise<string> {
+function advisorSub(target: string): Promise<string> {
     return new Promise((ok) => {
         execFile('node', ['bin/envget.ts', 'E2E_ASESOR_SUB', ''], { cwd: ROOT, env: envFor(target), timeout: 10000 },
             (err, out) => {
                 const sub = !err ? String(out || '').trim() : '';
-                ok(sub || String(leerFlows()?.asesor?.sub || '').trim());
+                ok(sub || String(readFlows()?.asesor?.sub || '').trim());
             });
     });
 }
@@ -466,36 +466,36 @@ async function ensureAssign(slug: string, target: string): Promise<{ ok: boolean
     // sale con el nombre del comercio equivocado. Medido el 2026-09-18 alternando sucursales de Motai:
     // PRINCIPAL → Boyacá → PRINCIPAL dejó al asesor en Boyacá.
     // Se vuelve trivialmente correcto si el cache guarda A LO SUMO UNA sucursal por target.
-    const recordar = () => {
+    const remember = () => {
         for (const k of [...assignOk]) if (k.startsWith(`${target}|`)) assignOk.delete(k);
         assignOk.add(key);
     };
-    const sub = await asesorSub(target);
+    const sub = await advisorSub(target);
     if (!sub) return { ok: false, detail: `sin asesor para ${target}: definí E2E_ASESOR_SUB en .env.${target} (o asesor.sub en .flows.json)` };
     const cur = await dbopsJson(['whois', sub], target);
     if (cur?.matches?.[0]?.allied_branch_hash === hash) {
-        recordar();
+        remember();
         return { ok: true, already: true, detail: 'el asesor ya estaba en esta sucursal — sin write' };
     }
     const r = await dbopsJson(['assign', sub, slug, hash, sub], target);
     if (!r || r.error) return { ok: false, detail: r?.error || 'el assign falló (mirá la consola del panel)' };
-    recordar();
+    remember();
     return { ok: true, detail: `asesor asignado a la sucursal ${hash}` };
 }
 
 /** Qué front va a abrir la corrida, en una línea, ya resuelto el switch (`auto` = lo que diga el target). */
 async function frontLabel(target: string, front: string): Promise<string> {
-    const amb = await frontDelAmbiente(target);
-    const esLocal = front === 'local' || (front !== 'ambiente' && !amb);
-    return esLocal
+    const envName = await environmentFront(target);
+    const isLocal = front === 'local' || (front !== 'ambiente' && !envName);
+    return isLocal
         ? `LOCAL :5174 — Vite sobre tu working copy del monorepo, contra el backend de ${target}`
-        : `DEL AMBIENTE ${amb || '(sin URL configurada)'} — build desplegado: tus cambios locales NO se ven`;
+        : `DEL AMBIENTE ${envName || '(sin URL configurada)'} — build desplegado: tus cambios locales NO se ven`;
 }
 
-function leerFlows(): any {
+function readFlows(): any {
     try { return JSON.parse(readFileSync(join(ROOT, '.flows.json'), 'utf8')); } catch { return {}; }
 }
-function escribirFlows(j: any): void {
+function writeFlows(j: any): void {
     writeFileSync(join(ROOT, '.flows.json'), JSON.stringify(j, null, 2) + '\n');
 }
 /**
@@ -504,8 +504,8 @@ function escribirFlows(j: any): void {
  * distintas son comercios de prueba distintos, y pisar uno haría que `bin/asesor dentix` corriera
  * contra la sucursal equivocada sin avisar.
  */
-function slugPara(nombre: string, hash: string, flows: any): string {
-    const base = nombre.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+function slugFor(nameValue: string, hash: string, flows: any): string {
+    const base = nameValue.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '')
         .replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 40) || 'comercio';
     const m = flows?.merchants ?? {};
     if (!m[base] || m[base].branch_hash === hash) return base;
@@ -519,16 +519,16 @@ interface Profile { income?: number; score?: number; name?: string; documentType
 // RASTRO de la corrida: vuelca TODO lo que elegiste en el panel al log, para que quede registro de con qué
 // configuración corriste (antes solo salía el perfil, como un JSON crudo, y los selects de pre-aprobación y
 // el ON/OFF de lenders no aparecían en ningún lado).
-async function runHeader(slug: string, p: Profile, t: string, inject: boolean, step: string, amt: number, paDelay: number, canal = 'asesor', front = 'auto'): Promise<string> {
+async function runHeader(slug: string, p: Profile, t: string, inject: boolean, step: string, amt: number, paDelay: number, channel = 'asesor', front = 'auto'): Promise<string> {
     const money = (n: number) => `$${n.toLocaleString('es-CO')}`;
     const row = (k: string, v: string) => `   ${k.padEnd(13)}${v}`;
     const L: string[] = [
         `▶ CORRIDA · ${slug} (${t})`,
-        row('canal', canal === 'ecommerce'
+        row('canal', channel === 'ecommerce'
             ? 'ECOMMERCE — entra por URL base64 de la tienda (sin asesor)'
-            : canal === 'qr'
+            : channel === 'qr'
             ? 'QR — caja de un comercio Corbeta, autogestión pura (sin asesor y SIN marketplace)'
-            : canal === 'autogestion'
+            : channel === 'autogestion'
             ? 'AUTOGESTIÓN — el cliente entra solo por /self-service (sin login, un solo dispositivo)'
             : 'ASESOR — login Cognito + wizard en /merchant'),
         row('modo', inject ? 'SINTÉTICO — inyecta el buró (salta la consulta real)' : 'REAL — consulta el buró de verdad, sin inyección'),
@@ -574,12 +574,12 @@ async function runHeader(slug: string, p: Profile, t: string, inject: boolean, s
     // Nombre de cada lender + su ON/OFF, para que el rastro se lea sin tener que traducir ids.
     const hash = branchHashForSlug(slug, t);
     const lenders = hash ? ((await dbopsJson(['lenders-for', hash], t)) as Array<{ id: number; name: string; rt: number; lender_status: number }> | null) : null;
-    const ES: Record<string, string> = { approved: 'aprobado', rejected: 'rechazado', pending: 'pendiente' };
+    const IS: Record<string, string> = { approved: 'aprobado', rejected: 'rechazado', pending: 'pendiente' };
     if (Array.isArray(lenders) && lenders.length) {
         const desc = lenders.map((l) => {
             const on = Number(l.lender_status) === 1;
             // rt0 no consulta el MS de pre-aprobados → el selector del panel no aplica.
-            const st = Number(l.rt) !== 0 ? (ES[pa[String(l.id)]] ?? 'aprobado (default)') : 'sin pre-aprobación (rt0)';
+            const st = Number(l.rt) !== 0 ? (IS[pa[String(l.id)]] ?? 'aprobado (default)') : 'sin pre-aprobación (rt0)';
             return `${l.name} #${l.id} rt${l.rt} → ${on ? st : 'APAGADO (no va a listar)'}`;
         });
         // ⚠ ESTO ES EL UNIVERSO, NO EL LISTADO. Sale de `lenders_by_allied_branches` —lo que la
@@ -616,23 +616,23 @@ async function runHeader(slug: string, p: Profile, t: string, inject: boolean, s
         // esa capa al cargar (ahí se resuelve el target, y un import estático lo fijaría antes de que
         // el panel elija — es la trampa de F-187).
         try {
-            const { avisoIdentidadSinProveedor } = await import('../pkg/config.ts');
-            const lineas = avisoIdentidadSinProveedor(t);
-            if (lineas.length) {
-                L.push(row('⚠ identidad', lineas[0].replace(/^⚠ /, '')
-                    + lineas.slice(1).map((x) => `\n${' '.repeat(16)}${x.trim()}`).join('')));
+            const { avisoIdentidadSinProveedor: identityWithoutProviderNotice } = await import('../pkg/config.ts');
+            const lines = identityWithoutProviderNotice(t);
+            if (lines.length) {
+                L.push(row('⚠ identidad', lines[0].replace(/^⚠ /, '')
+                    + lines.slice(1).map((x) => `\n${' '.repeat(16)}${x.trim()}`).join('')));
             }
         } catch { /* sin el módulo, la cabecera sigue igual */ }
 
-        const conRt0 = lenders.filter((l) => Number(l.rt) === 0 && Number(l.lender_status) === 1);
-        if (!conRt0.length) {
+        const withRt0 = lenders.filter((l) => Number(l.rt) === 0 && Number(l.lender_status) === 1);
+        if (!withRt0.length) {
             L.push(row('⚠ cupo', 'este comercio NO tiene ninguna entidad rt=0 activa EN ESTE AMBIENTE: si en\n'
                 + ' '.repeat(16) + '«Confirmación de cupo» contestás «Sí», el listado sale VACÍO (flow_id=2 deja\n'
                 + ' '.repeat(16) + 'sólo rt=0 · F-214). Para recorrer el flujo entero, contestá «No».\n'
                 + ' '.repeat(16) + 'El runner lo vuelve a avisar cuando el flujo ya quedó firmado.'));
         }
     } else if (Object.keys(pa).length) {
-        L.push(row('pre-aprob.', Object.entries(pa).map(([id, s]) => `#${id} ${ES[s] ?? s}`).join(' · ') + ' (resto: aprobado)'));
+        L.push(row('pre-aprob.', Object.entries(pa).map(([id, s]) => `#${id} ${IS[s] ?? s}`).join(' · ') + ' (resto: aprobado)'));
     }
 
     /* ⚠ ¿LAS ENTIDADES DE ARRIBA SON LAS QUE SE VAN A VER? Se anuncian las de `hash`, que sale del
@@ -643,14 +643,14 @@ async function runHeader(slug: string, p: Profile, t: string, inject: boolean, s
      * de `ec977139`, dos sucursales del MISMO comercio con listas distintas.
      *
      * Sólo lectura y sin romper nada: si no se pudo comprobar, no se dice nada. */
-    if (hash && canal !== 'ecommerce') {
+    if (hash && channel !== 'ecommerce') {
         try {
-            const sub = await asesorSub(t);
+            const sub = await advisorSub(t);
             if (sub) {
                 const chk = await dbopsJson(['sucursal-check', hash, sub], t);
-                const aviso: string[] = Array.isArray(chk?.aviso) ? chk.aviso : [];
-                if (chk?.coincide === false && aviso.length) {
-                    L.push(row('⚠ sucursal', aviso.join('\n' + ' '.repeat(16))));
+                const notice: string[] = Array.isArray(chk?.aviso) ? chk.aviso : [];
+                if (chk?.coincide === false && notice.length) {
+                    L.push(row('⚠ sucursal', notice.join('\n' + ' '.repeat(16))));
                 }
             }
         } catch { /* el chequeo es una ayuda: si falla, la corrida sigue */ }
@@ -658,14 +658,14 @@ async function runHeader(slug: string, p: Profile, t: string, inject: boolean, s
     return L.join('\n') + '\n';
 }
 
-async function launch(slug: string, profile: Profile, target: string, inject: boolean, stepTarget: string, amount: number, paDelay: number, canal = 'asesor', omitirExperian = false, front = 'auto'): Promise<{ ok: boolean; msg: string }> {
+async function launch(slug: string, profile: Profile, target: string, inject: boolean, stepTarget: string, amount: number, paDelay: number, channel = 'asesor', skipExperian = false, front = 'auto'): Promise<{ ok: boolean; msg: string }> {
     if (current && !current.done) return { ok: false, msg: `ya hay una corrida activa (${current.slug}). Parala primero.` };
     const t = TARGETS.has(target) ? target : 'local';
     const step = ['monto', 'phone', 'personal-info', 'lenders'].includes(stepTarget) ? stepTarget : 'monto';
     const amt = amount > 0 ? Math.round(amount) : 2_000_000; // monto solicitado (default 2M)
     const mode = inject ? 'manual + inyección de buró' : 'manual REAL (consulta buró real, sin inyección)';
     const jump = step === 'monto' ? '' : ` · salto → ${step}`;
-    writeFileSync(RUN_LOG, await runHeader(slug, profile, t, inject, step, amt, paDelay, canal, front));
+    writeFileSync(RUN_LOG, await runHeader(slug, profile, t, inject, step, amt, paDelay, channel, front));
     const env = {
         ...envFor(t),
         // switch del front: 'local' abre tu :5174 (working copy) contra el backend del target — así ves un
@@ -681,7 +681,7 @@ async function launch(slug: string, profile: Profile, target: string, inject: bo
         // sesión, que es como llega el cliente de un comercio con «Habilitar auto gestión» prendido.
         // ⚠ No es una variante cosmética del canal del asesor: las dos puertas montan el mismo módulo del
         // front, pero `/merchant/*` está detrás de login y con sesión el backend resuelve punto de venta.
-        E2E_ENTRY: canal === 'ecommerce' ? 'ecommerce' : canal === 'qr' ? 'qr' : canal === 'autogestion' ? 'self-service' : 'cognito',
+        E2E_ENTRY: channel === 'ecommerce' ? 'ecommerce' : channel === 'qr' ? 'qr' : channel === 'autogestion' ? 'self-service' : 'cognito',
         // salto de pasos: monto (vos manejás) | phone | personal-info | lenders (auto-avanza inyectando el sintético).
         E2E_STEP_TARGET: step,
         // monto solicitado (lo usa el spec para sembrar/monto y el /lenders?amount=).
@@ -703,23 +703,23 @@ async function launch(slug: string, profile: Profile, target: string, inject: bo
         E2E_SYNTH_EMAIL: profile.email || '',
         // "Cupo ya confirmado" (checkbox al pie del monto): firma el flujo already-confirmed-pre-approval en el
         // sembrado headless → el backend no consulta el buró y /lenders lista solo rt=0. Inyecta el estado, no valida.
-        E2E_OMIT_EXPERIAN: omitirExperian ? '1' : '',
+        E2E_OMIT_EXPERIAN: skipExperian ? '1' : '',
     };
     // detached → el hijo lidera su propio grupo de procesos; así "Detener" mata el ÁRBOL entero
     // (bash → npx playwright → node → chromium), no solo el bash.
-    const bin = canal === 'ecommerce' ? 'ecommerce' : canal === 'qr' ? 'qr' : canal === 'autogestion' ? 'autogestion' : 'asesor';   // ecommerce/qr/autogestion son wrappers que exportan CFE_ENTRY
+    const bin = channel === 'ecommerce' ? 'ecommerce' : channel === 'qr' ? 'qr' : channel === 'autogestion' ? 'autogestion' : 'asesor';   // ecommerce/qr/autogestion son wrappers que exportan CFE_ENTRY
     const child = spawn('/bin/bash', [join(ROOT, 'bin', bin), slug], { cwd: ROOT, env, detached: true });  // sin `auto` → manual
-    current = { child, slug, target: t, inject, canal, startedAt: Date.now(), done: false, code: null };
-    bitacora = { user: null, eventos: new Map() };   // arranca limpia: si no, arrastraría la corrida anterior
+    current = { child, slug, target: t, inject, canal: channel, startedAt: Date.now(), done: false, code: null };
+    logbook = { user: null, eventos: new Map() };   // arranca limpia: si no, arrastraría la corrida anterior
     // Estampa "listo para explorar en Xs" la PRIMERA vez que el spec canta que aterrizó (entrada DIRECTA/OK).
     // Ese delta —desde que diste Lanzar hasta que podés explorar— es la métrica REAL de velocidad; el
     // "passed (N min)" de Playwright incluye tu exploración (holdOpen sin límite) y no mide nada.
-    let listoStamped = false;
+    let readyStamped = false;
     const append = (b: Buffer) => {
         const s = b.toString();
         try { writeFileSync(RUN_LOG, s, { flag: 'a' }); } catch {}
-        if (!listoStamped && current && /entrada (DIRECTA|OK)/.test(s)) {
-            listoStamped = true;
+        if (!readyStamped && current && /entrada (DIRECTA|OK)/.test(s)) {
+            readyStamped = true;
             const seg = Math.max(1, Math.round((Date.now() - current.startedAt) / 1000));
             try { writeFileSync(RUN_LOG, `  ⏱ listo para explorar en ${seg}s (desde que diste Lanzar)\n`, { flag: 'a' }); } catch {}
         }
@@ -730,11 +730,11 @@ async function launch(slug: string, profile: Profile, target: string, inject: bo
     // única salida era matar el proceso a mano. Cuando el log canta que el spec cerró, se le da un
     // margen y se mata el grupo: el `close` posterior dispara el post-mortem normal, que es justo lo
     // que se perdía al matarlo por fuera.
-    const FIN_DEL_SPEC = /^(?:\s*(?:\d+ (?:passed|failed)|✗ falló \(code|✅ '.*' OK contra|⏹  interrumpido))/m;
-    let cierreForzado: NodeJS.Timeout | null = null;
-    const vigilarFin = (txt: string) => {
-        if (cierreForzado || !FIN_DEL_SPEC.test(txt)) return;
-        cierreForzado = setTimeout(() => {
+    const SPEC_END = /^(?:\s*(?:\d+ (?:passed|failed)|✗ falló \(code|✅ '.*' OK contra|⏹  interrumpido))/m;
+    let forcedClose: NodeJS.Timeout | null = null;
+    const watchEnd = (txt: string) => {
+        if (forcedClose || !SPEC_END.test(txt)) return;
+        forcedClose = setTimeout(() => {
             if (!current || current.done) return;
             append(Buffer.from('\n  ⚠ el spec terminó pero el launcher sigue vivo — cierro el grupo de procesos\n'));
             killRun('SIGTERM');
@@ -742,10 +742,10 @@ async function launch(slug: string, profile: Profile, target: string, inject: bo
         }, 8000);   // margen: el launcher todavía imprime su resumen y restaura el .env.local
     };
 
-    child.stdout?.on('data', (b: Buffer) => { append(b); vigilarFin(b.toString()); });
-    child.stderr?.on('data', (b: Buffer) => { append(b); vigilarFin(b.toString()); });
+    child.stdout?.on('data', (b: Buffer) => { append(b); watchEnd(b.toString()); });
+    child.stderr?.on('data', (b: Buffer) => { append(b); watchEnd(b.toString()); });
     child.on('close', async (code) => {
-        if (cierreForzado) { clearTimeout(cierreForzado); cierreForzado = null; }
+        if (forcedClose) { clearTimeout(forcedClose); forcedClose = null; }
         // El panel sigue observando hasta que la evidencia está lista. Marcar done acá cortaba el
         // polling antes del resumen de BD y permitía iniciar otra corrida mientras aún se recolectaba.
         if (current) { current.code = code; current.finishedAt = Date.now(); }
@@ -757,19 +757,19 @@ async function launch(slug: string, profile: Profile, target: string, inject: bo
         try {
             const seg = current ? Math.max(1, Math.round((Date.now() - current.startedAt) / 1000)) : 300;
             const act = await dbopsJson(['activity', String(seg)], current?.target || 'local');
-            acumular(act);
-            // Sólo para el canal ecommerce: ¿quedó atada al pedido? (ver el comentario en `volcarBitacora`).
+            accumulate(act);
+            // Sólo para el canal ecommerce: ¿quedó atada al pedido? (ver el comentario en `dumpLogbook`).
             if (current?.canal === 'ecommerce') {
-                const urs = [...bitacora.eventos.values()].filter((e) => e.tabla === 'user_requests');
-                const ureq = urs.length ? urs[urs.length - 1].id : null;
-                if (ureq) bitacora.ecommerce = await dbopsJson(['ecommerce-vinculo', String(ureq)], current.target);
+                const urList = [...logbook.eventos.values()].filter((e) => e.tabla === 'user_requests');
+                const ureq = urList.length ? urList[urList.length - 1].id : null;
+                if (ureq) logbook.ecommerce = await dbopsJson(['ecommerce-vinculo', String(ureq)], current.target);
             }
-            const info = volcarBitacora();
+            const info = dumpLogbook();
             // ¿la UI mostró algún banner de error durante la corrida? El spec los vuelca como "⚠ FALLO EN
             // PANTALLA …" (errorShot). Con el salto por `commit`, un error POSTERIOR no tumba la corrida
             // (queda "passed"), así que hay que CANTARLO en el cierre o pasa inadvertido.
             const uiErrors = (fullLog().match(/FALLO EN PANTALLA/g) || []).length;
-            append(Buffer.from(comprobacionTexto(info, bitacora.eventos.size, uiErrors)));
+            append(Buffer.from(verificationText(info, logbook.eventos.size, uiErrors)));
 
             // El POR QUÉ, anclado a la solicitud que la comprobación acaba de identificar. Si no hubo
             // solicitud no hay nada que anclar y no se dice nada: un bloque vacío es ruido.
@@ -780,8 +780,8 @@ async function launch(slug: string, profile: Profile, target: string, inject: bo
             const ur = String(info?.veredicto?.solicitud ?? '').replace(/\D/g, '');
             if (ur) {
                 append(Buffer.from('\n── Por qué terminó así (logs) ──\n'));
-                append(Buffer.from(`${pistaPostHog(ur, current?.target || 'local', new Date(current?.startedAt ?? Date.now()))}\n`));
-                append(Buffer.from(await forenseDeLogs(ur, current?.target || 'local') + '\n'));
+                append(Buffer.from(`${postHogHint(ur, current?.target || 'local', new Date(current?.startedAt ?? Date.now()))}\n`));
+                append(Buffer.from(await logsForensic(ur, current?.target || 'local') + '\n'));
             }
         } catch (e) {
             append(Buffer.from(`  ⚠ no se pudo comprobar la BD al cerrar: ${e instanceof Error ? e.message : String(e)}\n`));
@@ -803,14 +803,14 @@ function tailLog(): string {
 // payload (tailLog ya recorta a 120 líneas y son ~7 KB): es porque el cliente pinta una MINIATURA por
 // cada línea 📸, y reconstruir ese DOM cada 2s recrea todas las <img>. Con cursor sólo se agrega lo nuevo.
 // `total` es el conteo absoluto: si baja, el RUN_LOG se reescribió (corrida nueva) → el cliente resetea.
-function lineasDesde(archivo: string, from: number): { total: number; from: number; lines: string[] } {
-    if (!existsSync(archivo)) return { total: 0, from: 0, lines: [] };
-    const todas = readFileSync(archivo, 'utf8').replace(/\x1b\[[0-9;]*[A-Za-z]/g, '').split('\n');
-    const desde = from > 0 && from <= todas.length ? from : 0;
-    return { total: todas.length, from: desde, lines: todas.slice(desde) };
+function linesSince(file: string, from: number): { total: number; from: number; lines: string[] } {
+    if (!existsSync(file)) return { total: 0, from: 0, lines: [] };
+    const all = readFileSync(file, 'utf8').replace(/\x1b\[[0-9;]*[A-Za-z]/g, '').split('\n');
+    const since = from > 0 && from <= all.length ? from : 0;
+    return { total: all.length, from: since, lines: all.slice(since) };
 }
 
-const logDesde = (from: number) => lineasDesde(RUN_LOG, from);
+const logSince = (from: number) => linesSince(RUN_LOG, from);
 
 // log COMPLETO (sin recorte) para el botón "copiar consola". Incluye los errores del navegador: el spec los
 // vuelca al stdout del hijo (page.on('console')/pageerror → líneas "⚠ …" / "⚠ FALLO EN PANTALLA …"), que va al RUN_LOG.
@@ -894,8 +894,8 @@ const server = createServer(async (req, res) => {
         const body = await readBody(req);
         const uReq = Number(body.uReq || 0);
         const lender = Number(body.lender || 0);
-        const estado = String(body.estado || '');
-        if (!uReq || !lender || !estado) return json(res, 400, { error: 'faltan uReq, lender o estado' });
+        const stateValue = String(body.estado || '');
+        if (!uReq || !lender || !stateValue) return json(res, 400, { error: 'faltan uReq, lender o estado' });
         // ⚠ EL TARGET SE FIJA A `local` A MANO, Y NO ES DEFENSIVO: `pkg/db.ts` toma `E2E_TARGET` y su
         // default es **dev** (harness/CLAUDE.md lo advierte para `bin/dbops.ts`, y acá pasa igual). Sin
         // esto el módulo buscaba la transacción de la entidad en la base de DEV, no la encontraba y
@@ -904,15 +904,15 @@ const server = createServer(async (req, res) => {
         // Y va fijo, no configurable: el receptor del webhook es el monolito viejo en localhost, así
         // que este botón sólo tiene sentido contra local.
         process.env.E2E_TARGET = 'local';
-        const { familiaWebhook, webhookIntegracion, webhookSelfManager } =
+        const { familiaWebhook: webhookFamily, webhookIntegracion: integrationWebhook, webhookSelfManager } =
             await import('../pkg/webhook-entidad.ts');
-        const fam = await familiaWebhook(lender);
+        const fam = await webhookFamily(lender);
         if (!fam) {
             return json(res, 200, { ok: false, detalle: 'esta entidad no recibe webhook: es redirección '
                 + 'pura o su familia no está cubierta (F-170)' });
         }
-        const r = fam === 'rt0' ? await webhookSelfManager(uReq, lender, estado)
-                                : await webhookIntegracion(uReq, estado);
+        const r = fam === 'rt0' ? await webhookSelfManager(uReq, lender, stateValue)
+                                : await integrationWebhook(uReq, stateValue);
         return json(res, 200, { ...r, familia: fam });
     }
 
@@ -926,12 +926,12 @@ const server = createServer(async (req, res) => {
         // ministack/LocalStack 4566, y cuál corre es una decisión de cada máquina — adivinarlo es lo
         // que hacía que el aviso mintiera. Si no se puede leer el `.env`, se cae a MinIO, que es lo que
         // documenta el README.
-        const puertoS3 = () => {
+        const s3Port = () => {
             try {
                 const env = readFileSync(join(homedir(), 'Desktop/CREDITOP/github/legacy-backend/.env'), 'utf8');
                 const m = /^AWS_ENDPOINT=.*?:(\d+)/m.exec(env);
-                const puerto = m ? Number(m[1]) : 9000;
-                return { puerto, etiqueta: puerto === 4566 ? 'ministack' : puerto === 9000 ? 'minio' : String(puerto) };
+                const port = m ? Number(m[1]) : 9000;
+                return { puerto: port, etiqueta: port === 4566 ? 'ministack' : port === 9000 ? 'minio' : String(port) };
             } catch { return { puerto: 9000, etiqueta: 'minio' }; }
         };
 
@@ -948,9 +948,9 @@ const server = createServer(async (req, res) => {
                 const env = readFileSync(join(homedir(), 'Desktop/CREDITOP/github/legacy-backend/.env'), 'utf8');
                 const v = [...env.matchAll(/^DOC_GEN_\w+=(\w+)/gm)].map((m) => m[1]);
                 if (!v.length) return { modo: 'blade', detalle: 'sin DOC_GEN_* en el .env: Blade (el default)' };
-                const unico = [...new Set(v)];
-                return unico.length === 1
-                    ? { modo: unico[0], detalle: unico[0] === 'microservice'
+                const unique = [...new Set(v)];
+                return unique.length === 1
+                    ? { modo: unique[0], detalle: unique[0] === 'microservice'
                         ? 'mock pdf-mapper — rápido, pero NO ejercita las plantillas Blade (F-150)'
                         : 'plantillas Blade — lento (un caso: 65,7 s vs 9,8 s) y es lo que corre en producción' }
                     : { modo: 'mixto', detalle: `mezclado: ${v.join(' · ')}` };
@@ -976,27 +976,27 @@ const server = createServer(async (req, res) => {
             // No son mocks pero sin ellos la corrida miente igual: MinIO guarda los documentos (sin él
             // cada subida falla en silencio y la URL da 404 — F-174) y el monolito viejo es el ÚNICO
             // que recibe los webhooks con los que rt=0 y rt=1 llegan a un desenlace (F-170).
-            // ⚠⚠ EL PUERTO DEL S3 LOCAL SE LEE DEL `.env` DEL BACKEND, no se supone. Acá estaba fijo en
+            // ⚠⚠ EL PORT DEL S3 LOCAL SE LEE DEL `.env` DEL BACKEND, no se supone. Acá estaba fijo en
             // 9000 (MinIO) y en esta máquina el S3 es **ministack en :4566**, así que el aviso «falta
             // minio/documentos» estaba encendido SIEMPRE y no había nada que hacer al respecto — un
             // aviso permanentemente rojo deja de leerse, y de paso tapa a los que sí importan. Ahora se
             // prueba el puerto que el backend tiene configurado, sea MinIO (9000) o ministack (4566).
-            [`s3/documentos (${puertoS3().etiqueta})`, puertoS3().puerto, 'documentos'],
+            [`s3/documentos (${s3Port().etiqueta})`, s3Port().puerto, 'documentos'],
             ['app-vieja/webhooks', 8000, 'rt0-rt1'],
             ['fin-health', Number(process.env.MOCK_FINHEALTH_PORT) || 4000, 'todos'],
         ];
-        const vivo = (p: number) => new Promise<boolean>((ok) => {
+        const alive = (p: number) => new Promise<boolean>((ok) => {
             const req = get({ host: '127.0.0.1', port: p, path: '/', timeout: 400 }, (r) => { r.destroy(); ok(true); });
             req.on('error', () => ok(false));
             req.on('timeout', () => { req.destroy(); ok(false); });
         });
 
-        const estados = await Promise.all(MOCKS.map(async ([n, p, para]) => ({
-            nombre: n, puerto: p, para, arriba: await vivo(p),
+        const statuses = await Promise.all(MOCKS.map(async ([n, p, forValue]) => ({
+            nombre: n, puerto: p, para: forValue, arriba: await alive(p),
         })));
 
         // última corrida: el volcado que hace el scrub ANTES de borrar (F-52)
-        let ultima: any = null;
+        let lastOne: any = null;
         try {
             const dir = join(ROOT, '.runs');
             const f = readdirSync(dir).filter((x) => x.endsWith('.json'))
@@ -1004,7 +1004,7 @@ const server = createServer(async (req, res) => {
             if (f) {
                 const j = JSON.parse(readFileSync(join(dir, f.x), 'utf8'));
                 const s = (j.solicitudes || [])[0];
-                if (s) ultima = { uReq: s.id, estado: s.estado, estadoId: s.user_request_status_id, lender: s.lender, cuando: j.borrado_en };
+                if (s) lastOne = { uReq: s.id, estado: s.estado, estadoId: s.user_request_status_id, lender: s.lender, cuando: j.borrado_en };
             }
         } catch { /* sin corridas todavía */ }
         // La RADICACIÓN no está en el volcado —lo escribe el scrub antes de borrar y no la incluye—,
@@ -1012,36 +1012,36 @@ const server = createServer(async (req, res) => {
         // paquete nunca enviado a la entidad (F-168). `null` = esa entidad no radica por transacción.
         // El id y el `response_type` de la entidad: sin ellos la UI no sabe si esta corrida quedó
         // esperando un webhook ni cuál de las dos formas usar (rt=0 genérico vs rt=1 por entidad).
-        if (ultima?.uReq) {
-            const l = await dbopsJson(['lender-de', String(ultima.uReq)], 'local');
+        if (lastOne?.uReq) {
+            const l = await dbopsJson(['lender-de', String(lastOne.uReq)], 'local');
             if (l && typeof l === 'object') {
-                ultima.lenderId = (l as any).id ?? null;
-                ultima.lenderRt = (l as any).rt ?? null;
+                lastOne.lenderId = (l as any).id ?? null;
+                lastOne.lenderRt = (l as any).rt ?? null;
             }
         }
-        if (ultima?.uReq) {
-            const r = await dbopsJson(['radicacion', String(ultima.uReq)], 'local');
-            ultima.radicacion = (r && typeof r === 'object' ? (r as any).estado : null) ?? null;
+        if (lastOne?.uReq) {
+            const r = await dbopsJson(['radicacion', String(lastOne.uReq)], 'local');
+            lastOne.radicacion = (r && typeof r === 'object' ? (r as any).estado : null) ?? null;
         }
 
-        const mapa = await new Promise<any>((ok) => {
+        const stepMap = await new Promise<any>((ok) => {
             execFile('node', ['bin/steps-check.ts', '--json'], { cwd: ROOT, timeout: 15000 }, (_e, out) => {
                 try { ok(JSON.parse(out)); } catch { ok(null); }
             });
         });
 
-        return json(res, 200, { docGen, mocks: estados, ultima, mapa });
+        return json(res, 200, { docGen, mocks: statuses, ultima: lastOne, mapa: stepMap });
     }
 
     if (path === '/api/steps') {
         try {
-            const mapa = JSON.parse(readFileSync(join(HERE, 'steps.json'), 'utf8'));
-            const chequeo = await new Promise<any>((ok) => {
+            const stepMap = JSON.parse(readFileSync(join(HERE, 'steps.json'), 'utf8'));
+            const check = await new Promise<any>((ok) => {
                 execFile('node', ['bin/steps-check.ts', '--json'], { cwd: ROOT, timeout: 15000 }, (_e, out) => {
                     try { ok(JSON.parse(out)); } catch { ok({ ok: null, rotas: [] }); }
                 });
             });
-            return json(res, 200, { ...mapa, chequeo });
+            return json(res, 200, { ...stepMap, chequeo: check });
         } catch (e) {
             return json(res, 200, { tronco: [], ramales: {}, chequeo: { ok: false, rotas: [], error: String(e) } });
         }
@@ -1053,11 +1053,11 @@ const server = createServer(async (req, res) => {
     if (path === '/api/branches') {
         const slugs = (url.searchParams.get('slugs') || '').split(',').map((s) => s.trim()).filter(Boolean);
         const target = (url.searchParams.get('target') || 'local').trim();
-        const porSlug: Record<string, string> = {};
-        for (const s of slugs) { const h = branchHashForSlug(s, target); if (h) porSlug[s] = h; }
-        const hashes = [...new Set(Object.values(porSlug))];
-        const filas: any[] = hashes.length ? ((await dbopsJson(['branches', ...hashes], target)) ?? []) : [];
-        const info = Object.fromEntries(filas.map((f: any) => [f.hash, f]));
+        const bySlug: Record<string, string> = {};
+        for (const s of slugs) { const h = branchHashForSlug(s, target); if (h) bySlug[s] = h; }
+        const hashes = [...new Set(Object.values(bySlug))];
+        const rowList: any[] = hashes.length ? ((await dbopsJson(['branches', ...hashes], target)) ?? []) : [];
+        const info = Object.fromEntries(rowList.map((f: any) => [f.hash, f]));
 
         /* ── SI EL HASH DECLARADO NO ESTÁ EN ESTE AMBIENTE, SE BUSCA EL COMERCIO POR SU SLUG ──
          *
@@ -1072,25 +1072,25 @@ const server = createServer(async (req, res) => {
          *   · **No salva si el SLUG también cambia.** Es justamente el caso de Perú: en local se llama
          *     `comercio-pruebas-peru` y en qa `comercio-pruebas-bcp`, así que buscar por slug no
          *     encuentra nada. El rescate cubre lo COMÚN (mismo comercio, otro hash), no lo raro.
-         * Por eso el resultado se marca (`porSlug`) y la card lo dice: un hash adivinado no se presenta
+         * Por eso el resultado se marca (`bySlug`) y la card lo dice: un hash adivinado no se presenta
          * como uno declarado. */
-        const rescatados: Record<string, any> = {};
+        const rescued: Record<string, any> = {};
         for (const s of slugs) {
-            const h = porSlug[s];
+            const h = bySlug[s];
             if (h && info[h]?.allied_name) continue;
-            const encontrado = (await dbopsList(s, target)).find((m: any) => m.slug === s || m.hash);
-            if (encontrado?.hash) rescatados[s] = { hash: encontrado.hash, allied_name: encontrado.name, porSlug: true };
+            const found = (await dbopsList(s, target)).find((m: any) => m.slug === s || m.hash);
+            if (found?.hash) rescued[s] = { hash: found.hash, allied_name: found.name, porSlug: true };
         }
 
         // ⚠ EL NOMBRE QUE LE PUSISTE VIAJA ACÁ. Los diez curados tienen su rótulo en el CÓDIGO, así que
         // renombrarlos sólo se ve si el override de `.flows.json` llega al cliente por este endpoint —
         // el de favoritos no los incluye (filtra por `fav`).
-        const puestos = leerFlows()?.merchants ?? {};
+        const setOnes = readFlows()?.merchants ?? {};
         return json(res, 200, Object.fromEntries(slugs.map((s) => {
-            const h = porSlug[s];
-            const alias = puestos[s]?.name ? { alias: String(puestos[s].name) } : {};
+            const h = bySlug[s];
+            const alias = setOnes[s]?.name ? { alias: String(setOnes[s].name) } : {};
             if (h && info[h]?.allied_name) return [s, { hash: h, ...info[h], ...alias }];
-            if (rescatados[s]) return [s, { ...rescatados[s], ...alias }];
+            if (rescued[s]) return [s, { ...rescued[s], ...alias }];
             return [s, h ? { hash: h, existe: false, ...alias } : { hash: '', sinFlows: true, ...alias }];
         })));
     }
@@ -1112,7 +1112,7 @@ const server = createServer(async (req, res) => {
     // Se marcan con `fav: true` para distinguirlos de los que vienen de fábrica y permitir renombrar o
     // borrar SOLO los tuyos — los curados describen lo que ejercita cada uno y no son tuyos para tocar.
     if (path === '/api/favs') {
-        const m = leerFlows()?.merchants ?? {};
+        const m = readFlows()?.merchants ?? {};
         // ⚠ `allied_id` y `allied_name` VIAJAN: el árbol agrupa las entradas por comercio, y sin el id
         // cada sucursal agregada abriría su propia carpeta — dos sucursales del mismo comercio se verían
         // como dos comercios. Se guardaban desde siempre; lo que faltaba era devolverlos.
@@ -1126,14 +1126,14 @@ const server = createServer(async (req, res) => {
 
     if (path === '/api/fav' && req.method === 'POST') {
         const b = await readBody(req);
-        const accion = String(b.accion || 'add');
-        const flows = leerFlows();
+        const action = String(b.accion || 'add');
+        const flows = readFlows();
         flows.merchants = flows.merchants || {};
-        if (accion === 'add') {
+        if (action === 'add') {
             const hash = String(b.hash || '').trim().toLowerCase();
-            const nombre = String(b.name || '').trim();
-            if (!/^[0-9a-f]{8}$/.test(hash) || !nombre) return json(res, 400, { ok: false, msg: 'falta hash válido o nombre' });
-            const slug = slugPara(nombre, hash, flows);
+            const nameValue = String(b.name || '').trim();
+            if (!/^[0-9a-f]{8}$/.test(hash) || !nameValue) return json(res, 400, { ok: false, msg: 'falta hash válido o nombre' });
+            const slug = slugFor(nameValue, hash, flows);
             flows.merchants[slug] = {
                 branch_hash: hash,
                 ...(b.allied_id ? { allied_id: Number(b.allied_id) } : {}),
@@ -1141,10 +1141,10 @@ const server = createServer(async (req, res) => {
                 // El nombre del COMERCIO, aparte del que le pusiste a la sucursal: es el rótulo de la
                 // carpeta en el árbol, y deducirlo del nombre libre no funciona (lo podés renombrar).
                 ...(b.allied_name ? { allied_name: String(b.allied_name) } : {}),
-                name: nombre, fav: true,
+                name: nameValue, fav: true,
             };
-            escribirFlows(flows);
-            return json(res, 200, { ok: true, slug, name: nombre });
+            writeFlows(flows);
+            return json(res, 200, { ok: true, slug, name: nameValue });
         }
         const slug = String(b.slug || '').trim();
         const cur = flows.merchants[slug];
@@ -1154,19 +1154,19 @@ const server = createServer(async (req, res) => {
         // comercio puede estar varias veces con distintas sucursales —«Sonría · Restrepo» y «Sonría ·
         // Chapinero»— y sin renombrar no se distinguen. Borrar es otra cosa: los diez curados están en
         // el CÓDIGO por lo que ejercitan, y desde la UI no habría forma de traerlos de vuelta.
-        if (accion === 'rename') {
-            const nombre = String(b.name || '').trim();
-            if (!nombre) return json(res, 400, { ok: false, msg: 'falta nombre' });
+        if (action === 'rename') {
+            const nameValue = String(b.name || '').trim();
+            if (!nameValue) return json(res, 400, { ok: false, msg: 'falta nombre' });
             // El SLUG no cambia al renombrar: es la clave con la que `bin/asesor <slug>` ya funciona y
             // la que puede estar en un comando guardado. El nombre es solo la etiqueta de la card.
-            cur.name = nombre;
-            escribirFlows(flows);
-            return json(res, 200, { ok: true, slug, name: nombre });
+            cur.name = nameValue;
+            writeFlows(flows);
+            return json(res, 200, { ok: true, slug, name: nameValue });
         }
-        if (accion === 'remove') {
+        if (action === 'remove') {
             if (!cur.fav) return json(res, 400, { ok: false, msg: 'los comercios curados no se borran: viven en el código' });
-            delete flows.merchants[slug]; escribirFlows(flows); return json(res, 200, { ok: true }); }
-        return json(res, 400, { ok: false, msg: `acción desconocida: ${accion}` });
+            delete flows.merchants[slug]; writeFlows(flows); return json(res, 200, { ok: true }); }
+        return json(res, 400, { ok: false, msg: `acción desconocida: ${action}` });
     }
 
     // sucursales de un comercio → el buscador es en dos pasos (comercio → sucursal) porque el hash que
@@ -1191,9 +1191,9 @@ const server = createServer(async (req, res) => {
         // durante días que contra dev la query moría por una columna ausente (F-64). El error se pasa.
         if (!Array.isArray(r)) {
             const msg = r && typeof r === 'object' && 'error' in r ? String((r as any).error) : 'no devolvió una lista';
-            return json(res, 200, { hash, lenders: [], mockPA: await usaMockPA(target), msg: `✗ la consulta de entidades falló: ${msg}` });
+            return json(res, 200, { hash, lenders: [], mockPA: await usesMockPA(target), msg: `✗ la consulta de entidades falló: ${msg}` });
         }
-        return json(res, 200, { hash, lenders: r, mockPA: await usaMockPA(target) });
+        return json(res, 200, { hash, lenders: r, mockPA: await usesMockPA(target) });
     }
 
     // QUÉ CANALES DE ENTRADA APLICAN a esta sucursal. El servidor decide la POLÍTICA y la UI sólo la
@@ -1285,7 +1285,7 @@ const server = createServer(async (req, res) => {
     // El proceso se lanza suelto y vive mientras la ventana esté abierta: no bloquea ni compite.
     if (path === '/api/abrir-admin' && req.method === 'POST') {
         const b = await readBody(req);
-        const ruta = typeof b.ruta === 'string' && b.ruta.startsWith('/') ? b.ruta : '/aliados';
+        const routePath = typeof b.ruta === 'string' && b.ruta.startsWith('/') ? b.ruta : '/aliados';
         const target = TARGETS.has(String(b.target)) ? String(b.target) : 'local';
 
         // `qa` no tiene admin propio: comprobado el 2026-08-26, `admin.qa.creditop.com` no resuelve.
@@ -1295,12 +1295,12 @@ const server = createServer(async (req, res) => {
         }
 
         try {
-            const hijo = spawn('node', ['dev/abrir-admin.ts', ruta, target], { cwd: ROOT, stdio: 'ignore', detached: true });
-            hijo.unref();
-            const nota = target === 'local'
+            const childProc = spawn('node', ['dev/abrir-admin.ts', routePath, target], { cwd: ROOT, stdio: 'ignore', detached: true });
+            childProc.unref();
+            const note = target === 'local'
                 ? 'ya logueado'
                 : 'te logueás vos la primera vez; después el perfil recuerda';
-            return json(res, 200, { ok: true, msg: `abriendo el admin de ${target} en ${ruta} — ${nota}` });
+            return json(res, 200, { ok: true, msg: `abriendo el admin de ${target} en ${routePath} — ${note}` });
         } catch (e) {
             return json(res, 500, { ok: false, msg: `no se pudo abrir el admin: ${String(e).slice(0, 160)}` });
         }
@@ -1330,7 +1330,7 @@ const server = createServer(async (req, res) => {
     // apunta a localhost) → el panel deshabilita esa opción en vez de ofrecer una perilla inerte.
     if (path === '/api/front') {
         const t = (url.searchParams.get('target') || 'local').trim();
-        return json(res, 200, { target: t, ambiente: await frontDelAmbiente(t), local: 'http://localhost:5174' });
+        return json(res, 200, { target: t, ambiente: await environmentFront(t), local: 'http://localhost:5174' });
     }
 
     // Miniaturas de la consola: sirve los screenshots que shot() deja en .auth/. Basename estricto
@@ -1410,7 +1410,7 @@ const server = createServer(async (req, res) => {
         };
         // Con `?from=N` va incremental (el cliente appendea). Sin él, el log recortado de siempre —
         // así cualquier consumidor viejo sigue funcionando igual.
-        return json(res, 200, from === null ? { ...base, log: tailLog() } : { ...base, ...logDesde(Number(from) || 0) });
+        return json(res, 200, from === null ? { ...base, log: tailLog() } : { ...base, ...logSince(Number(from) || 0) });
     }
 
     /* La consola del SSR. Misma forma que `/api/status` a propósito: sin `from` devuelve la COLA (para
@@ -1421,12 +1421,12 @@ const server = createServer(async (req, res) => {
      * vino a ver. El filtro fino lo hace el cliente, que es quien sabe si el usuario pidió sólo
      * `[outbound]`. */
     if (path === '/api/ssr') {
-        const desde = url.searchParams.get('from');
-        if (desde === null) {
-            const todo = lineasDesde(SSR_LOG, 0);
+        const since = url.searchParams.get('from');
+        if (since === null) {
+            const todo = linesSince(SSR_LOG, 0);
             return json(res, 200, { hay: existsSync(SSR_LOG), total: todo.total, lines: todo.lines.slice(-120) });
         }
-        return json(res, 200, { hay: existsSync(SSR_LOG), ...lineasDesde(SSR_LOG, Number(desde) || 0) });
+        return json(res, 200, { hay: existsSync(SSR_LOG), ...linesSince(SSR_LOG, Number(since) || 0) });
     }
 
     if (path === '/api/log') {

@@ -41,8 +41,8 @@ const wizard = () => config.feBaseUrl.replace(/\/+$/, '');
  * Con `E2E_ALIADOS_URL` seteado: la puerta original de `application`, para ejercitar el redirect.
  */
 export function qrEntryUrl(branchHash: string): string {
-    const aliados = (process.env.E2E_ALIADOS_URL || '').replace(/\/+$/, '');
-    if (aliados) return `${aliados}/aliados/onboarding?hash=${encodeURIComponent(branchHash)}`;
+    const allies = (process.env.E2E_ALIADOS_URL || '').replace(/\/+$/, '');
+    if (allies) return `${allies}/aliados/onboarding?hash=${encodeURIComponent(branchHash)}`;
     return `${wizard()}/bancolombia/self-service/${encodeURIComponent(branchHash)}/solicitar`;
 }
 
@@ -60,7 +60,7 @@ export function qrEntryUrl(branchHash: string): string {
  * `crc = decoded & 0xffffffffn`). Sin secretos: **el harness puede MINTEAR el código de cualquier
  * solicitud que siembre** y saltar directo a la pantalla que quiera, incluida `purchase-code`.
  *
- * ⚠ TECHO LATENTE (no es nuestro bug, pero conviene saberlo): del lado PHP `base_convert()` convierte
+ * ⚠ CEILING LATENTE (no es nuestro bug, pero conviene saberlo): del lado PHP `base_convert()` convierte
  * vía float, así que arriba de 2^53 pierde precisión. Como el valor es `id << 32`, el límite práctico
  * es `user_request_id ≈ 2^21 = 2.097.152`. Hoy los ids van por ~400.000, así que hay aire; pasado ese
  * punto el link del SMS y el decoder del front dejarían de coincidir. Acá usamos BigInt: exacto siempre.
@@ -136,8 +136,8 @@ export async function seedPurchaseCodeReady(opts: {
     asesorId?: number | null;
 } ): Promise<{ userRequestId: number; branchHash: string; lender: number } | null> {
     assertWriteAllowed();
-    const producto = opts.producto ?? 'bnpl';
-    const lender = producto === 'consumo' ? 100 : 68;
+    const product = opts.producto ?? 'bnpl';
+    const lender = product === 'consumo' ? 100 : 68;
     const amount = opts.amount ?? 1_500_000;
 
     const br = opts.branchHash
@@ -157,13 +157,13 @@ export async function seedPurchaseCodeReady(opts: {
     );
     if (!ins?.insertId) return null;
 
-    const clave = producto === 'consumo' ? 'loan_validate_key' : 'bnpl_transaction_id';
-    const valor = producto === 'consumo'
+    const key = product === 'consumo' ? 'loan_validate_key' : 'bnpl_transaction_id';
+    const value = product === 'consumo'
         ? `seed-validate-key-${ins.insertId}`
         : `seed-${String(ins.insertId).padStart(8, '0')}-0000-4000-8000-000000000000`;
     await exec(
         'INSERT INTO lender_integration_flows (user_request_id, lender_id, data, created_at, updated_at) VALUES (?,?,?,NOW(),NOW())',
-        [ins.insertId, lender, JSON.stringify({ user_request_id: ins.insertId, [clave]: valor })],
+        [ins.insertId, lender, JSON.stringify({ user_request_id: ins.insertId, [key]: value })],
     );
 
     return { userRequestId: ins.insertId, branchHash: br.hash, lender };
@@ -180,7 +180,7 @@ export async function seedPurchaseCodeReady(opts: {
  * Sirve = el allied está en `Setting('corbeta_allieds')` **y** la sucursal tiene los dos lenders de
  * Bancolombia (68 BNPL / 100 Consumo) habilitados; sin lo segundo el OTP resuelve `no_preapproved`.
  */
-export async function sucursalUsable(branchHash: string): Promise<boolean> {
+export async function usableBranch(branchHash: string): Promise<boolean> {
     const r = await one<{ ok: number }>(
         `SELECT (
              EXISTS (SELECT 1 FROM settings s,

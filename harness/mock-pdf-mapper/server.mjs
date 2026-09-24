@@ -28,7 +28,7 @@ const FAIL = process.env.MOCK_PDFMAP_FAIL === '1';
 const log = (...a) => console.log(new Date().toISOString(), ...a);
 
 // `/api/projects/{slug}/documents/{doc}/generate|status`
-const RUTA = /^\/api\/projects\/([^/]+)\/documents\/([^/]+)\/(generate|status)$/;
+const PATH = /^\/api\/projects\/([^/]+)\/documents\/([^/]+)\/(generate|status)$/;
 
 const server = http.createServer((req, res) => {
     const url = new URL(String(req.url).replace(/^\/{2,}/, '/'), `http://localhost:${PORT}`);
@@ -38,7 +38,7 @@ const server = http.createServer((req, res) => {
         return res.end(JSON.stringify({ mock: 'pdf-mapper-service', port: PORT, fail: FAIL }));
     }
 
-    // `/health` es la SONDA DEL PRODUCTO, no una comodidad del mock: `artisan pdf:health-check` la pega
+    // `/health` es la SONDA DEL PRODUCT, no una comodidad del mock: `artisan pdf:health-check` la pega
     // primero y, si no contesta 2xx, ABORTA sin llegar a mirar ningún documento. Sin esta ruta el
     // chequeo decía «pdf-mapper-service /health returned HTTP 404» — que se lee como «el servicio está
     // mal cableado» cuando lo único que pasaba era que el mock no implementaba la ruta. Medido el
@@ -71,15 +71,15 @@ const server = http.createServer((req, res) => {
             return res.end(pdf);
         }
 
-        const m = RUTA.exec(url.pathname);
+        const m = PATH.exec(url.pathname);
         if (!m) {
             log(`⚠ RUTA NO MAPEADA ← ${req.method} ${url.pathname}${body ? ' body=' + body.slice(0, 200) : ''}`);
             res.writeHead(404, { 'content-type': 'application/json' });
             return res.end(JSON.stringify({ error: 'ruta no mockeada', path: url.pathname }));
         }
-        const [, slug, doc, accion] = m;
+        const [, slug, doc, action] = m;
 
-        if (accion === 'status') {
+        if (action === 'status') {
             log(`status proyecto=${slug} doc=${doc}`);
             // ⚠ LA FORMA IMPORTA, y la primera versión de este mock la inventó. Devolvía
             // `{project, document, available: true}` y `pdf:health-check` lo leía como NO

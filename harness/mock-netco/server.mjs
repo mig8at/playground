@@ -35,52 +35,52 @@ const PORT = Number(process.env.MOCK_NETCO_PORT || 8107);
 const FAIL = process.env.MOCK_NETCO_FAIL === '1';
 const log = (...a) => console.log(new Date().toISOString(), ...a);
 
-let firmas = 0;
+let signatures = 0;
 
 http.createServer((req, res) => {
-    let cuerpo = '';
-    req.on('data', (c) => (cuerpo += c));
+    let body = '';
+    req.on('data', (c) => (body += c));
     req.on('end', () => {
-        const ruta = req.url.split('?')[0];
+        const path = req.url.split('?')[0];
         const json = (code, obj, headers = {}) => {
             res.writeHead(code, { 'content-type': 'application/json', ...headers });
             res.end(JSON.stringify(obj));
         };
 
-        if (req.method === 'GET') return json(200, { mock: 'netco', puerto: PORT, fail: FAIL, firmas });
+        if (req.method === 'GET') return json(200, { mock: 'netco', puerto: PORT, fail: FAIL, firmas: signatures });
 
-        if (ruta.endsWith('/LoginService/checkBasicAuthentication')) {
+        if (path.endsWith('/LoginService/checkBasicAuthentication')) {
             log('login → sesión MOCK-SESSION');
             // La cookie es obligatoria: sin ella el cliente tira NetcoAuthException aunque el 200 esté bien.
             return json(200, { success: true }, { 'set-cookie': 'JSESSIONID=MOCK-SESSION; Path=/; HttpOnly' });
         }
-        if (ruta.endsWith('/LoginService/logoutUser')) return json(200, { success: true });
-        if (ruta.endsWith('/UserService/userExists')) return json(200, { exists: true });
-        if (ruta.endsWith('/UserService/basicRegistration')) return json(200, { success: true });
-        if (ruta.endsWith('/UserService/createUserAndUserCertNetcoPKI')) return json(200, { success: true });
+        if (path.endsWith('/LoginService/logoutUser')) return json(200, { success: true });
+        if (path.endsWith('/UserService/userExists')) return json(200, { exists: true });
+        if (path.endsWith('/UserService/basicRegistration')) return json(200, { success: true });
+        if (path.endsWith('/UserService/createUserAndUserCertNetcoPKI')) return json(200, { success: true });
 
-        if (ruta.endsWith('/SignService/signFiles')) {
-            let entrada = {};
-            try { entrada = JSON.parse(cuerpo || '{}'); } catch { /* el cuerpo se loguea abajo */ }
-            const nombre = entrada.fileName || '(sin nombre)';
+        if (path.endsWith('/SignService/signFiles')) {
+            let entry = {};
+            try { entry = JSON.parse(body || '{}'); } catch { /* el cuerpo se loguea abajo */ }
+            const name = entry.fileName || '(sin nombre)';
             if (FAIL) {
-                log(`signFiles ${nombre} → success=false`);
+                log(`signFiles ${name} → success=false`);
                 return json(200, { success: false, detail: 'Firma rechazada por el mock' });
             }
-            firmas += 1;
-            log(`signFiles ${nombre} → firmado (#${firmas})`);
+            signatures += 1;
+            log(`signFiles ${name} → firmado (#${signatures})`);
             // El «firmado» es el MISMO PDF que entró: alcanza para que el flujo siga y deja claro en el
             // artefacto que acá no hubo criptografía.
             return json(200, {
                 success: true,
-                filesInfo: { uid: `MOCK-NETCO-UID-${firmas}` },
-                base64SignedFile: entrada.base64File || '',
+                filesInfo: { uid: `MOCK-NETCO-UID-${signatures}` },
+                base64SignedFile: entry.base64File || '',
             });
         }
 
         // Ruidoso a propósito: un 404 mudo se lee como un fallo del proveedor, no como un endpoint que
         // el mock todavía no cubre.
-        log(`⚠ endpoint NO cubierto: ${req.method} ${ruta}`);
-        json(404, { error: 'mock-netco: endpoint no cubierto', ruta });
+        log(`⚠ endpoint NO cubierto: ${req.method} ${path}`);
+        json(404, { error: 'mock-netco: endpoint no cubierto', ruta: path });
     });
 }).listen(PORT, () => log(`mock-netco escuchando en :${PORT}${FAIL ? ' (FAIL)' : ''}`));

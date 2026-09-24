@@ -31,10 +31,10 @@
 const { exec, one } = await import('./db.ts');
 
 /** La clave del ajuste. Una constante porque aparece en cuatro sentencias y en el permiso de la guarda. */
-export const CLAVE_BYPASS = 'qa_otp_bypass_phones';
+export const BYPASS_KEY = 'qa_otp_bypass_phones';
 
 /** Lo que ESTA corrida agregó. Se devuelve para poder sacar exactamente eso y nada más. */
-export interface BypassPuesto {
+export interface BypassSet {
     /** Los teléfonos que esta corrida sumó a la lista. Vacío = no hizo falta tocar nada. */
     agregados: string[];
     /** `true` si la lista tenía el comodín: no se escribió, y no hay nada que limpiar. */
@@ -42,11 +42,11 @@ export interface BypassPuesto {
 }
 
 /** Por qué no se pudo. Se devuelve en vez de tirar para que el llamador AVISE con la causa y siga. */
-export interface BypassRechazado {
+export interface BypassRejected {
     motivo: string;
 }
 
-export type ResultadoBypass = { ok: true; puesto: BypassPuesto } | { ok: false; motivo: string };
+export type BypassResult = { ok: true; puesto: BypassSet } | { ok: false; motivo: string };
 
 /**
  * Suma estos teléfonos a la lista del bypass, sin pisar lo que haya puesto otra corrida.
@@ -55,36 +55,36 @@ export type ResultadoBypass = { ok: true; puesto: BypassPuesto } | { ok: false; 
  * que dos procesos puedan entrelazar. El `WHERE` lleva la condición del comodín, así que la decisión de
  * no escribir también la toma la base y no una lectura previa que ya podría estar vieja.
  */
-export async function registrarBypass(tels: string[]): Promise<ResultadoBypass> {
-    const unicos = [...new Set(tels.map(String).filter(Boolean))];
-    if (!unicos.length) return { ok: true, puesto: { agregados: [], comodin: false } };
+export async function registerBypass(tels: string[]): Promise<BypassResult> {
+    const uniqueOnes = [...new Set(tels.map(String).filter(Boolean))];
+    if (!uniqueOnes.length) return { ok: true, puesto: { agregados: [], comodin: false } };
 
     const row = await one<{ value: string; comodin: number; ya: number }>(
         'SELECT value, JSON_CONTAINS(value, \'"*"\') AS comodin, JSON_VALID(value) AS ya'
-        + ' FROM settings WHERE `key`=?', [CLAVE_BYPASS],
-    ).catch((e) => { throw new Error(`no se pudo leer \`${CLAVE_BYPASS}\`: ${mensaje(e)}`); });
+        + ' FROM settings WHERE `key`=?', [BYPASS_KEY],
+    ).catch((e) => { throw new Error(`no se pudo leer \`${BYPASS_KEY}\`: ${message(e)}`); });
 
-    if (!row) return { ok: false, motivo: `no existe la fila \`${CLAVE_BYPASS}\` en \`settings\`` };
-    if (!row.ya) return { ok: false, motivo: `\`${CLAVE_BYPASS}\` no es JSON válido — alguien lo dejó a medias` };
+    if (!row) return { ok: false, motivo: `no existe la fila \`${BYPASS_KEY}\` en \`settings\`` };
+    if (!row.ya) return { ok: false, motivo: `\`${BYPASS_KEY}\` no es JSON válido — alguien lo dejó a medias` };
     if (row.comodin) return { ok: true, puesto: { agregados: [], comodin: true } };
 
     // Los que YA están no se vuelven a agregar: `JSON_MERGE_PRESERVE` conserva duplicados, y una lista
     // con el mismo teléfono ocho veces funciona pero es basura que después nadie sabe de dónde salió.
-    const actuales: string[] = JSON.parse(row.value ?? '[]').map(String);
-    const faltan = unicos.filter((t) => !actuales.includes(t));
-    if (!faltan.length) return { ok: true, puesto: { agregados: [], comodin: false } };
+    const current: string[] = JSON.parse(row.value ?? '[]').map(String);
+    const missing = uniqueOnes.filter((t) => !current.includes(t));
+    if (!missing.length) return { ok: true, puesto: { agregados: [], comodin: false } };
 
     try {
         await exec(
             'UPDATE settings SET value = JSON_MERGE_PRESERVE(value, CAST(? AS JSON))'
             + ' WHERE `key`=? AND JSON_CONTAINS(value, \'"*"\') = 0',
-            [JSON.stringify(faltan), CLAVE_BYPASS],
+            [JSON.stringify(missing), BYPASS_KEY],
             { permiso: 'otp-bypass' },
         );
     } catch (e) {
-        return { ok: false, motivo: mensaje(e) };
+        return { ok: false, motivo: message(e) };
     }
-    return { ok: true, puesto: { agregados: faltan, comodin: false } };
+    return { ok: true, puesto: { agregados: missing, comodin: false } };
 }
 
 /**
@@ -98,18 +98,18 @@ export async function registrarBypass(tels: string[]): Promise<ResultadoBypass> 
  * Limpiar es higiene: si falla, se traga. Dejar un teléfono de prueba de más no rompe nada; tumbar la
  * corrida por no haber podido limpiarla, sí.
  */
-export async function restaurarBypass(puesto: BypassPuesto | null): Promise<void> {
-    if (!puesto || puesto.comodin || !puesto.agregados.length) return;
-    for (const tel of puesto.agregados) {
+export async function restoreBypass(set: BypassSet | null): Promise<void> {
+    if (!set || set.comodin || !set.agregados.length) return;
+    for (const tel of set.agregados) {
         await exec(
             'UPDATE settings SET value = JSON_REMOVE(value, JSON_UNQUOTE(JSON_SEARCH(value, \'one\', ?)))'
             + ' WHERE `key`=? AND JSON_SEARCH(value, \'one\', ?) IS NOT NULL',
-            [tel, CLAVE_BYPASS, tel],
+            [tel, BYPASS_KEY, tel],
             { permiso: 'otp-bypass' },
         ).catch(() => { /* higiene, no puede tumbar la corrida */ });
     }
 }
 
-function mensaje(e: unknown): string {
+function message(e: unknown): string {
     return e instanceof Error ? e.message : String(e);
 }

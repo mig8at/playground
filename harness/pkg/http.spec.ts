@@ -7,10 +7,10 @@
 // la llamada que falló obliga a repetir una corrida de 90 s para ver qué se pidió.
 import { expect, test } from '@playwright/test';
 import { createServer, type Server } from 'node:http';
-import { crearCliente } from './http.ts';
+import { createCustomer } from './http.ts';
 
 /** Un servidor de juguete en un puerto que elige el sistema: dos specs en paralelo no se pisan. */
-async function servidor(handler: (url: string, res: any) => void): Promise<{ base: string; cerrar: () => Promise<void> }> {
+async function server(handler: (url: string, res: any) => void): Promise<{ base: string; cerrar: () => Promise<void> }> {
       const s: Server = createServer((req, res) => handler(req.url ?? '', res));
       await new Promise<void>((ok) => s.listen(0, '127.0.0.1', ok));
       const port = (s.address() as any).port;
@@ -22,11 +22,11 @@ async function servidor(handler: (url: string, res: any) => void): Promise<{ bas
 
 test.describe('el cliente HTTP de los runners', () => {
       test('una respuesta con JSON vuelve parseada y sin `error`', async () => {
-            const srv = await servidor((_u, res) => {
+            const srv = await server((_u, res) => {
                   res.writeHead(200, { 'content-type': 'application/json' });
                   res.end(JSON.stringify({ data: { id: 7 } }));
             });
-            const c = crearCliente({ base: srv.base });
+            const c = createCustomer({ base: srv.base });
 
             const r = await c.get('/lo-que-sea');
             expect(r.status).toBe(200);
@@ -39,8 +39,8 @@ test.describe('el cliente HTTP de los runners', () => {
       });
 
       test('un cuerpo que no es JSON vuelve en las DOS formas que los runners leían', async () => {
-            const srv = await servidor((_u, res) => { res.writeHead(500); res.end('<html>Gateway</html>'); });
-            const c = crearCliente({ base: srv.base });
+            const srv = await server((_u, res) => { res.writeHead(500); res.end('<html>Gateway</html>'); });
+            const c = createCustomer({ base: srv.base });
 
             const r = await c.get('/roto');
             expect(r.status).toBe(500);
@@ -52,8 +52,8 @@ test.describe('el cliente HTTP de los runners', () => {
 
       // 🔴 LA razón de ser de este módulo. Las cinco copias devolvían `HTTP 0` para las dos cosas.
       test('un timeout dice que TARDÓ, y no que se cayó', async () => {
-            const srv = await servidor(() => { /* nunca contesta */ });
-            const c = crearCliente({ base: srv.base, timeoutMs: 150 });
+            const srv = await server(() => { /* nunca contesta */ });
+            const c = createCustomer({ base: srv.base, timeoutMs: 150 });
 
             const r = await c.get('/lento');
             expect(r.status).toBe(0);
@@ -64,10 +64,10 @@ test.describe('el cliente HTTP de los runners', () => {
       });
 
       test('una caída de verdad NO se marca como timeout', async () => {
-            const srv = await servidor((_u, res) => res.end('ok'));
+            const srv = await server((_u, res) => res.end('ok'));
             const base = srv.base;
             await srv.cerrar();                        // el puerto queda sin nadie escuchando
-            const c = crearCliente({ base, timeoutMs: 5_000 });
+            const c = createCustomer({ base, timeoutMs: 5_000 });
 
             const r = await c.get('/nadie');
             expect(r.status).toBe(0);
@@ -76,18 +76,18 @@ test.describe('el cliente HTTP de los runners', () => {
       });
 
       test('el timeout se puede dar por verbo, porque un POST no espera lo mismo que un GET', async () => {
-            const srv = await servidor((_u, res) => { /* nunca contesta */ });
-            const c = crearCliente({ base: srv.base, timeoutMs: { get: 120, post: 400 } });
+            const srv = await server((_u, res) => { /* nunca contesta */ });
+            const c = createCustomer({ base: srv.base, timeoutMs: { get: 120, post: 400 } });
 
             const t0 = Date.now();
             await c.get('/lento');
-            const tardoGet = Date.now() - t0;
+            const slowGet = Date.now() - t0;
 
             const t1 = Date.now();
             await c.post('/lento', {});
-            const tardoPost = Date.now() - t1;
+            const slowPost = Date.now() - t1;
 
-            expect(tardoGet).toBeLessThan(tardoPost);
+            expect(slowGet).toBeLessThan(slowPost);
             await srv.cerrar();
       });
 
@@ -99,7 +99,7 @@ test.describe('el cliente HTTP de los runners', () => {
                   res.end('{}');
             });
             await new Promise<void>((ok) => s.listen(0, '127.0.0.1', ok));
-            const c = crearCliente({ base: `http://127.0.0.1:${(s.address() as any).port}`, headers: { 'user-agent': 'arnes/1' } });
+            const c = createCustomer({ base: `http://127.0.0.1:${(s.address() as any).port}`, headers: { 'user-agent': 'arnes/1' } });
 
             await c.get('/a');
             await c.get('/b', { 'x-fake-scenario': 'apellido-no-coincide' });
@@ -114,11 +114,11 @@ test.describe('el cliente HTTP de los runners', () => {
       // 🔴 El cuerpo entero sólo cuando falló: es cuando hace falta, y evita volcar datos personales de
       // las respuestas buenas a un archivo de la corrida.
       test('la bitácora anota todo, y el cuerpo sólo de lo que falló', async () => {
-            const srv = await servidor((u, res) => {
+            const srv = await server((u, res) => {
                   if (u === '/bien') { res.writeHead(200, { 'content-type': 'application/json' }); res.end('{"secreto":"no volcar"}'); }
                   else { res.writeHead(422, { 'content-type': 'application/json' }); res.end('{"message":"el celular debe tener 9 digitos"}'); }
             });
-            const c = crearCliente({ base: srv.base });
+            const c = createCustomer({ base: srv.base });
 
             await c.get('/bien');
             await c.post('/mal', { x: 1 });
@@ -138,7 +138,7 @@ test.describe('el cliente HTTP de los runners', () => {
             const vistas: string[] = [];
             const s: Server = createServer((req, res) => { vistas.push(req.url ?? ''); res.writeHead(200, { 'content-type': 'application/json' }); res.end('{}'); });
             await new Promise<void>((ok) => s.listen(0, '127.0.0.1', ok));
-            const c = crearCliente({ base: `http://127.0.0.1:${(s.address() as any).port}/` });
+            const c = createCustomer({ base: `http://127.0.0.1:${(s.address() as any).port}/` });
 
             await c.get('/api/x');
             expect(vistas[0]).toBe('/api/x');

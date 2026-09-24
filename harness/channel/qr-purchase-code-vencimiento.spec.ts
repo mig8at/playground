@@ -39,18 +39,18 @@ const { seedPurchaseCodeReady, bancolombiaEncryptCode } = await import('../pkg/q
 
 const API = config.mockUrl;
 const FRONT = config.feBaseUrl.replace(/\/+$/, '');
-const ZONA = 'America/Bogota';
+const ZONE = 'America/Bogota';
 
 let USER_ID = 0;
-const creadas: number[] = [];
+const createdOnes: number[] = [];
 
 /** El día y la hora de un instante EN BOGOTÁ, que es la zona en que la pantalla habla. */
-function enBogota(instante: number) {
+function inBogota(instant: number) {
       const p = new Intl.DateTimeFormat('en-CA', {
-            timeZone: ZONA,
+            timeZone: ZONE,
             year: 'numeric', month: '2-digit', day: '2-digit',
             hour: '2-digit', minute: '2-digit', hourCycle: 'h23',
-      }).formatToParts(instante);
+      }).formatToParts(instant);
       const v = (t: string) => p.find((x) => x.type === t)?.value ?? '';
       return { dia: `${v('year')}-${v('month')}-${v('day')}`, hora: Number(v('hour')), minuto: Number(v('minute')) };
 }
@@ -66,7 +66,7 @@ test.beforeAll(async () => {
 });
 
 test.afterAll(async () => {
-      for (const ur of creadas) {
+      for (const ur of createdOnes) {
             await exec('DELETE FROM user_request_additional_information WHERE user_request_id=?', [ur]).catch(() => {});
             await exec('DELETE FROM purchase_codes WHERE user_request_id=?', [ur]).catch(() => {});
             await exec('DELETE FROM lender_integration_flows WHERE user_request_id=?', [ur]).catch(() => {});
@@ -79,28 +79,28 @@ test.afterAll(async () => {
 // SERIAL: escribe en la BD local y abre un navegador. No hay nada que ganar paralelizando dos casos.
 test.describe.configure({ mode: 'serial' });
 
-for (const producto of ['bnpl', 'consumo'] as const) {
-      test(`${producto}: el contador y la fecha que anuncia dicen lo mismo`, async () => {
+for (const product of ['bnpl', 'consumo'] as const) {
+      test(`${product}: el contador y la fecha que anuncia dicen lo mismo`, async () => {
             test.skip(process.env.E2E_TARGET !== 'local', 'siembra en la BD: sólo local');
             test.skip(!USER_ID, 'no se pudo crear el usuario de la suite');
 
-            const sembrada = await seedPurchaseCodeReady({ userId: USER_ID, producto });
-            test.skip(!sembrada, 'no hay sucursal Corbeta usable para sembrar');
-            if (!sembrada) return;
-            creadas.push(sembrada.userRequestId);
+            const seededOne = await seedPurchaseCodeReady({ userId: USER_ID, producto: product });
+            test.skip(!seededOne, 'no hay sucursal Corbeta usable para sembrar');
+            if (!seededOne) return;
+            createdOnes.push(seededOne.userRequestId);
 
             // El código tiene que existir: sin él la pantalla muestra su estado de error y no hay contador.
-            await fetch(`${API}/api/onboarding/purchase-code/generate/${sembrada.userRequestId}`, {
+            await fetch(`${API}/api/onboarding/purchase-code/generate/${seededOne.userRequestId}`, {
                   method: 'POST',
                   headers: { 'content-type': 'application/json', accept: 'application/json' },
                   signal: AbortSignal.timeout(60_000),
             }).catch(() => null);
 
-            const code = bancolombiaEncryptCode(sembrada.userRequestId, sembrada.branchHash);
-            const navegador = await chromium.launch();
+            const code = bancolombiaEncryptCode(seededOne.userRequestId, seededOne.branchHash);
+            const browser = await chromium.launch();
 
             try {
-                  const page = await navegador.newPage();
+                  const page = await browser.newPage();
 
                   // ⚠ EL RELOJ DEL NAVEGADOR, 24 h ATRÁS — sin esto el test es verde mentiroso.
                   //
@@ -111,22 +111,22 @@ for (const producto of ['bnpl', 'consumo'] as const) {
                   // casualidad: medido, la primera versión de este test pasó contra el front con el bug.
                   //
                   // Atrasar el reloj del cliente 24 h deja el plazo del servidor intacto y lo corre al día
-                  // siguiente DESDE EL PUNTO DE VISTA DEL CLIENTE, que es exactamente la condición. Así el
+                  // siguiente DESDE EL PUNTO DE VISTA DEL CUSTOMER, que es exactamente la condición. Así el
                   // test discrimina a cualquier hora. `setFixedTime` toca `Date.now()` y no los timers, que
                   // es lo único que hace falta: el contador se calcula al montar.
-                  const relojFalso = new Date(Date.now() - 24 * 60 * 60 * 1000);
-                  await page.clock.setFixedTime(relojFalso);
+                  const fakeClock = new Date(Date.now() - 24 * 60 * 60 * 1000);
+                  await page.clock.setFixedTime(fakeClock);
 
-                  await page.goto(`${FRONT}/bancolombia/${producto}/purchase-code/${code}`, { waitUntil: 'networkidle' });
+                  await page.goto(`${FRONT}/bancolombia/${product}/purchase-code/${code}`, { waitUntil: 'networkidle' });
 
-                  const contador = await page.getByText(/^\d{2}:\d{2}:\d{2}$/).first()
+                  const counter = await page.getByText(/^\d{2}:\d{2}:\d{2}$/).first()
                         .textContent({ timeout: 20_000 }).catch(() => null);
-                  const etiqueta = await page.getByText(/\(Vence .*\)/).first()
+                  const label = await page.getByText(/\(Vence .*\)/).first()
                         .textContent({ timeout: 20_000 }).catch(() => null);
 
-                  expect(contador, 'la pantalla no mostró la cuenta regresiva — ¿se emitió el código?').toBeTruthy();
-                  expect(etiqueta, 'la pantalla no mostró la fecha de vencimiento').toBeTruthy();
-                  if (!contador || !etiqueta) return;
+                  expect(counter, 'la pantalla no mostró la cuenta regresiva — ¿se emitió el código?').toBeTruthy();
+                  expect(label, 'la pantalla no mostró la fecha de vencimiento').toBeTruthy();
+                  if (!counter || !label) return;
 
                   // El instante que la pantalla AFIRMA, derivado de su propio contador.
                   //
@@ -136,27 +136,27 @@ for (const producto of ['bnpl', 'consumo'] as const) {
                   // exigiría «8:29 p.m.» contra una etiqueta correcta. Un test intermitente es peor que
                   // no tenerlo: se aprende a ignorar, y con él se ignora el día que falle de verdad.
                   // Se mide contra el reloj FALSO, que es el que vio la pantalla — no contra el de Node.
-                  const [hh, mm, ss] = contador.trim().split(':').map(Number);
-                  const instante = relojFalso.getTime() + ((hh * 60 + mm) * 60 + ss) * 1000;
-                  const vence = enBogota(Math.round(instante / 60_000) * 60_000);
-                  const ahora = enBogota(relojFalso.getTime());
-                  const diaEsperado = vence.dia === ahora.dia ? 'hoy' : 'mañana';
+                  const [hh, mm, ss] = counter.trim().split(':').map(Number);
+                  const instant = fakeClock.getTime() + ((hh * 60 + mm) * 60 + ss) * 1000;
+                  const expires = inBogota(Math.round(instant / 60_000) * 60_000);
+                  const now = inBogota(fakeClock.getTime());
+                  const expectedDay = expires.dia === now.dia ? 'hoy' : 'mañana';
 
-                  const porque = (que: string) =>
-                        `${que}\n      contador «${contador.trim()}» · etiqueta «${etiqueta.trim()}»`
+                  const because = (what: string) =>
+                        `${what}\n      contador «${counter.trim()}» · etiqueta «${label.trim()}»`
                         + `\n      ⚠ si esto falla con «hoy» y el contador pasa de la medianoche, es F-227:`
                         + ' el arreglo está en Creditop-SAS/frontend-monorepo#1028, sin mergear.';
 
                   // 🔴 EL caso. El día que la etiqueta anuncia tiene que ser el que sale del contador.
-                  expect(etiqueta, porque(`la etiqueta debería decir «${diaEsperado}»`)).toContain(diaEsperado);
+                  expect(label, because(`la etiqueta debería decir «${expectedDay}»`)).toContain(expectedDay);
 
                   // 🔴 Y la hora también sale del contador: que no vuelva a quedar escrita en la frase.
-                  const hora12 = vence.hora % 12 === 0 ? 12 : vence.hora % 12;
-                  const meridiano = vence.hora < 12 ? 'a.m.' : 'p.m.';
-                  const horaEsperada = `${hora12}:${String(vence.minuto).padStart(2, '0')} ${meridiano}`;
-                  expect(etiqueta, porque(`la etiqueta debería anunciar las ${horaEsperada}`)).toContain(horaEsperada);
+                  const time12 = expires.hora % 12 === 0 ? 12 : expires.hora % 12;
+                  const meridian = expires.hora < 12 ? 'a.m.' : 'p.m.';
+                  const expectedTime = `${time12}:${String(expires.minuto).padStart(2, '0')} ${meridian}`;
+                  expect(label, because(`la etiqueta debería anunciar las ${expectedTime}`)).toContain(expectedTime);
             } finally {
-                  await navegador.close();
+                  await browser.close();
             }
       });
 }

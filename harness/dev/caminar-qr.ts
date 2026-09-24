@@ -21,13 +21,13 @@
  */
 import { chromium, type Page } from '@playwright/test';
 import { mkdirSync } from 'node:fs';
-import { qrEntryUrl, corbetaBranch, sucursalUsable } from '../pkg/qr.ts';
-import { autorrellenarQr } from '../pkg/qr-steps.ts';
-import { bloquearHerramientasDeDev, esRuidoDeLocal } from '../pkg/wizard-navegador.ts';
+import { qrEntryUrl, corbetaBranch, usableBranch } from '../pkg/qr.ts';
+import { autofillQr } from '../pkg/qr-steps.ts';
+import { blockDevTools, isLocalNoise } from '../pkg/wizard-navegador.ts';
 import { scrubphone } from '../pkg/asesor.ts';
 import { close } from '../pkg/db.ts';
 import { latestUserRequestId } from '../pkg/inject.ts';
-import { posthogConfig, porQueNo } from '../pkg/posthog.ts';
+import { posthogConfig, whyNot } from '../pkg/posthog.ts';
 
 const arg = (n: string, def = '') => {
     const i = process.argv.indexOf(`--${n}`);
@@ -35,82 +35,82 @@ const arg = (n: string, def = '') => {
 };
 const flag = (n: string) => process.argv.includes(`--${n}`);
 
-const PRODUCTO = arg('producto', 'bnpl');
+const PRODUCT = arg('producto', 'bnpl');
 const TEL = arg('tel', '3131010101');
 const DOC = arg('doc', '2912637830');
-const MONTO = Number(arg('monto', '2000000'));
+const AMOUNT = Number(arg('monto', '2000000'));
 const MAX = Number(arg('max', '20'));
 const MOCK = process.env.MOCK_BC_URL || 'http://localhost:8104';
 
-/** Botones que hacen AVANZAR. Se listan por texto porque cada pantalla del recorrido nombra el suyo
+/** Botones que hacen ADVANCE. Se listan por texto porque cada pantalla del recorrido nombra el suyo
  *  distinto (Solicitar, Firmar documento, Autenticarme y volver…) y no hay un `data-testid` común. */
-const AVANZAR = /continuar|siguiente|aceptar|validar|verificar|confirmar|firmar|autenticarme|solicitar|entendido|finalizar|ver mi|empezar|comenzar/i;
-/** Pantallas de ESPERA: no tienen botón, POSTean y navegan solas. Buscarles botón parece un muro. */
-const ESPERA = /processing|procesando|espera/;
+const ADVANCE = /continuar|siguiente|aceptar|validar|verificar|confirmar|firmar|autenticarme|solicitar|entendido|finalizar|ver mi|empezar|comenzar/i;
+/** Pantallas de WAIT: no tienen botón, POSTean y navegan solas. Buscarles botón parece un muro. */
+const WAIT = /processing|procesando|espera/;
 /** Fin del recorrido (los dos productos y el canal ecommerce). */
 const FINAL = /purchase-code|payment-success|response|no-preapproved|no-quota|business-error|Error$/i;
 
 /** El escenario tal como estaba ANTES de que esta corrida lo tocara, para poder devolverlo entero. */
-let escenarioOriginal: Record<string, unknown> | null = null;
+let originalScenario: Record<string, unknown> | null = null;
 
-const fotografiarEscenario = async () => {
-    escenarioOriginal = await fetch(`${MOCK}/`)
+const snapshotScenario = async () => {
+    originalScenario = await fetch(`${MOCK}/`)
         .then((x) => x.json()).then((j) => j.escenario ?? null).catch(() => null);
 };
 
-const escenario = async (cambios: Record<string, unknown>) => {
+const scenario = async (changes: Record<string, unknown>) => {
     const r = await fetch(`${MOCK}/_control/escenario`, {
-        method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(cambios),
+        method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(changes),
     }).then((x) => x.json()).catch(() => null);
     if (!r) throw new Error(`el mock no responde en ${MOCK} — corré  bin/mock-bancolombia start`);
     return r;
 };
 
 /** El regreso del banco: UNA sola URL, el despachador que rutea por el paso de la sesión (F-89). */
-const registrarRetorno = async (page: Page, puesto: { url: string }) => {
+const registerReturn = async (page: Page, set: { url: string }) => {
     const m = page.url().match(/\/bancolombia\/(bnpl|consumo)\//);
     if (!m) return;
     const d = new URL(page.url());
     d.pathname = `/bancolombia/${m[1]}/redirect`;
     d.search = '';
     d.searchParams.set('code', 'mock-auth-code');
-    if (d.toString() === puesto.url) return;
-    puesto.url = d.toString();
+    if (d.toString() === set.url) return;
+    set.url = d.toString();
     await fetch(`${MOCK}/_control/retorno`, {
-        method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ url: puesto.url }),
+        method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ url: set.url }),
     }).catch(() => {});
 };
 
-const suc = await corbetaBranch();
-if (!suc) throw new Error('no hay sucursal Corbeta con los dos lenders (68/100) habilitados en este target');
-if (!(await sucursalUsable(suc.hash))) throw new Error(`la sucursal ${suc.id} no sirve para este canal`);
-console.log(`▶ CAMINADOR QR · sucursal ${suc.id} (allied ${suc.alliedId}) · producto ${PRODUCTO} · target ${process.env.E2E_TARGET ?? 'dev'}`);
+const br = await corbetaBranch();
+if (!br) throw new Error('no hay sucursal Corbeta con los dos lenders (68/100) habilitados en este target');
+if (!(await usableBranch(br.hash))) throw new Error(`la sucursal ${br.id} no sirve para este canal`);
+console.log(`▶ CAMINADOR QR · sucursal ${br.id} (allied ${br.alliedId}) · producto ${PRODUCT} · target ${process.env.E2E_TARGET ?? 'dev'}`);
 
-await fotografiarEscenario();
-await escenario({ producto: PRODUCTO, ...(arg('escenario') ? JSON.parse(arg('escenario')) : {}) });
-console.log(`  escenario del mock: producto=${PRODUCTO}${arg('escenario') ? ` + ${arg('escenario')}` : ''}`);
+await snapshotScenario();
+await scenario({ producto: PRODUCT, ...(arg('escenario') ? JSON.parse(arg('escenario')) : {}) });
+console.log(`  escenario del mock: producto=${PRODUCT}${arg('escenario') ? ` + ${arg('escenario')}` : ''}`);
 console.log(`  scrub ${TEL}: ${JSON.stringify(await scrubphone(TEL))}`);
 
 const browser = await chromium.launch({ headless: !flag('headed') });
 const page = await browser.newPage();
-// El overlay de `react-scan` intercepta clicks en viewport angosto — ver `bloquearHerramientasDeDev`.
-await bloquearHerramientasDeDev(page);
-const puesto = { url: '' };
-const errores: string[] = [];
-page.on('pageerror', (e) => errores.push(e.message.slice(0, 140)));
-page.on('framenavigated', (f) => { if (f === page.mainFrame()) void registrarRetorno(page, puesto); });
+// El overlay de `react-scan` intercepta clicks en viewport angosto — ver `blockDevTools`.
+await blockDevTools(page);
+const set = { url: '' };
+const errorsList: string[] = [];
+page.on('pageerror', (e) => errorsList.push(e.message.slice(0, 140)));
+page.on('framenavigated', (f) => { if (f === page.mainFrame()) void registerReturn(page, set); });
 
-const recorrido: string[] = [];
+const route: string[] = [];
 // La solicitud de ESTA corrida y su hora de arranque: las dos hacen falta para poder preguntarle
 // después a PostHog por ella. El id no se conoce de antemano (lo crea el canal), así que se toma la
 // línea base de la sucursal y al final se pide el primero que apareció por encima.
 /** Un nombre de archivo legible a partir de la ruta: `/bancolombia/consumo/loan-summary/X` → `loan-summary`. */
-const mote = (ruta: string) =>
-    (ruta.split('/').filter((t) => t && !/^[A-Z0-9]{8,}$/.test(t)).pop() ?? 'pantalla')
+const nickname = (path: string) =>
+    (path.split('/').filter((t) => t && !/^[A-Z0-9]{8,}$/.test(t)).pop() ?? 'pantalla')
         .replace(/[^a-zA-Z0-9-]/g, '-').slice(0, 40) || 'pantalla';
 
-const CARPETA = `.runs/caminar-${PRODUCTO}`;
-mkdirSync(CARPETA, { recursive: true });
+const FOLDER = `.runs/caminar-${PRODUCT}`;
+mkdirSync(FOLDER, { recursive: true });
 
 // ── LA REVISIÓN DE CADA PANTALLA ──────────────────────────────────────────────────────────────────
 // Hasta acá el caminador probaba que las pantallas CARGAN y avanzan. Eso deja pasar todo lo que se
@@ -126,13 +126,13 @@ mkdirSync(CARPETA, { recursive: true });
 // siguiente. Sirve para saber POR DÓNDE mirar, no como evidencia de en cuál ocurrió — medido: un aviso
 // de hidratación de React apareció atribuido a `_autenticacion`, que es una página del mock y no tiene
 // React. Para fijar la pantalla de verdad hay que reproducir el paso a mano.
-type Sospecha = { pantalla: string; que: string; detalle: string };
-const sospechas: Sospecha[] = [];
-let pantallaActual = '(arranque)';
+type Suspicion = { pantalla: string; que: string; detalle: string };
+const suspicions: Suspicion[] = [];
+let currentScreen = '(arranque)';
 
 // La basura que delata un render roto. NO se incluye «null» a secas: aparece dentro de payloads
 // legítimos embebidos en el HTML y ahogaría la señal con falsos positivos.
-const BASURA = /\bundefined\b|\bNaN\b|Invalid Date|\[object Object\]|\{\{|\$\{/;
+const JUNK = /\bundefined\b|\bNaN\b|Invalid Date|\[object Object\]|\{\{|\$\{/;
 
 page.on('console', (m) => {
     if (m.type() !== 'error') return;
@@ -143,127 +143,127 @@ page.on('console', (m) => {
     //
     // ⚠ Recibe el mensaje COMPLETO: decidir sobre el texto ya recortado hacía que la regla del `nonce`
     // no mordiera nunca, porque el diff de React aparece pasado el carácter 400.
-    const completo = m.text().replace(/\s+/g, ' ');
-    if (esRuidoDeLocal(completo)) return;
+    const complete = m.text().replace(/\s+/g, ' ');
+    if (isLocalNoise(complete)) return;
     // 400 y no 160: los avisos de hidratación traen el diff DESPUÉS del encabezado, y cortarlos deja el
     // mensaje genérico sin el dato que sirve («qué atributo, en qué componente»).
-    const t = completo.slice(0, 400);
-    sospechas.push({ pantalla: pantallaActual, que: 'consola', detalle: t });
+    const t = complete.slice(0, 400);
+    suspicions.push({ pantalla: currentScreen, que: 'consola', detalle: t });
 });
 
 page.on('response', (r) => {
     if (r.status() < 400) return;
     const u = r.url();
     if (/favicon|__manifest|\.map$/.test(u)) return;
-    sospechas.push({ pantalla: pantallaActual, que: `HTTP ${r.status()}`, detalle: u.replace(/^https?:\/\/[^/]+/, '').slice(0, 110) });
+    suspicions.push({ pantalla: currentScreen, que: `HTTP ${r.status()}`, detalle: u.replace(/^https?:\/\/[^/]+/, '').slice(0, 110) });
 });
 
 const T0 = new Date();
-const uReqBase = (await latestUserRequestId(suc.hash)) ?? 0;
-await page.goto(qrEntryUrl(suc.hash), { waitUntil: 'domcontentloaded' });
+const uReqBase = (await latestUserRequestId(br.hash)) ?? 0;
+await page.goto(qrEntryUrl(br.hash), { waitUntil: 'domcontentloaded' });
 
-for (let paso = 1; paso <= MAX; paso++) {
+for (let step = 1; step <= MAX; step++) {
     await page.waitForTimeout(1200);
     const url = new URL(page.url()).pathname;
-    recorrido.push(url);
+    route.push(url);
 
     // ⚠ UNA CAPTURA POR PANTALLA, y no es un lujo. Hasta el 2026-09-17 sólo se guardaba la ÚLTIMA, así
     // que de un recorrido de 14 pantallas se podían mirar 1. F-227 —el «vence hoy» que contradecía a su
     // propio contador— vivió meses justamente porque estaba en la única que se veía; las otras trece
     // nadie las había mirado nunca. Un caminador que no deja mirar sólo prueba que la pantalla CARGA.
-    pantallaActual = mote(url);
-    await page.screenshot({ path: `${CARPETA}/${String(paso).padStart(2, '0')}-${pantallaActual}.png`, fullPage: true })
+    currentScreen = nickname(url);
+    await page.screenshot({ path: `${FOLDER}/${String(step).padStart(2, '0')}-${currentScreen}.png`, fullPage: true })
         .catch(() => {});
 
     // El texto VISIBLE, no el HTML: lo que el HTML trae embebido (payloads, estado del router) no es lo
     // que el cliente lee, y buscarlo ahí da falsos positivos a montones.
-    const textoVisible = await page.locator('body').innerText().catch(() => '');
-    for (const linea of textoVisible.split('\n')) {
-        if (BASURA.test(linea)) {
-            sospechas.push({ pantalla: pantallaActual, que: 'texto', detalle: linea.trim().slice(0, 110) });
+    const visibleText = await page.locator('body').innerText().catch(() => '');
+    for (const line of visibleText.split('\n')) {
+        if (JUNK.test(line)) {
+            suspicions.push({ pantalla: currentScreen, que: 'texto', detalle: line.trim().slice(0, 110) });
         }
     }
 
     // Imágenes que no llegaron: `naturalWidth === 0` ya cargada es el único chequeo fiable — un `src`
     // presente no dice nada. Es lo que delata un `codeImageUrl` apuntando a un bucket vacío (F-174).
-    const rotas = await page.evaluate(() => Array.from(document.images)
+    const broken = await page.evaluate(() => Array.from(document.images)
         .filter((i) => i.complete && i.naturalWidth === 0)
         .map((i) => i.currentSrc || i.src)).catch(() => [] as string[]);
-    for (const src of rotas) {
-        sospechas.push({ pantalla: pantallaActual, que: 'imagen', detalle: String(src).slice(0, 110) });
+    for (const src of broken) {
+        suspicions.push({ pantalla: currentScreen, que: 'imagen', detalle: String(src).slice(0, 110) });
     }
 
     const banner = await page.getByText(/Error al cargar|no pudimos|hubo un problema|intenta de nuevo/i)
         .first().textContent({ timeout: 500 }).catch(() => null);
-    console.log(`${String(paso).padStart(2, '0')} ${url}${banner ? `   ⛔ ${banner.trim().slice(0, 70)}` : ''}`);
+    console.log(`${String(step).padStart(2, '0')} ${url}${banner ? `   ⛔ ${banner.trim().slice(0, 70)}` : ''}`);
     if (banner) break;
     if (FINAL.test(url)) { console.log('   ✓ pantalla final del recorrido'); break; }
 
-    if (ESPERA.test(url)) {
+    if (WAIT.test(url)) {
         console.log('   ⏳ pantalla de espera: navega sola');
-        await page.waitForURL((u) => !ESPERA.test(u.pathname), { timeout: 45_000 })
+        await page.waitForURL((u) => !WAIT.test(u.pathname), { timeout: 45_000 })
             .catch(() => console.log('   ⚠ no navegó en 45s'));
         continue;
     }
 
-    const hechos = await autorrellenarQr(page, {
-        phone: TEL, document: DOC, amount: MONTO,
+    const facts = await autofillQr(page, {
+        phone: TEL, document: DOC, amount: AMOUNT,
         firstName: 'SYNTH', lastName: 'TEST USER', email: `synth-${DOC}@creditop.com`,
         address: 'Cal 123 # 12-122', income: 2_500_000,
     }).catch(() => [] as string[]);
-    if (hechos.length) console.log(`   ▸ autorrelleno: ${hechos.join(' · ')}`);
+    if (facts.length) console.log(`   ▸ autorrelleno: ${facts.join(' · ')}`);
 
     // ⚠ Elegir el botón NO es `.first()` con un filtro de `disabled`: `filter({hasNot: '[disabled]'})`
     // pregunta por un DESCENDIENTE deshabilitado, no por el botón mismo, así que devolvía botones
     // deshabilitados y el click moría por timeout con el nombre ya leído — parecía un muro de la pantalla
     // cuando era el harness eligiendo mal. Se recorren los candidatos y se toma el primero **visible y
     // habilitado** de verdad.
-    const cand = page.getByRole('button', { name: AVANZAR });
+    const cand = page.getByRole('button', { name: ADVANCE });
     const n = await cand.count();
-    let elegido = null as null | { i: number; nombre: string };
+    let chosen = null as null | { i: number; nombre: string };
     for (let i = 0; i < n; i++) {
         const c = cand.nth(i);
         if (!(await c.isVisible().catch(() => false))) continue;
         if (!(await c.isEnabled().catch(() => false))) continue;
-        elegido = { i, nombre: (await c.textContent().catch(() => '')) ?? '' };
+        chosen = { i, nombre: (await c.textContent().catch(() => '')) ?? '' };
         break;
     }
-    if (!elegido) {
-        const nombres = await cand.allTextContents().catch(() => []);
-        console.log(`   ⚠ sin botón habilitado para avanzar — se detiene acá${nombres.length ? ` (candidatos: ${nombres.map((x) => x.trim()).join(' · ')})` : ''}`);
+    if (!chosen) {
+        const names = await cand.allTextContents().catch(() => []);
+        console.log(`   ⚠ sin botón habilitado para avanzar — se detiene acá${names.length ? ` (candidatos: ${names.map((x) => x.trim()).join(' · ')})` : ''}`);
         break;
     }
-    console.log(`   ↳ click «${elegido.nombre.trim().slice(0, 40)}»`);
-    await cand.nth(elegido.i).click({ timeout: 4000 })
+    console.log(`   ↳ click «${chosen.nombre.trim().slice(0, 40)}»`);
+    await cand.nth(chosen.i).click({ timeout: 4000 })
         .catch((e) => console.log(`   ⚠ no pudo clickear: ${String(e).split('\n')[0].slice(0, 90)}`));
 }
 
-const shot = `.runs/caminar-${PRODUCTO}.png`;
+const shot = `.runs/caminar-${PRODUCT}.png`;
 await page.screenshot({ path: shot, fullPage: true }).catch(() => {});
-console.log(`\n${recorrido.length} pantalla(s) · última: ${recorrido.at(-1)} · 📸 ${shot}`);
-console.log(`   una captura por pantalla en ${CARPETA}/ — miralas, no alcanza con que hayan cargado`);
+console.log(`\n${route.length} pantalla(s) · última: ${route.at(-1)} · 📸 ${shot}`);
+console.log(`   una captura por pantalla en ${FOLDER}/ — miralas, no alcanza con que hayan cargado`);
 
-if (sospechas.length) {
-    console.log(`\n  ── REVISIÓN · ${sospechas.length} cosa(s) con pinta de estar rotas ──`);
+if (suspicions.length) {
+    console.log(`\n  ── REVISIÓN · ${suspicions.length} cosa(s) con pinta de estar rotas ──`);
     console.log('     (descriptivo, no veredicto: andá a mirar esas capturas)');
-    const porPantalla = new Map<string, Sospecha[]>();
-    for (const s of sospechas) porPantalla.set(s.pantalla, [...(porPantalla.get(s.pantalla) ?? []), s]);
-    for (const [pantalla, lista] of porPantalla) {
-        console.log(`\n     ${pantalla}`);
+    const byScreen = new Map<string, Suspicion[]>();
+    for (const s of suspicions) byScreen.set(s.pantalla, [...(byScreen.get(s.pantalla) ?? []), s]);
+    for (const [screen, list] of byScreen) {
+        console.log(`\n     ${screen}`);
         // Deduplicado: un error de consola que se repite en cada render es UN problema, no veinte.
         const vistas = new Set<string>();
-        for (const s of lista) {
-            const clave = `${s.que}|${s.detalle}`;
-            if (vistas.has(clave)) continue;
-            vistas.add(clave);
-            const repes = lista.filter((x) => `${x.que}|${x.detalle}` === clave).length;
-            console.log(`       ${s.que.padEnd(9)} ${s.detalle}${repes > 1 ? `  ×${repes}` : ''}`);
+        for (const s of list) {
+            const key = `${s.que}|${s.detalle}`;
+            if (vistas.has(key)) continue;
+            vistas.add(key);
+            const repeats = list.filter((x) => `${x.que}|${x.detalle}` === key).length;
+            console.log(`       ${s.que.padEnd(9)} ${s.detalle}${repeats > 1 ? `  ×${repeats}` : ''}`);
         }
     }
 } else {
     console.log('  ✓ revisión: ninguna pantalla mostró basura, imágenes rotas ni errores de consola');
 }
-if (errores.length) console.log(`⚠ ${errores.length} error(es) de página:\n   ${[...new Set(errores)].join('\n   ')}`);
+if (errorsList.length) console.log(`⚠ ${errorsList.length} error(es) de página:\n   ${[...new Set(errorsList)].join('\n   ')}`);
 
 // LA TERCERA FUENTE, como pista y no como consulta. Este caminador usa navegador de verdad, así que
 // contra un front DESPLEGADO deja en PostHog más rastro que ningún otro runner: los eventos del
@@ -271,13 +271,13 @@ if (errores.length) console.log(`⚠ ${errores.length} error(es) de página:\n  
 // —la ingesta tarda minutos y esta herramienta es de a un caso— pero sí se imprime el comando con la
 // solicitud y la hora ya puestas, que es lo que costaba armar a mano.
 // ⚠ En LOCAL no hay nada que mirar: `APP_ENV=local` apaga el cliente de PostHog en el front.
-const uReqCorrida = await latestUserRequestId(suc.hash, uReqBase).catch(() => null);
-const noPostHog = porQueNo(posthogConfig());
+const runUReq = await latestUserRequestId(br.hash, uReqBase).catch(() => null);
+const noPostHog = whyNot(posthogConfig());
 if (noPostHog) {
     console.log(`\nPostHog: nada que mirar — ${noPostHog}`);
-} else if (uReqCorrida) {
+} else if (runUReq) {
     console.log(`\nPostHog · qué registró el FRONT de esta corrida (eventos del embudo + logs con pantalla y error):`
-        + `\n   make harness-posthog UREQ=${uReqCorrida} DESDE=${new Date(T0.getTime() - 60_000).toISOString()}`);
+        + `\n   make harness-posthog UREQ=${runUReq} DESDE=${new Date(T0.getTime() - 60_000).toISOString()}`);
 } else {
     console.log('\nPostHog: el canal no creó una solicitud nueva en esta sucursal, así que no hay por dónde preguntar.');
 }
@@ -292,5 +292,5 @@ await browser.close();
 //
 // Por eso ahora se restaura la FOTO completa: una perilla nueva queda cubierta sola, sin que nadie se
 // acuerde de agregarla acá. Si la foto falló, se cae a los valores por defecto, que es mejor que nada.
-await escenario(escenarioOriginal ?? { producto: 'ambos', errorCode: null, errorEn: null, hasQuota: true });
+await scenario(originalScenario ?? { producto: 'ambos', errorCode: null, errorEn: null, hasQuota: true });
 await close();

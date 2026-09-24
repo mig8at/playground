@@ -32,13 +32,13 @@ function lenderStatusFor(req) {
 
 const PORT = Number(process.env.MOCK_PA_PORT || 8095);
 const FORCE = (process.env.MOCK_PA_STATUS || "approved").toLowerCase();
-const CUPO = Number(process.env.MOCK_PA_CUPO || 25_000_000);
+const QUOTA = Number(process.env.MOCK_PA_CUPO || 25_000_000);
 const RATE = Number(process.env.MOCK_PA_RATE || 0.0188); // 1.88% M.V — lo que muestran las cards
 const DELAY = Number(process.env.MOCK_PA_DELAY_MS || 0); // ms antes de responder → ver el loader de pre-aprobado en las cards rt≠0
 const TERMS = [12, 24, 36, 48];
 
 // cuota mensual por amortización francesa (mismo formato que muestran las cards)
-const cuota = (amount, term) => Math.round((amount * RATE) / (1 - Math.pow(1 + RATE, -term)));
+const installment = (amount, term) => Math.round((amount * RATE) / (1 - Math.pow(1 + RATE, -term)));
 
 // transaction_data por-lender (lo que leen los extractores del marketplace). Para el resto,
 // null → la card usa el camino genérico (credit_lines + CalculateLoanFinancialsUc).
@@ -46,7 +46,7 @@ function txData(key, amount) {
       const k = String(key || "").toLowerCase();
       if (k === "welli" || k.includes("welli")) {
             const plan = {};
-            for (const t of TERMS) plan[t] = { resultado: true, cuota_asignacion: cuota(amount, t) };
+            for (const t of TERMS) plan[t] = { resultado: true, cuota_asignacion: installment(amount, t) };
             return { plan_de_cuotas: plan }; // extractWelliInstallments
       }
       if (k === "credifamilia" || k.includes("credifamilia")) {
@@ -82,14 +82,14 @@ function txData(key, amount) {
                               displayTextGroup: "Oferta mock",
                               minTerm: 12,
                               maxTerm: 36,
-                              minInstallment: cuota(amount, 36), // término largo → cuota baja
-                              maxInstallment: cuota(amount, 12), // término corto → cuota alta
+                              minInstallment: installment(amount, 36), // término largo → cuota baja
+                              maxInstallment: installment(amount, 12), // término corto → cuota alta
                         },
                   ],
             };
       }
       if (k === "prami") {
-            return { quotas: TERMS.map((t) => ({ term: t, quotaValue: cuota(amount, t) })) }; // extractPramiQuotas
+            return { quotas: TERMS.map((t) => ({ term: t, quotaValue: installment(amount, t) })) }; // extractPramiQuotas
       }
       return null; // genérico
 }
@@ -124,7 +124,7 @@ function build(req, status) {
       return {
             ...base,
             approved_amount: String(amount),
-            available: CUPO,
+            available: QUOTA,
             pre_approved_lender: true,
             probability: "Pre aprobado",
             probability_color: "text-success",
@@ -133,7 +133,7 @@ function build(req, status) {
       };
 }
 
-/* ── LAS CLAVES QUE EL SERVICIO REAL RECONOCE ────────────────────────────────────────────────────
+/* ── LAS CLAVES QUE EL SERVICE REAL RECONOCE ────────────────────────────────────────────────────
  *
  * ⚠ ESTE MOCK ACEPTABA CUALQUIER CLAVE, Y ESO LO VOLVÍA UN ORÁCULO FALSO. El servicio de verdad las
  * valida contra un registro CERRADO (`internal/core/domain/lending_product.go`,
@@ -148,7 +148,7 @@ function build(req, status) {
  * La lista se copia a mano del registro del microservicio. Es duplicación, sí — pero de un CONTRATO
  * que es el mismo en todos los ambientes, no de un id que difiere por base; y no tenerla es peor: un
  * mock que acepta lo que el original rechaza no está simulando, está tapando. */
-const CLAVES_CONOCIDAS = new Set([
+const KNOWN_KEYS = new Set([
       "bancolombia_bnpl",
       "bancolombia_consumer_loan",
       "sistecredito",
@@ -170,7 +170,7 @@ function norm(s) {
 const server = http.createServer((r, res) => {
       if (r.method === "GET") {
             res.writeHead(200, { "content-type": "application/json" });
-            res.end(JSON.stringify({ ok: true, service: "mock-preapprovals", force: FORCE, cupo: CUPO, delay: DELAY }));
+            res.end(JSON.stringify({ ok: true, service: "mock-preapprovals", force: FORCE, cupo: QUOTA, delay: DELAY }));
             return;
       }
       if (r.method === "POST" && r.url.startsWith("/v1/preapprovals/check")) {
@@ -187,14 +187,14 @@ const server = http.createServer((r, res) => {
 
                   // La clave primero, como el servicio real: si no está en su catálogo, nada de lo de
                   // abajo llega a pasar. Mismo código y misma forma que devuelve él.
-                  const clave = String(req.lending_product_key ?? "");
-                  if (!CLAVES_CONOCIDAS.has(clave)) {
-                        console.log(`[mock-pa] ${clave || "(vacía)"}#${req.lending_product_id ?? "-"} → 400 clave desconocida`);
+                  const keyValue = String(req.lending_product_key ?? "");
+                  if (!KNOWN_KEYS.has(keyValue)) {
+                        console.log(`[mock-pa] ${keyValue || "(vacía)"}#${req.lending_product_id ?? "-"} → 400 clave desconocida`);
                         res.writeHead(400, { "content-type": "application/json" });
                         res.end(
                               JSON.stringify({
                                     error: "invalid lending product key",
-                                    details: `lending product not found: ${clave}`,
+                                    details: `lending product not found: ${keyValue}`,
                               }),
                         );
                         return;
@@ -224,6 +224,6 @@ const server = http.createServer((r, res) => {
 
 server.listen(PORT, () => {
       console.log(
-            `mock-preapprovals → http://localhost:${PORT}/v1/preapprovals/check  (force=${FORCE} · cupo=${CUPO} · rate=${RATE} · delay=${DELAY}ms)`,
+            `mock-preapprovals → http://localhost:${PORT}/v1/preapprovals/check  (force=${FORCE} · cupo=${QUOTA} · rate=${RATE} · delay=${DELAY}ms)`,
       );
 });

@@ -42,8 +42,8 @@ function patternNames(pattern, out) {
   return out;
 }
 
-function scriptDecls(code, offset) {
-  const ast = babel.parse(code, { sourceType: 'module', errorRecovery: false });
+function scriptDecls(code, offset, ts = false) {
+  const ast = babel.parse(code, { sourceType: 'module', errorRecovery: false, plugins: ts ? ['typescript'] : [] });
   const out = [];
   const add = (id, kind) => id && out.push({ name: id.name, start: id.start + offset, kind });
   walk(ast.program, (n) => {
@@ -59,6 +59,9 @@ function scriptDecls(code, offset) {
         break;
       case 'ClassDeclaration':
       case 'ClassExpression': if (n.id) add(n.id, 'class'); break;
+      case 'TSInterfaceDeclaration':
+      case 'TSTypeAliasDeclaration':
+      case 'TSEnumDeclaration': add(n.id, 'type'); break;
       case 'CatchClause': patternNames(n.param, []).forEach((id) => add(id, 'var')); break;
       case 'ImportSpecifier':
       case 'ImportDefaultSpecifier':
@@ -69,7 +72,7 @@ function scriptDecls(code, offset) {
 }
 
 export function fileDecls(src, file) {
-  if (!file.endsWith('.vue')) return scriptDecls(src, 0);
+  if (!file.endsWith('.vue')) return scriptDecls(src, 0, /\.[mc]?ts$/.test(file));
   const { descriptor, errors } = sfc.parse(src, { filename: file });
   if (errors.length) throw new Error(`${file}: ${errors[0]}`);
   let out = [];

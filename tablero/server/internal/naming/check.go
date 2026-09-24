@@ -184,6 +184,26 @@ func Tracer(root string) Board {
 	}
 }
 
+// Harness es el TypeScript del harness: sus runners, sus paquetes, el server del panel y los mocks.
+// El JS que va adentro de `panel/index.html` no lo lee ningún extractor todavía.
+func Harness(root string) Board {
+	dirs := []string{"harness", "harness/pkg", "harness/dev", "harness/channel", "harness/merchant", "harness/bin",
+		"harness/lender", "harness/e2e", "harness/panel", "harness/mock-*"}
+	var globs []string
+	for _, d := range dirs {
+		for _, ext := range []string{"ts", "mts", "js", "mjs"} {
+			globs = append(globs, d+"/*."+ext)
+		}
+	}
+	return Board{
+		Name:        "harness",
+		Root:        root,
+		JSGlobs:     globs,
+		DeclsScript: filepath.Join(root, "tablero", "tools", "rename", "js", "decls.mjs"),
+		PathRoots:   []string{"harness/pkg/", "harness/dev/", "harness/channel/", "harness/merchant/", "harness/bin/", "harness/lender/", "harness/e2e/", "harness/panel/"},
+	}
+}
+
 // Finding es un nombre con palabras que no pasan como inglés.
 type Finding struct {
 	Where string   `json:"where"`

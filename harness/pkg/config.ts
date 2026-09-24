@@ -73,11 +73,11 @@ export const adminCreds = loadAdminCreds();
  * que cambia lo que la corrida prueba no puede estar invisible en el `.env` de otro repo.
  */
 export function docGenLocal(): { microservicio: string[]; blade: string[]; leido: boolean } {
-    const ruta = `${process.env.HOME}/Desktop/CREDITOP/github/legacy-backend/.env`;
+    const path = `${process.env.HOME}/Desktop/CREDITOP/github/legacy-backend/.env`;
     const micro: string[] = [];
     const blade: string[] = [];
     try {
-        for (const l of readFileSync(ruta, 'utf8').split('\n')) {
+        for (const l of readFileSync(path, 'utf8').split('\n')) {
             const m = l.match(/^\s*DOC_GEN_([A-Z_0-9]+)\s*=\s*(\S+)/);
             if (!m) continue;
             (/microservice/i.test(m[2]) ? micro : blade).push(m[1].toLowerCase());
@@ -89,7 +89,7 @@ export function docGenLocal(): { microservicio: string[]; blade: string[]; leido
 }
 
 /** La línea de aviso, o `null` si no hay nada que advertir. La imprimen los runners en su cabecera. */
-export function avisoDocGen(target: string): string | null {
+export function docGenNotice(target: string): string | null {
     if (target !== 'local') return null;
     const d = docGenLocal();
     if (!d.leido || !d.microservicio.length) return null;
@@ -113,14 +113,14 @@ export function avisoDocGen(target: string): string | null {
  * Se diagnostica en vez de avisar siempre: si Loki ESTÁ arriba no hay nada que advertir, y un aviso
  * que sale igual en los dos casos se aprende a ignorar.
  */
-export interface LogsDelBackend {
+export interface BackendLogs {
       canal: string;
       lokiArriba: boolean | null;   // `null` = no se pudo probar
       sePierden: boolean;
 }
 
-export async function logsDelBackendLocal(): Promise<LogsDelBackend> {
-      const out: LogsDelBackend = { canal: '', lokiArriba: null, sePierden: false };
+export async function localBackendLogs(): Promise<BackendLogs> {
+      const out: BackendLogs = { canal: '', lokiArriba: null, sePierden: false };
       try {
             const env = readFileSync(`${process.env.HOME}/Desktop/CREDITOP/github/legacy-backend/.env`, 'utf8');
             out.canal = (env.match(/^\s*LOG_CHANNEL\s*=\s*(\S+)/m)?.[1] ?? '').trim();
@@ -147,9 +147,9 @@ export async function logsDelBackendLocal(): Promise<LogsDelBackend> {
  * Incluye el comando que SÍ funciona sin observabilidad —repedirle el endpoint, que devuelve la causa
  * en el cuerpo— con la solicitud ya puesta, igual que hacen los avisos de PostHog y de Loki.
  */
-export async function avisoLogsDelBackend(target: string, uReq?: number | string | null): Promise<string[]> {
+export async function backendLogsNotice(target: string, uReq?: number | string | null): Promise<string[]> {
       if (target !== 'local') return [];
-      const d = await logsDelBackendLocal();
+      const d = await localBackendLogs();
       if (!d.sePierden) return [];
       return [
             `⚠ LOS ERRORES DEL BACKEND DE ESTA CORRIDA NO QUEDARON EN NINGUNA PARTE.`,
@@ -283,10 +283,10 @@ export const expectedSubcodes = {
  * contenedor resuelve la configuración como `NULL`. En los ambientes desplegados sí está — cero
  * apariciones del síntoma en 30 días—, así que esto es de local.
  *
- * Se lee el `.env` del OTRO repo con el mismo idiom que `logsDelBackendLocal`: una perilla que cambia
+ * Se lee el `.env` del OTRO repo con el mismo idiom que `localBackendLogs`: una perilla que cambia
  * qué puede probar la corrida no puede estar invisible.
  */
-export function proveedorDeIdentidadConfigurado(): boolean | null {
+export function configuredIdentityProvider(): boolean | null {
       try {
             const env = readFileSync(`${process.env.HOME}/Desktop/CREDITOP/github/legacy-backend/.env`, 'utf8');
             const v = (env.match(/^\s*ADO_HOST\s*=\s*(.*)$/m)?.[1] ?? '').trim().replace(/^["']|["']$/g, '');
@@ -300,9 +300,9 @@ export function proveedorDeIdentidadConfigurado(): boolean | null {
  * El aviso, o vacío si no hay nada que advertir. Sólo habla cuando el target es `local` y la variable
  * falta: contra un ambiente desplegado el proveedor está puesto y avisar ahí sería ruido.
  */
-export function avisoIdentidadSinProveedor(target: string): string[] {
+export function identityWithoutProviderNotice(target: string): string[] {
       if (target !== 'local') return [];
-      if (proveedorDeIdentidadConfigurado() !== false) return [];
+      if (configuredIdentityProvider() !== false) return [];
       return [
             '⚠ el proveedor de identidad (ADO) NO está configurado en local: sin `ADO_HOST` en el .env del',
             '  backend, la pantalla de validación de identidad termina en una ruta inventada y queda MUERTA',

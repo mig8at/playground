@@ -30,20 +30,20 @@ import { query, close } from '../pkg/db';
 const BASE = process.env.E2E_ADMIN_URL ?? 'http://admin.localhost:8000';
 
 /** Comercios del dump local. Pisables por env si otro dump usa otros ids. */
-const COMERCIO_RD = process.env.E2E_ADMIN_ALLIED_RD ?? '270'; // CeluRD Test (country_id 60)
-const COMERCIO_CO = process.env.E2E_ADMIN_ALLIED_CO ?? '14'; // godentist, tiene sucursal (la 14)
+const MERCHANT_DO = process.env.E2E_ADMIN_ALLIED_RD ?? '270'; // CeluRD Test (country_id 60)
+const MERCHANT_CO = process.env.E2E_ADMIN_ALLIED_CO ?? '14'; // godentist, tiene sucursal (la 14)
 
-const POR_FORMULARIO = process.env.E2E_ADMIN_LOGIN === '1';
+const BY_FORM = process.env.E2E_ADMIN_LOGIN === '1';
 
 test('el selector de ciudad del admin filtra por el país del comercio', async ({ browser }) => {
     test.setTimeout(120_000);
-    const artefactos = join(process.cwd(), '.auth');
-    mkdirSync(artefactos, { recursive: true });
+    const artifacts = join(process.cwd(), '.auth');
+    mkdirSync(artifacts, { recursive: true });
 
     const { context, page } = await openA(browser, { baseURL: BASE });
 
     // ── 1. Sesión ─────────────────────────────────────────────────────────────────────────────────
-    if (POR_FORMULARIO) {
+    if (BY_FORM) {
         expect(adminCreds.user && adminCreds.pass,
             'E2E_ADMIN_LOGIN=1 exige credenciales en .admin.json o E2E_ADMIN_USER/PASS').toBeTruthy();
         await page.goto('/login');
@@ -54,8 +54,8 @@ test('el selector de ciudad del admin filtra por el país del comercio', async (
         expect(page.url(), 'seguimos en /login: la contraseña no corresponde al hash de ESTA base ' +
             '(¿el dump local vino de otro ambiente?)').not.toMatch(/\/login/);
     } else {
-        const salida = execFileSync(join(process.cwd(), 'bin/admin-sesion'), { encoding: 'utf8' });
-        const s = JSON.parse(salida.trim()) as {
+        const output = execFileSync(join(process.cwd(), 'bin/admin-sesion'), { encoding: 'utf8' });
+        const s = JSON.parse(output.trim()) as {
             cookie: string; value: string; domain: string; email: string; roles: string[];
         };
         expect(s.roles, `el usuario ${s.email} no tiene rol Administrador`).toContain('Administrador');
@@ -78,9 +78,9 @@ test('el selector de ciudad del admin filtra por el país del comercio', async (
     // Se consulta la API además de mirar la pantalla: el autocomplete busca recién a los 3 caracteres y
     // pinta una lista virtualizada, así que afirmar SÓLO sobre el DOM mediría el widget. Acá se afirma
     // sobre lo que ofrece el backend; la pantalla se captura aparte, para el ojo.
-    const buscar = async (texto: string, alliedId?: string) => {
+    const search = async (text: string, alliedId?: string) => {
         const url = new URL('/get-cities', BASE);
-        url.searchParams.set('search', texto);
+        url.searchParams.set('search', text);
         if (alliedId) url.searchParams.set('allied_id', alliedId);
         const res = await page.request.get(url.toString());
         expect(res.ok(), `GET ${url.pathname}${url.search} devolvió ${res.status()}`).toBeTruthy();
@@ -89,14 +89,14 @@ test('el selector de ciudad del admin filtra por el país del comercio', async (
 
     // El comodín «TODAS LAS CIUDADES» se descuenta siempre: no es un lugar, se ofrece con filtro y sin
     // filtro, y vive colgado de Colombia por historia.
-    const paises = (filas: Awaited<ReturnType<typeof buscar>>) =>
-        filas.filter(c => c.name !== 'TODAS LAS CIUDADES')
+    const countries = (rowList: Awaited<ReturnType<typeof search>>) =>
+        rowList.filter(c => c.name !== 'TODAS LAS CIUDADES')
             .map(c => c.zone?.country?.name ?? '?');
 
-    const santoRD = await buscar('SANTO DOMINGO', COMERCIO_RD);
-    expect(paises(santoRD).length,
+    const saintDO = await search('SANTO DOMINGO', MERCHANT_DO);
+    expect(countries(saintDO).length,
         'el comercio RD no recibió ninguna ciudad: ¿faltan las de RD en esta base?').toBeGreaterThan(0);
-    expect(new Set(paises(santoRD)),
+    expect(new Set(countries(saintDO)),
         'un comercio dominicano no debería poder elegir una ciudad colombiana')
         .toEqual(new Set(['Dominican Republic']));
 
@@ -104,18 +104,18 @@ test('el selector de ciudad del admin filtra por el país del comercio', async (
     // QUEMADO (1123, el de Colombia) y se lo anteponía a cualquiera, así que a un comercio dominicano
     // se le ofrecía la fila colombiana — el mismo error que este selector vino a hacer imposible.
     // Dejó de ser inocuo cuando RD y Perú tuvieron el suyo.
-    const comodinRD = santoRD.find(c => c.name === 'TODAS LAS CIUDADES');
-    expect(comodinRD?.zone?.country?.name,
+    const wildcardDO = saintDO.find(c => c.name === 'TODAS LAS CIUDADES');
+    expect(wildcardDO?.zone?.country?.name,
         'a un comercio dominicano se le ofrece el comodín de OTRO país')
         .toBe('Dominican Republic');
 
     // El bug exacto que se cometió, ahora imposible de cometer.
-    const medelRD = await buscar('MEDEL', COMERCIO_RD);
-    expect(paises(medelRD), 'MEDELLÍN sigue siendo ofrecible a un comercio dominicano').toHaveLength(0);
+    const medelDO = await search('MEDEL', MERCHANT_DO);
+    expect(countries(medelDO), 'MEDELLÍN sigue siendo ofrecible a un comercio dominicano').toHaveLength(0);
 
     // Colombia no se movió.
-    const santoCO = await buscar('SANTO DOMINGO', COMERCIO_CO);
-    expect(new Set(paises(santoCO)), 'el comercio colombiano perdió sus ciudades')
+    const saintCO = await search('SANTO DOMINGO', MERCHANT_CO);
+    expect(new Set(countries(saintCO)), 'el comercio colombiano perdió sus ciudades')
         .toEqual(new Set(['Colombia']));
 
     // Se afirma en POSITIVO que sin `allied_id` sigue devolviendo todo: si alguien "mejora" el default
@@ -124,11 +124,11 @@ test('el selector de ciudad del admin filtra por el país del comercio', async (
     // «Peru», porque Perú también tiene un SANTO DOMINGO. Se afirma como superconjunto —que estén los
     // que sabemos que tienen ciudades— en vez de una igualdad, para que sembrar el próximo país no
     // rompa un test que no habla de eso. Lo que este bloque cuida es que NO se filtre, no cuántos hay.
-    const sinFiltro = await buscar('SANTO DOMINGO');
-    for (const pais of ['Dominican Republic', 'Colombia', 'Peru']) {
-        expect(paises(sinFiltro),
-            `sin allied_id el endpoint debe seguir devolviendo TODO (falta ${pais})`)
-            .toContain(pais);
+    const withoutFilter = await search('SANTO DOMINGO');
+    for (const country of ['Dominican Republic', 'Colombia', 'Peru']) {
+        expect(countries(withoutFilter),
+            `sin allied_id el endpoint debe seguir devolviendo TODO (falta ${country})`)
+            .toContain(country);
     }
 
     // ── 3. El OTRO selector: el del PUNTO DE VENTA, que es donde ocurrió el bug ───────────────────
@@ -144,117 +144,117 @@ test('el selector de ciudad del admin filtra por el país del comercio', async (
     // `"cities":[…]` balanceando corchetes en vez de buscar `data-page`: esta app renderiza las props
     // inline (el `<body id="app">` no lleva el atributo), así que ese camino no existe acá.
     /** Un array de props de Inertia embebido en el HTML de la vista, por su nombre. */
-    const propDeLaPagina = async <T>(alliedId: string, nombre: string): Promise<T[]> => {
+    const pageProp = async <T>(alliedId: string, name: string): Promise<T[]> => {
         const res = await page.request.get(
             `${BASE}/aliados/${alliedId}/puntosdeventa?allied_branch_id=0`);
         expect(res.ok(), `la vista de puntos de venta devolvió ${res.status()}`).toBeTruthy();
         const html = await res.text();
 
-        const clave = `"${nombre}":`;
-        const marca = html.indexOf(`${clave}[`);
-        expect(marca, `no se encontró la prop \`${nombre}\` en la vista: ¿cambió el controlador?`)
+        const key = `"${name}":`;
+        const mark = html.indexOf(`${key}[`);
+        expect(mark, `no se encontró la prop \`${name}\` en la vista: ¿cambió el controlador?`)
             .toBeGreaterThan(-1);
-        let i = marca + clave.length, prof = 0, fin = i;
+        let i = mark + key.length, prof = 0, end = i;
         for (; i < html.length; i++) {
             if (html[i] === '[') prof++;
-            else if (html[i] === ']') { prof--; if (prof === 0) { fin = i + 1; break; } }
+            else if (html[i] === ']') { prof--; if (prof === 0) { end = i + 1; break; } }
         }
 
-        return JSON.parse(html.slice(marca + clave.length, fin)) as T[];
+        return JSON.parse(html.slice(mark + key.length, end)) as T[];
     };
 
-    type Ciudad = { value: number; title: string; zona_id: number };
+    type City = { value: number; title: string; zona_id: number };
 
-    const ciudadesEnLaPagina = async (alliedId: string) =>
-        (await propDeLaPagina<Ciudad>(alliedId, 'cities')).map(c => c.title);
+    const citiesOnPage = async (alliedId: string) =>
+        (await pageProp<City>(alliedId, 'cities')).map(c => c.title);
 
     /** Los títulos sin el comodín, que es lo que se compara contra el catálogo de un país. */
-    const sinComodin = (titulos: string[]) => titulos.filter(t => !t.startsWith('TODAS LAS CIUDADES'));
+    const withoutWildcard = (titles: string[]) => titles.filter(t => !t.startsWith('TODAS LAS CIUDADES'));
 
     // ⚠ El comodín se pide con un OR por NOMBRE, así que trae el de TODOS los países. Mientras Colombia
     // fue la única que lo tenía se veía uno solo; al sembrar RD y Perú pasaron a aparecer TRES entradas
     // idénticas «TODAS LAS CIUDADES» en el mismo desplegable, indistinguibles entre sí.
-    const todasRD = await ciudadesEnLaPagina(COMERCIO_RD);
-    expect(todasRD.filter(t => t === 'TODAS LAS CIUDADES'),
+    const allDO = await citiesOnPage(MERCHANT_DO);
+    expect(allDO.filter(t => t === 'TODAS LAS CIUDADES'),
         'el selector ofrece el comodín de varios países a la vez').toHaveLength(1);
 
-    const ciudadesRD = sinComodin(await ciudadesEnLaPagina(COMERCIO_RD));
-    expect(ciudadesRD.length, 'el selector del punto de venta no ofrece ninguna ciudad para el comercio RD')
+    const citiesDO = withoutWildcard(await citiesOnPage(MERCHANT_DO));
+    expect(citiesDO.length, 'el selector del punto de venta no ofrece ninguna ciudad para el comercio RD')
         .toBeGreaterThan(0);
-    expect(ciudadesRD, 'el selector del PUNTO DE VENTA sigue ofreciendo MEDELLÍN a un comercio dominicano ' +
+    expect(citiesDO, 'el selector del PUNTO DE VENTA sigue ofreciendo MEDELLÍN a un comercio dominicano ' +
         '— es el formulario donde de verdad ocurrió el bug de los 13 puntos de venta')
         .not.toContain('MEDELLÍN');
     // ⚠ Antes acá había una lista fija con los 8 municipios del área metropolitana, que era todo lo que
     // el catálogo tenía. Al sembrar los 158 el test se rompió por su propia expectativa, no por el
     // producto. Se pregunta a la BASE cuáles son las ciudades de RD: así la afirmación —«ninguna de las
     // que se ofrecen es de otro país»— sigue siendo cierta sin importar cuánto crezca el catálogo.
-    const ciudadesDeRD = new Set((await query<{ name: string }>(
+    const citiesOfDO = new Set((await query<{ name: string }>(
         `SELECT cc.name FROM country_cities cc
            JOIN country_zones cz ON cz.id = cc.country_zone_id
            JOIN countries c ON c.id = cz.country_id
           WHERE c.iso_code_2 = 'DOM'`,
     )).map(f => f.name));
 
-    const intrusas = ciudadesRD.filter(c => !ciudadesDeRD.has(c));
-    expect(intrusas, `el comercio RD recibió ciudades que no son dominicanas: ${intrusas.join(', ')}`)
+    const intruders = citiesDO.filter(c => !citiesOfDO.has(c));
+    expect(intruders, `el comercio RD recibió ciudades que no son dominicanas: ${intruders.join(', ')}`)
         .toHaveLength(0);
-    expect(ciudadesRD.length, 'el comercio RD sigue viendo sólo el área metropolitana: ' +
+    expect(citiesDO.length, 'el comercio RD sigue viendo sólo el área metropolitana: ' +
         '¿corrió la migración que siembra los 158 municipios?').toBeGreaterThan(100);
-    console.log(`  ✔ punto de venta, comercio RD: ${ciudadesRD.length} ciudades, todas de RD`);
+    console.log(`  ✔ punto de venta, comercio RD: ${citiesDO.length} ciudades, todas de RD`);
 
-    await page.goto(`/aliados/${COMERCIO_RD}/editar`);
+    await page.goto(`/aliados/${MERCHANT_DO}/editar`);
     await page.waitForLoadState('networkidle').catch(() => {});
-    await page.screenshot({ path: join(artefactos, 'admin-comercio-rd.png'), fullPage: true }).catch(() => {});
+    await page.screenshot({ path: join(artifacts, 'admin-comercio-rd.png'), fullPage: true }).catch(() => {});
 
-    const ciudadesCO = sinComodin(await ciudadesEnLaPagina(COMERCIO_CO));
-    expect(ciudadesCO, 'el comercio colombiano perdió MEDELLÍN del selector de punto de venta')
+    const citiesCO = withoutWildcard(await citiesOnPage(MERCHANT_CO));
+    expect(citiesCO, 'el comercio colombiano perdió MEDELLÍN del selector de punto de venta')
         .toContain('MEDELLÍN');
 
     // Ningún título puede repetirse: si dos ciudades del país se llaman igual, el desplegable las
     // ordena juntas y quien carga el punto de venta elige a ciegas. Colombia tiene 4 VILLANUEVA y 4
     // LA UNIÓN en departamentos distintos, y Perú 8 SANTA ROSA; el controlador les agrega su
     // departamento y sólo a ellas.
-    const repetidos = (titulos: string[]) => [...new Set(titulos.filter((t, i) => titulos.indexOf(t) !== i))];
-    expect(repetidos(ciudadesCO), 'el selector colombiano muestra nombres repetidos e indistinguibles')
+    const repeated = (titles: string[]) => [...new Set(titles.filter((t, i) => titles.indexOf(t) !== i))];
+    expect(repeated(citiesCO), 'el selector colombiano muestra nombres repetidos e indistinguibles')
         .toEqual([]);
-    expect(repetidos(ciudadesRD), 'el selector dominicano muestra nombres repetidos e indistinguibles')
+    expect(repeated(citiesDO), 'el selector dominicano muestra nombres repetidos e indistinguibles')
         .toEqual([]);
-    expect(ciudadesCO.filter(c => c.startsWith('VILLANUEVA')),
+    expect(citiesCO.filter(c => c.startsWith('VILLANUEVA')),
         'los homónimos colombianos deberían venir con su departamento').toHaveLength(4);
 
     // ── 4. La cascada: elegir el departamento recorta la lista antes de escribir nada ─────────────
     //
     // Un desplegable de 1.875 distritos peruanos no se puede RECORRER, sólo buscar — y sólo si ya sabés
     // qué buscás. El primer paso lo hace navegable. Es opcional: sin departamento se ofrecen todas.
-    for (const [comercio, pais] of [[COMERCIO_RD, 'RD'], [COMERCIO_CO, 'CO']] as const) {
-        const zonas = await propDeLaPagina<{ value: number; title: string }>(comercio, 'countryZones');
-        expect(zonas.length, `el comercio ${pais} no recibió departamentos para la cascada`)
+    for (const [merchant, country] of [[MERCHANT_DO, 'RD'], [MERCHANT_CO, 'CO']] as const) {
+        const zones = await pageProp<{ value: number; title: string }>(merchant, 'countryZones');
+        expect(zones.length, `el comercio ${country} no recibió departamentos para la cascada`)
             .toBeGreaterThan(0);
 
-        const ciudades = await propDeLaPagina<Ciudad>(comercio, 'cities');
-        const huerfanas = ciudades.filter(c => !zonas.some(z => z.value === c.zona_id));
-        expect(huerfanas, `${pais}: hay ciudades cuyo departamento no está en la lista, el filtro las escondería`)
+        const cities = await pageProp<City>(merchant, 'cities');
+        const orphans = cities.filter(c => !zones.some(z => z.value === c.zona_id));
+        expect(orphans, `${country}: hay ciudades cuyo departamento no está en la lista, el filtro las escondería`)
             .toHaveLength(0);
-        console.log(`  ✔ cascada, comercio ${pais}: ${zonas.length} departamentos cubren sus ${ciudades.length} ciudades`);
+        console.log(`  ✔ cascada, comercio ${country}: ${zones.length} departamentos cubren sus ${cities.length} ciudades`);
     }
-    console.log(`  ✔ punto de venta, comercio CO: ${ciudadesCO.length} ciudades (Colombia intacta)`);
+    console.log(`  ✔ punto de venta, comercio CO: ${citiesCO.length} ciudades (Colombia intacta)`);
 
     // El modal del selector cuelga de la pestaña de entidades. El nombre exacto de la pestaña y del
     // botón cambia con el diseño, así que la navegación es best-effort: si no se llega, quedan las
     // afirmaciones de arriba (que son las que prueban el arreglo) y la captura de la página.
-    const pestaña = page.getByRole('tab', { name: /entidad|lender/i })
+    const tab = page.getByRole('tab', { name: /entidad|lender/i })
         .or(page.getByText(/^entidades$/i)).first();
-    if (await pestaña.isVisible().catch(() => false)) {
-        await pestaña.click().catch(() => {});
+    if (await tab.isVisible().catch(() => false)) {
+        await tab.click().catch(() => {});
         await page.waitForTimeout(700);
-        await page.screenshot({ path: join(artefactos, 'admin-pestana-entidades.png'), fullPage: true })
+        await page.screenshot({ path: join(artifacts, 'admin-pestana-entidades.png'), fullPage: true })
             .catch(() => {});
 
-        const ciudad = page.getByPlaceholder(/ciudad/i).or(page.getByLabel(/ciudad/i)).first();
-        if (await ciudad.isVisible().catch(() => false)) {
-            await ciudad.fill('santo');                 // el componente busca a los 3 caracteres
+        const city = page.getByPlaceholder(/ciudad/i).or(page.getByLabel(/ciudad/i)).first();
+        if (await city.isVisible().catch(() => false)) {
+            await city.fill('santo');                 // el componente busca a los 3 caracteres
             await page.waitForTimeout(1200);            // deja llegar el XHR y pintar la lista
-            await page.screenshot({ path: join(artefactos, 'admin-ciudades-santo.png'), fullPage: true })
+            await page.screenshot({ path: join(artifacts, 'admin-ciudades-santo.png'), fullPage: true })
                 .catch(() => {});
             console.log('  · capturado el desplegable con «santo»');
         } else {
@@ -262,8 +262,8 @@ test('el selector de ciudad del admin filtra por el país del comercio', async (
         }
     }
 
-    console.log(`  ✔ comercio RD (${COMERCIO_RD}): «santo» → ${paises(santoRD).length} municipios, todos de RD`);
+    console.log(`  ✔ comercio RD (${MERCHANT_DO}): «santo» → ${countries(saintDO).length} municipios, todos de RD`);
     console.log(`  ✔ comercio RD: «medel» → 0 opciones (antes ofrecía MEDELLÍN)`);
-    console.log(`  ✔ comercio CO (${COMERCIO_CO}): «santo» → sólo Colombia`);
+    console.log(`  ✔ comercio CO (${MERCHANT_CO}): «santo» → sólo Colombia`);
     console.log(`  · capturas en harness/.auth/\n`);
 });

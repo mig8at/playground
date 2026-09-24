@@ -471,10 +471,10 @@ distinto según con qué pregunta llegues.
 | F-237 | El valor `qa` que `.env.staging` y `.env.qa` usan para filtrar por ambiente **no existe** entre los valores de la etiqueta `environment` del stack de logs de dev, así que esos targets leían CERO y las herramientas lo atribuían a que la solicitud «la atendió otra rama de código». Medido con su control: `{environment="qa"}` sobre 30 días no devuelve nada y `{environment="development"}` sobre 24 h da 33.599 líneas | ARREGLADO el aviso · ⏳ el filtro correcto es una decisión |
 | F-238 | El panel cachea en memoria «ya asigné el asesor a este hash» y el cache ACUMULA: un asesor está en UNA sola sucursal, así que al volver a una ya visitada contesta «permiso ya confirmado» **sin escribir** y el asesor se queda en la anterior. El panel muestra A, habilita Lanzar y la corrida pega contra B — con la evidencia saliendo con el nombre equivocado | ARREGLADO |
 | F-239 | Cinco peticiones en 6 h hacen entre 20.507 y 35.455 consultas **repetidas** de sólo 15-18 distintas —66 a 187 s de base— dominadas por un `find` por id sobre `lender_transactions`, hasta 4.241 veces en UNA petición. Sin error ni alerta: sólo se ve en el resumen por petición que entró el 2026-09-11. El resumen sale sin `trace_id`, así que no dice de qué endpoint salió | ⏳ ABIERTO · causa raíz hipótesis |
-| F-236 | El documento sintético del harness tenía el LARGO del país pero no su RANGO: `documentoSintetico` toma la COLA de la base y tira el prefijo `10…` que la hacía válida, así que un `CC` colombiano salía de diez dígitos empezando en 9 — sobre el techo de **3.000.000.000** que exige TusDatos y que validan los DOS monolitos. `personal-info` contestaba **200** (no el 202 de redirección) con `errors.document_number`, y el caminador informaba «5 intentos sin que la pantalla avance» citando la casilla de identidad. **Ningún recorrido colombiano podía pasar esa pantalla** | ARREGLADO |
+| F-236 | El documento sintético del harness tenía el LARGO del país pero no su RANGO: `syntheticDocument` toma la COLA de la base y tira el prefijo `10…` que la hacía válida, así que un `CC` colombiano salía de diez dígitos empezando en 9 — sobre el techo de **3.000.000.000** que exige TusDatos y que validan los DOS monolitos. `personal-info` contestaba **200** (no el 202 de redirección) con `errors.document_number`, y el caminador informaba «5 intentos sin que la pantalla avance» citando la casilla de identidad. **Ningún recorrido colombiano podía pasar esa pantalla** | ARREGLADO |
 | F-235 | La clave que el front manda al microservicio de preaprobaciones **ES el slug del lender**, y en el dump local los slugs de Bancolombia 68/100 son los ESPAÑOLES con guion (`bancolombia-compra-y-paga-despues`) mientras prod tiene `bancolombia_bnpl`/`bancolombia_consumer_loan`. El microservicio no reconoce la clave, contesta 400, y el loader del marketplace lo TRAGA: la entidad no preaprueba y nada se pone rojo. 942 y 435 sucursales locales | ABIERTO · deriva del dump |
 | F-234 | `make harness-loki` no fijaba `E2E_TARGET`, así que caía al default **dev** y consultaba el Loki COMPARTIDO buscando un uReq **local**: contestaba «cero anclas» con los logs ahí mismo. Y el modo de falla peor es el otro — un uReq local puede EXISTIR en dev y devolverte la corrida de otra persona | ARREGLADO |
-| F-233 | El overlay de `react-scan` —que el wizard inyecta sólo en dev— cubre el viewport e INTERCEPTA LOS CLICKS con viewport angosto. Parecía un defecto de móvil del producto y no lo era. Lo tapaba además un `.catch` vacío en `clickearAvanzar`, que devolvía `ok: true` aunque el click fallara: el log decía «click «X»» sin haber clickeado | ARREGLADO |
+| F-233 | El overlay de `react-scan` —que el wizard inyecta sólo en dev— cubre el viewport e INTERCEPTA LOS CLICKS con viewport angosto. Parecía un defecto de móvil del producto y no lo era. Lo tapaba además un `.catch` vacío en `clickAdvance`, que devolvía `ok: true` aunque el click fallara: el log decía «click «X»» sin haber clickeado | ARREGLADO |
 | F-232 | El código del front dice que el simulador de Cuotéalo no se puede embeber porque BCP manda `X-Frame-Options: SAMEORIGIN`. **Ya no es cierto**: ese host no manda XFO y su `frame-ancestors` habilita los tres dominios de CreditOp. El paso debería verse en qa, staging y producción; sólo `localhost` queda afuera, y para eso está `bin/mock-cuotealo` | ABIERTO · el comentario del front quedó viejo |
 | F-231 | El generador de móviles del harness fijaba sólo el PRIMER dígito (`3`), pero el front valida `^3[0-5][0-9]{8}$`: el segundo salía de la base de la corrida y podía caer 6-9. El canal de asesor moría en la primera pantalla con «Ingresa un número de teléfono colombiano válido», unas corridas sí y otras no | ARREGLADO |
 | F-230 | Sin `ADO_HOST` en el `.env`, `config('services.ado.host')` es null y la URL del proveedor de identidad queda **RELATIVA**: el navegador la resuelve contra el wizard, cae en una ruta que no existe y el recorrido muere sin botón. Un host nulo no falla — produce una URL con pinta de válida | ABIERTO · config de local |
@@ -1114,7 +1114,7 @@ Dato de contexto: `feature/onboarding/ecommerce-continue-route` (junio, ya en `d
 | `BP12700001` "user conflict" | el teléfono/documento ya tiene usuario con otra identidad (`Modules/Onboarding/App/Http/Controllers/CorbetaCheckoutController.php:421`). Scrubbear antes. |
 | 404 mudo al armar la URL | `E2E_API_BASE_URL` ya trae `/api` en local → `/api/api/…`. |
 
-**Qué quedó en el harness:** `pkg/checkout-b64.ts` arma y sigue la URL base64 (`urlCheckout` / `seguirCheckout`), y `E2E_ENTRY=ecommerce` en `guided.spec.ts` entra por ahí. **Ojo:** cada GET al checkout **crea una solicitud**, así que no se puede pre-seguir headless *y* navegar el browser — genera dos y deja la primera huérfana.
+**Qué quedó en el harness:** `pkg/checkout-b64.ts` arma y sigue la URL base64 (`urlCheckout` / `followCheckout`), y `E2E_ENTRY=ecommerce` en `guided.spec.ts` entra por ahí. **Ojo:** cada GET al checkout **crea una solicitud**, así que no se puede pre-seguir headless *y* navegar el browser — genera dos y deja la primera huérfana.
 
 **Confirmación desde el navegador (no solo por API).** La corrida visual con `E2E_ENTRY=ecommerce` sobre Pullman lo dejó a la vista, y la traza contrastada lo cazó en el **paso 1**:
 
@@ -5901,7 +5901,7 @@ regla «por un rato», vale más dejar el ruido.
   «el botón está roto en móvil».
 - **Dos causas apiladas, y la primera es del harness:**
 
-  **1 · El caminador decía haber clickeado sin clickear.** `clickearAvanzar` hacía
+  **1 · El caminador decía haber clickeado sin clickear.** `clickAdvance` hacía
   `await c.click(...).catch(() => {})` y devolvía `{ ok: true, nombre }` **fijo**, así que un click caído
   por timeout se reportaba como éxito, con el nombre del botón puesto. Es **F-03** otra vez: el `.catch`
   vacío justo en el paso que le da sentido a la corrida. Mientras eso estuvo así, el síntoma visible era
@@ -5920,9 +5920,9 @@ regla «por un rato», vale más dejar el ruido.
   ancho — a ancho de escritorio el click navega a `entidad/resultado`; a **420×900** no pasa nada, sin
   ninguna excepción en consola. Reproducido en dos herramientas independientes (el caminador con
   Playwright y el navegador del panel).
-- **Arreglo:** `bloquearHerramientasDeDev()` aborta las peticiones a `react-scan`/`react-grab` en los dos
+- **Arreglo:** `blockDevTools()` aborta las peticiones a `react-scan`/`react-grab` en los dos
   caminadores. **No es hacerle trampa al test: es acercarlo a lo real** — en producción ese script no se
-  carga, así que caminar con él era probar una pantalla que ningún cliente ve. Y `clickearAvanzar` pasa a
+  carga, así que caminar con él era probar una pantalla que ningún cliente ve. Y `clickAdvance` pasa a
   devolver `ok: false` con el motivo, así que un click que falla ya no se disfraza de pantalla trabada.
 - **Comprobado:** con las dos cosas, el recorrido pasa el simulador y llega a `entidad/resultado`.
 
@@ -6028,7 +6028,7 @@ dos. **No se sabe cuántos diagnósticos viejos eran esto.**
   regla —`Modules/Onboarding/App/Http/Requests/PersonalInfoRequest.php:125` y
   `Modules/OnboardingV2/App/Http/Requests/StorePersonalInfoRequest.php:164`, verificados contra `main`—.
   El arnés generaba `9553649100`: nueve mil quinientos millones.
-- **Por qué salía así, que es lo que vale para la próxima:** `documentoSintetico` conocía **media regla**.
+- **Por qué salía así, que es lo que vale para la próxima:** `syntheticDocument` conocía **media regla**.
   Sabía el LARGO por país (10 en Colombia) y no el RANGO, y para variar el número entre corridas toma la
   **cola** de la base — que es justo lo que tira el prefijo que la hacía válida:
 

@@ -37,7 +37,7 @@ const ROOT = process.cwd();
 import { chromium } from '@playwright/test';
 
 const ADMIN_APP = '/Users/miguelochoa/Desktop/CREDITOP/github/legacy-application';
-const PUERTO = 8000;
+const PORT = 8000;
 
 /**
  * Dónde vive el admin de cada ambiente. Comprobado el 2026-08-26: los tres responden 200 y el HTML del
@@ -45,8 +45,8 @@ const PUERTO = 8000;
  *
  * Producción queda afuera a propósito (ver la cabecera).
  */
-const ADMINES: Record<string, string> = {
-    local: `http://admin.localhost:${PUERTO}`,
+const ADMINS: Record<string, string> = {
+    local: `http://admin.localhost:${PORT}`,
     dev: 'https://admin.dev.creditop.com',
     staging: 'https://admin.staging.creditop.com',
 };
@@ -64,11 +64,11 @@ const ADMINES: Record<string, string> = {
  * que ponés vos. Sin credencial, la ventana se abre en el login y entrás a mano. Nunca se commitea nada:
  * `.admin.json` y `.auth/` están en el `.gitignore`.
  */
-function credencialesDe(target: string): { user?: string; pass?: string } {
+function credentialsOf(target: string): { user?: string; pass?: string } {
     const T = target.toUpperCase();
-    const porEnv = process.env[`E2E_ADMIN_USER_${T}`] || process.env.E2E_ADMIN_USER;
-    if (porEnv) {
-        return { user: porEnv, pass: process.env[`E2E_ADMIN_PASS_${T}`] || process.env.E2E_ADMIN_PASS };
+    const byEnv = process.env[`E2E_ADMIN_USER_${T}`] || process.env.E2E_ADMIN_USER;
+    if (byEnv) {
+        return { user: byEnv, pass: process.env[`E2E_ADMIN_PASS_${T}`] || process.env.E2E_ADMIN_PASS };
     }
 
     try {
@@ -81,12 +81,12 @@ function credencialesDe(target: string): { user?: string; pass?: string } {
     }
 }
 
-const RUTA = process.argv[2] || '/aliados';
+const PATH = process.argv[2] || '/aliados';
 const TARGET = (process.argv[3] || process.env.E2E_TARGET || 'local').trim();
-const BASE = ADMINES[TARGET];
-const ES_LOCAL = TARGET === 'local';
+const BASE = ADMINS[TARGET];
+const IS_LOCAL = TARGET === 'local';
 
-const responde = async (): Promise<boolean> => {
+const answers = async (): Promise<boolean> => {
     try {
         const r = await fetch(BASE, { signal: AbortSignal.timeout(2500), redirect: 'manual' });
         return r.status > 0;
@@ -102,73 +102,73 @@ const responde = async (): Promise<boolean> => {
  *
  * No es bloqueante: si Vite no arranca, el admin igual abre —sólo que con el bundle viejo— y se avisa.
  */
-async function levantarViteSiHaceFalta(): Promise<void> {
-    const vitePuerto = 5173;
-    const vivo = async () => {
-        try { await fetch(`http://localhost:${vitePuerto}`, { signal: AbortSignal.timeout(1500) }); return true; }
+async function startViteIfNeeded(): Promise<void> {
+    const vitePort = 5173;
+    const alive = async () => {
+        try { await fetch(`http://localhost:${vitePort}`, { signal: AbortSignal.timeout(1500) }); return true; }
         catch { return false; }
     };
 
-    if (await vivo()) { console.log('  · vite del admin ya estaba arriba'); return; }
+    if (await alive()) { console.log('  · vite del admin ya estaba arriba'); return; }
 
     console.log('  · levantando vite del admin (para ver el front sin compilar)…');
-    const hijo = spawn('npm', ['run', 'dev'], { cwd: ADMIN_APP, detached: true, stdio: 'ignore' });
-    hijo.unref();
+    const child = spawn('npm', ['run', 'dev'], { cwd: ADMIN_APP, detached: true, stdio: 'ignore' });
+    child.unref();
 
     for (let i = 0; i < 24; i++) {
         await new Promise((r) => setTimeout(r, 500));
-        if (await vivo()) { console.log('  · vite arriba'); return; }
+        if (await alive()) { console.log('  · vite arriba'); return; }
     }
     console.warn('  ⚠ vite no arrancó: vas a ver el bundle COMPILADO, que puede no tener tus cambios');
 }
 
-async function levantarSiHaceFalta(): Promise<boolean> {
-    if (await responde()) {
-        console.log(`  · el admin ya estaba en :${PUERTO}`);
+async function startIfNeeded(): Promise<boolean> {
+    if (await answers()) {
+        console.log(`  · el admin ya estaba en :${PORT}`);
         return true;
     }
 
     console.log(`  · el admin no responde; levantándolo…`);
     // detached + unref: sobrevive a este proceso, así la ventana no se queda sin servidor al cerrarse.
-    const hijo = spawn('php', ['artisan', 'serve', `--host=127.0.0.1`, `--port=${PUERTO}`], {
+    const child = spawn('php', ['artisan', 'serve', `--host=127.0.0.1`, `--port=${PORT}`], {
         cwd: ADMIN_APP, detached: true, stdio: 'ignore',
     });
-    hijo.unref();
+    child.unref();
 
     for (let i = 0; i < 20; i++) {
         await new Promise((r) => setTimeout(r, 500));
-        if (await responde()) { console.log(`  · arriba en :${PUERTO}`); return true; }
+        if (await answers()) { console.log(`  · arriba en :${PORT}`); return true; }
     }
     return false;
 }
 
 (async () => {
     if (!BASE) {
-        console.error(`  ✗ no sé dónde vive el admin de «${TARGET}». Los que conozco: ${Object.keys(ADMINES).join(', ')}.`);
+        console.error(`  ✗ no sé dónde vive el admin de «${TARGET}». Los que conozco: ${Object.keys(ADMINS).join(', ')}.`);
         console.error(`    Producción no está a propósito: entrá por tu navegador de siempre.`);
         process.exit(1);
     }
 
     // ── Los remotos: se abre y te logueás vos, con perfil que recuerda ────────────────────────────
-    if (!ES_LOCAL) {
-        const perfil = join(ROOT, '.auth', `admin-${TARGET}`);
-        mkdirSync(perfil, { recursive: true });
+    if (!IS_LOCAL) {
+        const profile = join(ROOT, '.auth', `admin-${TARGET}`);
+        mkdirSync(profile, { recursive: true });
 
         console.log(`  · admin de ${TARGET}: ${BASE}`);
         console.log(`  · perfil persistente en .auth/admin-${TARGET} — te logueás una vez y queda`);
 
-        const ctx = await chromium.launchPersistentContext(perfil, {
+        const ctx = await chromium.launchPersistentContext(profile, {
             headless: false,
             viewport: { width: 1440, height: 900 },
             args: ['--window-position=0,0'],
         });
 
-        const pagina = ctx.pages()[0] ?? await ctx.newPage();
-        await pagina.goto(BASE + RUTA, { waitUntil: 'domcontentloaded' });
+        const pageObj = ctx.pages()[0] ?? await ctx.newPage();
+        await pageObj.goto(BASE + PATH, { waitUntil: 'domcontentloaded' });
 
         // Si el perfil todavía tenía sesión, ya estamos adentro y no hay nada que completar.
-        if (pagina.url().includes('/login')) {
-            const { user, pass } = credencialesDe(TARGET);
+        if (pageObj.url().includes('/login')) {
+            const { user, pass } = credentialsOf(TARGET);
 
             if (user && pass) {
                 console.log(`  · completando el login con la credencial de ${TARGET} (${user})`);
@@ -176,14 +176,14 @@ async function levantarSiHaceFalta(): Promise<boolean> {
                     // Los selectores son los del formulario de Laravel/Inertia del admin. Si cambian, esto
                     // NO rompe nada: falla el fill, se avisa, y la ventana queda en el login para entrar
                     // a mano — que es exactamente lo de antes.
-                    await pagina.fill('input[type="email"], input[name="email"]', user);
-                    await pagina.fill('input[type="password"], input[name="password"]', pass);
+                    await pageObj.fill('input[type="email"], input[name="email"]', user);
+                    await pageObj.fill('input[type="password"], input[name="password"]', pass);
                     await Promise.all([
-                        pagina.waitForURL((u) => !u.pathname.includes('/login'), { timeout: 20000 }),
-                        pagina.click('button[type="submit"]'),
+                        pageObj.waitForURL((u) => !u.pathname.includes('/login'), { timeout: 20000 }),
+                        pageObj.click('button[type="submit"]'),
                     ]);
-                    if (RUTA !== '/login') {
-                        await pagina.goto(BASE + RUTA, { waitUntil: 'domcontentloaded' });
+                    if (PATH !== '/login') {
+                        await pageObj.goto(BASE + PATH, { waitUntil: 'domcontentloaded' });
                     }
                 } catch (e) {
                     console.warn(`  ⚠ no pude completar el login (${String(e).split('\n')[0].slice(0, 120)})`);
@@ -196,12 +196,12 @@ async function levantarSiHaceFalta(): Promise<boolean> {
             }
         }
 
-        console.log(pagina.url().includes('/login')
+        console.log(pageObj.url().includes('/login')
             ? '  · quedó en el login'
-            : `  ✓ abierto en ${pagina.url()}`);
+            : `  ✓ abierto en ${pageObj.url()}`);
 
         await new Promise<void>((resolve) => {
-            pagina.on('close', () => resolve());
+            pageObj.on('close', () => resolve());
             ctx.on('close', () => resolve());
         });
         console.log('  · ventana cerrada');
@@ -209,31 +209,31 @@ async function levantarSiHaceFalta(): Promise<boolean> {
     }
 
     // ── Local: entra sin contraseña ───────────────────────────────────────────────────────────────
-    if (!await levantarSiHaceFalta()) {
-        console.error(`  ✗ no se pudo levantar el admin. Probá a mano:\n      cd ${ADMIN_APP} && php artisan serve --port=${PUERTO}`);
+    if (!await startIfNeeded()) {
+        console.error(`  ✗ no se pudo levantar el admin. Probá a mano:\n      cd ${ADMIN_APP} && php artisan serve --port=${PORT}`);
         process.exit(1);
     }
 
-    await levantarViteSiHaceFalta();
+    await startViteIfNeeded();
 
-    let sesion: { cookie: string; value: string; email: string; roles: string[] };
+    let session: { cookie: string; value: string; email: string; roles: string[] };
     try {
-        sesion = JSON.parse(execFileSync(join(process.cwd(), 'bin/admin-sesion'), { encoding: 'utf8' }).trim());
+        session = JSON.parse(execFileSync(join(process.cwd(), 'bin/admin-sesion'), { encoding: 'utf8' }).trim());
     } catch (e) {
         console.error('  ✗ no se pudo emitir la sesión del admin:', String(e).slice(0, 200));
         process.exit(1);
     }
-    console.log(`  · sesión de ${sesion.email} (${sesion.roles.join(', ')})`);
+    console.log(`  · sesión de ${session.email} (${session.roles.join(', ')})`);
 
     const browser = await chromium.launch({ headless: false, args: ['--window-position=0,0'] });
     const context = await browser.newContext({ viewport: { width: 1440, height: 900 } });
     await context.addCookies([{
-        name: sesion.cookie, value: sesion.value, url: BASE,
+        name: session.cookie, value: session.value, url: BASE,
         httpOnly: true, secure: false, sameSite: 'Lax',
     }]);
 
     const page = await context.newPage();
-    await page.goto(BASE + RUTA, { waitUntil: 'domcontentloaded' });
+    await page.goto(BASE + PATH, { waitUntil: 'domcontentloaded' });
 
     if (page.url().includes('/login')) {
         console.error('  ✗ el admin mandó al login: la sesión no se aceptó (¿el dump local es de otro ambiente?)');

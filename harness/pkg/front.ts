@@ -29,22 +29,22 @@
 //      campos que el `action` lee con `formData.get(...)`. Sin header `Origin` (la guarda CSRF sólo
 //      compara si viene) y sin `_routes`. El resultado no-redirect es `{ data: … }` o `{ error: … }`.
 //
-// ⚠ LA REGLA QUE HACE SEGURO A ESTE CLIENTE: acá hay loaders que ESCRIBEN. `request-canceled` cancela
+// ⚠ LA REGLA QUE HACE SEGURO A ESTE CUSTOMER: acá hay loaders que ESCRIBEN. `request-canceled` cancela
 // el crédito con sólo cargarse (F-50), y es el destino de todos los fallbacks del wizard. Un cliente que
 // adivine URLs no rompe una prueba: cancela solicitudes. Por eso `cargar()` se niega a pedir las rutas
-// de `PROHIBIDAS` y quien camina sigue ÚNICAMENTE las redirecciones que la app emite.
+// de `FORBIDDEN` y quien camina sigue ÚNICAMENTE las redirecciones que la app emite.
 import { config } from './config.ts';
 
 /** Rutas cuyo loader tiene efectos que no se quieren disparar «para ver». Pedirlas es un error, no un dato. */
-export const PROHIBIDAS: RegExp[] = [
+export const FORBIDDEN: RegExp[] = [
     /\/request-canceled(\.data)?(\?|$)/,   // cancela la solicitud en el loader (F-50)
     /\/logout(\.data)?(\?|$)/,
     /\/dev-actions(\.data)?(\?|$)/,
 ];
 
-export type Redireccion = { redirect: string; status: number; revalidate?: boolean; reload?: boolean; replace?: boolean };
+export type Redirect = { redirect: string; status: number; revalidate?: boolean; reload?: boolean; replace?: boolean };
 
-export type Respuesta = {
+export type Answer = {
     status: number;
     /** Destino si el servidor redirigió (202 + cuerpo, o 3xx clásico). Ruta ABSOLUTA con query. */
     redirect: string | null;
@@ -59,16 +59,16 @@ export type Respuesta = {
     crudo?: string;
 };
 
-export type Llamada = { t: number; metodo: 'GET' | 'POST'; ruta: string; status: number; ms: number; redirect?: string | null; error?: string };
+export type Call = { t: number; metodo: 'GET' | 'POST'; ruta: string; status: number; ms: number; redirect?: string | null; error?: string };
 
 // ─── turbo-stream v3 (subconjunto suficiente para lo que emite el wizard) ─────────────────────────
 
 const HOLE = -1, NAN = -2, NEGATIVE_INFINITY = -3, NEGATIVE_ZERO = -4, NULL = -5, POSITIVE_INFINITY = -6, UNDEFINED = -7;
 
 /** Marca de promesa aún no resuelta dentro del grafo. Se sustituye al final, cuando llegaron las líneas `P`. */
-class Pendiente { id: number; constructor(id: number) { this.id = id; } }
+class Pending { id: number; constructor(id: number) { this.id = id; } }
 
-class Decodificador {
+class Decoder {
     values: any[] = [];
     hydrated: any[] = [];
     resueltas = new Map<number, any>();
@@ -108,7 +108,7 @@ class Decodificador {
                     case 'S': { const s = new Set(); this.hydrated[index] = s; for (let i = 1; i < value.length; i++) s.add(this.hydrate(value[i])); return s; }
                     case 'M': { const m = new Map(); this.hydrated[index] = m; for (let i = 1; i < value.length; i += 2) m.set(this.hydrate(value[i]), this.hydrate(value[i + 1])); return m; }
                     case 'N': { const o: any = Object.create(null); this.hydrated[index] = o; for (const k of Object.keys(b)) o[this.hydrate(Number(k.slice(1)))] = this.hydrate(b[k]); return o; }
-                    case 'P': return (this.hydrated[index] = this.resueltas.has(b) ? this.resueltas.get(b) : new Pendiente(b));
+                    case 'P': return (this.hydrated[index] = this.resueltas.has(b) ? this.resueltas.get(b) : new Pending(b));
                     case 'E': { const e: any = new Error(b); e.tipo = c; this.hydrated[index] = e; return e; }
                     case 'Z': return (this.hydrated[index] = this.hydrated[b]);
                     // plugins de react-router (encodeViaTurboStream)
@@ -129,45 +129,45 @@ class Decodificador {
     }
 
     /** Sustituye las `Pendiente` por lo que llegó en las líneas `P`/`E`. Recursivo, con visitados. */
-    completar(v: any, vistos = new Set<any>()): any {
-        if (v instanceof Pendiente) {
-            if (this.resueltas.has(v.id)) return this.completar(this.resueltas.get(v.id), vistos);
+    completar(v: any, seen = new Set<any>()): any {
+        if (v instanceof Pending) {
+            if (this.resueltas.has(v.id)) return this.completar(this.resueltas.get(v.id), seen);
             if (this.rechazadas.has(v.id)) return { __rechazada: this.rechazadas.get(v.id) };
             return { __pendiente: v.id };
         }
-        if (!v || typeof v !== 'object' || vistos.has(v)) return v;
-        vistos.add(v);
-        if (Array.isArray(v)) { for (let i = 0; i < v.length; i++) v[i] = this.completar(v[i], vistos); return v; }
+        if (!v || typeof v !== 'object' || seen.has(v)) return v;
+        seen.add(v);
+        if (Array.isArray(v)) { for (let i = 0; i < v.length; i++) v[i] = this.completar(v[i], seen); return v; }
         if (v instanceof Date || v instanceof Error || v instanceof Map || v instanceof Set) return v;
-        for (const k of Object.keys(v)) v[k] = this.completar(v[k], vistos);
+        for (const k of Object.keys(v)) v[k] = this.completar(v[k], seen);
         return v;
     }
 }
 
 /** Decodifica un cuerpo `text/x-script` entero (todas sus líneas). */
-export function decodificar(texto: string): any {
-    const lineas = texto.split('\n').filter((l) => l.length > 0);
-    if (!lineas.length) return undefined;
-    const d = new Decodificador();
-    const raiz = d.unflatten(JSON.parse(lineas[0]));
-    for (const linea of lineas.slice(1)) {
-        const dosPuntos = linea.indexOf(':');
-        const id = Number(linea.slice(1, dosPuntos));
-        const valor = d.unflatten(JSON.parse(linea.slice(dosPuntos + 1)));
-        if (linea[0] === 'P') d.resueltas.set(id, valor);
-        else if (linea[0] === 'E') d.rechazadas.set(id, valor);
+export function decode(text: string): any {
+    const lines = text.split('\n').filter((l) => l.length > 0);
+    if (!lines.length) return undefined;
+    const d = new Decoder();
+    const root = d.unflatten(JSON.parse(lines[0]));
+    for (const line of lines.slice(1)) {
+        const colon = line.indexOf(':');
+        const id = Number(line.slice(1, colon));
+        const fieldValue = d.unflatten(JSON.parse(line.slice(colon + 1)));
+        if (line[0] === 'P') d.resueltas.set(id, fieldValue);
+        else if (line[0] === 'E') d.rechazadas.set(id, fieldValue);
     }
-    return d.completar(raiz);
+    return d.completar(root);
 }
 
 // ─── la sesión: un frasco de cookies + el protocolo ─────────────────────────────────────────────
 
-const UA_MOVIL = 'Mozilla/5.0 (iPhone; CPU iPhone OS 16_5 like Mac OS X) AppleWebKit/605.1.15 '
+const UA_MOBILE = 'Mozilla/5.0 (iPhone; CPU iPhone OS 16_5 like Mac OS X) AppleWebKit/605.1.15 '
     + '(KHTML, like Gecko) Version/16.5 Mobile/15E148 Safari/604.1';
 
-export class SesionFront {
+export class FrontSession {
     private cookies = new Map<string, string>();
-    readonly bitacora: Llamada[] = [];
+    readonly bitacora: Call[] = [];
     private t0 = Date.now();
 
     readonly base: string;
@@ -209,8 +209,8 @@ export class SesionFront {
     }
 
     /** Aplica un `Set-Cookie` como si hubiera llegado en una respuesta (para pruebas). */
-    aplicarSetCookie(lineas: string[]): this {
-        this.guardarCookies({ headers: { getSetCookie: () => lineas } } as unknown as Response);
+    aplicarSetCookie(lines: string[]): this {
+        this.guardarCookies({ headers: { getSetCookie: () => lines } } as unknown as Response);
         return this;
     }
 
@@ -218,47 +218,47 @@ export class SesionFront {
         const setCookies: string[] = typeof (res.headers as any).getSetCookie === 'function'
             ? (res.headers as any).getSetCookie() : [];
         for (const sc of setCookies) {
-            const [par, ...atributos] = sc.split(';');
+            const [par, ...attributes] = sc.split(';');
             const eq = par.indexOf('=');
             if (eq <= 0) continue;
 
-            const nombre = par.slice(0, eq).trim();
-            const valor = par.slice(eq + 1).trim();
+            const name = par.slice(0, eq).trim();
+            const fieldValue = par.slice(eq + 1).trim();
             // Las dos formas de decir «borrala», y hay que mirar las dos: `Max-Age=0` y una fecha
             // pasada. Un valor vacío solo tambien cuenta — ningun servidor manda una cookie sin valor
             // para que la uses.
-            const maxAgeCero = atributos.some((a) => /^\s*max-age\s*=\s*0\s*$/i.test(a));
-            const expirada = atributos.some((a) => {
+            const maxAgeZero = attributes.some((a) => /^\s*max-age\s*=\s*0\s*$/i.test(a));
+            const expired = attributes.some((a) => {
                 const m = /^\s*expires\s*=(.+)$/i.exec(a);
                 return m ? Date.parse(m[1].trim()) <= Date.now() : false;
             });
 
-            if (valor === '' || maxAgeCero || expirada) this.cookies.delete(nombre);
-            else this.cookies.set(nombre, valor);
+            if (fieldValue === '' || maxAgeZero || expired) this.cookies.delete(name);
+            else this.cookies.set(name, fieldValue);
         }
     }
 
     private cookieHeader(): string { return [...this.cookies].map(([k, v]) => `${k}=${v}`).join('; '); }
 
     /** `/self-service/x/y/lenders?amount=1` → `/self-service/x/y/lenders.data?amount=1` */
-    static aData(ruta: string): string {
-        const u = new URL(ruta, 'http://x');
+    static aData(path: string): string {
+        const u = new URL(path, 'http://x');
         u.pathname = u.pathname === '/' ? '/_root.data' : (u.pathname.endsWith('/') ? `${u.pathname}_.data` : `${u.pathname}.data`);
         return `${u.pathname}${u.search}`;
     }
 
-    static esProhibida(ruta: string): boolean { return PROHIBIDAS.some((re) => re.test(ruta)); }
+    static esProhibida(path: string): boolean { return FORBIDDEN.some((re) => re.test(path)); }
 
-    private async llamar(metodo: 'GET' | 'POST', ruta: string, form?: Record<string, string | number | null | undefined>, json?: unknown): Promise<Respuesta> {
-        if (SesionFront.esProhibida(ruta)) {
-            throw new Error(`ruta PROHIBIDA para este cliente: ${ruta} — su loader tiene efectos (ver PROHIBIDAS en pkg/front.ts)`);
+    private async llamar(method: 'GET' | 'POST', path: string, form?: Record<string, string | number | null | undefined>, json?: unknown): Promise<Answer> {
+        if (FrontSession.esProhibida(path)) {
+            throw new Error(`ruta PROHIBIDA para este cliente: ${path} — su loader tiene efectos (ver PROHIBIDAS en pkg/front.ts)`);
         }
-        const url = `${this.base}${SesionFront.aData(ruta)}`;
-        const headers: Record<string, string> = { accept: 'text/x-script', 'user-agent': UA_MOVIL };
+        const url = `${this.base}${FrontSession.aData(path)}`;
+        const headers: Record<string, string> = { accept: 'text/x-script', 'user-agent': UA_MOBILE };
         const cookie = this.cookieHeader();
         if (cookie) headers.cookie = cookie;
         let body: string | undefined;
-        if (metodo === 'POST' && json !== undefined) {
+        if (method === 'POST' && json !== undefined) {
             // ⚠ NO TODOS LOS ACTIONS LEEN UN FORMULARIO. Los del form dinámico backend-driven
             // (`placement-form`, `additional-info-form`, `dynamic-form`) hacen `request.json()`,
             // porque el renderer los postea con `useSubmit(..., { encType: 'application/json' })`.
@@ -266,7 +266,7 @@ export class SesionFront {
             // caso y es del cliente.
             headers['content-type'] = 'application/json';
             body = JSON.stringify(json);
-        } else if (metodo === 'POST') {
+        } else if (method === 'POST') {
             headers['content-type'] = 'application/x-www-form-urlencoded;charset=UTF-8';
             const p = new URLSearchParams();
             for (const [k, v] of Object.entries(form ?? {})) if (v !== undefined) p.set(k, v === null ? '' : String(v));
@@ -275,62 +275,62 @@ export class SesionFront {
         const t0 = Date.now();
         let res: Response;
         try {
-            res = await fetch(url, { method: metodo, headers, body, redirect: 'manual', signal: AbortSignal.timeout(metodo === 'POST' ? this.timeoutPostMs : this.timeoutGetMs) });
+            res = await fetch(url, { method: method, headers, body, redirect: 'manual', signal: AbortSignal.timeout(method === 'POST' ? this.timeoutPostMs : this.timeoutGetMs) });
         } catch (e) {
             const ms = Date.now() - t0;
-            const expiro = /timeout|abort/i.test(String(e));
-            this.bitacora.push({ t: Date.now() - this.t0, metodo, ruta, status: 0, ms, error: expiro ? `se pasó de ${Math.round(ms / 1000)} s (no falló: tardó)` : String((e as Error).message).slice(0, 160) });
+            const expiredIt = /timeout|abort/i.test(String(e));
+            this.bitacora.push({ t: Date.now() - this.t0, metodo: method, ruta: path, status: 0, ms, error: expiredIt ? `se pasó de ${Math.round(ms / 1000)} s (no falló: tardó)` : String((e as Error).message).slice(0, 160) });
             return { status: 0, redirect: null, cuerpo: null, datos: null, rutas: [], ms, crudo: String(e) };
         }
         this.guardarCookies(res);
         const ms = Date.now() - t0;
-        const texto = await res.text();
+        const text = await res.text();
 
         // 3xx clásico (redirectDocument o un proxy): el destino viene en Location.
         if (res.status >= 300 && res.status < 400) {
             const loc = res.headers.get('location') ?? '';
-            const destino = loc ? new URL(loc, this.base).pathname + new URL(loc, this.base).search : null;
-            this.bitacora.push({ t: Date.now() - this.t0, metodo, ruta, status: res.status, ms, redirect: destino });
-            return { status: res.status, redirect: destino, cuerpo: null, datos: null, rutas: [], ms };
+            const target = loc ? new URL(loc, this.base).pathname + new URL(loc, this.base).search : null;
+            this.bitacora.push({ t: Date.now() - this.t0, metodo: method, ruta: path, status: res.status, ms, redirect: target });
+            return { status: res.status, redirect: target, cuerpo: null, datos: null, rutas: [], ms };
         }
 
-        const esScript = /x-script/.test(res.headers.get('content-type') ?? '') || res.headers.get('x-remix-response') === 'yes';
-        if (!esScript) {
-            this.bitacora.push({ t: Date.now() - this.t0, metodo, ruta, status: res.status, ms, error: `sin turbo-stream (${res.headers.get('content-type')})` });
-            return { status: res.status, redirect: null, cuerpo: null, datos: null, rutas: [], ms, crudo: texto.slice(0, 600) };
+        const isScript = /x-script/.test(res.headers.get('content-type') ?? '') || res.headers.get('x-remix-response') === 'yes';
+        if (!isScript) {
+            this.bitacora.push({ t: Date.now() - this.t0, metodo: method, ruta: path, status: res.status, ms, error: `sin turbo-stream (${res.headers.get('content-type')})` });
+            return { status: res.status, redirect: null, cuerpo: null, datos: null, rutas: [], ms, crudo: text.slice(0, 600) };
         }
 
-        let cuerpo: any;
-        try { cuerpo = decodificar(texto); }
+        let reqBody: any;
+        try { reqBody = decode(text); }
         catch (e) {
-            this.bitacora.push({ t: Date.now() - this.t0, metodo, ruta, status: res.status, ms, error: `no decodifica: ${(e as Error).message}` });
-            return { status: res.status, redirect: null, cuerpo: null, datos: null, rutas: [], ms, crudo: texto.slice(0, 600) };
+            this.bitacora.push({ t: Date.now() - this.t0, metodo: method, ruta: path, status: res.status, ms, error: `no decodifica: ${(e as Error).message}` });
+            return { status: res.status, redirect: null, cuerpo: null, datos: null, rutas: [], ms, crudo: text.slice(0, 600) };
         }
 
         // El redirect de single fetch: 202 + destino en el cuerpo (GET envuelto por el plugin, POST pelado).
         let redirect: string | null = null;
         if (res.status === 202) {
-            const r: Redireccion | undefined = cuerpo?.__redirect ?? (cuerpo && typeof cuerpo.redirect === 'string' ? cuerpo : undefined);
+            const r: Redirect | undefined = reqBody?.__redirect ?? (reqBody && typeof reqBody.redirect === 'string' ? reqBody : undefined);
             if (r?.redirect) redirect = r.redirect.startsWith('http') ? new URL(r.redirect).pathname + new URL(r.redirect).search : r.redirect;
         }
 
-        let datos: any = null;
-        const rutas: string[] = [];
-        if (metodo === 'GET' && cuerpo && typeof cuerpo === 'object' && !redirect) {
-            for (const [id, v] of Object.entries<any>(cuerpo)) {
+        let data: any = null;
+        const paths: string[] = [];
+        if (method === 'GET' && reqBody && typeof reqBody === 'object' && !redirect) {
+            for (const [id, v] of Object.entries<any>(reqBody)) {
                 if (id === '__redirect') continue;
-                rutas.push(id);
-                if (id !== 'root' && !id.startsWith('layouts/')) datos = v?.data ?? v?.error ?? v;
+                paths.push(id);
+                if (id !== 'root' && !id.startsWith('layouts/')) data = v?.data ?? v?.error ?? v;
             }
         }
-        this.bitacora.push({ t: Date.now() - this.t0, metodo, ruta, status: res.status, ms, redirect });
-        return { status: res.status, redirect, cuerpo, datos, rutas, ms };
+        this.bitacora.push({ t: Date.now() - this.t0, metodo: method, ruta: path, status: res.status, ms, redirect });
+        return { status: res.status, redirect, cuerpo: reqBody, datos: data, rutas: paths, ms };
     }
 
     /** El `loader` de una pantalla: lo que el navegador pide al llegar. */
-    cargar(ruta: string): Promise<Respuesta> { return this.llamar('GET', ruta); }
+    cargar(path: string): Promise<Answer> { return this.llamar('GET', path); }
     /** El `action` de una pantalla: el formulario que el navegador manda al apretar el botón. */
-    enviar(ruta: string, form: Record<string, string | number | null | undefined> = {}): Promise<Respuesta> { return this.llamar('POST', ruta, form); }
+    enviar(path: string, form: Record<string, string | number | null | undefined> = {}): Promise<Answer> { return this.llamar('POST', path, form); }
     /** El `action` de una pantalla que espera JSON (el form dinámico backend-driven). */
-    enviarJson(ruta: string, cuerpo: unknown): Promise<Respuesta> { return this.llamar('POST', ruta, undefined, cuerpo); }
+    enviarJson(path: string, reqBody: unknown): Promise<Answer> { return this.llamar('POST', path, undefined, reqBody); }
 }

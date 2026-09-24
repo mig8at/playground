@@ -1,4 +1,4 @@
-// montar-comercio.ts — SIEMBRA UN COMERCIO ENTERO EN LOCAL desde un spec declarativo.
+// montar-comercio.ts — SEED UN COMERCIO ENTERO EN LOCAL desde un spec declarativo.
 //
 // Nació como `montar-alta.ts`, un script de un comercio, y se generalizó en el mismo día: la tercera
 // vez que se copia un seeder de comercio, lo que hay que versionar es el DATO, no el script. Los
@@ -16,7 +16,7 @@
 // molde SIN REVISAR — exactamente lo que el docblock de la migración del clon del Rent to Own
 // desaconseja («un gemelo a medias con reglas de riesgo copiadas sin revisar, que es peor que no
 // tenerlas»). Sirve para EJERCITAR el flujo. Cualquier conclusión sobre conducta —a quién se le
-// ofrece, con qué cupo, con qué cuota— medida sobre esto está midiendo al MOLDE, no al comercio.
+// ofrece, con qué cupo, con qué cuota— medida sobre esto está midiendo al TEMPLATE_ROW, no al comercio.
 //
 // EL SPEC, campo por campo:
 //
@@ -26,7 +26,7 @@
 //   comercio {…}           los toggles que este comercio decide por ser él. `self_managed` es el que
 //                          apaga el «continuá con el asesor comercial». Y cualquier columna de
 //                          `allieds` que quieras pisar — `image` es la que evita que el comercio salga
-//                          con el LOGO DEL MOLDE, que es la confusión más barata de eliminar: un
+//                          con el LOGO DEL TEMPLATE_ROW, que es la confusión más barata de eliminar: un
 //                          comercio de prueba con el logo de Motai se lee como si fuera Motai. Las
 //                          imágenes de prueba viven en `harness/images/` y las sirve el panel
 //                          (`http://localhost:5195/images/<archivo>.png`); `allieds.image` es
@@ -41,7 +41,7 @@
 //     response_type        2 = CreditopX in-platform (el comercio pone el capital).
 //     product              `credit` · `renting` · `rto`. NINGÚN panel lo pone: es columna de migración.
 //     document_types       los tipos que acepta ESTA entidad. Con `PEP` acá aparece el PEP en el
-//                          selector — el país es el TECHO, no el piso (`DocumentTypesService`).
+//                          selector — el país es el CEILING, no el piso (`DocumentTypesService`).
 //     molde_operativo      de dónde salen identidad, requirements y reglas de datacrédito.
 //     molde_documentos     de dónde sale el catálogo `lender_signing_documents`.
 //     requiere_codeudor    fuerza `requires_cosigner` en los perfiles. Tiene que coincidir con las
@@ -58,7 +58,7 @@
 // Uso:   E2E_TARGET=local node dev/montar-comercio.ts alta
 //        E2E_TARGET=local node dev/montar-comercio.ts alta --clean
 import { query, one, exec, assertWriteAllowed, TARGET, env } from '../pkg/db.ts';
-import { clonarFila } from '../pkg/db-safe.ts';
+import { cloneRow } from '../pkg/db-safe.ts';
 import { readFileSync, writeFileSync, readdirSync } from 'node:fs';
 
 assertWriteAllowed();
@@ -86,46 +86,46 @@ if (TARGET !== 'local' && env('I_KNOW_THIS_TOUCHES_SHARED_DEV') !== '1') {
 }
 
 const CLEAN = process.argv.includes('--clean');
-const PEDIDO = process.argv.slice(2).find((a) => !a.startsWith('--'));
+const ORDER = process.argv.slice(2).find((a) => !a.startsWith('--'));
 const DIR_SPECS = new URL('../comercios/', import.meta.url);
 
-if (!PEDIDO) {
-    const hay = readdirSync(DIR_SPECS).filter((f) => f.endsWith('.json')).map((f) => f.replace(/\.json$/, ''));
-    console.log(`\n  falta el comercio. Los que hay: ${hay.join(' · ') || '(ninguno)'}\n`);
+if (!ORDER) {
+    const there = readdirSync(DIR_SPECS).filter((f) => f.endsWith('.json')).map((f) => f.replace(/\.json$/, ''));
+    console.log(`\n  falta el comercio. Los que hay: ${there.join(' · ') || '(ninguno)'}\n`);
     // Se sugiere la forma `make` y no la del script: `make` es la puerta única del repo, y un hint que
     // enseña a saltearla es cómo se termina con dos maneras de correr lo mismo.
     console.log(`  uso:  make harness-comercio COMERCIO=<comercio> [CLEAN=1]\n`);
     process.exit(2);
 }
 
-type Bienvenida = { descripcion?: string; fondo?: string; cta?: string };
-type Entidad = {
+type Welcome = { descripcion?: string; fondo?: string; cta?: string };
+type Entity = {
     id: number; nombre: string; slug: string; response_type?: number; product?: string;
     document_types?: string[]; molde_operativo: number; molde_documentos?: number;
     form_dinamico?: number | null;
     requiere_codeudor?: boolean; abaco?: boolean; user_self_management?: boolean;
-    bienvenida?: Bienvenida; calculadora?: unknown;
+    bienvenida?: Welcome; calculadora?: unknown;
 };
 type Spec = {
     nombre: string; slug: string; porque?: string; pais: number; molde_comercio: number;
     comercio?: Record<string, unknown>;
     sucursales: { nombre: string; ciudad: number }[];
-    entidades: Entidad[];
+    entidades: Entity[];
 };
 
 let spec: Spec;
 try {
-    spec = JSON.parse(readFileSync(new URL(`${PEDIDO}.json`, DIR_SPECS), 'utf8'));
+    spec = JSON.parse(readFileSync(new URL(`${ORDER}.json`, DIR_SPECS), 'utf8'));
 } catch (e: any) {
-    console.log(`\n  ✗ no pude leer el spec de «${PEDIDO}»: ${e.message}\n`);
+    console.log(`\n  ✗ no pude leer el spec de «${ORDER}»: ${e.message}\n`);
     process.exit(2);
 }
 
-const TIPO_TITULAR = 1, TIPO_COSIGNER = 3;
-const paso = (t: string, d = '') => console.log(`  ${t}${d ? ` · ${d}` : ''}`);
+const HOLDER_TYPE = 1, COSIGNER_TYPE = 3;
+const step = (t: string, d = '') => console.log(`  ${t}${d ? ` · ${d}` : ''}`);
 
 /** El hash de entrada, con la misma forma que el admin: crc32 (`AlliedController::store`). */
-const nuevoHash = () => {
+const newHash = () => {
     // No se usa el `date('Y-m-d H:i:s')` del admin porque acá se generan VARIOS en el mismo segundo
     // (el comercio y cada sucursal) y saldrían idénticos; el hash de la sucursal es la llave de TODO
     // el flujo, así que dos iguales serían dos comercios apuntando al mismo wizard.
@@ -138,14 +138,14 @@ const nuevoHash = () => {
 };
 
 /** Clona una fila cambiando lo que se le diga. Los objetos se serializan (las columnas JSON). */
-// `clonar` vive en `pkg/db-safe.ts` como `clonarFila`: estaba escrito dos veces y las dos copias
+// `clonar` vive en `pkg/db-safe.ts` como `cloneRow`: estaba escrito dos veces y las dos copias
 // diferían en si re-sellaban `created_at`/`updated_at` — una clonaba filas nacidas hace dos años.
-const clonar = clonarFila;
+const clone = cloneRow;
 
 // ── LIMPIEZA ────────────────────────────────────────────────────────────────────────────────────
 // Se borra POR ALCANCE —el comercio por slug, cada entidad por slug o por su id fijo— y no «todo lo
 // que haya»: en esta base conviven Motai, Pullman y los comercios de los otros países.
-async function limpiar() {
+async function clean() {
     const idsLender: number[] = [];
     for (const e of spec.entidades) {
         /* Por slug O por el id fijo: una corrida interrumpida puede haber dejado la fila del id sin el
@@ -154,9 +154,9 @@ async function limpiar() {
         const l = await one<{ id: number }>('SELECT id FROM lenders WHERE slug=? OR id=?', [e.slug, e.id]);
         if (l) idsLender.push(l.id);
     }
-    const comercio = await one<{ id: number }>('SELECT id FROM allieds WHERE slug=?', [spec.slug]);
-    const sucursales = comercio
-        ? (await query<{ id: number }>('SELECT id FROM allied_branches WHERE allied_id=?', [comercio.id])).map((s) => s.id)
+    const merchant = await one<{ id: number }>('SELECT id FROM allieds WHERE slug=?', [spec.slug]);
+    const branches = merchant
+        ? (await query<{ id: number }>('SELECT id FROM allied_branches WHERE allied_id=?', [merchant.id])).map((s) => s.id)
         : [];
 
     for (const id of idsLender) {
@@ -169,19 +169,19 @@ async function limpiar() {
             await exec(`DELETE FROM ${t} WHERE lender_id=?`, [id]);
         await exec('DELETE FROM lenders WHERE id=?', [id]);
     }
-    if (sucursales.length) {
-        const m = sucursales.map(() => '?').join(',');
+    if (branches.length) {
+        const m = branches.map(() => '?').join(',');
         // Los `group_rules` son de la SUCURSAL, no de la entidad: se van con ella y no con el lender.
-        await exec(`DELETE FROM lender_rules WHERE group_rule_id IN (SELECT id FROM group_rules WHERE allied_branch_id IN (${m}))`, sucursales);
-        await exec(`DELETE FROM group_rules WHERE allied_branch_id IN (${m})`, sucursales);
-        await exec(`DELETE FROM lenders_by_allied_branches WHERE allied_branch_id IN (${m})`, sucursales);
-        await exec(`DELETE FROM allied_branches WHERE id IN (${m})`, sucursales);
+        await exec(`DELETE FROM lender_rules WHERE group_rule_id IN (SELECT id FROM group_rules WHERE allied_branch_id IN (${m}))`, branches);
+        await exec(`DELETE FROM group_rules WHERE allied_branch_id IN (${m})`, branches);
+        await exec(`DELETE FROM lenders_by_allied_branches WHERE allied_branch_id IN (${m})`, branches);
+        await exec(`DELETE FROM allied_branches WHERE id IN (${m})`, branches);
     }
-    if (comercio) {
-        await exec('DELETE FROM lenders_by_allieds WHERE allied_id=?', [comercio.id]);
-        await exec('DELETE FROM allieds WHERE id=?', [comercio.id]);
+    if (merchant) {
+        await exec('DELETE FROM lenders_by_allieds WHERE allied_id=?', [merchant.id]);
+        await exec('DELETE FROM allieds WHERE id=?', [merchant.id]);
     }
-    return { comercio: comercio?.id, sucursales: sucursales.length, entidades: idsLender.length };
+    return { comercio: merchant?.id, sucursales: branches.length, entidades: idsLender.length };
 }
 
 // ── EL HOMÓNIMO: lo que el guard de arriba protegía de verdad ───────────────────────────────────
@@ -189,14 +189,14 @@ async function limpiar() {
 // el estado malo: dos «Alta Fleet» en la base del equipo y nadie sabe cuál es el real. Se comprueba
 // sólo fuera de local, porque en local no hay nada real que confundir.
 if (TARGET !== 'local') {
-    const homonimo = await one<{ id: number; name: string; slug: string }>(
+    const namesake = await one<{ id: number; name: string; slug: string }>(
         'SELECT id, name, slug FROM allieds WHERE name = ? AND slug <> ? LIMIT 1',
         [spec.nombre, spec.slug],
     );
-    if (homonimo) {
+    if (namesake) {
         console.log(
-            `\n  ✗ en ${TARGET} ya existe un comercio llamado «${homonimo.name}» (id ${homonimo.id}, `
-            + `slug \`${homonimo.slug}\`)\n`
+            `\n  ✗ en ${TARGET} ya existe un comercio llamado «${namesake.name}» (id ${namesake.id}, `
+            + `slug \`${namesake.slug}\`)\n`
             + `    y este spec usa el slug \`${spec.slug}\`, así que sembrar dejaría DOS con el mismo\n`
             + `    nombre. Decidí cuál es el real: cambiale el nombre a este spec, o usá el slug del que\n`
             + `    ya está para reemplazarlo.\n`,
@@ -205,20 +205,20 @@ if (TARGET !== 'local') {
     }
 }
 
-const borrado = await limpiar();
+const deleted = await clean();
 if (CLEAN) {
-    console.log(`\n  ✓ limpieza hecha · comercio=${borrado.comercio ?? '—'} sucursales=${borrado.sucursales} entidades=${borrado.entidades}\n`);
+    console.log(`\n  ✓ limpieza hecha · comercio=${deleted.comercio ?? '—'} sucursales=${deleted.sucursales} entidades=${deleted.entidades}\n`);
     process.exit(0);
 }
-if (borrado.comercio || borrado.entidades) paso('lo anterior', 'borrado antes de sembrar (idempotente por reemplazo)');
+if (deleted.comercio || deleted.entidades) step('lo anterior', 'borrado antes de sembrar (idempotente por reemplazo)');
 
 // ── LOS MOLDES, comprobados ANTES de usarlos ────────────────────────────────────────────────────
 // Se comprueba lo que hace posible el montaje, porque si un molde perdió su parte el error sale acá y
 // no tres pasos más adelante disfrazado de «el flujo no genera documentos».
-const moldeComercio = await one<any>('SELECT * FROM allieds WHERE id=?', [spec.molde_comercio]);
-if (!moldeComercio) { console.log(`\n  ✗ no existe el comercio molde ${spec.molde_comercio}\n`); process.exit(2); }
-const moldeSucursal = await one<any>('SELECT * FROM allied_branches WHERE allied_id=? LIMIT 1', [spec.molde_comercio]);
-if (!moldeSucursal) { console.log(`\n  ✗ el comercio molde ${spec.molde_comercio} no tiene sucursal\n`); process.exit(2); }
+const merchantTemplate = await one<any>('SELECT * FROM allieds WHERE id=?', [spec.molde_comercio]);
+if (!merchantTemplate) { console.log(`\n  ✗ no existe el comercio molde ${spec.molde_comercio}\n`); process.exit(2); }
+const branchTemplate = await one<any>('SELECT * FROM allied_branches WHERE allied_id=? LIMIT 1', [spec.molde_comercio]);
+if (!branchTemplate) { console.log(`\n  ✗ el comercio molde ${spec.molde_comercio} no tiene sucursal\n`); process.exit(2); }
 
 console.log(`\n  ${spec.nombre} · país ${spec.pais} · molde ${spec.molde_comercio}\n`);
 
@@ -226,45 +226,45 @@ console.log(`\n  ${spec.nombre} · país ${spec.pais} · molde ${spec.molde_come
 // Se clona el molde y se pisa la identidad. Clonar y no construir a mano es deliberado: `allieds`
 // tiene 30 columnas NOT NULL —la mayoría toggles que se fueron acumulando— y armarlas de cero es una
 // lista que caduca sola. Lo que se pisa es lo que este comercio decide por ser él.
-const hashComercio = nuevoHash();
-const idComercio = await clonar('allieds', moldeComercio, {
-    name: spec.nombre, slug: spec.slug, hash: hashComercio, country_id: spec.pais, status: 1,
+const merchantHash = newHash();
+const merchantId = await clone('allieds', merchantTemplate, {
+    name: spec.nombre, slug: spec.slug, hash: merchantHash, country_id: spec.pais, status: 1,
     ...(spec.comercio ?? {}),
 });
-paso('comercio', `${idComercio} «${spec.nombre}» · hash ${hashComercio}`
+step('comercio', `${merchantId} «${spec.nombre}» · hash ${merchantHash}`
     + (spec.comercio?.self_managed ? ' · AUTOGESTIÓN (self_managed=1)' : ''));
 
 // ── 2 · LAS SUCURSALES ──────────────────────────────────────────────────────────────────────────
 // El `hash` de la sucursal es la llave de TODO el flujo: la ruta del wizard es
 // `/merchant/{partner_hash}/solicitar` y el contexto de entrada se resuelve por él.
-const sucursales: { id: number; hash: string; nombre: string }[] = [];
+const branches: { id: number; hash: string; nombre: string }[] = [];
 for (const s of spec.sucursales) {
-    const hash = nuevoHash();
-    const id = await clonar('allied_branches', moldeSucursal, {
-        allied_id: idComercio, name: s.nombre, hash, country_city_id: s.ciudad, status: 1,
+    const hash = newHash();
+    const id = await clone('allied_branches', branchTemplate, {
+        allied_id: merchantId, name: s.nombre, hash, country_city_id: s.ciudad, status: 1,
     });
-    sucursales.push({ id, hash, nombre: s.nombre });
-    paso('sucursal', `${id} «${s.nombre}» · ciudad ${s.ciudad} · hash ${hash}`);
+    branches.push({ id, hash, nombre: s.nombre });
+    step('sucursal', `${id} «${s.nombre}» · ciudad ${s.ciudad} · hash ${hash}`);
 }
 
 // ── 3 · LAS ENTIDADES ───────────────────────────────────────────────────────────────────────────
 for (const e of spec.entidades) {
-    const moldeDocs = e.molde_documentos ?? e.molde_operativo;
-    const moldeLender = await one<any>('SELECT * FROM lenders WHERE id=?', [moldeDocs])
+    const docsTemplate = e.molde_documentos ?? e.molde_operativo;
+    const lenderTemplate = await one<any>('SELECT * FROM lenders WHERE id=?', [docsTemplate])
         ?? await one<any>('SELECT * FROM lenders WHERE id=?', [e.molde_operativo]);
-    if (!moldeLender) { paso(`✗ ${e.nombre}`, `no existe el molde ${moldeDocs}/${e.molde_operativo}, se saltea`); continue; }
+    if (!lenderTemplate) { step(`✗ ${e.nombre}`, `no existe el molde ${docsTemplate}/${e.molde_operativo}, se saltea`); continue; }
 
     /* `document_types` va en la ENTIDAD y no en la fila de sucursal. Es el mecanismo nuevo:
        `DocumentTypesService::resolver()` toma las entidades ACTIVAS del punto de venta, une sus
        `lenders.document_types` y RECORTA con el catálogo del país — el país es TECHO, no piso. El
        mecanismo viejo (copiar los tipos a `lenders_by_allied_branches`) es el que produjo F-76: la
        fila nueva nacía en NULL y el PEP desaparecía sin error y sin log. */
-    const idLender = await clonar('lenders', moldeLender, {
+    const idLender = await clone('lenders', lenderTemplate, {
         id: e.id, name: e.nombre, slug: e.slug,
         response_type: e.response_type ?? 2,
-        product: e.product ?? moldeLender.product,
+        product: e.product ?? lenderTemplate.product,
         document_types: e.document_types ?? null,
-        calculator: e.calculadora ?? moldeLender.calculator,
+        calculator: e.calculadora ?? lenderTemplate.calculator,
         country_id: spec.pais, status: 1,
         /* La `url` se limpia: es del molde y en un rt=2 no se usa (no hay redirect externo), pero
            dejarla adentro hace que una traza mienta sobre a dónde iba el cliente. */
@@ -282,44 +282,44 @@ for (const e of spec.entidades) {
         intro_background_url: e.bienvenida?.fondo ?? null,
         ...(e.bienvenida?.descripcion ? { description: e.bienvenida.descripcion } : {}),
     });
-    paso('entidad', `${idLender} «${e.nombre}» · rt=${e.response_type ?? 2} · product=${e.product ?? moldeLender.product}`
+    step('entidad', `${idLender} «${e.nombre}» · rt=${e.response_type ?? 2} · product=${e.product ?? lenderTemplate.product}`
         + ` · ${JSON.stringify(e.document_types ?? null)}`
         + (e.bienvenida ? ' · CON PANTALLA DE BIENVENIDA' : ''));
 
     // ── el cableado: comercio (economía) + sucursales (membresía) ──
     // La asimetría es el hecho central del modelo: la SUCURSAL no tiene economía propia —su fila son 5
     // columnas de membresía— y toda la plata vive en `lenders_by_allieds`, a nivel COMERCIO.
-    const economia = await one<any>('SELECT * FROM lenders_by_allieds WHERE lender_id=? LIMIT 1', [e.molde_operativo]);
-    if (economia) {
-        await clonar('lenders_by_allieds', economia, {
-            lender_id: idLender, allied_id: idComercio, url_utm: null,
+    const economy = await one<any>('SELECT * FROM lenders_by_allieds WHERE lender_id=? LIMIT 1', [e.molde_operativo]);
+    if (economy) {
+        await clone('lenders_by_allieds', economy, {
+            lender_id: idLender, allied_id: merchantId, url_utm: null,
             /* AUTOGESTIÓN, mitad de la entidad: `user_self_management` significa «esta entidad le manda
                el link al cliente por WhatsApp». En 0, no se manda nada y el cliente sigue donde está.
                ⚠ Y en `legacy-application` este flag NO se respeta para rt=2 — ver el aviso del final. */
             user_self_management: e.user_self_management ? 1 : 0,
         });
-        paso('  economía', `clonada del ${e.molde_operativo} · user_self_management=${e.user_self_management ? 1 : 0}`);
-    } else paso('  ⚠ economía', `el molde ${e.molde_operativo} no tiene fila en lenders_by_allieds`);
+        step('  economía', `clonada del ${e.molde_operativo} · user_self_management=${e.user_self_management ? 1 : 0}`);
+    } else step('  ⚠ economía', `el molde ${e.molde_operativo} no tiene fila en lenders_by_allieds`);
 
-    const membresia = await one<any>('SELECT * FROM lenders_by_allied_branches WHERE lender_id=? LIMIT 1', [e.molde_operativo]);
-    for (const su of sucursales) {
-        await clonar('lenders_by_allied_branches', membresia ?? { sort: 1 }, {
+    const membership = await one<any>('SELECT * FROM lenders_by_allied_branches WHERE lender_id=? LIMIT 1', [e.molde_operativo]);
+    for (const su of branches) {
+        await clone('lenders_by_allied_branches', membership ?? { sort: 1 }, {
             lender_id: idLender, allied_branch_id: su.id, status: 1, url_utm: null,
             /* NULL a propósito: el respaldo por sucursal ya no lo lee `resolver()` —manda
                `lenders.document_types`—, así que un valor acá sería un dato que no decide nada. */
             document_types: null,
         });
     }
-    paso('  membresía', `activada en ${sucursales.length} sucursal(es)`);
+    step('  membresía', `activada en ${branches.length} sucursal(es)`);
 
     for (const l of await query<any>('SELECT * FROM credit_line_by_lenders WHERE lender_id=?', [e.molde_operativo]))
-        await clonar('credit_line_by_lenders', l, { lender_id: idLender });
+        await clone('credit_line_by_lenders', l, { lender_id: idLender });
 
     // ── LA POLÍTICA DURA: plantilla Y clon por sucursal, alineados ──
     //
     // ESTO ES LO QUE MÁS IMPORTA, y es lo que el admin viejo NO puede hacer para una entidad nueva.
     //
-    // Hay DOS puertas sobre el mismo solicitante: la PLANTILLA (`group_rule_id IS NULL`) la evalúa el
+    // Hay DOS puertas sobre el mismo solicitante: la TEMPLATE (`group_rule_id IS NULL`) la evalúa el
     // cupo de CreditopX, y los CLONES por sucursal los evalúa el listado del onboarding. Verlas
     // divergir es lo que hace que una entidad aparezca en el listado y después falle al pedir cupo.
     //
@@ -332,20 +332,20 @@ for (const e of spec.entidades) {
     // La forma correcta en producción es `PUT /api/backoffice/lenders/{id}/rules`, que escribe las dos
     // en una transacción (`LenderRulesWriterService`). Acá se hace lo mismo a mano porque esa ruta
     // pide un token del pool de STAFF que el harness no tiene.
-    const reglas = await query<any>(
+    const rules = await query<any>(
         `SELECT * FROM lender_rules
           WHERE lender_id = ?
             AND group_rule_id = (SELECT MIN(group_rule_id) FROM lender_rules
                                   WHERE lender_id = ? AND group_rule_id IS NOT NULL)
           ORDER BY id`, [e.molde_operativo, e.molde_operativo]);
-    if (!reglas.length) paso('  ⚠ reglas duras', `el molde ${e.molde_operativo} no tiene: la entidad nace SIN FILTROS`);
+    if (!rules.length) step('  ⚠ reglas duras', `el molde ${e.molde_operativo} no tiene: la entidad nace SIN FILTROS`);
     else {
-        for (const r of reglas) await clonar('lender_rules', r, { lender_id: idLender, group_rule_id: null });
-        for (const su of sucursales) {
-            const grupo = await clonar('group_rules', { allied_branch_id: su.id, rule_name: `AB${su.id}` }, {});
-            for (const r of reglas) await clonar('lender_rules', r, { lender_id: idLender, group_rule_id: grupo });
+        for (const r of rules) await clone('lender_rules', r, { lender_id: idLender, group_rule_id: null });
+        for (const su of branches) {
+            const group = await clone('group_rules', { allied_branch_id: su.id, rule_name: `AB${su.id}` }, {});
+            for (const r of rules) await clone('lender_rules', r, { lender_id: idLender, group_rule_id: group });
         }
-        paso('  reglas duras', `${reglas.length} en la plantilla + ${reglas.length} por sucursal — alineadas`);
+        step('  reglas duras', `${rules.length} en la plantilla + ${rules.length} por sucursal — alineadas`);
     }
 
     // Las de DATACRÉDITO son filtro duro del listado y se reparten igual: una genérica
@@ -353,10 +353,10 @@ for (const e of spec.entidades) {
     const dc = await one<any>('SELECT * FROM lender_datacredito_rules WHERE lender_id=? AND allied_branch_id IS NULL', [e.molde_operativo])
         ?? await one<any>('SELECT * FROM lender_datacredito_rules WHERE lender_id=? LIMIT 1', [e.molde_operativo]);
     if (dc) {
-        await clonar('lender_datacredito_rules', dc, { lender_id: idLender, allied_branch_id: null });
-        for (const su of sucursales) await clonar('lender_datacredito_rules', dc, { lender_id: idLender, allied_branch_id: su.id });
-        paso('  buró', 'regla genérica + copia por sucursal');
-    } else paso('  ⚠ buró', `el molde ${e.molde_operativo} no tiene regla de datacrédito`);
+        await clone('lender_datacredito_rules', dc, { lender_id: idLender, allied_branch_id: null });
+        for (const su of branches) await clone('lender_datacredito_rules', dc, { lender_id: idLender, allied_branch_id: su.id });
+        step('  buró', 'regla genérica + copia por sucursal');
+    } else step('  ⚠ buró', `el molde ${e.molde_operativo} no tiene regla de datacrédito`);
 
     // ── LOS PERFILES ──
     // Van TODOS los tiers del molde, no uno: con sólo el más estricto, un cliente que no lo pasa se
@@ -366,23 +366,23 @@ for (const e of spec.entidades) {
     // tier cuya rama no está en el catálogo no encuentra documentos y el flujo sigue como si no
     // hubiera catálogo — sin error y sin log.
     const cats = await query<any>('SELECT * FROM lender_users_categories WHERE lender_id=? ORDER BY id', [e.molde_operativo]);
-    if (!cats.length) paso('  ⚠ perfiles', `el molde ${e.molde_operativo} no tiene: una entidad rt=2 sin perfiles NO LISTA`);
+    if (!cats.length) step('  ⚠ perfiles', `el molde ${e.molde_operativo} no tiene: una entidad rt=2 sin perfiles NO LISTA`);
     else {
         for (const c of cats) {
-            const nuevo = await clonar('lender_users_categories', c, {
+            const newOne = await clone('lender_users_categories', c, {
                 lender_id: idLender,
                 ...(e.requiere_codeudor === undefined ? {} : { requires_cosigner: e.requiere_codeudor ? 1 : 0 }),
             });
             for (const g of await query<any>('SELECT * FROM lender_users_category_rules WHERE lender_users_category_id=?', [c.id])) {
                 /* Una copia por TIPO: la política del codeudor es de otro tipo que la del titular, y sin
                    la de tipo 3 el endpoint de cupo del codeudor no responde `has_quota`. */
-                for (const tipo of [TIPO_TITULAR, TIPO_COSIGNER])
-                    await clonar('lender_users_category_rules', g, {
-                        lender_id: idLender, lender_users_category_id: nuevo, lender_users_category_type_id: tipo,
+                for (const kind of [HOLDER_TYPE, COSIGNER_TYPE])
+                    await clone('lender_users_category_rules', g, {
+                        lender_id: idLender, lender_users_category_id: newOne, lender_users_category_type_id: kind,
                     });
             }
         }
-        paso('  perfiles', `${cats.length} con criterios de titular Y codeudor`
+        step('  perfiles', `${cats.length} con criterios de titular Y codeudor`
             + (e.requiere_codeudor === undefined ? '' : ` · requires_cosigner=${e.requiere_codeudor ? 1 : 0}`));
     }
 
@@ -391,8 +391,8 @@ for (const e of spec.entidades) {
     // primary identity validation provider configured» — y es uno de los cinco chequeos de
     // `LenderReadinessService`, el que dice que sin él «el flujo de validación no falla ordenadamente».
     for (const t of ['lender_identity_validation_types', 'lender_requirements']) {
-        const filas = await query<any>(`SELECT * FROM ${t} WHERE lender_id=?`, [e.molde_operativo]);
-        if (!filas.length) { paso(`  ⚠ ${t}`, `el molde ${e.molde_operativo} no tiene fila`); continue; }
+        const rowList = await query<any>(`SELECT * FROM ${t} WHERE lender_id=?`, [e.molde_operativo]);
+        if (!rowList.length) { step(`  ⚠ ${t}`, `el molde ${e.molde_operativo} no tiene fila`); continue; }
         /* ⚠ ÁBACO SE DECIDE EN EL SPEC, y encontrarlo prendido fue el motivo de esta línea. El molde de
            Motai lo trae en 1 —no porque alguien lo decidiera para él, sino porque la migración de la v2
            hizo backfill desde `product IN ('renting','rto')`—, así que clonarlo tal cual le da al
@@ -417,82 +417,82 @@ for (const e of spec.entidades) {
               }
             : {};
         if (t === 'lender_requirements' && e.form_dinamico === undefined) {
-            const heredado = filas[0]?.dynamic_form_type_id ?? null;
-            if (heredado !== null) {
-                paso('  ⚠ form dinámico', `heredado del molde ${e.molde_operativo}: form_type ${heredado}. `
+            const inherited = rowList[0]?.dynamic_form_type_id ?? null;
+            if (inherited !== null) {
+                step('  ⚠ form dinámico', `heredado del molde ${e.molde_operativo}: form_type ${inherited}. `
                     + 'El cliente va a ver un formulario después de elegir la entidad. Si no lo querés, '
                     + 'declaralo en el spec: "form_dinamico": null');
             }
         }
-        for (const f of filas) await clonar(t, f, { lender_id: idLender, ...extra });
-        if (t === 'lender_requirements') paso('  requirements', `Ábaco ${e.abaco ? 'ENCENDIDO' : 'apagado'}`);
+        for (const f of rowList) await clone(t, f, { lender_id: idLender, ...extra });
+        if (t === 'lender_requirements') step('  requirements', `Ábaco ${e.abaco ? 'ENCENDIDO' : 'apagado'}`);
     }
 
     // El catálogo de documentos: la pieza que DISTINGUE renting de rent-to-own. No es el `product` ni
     // la calculadora — los dos productos comparten `response_type`, wizard y motor de pasos.
-    const docs = await query<any>('SELECT * FROM lender_signing_documents WHERE lender_id=? ORDER BY sort', [moldeDocs]);
-    if (!docs.length) paso('  ⚠ documentos', `el molde ${moldeDocs} no tiene catálogo: la entidad no firma nada`);
+    const docs = await query<any>('SELECT * FROM lender_signing_documents WHERE lender_id=? ORDER BY sort', [docsTemplate]);
+    if (!docs.length) step('  ⚠ documentos', `el molde ${docsTemplate} no tiene catálogo: la entidad no firma nada`);
     else {
-        for (const d of docs) await clonar('lender_signing_documents', d, { lender_id: idLender });
-        paso('  documentos', `${docs.length} del ${moldeDocs}: ${docs.map((d: any) => d.document_type).join(', ')}`);
+        for (const d of docs) await clone('lender_signing_documents', d, { lender_id: idLender });
+        step('  documentos', `${docs.length} del ${docsTemplate}: ${docs.map((d: any) => d.document_type).join(', ')}`);
     }
 }
 
 // ── 4 · QUE EL HARNESS SEPA NOMBRARLO ───────────────────────────────────────────────────────────
 // Sin esta entrada el comercio existe en la base y los runners no lo saben direccionar por slug, que
 // es la mitad más frustrante de montar un ambiente.
-const RUTA_FLOWS = new URL('../.flows.json', import.meta.url);
+const FLOWS_PATH = new URL('../.flows.json', import.meta.url);
 try {
-    const flows = JSON.parse(readFileSync(RUTA_FLOWS, 'utf8'));
+    const flows = JSON.parse(readFileSync(FLOWS_PATH, 'utf8'));
     flows.merchants ??= {};
-    const hash = sucursales[0]?.hash;
+    const hash = branches[0]?.hash;
 
-    /* ⚠ SE FUNDE, NO SE REEMPLAZA. Antes esto era `flows.merchants[PEDIDO] = {…}`, y ese `=` borraba
+    /* ⚠ SE FUNDE, NO SE REEMPLAZA. Antes esto era `flows.merchants[ORDER] = {…}`, y ese `=` borraba
        lo que un humano hubiera agregado a mano — en particular `por_target`, que es justo lo que hay
        que poner cuando el mismo comercio vive con hashes distintos en cada base. O sea que re-sembrar
        local te desarmaba el panel para qa, en silencio. */
-    const previa = flows.merchants[PEDIDO] ?? {};
+    const previous = flows.merchants[ORDER] ?? {};
 
     /* ⚠ Y EL HASH VA DONDE CORRESPONDE SEGÚN EL TARGET. `branch_hash` es, por convención de
        `bin/asesor:143` y de `branchHashForSlug`, el de LOCAL: es el fallback cuando no hay override.
        Escribir ahí el hash de qa hacía que el panel mandara el hash de un ambiente contra el otro —
        el front contesta «Error al cargar la información», que no dice nada sobre la causa. */
-    const ubicacion = TARGET === 'local'
+    const location = TARGET === 'local'
         ? { branch_hash: hash }
-        : { por_target: { ...(previa.por_target ?? {}), [TARGET]: hash } };
+        : { por_target: { ...(previous.por_target ?? {}), [TARGET]: hash } };
 
-    flows.merchants[PEDIDO] = {
-        ...previa, ...ubicacion,
-        allied_id: idComercio, branch_id: sucursales[0]?.id, name: spec.nombre,
+    flows.merchants[ORDER] = {
+        ...previous, ...location,
+        allied_id: merchantId, branch_id: branches[0]?.id, name: spec.nombre,
     };
-    writeFileSync(RUTA_FLOWS, JSON.stringify(flows, null, 2) + '\n');
-    paso('.flows.json', TARGET === 'local'
-        ? `slug «${PEDIDO}» → sucursal ${sucursales[0]?.id} (hash ${hash})`
-        : `slug «${PEDIDO}» → por_target.${TARGET} = ${hash} (sucursal ${sucursales[0]?.id})`);
+    writeFileSync(FLOWS_PATH, JSON.stringify(flows, null, 2) + '\n');
+    step('.flows.json', TARGET === 'local'
+        ? `slug «${ORDER}» → sucursal ${branches[0]?.id} (hash ${hash})`
+        : `slug «${ORDER}» → por_target.${TARGET} = ${hash} (sucursal ${branches[0]?.id})`);
 
     /* El aviso que evita la vuelta entera: otra entrada con el MISMO nombre y sin override para este
        target es un slug que el panel va a resolver al hash equivocado. */
     if (TARGET !== 'local') {
         for (const [slug, m] of Object.entries<any>(flows.merchants)) {
-            if (slug !== PEDIDO && m?.name === spec.nombre && !m?.por_target?.[TARGET]) {
-                paso('  ⚠ otro slug', `«${slug}» se llama igual y NO tiene por_target.${TARGET}: `
+            if (slug !== ORDER && m?.name === spec.nombre && !m?.por_target?.[TARGET]) {
+                step('  ⚠ otro slug', `«${slug}» se llama igual y NO tiene por_target.${TARGET}: `
                     + `si lo elegís en el panel con target ${TARGET} va a usar ${m.branch_hash}, que no `
                     + `existe en esa base. Agregale "por_target": { "${TARGET}": "${hash}" }`);
             }
         }
     }
 } catch (e: any) {
-    paso('.flows.json', `✗ no pude escribirlo: ${e.message}`);
+    step('.flows.json', `✗ no pude escribirlo: ${e.message}`);
 }
 
-const autogestion = spec.entidades.some((e) => !e.user_self_management);
+const selfService = spec.entidades.some((e) => !e.user_self_management);
 console.log(`
   Comprobalo:
-    make harness-listado COMERCIO=${PEDIDO}
-    make harness-caso CASOS='${PEDIDO}' CERRAR=1 LAMBDA=1
-    make harness-suite SUITE=harness/suites/${PEDIDO}.json CERRAR=1 LAMBDA=1
+    make harness-listado COMERCIO=${ORDER}
+    make harness-caso CASOS='${ORDER}' CERRAR=1 LAMBDA=1
+    make harness-suite SUITE=harness/suites/${ORDER}.json CERRAR=1 LAMBDA=1
 `);
-if (autogestion) console.log(`  ⚠ AUTOGESTIÓN — lo sembrado acá dice «no le mandes el link al cliente»
+if (selfService) console.log(`  ⚠ AUTOGESTIÓN — lo sembrado acá dice «no le mandes el link al cliente»
     (\`allieds.self_managed=1\` + \`lenders_by_allieds.user_self_management=0\`), y eso es lo que
     respeta legacy-BACKEND. legacy-APPLICATION lo IGNORA para rt=2: su condición es
     \`… || $lender->response_type === 2\`, con una lista quemada de excepciones (\`[6, 9]\`, Addi,

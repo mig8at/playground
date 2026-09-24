@@ -37,7 +37,7 @@ process.env.CFE_TARGET ||= 'local';
 
 const { config } = await import('../pkg/config.ts');
 const { one, close } = await import('../pkg/db.ts');
-const { crearCliente } = await import('../pkg/http.ts');
+const { createCustomer } = await import('../pkg/http.ts');
 
 const API = config.mockUrl;
 const PARTNER = config.partnerHash;
@@ -45,24 +45,24 @@ const PARTNER = config.partnerHash;
 const UA = 'Mozilla/5.0 (iPhone; CPU iPhone OS 16_5 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.5 Mobile/15E148 Safari/604.1';
 
 /** Los nombres del caso real: UN nombre de pila y DOS apellidos, el segundo mal escrito. */
-const NOMBRE = 'ANDREA';
-const APELLIDOS = 'MUSUSU NEMPEGIE';
+const NAME = 'ANDREA';
+const SURNAMES = 'MUSUSU NEMPEGIE';
 
 /** Lo que devuelve `AgildataHttpFake::employeeSuccess()`. Para probar la ADOPCIÓN hay que teclear
  *  un nombre parecido a ése: la regla corrige la ortografía, no inventa el nombre. */
-const AGIL_NOMBRE = 'FAKE';
-const AGIL_APELLIDOS_BIEN = 'EMPLOYEE NAME';
-const AGIL_APELLIDOS_MAL = 'EMPLOYEE NAMES';   // una letra de más, dentro del umbral de 3
+const AGIL_NAME = 'FAKE';
+const AGIL_SURNAMES_OK = 'EMPLOYEE NAME';
+const AGIL_SURNAMES_BAD = 'EMPLOYEE NAMES';   // una letra de más, dentro del umbral de 3
 
 type Resp = { status: number; json: any };
 
 // El cliente vive en `pkg/http.ts`. `x-fake-scenario` va por llamada: es lo que le dicta al mock
 // qué contestar en ESE paso, así que no puede ser una cabecera del cliente.
-const cliente = crearCliente({ base: API, headers: { 'user-agent': UA }, timeoutMs: 60_000, recorte: 200 });
+const customer = createCustomer({ base: API, headers: { 'user-agent': UA }, timeoutMs: 60_000, recorte: 200 });
 const http = (method: string, path: string, body?: unknown, scenario?: string): Promise<Resp> =>
-    cliente.llamar(method, path, body, scenario ? { 'x-fake-scenario': scenario } : {});
+    customer.llamar(method, path, body, scenario ? { 'x-fake-scenario': scenario } : {});
 
-function unico(): { phone: string; doc: string; email: string } {
+function unique(): { phone: string; doc: string; email: string } {
     const n = Math.floor(Math.random() * 9_000_000) + 1_000_000;
     return {
         phone: `31${n.toString().padStart(8, '0')}`.slice(0, 10),
@@ -74,7 +74,7 @@ function unico(): { phone: string; doc: string; email: string } {
 }
 
 /** register + otp-validate → devuelve el uReq recién creado (el OTP va por el driver fake). */
-async function sembrar(phone: string): Promise<number | null> {
+async function seed(phone: string): Promise<number | null> {
     const reg = await http('POST', '/api/onboarding/phone/register', {
         phone_number: phone, phoneNumber: phone, terms: true, policies: true,
         otp_length: 4, otpLength: 4, partner_branch_hash: PARTNER, partnerBranchHash: PARTNER,
@@ -100,16 +100,16 @@ async function sembrar(phone: string): Promise<number | null> {
     return id;
 }
 
-type Desenlace = { aceptado: boolean; status: number; subcode: string; mensaje: string; guardado: string };
+type Outcome = { aceptado: boolean; status: number; subcode: string; mensaje: string; guardado: string };
 
-async function correr(scenario: string, nombre = NOMBRE, apellidos = APELLIDOS): Promise<Desenlace | null> {
-    const { phone, doc, email } = unico();
-    const ureq = await sembrar(phone);
+async function correr(scenario: string, name = NAME, surnames = SURNAMES): Promise<Outcome | null> {
+    const { phone, doc, email } = unique();
+    const ureq = await seed(phone);
     if (ureq === null) return null;
 
     const r = await http('POST', `/api/onboarding/loan-application/personal-info/${PARTNER}/${ureq}`, {
         document_type: 'CC', document_number: doc,
-        name: nombre, surname: apellidos, email,
+        name: name, surname: surnames, email,
         expedition_day: 27, expedition_month: 3, expedition_year: 2013,
         // ⚠ La fecha de NACIMIENTO figura `nullable|sometimes` en `PersonalInfoRequest`, pero el
         // servicio la valida aparte y sin ella responde ONB005 / `BIRTH_DATE_INVALID`. Son las
@@ -124,7 +124,7 @@ async function correr(scenario: string, nombre = NOMBRE, apellidos = APELLIDOS):
         console.log(`    [debug ${scenario}] ${JSON.stringify(r.json).slice(0, 700)}`);
     }
 
-    const fila = await one<{ first_name: string; surname: string }>(
+    const row = await one<{ first_name: string; surname: string }>(
         'SELECT first_name, surname FROM users WHERE document_number=? LIMIT 1', [doc],
     ).catch(() => null);
 
@@ -133,21 +133,21 @@ async function correr(scenario: string, nombre = NOMBRE, apellidos = APELLIDOS):
     // (la fila queda escrita en `users`). El rechazo real es `ONB005`. Leerlo por `success`
     // pelado daba «regresión» donde había un guardado correcto.
     const code = r.json?.errors?.error_code ?? r.json?.error_code ?? r.json?.data?.error_code ?? null;
-    const aceptado = r.status < 400 && code !== 'ONB005';
+    const accepted = r.status < 400 && code !== 'ONB005';
 
     return {
-        aceptado,
+        aceptado: accepted,
         status: r.status,
         subcode: `${code ?? '—'}${r.json?.errors?.error_subcode ? ' / ' + r.json.errors.error_subcode : ''}`,
         // El mensaje POR CAMPO es lo que ve el cliente; el `message` de arriba es genérico.
         mensaje: r.json?.errors?.payload?.surname ?? r.json?.errors?.payload?.name ?? r.json?.message ?? '—',
-        guardado: fila ? `${fila.first_name} / ${fila.surname}` : '(no quedó fila en users)',
+        guardado: row ? `${row.first_name} / ${row.surname}` : '(no quedó fila en users)',
     };
 }
 
-function imprimir(titulo: string, esperado: string, d: Desenlace | null): void {
-    console.log(`\n  ${titulo}`);
-    console.log(`    esperado    ${esperado}`);
+function print(title: string, expected: string, d: Outcome | null): void {
+    console.log(`\n  ${title}`);
+    console.log(`    esperado    ${expected}`);
     if (!d) { console.log('    ✘ no se pudo sembrar la solicitud'); return; }
     console.log(`    HTTP        ${d.status}${d.aceptado ? '  → ACEPTADO' : '  → RECHAZADO'}`);
     console.log(`    subcode     ${d.subcode}`);
@@ -157,13 +157,13 @@ function imprimir(titulo: string, esperado: string, d: Desenlace | null): void {
 
 console.log('\n  ── ¿se acepta un segundo apellido que la central reporta como incorrecto? ──');
 console.log(`     target local · API ${API} · comercio ${PARTNER}`);
-console.log(`     nombre de prueba: «${NOMBRE} ${APELLIDOS}» (el segundo apellido es el que la central rechaza)`);
+console.log(`     nombre de prueba: «${NAME} ${SURNAMES}» (el segundo apellido es el que la central rechaza)`);
 
-const malo = await correr('second-surname-mismatch');
-imprimir('escenario  second-surname-mismatch', 'RECHAZADO, con el error en el campo apellido', malo);
+const badOne = await correr('second-surname-mismatch');
+print('escenario  second-surname-mismatch', 'RECHAZADO, con el error en el campo apellido', badOne);
 
-const bueno = await correr('single-name-and-surname');
-imprimir('escenario  single-name-and-surname', 'ACEPTADO (no tener segundo apellido es legítimo)', bueno);
+const good = await correr('single-name-and-surname');
+print('escenario  single-name-and-surname', 'ACEPTADO (no tener segundo apellido es legítimo)', good);
 
 // La regla de adopción: con el escenario `success` Ágil Data resuelve y devuelve su nombre, así que lo
 // que quede en `users` tiene que ser el de la CENTRAL y no el que se tecleó. Se prueba acá y no sólo en
@@ -172,38 +172,38 @@ imprimir('escenario  single-name-and-surname', 'ACEPTADO (no tener segundo apell
 //
 // ⚠ El bypass de `verifyCoincidence` en local NO estorba: la adopción decide por `NameSimilarity`, que
 // no pasa por ahí. Por eso este chequeo sí discrimina en local.
-const adopcion = await correr('success', AGIL_NOMBRE, AGIL_APELLIDOS_MAL);
-imprimir(
+const adoption = await correr('success', AGIL_NAME, AGIL_SURNAMES_BAD);
+print(
     'regla de adopción (Ágil Data resuelve)',
-    `ACEPTADO y guardado como «${AGIL_NOMBRE} / ${AGIL_APELLIDOS_BIEN}», corrigiendo lo tecleado`,
-    adopcion,
+    `ACEPTADO y guardado como «${AGIL_NAME} / ${AGIL_SURNAMES_OK}», corrigiendo lo tecleado`,
+    adoption,
 );
 
 await close();
 
-const adopto = adopcion?.guardado === `${AGIL_NOMBRE} / ${AGIL_APELLIDOS_BIEN}`;
+const adopted = adoption?.guardado === `${AGIL_NAME} / ${AGIL_SURNAMES_OK}`;
 
-if (!malo || !bueno || !adopcion) {
+if (!badOne || !good || !adoption) {
     console.log('\n  ⇒ NO CONCLUYENTE: no se pudo completar el recorrido.\n');
     process.exit(2);
 }
 
-if (malo.aceptado) {
+if (badOne.aceptado) {
     console.log('\n  ⇒ EL DEFECTO ESTÁ VIVO: la central dijo que el segundo apellido no coincide');
-    console.log(`     y la solicitud avanzó igual, guardando «${malo.guardado}».`);
+    console.log(`     y la solicitud avanzó igual, guardando «${badOne.guardado}».`);
     console.log('     Arreglo: `=== null` en Modules/Identity/App/Services/TusDatosService.php:189.\n');
     process.exit(1);
 }
 
-if (!bueno.aceptado) {
+if (!good.aceptado) {
     console.log('\n  ⇒ REGRESIÓN: se rechaza al cliente que legítimamente NO tiene segundo apellido.');
     console.log('     La tolerancia sólo debe aplicar al campo AUSENTE (null), no a un 0.\n');
     process.exit(1);
 }
 
-if (!adopto) {
-    console.log('\n  ⇒ LA ADOPCIÓN NO ESTÁ ACTUANDO: quedó guardado «' + adopcion.guardado + '»');
-    console.log(`     y se esperaba «${AGIL_NOMBRE} / ${AGIL_APELLIDOS_BIEN}» (el nombre de la central).`);
+if (!adopted) {
+    console.log('\n  ⇒ LA ADOPCIÓN NO ESTÁ ACTUANDO: quedó guardado «' + adoption.guardado + '»');
+    console.log(`     y se esperaba «${AGIL_NAME} / ${AGIL_SURNAMES_OK}» (el nombre de la central).`);
     console.log('     El nombre de la central debe ganar sobre el tecleado.\n');
     process.exit(1);
 }

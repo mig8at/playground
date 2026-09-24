@@ -78,7 +78,7 @@ export async function listEcommerce(q = ''): Promise<EcommerceBranch[]> {
  * consulta) y `dev/guided.spec.ts`, que sin esto elegía el checkout equivocado. Escribirlo dos veces
  * era exactamente lo que el comentario de `is-corbeta` advertía que no se hiciera.
  */
-export async function corbetaDeLaSucursal(branchHash: string): Promise<{ alliedId: number | null; corbeta: boolean; selfManaged: boolean | null; allieds: number[] }> {
+export async function branchCorbeta(branchHash: string): Promise<{ alliedId: number | null; corbeta: boolean; selfManaged: boolean | null; allieds: number[] }> {
     // `self_managed` viaja en la MISMA consulta: es lo que el panel necesita para preseleccionar el
     // canal, y pedirlo aparte sería un viaje más para un dato que ya está en el join.
     const br = await one<{ alliedId: number; selfManaged: number }>(
@@ -103,7 +103,7 @@ export async function corbetaDeLaSucursal(branchHash: string): Promise<{ alliedI
 }
 
 /**
- * ¿EL FLUJO DE CUPO FIRMADO DEJA ALGO QUE LISTAR? — F-214.
+ * ¿EL FLOW DE CUPO SIGNED DEJA ALGO QUE LISTAR? — F-214.
  *
  * Cuando el cliente contesta «Sí» en «Confirmación de cupo», la solicitud nace con `flow_id = 2` y el
  * listado **se recorta a `rt=0`**: se descartan TODAS las entidades integradas. En una sucursal sin
@@ -118,7 +118,7 @@ export async function corbetaDeLaSucursal(branchHash: string): Promise<{ alliedI
  * Vive acá para que haya UNA definición: la usan el panel (aviso previo, condicional) y el runner
  * (aviso en caliente, cuando ya sabe que el flujo quedó firmado).
  */
-export async function rt0ActivasDeLaSucursal(branchHash: string): Promise<Array<{ id: number; name: string }>> {
+export async function branchActiveRt0(branchHash: string): Promise<Array<{ id: number; name: string }>> {
       return query<{ id: number; name: string }>(
             `SELECT l.id, l.name
                FROM lenders_by_allied_branches lab
@@ -137,14 +137,14 @@ export async function rt0ActivasDeLaSucursal(branchHash: string): Promise<Array<
  * y se sigue—, éste se imprime en el momento en que el resultado ya está decidido y antes de que se vea
  * la pantalla vacía. Vacío cuando sí hay con qué listar.
  */
-export function avisoDeCupoSinSalida(
+export function quotaWithoutExitNotice(
       rt0: Array<{ id: number; name: string }>,
       branchHash: string,
       uReqID: number | string = '',
       apiBase = '',
 ): string[] {
       if (rt0.length) return [];
-      const lineas = [
+      const lines = [
             `⚠ EL LISTADO VA A SALIR VACÍO, y no es la config del comercio (F-214).`,
             `  El flujo quedó firmado como «cupo ya confirmado» (flow_id=2), y eso recorta el listado a`,
             `  rt=0 — descarta TODAS las integradas. La sucursal ${branchHash} no tiene ninguna rt=0 activa`,
@@ -167,21 +167,21 @@ export function avisoDeCupoSinSalida(
        * de quien prueba, y hacerlo solo dejaría la corrida diciendo que probó un escenario que no era.
        */
       if (uReqID && apiBase) {
-            lineas.push(
+            lines.push(
                   `  Para RESCATAR esta corrida sin reiniciarla —el flujo se puede re-firmar en estado 1 o 9—:`,
                   `      curl -s -X POST '${apiBase.replace(/\/$/, '')}/api/v1/user-request/${uReqID}/flow-signature/standard' \\`,
                   `           -H 'Accept: application/json' -H 'User-Agent: Mozilla/5.0 (iPhone; CPU iPhone OS 16_5)'`,
                   `  y recargá /lenders. Para la próxima, contestá «No» en «Confirmación de cupo».`,
             );
       } else {
-            lineas.push(`  Para recorrer el flujo entero, contestá «No» en «Confirmación de cupo».`);
+            lines.push(`  Para recorrer el flujo entero, contestá «No» en «Confirmación de cupo».`);
       }
-      return lineas;
+      return lines;
 }
 
 // ─── Resolver una SUCURSAL para una corrida ─────────────────────────────────────────────────────
 
-export interface SucursalResuelta { id: number; hash: string; com: string; allied: number }
+export interface ResolvedBranch { id: number; hash: string; com: string; allied: number }
 
 /**
  * Qué sucursal se quiere cuando el comercio se nombró por slug o por nombre (con `#hash` no hay dónde
@@ -193,7 +193,7 @@ export interface SucursalResuelta { id: number; hash: string; com: string; allie
  * - `con-tienda` — la que tiene credencial de ecommerce. Sin esto, una corrida del canal de tienda caía
  *   en la de mostrador y moría en la entrada, porque ahí no hay checkout que valga.
  */
-export type CriterioDeSucursal = 'con-mas-entidades' | 'con-tienda';
+export type BranchCriterion = 'con-mas-entidades' | 'con-tienda';
 
 /**
  * LA resolución de sucursal para las corridas. Devuelve `null` en vez de tirar: quien la llama ya tiene
@@ -211,14 +211,14 @@ export type CriterioDeSucursal = 'con-mas-entidades' | 'con-tienda';
  * nombre con `LIKE`: `pullman` andaba porque «Amoblando Pullman» lo contiene, y `viva-tu-credito` —el
  * slug real— daba «no encontré el comercio». Una tanda de 40 sacada de la base por slug falló entera.
  */
-export async function buscarSucursal(ref: string, criterio: CriterioDeSucursal = 'con-mas-entidades'): Promise<SucursalResuelta | null> {
-    const porHash = ref.startsWith('#');
-    const conTienda = criterio === 'con-tienda' && !porHash;
-    return one<SucursalResuelta>(
-        porHash
+export async function findBranch(ref: string, criterion: BranchCriterion = 'con-mas-entidades'): Promise<ResolvedBranch | null> {
+    const byHash = ref.startsWith('#');
+    const withStore = criterion === 'con-tienda' && !byHash;
+    return one<ResolvedBranch>(
+        byHash
             ? `SELECT b.id, b.hash, x.name AS com, x.id AS allied FROM allied_branches b
                  JOIN allieds x ON x.id = b.allied_id WHERE b.hash = ? LIMIT 1`
-            : conTienda
+            : withStore
             ? `SELECT b.id, b.hash, x.name AS com, x.id AS allied FROM allied_branches b
                  JOIN allieds x ON x.id = b.allied_id
                  JOIN allied_ecommerce_credentials c ON c.allied_branch_id = b.id
@@ -229,7 +229,7 @@ export async function buscarSucursal(ref: string, criterio: CriterioDeSucursal =
                 WHERE x.slug = ? OR x.name LIKE ?
                 ORDER BY (x.slug = ?) DESC,
                          (SELECT COUNT(*) FROM lenders_by_allied_branches l WHERE l.allied_branch_id = b.id) DESC LIMIT 1`,
-        porHash ? [ref.slice(1)] : [ref, `%${ref}%`, ref],
+        byHash ? [ref.slice(1)] : [ref, `%${ref}%`, ref],
     ).catch(() => null);
 }
 
@@ -245,20 +245,20 @@ export async function buscarSucursal(ref: string, criterio: CriterioDeSucursal =
  *
  * La caché es por proceso y estaba DUPLICADA junto con la función, o sea dos cachés para el mismo dato.
  */
-const tiposPorComercio = new Map<string, string>();
+const typesByMerchant = new Map<string, string>();
 
-export async function tipoDeDocumentoDelComercio(apiBase: string, hash: string): Promise<string> {
-    const cacheado = tiposPorComercio.get(hash);
-    if (cacheado) return cacheado;
+export async function merchantDocumentType(apiBase: string, hash: string): Promise<string> {
+    const cached = typesByMerchant.get(hash);
+    if (cached) return cached;
 
-    let tipo = 'CC';
+    let kind = 'CC';
     try {
         const r = await fetch(`${apiBase}/api/loans/allied/${hash}`, { signal: AbortSignal.timeout(20_000) });
         const j = await r.json() as { data?: { allowed_document_types?: string[] } };
-        const lista = j?.data?.allowed_document_types;
-        if (Array.isArray(lista) && lista.length > 0 && typeof lista[0] === 'string') tipo = lista[0];
+        const list = j?.data?.allowed_document_types;
+        if (Array.isArray(list) && list.length > 0 && typeof list[0] === 'string') kind = list[0];
     } catch { /* sin payload, queda 'CC' */ }
 
-    tiposPorComercio.set(hash, tipo);
-    return tipo;
+    typesByMerchant.set(hash, kind);
+    return kind;
 }

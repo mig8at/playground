@@ -23,7 +23,7 @@ const childTables = [
     'user_requests_by_ecommerce_request',
 ];
 
-export interface AsesorRow {
+export interface AdvisorRow {
     id: number;
     cognito_id: string;
     email: string;
@@ -35,7 +35,7 @@ export interface AsesorRow {
     status: number;
 }
 
-interface AsesorSnapshot {
+interface AdvisorSnapshot {
     query: string;
     cognito_id: string;
     prev_cognito_id: string;
@@ -60,8 +60,8 @@ function uniquePhone(id: string): string {
 }
 
 /** Filas users por cognito_id EXACTO o email LIKE %q%. */
-export async function findAsesorUsers(q: string): Promise<AsesorRow[]> {
-    return query<AsesorRow>(
+export async function findAdvisorUsers(q: string): Promise<AdvisorRow[]> {
+    return query<AdvisorRow>(
         `SELECT u.id, COALESCE(u.cognito_id,'') AS cognito_id, COALESCE(u.email,'') AS email,
                 COALESCE(u.full_name,'') AS full_name, u.allied_id, u.allied_branch_id,
                 COALESCE(ab.hash,'') AS allied_branch_hash, u.user_profile_id, COALESCE(u.status,0) AS status
@@ -72,9 +72,9 @@ export async function findAsesorUsers(q: string): Promise<AsesorRow[]> {
 }
 
 /** whois (read-only): filas users que matchean por cognito_id o email. */
-export async function whois(q: string): Promise<{ query: string; count: number; matches: AsesorRow[] }> {
+export async function whois(q: string): Promise<{ query: string; count: number; matches: AdvisorRow[] }> {
     if (!q.trim()) throw new Error('uso: whois <email|cognito_id>');
-    const matches = await findAsesorUsers(q);
+    const matches = await findAdvisorUsers(q);
     return { query: q, count: matches.length, matches };
 }
 
@@ -100,12 +100,12 @@ export async function assign(q: string, merchantQ: string, branchHash = '', real
     const resolvedHash = (await scalar<string>("SELECT COALESCE(hash,'') AS h FROM allied_branches WHERE id=? LIMIT 1", [branchID])) ?? '';
     const profileID = (await scalar<number>('SELECT id FROM user_profiles WHERE name=? LIMIT 1', ['Comercial'])) ?? 0;
 
-    const rows = await findAsesorUsers(q);
-    let target: AsesorRow | null = rows.find((r) => r.cognito_id === q) ?? null;
+    const rows = await findAdvisorUsers(q);
+    let target: AdvisorRow | null = rows.find((r) => r.cognito_id === q) ?? null;
     if (!target && rows.length === 1) target = rows[0];
     if (!target && rows.length > 1) throw new Error(`${JSON.stringify(q)} matchea ${rows.length} usuarios; pasá el cognito_id exacto`);
 
-    const snap: AsesorSnapshot = {
+    const snap: AdvisorSnapshot = {
         query: q, cognito_id: '', prev_cognito_id: '', existed: false, row_id: 0,
         prev_allied_id: null, prev_allied_branch_id: null, prev_user_profile_id: null,
         merchant: merchantLabel, new_allied_id: alliedID, new_allied_branch_id: branchID,
@@ -139,7 +139,7 @@ export async function assign(q: string, merchantQ: string, branchHash = '', real
     }
 
     writeFileSync(SNAPSHOT, JSON.stringify(snap, null, 2), { mode: 0o600 });
-    const after = await findAsesorUsers(snap.cognito_id);
+    const after = await findAdvisorUsers(snap.cognito_id);
     return {
         assigned: true, merchant: merchantLabel, allied_id: alliedID, allied_branch_id: branchID,
         allied_branch_hash: resolvedHash, cognito_id: snap.cognito_id, created_new_row: createdNew,
@@ -151,7 +151,7 @@ export async function assign(q: string, merchantQ: string, branchHash = '', real
 export async function revoke(): Promise<Record<string, unknown>> {
     if (!existsSync(SNAPSHOT)) throw new Error(`no hay snapshot (${SNAPSHOT}) — nada que revertir`);
     assertWriteAllowed();
-    const snap = JSON.parse(readFileSync(SNAPSHOT, 'utf8')) as AsesorSnapshot;
+    const snap = JSON.parse(readFileSync(SNAPSHOT, 'utf8')) as AdvisorSnapshot;
     const out: Record<string, unknown> = { cognito_id: snap.cognito_id, merchant: snap.merchant, row_id: snap.row_id };
     if (snap.existed) {
         if (snap.prev_cognito_id) {
@@ -205,7 +205,7 @@ async function deleteUsers(userIDs: number[]): Promise<number> {
  * queda huérfano, así que consultar por el id que imprimió una corrida vieja devuelve vacío y se lee
  * como "nunca existió". Con esto la forense deja de depender de acordarse de mirar ANTES.
  */
-async function dumpAntesDeBorrar(phone: string, userIDs: number[]): Promise<string | null> {
+async function dumpBeforeDelete(phone: string, userIDs: number[]): Promise<string | null> {
     if (userIDs.length === 0) return null;
     try {
         const reqs = await query<Record<string, unknown>>(
@@ -249,21 +249,21 @@ async function dumpAntesDeBorrar(phone: string, userIDs: number[]): Promise<stri
  * eso no rompen una corrida. Cierto, pero era la pregunta equivocada: el pedido era borrar lo que el
  * arnés crea, no sólo lo que estorba.)
  */
-const MARCADORES_DEL_ARNES = [
+const HARNESS_MARKERS = [
     "email LIKE 'synth-%@creditop.com'",
     "(first_name = 'SYNTH' AND surname = 'TEST USER')",
     "email REGEXP '^qa[0-9]+@gmail\\.com$'",
 ];
 
 /** Los últimos 10 dígitos de los teléfonos DE PRUEBA, de `settings.qa_otp_bypass_phones`. */
-async function telefonosDePrueba(): Promise<string[]> {
+async function testPhones(): Promise<string[]> {
     const row = await one<{ value: string }>("SELECT value FROM settings WHERE `key`='qa_otp_bypass_phones'");
-    let crudos: unknown[] = [];
-    try { crudos = JSON.parse(row?.value ?? '[]'); } catch { crudos = []; }
-    const diez = crudos
+    let raws: unknown[] = [];
+    try { raws = JSON.parse(row?.value ?? '[]'); } catch { raws = []; }
+    const ten = raws
         .map((t) => String(t).replace(/[^0-9]/g, '').slice(-10))
         .filter((t) => t.length === 10);
-    return [...new Set(diez)];
+    return [...new Set(ten)];
 }
 
 /**
@@ -298,36 +298,36 @@ export async function scrubHarnessUsers(): Promise<Record<string, unknown>> {
        empezaron un registro y lo abandonaron: no los creó el arnés y borrarlos sería destruir
        registros reales. El cruce con la lista de bypass es lo que separa una cosa de la otra, y es la
        misma lista que usa el producto para saltarse el OTP. */
-    const telefonos = await telefonosDePrueba();
-    const marcadores = [...MARCADORES_DEL_ARNES];
-    if (telefonos.length > 0) {
-        const lista = telefonos.map((t) => `'${t}'`).join(',');
-        marcadores.push(
+    const phones = await testPhones();
+    const markers = [...HARNESS_MARKERS];
+    if (phones.length > 0) {
+        const list = phones.map((t) => `'${t}'`).join(',');
+        markers.push(
             "(document_number LIKE 'TEMP-%' AND "
-            + `RIGHT(REPLACE(REPLACE(REPLACE(cell_phone,'+',''),' ',''),'-',''), 10) IN (${lista}))`,
+            + `RIGHT(REPLACE(REPLACE(REPLACE(cell_phone,'+',''),' ',''),'-',''), 10) IN (${list}))`,
         );
     }
-    const donde = `(${marcadores.join(' OR ')}) AND (cognito_id IS NULL OR cognito_id = '')`;
-    const rows = await query<{ id: number }>(`SELECT id FROM users WHERE ${donde}`);
+    const where = `(${markers.join(' OR ')}) AND (cognito_id IS NULL OR cognito_id = '')`;
+    const rows = await query<{ id: number }>(`SELECT id FROM users WHERE ${where}`);
     const ids = rows.map((r) => r.id);
     if (ids.length === 0) return { users_deleted: 0, note: 'no había usuarios sintéticos del arnés que borrar' };
 
-    const dump = await dumpAntesDeBorrar('(identidades del arnés)', ids);
+    const dump = await dumpBeforeDelete('(identidades del arnés)', ids);
 
     /* EN TANDAS: `deleteUsers` expande `IN (?)` con todos los ids y recorre ~20 tablas hijas, así que
        1.300 de una vez arma statements enormes. En tandas el trabajo es el mismo y cada uno entra. */
-    const TANDA = 200;
-    let borrados = 0;
-    for (let i = 0; i < ids.length; i += TANDA) borrados += await deleteUsers(ids.slice(i, i + TANDA));
+    const ROUND = 200;
+    let deletedOnes = 0;
+    for (let i = 0; i < ids.length; i += ROUND) deletedOnes += await deleteUsers(ids.slice(i, i + ROUND));
 
     return {
-        users_deleted: borrados, tandas: Math.ceil(ids.length / TANDA),
+        users_deleted: deletedOnes, tandas: Math.ceil(ids.length / ROUND),
         forense: dump ?? '(sin solicitudes previas que volcar)',
         note: 'los TEMPORAL USER de teléfonos que NO son de prueba quedan: son registros reales abandonados',
     };
 }
 
-/** scrubphone (WRITE): borra los users CLIENTE (cognito_id NULL) de un teléfono → próximo register = TEMPORAL USER.
+/** scrubphone (WRITE): borra los users CUSTOMER (cognito_id NULL) de un teléfono → próximo register = TEMPORAL USER.
  *
  * ⚠ COMPARA POR LOS ÚLTIMOS 10 DÍGITOS, no por igualdad, y eso es un ARREGLO — no una comodidad.
  * El mismo teléfono se guarda en formatos distintos según por dónde entró: medido el 2026-09-10 en la
@@ -343,7 +343,7 @@ export async function scrubHarnessUsers(): Promise<Record<string, unknown>> {
  * estar aisladas y el flujo aparecía incompleto sin que nada avisara.
  *
  * ⚠ Lo que NO se amplía, a propósito: el guard `cognito_id IS NULL OR ''`. Eso es lo que mantiene el
- * borrado del lado de los usuarios CLIENTE y lejos de las cuentas de asesor. Y para un móvil
+ * borrado del lado de los usuarios CUSTOMER y lejos de las cuentas de asesor. Y para un móvil
  * colombiano los últimos 10 dígitos SON el número entero, así que ensanchar de «igual» a «termina
  * igual» no agrega candidatos reales: sólo alcanza las variantes con prefijo del mismo número.
  */
@@ -360,11 +360,11 @@ export async function scrubphone(phone: string): Promise<Record<string, unknown>
     const ids = rows.map((r) => r.id);
     // Los formatos que se encontraron se REPORTAN: si mañana aparece otro (un `+1` fue el que costó
     // esta vuelta), tiene que verse en el rastro de la corrida y no descubrirse depurando.
-    const formatos = [...new Set(rows.map((r) => r.cell_phone))];
-    const dump = await dumpAntesDeBorrar(p, ids);
+    const formats = [...new Set(rows.map((r) => r.cell_phone))];
+    const dump = await dumpBeforeDelete(p, ids);
     const n = await deleteUsers(ids);
     return {
-        phone: p, users_deleted: n, user_ids: ids, formatos_encontrados: formatos,
+        phone: p, users_deleted: n, user_ids: ids, formatos_encontrados: formats,
         forense: dump ?? '(sin solicitudes previas que volcar)',
         note: 'el próximo register de ese teléfono crea un TEMPORAL USER → /personal-info',
     };

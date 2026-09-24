@@ -62,17 +62,17 @@ import { fileURLToPath } from 'node:url';
 /** Huella del CÓDIGO que este proceso tiene en memoria. `bin/mock-bancolombia start` la compara con el
  *  archivo en disco: si editás el mock y el proceso viejo sigue vivo, `start` decía «ya arriba» y seguía
  *  sirviendo la versión anterior — el arreglo no se aplicaba y nada lo avisaba. */
-const CODIGO = Math.floor(statSync(fileURLToPath(import.meta.url)).mtimeMs / 1000);
+const CODE = Math.floor(statSync(fileURLToPath(import.meta.url)).mtimeMs / 1000);
 
 const PORT = Number(process.env.MOCK_BC_PORT || 8104);
 // El mock NO lee la base, así que no conoce la credencial. Si se le DICE cuál es el secreto que debe
 // aceptar, reproduce el 401 que el banco devuelve ante uno equivocado; si no se le dice, sólo exige que
-// la cabecera venga. Se declara antes que nada porque `seguridadDelGateway` lo consulta.
-const SECRETO_ESPERADO = process.env.MOCK_BC_CLIENT_SECRET || null;
+// la cabecera venga. Se declara antes que nada porque `gatewaySecurity` lo consulta.
+const EXPECTED_SECRET = process.env.MOCK_BC_CLIENT_SECRET || null;
 const FAIL = process.env.MOCK_BC_FAIL === '1';
 const log = (...a) => console.log(new Date().toISOString(), ...a);
 
-/** Escenario en caliente. Los defaults son el CAMINO FELIZ del canal Corbeta. */
+/** Escenario en caliente. Los defaults son el CAMINO HAPPY del canal Corbeta. */
 const esc = {
     hasQuota: true,
     balance: 5_000_000,
@@ -86,23 +86,23 @@ const esc = {
     // Con `errorEn` el error se dispara sólo cuando el path contiene ese texto
     // (ej. 'origination', 'retrieve-quota', 'purchase-intention'). `null` = todas, como antes.
     errorEn: null,
-    // QUÉ PRODUCTO RESUELVE EL OTP. No es cosmético: `PreApprovedLenderService::validateBancolombiaPreapprove`
+    // QUÉ PRODUCT RESUELVE EL OTP. No es cosmético: `PreApprovedLenderService::validateBancolombiaPreapprove`
     // consulta las DOS compuertas y decide con un match (verificado):
     //   BNPL     → `validateQuota` (monto 100.000, lender 68) con `data.validate === true`
     //   Consumo  → `validate`      (monto 1.000.000, lender 100) con `data.validate === 'Success'`
     //              ('Pending' → pendiente · 409 BP40920507 → no habilitado)
     //   hasBnpl && (hasConsumer||pending) → PLS003 multiproducto (arranca en BNPL, lender 68)
     //   hasBnpl → PLS001 · hasConsumer → PLS002 (lender 100) · pending → PLS004 · nada → PLS005
-    // Por eso, para ver las pantallas de CONSUMO hay que apagar la compuerta de BNPL: con las dos
+    // Por eso, para ver las pantallas de CONSUMER hay que apagar la compuerta de BNPL: con las dos
     // prendidas el recorrido arranca siempre en BNPL y las 11 pantallas de Consumo no se alcanzan.
     producto: 'ambos',                    // ambos | bnpl | consumo | pendiente | ninguno
 };
 /** ¿Contesta la compuerta de este producto que sí hay cupo? */
-const habilitado = (p) => esc.producto === 'ambos' || esc.producto === p;
+const enabledIt = (p) => esc.producto === 'ambos' || esc.producto === p;
 /** La cuenta del cliente, como SUPERSET de nombres. El controller de `list-accounts-and-quota` lee
  *  `['id']` (verificado: sin esa clave tira `Undefined array key "id"` → BNPL999), y otros consumidores
  *  usan `accountId`/`accountNumber`. Se mandan todos: una clave de más es inocua, una de menos es un 500. */
-const CUENTA = {
+const ACCOUNT = {
     // ⚠ `id` va NUMÉRICO. El front valida cada cuenta con `BnplAccountSchema` = `{ id: z.number(),
     // type: z.string(), number: z.string() }` (bnpl-api.schema.ts:3): con `id: '1'` zod rechaza la
     // respuesta COMPLETA, el UC devuelve `success:false` y `loan-info` muestra «Error al cargar la
@@ -118,38 +118,38 @@ const CUENTA = {
 };
 /** Comisión del banco por la compra. Valor arbitrario: el front la MUESTRA (`commission` / `userCommission`
  *  son `z.number()`) y nadie compara contra un esperado. */
-const COMISION = 5_000;
+const COMMISSION = 5_000;
 /** Cuotas del BNPL. «Compra y paga después» es un pago diferido: una sola cuota, a 30 días. */
-const CUOTAS_BNPL = 1;
+const BNPL_INSTALLMENTS = 1;
 /** Fecha de la cuota `i` (0-based), un mes por cuota desde una BASE FIJA. Fija a propósito: el front sólo
  *  la muestra como string, y una fecha estable hace comparables las corridas de la suite de
  *  caracterización (con "hoy + n meses" el screenshot cambiaría cada día). */
-const fechaCuota = (i) => {
+const installmentDate = (i) => {
     const d = new Date(Date.UTC(2026, 7, 15));       // 2026-08-15
     d.setUTCMonth(d.getUTCMonth() + i);
     return d.toISOString().slice(0, 10);
 };
-const llamadas = [];
+const calls = [];
 // códigos emitidos por `generateBillingCode`, para que `retrieve-order-details` pueda contestarlos
-const emitidos = new Map();
+const emitted = new Map();
 let txId = null;          // el bnplTransactionId vigente (BNPL)
 let sessionToken = null;  // el sessionToken vigente (Consumo)
 let validateKey = null;   // el customerValidateKey vigente (Consumo)
-const nuevoSessionToken = () => `mock-session-${randomBytes(16).toString('hex')}`;
-const nuevaValidateKey = () => `mock-validate-key-${randomBytes(48).toString('base64url')}`;
+const newSessionToken = () => `mock-session-${randomBytes(16).toString('hex')}`;
+const newValidateKey = () => `mock-validate-key-${randomBytes(48).toString('base64url')}`;
 /** A dónde vuelve el cliente después de "autenticarse" en el banco. Lo REGISTRA el harness (ver
  *  `/_control/retorno`), porque deducirlo del `document.referrer` no funciona: el wizard (:5174) y este
  *  mock (:8104) son ORÍGENES DISTINTOS y la política default del browser
  *  (`strict-origin-when-cross-origin`) recorta el referrer a `http://localhost:5174/` — sin path. Con eso
  *  la transformación /start/ → /loan-info/ no aplicaba, el regreso caía en `/`, y `/` → `/merchant` →
  *  **`/login`**: el cliente terminaba en el login de ASESOR en un canal autoasistido. */
-let retorno = null;
+let returnValue = null;
 
 const json = (res, code, body) => {
     res.writeHead(code, { 'content-type': 'application/json' });
     res.end(JSON.stringify(body));
 };
-const leer = (req) => new Promise((ok) => {
+const read = (req) => new Promise((ok) => {
     let raw = '';
     req.on('data', (d) => { raw += d; if (raw.length > 2e6) req.destroy(); });
     req.on('end', () => ok(raw));
@@ -165,7 +165,7 @@ const err = (res, status, code, detail) => json(res, status, {
     status, title: 'Error', errors: [{ code, detail }],
 });
 /** Busca el transactionId en el body, en cualquiera de las formas en que el backend lo manda. */
-const txDelBody = (b) => b?.data?.security?.transactionId ?? b?.transactionId ?? b?.bnplTransactionId
+const bodyTx = (b) => b?.data?.security?.transactionId ?? b?.transactionId ?? b?.bnplTransactionId
     ?? b?.data?.info?.bnplTransactionId ?? null;
 
 // ── LA SEGURIDAD DEL GATEWAY, COMO LA DEVOLVIÓ EL BANCO ───────────────────────────────────────────
@@ -179,7 +179,7 @@ const txDelBody = (b) => b?.data?.security?.transactionId ?? b?.transactionId ??
 //   ✔ SÍ, porque es el GATEWAY (APIC) y va a comportarse igual en Development, Testing y producción:
 //       · `Client-Secret` equivocado ................ 401
 //       · sin `json-web-token` ...................... 403 SA403
-//       · JWT ilegible, FIRMADO CON OTRA LLAVE o vencido  403 SA403
+//       · JWT ilegible, SIGNED CON OTRA LLAVE o vencido  403 SA403
 //       · sin `x-client-certificate` ................ 400 SA500  (sí, 400 con código SA500)
 //       · sin `message-id`, o `message-id` que no es UUID v4  400 SA400
 //       · `HEAD /health` sin cabeceras .............. 401 · con Client-Id **y** Client-Secret → 200
@@ -207,14 +207,14 @@ const txDelBody = (b) => b?.data?.security?.transactionId ?? b?.transactionId ??
 /** Rearma el PEM que viaja en `x-client-certificate`: `getCertificateBase64` manda los saltos de línea
  *  como ESPACIOS, y los marcadores («BEGIN CERTIFICATE») también llevan espacios — por eso se extrae el
  *  cuerpo entre marcadores y se reenvuelve, en vez de deshacer el reemplazo. */
-const certificadoDelHeader = (valor) => {
-    const m = /-----BEGIN CERTIFICATE-----([\s\S]*?)-----END CERTIFICATE-----/.exec(valor || '');
+const headerCertificate = (value) => {
+    const m = /-----BEGIN CERTIFICATE-----([\s\S]*?)-----END CERTIFICATE-----/.exec(value || '');
     if (!m) return null;
-    const cuerpo = m[1].replace(/\s+/g, '');
-    if (!cuerpo) return null;
+    const reqBody = m[1].replace(/\s+/g, '');
+    if (!reqBody) return null;
     try {
         return new X509Certificate(
-            `-----BEGIN CERTIFICATE-----\n${cuerpo.match(/.{1,64}/g).join('\n')}\n-----END CERTIFICATE-----\n`,
+            `-----BEGIN CERTIFICATE-----\n${reqBody.match(/.{1,64}/g).join('\n')}\n-----END CERTIFICATE-----\n`,
         );
     } catch { return null; }
 };
@@ -222,10 +222,10 @@ const certificadoDelHeader = (valor) => {
 const desB64url = (s) => Buffer.from(s.replace(/-/g, '+').replace(/_/g, '/'), 'base64');
 
 /** ¿El JWT está firmado con la llave del certificado que vino en la misma petición, y sigue vigente? */
-const firmaValida = (token, cert) => {
-    const partes = String(token).split('.');
-    if (partes.length !== 3) return false;
-    const [h, p, f] = partes;
+const validSignature = (token, cert) => {
+    const parts = String(token).split('.');
+    if (parts.length !== 3) return false;
+    const [h, p, f] = parts;
     try {
         if (JSON.parse(desB64url(h).toString()).alg !== 'RS256') return false;
         const payload = JSON.parse(desB64url(p).toString());
@@ -235,20 +235,20 @@ const firmaValida = (token, cert) => {
 };
 
 /** Los 5 headers del contrato del billing code. Devuelve `null` si pasa, o el error que dio el banco. */
-const seguridadDelGateway = (req) => {
+const gatewaySecurity = (req) => {
     const h = (n) => req.headers[n];
 
     if (!h('client-id') || !h('client-secret')) return { status: 401, detail: 'falta Client-Id o Client-Secret' };
-    if (SECRETO_ESPERADO && h('client-secret') !== SECRETO_ESPERADO) {
+    if (EXPECTED_SECRET && h('client-secret') !== EXPECTED_SECRET) {
         return { status: 401, detail: 'Client-Secret incorrecto' };
     }
 
     if (!h('x-client-certificate')) return { status: 400, code: 'SA500', detail: 'falta x-client-certificate' };
-    const cert = certificadoDelHeader(h('x-client-certificate'));
+    const cert = headerCertificate(h('x-client-certificate'));
     if (!cert) return { status: 400, code: 'SA500', detail: 'x-client-certificate no es un PEM legible' };
 
     if (!h('json-web-token')) return { status: 403, code: 'SA403', detail: 'falta json-web-token' };
-    if (!firmaValida(h('json-web-token'), cert)) {
+    if (!validSignature(h('json-web-token'), cert)) {
         return { status: 403, code: 'SA403',
             detail: 'json-web-token inválido: ilegible, vencido, o no firmado con la llave de ESE certificado'
                 + ' — mirá generateJsonWebToken, no el mock' };
@@ -265,19 +265,19 @@ const seguridadDelGateway = (req) => {
 const server = http.createServer(async (req, res) => {
     const url = new URL(req.url, `http://localhost:${PORT}`);
     const path = url.pathname.replace(/\/+$/, '') || '/';
-    const raw = req.method === 'POST' ? await leer(req) : '';
+    const raw = req.method === 'POST' ? await read(req) : '';
     const body = parse(raw, req.headers['content-type'] || '');
 
     if (path === '/' && req.method === 'GET') {
-        return json(res, 200, { mock: 'bancolombia', puerto: PORT, fail: FAIL, codigo: CODIGO, escenario: esc, transactionId: txId, retorno, llamadas: llamadas.slice(-25) });
+        return json(res, 200, { mock: 'bancolombia', puerto: PORT, fail: FAIL, codigo: CODE, escenario: esc, transactionId: txId, retorno: returnValue, llamadas: calls.slice(-25) });
     }
-    if (path === '/_control/reset') { llamadas.length = 0; txId = null; sessionToken = null; validateKey = null; retorno = null; log('control: reset'); return json(res, 200, { ok: true }); }
+    if (path === '/_control/reset') { calls.length = 0; txId = null; sessionToken = null; validateKey = null; returnValue = null; log('control: reset'); return json(res, 200, { ok: true }); }
     // El harness registra acá a dónde volver: él SÍ conoce el `encryptCode` (lo ve en la URL
     // `/bancolombia/{tipo}/start/{code}` del wizard) y el producto. Sin esto el regreso es adivinanza.
     if (path === '/_control/retorno') {
-        retorno = typeof body.url === 'string' && body.url ? body.url : null;
-        log(`control: retorno ${retorno ?? '(limpio)'}`);
-        return json(res, 200, { ok: true, retorno });
+        returnValue = typeof body.url === 'string' && body.url ? body.url : null;
+        log(`control: retorno ${returnValue ?? '(limpio)'}`);
+        return json(res, 200, { ok: true, retorno: returnValue });
     }
     if (path === '/_control/escenario') {
         for (const k of Object.keys(esc)) if (body[k] !== undefined) esc[k] = body[k];
@@ -285,7 +285,7 @@ const server = http.createServer(async (req, res) => {
         return json(res, 200, { ok: true, escenario: esc });
     }
 
-    // ── EL TIPO DE DOCUMENTO ──────────────────────────────────────────────────────────────────────
+    // ── EL TIPO DE DOCUMENT ──────────────────────────────────────────────────────────────────────
     // El banco valida `type` contra SU lista y contesta `SA400` con este texto exacto ante cualquier
     // valor que no reconozca. Medido en producción el 2026-09-09 (fila `logs.id=12141701`, uReq 552082):
     //
@@ -306,15 +306,15 @@ const server = http.createServer(async (req, res) => {
     // los endpoints con un sobre mínimo para validar la forma de la respuesta contra los esquemas zod
     // del front. Un mock que rechaza lo que no midió deja de ser un oráculo y pasa a ser una opinión.
     // Si algún día se conoce el catálogo del banco, esto pasa a ser una lista blanca.
-    const TIPOS_QUE_EL_BANCO_RECHAZA = ['-'];
-    const tipoInvalido = (t) => typeof t === 'string' && TIPOS_QUE_EL_BANCO_RECHAZA.includes(t.trim());
-    const errTipo = (t) => err(res, 400, 'SA400',
+    const TYPES_THE_BANK_REJECTS = ['-'];
+    const invalidType = (t) => typeof t === 'string' && TYPES_THE_BANK_REJECTS.includes(t.trim());
+    const errType = (t) => err(res, 400, 'SA400',
         'El valor del parámetro type no hace parte de los valores válidos'
         + ` (recibido: ${JSON.stringify(t)})`);
 
     // ── el contrato ───────────────────────────────────────────────────────────────────────────────
     const tail = (s) => path.endsWith(s);
-    llamadas.push({ at: new Date().toISOString(), path, tx: txDelBody(body) });
+    calls.push({ at: new Date().toISOString(), path, tx: bodyTx(body) });
     log(`${req.method} ${path}`);
 
     if (FAIL) return err(res, 500, 'SP500', 'Error interno (MOCK_BC_FAIL=1)');
@@ -342,13 +342,13 @@ const server = http.createServer(async (req, res) => {
     // Deliberadamente NO exige el JWT ni el certificado: si los exigiera, una firma mala haría fallar la
     // sonda y se perdería la discriminación que la justifica (lo dice su propio docblock).
     if (tail('/health') && (req.method === 'HEAD' || req.method === 'GET')) {
-        const autenticado = req.headers['client-id'] && req.headers['client-secret']
-            && (!SECRETO_ESPERADO || req.headers['client-secret'] === SECRETO_ESPERADO);
+        const authenticated = req.headers['client-id'] && req.headers['client-secret']
+            && (!EXPECTED_SECRET || req.headers['client-secret'] === EXPECTED_SECRET);
         if (req.method === 'HEAD') {
-            res.writeHead(autenticado ? 200 : 401, { 'content-type': 'application/json' });
+            res.writeHead(authenticated ? 200 : 401, { 'content-type': 'application/json' });
             return res.end();
         }
-        return autenticado
+        return authenticated
             ? json(res, 200, { data: { status: 'UP' } })
             : err(res, 401, undefined, 'falta Client-Id o Client-Secret');
     }
@@ -356,9 +356,9 @@ const server = http.createServer(async (req, res) => {
     if (tail('/generateBillingCode') && req.method === 'POST') {
         // Antes acá los cinco headers faltantes daban TODOS `400 SA400`. El banco los distingue —401,
         // 403 SA403 y 400 SA500 según cuál falle— y esa distinción es la que usa `health()` para separar
-        // «el canal está mal» de «mi firma está mal». Ver `seguridadDelGateway`.
-        const mal = seguridadDelGateway(req);
-        if (mal) return err(res, mal.status, mal.code, mal.detail);
+        // «el canal está mal» de «mi firma está mal». Ver `gatewaySecurity`.
+        const bad = gatewaySecurity(req);
+        if (bad) return err(res, bad.status, bad.code, bad.detail);
 
         const tx = body?.data?.security?.transactionId;
         const ci = body?.data?.customer?.contactInformation;
@@ -366,29 +366,29 @@ const server = http.createServer(async (req, res) => {
             return err(res, 400, 'SA400',
                 'el request no está anidado: se espera data.security.transactionId + data.customer.contactInformation');
         }
-        for (const [campo, min, max] of [['address', 1, 20], ['cityCode', 5, 20], ['departmentCode', 2, 20]]) {
-            const v = ci[campo];
+        for (const [field, min, max] of [['address', 1, 20], ['cityCode', 5, 20], ['departmentCode', 2, 20]]) {
+            const v = ci[field];
             if (typeof v !== 'string' || v.length < min || v.length > max) {
-                return err(res, 400, 'SA400', `${campo} inválido (${min}-${max}): ${JSON.stringify(v)}`);
+                return err(res, 400, 'SA400', `${field} inválido (${min}-${max}): ${JSON.stringify(v)}`);
             }
         }
 
         // determinista por transactionId: dos llamadas con el mismo tx dan el mismo código, como el banco
         const code = [...tx].reduce((h, c) => (h * 31 + c.charCodeAt(0)) % 0xffffffff, 7)
             .toString(16).padStart(8, '0').repeat(3).slice(0, 20);
-        emitidos.set(code, { tx, ...ci, at: new Date().toISOString() });
+        emitted.set(code, { tx, ...ci, at: new Date().toISOString() });
         return json(res, 200, { data: { billingCode: code } });
     }
 
     if (tail('/retrieve-order-details') && req.method === 'GET') {
         // Los mismos 5 headers que el POST: `BancolombiaBillingCode::billingHeaders` los arma una sola
         // vez y los usa en los dos métodos.
-        const malGet = seguridadDelGateway(req);
-        if (malGet) return err(res, malGet.status, malGet.code, malGet.detail);
+        const badGet = gatewaySecurity(req);
+        if (badGet) return err(res, badGet.status, badGet.code, badGet.detail);
 
         const code = url.searchParams.get('billingCode');
-        const orden = emitidos.get(code);
-        if (!orden) return err(res, 404, 'BP40421052', `sin orden para billingCode ${code}`);
+        const order = emitted.get(code);
+        if (!order) return err(res, 404, 'BP40421052', `sin orden para billingCode ${code}`);
 
         return json(res, 200, { data: { orderInformation: {
             invoiceId: `MOCK-${code.slice(0, 8)}`,
@@ -397,7 +397,7 @@ const server = http.createServer(async (req, res) => {
             // poder ejercitar el camino "todavía no facturada" sin tocar código.
             billingStatus: esc.billingStatus || 'INVOICED',
             totalAmount: 1500000.99,
-            createDateTime: orden.at,
+            createDateTime: order.at,
         } } });
     }
 
@@ -405,7 +405,7 @@ const server = http.createServer(async (req, res) => {
     // El flujo de Consumo manda al cliente a autenticarse en Bancolombia (clave dinámica) y vuelve con un
     // `code`. Sin una página real acá, el front navega a un JSON y el recorrido visual muere. Mismo patrón
     // que `mock-bank/index.html` para los otros lenders: no simula la seguridad, simula el REGRESO.
-    // ⚠ LAS DOS RUTAS, porque cada producto manda a la suya: BNPL devuelve `data.url` →
+    // ⚠ LAS DOS PATHS, porque cada producto manda a la suya: BNPL devuelve `data.url` →
     // `/_login-simulado` (login del banco) y Consumo devuelve `data.security.urlAuthenticate` →
     // `/_autenticacion` (clave dinámica). Servir sólo una dejaba a la otra cayendo en el catch-all, que
     // responde `{"data":{"status":"OK"}}` — y el cliente veía ESE JSON crudo en el navegador en vez de una
@@ -433,7 +433,7 @@ flujo con el <code>code</code> que el wizard espera.</p>
   // (POST /_control/retorno) y el referrer queda sólo como respaldo, y únicamente si trae /start/.
   // (Sin backticks a propósito: este script vive DENTRO de un template literal del server y un backtick
   //  acá lo termina — ya rompió el mock una vez.)
-  const fijo = ${JSON.stringify(retorno)};
+  const fijo = ${JSON.stringify(returnValue)};
   const delReferrer = () => {
     const ref = document.referrer;
     if (!ref || !ref.includes('/start/')) return null;   // sin path útil no se inventa un destino
@@ -465,7 +465,7 @@ flujo con el <code>code</code> que el wizard espera.</p>
     // provide-authentication / session: acá NACE el bnplTransactionId — el único insumo que después
     // Bancolombia exige para emitir el código de compra (`data.security.transactionId`).
     if (tail('/auth/provide-authentication') || tail('/auth/session')) {
-        txId = txDelBody(body) ?? txId ?? randomUUID();
+        txId = bodyTx(body) ?? txId ?? randomUUID();
         return json(res, 200, {
             data: {
                 info: { bnplTransactionId: txId, status: 'OK' },
@@ -475,7 +475,7 @@ flujo con el <code>code</code> que el wizard espera.</p>
         });
     }
     if (tail('/credit-quota-information/retrieve-quota')) {
-        txId = txDelBody(body) ?? txId ?? randomUUID();
+        txId = bodyTx(body) ?? txId ?? randomUUID();
         return json(res, 200, {
             data: {
                 hasQuota: esc.hasQuota, balance: esc.balance, availableQuota: esc.balance,
@@ -485,21 +485,21 @@ flujo con el <code>code</code> que el wizard espera.</p>
                 // signatureMethod + balance + commission + account.accounts[]. Faltando UNA, zod tumba la
                 // respuesta entera y la pantalla dice sólo «Error al cargar la información».
                 signatureMethod: 'DYNAMIC_KEY',   // el front lo arrastra, no lo compara con nada
-                commission: COMISION,
+                commission: COMMISSION,
                 // ⚠ LAS CUENTAS VAN ANIDADAS EN `account.accounts` — no basta con la lista plana.
                 // `list-accounts-and-quota` relee el paso `retrieve_quota` que quedó guardado en
                 // `lender_integration_flows` y corta con `!isset($retrieveQuota['account']['accounts'])`
                 // → `BNPL010 retrieve quota missing or invalid`. La lista plana se deja además por si
                 // algún consumidor la lee así (superset a propósito).
                 account: {
-                    accounts: [CUENTA],
+                    accounts: [ACCOUNT],
                 },
-                accounts: [CUENTA],
+                accounts: [ACCOUNT],
             },
         });
     }
     // COMPUERTA DE BNPL. Dos consumidores: el LISTADO (`validatePreApproveLender` → `validateQuota`, que
-    // sólo mira `data.hasQuota`) y la DECISIÓN DE PRODUCTO del canal QR, que exige `data.validate === true`
+    // sólo mira `data.hasQuota`) y la DECISIÓN DE PRODUCT del canal QR, que exige `data.validate === true`
     // (`PreApprovedLenderService::validateBancolombiaPreapprove`). Se responde a los dos.
     if (tail('/prospect-validation/validate-quota')) {
         // Mismo campo, otro sobre (acá va plano en `data`). ⚠ En local esta guarda casi nunca dispara:
@@ -507,10 +507,10 @@ flujo con el <code>code</code> que el wizard espera.</p>
         // `app()->environment() === 'production' ? $user->document_type : 'CC'`, así que fuera de
         // producción siempre viaja `CC`. Se valida igual para que el día que ese ternario se quite —o
         // que otro consumidor mande el tipo real— el mock no vuelva a tapar el problema.
-        const tipoBnpl = body?.data?.documentType;
-        if (tipoInvalido(tipoBnpl)) return errTipo(tipoBnpl);
+        const bnplType = body?.data?.documentType;
+        if (invalidType(bnplType)) return errType(bnplType);
 
-        const ok = esc.hasQuota && habilitado('bnpl');
+        const ok = esc.hasQuota && enabledIt('bnpl');
         return json(res, 200, { data: { hasQuota: ok, validate: ok, balance: esc.balance } });
     }
     if (tail('/payments/select-account')) {
@@ -519,16 +519,16 @@ flujo con el <code>code</code> que el wizard espera.</p>
         // Se devuelve por ECO de lo que mandó el backend: fuera de producción manda fijo
         // `{id:'1', type:'CUENTA_DE_AHORRO', number:'9220'}` (BancolombiaBnpl.php::selectAccount), así que
         // el eco es lo más fiel y además mantiene la cuenta idéntica en todas las pantallas.
-        const pedida = body?.data?.account ?? {};
+        const requested = body?.data?.account ?? {};
         return json(res, 200, {
             data: {
                 selected: true, status: 'OK',
                 account: {
-                    id: String(pedida.id ?? CUENTA.accountId),
-                    type: String(pedida.type ?? CUENTA.type),
-                    number: String(pedida.number ?? CUENTA.number),
+                    id: String(requested.id ?? ACCOUNT.accountId),
+                    type: String(requested.type ?? ACCOUNT.type),
+                    number: String(requested.number ?? ACCOUNT.number),
                 },
-                accountId: String(pedida.id ?? CUENTA.accountId),
+                accountId: String(requested.id ?? ACCOUNT.accountId),
                 info: { bnplTransactionId: txId },
             },
         });
@@ -538,21 +538,21 @@ flujo con el <code>code</code> que el wizard espera.</p>
         // numberInstallments + installments[] con {installmentValue, installmentFee: array,
         // installmentTotal, paymentDate}. Sin el plan de cuotas la pantalla del resumen no carga.
         const total = Number(body?.data?.totalPrice ?? body?.data?.amount ?? esc.balance) || esc.balance;
-        const cuotas = Number(body?.data?.numberInstallments) || CUOTAS_BNPL;
-        const valor = Math.round(total / cuotas);
-        const installments = Array.from({ length: cuotas }, (_, i) => ({
+        const installments = Number(body?.data?.numberInstallments) || BNPL_INSTALLMENTS;
+        const value = Math.round(total / installments);
+        const installmentsList = Array.from({ length: installments }, (_, i) => ({
             installmentNumber: i + 1,
-            installmentValue: valor,
+            installmentValue: value,
             installmentFee: [],                       // z.array(z.unknown()): puede ir vacío, no ausente
-            installmentTotal: valor + Math.round(COMISION / cuotas),
-            paymentDate: fechaCuota(i),
+            installmentTotal: value + Math.round(COMMISSION / installments),
+            paymentDate: installmentDate(i),
         }));
         return json(res, 200, {
             data: {
                 purchaseId: randomUUID(), status: 'OK',
-                userCommission: COMISION,
-                numberInstallments: cuotas,
-                installments,
+                userCommission: COMMISSION,
+                numberInstallments: installments,
+                installments: installmentsList,
                 totalPrice: total,
                 info: { bnplTransactionId: txId },
             },
@@ -584,7 +584,7 @@ flujo con el <code>code</code> que el wizard espera.</p>
                 // `transactionId`) rompe más que no mandarla — opcional no significa "cualquier cosa".
                 security: {
                     transactionId: txId,
-                    customerValidateKey: validateKey ?? (validateKey = nuevaValidateKey()),
+                    customerValidateKey: validateKey ?? (validateKey = newValidateKey()),
                 },
             },
         });
@@ -597,8 +597,8 @@ flujo con el <code>code</code> que el wizard espera.</p>
                 accepted: true, status: 'OK', registered: true,
                 security: {
                     transactionId: txId,
-                    customerValidateKey: validateKey ?? (validateKey = nuevaValidateKey()),
-                    sessionToken: sessionToken ?? (sessionToken = nuevoSessionToken()),
+                    customerValidateKey: validateKey ?? (validateKey = newValidateKey()),
+                    sessionToken: sessionToken ?? (sessionToken = newSessionToken()),
                 },
             },
         });
@@ -619,22 +619,22 @@ flujo con el <code>code</code> que el wizard espera.</p>
         });
     }
 
-    // ── CONSUMO ───────────────────────────────────────────────────────────────────────────────────
+    // ── CONSUMER ───────────────────────────────────────────────────────────────────────────────────
     // validate: de acá sale el `customerValidateKey`, que es el transactionId del producto Consumo
     // (`BancolombiaLoanController.php:187` lo guarda como `loan_validate_key`).
     if (tail('/customers/validate')) {
         // Lo PRIMERO, antes de la compuerta de producto: el banco valida el sobre antes de decidir.
-        const tipoConsumo = body?.data?.customer?.identification?.type;
-        if (tipoInvalido(tipoConsumo)) return errTipo(tipoConsumo);
+        const consumerType = body?.data?.customer?.identification?.type;
+        if (invalidType(consumerType)) return errType(consumerType);
 
         // La key se GUARDA (no es local): varios pasos posteriores de Consumo se la devuelven al front y
         // el schema la exige (`LoanSecuritySchema.customerValidateKey`). Que sea la misma en todo el
         // recorrido es lo que hace el flujo coherente.
-        const key = validateKey ?? (validateKey = nuevaValidateKey());
-        // COMPUERTA DE CONSUMO. Mismo endpoint para la decisión de producto y para el paso del flujo, así
+        const key = validateKey ?? (validateKey = newValidateKey());
+        // COMPUERTA DE CONSUMER. Mismo endpoint para la decisión de producto y para el paso del flujo, así
         // que la perilla se aplica acá. `BP40920507@409` es la respuesta REAL del banco para "persona no
         // habilitada" y el servicio la trata como "sin cupo", no como error (por eso no rompe el recorrido).
-        if (!habilitado('consumo') && esc.producto !== 'pendiente') {
+        if (!enabledIt('consumo') && esc.producto !== 'pendiente') {
             return err(res, 409, 'BP40920507', 'Persona no habilitada (escenario del mock)');
         }
         return json(res, 200, {
@@ -663,13 +663,13 @@ flujo con el <code>code</code> que el wizard espera.</p>
     // `$bancolombiaAuthenticate['data']` (:343). Sin él, register-terms / enable-offers / select-insurance
     // / e-sign / origination revientan todos con `Undefined array key "sessionToken"` → LOAN999.
     if (tail('/customers/authenticate')) {
-        sessionToken = sessionToken ?? nuevoSessionToken();
+        sessionToken = sessionToken ?? newSessionToken();
         return json(res, 200, {
             data: {
                 status: 'Success', authenticated: true,
                 security: {
                     sessionToken,
-                    customerValidateKey: body?.data?.security?.customerValidateKey ?? validateKey ?? (validateKey = nuevaValidateKey()),
+                    customerValidateKey: body?.data?.security?.customerValidateKey ?? validateKey ?? (validateKey = newValidateKey()),
                     // A la página que el mock SÍ sirve. Antes apuntaba a `/_clave-dinamica-simulada`, que no
                     // existe: caía en el catch-all y el cliente veía `{"data":{"status":"OK"}}` crudo.
                     urlDynamicKey: `http://localhost:${PORT}/_autenticacion`,
@@ -687,8 +687,8 @@ flujo con el <code>code</code> que el wizard espera.</p>
                 status: 'Success', signed: true, documentId: randomUUID(),
                 security: {
                     urlDynamicKey: `http://localhost:${PORT}/_autenticacion`,
-                    customerValidateKey: validateKey ?? (validateKey = nuevaValidateKey()),
-                    sessionToken: sessionToken ?? (sessionToken = nuevoSessionToken()),
+                    customerValidateKey: validateKey ?? (validateKey = newValidateKey()),
+                    sessionToken: sessionToken ?? (sessionToken = newSessionToken()),
                 },
             },
         });
@@ -711,7 +711,7 @@ flujo con el <code>code</code> que el wizard espera.</p>
                 products: [{
                     productId: '14', id: '14', name: 'Crédito de consumo',
                     totalAmount: esc.balance,
-                    expirationDate: fechaCuota(6),
+                    expirationDate: installmentDate(6),
                     interestRates: [{
                         type: 'TASA_FIJA',
                         monthOverdue: 2.5, arreas: 2.5, effectiveAnnual: 23.87, nominalAnnual: 21.6,
@@ -736,9 +736,9 @@ flujo con el <code>code</code> que el wizard espera.</p>
         // `{installment, paymentDay, interestRate{…6 campos…}, expirationDate, insurances[{type,amount}]}`
         // (`LoanDetailSimulationPayloadSchema` + `LoanInstallmentDataSchema`). El `simulation` plano que
         // había acá le servía al backend pero el front no tenía de dónde armar la tabla de cuotas.
-        const cuotas = 12;
-        const valor = Math.round(esc.balance / cuotas);
-        const tasa = {
+        const installments = 12;
+        const value = Math.round(esc.balance / installments);
+        const rate = {
             monthOverdue: 2.5, arreas: 2.5, effectiveAnnual: 23.87, nominalAnnual: 21.6,
             type: 'TASA_FIJA', variableInterestRateAdditionalPoints: 0,
         };
@@ -755,35 +755,35 @@ flujo con el <code>code</code> que el wizard espera.</p>
         // `installment + Σ insurances.amount`, y la tasa sale de `interestRate`.
         // Por eso van DOS y no doce: mandar 12 pintaba 12 tarjetas idénticas «Cobertura Básica» (y el propio
         // `CoveragePlansResponseSchema` acota `plans` a `.min(1).max(2)`).
-        const simulacion = {
-            security: { customerValidateKey: validateKey ?? (validateKey = nuevaValidateKey()) },
+        const simulation = {
+            security: { customerValidateKey: validateKey ?? (validateKey = newValidateKey()) },
             installmentDatas: [
                 {   // Básica: sólo seguro de vida
-                    installment: valor,
+                    installment: value,
                     paymentDay: 15,
-                    interestRate: tasa,
-                    expirationDate: fechaCuota(0),
+                    interestRate: rate,
+                    expirationDate: installmentDate(0),
                     insurances: [{ type: 'SEGURO_DE_VIDA', amount: 12_000 }],
                 },
                 {   // Plus: agrega desempleo → nombre «Plus» + tasa preferencial (más baja)
-                    installment: valor,
+                    installment: value,
                     paymentDay: 15,
-                    interestRate: { ...tasa, monthOverdue: 2.1, effectiveAnnual: 20.5 },
-                    expirationDate: fechaCuota(0),
+                    interestRate: { ...rate, monthOverdue: 2.1, effectiveAnnual: 20.5 },
+                    expirationDate: installmentDate(0),
                     insurances: [
                         { type: 'SEGURO_DE_VIDA', amount: 12_000 },
                         { type: 'SEGURO_DE_DESEMPLEO', amount: 9_000 },
                     ],
                 },
             ],
-            amount: esc.balance, feeNumber: cuotas, feeValue: valor, rate: 1.8, totalAmount: esc.balance,
+            amount: esc.balance, feeNumber: installments, feeValue: value, rate: 1.8, totalAmount: esc.balance,
         };
         return json(res, 200, {
             data: {
                 status: 'Success',
-                ...simulacion,
-                simulation: simulacion,
-                fees: [{ number: 1, value: valor }],
+                ...simulation,
+                simulation: simulation,
+                fees: [{ number: 1, value: value }],
             },
         });
     }
@@ -793,9 +793,9 @@ flujo con el <code>code</code> que el wizard espera.</p>
         return json(res, 200, {
             data: {
                 status: 'Success',
-                security: { customerValidateKey: validateKey ?? (validateKey = nuevaValidateKey()) },
-                depositAccount: [{ type: CUENTA.type, number: CUENTA.number }],
-                accounts: [CUENTA],
+                security: { customerValidateKey: validateKey ?? (validateKey = newValidateKey()) },
+                depositAccount: [{ type: ACCOUNT.type, number: ACCOUNT.number }],
+                accounts: [ACCOUNT],
             },
         });
     }
@@ -811,7 +811,7 @@ flujo con el <code>code</code> que el wizard espera.</p>
                     offer: { id: 'mock-offer-1', amount: esc.balance, status: 'APPROVED' },
                     result: 'APP',
                 },
-                security: { customerValidateKey: validateKey ?? (validateKey = nuevaValidateKey()) },
+                security: { customerValidateKey: validateKey ?? (validateKey = newValidateKey()) },
             },
         });
     }
@@ -828,7 +828,7 @@ flujo con el <code>code</code> que el wizard espera.</p>
                     { name: 'Pagaré', format: 'pdf', url: `http://localhost:${PORT}/_terminos` },
                     { name: 'Condiciones del crédito', format: 'pdf', url: `http://localhost:${PORT}/_terminos` },
                 ],
-                security: { customerValidateKey: validateKey ?? (validateKey = nuevaValidateKey()) },
+                security: { customerValidateKey: validateKey ?? (validateKey = newValidateKey()) },
             },
         });
     }

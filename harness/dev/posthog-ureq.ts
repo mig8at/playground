@@ -13,8 +13,8 @@
 // sin hora una solicitud homónima de prod contamina la respuesta. Sin `--desde` se toman 6 horas.
 process.env.E2E_TARGET ||= 'dev';
 export {};
-const { posthogConfig, porQueNo, eventosDe, imprimirEventos, cruzar, imprimirCruce, RAMA_DEL_FRONT,
-        logsDe, imprimirLogs } = await import('../pkg/posthog.ts');
+const { posthogConfig, whyNot, eventsOf, printEvents, cross, printCrossing, FRONT_BRANCH,
+        logsOf, printLogs } = await import('../pkg/posthog.ts');
 const { TARGET } = await import('../pkg/env.ts');
 
 const arg = (n: string, d = ''): string => {
@@ -25,30 +25,30 @@ const ureq = process.argv.slice(2).find((a) => /^\d+$/.test(a));
 if (!ureq) { console.error('uso: node dev/posthog-ureq.ts <ureq> [--desde ISO] [--pantallas a,b,c]'); process.exit(2); }
 
 const c = posthogConfig();
-const no = porQueNo(c);
+const no = whyNot(c);
 if (no) { console.log(`  PostHog: no se consulta — ${no}`); process.exit(2); }
 
-const desde = arg('desde') ? new Date(arg('desde')) : new Date(Date.now() - 6 * 3600_000);
-console.log(`\n  POSTHOG · uReq ${ureq} · target ${TARGET} · environment=${c.env} · desde ${desde.toISOString()}\n`);
-const ev = await eventosDe(c, ureq, desde);
+const since = arg('desde') ? new Date(arg('desde')) : new Date(Date.now() - 6 * 3600_000);
+console.log(`\n  POSTHOG · uReq ${ureq} · target ${TARGET} · environment=${c.env} · desde ${since.toISOString()}\n`);
+const ev = await eventsOf(c, ureq, since);
 const srv = ev.filter((e) => /posthog-node/.test(e.lib)).length;
 console.log(`  ▸ ── EVENTOS · ${ev.length} · ${srv} del servidor · ${ev.length - srv} del navegador ──`);
-if (ev.length) imprimirEventos(ev);
+if (ev.length) printEvents(ev);
 else console.log('  ▸ ninguno: o la ingesta sigue atrasada, o esta solicitud no pasó por el front en este ambiente/ventana.');
 
-const pantallas = arg('pantallas').split(',').map((s) => s.trim()).filter(Boolean);
-if (pantallas.length && ev.length) {
-    console.log(`\n  ▸ ── el cruce con ${pantallas.length} pantalla(s) (eventos esperados: derivados de ${RAMA_DEL_FRONT[TARGET] ?? 'main'}) ──`);
-    imprimirCruce(cruzar(pantallas.map((p) => `/x/y/0/${p}`), ev));
+const screens = arg('pantallas').split(',').map((s) => s.trim()).filter(Boolean);
+if (screens.length && ev.length) {
+    console.log(`\n  ▸ ── el cruce con ${screens.length} pantalla(s) (eventos esperados: derivados de ${FRONT_BRANCH[TARGET] ?? 'main'}) ──`);
+    printCrossing(cross(screens.map((p) => `/x/y/0/${p}`), ev));
 }
 
 // El segundo canal, que es el que dice EN QUÉ PANTALLA se rompió. Va entero (no sólo los errores):
 // preguntando por una solicitud puntual, las líneas de info son el recorrido del servidor y ubican el
 // error en su contexto. Para ver sólo lo roto de un ambiente: `dev/posthog-errores.ts`.
-const ls = await logsDe(c, ureq, desde);
-const malos = ls.filter((l) => l.nivel === 'error' || l.nivel === 'warn');
-console.log(`\n  ▸ ── LOGS del front · ${ls.length} línea(s) · ${malos.length} de nivel error/warn ──`);
+const ls = await logsOf(c, ureq, since);
+const badList = ls.filter((l) => l.nivel === 'error' || l.nivel === 'warn');
+console.log(`\n  ▸ ── LOGS del front · ${ls.length} línea(s) · ${badList.length} de nivel error/warn ──`);
 if (!ls.length) console.log('  ▸ ninguna. warn y error no se muestrean, así que «sin errores» sí vale; las de info sí pueden faltar.');
-else imprimirLogs(ls);
+else printLogs(ls);
 if (!ev.length && !ls.length) process.exit(1);
 console.log();

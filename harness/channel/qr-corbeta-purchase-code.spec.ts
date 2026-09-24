@@ -57,16 +57,16 @@ const mock = async (path: string, body?: unknown) => {
     return r ? await r.json().catch(() => null) : null;
 };
 
-const generar = (ur: number) => post(`/api/onboarding/purchase-code/generate/${ur}`);
-const tokenEnBd = (ur: number) => one<{ v: string | null }>(
+const generate = (ur: number) => post(`/api/onboarding/purchase-code/generate/${ur}`);
+const tokenInDb = (ur: number) => one<{ v: string | null }>(
     "SELECT JSON_UNQUOTE(JSON_EXTRACT(data_json,'$.verification_token')) v FROM user_request_additional_information WHERE user_request_id=? AND type_data LIKE '%barcode%' ORDER BY id DESC LIMIT 1", [ur]);
 
 let USER_ID = 0;
-let mockArriba = false;
-const creadas: number[] = [];
+let mockUp = false;
+const createdOnes: number[] = [];
 
 test.beforeAll(async () => {
-    mockArriba = !!(await mock('/'));
+    mockUp = !!(await mock('/'));
     // Un usuario propio de la suite: no se toca el teléfono de bypass (que el scrub de bin/asesor borra).
     const doc = `PC-${Date.now()}`;
     const ins = await exec(
@@ -79,7 +79,7 @@ test.beforeAll(async () => {
 
 test.afterAll(async () => {
     // Limpia SOLO lo que creó la suite (por id), nunca por teléfono: el scrub por teléfono es de bin/asesor.
-    for (const ur of creadas) {
+    for (const ur of createdOnes) {
         await exec('DELETE FROM user_request_additional_information WHERE user_request_id=?', [ur]).catch(() => {});
         await exec('DELETE FROM purchase_codes WHERE user_request_id=?', [ur]).catch(() => {});
         await exec('DELETE FROM lender_integration_flows WHERE user_request_id=?', [ur]).catch(() => {});
@@ -91,9 +91,9 @@ test.afterAll(async () => {
 });
 
 /** Siembra una solicitud lista (estado 25) y la registra para el cleanup. */
-async function lista(producto: 'bnpl' | 'consumo' = 'bnpl') {
-    const s = await seedPurchaseCodeReady({ userId: USER_ID, producto });
-    if (s) creadas.push(s.userRequestId);
+async function list(product: 'bnpl' | 'consumo' = 'bnpl') {
+    const s = await seedPurchaseCodeReady({ userId: USER_ID, producto: product });
+    if (s) createdOnes.push(s.userRequestId);
     return s;
 }
 
@@ -107,14 +107,14 @@ test.describe('código de compra en caja — comportamiento ACTUAL (proveedor: C
     test.skip(process.env.E2E_TARGET !== 'local', 'escribe en la BD: sólo local');
     test.beforeEach(() => {
         test.skip(!USER_ID, 'no se pudo crear el usuario de la suite');
-        test.skip(!mockArriba, `mock-corbeta no responde en ${MOCK} → bin/mock-corbeta start`);
+        test.skip(!mockUp, `mock-corbeta no responde en ${MOCK} → bin/mock-corbeta start`);
     });
 
     test('BNPL: emite el PIN, lo persiste y lo muestra', async () => {
-        const s = await lista('bnpl');
+        const s = await list('bnpl');
         expect(s, 'sin sucursal Corbeta con 68/100 habilitados').not.toBeNull();
 
-        const r = await generar(s!.userRequestId);
+        const r = await generate(s!.userRequestId);
         expect(r.status, JSON.stringify(r.json).slice(0, 300)).toBe(200);
 
         const code = r.json?.data?.code;
@@ -124,16 +124,16 @@ test.describe('código de compra en caja — comportamiento ACTUAL (proveedor: C
         expect(r.json?.data?.showBarCode).toBe(true);
 
         // Persistencia: la MISMA columna que va a seguir usando el proveedor nuevo (decisión D2).
-        expect((await tokenEnBd(s!.userRequestId))?.v).toBe(code);
+        expect((await tokenInDb(s!.userRequestId))?.v).toBe(code);
         // Y la orden tiene que existir del lado del proveedor.
-        const ordenes = (await mock('/'))?.ordenes ?? [];
-        expect(ordenes.some((o: any) => o.pin === code), 'la orden no quedó en el proveedor').toBe(true);
+        const orders = (await mock('/'))?.ordenes ?? [];
+        expect(orders.some((o: any) => o.pin === code), 'la orden no quedó en el proveedor').toBe(true);
     });
 
     test('Consumo: mismo contrato que BNPL (cambia el convenio, no la forma)', async () => {
-        const s = await lista('consumo');
+        const s = await list('consumo');
         expect(s).not.toBeNull();
-        const r = await generar(s!.userRequestId);
+        const r = await generate(s!.userRequestId);
         expect(r.status, JSON.stringify(r.json).slice(0, 300)).toBe(200);
         expect(r.json?.data?.code).toMatch(/^[a-f0-9]{20,}$/);
         // `payment_method` es lo único que distingue los productos en la respuesta al front.
@@ -141,9 +141,9 @@ test.describe('código de compra en caja — comportamiento ACTUAL (proveedor: C
     });
 
     test('segunda llamada: devuelve EL MISMO código, no emite otro', async () => {
-        const s = await lista('bnpl');
-        const a = await generar(s!.userRequestId);
-        const b = await generar(s!.userRequestId);
+        const s = await list('bnpl');
+        const a = await generate(s!.userRequestId);
+        const b = await generate(s!.userRequestId);
         expect(a.json?.data?.code).toBeTruthy();
         expect(b.json?.data?.code).toBe(a.json?.data?.code);
         // ⚠ LOS CÓDIGOS VAN AL REVÉS DE LO QUE SUGIERE EL NÚMERO, y el handoff los documenta invertidos.
@@ -159,16 +159,16 @@ test.describe('código de compra en caja — comportamiento ACTUAL (proveedor: C
     });
 
     test('YA FACTURADA → deja de mostrar el código (hoy sale del FILTRO, no de una regla)', async () => {
-        const s = await lista('bnpl');
-        const primera = await generar(s!.userRequestId);
-        const code = primera.json?.data?.code;
-        expect(primera.json?.data?.showBarCode).toBe(true);
+        const s = await list('bnpl');
+        const first = await generate(s!.userRequestId);
+        const code = first.json?.data?.code;
+        expect(first.json?.data?.showBarCode).toBe(true);
 
         // El cliente pagó en la caja: la orden pasa a facturada (EstadoOrden 3) del lado del proveedor.
         const f = await mock('/_control/facturar', { pin: code });
         expect(f?.ok, 'el mock no pudo facturar esa orden').toBe(true);
 
-        const despues = await generar(s!.userRequestId);
+        const after = await generate(s!.userRequestId);
         // ESTE es el invariante a preservar cuando el emisor pase a ser Bancolombia. Con el proveedor
         // nuevo tendrá que salir de mapear `billingStatus === 'INVOICED'`, explícito.
         //
@@ -177,32 +177,32 @@ test.describe('código de compra en caja — comportamiento ACTUAL (proveedor: C
         // `true`** con el comentario "si llego a este punto es porque esta la orden lista para facturar".
         // O sea la regla de "ya facturada" existe únicamente al RE-consultar. Por eso este caso llama dos
         // veces: la segunda es la única que puede decir false.
-        expect(despues.json?.code, 'la re-consulta pasa por la rama que sí mira el estado').toBe('PCS001');
-        expect(despues.json?.data?.showBarCode, 'una orden ya facturada NO debe volver a mostrar el código').toBe(false);
+        expect(after.json?.code, 'la re-consulta pasa por la rama que sí mira el estado').toBe('PCS001');
+        expect(after.json?.data?.showBarCode, 'una orden ya facturada NO debe volver a mostrar el código').toBe(false);
         // El código sigue devolviéndose (es el histórico); lo que cambia es que no se muestra.
-        expect(despues.json?.data?.code).toBe(code);
+        expect(after.json?.data?.code).toBe(code);
     });
 
     test('guard: fuera del estado 25 no emite (PCS000)', async () => {
-        const s = await lista('bnpl');
+        const s = await list('bnpl');
         // 9 = "Formulario de perfil": cualquier estado que no sea 25 tiene que cortar.
         await exec('UPDATE user_requests SET user_request_status_id=9 WHERE id=?', [s!.userRequestId]);
-        const r = await generar(s!.userRequestId);
+        const r = await generate(s!.userRequestId);
         expect(r.json?.code).toBe('PCS000');
         expect(r.json?.data?.code ?? null).toBeNull();
     });
 
     test('guard: comercio que no es Corbeta no emite (PCS000)', async () => {
-        const s = await lista('bnpl');
+        const s = await list('bnpl');
         // Se saca al comercio del gate moviendo la solicitud a un allied que no está en el Setting.
-        const otro = await one<{ id: number }>(
+        const another = await one<{ id: number }>(
             `SELECT a.id FROM allieds a WHERE a.id NOT IN (
                  SELECT CAST(jt.v AS UNSIGNED) FROM settings s,
                  JSON_TABLE(s.value,'$[*]' COLUMNS (v VARCHAR(16) PATH '$')) jt WHERE s.\`key\`='corbeta_allieds')
              LIMIT 1`);
-        test.skip(!otro, 'no hay un allied no-Corbeta para el caso');
-        await exec('UPDATE user_requests SET allied_id=? WHERE id=?', [otro!.id, s!.userRequestId]);
-        const r = await generar(s!.userRequestId);
+        test.skip(!another, 'no hay un allied no-Corbeta para el caso');
+        await exec('UPDATE user_requests SET allied_id=? WHERE id=?', [another!.id, s!.userRequestId]);
+        const r = await generate(s!.userRequestId);
         expect(r.json?.code).toBe('PCS000');
     });
 
@@ -219,11 +219,11 @@ test.describe('código de compra en caja — comportamiento ACTUAL (proveedor: C
         //
         // Se congela el comportamiento REAL: si el proveedor nuevo lo mejora (un error de negocio con
         // código propio) o lo empeora, este test lo dice.
-        const s = await lista('bnpl');
+        const s = await list('bnpl');
         await mock('/_control/reset');
-        const antes = await fetch(`${MOCK}/_control/fail`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ fail: true }) }).catch(() => null);
-        test.skip(!antes || !antes.ok, 'el mock no expone /_control/fail en esta versión');
-        const r = await generar(s!.userRequestId);
+        const before = await fetch(`${MOCK}/_control/fail`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ fail: true }) }).catch(() => null);
+        test.skip(!before || !before.ok, 'el mock no expone /_control/fail en esta versión');
+        const r = await generate(s!.userRequestId);
         await fetch(`${MOCK}/_control/fail`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ fail: false }) }).catch(() => null);
         expect(r.status, 'el fallo del proveedor sale como 5xx').toBeGreaterThanOrEqual(500);
         expect(r.json?.code).toBe('PCS000');

@@ -22,7 +22,7 @@
 // personales de las respuestas buenas.
 
 /** Una llamada, como queda anotada. `t` es el offset desde que se creó el cliente. */
-export interface Llamada {
+export interface Call {
     t: number;
     metodo: string;
     ruta: string;
@@ -41,7 +41,7 @@ export interface Llamada {
  *
  * `error` aparece **sólo** cuando algo salió mal, para que un `if (r.error)` signifique eso.
  */
-export interface Respuesta<T = any> {
+export interface Answer<T = any> {
     status: number;
     json: T;
     error?: string;
@@ -49,7 +49,7 @@ export interface Respuesta<T = any> {
     expiro?: boolean;
 }
 
-export interface OpcionesCliente {
+export interface CustomerOptions {
     /** A dónde cuelgan las rutas (sin barra final). */
     base: string;
     /** Cabeceras de todas las llamadas. Cada una puede agregar las suyas. */
@@ -60,80 +60,80 @@ export interface OpcionesCliente {
     recorte?: number;
 }
 
-export interface Cliente {
-    llamar<T = any>(metodo: string, ruta: string, cuerpo?: unknown, extra?: Record<string, string>, timeoutMs?: number): Promise<Respuesta<T>>;
-    get<T = any>(ruta: string, extra?: Record<string, string>): Promise<Respuesta<T>>;
-    post<T = any>(ruta: string, cuerpo?: unknown, extra?: Record<string, string>): Promise<Respuesta<T>>;
+export interface Customer {
+    llamar<T = any>(method: string, path: string, body?: unknown, extra?: Record<string, string>, timeoutMs?: number): Promise<Answer<T>>;
+    get<T = any>(path: string, extra?: Record<string, string>): Promise<Answer<T>>;
+    post<T = any>(path: string, body?: unknown, extra?: Record<string, string>): Promise<Answer<T>>;
     /** Lo que se pidió en esta corrida, en orden. */
-    bitacora(): Llamada[];
+    bitacora(): Call[];
     /** La bitácora lista para imprimir, una línea por llamada. */
-    lineas(sangria?: string): string[];
+    lineas(indent?: string): string[];
 }
 
-export function crearCliente(opts: OpcionesCliente): Cliente {
+export function createCustomer(opts: CustomerOptions): Customer {
     const base = opts.base.replace(/\/+$/, '');
     const H = { 'content-type': 'application/json', accept: 'application/json', ...(opts.headers ?? {}) };
-    const recorte = opts.recorte ?? 200;
-    const esperaDe = (metodo: string): number => {
+    const cut = opts.recorte ?? 200;
+    const waitOf = (method: string): number => {
         const t = opts.timeoutMs ?? 90_000;
         if (typeof t === 'number') return t;
-        return metodo.toUpperCase() === 'POST' ? t.post : t.get;
+        return method.toUpperCase() === 'POST' ? t.post : t.get;
     };
 
-    const anotadas: Llamada[] = [];
+    const annotated: Call[] = [];
     const t0 = Date.now();
-    const anotar = (metodo: string, ruta: string, status: number, ms: number, cuerpo?: string) => {
-        anotadas.push({
-            t: Date.now() - t0, metodo, ruta, status, ms,
-            ...(status >= 200 && status < 300 ? {} : { cuerpo: (cuerpo ?? '').slice(0, 600) }),
+    const annotate = (method: string, path: string, status: number, ms: number, body?: string) => {
+        annotated.push({
+            t: Date.now() - t0, metodo: method, ruta: path, status, ms,
+            ...(status >= 200 && status < 300 ? {} : { cuerpo: (body ?? '').slice(0, 600) }),
         });
     };
 
-    const llamar = async <T = any>(metodo: string, ruta: string, cuerpo?: unknown,
-                                   extra: Record<string, string> = {}, timeoutMs?: number): Promise<Respuesta<T>> => {
-        const inicio = Date.now();
-        const espera = timeoutMs ?? esperaDe(metodo);
-        const r = await fetch(`${base}${ruta}`, {
-            method: metodo,
+    const call = async <T = any>(method: string, path: string, body?: unknown,
+                                   extra: Record<string, string> = {}, timeoutMs?: number): Promise<Answer<T>> => {
+        const start = Date.now();
+        const wait = timeoutMs ?? waitOf(method);
+        const r = await fetch(`${base}${path}`, {
+            method: method,
             headers: { ...H, ...extra },
-            body: cuerpo === undefined ? undefined : JSON.stringify(cuerpo),
-            signal: AbortSignal.timeout(espera),
+            body: body === undefined ? undefined : JSON.stringify(body),
+            signal: AbortSignal.timeout(wait),
         }).catch((e) => e as Error);
 
         if (r instanceof Error) {
-            const ms = Date.now() - inicio;
+            const ms = Date.now() - start;
             // ⚠ La distinción que costó un diagnóstico entero: decir «no falló, tardó» manda a mirar la
             // concurrencia; decir «HTTP 0» manda a mirar si el backend está vivo, que no era el problema.
-            const expiro = /timeout|abort/i.test(String(r));
-            const motivo = expiro
+            const expiredIt = /timeout|abort/i.test(String(r));
+            const reason = expiredIt
                 ? `se pasó de los ${Math.round(ms / 1000)} s de espera (no falló: tardó)`
-                : String(r.message).slice(0, recorte);
-            anotar(metodo, ruta, 0, ms, String(r).slice(0, 200));
-            return { status: 0, json: { message: motivo } as T, error: motivo, expiro };
+                : String(r.message).slice(0, cut);
+            annotate(method, path, 0, ms, String(r).slice(0, 200));
+            return { status: 0, json: { message: reason } as T, error: reason, expiro: expiredIt };
         }
 
-        const texto = await r.text();
-        anotar(metodo, ruta, r.status, Date.now() - inicio, texto);
+        const text = await r.text();
+        annotate(method, path, r.status, Date.now() - start, text);
         try {
-            return { status: r.status, json: JSON.parse(texto) as T };
+            return { status: r.status, json: JSON.parse(text) as T };
         } catch {
             // Un cuerpo que no es JSON se devuelve en las DOS formas que los runners ya leían: `json.raw`
             // y `error`. Unificar sin romper a nadie valía más que elegir una.
-            const crudo = texto.slice(0, recorte);
-            return { status: r.status, json: { raw: crudo } as T, error: crudo };
+            const raw = text.slice(0, cut);
+            return { status: r.status, json: { raw: raw } as T, error: raw };
         }
     };
 
     return {
-        llamar,
-        get: (ruta, extra = {}) => llamar('GET', ruta, undefined, extra),
-        post: (ruta, cuerpo, extra = {}) => llamar('POST', ruta, cuerpo, extra),
-        bitacora: () => anotadas.slice(),
-        lineas: (sangria = '  ') => anotadas.map((l) => {
+        llamar: call,
+        get: (path, extra = {}) => call('GET', path, undefined, extra),
+        post: (path, body, extra = {}) => call('POST', path, body, extra),
+        bitacora: () => annotated.slice(),
+        lineas: (indent = '  ') => annotated.map((l) => {
             const seg = (l.t / 1000).toFixed(1).padStart(6);
             const est = l.status === 0 ? ' — ' : String(l.status);
-            const cuerpo = l.cuerpo ? `  ${l.cuerpo.replace(/\s+/g, ' ').slice(0, 140)}` : '';
-            return `${sangria}${seg}s  ${l.metodo.padEnd(4)} ${est}  ${String(l.ms).padStart(6)}ms  ${l.ruta}${cuerpo}`;
+            const body = l.cuerpo ? `  ${l.cuerpo.replace(/\s+/g, ' ').slice(0, 140)}` : '';
+            return `${indent}${seg}s  ${l.metodo.padEnd(4)} ${est}  ${String(l.ms).padStart(6)}ms  ${l.ruta}${body}`;
         }),
     };
 }

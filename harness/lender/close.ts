@@ -52,7 +52,7 @@ export interface OfferOptions {
 }
 
 /**
- * Lleva el flujo hasta /lenders y SIEMBRA un perfil para que el marketplace ofrezca `lenderId`.
+ * Lleva el flujo hasta /lenders y SEED un perfil para que el marketplace ofrezca `lenderId`.
  * Devuelve {phone, loanRequestId} y deja la página en /lenders con `lender-action-{lenderId}` visible.
  * ✅ Verificado para rt=2 #77 en 3e67eade.
  */
@@ -62,9 +62,9 @@ export async function seedAndOfferLender(
     lenderId: number,
     opts: OfferOptions = {},
 ): Promise<{ phone: string; loanRequestId: string }> {
-    const { score = 800, reportado = false, amount } = opts;
+    const { score = 800, reportado: reported = false, amount } = opts;
     const ctx = await runHappyPathUntilLenders(page, merchantHash, { amount });
-    seedRiskProfile(ctx.phone, Number(ctx.loanRequestId), { score, reportado });
+    seedRiskProfile(ctx.phone, Number(ctx.loanRequestId), { score, reportado: reported });
     await page.reload();
     await page.waitForURL(/\/lenders/, { timeout: 15_000 });
     await expect(page.getByTestId(`lender-action-${lenderId}`)).toBeVisible({ timeout: 15_000 });

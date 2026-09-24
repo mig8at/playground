@@ -1,4 +1,4 @@
-// Mock LOCAL del SOAP de CONSUMO de CREDIFAMILIA — la RADICACIÓN, o sea el último paso del crédito.
+// Mock LOCAL del SOAP de CONSUMER de CREDIFAMILIA — la RADICACIÓN, o sea el último paso del crédito.
 //
 // POR QUÉ EXISTE. Es el séptimo y último externo de la fila de Credifamilia (rt=4). Sin él, el backend
 // local sale a `https://pruebas.credifamilia.com.mx/...` —el sandbox REAL del lender— que desde acá
@@ -6,7 +6,7 @@
 // está en estado 11 y el endpoint de autorización responde **HTTP 200**, así que el runner reporta
 // «CERRÓ» y el fallo de radicación queda invisible salvo que uno vaya a mirar `lender_transactions`.
 //
-// ⚠ Y ANTES DE ESTE MOCK, LOCAL PEGABA CONTRA UN SERVICIO EXTERNO REAL. No es sólo lentitud: son
+// ⚠ Y ANTES DE ESTE MOCK, LOCAL PEGABA CONTRA UN SERVICE EXTERNO REAL. No es sólo lentitud: son
 // solicitudes sintéticas viajando al ambiente de pruebas del lender. Apuntar esto al mock corta eso.
 //
 // LAS DOS OPERACIONES, y qué las hace exitosas (`CredifamiliaConsumo::mapStatusCode`):
@@ -34,37 +34,37 @@ const FAIL = process.env.MOCK_CREDIFAMILIA_FAIL === '1';
 const log = (...a) => console.log(new Date().toISOString(), ...a);
 
 const NS = 'http://schemas.xmlsoap.org/soap/envelope/';
-let radicaciones = 0;
+let filings = 0;
 
-const sobre = (interior) =>
+const over = (interior) =>
     `<?xml version="1.0" encoding="UTF-8"?>` +
     `<soapenv:Envelope xmlns:soapenv="${NS}"><soapenv:Body>${interior}</soapenv:Body></soapenv:Envelope>`;
 
-const fault = (texto) =>
-    sobre(`<soapenv:Fault><faultcode>soapenv:Server</faultcode><faultstring>${texto}</faultstring></soapenv:Fault>`);
+const fault = (text) =>
+    over(`<soapenv:Fault><faultcode>soapenv:Server</faultcode><faultstring>${text}</faultstring></soapenv:Fault>`);
 
-function operacionDe(cabeceras, cuerpo) {
-    const accion = String(cabeceras.soapaction || '').replace(/"/g, '');
-    if (accion.includes('transaccionConsumo') || cuerpo.includes('transaccionConsumo')) return 'transaccionConsumo';
-    if (accion.includes('guardarDocumentoOpenKm') || cuerpo.includes('guardarDocumentoOpenKm')) return 'guardarDocumentoOpenKm';
+function operationOf(headers, body) {
+    const action = String(headers.soapaction || '').replace(/"/g, '');
+    if (action.includes('transaccionConsumo') || body.includes('transaccionConsumo')) return 'transaccionConsumo';
+    if (action.includes('guardarDocumentoOpenKm') || body.includes('guardarDocumentoOpenKm')) return 'guardarDocumentoOpenKm';
     return null;
 }
 
 http.createServer((req, res) => {
-    let cuerpo = '';
-    req.on('data', (c) => (cuerpo += c));
+    let body = '';
+    req.on('data', (c) => (body += c));
     req.on('end', () => {
         if (req.method === 'GET') {
             res.writeHead(200, { 'content-type': 'application/json' });
-            return res.end(JSON.stringify({ mock: 'credifamilia-consumo', puerto: PORT, fail: FAIL, radicaciones }));
+            return res.end(JSON.stringify({ mock: 'credifamilia-consumo', puerto: PORT, fail: FAIL, radicaciones: filings }));
         }
 
-        const op = operacionDe(req.headers, cuerpo);
+        const op = operationOf(req.headers, body);
         if (!op) {
             // Ruidoso a propósito: una operación desconocida contestada con un sobre genérico se
             // registraría como radicada, que es la mentira más cara de todas.
             log('⚠ operación DESCONOCIDA — ni transaccionConsumo ni guardarDocumentoOpenKm');
-            log('   SOAPAction:', req.headers.soapaction, '· cuerpo:', cuerpo.slice(0, 200).replace(/\s+/g, ' '));
+            log('   SOAPAction:', req.headers.soapaction, '· cuerpo:', body.slice(0, 200).replace(/\s+/g, ' '));
             res.writeHead(500, { 'content-type': 'text/xml' });
             return res.end(fault('mock-credifamilia: operación no reconocida'));
         }
@@ -75,16 +75,16 @@ http.createServer((req, res) => {
             return res.end(fault(`mock-credifamilia: ${op} rechazado`));
         }
 
-        if (op === 'guardarDocumentoOpenKm') radicaciones += 1;
-        const detalle = op === 'transaccionConsumo'
+        if (op === 'guardarDocumentoOpenKm') filings += 1;
+        const detail = op === 'transaccionConsumo'
             ? 'Operacion de consumo registrada por el mock'
-            : `Documento almacenado por el mock (#${radicaciones})`;
+            : `Documento almacenado por el mock (#${filings})`;
 
-        log(`${op} → statusCode 200 · ${cuerpo.length}b de sobre`);
+        log(`${op} → statusCode 200 · ${body.length}b de sobre`);
         res.writeHead(200, { 'content-type': 'text/xml' });
-        res.end(sobre(
-            `<return><statusCode>200</statusCode><message>${detalle}</message>` +
-            `<numeroOperacion>MOCK-CF-${String(radicaciones).padStart(4, '0')}</numeroOperacion></return>`,
+        res.end(over(
+            `<return><statusCode>200</statusCode><message>${detail}</message>` +
+            `<numeroOperacion>MOCK-CF-${String(filings).padStart(4, '0')}</numeroOperacion></return>`,
         ));
     });
 }).listen(PORT, () => log(`mock-credifamilia escuchando en :${PORT}${FAIL ? ' (FAIL)' : ''}`));

@@ -12,7 +12,7 @@ import { join } from 'node:path';
 import type { Page } from '@playwright/test';
 import { config } from './config.ts';
 import { exec, scalar, one, env, assertWriteAllowed } from './db.ts';
-import { requestEstado11 } from './inject.ts';
+import { requestStatus11 } from './inject.ts';
 
 const UA = 'Mozilla/5.0 (iPhone; CPU iPhone OS 16_5 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.5 Mobile/15E148 Safari/604.1';
 // La API del target, derivada de la ÚNICA cadena que resuelve el backend (`pkg/config.ts`).
@@ -78,7 +78,7 @@ export async function closeCreditopX(uReqID: number, opts: { lender?: string } =
     // (estándar/UTM) y rt=1 (integración: la API externa del lender decide), el resultado NO se sella acá:
     // no tocamos la DB y reportamos el estado tal cual (el flujo externo del lender define el desenlace).
     if (lender.rt !== 2) {
-        const st = await requestEstado11(uReqID);
+        const st = await requestStatus11(uReqID);
         log(`lender #${lenderId} es rt=${lender.rt} (no Creditop X) → sin cierre in-platform; estado=${st.statusId ?? '?'} (lo define el flujo externo del lender)`);
         // lenders externos (rt=0/1): el webhook NO se dispara por el authorize in-platform. Si hay receptor
         // configurado (E2E_WEBHOOK_URL), lo disparamos por notify-store (lender-agnóstico) para PROBAR la entrega.
@@ -117,7 +117,7 @@ export async function closeCreditopX(uReqID: number, opts: { lender?: string } =
     log(`authorize: HTTP ${az.status}${az.status >= 400 ? ` ⚠ ${JSON.stringify(az.json).slice(0, 200)}` : ''}`);
 
     // 5. verificar Estado 11 (user_request_status_id=11, mismo criterio que backend-e2e).
-    const st = await requestEstado11(uReqID);
+    const st = await requestStatus11(uReqID);
     log(`estado final: user_request_status_id=${st.statusId ?? '?'}${st.sealed11 ? ' → Estado 11 ✓' : ''}`);
     return { trace, statusId: st.statusId, sealed11: st.sealed11 };
 }
@@ -134,7 +134,7 @@ export interface UiSelectResult { advanced: boolean; landing: string; note: stri
 export async function driveLenderSelectionUI(page: Page, opts: { lender: string; shotDir?: string }): Promise<UiSelectResult> {
     const shot = async (n: string) => { if (opts.shotDir) await page.screenshot({ path: join(opts.shotDir, n), fullPage: true }).catch(() => {}); };
     const before = new URL(page.url()).pathname;
-    const ctaRx = /validar pre.?aprobado|activar mi cr[eé]dito/i;
+    const acctRx = /validar pre.?aprobado|activar mi cr[eé]dito/i;
     // id + nombre DISPLAY del lender (para el testid del toggle Y para matchear el texto del marketplace).
     // El marketplace muestra el nombre CON acentos ("Sistecrédito"); armar el regex del slug sin acento
     // ("sistecredito") NO matchea (regex JS es accent-sensitive). El LIKE de MySQL sí es accent-insensitive
@@ -152,9 +152,9 @@ export async function driveLenderSelectionUI(page: Page, opts: { lender: string;
     }
     await name.scrollIntoViewIfNeeded().catch(() => {});
     // tarjeta del lender objetivo = contenedor con SU nombre + un CTA (scope para NO tocar el recomendado).
-    const cardOf = () => page.locator('div').filter({ hasText: rx }).filter({ has: page.getByRole('button', { name: ctaRx }) }).last();
-    let cta = cardOf().getByRole('button', { name: ctaRx }).first();
-    if (!(await cta.isVisible({ timeout: 1500 }).catch(() => false))) {
+    const cardOf = () => page.locator('div').filter({ hasText: rx }).filter({ has: page.getByRole('button', { name: acctRx }) }).last();
+    let acct = cardOf().getByRole('button', { name: acctRx }).first();
+    if (!(await acct.isVisible({ timeout: 1500 }).catch(() => false))) {
         // colapsado (ej. "Otras opciones disponibles") → expandir. Preferimos el data-testid del toggle
         // (lender-toggle-{id}); si no está (deploy sin el testid), fallback al header-button por texto.
         const byTestId = lid ? page.getByTestId(`lender-toggle-${lid}`).first() : null;
@@ -164,8 +164,8 @@ export async function driveLenderSelectionUI(page: Page, opts: { lender: string;
         await header.scrollIntoViewIfNeeded().catch(() => {});
         await header.click({ timeout: 4000 }).catch(() => {});
         await page.waitForTimeout(900);
-        cta = cardOf().getByRole('button', { name: ctaRx }).first();
-        await cta.scrollIntoViewIfNeeded().catch(() => {});
+        acct = cardOf().getByRole('button', { name: acctRx }).first();
+        await acct.scrollIntoViewIfNeeded().catch(() => {});
     }
     await shot('ui-02-card.png');
 
@@ -183,12 +183,12 @@ export async function driveLenderSelectionUI(page: Page, opts: { lender: string;
     await shot('ui-03-seleccion.png');
 
     // 3. clickear el CTA DENTRO de la tarjeta del lender objetivo (dispara el selectLender real de ESE lender).
-    if (!(await cta.isVisible({ timeout: 3000 }).catch(() => false))) {
+    if (!(await acct.isVisible({ timeout: 3000 }).catch(() => false))) {
         await shot('ui-04-sincta.png');
         return { advanced: false, landing: before, note: `no encontré el botón de selección de "${opts.lender}"` };
     }
-    await cta.scrollIntoViewIfNeeded().catch(() => {});
-    await cta.click({ timeout: 5000 }).catch(() => {});
+    await acct.scrollIntoViewIfNeeded().catch(() => {});
+    await acct.click({ timeout: 5000 }).catch(() => {});
 
     // 4. esperar la respuesta: navegación fuera de /lenders (→ /confirmation por FIX A, o externo) o modal.
     await Promise.race([

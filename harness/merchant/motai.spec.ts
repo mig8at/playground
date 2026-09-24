@@ -322,13 +322,13 @@ test.fixme('Abaco UI: navegación directa a /abaco renderiza AbacoRedirect con C
 
     // El AbacoRedirect renderiza con un CTA "Ir a Abaco" — testid agregado
     // en abaco/src/ui/components/AbacoRedirect.tsx:43.
-    const cta = page.getByTestId('abaco-redirect-btn');
-    await expect(cta).toBeVisible({ timeout: 15_000 });
-    await expect(cta).toContainText(/Ir a Abaco/i);
+    const acct = page.getByTestId('abaco-redirect-btn');
+    await expect(acct).toBeVisible({ timeout: 15_000 });
+    await expect(acct).toContainText(/Ir a Abaco/i);
 
     // Click → navega a /abaco/platforms (handleRedirect en AbacoRedirect.tsx
     // espera 1-2s antes del onNext, dejamos margen).
-    await cta.click();
+    await acct.click();
     await page.waitForURL(/\/abaco\/platforms(\?|$)/, { timeout: 10_000 });
 
     // En /platforms aparecen las cards de cada plataforma del mock (rappi,

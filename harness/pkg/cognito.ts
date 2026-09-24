@@ -60,11 +60,11 @@ export function cognitoStorageState(): string | undefined {
     if (!existsSync(COGNITO_STATE_PATH)) return undefined;
     try {
         const state = JSON.parse(readFileSync(COGNITO_STATE_PATH, 'utf8'));
-        const antes = state.cookies?.length ?? 0;
+        const before = state.cookies?.length ?? 0;
         state.cookies = (state.cookies ?? []).filter((c: { name: string }) => !NO_CACHEABLES.test(c.name));
-        if (state.cookies.length !== antes) {
+        if (state.cookies.length !== before) {
             writeFileSync(COGNITO_STATE_PATH, JSON.stringify(state, null, 2));
-            console.log(`    ▸ cache Cognito saneado: se sacaron ${antes - state.cookies.length} cookie(s) que no son sesión`);
+            console.log(`    ▸ cache Cognito saneado: se sacaron ${before - state.cookies.length} cookie(s) que no son sesión`);
         }
     } catch { /* best-effort: si el archivo está raro, que lo maneje Playwright como antes */ }
     return COGNITO_STATE_PATH;
@@ -106,7 +106,7 @@ async function robustFill(loc: Locator, value: string): Promise<void> {
 /** Rutas de la app que sólo REDIRIGEN tras el callback de Cognito (no son destino final). Esperar a
  *  SALIR de ellas asegura que la cadena `callback → /merchant → /solicitar` terminó y la sesión de la
  *  app ya está asentada — antes de cachear el storageState o de que alguien navegue. Ver F-66. */
-const AUTH_TRANSIT = /^\/(auth\/callback|merchant)\/?$/;
+const AUTH_TRANSIT_KEY = /^\/(auth\/callback|merchant)\/?$/;
 
 /** Host de la app para el target ("originaciones-stg.dev.creditop.com" · "localhost:5174"). */
 function appHost(baseUrl: string): string {
@@ -155,7 +155,7 @@ export async function cognitoLogin(
     const onApp = (url: URL) => url.host === returnHost;
     await page.waitForURL(onApp, { timeout: 25_000 });
     await page
-        .waitForURL((url) => onApp(url) && !AUTH_TRANSIT.test(url.pathname), { timeout: 15_000 })
+        .waitForURL((url) => onApp(url) && !AUTH_TRANSIT_KEY.test(url.pathname), { timeout: 15_000 })
         .catch(() => { /* best-effort: si no sale de tránsito, seguimos con lo que haya */ });
     await page.waitForLoadState('networkidle', { timeout: 8_000 }).catch(() => {});
     // SOLO tras un login REAL (llegamos acá = hubo form + callback OK) cacheamos la sesión para reusarla.
@@ -219,7 +219,7 @@ export async function persistCognitoState(page: Page, savePath: string | null = 
  * inventar un camino que ningún cliente recorre. Lo que sí hace es DECIRLO, para que el mensaje mande a
  * `dev/warm-session.spec.ts` sabiendo que hace falta.
  */
-export interface SaludDeLaSesion {
+export interface SessionHealth {
     hay: boolean;
     ruta: string;
     /** `true` si las cookies que llevan la sesión siguen vivas. */
@@ -247,11 +247,11 @@ export interface SaludDeLaSesion {
  * la corrida termina en `/login` por más que el archivo esté. Las demás del archivo son idioma, CSRF,
  * analítica y el `post-auth` efímero del handshake — ninguna decide si hay sesión.
  */
-const COOKIES_DE_SESION = new Set(['_at', 'cognito']);
+const SESSION_COOKIES = new Set(['_at', 'cognito']);
 /** El refresh token: no autentica por sí solo, pero dice si se puede recuperar sin clave. */
-const COOKIE_DE_REFRESCO = '_rt';
+const REFRESH_COOKIE = '_rt';
 
-export function saludDeLaSesion(): SaludDeLaSesion {
+export function sessionHealth(): SessionHealth {
     const base = { ruta: COGNITO_STATE_PATH, minutos: null as number | null, renovable: false };
     if (!existsSync(COGNITO_STATE_PATH)) {
         return { ...base, hay: false, sirve: false, motivo: `no hay sesión cacheada en ${COGNITO_STATE_PATH}` };
@@ -264,51 +264,51 @@ export function saludDeLaSesion(): SaludDeLaSesion {
         return { ...base, hay: true, sirve: false, motivo: `no pude leer ${COGNITO_STATE_PATH}: ${(e as Error).message}` };
     }
 
-    return { ...saludDeCookies(cookies, COGNITO_STATE_PATH), ruta: COGNITO_STATE_PATH };
+    return { ...cookiesHealth(cookies, COGNITO_STATE_PATH), ruta: COGNITO_STATE_PATH };
 }
 
 /**
  * La decisión, separada del archivo: se fija con pruebas sin tocar `.auth/` ni depender del target.
- * `ahoraSeg` existe para poder pararse en un instante y no depender del reloj de quien corre.
+ * `nowSec` existe para poder pararse en un instante y no depender del reloj de quien corre.
  */
-export function saludDeCookies(
+export function cookiesHealth(
     cookies: Array<{ name: string; expires?: number }>,
-    ruta = COGNITO_STATE_PATH,
-    ahoraSeg = Date.now() / 1000,
-): SaludDeLaSesion {
-    const base = { hay: true, ruta, minutos: null as number | null };
+    path = COGNITO_STATE_PATH,
+    nowSec = Date.now() / 1000,
+): SessionHealth {
+    const base = { hay: true, ruta: path, minutos: null as number | null };
     // Una cookie sin `expires` (o con -1) es «de sesión»: muere al cerrar el navegador, y en un
     // storageState replayado eso equivale a que no caduca. No se cuenta como vencida.
-    const restan = (c: { expires?: number }) => (!c.expires || c.expires < 0 ? Infinity : (c.expires - ahoraSeg) / 60);
-    const redondo = (m: number) => (Number.isFinite(m) ? Math.round(m) : null);
+    const remainingCount = (c: { expires?: number }) => (!c.expires || c.expires < 0 ? Infinity : (c.expires - nowSec) / 60);
+    const round = (m: number) => (Number.isFinite(m) ? Math.round(m) : null);
 
-    const deSesion = cookies.filter((c) => COOKIES_DE_SESION.has(c.name));
-    const refresco = cookies.find((c) => c.name === COOKIE_DE_REFRESCO);
-    const renovable = !!refresco && restan(refresco) > 0;
+    const fromSession = cookies.filter((c) => SESSION_COOKIES.has(c.name));
+    const refresh = cookies.find((c) => c.name === REFRESH_COOKIE);
+    const renewable = !!refresh && remainingCount(refresh) > 0;
 
-    if (!deSesion.length) {
-        return { ...base, sirve: false, renovable,
-            motivo: `${ruta} no trae ninguna cookie de sesión (${[...COOKIES_DE_SESION].join(', ')}) — está incompleto` };
+    if (!fromSession.length) {
+        return { ...base, sirve: false, renovable: renewable,
+            motivo: `${path} no trae ninguna cookie de sesión (${[...SESSION_COOKIES].join(', ')}) — está incompleto` };
     }
 
-    const vencidas = deSesion.filter((c) => restan(c) <= 0);
-    const minutos = Math.min(...deSesion.map(restan));
+    const expiredOnes = fromSession.filter((c) => remainingCount(c) <= 0);
+    const minutes = Math.min(...fromSession.map(remainingCount));
 
-    if (vencidas.length) {
-        const cuanto = Math.round(-Math.min(...vencidas.map(restan)));
-        return { ...base, sirve: false, minutos: redondo(minutos), renovable,
-            motivo: `la sesión de ${ruta} venció hace ${cuanto} min (${vencidas.map((c) => c.name).join(', ')})`
-                + (renovable
+    if (expiredOnes.length) {
+        const howMuch = Math.round(-Math.min(...expiredOnes.map(remainingCount)));
+        return { ...base, sirve: false, minutos: round(minutes), renovable: renewable,
+            motivo: `la sesión de ${path} venció hace ${howMuch} min (${expiredOnes.map((c) => c.name).join(', ')})`
+                + (renewable
                     ? ' — la cookie del refresh no venció, pero eso NO garantiza que sirva: hay que volver a entrar igual'
                     : '') };
     }
 
-    return { ...base, sirve: true, renovable, minutos: redondo(minutos),
-        motivo: Number.isFinite(minutos) ? `sesión válida por ${Math.round(minutos)} min más` : 'sesión válida' };
+    return { ...base, sirve: true, renovable: renewable, minutos: round(minutes),
+        motivo: Number.isFinite(minutes) ? `sesión válida por ${Math.round(minutes)} min más` : 'sesión válida' };
 }
 
 /** El mensaje que un runner imprime cuando la sesión no sirve: el motivo, y qué hacer. */
-export function comoRenovarLaSesion(s: SaludDeLaSesion): string {
+export function howToRenewSession(s: SessionHealth): string {
     return `${s.motivo}\n     renovala con:  E2E_TARGET=${TARGET} npx playwright test dev/warm-session.spec.ts --headed --project=chromium`
         + `\n     (va HEADED a propósito contra qa/staging: el Managed Login corta la automatización por fingerprint — F-66)`;
 }
@@ -329,7 +329,7 @@ export function comoRenovarLaSesion(s: SaludDeLaSesion): string {
  * No renueva en `local` ni contra un front local: ahí el pre-login navega al `:5174`, que este
  * proceso no levanta, y el fallo sería más confuso que el problema.
  */
-export async function renovarSesion(): Promise<{ ok: boolean; motivo: string }> {
+export async function renewSession(): Promise<{ ok: boolean; motivo: string }> {
     if (!cognitoCreds.user || !cognitoCreds.pass) {
         return { ok: false, motivo: 'no hay credenciales Cognito configuradas (.cognito.json o E2E_COGNITO_USER/PASS)' };
     }
@@ -345,22 +345,22 @@ export async function renovarSesion(): Promise<{ ok: boolean; motivo: string }> 
     }
 
     const { spawn } = await import('node:child_process');
-    const raiz = new URL('..', import.meta.url).pathname;
+    const root = new URL('..', import.meta.url).pathname;
 
-    const salio = await new Promise<number>((resolve) => {
+    const wentOutOne = await new Promise<number>((resolve) => {
         const p = spawn(
             'npx',
             ['playwright', 'test', 'dev/warm-session.spec.ts', '--headed', '--project=chromium'],
-            { cwd: raiz, env: { ...process.env, E2E_TARGET: TARGET }, stdio: 'ignore' },
+            { cwd: root, env: { ...process.env, E2E_TARGET: TARGET }, stdio: 'ignore' },
         );
         p.on('close', (code) => resolve(code ?? 1));
         p.on('error', () => resolve(1));
     });
 
-    if (salio !== 0) return { ok: false, motivo: `el pre-login salió con código ${salio}` };
+    if (wentOutOne !== 0) return { ok: false, motivo: `el pre-login salió con código ${wentOutOne}` };
 
-    const despues = saludDeLaSesion();
-    return despues.sirve
-        ? { ok: true, motivo: despues.motivo }
-        : { ok: false, motivo: `el pre-login corrió pero la sesión sigue sin servir: ${despues.motivo}` };
+    const after = sessionHealth();
+    return after.sirve
+        ? { ok: true, motivo: after.motivo }
+        : { ok: false, motivo: `el pre-login corrió pero la sesión sigue sin servir: ${after.motivo}` };
 }

@@ -35,11 +35,11 @@ const json = (res, code, body) => {
 
 /** Lo dictado, por clave `<central>_<cédula>`. En memoria y en UN proceso: sin el problema del
  *  lambda serverless, donde el POST y la lectura pueden caer en contenedores distintos. */
-const dictado = new Map();
+const dictated = new Map();
 
 /** La cédula que viaja en cada petición. Cada central la manda a su manera — Agildata en la URL,
  *  Mareigua y Experian en el cuerpo — y por eso se resuelve acá y no en cada ruta. */
-const cedulaDe = (url, body) => {
+const idNumberOf = (url, body) => {
     const m = /historicoDetalladoEmpleo\/[^/]+\/(\d+)/.exec(url.pathname);
     if (m) return m[1];
     try {
@@ -55,8 +55,8 @@ const cedulaDe = (url, body) => {
 
 /** ⚠ Diagnóstico de por qué NO se encontró la cédula. Sin esto, un dictado por cédula que no aplica es
  *  invisible: el mock sirve el default, el flujo termina bien, y uno concluye que el dato «no influye»
- *  cuando en realidad nunca se aplicó. Imprime las claves del cuerpo para poder ampliar `cedulaDe`. */
-const claves = (body) => {
+ *  cuando en realidad nunca se aplicó. Imprime las claves del cuerpo para poder ampliar `idNumberOf`. */
+const keys = (body) => {
     try { return Object.keys(JSON.parse(body || '{}')).slice(0, 12).join(','); } catch { return '(no es json)'; }
 };
 
@@ -66,10 +66,10 @@ const claves = (body) => {
  *  responde «laboral information is required» y la solicitud ni llega al listado. Una fecha horneada
  *  acá envejece sola y rompe el mock en silencio unos meses después — que es justo lo que le pasó al
  *  lambda. */
-const pagos = (ibc, n = 8) => Array.from({ length: n }, (_, k) => {
-    const hoy = new Date();
-    const meses = hoy.getFullYear() * 12 + hoy.getMonth() - k;
-    const [y, m] = [Math.floor(meses / 12), (meses % 12) + 1];
+const payments = (ibc, n = 8) => Array.from({ length: n }, (_, k) => {
+    const today = new Date();
+    const months = today.getFullYear() * 12 + today.getMonth() - k;
+    const [y, m] = [Math.floor(months / 12), (months % 12) + 1];
     const mm = String(m).padStart(2, '0');
     return {
         id: k + 1, ibc, periodo: Number(`${y}${mm}`), fechaPago: `${y}-${mm}-15 00:00:00`,
@@ -90,7 +90,7 @@ const agildataDefault = (doc) => ({
             viabilidad: null,
         },
         detalladoEmpleos: [{
-            id: 1, pagos: pagos(IBC_DEFAULT), nombreEmpleador: 'STANGERSON SAS',
+            id: 1, pagos: payments(IBC_DEFAULT), nombreEmpleador: 'STANGERSON SAS',
             telefonoEmpleador: null, direccionEmpleador: null,
             identifiacionEmpleador: '900101010', tipoIdentifiacionEmpleador: 'NI',
         }],
@@ -107,7 +107,7 @@ const mareiguaDefault = (doc) => ({
     aportantes: [{
         nivel_riesgo: 'Bajo', media_ingresos: IBC_DEFAULT, minimo: IBC_DEFAULT, maximo: IBC_DEFAULT,
         CIIU_aportante: '8412', regimen: '', tipo_contrato: '', fecha_ingreso: '',
-        resultado_pagos: pagos(IBC_DEFAULT).map((p) => ({
+        resultado_pagos: payments(IBC_DEFAULT).map((p) => ({
             ingresos: p.ibc, total_ingreso: p.ibc, ingreso_neto: p.ibc, realizo_pago: true,
             retefuente: 0, indemnizacion: 0, bonificaciones: 0,
             deducciones_ley: p.valorCotizacionObligatoria, otras_deducciones: 0,
@@ -123,18 +123,18 @@ const mareiguaDefault = (doc) => ({
 //
 // El score vive en `ReportHDCplus.models[0].scoreValue` (654 en el fixture) y se puede pisar dictando
 // `experian_score_<cédula>` con un número — más cómodo que dictar 70 KB para cambiar un dato.
-const leer = (f) => JSON.parse(readFileSync(new URL(f, import.meta.url), 'utf8'));
+const read = (f) => JSON.parse(readFileSync(new URL(f, import.meta.url), 'utf8'));
 const EXPERIAN = {
-    hdcplus: leer('./hdcplus.json'),
-    quanto: leer('./quanto.json'),
-    'acierta-quanto': leer('./acierta-quanto.json'),
+    hdcplus: read('./hdcplus.json'),
+    quanto: read('./quanto.json'),
+    'acierta-quanto': read('./acierta-quanto.json'),
 };
 
-const experianDefault = (doc, variante = 'hdcplus') => {
-    const base = structuredClone(EXPERIAN[variante] ?? EXPERIAN.hdcplus);
-    const pisado = doc && dictado.get(`experian_score_${doc}`);
-    if (pisado && base?.ReportHDCplus?.models?.[0]) {
-        base.ReportHDCplus.models[0].scoreValue = Number(pisado);
+const experianDefault = (doc, variant = 'hdcplus') => {
+    const base = structuredClone(EXPERIAN[variant] ?? EXPERIAN.hdcplus);
+    const overwritten = doc && dictated.get(`experian_score_${doc}`);
+    if (overwritten && base?.ReportHDCplus?.models?.[0]) {
+        base.ReportHDCplus.models[0].scoreValue = Number(overwritten);
     }
     return base;
 };
@@ -143,9 +143,9 @@ const experianDefault = (doc, variante = 'hdcplus') => {
 // «Error inesperado al crear validación de TusDatos AML» y la solicitud queda trabada en estado 10 —
 // con el listado saliendo perfecto, así que el síntoma aparece tarde y lejos. La forma sale de
 // `app/Actions/RiskCentrals/TusDatosFixture.php`.
-const TUSDATOS = leer('./tusdatos-validations.json');
+const TUSDATOS = read('./tusdatos-validations.json');
 
-const RUTAS = [
+const PATHS = [
     { central: 'agildata', test: (u, m) => m === 'GET' && /historicoDetalladoEmpleo/.test(u.pathname), def: agildataDefault },
     { central: 'mareigua', test: (u, m) => m === 'POST' && /\/consultas$/.test(u.pathname), def: mareiguaDefault },
     { central: 'experian',
@@ -176,10 +176,10 @@ const server = http.createServer((req, res) => {
     req.on('data', (c) => (body += c));
     req.on('end', () => {
         if (req.method === 'GET' && url.pathname === '/') {
-            return json(res, 200, { mock: 'centrales', port: PORT, dictados: dictado.size });
+            return json(res, 200, { mock: 'centrales', port: PORT, dictados: dictated.size });
         }
         if (url.pathname === '/mockoon-admin/global-vars') {
-            if (req.method === 'GET') return json(res, 200, Object.fromEntries(dictado));
+            if (req.method === 'GET') return json(res, 200, Object.fromEntries(dictated));
             if (req.method === 'POST') {
                 let p = {};
                 try { p = JSON.parse(body || '{}'); } catch { return json(res, 400, { error: 'JSON inválido' }); }
@@ -189,33 +189,33 @@ const server = http.createServer((req, res) => {
                 // JSON roto se leía después como «respuesta inválida del proveedor».
                 try { JSON.parse(String(p.value)); }
                 catch { return json(res, 400, { error: 'el value no es JSON válido' }); }
-                dictado.set(p.key, String(p.value));
+                dictated.set(p.key, String(p.value));
                 log(`dictado ${p.key}`);
                 return json(res, 200, { message: `Global variable '${p.key}' has been set` });
             }
         }
         if (req.method === 'POST' && url.pathname === '/mockoon-admin/state/purge') {
-            dictado.clear(); log('purgado');
+            dictated.clear(); log('purgado');
             return json(res, 200, {});
         }
 
-        const hit = RUTAS.find((r) => r.test(url, req.method));
+        const hit = PATHS.find((r) => r.test(url, req.method));
         if (!hit) {
             // Misma filosofía que `mock-lenders`: lo no mapeado es RUIDOSO, para que el próximo muro
             // se documente solo en vez de aparecer como un error opaco.
             log(`⚠ RUTA NO MAPEADA ← ${req.method} ${url.pathname}${body ? ' body=' + body.slice(0, 200) : ''}`);
             return json(res, 404, { error: 'ruta no mapeada en mock-centrales', path: url.pathname });
         }
-        const doc = cedulaDe(url, body);
-        const clave = `${hit.central}_${doc}`;
-        if (doc && dictado.has(clave)) {
+        const doc = idNumberOf(url, body);
+        const key = `${hit.central}_${doc}`;
+        if (doc && dictated.has(key)) {
             log(`${req.method} ${url.pathname} → ${hit.central} DICTADO (doc ${doc})`);
-            return json(res, 200, dictado.get(clave));
+            return json(res, 200, dictated.get(key));
         }
         log(`${req.method} ${url.pathname} → ${hit.central} default`
             + (doc ? ` (doc ${doc}, sin dictado para esa cédula)`
                    : ` ⚠ SIN CÉDULA — un dictado por cédula NO se le puede aplicar.`
-                     + ` Claves del cuerpo: ${claves(body)}`));
+                     + ` Claves del cuerpo: ${keys(body)}`));
         return json(res, 200, hit.def(doc, url));
     });
 });

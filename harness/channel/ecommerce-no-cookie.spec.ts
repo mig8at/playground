@@ -1,6 +1,6 @@
 import { execFileSync } from "node:child_process";
 import { expect, test } from "@playwright/test";
-import { contratoParaSpec } from "../pkg/ecommerce";
+import { contractForSpec } from "../pkg/ecommerce";
 import { Flow } from "../pkg/flow";
 
 /**
@@ -37,7 +37,7 @@ async function buildCheckoutPath(phone?: string): Promise<string> {
       // ÚNICO por corrida, así que cada run crea una fila fresca en vez de reusar la misma.
       // El celular va DENTRO del contrato: el input llega prellenado y bloqueado, así que es el
       // único lugar donde el spec puede fijar uno único por corrida (son UNIQUE en `users`).
-      const c = await contratoParaSpec('amoblar', phone ? { phone } : {});
+      const c = await contractForSpec('amoblar', phone ? { phone } : {});
       return c.checkout_path;
 }
 
@@ -77,14 +77,14 @@ test("Ecommerce sin cookie: /checkout → (borra _session) → phone → OTP →
                   // El monto llega del carrito con el input `disabled`: no se escribe, se confirma.
                   // «Confirmación de cupo» (omit-Experian) es OBLIGATORIO donde aparece: sin
                   // contestarlo el submit nace deshabilitado y el paso muere estando todo bien.
-                  const cupo = page.getByRole("radio", { name: "No", exact: true });
-                  if (await cupo.isVisible().catch(() => false)) await cupo.click();
-                  const activar = page
+                  const quota = page.getByRole("radio", { name: "No", exact: true });
+                  if (await quota.isVisible().catch(() => false)) await quota.click();
+                  const activate = page
                         .getByTestId("amount-submit")
                         .or(page.getByRole("button", { name: /iniciar solicitud|continuar/i }));
-                  await expect(activar).toBeEnabled({ timeout: 20_000 });
+                  await expect(activate).toBeEnabled({ timeout: 20_000 });
                   await page.context().clearCookies({ name: "_session" });
-                  await activar.click();
+                  await activate.click();
                   return "monto prellenado + bloqueado (sin cookie)";
             })
             .step("Teléfono", "register persiste OTP; sin cookie, erId va en la URL", async () => {

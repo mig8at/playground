@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { contratoParaSpec } from "../pkg/ecommerce";
+import { contractForSpec } from "../pkg/ecommerce";
 import { Flow } from "../pkg/flow";
 import { fillEmploymentInfo, fillExpeditionDate } from "../pkg/wizard-steps";
 
@@ -29,7 +29,7 @@ function freshPhone(): string {
  * por corrida, así que cada run crea una fila fresca en vez de reusar la misma.
  */
 async function buildCheckoutPath(phone?: string): Promise<string> {
-      const c = await contratoParaSpec('amoblar', phone ? { phone } : {});
+      const c = await contractForSpec('amoblar', phone ? { phone } : {});
       return c.checkout_path;
 }
 
@@ -57,25 +57,25 @@ test("DEMO prefill: checkout → amount → phone → OTP → /personal-info (mu
                   // Por TESTID y no por copy: el botón se llamó «activar mi crédito» hasta la rama de
                   // junio y hoy dice «Iniciar solicitud» (medido contra qa el 2026-09-14). El rol queda
                   // de respaldo con los dos textos, porque el copy puede venir del comercio.
-                  const activar = page
+                  const activate = page
                         .getByTestId("amount-submit")
                         .or(page.getByRole("button", { name: /iniciar solicitud|activar mi cr[ée]dito|continuar/i }));
-                  await expect(activar).toBeVisible({ timeout: 20_000 });
+                  await expect(activate).toBeVisible({ timeout: 20_000 });
                   // «Confirmación de cupo» (omit-Experian) es OBLIGATORIO donde aparece: sin contestarlo
                   // el submit nace deshabilitado y el paso muere aunque el prefill esté perfecto.
-                  const cupo = page.getByRole("radio", { name: "No", exact: true });
-                  if (await cupo.isVisible().catch(() => false)) await cupo.click();
-                  await expect(activar).toBeEnabled({ timeout: 10_000 }); // prefill válido → botón habilitado
+                  const quota = page.getByRole("radio", { name: "No", exact: true });
+                  if (await quota.isVisible().catch(() => false)) await quota.click();
+                  await expect(activate).toBeEnabled({ timeout: 10_000 }); // prefill válido → botón habilitado
                   await page.waitForTimeout(2_000); // pausa para ver el monto bloqueado
-                  await activar.click();
+                  await activate.click();
                   return "monto prellenado + bloqueado → Activar";
             })
             .step("Teléfono (BLOQUEADO)", "viene del base64: prellenado y bloqueado, no se escribe", async () => {
-                  const continuar = page.getByRole("button", { name: /continuar/i });
-                  await expect(continuar).toBeVisible({ timeout: 20_000 });
-                  await expect(continuar).toBeEnabled({ timeout: 10_000 });
+                  const proceed = page.getByRole("button", { name: /continuar/i });
+                  await expect(proceed).toBeVisible({ timeout: 20_000 });
+                  await expect(proceed).toBeEnabled({ timeout: 10_000 });
                   await page.waitForTimeout(2_000); // pausa para ver el teléfono bloqueado
-                  await continuar.click();
+                  await proceed.click();
                   await page.waitForURL(/\/otp(\?|$)/, { timeout: 20_000 });
                   return "teléfono prellenado + bloqueado → Continuar";
             })

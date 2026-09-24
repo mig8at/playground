@@ -1,4 +1,4 @@
-// Mock del SERVICIO DE CÓDIGOS — el servicio externo que emite, consulta y consume el código que el
+// Mock del SERVICE DE CÓDIGOS — el servicio externo que emite, consulta y consume el código que el
 // cliente ve en la app y presenta en el comercio.
 //
 // POR QUÉ EXISTE (2026-09-22):

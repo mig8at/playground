@@ -24,7 +24,7 @@ export function sql(query: string): string {
 }
 
 /** Ejecuta un script PHP vía `php artisan tinker` (para campos encriptados / modelos Eloquent). */
-function tinker(php: string): string {
+function tinkerCmd(php: string): string {
     const out = execFileSync('docker', ['exec', '-i', APP_CONTAINER, 'php', 'artisan', 'tinker'], {
         input: php,
         encoding: 'utf8',
@@ -49,7 +49,7 @@ export function userIdByPhone(phone: string): number {
 export function seedApprovedProfile(phone: string, uReqID: number, score = 750): void {
     const uid = userIdByPhone(phone);
     if (!uid) throw new Error(`seedApprovedProfile: usuario no encontrado para phone=${phone}`);
-    tinker(`
+    tinkerCmd(`
 $u = \\App\\Models\\User::find(${uid});
 if ($u) { if (empty($u->gender)) { $u->gender='M'; } if (empty($u->date_of_birth)) { $u->date_of_birth='1990-01-01'; } if (empty($u->age)) { $u->age=35; } if (empty($u->email)) { $u->email='e2e-${uid}@creditop.test'; } $u->save(); }
 foreach (['29'=>'Empleado','87'=>'2500000'] as $fid=>$val) {
@@ -71,11 +71,11 @@ export function seedRiskProfile(
     uReqID: number,
     opts: { score?: number; negatives?: number; reportado?: boolean } = {},
 ): void {
-    const { score = 800, negatives = 0, reportado = false } = opts;
+    const { score = 800, negatives = 0, reportado: reported = false } = opts;
     const uid = userIdByPhone(phone);
     if (!uid) throw new Error(`seedRiskProfile: usuario no encontrado para phone=${phone}`);
-    const rep = reportado ? 'si' : 'no';
-    tinker(`
+    const rep = reported ? 'si' : 'no';
+    tinkerCmd(`
 $u = \\App\\Models\\User::find(${uid});
 if ($u) { $u->gender='M'; $u->date_of_birth='1990-01-01'; $u->age=35; if (empty($u->email)) { $u->email='e2e-${uid}@creditop.test'; } $u->save(); }
 foreach (['29'=>'Empleado','87'=>'2500000','160'=>'${rep}'] as $fid=>$val) {
@@ -136,7 +136,7 @@ export function seedWompiCredential(branchHash: string): void {
     // implica que /initiate resolvió la credencial). Este helper es para branches que NO la tengan.
     // Usa replicate() de una plantilla existente: copia allied_type + el credential ENCRIPTADO con el
     // formato correcto (create([]) dropea allied_type por no ser fillable → 1364 NOT NULL).
-    tinker(`
+    tinkerCmd(`
 $branch = \\App\\Models\\AlliedBranch::where('hash','${branchHash}')->firstOrFail();
 $wompi = \\App\\Models\\Lender::where('name','Wompi')->firstOrFail();
 $tmpl = \\App\\Models\\LenderAlliedCredential::where('lender_id',$wompi->id)->first();

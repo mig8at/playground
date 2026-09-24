@@ -20,8 +20,8 @@
 //        → por eso acá el message es una frase con el PIN adentro, en hex minúscula de 20 chars.
 //   · `query()`    (`:131`) → POST /ConsultaOrden/getOrder  body {EstadoOrden, FechaInicio, FechaFin,
 //        NitCliente} (fechas `Y-m-d\TH:i:s`). La respuesta es un **array plano** de órdenes con
-//        `{pin, fechaSolicitud, fechaFacturacion, noFactura, valorFacturado}`; el caller ordena por
-//        `fechaFacturacion` desc y deduplica por `pin` (`:161-165`).
+//        `{pin, requestDate, billingDate, noInvoice, billedValue}`; el caller ordena por
+//        `billingDate` desc y deduplica por `pin` (`:161-165`).
 //        ⚠ `EstadoOrden`: 1 solicitada · 2 (el default del método) · 3 facturada. El enum del proveedor
 //        no está documentado en ningún lado; esto respeta el uso que hace el código.
 //
@@ -50,7 +50,7 @@
 //         `return $apiResponse` NUNCA ASIGNADA → `Error` de PHP 8 que ningún catch atrapa)
 // CONTROL en caliente (sin reiniciar):
 //   GET  /                      → estado + órdenes en memoria
-//   POST /_control/facturar     {pin}            → pasa la orden a EstadoOrden 3 (+ noFactura, valorFacturado)
+//   POST /_control/facturar     {pin}            → pasa la orden a EstadoOrden 3 (+ noInvoice, billedValue)
 //   POST /_control/estado       {pin, estado}    → fuerza cualquier estado
 //   POST /_control/reset        → limpia el registro
 
@@ -61,56 +61,56 @@ import { fileURLToPath } from 'node:url';
 
 /** Huella del CÓDIGO en memoria: `bin/mock-corbeta start` la compara con el archivo en disco para no
  *  reusar un proceso viejo después de editar el mock (decía «ya arriba» y servía la versión anterior). */
-const CODIGO = Math.floor(statSync(fileURLToPath(import.meta.url)).mtimeMs / 1000);
+const CODE = Math.floor(statSync(fileURLToPath(import.meta.url)).mtimeMs / 1000);
 const PORT = Number(process.env.MOCK_CORBETA_PORT || 8103);
 const FAIL = process.env.MOCK_CORBETA_FAIL === '1';
 let failRuntime = FAIL;   // se puede togglear por /_control/fail sin reiniciar
 const log = (...a) => console.log(new Date().toISOString(), ...a);
 
 /** Registro en memoria: pin → orden. Es la "BD de cajas" del proveedor. */
-const ordenes = new Map();
+const orders = new Map();
 
 const json = (res, code, body) => {
     res.writeHead(code, { 'content-type': 'application/json' });
     res.end(JSON.stringify(body));
 };
 
-const leerBody = (req) => new Promise((ok) => {
+const readBody = (req) => new Promise((ok) => {
     let raw = '';
     req.on('data', (d) => { raw += d; if (raw.length > 1e6) req.destroy(); });
     req.on('end', () => { try { ok(raw ? JSON.parse(raw) : {}); } catch { ok({}); } });
 });
 
 /** El PIN real de Corbeta es hex minúscula de 20 chars — el regex del backend exige `[a-f0-9]{20,}`. */
-const nuevoPin = () => randomBytes(10).toString('hex');
+const newPin = () => randomBytes(10).toString('hex');
 
 /** Formato de fecha que devuelve el proveedor (lo que el cron parsea): `2025-07-18T13:14:54.32`. */
-const ahoraIso = () => new Date().toISOString().replace('Z', '').slice(0, 22);
+const nowIso = () => new Date().toISOString().replace('Z', '').slice(0, 22);
 
 const server = http.createServer(async (req, res) => {
     const url = new URL(req.url, `http://localhost:${PORT}`);
-    const ruta = url.pathname.replace(/\/+$/, '') || '/';
-    const body = req.method === 'POST' ? await leerBody(req) : {};
+    const path = url.pathname.replace(/\/+$/, '') || '/';
+    const body = req.method === 'POST' ? await readBody(req) : {};
 
     // ── estado (lo consume bin/mock-corbeta para saber si hay que reiniciar por cambio de modo) ──
-    if (ruta === '/' && req.method === 'GET') {
+    if (path === '/' && req.method === 'GET') {
         return json(res, 200, {
-            mock: 'corbeta-api-fondos', puerto: PORT, fail: failRuntime, codigo: CODIGO,
-            ordenes: [...ordenes.values()],
+            mock: 'corbeta-api-fondos', puerto: PORT, fail: failRuntime, codigo: CODE,
+            ordenes: [...orders.values()],
         });
     }
 
     // ── control en caliente ───────────────────────────────────────────────────────────────────────
-    if (ruta === '/_control/reset') { ordenes.clear(); log('control: reset'); return json(res, 200, { ok: true }); }
+    if (path === '/_control/reset') { orders.clear(); log('control: reset'); return json(res, 200, { ok: true }); }
     // Modo fallo EN CALIENTE (además de MOCK_CORBETA_FAIL): una suite necesita prender y apagar el fallo
     // sin reiniciar el proceso, y reiniciar perdería las órdenes ya emitidas.
-    if (ruta === '/_control/fail') { failRuntime = !!body.fail; log(`control: fail=${failRuntime}`); return json(res, 200, { ok: true, fail: failRuntime }); }
-    if (ruta === '/_control/facturar' || ruta === '/_control/estado') {
-        const o = ordenes.get(String(body.pin || ''));
-        if (!o) return json(res, 404, { ok: false, error: 'pin no registrado', pines: [...ordenes.keys()] });
-        if (ruta === '/_control/facturar') {
+    if (path === '/_control/fail') { failRuntime = !!body.fail; log(`control: fail=${failRuntime}`); return json(res, 200, { ok: true, fail: failRuntime }); }
+    if (path === '/_control/facturar' || path === '/_control/estado') {
+        const o = orders.get(String(body.pin || ''));
+        if (!o) return json(res, 404, { ok: false, error: 'pin no registrado', pines: [...orders.keys()] });
+        if (path === '/_control/facturar') {
             o.estado = 3;
-            o.fechaFacturacion = ahoraIso();
+            o.fechaFacturacion = nowIso();
             o.noFactura = `SETT${String(Math.floor(Math.random() * 1e10)).padStart(10, '0')}`;
             o.valorFacturado = String(o.valor);
         } else {
@@ -121,20 +121,20 @@ const server = http.createServer(async (req, res) => {
     }
 
     // ── el contrato real ──────────────────────────────────────────────────────────────────────────
-    if (ruta === '/ObtenerToken/getToken') {
+    if (path === '/ObtenerToken/getToken') {
         // El caller sólo usa ['token'] y ['userId']; no valida nada más.
         log(`getToken · UserName=${body.UserName ?? '(vacío)'}`);
         return json(res, 200, { token: `mock-corbeta-${Date.now()}`, userId: 'MOCK-USER-1' });
     }
 
-    if (ruta === '/GenerarOrden/setOrder') {
+    if (path === '/GenerarOrden/setOrder') {
         if (failRuntime) {
             // El camino del bug P1. Se devuelve 400 para que `->throw()` levante RequestException.
             log('setOrder · MODO FALLO → 400');
             return json(res, 400, { code: 400, message: 'Error controlado del mock (MOCK_CORBETA_FAIL=1)' });
         }
-        const pin = nuevoPin();
-        const orden = {
+        const pin = newPin();
+        const order = {
             pin,
             estado: 2,                       // recién solicitada: es la que ve `validateCurrentOrder`
             valor: Number(body.Valor || 0),
@@ -143,13 +143,13 @@ const server = http.createServer(async (req, res) => {
             departamento: body.IdDepartamento ?? null,
             ciudad: body.IdCiudad ?? null,
             direccion: body.Direccion ?? null,
-            fechaSolicitud: ahoraIso(),
+            fechaSolicitud: nowIso(),
             fechaFacturacion: null,
             noFactura: null,
             valorFacturado: null,
         };
-        ordenes.set(pin, orden);
-        log(`setOrder · pin=${pin} valor=${orden.valor} convenio=${orden.convenio} doc=${orden.documento}`);
+        orders.set(pin, order);
+        log(`setOrder · pin=${pin} valor=${order.valor} convenio=${order.convenio} doc=${order.documento}`);
         // El PIN va EMBEBIDO EN EL TEXTO: así es como responde el proveedor y así lo raspa el backend.
         return json(res, 200, {
             code: 200,
@@ -157,27 +157,27 @@ const server = http.createServer(async (req, res) => {
         });
     }
 
-    if (ruta === '/ConsultaOrden/getOrder') {
-        const estado = Number(body.EstadoOrden ?? 2);
-        const desde = body.FechaInicio ? Date.parse(body.FechaInicio) : -Infinity;
-        const hasta = body.FechaFin ? Date.parse(body.FechaFin) : Infinity;
-        const lista = [...ordenes.values()]
-            .filter((o) => o.estado === estado)
+    if (path === '/ConsultaOrden/getOrder') {
+        const status = Number(body.EstadoOrden ?? 2);
+        const since = body.FechaInicio ? Date.parse(body.FechaInicio) : -Infinity;
+        const until = body.FechaFin ? Date.parse(body.FechaFin) : Infinity;
+        const list = [...orders.values()]
+            .filter((o) => o.estado === status)
             .filter((o) => {
                 const t = Date.parse(o.fechaSolicitud);
-                return Number.isNaN(t) ? true : t >= desde && t <= hasta;
+                return Number.isNaN(t) ? true : t >= since && t <= until;
             })
-            .map(({ pin, fechaSolicitud, fechaFacturacion, noFactura, valorFacturado }) => ({
-                pin, fechaSolicitud, fechaFacturacion, noFactura, valorFacturado,
+            .map(({ pin, fechaSolicitud: requestDate, fechaFacturacion: billingDate, noFactura: noInvoice, valorFacturado: billedValue }) => ({
+                pin, fechaSolicitud: requestDate, fechaFacturacion: billingDate, noFactura: noInvoice, valorFacturado: billedValue,
             }));
-        log(`getOrder · EstadoOrden=${estado} rango=${body.FechaInicio ?? '—'}..${body.FechaFin ?? '—'} → ${lista.length} órden(es)`);
-        // Array PLANO: el caller hace collect() + sortByDesc('fechaFacturacion') + unique('pin').
-        return json(res, 200, lista);
+        log(`getOrder · EstadoOrden=${status} rango=${body.FechaInicio ?? '—'}..${body.FechaFin ?? '—'} → ${list.length} órden(es)`);
+        // Array PLANO: el caller hace collect() + sortByDesc('billingDate') + unique('pin').
+        return json(res, 200, list);
     }
 
     // Ruta desconocida: 200 + log en mayúsculas, misma convención que mock-lenders (F-25) — así una
     // llamada que no mapeamos se ve en el log en vez de romper el flujo con un 404 silencioso.
-    log(`⚠ RUTA NO MAPEADA: ${req.method} ${ruta} · body=${JSON.stringify(body).slice(0, 300)}`);
+    log(`⚠ RUTA NO MAPEADA: ${req.method} ${path} · body=${JSON.stringify(body).slice(0, 300)}`);
     return json(res, 200, {});
 });
 

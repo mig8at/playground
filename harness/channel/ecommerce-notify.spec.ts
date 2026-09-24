@@ -1,6 +1,6 @@
 import { expect, test, request as pwRequest } from '@playwright/test';
 import http from 'node:http';
-import { contratoParaSpec } from '../pkg/ecommerce';
+import { contractForSpec } from '../pkg/ecommerce';
 import { config } from '../pkg/config';
 import { Flow } from '../pkg/flow';
 
@@ -54,7 +54,7 @@ test('Ecommerce: notify-store POSTea al process_url de la tienda con {status}', 
             })
             .step('Crear ecommerce_request', 'contrato base64 del repo + process_url al listener', async (ctx) => {
                 const api = await pwRequest.newContext({ baseURL: config.mockUrl });
-                const c = await contratoParaSpec('amoblar');
+                const c = await contractForSpec('amoblar');
                 // process_url → host.docker.internal:PORT (alcanzable desde el contenedor backend).
                 const shopUrl = `http://host.docker.internal:${LISTENER_PORT}/`;
                 const createRes = await api.post(`/api/onboarding/ecommerce-request/create/${c.hash}`, {

@@ -37,11 +37,11 @@ const { one, exec, close } = await import('../pkg/db.ts');
 const { config } = await import('../pkg/config.ts');
 
 const KEY = 'kyc_pipeline_allieds';
-const ya = await one<{ id: number; value: string }>(
+const already = await one<{ id: number; value: string }>(
     "SELECT id, value FROM settings WHERE code = 'setting' AND `key` = ? LIMIT 1", [KEY],
 );
-if (ya) {
-    console.log(`\n  ✓ la setting ya existe (id ${ya.id}) · value ${ya.value} — no se toca`);
+if (already) {
+    console.log(`\n  ✓ la setting ya existe (id ${already.id}) · value ${already.value} — no se toca`);
 } else {
     const r = await exec(
         "INSERT INTO settings (code, `key`, value, serialized, country_id, created_at, updated_at) VALUES ('setting', ?, ?, 4, 1, NOW(), NOW())",

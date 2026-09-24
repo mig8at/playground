@@ -36,10 +36,10 @@ import { query, close, TARGET, env } from '../pkg/db.ts';
 const EMIT_SQL = process.argv.includes('--sql');
 
 /** El default de las migraciones (`allieds`/`lenders`/`users`): id 1 = Afghanistan en `countries`. */
-const DEFAULT_PAIS = 1;
+const DEFAULT_COUNTRY = 1;
 
-type Pais = { id: number; name: string; iso: string | null };
-type FilaCableado = {
+type Country = { id: number; name: string; iso: string | null };
+type WiredRow = {
     lender_id: number;
     pais_comercio: number;
     pais_ciudad: number | null;
@@ -48,12 +48,12 @@ type FilaCableado = {
 };
 type Lender = { id: number; name: string; country_id: number; status: number; response_type: number };
 
-type Veredicto = 'ok' | 'propuesto' | 'conflicto' | 'huerfano';
+type Verdict = 'ok' | 'propuesto' | 'conflicto' | 'huerfano';
 
-type Resultado = {
+type Result = {
     lender: Lender;
     paises: Map<number, number>; // país → cuántas sucursales
-    veredicto: Veredicto;
+    veredicto: Verdict;
     propuesto: number | null;
 };
 
@@ -61,14 +61,14 @@ async function main(): Promise<number> {
     const host = env('E2E_DB_HOST', '127.0.0.1');
     console.log(`\n  paises · target=${TARGET} · ${host}  ·  SOLO LECTURA\n`);
 
-    const paises = new Map<number, Pais>(
-        (await query<Pais>('SELECT id, name, iso_code_1 AS iso FROM countries')).map((p) => [p.id, p]),
+    const countries = new Map<number, Country>(
+        (await query<Country>('SELECT id, name, iso_code_1 AS iso FROM countries')).map((p) => [p.id, p]),
     );
-    const nombrePais = (id: number | null): string => {
+    const countryName = (id: number | null): string => {
         if (id === null) return 'sin ciudad';
-        const p = paises.get(id);
+        const p = countries.get(id);
         if (!p) return `país ${id} (no existe)`;
-        return id === DEFAULT_PAIS ? `default ${id}` : `${p.iso ?? p.name} (${id})`;
+        return id === DEFAULT_COUNTRY ? `default ${id}` : `${p.iso ?? p.name} (${id})`;
     };
 
     const lenders = await query<Lender>(
@@ -77,7 +77,7 @@ async function main(): Promise<number> {
 
     // El país de la sucursal se toma del COMERCIO (la sucursal no tiene columna); la ciudad se trae
     // en paralelo solo para detectar el desacuerdo, no para inferir.
-    const cableado = await query<FilaCableado>(`
+    const wired = await query<WiredRow>(`
         SELECT lab.lender_id,
                a.country_id  AS pais_comercio,
                cz.country_id AS pais_ciudad,
@@ -92,76 +92,76 @@ async function main(): Promise<number> {
     `);
 
     // ── 1. Inferencia por entidad ────────────────────────────────────────────────────────────────
-    const porLender = new Map<number, Map<number, number>>();
-    for (const f of cableado) {
-        const m = porLender.get(f.lender_id) ?? new Map<number, number>();
+    const byLender = new Map<number, Map<number, number>>();
+    for (const f of wired) {
+        const m = byLender.get(f.lender_id) ?? new Map<number, number>();
         m.set(f.pais_comercio, (m.get(f.pais_comercio) ?? 0) + Number(f.n));
-        porLender.set(f.lender_id, m);
+        byLender.set(f.lender_id, m);
     }
 
-    const resultados: Resultado[] = lenders.map((lender) => {
-        const p = porLender.get(lender.id) ?? new Map<number, number>();
+    const results: Result[] = lenders.map((lender) => {
+        const p = byLender.get(lender.id) ?? new Map<number, number>();
         // Un comercio en el default 1 no aporta país: no se puede inferir de algo que tampoco se sabe.
-        const reales = [...p.keys()].filter((id) => id !== DEFAULT_PAIS);
-        let veredicto: Veredicto;
-        let propuesto: number | null = null;
-        if (p.size === 0) veredicto = 'huerfano';
-        else if (reales.length > 1) veredicto = 'conflicto';
-        else if (reales.length === 0) veredicto = 'huerfano'; // cableado solo a comercios sin país
+        const real = [...p.keys()].filter((id) => id !== DEFAULT_COUNTRY);
+        let verdict: Verdict;
+        let proposed: number | null = null;
+        if (p.size === 0) verdict = 'huerfano';
+        else if (real.length > 1) verdict = 'conflicto';
+        else if (real.length === 0) verdict = 'huerfano'; // cableado solo a comercios sin país
         else {
-            propuesto = reales[0];
-            veredicto = lender.country_id === propuesto ? 'ok' : 'propuesto';
+            proposed = real[0];
+            verdict = lender.country_id === proposed ? 'ok' : 'propuesto';
         }
-        return { lender, paises: p, veredicto, propuesto };
+        return { lender, paises: p, veredicto: verdict, propuesto: proposed };
     });
 
-    const de = (v: Veredicto) => resultados.filter((r) => r.veredicto === v);
-    const ok = de('ok'), propuestos = de('propuesto'), conflictos = de('conflicto'), huerfanos = de('huerfano');
+    const ofValue = (v: Verdict) => results.filter((r) => r.veredicto === v);
+    const ok = ofValue('ok'), proposedOnes = ofValue('propuesto'), conflicts = ofValue('conflicto'), orphanOnes = ofValue('huerfano');
 
-    console.log(`  ENTIDADES: ${lenders.length}   ya correctas ${ok.length} · a poblar ${propuestos.length} · en conflicto ${conflictos.length} · sin cablear ${huerfanos.length}\n`);
+    console.log(`  ENTIDADES: ${lenders.length}   ya correctas ${ok.length} · a poblar ${proposedOnes.length} · en conflicto ${conflicts.length} · sin cablear ${orphanOnes.length}\n`);
 
-    if (propuestos.length) {
-        console.log(`  ── A POBLAR (${propuestos.length}) — cableadas en un solo país ─────────────────`);
-        for (const r of propuestos) {
-            const suc = r.paises.get(r.propuesto!) ?? 0;
+    if (proposedOnes.length) {
+        console.log(`  ── A POBLAR (${proposedOnes.length}) — cableadas en un solo país ─────────────────`);
+        for (const r of proposedOnes) {
+            const br = r.paises.get(r.propuesto!) ?? 0;
             console.log(
                 `    ${String(r.lender.id).padStart(4)} ${r.lender.name.slice(0, 30).padEnd(30)}` +
                 ` rt${r.lender.response_type} ${r.lender.status ? '  ' : 'off'}` +
-                `  ${nombrePais(r.lender.country_id).padEnd(14)} → ${nombrePais(r.propuesto)}   (${suc} sucursales)`,
+                `  ${countryName(r.lender.country_id).padEnd(14)} → ${countryName(r.propuesto)}   (${br} sucursales)`,
             );
         }
         console.log('');
     }
 
-    if (conflictos.length) {
-        console.log(`  ── ⚠ CONFLICTO (${conflictos.length}) — cableadas en VARIOS países ────────────`);
+    if (conflicts.length) {
+        console.log(`  ── ⚠ CONFLICTO (${conflicts.length}) — cableadas en VARIOS países ────────────`);
         console.log('     Una fila de lender no puede estar en dos monedas: hay que partirla en una por país.');
-        for (const r of conflictos) {
-            const detalle = [...r.paises.entries()]
-                .map(([id, n]) => `${nombrePais(id)}×${n}`)
+        for (const r of conflicts) {
+            const detail = [...r.paises.entries()]
+                .map(([id, n]) => `${countryName(id)}×${n}`)
                 .join(' · ');
-            console.log(`    ${String(r.lender.id).padStart(4)} ${r.lender.name.slice(0, 30).padEnd(30)} ${detalle}`);
+            console.log(`    ${String(r.lender.id).padStart(4)} ${r.lender.name.slice(0, 30).padEnd(30)} ${detail}`);
         }
         console.log('');
     }
 
-    if (huerfanos.length) {
-        const vivos = huerfanos.filter((r) => r.lender.status === 1);
-        console.log(`  ── SIN CABLEAR (${huerfanos.length}, ${vivos.length} activas) — no hay de dónde inferir ──`);
-        console.log(`     ${huerfanos.map((r) => r.lender.id).join(', ')}`);
+    if (orphanOnes.length) {
+        const aliveList = orphanOnes.filter((r) => r.lender.status === 1);
+        console.log(`  ── SIN CABLEAR (${orphanOnes.length}, ${aliveList.length} activas) — no hay de dónde inferir ──`);
+        console.log(`     ${orphanOnes.map((r) => r.lender.id).join(', ')}`);
         console.log('     Se resuelven a mano (o se apagan, si están muertas).\n');
     }
 
     // ── 2. El radio de explosión de los filtros literales ────────────────────────────────────────
-    const saldriaDelUno = propuestos.filter((r) => r.lender.country_id === DEFAULT_PAIS && r.lender.status === 1);
+    const wouldLeaveOne = proposedOnes.filter((r) => r.lender.country_id === DEFAULT_COUNTRY && r.lender.status === 1);
     console.log('  ── ⚠ RADIO DE EXPLOSIÓN ───────────────────────────────────────────────────────');
-    console.log(`     ${saldriaDelUno.length} entidades ACTIVAS saldrían del default 1 al poblar la columna.`);
+    console.log(`     ${wouldLeaveOne.length} entidades ACTIVAS saldrían del default 1 al poblar la columna.`);
     console.log('     Tres consultas filtran por el literal 1 y las dejarían FUERA DEL LISTADO, sin error:');
     console.log('       LenderRetrievalService:458 · OnboardingService:1782 · Identity/LenderRepository:52');
     console.log('     → arreglar los filtros PRIMERO, el backfill después.\n');
 
     // ── 3. ¿El país de la sucursal es confiable? ─────────────────────────────────────────────────
-    const desacuerdo = await query<{ n: number; pais_comercio: number; pais_ciudad: number | null }>(`
+    const disagreement = await query<{ n: number; pais_comercio: number; pais_ciudad: number | null }>(`
         SELECT a.country_id AS pais_comercio, cz.country_id AS pais_ciudad, COUNT(*) AS n
           FROM allied_branches ab
           JOIN allieds a         ON a.id = ab.allied_id
@@ -169,32 +169,32 @@ async function main(): Promise<number> {
      LEFT JOIN country_zones cz  ON cz.id = cc.country_zone_id
       GROUP BY 1, 2
     `);
-    const malas = desacuerdo.filter((d) => d.pais_ciudad !== null && d.pais_ciudad !== d.pais_comercio);
-    const sinCiudad = desacuerdo.filter((d) => d.pais_ciudad === null).reduce((a, d) => a + Number(d.n), 0);
+    const badOnes = disagreement.filter((d) => d.pais_ciudad !== null && d.pais_ciudad !== d.pais_comercio);
+    const withoutCity = disagreement.filter((d) => d.pais_ciudad === null).reduce((a, d) => a + Number(d.n), 0);
     console.log('  ── SUCURSALES: ¿el país del comercio coincide con el de su ciudad? ────────────');
-    if (malas.length) {
-        for (const d of malas) {
-            console.log(`     ⚠ ${d.n} sucursal(es): comercio ${nombrePais(d.pais_comercio)} vs ciudad ${nombrePais(d.pais_ciudad)}`);
+    if (badOnes.length) {
+        for (const d of badOnes) {
+            console.log(`     ⚠ ${d.n} sucursal(es): comercio ${countryName(d.pais_comercio)} vs ciudad ${countryName(d.pais_ciudad)}`);
         }
     } else {
         console.log('     sin desacuerdos');
     }
-    if (sinCiudad) console.log(`     ${sinCiudad} sucursal(es) sin ciudad → el país solo se sabe por el comercio`);
+    if (withoutCity) console.log(`     ${withoutCity} sucursal(es) sin ciudad → el país solo se sabe por el comercio`);
     console.log('');
 
     // ── SQL propuesto (NO se ejecuta) ────────────────────────────────────────────────────────────
     if (EMIT_SQL) {
         console.log('  ── UPDATE PROPUESTOS (revisar y correr a mano; este script NO escribe) ────────');
         console.log('  -- Ojo: correr DESPUÉS de quitar los tres filtros literales `country_id = 1`.');
-        for (const r of propuestos) {
+        for (const r of proposedOnes) {
             console.log(`  UPDATE lenders SET country_id = ${r.propuesto} WHERE id = ${r.lender.id}; -- ${r.lender.name}`);
         }
         console.log('');
-    } else if (propuestos.length) {
+    } else if (proposedOnes.length) {
         console.log('  (corré con --sql para ver los UPDATE propuestos; igual no los ejecuta)\n');
     }
 
-    return conflictos.length || huerfanos.some((r) => r.lender.status === 1) ? 1 : 0;
+    return conflicts.length || orphanOnes.some((r) => r.lender.status === 1) ? 1 : 0;
 }
 
 main()

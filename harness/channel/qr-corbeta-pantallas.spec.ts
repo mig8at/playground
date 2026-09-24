@@ -27,7 +27,7 @@ import { spawnSync } from 'node:child_process';
 // `corbetaBranch()` se cuelga o falla sin VPN y la suite se salta entera sin decir por qué.
 process.env.E2E_TARGET ||= 'local';
 
-const { fillQrRegister, fillQrOtp, otpDeTelefono, autorrellenarQr } = await import('../pkg/qr-steps.ts');
+const { fillQrRegister, fillQrOtp, otpDeTelefono: phoneOtp, autorrellenarQr: autofillQr } = await import('../pkg/qr-steps.ts');
 const { qrEntryUrl, corbetaBranch } = await import('../pkg/qr.ts');
 const { close } = await import('../pkg/db.ts');
 
@@ -40,8 +40,8 @@ test.describe.configure({ mode: 'serial' });
 
 test.describe('canal QR — pantallas de autogestión', () => {
     let hash = '';
-    let wizardArriba = false;
-    let mockArriba = false;
+    let wizardUp = false;
+    let mockUp = false;
 
     test.beforeAll(async () => {
         // ⚠ SCRUB DEL TELÉFONO, obligatorio: el registro del self-service valida la unicidad
@@ -61,16 +61,16 @@ test.describe('canal QR — pantallas de autogestión', () => {
 
         const br = await corbetaBranch();
         hash = br?.hash ?? '';
-        wizardArriba = await fetch(`${WIZARD}/`, { signal: AbortSignal.timeout(10_000) })
+        wizardUp = await fetch(`${WIZARD}/`, { signal: AbortSignal.timeout(10_000) })
             .then((r) => r.status > 0).catch(() => false);
-        mockArriba = await fetch(MOCK_BC, { signal: AbortSignal.timeout(3_000) }).then(() => true).catch(() => false);
+        mockUp = await fetch(MOCK_BC, { signal: AbortSignal.timeout(3_000) }).then(() => true).catch(() => false);
     });
 
     test.afterAll(async () => { await close(); });
 
     test.beforeEach(() => {
         test.skip(!hash, `sin sucursal Corbeta con 68 y 100 habilitados (target ${process.env.E2E_TARGET})`);
-        test.skip(!wizardArriba, `el wizard no responde en ${WIZARD} → levantalo con bin/qr <hash>`);
+        test.skip(!wizardUp, `el wizard no responde en ${WIZARD} → levantalo con bin/qr <hash>`);
     });
 
     test('la entrada del QR renderiza el registro con sus campos', async ({ page }) => {
@@ -86,53 +86,53 @@ test.describe('canal QR — pantallas de autogestión', () => {
         // Es el contrato del modo MANUAL del canal: el harness escribe, el usuario sólo da Continuar.
         // Si esto empezara a clickear, el camino visual dejaría de ser visual.
         await page.goto(qrEntryUrl(hash), { waitUntil: 'domcontentloaded' });
-        const urlAntes = page.url();
+        const urlBefore = page.url();
 
-        const hechos = await autorrellenarQr(page, {
+        const facts = await autofillQr(page, {
             phone: PHONE, document: String(2_900_000_000 + (Date.now() % 90_000_000)),
             amount: 1_500_000, firstName: 'SYNTH', lastName: 'TEST USER',
             email: 'synth.qr@gmail.com', address: 'Cal 123 # 12-122', income: 2_500_000,
         });
 
-        expect(hechos.length, `no llenó nada: ${JSON.stringify(hechos)}`).toBeGreaterThan(0);
+        expect(facts.length, `no llenó nada: ${JSON.stringify(facts)}`).toBeGreaterThan(0);
         expect(await page.getByLabel(/Número celular/i).inputValue()).toBe(PHONE);
         expect(await page.getByLabel(/Número de documento/i).inputValue()).not.toBe('');
         // Los dos checkboxes de Radix, marcados.
-        const estados = await page.locator('button[role="checkbox"]').evaluateAll(
+        const statuses = await page.locator('button[role="checkbox"]').evaluateAll(
             (els) => els.map((e) => e.getAttribute('data-state')));
-        expect(estados.every((e) => e === 'checked'), `checkboxes: ${JSON.stringify(estados)}`).toBe(true);
+        expect(statuses.every((e) => e === 'checked'), `checkboxes: ${JSON.stringify(statuses)}`).toBe(true);
         // Y lo que define el contrato: el botón quedó HABILITADO (o sea el form valida) pero NADIE lo tocó.
         const submit = page.locator('form').first().getByRole('button', { name: /continuar/i }).first();
         await expect(submit).toBeEnabled();
-        expect(page.url(), 'el autorrelleno no debe navegar').toBe(urlAntes);
+        expect(page.url(), 'el autorrelleno no debe navegar').toBe(urlBefore);
     });
 
     test('registro + OTP: el OTP resuelve el producto', async ({ page }) => {
-        test.skip(!mockArriba, `mock-bancolombia no responde en ${MOCK_BC} → bin/mock-bancolombia start`);
+        test.skip(!mockUp, `mock-bancolombia no responde en ${MOCK_BC} → bin/mock-bancolombia start`);
 
         // Documento único por corrida: el checkout rebota si el teléfono ya tiene usuario con otra identidad.
         const doc = String(2_900_000_000 + (Date.now() % 90_000_000));
         await page.goto(qrEntryUrl(hash), { waitUntil: 'domcontentloaded' });
 
-        const avanzo = await fillQrRegister(page, { phone: PHONE, document: doc });
+        const advanced = await fillQrRegister(page, { phone: PHONE, document: doc });
         // Si no avanzó, el motivo casi siempre está EN LA PANTALLA (validación del form o error del
         // backend, ej. la unicidad teléfono↔documento). Volcarlo acá convierte un fallo opaco en un
         // diagnóstico: sin esto el mensaje culpa a los selectores incluso cuando el problema es el dato.
-        if (!avanzo) {
+        if (!advanced) {
             const msgs = (await page.locator('[role=alert], [data-slot=form-message], .text-destructive').allTextContents())
                 .map((x) => x.trim()).filter(Boolean);
             console.log(`  ⚠ el registro no avanzó · URL=${page.url()}`);
             console.log(`  ⚠ mensajes en pantalla: ${JSON.stringify(msgs.slice(0, 4))}`);
         }
-        expect(avanzo, 'el registro no avanzó al OTP — mirá los mensajes de pantalla del log').toBe(true);
+        expect(advanced, 'el registro no avanzó al OTP — mirá los mensajes de pantalla del log').toBe(true);
         await expect(page).toHaveURL(/\/otp/);
 
-        const donde = await fillQrOtp(page, { phone: PHONE, code: otpDeTelefono(PHONE) });
+        const where = await fillQrOtp(page, { phone: PHONE, code: phoneOtp(PHONE) });
         // El OTP tiene que RESOLVER: cualquiera de los tres es un desenlace legítimo del canal, lo que no
         // vale es quedarse en la pantalla (eso sería el OTP sin validar).
-        expect(['bnpl', 'consumo', 'no-preapproved'], `quedó en ${page.url()}`).toContain(donde);
+        expect(['bnpl', 'consumo', 'no-preapproved'], `quedó en ${page.url()}`).toContain(where);
         // Con el mock arriba y la sucursal con 68/100, lo esperable es un producto — si sale
         // `no-preapproved` es señal de que el mock no está apuntado o la sucursal no tiene cupo.
-        expect(donde, 'con mock-bancolombia arriba debería pre-aprobar').not.toBe('no-preapproved');
+        expect(where, 'con mock-bancolombia arriba debería pre-aprobar').not.toBe('no-preapproved');
     });
 });

@@ -2,7 +2,7 @@
 // directo en el user_request del wizard, para que /lenders ofrezca sin volver a llamar centrales.
 // Port 1:1 de backend-mcp opSynthFill + deriveSynthReq + db.go (setSynthIdentity/injectSummary/
 // injectIncomeFields/injectDatacredito/datacreditoData). harness ya no shellea al mcp.
-import { query, one, scalar, exec, appKey, assertWriteAllowed, conAmbitoDeSiembra, TARGET } from './db.ts';
+import { query, one, scalar, exec, appKey, assertWriteAllowed, withSeedScope, TARGET } from './db.ts';
 import { encryptLaravelString } from './laravel-crypt.ts';
 
 export interface SynthReq {
@@ -138,11 +138,11 @@ async function ensureLenderCredential(alliedID: number, lenderID: number): Promi
     return 'sembrada (copiada de plantilla)';
 }
 
-async function setSynthIdentity(userID: number, doc: string, email: string, gender: string, age: number, name?: string, documentType: string | null = 'CC', dob = '1990-01-01', expeditionDate = '2010-01-01'): Promise<void> {
+async function setSynthIdentity(userID: number, doc: string, email: string, gender: string, age: number, name?: string, documentType: string | null = 'CC', dobValue = '1990-01-01', expeditionDate = '2010-01-01'): Promise<void> {
     // name opcional (del panel): "Juan Perez" → first_name "Juan", surname "Perez". Default = SYNTH TEST USER.
     const parts = (name ?? '').trim().split(/\s+/).filter(Boolean);
     const first = parts[0] ?? 'SYNTH';
-    const surname = parts.slice(1).join(' ') || 'TEST USER';
+    const surnameValue = parts.slice(1).join(' ') || 'TEST USER';
     // LAS DOS FOTOS DE LA CÉDULA. En un flujo real las deja la validación de identidad; el sintético la
     // saltea, así que quedan en NULL — y eso NO se ve hasta el final: la solicitud llega igual a estado
     // 11 y recién la FORMALIZACIÓN (mandarle el paquete al lender) muere con «faltan documentos
@@ -153,7 +153,7 @@ async function setSynthIdentity(userID: number, doc: string, email: string, gend
     // (`CredifamiliaLegalizationDocumentService::isUsableUrl`) y el merge lo hace el pdf-mapper, que en
     // local es un mock y no descarga nada. Se les pone forma de URL de S3 para que se reconozcan como
     // sintéticas al mirarlas en la base.
-    const cedula = (cara: string) => `https://mock-s3.local/front-web/users/documents/synth/${doc}/${cara}.jpg`;
+    const idNumber = (face: string) => `https://mock-s3.local/front-web/users/documents/synth/${doc}/${face}.jpg`;
     // `documentType: null` = NO tocar la columna, dejar el que escribió el alta.
     //
     // ⚠ Existe porque este relleno adelantaba el reloj y tapaba un incidente de producción. En los
@@ -161,25 +161,25 @@ async function setSynthIdentity(userID: number, doc: string, email: string, gend
     // que pide sólo teléfono y número—, escribirlo acá le da a la solicitud un dato que en el flujo real
     // todavía no tiene, y la compuerta del lender pasa a ver un tipo válido donde en producción ve el
     // centinela `-`. El recorrido cerraba en verde en local y se cancelaba en producción.
-    const tipoSeEscribe = documentType !== null;
+    const typeIsWritten = documentType !== null;
     await exec(
-        `UPDATE users SET ${tipoSeEscribe ? 'document_type=?, ' : ''}document_number=?, first_name=?, surname=?,
+        `UPDATE users SET ${typeIsWritten ? 'document_type=?, ' : ''}document_number=?, first_name=?, surname=?,
          full_name=?, email=?, date_of_birth=?, expedition_date=?,
          age=?, gender=?, front_url=?, back_url=?, updated_at=NOW() WHERE id=?`,
-        [...(tipoSeEscribe ? [documentType] : []), doc, first, surname, `${first} ${surname}`, email, dob, expeditionDate, age, gender,
-         cedula('frontal'), cedula('reverso'), userID],
+        [...(typeIsWritten ? [documentType] : []), doc, first, surnameValue, `${first} ${surnameValue}`, email, dobValue, expeditionDate, age, gender,
+         idNumber('frontal'), idNumber('reverso'), userID],
         { permiso: 'siembra', usuario: userID },
     );
 }
 
-async function injectSummary(userID: number, income: number, score: number, negatives = 0, consulted = 1, withBuro = true): Promise<void> {
+async function injectSummary(userID: number, income: number, score: number, negatives = 0, consulted = 1, withBureau = true): Promise<void> {
     const agildata = JSON.stringify({
         employed: true, self_employed: false, retired: false,
         approximate_real_salary: income, last_payment_value: income, lowest_payment_value: income,
         continuity_3_months: true, continuity_6_months: true, continuity_12_months: true,
     });
-    // withBuro=false (PEP): guardamos el ingreso (agildata) pero NO el bloque de datacrédito.
-    const datacredito = withBuro
+    // withBureau=false (PEP): guardamos el ingreso (agildata) pero NO el bloque de datacrédito.
+    const datacredito = withBureau
         ? JSON.stringify({ score, value_monthly_payment: Math.floor(income / 3), data: datacreditoData(negatives, consulted) })
         : null;
     const id = await scalar<number>('SELECT id FROM user_summaries WHERE user_id = ? LIMIT 1', [userID]);
@@ -297,11 +297,11 @@ export async function synthFill(uReqID: number, opts: SynthFillOpts = {}): Promi
     // DESDE ACÁ, y hasta que termine, esta rama puede sembrar sobre ESTE usuario y ninguno más. Es la
     // guarda que reemplaza al permiso general: acota las FILAS, que es lo que la forma de la sentencia
     // no puede acotar cuando la tabla es `users`.
-    return conAmbitoDeSiembra([userID], () => sembrarSobre(uReqID, userID, branchHash, opts));
+    return withSeedScope([userID], () => seedOver(uReqID, userID, branchHash, opts));
 }
 
 /** El cuerpo de `synthFill`, ya con el usuario resuelto y el ámbito abierto. */
-async function sembrarSobre(uReqID: number, userID: number, branchHash: string, opts: SynthFillOpts): Promise<SynthFillResult> {
+async function seedOver(uReqID: number, userID: number, branchHash: string, opts: SynthFillOpts): Promise<SynthFillResult> {
     let req: SynthReq = { fields: { 29: 'Empleado', 160: 'no', 87: '2500000' }, gender: 'M', age: 35, income: 2_500_000, score: 700 };
     let target = '';
     if (opts.lender && branchHash) {
@@ -322,30 +322,30 @@ async function sembrarSobre(uReqID: number, userID: number, branchHash: string, 
     if (opts.occupation) req.fields[29] = opts.occupation;   // ocupación editable (field 29)
 
     const documentType = (opts.documentType || 'CC').toUpperCase();
-    const hasBuro = documentType !== 'PEP';                  // PEP = migrante sin buró → se salta la consulta
+    const hasBureau = documentType !== 'PEP';                  // PEP = migrante sin buró → se salta la consulta
     const negatives = opts.negatives ?? 0;
     const consulted = opts.consulted ?? 1;
 
     const doc = (opts.document && opts.document.trim()) || String(2_900_000_000 + uReqID);
     const email = (opts.email && opts.email.trim()) || `synth-${uReqID}@creditop.com`;
-    const dob = opts.dob || '1990-01-01';
+    const dobValue = opts.dob || '1990-01-01';
     const expeditionDate = opts.expeditionDate || '2010-01-01';
     // Los cuatro bloques escriben tablas DISTINTAS (users · user_summaries · user_field_values ·
     // risk_central_user_data) y no dependen entre sí → EN PARALELO. En serie eran ~14 round-trips a dev
     // (~1.5s solo de latencia); en paralelo, el peor bloque (~3 queries encadenadas) marca el total.
     // skipIdentity (manual): no pisamos la identidad → personal-info lo llena el usuario. Igual inyectamos el buró.
-    const buroDone: Promise<string> = (hasBuro && opts.skipBuro)
+    const bureauDone: Promise<string> = (hasBureau && opts.skipBuro)
         ? Promise.resolve('OMITIDO a propósito (flujo already-confirmed-pre-approval): sin fila forjada, "no hay buró" es evidencia')
-        : hasBuro
+        : hasBureau
             ? injectDatacredito(userID, req.income, req.score, negatives, consulted)
                 .then(() => `ok (neg ${negatives} · consultas ${consulted})`)
                 .catch((e) => (e instanceof Error ? e.message : String(e)))
             : Promise.resolve('PEP: sin buró (no se inyecta la fila Experian)');
     const [, , , dc] = await Promise.all([
-        opts.skipIdentity ? Promise.resolve() : setSynthIdentity(userID, doc, email, req.gender, req.age, opts.name, opts.keepDocumentType ? null : documentType, dob, expeditionDate),
-        injectSummary(userID, req.income, req.score, negatives, consulted, hasBuro),
+        opts.skipIdentity ? Promise.resolve() : setSynthIdentity(userID, doc, email, req.gender, req.age, opts.name, opts.keepDocumentType ? null : documentType, dobValue, expeditionDate),
+        injectSummary(userID, req.income, req.score, negatives, consulted, hasBureau),
         injectIncomeFields(userID, uReqID, req.fields),
-        buroDone,
+        bureauDone,
     ]);
 
     return {
@@ -356,7 +356,7 @@ async function sembrarSobre(uReqID: number, userID: number, branchHash: string, 
         doc,
         profile: { fields: req.fields, gender: req.gender, age: req.age, income: req.income, score: req.score },
         datacredito_forged: dc,
-        note: `KYC armado ${documentType}${hasBuro ? '' : ' · SIN buró'} inyectado (${TARGET}) → navegá a /lenders`,
+        note: `KYC armado ${documentType}${hasBureau ? '' : ' · SIN buró'} inyectado (${TARGET}) → navegá a /lenders`,
     };
 }
 
@@ -384,7 +384,7 @@ async function sembrarSobre(uReqID: number, userID: number, branchHash: string, 
  * Devuelve qué encontró y qué repuso, para que quien llama lo diga en el rastro. No decide: informa y
  * corrige los tres campos, nada más.
  */
-export interface EmpleoRepuesto {
+export interface EmploymentRestored {
       pisado: boolean;
       ocupacionAntes: string;
       ingresoAntes: string;
@@ -392,34 +392,34 @@ export interface EmpleoRepuesto {
       ingreso: string;
 }
 
-export async function reponerEmpleo(
+export async function restoreEmployment(
       uReqID: number,
       opts: { income?: number; occupation?: string } = {},
-): Promise<EmpleoRepuesto | null> {
+): Promise<EmploymentRestored | null> {
       const userID = (await scalar<number>('SELECT user_id FROM user_requests WHERE id = ? LIMIT 1', [uReqID])) ?? 0;
       if (!userID) return null;
 
-      const leer = async (fid: number): Promise<string> =>
+      const read = async (fid: number): Promise<string> =>
             (await scalar<string>(
                   'SELECT value FROM user_field_values WHERE user_id=? AND field_id=? AND form_id=1 LIMIT 1',
                   [userID, fid],
             )) ?? '';
 
-      const ocupacionAntes = await leer(29);
-      const ingresoAntes = await leer(87);
-      const ocupacion = opts.occupation || 'Empleado';
-      const ingreso = String(opts.income && opts.income > 0 ? opts.income : 2_500_000);
+      const occupationBefore = await read(29);
+      const incomeBefore = await read(87);
+      const occupation = opts.occupation || 'Empleado';
+      const incomeValue = String(opts.income && opts.income > 0 ? opts.income : 2_500_000);
 
       // Sólo se repone lo que NO coincide: una escritura que no cambia nada es ruido en el registro.
-      const pisado = ocupacionAntes !== ocupacion || ingresoAntes !== ingreso;
-      if (pisado) {
-            await injectIncomeFields(userID, uReqID, { 29: ocupacion, 87: ingreso });
+      const overwritten = occupationBefore !== occupation || incomeBefore !== incomeValue;
+      if (overwritten) {
+            await injectIncomeFields(userID, uReqID, { 29: occupation, 87: incomeValue });
       }
-      return { pisado, ocupacionAntes, ingresoAntes, ocupacion, ingreso };
+      return { pisado: overwritten, ocupacionAntes: occupationBefore, ingresoAntes: incomeBefore, ocupacion: occupation, ingreso: incomeValue };
 }
 
 /** El aviso, en líneas listas para imprimir. Vacío cuando el empleo sobrevivió. */
-export function avisoDeEmpleoPisado(r: EmpleoRepuesto | null): string[] {
+export function overwrittenEmploymentNotice(r: EmploymentRestored | null): string[] {
       if (!r || !r.pisado) return [];
       return [
             `⚠ EL EMPLEO QUE SE INYECTÓ NO SOBREVIVIÓ: la respuesta de Agildata lo reemplazó.`,
@@ -441,7 +441,7 @@ export interface RequestState {
 /** Estado del user_request con el MISMO criterio que backend-e2e (user_request_status_id=11 ⇒ Estado 11 /
  *  Autorizada — ver lender/lender.go). OJO: ese sello lo pone la AUTORIZACIÓN del cierre; reachear /lenders
  *  solo lista el marketplace, NO autoriza. Read-only. */
-export async function requestEstado11(uReqID: number): Promise<RequestState> {
+export async function requestStatus11(uReqID: number): Promise<RequestState> {
     const statusId = await scalar<number>('SELECT user_request_status_id FROM user_requests WHERE id=?', [uReqID]);
     const cx = await scalar<number>('SELECT COUNT(*) AS n FROM creditop_x_user_requests_records WHERE user_request_id=?', [uReqID]);
     return { statusId: statusId ?? null, sealed11: Number(statusId) === 11, creditopXRecords: Number(cx) || 0 };
@@ -461,7 +461,7 @@ export async function approvePaymentTx(txId: number): Promise<number> {
  *  documentos del cliente. Con esto puesto, el backend NO manda a validar identidad: devuelve
  *  `next_step: continue_flow` con `type: no_validation_required` y el flujo sigue al plan de pagos.
  *
- *  DOS COLUMNAS, NO UNA TABLA. No hay veredicto guardado en ningún lado: la condición que salta la
+ *  DOS COLUMNAS, NO UNA TABLE. No hay veredicto guardado en ningún lado: la condición que salta la
  *  identidad es `manual_validation = 1` **y** `last_validation` con menos de 24 h
  *  (`CreditopXFlowService::getIdentityNextStepData`, que cruza `calculateValidationTime` con
  *  `$user->manual_validation`). Por eso `NOW()` no es decorativo: con una fecha vieja, la columna en 1
@@ -480,11 +480,11 @@ export async function approvePaymentTx(txId: number): Promise<number> {
  *
  *  ⚠ Lo que ESTO no prueba: que el humano habría aprobado. Es un bypass, igual que el buró sintético.
  */
-export async function validacionManual(userId: number): Promise<number> {
+export async function manualValidation(userId: number): Promise<number> {
     if (!userId) return 0;
     // Abre su propio ámbito: se la llama SUELTA desde los runners, después de `synthFill`, así que no
     // hereda ninguno. Es el mismo usuario y la misma corrida.
-    return conAmbitoDeSiembra([userId], async () => {
+    return withSeedScope([userId], async () => {
         const res = await exec('UPDATE users SET manual_validation=1, last_validation=NOW() WHERE id=?', [userId],
                                { permiso: 'siembra', usuario: userId });
         return res.affectedRows;

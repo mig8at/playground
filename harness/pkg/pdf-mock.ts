@@ -40,12 +40,12 @@ export function minimalPdf(text = 'DEMO - documento simulado por el harness'): B
     });
 
     // Tabla xref: entradas de EXACTAMENTE 20 bytes ("%010d %05d n \n").
-    const xrefAt = Buffer.byteLength(body, 'latin1');
-    let xref = `xref\n0 ${objs.length + 1}\n0000000000 65535 f \n`;
-    for (const off of offsets) xref += `${String(off).padStart(10, '0')} 00000 n \n`;
+    const xrefAtValue = Buffer.byteLength(body, 'latin1');
+    let xrefValue = `xref\n0 ${objs.length + 1}\n0000000000 65535 f \n`;
+    for (const off of offsets) xrefValue += `${String(off).padStart(10, '0')} 00000 n \n`;
 
-    const tail = `trailer\n<</Size ${objs.length + 1}/Root 1 0 R>>\nstartxref\n${xrefAt}\n%%EOF\n`;
-    return Buffer.from(body + xref + tail, 'latin1');
+    const tail = `trailer\n<</Size ${objs.length + 1}/Root 1 0 R>>\nstartxref\n${xrefAtValue}\n%%EOF\n`;
+    return Buffer.from(body + xrefValue + tail, 'latin1');
 }
 
 const CORS = {

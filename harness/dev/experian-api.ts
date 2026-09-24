@@ -20,18 +20,18 @@
 // Exit code: 0 la firma APAGA la consulta · 1 no la apaga · 2 no se pudo medir.
 import { one, close, TARGET, env } from '../pkg/db.ts';
 
-const CENTRALES = ['experian-acierta', 'experian-quanto', 'experian-acierta-quanto'];
+const BUREAUS = ['experian-acierta', 'experian-quanto', 'experian-acierta-quanto'];
 const ABLE_TO_OMIT = 'RKV26000';   // el aliado PUEDE omitir (lo que el front mira para ofrecer el selector)
-const OMITIDO = 'RKV24029';        // no se consulta: la solicitud está en el flujo con pre-aprobados listos
-const CACHEADO = 'RKV24027';       // no se consulta: ya hay dato vigente para esa central
-const FIRMADO = 'URV13000';        // la firma quedó
+const OMITTED = 'RKV24029';        // no se consulta: la solicitud está en el flujo con pre-aprobados listos
+const CACHED = 'RKV24027';       // no se consulta: ya hay dato vigente para esa central
+const SIGNED = 'URV13000';        // la firma quedó
 
 // Los ÚNICOS veredictos que significan "sí, consultá Experian". Todo lo demás es una razón para NO
 // consultar — y hay varias. Importa para leer el resultado: el chequeo de "dato vigente" (RKV24027)
 // corre ANTES que el de flujo, así que una central con reporte fresco corta ahí y NUNCA llega a decir
 // RKV24029. No es que la omisión falle: es que esa central ni siquiera participa de la medición.
-const PIDE_BURO = ['RKV24000', 'RKV24007', 'RKV24020', 'RKV24021'];
-const pideBuro = (code: string) => PIDE_BURO.includes(code);
+const ASKS_BUREAU = ['RKV24000', 'RKV24007', 'RKV24020', 'RKV24021'];
+const asksBureau = (code: string) => ASKS_BUREAU.includes(code);
 
 const ROOT = env('E2E_API_BASE_URL', '').replace(/\/api\/?$/, '').replace(/\/$/, '');
 if (!ROOT) {
@@ -80,87 +80,87 @@ console.log(`  backend ${ROOT}`);
 // ── 1 · ¿el comercio está autorizado a omitir? Es lo que el front pregunta para mostrar el selector ──
 console.log('\n  1 · ¿PUEDE OMITIR? (lo que decide si aparece el selector)');
 const able = await call('GET', `/api/v2/risk/check-if-able-to-omit/experian-acierta/${ur.branch_hash}`);
-const puede = able.code === ABLE_TO_OMIT;
-console.log(`      HTTP ${able.status} · ${able.code} → ${puede ? 'SÍ, autorizado' : 'NO autorizado'}`);
-if (!puede) console.log(`      ${able.message}`);
+const can = able.code === ABLE_TO_OMIT;
+console.log(`      HTTP ${able.status} · ${able.code} → ${can ? 'SÍ, autorizado' : 'NO autorizado'}`);
+if (!can) console.log(`      ${able.message}`);
 
 // ── 2 · medición ANTES de firmar ─────────────────────────────────────────────────────────────────
-async function medir(): Promise<Record<string, Res>> {
+async function measure(): Promise<Record<string, Res>> {
     const out: Record<string, Res> = {};
-    for (const c of CENTRALES) out[c] = await call('GET', `/api/v2/risk/check-hard-rules-trigger/${c}/${urIdNum}`);
+    for (const c of BUREAUS) out[c] = await call('GET', `/api/v2/risk/check-hard-rules-trigger/${c}/${urIdNum}`);
     return out;
 }
-const glosa = (code: string) =>
-    code === OMITIDO ? '  ← NO se consulta (omitido por FLUJO)'
-    : code === CACHEADO ? '  ← NO se consulta (ya hay dato vigente: CACHÉ, corta antes del flujo)'
-    : pideBuro(code) ? '  ← SÍ se consulta'
+const gloss = (code: string) =>
+    code === OMITTED ? '  ← NO se consulta (omitido por FLUJO)'
+    : code === CACHED ? '  ← NO se consulta (ya hay dato vigente: CACHÉ, corta antes del flujo)'
+    : asksBureau(code) ? '  ← SÍ se consulta'
     : '';
-const pinta = (m: Record<string, Res>) => {
-    for (const c of CENTRALES) {
+const paints = (m: Record<string, Res>) => {
+    for (const c of BUREAUS) {
         const r = m[c];
-        console.log(`      ${c.padEnd(24)} HTTP ${r.status} · ${r.code}${glosa(r.code)}`);
+        console.log(`      ${c.padEnd(24)} HTTP ${r.status} · ${r.code}${gloss(r.code)}`);
     }
 };
 console.log('\n  2 · ANTES de firmar — ¿hay que consultar Experian?');
-const antes = await medir();
-pinta(antes);
+const before = await measure();
+paints(before);
 
 // ── 3 · firmar el flujo que omite el buró ────────────────────────────────────────────────────────
 console.log('\n  3 · FIRMA del flujo already-confirmed-pre-approval');
-const firma = await call('POST', `/api/v1/user-request/${ur.id}/flow-signature/already-confirmed-pre-approval`);
-const seFirmo = firma.code === FIRMADO;
-console.log(`      HTTP ${firma.status} · ${firma.code} → ${seFirmo ? 'FIRMADA' : 'NO firmada'}`);
-if (!seFirmo) {
+const signature = await call('POST', `/api/v1/user-request/${ur.id}/flow-signature/already-confirmed-pre-approval`);
+const wasSigned = signature.code === SIGNED;
+console.log(`      HTTP ${signature.status} · ${signature.code} → ${wasSigned ? 'FIRMADA' : 'NO firmada'}`);
+if (!wasSigned) {
     // El rechazo viaja en HTTP 200 con code URV13004 — el front no lo mira y lo toma por éxito (F-58).
-    console.log(`      ${firma.message}`);
-    if (firma.status === 200) console.log('      ⚠ rechazo en HTTP 200: esto es exactamente lo que el front no distingue (F-58).');
+    console.log(`      ${signature.message}`);
+    if (signature.status === 200) console.log('      ⚠ rechazo en HTTP 200: esto es exactamente lo que el front no distingue (F-58).');
 }
-const flowDespues = await one<Record<string, any>>(`SELECT flow_id FROM user_requests WHERE id = ?`, [ur.id]);
-console.log(`      en BD: flow_id = ${flowDespues?.flow_id ?? 'NULL'}`);
+const flowAfter = await one<Record<string, any>>(`SELECT flow_id FROM user_requests WHERE id = ?`, [ur.id]);
+console.log(`      en BD: flow_id = ${flowAfter?.flow_id ?? 'NULL'}`);
 
 // ── 4 · medición DESPUÉS ─────────────────────────────────────────────────────────────────────────
 console.log('\n  4 · DESPUÉS de firmar — ¿hay que consultar Experian?');
-const despues = await medir();
-pinta(despues);
+const after = await measure();
+paints(after);
 
 // ── veredicto ────────────────────────────────────────────────────────────────────────────────────
 // Lo que prueba la tarea es el CAMBIO: centrales que pedían buró antes y quedaron omitidas por flujo
 // después. Las que ya venían cortadas por caché no participan — y contarlas como fallo fue un falso
 // negativo de la primera versión de este script.
-const apagadas = CENTRALES.filter((c) => pideBuro(antes[c].code) && despues[c].code === OMITIDO);
-const yaOmitidas = CENTRALES.filter((c) => antes[c].code === OMITIDO);
-const enmascaradas = CENTRALES.filter((c) => despues[c].code === CACHEADO);
-const siguenPidiendo = CENTRALES.filter((c) => pideBuro(despues[c].code));
-const sinRespuesta = CENTRALES.some((c) => despues[c].status === 0);
-const nota = enmascaradas.length
-    ? `\n    (${enmascaradas.join(', ')} no participó: ya tenía dato vigente y ${CACHEADO} corta antes del flujo.)`
+const disabledOnes = BUREAUS.filter((c) => asksBureau(before[c].code) && after[c].code === OMITTED);
+const alreadyOmitted = BUREAUS.filter((c) => before[c].code === OMITTED);
+const masked = BUREAUS.filter((c) => after[c].code === CACHED);
+const stillAsking = BUREAUS.filter((c) => asksBureau(after[c].code));
+const withoutAnswer = BUREAUS.some((c) => after[c].status === 0);
+const note = masked.length
+    ? `\n    (${masked.join(', ')} no participó: ya tenía dato vigente y ${CACHED} corta antes del flujo.)`
     : '';
 
 let code = 1;
-let texto: string;
-if (sinRespuesta || able.status === 0) {
+let text: string;
+if (withoutAnswer || able.status === 0) {
     code = 2;
-    texto = '— NO SE PUDO MEDIR: el backend no respondió. Estas APIs son internas — ¿VPN conectada?';
-} else if (siguenPidiendo.length) {
-    texto = `✗ LA FIRMA NO APAGA LA CONSULTA: siguen pidiendo buró → ${siguenPidiendo.join(', ')}.\n`
-        + (seFirmo ? '    Y la firma sí quedó, así que el problema está en la regla de omisión.'
+    text = '— NO SE PUDO MEDIR: el backend no respondió. Estas APIs son internas — ¿VPN conectada?';
+} else if (stillAsking.length) {
+    text = `✗ LA FIRMA NO APAGA LA CONSULTA: siguen pidiendo buró → ${stillAsking.join(', ')}.\n`
+        + (wasSigned ? '    Y la firma sí quedó, así que el problema está en la regla de omisión.'
                    : '    Pero la firma tampoco quedó — mirá el paso 3 primero.');
-} else if (apagadas.length) {
+} else if (disabledOnes.length) {
     code = 0;
-    const plural = apagadas.length > 1;
-    texto = `✓ LA FIRMA APAGA LA CONSULTA: ${apagadas.join(', ')} ${plural ? 'pedían' : 'pedía'} buró antes\n`
-        + `    y ${plural ? 'quedaron' : 'quedó'} en ${OMITIDO} después. Lo único que cambió entre ambas mediciones es la firma.${nota}`;
-} else if (yaOmitidas.length) {
+    const plural = disabledOnes.length > 1;
+    text = `✓ LA FIRMA APAGA LA CONSULTA: ${disabledOnes.join(', ')} ${plural ? 'pedían' : 'pedía'} buró antes\n`
+        + `    y ${plural ? 'quedaron' : 'quedó'} en ${OMITTED} después. Lo único que cambió entre ambas mediciones es la firma.${note}`;
+} else if (alreadyOmitted.length) {
     code = 2;
-    texto = '— NO CONCLUYENTE: ya venían omitidas ANTES de firmar (la solicitud ya estaba en flow_id=2),\n'
+    text = '— NO CONCLUYENTE: ya venían omitidas ANTES de firmar (la solicitud ya estaba en flow_id=2),\n'
         + '    así que la medición no aísla el efecto de la firma. Usá una solicitud sin firmar.';
 } else {
     code = 2;
-    texto = '— NO CONCLUYENTE: ninguna central llegó a pedir buró antes de firmar, así que no había nada\n'
-        + `    que apagar.${nota} Hace falta un usuario con caché fría (teléfono de bypass 3131010101).`;
+    text = '— NO CONCLUYENTE: ninguna central llegó a pedir buró antes de firmar, así que no había nada\n'
+        + `    que apagar.${note} Hace falta un usuario con caché fría (teléfono de bypass 3131010101).`;
 }
-console.log(`\n  VEREDICTO\n  ${texto}\n`);
-console.log(`  (la solicitud ${ur.id} quedó con flow_id = ${flowDespues?.flow_id ?? 'NULL'}; para devolverla:\n   POST ${ROOT}/api/v1/user-request/${ur.id}/flow-signature/standard)\n`);
+console.log(`\n  VEREDICTO\n  ${text}\n`);
+console.log(`  (la solicitud ${ur.id} quedó con flow_id = ${flowAfter?.flow_id ?? 'NULL'}; para devolverla:\n   POST ${ROOT}/api/v1/user-request/${ur.id}/flow-signature/standard)\n`);
 
 await close();
 process.exit(code);

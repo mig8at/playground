@@ -29,13 +29,13 @@
 //   setting `qa_otp_bypass_phones`. Mismo mecanismo que el tronco (ver README §bypasses).
 
 import type { Page } from '@playwright/test';
-import { autorrellenar, esperarHidratacion } from './autorrelleno.ts';
+import { autofill, waitForHydration } from './autorrelleno.ts';
 
 // Re-exportada para no romper a quien la importaba de acá: la implementación vive en `autorrelleno.ts`.
-export { esperarHidratacion };
+export { waitForHydration };
 
 /** Los 4 últimos dígitos: el OTP de los teléfonos de bypass. */
-export const otpDeTelefono = (phone: string) => phone.replace(/\D/g, '').slice(-4);
+export const phoneOtp = (phone: string) => phone.replace(/\D/g, '').slice(-4);
 
 /**
  * Espera a que la pantalla esté HIDRATADA (con el JS atado), usando el toggle de un checkbox como sonda.
@@ -67,19 +67,19 @@ export async function fillQrRegister(
     // Y la visibilidad NO sirve como señal: los checkboxes vienen en el HTML del SSR, así que están
     // visibles desde el primer frame. La sonda real es **el toggle**: que un click cambie `data-state` a
     // `checked` sólo pasa si el JS ya está atado. Se insiste hasta que uno responda.
-    const hidratado = await esperarHidratacion(page, t);
-    if (!hidratado) {
+    const hydrated = await waitForHydration(page, t);
+    if (!hydrated) {
         console.log('  ⚠ fillQrRegister: la pantalla no respondió al click del checkbox → no hidrató (¿el wizard está compilando todavía?)');
         return false;
     }
 
     const tel = page.getByLabel(/Número celular/i);
-    const cedula = page.getByLabel(/Número de documento/i);
-    const escribir = async () => {
+    const idNumber = page.getByLabel(/Número de documento/i);
+    const write = async () => {
         await tel.fill(opts.phone, { timeout: t });
-        await cedula.fill(opts.document, { timeout: t });
+        await idNumber.fill(opts.document, { timeout: t });
     };
-    await escribir();
+    await write();
 
     // Los DOS checkboxes son obligatorios (términos + política de datos) y hay dos trampas verificadas:
     //   1. NO están dentro del `<form>` (`closest('form')` da null) → scopear al form encuentra CERO.
@@ -101,13 +101,13 @@ export async function fillQrRegister(
 
     // ⚠ EL BOTÓN NACE `disabled` y se habilita cuando el form valida (react-hook-form + zod). Clickearlo
     // antes tira timeout de Playwright («element is not enabled») y se lee como si el selector estuviera
-    // mal. Por eso se ESPERA a que se habilite: si no lo hace, el problema es la validación —algún campo
+    // mal. Por eso se WAIT a que se habilite: si no lo hace, el problema es la validación —algún campo
     // o checkbox no se llenó— y devolver false acá deja ese diagnóstico a la vista.
     const submit = form.getByRole('button', { name: /continuar|siguiente|enviar|registrar/i }).first();
     await submit.waitFor({ state: 'visible', timeout: t }).catch(() => {});
-    const esperarHabilitado = async (ms: number) => {
-        const hasta = Date.now() + ms;
-        while (Date.now() < hasta) {
+    const waitForEnabled = async (ms: number) => {
+        const until = Date.now() + ms;
+        while (Date.now() < until) {
             if (await submit.isEnabled().catch(() => false)) return true;
             await page.waitForTimeout(200);
         }
@@ -116,9 +116,9 @@ export async function fillQrRegister(
     // Un reintento tras re-escribir: si la hidratación llegó justo después del primer fill, los valores
     // se perdieron y volver a escribirlos alcanza. Es el mismo patrón que ya usa el harness con el
     // MoneyInput del monto (ver findings: `fill()` perdido por hidratación).
-    let habilitado = await esperarHabilitado(4_000);
-    if (!habilitado) { await escribir(); habilitado = await esperarHabilitado(6_000); }
-    if (!habilitado) {
+    let enabledIt = await waitForEnabled(4_000);
+    if (!enabledIt) { await write(); enabledIt = await waitForEnabled(6_000); }
+    if (!enabledIt) {
         // Se distingue de "envió y no navegó": son dos causas distintas y confundirlas manda a mirar el
         // selector cuando el problema es el dato o la validación.
         console.log('  ⚠ fillQrRegister: el botón de envío nunca se habilitó → el form no valida (¿campos vacíos por hidratación, o checkboxes sin marcar?)');
@@ -126,9 +126,9 @@ export async function fillQrRegister(
     }
 
     await submit.click({ timeout: t });
-    const navego = await page.waitForURL(/\/otp(\/|$|\?)/, { timeout: t }).then(() => true).catch(() => false);
-    if (!navego) console.log(`  ⚠ fillQrRegister: envió pero no navegó al OTP (quedó en ${page.url()}) → mirá los mensajes de la pantalla`);
-    return navego;
+    const navigated = await page.waitForURL(/\/otp(\/|$|\?)/, { timeout: t }).then(() => true).catch(() => false);
+    if (!navigated) console.log(`  ⚠ fillQrRegister: envió pero no navegó al OTP (quedó en ${page.url()}) → mirá los mensajes de la pantalla`);
+    return navigated;
 }
 
 /**
@@ -144,7 +144,7 @@ export async function fillQrOtp(
     opts: { phone: string; code?: string; timeout?: number },
 ): Promise<'bnpl' | 'consumo' | 'no-preapproved' | 'otro'> {
     const t = opts.timeout ?? 20_000;
-    const code = opts.code ?? otpDeTelefono(opts.phone);
+    const code = opts.code ?? phoneOtp(opts.phone);
 
     // `InputOTP` reparte el valor en slots. Escribir en el contenedor con teclado es lo que funciona en
     // los dos casos (un input real oculto, o slots individuales): el componente propaga el input.
@@ -191,7 +191,7 @@ export async function fillQrOtp(
 // campo nuevo no aparece en esa lista, es que no lo encontró — no que ya estuviera lleno.
 // ─────────────────────────────────────────────────────────────────────────────────────────────────
 
-export type DatosQr = {
+export type QrData = {
     phone: string;
     document: string;
     amount?: number;
@@ -204,10 +204,10 @@ export type DatosQr = {
 };
 
 /** Campos por ETIQUETA (preferida) y por `name` (fallback), con el valor que les corresponde. */
-const CAMPOS_QR: Array<{ name: string; label?: RegExp; valor: (d: DatosQr) => string | undefined }> = [
+const QR_FIELDS: Array<{ name: string; label?: RegExp; valor: (d: QrData) => string | undefined }> = [
     { name: 'phoneNumber', label: /Número celular/i, valor: (d) => d.phone },
     { name: 'documentNumber', label: /Número de documento/i, valor: (d) => d.document },
-    { name: 'otp', valor: (d) => d.otp ?? otpDeTelefono(d.phone) },
+    { name: 'otp', valor: (d) => d.otp ?? phoneOtp(d.phone) },
     { name: 'loanAmount', label: /monto|valor.*compra|cuánto/i, valor: (d) => (d.amount ? String(d.amount) : undefined) },
     { name: 'firstName', label: /nombre/i, valor: (d) => d.firstName },
     { name: 'lastName', label: /apellido/i, valor: (d) => d.lastName },
@@ -226,9 +226,9 @@ const CAMPOS_QR: Array<{ name: string; label?: RegExp; valor: (d: DatosQr) => st
  * Llena todo lo que reconozca en la pantalla actual. Devuelve la lista de campos que tocó (vacía si no
  * había nada que llenar, que es lo normal en las pantallas de sólo-lectura del recorrido).
  */
-export async function autorrellenarQr(page: Page, d: DatosQr): Promise<string[]> {
+export async function autofillQr(page: Page, d: QrData): Promise<string[]> {
     // El motor es `pkg/autorrelleno.ts`: acá sólo se resuelve QUÉ campos hay y con qué valor. Antes esta
     // función tenía la máquina adentro; se extrajo al agregar el motor de navegador al caminador del
     // wizard, que necesitaba lo mismo con otro mapa (ver la cabecera de ese módulo).
-    return autorrellenar(page, CAMPOS_QR.map((c) => ({ name: c.name, label: c.label, valor: c.valor(d) })));
+    return autofill(page, QR_FIELDS.map((c) => ({ name: c.name, label: c.label, valor: c.valor(d) })));
 }

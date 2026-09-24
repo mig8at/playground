@@ -30,7 +30,7 @@ import { one } from './db.ts';
 
 /** ⚠ VA CON EL SUBDOMINIO EN LA URL, no con un header `Host` (ver arriba). `api.localhost` resuelve
  *  solo a 127.0.0.1, así que no hace falta tocar `/etc/hosts`. */
-export const APP_VIEJA = process.env.LEGACY_APPLICATION_URL || 'http://api.localhost:8000';
+export const OLD_APP = process.env.LEGACY_APPLICATION_URL || 'http://api.localhost:8000';
 export const WELLI_TOKEN = process.env.WELLI_WEBHOOK_TOKEN || 'token-de-pruebas-solo-local';
 /** Token de Sanctum con habilidad `selfManager`, para el webhook GENÉRICO de rt=0. Se emite a mano una
  *  vez: en `legacy-application`, `$user->createToken('harness-local', ['selfManager'])`. No se puede
@@ -46,7 +46,7 @@ export const SELFMANAGER_TOKEN = process.env.SELFMANAGER_TOKEN || (() => {
         return readFileSync(new URL('../.selfmanager-token', import.meta.url), 'utf8').trim();
     } catch { return ''; }
 })();
-export const APP_VIEJA_DIR = process.env.LEGACY_APPLICATION_DIR
+export const OLD_APP_DIR = process.env.LEGACY_APPLICATION_DIR
     || `${process.env.HOME}/Desktop/CREDITOP/github/legacy-application`;
 /** La familia Welli, quemada en el propio handler del webhook (`WelliController::webhook`:
  *  `whereIn('lender_id', [23,141,142,166])`). Si aparece una quinta variante, no basta con darla de
@@ -57,24 +57,24 @@ export const WELLI_IDS = [23, 141, 142, 166];
  *  `artisan tinker`, que bootea el monolito viejo ENTERO. Con nueve casos en paralelo esos arranques le
  *  comieron la CPU al servidor local y **tres casos que cierran siempre fallaron con `HTTP 0`** en la
  *  generación de documentos — el runner se saboteaba a sí mismo y el síntoma aparecía en OTROS casos. */
-let fila: Promise<unknown> = Promise.resolve();
-export function enFila<T>(tarea: () => Promise<T>): Promise<T> {
-    const proximo = fila.then(tarea, tarea);
-    fila = proximo.catch(() => {});
-    return proximo;
+let row: Promise<unknown> = Promise.resolve();
+export function inRow<T>(task: () => Promise<T>): Promise<T> {
+    const nextOne = row.then(task, task);
+    row = nextOne.catch(() => {});
+    return nextOne;
 }
 
 /** Los estados que cada familia puede responder, con el estado de solicitud al que mapean HOY.
  *  ⚠ Es el mapa de `legacy-application`, que NO coincide con el que ya está escrito en
  *  `legacy-backend`: `pendiente_desembolso` da 28 acá y está como 11 allá. Cuando el webhook migre,
  *  ese desenlace cambia. */
-export const ESTADOS_WEBHOOK = {
+export const WEBHOOK_STATUSES = {
     rt1: [['fulfilled', 11], ['pendiente_desembolso', 28], ['rejected', 6], ['dismissed', 8]],
     rt0: [['completed', 11], ['failed', 6], ['cancelled', 7]],
 } as const;
 
 /** ¿Esta entidad puede recibir un webhook, y de cuál de las dos formas? */
-export async function familiaWebhook(lenderId: number): Promise<'rt0' | 'rt1' | null> {
+export async function webhookFamily(lenderId: number): Promise<'rt0' | 'rt1' | null> {
     const l = await one<{ rt: number; a: string | null }>(
         'SELECT response_type rt, action a FROM lenders WHERE id=?', [lenderId]).catch(() => null);
     if (!l) return null;
@@ -102,7 +102,7 @@ export async function familiaWebhook(lenderId: number): Promise<'rt0' | 'rt1' | 
  *  application y **11** en legacy-backend, y `fraud`/`risk_in_process` sólo existen en el nuevo. O sea
  *  que el desenlace que se observe acá es el de HOY; cuando el webhook migre, uno de esos tres cambia.
  */
-export async function webhookIntegracion(ur: number, estado: string): Promise<{ ok: boolean; detalle: string }> {
+export async function integrationWebhook(ur: number, status: string): Promise<{ ok: boolean; detalle: string }> {
     const tx = await one<{ o: string }>(
         `SELECT order_id o FROM lender_transactions
           WHERE user_request_id = ? AND lender_id IN (${WELLI_IDS.join(',')})
@@ -111,26 +111,26 @@ export async function webhookIntegracion(ur: number, estado: string): Promise<{ 
         return { ok: false, detalle: 'sin transacción de la entidad: el webhook no tendría a qué apuntar' };
     }
 
-    const r = await fetch(`${APP_VIEJA}/welli/webhook`, {
+    const r = await fetch(`${OLD_APP}/welli/webhook`, {
         method: 'POST',
         headers: {
             'content-type': 'application/json',
             accept: 'application/json',
             authorization: `Bearer ${WELLI_TOKEN}`,
         },
-        body: JSON.stringify({ timestamp: new Date().toISOString(), application_id: tx.o, status: estado }),
+        body: JSON.stringify({ timestamp: new Date().toISOString(), application_id: tx.o, status: status }),
         signal: AbortSignal.timeout(20_000),
     }).catch((e) => ({ ok: false, status: 0, text: async () => String(e) } as any));
 
-    const cuerpo = (await r.text().catch(() => '')).slice(0, 120);
+    const body = (await r.text().catch(() => '')).slice(0, 120);
     if (r.status === 401) {
         return { ok: false, detalle: 'el webhook devolvió 401 — falta WELLI_WEBHOOK_TOKEN en el .env de legacy-application' };
     }
-    if (r.status !== 200) return { ok: false, detalle: `el webhook devolvió HTTP ${r.status}: ${cuerpo}` };
+    if (r.status !== 200) return { ok: false, detalle: `el webhook devolvió HTTP ${r.status}: ${body}` };
 
-    const fin = await one<{ e: number }>(
+    const end = await one<{ e: number }>(
         'SELECT user_request_status_id e FROM user_requests WHERE id=?', [ur]).catch(() => null);
-    return { ok: true, detalle: `webhook \`${estado}\` → estado ${fin?.e ?? '?'} (lo aplicó legacy-application, no legacy-backend)` };
+    return { ok: true, detalle: `webhook \`${status}\` → estado ${end?.e ?? '?'} (lo aplicó legacy-application, no legacy-backend)` };
 }
 
 /** EL DESENLACE DE UN rt=0 — la familia MÁS GRANDE, y la que parecía no tener vuelta.
@@ -153,7 +153,7 @@ export async function webhookIntegracion(ur: number, estado: string): Promise<{ 
  *  ⚠ `lender_id` EN EL PAYLOAD ES EL SLUG, no el número. Y el slug NO es estable entre ambientes: el
  *  lender 6 es `addi` en producción y `credifamilia-addi` en el dump local. Por eso se lee de la base.
  */
-export async function webhookSelfManager(ur: number, lender: number, estado: string): Promise<{ ok: boolean; detalle: string }> {
+export async function webhookSelfManager(ur: number, lender: number, status: string): Promise<{ ok: boolean; detalle: string }> {
     if (!SELFMANAGER_TOKEN) {
         return { ok: false, detalle: 'falta SELFMANAGER_TOKEN (Sanctum con habilidad `selfManager`) — ver harness/CLAUDE.md' };
     }
@@ -179,28 +179,28 @@ export async function webhookSelfManager(ur: number, lender: number, estado: str
         \\App\\Models\\PurchaseCode::firstOrCreate(['user_request_id' => ${ur}],
             ['barcode_url' => 'https://mock-s3.local/barcodes/synth-${ur}.png']);
         echo 'listo';`;
-    const prep = await enFila(() => new Promise<string>((res) => {
-        execFile('php', ['artisan', 'tinker', '--execute', php], { cwd: APP_VIEJA_DIR, timeout: 60_000 },
+    const prep = await inRow(() => new Promise<string>((res) => {
+        execFile('php', ['artisan', 'tinker', '--execute', php], { cwd: OLD_APP_DIR, timeout: 60_000 },
             (e, out, err) => res(e ? `ERROR ${String(err || e).slice(0, 130)}` : String(out)));
     }));
     if (!prep.includes('listo')) return { ok: false, detalle: `no se pudo preparar la transacción: ${prep.slice(0, 110)}` };
 
-    const r = await fetch(`${APP_VIEJA}/self-manager/webhook`, {
+    const r = await fetch(`${OLD_APP}/self-manager/webhook`, {
         method: 'POST',
         headers: { 'content-type': 'application/json', accept: 'application/json',
                    authorization: `Bearer ${SELFMANAGER_TOKEN}` },
         body: JSON.stringify({
             lender_id: l.s, order_id: orderId, code_id: `COD-${ur}`,
             available_amount: 2_000_000, purchase_amount: 2_000_000,
-            invoice_number: `FAC-${ur}`, status: estado,
+            invoice_number: `FAC-${ur}`, status: status,
         }),
         signal: AbortSignal.timeout(30_000),
     }).catch((e) => ({ status: 0, text: async () => String(e) } as any));
 
-    const cuerpo = (await r.text().catch(() => '')).slice(0, 110);
+    const body = (await r.text().catch(() => '')).slice(0, 110);
     if (r.status === 401) return { ok: false, detalle: 'el webhook devolvió 401 — el token de Sanctum no sirve o le falta la habilidad' };
-    if (r.status !== 200) return { ok: false, detalle: `el webhook devolvió HTTP ${r.status}: ${cuerpo}` };
+    if (r.status !== 200) return { ok: false, detalle: `el webhook devolvió HTTP ${r.status}: ${body}` };
 
-    const fin = await one<{ e: number }>('SELECT user_request_status_id e FROM user_requests WHERE id=?', [ur]).catch(() => null);
-    return { ok: true, detalle: `webhook self-manager \`${estado}\` → estado ${fin?.e ?? '?'} (lo aplicó legacy-application)` };
+    const end = await one<{ e: number }>('SELECT user_request_status_id e FROM user_requests WHERE id=?', [ur]).catch(() => null);
+    return { ok: true, detalle: `webhook self-manager \`${status}\` → estado ${end?.e ?? '?'} (lo aplicó legacy-application)` };
 }

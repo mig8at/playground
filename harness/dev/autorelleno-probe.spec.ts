@@ -6,7 +6,7 @@
 // silencioso: si deja de escribir, no hay error; simplemente hay que volver a tipear todo a mano y uno
 // piensa que se apagó solo.
 //
-// Entra por el lado del CLIENTE (`/self-service/…`) y no por el del asesor, para no depender de la
+// Entra por el lado del CUSTOMER (`/self-service/…`) y no por el del asesor, para no depender de la
 // sesión de Cognito: lo que se prueba es la instalación y la escritura, que son iguales en las dos.
 //
 //   E2E_TARGET=local npx playwright test dev/autorelleno-probe.spec.ts --project=chromium --headed
@@ -15,14 +15,14 @@ import { readFileSync } from 'node:fs';
 import { openA } from '../pkg/windows.ts';
 import { config } from '../pkg/config.ts';
 
-const COMERCIO = process.env.E2E_COMERCIO || 'alta';
+const MERCHANT = process.env.E2E_COMERCIO || 'alta';
 
 test('el autorelleno se instala y llena el monto', async ({ browser }) => {
     test.setTimeout(120_000);
 
     const flows = JSON.parse(readFileSync(new URL('../.flows.json', import.meta.url), 'utf8'));
-    const hash = flows?.merchants?.[COMERCIO]?.branch_hash;
-    test.skip(!hash, `«${COMERCIO}» no está en .flows.json — corré \`make harness-comercio COMERCIO=${COMERCIO}\``);
+    const hash = flows?.merchants?.[MERCHANT]?.branch_hash;
+    test.skip(!hash, `«${MERCHANT}» no está en .flows.json — corré \`make harness-comercio COMERCIO=${MERCHANT}\``);
 
     const { page } = await openA(browser, { baseURL: config.feBaseUrl });
     await page.goto(`/self-service/${hash}/solicitar`, { waitUntil: 'domcontentloaded', timeout: 60_000 });
@@ -37,9 +37,9 @@ test('el autorelleno se instala y llena el monto', async ({ browser }) => {
     //     `MoneyInput`, el que pierde un `fill()` de Playwright si React todavía no ató su onChange, y
     //     el que delata si el evento se despachó mal. Un valor visible acá es la prueba de que el
     //     setter nativo + el `input` burbujeando funcionaron.
-    const monto = page.locator('input').first();
+    const amount = page.locator('input').first();
     await expect
-        .poll(async () => (await monto.inputValue().catch(() => '')).replace(/\D/g, ''), {
+        .poll(async () => (await amount.inputValue().catch(() => '')).replace(/\D/g, ''), {
             message: 'el monto quedó vacío: o la pista del campo cambió, o el evento no llegó a React',
             timeout: 25_000,
         })

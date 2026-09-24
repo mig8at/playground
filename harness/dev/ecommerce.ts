@@ -37,12 +37,12 @@ process.env.CFE_TARGET ||= 'local';
 const { buildEcommerceUrl } = await import('../pkg/ecommerce.ts');
 const { one, close } = await import('../pkg/db.ts');
 const { config: e2eConfig } = await import('../pkg/config.ts');
-const { crearCliente } = await import('../pkg/http.ts');
+const { createCustomer } = await import('../pkg/http.ts');
 
 const API = e2eConfig.mockUrl;
 const UA = 'Mozilla/5.0 (iPhone; CPU iPhone OS 16_5 like Mac OS X) AppleWebKit/605.1.15 '
     + '(KHTML, like Gecko) Version/16.5 Mobile/15E148 Safari/604.1';
-const UA_ESCRITORIO = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 '
+const UA_DESKTOP = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 '
     + '(KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36';
 
 const arg = (n: string, d = ''): string => {
@@ -50,7 +50,7 @@ const arg = (n: string, d = ''): string => {
     return i > 0 && process.argv[i + 1] && !process.argv[i + 1].startsWith('--') ? process.argv[i + 1] : d;
 };
 
-interface Caso {
+interface Case {
     nombre?: string;
     comercio: string;
     amount?: number;
@@ -69,14 +69,14 @@ interface Caso {
     };
 }
 
-interface Suite { nombre?: string; porDefecto?: Partial<Caso>; casos: Caso[] }
+interface Suite { nombre?: string; porDefecto?: Partial<Case>; casos: Case[] }
 
 // ── salida ─────────────────────────────────────────────────────────────────────────────────────
 const V = '\x1b[32m', R = '\x1b[31m', A = '\x1b[33m', N = '\x1b[0m', B = '\x1b[1m';
-let fallos = 0;
+let failures = 0;
 const ok = (t: string, d = '') => console.log(`    ${V}✓${N} ${t}${d ? ` · ${d}` : ''}`);
-const mal = (t: string, d = '') => { fallos++; console.log(`    ${R}✗${N} ${t}${d ? ` · ${d}` : ''}`); };
-const nota = (t: string) => console.log(`    ${A}·${N} ${t}`);
+const bad = (t: string, d = '') => { failures++; console.log(`    ${R}✗${N} ${t}${d ? ` · ${d}` : ''}`); };
+const note = (t: string) => console.log(`    ${A}·${N} ${t}`);
 
 /**
  * El porqué de un fallo HTTP, no sólo el número.
@@ -86,35 +86,35 @@ const nota = (t: string) => console.log(`    ${A}·${N} ${t}`);
  * de la validación— y el runner lo tenía en la mano y lo tiraba. Es la misma línea que se le agregó al
  * caminador del wizard.
  */
-function porQue(r: { status: number; json?: any; error?: string }): string {
+function why(r: { status: number; json?: any; error?: string }): string {
     const j = r.json;
-    const partes: string[] = [`HTTP ${r.status}`];
+    const parts: string[] = [`HTTP ${r.status}`];
     const msg = j?.message ?? j?.errorMessage ?? j?.error;
-    if (msg && typeof msg === 'string') partes.push(msg.slice(0, 140));
-    if (j?.errorCode) partes.push(`code ${j.errorCode}`);
+    if (msg && typeof msg === 'string') parts.push(msg.slice(0, 140));
+    if (j?.errorCode) parts.push(`code ${j.errorCode}`);
     // `errors` de la validación de Laravel: {campo: ["motivo"]}. El CAMPO es el dato que falta.
     if (j?.errors && typeof j.errors === 'object') {
-        const campos = Object.entries(j.errors as Record<string, unknown>)
+        const fields = Object.entries(j.errors as Record<string, unknown>)
             .map(([k, v]) => `${k}: ${Array.isArray(v) ? String(v[0]) : String(v)}`)
             .slice(0, 4);
-        if (campos.length) partes.push(campos.join(' · '));
+        if (fields.length) parts.push(fields.join(' · '));
     }
-    if (!msg && r.error) partes.push(r.error.slice(0, 140));
-    return partes.join(' · ');
+    if (!msg && r.error) parts.push(r.error.slice(0, 140));
+    return parts.join(' · ');
 }
 
 // El cliente vive en `pkg/http.ts` — ver ahí las cinco copias que esto reemplaza. El `user-agent`
 // sigue siendo por llamada porque cada caso de la suite simula una tienda distinta.
-const cliente = crearCliente({ base: API, headers: { 'user-agent': UA }, timeoutMs: 90_000, recorte: 160 });
-const http = (metodo: string, ruta: string, cuerpo?: unknown, ua = UA) =>
-    cliente.llamar(metodo, ruta, cuerpo, ua === UA ? {} : { 'user-agent': ua });
+const customer = createCustomer({ base: API, headers: { 'user-agent': UA }, timeoutMs: 90_000, recorte: 160 });
+const http = (method: string, path: string, body?: unknown, ua = UA) =>
+    customer.llamar(method, path, body, ua === UA ? {} : { 'user-agent': ua });
 
 /** Los seis campos que el contrato base64 puede traer del billing del pedido. */
-const CAMPOS_DEL_COMERCIO = ['email', 'phone', 'firstName', 'lastName', 'documentNumber', 'documentType'];
+const MERCHANT_FIELDS = ['email', 'phone', 'firstName', 'lastName', 'documentNumber', 'documentType'];
 
-async function correrCaso(c: Caso, i: number): Promise<void> {
-    const titulo = c.nombre ?? `${c.comercio} · ${(c.amount ?? 2_000_000).toLocaleString('es-CO')}`;
-    console.log(`\n  ${B}${i + 1}. ${titulo}${N}`);
+async function runCase(c: Case, i: number): Promise<void> {
+    const title = c.nombre ?? `${c.comercio} · ${(c.amount ?? 2_000_000).toLocaleString('es-CO')}`;
+    console.log(`\n  ${B}${i + 1}. ${title}${N}`);
 
     // ── 1 · el contrato del carrito, igual que lo emite el plugin ───────────────────────────────
     const r = Math.floor(Math.random() * 9_000_000);
@@ -143,7 +143,7 @@ async function correrCaso(c: Caso, i: number): Promise<void> {
     try {
         checkout = await buildEcommerceUrl(c.comercio, tel, c.amount ?? 2_000_000);
     } catch (e) {
-        mal('contrato', String((e as Error).message).slice(0, 120));
+        bad('contrato', String((e as Error).message).slice(0, 120));
         return;
     }
     const q = new URLSearchParams(checkout.checkout_path.split('?')[1]);
@@ -152,28 +152,28 @@ async function correrCaso(c: Caso, i: number): Promise<void> {
     // ── 2 · la entrada: lo que el front postea al abrir /ecommerce/{hash}/checkout ──────────────
     // Se llama al MISMO endpoint que llama `checkout.tsx`, con los nombres LARGOS del body (el
     // contrato viaja en la URL con nombres cortos: o/p/t/u/ps). Confundirlos es el primer error.
-    const crea = await http('POST', `/api/onboarding/ecommerce-request/create/${checkout.hash}`, {
+    const creates = await http('POST', `/api/onboarding/ecommerce-request/create/${checkout.hash}`, {
         order: q.get('o'), products: q.get('p'), token: q.get('t'),
         returnUrl: q.get('u'), processUrl: q.get('ps'), config: q.get('config'),
     });
-    const datos = crea.json?.data;
-    const erId = datos?.ecommerceRequestId;
-    if (!erId) { mal('checkout', `HTTP ${crea.status} · ${crea.error ?? JSON.stringify(crea.json).slice(0, 140)}`); return; }
-    ok('checkout aceptado', `ecommerce_request ${erId} · monto ${datos.amount}`);
+    const data = creates.json?.data;
+    const erId = data?.ecommerceRequestId;
+    if (!erId) { bad('checkout', `HTTP ${creates.status} · ${creates.error ?? JSON.stringify(creates.json).slice(0, 140)}`); return; }
+    ok('checkout aceptado', `ecommerce_request ${erId} · monto ${data.amount}`);
 
     // ── 3 · lo que el comercio ya sabía del comprador ───────────────────────────────────────────
     if (c.espera?.prefill) {
-        const trae = Object.entries(datos.prefill ?? {})
+        const brings = Object.entries(data.prefill ?? {})
             .filter(([, v]) => typeof v === 'string' && v.trim() !== '' && !/^-+$/.test(v.trim()))
             .map(([k]) => k);
-        const faltan = c.espera.prefill.filter((k) => !trae.includes(k));
-        if (faltan.length) mal('prefill del comercio', `faltan: ${faltan.join(', ')}`);
-        else ok('prefill del comercio', `${trae.length}/${CAMPOS_DEL_COMERCIO.length} campos: ${trae.join(', ')}`);
+        const missing = c.espera.prefill.filter((k) => !brings.includes(k));
+        if (missing.length) bad('prefill del comercio', `faltan: ${missing.join(', ')}`);
+        else ok('prefill del comercio', `${brings.length}/${MERCHANT_FIELDS.length} campos: ${brings.join(', ')}`);
     }
 
     // ── 4 · el contexto por erId: lo que relee CADA pantalla, sin cookie ────────────────────────
     const ctx = await http('GET', `/api/onboarding/ecommerce-request/detail/${erId}`);
-    if (ctx.json?.data?.ecommerceRequestData?.id !== erId) mal('contexto por erId', `HTTP ${ctx.status}`);
+    if (ctx.json?.data?.ecommerceRequestData?.id !== erId) bad('contexto por erId', `HTTP ${ctx.status}`);
     else ok('contexto por erId', 'el front puede rehidratar sin cookie');
 
     // ── 5 · registro + OTP → nace la solicitud, atada al pedido ─────────────────────────────────
@@ -181,7 +181,7 @@ async function correrCaso(c: Caso, i: number): Promise<void> {
         phone_number: tel, terms: true, policies: true, otp_length: 4,
         partner_branch_hash: checkout.hash, onboarding_channel: 'ecommerce',
     });
-    if (reg.status < 200 || reg.status >= 300) { mal('registro', porQue(reg)); return; }
+    if (reg.status < 200 || reg.status >= 300) { bad('registro', why(reg)); return; }
 
     /* ── EL OTP VA POR EL MISMO CAMINO QUE EL FRONT, no por uno fijo ─────────────────────────────
        `otp-verification.tsx` elige el repositorio con `kyc-flow/{hash}`: v2 si `usesPipeline`, v1 —el
@@ -194,12 +194,12 @@ async function correrCaso(c: Caso, i: number): Promise<void> {
        mientras el navegador —que en qa va por v1 para TODOS los comercios consultados— nacía sin
        vincular. Pasar por API no es pasar por el front: un runner que no recorre el camino del front no
        prueba el front. Por eso acá se resuelve el camino igual que él, y se dice cuál se tomó. */
-    const kyc = await http('GET', `/api/v2/onboarding/kyc-flow/${checkout.hash}`);
-    const usesPipeline = kyc.status === 200 && kyc.json?.data?.payload?.usesPipeline === true;
-    const caminoOtp = usesPipeline ? 'v2 (pipeline) · ecommerceRequestId' : 'v1 (legacy) · ecommerce_request_id';
-    ok('camino del OTP', kyc.status === 200
-        ? `${caminoOtp} — lo dijo kyc-flow (${kyc.json?.code})`
-        : `${caminoOtp} — kyc-flow respondió HTTP ${kyc.status} y el front cae al v1 sin avisar; acá igual (¿falta \`make harness-kyc-flow\`?)`);
+    const kycData = await http('GET', `/api/v2/onboarding/kyc-flow/${checkout.hash}`);
+    const usesPipeline = kycData.status === 200 && kycData.json?.data?.payload?.usesPipeline === true;
+    const otpPath = usesPipeline ? 'v2 (pipeline) · ecommerceRequestId' : 'v1 (legacy) · ecommerce_request_id';
+    ok('camino del OTP', kycData.status === 200
+        ? `${otpPath} — lo dijo kyc-flow (${kycData.json?.code})`
+        : `${otpPath} — kyc-flow respondió HTTP ${kycData.status} y el front cae al v1 sin avisar; acá igual (¿falta \`make harness-kyc-flow\`?)`);
     const otp = usesPipeline
         ? await http('POST', `/api/v2/onboarding/otp-auth/validate/${checkout.hash}`, {
             cellPhone: tel, otpCode: tel.slice(-4),
@@ -219,29 +219,29 @@ async function correrCaso(c: Caso, i: number): Promise<void> {
     const ur = usesPipeline
         ? otp.json?.data?.payload?.userRequestId
         : (otp.json?.errors?.payload?.user_request_id ?? otp.json?.data?.payload?.user_request_id ?? otp.json?.payload?.user_request_id);
-    if (!ur) { mal('otp-validate', `HTTP ${otp.status} · code ${otp.json?.code ?? otp.json?.error_code ?? '?'} · ${caminoOtp}`); return; }
+    if (!ur) { bad('otp-validate', `HTTP ${otp.status} · code ${otp.json?.code ?? otp.json?.error_code ?? '?'} · ${otpPath}`); return; }
     ok('solicitud creada', `uReq ${ur} · ${otp.json?.code ? `code ${otp.json.code}` : `HTTP ${otp.status}`} · OTP por ${usesPipeline ? 'v2' : 'v1'}`);
 
     if (c.espera?.vinculada) {
-        const enFila = await one<{ n: number }>(
+        const inRow = await one<{ n: number }>(
             'SELECT COUNT(*) AS n FROM ecommerce_requests WHERE id=? AND user_request_id=?', [erId, ur]);
-        const enPuente = await one<{ n: number }>(
+        const inBridge = await one<{ n: number }>(
             'SELECT COUNT(*) AS n FROM user_requests_by_ecommerce_request WHERE ecommerce_request_id=? AND user_request_id=?', [erId, ur]);
-        if ((enFila?.n ?? 0) > 0 && (enPuente?.n ?? 0) > 0) {
+        if ((inRow?.n ?? 0) > 0 && (inBridge?.n ?? 0) > 0) {
             ok('vínculo comercio ↔ crédito', 'fila y puente');
         } else {
-            mal('vínculo comercio ↔ crédito',
-                `fila=${enFila?.n ?? 0} puente=${enPuente?.n ?? 0} — el comercio NO recibiría el veredicto`);
+            bad('vínculo comercio ↔ crédito',
+                `fila=${inRow?.n ?? 0} puente=${inBridge?.n ?? 0} — el comercio NO recibiría el veredicto`);
         }
     }
 
     // ── 6 · el listado ─────────────────────────────────────────────────────────────────────────
     if (c.espera?.entidadesMin !== undefined) {
         const lis = await http('GET', `/api/onboarding/loan-application/lenders-v2/${ur}?amount=${checkout.amount}`);
-        const crudo = lis.json?.data ?? lis.json;
-        const xs: any[] = Array.isArray(crudo) ? crudo : Array.isArray(crudo?.lenders) ? crudo.lenders : [];
+        const raw = lis.json?.data ?? lis.json;
+        const xs: any[] = Array.isArray(raw) ? raw : Array.isArray(raw?.lenders) ? raw.lenders : [];
         if (xs.length >= c.espera.entidadesMin) ok('listado', `${xs.length} entidad(es)`);
-        else mal('listado', `${xs.length} entidad(es), se esperaban ≥ ${c.espera.entidadesMin}`);
+        else bad('listado', `${xs.length} entidad(es), se esperaban ≥ ${c.espera.entidadesMin}`);
     }
 
     // ── 7 · la sala de espera, con user-agent de ESCRITORIO ─────────────────────────────────────
@@ -249,17 +249,17 @@ async function correrCaso(c: Caso, i: number): Promise<void> {
     // computador, y este endpoint vive en el grupo que excluye `onlyMobileValidation` justamente por
     // eso. Si alguien lo mueve al grupo padre, esta comprobación pasa a 403 y falla acá.
     if (c.espera?.salaDeEspera) {
-        const sala = await http('GET', `/api/loans/requests/device/ecommerce-status/${ur}`, undefined, UA_ESCRITORIO);
-        if (sala.status === 404) {
-            mal('sala de espera', 'la ruta no existe en este ambiente (¿falta legacy-backend#1392?)');
-        } else if (sala.status !== 200) {
-            mal('sala de espera', `HTTP ${sala.status} con user-agent de escritorio`);
+        const room = await http('GET', `/api/loans/requests/device/ecommerce-status/${ur}`, undefined, UA_DESKTOP);
+        if (room.status === 404) {
+            bad('sala de espera', 'la ruta no existe en este ambiente (¿falta legacy-backend#1392?)');
+        } else if (room.status !== 200) {
+            bad('sala de espera', `HTTP ${room.status} con user-agent de escritorio`);
         } else {
-            ok('sala de espera', `HTTP 200 desde escritorio · estado ${sala.json?.data?.status_id}`);
+            ok('sala de espera', `HTTP 200 desde escritorio · estado ${room.json?.data?.status_id}`);
             if (c.espera.returnUrl) {
-                const u = sala.json?.data?.ecommerce_return_url;
+                const u = room.json?.data?.ecommerce_return_url;
                 if (typeof u === 'string' && u.includes('orderId=')) ok('volver al comercio', u.slice(0, 64));
-                else mal('volver al comercio', `no llegó la return_url del pedido (${u ?? 'null'})`);
+                else bad('volver al comercio', `no llegó la return_url del pedido (${u ?? 'null'})`);
             }
         }
     }
@@ -268,22 +268,22 @@ async function correrCaso(c: Caso, i: number): Promise<void> {
 // ── principal ──────────────────────────────────────────────────────────────────────────────────
 console.log(`\n  ${B}EL CANAL ECOMMERCE${N} · ${API} · target ${process.env.E2E_TARGET}`);
 
-const rutaSuite = arg('suite');
+const suitePath = arg('suite');
 let suite: Suite;
-if (rutaSuite) {
-    suite = JSON.parse(readFileSync(new URL(`../${rutaSuite}`, import.meta.url), 'utf8'));
+if (suitePath) {
+    suite = JSON.parse(readFileSync(new URL(`../${suitePath}`, import.meta.url), 'utf8'));
     if (suite.nombre) console.log(`  ${suite.nombre}`);
 } else {
-    suite = { casos: [{ comercio: arg('comercio', 'amoblar'), espera: { prefill: CAMPOS_DEL_COMERCIO, vinculada: true, entidadesMin: 1 } }] };
+    suite = { casos: [{ comercio: arg('comercio', 'amoblar'), espera: { prefill: MERCHANT_FIELDS, vinculada: true, entidadesMin: 1 } }] };
 }
 
 const base = suite.porDefecto ?? {};
 for (const [i, c] of suite.casos.entries()) {
-    await correrCaso({ ...base, ...c, espera: { ...base.espera, ...c.espera } } as Caso, i);
+    await runCase({ ...base, ...c, espera: { ...base.espera, ...c.espera } } as Case, i);
 }
 
-console.log(fallos === 0
+console.log(failures === 0
     ? `\n  ${V}${B}todo lo declarado se cumple${N}\n`
-    : `\n  ${R}${B}${fallos} comprobación(es) no se cumplieron${N}\n`);
+    : `\n  ${R}${B}${failures} comprobación(es) no se cumplieron${N}\n`);
 await close();
-process.exit(fallos === 0 ? 0 : 1);
+process.exit(failures === 0 ? 0 : 1);

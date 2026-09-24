@@ -40,7 +40,7 @@ const json = (res, code, body) => {
 // Schema genérico VÁLIDO: tipos tomados de la unión `Field` (text|email|phone|otp|select|choice|
 // radio|file|dateSelect) y la forma de `FormSchema` (step, theme, components, fields, steps).
 // El monto va como `text` porque NO existe un tipo `money` en la unión.
-const schemaGenerico = (formId) => ({
+const genericSchema = (formId) => ({
     step: 'requestAmount',
     theme: 'default',
     // OJO: el loader de `request-amount.tsx` NO acepta cualquier schema — valida la forma y exige
@@ -106,7 +106,7 @@ const schemaGenerico = (formId) => ({
  * Mismo camino que `dev/sweep.ts`: register del teléfono (endpoint sin auth) + INSERT + buró sintético.
  * `formId` es el hash de la sucursal. Devuelve { ok, ur, redirect } o { ok:false, error }.
  */
-async function crearSolicitud(formId, rawBody) {
+async function createLoanRequest(formId, rawBody) {
     let p = {};
     try { p = JSON.parse(rawBody || '{}'); } catch { /* usamos defaults */ }
     // El teléfono viene en E.164 (+57…); el register de legacy espera solo los dígitos locales.
@@ -153,7 +153,7 @@ function schemaFor(formId) {
         try { return { body: JSON.parse(readFileSync(f, 'utf8')), real: true }; }
         catch (e) { log(`⚠ ${formId}.json existe pero NO parsea: ${e.message}`); }
     }
-    return { body: schemaGenerico(formId), real: false };
+    return { body: genericSchema(formId), real: false };
 }
 
 const server = http.createServer((req, res) => {
@@ -175,13 +175,13 @@ const server = http.createServer((req, res) => {
             return json(res, 200, sch);
         }
 
-        const mAccion = /^\/v1\/dynamic\/(?:full\/)?([^/]+)\/(send-otp|validate-otp|submit|upload)$/.exec(p);
-        if (req.method === 'POST' && mAccion) {
-            const [, formId, accion] = mAccion;
-            log(`${accion} form_id=${formId} step=${url.searchParams.get('step') ?? '-'} body=${body.slice(0, 120)}`);
-            if (accion === 'send-otp') return json(res, 200, { success: true, message: 'OTP enviado (mock)' });
-            if (accion === 'validate-otp') return json(res, 200, { success: true, valid: true, message: 'OTP válido (mock)' });
-            if (accion === 'upload') return json(res, 200, { success: true, url: 'https://mock-forms.local/upload/demo.png' });
+        const mAction = /^\/v1\/dynamic\/(?:full\/)?([^/]+)\/(send-otp|validate-otp|submit|upload)$/.exec(p);
+        if (req.method === 'POST' && mAction) {
+            const [, formId, action] = mAction;
+            log(`${action} form_id=${formId} step=${url.searchParams.get('step') ?? '-'} body=${body.slice(0, 120)}`);
+            if (action === 'send-otp') return json(res, 200, { success: true, message: 'OTP enviado (mock)' });
+            if (action === 'validate-otp') return json(res, 200, { success: true, valid: true, message: 'OTP válido (mock)' });
+            if (action === 'upload') return json(res, 200, { success: true, url: 'https://mock-forms.local/upload/demo.png' });
 
             // SUBMIT — el paso final. El wizard exige `{ redirect }` en la respuesta y, si falta,
             // corta con 502 `submit_missing_redirect` (un 200 "ok" genérico NO alcanza).
@@ -191,7 +191,7 @@ const server = http.createServer((req, res) => {
             // MISMO camino que usa el resto del harness (register + INSERT + buró sintético), que es
             // código ya probado: el resultado es equivalente —un user_request REAL— aunque el cómo
             // difiera del servicio real. Ver findings F-45.
-            return crearSolicitud(formId, body).then(
+            return createLoanRequest(formId, body).then(
                 (r) => {
                     if (!r.ok) { log(`  ✗ submit: ${r.error}`); return json(res, 500, { message: r.error }); }
                     log(`  ✓ submit → uReq ${r.ur} · redirect ${r.redirect}`);
@@ -211,8 +211,8 @@ const server = http.createServer((req, res) => {
         const mFind = /^\/v1\/dynamic\/full\/find-user-by-(email|document-number)$/.exec(p);
         if (req.method === 'POST' && mFind) {
             const taken = url.searchParams.get('taken') === '1' || process.env.MOCK_FORMS_TAKEN === '1';
-            const esEmail = mFind[1] === 'email';
-            const code = esEmail ? (taken ? 'OFS6000' : 'OFS6001') : (taken ? 'OFS7000' : 'OFS7001');
+            const isEmail = mFind[1] === 'email';
+            const code = isEmail ? (taken ? 'OFS6000' : 'OFS6001') : (taken ? 'OFS7000' : 'OFS7001');
             log(`${mFind[1]} body=${body.slice(0, 90)} → code ${code} (${taken ? 'TOMADO' : 'disponible'})`);
             return json(res, 200, { code, success: true, found: taken, user: null });
         }

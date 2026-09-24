@@ -39,7 +39,7 @@ import { fileURLToPath } from 'node:url';
 
 const PORT = Number(process.env.MOCK_CUOTEALO_PORT || 8110);
 /** Huella del código en disco: el launcher la compara para no reusar un proceso con la versión vieja. */
-const CODIGO = Math.floor(statSync(fileURLToPath(import.meta.url)).mtimeMs / 1000);
+const CODE = Math.floor(statSync(fileURLToPath(import.meta.url)).mtimeMs / 1000);
 
 /** Las claves que el contrato del front declara (`buildVehicleSimulatorParams`). Todo lo que llegue
  *  fuera de esta lista se muestra aparte: es la señal de que el contrato cambió y nadie avisó. */
@@ -47,31 +47,31 @@ const CODIGO = Math.floor(statSync(fileURLToPath(import.meta.url)).mtimeMs / 100
 // `buildVehicleSimulatorParams`, y la primera corrida real mostró que viajan como `vehicleBrand` y
 // `vehicleModel` (el nombre de la clave lo pone el tipo, no el nombre de la variable). Que el mock
 // cante «no están en el contrato» es justamente lo que lo dejó ver.
-const ESPERADOS = [
+const EXPECTED_ONES = [
     'origin', 'productType', 'vehicleBrand', 'vehicleModel', 'version',
     'insuranceType', 'commissionRate', 'vehicleValue', 'financingAmount',
 ];
 
-const llamadas = [];
+const calls = [];
 const log = (s) => console.log(`[mock-cuotealo] ${new Date().toISOString().slice(11, 19)} ${s}`);
 
 const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 
-const plata = (v) => {
+const money = (v) => {
     const n = Number(v);
     return Number.isFinite(n) ? `S/ ${n.toLocaleString('es-PE')}` : esc(v);
 };
 
-function pagina(params) {
-    const recibidos = new Map(params);
-    const faltan = ESPERADOS.filter((k) => !recibidos.has(k));
-    const sobran = [...recibidos.keys()].filter((k) => !ESPERADOS.includes(k));
+function page(params) {
+    const received = new Map(params);
+    const missing = EXPECTED_ONES.filter((k) => !received.has(k));
+    const leftover = [...received.keys()].filter((k) => !EXPECTED_ONES.includes(k));
     // La URL PELADA es el desenlace de cualquier falla del prellenado, y es justo lo que hay que poder
     // reconocer de un vistazo: sin este cartel se ve igual que un prellenado bueno.
-    const pelada = faltan.length >= ESPERADOS.length - 1;
+    const bare = missing.length >= EXPECTED_ONES.length - 1;
 
-    const fila = (k) => `<tr><th>${esc(k)}</th><td>${
-        /Value|Amount/.test(k) ? plata(recibidos.get(k)) : esc(recibidos.get(k))
+    const row = (k) => `<tr><th>${esc(k)}</th><td>${
+        /Value|Amount/.test(k) ? money(received.get(k)) : esc(received.get(k))
     }</td></tr>`;
 
     return `<!doctype html><html lang="es"><head><meta charset="utf-8">
@@ -96,9 +96,9 @@ function pagina(params) {
  <div class="marca"><b>Cuotéalo</b> <span style="color:#888">· BCP</span></div>
  <div style="color:#666;font-size:13px">Simulador vehicular</div>
 
- <div class="nota${pelada ? ' peligro' : ''}">
+ <div class="nota${bare ? ' peligro' : ''}">
    <b>Esta pantalla la sirve el harness, no BCP.</b>
-   ${pelada
+   ${bare
         ? 'Y llegó <b>sin prellenado</b>: la URL vino pelada, que es el desenlace de cualquier falla '
           + 'de <code>buildVehicleSimulatorUrl</code>. En un ambiente real esto se ve exactamente igual '
           + 'que un prellenado correcto — por eso el front lo llama «fallo mudo».'
@@ -108,9 +108,9 @@ function pagina(params) {
  </div>
 
  <h2>Lo que recibió del wizard</h2>
- <table>${ESPERADOS.filter((k) => recibidos.has(k)).map(fila).join('')}</table>
- ${faltan.length ? `<h2>No llegaron</h2><p class="vacio">${faltan.map(esc).join(' · ')}</p>` : ''}
- ${sobran.length ? `<h2>No están en el contrato</h2><p class="vacio">${sobran.map(esc).join(' · ')}<br>
+ <table>${EXPECTED_ONES.filter((k) => received.has(k)).map(row).join('')}</table>
+ ${missing.length ? `<h2>No llegaron</h2><p class="vacio">${missing.map(esc).join(' · ')}</p>` : ''}
+ ${leftover.length ? `<h2>No están en el contrato</h2><p class="vacio">${leftover.map(esc).join(' · ')}<br>
    Si el front empezó a mandar esto, actualizá <code>ESPERADOS</code> en el mock.</p>` : ''}
 </body></html>`;
 }
@@ -121,10 +121,10 @@ const server = http.createServer((req, res) => {
 
     if (path === '/' && !url.search) {
         res.writeHead(200, { 'content-type': 'application/json' });
-        return res.end(JSON.stringify({ mock: 'cuotealo', puerto: PORT, codigo: CODIGO, llamadas: llamadas.slice(-15) }, null, 2));
+        return res.end(JSON.stringify({ mock: 'cuotealo', puerto: PORT, codigo: CODE, llamadas: calls.slice(-15) }, null, 2));
     }
 
-    if (path === '/_control/reset') { llamadas.length = 0; return res.end('{"ok":true}'); }
+    if (path === '/_control/reset') { calls.length = 0; return res.end('{"ok":true}'); }
 
     // ⚠ UNA PÁGINA QUE SE EMBEBE A SÍ MISMA, para poder comprobar lo único que este mock tiene que
     // garantizar: que un iframe lo renderice. Sin esto, verificarlo exige levantar el wizard con
@@ -142,7 +142,7 @@ que es justo lo que el host real de BCP no permite desde <code>localhost</code>.
     }
 
     const params = [...url.searchParams.entries()];
-    llamadas.push({ at: new Date().toISOString(), path, params: Object.fromEntries(params) });
+    calls.push({ at: new Date().toISOString(), path, params: Object.fromEntries(params) });
     log(`GET ${path} · ${params.length ? params.map(([k, v]) => `${k}=${v}`).join(' · ') : '(sin parámetros — URL PELADA)'}`);
 
     // ⚠ SIN `X-Frame-Options` Y CON `frame-ancestors *`: ser embebible es el punto de este mock. El host
@@ -153,7 +153,7 @@ que es justo lo que el host real de BCP no permite desde <code>localhost</code>.
         'content-security-policy': 'frame-ancestors *',
         'cache-control': 'no-store',
     });
-    res.end(pagina(params));
+    res.end(page(params));
 });
 
 server.listen(PORT, () => log(`escuchando en :${PORT} — apuntá VITE_BCP_SIMULATOR_URL=http://localhost:${PORT}/simulador`));

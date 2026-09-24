@@ -78,8 +78,8 @@ export function decryptLaravelString(payload: string, appKey: string): string {
     const iv = Buffer.from(envelope.iv, 'base64');
     const cipherText = Buffer.from(envelope.value, 'base64');
 
-    const decipher = createDecipheriv('aes-256-cbc', key, iv);
-    decipher.setAutoPadding(false);
-    const padded = Buffer.concat([decipher.update(cipherText), decipher.final()]);
+    const decipherIt = createDecipheriv('aes-256-cbc', key, iv);
+    decipherIt.setAutoPadding(false);
+    const padded = Buffer.concat([decipherIt.update(cipherText), decipherIt.final()]);
     return pkcs7Unpad(padded).toString('utf8');
 }

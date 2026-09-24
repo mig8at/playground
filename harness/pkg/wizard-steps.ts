@@ -69,8 +69,8 @@ export async function fillAmountStep(
     // come el `<div>` padre. El spec muere con un timeout de 10 s tras «done scrolling», que no se
     // parece en nada a su causa. Por eso la guarda mira el VALOR, que es además lo semántico:
     // si el monto ya vino, no hay nada que escribir.
-    const yaTraeMonto = ((await input.inputValue().catch(() => '')) ?? '').trim() !== '';
-    if (!yaTraeMonto) {
+    const alreadyBringsAmount = ((await input.inputValue().catch(() => '')) ?? '').trim() !== '';
+    if (!alreadyBringsAmount) {
         // Currency-masked input rejects `.fill()` intermittently. Type chars one
         // by one so the masking layer receives each keystroke event.
         await input.click();
@@ -79,9 +79,9 @@ export async function fillAmountStep(
     // "Confirmación de cupo" (feature omit-Experian): selector OBLIGATORIO en comercios habilitados
     // (check-if-able-to-omit → RKV26000). Si está presente hay que elegir para habilitar el submit;
     // default 'no' = flujo estándar (preserva el comportamiento de los specs previos).
-    const cupo = page.getByRole('radio', { name: confirmQuota === 'yes' ? 'Sí' : 'No', exact: true });
-    if (await cupo.isVisible().catch(() => false)) {
-        await cupo.click();
+    const quota = page.getByRole('radio', { name: confirmQuota === 'yes' ? 'Sí' : 'No', exact: true });
+    if (await quota.isVisible().catch(() => false)) {
+        await quota.click();
     }
     const submit = page
         .getByTestId('amount-submit')
@@ -100,10 +100,10 @@ export async function fillPhoneStep(page: Page, phone?: string): Promise<string>
     // Igual que el monto: en ECOMMERCE el celular viene del contrato del carrito y el input llega
     // `readonly`. Escribir ahí no falla con un mensaje útil — se cuelga. Si ya trae valor se respeta
     // y se DEVUELVE ése, que es el que quedará en la solicitud.
-    const yaTrae = ((await input.inputValue().catch(() => '')) ?? '').trim();
-    if (yaTrae === '') await input.fill(value);
+    const alreadyBrings = ((await input.inputValue().catch(() => '')) ?? '').trim();
+    if (alreadyBrings === '') await input.fill(value);
     await page.getByTestId('phone-submit').click();
-    return yaTrae === '' ? value : yaTrae;
+    return alreadyBrings === '' ? value : alreadyBrings;
 }
 
 export async function fillOtpStep(page: Page, code = '1234'): Promise<void> {
@@ -124,25 +124,25 @@ export async function fillPersonalInfoIdentification(page: Page): Promise<void> 
     // POR LABEL, no por testid: esta pantalla no publica ninguno (F-217). Los nombres salen del DOM
     // real, medido el 2026-09-14: «Número de identificación *», «Nombres (Como aparecen en tu
     // documento)», «Apellidos (…)» y «Correo electrónico *».
-    const campo = (re: RegExp, testid: string) =>
+    const field = (re: RegExp, testid: string) =>
         page.getByTestId(testid).or(page.getByRole('textbox', { name: re }));
-    const doc = campo(/n[úu]mero de identificaci[óo]n/i, 'docnum-input');
+    const doc = field(/n[úu]mero de identificaci[óo]n/i, 'docnum-input');
     await expect(doc).toBeVisible({ timeout: 15_000 });
 
-    // ⚠ EN EL CANAL ECOMMERCE ESTOS CAMPOS LLEGAN DEL COMERCIO Y BLOQUEADOS (`readonly`, y el bloqueo
+    // ⚠ EN EL CANAL ECOMMERCE ESTOS FIELDS LLEGAN DEL COMERCIO Y BLOQUEADOS (`readonly`, y el bloqueo
     // real es por CSS: `pointer-events:none`). Escribir encima no falla con un mensaje útil: se cuelga
     // 10 s y culpa a la pantalla. Igual que en el monto y el celular, la guarda mira el VALOR: si el
     // dato ya vino, no hay nada que escribir. En self-service/asesor llegan vacíos y sí se escriben.
-    const escribirSiHaceFalta = async (loc: ReturnType<typeof campo>, valor: string) => {
+    const writeIfNeeded = async (loc: ReturnType<typeof field>, fieldValue: string) => {
         if (!(await loc.count())) return;
         if (((await loc.inputValue().catch(() => '')) ?? '').trim() !== '') return;
         await loc.click();
-        await loc.pressSequentially(valor, { delay: 30 });
+        await loc.pressSequentially(fieldValue, { delay: 30 });
     };
-    await escribirSiHaceFalta(doc, Math.floor(Math.random() * 2_899_999_999 + 100_000_000).toString());
-    await escribirSiHaceFalta(campo(/nombres/i, 'name-input'), 'JUAN');
-    await escribirSiHaceFalta(campo(/apellidos/i, 'surname-input'), 'PEREZ');
-    await escribirSiHaceFalta(campo(/correo|email/i, 'email-input'), `juan${Date.now()}@example.com`);
+    await writeIfNeeded(doc, Math.floor(Math.random() * 2_899_999_999 + 100_000_000).toString());
+    await writeIfNeeded(field(/nombres/i, 'name-input'), 'JUAN');
+    await writeIfNeeded(field(/apellidos/i, 'surname-input'), 'PEREZ');
+    await writeIfNeeded(field(/correo|email/i, 'email-input'), `juan${Date.now()}@example.com`);
 
     const submit = page.getByTestId('identification-submit').or(page.getByRole('button', { name: /^siguiente$/i }));
     await expect(submit).toBeEnabled({ timeout: 10_000 });
@@ -159,17 +159,17 @@ export async function fillExpeditionDate(page: Page): Promise<void> {
     // muere con «element(s) not found» señalando a la pantalla en vez de al locator.
     const combo = (re: RegExp, testid: string) =>
         page.getByTestId(testid).or(page.getByRole('combobox').filter({ hasText: re }).first());
-    const elegir = async (re: RegExp, testid: string, opcion: RegExp) => {
+    const choose = async (re: RegExp, testid: string, option: RegExp) => {
         const c = combo(re, testid);
         await expect(c).toBeEnabled({ timeout: 15_000 });
         await c.click();
         // La opción es un `option` del listbox que Radix abre en un portal, así que se busca en la
         // PÁGINA y no dentro del combo.
-        await page.getByRole('option', { name: opcion }).first().click();
+        await page.getByRole('option', { name: option }).first().click();
     };
-    await elegir(/d[íi]a/i, 'date-selector-day', /^15$/);
-    await elegir(/mes/i, 'date-selector-month', /^junio$/i);
-    await elegir(/a[ñn]o/i, 'date-selector-year', /^2010$/);
+    await choose(/d[íi]a/i, 'date-selector-day', /^15$/);
+    await choose(/mes/i, 'date-selector-month', /^junio$/i);
+    await choose(/a[ñn]o/i, 'date-selector-year', /^2010$/);
 
     // El checkbox de «confirmo que los datos son correctos» no tiene label accesible: es el primero de
     // la pantalla. `force` porque Radix lo pinta sobre un input oculto.
@@ -196,12 +196,12 @@ export async function fillEmploymentInfo(
     await trigger.click();
     await page.getByRole('option', { name: new RegExp(`^${status}$`, 'i') }).first().click();
 
-    const ingreso = page.getByTestId('monthly-income-input')
+    const income = page.getByTestId('monthly-income-input')
         .or(page.getByRole('textbox', { name: /ingresos mensuales/i }))
         .or(page.getByPlaceholder(/ingresos mensuales/i));
-    await ingreso.click();
+    await income.click();
     // Tecleado: el campo lleva máscara de moneda y `fill()` la saltea de a ratos.
-    await ingreso.pressSequentially(monthlyIncome, { delay: 30 });
+    await income.pressSequentially(monthlyIncome, { delay: 30 });
 
     const submit = page.getByTestId('employment-submit').or(page.getByRole('button', { name: /^(continuar|siguiente)$/i }));
     await expect(submit).toBeEnabled({ timeout: 10_000 });

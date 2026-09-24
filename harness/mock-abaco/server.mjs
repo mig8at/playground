@@ -93,12 +93,12 @@ const server = http.createServer((req, res) => {
         }
 
         if (req.method === 'POST' && path.startsWith('/login')) {
-            const paso = p.step ?? '-';
-            log(`login paso=${paso} plataforma=${p.platform ?? '-'} customer_id=${p.customer_id ?? '-'}`);
+            const step = p.step ?? '-';
+            log(`login paso=${step} plataforma=${p.platform ?? '-'} customer_id=${p.customer_id ?? '-'}`);
             // step-1 suele pedir un segundo factor; step-2 lo confirma. Ambos se reportan OK.
             return json(res, 200, {
                 success: true,
-                data: { status: 'ok', step: paso, requires_otp: String(paso) === '1', session_id: p.session_id ?? '', message: 'login simulado' },
+                data: { status: 'ok', step: step, requires_otp: String(step) === '1', session_id: p.session_id ?? '', message: 'login simulado' },
             });
         }
 

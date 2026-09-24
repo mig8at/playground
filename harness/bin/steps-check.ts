@@ -22,72 +22,72 @@ const REPOS: Record<string, string> = {
     back: join(homedir(), 'Desktop/CREDITOP/github/legacy-backend'),
 };
 
-type Paso = { id: string; label: string; ruta?: string; front?: string[]; back?: string[]; nota?: string };
-type Tramo = { label: string; cuando?: string; pasos: Paso[] };
-type Mapa = {
-    tronco: Paso[];
-    ramales: Record<string, Tramo>;
+type Step = { id: string; label: string; ruta?: string; front?: string[]; back?: string[]; nota?: string };
+type Segment = { label: string; cuando?: string; pasos: Step[] };
+type StepMap = {
+    tronco: Step[];
+    ramales: Record<string, Segment>;
     /** desvíos que SALEN del tronco y REINGRESAN (ej. Ábaco: confirmation → first-payment-date) */
-    desvios?: Record<string, Tramo & { desde: string; hasta: string }>;
+    desvios?: Record<string, Segment & { desde: string; hasta: string }>;
     /** lo inverso del desvío: arcos que SALTEAN pasos condicionales (ej. otp → lenders) */
     bypass?: Array<{ label: string; cuando?: string; desde: string; hasta: string }>;
     /** ni desvío ni ramal: CONTINÚAN después de un terminal (ej. la radicación SOAP de Credifamilia) */
-    extensiones?: Record<string, Tramo & { desde: string }>;
+    extensiones?: Record<string, Segment & { desde: string }>;
 };
 
-const mapa: Mapa = JSON.parse(readFileSync(join(ROOT, 'panel', 'steps.json'), 'utf8'));
+const stepMap: StepMap = JSON.parse(readFileSync(join(ROOT, 'panel', 'steps.json'), 'utf8'));
 const jsonOut = process.argv.includes('--json');
 
-const rotas: Array<{ tramo: string; paso: string; repo: string; ruta: string }> = [];
+const broken: Array<{ tramo: string; paso: string; repo: string; ruta: string }> = [];
 let total = 0;
 
-function revisar(tramo: string, pasos: Paso[]) {
-    for (const p of pasos) {
-        for (const [repo, lista] of [['front', p.front ?? []], ['back', p.back ?? []]] as const) {
-            for (const r of lista) {
+function review(segment: string, steps: Step[]) {
+    for (const p of steps) {
+        for (const [repo, list] of [['front', p.front ?? []], ['back', p.back ?? []]] as const) {
+            for (const r of list) {
                 total++;
-                if (!existsSync(join(REPOS[repo], r))) rotas.push({ tramo, paso: p.id, repo, ruta: r });
+                if (!existsSync(join(REPOS[repo], r))) broken.push({ tramo: segment, paso: p.id, repo, ruta: r });
             }
         }
     }
 }
 
-revisar('tronco', mapa.tronco);
-for (const [id, ram] of Object.entries(mapa.ramales)) revisar(id, ram.pasos);
-for (const [id, d] of Object.entries(mapa.desvios ?? {})) revisar(`desvío:${id}`, d.pasos);
-for (const [id, e] of Object.entries(mapa.extensiones ?? {})) revisar(`extensión:${id}`, e.pasos);
+review('tronco', stepMap.tronco);
+for (const [id, ram] of Object.entries(stepMap.ramales)) review(id, ram.pasos);
+for (const [id, d] of Object.entries(stepMap.desvios ?? {})) review(`desvío:${id}`, d.pasos);
+for (const [id, e] of Object.entries(stepMap.extensiones ?? {})) review(`extensión:${id}`, e.pasos);
 // `terminales` son pantallas reales que el mapa NO dibuja (se llega desde varios puntos), pero sus
 // archivos rotan igual que los demás: si no se validan acá, se pudren en silencio.
-revisar('terminales', (mapa as any).terminales?.pasos ?? []);
+review('terminales', (stepMap as any).terminales?.pasos ?? []);
 
 // Un desvío que sale o entra en un paso inexistente dibujaría una curva a la nada: se valida igual
 // que las rutas de archivo, porque es el mismo tipo de mentira.
-const idsTronco = new Set([...mapa.tronco, ...Object.values(mapa.ramales).flatMap((r) => r.pasos)].map((p) => p.id));
-const anclas: Array<[string, string, string]> = [
-    ...Object.entries(mapa.desvios ?? {}).flatMap(([id, d]) => [[`desvío:${id}`, 'desde', d.desde], [`desvío:${id}`, 'hasta', d.hasta]] as Array<[string, string, string]>),
-    ...(mapa.bypass ?? []).flatMap((b, i) => [[`bypass:${i}`, 'desde', b.desde], [`bypass:${i}`, 'hasta', b.hasta]] as Array<[string, string, string]>),
-    ...Object.entries(mapa.extensiones ?? {}).map(([id, e]) => [`extensión:${id}`, 'desde', e.desde] as [string, string, string]),
+const trunkIds = new Set([...stepMap.tronco, ...Object.values(stepMap.ramales).flatMap((r) => r.pasos)].map((p) => p.id));
+const anchors: Array<[string, string, string]> = [
+    ...Object.entries(stepMap.desvios ?? {}).flatMap(([id, d]) => [[`desvío:${id}`, 'desde', d.desde], [`desvío:${id}`, 'hasta', d.hasta]] as Array<[string, string, string]>),
+    ...(stepMap.bypass ?? []).flatMap((b, i) => [[`bypass:${i}`, 'desde', b.desde], [`bypass:${i}`, 'hasta', b.hasta]] as Array<[string, string, string]>),
+    ...Object.entries(stepMap.extensiones ?? {}).map(([id, e]) => [`extensión:${id}`, 'desde', e.desde] as [string, string, string]),
 ];
-for (const [tramo, campo, val] of anclas) {
-    if (!idsTronco.has(val)) rotas.push({ tramo, paso: campo, repo: 'ancla', ruta: `${val} (no existe como paso)` });
+for (const [segment, field, val] of anchors) {
+    if (!trunkIds.has(val)) broken.push({ tramo: segment, paso: field, repo: 'ancla', ruta: `${val} (no existe como paso)` });
 }
 
-const pasos = mapa.tronco.length
-    + Object.values(mapa.ramales).reduce((n, r) => n + r.pasos.length, 0)
-    + Object.values(mapa.desvios ?? {}).reduce((n, d) => n + d.pasos.length, 0)
-    + Object.values(mapa.extensiones ?? {}).reduce((n, e) => n + e.pasos.length, 0)
+const steps = stepMap.tronco.length
+    + Object.values(stepMap.ramales).reduce((n, r) => n + r.pasos.length, 0)
+    + Object.values(stepMap.desvios ?? {}).reduce((n, d) => n + d.pasos.length, 0)
+    + Object.values(stepMap.extensiones ?? {}).reduce((n, e) => n + e.pasos.length, 0)
     // `terminales` cuenta como paso aunque el mapa no lo dibuje: si el total dijera menos pasos de los
     // que el archivo tiene, el número dejaría de servir para notar que se agregó o se perdió uno.
-    + ((mapa as any).terminales?.pasos?.length ?? 0);
+    + ((stepMap as any).terminales?.pasos?.length ?? 0);
 
 if (jsonOut) {
-    console.log(JSON.stringify({ ok: rotas.length === 0, pasos, archivos: total, rotas }, null, 2));
-} else if (rotas.length === 0) {
-    console.log(`✔ steps.json OK — ${pasos} pasos · ${total} rutas, todas resuelven`);
+    console.log(JSON.stringify({ ok: broken.length === 0, pasos: steps, archivos: total, rotas: broken }, null, 2));
+} else if (broken.length === 0) {
+    console.log(`✔ steps.json OK — ${steps} pasos · ${total} rutas, todas resuelven`);
 } else {
-    console.log(`✗ steps.json: ${rotas.length}/${total} rutas NO existen\n`);
-    for (const r of rotas) console.log(`   [${r.tramo}/${r.paso}] ${r.repo}: ${r.ruta}`);
+    console.log(`✗ steps.json: ${broken.length}/${total} rutas NO existen\n`);
+    for (const r of broken) console.log(`   [${r.tramo}/${r.paso}] ${r.repo}: ${r.ruta}`);
     console.log('\n  Alguien movió o renombró esos archivos. Actualizá panel/steps.json.');
 }
 
-process.exit(rotas.length === 0 ? 0 : 1);
+process.exit(broken.length === 0 ? 0 : 1);

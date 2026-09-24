@@ -21,7 +21,7 @@ export function appKey(): string {
 }
 
 /** ¿La base de ESTE target vive en esta máquina? */
-export function esBaseLocal(): boolean {
+export function isLocalDb(): boolean {
     const host = env('E2E_DB_HOST', '127.0.0.1');
     return TARGET === 'local' || host === '127.0.0.1' || host === 'localhost' || host === '::1';
 }
@@ -45,7 +45,7 @@ export function esBaseLocal(): boolean {
  * sentencia. `siembra` toca `users`, `user_summaries`, `user_field_values` y `risk_central_user_data`,
  * que son **tablas de personas**: ahí la sentencia NO alcanza, porque `UPDATE users … WHERE id=?` tiene
  * la misma forma para un cliente sintético que para alguien real. Por eso ese permiso exige además un
- * **ámbito por usuario** (ver `conAmbitoDeSiembra`). Para el que agregue el siguiente: si la tabla tiene
+ * **ámbito por usuario** (ver `withSeedScope`). Para el que agregue el siguiente: si la tabla tiene
  * datos de personas, el patrón no es suficiente — hace falta acotar también las FILAS.
  *
  * ⚠ Y QUÉ SIGUE SIN CUBRIR, para no leer más de lo que dice: esto impide escribir fuera de estas
@@ -53,14 +53,14 @@ export function esBaseLocal(): boolean {
  * persona real a propósito — eso deja de ser un accidente y pasa a ser una decisión, que es justo la
  * línea que el permiso general no sabía trazar.
  */
-interface PermisoAngosto {
+interface NarrowPermission {
     /** Las sentencias EXACTAS que concede. Una que no matchee se bloquea, y el error dice cuál era. */
     patrones: RegExp[];
-    /** Si además exige un `usuario` dueño, dentro del ámbito abierto por `conAmbitoDeSiembra`. */
+    /** Si además exige un `usuario` dueño, dentro del ámbito abierto por `withSeedScope`. */
     porUsuario?: boolean;
 }
 
-const PERMISOS_ANGOSTOS: Record<string, PermisoAngosto> = {
+const NARROW_PERMISSIONS: Record<string, NarrowPermission> = {
     // Sumar y sacar teléfonos del bypass de OTP — `pkg/otp-bypass.ts`, el único que lo usa.
     'otp-bypass': {
         patrones: [/^UPDATE\s+settings\s+SET\s+value\s*=\s*JSON_(?:MERGE_PRESERVE|REMOVE)\([\s\S]+WHERE\s+`key`\s*=\s*\?[\s\S]*$/i],
@@ -91,7 +91,7 @@ const PERMISOS_ANGOSTOS: Record<string, PermisoAngosto> = {
 };
 
 /**
- * EL ÁMBITO DE LA SIEMBRA: qué usuarios puede tocar esta rama de ejecución.
+ * EL ÁMBITO DE LA SEED: qué usuarios puede tocar esta rama de ejecución.
  *
  * ⚠ ES LO QUE HACE ANGOSTO AL PERMISO `siembra`, porque la sentencia sola no alcanza: `UPDATE users …
  * WHERE id=?` tiene la misma forma para un cliente sintético que para una persona real. Con el ámbito,
@@ -103,12 +103,12 @@ const PERMISOS_ANGOSTOS: Record<string, PermisoAngosto> = {
  * paralelo comparten proceso, y un ámbito de módulo dejaría a cada corrida escribiendo dentro del
  * permiso de las otras.
  */
-const _ambitoSiembra = new AsyncLocalStorage<Set<number>>();
+const _seedScope = new AsyncLocalStorage<Set<number>>();
 
 /** Corre `fn` pudiendo sembrar SOBRE ESOS usuarios y ninguno más. */
-export function conAmbitoDeSiembra<T>(userIds: number[], fn: () => T): T {
-    const heredado = _ambitoSiembra.getStore();
-    return _ambitoSiembra.run(new Set([...(heredado ?? []), ...userIds.filter((n) => n > 0)]), fn);
+export function withSeedScope<T>(userIds: number[], fn: () => T): T {
+    const inherited = _seedScope.getStore();
+    return _seedScope.run(new Set([...(inherited ?? []), ...userIds.filter((n) => n > 0)]), fn);
 }
 
 /**
@@ -119,7 +119,7 @@ export function conAmbitoDeSiembra<T>(userIds: number[], fn: () => T): T {
  * Se deja exportada porque hay código que la invoca al arrancar para fallar temprano, antes de hacer
  * trabajo que va a tirar igual — eso sigue siendo útil y no molesta (es idempotente).
  *
- * `queDispara` es sólo para el mensaje: sin eso, el error decía «escritura bloqueada» y no de dónde.
+ * `whatTriggers` es sólo para el mensaje: sin eso, el error decía «escritura bloqueada» y no de dónde.
  */
 /**
  * ¿POR QUÉ SE BLOQUEARÍA ESTA ESCRITURA, suponiendo que la base es compartida y no hay permiso general?
@@ -129,12 +129,12 @@ export function conAmbitoDeSiembra<T>(userIds: number[], fn: () => T): T {
  * angostos se puede fijar con pruebas sin base y sin tocar variables de entorno. Una guarda sin pruebas
  * se pudre en silencio, y ésta es la que autoriza a escribir en la base del equipo.
  */
-export function motivoDelBloqueo(sql: string, permiso: string, usuario: number, params: any[], ambito: Set<number> | undefined): string | null {
-    if (!permiso) return null;                       // sin permiso angosto decide el llamador
-    const p = PERMISOS_ANGOSTOS[permiso];
-    if (!p) return `permiso angosto desconocido: «${permiso}» (los que hay: ${Object.keys(PERMISOS_ANGOSTOS).join(', ')})`;
+export function blockReason(sql: string, permission: string, user: number, params: any[], scope: Set<number> | undefined): string | null {
+    if (!permission) return null;                       // sin permiso angosto decide el llamador
+    const p = NARROW_PERMISSIONS[permission];
+    if (!p) return `permiso angosto desconocido: «${permission}» (los que hay: ${Object.keys(NARROW_PERMISSIONS).join(', ')})`;
     if (!p.patrones.some((r) => r.test(sql.trim()))) {
-        return `el permiso angosto «${permiso}» NO cubre esta sentencia, así que se bloqueó`
+        return `el permiso angosto «${permission}» NO cubre esta sentencia, así que se bloqueó`
             + `\n  O la sentencia cambió y hay que actualizar su patrón en PERMISOS_ANGOSTOS, o esta escritura no es la que el permiso autoriza.`;
     }
     if (!p.porUsuario) return null;
@@ -142,40 +142,40 @@ export function motivoDelBloqueo(sql: string, permiso: string, usuario: number, 
     // Tres condiciones, y las tres hacen falta. Sin ámbito, cualquiera abre el permiso; sin pertenencia,
     // se escribe sobre una persona que la corrida no creó; y sin el id entre los parámetros, se podría
     // declarar un dueño y escribirle a otro.
-    if (!ambito) return `«${permiso}» necesita un ámbito abierto con conAmbitoDeSiembra(); sin eso la escritura podría caer sobre cualquier fila`;
-    if (!usuario || !ambito.has(usuario)) {
-        return `«${permiso}» sólo alcanza a los usuarios de esta corrida [${[...ambito].join(', ') || '—'}], y esta escritura declara ${usuario || 'ninguno'}`;
+    if (!scope) return `«${permission}» necesita un ámbito abierto con conAmbitoDeSiembra(); sin eso la escritura podría caer sobre cualquier fila`;
+    if (!user || !scope.has(user)) {
+        return `«${permission}» sólo alcanza a los usuarios de esta corrida [${[...scope].join(', ') || '—'}], y esta escritura declara ${user || 'ninguno'}`;
     }
-    if (!params.some((v) => Number(v) === usuario)) {
-        return `«${permiso}»: la sentencia declara al usuario ${usuario} pero ese id NO está entre sus parámetros, así que no es a quien le escribe`;
+    if (!params.some((v) => Number(v) === user)) {
+        return `«${permission}»: la sentencia declara al usuario ${user} pero ese id NO está entre sus parámetros, así que no es a quien le escribe`;
     }
     return null;
 }
 
 /**
  * Guarda para escrituras: contra una base que NO es local exige I_KNOW_THIS_TOUCHES_SHARED_DEV=1,
- * salvo que la sentencia traiga un permiso angosto Y pase `motivoDelBloqueo` (ver arriba).
+ * salvo que la sentencia traiga un permiso angosto Y pase `blockReason` (ver arriba).
  *
  * ⚠ YA NO HACE FALTA LLAMARLA A MANO: `exec()` la llama sola cuando la sentencia MUTA (ver abajo).
  * Se deja exportada porque hay código que la invoca al arrancar para fallar temprano, antes de hacer
  * trabajo que va a tirar igual — eso sigue siendo útil y no molesta (es idempotente).
  *
- * `queDispara` es sólo para el mensaje: sin eso, el error decía «escritura bloqueada» y no de dónde.
+ * `whatTriggers` es sólo para el mensaje: sin eso, el error decía «escritura bloqueada» y no de dónde.
  */
-export function assertWriteAllowed(queDispara = '', sql = '', permiso = '', usuario = 0, params: any[] = []): void {
-    if (esBaseLocal()) return;
+export function assertWriteAllowed(whatTriggers = '', sql = '', permission = '', user = 0, params: any[] = []): void {
+    if (isLocalDb()) return;
     if (env('I_KNOW_THIS_TOUCHES_SHARED_DEV') === '1') return;
 
-    if (permiso) {
-        const motivo = motivoDelBloqueo(sql, permiso, usuario, params, _ambitoSiembra.getStore());
-        if (motivo === null) return;
-        throw new Error(`${motivo}\n  la disparó: ${queDispara}\n  ${sql.trim().replace(/\s+/g, ' ').slice(0, 160)}`);
+    if (permission) {
+        const reason = blockReason(sql, permission, user, params, _seedScope.getStore());
+        if (reason === null) return;
+        throw new Error(`${reason}\n  la disparó: ${whatTriggers}\n  ${sql.trim().replace(/\s+/g, ' ').slice(0, 160)}`);
     }
 
     const host = env('E2E_DB_HOST', '127.0.0.1');
     throw new Error(
         `escritura a DB COMPARTIDA bloqueada (target ${TARGET}, host ${host})`
-        + (queDispara ? `\n  la disparó: ${queDispara}` : '')
+        + (whatTriggers ? `\n  la disparó: ${whatTriggers}` : '')
         + `\n  Si de verdad querés escribir ahí, exportá I_KNOW_THIS_TOUCHES_SHARED_DEV=1 en la shell.`
         + `\n  Si NO querés, corré con E2E_TARGET=local (F-53).`,
     );
@@ -225,7 +225,7 @@ export async function scalar<T = any>(sql: string, params: any[] = []): Promise<
  * no muta nada y marcarlo sería un falso positivo que enseña a ignorar la guarda. `SET` queda fuera a
  * propósito — `SET FOREIGN_KEY_CHECKS=0` es una perilla de sesión, no un cambio de datos.
  */
-export function mutacionDe(sql: string): { op: string; tabla: string } | null {
+export function mutationOf(sql: string): { op: string; tabla: string } | null {
     const t = sql.replace(/^[\s(]+/, '').replace(/^\/\*[\s\S]*?\*\//, '').trimStart();
     // ⚠ `IF EXISTS` / `IF NOT EXISTS` van ENTRE el verbo y la tabla, así que sin contemplarlas el
     // nombre que salía era `if`. Lo vi en el propio log que vine a hacer confiable: un
@@ -237,8 +237,8 @@ export function mutacionDe(sql: string): { op: string; tabla: string } | null {
 }
 
 /** Lo que `exec` fue registrando en esta corrida, en orden. Sirve para decir QUÉ se tocó, DELETEs incluidos. */
-export interface Escritura { op: string; tabla: string; filas: number; target: string; local: boolean; etiqueta: string; cuando: string }
-const _escrituras: Escritura[] = [];
+export interface Write { op: string; tabla: string; filas: number; target: string; local: boolean; etiqueta: string; cuando: string }
+const _writes: Write[] = [];
 
 /**
  * LA ETIQUETA VA POR CONTEXTO ASÍNCRONO, no en el módulo.
@@ -250,28 +250,28 @@ const _escrituras: Escritura[] = [];
  * y alertas de todos los casos), y la volví a cometer. `AsyncLocalStorage` es el primitivo para esto:
  * cada cadena de `await` ve su propia etiqueta y las paralelas no se ven entre sí.
  */
-const _etiquetas = new AsyncLocalStorage<string>();
+const _labels = new AsyncLocalStorage<string>();
 
 /** Corre `fn` con las escrituras etiquetadas como `nombre` (la usa `withWrite`). */
-export function conEtiquetaDeEscrituras<T>(nombre: string, fn: () => T): T {
-    return _etiquetas.run(nombre, fn);
+export function withWritesLabel<T>(name: string, fn: () => T): T {
+    return _labels.run(name, fn);
 }
 
 /** Todo lo que esta corrida escribió, en orden. Copia: nadie de afuera muta el registro. */
-export function escriturasDeLaCorrida(): Escritura[] {
-    return _escrituras.slice();
+export function runWrites(): Write[] {
+    return _writes.slice();
 }
 
 /** Resumen por tabla, para imprimir al cerrar una corrida. */
-export function resumenDeEscrituras(): Array<{ tabla: string; ops: string; filas: number }> {
+export function writesSummary(): Array<{ tabla: string; ops: string; filas: number }> {
     const m = new Map<string, { ops: Set<string>; filas: number }>();
-    for (const e of _escrituras) {
+    for (const e of _writes) {
         const v = m.get(e.tabla) ?? { ops: new Set<string>(), filas: 0 };
         v.ops.add(e.op.split(' ')[0]);
         v.filas += e.filas;
         m.set(e.tabla, v);
     }
-    return [...m.entries()].map(([tabla, v]) => ({ tabla, ops: [...v.ops].join('+'), filas: v.filas }));
+    return [...m.entries()].map(([table, v]) => ({ tabla: table, ops: [...v.ops].join('+'), filas: v.filas }));
 }
 
 /**
@@ -282,25 +282,25 @@ export function resumenDeEscrituras(): Array<{ tabla: string; ops: string; filas
  * (una fila borrada no está para ser vista) ni las tablas que no tiene en su lista. Esto anota la
  * sentencia cuando corre: ve los borrados, y ve cualquier tabla.
  */
-export function lineasDeEscrituras(sangria = '  '): string[] {
-    const r = resumenDeEscrituras();
+export function writeLines(indent = '  '): string[] {
+    const r = writesSummary();
     if (!r.length) return [];
-    const compartida = !esBaseLocal();
-    const ancho = Math.max(...r.map((x) => x.tabla.length));
+    const shared = !isLocalDb();
+    const width = Math.max(...r.map((x) => x.tabla.length));
     const out = [
-        `${sangria}── LO QUE EL ARNÉS ESCRIBIÓ EN LA BASE · ${TARGET}${compartida ? ' ⚠ COMPARTIDA' : ''} ──`,
+        `${indent}── LO QUE EL ARNÉS ESCRIBIÓ EN LA BASE · ${TARGET}${shared ? ' ⚠ COMPARTIDA' : ''} ──`,
         // ⚠ EL ARNÉS, no el flujo. Lo que escribe el BACKEND cuando el runner le pega por la API
         // (la solicitud, sus records) NO pasa por acá y por eso no aparece: esto es la siembra y los
         // bypasses, o sea la parte que se puede repetir o revertir. Decirlo evita la lectura al revés
         // —«escribió 16 sentencias y no veo la solicitud»— y la peor: creer que esto es todo el rastro.
-        `${sangria}   (la siembra y los bypasses; lo que escribe el backend por la API va aparte — \`dbops activity\`)`,
+        `${indent}   (la siembra y los bypasses; lo que escribe el backend por la API va aparte — \`dbops activity\`)`,
     ];
     for (const x of r.sort((a, b) => b.filas - a.filas)) {
-        out.push(`${sangria}   ${x.tabla.padEnd(ancho)}  ${x.ops.padEnd(20)} ${x.filas} fila(s)`);
+        out.push(`${indent}   ${x.tabla.padEnd(width)}  ${x.ops.padEnd(20)} ${x.filas} fila(s)`);
     }
     // El total en sentencias, no en filas: dos runners con el mismo total de filas pueden haber hecho
     // 3 sentencias o 300, y eso cambia qué tan invasiva fue la corrida.
-    out.push(`${sangria}   ${_escrituras.length} sentencia(s) · incluye DELETEs, que \`dbops activity\` no puede ver`);
+    out.push(`${indent}   ${_writes.length} sentencia(s) · incluye DELETEs, que \`dbops activity\` no puede ver`);
     return out;
 }
 
@@ -309,12 +309,12 @@ export function lineasDeEscrituras(sangria = '  '): string[] {
  * que su registro vive en la memoria del hijo y de otra forma se pierde al terminar).
  * Best-effort: un fallo al escribir el forense no puede tumbar la corrida que vino a documentar.
  */
-export function volcarEscrituras(ruta: string): boolean {
+export function dumpWrites(path: string): boolean {
     try {
-        mkdirSync(dirname(ruta), { recursive: true });
-        writeFileSync(ruta, JSON.stringify({
-            target: TARGET, local: esBaseLocal(), cuando: new Date().toISOString(),
-            resumen: resumenDeEscrituras(), sentencias: _escrituras,
+        mkdirSync(dirname(path), { recursive: true });
+        writeFileSync(path, JSON.stringify({
+            target: TARGET, local: isLocalDb(), cuando: new Date().toISOString(),
+            resumen: writesSummary(), sentencias: _writes,
         }, null, 2));
         return true;
     } catch {
@@ -336,15 +336,15 @@ export function volcarEscrituras(ruta: string): boolean {
  * su propio comentario admite que **no ve los DELETEs**; este registro sí, porque anota la sentencia
  * cuando corre.
  */
-export async function exec(sql: string, params: any[] = [], opciones: { permiso?: string; usuario?: number } = {}): Promise<{ affectedRows: number; insertId: number }> {
-    const mut = mutacionDe(sql);
-    if (mut) assertWriteAllowed(`${mut.op} ${mut.tabla}`, sql, opciones.permiso ?? '', opciones.usuario ?? 0, params);
+export async function exec(sql: string, params: any[] = [], options: { permiso?: string; usuario?: number } = {}): Promise<{ affectedRows: number; insertId: number }> {
+    const mut = mutationOf(sql);
+    if (mut) assertWriteAllowed(`${mut.op} ${mut.tabla}`, sql, options.permiso ?? '', options.usuario ?? 0, params);
     const [res] = await pool().query<ResultSetHeader>(sql, params);
     const out = { affectedRows: res.affectedRows ?? 0, insertId: res.insertId ?? 0 };
     if (mut) {
-        _escrituras.push({
+        _writes.push({
             op: mut.op, tabla: mut.tabla, filas: out.affectedRows, target: TARGET,
-            local: esBaseLocal(), etiqueta: _etiquetas.getStore() ?? '', cuando: new Date().toISOString(),
+            local: isLocalDb(), etiqueta: _labels.getStore() ?? '', cuando: new Date().toISOString(),
         });
     }
     return out;
