@@ -26,6 +26,91 @@ jira_title: ""
   existe fuera de esta máquina.
 - **SDK del comercio:** medir cuántos comercios ecommerce mapean el documento antes de decidir si la
   experiencia propuesta es realista.
+- **Una consulta por ambiente, en `connectors/`:** decidir las tres preguntas del frente de abajo y
+  arrancar por la fase 0 (el módulo único de Go).
+
+## Frente: una consulta por ambiente, en `connectors/`
+
+**Objetivo.** Una sola forma de preguntar «datos, logs o eventos en tal ambiente», y **toda** la lógica
+en `connectors/`: qué fuente atiende cada ambiente, las credenciales, el chequeo de sólo lectura y la
+normalización de lo que vuelve. Las herramientas (tablero, trazador, harness, workers) sólo llaman.
+
+**Por qué, medido el 2026-09-23.** Hay clientes repetidos, y ya no coinciden entre sí:
+
+| qué | quién tiene su propio cliente |
+|---|---|
+| SQL | `tablero/server/internal/dbquery` · `trazador/server/fuentes.go` · `harness/pkg/db.ts` (lee **y escribe**) · `workers/datos.py` (le pregunta al trazador) |
+| Loki | `trazador/server` · `harness/pkg/loki.ts` · `workers/datos.py` |
+| PostHog | `trazador/server/posthog.go` · `harness/pkg/posthog.ts` |
+
+`tablero-db` exige el ambiente y `trazador-sql` va a `prod` si no se lo dan; cada uno tiene su propio
+chequeo de sólo lectura, escrito distinto; y las credenciales están en los `.env` de cuatro
+herramientas, con nombres distintos para lo mismo (`TABLERO_DB_*`, `E2E_DB_*`, `LOKI_*`).
+
+**El contrato — la forma única:**
+
+- Tres conectores por la PREGUNTA, no por el proveedor: `connectors/sql`, `connectors/logs`,
+  `connectors/events`. Redash, Loki y PostHog son detalles de adentro.
+- **El ambiente es obligatorio**: `local` · `dev` · `qa` · `staging` · `prod`. No hay default.
+- **Cada resultado dice ambiente + fuente + consulta + si se cortó.** La fuente se nombra
+  aunque dos ambientes compartan base: `qa` y `staging` leen la misma base que `dev`, y el resultado
+  tiene que decirlo.
+- **Una combinación que no existe falla con su motivo, nunca devuelve vacío** (logs en `local`, si no hay Loki).
+- **Sólo lectura**, con UN chequeo para todos. Escribir queda afuera (ver «Lo que NO entra»).
+- Por consola, un binario con tres verbos y `--json` para el agente:
+
+      pg sql    --target prod "SELECT …"      [--json | --csv]
+      pg logs   --target qa   '{service_name="…"}' --since 1h
+      pg events --target dev  --ureq 502705
+
+**Qué atiende cada ambiente** (lo marcado con `?` se mide en la fase de su conector, no se supone):
+
+| ambiente | sql | logs | events |
+|---|---|---|---|
+| `local` | MySQL de Docker (`legacy-backend-mysql-1`) | ? (sin Loki: falla con motivo) | ? |
+| `dev` | MySQL directo, base compartida | Loki `creditopdev`, `service_name="legacy-backend"` | ? |
+| `qa` | la misma base que `dev` | Loki `creditopdev`, `service_name="CreditopDev"` | ? |
+| `staging` | la misma base que `dev` | Loki `creditopdev`, ? | ? |
+| `prod` | Redash, auditado a nombre del token | Loki `creditop` | PostHog de producción |
+
+**Fases** — cada una termina con el A/B idéntico, la copia vieja borrada y un chequeo que falla si
+vuelve a aparecer un cliente fuera de `connectors/` (se cablea, no se escribe):
+
+0. **Un solo módulo de Go en la raíz.** Hoy `tablero/server` y `trazador/server` son módulos separados
+   y no pueden compartir paquetes. Se comprueba con las pruebas de los dos y la consola del tablero
+   comparada antes y después.
+1. **`connectors/sql`.** Se parte de `dbquery` (ya separa MySQL y Redash) y se le suma lo de
+   `trazador/server/fuentes.go`. El chequeo de sólo lectura es la unión de los dos, con pruebas de cada
+   caso que uno frenaba y el otro no. El A/B: la misma batería de consultas en los cinco ambientes por
+   `tablero-db`, por `trazador-sql` y por el conector, con las mismas filas. Se mide ahí lo que difiere
+   entre Redash y MySQL directo (tipos, límite de filas, caché de resultados) y se normaliza.
+   Después `tablero-db` y `trazador-sql` pasan a usarlo, y `workers/datos.py` pregunta al conector.
+2. **`connectors/logs`.** Sale del trazador, con el mapa de etiquetas por ambiente escrito una sola
+   vez. El harness conserva su forense, pero su cliente HTTP (`pkg/loki.ts`) pasa a ser `pg logs
+   --json`; lo mismo `workers/datos.py`.
+3. **`connectors/events`.** Lo mismo con PostHog: `trazador/server/posthog.go` + `harness/pkg/posthog.ts`.
+4. **Las credenciales, en un solo lugar por ambiente**, y fuera de los `.env` de cada herramienta las
+   claves que el conector ya resuelve. Se reescribe §«Variables de entorno» del `CLAUDE.md` raíz.
+5. **El registro de comandos**: `pg help --json` sale de la misma lista que el binario, y de ahí el
+   catálogo del hook de inicio y un servidor MCP con `sql`, `logs` y `events` como herramientas nativas
+   del agente.
+
+**Lo que NO entra.**
+- **Escribir.** La siembra del harness y su guarda (`pkg/db-safe.ts`) son lógica del harness, no del
+  conector. Moverla junto con la lectura mezclaría la herramienta más riesgosa con la más usada. El
+  conector sólo le daría la conexión, más adelante y aparte.
+- **Consultar prod sin Redash.**
+- **Cambiar la lógica de los forenses** (qué se busca en los logs de una solicitud): eso sigue siendo del
+  trazador y del harness.
+
+**Tres decisiones de Miguel antes de la fase 0:**
+1. **Los nombres**: `connectors/` para la carpeta y `pg` para el binario, o los que prefiera.
+2. **Las credenciales centralizadas por ambiente** (fase 4). Revierte en parte la decisión del
+   2026-07-22 de un `.env` autosuficiente por herramienta. Se revierte sólo para lo que el conector
+   resuelve: las perillas de cada herramienta se quedan en su `.env`. Hoy, si una credencial rota, hay
+   que actualizarla en varios lados.
+3. **`qa` como ambiente propio**, además de los cuatro de siempre. El trazador y el harness ya lo usan,
+   y `tablero-db` no lo acepta.
 
 ## Sin próximo paso vigente
 
