@@ -11,13 +11,16 @@ antes, las tres descartadas por Miguel el mismo día: un bloque «Proyectos» co
 carpeta de Figma como nivel, y las páginas del archivo —«Cover · Benchmark · Flujo»— como nivel. Lo que se
 busca es el recorrido, no dónde vive ni cómo se reparte el archivo.)* Al centro la pantalla con las zonas del prototipo que se pueden tocar; a
 la derecha qué dice, a dónde lleva y de dónde se llega. ← → recorren el carril, Retroceso vuelve, H
-muestra u oculta las zonas y 0 centra la pantalla.
+muestra u oculta las zonas, 0 centra la pantalla y + / − son el zoom.
 
-**La pantalla va a su tamaño de Figma (1:1) y se mueve arrastrándola**, o con la rueda; doble clic en el
-fondo la centra. Antes se escalaba para entrar en la región y cambiaba de tamaño con cada separador o al
-pasar a Comparar. Un clic en una zona del prototipo sólo cuenta si el puntero no se movió, y el iframe
-del HTML no recibe el puntero (es un dibujo: las zonas van encima), así que arrastrar sobre él también
-mueve el lienzo.
+**El tamaño máximo de la pantalla es el alto de la región**: al 100 % la llena de arriba abajo, y el zoom
+(la barra de la cabecera, + / −, o Ctrl + rueda y el pellizco del trackpad, anclado en el puntero) la
+achica hasta el 25 %. Depende sólo del ALTO, así que arrastrar un separador no la cambia de tamaño —el
+primer intento, que la escalaba para entrar entera en la región, sí lo hacía—, y en Comparar las dos van a
+la misma escala. Lo que no entra a lo ancho se mueve **arrastrando**, o con la rueda; doble clic en el
+fondo la centra. Un clic en una zona del prototipo sólo cuenta si el puntero no se movió, y el iframe del
+HTML no recibe el puntero (es un dibujo: las zonas van encima), así que arrastrar sobre él también mueve
+el lienzo.
 
 ## La ruta: `/<proyecto>/<pantalla>`, para enlazar desde afuera
 

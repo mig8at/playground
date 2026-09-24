@@ -373,16 +373,48 @@ const figmaURL = computed(() => (data.value && current.value
   ? `https://www.figma.com/design/${data.value.key}/?node-id=${current.value.id.replace(':', '-')}`
   : ''))
 
-// ── la pantalla va a su tamaño de Figma y se mueve con el mouse ──
-// Antes se escalaba para entrar en la región, y así cambiaba de tamaño cada vez que se arrastraba un
-// separador o se pasaba a Comparar: una pantalla de 932 px quedaba en 700 y el texto ya no medía lo que
-// mide. Ahora es 1:1 y lo que no entra se trae ARRASTRANDO (o con la rueda), como un lienzo. Arrastrar
-// no dispara las zonas del prototipo: un clic sólo cuenta si el puntero no se movió.
+// ── la pantalla: a lo sumo la altura de la región, con zoom, y se mueve con el mouse ──
+// El TOPE es la altura de la región: al 100 % la pantalla la llena de arriba abajo, y el zoom la achica
+// hasta ZOOM_MIN. Depende sólo del ALTO, así que arrastrar un separador —que cambia el ancho— no la
+// cambia de tamaño, y en Comparar las dos van a la misma escala. Lo que no entra a lo ancho se trae
+// ARRASTRANDO (o con la rueda), como un lienzo; Ctrl + rueda (o el pellizco del trackpad) es el zoom.
+// Arrastrar no dispara las zonas del prototipo: un clic sólo cuenta si el puntero no se movió.
 const stage = ref(null)
 const canvas = ref(null)
 const pan = ref({ x: 0, y: 0 })
 const dragging = ref(false)
 const STAGE_PAD = 24
+const CAPTION_H = 24 // el rótulo «Figma (imagen)» / «HTML traducido» de Comparar
+const ZOOM_MIN = 0.25
+const ZOOM_MAX = 1
+const ZOOM_STEP = 0.1
+const stageH = ref(0)
+const clampZoom = (z) => Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, Math.round(z * 100) / 100))
+const zoom = ref(clampZoom(readSize('visor.zoom', 100) / 100))
+watch(zoom, (z) => { saveSize('visor.zoom', Math.round(z * 100)); nextTick(onStageResize) })
+// La escala de Figma a pantalla: la que hace que el alto entre en la región, por el zoom.
+const scale = computed(() => {
+  const c = current.value
+  if (!c || !stageH.value) return 1
+  const room = stageH.value - 2 * STAGE_PAD - (panes.value.length > 1 ? CAPTION_H : 0)
+  return Math.max(0.05, (room / c.h) * zoom.value)
+})
+const zoomPercent = computed(() => Math.round(zoom.value * 100))
+const realPercent = computed(() => Math.round(scale.value * 100))
+function setZoom(z, at = null) {
+  const next = clampZoom(z)
+  if (next === zoom.value) return
+  // Con el puntero como ancla, lo que está debajo del puntero se queda debajo del puntero.
+  if (at && stage.value) {
+    const r = stage.value.getBoundingClientRect()
+    const px = at.x - r.left
+    const py = at.y - r.top
+    const k = next / zoom.value
+    pan.value = { x: px - (px - pan.value.x) * k, y: py - (py - pan.value.y) * k }
+    panTouched = true
+  }
+  zoom.value = next
+}
 const KEEP_VISIBLE = 120 // lo que queda a la vista como mínimo: la pantalla no se pierde fuera de la región
 let panTouched = false // si se movió a mano, un cambio de ancho de la región no la recentra
 let drag = null
@@ -400,17 +432,23 @@ function clampPan(x, y) {
     y: Math.min(Math.max(y, KEEP_VISIBLE - h), st.clientHeight - KEEP_VISIBLE),
   }
 }
-// Centrada a lo ancho si entra, pegada arriba: lo primero que se lee de una pantalla es su cabecera.
+// Centrada en lo que entre; lo que no entra a lo ancho arranca por la izquierda.
 function center() {
   const st = stage.value
   if (!st || !canvas.value) return
-  const { w } = contentSize()
-  pan.value = { x: w < st.clientWidth ? Math.round((st.clientWidth - w) / 2) : STAGE_PAD, y: STAGE_PAD }
+  const { w, h } = contentSize()
+  pan.value = {
+    x: w < st.clientWidth ? Math.round((st.clientWidth - w) / 2) : STAGE_PAD,
+    y: h < st.clientHeight ? Math.round((st.clientHeight - h) / 2) : STAGE_PAD,
+  }
   panTouched = false
 }
 function onStageResize() {
-  if (panTouched) pan.value = clampPan(pan.value.x, pan.value.y)
-  else center()
+  if (stage.value) stageH.value = stage.value.clientHeight
+  nextTick(() => {
+    if (panTouched) pan.value = clampPan(pan.value.x, pan.value.y)
+    else center()
+  })
 }
 function onPointerDown(e) {
   if (e.button !== 0 || !current.value) return
@@ -443,17 +481,22 @@ function onClickCapture(e) {
   if (swallowClick) { e.stopPropagation(); e.preventDefault(); swallowClick = false }
 }
 function onWheel(e) {
-  if (e.ctrlKey || !current.value) return // el pellizco del trackpad queda para el zoom del navegador
+  if (!current.value) return
   e.preventDefault()
+  // El pellizco del trackpad llega como rueda con Ctrl: es el zoom de la pantalla, no el de la página.
+  if (e.ctrlKey || e.metaKey) { setZoom(zoom.value * Math.exp(-e.deltaY / 200), { x: e.clientX, y: e.clientY }); return }
   pan.value = clampPan(pan.value.x - e.deltaX, pan.value.y - e.deltaY)
   panTouched = true
 }
 let observer
 // Otra pantalla del mismo ancho conserva dónde se estaba mirando (comparar dos pasos seguidos en el
 // mismo lugar); una de otro ancho se recentra.
-watch(() => [current.value?.id, current.value?.w], (now, before) => nextTick(() => {
-  if (!before || now[1] !== before[1]) center()
-  else pan.value = clampPan(pan.value.x, pan.value.y)
+watch(() => [current.value?.id, current.value?.w, current.value?.h], (now, before) => nextTick(() => {
+  if (stage.value) stageH.value = stage.value.clientHeight
+  nextTick(() => {
+    if (!before || now[1] !== before[1] || now[2] !== before[2]) center()
+    else pan.value = clampPan(pan.value.x, pan.value.y)
+  })
 }))
 const hotspotStyle = (h) => {
   const c = current.value
@@ -467,6 +510,8 @@ function onKey(e) {
   else if (e.key === 'Backspace' || (e.key === 'ArrowLeft' && e.altKey)) { back(); e.preventDefault() }
   else if (e.key === 'h' || e.key === 'H') showHotspots.value = !showHotspots.value
   else if (e.key === '0') center()
+  else if (e.key === '+' || e.key === '=') setZoom(zoom.value + ZOOM_STEP)
+  else if (e.key === '-') setZoom(zoom.value - ZOOM_STEP)
 }
 
 // Pegar un enlace viejo (#/…) en la misma pestaña cambia sólo el hash, y eso no recarga la página: sin
@@ -588,6 +633,13 @@ const laneName = (lane) => (lane.label ? lane.label : 'Fila sin rótulo')
           <button class="region-action" :aria-pressed="showHotspots" title="Mostrar las zonas del prototipo (H)" aria-label="Zonas del prototipo" @click="showHotspots = !showHotspots">
             <span class="ui-icon" data-icon="filter" aria-hidden="true"></span>
           </button>
+          <div class="zoom" role="group" aria-label="Zoom">
+            <button class="btn btn-xs btn-ghost" title="Alejar (−)" aria-label="Alejar" :disabled="zoom <= ZOOM_MIN" @click="setZoom(zoom - ZOOM_STEP)">−</button>
+            <input class="zoom-range" type="range" :min="ZOOM_MIN * 100" :max="ZOOM_MAX * 100" step="5" :value="zoomPercent"
+              :aria-valuetext="zoomPercent + ' % del alto'" aria-label="Zoom" @input="setZoom($event.target.value / 100)" />
+            <button class="btn btn-xs btn-ghost" title="Acercar (+) · el máximo es el alto de la región" aria-label="Acercar" :disabled="zoom >= ZOOM_MAX" @click="setZoom(zoom + ZOOM_STEP)">+</button>
+            <span class="zoom-value" :title="'Al ' + zoomPercent + ' % del alto de la región · ' + realPercent + ' % del tamaño de Figma'">{{ zoomPercent }} %</span>
+          </div>
           <button class="region-action" title="Centrar la pantalla (0)" aria-label="Centrar la pantalla" @click="center">
             <span class="ui-icon" data-icon="collapse" aria-hidden="true"></span>
           </button>
@@ -604,10 +656,10 @@ const laneName = (lane) => (lane.label ? lane.label : 'Fila sin rótulo')
         <p v-if="!current" class="empty">{{ loading ? 'Leyendo el diseño…' : (error || 'Sin pantalla elegida.') }}</p>
         <div v-else ref="canvas" class="canvas" :style="{ transform: `translate(${pan.x}px, ${pan.y}px)` }">
         <figure v-for="p in panes" :key="p" class="pane">
-        <div class="device" :data-kind="current.kind" :style="{ width: current.w + 'px', height: current.h + 'px' }">
+        <div class="device" :data-kind="current.kind" :style="{ width: current.w * scale + 'px', height: current.h * scale + 'px' }">
           <img v-if="p === 'image'" :key="imageURL" :src="imageURL" :alt="current.title || current.name" draggable="false" @error="imageFailed = true" />
           <iframe v-else :key="htmlURL" :src="htmlURL" :title="'HTML de ' + (current.title || current.name)" class="html"
-            :style="{ width: current.w + 'px', height: current.h + 'px' }"></iframe>
+            :style="{ width: current.w + 'px', height: current.h + 'px', transform: `scale(${scale})` }"></iframe>
           <p v-if="p === 'image' && imageFailed" class="notice over">Figma no devolvió la imagen de esta pantalla.</p>
           <template v-if="showHotspots">
             <button v-for="(h, i) in clickable" :key="i" class="hotspot" :class="{ outside: !h.to }" :style="hotspotStyle(h)"
@@ -731,10 +783,14 @@ const laneName = (lane) => (lane.label ? lane.label : 'Fila sin rótulo')
 .editor > .region-head { flex-wrap: wrap; height: auto; row-gap: var(--space-1) }
 /* Al envolver, el título no cede todo el ancho: sin una base, `flex: 1` con `min-width: 0` lo dejaba en 0. */
 .editor > .region-head > span:first-child { flex: 1 1 140px }
-/* El HTML se dibuja a su tamaño de Figma, igual que la imagen: la comparación es de igual a igual. No
-   recibe el puntero —es un dibujo, las zonas del prototipo van encima—, así que arrastrar sobre él mueve
-   el lienzo en vez de perderse adentro del iframe. */
-.device iframe.html { display: block; border: 0; pointer-events: none }
+/* El HTML se dibuja a su tamaño de Figma y se escala entero, a la misma escala que la imagen: el texto
+   conserva sus medidas y la comparación es de igual a igual. No recibe el puntero —es un dibujo, las
+   zonas del prototipo van encima—, así que arrastrar sobre él mueve el lienzo en vez de perderse
+   adentro del iframe. */
+.device iframe.html { display: block; border: 0; pointer-events: none; transform-origin: 0 0 }
+.zoom { display: flex; align-items: center; gap: 2px }
+.zoom-range { width: 88px; accent-color: var(--primary) }
+.zoom-value { min-width: 3.2em; text-align: right; font-size: var(--text-xs); color: var(--texto-2); font-variant-numeric: tabular-nums }
 .device { position: relative; flex: none; border: 1px solid var(--device-edge); border-radius: 18px; overflow: hidden;
   background: var(--card) }
 /* El tipo va en un atributo y no en una clase: `panel` como clase es la región compartida y le ponía
