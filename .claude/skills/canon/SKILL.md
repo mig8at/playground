@@ -16,9 +16,9 @@ propia base**: sirve para ensayar, y lo que se escribe ahí no lo ve nadie.
 
 ## Leer — antes de investigar, siempre
 
-    make canon-buscar Q='monto avisado al comercio'     # qué sección (prosa) y qué área (mapa) lo cubren
-    make canon-leer IDS='cuota/context#<ancla>'         # la sección completa; varias por coma, o el tema
-    make canon-codigo AREA=cuota/context N=2            # los archivos que declara esa área
+    make canon-search Q='monto avisado al comercio'     # qué sección (prosa) y qué área (mapa) lo cubren
+    make canon-read IDS='cuota/context#<ancla>'         # la sección completa; varias por coma, o el tema
+    make canon-code AREA=cuota/context N=2              # los archivos que declara esa área
 
 1. **Buscá con palabras del negocio, en español y cortas.** La búsqueda es léxica: una consulta en
    inglés o un relato largo no encuentran nada. Probá dos o tres formulaciones antes de concluir.
@@ -28,7 +28,8 @@ propia base**: sirve para ensayar, y lo que se escribe ahí no lo ve nadie.
 4. En una tarea, lo que se usó se cita en su bloque como `[texto](canon:tema#ancla)` y el tema entra a
    `canon:` del frontmatter.
 
-Para Python, `tools/canon.py` da `mapas()` y `prosas()` del corpus entero, con la misma `CANON_URL`.
+Los comandos son `tablero/server/cmd/canon` (Go, sobre el cliente `internal/canon` del tablero). Para
+Python, `tools/canon.py` da `mapas()` y `prosas()` del corpus entero, con la misma `CANON_URL`.
 
 ## Escribir — cuando aparece una regla que canon no tiene
 
@@ -43,10 +44,10 @@ pasa en producción (`make trazador-sql TARGET=prod`). Un dato de un sistema viv
 misma frase.
 
 1. **Armá la pieza** (`pieza.json`, formato abajo).
-2. `make canon-ensayar PIEZA=pieza.json` — no escribe; dice `ready`, qué rechaza el lint y dónde iría.
-3. `make canon-dictar PIEZA=pieza.json TITULO='…'` — **escribe**: abre el borrador, manda cada pieza y
+2. `make canon-propose PIECE=pieza.json` — no escribe; dice `ready`, qué rechaza el lint y dónde iría.
+3. `make canon-write PIECE=pieza.json TITLE='…'` — **escribe**: abre el borrador, manda cada pieza y
    cierra en una sola revisión. Si algo falla, abandona el borrador y no queda nada a medias.
-4. Verificá con `make canon-buscar` que aparece, y dejá en la tarea un bloque con la cita.
+4. Verificá con `make canon-search` que aparece, y dejá en la tarea un bloque con la cita.
 
 ### La pieza
 
@@ -68,7 +69,8 @@ misma frase.
 ```
 
 - `section` es el **título**; el ancla sale de él. Mismo `node` + `section` **reemplaza** la sección:
-  corregir es reescribir, no agregar otra al lado (`kind: "correction"`).
+  corregir es reescribir, no agregar otra al lado (`kind: "correction"`). Reenviar el mismo texto con
+  `archivos` es cómo se le declara el área a una sección que ya existe: la prosa queda igual.
 - `text` o `text_file` (ruta relativa a la pieza): prosa en markdown, sin el título. Tope: 600 palabras.
 - `objetivo` y `se_deduce_leyendo` son del **área** que nace con los archivos: una frase de negocio, no
   el título otra vez. Sin ellos el área nace con un eco del título que le compite en la búsqueda.
@@ -79,8 +81,8 @@ misma frase.
 ## Trampas que ya costaron
 
 - **El cierre del borrador rechazaba toda sección nueva** con «sin id estable» hasta
-  `Creditop-SAS/playground#284` (2026-09-23): no acuñaba el id de la sección ni el del área. Si un
-  cierre vuelve a decir eso, el despliegue no tiene el arreglo; el recurso directo
+  `Creditop-SAS/playground#284` (desplegado el 2026-09-24): no acuñaba el id de la sección ni el del
+  área. Si un cierre vuelve a decir eso, algo lo revirtió; el recurso directo
   `POST /api/topics/{tema}/sections {title, text, reason, author}` sí acuña el id, pero crea la sección
   **sin área** (sin archivos ni tablas que la vigilen).
 - **El `.env` de `tools/canon` trae `POSTGRES_*` de un ambiente real.** Para correr el binario contra

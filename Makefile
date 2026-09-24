@@ -496,22 +496,22 @@ confluence: ## @har el POR QUÉ del negocio, que el código no tiene. Sin CMD mu
 # ── CANON ─────────────────────────────────────────────────────────────────────────────────────────
 # Lectura gratis y escritura por la API, contra CANON_URL (producción por defecto: pide la VPN de
 # prod). Cuándo y qué se escribe: `.claude/skills/canon/SKILL.md`. La llave no se imprime nunca.
-.PHONY: canon-buscar canon-leer canon-codigo canon-ensayar canon-dictar
-canon-buscar: ## @can ¿canon ya lo tiene? qué sección y qué área lo cubren, gratis. Q='monto avisado al comercio'
+.PHONY: canon-search canon-read canon-code canon-propose canon-write
+canon-search: ## @can ¿canon ya lo tiene? qué sección y qué área lo cubren, gratis. Q='monto avisado al comercio'
 	@test -n "$(Q)" || { echo "falta Q='<palabras del negocio>'"; exit 2; }
-	@python3 tools/canon_cli.py buscar $(Q)
-canon-leer: ## @can las secciones completas. IDS='cuota/context#<ancla>' (varias por coma) o el tema entero
+	@cd tablero/server && go run ./cmd/canon search $(Q)
+canon-read: ## @can las secciones completas. IDS='cuota/context#<ancla>' (varias por coma) o el tema entero
 	@test -n "$(IDS)" || { echo "falta IDS='<tema/capa#ancla>'"; exit 2; }
-	@python3 tools/canon_cli.py leer '$(IDS)'
-canon-codigo: ## @can los archivos que declara un área. AREA=cuota/context [N=0]
+	@cd tablero/server && go run ./cmd/canon read '$(IDS)'
+canon-code: ## @can los archivos que declara un área. AREA=cuota/context [N=0]
 	@test -n "$(AREA)" || { echo "falta AREA='<tema/capa>'"; exit 2; }
-	@python3 tools/canon_cli.py codigo '$(AREA)' $(or $(N),0)
-canon-ensayar: ## @can ensaya una pieza sin escribir: dónde iría y qué rechaza el lint. PIEZA=<pieza.json>
-	@test -n "$(PIEZA)" || { echo "falta PIEZA=<pieza.json> (formato: .claude/skills/canon/SKILL.md)"; exit 2; }
-	@python3 tools/canon_cli.py ensayar '$(PIEZA)'
-canon-dictar: ## @can ⚠ ESCRIBE en canon: borrador → piezas → cierre, en UNA revisión que ve el equipo. PIEZA='a.json b.json' TITULO='…'
-	@test -n "$(PIEZA)" || { echo "falta PIEZA=<pieza.json…>"; exit 2; }
-	@python3 tools/canon_cli.py dictar $(PIEZA) --titulo '$(or $(TITULO),canon: dictado desde el playground)'
+	@cd tablero/server && go run ./cmd/canon code '$(AREA)' $(or $(N),0)
+canon-propose: ## @can ensaya una pieza sin escribir: dónde iría y qué rechaza el lint. PIECE=<pieza.json>
+	@test -n "$(PIECE)" || { echo "falta PIECE=<pieza.json> (formato: .claude/skills/canon/SKILL.md)"; exit 2; }
+	@cd tablero/server && go run ./cmd/canon propose '$(abspath $(PIECE))'
+canon-write: ## @can ⚠ ESCRIBE en canon: borrador → piezas → cierre, en UNA revisión que ve el equipo. PIECE='a.json b.json' TITLE='…'
+	@test -n "$(PIECE)" || { echo "falta PIECE=<pieza.json…>"; exit 2; }
+	@cd tablero/server && go run ./cmd/canon write -title '$(or $(TITLE),canon: dictado desde el playground)' $(abspath $(PIECE))
 
 trazador-sql: ## @har UNA consulta de SOLO LECTURA a la BD del ambiente. SQL='SELECT …' [TARGET=prod|staging|qa|dev|local] [CSV=1] [MD=1 anotación + tabla markdown, para pegar en la tarea] [BLOQUE=<id|slug> la agrega como bloque a la pila de esa tarea]
 	@# ⚠ el mismo escapado que la línea de abajo, y por la misma razón: `test -n "$(SQL)"` se rompía

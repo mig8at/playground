@@ -344,8 +344,8 @@ Trabajando una tarea aparecen reglas del negocio que la tarea no inventó: cómo
 se le avisa a un comercio, quién queda afuera de un listado. **Cada una pasa por este recorrido, sin
 que nadie lo pida** (Miguel, 2026-09-23):
 
-1. **¿Canon la tiene?** `make canon-buscar Q='…'` con las palabras del negocio (es gratis) y, con el
-   candidato, `make canon-leer IDS=…`. Las recetas de lectura y de dictado, el formato de la pieza y
+1. **¿Canon la tiene?** `make canon-search Q='…'` con las palabras del negocio (es gratis) y, con el
+   candidato, `make canon-read IDS=…`. Las recetas de lectura y de dictado, el formato de la pieza y
    sus trampas están en el skill **`canon`** (`.claude/skills/canon/SKILL.md`). Si la tiene y coincide, se cita en el bloque que la usó
    (`[texto](canon:tema#ancla)`) y se suma el tema a `canon:`. Si la tiene y **contradice** lo que dice
    el código, es una corrección: se reescribe la sección, no se agrega otra al lado.
@@ -355,8 +355,8 @@ que nadie lo pida** (Miguel, 2026-09-23):
    puede medir cuánto pasa, se mide en producción con el trazador.
 3. **Si es viva, va a canon.** El filtro es el de `skills/dictar.md`: una regla que existe en `main`,
    incluidos sus errores, sin crónica y sin nada que dependa de un PR abierto. Lo que agregó ESTA
-   tarea y todavía no se mergeó **no** entra: espera al merge. Se ensaya con `make canon-ensayar
-   PIEZA=…` y se dicta con `make canon-dictar PIEZA=… TITULO=…` (borrador → piezas → cierre, en una
+   tarea y todavía no se mergeó **no** entra: espera al merge. Se ensaya con `make canon-propose
+   PIECE=…` y se dicta con `make canon-write PIECE=… TITLE=…` (borrador → piezas → cierre, en una
    revisión), con `objetivo`, `archivos` y `tablas`.
 4. **Queda escrito en la tarea.** Un bloque dice qué regla era, con qué se verificó y en qué sección
    de canon quedó (su cita). Si canon de producción no responde —pide la VPN de prod—, la pieza queda
