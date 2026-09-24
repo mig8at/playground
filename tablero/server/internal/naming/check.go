@@ -163,9 +163,9 @@ func Shared(root string) Board {
 		GoRoots:     trees,
 		JSONRoots:   trees,
 		JSGlobs:     []string{"tools/*.js", "tools/*.mjs", "tools/ui/*.js"},
-		PyGlobs:     []string{"tools/*.py", "twilio/*.py"},
+		PyGlobs:     []string{"tools/*.py"},
 		DeclsScript: filepath.Join(root, "tablero", "tools", "rename", "js", "decls.mjs"),
-		PathRoots:   []string{"connectors/", "cmd/", "lib/", "bin/", "tools/", "twilio/"},
+		PathRoots:   []string{"connectors/", "cmd/", "lib/", "bin/", "tools/"},
 	}
 }
 

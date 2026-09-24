@@ -21,6 +21,8 @@ vue vite babel mcp pinia
 # ── términos técnicos que la stdlib casi no usa ───────────────────────────────────────────────────
 slug frontmatter jsonl upsert shortstat squash changelog pathspec
 dbquery taskcontext repocheck
+# los claims del JWT de Twilio (`aud`, `urn:tw:rgn`) y un estado de su aprobación de templates
+aud rgn unsubmitted
 lender lenders ureq webhook ecommerce microservices preapproval prefilter dotenv flex iam oauth oklab uis screenshot
 colombian credifam trio ctopx lrow mareigua pkcs unpad prebooting privkey aggregator clbl
 iphone subcode subcodes scrubphone testid whois jwt popover preflight prewarm cipheriv decipheriv dbops ibc bnpl mdm otp ssr

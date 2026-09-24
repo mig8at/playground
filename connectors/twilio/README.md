@@ -1,6 +1,7 @@
 # Twilio — qué tenemos y cómo se crea un template de WhatsApp
 
-Medido el **2026-08-26** con `./probe.py` (sólo GET; no se creó ni se mandó nada).
+Medido el **2026-08-26** con el sondeo de sólo lectura (hoy `bin/pg twilio …`, §7; no se creó ni se mandó
+nada). Los templates y los messaging services se volvieron a medir el **2026-09-24**.
 
 ## 1. Dónde estás parado
 
@@ -10,20 +11,20 @@ Medido el **2026-08-26** con `./probe.py` (sólo GET; no se creó ni se mandó n
 | ⚠ es una **subcuenta** | su padre es `ACYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYY` |
 | sender de WhatsApp | **`whatsapp:+573138591194`** (`XE003855f0…`), perfil **"Creditop"**, **ONLINE**, WABA `27067723899526659` |
 | otro sender | `whatsapp:+14155238886` OFFLINE = el **sandbox** de Twilio, número compartido de pruebas. Ignoralo |
-| templates hoy | **0** |
-| messaging services | **0** |
+| templates | **6**, los seis `approved` (2026-09-24; el 2026-08-26 eran 0) — `bin/pg twilio templates` |
+| messaging services | **1** (2026-09-24; el 2026-08-26 eran 0) |
 | números de teléfono (voz/SMS) | **0** |
 | tráfico | 4 mensajes, **todos entrantes**, ninguno saliente. Consumo del mes pasado: 3 mensajes, **$0,015** |
 
 ⚠ **Todo es POR CUENTA.** Un template creado en esta subcuenta existe **sólo** acá: no lo ve el
 padre ni ninguna cuenta hermana. Antes de crear, confirmá que ésta es la cuenta correcta para tu tarea.
 
-## 2. Las credenciales del `.env`, y cuál usar
+## 2. Las credenciales de `connectors/.env`, y cuál usar
 
 | var | forma | qué alcanza |
 |---|---|---|
 | `TWILIO_SID` + `TWILIO_TOKEN` | `AC…` + token | **acceso Full** a la subcuenta, lectura y escritura. Es la que sirve para aprender |
-| `TWILIO_API_KEY` + `TWILIO_API_SECRET` | `SK…` + secret | API Key `SK53bc5edd…` («miguel», creada hoy) — **está en esta misma subcuenta**. Falta el secret en el `.env` |
+| `TWILIO_API_KEY` + `TWILIO_API_SECRET` | `SK…` + secret | API Key `SK53bc5edd…` («miguel», creada hoy) — **está en esta misma subcuenta**. Falta el secret en `connectors/.env` |
 | `TWILIO_CLIENT_ID` + `TWILIO_CLIENT_SECRET` | `OQ…` + `FK…` | app **OAuth de organización** (`ORc42536…`). Autentica pero **no tiene ningún permiso**: lo único que lee es `RoleAssignments`. Hoy no sirve para nada práctico |
 
 Para tu tarea: usá `AC…`+token. Para código que se despliegue, una **API Key restringida** — se revoca
@@ -31,7 +32,7 @@ sin tocar la cuenta. La `SK53bc…` que creaste puede haber quedado con 0 permis
 
 ⚠ El **truco más útil**: cuando Twilio te da 401, **el mensaje dice el nombre exacto del permiso que
 falta** (`twilio/messaging/content-templates/list`). Es la forma de saber qué marcar sin adivinar:
-`./probe.py <url>`.
+`bin/pg twilio get --url <url>`.
 
 ## 3. El modelo mental: cuatro objetos
 
@@ -188,7 +189,8 @@ Catálogo visual con cómo se ve cada uno: el artifact «Burbujas de WhatsApp».
 
 ## 5. Crearlo: cuatro llamadas
 
-Con `set -a && . ./.env && set +a` y `AUTH="$TWILIO_SID:$TWILIO_TOKEN"`.
+Con `set -a && . connectors/.env && set +a` (desde la raíz del playground) y `AUTH="$TWILIO_SID:$TWILIO_TOKEN"`.
+⚠ Estas cuatro llamadas ESCRIBEN y quedan a mano a propósito: el conector sólo lee.
 
 **1) crear el template** (queda en borrador, reversible con `DELETE`)
 
@@ -230,16 +232,16 @@ nombre (`_v1`).
 4. Un template rechazado no cuesta plata, pero ensucia la reputación de la WABA: acertale a la
    categoría.
 
-## 7. El sondeo
+## 7. El sondeo (sólo lectura)
 
-    ./probe.py            # app OAuth: identidad + qué permiso pediría cada producto
-    ./probe.py <url>      # un GET puntual con el bearer del app OAuth
-    ./probe.py key        # API Key (SK+secret): inventario de la cuenta
-    ./probe.py key <url>  # un GET puntual con Basic auth
+    bin/pg twilio templates             # los templates y su aprobación de Meta
+    bin/pg twilio inventory             # la cuenta y qué alcanza la credencial en cada producto
+    bin/pg twilio oauth                 # app OAuth: identidad + qué permiso pediría cada producto
+    bin/pg twilio get --url <url>       # un GET puntual, resumido (--auth account|key|oauth)
 
-Para usarlo con las credenciales de cuenta en vez de la API Key:
-
-    TWILIO_API_KEY="$TWILIO_SID" TWILIO_API_SECRET="$TWILIO_TOKEN" ./probe.py key
+Por defecto van con la credencial de la cuenta; `--auth key` usa la API Key. Un GET sólo sale hacia un
+host `*.twilio.com` por https: la credencial viaja en cada pedido. Registrados en el MCP, los tres
+primeros llegan como herramientas `twilio_*`.
 
 Dos trampas del endpoint de IAM que cuestan un rato: la ruta va **sin `/v1`**
 (`preview-iam.twilio.com/Organizations/…`), y `Scope`/`Identity` quieren el **SID crudo** (`ORc425…`),
