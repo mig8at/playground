@@ -1,41 +1,31 @@
 {
   "$comment": [
-    "Dos reglas del playground que dejaron de ser texto y pasaron a ser automáticas.",
-    "Estaban escritas en los CLAUDE.md como 'acordate de correr X' — y una regla que depende de que",
-    "alguien se acuerde es una regla que se olvida, sobre todo cuando olvidarla NO ROMPE NADA.",
+    "Reglas del playground que dejaron de ser texto y pasaron a ser automáticas. Estaban escritas en los",
+    "CLAUDE.md como 'acordate de correr X' — y una regla que depende de que alguien se acuerde es una regla",
+    "que se olvida, sobre todo cuando olvidarla NO ROMPE NADA.",
     "",
-    "PreToolUse  · no-editar-generados: bloquea (exit 2) escribir a mano ROUTE-MAP.md o index.txt.",
+    "Los cinco los corre `.claude/hooks/run <nombre>`, que compila tablero/server/cmd/hooks cuando cambia su",
+    "código (la lógica y el porqué de cada uno: tablero/server/internal/hooks). `args` va aparte a propósito:",
+    "con `args` el comando se ejecuta sin shell. Si un hook se rompe, sale 0 o 1: avisa y la sesión sigue.",
+    "",
+    "SessionStart · session-start: imprime el catálogo de `make` y lo suma al contexto. Sin matcher a",
+    "              propósito: también dispara al REANUDAR y DESPUÉS DE COMPACTAR, que es cuando se pierde.",
+    "              Se genera del Makefile: un target nuevo aparece solo.",
+    "",
+    "PreToolUse  · generated (Write|Edit): bloquea (exit 2) escribir a mano un archivo GENERADO de workers/.",
     "              Corre ANTES, así que de verdad lo impide.",
-    "PostToolUse · oraculo: al tocar cualquier map.json del árbol, regenera el índice, valida que las",
-    "              rutas citadas existan y rehace el ROUTE-MAP. ~0,3 s. No puede bloquear (el tool ya",
-    "              corrió) pero devuelve los DROPs como error para que no queden sin arreglar.",
     "",
-    "Los dos filtran por ruta ADENTRO del script, así que cualquier otro archivo sale en microsegundos.",
-    "Y si un hook se rompe, sale 1: avisa y la sesión sigue.",
-    "",
-    "SessionStart · herramientas: imprime el catálogo de `make` y lo suma al contexto (para este",
-    "              evento, el stdout entra como texto plano). Sin matcher a propósito: también",
-    "              dispara al REANUDAR y DESPUÉS DE COMPACTAR, que es cuando se pierde. ~1.200",
-    "              tokens por sesión, y es el precio de que un modelo no decida que no puede leer",
-    "              Loki cuando sí puede. Se genera del Makefile: un target nuevo aparece solo.",
-    "",
-    "Stop         · cierre: al terminar de responder, corre `cierre -json` (tablero/server/cmd/closeout) y",
-    "              mira SÓLO las tareas que ESTA sesión tocó (el transcript las nombra). Si a alguna le",
-    "              falta retoma, registro del día, bitácora o ramas, devuelve `block` con la lista y el",
-    "              modelo completa. UNA vez por sesión y por día (marca en tablero/data/cache/). Es la",
-    "              regla de tablero/CLAUDE.md §«AL CERRAR» hecha automática: se olvidó el 26/8 y el",
-    "              tablero mintió ocho días.",
-    "",
-    "PostToolUse · tarea-lint: al escribir tablero/tasks/<slug>/task.md corre `tareas -lint` (frontmatter,",
-    "              etapa del vocabulario, id único, nodos de context que existan, guard de la publicable).",
-    "              Exit 2 con la lista si algo está mal. Una etapa inventada o un id repetido no fallaban",
-    "              en ningún lado, y pasaron dos veces.",
-    "",
-    "PreToolUse   · tests-destructivos (Bash): frena `artisan test`/phpunit/pest SIN ruta, `migrate:fresh`,",
+    "PreToolUse  · destructive-tests (Bash): frena `artisan test`/phpunit/pest SIN ruta, `migrate:fresh`,",
     "              `db:wipe`, `make fresh`, `make test` en legacy-backend, y `artisan test <ruta>` cuando la",
-    "              ruta arrastra RefreshDatabase (trait, uses() por archivo o Pest.php por directorio).",
-    "              Es la regla de CLAUDE.md que costó la BD compartida el 2026-08-19, hecha PreToolUse:",
-    "              corre ANTES y de verdad impide. Sólo mira comandos que hablen de legacy-backend."
+    "              ruta arrastra RefreshDatabase. Es la regla de CLAUDE.md que costó la BD compartida el",
+    "              2026-08-19, hecha PreToolUse. Sólo mira comandos que hablen de legacy-backend.",
+    "",
+    "PostToolUse · task-lint (Write|Edit): al escribir tablero/tasks/<slug>/task.md corre `tasks -lint`.",
+    "              Exit 2 con la lista si algo está mal.",
+    "",
+    "Stop        · closeout: al terminar de responder corre `closeout -json` y mira SÓLO las tareas que ESTA",
+    "              sesión tocó. Si a alguna le falta una pieza, devuelve `block` con la lista. UNA vez por",
+    "              sesión y por día (marca en tablero/data/cache/)."
   ],
   "hooks": {
     "SessionStart": [
@@ -43,8 +33,10 @@
         "hooks": [
           {
             "type": "command",
-            "command": "${CLAUDE_PROJECT_DIR}/.claude/hooks/herramientas.py",
-            "args": [],
+            "command": "${CLAUDE_PROJECT_DIR}/.claude/hooks/run",
+            "args": [
+              "session-start"
+            ],
             "timeout": 30
           }
         ]
@@ -56,8 +48,10 @@
         "hooks": [
           {
             "type": "command",
-            "command": "${CLAUDE_PROJECT_DIR}/.claude/hooks/no-editar-generados.py",
-            "args": []
+            "command": "${CLAUDE_PROJECT_DIR}/.claude/hooks/run",
+            "args": [
+              "generated"
+            ]
           }
         ]
       },
@@ -66,8 +60,10 @@
         "hooks": [
           {
             "type": "command",
-            "command": "${CLAUDE_PROJECT_DIR}/.claude/hooks/tests-destructivos.py",
-            "args": [],
+            "command": "${CLAUDE_PROJECT_DIR}/.claude/hooks/run",
+            "args": [
+              "destructive-tests"
+            ],
             "timeout": 30
           }
         ]
@@ -79,8 +75,10 @@
         "hooks": [
           {
             "type": "command",
-            "command": "${CLAUDE_PROJECT_DIR}/.claude/hooks/tarea-lint.py",
-            "args": [],
+            "command": "${CLAUDE_PROJECT_DIR}/.claude/hooks/run",
+            "args": [
+              "task-lint"
+            ],
             "statusMessage": "Validando la tarea…",
             "timeout": 90
           }
@@ -92,8 +90,10 @@
         "hooks": [
           {
             "type": "command",
-            "command": "${CLAUDE_PROJECT_DIR}/.claude/hooks/cierre.py",
-            "args": [],
+            "command": "${CLAUDE_PROJECT_DIR}/.claude/hooks/run",
+            "args": [
+              "closeout"
+            ],
             "timeout": 120
           }
         ]

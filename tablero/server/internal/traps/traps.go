@@ -27,7 +27,7 @@ import (
 	"strconv"
 	"strings"
 
-	"creditop/tablero/server/internal/citations"
+	"creditop/tablero/server/internal/text"
 )
 
 var (
@@ -58,7 +58,7 @@ func Indices(lines []string) (anchors map[string]bool, indices []Index) {
 			anchors[m[1]] = true
 		}
 		if m := indexRe.FindStringSubmatch(l); m != nil {
-			indices = append(indices, Index{Title: citations.Strip(m[1]), Cited: map[string]bool{}})
+			indices = append(indices, Index{Title: text.Strip(m[1]), Cited: map[string]bool{}})
 			open = true
 			continue
 		}

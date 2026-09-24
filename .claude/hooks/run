@@ -1,0 +1,25 @@
+#!/bin/sh
+# run <hook> — corre un hook de Claude Code del playground. Los hooks son Go (tablero/server/cmd/hooks,
+# con la lógica en internal/hooks); esto sólo los compila y les pasa el evento.
+#
+# Compila la primera vez y cada vez que cambia su código, a ~/.cache/playground/hooks: `go run` en cada
+# llamada costaría un segundo por comando, y la guarda de tests destructivos corre ANTES de cada Bash.
+# Compila a un temporal y lo renombra: dos hooks que arrancan a la vez no pisan un binario a medias.
+# ⚠ Si no compila, sale 0: un hook roto no puede impedir trabajar.
+root=$(cd "$(dirname "$0")/../.." && pwd -P) || exit 0
+src="$root/tablero/server"
+bin="${XDG_CACHE_HOME:-$HOME/.cache}/playground/hooks"
+stale=$(find "$src/go.mod" "$src/cmd/hooks" "$src/internal/hooks" "$src/internal/shell" "$src/internal/text" \
+  -name '*.go' -newer "$bin" 2>/dev/null | head -n 1)
+if [ ! -x "$bin" ] || [ -n "$stale" ] || [ "$src/go.mod" -nt "$bin" ]; then
+  mkdir -p "$(dirname "$bin")" || exit 0
+  tmp="$bin.$$"
+  if (cd "$src" && go build -o "$tmp" ./cmd/hooks) >/dev/null 2>&1; then
+    mv -f "$tmp" "$bin"
+  else
+    rm -f "$tmp"
+    echo "(hooks: no compila tablero/server/cmd/hooks; no se bloquea)" >&2
+    exit 0
+  fi
+fi
+PLAYGROUND_ROOT="$root" exec "$bin" "$@"

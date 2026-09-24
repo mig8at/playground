@@ -65,10 +65,10 @@ import (
 	"strconv"
 	"strings"
 	"time"
-	"unicode"
 	"unicode/utf8"
 
 	"creditop/tablero/server/internal/repos"
+	"creditop/tablero/server/internal/text"
 )
 
 const (
@@ -206,41 +206,6 @@ func toValid(b []byte) string {
 	return sb.String()
 }
 
-// SplitLines corta donde cortaba Python (`str.splitlines`): no sólo `\n`, también `\r`, `\r\n`, `\v`,
-// `\f`, los separadores 0x1c–0x1e, U+0085 y U+2028/2029. Un archivo con `\r\n` o con un `\f` cuenta
-// sus líneas distinto si se corta sólo por `\n`, y la cita cambiaría de balde.
-func SplitLines(s string) []string {
-	var out []string
-	start := 0
-	for i := 0; i < len(s); {
-		r, size := utf8.DecodeRuneInString(s[i:])
-		switch r {
-		case '\n', '\v', '\f', 0x1c, 0x1d, 0x1e, 0x85, 0x2028, 0x2029:
-			out = append(out, s[start:i])
-			i += size
-			start = i
-		case '\r':
-			out = append(out, s[start:i])
-			i += size
-			if i < len(s) && s[i] == '\n' {
-				i++
-			}
-			start = i
-		default:
-			i += size
-		}
-	}
-	if start < len(s) {
-		out = append(out, s[start:])
-	}
-	return out
-}
-
-func isSpace(r rune) bool { return unicode.IsSpace(r) || (r >= 0x1c && r <= 0x1f) }
-
-// Strip es el `str.strip()` de Python: el ancla se compara recortada de los dos lados.
-func Strip(s string) string { return strings.TrimFunc(s, isSpace) }
-
 func runes(s string) int { return utf8.RuneCountInString(s) }
 
 func head(s string, n int) string {
@@ -301,7 +266,7 @@ func (c *Checker) renamesSince(repo, sha string) map[string]string {
 	}
 	out, _ := git(repo, "log", "--diff-filter=R", "-M", "--name-status", "--format=", sha+".."+c.refOf(repo))
 	direct := map[string]string{}
-	for _, ln := range SplitLines(out) {
+	for _, ln := range text.SplitLines(out) {
 		p := strings.Split(ln, "\t")
 		if len(p) == 3 && strings.HasPrefix(p[0], "R") {
 			direct[p[2]] = p[1] // nuevo -> viejo
@@ -340,7 +305,7 @@ func (c *Checker) content(repo, sha, path string) []string {
 		c.absent[key] = true
 		return nil
 	}
-	lines := SplitLines(out)
+	lines := text.SplitLines(out)
 	if lines == nil {
 		lines = []string{}
 	}
@@ -383,7 +348,7 @@ func (c *Checker) writtenAt(doc string) map[int]string {
 	out, _ := git(c.playground, "blame", "--line-porcelain", "-w", "--", doc)
 	dates := map[int]string{}
 	ln, ts, haveTS := 0, int64(0), false
-	for _, row := range SplitLines(out) {
+	for _, row := range text.SplitLines(out) {
 		if m := blameHeader.FindStringSubmatch(row); m != nil {
 			ln, _ = strconv.Atoi(m[1])
 			haveTS = false
@@ -424,7 +389,7 @@ func locate(anchor string, today []string, expected int) (int, int) {
 func hitsOf(anchor string, today []string) []int {
 	var hits []int
 	for i, l := range today {
-		if Strip(l) == anchor {
+		if text.Strip(l) == anchor {
 			hits = append(hits, i+1)
 		}
 	}
@@ -449,8 +414,8 @@ func abs(x int) int {
 	return x
 }
 
-// line: la línea `n` (desde 1). Con `n` = 0 devuelve la última, como el índice -1 de antes.
-func line(lines []string, n int) string {
+// lineAt: la línea `n` (desde 1). Con `n` = 0 devuelve la última, como el índice -1 de antes.
+func lineAt(lines []string, n int) string {
 	if n == 0 {
 		return lines[len(lines)-1]
 	}
@@ -478,7 +443,7 @@ func (c *Checker) byAnchor(alias, rel string, n, end int, date string, today []s
 	if base == nil || n > len(base) || len(base) == 0 {
 		return verdict{}, false // el archivo (o la línea) no existía al sellar
 	}
-	anchor := Strip(line(base, n))
+	anchor := text.Strip(lineAt(base, n))
 	if runes(strings.ReplaceAll(anchor, " ", "")) < anchorMin {
 		return verdict{}, false // ancla demasiado corta para afirmar nada
 	}
@@ -503,7 +468,7 @@ func (c *Checker) byAnchor(alias, rel string, n, end int, date string, today []s
 		if moved {
 			start = ini
 		}
-		endAnchor := Strip(base[end-1])
+		endAnchor := text.Strip(base[end-1])
 		fNew, fCount := locate(endAnchor, today, start+(end-n))
 		switch {
 		case fNew == 0:
@@ -773,7 +738,7 @@ func (c *Checker) Review(documents []string) Result {
 		if err != nil {
 			continue
 		}
-		for i, text := range SplitLines(toValid(raw)) {
+		for i, line := range text.SplitLines(toValid(raw)) {
 			where := fmt.Sprintf("%s:%d", name, i+1)
 			// cuándo se afirmó esta cita: el sello del documento, o cuándo se escribió la línea si es
 			// posterior (ver `writtenAt`). Sin este max, corregir una cita la rompe de nuevo.
@@ -781,7 +746,7 @@ func (c *Checker) Review(documents []string) Result {
 			if b := blame[i+1]; b > since {
 				since = b
 			}
-			for _, m := range ref.FindAllStringSubmatch(text, -1) {
+			for _, m := range ref.FindAllStringSubmatch(line, -1) {
 				citation := m[1]
 				n, _ := strconv.Atoi(m[2])
 				end := 0
@@ -795,7 +760,7 @@ func (c *Checker) Review(documents []string) Result {
 			}
 			// Cortas: se CUENTAN, no se validan (ver el comentario de `short`). Van por documento
 			// para que se vea dónde conviene convertirlas a ruta completa.
-			for _, m := range short.FindAllStringSubmatch(text, -1) {
+			for _, m := range short.FindAllStringSubmatch(line, -1) {
 				tag := ":" + m[1]
 				if m[2] != "" {
 					tag += "-" + m[2]

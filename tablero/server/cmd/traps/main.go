@@ -16,6 +16,7 @@ import (
 	"creditop/tablero/server/internal/citations"
 	"creditop/tablero/server/internal/layout"
 	"creditop/tablero/server/internal/repos"
+	"creditop/tablero/server/internal/text"
 	"creditop/tablero/server/internal/traps"
 )
 
@@ -39,7 +40,7 @@ func main() {
 		fmt.Fprintln(os.Stderr, "✗ no pude leer las trampas:", err)
 		os.Exit(1)
 	}
-	total, failures := traps.ReviewIndex(citations.SplitLines(string(raw)))
+	total, failures := traps.ReviewIndex(text.SplitLines(string(raw)))
 	fmt.Printf("\n  TRAMPAS · %d con ancla en %s\n\n", total, shown)
 
 	exit := 0

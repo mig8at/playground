@@ -97,20 +97,3 @@ func TestEachCitationLandsInTheBucketOfWhatHappenedToItsLine(t *testing.T) {
 		t.Error("con una movida, una reescrita y una fuera de rango, Broken tiene que dar true")
 	}
 }
-
-func TestSplitLinesCutsWhereStrSplitlinesCuts(t *testing.T) {
-	got := SplitLines("a\r\nb\rc\fd\x1ee f\n")
-	want := []string{"a", "b", "c", "d", "e", "f"}
-	if strings.Join(got, "|") != strings.Join(want, "|") {
-		t.Errorf("SplitLines = %q, quería %q", got, want)
-	}
-	if got := SplitLines(""); len(got) != 0 {
-		t.Errorf("SplitLines(\"\") = %q, quería nada", got)
-	}
-}
-
-func TestStripAlsoRemovesTheInformationSeparators(t *testing.T) {
-	if got := Strip("\x1f\t  $x = 1;  "); got != "$x = 1;" {
-		t.Errorf("Strip = %q", got)
-	}
-}

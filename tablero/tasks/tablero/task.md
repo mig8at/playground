@@ -24,9 +24,14 @@ jira_title: ""
       `rename/go/cmd/{decls,json-keys}` (`-decls`, `-json-keys`: salida idéntica, 5.979 y 897 líneas).
       Con la lista de permitidas vaciada un momento, los 332 hallazgos salen iguales en los tres modos, y
       la tabla de frecuencias es la misma (44.131 palabras). `naming.py` y `test_naming.py` borrados.
+- [x] Pasar a Go los cinco hooks — `internal/hooks` + `cmd/hooks`, llamados por `.claude/hooks/run`
+      (sh: compila cuando cambia el código; 16 ms por llamada). Contra el Python: 4.000 comandos a la
+      guarda (979 frenados), 3.000 `shlex`, 24.031 piezas de 29 transcripts reales y el bloqueo del
+      cierre salen iguales, salvo 188 comandos donde Go frena y Python no: los dos huecos que tenía la
+      guarda (raíz con `~`/relativa; cwd en un worktree, que la hacía rendirse), cerrados con prueba.
+      Ninguno al revés.
 - [ ] Terminar de pasar el Python del playground a Go (pedido de Miguel, 2026-09-23), cada pieza
-      borrada sólo después de salir idéntica contra la vieja: los hooks de `.claude/hooks` ·
-      `tools/{confluence,estilo,ui-sync}.py` y `trazador/tools/huella.py` · `workers/` (~7.100 líneas, que es lo que mantiene vivo `tools/repos.py` y `tools/canon.py`) ·
+      borrada sólo después de salir idéntica contra la vieja: `tools/{confluence,estilo,ui-sync}.py` y `trazador/tools/huella.py` · `workers/` (~7.100 líneas, que es lo que mantiene vivo `tools/repos.py` y `tools/canon.py`) ·
       y decidir si `flow/` y `twilio/` se portan o se borran. Termina cuando `git ls-files '*.py'` no
       devuelve nada fuera de lo que se decida conservar (hoy `jev_transport.py`, la conexión con Jev).
 - [x] **El cierre reclamaba de más.** La bitácora de un barrido ya la eximía el marcador «sin avance»

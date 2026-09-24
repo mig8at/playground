@@ -669,7 +669,7 @@ cambió. ⚠ Y su límite conocido: un falso amigo (`taller`, `once`, `red`) pas
   (`store.SourcesOf`, sobre «Cómo se comprueba» y el resto del cuerpo). Medido al escribirlo: de las 29
   tareas con ramas, **6** lo dispararían.
 
-  El hook de `Stop` (`.claude/hooks/cierre.py`) lo corre solo al terminar cada respuesta y, **una vez
+  El hook de `Stop` (`closeout`, en `server/internal/hooks`) lo corre solo al terminar cada respuesta y, **una vez
   por sesión**, frena con la lista de lo que falta en las tareas que ESA sesión tocó. ⚠ Y **leer un
   archivo no es tocarlo**: el hook exige que la ruta esté pegada al verbo que la escribe (`>`, `tee`,
   `sed -i`, `git add`, `open(…,'w')`) o que venga de un Write/Edit. Si te frena en el

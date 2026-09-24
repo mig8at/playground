@@ -8,7 +8,7 @@ una tarea.
 
 `make` sin argumentos lista todo lo que se puede correr, agrupado por para qué sirve. No hace falta
 recordar en qué carpeta vive cada script — ni correr `make`: el hook `SessionStart`
-(`.claude/hooks/herramientas.py`) inyecta ese catálogo al arrancar, al reanudar y **después de
+(`session-start`, en `tablero/server/internal/hooks`) inyecta ese catálogo al arrancar, al reanudar y **después de
 compactar**. Por eso acá **no hay lista de comandos**: la que había era una copia a mano que quedaba
 vieja (llegó a anunciar un target `qa` que no existe). Lo que va acá es lo que `make` no puede decir:
 **cuál elegir, y contra qué ambiente**.
@@ -430,13 +430,19 @@ Que hoy haya uno solo **no es una propiedad del repo, es un estado**: nada impid
 y la guarda protege el host, no el borrado. Por eso el chequeo de abajo se sigue haciendo antes de correr
 una carpeta.
 
-**Desde el 2026-09-14 esto NO depende de acordarse: `.claude/hooks/tests-destructivos.py`** (PreToolUse
+**Desde el 2026-09-14 esto NO depende de acordarse: el hook `destructive-tests`** (PreToolUse
 sobre Bash) frena la suite sin ruta, el `fresh`/`wipe` de la base, el `test` del Makefile de
 legacy-backend, y una ruta que arrastre `RefreshDatabase` en cualquiera de sus tres formas — sólo para
 comandos que hablen de legacy-backend, y mirando la POSICIÓN DE COMANDO (nombrar la palabra en un
 commit o un grep no frena). Si de verdad querés recrear tu base local, el comando lleva
 `I_KNOW_THIS_RECREATES_MY_LOCAL_DB=1`. La lista de abajo sigue valiendo fuera de una sesión con hooks
 (la terminal, el editor).
+
+⚠ **Y hasta el 2026-09-23 tenía dos huecos, los dos hacia el lado peor** (medidos al pasarla a Go,
+`tablero/server/internal/hooks/destructive.go`): una raíz con `~` o relativa
+(`cd ~/Desktop/…/legacy-backend && sail artisan test <carpeta con el trait>`) no se resolvía y el
+comando pasaba; y con el cwd en un worktree (`legacy-backend-x`) la guarda fallaba por dentro y salía
+0 — incluso para un `db:wipe` en el mismo comando. Los dos están cerrados y cada uno tiene su prueba.
 
 **Lo que NO se hace:**
 
