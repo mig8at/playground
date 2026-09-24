@@ -28,12 +28,15 @@ import (
 
 // Node es lo que se lee de un nodo de Figma para dibujarlo. Los nombres son los de la API.
 type Node struct {
-	ID       string `json:"id"`
-	Name     string `json:"name"`
-	Type     string `json:"type"`
-	Visible  *bool  `json:"visible"`
-	Box      *Rect  `json:"absoluteBoundingBox"`
-	Children []Node `json:"children"`
+	ID      string `json:"id"`
+	Name    string `json:"name"`
+	Type    string `json:"type"`
+	Visible *bool  `json:"visible"`
+	Box     *Rect  `json:"absoluteBoundingBox"`
+	// RenderBox es lo que se VE: el trazo que sobresale, o un arco que no llena su elipse. El SVG que
+	// exporta Figma mide esto, no la caja.
+	RenderBox *Rect  `json:"absoluteRenderBounds"`
+	Children  []Node `json:"children"`
 
 	LayoutMode         string               `json:"layoutMode"`
 	PrimaryAlign       string               `json:"primaryAxisAlignItems"`
@@ -63,6 +66,7 @@ type Node struct {
 	BlendMode          string               `json:"blendMode"`
 	IsMask             bool                 `json:"isMask"`
 	Rotation           float64              `json:"rotation"`
+	Arc                *ArcData             `json:"arcData"`
 	Characters         string               `json:"characters"`
 	Style              *TextStyle           `json:"style"`
 	CharacterOverrides []int                `json:"characterStyleOverrides"`
@@ -70,6 +74,13 @@ type Node struct {
 }
 
 type Rect struct{ X, Y, Width, Height float64 }
+
+// ArcData es la parte de una elipse que se dibuja: el barrido en radianes y el hueco del medio (0 a 1).
+type ArcData struct {
+	StartingAngle float64 `json:"startingAngle"`
+	EndingAngle   float64 `json:"endingAngle"`
+	InnerRadius   float64 `json:"innerRadius"`
+}
 type Sides struct{ Top, Right, Bottom, Left float64 }
 type Color struct{ R, G, B, A float64 }
 
@@ -199,7 +210,8 @@ func (w *writer) node(n Node, parent *Node, root bool) {
 		w.report.miss("máscara (se dibuja sin recortar)")
 		return
 	}
-	if n.Rotation != 0 && math.Abs(n.Rotation) > 0.001 {
+	// Un dibujo trae su rotación adentro del SVG que exporta Figma; una caja no la tiene.
+	if n.Rotation != 0 && math.Abs(n.Rotation) > 0.001 && !drawing(n) {
 		w.report.miss("rotación (se dibuja derecho)")
 	}
 	switch n.BlendMode {
@@ -219,6 +231,18 @@ func (w *writer) node(n Node, parent *Node, root bool) {
 		css.set("width", px(n.Box.Width))
 		css.set("height", px(n.Box.Height))
 		w.opacity(n, css)
+		// El SVG de un ARCO sale recortado a lo que se ve, no a la caja de su elipse: en el progreso de
+		// Credifamilia la caja mide 46×46 y el SVG 35×36. La caja se queda con su lugar en el diseño y el
+		// dibujo va adentro, en su posición real; estirarlo a la caja lo deformaba.
+		// ⚠ Sólo para arcos. `absoluteRenderBounds` descuenta también el recorte del marco padre, y el SVG
+		// no: el velo de «Pago mínimo» sobresale 1 px, su SVG mide 430×933 y lo visible 932. Ubicarlo por
+		// lo visible lo achicaba (99,7 % → 99,5 %).
+		if rb := n.RenderBox; rb != nil && arc(n) && !sameRect(*rb, *n.Box) {
+			css.setDefault("position", "relative")
+			fmt.Fprintf(w.out, `<div data-figma="%s" style="%s"><img alt="" src="%s" style="position:absolute;left:%s;top:%s;width:%s;height:%s;max-width:none"></div>`,
+				html.EscapeString(n.ID), css, html.EscapeString(src), px(rb.X-n.Box.X), px(rb.Y-n.Box.Y), px(rb.Width), px(rb.Height))
+			return
+		}
 		fmt.Fprintf(w.out, `<img data-figma="%s" alt="" src="%s" style="%s">`, html.EscapeString(n.ID), html.EscapeString(src), css)
 		return
 	}
@@ -679,12 +703,14 @@ func holdsContent(n Node) bool {
 
 // drawing: lo que se exporta como SVG. Un vector o una operación booleana siempre; un marco o grupo
 // cuando todo lo que tiene adentro es dibujo (un ícono entero es un SVG, no veinte). Un rectángulo o una
-// elipse sueltos NO: son una caja con fondo, y como caja se escriben.
+// elipse sueltos NO: son una caja con fondo, y como caja se escriben — salvo la elipse que es un ARCO.
 func drawing(n Node) bool {
 	switch n.Type {
 	case "VECTOR", "BOOLEAN_OPERATION", "STAR", "LINE", "REGULAR_POLYGON":
 		return true
-	case "RECTANGLE", "ELLIPSE", "TEXT":
+	case "ELLIPSE":
+		return arc(n)
+	case "RECTANGLE", "TEXT":
 		return false
 	}
 	if len(n.Children) == 0 {
@@ -700,7 +726,9 @@ func drawing(n Node) bool {
 			return false
 		case "VECTOR", "BOOLEAN_OPERATION", "STAR", "LINE", "REGULAR_POLYGON":
 			hasVector = true
-		case "RECTANGLE", "ELLIPSE":
+		case "ELLIPSE":
+			hasVector = hasVector || arc(ch)
+		case "RECTANGLE":
 		default:
 			if !drawing(ch) {
 				return false
@@ -709,6 +737,22 @@ func drawing(n Node) bool {
 		}
 	}
 	return hasVector
+}
+
+// arc: una elipse con hueco (un anillo) o con un barrido que no da la vuelta entera (un progreso). En
+// CSS una elipse es una caja con `border-radius: 50%`, o sea un disco lleno: el anillo de progreso de
+// Credifamilia salía como una bola violeta. Esas van como el SVG de Figma.
+func arc(n Node) bool {
+	a := n.Arc
+	if a == nil {
+		return false
+	}
+	return a.InnerRadius > 0.001 || math.Abs(math.Abs(a.EndingAngle-a.StartingAngle)-2*math.Pi) > 0.001
+}
+
+func sameRect(a, b Rect) bool {
+	const eps = 0.5
+	return math.Abs(a.X-b.X) < eps && math.Abs(a.Y-b.Y) < eps && math.Abs(a.Width-b.Width) < eps && math.Abs(a.Height-b.Height) < eps
 }
 
 // family nombra la fuente con un respaldo del sistema. «Satoshi Variable» es el nombre con que Figma

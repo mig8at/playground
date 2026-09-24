@@ -98,6 +98,13 @@ URL, no el de los archivos que se ven en esa pantalla: «recientes» mezcla arch
 - **`STRETCH` en una imagen es el RECORTE de Figma**, con su `imageTransform`, no «estirar»: como
   `cover`, la foto del documento salía entera y chica. 18 de las 43 imágenes del archivo van así, y
   arreglarlo subió cinco pantallas de ~85 % a más de 99,8 %.
+- **Una elipse con `arcData` es un ARCO, no un disco.** Un anillo (radio interior > 0) o un progreso (barrido
+  que no da la vuelta) como caja con `border-radius: 50%` salía lleno: el progreso «2/3» de Credifamilia
+  era una bola violeta. Van como el SVG de Figma, y ese SVG viene **recortado a lo que se ve** (35×36 para
+  una caja girada de 46×46), así que el arco se ubica por `absoluteRenderBounds`. ⚠ Sólo el arco: esos
+  límites descuentan también el recorte del marco padre y el SVG de un vector cualquiera no, y ubicar así
+  todos los dibujos achicó 1 px el velo de «Pago mínimo» (99,7 % → 99,5 %). Medido: 10 de las 31
+  pantallas de Credifamilia mejoran (mediana 98,6 → 98,8 %) y `flujo-ecommerce` queda igual.
 - **Un marco en absoluta que además tiene hijos no se puede pisar con `position: relative`** para
   ubicarlos: ya sirve de referencia siendo absoluto.
 - **En la medición**, dos trampas que dieron números falsos: la exportación de Figma deja transparente

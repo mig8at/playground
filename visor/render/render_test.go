@@ -134,6 +134,38 @@ func TestDrawingsGoAsSVGAndOnlyThem(t *testing.T) {
 	}
 }
 
+// El anillo de progreso de Credifamilia: una elipse con hueco y otra con medio barrido, girada. Como
+// caja las dos eran un disco lleno (`border-radius: 50%`); van como SVG, y el girado se ubica por lo que
+// se VE —Figma exporta el SVG a ese tamaño—, no estirado a su caja.
+func TestArcsGoAsSVGAtWhatIsVisible(t *testing.T) {
+	ring := Node{ID: "2", Type: "ELLIPSE", Box: box(5, 5, 36, 36), RenderBox: box(5, 5, 36, 36), Fills: solid(0.85, 0.85, 0.85),
+		Arc: &ArcData{EndingAngle: 2 * 3.1415926, InnerRadius: 0.8}}
+	progress := Node{ID: "3", Type: "ELLIPSE", Box: box(0, 0, 46.35, 46.35), RenderBox: box(6.87, 5.18, 34.3, 36), Rotation: 2.78,
+		Fills: solid(0.3, 0.22, 1), Arc: &ArcData{EndingAngle: -4.55, InnerRadius: 0.8}}
+	disk := Node{ID: "4", Type: "ELLIPSE", Box: box(100, 0, 20, 20), Fills: solid(1, 0, 0),
+		Arc: &ArcData{EndingAngle: 2 * 3.1415926}}
+	// El velo que sobresale 1 px del marco: lo visible está recortado por el padre, pero su SVG no.
+	veil := Node{ID: "5", Type: "VECTOR", Box: box(0, -1, 430, 933), RenderBox: box(0, 0, 430, 932)}
+	frame := Node{ID: "1", Type: "FRAME", Box: box(0, 0, 430, 932), Children: []Node{ring, progress, disk, veil}}
+	doc, rep := render(t, frame)
+	if !strings.Contains(doc, `<img data-figma="2" alt="" src="svg:2"`) {
+		t.Error("un anillo es un SVG, no un disco")
+	}
+	st := styleOf(t, doc, "3")
+	if !strings.Contains(st, "width:46.35px") || !strings.Contains(doc, `src="svg:3" style="position:absolute;left:6.87px;top:5.18px;width:34.3px;height:36px`) {
+		t.Errorf("el arco girado guarda su caja y dibuja lo visible adentro:\n%s", doc)
+	}
+	if strings.Contains(doc, `src="svg:4"`) || !strings.Contains(styleOf(t, doc, "4"), "border-radius:50%") {
+		t.Error("una elipse llena sigue siendo una caja redonda")
+	}
+	if !strings.Contains(doc, `<img data-figma="5" alt="" src="svg:5"`) || !strings.Contains(styleOf(t, doc, "5"), "height:933px") {
+		t.Error("un vector recortado por su marco va a su caja: su SVG no viene recortado")
+	}
+	if rep.Missing["rotación (se dibuja derecho)"] != 0 {
+		t.Error("la rotación de un dibujo viene adentro del SVG: no es algo sin traducir")
+	}
+}
+
 // Lo que no tiene equivalente se nombra en el reporte, no sale parecido y callado.
 func TestWhatIsNotTranslatedIsReported(t *testing.T) {
 	mask := Node{ID: "2", Type: "RECTANGLE", IsMask: true, Box: box(0, 0, 10, 10)}
