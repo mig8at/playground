@@ -36,9 +36,9 @@ jira_title: "Código de preaprobado de la app en la plataforma nueva"
       listado muestra todas, como hoy (2026-09-23).
 - [x] Configurar el servicio de códigos en el backend de `qa` — `CODE_GENERATION_SERVICE_BASE_URL=
       http://self-manager-api.inertia-develop:8082` en `dev/legacy-backend-qa` + redespliegue (2026-09-24).
-- [ ] Configurar el servicio de códigos en el backend de **producción** antes de que el canje llegue a
-      `main`; termina cuando un código inexistente responda `invalid code` y no «not configured». No
-      verificado en dev, staging ni prod.
+- [x] Servicio de códigos configurado en el backend de **producción** — un código inexistente para un
+      comercio inexistente responde `409 invalid code` desde self-manager-api (2026-09-24). Dev y staging
+      no se verificaron: el canje no está en sus ramas.
 - [x] Validar en `qa` un canje real — código `9997` → solicitud 502728 con CrediPullman y el listado con
       una sola entidad (2026-09-24).
 - [ ] Llevar a `main` los tres PRs de la tarea (backend #1455, front #1045 y #1049), hoy sólo en `qa`.
@@ -306,6 +306,14 @@ se habilita. Por eso `harness-codigo-prueba` corre con `E2E_AUTORELLENO=0`.
     curl -D- -XPOST https://originaciones-qa.dev.creditop.com/merchant/ec977139/codigo \
       -H "Cookie: <cognito-state.qa>" --data 'code=<el código>'      # 302 a …/<id>/lenders + __session
     # el listado de esa solicitud con la __session nueva y con la vieja: una entidad contra todas
+
+**Que producción tiene el servicio de códigos configurado**, sin leer ni escribir un código (la ruta
+vieja `generate-services/code/consult` ya está en `main`; el backend exige 4 dígitos, así que va un
+código válido con un comercio que NO existe). «not configured» = falta la variable; `invalid code` =
+llegó al servicio:
+
+    curl -XPOST http://legacy-backend.inertia-production/api/onboarding/generate-services/code/consult \
+      -H 'Content-Type: application/json' -H 'Accept: application/json' -d '{"merchant_id":999999999,"code":"0000"}'
 
 **El listado de un comercio, para ver contra qué se compara el filtro:**
 
