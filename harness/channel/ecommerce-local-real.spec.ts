@@ -30,7 +30,7 @@ function freshPhone(): string {
     return `305${suffix}`;
 }
 
-/** Corre generate_checkout_url.php y devuelve solo el path+query de la URL del wizard. */
+/** Arma el contrato con `pkg/ecommerce.ts` y devuelve solo el path+query de la URL del wizard. */
 async function buildCheckoutPath(phone?: string): Promise<string> {
     // Del repo, no de un script PHP en una ruta absoluta del home: aquél se movió a
     // `creditop-woocommerce/tools/` el 2026-07-19 y estos specs quedaron apuntando a la nada. El del
@@ -71,7 +71,7 @@ test('Ecommerce LOCAL real: /checkout → solicitar → amount → phone → OTP
         'Ecommerce LOCAL real (sin testids)',
         '/checkout → solicitar → amount → phone → OTP(real) → personal-info',
     )
-        .step('Handshake checkout', 'genera la URL con generate_checkout_url.php → /ecommerce/{hash}/checkout?o=...', async () => {
+        .step('Handshake checkout', 'genera la URL con el contrato de pkg/ecommerce.ts → /ecommerce/{hash}/checkout?o=...', async () => {
             const checkoutPath = await buildCheckoutPath(phone);
             await page.goto(checkoutPath);
             return checkoutPath;

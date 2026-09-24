@@ -22,8 +22,9 @@
 //   la tienda arma una URL con el pedido serializado en base64, el backend la decodifica, CREA la
 //   solicitud y redirige al wizard. Sin esto, todo el tramo tienda→backend→wizard quedaba sin probar.
 //
-// QUIÉN PRODUCE ESTA URL DE VERDAD: el plugin de WooCommerce, `playground/creditop-woocommerce`
-//   (`class-creditop-gateway.php:470-512`). Es la fuente autoritativa del contrato — esto lo imita.
+// QUIÉN PRODUCE ESTA URL DE VERDAD: el plugin de WooCommerce que instala el comercio
+//   (`class-creditop-gateway.php:470-512`). Es la fuente autoritativa del contrato — esto lo imita. Su
+//   copia se borró del playground el 2026-09-24: `git show 2b9d13be:creditop-woocommerce/class-creditop-gateway.php`.
 //   Dos diferencias reconciliadas contra él:
 //   · SERIALIZACIÓN: cada parámetro va distinto en el original. El mapa exacto (del plugin y de
 //     `github/generate_checkout_url.php`, que coinciden):
@@ -85,7 +86,7 @@ export function urlCheckout(branchHash: string, p: Order): string {
     // targets. Normalizamos a la RAÍZ y agregamos `/api` nosotros, para no armar `/api/api/…` (404 mudo).
     const api = (env('E2E_API_BASE_URL') || 'http://localhost').replace(/\/+$/, '').replace(/\/api$/, '');
     // Forma FIEL de una orden WooCommerce. Salió de cruzar el plugin real
-    // (`creditop-woocommerce/class-creditop-gateway.php`) con `github/generate_checkout_url.php`.
+    // (`class-creditop-gateway.php`, hoy en la historia de git) con `generate_checkout_url.php`.
     // El backend solo mira `billing` y `total`, pero mandar la forma completa evita falsos negativos
     // el día que valide algo más. OJO: `total` va como STRING — así lo manda WooCommerce.
     const order = {

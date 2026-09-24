@@ -21,8 +21,8 @@ donde el daño de un hallazgo desactualizado es que manda a alguien a perseguir 
 - ⚠ **La única cita que `context-refs` marca como «no existe» es un FALSO POSITIVO**, y conviene dejarlo
   escrito para que nadie la «arregle»: la del plugin de WooCommerce, en su línea 507, **existe y dice exactamente lo
   que el hallazgo afirma** (el comentario sobre `/ecommerce/{hash}/checkout`). La herramienta no la
-  encuentra porque el archivo vive en `playground/creditop-woocommerce/`, que **no es uno de los repos
-  indexados**. Verificado a mano: el archivo tiene 522 líneas y la 507 es esa.
+  encuentra porque el archivo vivía en `playground/creditop-woocommerce/`, que **no es uno de los repos
+  indexados** — y desde el 2026-09-24 sólo está en la historia (`git show 2b9d13be:creditop-woocommerce/class-creditop-gateway.php`). Verificado a mano: el archivo tiene 522 líneas y la 507 es esa.
 
 **Lo que NO se verificó, y es lo que importa al usar este nodo:** **el ESTADO de cada hallazgo.** No hay
 un campo de estado por entrada —«ABIERTO» y «ARREGLADO» aparecen en la prosa, no en una ficha—, así que
@@ -1125,7 +1125,7 @@ Dato de contexto: `feature/onboarding/ecommerce-continue-route` (junio, ya en `d
 
 El wizard aterriza en **`/no-preapproved`** —la pantalla de "no preaprobado" de Bancolombia— y la corrida termina en timeout esperando una pantalla a la que nunca va a llegar. Sin la traza, eso se veía como un cuelgue mudo de 5 minutos; con ella, el diagnóstico está en la primera línea.
 
-**Confirmado desde el OTRO extremo: el plugin de WooCommerce.** `playground/creditop-woocommerce` (v1.0.20, lo que el comercio instala) es el productor real de esa URL, y en `class-creditop-gateway.php:507` apunta a:
+**Confirmado desde el OTRO extremo: el plugin de WooCommerce.** `playground/creditop-woocommerce` (v1.0.20, lo que el comercio instala; borrado del playground el 2026-09-24, sigue en `git show 2b9d13be:creditop-woocommerce/class-creditop-gateway.php`) es el productor real de esa URL, y en `class-creditop-gateway.php:507` apunta a:
 
 ```php
 $redirect_url = $base . '/ecommerce/' . $hash . '/checkout' . '?o=' . …

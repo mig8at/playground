@@ -582,7 +582,7 @@ la tabla de «quién decide el crédito por `response_type`» estaba en los dos 
 contradecía**. Lo de dominio se repartió; lo operativo, a los `CLAUDE.md`.
 
 ⚠ **El resto de carpetas NO son herramientas para contextualizarte** — hoy: `flow`, `engine`,
-`domain-model`, `diccionario`, `plantillas`, `creditop-woocommerce`. Son exploraciones que Miguel armó para entender
+`domain-model`, `diccionario`, `plantillas`. Son exploraciones que Miguel armó para entender
 él mismo el negocio: **no están validadas contra el código** y varias describen un *deber ser*, no lo
 que corre en producción. *(Y `ingles` no habla de CreditOp en absoluto: es para aprender inglés.)* *(Acá también estaba
 `cuadrilla`. Ya no: el 2026-09-10 se mudó al repo compartido —`github/playground/tools/cuadrilla`,

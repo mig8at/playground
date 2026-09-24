@@ -11,9 +11,11 @@ redirige al cliente al wizard. Sin asesor: el cliente aterriza ya redirigido.
 **Cómo se lanza:** `bin/ecommerce` + `E2E_ENTRY=ecommerce`. El spec arma la URL con
 `pkg/checkout-b64.ts`, y `mock-redirect` (**:8096**) lo levanta `bin/ecommerce` (`bin/advisor:56`).
 
-**La fuente autoritativa del contrato es el plugin real**, no el harness:
-`playground/creditop-woocommerce` (`class-creditop-gateway.php:470-512`). Está reconciliado en la cabecera
-de `pkg/checkout-b64.ts` — si cambia el plugin, ese es el archivo que se actualiza.
+**El contrato vive en `pkg/ecommerce.ts`** (`contractForSpec`), reconciliado contra el plugin de
+WooCommerce que instala el comercio (`class-creditop-gateway.php:470-512`); el mapa de cada parámetro
+está en la cabecera de `pkg/checkout-b64.ts`. Para armar una URL a mano está el artefacto «contrato de
+checkout» de la tarea #95. La copia del plugin se borró del playground el 2026-09-24 y sigue en la
+historia: `git show 2b9d13be:creditop-woocommerce/class-creditop-gateway.php`.
 
 ## ⚠ El techo del canal, y hay que saber exactamente dónde está
 
