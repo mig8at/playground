@@ -98,8 +98,13 @@ nombres de capa en Credifamilia, flujo ecommerce, Motai y BCP (las reglas y el c
 
 - **campo**: un texto «Input Text» adentro de un «Input Container» es un `<input>` en el mismo lugar. El
   gris de Figma es el placeholder; lo que se escribe va del color de la etiqueta del «Text- fields». Un
-  texto oscuro ya es un valor escrito. Con «icon/arrow-down» es un **select, que todavía no se traduce**:
-  sus opciones no están en el diseño;
+  texto oscuro ya es un valor escrito;
+- **lista**: con «icon/arrow-down» **visible** es un `<select>` en el lugar del texto, estirado por debajo de
+  la flecha para que toda la caja lo abra. ⚠ La flecha viene en casi todos los campos, OCULTA: sin mirar si
+  se ve, el número de celular salía como lista. ⚠ Y **tiene una sola opción, la que dibuja el diseño**:
+  ninguna de las 46 listas de los cuatro archivos muestra una alternativa (sólo «Cundinamarca», «Bogotá»
+  o «Selecciona una opción»), y el reporte lo dice. Los catálogos reales existen en la base (`countries`,
+  `country_zones`, `country_cities`), pero enchufarlos pide verificar en `main` cuál usa cada campo;
 - **casilla**: la instancia «Check Box» alterna entre sus dos dibujos de Figma **sin script** (el documento
   no corre ninguno): un input invisible encima y `:checked` elige cuál se ve. El dibujo de la otra variante
   sale de OTRA INSTANCIA de esa variante, en la pantalla o en otra del archivo (`fileVariants` en el
@@ -114,7 +119,9 @@ un clic en un control es del control, y un arrastre o la rueda desde cualquier o
 igual que afuera. Con el foco adentro, las flechas y la H siguen andando salvo mientras se escribe.
 
 Medido el 2026-09-24 contra la imagen de Figma: la fidelidad queda **idéntica pantalla por pantalla** en
-Credifamilia (31) y flujo ecommerce (49). Y lo que queda vivo, por archivo (pantallas móviles):
+Credifamilia (31) y flujo ecommerce (49), con los campos y con las listas. ⚠ Una tanda de
+`visor-fidelidad` puede dar una pantalla muy abajo (43 % en «Pago mínimo») porque midió antes de que
+cargara una imagen: antes de creerle a una caída, medila sola con `SOLO=<id>`. Y lo que queda vivo, por archivo (pantallas móviles):
 
     Credifamilia     31   38 campos · 15 casillas · 34 opciones sí/no · 23 botones
     flujo ecommerce  49   13 campos ·  4 casillas ·                      34 botones

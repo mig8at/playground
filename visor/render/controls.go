@@ -16,8 +16,9 @@ import (
 // nombres de capa:
 //
 //   - campo: un texto «Input Text» adentro de un «Input Container» (121 textos). Si el contenedor trae
-//     además «icon/arrow-down» es un SELECT, que todavía no se traduce: sus opciones no están en el
-//     diseño;
+//     además «icon/arrow-down» VISIBLE es una LISTA (un select): 46 en los cuatro archivos. ⚠ La flecha
+//     viene en casi todos los campos, oculta: contarla sin mirar si se ve daba decenas de «selects» que
+//     son el número de celular o el nombre;
 //   - casilla: una instancia «Check Box» con una variante que dice su estado (`tipe`: «deafult» —así, con
 //     la errata— vacía; «check» y «tabler-icon-square-check-filled» marcadas). 62 instancias;
 //   - botón: la instancia «Botones» (25) o el marco que tiene adentro un texto «Button Text» (74).
@@ -70,8 +71,15 @@ func checkboxState(n Node) (value string, checked bool) {
 }
 
 func isInputText(n Node, parent *Node) bool {
-	return n.Type == "TEXT" && strings.EqualFold(n.Name, "Input Text") && parent != nil &&
-		parent.Name == "Input Container" && !hasChildNamed(*parent, "icon/arrow-down")
+	return fieldText(n, parent) && !hasChildNamed(*parent, "icon/arrow-down")
+}
+
+func isSelectText(n Node, parent *Node) bool {
+	return fieldText(n, parent) && hasChildNamed(*parent, "icon/arrow-down")
+}
+
+func fieldText(n Node, parent *Node) bool {
+	return n.Type == "TEXT" && strings.EqualFold(n.Name, "Input Text") && parent != nil && parent.Name == "Input Container"
 }
 
 func isButton(n Node) bool {
@@ -361,6 +369,60 @@ func digitsOnly(s string) bool {
 	return true
 }
 
+// selectField escribe la lista como un <select> en el lugar del texto, con la fuente y el COLOR de Figma
+// —en Credifamilia «Selecciona una opción» está pintado oscuro, así que el color no dice si es un valor—.
+// Se estira por debajo de la flecha, que deja pasar el puntero: la caja entera abre la lista, como en el
+// front. ⚠ Las opciones NO están en el diseño: ninguna de las 46 listas de los cuatro archivos muestra una
+// alternativa, sólo el valor de ejemplo («Cundinamarca») o el «Selecciona una opción». Así que hay una
+// sola opción, la que se ve, y el reporte lo dice; inventar un catálogo sería dibujar lo que nadie diseñó.
+func (w *writer) selectField(n Node, parent *Node, css *style) {
+	w.report.Texts++
+	w.report.control("lista")
+	w.report.miss("lista sin opciones en el diseño (sólo la que se ve)")
+	st := n.Style
+	if st == nil {
+		st = &TextStyle{}
+	}
+	w.font(*st, n.Fills, css)
+	if parent.LayoutMode == "HORIZONTAL" {
+		css.set("flex", "1 1 0")
+		css.set("min-width", "0")
+		// Hasta el borde derecho de la flecha: lo que sigue al texto en la fila.
+		if reach := arrowReach(n, *parent); reach > 0 {
+			css.set("margin-right", px(-reach))
+			css.set("padding-right", px(reach))
+		}
+	} else {
+		css.set("align-self", "stretch")
+	}
+	if st.LineHeightPx != 0 {
+		css.setDefault("height", px(st.LineHeightPx))
+	}
+	w.opacity(n, css)
+	attrs := ""
+	if f := w.controls.fields[n.ID]; f.label != "" {
+		attrs = ` aria-label="` + html.EscapeString(f.label) + `"`
+	}
+	text := html.EscapeString(n.Characters)
+	fmt.Fprintf(w.out, `<select class="fg-select" data-figma="%s"%s style="%s"><option selected>%s</option></select>`,
+		html.EscapeString(n.ID), attrs, css, text)
+}
+
+// arrowReach: cuánto hay desde el final del texto hasta el final de la flecha que lo sigue en la fila.
+func arrowReach(n Node, parent Node) float64 {
+	after := false
+	for _, ch := range parent.Children {
+		if ch.ID == n.ID {
+			after = true
+			continue
+		}
+		if after && ch.Name == "icon/arrow-down" && visible(ch.Visible) && ch.Box != nil && n.Box != nil {
+			return ch.Box.X + ch.Box.Width - (n.Box.X + n.Box.Width)
+		}
+	}
+	return 0
+}
+
 func (r *Report) control(kind string) {
 	if r.Controls == nil {
 		r.Controls = map[string]int{}
@@ -373,6 +435,9 @@ func (r *Report) control(kind string) {
 const controlCSS = `.fg-input{all:unset;box-sizing:border-box;display:block;min-width:0;cursor:text}
 .fg-input::placeholder{color:var(--fg-placeholder);opacity:1}
 .fg-button{all:unset;box-sizing:border-box;display:block;cursor:pointer}
+.fg-select{all:unset;box-sizing:border-box;display:block;min-width:0;cursor:pointer;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.fg-select:focus-visible{outline:2px solid Highlight;outline-offset:2px}
+.fg-select~*{pointer-events:none}
 .fg-button:focus-visible,.fg-check:focus-within{outline:2px solid Highlight;outline-offset:2px}
 .fg-option{cursor:pointer}
 .fg-check{display:block;cursor:pointer}

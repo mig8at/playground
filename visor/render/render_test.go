@@ -234,7 +234,7 @@ func TestInputTextBecomesAnInput(t *testing.T) {
 		t.Error("un texto oscuro en el campo ya es un valor escrito, no un placeholder")
 	}
 	if strings.Contains(doc, `data-figma="4c" type="text"`) {
-		t.Error("con la flecha es un select: no se traduce a un input de texto")
+		t.Error("con la flecha es una lista: no se traduce a un input de texto")
 	}
 	if rep.Controls["campo"] != 2 {
 		t.Errorf("controles: %v", rep.Controls)
@@ -298,5 +298,37 @@ func TestButtonsAreButtons(t *testing.T) {
 	}
 	if rep.Controls["botón"] != 2 {
 		t.Errorf("controles: %v", rep.Controls)
+	}
+}
+
+// Con la flecha VISIBLE el campo es una lista: un <select> con la única opción que dibuja el diseño,
+// estirado por debajo de la flecha para que toda la caja la abra. Con la flecha oculta —viene así en casi
+// todos los campos— sigue siendo un input.
+func TestSelectKeepsTheOnlyOptionTheDesignShows(t *testing.T) {
+	txt := func(id, chars string) Node {
+		return Node{ID: id, Name: "Input Text", Type: "TEXT", Box: box(16, 12, 300, 20), Characters: chars,
+			Style: &TextStyle{FontSize: 14, LineHeightPx: 20}, Fills: solid(0.1, 0.1, 0.3)}
+	}
+	hidden := false
+	field := Node{ID: "2", Name: "Text- fields", Type: "FRAME", Box: box(0, 0, 398, 80), LayoutMode: "VERTICAL", Children: []Node{
+		{ID: "2a", Type: "TEXT", Box: box(0, 0, 100, 20), Characters: "Departamento de residencia", Fills: solid(0.1, 0.1, 0.3)},
+		{ID: "2b", Name: "Input Container", Type: "FRAME", Box: box(0, 30, 398, 44), LayoutMode: "HORIZONTAL", ItemSpacing: 8, Children: []Node{
+			txt("2c", "Cundinamarca"), {ID: "2d", Name: "icon/arrow-down", Type: "INSTANCE", Box: box(324, 40, 24, 24)}}},
+	}}
+	phone := Node{ID: "3", Name: "Input Container", Type: "FRAME", Box: box(0, 100, 398, 44), LayoutMode: "HORIZONTAL", Children: []Node{
+		txt("3c", "3178622287"), {ID: "3d", Name: "icon/arrow-down", Type: "INSTANCE", Visible: &hidden, Box: box(324, 110, 24, 24)}}}
+	doc, rep := render(t, Node{ID: "1", Type: "FRAME", Box: box(0, 0, 430, 932), Children: []Node{field, phone}})
+	if !strings.Contains(doc, `<select class="fg-select" data-figma="2c" aria-label="Departamento de residencia"`) ||
+		!strings.Contains(doc, `<option selected>Cundinamarca</option></select>`) {
+		t.Errorf("la lista es un select con la opción que se ve:\n%s", doc)
+	}
+	if st := styleOf(t, doc, "2c"); !strings.Contains(st, "margin-right:-32px") || !strings.Contains(st, "padding-right:32px") {
+		t.Errorf("el select llega hasta el final de la flecha (24 + 8 de separación): %s", st)
+	}
+	if !strings.Contains(doc, `<input class="fg-input" data-figma="3c"`) {
+		t.Error("con la flecha oculta es un campo de texto")
+	}
+	if rep.Controls["lista"] != 1 || rep.Missing["lista sin opciones en el diseño (sólo la que se ve)"] != 1 {
+		t.Errorf("controles %v · sin traducir %v", rep.Controls, rep.Missing)
 	}
 }

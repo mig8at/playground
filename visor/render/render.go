@@ -265,6 +265,10 @@ func (w *writer) node(n Node, parent *Node, root bool) {
 			w.input(n, parent, css)
 			return
 		}
+		if isSelectText(n, parent) {
+			w.selectField(n, parent, css)
+			return
+		}
 		w.text(n, parent, css)
 		return
 	}
