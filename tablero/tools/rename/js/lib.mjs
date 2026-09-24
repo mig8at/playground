@@ -10,6 +10,28 @@ const PARSE = { sourceType: 'module', plugins: [], errorRecovery: false };
 // campo de una interface, el miembro de un enum—, que `role` trata como propiedades: son contrato.
 const PARSE_TS = { ...PARSE, plugins: ['typescript'] };
 
+// HTML: los <script> inline del archivo, con su desplazamiento. Se salta el tramo que sincroniza `make
+// estilo-sync` (entre `// <workbench-shared>` y su cierre): es una copia de tools/ui/workbench.js y tiene
+// que quedar idéntica a su fuente. Lo que viene después en el mismo <script> es del panel y se lee.
+export function htmlScripts(src) {
+  const out = [];
+  const re = /<script(?![^>]*\bsrc=)[^>]*>([\s\S]*?)<\/script>/g;
+  let m;
+  while ((m = re.exec(src))) {
+    const content = m[1];
+    const offset = m.index + m[0].indexOf('>') + 1;
+    // la copia compartida va entre marcas; lo que viene después es código del panel y se lee
+    const end = content.indexOf('// </workbench-shared>');
+    if (content.includes('// <workbench-shared>') && end >= 0) {
+      const tail = end + '// </workbench-shared>'.length;
+      out.push({ content: ' '.repeat(tail) + content.slice(tail), offset });
+      continue;
+    }
+    out.push({ content, offset });
+  }
+  return out;
+}
+
 // visita genérica: llama cb(node, parent, key) sobre todo el árbol
 function walk(node, cb, parent = null, key = null) {
   if (!node || typeof node.type !== 'string') return;
@@ -105,5 +127,6 @@ export function sfcIds(src, file) {
 }
 
 export function fileIds(src, file) {
+  if (file.endsWith('.html')) return htmlScripts(src).flatMap((b) => jsIds(b.content, b.offset));
   return file.endsWith('.vue') ? sfcIds(src, file) : jsIds(src, 0, false, /\.[mc]?ts$/.test(file));
 }

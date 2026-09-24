@@ -4,6 +4,7 @@
 // declara `a` y `c`, nunca `b`), funciones y sus parámetros, clases, imports, el `catch (e)` y, en el
 // template, los alias de `v-for` y los parámetros de `v-slot`. Las claves de objeto y las propiedades
 // NO se listan: son el contrato con el JSON del servidor y tienen su propia tanda.
+import { htmlScripts } from './lib.mjs';
 import { readFileSync } from 'node:fs';
 import { pathToFileURL } from 'node:url';
 import { createRequire } from 'node:module';
@@ -72,6 +73,7 @@ function scriptDecls(code, offset, ts = false) {
 }
 
 export function fileDecls(src, file) {
+  if (file.endsWith('.html')) return htmlScripts(src).flatMap((b) => scriptDecls(b.content, b.offset));
   if (!file.endsWith('.vue')) return scriptDecls(src, 0, /\.[mc]?ts$/.test(file));
   const { descriptor, errors } = sfc.parse(src, { filename: file });
   if (errors.length) throw new Error(`${file}: ${errors[0]}`);

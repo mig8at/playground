@@ -1771,7 +1771,7 @@
     // unreachable | unknown. El launch se BLOQUEA sin token listo (valid) — salvo 'unreachable' (front caído:
     // no se puede ni verificar ni warmear; la corrida levanta el front y loguea en el flujo). F-66.
     const sessionState = { local: 'unknown', dev: 'unknown', staging: 'unknown' };
-    let corridaRunning = false;  // durante una corrida el botón lo maneja startPoll, no updateGo
+    let runRunning = false;  // durante una corrida el botón lo maneja startPoll, no updateGo
 
     // ── Permiso del asesor al comercio (paso "comercio" del funnel) ──────────────────────────────────
     // Se dispara al ELEGIR el comercio (o cambiar target/canal), no al lanzar: cuando llegás al botón, el
@@ -1780,7 +1780,7 @@
     // otro comercio antes de que volviera la anterior).
     let permState = 'na', permDetail = '', permSeq = 0;
     async function ensureAssignUI() {
-      if (canal !== 'asesor' || !sel) { permState = 'na'; permDetail = ''; updateGo(); return; }
+      if (channel !== 'asesor' || !sel) { permState = 'na'; permDetail = ''; updateGo(); return; }
       const seq = ++permSeq;
       permState = 'checking'; permDetail = ''; updateGo();
       let r;
@@ -1817,19 +1817,19 @@
     // mock es quien contesta, y no según una lista que se desincroniza sola.
     let mockPA = true;
     let inject = true;           // true = inyecta buró sintético (salta consulta real) · false = prueba real
-    let canal = 'asesor';        // por dónde ENTRA la solicitud: 'asesor' (login + wizard) | 'autogestion' (el cliente solo) | 'ecommerce' (URL base64) | 'qr' (caja Corbeta)
-    let canalTocado = null;      // slug del comercio cuyo canal ya se resolvió (sugerido o a mano): no se vuelve a pisar
+    let channel = 'asesor';        // por dónde ENTRA la solicitud: 'asesor' (login + wizard) | 'autogestion' (el cliente solo) | 'ecommerce' (URL base64) | 'qr' (caja Corbeta)
+    let channelTouched = null;      // slug del comercio cuyo canal ya se resolvió (sugerido o a mano): no se vuelve a pisar
     let doctype = 'CC';
     let gender = 'M';
     let step = 'monto';          // dónde saltar: monto | phone | personal-info | lenders
     // FRONT de la corrida: 'ambiente' (el desplegado del target) | 'local' (tu :5174, working copy). Lo
     // resuelve loadFront() por target — no se deriva acá para no tener una segunda definición de qué
     // target tiene deploy. `frontAmbienteUrl` vacío = ese target no tiene front desplegado.
-    let frontMode = 'local', frontAmbienteUrl = '';
-    let padelay = 0;             // ms de espera del mock de pre-aprobados (para ver el loader)
+    let frontMode = 'local', frontEnvironmentUrl = '';
+    let paDelay = 0;             // ms de espera del mock de pre-aprobados (para ver el loader)
     let paStatus = {};           // status por lender que devolverá el mock: { lenderId: 'approved'|'rejected'|'pending' }
     let poll = null;
-    let lendersDelComercio = [];  // lenders de la sucursal actual: su `rt` decide qué ramales dibuja el mapa
+    let merchantLenders = [];  // lenders de la sucursal actual: su `rt` decide qué ramales dibuja el mapa
     let logOpen = false;         // drawer de la consola en el dock
 
     const fmt = (n) => (n || 0).toLocaleString('es-CO');
@@ -1849,7 +1849,7 @@
     // FAVORITOS, los que guardaste desde el buscador. Solo los tuyos se renombran o se borran: los
     // curados documentan para qué sirve cada uno y no son tuyos para tocar.
     let FAVS = [];
-    async function cargarFavs() {
+    async function loadFavs() {
       try { FAVS = await (await fetch('/api/favs')).json(); } catch { FAVS = []; }
       if (!Array.isArray(FAVS)) FAVS = [];
       renderMerchants();
@@ -1873,7 +1873,7 @@
     // abajo son las de la corrida—, y una ENTIDAD **no es un archivo**: su interruptor escribe estado
     // GLOBAL del lender, así que el click en la fila no lo toca. El interruptor sigue siendo un control
     // explícito y aparte. Una fila que parece navegación y resulta ser escritura es una mina.
-    const abiertos = new Set();          // slugs de comercio desplegados
+    const openOnes = new Set();          // slugs de comercio desplegados
 
     const escTxt = (v) => String(v ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/"/g, '&quot;');
 
@@ -1887,17 +1887,17 @@
      * entidad)— que nadie va a usar; agregar una es «archivo nuevo», y el buscador es el diálogo de
      * abrir. Lo que sí se muestra es cuántas hay (`1 de 23`), para saber que se puede agregar más.
      */
-    function entradasDelEspacio() {
-      const propios = FAVS.filter((f) => !MERCHANTS.some((m) => m.slug === f.slug)).map((f) => ({ ...f, fav: true }));
-      return [...MERCHANTS, ...propios];
+    function spaceEntries() {
+      const ownOnes = FAVS.filter((f) => !MERCHANTS.some((m) => m.slug === f.slug)).map((f) => ({ ...f, fav: true }));
+      return [...MERCHANTS, ...ownOnes];
     }
 
 
-    function filaArbol(cls, nivel, twisty, nombre, meta, extra = '') {
+    function treeRow(cls, level, twisty, name, meta, extra = '') {
       const d = document.createElement('div');
       d.className = 'trow ' + cls;
-      d.style.paddingLeft = (8 + nivel * 14) + 'px';
-      d.innerHTML = `<span class="tw">${twisty}</span><span class="tnm">${nombre}</span>`
+      d.style.paddingLeft = (8 + level * 14) + 'px';
+      d.innerHTML = `<span class="tw">${twisty}</span><span class="tnm">${name}</span>`
         + (meta ? `<span class="tmeta">${meta}</span>` : '') + extra;
       d.setAttribute('role', 'treeitem');
       return d;
@@ -1918,8 +1918,8 @@
      * (Medido el 2026-09-18: Sonría tiene 8 juegos de entidades distintos entre sus 79 sucursales, así
      * que compararlas es un caso real, no hipotético.)
      */
-    function elegirEntrada(e) {
-      if (corridaRunning) return;
+    function chooseEntry(e) {
+      if (runRunning) return;
       // Por SLUG: conserva la resolución `por_target` de `.flows.json` — el mismo comercio cambia de
       // hash entre ambientes, y BCP Perú además cambia de slug.
       sel = { slug: e.slug, name: e.name, allied_id: e.allied_id, hash: e.hash };
@@ -1927,37 +1927,37 @@
     }
 
     /** Despliega la entrada seleccionada: sin esto nada se ve elegido al abrir el panel. */
-    function revelarSeleccion() {
+    function revealSelection() {
       if (!sel) return;
-      const e = entradasDelEspacio().find((x) => x.slug === sel.slug || x.hash === sel.slug);
-      if (e && !abiertos.has(e.slug)) { abiertos.add(e.slug); renderMerchants(); }
+      const e = spaceEntries().find((x) => x.slug === sel.slug || x.hash === sel.slug);
+      if (e && !openOnes.has(e.slug)) { openOnes.add(e.slug); renderMerchants(); }
     }
 
     function renderMerchants() {
       const g = $('results');
       // ⚠ RESCATE ANTES DE LIMPIAR: el nodo de entidades se MUEVE dentro de la entrada elegida, así que
       // ya es hijo del árbol y `innerHTML = ''` lo destruiría con todo lo que `loadLenders()` le colgó.
-      const caja0 = $('environmentSettings'), refugio = $('entornoHolder');
-      if (caja0 && refugio) refugio.appendChild(caja0);
+      const box0 = $('environmentSettings'), refuge = $('entornoHolder');
+      if (box0 && refuge) refuge.appendChild(box0);
       g.innerHTML = '';
 
-      for (const e of entradasDelEspacio()) {
-        const abierto = abiertos.has(e.slug);
-        const elegida = !!sel && (sel.slug === e.slug || (e.hash && sel.slug === e.hash));
-        const fila = filaArbol('tmerch' + (elegida ? ' sel' : '') + (e.missing ? ' miss' : ''), 0,
-          abierto ? '▾' : '▸', escTxt(e.alias || e.name), e.missing ? (e.meta || '') : (e.hash || '…'),
-          elegida ? '<span class="tick">✓</span>' : '');
-        fila.title = `${e.alias || e.name}${e.hash ? ` · sucursal ${e.hash}` : ''}`
+      for (const e of spaceEntries()) {
+        const open = openOnes.has(e.slug);
+        const chosenOne = !!sel && (sel.slug === e.slug || (e.hash && sel.slug === e.hash));
+        const rowEl = treeRow('tmerch' + (chosenOne ? ' sel' : '') + (e.missing ? ' miss' : ''), 0,
+          open ? '▾' : '▸', escTxt(e.alias || e.name), e.missing ? (e.meta || '') : (e.hash || '…'),
+          chosenOne ? '<span class="tick">✓</span>' : '');
+        rowEl.title = `${e.alias || e.name}${e.hash ? ` · sucursal ${e.hash}` : ''}`
           + (e.fav ? ' · agregado por vos' : ' · curado, vive en el código')
           + (e.missing ? ` · ${e.meta || 'no está en este ambiente'}` : '');
-        fila.setAttribute('aria-expanded', String(abierto));
-        fila.tabIndex = corridaRunning ? -1 : 0;
-        fila.onclick = () => {
-          if (corridaRunning) return;
-          if (abiertos.has(e.slug)) abiertos.delete(e.slug); else abiertos.add(e.slug);
-          if (!elegida) elegirEntrada(e); else renderMerchants();
+        rowEl.setAttribute('aria-expanded', String(open));
+        rowEl.tabIndex = runRunning ? -1 : 0;
+        rowEl.onclick = () => {
+          if (runRunning) return;
+          if (openOnes.has(e.slug)) openOnes.delete(e.slug); else openOnes.add(e.slug);
+          if (!chosenOne) chooseEntry(e); else renderMerchants();
         };
-        fila.onkeydown = (ev) => { if (ev.key === 'Enter' || ev.key === ' ') { ev.preventDefault(); fila.click(); } };
+        rowEl.onkeydown = (ev) => { if (ev.key === 'Enter' || ev.key === ' ') { ev.preventDefault(); rowEl.click(); } };
 
         // Renombrar: TODAS, porque el mismo comercio puede estar varias veces y el rótulo es lo único
         // que las distingue. Borrar: sólo las tuyas — los curados viven en el código y desde acá no
@@ -1966,18 +1966,18 @@
         acc.className = 'facc';
         acc.innerHTML = '<span title="renombrar">✎</span>'
           + (e.fav ? '<span title="quitar de tu espacio">✕</span>' : '');
-        acc.children[0].onclick = (ev) => { ev.stopPropagation(); renombrarFav(e); };
-        if (e.fav) acc.children[1].onclick = (ev) => { ev.stopPropagation(); quitarFav(e); };
-        fila.appendChild(acc);
-        g.appendChild(fila);
+        acc.children[0].onclick = (ev) => { ev.stopPropagation(); renameFav(e); };
+        if (e.fav) acc.children[1].onclick = (ev) => { ev.stopPropagation(); removeFav(e); };
+        rowEl.appendChild(acc);
+        g.appendChild(rowEl);
 
-        if (abierto && elegida) { const caja = $('environmentSettings'); if (caja) { caja.open = true; g.appendChild(caja); } }
+        if (open && chosenOne) { const boxEl = $('environmentSettings'); if (boxEl) { boxEl.open = true; g.appendChild(boxEl); } }
       }
 
-      const nuevoC = filaArbol('tadd tadd-top', 0, '+', 'agregar comercio…', '');
-      nuevoC.title = 'Buscar un comercio, elegir su sucursal y agregarlo a tu espacio';
-      nuevoC.onclick = () => { if (!corridaRunning) $('buscom').focus(); };
-      g.appendChild(nuevoC);
+      const newC = treeRow('tadd tadd-top', 0, '+', 'agregar comercio…', '');
+      newC.title = 'Buscar un comercio, elegir su sucursal y agregarlo a tu espacio';
+      newC.onclick = () => { if (!runRunning) $('buscom').focus(); };
+      g.appendChild(newC);
     }
 
     async function favApi(body) {
@@ -1988,7 +1988,7 @@
       } catch { alert('error de red'); return { ok: false }; }
     }
 
-    async function renombrarFav(m) {
+    async function renameFav(m) {
       const actual = m.alias || m.name;
       const n = prompt('Nombre para esta entrada (el mismo comercio puede estar varias veces):', actual);
       if (n == null || !n.trim() || n.trim() === actual) return;
@@ -1998,14 +1998,14 @@
         if (sel && sel.slug === m.slug) sel = { ...sel, name: r.name };
         const cur = MERCHANTS.find((x) => x.slug === m.slug);
         if (cur) cur.alias = r.name;            // los curados no se recargan por `/api/favs`
-        await cargarFavs(); refresh();
+        await loadFavs(); refresh();
       }
     }
 
-    async function quitarFav(m) {
+    async function removeFav(m) {
       if (!confirm(`¿Quitar “${m.name}” de favoritos?\n\nSolo se borra la tarjeta (de .flows.json). El comercio en la base no se toca.`)) return;
       const r = await favApi({ accion: 'remove', slug: m.slug });
-      if (r.ok) { if (sel && sel.slug === m.slug) { sel = MERCHANTS[0]; ensureAssignUI(); } await cargarFavs(); refresh(); loadLenders(); }
+      if (r.ok) { if (sel && sel.slug === m.slug) { sel = MERCHANTS[0]; ensureAssignUI(); } await loadFavs(); refresh(); loadLenders(); }
     }
 
     // ── BUSCADOR contra la BD del target ─────────────────────────────────────────────────────────
@@ -2013,46 +2013,46 @@
     // grande tiene varias con configuraciones distintas (entidades, reglas). Resolver "una sucursal
     // cualquiera" del comercio es exactamente el bug que `dbops branches` vino a tapar: la card mostraba
     // una sucursal y el flujo corría contra otra.
-    let busTimer = null, altaM = null, altaBs = [], nombreTocado = false;
-    const busEstado = (t) => { $('busres').innerHTML = `<div class="rr volver" style="cursor:default"><span class="rn" style="color:var(--mut)">${t}</span></div>`; };
-    const fila = (rn, rc, onclick, cls) => {
+    let busTimer = null, signupM = null, signupBs = [], nameTouched = false;
+    const busStatus = (t) => { $('busres').innerHTML = `<div class="rr volver" style="cursor:default"><span class="rn" style="color:var(--mut)">${t}</span></div>`; };
+    const rowEl = (rn, rc, onclick, cls) => {
       const d = document.createElement('div');
       d.className = 'rr' + (cls ? ' ' + cls : '');
       d.innerHTML = `<span class="rn">${rn}</span><span class="rc">${rc}</span>`;
       d.onclick = onclick; return d;
     };
 
-    function cerrarAlta() {
-      $('alta').hidden = true; altaM = null; altaBs = []; nombreTocado = false; $('altahint').textContent = '';
+    function closeSignup() {
+      $('alta').hidden = true; signupM = null; signupBs = []; nameTouched = false; $('altahint').textContent = '';
     }
 
-    async function buscarComercios(q) {
-      cerrarAlta();
+    async function searchMerchants(q) {
+      closeSignup();
       if (!q.trim()) { $('busres').innerHTML = ''; return; }
-      busEstado('Buscando…');
+      busStatus('Buscando…');
       let rows;
       try { rows = await (await fetch('/api/merchants?q=' + encodeURIComponent(q) + '&target=' + target)).json(); }
-      catch { return busEstado('✗ error de red'); }
-      if (!Array.isArray(rows) || !rows.length) return busEstado(`sin comercios que matcheen “${q}” en ${target}`);
+      catch { return busStatus('✗ error de red'); }
+      if (!Array.isArray(rows) || !rows.length) return busStatus(`sin comercios que matcheen “${q}” en ${target}`);
       const box = $('busres'); box.innerHTML = '';
       for (const m of rows.slice(0, 12)) {
-        box.appendChild(fila(m.name, `<span class="chip">#${m.allied_id}</span> ›`, () => elegirComercio(m)));
+        box.appendChild(rowEl(m.name, `<span class="chip">#${m.allied_id}</span> ›`, () => chooseMerchant(m)));
       }
     }
 
     // El segundo paso es un SELECT y no otra lista: las sucursales pueden ser 20+ (Sonría tiene 21) y una
     // lista larga empuja las tarjetas fuera de pantalla justo cuando querés compararlas.
-    async function elegirComercio(m) {
-      busEstado(`Sucursales de ${m.name}…`);
+    async function chooseMerchant(m) {
+      busStatus(`Sucursales de ${m.name}…`);
       let bs;
       try { bs = await (await fetch('/api/branches-of?allied=' + m.allied_id + '&target=' + target)).json(); }
-      catch { return busEstado('✗ error de red'); }
-      if (!Array.isArray(bs) || !bs.length) return busEstado(`${m.name} no tiene sucursales en ${target}`);
-      altaM = m; altaBs = bs; nombreTocado = false;
+      catch { return busStatus('✗ error de red'); }
+      if (!Array.isArray(bs) || !bs.length) return busStatus(`${m.name} no tiene sucursales en ${target}`);
+      signupM = m; signupBs = bs; nameTouched = false;
       // los resultados colapsan al comercio elegido: ya cumplieron y ocupaban lugar
       $('busres').innerHTML = '';
-      $('busres').appendChild(fila(`← ${m.name}`, `<span class="chip">#${m.allied_id}</span> cambiar`,
-        () => buscarComercios($('buscom').value), 'volver'));
+      $('busres').appendChild(rowEl(`← ${m.name}`, `<span class="chip">#${m.allied_id}</span> cambiar`,
+        () => searchMerchants($('buscom').value), 'volver'));
       const s = $('altasuc'); s.innerHTML = '';
       for (const b of bs) {
         const o = document.createElement('option');
@@ -2061,44 +2061,44 @@
         s.appendChild(o);
       }
       $('alta').hidden = false;
-      usarSucursal();
+      useBranch();
     }
 
     // Elegir la sucursal ya la deja LISTA PARA CORRER aunque no la agregues: el `slug` es el hash, y
     // tanto el panel (`branchHashForSlug`) como `bin/advisor` saben resolverlo. "Agregar" es solo para
     // que quede como tarjeta —y para que `bin/advisor <slug>` la reconozca desde la terminal—.
-    function usarSucursal() {
-      const b = altaBs.find((x) => x.hash === $('altasuc').value);
-      if (!altaM || !b) return;
-      sel = { slug: b.hash, name: `${altaM.name} · ${b.name || b.hash}`, adhoc: true };
-      if (!nombreTocado) $('altanombre').value = sel.name;   // no pisa lo que el usuario ya escribió
+    function useBranch() {
+      const b = signupBs.find((x) => x.hash === $('altasuc').value);
+      if (!signupM || !b) return;
+      sel = { slug: b.hash, name: `${signupM.name} · ${b.name || b.hash}`, adhoc: true };
+      if (!nameTouched) $('altanombre').value = sel.name;   // no pisa lo que el usuario ya escribió
       $('altahint').textContent = `${b.hash} · ${b.lenders} entidad(es) · sin guardar`;
       renderMerchants(); refresh(); loadLenders(); ensureAssignUI();
     }
 
-    async function agregarFav() {
-      const b = altaBs.find((x) => x.hash === $('altasuc').value);
-      const nombre = $('altanombre').value.trim();
-      if (!altaM || !b) return;
-      if (!nombre) { $('altanombre').focus(); return; }
-      const r = await favApi({ accion: 'add', hash: b.hash, name: nombre, allied_id: altaM.allied_id,
-        branch_id: b.id, allied_name: altaM.name });
+    async function addFav() {
+      const b = signupBs.find((x) => x.hash === $('altasuc').value);
+      const name = $('altanombre').value.trim();
+      if (!signupM || !b) return;
+      if (!name) { $('altanombre').focus(); return; }
+      const r = await favApi({ accion: 'add', hash: b.hash, name: name, allied_id: signupM.allied_id,
+        branch_id: b.id, allied_name: signupM.name });
       if (!r.ok) return;
       sel = { slug: r.slug, name: r.name };
-      cerrarAlta();
+      closeSignup();
       $('busres').innerHTML = ''; $('buscom').value = '';
-      await cargarFavs(); refresh(); loadLenders(); ensureAssignUI();
+      await loadFavs(); refresh(); loadLenders(); ensureAssignUI();
     }
 
-    $('altasuc').onchange = usarSucursal;
-    $('altanombre').oninput = () => { nombreTocado = true; };
-    $('altaadd').onclick = agregarFav;
+    $('altasuc').onchange = useBranch;
+    $('altanombre').oninput = () => { nameTouched = true; };
+    $('altaadd').onclick = addFav;
     $('buscom').oninput = (e) => {
       clearTimeout(busTimer); const v = e.target.value;
-      busTimer = setTimeout(() => buscarComercios(v), 350);   // con debounce: sin esto, una consulta por tecla
+      busTimer = setTimeout(() => searchMerchants(v), 350);   // con debounce: sin esto, una consulta por tecla
     };
-    $('buslimpiar').onclick = () => { $('buscom').value = ''; $('busres').innerHTML = ''; cerrarAlta(); };
-    cargarFavs();
+    $('buslimpiar').onclick = () => { $('buscom').value = ''; $('busres').innerHTML = ''; closeSignup(); };
+    loadFavs();
 
     // lenders de la sucursal (la que usa el launch) → filas con toggle ON/OFF.
     async function loadLenders() {
@@ -2118,21 +2118,21 @@
          * Y el caso de CERO se avisa fuerte: un listado vacío es el desenlace más confuso que hay — la
          * corrida llega hasta el marketplace y no muestra nada, y eso se depura como un bug del backend
          * cuando la respuesta estaba acá, plegada. */
-        const activas = ls.filter((l) => Number(l.lender_status) === 1).length;
-        const resumen = $('entornoResumen');
-        if (resumen) {
-          resumen.textContent = ls.length
-            ? (activas ? `${activas} de ${ls.length} entidad(es) activas` : `⚠ ninguna de las ${ls.length} entidades está activa — el listado va a salir vacío`)
+        const activeOnes = ls.filter((l) => Number(l.lender_status) === 1).length;
+        const summary = $('entornoResumen');
+        if (summary) {
+          summary.textContent = ls.length
+            ? (activeOnes ? `${activeOnes} de ${ls.length} entidad(es) activas` : `⚠ ninguna de las ${ls.length} entidades está activa — el listado va a salir vacío`)
             : '⚠ esta sucursal no tiene entidades vinculadas';
-          resumen.style.color = activas ? '' : 'var(--warn)';
+          summary.style.color = activeOnes ? '' : 'var(--warn)';
         }
         mockPA = r.mockPA !== false;   // lo decide E2E_REAL_PREAPPROVALS por target, no el panel
         applyMockPAGate();             // con MS real "Espera pre-aprobados" no aplica → se oculta (como los estados por lender)
-        lendersDelComercio = ls;   // el mapa de tren dibuja los ramales según el rt de estos
-        loadCanales();             // qué canales de entrada aplican a ESTA sucursal (no bloquea el render)
-        renderTren();
-        loadEstado();
-      setTimeout(seguirCorridaEnMapa, 0);   // el mapa se redibujó: volver a marcar dónde va
+        merchantLenders = ls;   // el mapa de tren dibuja los ramales según el rt de estos
+        loadChannels();             // qué canales de entrada aplican a ESTA sucursal (no bloquea el render)
+        renderTrain();
+        loadStatus();
+      setTimeout(followRunOnMap, 0);   // el mapa se redibujó: volver a marcar dónde va
         if (!ls.length) { box.innerHTML = '<p style="color:var(--mut);font-size:12px;margin:0">Sin lenders (¿branch en .flows.json?).</p>'; return; }
         box.innerHTML = '';
         for (const l of ls) {
@@ -2148,7 +2148,7 @@
           // chip de rt = la CONDUCTA del lender (rt2 in-platform · rt1 integración externa · rt0 estándar)
           // Sólo existen tres productos (medido: credit 157 · rto 3 · renting 2). Lo que no esté acá
           // cae a «·» y el tooltip lo dice — `lenders.product` no existe en todos los ambientes.
-          const PRODUCTO = { credit: ['C', 'credit'], renting: ['R', 'renting'], rto: ['RO', 'rent to own'] };
+          const PRODUCT = { credit: ['C', 'credit'], renting: ['R', 'renting'], rto: ['RO', 'rent to own'] };
           // ⚠ 3 y 4 SIN etiqueta a propósito: existen (rt4 son 2 lenders, Credifamilia) pero no tengo un
           // nombre verificado para ellos, y el tooltip cae a «response_type 4», que es cierto. Antes el
           // 3 decía «rt3» —repetir el número no es una etiqueta— y el 4 no estaba: salía con un espacio
@@ -2163,7 +2163,7 @@
           row.className = 'lrow' + (on ? '' : ' off');
           row.tabIndex = 0;   // el menú tiene que alcanzarse sin mouse: Enter o la tecla de menú
           const pa = paStatus[l.id] || 'approved';
-          const usaPa = Number(l.rt) !== 0 && mockPA;
+          const usesPa = Number(l.rt) !== 0 && mockPA;
 
           // ⚠ TODO LO LARGO PASA A TOOLTIP. Un sidebar de 300 px no aguanta «#170 · rto» + «rt2
           // in-platform» al lado de un nombre: la fila se salía y el chip quedaba cortado contra el
@@ -2172,7 +2172,7 @@
           // leyenda es una sola para las dos vistas; el `rt` queda en el número pelado. El texto entero
           // vive en el `title` de cada uno.
           const esc = (v) => String(v ?? '').replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;');
-          const [ini, prodTxt] = PRODUCTO[l.product] || ['\u00b7', l.product ? String(l.product) : 'sin product en este ambiente'];
+          const [ini, prodTxt] = PRODUCT[l.product] || ['\u00b7', l.product ? String(l.product) : 'sin product en este ambiente'];
           const rtTxt = `response_type ${l.rt}` + (RT[l.rt] ? ` \u00b7 ${RT[l.rt]}` : '');
           // ── los dos controles de la fila ────────────────────────────────────────────────────────
           // ⚠ NO SON LO MISMO, y por eso no se comportan igual:
@@ -2189,18 +2189,18 @@
             + `<span class="rtc rt${l.rt}" title="${esc(rtTxt)}">rt${l.rt}</span>`;
 
           const bPa = document.createElement('button');
-          bPa.className = 'pa pa-' + (usaPa ? pa : 'na');
-          bPa.textContent = usaPa ? PA_LETRA[pa] : '–';
+          bPa.className = 'pa pa-' + (usesPa ? pa : 'na');
+          bPa.textContent = usesPa ? PA_LETTER[pa] : '–';
           bPa.draggable = false;
-          bPa.disabled = !usaPa;
+          bPa.disabled = !usesPa;
           // El tooltip dice el estado Y qué hace el click: «Aprobado» solo no explica para qué apretarlo.
-          bPa.title = tituloPa(pa, usaPa, l.rt);
+          bPa.title = paTitle(pa, usesPa, l.rt);
           bPa.onclick = (ev) => {
             ev.stopPropagation();
             // En el lugar: `paStatus` es estado del cliente y `savePaStatuses()` lo persiste. Pedir la
             // lista de nuevo no traería nada distinto y cuesta un parpadeo.
-            paStatus[l.id] = PA_CICLO[(PA_CICLO.indexOf(paStatus[l.id] || 'approved') + 1) % 3];
-            savePaStatuses(); pintarEntidad(l.id);
+            paStatus[l.id] = PA_CYCLE[(PA_CYCLE.indexOf(paStatus[l.id] || 'approved') + 1) % 3];
+            savePaStatuses(); paintEntity(l.id);
           };
           row.appendChild(bPa);
 
@@ -2211,7 +2211,7 @@
           sw.setAttribute('role', 'switch');
           sw.setAttribute('aria-checked', String(on));
           sw.draggable = false;
-          sw.title = tituloSwitch(on);
+          sw.title = switchTitle(on);
           sw.onclick = (ev) => {
             ev.stopPropagation();
             // ⚠ EL ESTADO SE LEE AL CLICKEAR, NO SE CAPTURA AL RENDERIZAR. Con el repintado en el lugar
@@ -2219,20 +2219,20 @@
             // click mandaba el mismo valor que el primero y el switch se veía trabado. Medido el
             // 2026-09-18 — apagar y volver a encender dejaba la entidad apagada. Es el costo de repintar
             // en vez de re-renderizar, y se paga acá: la verdad vive en `lendersDelComercio`.
-            const actual = Number((lendersDelComercio.find((x) => Number(x.id) === Number(l.id)) || {}).lender_status) === 1;
-            if (TARGET_COMPARTIDO.has(target)
+            const actual = Number((merchantLenders.find((x) => Number(x.id) === Number(l.id)) || {}).lender_status) === 1;
+            if (SHARED_TARGET.has(target)
               && !confirm(`${actual ? 'Apagar' : 'Encender'} «${l.name}» en ${target.toUpperCase()}.\n\n`
                 + 'Es el estado GLOBAL del lender: afecta todas las sucursales de ese ambiente, lo ve el '
                 + 'resto del equipo y se conserva después de la corrida.')) return;
             toggleLender(l.id, !actual);
           };
           row.appendChild(sw);
-          row.oncontextmenu = (e) => { e.preventDefault(); abrirMenuEntidad(e.clientX, e.clientY, l, row); };
+          row.oncontextmenu = (e) => { e.preventDefault(); openEntityMenu(e.clientX, e.clientY, l, row); };
           row.onkeydown = (e) => {
             if (e.key === 'ContextMenu' || (e.key === 'Enter' && e.target === row)) {
               e.preventDefault();
               const r = row.getBoundingClientRect();
-              abrirMenuEntidad(r.left + 24, r.bottom, l, row);
+              openEntityMenu(r.left + 24, r.bottom, l, row);
             }
           };
           box.appendChild(row);
@@ -2246,29 +2246,29 @@
     // ⚠ NO REIMPLEMENTA NADA: llama a `savePaStatuses()` y a `toggleLender()`, que son los mismos que
     // usaban el `<select>` y el botón. Tener dos caminos que escriben lo mismo es como empiezan a
     // divergir — y uno de los dos siempre se olvida de redibujar el mapa.
-    const PA_ETIQUETA = { approved: 'aprobado', rejected: 'rechazado', pending: 'pendiente' };
-    const PA_CICLO = ['approved', 'pending', 'rejected'];
-    const PA_LETRA = { approved: 'A', pending: 'P', rejected: 'R' };
+    const PA_LABEL = { approved: 'aprobado', rejected: 'rechazado', pending: 'pendiente' };
+    const PA_CYCLE = ['approved', 'pending', 'rejected'];
+    const PA_LETTER = { approved: 'A', pending: 'P', rejected: 'R' };
 
     /** El tooltip del A/P/R: dice el estado Y qué hace el SIGUIENTE click. */
-    const tituloPa = (pa, usaPa, rt) => usaPa
-      ? `Pre-aprobación simulada: ${PA_ETIQUETA[pa]} — clic para pasar a ${PA_ETIQUETA[PA_CICLO[(PA_CICLO.indexOf(pa) + 1) % 3]]}`
+    const paTitle = (pa, usesPa, rt) => usesPa
+      ? `Pre-aprobación simulada: ${PA_LABEL[pa]} — clic para pasar a ${PA_LABEL[PA_CYCLE[(PA_CYCLE.indexOf(pa) + 1) % 3]]}`
       : (Number(rt) === 0 ? 'rt=0 no consulta pre-aprobación: no hay nada que dictar'
                           : 'este target usa el microservicio real: el mock no decide');
-    const tituloSwitch = (on) => (on ? 'Encendida' : 'Apagada') + ' — estado GLOBAL del lender en ' + target
-      + (TARGET_COMPARTIDO.has(target) ? ' (ambiente COMPARTIDO: va a pedir confirmación)' : '');
+    const switchTitle = (on) => (on ? 'Encendida' : 'Apagada') + ' — estado GLOBAL del lender en ' + target
+      + (SHARED_TARGET.has(target) ? ' (ambiente COMPARTIDO: va a pedir confirmación)' : '');
 
     /** El resumen de la sección, recalculado sin volver a pedir nada al servidor. */
-    function resumenEntidades() {
-      const ls = lendersDelComercio || [];
-      const activas = ls.filter((l) => Number(l.lender_status) === 1).length;
+    function entitiesSummary() {
+      const ls = merchantLenders || [];
+      const activeOnes = ls.filter((l) => Number(l.lender_status) === 1).length;
       const r = $('entornoResumen');
       if (!r) return;
       r.textContent = ls.length
-        ? (activas ? `${activas} de ${ls.length} entidad(es) activas`
+        ? (activeOnes ? `${activeOnes} de ${ls.length} entidad(es) activas`
                    : `⚠ ninguna de las ${ls.length} entidades está activa — el listado va a salir vacío`)
         : '⚠ esta sucursal no tiene entidades vinculadas';
-      r.style.color = activas ? '' : 'var(--warn)';
+      r.style.color = activeOnes ? '' : 'var(--warn)';
     }
 
     /**
@@ -2281,27 +2281,27 @@
      * en `paStatus`. Lo único que además hay que refrescar es el mapa (lo hace `toggleLender`) y el
      * resumen de la sección (`resumenEntidades`).
      */
-    function pintarEntidad(id) {
-      const l = (lendersDelComercio || []).find((x) => Number(x.id) === Number(id));
-      const fila = document.querySelector(`#lenderslist .lrow[data-id="${id}"]`);
-      if (!l || !fila) return;
+    function paintEntity(id) {
+      const l = (merchantLenders || []).find((x) => Number(x.id) === Number(id));
+      const rowEl = document.querySelector(`#lenderslist .lrow[data-id="${id}"]`);
+      if (!l || !rowEl) return;
       const on = Number(l.lender_status) === 1;
-      const usaPa = Number(l.rt) !== 0 && mockPA;
+      const usesPa = Number(l.rt) !== 0 && mockPA;
       const pa = paStatus[l.id] || 'approved';
-      fila.classList.toggle('off', !on);
-      const sw = fila.querySelector('.switch');
-      if (sw) { sw.classList.toggle('on', on); sw.setAttribute('aria-checked', String(on)); sw.title = tituloSwitch(on); }
-      const bPa = fila.querySelector('.pa');
+      rowEl.classList.toggle('off', !on);
+      const sw = rowEl.querySelector('.switch');
+      if (sw) { sw.classList.toggle('on', on); sw.setAttribute('aria-checked', String(on)); sw.title = switchTitle(on); }
+      const bPa = rowEl.querySelector('.pa');
       if (bPa) {
-        bPa.className = 'pa pa-' + (usaPa ? pa : 'na');
-        bPa.textContent = usaPa ? PA_LETRA[pa] : '–';
-        bPa.title = tituloPa(pa, usaPa, l.rt);
+        bPa.className = 'pa pa-' + (usesPa ? pa : 'na');
+        bPa.textContent = usesPa ? PA_LETTER[pa] : '–';
+        bPa.title = paTitle(pa, usesPa, l.rt);
       }
-      resumenEntidades();
+      entitiesSummary();
     }
     /** Los ambientes donde apagar una entidad lo ve el resto del equipo: dev, staging y qa
      *  comparten la MISMA base (`inertia-dev`), así que el toggle ahí no es un experimento tuyo. */
-    const TARGET_COMPARTIDO = new Set(['dev', 'staging', 'qa']);
+    const SHARED_TARGET = new Set(['dev', 'staging', 'qa']);
 
     // ══ MENÚS DEL HEADER ══════════════════════════════════════════════════════════════════════
     // Entorno y Canal dejaron de ser dos tiras de pastillas al lado del título. El header tenía cuatro
@@ -2316,14 +2316,14 @@
     // ⚠ CADA NODO PRESTADO VUELVE A SU CASA, y hay que anotarla ANTES de moverlo por primera vez: si
     // los tres volvieran al mismo lugar, `#fronthint` terminaría dentro del campo del canal y la pista
     // del front aparecería bajo el rótulo equivocado — sin romper nada, que es lo peor.
-    const CASA = new Map(), CLASE_ORIGINAL = new Map();
+    const HOME = new Map(), ORIGINAL_CLASS = new Map();
     for (const id of ['fronthint', 'canalhint', 'stephint', 'healthDetails']) {
       const n = document.getElementById(id);
-      if (n) { CASA.set(id, n.parentElement); CLASE_ORIGINAL.set(id, n.className); }
+      if (n) { HOME.set(id, n.parentElement); ORIGINAL_CLASS.set(id, n.className); }
     }
 
     /** Los ítems de un menú, derivados de un grupo de botones que ya existe. */
-    function itemsDeBotones(selector) {
+    function buttonItems(selector) {
       return [...document.querySelectorAll(selector)].map((b) => ({
         txt: (b.textContent || '').trim(),
         activo: b.classList.contains('on'),
@@ -2334,17 +2334,17 @@
     }
 
     /** Arma el contenedor de un menú y lo ubica sin que se salga de la pantalla. */
-    function montarMenu(nodo, x, y, alineDerecha = false) {
-      document.body.appendChild(nodo);
-      const r = nodo.getBoundingClientRect();
-      const px = alineDerecha ? x - r.width : x;
-      nodo.style.left = Math.max(4, Math.min(px, window.innerWidth - r.width - 6)) + 'px';
-      nodo.style.top = Math.max(4, Math.min(y, window.innerHeight - r.height - 6)) + 'px';
+    function mountMenu(node, x, y, alignRight = false) {
+      document.body.appendChild(node);
+      const r = node.getBoundingClientRect();
+      const px = alignRight ? x - r.width : x;
+      node.style.left = Math.max(4, Math.min(px, window.innerWidth - r.width - 6)) + 'px';
+      node.style.top = Math.max(4, Math.min(y, window.innerHeight - r.height - 6)) + 'px';
       setTimeout(() => {
-        document.addEventListener('pointerdown', cerrarSiEsAfuera, true);
+        document.addEventListener('pointerdown', closeIfOutside, true);
         document.addEventListener('keydown', escMenu, true);
       }, 0);
-      nodo.addEventListener('pointerdown', (e) => e.stopPropagation());
+      node.addEventListener('pointerdown', (e) => e.stopPropagation());
     }
 
     function itemMenu(m, it) {
@@ -2354,13 +2354,13 @@
       b.disabled = !!it.off;
       if (it.motivo) b.title = it.motivo;
       b.innerHTML = `<span class="ctxtick">${it.activo ? '✓' : ''}</span><span>${it.txt}</span>`;
-      b.onclick = () => { cerrarMenuEntidad(); it.accion(); };
+      b.onclick = () => { closeEntityMenu(); it.accion(); };
       m.appendChild(b);
       return b;
     }
 
     function menuBase(id) {
-      cerrarMenuEntidad();
+      closeEntityMenu();
       const m = document.createElement('div');
       m.className = 'ctxmenu';
       m.id = id;
@@ -2368,17 +2368,17 @@
       return m;
     }
 
-    function rotulo(m, txt) {
+    function caption(m, txt) {
       const t = document.createElement('div'); t.className = 'ctxlbl'; t.textContent = txt; m.appendChild(t); return t;
     }
 
-    function abrirMenuEntorno(ancla) {
+    function openEnvironmentMenu(anchor) {
       const m = menuBase('ctxEntidad');
-      rotulo(m, 'Ambiente');
-      for (const it of itemsDeBotones('#targets .pill:not(.admin-btn)')) itemMenu(m, it);
+      caption(m, 'Ambiente');
+      for (const it of buttonItems('#targets .pill:not(.admin-btn)')) itemMenu(m, it);
       const sep = document.createElement('div'); sep.className = 'ctxsep'; m.appendChild(sep);
-      rotulo(m, 'Frontend');
-      for (const it of itemsDeBotones('#frontmode button')) itemMenu(m, it);
+      caption(m, 'Frontend');
+      for (const it of buttonItems('#frontmode button')) itemMenu(m, it);
       // La pista del front se MUEVE acá: es la explicación de lo que acabás de elegir, y en el header
       // no entra (se recortaba a 22 caracteres).
       const hint = $('fronthint');
@@ -2386,31 +2386,31 @@
       const sep2 = document.createElement('div'); sep2.className = 'ctxsep'; m.appendChild(sep2);
       itemMenu(m, { txt: 'Abrir el admin ↗', activo: false, off: !!$('btn-admin')?.disabled,
         motivo: $('btn-admin')?.title || '', accion: () => $('btn-admin').click() });
-      const r = ancla.getBoundingClientRect();
-      montarMenu(m, r.left, r.bottom + 4);
+      const r = anchor.getBoundingClientRect();
+      mountMenu(m, r.left, r.bottom + 4);
     }
 
-    function abrirMenuCanal(ancla) {
+    function openChannelMenu(anchor) {
       const m = menuBase('ctxEntidad');
-      rotulo(m, 'Canal de entrada');
-      for (const it of itemsDeBotones('#canal button')) itemMenu(m, it);
+      caption(m, 'Canal de entrada');
+      for (const it of buttonItems('#canal button')) itemMenu(m, it);
       const hint = $('canalhint');
       if (hint) { hint.className = 'ctxnota'; m.appendChild(hint); }
-      const r = ancla.getBoundingClientRect();
-      montarMenu(m, r.left, r.bottom + 4);
+      const r = anchor.getBoundingClientRect();
+      mountMenu(m, r.left, r.bottom + 4);
     }
 
-    function abrirSalud(ancla) {
+    function openHealth(anchor) {
       const m = menuBase('ctxEntidad');
       m.classList.add('ctxsalud');
-      const caja = $('healthDetails');
-      if (caja) { caja.open = true; m.appendChild(caja); }
-      const r = ancla.getBoundingClientRect();
-      montarMenu(m, r.right, r.bottom + 4, true);
+      const boxEl = $('healthDetails');
+      if (boxEl) { boxEl.open = true; m.appendChild(boxEl); }
+      const r = anchor.getBoundingClientRect();
+      mountMenu(m, r.right, r.bottom + 4, true);
     }
 
     /** El header refleja lo elegido. Se llama desde donde ya se aplica cada cosa, no en un timer. */
-    function sincronizarHeader() {
+    function syncHeader() {
       const act = (sel2) => [...document.querySelectorAll(sel2)].find((b) => b.classList.contains('on'));
       const t = act('#targets .pill:not(.admin-btn)');
       if (t) $('valEntorno').textContent = (t.textContent || '').trim();
@@ -2424,7 +2424,7 @@
       }
     }
 
-    function cerrarMenuEntidad() {
+    function closeEntityMenu() {
       const m = $('ctxEntidad');
       // ⚠ DEVOLVER LO PRESTADO ANTES DE BORRAR: los menús del header MUEVEN nodos que viven en otro
       // lado (`#fronthint`, `#canalhint`, `#healthDetails`). Si el menú se remueve con ellos adentro,
@@ -2432,14 +2432,14 @@
       if (m) {
         for (const id of ['fronthint', 'canalhint', 'stephint', 'healthDetails']) {
           const n = m.querySelector('#' + id);
-          if (n) { n.className = CLASE_ORIGINAL.get(id) ?? ''; (CASA.get(id) || document.body).appendChild(n); }
+          if (n) { n.className = ORIGINAL_CLASS.get(id) ?? ''; (HOME.get(id) || document.body).appendChild(n); }
         }
         m.remove();
       }
-      document.removeEventListener('pointerdown', cerrarSiEsAfuera, true);
+      document.removeEventListener('pointerdown', closeIfOutside, true);
       document.removeEventListener('keydown', escMenu, true);
     }
-    function escMenu(e) { if (e.key === 'Escape') { e.preventDefault(); cerrarMenuEntidad(); } }
+    function escMenu(e) { if (e.key === 'Escape') { e.preventDefault(); closeEntityMenu(); } }
 
     /**
      * ⚠⚠ EL CIERRE POR CLICK-AFUERA TIENE QUE PREGUNTAR SI FUE AFUERA. Antes se registraba
@@ -2456,18 +2456,18 @@
      * mouse. Para un menú, la prueba tiene que despachar la secuencia real (pointerdown → pointerup →
      * click) o mover el mouse de verdad.
      */
-    function cerrarSiEsAfuera(e) {
+    function closeIfOutside(e) {
       const m = $('ctxEntidad');
       if (m && m.contains(e.target)) return;
-      cerrarMenuEntidad();
+      closeEntityMenu();
     }
 
-    function abrirMenuEntidad(x, y, l, row) {
-      cerrarMenuEntidad();
-      if (corridaRunning) return;   // con la corrida andando la configuración no se toca (igual que el resto)
+    function openEntityMenu(x, y, l, row) {
+      closeEntityMenu();
+      if (runRunning) return;   // con la corrida andando la configuración no se toca (igual que el resto)
 
       const on = Number(l.lender_status) === 1;
-      const usaPa = Number(l.rt) !== 0 && mockPA;
+      const usesPa = Number(l.rt) !== 0 && mockPA;
       const pa = paStatus[l.id] || 'approved';
 
       const m = document.createElement('div');
@@ -2480,17 +2480,17 @@
       cab.textContent = `${l.name}  ·  #${l.id}`;
       m.appendChild(cab);
 
-      const item = (txt, activo, accion, cls = '') => {
+      const item = (txt, active, action, cls = '') => {
         const b = document.createElement('button');
-        b.className = 'ctxitem ' + cls + (activo ? ' on' : '');
+        b.className = 'ctxitem ' + cls + (active ? ' on' : '');
         b.setAttribute('role', 'menuitem');
-        b.innerHTML = `<span class="ctxtick">${activo ? '✓' : ''}</span><span>${txt}</span>`;
-        b.onclick = () => { cerrarMenuEntidad(); accion(); };
+        b.innerHTML = `<span class="ctxtick">${active ? '✓' : ''}</span><span>${txt}</span>`;
+        b.onclick = () => { closeEntityMenu(); action(); };
         m.appendChild(b);
         return b;
       };
 
-      if (usaPa) {
+      if (usesPa) {
         const t = document.createElement('div');
         t.className = 'ctxlbl';
         t.textContent = 'Respuesta del mock de pre-aprobación';
@@ -2527,7 +2527,7 @@
 
       // `true` (captura) para cerrarlo antes de que el click llegue a nada de abajo.
       setTimeout(() => {
-        document.addEventListener('pointerdown', cerrarSiEsAfuera, true);
+        document.addEventListener('pointerdown', closeIfOutside, true);
         document.addEventListener('keydown', escMenu, true);
       }, 0);
       m.addEventListener('pointerdown', (e) => e.stopPropagation());
@@ -2541,9 +2541,9 @@
         const r = await (await fetch('/api/lender-toggle', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ slug: sel.slug, target, lenderId: id, status }) })).json();
         if (r && r.ok) {
           // el mapa de arriba dibuja solo los carriles con entidades prendidas → hay que redibujarlo
-          const l = lendersDelComercio.find(x => Number(x.id) === Number(id));
-          if (l) { l.lender_status = status ? 1 : 0; renderTren(); }
-          pintarEntidad(id);
+          const l = merchantLenders.find(x => Number(x.id) === Number(id));
+          if (l) { l.lender_status = status ? 1 : 0; renderTrain(); }
+          paintEntity(id);
         }
         else alert((r && r.msg) || 'no se pudo togglear');
       } catch { alert('error de red'); }
@@ -2573,12 +2573,12 @@
     // ── TARJETAS DE ESTADO ──────────────────────────────────────────────────────────────────────
     // Responden "¿está el harness listo para correr?" antes de que aprietes Lanzar. Se refrescan al
     // cambiar de comercio y al terminar una corrida.
-    async function loadEstado() {
+    async function loadStatus() {
       const requestedTarget = target, requestedSlug = sel?.slug;
       let e = null;
       // Puerto → cómo se levanta. Va acá porque el momento en que hace falta el comando es
       // EXACTAMENTE éste: viendo que falta, sin ir a buscarlo a otro lado.
-      const COMANDO = {
+      const COMMAND = {
         8095: 'bin/mock-preapprovals start', 8096: 'bin/mock-redirect start',
         8097: 'bin/mock-payvalida start',    8098: 'bin/mock-mdm start',
         8099: 'bin/mock-lenders start',      8100: 'bin/mock-pdf-mapper start',
@@ -2610,10 +2610,10 @@
       // 1 · target: es lo primero que hay que saber, porque todo lo que NO es local escribe data
       //     COMPARTIDA. staging usa la MISMA BD que dev (solo su frontend es propio), así que va en
       //     rojo igual — mostrarlo como "sin riesgo" sería mentir sobre a qué base le estás escribiendo.
-      const compartido = target !== 'local';
-      out.push(card(compartido ? 'st-warn' : 'st-ok', compartido ? '⚠' : '🖥',
+      const shared = target !== 'local';
+      out.push(card(shared ? 'st-warn' : 'st-ok', shared ? '⚠' : '🖥',
         'Entorno', target,
-        compartido
+        shared
           ? (target === 'staging' ? 'front de staging · BD <b>compartida</b> (la de dev)' : 'data <b>compartida</b> con el equipo')
           : 'BD local en Docker · sin riesgo'));
 
@@ -2624,33 +2624,33 @@
         // lo que importa es si falta alguno de los que ESTE comercio necesita. Y faltando uno, el
         // flujo no avisa que falta un mock — devuelve un estado 28 con un mensaje que culpa al
         // proveedor (F-165), y eso se depura como si fuera del negocio.
-        const rts = new Set(lendersDelComercio.filter(l => Number(l.lender_status) === 1).map(l => Number(l.rt)));
+        const rts = new Set(merchantLenders.filter(l => Number(l.lender_status) === 1).map(l => Number(l.rt)));
         const nom = (sel?.name || '');
-        const necesita = (para) => para === 'todos' || para === 'documentos'
-          || (para === 'rt4' && rts.has(4)) || (para === 'rt1' && rts.has(1))
-          || (para === 'rt0-rt1' && (rts.has(0) || rts.has(1)))
-          || (para === 'motai' && /motai/i.test(nom))
-          || (para === 'smartpay' && /celurd|smartpay/i.test(nom));
+        const needs = (forValue) => forValue === 'todos' || forValue === 'documentos'
+          || (forValue === 'rt4' && rts.has(4)) || (forValue === 'rt1' && rts.has(1))
+          || (forValue === 'rt0-rt1' && (rts.has(0) || rts.has(1)))
+          || (forValue === 'motai' && /motai/i.test(nom))
+          || (forValue === 'smartpay' && /celurd|smartpay/i.test(nom));
         const up = e.mocks.filter(m => m.arriba);
         const down = e.mocks.filter(m => !m.arriba);
-        const criticos = down.filter(m => necesita(m.para));
-        $('healthSummary').textContent = criticos.length ? `Falta iniciar: ${criticos.map(m => m.nombre).join(', ')}` : 'Servicios necesarios disponibles';
+        const critical = down.filter(m => needs(m.para));
+        $('healthSummary').textContent = critical.length ? `Falta iniciar: ${critical.map(m => m.nombre).join(', ')}` : 'Servicios necesarios disponibles';
         // El mismo dato, en el header: es lo que decide si una corrida puede cerrar, así que no puede
         // vivir sólo dentro de un plegable.
-        $('saludTxt').textContent = criticos.length
-          ? (criticos.length === 1 ? `falta ${criticos[0].nombre}` : `faltan ${criticos.length} servicios`)
+        $('saludTxt').textContent = critical.length
+          ? (critical.length === 1 ? `falta ${critical[0].nombre}` : `faltan ${critical.length} servicios`)
           : 'servicios ok';
-        $('saludDot').className = 'sdotx ' + (criticos.length ? 'mal' : 'bien');
-        $('btnSalud').title = criticos.length
-          ? `Falta iniciar: ${criticos.map(m => m.nombre).join(', ')} — clic para ver los comandos`
+        $('saludDot').className = 'sdotx ' + (critical.length ? 'mal' : 'bien');
+        $('btnSalud').title = critical.length
+          ? `Falta iniciar: ${critical.map(m => m.nombre).join(', ')} — clic para ver los comandos`
           : 'Todos los servicios necesarios responden';
-        $('healthDetails').classList.toggle('needs-attention', criticos.length > 0);
-        if (criticos.length) {
-          $('readinessLink').textContent = `Falta iniciar ${criticos.length === 1 ? criticos[0].nombre : `${criticos.length} servicios`} · ver comandos`;
-          $('readinessLink').hidden = corridaRunning;
+        $('healthDetails').classList.toggle('needs-attention', critical.length > 0);
+        if (critical.length) {
+          $('readinessLink').textContent = `Falta iniciar ${critical.length === 1 ? critical[0].nombre : `${critical.length} servicios`} · ver comandos`;
+          $('readinessLink').hidden = runRunning;
         }
-        for (const mock of criticos) {
-          const command = COMANDO[mock.puerto];
+        for (const mock of critical) {
+          const command = COMMAND[mock.puerto];
           const row = document.createElement('div'); row.className = 'dependency';
           const label = document.createElement('span'); label.textContent = mock.nombre;
           const code = document.createElement('code'); code.textContent = command || `Revisá el servicio en el puerto ${mock.puerto}`;
@@ -2665,45 +2665,45 @@
           }
           $('missingServices').append(row);
         }
-        out.push(card(criticos.length ? 'st-bad' : down.length ? 'st-warn' : 'st-ok', '🔌', 'Mocks',
+        out.push(card(critical.length ? 'st-bad' : down.length ? 'st-warn' : 'st-ok', '🔌', 'Mocks',
           `${up.length}/${e.mocks.length}`,
-          criticos.length
-            ? `⚠ falta <b>${criticos.map(m => m.nombre).join(', ')}</b> — esta corrida lo <b>necesita</b>`
+          critical.length
+            ? `⚠ falta <b>${critical.map(m => m.nombre).join(', ')}</b> — esta corrida lo <b>necesita</b>`
             : down.length ? `abajo, pero no hacen falta acá: ${down.map(m => m.nombre).join(', ')}`
                           : 'todos respondiendo',
           e.mocks.map(m => `${m.arriba ? '●' : '○'} ${m.nombre} :${m.puerto}`
-            + (necesita(m.para) ? '  ← esta corrida lo usa' : '')).join('\n')
-          + (criticos.length ? '\n\nLevantalos:\n'
-              + criticos.map(m => '  ' + (COMANDO[m.puerto] || `(puerto ${m.puerto})`)).join('\n') : '')));
+            + (needs(m.para) ? '  ← esta corrida lo usa' : '')).join('\n')
+          + (critical.length ? '\n\nLevantalos:\n'
+              + critical.map(m => '  ' + (COMMAND[m.puerto] || `(puerto ${m.puerto})`)).join('\n') : '')));
       }
 
       // 3 · entidades del comercio elegido: cuántas van a listar de verdad
-      if (sel && lendersDelComercio.length) {
-        const on = lendersDelComercio.filter(l => Number(l.lender_status) === 1);
+      if (sel && merchantLenders.length) {
+        const on = merchantLenders.filter(l => Number(l.lender_status) === 1);
         out.push(card(on.length ? 'st-mut' : 'st-bad', '🏦', 'Entidades',
-          `${on.length}/${lendersDelComercio.length}`,
+          `${on.length}/${merchantLenders.length}`,
           on.length ? `prendidas en <b>${sel.name}</b>` : 'ninguna prendida: el listado sale vacío',
-          lendersDelComercio.map(l => `${Number(l.lender_status) === 1 ? '●' : '○'} ${l.name} rt${l.rt} · ${l.product}`).join('\n')));
+          merchantLenders.map(l => `${Number(l.lender_status) === 1 ? '●' : '○'} ${l.name} rt${l.rt} · ${l.product}`).join('\n')));
       }
 
       // 4 · última corrida: el veredicto contra la BD, no "1 passed"
       const lastBox = $('lastResult');
-      lastBox.hidden = !e?.ultima || corridaRunning;
+      lastBox.hidden = !e?.ultima || runRunning;
       if (e?.ultima) {
-        const malo = [6, 8].includes(Number(e.ultima.estadoId));
-        const cerro = [11, 28, 25].includes(Number(e.ultima.estadoId));
+        const bad = [6, 8].includes(Number(e.ultima.estadoId));
+        const closedIt = [11, 28, 25].includes(Number(e.ultima.estadoId));
         // ⚠ EL 11 NO ES SIEMPRE EL FINAL, Y A VECES MIENTE. La radicación —mandarle el paquete a la
         // entidad— es un paso POSTERIOR que no mueve el estado: si falla, esto queda en «Autorizada»
         // con el crédito jamás enviado (F-168). Cuando la entidad radica, el verde depende de las DOS.
         const rad = e.ultima.radicacion;
-        const radMal = rad && rad !== 'CREDIT_COMPLETED';
-        lastBox.innerHTML = card(malo || radMal ? 'st-bad' : cerro ? 'st-ok' : 'st-mut', '🧾', 'Última evidencia guardada',
+        const radBad = rad && rad !== 'CREDIT_COMPLETED';
+        lastBox.innerHTML = card(bad || radBad ? 'st-bad' : closedIt ? 'st-ok' : 'st-mut', '🧾', 'Última evidencia guardada',
           `#${e.ultima.uReq}`,
           `${e.ultima.estado}${e.ultima.lender ? ` · <b>${e.ultima.lender}</b>` : ''}`
-          + (rad ? (radMal ? ` · ⚠ radicación <b>${rad}</b>` : ' · radicada ✓') : ''),
+          + (rad ? (radBad ? ` · ⚠ radicación <b>${rad}</b>` : ' · radicada ✓') : ''),
           `Del volcado forense que hace el scrub antes de borrar (F-52).\nuReq ${e.ultima.uReq} · estado ${e.ultima.estado}`
           + (rad ? `\nradicación: ${rad}`
-               + (radMal ? '\n⚠ el crédito quedó autorizado pero el paquete NO llegó a la entidad (F-168)'
+               + (radBad ? '\n⚠ el crédito quedó autorizado pero el paquete NO llegó a la entidad (F-168)'
                          : '\nsólo CREDIT_COMPLETED significa que el lender lo recibió') : ''));
       }
 
@@ -2712,25 +2712,25 @@
       // por webhook, a `legacy-application`. Sin este control el panel corre media familia y deja
       // una solicitud colgada que parece un fallo — y son el 46 % y el 34 % del volumen de prod.
       // El receptor es REAL; lo único simulado es la entidad que llama (F-170/F-171).
-      const esperando = !corridaRunning && e?.ultima && Number(e.ultima.estadoId) === 3 && e.ultima.lenderId;
-      const zona = $('webhookZona');
-      if (zona) {
-        if (!esperando) { zona.style.display = 'none'; zona.innerHTML = ''; }
+      const waiting = !runRunning && e?.ultima && Number(e.ultima.estadoId) === 3 && e.ultima.lenderId;
+      const zone = $('webhookZona');
+      if (zone) {
+        if (!waiting) { zone.style.display = 'none'; zone.innerHTML = ''; }
         else {
           const rt = Number(e.ultima.lenderRt);
           const ops = rt === 0
             ? [['completed', 'aprueba'], ['failed', 'niega'], ['cancelled', 'no terminó']]
             : [['fulfilled', 'aprueba'], ['pendiente_desembolso', 'aprueba, sin desembolsar'],
                ['rejected', 'niega'], ['dismissed', 'descarta']];
-          zona.style.display = '';
-          zona.innerHTML = `<div class="wh-t">La solicitud <b>#${e.ultima.uReq}</b> quedó en <b>3 · esperando a `
+          zone.style.display = '';
+          zone.innerHTML = `<div class="wh-t">La solicitud <b>#${e.ultima.uReq}</b> quedó en <b>3 · esperando a `
             + `${e.ultima.lender || 'la entidad'}</b>. Su desenlace llega por webhook — respondelo:</div>`
             + `<div class="wh-b">` + ops.map(([v, t]) =>
                 `<button data-wh="${v}" title="la entidad responde «${v}»">${t}</button>`).join('') + `</div>`
             + `<div class="wh-n">⚠ lo aplica <b>legacy-application</b>, no legacy-backend — acá el receptor `
             + `es real y lo simulado es la entidad que llama</div><div class="wh-r"></div>`;
-          zona.querySelectorAll('[data-wh]').forEach(b => b.onclick = async () => {
-            const out = zona.querySelector('.wh-r');
+          zone.querySelectorAll('[data-wh]').forEach(b => b.onclick = async () => {
+            const out = zone.querySelector('.wh-r');
             out.textContent = '⏳ disparando…';
             try {
               const r = await (await fetch('/api/entity-webhook', {
@@ -2739,7 +2739,7 @@
               })).json();
               out.innerHTML = r.ok ? `↩ ${r.detalle}` : `⚠ ${r.detalle}`;
               out.className = 'wh-r ' + (r.ok ? 'ok' : 'mal');
-              if (r.ok) loadEstado();
+              if (r.ok) loadStatus();
             } catch (err) { out.textContent = '⚠ ' + err.message; out.className = 'wh-r mal'; }
           });
         }
@@ -2785,7 +2785,7 @@
 
     async function loadSteps() {
       try { STEPS = await (await fetch('/api/steps')).json(); } catch { STEPS = null; }
-      renderTren();
+      renderTrain();
     }
 
     // ── Recorrido del wizard · grafo de git HORIZONTAL ───────────────────────────────────────────
@@ -2815,14 +2815,14 @@
       if (txt != null) n.textContent = txt;
       return n;
     };
-    const corto = (t, n) => (t && t.length > n ? t.slice(0, n - 1) + '…' : t || '');
+    const short = (t, n) => (t && t.length > n ? t.slice(0, n - 1) + '…' : t || '');
 
     // curva en S horizontal: sale y entra HORIZONTAL en cada extremo (tiradores en x), que es lo que
     // le da el trazo limpio del grafo de git en vez del efecto "resorte" de una bezier libre.
-    const curva = (x1, y1, x2, y2) => { const k = Math.max(26, (x2 - x1) * 0.45); return `M ${x1} ${y1} C ${x1 + k} ${y1}, ${x2 - k} ${y2}, ${x2} ${y2}`; };
-    const riel = (d, color) => el('path', { d, stroke: color, 'stroke-width': 6, 'stroke-linecap': 'round', fill: 'none' });
+    const curve = (x1, y1, x2, y2) => { const k = Math.max(26, (x2 - x1) * 0.45); return `M ${x1} ${y1} C ${x1 + k} ${y1}, ${x2 - k} ${y2}, ${x2} ${y2}`; };
+    const rail = (d, color) => el('path', { d, stroke: color, 'stroke-width': 6, 'stroke-linecap': 'round', fill: 'none' });
 
-    function nodoSVG(p, x, y, color) {
+    function nodeSVG(p, x, y, color) {
       const g = el('g', { class: 'nodo', 'data-paso': p.id || '', transform: `translate(${x},${y})` });
       const nf = (p.front || []).length, nb = (p.back || []).length;
       const files = [...(p.front || []).map(f => 'front  ' + f), ...(p.back || []).map(f => 'back   ' + f)];
@@ -2839,11 +2839,11 @@
       return g;
     }
 
-    function renderTren() {
-      const box = $('tren'), cam = $('trencam');
+    function renderTrain() {
+      const box = $('tren'), camValue = $('trencam');
       // ⚠ `hidden`, NO `style.display`: el centro necesita que el CSS decida el display (flex, para que
       // el lienzo llene la zona) y una declaración inline le gana a la hoja de estilos siempre.
-      if (!STEPS || !sel || !STEPS.tronco?.length || !cam) { if (box) box.hidden = true; return; }
+      if (!STEPS || !sel || !STEPS.tronco?.length || !camValue) { if (box) box.hidden = true; return; }
       box.hidden = false;
       const ch = STEPS.chequeo || {};
 
@@ -2852,10 +2852,10 @@
       // si esa entidad hoy lista. Ese estado se muestra como anotación (y el carril atenuado), no como
       // una diferencia estructural — antes el mismo comercio dibujaba mapas distintos según el
       // ambiente y parecía que la lógica cambiaba.
-      const todos = lendersDelComercio;
-      const apagado = (l) => Number(l.lender_status) !== 1;
-      const nombra = (l) => l.name + (apagado(l) ? ' (apagado)' : '');
-      const cumpleL = (l, req) => !req || Object.entries(req).every(([k, v]) =>
+      const todos = merchantLenders;
+      const disabled = (l) => Number(l.lender_status) !== 1;
+      const names = (l) => l.name + (disabled(l) ? ' (apagado)' : '');
+      const meetsL = (l, req) => !req || Object.entries(req).every(([k, v]) =>
         Array.isArray(v) ? v.map(String).includes(String(l[k])) : String(l[k]) === String(v));
 
       // En pantalla se avisa SOLO lo que está roto: rutas del mapa que ya no existen. Lo que es NORMAL
@@ -2866,26 +2866,26 @@
       //     por producto y caen todos en un carril `rt2`. Ver F-64 y CLAUDE.md.
       $('trenwarn').textContent = ch.ok === false ? `· ⚠ ${(ch.rotas || []).length} ruta(s) del mapa ya no existen` : '';
 
-      cam.innerHTML = '';
-      const rieles = el('g', {}), nodos = el('g', {});
-      cam.appendChild(rieles); cam.appendChild(nodos);
+      camValue.innerHTML = '';
+      const rails = el('g', {}), nodes = el('g', {});
+      camValue.appendChild(rails); camValue.appendChild(nodes);
 
       // ── TRONCO: común a todos, hasta la oferta ──
       const T = STEPS.tronco, X = (i) => G.x0 + i * G.col, Y0 = G.y0;
       const idxT = {}; T.forEach((p, i) => (idxT[p.id] = i));
-      rieles.appendChild(riel(`M ${X(0)} ${Y0} L ${X(T.length - 1)} ${Y0}`, COLOR.tronco));
-      T.forEach((p, i) => nodos.appendChild(nodoSVG(p, X(i), Y0, COLOR.tronco)));
+      rails.appendChild(rail(`M ${X(0)} ${Y0} L ${X(T.length - 1)} ${Y0}`, COLOR.tronco));
+      T.forEach((p, i) => nodes.appendChild(nodeSVG(p, X(i), Y0, COLOR.tronco)));
 
       // bypass de los pasos condicionales del tronco
       for (const b of STEPS.bypass || []) {
         const a = idxT[b.desde], z = idxT[b.hasta];
         if (a == null || z == null) continue;
         const yb = Y0 + 46;
-        const arco = el('path', { d: `M ${X(a)} ${Y0} C ${X(a) + 40} ${yb}, ${X(z) - 40} ${yb}, ${X(z)} ${Y0}`,
+        const arc = el('path', { d: `M ${X(a)} ${Y0} C ${X(a) + 40} ${yb}, ${X(z) - 40} ${yb}, ${X(z)} ${Y0}`,
           stroke: COLOR.tronco, 'stroke-width': 3, 'stroke-dasharray': '6 6', 'stroke-linecap': 'round', fill: 'none', opacity: .7 });
-        arco.appendChild(el('title', {}, `${b.label}\n\n${b.cuando || ''}`));
-        rieles.appendChild(arco);
-        nodos.appendChild(el('text', { class: 'nquien', x: (X(a) + X(z)) / 2, y: yb + 16, 'text-anchor': 'middle' }, b.label));
+        arc.appendChild(el('title', {}, `${b.label}\n\n${b.cuando || ''}`));
+        rails.appendChild(arc);
+        nodes.appendChild(el('text', { class: 'nquien', x: (X(a) + X(z)) / 2, y: yb + 16, 'text-anchor': 'middle' }, b.label));
       }
 
       // ── UN CARRIL POR CAMINO REAL ────────────────────────────────────────────────────────────────
@@ -2897,101 +2897,101 @@
       // La clave del grupo es el recorrido COMPLETO: rt + producto + qué desvíos y extensiones toma.
       // Si dos entidades difieren en un desvío, recorren distinto y les toca carril propio — que es lo
       // que la versión por-entidad quería preservar, pero sin arrastrar la identidad del lender.
-      const carriles = [];
-      const grupos = new Map();
+      const lanes = [];
+      const groups = new Map();
       for (const l of todos.filter((l) => [2, 3, 4].includes(Number(l.rt)))) {
-        const desvios = Object.entries(STEPS.desvios || {}).filter(([, d]) => cumpleL(l, d.requiere));
-        const exts = Object.entries(STEPS.extensiones || {}).filter(([, e]) => cumpleL(l, e.requiere));
-        const clave = [l.rt, l.product, ...desvios.map(([k]) => 'd:' + k), ...exts.map(([k]) => 'e:' + k)].join('|');
-        if (!grupos.has(clave)) grupos.set(clave, { rt: Number(l.rt), product: l.product, desvios, exts, miembros: [] });
-        grupos.get(clave).miembros.push(l);
+        const deviations = Object.entries(STEPS.desvios || {}).filter(([, d]) => meetsL(l, d.requiere));
+        const exts = Object.entries(STEPS.extensiones || {}).filter(([, e]) => meetsL(l, e.requiere));
+        const key = [l.rt, l.product, ...deviations.map(([k]) => 'd:' + k), ...exts.map(([k]) => 'e:' + k)].join('|');
+        if (!groups.has(key)) groups.set(key, { rt: Number(l.rt), product: l.product, desvios: deviations, exts, miembros: [] });
+        groups.get(key).miembros.push(l);
       }
       // orden estable (rt, producto): sin esto los carriles se reordenan según el orden que devuelva la
       // base de cada ambiente, que es otra forma de que el mismo comercio se vea distinto.
-      for (const g of [...grupos.values()].sort((a, b) => a.rt - b.rt || String(a.product).localeCompare(String(b.product)))) {
-        const pasos = [...(STEPS.ramales.creditopx?.pasos || [])];
+      for (const g of [...groups.values()].sort((a, b) => a.rt - b.rt || String(a.product).localeCompare(String(b.product)))) {
+        const steps = [...(STEPS.ramales.creditopx?.pasos || [])];
         for (const [, d] of g.desvios) {                       // desvíos: salen y REINGRESAN al tronco
-          const at = pasos.findIndex((p) => p.id === d.desde);
-          if (at >= 0) pasos.splice(at + 1, 0, ...d.pasos.map((p) => ({ ...p, _desvio: d.label })));
+          const at = steps.findIndex((p) => p.id === d.desde);
+          if (at >= 0) steps.splice(at + 1, 0, ...d.pasos.map((p) => ({ ...p, _desvio: d.label })));
         }
-        for (const [, e] of g.exts) pasos.push(...e.pasos.map((p) => ({ ...p, _ext: e.label })));
-        carriles.push({
+        for (const [, e] of g.exts) steps.push(...e.pasos.map((p) => ({ ...p, _ext: e.label })));
+        lanes.push({
           label: g.product || `rt${g.rt}`,
-          sub: `rt${g.rt} · ${g.miembros.map(nombra).join(' · ')}`,
+          sub: `rt${g.rt} · ${g.miembros.map(names).join(' · ')}`,
           color: COLOR[g.product] || COLOR['rt' + g.rt] || COLOR.creditopx,
-          off: g.miembros.every(apagado),
-          pasos,
+          off: g.miembros.every(disabled),
+          pasos: steps,
         });
       }
       for (const [rid, rt] of [['agregador', 1], ['redirect', 0]]) {
         const g = todos.filter((l) => Number(l.rt) === rt);
         if (!g.length || !STEPS.ramales?.[rid]) continue;
-        carriles.push({ label: STEPS.ramales[rid].label, sub: g.map(nombra).join(' · '),
-          color: COLOR[rid], off: g.every(apagado), pasos: STEPS.ramales[rid].pasos });
+        lanes.push({ label: STEPS.ramales[rid].label, sub: g.map(names).join(' · '),
+          color: COLOR[rid], off: g.every(disabled), pasos: STEPS.ramales[rid].pasos });
       }
 
-      const aOferta = idxT['lenders'] ?? (T.length - 1);
+      const toOffer = idxT['lenders'] ?? (T.length - 1);
       let maxX = X(T.length - 1), maxY = Y0;
-      carriles.forEach((c, i) => {
-        const y = Y0 + (i + 1) * G.fila, xs = c.pasos.map((_, j) => X(aOferta + 1 + j));
+      lanes.forEach((c, i) => {
+        const y = Y0 + (i + 1) * G.fila, xs = c.pasos.map((_, j) => X(toOffer + 1 + j));
         // Un grupo por carril: si en ESTE ambiente todas sus entidades están apagadas, el carril se
         // atenúa. El recorrido sigue dibujado —la lógica no cambió— pero se ve que hoy no lista.
         const gR = el('g', c.off ? { opacity: .35 } : {}), gN = el('g', c.off ? { opacity: .35 } : {});
-        rieles.appendChild(gR); nodos.appendChild(gN);
-        gR.appendChild(riel(curva(X(aOferta), Y0, xs[0], y), c.color));
-        if (xs.length > 1) gR.appendChild(riel(`M ${xs[0]} ${y} L ${xs[xs.length - 1]} ${y}`, c.color));
-        c.pasos.forEach((p, j) => gN.appendChild(nodoSVG(p, xs[j], y, p._ext ? '#c084fc' : c.color)));
-        const t = el('text', { class: 'nram', x: xs[0], y: y - 26, fill: c.color }, corto(c.label, 22));
+        rails.appendChild(gR); nodes.appendChild(gN);
+        gR.appendChild(rail(curve(X(toOffer), Y0, xs[0], y), c.color));
+        if (xs.length > 1) gR.appendChild(rail(`M ${xs[0]} ${y} L ${xs[xs.length - 1]} ${y}`, c.color));
+        c.pasos.forEach((p, j) => gN.appendChild(nodeSVG(p, xs[j], y, p._ext ? '#c084fc' : c.color)));
+        const t = el('text', { class: 'nram', x: xs[0], y: y - 26, fill: c.color }, short(c.label, 22));
         t.appendChild(el('title', {}, `${c.label}\n${c.sub}${c.off ? '\n\n(todas apagadas en este ambiente: no va a listar)' : ''}`));
         gN.appendChild(t);
-        const s = el('text', { class: 'nquien', x: xs[0], y: y - 13 }, corto(c.sub, 46));
+        const s = el('text', { class: 'nquien', x: xs[0], y: y - 13 }, short(c.sub, 46));
         s.appendChild(el('title', {}, c.sub));   // el sub se trunca: el nombre completo va en el hover
         gN.appendChild(s);
         maxX = Math.max(maxX, xs[xs.length - 1]); maxY = Math.max(maxY, y + 46);
       });
 
-      encuadrar(maxX + 110, Y0 - 40, maxY);
+      frame(maxX + 110, Y0 - 40, maxY);
     }
 
     // ── cámara: arrastrar · rueda = zoom · doble clic = encuadrar ────────────────────────────────
     // Canvas propio y no una librería de grafos: son ~20 nodos en carriles paralelos, o sea posiciones
     // que ya conocemos. Un motor de layout no tendría nada que resolver.
-    const cam = { x: 0, y: 0, k: 1, w: 0, y1: 0, y2: 0 };
-    function aplicarCam() { const g = $('trencam'); if (g) g.setAttribute('transform', `translate(${cam.x},${cam.y}) scale(${cam.k})`); }
+    const camValue = { x: 0, y: 0, k: 1, w: 0, y1: 0, y2: 0 };
+    function applyCam() { const g = $('trencam'); if (g) g.setAttribute('transform', `translate(${camValue.x},${camValue.y}) scale(${camValue.k})`); }
     /** Zoom dejando fijo el punto (mx,my) del viewport. Sin punto → el centro, que es lo que quieren
      *  los botones: con la rueda el ancla natural es el puntero, con un botón no hay puntero. */
-    function zoomEn(f, mx, my) {
+    function zoomIn(f, mx, my) {
       const svg = $('trensvg'); if (!svg) return;
       const r = svg.getBoundingClientRect();
       if (mx == null) { mx = r.width / 2; my = r.height / 2; }
-      const k2 = Math.min(2.2, Math.max(0.35, cam.k * f));
-      cam.x = mx - (mx - cam.x) * (k2 / cam.k);
-      cam.y = my - (my - cam.y) * (k2 / cam.k);
-      cam.k = k2; aplicarCam();
+      const k2 = Math.min(2.2, Math.max(0.35, camValue.k * f));
+      camValue.x = mx - (mx - camValue.x) * (k2 / camValue.k);
+      camValue.y = my - (my - camValue.y) * (k2 / camValue.k);
+      camValue.k = k2; applyCam();
     }
-    function encuadrar(w, y1, y2) {
-      if (w) { cam.w = w; cam.y1 = y1; cam.y2 = y2; }
+    function frame(w, y1, y2) {
+      if (w) { camValue.w = w; camValue.y1 = y1; camValue.y2 = y2; }
       // ⚠ SIN DIBUJO NO HAY ENCUADRE. `cam.w` lo fija `renderTren` al terminar de dibujar; pedir un
       // encuadre antes divide por `undefined` y escribe `transform="translate(10,NaN) scale(NaN)"` en
       // el SVG — el mapa desaparece y la consola tira ocho errores seguidos. Antes no pasaba porque los
       // dos únicos llamadores (el botón ⤢ y la apertura del <details>) siempre venían después de un
       // dibujo; con el observador de tamaño de la cáscara nueva, el primer disparo llega antes.
-      if (!cam.w) return;
+      if (!camValue.w) return;
       const svg = $('trensvg'); if (!svg) return;
       const r = svg.getBoundingClientRect();
-      const alto = (cam.y2 - cam.y1) + 60;
-      cam.k = Math.max(.55, Math.min(1, Math.min(r.width / cam.w, r.height / alto)));
-      cam.x = 10;
-      cam.y = (r.height - alto * cam.k) / 2 - cam.y1 * cam.k + 30 * cam.k;
-      aplicarCam();
+      const height = (camValue.y2 - camValue.y1) + 60;
+      camValue.k = Math.max(.55, Math.min(1, Math.min(r.width / camValue.w, r.height / height)));
+      camValue.x = 10;
+      camValue.y = (r.height - height * camValue.k) / 2 - camValue.y1 * camValue.k + 30 * camValue.k;
+      applyCam();
     }
-    (function camaraInit() {
+    (function cameraInit() {
       const svg = $('trensvg'); if (!svg) return;
-      let arrastrando = false, px = 0, py = 0;
-      svg.addEventListener('pointerdown', (e) => { arrastrando = true; px = e.clientX; py = e.clientY; svg.classList.add('drag'); svg.setPointerCapture(e.pointerId); });
-      svg.addEventListener('pointermove', (e) => { if (!arrastrando) return; cam.x += e.clientX - px; cam.y += e.clientY - py; px = e.clientX; py = e.clientY; aplicarCam(); });
-      const soltar = (e) => { arrastrando = false; svg.classList.remove('drag'); try { svg.releasePointerCapture(e.pointerId); } catch {} };
-      svg.addEventListener('pointerup', soltar); svg.addEventListener('pointercancel', soltar);
+      let dragging = false, px = 0, py = 0;
+      svg.addEventListener('pointerdown', (e) => { dragging = true; px = e.clientX; py = e.clientY; svg.classList.add('drag'); svg.setPointerCapture(e.pointerId); });
+      svg.addEventListener('pointermove', (e) => { if (!dragging) return; camValue.x += e.clientX - px; camValue.y += e.clientY - py; px = e.clientX; py = e.clientY; applyCam(); });
+      const release = (e) => { dragging = false; svg.classList.remove('drag'); try { svg.releasePointerCapture(e.pointerId); } catch {} };
+      svg.addEventListener('pointerup', release); svg.addEventListener('pointercancel', release);
       // Zoom con rueda SOLO con ⌘/ctrl. La rueda pelada era del canvas, así que pasar el mouse por
       // encima mientras scrolleabas la página secuestraba el gesto y te dejaba clavado ahí. Convención
       // de Figma / Maps embebido: la rueda sola es de la PÁGINA; el zoom es explícito (modificador o
@@ -3000,14 +3000,14 @@
         if (!e.ctrlKey && !e.metaKey) return;   // sin preventDefault → la página scrollea normal
         e.preventDefault();
         const r = svg.getBoundingClientRect();
-        zoomEn(e.deltaY < 0 ? 1.12 : 1 / 1.12, e.clientX - r.left, e.clientY - r.top);
+        zoomIn(e.deltaY < 0 ? 1.12 : 1 / 1.12, e.clientX - r.left, e.clientY - r.top);
       }, { passive: false });
-      svg.addEventListener('dblclick', () => encuadrar());
+      svg.addEventListener('dblclick', () => frame());
       // ⚠ SIN BOTONES DE ZOOM, y el mapa NO queda sin forma de acercar: la rueda con ⌘/ctrl hace zoom
       // y el doble clic encuadra (los dos, arriba). Los botones eran de cuando la rueda pelada estaba
       // secuestrada por el canvas; desde que el zoom pide modificador, sobran. Y con el mapa ocupando
       // todo el centro y reencuadrándose al cambiar de tamaño, el caso normal ya no necesita tocarlos.
-      $('tren').addEventListener('toggle', () => { if ($('tren').open) requestAnimationFrame(() => encuadrar()); });
+      $('tren').addEventListener('toggle', () => { if ($('tren').open) requestAnimationFrame(() => frame()); });
     })();
 
     // La card muestra el hash de la sucursal que REALMENTE se lanza (.flows.json), no el de una búsqueda
@@ -3035,7 +3035,7 @@
         for (const m of MERCHANTS) m.meta = '';
       }
       renderMerchants();
-      revelarSeleccion();   // recién acá se conocen `allied_id` y `hash`, que es lo que hace falta
+      revealSelection();   // recién acá se conocen `allied_id` y `hash`, que es lo que hace falta
     }
 
     function setSeg(groupId, val) {
@@ -3047,54 +3047,54 @@
     // Qué canales aplican a la sucursal elegida. Lo decide el SERVIDOR (/api/canales) y acá sólo se
     // dibuja: si la UI re-derivara "esto es Corbeta" habría dos definiciones de la misma regla. `null` =
     // todavía no se consultó (o falló) → no se gatea nada, que es el default menos entrometido.
-    let canalesOk = null;
+    let channelsOk = null;
 
-    async function loadCanales() {
+    async function loadChannels() {
       if (!sel) return;
       try {
         const r = await (await fetch('/api/canales?slug=' + encodeURIComponent(sel.slug) + '&target=' + target)).json();
-        canalesOk = Array.isArray(r.canales) ? r.canales : null;
+        channelsOk = Array.isArray(r.canales) ? r.canales : null;
         // El servidor sugiere el canal según el comercio (autogestión si tiene el flag). Se aplica UNA
         // vez por comercio: si ya tocaste los botones, tu elección manda — un default que te pisa la
         // selección cada vez que el panel refresca es peor que no tener default.
-        if (r.sugerido && canalTocado !== sel.slug) { canal = r.sugerido; canalTocado = sel.slug; }
-        esCorbeta = r.corbeta === true;
+        if (r.sugerido && channelTouched !== sel.slug) { channel = r.sugerido; channelTouched = sel.slug; }
+        isCorbeta = r.corbeta === true;
         // Si el canal elegido dejó de aplicar (cambiaste de comercio), se cae al primero permitido en vez
         // de lanzar con un canal que el servidor no ofrece.
-        if (canalesOk && !canalesOk.includes(canal)) canal = canalesOk[0];
-      } catch { canalesOk = null; }
-      applyCanal();
+        if (channelsOk && !channelsOk.includes(channel)) channel = channelsOk[0];
+      } catch { channelsOk = null; }
+      applyChannel();
     }
-    let esCorbeta = false;
+    let isCorbeta = false;
 
-    function applyCanal() {
+    function applyChannel() {
       document.querySelectorAll('#canal button').forEach(b => {
-        b.classList.toggle('on', b.dataset.c === canal);
+        b.classList.toggle('on', b.dataset.c === channel);
         // Un canal que no aplica se deshabilita, no se esconde: verlo apagado dice que existe y que acá
         // no corresponde. Es la misma idea que `CAPS` con la flota de mocks.
-        const ok = !canalesOk || canalesOk.includes(b.dataset.c);
+        const ok = !channelsOk || channelsOk.includes(b.dataset.c);
         b.disabled = !ok;
         b.style.opacity = ok ? '' : '.4';
-        b.title = ok ? '' : (b.dataset.c === 'autogestion' && esCorbeta
+        b.title = ok ? '' : (b.dataset.c === 'autogestion' && isCorbeta
           ? 'En un comercio Corbeta la autogestión ya es el canal QR: el cliente entra escaneando en la caja, no por un link.'
           : b.dataset.c === 'qr'
           ? 'El QR sólo aplica a comercios del grupo Corbeta: para el resto cae en el flujo normal, que es el mismo del asesor.'
-          : esCorbeta
+          : isCorbeta
           ? 'En un comercio Corbeta el camino de producción es el QR de la caja: el cliente entra escaneando, sin asesor '
             + 'ni carrito. (Asesor acá no está roto: entrega el flujo al celular del cliente por WhatsApp y termina en las '
             + 'mismas pantallas del QR. Se apaga por no ser el recorrido real; si lo necesitás, por CLI: bin/advisor <comercio>.)'
           : 'Este canal no aplica a este comercio.');
       });
-      sincronizarHeader();
-      $('canalhint').innerHTML = canal === 'asesor'
+      syncHeader();
+      $('canalhint').innerHTML = channel === 'asesor'
         ? 'Login de asesor (Cognito) y el wizard abre en monto, en el tronco <code>/merchant</code>.'
-        : canal === 'autogestion'
+        : channel === 'autogestion'
         ? 'El cliente entra SOLO por <code>/self-service/{hash}/solicitar</code>: sin login, sin barra de asesor y '
           + '<b>un solo dispositivo</b> — al elegir la entidad sigue en la misma ventana en vez de entregar el proceso. '
           + 'Es el recorrido de un comercio con «Habilitar auto gestión» prendido (<code>allieds.self_managed</code>), como Alta Fleet. '
           + '<b>Si el comercio NO lo tiene prendido</b>, la puerta abre igual y sirve para comparar: lo que cambia es el desenlace, '
           + 'que vuelve al handoff.'
-        : canal === 'qr'
+        : channel === 'qr'
         ? 'El cliente escanea el QR en la CAJA de un comercio Corbeta (Alkosto/K-TRONIX/Alkomprar): autogestión pura, sin asesor. '
           + '<b>No pasa por el marketplace</b> — el OTP resuelve la pre-aprobación y decide solo entre BNPL (68) y Consumo (100). '
           + 'Elegí una sucursal Corbeta con los dos lenders habilitados. Para llegar al código de compra: <code>bin/mock-corbeta start</code> '
@@ -3106,7 +3106,7 @@
           + '(<code>GET /api/onboarding/checkout/{hash}</code>), que es otra puerta y aterriza en el resolvedor de <b>Bancolombia</b>: '
           + 'ése decide entre BNPL y Consumo, y con un comercio que no es Corbeta <b>cancela la solicitud al cargarse</b> (F-54). '
           + 'El spec sólo cae ahí como respaldo, y únicamente si la sucursal ES Corbeta.';
-      applyPasoGate();   // el canal decide qué arranques aplican
+      applyStepGate();   // el canal decide qué arranques aplican
       updateGo();
     }
 
@@ -3119,17 +3119,17 @@
     let activeCaseSummary = '';
 
     function updateCaseSummary() {
-      $('caseTitle').textContent = sel ? `${sel.name} · ${CHANNEL_LABELS[canal]} · ${target}` : 'Elegí un comercio';
-      const datos = [`Monto $${fmt(moneyNum('amount'))}`, step === 'lenders' ? 'Desde entidades' : 'Desde el inicio', `Front ${frontMode === 'local' ? 'local' : 'del ambiente'}`];
+      $('caseTitle').textContent = sel ? `${sel.name} · ${CHANNEL_LABELS[channel]} · ${target}` : 'Elegí un comercio';
+      const data = [`Monto $${fmt(moneyNum('amount'))}`, step === 'lenders' ? 'Desde entidades' : 'Desde el inicio', `Front ${frontMode === 'local' ? 'local' : 'del ambiente'}`];
       if (inject) {
-        datos.push(`Ingreso $${fmt(moneyNum('income'))}`, doctype === 'PEP' ? 'Sin buró · PEP' : `Score ${$('score').value} · buró inyectado`);
-      } else datos.push('Sin inyección');
-      $('caseDetails').textContent = sel ? datos.join(' · ') : '';
-      $('advancedSummary').textContent = padelay ? `Preaprobación con ${padelay / 1000} s de demora` : 'Sin demora de preaprobación';
+        data.push(`Ingreso $${fmt(moneyNum('income'))}`, doctype === 'PEP' ? 'Sin buró · PEP' : `Score ${$('score').value} · buró inyectado`);
+      } else data.push('Sin inyección');
+      $('caseDetails').textContent = sel ? data.join(' · ') : '';
+      $('advancedSummary').textContent = paDelay ? `Preaprobación con ${paDelay / 1000} s de demora` : 'Sin demora de preaprobación';
     }
 
     function setRunningUI(running) {
-      corridaRunning = running;
+      runRunning = running;
       // Eran un fieldset; ahora son tres (header · sidebar izq · sidebar der) y la regla no cambió.
       document.querySelectorAll('fieldset.cfg').forEach((f) => { f.disabled = running; });
       $('readinessLink').hidden = running || !$('readinessLink').textContent;
@@ -3152,47 +3152,47 @@
     // ⚠ Y las rutas del mapa son PLANTILLAS (`/{flow}/{hash}/solicitar`): se comparan convirtiéndolas a
     // expresión regular, donde cada `{...}` es un segmento cualquiera. Comparar por igualdad no
     // matchearía nunca — el hash y el id de la solicitud son de cada corrida.
-    const rutaARegex = (r) => new RegExp('^' + String(r || '')
+    const pathToRegex = (r) => new RegExp('^' + String(r || '')
       .replace(/[.*+?^${}()|[\]\\]/g, (c) => (c === '{' || c === '}' ? c : '\\' + c))
       .replace(/\{[^}]*\}/g, '[^/]+') + '/?$');
 
-    let PASOS_PLANOS = null;
-    function pasosPlanos() {
-      if (PASOS_PLANOS || !STEPS) return PASOS_PLANOS;
+    let FLAT_STEPS = null;
+    function flatSteps() {
+      if (FLAT_STEPS || !STEPS) return FLAT_STEPS;
       const out = [];
-      const juntar = (arr) => { for (const p of arr || []) if (p && p.id && p.ruta) out.push({ id: p.id, re: rutaARegex(p.ruta) }); };
+      const join = (arr) => { for (const p of arr || []) if (p && p.id && p.ruta) out.push({ id: p.id, re: pathToRegex(p.ruta) }); };
       // ⚠ Sólo `tronco` y `bypass` son LISTAS de pasos. `ramales`, `desvios` y `extensiones` son
       // diccionarios de OBJETOS —`{label, cuando, pasos}`— y los pasos están en `.pasos`. Asumir que
       // eran listas reventaba con «(arr || []) is not iterable».
-      juntar(STEPS.tronco);
-      juntar(STEPS.bypass);
-      for (const grupo of ['ramales', 'desvios', 'extensiones']) {
-        for (const r of Object.values(STEPS[grupo] || {})) juntar(r && r.pasos);
+      join(STEPS.tronco);
+      join(STEPS.bypass);
+      for (const group of ['ramales', 'desvios', 'extensiones']) {
+        for (const r of Object.values(STEPS[group] || {})) join(r && r.pasos);
       }
       // ⚠ `terminales` NO se dibuja en el mapa —son pantallas a las que se llega desde varios puntos—
       // pero sí entra al índice: sirve para RECONOCER dónde está la corrida aunque no haya nodo que
       // marcar. Sin esto, `request-canceled` volvía a leerse como «ruta desconocida».
-      juntar(STEPS.terminales && STEPS.terminales.pasos);
-      PASOS_PLANOS = out;
+      join(STEPS.terminales && STEPS.terminales.pasos);
+      FLAT_STEPS = out;
       return out;
     }
 
     /** El id del paso que corresponde a una ruta navegada, o null. */
-    function pasoDeRuta(ruta) {
-      const limpia = String(ruta || '').split('?')[0].replace(/\.data$/, '');
-      if (!limpia.startsWith('/')) return null;
-      return (pasosPlanos() || []).find((p) => p.re.test(limpia))?.id ?? null;
+    function routeStep(path) {
+      const clean = String(path || '').split('?')[0].replace(/\.data$/, '');
+      if (!clean.startsWith('/')) return null;
+      return (flatSteps() || []).find((p) => p.re.test(clean))?.id ?? null;
     }
 
     /** Pinta la marca en el nodo (y la saca de los demás). `null` limpia. */
-    function marcarPasoEnMapa(id) {
+    function markStepOnMap(id) {
       for (const g of document.querySelectorAll('#trencam .nodo')) g.classList.toggle('aqui', !!id && g.dataset.paso === id);
     }
 
     /** Lee las líneas de la corrida y marca el último paso reconocido. */
-    function seguirCorridaEnMapa() {
+    function followRunOnMap() {
       // De atrás para adelante: la última navegación reconocida es dónde está parada la corrida.
-      for (let i = logLineas.length - 1; i >= 0; i--) {
+      for (let i = logLines.length - 1; i >= 0; i--) {
         // ⚠ EL PANEL DECORA CADA LÍNEA DEL RUNNER CON «▸ », así que la línea real es
         //   `  ▸ 03 A /merchant/<hash>/<ureq>/personal-info   │ BD 1 «Creada»`
         // y no `03 A /…`. Anclar el número al principio no matcheaba NUNCA — lo destapó la primera
@@ -3203,10 +3203,10 @@
         // y el separador queda PEGADO —`…/abaco/platform-otp-validation│`—, así que `\S+` se lo tragaba y
         // esa ruta no matcheaba ninguna plantilla. Lo destapó la primera corrida real: las rutas cortas
         // andaban y las largas no, que es el peor modo de falla porque parece funcionar.
-        const m = /^[\s▸]*(\d{2})\s+(?:[AB]\s+)?([^\s│]+)/.exec(logLineas[i]);
+        const m = /^[\s▸]*(\d{2})\s+(?:[AB]\s+)?([^\s│]+)/.exec(logLines[i]);
         if (!m) continue;
-        const id = pasoDeRuta(m[2]);
-        if (id) { marcarPasoEnMapa(id); return id; }
+        const id = routeStep(m[2]);
+        if (id) { markStepOnMap(id); return id; }
       }
       return null;
     }
@@ -3231,12 +3231,12 @@
     }
 
     function updateGo() {
-      if (corridaRunning) return;   // el botón es de startPoll mientras corre
+      if (runRunning) return;   // el botón es de startPoll mientras corre
       updateCaseSummary();
       // GATING POR SESIÓN (solo canal asesor: ecommerce entra por URL base64, sin Cognito). El objetivo es
       // que NINGUNA corrida pase por el login de Cognito: mientras el token del target se obtiene, el botón
       // espera; sin token, apunta al dot. 'unreachable' NO bloquea (ver el comentario de sessionState).
-      const sess = canal === 'asesor' ? (sessionState[target] || 'unknown') : 'valid';
+      const sess = channel === 'asesor' ? (sessionState[target] || 'unknown') : 'valid';
       if (sess === 'checking' || sess === 'warming') {
         $('go').disabled = true; $('go').textContent = 'obteniendo token…';
         $('sumry').innerHTML = `autenticando <b>${target}</b> (headless) — el botón se habilita solo`;
@@ -3279,7 +3279,7 @@
       // wizard— así la corrida arranca YA logueada y NO pasa por /solicitar (F-66). 'unreachable' no se
       // warmea (front caído: la corrida levanta el front y loguea sola); 'checking'/'warming' no llega
       // acá porque updateGo deja el botón deshabilitado mientras un warm está en curso.
-      if (canal === 'asesor' && (sessionState[target] === 'invalid' || sessionState[target] === 'missing')) {
+      if (channel === 'asesor' && (sessionState[target] === 'invalid' || sessionState[target] === 'missing')) {
         $('go').disabled = true; $('go').textContent = 'Logueando…';
         await warmSession(target);
         if (sessionState[target] !== 'valid') {
@@ -3288,7 +3288,7 @@
         }
       }
       const body = {
-        slug: sel.slug, target, inject, canal, front: frontMode, stepTarget: step, amount: moneyNum('amount'), paDelay: padelay, documentType: doctype, gender,
+        slug: sel.slug, target, inject, canal: channel, front: frontMode, stepTarget: step, amount: moneyNum('amount'), paDelay: paDelay, documentType: doctype, gender,
         omitExperian: inject && step === 'lenders' && $('cupo').checked,   // "Cupo ya confirmado": firma el flujo en el seed (solo salto a Lenders sintético)
         name: $('name').value.trim(), document: $('document').value.trim(),
         age: +$('age').value, dob: $('dob').value, expeditionDate: $('expedition').value,
@@ -3298,7 +3298,7 @@
       };
       // Sin sesión en el target (canal asesor): loguear ACÁ, con el botón como loader, y recién lanzar.
       // 'unreachable' no se intenta (el front del target no responde; la corrida loguea en el flujo).
-      if (canal === 'asesor' && ['invalid', 'missing', 'unknown'].includes(sessionState[target] || 'unknown')) {
+      if (channel === 'asesor' && ['invalid', 'missing', 'unknown'].includes(sessionState[target] || 'unknown')) {
         $('go').disabled = true; $('go').textContent = 'Logueando…';
         $('sumry').innerHTML = `logueando en <b>${target}</b> (headless) antes de lanzar…`;
         await warmSession(target);
@@ -3322,7 +3322,7 @@
       }
       $('activityTime').textContent = '';
       $('tipear').replaceChildren();
-      marcarPasoEnMapa(null);   // el mapa arranca sin marca: todavía no navegó a ningún lado
+      markStepOnMap(null);   // el mapa arranca sin marca: todavía no navegó a ningún lado
       $('lastResult').hidden = true;
       $('webhookZona').style.display = 'none';
       showLog(false); $('stopBtn').classList.add('on');
@@ -3341,9 +3341,9 @@
       // Cadena vacía y no 'block': BORRA la declaración inline en vez de imponer una, así el
       // layout del panel inferior (columna flex, para que el <pre> llene) lo sigue decidiendo el CSS.
       $('logcard').style.display = '';
-      const esSsr = $('pestSsr').classList.contains('on');
-      $('log').style.display = on && !esSsr ? 'block' : 'none';
-      $('logSsr').style.display = on && esSsr ? 'block' : 'none';
+      const isSsr = $('pestSsr').classList.contains('on');
+      $('log').style.display = on && !isSsr ? 'block' : 'none';
+      $('logSsr').style.display = on && isSsr ? 'block' : 'none';
       // (el botón de plegar se quitó: la consola es una ZONA fija del layout, no una tarjeta que
       //  compita por alto con lo de arriba. `showLog` se queda: lo llaman el arranque y las corridas.)
     }
@@ -3355,33 +3355,33 @@
     // La consola guarda sus líneas en un ARRAY y appendea sólo lo nuevo (el server las manda con cursor).
     // Antes se re-renderizaba todo el <pre> cada 2s: con una miniatura por línea 📸, eso recreaba todas las
     // <img> en cada tick. Guardar el array además permite el filtro (re-pinta desde memoria, sin ir al server).
-    let logLineas = [];      // todas las líneas recibidas, en orden
+    let logLines = [];      // todas las líneas recibidas, en orden
     let logCursor = 0;       // cuántas ya pedimos al server
-    let soloImportante = false;
+    let importantOnly = false;
     let runStamp = 0;
 
     // "Importante" = lo que cambia lo que harías: la BD se movió (▲), algo falló, o la corrida cerró.
     // El resto (cada navegación, cada .data, cada 📸) es contexto — sigue en el log completo y en el copiar.
-    const IMPORTANTE = /▲|⚠|✗|📸 ✗|BD  ✗|DESENLACE MALO|ÉXITO SIN RESPALDO|passed|failed|corrida terminada|Comprobación de BD|✅|▶|●|traza:|uReq/;
-    const esImportante = (l) => IMPORTANTE.test(l);
+    const IMPORTANT = /▲|⚠|✗|📸 ✗|BD  ✗|DESENLACE MALO|ÉXITO SIN RESPALDO|passed|failed|corrida terminada|Comprobación de BD|✅|▶|●|traza:|uReq/;
+    const isImportant = (l) => IMPORTANT.test(l);
 
     // `⌨ DATOS telefono=… otp=…` lo emite bin/advisor (contrato: si cambia el prefijo allá, cambiá acá).
     // El panel NO recalcula nada — ni el teléfono ni el OTP: los toma de quien los resolvió, que es el
     // launcher. Duplicar ese cálculo en la UI es como las dos definiciones empiezan a derivar.
-    const ETIQ = { telefono: 'teléfono', otp: 'OTP', otpfirma: 'OTP firma', cedula: 'cédula', email: 'email' };
-    function renderTipear(txt) {
+    const LBL = { telefono: 'teléfono', otp: 'OTP', otpfirma: 'OTP firma', cedula: 'cédula', email: 'email' };
+    function renderTyping(txt) {
       const m = txt.match(/⌨ DATOS\s+(.+)/);
       const box = $('tipear');
       if (!m) { box.classList.remove('on'); box.replaceChildren(); return; }
-      const pares = [...m[1].matchAll(/(\w+)=(\S+)/g)].filter(([, k]) => ETIQ[k]);
+      const pairs = [...m[1].matchAll(/(\w+)=(\S+)/g)].filter(([, k]) => LBL[k]);
       const frag = document.createDocumentFragment();
       const lbl = document.createElement('span'); lbl.className = 'lbl'; lbl.textContent = 'para tipear';
       frag.appendChild(lbl);
-      for (const [, k, v] of pares) {
+      for (const [, k, v] of pairs) {
         if (v.startsWith('(')) continue;                 // (auto): el valor lo pone el flujo, no hay nada que copiar
         const b = document.createElement('button');
-        b.title = `copiar ${ETIQ[k]}`;
-        const ks = document.createElement('span'); ks.className = 'k'; ks.textContent = ETIQ[k];
+        b.title = `copiar ${LBL[k]}`;
+        const ks = document.createElement('span'); ks.className = 'k'; ks.textContent = LBL[k];
         b.append(ks, document.createTextNode(v));
         b.onclick = async () => {
           try { await navigator.clipboard.writeText(v); b.classList.add('copiado'); setTimeout(() => b.classList.remove('copiado'), 1200); }
@@ -3392,7 +3392,7 @@
       box.replaceChildren(frag);
       box.classList.add('on');
     }
-    function nodosDeLinea(line) {
+    function lineNodes(line) {
       const frag = document.createDocumentFragment();
       if (line.includes('📸 ✗')) {   // screenshot fallido: línea roja, sin intento de miniatura
         const sp = document.createElement('span'); sp.className = 'shotfail'; sp.textContent = line + '\n';
@@ -3412,22 +3412,22 @@
     }
 
     // Re-pinta TODO desde el array (para el toggle del filtro o cuando arranca una corrida nueva).
-    function repintarLog() {
+    function repaintLog() {
       const frag = document.createDocumentFragment();
-      for (const l of logLineas) if (!soloImportante || esImportante(l)) frag.appendChild(nodosDeLinea(l));
+      for (const l of logLines) if (!importantOnly || isImportant(l)) frag.appendChild(lineNodes(l));
       $('log').replaceChildren(frag);
     }
 
     // Agrega sólo las líneas nuevas. El caso normal de una corrida en curso.
-    function appendLog(nuevas) {
-      if (!nuevas.length) return;
+    function appendLog(newOnes) {
+      if (!newOnes.length) return;
       const frag = document.createDocumentFragment();
-      for (const l of nuevas) {
-        logLineas.push(l);
-        if (!soloImportante || esImportante(l)) frag.appendChild(nodosDeLinea(l));
+      for (const l of newOnes) {
+        logLines.push(l);
+        if (!importantOnly || isImportant(l)) frag.appendChild(lineNodes(l));
       }
       $('log').appendChild(frag);
-      renderTipear(logLineas.join('\n'));
+      renderTyping(logLines.join('\n'));
     }
 
     /* ── LA CONSOLA DEL SSR ──────────────────────────────────────────────────────────────────────
@@ -3442,15 +3442,15 @@
      *
      * ⚠ Y arranca desde la COLA, no desde el principio: una consola sirve para ver lo que pasa DESDE QUE
      * la abriste. Volcar el historial entero la vuelve ilegible justo cuando la necesitás. */
-    let ssrCursor = 0, ssrPoll = null, ssrSolo = false, ssrLineas = [];
-    const ES_SALIENTE = /\[outbound\]|error|Error|ELIFECYCLE|ECONN|failed/;
+    let ssrCursor = 0, ssrPoll = null, ssrOnly = false, ssrLines = [];
+    const IS_OUTGOING = /\[outbound\]|error|Error|ELIFECYCLE|ECONN|failed/;
 
-    function repintarSsr() {
+    function repaintSsr() {
       const pre = $('logSsr');
       pre.replaceChildren();
       const frag = document.createDocumentFragment();
-      for (const l of ssrLineas) {
-        if (ssrSolo && !ES_SALIENTE.test(l)) continue;
+      for (const l of ssrLines) {
+        if (ssrOnly && !IS_OUTGOING.test(l)) continue;
         frag.appendChild(document.createTextNode(l + '\n'));
       }
       pre.appendChild(frag);
@@ -3460,39 +3460,39 @@
     async function tickSsr() {
       try {
         const j = await (await fetch(ssrCursor ? `/api/ssr?from=${ssrCursor}` : '/api/ssr')).json();
-        if (!j.hay) { ssrLineas = ['(sin /tmp/asesor-wizard.log — lo escribe `bin/advisor` al levantar el wizard;',
-                                   ' si lo arrancaste a mano con `pnpm dev`, su salida se fue a esa terminal)']; return repintarSsr(); }
+        if (!j.hay) { ssrLines = ['(sin /tmp/asesor-wizard.log — lo escribe `bin/advisor` al levantar el wizard;',
+                                   ' si lo arrancaste a mano con `pnpm dev`, su salida se fue a esa terminal)']; return repaintSsr(); }
         // `total` baja ⇒ `bin/advisor` truncó el archivo al relanzar el wizard: es OTRA sesión, se resetea.
-        if (typeof j.total === 'number' && j.total < ssrCursor) { ssrLineas = []; ssrCursor = 0; return; }
-        if (j.lines && j.lines.length) { ssrLineas.push(...j.lines); repintarSsr(); }
+        if (typeof j.total === 'number' && j.total < ssrCursor) { ssrLines = []; ssrCursor = 0; return; }
+        if (j.lines && j.lines.length) { ssrLines.push(...j.lines); repaintSsr(); }
         if (typeof j.total === 'number') ssrCursor = j.total;
       } catch { /* el panel sigue andando sin esto */ }
     }
 
-    function mostrarPestana(cual) {
-      const esSsr = cual === 'ssr';
+    function showTab(which) {
+      const isSsr = which === 'ssr';
       // Mismo mecanismo que `showLog` —`style.display`, no el atributo `hidden`— para que plegar y
       // cambiar de pestaña no se pisen.
-      $('log').style.display = esSsr || !logOpen ? 'none' : 'block';
-      $('logSsr').style.display = esSsr && logOpen ? 'block' : 'none';
-      $('pestCorrida').classList.toggle('on', !esSsr);
-      $('pestSsr').classList.toggle('on', esSsr);
-      $('pestCorrida').setAttribute('aria-pressed', String(!esSsr));
-      $('pestSsr').setAttribute('aria-pressed', String(esSsr));
+      $('log').style.display = isSsr || !logOpen ? 'none' : 'block';
+      $('logSsr').style.display = isSsr && logOpen ? 'block' : 'none';
+      $('pestCorrida').classList.toggle('on', !isSsr);
+      $('pestSsr').classList.toggle('on', isSsr);
+      $('pestCorrida').setAttribute('aria-pressed', String(!isSsr));
+      $('pestSsr').setAttribute('aria-pressed', String(isSsr));
       if (ssrPoll) { clearInterval(ssrPoll); ssrPoll = null; }
-      if (esSsr) { tickSsr(); ssrPoll = setInterval(tickSsr, 2000); }
+      if (isSsr) { tickSsr(); ssrPoll = setInterval(tickSsr, 2000); }
     }
 
-    $('pestCorrida').onclick = () => mostrarPestana('corrida');
-    $('pestSsr').onclick = () => mostrarPestana('ssr');
+    $('pestCorrida').onclick = () => showTab('corrida');
+    $('pestSsr').onclick = () => showTab('ssr');
     function toggleSsrFilter() {
-      ssrSolo = !ssrSolo;
-      repintarSsr();
+      ssrOnly = !ssrOnly;
+      repaintSsr();
     }
 
     function startPoll() {
       runStamp = Date.now();   // buster por corrida: mismo nombre de archivo, imagen nueva
-      logLineas = []; logCursor = 0; $('log').replaceChildren();   // consola limpia: es OTRA corrida
+      logLines = []; logCursor = 0; $('log').replaceChildren();   // consola limpia: es OTRA corrida
       if (poll) clearInterval(poll);
       let pollBusy = false;
       const tick = async () => {
@@ -3502,27 +3502,27 @@
         const j = await (await fetch(`/api/status?from=${logCursor}`)).json();
         const atBottom = $('log').scrollTop + $('log').clientHeight >= $('log').scrollHeight - 30;
         // `total` baja ⇒ el RUN_LOG se reescribió (corrida nueva): reset y pedimos todo de nuevo.
-        if (typeof j.total === 'number' && j.total < logCursor) { logLineas = []; logCursor = 0; repintarLog(); }
+        if (typeof j.total === 'number' && j.total < logCursor) { logLines = []; logCursor = 0; repaintLog(); }
         else if (j.lines && j.lines.length) { appendLog(j.lines); logCursor = j.total; }
         if (atBottom) $('log').scrollTop = $('log').scrollHeight;   // auto-scroll solo si ya estabas al final
         if (j.running) {
-          if (!corridaRunning) { setRunningUI(true); $('tren').open = true; }
+          if (!runRunning) { setRunningUI(true); $('tren').open = true; }
           $('stopBtn').classList.add('on');
           $('go').textContent = 'corriendo…'; $('go').disabled = true;          $('dot').className = 'dot run';
           if ($('logcard').style.display === 'none') showLog(false);
         } else {
           setRunningUI(false);
           $('go').textContent = 'Preparar + Lanzar ▶'; updateGo();          $('stopBtn').classList.remove('on'); $('dot').className = 'dot';
-          loadEstado();   // terminó una corrida → refrescar el veredicto
+          loadStatus();   // terminó una corrida → refrescar el veredicto
           checkSession(target, true);   // la corrida pudo renovar (o quemar) la sesión → re-verificar el dot
           clearInterval(poll); poll = null;
         }
         renderActivity(j);
-        seguirCorridaEnMapa();
+        followRunOnMap();
         } catch {
           // Una desconexión no significa que terminó el proceso: conservá Detener y reintentá.
           $('sumry').textContent = 'Sin conexión con el panel. Reintentando consultar la corrida…';
-          if (corridaRunning) {
+          if (runRunning) {
             $('sumry').textContent = 'Conexión interrumpida: no se puede confirmar el estado. El proceso puede seguir corriendo.';
           }
         } finally { pollBusy = false; }
@@ -3569,80 +3569,80 @@
      *                      URLs `/(merchant|ecommerce)/…` que en este canal nunca ocurren. Se fuerza
      *                      «Inicio» (que es el no-salto) y se explica.
      */
-    function applyPasoGate() {
-      setTimeout(sincronizarHeader, 0);
-      const soloInicio = canal === 'ecommerce' || canal === 'qr';
-      const bInicio = document.querySelector('#step button[data-v="monto"]');
+    function applyStepGate() {
+      setTimeout(syncHeader, 0);
+      const startOnly = channel === 'ecommerce' || channel === 'qr';
+      const bStart = document.querySelector('#step button[data-v="monto"]');
       const bLenders = document.querySelector('#step button[data-v="lenders"]');
       if (bLenders) {
-        const ok = inject && !soloInicio;
+        const ok = inject && !startOnly;
         bLenders.disabled = !ok;
         bLenders.style.opacity = ok ? '' : '.4';
         bLenders.title = ok ? ''
-          : canal === 'qr' ? 'El canal QR no pasa por el marketplace: su recorrido es solicitar → OTP → producto.'
-          : canal === 'ecommerce' ? 'En el canal ecommerce el salto a lenders no está implementado en el spec: no haría nada.'
+          : channel === 'qr' ? 'El canal QR no pasa por el marketplace: su recorrido es solicitar → OTP → producto.'
+          : channel === 'ecommerce' ? 'En el canal ecommerce el salto a lenders no está implementado en el spec: no haría nada.'
           : 'Lenders siembra un usuario sintético — con buró Real no hay nada que sembrar: arrancás desde el inicio';
         if (!ok && step === 'lenders') { step = 'monto'; setSeg('step', step); }
       }
       // En QR el selector entero no aplica: «Inicio» tampoco significa "monto" acá.
-      if (bInicio) {
-        const qr = canal === 'qr';
-        bInicio.disabled = qr;
-        bInicio.style.opacity = qr ? '.4' : '';
-        bInicio.title = qr ? 'En el canal QR el recorrido arranca en la pantalla de registro del self-service, no en monto.' : '';
+      if (bStart) {
+        const qr = channel === 'qr';
+        bStart.disabled = qr;
+        bStart.style.opacity = qr ? '.4' : '';
+        bStart.title = qr ? 'En el canal QR el recorrido arranca en la pantalla de registro del self-service, no en monto.' : '';
       }
       updateStepHint();
-      if (canal === 'qr') {
+      if (channel === 'qr') {
         $('stephint').textContent = 'En el canal QR no hay salto: el recorrido es propio — registro (celular + documento) → OTP → '
           + 'y el OTP decide el producto (BNPL o Consumo). Ni monto ni marketplace.';
       }
-      applyCupoGate();
+      applyQuotaGate();
     }
-    document.querySelectorAll('#step button').forEach(b => b.onclick = () => { if (b.disabled) return; step = b.dataset.v; setSeg('step', step); updateStepHint(); applyCupoGate(); refresh(); });
-    document.querySelectorAll('#step button').forEach(b => b.addEventListener('click', () => setTimeout(sincronizarHeader, 0)));
+    document.querySelectorAll('#step button').forEach(b => b.onclick = () => { if (b.disabled) return; step = b.dataset.v; setSeg('step', step); updateStepHint(); applyQuotaGate(); refresh(); });
+    document.querySelectorAll('#step button').forEach(b => b.addEventListener('click', () => setTimeout(syncHeader, 0)));
     updateStepHint();
 
     // espera del mock de pre-aprobados (para VER el loader de las cards rt≠0)
-    document.querySelectorAll('#padelay button').forEach(b => b.onclick = () => { padelay = +b.dataset.v; setTimeout(sincronizarDemora, 0); setSeg('padelay', b.dataset.v); refresh(); });
+    document.querySelectorAll('#padelay button').forEach(b => b.onclick = () => { paDelay = +b.dataset.v; setTimeout(syncDelay, 0); setSeg('padelay', b.dataset.v); refresh(); });
 
     // switcher de target (local | dev | staging). dev y staging escriben data COMPARTIDA (la misma BD:
     // en legacy-backend staging no es un entorno aparte, solo lo es el frontend) → aviso + re-enrich.
-    $('btnEntorno').onclick = () => abrirMenuEntorno($('btnEntorno'));
-    $('btnCanal').onclick = () => abrirMenuCanal($('btnCanal'));
-    $('btnSalud').onclick = () => abrirSalud($('btnSalud'));
+    $('btnEntorno').onclick = () => openEnvironmentMenu($('btnEntorno'));
+    $('btnCanal').onclick = () => openChannelMenu($('btnCanal'));
+    $('btnSalud').onclick = () => openHealth($('btnSalud'));
     $('btnArranque').onclick = () => {
       const m = menuBase('ctxEntidad');
-      rotulo(m, 'Desde dónde arranca la corrida');
-      for (const it of itemsDeBotones('#step button')) itemMenu(m, it);
+      caption(m, 'Desde dónde arranca la corrida');
+      for (const it of buttonItems('#step button')) itemMenu(m, it);
       // La pista se MUEVE al menú, igual que las de Entorno y Canal: es la explicación de lo elegido.
       const hint = $('stephint');
       if (hint) { hint.className = 'ctxnota'; m.appendChild(hint); }
       const r = $('btnArranque').getBoundingClientRect();
-      montarMenu(m, r.left, r.bottom + 4);
+      mountMenu(m, r.left, r.bottom + 4);
     };
 
     // ⚠ CICLA CLICKEANDO EL BOTÓN REAL, igual que los menús: `#padelay` sigue siendo quien fija
     // `padelay`, resetea el seg y actualiza el resumen. Si el header escribiera la variable por su
     // cuenta habría dos caminos para lo mismo, y uno se olvidaría del reseteo que hace el gate.
-    const DEMORAS = [0, 3000, 5000, 10000, 15000];
+    const DELAYS = [0, 3000, 5000, 10000, 15000];
     $('btnDemora').onclick = () => {
       if ($('btnDemora').disabled) return;
-      const sig = DEMORAS[(DEMORAS.indexOf(padelay) + 1) % DEMORAS.length];
+      const sig = DELAYS[(DELAYS.indexOf(paDelay) + 1) % DELAYS.length];
       document.querySelector(`#padelay button[data-v="${sig}"]`)?.click();
-      sincronizarDemora();
+      syncDelay();
     };
 
     /** El rótulo del reloj y su gate. `mockPA` lo decide `E2E_REAL_PREAPPROVALS` por target, no el panel. */
-    function sincronizarDemora() {
+    function syncDelay() {
       const b = $('btnDemora'); if (!b) return;
-      $('valDemora').textContent = `${padelay / 1000} s`;
-      b.classList.toggle('activo', padelay > 0);
-      b.setAttribute('aria-label', `Demora de preaprobación: ${padelay / 1000} segundos`);
+      $('valDemora').textContent = `${paDelay / 1000} s`;
+      b.classList.toggle('activo', paDelay > 0);
+      b.setAttribute('aria-label', `Demora de preaprobación: ${paDelay / 1000} segundos`);
       b.disabled = !mockPA;
       // Deshabilitado CON su motivo, no escondido: una perilla que desaparece hace creer que no existe.
       b.title = mockPA
-        ? `Demora del mock de pre-aprobación: ${padelay ? padelay / 1000 + ' s' : 'sin espera'} — clic para pasar a `
-          + `${DEMORAS[(DEMORAS.indexOf(padelay) + 1) % DEMORAS.length] / 1000} s. Sirve para ver el loader de las tarjetas.`
+        ? `Demora del mock de pre-aprobación: ${paDelay ? paDelay / 1000 + ' s' : 'sin espera'} — clic para pasar a `
+          + `${DELAYS[(DELAYS.indexOf(paDelay) + 1) % DELAYS.length] / 1000} s. Sirve para ver el loader de las tarjetas.`
         : 'Este target usa el microservicio real de pre-aprobados: el mock no corre y su demora no aplica.';
     }
 
@@ -3651,12 +3651,12 @@
       document.querySelectorAll('#targets .pill').forEach(p => p.classList.toggle('on', p.dataset.t === target));
       $('devwarn').style.display = target === 'local' ? 'none' : '';   // dev y staging comparten BD
       $('warntarget').textContent = target;
-      sincronizarHeader();
+      syncHeader();
       updateInjModeForTarget();   // en local no hay Real (sin OTP/burós)
       loadFront();                // qué fronts tiene ESTE target (y default: el desplegado si existe)
       enrichMerchants();
       loadLenders();              // los lenders son POR TARGET: la lista cambia
-      loadEstado();               // y con ella las tarjetas (entorno, entidades)
+      loadStatus();               // y con ella las tarjetas (entorno, entidades)
       checkSession(target);       // refrescar el dot del ambiente al que cambiamos (cacheado en el server)
       ensureAssignUI();           // el permiso es POR TARGET (misma sucursal, otra base) → re-asignar acá
     });
@@ -3705,17 +3705,17 @@
     // Sólo con front LOCAL: con el desplegado no hay Vite que levantar.
     let prebootDone = false;
     async function preboot() {
-      if (prebootDone || corridaRunning || frontMode !== 'local') return;
+      if (prebootDone || runRunning || frontMode !== 'local') return;
       prebootDone = true;
-      const s = $('sumry'), previo = s.innerHTML;
+      const s = $('sumry'), previous = s.innerHTML;
       s.innerHTML = 'precalentando el wizard (Vite) — la corrida no va a esperar el cold-boot…';
       try {
         const r = await (await fetch('/api/preboot', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ target, slug: sel?.slug || 'pullman' }) })).json();
         if (!r.ok) prebootDone = false;   // no quedó tibio → que lo reintente el próximo cambio de front
         s.innerHTML = r.ok
-          ? `wizard listo (${r.reused ? 'ya estaba arriba' : r.detail}) — ` + previo
-          : previo;
-      } catch { prebootDone = false; s.innerHTML = previo; }
+          ? `wizard listo (${r.reused ? 'ya estaba arriba' : r.detail}) — ` + previous
+          : previous;
+      } catch { prebootDone = false; s.innerHTML = previous; }
       updateGo();
     }
 
@@ -3728,9 +3728,9 @@
     // 'unreachable' (front caído) no se intenta: no hay warm posible y la corrida loguea en el flujo. Así el
     // login de Cognito ocurre al ABRIR el panel, no en medio de una corrida — y el launch espera al token.
     (async () => {
-      const orden = [target, ...['local', 'dev', 'staging', 'qa'].filter(t => t !== target)];
-      await Promise.all(orden.map(t => checkSession(t, false)));
-      for (const t of orden) {
+      const sortOrder = [target, ...['local', 'dev', 'staging', 'qa'].filter(t => t !== target)];
+      await Promise.all(sortOrder.map(t => checkSession(t, false)));
+      for (const t of sortOrder) {
         if (sessionState[t] === 'missing' || sessionState[t] === 'invalid') await warmSession(t);
       }
       preboot();   // y con las sesiones listas, el wizard: es el otro costo que se pagaba en la corrida
@@ -3747,7 +3747,7 @@
     }
     const lastAutoWarm = { dev: 0, local: 0 };
     setInterval(async () => {
-      if (corridaRunning) return;                                    // durante una corrida, no toca los dots
+      if (runRunning) return;                                    // durante una corrida, no toca los dots
       for (const t of ['dev', 'local']) {                            // dev primero: local comparte su cache
         const s = sessionState[t];
         if (s === 'valid' || s === 'checking' || s === 'warming') continue;   // verde o en curso → nada
@@ -3768,15 +3768,15 @@
       $('injhint').textContent = inject
         ? 'Se inyecta el buró (salta la consulta real); la identidad la llenás vos en el wizard.'
         : 'Completás los datos en el wizard. Se usan los proveedores configurados en este ambiente; los campos sintéticos de abajo no se aplican.';
-      applyPasoGate();    // qué arranques aplican (depende del buró Y del canal)
-      applyCupoGate();    // el checkbox "Cupo ya confirmado" sólo aplica en Lenders + Sintético
+      applyStepGate();    // qué arranques aplican (depende del buró Y del canal)
+      applyQuotaGate();    // el checkbox "Cupo ya confirmado" sólo aplica en Lenders + Sintético
       updateGo();
     }
 
     // "Cupo ya confirmado" (checkbox al pie del monto): sólo tiene efecto en el salto a Lenders en Sintético,
     // que es donde el seed headless firma el flujo. En Inicio o Real se deshabilita (y se desmarca) para no
     // ofrecer un check que no haría nada.
-    function applyCupoGate() {
+    function applyQuotaGate() {
       const cb = $('cupo'), lbl = $('cupolbl'); if (!cb) return;
       const ok = inject && step === 'lenders';
       cb.disabled = !ok;
@@ -3792,13 +3792,13 @@
     function applyMockPAGate() {
       const f = $('padelayField'); if (!f) return;
       f.style.display = mockPA ? '' : 'none';
-      if (!mockPA && padelay !== 0) { padelay = 0; setSeg('padelay', '0'); }   // MS real: reseteo el delay que no se usará
-      sincronizarDemora();
+      if (!mockPA && paDelay !== 0) { paDelay = 0; setSeg('padelay', '0'); }   // MS real: reseteo el delay que no se usará
+      syncDelay();
     }
     document.querySelectorAll('#injmode button').forEach(b => b.onclick = () => { if (b.disabled) return; inject = b.dataset.i === '1'; applyInjMode(); });
     // `canalTocado` fija que el canal de ESTE comercio ya lo decidiste vos: la sugerencia del servidor
     // no vuelve a pisarlo en los refrescos siguientes.
-    document.querySelectorAll('#canal button').forEach(b => b.onclick = () => { canal = b.dataset.c; canalTocado = (sel && sel.slug) || canalTocado; applyCanal(); ensureAssignUI(); });
+    document.querySelectorAll('#canal button').forEach(b => b.onclick = () => { channel = b.dataset.c; channelTouched = (sel && sel.slug) || channelTouched; applyChannel(); ensureAssignUI(); });
 
     // Real (buró + OTP reales) NO existe en local → solo dev/staging. En local se fuerza Sintético.
     // ── Front del ambiente vs front local ────────────────────────────────────────────────────────────
@@ -3808,27 +3808,27 @@
     async function loadFront() {
       try {
         const r = await (await fetch(`/api/front?target=${encodeURIComponent(target)}`)).json();
-        frontAmbienteUrl = r.ambiente || '';
-      } catch { frontAmbienteUrl = ''; }
+        frontEnvironmentUrl = r.ambiente || '';
+      } catch { frontEnvironmentUrl = ''; }
       // Al cambiar de target se elige el default del ambiente nuevo: con deploy, el desplegado (es lo que
       // están viendo los demás); sin deploy, local es la única opción posible.
-      frontMode = frontAmbienteUrl ? 'ambiente' : 'local';
+      frontMode = frontEnvironmentUrl ? 'ambiente' : 'local';
       applyFrontMode();
     }
 
     function applyFrontMode() {
-      const ambBtn = document.querySelector('#frontmode button[data-v="ambiente"]');
-      ambBtn.disabled = !frontAmbienteUrl;
-      ambBtn.title = frontAmbienteUrl ? frontAmbienteUrl : `'${target}' no tiene front desplegado configurado (su E2E_BASE_URL apunta a localhost)`;
-      if (!frontAmbienteUrl) frontMode = 'local';
+      const envBtn = document.querySelector('#frontmode button[data-v="ambiente"]');
+      envBtn.disabled = !frontEnvironmentUrl;
+      envBtn.title = frontEnvironmentUrl ? frontEnvironmentUrl : `'${target}' no tiene front desplegado configurado (su E2E_BASE_URL apunta a localhost)`;
+      if (!frontEnvironmentUrl) frontMode = 'local';
       setSeg('frontmode', frontMode);
       // Con front local el POOL de Cognito es el del wizard local (dev), no el del target: hay que decirlo,
       // porque el login usa otra cuenta y el dot de sesión de este target no es el que aplica.
-      const otroPool = frontMode === 'local' && target !== 'local' && target !== 'dev';
+      const otherPool = frontMode === 'local' && target !== 'local' && target !== 'dev';
       $('fronthint').textContent = frontMode === 'local'
         ? `Abre tu :5174 (Vite sobre el monorepo local) contra el backend de ${target}: ves tus cambios del front sin esperar el deploy.`
-          + (otroPool ? ' Ojo: el pool de Cognito lo trae el wizard local (dev), así que loguea con la cuenta de .cognito.json y usa la sesión de dev.' : '')
-        : `Abre ${frontAmbienteUrl} — el build desplegado. Tus cambios locales del front NO se ven acá.`;
+          + (otherPool ? ' Ojo: el pool de Cognito lo trae el wizard local (dev), así que loguea con la cuenta de .cognito.json y usa la sesión de dev.' : '')
+        : `Abre ${frontEnvironmentUrl} — el build desplegado. Tus cambios locales del front NO se ven acá.`;
       updateGo();
     }
 
@@ -3846,7 +3846,7 @@
       realBtn.title = realOk ? '' : 'Sin inyección no está disponible en local: requiere los servicios configurados en otro ambiente.';
       if (!realOk) inject = true;   // local → Sintético obligado
       applyInjMode();
-      applyCanal();
+      applyChannel();
     }
 
     ['name', 'document', 'age', 'dob', 'expedition', 'email', 'occupation', 'score', 'negatives', 'consulted']
@@ -3857,8 +3857,8 @@
     $('readinessLink').onclick = () => { $('healthDetails').open = true; $('healthDetails').scrollIntoView({ behavior: 'instant', block: 'start' }); };
     // Filtro de la consola: re-pinta desde el array en memoria (no vuelve a pedir nada al server).
     function toggleLogFilter() {
-      soloImportante = !soloImportante;
-      repintarLog();
+      importantOnly = !importantOnly;
+      repaintLog();
       $('log').scrollTop = $('log').scrollHeight;
     }
 
@@ -3894,12 +3894,12 @@
     renderMerchants();   // cards de prueba (slug ya visible)
     enrichMerchants();   // completa hash desde el backend
     loadSteps();         // mapa de tren (panel/steps.json + verificación de rutas)
-    loadEstado();        // tarjetas de estado (mocks · última corrida · mapa)
+    loadStatus();        // tarjetas de estado (mocks · última corrida · mapa)
     loadLenders();       // lenders de la sucursal del comercio seleccionado (toggle ON/OFF)
     updateInjModeForTarget();   // estado inicial (en local, Real deshabilitado → Sintético)
     loadFront();                // qué front tiene el target inicial (local → solo :5174)
     ensureAssignUI();           // el comercio default (Motai) ya queda con el permiso puesto al abrir
-    applyCanal();               // canal por defecto: asesor
+    applyChannel();               // canal por defecto: asesor
     refresh();           // Motai preseleccionado → botón habilitado
     startPoll();         // engancharse si había una corrida activa
   
@@ -3908,7 +3908,7 @@
     // toca el estado del panel ni compite con el flujo que esté andando.
     const btnAdmin = document.getElementById('btn-admin');
     if (btnAdmin) btnAdmin.onclick = async () => {
-      const textoOriginal = btnAdmin.textContent;
+      const originalText = btnAdmin.textContent;
       btnAdmin.disabled = true; btnAdmin.textContent = 'abriendo…';
       try {
         const r = await (await fetch('/api/open-admin', {
@@ -3921,14 +3921,14 @@
       }
       // La ventana tarda en aparecer (levanta el server si hace falta): se deja un rato antes de rehabilitar
       // para que nadie apriete dos veces y termine con dos navegadores.
-      setTimeout(() => { btnAdmin.disabled = false; btnAdmin.textContent = textoOriginal; }, 6000);
+      setTimeout(() => { btnAdmin.disabled = false; btnAdmin.textContent = originalText; }, 6000);
     };
 
     // ══ CÁSCARA TIPO EDITOR ═══════════════════════════════════════════════════════════════════════
     // Tres cosas que el layout nuevo necesita y el viejo no: manijas de ajuste, re-encuadre del mapa
     // cuando cambia su caja, y un estado vacío en el centro. Va al final del script a propósito —
     // `encuadrar()` está declarada más arriba en este mismo alcance.
-    (function cascara() {
+    (function shell() {
       // Las manijas y controles de disposición usan el módulo compartido al final del documento.
 
       // ── el mapa se re-encuadra cuando cambia su caja ───────────────────────────────────────────
@@ -3938,7 +3938,7 @@
       const vias = $('trenvias');
       if (vias && 'ResizeObserver' in window) {
         let t = 0;
-        new ResizeObserver(() => { clearTimeout(t); t = setTimeout(() => { try { encuadrar(); } catch { } }, 80); })
+        new ResizeObserver(() => { clearTimeout(t); t = setTimeout(() => { try { frame(); } catch { } }, 80); })
           .observe(vias);
       }
 
@@ -3952,34 +3952,34 @@
       // ── estado vacío del centro ────────────────────────────────────────────────────────────────
       // `renderTren()` decide si hay mapa poniendo `display` en el nodo; se lo observa en vez de
       // tocar esa función, para no tener dos lugares que decidan lo mismo.
-      const tren = $('tren'), vacio = $('stageEmpty');
-      const sincronizar = () => { if (vacio && tren) vacio.style.display = tren.hidden ? 'flex' : 'none'; };
-      if (tren) { new MutationObserver(sincronizar).observe(tren, { attributes: true, attributeFilter: ['hidden'] }); }
-      sincronizar();
+      const train = $('tren'), empty = $('stageEmpty');
+      const sync = () => { if (empty && train) empty.style.display = train.hidden ? 'flex' : 'none'; };
+      if (train) { new MutationObserver(sync).observe(train, { attributes: true, attributeFilter: ['hidden'] }); }
+      sync();
     })();
 
 
     // ══ SECCIONES DEL SIDEBAR: memoria y resúmenes ════════════════════════════════════════════════
-    (function secciones() {
+    (function sections() {
 
       // ── las pistas largas pasan a una línea + tooltip ────────────────────────────────────────
       // ⚠ El `title` se sincroniza con el TEXTO, no se escribe a mano: estas pistas las reescribe el
       // panel cada vez que cambiás la opción (`applyCanal`, el modo de buró, el arranque), así que un
       // tooltip fijo diría lo de la elección anterior — que es peor que no tenerlo.
-      const pistas = ['injhint', 'stephint'];
-      const sincronizarPistas = () => {
-        for (const id of pistas) {
+      const hints = ['injhint', 'stephint'];
+      const syncHints = () => {
+        for (const id of hints) {
           const n = $(id); if (!n) continue;
           n.classList.add('pista');
           const t = (n.textContent || '').trim();
           if (t && n.title !== t) n.title = t;
         }
       };
-      for (const id of pistas) {
+      for (const id of hints) {
         const n = $(id); if (!n) continue;
-        new MutationObserver(sincronizarPistas).observe(n, { childList: true, characterData: true, subtree: true });
+        new MutationObserver(syncHints).observe(n, { childList: true, characterData: true, subtree: true });
       }
-      sincronizarPistas();
+      syncHints();
 
     })();
 
@@ -3987,7 +3987,7 @@
     // Las etiquetas quedaron en una columna de 102 px, así que las largas —«Ingreso mensual (COP)»,
     // «Documento / cédula»— se recortan. El texto completo va al `title`: mismo criterio que las pistas,
     // y sincronizado desde el TEXTO para que no envejezca si alguien lo cambia.
-    (function titulosDeEtiqueta() {
+    (function labelTitles() {
       for (const l of document.querySelectorAll('.auxiliarybar .panelprops .field > label, .auxiliarybar .panelprops .field > .field-label')) {
         const t = (l.textContent || '').trim();
         if (t && !l.title) l.title = t;
@@ -3996,10 +3996,10 @@
 
 
     // La aclaración del campo de sólo-lectura no se pierde al ocultarla: pasa al tooltip de su fila.
-    (function notaDeSoloLectura() {
+    (function readOnlyNote() {
       for (const ro of document.querySelectorAll('.auxiliarybar .panelprops .ro')) {
-        const nota = [...ro.children].find((c) => !c.classList.contains('k') && !c.classList.contains('v') && c.tagName === 'SPAN');
-        if (nota && !ro.title) ro.title = `${(ro.querySelector('.k')?.textContent || '').trim()} — ${nota.textContent.trim()}`;
+        const note = [...ro.children].find((c) => !c.classList.contains('k') && !c.classList.contains('v') && c.tagName === 'SPAN');
+        if (note && !ro.title) ro.title = `${(ro.querySelector('.k')?.textContent || '').trim()} — ${note.textContent.trim()}`;
       }
     })();
 
@@ -4321,7 +4321,7 @@ export function bindMenu(trigger, { getItems, onSelect, label = 'Más opciones' 
     });
     addEventListener('resize', fit);
 
-    document.getElementById('collapseMerchants').onclick = () => { abiertos.clear(); renderMerchants(); };
+    document.getElementById('collapseMerchants').onclick = () => { openOnes.clear(); renderMerchants(); };
     bindMenu(document.getElementById('merchantsMenu'), {
       label: 'Opciones de comercios',
       getItems: () => [
@@ -4345,7 +4345,7 @@ export function bindMenu(trigger, { getItems, onSelect, label = 'Más opciones' 
     const consoleOptions = bindMenu(document.getElementById('consoleMenu'), {
       label: 'Opciones de consola',
       getItems: () => [
-        { id: 'filtrar', label: isSsr() ? 'Sólo llamadas salientes' : 'Sólo eventos importantes', checked: isSsr() ? ssrSolo : soloImportante },
+        { id: 'filtrar', label: isSsr() ? 'Sólo llamadas salientes' : 'Sólo eventos importantes', checked: isSsr() ? ssrOnly : importantOnly },
         { id: 'final', label: 'Ir al final', icon: 'bottom' },
         { separador: true },
         { id: 'ocultar', label: 'Ocultar consola', icon: 'console' },
@@ -4357,7 +4357,7 @@ export function bindMenu(trigger, { getItems, onSelect, label = 'Más opciones' 
       },
     });
     function reflectConsoleFilter() {
-      const filtered = isSsr() ? ssrSolo : soloImportante;
+      const filtered = isSsr() ? ssrOnly : importantOnly;
       const label = document.getElementById('consoleFilterState');
       label.hidden = !filtered;
       label.title = isSsr() ? 'Sólo llamadas salientes' : 'Sólo eventos importantes';

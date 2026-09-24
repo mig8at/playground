@@ -185,7 +185,7 @@ func Tracer(root string) Board {
 }
 
 // Harness es el TypeScript del harness: sus runners, sus paquetes, el server del panel y los mocks.
-// El JS que va adentro de `panel/index.html` no lo lee ningún extractor todavía.
+// El JS de `panel/index.html` se lee de sus <script> inline, salvo la copia sincronizada de workbench.js.
 func Harness(root string) Board {
 	dirs := []string{"harness", "harness/pkg", "harness/dev", "harness/channel", "harness/merchant", "harness/bin",
 		"harness/lender", "harness/e2e", "harness/panel", "harness/mock-*"}
@@ -195,6 +195,7 @@ func Harness(root string) Board {
 			globs = append(globs, d+"/*."+ext)
 		}
 	}
+	globs = append(globs, "harness/panel/index.html")
 	return Board{
 		Name:        "harness",
 		Root:        root,
