@@ -46,11 +46,12 @@ jira_title: "Código de preaprobado de la app en la plataforma nueva"
       `main`) y [#23](https://github.com/Creditop-SAS/self-manager-api/pull/23) (oapi-codegen fijado en
       v2.7.1: con `@latest` el build de la imagen fallaba para cualquier código); `v0.0.6` desplegada en
       prod, imagen `creditop/self-manager-api:v0.0.6` (2026-09-24). Falta comprobarlo en prod (VPN de prod).
-- [ ] Subir la imagen de dev a `creditop/self-manager-api:v0.0.6`; termina cuando `make harness-codigo-qa`
-      devuelva un código de 6 caracteres. Hoy dev sigue en `v0.0.3` (fijada en
-      `environments/development/ecs-application`). Depende de: infraestructura.
-      ⚠ Los 130 del lote siguen activos hasta el 30/09: el servicio los reusa por cliente, comercio y
-      entidad, así que para tener `AA0000` antes hay que usar otras combinaciones.
+- [x] El servicio de códigos de dev emite `AA0000` — por `develop`, no por la infraestructura:
+      [self-manager-api#24](https://github.com/Creditop-SAS/self-manager-api/pull/24) (depguard con paquetes
+      de form-service, G602 y oapi-codegen fijo) y [#25](https://github.com/Creditop-SAS/self-manager-api/pull/25)
+      (imagen base de Go desde ECR Public: Docker Hub cortaba con 429). Dev lo sirve desde el 2026-09-24
+      15:07; la página de QA tiene 125 códigos de 6 caracteres. ⚠ La infraestructura sigue fijando
+      `v0.0.3` para dev: un `apply` futuro puede revertirlo hasta que se cambie ahí.
 - [ ] Que `main` de legacy-backend y de aliados acepten `AA0000`: con `v0.0.6` en prod los códigos nuevos
       salen con letras y ahí todavía se exige `^\d{4}$` / `digits:4`.
 - [ ] Llevar a `main` los tres PRs de la tarea (backend #1455, front #1045 y #1049), hoy sólo en `qa`.

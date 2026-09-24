@@ -69,8 +69,10 @@ if (LOTE > 0) {
         for (const s of sucursales) if (!porComercio.has(s.allied_id)) porComercio.set(s.allied_id, s);
         const clientes = await query(
             `SELECT id FROM users WHERE full_name = 'SYNTH PRUEBA' AND email LIKE '%@creditop.com'
-               AND cell_phone <> '' AND cognito_id IS NULL ORDER BY id DESC LIMIT ?`, [LOTE]);
-        if (clientes.length < LOTE) fallar(`hay ${clientes.length} clientes sintéticos y pediste ${LOTE} códigos por comercio.`);
+               AND cell_phone <> '' AND cognito_id IS NULL ORDER BY id DESC`);
+        // Sólo códigos del formato vigente. Si el servicio devuelve 4 dígitos, es un código viejo que
+        // sigue activo para esa combinación (lo reusa hasta fin de mes): se saltea y se prueba otra.
+        const FORMATO = /^[A-Z]{2}\d{4}$/;
 
         const generado = new Date().toISOString();
         const codigos: any[] = [];
@@ -78,16 +80,25 @@ if (LOTE > 0) {
             const entidades = await query(
                 `SELECT l.id, l.name FROM lenders_by_allied_branches lab JOIN lenders l ON l.id = lab.lender_id
                   WHERE lab.allied_branch_id = ? AND lab.status = 1 ORDER BY l.id`, [s.id]);
-            for (let i = 0; i < LOTE; i++) {
-                const e = entidades[i % entidades.length], u = clientes[i].id;
+            // Todas las combinaciones cliente × entidad, en rueda, hasta juntar LOTE códigos nuevos.
+            const pares: [number, any][] = [];
+            // Cada combinación exactamente una vez: en la vuelta r, el cliente j va con la entidad j+r.
+            for (let r = 0; r < entidades.length; r++)
+                for (let j = 0; j < clientes.length; j++) pares.push([clientes[j].id, entidades[(j + r) % entidades.length]]);
+            let juntados = 0, viejos = 0;
+            for (const [u, e] of pares) {
+                if (juntados >= LOTE) break;
                 const r = await generar(u, s.allied_id, e.id);
+                if (!FORMATO.test(r.code)) { viejos++; continue; }
+                juntados++;
                 codigos.push({
                     id: `a${s.allied_id}-u${u}-l${e.id}`, code: r.code, expired_at: r.expired_at,
                     allied_id: s.allied_id, comercio: s.comercio, branch_id: s.id, sucursal: s.sucursal.trim(), hash: s.hash,
                     lender_id: e.id, lender: e.name, user_id: u, generated_at: generado,
                 });
             }
-            console.log(`✔ ${s.comercio} · ${s.sucursal.trim()} (${s.hash}): ${LOTE} códigos, ${Math.min(LOTE, entidades.length)} entidad(es)`);
+            console.log(`${juntados < LOTE ? '⚠' : '✔'} ${s.comercio} · ${s.sucursal.trim()} (${s.hash}): ${juntados} códigos nuevos`
+                + (viejos ? ` (se saltearon ${viejos} viejos, todavía activos)` : '') + (juntados < LOTE ? ` — faltan ${LOTE - juntados}: no hay más combinaciones` : ''));
         }
         const fs = await import('node:fs');
         fs.mkdirSync('.runs', { recursive: true });
