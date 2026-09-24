@@ -26,8 +26,8 @@ jira_title: ""
   existe fuera de esta máquina.
 - **SDK del comercio:** medir cuántos comercios ecommerce mapean el documento antes de decidir si la
   experiencia propuesta es realista.
-- **Una consulta por ambiente, en `connectors/`:** decidir las tres preguntas del frente de abajo y
-  arrancar por la fase 0 (el módulo único de Go).
+- **Una consulta por ambiente, en `connectors/`:** fases 0 y 1 hechas (el módulo único y
+  `connectors/sql`); sigue la 2, `connectors/logs`.
 
 ## Frente: una consulta por ambiente, en `connectors/`
 
@@ -69,7 +69,7 @@ herramientas, con nombres distintos para lo mismo (`TABLERO_DB_*`, `E2E_DB_*`, `
 
 | ambiente | sql | logs | events |
 |---|---|---|---|
-| `local` | MySQL de Docker (`legacy-backend-mysql-1`) | ? (sin Loki: falla con motivo) | ? |
+| `local` | MySQL de Docker (`legacy-backend-mysql-1`) | Loki local (`harness/bin/loki-local`, según el README del trazador; a medir) | ? |
 | `dev` | MySQL directo, base compartida | Loki `creditopdev`, `service_name="legacy-backend"` | ? |
 | `qa` | la misma base que `dev` | Loki `creditopdev`, `service_name="CreditopDev"` | ? |
 | `staging` | la misma base que `dev` | Loki `creditopdev`, ? | ? |
@@ -139,14 +139,26 @@ vuelve a aparecer un cliente fuera de `connectors/` (se cablea, no se escribe):
 - **Cambiar la lógica de los forenses** (qué se busca en los logs de una solicitud): eso sigue siendo del
   trazador y del harness.
 
-**Tres decisiones de Miguel antes de la fase 0:**
-1. **Los nombres**: `connectors/` para la carpeta y `pg` para el binario, o los que prefiera.
-2. **Las credenciales centralizadas por ambiente** (fase 4). Revierte en parte la decisión del
-   2026-07-22 de un `.env` autosuficiente por herramienta. Se revierte sólo para lo que el conector
-   resuelve: las perillas de cada herramienta se quedan en su `.env`. Hoy, si una credencial rota, hay
-   que actualizarla en varios lados.
-3. **`qa` como ambiente propio**, además de los cuatro de siempre. El trazador y el harness ya lo usan,
-   y `tablero-db` no lo acepta.
+**Decidido el 2026-09-24** («dale, arrancá»): `connectors/` para la carpeta y `pg` para el binario;
+las credenciales centralizadas por ambiente, sólo para lo que resuelve cada conector; y `qa` como
+ambiente propio. Las credenciales de la base se adelantaron a la fase 1, porque sin ellas `tablero-db`
+no tenía fuente en ningún ambiente.
+
+**Lo que dejaron las fases 0 y 1:**
+- **Hechas.** Hay un solo módulo de Go en la raíz (`creditop/playground`) y existe `connectors/sql`:
+  fuente por ambiente, ciclo de Redash, guarda de argumentos y un solo chequeo de sólo lectura, con
+  credenciales en `connectors/.env.<target>`. El tablero (`tablero-db` y el validador de bloques
+  ` ```sql `) y el trazador ya lo usan, y una prueba falla si reaparece un cliente SQL fuera de
+  `connectors/`.
+- ⚠ **Las claves de base van con el prefijo `E2E_DB_`, y el conector no lee `DB_HOST`** ni del archivo ni
+  del proceso. Es el nombre que lee Laravel, y un `set -a` lo dejaba apuntando a la base compartida
+  (CORE-431). Casi se reintroduce al crear los archivos del conector.
+- **Redash no devuelve lo mismo que MySQL directo.** Los números ahora llegan exactos. Los DECIMAL
+  difieren en ceros (`1560414.0` contra `1560414.0000`), y las cadenas binarias llegan en hex, así que
+  se piden con `CAST(… AS CHAR)`.
+- **Quedan secretos que ya nada lee**, y cuáles borrar lo decide Miguel: las claves `E2E_DB_*`/`REDASH_*`
+  de `trazador/.env.*` y las `TABLERO_DB_*` de `tablero/server/.env`. Estas últimas nunca se leyeron:
+  `db-query` no cargaba ese archivo.
 
 ## Sin próximo paso vigente
 
