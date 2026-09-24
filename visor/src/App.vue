@@ -118,6 +118,11 @@ const projectGroups = computed(() => {
         error: p.error, files: (p.files || []).map((f) => ({ key: f.key, name: f.name, when: fmtDay(f.last_modified) })) })
     }
   }
+  for (const p of library.value.projects || []) {
+    for (const f of p.files || []) inProjects.add(f.key)
+    out.push({ id: 'project-' + p.id, name: p.name || `Proyecto ${p.id}`, error: p.error,
+      files: (p.files || []).map((f) => ({ key: f.key, name: f.name, when: fmtDay(f.last_modified) })) })
+  }
   const opened = (library.value.opened || []).filter((o) => !inProjects.has(o.key))
   if (opened.length) out.push({ id: 'opened', name: 'Abiertos en el visor', files: opened.map((o) => ({ key: o.key, name: o.name || o.key, when: fmtDay(o.opened_at) })) })
   return out
@@ -323,9 +328,12 @@ const laneName = (lane) => (lane.label ? lane.label : 'Fila sin rótulo')
             <input v-model="addURL" class="input input-sm" type="url" placeholder="Página del equipo o URL de un archivo" aria-label="URL de un equipo o archivo de Figma" />
             <button class="btn btn-sm" :disabled="libraryBusy || !addURL.trim()">{{ libraryBusy ? 'Sumando…' : 'Sumar' }}</button>
           </form>
-          <p v-if="adding" class="hint">La página del equipo es la que se abre al tocarlo en la barra de Figma (<span class="mono">figma.com/files/team/…</span>). La API no lista los equipos de una cuenta ni lo visto recientemente.</p>
+          <p v-if="adding" class="hint">Pegá la página de un equipo (<span class="mono">figma.com/files/team/…</span>) o de un proyecto (<span class="mono">figma.com/files/project/…</span>, la que se abre al tocar la carpeta en Figma), o el enlace de un archivo. La API de Figma no lista los equipos de una cuenta ni lo visto recientemente: cada flujo aparece acá cuando se suma su equipo, su proyecto o el archivo.</p>
           <p v-if="libraryError" class="notice" role="alert">{{ libraryError }}</p>
           <p v-if="!projectGroups.length && !libraryBusy" class="empty">Todavía no hay proyectos. Sumá la página de un equipo con el botón de arriba, o abrí un archivo por su enlace.</p>
+          <p v-else-if="!(library.teams || []).length && !(library.projects || []).length && !adding" class="hint">
+            Acá aparecen sólo los flujos que el visor conoce. Para ver todos los de un equipo, sumá su página o la de su proyecto con el <b>+</b>.
+          </p>
           <div v-for="g in projectGroups" :key="g.id" class="acc">
             <button type="button" class="acc-head" :aria-expanded="isOpenProject(g.id)" @click="toggleProject(g.id)">
               <span class="ui-icon" data-icon="chevron" aria-hidden="true"></span>

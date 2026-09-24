@@ -15,13 +15,16 @@ import (
 )
 
 // La BIBLIOTECA del visor: los equipos y archivos de donde salen los proyectos de la barra. La API de
-// Figma no lista los equipos de una cuenta ni lo visto recientemente, así que se arma de dos fuentes:
-// los equipos que se sumaron a mano (con la URL de su página) y los archivos que se abrieron en el visor.
+// Figma no lista los equipos de una cuenta ni lo visto recientemente, así que se arma de lo que se sumó
+// a mano —equipos y proyectos, por la URL de su página— y de los archivos que se abrieron en el visor.
 // Se guarda en `visor/.cache/library.json`: es una preferencia de esta máquina, no un dato del repo.
 
 type library struct {
-	Teams  []string      `json:"teams"`
-	Opened []openedEntry `json:"opened"`
+	Teams []string `json:"teams"`
+	// Projects son proyectos (carpetas) sumados sueltos: para cuando la cuenta ve una carpeta de otro
+	// equipo sin ser miembro del equipo, o no se tiene a mano la página del equipo.
+	Projects []string      `json:"projects,omitempty"`
+	Opened   []openedEntry `json:"opened"`
 }
 
 type openedEntry struct {
@@ -31,8 +34,9 @@ type openedEntry struct {
 }
 
 type libraryView struct {
-	Teams  []teamView    `json:"teams"`
-	Opened []openedEntry `json:"opened"`
+	Teams    []teamView    `json:"teams"`
+	Projects []projectView `json:"projects"`
+	Opened   []openedEntry `json:"opened"`
 }
 
 type teamView struct {
@@ -49,7 +53,10 @@ type projectView struct {
 	Error string            `json:"error,omitempty"`
 }
 
-var reTeam = regexp.MustCompile(`/team/([0-9]+)`)
+var (
+	reTeam    = regexp.MustCompile(`/team/([0-9]+)`)
+	reProject = regexp.MustCompile(`/project/([0-9]+)`)
+)
 
 type libraryStore struct {
 	mu    sync.Mutex
@@ -95,8 +102,9 @@ func (l *libraryStore) opened(key, name string) {
 	_ = l.write(lib)
 }
 
-// handleLibrary devuelve los proyectos de los equipos sumados, con sus archivos, y los abiertos. Con
-// POST {url} suma un equipo (URL de su página) o un archivo; con DELETE ?team=|?file= lo saca.
+// handleLibrary devuelve los proyectos (de los equipos sumados y los sumados sueltos), con sus
+// archivos, y los abiertos. Con POST {url} suma un equipo, un proyecto o un archivo, según la URL; con
+// DELETE ?team=|?project=|?file= lo saca.
 func (s *server) handleLibrary(w http.ResponseWriter, r *http.Request) {
 	l := s.library
 	switch r.Method {
@@ -105,12 +113,29 @@ func (s *server) handleLibrary(w http.ResponseWriter, r *http.Request) {
 			URL string `json:"url"`
 		}
 		if json.NewDecoder(r.Body).Decode(&body) != nil || body.URL == "" {
-			fail(w, 400, "falta url: la página de un equipo (figma.com/files/team/<id>/…) o un archivo")
+			fail(w, 400, "falta url: la página de un equipo o de un proyecto de Figma, o un archivo")
 			return
 		}
 		ctx, cancel := context.WithTimeout(r.Context(), 60*time.Second)
 		defer cancel()
-		if m := reTeam.FindStringSubmatch(body.URL); m != nil {
+		if m := reProject.FindStringSubmatch(body.URL); m != nil {
+			// Un proyecto también se prueba antes de guardarlo.
+			if _, err := s.figma.ProjectFiles(ctx, m[1]); err != nil {
+				fail(w, statusOf(err), "%v", err)
+				return
+			}
+			l.mu.Lock()
+			lib := l.read()
+			if !contains(lib.Projects, m[1]) {
+				lib.Projects = append(lib.Projects, m[1])
+			}
+			err := l.write(lib)
+			l.mu.Unlock()
+			if err != nil {
+				fail(w, 500, "%v", err)
+				return
+			}
+		} else if m := reTeam.FindStringSubmatch(body.URL); m != nil {
 			// Se prueba antes de guardarlo: un equipo al que la cuenta no entra (403) no se suma callado.
 			if _, _, err := s.figma.TeamProjects(ctx, m[1]); err != nil {
 				fail(w, statusOf(err), "%v", err)
@@ -145,6 +170,9 @@ func (s *server) handleLibrary(w http.ResponseWriter, r *http.Request) {
 		lib := l.read()
 		if t := r.URL.Query().Get("team"); t != "" {
 			lib.Teams = remove(lib.Teams, t)
+		}
+		if p := r.URL.Query().Get("project"); p != "" {
+			lib.Projects = remove(lib.Projects, p)
 		}
 		if f := r.URL.Query().Get("file"); f != "" {
 			var keep []openedEntry
@@ -200,6 +228,15 @@ func (s *server) libraryView(ctx context.Context, fresh bool) (libraryView, erro
 			tv.Projects = append(tv.Projects, pv)
 		}
 		view.Teams = append(view.Teams, tv)
+	}
+	// Los proyectos sumados sueltos: su nombre viene en la misma respuesta que sus archivos.
+	for _, p := range lib.Projects {
+		name, files, err := s.figma.ProjectFilesNamed(ctx, p)
+		pv := projectView{ID: p, Name: name, Files: files}
+		if err != nil {
+			pv.Error = err.Error()
+		}
+		view.Projects = append(view.Projects, pv)
 	}
 	l.mu.Lock()
 	l.view, l.taken = &view, time.Now()

@@ -477,14 +477,21 @@ func (c *Client) TeamProjects(ctx context.Context, team string) (string, []Proje
 
 // ProjectFiles son los archivos de un proyecto, del más reciente al más viejo.
 func (c *Client) ProjectFiles(ctx context.Context, project string) ([]FileEntry, error) {
+	_, files, err := c.ProjectFilesNamed(ctx, project)
+	return files, err
+}
+
+// ProjectFilesNamed es ProjectFiles con el nombre del proyecto, que la misma respuesta trae.
+func (c *Client) ProjectFilesNamed(ctx context.Context, project string) (string, []FileEntry, error) {
 	var raw struct {
+		Name  string      `json:"name"`
 		Files []FileEntry `json:"files"`
 	}
 	if err := c.get(ctx, "/v1/projects/"+url.PathEscape(project)+"/files", &raw); err != nil {
-		return nil, err
+		return "", nil, err
 	}
 	sort.SliceStable(raw.Files, func(i, j int) bool { return raw.Files[i].LastModified > raw.Files[j].LastModified })
-	return raw.Files, nil
+	return raw.Name, raw.Files, nil
 }
 
 // FileMeta es lo que Figma dice de un archivo sin bajarlo: su carpeta, quién lo creó y quién lo tocó

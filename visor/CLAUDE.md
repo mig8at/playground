@@ -11,9 +11,10 @@ muestra u oculta las zonas. Un enlace de Figma con `node-id` también abre direc
 **La API de Figma no lista los equipos de una cuenta ni lo «visto recientemente»**, así que la barra se
 arma de dos fuentes, guardadas en `visor/.cache/library.json` (preferencia de esta máquina):
 
-- **los equipos que se suman con el +**, pegando la URL de la página del equipo
-  (`figma.com/files/team/<id>/…`, la que se abre al tocarlo en la barra de Figma). Se prueba antes de
-  guardarlo: uno al que la cuenta no entra vuelve con el 403 de Figma en vez de sumarse callado;
+- **los equipos y proyectos que se suman con el +**, pegando la URL de su página
+  (`figma.com/files/team/<id>/…` o `figma.com/files/project/<id>/…`, la que se abre al tocar la carpeta).
+  Se prueba antes de guardarlo: uno al que la cuenta no entra vuelve con el 403 de Figma en vez de
+  sumarse callado. El proyecto sirve cuando la cuenta ve una carpeta de otro equipo sin ser miembro;
 - **los archivos abiertos en el visor**, que se anotan solos en «Abiertos en el visor».
 
 ⚠ Desde un archivo suelto no se llega a su equipo: `/meta` dice la carpeta («PRODUCTO») pero no el id
