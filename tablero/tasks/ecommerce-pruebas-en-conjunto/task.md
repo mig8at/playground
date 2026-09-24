@@ -6,7 +6,7 @@ created: "2026-09-23T17:30:00-05:00"
 canon: []
 jira: [CORE-543]
 jira_title: "Ecommerce: pruebas en conjunto de todo el flujo"
-ramas: feat/ecommerce-checkout-por-settings, fix/restaurar-ecommerce-en-qa, fix/profiling-reviews-user-id-bigint
+ramas: feat/ecommerce-checkout-por-settings, fix/restaurar-ecommerce-en-qa, fix/profiling-reviews-user-id-bigint, fix/ecommerce-amount-from-order
 ---
 
 ## Pendientes
