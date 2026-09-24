@@ -16,6 +16,16 @@ jira_title: ""
       como envoltorio de `cmd/repos` hasta que workers pase a Go. Comparado contra el Python viejo: la
       lista, las 12 refs, los 7.661 archivos de la ref, `web` y 7 citas dan lo mismo, y `make trampas`
       y seis comandos de workers salen idénticos.
+- [x] Pasar a Go el validador de citas y el de trampas — `internal/citations` + `internal/traps`, con
+      `make trampas` y `make citas DOC=…`; `citations.py` y `traps.py` borrados. Contra el Python, sobre
+      119 documentos y 995 citas con todos los baldes, la salida es idéntica byte a byte, con y sin
+      `-ok`.
+- [ ] Terminar de pasar el Python del playground a Go (pedido de Miguel, 2026-09-23), cada pieza
+      borrada sólo después de salir idéntica contra la vieja: `tablero/tools/naming.py` y sus pruebas ·
+      los hooks de `.claude/hooks` · `tools/{confluence,estilo,ui-sync}.py` y `trazador/tools/huella.py`
+      · `workers/` (~7.100 líneas, que es lo que mantiene vivo `tools/repos.py` y `tools/canon.py`) ·
+      y decidir si `flow/` y `twilio/` se portan o se borran. Termina cuando `git ls-files '*.py'` no
+      devuelve nada fuera de lo que se decida conservar (hoy `jev_transport.py`, la conexión con Jev).
 - [x] **El cierre reclamaba de más.** La bitácora de un barrido ya la eximía el marcador «sin avance»
       (el 21/9; la pista de deducirlo del diff se había descartado porque el barrido también escribe su
       nota). Lo que quedaba, medido el 2026-09-23: a #46 y #47, tocadas sólo por barridos y declaradas

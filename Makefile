@@ -141,7 +141,11 @@ cierre: ## @dia el cierre del día: qué tareas tocaste (git, la pila y el pulso
 	@cd tablero/server && go run ./cmd/closeout $(if $(DIA),-dia $(DIA)) $(if $(JSON),-json)
 
 trampas: ## @dia las TRAMPAS del sistema (`F-xx`): ¿el índice está completo y sus citas siguen apuntando bien? INDICE=1 sólo el índice (sin tocar los repos)
-	@python3 tablero/tools/traps.py $(if $(INDICE),--indice)
+	@cd tablero/server && go run ./cmd/traps $(if $(INDICE),-index)
+
+citas: ## @dia ¿las citas `archivo:línea` de un documento siguen apuntando a lo que dicen? (ancla por contenido contra `main`) DOC=<doc.md …> · OK=1 lista también las sanas
+	@test -n "$(DOC)" || { echo "falta DOC=<doc.md>  ·  ej: make citas DOC=tablero/data/traps/doc.md"; exit 2; }
+	@cd tablero/server && go run ./cmd/citations $(if $(OK),-ok) $(addprefix ../../,$(DOC))
 
 tareas-guard: ## @dia ¿este texto puede salir a Jira? (el cuerpo de una tarea NO: nombra repos y rutas). F=<archivo>
 	@test -n "$(F)" || { echo "falta F=<archivo>  ·  ej: make tareas-guard F=tablero/tasks/x/task.md"; exit 2; }

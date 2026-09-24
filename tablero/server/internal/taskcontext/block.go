@@ -234,7 +234,7 @@ func ValidateBlock(e Event) error {
 	return validateBlockText(e.Title, e.Body, true)
 }
 
-// FileResolver es la lista de repos (tools/repos.py): si un alias se puede citar y en qué commit
+// FileResolver es la lista de repos (tools/repos.json): si un alias se puede citar y en qué commit
 // existe una ruta.
 type FileResolver interface {
 	Pin(alias, path, sha string) (string, error)

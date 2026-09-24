@@ -160,7 +160,7 @@ type app struct {
 	// Los enlaces de herramientas no se queman en la UI: local y el entorno compartido pueden tener
 	// direcciones distintas. El server los entrega desde server/.env.
 	canonURL string
-	// repos dice dónde se ve en la web cada repo que un bloque puede citar. Sale de tools/repos.py,
+	// repos dice dónde se ve en la web cada repo que un bloque puede citar. Sale de tools/repos.json,
 	// la lista única: la UI arma el enlace a GitHub de un archivo fijado a su commit.
 	repos *repos.Client
 }

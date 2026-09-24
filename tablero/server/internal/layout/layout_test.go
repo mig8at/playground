@@ -14,7 +14,7 @@ func TestToolsIsFoundFromTheWorkingDirWhenDataLivesElsewhere(t *testing.T) {
 	if err := os.MkdirAll(filepath.Join(repo, "tools"), 0o755); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(filepath.Join(repo, "tools", "repos.py"), nil, 0o644); err != nil {
+	if err := os.WriteFile(filepath.Join(repo, "tools", "repos.json"), nil, 0o644); err != nil {
 		t.Fatal(err)
 	}
 	work := filepath.Join(repo, "tablero", "server")

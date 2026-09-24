@@ -42,11 +42,11 @@ import urllib.request
 from collections import Counter, defaultdict
 
 PLAYGROUND = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-# El índice de «qué existe en main» vive con el validador de citas, en el tablero: es la misma
-# pregunta y tenerla dos veces es una divergencia esperando (ver el encabezado de `citations.py`).
+# El índice de «qué existe en main» es de la lista única de repos (`tools/repos.py`, que le pregunta a
+# `internal/repos`): es la misma pregunta que se hace el validador de citas, y tenerla dos veces es una
+# divergencia esperando.
 sys.path.insert(0, os.path.join(PLAYGROUND, "tools"))
-sys.path.insert(0, os.path.join(PLAYGROUND, "tablero", "tools"))
-from citations import del_ref  # noqa: E402
+from repos import del_ref  # noqa: E402
 
 # El corpus contra el que se cruza lo medido es canon, que declara por área sus `tablas` y sus `fuentes`
 # (archivo → hash). La pregunta es «¿qué toca este flujo que nadie explica?». Quien sabe leerlo, por su

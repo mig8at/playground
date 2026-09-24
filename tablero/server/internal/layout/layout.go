@@ -37,7 +37,7 @@ type Layout struct {
 	Tasks string
 }
 
-// Tools es la carpeta `tools/` de la raíz del playground: ahí vive `repos.py`, la lista ÚNICA de repos que
+// Tools es la carpeta `tools/` de la raíz del playground: ahí vive `repos.json`, la lista ÚNICA de repos que
 // el tablero consulta en vez de copiarla, y su padre es desde donde se corre `make`.
 //
 // Primero, dos niveles arriba de `data/`. ⚠ Pero TABLERO_DATA puede apuntar AFUERA del repo —el agente
@@ -50,12 +50,12 @@ func (l Layout) Tools() string {
 		data = l.Data
 	}
 	fromData := filepath.Join(filepath.Dir(filepath.Dir(data)), "tools")
-	if _, err := os.Stat(filepath.Join(fromData, "repos.py")); err == nil {
+	if _, err := os.Stat(filepath.Join(fromData, "repos.json")); err == nil {
 		return fromData
 	}
 	if wd, err := os.Getwd(); err == nil {
 		for d := wd; ; d = filepath.Dir(d) {
-			if _, err := os.Stat(filepath.Join(d, "tools", "repos.py")); err == nil {
+			if _, err := os.Stat(filepath.Join(d, "tools", "repos.json")); err == nil {
 				return filepath.Join(d, "tools")
 			}
 			if filepath.Dir(d) == d {

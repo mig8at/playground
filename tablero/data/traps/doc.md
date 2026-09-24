@@ -405,6 +405,28 @@ distinto según con qué pregunta llegues.
 | F-160 | Las reglas del dump local difieren de producción: se depura contra umbrales inexistentes | VIGENTE |
 | F-161 | Hay DOS listados (`lenders` y `lenders-v2`) con clases distintas: v1 devuelve menos | ABIERTO |
 | F-162 | Las reglas de grupo clasifican, no excluyen: 1.923 créditos las violan y se otorgaron | VIGENTE |
+| F-163 | La credencial de Deceval del dump local trae claves de Experian — y el error no lo dice | VIGENTE en local |
+| F-164 | Deceval: cuatro operaciones, cuatro contenedores y tres criterios de éxito distintos | VIGENTE |
+| F-165 | Credifamilia (rt=4) necesita seis externos, y cada uno faltante se ve igual: estado 28 | arreglado en local |
+| F-166 | La firma de Credifamilia corre dentro de una transacción abierta, y al trabarse tres capas borran la causa | VIGENTE |
+| F-167 | El plazo lo dicta el cliente: `confirm-payment-schedule` no valida contra los plazos simulados | VIGENTE |
+| F-168 | «Autorizada» no es «radicada»: el crédito puede quedar en estado 11 sin haberse enviado al lender | VIGENTE |
+| F-169 | El rotativo (rt=3) revienta si el cliente no tiene cupo previo: un acceso sin guarda | VIGENTE |
+| F-170 | El webhook de las entidades rt=1 no vive en `legacy-backend`, y la mitad que sí está rechaza siempre | VIGENTE |
+| F-171 | El webhook de rt=0: dos guardas rotas, y una que no puede dispararse nunca | VIGENTE |
+| F-172 | Un lender rt=2 sin categorías revienta al autorizar, y hay 6 así activos en producción | VIGENTE |
+| F-173 | Bancolombia no entra por el onboarding, y la entidad que sí aparece ahí está muerta | VIGENTE |
+| F-174 | En local los documentos no se guardan: la subida a S3 falla en silencio y la URL igual se escribe | arreglado en local |
+| F-175 | El mismo celular se guarda con indicador o sin él según por dónde entre | lookup ARREGLADO · lo guardado espera backfill |
+| F-176 | Contra un ambiente compartido, el guard de escrituras corta después de que el flujo ya escribió | VIGENTE |
+| F-177 | En un país sin centrales de riesgo el paso laboral deja de ser opcional | VIGENTE (es lo correcto) |
+| F-178 | El número de documento es único en toda la tabla, sin tipo ni país: un DNI choca con una cédula | VIGENTE · bloquea Perú |
+| F-179 | En Loki, el backend de qa no se distingue del de dev | el título ya no es cierto (2026-09-23) |
+| F-180 | Bajo carga, el gateway de qa corta a los 60 s con 504, pero PHP sigue y termina de escribir | VIGENTE |
+| F-181 | Sail sirve PHP con `artisan serve`, una petición a la vez: local no sirve para medir concurrencia | arreglado en local |
+| F-182 | Los documentos de Rent to Own sólo renderizan en producción: el builder se elige por `lender_id` quemado | VIGENTE · bloquea RTO fuera de prod |
+| F-183 | La base de producción guarda en hora de Colombia aunque MySQL corre en UTC: `NOW()` pelado da cero filas | VIGENTE |
+| F-184 | El indicativo se hornea en `users.cell_phone` al crear la persona, y la persona no es de un país | VIGENTE en producción |
 | F-185 | Volver atrás reinyecta el monto viejo: el financiado vive sólo en la query | ABIERTO |
 | F-186 | El gate de la entidad se vuelve a apretar con el atrás y niega una solicitud que ya siguió | ABIERTO |
 | F-187 | Un import estático deja `E2E_TARGET` en `dev`: el runner imprime «target local» y pega contra la BD compartida | cerrado |
@@ -625,7 +647,7 @@ Llegó a **1,2 GB** de `Driver [loki] is not supported`: `GRAFANA_LOKI_ENABLED=f
 **Causa raíz — una inconsistencia dentro del propio código:**
 
 ```php
-// legacy-backend/app/Models/UserRequest.php:208-220
+// legacy-backend/app/Models/UserRequest.php:241-253
 public function isSmartPay(): bool
 {
     // desde el 2026-08-19 el id quemado depende del ambiente, y el propio comentario
@@ -1969,7 +1991,7 @@ en producción — el webhook no deja registro cuando `firstOrFail()` lanza, as�
   los ejecuta después es `handlePostDisbursementSideEffects:323` (`Modules/Loans/App/Services/LoanAuthorizationService.php:343` el voucher), dentro de
   `disburseImeiRequest` — y `Modules/Loans/App/Http/Controllers/Customer/DeviceController.php:102`
   sólo llega ahí si `isSmartPay()`, que es
-  `isImeiPath() && lender->id === $smartpayLenderId` —160 en producción, 152 fuera— (`legacy-backend/app/Models/UserRequest.php:217-219`). Un lender con `path_id=2`
+  `isImeiPath() && lender->id === $smartpayLenderId` —160 en producción, 152 fuera— (`legacy-backend/app/Models/UserRequest.php:250-252`). Un lender con `path_id=2`
   que **no** sea el 160 se cierra por `authorize()`, o sea por la rama que acaba de saltear el voucher.
   El que **saltea** mira el path; el que **ejecuta** mira el id. Es el hardcode de **F-21** visto desde
   producción: allá impedía probar SmartPay fuera de prod, acá deja sin voucher a otro lender real.
