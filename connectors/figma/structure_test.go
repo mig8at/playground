@@ -287,3 +287,19 @@ func TestALabelAboveItsRowDoesNotLabelTheRowAbove(t *testing.T) {
 		t.Errorf("cada fila con su rótulo: %v", laneOf)
 	}
 }
+
+// La huella no depende del orden de las claves, y cambia con cualquier cambio de contenido.
+func TestFingerprintFollowsContentNotKeyOrder(t *testing.T) {
+	a, _ := Fingerprint([]byte(`{"id":"1:2","name":"Pago","children":[{"characters":"Continuar"}]}`))
+	b, _ := Fingerprint([]byte(`{"name":"Pago","children":[{"characters":"Continuar"}],"id":"1:2"}`))
+	c, _ := Fingerprint([]byte(`{"id":"1:2","name":"Pago","children":[{"characters":"Seguir"}]}`))
+	if a == "" || a != b {
+		t.Errorf("el orden de las claves no es contenido: %q vs %q", a, b)
+	}
+	if a == c {
+		t.Error("otro texto es otra pantalla")
+	}
+	if _, err := Fingerprint([]byte(`no es json`)); err == nil {
+		t.Error("lo que no es JSON no tiene huella")
+	}
+}

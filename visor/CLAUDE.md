@@ -40,6 +40,17 @@ sección pegada a mano. El botón de copiar de la cabecera da la de la pantalla 
   diseñador la borró» (Figma devuelve 404) de «sigue en el archivo pero no en la página de flujo», con el
   enlace a Figma. ⚠ Y mientras una ruta manda, el bloque que quedó abierto de la visita anterior no se
   queda con el centro al terminar de cargar: esa carrera tapaba el aviso.
+- **El enlace que se COPIA lleva la huella de la pantalla** (`?huella=52065d0ce692`): el resumen del contenido
+  de ese momento (`connectors/figma.Fingerprint`, el mismo mecanismo que canon con el hash del blob de cada
+  fuente). El id dice si la pantalla existe; la huella, si sigue siendo la que se enlazó: el diseñador la
+  puede cambiar entera sin cambiarle el id. Abrir un enlace con huella lo compara con Figma y lo dice en el
+  detalle («sin cambios» · «el diseño cambió: lo que diga la tarea puede estar viejo»). Cambia también si el
+  diseñador edita un componente que la pantalla usa: eso también es «se ve distinta». Medido: dos lecturas
+  frescas y una guardada horas antes dieron la misma huella.
+- **`make visor-enlaces` rastrea TODOS los enlaces del visor de las tareas** (`tablero/tasks`, o `DIR=`): por
+  cada uno dice `igual`, `CAMBIÓ` (con la huella vieja y la nueva), `BORRADA` o `sin huella`, con el archivo
+  y la línea. Sale ≠0 si alguno se rompió (borrada, o un proyecto que la biblioteca no conoce); «cambió» es
+  un aviso para releer, no un error. Pregunta a Figma, no a la caché.
 - **Renombrar el archivo no mata la ruta**: la biblioteca guarda los nombres que tuvo (`aliases`), y el
   nombre viejo sigue abriendo el proyecto. El enlace que se copia después ya usa el nombre nuevo.
 - Un nombre que se repite entre dos proyectos no sirve de ruta: esos van por la **clave** del archivo,
@@ -171,6 +182,7 @@ cargara una imagen: antes de creerle a una caída, medila sola con `SOLO=<id>`. 
 
     make visor-test                   # la traducción (visor/render) y las guardas del server, sin red
     make visor-fidelidad REF='<url>'  # el HTML contra la imagen de Figma, con el visor corriendo
+    make visor-enlaces                # ¿las pantallas que enlazan las tareas siguen igual, cambiaron o las borraron?
     go test ./connectors/figma/       # las reglas que deducen carriles, títulos y zonas
     make estilo-check                 # el visor es la cuarta UI del tema compartido
 
@@ -178,4 +190,5 @@ cargara una imagen: antes de creerle a una caída, medila sola con `SOLO=<id>`. 
 
 Lo que se vio en un diseño va a la pila de la tarea como bloque, con el comando que lo reproduce —el
 `bin/pg figma map '<url>'` de la sección, no una captura— y el enlace al archivo en `artifacts/` (un
-`.url`). A Jira no va la herramienta: va «el diseño del flujo tiene tal recorrido».
+`.url`). Una pantalla puntual va con **el enlace que da el botón de copiar**, que lleva la huella: así
+`make visor-enlaces` puede decir mañana si esa pantalla cambió. A Jira no va la herramienta: va «el diseño del flujo tiene tal recorrido».

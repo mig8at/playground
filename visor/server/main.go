@@ -9,6 +9,7 @@
 package main
 
 import (
+	"bufio"
 	"context"
 	"encoding/json"
 	"errors"
@@ -28,12 +29,19 @@ import (
 func main() {
 	serve := flag.String("serve", "127.0.0.1:5194", "dónde escucha la API")
 	cache := flag.String("cache", "../.cache", "dónde se guardan las imágenes exportadas")
+	links := flag.String("links", "", "en vez de servir: recorre esta carpeta y dice cómo están las pantallas que enlazan sus archivos")
 	flag.Parse()
 	tok, err := figma.LoadToken()
 	if err != nil {
 		log.Fatal(err)
 	}
 	srv := newServer(figma.New(tok), *cache)
+	if *links != "" {
+		out := bufio.NewWriter(os.Stdout)
+		code := srv.checkLinks(context.Background(), *links, out)
+		out.Flush()
+		os.Exit(code)
+	}
 	log.Printf("visor: API en http://%s (caché en %s)", *serve, *cache)
 	log.Fatal(http.ListenAndServe(*serve, srv.routes()))
 }
@@ -80,6 +88,7 @@ func (s *server) routes() http.Handler {
 	mux.HandleFunc("/api/asset", s.handleAsset)
 	mux.HandleFunc("/api/library", s.handleLibrary)
 	mux.HandleFunc("/api/pages", s.handlePages)
+	mux.HandleFunc("/api/track", s.handleTrack)
 	return mux
 }
 

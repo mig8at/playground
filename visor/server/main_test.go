@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bufio"
 	"context"
 	"net/http"
 	"net/http/httptest"
@@ -9,6 +10,8 @@ import (
 	"sync/atomic"
 	"testing"
 	"time"
+
+	"creditop/playground/connectors/figma"
 )
 
 // La clave y el id terminan en una RUTA DE DISCO: cualquier cosa que no tenga su forma exacta se
@@ -115,5 +118,75 @@ func TestLibraryRemembersOpenedFilesOnce(t *testing.T) {
 	s.routes().ServeHTTP(rec, httptest.NewRequest("POST", "/api/library", strings.NewReader(`{}`)))
 	if rec.Code != 400 {
 		t.Errorf("sin url no se suma nada: HTTP %d", rec.Code)
+	}
+}
+
+// Un enlace con huella dice si la pantalla sigue siendo la que se enlazó, si el diseñador la cambió o si
+// la borró; sin huella, sólo que existe.
+func TestTrackTellsSameChangedDeletedAndUnsigned(t *testing.T) {
+	s := newServer(nil, t.TempDir())
+	content := map[string]string{"1:2": `{"id":"1:2","name":"Pago"}`}
+	s.nodeJSON = func(_ context.Context, key, id string) ([]byte, error) {
+		if c, ok := content[id]; ok {
+			return []byte(c), nil
+		}
+		return nil, &figma.Error{Status: 404, Message: "el nodo " + id + " no está en el archivo"}
+	}
+	print, _ := figma.Fingerprint([]byte(content["1:2"]))
+	ctx := context.Background()
+	for _, c := range []struct{ id, linked, want string }{
+		{"1:2", print, linkSame}, {"1:2", "", linkUnsigned}, {"9:9", print, linkDeleted},
+	} {
+		if res, err := s.track(ctx, "SsvFsK5tLvR1jNT3Hh6znD", c.id, c.linked); err != nil || res.Status != c.want {
+			t.Errorf("%s con huella %q: %+v %v, quería %s", c.id, c.linked, res, err, c.want)
+		}
+	}
+	content["1:2"] = `{"id":"1:2","name":"Pago, con otro texto"}`
+	if res, _ := s.track(ctx, "SsvFsK5tLvR1jNT3Hh6znD", "1:2", print); res.Status != linkChanged || res.Print == print {
+		t.Errorf("el diseñador la cambió: %+v", res)
+	}
+}
+
+// `make visor-enlaces`: encuentra los enlaces del visor en las tareas, resuelve el proyecto por su nombre
+// (también uno viejo) y sale con 1 si alguno se rompió.
+func TestCheckLinksFindsBrokenLinksInTasks(t *testing.T) {
+	s := newServer(nil, t.TempDir())
+	s.library.opened("SsvFsK5tLvR1jNT3Hh6znD", "Crédito Ñandú", "PRODUCTO")
+	s.library.opened("SsvFsK5tLvR1jNT3Hh6znD", "Crédito Ñandú v2", "")
+	s.nodeJSON = func(_ context.Context, key, id string) ([]byte, error) {
+		if id == "1:2" {
+			return []byte(`{"id":"1:2"}`), nil
+		}
+		return nil, &figma.Error{Status: 404}
+	}
+	print, _ := figma.Fingerprint([]byte(`{"id":"1:2"}`))
+	dir := t.TempDir()
+	task := "Pantalla: http://localhost:5193/credito-nandu/1-2?huella=" + print + " y otra " +
+		"(http://localhost:5193/credito-nandu-v2/9-9?huella=" + print + ")\nuna de otro: http://localhost:5193/no-existe/1-2\n"
+	if err := os.WriteFile(dir+"/task.md", []byte(task), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	var out strings.Builder
+	w := bufio.NewWriter(&out)
+	code := s.checkLinks(context.Background(), dir, w)
+	w.Flush()
+	got := out.String()
+	for _, want := range []string{"igual", "task.md:1", "credito-nandu/1-2", "BORRADA", "credito-nandu-v2/9-9", "¿PROYECTO?", "no-existe/1-2", "3 enlace(s) · 1 igual · 0 cambió · 1 borrada"} {
+		if !strings.Contains(got, want) {
+			t.Errorf("falta %q en:\n%s", want, got)
+		}
+	}
+	if code != 1 {
+		t.Errorf("con un enlace roto sale con 1, salió con %d", code)
+	}
+}
+
+// El nombre del proyecto en la ruta es el mismo que arma la UI (slugOf de App.vue).
+func TestSlugMatchesTheUI(t *testing.T) {
+	for in, want := range map[string]string{"flujo ecommerce": "flujo-ecommerce", "Motai Renting": "motai-renting",
+		"Crédito Ñandú — v2": "credito-nandu-v2", "  CreditopX ": "creditopx"} {
+		if got := slugOf(in); got != want {
+			t.Errorf("slugOf(%q) = %q, quería %q", in, got, want)
+		}
 	}
 }

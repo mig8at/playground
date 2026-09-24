@@ -186,6 +186,9 @@ visor-fidelidad: ## @dia ¿cuánto se parece el HTML traducido a Figma? píxel a
 	@test -n "$(REF)" || { echo "falta REF='<url de la sección de Figma>'"; exit 2; }
 	@node visor/tools/fidelity.mjs --ref '$(REF)' $(if $(SOLO),--only $(SOLO)) $(if $(TODAS),--all)
 
+visor-enlaces: ## @dia ¿siguen vivas las pantallas que enlazan las tareas? recorre el tablero y dice, por cada enlace del visor, si la pantalla sigue igual, CAMBIÓ o la BORRARON (por su huella). Sale ≠0 si hay alguno roto. DIR=<carpeta> (default: las tareas)
+	@cd visor/server && go run . -links "$(abspath $(or $(DIR),tablero/tasks))"
+
 trazador-buscar: ## @dia la HISTORIA de una persona por cédula, teléfono o solicitud. Q=1012345678 [TARGET=prod] [JSON=1] [MD=1 anotación para pegar en la tarea] [BLOQUE=<id|slug> la agrega como bloque a la pila de esa tarea]
 	@test -n "$(Q)" || { echo "falta Q=<cédula|teléfono|uReq>  ·  ej: make trazador-buscar Q=1012345678"; exit 2; }
 	@cd trazador/server && go run . -target $(or $(TARGET),prod) -buscar $(Q) $(if $(JSON),-json) $(if $(MD),-md) $(if $(BLOQUE),-bloque $(BLOQUE))

@@ -20,8 +20,18 @@ var (
 	reImageRef  = regexp.MustCompile(`^[0-9a-f]{40}$`)
 )
 
-// screenNode baja (una vez por versión) el JSON crudo de una pantalla.
+// screenNode baja (una vez por versión) el JSON crudo de una pantalla y lo lee.
 func (s *server) screenNode(ctx context.Context, key, id string) (render.Node, string, error) {
+	raw, version, err := s.screenRaw(ctx, key, id)
+	if err != nil {
+		return render.Node{}, version, err
+	}
+	n, err := render.Parse(raw)
+	return n, version, err
+}
+
+// screenRaw es el JSON crudo de una pantalla, de la memoria, del disco o de Figma, por versión.
+func (s *server) screenRaw(ctx context.Context, key, id string) ([]byte, string, error) {
 	s.mu.Lock()
 	version := s.versions[key]
 	raw, ok := s.nodes[key+"|"+version+"|"+id]
@@ -38,7 +48,7 @@ func (s *server) screenNode(ctx context.Context, key, id string) (render.Node, s
 		var err error
 		raw, err = s.nodeJSON(ctx, key, id)
 		if err != nil {
-			return render.Node{}, version, err
+			return nil, version, err
 		}
 		if err := os.MkdirAll(filepath.Dir(path), 0o755); err == nil {
 			_ = os.WriteFile(path+".tmp", raw, 0o644)
@@ -48,8 +58,7 @@ func (s *server) screenNode(ctx context.Context, key, id string) (render.Node, s
 	s.mu.Lock()
 	s.nodes[key+"|"+version+"|"+id] = raw
 	s.mu.Unlock()
-	n, err := render.Parse(raw)
-	return n, version, err
+	return raw, version, nil
 }
 
 // assets arma las URLs que el HTML usa para lo que no es CSS. Van por este mismo server, así que el

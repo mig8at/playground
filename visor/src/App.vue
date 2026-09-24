@@ -317,11 +317,15 @@ const keyOfProject = (project) => {
 }
 const toID = (s) => (s || '').replace(/-/g, ':')
 const fromID = (id) => (id || '').replace(/:/g, '-')
+// La comprobación del enlace con que se llegó (ver checkLink, más abajo).
+const linkCheck = ref(null) // { id, linked, status: 'checking' | 'same' | 'changed' | 'deleted', print }
 const routePath = computed(() => {
   if (!data.value || !currentID.value) return ''
   const q = new URLSearchParams()
   if (data.value.node !== flowNodes[data.value.key]) q.set('nodo', fromID(data.value.node))
   if (mode.value !== 'image') q.set('modo', modeSlugs[mode.value])
+  // La huella del enlace con que se llegó se queda en la barra mientras se mira ESA pantalla.
+  if (linkCheck.value?.linked && linkCheck.value.id === currentID.value) q.set('huella', linkCheck.value.linked)
   const qs = q.toString()
   return `/${projectSlug(data.value.key)}/${fromID(currentID.value)}${qs ? '?' + qs : ''}`
 })
@@ -336,7 +340,7 @@ function readRoute() {
   if (!m) return null
   const q = new URLSearchParams(location.search)
   const modeID = Object.keys(modeSlugs).find((k) => modeSlugs[k] === q.get('modo')) || ''
-  return { project: decodeURIComponent(m[1]), screen: toID(m[2]), node: toID(q.get('nodo')), mode: modeID }
+  return { project: decodeURIComponent(m[1]), screen: toID(m[2]), node: toID(q.get('nodo')), mode: modeID, print: q.get('huella') || '' }
 }
 const figmaRef = (key, node) => `https://www.figma.com/design/${key}/?node-id=${fromID(node)}`
 // routeHold: una ruta está mandando en el centro. Ningún bloque que termine de cargar después —el que
@@ -359,6 +363,7 @@ async function openRoute(r) {
   const ids = new Set(groupsFor(maps.value[key]?.structure).flatMap((g) => g.lanes.flatMap((l) => l.screens.map((sc) => sc.id))))
   if (r.screen && !ids.has(r.screen)) { fail(await whyMissing(key, r.screen)); return }
   routeHold = false
+  if (r.print && r.screen) checkLink(key, r.screen, r.print)
   activate(key, r.screen)
 }
 // whyMissing distingue una pantalla BORRADA (Figma ya no la tiene) de una que sigue en el archivo pero
@@ -378,10 +383,29 @@ function readHash() {
   return m ? { ref: figmaRef(m[1], m[2]), screen: m[3] || '' } : null
 }
 const copied = ref(false)
-async function copyLink() {
+// ── la huella: rastrear si la pantalla de un enlace cambió ──
+// El enlace que se copia lleva la huella del contenido de la pantalla en ese momento (server:
+// `/api/track`, connectors/figma.Fingerprint). Abrirlo después compara contra la de hoy: la pantalla puede
+// cambiar entera sin cambiar de id. `make visor-enlaces` hace lo mismo con todos los enlaces de las tareas.
+async function checkLink(key, id, linked) {
+  linkCheck.value = { id, linked, status: 'checking' }
   try {
-    await navigator.clipboard.writeText(location.origin + routePath.value)
-    copied.value = true
+    const res = await fetch('/api/track?' + new URLSearchParams({ key, id, huella: linked }))
+    const body = await res.json()
+    if (linkCheck.value?.id === id) linkCheck.value = res.ok ? { id, linked, status: body.status, print: body.print } : { id, linked, status: 'error', error: body.error }
+  } catch (e) { if (linkCheck.value?.id === id) linkCheck.value = { id, linked, status: 'error', error: String(e.message || e) } }
+}
+async function copyLink() {
+  if (!data.value || !current.value) return
+  const path = routePath.value.replace(/[?&]huella=[0-9a-f]+/, '').replace(/\?$/, '')
+  let print = ''
+  try {
+    const res = await fetch('/api/track?' + new URLSearchParams({ key: data.value.key, id: current.value.id }))
+    if (res.ok) print = (await res.json()).print || ''
+  } catch { /* sin huella el enlace sirve igual: sólo no se podrá rastrear */ }
+  try {
+    await navigator.clipboard.writeText(location.origin + path + (print ? (path.includes('?') ? '&' : '?') + 'huella=' + print : ''))
+    copied.value = print ? 'huella' : 'plain'
     setTimeout(() => { copied.value = false }, 1500)
   } catch { /* sin permiso del portapapeles: la ruta sigue en la barra del navegador */ }
 }
@@ -706,7 +730,7 @@ const laneName = (lane) => (lane.label ? lane.label : 'Fila sin rótulo')
           <button class="region-action" title="Centrar la pantalla (0)" aria-label="Centrar la pantalla" @click="center">
             <span class="ui-icon" data-icon="collapse" aria-hidden="true"></span>
           </button>
-          <button class="region-action" :title="copied ? 'Copiado' : 'Copiar el enlace a esta pantalla: ' + routePath" aria-label="Copiar el enlace" @click="copyLink">
+          <button class="region-action" :title="copied === 'huella' ? 'Copiado, con la huella de la pantalla' : copied ? 'Copiado, sin huella: no se pudo leer' : 'Copiar el enlace a esta pantalla, con su huella para saber después si cambió'" aria-label="Copiar el enlace" @click="copyLink">
             <span class="ui-icon" :data-icon="copied ? 'check' : 'copy'" aria-hidden="true"></span>
           </button>
           <a class="region-action" :href="figmaURL" target="_blank" rel="noopener" title="Abrir esta pantalla en Figma" aria-label="Abrir en Figma">
@@ -742,6 +766,13 @@ const laneName = (lane) => (lane.label ? lane.label : 'Fila sin rótulo')
       <div class="region-body detail">
         <p v-if="!current" class="empty">Elegí una pantalla de un carril.</p>
         <template v-else>
+          <template v-if="linkCheck && linkCheck.id === current.id">
+            <p v-if="linkCheck.status === 'checking'" class="hint">Comprobando si la pantalla cambió desde que se copió el enlace…</p>
+            <p v-else-if="linkCheck.status === 'same'" class="hint">Sin cambios desde que se copió el enlace (huella {{ linkCheck.linked }}).</p>
+            <p v-else-if="linkCheck.status === 'changed'" class="notice" role="status">El diseño cambió desde que se copió el enlace: huella {{ linkCheck.linked }} → {{ linkCheck.print }}. Lo que diga la tarea sobre esta pantalla puede estar viejo.</p>
+            <p v-else-if="linkCheck.status === 'deleted'" class="notice" role="status">Figma ya no tiene esta pantalla: el diseñador la borró.</p>
+            <p v-else-if="linkCheck.status === 'error'" class="hint">No se pudo comprobar la huella: {{ linkCheck.error }}</p>
+          </template>
           <dl>
             <dt>Título</dt><dd>{{ current.title || '—' }}<small v-if="current.title_from === 'capa'"> · del nombre de la capa</small></dd>
             <dt>Capa</dt><dd>{{ current.name }}</dd>
