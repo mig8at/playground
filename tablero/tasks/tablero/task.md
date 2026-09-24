@@ -20,10 +20,13 @@ jira_title: ""
       `make trampas` y `make citas DOC=…`; `citations.py` y `traps.py` borrados. Contra el Python, sobre
       119 documentos y 995 citas con todos los baldes, la salida es idéntica byte a byte, con y sin
       `-ok`.
+- [x] Pasar a Go el chequeo de nombres — `internal/naming` + `cmd/naming`, que absorbe los extractores
+      `rename/go/cmd/{decls,json-keys}` (`-decls`, `-json-keys`: salida idéntica, 5.979 y 897 líneas).
+      Con la lista de permitidas vaciada un momento, los 332 hallazgos salen iguales en los tres modos, y
+      la tabla de frecuencias es la misma (44.131 palabras). `naming.py` y `test_naming.py` borrados.
 - [ ] Terminar de pasar el Python del playground a Go (pedido de Miguel, 2026-09-23), cada pieza
-      borrada sólo después de salir idéntica contra la vieja: `tablero/tools/naming.py` y sus pruebas ·
-      los hooks de `.claude/hooks` · `tools/{confluence,estilo,ui-sync}.py` y `trazador/tools/huella.py`
-      · `workers/` (~7.100 líneas, que es lo que mantiene vivo `tools/repos.py` y `tools/canon.py`) ·
+      borrada sólo después de salir idéntica contra la vieja: los hooks de `.claude/hooks` ·
+      `tools/{confluence,estilo,ui-sync}.py` y `trazador/tools/huella.py` · `workers/` (~7.100 líneas, que es lo que mantiene vivo `tools/repos.py` y `tools/canon.py`) ·
       y decidir si `flow/` y `twilio/` se portan o se borran. Termina cuando `git ls-files '*.py'` no
       devuelve nada fuera de lo que se decida conservar (hoy `jev_transport.py`, la conexión con Jev).
 - [x] **El cierre reclamaba de más.** La bitácora de un barrido ya la eximía el marcador «sin avance»

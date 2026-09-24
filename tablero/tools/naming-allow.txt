@@ -1,4 +1,4 @@
-# naming-allow.txt — lo que tools/naming.py acepta aunque casi no aparezca en las bibliotecas estándar
+# naming-allow.txt — lo que `make tablero-naming` (server/internal/naming) acepta aunque casi no aparezca en las bibliotecas estándar
 # de Go y Python, que son su vara del inglés. Una palabra por línea (o varias separadas por espacio);
 # las formas derivadas regulares (plural, -ed, -ing) ya las reconoce solo.
 #

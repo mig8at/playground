@@ -282,10 +282,10 @@ tablero-jev-test: ## @dia la conexión con la API de Jev, sin uso encima hasta q
 # Python, NO el diccionario del sistema, que deja pasar `aviso` o `leer`. Lo legítimo que la vara no
 # conoce va a tablero/tools/naming-allow.txt, con su categoría.
 tablero-naming: ## @dia ¿el código del tablero nombra algo en español? identificadores de Go, Vue/JS y Python, archivos y carpetas. Sale 1 si sí. WORDS=1 lista las palabras desconocidas
-	@python3 tablero/tools/naming.py $(if $(WORDS),--words)
+	@cd tablero/server && go run ./cmd/naming $(if $(WORDS),-words)
 
 tablero-naming-test: ## @dia pruebas del chequeo de nombres: la vara, las formas derivadas y un nombre español inventado en cada lenguaje
-	@PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover -s tablero/tools -p test_naming.py
+	@cd tablero/server && go test -count=1 ./internal/naming
 
 tablero-ui-offline: ## @dia prueba la interfaz del tablero SIN servidores: compila, sirve el dist/ desde disco y simula la API en Chromium. No toca datos
 	@cd tablero && npx vite build --logLevel error && node tools/ui-offline.mjs

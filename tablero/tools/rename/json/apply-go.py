@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """apply-go.py [-w] — renombra las claves JSON del server de Go según `maps/phase4b-json.tsv`.
 
-Lee el inventario que da `go/cmd/json-keys` (etiqueta de struct, clave de mapa literal o índice, con
+Lee el inventario que da `server/cmd/naming -json-keys` (etiqueta de struct, clave de mapa literal o índice, con
 archivo:línea y el tipo que la contiene) y reescribe SÓLO esa aparición en esa línea. Sin `-w` lista lo
 que haría.
 
@@ -41,7 +41,7 @@ def load_map():
 
 
 def inventory():
-    run = subprocess.run(["go", "run", "./cmd/json-keys", str(SERVER)], cwd=HERE.parent / "go",
+    run = subprocess.run(["go", "run", "./cmd/naming", "-json-keys", str(SERVER)], cwd=SERVER,
                          capture_output=True, text=True, check=True)
     for row in run.stdout.splitlines():
         loc, kind, ctx, key = row.split("\t")
