@@ -780,11 +780,9 @@ const laneName = (lane) => (lane.label ? lane.label : 'Fila sin rótulo')
    zonas del prototipo van encima—, así que arrastrar sobre él mueve el lienzo en vez de perderse
    adentro del iframe. */
 .device iframe.html { display: block; border: 0; pointer-events: none; transform-origin: 0 0 }
-.device { position: relative; flex: none; border: 1px solid var(--device-edge); border-radius: 18px; overflow: hidden;
-  background: var(--card) }
-/* El tipo va en un atributo y no en una clase: `panel` como clase es la región compartida y le ponía
-   su fondo y su borde al dispositivo (lo frenó `make estilo-check`). */
-.device:not([data-kind="mobile"]) { border-radius: var(--radius-md) }
+/* Sin radio: la esquina redondeada imitaba un teléfono y le cortaba al diseño lo que tiene en las
+   esquinas. La pantalla se muestra con el borde que dibujó el diseñador. */
+.device { position: relative; flex: none; border: 1px solid var(--device-edge); overflow: hidden; background: var(--card) }
 .device img { display: block; width: 100%; height: 100%; user-select: none }
 .hotspot { position: absolute; padding: 0; border: 1px solid var(--hotspot); border-radius: 4px; background: var(--hotspot-fill);
   cursor: pointer }
