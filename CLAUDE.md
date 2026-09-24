@@ -519,8 +519,11 @@ campo se llama **`canon:`** y sus valores son temas del corpus.
    entrar por grep sin mapa es la forma lenta. ⚠ Y al **retomar** no se elige tema: la tarea ya lo
    declara en `canon:`. `make retomar N=… BRIEF=1` trae la ficha de cada uno para decidir cuál abrir
    — la ficha decide, no reemplaza.
-3. **Lo que se descubre SE REGISTRA, con dos destinos.** El test: *si esto se mergea mañana, ¿el
+3. **Lo que se descubre SE REGISTRA, con tres destinos.** El test: *si esto se mergea mañana, ¿el
    texto sigue siendo cierto?*
+   - una **regla de negocio** que ya existe en `main` y canon no tiene → **canon**, en el momento,
+     sin esperar a que la tarea termine: se busca en canon, se verifica viva en `main` de los dos
+     monolitos y se dicta. El recorrido: `tablero/CLAUDE.md` §«Cuando aparece una regla de negocio»;
    - hallazgos **de la tarea** (avance, mediciones, decisiones, riesgos, preguntas) → su **pila**, como
      bloques (`make tarea-bloque`, o `BLOQUE=` en la herramienta que lo midió); lo que sigue siendo
      cierto del plan, a su `.md`;

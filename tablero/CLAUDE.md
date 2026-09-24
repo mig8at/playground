@@ -338,6 +338,33 @@ del tema no contesta, no se prueba otro tema — la pregunta va a `workers/`.** 
 es el modo de falla conocido (algo que existe en el código y nadie escribió), y una búsqueda no lo ve:
 va a devolver el tema más parecido, con buena puntuación. Ahí es peor que el índice derivado.
 
+### Cuando aparece una regla de negocio: canon, después `main`, y a canon
+
+Trabajando una tarea aparecen reglas del negocio que la tarea no inventó: cómo se calcula un monto, qué
+se le avisa a un comercio, quién queda afuera de un listado. **Cada una pasa por este recorrido, sin
+que nadie lo pida** (Miguel, 2026-09-23):
+
+1. **¿Canon la tiene?** `/api/search?q=…` con las palabras del negocio (es gratis) y, con el candidato,
+   `/api/read` de la sección. Si la tiene y coincide, se cita en el bloque que la usó
+   (`[texto](canon:tema#ancla)`) y se suma el tema a `canon:`. Si la tiene y **contradice** lo que dice
+   el código, es una corrección: se reescribe la sección, no se agrega otra al lado.
+2. **Si no la tiene, ¿es real y está viva?** Se verifica contra `origin/main` de **los dos monolitos**
+   —`git show origin/main:<ruta>`, nunca el árbol de trabajo—: dónde se decide, desde cuándo
+   (`git log -S`), y que se ejecute de verdad (que el código se alcance, no sólo que exista). Si se
+   puede medir cuánto pasa, se mide en producción con el trazador.
+3. **Si es viva, va a canon.** El filtro es el de `skills/dictar.md`: una regla que existe en `main`,
+   incluidos sus errores, sin crónica y sin nada que dependa de un PR abierto. Lo que agregó ESTA
+   tarea y todavía no se mergeó **no** entra: espera al merge. Se ensaya con `/api/propose` y se dicta
+   con el borrador (`/api/draft` → piezas → `/close`), con `objetivo`, `archivos` y `tablas`.
+4. **Queda escrito en la tarea.** Un bloque dice qué regla era, con qué se verificó y en qué sección
+   de canon quedó (su cita). Si canon de producción no responde —pide la VPN de prod—, la pieza queda
+   lista en `artifacts/` de la tarea y un pendiente «Publicar en canon» con su condición de cierre;
+   no se da por documentada hasta que aparezca en producción.
+
+⚠ **No es lo mismo que graduar.** Graduar pasa a canon lo que la tarea CAMBIÓ, cuando se mergea. Esto es
+lo que la tarea ENCONTRÓ que ya existía y nadie había escrito: no espera a que la tarea termine, porque
+el siguiente que lo busque no tiene por qué saber que está enterrado en una tarea.
+
 ⚠ **Jev ya no está en el tablero** (retirado el 2026-09-23, a pedido de Miguel): el **✦ Orientar** de
 la cabecera, el **✦** de Pendientes y el laboratorio `make tablero-jev` agregaban ruido sin un uso que
 lo justificara. Queda sólo la conexión con su API —`tools/jev_transport.py`, con pruebas offline en
