@@ -138,3 +138,29 @@ func TestDrawingCollapsesOnlyWhatSaysNothing(t *testing.T) {
 		t.Errorf("textos en orden: %+v", texts)
 	}
 }
+
+// Un 429 se espera y se reintenta; si Figma pide esperar demasiado, el error sube con el motivo.
+func TestRateLimitWaitsAndRetries(t *testing.T) {
+	calls := 0
+	c := fake(t, func(w http.ResponseWriter, r *http.Request) {
+		calls++
+		if calls == 1 {
+			w.Header().Set("Retry-After", "0")
+			w.WriteHeader(429)
+			return
+		}
+		w.Write([]byte(`{"id":"1","handle":"miguel","email":"m@x"}`))
+	})
+	u, err := c.Me(context.Background())
+	if err != nil || u.Handle != "miguel" || calls != 2 {
+		t.Fatalf("tenía que reintentar una vez y responder: %+v %v (%d pedidos)", u, err, calls)
+	}
+	slow := fake(t, func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Retry-After", "3600")
+		w.WriteHeader(429)
+	})
+	var fe *Error
+	if _, err := slow.Me(context.Background()); !errors.As(err, &fe) || fe.Status != 429 {
+		t.Errorf("una espera de una hora no se hace: sube como error 429; dio %v", err)
+	}
+}

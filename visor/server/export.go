@@ -17,6 +17,12 @@ func (s *server) exportFromFigma(ctx context.Context, key string, ids []string) 
 	if err != nil {
 		return nil, err
 	}
+	return s.downloadAll(ctx, links)
+}
+
+// downloadAll baja cada enlace, sin el token. Un enlace vacío (lo que Figma no pudo exportar) se deja
+// afuera, y quien pidió ese id lo reporta como error.
+func (s *server) downloadAll(ctx context.Context, links map[string]string) (map[string][]byte, error) {
 	plain := &http.Client{Timeout: 60 * time.Second}
 	out := map[string][]byte{}
 	for id, link := range links {
@@ -46,4 +52,28 @@ func (s *server) exportFromFigma(ctx context.Context, key string, ids []string) 
 		out[id] = img
 	}
 	return out, nil
+}
+
+// svgFromFigma exporta dibujos como SVG. Mismo camino que las pantallas: la API da el enlace y el
+// enlace se baja sin el token.
+func (s *server) svgFromFigma(ctx context.Context, key string, ids []string) (map[string][]byte, error) {
+	links, err := s.figma.Images(ctx, key, ids, "svg", 0)
+	if err != nil {
+		return nil, err
+	}
+	return s.downloadAll(ctx, links)
+}
+
+// fillsFromFigma baja imágenes de relleno por su referencia. La lista de enlaces es del archivo entero
+// y sale en un solo pedido.
+func (s *server) fillsFromFigma(ctx context.Context, key string, refs []string) (map[string][]byte, error) {
+	all, err := s.figma.ImageFills(ctx, key)
+	if err != nil {
+		return nil, err
+	}
+	links := map[string]string{}
+	for _, ref := range refs {
+		links[ref] = all[ref]
+	}
+	return s.downloadAll(ctx, links)
 }

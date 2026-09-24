@@ -20,6 +20,7 @@ import (
 	"net/url"
 	"regexp"
 	"sort"
+	"strconv"
 	"strings"
 	"time"
 
@@ -78,16 +79,41 @@ func (e *Error) Error() string {
 	return fmt.Sprintf("Figma HTTP %d: %s%s", e.Status, e.Message, hint)
 }
 
-// get pide `path` (con su query) y decodifica el JSON en `out`.
+// maxRetryWait es lo más que se espera por un 429 antes de reintentar. Figma pide esperar en
+// `Retry-After`; más de esto y es mejor que el error suba y lo vea quien llamó.
+var maxRetryWait = 30 * time.Second
+
+// get pide `path` (con su query) y decodifica el JSON en `out`. Ante un 429 espera lo que Figma pide y
+// reintenta, dos veces como mucho: medido el 2026-09-24, traducir 49 pantallas seguidas (un pedido por
+// pantalla más las exportaciones) topaba el límite, y sin esto cada pantalla de la tanda fallaba.
 func (c *Client) get(ctx context.Context, path string, out any) error {
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, c.base+path, nil)
-	if err != nil {
-		return err
-	}
-	req.Header.Set("X-Figma-Token", c.token)
-	resp, err := c.http.Do(req)
-	if err != nil {
-		return fmt.Errorf("red: %v", err)
+	var resp *http.Response
+	for attempt := 0; ; attempt++ {
+		req, err := http.NewRequestWithContext(ctx, http.MethodGet, c.base+path, nil)
+		if err != nil {
+			return err
+		}
+		req.Header.Set("X-Figma-Token", c.token)
+		resp, err = c.http.Do(req)
+		if err != nil {
+			return fmt.Errorf("red: %v", err)
+		}
+		if resp.StatusCode != http.StatusTooManyRequests || attempt == 2 {
+			break
+		}
+		wait := 5 * time.Second
+		if s, err := strconv.Atoi(resp.Header.Get("Retry-After")); err == nil && s >= 0 {
+			wait = time.Duration(s) * time.Second
+		}
+		resp.Body.Close()
+		if wait > maxRetryWait {
+			return &Error{Status: 429, Message: fmt.Sprintf("Figma pide esperar %s antes de otro pedido", wait)}
+		}
+		select {
+		case <-time.After(wait):
+		case <-ctx.Done():
+			return ctx.Err()
+		}
 	}
 	defer resp.Body.Close()
 	raw, err := io.ReadAll(io.LimitReader(resp.Body, maxBody+1))
@@ -377,4 +403,39 @@ func Texts(n Node) []Node {
 		out = append(out, Texts(ch)...)
 	}
 	return out
+}
+
+// NodeJSON devuelve el documento crudo de un nodo, con TODAS sus propiedades (auto-layout, rellenos,
+// estilos de texto, efectos): lo que necesita quien lo traduce a otra cosa, que no es asunto de este
+// paquete. Sale tal cual lo manda Figma, dentro de `document`.
+func (c *Client) NodeJSON(ctx context.Context, key, id string) (json.RawMessage, error) {
+	var raw struct {
+		Nodes map[string]*struct {
+			Document json.RawMessage `json:"document"`
+		} `json:"nodes"`
+	}
+	q := url.Values{"ids": {id}}
+	if err := c.get(ctx, "/v1/files/"+url.PathEscape(key)+"/nodes?"+q.Encode(), &raw); err != nil {
+		return nil, err
+	}
+	n, ok := raw.Nodes[id]
+	if !ok || n == nil || len(n.Document) == 0 {
+		return nil, &Error{Status: 404, Message: "el nodo " + id + " no está en el archivo"}
+	}
+	return n.Document, nil
+}
+
+// ImageFills son los enlaces de las imágenes usadas como RELLENO en el archivo (fotos, logos): de la
+// referencia que trae cada relleno (`imageRef`) al enlace de S3. Distinto de Images, que exporta un
+// nodo renderizado. ⚠ Los enlaces vencen: se bajan, no se guardan.
+func (c *Client) ImageFills(ctx context.Context, key string) (map[string]string, error) {
+	var raw struct {
+		Meta struct {
+			Images map[string]string `json:"images"`
+		} `json:"meta"`
+	}
+	if err := c.get(ctx, "/v1/files/"+url.PathEscape(key)+"/images", &raw); err != nil {
+		return nil, err
+	}
+	return raw.Meta.Images, nil
 }

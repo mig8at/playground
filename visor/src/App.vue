@@ -14,6 +14,13 @@ const currentID = ref('')
 const trail = ref([]) // las pantallas por las que se vino, para volver
 const showHotspots = ref(true)
 const imageFailed = ref(false)
+// Cómo se ve la pantalla: la imagen que exporta Figma, el HTML que traduce el server, o las dos lado a
+// lado —la imagen es la vara del HTML—.
+const modes = [{ id: 'image', label: 'Imagen' }, { id: 'html', label: 'HTML' }, { id: 'compare', label: 'Comparar' }]
+const mode = ref((() => { try { return localStorage.getItem('visor.mode') || 'image' } catch { return 'image' } })())
+watch(mode, (m) => { try { localStorage.setItem('visor.mode', m) } catch { /* preferencia opcional */ } nextTick(fit) })
+const panes = computed(() => (mode.value === 'compare' ? ['image', 'html'] : [mode.value]))
+const report = ref(null)
 
 // ── las regiones, con el mismo contrato que el resto de las herramientas ──
 const MIN_EDITOR = 360
@@ -143,6 +150,18 @@ function readHash() {
   return m ? { ref: `https://www.figma.com/design/${m[1]}/?node-id=${m[2].replace(':', '-')}`, screen: m[3] || '' } : null
 }
 
+const htmlURL = computed(() => (data.value && current.value ? `/api/html?key=${data.value.key}&id=${encodeURIComponent(current.value.id)}` : ''))
+// El reporte de la traducción: qué se tradujo y qué no. Se pide al cambiar de pantalla sólo si se está
+// mirando el HTML, para no traducir pantallas que nadie abre.
+watch([htmlURL, mode], async ([u, m]) => {
+  report.value = null
+  if (!u || m === 'image') return
+  try {
+    const res = await fetch(u + '&report=1')
+    if (res.ok && u === htmlURL.value) report.value = await res.json()
+  } catch { /* el reporte es un extra: sin él, la pantalla se ve igual */ }
+}, { immediate: true })
+const missingList = computed(() => Object.entries(report.value?.missing || {}).map(([why, n]) => `${why} ×${n}`))
 const imageURL = computed(() => (data.value && current.value ? `/api/screen?key=${data.value.key}&id=${encodeURIComponent(current.value.id)}` : ''))
 const figmaURL = computed(() => (data.value && current.value
   ? `https://www.figma.com/design/${data.value.key}/?node-id=${current.value.id.replace(':', '-')}`
@@ -156,7 +175,9 @@ function fit() {
   const c = current.value
   if (!el || !c) return
   const pad = 32
-  const scale = Math.min((el.clientWidth - pad) / c.w, (el.clientHeight - pad) / c.h, 1.5)
+  const gap = 24
+  const n = panes.value.length
+  const scale = Math.min((el.clientWidth - pad - gap * (n - 1)) / n / c.w, (el.clientHeight - pad) / c.h, 1.5)
   deviceSize.value = { w: Math.max(0, Math.floor(c.w * scale)), h: Math.max(0, Math.floor(c.h * scale)) }
 }
 let observer
@@ -253,6 +274,10 @@ const laneName = (lane) => (lane.label ? lane.label : 'Fila sin rótulo')
           <button class="region-action" title="Siguiente del carril (→)" aria-label="Siguiente" :disabled="current.index === current.lane.screens.length - 1" @click="step(1)">
             <span class="ui-icon" data-icon="chevron" aria-hidden="true"></span>
           </button>
+          <div class="modes" role="group" aria-label="Cómo ver la pantalla">
+            <button v-for="m in modes" :key="m.id" class="btn btn-xs" :class="mode === m.id ? 'btn-secondary' : 'btn-ghost'"
+              :aria-pressed="mode === m.id" @click="mode = m.id">{{ m.label }}</button>
+          </div>
           <button class="region-action" :aria-pressed="showHotspots" title="Mostrar las zonas del prototipo (H)" aria-label="Zonas del prototipo" @click="showHotspots = !showHotspots">
             <span class="ui-icon" data-icon="filter" aria-hidden="true"></span>
           </button>
@@ -263,15 +288,20 @@ const laneName = (lane) => (lane.label ? lane.label : 'Fila sin rótulo')
       </div>
       <div ref="stage" class="stage">
         <p v-if="!current" class="empty">{{ loading ? 'Leyendo el diseño…' : 'Sin pantalla elegida.' }}</p>
-        <div v-else class="device" :data-kind="current.kind" :style="{ width: deviceSize.w + 'px', height: deviceSize.h + 'px' }">
-          <img :key="imageURL" :src="imageURL" :alt="current.title || current.name" draggable="false" @error="imageFailed = true" />
-          <p v-if="imageFailed" class="notice over">Figma no devolvió la imagen de esta pantalla.</p>
+        <figure v-else v-for="p in panes" :key="p" class="pane">
+        <div class="device" :data-kind="current.kind" :style="{ width: deviceSize.w + 'px', height: deviceSize.h + 'px' }">
+          <img v-if="p === 'image'" :key="imageURL" :src="imageURL" :alt="current.title || current.name" draggable="false" @error="imageFailed = true" />
+          <iframe v-else :key="htmlURL" :src="htmlURL" :title="'HTML de ' + (current.title || current.name)" class="html"
+            :style="{ width: current.w + 'px', height: current.h + 'px', transform: `scale(${deviceSize.w / current.w})` }"></iframe>
+          <p v-if="p === 'image' && imageFailed" class="notice over">Figma no devolvió la imagen de esta pantalla.</p>
           <template v-if="showHotspots">
             <button v-for="(h, i) in clickable" :key="i" class="hotspot" :class="{ outside: !h.to }" :style="hotspotStyle(h)"
               :title="h.via + ' → ' + h.to_name" :aria-label="h.via + ' → ' + h.to_name" :disabled="!h.to" @click="follow(h)"></button>
           </template>
           <button v-if="autoNext" class="auto" @click="follow(autoNext)">▶ Avanza sola a {{ autoNext.to_name }}</button>
         </div>
+        <figcaption v-if="panes.length > 1">{{ p === 'image' ? 'Figma (imagen)' : 'HTML traducido' }}</figcaption>
+        </figure>
       </div>
     </main>
 
@@ -288,6 +318,17 @@ const laneName = (lane) => (lane.label ? lane.label : 'Fila sin rótulo')
             <dt>Tipo</dt><dd>{{ kindName[current.kind] || current.kind }} · {{ Math.round(current.w) }}×{{ Math.round(current.h) }}</dd>
             <template v-if="current.open_comments"><dt>Comentarios</dt><dd>{{ current.open_comments }} abierto(s) en Figma</dd></template>
           </dl>
+          <div v-if="report && mode !== 'image'" class="block">
+            <div class="region-head grupo"><span>La traducción a HTML</span></div>
+            <dl>
+              <dt>Cajas</dt><dd>{{ report.elements }} · {{ report.flex }} con auto-layout → flex · {{ report.absolute }} en posición absoluta</dd>
+              <dt>Textos</dt><dd>{{ report.texts }}</dd>
+              <dt>Dibujos</dt><dd>{{ report.drawings?.length || 0 }} como SVG de Figma</dd>
+              <template v-if="report.images?.length"><dt>Imágenes</dt><dd>{{ report.images.length }}</dd></template>
+              <dt>Fuentes</dt><dd>{{ (report.fonts || []).join(' · ') || '—' }}</dd>
+              <dt>Sin traducir</dt><dd>{{ missingList.join(' · ') || 'nada' }}</dd>
+            </dl>
+          </div>
           <div v-if="current.actions?.length" class="block">
             <div class="region-head grupo"><span>Botones</span></div>
             <ul><li v-for="a in current.actions" :key="a">{{ a }}</li></ul>
@@ -358,7 +399,19 @@ const laneName = (lane) => (lane.label ? lane.label : 'Fila sin rótulo')
 .screen-row .t { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap }
 .screen-row .tag { flex: none; font-size: var(--text-xs); color: var(--texto-3) }
 
-.stage { flex: 1; min-height: 0; overflow: hidden; display: flex; align-items: center; justify-content: center }
+.stage { flex: 1; min-height: 0; overflow: hidden; display: flex; align-items: center; justify-content: center; gap: 24px }
+.pane { margin: 0; display: flex; flex-direction: column; align-items: center; gap: var(--space-2) }
+.pane figcaption { font-size: var(--text-xs); color: var(--texto-3) }
+.modes { display: flex; gap: 2px }
+/* La cabecera del editor junta título, navegación, modos y acciones: con los dos sidebars abiertos no
+   entra en un renglón, y la regla del taller es ENVOLVER, no desbordar (con height:auto, o la caja fija
+   de .region-head deja el segundo renglón afuera). */
+.editor > .region-head { flex-wrap: wrap; height: auto; row-gap: var(--space-1) }
+/* Al envolver, el título no cede todo el ancho: sin una base, `flex: 1` con `min-width: 0` lo dejaba en 0. */
+.editor > .region-head > span:first-child { flex: 1 1 140px }
+/* El HTML se dibuja a su tamaño de Figma y se escala entero: así el texto conserva sus medidas reales
+   y la comparación con la imagen es de igual a igual. */
+.device iframe.html { display: block; border: 0; transform-origin: 0 0 }
 .device { position: relative; flex: none; border: 1px solid var(--device-edge); border-radius: 18px; overflow: hidden;
   background: var(--card) }
 /* El tipo va en un atributo y no en una clase: `panel` como clase es la región compartida y le ponía

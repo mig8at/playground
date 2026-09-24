@@ -179,8 +179,12 @@ trazador: ## @dia ¿QUÉ LE PASÓ a esta solicitud? el flujo por etapas, del sis
 visor: ## @dia ¿CÓMO ES el diseño de este flujo? un diseño de Figma recorrido pantalla por pantalla, con el prototipo navegable (:5193 · API :5194)
 	@cd visor && npm run dev
 
-visor-test: ## @dia las pruebas del server del visor: rutas de disco validadas, una sola bajada por imagen, exportación vacía
-	@go test ./visor/server/
+visor-test: ## @dia las pruebas del visor: la traducción a HTML (flex, absolutas, recortes, dibujos) y el server (rutas de disco, una sola bajada)
+	@go test ./visor/...
+
+visor-fidelidad: ## @dia ¿cuánto se parece el HTML traducido a Figma? píxel a píxel contra la imagen exportada, por pantalla. REF='<url de la sección>' [SOLO=id,id] [TODAS=1 también las web]. Necesita `make visor` corriendo
+	@test -n "$(REF)" || { echo "falta REF='<url de la sección de Figma>'"; exit 2; }
+	@node visor/tools/fidelity.mjs --ref '$(REF)' $(if $(SOLO),--only $(SOLO)) $(if $(TODAS),--all)
 
 trazador-buscar: ## @dia la HISTORIA de una persona por cédula, teléfono o solicitud. Q=1012345678 [TARGET=prod] [JSON=1] [MD=1 anotación para pegar en la tarea] [BLOQUE=<id|slug> la agrega como bloque a la pila de esa tarea]
 	@test -n "$(Q)" || { echo "falta Q=<cédula|teléfono|uReq>  ·  ej: make trazador-buscar Q=1012345678"; exit 2; }

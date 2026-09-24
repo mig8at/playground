@@ -41,18 +41,30 @@ func main() {
 type server struct {
 	figma *figma.Client
 	cache string
-	// export baja imágenes de Figma; en las pruebas se reemplaza para no salir a la red.
-	export func(ctx context.Context, key string, ids []string) (map[string][]byte, error)
+	// Lo que sale a la red, reemplazable en las pruebas: la imagen de una pantalla, el SVG de un dibujo,
+	// una imagen de relleno y el JSON de un nodo.
+	export    fetcher
+	exportSVG fetcher
+	fills     fetcher
+	nodeJSON  func(ctx context.Context, key, id string) ([]byte, error)
 
 	mu       sync.Mutex
 	maps     map[string]figma.Structure // clave+nodo → mapa, mientras corre el server
 	versions map[string]string          // clave del archivo → última versión vista
 	inflight map[string]chan struct{}   // una imagen que ya se está bajando
+	nodes    map[string][]byte          // clave+versión+nodo → el JSON crudo de una pantalla
 }
 
+// fetcher baja varios recursos de un archivo de una vez: del id (o la referencia) a sus bytes.
+type fetcher func(ctx context.Context, key string, ids []string) (map[string][]byte, error)
+
 func newServer(cl *figma.Client, cache string) *server {
-	s := &server{figma: cl, cache: cache, maps: map[string]figma.Structure{}, versions: map[string]string{}, inflight: map[string]chan struct{}{}}
+	s := &server{figma: cl, cache: cache, maps: map[string]figma.Structure{}, versions: map[string]string{},
+		inflight: map[string]chan struct{}{}, nodes: map[string][]byte{}}
 	s.export = s.exportFromFigma
+	s.exportSVG = s.svgFromFigma
+	s.fills = s.fillsFromFigma
+	s.nodeJSON = func(ctx context.Context, key, id string) ([]byte, error) { return cl.NodeJSON(ctx, key, id) }
 	return s
 }
 
@@ -61,6 +73,8 @@ func (s *server) routes() http.Handler {
 	mux.HandleFunc("/api/map", s.handleMap)
 	mux.HandleFunc("/api/screen", s.handleScreen)
 	mux.HandleFunc("/api/health", s.handleHealth)
+	mux.HandleFunc("/api/html", s.handleHTML)
+	mux.HandleFunc("/api/asset", s.handleAsset)
 	return mux
 }
 
@@ -162,10 +176,30 @@ var (
 // imagePath es dónde se guarda una pantalla: por archivo, por VERSIÓN y por nodo. La versión va en la
 // ruta para que un cambio del diseñador no sirva la imagen vieja; el id va sin `:` para el disco.
 func (s *server) imagePath(key, version, id string) string {
+	return s.assetPath(key, version, "screen", id)
+}
+
+var reNotDigit = regexp.MustCompile(`[^0-9]`)
+
+// assetPath es la ruta de cualquier recurso: pantallas (`screen`), dibujos (`svg`) e imágenes de
+// relleno (`fill`), cada uno en su carpeta dentro de la versión.
+func versionDir(version string) string {
 	if version == "" {
-		version = "sin-version"
+		return "sin-version"
 	}
-	return filepath.Join(s.cache, key, version, regexp.MustCompile(`[^0-9]`).ReplaceAllString(id, "-")+".png")
+	return version
+}
+
+func (s *server) assetPath(key, version, kind, id string) string {
+	version = versionDir(version)
+	switch kind {
+	case "svg":
+		return filepath.Join(s.cache, key, version, "svg", reNotDigit.ReplaceAllString(id, "-")+".svg")
+	case "fill":
+		// Una imagen de relleno no cambia de contenido con la versión: su referencia es su hash.
+		return filepath.Join(s.cache, key, "fills", id)
+	}
+	return filepath.Join(s.cache, key, version, reNotDigit.ReplaceAllString(id, "-")+".png")
 }
 
 // handleScreen sirve la imagen de una pantalla, bajándola si no está.
@@ -183,7 +217,7 @@ func (s *server) handleScreen(w http.ResponseWriter, r *http.Request) {
 	if _, err := os.Stat(path); err != nil {
 		ctx, cancel := context.WithTimeout(r.Context(), 90*time.Second)
 		defer cancel()
-		if err := s.ensure(ctx, key, version, []string{id}); err != nil {
+		if err := s.ensure(ctx, key, version, "screen", []string{id}); err != nil {
 			fail(w, statusOf(err), "%v", err)
 			return
 		}
@@ -200,7 +234,7 @@ func (s *server) prefetch(key string, ids []string) {
 	for i := 0; i < len(ids); i += batch {
 		end := min(i+batch, len(ids))
 		ctx, cancel := context.WithTimeout(context.Background(), 3*time.Minute)
-		if err := s.ensure(ctx, key, version, ids[i:end]); err != nil {
+		if err := s.ensure(ctx, key, version, "screen", ids[i:end]); err != nil {
 			log.Printf("visor: no se pudieron bajar %d pantallas de %s: %v", end-i, key, err)
 		}
 		cancel()
@@ -209,12 +243,12 @@ func (s *server) prefetch(key string, ids []string) {
 
 // ensure deja en disco las imágenes que falten. Una imagen que ya se está bajando no se pide dos
 // veces: se espera a la otra.
-func (s *server) ensure(ctx context.Context, key, version string, ids []string) error {
+func (s *server) ensure(ctx context.Context, key, version, kind string, ids []string) error {
 	var todo []string
 	var waits []chan struct{}
 	s.mu.Lock()
 	for _, id := range ids {
-		path := s.imagePath(key, version, id)
+		path := s.assetPath(key, version, kind, id)
 		if _, err := os.Stat(path); err == nil {
 			continue
 		}
@@ -228,10 +262,10 @@ func (s *server) ensure(ctx context.Context, key, version string, ids []string) 
 	s.mu.Unlock()
 	var err error
 	if len(todo) > 0 {
-		err = s.download(ctx, key, version, todo)
+		err = s.download(ctx, key, version, kind, todo)
 		s.mu.Lock()
 		for _, id := range todo {
-			path := s.imagePath(key, version, id)
+			path := s.assetPath(key, version, kind, id)
 			close(s.inflight[path])
 			delete(s.inflight, path)
 		}
@@ -247,17 +281,24 @@ func (s *server) ensure(ctx context.Context, key, version string, ids []string) 
 	return err
 }
 
-func (s *server) download(ctx context.Context, key, version string, ids []string) error {
-	images, err := s.export(ctx, key, ids)
+func (s *server) download(ctx context.Context, key, version, kind string, ids []string) error {
+	fetch := s.export
+	switch kind {
+	case "svg":
+		fetch = s.exportSVG
+	case "fill":
+		fetch = s.fills
+	}
+	images, err := fetch(ctx, key, ids)
 	if err != nil {
 		return err
 	}
 	for _, id := range ids {
 		img, ok := images[id]
 		if !ok || len(img) == 0 {
-			return fmt.Errorf("Figma no pudo exportar la pantalla %s (invisible o vacía)", id)
+			return fmt.Errorf("Figma no pudo exportar %s (invisible o vacío)", id)
 		}
-		path := s.imagePath(key, version, id)
+		path := s.assetPath(key, version, kind, id)
 		if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
 			return err
 		}

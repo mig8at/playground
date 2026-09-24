@@ -190,11 +190,11 @@ func Visor(root string) Board {
 	return Board{
 		Name:        "visor",
 		Root:        root,
-		GoRoots:     []string{"visor/server"},
-		JSONRoots:   []string{"visor/server"},
-		JSGlobs:     []string{"visor/src/App.vue", "visor/src/main.js", "visor/vite.config.js"},
+		GoRoots:     []string{"visor/server", "visor/render"},
+		JSONRoots:   []string{"visor/server", "visor/render"},
+		JSGlobs:     []string{"visor/src/App.vue", "visor/src/main.js", "visor/vite.config.js", "visor/tools/*.mjs"},
 		DeclsScript: filepath.Join(root, "tablero", "tools", "rename", "js", "decls.mjs"),
-		PathRoots:   []string{"visor/server/", "visor/src/"},
+		PathRoots:   []string{"visor/server/", "visor/render/", "visor/src/", "visor/tools/"},
 	}
 }
 
