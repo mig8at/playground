@@ -4,6 +4,7 @@ package sql
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -100,7 +101,7 @@ func TestRedashRunsTheJobAndInterpolatesDigits(t *testing.T) {
 		case "/api/jobs/j1":
 			_, _ = w.Write([]byte(`{"job":{"status":3,"query_result_id":9}}`))
 		case "/api/query_results/9":
-			_, _ = w.Write([]byte(`{"query_result":{"data":{"rows":[{"id":77,"name":"Prueba"}]}}}`))
+			_, _ = w.Write([]byte(`{"query_result":{"data":{"rows":[{"id":77,"name":"Prueba","amount":1560414.0,"grande":12345678901}]}}}`))
 		}
 	}))
 	defer server.Close()
@@ -115,7 +116,11 @@ func TestRedashRunsTheJobAndInterpolatesDigits(t *testing.T) {
 	if src.Name() != "redash ds=7" || len(rows) != 1 || rows[0]["name"] != "Prueba" || src.Zone().String() != "America/Bogota" {
 		t.Errorf("name=%s rows=%v zone=%s", src.Name(), rows, src.Zone())
 	}
-	if strings.Join(Columns(rows), ",") != "id,name" || len(calls) != 3 {
+	// los números llegan como su literal: decodificados a float64 se imprimían en notación científica
+	if got := fmt.Sprint(rows[0]["amount"], " ", rows[0]["grande"]); got != "1560414.0 12345678901" {
+		t.Errorf("los números de Redash cambiaron: %s", got)
+	}
+	if strings.Join(Columns(rows), ",") != "amount,grande,id,name" || len(calls) != 3 {
 		t.Errorf("columnas %v, llamadas %v", Columns(rows), calls)
 	}
 }

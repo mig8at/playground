@@ -63,6 +63,14 @@ func (s *mysqlSource) Rows(query string, args ...any) ([]Row, error) {
 
 // ─── Redash (prod) ──────────────────────────────────────────────────────────────────────────────────
 
+// ⚠ Y NO DEVUELVE LO MISMO QUE MySQL DIRECTO, medido el 2026-09-24 con la misma consulta en los dos:
+//   - un DECIMAL llega como número (`1560414.0`) y no como el texto del driver (`1560414.0000`): los dos
+//     exactos, con distinta cantidad de ceros. Igualarlos pediría el tipo de cada columna.
+//   - una cadena BINARIA (`CHAR(10)`, `CONCAT` con ella, columnas BINARY/BLOB) llega en HEX (`610a62`).
+//     No se puede corregir acá, porque un texto que parece hex es indistinguible: pedila con
+//     `CAST(… AS CHAR)` y llega como texto.
+//   - un datetime llega como texto sin zona (`2026-09-24T05:01:14`), en la hora de Bogotá (ver Zone).
+//
 // ⚠ REDASH ES ASÍNCRONO Y QUEDA AUDITADO. Cada consulta son tres saltos (POST del trabajo → espera →
 // leer el resultado) y se registra a nombre del usuario del token: conviene una consulta gorda, no diez
 // chiquitas, y saber que no es anónima.
@@ -179,5 +187,11 @@ func (s *redashSource) request(method, path string, body []byte, dest any) error
 		}
 		return fmt.Errorf("%s %s → %d: %s", method, path, resp.StatusCode, msg)
 	}
-	return json.NewDecoder(resp.Body).Decode(dest)
+	// ⚠ LOS NÚMEROS SE LEEN COMO SU LITERAL (`UseNumber`), NO COMO float64. Redash los manda exactos
+	// (`12345678901`, `1560414.0`), pero decodificados a float64 se imprimían `1.2345678901e+10` y
+	// `1.560414e+06`: medido el 2026-09-24 con la misma consulta en local y en prod. Es el mismo error que
+	// el trazador ya había pagado con los ids de los logs (un id de 7 dígitos dejaba de anclar).
+	dec := json.NewDecoder(resp.Body)
+	dec.UseNumber()
+	return dec.Decode(dest)
 }
