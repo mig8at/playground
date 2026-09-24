@@ -1,283 +1,49 @@
 // fuentes.go — de dónde salen los datos estructurados, sin que el trazador se entere.
 //
-// Hay DOS caminos a la misma información y el ensamblado no debe distinguirlos:
+// Qué base atiende cada ambiente (MySQL directo en local · dev · qa · staging; Redash en prod), sus
+// credenciales, el ciclo de Redash, la guarda de inyección de sus argumentos y en qué zona vienen las
+// fechas de cada fuente son de `connectors/sql`, y el trazador sólo le pide la fuente de su ambiente.
+// Hasta el 2026-09-24 todo eso vivía acá y el tablero tenía otra copia, que ya no coincidía.
 //
-//	local · dev · qa · staging → MySQL directo (`database/sql`)
-//	prod                  → Redash sobre HTTP, porque no hay acceso directo a la BD de producción
-//
-// Por eso existe `Runner`: una interfaz de UN método que devuelve filas como mapas. Las consultas SQL se
-// escriben UNA vez (ver las constantes `sql*`) y cada fuente sabe cómo ejecutarlas. Sin esto habría dos
-// juegos de consultas que derivan, que es el problema que este repo ya tuvo con `veredicto()`.
-//
-// ⚠ REDASH NO TIENE PLACEHOLDERS. `POST /api/query_results` recibe SQL como texto, así que los parámetros
-// hay que interpolarlos — y ahí se abre la puerta a inyección. La defensa no es escapar mejor: es que
-// `Filas` RECHACE cualquier argumento que no sea de dígitos. Todo lo que el trazador consulta (uReq,
-// user_id, teléfono, documento) son dígitos, así que la restricción no cuesta nada y cierra la puerta.
-// Un escape casero sí costaría: es la clase de código que parece bien hasta que no.
-//
-// ⚠ REDASH ES ASÍNCRONO Y QUEDA AUDITADO. Cada consulta son tres saltos (POST job → polling → leer
-// resultado) y se registra a nombre del usuario del token. Conviene UNA consulta gorda por etapa, no diez
-// chiquitas — y conviene saber que no es anónimo.
+// Lo que sí es del trazador: las consultas, escritas UNA vez para las dos fuentes (ver las constantes
+// `sql*`), y cómo se leen las filas. Sin eso habría dos juegos de consultas que derivan, que es el
+// problema que este repo ya tuvo con `veredicto()`.
 //
 // CONVENCIÓN: identificadores en inglés, comentarios y texto visible en español.
 package main
 
 import (
-	"bytes"
-	"database/sql"
 	"encoding/json"
 	"fmt"
-	"net/http"
 	"regexp"
 	"sort"
 	"strings"
 	"time"
+
+	dbsql "creditop/playground/connectors/sql"
 )
 
-// Fila es una fila genérica. Se usa un mapa y no structs por fuente porque el parseo a `Solicitud` pasa
-// UNA vez, después del Runner: así agregar una fuente no obliga a tocar el parseo.
-type Fila map[string]any
+// Fila es una fila genérica, la del conector. Se usa un mapa y no structs por fuente porque el parseo a
+// `Solicitud` pasa UNA vez, después de la fuente: así agregar una fuente no obliga a tocar el parseo.
+type Fila = dbsql.Row
 
-// Runner ejecuta un SELECT y devuelve filas. Es todo lo que el trazador necesita de una base.
-type Runner interface {
-	Filas(consulta string, args ...any) ([]Fila, error)
-	Nombre() string
-	// Zona dice en qué zona vienen los `datetime` de ESTA fuente. No es un detalle: las dos fuentes
-	// devuelven la misma columna en zonas distintas, y equivocarse corre la ventana de búsqueda de logs
-	// cinco horas — con lo cual la traza sale sin un solo log y parece que el backend no instrumentó nada.
-	//
-	// MEDIDO el 2026-08-05, no supuesto:
-	//   MySQL directo (dev): @@session.time_zone = UTC · uReq 464618 created_at = 15:56:13
-	//                        y su primera línea de log está en 15:56:02 UTC → COINCIDEN, es UTC.
-	//   Redash (prod):       uReq 519245 created_at = 08:41:47
-	//                        y sus líneas de log están en 13:41:46 UTC → 5 horas de desfase, es LOCAL.
-	Zona() *time.Location
-	Close()
-}
+// Runner es la fuente de un ambiente: `Rows` corre un SELECT, `Name` dice qué contestó y `Zone` en qué
+// zona vienen sus fechas (ver la nota de F-241 en el conector: para dev dejó de ser una sola).
+type Runner = dbsql.Source
 
-// soloDigitos es la guarda de inyección para el camino Redash. También se aplica al camino MySQL, donde no
-// hace falta, a propósito: si la regla vale solo en una fuente, alguien la va a violar en la otra y el bug
-// aparece cuando se cambia de target.
+// soloDigitos es la forma de los valores que se interpolan en una consulta: la misma regla que el conector
+// aplica a sus argumentos, para lo que el trazador arma a mano.
 var soloDigitos = regexp.MustCompile(`^\d{1,20}$`)
 
-func validarArgs(args []any) error {
-	for i, a := range args {
-		if !soloDigitos.MatchString(fmt.Sprint(a)) {
-			return fmt.Errorf("argumento %d (%q) no es de dígitos: el trazador solo consulta por id, "+
-				"teléfono o documento, y esa restricción es lo que hace segura la interpolación en Redash", i+1, a)
-		}
-	}
-	return nil
-}
-
-// ─── MySQL directo (local · dev · qa · staging) ─────────────────────────────────────────────────────
-
-type fuenteMySQL struct {
-	db     *sql.DB
-	nombre string
-}
-
-func (f *fuenteMySQL) Nombre() string { return f.nombre }
-
-// Zona: el driver con `parseTime=true` y sin `loc` interpreta como UTC, y la sesión de MySQL está en UTC
-// (verificado: @@session.time_zone = UTC), así que el instante es correcto tal cual.
-func (f *fuenteMySQL) Zona() *time.Location { return time.UTC }
-func (f *fuenteMySQL) Close()               { _ = f.db.Close() }
-
-func (f *fuenteMySQL) Filas(consulta string, args ...any) ([]Fila, error) {
-	if err := validarArgs(args); err != nil {
-		return nil, err
-	}
-	rows, err := f.db.Query(consulta, args...)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	cols, err := rows.Columns()
-	if err != nil {
-		return nil, err
-	}
-	var out []Fila
-	for rows.Next() {
-		vals := make([]any, len(cols))
-		ptrs := make([]any, len(cols))
-		for i := range vals {
-			ptrs[i] = &vals[i]
-		}
-		if rows.Scan(ptrs...) != nil {
-			continue
-		}
-		fila := Fila{}
-		for i, c := range cols {
-			// El driver devuelve []byte para texto y fechas: se pasa a string para que las dos fuentes
-			// entreguen lo mismo y el parseo no tenga que preguntar de dónde vino.
-			if b, ok := vals[i].([]byte); ok {
-				fila[c] = string(b)
-			} else {
-				fila[c] = vals[i]
-			}
-		}
-		out = append(out, fila)
-	}
-	return out, rows.Err()
-}
-
-// ─── Redash (prod) ──────────────────────────────────────────────────────────────────────────────────
-
-type fuenteRedash struct {
-	zona   *time.Location
-	base   string
-	token  string
-	dsID   int
-	http   *http.Client
-	nombre string
-}
-
-func (f *fuenteRedash) Nombre() string { return f.nombre }
-
-// Zona: Redash serializa los datetime en la zona de SU servidor, que devuelve hora de Bogotá. Se fija
-// explícitamente en vez de usar `time.Local` para que la traza no cambie de significado según dónde corra
-// el binario — una herramienta de soporte que da horas distintas en dos máquinas no sirve para auditar.
-func (f *fuenteRedash) Zona() *time.Location { return f.zona }
-func (f *fuenteRedash) Close()               {}
-
-// Filas corre el ciclo completo de Redash. No hay atajo: la API responde con un job y hay que esperarlo.
-func (f *fuenteRedash) Filas(consulta string, args ...any) ([]Fila, error) {
-	if err := validarArgs(args); err != nil {
-		return nil, err
-	}
-	// Interpolación posicional. Segura porque `validarArgs` ya garantizó que todo es de dígitos.
-	sqlTexto := consulta
-	for _, a := range args {
-		sqlTexto = strings.Replace(sqlTexto, "?", fmt.Sprint(a), 1)
-	}
-
-	cuerpo, _ := json.Marshal(map[string]any{
-		"query": sqlTexto, "data_source_id": f.dsID, "max_age": 0,
-	})
-	var arranque struct {
-		Job struct {
-			ID     string `json:"id"`
-			Status int    `json:"status"`
-			Error  string `json:"error"`
-			RID    int    `json:"query_result_id"`
-		} `json:"job"`
-		QueryResult *struct {
-			Data struct {
-				Columns []struct{ Name string } `json:"columns"`
-				Rows    []Fila                  `json:"rows"`
-			} `json:"data"`
-		} `json:"query_result"`
-	}
-	if err := f.pedir("POST", "/api/query_results", cuerpo, &arranque); err != nil {
-		return nil, err
-	}
-	// Redash puede devolver el resultado ya cacheado; en ese caso no hay job que esperar.
-	if arranque.QueryResult != nil {
-		return arranque.QueryResult.Data.Rows, nil
-	}
-	if arranque.Job.ID == "" {
-		return nil, fmt.Errorf("Redash no devolvió job ni resultado")
-	}
-
-	// Polling. Estados de Redash: 1 pendiente · 2 corriendo · 3 ok · 4 falló · 5 cancelado.
-	rid := 0
-	for intento := 0; intento < 60; intento++ {
-		var est struct {
-			Job struct {
-				Status int    `json:"status"`
-				Error  string `json:"error"`
-				RID    int    `json:"query_result_id"`
-			} `json:"job"`
-		}
-		if err := f.pedir("GET", "/api/jobs/"+arranque.Job.ID, nil, &est); err != nil {
-			return nil, err
-		}
-		switch est.Job.Status {
-		case 3:
-			rid = est.Job.RID
-		case 4, 5:
-			return nil, fmt.Errorf("la consulta falló en Redash: %s", est.Job.Error)
-		}
-		if rid > 0 {
-			break
-		}
-		time.Sleep(time.Second)
-	}
-	if rid == 0 {
-		return nil, fmt.Errorf("timeout esperando a Redash (60s): la cola está lenta o la consulta es muy grande")
-	}
-
-	var res struct {
-		QueryResult struct {
-			Data struct {
-				Rows []Fila `json:"rows"`
-			} `json:"data"`
-		} `json:"query_result"`
-	}
-	if err := f.pedir("GET", fmt.Sprintf("/api/query_results/%d", rid), nil, &res); err != nil {
-		return nil, err
-	}
-	return res.QueryResult.Data.Rows, nil
-}
-
-func (f *fuenteRedash) pedir(metodo, ruta string, cuerpo []byte, dest any) error {
-	var body *bytes.Reader
-	if cuerpo != nil {
-		body = bytes.NewReader(cuerpo)
-	} else {
-		body = bytes.NewReader(nil)
-	}
-	req, err := http.NewRequest(metodo, f.base+ruta, body)
-	if err != nil {
-		return err
-	}
-	req.Header.Set("Authorization", "Key "+f.token)
-	req.Header.Set("Content-Type", "application/json")
-	resp, err := f.http.Do(req)
-	if err != nil {
-		// El ELB de Redash es INTERNO: sin VPN esto es un timeout, no un 401. Vale decirlo acá porque el
-		// síntoma no se parece a la causa.
-		return fmt.Errorf("%s %s: %w — ¿la VPN está puesta? el ELB de Redash es interno", metodo, ruta, err)
-	}
-	defer resp.Body.Close()
-	if resp.StatusCode/100 != 2 {
-		var b bytes.Buffer
-		_, _ = b.ReadFrom(resp.Body)
-		return fmt.Errorf("%s %s → %d: %s", metodo, ruta, resp.StatusCode, trim(b.String(), 200))
-	}
-	return json.NewDecoder(resp.Body).Decode(dest)
-}
-
-// ─── elegir la fuente ───────────────────────────────────────────────────────────────────────────────
-
-// abrirFuente decide por dónde leer. La preferencia es MySQL directo (una consulta, sin cola, sin quedar
-// auditado); Redash es el camino para producción, donde no hay otra puerta.
+// abrirFuente pide al conector la base del ambiente. Se abren hasta cuatro conexiones porque una traza
+// hace varias consultas por etapa.
 func abrirFuente(c config) (Runner, error) {
-	if c.dbHost != "" {
-		db, err := abrirBD(c)
-		if err != nil {
-			return nil, err
-		}
-		return &fuenteMySQL{db: db, nombre: "mysql " + c.dbHost}, nil
+	cfg, _, err := dbsql.LoadConfig(c.target)
+	if err != nil {
+		return nil, err
 	}
-	if c.redashURL != "" && c.redashToken != "" {
-		ds := c.redashDS
-		if ds == 0 {
-			ds = 1 // la fuente "Live" (rds_mysql) de producción
-		}
-		// Zona explícita y pisable por si el servidor de Redash cambia de configuración.
-		zona, err := time.LoadLocation(orSi(c.redashTZ, "America/Bogota"))
-		if err != nil {
-			return nil, fmt.Errorf("REDASH_TZ %q no es una zona válida: %w", c.redashTZ, err)
-		}
-		return &fuenteRedash{
-			zona: zona,
-			base: strings.TrimRight(c.redashURL, "/"), token: c.redashToken, dsID: ds,
-			http: &http.Client{Timeout: 90 * time.Second}, nombre: "redash ds=" + fmt.Sprint(ds),
-		}, nil
-	}
-	return nil, fmt.Errorf("sin fuente de datos: falta DB_HOST (MySQL directo) o REDASH_URL + REDASH_TOKEN")
+	cfg.MaxOpen = 4
+	return dbsql.Open(cfg)
 }
 
 // ─── las consultas, escritas UNA vez ────────────────────────────────────────────────────────────────
@@ -373,7 +139,7 @@ const codigoDecevalOK = "SDL.SE.0000"
 // GetDeceval trae las operaciones contra Deceval de esta solicitud. Ante cualquier error devuelve vacío:
 // no saber no es saber que no.
 func GetDeceval(r Runner, ureq int64) []OpDeceval {
-	fs, err := r.Filas(sqlDeceval, ureq)
+	fs, err := r.Rows(sqlDeceval, ureq)
 	if err != nil {
 		return nil
 	}
@@ -381,7 +147,7 @@ func GetDeceval(r Runner, ureq int64) []OpDeceval {
 	for _, f := range fs {
 		o := OpDeceval{
 			Metodo: texto(f["method"]), Nombre: texto(f["name"]),
-			At: fecha(f["created_at"], r.Zona()),
+			At: fecha(f["created_at"], r.Zone()),
 		}
 		// El XML viene dentro de un JSON (`{"soap_response_xml": "..."}`) y con las barras escapadas. No
 		// se parsea como XML a propósito: el envelope trae firma, timestamps y namespaces que no
@@ -495,10 +261,10 @@ func GetCategorias(r Runner, userID int64, desde, hasta time.Time, corrida time.
 	if userID == 0 || desde.IsZero() {
 		return nil
 	}
-	// El reloj de pared TAL COMO LO DEVUELVE ESTA FUENTE: `fecha()` parseó con `r.Zona()`, así que
+	// El reloj de pared TAL COMO LO DEVUELVE ESTA FUENTE: `fecha()` parseó con `r.Zone()`, así que
 	// volver a esa zona reconstruye exactamente el texto que hay en la columna.
-	reloj := func(t time.Time) string { return t.In(r.Zona()).Format("20060102150405") }
-	fs, err := r.Filas(sqlCategorias, userID, reloj(desde), reloj(hasta))
+	reloj := func(t time.Time) string { return t.In(r.Zone()).Format("20060102150405") }
+	fs, err := r.Rows(sqlCategorias, userID, reloj(desde), reloj(hasta))
 	if err != nil {
 		return nil
 	}
@@ -507,7 +273,7 @@ func GetCategorias(r Runner, userID int64, desde, hasta time.Time, corrida time.
 		c := Categoria{
 			LenderID: entero(f["lender_id"]), Lender: texto(f["lender"]),
 			CatID: entero(f["cat"]), CatNombre: texto(f["cat_nombre"]),
-			Cupo: decimal(f["cupo"]), At: fecha(f["created_at"], r.Zona()),
+			Cupo: decimal(f["cupo"]), At: fecha(f["created_at"], r.Zone()),
 			Fallas: map[string][]string{}, Corta: map[string]string{},
 		}
 		switch {
@@ -586,7 +352,7 @@ const sqlCorbeta = "SELECT value FROM settings WHERE `key` = 'corbeta_allieds' L
 // es distinto de saber que no, y un canal mal supuesto esconde etapas que sí ocurrieron.
 func GetCorbetaAllieds(r Runner) map[int64]bool {
 	out := map[int64]bool{}
-	fs, err := r.Filas(sqlCorbeta)
+	fs, err := r.Rows(sqlCorbeta)
 	if err != nil || len(fs) == 0 {
 		return out
 	}
@@ -604,12 +370,12 @@ const sqlEsEcommerce = `SELECT COUNT(*) AS n FROM ecommerce_requests WHERE user_
 
 // GetSolicitud arma el esqueleto usando cualquiera de las dos fuentes.
 func GetSolicitud(r Runner, ureq int64) (*Solicitud, error) {
-	fs, err := r.Filas(sqlSolicitud, ureq)
+	fs, err := r.Rows(sqlSolicitud, ureq)
 	if err != nil {
 		return nil, err
 	}
 	if len(fs) == 0 {
-		return nil, fmt.Errorf("la solicitud %d no existe en %s", ureq, r.Nombre())
+		return nil, fmt.Errorf("la solicitud %d no existe en %s", ureq, r.Name())
 	}
 	f := fs[0]
 	s := &Solicitud{
@@ -618,11 +384,11 @@ func GetSolicitud(r Runner, ureq int64) (*Solicitud, error) {
 		LenderID: entero(f["lender_id"]), LenderRT: int(entero(f["rt"])),
 		Comercio: texto(f["comercio"]), AlliedID: entero(f["allied_id"]), Sucursal: texto(f["sucursal"]),
 		Documento: texto(f["documento"]), Telefono: texto(f["telefono"]),
-		Monto: decimal(f["monto"]), Creada: fecha(f["created_at"], r.Zona()),
+		Monto: decimal(f["monto"]), Creada: fecha(f["created_at"], r.Zone()),
 		Validacion: int(entero(f["validacion"])),
 	}
 
-	if hs, err := r.Filas(sqlHistorial, ureq); err == nil {
+	if hs, err := r.Rows(sqlHistorial, ureq); err == nil {
 		prev := -1
 		for _, h := range hs {
 			st := int(entero(h["st"]))
@@ -630,12 +396,12 @@ func GetSolicitud(r Runner, ureq int64) (*Solicitud, error) {
 				continue // se colapsan repetidos: `user_request_records` escribe una fila por cada toque
 			}
 			prev = st
-			s.Transiciones = append(s.Transiciones, Transicion{Estado: st, Nombre: texto(h["estado"]), At: fecha(h["created_at"], r.Zona())})
+			s.Transiciones = append(s.Transiciones, Transicion{Estado: st, Nombre: texto(h["estado"]), At: fecha(h["created_at"], r.Zone())})
 		}
 	}
-	if bs, err := r.Filas(sqlBuro, s.UserID); err == nil {
+	if bs, err := r.Rows(sqlBuro, s.UserID); err == nil {
 		for _, b := range bs {
-			at := fecha(b["created_at"], r.Zona())
+			at := fecha(b["created_at"], r.Zone())
 			if at.Before(s.Creada.Add(-5 * time.Minute)) {
 				continue // de otro intento del mismo cliente
 			}
@@ -651,7 +417,7 @@ func GetSolicitud(r Runner, ureq int64) (*Solicitud, error) {
 	s.Perfilamiento = GetPerfilamiento(r, ureq)
 
 	s.Origen, s.OrigenDerivado = "asesor", false
-	if es, err := r.Filas(sqlEsEcommerce, ureq); err == nil && len(es) > 0 && entero(es[0]["n"]) > 0 {
+	if es, err := r.Rows(sqlEsEcommerce, ureq); err == nil && len(es) > 0 && entero(es[0]["n"]) > 0 {
 		s.Origen, s.OrigenDerivado = "ecommerce", true
 	}
 	return s, nil
@@ -660,7 +426,7 @@ func GetSolicitud(r Runner, ureq int64) (*Solicitud, error) {
 // GetCentrales trae el catálogo completo: es lo que permite mostrar las NO consultadas.
 func GetCentrales(r Runner) map[int64]string {
 	out := map[int64]string{}
-	fs, err := r.Filas(sqlCentrales)
+	fs, err := r.Rows(sqlCentrales)
 	if err != nil {
 		return out
 	}
@@ -690,7 +456,7 @@ func GetLenders(r Runner, ids []int64) map[int64]LenderInfo {
 	// existe en Redash. Se construye con dígitos, nunca con texto del usuario.
 	q := fmt.Sprintf(`SELECT id, COALESCE(name,'') AS name, COALESCE(response_type,0) AS rt
 	                    FROM lenders WHERE id IN (%s)`, strings.Join(lista, ","))
-	fs, err := r.Filas(q)
+	fs, err := r.Rows(q)
 	if err != nil {
 		return out
 	}
@@ -848,7 +614,7 @@ type LenderMostrado struct {
 }
 
 func GetPerfilamiento(r Runner, ureq int64) *Perfilamiento {
-	fs, err := r.Filas(sqlProfiling, ureq)
+	fs, err := r.Rows(sqlProfiling, ureq)
 	if err != nil || len(fs) == 0 {
 		return nil
 	}
@@ -858,8 +624,8 @@ func GetPerfilamiento(r Runner, ureq int64) *Perfilamiento {
 		Desembolsado:        entero(f["disbursed_lender"]),
 		ConsultoDatacredito: entero(f["datacredito_query"]) == 1,
 		Reglas:              texto(f["hard_rules"]),
-		Creado:              fecha(f["created_at"], r.Zona()),
-		Actualizado:         fecha(f["updated_at"], r.Zona()),
+		Creado:              fecha(f["created_at"], r.Zone()),
+		Actualizado:         fecha(f["updated_at"], r.Zone()),
 	}
 	_ = json.Unmarshal([]byte(texto(f["displayed_lenders"])), &p.Mostrados)
 

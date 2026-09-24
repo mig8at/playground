@@ -7,21 +7,19 @@
 package main
 
 import (
-	"context"
 	"flag"
 	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"strings"
-	"time"
 
-	"creditop/playground/tablero/server/internal/dbquery"
+	dbsql "creditop/playground/connectors/sql"
 	"creditop/playground/tablero/server/internal/layout"
 )
 
 func main() {
-	target := flag.String("target", "", "ambiente: local · dev · staging · prod")
+	target := flag.String("target", "", "ambiente: local · dev · qa · staging · prod")
 	query := flag.String("sql", "", "consulta SELECT o WITH de una sola sentencia")
 	markdown := flag.Bool("md", false, "imprime la cita limpia para el documento de la tarea")
 	block := flag.String("bloque", "", "agrega la consulta y lo que dio como bloque a la pila de esa tarea (id o slug)")
@@ -31,22 +29,21 @@ func main() {
 		fmt.Fprintf(os.Stderr, format+"\n", args...)
 		os.Exit(2)
 	}
-	if !dbquery.ValidTarget(*target) {
-		fail("falta o no es válido -target (local · dev · staging · prod)")
+	if !dbsql.ValidTarget(*target) {
+		fail("falta o no es válido -target (%s)", strings.Join(dbsql.Targets, " · "))
 	}
-	if err := dbquery.ValidateReadOnly(*query); err != nil {
+	if err := dbsql.ValidateReadOnly(*query); err != nil {
 		fail("consulta rechazada: %v", err)
 	}
-	config, err := dbquery.LoadConfig(*target)
+	config, _, err := dbsql.LoadConfig(*target)
 	if err != nil {
 		fail("configuración: %v", err)
 	}
-	ctx, cancel := context.WithTimeout(context.Background(), 100*time.Second)
-	defer cancel()
-	result, err := dbquery.Query(ctx, config, *query)
+	rows, source, err := dbsql.Query(config, *query)
 	if err != nil {
 		fail("consulta en DB %s: %v", *target, err)
 	}
+	result := queryResult{Target: *target, Source: source, Rows: rows}
 	defer addBlock(*block, result, *query)
 	if *markdown {
 		fmt.Printf("> **DB · %s**\n>\n> \x60\x60\x60sql\n> %s\n> \x60\x60\x60\n", result.Target, strings.TrimSpace(*query))
@@ -57,7 +54,7 @@ func main() {
 		fmt.Println("  (sin filas)")
 		return
 	}
-	columns := dbquery.Columns(result.Rows)
+	columns := dbsql.Columns(result.Rows)
 	for _, column := range columns {
 		fmt.Printf("  %s", column)
 	}
@@ -71,8 +68,14 @@ func main() {
 	fmt.Printf("\n  %d fila(s)\n", len(result.Rows))
 }
 
+// queryResult es lo que se imprime y se cita: el ambiente, qué fuente contestó y las filas.
+type queryResult struct {
+	Target, Source string
+	Rows           []dbsql.Row
+}
+
 // rowText es una fila en una línea: `columna = valor`, en el orden estable de las columnas.
-func rowText(columns []string, row dbquery.Row) string {
+func rowText(columns []string, row dbsql.Row) string {
 	values := make([]string, 0, len(columns))
 	for _, column := range columns {
 		values = append(values, fmt.Sprintf("%s = %v", column, row[column]))
@@ -82,8 +85,8 @@ func rowText(columns []string, row dbquery.Row) string {
 
 // blockMarkdown arma el bloque de una consulta: el título dice lo que dio —la fila entera si es una sola
 // y chica, o cuántas—, la consulta va en su caja con su ambiente, y debajo el resultado en una línea.
-func blockMarkdown(result dbquery.Result, query string) string {
-	columns := dbquery.Columns(result.Rows)
+func blockMarkdown(result queryResult, query string) string {
+	columns := dbsql.Columns(result.Rows)
 	title := fmt.Sprintf("%d fila(s) en `%s`", len(result.Rows), result.Target)
 	outcome := fmt.Sprintf("%d filas.", len(result.Rows))
 	switch n := len(result.Rows); {
@@ -120,7 +123,7 @@ func blockMarkdown(result dbquery.Result, query string) string {
 // entorno de make limpio: un make hijo hereda por MAKEFLAGS las variables del padre, y un `N=` de afuera
 // mandaría el bloque a otra tarea sin decirlo. Uno que no entra no cambia lo que la consulta dio, pero
 // se dice fuerte.
-func addBlock(task string, result dbquery.Result, query string) {
+func addBlock(task string, result queryResult, query string) {
 	if task == "" {
 		return
 	}

@@ -691,6 +691,13 @@ Cada herramienta guarda su configuración por target en su propio **`.env.<targe
 como las **perillas** (Cognito, mocks, `SEED`). Ya **no** hay capa compartida `env/` (se eliminó el
 2026-07-22). Prioridad: `process.env` > `<herramienta>/.env.<target>`.
 
+⚠ **Salvo lo que ya pasó a `connectors/`** (tarea #90, frente «Una consulta por ambiente»): la base de
+cada ambiente —MySQL directo o Redash— la abre `connectors/sql` con las credenciales de
+`connectors/.env.<target>` (plantilla: `connectors/.env.example`), y el tablero y el trazador ya no las
+guardan. Las claves de base van **con el prefijo `E2E_DB_`**, nunca como `DB_HOST`: ese nombre es el que
+lee Laravel, y el conector no lo lee ni del archivo ni del proceso. Los demás servicios se van mudando
+de a uno; hasta entonces siguen en el `.env` de cada herramienta.
+
 **Qué rama sirve cada target:** `local` → local · `dev` → **develop** · `staging` → **la rama
 `staging`**. *(Acá decía «`staging` → qa». Está mal: se fueron sumando ambientes para poder probar,
 pero **el real es `staging`** — corregido por Miguel el 2026-08-14. El workflow lo confirma:

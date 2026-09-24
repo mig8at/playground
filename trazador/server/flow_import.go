@@ -69,12 +69,12 @@ func flowComercios(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	defer f.Close()
-	rows, err := f.Filas(fmt.Sprintf("SELECT id, name, country_id FROM allieds WHERE status = 1 AND LOWER(name) LIKE '%%%s%%' ORDER BY name, id LIMIT %d OFFSET %d", q, limit, limit*page))
+	rows, err := f.Rows(fmt.Sprintf("SELECT id, name, country_id FROM allieds WHERE status = 1 AND LOWER(name) LIKE '%%%s%%' ORDER BY name, id LIMIT %d OFFSET %d", q, limit, limit*page))
 	if err != nil {
 		jsonErr(w, 502, "no se pudieron buscar comercios: "+err.Error())
 		return
 	}
-	jsonOK(w, map[string]any{"items": rows, "page": page, "limit": limit, "hasMore": len(rows) == limit, "source": f.Nombre()})
+	jsonOK(w, map[string]any{"items": rows, "page": page, "limit": limit, "hasMore": len(rows) == limit, "source": f.Name()})
 }
 
 func flowSucursales(w http.ResponseWriter, r *http.Request) {
@@ -89,12 +89,12 @@ func flowSucursales(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	defer f.Close()
-	rows, err := f.Filas("SELECT id, name, status FROM allied_branches WHERE allied_id = ? ORDER BY status DESC, name, id", allied)
+	rows, err := f.Rows("SELECT id, name, status FROM allied_branches WHERE allied_id = ? ORDER BY status DESC, name, id", allied)
 	if err != nil {
 		jsonErr(w, 502, "no se pudieron cargar sucursales: "+err.Error())
 		return
 	}
-	jsonOK(w, map[string]any{"items": rows, "source": f.Nombre()})
+	jsonOK(w, map[string]any{"items": rows, "source": f.Name()})
 }
 
 func flowEntidades(w http.ResponseWriter, r *http.Request) {
@@ -109,12 +109,12 @@ func flowEntidades(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	defer f.Close()
-	rows, err := f.Filas("SELECT l.id, l.name, l.response_type, l.country_id, l.status, lbab.status AS branch_status, lbab.document_types FROM lenders_by_allied_branches lbab JOIN lenders l ON l.id = lbab.lender_id WHERE lbab.allied_branch_id = ? ORDER BY lbab.status DESC, l.name, l.id", branch)
+	rows, err := f.Rows("SELECT l.id, l.name, l.response_type, l.country_id, l.status, lbab.status AS branch_status, lbab.document_types FROM lenders_by_allied_branches lbab JOIN lenders l ON l.id = lbab.lender_id WHERE lbab.allied_branch_id = ? ORDER BY lbab.status DESC, l.name, l.id", branch)
 	if err != nil {
 		jsonErr(w, 502, "no se pudieron cargar entidades: "+err.Error())
 		return
 	}
-	jsonOK(w, map[string]any{"items": rows, "source": f.Nombre()})
+	jsonOK(w, map[string]any{"items": rows, "source": f.Name()})
 }
 
 func flowConfiguracion(w http.ResponseWriter, r *http.Request) {
@@ -145,7 +145,7 @@ func flowConfiguracion(w http.ResponseWriter, r *http.Request) {
 		"LEFT JOIN credit_line_by_lenders clbl ON clbl.lender_id = l.id " +
 		"LEFT JOIN lender_datacredito_rules d ON d.lender_id = l.id AND d.allied_branch_id = ? " +
 		"WHERE l.id = ? LIMIT 1"
-	rows, err := f.Filas(q, branch, branch, lender)
+	rows, err := f.Rows(q, branch, branch, lender)
 	if err != nil {
 		jsonErr(w, 502, "no se pudo importar la configuración: "+err.Error())
 		return
@@ -175,11 +175,11 @@ func flowConfiguracion(w http.ResponseWriter, r *http.Request) {
 			key, sql string
 			args     []any
 		}) {
-			out, e := f.Filas(j.sql, j.args...)
+			out, e := f.Rows(j.sql, j.args...)
 			ch <- extra{j.key, out, e}
 		}(j)
 	}
-	out := map[string]any{"item": rows[0], "source": f.Nombre(), "scope": "línea, Datacrédito, perfiles, tramos y group_rules"}
+	out := map[string]any{"item": rows[0], "source": f.Name(), "scope": "línea, Datacrédito, perfiles, tramos y group_rules"}
 	for range jobs {
 		x := <-ch
 		if x.err != nil {

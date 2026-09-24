@@ -33,7 +33,6 @@
 package main
 
 import (
-	"database/sql"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -252,100 +251,6 @@ type FilaBuro struct {
 	Central string
 	Score   *float64
 	At      time.Time
-}
-
-func abrirBD(c config) (*sql.DB, error) {
-	if c.dbHost == "" {
-		return nil, fmt.Errorf("sin BD configurada para este target (DB_HOST vacío)")
-	}
-	// El parseo queda en UTC (el default) A PROPÓSITO: la columna `timestamp` de MySQL vuelve como
-	// wall-clock UTC, así que marcarla como Local correría el instante 5 horas y con él la ventana de
-	// búsqueda de logs. Lo que se convierte es la PRESENTACIÓN (ver `hhmm`), no el dato: si no, la BD
-	// mostraría 21:49 y los logs 16:48 para el mismo momento y la cronología se leería al revés.
-	dsn := fmt.Sprintf("%s:%s@tcp(%s:%s)/%s?parseTime=true&timeout=10s&readTimeout=30s",
-		c.dbUser, c.dbPass, c.dbHost, c.dbPort, c.dbName)
-	db, err := sql.Open("mysql", dsn)
-	if err != nil {
-		return nil, err
-	}
-	db.SetMaxOpenConns(4)
-	return db, db.Ping()
-}
-
-// leerSolicitud trae el esqueleto. Todo con SELECT: el trazador NUNCA escribe — es de soporte, y una
-// herramienta de soporte que puede escribir es una herramienta que algún día escribe.
-func leerSolicitud(db *sql.DB, ureq int64) (*Solicitud, error) {
-	s := &Solicitud{ID: ureq}
-	var lender, comercio, sucursal, canal, doc sql.NullString
-	var rt sql.NullInt64
-	var monto sql.NullFloat64
-	err := db.QueryRow(`
-		SELECT ur.user_id, ur.user_request_status_id, COALESCE(st.name,''),
-		       l.name, COALESCE(l.id,0), l.response_type, a.name, ab.name, CAST(ur.flow_id AS CHAR), u.document_number,
-		       ur.amount, ur.created_at
-		  FROM user_requests ur
-		  LEFT JOIN user_request_statuses st ON st.id = ur.user_request_status_id
-		  LEFT JOIN lenders l               ON l.id  = ur.lender_id
-		  LEFT JOIN allied_branches ab      ON ab.id = ur.allied_branch_id
-		  LEFT JOIN allieds a               ON a.id  = ab.allied_id
-		  LEFT JOIN users u                 ON u.id  = ur.user_id
-		 WHERE ur.id = ?`, ureq).
-		Scan(&s.UserID, &s.Estado, &s.EstadoN, &lender, &s.LenderID, &rt, &comercio, &sucursal, &canal, &doc, &monto, &s.Creada)
-	if err != nil {
-		return nil, err
-	}
-	s.Lender, s.Comercio, s.Sucursal, s.Canal, s.Documento = lender.String, comercio.String, sucursal.String, canal.String, doc.String
-	s.LenderRT, s.Monto = int(rt.Int64), monto.Float64
-
-	// Historial, colapsando estados consecutivos repetidos.
-	rows, err := db.Query(`
-		SELECT r.user_request_status_id, COALESCE(st.name,''), r.created_at
-		  FROM user_request_records r
-		  LEFT JOIN user_request_statuses st ON st.id = r.user_request_status_id
-		 WHERE r.user_request_id = ? ORDER BY r.created_at, r.id`, ureq)
-	if err == nil {
-		defer rows.Close()
-		prev := -1
-		for rows.Next() {
-			var t Transicion
-			if rows.Scan(&t.Estado, &t.Nombre, &t.At) == nil && t.Estado != prev {
-				s.Transiciones = append(s.Transiciones, t)
-				prev = t.Estado
-			}
-		}
-	}
-
-	// Burós: la tabla se indexa por `user_id`, NO por solicitud — así que una consulta de buró puede ser
-	// de otro intento del mismo cliente. Se acota a partir de la creación de esta solicitud.
-	brows, err := db.Query(`
-		SELECT COALESCE(rc.name, CONCAT('central ', d.risk_central_id)), d.score, d.created_at
-		  FROM risk_central_user_data d
-		  LEFT JOIN risk_centrals rc ON rc.id = d.risk_central_id
-		 WHERE d.user_id = ? AND d.deleted_at IS NULL AND d.created_at >= ?
-		 ORDER BY d.created_at`, s.UserID, s.Creada.Add(-5*time.Minute))
-	if err == nil {
-		defer brows.Close()
-		for brows.Next() {
-			var f FilaBuro
-			var sc sql.NullFloat64
-			if brows.Scan(&f.Central, &sc, &f.At) == nil {
-				if sc.Valid {
-					v := sc.Float64
-					f.Score = &v
-				}
-				s.Buro = append(s.Buro, f)
-			}
-		}
-	}
-	// ORIGEN. `user_requests` no tiene columna de canal, así que se deriva de lo que sí existe: si hay una
-	// solicitud de ecommerce ligada, el origen es ecommerce. Si no, se asume ASESOR — que es el caso normal
-	// y lo que pidió Miguel como default, pero queda marcado como supuesto, no como hecho.
-	s.Origen, s.OrigenDerivado = "asesor", false
-	var n int
-	if db.QueryRow(`SELECT COUNT(*) FROM ecommerce_requests WHERE user_request_id = ?`, ureq).Scan(&n) == nil && n > 0 {
-		s.Origen, s.OrigenDerivado = "ecommerce", true
-	}
-	return s, nil
 }
 
 // ventana es el rango de tiempo de esta solicitud, y es lo que hace SEGURO anclar por `user_id`. Sin
@@ -3032,7 +2937,7 @@ func resolverFuente(r Runner, valor string) ([]Coincidencia, []string, error) {
 	var out []Coincidencia
 
 	traer := func(where, etiqueta, arg string, directa bool) error {
-		fs, err := r.Filas(sqlBuscar+where+sqlBuscarOrden, arg)
+		fs, err := r.Rows(sqlBuscar+where+sqlBuscarOrden, arg)
 		if err != nil {
 			return err
 		}
@@ -3046,7 +2951,7 @@ func resolverFuente(r Runner, valor string) ([]Coincidencia, []string, error) {
 			nuevos++
 			out = append(out, Coincidencia{
 				UReq: id, UserID: entero(f["uid"]), Estado: int(entero(f["st"])), EstadoN: texto(f["estado"]),
-				Lender: texto(f["lender"]), Comercio: texto(f["comercio"]), Creada: fecha(f["created_at"], r.Zona()),
+				Lender: texto(f["lender"]), Comercio: texto(f["comercio"]), Creada: fecha(f["created_at"], r.Zone()),
 				Documento: texto(f["documento"]), Telefono: texto(f["telefono"]), Directa: directa,
 			})
 		}
@@ -3298,52 +3203,6 @@ func ramalDeRT(id int64, rt int) string {
 	default:
 		return "redirect"
 	}
-}
-
-// leerLenders trae nombre y response_type de las entidades que aparecieron en los logs. Sin esto no se
-// puede agrupar por familia: es el dato que convierte una lista plana de 12 lenders en el árbol de caminos.
-func leerLenders(db *sql.DB, ids []int64) map[int64]LenderInfo {
-	out := map[int64]LenderInfo{}
-	if len(ids) == 0 {
-		return out
-	}
-	marcas := strings.TrimSuffix(strings.Repeat("?,", len(ids)), ",")
-	args := make([]any, len(ids))
-	for i, v := range ids {
-		args[i] = v
-	}
-	rows, err := db.Query(`SELECT id, COALESCE(name,''), COALESCE(response_type,0) FROM lenders WHERE id IN (`+marcas+`)`, args...)
-	if err != nil {
-		return out
-	}
-	defer rows.Close()
-	for rows.Next() {
-		var l LenderInfo
-		if rows.Scan(&l.ID, &l.Nombre, &l.RT) == nil {
-			out[l.ID] = l
-		}
-	}
-	return out
-}
-
-// leerCentrales trae el catálogo COMPLETO de centrales de riesgo. Es lo que permite mostrar las que NO se
-// consultaron, que es la mitad de la pregunta: «¿por dónde se fue el buró, o no fue?». Sin el catálogo solo
-// se pueden listar las que sí respondieron, y una ausencia sin universo no se puede leer.
-func leerCentrales(db *sql.DB) map[int64]string {
-	out := map[int64]string{}
-	rows, err := db.Query(`SELECT id, COALESCE(name,'') FROM risk_centrals ORDER BY id`)
-	if err != nil {
-		return out
-	}
-	defer rows.Close()
-	for rows.Next() {
-		var id int64
-		var n string
-		if rows.Scan(&id, &n) == nil {
-			out[id] = n
-		}
-	}
-	return out
 }
 
 // arbolListado agrupa las entidades evaluadas por FAMILIA.

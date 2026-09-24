@@ -6,7 +6,7 @@ import (
 	"testing"
 	"time"
 
-	"creditop/playground/tablero/server/internal/dbquery"
+	dbsql "creditop/playground/connectors/sql"
 	"creditop/playground/tablero/server/internal/taskcontext"
 )
 
@@ -14,15 +14,15 @@ import (
 // caja con el ambiente, y debajo lo que dio. Y lo acepta el validador de la pila, que es el que manda.
 func TestTheQueryBlockIsOneTheStackAccepts(t *testing.T) {
 	cases := []struct {
-		rows        []dbquery.Row
+		rows        []dbsql.Row
 		title, want string
 	}{
-		{[]dbquery.Row{{"solicitudes": 560727}}, "# solicitudes = 560727 en `prod`", "Resultado: solicitudes = 560727."},
+		{[]dbsql.Row{{"solicitudes": 560727}}, "# solicitudes = 560727 en `prod`", "Resultado: solicitudes = 560727."},
 		{nil, "# Cero filas en `prod`", "Resultado: cero filas."},
-		{[]dbquery.Row{{"n": 1}, {"n": 2}}, "# 2 fila(s) en `prod`", "Resultado: 2 filas: (n = 1); (n = 2)."},
+		{[]dbsql.Row{{"n": 1}, {"n": 2}}, "# 2 fila(s) en `prod`", "Resultado: 2 filas: (n = 1); (n = 2)."},
 	}
 	for _, c := range cases {
-		md := blockMarkdown(dbquery.Result{Target: "prod", Rows: c.rows}, "SELECT count(*) AS solicitudes FROM user_requests")
+		md := blockMarkdown(queryResult{Target: "prod", Rows: c.rows}, "SELECT count(*) AS solicitudes FROM user_requests")
 		if !strings.HasPrefix(md, c.title+"\n") || !strings.Contains(md, "```sql prod\nSELECT count(*)") || !strings.Contains(md, c.want) {
 			t.Fatalf("md = %q", md)
 		}

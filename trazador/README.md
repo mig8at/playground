@@ -208,6 +208,11 @@ lag de ingesta), así que los logs **explican** pero nunca dictaminan.
 
 ⚠ Redash vive detrás de un **ELB interno**: sin VPN el síntoma es un *timeout*, no un 401.
 
+**La base no la abre el trazador: la abre `connectors/sql`**, que es el único lugar del playground que
+sabe qué fuente atiende cada ambiente, con las credenciales de `connectors/.env.<target>` (plantilla en
+`connectors/.env.example`). El trazador le pide la fuente de su ambiente y le pasa sus consultas; lo que
+sigue siendo suyo son esas consultas y cómo se leen las filas (`server/fuentes.go`).
+
 ### La tercera fuente: PostHog dice qué VIO el cliente
 
 La BD y los logs comparten un punto ciego: **el navegador**. Un «abandonado» tapa cuatro historias que

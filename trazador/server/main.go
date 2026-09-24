@@ -82,16 +82,9 @@ type config struct {
 	// así que puede cambiar sin commit. Vacío = no se reparte.
 	servicio string
 
-	// La BD del ambiente. Es lo que convierte al trazador de "lector de logs" en trazador: la BD dice
-	// QUÉ pasó (hecho) y ancla la búsqueda de logs; los logs solo dicen POR QUÉ. Vacío = solo Loki
-	// (el caso de prod hasta que haya una réplica de lectura).
-	dbHost, dbPort, dbName, dbUser, dbPass string
-
-	// Redash: la única puerta a la BD de PRODUCCIÓN. Es SQL sobre HTTP, asíncrono y auditado a nombre del
-	// dueño del token, así que se usa SOLO cuando no hay acceso directo (ver `abrirFuente`).
-	redashURL, redashToken string
-	redashDS               int
-	redashTZ               string
+	// El ambiente. Es lo que le pide al conector de SQL la base de ESTE ambiente (ver `abrirFuente`): qué
+	// base es, sus credenciales y si va por MySQL directo o por Redash ya no los sabe el trazador.
+	target string
 
 	// PostHog: la TERCERA fuente. La BD dice qué pasó y Loki por qué falló el backend; PostHog dice qué
 	// VIO y qué TOCÓ el cliente en el navegador — el punto ciego de hoy. Se pega a una solicitud sin
@@ -115,16 +108,6 @@ var alias = map[string][]string{
 	"tenant":   {"LOKI_TENANT", "GRAFANA_LOKI_TENANT_ID"},
 	"env":      {"LOKI_ENV", "E2E_LOKI_ENV"},
 	"servicio": {"LOKI_SERVICE", "E2E_LOKI_SERVICE"},
-	// Los `E2E_DB_*` son los que usa el harness: aceptarlos permite copiar su .env.<target> tal cual.
-	"dbHost":      {"DB_HOST", "E2E_DB_HOST"},
-	"dbPort":      {"DB_PORT", "E2E_DB_PORT"},
-	"dbName":      {"DB_NAME", "E2E_DB_NAME"},
-	"dbUser":      {"DB_USER", "E2E_DB_USER"},
-	"dbPass":      {"DB_PASS", "E2E_DB_PASS"},
-	"redashURL":   {"REDASH_URL"},
-	"redashToken": {"REDASH_TOKEN"},
-	"redashDS":    {"REDASH_DATA_SOURCE_ID"},
-	"redashTZ":    {"REDASH_TZ"},
 	// PostHog. `VITE_PUBLIC_POSTHOG_HOST` es el nombre que usa el wizard para el host de INGESTA: se acepta
 	// como último recurso para no tener que buscarlo, pero la API de lectura vive en otro subdominio y
 	// `normalizePostHogAPI` lo corrige (us.i.posthog.com → us.posthog.com).
@@ -182,9 +165,9 @@ func loadConfig(target string) (config, []string) {
 		return "", ""
 	}
 
-	var c config
+	c := config{target: target}
 	var origins []string
-	for _, field := range []string{"token", "base", "user", "tenant", "env", "servicio", "dbHost", "dbPort", "dbName", "dbUser", "dbPass", "redashURL", "redashToken", "redashDS", "redashTZ", "posthogToken", "posthogAPI", "posthogProject", "posthogEnv"} {
+	for _, field := range []string{"token", "base", "user", "tenant", "env", "servicio", "posthogToken", "posthogAPI", "posthogProject", "posthogEnv"} {
 		v, from := pick(field)
 		switch field {
 		case "token":
@@ -199,24 +182,6 @@ func loadConfig(target string) (config, []string) {
 			c.env = v
 		case "servicio":
 			c.servicio = v
-		case "dbHost":
-			c.dbHost = v
-		case "dbPort":
-			c.dbPort = v
-		case "dbName":
-			c.dbName = v
-		case "dbUser":
-			c.dbUser = v
-		case "dbPass":
-			c.dbPass = v
-		case "redashURL":
-			c.redashURL = v
-		case "redashToken":
-			c.redashToken = v
-		case "redashDS":
-			fmt.Sscanf(v, "%d", &c.redashDS)
-		case "redashTZ":
-			c.redashTZ = v
 		case "posthogToken":
 			c.posthogToken = v
 		case "posthogAPI":
@@ -714,7 +679,7 @@ func main() {
 		var tablas map[string]bool
 		if fuente, err := abrirFuente(c); pidioTarget && err == nil {
 			defer fuente.Close()
-			if filas, err := fuente.Filas("SELECT table_name FROM information_schema.tables WHERE table_schema = DATABASE()"); err == nil {
+			if filas, err := fuente.Rows("SELECT table_name FROM information_schema.tables WHERE table_schema = DATABASE()"); err == nil {
 				tablas = map[string]bool{}
 				for _, f := range filas {
 					for _, v := range f {

@@ -134,7 +134,7 @@ func servir(addr string) error {
 			Historia Historia  `json:"historia"`
 			Personas []persona `json:"personas"`
 			Items    []item    `json:"items"`
-		}{Target: target, Fuente: fuente.Nombre(), Como: como, Historia: armarHistoria(cs)}
+		}{Target: target, Fuente: fuente.Name(), Como: como, Historia: armarHistoria(cs)}
 		personas := map[string]bool{}
 		for _, x := range cs {
 			l := x.Creada.Local()

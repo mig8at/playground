@@ -7,7 +7,7 @@ import (
 	"strings"
 	"time"
 
-	"creditop/playground/tablero/server/internal/dbquery"
+	dbsql "creditop/playground/connectors/sql"
 )
 
 // BlockSchema es el formato de la pila desde el 2026-09-23: la tarea es una pila de BLOQUES de
@@ -131,10 +131,10 @@ func checkFence(f fence) error {
 		return fmt.Errorf("el bloque %s está vacío", f.lang)
 	}
 	if f.lang == "sql" {
-		if !dbquery.ValidTarget(f.arg) {
-			return fmt.Errorf("sql lleva su ambiente: ```sql local · dev · staging · prod")
+		if !dbsql.ValidTarget(f.arg) {
+			return fmt.Errorf("sql lleva su ambiente: ```sql %s", strings.Join(dbsql.Targets, " · "))
 		}
-		if err := dbquery.ValidateReadOnly(f.code); err != nil {
+		if err := dbsql.ValidateReadOnly(f.code); err != nil {
 			return fmt.Errorf("la consulta no es de sólo lectura: %w", err)
 		}
 		return nil

@@ -533,10 +533,10 @@ documento —anotaciones, Registro y retoma de las 22 tareas abiertas que los te
 
 ### Consultas a base de datos
 
-`make tablero-db TARGET=<local|dev|staging|prod> SQL='SELECT …'` corre una sola consulta de sólo
-lectura. No asume producción: el ambiente es obligatorio. Copiá
-`tablero/server/.env.db.example` a `tablero/server/.env.<ambiente>`; cada herramienta conserva sus
-propias credenciales. Con `MD=1` emite sólo el ambiente y el SQL para pegar en el documento:
+`make tablero-db TARGET=<local|dev|qa|staging|prod> SQL='SELECT …'` corre una sola consulta de sólo
+lectura. No asume producción: el ambiente es obligatorio. La conexión y el chequeo de sólo lectura son
+de `connectors/sql`, y las credenciales, de `connectors/.env.<ambiente>` (la plantilla es
+`connectors/.env.example`): el tablero no guarda credenciales de base propias. Con `MD=1` emite sólo el ambiente y el SQL para pegar en el documento:
 
 ````md
 > **DB · prod**
