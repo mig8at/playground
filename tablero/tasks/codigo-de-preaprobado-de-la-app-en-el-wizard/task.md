@@ -1,7 +1,7 @@
 ---
 id: 94
 title: "Código de preaprobado de la app en la plataforma nueva"
-ramas: feat/CORE-614-codigo-preaprobado-app, feat/CORE-614-codigo-app-solo-colombia
+ramas: feat/CORE-614-codigo-preaprobado-app, feat/CORE-614-codigo-app-solo-colombia, feat/codigo-alfanumerico-en-main
 stage: work
 created: "2026-09-21T16:40:00-05:00"
 canon: [preaprobado, listado, onboarding, creditopx]
@@ -41,6 +41,14 @@ jira_title: "Código de preaprobado de la app en la plataforma nueva"
       no se verificaron: el canje no está en sus ramas.
 - [x] Validar en `qa` un canje real — código `9997` → solicitud 502728 con CrediPullman y el listado con
       una sola entidad (2026-09-24).
+- [ ] Que el servicio de códigos emita `AA0000` en dev/qa; termina cuando `make harness-codigo-qa` devuelva
+      un código de 6 caracteres. Hoy dev corre la imagen fijada `v0.0.3` (9/04, anterior al formato) y
+      prod `3900158`: los dos emiten 4 números. PR limpio con sólo el formato:
+      [self-manager-api#22](https://github.com/Creditop-SAS/self-manager-api/pull/22), contra `main`, con el CI
+      en verde (arregla además el lint de `main`, que no arrancaba: config v1 contra golangci-lint v2.6).
+      Depende de: quien etiquete el servicio y de infraestructura, que suba la imagen fijada en
+      `environments/development/ecs-application`. ⚠ No etiquetar para prod antes de que `main` de
+      `legacy-backend` y de aliados acepten `AA0000` (hoy `^\d{4}$` y `digits:4`).
 - [ ] Llevar a `main` los tres PRs de la tarea (backend #1455, front #1045 y #1049), hoy sólo en `qa`.
       Es el único pendiente: el alcance está hecho y probado en `qa` (2026-09-24). Al llegar a `main`,
       graduar a canon y archivar.
