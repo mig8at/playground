@@ -29,7 +29,7 @@ def areas_de_canon():
 
     porArchivo = defaultdict(list)
     objetivos = {}
-    mapas = _canon.mapas()
+    mapas = _canon.maps()
     if not mapas:
         print(f"  ⚠ canon no respondió ({_canon.URL}): nada figura como declarado", file=sys.stderr)
     for tema, mapa in sorted(mapas.items()):
@@ -49,7 +49,7 @@ def peso_de_canon():
     try:
         out = subprocess.run(
             ["go", "run", ".", "-peso", "json"], cwd=CANON, capture_output=True, text=True, timeout=300,
-            env={**os.environ, "CANON_CONTENIDO": "./content", "CANON_REPOS": CLONES},
+            env={**os.environ, "CANON_REPOS": CLONES},
         ).stdout
         datos = json.loads(out[out.index("{"):])
     except Exception as e:                      # noqa: BLE001 — cualquier falla degrada, no rompe

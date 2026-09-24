@@ -41,12 +41,11 @@ def enriquecer(c):
         import sys as _s
         _s.path.insert(0, str(AQUI.parent / "tools"))
         import canon as _canon
-        m = Path(_canon.CONTENIDO) / c["nodo"] / "map.json"
-        fuera["nodo_existe"] = m.is_file()
-        if m.is_file():
-            areas = json.loads(m.read_text(encoding="utf-8")).get("areas") or []
+        tema = _canon.maps().get(c["nodo"])
+        fuera["nodo_existe"] = tema is not None
+        if tema is not None:
             fuera["archivos_del_nodo"] = sum(
-                len(fs) for a in areas for fs in (a.get("fuentes") or {}).values())
+                len(fs) for a in tema["areas"] for fs in (a.get("fuentes") or {}).values())
     return fuera
 
 

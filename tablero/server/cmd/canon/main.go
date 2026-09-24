@@ -5,6 +5,7 @@
 //	code <tema/capa> [n]                 los archivos que declara el área n del tema
 //	propose <pieza.json>                 dónde iría y qué le rechaza el lint. NO escribe
 //	write <pieza.json>… [-title T]       borrador → piezas → cierre: UNA revisión. ESCRIBE
+//	corpus                               el corpus entero en JSON, para los cruces de `tools/canon.py`
 //
 // El origen es CANON_URL —producción por defecto, que pide la VPN de prod—, el mismo del tablero. La
 // pieza es un JSON con las claves del borrador de canon; `text_file` en vez de `text` lee la prosa de
@@ -46,6 +47,8 @@ func main() {
 		err = propose(ctx, client, args)
 	case "write":
 		err = write(ctx, client, args)
+	case "corpus":
+		err = corpus(ctx, client)
 	default:
 		usage()
 	}
@@ -189,6 +192,16 @@ func write(ctx context.Context, client *canon.Client, args []string) error {
 		}
 	}
 	return nil
+}
+
+/* corpus imprime el corpus entero en JSON —`{"url", "topics": {tema: {areas, prose}}}`— para los
+ * cruces en Python (`tools/canon.py`). Es la única lectura del corpus completo del playground. */
+func corpus(ctx context.Context, client *canon.Client) error {
+	topics, err := client.Corpus(ctx)
+	if err != nil {
+		return err
+	}
+	return json.NewEncoder(os.Stdout).Encode(map[string]any{"url": canon.URL(), "topics": topics})
 }
 
 // loadPiece lee una pieza; con `text_file` la prosa sale de un archivo relativo a la pieza.

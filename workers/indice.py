@@ -146,7 +146,7 @@ def nodos_por_repo():
     import sys as _s
     _s.path.insert(0, str(RAIZ.parent / "tools"))
     import canon as _canon
-    porRepo = _canon.temas_por_repo()
+    porRepo = _canon.topics_by_repo()
 
     return {a: sorted(v, key=lambda x: -x[1]) for a, v in porRepo.items()}
 

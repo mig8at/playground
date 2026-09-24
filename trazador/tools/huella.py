@@ -132,7 +132,7 @@ def main():
     esc, lee = tablas(mysql)
     filas, traces = eventos(ureq)
     sp = spans(traces)
-    mapas = _canon.mapas()
+    mapas = _canon.maps()
     dueno, por_clase = cobertura_canon(mapas)
     # `None` = automático: la ref se resuelve por repo (ver `roots.ref_a_indexar`). Con el literal,
     # contra un `main` local atrasado faltan archivos y la huella los cuenta como inexistentes.
@@ -146,7 +146,7 @@ def main():
         for a in m.get("areas") or []:
             for t in a.get("tablas") or []:
                 declaran[t].add(tema)
-    prosa = _canon.prosas()
+    prosa = _canon.prose()
     def quien_explica(t):
         en_prosa = {n for n, txt in prosa.items() if re.search(rf'`?\b{re.escape(t)}\b`?', txt)}
         return sorted(declaran.get(t, set()) | en_prosa)

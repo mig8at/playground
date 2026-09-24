@@ -29,7 +29,8 @@ propia base**: sirve para ensayar, y lo que se escribe ahí no lo ve nadie.
    `canon:` del frontmatter.
 
 Los comandos son `tablero/server/cmd/canon` (Go, sobre el cliente `internal/canon` del tablero). Para
-Python, `tools/canon.py` da `mapas()` y `prosas()` del corpus entero, con la misma `CANON_URL`.
+Python, `tools/canon.py` da `maps()`, `prose()`, `files_by_topic()`, `topics_by_repo()` y
+`tables_by_topic()`: no lee canon, se lo pide a `canon corpus`, así que hay un solo cliente.
 
 ## Escribir — cuando aparece una regla que canon no tiene
 

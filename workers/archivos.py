@@ -59,7 +59,7 @@ def _nodos_que_lo_citan():
     import sys as _s
     _s.path.insert(0, str(RAIZ.parent / "tools"))
     import canon as _canon
-    return _canon.archivos_por_tema()
+    return _canon.files_by_topic()
 
 
 def _tipo(ruta):
@@ -191,7 +191,7 @@ def menu_de_nodo(nodo=None, minimo=15):
     import canon as _canon
     import indice as _ix
     por_tema = {}
-    for clave, temas in _canon.archivos_por_tema().items():
+    for clave, temas in _canon.files_by_topic().items():
         for t in temas:
             por_tema.setdefault(t, []).append(clave)
     fuera = []
