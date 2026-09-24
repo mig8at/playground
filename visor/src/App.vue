@@ -98,7 +98,6 @@ const addURL = ref('')
 const pagesOf = ref({}) // clave del archivo → 'loading' | { pages } | { error }
 const readSet = (k) => { try { return new Set(JSON.parse(localStorage.getItem(k) || '[]')) } catch { return new Set() } }
 const saveSet = (k, set) => { try { localStorage.setItem(k, JSON.stringify([...set])) } catch { /* preferencia opcional */ } }
-const openProjects = ref(readSet('visor.open-projects'))
 const openFiles = ref(readSet('visor.open-files'))
 const viewOpen = ref((() => { try { return { projects: true, lanes: true, ...JSON.parse(localStorage.getItem('visor.views') || '{}') } } catch { return { projects: true, lanes: true } } })())
 function toggleView(v) {
@@ -136,12 +135,15 @@ const projectGroups = computed(() => {
   }
   return out
 })
-const isOpenProject = (id) => openProjects.value.has(id)
+// Los flujos en la raíz: todos los archivos conocidos (de los equipos, de los proyectos y los sumados
+// sueltos) en una sola lista alfabética, sin repetir.
+const flows = computed(() => {
+  const seen = new Map()
+  for (const g of projectGroups.value) for (const f of g.files) if (!seen.has(f.key)) seen.set(f.key, f)
+  return [...seen.values()].sort((a, b) => a.name.localeCompare(b.name, 'es'))
+})
+const libraryErrors = computed(() => projectGroups.value.filter((g) => g.error).map((g) => `${g.name}: ${g.error}`))
 const isOpenFile = (key) => openFiles.value.has(key)
-function toggleProject(id) {
-  const s = new Set(openProjects.value); s.has(id) ? s.delete(id) : s.add(id)
-  openProjects.value = s; saveSet('visor.open-projects', s)
-}
 async function toggleFile(key) {
   const s = new Set(openFiles.value); s.has(key) ? s.delete(key) : s.add(key)
   openFiles.value = s; saveSet('visor.open-files', s)
@@ -339,33 +341,26 @@ const laneName = (lane) => (lane.label ? lane.label : 'Fila sin rótulo')
           </form>
           <p v-if="adding" class="hint">Pegá la página de un equipo (<span class="mono">figma.com/files/team/…</span>) o de un proyecto (<span class="mono">figma.com/files/project/…</span>, la que se abre al tocar la carpeta en Figma), o el enlace de un archivo. La API de Figma no lista los equipos de una cuenta ni lo visto recientemente: cada flujo aparece acá cuando se suma su equipo, su proyecto o el archivo.</p>
           <p v-if="libraryError" class="notice" role="alert">{{ libraryError }}</p>
-          <p v-if="!projectGroups.length && !libraryBusy" class="empty">Todavía no hay proyectos. Sumá la página de un equipo con el botón de arriba, o abrí un archivo por su enlace.</p>
-          <p v-else-if="!(library.teams || []).length && !(library.projects || []).length && !adding" class="hint">
+          <p v-if="!flows.length && !libraryBusy" class="empty">Todavía no hay proyectos. Sumá la página de un equipo con el botón de arriba, o abrí un archivo por su enlace.</p>
+          <p v-else-if="flows.length <= 1 && !(library.teams || []).length && !(library.projects || []).length && !adding" class="hint">
             Acá aparecen sólo los flujos que el visor conoce. Para ver todos los de un equipo, sumá su página o la de su proyecto con el <b>+</b>.
           </p>
-          <div v-for="g in projectGroups" :key="g.id" class="acc">
-            <button type="button" class="acc-head" :aria-expanded="isOpenProject(g.id)" @click="toggleProject(g.id)">
+          <!-- Cada flujo es un bloque en la raíz, con su nombre; adentro, sus páginas. La carpeta de Figma
+               («PRODUCTO») no se muestra como nivel: agrupaba todo en un solo bloque y escondía los flujos. -->
+          <p v-for="e in libraryErrors" :key="e" class="notice">{{ e }}</p>
+          <div v-for="f in flows" :key="f.key" class="acc">
+            <button type="button" class="acc-head" :aria-expanded="isOpenFile(f.key)" @click="toggleFile(f.key)">
               <span class="ui-icon" data-icon="chevron" aria-hidden="true"></span>
-              <span class="t">{{ g.name }}</span>
-              <span class="count">{{ g.files.length }}</span>
+              <span class="t">{{ f.name }}</span>
+              <span v-if="f.when" class="when">{{ f.when }}</span>
             </button>
-            <div v-if="isOpenProject(g.id)" class="acc-body">
-              <p v-if="g.error" class="notice">{{ g.error }}</p>
-              <template v-for="f in g.files" :key="f.key">
-                <button type="button" class="file-row" :aria-expanded="isOpenFile(f.key)" @click="toggleFile(f.key)">
-                  <span class="ui-icon" data-icon="chevron" aria-hidden="true"></span>
-                  <span class="t">{{ f.name }}</span>
-                  <span v-if="f.when" class="when">{{ f.when }}</span>
-                </button>
-                <template v-if="isOpenFile(f.key)">
-                  <p v-if="pagesOf[f.key] === 'loading'" class="hint indent">Leyendo las páginas…</p>
-                  <p v-else-if="pagesOf[f.key]?.error" class="notice indent">{{ pagesOf[f.key].error }}</p>
-                  <button v-for="pg in pagesOf[f.key]?.pages || []" :key="pg.id" type="button" class="page-row"
-                    :aria-current="data && data.key === f.key && data.node === pg.id ? 'true' : undefined" @click="openPage(f.key, pg.id)">
-                    <span class="t">{{ pg.name }}</span>
-                  </button>
-                </template>
-              </template>
+            <div v-if="isOpenFile(f.key)" class="acc-body">
+              <p v-if="pagesOf[f.key] === 'loading'" class="hint indent">Leyendo las páginas…</p>
+              <p v-else-if="pagesOf[f.key]?.error" class="notice indent">{{ pagesOf[f.key].error }}</p>
+              <button v-for="pg in pagesOf[f.key]?.pages || []" :key="pg.id" type="button" class="page-row"
+                :aria-current="data && data.key === f.key && data.node === pg.id ? 'true' : undefined" @click="openPage(f.key, pg.id)">
+                <span class="t">{{ pg.name }}</span>
+              </button>
             </div>
           </div>
         </div>
@@ -534,19 +529,18 @@ const laneName = (lane) => (lane.label ? lane.label : 'Fila sin rótulo')
 .section-name { padding: var(--space-3) var(--space-3) var(--space-1); font-size: var(--text-xs); color: var(--texto-3) }
 .region-head.grupo.unlabeled > span:first-child { font-style: italic }
 
-.acc-head, .file-row, .page-row { display: flex; align-items: center; gap: var(--space-2); width: 100%; min-height: 30px;
+.acc-head, .page-row { display: flex; align-items: center; gap: var(--space-2); width: 100%; min-height: 30px;
   padding: 0 var(--space-3); border: 0; background: none; color: inherit; font: inherit; font-size: var(--text-sm);
   text-align: left; cursor: pointer }
 .acc-head { font-weight: 600; min-height: 32px }
-.file-row { padding-left: calc(var(--space-3) + 16px) }
-.page-row { padding-left: calc(var(--space-3) + 40px); color: var(--texto-2) }
-.acc-head:hover, .file-row:hover, .page-row:hover { background: color-mix(in oklab, var(--foreground) 6%, transparent) }
+.page-row { padding-left: calc(var(--space-3) + 24px); color: var(--texto-2) }
+.acc-head:hover, .page-row:hover { background: color-mix(in oklab, var(--foreground) 6%, transparent) }
 .page-row[aria-current="true"] { background: var(--sidebar-accent); color: var(--sidebar-accent-foreground) }
-.acc-head .t, .file-row .t, .page-row .t { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap }
-.acc-head .ui-icon, .file-row .ui-icon { flex: none; transition: transform .12s }
-.acc-head[aria-expanded="true"] .ui-icon, .file-row[aria-expanded="true"] .ui-icon { transform: rotate(90deg) }
+.acc-head .t, .page-row .t { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap }
+.acc-head .ui-icon { flex: none; transition: transform .12s }
+.acc-head[aria-expanded="true"] .ui-icon { transform: rotate(90deg) }
 .when { flex: none; font-size: var(--text-xs); color: var(--texto-3) }
-.indent { padding-left: calc(var(--space-3) + 40px) }
+.indent { padding-left: calc(var(--space-3) + 24px) }
 .screen-row { display: flex; align-items: center; gap: var(--space-2); width: 100%; min-height: 30px;
   padding: 0 var(--space-3); border: 0; background: none; color: inherit; font: inherit; font-size: var(--text-sm);
   text-align: left; cursor: pointer }
