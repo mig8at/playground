@@ -8,11 +8,11 @@
 
 # ── nombres propios: herramientas, productos y servicios ─────────────────────────────────────────
 # `tablero`, `trazador` y `cuadrilla` son nombres de herramientas y se quedan (decisión de Miguel del
-# 2026-09-23, igual que los targets de `make`).
-tablero trazador cuadrilla
+# 2026-09-23, igual que los targets de `make`). `visor` nació el 2026-09-24 con el mismo criterio.
+tablero trazador cuadrilla visor
 jev noul
 jira jql atlassian confluence cql redash dependabot claude
-loki logql gemini twilio figma
+loki logql gemini twilio figma tailwindcss
 cognito laravel wompi experian imei vtex agildata netco tusdatos selfmanager smartpay credipullman
 motai pullman abaco welli payvalida bancolombia creditop wizard blade cuotealo creditopx
 posthog hogql mermaid deceval corbeta credifamilia datacredito allied allieds pesos
@@ -21,6 +21,7 @@ vue vite babel mcp pinia
 # ── términos técnicos que la stdlib casi no usa ───────────────────────────────────────────────────
 slug frontmatter jsonl upsert shortstat squash changelog pathspec
 dbquery taskcontext repocheck
+hotspot hotspots inflight clickable
 # los claims del JWT de Twilio (`aud`, `urn:tw:rgn`) y un estado de su aprobación de templates
 aud rgn unsubmitted
 gesture wordy
@@ -65,6 +66,7 @@ json: trazador/server/serve.go:map dev local prod qa staging    # nombres de amb
 json: trazador/server/main.go:map prod-us-east-0                # la región de Grafana Cloud
 path: trazador/src/tema.css                                     # nombre propio: el tema compartido de las tres UIs
 path: harness/panel/tema.css                                   # nombre propio: el tema compartido de las tres UIs
+path: visor/src/tema.css                                        # nombre propio: el tema compartido, también en el visor
 path: tools/ui/tema.css                                         # nombre propio: la fuente del tema compartido (ver src/tema.css)
 path: trazador/server/mapa                                      # datos: el mapa del trazador, citado por el harness (vocabulario de ramales) y por el CLAUDE.md raíz
 path: trazador/server/mapa/etapas.json                          # dato, ídem

@@ -184,6 +184,20 @@ func Tracer(root string) Board {
 	}
 }
 
+// Visor es el visor de pantallas de Figma: su API en Go y su Vue. Nació el 2026-09-24 con esta pasada,
+// para no tener que renombrarlo después como a los otros.
+func Visor(root string) Board {
+	return Board{
+		Name:        "visor",
+		Root:        root,
+		GoRoots:     []string{"visor/server"},
+		JSONRoots:   []string{"visor/server"},
+		JSGlobs:     []string{"visor/src/App.vue", "visor/src/main.js", "visor/vite.config.js"},
+		DeclsScript: filepath.Join(root, "tablero", "tools", "rename", "js", "decls.mjs"),
+		PathRoots:   []string{"visor/server/", "visor/src/"},
+	}
+}
+
 // Harness es el TypeScript del harness: sus runners, sus paquetes, el server del panel y los mocks.
 // El JS de `panel/index.html` se lee de sus <script> inline, salvo la copia sincronizada de workbench.js.
 func Harness(root string) Board {

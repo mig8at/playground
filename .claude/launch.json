@@ -125,6 +125,17 @@
       ],
       "port": 8384,
       "autoPort": false
+    },
+    {
+      "name": "visor",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": [
+        "run",
+        "dev"
+      ],
+      "cwd": "visor",
+      "port": 5193,
+      "autoPort": false
     }
   ]
 }

@@ -29,16 +29,17 @@ mirarse.
 import hashlib, math, pathlib, re, sys
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
-THEMES = ['harness/panel/tema.css', 'tablero/src/tema.css', 'trazador/src/tema.css']
-WORKSHOPS = ['harness/panel/taller.css', 'tablero/src/taller.css', 'trazador/src/taller.css']
+THEMES = ['harness/panel/tema.css', 'tablero/src/tema.css', 'trazador/src/tema.css', 'visor/src/tema.css']
+WORKSHOPS = ['harness/panel/taller.css', 'tablero/src/taller.css', 'trazador/src/taller.css', 'visor/src/taller.css']
 REGIONS = ['workbench', 'titlebar', 'banner', 'activitybar', 'sidebar', 'editor',
             'panel', 'auxiliarybar', 'statusbar', 'region-head', 'region-body']
 SHEETS = {
     'harness':  ['harness/panel/index.html'],
     'tablero':  ['tablero/src/styles.css'],
     'trazador': ['trazador/src/style.css'],
+    'visor':    ['visor/src/style.css'],
 }
-TREES = {'tablero': 'tablero/src', 'trazador': 'trazador/src'}
+TREES = {'tablero': 'tablero/src', 'trazador': 'trazador/src', 'visor': 'visor/src'}
 
 # ── color ────────────────────────────────────────────────────────────────────────────────────────
 def _lin(c): return c / 12.92 if c <= 0.04045 else ((c + 0.055) / 1.055) ** 2.4

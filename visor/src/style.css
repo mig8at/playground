@@ -1,0 +1,22 @@
+/* EL VOCABULARIO VISUAL DEL VISOR.
+ *
+ * Las mismas tres capas que el trazador, en el mismo orden: Tailwind (utilidades, sin preflight), el
+ * tema compartido —que se REEMPLAZA entero y no se edita— y el taller. Abajo, lo que sólo significa
+ * algo acá: la zona clicable de un prototipo y el marco del dispositivo.
+ */
+@import "tailwindcss/theme.css" layer(theme);
+@import "tailwindcss/utilities.css" layer(utilities);
+@import "./tema.css";
+@import "./taller.css";
+
+:root {
+  /* La zona del prototipo usa el color de acción del tema: es «tocá acá». */
+  --hotspot: var(--primary);
+  --hotspot-fill: color-mix(in oklab, var(--primary) 18%, transparent);
+  --device-edge: var(--border);
+}
+
+/* La página no scrollea: scrollea cada región (el contrato de `.workbench`). */
+html, body { margin: 0; height: 100%; overflow: hidden; background: var(--background); color: var(--foreground);
+  font-family: var(--font-sans); font-size: var(--text-body) }
+#app { height: 100% }

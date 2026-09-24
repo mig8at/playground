@@ -173,6 +173,15 @@ panel: ## @dia abre el panel del harness para probar flujos (:5195)
 trazador: ## @dia ¿QUÉ LE PASÓ a esta solicitud? el flujo por etapas, del sistema real (:5192)
 	@cd trazador && npm run dev
 
+# El VISOR de Figma: el recorrido de un diseño, pantalla por pantalla y con el prototipo navegable.
+# Lee por connectors/figma (el mismo `figma map` de bin/pg) y guarda las imágenes en visor/.cache/.
+.PHONY: visor visor-test
+visor: ## @dia ¿CÓMO ES el diseño de este flujo? un diseño de Figma recorrido pantalla por pantalla, con el prototipo navegable (:5193 · API :5194)
+	@cd visor && npm run dev
+
+visor-test: ## @dia las pruebas del server del visor: rutas de disco validadas, una sola bajada por imagen, exportación vacía
+	@go test ./visor/server/
+
 trazador-buscar: ## @dia la HISTORIA de una persona por cédula, teléfono o solicitud. Q=1012345678 [TARGET=prod] [JSON=1] [MD=1 anotación para pegar en la tarea] [BLOQUE=<id|slug> la agrega como bloque a la pila de esa tarea]
 	@test -n "$(Q)" || { echo "falta Q=<cédula|teléfono|uReq>  ·  ej: make trazador-buscar Q=1012345678"; exit 2; }
 	@cd trazador/server && go run . -target $(or $(TARGET),prod) -buscar $(Q) $(if $(JSON),-json) $(if $(MD),-md) $(if $(BLOQUE),-bloque $(BLOQUE))

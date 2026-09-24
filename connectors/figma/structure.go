@@ -31,6 +31,11 @@ type Structure struct {
 	Components []Count        `json:"components,omitempty"`
 	References []Screen       `json:"references,omitempty"` // capturas y fotos de referencia pegadas en el lienzo
 	Sections   []Structure    `json:"sections,omitempty"`   // secciones adentro de ésta
+	// El archivo, sólo en la raíz: la versión cambia con cada guardado y sirve para invalidar lo que
+	// se haya guardado de él (las imágenes exportadas).
+	FileName     string `json:"file_name,omitempty"`
+	Version      string `json:"version,omitempty"`
+	LastModified string `json:"last_modified,omitempty"`
 }
 
 // Lane es un carril: una fila de pantallas bajo un rótulo, en el orden del lienzo (izquierda a derecha).
@@ -52,10 +57,22 @@ type Screen struct {
 	Actions   []string `json:"actions,omitempty"` // los textos de sus botones
 	Texts     int      `json:"texts"`
 	Comments  int      `json:"open_comments,omitempty"`
-	X         float64  `json:"x"`
-	Y         float64  `json:"y"`
-	W         float64  `json:"w"`
-	H         float64  `json:"h"`
+	// Hotspots son las zonas del prototipo: dónde tocar y a qué pantalla lleva, relativo a la pantalla.
+	Hotspots []Hotspot `json:"hotspots,omitempty"`
+	X        float64   `json:"x"`
+	Y        float64   `json:"y"`
+	W        float64   `json:"w"`
+	H        float64   `json:"h"`
+}
+
+// Hotspot es una zona clicable del prototipo, en coordenadas de la pantalla (0,0 es su esquina). Una
+// pantalla que avanza sola lleva `Auto` y ocupa la pantalla entera.
+type Hotspot struct {
+	X, Y, W, H float64
+	To         string `json:"to"` // la pantalla destino; vacío si está fuera de la sección
+	ToName     string `json:"to_name"`
+	Via        string `json:"via"`
+	Auto       bool   `json:"auto,omitempty"`
 }
 
 // Edge une dos nodos de primer nivel. `Via` es lo que la dispara (el botón y el gesto) o el texto de
@@ -138,7 +155,10 @@ type componentMeta struct {
 // Con `withComments` suma cuántos comentarios abiertos tiene cada pantalla (un pedido más).
 func (c *Client) Structure(ctx context.Context, key, nodeID string, withComments bool) (Structure, error) {
 	var raw struct {
-		Nodes map[string]*struct {
+		Name         string `json:"name"`
+		Version      string `json:"version"`
+		LastModified string `json:"lastModified"`
+		Nodes        map[string]*struct {
 			Document      fullNode                         `json:"document"`
 			Components    map[string]componentMeta         `json:"components"`
 			ComponentSets map[string]struct{ Name string } `json:"componentSets"`
@@ -173,7 +193,9 @@ func (c *Client) Structure(ctx context.Context, key, nodeID string, withComments
 			}
 		}
 	}
-	return Read(n.Document, names, open), nil
+	st := Read(n.Document, names, open)
+	st.FileName, st.Version, st.LastModified = raw.Name, raw.Version, raw.LastModified
+	return st, nil
 }
 
 var (
@@ -249,6 +271,39 @@ func Read(root fullNode, components map[string]string, openComments map[string]i
 	}
 	if len(s.References) > 0 {
 		s.Kinds["reference"] = len(s.References)
+	}
+	// Las zonas del prototipo, en coordenadas de su pantalla. Van antes de armar los carriles porque
+	// éstos copian las pantallas.
+	byID := map[string]*Screen{}
+	for i := range screens {
+		byID[screens[i].ID] = &screens[i]
+	}
+	for _, nv := range navs {
+		sc, ok := byID[top[nv.from]]
+		if !ok {
+			continue
+		}
+		h := Hotspot{X: nv.b.X - sc.X, Y: nv.b.Y - sc.Y, W: nv.b.Width, H: nv.b.Height, Via: nv.via, Auto: nv.auto}
+		if nv.auto {
+			h.X, h.Y, h.W, h.H = 0, 0, sc.W, sc.H
+		}
+		if t, ok := top[nv.to]; ok {
+			h.To = t
+			if d, ok := byID[t]; ok {
+				h.ToName = display(*d)
+			}
+		} else {
+			h.ToName = "(fuera de esta sección)"
+		}
+		dup := false
+		for _, o := range sc.Hotspots {
+			if o.To == h.To && o.X == h.X && o.Y == h.Y {
+				dup = true
+			}
+		}
+		if !dup {
+			sc.Hotspots = append(sc.Hotspots, h)
+		}
 	}
 	s.Lanes = lanes(screens, labels)
 
@@ -346,7 +401,11 @@ type label struct {
 	b        box
 }
 
-type nav struct{ from, to, via string }
+type nav struct {
+	from, to, via string
+	b             box
+	auto          bool
+}
 
 type textNode struct {
 	name     string
@@ -428,7 +487,7 @@ func collect(n fullNode, isTop bool, components map[string]string, uses map[stri
 				}
 				via = gesture(trigger) + " «" + el + "»"
 			}
-			*navs = append(*navs, nav{from: n.ID, to: a.DestinationID, via: via})
+			*navs = append(*navs, nav{from: n.ID, to: a.DestinationID, via: via, b: boxOf(n), auto: isTop && trigger == "AFTER_TIMEOUT"})
 		}
 	}
 	for _, ch := range n.Children {

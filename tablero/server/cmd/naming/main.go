@@ -64,7 +64,7 @@ func main() {
 	}
 	var findings []naming.Finding
 	var seen []string
-	for _, b := range []naming.Board{naming.Default(board), naming.Shared(filepath.Dir(board)), naming.Tracer(filepath.Dir(board)), naming.Harness(filepath.Dir(board))} {
+	for _, b := range []naming.Board{naming.Default(board), naming.Shared(filepath.Dir(board)), naming.Tracer(filepath.Dir(board)), naming.Harness(filepath.Dir(board)), naming.Visor(filepath.Dir(board))} {
 		found, counts, err := naming.Check(b, baseline, allow, os.Stderr)
 		if err != nil {
 			fail(err)

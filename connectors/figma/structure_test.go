@@ -133,6 +133,17 @@ func TestPrototypeLinksSayWhatTriggersThem(t *testing.T) {
 	if s.Links[0].From != "A" || s.Links[0].To != "B" || s.Links[0].Via != "clic en «Continuar»" {
 		t.Errorf("clic en un botón: %+v", s.Links[0])
 	}
+	var hs []Hotspot
+	for _, l := range s.Lanes {
+		for _, sc := range l.Screens {
+			if sc.ID == "A" {
+				hs = sc.Hotspots
+			}
+		}
+	}
+	if len(hs) != 1 || hs[0].To != "B" || hs[0].Y != 800 || hs[0].W != 300 || hs[0].Auto {
+		t.Errorf("la zona del botón va en coordenadas de SU pantalla (y 800 dentro de A): %+v", hs)
+	}
 	if s.Links[1].Via != "sola, después de un tiempo" {
 		t.Errorf("la pantalla que avanza sola no nombra un elemento (antes decía «desde «11:28»», la hora de la barra): %+v", s.Links[1])
 	}
