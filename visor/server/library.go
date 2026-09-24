@@ -32,8 +32,11 @@ type openedEntry struct {
 	Name string `json:"name"`
 	// Folder es la carpeta de Figma donde vive el archivo (el nombre del proyecto). Agrupa los archivos
 	// sueltos en la barra como en Figma: los siete flujos compartidos de a uno viven en «PRODUCTO».
-	Folder   string `json:"folder,omitempty"`
-	OpenedAt string `json:"opened_at"`
+	Folder string `json:"folder,omitempty"`
+	// Aliases son los nombres que tuvo el archivo: la ruta del visor nombra el proyecto por su nombre, y
+	// un enlace pegado en una tarea no puede morir porque el diseñador renombró el archivo.
+	Aliases  []string `json:"aliases,omitempty"`
+	OpenedAt string   `json:"opened_at"`
 }
 
 type libraryView struct {
@@ -97,6 +100,12 @@ func (l *libraryStore) opened(key, name, folder string) {
 	now := time.Now().Format(time.RFC3339)
 	for i := range lib.Opened {
 		if lib.Opened[i].Key == key {
+			if old := lib.Opened[i].Name; old != "" && name != "" && old != name && !contains(lib.Opened[i].Aliases, old) {
+				lib.Opened[i].Aliases = append(lib.Opened[i].Aliases, old)
+			}
+			if name == "" {
+				name = lib.Opened[i].Name
+			}
 			lib.Opened[i].Name, lib.Opened[i].OpenedAt = name, now
 			if folder != "" {
 				lib.Opened[i].Folder = folder

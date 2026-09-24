@@ -30,6 +30,18 @@ guion, como lo escribe Figma en `node-id`. Sin pantalla abre la primera. Opciona
 `?modo=comparar`, y `?nodo=<id>` cuando lo que se abrió no es la página de flujo del archivo sino una
 sección pegada a mano. El botón de copiar de la cabecera da la de la pantalla que se está mirando.
 
+- **Cuánto vive una ruta: lo que vive la pantalla en Figma.** La pantalla va por su id de nodo, que Figma
+  conserva mientras el nodo exista: el diseñador la puede editar, mover o renombrar y la ruta sigue
+  abriendo, **con el contenido nuevo** después de «Volver a leer» del bloque (o de reiniciar el server: el
+  mapa se guarda en memoria mientras corre). Si la borra, la ruta muere; y copiar y pegar la pantalla, o
+  duplicarla y borrar la original, también la mata, porque la copia es un nodo nuevo con otro id.
+- **Una ruta muerta lo DICE, no abre otra pantalla.** Hasta el 2026-09-24 abría la primera del flujo y
+  reescribía la ruta, así que un enlace roto pegado en una tarea parecía sano. Ahora distingue «el
+  diseñador la borró» (Figma devuelve 404) de «sigue en el archivo pero no en la página de flujo», con el
+  enlace a Figma. ⚠ Y mientras una ruta manda, el bloque que quedó abierto de la visita anterior no se
+  queda con el centro al terminar de cargar: esa carrera tapaba el aviso.
+- **Renombrar el archivo no mata la ruta**: la biblioteca guarda los nombres que tuvo (`aliases`), y el
+  nombre viejo sigue abriendo el proyecto. El enlace que se copia después ya usa el nombre nuevo.
 - Un nombre que se repite entre dos proyectos no sirve de ruta: esos van por la **clave** del archivo,
   que también se acepta en lugar del nombre.
 - Un proyecto que no está en la barra dice que no está, en vez de abrir el último que se miró.

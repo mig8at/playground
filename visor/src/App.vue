@@ -145,6 +145,7 @@ const isOpenFile = (key) => openFiles.value.has(key)
 // De a UN proyecto abierto: con varios, cada bloque quedaba de dos renglones y no se leía ninguno. Abrir
 // uno cierra el anterior; el mapa del cerrado queda en memoria, así que volver es instantáneo.
 async function toggleFile(key) {
+  routeHold = false
   const s = openFiles.value.has(key) ? new Set() : new Set([key])
   openFiles.value = s; saveSet('visor.open-files', s)
   if (s.has(key)) { await openFlow(key); activate(key) }
@@ -210,8 +211,9 @@ async function openFlow(key, fresh = false) {
     mapState.value = rest
     // Si no hay nada al centro, o se volvió a leer el que se está mirando, este pasa a ser el activo. Con
     // un error a la vista (una ruta a un proyecto que no está) no: el bloque que se recordaba abierto lo
-    // tapaba y la ruta quedaba reescrita a otro proyecto sin avisar.
-    if ((!data.value && !error.value) || data.value?.key === key) activate(key)
+    // tapaba y la ruta quedaba reescrita a otro proyecto sin avisar. Mientras una ruta manda tampoco: la
+    // pantalla la elige la ruta, y si no se pudo abrir su aviso queda a la vista hasta que se toque otra.
+    if (!routeHold && ((!data.value && !error.value) || data.value?.key === key)) activate(key)
   } catch (e) {
     mapState.value = { ...mapState.value, [key]: { error: String(e.message || e) } }
   }
@@ -227,6 +229,7 @@ function activate(key, screen = '') {
 }
 // Tocar una pantalla de un bloque que no es el que está al centro lo trae al centro.
 function pick(key, id) {
+  routeHold = false
   if (!data.value || data.value.key !== key) activate(key, id)
   else go(id)
 }
@@ -304,9 +307,13 @@ function projectSlug(key) {
   if (!slug || flows.value.some((x) => x.key !== key && slugOf(x.name) === slug)) return key
   return slug
 }
+// Un nombre que el archivo tuvo antes también abre el proyecto: el diseñador lo puede renombrar y los
+// enlaces pegados en las tareas no se enteran (la biblioteca guarda los nombres de antes).
 const keyOfProject = (project) => {
   const slug = project.toLowerCase()
-  return flows.value.find((x) => slugOf(x.name) === slug)?.key || (/^[A-Za-z0-9]{15,}$/.test(project) ? project : '')
+  const byName = flows.value.find((x) => slugOf(x.name) === slug)?.key
+  const byAlias = (library.value.opened || []).find((o) => (o.aliases || []).some((a) => slugOf(a) === slug))?.key
+  return byName || byAlias || (/^[A-Za-z0-9]{15,}$/.test(project) ? project : '')
 }
 const toID = (s) => (s || '').replace(/-/g, ':')
 const fromID = (id) => (id || '').replace(/:/g, '-')
@@ -332,15 +339,38 @@ function readRoute() {
   return { project: decodeURIComponent(m[1]), screen: toID(m[2]), node: toID(q.get('nodo')), mode: modeID }
 }
 const figmaRef = (key, node) => `https://www.figma.com/design/${key}/?node-id=${fromID(node)}`
+// routeHold: una ruta está mandando en el centro. Ningún bloque que termine de cargar después —el que
+// quedó abierto de la visita anterior— se lo queda; lo suelta un clic en la barra.
+let routeHold = false
 async function openRoute(r) {
+  routeHold = true
+  const fail = (msg) => { error.value = msg; data.value = null; currentID.value = '' }
   const key = keyOfProject(r.project)
-  if (!key) { error.value = `No hay un proyecto «${r.project}» en la barra.`; return }
+  if (!key) { fail(`No hay un proyecto «${r.project}» en la barra.`); return }
   if (r.mode) mode.value = r.mode
-  if (r.node) { await load(figmaRef(key, r.node), r.screen); return }
+  if (r.node) { await load(figmaRef(key, r.node), r.screen); routeHold = false; return }
   const set = new Set([key]); openFiles.value = set; saveSet('visor.open-files', set)
   await openFlow(key)
+  if (mapState.value[key]?.error) { fail(mapState.value[key].error); return }
+  // La ruta nombra la pantalla por su id de Figma, que vive lo que vive la pantalla: sobrevive a que el
+  // diseñador la edite, la mueva o la renombre, y muere si la borra. Una pantalla que ya no está en el
+  // flujo NO abre otra en su lugar —antes abría la primera y reescribía la ruta, así que el enlace roto
+  // de una tarea parecía sano—: se dice qué pasó.
+  const ids = new Set(groupsFor(maps.value[key]?.structure).flatMap((g) => g.lanes.flatMap((l) => l.screens.map((sc) => sc.id))))
+  if (r.screen && !ids.has(r.screen)) { fail(await whyMissing(key, r.screen)); return }
+  routeHold = false
   activate(key, r.screen)
-  if (mapState.value[key]?.error) error.value = mapState.value[key].error
+}
+// whyMissing distingue una pantalla BORRADA (Figma ya no la tiene) de una que sigue en el archivo pero
+// fuera de la página de flujo (la movieron a otra página, o a una sección de archivo).
+async function whyMissing(key, screen) {
+  const name = fromID(screen)
+  try {
+    const res = await fetch('/api/map?' + new URLSearchParams({ ref: figmaRef(key, screen) }))
+    if (res.status === 404) return `La pantalla ${name} ya no existe: el diseñador la borró.`
+    if (res.ok) return `La pantalla ${name} sigue en el archivo, pero ya no está en la página de flujo. Abrila en Figma: figma.com/design/${key}/?node-id=${name}`
+  } catch { /* sin red: no se sabe */ }
+  return `La pantalla ${name} no está en el flujo.`
 }
 // Los enlaces de antes —#/<clave>/<nodo>/<pantalla>— siguen abriendo, y quedan reescritos a la ruta.
 function readHash() {

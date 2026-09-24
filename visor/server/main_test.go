@@ -101,6 +101,11 @@ func TestLibraryRemembersOpenedFilesOnce(t *testing.T) {
 	if len(lib.Opened) != 2 || lib.Opened[0].Name != "flujo ecommerce v2" || lib.Opened[0].Folder != "PRODUCTO" {
 		t.Fatalf("abiertos: %+v", lib.Opened)
 	}
+	// El nombre de antes queda como alias, una vez: la ruta vieja del proyecto sigue abriendo.
+	s.library.opened("SsvFsK5tLvR1jNT3Hh6znD", "flujo ecommerce v2", "")
+	if a := s.library.read().Opened[0].Aliases; len(a) != 1 || a[0] != "flujo ecommerce" {
+		t.Errorf("alias del renombre: %v", a)
+	}
 	rec := httptest.NewRecorder()
 	s.routes().ServeHTTP(rec, httptest.NewRequest("DELETE", "/api/library?file=AbCdEf1234567", nil))
 	if rec.Code != 200 || len(s.library.read().Opened) != 1 {
