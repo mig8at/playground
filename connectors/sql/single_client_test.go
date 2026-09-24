@@ -13,9 +13,7 @@ import (
 // una base desde Go o le habla a Redash por su cuenta.
 func TestNoOtherSQLClientInTheRepo(t *testing.T) {
 	client := regexp.MustCompile(`(^|[^A-Za-z0-9_])sql\.Open\("|/api/query_results|/api/jobs/`)
-	if offenders := repocheck.Offenders(t, client, map[string]string{
-		"plantillas/": "prototipo con su propio SQLite, en otro módulo de Go: no es una base de CreditOp",
-	}); len(offenders) > 0 {
+	if offenders := repocheck.Offenders(t, client, nil); len(offenders) > 0 {
 		t.Errorf("hay clientes SQL fuera de connectors/ (usá connectors/sql): %v", offenders)
 	}
 }

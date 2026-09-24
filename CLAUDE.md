@@ -581,14 +581,14 @@ herramienta de acá vive en su `CLAUDE.md`, commiteado junto a su código. No er
 la tabla de «quién decide el crédito por `response_type`» estaba en los dos lados y **ya se
 contradecía**. Lo de dominio se repartió; lo operativo, a los `CLAUDE.md`.
 
-⚠ **El resto de carpetas NO son herramientas para contextualizarte** — hoy: `diccionario` y
-`plantillas`. Son exploraciones que Miguel armó para entender
+⚠ **Las exploraciones ya no viven acá.** `flow`, `engine`, `domain-model`, `diccionario` y `plantillas`
+eran prototipos que Miguel armó para entender
 él mismo el negocio: **no están validadas contra el código** y varias describen un *deber ser*, no lo
 que corre en producción. *(Y `ingles` no habla de CreditOp en absoluto: es para aprender inglés.)* *(Acá también estaba
 `cuadrilla`. Ya no: el 2026-09-10 se mudó al repo compartido —`github/playground/tools/cuadrilla`,
 rehecha en Go + Vue— y ahí dejó de ser una exploración: cumple el contrato del repo y tiene pruebas.
-`make cuadrilla` sigue abriéndola.)* *(Y `flow`, `engine` y `domain-model` salieron del repo el 2026-09-24:
-Miguel las movió a `~/Desktop/CREDITOP/temp/`, fuera de git.)* **No las cites como fuente ni las uses para decidir.** Si algo de ahí resulta
+`make cuadrilla` sigue abriéndola.)* *(Las cinco salieron del repo el 2026-09-24: Miguel las movió a
+`~/Desktop/CREDITOP/temp/`, fuera de git.)* **No las cites como fuente ni las uses para decidir.** Si algo de ahí resulta
 cierto, se verifica contra el código y gradúa a canon — hasta entonces, no existe para tu tarea.
 
 **Reglas de la partición** (para que no se vuelva a mezclar): canon **no** lleva temas-tarea. El

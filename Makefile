@@ -492,17 +492,6 @@ trazador-sql: ## @har UNA consulta de SOLO LECTURA a la BD del ambiente. SQL='SE
 
 # ── EXPLORACIONES ────────────────────────────────────────────────────────────────────────────────
 # Están acá para poder abrirlas, NO porque sean fuente. No se citan para decidir (ver CLAUDE.md).
-.PHONY: dict
-dict: ## @expl diccionario de negocio (:5194)
-	@cd diccionario && npm run dev
-
-.PHONY: plantillas plantillas-check
-plantillas: ## @expl PROTOTIPO: onboarding compuesto por el backend, realtime por SSE (:5198 + Go :8090)
-	@cd plantillas && npm run dev
-
-plantillas-check: ## @expl compila el server del prototipo (go vet + build)
-	@cd plantillas/server && go vet ./... && go build -o /dev/null ./... && echo "plantillas: ok"
-
 # Ya no vive acá: el 2026-09-10 cuadrilla se mudó al repo COMPARTIDO
 # (`github/playground/tools/cuadrilla`) y se rehizo en Go + Vue. El target se queda porque la puerta
 # es una sola: lo que cambió es a dónde apunta. Levanta la API en :8080 y el front en :5197 — NO en

@@ -25,7 +25,6 @@ nodos, qué valida, qué derivó) los imprimen las herramientas, no la prosa.
 | [`harness/`](harness/README.md) | Playwright + TypeScript manejando el wizard real punta a punta con KYC/buró sintético: panel visual, flota de mocks y barrido headless por API. |
 | [`tablero/`](tablero/README.md) | Las **tareas** (una = un archivo en `data/`), el dashboard del sprint y el pulso. |
 | [`trazador/`](trazador/) | Herramienta de soporte (Go) sobre Loki + BD: «¿qué le pasó a ESTA solicitud y por qué?». `make trazador-acceso` prueba el acceso. |
-| `diccionario/` | Exploraciones de Miguel para entender el negocio. **No están validadas contra el código** — no las cites como fuente ni las uses para decidir (la regla y el porqué: `CLAUDE.md`). |
 
 ## Por dónde empezar
 

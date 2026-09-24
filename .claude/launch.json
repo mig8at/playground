@@ -23,16 +23,6 @@
       "autoPort": false
     },
     {
-      "name": "diccionario",
-      "runtimeExecutable": "npm",
-      "runtimeArgs": [
-        "run",
-        "dev"
-      ],
-      "cwd": "diccionario",
-      "port": 5194
-    },
-    {
       "name": "trazador",
       "runtimeExecutable": "npm",
       "runtimeArgs": [
@@ -42,16 +32,6 @@
         "trazador"
       ],
       "port": 5192
-    },
-    {
-      "name": "plantillas",
-      "runtimeExecutable": "npm",
-      "runtimeArgs": [
-        "run",
-        "dev"
-      ],
-      "cwd": "plantillas",
-      "port": 5198
     },
     {
       "name": "admin",
