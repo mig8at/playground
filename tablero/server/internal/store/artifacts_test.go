@@ -24,10 +24,21 @@ func TestArtifactsAreEverythingInTheTaskFolder(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
+	// un artefacto que vive afuera, y uno que no lleva a ningún lado seguro
+	shortcuts := map[string]string{
+		"contrato-de-checkout.url": "[InternetShortcut]\nURL=https://claude.ai/artifact/abc\n",
+		"roto.url":                 "[InternetShortcut]\nURL=javascript:alert(1)\n",
+	}
+	for name, body := range shortcuts {
+		if err := os.WriteFile(filepath.Join(dir, name), []byte(body), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
 	s := &Store{dir: lay.Data, layout: lay}
 	got := s.artifactsOf("kyc")
 	want := []Artifact{
 		{File: "kyc/casos.sql", Label: "casos"},
+		{File: "kyc/contrato-de-checkout.url", Label: "contrato de checkout", URL: "https://claude.ai/artifact/abc"},
 		{File: "kyc/kyc.dictar-centrales.html", Label: "dictar centrales"},
 		{File: "kyc/kyc.html", Label: "prototipo"},
 		{File: "kyc/que-se-hizo.md", Label: "que se hizo"},

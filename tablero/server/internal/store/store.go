@@ -219,6 +219,23 @@ const SECTION = "## Tarea (publicable)"
 type Artifact struct {
 	File  string `json:"file"`
 	Label string `json:"label"`
+	// URL: un `.url` (acceso directo, `URL=https://…`) es un artefacto que vive AFUERA —una página de
+	// claude.ai, por ejemplo—: la UI abre la URL en vez de servir el archivo. Sólo https.
+	URL string `json:"url,omitempty"`
+}
+
+// shortcutURL lee la URL de un acceso directo `.url`. Vacío si no hay una https válida.
+func shortcutURL(path string) string {
+	raw, err := os.ReadFile(path)
+	if err != nil {
+		return ""
+	}
+	for _, line := range strings.Split(string(raw), "\n") {
+		if v, ok := strings.CutPrefix(strings.TrimSpace(line), "URL="); ok && strings.HasPrefix(v, "https://") {
+			return v
+		}
+	}
+	return ""
 }
 
 // artifactsOf lista los artifacts de una tarea: TODO lo que haya en `tasks/<slug>/artifacts/`, ordenado
@@ -252,7 +269,13 @@ func (s *Store) artifactsOf(slug string) []Artifact {
 		if base == slug && ext == ".html" {
 			label = "prototipo"
 		}
-		out = append(out, Artifact{File: slug + "/" + n, Label: artifactLabel.Replace(label)})
+		a := Artifact{File: slug + "/" + n, Label: artifactLabel.Replace(label)}
+		if ext == ".url" {
+			if a.URL = shortcutURL(filepath.Join(s.layout.ArtifactsPath(slug), n)); a.URL == "" {
+				continue // un acceso directo sin https no se ofrece: abrirlo no llevaría a ningún lado
+			}
+		}
+		out = append(out, a)
 	}
 	sort.Slice(out, func(i, j int) bool { return out[i].Label < out[j].Label })
 	return out

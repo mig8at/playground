@@ -402,13 +402,16 @@ const daysUntouched = (id) => {
 // de un actor o más de un camino, y verlos al lado es lo que permite decidir. Se abren en pestaña
 // aparte: son para mirarlos, no para vivir embebidos acá.
 const artifactsOf = (id) => efforts.value.find(e => e.id === id)?.artifacts || [];
-const openArtifact = (file) => window.open(`${SERVER}/artifacts/${file}`, '_blank', 'noopener');
+// un artefacto de afuera (`.url`) abre su URL; los demás, el archivo que sirve el server
+const openArtifact = (artifact) => window.open(artifact.url || `${SERVER}/artifacts/${artifact.file}`, '_blank', 'noopener');
 // los artifacts cuelgan del ESFUERZO, pero se piden desde la tarjeta de una TAREA: se resuelve el
 // esfuerzo por su clave, igual que los avances
 const taskArtifacts = (key) => artifactsOf(effortFor(key));
 // El tipo va aparte de la etiqueta (el server ya le quita la extensión): 13 de los 21 no son HTML, y un
 // ▶ para todos prometía «ejecutar» una nota o una consulta.
-const artifactType = (file) => (/\.([a-z0-9]+)$/i.exec(file)?.[1] || 'archivo').toUpperCase();
+const artifactType = (artifact) => artifact.url
+  ? (/^https:\/\/claude\.ai\/artifact\//.test(artifact.url) ? 'ARTEFACTO' : 'ENLACE')
+  : (/\.([a-z0-9]+)$/i.exec(artifact.file)?.[1] || 'archivo').toUpperCase();
 
 // ── RAMAS DE LA TAREA: qué repos tocó y hasta dónde llegó cada rama ──────────────────────────────
 // No se miden al renderizar: el snapshot lo deja `make tareas-ramas`. La consola inferior deriva su
@@ -2144,8 +2147,8 @@ function documentAction(id) {
           </template>
           <template v-if="v.id === 'artifacts'">
             <p class="nota">Lo que produjo esta tarea: prototipos, consultas y notas. Cada uno se abre en una pestaña nueva.</p>
-            <button v-for="artifact in taskArtifacts(active.Key)" :key="artifact.file" class="artifact-row" @click="openArtifact(artifact.file)">
-              <span class="badge badge-outline artifact-type">{{ artifactType(artifact.file) }}</span>
+            <button v-for="artifact in taskArtifacts(active.Key)" :key="artifact.file" class="artifact-row" @click="openArtifact(artifact)">
+              <span class="badge badge-outline artifact-type">{{ artifactType(artifact) }}</span>
               <span class="artifact-txt"><b>{{ artifact.label }}</b><span class="artifact-file">{{ artifact.file.split('/').pop() }}</span></span>
               <span class="artifact-open">Abrir ↗</span>
             </button>
