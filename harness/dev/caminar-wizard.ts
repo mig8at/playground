@@ -355,9 +355,12 @@ async function correr(c: Caso, i: number): Promise<Resultado> {
         const token = await branchToken(br.hash);
         if (!token) return terminar('trabado', `la sucursal ${br.hash} (${br.com}) no tiene credencial de ecommerce: sin ella no hay checkout. Probá el hash de una sucursal «Ecommerce» de ese comercio (node bin/dbops.ts ecommerce-url ${c.ref.replace(/^#/, '')} te la da)`);
         // El contrato lleva LA IDENTIDAD DEL CASO —el mismo doc, celular y nombre que después se postean
-        // en personal-info—, como haría la tienda con su comprador; y sin destinos externos (puerto 9 =
-        // discard), igual que `dev/ecommerce.ts`.
-        const c64 = ecommerceContract(br.hash, token, tel, 'http://localhost:9/notificacion/', 'http://localhost:9/volver-al-comercio',
+        // en personal-info—, como haría la tienda con su comprador; y por defecto sin destinos externos
+        // (puerto 9 = discard), igual que `dev/ecommerce.ts`. `E2E_WEBHOOK_URL` / `E2E_RETURN_URL` los
+        // apuntan a una bandeja (webhook.site) cuando lo que se quiere ver es el veredicto que llega.
+        const webhook = process.env.E2E_WEBHOOK_URL || 'http://localhost:9/notificacion/';
+        const retorno = process.env.E2E_RETURN_URL || 'http://localhost:9/volver-al-comercio';
+        const c64 = ecommerceContract(br.hash, token, tel, webhook, retorno,
             { docType: docTipo, doc, name: 'CARLOS', surname: 'RUIZ', email: `qa${doc}@gmail.com` }, AMOUNT);
         ruta = `${base}/checkout?${new URLSearchParams({ o: c64.order, p: c64.products, t: c64.token, u: c64.returnUrl, ps: c64.processUrl, config: c64.config })}`;
     }
