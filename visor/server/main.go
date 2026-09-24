@@ -53,6 +53,7 @@ type server struct {
 	versions map[string]string          // clave del archivo → última versión vista
 	inflight map[string]chan struct{}   // una imagen que ya se está bajando
 	nodes    map[string][]byte          // clave+versión+nodo → el JSON crudo de una pantalla
+	variants map[string]variantSet      // clave+versión → las variantes de la casilla en el archivo
 	library  *libraryStore
 }
 
@@ -61,7 +62,7 @@ type fetcher func(ctx context.Context, key string, ids []string) (map[string][]b
 
 func newServer(cl *figma.Client, cache string) *server {
 	s := &server{figma: cl, cache: cache, maps: map[string]figma.Structure{}, versions: map[string]string{},
-		inflight: map[string]chan struct{}{}, nodes: map[string][]byte{},
+		inflight: map[string]chan struct{}{}, nodes: map[string][]byte{}, variants: map[string]variantSet{},
 		library: &libraryStore{path: filepath.Join(cache, "library.json")}}
 	s.export = s.exportFromFigma
 	s.exportSVG = s.svgFromFigma

@@ -54,11 +54,45 @@ func (s *server) screenNode(ctx context.Context, key, id string) (render.Node, s
 
 // assets arma las URLs que el HTML usa para lo que no es CSS. Van por este mismo server, así que el
 // navegador nunca ve un enlace de Figma ni de S3.
-func assets(key string) render.Assets {
+func assets(key string, variants map[string]string) render.Assets {
 	return render.Assets{
-		SVG:   func(id string) string { return "/api/asset?key=" + key + "&svg=" + url.QueryEscape(id) },
-		Image: func(ref string) string { return "/api/asset?key=" + key + "&fill=" + url.QueryEscape(ref) },
+		SVG:      func(id string) string { return "/api/asset?key=" + key + "&svg=" + url.QueryEscape(id) },
+		Image:    func(ref string) string { return "/api/asset?key=" + key + "&fill=" + url.QueryEscape(ref) },
+		Variants: variants,
 	}
+}
+
+type variantSet struct {
+	files    int
+	variants map[string]string
+}
+
+// fileVariants dice qué instancia dibuja cada variante de la casilla en TODO el archivo, de las
+// pantallas que el server ya guardó: la otra variante de una casilla puede no estar en su pantalla (en
+// Credifamilia, una de once). Se recalcula cuando se guardó una pantalla más.
+func (s *server) fileVariants(key, version string) map[string]string {
+	dir := filepath.Join(s.cache, key, versionDir(version), "nodes")
+	entries, _ := os.ReadDir(dir)
+	s.mu.Lock()
+	cached, ok := s.variants[key+"|"+version]
+	s.mu.Unlock()
+	if ok && cached.files == len(entries) {
+		return cached.variants
+	}
+	out := map[string]string{}
+	for _, e := range entries {
+		raw, err := os.ReadFile(filepath.Join(dir, e.Name()))
+		if err != nil {
+			continue
+		}
+		if n, err := render.Parse(raw); err == nil {
+			render.CheckboxVariants(n, out)
+		}
+	}
+	s.mu.Lock()
+	s.variants[key+"|"+version] = variantSet{files: len(entries), variants: out}
+	s.mu.Unlock()
+	return out
 }
 
 // handleHTML traduce una pantalla a HTML. Con `report=1` devuelve, en vez del documento, qué se tradujo
@@ -76,7 +110,7 @@ func (s *server) handleHTML(w http.ResponseWriter, r *http.Request) {
 		fail(w, statusOf(err), "%v", err)
 		return
 	}
-	doc, rep := render.HTML(n, assets(key))
+	doc, rep := render.HTML(n, assets(key, s.fileVariants(key, version)))
 	if r.URL.Query().Get("report") != "" {
 		writeJSON(w, 200, rep)
 		return

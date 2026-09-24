@@ -89,6 +89,38 @@ URL, no el de los archivos que se ven en esa pantalla: «recientes» mezcla arch
 - **Una pantalla que avanza sola** (prototipo con `AFTER_TIMEOUT`) no avanza sola acá: muestra el botón
   «Avanza sola a …». Un temporizador haría saltar la pantalla mientras se la está mirando.
 
+## Los controles del HTML responden: campos, casillas y botones
+
+El HTML no es sólo un dibujo: sus **campos se escriben, sus casillas se marcan y sus botones siguen al
+prototipo**. Se reconocen por el sistema de componentes de los diseños de producto, que usa los MISMOS
+nombres de capa en Credifamilia, flujo ecommerce, Motai y BCP (las reglas y el censo, en
+`visor/render/controls.go`):
+
+- **campo**: un texto «Input Text» adentro de un «Input Container» es un `<input>` en el mismo lugar. El
+  gris de Figma es el placeholder; lo que se escribe va del color de la etiqueta del «Text- fields». Un
+  texto oscuro ya es un valor escrito. Con «icon/arrow-down» es un **select, que todavía no se traduce**:
+  sus opciones no están en el diseño;
+- **casilla**: la instancia «Check Box» alterna entre sus dos dibujos de Figma **sin script** (el documento
+  no corre ninguno): un input invisible encima y `:checked` elige cuál se ve. El dibujo de la otra variante
+  sale de OTRA INSTANCIA de esa variante, en la pantalla o en otra del archivo (`fileVariants` en el
+  server). ⚠ No del componente: Figma no exporta los componentes de las variantes de este sistema
+  («invisible o vacío», medido con los de Credifamilia). Una pregunta de «Sí» y «No» es un radio; una
+  lista de opciones, casillas. La opción entera es un `<label>`: tocar el texto también marca;
+- **botón**: la instancia «Botones» o el marco con un texto «Button Text» es un `<button>`. Un clic sigue la
+  zona del prototipo que tiene encima, también con las zonas ocultas (H).
+
+Para que se usen, el iframe **recibe el puntero**. La página escucha su documento (es del mismo origen):
+un clic en un control es del control, y un arrastre o la rueda desde cualquier otra parte mueven el lienzo
+igual que afuera. Con el foco adentro, las flechas y la H siguen andando salvo mientras se escribe.
+
+Medido el 2026-09-24 contra la imagen de Figma: la fidelidad queda **idéntica pantalla por pantalla** en
+Credifamilia (31) y flujo ecommerce (49). Y lo que queda vivo, por archivo (pantallas móviles):
+
+    Credifamilia     31   38 campos · 15 casillas · 34 opciones sí/no · 23 botones
+    flujo ecommerce  49   13 campos ·  4 casillas ·                      34 botones
+    Motai           107   43 campos · 16 casillas ·                      76 botones
+    BCP              28   44 campos · 36 casillas ·                      18 botones
+
 ## Lo que ya costó en la traducción (y está fijado con su prueba en `visor/render`)
 
 - **Un `HUG` sin contenido en el flujo mide 0 en CSS.** En Figma una instancia vacía con la imagen de

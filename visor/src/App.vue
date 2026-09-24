@@ -368,6 +368,8 @@ watch([htmlURL, mode], async ([u, m]) => {
   } catch { /* el reporte es un extra: sin él, la pantalla se ve igual */ }
 }, { immediate: true })
 const missingList = computed(() => Object.entries(report.value?.missing || {}).map(([why, n]) => `${why} ×${n}`))
+// Los controles que el HTML deja usar: campos para escribir, casillas para marcar, botones.
+const controlList = computed(() => Object.entries(report.value?.controls || {}).map(([kind, n]) => `${n} ${kind}`))
 const imageURL = computed(() => (data.value && current.value ? `/api/screen?key=${data.value.key}&id=${encodeURIComponent(current.value.id)}` : ''))
 const figmaURL = computed(() => (data.value && current.value
   ? `https://www.figma.com/design/${data.value.key}/?node-id=${current.value.id.replace(':', '-')}`
@@ -461,7 +463,8 @@ function onPointerMove(e) {
     if (Math.hypot(dx, dy) < 4) return
     drag.moved = true
     dragging.value = true
-    stage.value?.setPointerCapture(e.pointerId)
+    // Un arrastre que empezó adentro del HTML ya lo captura su documento (bindFrame).
+    try { stage.value?.setPointerCapture(e.pointerId) } catch { /* el puntero es del iframe */ }
   }
   pan.value = clampPan(drag.from.x + dx, drag.from.y + dy)
   panTouched = true
@@ -487,6 +490,44 @@ function onWheel(e) {
   pan.value = clampPan(pan.value.x - e.deltaX, pan.value.y - e.deltaY)
   panTouched = true
 }
+// ── el HTML responde: sus campos, casillas y botones se usan, y el resto sigue moviendo el lienzo ──
+// El iframe es del mismo origen (lo sirve este server por el proxy de Vite), así que la página escucha
+// sus eventos directo; el documento de adentro no corre scripts. Un clic en un control es del control;
+// un arrastre desde cualquier otra parte mueve el lienzo, la rueda hace lo mismo que afuera, y un botón
+// del HTML sigue la zona del prototipo que tiene encima — también con las zonas ocultas (H).
+const CONTROLS = 'input, select, textarea, label, button'
+function bindFrame(ev) {
+  const frame = ev.target
+  let doc = null
+  try { doc = frame.contentDocument } catch { return }
+  if (!doc || frame.dataset.bound === doc.URL) return
+  frame.dataset.bound = doc.URL
+  // De coordenadas del documento (px de Figma, sin escalar) a las de la página.
+  const toPage = (e) => {
+    const r = frame.getBoundingClientRect()
+    const k = r.width / (frame.offsetWidth || 1)
+    return { clientX: r.left + e.clientX * k, clientY: r.top + e.clientY * k, pointerId: e.pointerId, button: e.button }
+  }
+  doc.addEventListener('pointerdown', (e) => {
+    if (e.target.closest?.(CONTROLS)) return
+    onPointerDown(toPage(e))
+    try { doc.documentElement.setPointerCapture(e.pointerId) } catch { /* sin captura, el arrastre corta al salir */ }
+  })
+  doc.addEventListener('pointermove', (e) => onPointerMove(toPage(e)))
+  doc.addEventListener('pointerup', (e) => onPointerUp(toPage(e)))
+  doc.addEventListener('pointercancel', (e) => onPointerUp(toPage(e)))
+  doc.addEventListener('wheel', (e) => onWheel({ ...toPage(e), deltaX: e.deltaX, deltaY: e.deltaY, ctrlKey: e.ctrlKey,
+    metaKey: e.metaKey, preventDefault: () => e.preventDefault() }), { passive: false })
+  // Con el foco adentro del HTML las flechas y la H siguen andando, salvo mientras se escribe.
+  doc.addEventListener('keydown', (e) => { if (!e.target.closest?.('input, textarea, select')) onKey(e) })
+  doc.addEventListener('click', (e) => {
+    if (swallowClick) { e.preventDefault(); e.stopPropagation(); swallowClick = false; return }
+    if (!e.target.closest?.('button')) return
+    const h = clickable.value.find((z) => e.clientX >= z.X && e.clientX <= z.X + z.W && e.clientY >= z.Y && e.clientY <= z.Y + z.H)
+    if (h) follow(h)
+  }, true)
+}
+
 let observer
 // Otra pantalla del mismo ancho conserva dónde se estaba mirando (comparar dos pasos seguidos en el
 // mismo lugar); una de otro ancho se recentra.
@@ -650,7 +691,7 @@ const laneName = (lane) => (lane.label ? lane.label : 'Fila sin rótulo')
         <figure v-for="p in panes" :key="p" class="pane">
         <div class="device" :data-kind="current.kind" :style="{ width: current.w * scale + 'px', height: current.h * scale + 'px' }">
           <img v-if="p === 'image'" :key="imageURL" :src="imageURL" :alt="current.title || current.name" draggable="false" @error="imageFailed = true" />
-          <iframe v-else :key="htmlURL" :src="htmlURL" :title="'HTML de ' + (current.title || current.name)" class="html"
+          <iframe v-else :key="htmlURL" :src="htmlURL" :title="'HTML de ' + (current.title || current.name)" class="html" @load="bindFrame"
             :style="{ width: current.w + 'px', height: current.h + 'px', transform: `scale(${scale})` }"></iframe>
           <p v-if="p === 'image' && imageFailed" class="notice over">Figma no devolvió la imagen de esta pantalla.</p>
           <template v-if="showHotspots">
@@ -685,6 +726,7 @@ const laneName = (lane) => (lane.label ? lane.label : 'Fila sin rótulo')
               <dt>Textos</dt><dd>{{ report.texts }}</dd>
               <dt>Dibujos</dt><dd>{{ report.drawings?.length || 0 }} como SVG de Figma</dd>
               <template v-if="report.images?.length"><dt>Imágenes</dt><dd>{{ report.images.length }}</dd></template>
+              <dt>Controles</dt><dd>{{ controlList.join(' · ') || 'ninguno' }}</dd>
               <dt>Fuentes</dt><dd>{{ (report.fonts || []).join(' · ') || '—' }}</dd>
               <dt>Sin traducir</dt><dd>{{ missingList.join(' · ') || 'nada' }}</dd>
             </dl>
@@ -776,10 +818,9 @@ const laneName = (lane) => (lane.label ? lane.label : 'Fila sin rótulo')
 /* Al envolver, el título no cede todo el ancho: sin una base, `flex: 1` con `min-width: 0` lo dejaba en 0. */
 .editor > .region-head > span:first-child { flex: 1 1 140px }
 /* El HTML se dibuja a su tamaño de Figma y se escala entero, a la misma escala que la imagen: el texto
-   conserva sus medidas y la comparación es de igual a igual. No recibe el puntero —es un dibujo, las
-   zonas del prototipo van encima—, así que arrastrar sobre él mueve el lienzo en vez de perderse
-   adentro del iframe. */
-.device iframe.html { display: block; border: 0; pointer-events: none; transform-origin: 0 0 }
+   conserva sus medidas y la comparación es de igual a igual. Recibe el puntero porque sus controles se
+   usan; el arrastre y la rueda que caen fuera de un control los reenvía bindFrame al lienzo. */
+.device iframe.html { display: block; border: 0; transform-origin: 0 0 }
 /* Sin radio: la esquina redondeada imitaba un teléfono y le cortaba al diseño lo que tiene en las
    esquinas. La pantalla se muestra con el borde que dibujó el diseñador. */
 .device { position: relative; flex: none; border: 1px solid var(--device-edge); overflow: hidden; background: var(--card) }

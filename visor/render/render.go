@@ -38,39 +38,40 @@ type Node struct {
 	RenderBox *Rect  `json:"absoluteRenderBounds"`
 	Children  []Node `json:"children"`
 
-	LayoutMode         string               `json:"layoutMode"`
-	PrimaryAlign       string               `json:"primaryAxisAlignItems"`
-	CounterAlign       string               `json:"counterAxisAlignItems"`
-	ItemSpacing        float64              `json:"itemSpacing"`
-	CounterSpacing     *float64             `json:"counterAxisSpacing"`
-	LayoutWrap         string               `json:"layoutWrap"`
-	PaddingLeft        float64              `json:"paddingLeft"`
-	PaddingRight       float64              `json:"paddingRight"`
-	PaddingTop         float64              `json:"paddingTop"`
-	PaddingBottom      float64              `json:"paddingBottom"`
-	SizingH            string               `json:"layoutSizingHorizontal"`
-	SizingV            string               `json:"layoutSizingVertical"`
-	LayoutAlign        string               `json:"layoutAlign"`
-	LayoutGrow         float64              `json:"layoutGrow"`
-	LayoutPositioning  string               `json:"layoutPositioning"`
-	ClipsContent       bool                 `json:"clipsContent"`
-	Fills              []Paint              `json:"fills"`
-	Strokes            []Paint              `json:"strokes"`
-	StrokeWeight       float64              `json:"strokeWeight"`
-	StrokeAlign        string               `json:"strokeAlign"`
-	IndividualStrokes  *Sides               `json:"individualStrokeWeights"`
-	CornerRadius       float64              `json:"cornerRadius"`
-	CornerRadii        []float64            `json:"rectangleCornerRadii"`
-	Effects            []Effect             `json:"effects"`
-	Opacity            *float64             `json:"opacity"`
-	BlendMode          string               `json:"blendMode"`
-	IsMask             bool                 `json:"isMask"`
-	Rotation           float64              `json:"rotation"`
-	Arc                *ArcData             `json:"arcData"`
-	Characters         string               `json:"characters"`
-	Style              *TextStyle           `json:"style"`
-	CharacterOverrides []int                `json:"characterStyleOverrides"`
-	OverrideTable      map[string]TextStyle `json:"styleOverrideTable"`
+	LayoutMode         string                   `json:"layoutMode"`
+	PrimaryAlign       string                   `json:"primaryAxisAlignItems"`
+	CounterAlign       string                   `json:"counterAxisAlignItems"`
+	ItemSpacing        float64                  `json:"itemSpacing"`
+	CounterSpacing     *float64                 `json:"counterAxisSpacing"`
+	LayoutWrap         string                   `json:"layoutWrap"`
+	PaddingLeft        float64                  `json:"paddingLeft"`
+	PaddingRight       float64                  `json:"paddingRight"`
+	PaddingTop         float64                  `json:"paddingTop"`
+	PaddingBottom      float64                  `json:"paddingBottom"`
+	SizingH            string                   `json:"layoutSizingHorizontal"`
+	SizingV            string                   `json:"layoutSizingVertical"`
+	LayoutAlign        string                   `json:"layoutAlign"`
+	LayoutGrow         float64                  `json:"layoutGrow"`
+	LayoutPositioning  string                   `json:"layoutPositioning"`
+	ClipsContent       bool                     `json:"clipsContent"`
+	Fills              []Paint                  `json:"fills"`
+	Strokes            []Paint                  `json:"strokes"`
+	StrokeWeight       float64                  `json:"strokeWeight"`
+	StrokeAlign        string                   `json:"strokeAlign"`
+	IndividualStrokes  *Sides                   `json:"individualStrokeWeights"`
+	CornerRadius       float64                  `json:"cornerRadius"`
+	CornerRadii        []float64                `json:"rectangleCornerRadii"`
+	Effects            []Effect                 `json:"effects"`
+	Opacity            *float64                 `json:"opacity"`
+	BlendMode          string                   `json:"blendMode"`
+	IsMask             bool                     `json:"isMask"`
+	Rotation           float64                  `json:"rotation"`
+	Arc                *ArcData                 `json:"arcData"`
+	ComponentProps     map[string]ComponentProp `json:"componentProperties"`
+	Characters         string                   `json:"characters"`
+	Style              *TextStyle               `json:"style"`
+	CharacterOverrides []int                    `json:"characterStyleOverrides"`
+	OverrideTable      map[string]TextStyle     `json:"styleOverrideTable"`
 }
 
 type Rect struct{ X, Y, Width, Height float64 }
@@ -131,6 +132,9 @@ type TextStyle struct {
 type Assets struct {
 	SVG   func(nodeID string) string
 	Image func(imageRef string) string
+	// Variants es, para la casilla, una instancia que dibuja cada variante en TODO el archivo: la otra
+	// variante de una casilla puede no estar en su pantalla. Opcional.
+	Variants map[string]string
 }
 
 // Report cuenta qué se tradujo y qué no. Lo que no tiene equivalente se nombra: una pantalla que sale
@@ -143,6 +147,7 @@ type Report struct {
 	Drawings []string       `json:"drawings"` // nodos exportados como SVG
 	Images   []string       `json:"images"`   // referencias de imágenes de relleno
 	Fonts    []string       `json:"fonts"`    // familia · peso
+	Controls map[string]int `json:"controls"` // campos, casillas y botones que responden
 	Missing  map[string]int `json:"missing"`  // lo que no se tradujo, por qué
 }
 
@@ -170,7 +175,7 @@ func HTML(screen Node, assets Assets) (string, Report) {
 	r := &Report{}
 	fonts := map[string]bool{}
 	var body strings.Builder
-	w := &writer{assets: assets, report: r, fonts: fonts, out: &body}
+	w := &writer{assets: assets, report: r, fonts: fonts, out: &body, controls: indexControls(screen, assets.Variants)}
 	w.node(screen, nil, true)
 	for f := range fonts {
 		r.Fonts = append(r.Fonts, f)
@@ -183,17 +188,21 @@ func HTML(screen Node, assets Assets) (string, Report) {
 	doc.WriteString(fontLinks(r.Fonts))
 	doc.WriteString("<style>\n*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}\n")
 	doc.WriteString("html,body{background:transparent}\nbody{overflow:hidden;-webkit-font-smoothing:antialiased;text-rendering:geometricPrecision}\n")
-	doc.WriteString("img{display:block}\n</style>\n</head>\n<body>\n")
+	doc.WriteString("img{display:block}\n")
+	doc.WriteString(controlCSS)
+	doc.WriteString("</style>\n</head>\n<body>\n")
 	doc.WriteString(body.String())
 	doc.WriteString("\n</body>\n</html>\n")
 	return doc.String(), *r
 }
 
 type writer struct {
-	assets Assets
-	report *Report
-	fonts  map[string]bool
-	out    *strings.Builder
+	assets   Assets
+	report   *Report
+	fonts    map[string]bool
+	out      *strings.Builder
+	controls *controlIndex
+	inLabel  bool // adentro del <label> de una opción: la casilla no abre otro
 }
 
 func visible(v *bool) bool { return v == nil || *v }
@@ -222,6 +231,10 @@ func (w *writer) node(n Node, parent *Node, root bool) {
 
 	css := &style{}
 	w.place(n, parent, root, css)
+	if isCheckbox(n) && !root {
+		w.checkbox(n, css)
+		return
+	}
 	if drawing(n) && !root {
 		w.report.Drawings = append(w.report.Drawings, n.ID)
 		src := ""
@@ -248,6 +261,10 @@ func (w *writer) node(n Node, parent *Node, root bool) {
 	}
 	w.report.Elements++
 	if n.Type == "TEXT" {
+		if isInputText(n, parent) {
+			w.input(n, parent, css)
+			return
+		}
 		w.text(n, parent, css)
 		return
 	}
@@ -264,10 +281,25 @@ func (w *writer) node(n Node, parent *Node, root bool) {
 	if n.ClipsContent || root {
 		css.set("overflow", "hidden")
 	}
-	tag := "div"
-	fmt.Fprintf(w.out, `<%s data-figma="%s" title="%s" style="%s">`, tag, html.EscapeString(n.ID), html.EscapeString(n.Name), css)
+	tag, attrs := "div", ""
+	label := false
+	switch {
+	case root:
+	case isButton(n):
+		tag, attrs = "button", ` type="button" class="fg-button"`
+		w.report.control("botón")
+	case optionOf(n) && !w.inLabel:
+		tag, attrs, label = "label", ` class="fg-option"`, true
+	}
+	fmt.Fprintf(w.out, `<%s data-figma="%s" title="%s"%s style="%s">`, tag, html.EscapeString(n.ID), html.EscapeString(n.Name), attrs, css)
+	if label {
+		w.inLabel = true
+	}
 	for i := range n.Children {
 		w.node(n.Children[i], &n, false)
+	}
+	if label {
+		w.inLabel = false
 	}
 	fmt.Fprintf(w.out, "</%s>", tag)
 }
