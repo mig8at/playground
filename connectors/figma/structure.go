@@ -676,6 +676,7 @@ func lanes(screens []Screen, labels []label) []Lane {
 		}
 		rows = append(rows, &row{top: sc.Y, bottom: sc.Y + sc.H, screens: []Screen{sc}})
 	}
+	labels = mergeStacked(labels)
 	// Cada rótulo va a la fila que tiene justo debajo (o que lo contiene a la altura).
 	byRow := make([][]label, len(rows))
 	for _, l := range labels {
@@ -700,10 +701,24 @@ func lanes(screens []Screen, labels []label) []Lane {
 		sort.Slice(ls, func(a, b int) bool { return ls[a].b.X < ls[b].b.X })
 		var cur *Lane
 		for _, sc := range r.screens {
-			lab := label{}
-			for _, l := range ls {
-				if l.b.X <= sc.X+100 {
-					lab = l
+			// Primero, la FRANJA que la cubre: el rótulo más cercano que esté encima y se superponga en
+			// horizontal. Es como rotula Motai —franjas de 6.000 px sobre la parte de la fila a la que se
+			// refieren, dos sobre la misma fila—, y ahí la regla de la fila fallaba: pantallas sueltas
+			// entre medio le robaban el rótulo a la fila de 23 que estaba debajo.
+			lab, ok := covering(labels, screens, sc)
+			if !ok {
+				// Si no la cubre ninguno, el rótulo de su fila más a la derecha que esté a su izquierda:
+				// como rotula `flujo-ecommerce`, con bloques del ancho de una pantalla al costado.
+				for _, l := range ls {
+					if l.b.X <= sc.X+100 {
+						lab = l
+					}
+				}
+				// Y si tampoco, sigue el carril de su vecina de la izquierda: un rótulo al comienzo de
+				// una fila vale hasta el próximo. En Motai, «Renting alquiler» cubre las primeras 4 de una
+				// fila de 23, y las otras 19 quedaban sin rótulo.
+				if lab.id == "" && cur != nil {
+					lab = label{id: cur.LabelID, text: cur.Label}
 				}
 			}
 			if cur == nil || cur.LabelID != lab.id {
@@ -714,6 +729,76 @@ func lanes(screens []Screen, labels []label) []Lane {
 		}
 	}
 	return out
+}
+
+// covering devuelve el rótulo que cubre una pantalla: encima de ella (su borde de abajo no pasa la
+// mitad de la pantalla), superpuesto en horizontal, y a menos de 2.500 px. Si hay varios, el más cercano.
+// ⚠ Una franja rotula lo que tiene DIRECTAMENTE debajo: si entre ella y la pantalla hay otra pantalla en
+// la misma columna, la franja es de esa otra fila, y ésta no la hereda.
+func covering(labels []label, screens []Screen, sc Screen) (label, bool) {
+	best, gap := label{}, math.MaxFloat64
+	for _, l := range labels {
+		bottom := l.b.Y + l.b.Height
+		if bottom > sc.Y+sc.H/2 {
+			continue
+		}
+		if l.b.X >= sc.X+sc.W || l.b.X+l.b.Width <= sc.X {
+			continue
+		}
+		d := sc.Y - bottom
+		if d > 2500 || blocked(screens, sc, bottom) {
+			continue
+		}
+		if d < gap {
+			best, gap = l, d
+		}
+	}
+	return best, best.id != ""
+}
+
+// mergeStacked funde los rótulos que son RENGLONES de uno solo: alineados a la izquierda (±60 px) y uno
+// pegado debajo del otro (menos de 120 px de hueco). En `flujo-ecommerce`, «Salvar mejores» y «Segunda
+// oportunidad» son dos marcos a 73 px, y separados partían el carril en uno de 8 y otro de 1.
+func mergeStacked(labels []label) []label {
+	sort.Slice(labels, func(i, j int) bool { return labels[i].b.Y < labels[j].b.Y })
+	var out []label
+	used := make([]bool, len(labels))
+	for i := range labels {
+		if used[i] {
+			continue
+		}
+		cur := labels[i]
+		for j := i + 1; j < len(labels); j++ {
+			l := labels[j]
+			if used[j] || math.Abs(l.b.X-cur.b.X) > 60 {
+				continue
+			}
+			gap := l.b.Y - (cur.b.Y + cur.b.Height)
+			if gap < 0 || gap > 120 {
+				continue
+			}
+			used[j] = true
+			cur.text += " · " + l.text
+			right := math.Max(cur.b.X+cur.b.Width, l.b.X+l.b.Width)
+			cur.b.Height = l.b.Y + l.b.Height - cur.b.Y
+			cur.b.Width = right - cur.b.X
+		}
+		out = append(out, cur)
+	}
+	return out
+}
+
+// blocked: hay otra pantalla entre el borde de abajo del rótulo y `sc`, superpuesta con ella en horizontal.
+func blocked(screens []Screen, sc Screen, labelBottom float64) bool {
+	for _, o := range screens {
+		if o.ID == sc.ID || o.X >= sc.X+sc.W || o.X+o.W <= sc.X {
+			continue
+		}
+		if o.Y >= labelBottom-1 && o.Y+o.H <= sc.Y+1 {
+			return true
+		}
+	}
+	return false
 }
 
 func variants(ls []Lane) []Variant {

@@ -148,3 +148,46 @@ func TestPrototypeLinksSayWhatTriggersThem(t *testing.T) {
 		t.Errorf("la pantalla que avanza sola no nombra un elemento (antes decía «desde «11:28»», la hora de la barra): %+v", s.Links[1])
 	}
 }
+
+// El caso de Motai: dos FRANJAS anchas sobre la misma fila, cada una cubriendo su parte, y pantallas
+// sueltas entre la franja y la fila. La pantalla va con la franja que la cubre, no con la fila más
+// cercana al rótulo.
+func TestBannersLabelTheScreensTheyCover(t *testing.T) {
+	root := fullNode{ID: "0:1", Type: "SECTION", AbsoluteBoundingBox: &box{-5000, -3000, 30000, 20000}, Children: []fullNode{
+		frame("L1", "tag", -3400, -500, 2400, 480, text("L1t", "x", "Asesor", 181, -500)),
+		frame("L2", "tag", -860, -1170, 6500, 480, text("L2t", "x", "Usuario", 181, -1170)),
+		mobile("F", "Frame", -280, -630, text("Ft", "x", "Pantalla flotante", 20, -600)),
+		mobile("A", "Frame", -3400, 300, text("At", "x", "Ingresa el código", 20, 400)),
+		mobile("B", "Frame", -2900, 300, text("Bt", "x", "Datos de contacto", 20, 400)),
+		mobile("C", "Frame", 200, 300, text("Ct", "x", "Verificación de identidad", 20, 400)),
+	}}
+	s := Read(root, nil, nil)
+	laneOf := map[string]string{}
+	for _, l := range s.Lanes {
+		for _, sc := range l.Screens {
+			laneOf[sc.ID] = l.Label
+		}
+	}
+	if laneOf["A"] != "Asesor" || laneOf["B"] != "Asesor" {
+		t.Errorf("las pantallas bajo «Asesor» son de «Asesor»: %v", laneOf)
+	}
+	if laneOf["C"] != "Usuario" {
+		t.Errorf("la pantalla bajo la franja «Usuario» es de «Usuario», aunque haya una suelta más cerca del rótulo: %v", laneOf)
+	}
+}
+
+// Dos renglones del mismo rótulo son UN rótulo; y un rótulo al comienzo de la fila vale para las
+// pantallas que siguen aunque no las cubra.
+func TestStackedLabelsMergeAndRowsContinue(t *testing.T) {
+	root := fullNode{ID: "0:1", Type: "SECTION", AbsoluteBoundingBox: &box{0, 0, 20000, 5000}, Children: []fullNode{
+		frame("L1", "-", 0, 700, 1400, 198, text("L1t", "x", "Salvar mejores", 90, 700)),
+		frame("L2", "-", 10, 971, 1400, 198, text("L2t", "x", "Segunda oportunidad", 90, 971)),
+		mobile("A", "Frame", 0, 1300, text("At", "x", "Pago exitoso", 20, 1400)),
+		mobile("B", "Frame", 2000, 1310, text("Bt", "x", "Elige tu fecha", 20, 1400)),
+		mobile("C", "Frame", 4000, 1305, text("Ct", "x", "Solicitud aprobada", 20, 1400)),
+	}}
+	s := Read(root, nil, nil)
+	if len(s.Lanes) != 1 || s.Lanes[0].Label != "Salvar mejores · Segunda oportunidad" || len(s.Lanes[0].Screens) != 3 {
+		t.Errorf("un carril con el rótulo de dos renglones y las tres pantallas: %+v", s.Lanes)
+	}
+}
