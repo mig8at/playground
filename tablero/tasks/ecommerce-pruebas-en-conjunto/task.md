@@ -47,6 +47,16 @@ ramas: feat/ecommerce-checkout-por-settings, fix/restaurar-ecommerce-en-qa, fix/
       `settings.corbeta_allieds` dice `[209, 210, 211]` (y la fila está duplicada, ids 21 y 26).
 - [ ] **Leer `new_frontend_allied_branches` y `new_frontend_allieds` en producción** antes de llevar
       #201 a `main` (pide la VPN de prod).
+- [ ] **Mergear a `qa` los dos PRs del monto de la compra** —`legacy-backend#1483` y
+      `frontend-monorepo#1061`, en cualquier orden— y repetir en QA la compra que reportaron, con un
+      comprador nuevo después de la restauración de la base. Termina cuando `/lenders?amount=<otro>`
+      muestre el total del pedido y elegir entidad con otro monto responda 422.
+- [ ] **(Diferido) Sacar `erId` de la URL antes del OTP.** El monto ya no viaja en la dirección y
+      después del OTP las pantallas van sólo por el id de solicitud; lo único que queda es `?erId=` en
+      `solicitar` y `otp`, porque ahí todavía no hay solicitud. No es un dato de negocio: editarlo
+      apunta a otro pedido y el monto igual sale del servidor. Si se retoma, la opción es llevarlo al
+      path con un segmento literal (`/pedido/{erId}/solicitar`), sin cookies. Decidido con Miguel el
+      2026-09-24: por ahora queda así.
 
 ## Objetivo
 
