@@ -97,14 +97,14 @@ type PublicationJSON struct {
 // herramienta vuelve a su único archivo; lo transversal o todavía sin destino vive en playground.
 // La lista se valida en el CLI y en el lint por archivo para que la limpieza no dependa de memoria.
 var canonicalLocals = map[string]bool{
-	"canon": true, "context": true, "harness": true, "playground": true,
+	"canon": true, "context": true, "harness": true, "playground": true, "playground-local": true,
 	"tablero": true, "trazador": true, "workers": true,
 }
 
 func localProblem(t Task) string {
 	canonical := canonicalLocals[t.Slug]
 	if len(t.Jira) == 0 && !canonical {
-		return "las tareas locales sólo pueden ser canon, context, harness, playground, tablero, trazador o workers; agregá el frente al contenedor correspondiente"
+		return "las tareas locales sólo pueden ser canon, context, harness, playground, playground-local, tablero, trazador o workers; agregá el frente al contenedor correspondiente"
 	}
 	if canonical && len(t.Jira) > 0 {
 		return "un contenedor local canónico no puede vincularse a Jira; el trabajo publicado necesita su propia tarea"
