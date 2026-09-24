@@ -153,7 +153,17 @@ func (s *server) handleMap(w http.ResponseWriter, r *http.Request) {
 	s.maps[k] = st
 	s.versions[ref.FileKey] = st.Version
 	s.mu.Unlock()
-	s.library.opened(ref.FileKey, st.FileName)
+	s.library.opened(ref.FileKey, st.FileName, "")
+	// La carpeta sale de los metadatos, un pedido aparte: se pide una vez y en segundo plano.
+	if s.library.folderOf(ref.FileKey) == "" {
+		go func(key, name string) {
+			ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+			defer cancel()
+			if meta, err := s.figma.Meta(ctx, key); err == nil && meta.Folder != "" {
+				s.library.setFolder(key, meta.Folder)
+			}
+		}(ref.FileKey, st.FileName)
+	}
 	// Las imágenes se bajan en segundo plano, de a tandas: la primera pantalla que se abra casi
 	// siempre ya está, y la UI no espera a las 60 para dibujar el mapa.
 	go s.prefetch(ref.FileKey, screenIDs(st))

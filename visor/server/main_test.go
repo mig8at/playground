@@ -94,11 +94,11 @@ func TestAnEmptyExportIsAnError(t *testing.T) {
 // preferencia de esta máquina y no crece con cada apertura.
 func TestLibraryRemembersOpenedFilesOnce(t *testing.T) {
 	s := newServer(nil, t.TempDir())
-	s.library.opened("SsvFsK5tLvR1jNT3Hh6znD", "flujo ecommerce")
-	s.library.opened("SsvFsK5tLvR1jNT3Hh6znD", "flujo ecommerce v2")
-	s.library.opened("AbCdEf1234567", "alta")
+	s.library.opened("SsvFsK5tLvR1jNT3Hh6znD", "flujo ecommerce", "PRODUCTO")
+	s.library.opened("SsvFsK5tLvR1jNT3Hh6znD", "flujo ecommerce v2", "")
+	s.library.opened("AbCdEf1234567", "alta", "")
 	lib := s.library.read()
-	if len(lib.Opened) != 2 || lib.Opened[0].Name != "flujo ecommerce v2" {
+	if len(lib.Opened) != 2 || lib.Opened[0].Name != "flujo ecommerce v2" || lib.Opened[0].Folder != "PRODUCTO" {
 		t.Fatalf("abiertos: %+v", lib.Opened)
 	}
 	rec := httptest.NewRecorder()

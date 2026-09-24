@@ -123,8 +123,17 @@ const projectGroups = computed(() => {
     out.push({ id: 'project-' + p.id, name: p.name || `Proyecto ${p.id}`, error: p.error,
       files: (p.files || []).map((f) => ({ key: f.key, name: f.name, when: fmtDay(f.last_modified) })) })
   }
-  const opened = (library.value.opened || []).filter((o) => !inProjects.has(o.key))
-  if (opened.length) out.push({ id: 'opened', name: 'Abiertos en el visor', files: opened.map((o) => ({ key: o.key, name: o.name || o.key, when: fmtDay(o.opened_at) })) })
+  // Los archivos sueltos se agrupan por su carpeta de Figma, como en Figma; sin carpeta conocida van a
+  // «Abiertos en el visor». Adentro, en orden alfabético: es una lista para encontrar un flujo.
+  const byFolder = new Map()
+  for (const o of (library.value.opened || []).filter((x) => !inProjects.has(x.key))) {
+    const folder = o.folder || 'Abiertos en el visor'
+    if (!byFolder.has(folder)) byFolder.set(folder, [])
+    byFolder.get(folder).push({ key: o.key, name: o.name || o.key, when: fmtDay(o.opened_at) })
+  }
+  for (const [folder, files] of [...byFolder].sort(([a], [b]) => (a === 'Abiertos en el visor') - (b === 'Abiertos en el visor') || a.localeCompare(b))) {
+    out.push({ id: 'folder-' + folder, name: folder, files: files.sort((x, y) => x.name.localeCompare(y.name, 'es')) })
+  }
   return out
 })
 const isOpenProject = (id) => openProjects.value.has(id)

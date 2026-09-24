@@ -28,8 +28,11 @@ type library struct {
 }
 
 type openedEntry struct {
-	Key      string `json:"key"`
-	Name     string `json:"name"`
+	Key  string `json:"key"`
+	Name string `json:"name"`
+	// Folder es la carpeta de Figma donde vive el archivo (el nombre del proyecto). Agrupa los archivos
+	// sueltos en la barra como en Figma: los siete flujos compartidos de a uno viven en «PRODUCTO».
+	Folder   string `json:"folder,omitempty"`
 	OpenedAt string `json:"opened_at"`
 }
 
@@ -85,8 +88,9 @@ func (l *libraryStore) write(lib library) error {
 	return os.Rename(l.path+".tmp", l.path)
 }
 
-// opened anota un archivo abierto en el visor: queda en «Abiertos en el visor» sin pedirlo.
-func (l *libraryStore) opened(key, name string) {
+// opened anota un archivo abierto o sumado: queda en la barra, agrupado por su carpeta, sin pedirlo.
+// Una carpeta vacía no borra la que ya se sabía.
+func (l *libraryStore) opened(key, name, folder string) {
 	l.mu.Lock()
 	defer l.mu.Unlock()
 	lib := l.read()
@@ -94,12 +98,41 @@ func (l *libraryStore) opened(key, name string) {
 	for i := range lib.Opened {
 		if lib.Opened[i].Key == key {
 			lib.Opened[i].Name, lib.Opened[i].OpenedAt = name, now
+			if folder != "" {
+				lib.Opened[i].Folder = folder
+			}
 			_ = l.write(lib)
 			return
 		}
 	}
-	lib.Opened = append(lib.Opened, openedEntry{Key: key, Name: name, OpenedAt: now})
+	lib.Opened = append(lib.Opened, openedEntry{Key: key, Name: name, Folder: folder, OpenedAt: now})
 	_ = l.write(lib)
+}
+
+// setFolder completa la carpeta de un archivo sin tocar cuándo se abrió, que es lo que ordena la lista.
+func (l *libraryStore) setFolder(key, folder string) {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	lib := l.read()
+	for i := range lib.Opened {
+		if lib.Opened[i].Key == key {
+			lib.Opened[i].Folder = folder
+			_ = l.write(lib)
+			return
+		}
+	}
+}
+
+// folderOf dice si ya se sabe la carpeta de un archivo, para no pedir sus metadatos cada vez.
+func (l *libraryStore) folderOf(key string) string {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	for _, o := range l.read().Opened {
+		if o.Key == key {
+			return o.Folder
+		}
+	}
+	return ""
 }
 
 // handleLibrary devuelve los proyectos (de los equipos sumados y los sumados sueltos), con sus
@@ -163,7 +196,7 @@ func (s *server) handleLibrary(w http.ResponseWriter, r *http.Request) {
 				fail(w, statusOf(err), "%v", err)
 				return
 			}
-			l.opened(ref.FileKey, meta.Name)
+			l.opened(ref.FileKey, meta.Name, meta.Folder)
 		}
 	case http.MethodDelete:
 		l.mu.Lock()
@@ -208,6 +241,16 @@ func (s *server) libraryView(ctx context.Context, fresh bool) (libraryView, erro
 		return out, nil
 	}
 	l.mu.Unlock()
+	// Un archivo anotado sin su carpeta (por ejemplo, por una versión anterior del visor) la completa
+	// acá, una vez: se guarda y no se vuelve a pedir.
+	for _, o := range lib.Opened {
+		if o.Folder == "" && s.figma != nil {
+			if meta, err := s.figma.Meta(ctx, o.Key); err == nil && meta.Folder != "" {
+				l.setFolder(o.Key, meta.Folder)
+			}
+		}
+	}
+	lib = l.read()
 	view := libraryView{Opened: sortOpened(lib.Opened)}
 	for _, t := range lib.Teams {
 		tv := teamView{ID: t}
