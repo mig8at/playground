@@ -9,7 +9,7 @@ import (
 	"strings"
 	"testing"
 
-	"creditop/tablero/server/internal/taskcontext"
+	"creditop/playground/tablero/server/internal/taskcontext"
 )
 
 func TestLocalProblemAcceptsOnlyCanonicalContainers(t *testing.T) {

@@ -15,8 +15,8 @@ import (
 	"log"
 	"os"
 
-	"creditop/tablero/server/internal/atlassian"
-	"creditop/tablero/server/internal/env"
+	"creditop/playground/tablero/server/internal/atlassian"
+	"creditop/playground/tablero/server/internal/env"
 )
 
 func main() {

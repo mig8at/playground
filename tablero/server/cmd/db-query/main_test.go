@@ -6,8 +6,8 @@ import (
 	"testing"
 	"time"
 
-	"creditop/tablero/server/internal/dbquery"
-	"creditop/tablero/server/internal/taskcontext"
+	"creditop/playground/tablero/server/internal/dbquery"
+	"creditop/playground/tablero/server/internal/taskcontext"
 )
 
 // El bloque de una consulta: una fila chica va entera en el título —es la respuesta—, la consulta en su

@@ -7,7 +7,7 @@ import (
 	"strings"
 	"time"
 
-	"creditop/tablero/server/internal/dbquery"
+	"creditop/playground/tablero/server/internal/dbquery"
 )
 
 // BlockSchema es el formato de la pila desde el 2026-09-23: la tarea es una pila de BLOQUES de

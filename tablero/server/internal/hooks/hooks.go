@@ -26,7 +26,7 @@ import (
 	"strings"
 	"time"
 
-	"creditop/tablero/server/internal/text"
+	"creditop/playground/tablero/server/internal/text"
 )
 
 // Env es lo que un hook necesita saber de afuera.

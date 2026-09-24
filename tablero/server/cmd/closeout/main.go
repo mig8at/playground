@@ -42,10 +42,10 @@ import (
 	"strings"
 	"time"
 
-	"creditop/tablero/server/internal/layout"
-	"creditop/tablero/server/internal/pulse"
-	"creditop/tablero/server/internal/store"
-	"creditop/tablero/server/internal/taskcontext"
+	"creditop/playground/tablero/server/internal/layout"
+	"creditop/playground/tablero/server/internal/pulse"
+	"creditop/playground/tablero/server/internal/store"
+	"creditop/playground/tablero/server/internal/taskcontext"
 )
 
 type task struct {

@@ -67,8 +67,8 @@ import (
 	"time"
 	"unicode/utf8"
 
-	"creditop/tablero/server/internal/repos"
-	"creditop/tablero/server/internal/text"
+	"creditop/playground/tablero/server/internal/repos"
+	"creditop/playground/tablero/server/internal/text"
 )
 
 const (

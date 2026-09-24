@@ -24,10 +24,10 @@ import (
 	"strings"
 	"time"
 
-	"creditop/tablero/server/internal/guard"
-	"creditop/tablero/server/internal/layout"
-	"creditop/tablero/server/internal/pulse"
-	"creditop/tablero/server/internal/store"
+	"creditop/playground/tablero/server/internal/guard"
+	"creditop/playground/tablero/server/internal/layout"
+	"creditop/playground/tablero/server/internal/pulse"
+	"creditop/playground/tablero/server/internal/store"
 )
 
 // dataDir: la carpeta `data/`; las tareas viven al lado, en `tasks/`. Ver el paquete layout.

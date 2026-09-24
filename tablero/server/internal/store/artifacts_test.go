@@ -6,7 +6,7 @@ import (
 	"reflect"
 	"testing"
 
-	"creditop/tablero/server/internal/layout"
+	"creditop/playground/tablero/server/internal/layout"
 )
 
 // Hasta el 2026-09-23 los artifacts eran `data/artifacts/<slug>*.html`, unidos a su tarea por el

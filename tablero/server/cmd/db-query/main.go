@@ -16,8 +16,8 @@ import (
 	"strings"
 	"time"
 
-	"creditop/tablero/server/internal/dbquery"
-	"creditop/tablero/server/internal/layout"
+	"creditop/playground/tablero/server/internal/dbquery"
+	"creditop/playground/tablero/server/internal/layout"
 )
 
 func main() {

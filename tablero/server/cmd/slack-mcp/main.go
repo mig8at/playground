@@ -14,8 +14,8 @@ import (
 
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 
-	"creditop/tablero/server/internal/env"
-	"creditop/tablero/server/internal/slack"
+	"creditop/playground/tablero/server/internal/env"
+	"creditop/playground/tablero/server/internal/slack"
 )
 
 func main() {

@@ -23,7 +23,7 @@ import (
 	"strings"
 	"time"
 
-	"creditop/tablero/server/internal/layout"
+	"creditop/playground/tablero/server/internal/layout"
 )
 
 var slugRe = regexp.MustCompile(`^[a-z0-9][a-z0-9-]*$`)

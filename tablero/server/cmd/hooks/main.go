@@ -8,7 +8,7 @@ import (
 	"path/filepath"
 	"time"
 
-	"creditop/tablero/server/internal/hooks"
+	"creditop/playground/tablero/server/internal/hooks"
 )
 
 func main() {

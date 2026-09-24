@@ -16,7 +16,11 @@ func TestListHidesDeletedEntriesAcrossReloads(t *testing.T) {
 	if err := os.MkdirAll(filepath.Join(dir, "entries"), 0o755); err != nil {
 		t.Fatal(err)
 	}
-	day := time.Now().Format("2006-01-02")
+	// «nueva» se crea al mediodía de hoy, después de las dos entradas de la mañana: con `time.Now()` la prueba
+	// fallaba antes de las 9:00, porque la nueva quedaba antes que la visible.
+	now := time.Now()
+	noon := time.Date(now.Year(), now.Month(), now.Day(), 12, 0, 0, 0, now.Location())
+	day := noon.Format("2006-01-02")
 	lines := `{"id":1,"day":"` + day + `","hour":9,"minutes":20,"kind":"progress","startedAt":"` + day + `T09:00:00-05:00","createdAt":"` + day + `T09:20:00-05:00","freeTitle":"KYC","note":"visible"}
 {"id":2,"day":"` + day + `","hour":10,"minutes":20,"kind":"progress","startedAt":"` + day + `T10:00:00-05:00","createdAt":"` + day + `T10:20:00-05:00","freeTitle":"KYC","note":"borrada","deletedAt":"` + day + `T11:00:00-05:00"}
 `
@@ -27,7 +31,7 @@ func TestListHidesDeletedEntriesAcrossReloads(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err := s.Create("", "KYC", 0, 0, "test", time.Now(), 15, "nueva"); err != nil {
+	if _, err := s.Create("", "KYC", 0, 0, "test", noon, 15, "nueva"); err != nil {
 		t.Fatal(err)
 	}
 	if err := s.load(); err != nil {

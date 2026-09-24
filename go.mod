@@ -1,4 +1,4 @@
-module creditop/tablero/server
+module creditop/playground
 
 go 1.25.5
 

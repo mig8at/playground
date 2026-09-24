@@ -5,8 +5,8 @@ import (
 	"path/filepath"
 	"testing"
 
-	"creditop/tablero/server/internal/pulse"
-	"creditop/tablero/server/internal/taskcontext"
+	"creditop/playground/tablero/server/internal/pulse"
+	"creditop/playground/tablero/server/internal/taskcontext"
 )
 
 func TestReadFrontmatterArchivedIsDateAndBranchesSplitByComma(t *testing.T) {

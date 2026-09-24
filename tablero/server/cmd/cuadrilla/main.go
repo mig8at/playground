@@ -34,8 +34,8 @@ import (
 	"strings"
 	"time"
 
-	"creditop/tablero/server/internal/layout"
-	"creditop/tablero/server/internal/store"
+	"creditop/playground/tablero/server/internal/layout"
+	"creditop/playground/tablero/server/internal/store"
 )
 
 func main() {

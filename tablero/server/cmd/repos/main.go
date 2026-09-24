@@ -17,8 +17,8 @@ import (
 	"strconv"
 	"time"
 
-	"creditop/tablero/server/internal/layout"
-	"creditop/tablero/server/internal/repos"
+	"creditop/playground/tablero/server/internal/layout"
+	"creditop/playground/tablero/server/internal/repos"
 )
 
 func main() {

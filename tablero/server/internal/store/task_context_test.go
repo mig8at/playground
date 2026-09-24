@@ -6,8 +6,8 @@ import (
 	"testing"
 	"time"
 
-	"creditop/tablero/server/internal/layout"
-	"creditop/tablero/server/internal/taskcontext"
+	"creditop/playground/tablero/server/internal/layout"
+	"creditop/playground/tablero/server/internal/taskcontext"
 )
 
 func TestTaskContextFindsTheJSONLForAnEffort(t *testing.T) {

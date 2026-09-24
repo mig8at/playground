@@ -7,7 +7,7 @@ import (
 	"errors"
 	"strings"
 
-	"creditop/tablero/server/internal/text"
+	"creditop/playground/tablero/server/internal/text"
 )
 
 // ErrNoClosingQuotation y ErrNoEscapedCharacter son los dos errores de `shlex`: una comilla sin cerrar y

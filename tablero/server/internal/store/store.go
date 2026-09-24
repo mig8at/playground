@@ -63,7 +63,7 @@ import (
 	"time"
 	"unicode"
 
-	"creditop/tablero/server/internal/layout"
+	"creditop/playground/tablero/server/internal/layout"
 )
 
 // Store guarda todo en memoria y escribe a disco en cada mutación. `dir` es la carpeta `data/` (lo

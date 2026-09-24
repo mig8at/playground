@@ -16,11 +16,11 @@ import (
 	"strings"
 	"time"
 
-	"creditop/tablero/server/internal/canon"
-	"creditop/tablero/server/internal/layout"
-	"creditop/tablero/server/internal/repos"
-	"creditop/tablero/server/internal/store"
-	"creditop/tablero/server/internal/taskcontext"
+	"creditop/playground/tablero/server/internal/canon"
+	"creditop/playground/tablero/server/internal/layout"
+	"creditop/playground/tablero/server/internal/repos"
+	"creditop/playground/tablero/server/internal/store"
+	"creditop/playground/tablero/server/internal/taskcontext"
 )
 
 // dataDir: la carpeta `data/`; las tareas viven al lado, en `tasks/`. Ver el paquete layout.

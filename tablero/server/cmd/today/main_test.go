@@ -7,7 +7,7 @@ import (
 	"strings"
 	"testing"
 
-	"creditop/tablero/server/internal/canon"
+	"creditop/playground/tablero/server/internal/canon"
 )
 
 func TestRequiresBranchesOnlyForProductWork(t *testing.T) {

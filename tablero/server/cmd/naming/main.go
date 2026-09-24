@@ -19,8 +19,8 @@ import (
 	"sort"
 	"strings"
 
-	"creditop/tablero/server/internal/layout"
-	"creditop/tablero/server/internal/naming"
+	"creditop/playground/tablero/server/internal/layout"
+	"creditop/playground/tablero/server/internal/naming"
 )
 
 func main() {

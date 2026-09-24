@@ -34,12 +34,12 @@ import (
 	"strings"
 	"time"
 
-	"creditop/tablero/server/internal/canon"
-	"creditop/tablero/server/internal/env"
-	"creditop/tablero/server/internal/guard"
-	"creditop/tablero/server/internal/layout"
-	"creditop/tablero/server/internal/store"
-	"creditop/tablero/server/internal/taskcontext"
+	"creditop/playground/tablero/server/internal/canon"
+	"creditop/playground/tablero/server/internal/env"
+	"creditop/playground/tablero/server/internal/guard"
+	"creditop/playground/tablero/server/internal/layout"
+	"creditop/playground/tablero/server/internal/store"
+	"creditop/playground/tablero/server/internal/taskcontext"
 )
 
 // Task es lo que se puede saber de un `.md` SIN abrirlo entero: su frontmatter.

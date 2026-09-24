@@ -3,7 +3,7 @@ package store
 import (
 	"fmt"
 
-	"creditop/tablero/server/internal/taskcontext"
+	"creditop/playground/tablero/server/internal/taskcontext"
 )
 
 // TaskContext devuelve la pila de bloques de un esfuerzo. A diferencia de entries/, un bloque no es

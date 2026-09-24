@@ -156,7 +156,7 @@ tools/
 │   ├── main.js  styles.css  tema.css  taller.css
 │   └── TaskEditor.vue  RegionMenu.vue  ui-state.js  task-document.js
 └── server/
-    ├── go.mod (module creditop/tablero/server) · .env · .env.example
+    ├── .env · .env.example        (el go.mod es el de la raíz del playground: module creditop/playground)
     ├── cmd/web/main.go        ← WS :8787, 5 mensajes entrantes + /health
     ├── cmd/jira-mcp/          ← main.go (wiring) + tools.go (4 tools)
     ├── cmd/slack-mcp/         ← main.go (wiring) + tools.go (3 tools)

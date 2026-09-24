@@ -27,7 +27,7 @@ import (
 	"strconv"
 	"strings"
 
-	"creditop/tablero/server/internal/text"
+	"creditop/playground/tablero/server/internal/text"
 )
 
 var (

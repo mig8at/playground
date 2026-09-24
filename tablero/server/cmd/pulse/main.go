@@ -24,8 +24,8 @@ import (
 	"strings"
 	"time"
 
-	"creditop/tablero/server/internal/env"
-	"creditop/tablero/server/internal/pulse"
+	"creditop/playground/tablero/server/internal/env"
+	"creditop/playground/tablero/server/internal/pulse"
 )
 
 const (

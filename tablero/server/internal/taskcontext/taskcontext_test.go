@@ -7,7 +7,7 @@ import (
 	"testing"
 	"time"
 
-	"creditop/tablero/server/internal/layout"
+	"creditop/playground/tablero/server/internal/layout"
 )
 
 func block(id, at, title string) Event {

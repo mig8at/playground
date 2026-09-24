@@ -18,15 +18,15 @@ import (
 	"strings"
 	"time"
 
-	"creditop/tablero/server/internal/atlassian"
-	"creditop/tablero/server/internal/canon"
-	"creditop/tablero/server/internal/env"
-	"creditop/tablero/server/internal/guard"
-	"creditop/tablero/server/internal/layout"
-	"creditop/tablero/server/internal/pulse"
-	"creditop/tablero/server/internal/repos"
-	"creditop/tablero/server/internal/slack"
-	"creditop/tablero/server/internal/store"
+	"creditop/playground/tablero/server/internal/atlassian"
+	"creditop/playground/tablero/server/internal/canon"
+	"creditop/playground/tablero/server/internal/env"
+	"creditop/playground/tablero/server/internal/guard"
+	"creditop/playground/tablero/server/internal/layout"
+	"creditop/playground/tablero/server/internal/pulse"
+	"creditop/playground/tablero/server/internal/repos"
+	"creditop/playground/tablero/server/internal/slack"
+	"creditop/playground/tablero/server/internal/store"
 )
 
 // ── guard: lo que se registra termina en Jira, y no puede filtrar el playground ─────────────────
