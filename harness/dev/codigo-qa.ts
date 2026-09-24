@@ -20,7 +20,6 @@
 process.env.E2E_TARGET = 'qa';
 const { query, close } = await import('../pkg/db.ts');
 
-const SERVICIO = process.env.CODE_SERVICE_URL || 'http://self-manager-api.inertia-develop:8082';
 const FRONT = 'https://originaciones-qa.dev.creditop.com';
 
 const arg = (k: string) => (process.env[k] || '').trim();
@@ -33,21 +32,14 @@ function fallar(msg: string): never {
     process.exit(1);
 }
 
+// La llamada al servicio es la de `pkg/client-code.ts`, la misma que usa el lanzador del panel.
+const { requestServiceCode, ClientCodeSkip } = await import('../pkg/client-code.ts');
 async function generar(userId: number, merchantId: number, lenderId: number): Promise<{ code: string; expired_at: string }> {
-    let res: Response;
     try {
-        res = await fetch(`${SERVICIO}/api/v1/generate/code`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json', 'X-User-Id': String(userId) },
-            body: JSON.stringify({ merchant_id: merchantId, lender_id: lenderId }),
-            signal: AbortSignal.timeout(15_000),
-        });
+        return await requestServiceCode(userId, merchantId, lenderId);
     } catch (e: any) {
-        fallar(`no llegué al servicio de códigos (${SERVICIO}): ${e.cause?.code || e.message}. ¿Estás en la VPN de desarrollo?`);
+        fallar(e instanceof ClientCodeSkip ? e.message : String(e?.message || e));
     }
-    const cuerpo: any = await res.json().catch(() => ({}));
-    if (!res.ok || !cuerpo.code) fallar(`el servicio respondió HTTP ${res.status}: ${JSON.stringify(cuerpo)}`);
-    return cuerpo;
 }
 
 // LOTE=<n>: n códigos por comercio de Colombia, para la lista de QA. Un comercio = su sucursal con más

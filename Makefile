@@ -314,9 +314,9 @@ harness-mocks: ## @har levanta los mocks del canal QR (Bancolombia :8104 + Corbe
 harness-codes: ## @har levanta el mock LOCAL del servicio de códigos (:8111) — el que resuelve el código que el cliente trae de la app. Pide CODE_GENERATION_SERVICE_BASE_URL=http://host.docker.internal:8111 en el .env del backend
 	@cd harness && node mock-codes/server.mjs
 
-harness-codigo: ## @har siembra un código de preaprobado para probar la pantalla del asesor en local (pide `harness-codes` arriba). COMERCIO=<hash|slug> [CODIGO=0101 el del autorrelleno] [ENTIDAD=<lender_id>]
+harness-codigo: ## @har siembra un código de preaprobado para probar la pantalla del asesor en local (pide `harness-codes` arriba). COMERCIO=<hash|slug> [CODIGO=<AA0000> sin él se inventa uno] [ENTIDAD=<lender_id>]
 	@test -n "$(COMERCIO)" || { echo "falta COMERCIO=<hash de sucursal o slug de .flows.json>"; exit 2; }
-	@cd harness && bin/seed-code "$(COMERCIO)" "$(or $(CODIGO),0101)" "$(ENTIDAD)"
+	@cd harness && bin/seed-code "$(COMERCIO)" "$(CODIGO)" "$(ENTIDAD)"
 
 harness-codigo-qa: ## @har genera un código de preaprobado REAL en qa (el que emitiría la app) para probar el canje en la pantalla del asesor. Pide la VPN de dev. [COMERCIO=<hash> default Pullman ec977139] [ENTIDAD=<lender_id>] [USUARIO=<user_id> default un cliente sintético]
 	@cd harness && COMERCIO="$(COMERCIO)" ENTIDAD="$(ENTIDAD)" USUARIO="$(USUARIO)" LOTE="$(LOTE)" node dev/codigo-qa.ts

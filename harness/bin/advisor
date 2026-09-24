@@ -291,8 +291,26 @@ fi
 # el OTP ya calculado (el bypass hace que el código sean los ÚLTIMOS 4 del teléfono; la firma usa 6).
 # El prefijo `⌨ DATOS ` es CONTRATO con el panel, que lo parsea para armar los chips copiables: si lo
 # cambiás, actualizá `panel/index.html` (parseDatos). El resto de la línea es para leer en terminal.
+# ── EL CÓDIGO DE LA APP, generado como lo haría la app ────────────────────────────────────────────────
+# Sólo en el canal del asesor, que es el único con la pantalla `/merchant/<hash>/codigo` («Usuario app»).
+# Local lo siembra en el mock (`make harness-codes`); dev/qa/staging se lo piden al servicio de dev. El
+# autorrelleno lo pone en esa pantalla (`E2E_CLIENT_CODE_APP`) y el panel lo muestra para copiar. Es
+# opcional: si no se puede —otro país, sin mock, sin VPN— se avisa y la corrida sigue igual.
+# `E2E_CLIENT_CODE_GEN=0` lo apaga; `E2E_CLIENT_CODE_LENDER_ID=<id>` elige la entidad del preaprobado.
+CLIENT_CODE=""
+if [ "$ECOMMERCE" != 1 ] && [ "$PREBOOT" != 1 ] && [ "$SIN_ASESOR" != 1 ] && [ "${E2E_CLIENT_CODE_GEN:-1}" != 0 ]; then
+  CC_JSON="$(node bin/client-code.ts "$HASH" "${E2E_CLIENT_CODE_LENDER_ID:-}" 2>/dev/null || true)"
+  CLIENT_CODE="$(printf '%s' "$CC_JSON" | json_pick '.code')"
+  if [ -n "$CLIENT_CODE" ]; then
+    export E2E_CLIENT_CODE_APP="$CLIENT_CODE"
+    ok "codigo-app" "$CLIENT_CODE · $(printf '%s' "$CC_JSON" | json_pick '.lender') ($(printf '%s' "$CC_JSON" | json_pick '.lenderId')) — la única entidad que debe quedar en el listado"
+  else
+    echo "  ⚠ codigo-app    sin código: $(printf '%s' "$CC_JSON" | json_pick '.skip')"
+  fi
+fi
+
 if [ "$ECOMMERCE" != 1 ] && [ "$PREBOOT" != 1 ]; then
-  echo "⌨ DATOS  telefono=$BYPASS_PHONE otp=${BYPASS_PHONE: -4} otpfirma=${BYPASS_PHONE: -6} cedula=${E2E_SYNTH_DOC:-(auto)} email=${E2E_SYNTH_EMAIL:-(auto)}"
+  echo "⌨ DATOS  telefono=$BYPASS_PHONE otp=${BYPASS_PHONE: -4} otpfirma=${BYPASS_PHONE: -6} cedula=${E2E_SYNTH_DOC:-(auto)} email=${E2E_SYNTH_EMAIL:-(auto)}${CLIENT_CODE:+ codigoapp=$CLIENT_CODE}"
 fi
 
 # ── wizard local (Vite) → DEV: reusar si está arriba; reiniciar solo si apuntaba a otro backend ──

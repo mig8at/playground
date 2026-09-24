@@ -51,6 +51,8 @@ export interface AutofillData {
     nombre: string; segundoNombre: string; apellido: string; segundoApellido: string;
     nacimiento: string; expedicion: string; ingreso: string; monto: string;
     direccion: string; empresa: string; placa: string; serie: string;
+    /** El código de preaprobado de la app que generó `bin/advisor` (vacío si no generó ninguno). */
+    codigoApp: string;
     /** hash de sucursal → nombre del comercio, para que la ventana diga a cuál entró. */
     comercios: Record<string, string>;
 }
@@ -97,6 +99,7 @@ export function envData(): AutofillData {
         ingreso: process.env.E2E_SYNTH_INCOME || '2500000', monto: '2000000',
         direccion: 'CALLE 90 # 15 - 20', empresa: 'HARNESS QA SAS',
         placa: 'ABC12D', serie: '9C2KC0810JR000001',
+        codigoApp: process.env.E2E_CLIENT_CODE_APP || '',
         comercios: flowMerchants(),
     };
 }
@@ -250,6 +253,11 @@ function script(data: AutofillData) {
 
     /** Qué poner en un campo de texto, por su pista y, si no dice nada, por su `type`. */
     function valueFor(el: HTMLInputElement | HTMLTextAreaElement): string | null {
+        /* LA PANTALLA DEL CÓDIGO DE LA APP va antes que todo: su campo es un `InputOTP` de 6 casillas, así
+           que por el `maxLength` caía en el «OTP de firma» y se llenaba con los últimos 6 dígitos del
+           teléfono de bypass (`010101`), que nunca es un código. El código lo generó `bin/advisor` al
+           lanzar, como lo haría la app (`pkg/client-code.ts`). */
+        if (data.codigoApp && /\/codigo\/?$/.test(location.pathname)) return data.codigoApp;
         const p = hint(el);
         if (IS_DOWN_PAYMENT.test(p)) return declaredMinimum();
         for (const [re, value] of RULES) if (re.test(p)) return value;

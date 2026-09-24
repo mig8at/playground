@@ -3368,7 +3368,7 @@
     // `⌨ DATOS telefono=… otp=…` lo emite bin/advisor (contrato: si cambia el prefijo allá, cambiá acá).
     // El panel NO recalcula nada — ni el teléfono ni el OTP: los toma de quien los resolvió, que es el
     // launcher. Duplicar ese cálculo en la UI es como las dos definiciones empiezan a derivar.
-    const LBL = { telefono: 'teléfono', otp: 'OTP', otpfirma: 'OTP firma', cedula: 'cédula', email: 'email' };
+    const LBL = { telefono: 'teléfono', otp: 'OTP', otpfirma: 'OTP firma', cedula: 'cédula', email: 'email', codigoapp: 'código app' };
     function renderTyping(txt) {
       const m = txt.match(/⌨ DATOS\s+(.+)/);
       const box = $('tipear');
