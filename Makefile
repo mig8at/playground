@@ -256,16 +256,7 @@ pulso-uninstall: ## @dia saca el agente del pulso (lo ya registrado se queda)
 # una en el grupo de la herramienta a la que pertenece. (`repos` también quedó, y se retiró el 2026-09-23:
 # generaba el snapshot de la consola de ramas que sólo leía la vista del árbol. Y `entidades`, con
 # workers, el 2026-09-24.)
-.PHONY: jev-test flow-context flow-context-test
-
-# Flow es una explicación ejecutable de la cascada de originación. Esta consola no usa el navegador,
-# localStorage, SQL ni producción: prepara contexto breve para que un LLM elija una regla antes de
-# abrir MAP/DOCUMENTATION o salir a Harness/Trazador con un caso real.
-flow-context: ## @expl Flow para LLM: map | route "pregunta general" | brief <tema> | validate. ARGS='…' · salida JSON; --text es compacto
-	@python3 flow/tools/flow_context.py $(or $(ARGS),--help)
-
-flow-context-test: ## @expl pruebas offline del mapa compacto de Flow, ruteo y guardas de datos de caso
-	@PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover -s flow/tools -p test_flow_context.py
+.PHONY: jev-test
 
 jev-test: ## @dia la conexión con la API de Jev, sin uso encima hasta que aterrice uno (connectors/jev): pruebas offline, sin red
 	@go test -count=1 ./connectors/jev
@@ -501,18 +492,9 @@ trazador-sql: ## @har UNA consulta de SOLO LECTURA a la BD del ambiente. SQL='SE
 
 # ── EXPLORACIONES ────────────────────────────────────────────────────────────────────────────────
 # Están acá para poder abrirlas, NO porque sean fuente. No se citan para decidir (ver CLAUDE.md).
-.PHONY: flow engine dict domain
-flow: ## @expl simulador del flujo (:5190)
-	@cd flow && npm run dev
-
-engine: ## @expl motor de reglas (:5196)
-	@cd engine && npm run dev
-
+.PHONY: dict
 dict: ## @expl diccionario de negocio (:5194)
 	@cd diccionario && npm run dev
-
-domain: ## @expl modelo de dominio deber-ser (:5183)
-	@cd domain-model && npm run dev
 
 .PHONY: plantillas plantillas-check
 plantillas: ## @expl PROTOTIPO: onboarding compuesto por el backend, realtime por SSE (:5198 + Go :8090)

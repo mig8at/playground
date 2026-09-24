@@ -2,16 +2,6 @@
   "version": "0.0.1",
   "configurations": [
     {
-      "name": "flow",
-      "runtimeExecutable": "npm",
-      "runtimeArgs": [
-        "run",
-        "dev"
-      ],
-      "cwd": "flow",
-      "port": 5190
-    },
-    {
       "name": "panel",
       "runtimeExecutable": "npm",
       "runtimeArgs": [
@@ -41,29 +31,6 @@
       ],
       "cwd": "diccionario",
       "port": 5194
-    },
-    {
-      "name": "engine",
-      "runtimeExecutable": "npm",
-      "runtimeArgs": [
-        "run",
-        "dev"
-      ],
-      "cwd": "engine",
-      "port": 5197,
-      "env": {
-        "PORT": "5197"
-      }
-    },
-    {
-      "name": "domain-model",
-      "runtimeExecutable": "npm",
-      "runtimeArgs": [
-        "run",
-        "dev"
-      ],
-      "cwd": "domain-model",
-      "port": 5183
     },
     {
       "name": "trazador",

@@ -32,7 +32,7 @@ jira_title: ""
       Ninguno al revés.
 - [ ] Terminar de pasar el Python del playground a Go (pedido de Miguel, 2026-09-23), cada pieza
       borrada sólo después de salir idéntica contra la vieja: `tools/{confluence,estilo,ui-sync}.py` y `trazador/tools/huella.py` · `workers/` (~7.100 líneas, que es lo que mantiene vivo `tools/repos.py` y `tools/canon.py`) ·
-      y decidir si `flow/` se porta o se borra (`twilio/` pasó a `connectors/twilio` el 2026-09-24). Termina cuando `git ls-files '*.py'` no
+      (`twilio/` pasó a `connectors/twilio` y `flow/` salió del repo a `~/Desktop/CREDITOP/temp/`, los dos el 2026-09-24). Termina cuando `git ls-files '*.py'` no
       devuelve nada fuera de lo que se decida conservar (hoy `jev_transport.py`, la conexión con Jev).
 - [x] **El cierre reclamaba de más.** La bitácora de un barrido ya la eximía el marcador «sin avance»
       (el 21/9; la pista de deducirlo del diff se había descartado porque el barrido también escribe su
