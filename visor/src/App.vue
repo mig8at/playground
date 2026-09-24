@@ -630,7 +630,7 @@ const laneName = (lane) => (lane.label ? lane.label : 'Fila sin rótulo')
               :aria-pressed="mode === m.id" @click="mode = m.id">{{ m.label }}</button>
           </div>
           <button class="region-action" :aria-pressed="showHotspots" title="Mostrar las zonas del prototipo (H)" aria-label="Zonas del prototipo" @click="showHotspots = !showHotspots">
-            <span class="ui-icon" data-icon="filter" aria-hidden="true"></span>
+            <span class="ui-icon" data-icon="eye" aria-hidden="true"></span>
           </button>
           <button class="region-action" title="Centrar la pantalla (0)" aria-label="Centrar la pantalla" @click="center">
             <span class="ui-icon" data-icon="collapse" aria-hidden="true"></span>
