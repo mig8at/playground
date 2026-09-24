@@ -180,8 +180,8 @@ validable es `docs/task-context-block.example.md`; el contrato de la línea guar
 Una ruta que no existe: una cita rota la lee un modelo y abre otra cosa. Un comando sin `TARGET=`: el
 harness y el trazador tienen defaults OPUESTOS (F-234). Un comando sin `Resultado:`: sin lo que dio no
 prueba nada. SQL que escribe o sin ambiente, HTML, y un título de más de una línea. Los repos que se
-pueden citar salen de `tools/repos.py` —la lista única, no una copia—, más `playground` (este repo) y
-`playground-equipo` (el compartido).
+pueden citar salen de `tools/repos.json` —la lista única, no una copia, que resuelve `internal/repos`—,
+más `playground` (este repo) y `playground-equipo` (el compartido).
 
 ⚠ **Hasta el 2026-09-23 la pila era de HITOS** (`kind` checkpoint · decision · blocker · evidence, con
 `summary`, `state` y `next`). Los 37 que había se migraron ese día a bloques con `via: migration`: el

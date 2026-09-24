@@ -1,0 +1,22 @@
+{
+  "_note": "La lista ÚNICA de repos del playground. La leen tablero/server/internal/repos (Go) y tools/repos.py (Python); por qué es una sola y el criterio para agregar un repo están en internal/repos. Las rutas con ~ salen del HOME; las relativas, de la raíz del playground.",
+  "indexed": {
+    "application": "~/Desktop/CREDITOP/github/legacy-application",
+    "frontend-monorepo": "~/Desktop/CREDITOP/github/frontend-monorepo",
+    "legacy-backend": "~/Desktop/CREDITOP/github/legacy-backend",
+    "pre-approvals-service": "~/Desktop/CREDITOP/github/pre-approvals-service",
+    "form-service": "~/Desktop/CREDITOP/github/form-service",
+    "customer-profiling-service": "~/Desktop/CREDITOP/github/customer-profiling-service",
+    "onboarding-forms-service": "~/Desktop/CREDITOP/github/onboarding-forms-service",
+    "customer-service": "~/Desktop/CREDITOP/github/microservices/customer-service",
+    "financial-health-service": "~/Desktop/CREDITOP/github/microservices/financial-health-service",
+    "pdf-mapper-service": "~/Desktop/CREDITOP/github/microservices/pdf-mapper-service",
+    "harness": "harness",
+    "trazador": "trazador"
+  },
+  "citable_only": {
+    "playground": ".",
+    "playground-equipo": "~/Desktop/CREDITOP/github/playground"
+  },
+  "extensions": [".php", ".go", ".ts", ".tsx", ".js", ".jsx", ".mjs", ".cjs", ".vue"]
+}
