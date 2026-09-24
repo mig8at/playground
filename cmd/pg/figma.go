@@ -109,6 +109,8 @@ func runFigmaNode(args []string) int {
 	id := fs.String("id", "", "el id del nodo (1:2), si la URL no trae node-id")
 	depth := fs.Int("depth", 3, "cuántos niveles de hijos mostrar")
 	asJSON := fs.Bool("json", false, "el árbol en JSON")
+	onlyText := fs.Bool("text", false, "sólo los textos, en orden: el copy de la pantalla")
+	all := fs.Bool("all", false, "sin colapsar los íconos y trazos")
 	ref, code := figmaRef(fs, args)
 	if code != 0 {
 		return code
@@ -132,13 +134,23 @@ func runFigmaNode(args []string) int {
 	if *asJSON {
 		return printJSON(n)
 	}
-	printTree(n, 0)
+	if *onlyText {
+		for _, t := range figma.Texts(n) {
+			fmt.Printf("%-24s %s\n", t.ID, strings.ReplaceAll(t.Characters, "\n", " ⏎ "))
+		}
+		return 0
+	}
+	printTree(n, 0, *all)
 	return 0
 }
 
-func printTree(n figma.Node, level int) {
+func printTree(n figma.Node, level int, all bool) {
 	indent := strings.Repeat("  ", level)
 	line := fmt.Sprintf("%s%-9s %s  %s%s", indent, n.Type, n.Name, n.ID, size(n))
+	if strokes, ok := figma.Drawing(n); ok && !all && len(n.Children) > 0 {
+		fmt.Printf("%s  [ícono o dibujo: %d trazos · --all los muestra]\n", line, strokes)
+		return
+	}
 	if n.Characters != "" {
 		text := strings.ReplaceAll(n.Characters, "\n", " ⏎ ")
 		if len([]rune(text)) > 120 {
@@ -151,7 +163,7 @@ func printTree(n figma.Node, level int) {
 	}
 	fmt.Println(line)
 	for _, ch := range n.Children {
-		printTree(ch, level+1)
+		printTree(ch, level+1, all)
 	}
 }
 

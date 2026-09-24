@@ -116,3 +116,25 @@ func TestNoOtherFigmaClientInTheRepo(t *testing.T) {
 		t.Errorf("hay clientes de Figma fuera de connectors/ (usá connectors/figma): %v", offenders)
 	}
 }
+
+// Lo que se colapsa tiene que ser SÓLO dibujo: un texto adentro, o un hijo sin ver, lo deja a la vista.
+func TestDrawingCollapsesOnlyWhatSaysNothing(t *testing.T) {
+	icon := Node{Type: "GROUP", Children: []Node{{Type: "VECTOR"}, {Type: "BOOLEAN_OPERATION", Children: []Node{{Type: "VECTOR"}, {Type: "ELLIPSE"}}}}}
+	if n, ok := Drawing(icon); !ok || n != 3 {
+		t.Errorf("un ícono de 3 trazos: %d, %v", n, ok)
+	}
+	withText := Node{Type: "FRAME", Children: []Node{{Type: "VECTOR"}, {Type: "TEXT", Characters: "Continuar"}}}
+	if _, ok := Drawing(withText); ok {
+		t.Error("un frame con texto no es dibujo")
+	}
+	if _, ok := Drawing(Node{Type: "GROUP", Cut: 4}); ok {
+		t.Error("un nodo recortado no se vio entero: no se puede afirmar que sea dibujo")
+	}
+	if _, ok := Drawing(Node{Type: "FRAME"}); ok {
+		t.Error("un frame vacío no es un trazo")
+	}
+	texts := Texts(Node{Children: []Node{{Characters: "Pago exitoso"}, {Children: []Node{{Characters: "Elegir fecha"}}}}})
+	if len(texts) != 2 || texts[1].Characters != "Elegir fecha" {
+		t.Errorf("textos en orden: %+v", texts)
+	}
+}

@@ -337,3 +337,40 @@ func (c *Client) Comments(ctx context.Context, key string) ([]Comment, error) {
 	sort.SliceStable(out, func(i, j int) bool { return out[i].CreatedAt < out[j].CreatedAt })
 	return out, nil
 }
+
+// shapes son los tipos que dibujan y no dicen nada: un ícono, la barra de estado, un texto convertido
+// a trazos (Figma lo guarda como un VECTOR por letra).
+var shapes = map[string]bool{"VECTOR": true, "BOOLEAN_OPERATION": true, "ELLIPSE": true, "LINE": true,
+	"STAR": true, "REGULAR_POLYGON": true, "RECTANGLE": true}
+
+// Drawing dice si todo el subárbol de `n` es dibujo —sin un solo texto— y cuántos trazos tiene. Sirve
+// para colapsarlo en una línea al LEER una pantalla: medido en `flujo-ecommerce`, 31 de 77 líneas de
+// una pantalla eran trazos. Un nodo recortado (`Cut`) no se puede afirmar como dibujo: no se vio entero.
+func Drawing(n Node) (strokes int, ok bool) {
+	if n.Characters != "" || n.Type == "TEXT" || n.Cut > 0 {
+		return 0, false
+	}
+	if len(n.Children) == 0 {
+		return 1, shapes[n.Type]
+	}
+	for _, ch := range n.Children {
+		s, ok := Drawing(ch)
+		if !ok {
+			return 0, false
+		}
+		strokes += s
+	}
+	return strokes, true
+}
+
+// Texts son los nodos de texto del subárbol, en el orden del documento: el copy de una pantalla.
+func Texts(n Node) []Node {
+	var out []Node
+	if n.Characters != "" {
+		out = append(out, n)
+	}
+	for _, ch := range n.Children {
+		out = append(out, Texts(ch)...)
+	}
+	return out
+}
