@@ -1,23 +1,30 @@
-"""Leer el corpus COMPARTIDO (canon) desde el disco: qué tema habla de qué archivo y de qué tabla.
+"""Leer el corpus COMPARTIDO (canon) por su API: qué tema habla de qué archivo y de qué tabla.
 
-Canon vive en OTRO repo —`~/Desktop/CREDITOP/github/playground/tools/canon`, el playground compartido
-del equipo— y se publica en canon.playground.creditop.com. Esto no lo consulta por red: lee sus
-`content/<tema>/map.json`, que es la parte declarativa. Sirve para cruzar lo que una herramienta MIDE
-contra lo que el corpus AFIRMA, sin depender de que haya un servidor arriba.
+Canon es el corpus del equipo (`Creditop-SAS/playground`, `tools/canon`), servido en
+canon.playground.creditop.com. Sus temas viven en la base de canon: la prosa por secciones y el mapa
+por áreas, cada área con sus `fuentes` ({repo: {ruta: hash}}) y sus `tablas`. Esto lee ese mapa con
+`/api/index` (qué temas hay) y `/api/read` (sus áreas), para cruzar lo que una herramienta MIDE contra
+lo que el corpus AFIRMA.
+
+El origen es `CANON_URL`, el mismo que usa el tablero: por defecto el de producción, que pide la VPN;
+`CANON_URL=http://localhost:8080` apunta a un canon local, que tiene su propia base.
 
 Lo usan `workers` (para decir qué tema describe cada archivo) y la huella del trazador (para decir qué
-tabla toca un flujo que nadie explicó). Hasta el 2026-09-21 ese cruce se hacía contra el árbol local
-`context/`, que se apagó.
+tabla toca un flujo que nadie explicó).
 
-⚠ **EL CORPUS PUEDE NO ESTAR, Y ESO NO ES UN ERROR:** es otro repo y no todo el mundo lo tiene
-clonado. Las funciones devuelven vacío y `hay_corpus()` lo dice, para que quien llame pueda declarar
-«no lo verifiqué» en vez de imprimir un cero que se lee como «nadie lo explica».
+⚠ **CANON PUEDE NO RESPONDER, Y ESO NO ES UN ERROR:** sin VPN, o con el servicio caído, las funciones
+devuelven vacío y `hay_corpus()` lo dice, para que quien llame pueda declarar «no lo verifiqué» en vez
+de imprimir un cero que se lee como «nadie lo explica».
 """
 import json
 import os
+import urllib.error
+import urllib.parse
+import urllib.request
 
-CONTENIDO = os.environ.get("CANON_CONTENIDO") or os.path.expanduser(
-    "~/Desktop/CREDITOP/github/playground/tools/canon/content")
+URL = (os.environ.get("CANON_URL") or "https://canon.playground.creditop.com").rstrip("/")
+TIMEOUT = float(os.environ.get("CANON_TIMEOUT", "8"))
+POR_PEDIDO = 20  # ids por `/api/read`: el corpus entero en pocas vueltas, sin pedidos gigantes
 
 # ⚠ EL MISMO REPO CON DOS NOMBRES. Canon llama `legacy-application` al monolito original; los alias de
 # `tools/repos.py` —que salen de cómo está clonado acá— lo llaman `application`. Sin esta traducción
@@ -27,25 +34,52 @@ CONTENIDO = os.environ.get("CANON_CONTENIDO") or os.path.expanduser(
 ALIAS = {"legacy-application": "application"}
 
 
-def hay_corpus():
-    return os.path.isdir(CONTENIDO)
+_cache = None
+
+
+def _get(ruta):
+    with urllib.request.urlopen(URL + ruta, timeout=TIMEOUT) as r:
+        return json.load(r)
 
 
 def mapas():
-    """{tema: map.json}. Vacío si el corpus no está clonado."""
+    """{tema: {"areas": [...]}}, leído una vez por proceso. Vacío si canon no respondió.
+
+    La clave es el tema sin su capa (`kyc/context` → `kyc`), que es como lo nombran `canon:` en las
+    tareas y las salidas de workers.
+    """
+    return {tema: {"areas": t["areas"]} for tema, t in _temas().items()}
+
+
+def prosas():
+    """{tema: texto} — la prosa de cada tema, secciones y bloques en orden. Vacío si canon no respondió."""
+    return {tema: t["prosa"] for tema, t in _temas().items()}
+
+
+def _temas():
+    global _cache
+    if _cache is not None:
+        return _cache
     out = {}
-    if not hay_corpus():
-        return out
-    for tema in sorted(os.listdir(CONTENIDO)):
-        ruta = os.path.join(CONTENIDO, tema, "map.json")
-        if not os.path.isfile(ruta):
-            continue
-        try:
-            with open(ruta, encoding="utf-8") as fh:
-                out[tema] = json.load(fh)
-        except (OSError, ValueError):
-            continue
+    try:
+        ids = [n["id"] for n in _get("/api/index").get("nodes") or [] if n.get("id")]
+        for i in range(0, len(ids), POR_PEDIDO):
+            tanda = ",".join(ids[i:i + POR_PEDIDO])
+            leido = _get("/api/read?ids=" + urllib.parse.quote(tanda, safe=","))
+            for n in leido.get("nodes") or []:
+                textos = []
+                for s in n.get("sections") or []:
+                    textos.append(s.get("title") or "")
+                    textos.extend(b.get("text") or "" for b in s.get("blocks") or [])
+                out[n["id"].split("/")[0]] = {"areas": n.get("areas") or [], "prosa": "\n".join(textos)}
+    except (urllib.error.URLError, OSError, ValueError, KeyError):
+        out = {}
+    _cache = out
     return out
+
+
+def hay_corpus():
+    return bool(_temas())
 
 
 def archivos_por_tema(ms=None):
@@ -87,7 +121,7 @@ def tablas_por_tema(ms=None):
     """{tabla: [temas]} — lo que cada tema DECLARA en `areas[].tablas`.
 
     ⚠ No es todo: una tabla puede estar explicada en la prosa sin figurar en la lista. Quien necesite
-    la respuesta completa tiene que mirar también el `context.md` (lo hace la huella del trazador).
+    la respuesta completa tiene que mirar también la prosa del tema (lo hace la huella del trazador).
     """
     fuera = {}
     for tema, m in (ms if ms is not None else mapas()).items():

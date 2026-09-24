@@ -12,7 +12,7 @@ falta**: concluyen bien sobre contexto ya armado, y queman presupuesto cuando ti
 (¿cómo se filtra un error? ¿qué columna es? ¿qué archivos existen?). El trabajo fino vive en los
 índices y en las herramientas, no en el prompt — separarlos sería una frontera de mentira.
 
-> ⚠ La dependencia va en un solo sentido: **workers lee canon** (sus `map.json`, por `tools/canon.py`)
+> ⚠ La dependencia va en un solo sentido: **workers lee canon** (los mapas de sus temas, por su API con `tools/canon.py`)
 > **y canon no sabe que esto existe.** El enlace unidireccional evita que al mover una pieza la otra
 > quede mintiendo — y con canon importa más que antes, porque vive en otro repo y lo edita el equipo.
 
@@ -144,7 +144,7 @@ los workspaces del monorepo (25) y los módulos de Laravel (20). Se descubren le
 > rama donde `Modules/Backoffice` **no existe**. Un descubridor que caminara el disco lo habría borrado
 > del índice sin que nada avisara — justo el módulo que sólo vive en `main`.
 
-**3 · El puente** — **derivado**: qué temas de canon describen cada repo. Cada `map.json` ya lista
+**3 · El puente** — **derivado**: qué temas de canon describen cada repo. El mapa de cada tema ya lista
 sus archivos como `alias/relpath`; la pertenencia estaba en los datos, sólo faltaba leerla al revés.
 
 **4 · El mapa de negocio** — `./cli.py mapa <alias>`. Cruza las capas 2 y 3: para **cada unidad** del
@@ -183,7 +183,7 @@ un archivo cambiado tiene otra llave, así que el caché no puede devolver algo 
 
 Todos comparten la misma llave, la **ruta**, así que se juntan sin ceremonia:
 
-    canon (map.json)     →  qué archivos describe cada tema de negocio   → campo `nodos`
+    canon (mapas, API)   →  qué archivos describe cada tema de negocio   → campo `nodos`
     logs.json            →  qué archivos emiten mensajes                 → campo `loguea`
     el extractor         →  de qué tipo es cada archivo                  → campo `tipo`
 

@@ -13,7 +13,7 @@ CONSTRUIDOS los proyectos» (arquitectura, entra por repo). Y las reglas difiere
 el `turbo.json`, el `openapi.yaml` y el ADR **son** la respuesta. Distinta pregunta, distinta regla,
 validador propio — que es este archivo.
 
-LA DEPENDENCIA VA EN UN SOLO SENTIDO: este proyecto lee canon (sus `map.json`, por `tools/canon.py`),
+LA DEPENDENCIA VA EN UN SOLO SENTIDO: este proyecto lee canon (los mapas de sus temas, por su API con `tools/canon.py`),
 y canon no sabe que esto existe. Misma regla que la del tablero con los temas: el enlace
 unidireccional evita que al mover una pieza quede la otra mintiendo.
 

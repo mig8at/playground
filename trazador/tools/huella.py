@@ -48,14 +48,12 @@ sys.path.insert(0, os.path.join(PLAYGROUND, "tools"))
 sys.path.insert(0, os.path.join(PLAYGROUND, "tablero", "tools"))
 from citations import del_ref  # noqa: E402
 
-# El corpus contra el que se cruza lo medido. ⚠ Hasta el 2026-09-21 era el árbol de `context/`, que se
-# apagó; hoy es canon, que declara por área sus `tablas` y sus `fuentes` (archivo → hash). La pregunta
-# es la misma —«¿qué toca este flujo que nadie explica?»— contra el corpus que sobrevive. Quien sabe
-# leerlo es `tools/canon.py`, que además traduce el nombre del monolito (`legacy-application` allá,
+# El corpus contra el que se cruza lo medido es canon, que declara por área sus `tablas` y sus `fuentes`
+# (archivo → hash). La pregunta es «¿qué toca este flujo que nadie explica?». Quien sabe leerlo, por su
+# API, es `tools/canon.py`, que además traduce el nombre del monolito (`legacy-application` allá,
 # `application` acá): sin esa traducción el repo más grande saldría con cero temas.
 import canon as _canon  # noqa: E402
 
-CANON = _canon.CONTENIDO
 HARNESS = os.path.join(PLAYGROUND, "harness")
 TEMPO = "http://127.0.0.1:3200/api/traces/"
 ESCRIBE = re.compile(r'\b(?:insert\s+into|update|delete\s+from)\s+`?([a-z_][a-z0-9_]*)`?', re.I)
@@ -141,18 +139,14 @@ def main():
     existen, _, _ = del_ref(None)
 
     # ¿qué tabla nombra algún tema de canon? Se pregunta por los DOS lados: `areas[].tablas`, que es
-    # la declaración explícita, y la prosa del `context.md`, donde una tabla puede estar explicada sin
-    # figurar en la lista. Mirar sólo la declaración daría «huérfana» a una tabla que sí está contada.
+    # la declaración explícita, y la prosa del tema, donde una tabla puede estar explicada sin figurar
+    # en la lista. Mirar sólo la declaración daría «huérfana» a una tabla que sí está contada.
     declaran = defaultdict(set)
     for tema, m in mapas.items():
         for a in m.get("areas") or []:
             for t in a.get("tablas") or []:
                 declaran[t].add(tema)
-    prosa = {}
-    for tema in mapas:
-        d = os.path.join(CANON, tema, "context.md")
-        if os.path.isfile(d):
-            prosa[tema] = open(d, errors="replace").read()
+    prosa = _canon.prosas()
     def quien_explica(t):
         en_prosa = {n for n, txt in prosa.items() if re.search(rf'`?\b{re.escape(t)}\b`?', txt)}
         return sorted(declaran.get(t, set()) | en_prosa)

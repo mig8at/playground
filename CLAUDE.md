@@ -23,7 +23,7 @@ herramienta: es suponer que no está y contestar de memoria.
 |---|---|
 | **no conozco el dominio, ¿por dónde empiezo?** | `workers/cli.py negocio` — los 23 conceptos en orden, con el tema que explica cada uno |
 | **¿cómo funciona X?** | **canon** — el corpus compartido del equipo, en `github/playground/tools/canon` y en canon.playground.creditop.com. **Siempre primero.** `go run . -pregunta '<la pregunta>'` desde ahí, o `/api/search?q=…`, que es gratis |
-| **retomo una tarea del tablero** | `make retomar N=… BRIEF=1` — la tarea YA declara sus temas en `canon:`, así que no hay nada que elegir: lo que cuesta es abrir los `context.md` (`kyc` 31 KB), y la **ficha** de cada tema alcanza para decidir cuál. ⚠ La ficha se DERIVA del `map.json` (título, resumen y el `objetivo` de cada área, escritos a mano): no cuesta un modelo y no puede inventar. Medido el 2026-09-21: dos fichas pesan 7.055 B contra 51.284 B de sus documentos — **7,3×**. ⚠ Regla de corte: **si la ficha no contesta, no probés otro tema — la pregunta va a `workers/`** |
+| **retomo una tarea del tablero** | `make retomar N=… BRIEF=1` — la tarea YA declara sus temas en `canon:`, así que no hay nada que elegir: lo que cuesta es leer los temas enteros (`kyc` 31 KB), y la **ficha** de cada tema alcanza para decidir cuál. ⚠ La ficha se DERIVA de los metadatos del tema (título, resumen y el `objetivo` de cada área, escritos a mano): no cuesta un modelo y no puede inventar. Medido el 2026-09-21: dos fichas pesan 7.055 B contra 51.284 B de sus documentos — **7,3×**. ⚠ Regla de corte: **si la ficha no contesta, no probés otro tema — la pregunta va a `workers/`** |
 | **¿ya nos pasó?** | `tablero/data/traps/doc.md`, entrando por su índice de síntomas |
 | **¿por qué existe esta regla?** (política, contrato, qué se le ofreció al comercio) | `make confluence` — el porqué del negocio no está en el código |
 | **…y si canon no lo cubre** | `workers/` — el índice se deriva de `main`, así que cubre TODO el código, incluido lo que nadie escribió (ver abajo) |
@@ -510,9 +510,11 @@ campo se llama **`canon:`** y sus valores son temas del corpus.
    detalle y lo medido que lo justifica: `tablero/CLAUDE.md`.
 2. **El CONTEXTO se lee ANTES de investigar, y está en canon.** Para encontrar el tema:
    `go run . -pregunta '<la pregunta>'` desde el repo de canon, o `/api/search?q=…`, que es gratis y
-   devuelve la sección exacta con los archivos que la sostienen. Cada tema es
-   `content/<tema>/context.md` (la prosa) + `map.json` (las áreas, con sus `fuentes`: archivo → hash
-   del blob contra el que se verificó). El código real vive **fuera**, en `~/Desktop/CREDITOP/github/`
+   devuelve la sección exacta con los archivos que la sostienen. Cada tema tiene su prosa (secciones)
+   y su mapa (las áreas, con sus `fuentes`: archivo → hash del blob contra el que se verificó), y los
+   dos viven en la base de canon, en Postgres: cada escritura es una revisión con autor, motivo y
+   fecha. Se leen por la API (`/api/read`, `/api/code`) y no hay archivos del corpus en ningún repo. El
+   código real vive **fuera**, en `~/Desktop/CREDITOP/github/`
    (`legacy-backend`, `frontend-monorepo`, `legacy-application`, `pre-approvals-service`) — grandes:
    entrar por grep sin mapa es la forma lenta. ⚠ Y al **retomar** no se elige tema: la tarea ya lo
    declara en `canon:`. `make retomar N=… BRIEF=1` trae la ficha de cada uno para decidir cuál abrir
@@ -536,6 +538,14 @@ campo se llama **`canon:`** y sus valores son temas del corpus.
    CreditOp", y lo ve el equipo. La tarea se marca `archived` en su frontmatter. Ejemplo hecho: la
    omisión de Experian por cupo ya confirmado vive hoy en el tema `kyc`.
 
+   **Cómo se escribe en canon:** por la API, con la llave de escritura (`CANON_WRITE_KEY`, en el
+   `.env` de `tools/canon`): `POST /api/draft` → una pieza por sección con `POST /api/draft/{id}` →
+   `POST /api/draft/{id}/close`. El cierre valida el corpus entero y guarda todo junto en una revisión;
+   al confirmarse ya es conocimiento vigente. `POST /api/propose` ensaya una pieza sin escribir. ⚠ La
+   escritura va contra canon de **producción** (canon.playground.creditop.com), que pide la VPN de
+   prod; la instancia local (`localhost:8080`) tiene su propia base y lo que se escribe ahí no lo ve
+   el equipo.
+
    ⚠ **Canon rechaza la CRÓNICA por regla escrita** (`skills/dictar.md`): van las reglas que existen
    en `main` —técnicas, de negocio o de producto, incluidos sus errores—, sin el relato de quién las
    descubrió, sin resultados de experimentos y sin PRs sin mergear. Lo que no pasa ese filtro y aun
@@ -557,8 +567,8 @@ dos funcionalidades invisibles:**
 2. Confirmá que el hueco es real: `git log main --oneline -- <ruta>` (cuándo entró y quién) + una
    búsqueda en canon (`/api/search?q=…`). Si nadie lo menciona, ahí hay algo.
 3. Preguntá. `make agente-analisis PREGUNTA='…'` si hay mucho que leer; a mano si son 3 archivos.
-4. **Verificá contra `main`** lo que devuelva, y recién ahí dictalo a canon. ⚠ El cambio de prosa y el
-   del hash van **juntos**: mover el hash sin releer dice «esto sigue siendo cierto» sin que nadie lo
+4. **Verificá contra `main`** lo que devuelva, y recién ahí dictalo a canon (por la API, paso 5). ⚠ El
+   cambio de prosa y el del hash van **juntos**: mover el hash sin releer dice «esto sigue siendo cierto» sin que nadie lo
    haya comprobado.
 5. **Una sección nueva no revalida el área entera.** Agregar no es revisar; decir que revisaste lo que
    sólo ampliaste es la forma más barata de envejecer un corpus sin que se note.

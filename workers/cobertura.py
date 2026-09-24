@@ -22,18 +22,17 @@ CLONES = os.path.expanduser("~/Desktop/CREDITOP/github")
 
 
 def areas_de_canon():
-    """(repo, ruta) → [(tema, n)], leído de los mapas del corpus. Es la fuente, no una copia."""
+    """(repo, ruta) → [(tema, n)], leído de los mapas del corpus por su API (`tools/canon.py`). Es la
+    fuente, no una copia. Vacío si canon no respondió: el cruce sale sin nada declarado y lo avisa."""
+    sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "tools"))
+    import canon as _canon  # noqa: E402
+
     porArchivo = defaultdict(list)
     objetivos = {}
-    raiz = os.path.join(CANON, "content")
-    if not os.path.isdir(raiz):
-        return porArchivo, objetivos
-    for tema in sorted(os.listdir(raiz)):
-        p = os.path.join(raiz, tema, "map.json")
-        if not os.path.isfile(p):
-            continue
-        with open(p, encoding="utf-8") as f:
-            mapa = json.load(f)
+    mapas = _canon.mapas()
+    if not mapas:
+        print(f"  ⚠ canon no respondió ({_canon.URL}): nada figura como declarado", file=sys.stderr)
+    for tema, mapa in sorted(mapas.items()):
         for i, a in enumerate(mapa.get("areas", [])):
             objetivos[(tema, i)] = a.get("objetivo", "")
             for repo, rutas in (a.get("fuentes") or {}).items():
