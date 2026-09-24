@@ -11,13 +11,26 @@ ramas: feat/ecommerce-checkout-por-settings, fix/restaurar-ecommerce-en-qa
 
 ## Pendientes
 
-- [ ] **Mergear `frontend-monorepo#1051` a `qa` y redesplegar el front de QA**; termina cuando
-      `https://originaciones-qa.dev.creditop.com/ecommerce/13874eb6/checkout` deje de dar 404.
-      Repone lo que el merge de #1048 revirtió en `qa`.
+- [ ] **Publicar en canon la sección del monto que se le avisa al comercio** (`cuota/context`), ya
+      ensayada (`ready: true`) y con sus 8 archivos verificados en `main`: texto y campos en
+      `artifacts/canon-aviso-al-comercio.md`. Termina cuando aparezca en canon de producción.
+      Depende de: la VPN de prod — canon de producción no respondió desde la de dev.
+- [ ] **Preguntarle a producto si el aviso al comercio tiene que llevar el total del pedido** y no el
+      monto financiado: la tienda cobró 2.000.000 y recibió `approvedAmount` 2.140.000 (costos
+      administrativos del 7 %). Pesa más en VTEX, que recibe ese monto en `value`. Termina con la
+      decisión. Depende de: producto.
+- [ ] **Medir en producción cuántas compras de tienda recibieron un monto distinto del pedido**
+      (`final_amount <> amount` en solicitudes autorizadas con `ecommerce_requests.processed = 1`, 90
+      días). Depende de: la VPN de prod.
+- [ ] **Comprobar el retorno a la tienda**: el `GET` de «Regresar al comercio» sólo sale clickeando en
+      el navegador; termina cuando una compra hecha desde el artefacto lo deje en la bandeja.
 - [ ] **Preguntarle a Santi si su front de Credito365 quedó sin pushear**: #1048 no trae ningún cambio
       de Credito365. Termina con su respuesta.
-- [ ] **Correr el flujo de punta a punta en QA con Pullman** (entrada `aliados`) una vez desplegado
-      #1051; termina cuando la compra llegue al listado y el veredicto a la bandeja de webhook.site.
+- [x] ~~Mergear `frontend-monorepo#1051` a `qa` y redesplegar~~ — mergeado y desplegado; la flota
+      terminó de rotar a las 00:27 UTC (el checkout pasó de 404 a responder).
+- [x] ~~Correr el flujo de punta a punta en QA con Pullman~~ — uReq 502705 en estado 11 con
+      CrediPullman, y el veredicto llegó a webhook.site (`POST`, `status: completed`,
+      `transactionId 7482_502705`).
 - [ ] **Actualizar el artefacto**: el destino medido del rebote sigue diciendo `originaciones.qa`;
       hoy es `originaciones-qa.dev` (medido 19:13).
 - [x] ~~Mergear `legacy-application#201` a `develop`~~ — mergeado y desplegado: AHL (no habilitado)
