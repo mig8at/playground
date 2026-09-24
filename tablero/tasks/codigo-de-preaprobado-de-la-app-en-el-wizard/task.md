@@ -42,8 +42,8 @@ jira_title: "Código de preaprobado de la app en la plataforma nueva"
 - [x] Validar en `qa` un canje real — código `9997` → solicitud 502728 con CrediPullman y el listado con
       una sola entidad (2026-09-24).
 - [ ] Llevar a `main` los tres PRs de la tarea (backend #1455, front #1045 y #1049), hoy sólo en `qa`.
-- [ ] Apagar el camino viejo en aliados, recién con el canje en producción. El `AA0000` de
-      self-manager-api (hoy sólo en su `develop`) no lo bloquea: el wizard acepta los dos formatos.
+      Es el único pendiente: el alcance está hecho y probado en `qa` (2026-09-24). Al llegar a `main`,
+      graduar a canon y archivar.
 
 ## Objetivo
 
@@ -210,6 +210,9 @@ historia de cómo se llegó.)*
 
 ## Lo que NO entra
 
+- **Apagar el camino viejo en aliados** (decisión de Miguel, 2026-09-24): la tarea termina cuando el
+  código se canjea y el usuario ya registrado ve el listado con su entidad. Retirar la pantalla de
+  aliados es otra decisión, para después de que el camino nuevo esté en producción.
 - La emisión del código: la hace self-manager-api y la app ya lo llama; es contraparte, no esta tarea.
 - Cambiar lo que la app muestra hoy.
 - Tocar la consulta de preaprobados de la app.
