@@ -692,9 +692,10 @@ como las **perillas** (Cognito, mocks, `SEED`). Ya **no** hay capa compartida `e
 2026-07-22). Prioridad: `process.env` > `<herramienta>/.env.<target>`.
 
 ⚠ **Salvo lo que ya pasó a `connectors/`** (tarea #90, frente «Una consulta por ambiente»): la base de
-cada ambiente —MySQL directo o Redash— la abre `connectors/sql`, y Loki lo lee `connectors/logs`, los dos
-con las credenciales de `connectors/.env.<target>` (plantilla: `connectors/.env.example`). El tablero, el
-trazador, el harness y workers ya no las guardan; desde otro lenguaje se llega por **`bin/pg`**
+cada ambiente —MySQL directo o Redash— la abre `connectors/sql`, Loki lo lee `connectors/logs` y PostHog
+`connectors/events`, los tres con las credenciales de `connectors/.env.<target>` (plantilla:
+`connectors/.env.example`). El tablero, el trazador, el harness y workers ya no las guardan —el trazador
+no tiene `.env` propio—; desde otro lenguaje se llega por **`bin/pg`**
 (`bin/pg help`, o `make pg ARGS='…'`). Las claves de base van **con el prefijo `E2E_DB_`**, nunca como `DB_HOST`: ese nombre es el que
 lee Laravel, y el conector no lo lee ni del archivo ni del proceso. Los demás servicios se van mudando
 de a uno; hasta entonces siguen en el `.env` de cada herramienta.

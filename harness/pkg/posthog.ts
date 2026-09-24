@@ -32,50 +32,60 @@
 // rama del target —no de una lista horneada acá—, igual que `dev/pantallas.ts` deriva el recorrido del
 // router. Con eso, una pantalla caminada sin su evento, o un evento que apareció sin pasar por su
 // pantalla (`credit_rejected` lo dispara `request-canceled`), se ve solo.
-import { execFileSync } from 'node:child_process';
+import { execFile, execFileSync } from 'node:child_process';
+import { fileURLToPath } from 'node:url';
+import { promisify } from 'node:util';
 import { env, TARGET } from './env.ts';
 
+// QUÉ PostHog atiende cada ambiente —la API, el token, el proyecto, el valor de `environment`— y cuáles
+// no escriben nada (local, dev) NO lo decide el harness: lo decide `connectors/events`, y se le pregunta
+// por `bin/pg`. Hasta el 2026-09-24 el harness tenía su propio cliente y sus claves (`E2E_POSTHOG_*`), y
+// el trazador otras; las reglas de qué ambiente no escribe sólo las sabía éste. Lo que sigue siendo del
+// harness son sus perillas de espera.
+const PG = fileURLToPath(new URL('../../bin/pg', import.meta.url));
+const pgAsync = promisify(execFile);
+
 export type PostHogConfig = {
-    token: string; project: string; env: string; api: string; settleMs: number; maxWaitMs: number;
+    project: string; env: string; api: string; hasToken: boolean;
+    /** Por qué el conector dice que no se consulta este ambiente, o vacío. */
+    missing: string;
+    settleMs: number; maxWaitMs: number;
 };
 
 export function posthogConfig(): PostHogConfig {
+    let pc = { project: '', env: '', api: '', hasToken: false, missing: '' };
+    try {
+        pc = JSON.parse(execFileSync(PG, ['events', 'config', '--target', TARGET], { encoding: 'utf8', timeout: 120_000 }));
+    } catch (e) {
+        const err = e as { stderr?: string; message?: string };
+        pc.missing = `bin/pg no pudo decir qué PostHog atiende ${TARGET}: ${(err.stderr || err.message || String(e)).trim().split('\n').pop()}`;
+    }
     return {
-        token: env('E2E_POSTHOG_TOKEN').trim(),
-        project: env('E2E_POSTHOG_PROJECT', '238530').trim(),
-        env: env('E2E_POSTHOG_ENV').trim(),
-        api: env('E2E_POSTHOG_API', 'https://us.posthog.com').replace(/\/+$/, ''),
+        ...pc,
         settleMs: Number(env('E2E_POSTHOG_SETTLE_MS', '8000')) || 0,
         maxWaitMs: Number(env('E2E_POSTHOG_MAX_WAIT_MS', '120000')) || 0,
     };
 }
 
-/** Por qué NO se consulta. `null` = se puede. La razón se imprime: un silencio se lee como «no pasó nada». */
+/** Por qué NO se consulta. `null` = se puede. La razón se imprime: un silencio se lee como «no pasó nada».
+ *  Las reglas (local y dev no escriben; el token es un `phx_`; sin ambiente una solicitud homónima de prod
+ *  contamina la respuesta) son del conector. */
 export function porQueNo(c: PostHogConfig): string | null {
-    if (TARGET === 'local') return 'el front local no escribe en PostHog (APP_ENV=local apaga getServerPostHog)';
-    // El target `dev` sirve el front LOCAL (:5174) contra el backend de dev — ver harness/CLAUDE.md
-    // §«Qué es real en cada target». O sea que su front tampoco escribe. Medido 2026-09-02: en 7 días
-    // NO existe un solo evento ni log con ambiente «dev»; los únicos que escriben son `staging`
-    // (los deploys de qa y de staging) y `production`.
-    if (TARGET === 'dev') return 'el target dev sirve el front LOCAL, que no escribe en PostHog — los ambientes que escriben son staging (qa y staging) y production';
-    if (!c.token) return `sin E2E_POSTHOG_TOKEN en .env.${TARGET} (una PERSONAL API KEY phx_, no el phc_ del front)`;
-    if (!c.token.startsWith('phx_')) return 'E2E_POSTHOG_TOKEN no es una personal API key (phx_): el phc_ del front es de escritura y da 401';
-    if (!c.env) return `sin E2E_POSTHOG_ENV en .env.${TARGET}: sin ambiente, un uReq homónimo de prod contamina la respuesta`;
-    return null;
+    return c.missing || null;
 }
 
 export type Evento = { ts: string; evento: string; lib: string; canal: string | null; url: string | null; props: Record<string, unknown> };
 
-async function hogql(c: PostHogConfig, query: string): Promise<{ columns: string[]; results: any[][] }> {
-    const r = await fetch(`${c.api}/api/projects/${c.project}/query/`, {
-        method: 'POST',
-        headers: { authorization: `Bearer ${c.token}`, 'content-type': 'application/json' },
-        body: JSON.stringify({ query: { kind: 'HogQLQuery', query } }),
-        signal: AbortSignal.timeout(60_000),
-    });
-    const j: any = await r.json().catch(() => ({}));
-    if (!r.ok || !Array.isArray(j?.results)) throw new Error(`PostHog HTTP ${r.status}: ${JSON.stringify(j).slice(0, 200)}`);
-    return { columns: j.columns ?? [], results: j.results };
+async function hogql(_c: PostHogConfig, query: string): Promise<{ columns: string[]; results: any[][] }> {
+    try {
+        const { stdout } = await pgAsync(PG, ['events', 'hogql', '--target', TARGET, '--query', query],
+            { encoding: 'utf8', timeout: 90_000, maxBuffer: 64 << 20 });
+        const j = JSON.parse(stdout) as { columns?: string[]; results?: any[][] };
+        return { columns: j.columns ?? [], results: j.results ?? [] };
+    } catch (e) {
+        const err = e as { stderr?: string; message?: string };
+        throw new Error((err.stderr || err.message || String(e)).trim().replace(/^pg: /, ''));
+    }
 }
 
 const esc = (s: string) => s.replace(/\\/g, '\\\\').replace(/'/g, "\\'");

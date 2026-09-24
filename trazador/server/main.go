@@ -43,6 +43,7 @@
 package main
 
 import (
+	"creditop/playground/connectors/events"
 	"creditop/playground/connectors/logs"
 	"encoding/base64"
 	"encoding/json"
@@ -77,132 +78,45 @@ type config struct {
 	// base es, sus credenciales y si va por MySQL directo o por Redash ya no los sabe el trazador.
 	target string
 
-	// PostHog: la TERCERA fuente. La BD dice qué pasó y Loki por qué falló el backend; PostHog dice qué
-	// VIO y qué TOCÓ el cliente en el navegador — el punto ciego de hoy. Se pega a una solicitud sin
-	// heurística: el wizard usa `distinct_id = loan_request_<user_request_id>` (`getLoanRequestDistinctId`
-	// en frontend-monorepo/apps/loan-request-wizard/app/utils/analytics-taxonomy.ts:452).
-	//
-	// ⚠ El token NO es el `phc_` del snippet del front: ese es de ESCRITURA y no consulta nada. Acá va una
-	// Personal API key (`phx_`) con scope de lectura de queries — ver .env.prod.example.
-	posthogToken   string
-	posthogAPI     string // https://us.posthog.com (el host de la API, distinto del de ingesta)
-	posthogProject string // id NUMÉRICO del proyecto; el paso 1 lo descubre solo si el scope alcanza
-	posthogEnv     string // filtro de `properties.environment` (production|staging|dev). Vacío = sin filtro
+	// posthog es a qué PostHog preguntarle en este ambiente, tal como lo resuelve `connectors/events`: la
+	// API de lectura, el token (una Personal API key `phx_`, no el `phc_` del front), el proyecto y el
+	// valor de `properties.environment`. Qué ambientes no escriben (local, dev) también lo sabe el conector.
+	posthog events.Config
 }
 
 // alias mapea cada campo a los nombres de variable que aceptamos. Los `GRAFANA_LOKI_*` son los que usa
 // legacy-backend en su propio .env: aceptarlos permite pegar las vars del deploy tal como están.
-var alias = map[string][]string{
-	// PostHog. `VITE_PUBLIC_POSTHOG_HOST` es el nombre que usa el wizard para el host de INGESTA: se acepta
-	// como último recurso para no tener que buscarlo, pero la API de lectura vive en otro subdominio y
-	// `normalizePostHogAPI` lo corrige (us.i.posthog.com → us.posthog.com).
-	"posthogToken":   {"POSTHOG_TOKEN", "POSTHOG_PERSONAL_API_KEY"},
-	"posthogAPI":     {"POSTHOG_API", "POSTHOG_HOST", "VITE_PUBLIC_POSTHOG_HOST"},
-	"posthogProject": {"POSTHOG_PROJECT", "POSTHOG_PROJECT_ID"},
-	"posthogEnv":     {"POSTHOG_ENV"},
-}
 
 // loadConfig busca los valores en `process.env` y en el `.env.<target>` de la propia herramienta, en ese
 // orden. NO hay capa compartida (un `playground/.env` común): cada herramienta del playground es
 // autosuficiente por target, que es la convención de la casa desde que se eliminó `env/` el 2026-07-22.
 // La segunda ruta cubre la invocación desde la raíz (`make`) además de desde `sonda/`.
 func loadConfig(target string) (config, []string) {
-	// Los `.env.<target>` viven en la RAÍZ de la herramienta (convención del playground), y el binario
-	// corre desde `server/`. De ahí el `..`: el env es de la herramienta, no del server.
-	files := []string{
-		filepath.Join("..", ".env."+target),
-		".env." + target,
-		filepath.Join("trazador", ".env."+target),
-	}
-
-	var checked []string
-	fromFile := map[string]string{}
-	seen := map[string]bool{}
-	for _, f := range files {
-		abs, err := filepath.Abs(f)
-		if err != nil || seen[abs] {
-			continue
-		}
-		seen[abs] = true
-		kv, err := parseEnvFile(f)
-		if err != nil {
-			continue
-		}
-		checked = append(checked, f)
-		for k, v := range kv {
-			if _, ok := fromFile[k]; !ok {
-				fromFile[k] = v
-			}
-		}
-	}
-
-	pick := func(field string) (string, string) {
-		for _, k := range alias[field] {
-			if v := strings.TrimSpace(os.Getenv(k)); v != "" {
-				return v, "entorno:" + k
-			}
-		}
-		for _, k := range alias[field] {
-			if v := strings.TrimSpace(fromFile[k]); v != "" {
-				return v, "archivo:" + k
-			}
-		}
-		return "", ""
-	}
-
+	// Todo lo que el trazador lee de afuera —la base, Loki, PostHog— lo resuelven los conectores con
+	// `connectors/.env.<target>`: el trazador ya no guarda credenciales propias (desde el 2026-09-24).
 	c := config{target: target}
-	var origins []string
-	var lokiFile string
+	var origins, checked []string
+	note := func(what, file string) {
+		from := "entorno"
+		if file != "" {
+			from = "connectors/" + filepath.Base(file)
+			if !contiene(checked, from) {
+				checked = append(checked, from)
+			}
+		}
+		origins = append(origins, what+" <- "+from)
+	}
+	var lokiFile, posthogFile string
 	c.loki, lokiFile, _ = logs.LoadConfig(target)
 	if c.loki.URL != "" {
-		// El detalle de cada clave de Loki es del conector: acá sólo se dice de qué archivo salió.
-		from := "entorno"
-		if lokiFile != "" {
-			from = "connectors/" + filepath.Base(lokiFile)
-		}
-		origins = append(origins, "loki <- "+from)
+		note("loki", lokiFile)
 	}
-	for _, field := range []string{"posthogToken", "posthogAPI", "posthogProject", "posthogEnv"} {
-		v, from := pick(field)
-		switch field {
-		case "posthogToken":
-			c.posthogToken = v
-		case "posthogAPI":
-			c.posthogAPI = normalizePostHogAPI(v)
-		case "posthogProject":
-			c.posthogProject = v
-		case "posthogEnv":
-			c.posthogEnv = v
-		}
-		if from != "" {
-			origins = append(origins, field+" <- "+from)
-		}
+	c.posthog, posthogFile, _ = events.LoadConfig(target)
+	if c.posthog.Token != "" {
+		note("posthog", posthogFile)
 	}
 	c.source = strings.Join(origins, ", ")
 	return c, checked
-}
-
-// parseEnvFile lee un KEY=VALUE por línea. Suficiente a propósito: no hay interpolación ni multilínea en
-// los .env del playground, y un parser que inventa features es un parser que sorprende.
-func parseEnvFile(path string) (map[string]string, error) {
-	raw, err := os.ReadFile(path)
-	if err != nil {
-		return nil, err
-	}
-	out := map[string]string{}
-	for _, line := range strings.Split(string(raw), "\n") {
-		line = strings.TrimSpace(line)
-		if line == "" || strings.HasPrefix(line, "#") {
-			continue
-		}
-		line = strings.TrimPrefix(line, "export ")
-		k, v, ok := strings.Cut(line, "=")
-		if !ok {
-			continue
-		}
-		out[strings.TrimSpace(k)] = strings.Trim(strings.TrimSpace(v), `"'`)
-	}
-	return out, nil
 }
 
 // ─── el token dice dónde vive ───────────────────────────────────────────────────────────────────────
@@ -611,13 +525,13 @@ func main() {
 	}
 
 	if c.loki.Token == "" {
-		buscado := strings.Join(alias["token"], " / ")
+		buscado := "LOKI_TOKEN / GRAFANA_LOKI_PASSWORD / GRAFANA_LOKI_TOKEN"
 		donde := strings.Join(checked, ", ")
 		if donde == "" {
-			donde = "(ningún .env." + *target + " existe todavía)"
+			donde = "(no existe connectors/.env." + *target + ")"
 		}
 		fmt.Fprintf(os.Stderr, "%s no hay token para el target «%s».\n\nBuscado como %s en: %s\n\n"+
-			"Copiá trazador/.env.prod.example a trazador/.env.%s y completalo, o exportá LOKI_TOKEN.\n",
+			"Copiá connectors/.env.example a connectors/.env.%s y completalo, o exportá LOKI_TOKEN.\n",
 			paint("31", "✘"), *target, buscado, donde, *target)
 		os.Exit(2)
 	}

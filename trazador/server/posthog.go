@@ -24,122 +24,20 @@ package main
 // a un SaaS sería exactamente lo que no queremos.
 
 import (
-	"bytes"
+	"creditop/playground/connectors/events"
 	"encoding/json"
 	"fmt"
-	"io"
-	"net/http"
 	"strings"
 	"time"
 )
 
-// La API de lectura y la de ingesta viven en subdominios DISTINTOS y confundirlas da un 404 que parece
-// «no tengo permiso». El front usa `us.i.posthog.com` (ingesta + assets); las queries van a `us.posthog.com`.
-const posthogAPIDefault = "https://us.posthog.com"
+// phCliente es el cliente de PostHog del conector (`connectors/events`): la API, el token, el proyecto,
+// el filtro de ambiente y el transporte son de ahí. Lo que es del trazador son sus modos (el censo, el
+// recorrido de una solicitud) y sus consultas.
+type phCliente struct{ *events.Client }
 
-// normalizePostHogAPI acepta lo que uno tenga a mano —el host de ingesta del deploy del wizard, una URL
-// con path, o nada— y devuelve el origen de la API. Sin esto, pegar `VITE_PUBLIC_POSTHOG_HOST` tal cual
-// (que es lo natural) falla con 404 en todos los pasos.
-func normalizePostHogAPI(v string) string {
-	v = strings.TrimSpace(v)
-	if v == "" {
-		return ""
-	}
-	if !strings.Contains(v, "://") {
-		v = "https://" + v
-	}
-	v = strings.TrimRight(v, "/")
-	// Recorta cualquier path (`/api/...`, `/decide`) y deja el origen.
-	if i := strings.Index(v[strings.Index(v, "://")+3:], "/"); i >= 0 {
-		v = v[:strings.Index(v, "://")+3+i]
-	}
-	// El host de ingesta NO sirve para consultar: `us.i.posthog.com` → `us.posthog.com`.
-	v = strings.Replace(v, "://us.i.posthog.com", "://us.posthog.com", 1)
-	v = strings.Replace(v, "://eu.i.posthog.com", "://eu.posthog.com", 1)
-	return v
-}
-
-type phCliente struct {
-	base    string
-	token   string
-	project string
-	env     string
-	http    *http.Client
-}
-
-// pedir hace UNA llamada y devuelve el cuerpo crudo junto al status. Devolver el cuerpo incluso en error
-// es deliberado: los 403 de PostHog traen adentro los scopes que al token le faltan, que es justo el dato
-// que uno fue a buscar — el mismo truco que ya rinde en el paso 1 de la sonda de Loki.
-func (p *phCliente) pedir(metodo, ruta string, cuerpo []byte) (int, []byte, error) {
-	var body io.Reader
-	if cuerpo != nil {
-		body = bytes.NewReader(cuerpo)
-	}
-	req, err := http.NewRequest(metodo, p.base+ruta, body)
-	if err != nil {
-		return 0, nil, err
-	}
-	req.Header.Set("Authorization", "Bearer "+p.token)
-	req.Header.Set("Content-Type", "application/json")
-	resp, err := p.http.Do(req)
-	if err != nil {
-		return 0, nil, err
-	}
-	defer resp.Body.Close()
-	raw, err := io.ReadAll(io.LimitReader(resp.Body, 4<<20))
-	return resp.StatusCode, raw, err
-}
-
-// hogql corre una consulta y devuelve columnas + filas. La respuesta de PostHog trae los valores como
-// arrays posicionales, así que las columnas son la única forma de saber qué es cada cosa.
-func (p *phCliente) hogql(consulta string) ([]string, [][]any, error) {
-	cuerpo, _ := json.Marshal(map[string]any{
-		"query": map[string]any{"kind": "HogQLQuery", "query": consulta},
-	})
-	status, raw, err := p.pedir("POST", "/api/projects/"+p.project+"/query/", cuerpo)
-	if err != nil {
-		return nil, nil, err
-	}
-	if status != 200 {
-		return nil, nil, fmt.Errorf("HTTP %d · %s", status, recorte(raw, 300))
-	}
-	var out struct {
-		Columns []string `json:"columns"`
-		Results [][]any  `json:"results"`
-		Error   string   `json:"error"`
-	}
-	if err := json.Unmarshal(raw, &out); err != nil {
-		return nil, nil, fmt.Errorf("respuesta ilegible: %v · %s", err, recorte(raw, 200))
-	}
-	if out.Error != "" {
-		return nil, nil, fmt.Errorf("%s", out.Error)
-	}
-	return out.Columns, out.Results, nil
-}
-
-// filtroEnv devuelve el `AND` de ambiente, o vacío. Se decide en UN lugar porque un filtro que se aplica
-// en unas consultas y no en otras produce números que no cuadran entre pasos.
-func (p *phCliente) filtroEnv() string {
-	if p.env == "" {
-		return ""
-	}
-	return fmt.Sprintf(" AND properties.environment = '%s'", escapaHogQL(p.env))
-}
-
-// filtroEnvTimeline es el MISMO filtro pero tolerando los que no traen la propiedad, y la diferencia no es
-// cosmética: se descubrió corriendo. Los eventos automáticos de posthog-js ($pageview, $autocapture,
-// $identify) no pasan por `getBaseAnalyticsProperties()`, así que NO llevan `environment` — y en prod son
-// 256.821 de 353.134. Con el filtro estricto, el timeline de una solicitud perdía exactamente lo que uno
-// viene a ver: qué pantallas cargó y qué tocó el cliente.
-//
-// Se puede aflojar sin miedo porque acá el ambiente NO es lo que desambigua: el `distinct_id` ya fija a la
-// persona. Lo único que cubría el filtro era una colisión de ureq entre ambientes, y para eso alcanza con
-// exigir que los eventos que SÍ declaran ambiente sean del nuestro.
-func (p *phCliente) filtroEnvTimeline() string {
-	if p.env == "" {
-		return ""
-	}
-	return fmt.Sprintf(" AND (properties.environment = '%s' OR properties.environment IS NULL)", escapaHogQL(p.env))
+func nuevoPH(c config, timeout time.Duration) *phCliente {
+	return &phCliente{events.New(c.posthog, timeout)}
 }
 
 // ─── el modo ────────────────────────────────────────────────────────────────────────────────────────
@@ -153,31 +51,29 @@ func (p *phCliente) filtroEnvTimeline() string {
 // que arreglar: esta fuente no la cubre).
 func modoPostHog(c config, target string, ureq int64, tel string, limite int) int {
 	step("Configuración · PostHog (%s)", target)
-	if c.posthogToken == "" {
+	if c.posthog.Token == "" {
 		bad("no hay token de PostHog para el target «%s»", target)
-		detail("buscado como %s", strings.Join(alias["posthogToken"], " / "))
+		detail("buscado como POSTHOG_TOKEN / POSTHOG_PERSONAL_API_KEY en connectors/.env.%s", target)
 		detail("")
 		detail("⚠ NO es el `phc_...` del snippet del front: ese es de ESCRITURA y no consulta nada.")
 		detail("Hace falta una Personal API key (`phx_...`) con scope `query:read`:")
 		detail("PostHog → avatar → Personal API keys → New key.")
-		detail("Después: POSTHOG_TOKEN=phx_... en trazador/.env.%s (ver .env.prod.example).", target)
+		detail("Después: POSTHOG_TOKEN=phx_... en connectors/.env.%s (ver connectors/.env.example).", target)
 		return 2
 	}
-	base := c.posthogAPI
-	if base == "" {
-		base = posthogAPIDefault
+	p := nuevoPH(c, 60*time.Second)
+	// Qué ambientes no escriben (local, dev) lo sabe el conector: con token igual se puede consultar,
+	// pero lo que salga no es de este ambiente, y la sonda lo dice antes de que alguien lo lea como tal.
+	if why := c.posthog.Missing(); why != "" && (target == "local" || target == "dev") {
+		detail("⚠ %s", why)
 	}
-	p := &phCliente{
-		base: base, token: c.posthogToken, project: c.posthogProject, env: c.posthogEnv,
-		http: &http.Client{Timeout: 60 * time.Second},
+	detail("token    %s", mask(c.posthog.Token))
+	detail("api      %s", p.Config.API)
+	if p.Config.Project != "" {
+		detail("proyecto %s", p.Config.Project)
 	}
-	detail("token    %s", mask(c.posthogToken))
-	detail("api      %s", p.base)
-	if p.project != "" {
-		detail("proyecto %s", p.project)
-	}
-	if p.env != "" {
-		detail("filtro   properties.environment = %q", p.env)
+	if p.Config.Env != "" {
+		detail("filtro   properties.environment = %q", p.Config.Env)
 	} else {
 		detail("filtro   (ninguno — el paso 3 muestra qué ambientes hay en el proyecto)")
 	}
@@ -193,10 +89,10 @@ func modoPostHog(c config, target string, ureq int64, tel string, limite int) in
 		// el mismo error con otra cara. Un scope faltante da 403 y sí deja seguir.
 		return 2
 	}
-	if id != "" && p.project == "" {
-		p.project = id
+	if id != "" && p.Config.Project == "" {
+		p.Config.Project = id
 	}
-	if p.project == "" {
+	if p.Config.Project == "" {
 		bad("no hay id de proyecto y el token no pudo listarlos")
 		detail("Se lee en PostHog → Settings → Project → Project ID (numérico).")
 		detail("Después: POSTHOG_PROJECT=<id> en trazador/.env.%s", target)
@@ -204,8 +100,8 @@ func modoPostHog(c config, target string, ureq int64, tel string, limite int) in
 	}
 
 	// ── 2 · ¿puedo consultar?
-	step("2 · ¿puedo consultar el proyecto %s?", p.project)
-	if _, filas, err := p.hogql("SELECT count() FROM events WHERE timestamp > now() - INTERVAL 7 DAY"); err != nil {
+	step("2 · ¿puedo consultar el proyecto %s?", p.Config.Project)
+	if _, filas, err := p.HogQL("SELECT count() FROM events WHERE timestamp > now() - INTERVAL 7 DAY"); err != nil {
 		bad("la query falló: %v", err)
 		detail("Un 403 acá casi siempre es scope: la Personal API key necesita `query:read`.")
 		return 1
@@ -236,14 +132,14 @@ func modoPostHog(c config, target string, ureq int64, tel string, limite int) in
 // manda a pedir scopes cuando lo que hay que cambiar es la key — el mismo error que en Loki hacía leer
 // «legacy auth cannot be upgraded» como una URL equivocada.
 func (p *phCliente) descubrirProyecto() (string, bool) {
-	status, raw, err := p.pedir("GET", "/api/organizations/@current/projects/?limit=20", nil)
+	status, raw, err := p.Request("GET", "/api/organizations/@current/projects/?limit=20", nil)
 	if err != nil {
-		bad("no se pudo hablar con %s: %v", p.base, err)
+		bad("no se pudo hablar con %s: %v", p.Config.API, err)
 		return "", false
 	}
 	if status == 401 || esKeyInvalida(raw) {
 		bad("HTTP %d — la key no autentica.", status)
-		detail("PostHog dice: %s", recorte(raw, 200))
+		detail("PostHog dice: %s", events.Clip(raw, 200))
 		detail("")
 		detail("Si empieza con `phc_` es la de INGESTA del front (`posthog.init`): sirve para ESCRIBIR")
 		detail("eventos y no consulta nada. La de lectura empieza con `phx_` y se crea en")
@@ -254,7 +150,7 @@ func (p *phCliente) descubrirProyecto() (string, bool) {
 	if status != 200 {
 		// No es un fracaso del modo: el token puede estar bien y solo no tener `project:read`.
 		warn("no pude listar proyectos (HTTP %d) — sigo con el id del .env", status)
-		detail("%s", recorte(raw, 240))
+		detail("%s", events.Clip(raw, 240))
 		return "", true
 	}
 	var out struct {
@@ -272,12 +168,12 @@ func (p *phCliente) descubrirProyecto() (string, bool) {
 	// ambiente o uno solo? Se imprime aunque el .env ya traiga el id, y el `◂` marca cuál estamos usando.
 	for _, pr := range out.Results {
 		marca := " "
-		if p.project == pr.ID.String() {
+		if p.Config.Project == pr.ID.String() {
 			marca = "◂"
 		}
 		detail("%s %-8s %s", marca, pr.ID.String(), pr.Name)
 	}
-	if len(out.Results) > 1 && p.project == "" {
+	if len(out.Results) > 1 && p.Config.Project == "" {
 		warn("hay más de uno y el .env no dice cuál: tomo el primero (%s)", out.Results[0].ID.String())
 	}
 	p.listarAmbientes()
@@ -296,7 +192,7 @@ func (p *phCliente) descubrirProyecto() (string, bool) {
 // Best-effort a propósito: el endpoint no existe en todas las versiones y el token puede no tener el scope.
 // Un 404 acá no es un problema — el listado de arriba ya sirve.
 func (p *phCliente) listarAmbientes() {
-	status, raw, err := p.pedir("GET", "/api/environments/?limit=30", nil)
+	status, raw, err := p.Request("GET", "/api/environments/?limit=30", nil)
 	if err != nil || status != 200 {
 		return
 	}
@@ -316,7 +212,7 @@ func (p *phCliente) listarAmbientes() {
 	ok("%d visible(s) — el id es lo que va en POSTHOG_PROJECT (el paso 3 dice qué ambientes hay adentro):", len(out.Results))
 	for _, e := range out.Results {
 		marca := " "
-		if p.project == e.ID.String() {
+		if p.Config.Project == e.ID.String() {
 			marca = "◂"
 		}
 		detail("%s %-8s %s", marca, e.ID.String(), e.Name)
@@ -349,7 +245,7 @@ func (p *phCliente) censo() {
 		{"evento", `SELECT event AS k, count() AS n FROM events
 		  WHERE timestamp > now() - INTERVAL 7 DAY GROUP BY k ORDER BY n DESC LIMIT 15`},
 	} {
-		_, filas, err := p.hogql(q.hogql)
+		_, filas, err := p.HogQL(q.hogql)
 		if err != nil {
 			warn("censo por %s: %v", q.titulo, err)
 			continue
@@ -367,10 +263,10 @@ func (p *phCliente) censo() {
 		}
 	}
 	// La pregunta de verdad: ¿los eventos traen la llave que nos deja empalmar?
-	_, filas, err := p.hogql(`SELECT
+	_, filas, err := p.HogQL(`SELECT
 	    countIf(properties.loan_request_id IS NOT NULL) AS con_llave,
 	    count() AS total
-	  FROM events WHERE timestamp > now() - INTERVAL 7 DAY` + p.filtroEnv())
+	  FROM events WHERE timestamp > now() - INTERVAL 7 DAY` + p.Config.EnvFilter())
 	if err != nil || len(filas) == 0 || len(filas[0]) < 2 {
 		warn("no pude medir cuántos eventos traen loan_request_id")
 		return
@@ -415,11 +311,11 @@ func (p *phCliente) timeline(ureq int64, tel string, limite int) int {
 	// `loan_request_<n>` solo 24.006 — o sea que la mitad de lo que hizo el cliente pasa ANTES de que
 	// exista la solicitud (la fase de auth), y con la llave del ureq sola no se ve. PostHog NO los une
 	// solos: la persona dueña de `loan_request_<n>` no arrastra los eventos del teléfono.
-	llaves := []string{"distinct_id = '" + escapaHogQL(distinct) + "'"}
+	llaves := []string{"distinct_id = '" + events.Escape(distinct) + "'"}
 	llaves = append(llaves, fmt.Sprintf("toString(properties.loan_request_id) = '%d'", ureq))
 	detail("distinct_id = %s   ·   o properties.loan_request_id = '%d'", distinct, ureq)
 	if e164 := telE164(tel); e164 != "" {
-		llaves = append(llaves, "distinct_id = '"+escapaHogQL("phone_"+e164)+"'")
+		llaves = append(llaves, "distinct_id = '"+events.Escape("phone_"+e164)+"'")
 		detail("+ la fase de auth por teléfono: distinct_id = phone_%s", e164)
 	} else {
 		detail("(sin -tel: NO se ve la fase de auth, que en prod es la mitad de los eventos)")
@@ -437,9 +333,9 @@ func (p *phCliente) timeline(ureq int64, tel string, limite int) int {
 	  FROM events
 	  WHERE (%s)%s
 	  ORDER BY timestamp ASC
-	  LIMIT %d`, strings.Join(llaves, " OR "), p.filtroEnvTimeline(), limite)
+	  LIMIT %d`, strings.Join(llaves, " OR "), p.Config.EnvFilterTolerant(), limite)
 
-	_, filas, err := p.hogql(consulta)
+	_, filas, err := p.HogQL(consulta)
 	if err != nil {
 		bad("la consulta falló: %v", err)
 		return 1
@@ -493,27 +389,13 @@ func (p *phCliente) timeline(ureq int64, tel string, limite int) int {
 		step("session replay")
 		detail("si el proyecto tiene replay prendido, la sesión se ve acá:")
 		for _, s := range sesiones {
-			fmt.Printf("  %s/project/%s/replay/%s\n", p.base, p.project, s)
+			fmt.Printf("  %s/project/%s/replay/%s\n", p.Config.API, p.Config.Project, s)
 		}
 	}
 	return 0
 }
 
 // ─── ayudas ─────────────────────────────────────────────────────────────────────────────────────────
-
-// escapaHogQL protege el literal. Los valores que llegan acá son numéricos (un ureq) o derivados, pero
-// una comilla suelta rompería la consulta y no queremos aprenderlo con el target en prod.
-func escapaHogQL(s string) string {
-	return strings.ReplaceAll(strings.ReplaceAll(s, `\`, `\\`), `'`, `\'`)
-}
-
-func recorte(b []byte, n int) string {
-	s := strings.Join(strings.Fields(string(b)), " ")
-	if len(s) > n {
-		return s[:n] + "…"
-	}
-	return s
-}
 
 func primerValor(filas [][]any) string {
 	if len(filas) > 0 && len(filas[0]) > 0 {
@@ -563,29 +445,24 @@ type PantallaVista struct {
 // solicitud, y PostHog no une las dos identidades solo. Un recorrido que empieza en «monto» no es
 // que el cliente haya entrado por ahí: es que no le pasamos el teléfono.
 func pantallasDeSolicitud(c config, ureq int64, tel string) ([]PantallaVista, string) {
-	if c.posthogToken == "" {
+	if c.posthog.Token == "" {
 		return nil, ""
 	}
-	base := c.posthogAPI
-	if base == "" {
-		base = posthogAPIDefault
-	}
-	p := &phCliente{base: base, token: c.posthogToken, project: c.posthogProject, env: c.posthogEnv,
-		http: &http.Client{Timeout: 30 * time.Second}}
-	if p.project == "" {
+	p := nuevoPH(c, 30*time.Second)
+	if p.Config.Project == "" {
 		if id, ok := p.descubrirProyecto(); ok {
-			p.project = id
+			p.Config.Project = id
 		} else {
 			return nil, ""
 		}
 	}
 	llaves := []string{
-		"distinct_id = '" + escapaHogQL(fmt.Sprintf("loan_request_%d", ureq)) + "'",
+		"distinct_id = '" + events.Escape(fmt.Sprintf("loan_request_%d", ureq)) + "'",
 		fmt.Sprintf("toString(properties.loan_request_id) = '%d'", ureq),
 	}
 	aviso := "⚠ sin `-tel` no se ve la fase de AUTH, que en prod es la mitad de los eventos"
 	if e164 := telE164(tel); e164 != "" {
-		llaves = append(llaves, "distinct_id = '"+escapaHogQL("phone_"+e164)+"'")
+		llaves = append(llaves, "distinct_id = '"+events.Escape("phone_"+e164)+"'")
 		aviso = ""
 	}
 	q := fmt.Sprintf(`SELECT min(timestamp) AS t,
@@ -593,8 +470,8 @@ func pantallasDeSolicitud(c config, ureq int64, tel string) ([]PantallaVista, st
 	    any(properties.known_exception_reason) AS motivo
 	  FROM events
 	  WHERE (%s)%s AND event NOT LIKE '$%%'
-	  GROUP BY que ORDER BY t ASC LIMIT 40`, strings.Join(llaves, " OR "), p.filtroEnvTimeline())
-	_, filas, err := p.hogql(q)
+	  GROUP BY que ORDER BY t ASC LIMIT 40`, strings.Join(llaves, " OR "), p.Config.EnvFilterTolerant())
+	_, filas, err := p.HogQL(q)
 	if err != nil {
 		return nil, ""
 	}

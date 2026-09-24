@@ -15,7 +15,7 @@ trazador/
   src/            Vue 3 + Pinia — SOLO pinta; no decide nada del negocio
   server/         Go: la API (:5199), el ensamblado y los modos de consola
     mapa/         el flujo declarado como DATO (etapas · sub-pasos · ramales)
-  .env.<target>   local · dev · qa · staging · prod   (gitignoreados; plantillas en .env.<target>.example)
+  (sin .env propio: la base, Loki y PostHog los resuelve connectors/, con connectors/.env.<target>)
 ```
 
 **La regla que ordena todo:** el ensamblado vive en Go, en un solo lugar (`ArmarTraza`), y la consola, el
@@ -237,7 +237,7 @@ hizo nada»** — el modo imprime las cuatro causas indistinguibles en vez de de
 
 El token es de **lectura** (Personal API key `phx_`, scope `query:read`) y este archivo solo consulta: el
 trazador **no se instrumenta a sí mismo**. Renderiza cédulas y teléfonos de producción, y mandar eso a un
-SaaS es justo lo que no queremos — ver `.env.prod.example`.
+SaaS es justo lo que no queremos. Las claves son de `connectors/.env.<target>` (ver `connectors/.env.example`).
 
 ```bash
 go run . -posthog                 # ¿tengo acceso? + censo por ambiente / app / canal / evento
@@ -245,8 +245,9 @@ go run . -posthog -ureq 519245    # el timeline del navegador de esa solicitud +
 ```
 
 El **censo se mira antes** de creerle a un timeline vacío: dice si el proyecto es uno por ambiente o uno
-solo, y cuántos eventos traen `loan_request_id`. Por eso `POSTHOG_ENV` arranca vacío — filtrar antes de
-mirar puede esconder todo y leerse como «no hay datos».
+solo, y cuántos eventos traen `loan_request_id`. Por eso conviene mirar el censo antes de fijar `POSTHOG_ENV`
+—filtrar antes de mirar puede esconder todo y leerse como «no hay datos»—; hoy está fijado en
+`connectors/.env.<target>` (qa y staging `staging`, prod `production`).
 
 ## La sonda de acceso (el modo original)
 
@@ -271,11 +272,10 @@ conexión"* — que es la diferencia entre volver a molestar a quien lo emitió 
 
 ## Configuración
 
-⚠ **Desde el 2026-09-24 las credenciales de Loki y de la base NO van en el `.env` del trazador**: van en
-`connectors/.env.<target>` (plantilla: `connectors/.env.example`), que es de donde las leen el trazador, el
-harness y workers. Lo que sigue describe los datos —qué stack, qué `User`, qué filtro— y sigue valiendo;
-cambió dónde se escriben. En el `.env.<target>` del trazador quedan las de PostHog, hasta que pasen a
-`connectors/events`.
+⚠ **Desde el 2026-09-24 el trazador NO tiene `.env` propio**: la base, Loki y PostHog los resuelven
+`connectors/sql`, `connectors/logs` y `connectors/events`, con `connectors/.env.<target>` (plantilla:
+`connectors/.env.example`), que es de donde leen también el tablero, el harness y workers. Lo que sigue
+describe los datos —qué stack, qué `User`, qué filtro— y sigue valiendo; cambió dónde se escriben.
 
 **Un archivo por STACK, no por rama** — el nombre del target dice a qué Grafana le hablás:
 
@@ -287,12 +287,10 @@ cambió dónde se escriben. En el `.env.<target>` del trazador quedan las de Pos
 **Misma URL (`logs-prod-036`) y mismo token para los dos** — los dos stacks viven en la misma región. Lo
 único que cambia es el `User`, que es **por stack**. Y `creditopdev` sirve **dev y qa a la vez**: ver abajo.
 
-Copiá `.env.prod.example` al target que necesites (gitignoreado) y completá. **Lo único obligatorio es el
-token**: la URL se deduce de la región que el token trae codificada adentro, y cuando la sonda acierta
-imprime la línea exacta para pegar. Cada archivo es **autosuficiente**: no hay capa compartida (el
-`playground/.env` donde vivía el token se eliminó el 2026-08-04 y su contenido pasó a `sonda/.env.prod`).
-Se aceptan además los nombres `GRAFANA_LOKI_*` que usa legacy-backend, para pegar las variables del deploy
-tal como están.
+Las claves van en `connectors/.env.<target>` (plantilla: `connectors/.env.example`). **Para la sonda lo
+único obligatorio es el token**: la URL se deduce de la región que el token trae codificada adentro, y
+cuando la sonda acierta imprime la línea exacta para pegar. Se aceptan además los nombres `GRAFANA_LOKI_*`
+que usa legacy-backend, para pegar las variables del deploy tal como están.
 
 ```bash
 go run .                                  # el chequeo completo contra prod

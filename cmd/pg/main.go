@@ -7,6 +7,8 @@
 //	pg logs labels --target T --label L [--since 1h]
 //	pg logs config --target T                                  qué Loki atiende ese ambiente, sin secretos
 //	pg logs raw --target T --path query_range --param k=v …    el cuerpo de Loki tal cual
+//	pg events config --target T                                qué PostHog atiende ese ambiente, sin secretos
+//	pg events hogql --target T --query 'SELECT …'              una consulta HogQL: columnas y filas en JSON
 //
 // `logs raw` existe para las herramientas que ya parsean la respuesta de Loki a su manera (el harness, en
 // TypeScript; workers, en Python): conservan su parseo y pierden su cliente HTTP, que es lo que se
@@ -28,6 +30,7 @@ import (
 	"strings"
 	"time"
 
+	"creditop/playground/connectors/events"
 	"creditop/playground/connectors/logs"
 	dbsql "creditop/playground/connectors/sql"
 )
@@ -55,6 +58,10 @@ func init() {
 			"pg logs config --target T", runLogsConfig},
 		{"logs raw", "el cuerpo de Loki tal cual, para quien ya lo parsea (harness, workers)",
 			"pg logs raw --target T --path query_range|query|labels|label/<x>/values --param k=v …", runLogsRaw},
+		{"events config", "qué PostHog atiende el ambiente y si se puede consultar, sin secretos",
+			"pg events config --target T", runEventsConfig},
+		{"events hogql", "una consulta HogQL de sólo lectura: columnas y filas en JSON",
+			"pg events hogql --target T --query 'SELECT … FROM events …'", runHogQL},
 	}
 }
 
@@ -396,3 +403,54 @@ type multi []string
 
 func (m *multi) String() string     { return strings.Join(*m, ",") }
 func (m *multi) Set(s string) error { *m = append(*m, s); return nil }
+
+// ─── events ─────────────────────────────────────────────────────────────────────────────────────────
+
+func runEventsConfig(args []string) int {
+	fs := flag.NewFlagSet("events config", flag.ContinueOnError)
+	target := fs.String("target", "", "ambiente (obligatorio)")
+	if fs.Parse(args) != nil {
+		return 2
+	}
+	if !events.ValidTarget(*target) {
+		return fail(2, "falta o no es válido --target (%s)", strings.Join(events.Targets, " · "))
+	}
+	cfg, file, err := events.LoadConfig(*target)
+	if err != nil {
+		return fail(2, "%v", err)
+	}
+	return writeJSON(map[string]any{
+		"target": cfg.Target, "api": cfg.API, "project": cfg.Project, "env": cfg.Env,
+		"hasToken": cfg.Token != "", "missing": cfg.Missing(), "file": file,
+	})
+}
+
+func runHogQL(args []string) int {
+	fs := flag.NewFlagSet("events hogql", flag.ContinueOnError)
+	target := fs.String("target", "", "ambiente (obligatorio)")
+	query := fs.String("query", "", "HogQL (SELECT …)")
+	if fs.Parse(args) != nil {
+		return 2
+	}
+	if !events.ValidTarget(*target) {
+		return fail(2, "falta o no es válido --target (%s)", strings.Join(events.Targets, " · "))
+	}
+	if !strings.HasPrefix(strings.ToUpper(strings.TrimSpace(*query)), "SELECT") {
+		return fail(2, "sólo consultas SELECT")
+	}
+	cfg, _, err := events.LoadConfig(*target)
+	if err != nil {
+		return fail(2, "%v", err)
+	}
+	if why := cfg.Missing(); why != "" {
+		return fail(2, "no se puede consultar PostHog en %s: %s", *target, why)
+	}
+	columns, rows, err := events.New(cfg, 60*time.Second).HogQL(*query)
+	if err != nil {
+		return fail(1, "PostHog en %s: %v", *target, err)
+	}
+	if rows == nil {
+		rows = [][]any{}
+	}
+	return writeJSON(map[string]any{"target": *target, "env": cfg.Env, "columns": columns, "results": rows})
+}

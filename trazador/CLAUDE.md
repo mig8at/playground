@@ -361,7 +361,7 @@ El contexto curado describe **CreditOp**, y esto describe **esta herramienta**: 
   líneas mientras los logs existen.
 - **Dev y qa se separan por `service_name`, no por `environment`** (los dos PHP son `development`).
   Medido el 2026-09-23 pegándole a cada backend: dev → `legacy-backend`, qa → `CreditopDev`; staging no
-  se pudo ubicar. Cada `.env.<target>` lo declara en `LOKI_SERVICE`, y ⚠ **no filtra: avisa.** Una
+  se pudo ubicar. Cada `connectors/.env.<target>` lo declara en `LOKI_SERVICE`, y ⚠ **no filtra: avisa.** Una
   solicitud pasa por los dos backends (la 502633, de qa: 442 líneas de qa y 159 de dev), así que filtrar
   escondía parte de lo que le pasó; la traza cierra con el reparto por backend (`repartoPorBackend`).
   Lo pone un secreto del despliegue, no el repo: puede cambiar sin commit. El detalle y cómo re-medirlo:
