@@ -268,10 +268,10 @@ local no existe, así que hay un mock que lo reemplaza. Cuatro pasos:
 **La prueba reproducible desde la interfaz** (requiere que `harness-codes` siga arriba y una sesión
 de asesor viva) no necesita armar el JSON a mano:
 
-    make harness-codigo COMERCIO=13874eb6 CODIGO=0102
-    make harness-codigo-prueba HASH=13874eb6 CODIGO=0102 LENDER='Sistecrédito'
+    make harness-codigo COMERCIO=13874eb6 CODIGO=AB0102
+    make harness-codigo-prueba HASH=13874eb6 CODIGO=AB0102 LENDER='Sistecrédito'
 
-El primer comando elige un usuario local real y una entidad habilitada para la sucursal; el segundo
+El primer comando (sin `CODIGO=` inventa uno `AA0000`) elige un cliente de prueba y una entidad habilitada para la sucursal; el segundo
 abre `/merchant/<hash>/codigo`, redime por la UI y exige que el marketplace muestre **sólo** esa entidad.
 Para otro comercio, se reemplazan los tres argumentos por los que imprima `make harness-codigo`.
 
@@ -309,9 +309,23 @@ Con la sesión de asesor, contra el wizard de la rama:
     grep -c 'Usuario app' page.html          # 1 en Colombia · 0 fuera
     curl -s -o /dev/null -w '%{http_code} %{redirect_url}' -H "Cookie: …" http://localhost:5174/merchant/<hash>/codigo
 
-⚠ La pantalla del código pasó a **seis casillas** (`c0efac64`, formato `AA0000`) y el autorrelleno del
-harness escribe su `0101` repetido hasta llenarlas: queda `010101`, que no es válido, y el botón nunca
-se habilita. Por eso `harness-codigo-prueba` corre con `E2E_AUTORELLENO=0`.
+**Desde el panel, sin generar nada a mano.** Al lanzar un comercio por el canal del asesor, el lanzador
+genera el código como lo haría la app —local: lo siembra en el mock (`make harness-codes` arriba); dev,
+qa y staging: se lo pide al servicio de dev, con la VPN de dev— y lo imprime con su entidad:
+
+    ✓ codigo-app  RA9453 · CrediPullman (77) — la única entidad que debe quedar en el listado
+
+El panel lo muestra como chip **«código app»** para copiar, y el autorrelleno lo escribe solo en
+`/merchant/<hash>/codigo`. Sólo en Colombia; en otro país, sin mock o sin VPN avisa `⚠ codigo-app sin
+código: <motivo>` y la corrida sigue igual. `E2E_CLIENT_CODE_LENDER_ID=<id>` elige la entidad (sin él,
+la primera habilitada en la sucursal) y `E2E_CLIENT_CODE_GEN=0` lo apaga. Por consola, lo mismo que
+hace el lanzador:
+
+    cd harness && E2E_TARGET=qa node bin/client-code.ts ec977139 77      # una línea JSON, o {"skip": …}
+
+⚠ La pantalla del código tiene **seis casillas** (`c0efac64`, formato `AA0000`). Hasta el 2026-09-24
+el autorrelleno las tomaba por el OTP de firma y escribía `010101`; hoy, en esa ruta, pone el código
+generado. `harness-codigo-prueba` sigue con `E2E_AUTORELLENO=0` porque tipea su propio código.
 
 **Generar un código para QA — lo único que hace falta** (VPN de dev). Un comando: resuelve comercio,
 entidad habilitada y un cliente sintético contra la base de `qa` (sólo lectura), le pide el código al
