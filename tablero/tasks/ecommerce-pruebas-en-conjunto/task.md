@@ -103,6 +103,7 @@ webhook y el retorno se miran en webhook.site (la bandeja viene puesta).
 - [legacy-application#201](https://github.com/Creditop-SAS/legacy-application/pull/201) — el checkout decide por `settings`.
 - [frontend-monorepo#1051](https://github.com/Creditop-SAS/frontend-monorepo/pull/1051) — repone en `qa` lo que revirtió el merge de #1048.
 - Tarea `ecommerce-stateless` (CORE-30) — lo que llega hasta el listado, el webhook y el retorno.
+- [Diseño del flujo ecommerce en Figma](https://www.figma.com/design/SsvFsK5tLvR1jNT3Hh6znD/flujo-ecommerce?node-id=334-455&m=dev) — la sección `ecommerce` (64 pantallas); también en artifacts. Se lee por consola con `bin/pg figma node '<url>' --depth 1`, y una pantalla con `--id <id> --depth 8 --text`.
 
 ## Tarea (publicable)
 
