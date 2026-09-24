@@ -300,6 +300,11 @@ Con la sesión de asesor, contra el wizard de la rama:
 harness escribe su `0101` repetido hasta llenarlas: queda `010101`, que no es válido, y el botón nunca
 se habilita. Por eso `harness-codigo-prueba` corre con `E2E_AUTORELLENO=0`.
 
+**Para QA, sin la app:** la página [Código de preaprobado](https://claude.ai/artifact/1GXiuTAyaMTUGYgwC3ikDN)
+(el archivo vive en `artifacts/`, variante `canje-en-qa`) arma estos mismos pasos para las 15 sucursales
+de Colombia con asesores y entidades activas en `qa`, con los usuarios de prueba y lo que significa cada
+`CCO00x`. Los datos son de la base de `qa` del 2026-09-24: si cambian las sucursales, se regenera.
+
 **El canje REAL en `qa`** (VPN de dev; la sesión de `cognito-state.qa.json` es MIGUEL TEST, en
 `ec977139`). El `merchant_id` es el `allied_id` de la sucursal (Pullman = 94); el usuario, uno de PRUEBA
 (los «SYNTH PRUEBA» con correo `@creditop.com`):
@@ -324,6 +329,8 @@ llegó al servicio:
 
 ## Referencias
 
+- Prototipo para QA: [Código de preaprobado](https://claude.ai/artifact/1GXiuTAyaMTUGYgwC3ikDN), hermano del
+  [Contrato de checkout](https://claude.ai/artifact/3SeV7vVMBN2DFqMeVueGAb) de ecommerce.
 - Temas de canon: `preaprobado`, `listado`, `onboarding`, `creditopx` (van en el frontmatter).
   `fronteras` ayuda para la parte de rutas internas entre módulos.
 - Canon **no cubre** el código de cliente: la búsqueda por API no devuelve ninguna sección de este

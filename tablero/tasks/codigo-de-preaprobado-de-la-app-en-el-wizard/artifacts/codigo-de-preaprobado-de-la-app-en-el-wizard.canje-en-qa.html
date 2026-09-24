@@ -1,0 +1,398 @@
+<title>Código de preaprobado</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:ital,wght@0,400;0,500;0,600;1,400&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+  :root {
+    --ground:#F1F3F5; --surface:#FFFFFF; --sunken:#F7F8FA;
+    --ink:#14181D; --ink-soft:#5A646E; --ink-faint:#7C858E;
+    --line:#DCE1E6; --line-soft:#E9EDF1;
+    --accent:#0E5A62; --accent-ink:#0B474D; --on-accent:#FFFFFF;
+    --data:#A45B0B; --data-bg:#FDF6EC;
+    --ok:#15803D; --bad:#B42318; --bad-bg:#FEF3F2;
+    --sans:"IBM Plex Sans",ui-sans-serif,system-ui,sans-serif;
+    --mono:"IBM Plex Mono",ui-monospace,"SF Mono",Menlo,monospace;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      color-scheme:dark;
+      --ground:#111417; --surface:#181C20; --sunken:#1E2328;
+      --ink:#E8ECEF; --ink-soft:#9AA5AE; --ink-faint:#7A858E;
+      --line:#2A3138; --line-soft:#232930;
+      --accent:#4FB3BC; --accent-ink:#7FD0D7; --on-accent:#0B1A1C;
+      --data:#E0A458; --data-bg:#2A2118;
+      --ok:#4ADE80; --bad:#F87171; --bad-bg:#2A1A1A;
+    }
+  }
+  :root[data-theme="dark"] {
+    color-scheme:dark;
+    --ground:#111417; --surface:#181C20; --sunken:#1E2328;
+    --ink:#E8ECEF; --ink-soft:#9AA5AE; --ink-faint:#7A858E;
+    --line:#2A3138; --line-soft:#232930;
+    --accent:#4FB3BC; --accent-ink:#7FD0D7; --on-accent:#0B1A1C;
+    --data:#E0A458; --data-bg:#2A2118;
+    --ok:#4ADE80; --bad:#F87171; --bad-bg:#2A1A1A;
+  }
+
+  * { box-sizing:border-box; }
+  body { background:var(--ground); color:var(--ink); font-family:var(--sans); line-height:1.55;
+         padding-block:28px; padding-inline:16px; margin:0; }
+  .wrap { max-width:1140px; margin:0 auto; display:flex; flex-direction:column; gap:22px; }
+
+  header h1 { font-size:1.55rem; font-weight:600; margin:0 0 4px; letter-spacing:-.015em; text-wrap:balance; }
+  header p { margin:0; color:var(--ink-soft); max-width:66ch; font-size:.94rem; }
+  .eyebrow { font-size:.7rem; letter-spacing:.11em; text-transform:uppercase; color:var(--accent);
+             font-weight:600; margin:0 0 7px; }
+  .fecha { font-family:var(--mono); font-size:.74rem; color:var(--ink-faint); margin-top:8px; }
+
+  .cols { display:grid; grid-template-columns:minmax(0,.9fr) minmax(0,1.1fr); gap:18px; align-items:start; }
+  @media (max-width:900px) { .cols { grid-template-columns:minmax(0,1fr); } }
+
+  .card { background:var(--surface); border:1px solid var(--line); border-radius:12px; padding:18px; }
+  .card > h2 { font-size:.78rem; letter-spacing:.08em; text-transform:uppercase; color:var(--ink-soft);
+               margin:0 0 14px; font-weight:600; }
+
+  .field { display:flex; flex-direction:column; gap:5px; margin-bottom:14px; }
+  label { font-size:.82rem; font-weight:500; }
+  .hint { font-size:.76rem; color:var(--ink-faint); line-height:1.45; }
+  .hint code, .note code, td code, details code { font-family:var(--mono); font-size:.92em; }
+  input, select {
+    font-family:var(--mono); font-size:.84rem; color:var(--ink); background:var(--sunken);
+    border:1px solid var(--line); border-radius:7px; padding:8px 10px; width:100%; }
+  select { font-family:var(--sans); }
+  input:focus-visible, select:focus-visible {
+    outline:2px solid var(--accent); outline-offset:1px; border-color:var(--accent); }
+
+  button, a.boton { font-family:var(--sans); font-size:.86rem; font-weight:500; cursor:pointer;
+           border-radius:7px; border:1px solid transparent; padding:9px 15px; text-decoration:none;
+           display:inline-block; }
+  .primary { background:var(--accent); color:var(--on-accent); width:100%; font-size:.92rem; padding:11px; }
+  .primary:hover { background:var(--accent-ink); }
+  .ghost { background:transparent; border-color:var(--line); color:var(--ink-soft); padding:5px 10px; font-size:.78rem; }
+  .ghost:hover { border-color:var(--accent); color:var(--accent); }
+  button:focus-visible, a.boton:focus-visible { outline:2px solid var(--accent); outline-offset:2px; }
+
+  .note { border-left:3px solid var(--data); background:var(--data-bg); padding:11px 13px;
+          border-radius:0 7px 7px 0; font-size:.83rem; }
+  .note strong { font-weight:600; }
+
+  .status { font-size:.83rem; padding:9px 12px; border-radius:7px; margin-top:11px; }
+  .status.err { background:var(--bad-bg); color:var(--bad); border:1px solid var(--bad); }
+  .status.ok { color:var(--ok); border:1px solid var(--ok); }
+
+  /* Los pasos: la secuencia es real, por eso van numerados. */
+  ol.pasos { list-style:none; margin:0; padding:0; counter-reset:paso; display:flex; flex-direction:column; gap:18px; }
+  ol.pasos > li { counter-increment:paso; display:grid; grid-template-columns:28px minmax(0,1fr); gap:0 12px; }
+  ol.pasos > li::before { content:counter(paso); grid-row:1 / span 3; width:26px; height:26px; border-radius:50%;
+    border:1px solid var(--accent); color:var(--accent); font-family:var(--mono); font-size:.8rem;
+    display:flex; align-items:center; justify-content:center; font-variant-numeric:tabular-nums; }
+  .paso-t { font-weight:600; font-size:.9rem; margin:2px 0 4px; }
+  .paso-d { font-size:.83rem; color:var(--ink-soft); margin:0 0 8px; max-width:62ch; }
+  .cmd { background:var(--sunken); border:1px solid var(--line); border-radius:9px; padding:11px 12px;
+         overflow-x:auto; }
+  .cmd pre { margin:0; font-family:var(--mono); font-size:.76rem; line-height:1.55; color:var(--data);
+             white-space:pre; }
+  .fila-acciones { display:flex; gap:8px; flex-wrap:wrap; margin-top:8px; align-items:center; }
+  .espera { font-size:.78rem; color:var(--ink-soft); margin-top:6px; }
+  .espera code { font-family:var(--mono); font-size:.76rem; color:var(--ink); }
+  .lnk { font-family:var(--mono); font-size:.78rem; word-break:break-all; color:var(--accent); }
+
+  table { width:100%; border-collapse:collapse; font-size:.8rem; }
+  th { text-align:left; font-size:.68rem; letter-spacing:.07em; text-transform:uppercase;
+       color:var(--ink-faint); font-weight:600; padding:0 10px 7px 0; border-bottom:1px solid var(--line); }
+  td { padding:9px 10px 9px 0; border-bottom:1px solid var(--line-soft); vertical-align:top; }
+  tr:last-child td { border-bottom:none; }
+  td.k { font-family:var(--mono); font-weight:500; color:var(--data); white-space:nowrap; }
+  td.q { color:var(--ink); }
+  td.s { color:var(--ink-soft); font-size:.77rem; }
+  .tablewrap { overflow-x:auto; }
+
+  details { border-top:1px solid var(--line); padding-top:14px; margin-top:16px; }
+  details:first-of-type { border-top:none; padding-top:0; margin-top:0; }
+  summary { cursor:pointer; font-size:.86rem; font-weight:500; color:var(--accent); }
+  details p, details li { font-size:.83rem; color:var(--ink-soft); max-width:74ch; }
+  details ul { padding-left:19px; margin:9px 0; }
+  details code { color:var(--data); }
+  footer { color:var(--ink-faint); font-size:.76rem; border-top:1px solid var(--line); padding-top:14px; }
+  @media (prefers-reduced-motion: reduce) { * { transition:none !important; } }
+</style>
+
+<div class="wrap">
+  <header>
+    <p class="eyebrow">Código de la app · CreditOp</p>
+    <h1>Código de preaprobado</h1>
+    <p>El cliente trae de la app un código que lo liga a un comercio y a una entidad. El asesor lo
+       ingresa en la opción «Usuario app», la solicitud nace con ese cliente ya registrado y el listado
+       muestra sólo la entidad del preaprobado. Esta página arma los pasos para probarlo en QA sin la app:
+       generar el código, canjearlo en la pantalla y comprobar que quedó usado.</p>
+    <p class="fecha">Datos de QA leídos el 2026-09-24 · canje probado de punta a punta ese día</p>
+  </header>
+
+  <div class="note">
+    <strong>Esto es para QA y pide la VPN de desarrollo.</strong> Los comandos le hablan al servicio de
+    códigos, que sólo se alcanza desde esa VPN: con la de producción los nombres internos resuelven a
+    otra red y todo parece caído. La página no llama a nada: arma los comandos y el enlace, y vos los
+    corrés.
+  </div>
+
+  <div class="cols">
+    <section class="card" aria-labelledby="t-caso">
+      <h2 id="t-caso">El caso</h2>
+
+      <div class="field">
+        <label for="sucursal">Punto de venta</label>
+        <select id="sucursal"></select>
+        <span class="hint" id="hintSucursal"></span>
+      </div>
+
+      <div class="field">
+        <label for="entidad">Entidad del preaprobado</label>
+        <select id="entidad"></select>
+        <span class="hint">Es la única que tiene que quedar en el listado después del canje.</span>
+      </div>
+
+      <div class="field">
+        <label for="usuario">Cliente (usuario de prueba)</label>
+        <select id="usuario"></select>
+        <span class="hint">Clientes sintéticos de QA, con correo <code>@creditop.com</code>. El código queda
+          atado a esta persona y la solicitud nace a su nombre: no uses el id de alguien real.</span>
+      </div>
+
+      <div class="field">
+        <label for="otro">…o el id de otro usuario</label>
+        <input id="otro" inputmode="numeric" autocomplete="off" spellcheck="false" placeholder="por ejemplo 1828624">
+        <span class="hint">Tiene que existir en la base de QA con celular y correo; si no, el canje responde <code>CCO007</code>.</span>
+      </div>
+
+      <div class="field">
+        <label for="codigo">Código que te devolvió el paso 1</label>
+        <input id="codigo" autocomplete="off" spellcheck="false" placeholder="9997" maxlength="6">
+        <span class="hint">Opcional: con él, el paso 4 sale listo para copiar.</span>
+      </div>
+
+      <button class="primary" id="armar" type="button">Armar los pasos</button>
+      <div class="status" id="status" role="status" hidden></div>
+    </section>
+
+    <section class="card" aria-labelledby="t-pasos">
+      <h2 id="t-pasos">Los pasos</h2>
+      <ol class="pasos">
+        <li>
+          <p class="paso-t">Generá el código, como lo haría la app</p>
+          <p class="paso-d">La app hace esta misma llamada cuando el cliente toca «usar en tienda física».
+            Si ya había un código activo para este cliente, comercio y entidad, devuelve ese mismo.</p>
+          <div class="cmd"><pre id="cmdGen"></pre></div>
+          <div class="fila-acciones"><button class="ghost" type="button" data-copy="cmdGen">Copiar</button></div>
+          <p class="espera">Responde <code>{"code":"9997","expired_at":"2026-09-30"}</code>: el código y el
+            último día en que sirve.</p>
+        </li>
+        <li>
+          <p class="paso-t">Entrá con el asesor de ese punto de venta</p>
+          <p class="paso-d" id="pasoAsesor"></p>
+        </li>
+        <li>
+          <p class="paso-t">Canjealo en la pantalla</p>
+          <p class="paso-d">Elegí «Usuario app», escribí el código y confirmá. Tiene que llevarte al
+            listado con una sola entidad: <strong id="entidadEsperada"></strong>.</p>
+          <a class="lnk" id="lnkPantalla" target="_blank" rel="noopener"></a>
+        </li>
+        <li>
+          <p class="paso-t">Comprobá que el código quedó usado</p>
+          <p class="paso-d">Después del canje, la misma consulta tiene que decir <code>invalid code</code>.
+            Antes del canje devuelve el cliente y la entidad, y no gasta el código.</p>
+          <div class="cmd"><pre id="cmdCons"></pre></div>
+          <div class="fila-acciones"><button class="ghost" type="button" data-copy="cmdCons">Copiar</button></div>
+        </li>
+      </ol>
+    </section>
+  </div>
+
+  <section class="card" aria-labelledby="t-resp">
+    <h2 id="t-resp">Qué quiere decir cada respuesta</h2>
+    <div class="tablewrap">
+      <table>
+        <thead><tr><th style="width:70px">código</th><th style="width:34%">lo que ve el asesor</th><th>por qué, y qué hacer</th></tr></thead>
+        <tbody>
+          <tr><td class="k">—</td><td class="q">Llega al listado con una sola entidad</td>
+              <td class="s">Funcionó. La solicitud nace con el cliente del código y en estado inicial, y el código queda consumido.</td></tr>
+          <tr><td class="k">CCO001</td><td class="q">«El código debe tener 2 letras y 4 números.»</td>
+              <td class="s">El formato no es válido. Hoy el servicio de QA emite <strong>4 números</strong>; la pantalla acepta los dos formatos.</td></tr>
+          <tr><td class="k">CCO002</td><td class="q">«No encontramos este punto de venta.»</td>
+              <td class="s">La sucursal del enlace no existe en ese ambiente.</td></tr>
+          <tr><td class="k">CCO003</td><td class="q">«Ese código no está disponible: puede que no exista para este comercio o que ya se haya usado.»</td>
+              <td class="s">El caso normal es un código inexistente, ya usado, vencido o de <strong>otro comercio</strong>: un código sólo sirve donde se generó. ⚠ Pero si <strong>todos</strong> los códigos dan esto, el backend no llega al servicio de códigos y el problema es de configuración, no del código.</td></tr>
+          <tr><td class="k">CCO004</td><td class="q">«Ese código no tiene una entidad asociada…»</td>
+              <td class="s">El código existe pero no dice qué entidad preaprobó.</td></tr>
+          <tr><td class="k">CCO005</td><td class="q">«No pudimos validar el código…»</td>
+              <td class="s">Falló la creación de la solicitud. El código <strong>no</strong> se consume en ese caso: se puede reintentar.</td></tr>
+          <tr><td class="k">CCO006</td><td class="q">«No se pudo confirmar el código. Intenta de nuevo en un momento.»</td>
+              <td class="s">El servicio no pudo marcar el código como usado. La solicitud se descarta y el código sigue disponible: se puede reintentar.</td></tr>
+          <tr><td class="k">CCO007</td><td class="q">«No pudimos validar el código…»</td>
+              <td class="s">El usuario del código no existe en la base o le falta celular o correo.</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section class="card" aria-labelledby="t-antes">
+    <h2 id="t-antes">Antes de reportar un fallo</h2>
+    <details open>
+      <summary>No aparece la opción «Usuario app»</summary>
+      <p>Sólo se ofrece en comercios de <strong>Colombia</strong>: en otro país no aparece, y abrir la
+         pantalla del código por su dirección te devuelve a la del celular. Es lo esperado. Para verlo, el
+         comercio de pruebas de Perú (sucursal <code>a8221e67</code>) es el contraste.</p>
+    </details>
+    <details>
+      <summary>El listado muestra todas las entidades, no una</summary>
+      <p>El recorte a una sola entidad vale para la solicitud que nació del código, y sólo en el mismo
+         navegador donde se canjeó. Si la entidad del código no está habilitada en ese punto de venta, el
+         listado muestra las de siempre. Elegí la entidad de la lista de esta página: son las habilitadas
+         en esa sucursal.</p>
+    </details>
+    <details>
+      <summary>La pantalla me lleva a otro comercio</summary>
+      <p>El asesor sólo entra a su propia sucursal: si tu usuario está asignado a otro punto de venta, la
+         pantalla te lleva al tuyo. Generá el código para el comercio donde está tu asesor, o pedí que lo
+         asignen al de la prueba.</p>
+    </details>
+    <details>
+      <summary>Cuánto vive un código</summary>
+      <p>Hasta el <strong>último día del mes</strong> en que se generó. Mientras esté activo, volver a
+         generarlo para el mismo cliente, comercio y entidad devuelve el mismo código; una vez canjeado,
+         la próxima generación da uno nuevo.</p>
+    </details>
+  </section>
+
+  <footer>
+    Cada canje exitoso <strong>crea una solicitud en la base de QA</strong>, que comparten desarrollo y
+    staging. Usá los clientes de prueba de esta página, y no canjees el mismo caso dos veces para «volver
+    a ver la pantalla»: generá otro código.
+  </footer>
+</div>
+
+<script>
+(function () {
+  const $ = (id) => document.getElementById(id);
+
+  // QA. El servicio de códigos no tiene despliegue propio de QA: el backend de QA usa el de desarrollo.
+  const SERVICIO = "http://self-manager-api.inertia-develop:8082";
+  const FRONT = "https://originaciones-qa.dev.creditop.com";
+
+  // [allied_id, comercio, branch_id, sucursal, hash, asesores con Cognito, [[lender_id, entidad, response_type]]]
+  // Sucursales de comercios de Colombia con asesores y entidades activas en QA, leídas el 2026-09-24.
+  const SUCURSALES = /*SUCURSALES*/[[158,"Motai",682,"PRINCIPAL","f0548728",6,[[158,"Motai Renting",2],[62,"Motai X",2],[205,"Rent to Own",2]]],[91,"Mediarte",375,"Principal","5da24bb1",2,[[6,"Addi",0],[5,"Banco de Bogotá",1],[8,"Bancolombia",1],[24,"Credifamilia",4],[39,"Meddipay",1],[46,"Mediarte X",2],[94,"Mediarte x 0% Interés",2]]],[94,"Amoblando Pullman",390,"Amoblando principal","ec977139",2,[[6,"Addi",0],[77,"CrediPullman",2],[212,"Crédito 365",1],[192,"Nequi",0],[32,"Vanti",0]]],[26,"Sonría",3,"RESTREPO","76db47f5",2,[[39,"Meddipay",1]]],[280,"Free Spirit",2024,"prueba","ec4e56bb",2,[[160,"credifree",3]]],[177,"Ramguiflex",723,"Almacén 1A","32865cf0",1,[[5,"Banco de Bogotá",1],[19,"Brilla",0],[39,"Meddipay",1],[22,"Servicrédito",0],[32,"Vanti",0]]],[94,"Amoblando Pullman",389,"Pullman principal","e9409aff",1,[[77,"CrediPullman",2],[212,"Crédito 365",1],[192,"Nequi",0],[12,"Prami",1]]],[335,"On Vacation",2168,"Pruebas","ov335pdv1",1,[[6,"Addi",0],[173,"Efectivo",0],[203,"On Vacation",2],[174,"Tarjeta",0]]],[146,"Unidad odontofacial",589,"UOF Principal","fbaf73a6",1,[[5,"Banco de Bogotá",1],[48,"UOF credit",2],[23,"Welli",1]]],[237,"GAES",1461,"Gaes Torre Samsung","2339041b",1,[[24,"Credifamilia",4],[39,"Meddipay",1],[23,"Welli",1]]],[284,"Grupo Alianza Colombia",2166,"Calle 127","979916c1",1,[[173,"Efectivo",0],[172,"On vacation X",2],[174,"Tarjeta",0]]],[91,"Mediarte",1574,"Pruebas","a5cfaf4a",1,[[46,"Mediarte X",2],[94,"Mediarte x 0% Interés",2]]],[279,"CREDIMOVIL",2023,"Credimovil  La hormiga","e5e06ff5",1,[[159,"CREDIMOVIL",2]]],[283,"My Tech",2056,"Creditop Prueba","ed298f35",1,[[170,"My Tech YA",2]]],[339,"Alta Fleet",2174,"Calle 90","ea2fe316",1,[[211,"AltaX",2]]]]/*FIN*/;
+  const USUARIOS = /*USUARIOS*/[1828631, 1828624, 1828623, 1828620, 1828619, 1828618, 1828616, 1828603]/*FIN*/;
+  const SUCURSAL_POR_DEFECTO = 390;   // Amoblando Pullman · Amoblando principal: el canje se probó ahí
+  const ENTIDAD_POR_DEFECTO = 77;     // CrediPullman
+
+  function sucursal() {
+    const id = Number($("sucursal").value);
+    const s = SUCURSALES.find((r) => r[2] === id);
+    return s && { alliedId: s[0], comercio: s[1], branchId: s[2], nombre: s[3], hash: s[4], asesores: s[5], entidades: s[6] };
+  }
+
+  function pintarSucursales() {
+    const sel = $("sucursal");
+    for (const r of SUCURSALES) {
+      const o = document.createElement("option");
+      o.value = String(r[2]);
+      o.textContent = r[1] + " · " + r[3];
+      sel.appendChild(o);
+    }
+    sel.value = String(SUCURSAL_POR_DEFECTO);
+  }
+
+  function pintarEntidades(preferida) {
+    const s = sucursal(), sel = $("entidad");
+    sel.replaceChildren();
+    for (const [id, nombre] of s.entidades) {
+      const o = document.createElement("option");
+      o.value = String(id);
+      o.textContent = nombre + "  (" + id + ")";
+      sel.appendChild(o);
+    }
+    if (preferida && s.entidades.some((e) => e[0] === preferida)) sel.value = String(preferida);
+    $("hintSucursal").textContent = "Sucursal " + s.branchId + " · comercio " + s.alliedId
+      + " · " + s.entidades.length + " entidad(es) activa(s) · "
+      + s.asesores + (s.asesores === 1 ? " asesor" : " asesores") + " con cuenta";
+  }
+
+  function pintarUsuarios() {
+    const sel = $("usuario");
+    for (const id of USUARIOS) {
+      const o = document.createElement("option");
+      o.value = String(id);
+      o.textContent = "SYNTH PRUEBA · " + id;
+      sel.appendChild(o);
+    }
+  }
+
+  function usuarioId() {
+    const otro = $("otro").value.trim();
+    return otro !== "" ? otro : $("usuario").value;
+  }
+
+  function decir(msg, tipo) {
+    const el = $("status");
+    el.textContent = msg;
+    el.className = "status " + tipo;
+    el.hidden = false;
+  }
+
+  function armar() {
+    const s = sucursal();
+    const lender = Number($("entidad").value);
+    const user = usuarioId();
+    if (!/^\d+$/.test(user)) return decir("El id del usuario va en números: «" + user + "» no sirve.", "err");
+    const codigo = $("codigo").value.trim().toUpperCase();
+    if (codigo !== "" && !/^(\d{4}|[A-Z]{2}\d{4})$/.test(codigo))
+      return decir("El código son 4 números (o 2 letras y 4 números): «" + codigo + "» no tiene ese formato.", "err");
+
+    // El merchant_id del servicio es el COMERCIO (allied_id), no la sucursal: el canje consulta con ese.
+    $("cmdGen").textContent =
+      "curl -s -X POST " + SERVICIO + "/api/v1/generate/code \\\n" +
+      "  -H 'Content-Type: application/json' \\\n" +
+      "  -H 'X-User-Id: " + user + "' \\\n" +
+      "  -d '{\"merchant_id\":" + s.alliedId + ",\"lender_id\":" + lender + "}'";
+    $("cmdCons").textContent =
+      "curl -s -X POST " + SERVICIO + "/api/v1/generate/code/consult \\\n" +
+      "  -H 'Content-Type: application/json' \\\n" +
+      "  -d '{\"merchant_id\":" + s.alliedId + ",\"code\":\"" + (codigo || "<el código>") + "\"}'";
+
+    const url = FRONT + "/merchant/" + s.hash + "/codigo";
+    $("lnkPantalla").href = url;
+    $("lnkPantalla").textContent = url;
+    const nombreEntidad = s.entidades.find((e) => e[0] === lender)[1];
+    $("entidadEsperada").textContent = nombreEntidad;
+    $("pasoAsesor").textContent = "Tu usuario asesor tiene que estar asignado a " + s.comercio + " · " + s.nombre
+      + " (sucursal " + s.branchId + "). Si está en otra, la pantalla te lleva a la tuya y el código no sirve ahí.";
+
+    decir("Listo · código para " + s.comercio + " (comercio " + s.alliedId + ") y " + nombreEntidad
+      + ", a nombre del usuario " + user + ".", "ok");
+  }
+
+  document.querySelectorAll("[data-copy]").forEach((b) => {
+    b.addEventListener("click", async () => {
+      const txt = $(b.dataset.copy).textContent;
+      try { await navigator.clipboard.writeText(txt); decir("Comando copiado.", "ok"); }
+      catch (e) {
+        const r = document.createRange(); r.selectNodeContents($(b.dataset.copy));
+        const sel = getSelection(); sel.removeAllRanges(); sel.addRange(r);
+        decir("No pude copiar: el comando quedó seleccionado, copialo con el teclado.", "err");
+      }
+    });
+  });
+
+  $("sucursal").addEventListener("change", () => { pintarEntidades(Number($("entidad").value)); armar(); });
+  $("entidad").addEventListener("change", armar);
+  $("usuario").addEventListener("change", () => { $("otro").value = ""; armar(); });
+  $("otro").addEventListener("change", armar);
+  $("codigo").addEventListener("change", armar);
+  $("armar").addEventListener("click", armar);
+
+  pintarSucursales();
+  pintarEntidades(ENTIDAD_POR_DEFECTO);
+  pintarUsuarios();
+  $("usuario").value = "1828624";
+  armar();
+  $("status").hidden = true;
+})();
+</script>
