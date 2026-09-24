@@ -292,7 +292,7 @@ trazador-huella: ## @dia la huella MEDIDA de un flujo (tablas/eventos/código) d
 	@python3 trazador/tools/footprint.py $(UREQ) $(if $(NOMBRE),--nombre "$(NOMBRE)",) $(if $(MYSQL),--mysql $(MYSQL),)
 
 # ── PRUEBAS (harness) ────────────────────────────────────────────────────────────────────────────
-.PHONY: harness-ecommerce harness-contract harness-sandbox harness-walk harness-qr harness-mocks harness-centrales harness-rto harness-peru harness-comercio harness-forms-g2 harness-bcp-volver tests-codeudor harness-listado harness-caso harness-check soporte-qa
+.PHONY: harness-restauracion harness-ecommerce harness-contract harness-sandbox harness-walk harness-qr harness-mocks harness-centrales harness-rto harness-peru harness-comercio harness-forms-g2 harness-bcp-volver tests-codeudor harness-listado harness-caso harness-check soporte-qa
 harness-contract: ## @har ¿el mock de Bancolombia cumple los esquemas zod del front? (sin browser ni BD)
 	@cd harness && npm run --silent contrato:bancolombia
 
@@ -363,6 +363,9 @@ harness-ecommerce: ## @har EL CANAL ECOMMERCE de punta a punta: ¿el carrito de 
 
 harness-ambiente: ## @har ¿la config de un target es coherente, y nadie resuelve el ambiente por fuera de la cadena? TARGET=qa [JSON=1]
 	@cd harness && node bin/preflight.ts $(if $(TARGET),$(TARGET)) $(if $(JSON),--json)
+
+harness-restauracion: ## @har ¿la base de dev/QA sigue teniendo lo que NUESTRAS TAREAS necesitan (ecommerce, Alta, códigos)? solo lectura. FOTO=1 la guarda en harness/.runs/ ANTES de una restauración · CONTRA=.runs/qa-restore-….json dice qué se PERDIÓ después
+	@cd harness && node dev/restore-check.ts $(if $(FOTO),--snapshot) $(if $(CONTRA),--compare $(CONTRA)) $(if $(TARGET),--target $(TARGET))
 
 harness-listado: ## @har del COMERCIO al listado de entidades, por API y sin browser: ¿cuáles le salen a un cliente y por qué NO las otras? [COMERCIO=pullman] [MONTO=2000000] [MD=1 la corrida como anotación fechada, con su comando adentro, para pegar en la tarea] [BLOQUE=<id|slug> la agrega sola, como bloque, a la pila de esa tarea]
 	@cd harness && MD=$(MD) BLOQUE=$(BLOQUE) node dev/listing.ts $(if $(COMERCIO),--comercio $(COMERCIO)) $(if $(MONTO),--amount $(MONTO)) $(if $(BRANCH),--branch $(BRANCH)) $(if $(V2),--v2)

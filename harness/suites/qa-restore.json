@@ -1,0 +1,110 @@
+{
+  "name": "What our QA tasks need in the shared dev/QA database",
+  "target": "qa",
+  "checks": [
+    {
+      "task": "general",
+      "name": "migraciones registradas",
+      "sql": "SELECT id, migration FROM migrations",
+      "key": ["id"]
+    },
+    {
+      "task": "general",
+      "name": "settings (sin valores: la tabla guarda credenciales)",
+      "sql": "SELECT id, `key`, updated_at, MD5(value) AS value_md5 FROM settings",
+      "key": ["id"]
+    },
+    {
+      "task": "general",
+      "name": "hasta dónde llega cada tabla (dice el punto de la restauración)",
+      "sql": "SELECT 'users' t, MAX(id) max_id, COUNT(*) n, MAX(created_at) last_created FROM users WHERE id < 2147483647 UNION ALL SELECT 'user_requests', MAX(id), COUNT(*), MAX(created_at) FROM user_requests UNION ALL SELECT 'ecommerce_requests', MAX(id), COUNT(*), MAX(created_at) FROM ecommerce_requests",
+      "key": ["t"],
+      "info": true
+    },
+    {
+      "task": "general",
+      "name": "usuarios con id fuera de rango (tras restaurar: 0)",
+      "sql": "SELECT COUNT(*) AS n FROM users WHERE id > 2147483647",
+      "expect": { "equals": { "n": 0 } },
+      "info": true
+    },
+    {
+      "task": "general",
+      "name": "tipo de profiling_reviews.user_id",
+      "sql": "SELECT COLUMN_TYPE AS type FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'profiling_reviews' AND COLUMN_NAME = 'user_id'",
+      "info": true
+    },
+    {
+      "task": "ecommerce",
+      "name": "qué comercios y sucursales entran al flujo nuevo",
+      "sql": "SELECT id, `key`, value FROM settings WHERE `key` IN ('new_frontend_allied_branches', 'new_frontend_allieds', 'corbeta_allieds', 'kyc_pipeline_allieds')",
+      "key": ["id"],
+      "expect": { "minRows": 4 }
+    },
+    {
+      "task": "ecommerce",
+      "name": "Pullman habilitado entero en el flujo nuevo",
+      "sql": "SELECT JSON_EXTRACT(value, '$.\"94\"') AS pullman FROM settings WHERE `key` = 'new_frontend_allieds'",
+      "expect": { "equals": { "pullman": true } }
+    },
+    {
+      "task": "ecommerce",
+      "name": "sucursales ecommerce de prueba, con entidades activas",
+      "sql": "SELECT ab.hash, ab.allied_id, ab.name, SUM(lab.status = 1) AS active_lenders FROM allied_branches ab LEFT JOIN lenders_by_allied_branches lab ON lab.allied_branch_id = ab.id WHERE ab.hash IN ('13874eb6', 'd63f05e7') GROUP BY ab.id",
+      "key": ["hash"],
+      "expect": { "minRows": 2 }
+    },
+    {
+      "task": "ecommerce",
+      "name": "la corrida de punta a punta que cerró (uReq 502705)",
+      "sql": "SELECT ur.id, ur.user_request_status_id AS status, er.id AS ecommerce_request_id FROM user_requests ur LEFT JOIN ecommerce_requests er ON er.user_request_id = ur.id WHERE ur.id = 502705",
+      "key": ["id"],
+      "info": true
+    },
+    {
+      "task": "alta",
+      "name": "comercio Alta Fleet con su bienvenida",
+      "sql": "SELECT id, name, hash, JSON_EXTRACT(pages, '$.welcome') IS NOT NULL AS has_welcome FROM allieds WHERE id = 339",
+      "key": ["id"],
+      "expect": { "minRows": 1, "equals": { "has_welcome": 1 } }
+    },
+    {
+      "task": "alta",
+      "name": "sucursal Calle 90 en Bogotá",
+      "sql": "SELECT id, hash, name, country_city_id, status FROM allied_branches WHERE id = 2174",
+      "key": ["id"],
+      "expect": { "minRows": 1, "equals": { "hash": "ea2fe316", "country_city_id": 149 } }
+    },
+    {
+      "task": "alta",
+      "name": "entidad AltaX (RTO, rt=2)",
+      "sql": "SELECT id, name, product, response_type, show_intro_screen FROM lenders WHERE id = 211",
+      "key": ["id"],
+      "expect": { "minRows": 1, "equals": { "product": "rto", "response_type": 2 } }
+    },
+    {
+      "task": "alta",
+      "name": "AltaX activa en la sucursal y con economía del comercio",
+      "sql": "SELECT (SELECT status FROM lenders_by_allied_branches WHERE allied_branch_id = 2174 AND lender_id = 211 LIMIT 1) AS branch_status, (SELECT COUNT(*) FROM lenders_by_allieds WHERE allied_id = 339 AND lender_id = 211) AS allied_rows",
+      "expect": { "equals": { "branch_status": 1, "allied_rows": 1 } }
+    },
+    {
+      "task": "alta",
+      "name": "reglas, perfiles, datacrédito y documentos de AltaX",
+      "sql": "SELECT (SELECT COUNT(*) FROM lender_rules WHERE lender_id = 211) AS rules, (SELECT COUNT(*) FROM lender_users_categories WHERE lender_id = 211) AS categories, (SELECT COUNT(*) FROM lender_datacredito_rules WHERE lender_id = 211) AS datacredito_rules, (SELECT COUNT(*) FROM lender_signing_documents WHERE lender_id = 211) AS signing_documents",
+      "compareValues": true
+    },
+    {
+      "task": "codigo",
+      "name": "sucursales de asesor que usan las pruebas (Pullman, BCP, Motai)",
+      "sql": "SELECT hash, allied_id, name, status FROM allied_branches WHERE hash IN ('ec977139', 'a8221e67', 'f0548728')",
+      "key": ["hash"],
+      "expect": { "minRows": 3 }
+    },
+    {
+      "task": "codigo",
+      "name": "los códigos de QA siguen canjeables (usuario, sucursal y entidad existen)",
+      "codes": "harness/.runs/codigos-qa.json"
+    }
+  ]
+}
