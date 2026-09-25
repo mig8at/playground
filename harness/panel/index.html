@@ -716,7 +716,7 @@
       // targets: es cierto.
       // ⚠ Y su catálogo de documentos sólo tiene la rama CON codeudor, así que el flujo pide codeudor
       // antes de firmar. Es la conducta correcta del Rent to Own, no un fallo.
-      { slug: 'signup', name: 'Alta Fleet' },
+      { slug: 'alta', name: 'Alta Fleet' },   // ⚠ el slug es el de .flows.json: NO se traduce (un pase a inglés lo dejó «signup» y el panel lo perdió)
     ];
     let sel = MERCHANTS[0];      // Motai por defecto
     let target = 'local';        // local | dev | staging | qa (staging y qa: front y backend propios, BD compartida con dev)
