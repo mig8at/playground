@@ -149,6 +149,11 @@ const activeCreditCard = (i) => ({
  * empleo ya dictado, la categoría seguía rechazándose por esos tres criterios, el cliente caía en la
  * que exige cuota inicial y la corrida no cerraba. Se dicta como JSON:
  *   {"score": 750, "consultedLast6Months": 1, "creditCards": 1}   — cada campo es opcional
+ *
+ * Y desde el 2026-09-25 también lo que miran los demás criterios de las categorías, para que el panel del
+ * harness pueda dictar el caso entero y la categoría la gobiernen sus perillas, no este reporte fijo:
+ *   "negativeHistoricalLast12Months", "currentNegativeCredits" (la mora actual) y "maturationSince"
+ *   (desde cuándo está en el sector, `YYYY-MM-DD`).
  */
 const experianDefault = (doc, variant = 'hdcplus') => {
     const base = structuredClone(EXPERIAN[variant] ?? EXPERIAN.hdcplus);
@@ -164,6 +169,9 @@ const experianDefault = (doc, variant = 'hdcplus') => {
         if (profile.score != null && report.models?.[0]) report.models[0].scoreValue = Number(profile.score);
         const principals = report.agregatedInfo?.overview?.principals;
         if (profile.consultedLast6Months != null && principals) principals.consultedLast6Months = Number(profile.consultedLast6Months);
+        if (profile.negativeHistoricalLast12Months != null && principals) principals.negativeHistoricalLast12Months = Number(profile.negativeHistoricalLast12Months);
+        if (profile.currentNegativeCredits != null && principals) principals.currentNegativeCredits = Number(profile.currentNegativeCredits);
+        if (profile.maturationSince && principals) principals.maturationSince = String(profile.maturationSince);
         if (profile.creditCards != null) {
             report.creditCard = Array.from({ length: Number(profile.creditCards) }, (_, i) => activeCreditCard(i));
         }

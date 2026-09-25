@@ -64,14 +64,14 @@ export async function dictate(doc: string, central: string, value: unknown): Pro
  *  Y esto NO es un detalle de laboratorio: la regla de Credifamilia exige `ocupación = Independiente`,
  *  así que con el empleador por defecto esa entidad **nunca sale en el listado** — y el síntoma es una
  *  ausencia silenciosa, no un rechazo visible. */
-export function agildataAnswer(doc: string, ibc: number, occupation?: string) {
+export function agildataAnswer(doc: string, ibc: number, occupation?: string, periods = 8) {
     // ⚠ EL PERÍODO ES `YYYYMM` Y NO SE PUEDE RESTAR COMO ENTERO. `202603 - k` parece razonable y a
     // partir del cuarto pago da 202599, 202598… meses que no existen. El backend calcula la
     // continuidad (3/6/12 meses) contando períodos, así que con basura ahí devuelve `employed: false`,
     // continuidad en cero y `approximate_real_salary: 0` — el ingreso llega y NO SIRVE. El caso que
     // uno creyó plantar («alguien que gana 15M») termina siendo «alguien sin empleo», y el listado no
     // cambia por la razón equivocada.
-    const payments = Array.from({ length: 8 }, (_, k) => {
+    const payments = Array.from({ length: periods }, (_, k) => {
         // ⚠ RELATIVO A HOY, no a una fecha fija. `validateContractType` compara el último período
         // contra la fecha de la solicitud: una serie que termina hace cinco meses da `employed:false`
         // por vieja, no por el caso que se quiso plantear. Una fecha horneada acá envejece sola y
@@ -114,9 +114,9 @@ export function agildataAnswer(doc: string, ibc: number, occupation?: string) {
  * y escribe ocupación, ingreso y continuidad con lo que conteste. Reponer esos campos después no
  * alcanza, porque el perfilamiento ya evaluó las categorías con la respuesta del mock.
  */
-export async function dictateEmployment(doc: string, income: number, occupation?: string): Promise<boolean> {
+export async function dictateEmployment(doc: string, income: number, occupation?: string, periods = 8): Promise<boolean> {
     for (let attempt = 0; attempt < 4; attempt++) {
-        await dictate(doc, 'agildata', agildataAnswer(doc, income, occupation));
+        await dictate(doc, 'agildata', agildataAnswer(doc, income, occupation, periods));
         if (await confirmDictation(doc, 'agildata', String(income))) return true;
     }
     return false;
@@ -128,6 +128,11 @@ export interface BureauProfile {
     consultedLast6Months?: number;
     /** Cuántas tarjetas de crédito ACTIVAS trae el reporte. */
     creditCards?: number;
+    negativeHistoricalLast12Months?: number;
+    /** La mora actual: la que mira el criterio de moras vigentes de cada categoría. */
+    currentNegativeCredits?: number;
+    /** Desde cuándo está en el sector financiero, `YYYY-MM-DD`. */
+    maturationSince?: string;
 }
 
 /**
@@ -140,4 +145,33 @@ export interface BureauProfile {
  */
 export async function dictateBureauProfile(doc: string, profile: BureauProfile): Promise<boolean> {
     return dictate(doc, 'experian_profile', profile);
+}
+
+/** El caso del panel, tal como lo dicta `dictateCase`. */
+export interface DictatedCase {
+    income: number; occupation?: string;
+    score: number; negatives: number; delinquencies: number; consulted: number; maturationSince: string;
+}
+
+/**
+ * Le dicta al mock el caso ENTERO del panel —empleo e ingreso a Agildata, el perfil de buró a Experian—
+ * para que la consulta real que hace el backend durante el flujo conteste lo mismo que el panel inyecta.
+ *
+ * ⚠ Sin esto, «Buró inyectado» no gobernaba la categoría: al enviar `personal-info` el backend consulta
+ * las centrales y guarda lo que contesten, y el motor de categorías evalúa con ESO. Medido el 2026-09-25
+ * en una corrida del panel (cédula 2927492104): el motor puso las cuatro entidades de Motai en «Recuperar
+ * mejores» con el reporte fijo del mock (score 654, 59 consultas, sin tarjetas) cuando el caso decía score
+ * 700 — la predicción del panel era Premium.
+ *
+ * Trece períodos de Agildata, no ocho: la continuidad de 12 meses (la que el panel asume) necesita un año
+ * entero de pagos. Una tarjeta activa con vector, como la que forja la inyección.
+ */
+export async function dictateCase(doc: string, c: DictatedCase): Promise<{ employment: boolean; bureau: boolean }> {
+    const employment = await dictateEmployment(doc, c.income, c.occupation, 13);
+    const bureau = await dictateBureauProfile(doc, {
+        score: c.score, consultedLast6Months: c.consulted, creditCards: 1,
+        negativeHistoricalLast12Months: c.negatives, currentNegativeCredits: c.delinquencies,
+        maturationSince: c.maturationSince,
+    });
+    return { employment, bureau };
 }

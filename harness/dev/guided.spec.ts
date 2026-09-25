@@ -5,7 +5,8 @@ import { pathToFileURL } from 'node:url';
 import type { Page } from '@playwright/test';
 import { identityWithoutProviderNotice, backendLogsNotice, config, cognitoCreds } from '../pkg/config';
 import { cognitoLogin, cognitoStorageState, persistCognitoState } from '../pkg/cognito';
-import { overwrittenEmploymentNotice, restoreEmployment, synthFill, requestStatus11, manualValidation } from '../pkg/inject';
+import { overwrittenEmploymentNotice, restoreEmployment, synthFill, requestStatus11, manualValidation, MATURATION_SINCE } from '../pkg/inject';
+import { dictateCase } from '../pkg/risk-lambda';
 import { quotaWithoutExitNotice, branchActiveRt0 } from '../pkg/merchants';
 import { closeCreditopX, resolveRequestStatus } from '../pkg/close';
 import { one, exec } from '../pkg/db';
@@ -607,6 +608,26 @@ test('guided (semiautomático)', async ({ browser }) => {
         expeditionDate: process.env.E2E_SYNTH_EXP || undefined,
         email: process.env.E2E_SYNTH_EMAIL || undefined,
     });
+
+    // ── EL BURÓ INYECTADO GOBIERNA TAMBIÉN LA CATEGORÍA ─────────────────────────────────────────────
+    // Al enviar `personal-info` el backend consulta las centrales y guarda lo que contesten, y el motor de
+    // categorías evalúa con eso — no con lo que inyecta `synthFill`. Así que, antes de que el wizard llegue
+    // ahí, se le DICTA al mock local de centrales el caso del panel para la cédula que se va a tipear (la del
+    // chip «cédula»): Agildata contesta el empleo y el ingreso, Experian el perfil de buró. Lo que predice
+    // «Categoría por entidad» y lo que registra el motor pasan a hablar del mismo cliente.
+    // Sólo local (en dev/qa el backend le pregunta a la lambda de la empresa) y sólo con buró: un PEP no tiene.
+    if (process.env.E2E_INJECT === '1' && (process.env.E2E_TARGET || 'dev') === 'local'
+        && process.env.E2E_SYNTH_DOC && (process.env.E2E_SYNTH_DOCTYPE || 'CC').toUpperCase() !== 'PEP') {
+        const o = synthOptsFromEnv();
+        const negatives = o.negatives ?? 0;
+        const done = await dictateCase(process.env.E2E_SYNTH_DOC, {
+            income: o.income ?? 2_500_000, occupation: o.occupation, score: o.score ?? 700, negatives,
+            delinquencies: o.delinquencies ?? negatives, consulted: o.consulted ?? 1, maturationSince: MATURATION_SINCE,
+        }).catch(() => ({ employment: false, bureau: false }));
+        log(done.employment && done.bureau
+            ? `buró dictado al mock de centrales para ${process.env.E2E_SYNTH_DOC}: la categoría la deciden las perillas del caso`
+            : `⚠ no se pudo dictar el caso al mock de centrales (:8105, \`make harness-centrales\`): la categoría la decidirá lo que conteste el backend, no las perillas`);
+    }
 
     // ── Pantalla "preparando" con PASOS que se completan de verdad (refleja el seed real, no una animación
     // falsa). Vive en la propia página del navegador (setContent) y el spec la actualiza vía page.evaluate a
