@@ -1,10 +1,14 @@
 <!doctype html>
-<html lang="es" class="dark">
+<html lang="es">
 
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Panel del harness · CreditOp</title>
+  <!-- EL TEMA ANTES DE PINTAR: el renglón es el valor de `THEME_BOOT` de `tools/ui/workbench.js`, y lo
+       escribe `make estilo-sync` entre los marcadores (el panel no tiene bundler que lo inyecte). No se
+       edita a mano: `make estilo-check` avisa si se desvía de la fuente. -->
+  <script>/* <theme-boot> */try{var t=localStorage.getItem('ui.theme');if(t!=='light'&&t!=='dark')t=matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light';document.documentElement.classList.toggle('dark',t==='dark');document.documentElement.style.colorScheme=t}catch(e){}/* </theme-boot> */</script>
   <!-- EL TEMA y LA BASE: los dos archivos compartidos, idénticos en las cuatro herramientas y
        repartidos por `make estilo-sync` (no se editan acá). El tema dice de qué COLOR es cada cosa;
        `workbench.css` dice QUÉ COSA ES y cuánto mide. ⚠ El panel no tiene bundler —`npm run dev` es
@@ -34,25 +38,41 @@
        Los del DOMINIO van al lado por lo mismo que los carriles del trazador: `response_type` dice
        cómo decide la entidad y `product` qué se financia. El mapa los usa para sus carriles, así la
        leyenda es una sola para la fila de entidad y para el dibujo. */
+    /* Cada color, en los DOS temas: el claro en `:root` y el oscuro en `.dark` (la clase que pone el
+       botón del pie). Un color pensado para fondo oscuro sobre blanco no se lee —el ámbar #f59e0b da
+       2,1:1 sobre blanco—, así que el claro es otro color, no el mismo. Los dos juegos se miden con
+       `make estilo-contraste THEME=light|dark`. */
     :root {
-      --ok: #22c55e;
-      --warn: #f59e0b;
-      --danger: #f87171;
-      --rt0: #94a3b8;      /* sin integración: sale a la entidad */
-      --rt1: #60a5fa;      /* agregador: decide la entidad por API */
+      --ok: #15803d;
+      --warn: #b45309;
+      --danger: #b91c1c;
+      --rt0: #475569;      /* sin integración: sale a la entidad */
+      --rt1: #1d4ed8;      /* agregador: decide la entidad por API */
       --rt2: var(--ok);    /* in-platform (CreditopX) */
-      --rt3: #c084fc;      /* externo con API */
-      --rt4: #c084fc;      /* Credifamilia: origina in-platform, radica por SOAP */
+      --rt3: #7e22ce;      /* externo con API */
+      --rt4: #7e22ce;      /* Credifamilia: origina in-platform, radica por SOAP */
       --prod-credit: var(--ok);
-      --prod-renting: #eab308;
-      --prod-rto: #fb923c;
-      --lane-trunk: #9aa4b2;   /* el tronco del mapa: neutro, para que los carriles resalten */
+      --prod-renting: #854d0e;
+      --prod-rto: #c2410c;
+      --lane-trunk: #64748b;   /* el tronco del mapa: neutro, para que los carriles resalten */
 
       /* Medidas propias, con nombre para que no queden números sueltos en las reglas. */
       --prop-label-w: 104px;   /* la columna de rótulos del panel de propiedades */
       --shot-w: 416px;         /* la miniatura de un screenshot en la consola */
       --shot-h: 144px;
       --health-w: 480px;       /* el detalle del estado de los servicios */
+    }
+    .dark {
+      --ok: #22c55e;
+      --warn: #f59e0b;
+      --danger: #f87171;
+      --rt0: #94a3b8;
+      --rt1: #60a5fa;
+      --rt3: #c084fc;
+      --rt4: #c084fc;
+      --prod-renting: #eab308;
+      --prod-rto: #fb923c;
+      --lane-trunk: #9aa4b2;
     }
 
     /* ⚠ LOS TINTES SE MEZCLAN `in oklab`, NUNCA `in oklch`. Los neutros del tema son `oklch(L 0 0)`:
@@ -148,7 +168,10 @@
     .run-dot.running { background: var(--ok); animation: pulse 1.2s ease-in-out infinite }
     @keyframes pulse { 50% { opacity: .3 } }
     .run-time { font-size: var(--text-xs); font-weight: 400; color: var(--fg-2); white-space: nowrap }
-    .stop { display: none }
+    /* Detener es la acción que corta: contorno y tinta en el rojo propio. PROPUESTA A LA BASE:
+       `.btn-destructive` en el tema claro es blanco sobre #ef4444 y mide 3,76:1 (medido acá, con la
+       corrida andando); como tinta sobre el fondo, `--danger` pasa en los dos temas. */
+    .stop { display: none; color: var(--danger); border-color: color-mix(in oklab, var(--danger) 50%, transparent) }
     .stop.on { display: inline-flex }
     /* El aviso de ambiente compartido: pertenece a la corrida, dentro del editor y sobre el mapa. Es el
        `.alert` de la base; lo propio es el ÁMBAR, que es semántico y por eso no vive en la base. */
@@ -279,6 +302,13 @@
     /* PROPUESTA A LA BASE: un `.input-group` de 24 (`xs`), como ya lo tienen el campo y el botón. El
        monto lleva su `$` adentro y vive en una fila de 28. */
     .props .input-group { height: var(--control-xs) }
+    /* PROPUESTA A LA BASE: el alternador encendido se lee en la TINTA, como ya los botones del pie
+       (8add6584). Con el fondo `--accent` de la base, en el tema claro el encendido es #eee sobre el
+       #f3f4f6 del sidebar: «CC» y «CE» se ven iguales. Acá: apagado en `--fg-3`, encendido en la tinta
+       plena y en 600, sin caja; al pasar, el `--hover` de siempre. */
+    .props .toggle { color: var(--fg-3) }
+    .props .toggle.on { background: none; color: var(--foreground); font-weight: 600 }
+    .props .toggle.on:hover { background: var(--hover) }
     /* La pista del control ocupa la columna del control y un renglón; el texto entero va al tooltip. */
     .prop-hint { margin: 0; padding: 0 var(--gutter) var(--space-1) calc(var(--gutter) + var(--prop-label-w) + var(--space-2));
       font-size: var(--text-xs); line-height: 16px; color: var(--fg-2);
@@ -289,9 +319,15 @@
        cuerpo con scroll: el panel lo sigue al final mientras corre. */
     #consoleFilterState { margin-right: var(--space-2) }
     .console-body { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column }
-    .console-log { padding-block: var(--space-2) }
+    /* ⚠ LA SALIDA SIGUE AL FINAL SIN QUE NADIE LA MUEVA. El cuerpo es una columna INVERTIDA con un solo
+       hijo (las líneas): así su origen de scroll es el final, las líneas nuevas quedan a la vista solas
+       y, si subiste a leer, no te arrastran. Antes se forzaba `scrollTop` en cada tick, y ese scroll
+       programático cerraba el menú de la consola en la mano de quien lo estaba usando: el menú de la
+       base se cierra con cualquier scroll de la página. */
+    .console-log { display: flex; flex-direction: column-reverse }
+    .log-lines { flex: none; padding-block: var(--space-2) }
     /* Una zona vacía de 240 px se lee como «se rompió»: dice qué va a aparecer ahí. */
-    .console-log:empty::before { content: attr(data-vacio); display: block; padding: 0 var(--gutter);
+    .log-lines:empty::before { content: attr(data-vacio); display: block; padding: 0 var(--gutter);
       font-size: var(--text-sm); color: var(--fg-2) }
     .log-failed { color: var(--danger) }
     /* La miniatura de un screenshot: reemplaza a «andá a buscar el png». Es un OBJETO y lleva su marco. */
@@ -321,6 +357,7 @@
 
     /* ═══ EL PIE ══════════════════════════════════════════════════════════════════════════════════ */
     .statusbar strong { color: var(--foreground) }
+    .theme-toggle { margin-right: var(--space-1) }
     .readiness-link { border: 0; padding: 0; background: none; color: var(--warn); font: inherit; cursor: pointer }
     .readiness-link:hover { text-decoration: underline }
 
@@ -427,7 +464,7 @@
             </button>
             <span class="run-dot" id="runDot"></span>
             <span class="run-time" id="activityTime"></span>
-            <button type="button" class="btn btn-destructive btn-sm stop" id="stopBtn">Detener</button>
+            <button type="button" class="btn btn-outline btn-sm stop" id="stopBtn">Detener</button>
             <button type="button" class="btn btn-sm" id="go" disabled>Preparar + Lanzar ▶</button>
           </div>
         </div>
@@ -611,8 +648,13 @@
         </div>
       </nav>
       <div class="console-body" id="consoleBody">
-        <div id="log" class="region-body console-log" role="log" data-vacio="Sin corrida todavía. Acá sale, línea por línea, lo que imprime el launcher."></div>
-        <div id="logSsr" class="region-body console-log" role="log" style="display:none" data-vacio="El stdout del wizard (SSR): sus llamadas salientes y sus errores. Es la ÚNICA vista de eso."></div>
+        <!-- Cada salida es su propio cuerpo con scroll (`#logScroll`) y adentro sus líneas (`#log`). -->
+        <div id="logScroll" class="region-body console-log">
+          <div id="log" class="log-lines" role="log" data-vacio="Sin corrida todavía. Acá sale, línea por línea, lo que imprime el launcher."></div>
+        </div>
+        <div id="logSsrScroll" class="region-body console-log" style="display:none">
+          <div id="logSsr" class="log-lines" role="log" data-vacio="El stdout del wizard (SSR): sus llamadas salientes y sus errores. Es la ÚNICA vista de eso."></div>
+        </div>
       </div>
     </section>
 
@@ -622,6 +664,9 @@
       <span id="runSummary" role="status">Elegí un comercio primero.</span>
       <button class="readiness-link" id="readinessLink" type="button" hidden></button>
       <div class="layout-controls" role="group" aria-label="Regiones visibles">
+        <!-- El tema, antes de los botones de disposición y separado 8: los de disposición van al final
+             porque su orden copia la pantalla (izquierda, abajo, derecha). -->
+        <button type="button" class="region-action theme-toggle" id="themeToggle"><span class="ui-icon" aria-hidden="true"></span></button>
         <button class="region-action" id="toggleSidebar" title="Mostrar u ocultar comercios" aria-label="Mostrar u ocultar comercios" aria-controls="sideLeft"><span class="ui-icon" data-icon="sidebar" aria-hidden="true"></span></button>
         <button class="region-action" id="toggleConsole" title="Mostrar u ocultar consola" aria-label="Mostrar u ocultar consola" aria-controls="bottomPanel"><span class="ui-icon" data-icon="console" aria-hidden="true"></span></button>
         <button class="region-action" id="toggleDetail" title="Mostrar u ocultar configuración" aria-label="Mostrar u ocultar configuración" aria-controls="sideRight"><span class="ui-icon" data-icon="detail" aria-hidden="true"></span></button>
@@ -2282,8 +2327,8 @@
       // layout del panel inferior (columna flex, para que el <pre> llene) lo sigue decidiendo el CSS.
       $('consoleBody').style.display = '';
       const isSsr = $('tabSsr').classList.contains('on');
-      $('log').style.display = on && !isSsr ? 'block' : 'none';
-      $('logSsr').style.display = on && isSsr ? 'block' : 'none';
+      $('logScroll').style.display = on && !isSsr ? '' : 'none';
+      $('logSsrScroll').style.display = on && isSsr ? '' : 'none';
       // (el botón de plegar se quitó: la consola es una ZONA fija del layout, no una tarjeta que
       //  compita por alto con lo de arriba. `showLog` se queda: lo llaman el arranque y las corridas.)
     }
@@ -2397,6 +2442,10 @@
     let ssrCursor = 0, ssrPoll = null, ssrOnly = false, ssrLines = [];
     const IS_OUTGOING = /\[outbound\]|error|Error|ELIFECYCLE|ECONN|failed/;
 
+    /* Ir al final de una salida. En una columna invertida el final es `scrollTop = 0`; sólo se usa a
+     * pedido (el menú, el filtro): seguir la salida mientras corre lo hace el CSS (`.console-log`). */
+    const toBottom = (id) => { const el = $(id); if (el) el.scrollTop = 0; };
+
     function repaintSsr() {
       const pre = $('logSsr');
       pre.replaceChildren();
@@ -2406,7 +2455,15 @@
         frag.appendChild(logLine(l));
       }
       pre.appendChild(frag);
-      pre.scrollTop = pre.scrollHeight;
+    }
+
+    // Lo nuevo se AGREGA, no se repinta todo: vaciar el log para volver a llenarlo le baja la altura un
+    // instante, el navegador corrige su `scrollTop` y ese scroll cierra cualquier menú abierto.
+    function appendSsr(lines) {
+      const pre = $('logSsr');
+      const frag = document.createDocumentFragment();
+      for (const l of lines) if (!ssrOnly || IS_OUTGOING.test(l)) frag.appendChild(logLine(l));
+      pre.appendChild(frag);
     }
 
     async function tickSsr() {
@@ -2415,8 +2472,8 @@
         if (!j.hay) { ssrLines = ['(sin /tmp/asesor-wizard.log — lo escribe `bin/advisor` al levantar el wizard;',
                                    ' si lo arrancaste a mano con `pnpm dev`, su salida se fue a esa terminal)']; return repaintSsr(); }
         // `total` baja ⇒ `bin/advisor` truncó el archivo al relanzar el wizard: es OTRA sesión, se resetea.
-        if (typeof j.total === 'number' && j.total < ssrCursor) { ssrLines = []; ssrCursor = 0; return; }
-        if (j.lines && j.lines.length) { ssrLines.push(...j.lines); repaintSsr(); }
+        if (typeof j.total === 'number' && j.total < ssrCursor) { ssrLines = []; ssrCursor = 0; $('logSsr').replaceChildren(); return; }
+        if (j.lines && j.lines.length) { ssrLines.push(...j.lines); appendSsr(j.lines); }
         if (typeof j.total === 'number') ssrCursor = j.total;
       } catch { /* el panel sigue andando sin esto */ }
     }
@@ -2425,8 +2482,8 @@
       const isSsr = which === 'ssr';
       // Mismo mecanismo que `showLog` —`style.display`, no el atributo `hidden`— para que plegar y
       // cambiar de pestaña no se pisen.
-      $('log').style.display = isSsr || !logOpen ? 'none' : 'block';
-      $('logSsr').style.display = isSsr && logOpen ? 'block' : 'none';
+      $('logScroll').style.display = isSsr || !logOpen ? 'none' : '';
+      $('logSsrScroll').style.display = isSsr && logOpen ? '' : 'none';
       $('tabRun').classList.toggle('on', !isSsr);
       $('tabSsr').classList.toggle('on', isSsr);
       $('tabRun').setAttribute('aria-selected', String(!isSsr));
@@ -2452,11 +2509,9 @@
         pollBusy = true;
         try {
         const j = await (await fetch(`/api/status?from=${logCursor}`)).json();
-        const atBottom = $('log').scrollTop + $('log').clientHeight >= $('log').scrollHeight - 30;
         // `total` baja ⇒ el RUN_LOG se reescribió (corrida nueva): reset y pedimos todo de nuevo.
         if (typeof j.total === 'number' && j.total < logCursor) { logLines = []; logCursor = 0; repaintLog(); }
         else if (j.lines && j.lines.length) { appendLog(j.lines); logCursor = j.total; }
-        if (atBottom) $('log').scrollTop = $('log').scrollHeight;   // auto-scroll solo si ya estabas al final
         if (j.running) {
           if (!runRunning) { setRunningUI(true); $('routeMap').open = true; }
           $('stopBtn').classList.add('on');
@@ -2818,7 +2873,7 @@
     function toggleLogFilter() {
       importantOnly = !importantOnly;
       repaintLog();
-      $('log').scrollTop = $('log').scrollHeight;
+      toBottom('logScroll');
     }
 
     // copiar consola: trae el log COMPLETO de /api/log (incluye los ⚠ del navegador que el spec vuelca); fallback a lo visible.
@@ -3407,6 +3462,9 @@ export function bindMenu(trigger, { getItems, onSelect, label = 'Más opciones' 
     // el mismo botón o con Escape desde la consola. Ocultarla la restaura antes: una consola plegada y
     // maximizada dejaría la ventana vacía.
     const maximize = bindPanelMaximize(document.getElementById('maximizeConsole'));
+    // El tema lo elige la persona: la primera vez sigue al sistema y lo elegido se guarda (`ui.theme`).
+    // El mapa no necesita escuchar el cambio: sus colores son tokens de la hoja.
+    bindThemeToggle(document.getElementById('themeToggle'));
     const shown = new Map();
     const limitOf = (a) => a.axis === 'y' ? Math.min(a.limit, innerHeight - 250) : a.limit;
     function layout() {
@@ -3501,7 +3559,7 @@ export function bindMenu(trigger, { getItems, onSelect, label = 'Más opciones' 
       ],
       onSelect: (id) => {
         if (id === 'filtrar') { (isSsr() ? toggleSsrFilter : toggleLogFilter)(); reflectConsoleFilter(); }
-        if (id === 'final') { const log = document.getElementById(isSsr() ? 'logSsr' : 'log'); log.scrollTop = log.scrollHeight; }
+        if (id === 'final') toBottom(isSsr() ? 'logSsrScroll' : 'logScroll');
         if (id === 'ocultar') { toggleRegion(2); document.getElementById('toggleConsole').focus(); }
       },
     });
