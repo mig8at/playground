@@ -4,7 +4,7 @@ import pathlib
 import sys
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
-FILES = ('tema.css', 'taller.css', 'workbench.js', 'RegionMenu.vue')
+FILES = ('theme.css', 'workbench.css', 'workbench.js', 'RegionMenu.vue')
 DESTINATIONS = ('tablero/src', 'trazador/src', 'visor/src', 'harness/panel')
 
 def sync(check=False):

@@ -42,7 +42,7 @@ const t = useTrazador()
 
 <style scoped>
 /* ⚠ Acá vivían el input, el select, el botón y su anillo de foco, escritos a mano. Son `.input` y
-   `.btn.btn-outline` de `taller.css`, o sea los mismos que las otras tres: el alto, el radio, el
+   `.btn.btn-outline` de `workbench.css`, o sea los mismos que las otras tres: el alto, el radio, el
    anillo de 3px y los estados salen de un solo lugar. Lo único que queda es lo que esta barra tiene
    de propio — que el input se estire y que el `prod ▾ buscar` no envuelva. */
 .buscador { display:flex; gap:8px; flex-wrap:wrap; align-items:center }

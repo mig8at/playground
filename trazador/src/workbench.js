@@ -58,7 +58,7 @@ export function fitRegions(available, regions) {
   return regions.map(() => 0);
 }
 
-// Los mínimos son tokens de `taller.css` (`--sidebar-min`, `--panel-min`, `--editor-min`): se leen de
+// Los mínimos son tokens de `workbench.css` (`--sidebar-min`, `--panel-min`, `--editor-min`): se leen de
 // ahí para que el número exista en un solo lugar.
 export function cssSize(name, fallback) {
   try {
@@ -162,7 +162,7 @@ export function bindResize(handle, options) {
     };
     const end = (ev) => { if (ev.pointerId === e.pointerId) stop(); };
     handle.classList.add('on');
-    document.body.classList.add('redimensionando');
+    document.body.classList.add('resizing');
     document.body.style.cursor = o.axis === 'y' ? 'row-resize' : 'col-resize';
     stop = () => {
       if (rafId) { cancelAnimationFrame(rafId); rafId = null; }
@@ -173,7 +173,7 @@ export function bindResize(handle, options) {
       handle.removeEventListener('lostpointercapture', end);
       if (handle.hasPointerCapture(e.pointerId)) handle.releasePointerCapture(e.pointerId);
       handle.classList.remove('on');
-      document.body.classList.remove('redimensionando');
+      document.body.classList.remove('resizing');
       document.body.style.removeProperty('cursor');
       finish();
       stop = () => {};
@@ -201,7 +201,7 @@ export function bindResize(handle, options) {
 /* ── EL TEMA ────────────────────────────────────────────────────────────────────────────────────
  * Claro u oscuro, con el botón del pie. La primera vez sigue al sistema; cuando la persona elige,
  * queda guardado en su navegador (cada herramienta tiene su origen, así que cada una recuerda lo suyo).
- * El tema es la clase `.dark` de `tema.css` en el <html>, más `color-scheme` para que los controles
+ * El tema es la clase `.dark` de `theme.css` en el <html>, más `color-scheme` para que los controles
  * nativos (fechas, selects, scrollbars) acompañen.
  *
  * ⚠ Para no pintar un cuadro con el tema equivocado, la herramienta aplica el tema ANTES de que cargue
@@ -259,7 +259,7 @@ export function bindThemeToggle(button) {
 
 /* ── LA CONSOLA MAXIMIZADA ──────────────────────────────────────────────────────────────────────
  * El botón de la banda de la consola le da todo el alto de la columna (`.workbench.panel-max`, en
- * taller.css). Es temporal a propósito: no se guarda, porque es la única forma de tapar el editor y
+ * workbench.css). Es temporal a propósito: no se guarda, porque es la única forma de tapar el editor y
  * nadie tiene que volver a una herramienta y encontrar el editor escondido. Se deshace con el mismo
  * botón o con Escape desde adentro de la consola. */
 export function bindPanelMaximize(button, { root = button.closest('.workbench'), panel = button.closest('.panel') } = {}) {
@@ -346,7 +346,7 @@ export function bindMenu(trigger, { getItems, onSelect, label = 'Más opciones' 
     const focused = document.activeElement?.dataset.menuId;
     menu.replaceChildren();
     for (const item of getItems()) {
-      if (item.separador) {
+      if (item.separator) {
         const separator = document.createElement('hr'); separator.setAttribute('role', 'separator');
         menu.appendChild(separator); continue;
       }

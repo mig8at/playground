@@ -249,7 +249,7 @@ watch(() => actual.value?.id, (id) => { focusStage(id) }, { immediate: true })
   align-items:start; padding:4px 12px; color:var(--dim); border-bottom:1px solid color-mix(in srgb, var(--line) 70%, transparent) }
 .log-line:hover { background:var(--sel); color:var(--txt) }
 .log-line time { color:var(--tenue); font-variant-numeric:tabular-nums; white-space:nowrap }
-.log-step { min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; color:var(--texto-2) }
+.log-step { min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; color:var(--fg-2) }
 .log-level { color:var(--tenue); font-size:var(--text-xs); white-space:nowrap }
 .log-message { min-width:0; overflow-wrap:anywhere; white-space:pre-wrap }
 .nivel-error { color:var(--fail); background:color-mix(in srgb, var(--fail) 4%, var(--card)) }
@@ -262,7 +262,7 @@ watch(() => actual.value?.id, (id) => { focusStage(id) }, { immediate: true })
   min-height:29px; cursor:pointer; list-style:none; font:var(--text-xs)/1.3 var(--font-sans) }
 .log-evidence > summary::-webkit-details-marker { display:none }
 .log-kind { color:var(--info); font:600 var(--text-xs)/1 var(--font-mono) }.log-summary { color:var(--tenue); font-size:var(--text-xs) }
-.evidence-row { margin:0; padding:2px 0; color:var(--texto-2); font:var(--text-xs)/1.45 ui-monospace, SFMono-Regular, monospace; overflow-wrap:anywhere }
+.evidence-row { margin:0; padding:2px 0; color:var(--fg-2); font:var(--text-xs)/1.45 ui-monospace, SFMono-Regular, monospace; overflow-wrap:anywhere }
 .query { margin:6px 0 8px; border-bottom:0 }.query .accordion-trigger { padding:0; font-size:var(--text-xs); font-weight:500 }
 .query pre { margin:4px 0 0; padding:6px 8px; overflow:auto; color:var(--dim); background:var(--panel2); border-radius:var(--r-sm); font:var(--text-xs)/1.45 ui-monospace, SFMono-Regular, monospace }
 

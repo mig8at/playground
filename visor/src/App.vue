@@ -744,7 +744,7 @@ const laneName = (lane) => (lane.label ? lane.label : 'Fila sin rótulo')
       <!-- Cada PROYECTO (un flujo, un archivo de Figma) es un bloque del acordeón en la raíz de la barra, y
            adentro están sus pantallas en los carriles del diseñador, sin pasar por las páginas del
            archivo. Los bloques abiertos se reparten el alto y uno cerrado cuesta una fila. -->
-      <section v-for="f in flows" :key="f.key" class="view" :class="{ abierta: isOpenFile(f.key) }">
+      <section v-for="f in flows" :key="f.key" class="view" :class="{ open: isOpenFile(f.key) }">
         <div class="region-head">
           <button type="button" class="view-tog" :aria-expanded="isOpenFile(f.key)" :aria-controls="'flow-' + f.key" @click="toggleFile(f.key)">
             <span class="ui-icon" data-icon="chevron" aria-hidden="true"></span><span>{{ f.name }}</span>
@@ -760,7 +760,7 @@ const laneName = (lane) => (lane.label ? lane.label : 'Fila sin rótulo')
           <template v-for="g in groupsFor(maps[f.key]?.structure)" :key="g.id">
             <div v-if="groupsFor(maps[f.key]?.structure).length > 1" class="section-name">{{ g.name }}</div>
             <template v-for="(lane, li) in g.lanes" :key="g.id + '-' + li">
-              <div class="region-head grupo" :class="{ unlabeled: !lane.label }">
+              <div class="region-head group" :class="{ unlabeled: !lane.label }">
                 <span>{{ laneName(lane) }}</span><span class="count">{{ lane.screens.length }}</span>
               </div>
               <button v-for="(sc, i) in lane.screens" :key="sc.id" class="screen-row" :data-screen="sc.id"
@@ -776,7 +776,7 @@ const laneName = (lane) => (lane.label ? lane.label : 'Fila sin rótulo')
       </section>
 
       <!-- Al final, sumar otro: como «Traer de Jira» en el tablero. -->
-      <section class="view" :class="{ abierta: adding }">
+      <section class="view" :class="{ open: adding }">
         <div class="region-head">
           <button type="button" class="view-tog" :aria-expanded="adding" aria-controls="view-add" @click="adding = !adding">
             <span class="ui-icon" data-icon="plus" aria-hidden="true"></span><span>Sumar un flujo</span>
@@ -878,7 +878,7 @@ const laneName = (lane) => (lane.label ? lane.label : 'Fila sin rótulo')
             </dd>
           </dl>
           <div v-if="report && mode !== 'image'" class="block">
-            <div class="region-head grupo"><span>La traducción a HTML</span></div>
+            <div class="region-head group"><span>La traducción a HTML</span></div>
             <dl>
               <dt>Cajas</dt><dd>{{ report.elements }} · {{ report.flex }} con auto-layout → flex · {{ report.absolute }} en posición absoluta</dd>
               <dt>Textos</dt><dd>{{ report.texts }}</dd>
@@ -890,23 +890,23 @@ const laneName = (lane) => (lane.label ? lane.label : 'Fila sin rótulo')
             </dl>
           </div>
           <div v-if="current.actions?.length" class="block">
-            <div class="region-head grupo"><span>Botones</span></div>
+            <div class="region-head group"><span>Botones</span></div>
             <ul><li v-for="a in current.actions" :key="a">{{ a }}</li></ul>
           </div>
           <div v-if="current.hotspots?.length" class="block">
-            <div class="region-head grupo"><span>Lleva a</span></div>
+            <div class="region-head group"><span>Lleva a</span></div>
             <button v-for="(h, i) in current.hotspots" :key="i" class="link" :disabled="!h.to" @click="follow(h)">
               <span>{{ h.to_name }}</span><small>{{ h.via }}</small>
             </button>
           </div>
           <div v-if="incoming.length" class="block">
-            <div class="region-head grupo"><span>Llega desde</span></div>
+            <div class="region-head group"><span>Llega desde</span></div>
             <button v-for="(x, i) in incoming" :key="i" class="link" @click="go(x.from.id)">
               <span>{{ x.from.title || x.from.name }}</span><small>{{ x.via }} · {{ laneName(x.from.lane) }}</small>
             </button>
           </div>
           <div v-if="variantsOfCurrent.length" class="block">
-            <div class="region-head grupo"><span>La misma pantalla en otro lugar</span></div>
+            <div class="region-head group"><span>La misma pantalla en otro lugar</span></div>
             <button v-for="v in variantsOfCurrent" :key="v.id" class="link" @click="go(v.id)">
               <span>{{ laneName(v.lane) }}</span><small>{{ v.index + 1 }} de {{ v.lane.screens.length }} · {{ v.name }}</small>
             </button>
@@ -939,25 +939,25 @@ const laneName = (lane) => (lane.label ? lane.label : 'Fila sin rótulo')
 .rsz-sb::before { left: 3px; right: auto; width: 1px }
 .rsz-aux::before { left: auto; right: 3px; width: 1px }
 
-.count { flex: none; color: var(--texto-3); font-weight: 500 }
+.count { flex: none; color: var(--fg-3); font-weight: 500 }
 .loader { display: flex; gap: var(--space-2); padding: var(--space-2) var(--space-3); border-bottom: 1px solid var(--sidebar-border) }
 .loader .input { flex: 1; min-width: 0 }
 .notice { margin: var(--space-2) var(--space-3); padding: var(--space-2) var(--space-3); font-size: var(--text-sm);
   border-left: 3px solid var(--destructive); background: color-mix(in oklab, var(--destructive) 12%, transparent) }
 .notice.over { position: absolute; left: var(--space-3); right: var(--space-3); top: var(--space-3) }
 .mono { font-family: var(--font-mono, ui-monospace, monospace) }
-.empty, .hint { padding: var(--space-3); color: var(--texto-3); font-size: var(--text-sm) }
-.section-name { padding: var(--space-3) var(--space-3) var(--space-1); font-size: var(--text-xs); color: var(--texto-3) }
-.region-head.grupo.unlabeled > span:first-child { font-style: italic }
+.empty, .hint { padding: var(--space-3); color: var(--fg-3); font-size: var(--text-sm) }
+.section-name { padding: var(--space-3) var(--space-3) var(--space-1); font-size: var(--text-xs); color: var(--fg-3) }
+.region-head.group.unlabeled > span:first-child { font-style: italic }
 
 .screen-row { display: flex; align-items: center; gap: var(--space-2); width: 100%; min-height: 30px;
   padding: 0 var(--space-3); border: 0; background: none; color: inherit; font: inherit; font-size: var(--text-sm);
   text-align: left; cursor: pointer }
 .screen-row:hover { background: color-mix(in oklab, var(--foreground) 6%, transparent) }
 .screen-row[aria-current="true"] { background: var(--sidebar-accent); color: var(--sidebar-accent-foreground) }
-.screen-row .n { flex: none; width: 1.6em; text-align: right; color: var(--texto-3); font-variant-numeric: tabular-nums }
+.screen-row .n { flex: none; width: 1.6em; text-align: right; color: var(--fg-3); font-variant-numeric: tabular-nums }
 .screen-row .t { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap }
-.screen-row .tag { flex: none; font-size: var(--text-xs); color: var(--texto-3) }
+.screen-row .tag { flex: none; font-size: var(--text-xs); color: var(--fg-3) }
 
 .stage { position: relative; flex: 1; min-height: 0; overflow: hidden; cursor: grab; touch-action: none; user-select: none }
 .stage.dragging { cursor: grabbing }
@@ -967,7 +967,7 @@ const laneName = (lane) => (lane.label ? lane.label : 'Fila sin rótulo')
   will-change: transform }
 .stage .empty { position: absolute; inset: 0; display: grid; place-items: center; cursor: default }
 .pane { margin: 0; display: flex; flex-direction: column; align-items: center; gap: var(--space-2) }
-.pane figcaption { font-size: var(--text-xs); color: var(--texto-3) }
+.pane figcaption { font-size: var(--text-xs); color: var(--fg-3) }
 .modes { display: flex; gap: 2px }
 /* La cabecera del editor junta título, navegación, modos y acciones: con los dos sidebars abiertos no
    entra en un renglón, y la regla del taller es ENVOLVER, no desbordar (con height:auto, o la caja fija
@@ -994,17 +994,17 @@ const laneName = (lane) => (lane.label ? lane.label : 'Fila sin rótulo')
 
 .detail dl { display: grid; grid-template-columns: auto 1fr; gap: var(--space-1) var(--space-3); margin: 0; padding: var(--space-3);
   font-size: var(--text-sm) }
-.detail dt { color: var(--texto-3) }
+.detail dt { color: var(--fg-3) }
 .detail dd { margin: 0; overflow-wrap: anywhere }
-.detail small { color: var(--texto-3) }
+.detail small { color: var(--fg-3) }
 .task-ref { display: flex; align-items: flex-start; gap: var(--space-1) }
 .task-ref code { flex: 1; min-width: 0; font-family: var(--font-mono, ui-monospace, monospace); font-size: var(--text-xs);
-  color: var(--texto-2); overflow-wrap: anywhere }
+  color: var(--fg-2); overflow-wrap: anywhere }
 .block ul { margin: 0; padding: var(--space-2) var(--space-3) var(--space-2) calc(var(--space-3) + 14px); font-size: var(--text-sm) }
 .link { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; width: 100%; padding: var(--space-2) var(--space-3);
   border: 0; background: none; color: inherit; font: inherit; font-size: var(--text-sm); text-align: left; cursor: pointer }
 .link:hover:not(:disabled) { background: color-mix(in oklab, var(--foreground) 6%, transparent) }
 .link:disabled { cursor: default }
-.link small { color: var(--texto-3) }
+.link small { color: var(--fg-3) }
 .grow { flex: 1 }
 </style>

@@ -76,7 +76,7 @@ test('agrupar conserva todas las tareas y el orden dentro de cada estado', () =>
 
 /* ⚠ Acá vivía «ancho se limita al viewport, incluso en móvil y con preferencias inválidas», que
    probaba `panelWidth`. Se fue con el cajón: la tarea vive en el `editor` del workbench y su ancho lo
-   decide el grid de `taller.css`, no una preferencia guardada. Borrar el helper sin borrar su prueba
+   decide el grid de `workbench.css`, no una preferencia guardada. Borrar el helper sin borrar su prueba
    dejaba la suite entera sin arrancar (`does not provide an export named 'panelWidth'`), que es la
    forma más cara de enterarse. */
 

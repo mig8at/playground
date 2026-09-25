@@ -24,7 +24,7 @@ Adentro de cada región:
 | Menú de la región | `RegionMenu` · `bindMenu()` | Lo que se alterna y se toca poco, con tilde y conteo |
 | Cuerpo | `region-body` | Lo que scrollea. Scrollea el cuerpo, no la región |
 | Vista | `view` · `view-tog` | Vistas apiladas que se reparten el alto. Cerrada cuesta una fila, no cero |
-| Encabezado de grupo | `region-head.grupo` | Separa grupos de una lista y se pega arriba. Nunca más fuerte que la banda |
+| Encabezado de grupo | `region-head.group` | Separa grupos de una lista y se pega arriba. Nunca más fuerte que la banda |
 | Sección plegable | `accordion-item` | Dentro de un cuerpo que ya scrollea; es un `<details>`, no una vista |
 | Manija | `rsz` | Redimensiona entre dos regiones. Se ve de 1 px y se agarra de 8 |
 
@@ -62,7 +62,7 @@ Además de su banda y su cuerpo, una región puede llevar tres cosas, siempre en
   <div class="subband"><span class="grow"><strong>Solicitud 519245</strong> · local</span><span class="count filtered">9 / 16</span></div>
   <div class="split">
     <div class="split-main"><div class="log-line"><span class="log-time">12:41:03</span><span>identidad · validada</span></div></div>
-    <aside class="split-side"><div class="region-head grupo"><span>Consultas guardadas</span></div>…</aside>
+    <aside class="split-side"><div class="region-head group"><span>Consultas guardadas</span></div>…</aside>
   </div>
 </section>
 ```
@@ -86,11 +86,11 @@ Una grilla de 4 y cuatro alturas que se repiten en todas las regiones, para que 
 | Anchos por defecto | sidebar 300 · secundario 340 · panel 240 de alto | `--sidebar-w` · `--auxiliarybar-w` · `--panel-h` |
 | Mínimos | sidebar y secundario 240 · panel 124 · editor 360 | `--sidebar-min` · `--panel-min` · `--editor-min` |
 
-Un control dentro de una banda mide 28 (24 si es de icono): 4 de aire, 28 y 4 dan los 40. `taller.css` lo aplica al final del archivo.
+Un control dentro de una banda mide 28 (24 si es de icono): 4 de aire, 28 y 4 dan los 40. `workbench.css` lo aplica al final del archivo.
 
 ## Componentes
 
-Cada componente tiene una medida exacta —alto, padding, gap, letra, peso, interlineado, radio, icono— escrita en [`spec.json`](spec.json), que es la fuente: se cambia ahí primero y después `taller.css`. `make estilo-componentes` dibuja cada uno con `tema.css` y `taller.css` y compara lo que pinta el navegador contra esos números, así la base no puede decir una medida y pintar otra. El artifact muestra la misma especificación, con cada componente dibujado con este `taller.css`.
+Cada componente tiene una medida exacta —alto, padding, gap, letra, peso, interlineado, radio, icono— escrita en [`spec.json`](spec.json), que es la fuente: se cambia ahí primero y después `workbench.css`. `make estilo-componentes` dibuja cada uno con `theme.css` y `workbench.css` y compara lo que pinta el navegador contra esos números, así la base no puede decir una medida y pintar otra. El artifact muestra la misma especificación, con cada componente dibujado con este `workbench.css`.
 
 Los controles comparten una escalera de cuatro tamaños. Un control de un tamaño mide lo mismo, sea botón, botón de icono, campo, alternador o select:
 
@@ -127,7 +127,7 @@ El texto de un botón es un verbo en infinitivo, con objeto si hace falta («Gua
 - Interlineado 1,4 en la interfaz y 1,6 en la prosa. Números en columna con `tabular-nums`.
 - La jerarquía la dan el peso y la tinta, no el tamaño: adentro de una región, a lo sumo dos tamaños.
 - Sin mayúsculas sostenidas ni espaciado entre letras: un rótulo va en mayúscula inicial.
-- El texto secundario usa `--texto-2` y `--texto-3`, medidos sobre las superficies del tema. No se atenúa una fila con `opacity`.
+- El texto secundario usa `--fg-2` y `--fg-3`, medidos sobre las superficies del tema. No se atenúa una fila con `opacity`.
 
 ## Espacios
 
@@ -143,12 +143,12 @@ No hay 20. La única excepción a la escala son los 2 px entre botones de icono 
 
 ## Iconos
 
-Un solo juego, el de `taller.css` (`.ui-icon[data-icon]`): glifos dibujados en una grilla de 24, trazo de 1,75, extremos redondeados y sin relleno, pintados con `currentColor`.
+Un solo juego, el de `workbench.css` (`.ui-icon[data-icon]`): glifos dibujados en una grilla de 24, trazo de 1,75, extremos redondeados y sin relleno, pintados con `currentColor`.
 
 - Un solo tamaño, 16 px, adentro de un botón de 24. La zona de toque es el botón.
-- `--texto-2` en reposo y `--foreground` al pasar o activo. Con color sólo para un estado, y con texto o forma que diga lo mismo.
+- `--fg-2` en reposo y `--foreground` al pasar o activo. Con color sólo para un estado, y con texto o forma que diga lo mismo.
 - Un icono sin texto lleva `title` y `aria-label`. Icono y texto, sólo en la acción principal de una región.
-- Un carácter no es un icono (✕ ⧉ ▸ ⋯ ✓ ⚠ o un emoji): cambia con la fuente y no se centra en el botón. Un icono nuevo se dibuja en la misma grilla y se suma a `taller.css`; no se mezclan juegos.
+- Un carácter no es un icono (✕ ⧉ ▸ ⋯ ✓ ⚠ o un emoji): cambia con la fuente y no se centra en el botón. Un icono nuevo se dibuja en la misma grilla y se suma a `workbench.css`; no se mezclan juegos.
 
 ```html
 <button class="region-action" title="Copiar" aria-label="Copiar">
@@ -180,7 +180,7 @@ Un solo juego, el de `taller.css` (`.ui-icon[data-icon]`): glifos dibujados en u
 
 **Plegar es lo mismo que el botón del pie.** El botón se apaga y, al reabrir, la región vuelve con la última medida abierta. Ocultar una región nunca borra su botón del pie. Los anchos se guardan en el navegador de cada persona y no cambian datos de trabajo.
 
-**El tema lo elige la persona.** Un botón en el pie alterna claro y oscuro, antes de los botones de disposición y separado de ellos por 8 (los de disposición van al final porque su orden copia la pantalla: izquierda, abajo, derecha). El icono muestra el tema **actual** —sol claro, luna oscuro— y la etiqueta dice lo que hace el clic: «Cambiar a tema claro». La primera vez sigue al sistema, y mientras la persona no elija acompaña su modo nocturno; lo elegido se guarda en su navegador (`ui.theme`). El tema es la clase `.dark` de `tema.css` en el `<html>`, más `color-scheme` para los controles nativos. Lo que pinta por su cuenta —un iframe, un canvas— escucha el evento `ui-theme`.
+**El tema lo elige la persona.** Un botón en el pie alterna claro y oscuro, antes de los botones de disposición y separado de ellos por 8 (los de disposición van al final porque su orden copia la pantalla: izquierda, abajo, derecha). El icono muestra el tema **actual** —sol claro, luna oscuro— y la etiqueta dice lo que hace el clic: «Cambiar a tema claro». La primera vez sigue al sistema, y mientras la persona no elija acompaña su modo nocturno; lo elegido se guarda en su navegador (`ui.theme`). El tema es la clase `.dark` de `theme.css` en el `<html>`, más `color-scheme` para los controles nativos. Lo que pinta por su cuenta —un iframe, un canvas— escucha el evento `ui-theme`.
 
 ```html
 <head>
@@ -204,13 +204,13 @@ La barra de iconos de una región lleva lo frecuente. El resto va al menú de tr
 
 El menú se monta fuera del scroll de la región y se ajusta a la ventana. Se abre con clic, Enter, Espacio o flechas; las flechas, Home y End lo recorren, y Escape lo cierra y devuelve el foco al botón. Las tildes lo dejan abierto para ajustar varias opciones. Un clic afuera, un cambio de foco o el scroll de la región lo cierran.
 
-En Vue se pasan `items` y se maneja `@select`. En HTML, `bindMenu(button, { getItems, onSelect, label })`. Cada opción tiene `id` y `label`, y puede tener `icon`, `disabled`, `count` o `checked`; `{ separador: true }` divide grupos.
+En Vue se pasan `items` y se maneja `@select`. En HTML, `bindMenu(button, { getItems, onSelect, label })`. Cada opción tiene `id` y `label`, y puede tener `icon`, `disabled`, `count` o `checked`; `{ separator: true }` divide grupos.
 
 ## Construir sobre la base
 
 Para una herramienta nueva, y en ese orden para acercar una existente cada vez que se la toca:
 
-1. Sumarla a `make estilo-sync` y `make estilo-check` (en `tools/ui-sync.py` y `tools/style.py`), para que reciba `tema.css`, `taller.css` y `workbench.js`, y para que el chequeo la vea.
+1. Sumarla a `make estilo-sync` y `make estilo-check` (en `tools/ui-sync.py` y `tools/style.py`), para que reciba `theme.css`, `workbench.css` y `workbench.js`, y para que el chequeo la vea.
 2. La raíz es `.workbench`. Empezar por el `editor` y sumar las demás regiones sólo si tienen algo que mostrar.
 3. Cada región arranca con su banda de 40 (`.region-head` o una barra de pestañas) y sigue con un cuerpo que scrollea.
 4. Escribir cada medida con su token: `var(--row-h)`, `var(--gutter)`, `var(--text-sm)`.
@@ -255,8 +255,8 @@ const sidebarResize = {
 
 ## Archivos y verificación
 
-- `tema.css`: los tokens de color, tipografía y radio del tema (hoy Darkmatter, de ShadcnThemer). Se reemplaza entero con `make estilo-tema DE=archivo.css`.
-- `taller.css`: las regiones, las medidas, los componentes, el foco y los iconos. Un tema no lo toca.
+- `theme.css`: los tokens de color, tipografía y radio del tema (hoy Darkmatter, de ShadcnThemer). Se reemplaza entero con `make estilo-tema DE=archivo.css`.
+- `workbench.css`: las regiones, las medidas, los componentes, el foco y los iconos. Un tema no lo toca.
 - `workbench.js`: el comportamiento (manijas con mínimo o nada, `regionSize`, `fitRegions`, `reopenSize`, `cssSize`; la consola maximizada, `bindPanelMaximize`; el tema, `THEME_BOOT`, `bindThemeToggle`, `setTheme`, `applyTheme`; el menú `bindMenu` y la directiva `vResize`). Sus pruebas sin navegador están en `workbench.test.mjs`.
 - `spec.json`: la medida exacta de cada componente; la lee `make estilo-componentes` y de ahí sale la sección de componentes del artifact.
 - `RegionMenu.vue`: el adaptador Vue del mismo menú.

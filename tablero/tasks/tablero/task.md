@@ -58,7 +58,7 @@ jira_title: ""
 - [x] Nombres en inglés · fase 4b: las claves JSON, con el contrato en `tablero.task.v2` — consola y API
       45/45 (`ab-json.sh`), interfaz 46/46 regiones (`ab-ui.sh`), hooks y `jev.py` leyendo las claves
       nuevas, y `make tablero-naming` mirándolas.
-- [x] Decidir `tema.css` y `taller.css` — quedan como nombres propios (DECISIÓN de Miguel en el frente);
+- [x] Decidir `theme.css` y `workbench.css` — quedan como nombres propios (DECISIÓN de Miguel en el frente);
       con eso el frente del inglés queda cerrado.
 - [x] Cada tarea es una carpeta: `tasks/<slug>/{task.md,context.jsonl,artifacts/}` — 89 movimientos, consola 31/33, API 15/17 + 2 con los cambios buscados, hooks probados con casos que fallan.
 - [x] Mirar la interfaz andando con la forma nueva — la pestaña de #46 muestra «Artifacts 7» y abrir el
@@ -173,7 +173,7 @@ a usar. «Muerto» se midió, no se opinó: una ruta del server sin nadie que la
 herramientas, los hooks), una función que `deadcode` no alcanza desde ningún `main`, un campo que se
 asigna y nadie lee, una regla de CSS cuyo selector no puede coincidir con nada.
 
-**Lo que no se hizo.** `tema.css` y `taller.css` siguen sin decidir, y `jira-preview.js` conserva sus
+**Lo que no se hizo.** `theme.css` y `workbench.css` siguen sin decidir, y `jira-preview.js` conserva sus
 colores literales a propósito: es un documento aislado dentro de un iframe, donde los tokens del tema no
 llegan.
 

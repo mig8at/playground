@@ -220,7 +220,7 @@ estilo-minimo: ## @dia «mínimo o nada» en las cuatro UIs encendidas: ninguna 
 	@node --test tools/ui/workbench.test.mjs >/dev/null && echo '  ✓  workbench.js: la lógica, sin navegador'
 	@SOLO="$(SOLO)" node tools/ui-minimum.mjs
 
-estilo-componentes: ## @dia ¿la base pinta lo que dice? dibuja cada componente de tools/ui/spec.json con taller.css y compara alto, padding, letra, radio e icono contra la especificación. No necesita las herramientas encendidas
+estilo-componentes: ## @dia ¿la base pinta lo que dice? dibuja cada componente de tools/ui/spec.json con workbench.css y compara alto, padding, letra, radio e icono contra la especificación. No necesita las herramientas encendidas
 	@node tools/ui-spec.mjs
 
 estilo-guia: ## @dia catálogo interactivo de la UI compartida en http://127.0.0.1:5198
@@ -229,7 +229,7 @@ estilo-guia: ## @dia catálogo interactivo de la UI compartida en http://127.0.0
 estilo-sync: ## @dia distribuye tools/ui a las cuatro herramientas
 	@python3 tools/ui-sync.py
 
-estilo-check: ## @dia ¿las cuatro UIs comparten de verdad UN tema? md5 de los `tema.css`, mezclas `in oklch` (que tiñen de rojo), contraste y variables usadas sin declarar
+estilo-check: ## @dia ¿las cuatro UIs comparten de verdad UN tema? md5 de los `theme.css`, mezclas `in oklch` (que tiñen de rojo), contraste y variables usadas sin declarar
 	@python3 tools/ui-sync.py --check
 	@python3 tools/style.py
 

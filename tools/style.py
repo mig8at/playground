@@ -2,7 +2,7 @@
 """¿las tres herramientas comparten de VERDAD un solo tema?
 
 Existe porque la afirmación «`harness/panel`, `tablero` y `trazador` usan el mismo
-`tema.css`» es exactamente el tipo de cosa que se escribe una vez en un comentario y deja de ser
+`theme.css`» es exactamente el tipo de cosa que se escribe una vez en un comentario y deja de ser
 cierta sin que nadie se entere. Acá se CABLEA: si los archivos se separan, esto lo dice.
 
 Cuatro chequeos, y los cuatro salieron de un error real:
@@ -29,8 +29,8 @@ mirarse.
 import hashlib, math, pathlib, re, sys
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
-THEMES = ['harness/panel/tema.css', 'tablero/src/tema.css', 'trazador/src/tema.css', 'visor/src/tema.css']
-WORKSHOPS = ['harness/panel/taller.css', 'tablero/src/taller.css', 'trazador/src/taller.css', 'visor/src/taller.css']
+THEMES = ['harness/panel/theme.css', 'tablero/src/theme.css', 'trazador/src/theme.css', 'visor/src/theme.css']
+WORKSHOPS = ['harness/panel/workbench.css', 'tablero/src/workbench.css', 'trazador/src/workbench.css', 'visor/src/workbench.css']
 REGIONS = ['workbench', 'titlebar', 'banner', 'activitybar', 'sidebar', 'editor',
             'panel', 'auxiliarybar', 'statusbar', 'region-head', 'region-body']
 SHEETS = {
@@ -134,7 +134,7 @@ def css_of_text(t: str) -> str:
 
 def declarations(body):
     # ⚠ `[a-z0-9-]` y no `[a-z-]`: sin el dígito, cualquier token con número en el nombre es INVISIBLE
-    # para el chequeo. Lo encontró `--texto-2` de la rampa, que salía como «usada y nunca declarada»
+    # para el chequeo. Lo encontró `--fg-2` de la rampa, que salía como «usada y nunca declarada»
     # estando declarada tres líneas más arriba. Un chequeo que no ve un nombre no lo reporta mal: lo
     # reporta al revés.
     return dict(re.findall(r'([a-z0-9-]+)\s*:\s*([^;]+)', body))
@@ -163,7 +163,7 @@ def files_of(tool):
         return sorted(p for p in (ROOT / TREES[tool]).rglob('*') if p.suffix in ('.vue', '.css'))
     return [ROOT / r for r in SHEETS[tool]]
 
-SHARED = {'tema.css', 'taller.css'}
+SHARED = {'theme.css', 'workbench.css'}
 
 def own_of(tool):
     """lo que escribió ESTA herramienta, sin los dos archivos compartidos.
@@ -177,7 +177,7 @@ def own_of(tool):
 def main():
     failure = False
     print('\n  1 · ¿los archivos COMPARTIDOS son los mismos en las tres?')
-    for label, listing in (('tema.css  (el color)', THEMES), ('taller.css (la estructura)', WORKSHOPS)):
+    for label, listing in (('theme.css  (el color)', THEMES), ('workbench.css (la estructura)', WORKSHOPS)):
         m = {}
         for r in listing:
             q = ROOT / r
@@ -336,7 +336,7 @@ def main():
     #     veces; un componente que sólo pone un borde —`.accordion-item`— no se lleva a nadie puesto,
     #     y sin esta parte el chequeo acusaba a `.bdq.accordion-item`, que es el patrón CORRECTO;
     #   · y la de la herramienta NO se nombra en el compartido ni una vez, que es lo que deja pasar
-    #     `.region-head.grupo`: ahí el nombre es vocabulario prestado, no una coincidencia.
+    #     `.region-head.group`: ahí el nombre es vocabulario prestado, no una coincidencia.
     taller = css_of(ROOT / WORKSHOPS[0])
     LAYOUT = ('display', 'position', 'grid-template-columns', 'grid-template-rows', 'flex-direction')
     def roots(css, require_layout=False):
@@ -385,7 +385,7 @@ def main():
 def distribute(origin=None):
     """el tema de las tres, de un solo archivo
 
-    Existe porque «reemplazá `tema.css`» son en realidad TRES copias, y copiar tres veces a mano es
+    Existe porque «reemplazá `theme.css`» son en realidad TRES copias, y copiar tres veces a mano es
     exactamente como empiezan a derivar — que es el problema que todo esto vino a resolver. Sin `DE`
     no escribe nada: dice cuál está puesto."""
     if not origin:
@@ -423,7 +423,7 @@ def distribute(origin=None):
                 if len(val.split(',')) < 3:
                     print(f'  ▲ {fam} = {val.strip()} — sin cadena del sistema. En macOS cae en Helvetica:')
                     print('     agregale `-apple-system, BlinkMacSystemFont, "Segoe UI", …` antes de la genérica.')
-    (ROOT / 'tools/ui/tema.css').write_text(txt)
+    (ROOT / 'tools/ui/theme.css').write_text(txt)
     for r in THEMES:
         (ROOT / r).write_text(txt)
     print(f'  ✓ repartido a las {len(THEMES)} · md5 {hashlib.md5(txt.encode()).hexdigest()[:12]}')

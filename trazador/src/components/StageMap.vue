@@ -354,7 +354,7 @@ watch(() => [props.closed, props.panelWidth], () => nextTick(measure))
          consulta, a propósito—, así que esta rama sólo se alcanza si `mapa.etapas` viene vacío, o sea
          si el mapa no cargó. Decía «el mapa se dibuja al cargar una solicitud», que describe un
          estado que nunca ocurre; ahora dice lo que pasó de verdad.
-         La anatomía es la compartida (`.empty` de `taller.css`): medio, título y descripción. -->
+         La anatomía es la compartida (`.empty` de `workbench.css`): medio, título y descripción. -->
     <div v-if="!trunkNodes.length" class="vacio empty">
       <div class="empty-head">
         <div class="empty-media">⚠</div>
@@ -486,7 +486,7 @@ watch(() => [props.closed, props.panelWidth], () => nextTick(measure))
 .nodo.sel circle { stroke:var(--ring) !important; stroke-width:2.5px }
 /* Atenuado, NO escondido: «acá esto no ocurre nunca» es parte del diagnóstico. */
 .nodo.fuera circle { opacity:.38 }
-.nodo.fuera .nlbl { fill:var(--texto-3) }
+.nodo.fuera .nlbl { fill:var(--fg-3) }
 /* Un carril que esta solicitud no tomó se ve, pero no compite: es contexto, no recorrido. */
 .apagado circle, .apagado .arista { opacity:.32 }
 .apagado .clbl, .apagado .csub, .apagado .nlbl { opacity:.52 }

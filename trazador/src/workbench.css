@@ -1,11 +1,11 @@
-/* Fuente: tools/ui/taller.css. Distribuir con make estilo-sync.
+/* Fuente: tools/ui/workbench.css. Distribuir con make estilo-sync.
  *
  * EL TALLER: cómo se divide la pantalla, con los nombres de VS Code.
  *
- * Hermano de `tema.css` y con la misma regla: es IDÉNTICO en las cuatro herramientas y `make
+ * Hermano de `theme.css` y con la misma regla: es IDÉNTICO en las cuatro herramientas y `make
  * estilo-check` compara los md5. Si se separan, el chequeo lo dice.
  *
- * `tema.css` dice de qué COLOR es cada cosa. Este dice QUÉ COSA ES. Son dos ejes distintos y por eso
+ * `theme.css` dice de qué COLOR es cada cosa. Este dice QUÉ COSA ES. Son dos ejes distintos y por eso
  * son dos archivos: un tema se reemplaza entero y esto no, porque acá hay decisiones del taller
  * —cuánto mide un sidebar, qué scrollea— que ningún export trae.
  *
@@ -107,8 +107,8 @@
      sale del foreground contra el lienzo, por lo que conserva jerarquía al cambiar la paleta.
      `make estilo-check` valida las reglas que fijan tinta y superficie; no apilar `opacity` sobre
      estos valores, porque el contraste efectivo baja sin que se note en la regla aislada. */
-  --texto-2: color-mix(in oklab, var(--foreground) 74%, var(--background));
-  --texto-3: color-mix(in oklab, var(--foreground) 70%, var(--background));
+  --fg-2: color-mix(in oklab, var(--foreground) 74%, var(--background));
+  --fg-3: color-mix(in oklab, var(--foreground) 70%, var(--background));
 }
 
 /* Dos pesos: 400 y 600. Lo que el navegador pone en negrita por su cuenta (700) baja a 600; con
@@ -197,7 +197,7 @@
   display: flex; align-items: center; gap: var(--space-4); padding: 0 var(--gutter);
   font-size: var(--text-xs);
   /* La barra comunica estado; usa la rampa derivada del foreground, no un gris fijo del tema. */
-  color: var(--texto-2);
+  color: var(--fg-2);
   background: var(--card); border-top: 1px solid var(--border);
   overflow: hidden;
 }
@@ -216,7 +216,7 @@
   font-size: var(--text-sm); font-weight: 600;
   text-transform: none; letter-spacing: normal;
   /* El título de una región se lee en tamaños compactos: usa la misma rampa que el statusbar. */
-  color: var(--texto-2);
+  color: var(--fg-2);
   border-bottom: 1px solid var(--border);
 }
 .region-body { flex: 1; min-height: 0; min-width: 0; overflow: auto }
@@ -230,8 +230,8 @@
    grupo scrollea con la lista — pero se PEGA arriba, así que mientras recorrés un grupo largo siempre
    sabés en cuál estás. Sin borde abajo: con uno, cinco grupos dibujan cinco rayas y la lista se ve
    como una tabla. */
-.region-head.grupo, .view > .region-head { min-height: var(--view-head-h) }
-.region-head.grupo {
+.region-head.group, .view > .region-head { min-height: var(--view-head-h) }
+.region-head.group {
   position: sticky; top: 0; z-index: 1;
   background: var(--region-bg, var(--background));
   border-bottom: 0;
@@ -246,7 +246,7 @@
    distinto — y la que olvidó `border-left/right` se llevó dos rayas grises a los costados de la
    banda, que se leen como un error de dibujo y no como un botón.
    ⚠ Y el de ARRIBA también, que este reset olvidó hasta el 2026-09-23: abajo lo fija `.region-head`
-   (o lo quita `.grupo`), pero arriba quedaba el del navegador, 2px `outset`, pintado como una raya
+   (o lo quita `.group`), pero arriba quedaba el del navegador, 2px `outset`, pintado como una raya
    gruesa sobre cada día pegado de la línea de tiempo del tablero. */
 button.region-head {
   width: 100%; border-top: 0; border-left: 0; border-right: 0; background: none; color: inherit;
@@ -287,8 +287,8 @@ button.region-head:focus-visible { outline: none; box-shadow: inset 0 0 0 2px va
    qué pasa al colapsar la de arriba— para algo que con dos o tres vistas casi no se usa. Si algún día
    una herramienta lo necesita, se agrega ahí y se sube acá cuando lo necesite la segunda. */
 .view { display: flex; flex-direction: column; min-height: 0; border-bottom: 1px solid var(--border) }
-.view.abierta { flex: 1 1 0 }
-.view:not(.abierta) { flex: none }
+.view.open { flex: 1 1 0 }
+.view:not(.open) { flex: none }
 .view:last-child { border-bottom: 0 }
 /* El chevron y el título son UN botón: el área de clic de un encabezado de acordeón es el encabezado
    entero, no una flechita de 12px. Las acciones quedan afuera del botón para que no lo disparen. */
@@ -342,7 +342,7 @@ button.region-head:focus-visible { outline: none; box-shadow: inset 0 0 0 2px va
    fila bailaría un carácter al tildar. */
 .region-menu-item .tick { width: 12px; flex: none; text-align: center }
 .region-menu-item .label, .region-menu-item .menu-label { flex: 1; min-width: 0; overflow-wrap: anywhere }
-.region-menu-item .n { flex: none; font-size: var(--text-xs); color: var(--texto-2); font-variant-numeric: tabular-nums }
+.region-menu-item .n { flex: none; font-size: var(--text-xs); color: var(--fg-2); font-variant-numeric: tabular-nums }
 .region-menu hr { border: 0; border-top: 1px solid var(--border); margin: var(--space-1) calc(-1 * var(--space-1)) }
 
 /* ── LA MANIJA ────────────────────────────────────────────────────────────────────────────────────
@@ -362,8 +362,8 @@ button.region-head:focus-visible { outline: none; box-shadow: inset 0 0 0 2px va
 .rsz::before { content: ""; position: absolute; inset: 0; background: transparent; transition: background .12s }
 .rsz::after { content: ""; position: absolute; inset: 0 -4px; z-index: 1 }
 .rsz[aria-orientation="horizontal"]::after, .rsz.rsz-b::after, .rsz.rsz-y::after { inset: -4px 0 }
-.rsz:hover::before, .rsz:focus-visible::before, .rsz.on::before, body.redimensionando .rsz.on::before { background: var(--ring) }
-body.redimensionando { cursor: col-resize; user-select: none }
+.rsz:hover::before, .rsz:focus-visible::before, .rsz.on::before, body.resizing .rsz.on::before { background: var(--ring) }
+body.resizing { cursor: col-resize; user-select: none }
 
 /* ═══════════════════════════════════════════════════════════════════════════════════════════════
    LOS CONTROLES · la anatomía de shadcn, en CSS plano
@@ -453,7 +453,7 @@ body.redimensionando { cursor: col-resize; user-select: none }
   box-shadow: 0 1px 2px 0 rgb(0 0 0 / .05);
   outline: none; transition: color .12s, border-color .12s, box-shadow .12s;
 }
-.input::placeholder { color: var(--texto-3) }
+.input::placeholder { color: var(--fg-3) }
 .input:disabled { pointer-events: none; cursor: not-allowed; opacity: .5 }
 .input[aria-invalid="true"] { border-color: var(--destructive) }
 .input[aria-invalid="true"]:focus-visible { box-shadow: 0 0 0 3px color-mix(in oklab, var(--destructive) 40%, transparent) }
@@ -470,12 +470,12 @@ textarea.input { height: auto; min-height: 80px; padding: var(--space-2) var(--g
   border: 1px solid var(--input); border-radius: var(--radius-control); background: transparent;
   box-shadow: 0 1px 2px 0 rgb(0 0 0 / .05); transition: border-color .12s, box-shadow .12s }
 .input-group > .input { height: auto; border: 0; box-shadow: none; padding: 0; flex: 1 }
-.input-group > svg, .input-group > .ico-txt { flex: none; color: var(--texto-3) }
+.input-group > svg, .input-group > .ico-txt { flex: none; color: var(--fg-3) }
 
 /* La etiqueta de un campo y su pista, que es lo que `field` del original resuelve. */
 .field { display: flex; flex-direction: column; gap: var(--space-2) }
-.field > label, .label { font-size: var(--text-sm); font-weight: 500; line-height: 16px; color: var(--texto-2) }
-.field-hint { font-size: var(--text-sm); color: var(--texto-3); line-height: 16px }
+.field > label, .label { font-size: var(--text-sm); font-weight: 500; line-height: 16px; color: var(--fg-2) }
+.field-hint { font-size: var(--text-sm); color: var(--fg-3); line-height: 16px }
 .field-error { font-size: var(--text-sm); color: var(--destructive) }
 
 /* ── PÍLDORA ────────────────────────────────────────────────────────────────────────────────────
@@ -492,7 +492,7 @@ textarea.input { height: auto; min-height: 80px; padding: var(--space-2) var(--g
 .badge-secondary { background: var(--secondary); color: var(--secondary-foreground) }
 .badge-destructive { background: var(--destructive); color: var(--background) }
 .badge-outline { background: transparent; color: var(--foreground); border-color: var(--border) }
-.badge-ghost { background: transparent; color: var(--texto-3) }
+.badge-ghost { background: transparent; color: var(--fg-3) }
 /* ⚠ `badge-xs` NO está en el original, y es una extensión DECLARADA: estas herramientas son densas y
    tienen ~25 etiquetas de 10px —la fuente de un dato, el conteo de errores, la etapa de un esfuerzo—
    que a 12px empujan la fila a otro renglón. Es el mismo componente, un escalón abajo. */
@@ -508,7 +508,7 @@ textarea.input { height: auto; min-height: 80px; padding: var(--space-2) var(--g
   /* ⚠ El original es `text-muted-foreground`, que acá mide 3,63:1 sobre `--muted`. En este tema el
      muted es el escalón MÁS BAJO legible, no el del medio: la rampa cuelga de `--foreground`, igual
      que en `region-head`. Es la misma corrección de siempre y la volvió a encontrar el chequeo. */
-  color: var(--texto-2);
+  color: var(--fg-2);
   font: inherit; font-size: var(--text-xs); font-weight: 500;
 }
 
@@ -578,7 +578,7 @@ textarea.input { height: auto; min-height: 80px; padding: var(--space-2) var(--g
   width: var(--control-lg); height: var(--control-lg); margin-bottom: var(--space-2); border-radius: var(--radius-float);
   background: var(--muted); color: var(--foreground); font-size: var(--text-title) }
 .empty-title { font-size: var(--text-title); font-weight: 600; letter-spacing: -.01em; color: var(--foreground) }
-.empty-desc { font-size: var(--text-base); line-height: 1.6; color: var(--texto-2) }
+.empty-desc { font-size: var(--text-base); line-height: 1.6; color: var(--fg-2) }
 .empty-content { display: flex; width: 100%; max-width: 24rem; min-width: 0;
   flex-direction: column; align-items: center; gap: var(--space-4); font-size: var(--text-base) }
 
@@ -644,7 +644,7 @@ textarea.input { height: auto; min-height: 80px; padding: var(--space-2) var(--g
 .accordion-trigger:disabled, .accordion-trigger[aria-disabled="true"] { pointer-events: none; opacity: .5 }
 /* El chevron es lo único que dice si está abierto, así que la rotación no es decoración. */
 .accordion-chev { pointer-events: none; flex: none; width: 16px; text-align: center;
-  color: var(--texto-3); transition: transform .2s; transform: translateY(2px) }
+  color: var(--fg-3); transition: transform .2s; transform: translateY(2px) }
 [open] > .accordion-trigger .accordion-chev,
 .accordion-trigger[aria-expanded="true"] .accordion-chev { transform: translateY(2px) rotate(180deg) }
 .accordion-content { overflow: hidden; padding: 0 0 var(--space-3); font-size: var(--text-base) }
@@ -667,7 +667,7 @@ textarea.input { height: auto; min-height: 80px; padding: var(--space-2) var(--g
 .alert-title { grid-column: 2; min-height: 16px; font-weight: 600;
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap }
 .alert-desc { grid-column: 2; display: grid; justify-items: start; gap: 4px;
-  font-size: var(--text-base); color: var(--texto-2) }
+  font-size: var(--text-base); color: var(--fg-2) }
 .alert-desc p { margin: 0; line-height: 1.6 }
 .alert-destructive { border-left-color: var(--destructive); background: color-mix(in oklab, var(--destructive) 8%, transparent) }
 .alert-destructive .alert-desc { color: color-mix(in oklab, var(--destructive) 90%, var(--card)) }
@@ -676,13 +676,13 @@ textarea.input { height: auto; min-height: 80px; padding: var(--space-2) var(--g
    El camino hasta lo que estás mirando. La página ACTUAL no es un enlace y va en el color del
    texto; el resto, apagado. Es lo que hace que se lea dónde estás sin contar los separadores. */
 .breadcrumb { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2);
-  font-size: var(--text-base); color: var(--texto-3); word-break: break-word }
+  font-size: var(--text-base); color: var(--fg-3); word-break: break-word }
 .breadcrumb-item { display: inline-flex; align-items: center; gap: var(--space-2) }
 .breadcrumb-link { color: inherit; text-decoration: none; background: none; border: 0; padding: 0;
   font: inherit; cursor: pointer; transition: color .12s }
 .breadcrumb-link:hover { color: var(--foreground) }
 .breadcrumb-page { font-weight: 400; color: var(--foreground) }
-/* ⚠ Sin `opacity`: sobre `--texto-3` lo dejaba en 2,8:1. Un separador es tenue por su TAMAÑO. */
+/* ⚠ Sin `opacity`: sobre `--fg-3` lo dejaba en 2,8:1. Un separador es tenue por su TAMAÑO. */
 .breadcrumb-sep { flex: none; font-size: .78em; user-select: none }
 
 /* ── CASILLA ────────────────────────────────────────────────────────────────────────────────────
@@ -719,7 +719,7 @@ textarea.input { height: auto; min-height: 80px; padding: var(--space-2) var(--g
 .toolbar { display: flex; align-items: center; flex-wrap: wrap; gap: var(--space-1); min-width: 0 }
 .toolbar-separator { width: 1px; height: 16px; background: var(--border); margin: 0 var(--space-1); flex: none }
 .layout-controls { display: flex; align-items: center; gap: var(--space-1); margin-left: auto; flex: none }
-.layout-controls .region-action { color: var(--texto-2) }
+.layout-controls .region-action { color: var(--fg-2) }
 .region-action[aria-pressed="true"] { color: var(--foreground); background: var(--accent) }
 .region-action:disabled { opacity: .5; cursor: not-allowed }
 .region-action:disabled:hover { background: transparent }
@@ -759,7 +759,7 @@ textarea.input { height: auto; min-height: 80px; padding: var(--space-2) var(--g
 .region-action.has-options::after { content: ''; position: absolute; width: 5px; height: 5px;
   top: 2px; right: 2px; border-radius: 50%; background: var(--foreground) }
 .region-menu-item:focus-visible { outline: none; box-shadow: none; background: var(--accent); color: var(--accent-foreground) }
-.toolbar-note { color: var(--texto-2); font-size: var(--text-xs); font-weight: 400 }
+.toolbar-note { color: var(--fg-2); font-size: var(--text-xs); font-weight: 400 }
 .ui-icon[data-icon="move"] { --ui-icon: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22black%22%20stroke-width%3D%221.75%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Cpath%20d%3D%22M4%2012h16m-5-5%205%205-5%205M4%205v14%22%2F%3E%3C%2Fsvg%3E") }
 .ui-icon[data-icon="settings"] { --ui-icon: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22black%22%20stroke-width%3D%221.75%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Cpath%20d%3D%22M4%207h16M4%2017h16%22%2F%3E%3Ccircle%20cx%3D%229%22%20cy%3D%227%22%20r%3D%223%22%2F%3E%3Ccircle%20cx%3D%2215%22%20cy%3D%2217%22%20r%3D%223%22%2F%3E%3C%2Fsvg%3E") }
 .ui-icon[data-icon="clock"] { --ui-icon: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22black%22%20stroke-width%3D%221.75%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Ccircle%20cx%3D%2212%22%20cy%3D%2212%22%20r%3D%229%22%2F%3E%3Cpath%20d%3D%22M12%207v5l3%202%22%2F%3E%3C%2Fsvg%3E") }
@@ -782,30 +782,30 @@ textarea.input { height: auto; min-height: 80px; padding: var(--space-2) var(--g
 .select { position: relative; display: block; min-width: 0 }
 .select > select { appearance: none; -webkit-appearance: none; padding-right: 32px; cursor: pointer }
 .select::after { content: ""; position: absolute; top: 50%; right: var(--space-2); width: var(--icon-size); height: var(--icon-size);
-  translate: 0 -50%; background: var(--texto-3); pointer-events: none;
+  translate: 0 -50%; background: var(--fg-3); pointer-events: none;
   mask: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22black%22%20stroke-width%3D%221.75%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Cpath%20d%3D%22m6%209%206%206%206-6%22%2F%3E%3C%2Fsvg%3E") center / contain no-repeat; -webkit-mask: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22black%22%20stroke-width%3D%221.75%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Cpath%20d%3D%22m6%209%206%206%206-6%22%2F%3E%3C%2Fsvg%3E") center / contain no-repeat }
 .select:has(> select.input-sm) > select, .select:has(> select.input-xs) > select { padding-right: 28px }
 .select:has(> select.input-sm)::after, .select:has(> select.input-xs)::after { right: 6px }
 
 /* El contador de una banda o una vista. Con un filtro puesto se delata: «9 / 16» en el color de acción. */
-.count { flex: none; font-size: var(--text-xs); font-weight: 400; color: var(--texto-3); font-variant-numeric: tabular-nums }
+.count { flex: none; font-size: var(--text-xs); font-weight: 400; color: var(--fg-3); font-variant-numeric: tabular-nums }
 .count.filtered { color: var(--primary); font-weight: 600 }
 
 /* La tabla: una línea por fila y ninguna grilla; los números a la derecha. */
 .table { width: 100%; border-collapse: collapse; font-size: var(--text-base) }
 .table th, .table td { height: 32px; padding: 0 var(--gutter); border-bottom: 1px solid var(--border); text-align: left; vertical-align: middle }
-.table th { font-size: var(--text-sm); font-weight: 600; color: var(--texto-3) }
+.table th { font-size: var(--text-sm); font-weight: 600; color: var(--fg-3) }
 .table .num { text-align: right; font-variant-numeric: tabular-nums }
 
 /* La fila de una lista o de un árbol: 4 afuera y 8 adentro dejan el texto a 12 del borde, como la
    banda. La elegida lleva fondo y una barra de 2: sólo con fondo, en una lista larga hay que comparar. */
 .row { display: flex; align-items: center; gap: var(--space-2); min-height: var(--row-h); margin: 0 var(--space-1);
-  padding: 0 var(--space-2); border-radius: var(--radius-control); font-size: var(--text-base); color: var(--texto-2);
+  padding: 0 var(--space-2); border-radius: var(--radius-control); font-size: var(--text-base); color: var(--fg-2);
   white-space: nowrap; min-width: 0; cursor: pointer }
 .row > span:not(.ui-icon):not(.row-meta):not(.badge) { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis }
 .row:hover { background: var(--hover) }
 .row.on, .row[aria-selected="true"] { background: var(--accent); color: var(--accent-foreground); box-shadow: inset 2px 0 0 var(--primary) }
-.row-meta { flex: none; margin-left: auto; font-size: var(--text-xs); color: var(--texto-3); font-variant-numeric: tabular-nums }
+.row-meta { flex: none; margin-left: auto; font-size: var(--text-xs); color: var(--fg-3); font-variant-numeric: tabular-nums }
 .row[data-level="1"] { padding-left: calc(var(--space-2) + var(--indent)) }
 .row[data-level="2"] { padding-left: calc(var(--space-2) + 2 * var(--indent)) }
 
@@ -820,7 +820,7 @@ textarea.input { height: auto; min-height: 80px; padding: var(--space-2) var(--g
 .tab .count { margin-left: 2px }
 .tab { position: relative; display: inline-flex; align-items: center; gap: var(--space-2); flex: none; height: 36px;
   padding: 0 var(--gutter); border: 0; border-radius: var(--radius-control) var(--radius-control) 0 0; background: none;
-  color: var(--texto-3); font: inherit; font-size: var(--text-sm); font-weight: 400; white-space: nowrap; cursor: pointer }
+  color: var(--fg-3); font: inherit; font-size: var(--text-sm); font-weight: 400; white-space: nowrap; cursor: pointer }
 .tab:hover { color: var(--foreground) }
 .tab.on, .tab[aria-selected="true"] { background: var(--region-bg, var(--background)); color: var(--foreground) }
 .tab.on::after, .tab[aria-selected="true"]::after { content: ""; position: absolute; left: var(--space-2); right: var(--space-2);
@@ -837,7 +837,7 @@ textarea.input { height: auto; min-height: 80px; padding: var(--space-2) var(--g
    «mínimo o nada» con una consulta de contenedor, sin JavaScript. */
 .subband { display: flex; flex: none; align-items: center; gap: var(--space-2); box-sizing: border-box;
   height: var(--view-head-h); padding: 0 var(--gutter); border-bottom: 1px solid var(--border);
-  font-size: var(--text-sm); color: var(--texto-2); white-space: nowrap; overflow: hidden }
+  font-size: var(--text-sm); color: var(--fg-2); white-space: nowrap; overflow: hidden }
 .subband > .grow { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis }
 .subband strong { color: var(--foreground); font-weight: 600 }
 
@@ -850,8 +850,8 @@ textarea.input { height: auto; min-height: 80px; padding: var(--space-2) var(--g
 /* Una línea de log: mono de 12 sobre 20, la hora aparte y apagada. Las líneas no llevan separador:
    las separa el interlineado. */
 .log-line { display: flex; gap: var(--space-3); padding: 0 var(--gutter); font-family: var(--font-mono);
-  font-size: var(--text-sm); line-height: 20px; color: var(--texto-2); white-space: pre-wrap; overflow-wrap: anywhere }
-.log-time { flex: none; font-size: var(--text-xs); color: var(--texto-3); font-variant-numeric: tabular-nums }
+  font-size: var(--text-sm); line-height: 20px; color: var(--fg-2); white-space: pre-wrap; overflow-wrap: anywhere }
+.log-time { flex: none; font-size: var(--text-xs); color: var(--fg-3); font-variant-numeric: tabular-nums }
 
 /* La consola MAXIMIZADA toma todo el alto de la columna del editor. Es la única forma de tapar el
    editor, y por eso es temporal: no se guarda, y se deshace con el mismo botón o con Escape

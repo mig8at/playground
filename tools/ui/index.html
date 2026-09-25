@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
   <title>UI · CreditOp</title>
-  <link rel="stylesheet" href="tema.css"><link rel="stylesheet" href="taller.css">
+  <link rel="stylesheet" href="theme.css"><link rel="stylesheet" href="workbench.css">
   <style>
     * { box-sizing: border-box } html, body { height: 100%; margin: 0 }
     body { color: var(--foreground); background: var(--background); font: 14px/1.6 var(--font-sans); overflow: hidden }
@@ -11,28 +11,28 @@
     .sidebar, .auxiliarybar, .panel { position: relative }
     .region-body { padding: var(--space-4) }
     .sidebar .region-body { padding: var(--space-2) }
-    .sidebar a { display: block; padding: 8px 12px; color: var(--texto-2); text-decoration: none; border-radius: var(--radius) }
+    .sidebar a { display: block; padding: 8px 12px; color: var(--fg-2); text-decoration: none; border-radius: var(--radius) }
     .sidebar a:hover, .sidebar a[aria-current] { background: var(--accent); color: var(--accent-foreground) }
-    .sidebar small { display: block; color: var(--texto-3); padding: 16px 12px 4px }
+    .sidebar small { display: block; color: var(--fg-3); padding: 16px 12px 4px }
     .editor > .region-body { padding: 28px clamp(16px, 4vw, 56px) }
     h1 { font-size: 28px; line-height: 1.25; letter-spacing: -.03em; margin: 8px 0 12px }
     h2 { font-size: 16px; margin: 32px 0 12px; font-weight: 600 }
-    p { margin: 8px 0; color: var(--texto-2); max-width: 72ch }
-    .eyebrow { color: var(--texto-3); font-size: 12px }
+    p { margin: 8px 0; color: var(--fg-2); max-width: 72ch }
+    .eyebrow { color: var(--fg-3); font-size: 12px }
     .samples { display: flex; flex-wrap: wrap; gap: var(--space-2); align-items: center; margin: 16px 0 }
     .anatomy { display: grid; grid-template-columns: 1fr 2fr 1fr; grid-template-rows: 100px 48px 28px; margin: 24px 0; border: 1px solid var(--border); font-size: 12px }
     .anatomy > div { display: grid; place-content: center; text-align: center }
-    .anatomy span { display: block; color: var(--texto-3); font-size: 11px }
+    .anatomy span { display: block; color: var(--fg-3); font-size: 11px }
     .a-side { grid-row: 1 / 3; background: var(--sidebar); border-right: 1px solid var(--border) }
     .a-edit { background: var(--background) }.a-aux { grid-row: 1 / 3; grid-column: 3; background: var(--sidebar); border-left: 1px solid var(--border) }
     .a-panel { grid-row: 2; grid-column: 2; border-top: 1px solid var(--border); background: var(--card) }
     .a-status { grid-row: 3; grid-column: 1 / -1; border-top: 1px solid var(--border); background: var(--card) }
-    table { border-collapse: collapse; width: 100%; font-size: 13px } th { text-align: left; color: var(--texto-3); font-weight: 500 }
+    table { border-collapse: collapse; width: 100%; font-size: 13px } th { text-align: left; color: var(--fg-3); font-weight: 500 }
     td, th { padding: 10px 12px 10px 0; border-bottom: 1px solid var(--border); vertical-align: top }
     code { font: 12px var(--font-mono); color: var(--foreground) }
     .auxiliarybar p { font-size: 12px }.token { display: flex; justify-content: space-between; align-items: center; padding: 8px 0; border-bottom: 1px solid var(--border); font-size: 12px }
     .token i { width: 20px; height: 20px; border: 1px solid var(--border); border-radius: 4px }
-    .panel pre { font: 12px/1.8 var(--font-mono); margin: 0; white-space: pre-wrap; color: var(--texto-2) }
+    .panel pre { font: 12px/1.8 var(--font-mono); margin: 0; white-space: pre-wrap; color: var(--fg-2) }
     .resize-left, .resize-right { position: absolute; top: 0; bottom: 0; width: 6px }
     .resize-left { right: -3px }.resize-right { left: -3px }
     .resize-bottom { position: absolute; top: -3px; left: 0; right: 0; height: 6px; cursor: row-resize }
@@ -147,7 +147,7 @@ bindMenu(menuButton, {
   label: 'Opciones del ejemplo',
   getItems: () => [
     { id: 'filter', label: 'Mostrar sólo eventos importantes', checked: filtered },
-    { separador: true },
+    { separator: true },
     { id: 'clear', label: 'Limpiar consola de ejemplos', icon: 'close' },
   ],
   onSelect: (id) => {

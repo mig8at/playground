@@ -130,7 +130,7 @@ try {
 console.log();
 if (belowThreshold.length) {
   console.log(`  ✗ ${belowThreshold.join(', ')}: hay texto ACTIVO abajo de AA.`);
-  console.log('     La rampa que pasa está en `taller.css`: `--texto-2` (74%) y `--texto-3` (70%).');
+  console.log('     La rampa que pasa está en `workbench.css`: `--fg-2` (74%) y `--fg-3` (70%).');
   console.log('     ⚠ Y no le apiles `opacity`: la regla sola queda correcta y el chequeo estático no lo ve.');
   process.exit(1);
 }

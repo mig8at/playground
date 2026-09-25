@@ -20,7 +20,7 @@ jira_title: ""
   (harness `lastKey`, los `watch` del trazador, el apretado a 160 del tablero) y `make estilo-ui` prueba
   que ninguna región queda entre 0 y su mínimo arrastrando, con teclado y con tres anchos de ventana.
   Hecho: lo verifica `make estilo-minimo` (cuatro anchos, teclado en cada manija, las cuatro apps).
-- [x] Llevar la escala a `tools/ui/taller.css`: `--text-title`, `--row-h`, retirar `--space-5`, toolbar y
+- [x] Llevar la escala a `tools/ui/workbench.css`: `--text-title`, `--row-h`, retirar `--space-5`, toolbar y
   menú con `--radius-sm`; termina cuando `make estilo-sync` la reparte y `make estilo-check` sigue verde.
 - [ ] Llevar los espacios propios de cada herramienta a la grilla de 4 (hoy ~30 valores distintos de
   padding, margin y gap en el harness y el tablero); termina cuando `artifacts/medir-estilo.py` da sólo
@@ -28,7 +28,7 @@ jira_title: ""
 - [ ] Agregar a `make estilo-check` un chequeo de literales fuera de la escala (tamaños, pesos, espacios,
   radios), como el de colores literales; termina cuando da los mismos conteos que
   `artifacts/medir-estilo.py` y sale ≠0 ante uno nuevo.
-- [ ] Subir `.tabs` / `.tab` a `taller.css` y migrar `.editor-tabs` y `.aux-tabs` del tablero.
+- [ ] Subir `.tabs` / `.tab` a `workbench.css` y migrar `.editor-tabs` y `.aux-tabs` del tablero.
 - [ ] Sumar el icono `alert` y reemplazar los caracteres usados como icono en las cuatro herramientas.
 - [ ] Trazador: entrar a `.workbench` con `.auxiliarybar.overlay`, y `.sidebar-vacio` → `.empty`.
 
@@ -39,7 +39,7 @@ vengan—: cómo se ve, cómo se divide la pantalla, cómo se llama cada parte y
 herramienta nueva para parecerse a las demás. Una mejora de una sola herramienta sigue yendo a su
 contenedor; lo que no es de herramientas (negocio, conectores, país) sigue en `playground` (#90).
 
-La fuente de lo que ya existe es `tools/ui/` (`tema.css`, `taller.css`, `workbench.js`,
+La fuente de lo que ya existe es `tools/ui/` (`theme.css`, `workbench.css`, `workbench.js`,
 `RegionMenu.vue`) y `make estilo-check`, que lo verifica en las cuatro.
 
 ## Frente: el estándar del esqueleto
@@ -51,6 +51,6 @@ de cuándo existe cada una, para que una herramienta nueva se arme leyendo eso y
 **Estado del estándar.** El prototipo
 [`artifacts/anatomia-del-workbench.html`](https://claude.ai/artifact/HAeuwXf3LCoQzYhTarn1Vz) define el
 esqueleto, la tipografía (5 tamaños, 2 pesos), los espacios (4 · 8 · 12 · 16 · 24), las alturas
-(24 · 28 · 32 · 40 · 30), los iconos (el juego de `taller.css`, un solo tamaño de 16px) y la forma
+(24 · 28 · 32 · 40 · 30), los iconos (el juego de `workbench.css`, un solo tamaño de 16px) y la forma
 (radios 0 · 6 · completo). El contrato vigente sigue siendo `tools/ui/README.md` hasta aprobarlo.
 

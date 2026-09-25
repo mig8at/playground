@@ -2,7 +2,7 @@
  *
  * Tres capas, y el orden importa:
  *   1. Tailwind      utilidades, para lo que se escriba de acá en adelante
- *   2. `tema.css`    los tokens de shadcn/tweakcn. Es el archivo que se REEMPLAZA para re-tematizar,
+ *   2. `theme.css`    los tokens de shadcn/tweakcn. Es el archivo que se REEMPLAZA para re-tematizar,
  *                    idéntico en las cuatro herramientas. No se edita.
  *   3. esta hoja     el PUENTE (los nombres viejos apuntando a los tokens) + lo que sólo significa
  *                    algo acá: el estado de una tarea, el semáforo de un scorecard.
@@ -16,8 +16,8 @@
  */
 @import "tailwindcss/theme.css" layer(theme);
 @import "tailwindcss/utilities.css" layer(utilities);
-@import "./tema.css";
-@import "./taller.css";
+@import "./theme.css";
+@import "./workbench.css";
 
 /* ── EL PUENTE ────────────────────────────────────────────────────────────────────────────────────
    Los nombres que ya usan los componentes, apuntando a los tokens del tema.
@@ -33,11 +33,11 @@
   --line: var(--border);
   --line2: var(--accent);
   --txt: var(--foreground);
-  /* ⚠ La rampa de texto vive en `taller.css` y está MEDIDA: `--muted-foreground` es #808080 y no
+  /* ⚠ La rampa de texto vive en `workbench.css` y está MEDIDA: `--muted-foreground` es #808080 y no
      llega a 4,5:1 en NINGUNA superficie de este tema, ni siquiera sobre el fondo (4,41). Los dos
-     escalones que sí pasan son `--texto-2` (74%) y `--texto-3` (66%). */
-  --mut: var(--texto-2);
-  --tenue: var(--texto-3);
+     escalones que sí pasan son `--fg-2` (74%) y `--fg-3` (66%). */
+  --mut: var(--fg-2);
+  --tenue: var(--fg-3);
   --sel: color-mix(in oklab, var(--foreground) 10%, transparent);
   /* La acción primaria: en este tema es un chip CLARO con texto oscuro (el par primary/foreground de
      shadcn), que es justo la inversión que el tablero ya hacía a mano con #d4d4d4 sobre #171717. */
@@ -47,7 +47,7 @@
 }
 
 /* ── LO SEMÁNTICO ─────────────────────────────────────────────────────────────────────────────────
-   Vive acá y no en `tema.css`: un export de tweakcn no trae estos tokens (pegarlo encima los
+   Vive acá y no en `theme.css`: un export de tweakcn no trae estos tokens (pegarlo encima los
    borraría), y el tema de hoy es monocromo a propósito — pero un semáforo no puede ser tres grises.
    `--bad` sale del tema (`destructive`), así que cuando un tema traiga su propio rojo lo adopta solo. */
 :root {
@@ -58,7 +58,7 @@
      llega a 4,5:1 en NINGÚN porcentaje. `--destructive` es #e06666, un rojo medio y desaturado, así
      que se queda cerca en luminancia de cualquier tinte de sí mismo (4,32:1 al 10%, 3,62:1 al 22%).
      Si alguna vez hace falta ese patrón, la palanca no está acá: está en el `--destructive` de
-     `tema.css`. Como TINTA sobre una card normal sí funciona (4,7:1). */
+     `theme.css`. Como TINTA sobre una card normal sí funciona (4,7:1). */
   --bad:  var(--destructive);
   --info: #60a5fa;
   /* El resaltado del SQL de los hallazgos: los tonos de un editor. Tampoco los trae un tema, y como
@@ -85,7 +85,7 @@
 
 * { box-sizing: border-box; }
 
-/* ⚠ EL CONTRATO DE SCROLL (ver `taller.css`): la app ocupa la ventana y **scrollea cada región, nunca
+/* ⚠ EL CONTRATO DE SCROLL (ver `workbench.css`): la app ocupa la ventana y **scrollea cada región, nunca
    la página**. Antes el tablero era una página larga: al abrir una tarea el cajón tapaba todo y al
    cerrarlo volvías a donde estabas por suerte, no por diseño. Ahora el árbol scrollea de un lado y la
    tarea del otro, y ninguno mueve al otro. `#app` también va al 100%: es el contenedor que Vue monta

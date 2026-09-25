@@ -1,12 +1,12 @@
-# Inyecta en el artifact la especificación y el CSS reales de la base (tools/ui/spec.json, tema.css y
-# taller.css), así la sección de componentes dibuja con lo mismo que usan las herramientas y no puede
+# Inyecta en el artifact la especificación y el CSS reales de la base (tools/ui/spec.json, theme.css y
+# workbench.css), así la sección de componentes dibuja con lo mismo que usan las herramientas y no puede
 # quedar desactualizada. Idempotente: reemplaza lo que haya entre los dos <script> de datos.
 # Correr desde la raíz del repo:  python3 tablero/tasks/playground-local/artifacts/build.py
 import json, pathlib, re
 root = pathlib.Path(__file__).resolve().parents[4]
 page = pathlib.Path(__file__).with_name('anatomia-del-workbench.html')
 spec = json.loads((root / 'tools/ui/spec.json').read_text(encoding='utf-8'))
-css = (root / 'tools/ui/tema.css').read_text(encoding='utf-8') + '\n' + (root / 'tools/ui/taller.css').read_text(encoding='utf-8')
+css = (root / 'tools/ui/theme.css').read_text(encoding='utf-8') + '\n' + (root / 'tools/ui/workbench.css').read_text(encoding='utf-8')
 html = page.read_text(encoding='utf-8')
 spec_txt = json.dumps(spec, ensure_ascii=False).replace('</', '<\\/')
 css_txt = css.replace('</', '<\\/')

@@ -307,7 +307,7 @@ try {
       await page.mouse.up();
       assert(await page.locator('.editor-mapa').evaluate((e) => e.clientWidth) < mapWidth,
         'Trazador: el editor cede espacio al ensanchar los logs');
-      assert.equal(await page.locator('body').evaluate((e) => e.classList.contains('redimensionando')), false);
+      assert.equal(await page.locator('body').evaluate((e) => e.classList.contains('resizing')), false);
       const stageMap = await page.locator('.mapa').evaluate((el) => {
         const labels = [...el.querySelectorAll('.nlbl')].map((node) => {
           const box = node.getBBox();

@@ -2,7 +2,7 @@
  *
  * Tres capas, y el orden importa:
  *   1. Tailwind      utilidades, para lo que se escriba de acá en adelante
- *   2. `tema.css`    los tokens de shadcn/tweakcn. Es el archivo que se REEMPLAZA para re-tematizar,
+ *   2. `theme.css`    los tokens de shadcn/tweakcn. Es el archivo que se REEMPLAZA para re-tematizar,
  *                    idéntico en las cuatro herramientas. No se edita.
  *   3. esta hoja     el PUENTE (los nombres viejos apuntando a los tokens) + lo que sólo significa
  *                    algo acá: el estado de una etapa y el carril que tomó la solicitud.
@@ -20,8 +20,8 @@
  */
 @import "tailwindcss/theme.css" layer(theme);
 @import "tailwindcss/utilities.css" layer(utilities);
-@import "./tema.css";
-@import "./taller.css";
+@import "./theme.css";
+@import "./workbench.css";
 
 /* ── EL PUENTE ────────────────────────────────────────────────────────────────────────────────────
    Los nombres que ya usan los componentes, apuntando a los tokens del tema. Está acá y no repartido
@@ -44,8 +44,8 @@
      se puede leer, no el del medio. Colgando de él, el tercer escalón daba 2,8:1 y los rótulos de
      10,5px del mapa (`amount`, `personal-info`) quedaban ilegibles. Medido en el navegador. */
   --txt: var(--foreground);
-  --dim: var(--texto-2);
-  --tenue: var(--texto-3);
+  --dim: var(--fg-2);
+  --tenue: var(--fg-3);
   /* tinte de lo seleccionado: derivado del texto, así sigue al tema */
   --sel: color-mix(in oklab, var(--foreground) 10%, transparent);
   /* forma: un solo radio, del que salen los demás */
@@ -56,7 +56,7 @@
 }
 
 /* ── LO SEMÁNTICO: el único color que SIGNIFICA algo ──────────────────────────────────────────────
-   Vive acá y no en `tema.css` por dos razones. Una: un export de tweakcn no trae estos tokens, así que
+   Vive acá y no en `theme.css` por dos razones. Una: un export de tweakcn no trae estos tokens, así que
    pegar un tema nuevo encima los borraría. Y dos: el tema de hoy es monocromo a propósito, y "bien" y
    "roto" no pueden ser dos grises.
 
@@ -68,7 +68,7 @@
   --fail: var(--destructive);
   /* ⚠ `--skip` es TEXTO además de punto («no ocurre acá», los rótulos apagados del mapa), así que
      sale de la rampa y no de `--muted-foreground`, que no llega a 4,5:1 en ninguna superficie. */
-  --skip: var(--texto-3);
+  --skip: var(--fg-3);
   --unknown: #c084fc;
   --info: var(--primary);   /* enlaces, foco, lo interactivo */
 }
@@ -115,18 +115,18 @@ code, kbd, pre, samp { font-family: var(--font-mono) }
   font-size:var(--text-sm); font-weight:600; color:var(--background) }
 .ico.ok{background:var(--ok)} .ico.warn{background:var(--warn)}
 /* ⚠ Blanco sobre este rojo mide 3,35:1 — `--fail` es #e06666, un rojo medio. Va el fondo de la app
-   como tinta, igual que `.btn-destructive` de `taller.css`. Lo encontró `make estilo-check`. */
+   como tinta, igual que `.btn-destructive` de `workbench.css`. Lo encontró `make estilo-check`. */
 .ico.fail{background:var(--fail); color:var(--background)}
 .ico.skip,.ico.pendiente{background:transparent; color:var(--skip); border:1px solid var(--line)}
 .ico.unknown{background:transparent; color:var(--unknown); border:1px dashed var(--unknown)}
 .ico.big{flex:0 0 26px; height:26px; font-size:var(--text-title)}
 
-/* (`.badge` se fue a `taller.css`: es el mismo de las cuatro.)
+/* (`.badge` se fue a `workbench.css`: es el mismo de las cuatro.)
    ⚠ El aro en `currentColor` es SÓLO para la píldora del desenlace, donde el color ES el dato —verde
    aprobado, rojo roto—. Puesto sobre `.badge-outline` a secas se lo llevaban también los chips de
    recientes, que quedaban con un aro casi blanco pidiendo una atención que no les corresponde. */
 .statusbar .badge.badge-outline { border-color:currentColor }
-/* Sobre `.badge.badge-outline.badge-xs` de `taller.css`: sólo el radio chico, que es lo que la
+/* Sobre `.badge.badge-outline.badge-xs` de `workbench.css`: sólo el radio chico, que es lo que la
    distingue de una píldora redonda —ésas se aprietan, ésta es un rótulo—. */
 .src { color:var(--dim); border-radius:var(--r-sm); padding:0 5px }
 .dim { color:var(--dim) }

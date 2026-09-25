@@ -6,8 +6,8 @@
  */
 @import "tailwindcss/theme.css" layer(theme);
 @import "tailwindcss/utilities.css" layer(utilities);
-@import "./tema.css";
-@import "./taller.css";
+@import "./theme.css";
+@import "./workbench.css";
 
 :root {
   /* La zona del prototipo usa el color de acción del tema: es «tocá acá». */

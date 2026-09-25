@@ -130,7 +130,7 @@ try {
     assert(labeled.length >= 3, `se esperaban 3 rótulos, hubo ${labeled.length}`);
     assert.deepEqual(labeled.filter((t) => /^[^.]+\.\S/.test(t)), [], 'rótulo pegado al texto');
   });
-  // Tres cosas que se rompieron al hacerlo: el `top: 0` de taller.css lo pegaba debajo del padding del
+  // Tres cosas que se rompieron al hacerlo: el `top: 0` de workbench.css lo pegaba debajo del padding del
   // cuerpo y el texto se asomaba por encima; un encabezado sacado de su sección no deja que el día
   // siguiente lo empuje; y plegar un día pegado dejaba el scroll apuntando lejos de donde se leía.
   await check('el día se pega arriba sin dejar asomar el texto, el siguiente lo reemplaza y plegarlo no pierde el lugar', async () => {

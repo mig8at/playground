@@ -150,7 +150,7 @@ tools/
 ├── package.json  vite.config.js  index.html
 ├── src/
 │   ├── App.vue            ← dashboard y paneles de consulta
-│   ├── main.js  styles.css  tema.css  taller.css
+│   ├── main.js  styles.css  theme.css  workbench.css
 │   └── TaskEditor.vue  RegionMenu.vue  ui-state.js  task-document.js
 └── server/
     ├── .env · .env.example        (el go.mod es el de la raíz del playground: module creditop/playground)

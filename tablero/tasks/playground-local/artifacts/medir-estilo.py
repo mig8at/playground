@@ -1,10 +1,10 @@
 # Mide, por herramienta, los valores LITERALES de estilo que escribe cada una en sus propias hojas y
-# templates (sin tema.css ni taller.css): tamaños de fuente, pesos, radios y espacios distintos, y los
+# templates (sin theme.css ni workbench.css): tamaños de fuente, pesos, radios y espacios distintos, y los
 # iconos que pinta con ui-icon. Lo que va por var() no se cuenta: por eso el visor sale casi en cero.
 # Correr desde la raíz del repo:  python3 tablero/tasks/playground-local/artifacts/medir-estilo.py
 import re,os,collections,sys
 TOOLS={'harness':['harness/panel'],'tablero':['tablero/src'],'trazador':['trazador/src'],'visor':['visor/src']}
-SKIP=('tema.css','taller.css','workbench.js','node_modules','dist')
+SKIP=('theme.css','workbench.css','workbench.js','node_modules','dist')
 def files(d):
     for root,ds,fs in os.walk(d):
         if any(s in root for s in ('node_modules','dist')): continue

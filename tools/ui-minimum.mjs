@@ -1,6 +1,6 @@
 // «Mínimo o nada», medido en las cuatro UIs ENCENDIDAS: ninguna región redimensionable puede medir
 // entre 0 y su mínimo, ni con la ventana en cuatro anchos ni en ningún paso del teclado sobre sus
-// manijas. Los mínimos se leen de los tokens de taller.css (`--sidebar-min`, `--panel-min`) de cada
+// manijas. Los mínimos se leen de los tokens de workbench.css (`--sidebar-min`, `--panel-min`) de cada
 // app, así que el chequeo no tiene una copia de los números.
 //
 // No levanta servidores —los puertos son tuyos—: lo que no responde sale SIN VERIFICAR y el comando

@@ -9,21 +9,21 @@
        Va ANTES del <style> de abajo a propósito: esa hoja es el puente y tiene que poder
        apoyarse en estos tokens. ⚠ El panel no tiene bundler —`npm run dev` es `node
        panel/server.ts` y nada compila—, así que acá no hay Tailwind: el `@theme inline` y el
-       `@custom-variant` de `tema.css` son at-rules desconocidas y el navegador las descarta
+       `@custom-variant` de `theme.css` son at-rules desconocidas y el navegador las descarta
        enteras, que es justo lo que se quiere. Lo que SÍ aplica son los tokens, que es de
        donde sale el tema. -->
-  <link rel="stylesheet" href="/tema.css">
+  <link rel="stylesheet" href="/theme.css">
   <!-- EL TALLER: cómo se divide la pantalla, con los nombres de VS Code. Igual que el tema,
        es idéntico en las cuatro herramientas. Va DESPUÉS del tema (usa sus tokens) y ANTES
        del <style> de abajo, que es donde este panel se desvía de lo genérico. -->
-  <link rel="stylesheet" href="/taller.css">
+  <link rel="stylesheet" href="/workbench.css">
   <style>
     /* Pestañas de la consola: el botón activo se marca, el otro queda apagado pero VISIBLE — que se vea
        que existe es la mitad del valor (si no, nadie descubre que hay un log del SSR). */
     .pest { font-weight: 600 }
     .pest.on { background: var(--acc); color: var(--acc-ink); border-color: transparent }
     /* ── EL PUENTE ─────────────────────────────────────────────────────────────────────────────
-       Los nombres que usa este panel, apuntando a los tokens de `tema.css` (el <link> de arriba).
+       Los nombres que usa este panel, apuntando a los tokens de `theme.css` (el <link> de arriba).
        Ese archivo es el que se REEMPLAZA para re-tematizar y es idéntico en las cuatro herramientas.
 
        ⚠ Acá había TRES `:root` —este, el del marco de tres paneles (~l.840) y el del cromo en grises
@@ -41,11 +41,11 @@
       --line: var(--border);         /* borde de 1px, apenas visible */
       --line2: var(--accent);        /* borde en hover/foco */
       --txt: var(--foreground);
-      /* ⚠ La rampa de texto vive en `taller.css` y está MEDIDA: `--muted-foreground` es #808080 y
+      /* ⚠ La rampa de texto vive en `workbench.css` y está MEDIDA: `--muted-foreground` es #808080 y
          no llega a 4,5:1 en NINGUNA superficie de este tema, ni siquiera sobre el fondo (4,41). Los
-         dos escalones que sí pasan son `--texto-2` (74%) y `--texto-3` (66%). */
-      --mut: var(--texto-2);
-      --tenue: var(--texto-3);
+         dos escalones que sí pasan son `--fg-2` (74%) y `--fg-3` (66%). */
+      --mut: var(--fg-2);
+      --tenue: var(--fg-3);
       --sel: color-mix(in oklab, var(--foreground) 10%, transparent);
       /* El cromo: lo seleccionado es lo más CLARO y lo demás se apaga. En shadcn eso es el par
          primary/primary-foreground, que es justo la inversión que el panel ya hacía a mano. */
@@ -55,7 +55,7 @@
       --radius-sm: calc(var(--radius) - 2px);
 
       /* ── LO SEMÁNTICO: el único color que SIGNIFICA algo ──────────────────────────────────────
-         Vive acá y no en `tema.css` por dos razones: un export de tweakcn no trae estos tokens (pegar
+         Vive acá y no en `theme.css` por dos razones: un export de tweakcn no trae estos tokens (pegar
          un tema nuevo encima los borraría), y el tema de hoy es monocromo a propósito — pero «corre» y
          «roto» no pueden ser dos grises. `--danger` sale del tema (`destructive`), así que cuando un
          tema traiga su propio rojo el panel lo adopta solo. */
@@ -166,7 +166,7 @@
     .run-warning { flex: none; padding: var(--space-2) var(--space-3); border: 0; border-radius: 0;
       border-bottom: 1px solid var(--border); background: color-mix(in oklab, var(--warn) 18%, var(--card));
       color: var(--warn); font-size: var(--text-sm) }
-    .run-warning .alert-desc { color: var(--texto-2); font-size: var(--text-sm) }
+    .run-warning .alert-desc { color: var(--fg-2); font-size: var(--text-sm) }
 
     /* ⚠ `.card` YA NO PINTA UNA CAJA, y lo importante es que hacía rato que no la pintaba: tenía
        fondo, borde de 1px, radio y 20px de padding, y TRES bloques más abajo se los quitaban uno por
@@ -325,7 +325,7 @@
       pointer-events: none
     }
 
-    /* ⚠ `.seg` ES un `toggle-group` unido (`taller.css`): N opciones, una encendida. Tenía su propio
+    /* ⚠ `.seg` ES un `toggle-group` unido (`workbench.css`): N opciones, una encendida. Tenía su propio
        marco con `overflow:hidden` para recortar las esquinas de los hijos; el compartido redondea el
        primero y el último y colapsa los bordes internos, que es lo mismo sin recortar nada. */
     .seg { display: inline-flex; align-items: center; width: fit-content }
@@ -639,7 +639,7 @@
     .lrow .lnm { font-size: var(--text-base); color: var(--txt); }
 
     /* ── buscador de comercios + favoritos ── */
-    /* ⚠ Es un `input-group` (`taller.css`): la lupa y la ✕ van ADENTRO del control y el borde lo
+    /* ⚠ Es un `input-group` (`workbench.css`): la lupa y la ✕ van ADENTRO del control y el borde lo
        lleva el grupo, no el campo. Antes eran dos absolutos flotando sobre un input con padding
        calculado a mano (30px a la izquierda, 32 a la derecha) — si cambiaba el icono, había que
        recalcular el hueco. Y el foco ahora enciende el grupo entero (`:focus-within`), que es lo que
@@ -696,7 +696,7 @@
     .card > summary span { font-size: var(--text-sm); font-weight: 400; color: var(--mut); margin-left: 8px; }
     .card[open] > summary { margin-bottom: 18px; }
     /* ⚠ Era `outline: 2px solid var(--acc); outline-offset: 4px` — un marco grueso a 4px del control,
-       que en una fila densa se mete arriba del vecino. El anillo del sistema (`taller.css`) es borde
+       que en una fila densa se mete arriba del vecino. El anillo del sistema (`workbench.css`) es borde
        teñido + halo de 3px pegado, y es el mismo en las cuatro herramientas. */
     .card > summary:focus-visible, button:focus-visible, [role=button]:focus-visible,
     input:focus-visible, select:focus-visible, textarea:focus-visible {
@@ -749,7 +749,7 @@
     html, body { height: 100% }
     body { overflow: hidden }
 
-    /* Este panel SE DESVÍA del grid de `taller.css`, y por una razón concreta: mete sus tres regiones
+    /* Este panel SE DESVÍA del grid de `workbench.css`, y por una razón concreta: mete sus tres regiones
        del medio adentro de un `.shell` (para poder redimensionarlas con manijas propias) y agrega una
        fila para la manija de abajo. O sea tiene una columna sola y seis filas, no la grilla de cuatro
        columnas del taller. Lo compartido sigue valiendo: los NOMBRES, las medidas y el contrato de
@@ -882,7 +882,7 @@
        regla no matchea y los hijos ya son directos, así que el caso queda cubierto por los dos lados. */
     .editor > #tren::details-content { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column }
     .editor > #tren #trenvias { flex: 1 1 auto; height: auto; min-height: 0 }
-    /* Sobre `.empty` (`taller.css`): medio, título y descripción, la misma anatomía que el estado
+    /* Sobre `.empty` (`workbench.css`): medio, título y descripción, la misma anatomía que el estado
        vacío del trazador. ⚠ El marco punteado se va con el resto de los marcos: un rectángulo de
        rayas alrededor de un mensaje centrado no dice nada que el mensaje no diga. */
     .stage-empty { flex: 1 1 auto }
@@ -1053,7 +1053,7 @@
     /* ⚠ Usaba `--line2` —que es `--accent`, un token de SUPERFICIE— como color de texto: #404040
        sobre #2a2a2a mide 1,38:1, o sea la manija de arrastre era invisible. Es el mismo error que el
        `CLAUDE.md` ya documenta con `--accent`, cometido en otro lado. Va la rampa. */
-    .lgrip { flex: 0 0 auto; color: var(--texto-3); font-size: var(--text-xs); cursor: grab }
+    .lgrip { flex: 0 0 auto; color: var(--fg-3); font-size: var(--text-xs); cursor: grab }
     .lid { flex: 0 0 auto; font-size: var(--text-xs); color: var(--mut); font-variant-numeric: tabular-nums }
     /* La INICIAL del producto, con el color que ese producto tiene en el mapa: una sola leyenda para
        las dos vistas. `COLOR` en el script es la fuente. */
@@ -1104,7 +1104,7 @@
     .runmenus { display: flex; align-items: center; gap: 6px; flex: 0 1 auto; min-width: 0; max-width: 100% }
     .hbtn .hval { font-weight: 500 }
     .logacts .toolbar-note { text-transform: none; letter-spacing: normal }
-    .hbtn .ui-icon[data-icon="down"] { width: 12px; height: 12px; color: var(--texto-2) }
+    .hbtn .ui-icon[data-icon="down"] { width: 12px; height: 12px; color: var(--fg-2) }
 
     /* El estado vive a la derecha, pegado a los controles de corrida: es la respuesta a «¿puedo correr?» */
     .hsalud { display: flex; align-items: center; gap: 6px; padding: 4px 9px; background: transparent;
@@ -1171,7 +1171,7 @@
     .pa-na { opacity: .5; cursor: not-allowed }
 
     /* Un switch de verdad y no un «ON/OFF»: la forma dice el estado sin leer. Es `.switch.switch-sm`
-       de `taller.css` —el tamaño `sm` que el original también trae—, con `role="switch"` y
+       de `workbench.css` —el tamaño `sm` que el original también trae—, con `role="switch"` y
        `aria-checked`, que es lo que lo hace un interruptor y no dos divs.
        ⚠ Acá sólo queda el VERDE: en el panel «encendido» es un estado del ambiente, no una selección,
        así que se pinta con `--ok` y no con `--primary`. */
@@ -1530,13 +1530,13 @@
              (flow_id=2). Es INYECTAR el estado del cupo, NO validar nada (la validación de la omisión sigue por
              CLI: dev/experian-check.ts). Efecto real: el backend no consulta el buró y /lenders lista SOLO rt=0.
              Sólo aplica al salto a Lenders en Sintético (ahí corre el seed headless que firma) → se gatea en applyCupoGate. -->
-        <!-- Casilla del sistema (`checkbox` + `checkbox-row` de `taller.css`). Tenía el tamaño y el
+        <!-- Casilla del sistema (`checkbox` + `checkbox-row` de `workbench.css`). Tenía el tamaño y el
              cursor escritos INLINE, o sea fuera del alcance de cualquier tema. -->
         <label id="cupolbl" class="checkbox-row" style="margin-top:10px;font-size:var(--text-base);color:var(--mut)">
           <input type="checkbox" class="checkbox" id="cupo" />
           <!-- ⚠ Era `opacity:.7` inline sobre el texto ya apagado: 3,85:1. Apilar opacidad sobre la
-               rampa es la trampa que `taller.css` advierte — lo que baja es el TAMAÑO, no la opacidad. -->
-          <span>Cupo ya confirmado <span style="color:var(--texto-3);font-size:var(--text-xs)">— siembra el flujo con cupo, salta el buró</span></span>
+               rampa es la trampa que `workbench.css` advierte — lo que baja es el TAMAÑO, no la opacidad. -->
+          <span>Cupo ya confirmado <span style="color:var(--fg-3);font-size:var(--text-xs)">— siembra el flujo con cupo, salta el buró</span></span>
         </label>
       </div><div id="arranqueHolder" hidden><div class="field">
         <label>Arranque</label>
@@ -4068,7 +4068,7 @@ export function fitRegions(available, regions) {
   return regions.map(() => 0);
 }
 
-// Los mínimos son tokens de `taller.css` (`--sidebar-min`, `--panel-min`, `--editor-min`): se leen de
+// Los mínimos son tokens de `workbench.css` (`--sidebar-min`, `--panel-min`, `--editor-min`): se leen de
 // ahí para que el número exista en un solo lugar.
 export function cssSize(name, fallback) {
   try {
@@ -4172,7 +4172,7 @@ export function bindResize(handle, options) {
     };
     const end = (ev) => { if (ev.pointerId === e.pointerId) stop(); };
     handle.classList.add('on');
-    document.body.classList.add('redimensionando');
+    document.body.classList.add('resizing');
     document.body.style.cursor = o.axis === 'y' ? 'row-resize' : 'col-resize';
     stop = () => {
       if (rafId) { cancelAnimationFrame(rafId); rafId = null; }
@@ -4183,7 +4183,7 @@ export function bindResize(handle, options) {
       handle.removeEventListener('lostpointercapture', end);
       if (handle.hasPointerCapture(e.pointerId)) handle.releasePointerCapture(e.pointerId);
       handle.classList.remove('on');
-      document.body.classList.remove('redimensionando');
+      document.body.classList.remove('resizing');
       document.body.style.removeProperty('cursor');
       finish();
       stop = () => {};
@@ -4211,7 +4211,7 @@ export function bindResize(handle, options) {
 /* ── EL TEMA ────────────────────────────────────────────────────────────────────────────────────
  * Claro u oscuro, con el botón del pie. La primera vez sigue al sistema; cuando la persona elige,
  * queda guardado en su navegador (cada herramienta tiene su origen, así que cada una recuerda lo suyo).
- * El tema es la clase `.dark` de `tema.css` en el <html>, más `color-scheme` para que los controles
+ * El tema es la clase `.dark` de `theme.css` en el <html>, más `color-scheme` para que los controles
  * nativos (fechas, selects, scrollbars) acompañen.
  *
  * ⚠ Para no pintar un cuadro con el tema equivocado, la herramienta aplica el tema ANTES de que cargue
@@ -4269,7 +4269,7 @@ export function bindThemeToggle(button) {
 
 /* ── LA CONSOLA MAXIMIZADA ──────────────────────────────────────────────────────────────────────
  * El botón de la banda de la consola le da todo el alto de la columna (`.workbench.panel-max`, en
- * taller.css). Es temporal a propósito: no se guarda, porque es la única forma de tapar el editor y
+ * workbench.css). Es temporal a propósito: no se guarda, porque es la única forma de tapar el editor y
  * nadie tiene que volver a una herramienta y encontrar el editor escondido. Se deshace con el mismo
  * botón o con Escape desde adentro de la consola. */
 export function bindPanelMaximize(button, { root = button.closest('.workbench'), panel = button.closest('.panel') } = {}) {
@@ -4356,7 +4356,7 @@ export function bindMenu(trigger, { getItems, onSelect, label = 'Más opciones' 
     const focused = document.activeElement?.dataset.menuId;
     menu.replaceChildren();
     for (const item of getItems()) {
-      if (item.separador) {
+      if (item.separator) {
         const separator = document.createElement('hr'); separator.setAttribute('role', 'separator');
         menu.appendChild(separator); continue;
       }
@@ -4517,7 +4517,7 @@ export function bindMenu(trigger, { getItems, onSelect, label = 'Más opciones' 
       label: 'Opciones de comercios',
       getItems: () => [
         { id: 'buscar', label: 'Buscar o agregar comercio', icon: 'search' },
-        { separador: true },
+        { separator: true },
         { id: 'ocultar', label: 'Ocultar comercios', icon: 'sidebar' },
       ],
       onSelect: (id) => {
@@ -4538,7 +4538,7 @@ export function bindMenu(trigger, { getItems, onSelect, label = 'Más opciones' 
       getItems: () => [
         { id: 'filtrar', label: isSsr() ? 'Sólo llamadas salientes' : 'Sólo eventos importantes', checked: isSsr() ? ssrOnly : importantOnly },
         { id: 'final', label: 'Ir al final', icon: 'bottom' },
-        { separador: true },
+        { separator: true },
         { id: 'ocultar', label: 'Ocultar consola', icon: 'console' },
       ],
       onSelect: (id) => {

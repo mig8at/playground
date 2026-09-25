@@ -1,6 +1,6 @@
 {
   "schema": "ui.spec/v1",
-  "about": "La medida exacta de cada componente de la base. La lee tools/ui-spec.mjs, que dibuja cada uno con tema.css y taller.css y compara lo que pinta el navegador contra estos números; y de acá sale la sección de componentes del artifact. Se cambia acá primero, y después taller.css.",
+  "about": "La medida exacta de cada componente de la base. La lee tools/ui-spec.mjs, que dibuja cada uno con theme.css y workbench.css y compara lo que pinta el navegador contra estos números; y de acá sale la sección de componentes del artifact. Se cambia acá primero, y después workbench.css.",
   "ladder": {
     "about": "Los cuatro tamaños de control. Botón, botón de icono, campo, alternador y select usan la misma escalera: un control de un tamaño mide lo mismo sea lo que sea.",
     "sizes": [
@@ -482,8 +482,8 @@
       "group": "Estructura",
       "id": "view-head",
       "name": "Encabezado de grupo",
-      "cls": ".region-head.grupo",
-      "html": "<div class=\"region-head grupo\"><span>Del equipo</span></div>",
+      "cls": ".region-head.group",
+      "html": "<div class=\"region-head group\"><span>Del equipo</span></div>",
       "measure": {
         "height": 32,
         "paddingLeft": 12,
@@ -615,7 +615,7 @@
       "id": "split-side",
       "name": "Sidebar interno",
       "cls": ".split › .split-side",
-      "html": "<div class=\"split\" style=\"width:640px;height:120px\"><div class=\"split-main\"><div class=\"log-line\"><span class=\"log-time\">12:41:03</span><span>listado · 7 entidades</span></div></div><aside class=\"split-side\"><div class=\"region-head grupo\"><span>Consultas guardadas</span><span class=\"count\">2</span></div><div class=\"row\"><span class=\"ui-icon\" data-icon=\"clock\" aria-hidden=\"true\"></span><span>3001234567</span></div></aside></div>",
+      "html": "<div class=\"split\" style=\"width:640px;height:120px\"><div class=\"split-main\"><div class=\"log-line\"><span class=\"log-time\">12:41:03</span><span>listado · 7 entidades</span></div></div><aside class=\"split-side\"><div class=\"region-head group\"><span>Consultas guardadas</span><span class=\"count\">2</span></div><div class=\"row\"><span class=\"ui-icon\" data-icon=\"clock\" aria-hidden=\"true\"></span><span>3001234567</span></div></aside></div>",
       "target": ".split-side",
       "measure": {
         "width": 240,
@@ -628,7 +628,7 @@
       "id": "split-side-folded",
       "name": "Sidebar interno, consola angosta",
       "cls": ".split › .split-side",
-      "html": "<div class=\"split\" style=\"width:520px;height:80px\"><div class=\"split-main\"></div><aside class=\"split-side\"><div class=\"region-head grupo\"><span>Consultas guardadas</span></div></aside></div>",
+      "html": "<div class=\"split\" style=\"width:520px;height:80px\"><div class=\"split-main\"></div><aside class=\"split-side\"><div class=\"region-head group\"><span>Consultas guardadas</span></div></aside></div>",
       "target": ".split-side",
       "measure": {
         "width": 0

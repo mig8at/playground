@@ -1,4 +1,4 @@
-// ¿La base pinta lo que dice su especificación? Arma una página con tema.css, taller.css y el marcado de
+// ¿La base pinta lo que dice su especificación? Arma una página con theme.css, workbench.css y el marcado de
 // cada componente de tools/ui/spec.json, y compara lo que pinta el navegador —alto, ancho, padding,
 // letra, peso, interlineado, radio, gap, icono— contra los números de la especificación. Sale ≠0 si
 // uno no coincide: la base no puede decir una medida y pintar otra.
@@ -16,8 +16,8 @@ const ui = fileURLToPath(new URL('./ui/', import.meta.url));
 const spec = JSON.parse(readFileSync(join(ui, 'spec.json'), 'utf8'));
 
 const fixture = `<!doctype html><html lang="es" class="dark"><head><meta charset="utf-8">
-<link rel="stylesheet" href="${pathToFileURL(join(ui, 'tema.css'))}">
-<link rel="stylesheet" href="${pathToFileURL(join(ui, 'taller.css'))}">
+<link rel="stylesheet" href="${pathToFileURL(join(ui, 'theme.css'))}">
+<link rel="stylesheet" href="${pathToFileURL(join(ui, 'workbench.css'))}">
 <style>body{margin:0;padding:24px;background:var(--background);color:var(--foreground);font-family:var(--font-sans);font-size:var(--text-base)}
 .case{width:320px;margin-bottom:24px}</style></head><body>
 ${spec.components.map((c) => `<div class="case" data-case="${c.id}">${c.html}</div>`).join('\n')}

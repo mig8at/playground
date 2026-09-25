@@ -246,19 +246,19 @@ const filtersMenu = computed(() => {
   }));
   // Las LOCALES son otro eje —las de arriba filtran por ESTADO, esto por ORIGEN—, así que van
   // separadas. Y arranca apagada: el tablero es el sprint primero.
-  its.push({ separador: true });
+  its.push({ separator: true });
   its.push({ id: '_locales', label: 'locales', count: localCount.value, checked: showLocals.value,
              disabled: !localCount.value,
              title: showLocals.value ? 'ocultar las tareas locales' : 'mostrar también las locales (no están en Jira)' });
   // El ancho del sprint es otro eje más: se alterna y se toca poco, que es justo lo que va al menú.
   // Vivía en el titlebar, que ya no existe.
-  its.push({ separador: true });
+  its.push({ separator: true });
   its.push({ id: '_ancha', label: `últimos ${sprintTabs.value.length} sprints`,
              checked: wideView.value,
              title: wideView.value ? `ver sólo ${sprint.value?.name || 'el sprint activo'}`
                                      : 'ver mis tareas de los últimos sprints' });
   if (hidden.value.size || searchQuery.value) {
-    its.push({ separador: true });
+    its.push({ separator: true });
     its.push({ id: '_todas', label: 'ver todas', icon: 'filter', title: 'quitar todos los filtros' });
   }
   return its;
@@ -937,7 +937,7 @@ function auxTabsKeyboard(event, id) {
 
 /* ── LAS MANIJAS DE LOS DOS SIDEBARS ──────────────────────────────────────────────────────────────
  * ⚠ El ancho se escribe en el `.workbench`, no en `:root`: así es de ESTA herramienta y no pisa el
- * default que declara `taller.css` para las demás. Y se persiste — un ancho que se pierde al refrescar
+ * default que declara `workbench.css` para las demás. Y se persiste — un ancho que se pierde al refrescar
  * es peor que no poder cambiarlo, porque lo volvés a ajustar cada vez. */
 // ⚠ El tope NO puede ser un número fijo: tiene que dejarle al EDITOR un ancho usable. Medido
 // arrastrando en una ventana de 927px — con la ficha en 463 el editor quedaba en 164px, o sea el
@@ -1663,7 +1663,7 @@ function documentAction(id) {
 </script>
 
 <template>
-  <!-- EL TABLERO ES UN WORKBENCH (`taller.css`). Antes era una página que scrolleaba con las tareas
+  <!-- EL TABLERO ES UN WORKBENCH (`workbench.css`). Antes era una página que scrolleaba con las tareas
        como grilla de tarjetas y un CAJÓN encima al elegir una. Ahora: el árbol de tareas en el
        `sidebar`, lo elegido en el `editor`, y sin nada elegido el editor muestra el sprint — que es
        la pestaña de bienvenida. El cajón se fue: su contenido ES el editor. -->
@@ -1718,7 +1718,7 @@ function documentAction(id) {
       <!-- UNA VISTA POR ESTADO. ⚠ Con búsqueda puesta se abren TODAS: buscar y que el resultado
            quede escondido detrás de un grupo plegado es la forma más rápida de creer que no está. -->
       <section v-for="g in groupedIssues" :key="g.id" class="view"
-               :class="{ abierta: isOpen(g.id) || !!normalizedSearch }">
+               :class="{ open: isOpen(g.id) || !!normalizedSearch }">
         <div class="region-head">
           <button type="button" class="view-tog" :aria-expanded="isOpen(g.id) || !!normalizedSearch"
                   :aria-controls="'group-' + g.id" @click="toggleSection(g.id)">
@@ -1755,7 +1755,7 @@ function documentAction(id) {
       <!-- VISTA · traer de Jira. Arranca CERRADA y cerrada cuesta UNA FILA, no cero: así se ve que
            existe sin comerse la pantalla. Sus controles viven acá y sus filas en el editor — cada
            fila del import lleva un select y dos líneas, y eso no entra en 300px. -->
-      <section class="view" :class="{ abierta: isOpen('jira') }">
+      <section class="view" :class="{ open: isOpen('jira') }">
         <div class="region-head">
           <button type="button" class="view-tog" :aria-expanded="isOpen('jira')"
                   @click="toggleSection('jira')">
@@ -1903,7 +1903,7 @@ function documentAction(id) {
           <section v-for="group in contextGroups" :key="group.day" class="task-context-day">
             <!-- Un acordeón como el del sidebar: el día se PEGA arriba mientras se lee su contenido, el
                  siguiente lo empuja al llegar, y un clic lo pliega. -->
-            <button type="button" class="region-head grupo context-day" :aria-expanded="!foldedDays.has(group.day)"
+            <button type="button" class="region-head group context-day" :aria-expanded="!foldedDays.has(group.day)"
                     :aria-controls="'context-day-' + group.day" @click="toggleDay(group.day, $event)">
               <span class="ui-icon" data-icon="chevron" aria-hidden="true"></span>
               <span>{{ group.label }}</span>
@@ -1999,10 +1999,10 @@ function documentAction(id) {
           <span v-if="withoutPoints.length" class="pd-i pd-mal"><b>sin estimar:</b> {{ withoutPoints.join(' · ') }}</span>
         </p>
         <section class="card">
-          <!-- `region-head grupo` de `taller.css`: la misma barra que los grupos del árbol, en vez de
+          <!-- `region-head group` de `workbench.css`: la misma barra que los grupos del árbol, en vez de
                un `<h2>` con su propia banda. Y el encabezado ES el botón —antes era un `<button>`
                ADENTRO de un `<h2>`, o sea dos elementos para una sola cosa. -->
-          <button type="button" class="region-head grupo section-toggle" :aria-expanded="journeyOpen"
+          <button type="button" class="region-head group section-toggle" :aria-expanded="journeyOpen"
                   aria-controls="journey-content" @click="journeyOpen = !journeyOpen">
             <span class="gh"><span class="ui-icon" data-icon="chevron" aria-hidden="true"></span> Mi jornada
               <span class="mut">· últimos {{ days }} días{{ rangeMin ? ` · ${minHhmm(rangeMin)}` : '' }}</span></span>
@@ -2054,7 +2054,7 @@ function documentAction(id) {
              una tarea local. Va al final y colapsada porque es mantenimiento del registro, no la
              operación del día: se abre cuando arranca un sprint o cuando alguien te asigna algo. -->
         <section class="card">
-          <div class="region-head grupo">
+          <div class="region-head group">
             <span class="gh">Traer de Jira <span class="mut">· lo que está a mi nombre en CORE y no en el registro local</span></span>
           </div>
           <div class="sync-h">
@@ -2235,16 +2235,16 @@ function documentAction(id) {
 
 <style scoped>
 /* ── LAS REGIONES PROPIAS ────────────────────────────────────────────────────────────────────────
-   `taller.css` pone el esqueleto (grid, superficies, el contrato de scroll); esto es lo que sólo
+   `workbench.css` pone el esqueleto (grid, superficies, el contrato de scroll); esto es lo que sólo
    significa algo acá: los dos modos, la fila del árbol y la vista de sprint. */
 
 /* ⚠ Acá vivía el `.ab-b` del activitybar. Se fue con el acordeón: con UN solo contenedor de vistas,
    un activitybar de una entrada no cambia nada — en VS Code esa columna cambia de CONTENEDOR, y acá
-   sólo había uno. El vocabulario sigue en `taller.css` para el día que haya dos. */
+   sólo había uno. El vocabulario sigue en `workbench.css` para el día que haya dos. */
 
 /* EL ÁRBOL — una fila por tarea. La fila ENTERA es el botón: elegir es el único gesto de esta
    columna, así que el target es la fila y no un enlace adentro. 28px de alto se acierta sin mirar. */
-/* (El encabezado de cada grupo es `.region-head.grupo` de `taller.css`: misma forma que el de la
+/* (El encabezado de cada grupo es `.region-head.group` de `workbench.css`: misma forma que el de la
    vista, pegajoso mientras se recorre el grupo.) */
 .tree-item { position: relative; min-width: 0 }
 /* Medidas del taller: fila de 28, el texto a 12 del borde (4 de aire afuera + 8 adentro, igual que el
@@ -2257,7 +2257,7 @@ function documentAction(id) {
 /* ⚠ Lo seleccionado se marca con una BARRA a la izquierda además del fondo: sólo con fondo, en una
    lista de 40 filas grises, hay que comparar contra la vecina para saber cuál está activa. */
 .tree-row.sel { background: color-mix(in oklab, var(--acc) 10%, var(--sel)); box-shadow: inset 2px 0 0 var(--acc) }
-.tree-row.done { color: var(--texto-3) }
+.tree-row.done { color: var(--fg-3) }
 .tree-row.done.sel, .tree-row.done:hover { color: var(--txt) }
 .tree-state { position: absolute; z-index: 1; right: var(--space-2); top: 50%; translate: 0 -50%; display: grid;
   place-items: center; width: var(--control-xs); height: var(--control-xs); padding: 0; border: 0; border-radius: var(--radius-control);
@@ -2285,15 +2285,15 @@ function documentAction(id) {
 
 .task-context-timeline { max-width: 780px; padding: 2px 0 20px }
 .task-context-day + .task-context-day { margin-top: 8px }
-/* El día es un `.region-head.grupo` de taller.css: se PEGA arriba mientras se lee su contenido —pintado
+/* El día es un `.region-head.group` de workbench.css: se PEGA arriba mientras se lee su contenido —pintado
    con el fondo de la región, para que el texto no pase por debajo— y el día siguiente lo empuja al llegar,
    porque cada encabezado es sticky dentro de SU sección. Es el acordeón del sidebar, dentro del editor.
-   ⚠ El `top` negativo es el padding del cuerpo (TaskEditor): con el `top: 0` de taller.css se pegaba 20px
+   ⚠ El `top` negativo es el padding del cuerpo (TaskEditor): con el `top: 0` de workbench.css se pegaba 20px
    más abajo y el texto se asomaba por encima. Y 1px más: la cabecera de la tarea mide un alto
    fraccionario, el borde cae en medio de un píxel del dispositivo y por esa fila se veía el texto que
-   pasa por debajo. Va con `.region-head` para ganarle a `.region-head.grupo`. */
+   pasa por debajo. Va con `.region-head` para ganarle a `.region-head.group`. */
 .region-head.context-day { top: calc(-1px - var(--te-body-top, 0px)); margin: 0 0 8px; padding-left: 0; padding-right: 0 }
-/* taller.css estira al PRIMER hijo de un encabezado —supone que es el título— y acá el primero es el
+/* workbench.css estira al PRIMER hijo de un encabezado —supone que es el título— y acá el primero es el
    chevron: quedaba al centro de la banda y el día contra el borde derecho. */
 .context-day > .ui-icon { flex: none }
 .context-day-body { padding-bottom: 6px }
@@ -2355,7 +2355,7 @@ function documentAction(id) {
 .aux-alerta { color: var(--warn); font-style: normal; font-size: 8px; flex: none }
 
 /* ── LAS MANIJAS ─────────────────────────────────────────────────────────────────────────────────
-   `taller.css` pone el aspecto; acá va DÓNDE: pegadas al borde interior de cada sidebar, en capa
+   `workbench.css` pone el aspecto; acá va DÓNDE: pegadas al borde interior de cada sidebar, en capa
    sobre él. ⚠ Se salen 3px hacia afuera (`margin`) para que la zona de agarre cubra el borde de
    verdad y no haya que apuntarle a un píxel. */
 .sidebar, .auxiliarybar, .ramas-panel { position: relative }
@@ -2463,7 +2463,7 @@ function documentAction(id) {
 .stat .k { font-size: var(--text-xs); font-weight: 600; text-transform: none; color: var(--mut) }
 .stat .v { font-size: 22px; font-weight: 600; margin: 3px 0 2px; letter-spacing: -.5px; font-variant-numeric: tabular-nums }
 .stat .s { font-size: var(--text-sm); color: var(--mut) }
-/* ⚠ Este modificador se llamaba `.alert` y el componente compartido se lo comió: `taller.css`
+/* ⚠ Este modificador se llamaba `.alert` y el componente compartido se lo comió: `workbench.css`
    declara `.alert` como el AVISO de shadcn, que es `display: grid` con una primera columna de 16px
    para el icono. Un `.stat.alert` quedaba convertido en esa grilla y sus hijos caían en la columna
    angosta: el rótulo y la leyenda medían **0 px de ancho** y se leían una letra por renglón. No falla
@@ -2477,15 +2477,15 @@ function documentAction(id) {
    radio para decir que es una pieza. Lo dice su ENCABEZADO, que ahora sale a sangre contra el padding
    del editor (`margin: 0 -24px`) y se lee como una banda de lado a lado en vez de como otra tarjeta. */
 .card { padding: 0 0 18px; margin-bottom: 20px }
-/* Sobre `.region-head.grupo` de `taller.css`, que ya trae la forma (11px, mayúsculas, apagado), el
+/* Sobre `.region-head.group` de `workbench.css`, que ya trae la forma (11px, mayúsculas, apagado), el
    color y el pegado. Acá sólo van las dos desviaciones: sale A SANGRE contra los 24px del editor —una
    banda de lado a lado se lee como encabezado, una barra con aire a los costados como otra tarjeta— y
    lleva borde arriba, porque estas secciones se apilan sin lista de por medio. */
-.card .region-head.grupo { margin: 0 -24px 14px; padding: 8px 24px; width: auto;
+.card .region-head.group { margin: 0 -24px 14px; padding: 8px 24px; width: auto;
   border-top: 1px solid var(--line) }
-.card .region-head.grupo .gh { display: flex; align-items: center; gap: 9px; min-width: 0 }
+.card .region-head.group .gh { display: flex; align-items: center; gap: 9px; min-width: 0 }
 /* La aclaración al lado del título vuelve a minúsculas: es prosa, no un rótulo. */
-.card .region-head.grupo .mut { color: var(--mut); font-weight: 400; text-transform: none; letter-spacing: 0 }
+.card .region-head.group .mut { color: var(--mut); font-weight: 400; text-transform: none; letter-spacing: 0 }
 
 /* ⚠ Acá vivían `.tgrid` y `.task`: la grilla de tarjetas y la tarjeta. Se fueron con la
    reestructuración — las tareas son filas del árbol en el sidebar (`.tree-row`) y su contenido es el
@@ -2556,7 +2556,7 @@ function documentAction(id) {
 .ext { opacity: 0; font-size: .82em; transition: .12s }
 .link:hover .ext { opacity: .75 }
 
-/* ⚠ Esto se llamaba `.empty` y el componente compartido se lo comió: `.empty` de `taller.css` es el
+/* ⚠ Esto se llamaba `.empty` y el componente compartido se lo comió: `.empty` de `workbench.css` es el
    estado vacío ENTERO —columna centrada, alto completo, medio de 40px— y estos son NOTAS de una
    línea que explican una vista. Renombrado a `.nota`, que es lo que son. La colisión la vi al agregar
    el componente y no la resolví; apareció centrada en la vista Ramas dos días después. */
@@ -2617,7 +2617,7 @@ function documentAction(id) {
 .legend .note { margin-left: 12px }
 
 /* ── Barras de progreso ─────────────────────────────────────────────────────────────────────────
-   `progress progress-xs` de `taller.css`. Lo propio es el aire: acá la barra va DEBAJO de un número
+   `progress progress-xs` de `workbench.css`. Lo propio es el aire: acá la barra va DEBAJO de un número
    y arriba de su leyenda, así que lo que queda es su margen. */
 .bar { margin: 2px 0 7px }
 .msg { color: var(--mut); font-size: var(--text-base) }
@@ -2656,7 +2656,7 @@ function documentAction(id) {
 .hgrupo h4 { font-size: var(--text-base); margin: 0 0 2px; display: flex; align-items: center; gap: 7px; }
 /* ⚠ Sin `opacity: .55`: apilada sobre el color dejaba el conteo abajo del umbral. El escalón lo da
    la rampa, no un velo. */
-.hcnt { font: var(--text-xs)/1 var(--mono, ui-monospace, monospace); color: var(--texto-3);
+.hcnt { font: var(--text-xs)/1 var(--mono, ui-monospace, monospace); color: var(--fg-3);
         border-color: currentColor; padding: 2px 6px; }
 /* Pendientes: la marca a la izquierda y el texto al lado. Un ítem hecho se apaga y se tacha —el mismo
    gesto que las tarjetas terminadas—: sigue estando (dice qué se resolvió) pero ya no es trabajo. */
@@ -2755,16 +2755,16 @@ function documentAction(id) {
 .stg.suelto { font-style: normal }
 
 /* Estructura compacta del tablero y de las tarjetas. */
-/* El reset del `<button>` como encabezado vive en `taller.css` (`button.region-head`). */
+/* El reset del `<button>` como encabezado vive en `workbench.css` (`button.region-head`). */
 .section-toggle { user-select: none }
 .card button.section-toggle { margin-bottom: 0 }
 #journey-content { padding-top: 16px }
-/* (`.task-group-heading` y `.group-count` se fueron: los grupos son `.region-head.grupo`, y su
+/* (`.task-group-heading` y `.group-count` se fueron: los grupos son `.region-head.group`, y su
    conteo usa el mismo `.cnt` que el encabezado de la vista.) */
 .document-section { scroll-margin-top: 12px }
 .document-section + .document-section { margin-top: 22px }
 /* ⚠ Las casillas de los Pendientes salen de un `- [ ]` de markdown, así que no se les puede poner
-   clase: se les da la piel por ELEMENTO. Es la misma que `.checkbox` de `taller.css` —16px, radio 4,
+   clase: se les da la piel por ELEMENTO. Es la misma que `.checkbox` de `workbench.css` —16px, radio 4,
    marcada en `--primary` con el tilde dibujado con dos bordes—; `accent-color` sólo teñía la casilla
    nativa del sistema y dejaba su forma, que cambia con el SO. */
 .pending-document :deep(input[type=checkbox]),

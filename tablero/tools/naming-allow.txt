@@ -45,9 +45,6 @@ expedition purchase employment cosigner monthly authorize
 cam enrich inj refuge signup preboot twisty nfmt financial backfill aml peru peruvian dni revolving tempo marketplace quanto prefill advisor occupation installment installments logbook logbooks dictated dictate dictation injectable promisify autofill bogota meridian saint intruders bonus financed rej nickname suspicion suspicions forensic renew renewed renewable reconcile disb kyc gloss surname surnames agil adoption contaminates namesake economy vehicle invoice tinker commission filings informal rescued hydration hydrated searchable transit dob decipher ceremony onb xref allies medel citable unanchored elision artisan sail pest heredoc worktree destructive
 
 # ── rutas que se aceptan en español, con su motivo ────────────────────────────────────────────────
-path: src/tema.css                   # nombre propio (decisión de Miguel del 2026-09-23): el tema que comparten las tres UIs, con fuente en tools/ui/tema.css
-# `src/taller.css` es el mismo caso —nombre propio, compartido— y el chequeo ni lo ve: `taller` también es
-# una palabra inglesa. Es el límite conocido de la vara: un falso amigo pasa igual que el inglés de verdad.
 
 # ── claves JSON en español que son el contrato de OTRO (fase 4b, 2026-09-23) ──────────────────────
 # `json: <ruta>[:<clase|tipo>] <clave…|*>` — la clave se acepta SÓLO ahí; en cualquier otro lugar se
@@ -67,10 +64,6 @@ json: trazador/server/reproduce.go:map abandonado aprobado en-curso roto   # ids
 json: trazador/server/slack.go directa fuera parcial            # categorías de cobertura (valores)
 json: trazador/server/serve.go:map dev local prod qa staging    # nombres de ambiente (valores)
 json: trazador/server/main.go:map prod-us-east-0                # la región de Grafana Cloud
-path: trazador/src/tema.css                                     # nombre propio: el tema compartido de las tres UIs
-path: harness/panel/tema.css                                   # nombre propio: el tema compartido de las tres UIs
-path: visor/src/tema.css                                        # nombre propio: el tema compartido, también en el visor
-path: tools/ui/tema.css                                         # nombre propio: la fuente del tema compartido (ver src/tema.css)
 path: trazador/server/mapa                                      # datos: el mapa del trazador, citado por el harness (vocabulario de ramales) y por el CLAUDE.md raíz
 path: trazador/server/mapa/etapas.json                          # dato, ídem
 path: trazador/server/mapa/negocio.json                         # dato, ídem

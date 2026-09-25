@@ -5,7 +5,7 @@
 // tres roles que `lib.mjs` junta en uno:
 //   · member — la propiedad de un acceso (`x.que`, `x?.que`): siempre se renombra;
 //   · key    — la clave de un objeto literal o de una desestructuración: se renombra, SALVO adentro de un
-//              `:class` del template, donde la clave es una CLASE CSS (`{ abierta: … }`) y no un dato;
+//              `:class` del template, donde la clave es una CLASE CSS (`{ open: … }`) y no un dato;
 //   · str    — una cadena usada como clave (`x['que']`, `{ 'que': 1 }`): se renombra igual que `key`.
 // Una abreviada `{ que }` se expande a `{ what: que }`: la clave cambia, la variable no.
 // Sin `-w` lista lo que haría. `-list` imprime todas las propiedades con su rol, para inventariar.

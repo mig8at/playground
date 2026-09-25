@@ -244,7 +244,7 @@ async function copyTrace() {
           <span v-if="t.target === 'prod'" class="dim">prod pasa por la cola de Redash, tarda unos segundos</span>
         </div>
 
-        <!-- AVISOS (`alert` de `taller.css`). ⚠ Y acá SÍ va el marco, que es lo contrario de lo que
+        <!-- AVISOS (`alert` de `workbench.css`). ⚠ Y acá SÍ va el marco, que es lo contrario de lo que
              hicimos con los callouts de prosa: un alert es un mensaje que tiene que despegarse de lo
              que lo rodea, no una cita adentro de un texto. -->
         <div v-if="t.error" class="alert alert-destructive" role="alert">
@@ -292,7 +292,7 @@ async function copyTrace() {
 
     <!-- El mapa recibe el ancho visible del panel para recuperar exactamente el espacio que se libera
          al arrastrarlo. Sus estaciones tienen celdas mínimas, de modo que nunca se aplastan. -->
-    <!-- El mapa es el EDITOR y `Detalle` el AUXILIARYBAR, en el vocabulario de `taller.css`.
+    <!-- El mapa es el EDITOR y `Detalle` el AUXILIARYBAR, en el vocabulario de `workbench.css`.
          ⚠ Acá decía que el mapa NO lleva la clase `.editor` a propósito, porque «su regla propia ya
          dice todo lo que la compartida diría». Era cierto mientras era un bloque solo: desde que
          tiene una barra arriba que no scrollea con él, la columna flex de `.editor` es exactamente
@@ -354,7 +354,7 @@ async function copyTrace() {
     </template>
     <span v-if="t.trace?.lane">carril <b>{{ t.trace.lane }}</b></span>
     <span v-else-if="t.trace">sin carril todavía — se decide al elegir entidad</span>
-    <!-- Las teclas se ven como teclas (`.kbd` de `taller.css`), no como texto que menciona teclas. -->
+    <!-- Las teclas se ven como teclas (`.kbd` de `workbench.css`), no como texto que menciona teclas. -->
     <span class="sb-pista">clic abre la etapa · <kbd class="kbd">←</kbd><kbd class="kbd">→</kbd> recorren</span>
     <div class="layout-controls" role="group" aria-label="Regiones visibles">
       <button ref="personToggle" v-if="hasColumn" type="button" class="region-action" :aria-pressed="!personClosed"
@@ -382,7 +382,7 @@ async function copyTrace() {
    contenedor. Sin color, la profundidad es lo único que separa una capa de otra.
 
    La escalera, medida:  fondo 9  ·  lienzo del mapa 12  ·  header y panel 19  ·  tarjeta 24. */
-/* EL MAPA ES UNA REGIÓN, con su encabezado y su cuerpo. La clase `.editor` le trae de `taller.css`
+/* EL MAPA ES UNA REGIÓN, con su encabezado y su cuerpo. La clase `.editor` le trae de `workbench.css`
    la columna flex; lo de acá es lo propio.
    ⚠ Acá decía que etiquetarlo `.editor` no agregaba nada y por eso se había sacado. Era cierto
    mientras el mapa era un solo bloque: hoy tiene una barra arriba que NO tiene que scrollear con él,
@@ -409,7 +409,7 @@ async function copyTrace() {
 .editor-mapa :deep(.buscador) { flex:1 1 340px; min-width:0; flex-wrap:nowrap }
 .editor-mapa :deep(.buscador input) { flex:1 1 auto; min-width:0 }
 
-/* ⚠ El alto sale del token compartido a mano: `taller.css` se lo pone a `.workbench > .statusbar`,
+/* ⚠ El alto sale del token compartido a mano: `workbench.css` se lo pone a `.workbench > .statusbar`,
    y el trazador arma su layout con `#app` en flex, no con la grilla. Sin esto quedaba en 18px contra
    los 26 de las otras tres — el mismo elemento con dos alturas según la herramienta. */
 .statusbar { height:var(--statusbar-h) }
@@ -431,7 +431,7 @@ async function copyTrace() {
 .copiar.ok { color:var(--ok) }
 
 /* ── LA COLUMNA DE LA IZQUIERDA ─────────────────────────────────────────────────────────────────
-   `sidebar` de `taller.css` le pone el fondo y la columna flex; acá va sólo su ancho.
+   `sidebar` de `workbench.css` le pone el fondo y la columna flex; acá va sólo su ancho.
    El ancho tiene un mínimo de lectura, pero sí se puede arrastrar: en soporte hay comercios y
    perfilamientos largos. Por debajo del mínimo se pliega, igual que logs y recientes. */
 .sidebar.persona-panel { flex:0 0 var(--persona-width); min-width:0; padding:0; gap:0; background:var(--card);
@@ -465,7 +465,7 @@ async function copyTrace() {
 .perfiles-cupo strong { font-weight:600; color:var(--txt) }
 
 .cargando { display:flex; align-items:center; gap:8px; flex-wrap:wrap; font-size:var(--text-sm); color:var(--dim) }
-/* `progress progress-xs progress-ind` de `taller.css` — la pista, el filete de 3px y el movimiento
+/* `progress progress-xs progress-ind` de `workbench.css` — la pista, el filete de 3px y el movimiento
    indeterminado salen de ahí. Lo único propio es que NO ocupa el ancho: vive en un renglón junto al
    texto de la espera, así que es un ancho fijo y no crece con él.
    *(Acá el relleno era `--info`, el azul. Se fue con el componente: era decoración, no significado —

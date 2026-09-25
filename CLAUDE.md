@@ -145,7 +145,7 @@ medidas y los conteos de acá abajo se tomaron con las cuatro y **no se reescrib
 midió ese día. Lo que sí cambió es dónde viven los archivos —hoy tres copias, no cuatro— y eso lo
 comprueba `make estilo-check`, que cuenta las que hay y no las que dice este texto.
 
-**Fuente canónica (2026-09-19):** `tools/ui/tema.css`, `tools/ui/taller.css` y
+**Fuente canónica (2026-09-19):** `tools/ui/theme.css`, `tools/ui/workbench.css` y
 `tools/ui/workbench.js` y `tools/ui/RegionMenu.vue`. Editar allí y ejecutar `make estilo-sync`; `make estilo-check` detecta
 cualquier copia desincronizada. El harness recibe el JS incrustado por el mismo comando, sin reiniciar
 su servidor. Catálogo: `make estilo-guia` → http://127.0.0.1:5198; contrato actual en
@@ -165,7 +165,7 @@ paletas escritas a mano, con **cuatro nombres para el mismo concepto** —el tex
 `--mut` y `--mut`; el acento era `--accent`, `--acc` y `--acc`; el rojo era `--fail`, `--bad` y
 `--danger`—, así que no había forma de cambiarles el aspecto sin tocar las cuatro. Hoy:
 
-- **`tema.css` es el archivo que se cambia, y es el MISMO en las tres** (`harness/panel` ·
+- **`theme.css` es el archivo que se cambia, y es el MISMO en las tres** (`harness/panel` ·
   `tablero/src` · `trazador/src`). La fuente vigente es el tema Darkmatter de
   [ShadcnThemer](https://shadcnthemer.com/themes/278e858e-7c4c-4407-a4bc-2d48faadc5c8): al cambiar
   de tema se reemplaza el bloque de tokens y luego se ejecuta `make estilo-sync`. No lleva reglas
@@ -198,20 +198,20 @@ paletas escritas a mano, con **cuatro nombres para el mismo concepto** —el tex
   aplicaba sólo la del nodo, y la fecha de un hallazgo del tablero —ítem en `.85` × su línea en `.6`—
   salía verde estando en 3,53:1. Hoy multiplica la cadena entera; al estrenarlo, el panel del harness
   pasó de 7 a 21 nodos bajo AA.
-- **La tinta compacta usa la rampa de `taller.css`, no `--muted-foreground`:** los temas cambian su
-  contraste relativo. `--texto-2` (74%) y `--texto-3` (70%) se derivan de `--foreground`; cualquier
+- **La tinta compacta usa la rampa de `workbench.css`, no `--muted-foreground`:** los temas cambian su
+  contraste relativo. `--fg-2` (74%) y `--fg-3` (70%) se derivan de `--foreground`; cualquier
   combinación explícita de tinta y superficie se verifica con `make estilo-check`. `--accent` es una
   superficie, así que su texto siempre usa `--accent-foreground`.
 - Cada herramienta tiene, al lado, **su propia hoja con el PUENTE**: sus nombres viejos apuntando a
   los tokens (`--bg: var(--background)`, `--mut: …`) y lo que sólo significa algo ahí —el estado de una
-  etapa, el carril de un ramal, el semáforo de un scorecard—. **Ese color semántico NO va en `tema.css`
+  etapa, el carril de un ramal, el semáforo de un scorecard—. **Ese color semántico NO va en `theme.css`
   a propósito**: el export de un tema no lo trae, así que pegar uno nuevo encima lo borraría.
 - Las tres apps de Vite además tienen **Tailwind v4** enchufado (`@tailwindcss/vite`), con los tokens
   ya mapeados a utilidades por el `@theme inline` del tema. ⚠ Las utilidades van en `@layer
   utilities` y **el CSS sin capa —todo lo que ya existe— les gana**: sirven para markup nuevo, y para
   migrar un bloque hay que borrarle la regla, no competirle. El panel del harness **no** tiene
   Tailwind: no tiene bundler (`npm run dev` es `node panel/server.ts`), así que consume el mismo
-  `tema.css` por `<link>` y listo.
+  `theme.css` por `<link>` y listo.
 
 ⚠ **Tres trampas medidas el 2026-09-18, las tres silenciosas** (ninguna hace fallar nada):
 
@@ -229,8 +229,8 @@ paletas escritas a mano, con **cuatro nombres para el mismo concepto** —el tex
 
 ### Y cómo se DIVIDE la pantalla: los nombres son los de VS Code
 
-Hermano de lo anterior, y el mismo mecanismo: **`taller.css`, idéntico en las cuatro**, al lado de
-`tema.css`. El tema dice de qué COLOR es cada cosa; el taller dice QUÉ COSA ES. Son dos ejes y por eso
+Hermano de lo anterior, y el mismo mecanismo: **`workbench.css`, idéntico en las cuatro**, al lado de
+`theme.css`. El tema dice de qué COLOR es cada cosa; el taller dice QUÉ COSA ES. Son dos ejes y por eso
 son dos archivos — un tema se reemplaza entero y el taller no, porque ahí hay decisiones (cuánto mide
 un sidebar, qué scrollea) que ningún export de tweakcn trae.
 
@@ -258,7 +258,7 @@ abajo) · `auxiliarybar` (el sidebar secundario) · `statusbar`, y adentro de ca
 
   El patrón que se repite en las cuatro: **la región que usaba la barra no gana ni pierde** (paga lo
   mismo, ahora en su propia cabecera) **y las demás ganan el alto entero**. El nombre sigue en
-  `taller.css` porque es el vocabulario de VS Code y una herramienta futura puede necesitarlo; que hoy
+  `workbench.css` porque es el vocabulario de VS Code y una herramienta futura puede necesitarlo; que hoy
   no lo use nadie **no es un olvido**.
 - **Una región puede tener VARIAS VISTAS apiladas** (`.view`), como el sidebar primario de VS Code:
   el árbol arriba y OUTLINE/TIMELINE colapsadas abajo. ⚠ **Una vista cerrada cuesta UNA FILA, no
@@ -267,13 +267,13 @@ abajo) · `auxiliarybar` (el sidebar secundario) · `statusbar`, y adentro de ca
   pliega es un `.view`**: esto es para vistas que se reparten el alto de una región de alto fijo. Para
   secciones dentro de un cuerpo que scrollea, el elemento correcto es `<details>`, que no necesita JS
   (el panel del harness ya tiene ocho así).
-- **Las manijas de redimensionar comparten el ASPECTO pero no dónde van** (`.rsz` en `taller.css`):
+- **Las manijas de redimensionar comparten el ASPECTO pero no dónde van** (`.rsz` en `workbench.css`):
   una línea de 1px se ve pero no se agarra, así que la zona de agarre es más ancha y sólo se pinta al
   pasar por encima. Dónde va la pone cada herramienta —el panel del harness las tiene como pistas de
   su grid, el trazador en capa sobre el mapa, el tablero pegadas al borde de cada sidebar. ⚠ Y el tope
   de un arrastre **no puede ser un número fijo**: se calcula contra la ventana y el ancho de la otra
   columna, o la región del medio se queda sin ancho usable.
-- **Un grupo dentro de una vista lleva el MISMO encabezado** (`.region-head.grupo`), y no uno más
+- **Un grupo dentro de una vista lleva el MISMO encabezado** (`.region-head.group`), y no uno más
   grande: un grupo que se ve más fuerte que la vista que lo contiene invierte la jerarquía. Lo que los
   distingue no es el tamaño sino el comportamiento — el de la región está fijo y el del grupo scrollea
   con la lista, pero **se pega arriba**, así que mientras recorrés un grupo largo siempre sabés en
