@@ -211,9 +211,30 @@ func TestTokensComeFromTheMapWithMostColors(t *testing.T) {
 	if st := s.styleTokens("SsvFsK5tLvR1jNT3Hh6znD"); st["C2"].Var != "--neutral-0" || st["T1"].Class != "text-small-medium" {
 		t.Errorf("tokens para el HTML: %+v", st)
 	}
+	// Sin un mapa en memoria —el server recién arrancado— se lee la página de flujo del archivo.
+	s.readFlow = func(_ context.Context, key string) (figma.Structure, string, error) {
+		return figma.Structure{FileName: "Motai", Tokens: &figma.Tokens{Colors: []figma.ColorToken{{ID: "C9", Name: "colors/verde/500", Var: "--verde-500", Value: "#01a702"}}}}, "1:259", nil
+	}
 	rec = httptest.NewRecorder()
-	s.routes().ServeHTTP(rec, httptest.NewRequest("GET", "/api/tokens?key=AbCdEf1234567890", nil))
-	if rec.Code != 404 {
-		t.Errorf("sin mapa leído no hay hoja: HTTP %d", rec.Code)
+	s.routes().ServeHTTP(rec, httptest.NewRequest("GET", "/api/tokens?key=AbCdEf1234567890&format=tailwind", nil))
+	if body := rec.Body.String(); rec.Code != 200 || !strings.Contains(body, "--color-verde-500: #01a702;") {
+		t.Errorf("sin mapa leído se lee la página de flujo: HTTP %d\n%s", rec.Code, body)
+	}
+	if _, ok := s.maps["AbCdEf1234567890|1:259"]; !ok {
+		t.Error("el mapa leído queda en memoria: el HTML de sus pantallas usa los mismos tokens")
+	}
+}
+
+// La página de flujo, con la misma regla que la barra.
+func TestFlowPageFollowsTheSidebarRule(t *testing.T) {
+	pages := []figma.Project{{ID: "0:1", Name: "🟦 Cover"}, {ID: "1:258", Name: "🔍 Bechmarck"}, {ID: "1:259", Name: "✏️ Flujo"}, {ID: "614:1086", Name: "prototipo"}}
+	if p, _ := flowPage(pages); p.ID != "1:259" {
+		t.Errorf("la que se llama Flujo: %+v", p)
+	}
+	if p, _ := flowPage(pages[:2]); p.ID != "0:1" {
+		t.Errorf("sin «Flujo» y todas saltables, la primera: %+v", p)
+	}
+	if p, _ := flowPage([]figma.Project{{ID: "0:1", Name: "Cover"}, {ID: "2:1", Name: "Pantallas"}}); p.ID != "2:1" {
+		t.Errorf("la primera que no es portada: %+v", p)
 	}
 }

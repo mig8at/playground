@@ -115,8 +115,23 @@ func (s *server) handleTokens(w http.ResponseWriter, r *http.Request) {
 	}
 	t := s.fileTokens(key)
 	if t == nil {
-		fail(w, 404, "todavía no se leyó ningún mapa de este archivo: abrilo en el visor")
-		return
+		// Un enlace directo a la hoja, con el server recién arrancado: se lee la página de flujo del archivo
+		// —la misma que abre la barra— en vez de pedir que antes se abra en el visor.
+		ctx, cancel := context.WithTimeout(r.Context(), 2*time.Minute)
+		defer cancel()
+		st, node, err := s.readFlow(ctx, key)
+		if err != nil {
+			fail(w, statusOf(err), "%v", err)
+			return
+		}
+		s.mu.Lock()
+		s.maps[key+"|"+node] = st
+		s.versions[key] = st.Version
+		s.mu.Unlock()
+		if t = st.Tokens; t == nil {
+			fail(w, 404, "Figma no devolvió estilos para la página de flujo de este archivo")
+			return
+		}
 	}
 	title := key
 	if name := s.fileName(key); name != "" {
@@ -132,6 +147,43 @@ func (s *server) handleTokens(w http.ResponseWriter, r *http.Request) {
 	default:
 		writeJSON(w, 200, t)
 	}
+}
+
+var (
+	reFlowPage = regexp.MustCompile(`(?i)flujo|flow`)
+	reSkipPage = regexp.MustCompile(`(?i)cover|portada|bench|bechmarck|prototipo|prototype|archivo|archive`)
+)
+
+// flowPage elige la página de flujo de un archivo con la misma regla que la barra (App.vue): la que se
+// llama «Flujo» o «Flow»; si no hay, la primera que no sea portada, benchmark ni prototipo.
+func flowPage(pages []figma.Project) (figma.Project, bool) {
+	for _, p := range pages {
+		if reFlowPage.MatchString(p.Name) {
+			return p, true
+		}
+	}
+	for _, p := range pages {
+		if !reSkipPage.MatchString(p.Name) {
+			return p, true
+		}
+	}
+	if len(pages) > 0 {
+		return pages[0], true
+	}
+	return figma.Project{}, false
+}
+
+func (s *server) readFlowFromFigma(ctx context.Context, key string) (figma.Structure, string, error) {
+	_, pages, err := s.figma.Pages(ctx, key)
+	if err != nil {
+		return figma.Structure{}, "", err
+	}
+	page, ok := flowPage(pages)
+	if !ok {
+		return figma.Structure{}, "", &figma.Error{Status: 404, Message: "el archivo no tiene páginas"}
+	}
+	st, err := s.figma.Structure(ctx, key, page.ID, false)
+	return st, page.ID, err
 }
 
 func (s *server) fileName(key string) string {

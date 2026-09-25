@@ -55,6 +55,7 @@ type server struct {
 	exportSVG fetcher
 	fills     fetcher
 	nodeJSON  func(ctx context.Context, key, id string) ([]byte, error)
+	readFlow  func(ctx context.Context, key string) (figma.Structure, string, error) // la página de flujo de un archivo
 
 	mu       sync.Mutex
 	maps     map[string]figma.Structure // clave+nodo → mapa, mientras corre el server
@@ -76,6 +77,7 @@ func newServer(cl *figma.Client, cache string) *server {
 	s.exportSVG = s.svgFromFigma
 	s.fills = s.fillsFromFigma
 	s.nodeJSON = func(ctx context.Context, key, id string) ([]byte, error) { return cl.NodeJSON(ctx, key, id) }
+	s.readFlow = s.readFlowFromFigma
 	return s
 }
 

@@ -130,7 +130,10 @@ del diseño: cada color y estilo de texto con su **nombre de Figma**, su valor y
 
 - **Dónde:** `bin/pg figma tokens '<url de la sección o página>'` por consola (`--css` · `--tailwind` ·
   `--json`), y en el visor, en el detalle de cada pantalla («Estilos del diseño»: los que usa esa
-  pantalla, con enlaces a la hoja del archivo en CSS, Tailwind y JSON).
+  pantalla, con enlaces a la hoja del archivo en CSS, Tailwind y JSON). `/api/tokens?key=<clave>&format=css`
+  (o `tailwind`) sirve también como enlace directo: con el server recién arrancado lee sola la página de
+  flujo del archivo, con la misma regla que la barra. *(Hasta el 2026-09-25 contestaba 404 si el archivo no
+  se había abierto antes en el visor.)*
 - **El HTML los usa:** lo que toma un estilo se escribe `var(--morado-500, rgba(76,57,255,1))` —con el valor
   por si falta la variable, así la fidelidad no cambia: medido idéntica en Credifamilia (31) y flujo
   ecommerce (49)— y el texto lleva la clase de su estilo (`class="text-small-medium"`). El documento
