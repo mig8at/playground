@@ -9,6 +9,10 @@
  *
  *   node visor/tools/fidelity.mjs --ref '<url de la sección>' [--only 334:2735] [--limit 10] [--all]
  *   node visor/tools/fidelity.mjs --key <clave> --id <nodo> --w 430 --h 903 --json
+ *   node visor/tools/fidelity.mjs --key … --id … --w … --h … --clip x,y,w,h --figma-out a.png --html-out b.png --json
+ *
+ * Con `--clip` mide sólo esa zona —la caja de una capa, en píxeles de pantalla— y guarda los dos recortes:
+ * es lo que usa `make visor-capa` para que el modelo vea, lado a lado, lo que Miguel señaló.
  *
  * El segundo es el de UNA pantalla, y lo usa el server del visor: imprime en JSON cuánto se parece, la
  * medida estricta y la REAL (sin el suavizado de las letras; ver RADIUS y FLOOR).
@@ -69,7 +73,7 @@ async function getJSON(path) {
 
 // measure dibuja el HTML de UNA pantalla y lo compara con su imagen de Figma. Devuelve cuánto se parece
 // —estricta y real— y el mapa de diferencias de siempre (gris y rojo).
-async function measure(browser, compare, key, id, w, h) {
+async function measure(browser, compare, key, id, w, h, clip = null) {
   const figmaRes = await fetch(`${API}/api/screen?key=${key}&id=${encodeURIComponent(id)}`)
   if (!figmaRes.ok) return { error: 'sin imagen de Figma' }
   const figma = Buffer.from(await figmaRes.arrayBuffer()).toString('base64')
@@ -104,14 +108,27 @@ async function measure(browser, compare, key, id, w, h) {
   const shot = (await page.screenshot({ clip: { x: 0, y: 0, width: w, height: h } })).toString('base64')
   await ctx.close()
 
-  return compare.evaluate(async ({ figma, shot, threshold, cell, radius, floor }) => {
+  return compare.evaluate(async ({ figma, shot, threshold, cell, radius, floor, screenW, screenH, clip }) => {
     const load = (b64) => new Promise((res, rej) => { const i = new Image(); i.onload = () => res(i); i.onerror = rej; i.src = 'data:image/png;base64,' + b64 })
     const [a, b] = await Promise.all([load(figma), load(shot)])
-    const W = a.naturalWidth, H = a.naturalHeight
+    // La zona que se compara, en píxeles de pantalla: la pantalla entera, o la caja de una capa.
+    const zone = clip ? {
+      x: Math.max(0, clip.x), y: Math.max(0, clip.y),
+      w: Math.min(clip.w, screenW - Math.max(0, clip.x)), h: Math.min(clip.h, screenH - Math.max(0, clip.y)),
+    } : { x: 0, y: 0, w: screenW, h: screenH }
+    const scale = a.naturalWidth / screenW
+    const W = Math.max(1, Math.round(zone.w * scale)), H = Math.max(1, Math.round(zone.h * scale))
     // Las dos sobre el MISMO fondo: la exportación de Figma deja transparente lo que no tiene relleno, y
     // un píxel transparente leído a secas es negro contra el blanco de la captura — medido: el rombo de
     // decisión daba 48 % por sus cuatro esquinas vacías.
-    const pixels = (img) => { const c = new OffscreenCanvas(W, H); const x = c.getContext('2d'); x.fillStyle = '#fff'; x.fillRect(0, 0, W, H); x.drawImage(img, 0, 0, W, H); return x.getImageData(0, 0, W, H) }
+    const canvases = []
+    const pixels = (img) => {
+      const c = new OffscreenCanvas(W, H); const x = c.getContext('2d'); x.fillStyle = '#fff'; x.fillRect(0, 0, W, H)
+      const k = img.naturalWidth / screenW // cada imagen con su escala: la de Figma y la captura pueden no coincidir
+      x.drawImage(img, zone.x * k, zone.y * k, zone.w * k, zone.h * k, 0, 0, W, H)
+      canvases.push(c)
+      return x.getImageData(0, 0, W, H)
+    }
     const pa = pixels(a), pb = pixels(b)
     const out = new ImageData(W, H)
     const gw = Math.ceil(W / cell), gh = Math.ceil(H / cell)
@@ -158,17 +175,25 @@ async function measure(browser, compare, key, id, w, h) {
       if (counts[k] / (cw * ch) >= floor) kept += counts[k]
     }
 
-    return { same: 1 - diff / (W * H), sameReal: 1 - kept / (W * H), sizes: [W, H, b.naturalWidth, b.naturalHeight], png: await toB64(c) }
-  }, { figma, shot, threshold: THRESHOLD, cell: CELL, radius: RADIUS, floor: FLOOR })
+    return { same: 1 - diff / (W * H), sameReal: 1 - kept / (W * H), sizes: [W, H, b.naturalWidth, b.naturalHeight], png: await toB64(c),
+      crops: clip ? { figma: await toB64(canvases[0]), html: await toB64(canvases[1]) } : null }
+  }, { figma, shot, threshold: THRESHOLD, cell: CELL, radius: RADIUS, floor: FLOOR, screenW: w, screenH: h, clip })
 }
 
 if (single) {
   const browser = await chromium.launch()
   try {
     const compare = await (await browser.newContext()).newPage()
-    const r = await measure(browser, compare, args.key, args.id, Math.round(Number(args.w)), Math.round(Number(args.h)))
+    let clip = null
+    if (args.clip) {
+      const [x, y, cw, ch] = args.clip.split(',').map(Number)
+      clip = { x, y, w: cw, h: ch }
+    }
+    const r = await measure(browser, compare, args.key, args.id, Math.round(Number(args.w)), Math.round(Number(args.h)), clip)
     if (r.error) { console.log(JSON.stringify({ error: r.error })); process.exit(1) }
     if (args.diff) writeFileSync(args.diff, Buffer.from(r.png, 'base64'))
+    if (r.crops && args['figma-out']) writeFileSync(args['figma-out'], Buffer.from(r.crops.figma, 'base64'))
+    if (r.crops && args['html-out']) writeFileSync(args['html-out'], Buffer.from(r.crops.html, 'base64'))
     console.log(JSON.stringify({ same: r.same, same_real: r.sameReal, radius: RADIUS, floor: FLOOR, threshold: THRESHOLD }))
   } finally {
     await browser.close()

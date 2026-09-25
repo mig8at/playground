@@ -26,7 +26,7 @@ el lienzo.
 
 Decisión de Miguel (2026-09-25): **la interfaz es para mirar; el modelo trabaja con comandos**, como con el
 harness. Todo lo que el modelo necesita de un diseño sale por `make`, sin el visor corriendo
-(`visor/server/cli.go`; adentro los verbos van en inglés —`cd visor/server && go run . search|screens|screen|html|assets|tokens|components|fidelity`—):
+(`visor/server/cli.go`; adentro los verbos van en inglés —`cd visor/server && go run . search|screens|screen|html|assets|tokens|components|fidelity|layer`—):
 
     make visor-pantallas                                        # los proyectos, con su clave de Figma
     make visor-pantallas P=RkyauDfqEsFbJZBBoqChAV               # el flujo: carriles y pantallas, cada una con su id
@@ -34,6 +34,7 @@ harness. Todo lo que el modelo necesita de un diseño sale por `make`, sin el vi
     make visor-recursos R=RkyauDfqEsFbJZBBoqChAV/266-1279 DIR=<carpeta> [SVG=1]   # las imágenes ORIGINALES, con el nombre de su capa
     make visor-html R=… [OUT=<archivo>] · make visor-tokens P=<clave> [FORMATO=css|tailwind|json] · make visor-componentes P=<clave>
     make visor-fidelidad R=RkyauDfqEsFbJZBBoqChAV/266-1279      # ¿cuánto se parece el HTML a Figma? sin el suavizado de las letras [NUEVA=1]
+    make visor-capa R='<enlace con ?capa=>'                     # UNA capa que Miguel señaló: qué es, Figma, su HTML y los recortes
     make visor-buscar Q='alquila moto'                          # sólo si no hay id: busca por lo que dice la pantalla, devuelve ids
 
 **El CLI habla en IDS de Figma** (decisión de Miguel, 2026-09-25): la pantalla es `<clave del archivo>/<nodo>`
@@ -327,6 +328,31 @@ cargara una imagen: antes de creerle a una caída, medila sola con `SOLO=<id>`. 
 - **El límite de Figma (429) se toca con una tanda.** El conector espera lo que pide `Retry-After` y
   reintenta; el server guarda el JSON de cada pantalla en disco por versión, para no volver a pedirlo
   en cada reinicio.
+
+## Señalar una capa: «mirá, acá hay algo que no cuadra»
+
+Miguel señala en la interfaz y el modelo lo lee por consola, con **el mismo enlace**.
+
+- En la interfaz, el modo **Señalar** (botón de mira o <kbd>S</kbd>) marca la capa de abajo del mouse —la
+  visible **más chica** cuya caja contiene el punto, igual en la imagen y en el HTML, con las cajas de
+  `/api/layers`— y un clic la fija. Una superficie transparente se queda con el mouse mientras tanto: el
+  iframe del HTML se lo llevaría y las zonas del prototipo navegarían. <kbd>Esc</kbd> sale del modo y
+  después suelta la capa.
+- La capa va a la ruta como **`?capa=<id>`** con guiones por «:» y **guion bajo por «;»**
+  (`?capa=I1-6711_1265-1238`): las capas de adentro de un componente se llaman `I<instancia>;<pieza>`, y
+  Go descarta sin avisar un parámetro con «;» sin codificar — un enlace pegado a mano lo perdería.
+- La barra derecha («Capa señalada», `/api/layer`) dice qué es, por dónde se llega, su caja, lo que dice,
+  lo que Figma sabe de ella (auto-layout, cómo se ajusta, rellenos y trazos con su token, radio, letra,
+  propiedades de componente) y los **dos recortes** —Figma y el HTML— armados en el navegador, sin
+  Chromium. El botón de copiar deja el enlace con una línea para el chat.
+- **`make visor-capa R='<ese enlace>'`** le da al modelo lo mismo y lo que no puede ver: los recortes en
+  archivo (`<clave>/<versión>/layers/`), cuánto se parecen **en esa zona** (`fidelity.mjs --clip`) y el
+  **pedazo de HTML** que la dibuja (`htmlFragment`: el elemento con su `data-figma` y todo lo de adentro).
+  Si la capa va dibujada adentro de otra —un SVG de Figma, una imagen—, lo dice: no tiene elemento propio.
+- Si el diseñador borra o rehace la capa, el id deja de existir: el enlace abre la pantalla y avisa que la
+  capa ya no está, en la interfaz y en la consola.
+- ⚠ **Sin verificar:** que Figma abra su propia URL con el id de una capa de adentro de una instancia
+  (`node-id=I1-6711%3B1265-1238`). El visor y la consola no dependen de eso.
 
 ## La fidelidad: cuánto confiar en el HTML de una pantalla, en un número
 

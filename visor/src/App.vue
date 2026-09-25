@@ -11,6 +11,8 @@ const loading = ref(false)
 const error = ref('')
 const data = ref(null) // { key, node, structure, cached }
 const currentID = ref('')
+// La capa señalada de la pantalla, por su id de Figma (ver «SEÑALAR UNA CAPA»): va arriba porque la ruta la lee.
+const selectedLayer = ref('')
 const trail = ref([]) // las pantallas por las que se vino, para volver
 const showHotspots = ref(true)
 const imageFailed = ref(false)
@@ -469,6 +471,10 @@ const keyOfProject = (project) => {
 }
 const toID = (s) => (s || '').replace(/-/g, ':')
 const fromID = (id) => (id || '').replace(/:/g, '-')
+// La capa en la ruta: guiones por «:» y guion bajo por «;» (las capas de adentro de un componente se
+// llaman `I1:6711;1265:1238`). Así el enlace se lee y se pega sin codificar nada.
+const toLayer = (s) => (s || '').replace(/-/g, ':').replace(/_/g, ';')
+const fromLayer = (id) => (id || '').replace(/:/g, '-').replace(/;/g, '_')
 // La comprobación del enlace con que se llegó (ver checkLink, más abajo).
 const linkCheck = ref(null) // { id, linked, status: 'checking' | 'same' | 'changed' | 'deleted', print }
 const routePath = computed(() => {
@@ -480,6 +486,7 @@ const routePath = computed(() => {
   if (mode.value !== 'image') q.set('modo', modeSlugs[mode.value])
   // La huella del enlace con que se llegó se queda en la barra mientras se mira ESA pantalla.
   if (linkCheck.value?.linked && linkCheck.value.id === currentID.value) q.set('huella', linkCheck.value.linked)
+  if (selectedLayer.value) q.set('capa', fromLayer(selectedLayer.value))
   const qs = q.toString()
   return `/${data.value.key}/${fromID(currentID.value)}${qs ? '?' + qs : ''}`
 })
@@ -497,7 +504,8 @@ function readRoute() {
   const modeID = Object.keys(modeSlugs).find((k) => modeSlugs[k] === q.get('modo')) || ''
   const sheetOf = { tokens: 'tokens', componentes: 'components' }
   if (sheetOf[m[2]]) return { project: decodeURIComponent(m[1]), sheet: sheetOf[m[2]], screen: '', node: '', mode: modeID, print: '' }
-  return { project: decodeURIComponent(m[1]), screen: toID(m[2]), node: toID(q.get('nodo')), mode: modeID, print: q.get('huella') || '' }
+  return { project: decodeURIComponent(m[1]), screen: toID(m[2]), node: toID(q.get('nodo')), mode: modeID, print: q.get('huella') || '',
+    layer: toLayer(q.get('capa')) }
 }
 const figmaRef = (key, node) => `https://www.figma.com/design/${key}/?node-id=${fromID(node)}`
 // routeHold: una ruta está mandando en el centro. Ningún bloque que termine de cargar después —el que
@@ -509,7 +517,10 @@ async function openRoute(r) {
   const key = keyOfProject(r.project)
   if (!key) { fail(`No hay un proyecto «${r.project}» en la barra.`); return }
   if (r.mode) mode.value = r.mode
-  if (r.node) { await load(figmaRef(key, r.node), r.screen); routeHold = false; return }
+  if (r.node) {
+    routeLayer = r.layer && r.screen ? { screen: r.screen, layer: r.layer } : null
+    await load(figmaRef(key, r.node), r.screen); routeHold = false; return
+  }
   const set = new Set([key]); openFiles.value = set; saveSet('visor.open-files', set)
   await openFlow(key)
   if (mapState.value[key]?.error) { fail(mapState.value[key].error); return }
@@ -521,6 +532,7 @@ async function openRoute(r) {
   if (r.screen && !ids.has(r.screen)) { fail(await whyMissing(key, r.screen)); return }
   routeHold = false
   if (r.print && r.screen) checkLink(key, r.screen, r.print)
+  routeLayer = r.layer && r.screen ? { screen: r.screen, layer: r.layer } : null
   activate(key, r.screen)
   if (r.sheet) openSheet(key, r.sheet)
 }
@@ -667,6 +679,105 @@ const fidelityWord = computed(() => {
   return x >= 0.995 ? 'alta' : x >= 0.97 ? 'media: hay capas corridas o de otro tamaño' : 'baja: el HTML no sirve de guía sin revisar'
 })
 const pct = (x, digits = 1) => (x * 100).toFixed(digits).replace('.', ',') + ' %'
+
+// SEÑALAR UNA CAPA: para decirle al modelo «acá hay algo que no cuadra» con un enlace. En el modo
+// «Señalar» (S) se marca la capa de abajo del mouse —la visible más chica que contiene el punto, en la
+// imagen o en el HTML, con las cajas que da el server— y un clic la fija: va a la ruta como `?capa=` y la
+// barra derecha dice qué es, qué dice Figma y cómo se ve esa zona de cada lado. `make visor-capa` con el
+// mismo enlace le da al modelo lo mismo, con los recortes en archivo.
+const picking = ref(false)
+const layers = ref([])       // las cajas de la pantalla actual
+const hoverLayer = ref(null)
+const layerDetail = ref(null)
+const layerState = ref('')   // '' · 'loading' · 'gone' · 'error'
+const layerError = ref('')
+let routeLayer = null        // la capa que trae la ruta, para cuando la pantalla termine de abrir
+const selectedBox = computed(() => layers.value.find((l) => l.id === selectedLayer.value) || layerDetail.value || null)
+async function loadLayers() {
+  const want = data.value && current.value ? `/api/layers?key=${data.value.key}&id=${encodeURIComponent(current.value.id)}` : ''
+  if (!want) return
+  try {
+    const res = await fetch(want)
+    const body = await res.json()
+    if (res.ok && current.value && want.endsWith(encodeURIComponent(current.value.id))) layers.value = body.layers || []
+  } catch { /* sin cajas no se puede señalar, pero la pantalla se ve igual */ }
+}
+watch(currentID, (id) => {
+  layers.value = []; hoverLayer.value = null; layerDetail.value = null; layerState.value = ''
+  if (routeLayer && routeLayer.screen === id) { selectedLayer.value = routeLayer.layer; routeLayer = null } else selectedLayer.value = ''
+  if (id && (picking.value || selectedLayer.value)) loadLayers()
+})
+watch(picking, (on) => { if (on && !layers.value.length) loadLayers(); if (!on) hoverLayer.value = null })
+watch(selectedLayer, async (layer) => {
+  layerDetail.value = null; layerError.value = ''
+  if (!layer || !data.value || !current.value) { layerState.value = ''; return }
+  if (!layers.value.length) loadLayers()
+  layerState.value = 'loading'
+  const screenID = current.value.id
+  try {
+    const res = await fetch(`/api/layer?key=${data.value.key}&id=${encodeURIComponent(screenID)}&layer=${encodeURIComponent(layer)}`)
+    const body = await res.json()
+    if (selectedLayer.value !== layer) return
+    if (res.status === 404) { layerState.value = 'gone'; layerError.value = body.error; return }
+    if (!res.ok) { layerState.value = 'error'; layerError.value = body.error || `HTTP ${res.status}`; return }
+    layerDetail.value = body
+    layerState.value = ''
+  } catch (e) {
+    if (selectedLayer.value === layer) { layerState.value = 'error'; layerError.value = String(e?.message || e) }
+  }
+})
+// La capa de abajo del punto: la visible MÁS CHICA que lo contiene. Un texto adentro de un botón gana al
+// botón; para el botón, se señala su borde.
+function layerAt(e) {
+  const r = e.currentTarget.getBoundingClientRect()
+  const x = (e.clientX - r.left) / scale.value, y = (e.clientY - r.top) / scale.value
+  let best = null
+  for (const l of layers.value) {
+    if (x >= l.x && x < l.x + l.w && y >= l.y && y < l.y + l.h && (!best || l.w * l.h < best.w * best.h)) best = l
+  }
+  return best
+}
+const onPickMove = (e) => { hoverLayer.value = layerAt(e) }
+function onPick(e) {
+  const l = layerAt(e)
+  if (l) selectedLayer.value = selectedLayer.value === l.id ? '' : l.id
+}
+const layerStyle = (l) => {
+  const c = current.value
+  return { left: (l.x / c.w) * 100 + '%', top: (l.y / c.h) * 100 + '%', width: (l.w / c.w) * 100 + '%', height: (l.h / c.h) * 100 + '%' }
+}
+// Los recortes de la barra derecha se arman acá, sin Chromium: la imagen de Figma y el HTML de la
+// pantalla, corridos y escalados para que se vea sólo la caja de la capa.
+// Del ancho de la barra: menos los dos márgenes y lo que ocupa la barra de desplazamiento.
+const CROP_H = 180
+const cropScale = computed(() => {
+  const b = selectedBox.value
+  if (!b || !b.w || !b.h) return 1
+  return Math.min(Math.max(80, shown.value.aux - 48) / b.w, CROP_H / b.h, 3)
+})
+const cropFrame = computed(() => {
+  const b = selectedBox.value, k = cropScale.value
+  return b ? { width: b.w * k + 'px', height: b.h * k + 'px' } : {}
+})
+const cropImage = computed(() => {
+  const b = selectedBox.value, k = cropScale.value, c = current.value
+  return b && c ? { width: c.w * k + 'px', height: c.h * k + 'px', transform: `translate(${-b.x * k}px, ${-b.y * k}px)` } : {}
+})
+const cropFrameHTML = computed(() => {
+  const b = selectedBox.value, k = cropScale.value, c = current.value
+  return b && c ? { width: c.w + 'px', height: c.h + 'px', transform: `scale(${k}) translate(${-b.x}px, ${-b.y}px)` } : {}
+})
+const layerCopied = ref(false)
+async function copyLayerLink() {
+  const url = location.origin + routePath.value
+  const d = layerDetail.value
+  const text = `${url}\n(capa «${d?.name || selectedLayer.value}» de «${current.value?.title || current.value?.name}»; por consola: make visor-capa R='${url}')`
+  try {
+    await navigator.clipboard.writeText(text)
+    layerCopied.value = true
+    setTimeout(() => { layerCopied.value = false }, 1500)
+  } catch { /* sin portapapeles: el enlace está en la barra del navegador */ }
+}
 
 // LA PALETA Y LA TIPOGRAFÍA de la pantalla, como las escribe el HTML (`render.Report`): cada color con su
 // token si lo tiene, cada combinación de letra con su clase.
@@ -860,6 +971,8 @@ function onKey(e) {
   else if (e.key === 'ArrowLeft' && !e.altKey) { step(-1); e.preventDefault() }
   else if (e.key === 'Backspace' || (e.key === 'ArrowLeft' && e.altKey)) { back(); e.preventDefault() }
   else if (e.key === 'h' || e.key === 'H') showHotspots.value = !showHotspots.value
+  else if (e.key === 's' || e.key === 'S') picking.value = !picking.value
+  else if (e.key === 'Escape' && (picking.value || selectedLayer.value)) { if (picking.value) picking.value = false; else selectedLayer.value = '' }
   else if (e.key === '0') center()
   else if (e.key === '+' || e.key === '=') setZoom(zoom.value + ZOOM_STEP)
   else if (e.key === '-') setZoom(zoom.value - ZOOM_STEP)
@@ -1043,6 +1156,9 @@ const rowMetaTitle = (sc) => [sc.hotspots?.length ? 'Tiene zonas del prototipo' 
             <button class="region-action" :aria-pressed="showHotspots" title="Mostrar las zonas del prototipo (H)" aria-label="Zonas del prototipo" @click="showHotspots = !showHotspots">
               <span class="ui-icon" data-icon="eye" aria-hidden="true"></span>
             </button>
+            <button class="region-action" :aria-pressed="picking" title="Señalar una capa: tocala para marcarla y copiar el enlace (S)" aria-label="Señalar una capa" @click="picking = !picking">
+              <span class="ui-icon" data-icon="pick" aria-hidden="true"></span>
+            </button>
             <button class="region-action" title="Centrar la pantalla (0)" aria-label="Centrar la pantalla" @click="center">
               <span class="ui-icon" data-icon="collapse" aria-hidden="true"></span>
             </button>
@@ -1070,7 +1186,12 @@ const rowMetaTitle = (sc) => [sc.hotspots?.length ? 'Tiene zonas del prototipo' 
           <iframe v-else :key="htmlURL" :src="htmlURL" :title="'HTML de ' + (current.title || current.name)" class="html" @load="bindFrame"
             :style="{ width: current.w + 'px', height: current.h + 'px', transform: `scale(${scale})` }"></iframe>
           <div v-if="p === 'image' && imageFailed" class="alert alert-destructive"><div class="alert-desc">Figma no devolvió la imagen de esta pantalla.</div></div>
-          <template v-if="showHotspots">
+          <div v-if="selectedBox && selectedLayer" class="layer-box on" :style="layerStyle(selectedBox)" aria-hidden="true"></div>
+          <div v-if="picking && hoverLayer && hoverLayer.id !== selectedLayer" class="layer-box" :style="layerStyle(hoverLayer)" aria-hidden="true"></div>
+          <!-- Señalando, una superficie transparente se queda con el mouse: el iframe del HTML se lo llevaría, y
+               las zonas del prototipo navegarían en vez de marcar. -->
+          <div v-if="picking" class="pick-surface" :title="hoverLayer ? hoverLayer.name : ''" @pointermove="onPickMove" @pointerleave="hoverLayer = null" @click="onPick"></div>
+          <template v-if="showHotspots && !picking">
             <button v-for="(h, i) in clickable" :key="i" class="hotspot" :class="{ outside: !h.to }" :style="hotspotStyle(h)"
               :title="h.via + ' → ' + h.to_name" :aria-label="h.via + ' → ' + h.to_name" :disabled="!h.to" @click="follow(h)"></button>
           </template>
@@ -1175,6 +1296,45 @@ const rowMetaTitle = (sc) => [sc.hotspots?.length ? 'Tiene zonas del prototipo' 
             <div v-else-if="linkCheck.status === 'deleted'" class="alert alert-destructive" role="status"><div class="alert-desc">Figma ya no tiene esta pantalla: el diseñador la borró.</div></div>
             <p v-else-if="linkCheck.status === 'error'" class="hint">No se pudo comprobar la huella: {{ linkCheck.error }}</p>
           </template>
+          <div v-if="selectedLayer" class="block layer-block">
+            <div class="region-head group">
+              <span>Capa señalada</span>
+              <div class="region-actions">
+                <button class="region-action" :title="layerCopied ? 'Copiado' : 'Copiar el enlace a esta capa, para decírselo a la IA'" aria-label="Copiar el enlace a la capa" @click="copyLayerLink">
+                  <span class="ui-icon" :data-icon="layerCopied ? 'check' : 'copy'" aria-hidden="true"></span>
+                </button>
+                <a v-if="layerDetail" class="region-action" :href="layerDetail.figma" target="_blank" rel="noopener" title="Abrir la capa en Figma" aria-label="Abrir la capa en Figma">
+                  <span class="ui-icon" data-icon="external" aria-hidden="true"></span>
+                </a>
+                <button class="region-action" title="Soltar la capa (Esc)" aria-label="Soltar la capa" @click="selectedLayer = ''">
+                  <span class="ui-icon" data-icon="close" aria-hidden="true"></span>
+                </button>
+              </div>
+            </div>
+            <p v-if="layerState === 'loading'" class="hint">Leyendo la capa…</p>
+            <div v-else-if="layerState === 'gone'" class="alert" role="status"><div class="alert-desc">{{ layerError }}</div></div>
+            <p v-else-if="layerState === 'error'" class="hint">No se pudo leer la capa: {{ layerError }}</p>
+            <template v-else-if="layerDetail">
+              <dl>
+                <dt>Capa</dt><dd>{{ layerDetail.name }} <small>· {{ layerDetail.type.toLowerCase() }}</small></dd>
+                <template v-if="layerDetail.path?.length"><dt>Adentro de</dt><dd>{{ layerDetail.path.slice(1).join(' › ') || layerDetail.path[0] }}</dd></template>
+                <dt>Caja</dt><dd>{{ Math.round(layerDetail.x) }},{{ Math.round(layerDetail.y) }} · {{ Math.round(layerDetail.w) }}×{{ Math.round(layerDetail.h) }}</dd>
+                <template v-if="layerDetail.text"><dt>Dice</dt><dd>«{{ layerDetail.text }}»</dd></template>
+                <template v-for="(f, i) in layerDetail.facts" :key="i"><dt>{{ f.label }}</dt><dd>{{ f.value }}</dd></template>
+              </dl>
+              <div class="crops">
+                <figure>
+                  <div class="crop" :style="cropFrame"><img :src="imageURL" alt="" :style="cropImage" draggable="false" /></div>
+                  <figcaption>Figma</figcaption>
+                </figure>
+                <figure>
+                  <div class="crop" :style="cropFrame"><iframe :src="htmlURL" title="El HTML en esa zona" tabindex="-1" :style="cropFrameHTML"></iframe></div>
+                  <figcaption>HTML</figcaption>
+                </figure>
+              </div>
+              <p class="hint">El enlace lleva la capa: pegalo en el chat o en la tarea. Por consola, <code>make visor-capa R='…'</code> con ese enlace da lo mismo, con los recortes en archivo y cuánto se parecen en esa zona.</p>
+            </template>
+          </div>
           <dl>
             <dt>Título</dt><dd>{{ current.title || '—' }}<small v-if="current.title_from === 'capa'"> · del nombre de la capa</small></dd>
             <dt>Capa</dt><dd>{{ current.name }}</dd>
@@ -1411,6 +1571,18 @@ const rowMetaTitle = (sc) => [sc.hotspots?.length ? 'Tiene zonas del prototipo' 
 .plain-list { margin: 0; padding: 0 0 var(--space-2); list-style: none; font-size: var(--text-base) }
 .plain-list li { display: flex; align-items: center; min-height: var(--row-h); padding: 0 var(--gutter) }
 
+/* SEÑALAR: el recuadro de la capa (el que sigue al mouse, punteado; el fijado, entero) y la superficie que
+   se queda con el mouse mientras se señala. */
+.layer-box { position: absolute; pointer-events: none; outline: 1px dashed var(--primary); outline-offset: 0 }
+.layer-box.on { outline: 2px solid var(--primary); box-shadow: 0 0 0 100vmax color-mix(in oklab, var(--background) 45%, transparent) }
+.pick-surface { position: absolute; inset: 0; cursor: crosshair; z-index: 1 }
+.crops { display: flex; flex-direction: column; gap: var(--space-3); padding: 0 var(--gutter) var(--space-2) }
+.crops figure { margin: 0; display: flex; flex-direction: column; gap: var(--space-1) }
+.crops figcaption { font-size: var(--text-xs); color: var(--fg-3) }
+/* Un recorte es un objeto (una miniatura de la pantalla): lleva su marco. */
+.crop { position: relative; overflow: hidden; border: 1px solid var(--device-edge); background: var(--card) }
+.crop img { position: absolute; left: 0; top: 0; max-width: none; transform-origin: 0 0; user-select: none }
+.crop iframe { position: absolute; left: 0; top: 0; border: 0; transform-origin: 0 0; pointer-events: none }
 .fidelity { display: flex; flex-wrap: wrap; align-items: baseline; gap: var(--space-1) var(--space-2); padding: var(--space-3) var(--gutter) var(--space-2) }
 .fidelity strong { font-size: var(--text-title); font-variant-numeric: tabular-nums }
 .fidelity span { font-size: var(--text-sm); color: var(--fg-2) }

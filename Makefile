@@ -210,6 +210,10 @@ visor-recursos: ## @dia BAJA las imágenes de una pantalla en su resolución ORI
 	@test -n "$(R)" || { echo "falta R=<clave/nodo>  ·  ej: make visor-recursos R=RkyauDfqEsFbJZBBoqChAV/266-1279 DIR=./recursos"; exit 2; }
 	@cd visor/server && go run . assets '$(R)' $(if $(DIR),--dir "$(abspath $(DIR))") $(if $(SVG),--svg)
 
+visor-capa: ## @dia UNA capa de una pantalla, la que se señaló en el visor: qué es, qué dice Figma, el HTML que la dibuja y los recortes de Figma y del HTML en esa zona, con cuánto se parecen. R='<ruta o enlace con ?capa=>' [CAPA=<id>] [DIR=<carpeta>]
+	@test -n "$(R)" || { echo "falta R='<ruta con ?capa=>'  ·  ej: make visor-capa R='uO5zJoYjnJnfDCTqOSG1uR/1-6660?capa=I1-6711_1265-1238'"; exit 2; }
+	@cd visor/server && go run . layer '$(R)' $(if $(CAPA),--capa '$(CAPA)') $(if $(DIR),--dir "$(abspath $(DIR))")
+
 visor-tokens: ## @dia los tokens del diseño de un proyecto: colores y textos con su nombre del sistema. P=<clave> [FORMATO=css|tailwind|json]
 	@test -n "$(P)" || { echo "falta P=<clave del archivo>  ·  ej: make visor-tokens P=7M01d0CZPzzJs0iZeKhwvf FORMATO=tailwind"; exit 2; }
 	@cd visor/server && go run . tokens '$(P)' --$(or $(FORMATO),css)

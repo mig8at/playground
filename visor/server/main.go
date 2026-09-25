@@ -103,6 +103,8 @@ func (s *server) routes() http.Handler {
 	mux.HandleFunc("/api/tokens", s.handleTokens)
 	mux.HandleFunc("/api/brief", s.handleBrief)
 	mux.HandleFunc("/api/fidelity", s.handleFidelity)
+	mux.HandleFunc("/api/layers", s.handleLayers)
+	mux.HandleFunc("/api/layer", s.handleLayer)
 	return mux
 }
 
@@ -208,7 +210,10 @@ func screenIDs(st figma.Structure) []string {
 }
 
 var (
-	reNodeID  = regexp.MustCompile(`^[0-9]+:[0-9]+$`)
+	reNodeID = regexp.MustCompile(`^[0-9]+:[0-9]+$`)
+	// reLayerID es el id de cualquier capa: una suelta (`1:6711`) o una adentro de una instancia, que Figma
+	// nombra por la instancia y la pieza del componente (`I1:6711;1265:1238`).
+	reLayerID = regexp.MustCompile(`^I?[0-9]+:[0-9]+(;[0-9]+:[0-9]+)*$`)
 	reFileKey = regexp.MustCompile(`^[A-Za-z0-9]{10,}$`)
 )
 

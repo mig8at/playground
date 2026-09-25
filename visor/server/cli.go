@@ -38,6 +38,8 @@ import (
 //	tokens <proyecto> [--css|--tailwind|--json]                                           (make visor-tokens)
 //	components <proyecto>            el inventario de componentes del flujo               (make visor-componentes)
 //	fidelity <ruta> [--fresh]        cuánto se parece el HTML a Figma                     (make visor-fidelidad R=)
+//	layer <ruta>?capa=<capa> [--capa <id>] [--dir <carpeta>]
+//	                                 UNA capa: qué es, qué dice Figma, su HTML y los recortes (make visor-capa)
 var cliVerbs = map[string]func(s *server, ctx context.Context, args []string, out io.Writer) error{
 	"search":     cliSearch,
 	"screens":    cliScreens,
@@ -47,13 +49,14 @@ var cliVerbs = map[string]func(s *server, ctx context.Context, args []string, ou
 	"tokens":     cliTokens,
 	"components": cliInventory,
 	"fidelity":   cliFidelity,
+	"layer":      cliLayer,
 }
 
 func runCLI(s *server, args []string) int {
 	verb := args[0]
 	run, ok := cliVerbs[verb]
 	if !ok {
-		fmt.Fprintf(os.Stderr, "visor: no existe «%s». Los verbos: search · screens · screen · html · assets · tokens · components · fidelity (por make: visor-buscar · visor-pantallas · visor-pantalla · visor-html · visor-recursos · visor-tokens · visor-componentes · visor-fidelidad)\n", verb)
+		fmt.Fprintf(os.Stderr, "visor: no existe «%s». Los verbos: search · screens · screen · html · assets · tokens · components · fidelity · layer (por make: visor-buscar · visor-pantallas · visor-pantalla · visor-html · visor-recursos · visor-tokens · visor-componentes · visor-fidelidad · visor-capa)\n", verb)
 		return 2
 	}
 	out := bufio.NewWriter(os.Stdout)
@@ -95,7 +98,7 @@ func (s *server) resolveScreen(ref string) (key, id string, err error) {
 	}
 	key = s.keyOfProject(m[1])
 	if key == "" {
-		return "", "", fmt.Errorf("no text un proyecto «%s» en la biblioteca del visor (make visor-pantallas los lista)", m[1])
+		return "", "", fmt.Errorf("no hay un proyecto «%s» en la biblioteca del visor (make visor-pantallas los lista)", m[1])
 	}
 	return key, strings.ReplaceAll(m[2], "-", ":"), nil
 }
@@ -116,7 +119,7 @@ func (s *server) resolveProject(ref string) (string, error) {
 	if key := s.keyOfProject(m[1]); key != "" {
 		return key, nil
 	}
-	return "", fmt.Errorf("no text un proyecto «%s» en la biblioteca del visor", m[1])
+	return "", fmt.Errorf("no hay un proyecto «%s» en la biblioteca del visor", m[1])
 }
 
 // flowScreens son las pantallas de un mapa en orden, con su carril.
@@ -661,5 +664,83 @@ func cliFidelity(s *server, ctx context.Context, args []string, out io.Writer) e
 	fmt.Fprintf(out, "  %.2f %% igual, sin contar el suavizado de las letras · %.1f %% píxel a píxel · medida %s\n\n",
 		f.SameReal*100, f.Same*100, f.Measured.Format("2006-01-02 15:04"))
 	fmt.Fprintln(out, "  Un píxel cuenta si no hay uno parecido a menos de 1 px en la otra imagen: el suavizado de las letras y medio píxel de corrimiento no son diferencias.")
+	return nil
+}
+
+// reLayerParam: la capa en una ruta del visor, `capa=I1-6711_1265-1238` (guiones por «:», guion bajo por «;»).
+var reLayerParam = regexp.MustCompile(`[?&]capa=([A-Za-z0-9_-]+)`)
+
+// layerFromRoute pasa la capa de su forma en la ruta a su id de Figma.
+func layerFromRoute(v string) string {
+	return strings.NewReplacer("-", ":", "_", ";").Replace(v)
+}
+
+// cliLayer es lo que Miguel señaló en la interfaz, para el modelo: qué capa es, qué dice Figma de ella,
+// el pedazo de HTML que la dibuja, y los dos recortes de esa zona —Figma y el HTML— para compararlos sin
+// adivinar dónde mirar.
+func cliLayer(s *server, ctx context.Context, args []string, out io.Writer) error {
+	fs := flag.NewFlagSet("layer", flag.ContinueOnError)
+	layerFlag := fs.String("capa", "", "el id de la capa (si la ruta no lo trae como ?capa=)")
+	dir := fs.String("dir", "", "dónde guardar los recortes (sin esto, en la caché del visor)")
+	ref, err := parseRefArgs(fs, args)
+	if err != nil {
+		return err
+	}
+	layer := *layerFlag
+	if m := reLayerParam.FindStringSubmatch(ref); m != nil && layer == "" {
+		layer = layerFromRoute(m[1])
+	}
+	if layer == "" {
+		return usageError("falta la capa: la ruta con ?capa=<id> (como la copia la interfaz) o --capa <id>")
+	}
+	if !reLayerID.MatchString(layer) {
+		return usageError(fmt.Sprintf("«%s» no es un id de capa de Figma", layer))
+	}
+	key, id, err := s.screenReady(ctx, ref)
+	if err != nil {
+		return err
+	}
+	d, err := s.layerDetail(ctx, key, id, layer)
+	if err != nil {
+		return err
+	}
+	title := id
+	if place, ok := s.findScreen(key, id); ok && place.screen.Title != "" {
+		title = place.screen.Title
+	}
+	fmt.Fprintf(out, "# Capa «%s» · %s\n\n", d.Name, strings.ToLower(d.Type))
+	fmt.Fprintf(out, "- **Pantalla:** «%s» (%s/%s)\n", title, key, strings.ReplaceAll(id, ":", "-"))
+	if len(d.Path) > 0 {
+		fmt.Fprintf(out, "- **Adentro de:** %s\n", strings.Join(d.Path, " › "))
+	}
+	fmt.Fprintf(out, "- **Caja:** %s,%s · %s×%s px (desde la esquina de la pantalla)\n", num(d.X), num(d.Y), num(d.W), num(d.H))
+	fmt.Fprintf(out, "- **Id:** `%s` · Figma: %s\n", d.ID, d.Figma)
+	if d.Text != "" {
+		fmt.Fprintf(out, "- **Dice:** «%s»\n", strings.Join(strings.Fields(d.Text), " "))
+	}
+	if len(d.Facts) > 0 {
+		b := &strings.Builder{}
+		for _, f := range d.Facts {
+			fmt.Fprintf(b, "- %s: %s\n", f.Label, f.Value)
+		}
+		fmt.Fprintf(out, "\n## Lo que dice Figma\n\n%s", b.String())
+	}
+
+	// Los recortes y cuánto se parece la zona: un Chromium, como la fidelidad de la pantalla.
+	fmt.Fprintln(out, "\n## Esa zona, en Figma y en el HTML")
+	crops, m, err := s.layerCrops(ctx, key, id, d, *dir)
+	if err != nil {
+		fmt.Fprintf(out, "\nNo se pudo recortar: %v\n", err)
+	} else {
+		fmt.Fprintf(out, "\n- %.2f %% igual sin contar el suavizado de las letras · %.1f %% píxel a píxel\n", m.SameReal*100, m.Same*100)
+		fmt.Fprintf(out, "- Figma: %s\n- HTML: %s\n", crops[0], crops[1])
+	}
+
+	fmt.Fprintln(out, "\n## El HTML que la dibuja")
+	if d.HTML == "" {
+		fmt.Fprintln(out, "\nEl HTML no tiene un elemento propio para esta capa: va dibujada adentro de otra (un SVG de Figma o una imagen).")
+	} else {
+		fmt.Fprintf(out, "\n```html\n%s\n```\n", d.HTML)
+	}
 	return nil
 }
