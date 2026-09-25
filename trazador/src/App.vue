@@ -1,6 +1,6 @@
 <script setup>
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
-import { vResize, readSize, saveSize, fitRegions, regionSize, reopenSize, cssSize } from './workbench.js'
+import { vResize, readSize, saveSize, fitRegions, regionSize, reopenSize, cssSize, bindThemeToggle } from './workbench.js'
 import { useTrazador } from './stores/trazador'
 import { traceToText } from './traceText'
 import SearchBox from './components/SearchBox.vue'
@@ -143,7 +143,9 @@ const panelMin = () => cssSize('--panel-min', 124)
 const maxPanel = computed(() => Math.max(0, viewportHeight.value - 300))
 const panelHeightVisible = computed(() => regionSize(panelHeight.value, panelMin(), maxPanel.value))
 const recentClosed = computed(() => panelHeightVisible.value < 1)
+const recentPanel = ref(null)
 function hideRecent() {
+  recentPanel.value?.restore()
   if (panelHeight.value) {
     lastPanelHeight.value = panelHeight.value
     saveSize('trazador.recientes.last-open', panelHeight.value)
@@ -171,8 +173,15 @@ const resizeWindow = () => { viewportWidth.value = window.innerWidth; viewportHe
 onMounted(() => window.addEventListener('resize', resizeWindow))
 onUnmounted(() => window.removeEventListener('resize', resizeWindow))
 
-const GLYPH = { aprobado:'✓', roto:'✕', abandonado:'!', 'en-curso':'·' }
+// El desenlace es un DATO en castellano; la clase que lo pinta sale de esta tabla, nunca del dato.
 const CLASS = { aprobado:'ok', roto:'fail', abandonado:'warn', 'en-curso':'skip' }
+
+// El botón de tema del pie, el de la base: el renglón de `THEME_BOOT` ya aplicó el tema antes de
+// pintar (lo inyecta `vite.config.js`), y esto sólo lo alterna y lo recuerda.
+const themeToggle = ref(null)
+let themeBinding = null
+onMounted(() => { if (themeToggle.value) themeBinding = bindThemeToggle(themeToggle.value) })
+onUnmounted(() => themeBinding?.destroy())
 
 // COPIAR LA TRAZA ENTERA como texto: hechos de BD + logs por paso + avisos, todo junto. El destino de una
 // traza casi nunca es esta pantalla — se pega en un ticket, en Slack o en un prompt — y un screenshot no se
@@ -198,9 +207,9 @@ async function copyTrace() {
 
 <template>
 
-  <div class="cols" :class="{ cerrado: closed }" :style="{
+  <div class="columns" :style="{
     '--detail-width': `${Math.round(visibleWidth)}px`,
-    '--persona-width': `${Math.round(personWidthVisible)}px`,
+    '--person-width': `${Math.round(personWidthVisible)}px`,
   }">
     <!-- LA PERSONA · el sidebar izquierdo. Acá vive todo lo que NO es el recorrido: qué solicitud
          estás mirando, de quién es, y qué más intentó esa persona.
@@ -219,41 +228,41 @@ async function copyTrace() {
 
          La columna queda abierta desde el arranque: el estado inicial explica qué hacer y reserva
          un lugar estable para la ficha y la historia, sin hacer que el mapa salte al buscar. -->
-    <aside v-if="hasColumn" v-show="!personClosed" class="sidebar persona-panel" aria-label="Persona y solicitudes">
+    <aside v-if="hasColumn" v-show="!personClosed" class="sidebar person-panel" aria-label="Persona y solicitudes">
       <div class="region-head">
         <span>{{ personTitle }}</span>
-        <span v-if="t.trace" class="toolbar-note ureq-b">{{ t.trace.ureq }}</span>
-        <div class="region-actions toolbar">
+        <span v-if="t.trace" class="toolbar-note ureq-id">{{ t.trace.ureq }}</span>
+        <div class="region-actions">
           <button type="button" class="region-action" title="Ocultar persona" aria-label="Ocultar persona" @click="hidePerson">
             <span class="ui-icon" data-icon="close" aria-hidden="true"></span>
           </button>
         </div>
       </div>
       <div class="region-body">
-        <div v-if="!t.phase && !t.error && !t.trace && !t.results" class="persona-vacia">
-          <div class="empty-media" aria-hidden="true">⌕</div>
-          <p>Buscá una cédula, teléfono o solicitud.</p>
-          <span>La ficha y las corridas de esa persona aparecerán acá.</span>
+        <!-- El estado vacío es el de la base (`.empty`): título y descripción, sin caja ni medio. Es el
+             único título de la pantalla vacía: los otros estados vacíos dicen lo suyo en una línea. -->
+        <div v-if="!t.phase && !t.error && !t.trace && !t.results" class="empty">
+          <div class="empty-head">
+            <div class="empty-title">Buscá una cédula, teléfono o solicitud</div>
+            <div class="empty-desc">La ficha y las corridas de esa persona aparecerán acá.</div>
+          </div>
         </div>
         <!-- LA ESPERA, DICHA. Contra prod son ~20 s en dos saltos porque Redash es asíncrono; un spinner
              mudo tanto tiempo se lee como «se colgó». Cuál de los dos corre convierte la espera en
              información. Va acá, que es donde va a aparecer la respuesta. -->
-        <div v-if="t.phase" class="cargando">
-          <div class="progress progress-xs progress-ind barra"><i /></div>
+        <div v-if="t.phase" class="loading">
+          <div class="progress progress-xs progress-ind loading-bar"><i /></div>
           <span>{{ t.phase === 'buscando' ? 'buscando la solicitud…' : 'armando la traza: BD + logs…' }}</span>
           <span v-if="t.target === 'prod'" class="dim">prod pasa por la cola de Redash, tarda unos segundos</span>
         </div>
 
-        <!-- AVISOS (`alert` de `workbench.css`). ⚠ Y acá SÍ va el marco, que es lo contrario de lo que
-             hicimos con los callouts de prosa: un alert es un mensaje que tiene que despegarse de lo
-             que lo rodea, no una cita adentro de un texto. -->
+        <!-- AVISOS (`alert` de la base): una barra a la izquierda y un tinte, cuadrado. Sin icono: la
+             base no tiene uno de aviso y un carácter (✕ ⚠) no es un icono. -->
         <div v-if="t.error" class="alert alert-destructive" role="alert">
-          <span class="alert-icon" aria-hidden="true">✕</span>
           <div class="alert-title">No se pudo armar la traza</div>
           <div class="alert-desc">{{ t.error }}</div>
         </div>
-        <div v-for="h in checkSevere" :key="h.text" class="alert alert-destructive mapaRoto" role="alert">
-          <span class="alert-icon" aria-hidden="true">⚠</span>
+        <div v-for="h in checkSevere" :key="h.text" class="alert alert-destructive map-broken" role="alert">
           <div class="alert-title">El mapa dejó de resolver</div>
           <div class="alert-desc">{{ h.text }} — <code>make trazador-chequeo</code></div>
         </div>
@@ -262,10 +271,10 @@ async function copyTrace() {
              un muro de cuatro renglones donde hay que buscar dónde empieza cada campo. Una fila por
              dato, con el rótulo apagado a la izquierda, se recorre con el ojo sin leer. -->
         <dl v-if="t.trace" class="meta">
-          <div><dt>solicitud</dt><dd class="ureq-b">{{ t.trace.ureq }}</dd></div>
+          <div><dt>solicitud</dt><dd class="ureq-id">{{ t.trace.ureq }}</dd></div>
           <div v-if="t.trace.statusN"><dt>estado</dt><dd>{{ t.trace.statusN }}</dd></div>
           <div v-if="t.trace.profiling"><dt>perfilamiento</dt><dd>{{ t.trace.profiling }}</dd></div>
-          <div v-if="t.trace.quotaProfiles?.length"><dt>perfil de cupo</dt><dd class="perfiles-cupo">
+          <div v-if="t.trace.quotaProfiles?.length"><dt>perfil de cupo</dt><dd class="quota-profiles">
             <span v-for="profile in t.trace.quotaProfiles" :key="`${profile.entity}:${profile.category}:${profile.quota}`">
               <strong>{{ profile.category }}</strong><span class="dim"> · {{ profile.entity }}</span><span v-if="profile.quota > 0" class="dim"> · cupo ${{ Math.round(profile.quota).toLocaleString('es-CO') }}</span>
             </span>
@@ -288,51 +297,60 @@ async function copyTrace() {
 
       </div>
     </aside>
-    <div v-if="hasColumn" class="tirador tirador-persona rsz" v-resize="personResize" />
+    <div v-if="hasColumn" class="handle handle-person rsz" v-resize="personResize" />
 
-    <!-- El mapa recibe el ancho visible del panel para recuperar exactamente el espacio que se libera
-         al arrastrarlo. Sus estaciones tienen celdas mínimas, de modo que nunca se aplastan. -->
-    <!-- El mapa es el EDITOR y `Detalle` el AUXILIARYBAR, en el vocabulario de `workbench.css`.
-         ⚠ Acá decía que el mapa NO lleva la clase `.editor` a propósito, porque «su regla propia ya
-         dice todo lo que la compartida diría». Era cierto mientras era un bloque solo: desde que
-         tiene una barra arriba que no scrollea con él, la columna flex de `.editor` es exactamente
-         lo que hace falta y el nombre sí cambia algo. -->
-    <div class="workspace-main" :style="{ '--recent-height': `${Math.round(panelHeightVisible)}px` }">
-    <section class="editor editor-mapa">
-      <!-- EL ENCABEZADO DEL MAPA · acá vive lo que antes era el titlebar a lo ancho de la ventana.
-           El buscador es lo ÚNICO que hace esta herramienta —escribís un id y ves la traza—, o sea
-           es la barra de comandos del mapa, no un filtro sobre algo que ya está en pantalla.
-
-           ⚠ El panel de logs pagaba por esta barra sin usarla: estaba arriba de las DOS columnas, así
-           que el sidebar empezaba 44px más abajo por un buscador que no es suyo. -->
+    <!-- El mapa es el EDITOR y `Detail` el AUXILIARYBAR, en el vocabulario de la base. La columna
+         central (`.workspace`) apila el mapa, su manija y la consola; es también la raíz que tapa la
+         consola maximizada (ver `Recent.vue`). -->
+    <div class="workspace" :style="{ '--recent-height': `${Math.round(panelHeightVisible)}px` }">
+    <section class="editor editor-map">
+      <!-- LA BANDA DEL MAPA · acá vive lo que antes era el titlebar a lo ancho de la ventana. El
+           buscador es lo ÚNICO que hace esta herramienta —escribís un id y ves la traza—, o sea es la
+           barra de comandos del mapa, no un filtro sobre algo que ya está en pantalla. Mide 40 como las
+           otras columnas: sus controles son los de una banda (28). -->
       <div class="region-head">
-        <span>Trazador</span>
+        <span>Mapa</span>
         <SearchBox />
-        <div class="region-actions toolbar">
+        <div class="region-actions">
           <!-- ⚠ ICONO y no «⧉ copiar traza»: en una barra de acciones el botón es `.region-action`,
                24×24, y el texto se le parte adentro — el primer intento quedó con «copi / traz» en
                dos renglones, tapado por el panel de logs. Lo que dice, lo dice el `title`. -->
-          <button v-if="t.trace" class="region-action copiar" aria-label="Copiar traza completa" :class="{ ok: copied }" @click="copyTrace"
+          <button v-if="t.trace" class="region-action copy-trace" aria-label="Copiar traza completa" :class="{ ok: copied }" @click="copyTrace"
                   :title="copied ? 'copiado' : 'Copiar la traza completa como texto: hechos de BD + logs por paso + avisos. Para pegar en un ticket o un prompt.'">
             <span class="ui-icon" :data-icon="copied ? 'check' : 'copy'" aria-hidden="true"></span>
           </button>
         </div>
       </div>
+      <!-- LA SUBBANDA dice CÓMO coincidió la búsqueda. El mismo número puede ser una cédula y un id de
+           solicitud, y un buscador que elige en silencio muestra la solicitud de otra persona con total
+           seguridad. ⚠ Vivía adentro de la banda y la hacía crecer a dos renglones: acá es la subbanda
+           de 32 de la base, que existe sólo cuando hay una búsqueda. -->
+      <div v-if="t.results" class="subband match">
+        <span v-if="t.results.as?.length" class="grow">
+          <span :class="{ warn: t.results.as.length > 1 }">coincidió como {{ t.results.as.join(' y ') }}</span>
+          <span v-if="t.results.as.length > 1"> — mirá bien cuál buscabas</span>
+        </span>
+        <span v-else class="grow">sin coincidencias en {{ t.results.target }}</span>
+        <span class="count">fuente {{ t.results.source }}</span>
+      </div>
       <StageMap :closed="closed" :panel-width="visibleWidth" />
     </section>
 
-    <!-- Recientes ocupa la consola inferior: es navegación de corridas, no contexto del inspector. -->
-    <div class="tirador tirador-consola rsz" v-resize="panelResize" />
-    <Recent id="trazador-recientes" v-show="!recentClosed" class="panel recientes-console"
+    <!-- Recientes ocupa la consola inferior: es navegación de corridas, no contexto del inspector. Su
+         manija va marcada `data-rsz="panel"`: la base la esconde mientras la consola está maximizada. -->
+    <div class="handle handle-panel rsz" data-rsz="panel" v-resize="panelResize" />
+    <Recent ref="recentPanel" id="trazador-recent" v-show="!recentClosed" class="panel recent-panel"
                :style="{ height: `${Math.round(panelHeightVisible)}px` }" @close="hideRecent" />
     </div>
 
     <!-- El tirador viaja con el borde del panel. Con el sidebar cerrado queda pegado a la derecha y
          sigue sirviendo para volver a abrirlo, que es lo que evita que cerrarlo sea un camino de ida. -->
-    <div class="tirador tirador-detalle rsz" v-resize="detailResize"
+    <div class="handle handle-detail rsz" v-resize="detailResize"
          :style="{ right: `${Math.round(visibleWidth)}px` }" />
 
-    <!-- En capa sobre el mapa, no en el flujo: por eso ensancharlo lo TAPA en vez de deformarlo. -->
+    <!-- ⚠ DESVIACIÓN DECLARADA: el secundario va EN CAPA sobre el mapa, no en el flujo. Así ensancharlo
+         no relocaliza el DOM del mapa (el grafo no se rearma entero en cada píxel del arrastre); la
+         columna central sólo le deja el ancho que ocupa ahora (`--detail-width`). -->
     <Detail id="trazador-logs" @close="hideLogs" v-show="!closed" class="auxiliarybar" :style="{ width: `${Math.round(visibleWidth)}px` }" />
   </div>
 
@@ -345,29 +363,32 @@ async function copyTrace() {
   <footer class="statusbar">
     <!-- ⚠ La solicitud y su desenlace VIVEN ACÁ desde que no hay titlebar. Antes estaban arriba y este
          renglón los evitaba a propósito para no repetirlos; ahora son justo lo que le falta — qué
-         estás mirando y cómo terminó, sin gastar una barra entera en decirlo. -->
+         estás mirando y cómo terminó, sin gastar una barra entera en decirlo. (El círculo con ✓/✕ de
+         al lado se fue: la píldora ya dice el desenlace, en texto y en color.) -->
     <strong :class="{ prod: t.target === 'prod' }">{{ t.target }}</strong>
     <template v-if="t.trace">
-      <span class="ico" :class="CLASS[t.trace.outcome]">{{ GLYPH[t.trace.outcome] }}</span>
-      <span class="badge badge-outline" :class="CLASS[t.trace.outcome]">{{ t.trace.outcome }}</span>
+      <span class="badge badge-outline badge-xs" :class="CLASS[t.trace.outcome]">{{ t.trace.outcome }}</span>
       <span class="ureq">solicitud {{ t.trace.ureq }}</span>
     </template>
     <span v-if="t.trace?.lane">carril <b>{{ t.trace.lane }}</b></span>
     <span v-else-if="t.trace">sin carril todavía — se decide al elegir entidad</span>
-    <!-- Las teclas se ven como teclas (`.kbd` de `workbench.css`), no como texto que menciona teclas. -->
-    <span class="sb-pista">clic abre la etapa · <kbd class="kbd">←</kbd><kbd class="kbd">→</kbd> recorren</span>
+    <!-- Las teclas se ven como teclas (`.kbd` de la base), no como texto que menciona teclas. -->
+    <span class="sb-hint">clic abre la etapa · <kbd class="kbd">←</kbd><kbd class="kbd">→</kbd> recorren</span>
     <div class="layout-controls" role="group" aria-label="Regiones visibles">
+      <!-- El tema, antes de los botones de disposición y separado 8: los de disposición van al final
+           porque su orden copia la pantalla (izquierda, abajo, derecha). -->
+      <button ref="themeToggle" type="button" class="region-action theme-toggle"><span class="ui-icon" aria-hidden="true"></span></button>
       <button ref="personToggle" v-if="hasColumn" type="button" class="region-action" :aria-pressed="!personClosed"
               aria-label="Mostrar u ocultar la persona" title="Mostrar u ocultar la persona" @click="togglePerson">
         <span class="ui-icon" data-icon="sidebar" aria-hidden="true"></span>
       </button>
+      <button ref="recentToggle" type="button" class="region-action" :aria-pressed="!recentClosed" aria-controls="trazador-recent"
+              aria-label="Mostrar u ocultar recientes" title="Mostrar u ocultar recientes" @click="toggleRecent">
+        <span class="ui-icon" data-icon="console" aria-hidden="true"></span>
+      </button>
       <button ref="logsToggle" type="button" class="region-action" :aria-pressed="!closed" aria-controls="trazador-logs"
               aria-label="Mostrar u ocultar los logs" title="Mostrar u ocultar los logs" @click="toggleLogs">
         <span class="ui-icon" data-icon="detail" aria-hidden="true"></span>
-      </button>
-      <button ref="recentToggle" type="button" class="region-action" :aria-pressed="!recentClosed" aria-controls="trazador-recientes"
-              aria-label="Mostrar u ocultar recientes" title="Mostrar u ocultar recientes" @click="toggleRecent">
-        <span class="ui-icon" data-icon="console" aria-hidden="true"></span>
       </button>
     </div>
   </footer>
@@ -375,140 +396,97 @@ async function copyTrace() {
 </template>
 
 <style scoped>
-/* Compacto: cada píxel de arriba se lo come el mapa, que es lo que uno mira. */
-/* ⚠ LAS SUPERFICIES TIENEN QUE ESCALONARSE, y medirlo es la única forma de saber si pasa. La primera
-   versión de esto puso `--panel2` en el header, el mapa Y el panel: los tres quedaron en la misma
-   luminancia (12 sobre 255) y con ellos el input, que se supone HUNDIDO, dejó de distinguirse de su
-   contenedor. Sin color, la profundidad es lo único que separa una capa de otra.
+/* Casi todo es de la base: regiones, bandas, subbanda, controles, `.empty`, `.alert`, el pie. Acá queda
+   lo que sólo significa algo en el trazador: cómo se arman sus tres columnas (el secundario flota), la
+   ficha de la persona y el mapa que llena su editor. */
 
-   La escalera, medida:  fondo 9  ·  lienzo del mapa 12  ·  header y panel 19  ·  tarjeta 24. */
-/* EL MAPA ES UNA REGIÓN, con su encabezado y su cuerpo. La clase `.editor` le trae de `workbench.css`
-   la columna flex; lo de acá es lo propio.
-   ⚠ Acá decía que etiquetarlo `.editor` no agregaba nada y por eso se había sacado. Era cierto
-   mientras el mapa era un solo bloque: hoy tiene una barra arriba que NO tiene que scrollear con él,
-   y eso es exactamente lo que la regla compartida resuelve. */
-.editor-mapa { height:100%; background:var(--panel2) }
-/* ⚠ `height:auto` y `flex:1`: `.mapa` se dibuja con `height:100%`, que dentro de una columna flex
-   con alto definido significa «todo el alto del contenedor» — o sea el encabezado de arriba, por
-   encima. Se ve como un mapa recortado abajo, no como un error. */
-.editor-mapa > :deep(.mapa) { height:auto; flex:1 1 0; min-height:0 }
-/* El encabezado se queda con la superficie del viejo titlebar (el escalón 19 de la escalera de
-   arriba), para que siga leyéndose como una barra y no como el lienzo. ⚠ `height:auto` y
-   `overflow:visible` contra la regla compartida: el buscador suma renglones —«coincidió como…», los
-   recientes— y una barra de una línea los recortaría. */
-.editor-mapa > .region-head { height:auto; overflow:visible; background:var(--card);
-  padding:var(--space-1) var(--gutter); gap:var(--space-2); flex-wrap:wrap; text-transform:none; letter-spacing:normal;
-  font-size:var(--text-sm) }
-/* El nombre NO se queda con el espacio: lo quiere el buscador. (La regla compartida le da `flex:1`
-   al primer hijo, que es lo correcto cuando el primer hijo es el título de una lista.) */
-.editor-mapa > .region-head > :first-child { flex:none; font-weight:600; letter-spacing:-.01em;
-  color:var(--txt) }
-/* ⚠ El buscador NO envuelve dentro de la barra. Su regla propia es `flex-wrap: wrap` —correcto
-   cuando era una fila entera para él— y acá partía la caja del `prod ▾ buscar` a un segundo renglón:
-   el encabezado terminaba MÁS alto (107px) que las dos filas que vino a reemplazar (97px). */
-.editor-mapa :deep(.buscador) { flex:1 1 340px; min-width:0; flex-wrap:nowrap }
-.editor-mapa :deep(.buscador input) { flex:1 1 auto; min-width:0 }
+/* ── EL EDITOR: el mapa ──────────────────────────────────────────────────────────────────────────
+   `.editor` le trae de la base la columna flex y su superficie; el lienzo usa la misma (`--map-canvas`
+   es `--background`), así el mapa no pinta un fondo propio.
+   ⚠ `height:auto` y `flex:1` en el lienzo: `.map` se dibuja con `height:100%`, que dentro de una
+   columna flex con alto definido significa «todo el alto del contenedor» — o sea el encabezado de
+   arriba, por encima. Se ve como un mapa recortado abajo, no como un error. */
+.editor-map > :deep(.map) { height:auto; flex:1 1 0; min-height:0 }
+/* El título NO se queda con el espacio: lo quiere el buscador. (La base le da `flex:1` al primer hijo,
+   que es lo correcto cuando el primer hijo es el título de una lista.) */
+.editor-map > .region-head > :first-child { flex:none }
 
-/* ⚠ El alto sale del token compartido a mano: `workbench.css` se lo pone a `.workbench > .statusbar`,
-   y el trazador arma su layout con `#app` en flex, no con la grilla. Sin esto quedaba en 18px contra
-   los 26 de las otras tres — el mismo elemento con dos alturas según la herramienta. */
-.statusbar { height:var(--statusbar-h) }
 /* Excepción declarada a «sin mayúsculas»: el ambiente del pie es una alarma (PROD), no una etiqueta. */
-.statusbar strong { color:var(--dim); font-weight:600; text-transform:uppercase; letter-spacing:.06em;
-  font-size:var(--text-xs) }
+.statusbar strong { color:var(--dim); text-transform:uppercase; letter-spacing:.06em }
 .statusbar strong.prod { color:var(--warn) }
-.statusbar b { color:var(--txt); font-weight:600 }
+.statusbar b { color:var(--txt) }
 /* La pista de teclado al borde: es ayuda, no estado — lo último que se lee. */
-.sb-pista { margin-left:auto; color:var(--tenue) }
-/* El desenlace en el statusbar: el icono baja de 20 a 16px y la píldora pierde aire. En sus tamaños
-   de tarjeta no entran en los 26px de la barra y la estiran, que es justo lo que esa barra no hace. */
-.statusbar .ico { flex:0 0 16px; height:16px; font-size:var(--text-xs) }
-.statusbar .badge { padding:1px 8px; font-size:var(--text-xs) }
-.ureq { color:var(--dim); font-size:var(--text-base); font-variant-numeric:tabular-nums }
-/* El resto lo pone `.region-action` (24×24, sin borde). Acá sólo el verde del acuse. */
-.copiar { color:var(--dim); transition:color .12s }
-.copiar:hover { color:var(--txt) }
-.copiar.ok { color:var(--ok) }
+.sb-hint { margin-left:auto; color:var(--faint) }
+.ureq { font-variant-numeric:tabular-nums }
+/* 8 entre el tema y los botones de disposición: 4 de este margen más los 4 del grupo. */
+.theme-toggle { margin-right:var(--space-1) }
+/* El resto lo pone `.region-action`. Acá sólo el verde del acuse. */
+.copy-trace.ok { color:var(--ok) }
 
 /* ── LA COLUMNA DE LA IZQUIERDA ─────────────────────────────────────────────────────────────────
-   `sidebar` de `workbench.css` le pone el fondo y la columna flex; acá va sólo su ancho.
+   `sidebar` de la base le pone el fondo, la línea y la columna flex; acá va sólo su ancho.
    El ancho tiene un mínimo de lectura, pero sí se puede arrastrar: en soporte hay comercios y
    perfilamientos largos. Por debajo del mínimo se pliega, igual que logs y recientes. */
-.sidebar.persona-panel { flex:0 0 var(--persona-width); min-width:0; padding:0; gap:0; background:var(--card);
-  border-right:1px solid var(--line); --region-bg:var(--card) }
-.persona-panel > .region-head { min-height:var(--region-head-h); color:var(--txt); background:transparent;
-  border:0; border-bottom:1px solid var(--line); border-radius:0 }
-.persona-panel > .region-head > :first-child { font-size:var(--text-base); font-weight:600 }
-.persona-panel > .region-head .region-action { border:1px solid transparent; border-radius:var(--r-sm); background:transparent }
-.persona-panel > .region-head .region-action:hover { color:var(--primary); border-color:var(--line);
-  background:var(--panel2) }
-.persona-panel > .region-body { --historia-gutter:12px; --historia-gutter-doble:24px; padding:12px;
-  display:flex; flex-direction:column; gap:14px; background:transparent; border:0; border-radius:0 }
-.ureq-b { font-variant-numeric:tabular-nums }
-.persona-vacia { margin:auto 0; display:flex; flex-direction:column; align-items:center; gap:7px;
-  padding:20px 8px; color:var(--dim); text-align:center; font-size:var(--text-sm); line-height:1.5 }
-.persona-vacia .empty-media { margin:0 0 3px; width:32px; height:32px; font-size:var(--text-title) }
-.persona-vacia p { margin:0; color:var(--txt); font-weight:500 }
-.persona-vacia span { max-width:220px }
+.sidebar.person-panel { flex:0 0 var(--person-width); min-width:0 }
+.person-panel > .region-body { padding:var(--gutter); display:flex; flex-direction:column; gap:var(--space-3) }
+.ureq-id { font-variant-numeric:tabular-nums }
 
 /* LA FICHA, en filas. El rótulo apagado y angosto a la izquierda; el valor ocupa lo que queda y
    envuelve. ⚠ `min-width:0` en el valor: sin él, un nombre de comercio largo ensancha la fila y se
    sale de la columna en vez de partirse. */
-.meta { margin:0; display:flex; flex-direction:column; gap:0; padding:0; font-size:var(--text-base);
-  background:transparent; border:0; border-radius:0 }
-.meta > div { display:flex; gap:8px; align-items:baseline; padding:7px 0 }
+.meta { margin:0; display:flex; flex-direction:column }
+.meta > div { display:flex; gap:var(--space-2); align-items:baseline; padding:var(--space-2) 0 }
 .meta > div + div { border-top:1px solid var(--line) }
-.meta dt { flex:0 0 68px; color:var(--tenue); font-size:var(--text-xs); text-transform: none;}
+.meta dt { flex:0 0 72px; color:var(--faint); font-size:var(--text-xs) }
 .meta dd { margin:0; min-width:0; color:var(--txt); overflow-wrap:anywhere }
-.meta dd.perfiles-cupo { display:flex; flex-direction:column; gap:3px }
-.perfiles-cupo > span { overflow-wrap:anywhere }
-.perfiles-cupo strong { font-weight:600; color:var(--txt) }
+.quota-profiles { display:flex; flex-direction:column; gap:var(--space-1) }
 
-.cargando { display:flex; align-items:center; gap:8px; flex-wrap:wrap; font-size:var(--text-sm); color:var(--dim) }
-/* `progress progress-xs progress-ind` de `workbench.css` — la pista, el filete de 3px y el movimiento
-   indeterminado salen de ahí. Lo único propio es que NO ocupa el ancho: vive en un renglón junto al
-   texto de la espera, así que es un ancho fijo y no crece con él.
-   *(Acá el relleno era `--info`, el azul. Se fue con el componente: era decoración, no significado —
-   lo que la barra dice, «sigue vivo», ya lo dice el movimiento.)* */
-.barra { width:120px; flex:0 0 120px }
-/* Sobre `.alert`: sólo el tamaño, que en una columna de 300px es más chico. */
-.sidebar .alert { font-size:var(--text-base) }
-.sidebar .alert-desc { font-size:var(--text-base) }
-.mapaRoto code { background:var(--elev); padding:1px 6px;
-  border-radius:var(--r-sm); font-size:var(--text-sm) }
+.loading { display:flex; align-items:center; gap:var(--space-2); flex-wrap:wrap; font-size:var(--text-sm); color:var(--dim) }
+/* `progress progress-xs progress-ind` de la base: la pista, el filete y el movimiento salen de ahí. Lo
+   único propio es que NO ocupa el ancho: vive en un renglón junto al texto de la espera. */
+.loading-bar { width:120px; flex:0 0 120px }
+.map-broken code { font-size:var(--text-sm) }
+
 /* ⚠ NO ES UN GRID DE TRES COLUMNAS: el mapa y la consola están en flujo; el inspector sigue en capa.
    El área central deja lugar al inspector, sin una franja muerta al redimensionarlo. `flex:1` +
-   `min-height:0`: sin el `min-height`, un hijo flex NO se achica por debajo de su
-   contenido y el `overflow:auto` de adentro no se activa nunca — la página vuelve a estirarse y el
-   mapa se va para arriba. Es la parte que siempre se olvida de este patrón. */
-.cols { position:relative; flex:1; min-height:0; display:flex }
-/* El margen vive en el área central, no en el mapa: la consola comparte exactamente el mismo ancho
-   útil y ninguna de las dos regiones queda por debajo del inspector. */
-.workspace-main { flex:1 1 0; display:flex; flex-direction:column; min-width:0; min-height:0;
+   `min-height:0`: sin el `min-height`, un hijo flex NO se achica por debajo de su contenido y el
+   `overflow:auto` de adentro no se activa nunca — la página vuelve a estirarse y el mapa se va para
+   arriba. Es la parte que siempre se olvida de este patrón. */
+/* `overflow:clip`: con el secundario plegado, su manija queda pegada al borde derecho y la zona de
+   agarre de la base (8 px, centrada en la línea) se salía 6 px de la ventana — la página scrolleaba de
+   costado a 768. Recortar no crea un contenedor de scroll, así que nada de adentro cambia. */
+.columns { position:relative; flex:1; min-height:0; display:flex; overflow:clip }
+/* El margen vive en el área central, no en el mapa: la consola comparte exactamente el mismo ancho útil
+   y ninguna de las dos regiones queda por debajo del inspector. */
+.workspace { flex:1 1 0; display:flex; flex-direction:column; min-width:0; min-height:0;
   margin-right:var(--detail-width, 0px) }
-.workspace-main .editor-mapa { flex:1 1 0; min-width:0; min-height:220px; height:auto; margin-right:0 }
-.workspace-main .recientes-console { flex:none; min-height:0 }
+.workspace .editor-map { flex:1 1 0; min-width:0; min-height:220px }
+.workspace .recent-panel { flex:none; min-height:0 }
+/* LA CONSOLA MAXIMIZADA. La base la resuelve para su grid (`.workbench.panel-max > .editor`); acá la
+   columna central es flex, así que se repite para ella.
+   PROPUESTA A LA BASE: que la regla de maximizar no dependa de que editor y panel sean hijos directos
+   del grid `.workbench` (por ejemplo, `.panel-max > .editor` y `.panel-max > .panel` sobre la raíz que
+   se le pasa a `bindPanelMaximize`), así una columna flex la recibe sin repetirla. */
+.workspace.panel-max > .editor { display:none }
+.workspace.panel-max > .panel { flex:1 1 0; height:auto !important }
+.workspace.panel-max > [data-rsz="panel"] { display:none }
 
-/* En capa, pegado a la derecha y por encima del mapa, y un punto MÁS CLARO que él: es lo que lo hace
-   leerse como algo que está encima y no como otra zona del mismo plano. */
-.auxiliarybar { position:absolute; top:0; right:0; bottom:0; z-index:2;
-  background:var(--card); border-left:1px solid var(--line);
-  overflow-y:auto; scrollbar-gutter:stable }
+/* ⚠ DESVIACIÓN DECLARADA: en capa, pegado a la derecha y por encima del mapa. La base lo pone en su
+   propia pista del grid; acá flota para que ensancharlo no relocalice el DOM del mapa. La superficie, la
+   línea y la columna flex son las de `.auxiliarybar`. */
+.auxiliarybar { position:absolute; top:0; right:0; bottom:0; z-index:2 }
 
-.tirador { position:absolute; top:0; bottom:0; width:var(--rsz); margin-right:-2px; z-index:3 }
-.tirador::before { left:-3px; right:-3px }
-/* El borde de la ficha vive en el flujo, antes del mapa. Al estar siempre montado también permite
-   recuperar la ficha arrastrando desde la izquierda cuando está plegada. */
-.tirador-persona { position:relative; top:auto; right:auto !important; bottom:auto; width:var(--rsz);
-  flex:none; margin:0 -2px; z-index:3 }
-/* El segundo tirador es horizontal: arriba de la consola. Arrastrar hacia arriba le da más espacio a
-   las corridas; queda montado aun cerrada, para poder restaurarla arrastrando desde el borde inferior. */
-.tirador-consola { position:relative; top:auto; right:auto !important; bottom:auto; width:auto; height:var(--rsz);
-  flex:none; margin:0; z-index:1 }
-.tirador-consola::before { top:-3px; bottom:-3px; left:0; right:0 }
+/* ── LAS MANIJAS ─────────────────────────────────────────────────────────────────────────────────
+   La base pone el aspecto (`.rsz`: se ve de 1 px al pasar y se agarra de 8); acá va DÓNDE. La del
+   secundario viaja con su borde, en capa; las otras dos van en el flujo y quedan montadas aun con su
+   región plegada, así se la puede recuperar arrastrando o con el teclado. */
+.handle { position:absolute; top:0; bottom:0; width:var(--rsz); margin-right:-2px; z-index:3 }
+.handle::before { left:calc(50% - .5px); right:auto; width:1px }
+.handle-person { position:relative; top:auto; bottom:auto; flex:none; margin:0 -2px }
+.handle-panel { position:relative; top:auto; bottom:auto; width:auto; height:var(--rsz); flex:none; margin:-2px 0; z-index:1 }
+.handle-panel::before { left:0; right:0; width:auto; top:calc(50% - .5px); bottom:auto; height:1px }
 @media (max-width: 760px) {
-  .statusbar .sb-pista { display: none }
-  .editor-mapa > .region-head { padding: var(--space-2); gap: var(--space-2) }
+  .statusbar .sb-hint { display:none }
 }
 /* (Acá había un `@media (max-width:860px) { .cols { grid-template-columns:1fr } }`. Era cromo muerto:
    `.cols` no es un grid —el panel va EN CAPA y el mapa en flujo—, así que esa declaración no tenía a

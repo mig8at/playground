@@ -182,12 +182,12 @@ function laneSteps(r) {
 /** Un color por carril, estable por posición. Los valores viven en `style.css` y no acá: son parte de
  *  la paleta, no de la lógica del mapa — y así el tema claro los cambia sin tocar este archivo. */
 const LANE_COLOR = {
-      creditopx: 'var(--carril1)',
+      creditopx: 'var(--lane-1)',
       agregador: 'var(--secondary)',
       redirect: 'var(--skip)',
-      credifamilia: 'var(--carril5)',
+      credifamilia: 'var(--lane-5)',
 }
-const LANE_COLOR_FALLBACK = ['var(--carril1)', 'var(--carril2)', 'var(--carril3)', 'var(--carril4)', 'var(--carril5)']
+const LANE_COLOR_FALLBACK = ['var(--lane-1)', 'var(--lane-2)', 'var(--lane-3)', 'var(--lane-4)', 'var(--lane-5)']
 
 const lanes = computed(() => {
       const rs = t.stageMap?.lanes || []
@@ -226,7 +226,7 @@ function mover(step) {
       const j = (i < 0 ? 0 : i + step)
       if (j < 0 || j >= ids.length) return
       t.selectedStage = ids[j]
-      canvas.value?.querySelector(`[data-etapa="${ids[j]}"]`)?.focus()
+      canvas.value?.querySelector(`[data-stage="${ids[j]}"]`)?.focus()
 }
 
 /** El tronco con su posición y su salto de tiempo respecto de la etapa anterior. */
@@ -348,18 +348,17 @@ watch(() => [props.closed, props.panelWidth], () => nextTick(measure))
 </script>
 
 <template>
-  <div class="mapa" ref="canvas">
+  <div class="map" ref="canvas">
     <!-- ⚠ ESTO NO ES «TODAVÍA NO BUSCASTE NADA»: esa pantalla no existe. `etapas` es un getter que
          SIEMPRE devuelve el mapa declarado —el trazador dibuja las etapas en gris antes de que haya
          consulta, a propósito—, así que esta rama sólo se alcanza si `mapa.etapas` viene vacío, o sea
          si el mapa no cargó. Decía «el mapa se dibuja al cargar una solicitud», que describe un
          estado que nunca ocurre; ahora dice lo que pasó de verdad.
          La anatomía es la compartida (`.empty` de `workbench.css`): medio, título y descripción. -->
-    <div v-if="!trunkNodes.length" class="vacio empty">
+    <div v-if="!trunkNodes.length" class="map-empty empty">
       <div class="empty-head">
-        <div class="empty-media">⚠</div>
-        <p class="empty-title">El mapa del flujo no cargó</p>
-        <p class="empty-desc">Sin etapas declaradas no hay nada que dibujar. Comprobalo con <code>make trazador-chequeo</code>.</p>
+        <div class="empty-title">El mapa del flujo no cargó</div>
+        <div class="empty-desc">Sin etapas declaradas no hay nada que dibujar. Comprobalo con <code>make trazador-chequeo</code>.</div>
       </div>
     </div>
 
@@ -369,40 +368,40 @@ watch(() => [props.closed, props.panelWidth], () => nextTick(measure))
       <g>
         <!-- ── EL TRONCO: lo que ocurre antes de que exista un ramal ── -->
         <g v-for="(n, i) in trunkNodes.slice(1)" :key="'ta'+n.id">
-          <line :x1="trunkNodes[i].x" :y1="Y0" :x2="n.x" :y2="Y0" class="arista"
+          <line :x1="trunkNodes[i].x" :y1="Y0" :x2="n.x" :y2="Y0" class="edge"
                 :stroke="t.trace ? (n.status === 'no-aplica' ? 'var(--line)' : COLOR[trunkNodes[i].status]) : 'var(--map-trunk)'"
                 :stroke-dasharray="n.status === 'no-aplica' ? '4 5' : null" />
           <!-- el salto SÓLO cuando lo hay: un «+0m» en cada arista tapa a los que importan -->
-          <text v-if="n.minJump" :x="(trunkNodes[i].x + n.x) / 2" :y="Y0 - 10" class="salto">
+          <text v-if="n.minJump" :x="(trunkNodes[i].x + n.x) / 2" :y="Y0 - 10" class="jump">
             +{{ n.minJump >= 60 ? Math.floor(n.minJump/60)+'h '+(n.minJump%60)+'m' : n.minJump+'m' }}
           </text>
         </g>
 
         <!-- ── LAS CURVAS DE BIFURCACIÓN: cortas, porque salen DEL corte y no del principio ── -->
-        <g v-for="c in nodesByLane" :key="'c'+c.id" :class="{ apagado: t.trace && !c.active }">
-          <path class="arista"
+        <g v-for="c in nodesByLane" :key="'c'+c.id" :class="{ inactive: t.trace && !c.active }">
+          <path class="edge"
                 :d="`M ${cutX} ${Y0} C ${cutX + STEP * 0.5} ${Y0}, ${cutX + STEP * 0.5} ${c.y}, ${cutX + STEP} ${c.y}`"
                 fill="none" :stroke="c.color" />
         </g>
 
         <!-- ── LOS CARRILES ── -->
-        <g v-for="c in nodesByLane" :key="c.id" :class="{ apagado: t.trace && !c.active }">
+        <g v-for="c in nodesByLane" :key="c.id" :class="{ inactive: t.trace && !c.active }">
           <line v-if="c.nodes.length > 1" :x1="c.nodes[0].x" :y1="c.y"
-                :x2="c.nodes.at(-1).x" :y2="c.y" class="arista"
+                :x2="c.nodes.at(-1).x" :y2="c.y" class="edge"
                 :stroke="c.color" />
-          <text :x="cutX + STEP" :y="c.y - 18" class="clbl" :fill="c.color">
-            {{ laneLabel(c) }}<tspan v-if="c.active" class="aqui"> · recorrido real</tspan>
+          <text :x="cutX + STEP" :y="c.y - 18" class="lane-label" :fill="c.color">
+            {{ laneLabel(c) }}<tspan v-if="c.active" class="here"> · recorrido real</tspan>
           </text>
-          <text v-if="laneSubtitle(c)" :x="cutX + STEP" :y="c.y - 7" class="csub">{{ laneSubtitle(c) }}</text>
+          <text v-if="laneSubtitle(c)" :x="cutX + STEP" :y="c.y - 7" class="lane-sub">{{ laneSubtitle(c) }}</text>
           <!-- ⚠ UN CARRIL SIN PASOS NO ES UN ERROR DE DIBUJO: es el dato. `redirect` no tiene ninguna
                etapa después de elegir porque el desenlace ocurre AFUERA, y verlo cortado ahí lo dice
                mejor que cualquier nota al pie. -->
-          <text v-if="!c.nodes.length" :x="cutX + STEP" :y="c.y + 5" class="afuera">
+          <text v-if="!c.nodes.length" :x="cutX + STEP" :y="c.y + 5" class="outside">
             <tspan v-for="(line, i) in OUTSIDE_LINES" :key="line" :x="cutX + STEP" :dy="i ? 12 : 0">{{ line }}</tspan>
           </text>
 
-          <g v-for="n in c.nodes" :key="n.id" class="nodo" :class="{ sel: t.selectedStage === n.id }"
-             :data-etapa="n.id" tabindex="0" role="button" :aria-label="`etapa ${n.id}`"
+          <g v-for="n in c.nodes" :key="n.id" class="node" :class="{ selected: t.selectedStage === n.id }"
+             :data-stage="n.id" tabindex="0" role="button" :aria-label="`etapa ${n.id}`"
              @click="t.selectedStage = n.id" @keydown.enter.prevent="t.selectedStage = n.id"
              @keydown.right.prevent="mover(1)" @keydown.left.prevent="mover(-1)">
             <circle v-if="n.roto" :cx="n.x" :cy="n.y" r="13" fill="none" stroke="var(--fail)"
@@ -420,30 +419,30 @@ watch(() => [props.closed, props.panelWidth], () => nextTick(measure))
                     :fill="n.condicional ? 'var(--map-canvas)' : nodeColor(n, c)"
                     :stroke="n.condicional ? nodeColor(n, c) : 'var(--map-canvas)'"
                     :stroke-width="n.condicional ? 2.5 : 2" />
-            <text v-if="!n.condicional && c.active" :x="n.x" :y="n.y + 3" class="glifo">{{ GLYPH[n.stage?.status] }}</text>
-            <text :x="n.x" :y="n.y + Y_LABEL" class="nlbl">
+            <text v-if="!n.condicional && c.active" :x="n.x" :y="n.y + 3" class="glyph">{{ GLYPH[n.stage?.status] }}</text>
+            <text :x="n.x" :y="n.y + Y_LABEL" class="node-label">
               <tspan v-for="(line, i) in labelLines(n.id)" :key="line" :x="n.x" :dy="i ? LABEL_LINE_HEIGHT : 0">{{ line }}</tspan>
             </text>
-            <text v-if="c.active" :x="n.x" :y="n.y + Y_DETAIL" class="ndet">{{ short(n.stage?.live?.detail || n.stage?.label, 22) }}</text>
+            <text v-if="c.active" :x="n.x" :y="n.y + Y_DETAIL" class="node-detail">{{ short(n.stage?.live?.detail || n.stage?.label, 22) }}</text>
           </g>
         </g>
 
         <!-- los nodos del tronco van AL FINAL para quedar encima de las curvas -->
-        <g v-for="n in trunkNodes" :key="n.id" class="nodo" :class="{ sel: t.selectedStage === n.id, fuera: n.status === 'no-aplica' }"
-           :data-etapa="n.id" tabindex="0" role="button" :aria-label="`etapa ${n.id}`"
+        <g v-for="n in trunkNodes" :key="n.id" class="node" :class="{ selected: t.selectedStage === n.id, 'not-applicable': n.status === 'no-aplica' }"
+           :data-stage="n.id" tabindex="0" role="button" :aria-label="`etapa ${n.id}`"
            @click="t.selectedStage = n.id" @keydown.enter.prevent="t.selectedStage = n.id"
            @keydown.right.prevent="mover(1)" @keydown.left.prevent="mover(-1)">
           <g v-if="n.roto">
             <circle :cx="n.x" :cy="Y0" r="13" fill="none" stroke="var(--fail)" stroke-width="2" opacity=".6" />
-            <text :x="n.x" :y="Y0 - 19" class="corte">se cortó acá</text>
+            <text :x="n.x" :y="Y0 - 19" class="cut">se cortó acá</text>
           </g>
           <circle :cx="n.x" :cy="Y0" :r="RADIO" :fill="t.trace ? COLOR[n.status] : 'var(--map-trunk)'" stroke="var(--map-canvas)" stroke-width="2" />
-          <text :x="n.x" :y="Y0 + 3" class="glifo">{{ GLYPH[n.status] }}</text>
-          <text :x="n.x" :y="Y0 + Y_LABEL" class="nlbl">
+          <text :x="n.x" :y="Y0 + 3" class="glyph">{{ GLYPH[n.status] }}</text>
+          <text :x="n.x" :y="Y0 + Y_LABEL" class="node-label">
             <tspan v-for="(line, i) in labelLines(n.id)" :key="line" :x="n.x" :dy="i ? LABEL_LINE_HEIGHT : 0">{{ line }}</tspan>
           </text>
-          <text :x="n.x" :y="Y0 + Y_DETAIL" class="ndet">{{ short(n.live?.detail || n.label, 22) }}</text>
-          <text v-if="n.live?.at" :x="n.x" :y="Y0 - 13" class="hora">{{ n.live.at }}</text>
+          <text :x="n.x" :y="Y0 + Y_DETAIL" class="node-detail">{{ short(n.live?.detail || n.label, 22) }}</text>
+          <text v-if="n.live?.at" :x="n.x" :y="Y0 - 13" class="time">{{ n.live.at }}</text>
         </g>
       </g>
     </svg>
@@ -465,46 +464,48 @@ watch(() => [props.closed, props.panelWidth], () => nextTick(measure))
 
    La regla que sirve para las dos: lo que se MIDE del contenedor no puede depender de lo que se DIBUJA
    adentro. */
-.mapa { --map-canvas:var(--background);
+.map { --map-canvas:var(--background);
   --map-trunk:color-mix(in oklab, var(--foreground) 68%, var(--background));
   position:relative; height:100%; min-height:260px;
   overflow:auto; scrollbar-gutter:stable;
   /* ⚠ Sin `border-right`: el panel de logs ya trae su `border-left`, y las dos pintaban una al lado
      de la otra — medido, el mapa en 546–547 y el panel en 547–548, o sea una costura de 2px donde va
-     un pelo de 1. Con el panel cerrado esa línea quedaba además pegada al borde de la ventana. */
-  background:var(--map-canvas); user-select:none }
+     un pelo de 1. Con el panel cerrado esa línea quedaba además pegada al borde de la ventana.
+     ⚠ Y sin fondo propio: el lienzo es la superficie del editor. `--map-canvas` es ESE color, y lo
+     usan los nodos para cortar las aristas que pasan por debajo. */
+  user-select:none }
 /* Sobre `.empty`: sólo que ocupe el lienzo entero. El resto —el centrado, los tamaños, el medio— lo
    pone la clase compartida. */
-.vacio { position:absolute; inset:0 }
+.map-empty { position:absolute; inset:0 }
 
-.arista { stroke-width:4px; stroke-linecap:round }
-.nodo { cursor:pointer }
-.nodo:hover .nlbl { fill:var(--info) }
-.nodo:focus { outline:none }
-.nodo:focus-visible .nlbl { fill:var(--info); text-decoration:underline }
-.nodo.sel .nlbl { fill:var(--info); font-weight:700 }
-.nodo.sel circle { stroke:var(--ring) !important; stroke-width:2.5px }
+.edge { stroke-width:4px; stroke-linecap:round }
+.node { cursor:pointer }
+.node:hover .node-label { fill:var(--info) }
+.node:focus { outline:none }
+.node:focus-visible .node-label { fill:var(--info); text-decoration:underline }
+.node.selected .node-label { fill:var(--info); font-weight:700 }
+.node.selected circle { stroke:var(--ring) !important; stroke-width:2.5px }
 /* Atenuado, NO escondido: «acá esto no ocurre nunca» es parte del diagnóstico. */
-.nodo.fuera circle { opacity:.38 }
-.nodo.fuera .nlbl { fill:var(--fg-3) }
+.node.not-applicable circle { opacity:.38 }
+.node.not-applicable .node-label { fill:var(--fg-3) }
 /* Un carril que esta solicitud no tomó se ve, pero no compite: es contexto, no recorrido. */
-.apagado circle, .apagado .arista { opacity:.32 }
-.apagado .clbl, .apagado .csub, .apagado .nlbl { opacity:.52 }
+.inactive circle, .inactive .edge { opacity:.32 }
+/* ⚠ Los rótulos se atenúan con la TINTA apagada, no con `opacity`: a .52 sobre el color del carril el
+   de Agregador quedaba en 3,6:1. `--faint` es el escalón de la rampa que todavía se lee. */
+.inactive .lane-label, .inactive .lane-sub, .inactive .node-label { fill:var(--faint) }
 
-.glifo { font:600 9px ui-monospace,monospace; text-anchor:middle; fill:var(--map-canvas) }
-.nlbl { font:600 11px ui-monospace,monospace; fill:var(--txt); text-anchor:middle; letter-spacing:-.01em }
-/* ⚠ `--dim` y no `--tenue`: el detalle del nodo es la RUTA de la etapa, o sea información que se
-   lee. `--tenue` es el `muted-foreground` del tema y contra este fondo mide 4,41:1 — abajo de AA para
-   10,5px. Medido en el navegador. `--tenue` queda para lo que de verdad es accesorio. */
-.ndet { font:9.5px system-ui; fill:var(--dim); text-anchor:middle }
-.hora { font:9px ui-monospace,monospace; fill:var(--tenue); text-anchor:middle }
-.salto { font:9px ui-monospace,monospace; fill:var(--tenue); text-anchor:middle }
-.clbl { font:700 var(--text-xs) system-ui; letter-spacing:-.01em }
-.csub { font:9px system-ui; fill:var(--dim) }
-.aqui { font-weight:400; font-size:9.5px; fill:var(--dim) }
-.afuera { font:9.5px system-ui; fill:var(--dim) }
-.corte { font:600 9px system-ui; fill:var(--fail); text-anchor:middle }
+.glyph { font:600 9px ui-monospace,monospace; text-anchor:middle; fill:var(--map-canvas) }
+.node-label { font:600 11px ui-monospace,monospace; fill:var(--txt); text-anchor:middle; letter-spacing:-.01em }
+/* ⚠ `--dim` y no `--faint`: el detalle del nodo es la RUTA de la etapa, o sea información que se
+   lee. `--faint` es el `muted-foreground` del tema y contra este fondo mide 4,41:1 — abajo de AA para
+   10,5px. Medido en el navegador. `--faint` queda para lo que de verdad es accesorio. */
+.node-detail { font:9.5px system-ui; fill:var(--dim); text-anchor:middle }
+.time { font:9px ui-monospace,monospace; fill:var(--faint); text-anchor:middle }
+.jump { font:9px ui-monospace,monospace; fill:var(--faint); text-anchor:middle }
+.lane-label { font:700 var(--text-xs) system-ui; letter-spacing:-.01em }
+.lane-sub { font:9px system-ui; fill:var(--dim) }
+.here { font-weight:400; font-size:9.5px; fill:var(--dim) }
+.outside { font:9.5px system-ui; fill:var(--dim) }
+.cut { font:600 9px system-ui; fill:var(--fail); text-anchor:middle }
 
-.dim { color:var(--dim) }
-.recorte { color:var(--warn) }
 </style>

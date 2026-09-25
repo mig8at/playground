@@ -31,28 +31,19 @@
    ⚠ `--accent` NO está en esta lista, y no es un olvido: en el tema es una SUPERFICIE (#404040, con su
    propio `--accent-foreground`), mientras que acá se usaba como el color del texto de enlace. Aliasarlo
    habría dejado texto #404040 sobre fondo #1a1a1a — ilegible, y sin fallar. Ese uso se renombró a
-   `--info`, que es lo que de verdad era. */
+   `--info`, que es lo que de verdad era.
+   (Se fueron los que ya nadie usaba: las superficies propias —`--panel2`, `--elev`, `--sel`— porque
+   las superficies son las de la base, y los radios —`--r-sm`, `--r-full`…— porque el de un control es
+   `--radius-control` y una píldora es redonda entera.) */
 :root {
-  /* superficies, de atrás hacia adelante */
-  --bg: var(--background);
-  --panel2: var(--input);     /* la superficie de los controles */
-  --elev: var(--popover);
   --line: var(--border);
-  --line-fuerte: var(--accent);
   /* Texto, tres escalones. ⚠ La rampa cuelga de `--foreground` y NO de `--muted-foreground`: en este
      tema el muted es #808080, que ya está en 4,6:1 contra el fondo — o sea es el ESCALÓN MÁS BAJO que
      se puede leer, no el del medio. Colgando de él, el tercer escalón daba 2,8:1 y los rótulos de
      10,5px del mapa (`amount`, `personal-info`) quedaban ilegibles. Medido en el navegador. */
   --txt: var(--foreground);
   --dim: var(--fg-2);
-  --tenue: var(--fg-3);
-  /* tinte de lo seleccionado: derivado del texto, así sigue al tema */
-  --sel: color-mix(in oklab, var(--foreground) 10%, transparent);
-  /* forma: un solo radio, del que salen los demás */
-  --r-sm: calc(var(--radius) - 2px);
-  --r: var(--radius);
-  --r-lg: calc(var(--radius) + 4px);
-  --r-full: 999px;
+  --faint: var(--fg-3);
 }
 
 /* ── LO SEMÁNTICO: el único color que SIGNIFICA algo ──────────────────────────────────────────────
@@ -60,17 +51,33 @@
    pegar un tema nuevo encima los borraría. Y dos: el tema de hoy es monocromo a propósito, y "bien" y
    "roto" no pueden ser dos grises.
 
-   `--fail` y `--skip` SÍ salen del tema (son `destructive` y `muted-foreground`): cuando un tema traiga
+   Cada color va en los DOS temas: el claro en `:root` y el oscuro en `.dark`, que es la clase que pone
+   el botón de tema (`bindThemeToggle`). Un color pensado para fondo oscuro sobre blanco no se lee —el
+   ámbar #fbbf24 da 1,7:1—, así que el claro es otro color, no el mismo. Los dos juegos se miden con
+   `make estilo-contraste THEME=light|dark`.
+
+   `--fail` y `--skip` SÍ salen del tema (derivan de `destructive` y de la rampa): cuando un tema traiga
    su propio rojo, el trazador lo adopta solo. */
 :root {
-  --ok: #4ade80;
-  --warn: #fbbf24;
-  --fail: var(--destructive);
+  --ok: #15803d;
+  --warn: #b45309;
+  /* ⚠ `--fail` es TEXTO además de punto (el motivo de un corte, un nivel `error`, la píldora «roto»),
+     así que no es el `--destructive` solo: en claro ese rojo da 3,2:1 sobre blanco. Mezclado con un
+     30 % de la tinta —la misma derivación que `--primary-ink` de la base— pasa en los dos temas, y
+     como es una derivación sigue al rojo del tema que se pegue. */
+  --fail: color-mix(in oklab, var(--destructive) 70%, var(--foreground));
   /* ⚠ `--skip` es TEXTO además de punto («no ocurre acá», los rótulos apagados del mapa), así que
      sale de la rampa y no de `--muted-foreground`, que no llega a 4,5:1 en ninguna superficie. */
   --skip: var(--fg-3);
+  --unknown: #7e22ce;
+  /* Enlaces, foco, lo interactivo que lleva TEXTO: el primario-tinta de la base, que pasa en los dos
+     temas (el primario solo no llega a 4,5:1 en claro). */
+  --info: var(--primary-ink);
+}
+.dark {
+  --ok: #4ade80;
+  --warn: #fbbf24;
   --unknown: #c084fc;
-  --info: var(--primary);   /* enlaces, foco, lo interactivo */
 }
 
 /* ⚠ LOS TINTES SE MEZCLAN `in oklab`, NUNCA `in oklch` — y esto se mide, no se opina.
@@ -89,9 +96,13 @@
 /* Los carriles del mapa. ⚠ NO salen de `--chart-1..5` aunque ese sea su lugar natural: en un tema
    monocromo los cinco charts son cuatro grises y un verdeazulado, y a 2px de trazo no se distinguen
    entre sí. El carril no es decoración — es QUÉ RAMAL tomó la solicitud, o sea identidad. Si algún día
-   el tema trae cinco tonos distinguibles, esto se borra y se apunta a `--chart-N`. */
+   el tema trae cinco tonos distinguibles, esto se borra y se apunta a `--chart-N`.
+   Los mismos cinco tonos en claro, un escalón más oscuros: el rótulo del carril se pinta con su color. */
 :root {
-  --carril1: #4ade80; --carril2: #fbbf24; --carril3: #fb923c; --carril4: #60a5fa; --carril5: #c084fc;
+  --lane-1: #15803d; --lane-2: #b45309; --lane-3: #c2410c; --lane-4: #1d4ed8; --lane-5: #7e22ce;
+}
+.dark {
+  --lane-1: #4ade80; --lane-2: #fbbf24; --lane-3: #fb923c; --lane-4: #60a5fa; --lane-5: #c084fc;
 }
 
 * { box-sizing: border-box }
@@ -100,33 +111,23 @@
    documento y empujaba el mapa fuera de la vista: había que subir para volver a verlo, que es
    exactamente lo que uno no quiere mientras lee un log buscando en qué paso se rompió. */
 html, body, #app { height:100% }
+/* La letra de la interfaz es la base: 13 sobre 1,4. (Era la de la prosa, 14 sobre 1,5.) */
 body { margin:0; background:var(--background); color:var(--foreground); overflow:hidden;
-  font:var(--text-body)/1.5 var(--font-sans) }
+  font:var(--text-base)/1.4 var(--font-sans) }
 #app { display:flex; flex-direction:column; min-height:0 }
 button { font: inherit; color: inherit }
 input { font: inherit }
 code, kbd, pre, samp { font-family: var(--font-mono) }
 
-/* estados: un solo juego de clases para etapas, hitos y puntos */
+/* Estados: un solo juego de clases para etapas y puntos. El estado de una etapa es un DATO en
+   castellano (`pendiente`, `sin-evidencia`…); la vista lo traduce a una de estas cinco clases antes
+   de pintarlo, así que el nombre del estado nunca es un selector. */
 .ok{color:var(--ok)} .warn{color:var(--warn)} .fail{color:var(--fail)}
-.skip{color:var(--skip)} .unknown{color:var(--unknown)} .pendiente{color:var(--skip)}
-
-.ico { flex:0 0 20px; height:20px; border-radius:var(--r-full); display:grid; place-items:center;
-  font-size:var(--text-sm); font-weight:600; color:var(--background) }
-.ico.ok{background:var(--ok)} .ico.warn{background:var(--warn)}
-/* ⚠ Blanco sobre este rojo mide 3,35:1 — `--fail` es #e06666, un rojo medio. Va el fondo de la app
-   como tinta, igual que `.btn-destructive` de `workbench.css`. Lo encontró `make estilo-check`. */
-.ico.fail{background:var(--fail); color:var(--background)}
-.ico.skip,.ico.pendiente{background:transparent; color:var(--skip); border:1px solid var(--line)}
-.ico.unknown{background:transparent; color:var(--unknown); border:1px dashed var(--unknown)}
-.ico.big{flex:0 0 26px; height:26px; font-size:var(--text-title)}
+.skip{color:var(--skip)} .unknown{color:var(--unknown)}
 
 /* (`.badge` se fue a `workbench.css`: es el mismo de las cuatro.)
    ⚠ El aro en `currentColor` es SÓLO para la píldora del desenlace, donde el color ES el dato —verde
-   aprobado, rojo roto—. Puesto sobre `.badge-outline` a secas se lo llevaban también los chips de
-   recientes, que quedaban con un aro casi blanco pidiendo una atención que no les corresponde. */
+   aprobado, rojo roto—. Puesto sobre `.badge-outline` a secas se lo llevaban también otras píldoras,
+   que quedaban con un aro casi blanco pidiendo una atención que no les corresponde. */
 .statusbar .badge.badge-outline { border-color:currentColor }
-/* Sobre `.badge.badge-outline.badge-xs` de `workbench.css`: sólo el radio chico, que es lo que la
-   distingue de una píldora redonda —ésas se aprietan, ésta es un rótulo—. */
-.src { color:var(--dim); border-radius:var(--r-sm); padding:0 5px }
 .dim { color:var(--dim) }
