@@ -17,7 +17,7 @@ import (
 // está la pantalla y a dónde lleva), del nodo (sus textos en orden), de la traducción (el HTML, fiel a
 // Figma, con los tokens) y de las hojas del archivo (los tokens y componentes que usa).
 //
-// `/api/brief?key=<clave>&id=<pantalla>` lo devuelve en Markdown. El botón del detalle lo copia.
+// `/api/brief?key=<clave>&id=<pantalla>` lo devuelve en Markdown; por consola, `make visor-pantalla`.
 
 // screenPlace es dónde vive una pantalla en el mapa: su carril y su posición.
 type screenPlace struct {

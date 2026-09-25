@@ -167,13 +167,17 @@ URL, no el de los archivos que se ven en esa pantalla: «recientes» mezcla arch
 
 ## El paquete para el modelo: una pantalla, lista para pasar a código
 
-En el detalle de cada pantalla, **«Para el modelo» → «Copiar el paquete»** copia en un solo texto (Markdown)
-todo lo que un modelo necesita para pasarla a Vue o React (`/api/brief?key=<clave>&id=<pantalla>`, en
+**`make visor-pantalla R=<clave/nodo>`** da en un solo texto (Markdown) todo lo que un modelo necesita para pasarla a Vue o React (`/api/brief?key=<clave>&id=<pantalla>`, en
 `visor/server/brief.go`): el enlace `visor:` con su huella, el de Figma, el carril y el tamaño; sus **textos en
 orden de lectura** (sin la barra de estado: que el modelo no invente copy); **a dónde lleva** cada zona del
 prototipo; sus controles; los **componentes** del sistema que usa, con las variantes que tienen en el
 archivo; los **tokens** que usa, con su variable o clase; lo que el HTML no traduce; y el **HTML traducido**
 entero. Se pega en la conversación con el modelo o en la tarea.
+
+⛔ **La interfaz ya no tiene «Para la tarea» ni «Para el modelo», ni título, carril y tipo en la barra
+derecha** (Miguel, 2026-09-25): **lo visual es para ver qué tan bien pasa Figma a HTML; lo que es
+información para el modelo va por consola.** La barra derecha tiene sólo la capa señalada con su HTML, la
+fidelidad, la paleta y la tipografía. Si hace falta información nueva, va primero al CLI.
 
 - Nada se escribe a mano: sale del mapa, del nodo, de la traducción y de las hojas del archivo.
 - Pesa lo que pesa el HTML: 25 KB en «Completa tu solicitud» de Credifamilia, 22 de ellos el HTML.
@@ -405,8 +409,8 @@ tamaño e interlineado, con su clase), que salen del reporte del render.
 
 Lo que se vio en un diseño va a la pila de la tarea como bloque, con el comando que lo reproduce —el
 `bin/pg figma map '<url>'` de la sección, no una captura— y el enlace al archivo en `artifacts/` (un
-`.url`). Una pantalla puntual va en un bloque como **`[Título](visor:<proyecto>/<pantalla>@<huella>)`**, que el
-detalle del visor da listo en «Para la tarea»: el tablero lo pinta como enlace que abre el visor en esa
+`.url`). Una pantalla puntual va en un bloque como **`[Título](visor:<proyecto>/<pantalla>@<huella>)`**, que
+`make visor-pantalla` da listo en su primer renglón («Enlace para la tarea»): el tablero lo pinta como enlace que abre el visor en esa
 pantalla (con `?huella=`, así el visor dice si cambió), y `make visor-enlaces` puede decir mañana si esa
 pantalla cambió o la borraron. Va como tipo propio y no como `http://localhost:5193/…` por lo mismo que
 `repo:`: el enlace nombra qué es, y el validador de bloques rechaza lo que no sea `https://`. A Jira no va la herramienta: va «el diseño del flujo tiene tal recorrido».

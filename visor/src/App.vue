@@ -442,48 +442,6 @@ async function checkLink(key, id, linked) {
     if (linkCheck.value?.id === id) linkCheck.value = res.ok ? { id, linked, status: body.status, print: body.print } : { id, linked, status: 'error', error: body.error }
   } catch (e) { if (linkCheck.value?.id === id) linkCheck.value = { id, linked, status: 'error', error: String(e.message || e) } }
 }
-// El enlace para una TAREA del tablero: `[Título](visor:<proyecto>/<pantalla>@<huella>)`. El tablero lo
-// pinta como enlace a esta pantalla y `make visor-enlaces` lo rastrea. La huella se pide al cambiar de
-// pantalla (sale de lo guardado: no cuesta un pedido a Figma).
-const screenPrint = ref({ id: '', print: '' })
-watch(() => [data.value?.key, current.value?.id], async ([key, id]) => {
-  screenPrint.value = { id: id || '', print: '' }
-  if (!key || !id) return
-  try {
-    const res = await fetch('/api/track?' + new URLSearchParams({ key, id }))
-    if (res.ok && current.value?.id === id) screenPrint.value = { id, print: (await res.json()).print || '' }
-  } catch { /* sin huella el enlace se escribe igual, sin rastreo */ }
-})
-const taskRef = computed(() => {
-  if (!data.value || !current.value) return ''
-  const print = screenPrint.value.id === current.value.id && screenPrint.value.print ? '@' + screenPrint.value.print : ''
-  const title = (current.value.title || current.value.name || 'pantalla').replace(/[\[\]()\n]/g, ' ').trim()
-  return `[${title}](visor:${data.value.key}/${fromID(current.value.id)}${print})`
-})
-const refCopied = ref(false)
-async function copyTaskRef() {
-  try {
-    await navigator.clipboard.writeText(taskRef.value)
-    refCopied.value = true
-    setTimeout(() => { refCopied.value = false }, 1500)
-  } catch { /* sin permiso del portapapeles: el texto queda a la vista para copiarlo a mano */ }
-}
-// El PAQUETE PARA EL MODELO de la pantalla (server: `/api/brief`): el enlace con huella, dónde está, sus
-// textos en orden, a dónde lleva, los componentes y tokens que usa y el HTML traducido, en un solo texto
-// para pegar en la conversación con el modelo que la va a pasar a código.
-const briefURL = computed(() => (data.value && current.value ? `/api/brief?key=${data.value.key}&id=${encodeURIComponent(current.value.id)}` : ''))
-const briefState = ref('') // '' | 'copying' | 'copied' | 'error'
-async function copyBrief() {
-  if (!briefURL.value) return
-  briefState.value = 'copying'
-  try {
-    const res = await fetch(briefURL.value)
-    if (!res.ok) throw new Error(`HTTP ${res.status}`)
-    await navigator.clipboard.writeText(await res.text())
-    briefState.value = 'copied'
-  } catch { briefState.value = 'error' }
-  setTimeout(() => { briefState.value = '' }, 1800)
-}
 async function copyLink() {
   if (!data.value || !current.value) return
   const path = routePath.value.replace(/[?&]huella=[0-9a-f]+/, '').replace(/\?$/, '')
@@ -512,7 +470,6 @@ watch([htmlURL, mode], async ([u]) => {
     if (res.ok && u === htmlURL.value) report.value = await res.json()
   } catch { /* el reporte es un extra: sin él, la pantalla se ve igual */ }
 }, { immediate: true })
-const tokensURL = (format) => (data.value ? `/api/tokens?key=${data.value.key}${format ? '&format=' + format : ''}` : '')
 
 // LA FIDELIDAD DE LA PANTALLA: cuánto se parece el HTML a Figma, en un número (`server/fidelity.go`). Medir
 // cuesta unos segundos —un Chromium dibuja el HTML y lo compara con la imagen—, así que al abrir una
@@ -895,9 +852,7 @@ onUnmounted(() => {
   window.removeEventListener('popstate', onPopState)
 })
 
-const kindName = { mobile: 'móvil', web: 'web', panel: 'panel', textless: 'sin texto' }
 const laneName = (lane) => (lane.label ? lane.label : 'Fila sin rótulo')
-// El dato de la derecha de una fila son dos iconos; su `title` dice los dos en palabras.
 </script>
 
 <template>
@@ -1095,31 +1050,8 @@ const laneName = (lane) => (lane.label ? lane.label : 'Fila sin rótulo')
               </div>
               <pre v-if="layerDetail.html" class="layer-code"><code>{{ layerHTML }}</code></pre>
               <p v-else class="hint">No tiene un elemento propio en el HTML: va dibujada adentro de otra capa (un SVG de Figma o una imagen).</p>
-              <p class="hint">El enlace lleva la capa: pegalo en el chat o en la tarea. Por consola, <code>make visor-capa R='…'</code> con ese enlace da además lo que Figma sabe de ella, los recortes en archivo y cuánto se parecen en esa zona.</p>
             </template>
           </div>
-          <dl>
-            <dt>Título</dt><dd>{{ current.title || '—' }}<small v-if="current.title_from === 'capa'"> · del nombre de la capa</small></dd>
-            <dt>Carril</dt><dd>{{ laneName(current.lane) }} · {{ current.index + 1 }} de {{ current.lane.screens.length }}</dd>
-            <dt>Tipo</dt><dd>{{ kindName[current.kind] || current.kind }} · {{ Math.round(current.w) }}×{{ Math.round(current.h) }}</dd>
-            <dt>Para la tarea</dt>
-            <dd class="task-ref">
-              <code :title="screenPrint.print ? 'Pegalo en un bloque de la tarea: el tablero lo abre acá y make visor-enlaces avisa si la pantalla cambia' : 'Sin huella todavía: el tablero lo abre igual, pero no se podrá saber si cambió'">{{ taskRef }}</code>
-              <button class="region-action" :title="refCopied ? 'Copiado' : 'Copiar para pegar en la tarea'" aria-label="Copiar el enlace para la tarea" @click="copyTaskRef">
-                <span class="ui-icon" :data-icon="refCopied ? 'check' : 'copy'" aria-hidden="true"></span>
-              </button>
-            </dd>
-            <dt>Para el modelo</dt>
-            <dd class="task-ref">
-              <button type="button" class="btn btn-sm btn-secondary" :disabled="briefState === 'copying'" @click="copyBrief"
-                title="Todo lo que un modelo necesita para pasar esta pantalla a Vue o React: textos, a dónde lleva, componentes, tokens y el HTML">
-                {{ briefState === 'copying' ? 'Armando…' : briefState === 'copied' ? 'Copiado' : briefState === 'error' ? 'No se pudo' : 'Copiar el paquete' }}
-              </button>
-              <a class="region-action" :href="briefURL" target="_blank" rel="noopener" title="Ver el paquete" aria-label="Ver el paquete">
-                <span class="ui-icon" data-icon="external" aria-hidden="true"></span>
-              </a>
-            </dd>
-          </dl>
           <div class="block">
             <div class="region-head group">
               <span>Fidelidad del HTML</span>
@@ -1130,7 +1062,7 @@ const laneName = (lane) => (lane.label ? lane.label : 'Fila sin rótulo')
                 </button>
               </div>
             </div>
-            <p v-if="fidelityState === 'measuring'" class="hint">Midiendo: Chromium dibuja el HTML y lo compara píxel a píxel con la imagen de Figma. Tarda unos segundos.</p>
+            <p v-if="fidelityState === 'measuring'" class="hint">Midiendo…</p>
             <p v-else-if="fidelityState === 'error'" class="hint">No se pudo medir: {{ fidelityError }}</p>
             <template v-else-if="fidelity">
               <div class="fidelity">
@@ -1138,9 +1070,9 @@ const laneName = (lane) => (lane.label ? lane.label : 'Fila sin rótulo')
                 <span>igual a Figma · fidelidad {{ fidelityWord }}</span>
               </div>
               <div class="progress progress-xs fidelity-bar"><i :style="{ width: fidelity.same_real * 100 + '%' }"></i></div>
-              <p class="hint">Medida el {{ new Date(fidelity.measured_at).toLocaleString('es-CO', { dateStyle: 'short', timeStyle: 'short' }) }} · no cuenta el suavizado de las letras ni medio píxel de corrimiento: un píxel es distinto si en la otra imagen no hay uno parecido a menos de 1 px. Píxel a píxel da {{ pct(fidelity.same) }}.</p>
+              <p class="hint">Sin contar el suavizado de las letras · píxel a píxel {{ pct(fidelity.same) }}</p>
             </template>
-            <p v-else class="hint">Sin medir en esta versión. <button type="button" class="link-inline" @click="measureNow">Medir</button> dibuja el HTML y lo compara con la imagen de Figma (unos segundos).</p>
+            <p v-else class="hint">Sin medir. <button type="button" class="link-inline" @click="measureNow">Medir</button></p>
           </div>
           <div v-if="report" class="block">
             <div class="region-head group"><span>Paleta</span><span class="count">{{ palette.length }}</span></div>
@@ -1164,10 +1096,6 @@ const laneName = (lane) => (lane.label ? lane.label : 'Fila sin rótulo')
               </div>
             </div>
             <p v-else class="hint">La pantalla no tiene textos.</p>
-            <p class="hint">La hoja del archivo, para pasar el diseño a código:
-              <a :href="tokensURL('css')" target="_blank" rel="noopener">CSS</a> ·
-              <a :href="tokensURL('tailwind')" target="_blank" rel="noopener">Tailwind</a> ·
-              <a :href="tokensURL('')" target="_blank" rel="noopener">JSON</a></p>
           </div>
         </template>
       </div>
