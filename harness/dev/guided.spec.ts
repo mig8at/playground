@@ -87,6 +87,14 @@ test.use({ launchOptions: { slowMo: PREVIEW ? Number(process.env.E2E_PREVIEW_SLO
 test.skip(ENTRY === 'cognito' && (!cognitoCreds.user || !cognitoCreds.pass), 'guided cognito: requiere .cognito.json');
 test.afterAll(async () => { await close(); });
 
+// La tarjeta del harness en el wizard (`pkg/autofill.ts`) se ESCONDE durante cada captura: la evidencia
+// tiene que mostrar la app, no el harness encima. `hide` es no-op si la tarjeta no está (E2E_AUTORELLENO=0).
+async function withoutCard<T>(pg: Page, fn: () => Promise<T>): Promise<T> {
+    await pg.evaluate(() => (window as any).__harness?.hide(true)).catch(() => {});
+    try { return await fn(); }
+    finally { await pg.evaluate(() => (window as any).__harness?.hide(false)).catch(() => {}); }
+}
+
 let SHOT = 0;
 async function shot(page: Page, label: string) {
     if (process.env.E2E_SHOTS === '0') return;   // fotos ON por defecto (trazo del flujo); apagar con E2E_SHOTS=0
@@ -95,7 +103,7 @@ async function shot(page: Page, label: string) {
     // ruta, corrida anterior) por evidencia de ESTA corrida — nos costó la prueba del +1 el 2026-08-19.
     // El panel pinta las líneas `📸 ✗` en rojo y no intenta miniatura.
     try {
-        await page.screenshot({ path: join(AUTH, name), fullPage: true });
+        await withoutCard(page, () => page.screenshot({ path: join(AUTH, name), fullPage: true }));
         console.log(`  📸 ${name}`);
     } catch (e) {
         console.log(`  📸 ✗ ${name} — el screenshot falló (${(e as Error)?.message?.split('\n')[0] ?? 'sin detalle'})`);
@@ -245,9 +253,21 @@ test('guided (semiautomático)', async ({ browser }) => {
     // ya navegó de nuevo o el shot falla, devuelve null y la línea queda sin foto (mejor eso que romper).
     const navSnapshot = (pg: Page, window: string) => async (num: number): Promise<string | null> => {
         const name = `nav-${String(num).padStart(2, '0')}-${window}.png`;
-        try { await pg.screenshot({ path: join(AUTH, name), timeout: 4000 }); return name; }
+        try { await withoutCard(pg, () => pg.screenshot({ path: join(AUTH, name), timeout: 4000 })); return name; }
         catch { return null; }
     };
+
+    // ── LA TARJETA DEL HARNESS se alimenta en cada paso: el estado de la BD y las alertas de ESE paso, en la
+    // ventana donde ocurrió (A o B). `cardNotes` son los avisos de la corrida entera (el dictado al mock).
+    const cardPages: Record<string, Page> = { A: page };
+    const cardAlerts: string[] = [];
+    const cardNotes: string[] = [];
+    const pushCard = (pg: Page, partial: Record<string, unknown>) =>
+        void pg.evaluate((st) => (window as any).__harness?.update(st), partial).catch(() => {});
+    trace.onStep((s) => {
+        if (s.alerta && !cardAlerts.includes(s.alerta)) cardAlerts.push(s.alerta);
+        pushCard(cardPages[s.window] ?? page, { step: s, alerts: cardAlerts.slice(-3), notes: cardNotes });
+    });
     page.on('framenavigated', (f) => {
         if (f !== page.mainFrame()) return;
         const u = f.url();
@@ -273,6 +293,7 @@ test('guided (semiautomático)', async ({ browser }) => {
     // de «Esperando…» le borraría la pantalla al cliente.
     const ONE_WINDOW = ENTRY === 'self-service';
     const { page: B } = ONE_WINDOW ? { page } : await openB(browser, { baseURL: config.feBaseUrl, userAgent: IPHONE_UA }); // B mitad DERECHA
+    cardPages.B = B;
 
     // ¿ESTE uReq requiere ÁBACO? (product renting/rto). Best-effort, pero decide la BIFURCACIÓN del flujo,
     // así que REINTENTA en vez de rendirse al primer error: un solo intento con `.catch(() => false)`
@@ -627,6 +648,10 @@ test('guided (semiautomático)', async ({ browser }) => {
         log(done.employment && done.bureau
             ? `buró dictado al mock de centrales para ${process.env.E2E_SYNTH_DOC}: la categoría la deciden las perillas del caso`
             : `⚠ no se pudo dictar el caso al mock de centrales (:8105, \`make harness-centrales\`): la categoría la decidirá lo que conteste el backend, no las perillas`);
+        if (!(done.employment && done.bureau)) {
+            cardNotes.push('el mock de centrales no respondió: la categoría no la deciden las perillas (make harness-centrales)');
+            pushCard(page, { notes: cardNotes });
+        }
     }
 
     // ── Pantalla "preparando" con PASOS que se completan de verdad (refleja el seed real, no una animación

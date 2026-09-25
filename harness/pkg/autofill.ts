@@ -55,6 +55,8 @@ export interface AutofillData {
     codigoApp: string;
     /** hash de sucursal → nombre del comercio, para que la ventana diga a cuál entró. */
     comercios: Record<string, string>;
+    /** La categoría que el panel predijo por entidad al lanzar (`E2E_CATEGORY_PREDICTION`), para el listado. */
+    categorias: { name: string; category: string; detail?: string; bad?: boolean }[];
 }
 
 /**
@@ -101,6 +103,7 @@ export function envData(): AutofillData {
         placa: 'ABC12D', serie: '9C2KC0810JR000001',
         codigoApp: process.env.E2E_CLIENT_CODE_APP || '',
         comercios: flowMerchants(),
+        categorias: (() => { try { return JSON.parse(process.env.E2E_CATEGORY_PREDICTION || '[]'); } catch { return []; } })(),
     };
 }
 
@@ -539,48 +542,159 @@ function script(data: AutofillData) {
     // Existe para que el autorelleno sea VISIBLE y apagable. Una ayuda invisible que toca el formulario
     // es indistinguible de un bug del front: al ver un campo lleno que nadie escribió, lo primero que
     // se piensa es que la app lo trajo de algún lado.
+    /* ── LA TARJETA DEL HARNESS ──────────────────────────────────────────────────────────────────
+     * Abajo a la izquierda (a la derecha vive el overlay de React Scan del wizard en dev), en Shadow DOM
+     * para que el CSS del wizard no la desarme y el suyo no toque la app. Dice lo que el spec sabe de
+     * ESTE paso —la BD, las alertas— y lo que hace falta tipear, que antes estaba en otra ventana (el
+     * panel). El spec la alimenta con `window.__harness.update(...)` en cada navegación y la esconde
+     * con `hide(true)` mientras saca una captura: la evidencia tiene que mostrar la app, no el harness.
+     * Plegada queda como una píldora con el estado de la BD; cerrada, ⌥H la vuelve a abrir. El estado
+     * vive en `sessionStorage` para sobrevivir a una recarga completa de la página. */
     function badge() {
         if (document.getElementById('__autorelleno_chip')) return;
-        const box = document.createElement('div');
-        box.id = '__autorelleno_chip';
+        const host = document.createElement('div');
+        host.id = '__autorelleno_chip';
+        host.style.cssText = 'position:fixed;z-index:2147483647;left:10px;bottom:10px';
+        const root = host.attachShadow({ mode: 'open' });
+        const KEY = '__harness_card';
+        const saved = (() => { try { return JSON.parse(sessionStorage.getItem(KEY) || '{}'); } catch { return {}; } })();
+        let state: any = saved.state || {};
+        let folded = !!saved.folded;
+        let closed = !!saved.closed;
+        let hidden = false;
+        const persist = () => { try { sessionStorage.setItem(KEY, JSON.stringify({ state, folded, closed })); } catch { /* opcional */ } };
+
+        root.innerHTML = `<style>
+            :host { all: initial }
+            * { box-sizing: border-box }
+            .card, .pill { font: 12px/1.4 ui-sans-serif, system-ui, -apple-system, sans-serif; color: #e6edf3;
+              background: #0d1117; border: 1px solid #30363d; border-radius: 10px; box-shadow: 0 8px 24px rgba(0,0,0,.35) }
+            .card { width: 292px; display: flex; flex-direction: column; max-height: min(70vh, 560px) }
+            header { display: flex; align-items: center; gap: 6px; height: 32px; padding: 0 6px 0 10px; border-bottom: 1px solid #21262d }
+            header b { font-weight: 700; letter-spacing: .02em }
+            header .tag { flex: 1; min-width: 0; color: #8b949e; overflow: hidden; text-overflow: ellipsis; white-space: nowrap }
+            button { all: unset; cursor: pointer }
+            .icon { width: 22px; height: 22px; display: grid; place-items: center; border-radius: 6px; color: #8b949e; font-size: 14px }
+            .icon:hover { background: #21262d; color: #e6edf3 }
+            .body { overflow: auto; padding: 4px 0 }
+            .group { padding: 6px 10px }
+            .group + .group { border-top: 1px solid #21262d }
+            .label { color: #8b949e; font-size: 11px; margin-bottom: 3px }
+            .bd { font-weight: 600 }
+            .bd.moved { color: #3fb950 }
+            .muted { color: #8b949e }
+            .alert { color: #ffa198; font-weight: 600 }
+            .kv { display: flex; align-items: center; gap: 6px; min-height: 24px }
+            .kv .k { width: 72px; flex: none; color: #8b949e }
+            .kv .v { flex: 1; min-width: 0; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; overflow: hidden; text-overflow: ellipsis; white-space: nowrap }
+            .kv .copy { color: #8b949e; font-size: 11px; padding: 2px 6px; border-radius: 6px }
+            .kv .copy:hover { background: #21262d; color: #e6edf3 }
+            .cat { display: flex; gap: 6px; min-height: 22px; align-items: baseline }
+            .cat .n { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap }
+            .cat .c { font-weight: 600 } .cat .c.bad { color: #ffa198 }
+            .cat-d { color: #8b949e; font-size: 11px; margin: -2px 0 4px }
+            footer { display: flex; gap: 6px; padding: 8px 10px; border-top: 1px solid #21262d }
+            footer .fill { background: #1f6feb; padding: 6px 10px; border-radius: 6px; font-weight: 600 }
+            footer .auto { background: #30363d; padding: 6px 10px; border-radius: 6px; font-weight: 600 }
+            .pill { display: none; padding: 7px 10px; font-weight: 600; max-width: 292px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap }
+            .folded .card { display: none } .folded .pill { display: block }
+        </style>
+        <div class="wrap">
+          <section class="card" role="complementary" aria-label="harness">
+            <header><b>harness</b><span class="tag"></span>
+              <button class="icon fold" title="Plegar" aria-label="Plegar">–</button>
+              <button class="icon close" title="Cerrar (⌥H la vuelve a abrir)" aria-label="Cerrar">×</button></header>
+            <div class="body"></div>
+            <footer><button class="fill" title="Rellena los campos VACÍOS de esta pantalla (⌥R). Nunca aprieta Continuar.">⌨ Rellenar</button>
+              <button class="auto" title="Con auto, cada pantalla nueva se rellena sola. Sin auto, sólo cuando apretás Rellenar."></button></footer>
+          </section>
+          <button class="pill" title="Desplegar la tarjeta del harness"></button>
+        </div>`;
+        const $ = (sel: string) => root.querySelector(sel) as HTMLElement;
+        const el = (tag: string, cls: string, text?: string) => { const e = document.createElement(tag); if (cls) e.className = cls; if (text !== undefined) e.textContent = text; return e; };
+
         /* LA ETIQUETA DEL COMERCIO. El hash de la sucursal está en la URL (`/merchant/<hash>/…` o
            `/self-service/<hash>/…`), y `.flows.json` sabe de quién es. Se dibuja aunque no lo conozca:
            el hash solo ya alcanza para ver que estás en OTRA ventana. */
         const hashInUrl = location.pathname.match(/\/(?:merchant|self-service|ecommerce)\/([0-9a-f]{6,})/i)?.[1];
-        if (hashInUrl) {
-            const et = document.createElement('span');
-            et.textContent = `${data.comercios?.[hashInUrl] ?? '?'} · ${hashInUrl}`;
-            et.title = 'El comercio de ESTA ventana. Si no es el que elegiste en el panel, estás mirando la ventana de una corrida anterior.';
-            et.style.cssText = 'background:#161b22;padding:7px 9px;border-radius:6px;color:#8b949e;font-weight:500';
-            box.appendChild(et);
+        $('.tag').textContent = hashInUrl ? `${data.comercios?.[hashInUrl] ?? '?'} · ${hashInUrl}` : '';
+        $('.tag').title = 'El comercio de ESTA ventana. Si no es el que elegiste en el panel, estás mirando la ventana de una corrida anterior.';
+
+        const copyText = async (text: string, b: HTMLElement) => {
+            try { await navigator.clipboard.writeText(text); }
+            catch {
+                const t = document.createElement('textarea'); t.value = text; document.body.appendChild(t); t.select();
+                try { document.execCommand('copy'); } finally { t.remove(); }
+            }
+            b.textContent = 'copiado'; setTimeout(() => { b.textContent = 'copiar'; }, 1200);
+        };
+        const bdText = () => {
+            const st = state.step;
+            if (!st) return 'BD — la corrida todavía no registró un paso';
+            if (st.sinSolicitud) return 'BD — sin solicitud todavía';
+            return `BD ${st.st} «${st.estado ?? '?'}»${st.cambio ? ' ▲' : ''}`;
+        };
+        function render() {
+            const body = $('.body'); body.replaceChildren();
+            const st = state.step;
+            // 1 · el paso y la BD: lo que el navegador pretende al lado de lo que pasó.
+            const g1 = el('div', 'group');
+            g1.append(el('div', 'label', st ? `paso ${st.n} · ${st.window ? st.window + ' · ' : ''}${st.path}` : 'paso'));
+            const bd = el('div', 'bd' + (st?.cambio ? ' moved' : ''), bdText()); g1.append(bd); body.append(g1);
+            // 2 · las alertas, sólo si hay.
+            const alerts: string[] = [...(state.notes || []), ...(state.alerts || [])];
+            if (alerts.length) { const g = el('div', 'group'); for (const a of alerts) g.append(el('div', 'alert', `⚠ ${a}`)); body.append(g); }
+            // 3 · lo que hay que tipear, con copiar.
+            const g3 = el('div', 'group'); g3.append(el('div', 'label', 'para tipear'));
+            const typing: [string, string][] = [['teléfono', data.telefono], ['OTP', data.otp], ['OTP firma', data.otpFirma],
+                ['cédula', data.documento], ['email', data.email], ...(data.codigoApp ? [['código app', data.codigoApp] as [string, string]] : [])];
+            for (const [k, v] of typing) {
+                const row = el('div', 'kv'); row.append(el('span', 'k', k), el('span', 'v', v));
+                const b = el('button', 'copy', 'copiar'); b.title = `Copiar ${k}`; b.onclick = () => { void copyText(v, b); };
+                row.append(b); g3.append(row);
+            }
+            body.append(g3);
+            // 4 · la categoría predicha, en el listado.
+            const cats = data.categorias || [];
+            const atListing = /lender/i.test(location.pathname) || /lender/i.test(st?.path || '');
+            if (cats.length && atListing) {
+                const g4 = el('div', 'group'); g4.append(el('div', 'label', 'categoría predicha por el panel'));
+                for (const c of cats) {
+                    const row = el('div', 'cat'); row.append(el('span', 'n', c.name), el('span', 'c' + (c.bad ? ' bad' : ''), c.category));
+                    g4.append(row); if (c.detail) g4.append(el('div', 'cat-d', c.detail));
+                }
+                body.append(g4);
+            }
+            $('.pill').textContent = `harness · ${bdText()}${alerts.length ? ` · ⚠ ${alerts.length}` : ''}`;
+            $('.wrap').classList.toggle('folded', folded);
+            host.style.display = closed || hidden ? 'none' : '';
         }
-        /* ABAJO A LA IZQUIERDA, y no a la derecha: ahí vive el overlay de React Scan del wizard en dev
-           (el contador de FPS), y las dos cosas se tapaban — medido con una captura. La derecha es de
-           la app; la izquierda está libre. */
-        box.style.cssText = 'position:fixed;z-index:2147483647;left:10px;bottom:10px;display:flex;gap:6px;'
-            + 'align-items:center;font:600 11px/1 ui-sans-serif,system-ui;color:#fff';
-        const btn = document.createElement('button');
-        btn.textContent = '⌨ Rellenar';
-        btn.title = 'Rellena los campos VACÍOS de esta pantalla (⌥R). Nunca aprieta Continuar.';
-        btn.style.cssText = 'all:unset;cursor:pointer;background:#1f6feb;padding:7px 10px;border-radius:6px';
-        const auto = document.createElement('button');
-        auto.style.cssText = btn.style.cssText + ';background:#30363d';
+        $('.fold').onclick = () => { folded = true; persist(); render(); };
+        $('.pill').onclick = () => { folded = false; persist(); render(); };
+        $('.close').onclick = () => { closed = true; persist(); render(); };
+        (window as any).__harness = {
+            update(partial: any) { state = { ...state, ...partial }; persist(); render(); },
+            hide(v: boolean) { hidden = !!v; render(); },
+        };
+
+        const btn = $('.fill');
+        const auto = $('.auto');
         let enabled = true;
         const paint = () => { auto.textContent = enabled ? 'auto: sí' : 'auto: no'; };
         paint();
         auto.onclick = () => { enabled = !enabled; paint(); };
-        auto.title = 'Con auto, cada pantalla nueva se rellena sola. Sin auto, sólo cuando apretás Rellenar.';
         const howMany = (n: number) => { btn.textContent = n ? `⌨ ${n} campo${n === 1 ? '' : 's'}` : '⌨ nada que llenar';
             setTimeout(() => { btn.textContent = '⌨ Rellenar'; }, 1400); };
         // `disparar` existe aparte del handler para poder llamarlo desde el atajo de teclado: invocar
         // `btn.onclick` a mano obliga a fabricar un PointerEvent que a nadie le importa.
         const fire = async () => howMany(await fill());   // manual: SIEMPRE corre, aunque el auto esté apagado
         btn.onclick = fire;
-        box.append(btn, auto);
-        document.body.appendChild(box);
+        document.body.appendChild(host);
+        render();
 
         window.addEventListener('keydown', (e) => {
-            if (e.altKey && (e.key === 'r' || e.key === 'R')) { e.preventDefault(); void fire(); }
+            if (e.altKey && (e.key === 'r' || e.key === 'R' || e.code === 'KeyR')) { e.preventDefault(); void fire(); }
+            if (e.altKey && (e.key === 'h' || e.key === 'H' || e.code === 'KeyH')) { e.preventDefault(); closed = !closed; persist(); render(); }
         });
 
         /* AUTO: se rellena cuando aparece un formulario nuevo. Va con `debounce` y no en cada mutación

@@ -2570,6 +2570,14 @@
         income: moneyNum('income'),
         score: +$('score').value, negatives: +$('negatives').value, consulted: +$('consulted').value,
         delinquencies: $('delinquencies').value === '' ? undefined : +$('delinquencies').value,
+        // La predicción de categoría, resumida para la tarjeta del harness en el wizard (la muestra en el listado).
+        categories: (categoryPrediction?.lenders || []).map((l) => ({
+          name: l.name,
+          category: l.verdict === 'approved' ? l.category : l.verdict === 'rejected' ? 'no aparece' : l.verdict === 'no_rules' ? 'por puntaje' : 'sin categoría',
+          bad: l.verdict === 'rejected' || l.verdict === 'no_profile',
+          detail: l.verdict === 'approved' && l.conditions
+            ? `${l.conditions.minInitialFee ?? 0} % inicial · hasta ${l.conditions.maxFeeNumber ?? '–'} cuotas${l.requiresCosigner ? ' · con codeudor' : ''}` : '',
+        })),
       };
       // La predicción con la que se lanzó: al terminar se compara con lo que el motor registró. Lo de la
       // corrida anterior se borra: si no, quedaría al lado de una predicción que ya no le corresponde.

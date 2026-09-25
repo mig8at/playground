@@ -87,8 +87,19 @@ export type TraceOpts = {
 };
 
 /** UNA traza: una solicitud, su contador, sus alertas y su cola. Instanciá una por caso. */
+/** Lo que se sabe de un paso al registrarlo: lo lee la tarjeta flotante del harness en el wizard. */
+export type StepInfo = {
+    n: number; window: string; path: string;
+    st: number | null; estado: string | null; cambio: boolean;
+    /** La alerta de ESTE paso (desenlace malo, éxito sin respaldo en BD), si hubo. */
+    alerta?: string;
+    /** No hay solicitud todavía, o la solicitud no está en la BD. */
+    sinSolicitud?: boolean;
+};
+
 export class Trace {
     private uReq = 0;
+    private listener: ((s: StepInfo) => void) | null = null;
     private n = 0;
     private previo: Snap | null = null;
     private readonly linea: Step[] = [];
@@ -136,6 +147,11 @@ export class Trace {
         }
     }
 
+    /** Quien quiere enterarse de cada paso (la tarjeta del wizard). Se llama ANTES del screenshot, así la
+     *  tarjeta ya dice el paso cuando se esconde para la foto. Un error de quien escucha no rompe la traza. */
+    onStep(fn: ((s: StepInfo) => void) | null): void { this.listener = fn; }
+    private notify(s: StepInfo): void { try { this.listener?.(s); } catch { /* la traza no depende de esto */ } }
+
     /** Registra una navegación y la contrasta con la BD. Se llama desde `framenavigated`; no hay que await-earla.
      *  `foto` (opcional, solo el runner visual): saca el screenshot DENTRO de la cola —así la línea 📸 sale
      *  pegada a SU navegación y no mezclada— y devuelve el nombre del archivo, o null si no pudo.
@@ -160,12 +176,14 @@ export class Trace {
             if (!this.uReq) {
                 this.log(`${left}${gray('│ BD  —  (sin solicitud todavía)')}${queue}`);
                 this.linea.push({ n, ventana: window, ruta: path, st: null, estado: null, cambio: false });
+                this.notify({ n, window, path, st: null, estado: null, cambio: false, sinSolicitud: true });
                 await snapshot_();
                 return;
             }
             if (!s) {
                 this.log(`${left}${red('│ BD  ✗ la solicitud no está en la BD')}${queue}`);
                 this.linea.push({ n, ventana: window, ruta: path, st: null, estado: null, cambio: false });
+                this.notify({ n, window, path, st: null, estado: null, cambio: false, sinSolicitud: true, alerta: 'la solicitud no está en la BD' });
                 await snapshot_();
                 return;
             }
@@ -178,14 +196,18 @@ export class Trace {
             else der = gray(`│ BD  ${label}`);
 
             // ── detectores en caliente (no esperan al final) ──
+            let alerta: string | undefined;
             if (s.st !== null && BAD.has(s.st) && (!this.previo || !BAD.has(this.previo.st ?? -1))) {
                 this.alertas.push(`la solicitud pasó a estado ${s.st} «${s.estado}» en el paso ${n} (${window} ${path})`);
                 der += red('  ← DESENLACE MALO');
+                alerta = `desenlace malo: la solicitud pasó a ${s.st} «${s.estado}»`;
             }
             if (SUCCESS_PATH.test(path) && s.st !== null && !SEALED.has(s.st)) {
                 this.alertas.push(`pantalla de ÉXITO (${path}) con la BD en estado ${s.st} «${s.estado}» — el front miente (ver F-50)`);
                 der += red('  ← ÉXITO SIN RESPALDO EN BD');
+                alerta = `éxito sin respaldo en BD: la pantalla dice éxito y la solicitud está en ${s.st} «${s.estado}»`;
             }
+            this.notify({ n, window, path, st: s.st, estado: s.estado ?? null, cambio: change && !!this.previo, alerta });
 
             this.log(`${left}${der}${queue}`);
             this.linea.push({ n, ventana: window, ruta: path, st: s.st, estado: s.estado, cambio: change });
@@ -283,6 +305,7 @@ export const traceUReq = (id: number | string): void => byDefault.trazarUReq(id)
 export const step = (window: string, path: string, snapshot?: (n: number) => Promise<string | null>, suffix?: string): void =>
     byDefault.paso(window, path, snapshot, suffix);
 export const drain = (): Promise<void> => byDefault.drenar();
+export const onStep = (fn: ((s: StepInfo) => void) | null): void => byDefault.onStep(fn);
 export const summary = (): Promise<{ alertas: string[]; transiciones: number }> => byDefault.resumen();
 export const verdict = (uReqID: number | string, result = 'success'): Promise<Verdict> =>
     byDefault.veredicto(uReqID, result);

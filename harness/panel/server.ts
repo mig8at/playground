@@ -538,7 +538,7 @@ function slugFor(nameValue: string, hash: string, flows: any): string {
 
 // lanza `bin/advisor <slug>` en MODO MANUAL (sin `auto` → no auto-rellena; vos manejás desde monto) con
 // E2E_INJECT=1 (inyecta el buró invisible al llegar a personal-info) + el perfil por env, contra el target.
-interface Profile { income?: number; score?: number; name?: string; documentType?: string; document?: string; gender?: string; age?: number; negatives?: number; consulted?: number; delinquencies?: number; occupation?: string; dob?: string; expeditionDate?: string; email?: string; }
+interface Profile { income?: number; score?: number; name?: string; documentType?: string; document?: string; gender?: string; age?: number; negatives?: number; consulted?: number; delinquencies?: number; categories?: string; occupation?: string; dob?: string; expeditionDate?: string; email?: string; }
 
 // RASTRO de la corrida: vuelca TODO lo que elegiste en el panel al log, para que quede registro de con qué
 // configuración corriste (antes solo salía el perfil, como un JSON crudo, y los selects de pre-aprobación y
@@ -722,6 +722,8 @@ async function launch(slug: string, profile: Profile, target: string, inject: bo
         E2E_SYNTH_NEG: profile.negatives != null ? String(profile.negatives) : '',
         E2E_SYNTH_CONS: profile.consulted != null ? String(profile.consulted) : '',
         E2E_SYNTH_MORA: profile.delinquencies != null ? String(profile.delinquencies) : '',
+        // La categoría que predijo el panel, para la tarjeta del harness en el wizard (la dibuja en el listado).
+        E2E_CATEGORY_PREDICTION: profile.categories || '',
         E2E_SYNTH_OCC: profile.occupation || '',
         E2E_SYNTH_DOB: profile.dob || '',
         E2E_SYNTH_EXP: profile.expeditionDate || '',
@@ -1400,6 +1402,7 @@ const server = createServer(async (req, res) => {
             negatives: b.negatives !== undefined && b.negatives !== '' ? Number(b.negatives) : undefined,
             consulted: b.consulted !== undefined && b.consulted !== '' ? Number(b.consulted) : undefined,
             delinquencies: b.delinquencies !== undefined && b.delinquencies !== '' ? Number(b.delinquencies) : undefined,
+            categories: Array.isArray(b.categories) && b.categories.length ? JSON.stringify(b.categories).slice(0, 8000) : undefined,
             occupation: b.occupation ? String(b.occupation) : undefined,
             dob: b.dob ? String(b.dob) : undefined,
             expeditionDate: b.expeditionDate ? String(b.expeditionDate) : undefined,
