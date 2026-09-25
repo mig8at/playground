@@ -137,6 +137,27 @@ entero. Se pega en la conversación con el modelo o en la tarea.
 - ⚠ Una pantalla que es casi toda una imagen pegada trae pocos textos: los de la imagen no son texto en
   Figma. El reporte de la traducción ya lo dice («Imágenes 1»).
 
+**Medido el 2026-09-25: ¿le sirve a un modelo el paquete, o alcanza con la API?** Tres pantallas (dos
+formularios de Credifamilia y una de flujo-ecommerce con imagen), un modelo por caso con la MISMA consigna
+—«esta pantalla como HTML y CSS de desarrollador»— y sólo su archivo de entrada: A la respuesta cruda de
+`/nodes`, B el paquete. La vara es la de `visor-fidelidad`, contra la imagen de Figma:
+
+    pantalla        A · API cruda                   B · paquete
+    381-1052        99,2 % · 207 k tokens · 205 s   99,4 % · 102 k tokens · 60 s
+    237-2727        97,8 % · 172 k tokens · 190 s   97,8 % · 100 k tokens · 51 s
+    1302-1363       96,5 % · 139 k tokens · 157 s   97,7 % · 100 k tokens · 56 s
+
+- **La fidelidad es casi la misma**: un modelo de hoy traduce bien el JSON crudo, y hasta encontró los
+  nombres de los estilos en la respuesta. El paquete NO es lo que lo hace posible.
+- **Lo que sí cambia es el costo y lo que falta**: con el paquete, **~40 % menos tokens y ~3× más rápido**;
+  y con la API cruda la imagen del logo quedó como un círculo gris (el JSON trae una referencia, no la
+  imagen) y los íconos, redibujados a mano a partir de su nombre.
+- ⚠ **La respuesta cruda es UNA línea de 129.194 caracteres**, y la herramienta de lectura de un modelo la
+  corta en ~39.000: el primer modelo A se frenó con el 30 % de la pantalla, y dos de los tres usaron
+  comandos para leer el resto. Hubo que pasarle el JSON con saltos de línea (296 KB) para que pudiera.
+- ⚠ Tres pantallas y una corrida por caso: es una señal, no una estadística. Y la medida por píxel se
+  satura con los fondos lisos: el logo gris cuesta apenas un punto.
+
 ## Los componentes: qué piezas hay que tener antes de armar pantallas
 
 Debajo de «Tokens del diseño», cada proyecto tiene **«Componentes»** (`/<proyecto>/componentes`): las piezas
