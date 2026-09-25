@@ -36,9 +36,9 @@ export type Field = {
  * La sonda es un checkbox de Radix: se le hace click hasta que su `data-state` responde `checked`. Si la
  * pantalla no tiene ninguno no hay sonda posible y se devuelve `true` (no se puede afirmar, no se bloquea).
  */
-export async function waitForHydration(page: Page, timeout = 15_000): Promise<boolean> {
+export async function waitForHydration(page: Page, timeout = 15_000, appear = timeout): Promise<boolean> {
     const boxes = page.locator('button[role="checkbox"]');
-    await boxes.first().waitFor({ state: 'visible', timeout }).catch(() => {});
+    await boxes.first().waitFor({ state: 'visible', timeout: appear }).catch(() => {});
     if (!(await boxes.count().catch(() => 0))) return true;
     const until = Date.now() + timeout;
     while (Date.now() < until) {
@@ -60,12 +60,14 @@ export async function waitForHydration(page: Page, timeout = 15_000): Promise<bo
 export async function autofill(page: Page, fields: Field[],
     opts: {
         hidratar?: boolean; t?: number; preferirRadio?: RegExp;
+        /** Cuánto esperar a que aparezca la casilla-sonda (ver `waitForHydration`). Por defecto, 10 s. */
+        sondaAparece?: number;
         /** Las dos fechas sintéticas. Ausente → las del entorno (`syntheticDates()`). */
         fechas?: { nacimiento: string; expedicion: string };
     } = {}): Promise<string[]> {
     const facts: string[] = [];
     const t = opts.t ?? 3_000;
-    if (opts.hidratar !== false) await waitForHydration(page, 10_000);
+    if (opts.hidratar !== false) await waitForHydration(page, 10_000, opts.sondaAparece ?? 10_000);
 
     for (const c of fields) {
         if (!c.valor) continue;

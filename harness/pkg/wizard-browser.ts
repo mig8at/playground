@@ -293,8 +293,12 @@ async function ctaInCard(page: Page, header: ReturnType<Page['getByRole']>) {
 
 export async function chooseEntity(page: Page, name: string): Promise<{ ok: boolean; visibles: string[]; motivo?: string }> {
     // El listado se arma con las tarjetas ya resueltas: se espera a que aparezca alguna antes de mirar.
-    await page.getByRole('button', { name: /continuar|solicitar|elegir|seleccionar/i }).first()
-        .waitFor({ state: 'visible', timeout: 30_000 }).catch(() => {});
+    // ⚠ Y NO SÓLO A UN BOTÓN «continuar/solicitar/elegir»: en los listados de tarjetas desplegables no
+    // hay ninguno, y esta espera se comía sus 30 s enteros en cada caso (medido el 2026-09-25). La señal
+    // de que el listado está completo la da la pantalla: «Hemos terminado de consultar…».
+    await page.getByText(/hemos terminado de consultar/i)
+        .or(page.getByRole('button', { name: /continuar|solicitar|elegir|seleccionar/i }))
+        .first().waitFor({ state: 'visible', timeout: 30_000 }).catch(() => {});
     const buttons = page.getByRole('button');
     const n = await buttons.count().catch(() => 0);
     const visibles: string[] = [];
@@ -348,7 +352,10 @@ export async function advance(page: Page, d: WizardData, sheet = ''): Promise<{ 
     // `preferirRadio: /^no$/i` — la pregunta de «confirmación de cupo» se contesta NO, que es el flujo
     // estándar y lo mismo que manda el motor HTTP (`confirmQuota: 'no'`). Contestar «Sí» sería probar otro
     // flujo sin haberlo pedido: firma `already-confirmed-pre-approval`, salta el buró y recorta el listado.
-    const facts = await autofill(page, WIZARD_FIELDS(d, sheet), { preferirRadio: /^no$/i }).catch(() => [] as string[]);
+    /* ⚠ LA CASILLA-SONDA SE ESPERA 1,5 s Y NO 10: medido el 2026-09-25, en una corrida de 276 s se iban
+     * 100 s en diez pantallas SIN casilla esperándola hasta el tope. Acá alcanza con poco porque el bucle
+     * ya esperó a que la red se calmara antes de llegar: si la pantalla tiene casilla, ya está. */
+    const facts = await autofill(page, WIZARD_FIELDS(d, sheet), { preferirRadio: /^no$/i, sondaAparece: 1_500 }).catch(() => [] as string[]);
     let av = await clickAdvance(page);
     if (!av.ok) {
         // Antes de darlo por trabado: puede estar enviando (botón deshabilitado un instante) o puede
@@ -364,7 +371,31 @@ export async function advance(page: Page, d: WizardData, sheet = ''): Promise<{ 
 
 /** Espera a que la pantalla cambie después de un click. Devuelve la URL nueva, o null si no se movió
  *  (que es legítimo: varias pantallas del wizard tienen PASOS INTERNOS con la misma URL). */
-export async function waitForChange(page: Page, since: string, timeout = 25_000): Promise<string | null> {
-    const ok = await page.waitForURL((u) => u.href !== since, { timeout }).then(() => true).catch(() => false);
-    return ok ? page.url() : null;
+export async function waitForChange(page: Page, since: string, timeout = 25_000, sinceScreen?: string): Promise<string | null> {
+    if (sinceScreen === undefined) {
+        const ok = await page.waitForURL((u) => u.href !== since, { timeout }).then(() => true).catch(() => false);
+        return ok ? page.url() : null;
+    }
+    // Con la huella de la pantalla: vale que cambie la URL O que cambie lo que se pide llenar.
+    const until = Date.now() + timeout;
+    while (Date.now() < until) {
+        if (page.url() !== since) return page.url();
+        const now = await screenPrint(page);
+        if (now && now !== sinceScreen) return page.url();
+        await page.waitForTimeout(250);
+    }
+    return null;
+}
+
+/** La huella de una pantalla: sus títulos y los campos que pide. Sirve para ver que un paso INTERNO
+ *  avanzó (`solicitar`: del monto al teléfono; `personal-info`: de los datos a la fecha de expedición)
+ *  cuando la URL no cambia. `null` si la pantalla está a medio pintar (sin títulos ni campos): un
+ *  esqueleto de carga no es un paso nuevo. */
+export async function screenPrint(page: Page): Promise<string | null> {
+    return page.evaluate(() => {
+        const titles = [...document.querySelectorAll('h1, h2')].map((e) => (e.textContent || '').trim()).filter(Boolean);
+        const fields = [...document.querySelectorAll('input:not([type=hidden]), select, textarea, [role=combobox]')]
+            .map((e) => (e as HTMLInputElement).name || e.getAttribute('aria-label') || e.getAttribute('placeholder') || e.tagName);
+        return titles.length || fields.length ? `${titles.join('|')}#${fields.join(',')}` : null;
+    }).catch(() => null);
 }

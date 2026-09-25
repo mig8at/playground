@@ -130,9 +130,16 @@ mismo código:
 |---|---|---|
 | cómo avanza | postea al `.data` de la pantalla | Chromium **sin ventana**, clickea |
 | qué corre | loaders, actions, middleware, zod | eso **y el JavaScript del cliente** |
-| un caso, local | **20 s** | **357 s** (12 pantallas, estado 11) |
+| un caso, local | **20 s** | **357 s** (12 pantallas, estado 11) · **~175 s** desde el 2026-09-25 (abajo) |
 | 3 en paralelo | 22 s | **357 s**, 3 de 3 en estado 11 |
 | evidencia | la traza contra la BD | + consola, red, captura y **traza de Playwright** |
+
+⚠ **La mitad de ese tiempo eran esperas del propio caminador**, medidas el 2026-09-25 con la traza de una
+corrida de 276 s: 120 s esperando que cambiara la URL en las dos pantallas con pasos internos
+(`solicitar`, `personal-info`), 100 s esperando una casilla-sonda que la pantalla no tenía (10 s × 10) y
+30 s esperando en el listado un botón que no existe. Se arreglaron las tres (`screenPrint`, `sondaAparece`,
+«Hemos terminado de consultar») y los mismos casos por la tienda bajaron de 360 → 174 s (CrediPullman) y
+382 → 182 s (Compucredit con cuota inicial), los dos en estado 11.
 
 El paralelo con navegador **sale gratis**: tres casos cuestan lo mismo que uno, porque el tiempo se va
 esperando al backend y a los renders, no compitiendo. Un contexto por caso, un solo Chromium.

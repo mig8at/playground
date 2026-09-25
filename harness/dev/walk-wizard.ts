@@ -61,7 +61,7 @@ const { branchDocument, branchPhone, syntheticPhone } = await import('../pkg/pho
 const { findBranch: findBranchIn, merchantDocumentType: documentType } = await import('../pkg/merchants.ts');
 const { postHogForensic } = await import('../pkg/posthog.ts');
 const { createTrace, EXPECTED_STATUS } = await import('../pkg/trace.ts');
-const { openBrowser, openContext, evidenceNotice, closeContext, advance, chooseEntity, errorBanner, waitForChange } =
+const { openBrowser, openContext, evidenceNotice, closeContext, advance, chooseEntity, errorBanner, waitForChange, screenPrint } =
     await import('../pkg/wizard-browser.ts');
 const { validationErrors: screenErrors } = await import('../pkg/autofill-qr.ts');
 const { mkdirSync, readFileSync, statSync } = await import('node:fs');
@@ -660,6 +660,9 @@ async function ecommerceEntry(br: { hash: string; com: string }, ref: string, te
 }
 
 // ─── el motor NAVEGADOR ──────────────────────────────────────────────────────────────────────────
+/** Las pantallas que avanzan por pasos internos sin cambiar de URL. */
+const INNER_STEPS = /^(solicitar|personal-info)$/;
+
 /**
  * El mismo caso, operado con Chromium sin ventana: se clickea, no se postea. Comparte con el motor HTTP
  * todo lo que rodea al recorrido (el caso, la siembra, la traza contra la BD, el forense, el resumen) y
@@ -891,6 +894,9 @@ async function runBrowser(c: Case, i: number, browser: any): Promise<Result> {
         }
 
         const before = page.url();
+        // Las pantallas con pasos INTERNOS (la URL no cambia entre uno y otro): ver `waitForChange`.
+        const innerSteps = INNER_STEPS.test(sheet);
+        const beforeScreen = innerSteps ? await screenPrint(page) : null;
         const av = await advance(page, { tel, doc, amount: AMOUNT, income: INCOME, cuotaInicial: DOWN_PAYMENT || undefined }, sheet);
         if (av.hechos.length) log(`   ▸ autorrelleno: ${av.hechos.join(' · ')}`);
         if (!av.ok) {
@@ -931,7 +937,12 @@ async function runBrowser(c: Case, i: number, browser: any): Promise<Result> {
         //
         // Esperar mucho por click ya no puede colgar la corrida: de eso se encargan el tope global
         // (`--tope`) y el contador de vueltas sin progreso, que son los guardas correctos.
-        if (!(await waitForChange(page, before, 60_000))) await page.waitForTimeout(1_000);
+        //
+        // ⚠ Y EN LAS PANTALLAS CON PASOS INTERNOS NO SE ESPERA LA URL, porque no cambia: `solicitar` pasa
+        // del monto al teléfono y `personal-info` de los datos a la fecha de expedición en la misma
+        // dirección, así que esta espera se cumplía entera — 60 s cada una, 120 de 276 en una corrida
+        // medida el 2026-09-25. Ahí vale también que cambie lo que la pantalla pide llenar.
+        if (!(await waitForChange(page, before, 60_000, beforeScreen ?? undefined))) await page.waitForTimeout(1_000);
     }
     return finish('trabado', `se pasó de ${MAX_STEPS} pantallas sin llegar al final`);
 }
