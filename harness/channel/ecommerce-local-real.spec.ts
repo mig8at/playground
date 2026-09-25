@@ -127,7 +127,7 @@ test('Ecommerce LOCAL real: /checkout → solicitar → amount → phone → OTP
  * `phone-submit`; los usa el test de arriba y `pkg/wizard-steps.ts`.)
  *
  * QUÉ CUBRE HOY ESA COBERTURA, que era llegar hasta el listado:
- *   · `make harness-caminar CASOS='#<hash>' FLOW=ecommerce` — el mismo recorrido por HTTP, en segundos,
+ *   · `make harness-walk-wizard CASES='#<hash>' FLOW=ecommerce` — el mismo recorrido por HTTP, en segundos,
  *     y además comprueba lo que este test no miraba: que la solicitud quede ATADA al pedido y que
  *     personal-info llegue con los campos del comercio bloqueados (lee `lockedFields` del loader).
  *   · el test de arriba, que sigue cubriendo el tramo por NAVEGADOR hasta /personal-info.

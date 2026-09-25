@@ -158,7 +158,7 @@ if (flag('snapshot')) {
     mkdirSync(dirname(out), { recursive: true });
     writeFileSync(out, JSON.stringify({ target, takenAt: new Date().toISOString(), results }, null, 1));
     console.log(`\n  foto guardada: ${out.replace(HARNESS + '/', 'harness/')}`);
-    console.log(`  después de restaurar: make harness-restauracion CONTRA=${out.replace(HARNESS + '/', '')}`);
+    console.log(`  después de restaurar: make harness-restore COMPARE=${out.replace(HARNESS + '/', '')}`);
 }
 console.log(failures ? `\n  ${R}${B}${failures} chequeo(s) no se cumplen${N}\n` : `\n  ${G}${B}todo lo que las tareas necesitan está${N}\n`);
 process.exit(failures ? 1 : 0);

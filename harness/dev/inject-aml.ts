@@ -12,10 +12,11 @@
 // La FORMA sale de `readAmlStatus`, no de suponer:
 //     $completed = ($data['estado'] ?? null) === 'finalizado' || array_key_exists('hallazgo', $data);
 // Se emite `estado: finalizado` SIN la clave `hallazgo` → completado y limpio. Para probar el camino
-// contrario (codeudor rechazado por AML), pasá `--con-hallazgos`.
+// contrario (codeudor rechazado por AML), pasá `--with-findings`.
 //
-// Uso:  node dev/inject-aml.ts <user_id> [--con-hallazgos]
+// Uso:  node dev/inject-aml.ts <user_id> [--with-findings]
 
+import '../pkg/cli-aliases.ts';   // los flags viejos (en español) siguen andando: ver ese archivo
 process.env.E2E_TARGET ||= 'local';
 export {};
 
@@ -23,9 +24,9 @@ const { one, exec, close, appKey } = await import('../pkg/db.ts');
 const { encryptLaravelString } = await import('../pkg/laravel-crypt.ts');
 
 const USER = Number(process.argv[2] ?? 0);
-const WITH_FINDINGS = process.argv.includes('--con-hallazgos');
+const WITH_FINDINGS = process.argv.includes('--with-findings');
 if (!USER) {
-    console.log('\n  uso: node dev/inject-aml.ts <user_id> [--con-hallazgos]\n');
+    console.log('\n  uso: node dev/inject-aml.ts <user_id> [--with-findings]\n');
     await close();
     process.exit(2);
 }

@@ -7,7 +7,7 @@ import { openA } from '../pkg/windows';
 import { query } from '../pkg/db';
 
 /**
- * `make harness-admin-ciudades` — el selector de ciudad del admin filtra por el país del comercio.
+ * `make harness-admin-cities` — el selector de ciudad del admin filtra por el país del comercio.
  *
  * Prueba el arreglo de la tarea 44. Hasta el 2026-08-08 el endpoint `admin.cities.search` devolvía las
  * **1.123 ciudades colombianas a cualquiera**, sin filtro de país: por eso los 13 puntos de venta

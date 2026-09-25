@@ -11,14 +11,15 @@
  * NO reemplaza al panel: no valida negocio ni afirma que la pantalla esté BIEN, sólo que carga y avanza.
  *
  * USO
- *   E2E_TARGET=local npx tsx dev/walk-qr.ts [--producto bnpl|consumo|pendiente|ninguno]
- *                                              [--escenario '{"errorCode":"BP20790"}'] [--tel 3131010101]
- *                                              [--doc 2912637830] [--monto 2000000] [--max 20] [--headed]
+ *   E2E_TARGET=local npx tsx dev/walk-qr.ts [--product bnpl|consumo|pendiente|ninguno]
+ *                                              [--scenario '{"errorCode":"BP20790"}'] [--tel 3131010101]
+ *                                              [--doc 2912637830] [--amount 2000000] [--max 20] [--headed]
  *
  * Requiere la flota: `bin/mock-bancolombia start` y `bin/mock-corbeta start` (y el wizard en :5174).
  * El producto NO es cosmético: lo resuelve el OTP y con las dos compuertas prendidas arranca siempre en
  * BNPL, así que las 11 pantallas de Consumo no se alcanzan (ver la perilla `producto` del mock).
  */
+import '../pkg/cli-aliases.ts';   // los flags viejos (en español) siguen andando: ver ese archivo
 import { chromium, type Page } from '@playwright/test';
 import { mkdirSync } from 'node:fs';
 import { qrEntryUrl, corbetaBranch, usableBranch } from '../pkg/qr.ts';
@@ -35,10 +36,10 @@ const arg = (n: string, def = '') => {
 };
 const flag = (n: string) => process.argv.includes(`--${n}`);
 
-const PRODUCT = arg('producto', 'bnpl');
+const PRODUCT = arg('product', 'bnpl');
 const TEL = arg('tel', '3131010101');
 const DOC = arg('doc', '2912637830');
-const AMOUNT = Number(arg('monto', '2000000'));
+const AMOUNT = Number(arg('amount', '2000000'));
 const MAX = Number(arg('max', '20'));
 const MOCK = process.env.MOCK_BC_URL || 'http://localhost:8104';
 
@@ -87,8 +88,8 @@ if (!(await usableBranch(br.hash))) throw new Error(`la sucursal ${br.id} no sir
 console.log(`▶ CAMINADOR QR · sucursal ${br.id} (allied ${br.alliedId}) · producto ${PRODUCT} · target ${process.env.E2E_TARGET ?? 'dev'}`);
 
 await snapshotScenario();
-await scenario({ producto: PRODUCT, ...(arg('escenario') ? JSON.parse(arg('escenario')) : {}) });
-console.log(`  escenario del mock: producto=${PRODUCT}${arg('escenario') ? ` + ${arg('escenario')}` : ''}`);
+await scenario({ producto: PRODUCT, ...(arg('scenario') ? JSON.parse(arg('scenario')) : {}) });
+console.log(`  escenario del mock: producto=${PRODUCT}${arg('scenario') ? ` + ${arg('scenario')}` : ''}`);
 console.log(`  scrub ${TEL}: ${JSON.stringify(await scrubphone(TEL))}`);
 
 const browser = await chromium.launch({ headless: !flag('headed') });
@@ -277,7 +278,7 @@ if (noPostHog) {
     console.log(`\nPostHog: nada que mirar — ${noPostHog}`);
 } else if (runUReq) {
     console.log(`\nPostHog · qué registró el FRONT de esta corrida (eventos del embudo + logs con pantalla y error):`
-        + `\n   make harness-posthog UREQ=${runUReq} DESDE=${new Date(T0.getTime() - 60_000).toISOString()}`);
+        + `\n   make harness-posthog UREQ=${runUReq} SINCE=${new Date(T0.getTime() - 60_000).toISOString()}`);
 } else {
     console.log('\nPostHog: el canal no creó una solicitud nueva en esta sucursal, así que no hay por dónde preguntar.');
 }
@@ -286,7 +287,7 @@ await browser.close();
 // SE DEJA EL MOCK COMO ESTABA. Un mock con estado pegado es un falso negativo esperando.
 //
 // ⚠ Antes acá había una lista a mano —`producto`, `errorCode`, `errorEn`— y se quedó vieja: no incluía
-// `hasQuota`, así que una corrida con `--escenario '{"hasQuota":false}'` dejaba al mock SIN CUPO y la
+// `hasQuota`, así que una corrida con `--scenario '{"hasQuota":false}'` dejaba al mock SIN CUPO y la
 // siguiente moría en `no-preapproved` a los 3 pasos. Medido el 2026-09-17, y se lee como «BNPL perdió el
 // cupo», que manda a depurar el producto en vez del harness.
 //

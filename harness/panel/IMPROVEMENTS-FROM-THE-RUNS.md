@@ -151,7 +151,7 @@ la única forma de notar a ojo un bug de plantilla (F-150), justo lo que ninguna
 ## Lo que NO se propone, a propósito
 
 - **Aserciones o veredictos de negocio en el panel** («esperaba radicación», «no debía listar») — eso
-  es `harness-caso`/`harness-suite`, y la regla existe justamente para que el panel no se convierta en
+  es `harness-case`/`harness-suite`, y la regla existe justamente para que el panel no se convierta en
   un segundo runner. Ya se intentó meter el modo rápido acá y se revirtió.
 - **Corridas en paralelo desde el panel.** El paralelismo es para barrer; el panel es para MIRAR una
   corrida. Además el paralelo destapa F-166 (deadlock rt=4) y la lentitud de dompdf bajo concurrencia —

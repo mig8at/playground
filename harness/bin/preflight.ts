@@ -90,7 +90,7 @@ const informative = [
     { clave: 'front (E2E_BASE_URL)', valor: env('E2E_BASE_URL', 'http://localhost:5174') + (TARGET !== 'local' && isLocal(env('E2E_BASE_URL', 'http://localhost:5174')) ? '  (wizard local contra backend remoto: es lo esperado)' : '') },
     { clave: 'pre-aprobaciones', valor: env('E2E_REAL_PREAPPROVALS', '0') === '1' ? 'MS REAL' : 'mock local :8095' },
     { clave: 'cuenta Cognito', valor: env('E2E_COGNITO_USER') || '(de .cognito.json)' },
-    { clave: 'sub del asesor', valor: env('E2E_ASESOR_SUB') || '(de .flows.json)' },
+    { clave: 'sub del asesor', valor: env('E2E_ADVISOR_SUB') || '(de .flows.json)' },
     { clave: 'APP_KEY', valor: env('APP_KEY') ? 'presente' : '⚠ AUSENTE (la inyección de buró escribiría un blob ilegible)' },
     { clave: 'escrituras', valor: TARGET === 'local' ? 'base local, sin riesgo' : 'DATA COMPARTIDA con el equipo' },
     { clave: 'forense Loki', valor: lokiStatus() },

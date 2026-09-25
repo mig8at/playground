@@ -1,7 +1,7 @@
 // ecommerce.ts — EL CANAL ECOMMERCE de punta a punta, declarado en JSON y sin navegador.
 //
 //   node dev/ecommerce.ts --suite suites/ecommerce.json
-//   node dev/ecommerce.ts --comercio amoblar            (un caso suelto, sin suite)
+//   node dev/ecommerce.ts --merchant amoblar            (un caso suelto, sin suite)
 //
 // LA PREGUNTA QUE CONTESTA, y que ninguna otra herramienta del harness contesta hoy: cuando una
 // solicitud entra DESDE UNA TIENDA, ¿el contrato del carrito se decodifica, el comercio queda
@@ -25,6 +25,7 @@
 //   · celular, documento y correo ÚNICOS por corrida: son UNIQUE en `users` y reusarlos hace fallar
 //     el registro con un 4xx que parece del producto.
 
+import '../pkg/cli-aliases.ts';   // los flags viejos (en español) siguen andando: ver ese archivo
 import { readFileSync } from 'node:fs';
 
 process.env.E2E_TARGET ||= 'local';
@@ -273,7 +274,7 @@ if (suitePath) {
     suite = JSON.parse(readFileSync(new URL(`../${suitePath}`, import.meta.url), 'utf8'));
     if (suite.nombre) console.log(`  ${suite.nombre}`);
 } else {
-    suite = { casos: [{ comercio: arg('comercio', 'amoblar'), espera: { prefill: MERCHANT_FIELDS, vinculada: true, entidadesMin: 1 } }] };
+    suite = { casos: [{ comercio: arg('merchant', 'amoblar'), espera: { prefill: MERCHANT_FIELDS, vinculada: true, entidadesMin: 1 } }] };
 }
 
 const base = suite.porDefecto ?? {};

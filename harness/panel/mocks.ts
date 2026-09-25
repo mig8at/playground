@@ -39,7 +39,7 @@ export const MOCKS: MockDef[] = [
     { id: 'abaco', label: 'ábaco', port: 8102, portEnv: 'MOCK_ABACO_PORT', needs: 'motai' },
     { id: 'corbeta', label: 'corbeta/fondos', port: 8103, portEnv: 'MOCK_CORBETA_PORT', needs: 'qr' },
     { id: 'bancolombia', label: 'bancolombia', port: 8104, portEnv: 'MOCK_BC_PORT', needs: 'qr' },
-    { id: 'centrales', label: 'centrales', port: 8105, portEnv: 'MOCK_CENTRALES_PORT', needs: 'todos' },
+    { id: 'bureaus', label: 'centrales', port: 8105, portEnv: 'MOCK_BUREAUS_PORT', needs: 'todos' },
     { id: 'deceval', label: 'deceval/pagaré', port: 8106, portEnv: 'MOCK_DECEVAL_PORT', needs: 'rt4' },
     { id: 'netco', label: 'netco/firma', port: 8107, portEnv: 'MOCK_NETCO_PORT', needs: 'rt4' },
     { id: 'credifamilia', label: 'credifamilia/radicación', port: 8108, portEnv: 'MOCK_CREDIFAMILIA_PORT', needs: 'rt4' },

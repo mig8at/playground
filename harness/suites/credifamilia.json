@@ -1,10 +1,7 @@
 {
   "nombre": "Credifamilia (rt=4) · el ciclo COMPLETO — autorización, pagaré, firma y radicación (F-163, F-164, F-165)",
   "nota": "⚠ Corré esta suite EN SERIE. Con PAR=1 cierra 1 de 3 y los otros dos mueren con «There is no active transaction»: no es un fallo de la suite, es F-166 — la firma corre dentro de una transacción abierta y dos autorizaciones simultáneas se traban en un deadlock. Sirve como reproductor de ese defecto, no como regresión.",
-  "requiere": [
-    "cerrar",
-    "lambda"
-  ],
+  "requiere": ["close", "lambda"],
   "porDefecto": {
     "comercio": "#82e8961e",
     "lender": 24,

@@ -16,14 +16,14 @@ import { chooseEntity } from '../pkg/wizard-browser';
  *   E2E_TARGET=<target> npx playwright test dev/warm-session.spec.ts --headed --project=chromium
  *
  * Correr:
- *   E2E_TARGET=qa E2E_UREQ=502397 E2E_ASESOR_HASH=ec977139 E2E_LENDER_NOMBRE=CrediPullman \
+ *   E2E_TARGET=qa E2E_UREQ=502397 E2E_ADVISOR_HASH=ec977139 E2E_LENDER_NAME=CrediPullman \
  *     npx playwright test dev/advisor-target.spec.ts --project=chromium
  */
 const UREQ = process.env.E2E_UREQ ?? '';
-const HASH = process.env.E2E_ASESOR_HASH ?? config.partnerHash;
-const NAME = process.env.E2E_LENDER_NOMBRE ?? '';
+const HASH = process.env.E2E_ADVISOR_HASH ?? config.partnerHash;
+const NAME = process.env.E2E_LENDER_NAME ?? '';
 
-test.skip(!UREQ || !NAME, 'asesor-destino: pide E2E_UREQ y E2E_LENDER_NOMBRE');
+test.skip(!UREQ || !NAME, 'asesor-destino: pide E2E_UREQ y E2E_LENDER_NAME');
 
 test('asesor · a dónde manda el front al elegir la entidad', async ({ browser }) => {
       test.setTimeout(120_000);

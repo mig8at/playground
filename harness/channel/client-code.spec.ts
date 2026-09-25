@@ -5,19 +5,19 @@ import { IPHONE_UA, openA } from '../pkg/windows';
 
 /**
  * Código de preaprobado de la app — entrada de asesor que reemplaza el tramo equivalente de
- * legacy-application. El código se siembra antes con `make harness-codigo`; el mock de códigos
+ * legacy-application. El código se siembra antes con `make harness-code`; el mock de códigos
  * corre en otro proceso para que esta prueba ejercite exactamente el contrato HTTP del backend.
  *
  * Ejemplo (local):
  *   make harness-codes
- *   make harness-codigo COMERCIO=pullman CODIGO=0101
- *   make harness-codigo-prueba HASH=13874eb6 CODIGO=0101 LENDER='Sistecrédito'
+ *   make harness-code MERCHANT=pullman CODE=0101
+ *   make harness-code-redeem HASH=13874eb6 CODE=0101 LENDER='Sistecrédito'
  */
 const HASH = process.env.E2E_CLIENT_CODE_HASH ?? '';
 const CODE = process.env.E2E_CLIENT_CODE ?? '';
 const LENDER = process.env.E2E_CLIENT_CODE_LENDER ?? '';
 
-test.skip(!HASH || !CODE || !LENDER, 'client-code: pide HASH, CODIGO y LENDER (ver make harness-codigo-prueba)');
+test.skip(!HASH || !CODE || !LENDER, 'client-code: pide HASH, CODIGO y LENDER (ver make harness-code-redeem)');
 
 test('asesor · redime código de app y muestra sólo su entidad', async ({ browser }) => {
     test.setTimeout(120_000);

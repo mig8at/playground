@@ -179,8 +179,8 @@ bloque más o como un pendiente.
 
 Se escribe en un Markdown —`# título` en la primera línea y la descripción debajo— y se agrega con
 `make tarea-bloque N=<id|slug> ARCHIVO=<bloque.md>` (`SECO=1` previsualiza sin escribir; `ARCHIVO=-` lo
-lee de stdin). **Las herramientas de evidencia lo hacen solas con `BLOQUE=<id|slug>`**: `harness-caso` ·
-`-listado` · `-caminar` · `-suite`, `trazador-ureq` · `-buscar` · `-sql` y `tablero-db`, cada una con su
+lee de stdin). **Las herramientas de evidencia lo hacen solas con `BLOQUE=<id|slug>`**: `harness-case` ·
+`-listing` · `-walk-wizard` · `-suite`, `trazador-ureq` · `-buscar` · `-sql` y `tablero-db`, cada una con su
 `via`. El ejemplo
 validable es `docs/task-context-block.example.md`; el contrato de la línea guardada,
 `docs/task-context.schema.json`. Se lee con `make tarea-context N=<id|slug>` o `make retomar`.
@@ -419,7 +419,7 @@ es prosa.
 **Lo que más rinde para cerrar ese hueco es que la herramienta emita la medición**, en vez de que
 alguien la escriba: donde hay que escribirla a mano sale prosa, y donde la emite la herramienta sale el
 comando. **Desde el 2026-09-23 la agregan solas a la pila, con `BLOQUE=<id|slug>`**: el trazador para el
-recorrido de una solicitud, `tablero-db` para SQL y el arnés (`harness-caso` · `-listado` · `-caminar` ·
+recorrido de una solicitud, `tablero-db` para SQL y el arnés (`harness-case` · `-listing` · `-walk-wizard` ·
 `-suite`), que era el hueco más grande —aparece en **33 de 68** tareas, el doble que el trazador—. El
 bloque lleva `via` con el nombre de la herramienta, el título con el resumen de la corrida y el comando
 exacto en su caja con lo que dio; entra por `make tarea-bloque`, así que pasa por el mismo validador que

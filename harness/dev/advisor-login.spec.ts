@@ -20,7 +20,7 @@ import { openA } from '../pkg/windows';
  * Artefactos (gitignored): .auth/asesor-dev-state.json (storageState reusable) + screenshot.
  */
 
-const HASH = process.env.E2E_ASESOR_HASH ?? config.partnerHash;
+const HASH = process.env.E2E_ADVISOR_HASH ?? config.partnerHash;
 const ENTRY = `/merchant/${HASH}/solicitar`;
 
 test.skip(!cognitoCreds.user || !cognitoCreds.pass, 'asesor login: requiere .cognito.json {user,pass}');

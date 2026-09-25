@@ -1,7 +1,7 @@
 // listing.ts — DE UN COMERCIO AL LISTADO DE ENTIDADES, por API y sin navegador.
 //
 //   node dev/listing.ts [--branch e9409aff] [--amount 2000000] [--income 2500000] [--score 700] [--v2]
-//   node dev/listing.ts --comercio pullman
+//   node dev/listing.ts --merchant pullman
 //
 // LA PREGUNTA QUE CONTESTA, y que ninguna otra herramienta contesta hoy: de las entidades que un
 // comercio TIENE CABLEADAS, ¿cuáles le aparecen de verdad a un cliente — y **por qué no** las otras?
@@ -24,6 +24,7 @@
 //   · en `main`, sin `H2O_API_HOST` el listado da 500 — en el `.env` local apunta a un puerto cerrado
 //     a propósito, que es lo que lo mantiene andando.
 
+import '../pkg/cli-aliases.ts';   // los flags viejos (en español) siguen andando: ver ese archivo
 import { spawnSync } from 'node:child_process';
 
 process.env.E2E_TARGET ||= 'local';
@@ -56,8 +57,8 @@ const API = e2eConfig.mockUrl;
 let PHONE = String(3_130_000_000 + ((Date.now() + Math.floor(Math.random() * 1_000_000)) % 9_000_000));
 const UA = 'Mozilla/5.0 (iPhone; CPU iPhone OS 16_5 like Mac OS X) AppleWebKit/605.1.15 '
     + '(KHTML, like Gecko) Version/16.5 Mobile/15E148 Safari/604.1';
-// El sub del asesor por la MISMA cadena que el resto del harness (`E2E_ASESOR_SUB` de
-// `.env.<target>` y, si no, `.flows.json`). ⚠ Antes era `process.env.E2E_ASESOR_SUB`, y eso NO ve el
+// El sub del asesor por la MISMA cadena que el resto del harness (`E2E_ADVISOR_SUB` de
+// `.env.<target>` y, si no, `.flows.json`). ⚠ Antes era `process.env.E2E_ADVISOR_SUB`, y eso NO ve el
 // `.env`: la clave sólo existe en `.env.qa` y `.env.staging`, así que contra esos targets este runner
 // mandaba el asesor del catálogo LOCAL —o ninguno— con el aplomo de haberlo leído. Import dinámico
 // porque este archivo fuerza `E2E_TARGET` arriba y un import estático corre antes (F-187).
@@ -96,7 +97,7 @@ async function main(): Promise<number> {
 
     // ── 0 · la sucursal ────────────────────────────────────────────────────────────────────────
     let hash = arg('branch');
-    const merchant = arg('comercio');
+    const merchant = arg('merchant');
     if (!hash) {
         // Se elige la sucursal con MÁS entidades cableadas: una sucursal con 1 sola no prueba una
         // cascada, y elegir «la primera» daría corridas que pasan sin haber ejercitado nada.
@@ -236,9 +237,9 @@ async function main(): Promise<number> {
         ];
         emit(
             `${wentOut.size} de ${universe.length} entidades cableadas salieron en el listado de `
-            + `${arg('comercio', 'pullman')} en \`${target}\` (uReq ${ur}).`,
-            cmdMake('harness-listado', target, {
-                COMERCIO: arg('comercio'), MONTO: arg('amount'), BRANCH: arg('branch'),
+            + `${arg('merchant', 'pullman')} en \`${target}\` (uReq ${ur}).`,
+            cmdMake('harness-listing', target, {
+                MERCHANT: arg('merchant'), AMOUNT: arg('amount'), BRANCH: arg('branch'),
             }), evidence);
     }
     return 0;

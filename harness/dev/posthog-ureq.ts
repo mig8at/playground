@@ -1,16 +1,17 @@
 // posthog-ureq.ts — ¿qué VIO el cliente en ESTA solicitud, según PostHog? La tercera fuente, a mano.
 //
 //   E2E_TARGET=qa node dev/posthog-ureq.ts 502060                      # desde hace 6 h
-//   E2E_TARGET=qa node dev/posthog-ureq.ts 502060 --desde 2026-09-03T01:40:00Z
-//   E2E_TARGET=qa node dev/posthog-ureq.ts 502060 --pantallas otp,personal-info,lenders,confirmation
+//   E2E_TARGET=qa node dev/posthog-ureq.ts 502060 --since 2026-09-03T01:40:00Z
+//   E2E_TARGET=qa node dev/posthog-ureq.ts 502060 --screens otp,personal-info,lenders,confirmation
 //
 // POR QUÉ EXISTE APARTE DEL CAMINADOR. La ingesta de PostHog tarda MINUTOS (medido 2026-09-02: dos
 // minutos después de cerrar faltaban los eventos de la firma), y esperarla dentro de cada corrida la
 // alarga sin necesidad. El caminador espera un rato acotado y, si no llegó todo, lo dice y manda acá:
 // se vuelve a mirar después, con la misma consulta y el mismo cruce.
 //
-// ⚠ `--desde` importa por la trampa de la cabecera de `pkg/posthog.ts`: prod y dev comparten ids, así que
-// sin hora una solicitud homónima de prod contamina la respuesta. Sin `--desde` se toman 6 horas.
+// ⚠ `--since` importa por la trampa de la cabecera de `pkg/posthog.ts`: prod y dev comparten ids, así que
+// sin hora una solicitud homónima de prod contamina la respuesta. Sin `--since` se toman 6 horas.
+import '../pkg/cli-aliases.ts';   // los flags viejos (en español) siguen andando: ver ese archivo
 process.env.E2E_TARGET ||= 'dev';
 export {};
 const { posthogConfig, whyNot, eventsOf, printEvents, cross, printCrossing, FRONT_BRANCH,
@@ -22,13 +23,13 @@ const arg = (n: string, d = ''): string => {
     return i > 0 && process.argv[i + 1] && !process.argv[i + 1].startsWith('--') ? process.argv[i + 1] : d;
 };
 const ureq = process.argv.slice(2).find((a) => /^\d+$/.test(a));
-if (!ureq) { console.error('uso: node dev/posthog-ureq.ts <ureq> [--desde ISO] [--pantallas a,b,c]'); process.exit(2); }
+if (!ureq) { console.error('uso: node dev/posthog-ureq.ts <ureq> [--since ISO] [--screens a,b,c]'); process.exit(2); }
 
 const c = posthogConfig();
 const no = whyNot(c);
 if (no) { console.log(`  PostHog: no se consulta — ${no}`); process.exit(2); }
 
-const since = arg('desde') ? new Date(arg('desde')) : new Date(Date.now() - 6 * 3600_000);
+const since = arg('since') ? new Date(arg('since')) : new Date(Date.now() - 6 * 3600_000);
 console.log(`\n  POSTHOG · uReq ${ureq} · target ${TARGET} · environment=${c.env} · desde ${since.toISOString()}\n`);
 const ev = await eventsOf(c, ureq, since);
 const srv = ev.filter((e) => /posthog-node/.test(e.lib)).length;
@@ -36,7 +37,7 @@ console.log(`  ▸ ── EVENTOS · ${ev.length} · ${srv} del servidor · ${ev
 if (ev.length) printEvents(ev);
 else console.log('  ▸ ninguno: o la ingesta sigue atrasada, o esta solicitud no pasó por el front en este ambiente/ventana.');
 
-const screens = arg('pantallas').split(',').map((s) => s.trim()).filter(Boolean);
+const screens = arg('screens').split(',').map((s) => s.trim()).filter(Boolean);
 if (screens.length && ev.length) {
     console.log(`\n  ▸ ── el cruce con ${screens.length} pantalla(s) (eventos esperados: derivados de ${FRONT_BRANCH[TARGET] ?? 'main'}) ──`);
     printCrossing(cross(screens.map((p) => `/x/y/0/${p}`), ev));

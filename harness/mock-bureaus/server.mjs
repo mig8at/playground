@@ -22,12 +22,12 @@
 //   POST /mareigua/consultas
 //   POST /experian/cs/credit-history/v1/hdcplus[/quanto|/acierta-quanto]
 //
-// Uso:  node mock-centrales/server.mjs      env: MOCK_CENTRALES_PORT (8105 — 8095/8097-8104 ya los usan los otros mocks del harness)
+// Uso:  node mock-bureaus/server.mjs      env: MOCK_BUREAUS_PORT (o el viejo MOCK_CENTRALES_PORT) (8105 — 8095/8097-8104 ya los usan los otros mocks del harness)
 
 import http from 'node:http';
 import { readFileSync } from 'node:fs';
 
-const PORT = Number(process.env.MOCK_CENTRALES_PORT || 8105);
+const PORT = Number(process.env.MOCK_BUREAUS_PORT || process.env.MOCK_CENTRALES_PORT || 8105);
 const log = (...a) => console.log(new Date().toISOString(), ...a);
 const json = (res, code, body) => {
     res.writeHead(code, { 'content-type': 'application/json' });
@@ -216,7 +216,7 @@ const server = http.createServer((req, res) => {
     req.on('data', (c) => (body += c));
     req.on('end', () => {
         if (req.method === 'GET' && url.pathname === '/') {
-            return json(res, 200, { mock: 'centrales', port: PORT, dictados: dictated.size });
+            return json(res, 200, { mock: 'bureaus', port: PORT, dictados: dictated.size });
         }
         if (url.pathname === '/mockoon-admin/global-vars') {
             if (req.method === 'GET') return json(res, 200, Object.fromEntries(dictated));
@@ -244,7 +244,7 @@ const server = http.createServer((req, res) => {
             // Misma filosofía que `mock-lenders`: lo no mapeado es RUIDOSO, para que el próximo muro
             // se documente solo en vez de aparecer como un error opaco.
             log(`⚠ RUTA NO MAPEADA ← ${req.method} ${url.pathname}${body ? ' body=' + body.slice(0, 200) : ''}`);
-            return json(res, 404, { error: 'ruta no mapeada en mock-centrales', path: url.pathname });
+            return json(res, 404, { error: 'ruta no mapeada en mock-bureaus', path: url.pathname });
         }
         const doc = idNumberOf(url, body);
         const key = `${hit.central}_${doc}`;
@@ -260,4 +260,4 @@ const server = http.createServer((req, res) => {
     });
 });
 
-server.listen(PORT, () => log(`mock-centrales escuchando en :${PORT}`));
+server.listen(PORT, () => log(`mock-bureaus escuchando en :${PORT}`));

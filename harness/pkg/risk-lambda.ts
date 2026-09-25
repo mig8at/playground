@@ -138,7 +138,7 @@ export interface BureauProfile {
 /**
  * Le dicta a Experian un perfil de buró PARA ESA CÉDULA: score, consultas de seis meses y tarjetas.
  *
- * ⚠ Sólo lo entiende el mock LOCAL (`mock-centrales/server.mjs`, clave `experian_profile_<cédula>`): el
+ * ⚠ Sólo lo entiende el mock LOCAL (`mock-bureaus/server.mjs`, clave `experian_profile_<cédula>`): el
  * lambda de la empresa no tiene esa clave y contestaría su reporte de siempre. Su reporte fijo trae score
  * 654, 59 consultas y ninguna tarjeta, que es un cliente que no entra en la categoría de mejores
  * condiciones de ninguna entidad que las pida.

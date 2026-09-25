@@ -32,10 +32,10 @@ herramienta: es suponer que no está y contestar de memoria.
 | **leí un error, ¿de qué archivo salió?** | `trazador/logs.json` — el índice va del mensaje al archivo y su línea (`make trazador-indexar-logs` lo reconstruye desde los repos). Para una corrida entera, el trazador ya lo resuelve: la sección «archivos» de `make trazador-ureq` |
 | **¿qué VIO el cliente en pantalla?** | `make trazador-posthog UREQ=… TEL=…` — ⚠ **sin `TEL` ves la mitad**: la fase de AUTH ocurre antes de que exista la solicitud, así que PostHog la identifica por teléfono (medido: 47.792 eventos por teléfono contra 24.006 por solicitud) |
 | **Miguel pegó una URL de una pantalla o de una capa** (del visor, de Figma o de una tarea) · **¿cómo es el diseño?** · **pasar una pantalla a código** | **`make visor-url U='<lo que pegó>'`** — ⚠ **lo que pega Miguel es el ANCLA: no salgas a buscar pantallas.** Dice qué es, a qué tarea del tablero está asociada, si cambió desde que se enlazó, y trae lo que hace falta: con una capa, su HTML exacto y los recortes de Figma y del HTML en esa zona; con una pantalla, el paquete (textos, destinos, imágenes, componentes, tokens, HTML). Las piezas sueltas —`visor-recursos` (imágenes originales), `visor-fidelidad`, `visor-tokens`, `visor-componentes`— y `visor-buscar` (sólo si nadie pegó nada). `make visor` es la interfaz, para mirar |
-| **¿qué entidades le salen a ESTE comercio, y por qué no las otras?** | `make harness-listado COMERCIO=…` — **3 s**, por API y sin browser. Canon (`listado`) explica la CASCADA; esto contesta el CASO |
-| **¿qué pasa si el cliente es así?** (ingreso, score, ocupación, plazo, entidad) | `make harness-caso CASOS='…'` — el flujo entero por API, en paralelo. `CERRAR=1` llega hasta el desenlace |
+| **¿qué entidades le salen a ESTE comercio, y por qué no las otras?** | `make harness-listing MERCHANT=…` — **3 s**, por API y sin browser. Canon (`listado`) explica la CASCADA; esto contesta el CASO |
+| **¿qué pasa si el cliente es así?** (ingreso, score, ocupación, plazo, entidad) | `make harness-case CASES='…'` — el flujo entero por API, en paralelo. `CLOSE=1` llega hasta el desenlace |
 | **¿esta regla de verdad excluye, o sólo reordena?** | corré el caso con y sin el dato. Una regla que «debería» excluir y no excluye es el error más caro del dominio (F-162) |
-| **¿funciona, corriéndolo?** | `harness` (`make panel`) es el camino VISUAL, de Miguel. **El tuyo es por consola, y son tres**: `harness-caso` (el backend directo, segundos) · `harness-caminar` (el wizard por HTTP, ~20 s) · `harness-caminar MOTOR=navegador` (el wizard en Chromium sin ventana, ~3 min, corre el JS de la página). Todos en paralelo. Cuál elegir: `harness/CLAUDE.md` §«Cuatro formas de correr un flujo». El canal de asesor pide sesión: `make harness-sesion` la revisa y `make harness-login` la saca por consola |
+| **¿funciona, corriéndolo?** | `harness` (`make panel`) es el camino VISUAL, de Miguel. **El tuyo es por consola, y son tres**: `harness-case` (el backend directo, segundos) · `harness-walk-wizard` (el wizard por HTTP, ~20 s) · `harness-walk-wizard ENGINE=browser` (el wizard en Chromium sin ventana, ~3 min, corre el JS de la página). Todos en paralelo. Cuál elegir: `harness/CLAUDE.md` §«Cuatro formas de correr un flujo». El canal de asesor pide sesión: `make harness-session` la revisa y `make harness-login` la saca por consola |
 | **¿en qué anda el equipo?** | Slack (MCP) · `make cuadrilla` · `make tablero` |
 | **buscar, crear o borrar en Jira · mandar a Slack** | `bin/pg jira …` · `bin/pg slack …` — leer es libre; lo que escribe **sin `--apply` sólo muestra** y el texto pasa por el guard. Registrado como MCP (`bin/pg mcp`), llegan como herramientas `jira_*` / `slack_*` junto con `sql`, `logs`, `confluence_*`… |
 
@@ -60,7 +60,7 @@ algo que debería existir, no concluyas: andá al código de `main`, que es lo q
 Regla de oro: **una afirmación verificable se verifica antes de escribirla**, y la herramienta que la
 verifica casi siempre existe ya. Y cuando la verificás, **la medición no se escribe a mano**: con
 `BLOQUE=<tarea>` el trazador (`trazador-ureq` · `trazador-buscar` · `trazador-sql`), el harness
-(`harness-caso` · `-listado` · `-caminar` · `-suite`) y `tablero-db` la agregan solos a la pila de la tarea,
+(`harness-case` · `-listing` · `-walk-wizard` · `-suite`) y `tablero-db` la agregan solos a la pila de la tarea,
 con el comando exacto y lo que dio —que es lo que hace que la medición se pueda desmentir mañana—. (`MD=1`
 sigue dando la anotación para pegar en un documento que no es una tarea: un `CLAUDE.md`, una trampa.) Y la salida de un agente **también se verifica** —contra `main`, con
 `git show main:<ruta>`, nunca contra el working tree: los repos viven en ramas.
@@ -636,7 +636,7 @@ tablero, donde una nota sobre algo sin mergear es legítima y hay que revisarla 
   mantiene es **por repo**, porque un PR no puede cruzarlos.
 - ⛔ **La descripción de un PR NO nombra las herramientas internas.** Nada de `harness`, `trazador`,
   `tablero`, `connectors`, `playground` ni sus comandos `make`: el PR lo leen personas que no
-  tienen ese repo y para quienes «corrí `make harness-caminar`» no es evidencia, es ruido. Lo que va en
+  tienen ese repo y para quienes «corrí `make harness-walk-wizard`» no es evidencia, es ruido. Lo que va en
   el PR es **qué se midió y qué dio** —el ambiente, el caso, los números, el antes y el después— y las
   rutas del repo que se está tocando. El comando que lo reproduce va en el archivo de la tarea, que es
   privado y donde sí se puede nombrar todo. Misma regla que la bitácora, que sube a Jira y tiene su

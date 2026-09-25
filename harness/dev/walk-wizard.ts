@@ -1,8 +1,8 @@
 // walk-wizard.ts — el WIZARD de punta a punta POR HTTP: pasa por todas las pantallas, sin navegador.
 //
-//   node dev/walk-wizard.ts --casos '#e9409aff:77' --cerrar --manual
-//   node dev/walk-wizard.ts --casos 'pullman:77;pullman:77;pullman:77' --paralelo --cerrar --manual
-//   node dev/walk-wizard.ts --comercio pullman --lender 77 --amount 2000000 --income 2500000 --score 700
+//   node dev/walk-wizard.ts --cases '#e9409aff:77' --close --manual
+//   node dev/walk-wizard.ts --cases 'pullman:77;pullman:77;pullman:77' --parallel --close --manual
+//   node dev/walk-wizard.ts --merchant pullman --lender 77 --amount 2000000 --income 2500000 --score 700
 //
 // ES EL TERCER CAMINO, y contesta otra pregunta que los dos que ya había:
 //   · `dev/case.ts`     → pega contra el BACKEND: dice si el backend decide bien. No ve el front.
@@ -45,8 +45,9 @@
 // Si cerró bien no se consulta nada, la misma regla que el forense de Loki. `FORENSE=1` lo fuerza.
 //
 // SALIDA: por caso, la lista de pantallas «NN /ruta │ BD estado», como el panel, y al final si cerró.
-// Sin `--cerrar` se detiene al LISTAR (rápido, para barrer comercios); con `--cerrar` sigue hasta
+// Sin `--close` se detiene al LISTAR (rápido, para barrer comercios); con `--close` sigue hasta
 // `loan-approved` y comprueba el estado 11 en la BD.
+import '../pkg/cli-aliases.ts';   // los flags viejos (en español) siguen andando: ver ese archivo
 process.env.E2E_TARGET ||= 'local';
 export {};
 
@@ -97,13 +98,15 @@ const AMOUNT = Number(arg('amount', '2000000'));
  * ⚠ SIN BANDERA EL CAMINADOR SE DETIENE, y es a propósito. Adivinar acá no es avanzar: es tomar por su
  * cuenta la decisión que la pantalla existe para pedirle a una persona, y cada rama deja la solicitud en
  * un estado distinto (aprobar sigue el flujo; rechazar la deja NEGADA). El runner por HTTP usa el mismo
- * criterio con `--niega`.
+ * criterio con `--deny`.
  *
  * ⚠ Y «rechazado» fuera de LOCAL deja basura en una base COMPARTIDA: por eso se exige nombrarlo.
  */
 const GATE = arg('gate').trim().toLowerCase();
-if (GATE && !['aprobado', 'rechazado'].includes(GATE)) {
-    console.log(`\n  ✗ --gate sólo acepta «aprobado» o «rechazado» (vino «${GATE}»)\n`);
+/** El texto del botón que se aprieta: la pantalla está en español aunque el flag no. */
+const GATE_BUTTON: Record<string, string> = { approved: 'aprobado', rejected: 'rechazado' };
+if (GATE && !GATE_BUTTON[GATE]) {
+    console.log(`\n  ✗ --gate sólo acepta «approved» o «rejected» (vino «${GATE}»)\n`);
     process.exit(2);
 }
 const INCOME = Number(arg('income', '2500000'));
@@ -117,9 +120,9 @@ const SCORE = Number(arg('score', '700'));
  * cerraban con un solo pago, que es el caso que menos ejercita: sin amortización entre períodos, sin
  * seguro por cuota, sin los factores de ajuste de capital. Cerraban en verde sin probar el plazo.
  *
- * Sin `--cuotas`, ahora se toma el MÁS LARGO que la entidad ofrezca: es el que más maquinaria mueve.
+ * Sin `--installments`, ahora se toma el MÁS LARGO que la entidad ofrezca: es el que más maquinaria mueve.
  */
-const INSTALLMENTS = arg('cuotas') ? Number(arg('cuotas')) : null;
+const INSTALLMENTS = arg('installments') ? Number(arg('installments')) : null;
 /** La CUOTA INICIAL que el asesor carga en el listado. Va en 0 por defecto porque es lo que hace
  *  el grueso de las corridas, pero **tiene que poder no serlo**: con `initial_fee > 0` el action de
  *  `available-lenders` toma una rama entera que con 0 no se ejecuta nunca —el cobro por pasarela—,
@@ -127,25 +130,26 @@ const INSTALLMENTS = arg('cuotas') ? Number(arg('cuotas')) : null;
  *  esto estuvo quemado en 0, este caminador **no podía ver ese bug**, y por eso la validación previa
  *  al merge dio verde en el canal del asesor. El campo sólo se ofrece cuando el comercio tiene
  *  `allieds.initial_fee = 1`. */
-const DOWN_PAYMENT = Number(arg('cuota-inicial', '0'));
+const DOWN_PAYMENT = Number(arg('down-payment', '0'));
 const MAX_STEPS = 40;
 /** ⚠ TOPE DE TIEMPO POR CASO, y no es un lujo: el 2026-09-03 una corrida del motor de navegador contra el
  *  canal de asesor giró **18 minutos sin imprimir una línea**. Cada vuelta del bucle puede esperar
  *  `networkidle` (20 s) más el cambio de URL (25 s) más los reintentos del click, así que 40 vueltas sin
  *  progreso son media hora de silencio — y en paralelo, media hora por caso. Un runner que no puede
  *  terminar es peor que uno que falla. */
-const LIMIT_MS = Number(arg('tope', '480')) * 1000;   // 8 min: un caso entero por navegador y con PDF por plantillas ronda los 4
+const LIMIT_MS = Number(arg('timeout', '480')) * 1000;   // 8 min: un caso entero por navegador y con PDF por plantillas ronda los 4
 /** Vueltas seguidas sin que cambie la pantalla antes de darla por trabada. Varias pantallas tienen pasos
  *  internos con la MISMA URL (`personal-info` son dos), así que no alcanza con «la URL no cambió». */
 const MAX_WITHOUT_PROGRESS = 4;
 /** `http` (default) habla el protocolo del front; `navegador` abre Chromium sin ventana y clickea.
  *  Mismo caso, misma siembra, misma traza, mismo forense: lo único distinto es cómo se opera la pantalla. */
-const ENGINE = arg('motor', 'http') === 'navegador' ? 'navegador' : 'http';
+// `browser` y no `navegador`: el valor viejo lo traduce `cli-aliases.ts` antes de llegar acá.
+const ENGINE = arg('engine', 'http') === 'browser' ? 'browser' : 'http';
 
 type Case = { ref: string; lender: number | null };
 function parseCases(): Case[] {
-    const raws = arg('casos') ? arg('casos').split(';').map((s) => s.trim()).filter(Boolean)
-        : [`${arg('comercio', 'pullman')}${arg('lender') ? `:${arg('lender')}` : ''}`];
+    const raws = arg('cases') ? arg('cases').split(';').map((s) => s.trim()).filter(Boolean)
+        : [`${arg('merchant', 'pullman')}${arg('lender') ? `:${arg('lender')}` : ''}`];
     return raws.map((c) => {
         const [ref, lender] = c.split(':');
         return { ref, lender: lender ? Number(lender) : null };
@@ -228,7 +232,7 @@ async function employmentFor(doc: string, log: (s: string) => void): Promise<voi
         log(`--lambda ignorado: contra ${TARGET} el backend no le pregunta al mock local (${RISK_LAMBDA}); pasá RISK_LAMBDA_URL`);
         return;
     }
-    const occupation = arg('ocupacion', 'Empleado');
+    const occupation = arg('occupation', 'Empleado');
     const ok = await dictateEmployment(doc, INCOME, occupation);
     log(ok
         ? `empleo dictado al mock de centrales para ${doc}: ${occupation} · ${INCOME}`
@@ -287,7 +291,7 @@ async function correr(c: Case, i: number): Promise<Result> {
         if (r.ur && walkedPaths.length && (wentWrong || process.env.FORENSE === '1')) {
             await postHogForensic(r.ur, new Date(t0), walkedPaths, (l) => lines.push(l), new Date()).catch(() => {});
         } else if (r.ur && !wentWrong) {
-            lines.push(`  ▸ PostHog: no se consulta porque el caso cerró como se pedía · si lo querés: make harness-posthog UREQ=${r.ur} DESDE=${new Date(t0 - 60_000).toISOString()}`);
+            lines.push(`  ▸ PostHog: no se consulta porque el caso cerró como se pedía · si lo querés: make harness-posthog UREQ=${r.ur} SINCE=${new Date(t0 - 60_000).toISOString()}`);
         }
         return r;
     };
@@ -480,7 +484,7 @@ async function correr(c: Case, i: number): Promise<Result> {
             }
             r.listado = options.map((l) => Number(l.id));
             log(`listado: [${r.listado.join(', ')}]${lo?.requestedAmount ? ` · monto ${lo.requestedAmount}` : ''}`);
-            if (!flag('cerrar')) return finish('listo', `listó ${options.length} entidad(es)`);
+            if (!flag('close')) return finish('listo', `listó ${options.length} entidad(es)`);
             const order = c.lender ?? Number(options.find((l) => Number(l.response_type) === 2)?.id);
             chosenLender = options.find((l) => Number(l.id) === order);
             r.enListado = !!chosenLender;
@@ -518,10 +522,10 @@ async function correr(c: Case, i: number): Promise<Result> {
             // Wompi), así que no hay botón que postear. Se hace lo que hace el cliente —intento de pago,
             // el comprador paga, se consulta el estado— contra el mock de Wompi, y después se sigue a donde
             // lleva el «Continuar» de la pantalla de resultado: la fecha de pago, que ahora sí avanza.
-            // `--pago DECLINED` prueba el rechazo; `--cuota-inicial` paga más que el mínimo.
+            // `--payment DECLINED` prueba el rechazo; `--down-payment` paga más que el mínimo.
             const paid = await payDownPayment({
                 feBase: config.feBaseUrl, loanRequestId: r.ur!,
-                amountPesos: DOWN_PAYMENT || undefined, status: arg('pago', 'APPROVED'), log,
+                amountPesos: DOWN_PAYMENT || undefined, status: arg('payment', 'APPROVED'), log,
             });
             if (!paid.ok) return finish('trabado', `down-payment: ${paid.reason}`);
             routePath = `${path.replace(/\/down-payment$/, '')}/first-payment-date`;
@@ -751,7 +755,7 @@ async function runBrowser(c: Case, i: number, browser: any): Promise<Result> {
         if (r.ur && walkedPaths.length && (wentWrong || process.env.FORENSE === '1')) {
             await postHogForensic(r.ur, new Date(t0), walkedPaths, (l) => lines.push(l), new Date()).catch(() => {});
         } else if (r.ur && !wentWrong) {
-            lines.push(`  ▸ PostHog: no se consulta porque el caso cerró como se pedía · si lo querés: make harness-posthog UREQ=${r.ur} DESDE=${new Date(t0 - 60_000).toISOString()}`);
+            lines.push(`  ▸ PostHog: no se consulta porque el caso cerró como se pedía · si lo querés: make harness-posthog UREQ=${r.ur} SINCE=${new Date(t0 - 60_000).toISOString()}`);
         }
         return r;
     };
@@ -785,7 +789,7 @@ async function runBrowser(c: Case, i: number, browser: any): Promise<Result> {
     let withoutProgress = 0;
     for (let step = 0; step < MAX_STEPS; step++) {
         if (Date.now() - t0 > LIMIT_MS) {
-            return finish('trabado', `se pasó del tope de ${Math.round(LIMIT_MS / 1000)} s en ${lastOne || 'la primera pantalla'} (subilo con --tope <segundos> si de verdad tarda tanto)`);
+            return finish('trabado', `se pasó del tope de ${Math.round(LIMIT_MS / 1000)} s en ${lastOne || 'la primera pantalla'} (subilo con --timeout <segundos> si de verdad tarda tanto)`);
         }
         // La pantalla la dice el navegador. Se espera a que la red se calme para no medir una a medio pintar.
         await page.waitForLoadState('networkidle', { timeout: 15_000 }).catch(() => {});
@@ -883,8 +887,8 @@ async function runBrowser(c: Case, i: number, browser: any): Promise<Result> {
         }
 
         if (sheet === 'lenders') {
-            if (!flag('cerrar')) return finish('listo', 'llegó al listado');
-            if (!entityName) return finish('trabado', 'con --motor navegador hay que pedir la entidad (`#hash:ID`)');
+            if (!flag('close')) return finish('listo', 'llegó al listado');
+            if (!entityName) return finish('trabado', 'con --engine navegador hay que pedir la entidad (`#hash:ID`)');
             const el = await chooseEntity(page, entityName);
             r.enListado = el.ok;
             if (!el.ok) return finish('trabado', `«${entityName}» no está en el listado · visibles: ${el.visibles.slice(0, 8).join(' · ')}`);
@@ -908,7 +912,7 @@ async function runBrowser(c: Case, i: number, browser: any): Promise<Result> {
              * Se busca por NOMBRE ACCESIBLE y sólo si el botón de verdad está: si la pantalla cambió y
              * ya no ofrece esa opción, corta como siempre en vez de clickear cualquier cosa. */
             if (GATE && !av.motivo) {
-                const decision = page.getByRole('button', { name: new RegExp(`^\\s*${GATE}\\s*$`, 'i') }).first();
+                const decision = page.getByRole('button', { name: new RegExp(`^\\s*${GATE_BUTTON[GATE]}\\s*$`, 'i') }).first();
                 if (await decision.count().catch(() => 0) && await decision.isEnabled().catch(() => false)) {
                     const failure = await decision.click({ timeout: 15_000 }).then(() => null)
                         .catch((e) => String(e?.message ?? e).replace(/\s+/g, ' ').slice(0, 200));
@@ -936,7 +940,7 @@ async function runBrowser(c: Case, i: number, browser: any): Promise<Result> {
         // avanzar»: un falso negativo sobre el paso más lento del flujo.
         //
         // Esperar mucho por click ya no puede colgar la corrida: de eso se encargan el tope global
-        // (`--tope`) y el contador de vueltas sin progreso, que son los guardas correctos.
+        // (`--timeout`) y el contador de vueltas sin progreso, que son los guardas correctos.
         //
         // ⚠ Y EN LAS PANTALLAS CON PASOS INTERNOS NO SE ESPERA LA URL, porque no cambia: `solicitar` pasa
         // del monto al teléfono y `personal-info` de los datos a la fecha de expedición en la misma
@@ -949,8 +953,8 @@ async function runBrowser(c: Case, i: number, browser: any): Promise<Result> {
 
 // ─── main ────────────────────────────────────────────────────────────────────────────────────────
 const cases = parseCases();
-console.log(`\n  CAMINAR · ${cases.length} caso(s) · motor ${ENGINE === 'navegador' ? 'NAVEGADOR (Chromium sin ventana)' : 'HTTP'} · ${flag('paralelo') ? 'en paralelo' : 'en serie'} · front ${config.feBaseUrl} · target ${TARGET}`
-    + ` · ${flag('cerrar') ? 'hasta loan-approved' : 'hasta el listado'}${flag('manual') ? ' · identidad manual' : ''}\n`);
+console.log(`\n  CAMINAR · ${cases.length} caso(s) · motor ${ENGINE === 'browser' ? 'NAVEGADOR (Chromium sin ventana)' : 'HTTP'} · ${flag('parallel') ? 'en paralelo' : 'en serie'} · front ${config.feBaseUrl} · target ${TARGET}`
+    + ` · ${flag('close') ? 'hasta loan-approved' : 'hasta el listado'}${flag('manual') ? ' · identidad manual' : ''}\n`);
 
 // Una perilla que cambia QUÉ prueba la corrida no puede estar invisible en el `.env` de otro repo.
 const notice = docGenNotice(TARGET);
@@ -980,8 +984,8 @@ if (FLOW === 'merchant') {
     // headless por fingerprint (F-66), así que el pre-login va headed. Una ventana que aparece sola y
     // sin explicación se lee como que algo se rompió.
     //
-    // `--sin-warm` lo apaga, para quien no quiera una ventana en el medio.
-    if (!session.sirve && !flag('sin-warm')) {
+    // `--no-warm` lo apaga, para quien no quiera una ventana en el medio.
+    if (!session.sirve && !flag('no-warm')) {
         console.log(`  ⟳ la sesión de asesor no sirve (${session.motivo.split(' —')[0]}).`);
         console.log('     Renovándola: se va a abrir una ventana — el login de Cognito no se puede automatizar sin ella (F-66).\n');
 
@@ -1009,12 +1013,12 @@ if (FLOW === 'merchant') {
 
 // Lo que ESTA corrida agregó al bypass, para sacar exactamente eso al terminar y no pisar a las demás.
 let bypassSet: { agregados: string[]; comodin: boolean } | null = null;
-// ⚠ NO depende de `--cerrar`, y que lo hiciera costó una tarde. El OTP está en la pantalla 3: lo
+// ⚠ NO depende de `--close`, y que lo hiciera costó una tarde. El OTP está en la pantalla 3: lo
 // cruzan TODAS las corridas, también la corta que se detiene en el listado. Con el bypass atado a
-// `--cerrar`, esa corrida moría en el OTP con «Ocurrió un error inesperado» —el mensaje genérico del
+// `--close`, esa corrida moría en el OTP con «Ocurrió un error inesperado» —el mensaje genérico del
 // front— y la causa real (el teléfono no estaba en `qa_otp_bypass_phones`, así que el proveedor
 // validaba de verdad y devolvía CODE_INVALID) sólo se veía en los logs del backend. Peor: como la
-// corrida CON `--cerrar` sí pasaba, el patrón parecía del comercio o de la entidad, y mandaba a
+// corrida CON `--close` sí pasaba, el patrón parecía del comercio o de la entidad, y mandaba a
 // buscar donde no era.
 //
 // `local` sigue afuera a propósito: ahí el driver de OTP es falso y no mira el teléfono.
@@ -1037,10 +1041,10 @@ if (TARGET !== 'local') {
 const t0 = Date.now();
 let results: Result[];
 // UN navegador para toda la tanda; un CONTEXTO por caso (el perfil aislado = «otro cliente»).
-const browser = ENGINE === 'navegador' ? await openBrowser({ headed: flag('headed') }) : null;
-const oneCase = (c: Case, i: number) => (ENGINE === 'navegador' ? runBrowser(c, i, browser) : correr(c, i));
+const browser = ENGINE === 'browser' ? await openBrowser({ headed: flag('headed') }) : null;
+const oneCase = (c: Case, i: number) => (ENGINE === 'browser' ? runBrowser(c, i, browser) : correr(c, i));
 try {
-    results = flag('paralelo')
+    results = flag('parallel')
         ? await Promise.all(cases.map((c, i) => oneCase(c, i)))
         : await (async () => { const out: Result[] = []; for (let i = 0; i < cases.length; i++) out.push(await oneCase(cases[i], i)); return out; })();
 } finally {
@@ -1065,7 +1069,7 @@ for (const r of results) {
     console.log('');
 }
 const closedOnes = results.filter((r) => r.fin === 'cerro' || r.fin === 'listo').length;
-console.log(`  ${closedOnes}/${results.length} ${flag('cerrar') ? 'cerraron' : 'listaron'} · ${((Date.now() - t0) / 1000).toFixed(1)}s`);
+console.log(`  ${closedOnes}/${results.length} ${flag('close') ? 'cerraron' : 'listaron'} · ${((Date.now() - t0) / 1000).toFixed(1)}s`);
 
 /* LO QUE LA CORRIDA LE HIZO A LA BASE, del registro directo de `pkg/db.ts`.
  *
@@ -1091,9 +1095,9 @@ if (dumpWrites(dump)) console.log(`     detalle sentencia por sentencia → ${du
  * exactamente la fricción que hace que nadie la pegue. */
 if (process.env.MD === '1' || process.env.BLOQUE) {
       const cerró = (r: Result) => r.fin === 'cerro' || r.fin === 'listo';
-      const summary = `${closedOnes}/${results.length} ${flag('cerrar') ? 'cerraron' : 'listaron'}`
+      const summary = `${closedOnes}/${results.length} ${flag('close') ? 'cerraron' : 'listaron'}`
             + ` en \`${TARGET}\` · motor ${ENGINE} · ${cases.length} caso(s)`
-            + (flag('cerrar') ? '' : ' (sin `CERRAR`: llega al listado, no al desenlace)') + '.';
+            + (flag('close') ? '' : ' (sin `CERRAR`: llega al listado, no al desenlace)') + '.';
       // Una línea por caso: qué se pidió y dónde terminó. El `uReq` va porque es la llave con la que
       // se sigue investigando (el trazador entra por ahí), y el motivo porque «no cerró» sin el motivo
       // manda a repetir la corrida para volver a leerlo.
@@ -1104,11 +1108,11 @@ if (process.env.MD === '1' || process.env.BLOQUE) {
             return `${cerró(r) ? '✔' : '✘'} ${r.caso}${r.ur ? ` (uReq ${r.ur})` : ''} — ${r.pantallas} pantalla(s), ${where}`;
       });
       const { emit, cmdMake } = await import('../pkg/annotation.ts');
-      emit(summary, cmdMake('harness-caminar', TARGET, {
-            CASOS: arg('casos'), COMERCIO: arg('casos') ? '' : arg('comercio'), LENDER: arg('casos') ? '' : arg('lender'),
-            MONTO: AMOUNT === 2000000 ? '' : AMOUNT, CUOTA: DOWN_PAYMENT, PLAZO: INSTALLMENTS ?? '',
-            FLOW: FLOW === 'self-service' ? '' : FLOW, MOTOR: ENGINE === 'http' ? '' : ENGINE,
-            PAR: flag('paralelo') ? 1 : '', CERRAR: flag('cerrar') ? 1 : '', MANUAL: flag('manual') ? 1 : '',
+      emit(summary, cmdMake('harness-walk-wizard', TARGET, {
+            CASES: arg('cases'), MERCHANT: arg('cases') ? '' : arg('merchant'), LENDER: arg('cases') ? '' : arg('lender'),
+            AMOUNT: AMOUNT === 2000000 ? '' : AMOUNT, DOWN_PAYMENT: DOWN_PAYMENT, INSTALLMENTS: INSTALLMENTS ?? '',
+            FLOW: FLOW === 'self-service' ? '' : FLOW, ENGINE: ENGINE === 'http' ? '' : ENGINE,
+            PARALLEL: flag('parallel') ? 1 : '', CLOSE: flag('close') ? 1 : '', MANUAL: flag('manual') ? 1 : '',
       }), evidence);
 }
 console.log('');

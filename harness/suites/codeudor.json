@@ -1,9 +1,6 @@
 {
   "nombre": "Rent to Own · el crédito con codeudor, de punta a punta (regresión de F-150)",
-  "requiere": [
-    "cerrar",
-    "lambda"
-  ],
+  "requiere": ["close", "lambda"],
   "porDefecto": {
     "amount": 2000000,
     "income": 2500000,

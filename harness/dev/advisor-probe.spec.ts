@@ -12,7 +12,7 @@ import { config } from '../pkg/config';
  * Artefactos en .auth/ (gitignored): probe-*.png.
  */
 
-const HASH = process.env.E2E_ASESOR_HASH ?? config.partnerHash;
+const HASH = process.env.E2E_ADVISOR_HASH ?? config.partnerHash;
 const USER = process.env.E2E_COGNITO_USER ?? '';
 const PASS = process.env.E2E_COGNITO_PASS ?? '';
 const AUTH = join(process.cwd(), '.auth');

@@ -318,7 +318,7 @@ function postHogHint(ureq: number | string, target: string, since: Date): string
     if (target === 'local') return '  ▸ PostHog: no hay nada que mirar — el front local no escribe (APP_ENV=local apaga getServerPostHog)';
     if (target === 'dev') return '  ▸ PostHog: no hay nada que mirar — el target dev sirve el front LOCAL, que tampoco escribe';
     return `  ▸ PostHog: disponible, pero su ingesta tarda minutos y bloquearía este cierre.\n`
-        + `  ▸   make harness-posthog UREQ=${ureq} DESDE=${new Date(since.getTime() - 60_000).toISOString()}`;
+        + `  ▸   make harness-posthog UREQ=${ureq} SINCE=${new Date(since.getTime() - 60_000).toISOString()}`;
 }
 
 // hash de la SUCURSAL que usa el LAUNCH para un slug (de .flows.json, igual que bin/advisor). Es ese branch
@@ -464,11 +464,11 @@ async function bootPrewarm(): Promise<void> {
 // launch (load-permiso de bin/advisor) y era parte de la espera; bin/advisor lo sigue verificando al
 // lanzar (whois), pero como el panel ya asignó, le da "ya en <comercio> — sin write" y no re-escribe.
 
-// SUB del asesor por target — la MISMA cadena que usa bin/advisor (envget E2E_ASESOR_SUB), con fallback
+// SUB del asesor por target — la MISMA cadena que usa bin/advisor (envget E2E_ADVISOR_SUB), con fallback
 // a `.flows.json` (asesor.sub). Si se leyera del shell del panel, ponerlo en .env.<target> no haría nada.
 function advisorSub(target: string): Promise<string> {
     return new Promise((ok) => {
-        execFile('node', ['bin/env-get.ts', 'E2E_ASESOR_SUB', ''], { cwd: ROOT, env: envFor(target), timeout: 10000 },
+        execFile('node', ['bin/env-get.ts', 'E2E_ADVISOR_SUB', ''], { cwd: ROOT, env: envFor(target), timeout: 10000 },
             (err, out) => {
                 const sub = !err ? String(out || '').trim() : '';
                 ok(sub || String(readFlows()?.asesor?.sub || '').trim());
@@ -498,7 +498,7 @@ async function ensureAssign(slug: string, target: string): Promise<{ ok: boolean
         assignOk.add(key);
     };
     const sub = await advisorSub(target);
-    if (!sub) return { ok: false, detail: `sin asesor para ${target}: definí E2E_ASESOR_SUB en .env.${target} (o asesor.sub en .flows.json)` };
+    if (!sub) return { ok: false, detail: `sin asesor para ${target}: definí E2E_ADVISOR_SUB en .env.${target} (o asesor.sub en .flows.json)` };
     const cur = await dbopsJson(['whois', sub], target);
     if (cur?.matches?.[0]?.allied_branch_hash === hash) {
         remember();
@@ -724,7 +724,7 @@ async function launch(slug: string, profile: Profile, target: string, inject: bo
         E2E_SYNTH_AGE: profile.age ? String(profile.age) : '',
         E2E_SYNTH_NEG: profile.negatives != null ? String(profile.negatives) : '',
         E2E_SYNTH_CONS: profile.consulted != null ? String(profile.consulted) : '',
-        E2E_SYNTH_MORA: profile.delinquencies != null ? String(profile.delinquencies) : '',
+        E2E_SYNTH_DELINQUENCIES: profile.delinquencies != null ? String(profile.delinquencies) : '',
         // La categoría que predijo el panel, para la tarjeta del harness en el wizard (la dibuja en el listado).
         E2E_CATEGORY_PREDICTION: profile.categories || '',
         E2E_SYNTH_OCC: profile.occupation || '',

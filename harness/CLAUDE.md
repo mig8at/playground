@@ -29,7 +29,7 @@ que ya costaron tiempo** — y el mapa mínimo para no perderse.
 |---|---|---|---|
 | `mock-preapprovals` :8095 | `mock-redirect` :8096 | `mock-payvalida` :8097 | `mock-mdm` :8098 |
 | `mock-lenders` :8099 | `mock-pdf-mapper` :8100 | `mock-forms` :8101 | `mock-abaco` :8102 |
-| `mock-corbeta` :8103 | `mock-bancolombia` :8104 | `mock-financial-health` :4000 | `mock-centrales` :8105 |
+| `mock-corbeta` :8103 | `mock-bancolombia` :8104 | `mock-financial-health` :4000 | `mock-bureaus` :8105 (centrales de riesgo) |
 | `mock-deceval` :8106 | `mock-netco` :8107 | `mock-credifamilia` :8108 | `mock-forms-g2` :8109 |
 
 ⚠ **`mock-forms` (:8101) y `mock-forms-g2` (:8109) son de DOS servicios distintos**, y el parecido de
@@ -51,18 +51,18 @@ de otra persona. Los esquemas son los de dev, capturados en modo lectura (`bin/m
 | `dev/sandbox-bancolombia.ts` | **¿el BANCO DE VERDAD acepta lo que mandamos?** el único que pega contra el gateway real (`make harness-sandbox`) |
 | `dev/experian-check.ts` · `experian-api.ts` | ¿esta solicitud omitió el buró, y se puede *afirmar*? |
 | **⚠ el `cURL error 7` a `127.0.0.1:9` NO es un fallo** | Aparece en el forense de casi cualquier corrida local y es **deliberado**: `H2O_API_HOST` y `CREDIFAMILIA_HOST_OAUTH` apuntan al puerto *discard* a propósito. Sin esa variable, `main` devuelve **500 en TODO `/lenders`** (`baseUrl(null)`); apuntada a un host muerto, la llamada falla en 0 ms y el orden del listado cae a las matrices de la BD. Perseguirlo cuesta un rato y no hay nada que arreglar |
-| `make harness-ssr` | **¿a qué servicio llamó el SSR, y cómo le fue?** La consola del wizard: sus líneas `[outbound]` dicen URL, código y duración de CADA llamada saliente del servidor. ⚠ Es la ÚNICA vista de eso — la consola del navegador no ve las llamadas del servidor y el log de la corrida tampoco. `SOLO=1` filtra a lo saliente y los errores (sin eso, el ruido de Vite lo tapa) · `SEGUIR=1` se queda mirando. ⚠ Lo escribe `bin/advisor` al levantar el wizard (`> /tmp/asesor-wizard.log`, truncado en cada arranque): si lo levantaste a mano con `pnpm dev`, su salida se fue a ESA terminal |
+| `make harness-ssr` | **¿a qué servicio llamó el SSR, y cómo le fue?** La consola del wizard: sus líneas `[outbound]` dicen URL, código y duración de CADA llamada saliente del servidor. ⚠ Es la ÚNICA vista de eso — la consola del navegador no ve las llamadas del servidor y el log de la corrida tampoco. `SOLO=1` filtra a lo saliente y los errores (sin eso, el ruido de Vite lo tapa) · `FOLLOW=1` se queda mirando. ⚠ Lo escribe `bin/advisor` al levantar el wizard (`> /tmp/asesor-wizard.log`, truncado en cada arranque): si lo levantaste a mano con `pnpm dev`, su salida se fue a ESA terminal |
 | `dev/loki-trace.ts` | ¿POR QUÉ terminó así? forense en los logs (`make harness-loki UREQ=…`). ⚠ **No es la única forense de la casa**: ésta ancla en los LOGS —su fuerte es la regla con la que se evaluó cada entidad y el `timeline.ndjson` con payloads—, y `make trazador-ureq UREQ=… TARGET=…` ancla en la **BD**, así que contesta hasta dónde llegó aunque no haya un solo log, y suma qué VIO el cliente y qué archivos dejaron rastro. Es además la única que llega a **prod**, que ésta no mira. Las dos imprimen el comando de la otra al terminar. ⚠ Y sus defaults son OPUESTOS (`local` acá, `prod` allá): el target va escrito siempre |
-| `dev/bcp-return.ts` | **el flujo VEHICULAR de BCP por HTTP, y qué se PIERDE al volver atrás** (`make harness-bcp-volver`). Camina las tres pantallas que ningún otro runner sabía caminar —formulario del vehículo, simulador embebido y gate manual— y después de cada tramo pide la pantalla ANTERIOR, que es lo que hace el navegador al apretar atrás. De ahí salieron F-185 y F-186. En LOCAL pide `make harness-peru` + `make harness-forms-g2`; contra `qa` el comercio **ya existe** (ver abajo) y hay que pasarle los teléfonos del bypass con `TEL=` |
-| `make harness-suite-paises` | **¿el cliente nace con el país de su comercio, su documento y su celular?** La internacionalización como aserción declarada (`suites/paises.json`, clave `espera.pais`): la REGLA contra la base + valores fijados por país. Verde/rojo con exit code. ⚠ `requiere: lambda` a propósito: sin usuarios FRESCOS la aserción mide la escritura de una corrida vieja (así apareció un dominicano con `CC` del día anterior) |
+| `dev/bcp-return.ts` | **el flujo VEHICULAR de BCP por HTTP, y qué se PIERDE al volver atrás** (`make harness-bcp-return`). Camina las tres pantallas que ningún otro runner sabía caminar —formulario del vehículo, simulador embebido y gate manual— y después de cada tramo pide la pantalla ANTERIOR, que es lo que hace el navegador al apretar atrás. De ahí salieron F-185 y F-186. En LOCAL pide `make harness-peru` + `make harness-forms-g2`; contra `qa` el comercio **ya existe** (ver abajo) y hay que pasarle los teléfonos del bypass con `TEL=` |
+| `make harness-suite-countries` | **¿el cliente nace con el país de su comercio, su documento y su celular?** La internacionalización como aserción declarada (`suites/paises.json`, clave `espera.pais`): la REGLA contra la base + valores fijados por país. Verde/rojo con exit code. ⚠ `requiere: lambda` a propósito: sin usuarios FRESCOS la aserción mide la escritura de una corrida vieja (así apareció un dominicano con `CC` del día anterior) |
 | `bin/pg logs` (en la raíz) | los **CUERPOS crudos** de Loki para un selector y una ventana — cuando no hay uReq que anclar (el flujo murió antes de crear la solicitud): `bin/pg logs --target dev --query '{service_name="CreditopDev"} \|~ "1828230"' --start 2026-09-02T14:12:00Z --end 2026-09-02T14:17:00Z`. Reemplaza a `dev/loki-lineas.ts` desde el 2026-09-24. ⚠ La sonda de `trazador-acceso` imprime **labels**, no cuerpos; y el PHP de dev **y de qa** loguea como `service_name="CreditopDev"` (F-179) |
 | `dev/ecommerce.ts` | **¿el CANAL ecommerce entrega lo que promete?** el carrito de una tienda de punta a punta, declarado en JSON y sin navegador (`make harness-ecommerce [SUITE=…]`). Contesta lo que `case.ts` no sabe contestar —`grep -c ecommerce dev/case.ts` da **0**, ese runner empieza DESPUÉS y no conoce canales—: si el contrato base64 se decodifica, si los seis campos del billing llegan como `prefill`, si el contexto se relee por `erId` **sin cookie**, y si la solicitud queda **atada al pedido** en la fila y en el puente. ⚠ Ese último chequeo no es decorativo: con el nombre viejo `ecommerce_request_id` (snake, el del v1) el backend **ignora el campo**, la solicitud nace sin vincular y **el comercio nunca recibe el veredicto de su compra**, sin ningún error. Probado rompiéndolo a propósito: da `fila=0 puente=0`. ⚠ La suite de la **sala de espera** va aparte (`suites/ecommerce-sala-de-espera.json`) porque depende de un PR sin mergear — separada y no «salteada», que un caso que se saltea se lee como verde. ⚠⚠ **SOLAPA con `channel/ecommerce-*.spec.ts`, y eso hay que decidirlo**: `ecommerce-no-cookie.spec.ts` ya fija el `erId`-en-URL y el vínculo, y `ecommerce-local-real.spec.ts` camina el flujo entero. La diferencia es el transporte —aquéllos van por **navegador** (Playwright, wizard corriendo, un `generate_checkout_url.php` que vive FUERA del repo y el perfil `.env.mock` de legacy) y éste va por **API en segundos, declarado en JSON**—, pero la cobertura se pisa. **No verifiqué si esos specs siguen pasando hoy**: nombran la rama de abril (`feature/onboarding/ecommerce-web-origination`) y el canal migró a OnboardingV2 desde entonces. Antes de agregar más casos acá, mirar si el lugar correcto es aquéllos |
-| `dev/screens.ts` | **¿por qué PANTALLAS habría pasado el cliente?** el recorrido del wizard derivado del router en `main`, y al revés: `ENDPOINT=confirm-payment-schedule` → qué pantalla es (`make harness-pantallas`) |
-| `dev/posthog-ureq.ts` · `pkg/posthog.ts` | **¿qué VIO el cliente, en el vocabulario del embudo?** la TERCERA fuente (BD = desenlace · Loki = causa · PostHog = recorrido): los eventos de una solicitud y el **cruce** pantalla caminada ↔ evento emitido, con los esperados DERIVADOS del código del front en la rama del target (`make harness-posthog UREQ=… DESDE=…`). El caminador lo dispara **sólo si el caso terminó mal** (`FORENSE=1` lo fuerza), la misma regla que `forensicOnClose` de Loki: medido 2026-09-02, consultarlo en TODA corrida llevó una de 108 s a 128 y otra a 237, y en el caso feliz no aportaba nada que la traza de BD no dijera. ⚠ Al cerrar, la lectura suele venir **PARCIAL** y ahí un evento que falta es atraso de ingesta, no una falta: se etiqueta como tal, porque marcarlo con ✗ manda a buscar un bug donde sólo hay que esperar (pasó con `confirmation`, que llegó dos minutos después). ⚠ Sólo el FRONT emite —`case.ts` es invisible en PostHog— y **local no escribe** (`APP_ENV=local` apaga `getServerPostHog`). ⚠ Un solo proyecto para todos los ambientes y **prod y dev comparten ids**: `loan_request_502057` es julio en prod y hoy en qa, la MISMA persona para PostHog; por eso se filtra por ambiente Y hora de la corrida. ⚠ La hora va en epoch: `toDateTime('…')` la lee en Bogotá (-05:00). ⚠ La ingesta tarda minutos: el caminador espera acotado y dice PARCIAL; el cruce completo se mira después con este comando |
-| `dev/posthog-errors.ts` | **¿qué PANTALLAS del front se están rompiendo, y con qué?** el canal de LOGS agregado en dos cortes: por pantalla (DÓNDE: archivo + `loader`/`action` + error) y por patrón (QUÉ: los mensajes agrupados por PostHog, así 50 mensajes con distinto id cuentan como UN problema) — `make harness-posthog-errores [DIAS=7]`. ⚠ Sólo `staging` (los deploys de qa y de staging) y `production`: ni dev ni local tienen front desplegado. ⚠ El conteo es FRECUENCIA, no gravedad: un `ZodError` en el loader de una pantalla muy visitada suma más que una firma caída que le pasó a tres personas. Medido 2026-09-02, 3 días de prod: **2.123 `ZodError` del esquema del TEMA del comercio** (`data.colors.primary_color` en null) repartidos en 10 pantallas — es el mecanismo del punto 2 de **F-55** (el `catch` del loader que envuelve el tema del comercio redirige a `request-canceled`); y el loader de `request-canceled` con 82 errores, todos `DELETE /api/identity/request/<n>` → **403**, o sea la pantalla que cancela fallando al cancelar |
+| `dev/screens.ts` | **¿por qué PANTALLAS habría pasado el cliente?** el recorrido del wizard derivado del router en `main`, y al revés: `ENDPOINT=confirm-payment-schedule` → qué pantalla es (`make harness-screens`) |
+| `dev/posthog-ureq.ts` · `pkg/posthog.ts` | **¿qué VIO el cliente, en el vocabulario del embudo?** la TERCERA fuente (BD = desenlace · Loki = causa · PostHog = recorrido): los eventos de una solicitud y el **cruce** pantalla caminada ↔ evento emitido, con los esperados DERIVADOS del código del front en la rama del target (`make harness-posthog UREQ=… SINCE=…`). El caminador lo dispara **sólo si el caso terminó mal** (`FORENSE=1` lo fuerza), la misma regla que `forensicOnClose` de Loki: medido 2026-09-02, consultarlo en TODA corrida llevó una de 108 s a 128 y otra a 237, y en el caso feliz no aportaba nada que la traza de BD no dijera. ⚠ Al cerrar, la lectura suele venir **PARCIAL** y ahí un evento que falta es atraso de ingesta, no una falta: se etiqueta como tal, porque marcarlo con ✗ manda a buscar un bug donde sólo hay que esperar (pasó con `confirmation`, que llegó dos minutos después). ⚠ Sólo el FRONT emite —`case.ts` es invisible en PostHog— y **local no escribe** (`APP_ENV=local` apaga `getServerPostHog`). ⚠ Un solo proyecto para todos los ambientes y **prod y dev comparten ids**: `loan_request_502057` es julio en prod y hoy en qa, la MISMA persona para PostHog; por eso se filtra por ambiente Y hora de la corrida. ⚠ La hora va en epoch: `toDateTime('…')` la lee en Bogotá (-05:00). ⚠ La ingesta tarda minutos: el caminador espera acotado y dice PARCIAL; el cruce completo se mira después con este comando |
+| `dev/posthog-errors.ts` | **¿qué PANTALLAS del front se están rompiendo, y con qué?** el canal de LOGS agregado en dos cortes: por pantalla (DÓNDE: archivo + `loader`/`action` + error) y por patrón (QUÉ: los mensajes agrupados por PostHog, así 50 mensajes con distinto id cuentan como UN problema) — `make harness-posthog-errors [DIAS=7]`. ⚠ Sólo `staging` (los deploys de qa y de staging) y `production`: ni dev ni local tienen front desplegado. ⚠ El conteo es FRECUENCIA, no gravedad: un `ZodError` en el loader de una pantalla muy visitada suma más que una firma caída que le pasó a tres personas. Medido 2026-09-02, 3 días de prod: **2.123 `ZodError` del esquema del TEMA del comercio** (`data.colors.primary_color` en null) repartidos en 10 pantallas — es el mecanismo del punto 2 de **F-55** (el `catch` del loader que envuelve el tema del comercio redirige a `request-canceled`); y el loader de `request-canceled` con 82 errores, todos `DELETE /api/identity/request/<n>` → **403**, o sea la pantalla que cancela fallando al cancelar |
 | `dev/warm-session.spec.ts` | **la sesión de asesor caducó y no quiero quedar bloqueado.** Pre-login headless que deja `.auth/cognito-state.<target>.json` listo, sin correr ningún flujo: `E2E_TARGET=<t> npx playwright test dev/warm-session.spec.ts --headed --project=chromium`. ⚠ **Contra `qa` y `staging` va HEADED**: el Managed Login de `auth.merchant` corta la automatización por fingerprint y en headless queda colgado en `/verifyPassword` (F-66). ⚠ Y el caminador **no lo dispara solo** — sólo LEE el cache y corta con «entrá una vez por el panel»; este spec es el camino por consola de esa frase |
 | `dev/advisor-target.spec.ts` | **¿a dónde manda el front al elegir una entidad, en el canal del ASESOR?** Abre el listado con la sesión cacheada, elige y reporta la URL — nada más. Existe porque el caminador no puede llegar ahí cuando su siembra deja la entidad fuera del listado: acá la solicitud viene sembrada desde afuera con `synthFill(ur, { lender })`. ⚠ Usa `chooseEntity` de `pkg/wizard-browser.ts` y **no un localizador propio**: el primer intento con `locator('div').filter(...)` clickeó otro botón, la selección nunca llegó a la base (`lender_id` NULL) y la corrida igual dio «passed» |
-| `dev/walk-wizard.ts` | **¿el FRONT encadena bien las pantallas?** el wizard entero por sus endpoints `.data` —loaders, actions, middleware, zod— sin navegador y en PARALELO, cada pantalla contrastada con la BD (`make harness-caminar CASOS='#hash:lender' CERRAR=1 MANUAL=1`). Es el tercer camino: `case.ts` no ve el front, el panel necesita a alguien clickeando. ⚠ Sigue SÓLO las redirecciones que la app emite —acá hay loaders que ESCRIBEN (`request-canceled` cancela al cargarse, F-50)— y la única URL que arma solo es el handoff a `/confirmation` que el backend le manda al cliente. Lo que no corre: el JavaScript del cliente. Medido 2026-09-02: 11 pantallas y estado 11 en local (73 s) y contra el front desplegado de qa (108 s). El paralelo rinde en los dos: contra qa, 3 en paralelo son 203 s contra ~325 s en fila (el techo ahí es ¼ de vCPU y el ALB cortando a los 60 s, F-180); en local, **3 en 74 s y 6 en 112 s** con `PHP_CLI_SERVER_WORKERS` puesto — sin esa variable eran 237 s para 3, porque `artisan serve` atiende de a una (F-181, y ahí está la receta). El front no fue el cuello en ningún caso; 3 en paralelo en local, los tres llegan a 11 en la BD, pero el tercero pasó de 120 s en la firma y la primera versión lo reportó como «no cerró» —el techo es el PHP local, no el caminador, y por eso ante un timeout ahora vuelve a mirar la BD antes de concluir (F-180: PHP sigue y termina). El protocolo (redirect = 202 con destino en el cuerpo; turbo-stream v3 vendoreado; promesas en líneas `P<id>:`) está deducido y documentado en `pkg/front.ts` |
+| `dev/walk-wizard.ts` | **¿el FRONT encadena bien las pantallas?** el wizard entero por sus endpoints `.data` —loaders, actions, middleware, zod— sin navegador y en PARALELO, cada pantalla contrastada con la BD (`make harness-walk-wizard CASES='#hash:lender' CLOSE=1 MANUAL=1`). Es el tercer camino: `case.ts` no ve el front, el panel necesita a alguien clickeando. ⚠ Sigue SÓLO las redirecciones que la app emite —acá hay loaders que ESCRIBEN (`request-canceled` cancela al cargarse, F-50)— y la única URL que arma solo es el handoff a `/confirmation` que el backend le manda al cliente. Lo que no corre: el JavaScript del cliente. Medido 2026-09-02: 11 pantallas y estado 11 en local (73 s) y contra el front desplegado de qa (108 s). El paralelo rinde en los dos: contra qa, 3 en paralelo son 203 s contra ~325 s en fila (el techo ahí es ¼ de vCPU y el ALB cortando a los 60 s, F-180); en local, **3 en 74 s y 6 en 112 s** con `PHP_CLI_SERVER_WORKERS` puesto — sin esa variable eran 237 s para 3, porque `artisan serve` atiende de a una (F-181, y ahí está la receta). El front no fue el cuello en ningún caso; 3 en paralelo en local, los tres llegan a 11 en la BD, pero el tercero pasó de 120 s en la firma y la primera versión lo reportó como «no cerró» —el techo es el PHP local, no el caminador, y por eso ante un timeout ahora vuelve a mirar la BD antes de concluir (F-180: PHP sigue y termina). El protocolo (redirect = 202 con destino en el cuerpo; turbo-stream v3 vendoreado; promesas en líneas `P<id>:`) está deducido y documentado en `pkg/front.ts` |
 
 ### La siembra del caminador la pisa el formulario — y por eso «la entidad no salió en el listado» mentía
 
@@ -122,11 +122,11 @@ Su lógica sigue sin ejercitarse hasta levantar el front correcto.
 
 ### El caminador del wizard tiene DOS motores, y la diferencia entre ellos ES el diagnóstico
 
-`make harness-caminar` recorre el wizard de punta a punta. Lo que cambia con `MOTOR` es **cómo opera una
+`make harness-walk-wizard` recorre el wizard de punta a punta. Lo que cambia con `ENGINE` es **cómo opera una
 pantalla**; todo lo demás —el caso, la siembra, el paralelismo, la traza contra la BD, el forense— es el
 mismo código:
 
-| | `MOTOR=http` (default) | `MOTOR=navegador` |
+| | `ENGINE=http` (default) | `ENGINE=browser` |
 |---|---|---|
 | cómo avanza | postea al `.data` de la pantalla | Chromium **sin ventana**, clickea |
 | qué corre | loaders, actions, middleware, zod | eso **y el JavaScript del cliente** |
@@ -192,7 +192,7 @@ un comercio autogestionado por el canal del asesor prueba otra cosa, y la pantal
 dos vueltas de diagnóstico el 2026-09-09 (F-191). Y en autogestión **hay un solo dispositivo**: la
 ventana B no se usa, el journey del cliente se camina en A.
 
-**El canal de ASESOR con navegador: anda, y lo que lo frena no es el motor.** `MOTOR=navegador FLOW=merchant`
+**El canal de ASESOR con navegador: anda, y lo que lo frena no es el motor.** `ENGINE=browser FLOW=merchant`
 reusa el `storageState` que dejó el panel (`pkg/cognito.ts`) — un solo login para los N contextos de la
 tanda, que es lo que evita golpear el pool. Dos cosas que aprendió el 2026-09-03 y que valen para
 cualquier corrida de asesor:
@@ -210,11 +210,11 @@ cualquier corrida de asesor:
   selector no está explicado**: mirar antes de llamarlo bug.
 
 ⚠ **Dos tandas lanzadas a la vez se pisan la identidad.** El teléfono y la cédula de cada caso salen de su
-índice y de la hora de arranque, así que el caso 0 de dos `harness-caminar` lanzados en el mismo momento
+índice y de la hora de arranque, así que el caso 0 de dos `harness-walk-wizard` lanzados en el mismo momento
 es la MISMA persona: el 2026-09-25 una tanda de Sistecrédito giró 480 s en personal-info mientras otra
-usaba su cédula. Casos que tienen que correr juntos van en UNA tanda (`CASOS='a;b' PAR=1`).
+usaba su cédula. Casos que tienen que correr juntos van en UNA tanda (`CASES='a;b' PARALLEL=1`).
 
-⚠ **TOPE DE TIEMPO POR CASO (`--tope`, 360 s por defecto), y no es un lujo.** La primera corrida del canal
+⚠ **TOPE DE TIEMPO POR CASO (`--timeout`, 360 s por defecto), y no es un lujo.** La primera corrida del canal
 de asesor giró **18 minutos sin imprimir una línea**: cada vuelta puede esperar `networkidle` + el cambio
 de URL + los reintentos del click, y 40 vueltas sin progreso son media hora de silencio — por caso, en
 paralelo. Ahora falla en ~2 min diciendo dónde y qué decía la pantalla. Un runner que no puede terminar
@@ -306,7 +306,7 @@ pasa la variable**, así que no hay que cambiar a fpm+nginx ni tocar la imagen. 
 
     PHP_CLI_SERVER_WORKERS=6
 
-**Medido el 2026-09-03** con `harness-caminar`, casos idénticos que cierran en estado 11:
+**Medido el 2026-09-03** con `harness-walk-wizard`, casos idénticos que cierran en estado 11:
 
 | | 1 worker | 6 workers |
 |---|---|---|
@@ -346,7 +346,7 @@ El enrutado del generador **ya es configurable por `.env`**, sin tocar código
 Con eso los documentos salen del mock del pdf-mapper (:8100) en vez de renderizarse con dompdf.
 **Medido: la suite de Motai baja de 95 s a 32 s; un caso suelto, de 93 s a 27 s.**
 
-**Vuelto a medir el 2026-09-03 con `harness-caminar`, y combinado con los workers de PHP** (§«Local
+**Vuelto a medir el 2026-09-03 con `harness-walk-wizard`, y combinado con los workers de PHP** (§«Local
 monohilo»): las dos perillas juntas son la diferencia entre una tanda de minutos y una de segundos.
 
 | | Blade · 1 worker | Blade · 6 workers | mock · 6 workers |
@@ -412,7 +412,7 @@ en `legacy-application`. Y eso **se puede correr en local**, contra la MISMA bas
 
 Con eso, un caso pide su desenlace y **el receptor es real**; lo único simulado es la entidad que llama:
 
-    make harness-caso CASOS='#ddc769bd:23@webhook=fulfilled' LAMBDA=1 CERRAR=1
+    make harness-case CASES='#ddc769bd:23@webhook=fulfilled' LAMBDA=1 CLOSE=1
 
 ⚠ **Es OPT-IN a propósito.** Nunca pasa solo: el código que corre no es el de `legacy-backend`, y un
 desenlace automático se leería como si lo fuera.
@@ -436,7 +436,7 @@ legacy-backend. El runner lo demuestra corriendo, no leyendo.
 Addi, PayJoy, Brilla, Sistecrédito—, no uno por entidad como en rt=1:
 
     export SELFMANAGER_TOKEN=<token de Sanctum con habilidad selfManager>
-    make harness-caso CASOS='#0b3fef6a:6@webhook=completed' LAMBDA=1 CERRAR=1
+    make harness-case CASES='#0b3fef6a:6@webhook=completed' LAMBDA=1 CLOSE=1
 
 El token se emite **una vez** en `legacy-application` —Sanctum guarda el hash, no el texto, así que el
 que ya está en la base no sirve—:
@@ -458,7 +458,7 @@ nuestro— y recién después dispara el webhook. Ver F-171 para las tres guarda
 pantalla: una corrida dice «HTTP 500 en `confirm-payment-schedule`» y nadie sabe dónde habría estado
 parado el cliente, que es lo que preguntan producto, soporte y QA.
 
-`make harness-pantallas ENDPOINT=<endpoint>` contesta eso **sin integrar nada**: no maneja el navegador,
+`make harness-screens ENDPOINT=<endpoint>` contesta eso **sin integrar nada**: no maneja el navegador,
 no corre nada, no valida. Deriva el recorrido de `apps/loan-request-wizard/app/routes.ts` en `main` —el
 router mismo—, así que una pantalla nueva aparece sola y una borrada desaparece sola.
 
@@ -542,9 +542,9 @@ donde se dice otra cosa:
 | camino | qué recorre | qué ve que los otros no | tiempo (local) |
 |---|---|---|---|
 | **1 · UI** — el panel (`make panel`, :5195). Es el de Miguel | el wizard en una ventana, manejado por una persona | lo que ve una persona: el diseño, la tarjeta del harness, lo que se siente raro | el de quien maneja (una compra por la tienda: 2 min) |
-| **2 · navegador sin ventana** — `make harness-caminar MOTOR=navegador` | el mismo wizard en Chromium sin ventana: llena y hace clic | el JavaScript de la página: consola, botones que no se habilitan, tarjetas que se despliegan, el visor de PDF, pantallas que no existen | **~3 min por caso** (174–182 s hasta el estado 11), y en paralelo lo mismo |
-| **3a · el wizard por HTTP** — `make harness-caminar` (el motor por defecto) | el lado de servidor de cada pantalla (`.data`: loaders, actions, zod), sin navegador | el vínculo con el pedido y el prellenado en ecommerce; un action que redirige a donde no debe | ~20 s por caso (medido el 2026-09-03) |
-| **3b · el backend directo** — `make harness-caso` | la API del backend, sin front: crea la solicitud, inyecta el riesgo, pide el listado y elige la entidad | qué decide el backend y cómo responde cada entidad: espera, modal, redirect, OTP propio, error | segundos (no medido acá) |
+| **2 · navegador sin ventana** — `make harness-walk-wizard ENGINE=browser` | el mismo wizard en Chromium sin ventana: llena y hace clic | el JavaScript de la página: consola, botones que no se habilitan, tarjetas que se despliegan, el visor de PDF, pantallas que no existen | **~3 min por caso** (174–182 s hasta el estado 11), y en paralelo lo mismo |
+| **3a · el wizard por HTTP** — `make harness-walk-wizard` (el motor por defecto) | el lado de servidor de cada pantalla (`.data`: loaders, actions, zod), sin navegador | el vínculo con el pedido y el prellenado en ecommerce; un action que redirige a donde no debe | ~20 s por caso (medido el 2026-09-03) |
+| **3b · el backend directo** — `make harness-case` | la API del backend, sin front: crea la solicitud, inyecta el riesgo, pide el listado y elige la entidad | qué decide el backend y cómo responde cada entidad: espera, modal, redirect, OTP propio, error | segundos (no medido acá) |
 
 **Cuál usar:**
 - **¿Esta regla excluye de verdad?** o **¿qué pasa si el cliente es así?** → **3b**.
@@ -556,19 +556,43 @@ donde se dice otra cosa:
 
 **Las diferencias que hacen equivocarse de camino:**
 - **Canales.** 3a y 2 entran por `FLOW=self-service|merchant|ecommerce`. **3b no tiene la tienda.**
-- **Las perillas del cliente.** En 3b cada caso lleva las suyas (`CASOS='pullman@score=700;pullman@score=300,income=900000'`).
-  En 3a y 2, `MONTO`, el score y el ingreso valen para **toda la tanda**: dos montos distintos son dos tandas.
+- **Las perillas del cliente.** En 3b cada caso lleva las suyas (`CASES='pullman@score=700;pullman@score=300,income=900000'`).
+  En 3a y 2, `AMOUNT`, el score y el ingreso valen para **toda la tanda**: dos montos distintos son dos tandas.
 - **Dos tandas lanzadas a la vez comparten identidad** (ver abajo, en el caminador): los casos que tienen
-  que ir juntos van en UNA tanda, con `PAR=1`.
+  que ir juntos van en UNA tanda, con `PARALLEL=1`.
 - **En paralelo sale casi gratis** en 2 y 3a: la tanda tarda lo que su caso más lento, y un caso completo
   cuesta lo mismo solo que con cinco al lado. Con `PHP_CLI_SERVER_WORKERS` ≥ casos (§«Local monohilo»).
+
+### Los nombres están en inglés, y los viejos siguen andando
+
+Desde el 2026-09-25 los targets, sus variables y los flags de los scripts están en inglés:
+`harness-case` · `harness-walk-wizard` · `harness-listing` · `harness-session` · `harness-merchant`…,
+`CASES=` · `CLOSE=` · `PARALLEL=` · `MERCHANT=` · `AMOUNT=` · `ENGINE=browser` · `DOWN_PAYMENT=`…, y
+`--cases` · `--close` · `--engine browser`… Las carpetas `mock-centrales/` y `comercios/` pasaron a
+`mock-bureaus/` y `merchant-specs/`.
+
+⚠ **Los nombres viejos NO se borran, y no es por nostalgia**: las tareas del tablero guardan el comando
+EXACTO de cada medición —es lo que permite volver a correrla y desmentirla—, y dicen `make harness-caso
+CASOS=…`. Sin el nombre viejo, cada una quedaría sin forma de repetirse y nada lo avisaría. Por eso:
+
+- un **target viejo** corre el nuevo y lo avisa (el bloque `HARNESS_OLD_TARGETS` del `Makefile`);
+- una **variable vieja** llena la nueva y lo avisa (`HARNESS_OLD_VARS`). `SOLO` y `DIAS` no, porque las
+  usan otras herramientas: se aceptan sólo dentro de `harness-ssr` y `harness-posthog-errors`;
+- un **flag viejo** lo traduce `pkg/cli-aliases.ts`, lo primero que importa cada script, con sus valores
+  (`--motor navegador` sigue eligiendo el navegador; `GATE=aprobado`, el botón «Aprobado»);
+- una **variable de entorno vieja** (`E2E_ASESOR_SUB` en un `.env.<target>`, por ejemplo) la copia
+  `pkg/env.ts` al nombre nuevo.
+
+Comprobado al hacerlo: los 22 targets expanden igual con el nombre viejo que con el nuevo (`make -n`), y
+el listado y un caso dieron lo mismo corridos de las dos formas. `harness-codigo-qa` quedó como estaba: es
+de otra sesión.
 
 ### El login de ASESOR por consola
 
 El canal de asesor (`FLOW=merchant`, y el panel en ese canal) pide una sesión de Cognito. **No hace falta
 entrar por el panel para tenerla:**
 
-    make harness-sesion TARGET=local    # ¿sirve la sesión cacheada? un fetch, sin login: valid · invalid · missing · unreachable
+    make harness-session TARGET=local    # ¿sirve la sesión cacheada? un fetch, sin login: valid · invalid · missing · unreachable
     make harness-login  TARGET=local    # ⚠ abre una ventana: entra a Cognito y deja la sesión en harness/.auth/
 
 - La cuenta sale de `harness/.cognito.json` (o `E2E_COGNITO_USER`/`E2E_COGNITO_PASS`), y la sesión queda en
@@ -580,7 +604,7 @@ entrar por el panel para tenerla:**
 - **Local y dev comparten la sesión**: con el front local la clave es `dev` en los dos. Staging y qa tienen
   la suya.
 - **El caminador la renueva solo** antes de arrancar si no sirve (abre la ventana y lo avisa;
-  `--sin-warm` lo apaga), porque el token vive ~4 min y entre renovar a mano y arrancar ya se estaría
+  `--no-warm` lo apaga), porque el token vive ~4 min y entre renovar a mano y arrancar ya se estaría
   muriendo.
 - ⚠ **La sesión manda sobre la sucursal**: `/merchant` redirige al comercio asignado al asesor, no al que
   pidió la corrida. El caminador corta y dice el `dbops assign` que lo movería; no reasigna solo.
@@ -699,11 +723,11 @@ roto** (F-88). Si trabajás Bancolombia, cargá `harness-canal-qr` y corré `npm
   el flujo real por la API y un «sintético» —default sin `--lambda`— que insertaba la solicitud a mano,
   inyectaba el buró con `synthFill` y pedía el listado v1 que el wizard no usa. Cada bug de esa semana fue
   «arreglé un camino y el otro no» (teléfono por país, país sin adivinar, clave del error). Ahora
-  `harness-caso` sin `LAMBDA=1` corre el flujo real con el buró que tenga el ambiente — que es lo que ve
+  `harness-case` sin `LAMBDA=1` corre el flujo real con el buró que tenga el ambiente — que es lo que ve
   un cliente—; con `LAMBDA=1`, además, se dicta la respuesta de cada central para esa cédula. `synthFill`
   sólo queda para el cupo del codeudor.
 
-- **`harness-caminar` también acepta `LAMBDA=1`, y sin él una compra de CrediPullman no cierra en
+- **`harness-walk-wizard` también acepta `LAMBDA=1`, y sin él una compra de CrediPullman no cierra en
   local.** El dictado vive en `pkg/risk-lambda.ts` y lo comparten los dos runners. `synthFill` siembra
   «Empleado» al CARGAR personal-info, pero al ENVIARLA el backend consulta Agildata y Experian y evalúa
   las categorías con lo que contesten; sin dictado, el mock local contesta una persona sin empleo y un
@@ -712,7 +736,7 @@ roto** (F-88). Si trabajás Bancolombia, cargá `harness-canal-qr` y corré `npm
   siguiente). Con `LAMBDA=1` se
   dictan el empleo y un perfil de buró (`experian_profile_<cédula>`: score del caso, 1 consulta,
   1 tarjeta activa), una clave que sólo tiene el mock local. Medido el 2026-09-25: 0/2 → 2/2 en estado 11
-  (`make harness-caminar CASOS='#13874eb6:77;#13874eb6:77' FLOW=ecommerce CERRAR=1 MANUAL=1 PAR=1
+  (`make harness-walk-wizard CASES='#13874eb6:77;#13874eb6:77' FLOW=ecommerce CLOSE=1 MANUAL=1 PARALLEL=1
   LAMBDA=1 TARGET=local`). Contra dev/qa se ignora: ahí el backend le pregunta a la lambda de la empresa.
 
 - **La cuota inicial se paga contra `make harness-wompi` (:8112), el mock de Wompi.** `/down-payment` no
@@ -725,11 +749,11 @@ roto** (F-88). Si trabajás Bancolombia, cargá `harness-canal-qr` y corré `npm
   producción: medido el 2026-09-25, las 121 cuotas iniciales de 30 días se confirmaron por esa consulta y
   ninguna por webhook, y la forma de la respuesta del mock es la de esas 121. Pide
   `WOMPI_HOST=http://host.docker.internal:8112/v1` en el `.env` del backend y `php artisan config:clear`;
-  el `WOMPI_MOCK_ENABLED` que ya estaba no lo lee ningún código. `PAGO=DECLINED` prueba el rechazo (la
-  solicitud queda en 3 y la fecha de pago la devuelve a `/down-payment`); `CUOTA=` paga más que el
+  el `WOMPI_MOCK_ENABLED` que ya estaba no lo lee ningún código. `PAYMENT=DECLINED` prueba el rechazo (la
+  solicitud queda en 3 y la fecha de pago la devuelve a `/down-payment`); `DOWN_PAYMENT=` paga más que el
   mínimo. Medido: 2/2 compras de tienda de CrediPullman en «Segunda oportunidad» cerraron en 11 con
-  $500.000 de cuota inicial (`make harness-caminar CASOS='#13874eb6:77;#13874eb6:77' FLOW=ecommerce
-  CERRAR=1 MANUAL=1 PAR=1 TARGET=local`).
+  $500.000 de cuota inicial (`make harness-walk-wizard CASES='#13874eb6:77;#13874eb6:77' FLOW=ecommerce
+  CLOSE=1 MANUAL=1 PARALLEL=1 TARGET=local`).
   **En el navegador (desde el 2026-09-25) el widget es SIMULADO** (`pkg/wompi-widget.ts`, enganchado en
   `openWindow`): se intercepta `checkout.wompi.co/widget.js` y se sirve un `WidgetCheckout` con el mismo
   contrato que muestra el monto y dos botones, **Pagar** y **Rechazar**. Cada uno registra la transacción
@@ -737,10 +761,10 @@ roto** (F-88). Si trabajás Bancolombia, cargá `harness-canal-qr` y corré `npm
   camino real (`processing` → estado → el backend le pregunta al mock). Lo único que se acorta es la
   gracia de 20 s: se atrasa el `created_at` de la transacción 25 s en la base local, así la primera
   consulta ya reconcilia. Sólo con target `local`; `E2E_WOMPI_WIDGET=0` deja el widget real.
-  El caminador con `MOTOR=navegador` lo instala en `openContext` (`pkg/wizard-browser.ts`) en modo
+  El caminador con `ENGINE=browser` lo instala en `openContext` (`pkg/wizard-browser.ts`) en modo
   **automático**: paga solo, sin esperar el clic, y «Registrar pago» / «Elegir fecha de pago» están en
   `ADVANCE`. Medido el 2026-09-25 por la tienda con Compucredit: el pago quedó APPROVED y el backend
-  recalculó la solicitud (cuota inicial $400.000, financiado $1.600.000). El `MOTOR=http` la paga con
+  recalculó la solicitud (cuota inicial $400.000, financiado $1.600.000). El `ENGINE=http` la paga con
   `payDownPayment`.
   ⚠ La base local trae la credencial de Wompi de producción de Pullman (`pub_prod_…`): con el mock la
   consulta del backend no sale de la máquina, y el widget simulado evita que el navegador abra el
@@ -843,7 +867,7 @@ No hace falta sembrarlo en `qa`: **ya está**, y mejor repartido que en local �
 `321411214` y `321411217` (los pasó Fercho). Uno por recorrido: con el mismo número los dos serían el
 mismo cliente y el segundo chocaría con la solicitud del primero.
 
-    make harness-bcp-volver TARGET=qa COMERCIO='#a8221e67' TEL=321411214,321411217 \
+    make harness-bcp-return TARGET=qa MERCHANT='#a8221e67' TEL=321411214,321411217 \
         FRONT=https://originaciones-qa.dev.creditop.com
 
 ⚠ **Y en el PANEL hay que declararlo, porque acá no coincide NADA entre ambientes**: ni el hash de la
@@ -860,13 +884,13 @@ Sin eso la card dice «no está en qa», que es falso: el comercio está, con ot
 que cambia es el hash —y el slug se mantiene— el panel lo rescata solo buscando por nombre y lo avisa
 en la card; acá no puede, porque el slug también cambia.
 
-⚠ Y el **recorrido B deja una solicitud NEGADA**, así que fuera de local hay que pedirlo con `NIEGA=1`.
+⚠ Y el **recorrido B deja una solicitud NEGADA**, así que fuera de local hay que pedirlo con `DENY=1`.
 La base es COMPARTIDA por dev, qa y staging: lo que se ensucie ahí lo ve el equipo.
 
 ### El funnel DINÁMICO de RD (CeluRD/SmartPay) camina, y dónde vive el IMEI (2026-09-18)
 
     E2E_TARGET=local node bin/dbops.ts assign <sub> celurd 1bfb8cd0 <sub>   # la sesión manda sobre la sucursal
-    make harness-caminar CASOS='#1bfb8cd0:152' FLOW=merchant MOTOR=navegador
+    make harness-walk-wizard CASES='#1bfb8cd0:152' FLOW=merchant ENGINE=browser
 
 Siete pantallas hasta el listado: `solicitar` → `request-amount` → `request-phone` → `request-otp` →
 `request-personal-info` → `request-financial-info` → `lenders`. Antes moría en la SEGUNDA.
@@ -886,7 +910,7 @@ pantalla ya avanzó sola** al QR. Es engañoso y todavía no está arreglado.
 
 Nueve pantallas, ~160 s, y las nueve se pueden MIRAR (`.runs/caminar-…/ultima.png` + la traza):
 
-    make harness-caminar CASOS='#50e007e4:207' MOTOR=navegador MONTO=60000 GATE=aprobado
+    make harness-walk-wizard CASES='#50e007e4:207' ENGINE=browser AMOUNT=60000 GATE=aprobado
 
     solicitar → celular → OTP → datos personales → formulario/pre →
     entidad/simulador → entidad/resultado (gate) → formulario/post → lenders
@@ -894,7 +918,7 @@ Nueve pantallas, ~160 s, y las nueve se pueden MIRAR (`.runs/caminar-…/ultima.
 ⚠ **`GATE=` es obligatorio acá y no tiene default a propósito.** `entidad/resultado` no ofrece
 «Continuar»: ofrece **«Aprobado» / «Rechazado»**, porque ahí decide una persona. Sin la bandera el
 caminador se detiene —no elige por nadie— y con `GATE=rechazado` la solicitud queda **NEGADA**, que en
-una base compartida es basura que queda. Mismo criterio que el `--niega` del runner por HTTP.
+una base compartida es basura que queda. Mismo criterio que el `--deny` del runner por HTTP.
 
 ⚠ **Antes esto no se podía caminar, y ninguna de las razones era del producto:** el botón del formulario
 dice «Enviar» y no estaba en el patrón de avance; los selects del vehículo son una CASCADA y se llenaban
@@ -979,7 +1003,7 @@ de las tareas pasó a la pila, y el lint del tablero frena una anotación nueva 
 
 ⚠ **Va el COMANDO, no la conclusión, y no es estilo: el validador de la pila lo exige.** Un bloque que
 trae una corrida la lleva en su caja ` ```harness `, con su `TARGET=`, y debajo su `Resultado:`. «Corrí
-el caso y cerró» no deja rastro de nada; `make harness-caso CASOS='pullman' CERRAR=1 TARGET=local` sí.
+el caso y cerró» no deja rastro de nada; `make harness-case CASES='pullman' CLOSE=1 TARGET=local` sí.
 Medido el 2026-09-18 sobre las anotaciones que había entonces: de 350, **308 tenían texto debajo y sólo
 51 producían una fuente reconocible** — lo que se escribía a mano era prosa donde iba el comando.
 
@@ -988,14 +1012,14 @@ otras 25 lo mencionan sueltas en la prosa, donde nadie las va a buscar al retoma
 justamente para eso.
 
 ⚠ **A Jira NO va el arnés.** `## Tarea (publicable)` cambia de idioma: va *«se recorrió el flujo de
-punta a punta con un cliente de prueba»*, nunca `make harness-caminar`. Nadie más del equipo corre esta
+punta a punta con un cliente de prueba»*, nunca `make harness-walk-wizard`. Nadie más del equipo corre esta
 herramienta, así que nombrarla manda al lector a algo que no tiene y hace parecer que la prueba depende
 de un juguete personal. El guard del tablero frena `make <target>`, `E2E_TARGET` y los puertos locales;
 la regla entera, con qué poner en su lugar, está en [`tablero/CLAUDE.md`](../tablero/CLAUDE.md), en «La
 frontera del guard está DENTRO del archivo».
 
-**Y no hace falta escribirla a mano.** Con `BLOQUE=<id|slug>`, `harness-caso`, `harness-listado`,
-`harness-caminar` y `harness-suite` agregan la corrida sola, como bloque, a la pila de esa tarea: el
+**Y no hace falta escribirla a mano.** Con `BLOQUE=<id|slug>`, `harness-case`, `harness-listing`,
+`harness-walk-wizard` y `harness-suite` agregan la corrida sola, como bloque, a la pila de esa tarea: el
 título con el resumen, el comando exacto en su caja y la evidencia por caso como resultado, con
 `via: harness` (`pkg/annotation.ts`, y su prueba le pregunta al validador del tablero en seco). Y
 `MD=1` la emite como anotación, para un documento que NO es una tarea —un `CLAUDE.md`, una trampa—.
@@ -1003,11 +1027,11 @@ Lo aceptan los mismos cuatro, y devuelven la anotación completa —marcador con
 de evidencia por caso y el comando que la reproduce— al final de la corrida y **sola**, para copiarla
 sin recortar:
 
-    make harness-caso CASOS='pullman' CERRAR=1 MD=1
+    make harness-case CASES='pullman' CLOSE=1 MD=1
 
     > **MEDICIÓN · 2026-09-18** — 1/1 caso(s) en `local` · 1/1 cerraron en estado 11.
     > ✔ pullman · uReq 466858 · listado [100, 39, 77, 6, 9, 32, 68] · cerró en estado 11
-    > **Cómo se vuelve a comprobar:** `make harness-caso CASOS=pullman LAMBDA=1 CERRAR=1 MANUAL=1 TARGET=local`
+    > **Cómo se vuelve a comprobar:** `make harness-case CASES=pullman LAMBDA=1 CLOSE=1 MANUAL=1 TARGET=local`
 
 ⚠ **El contrato lo fija el tablero, no el gusto de acá**: el marcador arranca la primera línea, TODAS
 las líneas van dentro de la cita y el comando cierra como `Cómo se vuelve a comprobar`. Si deriva, la
@@ -1017,7 +1041,7 @@ puede contradecir el documento del que nació. Y el bloque de `BLOQUE=` lo fija 
 pila, en seco.
 
 ⚠ **Y lo que se resume es el DESENLACE, no el conteo.** «3/3 cerraron» no sirve dentro de una tarea tres
-semanas después; qué entidades salieron y dónde terminó cada caso, sí. En `harness-listado` la
+semanas después; qué entidades salieron y dónde terminó cada caso, sí. En `harness-listing` la
 evidencia son las que NO salieron **con su causa**, que es la pregunta por la que se corre.
 
 ## Lo que hay que saber antes de correr (venía del árbol de contexto)
@@ -1126,7 +1150,7 @@ commits del propio playground.
 
 **(2026-09-18) Lo que cambió el contrato del arnés con el resto del árbol**, verificado corriéndolo:
 
-- **La corrida se escribe sola como anotación: `MD=1`** en `harness-caso`, `-listado`, `-caminar` y
+- **La corrida se escribe sola como anotación: `MD=1`** en `harness-case`, `-listing`, `-walk-wizard` y
   `-suite`. Devuelve el marcador con la fecha real, una línea de evidencia por caso y el comando que
   la reproduce, al final y **solo**, para pegarlo sin recortar. No era comodidad: medido ese día, el
   86 % de las anotaciones pegadas a mano no traía el comando. *(Desde el 2026-09-23 lo que va a una

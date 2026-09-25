@@ -21,7 +21,7 @@ import { TARGET } from '../pkg/env';
  * `:5174`, que este spec NO levanta. Contra `staging` es el deploy (siempre disponible), que es el caso
  * de uso principal. Sin `:5174` arriba, el warm de local/dev falla con un mensaje claro.
  */
-const HASH = process.env.E2E_ASESOR_HASH ?? config.partnerHash;
+const HASH = process.env.E2E_ADVISOR_HASH ?? config.partnerHash;
 
 test.skip(
     !cognitoCreds.user || !cognitoCreds.pass,

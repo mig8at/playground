@@ -1,9 +1,6 @@
 {
   "nombre": "Alta Fleet · el comercio nuevo con su entidad Rent to Own propia",
-  "requiere": [
-    "cerrar",
-    "lambda"
-  ],
+  "requiere": ["close", "lambda"],
   "porDefecto": {
     "comercio": "alta",
     "amount": 2000000,

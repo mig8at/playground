@@ -25,7 +25,7 @@
 //   El paso 1 vive en `application`, que el harness no levanta (trabaja contra legacy-backend + el
 //   wizard). Y lo único que hace es un redirect de una línea a la URL del paso 2. Entrar en el 2 es
 //   **el mismo aterrizaje** que produce el QR real, sin depender de otro servicio.
-//   Si querés ejercitar la puerta de verdad, exportá `E2E_ALIADOS_URL` (ej. `http://localhost:8000`) y
+//   Si querés ejercitar la puerta de verdad, exportá `E2E_ALLIED_URL` (ej. `http://localhost:8000`) y
 //   `qrEntryUrl` arma la URL de `application`, redirect incluido.
 
 import { config } from './config.ts';
@@ -38,10 +38,10 @@ const wizard = () => config.feBaseUrl.replace(/\/+$/, '');
  * La URL por la que entra el canal QR.
  *
  * Por defecto: el aterrizaje que produce el QR real (`/bancolombia/self-service/{hash}/solicitar`).
- * Con `E2E_ALIADOS_URL` seteado: la puerta original de `application`, para ejercitar el redirect.
+ * Con `E2E_ALLIED_URL` seteado: la puerta original de `application`, para ejercitar el redirect.
  */
 export function qrEntryUrl(branchHash: string): string {
-    const allies = (process.env.E2E_ALIADOS_URL || '').replace(/\/+$/, '');
+    const allies = (process.env.E2E_ALLIED_URL || '').replace(/\/+$/, '');
     if (allies) return `${allies}/aliados/onboarding?hash=${encodeURIComponent(branchHash)}`;
     return `${wizard()}/bancolombia/self-service/${encodeURIComponent(branchHash)}/solicitar`;
 }

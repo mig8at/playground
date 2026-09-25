@@ -33,7 +33,7 @@ const CASES = {
       conSucursalesSinSolicitudes: process.env.E2E_ALLIED_B ?? '33',
       conSolicitudes: process.env.E2E_ALLIED_C ?? '14',
       /** Entidad (no comercio) que arrastra tipos de otro país: smartpay, en un país sin catálogo. */
-      entidadConTiposAjenos: process.env.E2E_LENDER_AJENOS ?? '152',
+      entidadConTiposAjenos: process.env.E2E_FOREIGN_TYPES_LENDER ?? process.env.E2E_LENDER_AJENOS ?? '152',
 };
 
 test.use({ baseURL: BASE });

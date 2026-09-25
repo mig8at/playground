@@ -2,7 +2,7 @@
 //
 // Nació como `montar-alta.ts`, un script de un comercio, y se generalizó en el mismo día: la tercera
 // vez que se copia un seeder de comercio, lo que hay que versionar es el DATO, no el script. Los
-// comercios viven en `harness/comercios/<slug>.json` y esto sólo sabe montarlos.
+// comercios viven en `harness/merchant-specs/<slug>.json` y esto sólo sabe montarlos.
 //
 // QUÉ CONTESTA. «¿Cómo se porta un comercio configurado ASÍ?» sin tener que pedirle a nadie que lo
 // arme en el admin. Cubre la forma COMÚN —comercio, sucursales, entidades `rt=2` con molde— que es la
@@ -87,14 +87,14 @@ if (TARGET !== 'local' && env('I_KNOW_THIS_TOUCHES_SHARED_DEV') !== '1') {
 
 const CLEAN = process.argv.includes('--clean');
 const ORDER = process.argv.slice(2).find((a) => !a.startsWith('--'));
-const DIR_SPECS = new URL('../comercios/', import.meta.url);
+const DIR_SPECS = new URL('../merchant-specs/', import.meta.url);
 
 if (!ORDER) {
     const there = readdirSync(DIR_SPECS).filter((f) => f.endsWith('.json')).map((f) => f.replace(/\.json$/, ''));
     console.log(`\n  falta el comercio. Los que hay: ${there.join(' · ') || '(ninguno)'}\n`);
     // Se sugiere la forma `make` y no la del script: `make` es la puerta única del repo, y un hint que
     // enseña a saltearla es cómo se termina con dos maneras de correr lo mismo.
-    console.log(`  uso:  make harness-comercio COMERCIO=<comercio> [CLEAN=1]\n`);
+    console.log(`  uso:  make harness-merchant MERCHANT=<comercio> [CLEAN=1]\n`);
     process.exit(2);
 }
 
@@ -488,9 +488,9 @@ try {
 const selfService = spec.entidades.some((e) => !e.user_self_management);
 console.log(`
   Comprobalo:
-    make harness-listado COMERCIO=${ORDER}
-    make harness-caso CASOS='${ORDER}' CERRAR=1 LAMBDA=1
-    make harness-suite SUITE=harness/suites/${ORDER}.json CERRAR=1 LAMBDA=1
+    make harness-listing MERCHANT=${ORDER}
+    make harness-case CASES='${ORDER}' CLOSE=1 LAMBDA=1
+    make harness-suite SUITE=harness/suites/${ORDER}.json CLOSE=1 LAMBDA=1
 `);
 if (selfService) console.log(`  ⚠ AUTOGESTIÓN — lo sembrado acá dice «no le mandes el link al cliente»
     (\`allieds.self_managed=1\` + \`lenders_by_allieds.user_self_management=0\`), y eso es lo que

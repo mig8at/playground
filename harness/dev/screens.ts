@@ -25,12 +25,13 @@
 //   · **no dice el método** (GET/POST): eso vive en el `fetch` y no siempre al lado de la URL.
 //   · **es el wizard**, no los otros fronts (admin, application). El wizard es el que recorre el cliente.
 //
-// Uso:  node dev/screens.ts [--json] [--sin-endpoints]
-//         --filtro <texto>     acota por URL o archivo de la pantalla
+// Uso:  node dev/screens.ts [--json] [--no-endpoints]
+//         --filter <texto>     acota por URL o archivo de la pantalla
 //         --endpoint <texto>   AL REVÉS: qué pantallas pueden llamar a ese endpoint. Es la pregunta
 //                              que deja abierta una corrida por API («falló en confirm-payment-schedule,
 //                              ¿qué veía el cliente?»)
 
+import '../pkg/cli-aliases.ts';   // los flags viejos (en español) siguen andando: ver ese archivo
 import { execFileSync, execSync } from 'node:child_process';
 import { mkdtempSync, readFileSync, readdirSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -264,7 +265,7 @@ const byEndpoint = value('endpoint');
  *  falso. Con la red aparecen, marcadas como lo que son. */
 type Resolved = { precisos: string[]; delModulo: string[] };
 let endpointsOf = (_p: Screen): Resolved => ({ precisos: [], delModulo: [] });
-if (!flag('sin-endpoints')) {
+if (!flag('no-endpoints')) {
     const { porArchivo: byFile, deSimbolo: fromSymbol, porModulo: byModule } = moduleIndex();
     const { simbolos: symbols, propios: ownOnes, paquetes: packages } = screenAmounts();
     endpointsOf = (p: Screen) => {
@@ -318,8 +319,8 @@ if (flag('json')) {
         console.log(`      ${p.archivo}`);
         const matters = (e: string) => !byEndpoint || e.includes(byEndpoint);
         for (const e of p.precisos.filter(matters)) console.log(`      → ${e}`);
-        if (!flag('sin-endpoints')) for (const e of p.delModulo.filter(matters)) console.log(`      · ${e}`);
-        if (!p.precisos.length && !p.delModulo.length && !flag('sin-endpoints')) {
+        if (!flag('no-endpoints')) for (const e of p.delModulo.filter(matters)) console.log(`      · ${e}`);
+        if (!p.precisos.length && !p.delModulo.length && !flag('no-endpoints')) {
             console.log(`      (sin endpoint: no importa nada de \`@creditop/*\` con URL — es render puro)`);
         }
     }

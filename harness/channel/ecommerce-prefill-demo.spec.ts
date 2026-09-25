@@ -117,7 +117,7 @@ test("DEMO prefill: checkout → amount → phone → OTP → /personal-info (mu
                   // con un `toBeVisible() failed` que parece un problema de la pantalla.
                   if (!(await page.getByTestId("date-selector-day").count())) {
                         return "hasta acá llega el demo: el selector de fecha no tiene testids en qa "
-                              + "(ver la cabecera de pkg/wizard-steps.ts) · para el flujo completo: make harness-caminar";
+                              + "(ver la cabecera de pkg/wizard-steps.ts) · para el flujo completo: make harness-walk-wizard";
                   }
                   await fillExpeditionDate(page);
                   return "fecha de expedición ingresada manualmente";

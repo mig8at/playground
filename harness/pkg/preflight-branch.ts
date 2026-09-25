@@ -7,7 +7,7 @@
 //
 //   1. `.flows.json` — un catálogo estático, mantenido a mano, que mapea `slug → branch_hash`. Es lo
 //      que usa el panel para anunciar (`branchHashForSlug`) y lo que `bin/advisor` le pasa al wizard.
-//   2. `E2E_ASESOR_SUB` de `.env.<target>` — el asesor con el que se va a loguear. Su sucursal REAL la
+//   2. `E2E_ADVISOR_SUB` de `.env.<target>` — el asesor con el que se va a loguear. Su sucursal REAL la
 //      decide la base (`users.allied_branch_id`), y el wizard la lee por el backend.
 //   3. La sesión de Cognito cacheada en `.auth/` — si quedó de otra corrida, el que loguea puede ser
 //      OTRO asesor, con OTRA sucursal.
@@ -18,7 +18,7 @@
 //   · `.flows.json` decía `13874eb6` (branch 659) → Sistecrédito · CrediPullman · Cierre X
 //   · el wizard aterrizó en `ec977139` (branch 390) → Addi · Vanti · CrediPullman · Crédito 365
 //
-// Y peor: el `E2E_ASESOR_SUB` de `.env.qa` resuelve a `1bfb8cd0` (CeluRD Santo Domingo) y su email es
+// Y peor: el `E2E_ADVISOR_SUB` de `.env.qa` resuelve a `1bfb8cd0` (CeluRD Santo Domingo) y su email es
 // de OTRA PERSONA. O sea que las tres fuentes daban tres respuestas distintas.
 //
 // ⚠ EL CHEQUEO QUE YA EXISTÍA NO ALCANZA. `bin/advisor` y el panel comparan
@@ -53,7 +53,7 @@ export function catalogHash(slug: string, target = 'local'): string {
 }
 
 /**
- * EL SUB DEL ASESOR, por la MISMA cadena que usa todo el harness: `E2E_ASESOR_SUB` del
+ * EL SUB DEL ASESOR, por la MISMA cadena que usa todo el harness: `E2E_ADVISOR_SUB` del
  * `.env.<target>` y, si no está, `asesor.sub` de `.flows.json`.
  *
  * ⚠ Vive acá porque los tres que preguntan lo resolvían cada uno a su manera: `bin/advisor` con
@@ -62,7 +62,7 @@ export function catalogHash(slug: string, target = 'local'): string {
  * Tres implementaciones de la misma pregunta es como una se queda atrás.
  */
 export function advisorSubject(): string {
-      const fromEnv = env('E2E_ASESOR_SUB').trim();
+      const fromEnv = env('E2E_ADVISOR_SUB').trim();
       if (fromEnv) return fromEnv;
       try {
             const j = JSON.parse(readFileSync(join(ROOT, '.flows.json'), 'utf8'));
@@ -144,7 +144,7 @@ export async function preflightBranch(slug: string, target: string, sub: string)
             coincide: false, comprobado: false, slug, target, esperada: expectedOne, asesor: null, sub, motivo: '',
       };
       if (!expectedOne) return { ...base, motivo: `no sé el hash de la sucursal de '${slug}'` };
-      if (!sub.trim()) return { ...base, motivo: `sin E2E_ASESOR_SUB para ${target}: no hay a quién preguntarle` };
+      if (!sub.trim()) return { ...base, motivo: `sin E2E_ADVISOR_SUB para ${target}: no hay a quién preguntarle` };
 
       const advisor = await advisorBranch(sub);
       if (!advisor) {

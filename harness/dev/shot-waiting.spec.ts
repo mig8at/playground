@@ -7,10 +7,10 @@ import { join } from 'node:path';
  * Abre `waiting-validation` ("Estamos validando tus datos…") en dos contextos (A y B) sobre una solicitud
  * que YA existe, y deja ambos PARADOS ahí (linger) + screenshot. Sirve para validar la pantalla de espera
  * sin depender del entry (monto→tel→OTP). Pensado para correr headed para verlo, o headless para capturar.
- *   E2E_UREQ=<id> E2E_ASESOR_HASH=<hash> npx playwright test dev/shot-waiting.spec.ts --headed
+ *   E2E_UREQ=<id> E2E_ADVISOR_HASH=<hash> npx playwright test dev/shot-waiting.spec.ts --headed
  */
 const FE = process.env.E2E_FE_BASE_URL ?? 'http://localhost:5174';
-const HASH = process.env.E2E_ASESOR_HASH ?? '13874eb6';
+const HASH = process.env.E2E_ADVISOR_HASH ?? '13874eb6';
 const UREQ = process.env.E2E_UREQ ?? '464204';
 const LINGER = Number(process.env.E2E_LINGER_MS ?? 8_000);
 const AUTH = join(process.cwd(), '.auth');

@@ -25,10 +25,11 @@
  * SOLO LECTURA: hace `SELECT` sobre `lender_allied_credentials` y no escribe nada, ni en BD ni en el banco
  * (en Sandbox el emisor es un mock). Nunca imprime el secreto, el JWT ni el certificado.
  *
- * USO:  node dev/sandbox-bancolombia.ts [--grupo A|B|C|D|E] [--cred 1124]
+ * USO:  node dev/sandbox-bancolombia.ts [--group A|B|C|D|E] [--cred 1124]
  *   env: E2E_TARGET (dev) · BC_SANDBOX_HOST · BC_SANDBOX_PREFIX
  * Sale 1 si alguna respuesta se apartó de lo medido el 2026-08-04.
  */
+import '../pkg/cli-aliases.ts';   // los flags viejos (en español) siguen andando: ver ese archivo
 import { query, TARGET, appKey } from '../pkg/db.ts';
 import { decryptLaravelString } from '../pkg/laravel-crypt.ts';
 import { createSign, generateKeyPairSync, randomBytes, randomUUID, X509Certificate } from 'node:crypto';
@@ -46,7 +47,7 @@ const arg = (n: string) => {
 // está aprovisionada en este sandbox: las otras tres —incluida la de los 167 comercios `creditop-bnpl`—
 // dan 401. Si cambiás esto y todo da 401, es eso.
 const CRED = Number(arg('--cred') || 1124);
-const GROUP = (arg('--grupo') || '').toUpperCase();
+const GROUP = (arg('--group') || '').toUpperCase();
 
 const b64url = (b: Buffer | string) =>
     (Buffer.isBuffer(b) ? b : Buffer.from(b)).toString('base64').replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');

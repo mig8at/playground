@@ -1,7 +1,7 @@
 // posthog-errors.ts — ¿QUÉ PANTALLAS se están rompiendo en este ambiente, y con qué error?
 //
 //   E2E_TARGET=qa   node dev/posthog-errors.ts            # staging (los deploys de qa y de staging)
-//   E2E_TARGET=prod node dev/posthog-errors.ts --dias 3
+//   E2E_TARGET=prod node dev/posthog-errors.ts --days 3
 //
 // Es la vista agregada del canal de LOGS (ver `pkg/posthog.ts` §«EL SEGUNDO CANAL»): el front del
 // wizard registra por OpenTelemetry cada fallo con el ARCHIVO de la pantalla, la etapa (`loader` /
@@ -17,6 +17,7 @@
 // ⚠ Y esto NO es un ranking de gravedad. Un `ZodError` repetido en el loader de una pantalla muy
 // visitada suma más que una caída de firma que le pasó a tres personas, y la segunda es peor. El conteo
 // dice frecuencia; la gravedad la pone quien lee.
+import '../pkg/cli-aliases.ts';   // los flags viejos (en español) siguen andando: ver ese archivo
 process.env.E2E_TARGET ||= 'qa';
 export {};
 const { posthogConfig, whyNot, errorsByScreen, errorPatterns } = await import('../pkg/posthog.ts');
@@ -31,7 +32,7 @@ const c = posthogConfig();
 const no = whyNot(c);
 if (no) { console.log(`\n  PostHog: no se consulta — ${no}\n`); process.exit(2); }
 
-const days = Number(arg('dias', '7')) || 7;
+const days = Number(arg('days', '7')) || 7;
 console.log(`\n  ERRORES DEL FRONT · target ${TARGET} · environment=${c.env} · últimos ${days} día(s)\n`);
 
 const byScreen = await errorsByScreen(c, days);

@@ -1,6 +1,6 @@
 // qr-corbeta.ts — el CANAL QR de punta a punta, por API y SIN NAVEGADOR.
 //
-//   node dev/qr-corbeta.ts [--producto bnpl|consumo] [--branch <hash>] [--amount 1500000] [--facturar] [--keep]
+//   node dev/qr-corbeta.ts [--product bnpl|consumo] [--branch <hash>] [--amount 1500000] [--invoice] [--keep]
 //
 // LOS DOS PRODUCTOS de Bancolombia son DOS integraciones distintas, no un flag cosmético:
 //   · `bnpl`    (lender 68)  → 8 pasos · el insumo del código es `bnpl_transaction_id`, lo escribe
@@ -38,7 +38,7 @@
 //  12  origination          POST …/origination/{ur}               ← acá debería quedar el estado 25
 //  13  purchase-code        POST /api/onboarding/purchase-code/generate/{ur}   ← el PIN
 //  14  verificación         el PIN en el registro del mock + en `verification_token` de la BD
-//  15  --facturar           mueve la orden a estado 3 en el mock y RE-pide el código: debe dejar de mostrarse
+//  15  --invoice           mueve la orden a estado 3 en el mock y RE-pide el código: debe dejar de mostrarse
 //
 // QUÉ HACE FALTA PARA QUE CORRA COMPLETO (el preflight lo dice y no adivina):
 //   · `bin/mock-corbeta start` + `CORBETA_HOST=http://host.docker.internal:8103` en legacy-backend/.env
@@ -52,6 +52,7 @@
 //   · `E2E_TARGET` default es dev → acá se fuerza local salvo override explícito.
 //   · el teléfono se scrubbea antes del register.
 
+import '../pkg/cli-aliases.ts';   // los flags viejos (en español) siguen andando: ver ese archivo
 import { spawnSync } from 'node:child_process';
 
 process.env.E2E_TARGET ||= 'local';
@@ -71,8 +72,8 @@ const API = e2eConfig.mockUrl;
 const MOCK_CORBETA = `http://localhost:${process.env.MOCK_CORBETA_PORT || 8103}`;
 const PHONE = '3131010101';
 const UA = 'Mozilla/5.0 (iPhone; CPU iPhone OS 16_5 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.5 Mobile/15E148 Safari/604.1';
-// El sub del asesor por la MISMA cadena que el resto del harness (`E2E_ASESOR_SUB` de
-// `.env.<target>` y, si no, `.flows.json`). ⚠ Antes era `process.env.E2E_ASESOR_SUB`, y eso NO ve el
+// El sub del asesor por la MISMA cadena que el resto del harness (`E2E_ADVISOR_SUB` de
+// `.env.<target>` y, si no, `.flows.json`). ⚠ Antes era `process.env.E2E_ADVISOR_SUB`, y eso NO ve el
 // `.env`: la clave sólo existe en `.env.qa` y `.env.staging`, así que contra esos targets este runner
 // mandaba el asesor del catálogo LOCAL —o ninguno— con el aplomo de haberlo leído. Import dinámico
 // porque este archivo fuerza `E2E_TARGET` arriba y un import estático corre antes (F-187).
@@ -89,10 +90,10 @@ const argv = process.argv.slice(2);
 const flag = (n: string) => argv.includes(n);
 const opt = (n: string, d = '') => { const i = argv.indexOf(n); return i >= 0 ? (argv[i + 1] ?? d) : d; };
 const AMOUNT = Number(opt('--amount', '1500000')) || 1_500_000;
-const INVOICE = flag('--facturar');
+const INVOICE = flag('--invoice');
 const KEEP = flag('--keep');
 /** `bnpl` (lender 68) o `consumo` (lender 100). Son DOS integraciones distintas, no un flag cosmético. */
-const PRODUCT = (opt('--producto', 'bnpl') || 'bnpl').toLowerCase() === 'consumo' ? 'consumo' : 'bnpl';
+const PRODUCT = (opt('--product', 'bnpl') || 'bnpl').toLowerCase() === 'consumo' ? 'consumo' : 'bnpl';
 const LENDER = PRODUCT === 'consumo' ? 100 : 68;
 // El insumo que cada producto persiste en `lender_integration_flows` y que el servicio nuevo de
 // Bancolombia va a exigir como `transactionId` para emitir el código.
@@ -108,10 +109,10 @@ const TX_KEY = PRODUCT === 'consumo' ? 'loan_validate_key' : 'bnpl_transaction_i
  * el tipo en el centinela `-`— sólo aparece cuando el alta SÍ recibe el número, y por eso el recorrido
  * cerraba en verde en local mientras en producción se cancelaba.
  *
- * `--documento ''` vuelve al comportamiento viejo (registrar sin documento), que sigue siendo un caso
+ * `--document ''` vuelve al comportamiento viejo (registrar sin documento), que sigue siendo un caso
  * legítimo: es el cliente que entra por un canal que no lo pide.
  */
-const DOCUMENT = argv.includes('--documento') ? opt('--documento', '') : '1014257745';
+const DOCUMENT = argv.includes('--document') ? opt('--document', '') : '1014257745';
 // El paso que la ESCRIBE (el único, en los dos productos).
 const TX_STEP = PRODUCT === 'consumo' ? 'user-validate' : 'retrieve-quota';
 

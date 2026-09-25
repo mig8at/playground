@@ -101,7 +101,7 @@ jira_title: ""
      corrida que DEMUESTRA que funciona, copiable. Es lo privado y detallado; la receta para QA va
      abajo, en la publicable, y en otro idioma.
 
-     CON QUÉ SE LLENA: el harness (`make harness-caso` · `harness-listado` · `harness-caminar`) y, si
+     CON QUÉ SE LLENA: el harness (`make harness-case` · `harness-listing` · `harness-walk-wizard`) y, si
      la pregunta es de datos, `make tablero-db`. Trazador queda para seguir UNA solicitud y su
      comportamiento, no para SQL. La cita de base contiene sólo el ambiente y la query, sin el nombre
      de la herramienta. Medido:
@@ -112,7 +112,7 @@ jira_title: ""
      volver ilegible el archivo. Si la receta cambió, se corrige acá; el bloque que explica el cambio va
      a la pila. Llevá la fecha de la última vez que se comprobó, no una fecha por versión.
      Una MEDICIÓN no va acá: va a la pila como bloque, con el comando y su «Resultado:». Con
-     `BLOQUE=<id|slug>`, `harness-caso` · `-listado` · `-caminar` · `-suite`, `trazador-*` y
+     `BLOQUE=<id|slug>`, `harness-case` · `-listing` · `-walk-wizard` · `-suite`, `trazador-*` y
      `tablero-db` lo agregan solos. -->
 
 ## Referencias

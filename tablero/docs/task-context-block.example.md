@@ -5,7 +5,7 @@ de `setUpTraits()`, así que contiene el trait, el `uses()` de Pest y el `Pest.p
 identidad del cliente se decide aparte: [el tema de KYC](canon:kyc).
 
 ```harness
-make harness-listado COMERCIO=<slug> TARGET=local
+make harness-listing MERCHANT=<slug> TARGET=local
 ```
 Resultado: acá va lo que dio la corrida, resumido — cuántas entidades salieron y cuáles no.
 

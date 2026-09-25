@@ -15,14 +15,14 @@ import { readFileSync } from 'node:fs';
 import { openA } from '../pkg/windows.ts';
 import { config } from '../pkg/config.ts';
 
-const MERCHANT = process.env.E2E_COMERCIO || 'alta';
+const MERCHANT = process.env.E2E_PROBE_MERCHANT || process.env.E2E_COMERCIO || 'alta';   // el viejo sigue andando
 
 test('el autorelleno se instala y llena el monto', async ({ browser }) => {
     test.setTimeout(120_000);
 
     const flows = JSON.parse(readFileSync(new URL('../.flows.json', import.meta.url), 'utf8'));
     const hash = flows?.merchants?.[MERCHANT]?.branch_hash;
-    test.skip(!hash, `«${MERCHANT}» no está en .flows.json — corré \`make harness-comercio COMERCIO=${MERCHANT}\``);
+    test.skip(!hash, `«${MERCHANT}» no está en .flows.json — corré \`make harness-merchant MERCHANT=${MERCHANT}\``);
 
     const { page } = await openA(browser, { baseURL: config.feBaseUrl });
     await page.goto(`/self-service/${hash}/solicitar`, { waitUntil: 'domcontentloaded', timeout: 60_000 });

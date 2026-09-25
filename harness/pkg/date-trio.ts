@@ -29,8 +29,8 @@
  */
 export function syntheticDates(): { nacimiento: string; expedicion: string } {
       return {
-            nacimiento: process.env.E2E_SYNTH_NACIMIENTO || '1990-05-14',
-            expedicion: process.env.E2E_SYNTH_EXPEDICION || '2010-08-20',
+            nacimiento: process.env.E2E_SYNTH_BIRTH_DATE || process.env.E2E_SYNTH_NACIMIENTO || '1990-05-14',
+            expedicion: process.env.E2E_SYNTH_ISSUE_DATE || process.env.E2E_SYNTH_EXPEDICION || '2010-08-20',
       };
 }
 

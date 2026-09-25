@@ -42,7 +42,7 @@ import { mockPayvalidaCheckout, PAYVALIDA_SENTINEL } from '../pkg/payvalida-mock
  * Lo orquesta `bin/advisor <m> auto` / `bin/ecommerce <m> auto`. Es INTERACTIVO (necesita tus clicks) → no CI.
  */
 
-const HASH = process.env.E2E_ASESOR_HASH ?? config.partnerHash;
+const HASH = process.env.E2E_ADVISOR_HASH ?? config.partnerHash;
 const PHONE = process.env.E2E_OTP_BYPASS_PHONE ?? '3131010101'; // qa_otp_bypass_phones → OTP = últimos 4
 const OTP = PHONE.slice(-4);
 const AMOUNT = process.env.E2E_AMOUNT ?? '600000';
@@ -623,7 +623,7 @@ test('guided (semiautomático)', async ({ browser }) => {
         age: Number(process.env.E2E_SYNTH_AGE) || undefined,
         negatives: process.env.E2E_SYNTH_NEG ? Number(process.env.E2E_SYNTH_NEG) : undefined,
         consulted: process.env.E2E_SYNTH_CONS ? Number(process.env.E2E_SYNTH_CONS) : undefined,
-        delinquencies: process.env.E2E_SYNTH_MORA ? Number(process.env.E2E_SYNTH_MORA) : undefined,
+        delinquencies: process.env.E2E_SYNTH_DELINQUENCIES ? Number(process.env.E2E_SYNTH_DELINQUENCIES) : undefined,
         occupation: process.env.E2E_SYNTH_OCC || undefined,
         dob: process.env.E2E_SYNTH_DOB || undefined,
         expeditionDate: process.env.E2E_SYNTH_EXP || undefined,
@@ -653,9 +653,9 @@ test('guided (semiautomático)', async ({ browser }) => {
         }).catch(() => ({ employment: false, bureau: false }));
         log(done.employment && done.bureau
             ? `buró dictado al mock de centrales para ${process.env.E2E_SYNTH_DOC}: la categoría la deciden las perillas del caso`
-            : `⚠ no se pudo dictar el caso al mock de centrales (:8105, \`make harness-centrales\`): la categoría la decidirá lo que conteste el backend, no las perillas`);
+            : `⚠ no se pudo dictar el caso al mock de centrales (:8105, \`make harness-bureaus\`): la categoría la decidirá lo que conteste el backend, no las perillas`);
         if (!(done.employment && done.bureau)) {
-            cardNotes.push('el mock de centrales no respondió: la categoría no la deciden las perillas (make harness-centrales)');
+            cardNotes.push('el mock de centrales no respondió: la categoría no la deciden las perillas (make harness-bureaus)');
             pushCard(page, { notes: cardNotes });
         }
     }
@@ -734,8 +734,8 @@ test('guided (semiautomático)', async ({ browser }) => {
         }).then((r) => r.json()).catch(() => null);
         const userId = reg?.data?.user?.id ?? null;
         const br = userId ? await one<{ branch_id: number; allied_id: number }>('SELECT id AS branch_id, allied_id FROM allied_branches WHERE hash=? LIMIT 1', [HASH]).catch(() => null) : null;
-        // asesor → corporate_user_id (como el flujo real, para que /lenders lo autorice). bin/advisor exporta E2E_ASESOR_SUB.
-        const advisorSub = process.env.E2E_ASESOR_SUB || '';
+        // asesor → corporate_user_id (como el flujo real, para que /lenders lo autorice). bin/advisor exporta E2E_ADVISOR_SUB.
+        const advisorSub = process.env.E2E_ADVISOR_SUB || '';
         const advisorId = advisorSub ? ((await one<{ id: number }>('SELECT id FROM users WHERE cognito_id=? LIMIT 1', [advisorSub]).catch(() => null))?.id ?? null) : null;
         if (!userId || !br) {
             log(`✗ no pude sembrar el uReq headless (user=${userId ?? '?'} · branch=${br ? 'ok' : 'no'}) — probá "Saltar a: Datos" (visual)`);
@@ -847,7 +847,7 @@ test('guided (semiautomático)', async ({ browser }) => {
         // termina con un CÓDIGO que presenta en caja para facturar.
         //
         // Entramos en el aterrizaje que produce el QR real, no en `application` (que sólo hace el
-        // redirect y el harness no levanta). El detalle del recorrido y del `E2E_ALIADOS_URL` para
+        // redirect y el harness no levanta). El detalle del recorrido y del `E2E_ALLIED_URL` para
         // ejercitar la puerta original está en pkg/qr.ts.
         //
         // ⚠ Este canal exige que la sucursal tenga los DOS lenders de Bancolombia (68/100) habilitados:

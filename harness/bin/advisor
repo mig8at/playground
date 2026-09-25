@@ -128,12 +128,13 @@ json_pick() { node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>{t
 # El asesor es POR TARGET. `.flows.json` describe al de dev; staging entra por OTRO pool de Cognito, así
 # que la MISMA persona tiene otro `sub` — y como el backend y la BD son los mismos para dev y staging, el
 # backend no la reconoce y el wizard responde "No tienes un comercio asignado" (F-61). Si `.env.<target>`
-# define E2E_ASESOR_SUB / E2E_COGNITO_USER, mandan ellos.
+# define E2E_ADVISOR_SUB / E2E_COGNITO_USER, mandan ellos.
 EMAIL="$(fget asesor.email)"; SUB="$(fget asesor.sub)"
-OV="$(envget E2E_ASESOR_SUB)";   [ -n "$OV" ] && SUB="$OV"
+OV="$(envget E2E_ADVISOR_SUB)";   [ -z "$OV" ] && OV="$(envget E2E_ASESOR_SUB)"   # el nombre viejo sigue andando
+[ -n "$OV" ] && SUB="$OV"
 OV="$(envget E2E_COGNITO_USER)"; [ -n "$OV" ] && EMAIL="$OV"
-[ -n "$EMAIL" ] && [ -n "$SUB" ] || { echo "✗ sin asesor: definí E2E_ASESOR_SUB en .env.$TARGET o asesor.email/sub en $FLOWS"; exit 1; }
-export E2E_ASESOR_SUB="$SUB"   # lo usa el spec (salto headless a /lenders) para el corporate_user_id del uReq
+[ -n "$EMAIL" ] && [ -n "$SUB" ] || { echo "✗ sin asesor: definí E2E_ADVISOR_SUB en .env.$TARGET o asesor.email/sub en $FLOWS"; exit 1; }
+export E2E_ADVISOR_SUB="$SUB"   # lo usa el spec (salto headless a /lenders) para el corporate_user_id del uReq
 # ⚠ EL HASH DE LA SUCURSAL NO ES EL MISMO EN TODAS LAS BASES, así que primero se mira el mapa POR
 # TARGET. Una sucursal es una fila con su propio hash en cada base: el comercio peruano se sembró a
 # mano en local (`montar-peru`) y ahí quedó `50e007e4`, mientras que en la base compartida de dev/qa
@@ -203,7 +204,7 @@ if [ -z "$HASH" ]; then
   node -e 'const fs=require("fs"),f=process.argv[1],m=process.argv[2],h=process.argv[3];const j=JSON.parse(fs.readFileSync(f));j.merchants=j.merchants||{};j.merchants[m]=Object.assign({},j.merchants[m],{branch_hash:h});fs.writeFileSync(f,JSON.stringify(j,null,2)+"\n")' "$FLOWS" "$MERCHANT" "$HASH"
   echo "  ✓ $MERCHANT → $HASH (cacheado en .flows.json)"
 fi
-export E2E_ASESOR_HASH="$HASH"
+export E2E_ADVISOR_HASH="$HASH"
 
 # ── permiso al asesor (un asesor = un comercio); ecommerce entra por checkout, sin asesor ──
 step "load-permiso"

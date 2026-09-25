@@ -1,10 +1,6 @@
 {
   "nombre": "El cliente que vuelve: la entidad SIGUE ahí — lo que se gasta es el cupo, no la elegibilidad",
-  "requiere": [
-    "cerrar",
-    "lambda",
-    "paralelo"
-  ],
+  "requiere": ["close", "lambda", "parallel"],
   "porDefecto": {
     "amount": 2000000,
     "income": 2500000,

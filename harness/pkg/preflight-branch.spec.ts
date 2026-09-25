@@ -82,25 +82,25 @@ test.describe('el sub del asesor', () => {
       // no está — así que el chequeo se saltaba y parecía que no había desajuste. Un chequeo que se
       // saltea se lee igual que uno que pasó.
       test('cae a .flows.json cuando la variable de entorno no está', () => {
-            const prior = process.env.E2E_ASESOR_SUB;
-            delete process.env.E2E_ASESOR_SUB;
+            const prior = process.env.E2E_ADVISOR_SUB;
+            delete process.env.E2E_ADVISOR_SUB;
             try {
                   // El `.flows.json` de esta máquina declara un asesor; lo que se fija es que NO devuelva
                   // vacío por no haber mirado ahí.
                   expect(advisorSubject()).not.toBe('');
             } finally {
-                  if (prior !== undefined) process.env.E2E_ASESOR_SUB = prior;
+                  if (prior !== undefined) process.env.E2E_ADVISOR_SUB = prior;
             }
       });
 
       test('la variable de entorno manda sobre el catálogo', () => {
-            const prior = process.env.E2E_ASESOR_SUB;
-            process.env.E2E_ASESOR_SUB = 'sub-de-la-variable';
+            const prior = process.env.E2E_ADVISOR_SUB;
+            process.env.E2E_ADVISOR_SUB = 'sub-de-la-variable';
             try {
                   expect(advisorSubject()).toBe('sub-de-la-variable');
             } finally {
-                  if (prior === undefined) delete process.env.E2E_ASESOR_SUB;
-                  else process.env.E2E_ASESOR_SUB = prior;
+                  if (prior === undefined) delete process.env.E2E_ADVISOR_SUB;
+                  else process.env.E2E_ADVISOR_SUB = prior;
             }
       });
 });

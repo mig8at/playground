@@ -1,6 +1,6 @@
 // bcp-return.ts — el flujo VEHICLE de BCP por HTTP, y qué pasa cuando el asesor VUELVE ATRÁS.
 //
-//   E2E_TARGET=local node dev/bcp-return.ts --comercio '#50e007e4'
+//   E2E_TARGET=local node dev/bcp-return.ts --merchant '#50e007e4'
 //
 // POR QUÉ EXISTE. El flujo de BCP tiene tres pantallas que ningún runner sabía caminar —el formulario
 // del vehículo (`formulario/pre`), el simulador embebido (`entidad/simulador`) y el gate manual
@@ -31,7 +31,7 @@
 // mirarlo en un navegador.
 //
 // ✔ YA SE MIRÓ, Y LA RESPUESTA ES QUE SÍ (2026-09-18). Con
-// `make harness-caminar CASOS='#50e007e4:207' MOTOR=navegador MONTO=60000` la pantalla se pasa sin
+// `make harness-walk-wizard CASES='#50e007e4:207' ENGINE=browser AMOUNT=60000` la pantalla se pasa sin
 // tocar «Monto a financiar»: basta llenar la cuota inicial y el renderer lo calcula solo — el
 // caminador salió a `entidad/simulador?amount=48000`, o sea 60.000 − 12.000, hecho por el cliente.
 // Este runner puede seguir mandando el número él mismo; lo que ya no hace falta es dudar de si la
@@ -40,6 +40,7 @@
 // ⚠ Y lo que ese recorrido dejó al descubierto: `entidad/simulador` es un IFRAME al simulador REAL de
 // BCP (`VITE_BCP_SIMULATOR_URL`, por defecto un Azure del banco), y en local no hay mock — la pantalla
 // es una caja vacía con su botón debajo. Se llega, pero no hay nada que mirar ni con qué interactuar.
+import '../pkg/cli-aliases.ts';   // los flags viejos (en español) siguen andando: ver ese archivo
 process.env.E2E_TARGET ||= 'local';
 export {};
 
@@ -53,10 +54,10 @@ const arg = (n: string, d = ''): string => {
     return i > 0 && process.argv[i + 1] && !process.argv[i + 1].startsWith('--') ? process.argv[i + 1] : d;
 };
 
-const REF = arg('comercio', '#50e007e4');
+const REF = arg('merchant', '#50e007e4');
 const AMOUNT = Number(arg('amount', '60000'));       // valor del vehículo, en soles
-const DOWN_PAYMENT = Number(arg('inicial', '10000'));
-const BONUS = Number(arg('bono', '2000'));
+const DOWN_PAYMENT = Number(arg('down-payment', '10000'));
+const BONUS = Number(arg('bonus', '2000'));
 const BASE_FE = arg('front', config.feBaseUrl);
 const FLOW = arg('flow', 'self-service');
 
@@ -69,7 +70,7 @@ const FLOW = arg('flow', 'self-service');
  *     el recorrido trabado en la pantalla del OTP. Van dos, uno por recorrido: con el mismo número los
  *     dos recorridos serían el mismo cliente y el segundo chocaría con la solicitud del primero.
  *   · EL RECORRIDO B NO CORRE SOLO. Es el que prueba que el gate mata una solicitud, así que la DEJA
- *     NEGADA. En una base compartida eso es basura que queda: hay que pedirlo con `--niega`.
+ *     NEGADA. En una base compartida eso es basura que queda: hay que pedirlo con `--deny`.
  *
  * `prod` no está y no va a estar: acá se registran clientes y se llenan formularios. */
 const ENVIRONMENTS = ['local', 'dev', 'qa', 'staging'];
@@ -84,7 +85,7 @@ if (TARGET !== 'local' && TELS.length < 1) {
             + '\n   ej:  --tel 321411214,321411217   (el primero para el recorrido A, el segundo para el B)',
     );
 }
-const DENIES = TARGET === 'local' || process.argv.includes('--niega');
+const DENIES = TARGET === 'local' || process.argv.includes('--deny');
 
 const c = (s: string, n: number) => `[${n}m${s}[0m`;
 const ok = (s: string) => c(s, 32), bad = (s: string) => c(s, 31), eye = (s: string) => c(s, 33), gris = (s: string) => c(s, 90);
@@ -353,7 +354,7 @@ if (preAgain.status !== 200) {
 // ─── RECORRIDO B: el gate, dos veces ─────────────────────────────────────────────────────────────
 if (!DENIES) {
     line(`\n  ${c('RECORRIDO B — volver al gate y cambiar de opinión', 1)}  ${eye('OMITIDO')}`);
-    line(`      ${gris(`deja una solicitud NEGADA, y «${TARGET}» es una base compartida. Para correrlo: --niega`)}`);
+    line(`      ${gris(`deja una solicitud NEGADA, y «${TARGET}» es una base compartida. Para correrlo: --deny`)}`);
     line();
     await close();
     process.exit(0);

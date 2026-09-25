@@ -1,10 +1,6 @@
 {
   "nombre": "Motai · los tres productos de CreditopX",
-  "requiere": [
-    "cerrar",
-    "lambda",
-    "paralelo"
-  ],
+  "requiere": ["close", "lambda", "parallel"],
   "porDefecto": {
     "amount": 2000000,
     "income": 2500000,

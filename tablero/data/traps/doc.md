@@ -1197,7 +1197,7 @@ Dos pools ⇒ la misma persona tiene **dos `sub` distintos**. Y del lado del bac
 
 - `pkg/config.ts` — `loadCognitoCreds()` pasó de `process.env` pelado a la cadena `env()`, así que las credenciales viven en `harness/.env.<target>` (gitignored) en vez de un `.cognito.json` único que habría que pisar para alternar.
 - `pkg/cognito.ts` — el cache de sesión pasó de `.auth/cognito-state.json` a `.auth/cognito-state.<clave>.json`. ⚠ **Y la clave NO es el target**, aunque casi siempre coincida: es `SESSION_KEY = FRONT_LOCAL ? 'dev' : TARGET` (`harness/pkg/cognito.ts:32-33`), así que **con el front local dos targets comparten un mismo archivo de sesión**. Recomprobado el 2026-09-19. **No era cosmético**: el archivo viejo tenía cookies de los **dos** pools mezcladas (`login.creditop.com` **y** `.auth.merchant.creditop.com`), y con un único archivo la sesión de dev se inyecta en la corrida de staging — el front queda autenticado para Cognito y desconocido para el backend, **sin que aparezca el login** que lo corregiría.
-- `bin/advisor` — `E2E_ASESOR_SUB` / `E2E_COGNITO_USER` de `.env.<target>` pisan al `asesor` de `.flows.json` (que describe al de dev). Es el `sub` que usa `load-permiso` para el assign.
+- `bin/advisor` — `E2E_ADVISOR_SUB` / `E2E_COGNITO_USER` de `.env.<target>` pisan al `asesor` de `.flows.json` (que describe al de dev). Es el `sub` que usa `load-permiso` para el assign.
 
 En dev existe una familia de cuentas QA `oscar+<comercio>@creditop.com`, una por sucursal (`oscar+mediarte` ya está en la 375 de Mediarte, `oscar+dentix` en la 844 de DENTIX). Son las candidatas naturales para el pool de staging.
 
@@ -2422,7 +2422,7 @@ en producción — el webhook no deja registro cuando `firstOrFail()` lanza, as�
   declara no falla al arrancar — falla en el punto más profundo del flujo, con el mensaje menos
   parecido a su causa. Antes de depurar un 500 en un camino que estrena microservicio, comprobá que su
   host esté definido.
-- **Arreglo:** en local, apuntarla al mock de centrales (`harness/mock-centrales/server.mjs` sirve
+- **Arreglo:** en local, apuntarla al mock de centrales (`harness/mock-bureaus/server.mjs` sirve
   `/api/otp/generate` y `/api/otp/validate`); el contrato es mínimo — **2xx con `success: true`**, ya
   que el id del OTP lo crea este backend (`SendOtpService.php`, `$otp->id`) y los tiempos caen al
   fallback de config. En el repo de la empresa faltaría declararla en `.env.example`. **Estado:** vivo
@@ -3615,7 +3615,7 @@ F-xx citados siguen vigentes salvo los que sus propias entradas ya marcan cerrad
      **redirige al paso siguiente** — con `withFunnelSearch(destino, url.search)`, o sea con la query
      de **la petición**. En un «atrás» esa query es la vieja: la del vehículo.
   Juntas: volver atrás no devuelve al formulario, y el rebote reescribe el monto con el anterior.
-- **Evidencia (local, 2026-09-07, `make harness-bcp-volver`):** vehículo 60.000, inicial 10.000, bono
+- **Evidencia (local, 2026-09-07, `make harness-bcp-return`):** vehículo 60.000, inicial 10.000, bono
   2.000 → a financiar **48.000**. Guardar el formulario redirige a `entidad/simulador?amount=48000` ✓.
   Pasado el gate, pedir `formulario/pre?amount=60000` (la URL que el navegador tiene en el historial)
   responde `→ formulario/post?amount=60000`. Y en el marketplace, la misma solicitud: con
@@ -3639,7 +3639,7 @@ F-xx citados siguen vigentes salvo los que sus propias entradas ya marcan cerrad
   `closeRejectedRequest` cierra la solicitud del lado nuestro y manda a `entidad/retorno`, que es
   terminal. El propio archivo lo dice — «RECHAZADO MATA LA SOLICITUD» — pero lo pensó como decisión
   única, no como algo que se puede volver a apretar.
-- **Evidencia (local, 2026-09-07, `make harness-bcp-volver`):** solicitud 466351 → «Aprobado» → BD en
+- **Evidencia (local, 2026-09-07, `make harness-bcp-return`):** solicitud 466351 → «Aprobado» → BD en
   estado **9** «Formulario de perfil» y el funnel sigue a `formulario/post`. Se vuelve al gate y se
   aprieta «Rechazado» → `entidad/retorno?motivo=sin_campana` y BD en estado **6** «Negada».
 - **⚠ Y hay una segunda mitad, que apunta al mismo hueco:** la marca de que el gate ya se pasó vive en
@@ -3654,7 +3654,7 @@ F-xx citados siguen vigentes salvo los que sus propias entradas ya marcan cerrad
 
 ### F-187 · Un import estático deja `E2E_TARGET` en `dev`: el runner imprime «target local» y pega contra la BD COMPARTIDA
 
-- **Síntoma:** `make harness-listado COMERCIO=<uno recién sembrado en local>` contesta **«no encontré
+- **Síntoma:** `make harness-listing MERCHANT=<uno recién sembrado en local>` contesta **«no encontré
   una sucursal»**, aunque la fila existe y la misma consulta corrida a mano la devuelve. El encabezado
   dice `target local`, así que no se sospecha del ambiente. Con un comercio que existe en los dos lados
   (pullman) no falla: mide el ambiente equivocado **en silencio**.
@@ -3697,7 +3697,7 @@ F-xx citados siguen vigentes salvo los que sus propias entradas ya marcan cerrad
   otro id cae a `OnboardingPayloadBuilder`, que produce `full_name`/`document_number` mientras esas
   plantillas piden `nombre_cliente`/`placa`. El builder es por **ENTIDAD** y la plantilla por
   **DOCUMENTO**, y aparearlos revienta en pleno render.
-- **Evidencia (local, 2026-09-09, `make harness-caso … CERRAR=1`):** una entidad nueva con el catálogo
+- **Evidencia (local, 2026-09-09, `make harness-case … CLOSE=1`):** una entidad nueva con el catálogo
   del RTO clonado → uReq 466419, listado `[210]`, **no cerró**, 500 en `GET
   /api/loans/requests/promissory-note/{ur}`. Y **el propio Rent to Own de Motai falla igual**:
   `CASOS='motai:173'` → uReq 466420, listado `[170, 169, 168, 6, 173, 8]`, mismo 500. O sea que no es
@@ -3801,7 +3801,7 @@ F-xx citados siguen vigentes salvo los que sus propias entradas ya marcan cerrad
   cliente entra por el árbol público `/self-service`. La redirección apunta a una ruta que ahí no
   existe.
 - **Evidencia (medida en local, comercio Alta Fleet):** caminando el wizard por HTTP con
-  `make harness-caminar CASOS='alta:211' CERRAR=1`, el action del front responde
+  `make harness-walk-wizard CASES='alta:211' CLOSE=1`, el action del front responde
   `202 → /self-service/<hash>/<id>/continue`. Y las tres urls a mano:
   `/self-service/<hash>/<id>/continue` → **404**, `/merchant/<hash>/<id>/continue` → 302,
   `/self-service/<hash>/<id>/confirmation` → 200.
@@ -5031,7 +5031,7 @@ cambiar su respuesta.
 advertencia de deuda técnica (`! WARNING (technical debt 16-07-2026)`). Corriendo: la sucursal
 `13874eb6` tiene 4 entidades —Sistecrédito, los dos Bancolombia (`rt=1`) y CrediPullman (`rt=2`)—, **cero
 `rt=0`**; con `flow_id=2` el listado sale vacío y, con el mismo comercio y el mismo monto sin ese flujo,
-`make harness-listado` devuelve las 4. En la base **local**, 26 de 40 sucursales con checkout ecommerce
+`make harness-listing` devuelve las 4. En la base **local**, 26 de 40 sucursales con checkout ecommerce
 están en esa situación (local no es prod: sirve para decir que no es un caso aislado, no como cifra).
 
 ⚠ **La trampa al depurarlo:** todo lo que uno mira primero está sano —la sucursal, las entidades, el
@@ -5170,7 +5170,7 @@ que `getByRole('combobox', { name: /día/i })` no encuentra nada y el spec vuelv
 «element(s) not found» señalando a la pantalla. Se localizan por CONTENIDO:
 `getByRole('combobox').filter({ hasText: /día/i })`.
 
-**Mientras tanto, el camino que no depende de esto** es el recorrido por HTTP (`make harness-caminar`):
+**Mientras tanto, el camino que no depende de esto** es el recorrido por HTTP (`make harness-walk-wizard`):
 postea los formularios que el front declara, llega hasta `/lenders` y, con `CERRAR=1`, hasta el cierre.
 
 ### F-218 · Una entidad rt=2 que no pasa las reglas duras DESAPARECE del listado; una rt=0 que tampoco pasa se muestra marcada — y eso se lee como que el canal esconde entidades
@@ -5660,7 +5660,7 @@ significa tres cosas distintas según quién lo mire.
 
 **Cómo se vuelve a comprobar:**
 
-    make harness-bcp-volver TARGET=qa COMERCIO='#a8221e67' TEL=321411214,321411217 \
+    make harness-bcp-return TARGET=qa MERCHANT='#a8221e67' TEL=321411214,321411217 \
         FRONT=https://originaciones-qa.dev.creditop.com
 
 ⚠ **Este flujo no se había corrido nunca desde que existe el runner**, y salió a la primera. Es la regla
@@ -5939,7 +5939,7 @@ dos. **No se sabe cuántos diagnósticos viejos eran esto.**
 - **Causa raíz:** ese target del Makefile era `node dev/loki-trace.ts $(UREQ)`, **sin `E2E_TARGET`**. El
   default del harness es **`dev`** (`pkg/db.ts`), así que el forense preguntaba al Loki **compartido** por
   una solicitud que vivía en **local**. Los otros runners de consola sí lo fijan
-  (`harness-bcp-volver` usa `E2E_TARGET=$(or $(TARGET),local)`); éste se quedó afuera.
+  (`harness-bcp-return` usa `E2E_TARGET=$(or $(TARGET),local)`); éste se quedó afuera.
 - **Evidencia (2026-09-18):** el mismo uReq, el mismo script, lo único distinto el ambiente —
 
       make harness-loki UREQ=466837            → «cero anclas»

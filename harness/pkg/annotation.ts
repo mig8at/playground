@@ -33,7 +33,7 @@ const quote = (v: string) => (SHELL_SAFE.test(v) ? v : `'${v.replaceAll("'", `'\
  * El comando de `make` que reproduce la corrida.
  *
  * ⚠ VA EL `make`, NO EL RUNNER. `npx tsx dev/case.ts …` no se corre desde la raíz del playground, que
- * es desde donde se corre todo lo demás; `make harness-caso CASOS=…` sí. Lo que una herramienta te pasa
+ * es desde donde se corre todo lo demás; `make harness-case CASES=…` sí. Lo que una herramienta te pasa
  * tiene que ser pegable donde estás parado.
  *
  * ⚠ Y EL TARGET VA SIEMPRE, aunque sea el default — que acá además **no es `local`**: `E2E_TARGET` cae

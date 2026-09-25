@@ -1,10 +1,10 @@
 // case.ts — UN CASO HIPOTÉTICO de punta a punta: decís comercio y entidad, y corre.
 //
-//   node dev/case.ts --comercio pullman --lender 77
-//   node dev/case.ts --casos 'pullman;pullman' --paralelo
-//   node dev/case.ts --casos 'pullman@score=700;pullman@score=300,income=900000' --paralelo
-//   node dev/case.ts --casos 'pullman:77;pullman:9' --paralelo
-//   node dev/case.ts --comercio pullman --lender 77 --amount 3000000 --income 1200000 --score 520
+//   node dev/case.ts --merchant pullman --lender 77
+//   node dev/case.ts --cases 'pullman;pullman' --parallel
+//   node dev/case.ts --cases 'pullman@score=700;pullman@score=300,income=900000' --parallel
+//   node dev/case.ts --cases 'pullman:77;pullman:9' --parallel
+//   node dev/case.ts --merchant pullman --lender 77 --amount 3000000 --income 1200000 --score 520
 //
 // QUÉ CORRE: siembra la solicitud en ese comercio, le inyecta datos de riesgo, pide el LISTADO, y
 // después SELECCIONA la entidad pedida y clasifica la conducta que devuelve el backend (standBy /
@@ -18,7 +18,7 @@
 // falla más adelante con un 404 o un 500 raro, en un paso que no tiene nada que ver. Acá cada caso
 // deriva el suyo del índice, así que no hay dos corridas mirando el mismo usuario.
 //
-// ⚠ Y POR ESO MISMO `--paralelo` NO es «lo mismo pero más rápido»: cambia qué se puede afirmar. En
+// ⚠ Y POR ESO MISMO `--parallel` NO es «lo mismo pero más rápido»: cambia qué se puede afirmar. En
 // serie, un fallo puede venir de basura que dejó el caso anterior; en paralelo, cada caso tiene su
 // usuario y sus solicitudes. Si dos casos se pisan igual, es que comparten algo REAL (un lock de
 // comercio, un cupo, un asesor) — y eso es justo lo que uno quiere descubrir.
@@ -30,7 +30,7 @@
 // resuelta, y no depender de que el paso de identidad esté bien configurado en el ambiente. El detalle
 // de las dos columnas y por qué no va por la API: `pkg/inject.ts::manualValidation`.
 //
-// EL CASO COMPLETO, con `--cerrar`: buró dictado → listado → integración del proveedor dictada →
+// EL CASO COMPLETO, con `--close`: buró dictado → listado → integración del proveedor dictada →
 // pre-aprobación (la que haría el front) → SELECCIÓN del lender CreditopX del comercio y cierre hasta
 // estado 11. Si el comercio no tiene rt=2, el caso cierra BIEN diciendo «sin CreditopX»: es un hecho
 // del comercio y no un fallo — contarlo como error haría ver rota la mitad del catálogo. Medido:
@@ -79,6 +79,7 @@
 // ⚠ Marca de MÓDULO. Al sacar el último `import` estático, node pasó a leer este archivo como CJS y
 // `await` de nivel superior dejó de ser válido (lo delató `node --check`). Un `export {}` vacío
 // alcanza y no cambia nada más.
+import { canonicalFlag } from '../pkg/cli-aliases.ts';   // los flags viejos (en español) siguen andando: ver ese archivo
 export {};
 
 process.env.E2E_TARGET ||= 'local';
@@ -378,7 +379,7 @@ const arg = (n: string, d = ''): string => {
 };
 /** Banderas que una SUITE prende por su cuenta (su campo `requiere`). Existe para que una suite se
  *  baste sola: quien la corre —una persona apurada o un LLM— no tiene que saber que este archivo
- *  necesita `--cerrar` para significar algo. Sin esto, olvidarse del flag no da un resultado falso
+ *  necesita `--close` para significar algo. Sin esto, olvidarse del flag no da un resultado falso
  *  (el verificador lo marca como no verificado) pero sí una corrida perdida de dos minutos. */
 const implicit = new Set<string>();
 const flag = (n: string) => process.argv.includes(`--${n}`) || implicit.has(n);
@@ -394,7 +395,7 @@ const flag = (n: string) => process.argv.includes(`--${n}`) || implicit.has(n);
  *  «¿sigue valiendo?», que es la pregunta que se hace después de tocar código.
  *
  *  ⚠ UNA EXPECTATIVA QUE NO SE PUDO EVALUAR ACCOUNT COMO FALLA, no como éxito. Si un caso espera un
- *  cierre y la corrida no lleva `--cerrar`, eso es un error de la suite: darlo por bueno sería
+ *  cierre y la corrida no lleva `--close`, eso es un error de la suite: darlo por bueno sería
  *  exactamente el verde falso que este harness ya se comió una vez. */
 type Wait = {
     enListado?: boolean;      // ¿la entidad pedida salió en el listado?
@@ -490,7 +491,7 @@ async function loadSuite(path: string, dflt: { amount: number; income: number; s
         throw new Error(`la suite ${path} no tiene un array \`casos\` con al menos un caso`);
     }
     // `requiere` deja que la suite prenda lo que necesita: `["cerrar", "lambda"]`.
-    for (const f of (Array.isArray(json.requiere) ? json.requiere : [])) implicit.add(String(f));
+    for (const f of (Array.isArray(json.requiere) ? json.requiere : [])) implicit.add(canonicalFlag(String(f)));   // una suite vieja puede decir «cerrar»
 
     // `byDefault` alimenta TODOS los campos del caso, no sólo los tres numéricos. Al principio sólo
     // cubría `amount`/`income`/`score` y nadie lo notó porque las suites repetían comercio y entidad en
@@ -1012,7 +1013,7 @@ async function traverse(c: Case, i: number): Promise<Res> {
     // LO QUE HARÍA EL FRONT. Sin esto la corrida termina en el listado y la pre-aprobación NO ocurre
     // —sin fallar, que es lo peor (F-141)—. Se dispara una por entidad elegible y en paralelo, igual
     // que el loader del wizard, con el payload de `fetch-lender-preapproval.ts:154-170`.
-    if (flag('preaprobados')) {
+    if (flag('preapprovals')) {
         const eligible = arr.filter((l) => Number(l.response_type) !== 0);
         base.preaprobados = await Promise.all(eligible.map((l) =>
             preApprove(l, ur, uid, br.allied, br.hash, c.amount!, c.escenarios?.preaprobado)));
@@ -1026,7 +1027,7 @@ async function traverse(c: Case, i: number): Promise<Res> {
     if (c.lender !== null) base.enListado = base.listado!.includes(c.lender);
 
     let closing = '';
-    if (flag('cerrar')) {
+    if (flag('close')) {
         const r = await closeCreditopX(arr, ur, tel, c.amount!, post, get, c.lender, c.cuotas ?? 4);
         base.cierre = r;
         closing = r.cerro ? ` · CERRÓ en estado ${r.estado} (${r.motivo})`
@@ -1451,7 +1452,7 @@ async function preflightCheck(cases: Case[] = []): Promise<string[]> {
         missing.push(`mock de integraciones caído (${MOCK_LENDERS}) → las rt=1 desaparecen del listado`
             + ' y parece regla de negocio (F-140). Levantalo: node mock-lenders/server.mjs');
     }
-    if (flag('preaprobados') && !(await alive(PREAPPROVALS.replace(/\/v1\/.*$/, '/')))) {
+    if (flag('preapprovals') && !(await alive(PREAPPROVALS.replace(/\/v1\/.*$/, '/')))) {
         missing.push(`mock de pre-aprobados caído (${PREAPPROVALS}). Levantalo: node mock-preapprovals/server.mjs`);
     }
     if (flag('lambda') && !(await alive(`${LAMBDA}/agildata/agildata-services/rest/afiliado/historicoDetalladoEmpleo/1/1`))) {
@@ -1461,7 +1462,7 @@ async function preflightCheck(cases: Case[] = []): Promise<string[]> {
     // faltan el síntoma es el MISMO que un rechazo del negocio: la solicitud queda en estado 28 con
     // «Error de comunicación con Deceval» o con un secreto ausente, y ninguno de los dos mensajes
     // nombra al mock. Ver F-165.
-    if (flag('cerrar')) {
+    if (flag('close')) {
         if (!(await alive(DECEVAL))) {
             missing.push(`mock de Deceval caído (${DECEVAL}) → Credifamilia se traba en estado 28 y parece`
                 + ' un rechazo del pagaré (F-165). Levantalo: bin/mock-deceval start');
@@ -1524,10 +1525,10 @@ async function main(): Promise<number> {
     };
     const cases: Case[] = arg('suite')
         ? await loadSuite(arg('suite'), dflt)
-        : arg('casos')
-            ? arg('casos').split(';').map((x) => parseCase(x, dflt))
-            : [parseCase(`${arg('comercio', 'pullman')}${arg('lender') ? ':' + arg('lender') : ''}`, dflt)];
-    const par = flag('paralelo');
+        : arg('cases')
+            ? arg('cases').split(';').map((x) => parseCase(x, dflt))
+            : [parseCase(`${arg('merchant', 'pullman')}${arg('lender') ? ':' + arg('lender') : ''}`, dflt)];
+    const par = flag('parallel');
 
     console.log(`\n  CASOS · ${cases.length} · ${par ? 'EN PARALELO' : 'en serie'} · ${API}\n`);
     // La línea base para conciliar al final: qué había en la base ANTES de que este runner tocara nada.
@@ -1549,7 +1550,7 @@ async function main(): Promise<number> {
     // Los teléfonos de esta tanda entran a la lista de bypass ANTES de arrancar, de una y en serie
     // (ver `registerBypass`). Sólo si se va a cerrar: para el listado el driver fake no mira el
     // teléfono, así que ampliar la lista sería tocar la BD sin necesidad.
-    if (flag('cerrar')) {
+    if (flag('close')) {
         // ⚠ Tiene que resolver el país ANTES, igual que el motor: si acá se arma el teléfono con la
         // forma colombiana y allá con la del comercio, la lista de bypass queda con números que nadie
         // usa — y la firma del pagaré falla con 422 en un país que sí estaba bien configurado.
@@ -1730,10 +1731,10 @@ async function annotate(res: Res[], badList: number): Promise<void> {
         if (!r.ok && r.detalle) parts.push(r.detalle);
         return parts.join(' · ');
     });
-    emit(summary, cmdMake('harness-caso', TARGET, {
-        SUITE: arg('suite'), CASOS: arg('casos'), COMERCIO: arg('comercio'), LENDER: arg('lender'),
-        MONTO: arg('amount'), PAR: flag('paralelo') ? 1 : '', LAMBDA: flag('lambda') ? 1 : '',
-        PRE: flag('preaprobados') ? 1 : '', CERRAR: flag('cerrar') ? 1 : '', MANUAL: flag('manual') ? 1 : '',
+    emit(summary, cmdMake('harness-case', TARGET, {
+        SUITE: arg('suite'), CASES: arg('cases'), MERCHANT: arg('merchant'), LENDER: arg('lender'),
+        AMOUNT: arg('amount'), PARALLEL: flag('parallel') ? 1 : '', LAMBDA: flag('lambda') ? 1 : '',
+        PRE: flag('preapprovals') ? 1 : '', CLOSE: flag('close') ? 1 : '', MANUAL: flag('manual') ? 1 : '',
     }), evidence);
 }
 

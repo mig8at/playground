@@ -63,12 +63,12 @@ verdad contra el certificado de la petición—. **No lo confundas con el sandbo
 
 ```bash
 # 1. el flujo por API, sin browser — ¿cierra en 25 con código?
-E2E_TARGET=local npx tsx dev/qr-corbeta.ts --producto bnpl      # o consumo
-#    banderas: --branch <hash> · --amount <n> · --facturar · --keep
+E2E_TARGET=local npx tsx dev/qr-corbeta.ts --product bnpl      # o consumo
+#    banderas: --branch <hash> · --amount <n> · --invoice · --keep
 
 # 2. las pantallas, clickeando solo — ¿qué vistas existen y en qué orden?
-E2E_TARGET=local npx tsx dev/walk-qr.ts --producto consumo
-#    --escenario '{"errorCode":"BP20790","errorEn":"retrieve-quota"}' · --headed · --max 24
+E2E_TARGET=local npx tsx dev/walk-qr.ts --product consumo
+#    --scenario '{"errorCode":"BP20790","errorEn":"retrieve-quota"}' · --headed · --max 24
 #    ⚠ `errorEn` matchea por SUBCADENA DEL PATH, y si no matchea NO AVISA: la corrida sale verde
 #      como si el banco no hubiera fallado. `retrieve-quota` es de BNPL. Medido el 2026-09-17, las
 #      rutas que Consumo llama de verdad son:
@@ -107,7 +107,7 @@ banco contesta **`Pending`** y todavía no corrió `enable_offers`
 **`consumo/terms`** → **`consumo/loan-offer-evaluation`** (son DOS pasos: ingresos, y después «Completa tu
 registro») → **`consumo/credit-approved`** → y recién ahí vuelve a `loan-info`. Las cuatro se ven con:
 
-    E2E_TARGET=local npx tsx dev/walk-qr.ts --producto consumo --escenario '{"producto":"pendiente"}' --max 24
+    E2E_TARGET=local npx tsx dev/walk-qr.ts --product consumo --scenario '{"producto":"pendiente"}' --max 24
 
 ⚠ **Mirá las capturas, no el conteo de pasos.** El caminador guarda una por pantalla en
 `.runs/caminar-<producto>/NN-<pantalla>.png`. Que el recorrido diga «14 pantallas» sólo prueba que
@@ -246,7 +246,7 @@ Perillas por `POST /_control/escenario`:
 ⚠ **Una falla GLOBAL no sirve para ver pantallas de error** (F-90). `MOCK_BC_FAIL=1` y un `errorCode` sin
 `errorEn` rompen la **compuerta de pre-aprobación** —lo primero que llama al banco— y todo termina en
 `no-preapproved`, nunca en la pantalla de error. Para un paso concreto:
-`--escenario '{"errorCode":"BP20790","errorEn":"retrieve-quota"}'`.
+`--scenario '{"errorCode":"BP20790","errorEn":"retrieve-quota"}'`.
 
 Otros controles: `POST /_control/retorno {url}` (a dónde vuelve el cliente) · `/_control/reset` ·
 `GET /` (estado + escenario + últimas llamadas + la huella `codigo` del server.mjs).
