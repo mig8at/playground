@@ -12,6 +12,10 @@ jira_title: ""
 
 ## Pendientes
 
+- [ ] Mostrar cuándo se consultó una traza o búsqueda guardada («consultado hace…») y un «Actualizar» que vaya a la fuente; termina cuando una traza abierta desde IndexedDB dice su antigüedad y se puede refrescar sin borrar la caché a mano.
+- [ ] Arreglar el recorte por antigüedad de `src/queryCache.js`: el índice y los cursores usan `guardadaEn` y los registros nuevos escriben `savedAt`; termina con el índice migrado y una prueba que siembre entradas viejas y vea que se recortan.
+- [ ] Que elegir una etapa con el teclado o desde el detalle pase por `select()` (hoy `StageMap.vue` y `Detail.vue` asignan `selectedStage` directo y la URL no la guarda); termina cuando recargar conserva la etapa elegida por cualquiera de los tres caminos.
+
 - [ ] Pedirle a Dani las tres fuentes para `tracer` + la puerta de Google + los recursos del servicio.
 - [ ] Confirmar con Dani si el security group de `alb-internal-tools` está cerrado a la VPN: resuelve
       a IPs públicas, y de eso depende que mostrar cédulas sin llave propia sea correcto.
