@@ -665,7 +665,7 @@ async function ecommerceEntry(br: { hash: string; com: string }, ref: string, te
 
 // ─── el motor NAVEGADOR ──────────────────────────────────────────────────────────────────────────
 /** Las pantallas que avanzan por pasos internos sin cambiar de URL. */
-const INNER_STEPS = /^(solicitar|personal-info)$/;
+const INNER_STEPS = /^(solicitar|personal-info|sign-documents)$/;   // la firma abre un diálogo en la misma URL
 
 /**
  * El mismo caso, operado con Chromium sin ventana: se clickea, no se postea. Comparte con el motor HTTP

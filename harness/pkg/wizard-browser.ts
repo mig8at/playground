@@ -394,8 +394,12 @@ export async function waitForChange(page: Page, since: string, timeout = 25_000,
 export async function screenPrint(page: Page): Promise<string | null> {
     return page.evaluate(() => {
         const titles = [...document.querySelectorAll('h1, h2')].map((e) => (e.textContent || '').trim()).filter(Boolean);
-        const fields = [...document.querySelectorAll('input:not([type=hidden]), select, textarea, [role=combobox]')]
-            .map((e) => (e as HTMLInputElement).name || e.getAttribute('aria-label') || e.getAttribute('placeholder') || e.tagName);
-        return titles.length || fields.length ? `${titles.join('|')}#${fields.join(',')}` : null;
+        // ⚠ Los radios y casillas de Radix son BOTONES (`role=radio`), no `input`: sin ellos, pasar del
+        // resumen de la tienda a la pregunta de «confirmación de cupo» no cambiaba la huella y la espera
+        // se cumplía entera (60 s, medido el 2026-09-25). Y un diálogo abierto también es un paso (la firma).
+        const fields = [...document.querySelectorAll('input:not([type=hidden]), select, textarea, [role=combobox], [role=radio], [role=checkbox]')]
+            .map((e) => (e as HTMLInputElement).name || e.getAttribute('aria-label') || e.getAttribute('placeholder') || e.getAttribute('value') || e.tagName);
+        const dialog = document.querySelector('[role=dialog]') ? 'dialog' : '';
+        return titles.length || fields.length || dialog ? `${titles.join('|')}#${fields.join(',')}#${dialog}` : null;
     }).catch(() => null);
 }

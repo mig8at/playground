@@ -139,7 +139,9 @@ corrida de 276 s: 120 s esperando que cambiara la URL en las dos pantallas con p
 (`solicitar`, `personal-info`), 100 s esperando una casilla-sonda que la pantalla no tenía (10 s × 10) y
 30 s esperando en el listado un botón que no existe. Se arreglaron las tres (`screenPrint`, `sondaAparece`,
 «Hemos terminado de consultar») y los mismos casos por la tienda bajaron de 360 → 174 s (CrediPullman) y
-382 → 182 s (Compucredit con cuota inicial), los dos en estado 11.
+382 → 182 s (Compucredit con cuota inicial), los dos en estado 11. La traza siguiente mostró otras dos
+esperas enteras de 60 s: la pregunta de «confirmación de cupo» (radios de Radix, que no son `input`) y el
+diálogo de la firma. Con los radios y los diálogos en la huella, Compucredit bajó a **117 s**.
 
 El paralelo con navegador **sale gratis**: tres casos cuestan lo mismo que uno, porque el tiempo se va
 esperando al backend y a los renders, no compitiendo. Un contexto por caso, un solo Chromium.
