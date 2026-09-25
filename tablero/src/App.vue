@@ -2337,10 +2337,11 @@ function documentAction(id) {
 .block-list li + li { margin-top: 3px }
 /* Un comando es un callout: barra a la izquierda y un tinte, cuadrado. Su rótulo dice con qué se corrió
    y contra qué ambiente; debajo, lo que dio. */
-.block-command { margin: 2px 0 9px; padding: 8px 10px; border-left: 2px solid var(--line2); background: var(--panel2) }
+/* Un comando con su resultado es UN bloque: un tinte cuadrado lo agrupa; la barra encima era una segunda señal. */
+.block-command { margin: var(--space-1) 0 var(--space-2); padding: var(--space-2) var(--gutter); background: var(--panel2) }
 .block-command-label { margin-bottom: 5px; color: var(--mut); font-size: var(--text-xs) }
 .block-code { margin: 0; color: var(--txt); font: var(--text-sm)/1.5 var(--mono, ui-monospace, monospace); white-space: pre-wrap; overflow-wrap: anywhere }
-.block-material { margin: 2px 0 9px; padding: 8px 10px; background: var(--panel2) }
+.block-material { margin: var(--space-1) 0 var(--space-2); padding: var(--space-2) var(--gutter); background: var(--panel2) }
 /* Una tabla son líneas por FILA, no una grilla de celdas (regla 4 del CLAUDE.md raíz); el encabezado se
    distingue en gris, no con fondo. */
 .block-table { margin: 2px 0 9px; border-collapse: collapse; font-size: var(--text-base); line-height: 1.45 }
@@ -2702,8 +2703,9 @@ function documentAction(id) {
 .md-body :deep(p) { margin: 0 0 10px }
 .md-body :deep(ul), .md-body :deep(ol) { margin: 0 0 10px; padding-left: 20px }
 .md-body :deep(li) { margin: 3px 0 }
-.md-body :deep(code) { font-size: var(--text-sm); padding: 1px 4px; border-radius: var(--radius-md); background: var(--panel2) }
-.md-body :deep(pre) { overflow-x: auto; padding: 10px 12px; border-radius: var(--radius); background: var(--panel2);
+/* El código en línea va sin cajita: la letra mono ya lo distingue, y 600 cajitas en un documento eran ruido. */
+.md-body :deep(code) { font-size: var(--text-sm) }
+.md-body :deep(pre) { overflow-x: auto; padding: var(--space-2) var(--gutter); background: var(--panel2);
                         margin: 0 0 12px }
 .md-body :deep(pre code) { padding: 0; background: none }
 /* SQL tiene su propia señal visual: es evidencia de datos, no un comando de Harness ni texto libre.
@@ -2720,8 +2722,8 @@ function documentAction(id) {
 .sql-block :deep(.sql-token.sql-comment), .block-code :deep(.sql-token.sql-comment) { color: var(--mut); font-style: italic; }
 .sql-block :deep(.sql-token.sql-identifier), .block-code :deep(.sql-token.sql-identifier) { color: var(--sql-identifier); }
 /* la cita es el marcador de MEDICIÓN / RIESGO / PREGUNTA: se resalta porque es lo que envejece */
-.md-body :deep(blockquote) { margin: 0 0 12px; padding: 8px 12px; border-left: 3px solid var(--acc);
-                               background: var(--panel2); border-radius: 0 8px 8px 0 }
+/* Una cita es una barra de 2 a la izquierda, sin fondo ni radio. */
+.md-body :deep(blockquote) { margin: 0 0 var(--space-3); padding: 0 var(--gutter); border-left: 2px solid var(--line) }
 .md-body :deep(blockquote p:last-child) { margin-bottom: 0 }
 /* las tablas son la mitad del valor de estos cuerpos: scrollean solas antes que romper el cajón.
    ⚠ `width: fit-content` y no el ancho del cajón: `display: block` las volvía block-level, así que una

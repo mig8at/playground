@@ -191,7 +191,7 @@ const relativeMeasurement = computed(() => {
 .table td { max-width:260px; color:var(--mut); overflow:hidden; text-overflow:ellipsis; white-space:nowrap }
 .table th:first-child, .table td:first-child { width:240px; min-width:240px; max-width:240px; position:sticky; left:0 }
 .table th:nth-child(2), .table td:nth-child(2) { width:112px; min-width:112px; max-width:112px; position:sticky; left:240px;
-  box-shadow:8px 0 10px -11px color-mix(in oklab, var(--txt) 75%, transparent) }
+  border-right:1px solid var(--line) }
 .table th:first-child, .table th:nth-child(2) { z-index:4 }
 .table td:first-child, .table td:nth-child(2) { z-index:2; background:var(--card) }
 .table th.main, .table td.main { background:color-mix(in oklab, var(--foreground) 3%, var(--card)); border-left:1px solid var(--line) }
