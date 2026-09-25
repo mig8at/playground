@@ -12,7 +12,7 @@ La misma base, dibujada en tamaño real y con sus cotas: [Anatomía del workbenc
 | Sidebar | `sidebar` | Navegación: una lista, un árbol, una búsqueda | Cuando hay más de una cosa entre la cual elegir |
 | Sidebar secundario | `auxiliarybar` | Detalle o propiedades de lo elegido en el editor | Cuando lo elegido tiene detalle que no cabe en el editor |
 | Panel | `panel` | La consola de abajo: salida que se sigue en el tiempo | Sólo si hay salida que seguir |
-| Pie | `statusbar` | Estado a la izquierda, un botón por región plegable a la derecha | Siempre que haya una región plegable |
+| Pie | `statusbar` | Estado a la izquierda; a la derecha, el botón de tema y un botón por región plegable | Siempre que haya una región plegable |
 
 Adentro de cada región:
 
@@ -119,6 +119,22 @@ Un solo juego, el de `taller.css` (`.ui-icon[data-icon]`): glifos dibujados en u
 
 **Plegar es lo mismo que el botón del pie.** El botón se apaga y, al reabrir, la región vuelve con la última medida abierta. Ocultar una región nunca borra su botón del pie. Los anchos se guardan en el navegador de cada persona y no cambian datos de trabajo.
 
+**El tema lo elige la persona.** Un botón en el pie alterna claro y oscuro, antes de los botones de disposición y separado de ellos por 8 (los de disposición van al final porque su orden copia la pantalla: izquierda, abajo, derecha). El icono muestra el tema **actual** —sol claro, luna oscuro— y la etiqueta dice lo que hace el clic: «Cambiar a tema claro». La primera vez sigue al sistema, y mientras la persona no elija acompaña su modo nocturno; lo elegido se guarda en su navegador (`ui.theme`). El tema es la clase `.dark` de `tema.css` en el `<html>`, más `color-scheme` para los controles nativos. Lo que pinta por su cuenta —un iframe, un canvas— escucha el evento `ui-theme`.
+
+```html
+<head>
+  <script>/* el valor de THEME_BOOT, de workbench.js: aplica el tema antes de pintar */</script>
+</head>
+…
+<button class="region-action" id="theme"><span class="ui-icon" aria-hidden="true"></span></button>
+<script type="module">
+  import { bindThemeToggle } from './workbench.js'
+  bindThemeToggle(document.getElementById('theme'))
+</script>
+```
+
+⚠ **Una herramienta muestra el botón recién cuando sus colores funcionan en los dos temas.** Los colores de estado de su hoja propia (`--ok`, `--warn`, los carriles, los semáforos) se definen para claro y para oscuro, no se fija `color-scheme: dark` a mano en un control, y `make estilo-contraste` pasa en los dos. Un color pensado para fondo oscuro sobre blanco no se lee.
+
 **El teclado llega a todo.** En una manija enfocada, las flechas ajustan 16 px y la que cruza el mínimo pliega; Shift más flecha, 48 px; Home pliega; End amplía; Enter alterna y reabre en la última medida. El arrastre sigue al puntero y se cancela limpio ante `pointercancel` o si se pierde la captura.
 
 ## Menús
@@ -138,7 +154,7 @@ Para una herramienta nueva, y en ese orden para acercar una existente cada vez q
 3. Cada región arranca con su banda de 40 (`.region-head` o una barra de pestañas) y sigue con un cuerpo que scrollea.
 4. Escribir cada medida con su token: `var(--row-h)`, `var(--gutter)`, `var(--text-sm)`.
 5. Iconos sólo de `.ui-icon`, a 16, en botones de 24 con `title` y `aria-label`.
-6. El pie lleva el estado a la izquierda y un botón por región plegable a la derecha.
+6. El pie lleva el estado a la izquierda y, a la derecha, el botón de tema y un botón por región plegable. El tema, con `THEME_BOOT` en el `<head>` y `bindThemeToggle` en el botón, cuando los colores ya funcionan en los dos temas.
 7. Las manijas usan `vResize` (o `bindResize` sin Vue), con los mínimos de los tokens y el máximo calculado contra `--editor-min`. Lo que se pinta sale de `fitRegions`:
 
 ```js
@@ -178,7 +194,7 @@ const sidebarResize = {
 
 - `tema.css`: los tokens de color, tipografía y radio del tema (hoy Darkmatter, de ShadcnThemer). Se reemplaza entero con `make estilo-tema DE=archivo.css`.
 - `taller.css`: las regiones, las medidas, los componentes, el foco y los iconos. Un tema no lo toca.
-- `workbench.js`: el comportamiento (manijas con mínimo o nada, `regionSize`, `fitRegions`, `reopenSize`, `cssSize`, el menú `bindMenu` y la directiva `vResize`). Sus pruebas sin navegador están en `workbench.test.mjs`.
+- `workbench.js`: el comportamiento (manijas con mínimo o nada, `regionSize`, `fitRegions`, `reopenSize`, `cssSize`; el tema, `THEME_BOOT`, `bindThemeToggle`, `setTheme`, `applyTheme`; el menú `bindMenu` y la directiva `vResize`). Sus pruebas sin navegador están en `workbench.test.mjs`.
 - `RegionMenu.vue`: el adaptador Vue del mismo menú.
 - `index.html`: el catálogo interactivo, que usa estos mismos archivos (`make estilo-guia`, en http://127.0.0.1:5198).
 

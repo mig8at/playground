@@ -3,7 +3,7 @@
 // `make estilo-ui`.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { regionSize, reopenSize, fitRegions, bindResize } from './workbench.js';
+import { regionSize, reopenSize, fitRegions, bindResize, preferredTheme, setTheme, bindThemeToggle, THEME_KEY, THEME_BOOT } from './workbench.js';
 
 test('regionSize: 0 o al menos el mínimo', () => {
   assert.equal(regionSize(300, 240), 300);
@@ -110,4 +110,76 @@ test('`toggle()` del controlador es el mismo plegado que el del teclado', () => 
   controller.toggle();
   assert.equal(state.size, 330);
   assert.deepEqual(state.commits, [0, 330], 'cada cambio se guarda');
+});
+
+// ── el tema ──────────────────────────────────────────────────────────────────────────────────────
+// Lo justo del navegador: un <html> con clases, un localStorage, la preferencia del sistema y eventos.
+function fakeBrowser({ systemDark = true, stored = null } = {}) {
+  const classes = new Set(), store = new Map(stored ? [[THEME_KEY, stored]] : []), target = new EventTarget();
+  const mediaListeners = [];
+  const media = { get matches() { return systemDark; }, addEventListener: (_, f) => mediaListeners.push(f), removeEventListener() {} };
+  Object.assign(globalThis, {
+    document: {
+      documentElement: { classList: { contains: (c) => classes.has(c), toggle: (c, on) => (on ? classes.add(c) : classes.delete(c)) }, style: {} },
+      createElement: () => ({ dataset: {}, setAttribute() {} }),
+    },
+    localStorage: { getItem: (k) => store.get(k) ?? null, setItem: (k, v) => store.set(k, String(v)) },
+    matchMedia: () => media,
+    addEventListener: target.addEventListener.bind(target),
+    removeEventListener: target.removeEventListener.bind(target),
+    dispatchEvent: target.dispatchEvent.bind(target),
+  });
+  return { classes, store, setSystem(dark) { systemDark = dark; mediaListeners.forEach((f) => f()); } };
+}
+function fakeButton() {
+  const icon = { dataset: {}, setAttribute() {} }, attrs = {}; let onClick = null;
+  return { icon, attrs, title: '', querySelector: () => icon, setAttribute: (k, v) => { attrs[k] = v; },
+    addEventListener: (_, f) => { onClick = f; }, removeEventListener() {}, click: () => onClick() };
+}
+
+test('tema: sin elección sigue al sistema; con elección, gana lo elegido', () => {
+  fakeBrowser({ systemDark: true });
+  assert.equal(preferredTheme(), 'dark');
+  fakeBrowser({ systemDark: false });
+  assert.equal(preferredTheme(), 'light');
+  fakeBrowser({ systemDark: true, stored: 'light' });
+  assert.equal(preferredTheme(), 'light', 'lo que eligió la persona le gana al sistema');
+  fakeBrowser({ systemDark: false, stored: 'cualquiera' });
+  assert.equal(preferredTheme(), 'light', 'un valor guardado raro se ignora');
+});
+
+test('tema: el botón muestra el tema actual y su etiqueta dice lo que hace el clic', () => {
+  const b = fakeBrowser({ systemDark: true });
+  const button = fakeButton();
+  bindThemeToggle(button);
+  assert.equal(b.classes.has('dark'), true);
+  assert.equal(document.documentElement.style.colorScheme, 'dark');
+  assert.equal(button.icon.dataset.icon, 'moon', 'oscuro se ve como luna');
+  assert.equal(button.attrs['aria-label'], 'Cambiar a tema claro');
+  button.click();
+  assert.equal(b.classes.has('dark'), false);
+  assert.equal(button.icon.dataset.icon, 'sun');
+  assert.equal(button.attrs['aria-label'], 'Cambiar a tema oscuro');
+  assert.equal(b.store.get(THEME_KEY), 'light', 'elegir se guarda');
+});
+
+test('tema: sin elección acompaña al sistema; elegido, el sistema ya no manda', () => {
+  const b = fakeBrowser({ systemDark: false });
+  bindThemeToggle(fakeButton());
+  assert.equal(b.classes.has('dark'), false);
+  b.setSystem(true);
+  assert.equal(b.classes.has('dark'), true, 'el modo nocturno del sistema se sigue mientras nadie eligió');
+  setTheme('light');
+  b.setSystem(true);
+  assert.equal(b.classes.has('dark'), false, 'después de elegir, no');
+});
+
+test('tema: el renglón del <head> decide igual que el módulo', () => {
+  const b = fakeBrowser({ systemDark: true, stored: 'light' });
+  new Function(THEME_BOOT)();
+  assert.equal(b.classes.has('dark'), false);
+  assert.equal(document.documentElement.style.colorScheme, 'light');
+  const c = fakeBrowser({ systemDark: true });
+  new Function(THEME_BOOT)();
+  assert.equal(c.classes.has('dark'), true);
 });

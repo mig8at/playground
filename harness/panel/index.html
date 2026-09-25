@@ -4208,6 +4208,65 @@ export function bindResize(handle, options) {
   };
 }
 
+/* ── EL TEMA ────────────────────────────────────────────────────────────────────────────────────
+ * Claro u oscuro, con el botón del pie. La primera vez sigue al sistema; cuando la persona elige,
+ * queda guardado en su navegador (cada herramienta tiene su origen, así que cada una recuerda lo suyo).
+ * El tema es la clase `.dark` de `tema.css` en el <html>, más `color-scheme` para que los controles
+ * nativos (fechas, selects, scrollbars) acompañen.
+ *
+ * ⚠ Para no pintar un cuadro con el tema equivocado, la herramienta aplica el tema ANTES de que cargue
+ * el módulo, con el renglón de `THEME_BOOT` en el <head>; `applyTheme` repite lo mismo después. */
+export const THEME_KEY = 'ui.theme';
+export const THEME_BOOT = `try{var t=localStorage.getItem('${THEME_KEY}');if(t!=='light'&&t!=='dark')t=matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light';document.documentElement.classList.toggle('dark',t==='dark');document.documentElement.style.colorScheme=t}catch(e){}`;
+
+function storedTheme() {
+  try { const t = localStorage.getItem(THEME_KEY); return t === 'light' || t === 'dark' ? t : null; }
+  catch { return null; }
+}
+function systemTheme() {
+  try { return matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'; }
+  catch { return 'dark'; }
+}
+// El tema que corresponde: lo que eligió la persona o, si nunca eligió, el del sistema.
+export function preferredTheme() { return storedTheme() || systemTheme(); }
+export function currentTheme() { return document.documentElement.classList.contains('dark') ? 'dark' : 'light'; }
+
+// Aplica un tema y avisa con `ui-theme` (lo necesita lo que pinta por su cuenta: un iframe, un canvas).
+export function applyTheme(theme) {
+  const root = document.documentElement;
+  root.classList.toggle('dark', theme === 'dark');
+  root.style.colorScheme = theme;
+  try { dispatchEvent(new CustomEvent('ui-theme', { detail: { theme } })); } catch { /* sin eventos */ }
+}
+// Elegir es explícito: se guarda, y a partir de ahí el sistema ya no manda.
+export function setTheme(theme) {
+  try { localStorage.setItem(THEME_KEY, theme); } catch { /* preferencia opcional */ }
+  applyTheme(theme);
+}
+
+// El botón del pie. Muestra el icono del tema ACTUAL y su etiqueta dice lo que hace el clic.
+export function bindThemeToggle(button) {
+  const icon = button.querySelector('.ui-icon') || button.appendChild(Object.assign(document.createElement('span'), { className: 'ui-icon' }));
+  icon.setAttribute('aria-hidden', 'true');
+  function paint() {
+    const theme = currentTheme();
+    const label = theme === 'dark' ? 'Cambiar a tema claro' : 'Cambiar a tema oscuro';
+    icon.dataset.icon = theme === 'dark' ? 'moon' : 'sun';
+    button.setAttribute('aria-label', label);
+    button.title = `${theme === 'dark' ? 'Tema oscuro' : 'Tema claro'} · ${label.toLowerCase()}`;
+  }
+  const click = () => setTheme(currentTheme() === 'dark' ? 'light' : 'dark');
+  // Mientras la persona no elija, el tema sigue al sistema si cambia (el modo nocturno del SO).
+  let media = null;
+  const follow = () => { if (!storedTheme()) applyTheme(systemTheme()); };
+  try { media = matchMedia('(prefers-color-scheme: dark)'); media.addEventListener('change', follow); } catch { media = null; }
+  button.addEventListener('click', click);
+  addEventListener('ui-theme', paint);
+  applyTheme(preferredTheme());
+  paint();
+  return { destroy() { button.removeEventListener('click', click); removeEventListener('ui-theme', paint); media?.removeEventListener('change', follow); } };
+}
+
 // Directiva opcional para las tres apps Vue. El harness usa bindResize directamente.
 const bindings = new WeakMap();
 export function refreshResizers(container) {

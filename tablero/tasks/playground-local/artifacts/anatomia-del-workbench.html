@@ -147,6 +147,9 @@ section { display: flex; flex-direction: column; gap: 20px }
 .tg { width: var(--ico); height: var(--ico); display: grid; place-items: center; border-radius: 6px; color: var(--fg-2) }
 .tg svg { width: 16px; height: 16px }
 .tg.on { background: var(--sel); color: var(--fg) }
+.themebtn { border: 0; background: none; padding: 0; cursor: pointer; font: inherit }
+.themebtn:hover { background: var(--sel); color: var(--fg) }
+.st .themebtn { margin-right: 8px }
 
 /* las cotas */
 .rl { position: absolute; z-index: 6; pointer-events: none; color: var(--redline); font: 600 10px/1 var(--mono) }
@@ -337,6 +340,7 @@ footer { font-size: 12px; color: var(--fg-3); border-top: 1px solid var(--border
 
         <footer class="st" data-part="statusbar" tabindex="0" id="xSt">
           <span class="l"><span><span class="dot"></span>local · sincronizado</span><span>5 abiertas</span></span>
+          <button type="button" class="tg themebtn" data-part="theme" id="xTheme" aria-label="Cambiar de tema"><span data-i="moon"></span></button>
           <span class="acts" data-part="layout" tabindex="0" id="xToggles"><span class="tg on" data-i="sidebar"></span><span class="tg on" data-i="console"></span><span class="tg on" data-i="detail"></span></span>
         </footer>
       </div>
@@ -453,6 +457,7 @@ footer { font-size: 12px; color: var(--fg-3); border-top: 1px solid var(--border
       <div><h3>La página no scrollea; cada región sí</h3><p>El workbench ocupa la ventana y lo que scrollea es el cuerpo de cada región. El encabezado queda fijo, así siempre se sabe qué se está mirando.</p></div>
       <div><h3>Mínimo o nada</h3><p>Una región mide 0 o al menos su mínimo. Por debajo se pliega, por cualquier camino. Probalo abajo.</p></div>
       <div><h3>Plegar es lo mismo que el botón del pie</h3><p>El botón se apaga, y al reabrir vuelve la última medida abierta. Lo plegado por falta de lugar vuelve solo cuando la ventana crece.</p></div>
+      <div><h3>El tema lo elige la persona</h3><p>Un botón en el pie alterna claro y oscuro. La primera vez sigue al sistema, y mientras nadie elija acompaña su modo nocturno; lo elegido queda guardado. Se aplica en el <code>&lt;head&gt;</code>, antes de pintar, para no mostrar un cuadro con el tema equivocado.</p></div>
       <div><h3>El teclado llega a todo</h3><p>Una manija enfocada: flechas de 16, Shift más flecha de 48, Home pliega, End amplía, Enter alterna. Un menú: flechas, Home, End y Escape, que devuelve el foco.</p></div>
     </div>
     <div class="mn-bar">
@@ -506,7 +511,8 @@ footer { font-size: 12px; color: var(--fg-3); border-top: 1px solid var(--border
       <li>Cada región arranca con su banda de 40 (<code>.region-head</code> o una barra de pestañas) y sigue con un cuerpo que scrollea.</li>
       <li>Escribir cada medida con su token: <code>var(--row-h)</code>, <code>var(--gutter)</code>, <code>var(--text-sm)</code>. Si una medida no está en la base, no se inventa en la herramienta: se trae a esta página.</li>
       <li>Iconos sólo de <code>.ui-icon</code>, a 16, en botones de 24 con <code>title</code> y <code>aria-label</code>.</li>
-      <li>El pie lleva el estado a la izquierda y un botón por región plegable a la derecha. Las manijas usan <code>bindResize</code>, que ya pliega por debajo del mínimo.</li>
+      <li>El pie lleva el estado a la izquierda y, a la derecha, el botón de tema y un botón por región plegable. Las manijas usan <code>bindResize</code>, que ya pliega por debajo del mínimo.</li>
+      <li>El tema: el renglón <code>THEME_BOOT</code> en el <code>&lt;head&gt;</code> y <code>bindThemeToggle</code> en el botón. <b>Antes de mostrar el botón</b>, los colores de estado de la hoja propia se definen para los dos temas y <code>make estilo-contraste</code> pasa en claro y en oscuro: un color pensado para fondo oscuro sobre blanco no se lee.</li>
       <li>Verificar con <code>make estilo-check</code>, <code>make estilo-minimo</code>, <code>make estilo-contraste</code> y <code>make estilo-ui</code>, con la herramienta encendida.</li>
     </ol>
   </section>
@@ -517,9 +523,29 @@ footer { font-size: 12px; color: var(--fg-3); border-top: 1px solid var(--border
 <script>
 (function () {
   const ICONS = {"sidebar": "<rect x=\"3\" y=\"4\" width=\"18\" height=\"16\" rx=\"2\"/><path d=\"M9 4v16\"/>", "detail": "<rect x=\"3\" y=\"4\" width=\"18\" height=\"16\" rx=\"2\"/><path d=\"M15 4v16\"/>", "console": "<rect x=\"3\" y=\"4\" width=\"18\" height=\"16\" rx=\"2\"/><path d=\"M3 14h18M7 8l2 2-2 2\"/>", "collapse": "<rect x=\"6\" y=\"6\" width=\"15\" height=\"15\" rx=\"2\"/><path d=\"M17 3H5a2 2 0 0 0-2 2v12M10 13h7\"/>", "search": "<circle cx=\"10.5\" cy=\"10.5\" r=\"6.5\"/><path d=\"m16 16 5 5\"/>", "plus": "<path d=\"M12 5v14M5 12h14\"/>", "refresh": "<path d=\"M20 11a8 8 0 1 0 2 5.5\"/><path d=\"M20 4v7h-7\"/>", "close": "<path d=\"m6 6 12 12M6 18 18 6\"/>", "more": "<circle cx=\"5\" cy=\"12\" r=\"1\"/><circle cx=\"12\" cy=\"12\" r=\"1\"/><circle cx=\"19\" cy=\"12\" r=\"1\"/>", "copy": "<rect x=\"8\" y=\"8\" width=\"12\" height=\"13\" rx=\"2\"/><path d=\"M16 8V5a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h3\"/>", "check": "<path d=\"m5 12 4 4L19 6\"/>", "chevron": "<path d=\"m9 5 7 7-7 7\"/>", "filter": "<path d=\"M4 5h16l-6 7v6l-4 2v-8Z\"/>", "eye": "<path d=\"M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12Z\"/><circle cx=\"12\" cy=\"12\" r=\"3\"/>", "play": "<path d=\"m7 4 14 8-14 8Z\"/>", "external": "<path d=\"M14 3h7v7M21 3 10 14M10 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-5\"/>", "move": "<path d=\"M4 12h16m-5-5 5 5-5 5M4 5v14\"/>", "settings": "<path d=\"M4 7h16M4 17h16\"/><circle cx=\"9\" cy=\"7\" r=\"3\"/><circle cx=\"15\" cy=\"17\" r=\"3\"/>", "clock": "<circle cx=\"12\" cy=\"12\" r=\"9\"/><path d=\"M12 7v5l3 2\"/>", "server": "<rect x=\"3\" y=\"3\" width=\"18\" height=\"7\" rx=\"2\"/><rect x=\"3\" y=\"14\" width=\"18\" height=\"7\" rx=\"2\"/><path d=\"M7 6.5h.01M7 17.5h.01\"/>", "channel": "<path d=\"M12 4v6M5 20v-6h14v6M12 14v6\"/><circle cx=\"12\" cy=\"4\" r=\"2\"/>", "down": "<path d=\"m6 9 6 6 6-6\"/>", "bottom": "<path d=\"M5 20h14M12 3v12m-5-5 5 5 5-5\"/>"};
+  ICONS.sun = "<circle cx=\"12\" cy=\"12\" r=\"4\"/><path d=\"M12 2.5v2M12 19.5v2M4.6 4.6 6 6M18 18l1.4 1.4M2.5 12h2M19.5 12h2M4.6 19.4 6 18M18 6l1.4-1.4\"/>"; ICONS.moon = "<path d=\"M20 14.5A8 8 0 1 1 9.5 4a6.5 6.5 0 0 0 10.5 10.5Z\"/>";
   const PROPOSED = { alert: '<path d="M12 4 3 20h18Z"/><path d="M12 10v4M12 17h.01"/>' };
   const svg = (inner) => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${inner}</svg>`;
   document.querySelectorAll('[data-i]').forEach((el) => { el.innerHTML = svg(ICONS[el.dataset.i] || ''); });
+
+  // ── el botón de tema del pie: cambia el tema de esta página, igual que `bindThemeToggle` ──
+  const root = document.documentElement;
+  const pageTheme = () => root.dataset.theme || (matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+  const themeBtn = document.getElementById('xTheme');
+  function paintTheme() {
+    const t = pageTheme(), label = t === 'dark' ? 'Cambiar a tema claro' : 'Cambiar a tema oscuro';
+    themeBtn.querySelector('[data-i]').innerHTML = svg(ICONS[t === 'dark' ? 'moon' : 'sun']);
+    themeBtn.setAttribute('aria-label', label);
+    themeBtn.title = `${t === 'dark' ? 'Tema oscuro' : 'Tema claro'} · ${label.toLowerCase()}`;
+  }
+  themeBtn.addEventListener('click', () => {
+    root.dataset.theme = pageTheme() === 'dark' ? 'light' : 'dark';
+    // El icono se redibuja y el nodo del clic queda afuera del ejemplo: la pieza se elige desde acá.
+    paintTheme();
+    pick('theme');
+    requestAnimationFrame(() => requestAnimationFrame(drawCotas));
+  });
+  paintTheme();
 
   // ── las piezas: qué es, cuándo existe, cuánto mide, la regla ──
   const PARTS = [
@@ -528,7 +554,7 @@ footer { font-size: 12px; color: var(--fg-3); border-top: 1px solid var(--border
     { id: 'sidebar', name: 'Sidebar', cls: '.sidebar', short: 'Navegación: una lista, un árbol, una búsqueda.', what: 'Lo que se elige acá cambia lo que muestra el editor.', when: 'Cuando hay más de una cosa entre la cual elegir.', size: '300 por defecto · mínimo 240', rule: 'A la izquierda, con <b>su</b> línea a la derecha. El buscador que filtra la lista va arriba del cuerpo, a 32.' },
     { id: 'auxiliarybar', name: 'Sidebar secundario', cls: '.auxiliarybar', short: 'Detalle o propiedades de lo elegido.', what: 'Formularios, propiedades o registros de lo que está abierto en el editor.', when: 'Cuando lo elegido tiene detalle que no cabe en el editor.', size: '340 por defecto · mínimo 240', rule: 'Es lo primero que se pliega cuando la ventana no alcanza.' },
     { id: 'panel', name: 'Panel', cls: '.panel', short: 'La consola de abajo: salida que se sigue en el tiempo.', what: 'Logs de una corrida, eventos, resultados.', when: 'Sólo si hay salida que seguir. No se crea una consola vacía.', size: '240 por defecto · mínimo 124 (banda + 3 filas)', rule: '«panel» es una región, no un color: el color es <code>--card</code>.' },
-    { id: 'statusbar', name: 'Pie', cls: '.statusbar', short: 'Estado a la izquierda, disposición a la derecha.', what: 'Ambiente, conteos, progreso; y un botón por región plegable.', when: 'Siempre que haya una región plegable.', size: '30 de alto · texto 11 · botones 24', rule: 'Ocultar una región <b>nunca</b> borra su botón del pie.' },
+    { id: 'statusbar', name: 'Pie', cls: '.statusbar', short: 'Estado a la izquierda, tema y disposición a la derecha.', what: 'Ambiente, conteos, progreso; el botón de tema; y un botón por región plegable, al final y en el orden de la pantalla.', when: 'Siempre que haya una región plegable.', size: '30 de alto · texto 11 · botones 24', rule: 'Ocultar una región <b>nunca</b> borra su botón del pie.' },
     { g: 'Adentro de una región' },
     { id: 'region-head', name: 'Banda superior', cls: '.region-head', short: 'Título a la izquierda, acciones al borde.', what: 'La primera fila de cada columna.', when: 'En toda región.', size: '40 con su línea · texto 12/600 · margen 12', rule: 'Todas las columnas arrancan con la misma banda: <b>la costura de arriba es una sola línea</b>. Si junta muchas cosas, envuelve en vez de desbordar.' },
     { id: 'tabs', name: 'Pestañas', cls: '.tabs', short: 'Varias caras o documentos, de a uno.', what: 'La banda superior cuando la región muestra de a una cosa entre varias.', when: 'Cuando se trabaja con más de una a la vez. Si hay que ver varias juntas, es un acordeón.', size: 'Banda de 40 · pestaña de 36 apoyada en la línea', rule: 'La activa toma el fondo del cuerpo y una línea de 2 en el color de acción.' },
@@ -541,6 +567,7 @@ footer { font-size: 12px; color: var(--fg-3); border-top: 1px solid var(--border
     { id: 'pill', name: 'Píldora', cls: '.badge', short: 'Un estado o un conteo.', what: 'En curso, abierto, 3 pendientes.', when: 'Cuando un dato cabe en una o dos palabras.', size: '20 de alto · texto 11 · radio completo', rule: 'Relleno o contorno, nunca los dos.' },
     { g: 'Entre regiones' },
     { id: 'rsz', name: 'Manija', cls: '.rsz', short: 'Redimensiona. Se ve de 1, se agarra de 8.', what: 'El borde arrastrable entre dos regiones.', when: 'Entre toda región de medida variable y su vecina.', size: '1 visible · 8 de agarre', rule: 'Por debajo del mínimo, la región se pliega. El máximo se calcula contra la ventana.' },
+    { id: 'theme', name: 'Botón de tema', cls: 'bindThemeToggle()', short: 'Claro u oscuro, en el pie.', what: 'Un botón en el pie, antes de los de disposición y separado por 8.', when: 'En toda herramienta cuyos colores funcionen en los dos temas.', size: '24 · icono de 16', rule: 'El icono muestra el tema <b>actual</b> (sol claro, luna oscuro) y la etiqueta dice la acción. La primera vez sigue al sistema; lo que elige la persona queda guardado. Probalo en este pie.' },
     { id: 'layout', name: 'Botones de disposición', cls: '.statusbar › toggles', short: 'Pliegan y despliegan cada región.', what: 'Un botón por región plegable, al final del pie.', when: 'Siempre que haya una región plegable.', size: '24 cada uno', rule: 'Es el camino de vuelta de una región plegada.' },
   ];
   const BY = Object.fromEntries(PARTS.filter((p) => p.id).map((p) => [p.id, p]));
