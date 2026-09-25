@@ -59,7 +59,16 @@ try {
     }
     await page.waitForTimeout(1200);
     // El tablero muestra las vistas y la consola sólo con una tarea abierta.
-    if (name === 'tablero') await page.locator('.tree-row').first().click({ timeout: 3000 }).catch(() => {});
+    // ⚠ Si ningún grupo abierto tiene filas (el 2026-09-25 «En curso» sólo tenía locales, que arrancan
+    // ocultas, y los demás grupos arrancan plegados) no había qué abrir y se medía el tablero sin tarea:
+    // 1 región en vez de 3, en verde. Se abre el primer grupo con tareas antes de elegir la fila.
+    if (name === 'tablero') {
+      // Sin la caché del navegador las tareas llegan con Jira, a los varios segundos: se esperan.
+      await page.waitForFunction(() => document.querySelector('.tree-row') || document.querySelectorAll('.view-tog').length > 1,
+        null, { timeout: 20000 }).catch(() => {});
+      if (!(await page.locator('.tree-row').count())) await page.locator('.view-tog').first().click({ timeout: 3000 }).catch(() => {});
+      await page.locator('.tree-row').first().click({ timeout: 3000 }).catch(() => {});
+    }
     await page.waitForTimeout(300);
 
     // 1 · la ventana: en cada ancho, 0 o al menos el mínimo

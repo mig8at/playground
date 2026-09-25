@@ -387,8 +387,9 @@ try {
         'Tablero: se puede cerrar la consola de la tarea');
       const branches = page.getByRole('button', { name: 'Mostrar u ocultar ramas', exact: true });
       assert.equal(await branches.getAttribute('aria-pressed'), 'false');
-      assert.match(await branches.textContent(), /Ramas\s*2/,
-        'Tablero: el footer conserva un acceso textual con el total de ramas');
+      // El botón del pie es sólo el icono, como los otros de disposición; el total va en su tooltip.
+      assert.match(await branches.getAttribute('title'), /ramas \(2\)/,
+        'Tablero: el botón de ramas del pie dice el total en su tooltip');
       await branches.click(); await paint(page);
       assert.equal(await page.locator('.branch-panel').isVisible(), true,
         'Tablero: la consola de la tarea vuelve desde el footer');

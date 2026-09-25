@@ -162,6 +162,7 @@ Un solo juego: **Lucide** (`lucide-static`, la biblioteca de shadcn), en la vers
 - Un solo tamaño, 16 px, adentro de un botón de 24. La zona de toque es el botón.
 - `--fg-2` en reposo y `--foreground` al pasar o activo. Con color sólo para un estado, y con texto o forma que diga lo mismo.
 - Un icono sin texto lleva `title` y `aria-label`. Icono y texto, sólo en la acción principal de una región.
+- **Si el icono contesta, el texto sobra.** Un modo, un estado o una acción que el icono ya dice van sin rótulo, con el nombre en el tooltip (los modos Imagen · HTML · Comparar del visor, Buscar del trazador, Ramas del pie del tablero). Un dato de estado muestra su texto sólo cuando hay que leerlo: los servicios del harness son el icono y un punto verde mientras todo responde, y dicen «falta …» cuando algo no; la demora es el reloj en 0 s y muestra los segundos cuando hay espera. El valor de una perilla (entorno, canal, arranque) sí se queda a la vista.
 - Un carácter no es un icono (✕ ⧉ ▸ ⋯ ✓ ⚠ o un emoji): cambia con la fuente y no se centra en el botón. Un icono nuevo se elige en Lucide y se suma a `icons.json`; no se mezclan juegos.
 
 ```html

@@ -347,6 +347,8 @@
     .theme-toggle { margin-right: var(--space-1) }
     /* Arranque, demora y servicios van a la derecha del pie, pegados a los botones de disposición. */
     .statusbar > .statusbar-item { flex: none }
+    /* Un dato vacío no deja su hueco: el icono solo contesta. */
+    .statusbar-item > span:empty:not(.ui-icon):not(.status-dot) { display: none }
     .statusbar > .run-start { margin-left: auto }
     .statusbar > .statusbar-item + .layout-controls { margin-left: 0 }
 
@@ -674,7 +676,7 @@
       <button type="button" class="statusbar-item run-start" id="btnStart" aria-haspopup="menu"><span class="ui-icon" data-icon="start" aria-hidden="true"></span><span id="valStart">Inicio</span></button>
       <button type="button" class="statusbar-item delay-knob" id="btnDelay"><span class="ui-icon" data-icon="clock" aria-hidden="true"></span><span id="valDelay">0 s</span></button>
       <button type="button" class="statusbar-item health-item" id="btnHealth" aria-haspopup="dialog" title="Estado de los servicios">
-        <span class="status-dot" id="healthDot"></span><span id="healthText">servicios…</span>
+        <span class="ui-icon" data-icon="server" aria-hidden="true"></span><span class="status-dot" id="healthDot"></span><span id="healthText"></span>
       </button>
       <div class="layout-controls" role="group" aria-label="Regiones visibles">
         <!-- El tema, antes de los botones de disposición y separado 8: los de disposición van al final
@@ -1764,13 +1766,16 @@
         $('healthSummary').textContent = critical.length ? `Falta iniciar: ${critical.map(m => m.nombre).join(', ')}` : 'Servicios necesarios disponibles';
         // El mismo dato, en el header: es lo que decide si una corrida puede cerrar, así que no puede
         // vivir sólo dentro de un plegable.
+        // Con todo arriba alcanzan el icono y el punto verde (el detalle va al tooltip); el texto
+        // aparece sólo cuando falta algo, que es cuando hay que leerlo.
         $('healthText').textContent = critical.length
           ? (critical.length === 1 ? `falta ${critical[0].nombre}` : `faltan ${critical.length} servicios`)
-          : 'servicios ok';
+          : '';
         $('healthDot').className = 'status-dot ' + (critical.length ? 'bad' : 'ok');
         $('btnHealth').title = critical.length
           ? `Falta iniciar: ${critical.map(m => m.nombre).join(', ')} — clic para ver los comandos`
           : 'Todos los servicios necesarios responden';
+        $('btnHealth').setAttribute('aria-label', $('btnHealth').title);
         $('healthDetails').classList.toggle('needs-attention', critical.length > 0);
         for (const mock of critical) {
           const command = COMMAND[mock.puerto];
@@ -2789,7 +2794,8 @@
     /** El rótulo del reloj y su gate. `mockPA` lo decide `E2E_REAL_PREAPPROVALS` por target, no el panel. */
     function syncDelay() {
       const b = $('btnDelay'); if (!b) return;
-      $('valDelay').textContent = `${paDelay / 1000} s`;
+      // Sin demora queda sólo el reloj; con demora, los segundos (en ámbar): es cuando importa verlos.
+      $('valDelay').textContent = paDelay ? `${paDelay / 1000} s` : '';
       b.classList.toggle('active', paDelay > 0);
       b.setAttribute('aria-label', `Demora de preaprobación: ${paDelay / 1000} segundos`);
       b.disabled = !mockPA;

@@ -309,7 +309,7 @@ async function copyTrace() {
            barra de comandos del mapa, no un filtro sobre algo que ya está en pantalla. Mide 40 como las
            otras columnas: sus controles son los de una banda (28). -->
       <div class="region-head">
-        <span>Mapa</span>
+        <span title="Clic abre la etapa · ← → recorren las etapas">Mapa</span>
         <SearchBox />
         <div class="region-actions">
           <!-- ⚠ ICONO y no «⧉ copiar traza»: en una barra de acciones el botón es `.region-action`,
@@ -372,8 +372,8 @@ async function copyTrace() {
     </template>
     <span v-if="t.trace?.lane">carril <b>{{ t.trace.lane }}</b></span>
     <span v-else-if="t.trace">sin carril todavía — se decide al elegir entidad</span>
-    <!-- Las teclas se ven como teclas (`.kbd` de la base), no como texto que menciona teclas. -->
-    <span class="sb-hint">clic abre la etapa · <kbd class="kbd">←</kbd><kbd class="kbd">→</kbd> recorren</span>
+    <!-- La pista del teclado del mapa vive en el tooltip de «Mapa»: en el pie repetía algo que se
+         aprende una vez y se quedaba con el centro de la barra. -->
     <div class="layout-controls" role="group" aria-label="Regiones visibles">
       <!-- El tema, antes de los botones de disposición y separado 8: los de disposición van al final
            porque su orden copia la pantalla (izquierda, abajo, derecha). -->
@@ -416,7 +416,6 @@ async function copyTrace() {
 .statusbar strong.prod { color:var(--warn) }
 .statusbar b { color:var(--txt) }
 /* La pista de teclado al borde: es ayuda, no estado — lo último que se lee. */
-.sb-hint { margin-left:auto; color:var(--faint) }
 .ureq { font-variant-numeric:tabular-nums }
 /* 8 entre el tema y los botones de disposición: 4 de este margen más los 4 del grupo. */
 .theme-toggle { margin-right:var(--space-1) }
@@ -476,9 +475,6 @@ async function copyTrace() {
 .handle-person { position:relative; top:auto; bottom:auto; flex:none; margin:0 -2px }
 .handle-panel { position:relative; top:auto; bottom:auto; width:auto; height:var(--rsz); flex:none; margin:-2px 0; z-index:1 }
 .handle-panel::before { left:0; right:0; width:auto; top:calc(50% - .5px); bottom:auto; height:1px }
-@media (max-width: 760px) {
-  .statusbar .sb-hint { display:none }
-}
 /* (Acá había un `@media (max-width:860px) { .cols { grid-template-columns:1fr } }`. Era cromo muerto:
    `.cols` no es un grid —el panel va EN CAPA y el mapa en flujo—, así que esa declaración no tenía a
    quién aplicarle. Se fue con el barrido de estilos viejos.) */

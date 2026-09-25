@@ -65,7 +65,9 @@
      que se queda cerca en luminancia de cualquier tinte de sí mismo (4,32:1 al 10%, 3,62:1 al 22%).
      Si alguna vez hace falta ese patrón, la palanca no está acá: está en el `--destructive` de
      `theme.css`. Como TINTA sobre una card normal sí funciona (4,7:1). */
-  --bad:  var(--destructive);
+  /* La tinta del destructivo (el rojo del tema mezclado con el texto): como texto, el rojo puro sobre
+     blanco medía 3,76:1 («Sprint 11» arrastrado); la tinta pasa AA en los dos temas. */
+  --bad:  var(--destructive-ink);
   --info: #1d4ed8;
   /* El resaltado del SQL de los hallazgos: los tonos de un editor. Tampoco los trae un tema, y como
      literales sueltos en su regla un tema nuevo no los alcanzaba (lo marca `make estilo-check`). */

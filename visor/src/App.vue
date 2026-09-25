@@ -18,7 +18,16 @@ const trail = ref([]) // las pantallas por las que se vino, para volver
 const imageFailed = ref(false)
 // Cómo se ve la pantalla: la imagen que exporta Figma, el HTML que traduce el server, o las dos lado a
 // lado —la imagen es la vara del HTML—.
-const modes = [{ id: 'image', label: 'Imagen' }, { id: 'html', label: 'HTML' }, { id: 'compare', label: 'Comparar' }]
+// «guardado hace 17 h»: la fecha entera va al tooltip; en el pie alcanza con cuánto hace.
+function ago(iso) {
+  const min = Math.round((Date.now() - new Date(iso)) / 60000)
+  if (min < 1) return 'recién'
+  if (min < 60) return `hace ${min} min`
+  if (min < 48 * 60) return `hace ${Math.round(min / 60)} h`
+  return `hace ${Math.round(min / 1440)} d`
+}
+// Los tres modos son iconos: el nombre va al tooltip, como el resto de la barra.
+const modes = [{ id: 'image', label: 'Imagen', icon: 'image' }, { id: 'html', label: 'HTML', icon: 'code' }, { id: 'compare', label: 'Comparar', icon: 'compare' }]
 const mode = ref((() => { try { return localStorage.getItem('visor.mode') || 'image' } catch { return 'image' } })())
 watch(mode, (m) => { try { localStorage.setItem('visor.mode', m) } catch { /* preferencia opcional */ } writeRoute(); nextTick(center) })
 // En la ruta el modo va en castellano, como lo lee la cabecera.
@@ -944,7 +953,7 @@ const laneName = (lane) => (lane.label ? lane.label : 'Fila sin rótulo')
                elige UNO y se ven los tres. Sin contorno ni unidos: sería una caja alrededor de un grupo. -->
           <div class="toggle-group toggle-sm mode-toggle" role="group" aria-label="Cómo ver la pantalla">
             <button v-for="m in modes" :key="m.id" type="button" class="toggle" :class="{ on: mode === m.id }"
-              :aria-pressed="mode === m.id" @click="mode = m.id">{{ m.label }}</button>
+              :aria-pressed="mode === m.id" :title="m.label" :aria-label="m.label" @click="mode = m.id"><span class="ui-icon" :data-icon="m.icon" aria-hidden="true"></span></button>
           </div>
           <div class="region-actions">
             <button class="region-action" :aria-pressed="picking" title="Señalar una capa: tocala para marcarla y copiar el enlace (S)" aria-label="Señalar una capa" @click="picking = !picking">
@@ -1103,7 +1112,7 @@ const laneName = (lane) => (lane.label ? lane.label : 'Fila sin rótulo')
 
     <footer class="statusbar">
       <span v-if="structure">{{ structure.file_name }} · {{ structure.name }}</span>
-      <span v-if="structure?.last_modified">guardado {{ new Date(structure.last_modified).toLocaleString('es-CO') }}</span>
+      <span v-if="structure?.last_modified" :title="new Date(structure.last_modified).toLocaleString('es-CO')">guardado {{ ago(structure.last_modified) }}</span>
       <span v-if="screenCount">{{ screenCount }} pantallas</span>
       <div class="layout-controls" role="group" aria-label="Tema y regiones visibles">
         <!-- El tema, antes de los botones de disposición y separado 8: los de disposición van al final

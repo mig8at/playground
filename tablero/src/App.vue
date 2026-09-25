@@ -1747,7 +1747,8 @@ function documentAction(id) {
               :title="i.Summary" @click="openTask(i)" @dblclick="openTask(i, true)"
               @contextmenu="openTaskMenu($event, i)" @keydown="openTaskMenuWithKeyboard($event, i)">
               <span class="tr-dot" :class="statusClass(i.StatusCategory)" aria-hidden="true"></span>
-              <span class="tr-key">{{ i._local ? 'local' : i.Key }}</span>
+              <span v-if="i._local" class="tr-key tr-local" title="Tarea local, sin Jira"><span class="ui-icon" data-icon="local" aria-hidden="true"></span></span>
+              <span v-else class="tr-key">{{ i.Key }}</span>
               <span class="tr-tt">{{ i.Summary }}</span>
               <span v-if="remaining(i.Key)" class="tr-n" :title="`${remaining(i.Key)} pendiente(s)`"
                     :aria-label="`${remaining(i.Key)} pendientes`">{{ remaining(i.Key) }} pend.</span>
@@ -1832,7 +1833,8 @@ function documentAction(id) {
                   :aria-current="active?.Key === t.Key ? 'true' : undefined"
                   @click="openTask(t, true)" @auxclick.middle.prevent="closeTab(t.Key)">
             <span class="tr-dot" :class="statusClass(t.StatusCategory)" aria-hidden="true"></span>
-            <span class="tab-key">{{ t._local ? 'local' : t.Key }}</span>
+            <!-- Una local no tiene clave: la pestaña dice su título, como un archivo en VS Code. -->
+            <span class="tab-key" :class="{ 'tab-title': t._local }">{{ t._local ? t.Summary : t.Key }}</span>
           </button>
           <button type="button" class="tab-close" :aria-label="`Cerrar ${t.Key}`" title="Cerrar"
                   @click="closeTab(t.Key)"><span class="ui-icon" data-icon="close" aria-hidden="true"></span></button>
@@ -2225,7 +2227,7 @@ function documentAction(id) {
       <span v-if="!loadingWide">{{ visible }} tarea{{ visible === 1 ? '' : 's' }} a la vista</span>
       <span v-if="jiraSyncing" class="sync-state" role="status">actualizando Jira…</span>
       <span v-else-if="syncError" class="sync-state sync-error" :title="syncError">Jira sin actualizar</span>
-      <span v-if="active" class="sb-act">{{ active._local ? 'local' : active.Key }}</span>
+      <span v-if="active && !active._local" class="sb-act">{{ active.Key }}</span>
       <div class="layout-controls" role="group" aria-label="Regiones visibles">
         <!-- El tema, antes de los botones de disposición y separado 8: los de disposición van al final
              porque su orden copia la pantalla (izquierda, abajo, derecha). -->
@@ -2236,9 +2238,9 @@ function documentAction(id) {
         </button>
         <button v-if="active" ref="branchPanelToggle" type="button" class="region-action sb-console"
                 :aria-pressed="showBranchConsole" aria-controls="context-branches-panel"
-                aria-label="Mostrar u ocultar ramas" title="Mostrar u ocultar ramas" @click="toggleBranchConsole">
+                aria-label="Mostrar u ocultar ramas"
+                :title="`Mostrar u ocultar ramas (${activeTaskBranches.branches.length})`" @click="toggleBranchConsole">
           <span class="ui-icon" data-icon="console" aria-hidden="true"></span>
-          <span>Ramas</span><span class="count">{{ activeTaskBranches.branches.length }}</span>
         </button>
         <button type="button" class="region-action" :aria-pressed="!!(showAux && auxShown)" :disabled="!active"
                 aria-label="Mostrar u ocultar vistas" title="Mostrar u ocultar vistas" @click="toggleDetail">
@@ -2299,6 +2301,8 @@ function documentAction(id) {
 .tr-key { font: var(--text-xs) var(--font-mono); color: var(--mut); flex: none }
 /* Sobre el fondo de la fila elegida la rampa ya no alcanza (--mut quedaba en 4,05:1): la clave sube a tinta plena. */
 .tree-row.sel .tr-key { color: var(--accent-foreground) }
+/* La local se marca con el icono de la base, en la columna de la clave: el nombre ya dice cuál es. */
+.tr-local { display: inline-flex; align-items: center }
 .tr-tt { flex: 1; min-width: 0; font-size: var(--text-base); overflow: hidden; text-overflow: ellipsis; white-space: nowrap }
 .tr-n { font-size: var(--text-xs); font-weight: 600; color: var(--warn); flex: none; white-space: nowrap }
 .tr-z { font-size: var(--text-xs); color: var(--mut); flex: none }
@@ -2361,7 +2365,6 @@ function documentAction(id) {
 .sync-state { color: var(--mut); font-size: var(--text-xs) }
 .sync-error { color: var(--warn) }
 .sync-state + .sb-act { margin-left: 0 }
-.sb-console { display:inline-flex; align-items:center; width:auto; gap:var(--space-1); padding:0 var(--space-1); font-size:var(--text-xs) }
 .theme-toggle { margin-right: 6px }
 
 
@@ -2389,6 +2392,7 @@ function documentAction(id) {
    fondo del editor y su línea de 2, la ✕ que aparece al pasar. ⚠ La PREVISTA va en itálica
    (`.tab.preview`, de la base), igual que VS Code: es la única señal de que el próximo clic en el árbol
    la va a reemplazar. Acá queda sólo la clave, en mono. */
+.tab-key.tab-title { font-family: var(--font-sans); font-size: var(--text-sm); max-width: 180px }
 .tab-key { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-family: var(--font-mono);
   font-size: var(--text-xs) }
 /* ⚠ El contador del encabezado (`.count` de la base) es la ÚNICA señal de que hay un filtro puesto,

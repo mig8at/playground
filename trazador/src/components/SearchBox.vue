@@ -26,8 +26,10 @@ const t = useTrazador()
         <option value="local">local</option>
       </select>
     </span>
-    <button type="submit" class="btn btn-outline btn-sm" :disabled="t.searching || !t.q.trim()">
-      {{ t.searching ? 'Buscando…' : 'Buscar' }}
+    <!-- Buscar es un icono: Enter hace lo mismo, y el estado va al tooltip. -->
+    <button type="submit" class="btn btn-outline btn-sm btn-icon" :disabled="t.searching || !t.q.trim()"
+            :title="t.searching ? 'Buscando…' : 'Buscar (Enter)'" :aria-label="t.searching ? 'Buscando…' : 'Buscar'">
+      <span class="ui-icon" :data-icon="t.searching ? 'refresh' : 'search'" aria-hidden="true"></span>
     </button>
   </form>
 </template>
