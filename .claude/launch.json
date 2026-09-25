@@ -134,8 +134,12 @@
         "dev"
       ],
       "cwd": "visor",
-      "port": 5193,
-      "autoPort": false
+      "port": 5186,
+      "autoPort": false,
+      "env": {
+        "PORT": "5186",
+        "VISOR_API_PORT": "5187"
+      }
     }
   ]
 }

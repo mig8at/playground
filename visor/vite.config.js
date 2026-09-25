@@ -12,14 +12,17 @@ const themeBoot = {
 
 // :5193 era el puerto de la viz de `context`, que se apagó el 2026-09-21; la API va en :5194, que
 // quedó libre cuando `diccionario` salió del repo. El proxy deja la app en un solo origen, igual que
-// el trazador.
+// el trazador. `PORT` y `VISOR_API_PORT` los mueven para levantar un segundo visor al lado de otro
+// (otra sesión con el suyo en 5193/5194); `dev:server` lee la misma variable.
+const apiPort = Number(process.env.VISOR_API_PORT) || 5194
+
 export default defineConfig({
   plugins: [themeBoot, vue(), tailwindcss()],
   server: {
-    port: 5193,
+    port: Number(process.env.PORT) || 5193,
     proxy: {
       // Generoso: el primer mapa de una sección grande baja el árbol entero (4,8 MB en flujo-ecommerce).
-      '/api': { target: 'http://127.0.0.1:5194', changeOrigin: false, timeout: 180000 },
+      '/api': { target: `http://127.0.0.1:${apiPort}`, changeOrigin: false, timeout: 180000 },
     },
   },
 })

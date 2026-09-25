@@ -337,9 +337,10 @@
     /* ═══ EL PIE ══════════════════════════════════════════════════════════════════════════════════ */
     .statusbar strong { color: var(--foreground) }
     .theme-toggle { margin-right: var(--space-1) }
-    /* Los servicios van al final del estado, pegados a los botones de la derecha. */
-    .statusbar > .health-item { flex: none; margin-left: auto }
-    .statusbar > .health-item + .layout-controls { margin-left: 0 }
+    /* Arranque, demora y servicios van a la derecha del pie, pegados a los botones de disposición. */
+    .statusbar > .statusbar-item { flex: none }
+    .statusbar > .run-start { margin-left: auto }
+    .statusbar > .statusbar-item + .layout-controls { margin-left: 0 }
 
     /* ⛔ NO HAY VERSIÓN ANGOSTA, y es una decisión: es una herramienta de ESCRITORIO, que se usa con el
        wizard en otra ventana, y las tres columnas son el punto. Si la ventana no da, se pliega un
@@ -431,10 +432,6 @@
           <div class="run-knobs">
             <button type="button" class="btn btn-ghost btn-sm" id="btnEnvironment" aria-haspopup="menu"><span class="ui-icon" data-icon="server" aria-hidden="true"></span><span id="valEnvironment">local</span><span class="ui-icon" data-icon="down" aria-hidden="true"></span></button>
             <button type="button" class="btn btn-ghost btn-sm" id="btnChannel" aria-haspopup="menu"><span class="ui-icon" data-icon="channel" aria-hidden="true"></span><span id="valChannel">Asesor</span><span class="ui-icon" data-icon="down" aria-hidden="true"></span></button>
-            <button type="button" class="btn btn-ghost btn-sm" id="btnStart" aria-haspopup="menu"><span class="ui-icon" data-icon="play" aria-hidden="true"></span><span id="valStart">Inicio</span><span class="ui-icon" data-icon="down" aria-hidden="true"></span></button>
-            <!-- La demora del mock de pre-aprobados: un click cicla 0 → 3 → 5 → 10 → 15 s. Es de la CORRIDA
-                 (viaja como `MOCK_PA_DELAY_MS`), no de la sucursal ni de la entidad. -->
-            <button type="button" class="btn btn-ghost btn-sm delay-knob" id="btnDelay"><span class="ui-icon" data-icon="clock" aria-hidden="true"></span><span id="valDelay">0 s</span></button>
           </div>
           <div class="run-actions">
             <span class="run-dot" id="runDot"></span>
@@ -640,6 +637,11 @@
       <span id="runSummary" role="status">Elegí un comercio primero.</span>
       <!-- El estado de los servicios, siempre a la vista en el pie: es lo que decide si una corrida puede
            cerrar. El detalle, con los comandos para levantar lo que falte, se abre desde acá hacia arriba. -->
+      <!-- Desde dónde arranca la corrida y la demora del mock de pre-aprobados: son de la corrida y se
+           tocan poco, así que viven en el pie, con el estado de los servicios. La demora cicla
+           0 → 3 → 5 → 10 → 15 s con un clic (viaja como `MOCK_PA_DELAY_MS`), no es de la sucursal ni de la entidad. -->
+      <button type="button" class="statusbar-item run-start" id="btnStart" aria-haspopup="menu"><span class="ui-icon" data-icon="start" aria-hidden="true"></span><span id="valStart">Inicio</span></button>
+      <button type="button" class="statusbar-item delay-knob" id="btnDelay"><span class="ui-icon" data-icon="clock" aria-hidden="true"></span><span id="valDelay">0 s</span></button>
       <button type="button" class="statusbar-item health-item" id="btnHealth" aria-haspopup="dialog" title="Estado de los servicios">
         <span class="status-dot" id="healthDot"></span><span id="healthText">servicios…</span>
       </button>
@@ -1403,8 +1405,12 @@
       if (boxEl) m.appendChild(boxEl);
       const r = anchor.getBoundingClientRect();
       mountMenu(m, r.right, r.bottom + 4, true);
-      // Desde el pie se abre hacia ARRIBA: abajo no hay lugar y el acotado a la ventana lo taparía.
-      if (anchor.closest('.statusbar')) m.style.top = Math.max(4, r.top - m.offsetHeight - 4) + 'px';
+      placeAbove(m, anchor);
+    }
+
+    /** Desde el pie, un menú se abre hacia ARRIBA: abajo no hay lugar y el acotado a la ventana lo taparía. */
+    function placeAbove(m, anchor) {
+      if (anchor.closest('.statusbar')) m.style.top = Math.max(4, anchor.getBoundingClientRect().top - m.offsetHeight - 4) + 'px';
     }
 
     /** El header refleja lo elegido. Se llama desde donde ya se aplica cada cosa, no en un timer. */
@@ -2084,7 +2090,8 @@
 
     function updateCaseSummary() {
       $('caseTitle').textContent = sel ? `${sel.name} · ${CHANNEL_LABELS[channel]} · ${target}` : 'Elegí un comercio';
-      const data = [`Monto $${fmt(moneyNum('amount'))}`, step === 'lenders' ? 'Desde entidades' : 'Desde el inicio', `Front ${frontMode === 'local' ? 'local' : 'del ambiente'}`];
+      // El arranque no va acá: está a la vista en el pie, en su propio botón.
+      const data = [`Monto $${fmt(moneyNum('amount'))}`, `Front ${frontMode === 'local' ? 'local' : 'del ambiente'}`];
       if (inject) {
         data.push(`Ingreso $${fmt(moneyNum('income'))}`, doctype === 'PEP' ? 'Sin buró · PEP' : `Score ${$('score').value} · buró inyectado`);
       } else data.push('Sin inyección');
@@ -2270,7 +2277,7 @@
           setGoLabel('Preparar + Lanzar'); updateGo(); return;
         }
       }
-      activeCaseSummary = `${$('caseTitle').textContent} · ${$('caseDetails').textContent}`;
+      activeCaseSummary = `${$('caseTitle').textContent} · ${step === 'lenders' ? 'Desde entidades' : 'Desde el inicio'} · ${$('caseDetails').textContent}`;
       setRunningUI(true);
       $('go').disabled = true; setGoLabel('Lanzando…');
       try {
@@ -2604,6 +2611,7 @@
       if (hint) { hint.className = 'region-menu-note'; m.appendChild(hint); }
       const r = $('btnStart').getBoundingClientRect();
       mountMenu(m, r.left, r.bottom + 4);
+      placeAbove(m, $('btnStart'));
     };
 
     // ⚠ CICLA CLICKEANDO EL BOTÓN REAL, igual que los menús: `#padelay` sigue siendo quien fija

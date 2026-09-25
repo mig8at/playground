@@ -25,10 +25,21 @@ if (installed !== cfg.version) fail(`icons.json fija ${cfg.library}@${cfg.versio
 function uri(name) {
   const svg = readFileSync(join(lucideDir, 'icons', `${name}.svg`), 'utf8')
     .replace(/<!--[\s\S]*?-->/g, '')
-    .replace(/\s(class|width|height)="[^"]*"/g, '')
+    // Sólo la etiqueta <svg> pierde clase y tamaño: un <rect> necesita su width y su height.
+    .replace(/<svg\b[^>]*>/, (tag) => tag.replace(/\s(class|width|height)="[^"]*"/g, ''))
     .replace('stroke="currentColor"', 'stroke="black"')
-    .replace(/\s+/g, ' ').replace(/> </g, '><').replace(/ \/>/g, '/>').replace('<svg ', '<svg ').trim();
+    .replace(/\s+/g, ' ').replace(/> </g, '><').replace(/ \/>/g, '/>').replace(/ >/g, '>').trim();
   return `url("data:image/svg+xml,${encodeURIComponent(svg)}")`;
+}
+
+// La vara: el INTERIOR de cada icono generado tiene que ser, byte a byte y normalizado el espacio, el del
+// archivo de Lucide. Sin esto, una limpieza de más (le borró width y height a los <rect>) pasa verde.
+const norm = (x) => x.replace(/<!--[\s\S]*?-->/g, '').replace(/\s+/g, ' ').replace(/> </g, '><').replace(/ ?\/>/g, '/>').trim();
+const innerOf = (svg) => norm(svg).match(/<svg\b[^>]*>(.*)<\/svg>/)[1];
+for (const [name, lucide] of Object.entries(cfg.icons)) {
+  const generated = decodeURIComponent(uri(lucide).slice('url("data:image/svg+xml,'.length, -2));
+  if (innerOf(generated) !== innerOf(readFileSync(join(lucideDir, 'icons', `${lucide}.svg`), 'utf8')))
+    fail(`«${name}» no dibuja lo mismo que ${lucide}.svg de Lucide`);
 }
 
 const lines = [`/* <icons> — generado por tools/ui-icons.mjs desde ${cfg.library}@${cfg.version} según tools/ui/icons.json.`,
