@@ -154,6 +154,12 @@ sostiene con enlaces con tipo y comandos con su resultado:
 | una consulta | bloque ` ```sql prod ` con el `SELECT`, y debajo `Resultado: …` | ambiente presente y sólo lectura |
 | otro comando | bloque ` ```sh `, y debajo `Resultado: …` | que lleve su resultado |
 
+⚠ **El server del tablero valida la pila también al LEERLA, con su propio código.** Un tipo de enlace
+nuevo que escribe la consola (`make tarea-bloque` corre el código del disco) deja la pila ENTERA de esa
+tarea ilegible en un `make tablero` que arrancó antes: la API contesta «el enlace … no tiene un tipo
+válido» y la tarea se ve sin bloques. Pasó el 2026-09-24 al estrenar `visor:`. Después de tocar los tipos
+de enlace, se reinicia el tablero.
+
 El material que no es un comando —un JSON de ejemplo, un texto— va en ` ```json ` o ` ```text `. El título
 puede llevar `código` entre comillas invertidas; enlaces, no.
 
