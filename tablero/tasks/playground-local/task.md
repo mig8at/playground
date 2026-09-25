@@ -28,8 +28,9 @@ jira_title: ""
 - [ ] Agregar a `make estilo-check` un chequeo de literales fuera de la escala (tamaños, pesos, espacios,
   radios), como el de colores literales; termina cuando da los mismos conteos que
   `artifacts/medir-estilo.py` y sale ≠0 ante uno nuevo.
-- [ ] Subir `.tabs` / `.tab` a `workbench.css` y migrar `.editor-tabs` y `.aux-tabs` del tablero.
-- [ ] Sumar el icono `alert` y reemplazar los caracteres usados como icono en las cuatro herramientas.
+- [x] Subir `.tabs` / `.tab` a `workbench.css` y migrar `.editor-tabs` y `.aux-tabs` del tablero.
+- [ ] Reemplazar los caracteres usados como icono en las cuatro herramientas (`alert`, `edit`, `grip` y
+  `comment` ya están en la base); termina cuando ninguna pinta un ✕ ⧉ ▸ ⚠ o un emoji como icono.
 - [ ] Trazador: entrar a `.workbench` con `.auxiliarybar.overlay`, y `.sidebar-vacio` → `.empty`.
 
 ## Alcance
