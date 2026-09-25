@@ -1534,7 +1534,7 @@ async function main(): Promise<number> {
     // La línea base para conciliar al final: qué había en la base ANTES de que este runner tocara nada.
     // Son dos lecturas, así que pasan sin el permiso de escritura (que sólo cubre lo que escribe).
     const baseline = await dbBaseline();
-    { const wired = await e2eConfigMod.wireMockDocProjects((process.env.E2E_TARGET || 'local').toLowerCase()).catch((e: any) => `⚠ no pude cablear los proyectos del pdf-mapper: ${e?.message ?? e}`); if (wired) console.log(`  ${wired}\n`); }
+    for (const l of await e2eConfigMod.wireLocal((process.env.E2E_TARGET || 'local').toLowerCase())) console.log(`  ${l}\n`);
     const missing = await preflightCheck(cases);
     if (missing.length) {
         console.log('  ⚠ PREVUELO — falta algo, y sin esto el resultado MIENTE:\n');

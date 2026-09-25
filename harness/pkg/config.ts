@@ -118,6 +118,45 @@ export async function wireMockDocProjects(target: string): Promise<string | null
         : null;
 }
 
+/**
+ * LAS CENTRALES DE RIESGO QUE LE FALTAN AL CATÁLOGO LOCAL, copiadas de producción (leídas el 2026-09-25).
+ *
+ * El dump local llega hasta la 9; prod tiene hasta la 13. La que duele es la **12, Ábaco**: la consulta
+ * de Ábaco se guarda en `risk_central_user_data` con ese id, y la tabla tiene clave foránea a este
+ * catálogo, así que en local el insert fallaba y el paso de Ábaco se volvía a pedir sin fin. Las otras
+ * tres van por lo mismo: una consulta de crosscore, evidente o la de información abierta al cliente
+ * moriría igual.
+ *
+ * Sólo en local, y sólo las que faltan (`INSERT IGNORE` por id): una que ya existe no se toca.
+ */
+const PROD_RISK_CENTRALS: ReadonlyArray<[number, string]> = [
+    [10, 'crosscore - Experian'],
+    [11, 'evidente - Experian'],
+    [12, 'Abaco'],
+    [13, 'Experian - Información Crediticia Abierta Al Cliente'],
+];
+export async function wireRiskCentrals(target: string): Promise<string | null> {
+    if (target !== 'local') return null;
+    const { exec, isLocalDb } = await import('./db.ts');
+    if (!isLocalDb()) return null;
+    let added = 0;
+    for (const [id, name] of PROD_RISK_CENTRALS) {
+        const r = await exec('INSERT IGNORE INTO risk_centrals (id, name, country_id, enabled, created_at, updated_at) VALUES (?, ?, 47, 1, NOW(), NOW())', [id, name]);
+        added += r.affectedRows;
+    }
+    return added ? `catálogo de centrales: ${added} que tiene prod y faltaban en local (Ábaco, la 12, sin la cual su consulta no se guarda)` : null;
+}
+
+/** Lo que el harness deja listo en la base LOCAL antes de correr. Lo llaman los tres runners. */
+export async function wireLocal(target: string): Promise<string[]> {
+    const said: string[] = [];
+    for (const step of [wireMockDocProjects, wireRiskCentrals]) {
+        const r = await step(target).catch((e: any) => `⚠ no pude preparar la base local (${step.name}): ${e?.message ?? e}`);
+        if (r) said.push(r);
+    }
+    return said;
+}
+
 /** La línea de aviso, o `null` si no hay nada que advertir. La imprimen los runners en su cabecera. */
 export function docGenNotice(target: string): string | null {
     if (target !== 'local') return null;

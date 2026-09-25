@@ -3,7 +3,7 @@ import { mkdirSync } from 'node:fs';
 import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import type { Page } from '@playwright/test';
-import { identityWithoutProviderNotice, backendLogsNotice, config, cognitoCreds, wireMockDocProjects } from '../pkg/config';
+import { identityWithoutProviderNotice, backendLogsNotice, config, cognitoCreds, wireLocal } from '../pkg/config';
 import { cognitoLogin, cognitoStorageState, persistCognitoState } from '../pkg/cognito';
 import { overwrittenEmploymentNotice, restoreEmployment, synthFill, requestStatus11, manualValidation, MATURATION_SINCE } from '../pkg/inject';
 import { dictateCase } from '../pkg/risk-lambda';
@@ -637,12 +637,9 @@ test('guided (semiautomático)', async ({ browser }) => {
     // chip «cédula»): Agildata contesta el empleo y el ingreso, Experian el perfil de buró. Lo que predice
     // «Categoría por entidad» y lo que registra el motor pasan a hablar del mismo cliente.
     // Sólo local (en dev/qa el backend le pregunta a la lambda de la empresa) y sólo con buró: un PEP no tiene.
-    // Con los PDF por el mock, cualquier entidad que se elija tiene que poder firmar (`wireMockDocProjects`).
-    {
-        const wired = await wireMockDocProjects((process.env.E2E_TARGET || 'dev').toLowerCase())
-            .catch((e) => `⚠ no pude cablear los proyectos del pdf-mapper: ${e?.message ?? e}`);
-        if (wired) log(wired);
-    }
+    // La base local lista para cualquier entidad (`wireLocal`): los proyectos del pdf-mapper y el catálogo
+    // de centrales que le falta al dump.
+    for (const l of await wireLocal((process.env.E2E_TARGET || 'dev').toLowerCase())) log(l);
     if (process.env.E2E_INJECT === '1' && (process.env.E2E_TARGET || 'dev') === 'local'
         && process.env.E2E_SYNTH_DOC && (process.env.E2E_SYNTH_DOCTYPE || 'CC').toUpperCase() !== 'PEP') {
         const o = synthOptsFromEnv();

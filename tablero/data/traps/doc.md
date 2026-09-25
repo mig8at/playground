@@ -948,7 +948,7 @@ El wizard no sufre esto porque manda el header **`x-cognito-identity-id`** (lo a
 
 | Endpoint | ¿Sale al proveedor en local? | Por qué |
 |---|---|---|
-| `/results` | **no** | `Abaco::results()` corta en `app()->environment(['local'])` y devuelve `AbacoFixture::generateDynamicMock()` |
+| `/results` | **sí, desde el 2026-08-13** | el fixture (`AbacoFixture::generateDynamicMock()`) pasó a ser OPCIONAL (`abaco_config.fixture_enabled`, commit `130e1ac95`); sin él → `mock-abaco` :8102 |
 | `/platforms` | **no** | el setting `abaco_config.platforms_check_enabled = false` lo sirve desde la config en BD |
 | `/init/gig-economy` | **sí** | → `mock-abaco` :8102 |
 | `/login` | **sí** | → `mock-abaco` :8102 |
@@ -961,6 +961,17 @@ El wizard no sufre esto porque manda el header **`x-cognito-identity-id`** (lo a
 **Cómo se controla el veredicto:** el fixture keyea por `platforms[SLUG].auth === '200 - OK'`, marca que escribe el **paso 2** del login (no el 1). Con el `auth` puesto, `abaco_config.mock_pass` decide: `true` → `{"UBER":"success"}` · `false` → `{"UBER":"error"}`.
 
 **Uso:** `node dev/sweep.ts abaco <slug> <lenderId>` corre la cadena entera.
+
+⚠ **Y la primera fila dejó de ser cierta sin avisar (medido el 2026-09-25).** Con el fixture apagado, el
+backend le pide `/results` al mock, y el mock contestaba `{success, data: {"gig-economy": []}}`: envuelto
+en `data` —el mismo error del `init`, ahora en otro endpoint— y vacío. El backend lo leyó como «pendiente»,
+no guardó la consulta viva, y el paso de Ábaco se volvió a pedir: el wizard cayó a las instrucciones de
+identidad y la solicitud terminó **cancelada** (467005). Detrás había un segundo muro: el catálogo local de
+`risk_centrals` llegaba hasta la 9 y la consulta de Ábaco se guarda con la **12**, con clave foránea.
+Arreglo: el mock contesta con la forma del fixture, en la RAÍZ, por las plataformas del login (el login no
+trae `customer_id`: se lo encuentra por el token de `init`), y los runners del harness agregan al catálogo
+local las centrales 10–13 de prod (`wireRiskCentrals`). Comprobado con `sweep.ts abaco motai 169`: la
+consulta queda guardada con la 12 y `AbacoStepResolver` deja de pedir el paso.
 
 ### F-48 · Renting en v2: el discriminador es `product`, y estaba roto
 > ⚠ **Stale** — el puente `lenders.product` fue reemplazado por `lender_requirements` → `motai`. Crónica completa: `cerrados.md`.

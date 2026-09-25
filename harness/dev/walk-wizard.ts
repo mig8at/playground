@@ -56,7 +56,7 @@ const { one, exec, close, TARGET, writeLines, dumpWrites } = await import('../pk
 const { synthFill, manualValidation } = await import('../pkg/inject.ts');
 const { dictateEmployment, dictateBureauProfile, LAMBDA: RISK_LAMBDA } = await import('../pkg/risk-lambda.ts');
 const { payDownPayment } = await import('../pkg/wompi-down-payment.ts');
-const { config, docGenNotice, backendLogsNotice, wireMockDocProjects } = await import('../pkg/config.ts');
+const { config, docGenNotice, backendLogsNotice, wireLocal } = await import('../pkg/config.ts');
 const { env } = await import('../pkg/env.ts');
 const { branchDocument, branchPhone, syntheticPhone } = await import('../pkg/phones.ts');
 const { findBranch: findBranchIn, merchantDocumentType: documentType } = await import('../pkg/merchants.ts');
@@ -959,7 +959,7 @@ console.log(`\n  CAMINAR · ${cases.length} caso(s) · motor ${ENGINE === 'brows
 // Una perilla que cambia QUÉ prueba la corrida no puede estar invisible en el `.env` de otro repo.
 const notice = docGenNotice(TARGET);
 if (notice) console.log(`  ${notice}\n`);
-{ const wired = await wireMockDocProjects(TARGET).catch((e: any) => `⚠ no pude cablear los proyectos del pdf-mapper: ${e?.message ?? e}`); if (wired) console.log(`  ${wired}\n`); }
+for (const l of await wireLocal(TARGET)) console.log(`  ${l}\n`);
 
 // ⚠ LA SESIÓN SE MIRA ANTES DE ARRANCAR, y esto es lo que el 2026-09-17 costó dos minutos a los
 // golpes: el archivo estaba, así que la corrida cargó las cookies y salió a caminar; recién en la
