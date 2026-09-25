@@ -675,7 +675,7 @@ textarea.input { height: auto; min-height: 80px; padding: var(--space-2) var(--g
   font-size: var(--text-base); color: var(--fg-2) }
 .alert-desc p { margin: 0; line-height: 1.6 }
 .alert-destructive { border-left-color: var(--destructive); background: color-mix(in oklab, var(--destructive) 8%, transparent) }
-.alert-destructive .alert-desc { color: color-mix(in oklab, var(--destructive) 90%, var(--card)) }
+.alert-destructive .alert-desc { color: var(--destructive-ink) }
 
 /* ── MIGAS ──────────────────────────────────────────────────────────────────────────────────────
    El camino hasta lo que estás mirando. La página ACTUAL no es un enlace y va en el color del

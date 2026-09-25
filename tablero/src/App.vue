@@ -606,6 +606,10 @@ const effortFor = (key) => {
 // La pila de BLOQUES es la cronología de una tarea: cada uno muestra título y descripción, y su fecha
 // sólo arma el acordeón. Los registros de minutos siguen existiendo para medir trabajo, pero no entran acá.
 const contexts = ref([]);
+// Por qué no se pudo leer la pila de la tarea abierta. Una pila ilegible (un tipo de enlace que este
+// server todavía no conoce) llega como `error`, y tiene que verse como error: no como una tarea sin
+// bloques, y menos con los bloques de la tarea anterior.
+const contextsError = ref('');
 let contextsRequest = 0;
 const contextDay = (event) => event.at.slice(0, 10);
 const contextAge = (day) => {
@@ -663,13 +667,20 @@ async function loadContext() {
   const task = active.value;
   const request = ++contextsRequest;
   const effort = task && effortFor(task.Key);
-  if (!effort) { contexts.value = []; return; }
+  // ⚠ Se vacía ANTES de pedir: hasta el 2026-09-25 la pila de la tarea anterior seguía en pantalla
+  // mientras cargaba la nueva —y para siempre si la API contestaba `error`—, o sea la evidencia de A
+  // bajo el título de B.
+  contexts.value = [];
+  contextsError.value = '';
+  if (!effort) return;
   try {
     const response = await fetch(`${SERVER}/api/task-context?effort=${encodeURIComponent(effort)}`);
     const json = await response.json();
-    if (request === contextsRequest && !json.error) contexts.value = json.events || [];
-  } catch {
-    if (request === contextsRequest) contexts.value = [];
+    if (request !== contextsRequest) return;
+    if (json.error) contextsError.value = json.error;
+    else contexts.value = json.events || [];
+  } catch (e) {
+    if (request === contextsRequest) contextsError.value = `no se pudo hablar con el server (${e.message})`;
   }
 }
 
@@ -1983,6 +1994,12 @@ function documentAction(id) {
           </div>
         </template>
 
+        <div v-if="contextsError" class="alert alert-destructive task-context-error" role="alert">
+          <span class="ui-icon alert-icon" data-icon="alert" aria-hidden="true"></span>
+          <div class="alert-title">No se pudo leer la pila de esta tarea</div>
+          <div class="alert-desc">{{ contextsError }}</div>
+          <button type="button" class="btn btn-outline btn-sm" @click="loadContext">Reintentar</button>
+        </div>
         <section v-if="contextGroups.length" class="task-context-timeline" aria-label="Contexto de la tarea por fecha">
           <section v-for="group in contextGroups" :key="group.day" class="task-context-day">
             <!-- Un acordeón como el del sidebar: el día se PEGA arriba mientras se lee su contenido, el
@@ -2387,6 +2404,8 @@ function documentAction(id) {
 .editor-view > * { max-width: 1100px }
 
 .task-context-timeline { max-width: 780px; padding: 2px 0 20px }
+.task-context-error { max-width: 780px; margin: var(--space-3) 0 }
+.task-context-error > .btn { grid-column: -2; justify-self: start; margin-top: var(--space-2) }
 .task-context-day + .task-context-day { margin-top: 8px }
 /* El día es un `.region-head.group` de workbench.css: se PEGA arriba mientras se lee su contenido —pintado
    con el fondo de la región, para que el texto no pase por debajo— y el día siguiente lo empuja al llegar,
