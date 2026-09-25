@@ -1153,7 +1153,11 @@ const rowMetaTitle = (sc) => [sc.hotspots?.length ? 'Tiene zonas del prototipo' 
               :aria-pressed="mode === m.id" @click="mode = m.id">{{ m.label }}</button>
           </div>
           <div class="region-actions">
-            <button class="region-action" :aria-pressed="showHotspots" title="Mostrar las zonas del prototipo (H)" aria-label="Zonas del prototipo" @click="showHotspots = !showHotspots">
+            <!-- Sin zonas el ojo no tiene nada que mostrar: deshabilitado y diciéndolo, porque encendido o
+                 apagado se veía igual y parecía roto. -->
+            <button class="region-action" :aria-pressed="showHotspots" :disabled="!clickable.length"
+              :title="clickable.length ? `${showHotspots ? 'Ocultar' : 'Mostrar'} ${clickable.length === 1 ? 'la zona' : 'las ' + clickable.length + ' zonas'} del prototipo: tocar una lleva a la pantalla a la que conecta en Figma (H)` : 'Esta pantalla no tiene zonas del prototipo: en Figma no se conectó a ninguna otra'"
+              aria-label="Zonas del prototipo" @click="showHotspots = !showHotspots">
               <span class="ui-icon" data-icon="eye" aria-hidden="true"></span>
             </button>
             <button class="region-action" :aria-pressed="picking" title="Señalar una capa: tocala para marcarla y copiar el enlace (S)" aria-label="Señalar una capa" @click="picking = !picking">
@@ -1515,7 +1519,8 @@ const rowMetaTitle = (sc) => [sc.hotspots?.length ? 'Tiene zonas del prototipo' 
 .device { position: relative; flex: none; border: 1px solid var(--device-edge); overflow: hidden; background: var(--card) }
 .device img { display: block; width: 100%; height: 100%; user-select: none }
 .device > .alert { position: absolute; left: 0; right: 0; top: 0 }
-.hotspot { position: absolute; padding: 0; border: 1px solid var(--hotspot); border-radius: var(--radius-control);
+/* 2 px y no 1: con 1 px sobre un botón del mismo color la zona no se notaba, y el ojo parecía no hacer nada. */
+.hotspot { position: absolute; padding: 0; border: 2px solid var(--hotspot); border-radius: var(--radius-control);
   background: var(--hotspot-fill); cursor: pointer }
 .hotspot:hover { background: var(--hotspot-fill-hover) }
 .hotspot.outside { border-style: dashed; cursor: not-allowed }
