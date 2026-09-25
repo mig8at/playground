@@ -47,6 +47,12 @@ var (
 	jiraTargetRe  = regexp.MustCompile(`^jira:[A-Z][A-Z0-9]+-\d+$`)
 	blockTargetRe = regexp.MustCompile(`^bloque:(blk_[A-Za-z0-9._-]+)$`)
 	httpsTargetRe = regexp.MustCompile(`^https://\S+$`)
+	// Una pantalla de un diseño, en el visor: `visor:<proyecto>/<pantalla>[@<huella>]`. La huella es la del
+	// contenido de la pantalla cuando se enlazó (`?huella=` en el enlace que copia el visor); con ella,
+	// `make visor-enlaces` dice después si el diseñador la cambió o la borró. Va como tipo propio, y no como
+	// `http://localhost:5193/…`, por lo mismo que `repo:`: el enlace nombra QUÉ es, y dónde corre el visor
+	// lo decide quien lo abre.
+	visorTargetRe = regexp.MustCompile(`^visor:[a-z0-9][a-z0-9-]*/[0-9]+-[0-9]+(?:@[0-9a-f]{12})?$`)
 	fenceRe       = regexp.MustCompile("^```(\\S*)(?:[ \\t]+(\\S+))?[ \\t]*$")
 	fenceCloseRe  = regexp.MustCompile("^```[ \\t]*$")
 	resultRe      = regexp.MustCompile(`^Resultado:\s*\S`)
@@ -155,13 +161,13 @@ func checkLinks(prose string, pinned bool) error {
 		target := m[2]
 		switch {
 		case canonTargetRe.MatchString(target), prTargetRe.MatchString(target), jiraTargetRe.MatchString(target),
-			blockTargetRe.MatchString(target), httpsTargetRe.MatchString(target):
+			blockTargetRe.MatchString(target), httpsTargetRe.MatchString(target), visorTargetRe.MatchString(target):
 		case repoTargetRe.MatchString(target):
 			if pinned && repoTargetRe.FindStringSubmatch(target)[2] == "" {
 				return fmt.Errorf("el enlace %s no está fijado a un commit", target)
 			}
 		default:
-			return fmt.Errorf("el enlace %q no tiene un tipo válido: canon:<tema> · repo:<repo>/<ruta> · pr:<repo>#N · jira:CLAVE-N · bloque:<id> · https://", target)
+			return fmt.Errorf("el enlace %q no tiene un tipo válido: canon:<tema> · repo:<repo>/<ruta> · pr:<repo>#N · jira:CLAVE-N · bloque:<id> · visor:<proyecto>/<pantalla>@<huella> · https://", target)
 		}
 	}
 	return nil

@@ -103,6 +103,10 @@ export function parseBlockBody(body) {
 
 const INLINE = /\[([^[\]\n]+)\]\(([^()\s]+)\)|`([^`\n]+)`|\*\*([^*\n]+)\*\*/g;
 const REPO = /^repo:([a-z0-9][a-z0-9-]*)(?:@([0-9a-f]{7,40}))?\/([^#\s]+?)(#L\d+(?:-L\d+)?)?$/;
+// Una pantalla de un diseño en el visor (`make visor`): `visor:<proyecto>/<pantalla>[@<huella>]`.
+const VISOR = /^visor:([a-z0-9][a-z0-9-]*)\/([0-9]+-[0-9]+)(?:@([0-9a-f]{12}))?$/;
+// Dónde corre el visor. Es local, como el tablero: el enlace lo abre la misma máquina.
+export const VISOR_ORIGIN = 'http://localhost:5193';
 
 export function parseTarget(target) {
   let m;
@@ -111,6 +115,7 @@ export function parseTarget(target) {
   if ((m = target.match(/^pr:([a-z0-9][a-z0-9-]*)#(\d+)$/))) return { kind: 'pr', repo: m[1], number: m[2] };
   if ((m = target.match(/^jira:([A-Z][A-Z0-9]+-\d+)$/))) return { kind: 'jira', key: m[1] };
   if ((m = target.match(/^bloque:(blk_[\w.-]+)$/))) return { kind: 'block', id: m[1] };
+  if ((m = target.match(VISOR))) return { kind: 'visor', project: m[1], screen: m[2], print: m[3] || '' };
   if (/^https:\/\/\S+$/.test(target)) return { kind: 'web', url: target };
   return { kind: 'text' };
 }
@@ -128,6 +133,18 @@ export function inlineParts(text) {
   }
   if (from < source.length || !parts.length) parts.push({ type: 'text', value: source.slice(from) });
   return parts;
+}
+
+// El enlace al visor: la pantalla, con la huella del momento en que se enlazó. Abrirlo dice en el visor si
+// el diseño cambió desde entonces.
+export function visorHref(part) {
+  return `${VISOR_ORIGIN}/${part.project}/${part.screen}${part.print ? `?huella=${part.print}` : ''}`;
+}
+
+// visor: en el documento de la tarea (Markdown), lo mismo que en un bloque.
+export function visorURL(target) {
+  const p = parseTarget(target);
+  return p.kind === 'visor' ? visorHref(p) : '';
 }
 
 // El enlace a GitHub de un archivo —en el commit que el bloque dejó fijado— o de un PR. Sin la URL del

@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { parseBlockBody, inlineParts, repoHref } from '../src/block-body.js';
+import { parseBlockBody, inlineParts, repoHref, visorHref } from '../src/block-body.js';
 
 const body = [
   'La guarda vive en [CreatesApplication](repo:legacy-backend@cfc577218f2d/tests/CreatesApplication.php#L12)',
@@ -68,4 +68,12 @@ test('un material de texto que es una tabla de Markdown se pinta como tabla; uno
   const text = parseBlockBody('```text\n| una línea suelta con barras |\nuna que no\n```');
   assert.equal(text[0].type, 'code');
   assert.equal(parseBlockBody('```json\n| a | b |\n| c | d |\n```')[0].type, 'code');
+});
+
+test('una pantalla del diseño (visor:) abre el visor en esa pantalla, con la huella con que se enlazó', () => {
+  const [part] = inlineParts('[Completa tu solicitud](visor:credifamilia/381-1052@52065d0ce692)');
+  assert.equal(part.kind, 'visor');
+  assert.equal(visorHref(part), 'http://localhost:5193/credifamilia/381-1052?huella=52065d0ce692');
+  assert.equal(visorHref(inlineParts('[x](visor:motai-renting/1176-2003)')[0]), 'http://localhost:5193/motai-renting/1176-2003');
+  assert.equal(inlineParts('[x](visor:credifamilia/381-1052@nohuella)')[0].kind, 'text', 'una huella mal escrita no es un enlace');
 });

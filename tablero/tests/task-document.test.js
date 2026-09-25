@@ -92,3 +92,8 @@ test('preferencias sobreviven a recargas y toleran almacenamiento bloqueado o co
   assert.doesNotThrow(() => savePreference('panel-width', 600));
   delete globalThis.localStorage;
 });
+
+test('en el documento de la tarea, visor: también abre el visor en la pantalla', () => {
+  const [section] = organizeDocument('## Objetivo\nEl diseño: [Completa tu solicitud](visor:credifamilia/381-1052@52065d0ce692).');
+  assert.match(section.html, /href="http:\/\/localhost:5193\/credifamilia\/381-1052\?huella=52065d0ce692"/);
+});

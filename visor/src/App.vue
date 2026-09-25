@@ -423,6 +423,32 @@ async function checkLink(key, id, linked) {
     if (linkCheck.value?.id === id) linkCheck.value = res.ok ? { id, linked, status: body.status, print: body.print } : { id, linked, status: 'error', error: body.error }
   } catch (e) { if (linkCheck.value?.id === id) linkCheck.value = { id, linked, status: 'error', error: String(e.message || e) } }
 }
+// El enlace para una TAREA del tablero: `[Título](visor:<proyecto>/<pantalla>@<huella>)`. El tablero lo
+// pinta como enlace a esta pantalla y `make visor-enlaces` lo rastrea. La huella se pide al cambiar de
+// pantalla (sale de lo guardado: no cuesta un pedido a Figma).
+const screenPrint = ref({ id: '', print: '' })
+watch(() => [data.value?.key, current.value?.id], async ([key, id]) => {
+  screenPrint.value = { id: id || '', print: '' }
+  if (!key || !id) return
+  try {
+    const res = await fetch('/api/track?' + new URLSearchParams({ key, id }))
+    if (res.ok && current.value?.id === id) screenPrint.value = { id, print: (await res.json()).print || '' }
+  } catch { /* sin huella el enlace se escribe igual, sin rastreo */ }
+})
+const taskRef = computed(() => {
+  if (!data.value || !current.value) return ''
+  const print = screenPrint.value.id === current.value.id && screenPrint.value.print ? '@' + screenPrint.value.print : ''
+  const title = (current.value.title || current.value.name || 'pantalla').replace(/[\[\]()\n]/g, ' ').trim()
+  return `[${title}](visor:${projectSlug(data.value.key)}/${fromID(current.value.id)}${print})`
+})
+const refCopied = ref(false)
+async function copyTaskRef() {
+  try {
+    await navigator.clipboard.writeText(taskRef.value)
+    refCopied.value = true
+    setTimeout(() => { refCopied.value = false }, 1500)
+  } catch { /* sin permiso del portapapeles: el texto queda a la vista para copiarlo a mano */ }
+}
 async function copyLink() {
   if (!data.value || !current.value) return
   const path = routePath.value.replace(/[?&]huella=[0-9a-f]+/, '').replace(/\?$/, '')
@@ -807,6 +833,13 @@ const laneName = (lane) => (lane.label ? lane.label : 'Fila sin rótulo')
             <dt>Carril</dt><dd>{{ laneName(current.lane) }} · {{ current.index + 1 }} de {{ current.lane.screens.length }}</dd>
             <dt>Tipo</dt><dd>{{ kindName[current.kind] || current.kind }} · {{ Math.round(current.w) }}×{{ Math.round(current.h) }}</dd>
             <template v-if="current.open_comments"><dt>Comentarios</dt><dd>{{ current.open_comments }} abierto(s) en Figma</dd></template>
+            <dt>Para la tarea</dt>
+            <dd class="task-ref">
+              <code :title="screenPrint.print ? 'Pegalo en un bloque de la tarea: el tablero lo abre acá y make visor-enlaces avisa si la pantalla cambia' : 'Sin huella todavía: el tablero lo abre igual, pero no se podrá saber si cambió'">{{ taskRef }}</code>
+              <button class="region-action" :title="refCopied ? 'Copiado' : 'Copiar para pegar en la tarea'" aria-label="Copiar el enlace para la tarea" @click="copyTaskRef">
+                <span class="ui-icon" :data-icon="refCopied ? 'check' : 'copy'" aria-hidden="true"></span>
+              </button>
+            </dd>
           </dl>
           <div v-if="report && mode !== 'image'" class="block">
             <div class="region-head grupo"><span>La traducción a HTML</span></div>
@@ -928,6 +961,9 @@ const laneName = (lane) => (lane.label ? lane.label : 'Fila sin rótulo')
 .detail dt { color: var(--texto-3) }
 .detail dd { margin: 0; overflow-wrap: anywhere }
 .detail small { color: var(--texto-3) }
+.task-ref { display: flex; align-items: flex-start; gap: var(--space-1) }
+.task-ref code { flex: 1; min-width: 0; font-family: var(--font-mono, ui-monospace, monospace); font-size: var(--text-xs);
+  color: var(--texto-2); overflow-wrap: anywhere }
 .block ul { margin: 0; padding: var(--space-2) var(--space-3) var(--space-2) calc(var(--space-3) + 14px); font-size: var(--text-sm) }
 .link { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; width: 100%; padding: var(--space-2) var(--space-3);
   border: 0; background: none; color: inherit; font: inherit; font-size: var(--text-sm); text-align: left; cursor: pointer }

@@ -195,5 +195,8 @@ cargara una imagen: antes de creerle a una caída, medila sola con `SOLO=<id>`. 
 
 Lo que se vio en un diseño va a la pila de la tarea como bloque, con el comando que lo reproduce —el
 `bin/pg figma map '<url>'` de la sección, no una captura— y el enlace al archivo en `artifacts/` (un
-`.url`). Una pantalla puntual va con **el enlace que da el botón de copiar**, que lleva la huella: así
-`make visor-enlaces` puede decir mañana si esa pantalla cambió. A Jira no va la herramienta: va «el diseño del flujo tiene tal recorrido».
+`.url`). Una pantalla puntual va en un bloque como **`[Título](visor:<proyecto>/<pantalla>@<huella>)`**, que el
+detalle del visor da listo en «Para la tarea»: el tablero lo pinta como enlace que abre el visor en esa
+pantalla (con `?huella=`, así el visor dice si cambió), y `make visor-enlaces` puede decir mañana si esa
+pantalla cambió o la borraron. Va como tipo propio y no como `http://localhost:5193/…` por lo mismo que
+`repo:`: el enlace nombra qué es, y el validador de bloques rechaza lo que no sea `https://`. A Jira no va la herramienta: va «el diseño del flujo tiene tal recorrido».

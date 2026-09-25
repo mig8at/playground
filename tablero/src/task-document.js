@@ -1,5 +1,6 @@
 import { marked } from 'marked';
 import { highlightSQL } from './sql-highlight.js';
+import { visorURL } from './block-body.js';
 
 const normalize = text => text.normalize('NFD').replace(/\p{Diacritic}/gu, '').toLowerCase();
 const sectionName = text => normalize(text).replace(/^[\d.·\s]+/, '').trim();
@@ -30,6 +31,12 @@ function render(tokens, links) {
   copy.links = links;
   const renderer = new marked.Renderer();
   const defaultCode = renderer.code.bind(renderer);
+  // `visor:<proyecto>/<pantalla>@<huella>` es una pantalla de un diseño: abre el visor en ella.
+  const defaultLink = renderer.link.bind(renderer);
+  renderer.link = (token) => {
+    const href = visorURL(token.href || '');
+    return defaultLink(href ? { ...token, href } : token);
+  };
   renderer.code = (token) => {
     if (token.lang?.trim().toLowerCase() !== 'sql') return defaultCode(token);
     return `<pre class="sql-block"><code class="language-sql">${highlightSQL(token.text)}</code></pre>\n`;

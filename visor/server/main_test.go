@@ -162,7 +162,8 @@ func TestCheckLinksFindsBrokenLinksInTasks(t *testing.T) {
 	print, _ := figma.Fingerprint([]byte(`{"id":"1:2"}`))
 	dir := t.TempDir()
 	task := "Pantalla: http://localhost:5193/credito-nandu/1-2?huella=" + print + " y otra " +
-		"(http://localhost:5193/credito-nandu-v2/9-9?huella=" + print + ")\nuna de otro: http://localhost:5193/no-existe/1-2\n"
+		"(http://localhost:5193/credito-nandu-v2/9-9?huella=" + print + ")\nuna de otro: http://localhost:5193/no-existe/1-2\n" +
+		"en un bloque: [Pago](visor:credito-nandu/1-2@000000000000)\n"
 	if err := os.WriteFile(dir+"/task.md", []byte(task), 0o644); err != nil {
 		t.Fatal(err)
 	}
@@ -171,7 +172,8 @@ func TestCheckLinksFindsBrokenLinksInTasks(t *testing.T) {
 	code := s.checkLinks(context.Background(), dir, w)
 	w.Flush()
 	got := out.String()
-	for _, want := range []string{"igual", "task.md:1", "credito-nandu/1-2", "BORRADA", "credito-nandu-v2/9-9", "¿PROYECTO?", "no-existe/1-2", "3 enlace(s) · 1 igual · 0 cambió · 1 borrada"} {
+	for _, want := range []string{"igual", "task.md:1", "credito-nandu/1-2", "BORRADA", "credito-nandu-v2/9-9", "¿PROYECTO?", "no-existe/1-2",
+		"CAMBIÓ      task.md:3", "4 enlace(s) · 1 igual · 1 cambió · 1 borrada"} {
 		if !strings.Contains(got, want) {
 			t.Errorf("falta %q en:\n%s", want, got)
 		}

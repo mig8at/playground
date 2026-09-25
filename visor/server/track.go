@@ -97,6 +97,8 @@ var (
 	rePrint = regexp.MustCompile(`^[0-9a-f]{12}$`)
 	// Un enlace del visor como se pega en una tarea: `http://localhost:5193/credifamilia/381-1052?huella=…`.
 	reVisorLink = regexp.MustCompile(`https?://(?:localhost|127\.0\.0\.1):5193/([A-Za-z0-9-]+)/([0-9]+-[0-9]+)(\?[^\s)\]>"'` + "`" + `]*)?`)
+	// Y como se escribe en un bloque del tablero: `[Título](visor:credifamilia/381-1052@52065d0ce692)`.
+	reVisorRef = regexp.MustCompile(`visor:([a-z0-9][a-z0-9-]*)/([0-9]+-[0-9]+)(?:@([0-9a-f]{12}))?`)
 )
 
 // slugOf es el nombre de un proyecto en la ruta, igual que en la UI (App.vue): minúsculas, sin tildes y
@@ -164,10 +166,13 @@ func (s *server) checkLinks(ctx context.Context, root string, w *bufio.Writer) i
 		sc := bufio.NewScanner(f)
 		sc.Buffer(make([]byte, 1<<20), 1<<24)
 		for n := 1; sc.Scan(); n++ {
+			rel, _ := filepath.Rel(root, path)
 			for _, m := range reVisorLink.FindAllStringSubmatch(sc.Text(), -1) {
 				q, _ := url.ParseQuery(strings.TrimPrefix(m[3], "?"))
-				rel, _ := filepath.Rel(root, path)
 				links = append(links, foundLink{file: rel, line: n, project: m[1], id: strings.ReplaceAll(m[2], "-", ":"), print: q.Get("huella")})
+			}
+			for _, m := range reVisorRef.FindAllStringSubmatch(sc.Text(), -1) {
+				links = append(links, foundLink{file: rel, line: n, project: m[1], id: strings.ReplaceAll(m[2], "-", ":"), print: m[3]})
 			}
 		}
 		return nil
