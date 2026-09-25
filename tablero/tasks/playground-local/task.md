@@ -11,6 +11,9 @@ jira_title: ""
 
 ## Pendientes
 
+- [ ] Confirmar con la VPN que el asesor de dev no quedó asociado a la sucursal de Pullman por la prueba de rutas del harness (2026-09-25); termina cuando `whois` en dev muestra su sucursal de siempre, o se revierte.
+  Depende de: Miguel — la VPN de dev.
+
 - [ ] Aprobar o ajustar las decisiones propuestas en el prototipo (sección «Decisiones»); termina cuando
   cada una queda marcada hecha o descartada con su motivo.
   Depende de: Miguel — visto bueno sobre las cinco propuestas.
