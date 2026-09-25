@@ -238,3 +238,34 @@ func TestFlowPageFollowsTheSidebarRule(t *testing.T) {
 		t.Errorf("la primera que no es portada: %+v", p)
 	}
 }
+
+// El paquete para el modelo junta lo que se sabe de la pantalla: su enlace con huella, dónde está, sus
+// textos en orden, a dónde lleva, los componentes y tokens que usa y el HTML.
+func TestBriefGathersEverythingAboutAScreen(t *testing.T) {
+	s := newServer(nil, t.TempDir())
+	s.library.opened("SsvFsK5tLvR1jNT3Hh6znD", "flujo ecommerce", "PRODUCTO")
+	screen := `{"id":"1:2","name":"Frame 9","type":"FRAME","absoluteBoundingBox":{"x":0,"y":0,"width":430,"height":932},"children":[
+	  {"id":"1:3","type":"TEXT","characters":"Elige tu plan","styles":{"fill":"C1"},"absoluteBoundingBox":{"x":20,"y":80,"width":300,"height":30},
+	   "fills":[{"type":"SOLID","color":{"r":0.145,"g":0.133,"b":0.337,"a":1}}]},
+	  {"id":"1:4","type":"TEXT","characters":"Continuar","absoluteBoundingBox":{"x":20,"y":800,"width":100,"height":20}}]}`
+	s.nodeJSON = func(context.Context, string, string) ([]byte, error) { return []byte(screen), nil }
+	s.maps["SsvFsK5tLvR1jNT3Hh6znD|1:259"] = figma.Structure{FileName: "flujo ecommerce",
+		Lanes: []figma.Lane{{Label: "No paga cuota inicial", Screens: []figma.Screen{
+			{ID: "1:1", Title: "Inicio"}, {ID: "1:2", Title: "Elige tu plan", Kind: "mobile", W: 430, H: 932,
+				Hotspots: []figma.Hotspot{{To: "1:5", ToName: "«Pago»", Via: "clic en «Continuar»"}}}}}},
+		Tokens:    &figma.Tokens{Colors: []figma.ColorToken{{ID: "C1", Name: "Colors/violet/violet-500", Var: "--violet-500", Value: "#252256"}}},
+		Inventory: []figma.ComponentUse{{Name: "Botones", Screens: []string{"1:2"}, Props: []figma.PropValues{{Name: "Estado", Type: "VARIANT", Values: []figma.ValueCount{{Value: "Primary button", Uses: 1}}}}}},
+	}
+	text, err := s.brief(context.Background(), "SsvFsK5tLvR1jNT3Hh6znD", "1:2")
+	if err != nil {
+		t.Fatal(err)
+	}
+	print, _ := figma.Fingerprint([]byte(screen))
+	for _, want := range []string{"# «Elige tu plan» · flujo ecommerce", "(visor:flujo-ecommerce/1-2@" + print + ")",
+		"carril «No paga cuota inicial», 2 de 2 · móvil 430×932", "1. Elige tu plan\n2. Continuar", "- clic en «Continuar» → «Pago»",
+		"- Botones — variantes en el archivo: Estado: Primary button", "`--violet-500` #252256 — Colors/violet/violet-500 ×1", "```html\n<!doctype html>"} {
+		if !strings.Contains(text, want) {
+			t.Errorf("falta %q en:\n%s", want, text)
+		}
+	}
+}

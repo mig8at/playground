@@ -92,6 +92,7 @@ func (s *server) routes() http.Handler {
 	mux.HandleFunc("/api/pages", s.handlePages)
 	mux.HandleFunc("/api/track", s.handleTrack)
 	mux.HandleFunc("/api/tokens", s.handleTokens)
+	mux.HandleFunc("/api/brief", s.handleBrief)
 	return mux
 }
 

@@ -363,3 +363,19 @@ func TestStylesBecomeTokens(t *testing.T) {
 		t.Errorf("tokens del reporte: %v", rep.Tokens)
 	}
 }
+
+// Los textos de la pantalla en orden de lectura, sin la barra de estado ni lo oculto.
+func TestScreenTextsInReadingOrder(t *testing.T) {
+	hidden := false
+	screen := Node{ID: "1", Type: "FRAME", Box: box(0, 0, 430, 932), Children: []Node{
+		{ID: "2", Type: "TEXT", Box: box(20, 300, 100, 20), Characters: "Continuar"},
+		{ID: "3", Name: "Status bar", Type: "FRAME", Box: box(0, 0, 430, 40), Children: []Node{{ID: "3a", Type: "TEXT", Box: box(10, 10, 40, 16), Characters: "12:30"}}},
+		{ID: "4", Type: "TEXT", Box: box(220, 101, 80, 20), Characters: "No"},
+		{ID: "5", Type: "TEXT", Box: box(20, 100, 80, 20), Characters: "Sí"},
+		{ID: "6", Type: "TEXT", Box: box(20, 60, 300, 24), Characters: "¿Tienes obligaciones fiscales?"},
+		{ID: "7", Type: "TEXT", Box: box(20, 200, 300, 24), Characters: "error", Visible: &hidden},
+	}}
+	if got := strings.Join(ScreenTexts(screen), " | "); got != "¿Tienes obligaciones fiscales? | Sí | No | Continuar" {
+		t.Errorf("orden de lectura: %s", got)
+	}
+}

@@ -585,6 +585,22 @@ async function copyTaskRef() {
     setTimeout(() => { refCopied.value = false }, 1500)
   } catch { /* sin permiso del portapapeles: el texto queda a la vista para copiarlo a mano */ }
 }
+// El PAQUETE PARA EL MODELO de la pantalla (server: `/api/brief`): el enlace con huella, dónde está, sus
+// textos en orden, a dónde lleva, los componentes y tokens que usa y el HTML traducido, en un solo texto
+// para pegar en la conversación con el modelo que la va a pasar a código.
+const briefURL = computed(() => (data.value && current.value ? `/api/brief?key=${data.value.key}&id=${encodeURIComponent(current.value.id)}` : ''))
+const briefState = ref('') // '' | 'copying' | 'copied' | 'error'
+async function copyBrief() {
+  if (!briefURL.value) return
+  briefState.value = 'copying'
+  try {
+    const res = await fetch(briefURL.value)
+    if (!res.ok) throw new Error(`HTTP ${res.status}`)
+    await navigator.clipboard.writeText(await res.text())
+    briefState.value = 'copied'
+  } catch { briefState.value = 'error' }
+  setTimeout(() => { briefState.value = '' }, 1800)
+}
 async function copyLink() {
   if (!data.value || !current.value) return
   const path = routePath.value.replace(/[?&]huella=[0-9a-f]+/, '').replace(/\?$/, '')
@@ -1125,6 +1141,16 @@ const rowMetaTitle = (sc) => [sc.hotspots?.length ? 'Tiene zonas del prototipo' 
               <button class="region-action" :title="refCopied ? 'Copiado' : 'Copiar para pegar en la tarea'" aria-label="Copiar el enlace para la tarea" @click="copyTaskRef">
                 <span class="ui-icon" :data-icon="refCopied ? 'check' : 'copy'" aria-hidden="true"></span>
               </button>
+            </dd>
+            <dt>Para el modelo</dt>
+            <dd class="task-ref">
+              <button type="button" class="btn btn-sm btn-secondary" :disabled="briefState === 'copying'" @click="copyBrief"
+                title="Todo lo que un modelo necesita para pasar esta pantalla a Vue o React: textos, a dónde lleva, componentes, tokens y el HTML">
+                {{ briefState === 'copying' ? 'Armando…' : briefState === 'copied' ? 'Copiado' : briefState === 'error' ? 'No se pudo' : 'Copiar el paquete' }}
+              </button>
+              <a class="region-action" :href="briefURL" target="_blank" rel="noopener" title="Ver el paquete" aria-label="Ver el paquete">
+                <span class="ui-icon" data-icon="external" aria-hidden="true"></span>
+              </a>
             </dd>
           </dl>
           <div v-if="report && mode !== 'image'" class="block">

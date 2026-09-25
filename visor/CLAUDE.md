@@ -122,6 +122,21 @@ URL, no el de los archivos que se ven en esa pantalla: «recientes» mezcla arch
 - **Una pantalla que avanza sola** (prototipo con `AFTER_TIMEOUT`) no avanza sola acá: muestra el botón
   «Avanza sola a …». Un temporizador haría saltar la pantalla mientras se la está mirando.
 
+## El paquete para el modelo: una pantalla, lista para pasar a código
+
+En el detalle de cada pantalla, **«Para el modelo» → «Copiar el paquete»** copia en un solo texto (Markdown)
+todo lo que un modelo necesita para pasarla a Vue o React (`/api/brief?key=<clave>&id=<pantalla>`, en
+`visor/server/brief.go`): el enlace `visor:` con su huella, el de Figma, el carril y el tamaño; sus **textos en
+orden de lectura** (sin la barra de estado: que el modelo no invente copy); **a dónde lleva** cada zona del
+prototipo; sus controles; los **componentes** del sistema que usa, con las variantes que tienen en el
+archivo; los **tokens** que usa, con su variable o clase; lo que el HTML no traduce; y el **HTML traducido**
+entero. Se pega en la conversación con el modelo o en la tarea.
+
+- Nada se escribe a mano: sale del mapa, del nodo, de la traducción y de las hojas del archivo.
+- Pesa lo que pesa el HTML: 25 KB en «Completa tu solicitud» de Credifamilia, 22 de ellos el HTML.
+- ⚠ Una pantalla que es casi toda una imagen pegada trae pocos textos: los de la imagen no son texto en
+  Figma. El reporte de la traducción ya lo dice («Imágenes 1»).
+
 ## Los componentes: qué piezas hay que tener antes de armar pantallas
 
 Debajo de «Tokens del diseño», cada proyecto tiene **«Componentes»** (`/<proyecto>/componentes`): las piezas

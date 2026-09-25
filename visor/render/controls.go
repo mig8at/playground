@@ -460,3 +460,47 @@ func CheckboxVariants(n Node, into map[string]string) {
 		CheckboxVariants(ch, into)
 	}
 }
+
+// ScreenTexts son los textos visibles de una pantalla en orden de lectura —de arriba abajo y, en la misma
+// línea, de izquierda a derecha—, sin la barra de estado del teléfono. Es el copy de la pantalla tal como
+// lo lee alguien: lo que un modelo necesita para no inventar textos al pasarla a código.
+func ScreenTexts(screen Node) []string {
+	type placed struct {
+		text string
+		x, y float64
+	}
+	var all []placed
+	var walk func(n Node)
+	walk = func(n Node) {
+		if !visible(n.Visible) || n.Box == nil || statusBarName(n.Name) {
+			return
+		}
+		if n.Type == "TEXT" {
+			if t := strings.TrimSpace(n.Characters); t != "" {
+				all = append(all, placed{t, n.Box.X, n.Box.Y})
+			}
+			return
+		}
+		for _, ch := range n.Children {
+			walk(ch)
+		}
+	}
+	walk(screen)
+	// «En la misma línea» con tolerancia: dos textos de una fila no empiezan en el mismo píxel.
+	sort.SliceStable(all, func(i, j int) bool {
+		if math.Abs(all[i].y-all[j].y) > 4 {
+			return all[i].y < all[j].y
+		}
+		return all[i].x < all[j].x
+	})
+	out := make([]string, 0, len(all))
+	for _, p := range all {
+		out = append(out, p.text)
+	}
+	return out
+}
+
+func statusBarName(name string) bool {
+	n := strings.ToLower(name)
+	return strings.Contains(n, "status bar") || strings.Contains(n, "statusbar") || strings.Contains(n, "system icons")
+}
