@@ -12,6 +12,18 @@
       "port": 5195
     },
     {
+      "name": "panel-alt",
+      "runtimeExecutable": "env",
+      "runtimeArgs": [
+        "PANEL_PORT=5196",
+        "npm",
+        "run",
+        "dev"
+      ],
+      "cwd": "harness",
+      "port": 5196
+    },
+    {
       "name": "tablero",
       "runtimeExecutable": "npm",
       "runtimeArgs": [

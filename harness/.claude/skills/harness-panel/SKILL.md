@@ -227,6 +227,31 @@ cosas: es por navegador, invisible desde afuera y se pierde al limpiar datos del
 Si aparece de nuevo la necesidad de «un juego de valores que uso seguido», el lugar es una suite, no una
 perilla del panel.
 
+## El sidebar derecho: dos vistas, «Cliente» y «Comercio» (2026-09-25)
+
+Dos pestañas en la banda (`#tabClient` · `#tabMerchant`), y cada una es de un sujeto distinto:
+**Cliente** es la persona que pide el crédito (lo que describen las secciones de abajo) y **Comercio** es
+dónde lo pide: su nombre y sucursal, la **configuración del comercio** y sus **entidades** (las mismas
+filas de antes, mudadas del árbol). Cada vista es su propio `fieldset.cfg`, así que la corrida deshabilita
+las dos. La pestaña elegida se recuerda (`harness.auxView`).
+
+**La configuración del comercio escribe `allieds`** (hoy sólo `initial_fee`): `bin/dbops.ts merchant-flags`
+lee y `merchant-flag-set` escribe, con los flags en la lista blanca `MERCHANT_FLAGS` —el nombre llega del
+panel y termina en un `UPDATE`—. El panel los llama por `/api/merchant-flags` y `/api/merchant-flag`.
+
+- ⚠ **Sólo en local, y el servidor lo niega aunque la guarda de `dbops` también frenaría**: cambiar un
+  flag cambia el comercio ENTERO —todas sus sucursales— y en dev, qa y staging la base es del equipo. En
+  otro ambiente el interruptor queda deshabilitado con el motivo en el tooltip.
+- ⚠ **Queda puesto después de la corrida.** Por eso la vista guarda cómo estaba cada comercio la primera
+  vez que se abrió en esa sesión del panel, marca «Modificada» mientras difiera y ofrece volver.
+- ⚠ **El front tarda hasta 60 s en verlo**: cachea el perfil del asesor (`USER_DATA_CACHE_TTL_MS`), y de
+  ahí saca `initial_fee`. Medido el 2026-09-25: la primera prueba de Motai corrió con el comercio anterior.
+  La vista cuenta hacia atrás, y sólo para el comercio que se cambió.
+- ⚠ **El flag sólo decide el listado del ASESOR**: la tienda nunca muestra el campo y la autogestión no
+  recibe el perfil del comercio. Con otro canal, la vista lo avisa.
+- Los avisos (canal y espera) van en su propio renglón ámbar que ENVUELVE (`.prop-hint.flag-alert`); la
+  explicación sigue la regla de las pistas: un renglón y el texto entero en el tooltip.
+
 ## El sidebar derecho: UN panel de propiedades, sin secciones
 
 **Cuatro grupos, todo a la vista, sin un solo plegable:** `Caso` (monto · cupo) · `Identidad` (los ocho
@@ -354,8 +379,10 @@ adentro, desaparecen del documento y `loadEstado()` sigue escribiendo en la nada
 
 ## El árbol: una ENTRADA por fila, con su sucursal fija
 
-Una entrada del espacio = **un par (comercio, sucursal) con tu nombre** = una fila, y adentro sus
-entidades. Dos niveles.
+Una entrada del espacio = **un par (comercio, sucursal) con tu nombre** = una fila. **Un nivel**: desde
+el 2026-09-25 la fila no se despliega, ABRE el comercio (el mapa al centro y la pestaña «Comercio» a la
+derecha), y sus entidades viven en esa pestaña, no colgadas del árbol. Hasta entonces `renderMerchants()`
+movía el bloque de entidades debajo de la fila elegida y tenía que rescatarlo antes de limpiar el árbol.
 
 ⚠ **NO hay «cambiar de sucursal», a propósito.** La sucursal se elige UNA VEZ, al agregar el comercio, y
 después no se toca: si querés otra, agregás el comercio de nuevo eligiendo esa. Por eso el mismo comercio

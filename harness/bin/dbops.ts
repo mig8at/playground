@@ -23,6 +23,12 @@ import { verifyLaravelMac } from '../pkg/laravel-crypt.ts';
 import { appKey } from '../pkg/db.ts';
 
 const [cmd, ...a] = process.argv.slice(2);
+
+/** Los flags del comercio que el panel deja prender y apagar: nombre → columna de `allieds`. Una lista
+ *  blanca a propósito: el nombre llega del panel y termina en un UPDATE. */
+const MERCHANT_FLAGS: Record<string, string> = {
+    initial_fee: 'initial_fee',
+};
 const num = (s: string | undefined): number => (s ? Number(s) : 0);
 
 try {
@@ -314,6 +320,33 @@ try {
                 [num(a[0])],
             );
             break;
+        case 'merchant-flags': { // los flags del COMERCIO de una sucursal → {hash, alliedId, allied, flags: {initial_fee: bool}}
+            // Lectura. Los flags viven en `allieds`, no en la sucursal: cambiar uno cambia TODAS sus sucursales.
+            const row = await one<Record<string, any>>(
+                `SELECT a.id AS alliedId, a.name AS allied, ${Object.values(MERCHANT_FLAGS).map((c) => `a.${c}`).join(', ')}
+                   FROM allied_branches ab JOIN allieds a ON a.id = ab.allied_id WHERE ab.hash = ? LIMIT 1`,
+                [String(a[0] ?? '')],
+            );
+            if (!row) { r = { ok: false, msg: `no encontré la sucursal ${a[0] ?? ''}` }; break; }
+            const flags = Object.fromEntries(Object.entries(MERCHANT_FLAGS).map(([k, c]) => [k, Number(row[c]) === 1]));
+            r = { ok: true, hash: String(a[0]), alliedId: row.alliedId, allied: row.allied, flags };
+            break;
+        }
+        case 'merchant-flag-set': { // prende/apaga un flag del COMERCIO de una sucursal → {ok, alliedId, flag, value}
+            // ⚠ ESCRIBE `allieds`, o sea el comercio entero (todas sus sucursales), y queda puesto después
+            // de la corrida. Sólo los flags de MERCHANT_FLAGS: el nombre no llega a la sentencia sin pasar
+            // por esa lista.
+            assertWriteAllowed('merchant-flag-set');
+            const flag = String(a[1] ?? '');
+            const column = MERCHANT_FLAGS[flag];
+            if (!column) { r = { ok: false, msg: `flag desconocido: ${flag} — válidos: ${Object.keys(MERCHANT_FLAGS).join(', ')}` }; break; }
+            const br = await one<{ allied_id: number }>('SELECT allied_id FROM allied_branches WHERE hash = ? LIMIT 1', [String(a[0] ?? '')]);
+            if (!br) { r = { ok: false, msg: `no encontré la sucursal ${a[0] ?? ''}` }; break; }
+            const value = a[2] === '1' ? 1 : 0;
+            const res = await exec(`UPDATE allieds SET ${column} = ? WHERE id = ?`, [value, br.allied_id]);
+            r = { ok: true, alliedId: br.allied_id, flag, value: value === 1, affected: res.affectedRows };
+            break;
+        }
         case 'is-corbeta': { // ¿esta SUCURSAL pertenece al grupo Corbeta? → {hash, alliedId, corbeta, selfManaged, allieds}
             // La lógica vive en `pkg/merchants.ts` porque la comparten este subcomando y `guided.spec.ts`.
             const hash = String(a[0] ?? '');

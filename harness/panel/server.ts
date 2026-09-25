@@ -1258,6 +1258,27 @@ const server = createServer(async (req, res) => {
         return json(res, 200, r || { ok: false, msg: 'falló el toggle (ver consola del panel)' });
     }
 
+    // los flags del COMERCIO de la sucursal (hoy `initial_fee`) → {ok, alliedId, allied, flags}
+    if (path === '/api/merchant-flags' && req.method === 'GET') {
+        const target = String(url.searchParams.get('target') || 'local');
+        const hash = branchHashForSlug(String(url.searchParams.get('slug') || ''), target);
+        if (!hash) return json(res, 400, { ok: false, msg: 'falta slug' });
+        const r = await dbopsJson(['merchant-flags', hash], target);
+        return json(res, 200, r || { ok: false, msg: 'no se pudieron leer los flags del comercio' });
+    }
+
+    // prende/apaga un flag del COMERCIO. ⚠ SÓLO EN LOCAL, y no es por la guarda de `dbops` (que igual
+    // frenaría la base compartida): escribe `allieds`, o sea el comercio de TODO el equipo en dev/qa/staging.
+    if (path === '/api/merchant-flag' && req.method === 'POST') {
+        const b = await readBody(req);
+        const target = String(b.target || 'local');
+        if (target !== 'local') return json(res, 403, { ok: false, msg: `los flags del comercio sólo se cambian en local (target ${target})` });
+        const hash = branchHashForSlug(String(b.slug || ''), target);
+        if (!hash || !b.flag) return json(res, 400, { ok: false, msg: 'falta slug/flag' });
+        const r = await dbopsJson(['merchant-flag-set', hash, String(b.flag), b.value ? '1' : '0'], target);
+        return json(res, 200, r || { ok: false, msg: 'no se pudo cambiar el flag (ver consola del panel)' });
+    }
+
     // fija el orden de los lenders del comercio (lenders_by_allieds.sort) desde una lista de ids
     if (path === '/api/lender-sort' && req.method === 'POST') {
         const b = await readBody(req);

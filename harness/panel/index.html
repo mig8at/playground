@@ -280,6 +280,14 @@
     .pa-rejected { color: var(--danger) }
     /* Encendida es un estado del ambiente, no una selección: verde, no el primario. */
     .lender-row .switch[aria-checked="true"] { background: var(--ok) }
+    /* Un flag del comercio encendido es un ESTADO, como una entidad ON: va en el verde de estado. */
+    .merchant-flag .switch[aria-checked="true"] { background: var(--ok) }
+    .merchant-flag .prop-value > .mono { color: var(--fg-2) }
+    /* Los AVISOS del flag (el canal que no lo usa, la espera del caché) no se cortan como una pista: son lo
+       que evita lanzar creyendo que el cambio se aplicó. Envuelven y van en ámbar. */
+    .prop-hint.flag-alert { white-space: normal; color: var(--warn); cursor: default }
+    /* La línea del comercio no tiene rótulo a la izquierda: arranca en el borde, no en la columna del control. */
+    .prop-hint.merchant-meta { padding-left: var(--gutter); cursor: default }
 
     /* ═══ CONFIGURACIÓN: un panel de PROPIEDADES ══════════════════════════════════════════════════
        Cada propiedad es UNA FILA de 28: rótulo en una columna fija y control de 24 al lado, como un
@@ -389,18 +397,9 @@
               <button type="button" class="btn btn-sm" id="signupAdd">Agregar</button>
             </div>
           </div>
-          <div class="tree" id="results" role="tree" aria-label="Comercios, sucursales y entidades"></div>
-          <!-- Las entidades de la sucursal elegida. El bloque vive acá (su casa) y `renderMerchants()` lo
-               MUEVE debajo de la entrada desplegada: rescatarlo antes de limpiar el árbol es lo que evita
-               que se destruya con todo lo que `loadLenders()` le colgó. -->
-          <div id="entitiesHolder" hidden>
-            <div class="entity-group" id="environmentSettings">
-              <p class="entity-note" id="entitySummary">Entidades y respuestas simuladas</p>
-              <p class="entity-note" title="A/P/R cicla la respuesta del mock de pre-aprobación (aprobado · pendiente · rechazado) y es una preferencia del panel: no toca la base. El switch enciende y apaga la entidad y SÍ escribe el estado GLOBAL del lender — afecta todas las sucursales de este ambiente y se conserva después de la corrida; en dev, staging y qa pide confirmación. El click derecho ofrece lo mismo con sus nombres completos.">A/P/R cicla la pre-aprobación · el switch escribe <span class="scope-warn">global</span></p>
-              <span id="lendersbranch" hidden></span>
-              <div id="lenderslist"><p class="list-note">Elegí un comercio…</p></div>
-            </div>
-          </div>
+          <!-- El árbol es sólo el CATÁLOGO: elegir una entrada la abre. Sus entidades y la configuración del
+               comercio viven en la pestaña «Comercio» del sidebar derecho, no colgadas de la fila. -->
+          <div class="tree" id="results" role="tree" aria-label="Comercios y sucursales"></div>
         </fieldset>
       </aside>
       <div class="rsz rsz-l" id="rszL"></div>
@@ -472,11 +471,15 @@
 
       <div class="rsz rsz-r" id="rszR"></div>
       <aside class="auxiliarybar" id="sideRight">
-        <div class="region-head">
-          <span>Configuración</span>
+        <!-- DOS VISTAS, y cada una es de un sujeto distinto: «Cliente» es la persona que va a pedir el crédito
+             (el caso, su identidad, su buró) y «Comercio» es dónde lo pide (sus entidades y sus flags). Las
+             dos se deshabilitan durante la corrida: cada una es su propio `fieldset.cfg`. -->
+        <nav class="tabs" role="tablist" aria-label="Configuración de la próxima corrida">
+          <button type="button" class="tab on" id="tabClient" role="tab" aria-selected="true" aria-controls="viewClient" title="El caso y la persona que pide el crédito">Cliente</button>
+          <button type="button" class="tab" id="tabMerchant" role="tab" aria-selected="false" aria-controls="viewMerchant" title="Las entidades y la configuración del comercio elegido">Comercio</button>
           <div class="region-actions"><button type="button" class="region-action" id="configMenu" title="Opciones de configuración" aria-label="Opciones de configuración"><span class="ui-icon" data-icon="more" aria-hidden="true"></span></button></div>
-        </div>
-        <fieldset class="cfg region-body props"><legend class="sr-only">Configuración de la próxima corrida</legend>
+        </nav>
+        <fieldset class="cfg region-body props" id="viewClient" role="tabpanel" aria-labelledby="tabClient"><legend class="sr-only">El cliente de la próxima corrida</legend>
           <!-- UN SOLO PANEL, con cuatro grupos a la vista: Caso · Identidad · Ingreso y empleo · Buró. Con
                las filas de 28 entra todo sin plegables. «Arranque», «Canal» y la demora son de la CORRIDA
                y viven en la banda del recorrido; sus controles reales quedan acá abajo, ocultos. -->
@@ -599,6 +602,34 @@
               <div class="stats" id="stats"></div>
               <div class="dependency-list" id="missingServices"></div>
             </div>
+          </div>
+        </fieldset>
+
+        <!-- EL COMERCIO de la entrada elegida. Sus flags viven en `allieds`: cambiar uno cambia TODAS sus
+             sucursales y queda puesto después de la corrida, por eso la vista marca cuándo difiere de como
+             estaba al abrirlo y ofrece volver. Sólo se escriben en local (`/api/merchant-flag`). -->
+        <fieldset class="cfg region-body props" id="viewMerchant" role="tabpanel" aria-labelledby="tabMerchant" hidden><legend class="sr-only">El comercio de la próxima corrida</legend>
+          <div class="region-head group"><span id="merchantViewTitle">Comercio</span></div>
+          <p class="prop-hint merchant-meta" id="merchantViewMeta">Elegí un comercio en la columna de la izquierda.</p>
+
+          <div class="region-head group">
+            <span>Configuración del comercio</span>
+            <span class="count filtered" id="merchantFlagsState" hidden title="Algún flag difiere de como estaba al abrir el comercio">Modificada</span>
+            <button type="button" class="region-action" id="restoreMerchantFlags" hidden title="Volver a como estaba al abrir el comercio" aria-label="Volver a como estaba al abrir el comercio"><span class="ui-icon" data-icon="refresh" aria-hidden="true"></span></button>
+          </div>
+          <div class="prop merchant-flag">
+            <span class="label" id="flagInitialFeeLabel">Cuota inicial</span>
+            <div class="prop-value"><button type="button" class="switch switch-sm" role="switch" aria-checked="false" aria-labelledby="flagInitialFeeLabel" id="flagInitialFee" data-flag="initial_fee" disabled></button><span class="mono" id="flagInitialFeeValue">—</span></div>
+          </div>
+          <p class="prop-hint flag-alert" id="merchantFlagsAlert" role="status" hidden></p>
+          <p class="prop-hint" id="merchantFlagsHint"></p>
+
+          <div class="region-head group"><span>Entidades</span></div>
+          <div class="entity-group" id="environmentSettings">
+            <p class="entity-note" id="entitySummary">Entidades y respuestas simuladas</p>
+            <p class="entity-note" title="A/P/R cicla la respuesta del mock de pre-aprobación (aprobado · pendiente · rechazado) y es una preferencia del panel: no toca la base. El switch enciende y apaga la entidad y SÍ escribe el estado GLOBAL del lender — afecta todas las sucursales de este ambiente y se conserva después de la corrida; en dev, staging y qa pide confirmación. El click derecho ofrece lo mismo con sus nombres completos.">A/P/R cicla la pre-aprobación · el switch escribe <span class="scope-warn">global</span></p>
+            <span id="lendersbranch" hidden></span>
+            <div id="lenderslist"><p class="list-note">Elegí un comercio…</p></div>
           </div>
         </fieldset>
       </aside>
@@ -899,28 +930,23 @@
 
     function renderMerchants() {
       const g = $('results');
-      // ⚠ RESCATE ANTES DE LIMPIAR: el nodo de entidades se MUEVE dentro de la entrada elegida, así que
-      // ya es hijo del árbol y `innerHTML = ''` lo destruiría con todo lo que `loadLenders()` le colgó.
-      const box0 = $('environmentSettings'), refuge = $('entitiesHolder');
-      if (box0 && refuge) refuge.appendChild(box0);
       g.innerHTML = '';
 
       for (const e of spaceEntries()) {
-        const open = openOnes.has(e.slug);
         const chosenOne = !!sel && (sel.slug === e.slug || (e.hash && sel.slug === e.hash));
         // La elegida es la `.row` elegida de la base (`aria-selected`: fondo y barra de 2), no una tilde.
-        const rowEl = treeRow(e.missing ? 'missing' : '', 0, 'chevron', escTxt(e.alias || e.name),
+        // Sin chevron: la fila ya no se despliega, ABRE el comercio (su mapa al centro y su pestaña
+        // «Comercio» a la derecha). El icono es el del recorrido, que es lo que se abre.
+        const rowEl = treeRow(e.missing ? 'missing' : '', 0, 'channel', escTxt(e.alias || e.name),
           e.missing ? (e.meta || '') : (e.hash || '…'));
         rowEl.title = `${e.alias || e.name}${e.hash ? ` · sucursal ${e.hash}` : ''}`
           + (e.fav ? ' · agregado por vos' : ' · curado, vive en el código')
           + (e.missing ? ` · ${e.meta || 'no está en este ambiente'}` : '');
-        rowEl.setAttribute('aria-expanded', String(open));
         rowEl.setAttribute('aria-selected', String(chosenOne));
         rowEl.tabIndex = runRunning ? -1 : 0;
         rowEl.onclick = () => {
-          if (runRunning) return;
-          if (openOnes.has(e.slug)) openOnes.delete(e.slug); else openOnes.add(e.slug);
-          if (!chosenOne) chooseEntry(e); else renderMerchants();
+          if (runRunning || chosenOne) return;
+          chooseEntry(e);
         };
         rowEl.onkeydown = (ev) => { if (ev.key === 'Enter' || ev.key === ' ') { ev.preventDefault(); rowEl.click(); } };
 
@@ -936,8 +962,6 @@
         if (e.fav) acc.appendChild(rowAction('close', `Quitar «${label}» de tu espacio`, () => removeFav(e)));
         rowEl.appendChild(acc);
         g.appendChild(rowEl);
-
-        if (open && chosenOne) { const boxEl = $('environmentSettings'); if (boxEl) g.appendChild(boxEl); }
       }
 
       const newC = treeRow('add-row', 0, 'plus', 'Agregar comercio…', '');
@@ -1074,9 +1098,145 @@
     $('clearSearch').onclick = () => { $('merchantSearch').value = ''; $('searchResults').innerHTML = ''; closeSignup(); };
     loadFavs();
 
+    // ── Las dos vistas del sidebar derecho: Cliente y Comercio ──────────────────────────────────────
+    const AUX_VIEW_KEY = 'harness.auxView';
+    function showAuxView(name) {
+      const views = { client: ['tabClient', 'viewClient'], merchant: ['tabMerchant', 'viewMerchant'] };
+      if (!views[name]) name = 'client';
+      for (const [key, [tabId, viewId]] of Object.entries(views)) {
+        const on = key === name;
+        $(tabId).classList.toggle('on', on);
+        $(tabId).setAttribute('aria-selected', String(on));
+        $(viewId).hidden = !on;
+      }
+      try { localStorage.setItem(AUX_VIEW_KEY, name); } catch {}
+    }
+    $('tabClient').onclick = () => showAuxView('client');
+    $('tabMerchant').onclick = () => showAuxView('merchant');
+    try { showAuxView(localStorage.getItem(AUX_VIEW_KEY) || 'client'); } catch { showAuxView('client'); }
+
+    // ── Los flags del COMERCIO (hoy la cuota inicial) ─────────────────────────────────────────────
+    // ⚠ Viven en `allieds`: cambiar uno cambia TODAS las sucursales del comercio y queda puesto después
+    // de la corrida. Por eso se guarda cómo estaban la primera vez que se abrió cada comercio en esta
+    // sesión del panel, y la vista marca «Modificada» y ofrece volver mientras difieran.
+    let merchantFlags = null;               // {hash, alliedId, allied, flags: {initial_fee: bool}}
+    const merchantFlagsOriginal = {};       // alliedId → flags como estaban al abrir el comercio
+    let merchantFlagChangedAt = 0;          // último cambio, para el caché de 60 s del perfil del asesor
+    let merchantFlagChangedFor = null;      // el comercio (alliedId) de ese cambio: el aviso es sólo suyo
+    let merchantFlagTimer = null;
+    // El front cachea el perfil del asesor 60 s (`USER_DATA_CACHE_TTL_MS`), y de ahí saca `initial_fee`:
+    // lanzar antes corre con el valor viejo sin avisar. Medido el 2026-09-25.
+    const ADVISOR_PROFILE_CACHE_MS = 60 * 1000;
+
+    async function loadMerchantFlags() {
+      merchantFlags = null;
+      renderMerchantView();
+      if (!sel) return;
+      try {
+        const r = await (await fetch('/api/merchant-flags?slug=' + encodeURIComponent(sel.slug) + '&target=' + target)).json();
+        merchantFlags = r && r.ok ? r : null;
+        if (merchantFlags && !(merchantFlags.alliedId in merchantFlagsOriginal)) {
+          merchantFlagsOriginal[merchantFlags.alliedId] = { ...merchantFlags.flags };
+        }
+      } catch { merchantFlags = null; }
+      renderMerchantView();
+    }
+
+    function merchantFlagsDiffer() {
+      if (!merchantFlags) return [];
+      const orig = merchantFlagsOriginal[merchantFlags.alliedId] || {};
+      return Object.keys(merchantFlags.flags).filter((k) => k in orig && orig[k] !== merchantFlags.flags[k]);
+    }
+
+    function renderMerchantView() {
+      const title = $('merchantViewTitle'), meta = $('merchantViewMeta');
+      const sw = $('flagInitialFee'), value = $('flagInitialFeeValue'), hint = $('merchantFlagsHint');
+      if (!sel) {
+        title.textContent = 'Comercio';
+        meta.textContent = 'Elegí un comercio en la columna de la izquierda.';
+      } else {
+        title.textContent = sel.alias || sel.name || 'Comercio';
+        meta.textContent = merchantFlags
+          ? `${merchantFlags.allied} · comercio ${merchantFlags.alliedId} · sucursal ${merchantFlags.hash}`
+          : 'Leyendo la configuración del comercio…';
+      }
+      const on = !!merchantFlags?.flags?.initial_fee;
+      sw.setAttribute('aria-checked', String(on));
+      value.textContent = merchantFlags ? (on ? 'activada' : 'apagada') : '—';
+      // Sólo en local: en dev, qa y staging la base es compartida y cambiaría el comercio para todo el equipo.
+      const writable = !!merchantFlags && target === 'local';
+      sw.disabled = !writable;
+      sw.title = !merchantFlags ? ''
+        : writable ? (on ? 'Apagar la cuota inicial del comercio' : 'Activar la cuota inicial del comercio')
+        : `Sólo se cambia en local: en ${target} la base es compartida y cambiaría el comercio para todo el equipo.`;
+
+      const differ = merchantFlagsDiffer();
+      $('merchantFlagsState').hidden = !differ.length;
+      $('restoreMerchantFlags').hidden = !differ.length || !writable;
+
+      const alertEl = $('merchantFlagsAlert');
+      if (!merchantFlags) { hint.textContent = ''; alertEl.textContent = ''; alertEl.hidden = true; return; }
+      const alerts = [];
+      // El flag sólo decide el listado del ASESOR: la tienda nunca muestra el campo y la autogestión no
+      // recibe el perfil del comercio, así que decide la entidad. Decirlo evita creer que se probó algo
+      // que no se aplicó.
+      if (channel !== 'asesor') alerts.push(`Con el canal «${channelLabel(channel)}» este flag no cambia nada.`);
+      const wait = merchantFlagChangedAt && merchantFlagChangedFor === merchantFlags.alliedId
+        ? Math.ceil((merchantFlagChangedAt + ADVISOR_PROFILE_CACHE_MS - Date.now()) / 1000) : 0;
+      if (wait > 0) alerts.push(`El front ve el cambio en ${wait} s: guarda el perfil del asesor 60 s, y lanzar antes corre con el valor anterior.`);
+      alertEl.textContent = alerts.join(' ');
+      alertEl.hidden = !alerts.length;
+      hint.textContent = [
+        on ? 'El asesor ve el campo de cuota inicial y puede cubrir con ella lo que pase del máximo de la entidad.'
+           : 'Sin el campo, un monto por encima del máximo de la entidad bloquea la tarjeta del asesor.',
+        'La tienda nunca muestra el campo y la autogestión no lee este flag.',
+        'Es del comercio entero y queda puesto después de la corrida.',
+      ].join(' ');
+    }
+
+    function channelLabel(c) {
+      return { asesor: 'Asesor', autogestion: 'Autogestión', ecommerce: 'Tienda online', qr: 'QR en caja' }[c] || c;
+    }
+
+    async function setMerchantFlag(flag, value) {
+      if (!sel || !merchantFlags || target !== 'local') return;
+      const sw = $('flagInitialFee');
+      sw.disabled = true;
+      try {
+        const r = await (await fetch('/api/merchant-flag', {
+          method: 'POST', headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({ slug: sel.slug, target, flag, value }),
+        })).json();
+        if (!r.ok) { alert(r.msg || 'no se pudo cambiar el flag del comercio'); }
+        else {
+          merchantFlags.flags[flag] = !!r.value;
+          merchantFlagChangedAt = Date.now();
+          merchantFlagChangedFor = merchantFlags.alliedId;
+          clearInterval(merchantFlagTimer);
+          // El aviso de la espera cuenta hacia atrás y se apaga solo al vencer el caché.
+          merchantFlagTimer = setInterval(() => {
+            renderMerchantView();
+            if (Date.now() > merchantFlagChangedAt + ADVISOR_PROFILE_CACHE_MS) clearInterval(merchantFlagTimer);
+          }, 1000);
+        }
+      } catch { alert('error de red al cambiar el flag del comercio'); }
+      renderMerchantView();
+    }
+
+    $('flagInitialFee').onclick = () => {
+      if (!merchantFlags) return;
+      setMerchantFlag('initial_fee', !merchantFlags.flags.initial_fee);
+    };
+    $('restoreMerchantFlags').onclick = async () => {
+      if (!merchantFlags) return;
+      const orig = merchantFlagsOriginal[merchantFlags.alliedId] || {};
+      for (const flag of merchantFlagsDiffer()) await setMerchantFlag(flag, orig[flag]);
+    };
+
     // lenders de la sucursal (la que usa el launch) → filas con toggle ON/OFF.
     async function loadLenders() {
       if (!sel) return;
+      loadMerchantFlags();
       const box = $('lenderslist');
       box.innerHTML = '<p class="list-note">Cargando…</p>';
       try {
@@ -2056,6 +2216,7 @@
           : 'Este canal no aplica a este comercio.');
       });
       syncHeader();
+      renderMerchantView();   // el aviso «con este canal el flag no cambia nada» depende del canal
       $('channelHint').innerHTML = channel === 'asesor'
         ? 'Login de asesor (Cognito) y el wizard abre en monto, en el tronco <code>/merchant</code>.'
         : channel === 'autogestion'
@@ -2969,7 +3130,7 @@
       // ⚠ El `title` se sincroniza con el TEXTO, no se escribe a mano: estas pistas las reescribe el
       // panel cada vez que cambiás la opción (`applyCanal`, el modo de buró, el arranque), así que un
       // tooltip fijo diría lo de la elección anterior — que es peor que no tenerlo.
-      const hints = ['injectHint', 'stepHint'];
+      const hints = ['injectHint', 'stepHint', 'merchantFlagsHint', 'merchantViewMeta'];
       const syncHints = () => {
         for (const id of hints) {
           const n = $(id); if (!n) continue;
