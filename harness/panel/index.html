@@ -752,7 +752,15 @@
       { slug: 'alta', name: 'Alta Fleet' },   // ⚠ el slug es el de .flows.json: NO se traduce (un pase a inglés lo dejó «signup» y el panel lo perdió)
     ];
     let sel = MERCHANTS[0];      // Motai por defecto
+    // ⛔ EL AMBIENTE NO VA EN LA URL NI EN localStorage: el panel SIEMPRE arranca en `local`. Recargar (o
+    // abrir un enlace) y quedar escribiendo datos sintéticos en la base COMPARTIDA de dev sin darse cuenta
+    // es justo lo que la regla de la base evita (tools/ui/README.md §«Qué se guarda y dónde»). Se vuelve a
+    // elegir a mano cada vez, y eso es a propósito.
     let target = 'local';        // local | dev | staging | qa (staging y qa: front y backend propios, BD compartida con dev)
+    // La RUTA (`#/<comercio>?canal=…`) la escribe el módulo del final, que es el que tiene `setRoute` y
+    // `hashRoute` de la base. Acá sólo se avisa que cambió algo de lo que la ruta dice; hasta que el módulo
+    // lo engancha es un no-op, así que el arranque de este script no escribe nada.
+    let routeChanged = () => {};
     // Sesión Cognito por ambiente (dot + gating del launch): checking | warming | valid | invalid | missing |
     // unreachable | unknown. El launch se BLOQUEA sin token listo (valid) — salvo 'unreachable' (front caído:
     // no se puede ni verificar ni warmear; la corrida levanta el front y loguea en el flujo). F-66.
@@ -921,6 +929,7 @@
       // hash entre ambientes, y BCP Perú además cambia de slug.
       sel = { slug: e.slug, name: e.name, allied_id: e.allied_id, hash: e.hash };
       renderMerchants(); refresh(); loadLenders(); ensureAssignUI();
+      routeChanged();   // otro comercio = otra entrada del historial
     }
 
     /** Despliega la entrada seleccionada: sin esto nada se ve elegido al abrir el panel. */
@@ -1001,7 +1010,7 @@
     async function removeFav(m) {
       if (!confirm(`¿Quitar “${m.name}” de favoritos?\n\nSolo se borra la tarjeta (de .flows.json). El comercio en la base no se toca.`)) return;
       const r = await favApi({ accion: 'remove', slug: m.slug });
-      if (r.ok) { if (sel && sel.slug === m.slug) { sel = MERCHANTS[0]; ensureAssignUI(); } await loadFavs(); refresh(); loadLenders(); }
+      if (r.ok) { if (sel && sel.slug === m.slug) { sel = MERCHANTS[0]; ensureAssignUI(); } await loadFavs(); refresh(); loadLenders(); routeChanged(); }
     }
 
     // ── BUSCADOR contra la BD del target ─────────────────────────────────────────────────────────
@@ -1074,6 +1083,7 @@
       if (!nameTouched) $('signupName').value = sel.name;   // no pisa lo que el usuario ya escribió
       $('signupHint').textContent = `${b.hash} · ${b.lenders} entidad(es) · sin guardar`;
       renderMerchants(); refresh(); loadLenders(); ensureAssignUI();
+      routeChanged();
     }
 
     async function addFav() {
@@ -1088,6 +1098,7 @@
       closeSignup();
       $('searchResults').innerHTML = ''; $('merchantSearch').value = '';
       await loadFavs(); refresh(); loadLenders(); ensureAssignUI();
+      routeChanged();
     }
 
     $('signupBranch').onchange = useBranch;
@@ -1111,11 +1122,13 @@
         $(tabId).setAttribute('aria-selected', String(on));
         $(viewId).hidden = !on;
       }
-      try { localStorage.setItem(AUX_VIEW_KEY, name); } catch {}
+      routeChanged();
     }
     $('tabClient').onclick = () => showAuxView('client');
     $('tabMerchant').onclick = () => showAuxView('merchant');
-    try { showAuxView(localStorage.getItem(AUX_VIEW_KEY) || 'client'); } catch { showAuxView('client'); }
+    // La vista va en la RUTA (`vista=comercio`) y, si la ruta no la trae, sale de la preferencia
+    // `AUX_VIEW_KEY`: las dos las resuelve el módulo del final. Acá se arranca en Cliente.
+    showAuxView('client');
 
     // ── Los flags del COMERCIO (hoy la cuota inicial) ─────────────────────────────────────────────
     // ⚠ Viven en `allieds`: cambiar uno cambia TODAS las sucursales del comercio y queda puesto después
@@ -1241,10 +1254,16 @@
       loadMerchantFlags();
       const box = $('lenderslist');
       box.innerHTML = '<p class="list-note">Cargando…</p>';
+      // Una respuesta que vuelve cuando ya se eligió otro comercio (u otro ambiente) se descarta: si no,
+      // pinta las entidades del anterior. Pasa al abrir el panel desde una ruta, que cambia el comercio
+      // con la carga del default todavía en vuelo.
+      const askedSlug = sel.slug, askedTarget = target;
       try {
         const r = await (await fetch('/api/lenders?slug=' + encodeURIComponent(sel.slug) + '&target=' + target)).json();
+        if (!sel || sel.slug !== askedSlug || target !== askedTarget) return;
         $('lendersbranch').textContent = r.hash ? '· ' + r.hash : (r.msg || '');
         paStatus = (await (await fetch('/api/pa-statuses')).json().catch(() => ({}))) || {};
+        if (!sel || sel.slug !== askedSlug || target !== askedTarget) return;
         const ls = r.lenders || [];
         /* EL RESUMEN DE UN PLEGABLE TIENE QUE DECIR CÓMO ESTÁ, NO DE QUÉ SE TRATA. Acá decía «Entidades y
          * respuestas simuladas» —una categoría— cuando lo que hay adentro es lo que DECIDE el desenlace de
@@ -2186,8 +2205,11 @@
 
     async function loadChannels() {
       if (!sel) return;
+      const askedSlug = sel.slug, askedTarget = target;
       try {
         const r = await (await fetch('/api/canales?slug=' + encodeURIComponent(sel.slug) + '&target=' + target)).json();
+        // Respuesta tardía de otro comercio: aplicarla le pondría a éste la sugerencia y los canales del anterior.
+        if (!sel || sel.slug !== askedSlug || target !== askedTarget) return;
         channelsOk = Array.isArray(r.canales) ? r.canales : null;
         // El servidor sugiere el canal según el comercio (autogestión si tiene el flag). Se aplica UNA
         // vez por comercio: si ya tocaste los botones, tu elección manda — un default que te pisa la
@@ -2641,6 +2663,7 @@
       $('tabSsr').setAttribute('aria-selected', String(isSsr));
       if (ssrPoll) { clearInterval(ssrPoll); ssrPoll = null; }
       if (isSsr) { tickSsr(); ssrPoll = setInterval(tickSsr, 2000); }
+      routeChanged();
     }
 
     $('tabRun').onclick = () => showTab('corrida');
@@ -2755,8 +2778,9 @@
           + 'y el OTP decide el producto (BNPL o Consumo). Ni monto ni marketplace.';
       }
       applyQuotaGate();
+      routeChanged();   // el gate puede haber devuelto el arranque a Inicio, y el canal ya cambió
     }
-    document.querySelectorAll('#stepOptions button').forEach(b => b.onclick = () => { if (b.disabled) return; step = b.dataset.v; setSeg('stepOptions', step); updateStepHint(); applyQuotaGate(); refresh(); });
+    document.querySelectorAll('#stepOptions button').forEach(b => b.onclick = () => { if (b.disabled) return; step = b.dataset.v; setSeg('stepOptions', step); updateStepHint(); applyQuotaGate(); refresh(); routeChanged(); });
     document.querySelectorAll('#stepOptions button').forEach(b => b.addEventListener('click', () => setTimeout(syncHeader, 0)));
     updateStepHint();
 
@@ -3786,6 +3810,164 @@ export function bindMenu(trigger, { getItems, onSelect, label = 'Más opciones' 
     }
     for (const id of ['tabRun', 'tabSsr']) document.getElementById(id).addEventListener('click', reflectConsoleFilter);
     reflectConsoleFilter();
+
+    // ══ RUTA Y PREFERENCIAS ═══════════════════════════════════════════════════════════════════════
+    // La regla de la base (tools/ui/README.md §«Qué se guarda y dónde»), aplicada al panel:
+    //
+    //   · LA URL dice qué se está mirando: `#/<comercio>?canal=qr&inicio=entidades&vista=comercio&consola=ssr`.
+    //     La parte es el `slug` de la entrada (el del curado, el de `.flows.json` o el hash de la sucursal
+    //     suelta); los parámetros que valen su default no se escriben. Otro comercio entra al historial
+    //     (atrás vuelve al anterior); canal, arranque, vista y consola reemplazan la URL.
+    //   · localStorage (`harness.<nombre>`) guarda las PERILLAS del caso: monto, ingreso, score, tipo de
+    //     documento, la demora del mock… Son globales, no por comercio: el código no tiene hoy ningún
+    //     criterio por comercio para ellas, y el caso es el mismo al cambiar de puerta.
+    //   · ⛔ NADA para el ambiente ni para la identidad sintética. El ambiente arranca siempre en `local`
+    //     (ver `let target`). La cédula, el nombre, el email y el celular son de la corrida: el panel genera
+    //     la cédula en cada carga, y repetirla haría que todas las pruebas usen la misma persona.
+    //
+    // ⚠ RESTAURAR ES CLICKEAR, igual que `btnDelay`: cada estado se aplica por el mismo camino que usa la
+    // UI (el botón real, o la función que ya aplica el cambio), porque ahí viven los efectos —el gate de
+    // arranques, el resumen del caso, el permiso del asesor—. Escribir `channel` o `step` a mano los salta.
+    {
+      const CHANNELS = ['asesor', 'autogestion', 'ecommerce', 'qr'];
+      const VIEW_TO_ROUTE = { client: 'cliente', merchant: 'comercio' };
+      const ROUTE_TO_VIEW = { cliente: 'client', comercio: 'merchant' };
+      const START_TO_ROUTE = { monto: 'monto', lenders: 'entidades' };
+      const ROUTE_TO_START = { monto: 'monto', entidades: 'lenders', lenders: 'lenders' };
+      const ROUTE_DEFAULTS = { canal: 'asesor', inicio: 'monto', vista: 'cliente', consola: 'corrida' };
+      const byId = (id) => document.getElementById(id);
+      const clickButton = (selector) => document.querySelector(selector)?.click();
+
+      const currentView = () => byId('tabMerchant').classList.contains('on') ? 'merchant' : 'client';
+      const currentConsole = () => byId('tabSsr').classList.contains('on') ? 'ssr' : 'corrida';
+      const findEntry = (slug) => spaceEntries().find((e) => e.slug === slug || (e.hash && e.hash === slug));
+      const isChosen = (e) => !!sel && (sel.slug === e.slug || (!!e.hash && sel.slug === e.hash));
+
+      function routeUrl() {
+        return location.pathname + location.search + hashRoute([sel && sel.slug], {
+          canal: channel, inicio: START_TO_ROUTE[step], vista: VIEW_TO_ROUTE[currentView()], consola: currentConsole(),
+        }, ROUTE_DEFAULTS);
+      }
+
+      // Mientras se restaura una ruta no se escribe nada: los pasos intermedios (el comercio ya cambió, el
+      // canal todavía no) no son estados que alguien eligió. `lastHash` evita reaplicar la ruta propia.
+      let restoring = false, lastHash = null, routeSeq = 0;
+      function syncRoute({ replace = false } = {}) {
+        if (restoring) return;
+        const shown = readHashRoute().parts[0];
+        // push sólo cuando cambia QUÉ se mira: el comercio. Una URL sin comercio (la primera carga) se completa.
+        const push = !replace && !!shown && shown !== (sel && sel.slug);
+        setRoute(routeUrl(), { push });
+        lastHash = location.hash;
+      }
+
+      async function applyRoute() {
+        const seq = ++routeSeq;
+        lastHash = location.hash;
+        const { parts, params } = readHashRoute();
+        restoring = true;
+        try {
+          let entry = parts[0] ? findEntry(parts[0]) : null;
+          // Los agregados por vos llegan por `/api/favs`: puede que todavía no estén.
+          if (parts[0] && !entry) { await loadFavs(); if (seq !== routeSeq) return; entry = findEntry(parts[0]); }
+          // Un comercio que ya no está —o una ruta vacía— abre en el estado inicial, nunca en blanco.
+          if (!entry) entry = MERCHANTS[0];
+          if (!isChosen(entry)) chooseEntry(entry);
+
+          // Un `canal` explícito GANA sobre la sugerencia del servidor: el click del botón real marca el
+          // canal como elegido (`channelTouched`). Antes se piden los canales de ESTE comercio, porque con
+          // los del anterior el botón puede estar apagado. Sin `canal`, la sugerencia manda como siempre.
+          const wantedChannel = params.get('canal');
+          if (CHANNELS.includes(wantedChannel)) {
+            await loadChannels();
+            if (seq !== routeSeq) return;
+            clickButton(`#channelOptions button[data-c="${wantedChannel}"]`);
+          }
+          // Un botón apagado no cambia nada al clickearlo: un arranque que el canal no admite se queda en Inicio.
+          const wantedStart = ROUTE_TO_START[params.get('inicio')] || 'monto';
+          if (step !== wantedStart) clickButton(`#stepOptions button[data-v="${wantedStart}"]`);
+
+          const savedView = readPref(AUX_VIEW_KEY, 'client');
+          const wantedView = ROUTE_TO_VIEW[params.get('vista')] || (VIEW_TO_ROUTE[savedView] ? savedView : 'client');
+          if (currentView() !== wantedView) showAuxView(wantedView);
+
+          // La consola por su pestaña real: el rótulo «Filtrada» escucha ese click.
+          const wantedConsole = params.get('consola') === 'ssr' ? 'ssr' : 'corrida';
+          if (currentConsole() !== wantedConsole) byId(wantedConsole === 'ssr' ? 'tabSsr' : 'tabRun').click();
+        } finally {
+          if (seq === routeSeq) { restoring = false; syncRoute({ replace: true }); }
+        }
+      }
+
+      const onNavigate = () => { if (location.hash !== lastHash) applyRoute(); };
+      addEventListener('popstate', onNavigate);
+      addEventListener('hashchange', onNavigate);
+
+      // ── Preferencias: las perillas del caso ────────────────────────────────────────────────────────
+      // Los campos se restauran asignando el valor y disparando `input`/`change`, que es lo que hace la
+      // persona al tipear: el formateo de miles (`onMoney`) y el resumen del caso corren igual.
+      // ⛔ `name`, `document` y `email` no están, a propósito (ver arriba); el celular no es editable.
+      const FIELD_PREFS = {
+        amount: 'harness.amount', income: 'harness.income', occupation: 'harness.occupation',
+        age: 'harness.age', dob: 'harness.dob', expedition: 'harness.expedition',
+        score: 'harness.score', negatives: 'harness.negatives', consulted: 'harness.consulted',
+      };
+      for (const [id, key] of Object.entries(FIELD_PREFS)) {
+        const field = byId(id);
+        const saved = readPref(key, null);
+        const valid = saved !== null && (field.tagName !== 'SELECT' || [...field.options].some((o) => o.value === String(saved)));
+        if (valid && field.value !== String(saved)) {
+          field.value = String(saved);
+          field.dispatchEvent(new Event('input', { bubbles: true }));
+          field.dispatchEvent(new Event('change', { bubbles: true }));
+        }
+        const save = () => savePref(key, field.value);
+        field.addEventListener('input', save);
+        field.addEventListener('change', save);
+      }
+
+      // Los segmentos, por su botón real. Se guarda DESPUÉS de su `onclick`, que es quien fija la variable.
+      const SEGMENT_PREFS = [
+        { key: 'harness.doctype', buttons: '#doctype button', attr: 'v', read: () => doctype },
+        { key: 'harness.gender', buttons: '#gender button', attr: 'v', read: () => gender },
+        // La demora se restaura como la cicla `btnDelay`: clickeando `#padelay`. Con el microservicio real
+        // `applyMockPAGate` la pone en 0 sin pasar por el botón, así que la preferencia no se pisa.
+        { key: 'harness.paDelay', buttons: '#padelay button', attr: 'v', read: () => String(paDelay) },
+      ];
+      for (const { key, buttons, attr, read } of SEGMENT_PREFS) {
+        const saved = readPref(key, null);
+        if (saved !== null && read() !== String(saved)) clickButton(`${buttons}[data-${attr}="${saved}"]`);
+        document.querySelectorAll(buttons).forEach((b) => b.addEventListener('click', () => savePref(key, read())));
+      }
+
+      // El modo del buró: «Sin inyección» no existe en local, que es donde el panel siempre arranca, así
+      // que la preferencia se aplica recién al pasar a otro ambiente, por su botón real (apagado = no-op).
+      // Que local lo fuerce a «Buró inyectado» no la pisa: eso no pasa por el click.
+      const BUREAU_KEY = 'harness.bureauMode';
+      const bureauMode = () => inject ? 'injected' : 'none';
+      const restoreBureauMode = () => {
+        const saved = readPref(BUREAU_KEY, null);
+        if ((saved === 'injected' || saved === 'none') && bureauMode() !== saved)
+          clickButton(`#injectOptions button[data-i="${saved === 'injected' ? '1' : '0'}"]`);
+      };
+      document.querySelectorAll('#injectOptions button').forEach((b) => b.addEventListener('click', () => savePref(BUREAU_KEY, bureauMode())));
+      document.querySelectorAll('#targets .toggle').forEach((b) => b.addEventListener('click', restoreBureauMode));
+      restoreBureauMode();
+
+      // La vista del sidebar derecho se recuerda cuando la elige la persona; la de una ruta no pisa la preferencia.
+      byId('tabClient').addEventListener('click', () => savePref(AUX_VIEW_KEY, 'client'));
+      byId('tabMerchant').addEventListener('click', () => savePref(AUX_VIEW_KEY, 'merchant'));
+
+      // «Cupo ya confirmado» sólo aplica con el arranque en Entidades: se restaura después de la ruta, que
+      // es la que decide el arranque. Si su gate lo apaga, el click no hace nada y la preferencia queda.
+      const QUOTA_KEY = 'harness.quotaConfirmed';
+      byId('quota').addEventListener('change', () => savePref(QUOTA_KEY, byId('quota').checked));
+
+      routeChanged = () => syncRoute();
+      applyRoute().then(() => {
+        if (readPref(QUOTA_KEY, false) === true && !byId('quota').checked) byId('quota').click();
+      });
+    }
   </script>
 
 </body>
