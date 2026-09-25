@@ -182,9 +182,9 @@ visor: ## @dia ¿CÓMO ES el diseño de este flujo? un diseño de Figma recorrid
 visor-test: ## @dia las pruebas del visor: la traducción a HTML (flex, absolutas, recortes, dibujos) y el server (rutas de disco, una sola bajada)
 	@go test ./visor/...
 
-visor-fidelidad: ## @dia ¿cuánto se parece el HTML traducido a Figma, y DÓNDE no? R=<clave/nodo>: una pantalla, con las capas que difieren y el mapa de calor [NUEVA=1 vuelve a medir · CALOR=<png>]; sin el visor corriendo. REF='<url de la sección>': el flujo entero [SOLO=id,id] [TODAS=1 también las web], con `make visor` corriendo
+visor-fidelidad: ## @dia ¿cuánto se parece el HTML traducido a Figma? R=<clave/nodo>: una pantalla, sin contar el suavizado de las letras [NUEVA=1 vuelve a medir]; sin el visor corriendo. REF='<url de la sección>': el flujo entero [SOLO=id,id] [TODAS=1 también las web], con `make visor` corriendo
 	@test -n "$(R)$(REF)" || { echo "falta R=<clave/nodo> (una pantalla) o REF='<url de la sección de Figma>' (el flujo)"; exit 2; }
-	@if [ -n "$(R)" ]; then cd visor/server && go run . fidelity '$(R)' $(if $(NUEVA),--fresh) $(if $(CALOR),--heat "$(abspath $(CALOR))"); \
+	@if [ -n "$(R)" ]; then cd visor/server && go run . fidelity '$(R)' $(if $(NUEVA),--fresh); \
 	else node visor/tools/fidelity.mjs --ref '$(REF)' $(if $(SOLO),--only $(SOLO)) $(if $(TODAS),--all); fi
 
 # La API del visor POR CONSOLA (visor/server/cli.go): la interfaz es para mirar, el modelo trabaja con

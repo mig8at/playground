@@ -1,53 +1,44 @@
 package main
 
 import (
+	"context"
+	"errors"
 	"testing"
-
-	"creditop/playground/visor/render"
 )
 
-// La diferencia se le cuenta a la capa MÁS CHICA que contiene la celda: el texto adentro del botón se
-// lleva lo suyo, el botón lo que queda afuera del texto, y lo que no cae en ninguna capa es del fondo. Una
-// capa oculta no se lleva nada, aunque esté encima.
-func TestAttributeGoesToTheSmallestLayer(t *testing.T) {
-	hidden := false
-	rect := func(x, y, w, h float64) *render.Rect { return &render.Rect{X: 1000 + x, Y: 2000 + y, Width: w, Height: h} }
-	screen := render.Node{ID: "1", Type: "FRAME", Box: rect(0, 0, 40, 40), Children: []render.Node{
-		{ID: "2", Name: "Botón", Type: "INSTANCE", Box: rect(0, 0, 40, 20), Children: []render.Node{
-			{ID: "3", Name: "Etiqueta", Type: "TEXT", Characters: "Iniciar\n  solicitud", Box: rect(10, 10, 20, 10)},
-		}},
-		{ID: "4", Name: "Oculta", Type: "RECTANGLE", Visible: &hidden, Box: rect(0, 20, 40, 20)},
-	}}
-	// Celdas de 10 px: una grilla de 4×4.
-	grid := make([]byte, 16)
-	grid[1*4+1] = 255 // centro (15,15): dentro del texto
-	grid[1*4+2] = 255 // (25,15): también del texto
-	grid[0*4+0] = 255 // (5,5): en el botón, afuera del texto
-	grid[3*4+3] = 255 // (35,35): cae en la oculta → fondo
-	zones := attribute(screen, grid, 4, 4, 10)
-	if len(zones) != 3 {
-		t.Fatalf("tres zonas, dio %+v", zones)
+// La medida se guarda por versión y se reusa sin volver a medir; «sólo lo guardado» nunca lanza un
+// Chromium; y una medida de otro método no se reusa aunque sea de la misma versión.
+func TestFidelityIsMeasuredOnceAndReused(t *testing.T) {
+	s := newServer(nil, t.TempDir())
+	s.versions["K"] = "v1"
+	s.nodeJSON = func(context.Context, string, string) ([]byte, error) {
+		return []byte(`{"id":"1:2","type":"FRAME","absoluteBoundingBox":{"x":0,"y":0,"width":430,"height":932}}`), nil
 	}
-	if zones[0].ID != "3" || zones[0].Share != 0.5 || zones[0].Text != "Iniciar solicitud" || zones[0].X != 10 || zones[0].Y != 10 {
-		t.Errorf("el texto se lleva la mitad, con su caja relativa a la pantalla: %+v", zones[0])
+	runs := 0
+	s.measure = func(_ context.Context, _, _ string, w, h float64) (measured, error) {
+		runs++
+		if w != 430 || h != 932 {
+			t.Errorf("se mide con el tamaño de la pantalla: %v×%v", w, h)
+		}
+		return measured{Same: 0.99, SameReal: 0.9998, Threshold: 48}, nil
 	}
-	if zones[0].Cover != 1 {
-		t.Errorf("las dos celdas cubren todo el texto (200 px de 200): %v", zones[0].Cover)
+	ctx := context.Background()
+	if _, err := s.fidelityOf(ctx, "K", "1:2", false, true); !errors.Is(err, errNotMeasured) || runs != 0 {
+		t.Fatalf("sin medida, «sólo lo guardado» no mide: %v · %d corridas", err, runs)
 	}
-	byID := map[string]zone{}
-	for _, z := range zones {
-		byID[z.ID] = z
+	f, err := s.fidelityOf(ctx, "K", "1:2", false, false)
+	if err != nil || f.SameReal != 0.9998 || f.Same != 0.99 || f.Version != "v1" || runs != 1 {
+		t.Fatalf("mide una vez: %+v %v · %d corridas", f, err, runs)
 	}
-	if zones[0].Parent != "Botón" {
-		t.Errorf("la zona dice en qué capa con nombre propio está: %q", zones[0].Parent)
+	if g, err := s.fidelityOf(ctx, "K", "1:2", false, true); err != nil || g.SameReal != 0.9998 || runs != 1 {
+		t.Errorf("la segunda vez sale de lo guardado: %+v %v · %d corridas", g, err, runs)
 	}
-	if byID["2"].Share != 0.25 || byID["1"].Name != "fondo de la pantalla" || byID["1"].Share != 0.25 {
-		t.Errorf("botón y fondo, un cuarto cada uno: %+v", zones)
+	if _, err := s.fidelityOf(ctx, "K", "1:2", true, false); err != nil || runs != 2 {
+		t.Errorf("«medir de nuevo» mide: %v · %d corridas", err, runs)
 	}
-	if _, ok := byID["4"]; ok {
-		t.Errorf("una capa oculta no se lleva diferencia: %+v", zones)
-	}
-	if attribute(screen, make([]byte, 16), 4, 4, 10) != nil {
-		t.Errorf("sin diferencia no hay zonas")
+	// Otra versión del archivo: la medida de la anterior no vale.
+	s.versions["K"] = "v2"
+	if _, err := s.fidelityOf(ctx, "K", "1:2", false, true); !errors.Is(err, errNotMeasured) {
+		t.Errorf("una versión nueva no tiene medida: %v", err)
 	}
 }

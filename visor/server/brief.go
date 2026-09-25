@@ -243,23 +243,13 @@ func (s *server) brief(ctx context.Context, key, id string) (string, error) {
 		}
 	}
 
-	// La fidelidad, si ya se midió: dice cuánto confiar en el HTML de abajo y qué capas revisar. No se mide
-	// acá —cuesta un Chromium y el paquete tiene que salir rápido—: sin medida, se dice cómo tomarla.
+	// La fidelidad, si ya se midió: dice cuánto confiar en el HTML de abajo. No se mide acá —cuesta un
+	// Chromium y el paquete tiene que salir rápido—: sin medida, se dice cómo tomarla.
 	b.WriteString("\n## Fidelidad del HTML contra Figma\n\n")
-	if f, _, err := s.fidelityOf(ctx, key, id, false, true); err == nil {
-		fmt.Fprintf(&b, "- %.2f %% igual sin contar el suavizado de las letras (%.1f %% píxel a píxel; medida %s).\n", f.SameReal*100, f.Same*100, f.Measured.Format("2006-01-02 15:04"))
-		for i, z := range f.Zones {
-			if i == 5 {
-				break
-			}
-			what := z.Name
-			if z.Text != "" {
-				what = "«" + z.Text + "»"
-			}
-			fmt.Fprintf(&b, "- %s difiere: %.0f %% de toda la diferencia, %.0f %% de la capa (%s)\n", what, z.Share*100, z.Cover*100, z.ID)
-		}
+	if f, err := s.fidelityOf(ctx, key, id, false, true); err == nil {
+		fmt.Fprintf(&b, "%.2f %% igual sin contar el suavizado de las letras (%.1f %% píxel a píxel; medida %s).\n", f.SameReal*100, f.Same*100, f.Measured.Format("2006-01-02 15:04"))
 	} else {
-		fmt.Fprintf(&b, "Sin medir en esta versión: `make visor-fidelidad R=%s/%s` dice cuánto se parece y qué capas difieren.\n", key, dashed)
+		fmt.Fprintf(&b, "Sin medir en esta versión: `make visor-fidelidad R=%s/%s` dice cuánto se parece.\n", key, dashed)
 	}
 
 	if len(rep.Missing) > 0 {

@@ -8,12 +8,10 @@
  * y guarda un mapa de diferencias: en gris la pantalla de Figma, en rojo lo que el HTML dibuja distinto.
  *
  *   node visor/tools/fidelity.mjs --ref '<url de la sección>' [--only 334:2735] [--limit 10] [--all]
- *   node visor/tools/fidelity.mjs --key <clave> --id <nodo> --w 430 --h 903 --heat <png> --json
+ *   node visor/tools/fidelity.mjs --key <clave> --id <nodo> --w 430 --h 903 --json
  *
- * El segundo es el de UNA pantalla, y lo usa el server del visor: imprime en JSON cuánto se parece y la
- * GRILLA de diferencias —la fracción distinta de cada celda de 4×4 px de pantalla—, que el server cruza
- * con las capas de Figma para decir DÓNDE difiere; y guarda el mapa de calor como PNG transparente, para
- * ponerlo encima de la imagen de Figma.
+ * El segundo es el de UNA pantalla, y lo usa el server del visor: imprime en JSON cuánto se parece, la
+ * medida estricta y la REAL (sin el suavizado de las letras; ver RADIUS y FLOOR).
  *
  * Necesita el server del visor corriendo (make visor o `go run ./visor/server`); no lo levanta.
  * ⚠ Un píxel cuenta como distinto si algún canal difiere en más de 48 sobre 255: por debajo es el
@@ -42,15 +40,15 @@ const THRESHOLD = Number(args.threshold || 48)
 const single = Boolean(args.key && args.id)
 if (!args.ref && !single) {
   console.error("  uso: node visor/tools/fidelity.mjs --ref '<url de la sección>' [--only <id>] [--limit N] [--all]")
-  console.error("       node visor/tools/fidelity.mjs --key <clave> --id <nodo> --w <ancho> --h <alto> --heat <png> --json")
+  console.error("       node visor/tools/fidelity.mjs --key <clave> --id <nodo> --w <ancho> --h <alto> --json")
   process.exit(2)
 }
-// La celda de la grilla, en píxeles de la IMAGEN (la exportación va al doble): 8 = 4×4 de pantalla. Chica
-// para que una zona se pueda atribuir a un texto de una línea, grande para que el JSON no pese.
+// La celda, en píxeles de la IMAGEN (la exportación va al doble): 8 = 4×4 de pantalla. Es donde se aplica
+// el piso de abajo.
 const CELL = 8
 // EL RADIO DE TOLERANCIA, en píxeles de la imagen (2 = 1 px de pantalla). Comparar píxel a píxel marca el
 // borde de TODAS las letras: Chromium y Figma no suavizan igual, y medio píxel de corrimiento pinta un
-// contorno entero. Para el mapa y las capas, un píxel sólo es distinto si en la otra imagen NO hay uno
+// contorno entero. Para la medida real, un píxel sólo es distinto si en la otra imagen NO hay uno
 // parecido a menos de este radio, en los dos sentidos: el suavizado y el corrimiento encuentran su pareja
 // al lado; un chulo que no se dibujó, no.
 const RADIUS = Number(args.radius || 2)
@@ -58,6 +56,8 @@ const RADIUS = Number(args.radius || 2)
 // o dos píxeles—; lo que falta de verdad ocupa la celda. Medido en Motai 1:6660 (la barra de pasos sin sus
 // chulos): con un piso de 15 % quedan 15 celdas y 12 son los tres chulos; sin piso eran 132, casi todas
 // motas de texto.
+// ⚠ Hubo un mapa de calor y una lista de capas encima de esta diferencia, y se sacaron (2026-09-25): aun así
+// daban demasiados falsos positivos en letras e íconos para servir de guía. Queda el número.
 const FLOOR = Number(args.floor || 0.15)
 
 async function getJSON(path) {
@@ -67,9 +67,8 @@ async function getJSON(path) {
   return body
 }
 
-// measure dibuja el HTML de UNA pantalla y lo compara con su imagen de Figma. Devuelve cuánto se parece,
-// el mapa de diferencias de siempre (gris y rojo), el mapa de CALOR (transparente, para superponer) y la
-// grilla de celdas que el server usa para atribuir la diferencia a las capas.
+// measure dibuja el HTML de UNA pantalla y lo compara con su imagen de Figma. Devuelve cuánto se parece
+// —estricta y real— y el mapa de diferencias de siempre (gris y rojo).
 async function measure(browser, compare, key, id, w, h) {
   const figmaRes = await fetch(`${API}/api/screen?key=${key}&id=${encodeURIComponent(id)}`)
   if (!figmaRes.ok) return { error: 'sin imagen de Figma' }
@@ -141,30 +140,13 @@ async function measure(browser, compare, key, id, w, h) {
     }
     const c = new OffscreenCanvas(W, H); c.getContext('2d').putImageData(out, 0, 0)
 
-    // EL MAPA DE CALOR: la densidad de cada celda, de amarillo (poco) a rojo (toda la celda), en una
-    // imagen chica que se agranda suavizada — así se lee como manchas, no como una grilla. Transparente
-    // donde no hay diferencia: va ENCIMA de la imagen de Figma.
-    const grid = new Uint8Array(gw * gh)
-    const small = new ImageData(gw, gh)
     let kept = 0
     for (let k = 0; k < counts.length; k++) {
       const cw = Math.min(cell, W - (k % gw) * cell), ch = Math.min(cell, H - Math.floor(k / gw) * cell)
-      let f = counts[k] / (cw * ch)
-      if (f < floor) f = 0
-      else kept += counts[k]
-      grid[k] = Math.round(f * 255)
-      if (f > 0) {
-        const t = Math.min(1, f * 1.6)
-        small.data.set([255, Math.round(210 * (1 - t)), 0, Math.round(90 + 150 * t)], k * 4)
-      }
+      if (counts[k] / (cw * ch) >= floor) kept += counts[k]
     }
-    const sc = new OffscreenCanvas(gw, gh); sc.getContext('2d').putImageData(small, 0, 0)
-    const heat = new OffscreenCanvas(W, H); const hx = heat.getContext('2d')
-    hx.imageSmoothingEnabled = true; hx.imageSmoothingQuality = 'high'
-    hx.drawImage(sc, 0, 0, gw * cell, gh * cell)
-    let gs = ''; for (let i = 0; i < grid.length; i += 0x8000) gs += String.fromCharCode(...grid.subarray(i, i + 0x8000))
 
-    return { same: 1 - diff / (W * H), sameReal: 1 - kept / (W * H), sizes: [W, H, b.naturalWidth, b.naturalHeight], png: await toB64(c), heat: await toB64(heat), grid: btoa(gs), gw, gh }
+    return { same: 1 - diff / (W * H), sameReal: 1 - kept / (W * H), sizes: [W, H, b.naturalWidth, b.naturalHeight], png: await toB64(c) }
   }, { figma, shot, threshold: THRESHOLD, cell: CELL, radius: RADIUS, floor: FLOOR })
 }
 
@@ -174,9 +156,8 @@ if (single) {
     const compare = await (await browser.newContext()).newPage()
     const r = await measure(browser, compare, args.key, args.id, Math.round(Number(args.w)), Math.round(Number(args.h)))
     if (r.error) { console.log(JSON.stringify({ error: r.error })); process.exit(1) }
-    if (args.heat) writeFileSync(args.heat, Buffer.from(r.heat, 'base64'))
     if (args.diff) writeFileSync(args.diff, Buffer.from(r.png, 'base64'))
-    console.log(JSON.stringify({ same: r.same, same_real: r.sameReal, radius: RADIUS, floor: FLOOR, threshold: THRESHOLD, scale: r.sizes[0] / Math.round(Number(args.w)), cell: CELL, gw: r.gw, gh: r.gh, grid: r.grid }))
+    console.log(JSON.stringify({ same: r.same, same_real: r.sameReal, radius: RADIUS, floor: FLOOR, threshold: THRESHOLD }))
   } finally {
     await browser.close()
   }

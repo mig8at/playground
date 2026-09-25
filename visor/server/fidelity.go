@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"context"
 	"crypto/sha256"
-	"encoding/base64"
 	"encoding/hex"
 	"encoding/json"
 	"errors"
@@ -15,27 +14,25 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"sort"
 	"strings"
 	"sync"
 	"time"
-
-	"creditop/playground/visor/render"
 )
 
-// LA FIDELIDAD DE UNA PANTALLA: cuánto se parece el HTML traducido a la imagen de Figma, y DÓNDE no.
+// LA FIDELIDAD DE UNA PANTALLA: cuánto se parece el HTML traducido a la imagen de Figma, en un número.
 //
-// La medida es la de `visor/tools/fidelity.mjs` —Chromium dibuja el HTML al doble, se compara con la
-// exportación—, en su modo de una pantalla, y la que importa es la REAL: comparar píxel a píxel marca el
+// La medida es la de `visor/tools/fidelity.mjs` —Chromium dibuja el HTML al doble y se compara con la
+// exportación—, en su modo de una pantalla. La que se muestra es la REAL: comparar píxel a píxel cuenta el
 // borde de todas las letras (Chromium y Figma no suavizan igual), así que un píxel sólo cuenta si no hay
-// uno parecido a menos de 1 px en la otra imagen, y sólo en celdas donde la diferencia ocupa algo. Lo que agrega el server es el DÓNDE: la grilla de
-// diferencias se cruza con las capas de Figma, y cada celda distinta se le cuenta a la capa MÁS CHICA que
-// la contiene. Así la respuesta no es «hay rojo abajo a la izquierda» sino «el texto “Iniciar solicitud”
-// difiere en un 30 %», que es lo que dice qué arreglar.
+// uno parecido a menos de 1 px en la otra imagen, y sólo donde la diferencia ocupa algo.
 //
-// `/api/fidelity?key=&id=` devuelve el JSON; con `&heat=1`, el mapa de calor (PNG transparente, del
-// tamaño de la exportación) para superponer a la imagen. Se guarda en disco por versión del archivo:
-// medir cuesta unos segundos (un Chromium) y la pantalla no cambia hasta que el diseñador guarda.
+// ⚠ Hubo un mapa de calor y una lista de «capas que difieren» encima de esta misma diferencia, y se
+// sacaron (Miguel, 2026-09-25): aun con la tolerancia daban demasiados falsos positivos en letras e
+// íconos para servir de guía. El número se queda porque, en conjunto, sí separa una traducción fiel de
+// una corrida.
+//
+// `/api/fidelity?key=&id=` devuelve el JSON. Se guarda en disco por versión del archivo: medir cuesta unos
+// segundos (un Chromium) y la pantalla no cambia hasta que el diseñador guarda.
 
 // fidelity es lo que se devuelve, y lo que se guarda.
 type fidelity struct {
@@ -47,9 +44,6 @@ type fidelity struct {
 	Threshold int       `json:"threshold"` // cuánto tiene que diferir un canal para contar
 	Version   string    `json:"version"`
 	Measured  time.Time `json:"measured_at"`
-	Zones     []zone    `json:"zones"` // dónde difiere, de más a menos
-	W         float64   `json:"w"`
-	H         float64   `json:"h"`
 	// Renderer es la huella del binario que tradujo el HTML: la medida es de ESA traducción, así que un
 	// cambio en `visor/render` la deja vieja aunque el diseño sea el mismo (con `go run`, cada cambio de
 	// código es otro binario).
@@ -60,47 +54,20 @@ type fidelity struct {
 // fidelityMethod nombra cómo se mide: cambiarlo invalida las medidas guardadas con otro método.
 const fidelityMethod = "radio-2-piso-15"
 
-// zone es una capa de Figma con su parte de la diferencia.
-type zone struct {
-	ID    string  `json:"id"`
-	Name  string  `json:"name"`
-	Type  string  `json:"type"`
-	Text  string  `json:"text,omitempty"` // lo que dice, si es un texto
-	// Parent es la capa con nombre propio que la contiene: tres «Icon» iguales se distinguen por dónde
-	// están («Step 1», «Step 2»…).
-	Parent string `json:"parent,omitempty"`
-	X     float64 `json:"x"`              // la caja, en píxeles de la pantalla
-	Y     float64 `json:"y"`
-	W     float64 `json:"w"`
-	H     float64 `json:"h"`
-	Share float64 `json:"share"` // qué parte de toda la diferencia es de esta capa
-	Cover float64 `json:"cover"` // qué parte de la capa es distinta
-}
-
 // measured es lo que imprime fidelity.mjs en su modo de una pantalla.
 type measured struct {
 	Same      float64 `json:"same"`
 	SameReal  float64 `json:"same_real"`
 	Threshold int     `json:"threshold"`
-	Scale     float64 `json:"scale"`
-	Cell      int     `json:"cell"`
-	GW        int     `json:"gw"`
-	GH        int     `json:"gh"`
-	Grid      string  `json:"grid"` // base64: un byte por celda, la fracción distinta ×255
 	Error     string  `json:"error"`
 }
-
-// maxZones: más de unas pocas capas ya no dice por dónde empezar.
-const maxZones = 8
 
 // fidelityGate: un Chromium a la vez. Dos mediciones en paralelo se pelean la máquina, y la segunda
 // igual espera a la primera si piden la misma pantalla.
 var fidelityGate sync.Mutex
 
-func (s *server) fidelityPaths(key, version, id string) (string, string) {
-	dir := filepath.Join(s.cache, key, versionDir(version), "fidelity")
-	base := reNotDigit.ReplaceAllString(id, "-")
-	return filepath.Join(dir, base+".json"), filepath.Join(dir, base+".png")
+func (s *server) fidelityPath(key, version, id string) string {
+	return filepath.Join(s.cache, key, versionDir(version), "fidelity", reNotDigit.ReplaceAllString(id, "-")+".json")
 }
 
 // errNotMeasured: se pidió sólo la medida guardada y no hay una de esta versión.
@@ -109,61 +76,54 @@ var errNotMeasured = errors.New("esta pantalla no se midió todavía en esta ver
 // fidelityOf mide la pantalla, o devuelve la medida guardada para esta versión del archivo. Con onlyCached
 // no mide: la interfaz lo usa al abrir una pantalla, para mostrar la medida si ya existe sin lanzar un
 // Chromium por cada pantalla que se recorre.
-func (s *server) fidelityOf(ctx context.Context, key, id string, fresh, onlyCached bool) (fidelity, string, error) {
+func (s *server) fidelityOf(ctx context.Context, key, id string, fresh, onlyCached bool) (fidelity, error) {
 	// Sin la versión del archivo la medida quedaría guardada «sin versión» y no vencería nunca: si todavía
 	// no se leyó el mapa (la consola, un pedido directo), se lee — cuesta un pedido chico a Figma.
 	s.mu.Lock()
 	known := s.versions[key] != ""
 	s.mu.Unlock()
 	if !known && onlyCached {
-		return fidelity{}, "", errNotMeasured // sólo lo guardado no sale a la red
+		return fidelity{}, errNotMeasured // sólo lo guardado no sale a la red
 	}
 	if !known {
 		if _, _, err := s.readFlow(ctx, key); err != nil {
-			return fidelity{}, "", err
+			return fidelity{}, err
 		}
 	}
 	n, version, err := s.screenNode(ctx, key, id)
 	if err != nil {
-		return fidelity{}, "", err
+		return fidelity{}, err
 	}
-	jsonPath, heatPath := s.fidelityPaths(key, version, id)
+	path := s.fidelityPath(key, version, id)
 	fidelityGate.Lock()
 	defer fidelityGate.Unlock()
 	if !fresh {
-		if b, err := os.ReadFile(jsonPath); err == nil {
+		if b, err := os.ReadFile(path); err == nil {
 			var f fidelity
 			if json.Unmarshal(b, &f) == nil && f.Renderer == rendererPrint() && f.Method == fidelityMethod {
-				return f, heatPath, nil
+				return f, nil
 			}
 		}
 	}
 	if onlyCached {
-		return fidelity{}, "", errNotMeasured
+		return fidelity{}, errNotMeasured
 	}
-	if err := os.MkdirAll(filepath.Dir(jsonPath), 0o755); err != nil {
-		return fidelity{}, "", err
-	}
-	m, err := s.measure(ctx, key, id, n.Box.Width, n.Box.Height, heatPath)
+	m, err := s.measure(ctx, key, id, n.Box.Width, n.Box.Height)
 	if err != nil {
-		return fidelity{}, "", err
+		return fidelity{}, err
 	}
-	grid, err := base64.StdEncoding.DecodeString(m.Grid)
-	if err != nil || len(grid) != m.GW*m.GH {
-		return fidelity{}, "", fmt.Errorf("la grilla de la medición no tiene %d×%d celdas", m.GW, m.GH)
+	f := fidelity{SameReal: m.SameReal, Same: m.Same, Threshold: m.Threshold, Version: version, Measured: time.Now(),
+		Renderer: rendererPrint(), Method: fidelityMethod}
+	if b, err := json.Marshal(f); err == nil && os.MkdirAll(filepath.Dir(path), 0o755) == nil {
+		_ = os.WriteFile(path+".tmp", b, 0o644)
+		_ = os.Rename(path+".tmp", path)
 	}
-	f := fidelity{Same: m.Same, SameReal: m.SameReal, Method: fidelityMethod, Threshold: m.Threshold, Version: version, Measured: time.Now(),
-		Zones: attribute(n, grid, m.GW, m.GH, float64(m.Cell)/m.Scale), W: n.Box.Width, H: n.Box.Height, Renderer: rendererPrint()}
-	if b, err := json.Marshal(f); err == nil {
-		_ = os.WriteFile(jsonPath+".tmp", b, 0o644)
-		_ = os.Rename(jsonPath+".tmp", jsonPath)
-	}
-	return f, heatPath, nil
+	return f, nil
 }
 
 // measureWithChromium corre fidelity.mjs contra la API de ESTE server, que es la que sirve el HTML y la
 // imagen que se comparan.
-func (s *server) measureWithChromium(ctx context.Context, key, id string, w, h float64, heatPath string) (measured, error) {
+func (s *server) measureWithChromium(ctx context.Context, key, id string, w, h float64) (measured, error) {
 	api, err := s.selfURL()
 	if err != nil {
 		return measured{}, err
@@ -175,7 +135,7 @@ func (s *server) measureWithChromium(ctx context.Context, key, id string, w, h f
 	ctx, cancel := context.WithTimeout(ctx, 3*time.Minute)
 	defer cancel()
 	cmd := exec.CommandContext(ctx, "node", tool, "--api", api, "--key", key, "--id", id,
-		"--w", fmt.Sprint(w), "--h", fmt.Sprint(h), "--heat", heatPath, "--json")
+		"--w", fmt.Sprint(w), "--h", fmt.Sprint(h), "--json")
 	var out, errOut bytes.Buffer
 	cmd.Stdout, cmd.Stderr = &out, &errOut
 	runErr := cmd.Run()
@@ -257,97 +217,6 @@ func findTool(rel string) (string, error) {
 	}
 }
 
-// attribute le cuenta cada celda distinta a la capa visible MÁS CHICA que contiene su centro: un texto
-// adentro de un botón se lleva lo suyo, y el botón sólo lo que queda afuera del texto. Lo que no cae en
-// ninguna capa es del fondo de la pantalla. `cell` es el lado de una celda en píxeles de pantalla.
-func attribute(screen render.Node, grid []byte, gw, gh int, cell float64) []zone {
-	type layer struct {
-		n      render.Node
-		parent string
-		x, y   float64
-		w, h   float64
-	}
-	var layers []layer
-	var walk func(n render.Node, root bool, parent string)
-	walk = func(n render.Node, root bool, parent string) {
-		if n.Visible != nil && !*n.Visible {
-			return
-		}
-		if !root && n.Box != nil && n.Box.Width > 0 && n.Box.Height > 0 {
-			layers = append(layers, layer{n: n, parent: parent, x: n.Box.X - screen.Box.X, y: n.Box.Y - screen.Box.Y, w: n.Box.Width, h: n.Box.Height})
-		}
-		// El padre que se muestra es el primero con nombre propio: «Frame 12» o «Container» no ubican nada.
-		next := parent
-		if !root && !genericName(n.Name) {
-			next = n.Name
-		}
-		for _, c := range n.Children {
-			walk(c, false, next)
-		}
-	}
-	walk(screen, true, "")
-	// De la más chica a la más grande: la primera que contiene la celda es la dueña.
-	sort.SliceStable(layers, func(i, j int) bool { return layers[i].w*layers[i].h < layers[j].w*layers[j].h })
-
-	diff := make([]float64, len(layers)+1) // el último es el fondo
-	total := 0.0
-	for k, v := range grid {
-		if v == 0 {
-			continue
-		}
-		px := float64(v) / 255 * cell * cell
-		cx, cy := (float64(k%gw)+0.5)*cell, (float64(k/gw)+0.5)*cell
-		owner := len(layers)
-		for i, l := range layers {
-			if cx >= l.x && cx < l.x+l.w && cy >= l.y && cy < l.y+l.h {
-				owner = i
-				break
-			}
-		}
-		diff[owner] += px
-		total += px
-	}
-	if total == 0 {
-		return nil
-	}
-	var zones []zone
-	for i, d := range diff {
-		if d == 0 {
-			continue
-		}
-		if i == len(layers) {
-			zones = append(zones, zone{ID: screen.ID, Name: "fondo de la pantalla", Type: screen.Type, W: screen.Box.Width, H: screen.Box.Height,
-				Share: d / total, Cover: d / (screen.Box.Width * screen.Box.Height)})
-			continue
-		}
-		l := layers[i]
-		z := zone{ID: l.n.ID, Name: l.n.Name, Parent: l.parent, Type: l.n.Type, X: l.x, Y: l.y, W: l.w, H: l.h, Share: d / total, Cover: min(1, d/(l.w*l.h))}
-		if l.n.Type == "TEXT" {
-			z.Text = strings.Join(strings.Fields(l.n.Characters), " ")
-			if r := []rune(z.Text); len(r) > 60 {
-				z.Text = string(r[:59]) + "…"
-			}
-		}
-		zones = append(zones, z)
-	}
-	sort.SliceStable(zones, func(i, j int) bool { return zones[i].Share > zones[j].Share })
-	if len(zones) > maxZones {
-		zones = zones[:maxZones]
-	}
-	return zones
-}
-
-// genericName: los nombres que Figma pone solo y que no dicen dónde se está.
-func genericName(name string) bool {
-	n := strings.ToLower(strings.TrimSpace(name))
-	for _, p := range []string{"frame", "group", "container", "rectangle", "vector", "icon", "auto layout", "instance", "ellipse", "line"} {
-		if n == p || strings.HasPrefix(n, p+" ") {
-			return true
-		}
-	}
-	return n == ""
-}
-
 func (s *server) handleFidelity(w http.ResponseWriter, r *http.Request) {
 	q := r.URL.Query()
 	key, id := q.Get("key"), q.Get("id")
@@ -355,19 +224,13 @@ func (s *server) handleFidelity(w http.ResponseWriter, r *http.Request) {
 		fail(w, 400, "clave o id inválidos")
 		return
 	}
-	f, heatPath, err := s.fidelityOf(r.Context(), key, id, q.Get("fresh") == "1", q.Get("cached") == "1")
+	f, err := s.fidelityOf(r.Context(), key, id, q.Get("fresh") == "1", q.Get("cached") == "1")
 	if errors.Is(err, errNotMeasured) {
 		fail(w, 404, "%v", err)
 		return
 	}
 	if err != nil {
 		fail(w, statusOf(err), "%v", err)
-		return
-	}
-	if q.Get("heat") == "1" {
-		w.Header().Set("Content-Type", "image/png")
-		w.Header().Set("Cache-Control", "private, max-age=3600")
-		http.ServeFile(w, r, heatPath)
 		return
 	}
 	writeJSON(w, 200, f)

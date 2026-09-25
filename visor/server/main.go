@@ -62,7 +62,7 @@ type server struct {
 	nodeJSON  func(ctx context.Context, key, id string) ([]byte, error)
 	readFlow  func(ctx context.Context, key string) (figma.Structure, string, error) // la página de flujo de un archivo
 	// measure mide una pantalla contra Figma (fidelity.go); self es dónde escucha la API de este proceso.
-	measure func(ctx context.Context, key, id string, w, h float64, heatPath string) (measured, error)
+	measure func(ctx context.Context, key, id string, w, h float64) (measured, error)
 	self    string
 
 	mu       sync.Mutex
