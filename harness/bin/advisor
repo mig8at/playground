@@ -304,6 +304,8 @@ if [ "$ECOMMERCE" != 1 ] && [ "$PREBOOT" != 1 ] && [ "$SIN_ASESOR" != 1 ] && [ "
   if [ -n "$CLIENT_CODE" ]; then
     export E2E_CLIENT_CODE_APP="$CLIENT_CODE"
     ok "codigo-app" "$CLIENT_CODE · $(printf '%s' "$CC_JSON" | json_pick '.lender') ($(printf '%s' "$CC_JSON" | json_pick '.lenderId')) — la única entidad que debe quedar en el listado"
+    CC_NOTE="$(printf '%s' "$CC_JSON" | json_pick '.branchNote')"
+    [ -n "$CC_NOTE" ] && echo "  ⚠ codigo-app    $CC_NOTE"
   else
     echo "  ⚠ codigo-app    sin código: $(printf '%s' "$CC_JSON" | json_pick '.skip')"
   fi

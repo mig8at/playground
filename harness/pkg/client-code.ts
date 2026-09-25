@@ -20,7 +20,9 @@
 //     así que relanzar no llena el servicio de códigos sueltos.
 //
 // ⚠ Quien importe esto fija `E2E_TARGET` ANTES: `pkg/db.ts` resuelve el target al cargarse (F-187).
+import { existsSync, readFileSync } from 'node:fs';
 import { query } from './db.ts';
+import { COGNITO_STATE_PATH } from './cognito.ts';
 
 export const CODE_SERVICE_URL = process.env.CODE_SERVICE_URL || 'http://self-manager-api.inertia-develop:8082';
 export const MOCK_CODES_URL = process.env.MOCK_CODES_URL || 'http://127.0.0.1:8111';
@@ -37,6 +39,8 @@ export interface ClientCode {
     lenderId: number;
     lender: string;
     userId: number;
+    /** Si la sesión de asesor está en otra sucursal que la pedida, por qué se generó para ésa. */
+    branchNote?: string;
 }
 
 /** Un motivo para NO generar: se imprime y la corrida sigue sin código, nunca se cae por esto. */
@@ -58,6 +62,30 @@ export async function requestServiceCode(userId: number, merchantId: number, len
     const body: any = await res.json().catch(() => ({}));
     if (!res.ok || !body.code) throw new ClientCodeSkip(`el servicio de códigos respondió HTTP ${res.status}: ${JSON.stringify(body)}`);
     return body;
+}
+
+/**
+ * La sucursal donde va a aterrizar el wizard: la del asesor DUEÑO DE LA SESIÓN guardada, no la del
+ * asesor que dice la configuración. El wizard redirige a la sucursal de quien está logueado, y si el
+ * código es de otra sucursal la entidad puede no estar habilitada ahí. Medido el 2026-09-24 en qa: la
+ * sesión era de MIGUEL TEST (`ec977139`), el lanzador verificaba la asignación de OTRO asesor y el
+ * código salió para `13874eb6`, con Meddipay, que en `ec977139` no está. El usuario sale de la cookie
+ * `_session` del wizard (base64 con `user.id` = el sub de Cognito). Sin sesión o sin match: null.
+ */
+async function sessionBranchHash(): Promise<string | null> {
+    try {
+        if (!existsSync(COGNITO_STATE_PATH)) return null;
+        const state = JSON.parse(readFileSync(COGNITO_STATE_PATH, 'utf8'));
+        const cookie = (state.cookies ?? []).find((c: any) => c.name === '_session');
+        if (!cookie) return null;
+        const payload = JSON.parse(Buffer.from(decodeURIComponent(cookie.value).split('.')[0], 'base64').toString());
+        const sub = payload?.user?.id;
+        if (!sub) return null;
+        const [row] = await query(
+            `SELECT ab.hash FROM users u JOIN allied_branches ab ON ab.id = u.allied_branch_id
+              WHERE u.cognito_id = ? LIMIT 1`, [sub]);
+        return row?.hash ?? null;
+    } catch { return null; }
 }
 
 function randomCode(): string {
@@ -82,6 +110,12 @@ async function seedMock(code: string, userId: number, merchantId: number, lender
 
 /** `code` sólo vale en local, donde el código se siembra: si no se pasa, se inventa uno del formato vigente. */
 export async function generateClientCode(opts: { target: string; hash: string; lenderId?: number; code?: string }): Promise<ClientCode> {
+    let branchNote: string | undefined;
+    const landing = await sessionBranchHash();
+    if (landing && landing !== opts.hash) {
+        branchNote = `la sesión de asesor está en ${landing}, no en ${opts.hash}: el wizard va a entrar ahí, así que el código es de esa sucursal`;
+        opts = { ...opts, hash: landing };
+    }
     const [branch] = await query(
         `SELECT ab.id, ab.allied_id, a.name AS merchant, a.country_id
            FROM allied_branches ab JOIN allieds a ON a.id = ab.allied_id WHERE ab.hash = ? LIMIT 1`, [opts.hash]);
@@ -89,11 +123,17 @@ export async function generateClientCode(opts: { target: string; hash: string; l
     if (Number(branch.country_id) !== COLOMBIA) throw new ClientCodeSkip(`${branch.merchant} no es de Colombia: ahí no se ofrece el código de la app`);
 
     const lenders = await query(
-        `SELECT l.id, l.name FROM lenders_by_allied_branches lab JOIN lenders l ON l.id = lab.lender_id
+        `SELECT l.id, l.name, l.status FROM lenders_by_allied_branches lab JOIN lenders l ON l.id = lab.lender_id
           WHERE lab.allied_branch_id = ? AND lab.status = 1 ORDER BY l.id`, [branch.id]);
     if (!lenders.length) throw new ClientCodeSkip(`la sucursal ${branch.id} no tiene entidades habilitadas`);
-    const lender = opts.lenderId ? lenders.find((l: any) => Number(l.id) === opts.lenderId) : lenders[0];
-    if (!lender) throw new ClientCodeSkip(`la entidad ${opts.lenderId} no está habilitada en esa sucursal`);
+    // Sin entidad pedida, la primera ENCENDIDA también a nivel global (`lenders.status`): habilitada en la
+    // sucursal no alcanza, el listado filtra por las dos. La primera corrida desde el panel (qa, Pullman)
+    // eligió Sistecrédito, apagado globalmente, y el código llevaba a un listado donde no podía salir.
+    const lender = opts.lenderId ? lenders.find((l: any) => Number(l.id) === opts.lenderId)
+                                 : lenders.find((l: any) => Number(l.status) === 1);
+    if (!lender) throw new ClientCodeSkip(opts.lenderId ? `la entidad ${opts.lenderId} no está habilitada en la sucursal ${opts.hash}`
+                                                        : `la sucursal ${opts.hash} no tiene entidades encendidas`);
+    if (Number(lender.status) !== 1) throw new ClientCodeSkip(`la entidad ${lender.id} (${lender.name}) está apagada globalmente: no va a listar`);
 
     let customers = await query(
         `SELECT id FROM users WHERE full_name = 'SYNTH PRUEBA' AND email LIKE '%@creditop.com'
@@ -103,7 +143,7 @@ export async function generateClientCode(opts: { target: string; hash: string; l
     if (!customers.length) throw new ClientCodeSkip(`no hay clientes de prueba en ${opts.target}`);
 
     const base = { alliedId: Number(branch.allied_id), merchant: branch.merchant, branchId: Number(branch.id),
-                   lenderId: Number(lender.id), lender: lender.name };
+                   lenderId: Number(lender.id), lender: lender.name, ...(branchNote ? { branchNote } : {}) };
 
     if (opts.target === 'local') {
         const code = opts.code || randomCode(), userId = Number(customers[0].id);

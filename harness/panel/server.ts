@@ -707,7 +707,11 @@ async function launch(slug: string, profile: Profile, target: string, inject: bo
     };
     // detached → el hijo lidera su propio grupo de procesos; así "Detener" mata el ÁRBOL entero
     // (bash → npx playwright → node → chromium), no solo el bash.
-    const bin = channel === 'ecommerce' ? 'ecommerce' : channel === 'qr' ? 'qr' : channel === 'autogestion' ? 'autogestion' : 'asesor';   // ecommerce/qr/autogestion son wrappers que exportan CFE_ENTRY
+    // El CANAL se sigue llamando en español (es el valor que manda la UI); el binario, desde el
+    // 2026-09-24, en inglés. Se traduce acá y no se arma el nombre desde el canal: así se escapó del
+    // renombre de `a92ae4f0`, que tocó cada ruta escrita y no ésta, y el panel lanzaba un `bin/asesor`
+    // inexistente (exit 127, sin solicitud creada).
+    const bin = channel === 'ecommerce' ? 'ecommerce' : channel === 'qr' ? 'qr' : channel === 'autogestion' ? 'self-service' : 'advisor';   // ecommerce/qr/self-service son wrappers que exportan CFE_ENTRY
     const child = spawn('/bin/bash', [join(ROOT, 'bin', bin), slug], { cwd: ROOT, env, detached: true });  // sin `auto` → manual
     current = { child, slug, target: t, inject, canal: channel, startedAt: Date.now(), done: false, code: null };
     logbook = { user: null, eventos: new Map() };   // arranca limpia: si no, arrastraría la corrida anterior
@@ -1378,7 +1382,7 @@ const server = createServer(async (req, res) => {
         if (prebooting) return json(res, 200, { ok: false, detail: 'ya se está precalentando' });
         prebooting = true;
         const slug = String(b.slug || 'pullman');
-        const child = spawn('/bin/bash', [join(ROOT, 'bin', 'asesor'), slug, 'preboot'],
+        const child = spawn('/bin/bash', [join(ROOT, 'bin', 'advisor'), slug, 'preboot'],
             { cwd: ROOT, env: { ...envFor(t), CFE_FRONT: 'local' }, detached: true });
         let out = '';
         child.stdout?.on('data', (d: Buffer) => { out += d.toString(); });

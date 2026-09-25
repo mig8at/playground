@@ -35,7 +35,8 @@ node -e '
   const r = JSON.parse(process.argv[1]);
   if (r.skip) { console.log("✗ " + r.skip); process.exit(1); }
   console.log(`✔ código ${r.code} sembrado`);
-  console.log(`   comercio  ${r.merchant} (allied ${r.alliedId} · sucursal ${r.branchId} · hash ${process.argv[2]})`);
+  console.log(`   comercio  ${r.merchant} (allied ${r.alliedId} · sucursal ${r.branchId})`);
   console.log(`   entidad   ${r.lender} (${r.lenderId})`);
   console.log(`   usuario   ${r.userId}`);
+  if (r.branchNote) console.log(`   ⚠ ${r.branchNote}`);
 ' "$OUT" "$HASH"
