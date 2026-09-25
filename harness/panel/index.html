@@ -4267,6 +4267,32 @@ export function bindThemeToggle(button) {
   return { destroy() { button.removeEventListener('click', click); removeEventListener('ui-theme', paint); media?.removeEventListener('change', follow); } };
 }
 
+/* ── LA CONSOLA MAXIMIZADA ──────────────────────────────────────────────────────────────────────
+ * El botón de la banda de la consola le da todo el alto de la columna (`.workbench.panel-max`, en
+ * taller.css). Es temporal a propósito: no se guarda, porque es la única forma de tapar el editor y
+ * nadie tiene que volver a una herramienta y encontrar el editor escondido. Se deshace con el mismo
+ * botón o con Escape desde adentro de la consola. */
+export function bindPanelMaximize(button, { root = button.closest('.workbench'), panel = button.closest('.panel') } = {}) {
+  const icon = button.querySelector('.ui-icon') || button.appendChild(Object.assign(document.createElement('span'), { className: 'ui-icon' }));
+  icon.setAttribute('aria-hidden', 'true');
+  const isMax = () => root.classList.contains('panel-max');
+  function paint() {
+    const max = isMax();
+    icon.dataset.icon = max ? 'restore' : 'maximize';
+    const label = max ? 'Restaurar la consola' : 'Maximizar la consola';
+    button.setAttribute('aria-label', label);
+    button.setAttribute('aria-pressed', String(max));
+    button.title = label;
+  }
+  function set(max) { root.classList.toggle('panel-max', max); paint(); }
+  const click = () => set(!isMax());
+  const key = (e) => { if (e.key === 'Escape' && isMax() && panel?.contains(e.target)) { set(false); button.focus?.(); } };
+  button.addEventListener('click', click);
+  root.addEventListener('keydown', key);
+  paint();
+  return { set, destroy() { button.removeEventListener('click', click); root.removeEventListener('keydown', key); } };
+}
+
 // Directiva opcional para las tres apps Vue. El harness usa bindResize directamente.
 const bindings = new WeakMap();
 export function refreshResizers(container) {

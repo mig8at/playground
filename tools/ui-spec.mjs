@@ -34,10 +34,11 @@ await page.waitForTimeout(200);
 // Lo que pinta el navegador, con el mismo nombre que usa la especificación.
 const measured = await page.evaluate((components) => {
   const px = (v) => Number.parseFloat(v);
-  function read(el, keys) {
+  function read(el, want) {
     const cs = getComputedStyle(el), box = el.getBoundingClientRect(), out = {};
-    for (const k of keys) {
-      if (k === 'height') out[k] = box.height;
+    for (const [k, w] of Object.entries(want)) {
+      if (typeof w === 'string') out[k] = cs[k];
+      else if (k === 'height') out[k] = box.height;
       else if (k === 'width') out[k] = box.width;
       else if (k === 'iconSize') { const i = el.querySelector('.ui-icon'); out[k] = i ? i.getBoundingClientRect().width : null; }
       else if (k === 'borderRadius') out[k] = px(cs.borderTopLeftRadius);
@@ -52,10 +53,10 @@ const measured = await page.evaluate((components) => {
   for (const c of components) {
     const root = document.querySelector(`[data-case="${c.id}"]`);
     const el = c.target ? root.querySelector(c.target) : root.firstElementChild;
-    res[c.id] = { main: el ? read(el, Object.keys(c.measure)) : null, parts: {} };
+    res[c.id] = { main: el ? read(el, c.measure) : null, parts: {} };
     for (const [sel, m] of Object.entries(c.parts || {})) {
       const p = root.querySelector(sel);
-      res[c.id].parts[sel] = p ? read(p, Object.keys(m)) : null;
+      res[c.id].parts[sel] = p ? read(p, m) : null;
     }
   }
   return res;
@@ -65,6 +66,7 @@ await browser.close();
 // ⚠ El radio «completo» de una píldora se declara como 999 y el navegador lo recorta a la mitad del
 // alto: cualquier valor ≥ la mitad del alto es la misma píldora.
 const same = (key, want, got, height) => {
+  if (typeof want === 'string') return got === want;
   if (got === null || got === undefined || Number.isNaN(got)) return false;
   if (key === 'borderRadius' && want >= 999) return got >= (height || 0) / 2;
   return Math.abs(got - want) <= 0.5;
@@ -77,14 +79,14 @@ for (const c of spec.components) {
   if (!m.main) errs.push('no se encontró el elemento');
   else for (const [k, want] of Object.entries(c.measure)) {
     checked++;
-    if (!same(k, want, m.main[k], m.main.height)) errs.push(`${k} ${want} → pinta ${m.main[k] === null ? 'nada' : Math.round(m.main[k] * 10) / 10}`);
+    if (!same(k, want, m.main[k], m.main.height)) errs.push(`${k} ${want} → pinta ${m.main[k] === null ? 'nada' : typeof m.main[k] === 'string' ? m.main[k] : Math.round(m.main[k] * 10) / 10}`);
   }
   for (const [sel, want] of Object.entries(c.parts || {})) {
     const got = m.parts[sel];
     if (!got) { errs.push(`${sel}: no está`); continue; }
     for (const [k, v] of Object.entries(want)) {
       checked++;
-      if (!same(k, v, got[k], got.height)) errs.push(`${sel} ${k} ${v} → pinta ${Math.round(got[k] * 10) / 10}`);
+      if (!same(k, v, got[k], got.height)) errs.push(`${sel} ${k} ${v} → pinta ${typeof got[k] === 'string' ? got[k] : Math.round(got[k] * 10) / 10}`);
     }
   }
   if (errs.length) { bad++; lines.push(`  ✗  ${c.name.padEnd(22)} ${c.cls}\n       ${errs.join('\n       ')}`); }

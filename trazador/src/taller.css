@@ -770,6 +770,8 @@ textarea.input { height: auto; min-height: 80px; padding: var(--space-2) var(--g
 /* El tema: el icono muestra el tema ACTUAL (sol = claro, luna = oscuro); la etiqueta dice la acción. */
 .ui-icon[data-icon="sun"] { --ui-icon: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22black%22%20stroke-width%3D%221.75%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Ccircle%20cx%3D%2212%22%20cy%3D%2212%22%20r%3D%224%22%2F%3E%3Cpath%20d%3D%22M12%202.5v2M12%2019.5v2M4.6%204.6%206%206M18%2018l1.4%201.4M2.5%2012h2M19.5%2012h2M4.6%2019.4%206%2018M18%206l1.4-1.4%22%2F%3E%3C%2Fsvg%3E") }
 .ui-icon[data-icon="moon"] { --ui-icon: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22black%22%20stroke-width%3D%221.75%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Cpath%20d%3D%22M20%2014.5A8%208%200%201%201%209.5%204a6.5%206.5%200%200%200%2010.5%2010.5Z%22%2F%3E%3C%2Fsvg%3E") }
+.ui-icon[data-icon="maximize"] { --ui-icon: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22black%22%20stroke-width%3D%221.75%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Cpath%20d%3D%22M14%204h6v6M10%2020H4v-6M20%204l-6.5%206.5M4%2020l6.5-6.5%22%2F%3E%3C%2Fsvg%3E") }
+.ui-icon[data-icon="restore"] { --ui-icon: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22black%22%20stroke-width%3D%221.75%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Cpath%20d%3D%22M4%2014h6v6M20%2010h-6V4M14%2010l6.5-6.5M10%2014l-6.5%206.5%22%2F%3E%3C%2Fsvg%3E") }
 
 /* ── PIEZAS DE LA BASE ────────────────────────────────────────────────────────────────────────────
    Las que faltaban para que cada cosa de la base tenga UNA forma: el select, el contador, la tabla,
@@ -850,6 +852,42 @@ textarea.input { height: auto; min-height: 80px; padding: var(--space-2) var(--g
 .log-line { display: flex; gap: var(--space-3); padding: 0 var(--gutter); font-family: var(--font-mono);
   font-size: var(--text-sm); line-height: 20px; color: var(--texto-2); white-space: pre-wrap; overflow-wrap: anywhere }
 .log-time { flex: none; font-size: var(--text-xs); color: var(--texto-3); font-variant-numeric: tabular-nums }
+
+/* La consola MAXIMIZADA toma todo el alto de la columna del editor. Es la única forma de tapar el
+   editor, y por eso es temporal: no se guarda, y se deshace con el mismo botón o con Escape
+   (`bindPanelMaximize`). Su manija, marcada `data-rsz="panel"`, no aparece mientras tanto. */
+.workbench.panel-max > .editor { display: none }
+.workbench.panel-max > .panel { grid-row: editor-start / panel-end; height: auto }
+.workbench.panel-max [data-rsz="panel"] { display: none }
+
+/* DOS PANELES lado a lado dentro del editor, para comparar. Cada uno lleva su banda de 40, así la
+   costura sigue derecha. Se reparten el ancho por mitades; si no entran dos de 360, queda el primero
+   y el segundo se pliega solo. */
+.panes { display: flex; flex: 1; min-height: 0; min-width: 0; container-type: inline-size }
+.pane { flex: 1 1 0; display: flex; flex-direction: column; min-width: 0; min-height: 0;
+  background: var(--region-bg, var(--background)) }
+.pane + .pane { border-left: 1px solid var(--border) }
+@container (max-width: 719px) { .pane + .pane { display: none } }
+
+/* ACCIONES DE FILA: botones de 24 al borde derecho que aparecen al pasar, al enfocar o con la fila
+   elegida, en el lugar del dato de la derecha —así la fila no salta—. Dos como máximo; el resto, al
+   menú. En una pantalla táctil no hay «pasar», así que están siempre. */
+/* ⚠ Las acciones FLOTAN sobre el borde derecho (no ocupan lugar): ocultas y ocupando su hueco, empujaban
+   el dato de la derecha hacia el medio de la fila. Al aparecer, el nombre se corta antes para no pasar
+   por debajo; el ancho de la fila no cambia. */
+.row:has(.row-actions) { position: relative }
+.row-actions { position: absolute; top: 50%; right: var(--space-1); translate: 0 -50%; display: flex; gap: 2px; visibility: hidden }
+.row-actions .region-action { width: var(--control-xs); height: var(--control-xs) }
+.row:hover .row-actions, .row:focus-within .row-actions, .row.on .row-actions, .row[aria-selected="true"] .row-actions { visibility: visible }
+.row:has(.row-actions):hover, .row:has(.row-actions):focus-within, .row.on:has(.row-actions),
+.row[aria-selected="true"]:has(.row-actions) { padding-right: calc(var(--space-1) + 2 * var(--control-xs) + 2px + var(--space-1)) }
+.row:has(.row-actions):hover .row-meta, .row:has(.row-actions):focus-within .row-meta, .row.on:has(.row-actions) .row-meta,
+.row[aria-selected="true"]:has(.row-actions) .row-meta { display: none }
+@media (pointer: coarse) {
+  .row-actions { visibility: visible }
+  .row:has(.row-actions) { padding-right: calc(var(--space-1) + 2 * var(--control-xs) + 2px + var(--space-1)) }
+  .row:has(.row-actions) .row-meta { display: none }
+}
 
 /* ── UN CONTROL DENTRO DE UNA BANDA ───────────────────────────────────────────────────────────────
    La banda superior mide 40 con su línea: 4 de aire, un control de 28 y 4 de aire. Un control de 32

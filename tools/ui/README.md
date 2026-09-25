@@ -40,11 +40,17 @@ Además de su banda y su cuerpo, una región puede llevar tres cosas, siempre en
 | Vistas apiladas | `view` | listas distintas | no | grupos de propiedades | no | encabezado 32 |
 | Subbanda | `subband` | no | qué documento, su leyenda | no | qué corrida, su filtro | 32 |
 | Sidebar interno | `split` › `split-side` | no | no: es el secundario | no | qué repo, qué consulta | 240 · se pliega bajo 600 |
+| Maximizar | `.workbench.panel-max` · `bindPanelMaximize` | no | no | no | salida larga | botón 24 · temporal |
+| Dos paneles | `panes` › `pane` | no | comparar dos cosas | no | no | mitades · se pliega bajo 720 |
+| Acciones de fila | `row` › `row-actions` | sí | en listas | sí | en su sidebar interno | botones 24 · dos |
 | Barra de iconos y menú | `region-actions` · `RegionMenu` | sí | sí | sí | sí | botones 24 |
 
 - **Las pestañas son la banda.** No se agrega una banda arriba: las acciones de la región van al borde derecho de la misma barra (`.tabs > .region-actions`). La activa toma el fondo del cuerpo de su región; una pestaña puede llevar su `.count`.
 - **La subbanda dice qué se está viendo.** Existe sólo si el cuerpo cambia según lo elegido. Si hay un filtro puesto, su contador lo delata ahí (`.count.filtered`).
 - **El sidebar interno va a la derecha y se pliega solo.** Mide 240 (`--split-side-w`). Si la región no le deja 360 al contenido, desaparece con una consulta de contenedor, sin JavaScript. Lo que muestra también tiene que poder elegirse de otra forma, porque en una consola angosta no está.
+- **Maximizar es temporal.** El botón de la banda de la consola (`bindPanelMaximize`, iconos `maximize` y `restore`) le da todo el alto de la columna y tapa el editor. Es la única forma de hacerlo, y por eso no se guarda: se deshace con el mismo botón o con Escape desde la consola. Su manija, marcada `data-rsz="panel"`, no aparece mientras tanto.
+- **Dos paneles, para comparar.** `.panes` parte el editor en mitades (`.pane`), cada una con su banda de 40. Si no entran dos de 360, queda el primero y el segundo se pliega solo.
+- **Las acciones de fila no mueven la fila.** `.row-actions` flota sobre el borde derecho: aparece al pasar, al enfocar o en la fila elegida, en el lugar del dato de la derecha, y el nombre se corta antes para no pasar por debajo. Dos botones de 24 como máximo; el resto, al menú. En una pantalla táctil están siempre.
 - **Una salida se escribe en líneas de log** (`.log-line` y `.log-time`): mono de 12 sobre 20, la hora aparte y apagada, sin separadores entre líneas.
 
 ```html
@@ -251,7 +257,7 @@ const sidebarResize = {
 
 - `tema.css`: los tokens de color, tipografía y radio del tema (hoy Darkmatter, de ShadcnThemer). Se reemplaza entero con `make estilo-tema DE=archivo.css`.
 - `taller.css`: las regiones, las medidas, los componentes, el foco y los iconos. Un tema no lo toca.
-- `workbench.js`: el comportamiento (manijas con mínimo o nada, `regionSize`, `fitRegions`, `reopenSize`, `cssSize`; el tema, `THEME_BOOT`, `bindThemeToggle`, `setTheme`, `applyTheme`; el menú `bindMenu` y la directiva `vResize`). Sus pruebas sin navegador están en `workbench.test.mjs`.
+- `workbench.js`: el comportamiento (manijas con mínimo o nada, `regionSize`, `fitRegions`, `reopenSize`, `cssSize`; la consola maximizada, `bindPanelMaximize`; el tema, `THEME_BOOT`, `bindThemeToggle`, `setTheme`, `applyTheme`; el menú `bindMenu` y la directiva `vResize`). Sus pruebas sin navegador están en `workbench.test.mjs`.
 - `spec.json`: la medida exacta de cada componente; la lee `make estilo-componentes` y de ahí sale la sección de componentes del artifact.
 - `RegionMenu.vue`: el adaptador Vue del mismo menú.
 - `index.html`: el catálogo interactivo, que usa estos mismos archivos (`make estilo-guia`, en http://127.0.0.1:5198).

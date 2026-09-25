@@ -653,6 +653,100 @@
         }
       },
       "use": "Una línea de salida en la consola: mono de 12 sobre 20, la hora aparte y apagada, sin separadores entre líneas."
+    },
+    {
+      "group": "Opciones de una región",
+      "id": "panel-max",
+      "name": "Consola maximizada",
+      "cls": ".workbench.panel-max",
+      "html": "<div class=\"workbench panel-max\" style=\"height:240px\"><main class=\"editor\">editor</main><section class=\"panel\"><div class=\"region-head\"><span>Consola</span><div class=\"region-actions\"><button class=\"region-action\" aria-pressed=\"true\" title=\"Restaurar la consola\" aria-label=\"Restaurar la consola\"><span class=\"ui-icon\" data-icon=\"restore\" aria-hidden=\"true\"></span></button></div></div></section></div>",
+      "target": ".panel",
+      "measure": {
+        "height": 240
+      },
+      "parts": {
+        ".editor": {
+          "display": "none"
+        }
+      },
+      "use": "El botón de la banda de la consola le da todo el alto de la columna y tapa el editor. Temporal: no se guarda, y se deshace con el mismo botón o con Escape."
+    },
+    {
+      "group": "Opciones de una región",
+      "id": "panes",
+      "name": "Dos paneles",
+      "cls": ".panes › .pane",
+      "html": "<div class=\"panes\" style=\"width:800px;height:120px\"><section class=\"pane\"><nav class=\"tabs\"><button class=\"tab on\">Antes</button></nav></section><section class=\"pane\"><nav class=\"tabs\"><button class=\"tab on\">Después</button></nav></section></div>",
+      "target": ".pane",
+      "measure": {
+        "width": 400
+      },
+      "parts": {
+        ".pane + .pane": {
+          "width": 400,
+          "borderLeftWidth": 1
+        },
+        ".tabs": {
+          "height": 40
+        }
+      },
+      "use": "Dos cosas lado a lado dentro del editor, para comparar. Mitad y mitad, cada una con su banda de 40."
+    },
+    {
+      "group": "Opciones de una región",
+      "id": "panes-folded",
+      "name": "Dos paneles, editor angosto",
+      "cls": ".panes › .pane",
+      "html": "<div class=\"panes\" style=\"width:700px;height:80px\"><section class=\"pane\"></section><section class=\"pane\"></section></div>",
+      "target": ".pane",
+      "measure": {
+        "width": 700
+      },
+      "parts": {
+        ".pane + .pane": {
+          "display": "none"
+        }
+      },
+      "use": "Si no entran dos de 360, queda el primero solo y el segundo se pliega."
+    },
+    {
+      "group": "Opciones de una región",
+      "id": "row-actions",
+      "name": "Acciones de fila, en reposo",
+      "cls": ".row › .row-actions",
+      "html": "<div class=\"row\"><span class=\"ui-icon\" data-icon=\"server\" aria-hidden=\"true\"></span><span>Solicitud 519245</span><span class=\"row-meta\">hoy</span><div class=\"row-actions\"><button class=\"region-action\" title=\"Renombrar\" aria-label=\"Renombrar\"><span class=\"ui-icon\" data-icon=\"settings\" aria-hidden=\"true\"></span></button><button class=\"region-action\" title=\"Quitar\" aria-label=\"Quitar\"><span class=\"ui-icon\" data-icon=\"close\" aria-hidden=\"true\"></span></button></div></div>",
+      "target": ".row-actions",
+      "measure": {
+        "visibility": "hidden"
+      },
+      "parts": {
+        ".row-meta": {
+          "display": "block"
+        }
+      },
+      "use": "En reposo, la fila muestra su dato a la derecha y las acciones no se ven (pero ocupan su lugar, así nada salta)."
+    },
+    {
+      "group": "Opciones de una región",
+      "id": "row-actions-on",
+      "name": "Acciones de fila, a la vista",
+      "cls": ".row.on › .row-actions",
+      "html": "<div class=\"row on\"><span class=\"ui-icon\" data-icon=\"server\" aria-hidden=\"true\"></span><span>Solicitud 519245</span><span class=\"row-meta\">hoy</span><div class=\"row-actions\"><button class=\"region-action\" title=\"Renombrar\" aria-label=\"Renombrar\"><span class=\"ui-icon\" data-icon=\"settings\" aria-hidden=\"true\"></span></button><button class=\"region-action\" title=\"Quitar\" aria-label=\"Quitar\"><span class=\"ui-icon\" data-icon=\"close\" aria-hidden=\"true\"></span></button></div></div>",
+      "target": ".row-actions",
+      "measure": {
+        "visibility": "visible",
+        "gap": 2
+      },
+      "parts": {
+        ".region-action": {
+          "height": 24,
+          "width": 24
+        },
+        ".row-meta": {
+          "display": "none"
+        }
+      },
+      "use": "Al pasar, al enfocar o con la fila elegida: dos botones de 24 como máximo, en el lugar del dato. En una pantalla táctil, siempre."
     }
   ]
 }

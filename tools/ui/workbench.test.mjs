@@ -3,7 +3,7 @@
 // `make estilo-ui`.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { regionSize, reopenSize, fitRegions, bindResize, preferredTheme, setTheme, bindThemeToggle, THEME_KEY, THEME_BOOT } from './workbench.js';
+import { regionSize, reopenSize, fitRegions, bindResize, preferredTheme, setTheme, bindThemeToggle, THEME_KEY, THEME_BOOT, bindPanelMaximize } from './workbench.js';
 
 test('regionSize: 0 o al menos el mínimo', () => {
   assert.equal(regionSize(300, 240), 300);
@@ -182,4 +182,31 @@ test('tema: el renglón del <head> decide igual que el módulo', () => {
   const c = fakeBrowser({ systemDark: true });
   new Function(THEME_BOOT)();
   assert.equal(c.classes.has('dark'), true);
+});
+
+// ── la consola maximizada ────────────────────────────────────────────────────────────────────────
+function fakeWorkbench() {
+  const classes = new Set(); const listeners = {};
+  const root = { classList: { contains: (c) => classes.has(c), toggle: (c, on) => (on ? classes.add(c) : classes.delete(c)) },
+    addEventListener: (k, f) => { listeners[k] = f; }, removeEventListener() {}, key: (e) => listeners.keydown(e) };
+  const inside = {}, outside = {};
+  const panel = { contains: (n) => n === inside };
+  return { classes, root, panel, inside, outside };
+}
+
+test('maximizar: el botón alterna, dice qué hace y Escape desde la consola restaura', () => {
+  globalThis.document = { createElement: () => ({ dataset: {}, setAttribute() {} }) };
+  const w = fakeWorkbench(); const button = fakeButton();
+  bindPanelMaximize(button, { root: w.root, panel: w.panel });
+  assert.equal(button.icon.dataset.icon, 'maximize');
+  assert.equal(button.attrs['aria-label'], 'Maximizar la consola');
+  button.click();
+  assert.equal(w.classes.has('panel-max'), true);
+  assert.equal(button.icon.dataset.icon, 'restore');
+  assert.equal(button.attrs['aria-pressed'], 'true');
+  w.root.key({ key: 'Escape', target: w.outside });
+  assert.equal(w.classes.has('panel-max'), true, 'Escape afuera de la consola no la toca');
+  w.root.key({ key: 'Escape', target: w.inside });
+  assert.equal(w.classes.has('panel-max'), false);
+  assert.equal(button.attrs['aria-label'], 'Maximizar la consola');
 });
