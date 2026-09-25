@@ -1,87 +1,93 @@
-# UI compartida de CreditOp
+# La base de las herramientas locales
 
-Fuente común para `context`, `tablero`, `trazador` y `harness/panel`. Inspirada en la composición de [shadcn/ui](https://ui.shadcn.com/docs/components/button) y la [disposición personalizable de VS Code](https://code.visualstudio.com/docs/configure/custom-layout), adaptada a Vue y HTML nativo.
+La base sobre la que se construye y se mejora cada herramienta local del playground: cómo se divide la pantalla, cuánto mide cada pieza y cómo se comporta. Es el punto de llegada. Una herramienta nueva arranca de acá, y una existente se acerca a esto cada vez que se la toca. Si una medida o una pieza no está acá, no se inventa en la herramienta: se trae a este documento.
 
-**No añadimos titlebar ni banners globales.** Las acciones se ubican en el toolbar de la región a la que pertenecen. Los avisos aparecen junto a la operación relevante. No se crea una consola donde no hay salida que seguir.
+La misma base, dibujada en tamaño real y con sus cotas: [Anatomía del workbench](https://claude.ai/artifact/HAeuwXf3LCoQzYhTarn1Vz). El vocabulario de regiones es el de la [disposición de VS Code](https://code.visualstudio.com/docs/configure/custom-layout) y los componentes siguen a [shadcn/ui](https://ui.shadcn.com/docs/components/button), adaptados a Vue y HTML nativo.
 
-## Vocabulario
+## Regiones
 
-| Nombre | Uso | Herramientas |
+| Pieza | Clase | Qué es | Cuándo existe |
+| --- | --- | --- | --- |
+| Editor | `editor` | El contenido principal: un documento, un mapa, un recorrido | Siempre. Es la única obligatoria y la única que no se pliega |
+| Sidebar | `sidebar` | Navegación: una lista, un árbol, una búsqueda | Cuando hay más de una cosa entre la cual elegir |
+| Sidebar secundario | `auxiliarybar` | Detalle o propiedades de lo elegido en el editor | Cuando lo elegido tiene detalle que no cabe en el editor |
+| Panel | `panel` | La consola de abajo: salida que se sigue en el tiempo | Sólo si hay salida que seguir |
+| Pie | `statusbar` | Estado a la izquierda, un botón por región plegable a la derecha | Siempre que haya una región plegable |
+
+Adentro de cada región:
+
+| Pieza | Clase | Regla |
 | --- | --- | --- |
-| `sidebar` | Navegación, árbol o lista | Context, Tablero, Harness; persona en Trazador |
-| `editor` | Contenido principal | Documento, tarea, mapa o recorrido |
-| `toolbar` | Grupo de acciones dentro del encabezado de una región | Las cuatro |
-| `auxiliarybar` | Detalle o propiedades de la selección | Tablero, Harness, Trazador |
-| `panel` | Consola inferior: salida que se sigue en el tiempo | Harness (Consola), Tablero (Ramas), Trazador (Recientes) |
-| `statusbar` | Estado y controles de disposición | Las cuatro |
-| `region-head` | Encabezado fijo, título y acciones | Cualquier región |
-| `region-body` | Cuerpo con scroll independiente | Cualquier región |
-| `view` / `view-tog` | Vistas en acordeón que se reparten el alto | Sidebars del Tablero |
-| `accordion-item` | Sección plegable con `details` / `summary` | Contenido dentro de una región |
-| `rsz` | Separador ajustable, enfocable | Entre regiones |
+| Banda superior | `region-head` | Título a la izquierda, acciones al borde. Todas las columnas arrancan con la misma banda |
+| Pestañas | `tabs` | Ocupan el lugar de la banda superior cuando la región muestra de a una cosa entre varias |
+| Barra de iconos | `region-actions` › `region-action` | Lo frecuente y de hacer: agregar, colapsar, copiar, cerrar |
+| Menú de la región | `RegionMenu` · `bindMenu()` | Lo que se alterna y se toca poco, con tilde y conteo |
+| Cuerpo | `region-body` | Lo que scrollea. Scrollea el cuerpo, no la región |
+| Vista | `view` · `view-tog` | Vistas apiladas que se reparten el alto. Cerrada cuesta una fila, no cero |
+| Encabezado de grupo | `region-head.grupo` | Separa grupos de una lista y se pega arriba. Nunca más fuerte que la banda |
+| Sección plegable | `accordion-item` | Dentro de un cuerpo que ya scrollea; es un `<details>`, no una vista |
+| Manija | `rsz` | Redimensiona entre dos regiones. Se ve de 1 px y se agarra de 8 |
 
-La página no scrollea; cada región sí. Una división usa una línea, no dos marcos. Los encabezados usan mayúscula inicial y la misma jerarquía tipográfica. Las acciones principales conservan texto; las acciones compactas llevan un icono de 16 px con `aria-label` y `title`.
-
-## Fuente y distribución
-
-- `tema.css`: tokens de color, tipografía y radio del tema compartido de ShadcnThemer.
-- `taller.css`: regiones, controles, espaciado, foco e iconos vectoriales.
-- `workbench.js`: ajuste por puntero y teclado con «mínimo o nada» (`regionSize`, `fitRegions`, `reopenSize`), menús con `bindMenu` y adaptador opcional `vResize` para Vue.
-- `RegionMenu.vue`: adaptador Vue del mismo menú usado por el HTML del harness.
-- `index.html`: catálogo interactivo que consume estos mismos archivos.
-
-Editar aquí y ejecutar `make estilo-sync`. Las copias locales conservan la independencia de cada aplicación. El harness recibe el módulo incrustado en su HTML; no requiere bundler, una ruta nueva ni reiniciar el servidor. **No editar el bloque generado** entre `workbench-shared`.
-
-`make estilo-check` verifica la fuente canónica, las copias, tokens, contraste estático y estructura. `make estilo-contraste` mide el DOM de las cuatro apps en ejecución. `make estilo-ui` verifica teclado, arrastre, persistencia, acordeones y tres anchos de ventana; el tablero usa datos de prueba y las escrituras de API quedan bloqueadas en ese navegador. `make estilo-tema DE=archivo.css` actualiza tanto la fuente como las cuatro copias.
-
-Para abrir el catálogo: `make estilo-guia`, luego http://127.0.0.1:5198. No requiere los servidores de las herramientas.
+No hay titlebar, banner ni activitybar. Una barra a lo ancho le cobra su alto a todas las regiones: lo que tendría va a la banda de la región de la que habla, y el nombre de la herramienta ya lo dice la pestaña del navegador. Un aviso va junto a la operación que avisa.
 
 ## Medidas
 
-Una grilla de 4 y cuatro alturas que se repiten en cada región, para que las líneas de una columna sigan en la de al lado:
+Una grilla de 4 y cuatro alturas que se repiten en todas las regiones, para que las líneas de una columna sigan en la de al lado:
 
 | Pieza | Medida | Token |
 | --- | --- | --- |
-| Banda superior de cada columna (encabezado de región, barra de pestañas) | 40 px **con** su línea (`border-box`) | `--region-head-h` |
+| Banda superior de cada columna | 40 px **con** su línea (`border-box`) | `--region-head-h` |
 | Encabezado de vista o de grupo | 32 px | `--view-head-h` |
 | Fila de lista, árbol o menú | 28 px | `--row-h` |
-| Campo, botón, select | 32 px (28 dentro de una banda) | `--control-md` · `--control-sm` |
-| Botón de icono, control compacto | 24 px, icono de 16 | `--control-xs` · `--icon-size` |
+| Campo, botón, select | 32 px | `--control-md` |
+| Control dentro de una banda | 28 px | `--control-sm` |
+| Botón de icono | 24 px, icono de 16 | `--control-xs` · `--icon-size` |
 | Pie | 30 px, texto 11 | `--statusbar-h` |
-| Margen del texto de una región | 12 px, en el encabezado y en cada fila | `--gutter` |
+| Margen del texto de una región | 12 px, en la banda y en cada fila | `--gutter` |
+| Margen de un documento en el editor | 24 px | `--space-6` |
 | Nivel de un árbol | 16 px | `--indent` |
-| Espacios | 4 · 8 · 12 · 16 · 24 (no hay 20) | `--space-1` … `--space-6` |
-| Texto | 11 pie y conteos · 12 encabezados y rótulos · 13 interfaz · 14 prosa · 16 título del documento | `--text-xs` … `--text-title` |
-| Pesos | 400 y 600; 500 sólo dentro de los componentes | — |
-| Radios | 0 regiones y filas a sangre · 6 controles · 10 lo que flota (6 del ítem + 4 de aire, concéntricos) · completo píldoras | `--radius-control` · `--radius-float` |
+| Anchos por defecto | sidebar 300 · secundario 340 · panel 240 de alto | `--sidebar-w` · `--auxiliarybar-w` · `--panel-h` |
+| Mínimos | sidebar y secundario 240 · panel 124 · editor 360 | `--sidebar-min` · `--panel-min` · `--editor-min` |
 
-**Un control dentro de una banda mide 28** (24 si es de icono): 4 de aire, 28 y 4 dan los 40. Un control de 32 adentro la estiraba a 49, y la costura dejaba de seguir derecha contra la columna de al lado. Lo aplica `taller.css` al final del archivo.
+Un control dentro de una banda mide 28 (24 si es de icono): 4 de aire, 28 y 4 dan los 40. `taller.css` lo aplica al final del archivo.
 
-Sin mayúsculas sostenidas ni espaciado entre letras: los rótulos van en mayúscula inicial. La única excepción declarada es el aviso de ambiente del pie del trazador. Las cifras grandes de los indicadores (22 px) y los rótulos de los mapas SVG no entran en la escala: son parte del dibujo.
+## Tipografía
 
-El texto secundario usa `--texto-2` y `--texto-3`, medidos sobre las superficies del tema actual. No atenuar filas completas con `opacity`. Los colores semánticos siguen en cada herramienta; no se reemplaza un estado por un gris.
+| Tamaño | Token | Uso |
+| --- | --- | --- |
+| 11 | `--text-xs` | Pie, conteos, metadatos, píldoras |
+| 12 | `--text-sm` | Bandas y encabezados de grupo, pestañas, rótulos de campo |
+| 13 | `--text-base` | La interfaz: filas, campos, botones, menús |
+| 14 | `--text-body` | La prosa de un documento, a 65 caracteres por renglón |
+| 16 | `--text-title` | El título del documento abierto o de un estado vacío; uno por pantalla |
 
-## Disposición y teclado
+- Dos familias: `--font-sans` para todo el texto y `--font-mono` sólo para datos literales (ids, ramas, rutas, comandos, logs), un tamaño menos que el texto que lo rodea.
+- Dos pesos: 400 el texto, 600 los títulos y lo elegido. El 500 vive sólo adentro de los componentes (botón, rótulo, píldora).
+- Interlineado 1,4 en la interfaz y 1,6 en la prosa. Números en columna con `tabular-nums`.
+- La jerarquía la dan el peso y la tinta, no el tamaño: adentro de una región, a lo sumo dos tamaños.
+- Sin mayúsculas sostenidas ni espaciado entre letras: un rótulo va en mayúscula inicial.
+- El texto secundario usa `--texto-2` y `--texto-3`, medidos sobre las superficies del tema. No se atenúa una fila con `opacity`.
 
-El pie siempre contiene controles para alternar las regiones visibles. Al reabrir una región recupera la última medida elegida, no una medida “por defecto”. Los anchos y la altura de consola se guardan localmente; no cambian datos de trabajo. Los máximos se ajustan al espacio disponible.
+## Espacios
 
-**Mínimo o nada.** Una región que se redimensiona mide 0 o al menos su mínimo (`--sidebar-min` 240, `--panel-min` 124): por debajo se pliega, por cualquier camino —arrastre, teclado, ventana o una medida guardada—. Plegar arrastrando es lo mismo que el botón del pie, y al reabrir vuelve la última medida abierta. Si la ventana no alcanza, `fitRegions` achica las columnas hasta su mínimo, después pliega el sidebar secundario y al final el sidebar; el editor nunca baja de `--editor-min` (360). La herramienta guarda lo que eligió la persona —medida y abierta/plegada— y **deriva** lo que se pinta, así lo plegado por falta de lugar vuelve cuando la ventana crece. `bindResize` pliega por defecto; `collapsible: false` es la excepción y se declara. Una región sin manija que no se redimensiona (un estado vacío fijo) lo declara con `data-size="fixed"`.
+| Paso | Token | Uso |
+| --- | --- | --- |
+| 4 | `--space-1` | Aire de un control dentro de una banda; entre una fila y el borde de su región |
+| 8 | `--space-2` | Icono y texto; controles vecinos; un rótulo y su campo |
+| 12 | `--space-3` | El margen de una región; entre campos de un formulario |
+| 16 | `--space-4` | Entre bloques de una sección |
+| 24 | `--space-6` | Entre secciones del editor; el margen de un documento |
 
-En un separador enfocado con Tab: flechas ajustan 16 px, y la que cruza el mínimo pliega; Shift + flecha, 48 px; Home pliega; End amplía; Enter alterna y reabre en la última medida.
+No hay 20. La única excepción a la escala son los 2 px entre botones de icono vecinos de una barra. Los grupos se separan con `gap`, nunca con márgenes por elemento.
 
-`make estilo-minimo` lo verifica: la lógica de `workbench.js` sin navegador (`workbench.test.mjs`) y, en las cuatro apps encendidas, cuatro anchos de ventana y cada paso del teclado sobre cada manija. El arrastre es fluido e inmediato, cancelando limpiamente ante `pointercancel` o pérdida de captura.
+## Iconos
 
-## Toolbars y menús
+Un solo juego, el de `taller.css` (`.ui-icon[data-icon]`): glifos dibujados en una grilla de 24, trazo de 1,75, extremos redondeados y sin relleno, pintados con `currentColor`.
 
-Cada región reserva su toolbar para las acciones frecuentes: copiar, plegar o cerrar. Las opciones secundarias viven en el botón de tres puntos `RegionMenu`. Al abrirlo se ven nombres completos, marcas de selección y conteos; un punto sobre el botón señala opciones activas. Los filtros de consola muestran además «Filtrada». El entorno y canal de una corrida conservan sus valores visibles.
-
-El menú se monta fuera del scroll de la región y se ajusta a la ventana. Se abre con clic, Enter, Espacio o flechas; flechas, Home y End recorren sus acciones. Escape cierra y devuelve el foco al botón. Los checks permanecen abiertos para ajustar varias opciones. Clic fuera, cambio de foco o scroll de la región cierran el menú. Ocultar un panel nunca elimina su control de recuperación en el pie.
-
-En Vue, pasar `items` y manejar `@select`. En HTML, usar `bindMenu(button, { getItems, onSelect, label })`. Cada opción tiene `id`, `label` y opcionalmente `icon`, `disabled`, `count` o `checked`; `{ separador: true }` divide grupos. Ambos adaptadores usan el mismo comportamiento y estilos.
-
-Trazador mantiene su detalle superpuesto al mapa: ajustar su ancho no recalcula el grafo en cada píxel. Tablero conserva sus acordeones y pestañas; los separadores ajustan y los botones del pie ocultan. Harness permite plegar los dos sidebars y la consola. Context permite ampliar el explorador o concentrarse en el documento.
-
-Ejemplo de icono:
+- Un solo tamaño, 16 px, adentro de un botón de 24. La zona de toque es el botón.
+- `--texto-2` en reposo y `--foreground` al pasar o activo. Con color sólo para un estado, y con texto o forma que diga lo mismo.
+- Un icono sin texto lleva `title` y `aria-label`. Icono y texto, sólo en la acción principal de una región.
+- Un carácter no es un icono (✕ ⧉ ▸ ⋯ ✓ ⚠ o un emoji): cambia con la fuente y no se centra en el botón. Un icono nuevo se dibuja en la misma grilla y se suma a `taller.css`; no se mezclan juegos.
 
 ```html
 <button class="region-action" title="Copiar" aria-label="Copiar">
@@ -89,16 +95,98 @@ Ejemplo de icono:
 </button>
 ```
 
-Ejemplo de separador Vue:
+## Forma
+
+| Pieza | Radio | Token |
+| --- | --- | --- |
+| Regiones, bandas, filas a sangre, tablas, avisos | 0 | — |
+| Botón, campo, botón de icono, fila elegida, ítem de menú | 6 | `--radius-control` |
+| Lo que flota (menú, popover) | 10: el radio del ítem más el aire que lo rodea, concéntricos | `--radius-float` |
+| Píldoras, contadores, puntos de estado | completo | — |
+
+- Una región se separa de la de al lado con un escalón de fondo y **una** línea de 1 px (`--border`), que pone una sola de las dos. Sin marco alrededor de algo que ocupa toda su columna.
+- Una caja es para un objeto (un campo, un botón, una imagen), no para envolver contenido.
+- Una píldora es relleno o contorno, nunca los dos.
+- La fila elegida lleva un fondo suave y una barra de 2 px a la izquierda en el color de acción.
+- La sombra es sólo para lo que flota.
+- Un color es un token: el tema da los colores y la hoja de cada herramienta, los de sus estados. Un color escrito a mano no sobrevive a un cambio de tema.
+
+## Comportamiento
+
+**La página no scrollea; cada región sí.** `.workbench` ocupa la ventana y lo que scrollea es el cuerpo de cada región, con su banda fija arriba. No se finge con `max-height` en `vh`.
+
+**Mínimo o nada.** Una región que se redimensiona mide 0 o al menos su mínimo, por cualquier camino: arrastre, teclado, ventana o una medida guardada. Si la ventana no alcanza, `fitRegions` achica las columnas hasta su mínimo, después pliega el sidebar secundario y al final el sidebar; el editor nunca baja de `--editor-min`. La herramienta guarda lo que eligió la persona (medida y abierta o plegada) y **deriva** lo que se pinta: así, lo que se plegó por falta de lugar vuelve solo cuando la ventana crece. `bindResize` pliega por defecto; `collapsible: false` es una excepción que se declara. Una región fija sin manija lo declara con `data-size="fixed"`.
+
+**Plegar es lo mismo que el botón del pie.** El botón se apaga y, al reabrir, la región vuelve con la última medida abierta. Ocultar una región nunca borra su botón del pie. Los anchos se guardan en el navegador de cada persona y no cambian datos de trabajo.
+
+**El teclado llega a todo.** En una manija enfocada, las flechas ajustan 16 px y la que cruza el mínimo pliega; Shift más flecha, 48 px; Home pliega; End amplía; Enter alterna y reabre en la última medida. El arrastre sigue al puntero y se cancela limpio ante `pointercancel` o si se pierde la captura.
+
+## Menús
+
+La barra de iconos de una región lleva lo frecuente. El resto va al menú de tres puntos (`RegionMenu`): nombres completos, tildes y conteos, y un punto sobre el botón cuando hay opciones activas. **Un filtro sólo puede vivir en el menú si la banda delata que está puesto** (un contador que pasa de `9` a `9 / 16`, o un rótulo «Filtrada»); sin esa señal, el filtro se queda a la vista.
+
+El menú se monta fuera del scroll de la región y se ajusta a la ventana. Se abre con clic, Enter, Espacio o flechas; las flechas, Home y End lo recorren, y Escape lo cierra y devuelve el foco al botón. Las tildes lo dejan abierto para ajustar varias opciones. Un clic afuera, un cambio de foco o el scroll de la región lo cierran.
+
+En Vue se pasan `items` y se maneja `@select`. En HTML, `bindMenu(button, { getItems, onSelect, label })`. Cada opción tiene `id` y `label`, y puede tener `icon`, `disabled`, `count` o `checked`; `{ separador: true }` divide grupos.
+
+## Construir sobre la base
+
+Para una herramienta nueva, y en ese orden para acercar una existente cada vez que se la toca:
+
+1. Sumarla a `make estilo-sync` y `make estilo-check` (en `tools/ui-sync.py` y `tools/style.py`), para que reciba `tema.css`, `taller.css` y `workbench.js`, y para que el chequeo la vea.
+2. La raíz es `.workbench`. Empezar por el `editor` y sumar las demás regiones sólo si tienen algo que mostrar.
+3. Cada región arranca con su banda de 40 (`.region-head` o una barra de pestañas) y sigue con un cuerpo que scrollea.
+4. Escribir cada medida con su token: `var(--row-h)`, `var(--gutter)`, `var(--text-sm)`.
+5. Iconos sólo de `.ui-icon`, a 16, en botones de 24 con `title` y `aria-label`.
+6. El pie lleva el estado a la izquierda y un botón por región plegable a la derecha.
+7. Las manijas usan `vResize` (o `bindResize` sin Vue), con los mínimos de los tokens y el máximo calculado contra `--editor-min`. Lo que se pinta sale de `fitRegions`:
 
 ```js
-import { vResize } from './workbench.js'
-const options = {
-  label: 'Ancho del explorador', min: 200, max: () => innerWidth - 320,
-  defaultValue: 300, get: () => width.value, set: (v) => { width.value = v },
+import { vResize, fitRegions, cssSize } from './workbench.js'
+
+// lo que eligió la persona
+const sidebar = ref({ open: true, width: 300 })
+const detail = ref({ open: true, width: 340 })
+const viewport = ref(innerWidth) // se actualiza en `resize`
+
+// lo que se pinta: primero se pliega el detalle, después el sidebar
+const shown = computed(() => {
+  const min = cssSize('--sidebar-min', 240)
+  const [aux, side] = fitRegions(viewport.value - cssSize('--editor-min', 360), [
+    { size: detail.value.open ? detail.value.width : 0, min },
+    { size: sidebar.value.open ? sidebar.value.width : 0, min },
+  ])
+  return { side, aux }
+})
+
+const sidebarResize = {
+  label: 'Ancho del explorador', sign: 1, defaultValue: 300,
+  min: () => cssSize('--sidebar-min', 240),
+  max: () => viewport.value - shown.value.aux - cssSize('--editor-min', 360),
+  get: () => shown.value.side,
+  // 0 es plegar: la medida elegida queda como la última abierta
+  set: (v) => { if (!v) sidebar.value.open = false; else sidebar.value = { open: true, width: v } },
+  reopen: () => sidebar.value.width,
 }
 ```
 
 ```html
-<div class="rsz" v-resize="options"></div>
+<div class="rsz" v-resize="sidebarResize"></div>
 ```
+
+## Archivos y verificación
+
+- `tema.css`: los tokens de color, tipografía y radio del tema (hoy Darkmatter, de ShadcnThemer). Se reemplaza entero con `make estilo-tema DE=archivo.css`.
+- `taller.css`: las regiones, las medidas, los componentes, el foco y los iconos. Un tema no lo toca.
+- `workbench.js`: el comportamiento (manijas con mínimo o nada, `regionSize`, `fitRegions`, `reopenSize`, `cssSize`, el menú `bindMenu` y la directiva `vResize`). Sus pruebas sin navegador están en `workbench.test.mjs`.
+- `RegionMenu.vue`: el adaptador Vue del mismo menú.
+- `index.html`: el catálogo interactivo, que usa estos mismos archivos (`make estilo-guia`, en http://127.0.0.1:5198).
+
+Se edita acá y se reparte con `make estilo-sync`: cada herramienta tiene su copia para no depender de las otras, y el panel del harness recibe `workbench.js` incrustado en su HTML (no se edita el bloque entre `workbench-shared`).
+
+| Comando | Qué verifica |
+| --- | --- |
+| `make estilo-check` | Que las copias sean iguales a la fuente, los tokens, el contraste estático y la estructura |
+| `make estilo-minimo` | Mínimo o nada: la lógica sin navegador y, con las herramientas encendidas, cuatro anchos de ventana y cada paso del teclado |
+| `make estilo-contraste` | El contraste de lo que se pinta, con las herramientas encendidas |
+| `make estilo-ui` | Teclado, arrastre, persistencia, menús y tres anchos de ventana, con las herramientas encendidas (`SOLO=` elige cuáles) |
