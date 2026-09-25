@@ -13,11 +13,15 @@
     "image": "http://localhost:5195/images/motorbike.png",
     "pages": {
       "welcome": {
-        "logo": "http://localhost:5195/images/motorbike.png",
-        "description": "Alquila tu moto TVS Raider 125 con\nopción de compra",
+        "logo": "http://localhost:5195/images/alta-logo.png",
+        "description": "Alquila tu moto TVS Raider 125 con opción de compra",
         "cta": "Iniciar solicitud",
-        "background": "http://localhost:5195/images/home.png"
+        "background": "http://localhost:5195/images/alta-home.png"
       }
+    },
+    "theme_key": "allied-custom",
+    "token_overrides": {
+      "primary": "#013aff"
     }
   },
   "sucursales": [
@@ -86,5 +90,5 @@
       "_nota_form_dinamico": "null en LOCAL, y a propósito — la decisión de negocio es la contraria. Miguel el 2026-09-10: Alta se parece a Motai renting con opción de compra, así que si es `rto` debe pedir el MISMO formulario que Motai (`form_type 7`, «motai-renting»), y en la base compartida así quedó (211 con `dynamic_form_is_enabled=1`, tipo 7 — ver `alta-compartida.json`). ⚠ Acá va null porque LOCAL NO PUEDE: su volcado no trae la fila `form_types` 7 —tiene 1-6, 8 y 9— y el FK `lender_requirements_dynamic_form_type_id_foreign` corta la siembra con un 1452. Por eso el Motai de local también lo tiene apagado (`dynamic_form_is_enabled=0`, tipo NULL) mientras el de la compartida lo tiene prendido: es el volcado, no una decisión. Para reproducirlo en local hace falta sembrar el tipo y su plantilla (5 tablas; `bin/mock-forms-g2 capturar` trae los esquemas de dev), y eso no se hizo."
     }
   ],
-  "nota_assets": "El LOGO del comercio y la PÁGINA de bienvenida (`comercio.pages.welcome`) ya son propios y apuntan a `harness/images/`, que sirve el panel en :5195 — si el panel está abajo dan 404, que es mejor que salir con la marca de Motai. ⚠ `home.png` viene RECORTADA del mockup: trae un bloque de color plano arriba, donde se apoya el panel en móvil. Por eso en desktop se ancla abajo (`lg:object-bottom`), o ese bloque asomaría sobre la foto. ⚠ Y lo que sigue prestado: los COLORES del wizard (clonados de Motai) y, en la ENTIDAD, su logo y el fondo de su propia bienvenida (el de CREDIMOVIL). Esas piezas las tiene que dar diseño."
+  "nota_assets": "La BIENVENIDA del comercio (`comercio.pages.welcome`) y su COLOR (`comercio.token_overrides.primary`, que sólo se aplica con `theme_key: allied-custom`: con cualquier otro tema el backend devuelve los tokens en null) salen del diseño de Alta en Figma (Altafinanciera, nodo 266:1279): el logo es el original (200×200) y la foto `alta-home.png` viene RECORTADA como la encuadra Figma (566×842 del original de 1448×1086), porque la pantalla la ancla arriba sobre esa franja. El texto va SIN salto de línea: Figma lo corta de corrido, y un `\\n` a mano agregaba una tercera línea en celulares angostos. Las imágenes viven en `harness/images/` y las sirve el panel en :5195 — si el panel está abajo dan 404. ⚠ Lo que sigue prestado es el `image` del comercio (`motorbike.png`) y, en la ENTIDAD, lo que se clona del molde de Motai."
 }
