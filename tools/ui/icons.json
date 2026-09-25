@@ -34,7 +34,6 @@
     "alert": "triangle-alert",
     "maximize": "maximize-2",
     "restore": "minimize-2",
-    "start": "flag",
-    "heat": "flame"
+    "start": "flag"
   }
 }
