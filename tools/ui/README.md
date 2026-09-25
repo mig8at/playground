@@ -26,7 +26,7 @@ La página no scrollea; cada región sí. Una división usa una línea, no dos m
 
 - `tema.css`: tokens de color, tipografía y radio del tema compartido de ShadcnThemer.
 - `taller.css`: regiones, controles, espaciado, foco e iconos vectoriales.
-- `workbench.js`: ajuste por puntero y teclado, menús con `bindMenu` y adaptador opcional `vResize` para Vue.
+- `workbench.js`: ajuste por puntero y teclado con «mínimo o nada» (`regionSize`, `fitRegions`, `reopenSize`), menús con `bindMenu` y adaptador opcional `vResize` para Vue.
 - `RegionMenu.vue`: adaptador Vue del mismo menú usado por el HTML del harness.
 - `index.html`: catálogo interactivo que consume estos mismos archivos.
 
@@ -53,7 +53,11 @@ El texto secundario usa `--texto-2` y `--texto-3`, medidos sobre las superficies
 
 El pie siempre contiene controles para alternar las regiones visibles. Al reabrir una región recupera la última medida elegida, no una medida “por defecto”. Los anchos y la altura de consola se guardan localmente; no cambian datos de trabajo. Los máximos se ajustan al espacio disponible.
 
-En un separador enfocado con Tab: flechas ajustan 16 px; Shift + flecha, 48 px; Home lleva al mínimo (u oculta si el panel lo admite); End amplía; Enter alterna regiones plegables. El arrastre es fluido e inmediato, cancelando limpiamente ante `pointercancel` o pérdida de captura.
+**Mínimo o nada.** Una región que se redimensiona mide 0 o al menos su mínimo (`--sidebar-min` 240, `--panel-min` 124): por debajo se pliega, por cualquier camino —arrastre, teclado, ventana o una medida guardada—. Plegar arrastrando es lo mismo que el botón del pie, y al reabrir vuelve la última medida abierta. Si la ventana no alcanza, `fitRegions` achica las columnas hasta su mínimo, después pliega el sidebar secundario y al final el sidebar; el editor nunca baja de `--editor-min` (360). La herramienta guarda lo que eligió la persona —medida y abierta/plegada— y **deriva** lo que se pinta, así lo plegado por falta de lugar vuelve cuando la ventana crece. `bindResize` pliega por defecto; `collapsible: false` es la excepción y se declara. Una región sin manija que no se redimensiona (un estado vacío fijo) lo declara con `data-size="fixed"`.
+
+En un separador enfocado con Tab: flechas ajustan 16 px, y la que cruza el mínimo pliega; Shift + flecha, 48 px; Home pliega; End amplía; Enter alterna y reabre en la última medida.
+
+`make estilo-minimo` lo verifica: la lógica de `workbench.js` sin navegador (`workbench.test.mjs`) y, en las cuatro apps encendidas, cuatro anchos de ventana y cada paso del teclado sobre cada manija. El arrastre es fluido e inmediato, cancelando limpiamente ante `pointercancel` o pérdida de captura.
 
 ## Toolbars y menús
 

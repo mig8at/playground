@@ -12,45 +12,109 @@ export function saveSize(key, value) {
   try { localStorage.setItem(key, String(value)); } catch { /* Preferencias opcionales. */ }
 }
 
+/* ── MÍNIMO O NADA ─────────────────────────────────────────────────────────────────────────────
+ * Una región que se redimensiona mide 0 o al menos su mínimo: entre los dos no hay nada. Vale por
+ * cualquier camino —arrastre, teclado, ventana o una medida guardada— y por eso vive acá y no en cada
+ * herramienta, que la venían escribiendo cada una a su manera y dejaban columnas de 160px con el
+ * texto cortado.
+ *
+ * El modelo que se espera del consumidor: guarda lo que ELIGIÓ la persona —la medida preferida y si
+ * la región está abierta— y lo que se pinta lo DERIVA con `fitRegions` contra la ventana. Así, un
+ * plegado por falta de lugar no pisa la preferencia y la región vuelve sola cuando la ventana crece. */
+
+// La regla en una línea: por debajo del mínimo, o sin lugar para el mínimo, la región mide 0.
+export function regionSize(value, min, max = Infinity) {
+  if (!(value >= min) || max < min) return 0;
+  return Math.round(Math.min(value, max));
+}
+
+// La medida con la que vuelve una región plegada: la última que tuvo abierta, nunca menos que el
+// mínimo, y 0 si en la ventana de ahora no entra ni el mínimo.
+export function reopenSize(last, min, max = Infinity, fallback = min) {
+  const want = last >= min ? last : Math.max(min, fallback);
+  return regionSize(Math.min(want, max), min, max);
+}
+
+// Reparte `available` px entre regiones abiertas, dadas en ORDEN DE SACRIFICIO (la primera es la que
+// se pliega antes: el sidebar secundario, después el sidebar). Primero las achica hasta su mínimo; si
+// no alcanza, pliega la primera y vuelve a repartir entre las que quedan, así una columna no queda
+// achicada de más por un plegado que ya hizo lugar. Devuelve las medidas a pintar, en el mismo orden.
+export function fitRegions(available, regions) {
+  const wanted = regions.map((r) => regionSize(r.size, r.min));
+  for (let folded = 0; folded <= regions.length; folded++) {
+    const sizes = wanted.map((v, i) => (i < folded ? 0 : v));
+    let missing = sizes.reduce((a, b) => a + b, 0) - available;
+    if (missing <= 0) return sizes;
+    const slack = sizes.reduce((a, v, i) => a + (v ? v - regions[i].min : 0), 0);
+    if (missing > slack) continue;
+    for (let i = 0; i < sizes.length && missing > 0; i++) {
+      if (!sizes[i]) continue;
+      const give = Math.min(missing, sizes[i] - regions[i].min);
+      sizes[i] -= give;
+      missing -= give;
+    }
+    return sizes;
+  }
+  return regions.map(() => 0);
+}
+
+// Los mínimos son tokens de `taller.css` (`--sidebar-min`, `--panel-min`, `--editor-min`): se leen de
+// ahí para que el número exista en un solo lugar.
+export function cssSize(name, fallback) {
+  try {
+    const n = Number.parseFloat(getComputedStyle(document.documentElement).getPropertyValue(name));
+    return Number.isFinite(n) ? n : fallback;
+  } catch { return fallback; }
+}
+
 export function bindResize(handle, options) {
   let o = options;
   let stop = () => {};
+  // La última medida abierta, para Enter. El consumidor que ya la guarda la ofrece con `reopen()`.
+  let last = null;
   const number = (v) => Number(typeof v === 'function' ? v() : v);
-  const bounds = () => {
-    const max = Math.max(0, number(o.max));
-    return { min: Math.min(number(o.min), max), max };
-  };
+  // ⚠ Plegar es lo normal; `collapsible: false` es la excepción y se declara. Antes era al revés, y
+  // la mitad de las regiones del playground no plegaba.
+  const folds = () => o.collapsible !== false;
+  // ⚠ El mínimo NO se achica para caber en el máximo: eso era lo que dejaba una columna de 160 con un
+  // mínimo de 240. Si no entra el mínimo, la región se pliega.
+  const bounds = () => ({ min: number(o.min), max: Math.max(0, number(o.max)) });
   function syncAttributes() {
     const { min, max } = bounds();
     handle.setAttribute('role', 'separator');
     handle.setAttribute('tabindex', '0');
     handle.setAttribute('aria-orientation', o.axis === 'y' ? 'horizontal' : 'vertical');
     handle.setAttribute('aria-label', o.label);
-    handle.setAttribute('aria-valuemin', String(o.collapsible ? 0 : min));
+    handle.setAttribute('aria-valuemin', String(folds() ? 0 : min));
     handle.setAttribute('aria-valuemax', String(Math.round(max)));
     handle.title = `${o.label} · arrastra para ajustar o usa las flechas`;
     syncValues();
   }
   function syncValues() {
     const val = Math.round(o.get());
+    if (val > 0) last = val;
     handle.setAttribute('aria-valuenow', String(val));
     handle.setAttribute('aria-valuetext', val ? `${val} píxeles` : 'Oculto');
   }
   function sync() { syncAttributes(); }
-  function set(value, collapse = false) {
+  function set(value) {
     const { min, max } = bounds();
-    let next;
-    if (o.collapsible) {
-      if (value === 0 || (collapse && value < min - 24)) {
-        next = 0;
-      } else {
-        next = Math.max(min, Math.min(max, value));
-      }
-    } else {
-      next = Math.max(min, Math.min(max, value));
-    }
-    o.set(Math.round(next));
+    const next = folds()
+      ? regionSize(value, min, max)
+      : Math.round(Math.max(min, Math.min(max, value)));
+    if (next > 0) last = next;
+    o.set(next);
     syncValues();
+  }
+  function reopen() {
+    const { min, max } = bounds();
+    const remembered = o.reopen ? number(o.reopen) : last;
+    return reopenSize(remembered, min, max, number(o.defaultValue ?? min));
+  }
+  function toggle() {
+    if (!folds()) return;
+    set(o.get() ? 0 : reopen());
+    finish();
   }
   const finish = () => o.commit?.(o.get());
   function keydown(e) {
@@ -60,11 +124,16 @@ export function bindResize(handle, options) {
     const { min, max } = bounds();
     if (![decrement, increment, 'Home', 'End', 'Enter'].includes(e.key)) return;
     e.preventDefault();
-    if (e.key === 'Enter') {
-      if (o.collapsible) set(o.get() ? 0 : Math.max(min, number(o.defaultValue)));
-    } else if (e.key === 'Home') set(o.collapsible ? 0 : min);
+    if (e.key === 'Enter') { toggle(); return; }
+    if (e.key === 'Home') set(folds() ? 0 : min);
     else if (e.key === 'End') set(max);
-    else set(o.get() + (e.key === increment ? 1 : -1) * (o.sign ?? 1) * (e.shiftKey ? 48 : 16), true);
+    else {
+      const step = (e.key === increment ? 1 : -1) * (o.sign ?? 1) * (e.shiftKey ? 48 : 16);
+      const current = o.get();
+      // Plegada, la flecha que agranda la abre en su última medida: sumar 16 a 0 no llega al mínimo.
+      if (!current && step > 0) set(reopen());
+      else set(current + step);
+    }
     finish();
   }
   function pointerdown(e) {
@@ -75,26 +144,19 @@ export function bindResize(handle, options) {
     handle.setPointerCapture(e.pointerId);
     const start = o.axis === 'y' ? e.clientY : e.clientX;
     const initial = o.get();
-    const { min } = bounds();
     let rafId = null;
     let pendingVal = null;
 
+    // El borde sigue al puntero: la región mide lo que marca el puntero, y si eso es menos que el
+    // mínimo, mide 0. Cruzar el mínimo de vuelta en el mismo gesto la reabre.
     const move = (ev) => {
       if (ev.pointerId !== e.pointerId) return;
       const delta = ((o.axis === 'y' ? ev.clientY : ev.clientX) - start) * (o.sign ?? 1);
-      let nextVal;
-      if (initial === 0 && o.collapsible) {
-        nextVal = delta > 16 ? Math.max(min, delta) : 0;
-      } else {
-        nextVal = initial + delta;
-      }
-      pendingVal = nextVal;
+      pendingVal = initial + delta;
       if (!rafId) {
         rafId = requestAnimationFrame(() => {
           rafId = null;
-          if (pendingVal !== null) {
-            set(pendingVal, true);
-          }
+          if (pendingVal !== null) set(pendingVal);
         });
       }
     };
@@ -104,7 +166,7 @@ export function bindResize(handle, options) {
     document.body.style.cursor = o.axis === 'y' ? 'row-resize' : 'col-resize';
     stop = () => {
       if (rafId) { cancelAnimationFrame(rafId); rafId = null; }
-      if (pendingVal !== null) { set(pendingVal, true); pendingVal = null; }
+      if (pendingVal !== null) { set(pendingVal); pendingVal = null; }
       handle.removeEventListener('pointermove', move);
       handle.removeEventListener('pointerup', end);
       handle.removeEventListener('pointercancel', end);
@@ -127,6 +189,7 @@ export function bindResize(handle, options) {
   return {
     update(next) { o = next; sync(); },
     sync,
+    toggle,
     destroy() {
       stop();
       handle.removeEventListener('keydown', keydown);
@@ -179,7 +242,15 @@ export function bindMenu(trigger, { getItems, onSelect, label = 'Más opciones' 
   }
   function outside(e) { if (!menu?.contains(e.target) && !trigger.contains(e.target)) close(); }
   function focusOutside(e) { if (!menu?.contains(e.target) && !trigger.contains(e.target)) close(); }
-  function scrolled(e) { if (!menu?.contains(e.target)) close(); }
+  // ⚠ Un check deja el menú abierto, pero lo que alterna puede mover un scroll de la región —filtrar el
+  // log lo acorta y el navegador ajusta su `scrollTop`—, y ese scroll lo cerraba justo después del clic.
+  // Se ignora el scroll de los dos cuadros que siguen a una selección: ese no lo hizo la persona.
+  let settling = false;
+  function settle() {
+    settling = true;
+    requestAnimationFrame(() => requestAnimationFrame(() => { settling = false; }));
+  }
+  function scrolled(e) { if (!settling && !menu?.contains(e.target)) close(); }
   function icon(name) {
     const span = document.createElement('span');
     span.className = 'ui-icon'; span.dataset.icon = name; span.setAttribute('aria-hidden', 'true');
@@ -215,6 +286,7 @@ export function bindMenu(trigger, { getItems, onSelect, label = 'Más opciones' 
         control.appendChild(count);
       }
       control.addEventListener('click', () => {
+        if (checkbox) settle();
         if (!checkbox) close(!link);
         onSelect?.(item.id);
         if (checkbox) queueMicrotask(refresh);

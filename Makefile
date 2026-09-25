@@ -213,8 +213,12 @@ trazador-chequeo: ## @dia ¿el mapa del trazador sigue siendo cierto? sin corpus
 trazador-indexar-logs: ## @dia reconstruye el índice de LOGS del trazador (mensaje → archivo que lo emite) desde los repos, con las refs remotas al día. [SIN_FETCH=1]
 	@cd trazador/server && go run . -indexar-logs $(if $(SIN_FETCH),-sin-fetch)
 
-estilo-ui: ## @dia verifica teclado, arrastre y persistencia de las cuatro UIs encendidas; Jira usa datos de prueba
-	@node tools/ui-check.mjs
+estilo-ui: ## @dia verifica teclado, arrastre y persistencia de las cuatro UIs encendidas; Jira usa datos de prueba. SOLO=<herramienta,…>
+	@SOLO="$(SOLO)" node tools/ui-check.mjs
+
+estilo-minimo: ## @dia «mínimo o nada» en las cuatro UIs encendidas: ninguna región mide entre 0 y su mínimo, en cuatro anchos de ventana ni con el teclado. SOLO=<herramienta,…>
+	@node --test tools/ui/workbench.test.mjs >/dev/null && echo '  ✓  workbench.js: la lógica, sin navegador'
+	@SOLO="$(SOLO)" node tools/ui-minimum.mjs
 
 estilo-guia: ## @dia catálogo interactivo de la UI compartida en http://127.0.0.1:5198
 	@python3 -m http.server 5198 --bind 127.0.0.1 --directory tools/ui

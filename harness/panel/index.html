@@ -1205,6 +1205,9 @@
     .rsz::before { content: ''; position: absolute; z-index: 1 }
     .rsz-l::before, .rsz-r::before { top: 0; bottom: 0; left: -6px; right: -6px }
     .rsz-b::before { left: 0; right: 0; top: -6px; bottom: -6px }
+    /* Con su región plegada, la manija queda contra el borde de la ventana: su zona de agarre no puede
+       salirse, o la página scrollea de costado 6px. */
+    .rsz-r.plegado::before { right: 0 }
     /* Colapsado, la manija se marca sola: si no, queda una línea muerta que nadie sabe que se arrastra. */
     .sidebar:empty + .rsz, .auxiliarybar:empty + .rsz, .rsz.plegado::after { background: var(--line2) }
 
@@ -4021,45 +4024,109 @@ export function saveSize(key, value) {
   try { localStorage.setItem(key, String(value)); } catch { /* Preferencias opcionales. */ }
 }
 
+/* ── MÍNIMO O NADA ─────────────────────────────────────────────────────────────────────────────
+ * Una región que se redimensiona mide 0 o al menos su mínimo: entre los dos no hay nada. Vale por
+ * cualquier camino —arrastre, teclado, ventana o una medida guardada— y por eso vive acá y no en cada
+ * herramienta, que la venían escribiendo cada una a su manera y dejaban columnas de 160px con el
+ * texto cortado.
+ *
+ * El modelo que se espera del consumidor: guarda lo que ELIGIÓ la persona —la medida preferida y si
+ * la región está abierta— y lo que se pinta lo DERIVA con `fitRegions` contra la ventana. Así, un
+ * plegado por falta de lugar no pisa la preferencia y la región vuelve sola cuando la ventana crece. */
+
+// La regla en una línea: por debajo del mínimo, o sin lugar para el mínimo, la región mide 0.
+export function regionSize(value, min, max = Infinity) {
+  if (!(value >= min) || max < min) return 0;
+  return Math.round(Math.min(value, max));
+}
+
+// La medida con la que vuelve una región plegada: la última que tuvo abierta, nunca menos que el
+// mínimo, y 0 si en la ventana de ahora no entra ni el mínimo.
+export function reopenSize(last, min, max = Infinity, fallback = min) {
+  const want = last >= min ? last : Math.max(min, fallback);
+  return regionSize(Math.min(want, max), min, max);
+}
+
+// Reparte `available` px entre regiones abiertas, dadas en ORDEN DE SACRIFICIO (la primera es la que
+// se pliega antes: el sidebar secundario, después el sidebar). Primero las achica hasta su mínimo; si
+// no alcanza, pliega la primera y vuelve a repartir entre las que quedan, así una columna no queda
+// achicada de más por un plegado que ya hizo lugar. Devuelve las medidas a pintar, en el mismo orden.
+export function fitRegions(available, regions) {
+  const wanted = regions.map((r) => regionSize(r.size, r.min));
+  for (let folded = 0; folded <= regions.length; folded++) {
+    const sizes = wanted.map((v, i) => (i < folded ? 0 : v));
+    let missing = sizes.reduce((a, b) => a + b, 0) - available;
+    if (missing <= 0) return sizes;
+    const slack = sizes.reduce((a, v, i) => a + (v ? v - regions[i].min : 0), 0);
+    if (missing > slack) continue;
+    for (let i = 0; i < sizes.length && missing > 0; i++) {
+      if (!sizes[i]) continue;
+      const give = Math.min(missing, sizes[i] - regions[i].min);
+      sizes[i] -= give;
+      missing -= give;
+    }
+    return sizes;
+  }
+  return regions.map(() => 0);
+}
+
+// Los mínimos son tokens de `taller.css` (`--sidebar-min`, `--panel-min`, `--editor-min`): se leen de
+// ahí para que el número exista en un solo lugar.
+export function cssSize(name, fallback) {
+  try {
+    const n = Number.parseFloat(getComputedStyle(document.documentElement).getPropertyValue(name));
+    return Number.isFinite(n) ? n : fallback;
+  } catch { return fallback; }
+}
+
 export function bindResize(handle, options) {
   let o = options;
   let stop = () => {};
+  // La última medida abierta, para Enter. El consumidor que ya la guarda la ofrece con `reopen()`.
+  let last = null;
   const number = (v) => Number(typeof v === 'function' ? v() : v);
-  const bounds = () => {
-    const max = Math.max(0, number(o.max));
-    return { min: Math.min(number(o.min), max), max };
-  };
+  // ⚠ Plegar es lo normal; `collapsible: false` es la excepción y se declara. Antes era al revés, y
+  // la mitad de las regiones del playground no plegaba.
+  const folds = () => o.collapsible !== false;
+  // ⚠ El mínimo NO se achica para caber en el máximo: eso era lo que dejaba una columna de 160 con un
+  // mínimo de 240. Si no entra el mínimo, la región se pliega.
+  const bounds = () => ({ min: number(o.min), max: Math.max(0, number(o.max)) });
   function syncAttributes() {
     const { min, max } = bounds();
     handle.setAttribute('role', 'separator');
     handle.setAttribute('tabindex', '0');
     handle.setAttribute('aria-orientation', o.axis === 'y' ? 'horizontal' : 'vertical');
     handle.setAttribute('aria-label', o.label);
-    handle.setAttribute('aria-valuemin', String(o.collapsible ? 0 : min));
+    handle.setAttribute('aria-valuemin', String(folds() ? 0 : min));
     handle.setAttribute('aria-valuemax', String(Math.round(max)));
     handle.title = `${o.label} · arrastra para ajustar o usa las flechas`;
     syncValues();
   }
   function syncValues() {
     const val = Math.round(o.get());
+    if (val > 0) last = val;
     handle.setAttribute('aria-valuenow', String(val));
     handle.setAttribute('aria-valuetext', val ? `${val} píxeles` : 'Oculto');
   }
   function sync() { syncAttributes(); }
-  function set(value, collapse = false) {
+  function set(value) {
     const { min, max } = bounds();
-    let next;
-    if (o.collapsible) {
-      if (value === 0 || (collapse && value < min - 24)) {
-        next = 0;
-      } else {
-        next = Math.max(min, Math.min(max, value));
-      }
-    } else {
-      next = Math.max(min, Math.min(max, value));
-    }
-    o.set(Math.round(next));
+    const next = folds()
+      ? regionSize(value, min, max)
+      : Math.round(Math.max(min, Math.min(max, value)));
+    if (next > 0) last = next;
+    o.set(next);
     syncValues();
+  }
+  function reopen() {
+    const { min, max } = bounds();
+    const remembered = o.reopen ? number(o.reopen) : last;
+    return reopenSize(remembered, min, max, number(o.defaultValue ?? min));
+  }
+  function toggle() {
+    if (!folds()) return;
+    set(o.get() ? 0 : reopen());
+    finish();
   }
   const finish = () => o.commit?.(o.get());
   function keydown(e) {
@@ -4069,11 +4136,16 @@ export function bindResize(handle, options) {
     const { min, max } = bounds();
     if (![decrement, increment, 'Home', 'End', 'Enter'].includes(e.key)) return;
     e.preventDefault();
-    if (e.key === 'Enter') {
-      if (o.collapsible) set(o.get() ? 0 : Math.max(min, number(o.defaultValue)));
-    } else if (e.key === 'Home') set(o.collapsible ? 0 : min);
+    if (e.key === 'Enter') { toggle(); return; }
+    if (e.key === 'Home') set(folds() ? 0 : min);
     else if (e.key === 'End') set(max);
-    else set(o.get() + (e.key === increment ? 1 : -1) * (o.sign ?? 1) * (e.shiftKey ? 48 : 16), true);
+    else {
+      const step = (e.key === increment ? 1 : -1) * (o.sign ?? 1) * (e.shiftKey ? 48 : 16);
+      const current = o.get();
+      // Plegada, la flecha que agranda la abre en su última medida: sumar 16 a 0 no llega al mínimo.
+      if (!current && step > 0) set(reopen());
+      else set(current + step);
+    }
     finish();
   }
   function pointerdown(e) {
@@ -4084,26 +4156,19 @@ export function bindResize(handle, options) {
     handle.setPointerCapture(e.pointerId);
     const start = o.axis === 'y' ? e.clientY : e.clientX;
     const initial = o.get();
-    const { min } = bounds();
     let rafId = null;
     let pendingVal = null;
 
+    // El borde sigue al puntero: la región mide lo que marca el puntero, y si eso es menos que el
+    // mínimo, mide 0. Cruzar el mínimo de vuelta en el mismo gesto la reabre.
     const move = (ev) => {
       if (ev.pointerId !== e.pointerId) return;
       const delta = ((o.axis === 'y' ? ev.clientY : ev.clientX) - start) * (o.sign ?? 1);
-      let nextVal;
-      if (initial === 0 && o.collapsible) {
-        nextVal = delta > 16 ? Math.max(min, delta) : 0;
-      } else {
-        nextVal = initial + delta;
-      }
-      pendingVal = nextVal;
+      pendingVal = initial + delta;
       if (!rafId) {
         rafId = requestAnimationFrame(() => {
           rafId = null;
-          if (pendingVal !== null) {
-            set(pendingVal, true);
-          }
+          if (pendingVal !== null) set(pendingVal);
         });
       }
     };
@@ -4113,7 +4178,7 @@ export function bindResize(handle, options) {
     document.body.style.cursor = o.axis === 'y' ? 'row-resize' : 'col-resize';
     stop = () => {
       if (rafId) { cancelAnimationFrame(rafId); rafId = null; }
-      if (pendingVal !== null) { set(pendingVal, true); pendingVal = null; }
+      if (pendingVal !== null) { set(pendingVal); pendingVal = null; }
       handle.removeEventListener('pointermove', move);
       handle.removeEventListener('pointerup', end);
       handle.removeEventListener('pointercancel', end);
@@ -4136,6 +4201,7 @@ export function bindResize(handle, options) {
   return {
     update(next) { o = next; sync(); },
     sync,
+    toggle,
     destroy() {
       stop();
       handle.removeEventListener('keydown', keydown);
@@ -4188,7 +4254,15 @@ export function bindMenu(trigger, { getItems, onSelect, label = 'Más opciones' 
   }
   function outside(e) { if (!menu?.contains(e.target) && !trigger.contains(e.target)) close(); }
   function focusOutside(e) { if (!menu?.contains(e.target) && !trigger.contains(e.target)) close(); }
-  function scrolled(e) { if (!menu?.contains(e.target)) close(); }
+  // ⚠ Un check deja el menú abierto, pero lo que alterna puede mover un scroll de la región —filtrar el
+  // log lo acorta y el navegador ajusta su `scrollTop`—, y ese scroll lo cerraba justo después del clic.
+  // Se ignora el scroll de los dos cuadros que siguen a una selección: ese no lo hizo la persona.
+  let settling = false;
+  function settle() {
+    settling = true;
+    requestAnimationFrame(() => requestAnimationFrame(() => { settling = false; }));
+  }
+  function scrolled(e) { if (!settling && !menu?.contains(e.target)) close(); }
   function icon(name) {
     const span = document.createElement('span');
     span.className = 'ui-icon'; span.dataset.icon = name; span.setAttribute('aria-hidden', 'true');
@@ -4224,6 +4298,7 @@ export function bindMenu(trigger, { getItems, onSelect, label = 'Más opciones' 
         control.appendChild(count);
       }
       control.addEventListener('click', () => {
+        if (checkbox) settle();
         if (!checkbox) close(!link);
         onSelect?.(item.id);
         if (checkbox) queueMicrotask(refresh);
@@ -4274,43 +4349,76 @@ export function bindMenu(trigger, { getItems, onSelect, label = 'Más opciones' 
 // </workbench-shared>
     const root = document.documentElement;
     const configs = [
-      { id: 'rszL', button: 'toggleSidebar', region: 'sideLeft', css: '--sidebar-w', key: 'panel.wLeft', lastKey: 'panel.wLeft.last-open', min: 240, limit: 560, initial: 300, sign: 1, label: 'Ancho de comercios' },
-      { id: 'rszR', button: 'toggleDetail', region: 'sideRight', css: '--auxiliarybar-w', key: 'panel.wRight', lastKey: 'panel.wRight.last-open', min: 220, limit: 520, initial: 340, sign: -1, label: 'Ancho de configuración' },
-      { id: 'rszB', button: 'toggleConsole', region: 'bottomPanel', css: '--panel-h', key: 'panel.hBottom', lastKey: 'panel.hBottom.last-open', min: 90, limit: 620, initial: 240, sign: -1, axis: 'y', label: 'Alto de consola' },
+      { id: 'rszL', button: 'toggleSidebar', region: 'sideLeft', css: '--sidebar-w', key: 'panel.wLeft', lastKey: 'panel.wLeft.last-open', min: () => cssSize('--sidebar-min', 240), limit: 560, initial: 300, sign: 1, label: 'Ancho de comercios' },
+      { id: 'rszR', button: 'toggleDetail', region: 'sideRight', css: '--auxiliarybar-w', key: 'panel.wRight', lastKey: 'panel.wRight.last-open', min: () => cssSize('--sidebar-min', 240), limit: 520, initial: 340, sign: -1, label: 'Ancho de configuración' },
+      { id: 'rszB', button: 'toggleConsole', region: 'bottomPanel', css: '--panel-h', key: 'panel.hBottom', lastKey: 'panel.hBottom.last-open', min: () => cssSize('--panel-min', 124), limit: 620, initial: 240, sign: -1, axis: 'y', label: 'Alto de consola' },
     ];
-    for (const a of configs) a.last = readSize(a.lastKey, a.initial);
-    const controllers = [];
-    const getSize = (a) => parseFloat(getComputedStyle(root).getPropertyValue(a.css));
-    function maxSize(a) {
-      if (a.axis === 'y') return Math.max(90, Math.min(a.limit, innerHeight - 250));
-      const other = configs.find((b) => b.axis !== 'y' && b !== a);
-      return Math.max(160, Math.min(a.limit, innerWidth - getSize(other) - 328));
+    // Mínimo o nada (`workbench.js`): cada región guarda lo que eligió la persona —`pref`, 0 si la
+    // plegó— y su última medida abierta; lo que se pinta sale de `fitRegions` contra la ventana. Si no
+    // entra, primero se achican las dos columnas, después se pliega configuración y al final comercios,
+    // y la consola se pliega si no le queda ni su mínimo. Lo plegado por falta de lugar vuelve solo.
+    const minOf = (a) => a.min();
+    const editorMin = () => cssSize('--editor-min', 360);
+    for (const a of configs) {
+      a.last = readSize(a.lastKey, a.initial);
+      // Una medida guardada con un mínimo viejo (220, 90) sube al nuevo en vez de plegarse: estaba abierta.
+      const saved = readSize(a.key, a.initial);
+      a.pref = saved > 0 ? Math.max(saved, minOf(a)) : 0;
     }
-    function setSize(a, value, remember = true) {
-      root.style.setProperty(a.css, value + 'px');
-      if (value > 0 && remember) { a.last = value; saveSize(a.lastKey, value); }
-      document.getElementById(a.button).setAttribute('aria-pressed', String(value > 0));
-      document.getElementById(a.region).style.visibility = value ? '' : 'hidden';
-      document.getElementById(a.id).classList.toggle('plegado', !value);
+    const controllers = [];
+    const [left, right, bottom] = configs;
+    const shown = new Map();
+    const limitOf = (a) => a.axis === 'y' ? Math.min(a.limit, innerHeight - 250) : a.limit;
+    function layout() {
+      const [r, l] = fitRegions(innerWidth - editorMin(), [
+        { size: Math.min(right.pref, limitOf(right)), min: minOf(right) },
+        { size: Math.min(left.pref, limitOf(left)), min: minOf(left) },
+      ]);
+      shown.set(left, l); shown.set(right, r);
+      shown.set(bottom, regionSize(bottom.pref, minOf(bottom), limitOf(bottom)));
+      for (const a of configs) {
+        const value = shown.get(a);
+        root.style.setProperty(a.css, value + 'px');
+        document.getElementById(a.button).setAttribute('aria-pressed', String(value > 0));
+        const region = document.getElementById(a.region);
+        region.style.visibility = value ? '' : 'hidden';
+        // Plegada a 0 tiene que recortar TODO, incluidos los hijos con `position: absolute` (el
+        // `.sr-only` de sus fieldsets), que un `overflow: hidden` deja escapar: si no, la página
+        // scrollea de costado (medido a 768px, con configuración plegada por falta de lugar).
+        region.style.contain = value ? '' : 'paint';
+        region.style.borderWidth = value ? '' : '0';
+        document.getElementById(a.id).classList.toggle('plegado', !value);
+      }
+      controllers.forEach((c) => c.sync());
+    }
+    const getSize = (a) => shown.get(a) ?? 0;
+    function maxSize(a) {
+      if (a.axis === 'y') return limitOf(a);
+      const other = a === left ? right : left;
+      return Math.min(a.limit, innerWidth - getSize(other) - editorMin());
+    }
+    // 0 es plegar: la preferida pasa a 0 y la última abierta queda para volver.
+    function setSize(a, value) {
+      a.pref = value;
+      if (value > 0) { a.last = value; saveSize(a.lastKey, value); }
+      layout();
     }
     function toggleRegion(index) {
       const a = configs[index];
-      const current = getSize(a);
-      setSize(a, current ? 0 : Math.min(a.last || a.initial, maxSize(a)));
-      saveSize(a.key, getSize(a));
-      controllers[index].sync();
+      if (getSize(a)) setSize(a, 0);
+      else {
+        // Abrir lo que no entra pliega la del otro lado: el pedido es explícito y gana.
+        if (a.axis !== 'y' && !reopenSize(a.last, minOf(a), maxSize(a), a.initial)) (a === left ? right : left).pref = 0;
+        setSize(a, reopenSize(a.last, minOf(a), Infinity, a.initial));
+      }
+      saveSize(a.key, a.pref);
     }
-    function fit() {
-      for (const a of configs) if (getSize(a) > maxSize(a)) setSize(a, maxSize(a), false);
-      controllers.forEach((c) => c.sync());
-    }
-    for (const a of configs) setSize(a, readSize(a.key, a.initial));
-    fit();
+    layout();
     for (const a of configs) {
       const handle = document.getElementById(a.id);
       const controller = bindResize(handle, {
-        ...a, defaultValue: a.initial, collapsible: true, max: () => maxSize(a),
-        get: () => getSize(a), set: (v) => setSize(a, v), commit: (v) => saveSize(a.key, v),
+        ...a, defaultValue: a.initial, max: () => maxSize(a), reopen: () => a.last,
+        get: () => getSize(a), set: (v) => setSize(a, v), commit: () => saveSize(a.key, a.pref),
       });
       controllers.push(controller);
       document.getElementById(a.button).addEventListener('click', () => toggleRegion(configs.indexOf(a)));
@@ -4319,7 +4427,7 @@ export function bindMenu(trigger, { getItems, onSelect, label = 'Más opciones' 
       toggleRegion(2);
       document.getElementById('toggleConsole').focus();
     });
-    addEventListener('resize', fit);
+    addEventListener('resize', layout);
 
     document.getElementById('collapseMerchants').onclick = () => { openOnes.clear(); renderMerchants(); };
     bindMenu(document.getElementById('merchantsMenu'), {

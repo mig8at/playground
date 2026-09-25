@@ -1,6 +1,6 @@
 <script setup>
 import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
-import { vResize, readSize, saveSize, refreshResizers } from './workbench.js'
+import { vResize, readSize, saveSize, refreshResizers, fitRegions, reopenSize, cssSize } from './workbench.js'
 
 // EL VISOR: un diseño de Figma leído como recorrido. A la izquierda los carriles que armó el
 // diseñador, al centro la pantalla con las zonas del prototipo, a la derecha lo que la pantalla dice
@@ -25,28 +25,59 @@ const panes = computed(() => (mode.value === 'compare' ? ['image', 'html'] : [mo
 const report = ref(null)
 
 // ── las regiones, con el mismo contrato que el resto de las herramientas ──
-const MIN_EDITOR = 360
+// Se guarda lo que ELIGIÓ la persona (medida y si está abierta); lo que se pinta sale de `fitRegions`
+// contra la ventana: mínimo o nada, y lo que se pliega por falta de lugar vuelve cuando hay.
 const sidebarOpen = ref(readSize('visor.sidebar-open', 1) !== 0)
 const auxOpen = ref(readSize('visor.aux-open', 1) !== 0)
 const sidebarW = ref(readSize('visor.sidebar-w', 300))
 const auxW = ref(readSize('visor.aux-w', 340))
+const viewportW = ref(window.innerWidth)
+const onWindowResize = () => { viewportW.value = window.innerWidth }
+const sideMin = () => cssSize('--sidebar-min', 240)
+const editorMin = () => cssSize('--editor-min', 360)
+// El orden es el de sacrificio: primero se pliega el detalle, después los carriles.
+const shown = computed(() => {
+  const [aux, sidebar] = fitRegions(viewportW.value - editorMin(), [
+    { size: auxOpen.value ? auxW.value : 0, min: sideMin() },
+    { size: sidebarOpen.value ? sidebarW.value : 0, min: sideMin() },
+  ])
+  return { sidebar, aux }
+})
+function setOpen(which, open) {
+  if (which === 'sidebar') { sidebarOpen.value = open; saveSize('visor.sidebar-open', open ? 1 : 0) }
+  else { auxOpen.value = open; saveSize('visor.aux-open', open ? 1 : 0) }
+}
 function resizeOptions(which) {
   const isSidebar = which === 'sidebar'
+  const other = () => (isSidebar ? shown.value.aux : shown.value.sidebar)
   return {
     label: isSidebar ? 'Ancho de los carriles' : 'Ancho del detalle',
-    min: 220, sign: isSidebar ? 1 : -1, defaultValue: isSidebar ? 300 : 340,
-    max: () => Math.max(220, window.innerWidth - (isSidebar ? auxShownW() : sidebarShownW()) - MIN_EDITOR),
-    get: () => (isSidebar ? sidebarW.value : auxW.value),
-    set: (v) => { if (isSidebar) sidebarW.value = v; else auxW.value = v },
-    commit: (v) => saveSize(isSidebar ? 'visor.sidebar-w' : 'visor.aux-w', v),
+    min: sideMin, sign: isSidebar ? 1 : -1, defaultValue: isSidebar ? 300 : 340,
+    max: () => viewportW.value - other() - editorMin(),
+    get: () => (isSidebar ? shown.value.sidebar : shown.value.aux),
+    // 0 es plegar: la medida preferida queda como estaba, que es la última abierta.
+    set: (v) => {
+      if (!v) return setOpen(which, false)
+      setOpen(which, true)
+      if (isSidebar) sidebarW.value = v; else auxW.value = v
+    },
+    reopen: () => (isSidebar ? sidebarW.value : auxW.value),
+    commit: () => saveSize(isSidebar ? 'visor.sidebar-w' : 'visor.aux-w', isSidebar ? sidebarW.value : auxW.value),
   }
 }
-const sidebarShownW = () => (sidebarOpen.value ? sidebarW.value : 0)
-const auxShownW = () => (auxOpen.value ? auxW.value : 0)
-const layoutVars = computed(() => ({ '--sidebar-w': sidebarW.value + 'px', '--auxiliarybar-w': auxW.value + 'px' }))
+const layoutVars = computed(() => ({ '--sidebar-w': shown.value.sidebar + 'px', '--auxiliarybar-w': shown.value.aux + 'px' }))
 function toggle(which) {
-  if (which === 'sidebar') { sidebarOpen.value = !sidebarOpen.value; saveSize('visor.sidebar-open', sidebarOpen.value ? 1 : 0) }
-  else { auxOpen.value = !auxOpen.value; saveSize('visor.aux-open', auxOpen.value ? 1 : 0) }
+  const isSidebar = which === 'sidebar'
+  const visible = isSidebar ? shown.value.sidebar : shown.value.aux
+  if (visible) setOpen(which, false)
+  else {
+    // Abrir lo que no entra pliega la del otro lado: el pedido es explícito y gana.
+    const room = viewportW.value - editorMin()
+    const otherWhich = isSidebar ? 'aux' : 'sidebar'
+    if (reopenSize(isSidebar ? sidebarW.value : auxW.value, sideMin(), room - (isSidebar ? shown.value.aux : shown.value.sidebar)) === 0)
+      setOpen(otherWhich, false)
+    setOpen(which, true)
+  }
   nextTick(() => refreshResizers(document.querySelector('.workbench')))
 }
 
@@ -674,6 +705,7 @@ function onPopState() {
 }
 
 onMounted(async () => {
+  window.addEventListener('resize', onWindowResize)
   window.addEventListener('hashchange', onHash)
   window.addEventListener('popstate', onPopState)
   observer = new ResizeObserver(onStageResize)
@@ -690,6 +722,7 @@ onMounted(async () => {
   else if (last) { refInput.value = last; load(last) }
 })
 onUnmounted(() => {
+  window.removeEventListener('resize', onWindowResize)
   observer?.disconnect()
   window.removeEventListener('keydown', onKey)
   window.removeEventListener('hashchange', onHash)
@@ -702,7 +735,7 @@ const laneName = (lane) => (lane.label ? lane.label : 'Fila sin rótulo')
 
 <template>
   <div class="workbench" :style="layoutVars">
-    <aside v-show="sidebarOpen" class="sidebar" aria-label="Proyectos">
+    <aside v-show="shown.sidebar" class="sidebar" aria-label="Proyectos">
       <div class="rsz rsz-sb" v-resize="resizeOptions('sidebar')"></div>
 
       <!-- Cada PROYECTO (un flujo, un archivo de Figma) es un bloque del acordeón en la raíz de la barra, y
@@ -814,7 +847,7 @@ const laneName = (lane) => (lane.label ? lane.label : 'Fila sin rótulo')
       </div>
     </main>
 
-    <aside v-show="auxOpen" class="auxiliarybar" aria-label="Detalle de la pantalla">
+    <aside v-show="shown.aux" class="auxiliarybar" aria-label="Detalle de la pantalla">
       <div class="rsz rsz-aux" v-resize="resizeOptions('aux')"></div>
       <div class="region-head"><span>Pantalla</span></div>
       <div class="region-body detail">
@@ -885,10 +918,10 @@ const laneName = (lane) => (lane.label ? lane.label : 'Fila sin rótulo')
       <span v-if="structure?.last_modified">guardado {{ new Date(structure.last_modified).toLocaleString('es-CO') }}</span>
       <span v-if="screenCount">{{ screenCount }} pantallas</span>
       <span class="grow"></span>
-      <button class="region-action" :aria-pressed="sidebarOpen" title="Carriles" aria-label="Mostrar u ocultar los carriles" @click="toggle('sidebar')">
+      <button class="region-action" :aria-pressed="!!shown.sidebar" title="Carriles" aria-label="Mostrar u ocultar los carriles" @click="toggle('sidebar')">
         <span class="ui-icon" data-icon="sidebar" aria-hidden="true"></span>
       </button>
-      <button class="region-action" :aria-pressed="auxOpen" title="Detalle" aria-label="Mostrar u ocultar el detalle" @click="toggle('aux')">
+      <button class="region-action" :aria-pressed="!!shown.aux" title="Detalle" aria-label="Mostrar u ocultar el detalle" @click="toggle('aux')">
         <span class="ui-icon" data-icon="detail" aria-hidden="true"></span>
       </button>
     </footer>

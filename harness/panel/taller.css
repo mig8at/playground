@@ -74,6 +74,12 @@
   --sidebar-w: 300px;      /* navegación: una lista, un árbol */
   --auxiliarybar-w: 340px; /* detalle: formularios, logs */
   --panel-h: 240px;
+  /* Mínimo o nada: por debajo de estos números la región se pliega a 0 (workbench.js los lee).
+     El sidebar y el secundario comparten mínimo; el panel es su encabezado más tres filas; el
+     editor no se pliega nunca y es lo que calcula el máximo de las demás. */
+  --sidebar-min: 240px;
+  --panel-min: 124px;
+  --editor-min: 360px;
   --rsz: 4px;              /* el grosor de una manija de redimensionar */
 
   /* ── LA RAMPA DE TEXTO ────────────────────────────────────────────────────────────────────────

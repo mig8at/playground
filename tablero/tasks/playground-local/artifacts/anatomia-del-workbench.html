@@ -493,7 +493,7 @@ nav.toc a:hover, nav.toc a:focus-visible { color: var(--fg); border-bottom-color
           <div class="spec-row"><span class="tok">--panel-min</span><span class="val">124px</span><span class="use">El encabezado (40) más tres filas (3 × 28). Menos que eso ya no es una consola.</span></div>
           <div class="spec-row"><span class="tok">--editor-min</span><span class="val">360px</span><span class="use">Ancho que el editor conserva siempre; es lo que calcula el máximo de las otras. Y 240px de alto frente al panel.</span></div>
         </div>
-        <h3>Hoy, medido en el código</h3>
+        <h3>Antes del cambio, medido en el código</h3>
         <div class="tbl-wrap">
           <table class="mins" style="min-width:520px">
             <thead><tr><th>Región</th><th>harness</th><th>tablero</th><th>trazador</th><th>visor</th></tr></thead>
@@ -510,7 +510,7 @@ nav.toc a:hover, nav.toc a:focus-visible { color: var(--fg); border-bottom-color
         </div>
       </div>
     </div>
-    <p class="never">Esto se implementa una vez, en <code>workbench.js</code>: plegar pasa a ser el comportamiento por defecto de <code>bindResize</code> (hoy es opcional, <code>collapsible</code>), el umbral pasa a ser el mínimo, la última medida abierta la guarda el módulo y un <code>fitRegions()</code> reparte el ancho al cambiar la ventana. Las herramientas borran sus copias.</p>
+    <p class="never"><b style="color:var(--fg)">Implementado el 24 sep 2026.</b> <code>workbench.js</code> trae <code>regionSize</code>, <code>fitRegions</code> y <code>reopenSize</code>; <code>bindResize</code> pliega por defecto con el umbral en el mínimo, y las cuatro herramientas borraron su versión. Lo verifica <code>make estilo-minimo</code>: la lógica sin navegador y, en las cuatro apps encendidas, cuatro anchos de ventana y cada paso del teclado sobre cada manija. Una región fija sin manija (la consola del tablero sin ramas) lo declara con <code>data-size="fixed"</code>.</p>
   </section>
 
   <section id="tipografia">
@@ -721,7 +721,7 @@ nav.toc a:hover, nav.toc a:focus-visible { color: var(--fg); border-bottom-color
     </ol>
   </section>
 
-  <footer>Prototipo de la tarea #96 · tercer borrador, 24 sep 2026 · el contrato vigente sigue siendo <span class="mono">tools/ui/README.md</span> hasta que esto se apruebe.</footer>
+  <footer>Prototipo de la tarea #96 · cuarto borrador, 24 sep 2026 · el contrato vigente sigue siendo <span class="mono">tools/ui/README.md</span> hasta que esto se apruebe.</footer>
 </div>
 
 <script>

@@ -1,6 +1,6 @@
 <script setup>
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
-import { vResize, readSize, saveSize } from './workbench.js'
+import { vResize, readSize, saveSize, fitRegions, regionSize, reopenSize, cssSize } from './workbench.js'
 import { useTrazador } from './stores/trazador'
 import { traceToText } from './traceText'
 import SearchBox from './components/SearchBox.vue'
@@ -52,10 +52,10 @@ const logsToggle = ref(null)
 const personToggle = ref(null)
 const recentToggle = ref(null)
 
-// Las dos columnas comparten un presupuesto: el mapa nunca baja de 220px y, al ensanchar un sidebar,
-// el otro cede sólo el espacio que le sobra. Si se arrastra por debajo de su mínimo, se pliega al borde
-// pero conserva su último ancho para volver con el mismo tirador o con el botón de la barra de estado.
-const MIN_WORKSPACE = 220
+// Las dos columnas comparten un presupuesto con el mapa, con la regla de `workbench.js`: mínimo o nada.
+// `personWidth` y `sidebarWidth` guardan lo que eligió la persona (0 = plegada) y lo que se pinta sale
+// de `fitRegions`: si la ventana no alcanza, primero se achican, después se pliegan los logs y al
+// final la ficha; el mapa conserva `--editor-min`. Un plegado por falta de lugar no pisa la preferencia.
 const PERSON_BASE = 300
 const personOpen = readSize('trazador.persona', 1) !== 0
 const personWidthSaved = readSize('trazador.persona.width', PERSON_BASE)
@@ -66,11 +66,17 @@ const SIDEBAR_BASE = 380
 const savedSidebarWidth = readSize('trazador.sidebar', SIDEBAR_BASE)
 const sidebarWidth = ref(savedSidebarWidth)
 const lastSidebarWidth = ref(readSize('trazador.sidebar.last-open', savedSidebarWidth || SIDEBAR_BASE))
-const panelBudget = computed(() => Math.max(0, viewportWidth.value - MIN_WORKSPACE))
-const visibleWidth = computed(() => Math.min(sidebarWidth.value,
-  Math.max(0, panelBudget.value - Math.min(personWidth.value, panelBudget.value))))
-const personWidthVisible = computed(() => Math.min(personWidth.value,
-  Math.max(0, panelBudget.value - visibleWidth.value)))
+const sideMin = () => cssSize('--sidebar-min', 240)
+const panelBudget = computed(() => Math.max(0, viewportWidth.value - cssSize('--editor-min', 360)))
+const shownColumns = computed(() => {
+  const [logs, person] = fitRegions(panelBudget.value, [
+    { size: sidebarWidth.value, min: sideMin() },
+    { size: hasColumn.value ? personWidth.value : 0, min: sideMin() },
+  ])
+  return { logs, person }
+})
+const visibleWidth = computed(() => shownColumns.value.logs)
+const personWidthVisible = computed(() => shownColumns.value.person)
 const personClosed = computed(() => personWidthVisible.value < 1)
 const maxPerson = computed(() => Math.max(0, panelBudget.value - visibleWidth.value))
 const maxSidebar = computed(() => Math.max(0, panelBudget.value - personWidthVisible.value))
@@ -84,8 +90,10 @@ function hideLogs() {
   logsToggle.value?.focus()
 }
 function toggleLogs() {
-  if (sidebarWidth.value) hideLogs()
-  else sidebarWidth.value = Math.min(lastSidebarWidth.value || SIDEBAR_BASE, maxSidebar.value)
+  if (visibleWidth.value) return hideLogs()
+  // Abrir lo que no entra pliega la del otro lado: el pedido es explícito y gana.
+  if (!reopenSize(lastSidebarWidth.value, sideMin(), maxSidebar.value, SIDEBAR_BASE)) personWidth.value = 0
+  sidebarWidth.value = reopenSize(lastSidebarWidth.value, sideMin(), Infinity, SIDEBAR_BASE)
 }
 function hidePerson() {
   if (personWidth.value) {
@@ -96,8 +104,9 @@ function hidePerson() {
   personToggle.value?.focus()
 }
 function togglePerson() {
-  if (personWidth.value) hidePerson()
-  else personWidth.value = Math.min(lastPersonWidth.value || PERSON_BASE, maxPerson.value)
+  if (personWidthVisible.value) return hidePerson()
+  if (!reopenSize(lastPersonWidth.value, sideMin(), maxPerson.value, PERSON_BASE)) sidebarWidth.value = 0
+  personWidth.value = reopenSize(lastPersonWidth.value, sideMin(), Infinity, PERSON_BASE)
 }
 const closed = computed(() => visibleWidth.value < 1)
 watch(sidebarWidth, (v) => {
@@ -116,20 +125,23 @@ watch(personWidth, (v) => {
   }
 })
 const personResize = computed(() => ({
-  label: 'Ancho de la ficha', sign: 1, min: 240,
-  max: maxPerson.value, defaultValue: PERSON_BASE, collapsible: true,
+  label: 'Ancho de la ficha', sign: 1, min: sideMin,
+  max: maxPerson.value, defaultValue: PERSON_BASE, reopen: () => lastPersonWidth.value,
   get: () => personWidthVisible.value, set: (v) => { personWidth.value = v },
 }))
 const detailResize = computed(() => ({
-  label: 'Ancho del panel de logs', sign: -1, min: 280,
-  max: maxSidebar.value, defaultValue: SIDEBAR_BASE, collapsible: true,
+  label: 'Ancho del panel de logs', sign: -1, min: sideMin,
+  max: maxSidebar.value, defaultValue: SIDEBAR_BASE, reopen: () => lastSidebarWidth.value,
   get: () => visibleWidth.value, set: (v) => { sidebarWidth.value = v },
 }))
 const PANEL_BASE = 184
-const panelHeight = ref(readSize('trazador.recientes', PANEL_BASE))
+// Una altura guardada con el mínimo viejo (116) sube al nuevo en vez de plegarse: estaba abierta.
+const savedPanel = readSize('trazador.recientes', PANEL_BASE)
+const panelHeight = ref(savedPanel > 0 ? Math.max(savedPanel, cssSize('--panel-min', 124)) : 0)
 const lastPanelHeight = ref(readSize('trazador.recientes.last-open', panelHeight.value || PANEL_BASE))
-const maxPanel = computed(() => Math.max(116, viewportHeight.value - 300))
-const panelHeightVisible = computed(() => Math.min(panelHeight.value, maxPanel.value))
+const panelMin = () => cssSize('--panel-min', 124)
+const maxPanel = computed(() => Math.max(0, viewportHeight.value - 300))
+const panelHeightVisible = computed(() => regionSize(panelHeight.value, panelMin(), maxPanel.value))
 const recentClosed = computed(() => panelHeightVisible.value < 1)
 function hideRecent() {
   if (panelHeight.value) {
@@ -140,8 +152,8 @@ function hideRecent() {
   recentToggle.value?.focus()
 }
 function toggleRecent() {
-  if (panelHeight.value) hideRecent()
-  else panelHeight.value = Math.min(lastPanelHeight.value || PANEL_BASE, maxPanel.value)
+  if (panelHeightVisible.value) hideRecent()
+  else panelHeight.value = reopenSize(lastPanelHeight.value, panelMin(), Infinity, PANEL_BASE)
 }
 watch(panelHeight, (v) => {
   saveSize('trazador.recientes', v)
@@ -151,8 +163,8 @@ watch(panelHeight, (v) => {
   }
 })
 const panelResize = computed(() => ({
-  axis: 'y', label: 'Altura de recientes', sign: -1, min: 116, max: maxPanel.value,
-  defaultValue: PANEL_BASE, collapsible: true,
+  axis: 'y', label: 'Altura de recientes', sign: -1, min: panelMin, max: maxPanel.value,
+  defaultValue: PANEL_BASE, reopen: () => lastPanelHeight.value,
   get: () => panelHeightVisible.value, set: (v) => { panelHeight.value = v },
 }))
 const resizeWindow = () => { viewportWidth.value = window.innerWidth; viewportHeight.value = window.innerHeight }

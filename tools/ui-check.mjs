@@ -5,10 +5,13 @@ import { createRequire } from 'node:module';
 import { mkdir } from 'node:fs/promises';
 const require = createRequire(new URL('../harness/package.json', import.meta.url));
 const { chromium } = require('playwright');
+// `SOLO=tablero,trazador` corre sólo esas, como `make estilo-contraste`: el panel del harness deshabilita
+// su configuración mientras hay una corrida en curso, y ahí sus pruebas de foco no pueden pasar.
+const only = (process.env.SOLO || '').split(',').map((x) => x.trim()).filter(Boolean);
 const apps = [
   ['harness', 'http://localhost:5195'],
   ['tablero', 'http://localhost:5191'], ['trazador', 'http://localhost:5192'],
-];
+].filter(([name]) => !only.length || only.includes(name));
 const sprint = { id: 1, name: 'Sprint UI', state: 'active', startDate: '2026-09-14', endDate: '2026-09-28' };
 const sample = {
   '/api/sprints': { sprints: [sprint] },
@@ -194,16 +197,12 @@ try {
         'Tablero: sprint, puntos y tiempo de Jira viven en la cabecera');
       assert.equal(await page.locator('.auxiliarybar').getByRole('button', { name: 'Detalle', exact: true }).count(), 0,
         'Tablero: el sidebar derecho ya no repite una ficha de detalle');
-      // ⚠ El default del sidebar derecho es RETOMAR, no Jira, desde que existe esa vista: al abrir una
-      // tarea lo primero que hace falta es con qué se sigue, no el espejo de Jira. Esta aserción decía
-      // lo contrario y quedó vieja un día entero sin que nada fallara, porque nadie corrió el chequeo.
-      const resumeTab = page.locator('.auxiliarybar').getByRole('tab', { name: 'Retomar', exact: true });
-      assert.equal(await resumeTab.getAttribute('aria-selected'), 'true',
-        'Tablero: Retomar ocupa por defecto el cuerpo único del sidebar derecho');
+      // El default del sidebar derecho es JIRA (`activeAuxView`, y así lo dice tablero/CLAUDE.md). Hasta el
+      // 2026-09-24 esto esperaba una pestaña «Retomar» que se fue con la retoma, y el chequeo se frenaba
+      // acá sin llegar a nada de lo que sigue: la misma lección de antes, una aserción vieja que nadie corrió.
       const jiraTab = page.locator('.auxiliarybar').getByRole('tab', { name: 'Jira', exact: true });
-      await jiraTab.click(); await paint(page);
       assert.equal(await jiraTab.getAttribute('aria-selected'), 'true',
-        'Tablero: Jira sigue siendo alcanzable desde su pestaña');
+        'Tablero: Jira ocupa por defecto el cuerpo único del sidebar derecho');
       assert.equal(await page.locator('.auxiliarybar .view-tog').count(), 0,
         'Tablero: las vistas derechas son pestañas y no encabezados de acordeón');
       const jiraPanel = await page.locator('.jira-tab-panel').evaluate((panel) => {

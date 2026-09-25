@@ -1,5 +1,5 @@
 <script setup>
-import { vResize, refreshResizers } from './workbench.js';
+import { vResize, refreshResizers, fitRegions, regionSize, reopenSize, cssSize } from './workbench.js';
 // Tablero — mi sprint, con registro de tiempo y avances.
 //
 // El registro persiste como JSONL del lado del server (internal/store). Lo de arriba (sprint, tareas)
@@ -854,12 +854,11 @@ const compactWindow = ref(typeof window !== 'undefined' && window.innerWidth <= 
 const compactDetailOpen = ref(false);
 const showAux = computed(() => !!active.value && auxVisible.value && (!compactWindow.value || compactDetailOpen.value));
 function toggleDetail() {
-  if (compactWindow.value) {
-    if (showAux.value) compactDetailOpen.value = false;
-    else { auxVisible.value = true; compactDetailOpen.value = true; }
-    return;
-  }
-  auxVisible.value = !auxVisible.value;
+  if (showAux.value && auxShown.value) { hideDetail(); return; }
+  makeRoomFor(false);
+  auxVisible.value = true;
+  if (compactWindow.value) compactDetailOpen.value = true;
+  nextTick(applyWidths);
 }
 const sidebarVisible = ref(readPreference('sidebar-visible', true) !== false);
 // La consola muestra sólo las ramas de la tarea enfocada. Su visibilidad y alto sobreviven al cambio
@@ -867,12 +866,20 @@ const sidebarVisible = ref(readPreference('sidebar-visible', true) !== false);
 const branchConsoleVisible = ref(readPreference('repos-console-visible', true) !== false);
 const branchConsoleHeight = ref(readPreference('ramas-panel-height', 260) || 260);
 const branchPanelToggle = ref(null);
-const showBranchConsole = computed(() => branchConsoleVisible.value && !!active.value);
+// Mínimo o nada también en alto: con la ventana baja la consola se pliega en vez de quedar en una
+// franja de dos filas. Sin ramas es otra cosa —una franja fija de estado vacío, sin manija— y lo
+// declara con `data-size="fixed"`.
+const viewportHeight = ref(window.innerHeight);
+const branchPanelMax = () => Math.min(560, viewportHeight.value - 300);
+const branchConsoleShown = computed(() =>
+  regionSize(branchConsoleHeight.value, cssSize('--panel-min', 124), branchPanelMax()));
+const showBranchConsole = computed(() => branchConsoleVisible.value && !!active.value
+  && (!activeTaskBranches.value.branches.length || branchConsoleShown.value > 0));
 const branchPanelResize = computed(() => ({
-  label: 'Alto de la consola de ramas', axis: 'y', sign: -1, min: 150,
-  max: () => Math.max(150, Math.min(560, window.innerHeight - 300)),
-  defaultValue: 260, collapsible: true,
-  get: () => branchConsoleHeight.value,
+  label: 'Alto de la consola de ramas', axis: 'y', sign: -1, min: () => cssSize('--panel-min', 124),
+  max: branchPanelMax, defaultValue: 260, reopen: () => branchConsoleHeight.value,
+  // Plegada mide 0 aunque su alto preferido siga guardado: es lo que anuncia la manija.
+  get: () => (branchConsoleVisible.value ? branchConsoleShown.value : 0),
   set: (v) => {
     if (!v) branchConsoleVisible.value = false;
     else { branchConsoleHeight.value = v; branchConsoleVisible.value = true; }
@@ -891,9 +898,11 @@ function showBranchPanel() {
   branchConsoleVisible.value = true;
   savePreference('repos-console-visible', true);
 }
+// El botón actúa sobre lo que se VE: una consola plegada por falta de alto se abre en su mínimo.
 function toggleBranchConsole() {
-  if (branchConsoleVisible.value) hideBranchConsole();
-  else showBranchPanel();
+  if (showBranchConsole.value) { hideBranchConsole(); return; }
+  branchConsoleHeight.value = reopenSize(branchConsoleHeight.value, cssSize('--panel-min', 124), Infinity, 260);
+  showBranchPanel();
 }
 /* ── RECORRIDO CENTRAL Y PESTAÑAS DEL SIDEBAR DERECHO ─────────────────────────────────────────────
  * El centro es una línea de tiempo de días. A la derecha quedan Jira, Pendientes y los Artifacts
@@ -933,7 +942,7 @@ function auxTabsKeyboard(event, id) {
 // ⚠ El tope NO puede ser un número fijo: tiene que dejarle al EDITOR un ancho usable. Medido
 // arrastrando en una ventana de 927px — con la ficha en 463 el editor quedaba en 164px, o sea el
 // documento en una columna de veinte caracteres. El máximo se calcula contra la ventana y el ancho
-// de la OTRA columna, así que el editor nunca baja de `MIN_EDITOR`.
+// de la OTRA columna, así que el editor nunca baja de `--editor-min`.
 /* ── EL ANCHO DE LOS DOS SIDEBARS ────────────────────────────────────────────────────────────────
  * ⚠ El ancho PREFERIDO y el APLICADO son dos cosas distintas, y confundirlos era el bug: si para que
  * entre achico la variable CSS, la próxima vez que la ventana crezca la columna se queda chica — tu
@@ -942,56 +951,92 @@ function auxTabsKeyboard(event, id) {
  *
  * Y el reparto tiene orden: cuando no entra, se achica primero el AUXILIARYBAR —es el accesorio— y
  * sólo si aún no alcanza se toca el de las tareas, que es por donde se navega. */
-const MIN_EDITOR = 320;
+// ⚠ Y desde el 2026-09-24 el reparto es «mínimo o nada» (`fitRegions` de `workbench.js`): si no entra,
+// primero se achican las dos hasta `--sidebar-min`, después se pliegan las vistas y al final las tareas.
+// Antes apretaba la lista de tareas a 160px, debajo de su propio mínimo, con los títulos cortados.
+// Lo que se pliega por falta de lugar no toca la preferencia: vuelve cuando la ventana crece.
 const WIDTHS = {
-  '--sidebar-w': ['sidebar-w', 200, 520],
-  '--auxiliarybar-w': ['aux-w', 260, 760],
+  '--sidebar-w': ['sidebar-w', 520],
+  '--auxiliarybar-w': ['aux-w', 760],
 };
 const preferred = {
   '--sidebar-w': readPreference('sidebar-w', 0) || 300,
   '--auxiliarybar-w': readPreference('aux-w', 0) || 340,
 };
+// Lo que se pinta: 0 es plegada, por preferencia o por falta de lugar. Arranca con la preferida para
+// que el primer frame ya tenga la lista (lo corrige `applyWidths` al montar).
+const sidebarShown = ref(sidebarVisible.value ? preferred['--sidebar-w'] : 0);
+const auxShown = ref(0);
+const sideMin = () => cssSize('--sidebar-min', 240);
+const editorMin = () => cssSize('--editor-min', 360);
 
 function applyWidths() {
   const wb = document.querySelector('.workbench');
-  // ⚠ Sin layout no hay nada que repartir, y repartir cero colapsa las dos columnas a su mínimo y las
-  // deja ahí. Pasa de verdad: una pestaña oculta, una página restaurada de la caché de atrás/adelante
-  // o una vista de impresión informan `innerWidth: 0`. El `resize` vuelve a llamar cuando haya.
+  // ⚠ Sin layout no hay nada que repartir, y repartir cero pliega las dos columnas y las deja ahí.
+  // Pasa de verdad: una pestaña oculta, una página restaurada de la caché de atrás/adelante o una
+  // vista de impresión informan `innerWidth: 0`. El `resize` vuelve a llamar cuando haya.
   if (!wb || !window.innerWidth) return;
-  const hasAux = !!document.querySelector('.auxiliarybar');
-  let sb = sidebarVisible.value ? Math.min(WIDTHS['--sidebar-w'][2], preferred['--sidebar-w']) : 0;
-  let aux = hasAux ? Math.min(WIDTHS['--auxiliarybar-w'][2], preferred['--auxiliarybar-w']) : 0;
-  let missing = sb + aux + MIN_EDITOR - window.innerWidth;
-  if (missing > 0 && hasAux) {
-    const clip = Math.min(missing, aux - WIDTHS['--auxiliarybar-w'][1]);
-    if (clip > 0) { aux -= clip; missing -= clip; }
-  }
-  if (missing > 0 && sidebarVisible.value) sb = Math.max(160, sb - missing);
+  const [aux, sb] = fitRegions(window.innerWidth - editorMin(), [
+    { size: showAux.value ? Math.min(WIDTHS['--auxiliarybar-w'][1], preferred['--auxiliarybar-w']) : 0, min: sideMin() },
+    { size: sidebarVisible.value ? Math.min(WIDTHS['--sidebar-w'][1], preferred['--sidebar-w']) : 0, min: sideMin() },
+  ]);
+  sidebarShown.value = sb;
+  auxShown.value = aux;
   wb.style.setProperty('--sidebar-w', sb + 'px');
   wb.style.setProperty('--auxiliarybar-w', aux + 'px');
-  refreshResizers(wb);
+  nextTick(() => refreshResizers(wb));
 }
 
 function resizeOptions(cssVar, sign) {
-  const [key, min, limit] = WIDTHS[cssVar];
+  const [key, limit] = WIDTHS[cssVar];
+  const isSidebar = cssVar === '--sidebar-w';
   const root = () => document.querySelector('.workbench');
   return {
-    label: cssVar === '--sidebar-w' ? 'Ancho de la lista de tareas' : 'Ancho de las vistas de la tarea',
-    min, sign, defaultValue: cssVar === '--sidebar-w' ? 300 : 340,
-    max: () => {
-      const other = document.querySelector(cssVar === '--sidebar-w' ? '.auxiliarybar' : '.sidebar');
-      return Math.max(160, Math.min(limit, window.innerWidth - (other?.getBoundingClientRect().width || 0) - MIN_EDITOR));
+    label: isSidebar ? 'Ancho de la lista de tareas' : 'Ancho de las vistas de la tarea',
+    min: sideMin, sign, defaultValue: isSidebar ? 300 : 340,
+    max: () => Math.min(limit, window.innerWidth - (isSidebar ? auxShown.value : sidebarShown.value) - editorMin()),
+    get: () => (isSidebar ? sidebarShown.value : auxShown.value),
+    // 0 es plegar, igual que el botón del pie; la medida preferida queda como la última abierta.
+    set: (v) => {
+      if (!v) {
+        // Se pinta 0 en el acto: la manija anuncia lo que se ve, sin esperar al próximo reparto.
+        if (isSidebar) { sidebarVisible.value = false; sidebarShown.value = 0; }
+        else { hideDetail(); auxShown.value = 0; }
+        return;
+      }
+      preferred[cssVar] = v;
+      if (isSidebar) sidebarShown.value = v; else auxShown.value = v;
+      root().style.setProperty(cssVar, v + 'px');
     },
-    get: () => parseFloat(getComputedStyle(root()).getPropertyValue(cssVar)),
-    set: (v) => { preferred[cssVar] = v; root().style.setProperty(cssVar, v + 'px'); },
-    commit: (v) => savePreference(key, v),
+    reopen: () => preferred[cssVar],
+    commit: () => savePreference(key, preferred[cssVar]),
   };
+}
+
+// El botón del pie actúa sobre lo que se VE: una columna plegada por falta de lugar se abre, y si no
+// entra ni en su mínimo se pliega la del otro lado, porque el pedido es explícito y gana.
+function makeRoomFor(isSidebar) {
+  const room = window.innerWidth - editorMin() - (isSidebar ? auxShown.value : sidebarShown.value);
+  const want = preferred[isSidebar ? '--sidebar-w' : '--auxiliarybar-w'];
+  if (reopenSize(want, sideMin(), room)) return;
+  if (isSidebar) hideDetail(); else sidebarVisible.value = false;
+}
+function toggleSidebar() {
+  if (sidebarShown.value) { sidebarVisible.value = false; return; }
+  makeRoomFor(true);
+  sidebarVisible.value = true;
+  nextTick(applyWidths);
+}
+function hideDetail() {
+  if (compactWindow.value) compactDetailOpen.value = false;
+  else auxVisible.value = false;
 }
 
 // Se re-acomoda al abrir, al cambiar el tamaño de la ventana y cuando la ficha aparece o se va —
 // que es cuando cambia cuánto hay para repartir.
 function updateLayout() {
   if (taskMenu.value) closeTaskMenu();
+  viewportHeight.value = window.innerHeight;
   const compact = window.innerWidth <= COMPACT_DETAIL_THRESHOLD;
   if (compact && !compactWindow.value) compactDetailOpen.value = false;
   compactWindow.value = compact;
@@ -1636,7 +1681,7 @@ function documentAction(id) {
          ⚠ Cinco vistas cerradas cuestan 5 filas (~160px), y eso se paga a gusto: los cinco estados
          con su conteo quedan a la vista SIEMPRE, sin desplegar nada. Antes había que abrir un
          grupo para saber cuántas tenía. -->
-    <aside id="tasks-sidebar" class="sidebar" v-show="sidebarVisible" aria-label="Lista de tareas">
+    <aside id="tasks-sidebar" class="sidebar" v-show="sidebarVisible && sidebarShown" aria-label="Lista de tareas">
       <div class="rsz rsz-sb" v-resize="resizeOptions('--sidebar-w', 1)"></div>
       <div class="region-head">
         <span>{{ wideView ? `Mis tareas · ${bySprint.length} sprints` : "Mis tareas" }}</span>
@@ -2086,7 +2131,8 @@ function documentAction(id) {
          principal y el selector de sus repos a la derecha incluso en ventanas medianas. -->
     <section v-if="showBranchConsole" id="context-branches-panel" class="panel ramas-panel"
              :class="{ 'sin-ramas': !activeTaskBranches.branches.length }"
-             :style="{ height: (activeTaskBranches.branches.length ? branchConsoleHeight : 76) + 'px' }">
+             :data-size="activeTaskBranches.branches.length ? null : 'fixed'"
+             :style="{ height: (activeTaskBranches.branches.length ? branchConsoleShown : 76) + 'px' }">
       <div v-if="activeTaskBranches.branches.length" class="rsz rsz-panel" v-resize="branchPanelResize"></div>
       <RepoBranches :snapshot="activeTaskBranches" :task-label="active?.Summary || ''"
                     :refreshing="refreshingBranches" :refresh-error="branchesError"
@@ -2095,7 +2141,7 @@ function documentAction(id) {
 
     <!-- AUXILIARYBAR · consultas que conviene mantener al lado del trabajo: el contrato publicado
          (Jira), el checklist accionable (Pendientes) y los Artifacts navegables. -->
-    <aside id="task-views" v-if="showAux" class="auxiliarybar" aria-label="Vistas de la tarea">
+    <aside id="task-views" v-if="showAux && auxShown" class="auxiliarybar" aria-label="Vistas de la tarea">
       <div class="rsz rsz-aux" v-resize="resizeOptions('--auxiliarybar-w', -1)"></div>
       <nav class="aux-tabs" role="tablist" aria-label="Contenido de la tarea">
         <button v-for="v in auxViews" :key="v.id" type="button" role="tab" class="aux-tab"
@@ -2168,8 +2214,8 @@ function documentAction(id) {
       <span v-else-if="syncError" class="sync-state sync-error" :title="syncError">Jira sin actualizar</span>
       <span v-if="active" class="sb-act">{{ active._local ? 'local' : active.Key }}</span>
       <div class="layout-controls" role="group" aria-label="Regiones visibles">
-        <button type="button" class="region-action" :aria-pressed="sidebarVisible" aria-controls="tasks-sidebar"
-                aria-label="Mostrar u ocultar tareas" title="Mostrar u ocultar tareas" @click="sidebarVisible = !sidebarVisible">
+        <button type="button" class="region-action" :aria-pressed="!!(sidebarVisible && sidebarShown)" aria-controls="tasks-sidebar"
+                aria-label="Mostrar u ocultar tareas" title="Mostrar u ocultar tareas" @click="toggleSidebar">
           <span class="ui-icon" data-icon="sidebar" aria-hidden="true"></span>
         </button>
         <button v-if="active" ref="branchPanelToggle" type="button" class="region-action sb-console"
@@ -2178,7 +2224,7 @@ function documentAction(id) {
           <span class="ui-icon" data-icon="console" aria-hidden="true"></span>
           <span>Ramas</span><span class="sb-count">{{ activeTaskBranches.branches.length }}</span>
         </button>
-        <button type="button" class="region-action" :aria-pressed="showAux" :disabled="!active"
+        <button type="button" class="region-action" :aria-pressed="!!(showAux && auxShown)" :disabled="!active"
                 aria-label="Mostrar u ocultar vistas" title="Mostrar u ocultar vistas" @click="toggleDetail">
           <span class="ui-icon" data-icon="detail" aria-hidden="true"></span>
         </button>
