@@ -204,7 +204,6 @@ function script(data: AutofillData) {
      * genérico. El orden no es cosmético — «segundo apellido» tiene que probarse antes que «apellido»,
      * y «fecha de expedicion» antes que cualquier `date`. */
     const RULES: [RegExp, string][] = [
-        [/otp|codigo de verificacion|codigo sms|verification/, data.otp],
         [/segundo nombre|middle/, data.segundoNombre],
         [/segundo apellido|second last|apellido materno/, data.segundoApellido],
         [/primer apellido|apellido paterno|last ?name|apellidos?/, data.apellido],
@@ -246,6 +245,18 @@ function script(data: AutofillData) {
      */
     const IS_DOWN_PAYMENT = /cuota inicial|initial ?fee|enganche|down ?payment/;
 
+    /* ⚠ QUÉ OTP VA LO DICE EL LARGO DEL CAMPO, NO SU NOMBRE. El de la firma del pagaré
+     * (`/otp-validation`) se llama `otp` igual que el del ingreso, pero pide 6 dígitos: con la regla por
+     * nombre se llenaba con los 4 del ingreso (`0101`) y el «Continuar» no se habilitaba. Los dos salen
+     * del mismo componente (`Otp` de shared-components, con su `pinLength` como `maxLength`). */
+    const IS_OTP = /otp|codigo de verificacion|codigo sms|verification/;
+    function otpFor(el: HTMLInputElement | HTMLTextAreaElement): string {
+        const max = Number(el.getAttribute('maxlength') || 0);
+        if (max >= 6) return data.otpFirma;
+        if (max > 0 && max < 4) return data.otp.slice(0, max);
+        return data.otp;
+    }
+
     /** El mínimo que la pantalla declara para la cuota inicial, en dígitos. `null` si no dice ninguno. */
     function declaredMinimum(): string | null {
         const m = (document.body.innerText || '')
@@ -263,6 +274,7 @@ function script(data: AutofillData) {
         if (data.codigoApp && /\/codigo\/?$/.test(location.pathname)) return data.codigoApp;
         const p = hint(el);
         if (IS_DOWN_PAYMENT.test(p)) return declaredMinimum();
+        if (IS_OTP.test(p)) return otpFor(el);
         for (const [re, value] of RULES) if (re.test(p)) return value;
         const kind = (el as HTMLInputElement).type || 'text';
         if (kind === 'email') return data.email;
@@ -272,9 +284,7 @@ function script(data: AutofillData) {
         if (kind === 'password') return null;   // no se adivinan credenciales
         // Un texto sin pista: el maxLength delata a los códigos cortos (OTP partido en casillas).
         const max = Number(el.getAttribute('maxlength') || 0);
-        if (max > 0 && max <= 2) return data.otp.slice(0, max);
-        if (max === 4) return data.otp;
-        if (max === 6) return data.otpFirma;
+        if ([1, 2, 4, 6].includes(max)) return otpFor(el);
         return null;
     }
 
