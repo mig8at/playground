@@ -440,6 +440,14 @@ func (w *writer) place(n Node, parent *Node, root bool, css *style) {
 			counter = "FIXED"
 		}
 	}
+	// CSS pinta lo POSICIONADO encima de lo que no lo está, sin mirar el orden del documento; Figma pinta
+	// por orden de capas. Un hijo en el flujo que en Figma va DESPUÉS de uno en absoluta quedaba tapado por
+	// él: en la barra de pasos de Motai (1:6660), la barra morada —absoluta, y 12–20 px de alto— tapaba el
+	// trazo blanco de los tres chulos, que van en el grupo de círculos, encima en Figma. Posicionado, el
+	// hijo vuelve a pintarse en el orden de las capas.
+	if afterAbsolute(*parent, n.ID) {
+		css.setDefault("position", "relative")
+	}
 	if parent.ItemSpacing < 0 && parent.PrimaryAlign != "SPACE_BETWEEN" && parent.LayoutWrap != "WRAP" {
 		ids := inFlowIDs(*parent)
 		for i, id := range ids {
@@ -1071,6 +1079,20 @@ func (r *Report) token(name string) {
 		r.Tokens = map[string]int{}
 	}
 	r.Tokens[name]++
+}
+
+// afterAbsolute: si en el orden de capas del padre hay un hermano visible en absoluta ANTES que este hijo.
+func afterAbsolute(parent Node, id string) bool {
+	seen := false
+	for _, ch := range parent.Children {
+		if ch.ID == id {
+			return seen
+		}
+		if visible(ch.Visible) && ch.LayoutPositioning == "ABSOLUTE" {
+			seen = true
+		}
+	}
+	return false
 }
 
 // inFlowIDs son los hijos que ocupan lugar en un auto-layout: visibles y no en posición absoluta.

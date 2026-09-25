@@ -84,10 +84,22 @@ async function measure(browser, compare, key, id, w, h) {
     await ctx.close()
     return { error: `el HTML respondió ${res ? res.status() : '—'}: ${body}` }
   }
-  // Las fuentes y los SVG llegan después del HTML: sin esperarlos, se mide una pantalla sin letras.
+  // Las fuentes, los SVG y las imágenes llegan después del HTML: sin esperarlos, se mide una pantalla sin
+  // letras o sin fotos. ⚠ Las imágenes de RELLENO van como fondo CSS (`background: url(...)`), que no está
+  // en `document.images`: sin esperarlas, la primera medición de una pantalla con una foto de fondo salía
+  // sin la foto —medido en Alta 192:4108, 96,2 % en una tanda y 99,4 % al repetirla—.
   await page.evaluate(async () => {
     await document.fonts.ready
-    await Promise.all([...document.images].map((img) => img.complete ? null : new Promise((r) => { img.onload = img.onerror = r })))
+    const backgrounds = new Set()
+    for (const el of document.querySelectorAll('*')) {
+      for (const m of getComputedStyle(el).backgroundImage.matchAll(/url\("?([^")]+)"?\)/g)) backgrounds.add(m[1])
+    }
+    await Promise.all([
+      ...[...document.images].map((img) => img.complete ? null : new Promise((r) => { img.onload = img.onerror = r })),
+      ...[...backgrounds].map((u) => new Promise((r) => { const i = new Image(); i.onload = i.onerror = r; i.src = u })),
+    ])
+    // Cargada no es pintada: dos cuadros para que el fondo llegue a la pantalla.
+    await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)))
   })
   const shot = (await page.screenshot({ clip: { x: 0, y: 0, width: w, height: h } })).toString('base64')
   await ctx.close()

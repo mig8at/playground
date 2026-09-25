@@ -308,6 +308,15 @@ cargara una imagen: antes de creerle a una caída, medila sola con `SOLO=<id>`. 
   hacia abajo. Va como margen negativo desde el segundo hijo, y con `itemReverseZIndex` el primero queda
   ENCIMA (`z-index` descendente). Medido en los cuatro flujos: 11 pantallas mejoran y ninguna empeora —la
   bienvenida 95,7 → 99,0 %, Motai 42:2144 65,2 → 98,5 %—.
+- **CSS pinta lo POSICIONADO encima de lo que no lo está; Figma, por orden de capas.** Un hijo en el flujo
+  que en Figma va DESPUÉS de un hermano en absoluta quedaba tapado: en la barra de pasos de Motai (1:6660)
+  la barra morada —absoluta, de y=12 a 20— tapaba el trazo blanco de los tres chulos (y=12 a 19,3), que el
+  SVG del grupo de círculos sí traía. Ese hijo va con `position: relative` y vuelve a pintarse en orden.
+  Medido en los cuatro flujos (240 pantallas): 1:6660 queda en 100 % real, y otras siete suben —seis de
+  Motai y dos de Credifamilia a 100 %, Ecommerce 1316:4181 de 98,0 a 99,2 % píxel a píxel—; ninguna baja.
+  ⚠ En esa tanda dos de Alta salieron más bajas (192:4108: 96,2 %) y al repetirlas daban lo de siempre
+  (99,4 %): la foto de relleno va como FONDO CSS y la medición sólo esperaba las `<img>`. Ahora espera
+  también los fondos.
 - **Un marco en absoluta que además tiene hijos no se puede pisar con `position: relative`** para
   ubicarlos: ya sirve de referencia siendo absoluto.
 - **En la medición**, dos trampas que dieron números falsos: la exportación de Figma deja transparente

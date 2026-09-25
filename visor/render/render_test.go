@@ -413,3 +413,20 @@ func TestNegativeSpacingOverlapsChildren(t *testing.T) {
 		}
 	}
 }
+
+// CSS pinta lo posicionado encima de lo que no lo está; Figma, por orden de capas. Un hijo en el flujo
+// que va DESPUÉS de uno en absoluta tiene que posicionarse para quedar encima (los chulos de la barra de
+// pasos de Motai, tapados por la barra morada); el que va ANTES no se toca.
+func TestInFlowAfterAbsoluteStaysOnTop(t *testing.T) {
+	before := Node{ID: "2", Type: "RECTANGLE", Box: box(0, 0, 10, 10), Fills: solid(1, 0, 0)}
+	bar := Node{ID: "3", Type: "RECTANGLE", LayoutPositioning: "ABSOLUTE", Box: box(0, 12, 288, 8), Fills: solid(0.3, 0.22, 1)}
+	checks := Node{ID: "4", Type: "RECTANGLE", Box: box(0, 0, 288, 32), Fills: solid(1, 1, 1)}
+	parent := Node{ID: "1", Type: "FRAME", LayoutMode: "VERTICAL", Box: box(0, 0, 288, 64), Children: []Node{before, bar, checks}}
+	doc, _ := HTML(parent, Assets{})
+	if !strings.Contains(styleOf(t, doc, "4"), "position:relative") {
+		t.Errorf("el que va después de la absoluta se posiciona: %s", styleOf(t, doc, "4"))
+	}
+	if strings.Contains(styleOf(t, doc, "2"), "position:") {
+		t.Errorf("el que va antes no se toca: %s", styleOf(t, doc, "2"))
+	}
+}
