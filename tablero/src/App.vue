@@ -2247,8 +2247,10 @@ function documentAction(id) {
 /* (El encabezado de cada grupo es `.region-head.grupo` de `taller.css`: misma forma que el de la
    vista, pegajoso mientras se recorre el grupo.) */
 .tree-item { position: relative; min-width: 0 }
-.tree-row { display: flex; align-items: center; gap: 7px; width: calc(100% - 10px); min-height: 30px;
-  margin: 1px 5px; padding: 4px 31px 4px 9px; border: 0; border-radius: var(--radius-md);
+/* Medidas del taller: fila de 28, el texto a 12 del borde (4 de aire afuera + 8 adentro, igual que el
+   encabezado del grupo) y 36 a la derecha para el botón de 24 que avanza la tarea. */
+.tree-row { display: flex; align-items: center; gap: var(--space-2); width: calc(100% - 2 * var(--space-1)); min-height: var(--row-h);
+  margin: 0 var(--space-1); padding: var(--space-1) 36px var(--space-1) var(--space-2); border: 0; border-radius: var(--radius-control);
   background: none; color: inherit; font: inherit; cursor: pointer; text-align: left;
   box-shadow: inset 2px 0 0 transparent }
 .tree-row:hover { background: var(--sel) }
@@ -2257,22 +2259,22 @@ function documentAction(id) {
 .tree-row.sel { background: color-mix(in oklab, var(--acc) 10%, var(--sel)); box-shadow: inset 2px 0 0 var(--acc) }
 .tree-row.done { color: var(--texto-3) }
 .tree-row.done.sel, .tree-row.done:hover { color: var(--txt) }
-.tree-state { position: absolute; z-index: 1; right: 8px; top: 50%; translate: 0 -50%; display: grid;
-  place-items: center; width: 23px; height: 23px; padding: 0; border: 0; border-radius: var(--radius);
+.tree-state { position: absolute; z-index: 1; right: var(--space-2); top: 50%; translate: 0 -50%; display: grid;
+  place-items: center; width: var(--control-xs); height: var(--control-xs); padding: 0; border: 0; border-radius: var(--radius-control);
   background: transparent; color: var(--mut); cursor: pointer; opacity: .72 }
 .tree-state:hover, .tree-state:focus-visible, .tree-item:focus-within .tree-state { opacity: 1; color: var(--txt); background: var(--line) }
-.tree-state .ui-icon { width: 13px; height: 13px }
-.tr-dot { width: 7px; height: 7px; border-radius: 50%; flex: none; background: var(--mut) }
+.tree-state .ui-icon { width: var(--icon-size); height: var(--icon-size) }
+.tr-dot { width: 8px; height: 8px; border-radius: 50%; flex: none; background: var(--mut) }
 .tr-dot.e-ok { background: var(--ok) } .tr-dot.e-doing { background: var(--acc) }
-.tr-key { font: 10.5px var(--font-mono); color: var(--mut); flex: none }
+.tr-key { font: var(--text-xs) var(--font-mono); color: var(--mut); flex: none }
 /* Sobre el fondo de la fila elegida la rampa ya no alcanza (--mut quedaba en 4,05:1): la clave sube a tinta plena. */
 .tree-row.sel .tr-key { color: var(--txt) }
-.tr-tt { flex: 1; min-width: 0; font-size: 12.5px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap }
-.tr-n { font-size: 9.5px; font-weight: 700; color: var(--warn); flex: none; white-space: nowrap }
-.tr-z { font-size: 10px; color: var(--mut); flex: none }
+.tr-tt { flex: 1; min-width: 0; font-size: var(--text-base); overflow: hidden; text-overflow: ellipsis; white-space: nowrap }
+.tr-n { font-size: var(--text-xs); font-weight: 600; color: var(--warn); flex: none; white-space: nowrap }
+.tr-z { font-size: var(--text-xs); color: var(--mut); flex: none }
 
-.sidebar-jira { padding: 12px 10px; display: flex; flex-direction: column; gap: 10px; align-items: flex-start }
-.sidebar-jira .mut { font-size: 11.5px; line-height: 1.5 }
+.sidebar-jira { padding: var(--space-3) var(--gutter); display: flex; flex-direction: column; gap: var(--space-2); align-items: flex-start }
+.sidebar-jira .mut { font-size: var(--text-sm); line-height: 1.5 }
 
 /* EL EDITOR SIN TAREA — el sprint o el import, según qué vista del acordeón esté abierta. Acota el
    ancho de LECTURA (no el del contenedor): una línea de 120 caracteres no se lee, y el editor puede
@@ -2300,23 +2302,23 @@ function documentAction(id) {
    «siguiente paso»: lo que se decida después entra como otro bloque. El margen de arriba deja que un
    bloque citado quede debajo del día pegado y no tapado por él. */
 .task-block { scroll-margin-top: 48px }
-.block-title { margin: 0 0 6px; color: var(--txt); font-size: 13.5px; font-weight: 600; line-height: 1.45 }
-.block-list { margin: 0 0 7px; padding-left: 18px; font-size: 13px; line-height: 1.55 }
+.block-title { margin: 0 0 6px; color: var(--txt); font-size: var(--text-body); font-weight: 600; line-height: 1.45 }
+.block-list { margin: 0 0 7px; padding-left: 18px; font-size: var(--text-base); line-height: 1.55 }
 .block-list li + li { margin-top: 3px }
 /* Un comando es un callout: barra a la izquierda y un tinte, cuadrado. Su rótulo dice con qué se corrió
    y contra qué ambiente; debajo, lo que dio. */
 .block-command { margin: 2px 0 9px; padding: 8px 10px; border-left: 2px solid var(--line2); background: var(--panel2) }
-.block-command-label { margin-bottom: 5px; color: var(--mut); font-size: 11px }
-.block-code { margin: 0; color: var(--txt); font: 11.5px/1.5 var(--mono, ui-monospace, monospace); white-space: pre-wrap; overflow-wrap: anywhere }
+.block-command-label { margin-bottom: 5px; color: var(--mut); font-size: var(--text-xs) }
+.block-code { margin: 0; color: var(--txt); font: var(--text-sm)/1.5 var(--mono, ui-monospace, monospace); white-space: pre-wrap; overflow-wrap: anywhere }
 .block-material { margin: 2px 0 9px; padding: 8px 10px; background: var(--panel2) }
 /* Una tabla son líneas por FILA, no una grilla de celdas (regla 4 del CLAUDE.md raíz); el encabezado se
    distingue en gris, no con fondo. */
-.block-table { margin: 2px 0 9px; border-collapse: collapse; font-size: 12.5px; line-height: 1.45 }
+.block-table { margin: 2px 0 9px; border-collapse: collapse; font-size: var(--text-base); line-height: 1.45 }
 .block-table th, .block-table td { padding: 4px 12px 4px 0; text-align: left; vertical-align: top; border-bottom: 1px solid var(--line) }
 .block-table th { color: var(--mut); font-weight: 600 }
-.task-context-entry .block-result { margin: 6px 0 0; font-size: 12.5px }
+.task-context-entry .block-result { margin: 6px 0 0; font-size: var(--text-base) }
 .block-result-label { color: var(--mut) }
-.task-context-entry p { margin: 0 0 7px; font-size: 13px; line-height: 1.55 }
+.task-context-entry p { margin: 0 0 7px; font-size: var(--text-base); line-height: 1.55 }
 .task-reference { min-width: 0; max-width: 920px }
 /* La línea separa la pila del documento: sin pila arriba quedaría huérfana en el borde del cuerpo. */
 .task-context-timeline + .task-reference { margin-top: 10px; padding-top: 20px; border-top: 1px solid var(--line) }
@@ -2325,28 +2327,31 @@ function documentAction(id) {
 /* LA FICHA — lo que la tarjeta mostraba de un vistazo, ahora con el ancho del editor. */
 .ficha { padding-bottom: 14px; margin-bottom: 14px; border-bottom: 1px solid var(--line) }
 
-.sb-act { margin-left: auto; font: 11px var(--font-mono); color: var(--txt) }
-.sync-state { color: var(--mut); font-size: 10.5px }
+.sb-act { margin-left: auto; font: var(--text-xs) var(--font-mono); color: var(--txt) }
+.sync-state { color: var(--mut); font-size: var(--text-xs) }
 .sync-error { color: var(--warn) }
 .sync-state + .sb-act { margin-left: 0 }
-.sb-console { display:inline-flex; align-items:center; width:auto; gap:5px; padding:0 7px; font-size:10.5px }
+.sb-console { display:inline-flex; align-items:center; width:auto; gap:5px; padding:0 7px; font-size:var(--text-xs) }
 .sb-console .ui-icon { width:13px; height:13px }
 .sb-count { min-width:17px; padding:0 4px; color:var(--txt); background:var(--line2);
-  border-radius:999px; font-size:9px; font-variant-numeric:tabular-nums }
+  border-radius:999px; font-size:var(--text-xs); font-variant-numeric:tabular-nums }
 
 /* El riel permanece en una sola línea: a 340px no caben seis nombres sin desplazar, y partirlo en dos
    filas volvería a quitarle alto al contenido. La pestaña activa se une al cuerpo con la línea baja. */
-.aux-tabs { display: flex; flex: none; min-width: 0; gap: 2px; padding: 4px 6px;
+/* La barra de pestañas ES la banda superior de la región: 40 con su línea, como el encabezado de al
+   lado, así la costura sigue derecha. Las pestañas son filas de 28 centradas adentro. */
+.aux-tabs { display: flex; flex: none; align-items: center; min-width: 0; gap: var(--space-1); box-sizing: border-box;
+  height: var(--region-head-h); padding: 0 var(--space-2);
   overflow-x: auto; overflow-y: hidden; border-bottom: 1px solid var(--line);
   background: var(--panel2); scrollbar-width: thin }
-.aux-tab { display: flex; align-items: center; gap: 5px; flex: none; height: 28px; padding: 0 9px;
-  border: 0; border-radius: var(--radius-md); background: none; color: var(--mut);
-  font: inherit; font-size: 11px; cursor: pointer; white-space: nowrap }
+.aux-tab { display: flex; align-items: center; gap: 6px; flex: none; height: var(--row-h); padding: 0 var(--space-2);
+  border: 0; border-radius: var(--radius-control); background: none; color: var(--mut);
+  font: inherit; font-size: var(--text-sm); cursor: pointer; white-space: nowrap }
 .aux-tab:hover { color: var(--txt); background: var(--sel) }
 .aux-tab.activa { color: var(--txt); background: var(--background); box-shadow: 0 1px 2px rgb(0 0 0 / .16) }
-.aux-count { min-width: 16px; padding: 0 4px; border-radius: 999px; background: var(--line2);
-  color: var(--txt); font-size: 9px; font-variant-numeric: tabular-nums; text-align: center }
-.aux-tab-panel { display: flex; flex-direction: column; padding: 12px 14px 20px }
+.aux-count { min-width: 16px; padding: 0 5px; border-radius: 999px; background: var(--line2);
+  color: var(--txt); font-size: var(--text-xs); line-height: 16px; font-variant-numeric: tabular-nums; text-align: center }
+.aux-tab-panel { display: flex; flex-direction: column; padding: var(--space-4) var(--space-4) var(--space-6) }
 .aux-alerta { color: var(--warn); font-style: normal; font-size: 8px; flex: none }
 
 /* ── LAS MANIJAS ─────────────────────────────────────────────────────────────────────────────────
@@ -2374,7 +2379,9 @@ function documentAction(id) {
 /* ── LAS PESTAÑAS DEL EDITOR ─────────────────────────────────────────────────────────────────────
    La activa se marca con una línea ARRIBA y el fondo del editor, como en VS Code: la línea dice cuál
    es sin depender de que el ojo compare fondos, y el fondo la une con el contenido de abajo. */
-.editor-tabs { display: flex; flex: none; gap: 2px; padding: 3px 6px 0; overflow-x: auto;
+/* Banda de 40 como las demás: 4 de aire arriba y la pestaña de 36 apoyada en la línea de abajo. */
+.editor-tabs { display: flex; flex: none; align-items: stretch; gap: 2px; box-sizing: border-box;
+  height: var(--region-head-h); padding: var(--space-1) var(--space-1) 0; overflow-x: auto; overflow-y: hidden;
   background: var(--panel2); border-bottom: 1px solid var(--line); scrollbar-width: thin }
 .et { display: flex; align-items: center; flex: none; max-width: 200px;
   border-radius: var(--radius-md) var(--radius-md) 0 0; position: relative }
@@ -2382,22 +2389,22 @@ function documentAction(id) {
   border-radius: 2px 2px 0 0; background: transparent }
 .et.act::before { background: var(--acc) }
 .et.act { background: var(--background) }
-.et-b { display: flex; align-items: center; gap: 7px; min-width: 0; border: 0; background: none;
-  color: var(--mut); font: inherit; font-size: 12px; padding: 7px 4px 7px 10px; cursor: pointer }
+.et-b { display: flex; align-items: center; gap: var(--space-2); min-width: 0; border: 0; background: none;
+  color: var(--mut); font: inherit; font-size: var(--text-sm); padding: 0 var(--space-1) 0 var(--gutter); cursor: pointer }
 .et.act .et-b { color: var(--txt) }
 /* ⚠ La PREVISTA en itálica, igual que VS Code: es la única señal de que el próximo clic en el árbol
    la va a reemplazar. Sin marca, el reemplazo se lee como que la pestaña «se perdió». */
 .et.previa .et-k { font-style: italic }
 .et-k { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-family: var(--font-mono);
-  font-size: 11px }
+  font-size: var(--text-xs) }
 /* Sobre `.btn.btn-ghost.btn-icon.btn-xs`: la ✕ de la pestaña aparece al pasar por encima. */
-.et-x { color: var(--mut); font-size: 15px; line-height: 1; opacity: 0 }
+.et-x { color: var(--mut); font-size: var(--text-title); line-height: 1; opacity: 0 }
 .et:hover .et-x, .et.act .et-x, .et-x:focus-visible { opacity: 1 }
 .et-x:hover { background: var(--sel); color: var(--txt) }
 /* ⚠ El contador del encabezado es la ÚNICA señal de que hay un filtro puesto, ahora que las casillas
    viven en el menú. Cuando filtra, deja de ser un número apagado y se prende: si no se nota, el
    filtro se olvida encendido y la tarea que falta se lee como «no existe». */
-.region-head .cnt { font-size: 10.5px; font-weight: 700; font-variant-numeric: tabular-nums;
+.region-head .cnt { font-size: var(--text-xs); font-weight: 600; font-variant-numeric: tabular-nums;
   color: var(--mut); flex: none }
 .region-head .cnt.filtrando { color: var(--warn) }
 
@@ -2410,11 +2417,11 @@ function documentAction(id) {
    de origen para que una transición nunca parezca una acción genérica sobre toda la lista. */
 .task-context-menu { width: min(270px, calc(100vw - 16px)) }
 .task-menu-head { margin: 0 5px 4px; padding: 5px 5px 7px; border-bottom: 1px solid var(--line);
-  color: var(--mut); font-size: 11px }
+  color: var(--mut); font-size: var(--text-xs) }
 .task-menu-head b { color: var(--txt); font-weight: 600 }
 .task-transition .ui-icon { color: var(--mut) }
 .task-menu-error { white-space: normal; line-height: 1.35 }
-.mv-tag { font-size: 9.5px; font-weight: 700; color: var(--ok); text-transform: uppercase; letter-spacing: .3px }
+.mv-tag { font-size: var(--text-xs); font-weight: 600; color: var(--ok); text-transform: none;}
 
 /* LA FILA DEL BUSCADOR. Desde que las casillas de estado se fueron al ⋯ es lo único que hay en ella,
    así que el buscador ocupa el ancho del sidebar y se achica con él.
@@ -2429,12 +2436,12 @@ function documentAction(id) {
 .fbusca:focus-within, .fbusca.act { border-color: color-mix(in srgb, var(--acc) 45%, transparent);
   background: var(--card) }
 /* Adentro del grupo el campo va DESNUDO: el borde y el anillo los lleva la etiqueta. */
-.fbusca .input { font-size: 12px }
+.fbusca .input { font-size: var(--text-sm) }
 .fbusca .input::placeholder { color: var(--mut) }
 /* La X nativa de `type=search` no existe en todos los navegadores: se pone una propia y se esconde. */
 .fbusca input::-webkit-search-cancel-button { display: none }
 /* Sobre `.btn.btn-ghost.btn-icon.btn-xs`: sólo el glifo, que es más grande que el texto del botón. */
-.fx { color: var(--mut); font-size: 15px; line-height: 1 }
+.fx { color: var(--mut); font-size: var(--text-title); line-height: 1 }
 /* «ver todas» del estado vacío: un enlace, no un botón — deshacer un filtro no compite con nada. */
 .lnk { border: 0; background: transparent; color: var(--acc); font: inherit; font-size: inherit;
   cursor: pointer; padding: 0; margin-left: 6px; text-decoration: underline }
@@ -2443,7 +2450,7 @@ function documentAction(id) {
    «Tablero · Sprint N · registro de tiempo y hallazgos» y gastaba 77px de alto en repetir lo que ya
    dicen la pestaña del navegador y el statusbar. Su única acción —«sólo este sprint»— está en el
    menú ⋯ del sidebar. */
-.chip { padding: 4px 11px; color: var(--mut); font-size: 12px; gap: 6px }
+.chip { padding: 4px 11px; color: var(--mut); font-size: var(--text-sm); gap: 6px }
 
 /* ⚠ Los cuatro indicadores ya se separan ENTRE SÍ con el `border-right` de cada celda: el marco de
    afuera con su radio era una segunda forma de decir «esto es un bloque», y encima obligaba a
@@ -2453,9 +2460,9 @@ function documentAction(id) {
   border-bottom: 1px solid var(--line) }
 .stat { background: var(--card); border: 0; border-right: 1px solid var(--line); padding: 12px 16px }
 .stat:last-child { border-right: 0 }
-.stat .k { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .5px; color: var(--mut) }
+.stat .k { font-size: var(--text-xs); font-weight: 600; text-transform: none; color: var(--mut) }
 .stat .v { font-size: 22px; font-weight: 600; margin: 3px 0 2px; letter-spacing: -.5px; font-variant-numeric: tabular-nums }
-.stat .s { font-size: 11.5px; color: var(--mut) }
+.stat .s { font-size: var(--text-sm); color: var(--mut) }
 /* ⚠ Este modificador se llamaba `.alert` y el componente compartido se lo comió: `taller.css`
    declara `.alert` como el AVISO de shadcn, que es `display: grid` con una primera columna de 16px
    para el icono. Un `.stat.alert` quedaba convertido en esa grilla y sus hijos caían en la columna
@@ -2483,10 +2490,10 @@ function documentAction(id) {
 /* ⚠ Acá vivían `.tgrid` y `.task`: la grilla de tarjetas y la tarjeta. Se fueron con la
    reestructuración — las tareas son filas del árbol en el sidebar (`.tree-row`) y su contenido es el
    editor. */
-.key { font-weight: 800; font-size: 12.5px; font-variant-numeric: tabular-nums }
+.key { font-weight: 600; font-size: var(--text-base); font-variant-numeric: tabular-nums }
 /* Sobre `.badge.badge-outline`: el estado en Jira. El color lo pone `statusClass`, que devuelve sólo
    el estado — los mismos tres nombres pintan también el PUNTO del árbol, que no es una píldora. */
-.status { font-size: 10.5px; padding: 2px 8px }
+.status { font-size: var(--text-xs); padding: 2px 8px }
 .e-ok { color: var(--txt); border-color: var(--line2); background: var(--panel2) }
 .e-doing { color: var(--accent-foreground); border-color: var(--acc); background: var(--accent) }
 .e-todo { color: var(--mut); border-color: var(--line); background: var(--panel2) }
@@ -2496,10 +2503,10 @@ function documentAction(id) {
 .orig.carried { color: var(--bad) }
 .orig.carried i { background: var(--bad) }
 
-.fld { display: flex; align-items: baseline; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .5px; color: var(--mut); margin-bottom: 7px }
+.fld { display: flex; align-items: baseline; font-size: var(--text-xs); font-weight: 600; text-transform: none; color: var(--mut); margin-bottom: 7px }
 .fld em { font-style: normal; text-transform: none; letter-spacing: 0; color: var(--tenue); font-weight: 400; margin-left: 5px }
 /* descripción completa de Jira (acá NO se recorta: es lo que se pidió ver entero) */
-.desc { font-size: 13px; line-height: 1.55; color: var(--txt); margin: 0; white-space: pre-wrap }
+.desc { font-size: var(--text-base); line-height: 1.55; color: var(--txt); margin: 0; white-space: pre-wrap }
 .desc.none { color: var(--mut); font-style: italic }
 /* un artifact en el panel: el tipo a la izquierda, el nombre del archivo abajo (es lo que lo identifica
    en disco). Es un botón —se aprieta y abre—, así que lleva su marco como cualquier objeto. */
@@ -2507,38 +2514,38 @@ function documentAction(id) {
   background: none; border: 1px solid var(--line); border-radius: var(--radius); padding: 12px 14px; margin-bottom: 9px;
   font: inherit; color: var(--txt) }
 .artifact-row:hover { border-color: var(--acc); background: var(--secondary) }
-.artifact-type { flex: none; min-width: 44px; justify-content: center; font: 600 10px/1.6 var(--mono); color: var(--mut) }
+.artifact-type { flex: none; min-width: 44px; justify-content: center; font: 600 var(--text-xs)/1.6 var(--mono); color: var(--mut) }
 .artifact-row:hover .artifact-type { color: var(--txt) }
 .artifact-txt { flex: 1; min-width: 0 }
-.artifact-txt b { display: block; font-size: 13.5px; font-weight: 600 }
+.artifact-txt b { display: block; font-size: var(--text-body); font-weight: 600 }
 .artifact-txt b::first-letter { text-transform: uppercase }
-.artifact-file { display: block; font-size: 11px; color: var(--mut); font-family: var(--mono);
+.artifact-file { display: block; font-size: var(--text-xs); color: var(--mut); font-family: var(--mono);
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap; margin-top: 2px }
-.artifact-open { color: var(--mut); font-size: 12px }
+.artifact-open { color: var(--mut); font-size: var(--text-sm) }
 .artifact-row:hover .artifact-open { color: var(--acc) }
 /* handoff a QA: la ÚNICA acción del tablero que escribe en Jira y manda un mensaje, así que el envío
    pasa por una previsualización editable. `.qa-go` es el botón de confirmar dentro del panel, que se
    abre al mover la tarea hacia Testing desde el menú de estados. */
 /* La única acción del tablero que escribe afuera: es la PRIMARIA, o sea `.btn` a secas. */
-.qa-go { height: 32px; font-size: 12.5px; font-weight: 600 }
+.qa-go { height: 32px; font-size: var(--text-base); font-weight: 600 }
 .qa-go:hover:not(:disabled) { background: var(--acc) }
 .qa-go:disabled { opacity: .45; cursor: default }
-.qa-no { height: 32px; font-size: 12.5px; color: var(--mut) }
+.qa-no { height: 32px; font-size: var(--text-base); color: var(--mut) }
 .qa-no:hover:not(:disabled) { color: var(--txt) }
 .qa-box { padding: 13px; margin-top: 10px; background: var(--panel2) }
-.qa-head { font-size: 12.5px; color: var(--mut); margin: 0 0 11px }
+.qa-head { font-size: var(--text-base); color: var(--mut); margin: 0 0 11px }
 .qa-head b { color: var(--txt); font-weight: 600 }
 .qa-box textarea { width: 100%; box-sizing: border-box; background: var(--card); color: var(--txt);
-  border: 1px solid var(--line); border-radius: var(--radius); padding: 9px 11px; font: inherit; font-size: 12.5px;
+  border: 1px solid var(--line); border-radius: var(--radius); padding: 9px 11px; font: inherit; font-size: var(--text-base);
   line-height: 1.5; resize: vertical }
 .qa-acts { display: flex; gap: 8px; margin-top: 11px }
-.qa-done { font-size: 12.5px; color: var(--ok); margin: 9px 0 0 }
-.qa-err { font-size: 12.5px; color: var(--bad); margin: 9px 0 0 }
+.qa-done { font-size: var(--text-base); color: var(--ok); margin: 9px 0 0 }
+.qa-err { font-size: var(--text-base); color: var(--bad); margin: 9px 0 0 }
 /* el guard: si el aviso menciona algo interno, se listan los motivos y el envío queda rechazado */
-.qa-bad { margin: 9px 0 0; padding-left: 18px; font-size: 12px; color: var(--bad) }
+.qa-bad { margin: 9px 0 0; padding-left: 18px; font-size: var(--text-sm); color: var(--bad) }
 
 /* etapa del esfuerzo: evaluar → trabajar → crear las tareas */
-.stg { font-size: 9.5px; font-weight: 700; letter-spacing: .3px; padding: 2px 7px; border-radius: 999px;
+.stg { font-size: var(--text-xs); font-weight: 600; letter-spacing: .3px; padding: 2px 7px; border-radius: 999px;
   border: 1px solid var(--line); color: var(--mut); text-transform: none; white-space: nowrap }
 .s-work { color: var(--warn); border-color: color-mix(in oklab, var(--warn) 28%, var(--card)); background: color-mix(in oklab, var(--warn) 18%, var(--card)) }
 .s-tasks { color: var(--txt); border-color: var(--line2); background: var(--panel2) }
@@ -2553,7 +2560,7 @@ function documentAction(id) {
    estado vacío ENTERO —columna centrada, alto completo, medio de 40px— y estos son NOTAS de una
    línea que explican una vista. Renombrado a `.nota`, que es lo que son. La colisión la vi al agregar
    el componente y no la resolví; apareció centrada en la vista Ramas dos días después. */
-.nota { color: var(--mut); font-size: 12.5px; margin: 0 0 14px; max-width: 62ch }
+.nota { color: var(--mut); font-size: var(--text-base); margin: 0 0 14px; max-width: 62ch }
 
 /* ── mapa de jornada ──────────────────────────────────────────────────────────────────────────
    Filas = horas laborales (8→18), columnas = últimos 20 días, intensidad = FOCO (minutos de la tarea
@@ -2564,7 +2571,7 @@ function documentAction(id) {
    de sprints tiene que sumar los márgenes en JS para posicionarse, así que no pueden estar en dos lados. */
 .jm { display: flex; flex-direction: column; gap: var(--gap); overflow-x: auto }
 .jrow { display: flex; align-items: center; gap: var(--gap) }
-.jhl { width: var(--jhl); flex: none; font-size: 10.5px; font-weight: 700; color: var(--mut); text-align: right;
+.jhl { width: var(--jhl); flex: none; font-size: var(--text-xs); font-weight: 600; color: var(--mut); text-align: right;
   font-variant-numeric: tabular-nums }
 .cel { width: var(--cel); height: 21px; border-radius: var(--radius-md); flex: none; transition: .12s }
 /* el finde solo atenúa el FONDO: si una celda tiene registro, el color no se toca — sería mentirle al
@@ -2595,17 +2602,17 @@ function documentAction(id) {
    sobre las columnas de su sprint. Los huecos entre tramos son los días sin sprint. */
 .jband { position: relative; height: 17px; margin-bottom: 3px }
 .jspan { position: absolute; top: 0; height: 100%; display: flex; align-items: center; padding: 0 7px;
-  font-size: 10px; font-weight: 700; color: var(--mut); white-space: nowrap; overflow: hidden;
+  font-size: var(--text-xs); font-weight: 600; color: var(--mut); white-space: nowrap; overflow: hidden;
   border-radius: var(--radius-md) 5px 0 0; background: var(--panel2);
   box-shadow: inset 0 -2px 0 var(--line), inset 2px 0 0 var(--line), inset -2px 0 0 var(--line) }
 /* el sprint que estás viendo arriba se resalta acá, para atar el mapa al selector */
 .jspan.sel { color: var(--accent-foreground); background: var(--accent);
   box-shadow: inset 0 -2px 0 var(--acc), inset 2px 0 0 var(--acc), inset -2px 0 0 var(--acc) }
-.jtot .cel { height: 16px; background: none; font-size: 9.5px; color: var(--mut); text-align: center;
+.jtot .cel { height: 16px; background: none; font-size: var(--text-xs); color: var(--mut); text-align: center;
   font-variant-numeric: tabular-nums }
-.jaxis .cel { height: auto; background: none; font-size: 10px; color: var(--mut); text-align: center }
+.jaxis .cel { height: auto; background: none; font-size: var(--text-xs); color: var(--mut); text-align: center }
 .jtot .cel:hover, .jaxis .cel:hover { outline: none }
-.legend { display: flex; align-items: center; gap: 5px; margin-top: 12px; font-size: 11px; color: var(--mut) }
+.legend { display: flex; align-items: center; gap: 5px; margin-top: 12px; font-size: var(--text-xs); color: var(--mut) }
 .legend i { width: 13px; height: 13px; border-radius: var(--radius-md); display: inline-block }
 .legend .note { margin-left: 12px }
 
@@ -2613,7 +2620,7 @@ function documentAction(id) {
    `progress progress-xs` de `taller.css`. Lo propio es el aire: acá la barra va DEBAJO de un número
    y arriba de su leyenda, así que lo que queda es su margen. */
 .bar { margin: 2px 0 7px }
-.msg { color: var(--mut); font-size: 13px }
+.msg { color: var(--mut); font-size: var(--text-base) }
 .msg.bad { color: var(--bad) }
 
 /* traer de Jira: el cruce contra el registro local. Cada fila es una decisión (no traer / archivo
@@ -2621,41 +2628,41 @@ function documentAction(id) {
    de selects de arriba a abajo sin leer todo. Las filas en "no traer" se apagan para que las elegidas
    salten a la vista. */
 .sync-h { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin-bottom: 12px }
-.sync-all { display: flex; gap: 7px; align-items: flex-start; cursor: pointer; font-size: 12.5px }
+.sync-all { display: flex; gap: 7px; align-items: flex-start; cursor: pointer; font-size: var(--text-base) }
 .sync-all input { width: auto; accent-color: var(--acc); cursor: pointer; margin-top: 2px }
-.sync-all em { display: block; font-style: normal; font-size: 11px; color: var(--mut) }
+.sync-all em { display: block; font-style: normal; font-size: var(--text-xs); color: var(--mut) }
 .sync-acts { display: flex; align-items: center; gap: 14px; padding: 9px 0; border-top: 1px solid var(--line);
-  font-size: 12px }
-.lnk { border: 0; background: none; color: var(--acc); font: inherit; font-size: 12px; cursor: pointer; padding: 0 }
+  font-size: var(--text-sm) }
+.lnk { border: 0; background: none; color: var(--acc); font: inherit; font-size: var(--text-sm); cursor: pointer; padding: 0 }
 .lnk:hover { text-decoration: underline }
 .sync-row { display: flex; gap: 12px; align-items: flex-start; padding: 9px 0; border-top: 1px solid var(--line) }
 .sync-row.off { opacity: .45 }
-.sync-row select { flex: none; width: 240px; font-size: 12px; padding: 5px 7px; border-radius: var(--radius);
+.sync-row select { flex: none; width: 240px; font-size: var(--text-sm); padding: 5px 7px; border-radius: var(--radius);
   border: 1px solid var(--line); background: var(--panel2); color: var(--txt) }
 .sync-i { min-width: 0 }
-.sync-t { margin: 0; font-size: 13px; line-height: 1.45; display: flex; gap: 8px; align-items: baseline; flex-wrap: wrap }
-.sync-t b { font-weight: 700; padding: 2px 7px }
-.sync-m { margin: 3px 0 0; font-size: 11px; color: var(--mut) }
+.sync-t { margin: 0; font-size: var(--text-base); line-height: 1.45; display: flex; gap: 8px; align-items: baseline; flex-wrap: wrap }
+.sync-t b { font-weight: 600; padding: 2px 7px }
+.sync-m { margin: 3px 0 0; font-size: var(--text-xs); color: var(--mut) }
 .sync-sug { margin-left: 8px; color: var(--acc) }
 .sync-res { list-style: none; margin: 14px 0 0; padding: 12px 0 0; border-top: 1px solid var(--line);
-  font-size: 12.5px; display: grid; gap: 5px }
+  font-size: var(--text-base); display: grid; gap: 5px }
 .sync-res .bad { color: var(--bad) }
-.sync-res .chip { margin-left: 6px; padding: 1px 8px; font-size: 10.5px }
+.sync-res .chip { margin-left: 6px; padding: 1px 8px; font-size: var(--text-xs) }
 
 /* GRUPOS DE PENDIENTES -------------------------------------------------------------------------
    (Eran los de «Hallazgos», que salían de las anotaciones del documento y se fueron el 2026-09-23 con
    ellas, a la pila. Los pendientes heredaron el grupo y su conteo.) */
 .hgrupo { margin-bottom: 22px; }
-.hgrupo h4 { font-size: 13px; margin: 0 0 2px; display: flex; align-items: center; gap: 7px; }
+.hgrupo h4 { font-size: var(--text-base); margin: 0 0 2px; display: flex; align-items: center; gap: 7px; }
 /* ⚠ Sin `opacity: .55`: apilada sobre el color dejaba el conteo abajo del umbral. El escalón lo da
    la rampa, no un velo. */
-.hcnt { font: 11px/1 var(--mono, ui-monospace, monospace); color: var(--texto-3);
+.hcnt { font: var(--text-xs)/1 var(--mono, ui-monospace, monospace); color: var(--texto-3);
         border-color: currentColor; padding: 2px 6px; }
 /* Pendientes: la marca a la izquierda y el texto al lado. Un ítem hecho se apaga y se tacha —el mismo
    gesto que las tarjetas terminadas—: sigue estando (dice qué se resolvió) pero ya no es trabajo. */
 .pitem { display: flex; gap: 9px; align-items: baseline; padding: 3px 0; }
-.pmark { font-size: 12px; color: var(--acc); line-height: 1.5; }
-.pque { margin: 0; font-size: 13.5px; line-height: 1.5; }
+.pmark { font-size: var(--text-sm); color: var(--acc); line-height: 1.5; }
+.pque { margin: 0; font-size: var(--text-body); line-height: 1.5; }
 .pitem.hecho { color: var(--tenue); }
 .pitem.hecho .pmark { color: var(--mut); }
 .pitem.hecho .pque { text-decoration: line-through; }
@@ -2666,7 +2673,7 @@ function documentAction(id) {
 .stat .bar u { position: absolute; top: -2px; bottom: -2px; width: 2px; background: currentColor;
                opacity: .55; border-radius: var(--radius-sm); }
 .pts-detalle { display: flex; flex-wrap: wrap; gap: 6px 14px; align-items: baseline;
-               margin: -6px 0 18px; font-size: 12.5px; color: var(--mut); }
+               margin: -6px 0 18px; font-size: var(--text-base); color: var(--mut); }
 .pd-k { color: var(--tenue); }
 .pd-i b { font-weight: 600; }
 .pd-mal { color: var(--bad); }
@@ -2679,13 +2686,13 @@ function documentAction(id) {
    cambiar de vista lateral; el sidebar ya no repite una ficha de la misma tarea. */
 .task-head-panels { display: flex; flex-direction: column; gap: 7px; min-width: 0 }
 .task-head-facts { display: flex; align-items: center; flex-wrap: wrap; gap: 5px 10px;
-  min-width: 0; color: var(--mut); font-size: 11.5px }
+  min-width: 0; color: var(--mut); font-size: var(--text-sm) }
 .task-head-facts .mine { color: var(--acc) }
-.task-jira-link { margin-left: auto; color: var(--acc); font-size: 11.5px; text-decoration: none }
+.task-jira-link { margin-left: auto; color: var(--acc); font-size: var(--text-sm); text-decoration: none }
 .task-jira-link:hover { text-decoration: underline }
 .task-completion { display: flex; align-items: center; gap: 9px; width: min(360px, 100%); padding: 0;
   border: 0; background: none; color: var(--mut); cursor: pointer; font: inherit; text-align: left }
-.task-completion-copy { flex: none; font-size: 11px; white-space: nowrap }
+.task-completion-copy { flex: none; font-size: var(--text-xs); white-space: nowrap }
 .task-completion-copy b { color: var(--txt); font-variant-numeric: tabular-nums }
 .task-completion-track { display: block; flex: 1; min-width: 44px; height: 5px; overflow: hidden;
   border-radius: 99px; background: var(--line) }
@@ -2695,13 +2702,13 @@ function documentAction(id) {
 .task-head-panels .qa-box { margin-top: 3px; max-width: 760px }
 /* ⚠ el `pre-wrap` de `.desc` respeta los saltos del markdown crudo y deja el HTML lleno de huecos */
 .desc.cuerpo-md { white-space: normal; line-height: 1.55 }
-.cuerpo-md :deep(h2) { font-size: 15px; margin: 22px 0 8px; padding-top: 12px; border-top: 1px solid var(--line) }
-.cuerpo-md :deep(h3) { font-size: 13px; margin: 16px 0 6px; opacity: .9 }
+.cuerpo-md :deep(h2) { font-size: var(--text-title); margin: 22px 0 8px; padding-top: 12px; border-top: 1px solid var(--line) }
+.cuerpo-md :deep(h3) { font-size: var(--text-base); margin: 16px 0 6px; opacity: .9 }
 .cuerpo-md :deep(h2:first-child), .cuerpo-md :deep(h3:first-child) { margin-top: 0; padding-top: 0; border-top: 0 }
 .cuerpo-md :deep(p) { margin: 0 0 10px }
 .cuerpo-md :deep(ul), .cuerpo-md :deep(ol) { margin: 0 0 10px; padding-left: 20px }
 .cuerpo-md :deep(li) { margin: 3px 0 }
-.cuerpo-md :deep(code) { font-size: 11.5px; padding: 1px 4px; border-radius: var(--radius-md); background: var(--panel2) }
+.cuerpo-md :deep(code) { font-size: var(--text-sm); padding: 1px 4px; border-radius: var(--radius-md); background: var(--panel2) }
 .cuerpo-md :deep(pre) { overflow-x: auto; padding: 10px 12px; border-radius: var(--radius); background: var(--panel2);
                         margin: 0 0 12px }
 .cuerpo-md :deep(pre code) { padding: 0; background: none }
@@ -2709,9 +2716,9 @@ function documentAction(id) {
    El resaltado se calcula localmente y escapa cada fragmento antes de inyectarlo. */
 .sql-block { position: relative; padding-top: 29px !important; border: 1px solid color-mix(in srgb, var(--acc) 28%, var(--line));
              background: color-mix(in srgb, var(--panel2) 88%, var(--acc) 12%) !important; }
-.sql-block::before { content: 'SQL'; position: absolute; top: 8px; left: 11px; color: var(--acc); font: 700 9px/1 var(--mono, ui-monospace, monospace);
+.sql-block::before { content: 'SQL'; position: absolute; top: 8px; left: 11px; color: var(--acc); font: 700 var(--text-xs)/1 var(--mono, ui-monospace, monospace);
                      letter-spacing: .1em; }
-.sql-block :deep(.sql-token.sql-keyword), .block-code :deep(.sql-token.sql-keyword) { color: var(--sql-keyword); font-weight: 700; }
+.sql-block :deep(.sql-token.sql-keyword), .block-code :deep(.sql-token.sql-keyword) { color: var(--sql-keyword); font-weight: 600; }
 .sql-block :deep(.sql-token.sql-function), .block-code :deep(.sql-token.sql-function) { color: var(--sql-function); }
 .sql-block :deep(.sql-token.sql-string), .block-code :deep(.sql-token.sql-string) { color: var(--sql-string); }
 .sql-block :deep(.sql-token.sql-number), .sql-block :deep(.sql-token.sql-literal),
@@ -2727,7 +2734,7 @@ function documentAction(id) {
    tabla de dos columnas cortas se ESTIRABA hasta los 771 px del panel y quedaba con celdas enormes y
    vacías. Medido: las de contenido corto pasan de 771 a ~350; las que de verdad necesitan más siguen
    en el tope y scrollean, que es para lo que está el `max-width`. */
-.cuerpo-md :deep(table) { border-collapse: collapse; margin: 0 0 12px; font-size: 11.5px; display: block;
+.cuerpo-md :deep(table) { border-collapse: collapse; margin: 0 0 12px; font-size: var(--text-sm); display: block;
                           overflow-x: auto; width: fit-content; max-width: 100% }
 /* ⚠ Cada celda tenía su propio marco: una grilla de rectángulos de 1px que pesa más que los datos, y
    en una tabla de diez columnas es lo único que se ve. Con una línea por FILA las columnas se siguen
@@ -2784,13 +2791,13 @@ function documentAction(id) {
    iframe y quedaba pegado al borde de la región. Mismo aire que el encabezado de Jira. */
 .jira-tab-panel > .nota { padding: 12px 14px; margin: 0 }
 .jira-heading { display: flex; align-items: center; gap: 12px; flex: none; padding: 10px 14px;
-  border-bottom: 1px solid var(--line); font-size: 12px; flex-wrap: wrap }
+  border-bottom: 1px solid var(--line); font-size: var(--text-sm); flex-wrap: wrap }
 .jira-preview { display: block; flex: 1; min-height: 0; width: 100%; height: 100%; border: 0;
   border-radius: 0; background: transparent }
-.sidebar > .region-head { min-height: 40px; padding: 7px 10px }
+.sidebar > .region-head { min-height: var(--region-head-h) }
 /* «trayendo los sprints…» cuelga directo del sidebar, sin cuerpo que le dé aire: toma el del encabezado. */
 .sidebar > .nota { padding: 8px 10px; margin: 0 }
-.sidebar .view > .region-head { min-height: 32px; padding: 4px 10px; border-bottom: 0 }
+.sidebar .view > .region-head { min-height: var(--view-head-h); border-bottom: 0 }
 .sidebar .view > .region-body { padding-top: 3px; padding-bottom: 3px }
 .statusbar .layout-controls { gap: 2px; padding: 2px; border-radius: var(--radius-md); background: var(--panel2) }
 .statusbar .layout-controls .region-action { border-radius: var(--radius-md) }

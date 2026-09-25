@@ -156,26 +156,26 @@ const relativeMeasurement = computed(() => {
   color:var(--txt); background:var(--card); border-top:1px solid var(--line) }
 .console-head { flex:none; display:flex; align-items:center; min-height:36px; gap:10px; padding:0 10px;
   border-bottom:1px solid var(--line); background:var(--panel2) }
-.console-title { display:flex; align-items:center; gap:6px; padding:0 4px; font-size:12px; font-weight:600 }
+.console-title { display:flex; align-items:center; gap:6px; padding:0 4px; font-size:var(--text-sm); font-weight:600 }
 .console-title .ui-icon { width:14px; height:14px; color:var(--acc) }
 .count { display:grid; place-items:center; min-width:18px; height:18px; padding:0 5px;
-  color:var(--txt); background:var(--line2); border-radius:999px; font-size:10px; font-variant-numeric:tabular-nums }
-.console-head p { min-width:0; margin:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; color:var(--mut); font-size:11px }
+  color:var(--txt); background:var(--line2); border-radius:999px; font-size:var(--text-xs); font-variant-numeric:tabular-nums }
+.console-head p { min-width:0; margin:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; color:var(--mut); font-size:var(--text-xs) }
 .refresh-branches { margin-left:auto }.console-head .region-action + .region-action { margin-left:2px }
 .refresh-state { color:var(--acc) }.refresh-error { color:var(--warn) }.branch-spinner { width:13px; height:13px; border-width:1.5px }
 .console-body { flex:1; display:flex; min-width:0; min-height:0; overflow:hidden }
 .console-main { flex:1 1 auto; display:flex; flex-direction:column; width:calc(100% - 220px); min-width:0; min-height:0;
   background:var(--card) }
 .table-head { flex:none; display:flex; align-items:center; gap:10px; min-height:32px; padding:0 12px;
-  color:var(--mut); border-bottom:1px solid var(--line); font-size:10px }
-.table-head > :last-child { margin-left:auto; white-space:nowrap }.table-head b { color:var(--txt); font-size:11px }
-.environment-legend { display:flex; align-items:center; gap:9px; color:var(--mut); font-size:9px }
+  color:var(--mut); border-bottom:1px solid var(--line); font-size:var(--text-xs) }
+.table-head > :last-child { margin-left:auto; white-space:nowrap }.table-head b { color:var(--txt); font-size:var(--text-xs) }
+.environment-legend { display:flex; align-items:center; gap:9px; color:var(--mut); font-size:var(--text-xs) }
 .environment-legend > span { display:inline-flex; align-items:center; gap:3px }.environment-legend b { min-width:8px; text-align:center }
 .environment-legend .reached { color:var(--ok) }
 .branch-table { min-width:0; min-height:0; overflow:auto }
-table { width:100%; min-width:800px; border-collapse:separate; border-spacing:0; font-size:11px }
+table { width:100%; min-width:800px; border-collapse:separate; border-spacing:0; font-size:var(--text-xs) }
 th { position:sticky; top:0; z-index:1; height:27px; padding:0 10px; color:var(--mut); background:var(--panel2);
-  border-bottom:1px solid var(--line); text-align:left; font-size:10.5px; font-weight:600 }
+  border-bottom:1px solid var(--line); text-align:left; font-size:var(--text-xs); font-weight:600 }
 td { height:33px; max-width:260px; padding:0 10px; color:var(--mut); border-bottom:1px solid var(--line);
   overflow:hidden; text-overflow:ellipsis; white-space:nowrap }
 th:first-child, td:first-child { width:230px; min-width:230px; max-width:230px; position:sticky; left:0 }
@@ -187,14 +187,14 @@ th.main, td.main { background:color-mix(in oklab, var(--panel2) 82%, var(--card)
 tbody tr:hover td { background:color-mix(in oklab, var(--acc) 5%, var(--card)) }
 tbody tr:hover td.main { background:color-mix(in oklab, var(--acc) 5%, var(--panel2)) }
 .branch-name { color:var(--txt); font-family:var(--mono) }.branch-name span { vertical-align:middle }
-.branch-name small { margin-left:7px; padding:1px 5px; color:var(--warn); border:1px solid var(--line); border-radius:999px; font:9px var(--font-sans) }
-.pr-cell a { margin-right:6px; color:var(--acc); text-decoration:none }.pr-cell span { font-size:9.5px }.pr-cell span.open { color:var(--warn) }
-.environment { width:70px; text-align:center; font-weight:700 }.environment.reached { color:var(--ok) }
+.branch-name small { margin-left:7px; padding:1px 5px; color:var(--warn); border:1px solid var(--line); border-radius:999px; font:var(--text-xs) var(--font-sans) }
+.pr-cell a { margin-right:6px; color:var(--acc); text-decoration:none }.pr-cell span { font-size:var(--text-xs) }.pr-cell span.open { color:var(--warn) }
+.environment { width:70px; text-align:center; font-weight:600 }.environment.reached { color:var(--ok) }
 .commit code { margin-right:6px; padding:0; background:none }.commit span { color:var(--mut) }
 .repo-sidebar { flex:0 0 220px; display:flex; flex-direction:column; width:220px; min-width:0; min-height:0;
   background:var(--panel2); border-left:1px solid var(--line) }
 .repo-sidebar > header { flex:none; display:flex; align-items:center; gap:7px; min-height:32px; padding:0 10px;
-  color:var(--mut); border-bottom:1px solid var(--line); font-size:10px; font-weight:600; letter-spacing:.06em; text-transform:uppercase }
+  color:var(--mut); border-bottom:1px solid var(--line); font-size:var(--text-xs); font-weight:600; text-transform: none }
 .repo-list { flex:1; min-height:0; overflow:auto; display:flex; flex-direction:column; gap:2px; padding:6px }
 .repo-option { display:flex; align-items:center; gap:8px; min-width:0; min-height:38px; padding:5px 8px; color:var(--mut);
   text-align:left; background:transparent; border:0; border-radius:var(--radius-md); cursor:pointer }
@@ -202,17 +202,17 @@ tbody tr:hover td.main { background:color-mix(in oklab, var(--acc) 5%, var(--pan
 .repo-option.selected { color:var(--accent-foreground); background:var(--accent) }
 .repo-option:focus-visible { outline:2px solid var(--ring); outline-offset:-1px }.repo-option .ui-icon { flex:none; width:15px; height:15px; color:var(--mut) }
 .repo-option.selected .ui-icon { color:var(--acc) }.repo-text { display:flex; flex:1; flex-direction:column; gap:2px; min-width:0 }
-.repo-text b, .repo-text small { overflow:hidden; text-overflow:ellipsis; white-space:nowrap }.repo-text b { font-size:11px }
-.repo-text small { color:var(--mut); font-size:9.5px }
+.repo-text b, .repo-text small { overflow:hidden; text-overflow:ellipsis; white-space:nowrap }.repo-text b { font-size:var(--text-xs) }
+.repo-text small { color:var(--mut); font-size:var(--text-xs) }
 /* `--accent` es una superficie y su tinta es `--accent-foreground`: con --mut encima, «4 ramas» quedaba en 3,86:1. */
 .repo-option.selected .repo-text small { color:var(--accent-foreground) }
 .empty-branches { display:flex; align-items:center; justify-content:center; flex:1; gap:7px; padding:16px;
-  color:var(--mut); font-size:11px; text-align:center }.empty-branches strong { color:var(--txt) }
+  color:var(--mut); font-size:var(--text-xs); text-align:center }.empty-branches strong { color:var(--txt) }
 @container (max-width:620px) {
   .console-head p { display:none }
   .console-main { width:calc(100% - 180px) }
   .repo-sidebar { flex-basis:180px; width:180px }
-  .environment-legend { gap:5px }.environment-legend > span { font-size:0 }.environment-legend b { font-size:9px }
+  .environment-legend { gap:5px }.environment-legend > span { font-size:0 }.environment-legend b { font-size:var(--text-xs) }
   table { min-width:760px }
 }
 </style>

@@ -101,7 +101,7 @@
    exactamente lo que uno no quiere mientras lee un log buscando en qué paso se rompió. */
 html, body, #app { height:100% }
 body { margin:0; background:var(--background); color:var(--foreground); overflow:hidden;
-  font:14px/1.5 var(--font-sans) }
+  font:var(--text-body)/1.5 var(--font-sans) }
 #app { display:flex; flex-direction:column; min-height:0 }
 button { font: inherit; color: inherit }
 input { font: inherit }
@@ -112,14 +112,14 @@ code, kbd, pre, samp { font-family: var(--font-mono) }
 .skip{color:var(--skip)} .unknown{color:var(--unknown)} .pendiente{color:var(--skip)}
 
 .ico { flex:0 0 20px; height:20px; border-radius:var(--r-full); display:grid; place-items:center;
-  font-size:12px; font-weight:700; color:var(--background) }
+  font-size:var(--text-sm); font-weight:600; color:var(--background) }
 .ico.ok{background:var(--ok)} .ico.warn{background:var(--warn)}
 /* ⚠ Blanco sobre este rojo mide 3,35:1 — `--fail` es #e06666, un rojo medio. Va el fondo de la app
    como tinta, igual que `.btn-destructive` de `taller.css`. Lo encontró `make estilo-check`. */
 .ico.fail{background:var(--fail); color:var(--background)}
 .ico.skip,.ico.pendiente{background:transparent; color:var(--skip); border:1px solid var(--line)}
 .ico.unknown{background:transparent; color:var(--unknown); border:1px dashed var(--unknown)}
-.ico.big{flex:0 0 26px; height:26px; font-size:15px}
+.ico.big{flex:0 0 26px; height:26px; font-size:var(--text-title)}
 
 /* (`.badge` se fue a `taller.css`: es el mismo de las cuatro.)
    ⚠ El aro en `currentColor` es SÓLO para la píldora del desenlace, donde el color ES el dato —verde

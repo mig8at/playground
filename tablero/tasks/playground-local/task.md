@@ -20,8 +20,11 @@ jira_title: ""
   (harness `lastKey`, los `watch` del trazador, el apretado a 160 del tablero) y `make estilo-ui` prueba
   que ninguna región queda entre 0 y su mínimo arrastrando, con teclado y con tres anchos de ventana.
   Hecho: lo verifica `make estilo-minimo` (cuatro anchos, teclado en cada manija, las cuatro apps).
-- [ ] Llevar la escala a `tools/ui/taller.css`: `--text-title`, `--row-h`, retirar `--space-5`, toolbar y
+- [x] Llevar la escala a `tools/ui/taller.css`: `--text-title`, `--row-h`, retirar `--space-5`, toolbar y
   menú con `--radius-sm`; termina cuando `make estilo-sync` la reparte y `make estilo-check` sigue verde.
+- [ ] Llevar los espacios propios de cada herramienta a la grilla de 4 (hoy ~30 valores distintos de
+  padding, margin y gap en el harness y el tablero); termina cuando `artifacts/medir-estilo.py` da sólo
+  tokens y el 2px de las toolbars, y las capturas antes/después no muestran saltos.
 - [ ] Agregar a `make estilo-check` un chequeo de literales fuera de la escala (tamaños, pesos, espacios,
   radios), como el de colores literales; termina cuando da los mismos conteos que
   `artifacts/medir-estilo.py` y sale ≠0 ante uno nuevo.

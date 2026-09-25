@@ -97,10 +97,10 @@ body {
   overflow: hidden;
   background: var(--background);
   color: var(--foreground);
-  font: 15px/1.5 var(--font-sans);
+  font: var(--text-title)/1.5 var(--font-sans);
   -webkit-font-smoothing: antialiased;
 }
 
-h1, h2, h3 { color: var(--txt); font-weight: 700; }
+h1, h2, h3 { color: var(--txt); font-weight: 600; }
 code, kbd, pre, samp { font-family: var(--font-mono); }
 

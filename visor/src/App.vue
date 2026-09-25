@@ -737,6 +737,9 @@ const laneName = (lane) => (lane.label ? lane.label : 'Fila sin rótulo')
   <div class="workbench" :style="layoutVars">
     <aside v-show="shown.sidebar" class="sidebar" aria-label="Proyectos">
       <div class="rsz rsz-sb" v-resize="resizeOptions('sidebar')"></div>
+      <!-- La banda superior de la columna, de 40 como la del editor y la del detalle: sin ella la primera
+           vista (32) dejaba la costura de arriba escalonada contra las otras dos columnas. -->
+      <div class="region-head"><span>Proyectos</span><span v-if="flows.length" class="count">{{ flows.length }}</span></div>
 
       <!-- Cada PROYECTO (un flujo, un archivo de Figma) es un bloque del acordeón en la raíz de la barra, y
            adentro están sus pantallas en los carriles del diseñador, sin pasar por las páginas del

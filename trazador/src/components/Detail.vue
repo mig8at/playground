@@ -209,10 +209,10 @@ watch(() => actual.value?.id, (id) => { focusStage(id) }, { immediate: true })
 <style scoped>
 .detail-panel { display:flex; flex-direction:column; min-width:0; min-height:0; height:100%; overflow:hidden;
   container-type:inline-size; background:var(--card) }
-.detail-topbar { flex:none; display:flex; align-items:center; gap:8px; min-height:42px; padding:0 12px;
-  color:var(--txt); border-bottom:1px solid var(--line); font-size:13px; font-weight:600 }
+.detail-topbar { flex:none; display:flex; align-items:center; gap:var(--space-2); box-sizing:border-box; min-height:var(--region-head-h); padding:0 var(--gutter);
+  color:var(--txt); border-bottom:1px solid var(--line); font-size:var(--text-base); font-weight:600 }
 .detail-topbar .toolbar-note { min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
-  color:var(--dim); font-size:11px; font-weight:400; font-variant-numeric:tabular-nums }
+  color:var(--dim); font-size:var(--text-xs); font-weight:400; font-variant-numeric:tabular-nums }
 .detail-topbar .region-action { margin-left:auto; border:1px solid transparent; border-radius:var(--r-sm); background:transparent }
 .detail-topbar .region-action:hover { color:var(--primary); border-color:var(--line); background:var(--panel2) }
 
@@ -220,9 +220,9 @@ watch(() => actual.value?.id, (id) => { focusStage(id) }, { immediate: true })
 .registro-toolbar { flex:none; display:flex; align-items:center; gap:8px; min-height:38px; padding:0 12px;
   border-bottom:1px solid var(--line); background:var(--panel2) }
 .registro-identidad { min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; color:var(--dim);
-  font:11px/1 var(--font-mono); font-variant-numeric:tabular-nums }
+  font:var(--text-xs)/1 var(--font-mono); font-variant-numeric:tabular-nums }
 .registro-toolbar .input { flex:1 1 120px; min-width:90px; max-width:230px; margin-left:auto; font-weight:400 }
-.registro-conteo { flex:none; color:var(--tenue); font-size:10px; font-variant-numeric:tabular-nums; white-space:nowrap }
+.registro-conteo { flex:none; color:var(--tenue); font-size:var(--text-xs); font-variant-numeric:tabular-nums; white-space:nowrap }
 .registro-copy { flex:none; border:1px solid transparent; border-radius:var(--r-sm); color:var(--dim); background:transparent }
 .registro-copy:hover { color:var(--txt); border-color:var(--line); background:var(--card) }
 
@@ -231,43 +231,43 @@ watch(() => actual.value?.id, (id) => { focusStage(id) }, { immediate: true })
 .log-stage { scroll-margin-top:4px; border-bottom:1px solid var(--line) }
 .stage-bar { position:sticky; top:0; z-index:1; display:grid; grid-template-columns:8px minmax(0,1fr) max-content max-content;
   align-items:center; gap:8px; width:100%; min-height:31px; padding:0 12px; color:var(--dim); background:var(--card);
-  border:0; border-bottom:1px solid var(--line); text-align:left; font:600 11px/1 var(--font-sans); cursor:pointer }
+  border:0; border-bottom:1px solid var(--line); text-align:left; font:600 var(--text-xs)/1 var(--font-sans); cursor:pointer }
 .stage-bar:hover { color:var(--txt); background:var(--sel) }
 .stage-bar:focus-visible { outline:2px solid var(--ring); outline-offset:-2px }
 .log-stage.activa .stage-bar { color:var(--txt); background:color-mix(in srgb, var(--primary) 8%, var(--card)); box-shadow:inset 2px 0 0 var(--primary) }
 .stage-dot { width:7px; height:7px; border-radius:var(--r-full); background:var(--skip) }
 .stage-dot.ok { background:var(--ok) }.stage-dot.fail { background:var(--fail) }.stage-dot.warn { background:var(--warn) }
 .stage-label { min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap }
-.stage-time, .stage-status { color:var(--tenue); font-size:10px; font-weight:500; font-variant-numeric:tabular-nums; white-space:nowrap }
+.stage-time, .stage-status { color:var(--tenue); font-size:var(--text-xs); font-weight:500; font-variant-numeric:tabular-nums; white-space:nowrap }
 .stage-status { text-transform:lowercase }
-.stage-reason, .stage-detail { margin:0; padding:8px 12px; color:var(--dim); font-size:11px; line-height:1.5 }
+.stage-reason, .stage-detail { margin:0; padding:8px 12px; color:var(--dim); font-size:var(--text-xs); line-height:1.5 }
 .stage-reason { color:var(--fail); background:color-mix(in srgb, var(--fail) 4%, var(--card)); border-left:2px solid var(--fail) }
-.stage-empty { margin:0; padding:8px 12px 10px 28px; color:var(--tenue); font-size:11px }
+.stage-empty { margin:0; padding:8px 12px 10px 28px; color:var(--tenue); font-size:var(--text-xs) }
 
-.log-lines { font:11.5px/1.55 ui-monospace, SFMono-Regular, Menlo, monospace }
+.log-lines { font:var(--text-sm)/1.55 ui-monospace, SFMono-Regular, Menlo, monospace }
 .log-line { display:grid; grid-template-columns:44px minmax(72px, .65fr) max-content minmax(0, 2fr); gap:8px;
   align-items:start; padding:4px 12px; color:var(--dim); border-bottom:1px solid color-mix(in srgb, var(--line) 70%, transparent) }
 .log-line:hover { background:var(--sel); color:var(--txt) }
 .log-line time { color:var(--tenue); font-variant-numeric:tabular-nums; white-space:nowrap }
 .log-step { min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; color:var(--texto-2) }
-.log-level { color:var(--tenue); font-size:10px; white-space:nowrap }
+.log-level { color:var(--tenue); font-size:var(--text-xs); white-space:nowrap }
 .log-message { min-width:0; overflow-wrap:anywhere; white-space:pre-wrap }
 .nivel-error { color:var(--fail); background:color-mix(in srgb, var(--fail) 4%, var(--card)) }
-.nivel-error .log-level { color:var(--fail); font-weight:700 }
-.log-cut { margin:0; padding:7px 12px 8px; color:var(--tenue); font:10.5px/1.45 var(--font-sans) }
+.nivel-error .log-level { color:var(--fail); font-weight:600 }
+.log-cut { margin:0; padding:7px 12px 8px; color:var(--tenue); font:var(--text-xs)/1.45 var(--font-sans) }
 
 .log-evidence { margin:0; padding:0 12px; color:var(--dim); border-bottom:1px solid color-mix(in srgb, var(--line) 70%, transparent);
   background:color-mix(in srgb, var(--info) 4%, var(--card)) }
 .log-evidence > summary { display:grid; grid-template-columns:26px minmax(0,1fr) max-content 12px; gap:8px; align-items:center;
-  min-height:29px; cursor:pointer; list-style:none; font:11px/1.3 var(--font-sans) }
+  min-height:29px; cursor:pointer; list-style:none; font:var(--text-xs)/1.3 var(--font-sans) }
 .log-evidence > summary::-webkit-details-marker { display:none }
-.log-kind { color:var(--info); font:600 10px/1 var(--font-mono) }.log-summary { color:var(--tenue); font-size:10px }
-.evidence-row { margin:0; padding:2px 0; color:var(--texto-2); font:11px/1.45 ui-monospace, SFMono-Regular, monospace; overflow-wrap:anywhere }
-.query { margin:6px 0 8px; border-bottom:0 }.query .accordion-trigger { padding:0; font-size:10px; font-weight:500 }
-.query pre { margin:4px 0 0; padding:6px 8px; overflow:auto; color:var(--dim); background:var(--panel2); border-radius:var(--r-sm); font:10px/1.45 ui-monospace, SFMono-Regular, monospace }
+.log-kind { color:var(--info); font:600 var(--text-xs)/1 var(--font-mono) }.log-summary { color:var(--tenue); font-size:var(--text-xs) }
+.evidence-row { margin:0; padding:2px 0; color:var(--texto-2); font:var(--text-xs)/1.45 ui-monospace, SFMono-Regular, monospace; overflow-wrap:anywhere }
+.query { margin:6px 0 8px; border-bottom:0 }.query .accordion-trigger { padding:0; font-size:var(--text-xs); font-weight:500 }
+.query pre { margin:4px 0 0; padding:6px 8px; overflow:auto; color:var(--dim); background:var(--panel2); border-radius:var(--r-sm); font:var(--text-xs)/1.45 ui-monospace, SFMono-Regular, monospace }
 
 .inspector-vacio { display:grid; flex:1; min-height:0; place-items:center; padding:20px 12px; background:var(--card) }
-.empty-head { max-width:230px; text-align:center }.empty-media { margin:0 auto 8px }.empty-title { margin:0; color:var(--txt); font-size:12px; font-weight:600 }.empty-desc { margin:4px 0 0; color:var(--dim); font-size:11px; line-height:1.45 }
+.empty-head { max-width:230px; text-align:center }.empty-media { margin:0 auto 8px }.empty-title { margin:0; color:var(--txt); font-size:var(--text-sm); font-weight:600 }.empty-desc { margin:4px 0 0; color:var(--dim); font-size:var(--text-xs); line-height:1.45 }
 
 @container (max-width: 430px) {
   .registro-toolbar { flex-wrap:wrap; align-content:center; padding-top:6px; padding-bottom:6px }

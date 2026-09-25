@@ -265,6 +265,15 @@ footer { font-size: 12px; color: var(--fg-3); border-top: 1px solid var(--border
 .mn-log b { color: var(--fg); font-weight: 600 }
 .mins td.bad { color: var(--primary-ink) }
 
+
+/* ── antes y después ─────────────────────────────────────── */
+.ba { display: grid; gap: 24px; grid-template-columns: minmax(0, 1fr) }
+.ba figure { margin: 0; display: grid; gap: 8px; grid-template-columns: minmax(0, 1fr) }
+@media (min-width: 900px) { .ba figure { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) } }
+.ba img { width: 100%; height: auto; display: block; border: 1px solid var(--border); border-radius: 6px; background: var(--card) }
+.ba figcaption { grid-column: 1 / -1; font-size: 13px; color: var(--fg-2) }
+.ba .tag2 { font-size: 11px; color: var(--fg-3); margin-bottom: 4px }
+
 /* ── índice de la página ─────────────────────────────────── */
 nav.toc { display: flex; flex-wrap: wrap; gap: 4px 14px; font-size: 13px }
 nav.toc a { color: var(--fg-2); text-decoration: none; border-bottom: 1px solid transparent }
@@ -354,7 +363,7 @@ nav.toc a:hover, nav.toc a:focus-visible { color: var(--fg); border-bottom-color
     <nav class="toc" aria-label="Secciones">
       <a href="#esqueleto">Esqueleto</a><a href="#partes">Partes</a><a href="#region">Región</a>
       <a href="#minimo">Mínimo o nada</a><a href="#tipografia">Tipografía</a><a href="#espacios">Espacios</a><a href="#iconos">Iconos</a>
-      <a href="#forma">Forma</a><a href="#medido">Hoy contra el estándar</a><a href="#adopcion">Adopción</a>
+      <a href="#forma">Forma</a><a href="#antesdespues">Antes y después</a><a href="#medido">Hoy contra el estándar</a><a href="#adopcion">Adopción</a>
       <a href="#reglas">Reglas</a><a href="#decisiones">Decisiones</a><a href="#nueva">Herramienta nueva</a>
     </nav>
   </header>
@@ -526,7 +535,7 @@ nav.toc a:hover, nav.toc a:focus-visible { color: var(--fg); border-bottom-color
           <div class="spec-row"><span class="tok">--text-sm</span><span class="val">12px</span><span class="use"><span class="sample" style="font-size:12px;font-weight:600;color:var(--fg-2)">Comercios</span>Encabezados de región y de grupo, pestañas, texto de los botones compactos.</span></div>
           <div class="spec-row"><span class="tok">--text-base</span><span class="val">13px</span><span class="use"><span class="sample" style="font-size:13px">#96 Playground local</span>El texto de la interfaz: filas, formularios, menús, logs.</span></div>
           <div class="spec-row"><span class="tok">--text-body</span><span class="val">14px</span><span class="use"><span class="sample" style="font-size:14px;line-height:1.6">La prosa de un documento en el editor, a 65 caracteres por renglón.</span>Sólo en el editor, cuando lo que se muestra es texto para leer.</span></div>
-          <div class="spec-row"><span class="tok">--text-title</span><span class="val">16px</span><span class="use"><span class="sample" style="font-size:16px;font-weight:600">Playground local</span>El título del documento abierto y el de un estado vacío. Uno por pantalla. <em style="font-style:normal;color:var(--primary-ink)">Propuesto: hoy existe como literal en <code>.empty-title</code>.</em></span></div>
+          <div class="spec-row"><span class="tok">--text-title</span><span class="val">16px</span><span class="use"><span class="sample" style="font-size:16px;font-weight:600">Playground local</span>El título del documento abierto y el de un estado vacío. Uno por pantalla.</span></div>
         </div>
       </div>
       <div class="col">
@@ -558,7 +567,7 @@ nav.toc a:hover, nav.toc a:focus-visible { color: var(--fg); border-bottom-color
           <div class="spec-row"><span class="tok">--space-4</span><span class="val">16px</span><span class="use"><span class="bar-4" style="width:16px"></span>Entre bloques dentro de una sección; padding del editor cuando muestra un documento.</span></div>
           <div class="spec-row"><span class="tok">--space-6</span><span class="val">24px</span><span class="use"><span class="bar-4" style="width:24px"></span>Entre secciones del editor. El paso más grande.</span></div>
         </div>
-        <p class="never"><s>--space-5 · 20px</s><s>3px</s><s>5px</s><s>6px</s><s>7px</s><s>9px</s><s>10px</s><s>14px</s> Fuera. La única excepción es 2px entre botones de icono contiguos de una toolbar, que ya vive en <code>taller.css</code>. <code>--space-5</code> se retira: nadie lo necesita entre 16 y 24.</p>
+        <p class="never"><s>--space-5 · 20px</s><s>3px</s><s>5px</s><s>6px</s><s>7px</s><s>9px</s><s>10px</s><s>14px</s> Fuera. La única excepción es 2px entre botones de icono contiguos de una toolbar. <code>--space-5</code> ya no existe en <code>taller.css</code>.</p>
       </div>
       <div class="col">
         <h3>El margen de región alinea todo</h3>
@@ -579,7 +588,7 @@ nav.toc a:hover, nav.toc a:focus-visible { color: var(--fg); border-bottom-color
           <div><span class="box band" style="height:40px">Comercios</span><small>40 · encabezado</small></div>
           <div><span class="box foot" style="height:30px">target local</span><small>30 · pie</small></div>
         </div>
-        <p class="never"><s>36px</s><s>40px en un botón</s> Un control dentro de una herramienta mide 32 (el <code>btn-sm</code> e <code>input-sm</code> de hoy). Los 36 y 40 de shadcn son para páginas, no para un workbench denso. <em style="font-style:normal;color:var(--primary-ink)">La fila de 28 es propuesta: hoy cada lista elige la suya.</em></p>
+        <p class="never"><s>36px</s><s>40px en un botón</s> Un control dentro de una herramienta mide 32 (el <code>btn-sm</code> e <code>input-sm</code> de hoy). Los 36 y 40 de shadcn son para páginas, no para un workbench denso. <b style="color:var(--fg)">Y dentro de una banda, 28</b>: 4 de aire, 28 y 4 dan los 40; un control de 32 adentro la estiraba a 49.</p>
       </div>
     </div>
   </section>
@@ -621,10 +630,33 @@ nav.toc a:hover, nav.toc a:focus-visible { color: var(--fg); border-bottom-color
     </div>
     <div class="spec">
       <div class="spec-row"><span class="tok">0</span><span class="val">radio</span><span class="use">Regiones, encabezados, filas, tablas y callouts. Todo lo que va a sangre.</span></div>
-      <div class="spec-row"><span class="tok">--radius-sm</span><span class="val">6px</span><span class="use">Botones, inputs, selects, botones de icono, ítems y caja del menú. <em style="font-style:normal;color:var(--primary-ink)">Propuesto: hoy el toolbar y el menú usan <code>--radius</code> (10px) y <code>--radius-xl</code>.</em></span></div>
+      <div class="spec-row"><span class="tok">--radius-sm</span><span class="val">6px</span><span class="use">Botones, inputs, selects, botones de icono e ítems del menú (<code>--radius-control</code>). La caja del menú lleva 10 (<code>--radius-float</code>): el radio del ítem más el aire que lo rodea, así las dos curvas son concéntricas.</span></div>
       <div class="spec-row"><span class="tok">999px</span><span class="val">radio</span><span class="use">Píldoras, contadores y puntos de estado.</span></div>
       <div class="spec-row"><span class="tok">1px</span><span class="val">línea</span><span class="use"><code>--border</code>, y una sola por costura: la pone una de las dos regiones.</span></div>
       <div class="spec-row"><span class="tok">sombra</span><span class="val">una</span><span class="use">Sólo lo que flota: menú y popover. Nada más proyecta sombra.</span></div>
+    </div>
+  </section>
+
+  <section id="antesdespues">
+    <div class="sec-head">
+      <h2>Antes y después</h2>
+      <p>Las cuatro herramientas a 1440px, el 24 sep 2026, antes y después de llevar las medidas a la escala. Lo que más cambia es la costura de arriba: cada columna tenía su propia altura de banda, y ahora las tres miden 40 y la línea sigue derecha.</p>
+    </div>
+    <div class="tbl-wrap">
+      <table style="min-width:560px">
+        <thead><tr><th>Banda superior por columna</th><th>harness</th><th>tablero</th><th>trazador</th><th>visor</th></tr></thead>
+        <tbody>
+          <tr><td>antes</td><td>41 · 53 · 41</td><td>40 · 35 · 37</td><td>42 · 53 · 42</td><td>57 · 57 · 57</td></tr>
+          <tr><td class="std" style="color:var(--primary-ink);font-weight:600">después</td><td>40 · 40 · 40</td><td>40 · 40 · 40</td><td>40 · 40 · 40</td><td>40 · 40 · 40</td></tr>
+          <tr><td>margen del texto, antes</td><td>12 · 25 · 13</td><td>10 · 30 · 16</td><td>12 · 12 · 13</td><td>33 · 12 · 13</td></tr>
+          <tr><td>texto en peso 700, antes → después</td><td>22 → 1</td><td>232 → 0</td><td>0 → 0</td><td>0 → 0</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="ba">
+      <figure><div><p class="tag2">Tablero · antes</p><img src="capturas/tablero-antes.jpg" alt="Tablero antes: la barra de pestañas del editor mide 35 y la del detalle 37, más bajas que el encabezado del sidebar" loading="lazy"></div><div><p class="tag2">Tablero · después</p><img src="capturas/tablero-despues.jpg" alt="Tablero después: las tres columnas arrancan con una banda de 40" loading="lazy"></div><figcaption>Las pestañas del editor y las del detalle suben a 40 y alinean con «Mis tareas». Las filas del árbol quedan en 28 con el texto a 12 del borde, en la misma vertical que el título.</figcaption></figure>
+      <figure><div><p class="tag2">Visor · antes</p><img src="capturas/visor-antes.jpg" alt="Visor antes: cada proyecto ocupa una banda de 57 px" loading="lazy"></div><div><p class="tag2">Visor · después</p><img src="capturas/visor-despues.jpg" alt="Visor después: banda Proyectos de 40 y vistas de 32" loading="lazy"></div><figcaption>El encabezado de cada vista pasa de 57 a 32, y el sidebar gana su banda «Proyectos» de 40, que le faltaba para alinear con el editor y el detalle.</figcaption></figure>
+      <figure><div><p class="tag2">Harness · antes</p><img src="capturas/harness-antes.jpg" alt="Harness antes: el recorrido mide 53 de alto y los rótulos del detalle van en mayúsculas espaciadas" loading="lazy"></div><div><p class="tag2">Harness · después</p><img src="capturas/harness-despues.jpg" alt="Harness después: las tres bandas en 40 y los rótulos en mayúscula inicial" loading="lazy"></div><figcaption>La barra del recorrido baja de 53 a 40 con los controles en 28. Los rótulos «CASO» e «IDENTIDAD» pasan a «Caso» e «Identidad», sin espaciado entre letras, y la lista de comercios usa filas de 28.</figcaption></figure>
     </div>
   </section>
 
@@ -700,7 +732,7 @@ nav.toc a:hover, nav.toc a:focus-visible { color: var(--fg); border-bottom-color
       <div><span class="st prop">Propuesta</span><div class="body"><span class="q">Las pestañas suben a <code>taller.css</code> como <code>.tabs</code> y <code>.tab</code></span><p>El tablero ya tiene dos barras de pestañas escritas por separado: <code>.editor-tabs</code> (tareas abiertas) y <code>.aux-tabs</code> (Jira, Pendientes, Artifacts), con la misma gramática y dos hojas de estilo. Eso ya es el segundo uso. Las dos pasan a ser <code>.tabs</code>, y la parte se llama «pestañas» en cualquier región.</p></div></div>
       <div><span class="st prop">Propuesta</span><div class="body"><span class="q">El trazador entra a <code>.workbench</code> y su detalle flota como <code>.auxiliarybar.overlay</code></span><p>La razón para flotar es real: no recalcular el grafo en cada píxel del arrastre. Pero eso es del sidebar secundario, no del resto del layout. Con el modificador declarado en <code>taller.css</code>, la desviación queda escrita y el chequeo de scroll mide al trazador como a las demás.</p></div></div>
       <div><span class="st prop">Propuesta</span><div class="body"><span class="q">El estado vacío es <code>.empty</code>, en todas</span><p>El <code>.sidebar-vacio</code> del trazador se reemplaza por <code>.empty</code> de <code>taller.css</code>, en su forma corta: una línea de <code>--text-base</code> en <code>--texto-2</code>, sin ilustración.</p></div></div>
-      <div><span class="st prop">Propuesta</span><div class="body"><span class="q">El estándar de tipografía, espacios, iconos y forma de arriba</span><p>Cinco tamaños, dos pesos, cinco espacios, alturas 24 · 28 · 32 · 40 · 30, un solo tamaño de icono, tres radios. Entra a <code>taller.css</code> como tokens (<code>--text-title</code>, <code>--row-h</code>, <code>--radius-sm</code> para toolbar y menú) y a <code>make estilo-check</code> como un chequeo nuevo que cuente literales fuera de la escala, igual que hoy cuenta colores literales.</p></div></div>
+      <div><span class="st done">Hecho</span><div class="body"><span class="q">El estándar de tipografía, espacios, iconos y forma de arriba</span><p>En <code>taller.css</code> desde el 24 sep: <code>--text-title</code>, <code>--row-h</code>, <code>--view-head-h</code>, <code>--gutter</code>, <code>--radius-control</code> y <code>--radius-float</code>, y cada componente del taller medido con ellos. Las cuatro herramientas llevaron sus tamaños y pesos a la escala y sus bandas a 40. Falta el chequeo que cuente literales fuera de la escala, y los espacios propios de cada herramienta (siguen con ~30 valores distintos en el harness y el tablero).</p></div></div>
     </div>
   </section>
 
@@ -721,7 +753,7 @@ nav.toc a:hover, nav.toc a:focus-visible { color: var(--fg); border-bottom-color
     </ol>
   </section>
 
-  <footer>Prototipo de la tarea #96 · cuarto borrador, 24 sep 2026 · el contrato vigente sigue siendo <span class="mono">tools/ui/README.md</span> hasta que esto se apruebe.</footer>
+  <footer>Prototipo de la tarea #96 · quinto borrador, 24 sep 2026 · el contrato vigente sigue siendo <span class="mono">tools/ui/README.md</span> hasta que esto se apruebe.</footer>
 </div>
 
 <script>

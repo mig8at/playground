@@ -49,6 +49,6 @@ const t = useTrazador()
 .buscador .input { flex:1 1 320px; width:auto }
 .buscador select.btn { padding-right:8px }
 
-.como { font-size:12.5px; color:var(--dim); margin:10px 0 0 }
+.como { font-size:var(--text-base); color:var(--dim); margin:10px 0 0 }
 .ojo { color:var(--warn); font-weight:500 }
 </style>

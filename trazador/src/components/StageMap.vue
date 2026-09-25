@@ -499,7 +499,7 @@ watch(() => [props.closed, props.panelWidth], () => nextTick(measure))
 .ndet { font:9.5px system-ui; fill:var(--dim); text-anchor:middle }
 .hora { font:9px ui-monospace,monospace; fill:var(--tenue); text-anchor:middle }
 .salto { font:9px ui-monospace,monospace; fill:var(--tenue); text-anchor:middle }
-.clbl { font:700 11px system-ui; letter-spacing:-.01em }
+.clbl { font:700 var(--text-xs) system-ui; letter-spacing:-.01em }
 .csub { font:9px system-ui; fill:var(--dim) }
 .aqui { font-weight:400; font-size:9.5px; fill:var(--dim) }
 .afuera { font:9.5px system-ui; fill:var(--dim) }

@@ -57,12 +57,12 @@ watch(() => props.taskKey, () => { if (content.value) content.value.scrollTop = 
 .te-head { display: flex; flex-direction: column; gap: 7px; padding: 14px 20px 11px; flex: none;
   border-bottom: 1px solid var(--line) }
 .te-linea { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; min-width: 0 }
-.te-k { font: 11px var(--font-mono); color: var(--mut); flex: none }
+.te-k { font: var(--text-xs) var(--font-mono); color: var(--mut); flex: none }
 /* Las acciones al BORDE derecho: es el único sitio donde el ojo las busca sin leer, y deja el
    renglón de la izquierda para lo que identifica la tarea. */
 .te-acts { margin-left: auto; display: flex; align-items: center; gap: 10px; flex-wrap: wrap }
 .te-acts:empty { display: none }
-h2 { margin: 0; font-size: 17px; line-height: 1.35; font-weight: 600; overflow-wrap: anywhere }
+h2 { margin: 0; font-size: var(--text-title); line-height: 1.35; font-weight: 600; overflow-wrap: anywhere }
 /* `--te-body-top` lo lee el día pegado de la línea de tiempo (App.vue): un `sticky` se pega al borde del
    CONTENIDO del que scrollea —debajo de este padding— y sin compensarlo el texto se asoma por la franja
    de arriba. */

@@ -51,22 +51,40 @@
 
 /* ── MEDIDAS ──────────────────────────────────────────────────────────────────────────────────── */
 :root {
+  /* ── LAS MEDIDAS ─────────────────────────────────────────────────────────────────────────────
+     Todo sale de una grilla de 4 y de CUATRO alturas que se repiten en cada región, así las líneas
+     de una columna siguen en la de al lado:
+
+       40  la banda superior de cada columna (encabezado de región, barra de pestañas)
+       32  un encabezado de vista o de grupo, y un control (campo, botón, select)
+       28  una fila (lista, árbol, menú) y un botón compacto
+       24  un botón de icono y un control dentro de una barra
+
+     Y un margen: el texto de una región arranca a 12px de su borde, en el encabezado y en cada fila,
+     así el título y lo que titula quedan en la misma vertical. El editor que muestra un documento
+     usa 24. Entre secciones 24, entre bloques 16, entre un rótulo y su control 8. */
   --space-1: 4px;
   --space-2: 8px;
   --space-3: 12px;
   --space-4: 16px;
-  --space-5: 20px;
-  --space-6: 24px;
+  --space-6: 24px;          /* (no hay --space-5: entre 16 y 24 no hizo falta nunca) */
   --control-xs: 24px;
-  --control-sm: 32px;
-  --control-md: 36px;
+  --control-sm: 28px;
+  --control-md: 32px;
   --control-lg: 40px;
   --region-head-h: 40px;
-  --text-xs: 11px;
-  --text-sm: 12px;
-  --text-base: 13px;
-  --text-body: 14px;
+  --view-head-h: 32px;
+  --row-h: 28px;
+  --gutter: var(--space-3); /* el margen del texto de una región */
+  --indent: 16px;           /* un nivel de un árbol */
+  --text-xs: 11px;          /* pie, conteos, metadatos */
+  --text-sm: 12px;          /* encabezados, rótulos, controles compactos */
+  --text-base: 13px;        /* la interfaz: filas, campos, botones, menús */
+  --text-body: 14px;        /* la prosa de un documento */
+  --text-title: 16px;       /* el título del documento abierto; uno por pantalla */
   --icon-size: 16px;
+  --radius-control: 6px;    /* botón, campo, ítem de menú, botón de icono */
+  --radius-float: 10px;     /* lo que flota: radio del ítem + el aire del menú (6 + 4), concéntricos */
   --titlebar-h: 52px;
   --statusbar-h: 30px;
   --banner-h: auto;
@@ -90,6 +108,10 @@
   --texto-2: color-mix(in oklab, var(--foreground) 74%, var(--background));
   --texto-3: color-mix(in oklab, var(--foreground) 70%, var(--background));
 }
+
+/* Dos pesos: 400 y 600. Lo que el navegador pone en negrita por su cuenta (700) baja a 600; con
+   `:where` no suma especificidad, así cualquier regla de una herramienta le gana. */
+:where(b, strong, h1, h2, h3, h4, h5, h6, th) { font-weight: 600 }
 
 /* ── EL GRID ──────────────────────────────────────────────────────────────────────────────────── */
 .workbench {
@@ -138,12 +160,12 @@
   overflow: hidden;
 }
 .banner {
-  display: flex; align-items: center; gap: 10px; padding: 6px 12px;
+  display: flex; align-items: center; gap: var(--space-2); padding: var(--space-2) var(--gutter);
   border-bottom: 1px solid var(--border);
 }
 .activitybar {
   flex: none;
-  display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 6px 0;
+  display: flex; flex-direction: column; align-items: center; gap: var(--space-1); padding: var(--space-2) 0;
   background: var(--sidebar); border-right: 1px solid var(--sidebar-border);
   overflow: hidden;
 }
@@ -170,8 +192,8 @@
 }
 .statusbar {
   flex: none;
-  display: flex; align-items: center; gap: 14px; padding: 0 12px;
-  font-size: 11.5px;
+  display: flex; align-items: center; gap: var(--space-4); padding: 0 var(--gutter);
+  font-size: var(--text-xs);
   /* La barra comunica estado; usa la rampa derivada del foreground, no un gris fijo del tema. */
   color: var(--texto-2);
   background: var(--card); border-top: 1px solid var(--border);
@@ -186,7 +208,9 @@
    con el contenido y perderías de vista qué estás mirando. */
 .region-head {
   flex: none; display: flex; align-items: center; gap: 8px;
-  min-height: var(--region-head-h); padding: var(--space-2) var(--space-3);
+  /* `border-box`: los 40 incluyen la línea de abajo, así la banda mide lo mismo en las cuatro
+     herramientas —medidas antes: 41, 42, 53 y 57— y la costura sigue derecha de columna a columna. */
+  box-sizing: border-box; min-height: var(--region-head-h); padding: var(--space-1) var(--gutter);
   font-size: var(--text-sm); font-weight: 600;
   text-transform: none; letter-spacing: normal;
   /* El título de una región se lee en tamaños compactos: usa la misma rampa que el statusbar. */
@@ -204,6 +228,7 @@
    grupo scrollea con la lista — pero se PEGA arriba, así que mientras recorrés un grupo largo siempre
    sabés en cuál estás. Sin borde abajo: con uno, cinco grupos dibujan cinco rayas y la lista se ve
    como una tabla. */
+.region-head.grupo, .view > .region-head { min-height: var(--view-head-h) }
 .region-head.grupo {
   position: sticky; top: 0; z-index: 1;
   background: var(--region-bg, var(--background));
@@ -266,12 +291,12 @@ button.region-head:focus-visible { outline: none; box-shadow: inset 0 0 0 2px va
 /* El chevron y el título son UN botón: el área de clic de un encabezado de acordeón es el encabezado
    entero, no una flechita de 12px. Las acciones quedan afuera del botón para que no lo disparen. */
 .view-tog {
-  flex: 1; min-width: 0; display: flex; align-items: center; gap: 5px;
+  flex: 1; min-width: 0; display: flex; align-items: center; gap: var(--space-2);
   border: 0; background: none; padding: 0; cursor: pointer;
   color: inherit; font: inherit; text-align: left;
 }
 .view-tog > span:last-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap }
-.view-tog .chev { flex: none; width: 12px; font-size: 10px; opacity: .8 }
+.view-tog .chev { flex: none; width: 12px; font-size: var(--text-xs); opacity: .8 }
 .view-tog:hover { color: var(--foreground) }
 
 /* ── LA BARRA DE ACCIONES DE UNA REGIÓN ──────────────────────────────────────────────────────────
@@ -287,8 +312,8 @@ button.region-head:focus-visible { outline: none; box-shadow: inset 0 0 0 2px va
 .region-actions { display: flex; align-items: center; gap: 2px; flex: none }
 .region-action {
   width: var(--control-xs); height: var(--control-xs); flex: none; display: grid; place-items: center; padding: 0;
-  border: 0; border-radius: var(--radius); background: none; cursor: pointer;
-  color: inherit; font: inherit; font-size: 13px; line-height: 1;
+  border: 0; border-radius: var(--radius-control); background: none; cursor: pointer;
+  color: inherit; font: inherit; font-size: var(--text-base); line-height: 1;
 }
 .region-action:hover { background: var(--sel, color-mix(in oklab, var(--foreground) 10%, transparent)) }
 .region-action[aria-expanded="true"] { background: var(--sel, color-mix(in oklab, var(--foreground) 10%, transparent)); color: var(--foreground) }
@@ -298,15 +323,15 @@ button.region-head:focus-visible { outline: none; box-shadow: inset 0 0 0 2px va
    capricho: `region-body` tiene `overflow: auto`, y un hijo posicionado dentro de un contenedor con
    overflow queda recortado contra su borde — el menú se cortaría contra el canto del sidebar. */
 .region-menu {
-  position: fixed; z-index: 50; min-width: min(220px, calc(100vw - 16px)); padding: 4px; overflow-y: auto;
-  border: 1px solid var(--border); border-radius: var(--radius-xl, 10px);
+  position: fixed; z-index: 50; min-width: min(220px, calc(100vw - 16px)); padding: var(--space-1); overflow-y: auto;
+  border: 1px solid var(--border); border-radius: var(--radius-float);
   background: var(--popover); color: var(--popover-foreground);
   box-shadow: 0 10px 30px #0008;
-  font-size: 12.5px; font-weight: 400; text-transform: none; letter-spacing: 0;
+  font-size: var(--text-base); font-weight: 400; text-transform: none; letter-spacing: 0;
 }
 .region-menu-item {
-  display: flex; align-items: center; gap: 9px; width: 100%;
-  padding: 6px 9px; border: 0; border-radius: var(--radius); background: none;
+  display: flex; align-items: center; gap: var(--space-2); width: 100%; min-height: var(--row-h);
+  padding: var(--space-1) var(--space-2); border: 0; border-radius: var(--radius-control); background: none;
   color: inherit; font: inherit; text-align: left; cursor: pointer; text-decoration: none;
 }
 .region-menu-item:hover:not(:disabled) { background: var(--accent); color: var(--accent-foreground) }
@@ -315,8 +340,8 @@ button.region-head:focus-visible { outline: none; box-shadow: inset 0 0 0 2px va
    fila bailaría un carácter al tildar. */
 .region-menu-item .tick { width: 12px; flex: none; text-align: center }
 .region-menu-item .label, .region-menu-item .menu-label { flex: 1; min-width: 0; overflow-wrap: anywhere }
-.region-menu-item .n { flex: none; font-size: 11px; color: var(--texto-2); font-variant-numeric: tabular-nums }
-.region-menu hr { border: 0; border-top: 1px solid var(--border); margin: 4px 0 }
+.region-menu-item .n { flex: none; font-size: var(--text-xs); color: var(--texto-2); font-variant-numeric: tabular-nums }
+.region-menu hr { border: 0; border-top: 1px solid var(--border); margin: var(--space-1) calc(-1 * var(--space-1)) }
 
 /* ── LA MANIJA ────────────────────────────────────────────────────────────────────────────────────
    Acá vivía una nota que decía que esto NO se compartía «hasta que lo necesite la segunda
@@ -373,9 +398,9 @@ body.redimensionando { cursor: col-resize; user-select: none }
 .btn {
   display: inline-flex; align-items: center; justify-content: center; gap: 8px;
   flex-shrink: 0; white-space: nowrap; border: 1px solid transparent;
-  height: var(--control-md); padding: 0 var(--space-4);
-  border-radius: var(--radius);
-  font: inherit; font-size: 14px; font-weight: 500; line-height: 20px;
+  height: var(--control-md); padding: 0 var(--space-3);
+  border-radius: var(--radius-control);
+  font: inherit; font-size: var(--text-base); font-weight: 500; line-height: 20px;
   background: var(--primary); color: var(--primary-foreground);
   cursor: pointer; transition: background .12s, color .12s, border-color .12s, box-shadow .12s;
 }
@@ -402,20 +427,20 @@ body.redimensionando { cursor: col-resize; user-select: none }
 .btn-link:hover { background: none; text-decoration: underline }
 
 .btn-xs { height: var(--control-xs); padding: 0 var(--space-2); gap: var(--space-1); font-size: var(--text-sm) }
-.btn-sm { height: var(--control-sm); padding: 0 var(--space-3); gap: 6px; font-size: var(--text-base) }
-.btn-lg { height: var(--control-lg); padding: 0 var(--space-6) }
+.btn-sm { height: var(--control-sm); padding: 0 var(--space-3); gap: var(--space-2); font-size: var(--text-base) }
+.btn-lg { height: var(--control-lg); padding: 0 var(--space-4) }
 /* Los de icono son CUADRADOS: un botón de icono con padding horizontal se lee como un botón vacío. */
-.btn-icon { width: 36px; padding: 0 } .btn-icon.btn-xs { width: 24px }
-.btn-icon.btn-sm { width: 32px } .btn-icon.btn-lg { width: 40px }
+.btn-icon { width: var(--control-md); padding: 0 } .btn-icon.btn-xs { width: var(--control-xs) }
+.btn-icon.btn-sm { width: var(--control-sm) } .btn-icon.btn-lg { width: var(--control-lg) }
 
 /* ── CAMPO ──────────────────────────────────────────────────────────────────────────────────────
    Fondo TRANSPARENTE, no una superficie propia: el campo se apoya en donde está, y lo que lo
    delimita es el borde. Es lo que hace que un formulario no se vea como una pila de cajitas. */
 .input {
   display: block; width: 100%; min-width: 0; height: var(--control-md);
-  padding: 0 12px; border: 1px solid var(--input); border-radius: var(--radius);
+  padding: 0 var(--gutter); border: 1px solid var(--input); border-radius: var(--radius-control);
   background: transparent; color: var(--foreground);
-  font: inherit; font-size: 14px; line-height: 20px;
+  font: inherit; font-size: var(--text-base); line-height: 20px;
   box-shadow: 0 1px 2px 0 rgb(0 0 0 / .05);
   outline: none; transition: color .12s, border-color .12s, box-shadow .12s;
 }
@@ -423,7 +448,7 @@ body.redimensionando { cursor: col-resize; user-select: none }
 .input:disabled { pointer-events: none; cursor: not-allowed; opacity: .5 }
 .input[aria-invalid="true"] { border-color: var(--destructive) }
 .input[aria-invalid="true"]:focus-visible { box-shadow: 0 0 0 3px color-mix(in oklab, var(--destructive) 40%, transparent) }
-textarea.input { height: auto; min-height: 64px; padding: 8px 12px; resize: vertical }
+textarea.input { height: auto; min-height: 64px; padding: var(--space-2) var(--gutter); resize: vertical }
 .input-sm { height: var(--control-sm); font-size: var(--text-base) }
 /* Extensión declarada: shadcn corta en `sm`. Hace falta un escalón más para el campo que vive
    DENTRO de una barra —el buscador de una etapa, el filtro de un grupo—, donde 32px empujan la
@@ -432,8 +457,8 @@ textarea.input { height: auto; min-height: 64px; padding: 8px 12px; resize: vert
 
 /* Un campo con algo adentro —una lupa, una ✕, una unidad—. El borde lo lleva el GRUPO y el input
    queda desnudo adentro: si lo llevan los dos, se ven dos marcos concéntricos. */
-.input-group { display: flex; align-items: center; gap: 6px; height: 36px; padding: 0 10px;
-  border: 1px solid var(--input); border-radius: var(--radius); background: transparent;
+.input-group { display: flex; align-items: center; gap: var(--space-2); height: var(--control-md); padding: 0 var(--space-2);
+  border: 1px solid var(--input); border-radius: var(--radius-control); background: transparent;
   box-shadow: 0 1px 2px 0 rgb(0 0 0 / .05); transition: border-color .12s, box-shadow .12s }
 .input-group:focus-within { border-color: var(--ring);
   box-shadow: 0 0 0 3px color-mix(in oklab, var(--ring) 50%, transparent) }
@@ -442,10 +467,10 @@ textarea.input { height: auto; min-height: 64px; padding: 8px 12px; resize: vert
 .input-group > svg, .input-group > .ico-txt { flex: none; color: var(--texto-3) }
 
 /* La etiqueta de un campo y su pista, que es lo que `field` del original resuelve. */
-.field { display: flex; flex-direction: column; gap: 6px }
-.field > label, .label { font-size: 14px; font-weight: 500; line-height: 1; color: var(--foreground) }
-.field-hint { font-size: 12px; color: var(--texto-3); line-height: 1.4 }
-.field-error { font-size: 12px; color: var(--destructive) }
+.field { display: flex; flex-direction: column; gap: var(--space-2) }
+.field > label, .label { font-size: var(--text-base); font-weight: 500; line-height: 1; color: var(--foreground) }
+.field-hint { font-size: var(--text-sm); color: var(--texto-3); line-height: 1.4 }
+.field-error { font-size: var(--text-sm); color: var(--destructive) }
 
 /* ── PÍLDORA ────────────────────────────────────────────────────────────────────────────────────
    Relleno O contorno, nunca los dos: es la regla del barrido de marcos y también la del original,
@@ -454,7 +479,7 @@ textarea.input { height: auto; min-height: 64px; padding: 8px 12px; resize: vert
   display: inline-flex; align-items: center; justify-content: center; gap: 4px;
   width: fit-content; flex-shrink: 0; overflow: hidden; white-space: nowrap;
   padding: 2px 8px; border: 1px solid transparent; border-radius: var(--radius-full, 999px);
-  font-size: 12px; font-weight: 500; line-height: 16px;
+  font-size: var(--text-sm); font-weight: 500; line-height: 16px;
   background: var(--primary); color: var(--primary-foreground);
   transition: color .12s, box-shadow .12s;
 }
@@ -465,7 +490,7 @@ textarea.input { height: auto; min-height: 64px; padding: 8px 12px; resize: vert
 /* ⚠ `badge-xs` NO está en el original, y es una extensión DECLARADA: estas herramientas son densas y
    tienen ~25 etiquetas de 10px —la fuente de un dato, el conteo de errores, la etapa de un esfuerzo—
    que a 12px empujan la fila a otro renglón. Es el mismo componente, un escalón abajo. */
-.badge-xs { padding: 0 6px; font-size: 10px; line-height: 15px; gap: 3px }
+.badge-xs { padding: 0 6px; font-size: var(--text-xs); line-height: 16px; gap: var(--space-1) }
 
 /* ── TECLA ──────────────────────────────────────────────────────────────────────────────────────
    Las pistas de teclado eran texto plano («←/→ recorren», «⌥R»). Una tecla se lee como tecla. */
@@ -478,7 +503,7 @@ textarea.input { height: auto; min-height: 64px; padding: 8px 12px; resize: vert
      muted es el escalón MÁS BAJO legible, no el del medio: la rampa cuelga de `--foreground`, igual
      que en `region-head`. Es la misma corrección de siempre y la volvió a encontrar el chequeo. */
   color: var(--texto-2);
-  font: inherit; font-size: 12px; font-weight: 500;
+  font: inherit; font-size: var(--text-sm); font-weight: 500;
 }
 
 /* ── INTERRUPTOR ────────────────────────────────────────────────────────────────────────────────
@@ -544,12 +569,12 @@ textarea.input { height: auto; min-height: 64px; padding: 8px 12px; resize: vert
   align-items: center; justify-content: center; gap: 24px; padding: 24px; text-align: center }
 .empty-head { display: flex; max-width: 24rem; flex-direction: column; align-items: center; gap: 8px }
 .empty-media { display: flex; align-items: center; justify-content: center; flex: none;
-  width: 40px; height: 40px; margin-bottom: 8px; border-radius: var(--radius);
-  background: var(--muted); color: var(--foreground); font-size: 18px }
-.empty-title { font-size: 16px; font-weight: 500; letter-spacing: -.01em; color: var(--foreground) }
-.empty-desc { font-size: 13px; line-height: 1.6; color: var(--texto-2) }
+  width: var(--control-lg); height: var(--control-lg); margin-bottom: var(--space-2); border-radius: var(--radius-float);
+  background: var(--muted); color: var(--foreground); font-size: var(--text-title) }
+.empty-title { font-size: var(--text-title); font-weight: 500; letter-spacing: -.01em; color: var(--foreground) }
+.empty-desc { font-size: var(--text-base); line-height: 1.6; color: var(--texto-2) }
 .empty-content { display: flex; width: 100%; max-width: 24rem; min-width: 0;
-  flex-direction: column; align-items: center; gap: 16px; font-size: 13px }
+  flex-direction: column; align-items: center; gap: var(--space-4); font-size: var(--text-base) }
 
 /* ── ALTERNADOR ─────────────────────────────────────────────────────────────────────────────────
    El `toggle-group` del original: N opciones, una encendida. Dos formas —sueltas o UNIDAS— y la
@@ -558,9 +583,9 @@ textarea.input { height: auto; min-height: 64px; padding: 8px 12px; resize: vert
 .toggle-group { display: inline-flex; align-items: center; width: fit-content; gap: 4px }
 .toggle {
   display: inline-flex; align-items: center; justify-content: center; gap: 8px;
-  height: 36px; min-width: 36px; padding: 0 8px;
-  border: 1px solid transparent; border-radius: var(--radius); background: transparent;
-  font: inherit; font-size: 14px; font-weight: 500; color: inherit; white-space: nowrap;
+  height: var(--control-md); min-width: var(--control-md); padding: 0 var(--space-2);
+  border: 1px solid transparent; border-radius: var(--radius-control); background: transparent;
+  font: inherit; font-size: var(--text-base); font-weight: 500; color: inherit; white-space: nowrap;
   cursor: pointer; transition: color .12s, background .12s, border-color .12s, box-shadow .12s;
 }
 /* ⚠ El original es `hover:bg-muted hover:text-muted-foreground`, y es la TERCERA vez que ese par
@@ -580,12 +605,12 @@ textarea.input { height: auto; min-height: 64px; padding: 8px 12px; resize: vert
    deja de leerse como «elegí UNA de estas». */
 .toggle-joined { gap: 0 }
 .toggle-joined > .toggle { border-radius: 0; margin-left: -1px }
-.toggle-joined > .toggle:first-child { border-radius: var(--radius) 0 0 var(--radius); margin-left: 0 }
-.toggle-joined > .toggle:last-child { border-radius: 0 var(--radius) var(--radius) 0 }
-.toggle-joined > .toggle:only-child { border-radius: var(--radius) }
+.toggle-joined > .toggle:first-child { border-radius: var(--radius-control) 0 0 var(--radius-control); margin-left: 0 }
+.toggle-joined > .toggle:last-child { border-radius: 0 var(--radius-control) var(--radius-control) 0 }
+.toggle-joined > .toggle:only-child { border-radius: var(--radius-control) }
 .toggle-joined > .toggle:focus-visible { z-index: 1 }
-.toggle-sm > .toggle, .toggle.toggle-sm { height: 32px; min-width: 32px; padding: 0 6px; font-size: 13px }
-.toggle-xs > .toggle, .toggle.toggle-xs { height: 24px; min-width: 24px; padding: 0 8px; font-size: 11.5px }
+.toggle-sm > .toggle, .toggle.toggle-sm { height: var(--control-sm); min-width: var(--control-sm); padding: 0 var(--space-2); font-size: var(--text-base) }
+.toggle-xs > .toggle, .toggle.toggle-xs { height: var(--control-xs); min-width: var(--control-xs); padding: 0 var(--space-2); font-size: var(--text-sm) }
 
 /* El tamaño `sm` del interruptor, que es el que cabe en una fila densa (el original también lo trae). */
 .switch-sm { width: 28px; height: 14px }
@@ -603,8 +628,8 @@ textarea.input { height: auto; min-height: 64px; padding: 8px 12px; resize: vert
 .accordion-item:last-child { border-bottom: 0 }
 .accordion-trigger {
   display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; width: 100%;
-  padding: 16px 0; border: 1px solid transparent; border-radius: var(--radius);
-  background: none; color: inherit; font: inherit; font-size: 14px; font-weight: 500;
+  padding: var(--space-3) 0; border: 1px solid transparent; border-radius: var(--radius-control);
+  background: none; color: inherit; font: inherit; font-size: var(--text-base); font-weight: 500;
   text-align: left; cursor: pointer; list-style: none; transition: all .12s; outline: none;
 }
 .accordion-trigger::-webkit-details-marker { display: none }
@@ -617,7 +642,7 @@ textarea.input { height: auto; min-height: 64px; padding: 8px 12px; resize: vert
   color: var(--texto-3); transition: transform .2s; transform: translateY(2px) }
 [open] > .accordion-trigger .accordion-chev,
 .accordion-trigger[aria-expanded="true"] .accordion-chev { transform: translateY(2px) rotate(180deg) }
-.accordion-content { overflow: hidden; padding: 0 0 16px; font-size: 14px }
+.accordion-content { overflow: hidden; padding: 0 0 var(--space-3); font-size: var(--text-base) }
 
 /* ── AVISO ──────────────────────────────────────────────────────────────────────────────────────
    Una grilla de dos columnas —icono y texto— para que el título y la descripción queden alineados
@@ -628,7 +653,7 @@ textarea.input { height: auto; min-height: 64px; padding: 8px 12px; resize: vert
   position: relative; display: grid; grid-template-columns: 0 1fr; align-items: start;
   row-gap: 2px; width: 100%; padding: 12px 16px;
   border: 1px solid var(--border); border-radius: var(--radius);
-  background: var(--card); color: var(--card-foreground); font-size: 14px;
+  background: var(--card); color: var(--card-foreground); font-size: var(--text-base);
 }
 .alert:has(> .alert-icon) { grid-template-columns: 16px 1fr; column-gap: 12px }
 .alert-icon { grid-column: 1; width: 16px; height: 16px; line-height: 16px; text-align: center;
@@ -636,7 +661,7 @@ textarea.input { height: auto; min-height: 64px; padding: 8px 12px; resize: vert
 .alert-title { grid-column: 2; min-height: 16px; font-weight: 500; letter-spacing: -.01em;
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap }
 .alert-desc { grid-column: 2; display: grid; justify-items: start; gap: 4px;
-  font-size: 14px; color: var(--texto-2) }
+  font-size: var(--text-base); color: var(--texto-2) }
 .alert-desc p { margin: 0; line-height: 1.6 }
 .alert-destructive { color: var(--destructive) }
 .alert-destructive .alert-desc { color: color-mix(in oklab, var(--destructive) 90%, var(--card)) }
@@ -644,9 +669,9 @@ textarea.input { height: auto; min-height: 64px; padding: 8px 12px; resize: vert
 /* ── MIGAS ──────────────────────────────────────────────────────────────────────────────────────
    El camino hasta lo que estás mirando. La página ACTUAL no es un enlace y va en el color del
    texto; el resto, apagado. Es lo que hace que se lea dónde estás sin contar los separadores. */
-.breadcrumb { display: flex; flex-wrap: wrap; align-items: center; gap: 6px;
-  font-size: 14px; color: var(--texto-3); word-break: break-word }
-.breadcrumb-item { display: inline-flex; align-items: center; gap: 6px }
+.breadcrumb { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2);
+  font-size: var(--text-base); color: var(--texto-3); word-break: break-word }
+.breadcrumb-item { display: inline-flex; align-items: center; gap: var(--space-2) }
 .breadcrumb-link { color: inherit; text-decoration: none; background: none; border: 0; padding: 0;
   font: inherit; cursor: pointer; transition: color .12s }
 .breadcrumb-link:hover { color: var(--foreground) }
@@ -679,7 +704,7 @@ textarea.input { height: auto; min-height: 64px; padding: 8px 12px; resize: vert
 .checkbox:disabled { cursor: not-allowed; opacity: .5 }
 /* La etiqueta al lado, que es como se usa siempre: el click en el texto también marca. */
 .checkbox-row { display: inline-flex; align-items: center; gap: 8px; cursor: pointer;
-  font-size: 14px; line-height: 1 }
+  font-size: var(--text-base); line-height: 1 }
 .checkbox-row:has(> .checkbox:disabled) { cursor: not-allowed; opacity: .5 }
 
 
@@ -736,3 +761,14 @@ textarea.input { height: auto; min-height: 64px; padding: 8px 12px; resize: vert
 .ui-icon[data-icon="channel"] { --ui-icon: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22black%22%20stroke-width%3D%221.75%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Cpath%20d%3D%22M12%204v6M5%2020v-6h14v6M12%2014v6%22%2F%3E%3Ccircle%20cx%3D%2212%22%20cy%3D%224%22%20r%3D%222%22%2F%3E%3C%2Fsvg%3E") }
 .ui-icon[data-icon="down"] { --ui-icon: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22black%22%20stroke-width%3D%221.75%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Cpath%20d%3D%22m6%209%206%206%206-6%22%2F%3E%3C%2Fsvg%3E") }
 .ui-icon[data-icon="bottom"] { --ui-icon: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22black%22%20stroke-width%3D%221.75%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Cpath%20d%3D%22M5%2020h14M12%203v12m-5-5%205%205%205-5%22%2F%3E%3C%2Fsvg%3E") }
+
+/* ── UN CONTROL DENTRO DE UNA BANDA ───────────────────────────────────────────────────────────────
+   La banda superior mide 40 con su línea: 4 de aire, un control de 28 y 4 de aire. Un control de 32
+   adentro la estiraba a 49 —medido en el recorrido del harness y en el mapa del trazador—, y la
+   costura dejaba de seguir derecha contra la columna de al lado. Va al FINAL del archivo a propósito:
+   `.region-head :where(…)` pesa lo mismo que `.btn`, y a igual peso gana la regla de más abajo. Los
+   de 24 (`-xs`) quedan como están. */
+.region-head :where(.btn:not(.btn-xs):not(.btn-link), .input:not(.input-xs), .input-group, select.btn) {
+  height: var(--control-sm);
+}
+.region-head :where(.btn-icon:not(.btn-xs)) { width: var(--control-sm) }

@@ -397,8 +397,8 @@ async function copyTrace() {
    `overflow:visible` contra la regla compartida: el buscador suma renglones —«coincidió como…», los
    recientes— y una barra de una línea los recortaría. */
 .editor-mapa > .region-head { height:auto; overflow:visible; background:var(--card);
-  padding:var(--space-2) var(--space-3); gap:var(--space-2); flex-wrap:wrap; text-transform:none; letter-spacing:normal;
-  font-size:14px }
+  padding:var(--space-1) var(--gutter); gap:var(--space-2); flex-wrap:wrap; text-transform:none; letter-spacing:normal;
+  font-size:var(--text-sm) }
 /* El nombre NO se queda con el espacio: lo quiere el buscador. (La regla compartida le da `flex:1`
    al primer hijo, que es lo correcto cuando el primer hijo es el título de una lista.) */
 .editor-mapa > .region-head > :first-child { flex:none; font-weight:600; letter-spacing:-.01em;
@@ -413,17 +413,18 @@ async function copyTrace() {
    y el trazador arma su layout con `#app` en flex, no con la grilla. Sin esto quedaba en 18px contra
    los 26 de las otras tres — el mismo elemento con dos alturas según la herramienta. */
 .statusbar { height:var(--statusbar-h) }
+/* Excepción declarada a «sin mayúsculas»: el ambiente del pie es una alarma (PROD), no una etiqueta. */
 .statusbar strong { color:var(--dim); font-weight:600; text-transform:uppercase; letter-spacing:.06em;
-  font-size:10.5px }
+  font-size:var(--text-xs) }
 .statusbar strong.prod { color:var(--warn) }
 .statusbar b { color:var(--txt); font-weight:600 }
 /* La pista de teclado al borde: es ayuda, no estado — lo último que se lee. */
 .sb-pista { margin-left:auto; color:var(--tenue) }
 /* El desenlace en el statusbar: el icono baja de 20 a 16px y la píldora pierde aire. En sus tamaños
    de tarjeta no entran en los 26px de la barra y la estiran, que es justo lo que esa barra no hace. */
-.statusbar .ico { flex:0 0 16px; height:16px; font-size:10px }
-.statusbar .badge { padding:1px 8px; font-size:10.5px }
-.ureq { color:var(--dim); font-size:13px; font-variant-numeric:tabular-nums }
+.statusbar .ico { flex:0 0 16px; height:16px; font-size:var(--text-xs) }
+.statusbar .badge { padding:1px 8px; font-size:var(--text-xs) }
+.ureq { color:var(--dim); font-size:var(--text-base); font-variant-numeric:tabular-nums }
 /* El resto lo pone `.region-action` (24×24, sin borde). Acá sólo el verde del acuse. */
 .copiar { color:var(--dim); transition:color .12s }
 .copiar:hover { color:var(--txt) }
@@ -435,9 +436,9 @@ async function copyTrace() {
    perfilamientos largos. Por debajo del mínimo se pliega, igual que logs y recientes. */
 .sidebar.persona-panel { flex:0 0 var(--persona-width); min-width:0; padding:0; gap:0; background:var(--card);
   border-right:1px solid var(--line); --region-bg:var(--card) }
-.persona-panel > .region-head { min-height:42px; padding:0 12px; color:var(--txt); background:transparent;
+.persona-panel > .region-head { min-height:var(--region-head-h); color:var(--txt); background:transparent;
   border:0; border-bottom:1px solid var(--line); border-radius:0 }
-.persona-panel > .region-head > :first-child { font-size:13px; font-weight:650 }
+.persona-panel > .region-head > :first-child { font-size:var(--text-base); font-weight:600 }
 .persona-panel > .region-head .region-action { border:1px solid transparent; border-radius:var(--r-sm); background:transparent }
 .persona-panel > .region-head .region-action:hover { color:var(--primary); border-color:var(--line);
   background:var(--panel2) }
@@ -445,26 +446,25 @@ async function copyTrace() {
   display:flex; flex-direction:column; gap:14px; background:transparent; border:0; border-radius:0 }
 .ureq-b { font-variant-numeric:tabular-nums }
 .persona-vacia { margin:auto 0; display:flex; flex-direction:column; align-items:center; gap:7px;
-  padding:20px 8px; color:var(--dim); text-align:center; font-size:12px; line-height:1.5 }
-.persona-vacia .empty-media { margin:0 0 3px; width:32px; height:32px; font-size:15px }
+  padding:20px 8px; color:var(--dim); text-align:center; font-size:var(--text-sm); line-height:1.5 }
+.persona-vacia .empty-media { margin:0 0 3px; width:32px; height:32px; font-size:var(--text-title) }
 .persona-vacia p { margin:0; color:var(--txt); font-weight:500 }
 .persona-vacia span { max-width:220px }
 
 /* LA FICHA, en filas. El rótulo apagado y angosto a la izquierda; el valor ocupa lo que queda y
    envuelve. ⚠ `min-width:0` en el valor: sin él, un nombre de comercio largo ensancha la fila y se
    sale de la columna en vez de partirse. */
-.meta { margin:0; display:flex; flex-direction:column; gap:0; padding:0; font-size:12.5px;
+.meta { margin:0; display:flex; flex-direction:column; gap:0; padding:0; font-size:var(--text-base);
   background:transparent; border:0; border-radius:0 }
 .meta > div { display:flex; gap:8px; align-items:baseline; padding:7px 0 }
 .meta > div + div { border-top:1px solid var(--line) }
-.meta dt { flex:0 0 68px; color:var(--tenue); font-size:11px; text-transform:uppercase;
-  letter-spacing:.05em }
+.meta dt { flex:0 0 68px; color:var(--tenue); font-size:var(--text-xs); text-transform: none;}
 .meta dd { margin:0; min-width:0; color:var(--txt); overflow-wrap:anywhere }
 .meta dd.perfiles-cupo { display:flex; flex-direction:column; gap:3px }
 .perfiles-cupo > span { overflow-wrap:anywhere }
-.perfiles-cupo strong { font-weight:650; color:var(--txt) }
+.perfiles-cupo strong { font-weight:600; color:var(--txt) }
 
-.cargando { display:flex; align-items:center; gap:8px; flex-wrap:wrap; font-size:12px; color:var(--dim) }
+.cargando { display:flex; align-items:center; gap:8px; flex-wrap:wrap; font-size:var(--text-sm); color:var(--dim) }
 /* `progress progress-xs progress-ind` de `taller.css` — la pista, el filete de 3px y el movimiento
    indeterminado salen de ahí. Lo único propio es que NO ocupa el ancho: vive en un renglón junto al
    texto de la espera, así que es un ancho fijo y no crece con él.
@@ -472,10 +472,10 @@ async function copyTrace() {
    lo que la barra dice, «sigue vivo», ya lo dice el movimiento.)* */
 .barra { width:120px; flex:0 0 120px }
 /* Sobre `.alert`: sólo el tamaño, que en una columna de 300px es más chico. */
-.sidebar .alert { font-size:12.5px }
-.sidebar .alert-desc { font-size:12.5px }
+.sidebar .alert { font-size:var(--text-base) }
+.sidebar .alert-desc { font-size:var(--text-base) }
 .mapaRoto code { background:var(--elev); padding:1px 6px;
-  border-radius:var(--r-sm); font-size:11.5px }
+  border-radius:var(--r-sm); font-size:var(--text-sm) }
 /* ⚠ NO ES UN GRID DE TRES COLUMNAS: el mapa y la consola están en flujo; el inspector sigue en capa.
    El área central deja lugar al inspector, sin una franja muerta al redimensionarlo. `flex:1` +
    `min-height:0`: sin el `min-height`, un hijo flex NO se achica por debajo de su

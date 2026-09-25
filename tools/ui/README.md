@@ -38,14 +38,26 @@ Para abrir el catálogo: `make estilo-guia`, luego http://127.0.0.1:5198. No req
 
 ## Medidas
 
-| Token | Valores |
-| --- | --- |
-| `--space-1` … `--space-6` | 4, 8, 12, 16, 20, 24 px |
-| `--control-xs/sm/md/lg` | 24, 32, 36, 40 px |
-| `--region-head-h` | 40 px mínimo; crece si las acciones envuelven |
-| `--statusbar-h` | 30 px |
-| `--text-xs/sm/base/body` | 11, 12, 13, 14 px |
-| `--icon-size` | 16 px |
+Una grilla de 4 y cuatro alturas que se repiten en cada región, para que las líneas de una columna sigan en la de al lado:
+
+| Pieza | Medida | Token |
+| --- | --- | --- |
+| Banda superior de cada columna (encabezado de región, barra de pestañas) | 40 px **con** su línea (`border-box`) | `--region-head-h` |
+| Encabezado de vista o de grupo | 32 px | `--view-head-h` |
+| Fila de lista, árbol o menú | 28 px | `--row-h` |
+| Campo, botón, select | 32 px (28 dentro de una banda) | `--control-md` · `--control-sm` |
+| Botón de icono, control compacto | 24 px, icono de 16 | `--control-xs` · `--icon-size` |
+| Pie | 30 px, texto 11 | `--statusbar-h` |
+| Margen del texto de una región | 12 px, en el encabezado y en cada fila | `--gutter` |
+| Nivel de un árbol | 16 px | `--indent` |
+| Espacios | 4 · 8 · 12 · 16 · 24 (no hay 20) | `--space-1` … `--space-6` |
+| Texto | 11 pie y conteos · 12 encabezados y rótulos · 13 interfaz · 14 prosa · 16 título del documento | `--text-xs` … `--text-title` |
+| Pesos | 400 y 600; 500 sólo dentro de los componentes | — |
+| Radios | 0 regiones y filas a sangre · 6 controles · 10 lo que flota (6 del ítem + 4 de aire, concéntricos) · completo píldoras | `--radius-control` · `--radius-float` |
+
+**Un control dentro de una banda mide 28** (24 si es de icono): 4 de aire, 28 y 4 dan los 40. Un control de 32 adentro la estiraba a 49, y la costura dejaba de seguir derecha contra la columna de al lado. Lo aplica `taller.css` al final del archivo.
+
+Sin mayúsculas sostenidas ni espaciado entre letras: los rótulos van en mayúscula inicial. La única excepción declarada es el aviso de ambiente del pie del trazador. Las cifras grandes de los indicadores (22 px) y los rótulos de los mapas SVG no entran en la escala: son parte del dibujo.
 
 El texto secundario usa `--texto-2` y `--texto-3`, medidos sobre las superficies del tema actual. No atenuar filas completas con `opacity`. Los colores semánticos siguen en cada herramienta; no se reemplaza un estado por un gris.
 

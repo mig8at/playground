@@ -84,7 +84,7 @@
 
     body {
       margin: 0;
-      font: 14px/1.55 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      font: var(--text-body)/1.55 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
       -webkit-font-smoothing: antialiased;
       font-variant-numeric: tabular-nums;   /* los números no bailan al refrescar los contadores */
       background: var(--bg);
@@ -111,7 +111,7 @@
 
     .sub {
       color: var(--mut);
-      font-size: 13px;
+      font-size: var(--text-base);
       margin: 2px 0 0
     }
 
@@ -127,7 +127,7 @@
       border: 1px solid var(--line);
       background: var(--card);
       color: var(--mut);
-      font-size: 12px;
+      font-size: var(--text-sm);
       font-weight: 500;
       cursor: pointer;
       font-family: inherit
@@ -177,9 +177,8 @@
     .card { margin-bottom: 0 }
 
     .card h2 {
-      font-size: 11px;
-      text-transform: uppercase;
-      letter-spacing: .9px;
+      font-size: var(--text-xs);
+      text-transform: none;
       color: var(--mut);
       margin: 0 0 16px;
       font-weight: 600
@@ -205,7 +204,7 @@
       height: 36px;
       padding: 0 12px;
       border-radius: var(--radius);
-      font-size: 14px;
+      font-size: var(--text-body);
       box-shadow: 0 1px 2px 0 rgb(0 0 0 / .05);
       transition: color .12s, border-color .12s, box-shadow .12s;
       width: 100%
@@ -256,7 +255,7 @@
 
     .m .meta {
       color: var(--mut);
-      font-size: 12px;
+      font-size: var(--text-sm);
       margin-top: 3px;
       font-variant-numeric: tabular-nums
     }
@@ -266,7 +265,7 @@
       top: 10px;
       right: 11px;
       color: var(--acc);
-      font-weight: 800;
+      font-weight: 600;
       display: none
     }
 
@@ -280,7 +279,7 @@
 
     .field label {
       display: block;
-      font-size: 12px;
+      font-size: var(--text-sm);
       color: var(--mut);
       margin-bottom: 5px;
       font-weight: 600
@@ -293,10 +292,9 @@
     }
 
     .grouplbl {
-      font-size: 10.5px;
+      font-size: var(--text-xs);
       font-weight: 600;
-      text-transform: uppercase;
-      letter-spacing: .9px;
+      text-transform: none;
       /* antes iba en verde: un acento en CADA subtítulo compite con lo que sí tiene que resaltar
          (el estado ON/OFF, el botón de lanzar). Los títulos ordenan; no deberían gritar. */
       color: var(--mut);
@@ -321,8 +319,8 @@
       left: 11px;
       top: 50%;
       transform: translateY(-50%);
-      font-size: 13px;
-      font-weight: 700;
+      font-size: var(--text-base);
+      font-weight: 600;
       color: var(--mut);
       pointer-events: none
     }
@@ -339,7 +337,7 @@
 
     /* Sobre `.toggle`: sólo el ancho propio de esta barra. El alto, el radio, el hover, el encendido
        (`--accent` como SUPERFICIE) y el anillo de foco salen de la hoja compartida. */
-    .seg button { padding: 0 17px; font-size: 13px }
+    .seg button { padding: 0 17px; font-size: var(--text-base) }
 
     /* ⚠ DESVIACIÓN DECLARADA: el encendido del panel es el ACENTO (casi blanco), no el `--accent`
        de shadcn (#404040, una superficie sutil). Es la regla de cromo que este panel ya tenía escrita
@@ -366,7 +364,7 @@
 
     .ro .k {
       color: var(--mut);
-      font-size: 12px;
+      font-size: var(--text-sm);
       min-width: 78px
     }
 
@@ -376,7 +374,7 @@
     }
 
     /* Sobre `.btn.btn-outline.btn-xs`: sólo el margen que lo empuja al borde de la barra. */
-    .copy { margin-left: auto; color: var(--mut); font-size: 11.5px }
+    .copy { margin-left: auto; color: var(--mut); font-size: var(--text-sm) }
     .copy:hover { color: var(--txt) }
 
     .launch {
@@ -399,7 +397,7 @@
 
     .sumry {
       color: var(--mut);
-      font-size: 13px
+      font-size: var(--text-base)
     }
 
     .sumry b {
@@ -484,9 +482,9 @@
        el del bypass y el OTP no llegaba nunca. El dato estaba en el log, pero enterrado. */
     .tipear { display: none; gap: 7px; flex-wrap: wrap; align-items: center; margin: 0 0 10px; }
     .tipear.on { display: flex; }
-    .tipear .lbl { font-size: 11px; color: var(--mut); text-transform: uppercase; letter-spacing: .06em; }
+    .tipear .lbl { font-size: var(--text-xs); color: var(--mut); text-transform: none; }
     .tipear button {
-      font: 600 12px/1 ui-monospace, SFMono-Regular, Menlo, monospace;
+      font: 600 var(--text-sm)/1 ui-monospace, SFMono-Regular, Menlo, monospace;
       background: var(--bg); color: var(--txt); border: 1px solid var(--line);
       border-radius: var(--radius); padding: 6px 9px; cursor: pointer; display: inline-flex; gap: 6px; align-items: center;
     }
@@ -503,7 +501,7 @@
       padding: 13px 15px;
       margin: 0;
       color: var(--txt);
-      font: 12px/1.5 ui-monospace, SFMono-Regular, Menlo, monospace;
+      font: var(--text-sm)/1.5 ui-monospace, SFMono-Regular, Menlo, monospace;
       overflow: auto;
       white-space: pre-wrap;
       display: none
@@ -524,10 +522,9 @@
       cursor: pointer;
       list-style: none;
       padding: 11px 0;
-      font-size: 11px;
-      font-weight: 800;
-      text-transform: uppercase;
-      letter-spacing: .6px;
+      font-size: var(--text-xs);
+      font-weight: 600;
+      text-transform: none;
       color: var(--acc);
       display: flex;
       align-items: center;
@@ -540,7 +537,7 @@
 
     .fold>summary::before {
       content: '▸';
-      font-size: 10px;
+      font-size: var(--text-xs);
       transition: transform .15s
     }
 
@@ -553,8 +550,8 @@
       display: inline-block;
       padding: 1px 7px;
       border-radius: var(--radius);
-      font-size: 10.5px;
-      font-weight: 700;
+      font-size: var(--text-xs);
+      font-weight: 600;
       border: 1px solid;
       margin-left: 7px;
       vertical-align: 1px
@@ -599,12 +596,12 @@
     .stat .top { display: flex; align-items: center; gap: 8px; margin-bottom: 5px }
     .stat .ico {
       width: 26px; height: 26px; border-radius: var(--radius); display: grid; place-items: center;
-      font-size: 13px; background: var(--sel); flex: none
+      font-size: var(--text-base); background: var(--sel); flex: none
     }
-    .stat .k { font-size: 10.5px; font-weight: 500; letter-spacing: .8px; text-transform: uppercase; color: var(--mut) }
+    .stat .k { font-size: var(--text-xs); font-weight: 500; text-transform: none; color: var(--mut) }
     .stat .v { font-size: clamp(20px, 2.1vw, 25px); overflow-wrap: anywhere; font-weight: 600; line-height: 1.15; letter-spacing: -.02em; font-variant-numeric: tabular-nums }
-    .stat .sub { font-size: 11.5px; color: var(--mut); line-height: 1.35 }
-    .stat .sub b { font-weight: 700 }
+    .stat .sub { font-size: var(--text-sm); color: var(--mut); line-height: 1.35 }
+    .stat .sub b { font-weight: 600 }
     .st-ok .v { color: var(--acc) }      .st-ok .ico { background: color-mix(in oklab, var(--ok) 12%, transparent) }
     .st-warn .v { color: var(--warn) }   .st-warn .ico { background: color-mix(in oklab, var(--warn) 12%, transparent) }
     .st-bad .v { color: var(--danger) }  .st-bad .ico { background: color-mix(in oklab, var(--danger) 12%, transparent) }
@@ -616,7 +613,7 @@
        Girando el eje, el largo del ramal se gasta en ALTO (que sobra, porque el canvas se arrastra) y
        el desplazamiento lateral es de un carril: la curva queda corta y limpia, como en un grafo de git. */
     .tren #trenwarn { color: var(--warn); font-weight: 600; text-transform: none; letter-spacing: 0 }
-    .tren-hint { float: right; font-size: 10.5px; font-weight: 500; color: var(--mut); text-transform: none; letter-spacing: 0 }
+    .tren-hint { float: right; font-size: var(--text-xs); font-weight: 500; color: var(--mut); text-transform: none; letter-spacing: 0 }
 
     /* controles de zoom flotantes (estilo Maps): el canvas ya no se queda con la rueda, así que hace
        falta una forma explícita de acercar sin atajos de teclado. */
@@ -630,16 +627,16 @@
     #trensvg text { user-select: none }
     .nlbl { font-size: 12px; fill: var(--txt) }
     .nnum { font-size: 10px; fill: var(--mut) }
-    .nram { font-size: 11px; font-weight: 700 }
+    .nram { font-size: var(--text-xs); font-weight: 600 }
     .nquien { font-size: 10px; fill: var(--mut) }
     .nodo { cursor: default }
-    .nodo:hover .nlbl { font-weight: 700 }
+    .nodo:hover .nlbl { font-weight: 600 }
     /* Una fila del árbol de entidades: fila, no tarjeta. Tenía borde y radio de 10 —doce cajitas
        apiladas dentro de una columna que ya es una lista—, y el bloque del árbol se los quitaba. */
     .lrow { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 8px 11px; margin-top: 6px; cursor: grab; }
     .lrow.drag { opacity: .4; }
     .lgrip { color: var(--mut); margin-right: 7px; cursor: grab; }
-    .lrow .lnm { font-size: 13px; color: var(--txt); }
+    .lrow .lnm { font-size: var(--text-base); color: var(--txt); }
 
     /* ── buscador de comercios + favoritos ── */
     /* ⚠ Es un `input-group` (`taller.css`): la lupa y la ✕ van ADENTRO del control y el borde lo
@@ -647,7 +644,7 @@
        calculado a mano (30px a la izquierda, 32 a la derecha) — si cambiaba el icono, había que
        recalcular el hueco. Y el foco ahora enciende el grupo entero (`:focus-within`), que es lo que
        hace que se lea como UN control. */
-    .bus { font-size: 13px }
+    .bus { font-size: var(--text-base) }
     .bus .lupa { pointer-events: none }
     .bus .limpiar { cursor: pointer; padding: 0 4px; border-radius: var(--radius-sm, 3px); color: var(--mut) }
     .bus .limpiar:hover { background: var(--accent); color: var(--accent-foreground) }
@@ -655,48 +652,48 @@
     .rr { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 8px 11px;
       border: 1px solid var(--line); border-radius: var(--radius); cursor: pointer; transition: .12s; }
     .rr:hover { border-color: var(--acc); background: var(--panel2); }
-    .rr .rn { font-size: 13px; }
-    .rr .rc { color: var(--mut); font-size: 11px; display: flex; gap: 5px; align-items: center; flex-shrink: 0; }
+    .rr .rn { font-size: var(--text-base); }
+    .rr .rc { color: var(--mut); font-size: var(--text-xs); display: flex; gap: 5px; align-items: center; flex-shrink: 0; }
     .rr.off { opacity: .5; }
     .rr.volver { border-style: dashed; }
-    .chip { border: 1px solid var(--line); border-radius: var(--radius); padding: 1px 7px; font-size: 10px; }
+    .chip { border: 1px solid var(--line); border-radius: var(--radius); padding: 1px 7px; font-size: var(--text-xs); }
     /* ALTA: sucursal → nombre → agregar. Aparece recién al elegir comercio, para que el paso 1 sea
        una sola cosa (buscar) y no un formulario entero pidiendo datos que todavía no tenés. */
     .alta { margin-top: 10px; padding: 12px 13px;
       background: var(--panel2); display: flex; flex-direction: column; gap: 10px; }
     .alta[hidden] { display: none; }
     .altafila { display: flex; flex-direction: column; gap: 5px; }
-    .altafila label { font-size: 10.5px; font-weight: 600; text-transform: uppercase; letter-spacing: .8px; color: var(--mut); }
+    .altafila label { font-size: var(--text-xs); font-weight: 600; text-transform: none; color: var(--mut); }
     .altafila select, .altafila input {
       width: 100%; box-sizing: border-box; padding: 8px 10px; border-radius: var(--radius-sm);
-      border: 1px solid var(--line); background: var(--card); color: inherit; font-size: 13px;
+      border: 1px solid var(--line); background: var(--card); color: inherit; font-size: var(--text-base);
       font-family: inherit; outline: none;
     }
     .altapie { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
-    .altapie span { font-size: 11px; color: var(--mut); min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .altapie span { font-size: var(--text-xs); color: var(--mut); min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     /* Sobre `.btn.btn-sm`. (El `filter: brightness()` del hover se va: el sistema aclara con un
        `color-mix` sobre el token, así que sigue al tema en vez de aclarar lo que haya.) */
-    .altapie button { font-size: 12px; font-weight: 600 }
+    .altapie button { font-size: var(--text-sm); font-weight: 600 }
     /* Acciones del favorito SIEMPRE visibles: escondidas en hover no se descubren, y borrar una tarjeta
        que agregaste vos tiene que estar a la vista. Van tenues para no competir con el nombre. */
     .m .facc { position: absolute; top: 5px; right: 5px; display: flex; gap: 1px; opacity: .45; transition: .12s; }
     .m:hover .facc { opacity: 1; }
-    .m .facc span { color: var(--mut); cursor: pointer; font-size: 11px; padding: 2px 5px; border-radius: var(--radius-md); }
+    .m .facc span { color: var(--mut); cursor: pointer; font-size: var(--text-xs); padding: 2px 5px; border-radius: var(--radius-md); }
     .m .facc span:hover { background: var(--line); color: inherit; }
     /* Configurar y observar: una sola corrida, con el contexto siempre a la vista. */
     [hidden] { display: none !important; }
     .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
-    .card h2 { font-size: 12px; letter-spacing: .7px; }
-    .grouplbl, .altafila label { font-size: 12px; }
+    .card h2 { font-size: var(--text-sm); }
+    .grouplbl, .altafila label { font-size: var(--text-sm); }
     .environment-row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 16px; }
     .environment-row .targets { margin-left: 0; flex-wrap: wrap; }
-    .field-label { color: var(--mut); font-size: 12px; font-weight: 600; }
+    .field-label { color: var(--mut); font-size: var(--text-sm); font-weight: 600; }
     .environment-row .admin-btn { margin-left: auto; }
     #devwarn { margin: 0 0 16px; }
     #results { grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 8px; }
     #results .m { padding: 10px 12px; }
-    .card > summary { cursor: pointer; font-size: 14px; font-weight: 600; color: var(--txt); }
-    .card > summary span { font-size: 12px; font-weight: 400; color: var(--mut); margin-left: 8px; }
+    .card > summary { cursor: pointer; font-size: var(--text-body); font-weight: 600; color: var(--txt); }
+    .card > summary span { font-size: var(--text-sm); font-weight: 400; color: var(--mut); margin-left: 8px; }
     .card[open] > summary { margin-bottom: 18px; }
     /* ⚠ Era `outline: 2px solid var(--acc); outline-offset: 4px` — un marco grueso a 4px del control,
        que en una fila densa se mete arriba del vecino. El anillo del sistema (`taller.css`) es borde
@@ -706,21 +703,21 @@
       outline: none; border-color: var(--ring);
       box-shadow: 0 0 0 3px color-mix(in oklab, var(--ring) 50%, transparent);
     }
-    .scope-note { font-size: 13px; color: var(--warn); line-height: 1.6; margin: 0 0 18px; }
+    .scope-note { font-size: var(--text-base); color: var(--warn); line-height: 1.6; margin: 0 0 18px; }
     .health { margin-top: 18px; }
     .health.needs-attention > summary span { color: var(--warn); }
     .dependency-list { display: grid; gap: 8px; margin: 14px 0 0; }
     .dependency { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; background: var(--panel2); padding: 10px 12px; border-radius: var(--radius); }
-    .dependency code { overflow-wrap: anywhere; font-size: 12px; flex: 1; }
+    .dependency code { overflow-wrap: anywhere; font-size: var(--text-sm); flex: 1; }
     .health .stats { margin-top: 0; }
     .last-result { margin-top: 18px; }
     .last-result .stat { max-width: none; }
     .activity { margin-top: 20px; border-color: var(--line2); scroll-margin-top: 20px; }
     .activity.running { border-left: 3px solid var(--acc); }
     .activity h2 { text-transform: none; color: var(--txt); letter-spacing: -.3px; font-size: 22px; margin: 0; }
-    .activity-time { font-size: 14px; color: var(--mut); white-space: nowrap; }
-    #activityMessage { margin: 5px 0 0; overflow-wrap: anywhere; font-size: 14px; }
-    .readiness-link { border: 0; padding: 0; background: none; color: var(--warn); font: inherit; font-size: 12px; text-align: left; cursor: pointer; }
+    .activity-time { font-size: var(--text-body); color: var(--mut); white-space: nowrap; }
+    #activityMessage { margin: 5px 0 0; overflow-wrap: anywhere; font-size: var(--text-body); }
+    .readiness-link { border: 0; padding: 0; background: none; color: var(--warn); font: inherit; font-size: var(--text-sm); text-align: left; cursor: pointer; }
     .readiness-link:hover { text-decoration: underline; }
     .logcard { scroll-margin-top: 18px; }
     /* (Acá había un `@media (max-width: 700px)` con siete ajustes de teléfono. Se fue con el de 1180
@@ -791,7 +788,7 @@
          encima da una caja FIJA de 52 — no una que crece. La fila envolvía y el segundo renglón
          quedaba fuera de la barra, con «Preparar + Lanzar» pisando el mapa. */
       height: auto; min-height: var(--region-head-h); flex: 0 0 auto;
-      display: flex; align-items: center; flex-wrap: wrap; gap: var(--space-2); padding: var(--space-2) var(--space-3); min-width: 0;
+      box-sizing: border-box; display: flex; align-items: center; flex-wrap: wrap; gap: var(--space-2); padding: var(--space-1) var(--gutter); min-width: 0;
       background: var(--card); border-bottom: 1px solid var(--line);
     }
     /* Las perillas envuelven con la barra, en vez de salirse de ella. */
@@ -803,15 +800,15 @@
     .runcfg { border: 0; margin: 0; padding: 0; min-width: 0; display: flex; align-items: center; gap: 14px; flex: 1 1 auto }
     .runcfg .environment-row { margin: 0; display: flex; align-items: center; gap: 8px }
     .runcfg .field { margin: 0; display: flex; align-items: center; gap: 8px }
-    .runcfg .field > label { font-size: 11px; color: var(--mut); margin: 0; white-space: nowrap }
+    .runcfg .field > label { font-size: var(--text-xs); color: var(--mut); margin: 0; white-space: nowrap }
     /* La pista del front es la línea que más crece: en el header se recorta en vez de empujar. */
     .runcfg #fronthint { margin: 0 !important; max-width: 22ch; overflow: hidden; text-overflow: ellipsis; white-space: nowrap }
     .runcfg .field-label { display: none }
-    .region-head.stagehead .seg button, .region-head.stagehead .pill { padding: 4px 9px; font-size: 11.5px }
+    .region-head.stagehead .seg button, .region-head.stagehead .pill { padding: 4px 9px; font-size: var(--text-sm) }
     .runbtns { margin-left: auto; display: flex; align-items: center; flex-wrap: wrap; gap: var(--space-2); flex: 0 1 auto; max-width: 100% }
-    .runbtns .activity-time { font-size: 11.5px; color: var(--mut); min-width: 0 }
-    .runbtns .go { padding: 7px 14px; font-size: 12.5px }
-    .runbtns .stop { padding: 7px 12px; font-size: 12.5px }
+    .runbtns .activity-time { font-size: var(--text-sm); color: var(--mut); min-width: 0 }
+    .runbtns .go { padding: 7px 14px; font-size: var(--text-base) }
+    .runbtns .stop { padding: 7px 12px; font-size: var(--text-base) }
 
     /* el aviso de ambiente compartido: banda a todo lo ancho, arriba de todo */
 
@@ -873,7 +870,7 @@
     .editor > #tren > summary { display: none }
     .editor > #tren > summary:has(#trenwarn:not(:empty)) {
       display: flex; align-items: center; flex: 0 0 auto; padding: 0 0 8px;
-      text-transform: none; letter-spacing: 0; font-size: 12px; color: var(--warn);
+      text-transform: none; letter-spacing: 0; font-size: var(--text-sm); color: var(--warn);
     }
     .editor > #tren > summary .tren-hint { display: none }
     .editor > #tren { padding: 0 }
@@ -907,7 +904,7 @@
 
     /* ── barra de estado ───────────────────────────────────────────────────────────────────── */
     .statusbar { display: flex; align-items: center; gap: 10px; padding: 0 12px; min-width: 0;
-      font-size: 11.5px; color: var(--mut); background: var(--card); border-top: 1px solid var(--line);
+      font-size: var(--text-sm); color: var(--mut); background: var(--card); border-top: 1px solid var(--line);
       white-space: nowrap; overflow: hidden }
     .statusbar strong { color: var(--txt); font-weight: 600; flex: 0 0 auto }
     .statusbar .sumry { overflow: hidden; text-overflow: ellipsis }
@@ -979,21 +976,22 @@
        densidad es el punto: la grilla de tarjetas gastaba ~68 px por sucursal y mostraba seis antes de
        scrollear; acá entran veintitantas filas en el mismo alto, que es lo que hace usable un comercio
        con 79 sucursales (Sonría, medido). */
-    .tree { display: block; margin-top: 10px; user-select: none }
+    .tree { display: block; margin-top: var(--space-2); user-select: none }
     .trow {
-      display: flex; align-items: center; gap: 6px; height: 24px; padding-right: 8px;
-      font-size: 12.5px; color: var(--txt); cursor: pointer; position: relative; white-space: nowrap;
+      /* Fila del taller: 28 de alto, 8 entre el chevron y el nombre. */
+      display: flex; align-items: center; gap: var(--space-2); height: var(--row-h); padding-right: var(--space-2);
+      font-size: var(--text-base); color: var(--txt); cursor: pointer; position: relative; white-space: nowrap;
     }
     .trow:hover { background: var(--panel2) }
-    .trow .tw { width: 11px; flex: 0 0 11px; color: var(--mut); font-size: 9px; text-align: center }
+    .trow .tw { width: 11px; flex: 0 0 11px; color: var(--mut); font-size: var(--text-xs); text-align: center }
     .trow .tnm { overflow: hidden; text-overflow: ellipsis }
-    .trow .tmeta { margin-left: auto; font-size: 10.5px; color: var(--mut); flex: 0 0 auto; padding-left: 10px }
-    .trow .tick { color: var(--txt); font-size: 11px; flex: 0 0 auto }
+    .trow .tmeta { margin-left: auto; font-size: var(--text-xs); color: var(--mut); flex: 0 0 auto; padding-left: var(--space-2) }
+    .trow .tick { color: var(--txt); font-size: var(--text-xs); flex: 0 0 auto }
     .tmerch { font-weight: 600 }
     .tmerch.miss .tnm, .tmerch.miss .tmeta { color: var(--mut); font-style: italic }
     .trow .facc { margin-left: 8px; display: flex; gap: 2px; opacity: .45; flex: 0 0 auto }
     .trow .facc:hover, .trow:hover .facc { opacity: 1 }
-    .trow .facc span { padding: 0 3px; font-size: 10px }
+    .trow .facc span { padding: 0 3px; font-size: var(--text-xs) }
 
     /* El nodo de entidades, cuando cuelga de una sucursal del árbol: sin caja propia y sin su resumen
        —el twisty y el contador de la fila de arriba ya dicen lo mismo—. */
@@ -1018,7 +1016,7 @@
        los hijos contra el del contenedor, no `scrollWidth`. */
     .tree #lenderslist .lrow { display: flex; flex-wrap: nowrap; align-items: center; gap: 6px;
       height: auto; min-height: 24px; padding: 0 8px 0 0;
-      background: transparent; border: 0; border-radius: 0; font-size: 12.5px; cursor: default }
+      background: transparent; border: 0; border-radius: 0; font-size: var(--text-base); cursor: default }
     .tree #lenderslist .lrow:hover { background: var(--card) }
     .tree #lenderslist .lrow:focus-visible { outline: 1px solid var(--acc); outline-offset: -1px }
     /* Una línea por entidad, siempre. Sin esto los nombres largos —«Credifamilia-addi», «Rent to Own»—
@@ -1034,15 +1032,15 @@
 
     .ctxmenu { position: fixed; z-index: 999; min-width: 230px; padding: 4px;
       background: var(--panel2); border: 1px solid var(--line2); border-radius: var(--radius-sm);
-      box-shadow: 0 12px 32px rgba(0,0,0,.6); font-size: 12.5px }
+      box-shadow: 0 12px 32px rgba(0,0,0,.6); font-size: var(--text-base) }
     .ctxhead { padding: 6px 9px 7px; color: var(--txt); font-weight: 600; border-bottom: 1px solid var(--line);
       margin-bottom: 4px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap }
-    .ctxlbl { padding: 6px 9px 3px; font-size: 10px; text-transform: uppercase; letter-spacing: .07em; color: var(--mut) }
+    .ctxlbl { padding: 6px 9px 3px; font-size: var(--text-xs); text-transform: none; color: var(--mut) }
     .ctxsep { height: 1px; background: var(--line); margin: 5px 0 0 }
     .ctxitem { display: flex; align-items: center; gap: 7px; width: 100%; padding: 5px 9px; background: transparent;
       border: 0; border-radius: var(--radius-md); color: var(--txt); font: inherit; text-align: left; cursor: pointer }
     .ctxitem:hover, .ctxitem:focus-visible { background: var(--sel); outline: none }
-    .ctxitem .ctxtick { width: 11px; flex: 0 0 11px; color: var(--acc); font-size: 10px }
+    .ctxitem .ctxtick { width: 11px; flex: 0 0 11px; color: var(--acc); font-size: var(--text-xs) }
     .ctxitem.peligro:hover { background: color-mix(in srgb, var(--danger) 22%, var(--panel2)) }
 
 
@@ -1055,23 +1053,23 @@
     /* ⚠ Usaba `--line2` —que es `--accent`, un token de SUPERFICIE— como color de texto: #404040
        sobre #2a2a2a mide 1,38:1, o sea la manija de arrastre era invisible. Es el mismo error que el
        `CLAUDE.md` ya documenta con `--accent`, cometido en otro lado. Va la rampa. */
-    .lgrip { flex: 0 0 auto; color: var(--texto-3); font-size: 9px; cursor: grab }
-    .lid { flex: 0 0 auto; font-size: 10.5px; color: var(--mut); font-variant-numeric: tabular-nums }
+    .lgrip { flex: 0 0 auto; color: var(--texto-3); font-size: var(--text-xs); cursor: grab }
+    .lid { flex: 0 0 auto; font-size: var(--text-xs); color: var(--mut); font-variant-numeric: tabular-nums }
     /* La INICIAL del producto, con el color que ese producto tiene en el mapa: una sola leyenda para
        las dos vistas. `COLOR` en el script es la fuente. */
     .lprod { flex: 0 0 auto; width: 18px; height: 15px; display: grid; place-items: center;
-      font-size: 9px; font-weight: 700; letter-spacing: .02em; border-radius: var(--radius-sm);
+      font-size: var(--text-xs); font-weight: 600; letter-spacing: .02em; border-radius: var(--radius-sm);
       background: var(--sel); color: var(--mut) }
     .pr-credit  { color: var(--prod-credit);  background: color-mix(in oklab, var(--prod-credit) 14%, transparent) }
     .pr-renting { color: var(--prod-renting); background: color-mix(in oklab, var(--prod-renting) 14%, transparent) }
     .pr-rto     { color: var(--prod-rto);     background: color-mix(in oklab, var(--prod-rto) 14%, transparent) }
     /* El chip de rt pierde su texto y se queda en el número: el nombre largo vive en el tooltip. */
-    .tree #lenderslist .rtc { flex: 0 0 auto; font-size: 9.5px; padding: 1px 5px }
+    .tree #lenderslist .rtc { flex: 0 0 auto; font-size: var(--text-xs); padding: 1px 5px }
 
     /* el aviso, en una línea */
     /* `block` y no `flex`: en flex los hijos no se encogen y el `text-overflow` no llega a actuar —
        la línea se salía igual. Así el recorte funciona de verdad, y es sólo la red: el texto ya entra. */
-    .scope-note { display: block; margin: 4px 0 8px; font-size: 11px; color: var(--mut);
+    .scope-note { display: block; margin: 4px 0 8px; font-size: var(--text-xs); color: var(--mut);
       white-space: nowrap; overflow: hidden; text-overflow: ellipsis; cursor: help }
     .sn-warn { color: var(--warn); flex: 0 0 auto }
 
@@ -1095,7 +1093,7 @@
        alta con el comercio ya puesto); la de abajo agrega un comercio nuevo. Van apagadas hasta el
        hover — son acciones, no contenido, y compiten con lo que sí hay que leer. */
     .tadd { color: var(--mut); font-style: italic }
-    .tadd .tw { font-style: normal; font-weight: 700 }
+    .tadd .tw { font-style: normal; font-weight: 600 }
     .tadd:hover { color: var(--txt); background: var(--panel2) }
     .tadd-top { margin-top: 4px; border-top: 1px solid var(--line) }
 
@@ -1111,7 +1109,7 @@
     /* El estado vive a la derecha, pegado a los controles de corrida: es la respuesta a «¿puedo correr?» */
     .hsalud { display: flex; align-items: center; gap: 6px; padding: 4px 9px; background: transparent;
       border: 1px solid var(--line); border-radius: var(--radius); color: var(--mut); font: inherit;
-      font-size: 11.5px; cursor: pointer; white-space: nowrap }
+      font-size: var(--text-sm); cursor: pointer; white-space: nowrap }
     .hsalud:hover { border-color: var(--line2); color: var(--txt) }
     .sdotx { width: 7px; height: 7px; border-radius: 50%; background: var(--line2); flex: 0 0 auto }
     .sdotx.bien { background: var(--ok) }
@@ -1123,8 +1121,8 @@
     .ctxitem.apagado:hover { background: transparent }
     /* La pista del elemento elegido, dentro del menú: es prosa, no un ítem. */
     .ctxnota { margin: 6px 9px 3px; padding-top: 7px; border-top: 1px solid var(--line);
-      font-size: 11px; line-height: 1.45; color: var(--mut); max-width: 340px; white-space: normal }
-    .ctxnota code { background: var(--bg); padding: 1px 4px; border-radius: var(--radius-sm); font-size: 10.5px }
+      font-size: var(--text-xs); line-height: 1.45; color: var(--mut); max-width: 340px; white-space: normal }
+    .ctxnota code { background: var(--bg); padding: 1px 4px; border-radius: var(--radius-sm); font-size: var(--text-xs) }
     .ctxmenu { max-width: 380px }
     /* El panel de estado es más ancho: adentro van las tarjetas de servicios con sus comandos. */
     .ctxsalud { min-width: 420px; max-width: 520px; max-height: 70vh; overflow: auto }
@@ -1137,16 +1135,16 @@
        que los cuatro títulos entran juntos y se ve el mapa completo de lo que hay para configurar —
        que era justo lo que 1.097 px de scroll no dejaban ver. */
     .sec { border: 0; border-bottom: 1px solid var(--line); margin: 0; padding: 0; background: transparent }
-    .sec > summary { display: flex; align-items: center; gap: 6px; height: 30px; padding: 0 12px;
-      cursor: pointer; list-style: none; color: var(--txt); font-size: 11.5px; letter-spacing: .04em;
-      text-transform: uppercase; user-select: none }
+    .sec > summary { display: flex; align-items: center; gap: var(--space-2); height: var(--view-head-h); padding: 0 var(--gutter);
+      cursor: pointer; list-style: none; color: var(--txt); font-size: var(--text-sm);
+      text-transform: none; user-select: none }
     .sec > summary::-webkit-details-marker { display: none }
     .sec > summary:hover { background: var(--panel2) }
-    .sectw { color: var(--mut); font-size: 9px; transition: transform .12s; flex: 0 0 auto }
+    .sectw { color: var(--mut); font-size: var(--text-xs); transition: transform .12s; flex: 0 0 auto }
     .sec[open] > summary .sectw { transform: rotate(90deg) }
     .sectit { font-weight: 600; flex: 0 0 auto }
     /* El resumen dice CÓMO ESTÁ, no de qué se trata: cerrada, ésta es la única línea que vas a leer. */
-    .secsum { margin-left: auto; font-size: 10.5px; color: var(--mut); text-transform: none;
+    .secsum { margin-left: auto; font-size: var(--text-xs); color: var(--mut); text-transform: none;
       letter-spacing: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0 }
     .sec .card, .sec .fold { padding: 0; margin: 10px 0 }
 
@@ -1155,7 +1153,7 @@
        del dominio, y varias de esas frases son la única explicación de por qué una perilla hace lo que
        hace—: se mueve a donde no cueste 3 líneas de alto permanente. */
     .pista { display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-      cursor: help; font-size: 11px !important; margin: 6px 0 0 !important; color: var(--mut) !important }
+      cursor: help; font-size: var(--text-xs) !important; margin: 6px 0 0 !important; color: var(--mut) !important }
 
 
     /* ═══ LOS DOS CONTROLES DE LA FILA ════════════════════════════════════════════════════════════
@@ -1163,7 +1161,7 @@
        propósito: es el caso normal y pintarlo de verde en las siete filas convierte la señal en fondo.
        Lo que se destaca es lo que se sale de lo esperado. */
     .lrow .pa { flex: 0 0 auto; width: 17px; height: 16px; padding: 0; display: grid; place-items: center;
-      font: 700 9.5px/1 inherit; border: 1px solid var(--line2); border-radius: var(--radius-sm);
+      font: 700 var(--text-xs)/1 inherit; border: 1px solid var(--line2); border-radius: var(--radius-sm);
       background: transparent; color: var(--mut); cursor: pointer }
     .lrow .pa:hover:not(:disabled) { border-color: var(--acc); color: var(--txt) }
     .pa-pending  { color: var(--warn) !important; border-color: color-mix(in srgb, var(--warn) 55%, transparent) !important }
@@ -1186,13 +1184,13 @@
 
     /* El reloj de la demora: apagado cuando es 0 (el caso normal), marcado cuando hay espera puesta —
        una corrida con 15 s de demora se explica sola si el botón lo dice. */
-    .hreloj .hlbl { font-size: 13px }
+    .hreloj .hlbl { font-size: var(--text-base) }
     .hreloj.activo { border-color: color-mix(in srgb, var(--warn) 55%, transparent); color: var(--warn) }
     .hreloj.activo .hlbl { color: var(--warn) }
     .hbtn:disabled { opacity: .4; cursor: not-allowed }
     .hbtn:disabled:hover { background: transparent; border-color: var(--line) }
     /* Las que tenés guardadas en tu espacio se distinguen de las demás del comercio. */
-    .ctxitem.guardada > span:last-child::after { content: ' ★'; color: var(--mut); font-size: 9px }
+    .ctxitem.guardada > span:last-child::after { content: ' ★'; color: var(--mut); font-size: var(--text-xs) }
 
 
     .sidebar, .auxiliarybar { overflow: hidden }
@@ -1224,20 +1222,20 @@
       gap: 8px; margin: 0 0 4px; min-height: 24px }
     .auxiliarybar .panelprops .field:empty { display: none }          /* el relleno del par impar no ocupa una fila */
     .auxiliarybar .panelprops .field > label,
-    .auxiliarybar .panelprops .field > .field-label { margin: 0; font-size: 10.5px; line-height: 1.2; color: var(--mut);
+    .auxiliarybar .panelprops .field > .field-label { margin: 0; font-size: var(--text-xs); line-height: 1.2; color: var(--mut);
       text-align: right; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; cursor: default }
     /* Los pares dejan de ir lado a lado: a 340 px, «Negativos 12m» + su input en media columna no entra.
        Apilados como filas de 24 px ocupan menos que el par de 74 que eran. */
     .auxiliarybar .panelprops .two { display: block }
     .auxiliarybar .panelprops input[type=text], .auxiliarybar .panelprops input[type=number], .auxiliarybar .panelprops input[type=date],
-    .auxiliarybar .panelprops select { height: 24px; min-height: 0; padding: 0 7px; font-size: 12px; border-radius: var(--radius-md) }
+    .auxiliarybar .panelprops select { height: 24px; min-height: 0; padding: 0 7px; font-size: var(--text-sm); border-radius: var(--radius-md) }
     .auxiliarybar .panelprops .money { display: block }
     /* ⚠ El `$` de `.money` es un `::before` posicionado, y el input le deja 24 px de sangría para que no
        se pisen. Mi `padding: 0 7px` compacto se los comió y el símbolo quedaba ENCIMA del número
        («$2B000.000» en la captura). El padding izquierdo se restituye, sólo que proporcional al alto
        nuevo de 24 px. */
     .auxiliarybar .panelprops .money input { width: 100%; padding-left: 19px }
-    .auxiliarybar .panelprops .money::before { left: 8px; font-size: 11px }
+    .auxiliarybar .panelprops .money::before { left: 8px; font-size: var(--text-xs) }
     /* Los segmentados pasan a CHIPS: la misma información en una fila de 24 px.
        ⚠ Acá se DESARMA el `toggle-joined` a propósito: el compartido pega los botones (radio sólo en
        las puntas y `margin-left: -1px` para colapsar los bordes internos), y a este ancho lo que entra
@@ -1245,21 +1243,21 @@
        de adentro salían cuadradas. Es una desviación declarada, no un olvido. */
     .auxiliarybar .panelprops .seg { display: flex; gap: 3px; flex-wrap: nowrap; min-width: 0 }
     .auxiliarybar .panelprops .seg button { flex: 1 1 0; min-width: 0; height: 24px; margin-left: 0;
-      padding: 3px 4px; font-size: 10.5px;
+      padding: 3px 4px; font-size: var(--text-xs);
       border-radius: var(--radius-md); overflow: hidden; text-overflow: ellipsis; white-space: nowrap }
     /* La pista del campo ocupa la columna del control, no una fila propia. */
     .auxiliarybar .panelprops .field > .pista { grid-column: 2 }
     .auxiliarybar .panelprops > .pista, .auxiliarybar .panelprops .field + .pista { margin: 2px 0 6px 110px !important }
-    .auxiliarybar .panelprops .grouplbl { margin: 10px 0 5px; font-size: 9.5px }
+    .auxiliarybar .panelprops .grouplbl { margin: 10px 0 5px; font-size: var(--text-xs) }
     /* La fila de sólo-lectura (el celular) medía 91 px: sus cuatro partes envolvían dentro del campo.
        Se alinea con la MISMA columna de 102 px que el resto, y la aclaración larga —«bypass OTP · no
        editable»— se va al tooltip, como todo lo demás que no cabe. */
     .auxiliarybar .panelprops .field > .ro { display: grid; grid-template-columns: 102px 1fr auto; align-items: center;
-      gap: 8px; min-height: 24px; padding: 0; background: transparent; border: 0; font-size: 11px }
-    .auxiliarybar .panelprops .ro .k { text-align: right; font-size: 10.5px; color: var(--mut) }
-    .auxiliarybar .panelprops .ro .v { font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap }
+      gap: 8px; min-height: 24px; padding: 0; background: transparent; border: 0; font-size: var(--text-xs) }
+    .auxiliarybar .panelprops .ro .k { text-align: right; font-size: var(--text-xs); color: var(--mut) }
+    .auxiliarybar .panelprops .ro .v { font-size: var(--text-sm); overflow: hidden; text-overflow: ellipsis; white-space: nowrap }
     .auxiliarybar .panelprops .ro > span:not(.k):not(.v) { display: none }
-    .auxiliarybar .panelprops .fold > summary { padding: 4px 0; font-size: 11px }
+    .auxiliarybar .panelprops .fold > summary { padding: 4px 0; font-size: var(--text-xs) }
 
 
     /* El panel único: mismo ritmo de 24 px, separado por rótulos de grupo en vez de cabeceras. */
@@ -1307,14 +1305,14 @@
     .tree #lenderslist .lrow { padding-left: 2px }
 
     /* El panel de propiedades: gutter parejo y los grupos separados de verdad. */
-    .panelprops { padding: 4px 14px 12px }
+    .panelprops { padding: var(--space-1) var(--gutter) var(--space-3) }
     /* ⚠ El separador de grupo es una LÍNEA, no un bloque de aire: con 16 px de margen + 10 de padding
        el panel pasó de entrar entero a pedir 163 px de scroll. La línea separa igual de bien y cuesta
        un tercio. */
-    .panelprops .grouplbl { margin: 10px 0 5px; padding-top: 7px; border-top: 1px solid var(--line);
-      color: var(--mut); letter-spacing: .09em }
+    .panelprops .grouplbl { margin: var(--space-3) 0 var(--space-1); padding-top: var(--space-2); border-top: 1px solid var(--line);
+      color: var(--mut) }
     .panelprops > .grouplbl:first-child { margin-top: 2px; padding-top: 0; border-top: 0 }
-    .auxiliarybar .panelprops .field { margin-bottom: 3px }
+    .auxiliarybar .panelprops .field { margin-bottom: var(--space-1) }
     .auxiliarybar .panelprops .field > label, .auxiliarybar .panelprops .field > .field-label { padding-right: 2px }
 
     /* La barra de estado y el header, con el mismo gutter que las columnas. */
@@ -1375,7 +1373,7 @@
           <summary>Configuración del entorno <span id="entornoResumen">Entidades y respuestas simuladas</span></summary>
           <p class="scope-note" title="A/P/R cicla la respuesta del mock de pre-aprobación (aprobado · pendiente · rechazado) y es una preferencia del panel: no toca la base. El switch enciende y apaga la entidad y SÍ escribe el estado GLOBAL del lender — afecta todas las sucursales de este ambiente y se conserva después de la corrida; en dev, staging y qa pide confirmación. El click derecho ofrece lo mismo con sus nombres completos."><b>A/P/R</b> cicla la pre-aprobación · el switch escribe <span class="sn-warn">⚠ global</span></p>
           <p class="grouplbl">Entidades vinculadas <span id="lendersbranch"></span></p>
-          <div id="lenderslist"><p style="color:var(--mut);font-size:12px;margin:0">Elegí un comercio…</p></div>
+          <div id="lenderslist"><p style="color:var(--mut);font-size:var(--text-sm);margin:0">Elegí un comercio…</p></div>
         </details>
         </fieldset>
       </aside>
@@ -1424,7 +1422,7 @@
             <button class="toggle" data-v="ambiente">Del ambiente</button>
             <button class="toggle" data-v="local">Local :5174</button>
           </div>
-          <p id="fronthint" style="color:var(--mut);font-size:12px;margin:8px 0 0"></p>
+          <p id="fronthint" style="color:var(--mut);font-size:var(--text-sm);margin:8px 0 0"></p>
         </div>
           
         </fieldset>
@@ -1524,7 +1522,7 @@
           <button class="toggle" data-c="ecommerce">Tienda online</button>
           <button class="toggle" data-c="qr">QR en caja</button>
         </div>
-        <p id="canalhint" style="color:var(--mut);font-size:12px;margin:8px 0 0"></p>
+        <p id="canalhint" style="color:var(--mut);font-size:var(--text-sm);margin:8px 0 0"></p>
       </div><div class="field">
         <label for="amount">Monto solicitado</label>
         <div class="money"><input id="amount" type="text" inputmode="numeric" value="2.000.000" oninput="onMoney(this)" /></div>
@@ -1534,11 +1532,11 @@
              Sólo aplica al salto a Lenders en Sintético (ahí corre el seed headless que firma) → se gatea en applyCupoGate. -->
         <!-- Casilla del sistema (`checkbox` + `checkbox-row` de `taller.css`). Tenía el tamaño y el
              cursor escritos INLINE, o sea fuera del alcance de cualquier tema. -->
-        <label id="cupolbl" class="checkbox-row" style="margin-top:10px;font-size:13px;color:var(--mut)">
+        <label id="cupolbl" class="checkbox-row" style="margin-top:10px;font-size:var(--text-base);color:var(--mut)">
           <input type="checkbox" class="checkbox" id="cupo" />
           <!-- ⚠ Era `opacity:.7` inline sobre el texto ya apagado: 3,85:1. Apilar opacidad sobre la
                rampa es la trampa que `taller.css` advierte — lo que baja es el TAMAÑO, no la opacidad. -->
-          <span>Cupo ya confirmado <span style="color:var(--texto-3);font-size:11px">— siembra el flujo con cupo, salta el buró</span></span>
+          <span>Cupo ya confirmado <span style="color:var(--texto-3);font-size:var(--text-xs)">— siembra el flujo con cupo, salta el buró</span></span>
         </label>
       </div><div id="arranqueHolder" hidden><div class="field">
         <label>Arranque</label>
@@ -1550,7 +1548,7 @@
           <button class="toggle on" data-v="monto">Inicio</button>
           <button class="toggle" data-v="lenders">Entidades</button>
         </div>
-        <p id="stephint" style="color:var(--mut);font-size:12px;margin:8px 0 0"></p>
+        <p id="stephint" style="color:var(--mut);font-size:var(--text-sm);margin:8px 0 0"></p>
         <!-- El "cupo ya confirmado" (firma del flujo → salta el buró) se controla desde el checkbox al pie del
              MONTO (arriba). Es INYECCIÓN de estado, no validación: sólo siembra el flujo already-confirmed-pre-approval.
              La VALIDACIÓN de que la omisión realmente ocurrió sigue fuera del panel, por CLI (dev/experian-check.ts). -->
@@ -1590,7 +1588,7 @@
 
       <div class="field" style="margin-top:14px">
         <div class="ro"><span class="k">Celular</span><span class="v" id="phone">3131010101</span><span
-            style="color:var(--mut);font-size:11.5px">bypass OTP · no editable</span><button class="btn btn-outline btn-xs copy"
+            style="color:var(--mut);font-size:var(--text-sm)">bypass OTP · no editable</span><button class="btn btn-outline btn-xs copy"
             data-copy="phone">copiar</button></div>
       </div>
 
@@ -1620,7 +1618,7 @@
           <button class="toggle on" data-i="1">Buró inyectado</button>
           <button class="toggle" data-i="0">Sin inyección</button>
         </div>
-        <p id="injhint" style="color:var(--mut);font-size:12px;margin:8px 0 0"></p>
+        <p id="injhint" style="color:var(--mut);font-size:var(--text-sm);margin:8px 0 0"></p>
       </div>
 
       <!-- CANAL de entrada: por dónde ENTRA la solicitud. Asesor = login Cognito + wizard en /merchant.
@@ -2107,7 +2105,7 @@
     async function loadLenders() {
       if (!sel) return;
       const box = $('lenderslist');
-      box.innerHTML = '<p style="color:var(--mut);font-size:12px;margin:0">Cargando…</p>';
+      box.innerHTML = '<p style="color:var(--mut);font-size:var(--text-sm);margin:0">Cargando…</p>';
       try {
         const r = await (await fetch('/api/lenders?slug=' + encodeURIComponent(sel.slug) + '&target=' + target)).json();
         $('lendersbranch').textContent = r.hash ? '· ' + r.hash : (r.msg || '');
@@ -2136,7 +2134,7 @@
         renderTrain();
         loadStatus();
       setTimeout(followRunOnMap, 0);   // el mapa se redibujó: volver a marcar dónde va
-        if (!ls.length) { box.innerHTML = '<p style="color:var(--mut);font-size:12px;margin:0">Sin lenders (¿branch en .flows.json?).</p>'; return; }
+        if (!ls.length) { box.innerHTML = '<p style="color:var(--mut);font-size:var(--text-sm);margin:0">Sin lenders (¿branch en .flows.json?).</p>'; return; }
         box.innerHTML = '';
         for (const l of ls) {
           const on = Number(l.lender_status) === 1;   // status GLOBAL del lender = lo que filtra el listado (lab.status no aplica)
@@ -2240,7 +2238,7 @@
           };
           box.appendChild(row);
         }
-      } catch { box.innerHTML = '<p style="color:var(--danger);font-size:12px;margin:0">Error cargando lenders.</p>'; }
+      } catch { box.innerHTML = '<p style="color:var(--danger);font-size:var(--text-sm);margin:0">Error cargando lenders.</p>'; }
     }
     // ══ MENÚ DE ENTIDAD (click derecho) ═══════════════════════════════════════════════════════
     // Las dos cosas que se pueden cambiar de una entidad —el estado que va a devolver el mock de

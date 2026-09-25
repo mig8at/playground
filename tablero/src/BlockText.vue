@@ -43,5 +43,5 @@ const titleOf = (part) => {
 a.ref:hover, .ref-block:hover { text-decoration: underline }
 .ref-source { color: var(--mut) }
 .ref-block { padding: 0; border: 0; background: none; font: inherit; cursor: pointer }
-.inline-code { color: var(--txt); font: 11.5px var(--mono, ui-monospace, monospace); overflow-wrap: anywhere }
+.inline-code { color: var(--txt); font: var(--text-sm) var(--mono, ui-monospace, monospace); overflow-wrap: anywhere }
 </style>
