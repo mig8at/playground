@@ -1,7 +1,7 @@
 <script setup>
 import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
 import { formatHTML } from './html-format.js'
-import { vResize, readSize, saveSize, refreshResizers, fitRegions, reopenSize, cssSize, bindThemeToggle } from './workbench.js'
+import { vResize, readSize, saveSize, refreshResizers, fitRegions, reopenSize, cssSize, bindThemeToggle, readPref, savePref } from './workbench.js'
 
 // EL VISOR: un diseño de Figma leído como recorrido. A la izquierda los carriles que armó el
 // diseñador, al centro la pantalla (la imagen de Figma, su HTML o las dos), a la derecha lo que la
@@ -28,8 +28,10 @@ function ago(iso) {
 }
 // Los tres modos son iconos: el nombre va al tooltip, como el resto de la barra.
 const modes = [{ id: 'image', label: 'Imagen', icon: 'image' }, { id: 'html', label: 'HTML', icon: 'code' }, { id: 'compare', label: 'Comparar', icon: 'compare' }]
-const mode = ref((() => { try { return localStorage.getItem('visor.mode') || 'image' } catch { return 'image' } })())
-watch(mode, (m) => { try { localStorage.setItem('visor.mode', m) } catch { /* preferencia opcional */ } writeRoute(); nextTick(center) })
+// Preferencias con los helpers de la base (JSON). Un valor guardado antes como texto plano no se lee y
+// vuelve el default una sola vez.
+const mode = ref(readPref('visor.mode', 'image'))
+watch(mode, (m) => { savePref('visor.mode', m); writeRoute(); nextTick(center) })
 // En la ruta el modo va en castellano, como lo lee la cabecera.
 const modeSlugs = { image: 'imagen', html: 'html', compare: 'comparar' }
 const panes = computed(() => (mode.value === 'compare' ? ['image', 'html'] : [mode.value]))
@@ -125,8 +127,8 @@ const libraryError = ref('')
 const adding = ref(false)
 const addURL = ref('')
 const pagesOf = ref({}) // clave del archivo → 'loading' | { pages } | { error }
-const readSet = (k) => { try { return new Set(JSON.parse(localStorage.getItem(k) || '[]')) } catch { return new Set() } }
-const saveSet = (k, set) => { try { localStorage.setItem(k, JSON.stringify([...set])) } catch { /* preferencia opcional */ } }
+const readSet = (k) => { const v = readPref(k, []); return new Set(Array.isArray(v) ? v : []) }
+const saveSet = (k, set) => savePref(k, [...set])
 const openFiles = ref(new Set([...readSet('visor.open-files')].slice(-1)))
 const fmtDay = (iso) => (iso ? new Date(iso).toLocaleDateString('es-CO', { day: 'numeric', month: 'short' }) : '')
 // Un grupo por proyecto de cada equipo, y al final los abiertos en el visor que no estén ya en uno.
@@ -308,7 +310,7 @@ async function load(ref_ = refInput.value, screen = '', fresh = false) {
     if (!openFiles.value.has(body.key)) {
       const set = new Set([body.key]); openFiles.value = set; saveSet('visor.open-files', set)
     }
-    try { localStorage.setItem('visor.last', value) } catch { /* preferencia opcional */ }
+    savePref('visor.last', value)
     const first = groups.value[0]?.lanes[0]?.screens[0]?.id || ''
     go(screen && screens.value.has(screen) ? screen : first, false)
     writeRoute()
@@ -846,8 +848,7 @@ onMounted(async () => {
   await loadLibrary()
   const fromHash = readHash()
   const fromRoute = readRoute()
-  let last = ''
-  try { last = localStorage.getItem('visor.last') || '' } catch { /* preferencia opcional */ }
+  const last = readPref('visor.last', '')
   if (fromHash) load(fromHash.ref, fromHash.screen)
   else if (fromRoute) openRoute(fromRoute)
   else if (last) { refInput.value = last; load(last) }

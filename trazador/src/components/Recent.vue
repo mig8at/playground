@@ -8,7 +8,7 @@
 // tabla, y las consultas guardadas son el sidebar interno (`.split-side`), que se pliega solo bajo 600.
 // Como en una consola angosta ese sidebar no está, la subbanda ofrece la misma elección en un select.
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
-import { bindPanelMaximize } from '../workbench.js'
+import { bindPanelMaximize, readPref, savePref } from '../workbench.js'
 import { useTrazador } from '../stores/trazador'
 
 const emit = defineEmits(['close'])
@@ -50,7 +50,9 @@ const inProgress = computed(() => (t.results?.items || [])
   .sort((a, b) => `${b.date || ''}T${b.time || ''}`.localeCompare(`${a.date || ''}T${a.time || ''}`)))
 const all = computed(() => [...(t.results?.items || [])]
   .sort((a, b) => `${b.date || ''}T${b.time || ''}`.localeCompare(`${a.date || ''}T${a.time || ''}`)))
-const mainView = ref('in-progress')
+// La pestaña de la consola es una preferencia: se recuerda, pero no va en la ruta (no es lo que se mira).
+const mainView = ref(readPref('trazador.console-view', 'in-progress') === 'all' ? 'all' : 'in-progress')
+watch(mainView, (v) => savePref('trazador.console-view', v))
 const directQuery = computed(() => (t.results?.items || []).filter((item) => item.direct).length === 1)
 // Por teléfono/cédula interesa primero qué sigue vivo. Por UREQ, en cambio, ya se tiene una solicitud
 // abierta y lo útil es ver de inmediato todos los intentos de esa persona, sin esconderlos en una pestaña.

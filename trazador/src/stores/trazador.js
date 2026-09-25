@@ -6,6 +6,7 @@
 // primer cambio se contradirían. El store guarda, pide y expone; no interpreta.
 import { defineStore } from 'pinia'
 import { toRaw } from 'vue'
+import { readPref, savePref } from '../workbench.js'
 import { deleteSearch, deleteQuery, saveSearch, saveQuery, readSearch, readQuery } from '../queryCache'
 
 const json = async (url) => {
@@ -96,14 +97,14 @@ function recentList(value) {
   }).slice(0, 8)
 }
 
+// Con los helpers de la base: una falla del almacenamiento no impide usar el trazador.
 function readRecent() {
-  try { return recentList(JSON.parse(localStorage.getItem('trazador.recent') || '[]')) }
-  catch { return [] }
+  const saved = readPref('trazador.recent', [])
+  return recentList(Array.isArray(saved) ? saved : [])
 }
 
 function persistRecent(recentItems) {
-  try { localStorage.setItem('trazador.recent', JSON.stringify(recentItems)) }
-  catch { /* El historial visual no puede impedir usar el trazador. */ }
+  savePref('trazador.recent', recentItems)
 }
 
 function loanRequestsOf(results) {
