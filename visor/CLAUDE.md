@@ -128,9 +128,12 @@ Para que un modelo pase una pantalla a Vue o React sin copiar colores sueltos, e
 del diseño: cada color y estilo de texto con su **nombre de Figma**, su valor y cuánto se usa
 (`connectors/figma/tokens.go`). Salen de la misma respuesta que el árbol del mapa: no cuestan un pedido más.
 
-- **Dónde:** `bin/pg figma tokens '<url de la sección o página>'` por consola (`--css` · `--tailwind` ·
-  `--json`), y en el visor, en el detalle de cada pantalla («Estilos del diseño»: los que usa esa
-  pantalla, con enlaces a la hoja del archivo en CSS, Tailwind y JSON). `/api/tokens?key=<clave>&format=css`
+- **Dónde:** en la barra, **«Tokens del diseño»** arriba de los carriles de cada proyecto abre la hoja en el
+  centro (`/<proyecto>/tokens`, enlazable como cualquier ruta): una muestra por color agrupada por familia
+  —tocarla copia `var(--morado-500)`—, cada estilo de texto escrito en su letra —tocarlo copia su clase—,
+  los colores sin estilo y los radios, con la hoja entera para copiar en CSS, Tailwind o JSON en la cabecera.
+  Por consola: `bin/pg figma tokens '<url de la sección o página>'` (`--css` · `--tailwind` · `--json`). Y
+  en el detalle de cada pantalla, «Estilos del diseño»: los que usa esa pantalla. `/api/tokens?key=<clave>&format=css`
   (o `tailwind`) sirve también como enlace directo: con el server recién arrancado lee sola la página de
   flujo del archivo, con la misma regla que la barra. *(Hasta el 2026-09-25 contestaba 404 si el archivo no
   se había abierto antes en el visor.)*

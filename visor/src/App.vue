@@ -325,7 +325,77 @@ async function load(ref_ = refInput.value, screen = '', fresh = false) {
 }
 
 // ── navegar ──
+// ── la hoja de tokens de un proyecto, en el centro ──
+// Cada bloque de la barra tiene arriba «Tokens del diseño»: los colores y estilos de texto con su nombre
+// del sistema de diseño (connectors/figma, tokens.go). Vienen en el mismo mapa del flujo, así que no
+// cuestan un pedido; la hoja para copiar (CSS o Tailwind) la escribe el server.
+const tokensKey = ref('') // el proyecto cuya hoja se mira; vacío: se mira una pantalla
+const tokensOf = (key) => maps.value[key]?.structure?.tokens || null
+const sheet = computed(() => (tokensKey.value ? tokensOf(tokensKey.value) : null))
+const sheetFormat = ref('css')
+const sheetFormats = [{ id: 'css', label: 'CSS' }, { id: 'tailwind', label: 'Tailwind' }, { id: 'json', label: 'JSON' }]
+// Una entrada por variable (dos estilos con el mismo nombre y valor son el mismo token), agrupadas por
+// familia: `--morado-500` es de «morado».
+const sheetFamilies = computed(() => {
+  const byVar = new Map()
+  for (const c of sheet.value?.colors || []) {
+    const prev = byVar.get(c.var)
+    if (prev) { prev.uses += c.uses; if (!prev.names.includes(c.name)) prev.names.push(c.name) } else byVar.set(c.var, { ...c, names: [c.name] })
+  }
+  const fams = new Map()
+  for (const c of byVar.values()) {
+    const fam = c.var.replace(/^--/, '').replace(/-[0-9a-f]{6}$/, '').replace(/-\d+$/, '') || c.var
+    if (!fams.has(fam)) fams.set(fam, [])
+    fams.get(fam).push(c)
+  }
+  const tone = (v) => Number((v.match(/-(\d+)(?:-[0-9a-f]{6})?$/) || [0, 0])[1])
+  return [...fams].map(([name, colors]) => ({ name, colors: colors.sort((a, b) => tone(a.var) - tone(b.var)) }))
+    .sort((a, b) => b.colors.reduce((n, c) => n + c.uses, 0) - a.colors.reduce((n, c) => n + c.uses, 0))
+})
+const sheetCount = (key) => { const t = tokensOf(key); return t ? `${new Set(t.colors.map((c) => c.var)).size} colores · ${t.texts.length} textos` : '' }
+function openTokens(key) {
+  routeHold = false
+  if (!data.value || data.value.key !== key) activate(key)
+  tokensKey.value = key
+  writeRoute()
+}
+const sheetCopied = ref(false)
+async function copySheet() {
+  if (!tokensKey.value) return
+  try {
+    const q = new URLSearchParams({ key: tokensKey.value })
+    if (sheetFormat.value !== 'json') q.set('format', sheetFormat.value)
+    const res = await fetch('/api/tokens?' + q)
+    if (!res.ok) throw new Error(`HTTP ${res.status}`)
+    await navigator.clipboard.writeText(await res.text())
+    sheetCopied.value = true
+    setTimeout(() => { sheetCopied.value = false }, 1500)
+  } catch { /* sin la hoja o sin portapapeles: el enlace de al lado la abre */ }
+}
+const sheetURL = computed(() => (tokensKey.value ? `/api/tokens?key=${tokensKey.value}${sheetFormat.value === 'json' ? '' : '&format=' + sheetFormat.value}` : ''))
+const copiedVar = ref('')
+async function copyVar(text) {
+  try { await navigator.clipboard.writeText(text); copiedVar.value = text; setTimeout(() => { if (copiedVar.value === text) copiedVar.value = '' }, 1200) } catch { /* sin portapapeles */ }
+}
+// La muestra de un estilo de texto se escribe en SU letra: se pide a Fontshare (Satoshi) o a Google.
+const loadedFonts = new Set()
+watch(sheet, (t) => {
+  for (const x of t?.texts || []) {
+    const fam = (x.family || '').replace(/ Variable$/, '')
+    if (!fam || loadedFonts.has(fam)) continue
+    loadedFonts.add(fam)
+    const link = document.createElement('link')
+    link.rel = 'stylesheet'
+    link.href = fam === 'Satoshi' ? 'https://api.fontshare.com/v2/css?f[]=satoshi@300,400,500,700,900&display=swap'
+      : `https://fonts.googleapis.com/css2?family=${encodeURIComponent(fam)}:wght@100..900&display=swap`
+    document.head.appendChild(link)
+  }
+})
+const textSample = (x) => ({ fontFamily: `'${(x.family || '').replace(/ Variable$/, '')}', sans-serif`, fontWeight: x.weight, fontSize: x.size + 'px',
+  lineHeight: x.line_height ? x.line_height + 'px' : 'normal', letterSpacing: x.letter_spacing ? x.letter_spacing + 'px' : 'normal' })
+
 function go(id, remember = true) {
+  if (id && tokensKey.value) { tokensKey.value = ''; if (id === currentID.value) { writeRoute(); return } }
   if (!id || id === currentID.value) return
   if (remember && currentID.value) trail.value.push(currentID.value)
   currentID.value = id
@@ -377,6 +447,7 @@ const fromID = (id) => (id || '').replace(/:/g, '-')
 // La comprobación del enlace con que se llegó (ver checkLink, más abajo).
 const linkCheck = ref(null) // { id, linked, status: 'checking' | 'same' | 'changed' | 'deleted', print }
 const routePath = computed(() => {
+  if (tokensKey.value) return `/${projectSlug(tokensKey.value)}/tokens`
   if (!data.value || !currentID.value) return ''
   const q = new URLSearchParams()
   const inFlow = flowIDs.value[data.value.key]?.has(currentID.value)
@@ -395,10 +466,11 @@ function writeRoute() {
 // página de flujo: la ruta se reescribe cuando cambia cualquiera de los dos.
 watch(routePath, () => writeRoute())
 function readRoute() {
-  const m = location.pathname.match(/^\/([^/]+)(?:\/([0-9]+-[0-9]+))?\/?$/)
+  const m = location.pathname.match(/^\/([^/]+)(?:\/([0-9]+-[0-9]+|tokens))?\/?$/)
   if (!m) return null
   const q = new URLSearchParams(location.search)
   const modeID = Object.keys(modeSlugs).find((k) => modeSlugs[k] === q.get('modo')) || ''
+  if (m[2] === 'tokens') return { project: decodeURIComponent(m[1]), tokens: true, screen: '', node: '', mode: modeID, print: '' }
   return { project: decodeURIComponent(m[1]), screen: toID(m[2]), node: toID(q.get('nodo')), mode: modeID, print: q.get('huella') || '' }
 }
 const figmaRef = (key, node) => `https://www.figma.com/design/${key}/?node-id=${fromID(node)}`
@@ -424,6 +496,7 @@ async function openRoute(r) {
   routeHold = false
   if (r.print && r.screen) checkLink(key, r.screen, r.print)
   activate(key, r.screen)
+  if (r.tokens) openTokens(key)
 }
 // whyMissing distingue una pantalla BORRADA (Figma ya no la tiene) de una que sigue en el archivo pero
 // fuera de la página de flujo (la movieron a otra página, o a una sección de archivo).
@@ -688,7 +761,7 @@ const hotspotStyle = (h) => {
 }
 
 function onKey(e) {
-  if (e.target.closest('input, textarea')) return
+  if (e.target.closest('input, textarea') || tokensKey.value) return
   if (e.key === 'ArrowRight') { step(1); e.preventDefault() }
   else if (e.key === 'ArrowLeft' && !e.altKey) { step(-1); e.preventDefault() }
   else if (e.key === 'Backspace' || (e.key === 'ArrowLeft' && e.altKey)) { back(); e.preventDefault() }
@@ -774,6 +847,11 @@ const rowMetaTitle = (sc) => [sc.hotspots?.length ? 'Tiene zonas del prototipo' 
         <div v-if="isOpenFile(f.key)" :id="'flow-' + f.key" class="region-body">
           <p v-if="mapState[f.key] === 'loading'" class="hint">Leyendo el flujo…</p>
           <div v-else-if="mapState[f.key]?.error" class="alert alert-destructive" role="alert"><div class="alert-desc">{{ mapState[f.key].error }}</div></div>
+          <!-- Arriba de los carriles, la hoja de tokens del proyecto: se abre en el centro. -->
+          <button v-if="tokensOf(f.key)" type="button" class="row" :class="{ on: tokensKey === f.key }"
+            :aria-current="tokensKey === f.key ? 'true' : undefined" @click="openTokens(f.key)">
+            <span>Tokens del diseño</span><span class="row-meta">{{ sheetCount(f.key) }}</span>
+          </button>
           <template v-for="g in groupsFor(maps[f.key]?.structure)" :key="g.id">
             <div v-if="groupsFor(maps[f.key]?.structure).length > 1" class="section-name">{{ g.name }}</div>
             <template v-for="(lane, li) in g.lanes" :key="g.id + '-' + li">
@@ -823,8 +901,22 @@ const rowMetaTitle = (sc) => [sc.hotspots?.length ? 'Tiene zonas del prototipo' 
 
     <main class="editor">
       <div class="region-head">
-        <span>{{ current ? (current.title || current.name) : 'Visor' }}</span>
-        <template v-if="current">
+        <span>{{ tokensKey ? 'Tokens del diseño · ' + (maps[tokensKey]?.structure?.file_name || '') : current ? (current.title || current.name) : 'Visor' }}</span>
+        <template v-if="tokensKey">
+          <div class="toggle-group toggle-sm mode-toggle" role="group" aria-label="Formato de la hoja">
+            <button v-for="f in sheetFormats" :key="f.id" type="button" class="toggle" :class="{ on: sheetFormat === f.id }"
+              :aria-pressed="sheetFormat === f.id" @click="sheetFormat = f.id">{{ f.label }}</button>
+          </div>
+          <div class="region-actions">
+            <button class="region-action" :title="sheetCopied ? 'Copiada' : 'Copiar la hoja en ' + sheetFormat.toUpperCase() + ' para pegarla en el proyecto'" aria-label="Copiar la hoja" @click="copySheet">
+              <span class="ui-icon" :data-icon="sheetCopied ? 'check' : 'copy'" aria-hidden="true"></span>
+            </button>
+            <a class="region-action" :href="sheetURL" target="_blank" rel="noopener" title="Abrir la hoja como texto" aria-label="Abrir la hoja">
+              <span class="ui-icon" data-icon="external" aria-hidden="true"></span>
+            </a>
+          </div>
+        </template>
+        <template v-else-if="current">
           <div class="region-actions">
             <button class="region-action" title="Volver (Retroceso)" aria-label="Volver" :disabled="!trail.length" @click="back">
               <span class="ui-icon icon-flip" data-icon="move" aria-hidden="true"></span>
@@ -858,7 +950,7 @@ const rowMetaTitle = (sc) => [sc.hotspots?.length ? 'Tiene zonas del prototipo' 
           </div>
         </template>
       </div>
-      <div ref="stage" class="stage" :class="{ dragging }" @pointerdown="onPointerDown" @pointermove="onPointerMove"
+      <div v-show="!tokensKey" ref="stage" class="stage" :class="{ dragging }" @pointerdown="onPointerDown" @pointermove="onPointerMove"
         @pointerup="onPointerUp" @pointercancel="onPointerUp" @click.capture="onClickCapture" @wheel="onWheel" @dblclick.self="center">
         <div v-if="!current" class="empty">
           <div class="empty-head">
@@ -885,13 +977,64 @@ const rowMetaTitle = (sc) => [sc.hotspots?.length ? 'Tiene zonas del prototipo' 
         </figure>
         </div>
       </div>
+      <!-- La hoja de tokens: una muestra por color (tocarla copia su variable), cada estilo de texto escrito
+           en su letra, los colores que se salen del sistema y los radios. -->
+      <div v-if="tokensKey && sheet" class="region-body sheet">
+        <section class="sheet-part">
+          <div class="region-head group"><span>Colores</span><span class="count">{{ sheetFamilies.reduce((n, f) => n + f.colors.length, 0) }}</span></div>
+          <div v-for="fam in sheetFamilies" :key="fam.name" class="swatch-row">
+            <span class="swatch-family">{{ fam.name }}</span>
+            <button v-for="c in fam.colors" :key="c.var" type="button" class="swatch" :title="c.names.join(' = ') + ' · ' + c.uses + ' usos en ' + c.screens + ' pantallas · tocá para copiar var(' + c.var + ')'"
+              @click="copyVar('var(' + c.var + ')')">
+              <span class="swatch-chip" :style="{ background: c.value }"></span>
+              <span class="swatch-var">{{ copiedVar === 'var(' + c.var + ')' ? 'copiado' : c.var }}</span>
+              <small>{{ c.value }} · {{ c.uses }}</small>
+            </button>
+          </div>
+        </section>
+        <section class="sheet-part">
+          <div class="region-head group"><span>Textos</span><span class="count">{{ sheet.texts.length }}</span></div>
+          <button v-for="x in sheet.texts" :key="x.id" type="button" class="text-style" :title="'tocá para copiar la clase ' + x.class" @click="copyVar(x.class)">
+            <span class="text-sample" :style="textSample(x)">Completa tu solicitud</span>
+            <span class="text-meta"><code>{{ copiedVar === x.class ? 'copiado' : '.' + x.class }}</code>
+              <small>{{ x.name }} · {{ (x.family || '').replace(/ Variable$/, '') }} {{ x.weight }} · {{ x.size }}/{{ x.line_height || '—' }} · {{ x.uses }} usos</small></span>
+          </button>
+        </section>
+        <section v-if="sheet.loose?.length" class="sheet-part">
+          <div class="region-head group"><span>Sin estilo</span><span class="count">{{ sheet.loose.length }}</span></div>
+          <p class="hint">Colores escritos a mano en Figma: se salen del sistema de diseño. Si coinciden con un token, conviene usar el token.</p>
+          <div class="swatch-row">
+            <button v-for="l in sheet.loose" :key="l.value" type="button" class="swatch" :title="l.uses + ' usos en ' + l.screens + ' pantallas'" @click="copyVar(l.matches ? 'var(' + l.matches + ')' : l.value)">
+              <span class="swatch-chip" :style="{ background: l.value }"></span>
+              <span class="swatch-var">{{ l.matches ? '= ' + l.matches : l.value }}</span>
+              <small>{{ l.uses }} usos</small>
+            </button>
+          </div>
+        </section>
+        <section v-if="sheet.radii?.length" class="sheet-part">
+          <div class="region-head group"><span>Radios</span><span class="count">{{ sheet.radii.length }}</span></div>
+          <div class="swatch-row">
+            <div v-for="r in sheet.radii" :key="r.value" class="radius" :title="r.uses + ' usos'">
+              <span class="radius-box" :style="{ borderRadius: Math.min(r.value, 24) + 'px' }"></span><small>{{ r.value }} · {{ r.uses }}</small>
+            </div>
+          </div>
+        </section>
+      </div>
     </main>
 
     <aside v-show="shown.aux" class="auxiliarybar" aria-label="Detalle de la pantalla">
       <div class="rsz rsz-edge-left" v-resize="resizeOptions('aux')"></div>
-      <div class="region-head"><span>Pantalla</span></div>
+      <div class="region-head"><span>{{ tokensKey ? 'Cómo usar la hoja' : 'Pantalla' }}</span></div>
       <div class="region-body detail">
-        <div v-if="!current" class="empty">
+        <div v-if="tokensKey" class="sheet-help">
+          <p>Estos son los estilos del sistema de diseño que usa el flujo, con el nombre que tienen en Figma.</p>
+          <p><strong>Para pasar una pantalla a código</strong>, pegá la hoja en el proyecto —CSS: las variables y las
+            clases de texto; Tailwind: el <code>@theme</code>, que da <code>bg-morado-500</code> o <code>text-small-medium</code>— y el
+            HTML traducido de cada pantalla ya la usa.</p>
+          <p>Tocar un color copia su variable; tocar un texto, su clase.</p>
+          <p class="hint">Radios y espaciados van por valor: Figma no le da a este token los nombres de sus variables.</p>
+        </div>
+        <div v-else-if="!current" class="empty">
           <div class="empty-head"><div class="empty-desc">Elegí una pantalla de un carril.</div></div>
         </div>
         <template v-else>
@@ -1044,6 +1187,28 @@ const rowMetaTitle = (sc) => [sc.hotspots?.length ? 'Tiene zonas del prototipo' 
 .auto-next > span:last-child { overflow: hidden; text-overflow: ellipsis }
 
 /* El detalle: una lista de propiedades, rótulo y valor. */
+/* La hoja de tokens. Una muestra de color y la caja de un radio son OBJETOS —se ven como lo que son—, así
+   que llevan su borde; el resto va sin cajas, separado por su encabezado y por línea. */
+.sheet { flex: 1; min-height: 0; overflow: auto; padding-bottom: var(--space-4) }
+.sheet-part { padding-bottom: var(--space-3) }
+.swatch-row { display: flex; flex-wrap: wrap; align-items: flex-start; gap: var(--space-2) var(--space-3); padding: var(--space-2) var(--space-3) }
+.swatch-family { flex: 0 0 100%; font-size: var(--text-xs); color: var(--fg-3) }
+.swatch { display: flex; flex-direction: column; gap: 2px; width: 104px; padding: 0; border: 0; background: none; color: inherit;
+  font: inherit; text-align: left; cursor: pointer }
+.swatch-chip { display: block; width: 100%; height: 40px; border: 1px solid var(--border); border-radius: var(--radius-sm) }
+.swatch-var { font-family: var(--font-mono, ui-monospace, monospace); font-size: var(--text-xs); overflow-wrap: anywhere }
+.swatch:hover .swatch-var { text-decoration: underline }
+.swatch small, .radius small { font-size: var(--text-xs); color: var(--fg-3) }
+.text-style { display: flex; flex-direction: column; gap: var(--space-1); width: 100%; padding: var(--space-2) var(--space-3); border: 0;
+  border-bottom: 1px solid var(--border); background: none; color: inherit; font: inherit; text-align: left; cursor: pointer }
+.text-style:hover { background: color-mix(in oklab, var(--foreground) 6%, transparent) }
+.text-meta { display: flex; flex-wrap: wrap; align-items: baseline; gap: var(--space-2) }
+.text-meta code { font-size: var(--text-xs); color: var(--fg-2) }
+.text-meta small { font-size: var(--text-xs); color: var(--fg-3) }
+.radius { display: flex; flex-direction: column; align-items: center; gap: 4px; width: 64px }
+.radius-box { width: 48px; height: 48px; border: 2px solid var(--fg-3) }
+.sheet-help { display: grid; gap: var(--space-2); padding: var(--space-3); font-size: var(--text-sm) }
+.sheet-help p { margin: 0 }
 .detail dl { display: grid; grid-template-columns: auto 1fr; align-items: baseline; gap: var(--space-1) var(--space-3); margin: 0;
   padding: var(--space-3) var(--gutter); font-size: var(--text-base) }
 .detail dt { font-size: var(--text-sm); color: var(--fg-3) }
