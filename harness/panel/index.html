@@ -910,13 +910,13 @@
     .statusbar .sumry { overflow: hidden; text-overflow: ellipsis }
 
     /* ── manijas de ajuste ─────────────────────────────────────────────────────────────────── */
-    .rsz { background: transparent; position: relative; z-index: 5 }
-    .rsz-l, .rsz-r { cursor: col-resize }
-    .rsz-b { cursor: row-resize }
-    .rsz::after { content: ''; position: absolute; inset: 0; background: transparent; transition: background .12s }
-    .rsz:hover::after, .rsz.on::after { background: var(--acc) }
-    .rsz-l::after, .rsz-r::after { left: 1px; right: 1px }
-    .rsz-b::after { top: 1px; bottom: 1px }
+    /* El aspecto de la manija es el de la base: `::before` es la LÍNEA (se pinta en --ring al pasar,
+       al enfocar y al arrastrar) y `::after` la ZONA DE AGARRE. Acá sólo va dónde cae la línea dentro
+       de la pista de 4 px del grid: 1 px en el medio. ⚠ Hasta el 2026-09-24 el panel lo tenía al revés
+       —su `::before` era la zona de agarre de 16 px— y al arrastrar la base pintaba de naranja esa
+       franja entera con la línea gris en el medio. */
+    .rsz-l::before, .rsz-r::before { left: 1.5px; right: auto; width: 1px }
+    .rsz-b::before { top: 1.5px; bottom: auto; height: 1px }
 
     /* el dock viejo ya no existe: lo que queda de él es la barra de estado */
     .dock { display: none }
@@ -966,9 +966,6 @@
        lo seleccionado se distingue por ser MÁS CLARO, no por tener otro tinte. */
     .m.sel { background: var(--sel) }
 
-    /* la manija activa en blanco se ve demasiado; alcanza con un gris claro */
-    .rsz:hover::after, .rsz.on::after { background: var(--line2) }
-    .rsz.on::after { background: var(--acc-d) }
 
 
     /* ═══ ÁRBOL DE COMERCIOS ══════════════════════════════════════════════════════════════════════
@@ -1194,20 +1191,13 @@
 
 
     .sidebar, .auxiliarybar { overflow: hidden }
-    .rsz { transition: background .12s }
     .rsz-l, .rsz-r { min-width: var(--rsz) }
-    /* ⚠ EL ÁREA DE AGARRE ES MÁS ANCHA QUE LA LÍNEA. La manija se ve de 4 px —una línea, como en un
-       editor— pero apuntarle con el mouse a 4 px falla: probado, un arrastre real no la tomaba.
-       El `::before` le da 16 px de zona sensible sin engordar lo que se ve. Y ahora importa el doble:
-       con el panel colapsado a 0, esta manija es lo ÚNICO que lo trae de vuelta. */
-    .rsz::before { content: ''; position: absolute; z-index: 1 }
-    .rsz-l::before, .rsz-r::before { top: 0; bottom: 0; left: -6px; right: -6px }
-    .rsz-b::before { left: 0; right: 0; top: -6px; bottom: -6px }
-    /* Con su región plegada, la manija queda contra el borde de la ventana: su zona de agarre no puede
-       salirse, o la página scrollea de costado 6px. */
-    .rsz-r.plegado::before { right: 0 }
-    /* Colapsado, la manija se marca sola: si no, queda una línea muerta que nadie sabe que se arrastra. */
-    .sidebar:empty + .rsz, .auxiliarybar:empty + .rsz, .rsz.plegado::after { background: var(--line2) }
+    /* Con su región plegada, la manija queda contra el borde de la ventana: su zona de agarre (el
+       `::after` de la base, 4 px de cada lado) no puede salirse, o la página scrollea de costado. */
+    .rsz-r.plegado::after { right: 0 }
+    /* Plegada, la línea queda marcada: si no, es una línea muerta que nadie sabe que se arrastra, y con
+       el panel colapsado a 0 esta manija es —con el botón del pie— lo único que lo trae de vuelta. */
+    .rsz.plegado::before { background: var(--line2) }
 
 
 
@@ -4244,14 +4234,14 @@ export function setTheme(theme) {
   applyTheme(theme);
 }
 
-// El botón del pie. Muestra el icono del tema ACTUAL y su etiqueta dice lo que hace el clic.
+// El botón del pie: el icono de contraste, fijo, y la etiqueta dice lo que hace el clic.
 export function bindThemeToggle(button) {
   const icon = button.querySelector('.ui-icon') || button.appendChild(Object.assign(document.createElement('span'), { className: 'ui-icon' }));
   icon.setAttribute('aria-hidden', 'true');
   function paint() {
     const theme = currentTheme();
     const label = theme === 'dark' ? 'Cambiar a tema claro' : 'Cambiar a tema oscuro';
-    icon.dataset.icon = theme === 'dark' ? 'moon' : 'sun';
+    icon.dataset.icon = 'theme';
     button.setAttribute('aria-label', label);
     button.title = `${theme === 'dark' ? 'Tema oscuro' : 'Tema claro'} · ${label.toLowerCase()}`;
   }
