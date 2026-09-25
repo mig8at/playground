@@ -348,8 +348,8 @@ const sheetFamilies = computed(() => {
     if (!fams.has(fam)) fams.set(fam, [])
     fams.get(fam).push(c)
   }
-  const tone = (v) => Number((v.match(/-(\d+)(?:-[0-9a-f]{6})?$/) || [0, 0])[1])
-  return [...fams].map(([name, colors]) => ({ name, colors: colors.sort((a, b) => tone(a.var) - tone(b.var)) }))
+  const level = (v) => Number((v.match(/-(\d+)(?:-[0-9a-f]{6})?$/) || [0, 0])[1])
+  return [...fams].map(([name, colors]) => ({ name, colors: colors.sort((a, b) => level(a.var) - level(b.var)) }))
     .sort((a, b) => b.colors.reduce((n, c) => n + c.uses, 0) - a.colors.reduce((n, c) => n + c.uses, 0))
 })
 const sheetCount = (key) => { const t = tokensOf(key); return t ? `${new Set(t.colors.map((c) => c.var)).size} colores · ${t.texts.length} textos` : '' }
