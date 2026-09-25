@@ -203,11 +203,15 @@ formularios de Credifamilia y una de flujo-ecommerce con imagen), un modelo por 
 
 ## Los componentes: qué piezas hay que tener antes de armar pantallas
 
-Debajo de «Tokens del diseño», cada proyecto tiene **«Componentes»** (`/<proyecto>/componentes`): las piezas
-del sistema de diseño que usa el flujo (`connectors/figma/inventory.go`), cada una dibujada con una instancia
-real (el SVG de Figma), con las **variantes con que aparece** y las pantallas donde está —tocar una la abre—.
-Es la lista de componentes de Vue o React que hay que tener: los que ya existen en el front se reusan, los
-que no se arman primero. El botón de la cabecera copia el inventario como texto, para el modelo o la tarea.
+**`make visor-componentes P=<clave>`**: las piezas del sistema de diseño que usa el flujo
+(`connectors/figma/inventory.go`), con las **variantes con que aparece** cada una y las pantallas donde
+está. Es la lista de componentes de Vue o React que hay que tener: los que ya existen en el front se
+reusan, los que no se arman primero. El paquete de cada pantalla trae los que usa ESA pantalla.
+
+⛔ **No hay vista de componentes ni de tokens en la interfaz** (Miguel, 2026-09-25): se deduce de la pantalla
+que se trabaja —su paleta y su tipografía en la barra derecha, sus componentes y tokens en el paquete— y lo
+del archivo entero sale por consola. Un enlace viejo a `/<proyecto>/tokens` o `/<proyecto>/componentes`
+abre el proyecto.
 
 - Cuenta las instancias de **primer nivel**: el ícono de adentro de un botón es parte del botón. La barra de
   estado no cuenta.
@@ -223,12 +227,9 @@ Para que un modelo pase una pantalla a Vue o React sin copiar colores sueltos, e
 del diseño: cada color y estilo de texto con su **nombre de Figma**, su valor y cuánto se usa
 (`connectors/figma/tokens.go`). Salen de la misma respuesta que el árbol del mapa: no cuestan un pedido más.
 
-- **Dónde:** en la barra, **«Tokens del diseño»** arriba de los carriles de cada proyecto abre la hoja en el
-  centro (`/<proyecto>/tokens`, enlazable como cualquier ruta): una muestra por color agrupada por familia
-  —tocarla copia `var(--morado-500)`—, cada estilo de texto escrito en su letra —tocarlo copia su clase—,
-  los colores sin estilo y los radios, con la hoja entera para copiar en CSS, Tailwind o JSON en la cabecera.
-  Por consola: `bin/pg figma tokens '<url de la sección o página>'` (`--css` · `--tailwind` · `--json`). Y
-  en el detalle de cada pantalla, «Estilos del diseño»: los que usa esa pantalla. `/api/tokens?key=<clave>&format=css`
+- **Dónde:** por consola, `make visor-tokens P=<clave>` (o `bin/pg figma tokens '<url de la sección o
+  página>'`, con `--css` · `--tailwind` · `--json`); en la interfaz, la paleta y la tipografía de cada
+  pantalla con su token, y los enlaces a la hoja entera al pie de «Tipografía». `/api/tokens?key=<clave>&format=css`
   (o `tailwind`) sirve también como enlace directo: con el server recién arrancado lee sola la página de
   flujo del archivo, con la misma regla que la barra. *(Hasta el 2026-09-25 contestaba 404 si el archivo no
   se había abierto antes en el visor.)*
