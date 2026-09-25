@@ -15,3 +15,13 @@ test('sin HTML se muestra texto escapado, sin inventar una descripción publicad
   assert.equal(jiraPreview({ techNotes: 'Privado', jiraDescription: 'Borrador' }), '');
   assert.equal(jiraPreview({ _local: true, Description: 'Contenido local' }), '');
 });
+
+test('la vista previa sigue al tema del tablero', () => {
+  const issue = { Description: 'texto' };
+  assert.match(jiraPreview(issue), /color-scheme: dark/, 'sin tema, oscuro, como hasta ahora');
+  const light = jiraPreview(issue, 'light');
+  assert.match(light, /color-scheme: light/);
+  assert.match(light, /color: #1f2433/, 'tinta oscura sobre el fondo claro');
+  assert.doesNotMatch(light, /#ededed/, 'no queda nada de la paleta oscura');
+});
+

@@ -179,15 +179,15 @@ try {
         'Tablero: el conteo del árbol explica que se trata de pendientes');
       await page.locator('.tree-row').first().click();
       await page.locator('.auxiliarybar').waitFor();
-      assert.equal(await page.locator('.ramas-panel').isVisible(), true,
+      assert.equal(await page.locator('.branch-panel').isVisible(), true,
         'Tablero: la consola de ramas de la tarea está abierta al enfocarla');
       assert.equal(await page.getByRole('table', { name: 'Ramas de playground para Validar el espacio de trabajo', exact: true }).isVisible(), true,
         'Tablero: la consola muestra como tabla las ramas del repo seleccionado');
       assert.equal(await page.getByRole('listbox', { name: 'Repositorios trabajados en la tarea' }).getByRole('option').count(), 2,
         'Tablero: el sidebar lista sólo los repos asociados a la tarea');
-      assert.match(await page.locator('.repo-sidebar > header').textContent(), /Repos de esta tarea/,
+      assert.match(await page.locator('.split-side .region-head').textContent(), /Repos de esta tarea/,
         'Tablero: el encabezado deja explícito el alcance del selector');
-      assert.match(await page.locator('.console-head').textContent(), /medido hace|medido recién/,
+      assert.match(await page.locator('.repo-branches > .region-head').textContent(), /medido hace|medido recién/,
         'Tablero: la medición se presenta como antigüedad legible');
       assert.equal(await page.getByLabel('Leyenda de ambientes: llegó, pendiente, no aplica').isVisible(), true,
         'Tablero: la consola explica los tres símbolos de ambientes');
@@ -382,19 +382,19 @@ try {
       assert.equal(await page.locator('.auxiliarybar').isVisible(), true, 'Las vistas vuelven desde el pie');
       assert(await page.locator('.task-editor').isVisible(), 'Escape en menú no cierra la tarea');
       await page.getByRole('button', { name: 'Ocultar ramas', exact: true }).click(); await paint(page);
-      assert.equal(await page.locator('.ramas-panel').isVisible(), false,
+      assert.equal(await page.locator('.branch-panel').isVisible(), false,
         'Tablero: se puede cerrar la consola de la tarea');
       const branches = page.getByRole('button', { name: 'Mostrar u ocultar ramas', exact: true });
       assert.equal(await branches.getAttribute('aria-pressed'), 'false');
       assert.match(await branches.textContent(), /Ramas\s*2/,
         'Tablero: el footer conserva un acceso textual con el total de ramas');
       await branches.click(); await paint(page);
-      assert.equal(await page.locator('.ramas-panel').isVisible(), true,
+      assert.equal(await page.locator('.branch-panel').isVisible(), true,
         'Tablero: la consola de la tarea vuelve desde el footer');
       await page.locator('.tree-row').nth(1).click(); await paint(page);
-      const emptyHeight = await page.locator('.ramas-panel').evaluate((panel) => panel.getBoundingClientRect().height);
+      const emptyHeight = await page.locator('.branch-panel').evaluate((panel) => panel.getBoundingClientRect().height);
       assert(emptyHeight <= 80, 'Tablero: una tarea sin ramas usa una consola compacta');
-      assert.equal(await page.locator('.repo-sidebar').count(), 0,
+      assert.equal(await page.locator('.split-side').count(), 0,
         'Tablero: una tarea sin ramas no inventa un selector de repositorios');
       await page.locator('.tree-row').first().click();
       await page.getByRole('table', { name: 'Ramas de playground para Validar el espacio de trabajo', exact: true }).waitFor();
@@ -580,13 +580,17 @@ try {
       assert.equal(layout.footer, 800, `${name}: pie visible a ${width}px`);
       assert(layout.editor >= 220, `${name}: editor usable a ${width}px`);
       if (name === 'tablero') {
-        const consolePanel = await page.locator('.ramas-panel').evaluate((panel) => {
-          const table = panel.querySelector('.console-main').getBoundingClientRect();
-          const repos = panel.querySelector('.repo-sidebar').getBoundingClientRect();
+        // El sidebar interno de repos es el de la base: con la consola por debajo de 600 se pliega solo, y
+        // entonces el repo se elige con el select de la subbanda. Las dos formas cuentan como «se puede elegir».
+        const consolePanel = await page.locator('.branch-panel').evaluate((panel) => {
+          const table = panel.querySelector('.split-main').getBoundingClientRect();
+          const repos = panel.querySelector('.split-side').getBoundingClientRect();
+          const picker = panel.querySelector('.repo-picker');
           const branch = getComputedStyle(panel.querySelector('tbody td:first-child'));
           const pr = getComputedStyle(panel.querySelector('tbody td:nth-child(2)'));
+          const pickerShown = !!picker && getComputedStyle(picker).display !== 'none';
           return {
-            tabla: table.width, repos: repos.width, reposALaDerecha: repos.left >= table.right - 1,
+            tabla: table.width, repos: repos.width || (pickerShown ? 1 : 0), reposALaDerecha: !repos.width || repos.left >= table.right - 1,
             columnasFijas: branch.position === 'sticky' && pr.position === 'sticky',
           };
         });

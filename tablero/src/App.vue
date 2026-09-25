@@ -1,5 +1,5 @@
 <script setup>
-import { vResize, refreshResizers, fitRegions, regionSize, reopenSize, cssSize } from './workbench.js';
+import { vResize, refreshResizers, fitRegions, regionSize, reopenSize, cssSize, bindThemeToggle, currentTheme } from './workbench.js';
 // Tablero — mi sprint, con registro de tiempo y avances.
 //
 // El registro persiste como JSONL del lado del server (internal/store). Lo de arriba (sprint, tareas)
@@ -688,7 +688,18 @@ const summarySections = computed(() => documentSections.value.filter(section => 
 // El contador de la pestaña son los DÍAS registrados, no las secciones: es lo que dice de un vistazo
 // si esto se trabajó una tarde o dos meses.
 const pendingSections = computed(() => documentSections.value.filter(section => section.pendingHtml));
-const jiraDocument = computed(() => jiraPreview(active.value));
+// El tema de la base (botón del pie). La vista de Jira es un iframe aparte y no hereda los tokens:
+// se redibuja con la paleta del tema cuando cambia.
+const uiTheme = ref(currentTheme());
+const onThemeChange = (e) => { uiTheme.value = e.detail?.theme || currentTheme(); };
+const themeToggle = ref(null);
+let themeBinding = null;
+onMounted(() => {
+  addEventListener('ui-theme', onThemeChange);
+  if (themeToggle.value) themeBinding = bindThemeToggle(themeToggle.value);
+});
+onUnmounted(() => { removeEventListener('ui-theme', onThemeChange); themeBinding?.destroy(); });
+const jiraDocument = computed(() => jiraPreview(active.value, uiTheme.value));
 // Canon abre una referencia estable por URL. No ocupa una vista propia: una cita sólo aparece dentro
 // del trabajo que realmente la usó. Una tarea puede declarar un tema (`listado`) o, preferiblemente,
 // una sección exacta (`listado/context#por-donde-pasa-todo`).
@@ -932,7 +943,7 @@ function auxTabsKeyboard(event, id) {
   const upcoming = event.key === 'Home' ? 0 : event.key === 'End' ? ids.length - 1
     : (currentValue + (event.key === 'ArrowRight' ? 1 : -1) + ids.length) % ids.length;
   activeAuxView.value = ids[upcoming];
-  nextTick(() => event.currentTarget.parentElement?.querySelector(`[data-vista="${ids[upcoming]}"]`)?.focus());
+  nextTick(() => event.currentTarget.parentElement?.querySelector(`[data-view="${ids[upcoming]}"]`)?.focus());
 }
 
 /* ── LAS MANIJAS DE LOS DOS SIDEBARS ──────────────────────────────────────────────────────────────
@@ -1224,7 +1235,7 @@ const DOW_NAME = ['do', 'lu', 'ma', 'mi', 'ju', 'vi', 'sá'];
 // posicionarse con una fórmula fija, tiene que sumar los márgenes que la preceden. Con las medidas
 // repartidas entre CSS y JS, ese cálculo se desincroniza al primer cambio de tamaño.
 const CELL = 24, GAP = 4, HOUR_LABEL = 30, SEP = 9; // px: celda · separación normal · etiqueta de hora · margen de sprint
-const gridVars = { '--cel': `${CELL}px`, '--gap': `${GAP}px`, '--jhl': `${HOUR_LABEL}px`, '--sep': `${SEP}px` };
+const gridVars = { '--cell': `${CELL}px`, '--gap': `${GAP}px`, '--jhl': `${HOUR_LABEL}px`, '--sep': `${SEP}px` };
 
 // CUÁNTOS DÍAS ENTRAN. La celda mide fijo (no se estira) porque la banda de sprints se posiciona en px
 // sumando márgenes: con celdas elásticas ese cálculo se desincroniza. Así que en vez de estirar la
@@ -1667,7 +1678,7 @@ function documentAction(id) {
        como grilla de tarjetas y un CAJÓN encima al elegir una. Ahora: el árbol de tareas en el
        `sidebar`, lo elegido en el `editor`, y sin nada elegido el editor muestra el sprint — que es
        la pestaña de bienvenida. El cajón se fue: su contenido ES el editor. -->
-  <div class="workbench" :class="{ ancha: wideView, 'con-consola-ramas': showBranchConsole }">
+  <div class="workbench" :class="{ wide: wideView, 'with-branch-panel': showBranchConsole }">
     <!-- ⚠ SIN TITLEBAR, a propósito. Decía «Tablero · Sprint N · registro de tiempo y
          hallazgos» y se comía 77px de alto para repetir lo que ya dicen la pestaña del
          navegador y el statusbar. Su única acción —«sólo este sprint»— se fue al menú ⋯ del
@@ -1687,7 +1698,7 @@ function documentAction(id) {
         <span>{{ wideView ? `Mis tareas · ${bySprint.length} sprints` : "Mis tareas" }}</span>
         <!-- ⚠ ESTE CONTADOR ES LO QUE HABILITA MANDAR LOS FILTROS AL MENÚ. Un filtro escondido que
              nadie ve se olvida encendido, y después la tarea que falta se lee como «no existe». -->
-        <span v-if="!loadingWide" class="cnt" :class="{ filtrando: hidden.size || normalizedSearch }"
+        <span v-if="!loadingWide" class="count" :class="{ filtered: hidden.size || normalizedSearch }"
               :title="hidden.size || normalizedSearch ? 'hay un filtro puesto — está en el menú ⋯' : ''">{{ hidden.size || normalizedSearch ? `${visible} / ${totalTasks}` : visible }}</span>
         <div v-if="!loadingWide && totalTasks" class="region-actions toolbar">
           <button type="button" class="region-action" title="Colapsar o desplegar todos los grupos"
@@ -1699,8 +1710,8 @@ function documentAction(id) {
       <p v-if="wideView && loadingWide" class="nota">trayendo los sprints…</p>
       <!-- El buscador NO se movió al menú: se usa todo el tiempo, es una sola fila y vale para las
            cinco vistas a la vez. Va arriba del acordeón por eso mismo. -->
-      <div class="filtros" v-if="!loadingWide && totalTasks">
-        <label class="fbusca input-group" :class="{ act: !!normalizedSearch }">
+      <div class="filters" v-if="!loadingWide && totalTasks">
+        <label class="search-field input-group" :class="{ act: !!normalizedSearch }">
           <span class="ui-icon" data-icon="search" aria-hidden="true"></span>
           <input v-model="searchQuery" class="input" type="search" placeholder="buscar por título…"
                  aria-label="Buscar tarea por título o clave">
@@ -1725,7 +1736,7 @@ function documentAction(id) {
             <span class="ui-icon" data-icon="chevron" aria-hidden="true"></span>
             <span>{{ g.title }}</span>
           </button>
-          <span class="cnt">{{ g.tasks.length }}</span>
+          <span class="count">{{ g.tasks.length }}</span>
         </div>
         <div v-if="isOpen(g.id) || normalizedSearch" :id="'group-' + g.id" class="region-body">
           <!-- La fila ENTERA es el botón: elegir una tarea es el gesto de esta columna, y un
@@ -1762,7 +1773,7 @@ function documentAction(id) {
             <span class="ui-icon" data-icon="chevron" aria-hidden="true"></span>
             <span>Traer de Jira</span>
           </button>
-          <span v-if="inbox" class="cnt" :class="{ filtrando: inbox.pending }">{{ inbox.pending }}</span>
+          <span v-if="inbox" class="count" :class="{ filtered: inbox.pending }">{{ inbox.pending }}</span>
         </div>
         <div v-if="isOpen('jira')" class="region-body sidebar-jira">
           <button class="btn qa-go" :disabled="inboxBusy" @click="loadInbox()">
@@ -1812,16 +1823,18 @@ function documentAction(id) {
       <!-- LAS PESTAÑAS ABIERTAS. ⚠ La que está en PREVISTA va en itálica y es la que el próximo clic
            del árbol reemplaza; se fija con doble clic en la fila o con un clic acá. Sin eso, recorrer
            el árbol deja una pestaña por tarea mirada. -->
-      <nav v-if="openTabs.length" class="editor-tabs" aria-label="Tareas abiertas">
-        <div v-for="t in openTabs" :key="t.Key" class="et"
-             :class="{ act: active?.Key === t.Key, previa: preview === t.Key }">
-          <button type="button" class="et-b" :title="t.Summary"
+      <!-- Las pestañas de la base (`.tabs` › `.tab`): la barra ES la banda de 40 del editor. La que se
+           reemplaza al elegir otra tarea va en itálica (`.preview`). -->
+      <nav v-if="openTabs.length" class="tabs editor-tabs" aria-label="Tareas abiertas">
+        <div v-for="t in openTabs" :key="t.Key" class="tab"
+             :class="{ on: active?.Key === t.Key, preview: preview === t.Key }">
+          <button type="button" class="tab-label" :title="t.Summary"
                   :aria-current="active?.Key === t.Key ? 'true' : undefined"
                   @click="openTask(t, true)" @auxclick.middle.prevent="closeTab(t.Key)">
             <span class="tr-dot" :class="statusClass(t.StatusCategory)" aria-hidden="true"></span>
-            <span class="et-k">{{ t._local ? 'local' : t.Key }}</span>
+            <span class="tab-key">{{ t._local ? 'local' : t.Key }}</span>
           </button>
-          <button type="button" class="btn btn-ghost btn-icon btn-xs et-x" :aria-label="`Cerrar ${t.Key}`" title="Cerrar"
+          <button type="button" class="tab-close" :aria-label="`Cerrar ${t.Key}`" title="Cerrar"
                   @click="closeTab(t.Key)"><span class="ui-icon" data-icon="close" aria-hidden="true"></span></button>
         </div>
       </nav>
@@ -1832,7 +1845,7 @@ function documentAction(id) {
         @close="closeTab(active.Key)">
         <template #meta>
           <span v-if="!active._local" class="badge badge-outline status" :class="statusClass(active.StatusCategory)">{{ active.Status }}</span>
-          <span v-else class="badge badge-outline status sin-jira" title="no sale a Jira hasta que se decida">sin publicar</span>
+          <span v-else class="badge badge-outline status no-jira" title="no sale a Jira hasta que se decida">sin publicar</span>
         </template>
         <!-- El centro conserva el documento y las evidencias que explican cómo se lo trabajó. Los
              datos breves van en su cabecera, las consultas de apoyo al costado y las ramas abajo. -->
@@ -1858,7 +1871,7 @@ function documentAction(id) {
               <span v-if="active.HasPoints && active.Points">{{ active.Points }} pts</span>
               <span v-if="!active._local">{{ hhmm(active.SpentSecs) }} en Jira</span>
               <span v-if="minutesOf(active.Key)" class="mine">{{ minHhmm(minutesOf(active.Key)) }} sin subir</span>
-              <i v-if="active._local && stageOf(active._effortId)" class="stg suelto"
+              <i v-if="active._local && stageOf(active._effortId)" class="stg loose"
                  :class="'s-' + stageOf(active._effortId)?.id">{{ stageOf(active._effortId)?.label }}</i>
               <a v-if="site && !active._local" class="task-jira-link" :href="jiraLink(active.Key)"
                  target="_blank" rel="noopener">Abrir en Jira ↗</a>
@@ -1938,7 +1951,7 @@ function documentAction(id) {
              las anotaciones del documento, que ese mismo día pasaron a ser bloques. -->
         <section v-if="summarySections.length" class="task-reference" aria-label="Documento de la tarea">
           <section class="work-block" aria-label="Documento de trabajo">
-            <div class="desc cuerpo-md">
+            <div class="desc md-body">
               <section v-for="section in summarySections" :key="section.id" :id="section.id" class="document-section" v-html="section.summaryHtml"></section>
             </div>
           </section>
@@ -1960,7 +1973,7 @@ function documentAction(id) {
           </div>
           <!-- PUNTOS: ya no es opcional. La empresa los pide desde el 2026-08-18, así que el check que
                los escondía se retiró. -->
-          <div class="stat" :class="{ mal: withoutPoints.length }">
+          <div class="stat" :class="{ bad: withoutPoints.length }">
             <div class="k">Puntos que cuentan</div>
             <div class="v">{{ countedPts }}<span class="de">/{{ committedPts }}</span></div>
             <!-- la barra es lo que ya cuenta; la marca, por dónde va el sprint. Relleno a la izquierda
@@ -1974,7 +1987,7 @@ function documentAction(id) {
             <div class="s" v-else-if="pace">al día con el calendario</div>
             <div class="s" v-else>sólo cuentan Terminado y En revisión</div>
           </div>
-          <div class="stat" :class="{ mal: jiraTime === 0 }">
+          <div class="stat" :class="{ bad: jiraTime === 0 }">
             <div class="k">Tiempo en Jira</div>
             <div class="v">{{ hhmm(jiraTime) }}</div>
             <div class="s">{{ jiraTime === 0 ? 'sin registrar: nadie ve el trabajo' : 'registrado' }}</div>
@@ -1987,16 +2000,16 @@ function documentAction(id) {
         </div>
         <!-- Lo accionable: el número de arriba dice que vas atrás, esto dice QUÉ MOVER. Casi siempre son
              tareas a un solo estado de contar, y sin verlas se leen como trabajo que no existe. -->
-        <p v-if="overCapacity || strandedPts.length || withoutPoints.length" class="pts-detalle">
+        <p v-if="overCapacity || strandedPts.length || withoutPoints.length" class="points-detail">
           <!-- Lo primero, porque cambia cómo se lee todo lo demás: si te comprometiste al doble de lo
                que entra, ir «atrás del calendario» no es un problema de ritmo. -->
-          <span v-if="overCapacity" class="pd-i pd-mal"><b>{{ overCapacity.points }} pt comprometidos</b>
+          <span v-if="overCapacity" class="pd-i pd-bad"><b>{{ overCapacity.points }} pt comprometidos</b>
             · {{ overCapacity.times }}× tu capacidad (≈{{ CAPACITY }}: un 5 es medio sprint)</span>
           <template v-if="strandedPts.length">
             <span class="pd-k">no cuentan todavía:</span>
             <span v-for="([est, n]) in strandedPts" :key="est" class="pd-i"><b>{{ n }} pt</b> en {{ est }}</span>
           </template>
-          <span v-if="withoutPoints.length" class="pd-i pd-mal"><b>sin estimar:</b> {{ withoutPoints.join(' · ') }}</span>
+          <span v-if="withoutPoints.length" class="pd-i pd-bad"><b>sin estimar:</b> {{ withoutPoints.join(' · ') }}</span>
         </p>
         <section class="card">
           <!-- `region-head group` de `workbench.css`: la misma barra que los grupos del árbol, en vez de
@@ -2022,19 +2035,19 @@ function documentAction(id) {
             <div v-for="h in HOURS" :key="h" class="jrow"
               :class="{ lunch: LUNCH.has(h), gapTop: h === 12 || h === 14 }">
               <span class="jhl">{{ hourLabel(h) }}</span>
-              <span v-for="(d, i) in dayCols" :key="d.iso" class="cel"
+              <span v-for="(d, i) in dayCols" :key="d.iso" class="cell"
                 :class="[codeClass(d.iso, h), { weekend: d.weekend, spStart: startCols.has(i), spEnd: endCols.has(i) }]"
                 :title="cellTitle(d, h)"></span>
             </div>
             <!-- las filas de totales y de fechas repiten los mismos márgenes: si no, se desalinean -->
             <div class="jrow jtot">
               <span class="jhl"></span>
-              <span v-for="(d, i) in dayCols" :key="d.iso" class="cel num"
+              <span v-for="(d, i) in dayCols" :key="d.iso" class="cell num"
                 :class="{ spStart: startCols.has(i), spEnd: endCols.has(i) }" :title="dayTitle(d.iso)">{{ hoursShort(dayMin(d.iso)) }}</span>
             </div>
             <div class="jrow jaxis">
               <span class="jhl"></span>
-              <span v-for="(d, i) in dayCols" :key="d.iso" class="cel num"
+              <span v-for="(d, i) in dayCols" :key="d.iso" class="cell num"
                 :class="{ weekend: d.weekend, spStart: startCols.has(i), spEnd: endCols.has(i) }">{{ d.num }}</span>
             </div>
           </div>
@@ -2129,11 +2142,11 @@ function documentAction(id) {
 
     <!-- PANEL · ramas de la tarea enfocada. Cruza editor + vistas para conservar la tabla como área
          principal y el selector de sus repos a la derecha incluso en ventanas medianas. -->
-    <section v-if="showBranchConsole" id="context-branches-panel" class="panel ramas-panel"
+    <section v-if="showBranchConsole" id="context-branches-panel" class="panel branch-panel"
              :class="{ 'sin-ramas': !activeTaskBranches.branches.length }"
              :data-size="activeTaskBranches.branches.length ? null : 'fixed'"
              :style="{ height: (activeTaskBranches.branches.length ? branchConsoleShown : 76) + 'px' }">
-      <div v-if="activeTaskBranches.branches.length" class="rsz rsz-panel" v-resize="branchPanelResize"></div>
+      <div v-if="activeTaskBranches.branches.length" class="rsz rsz-panel" data-rsz="panel" v-resize="branchPanelResize"></div>
       <RepoBranches :snapshot="activeTaskBranches" :task-label="active?.Summary || ''"
                     :refreshing="refreshingBranches" :refresh-error="branchesError"
                     @refresh="refreshBranches" @close="hideBranchConsole" />
@@ -2143,15 +2156,15 @@ function documentAction(id) {
          (Jira), el checklist accionable (Pendientes) y los Artifacts navegables. -->
     <aside id="task-views" v-if="showAux && auxShown" class="auxiliarybar" aria-label="Vistas de la tarea">
       <div class="rsz rsz-aux" v-resize="resizeOptions('--auxiliarybar-w', -1)"></div>
-      <nav class="aux-tabs" role="tablist" aria-label="Contenido de la tarea">
-        <button v-for="v in auxViews" :key="v.id" type="button" role="tab" class="aux-tab"
-                :class="{ activa: auxOpen(v.id) }" :data-vista="v.id"
+      <nav class="tabs aux-tabs" role="tablist" aria-label="Contenido de la tarea">
+        <button v-for="v in auxViews" :key="v.id" type="button" role="tab" class="tab"
+                :class="{ on: auxOpen(v.id) }" :data-view="v.id"
                 :id="'aux-tab-' + v.id" :aria-controls="'aux-panel-' + v.id"
                 :aria-selected="auxOpen(v.id)" :tabindex="auxOpen(v.id) ? 0 : -1"
                 @click="openAux(v.id)" @keydown="auxTabsKeyboard($event, v.id)">
           <span>{{ v.label }}</span>
-          <i v-if="v.alert" class="aux-alerta" title="Requiere revisión">●</i>
-          <span v-if="v.count !== undefined" class="aux-count">{{ v.count }}</span>
+          <span v-if="v.alert" class="aux-alert" title="Requiere revisión" aria-label="Requiere revisión"></span>
+          <span v-if="v.count !== undefined" class="count">{{ v.count }}</span>
         </button>
       </nav>
       <template v-for="v in auxViews" :key="v.id">
@@ -2173,7 +2186,7 @@ function documentAction(id) {
           </template>
           <template v-if="v.id === 'pendientes'">
             <p class="nota">Pendientes del documento privado, con sus notas y enlaces.</p>
-            <div v-if="pendingSections.length" class="desc cuerpo-md pending-document">
+            <div v-if="pendingSections.length" class="desc md-body pending-document">
               <section v-for="section in pendingSections" :key="section.id" class="document-section">
                 <h2 v-if="section.pendingHtml !== section.html">{{ section.title || 'Pendientes' }}</h2>
                 <div v-html="section.pendingHtml"></div>
@@ -2181,11 +2194,11 @@ function documentAction(id) {
             </div>
             <p v-else-if="!pendingOf(active?.Key).length" class="nota">Esta tarea no tiene pendientes registrados.</p>
             <template v-else>
-            <section v-for="(g, n) in pendingBySection(active?.Key)" :key="n" class="hgrupo">
+            <section v-for="(g, n) in pendingBySection(active?.Key)" :key="n" class="group-head">
               <h4>{{ g.tit }}<span class="badge badge-outline badge-xs hcnt">{{ g.items.filter(p => !p.done).length }}</span></h4>
-              <article v-for="(p, m) in g.items" :key="m" class="pitem" :class="{ hecho: p.done }">
+              <article v-for="(p, m) in g.items" :key="m" class="pitem" :class="{ done: p.done }">
                 <span class="pmark" aria-hidden="true">{{ p.done ? '✓' : '○' }}</span>
-                <p class="pque">{{ p.what }}</p>
+                <p class="why">{{ p.what }}</p>
               </article>
             </section>
             </template>
@@ -2214,6 +2227,9 @@ function documentAction(id) {
       <span v-else-if="syncError" class="sync-state sync-error" :title="syncError">Jira sin actualizar</span>
       <span v-if="active" class="sb-act">{{ active._local ? 'local' : active.Key }}</span>
       <div class="layout-controls" role="group" aria-label="Regiones visibles">
+        <!-- El tema, antes de los botones de disposición y separado 8: los de disposición van al final
+             porque su orden copia la pantalla (izquierda, abajo, derecha). -->
+        <button ref="themeToggle" type="button" class="region-action theme-toggle"><span class="ui-icon" aria-hidden="true"></span></button>
         <button type="button" class="region-action" :aria-pressed="!!(sidebarVisible && sidebarShown)" aria-controls="tasks-sidebar"
                 aria-label="Mostrar u ocultar tareas" title="Mostrar u ocultar tareas" @click="toggleSidebar">
           <span class="ui-icon" data-icon="sidebar" aria-hidden="true"></span>
@@ -2249,26 +2265,40 @@ function documentAction(id) {
 .tree-item { position: relative; min-width: 0 }
 /* Medidas del taller: fila de 28, el texto a 12 del borde (4 de aire afuera + 8 adentro, igual que el
    encabezado del grupo) y 36 a la derecha para el botón de 24 que avanza la tarea. */
+/* Medidas de la fila de la base: 28 de alto, el texto a 12 del borde (4 de aire afuera + 8 adentro,
+   igual que el encabezado del grupo). */
 .tree-row { display: flex; align-items: center; gap: var(--space-2); width: calc(100% - 2 * var(--space-1)); min-height: var(--row-h);
-  margin: 0 var(--space-1); padding: var(--space-1) 36px var(--space-1) var(--space-2); border: 0; border-radius: var(--radius-control);
-  background: none; color: inherit; font: inherit; cursor: pointer; text-align: left;
-  box-shadow: inset 2px 0 0 transparent }
-.tree-row:hover { background: var(--sel) }
-/* ⚠ Lo seleccionado se marca con una BARRA a la izquierda además del fondo: sólo con fondo, en una
-   lista de 40 filas grises, hay que comparar contra la vecina para saber cuál está activa. */
-.tree-row.sel { background: color-mix(in oklab, var(--acc) 10%, var(--sel)); box-shadow: inset 2px 0 0 var(--acc) }
+  margin: 0 var(--space-1); padding: var(--space-1) var(--space-2); border: 0; border-radius: var(--radius-control);
+  background: none; color: inherit; font: inherit; cursor: pointer; text-align: left }
+.tree-row:hover { background: var(--hover) }
+/* La elegida, como en la base: la superficie de acento y una barra de 2 a la izquierda. Sólo con fondo,
+   en una lista de 40 filas hay que comparar contra la vecina para saber cuál está activa. */
+.tree-row.sel { background: var(--accent); color: var(--accent-foreground); box-shadow: inset 2px 0 0 var(--primary) }
 .tree-row.done { color: var(--fg-3) }
 .tree-row.done.sel, .tree-row.done:hover { color: var(--txt) }
+/* El botón de avanzar es una ACCIÓN DE FILA de la base: aparece al pasar, al enfocar o en la elegida,
+   en el lugar del «2 pend.», y el título se corta antes para no pasar por debajo. En una pantalla
+   táctil está siempre. */
 .tree-state { position: absolute; z-index: 1; right: var(--space-2); top: 50%; translate: 0 -50%; display: grid;
   place-items: center; width: var(--control-xs); height: var(--control-xs); padding: 0; border: 0; border-radius: var(--radius-control);
-  background: transparent; color: var(--mut); cursor: pointer; opacity: .72 }
-.tree-state:hover, .tree-state:focus-visible, .tree-item:focus-within .tree-state { opacity: 1; color: var(--txt); background: var(--line) }
+  background: transparent; color: var(--fg-2); cursor: pointer; visibility: hidden }
+.tree-state:hover, .tree-state:focus-visible { color: var(--txt); background: var(--hover) }
+.tree-item:hover .tree-state, .tree-item:focus-within .tree-state, .tree-item:has(.tree-row.sel) .tree-state { visibility: visible }
+.tree-item:has(.tree-state):hover .tree-row, .tree-item:has(.tree-state):focus-within .tree-row,
+.tree-item:has(.tree-state) .tree-row.sel { padding-right: calc(var(--space-2) + var(--control-xs) + var(--space-1)) }
+.tree-item:has(.tree-state):hover .tr-n, .tree-item:has(.tree-state):focus-within .tr-n,
+.tree-item:has(.tree-state) .tree-row.sel .tr-n { display: none }
+@media (pointer: coarse) {
+  .tree-state { visibility: visible }
+  .tree-item:has(.tree-state) .tree-row { padding-right: calc(var(--space-2) + var(--control-xs) + var(--space-1)) }
+  .tree-item:has(.tree-state) .tr-n { display: none }
+}
 .tree-state .ui-icon { width: var(--icon-size); height: var(--icon-size) }
 .tr-dot { width: 8px; height: 8px; border-radius: 50%; flex: none; background: var(--mut) }
 .tr-dot.e-ok { background: var(--ok) } .tr-dot.e-doing { background: var(--acc) }
 .tr-key { font: var(--text-xs) var(--font-mono); color: var(--mut); flex: none }
 /* Sobre el fondo de la fila elegida la rampa ya no alcanza (--mut quedaba en 4,05:1): la clave sube a tinta plena. */
-.tree-row.sel .tr-key { color: var(--txt) }
+.tree-row.sel .tr-key { color: var(--accent-foreground) }
 .tr-tt { flex: 1; min-width: 0; font-size: var(--text-base); overflow: hidden; text-overflow: ellipsis; white-space: nowrap }
 .tr-n { font-size: var(--text-xs); font-weight: 600; color: var(--warn); flex: none; white-space: nowrap }
 .tr-z { font-size: var(--text-xs); color: var(--mut); flex: none }
@@ -2325,7 +2355,6 @@ function documentAction(id) {
 .work-block + .work-block { margin-top: 24px; padding-top: 20px; border-top: 1px solid var(--line) }
 
 /* LA FICHA — lo que la tarjeta mostraba de un vistazo, ahora con el ancho del editor. */
-.ficha { padding-bottom: 14px; margin-bottom: 14px; border-bottom: 1px solid var(--line) }
 
 .sb-act { margin-left: auto; font: var(--text-xs) var(--font-mono); color: var(--txt) }
 .sync-state { color: var(--mut); font-size: var(--text-xs) }
@@ -2333,33 +2362,21 @@ function documentAction(id) {
 .sync-state + .sb-act { margin-left: 0 }
 .sb-console { display:inline-flex; align-items:center; width:auto; gap:5px; padding:0 7px; font-size:var(--text-xs) }
 .sb-console .ui-icon { width:13px; height:13px }
+.theme-toggle { margin-right: 6px }
 .sb-count { min-width:17px; padding:0 4px; color:var(--txt); background:var(--line2);
   border-radius:999px; font-size:var(--text-xs); font-variant-numeric:tabular-nums }
 
-/* El riel permanece en una sola línea: a 340px no caben seis nombres sin desplazar, y partirlo en dos
-   filas volvería a quitarle alto al contenido. La pestaña activa se une al cuerpo con la línea baja. */
-/* La barra de pestañas ES la banda superior de la región: 40 con su línea, como el encabezado de al
-   lado, así la costura sigue derecha. Las pestañas son filas de 28 centradas adentro. */
-.aux-tabs { display: flex; flex: none; align-items: center; min-width: 0; gap: var(--space-1); box-sizing: border-box;
-  height: var(--region-head-h); padding: 0 var(--space-2);
-  overflow-x: auto; overflow-y: hidden; border-bottom: 1px solid var(--line);
-  background: var(--panel2); scrollbar-width: thin }
-.aux-tab { display: flex; align-items: center; gap: 6px; flex: none; height: var(--row-h); padding: 0 var(--space-2);
-  border: 0; border-radius: var(--radius-control); background: none; color: var(--mut);
-  font: inherit; font-size: var(--text-sm); cursor: pointer; white-space: nowrap }
-.aux-tab:hover { color: var(--txt); background: var(--sel) }
-.aux-tab.activa { color: var(--txt); background: var(--background); box-shadow: 0 1px 2px rgb(0 0 0 / .16) }
-.aux-count { min-width: 16px; padding: 0 5px; border-radius: 999px; background: var(--line2);
-  color: var(--txt); font-size: var(--text-xs); line-height: 16px; font-variant-numeric: tabular-nums; text-align: center }
+/* LAS PESTAÑAS DEL DETALLE son las de la base (`.tabs` › `.tab`, con su `.count`): la barra es la banda
+   de 40 del sidebar secundario. Queda lo propio: el punto de aviso, dibujado y no un carácter. */
+.aux-alert { flex: none; width: 6px; height: 6px; border-radius: 50%; background: var(--warn) }
 .aux-tab-panel { display: flex; flex-direction: column; padding: var(--space-4) var(--space-4) var(--space-6) }
-.aux-alerta { color: var(--warn); font-style: normal; font-size: 8px; flex: none }
 
 /* ── LAS MANIJAS ─────────────────────────────────────────────────────────────────────────────────
    `workbench.css` pone el aspecto; acá va DÓNDE: pegadas al borde interior de cada sidebar, en capa
    sobre él. ⚠ Se salen 3px hacia afuera (`margin`) para que la zona de agarre cubra el borde de
    verdad y no haya que apuntarle a un píxel. */
-.sidebar, .auxiliarybar, .ramas-panel { position: relative }
-.workbench.con-consola-ramas {
+.sidebar, .auxiliarybar, .branch-panel { position: relative }
+.workbench.with-branch-panel {
   grid-template-areas:
     "titlebar    titlebar  titlebar  titlebar"
     "banner      banner    banner    banner"
@@ -2372,43 +2389,22 @@ function documentAction(id) {
 .rsz-aux { left: -3px }
 .rsz-sb::before { left: 3px; right: auto; width: 1px }
 .rsz-aux::before { left: auto; right: 3px; width: 1px }
-.ramas-panel { overflow: visible }
+.branch-panel { overflow: visible }
 .rsz-panel { position:absolute; inset:-3px 0 auto; height:calc(var(--rsz) + 6px) }
 .rsz-panel::before { top:3px; bottom:auto; height:1px }
 
 /* ── LAS PESTAÑAS DEL EDITOR ─────────────────────────────────────────────────────────────────────
-   La activa se marca con una línea ARRIBA y el fondo del editor, como en VS Code: la línea dice cuál
-   es sin depender de que el ojo compare fondos, y el fondo la une con el contenido de abajo. */
-/* Banda de 40 como las demás: 4 de aire arriba y la pestaña de 36 apoyada en la línea de abajo. */
-.editor-tabs { display: flex; flex: none; align-items: stretch; gap: 2px; box-sizing: border-box;
-  height: var(--region-head-h); padding: var(--space-1) var(--space-1) 0; overflow-x: auto; overflow-y: hidden;
-  background: var(--panel2); border-bottom: 1px solid var(--line); scrollbar-width: thin }
-.et { display: flex; align-items: center; flex: none; max-width: 200px;
-  border-radius: var(--radius-md) var(--radius-md) 0 0; position: relative }
-.et::before { content: ''; position: absolute; inset: auto 8px -1px; height: 2px;
-  border-radius: 2px 2px 0 0; background: transparent }
-.et.act::before { background: var(--acc) }
-.et.act { background: var(--background) }
-.et-b { display: flex; align-items: center; gap: var(--space-2); min-width: 0; border: 0; background: none;
-  color: var(--mut); font: inherit; font-size: var(--text-sm); padding: 0 var(--space-1) 0 var(--gutter); cursor: pointer }
-.et.act .et-b { color: var(--txt) }
-/* ⚠ La PREVISTA en itálica, igual que VS Code: es la única señal de que el próximo clic en el árbol
-   la va a reemplazar. Sin marca, el reemplazo se lee como que la pestaña «se perdió». */
-.et.previa .et-k { font-style: italic }
-.et-k { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-family: var(--font-mono);
+   Son las de la base (`.tabs` › `.tab` con `.tab-label` y `.tab-close`): banda de 40, la activa con el
+   fondo del editor y su línea de 2, la ✕ que aparece al pasar. ⚠ La PREVISTA va en itálica
+   (`.tab.preview`, de la base), igual que VS Code: es la única señal de que el próximo clic en el árbol
+   la va a reemplazar. Acá queda sólo la clave, en mono. */
+.tab-key { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-family: var(--font-mono);
   font-size: var(--text-xs) }
-/* Sobre `.btn.btn-ghost.btn-icon.btn-xs`: la ✕ de la pestaña aparece al pasar por encima. */
-.et-x { color: var(--mut); font-size: var(--text-title); line-height: 1; opacity: 0 }
-.et:hover .et-x, .et.act .et-x, .et-x:focus-visible { opacity: 1 }
-.et-x:hover { background: var(--sel); color: var(--txt) }
-/* ⚠ El contador del encabezado es la ÚNICA señal de que hay un filtro puesto, ahora que las casillas
-   viven en el menú. Cuando filtra, deja de ser un número apagado y se prende: si no se nota, el
-   filtro se olvida encendido y la tarea que falta se lee como «no existe». */
-.region-head .cnt { font-size: var(--text-xs); font-weight: 600; font-variant-numeric: tabular-nums;
-  color: var(--mut); flex: none }
-.region-head .cnt.filtrando { color: var(--warn) }
+/* ⚠ El contador del encabezado (`.count` de la base) es la ÚNICA señal de que hay un filtro puesto,
+   ahora que las casillas viven en el menú: con un filtro pasa a «9 / 16» y se prende (`.count.filtered`).
+   Si no se nota, el filtro se olvida encendido y la tarea que falta se lee como «no existe». */
 
-/* ⚠ `.workbench.ancha` ya no tiene regla, y es a propósito: no hay `.wrap` de ancho máximo porque el
+/* ⚠ `.workbench.wide` no tiene regla, y es a propósito: no hay `.wrap` de ancho máximo porque el
    workbench ocupa la ventana y quien acota el ancho de lectura es cada región. El `max-width: 1180px`
    que vivía acá era de cuando TODO era una columna de texto. La clase sigue puesta en el marcado —la
    usa el JS para saber en qué vista está—, pero como CSS estaba VACÍA desde entonces. */
@@ -2428,18 +2424,18 @@ function documentAction(id) {
    ⚠ Hasta el 2026-09-23 el campo medía `width: 190px` y el grupo iba con `margin-left: auto`, restos de
    cuando compartía la fila con las casillas: con el sidebar en su mínimo (200px) el grupo medía 230 y
    se salía 40px por el borde. */
-.filtros { display: flex; padding: 8px 10px; border-bottom: 1px solid var(--line) }
+.filters { display: flex; padding: 8px 10px; border-bottom: 1px solid var(--line) }
 /* ⚠ Era una PÍLDORA (radio 999) con fondo propio, y ya tenía la forma de un `input-group`: la lupa
    y la ✕ adentro y el borde en la etiqueta. Le falta sólo ser el componente — así el foco lo enciende
    entero, como en el panel del harness y en el trazador. */
-.fbusca { flex: 1; min-width: 0; height: 28px; padding: 0 6px 0 10px }
-.fbusca:focus-within, .fbusca.act { border-color: color-mix(in srgb, var(--acc) 45%, transparent);
+.search-field { flex: 1; min-width: 0; height: 28px; padding: 0 6px 0 10px }
+.search-field:focus-within, .search-field.act { border-color: color-mix(in srgb, var(--acc) 45%, transparent);
   background: var(--card) }
 /* Adentro del grupo el campo va DESNUDO: el borde y el anillo los lleva la etiqueta. */
-.fbusca .input { font-size: var(--text-sm) }
-.fbusca .input::placeholder { color: var(--mut) }
+.search-field .input { font-size: var(--text-sm) }
+.search-field .input::placeholder { color: var(--mut) }
 /* La X nativa de `type=search` no existe en todos los navegadores: se pone una propia y se esconde. */
-.fbusca input::-webkit-search-cancel-button { display: none }
+.search-field input::-webkit-search-cancel-button { display: none }
 /* Sobre `.btn.btn-ghost.btn-icon.btn-xs`: sólo el glifo, que es más grande que el texto del botón. */
 .fx { color: var(--mut); font-size: var(--text-title); line-height: 1 }
 /* «ver todas» del estado vacío: un enlace, no un botón — deshacer un filtro no compite con nada. */
@@ -2470,7 +2466,7 @@ function documentAction(id) {
    nada, no hay error en consola — se ve como un diseño roto. Es el mismo choque que `.empty`, y la
    regla que deja es la misma: cuando un nombre del bloque compartido coincide con uno propio, se
    resuelve EL DÍA que se agrega el componente. Hoy lo chequea `make estilo-check`. */
-.stat.mal .v { color: var(--warn) }
+.stat.bad .v { color: var(--warn) }
 .stat.ok .v { color: var(--acc) }
 
 /* ⚠ Misma corrección que en el panel del trazador: una sección no necesita fondo propio, marco Y
@@ -2504,7 +2500,7 @@ function documentAction(id) {
 .orig.carried i { background: var(--bad) }
 
 .fld { display: flex; align-items: baseline; font-size: var(--text-xs); font-weight: 600; text-transform: none; color: var(--mut); margin-bottom: 7px }
-.fld em { font-style: normal; text-transform: none; letter-spacing: 0; color: var(--tenue); font-weight: 400; margin-left: 5px }
+.fld em { font-style: normal; text-transform: none; letter-spacing: 0; color: var(--faint); font-weight: 400; margin-left: 5px }
 /* descripción completa de Jira (acá NO se recorta: es lo que se pidió ver entero) */
 .desc { font-size: var(--text-base); line-height: 1.55; color: var(--txt); margin: 0; white-space: pre-wrap }
 .desc.none { color: var(--mut); font-style: italic }
@@ -2567,17 +2563,17 @@ function documentAction(id) {
    dominante de esa hora, sobre 60). Las celdas SIN registro van rayadas en vez de vacías: un hueco
    liso se lee como "cero" y un rayado como "no hubo registro". El almuerzo (12–2) se marca solo con la
    etiqueta en violeta, no se apaga: a veces se trabaja ahí y tiene que verse igual que cualquier hora. */
-/* --cel/--gap/--jhl/--sep los inyecta el script (`gridVars`), que es donde viven las medidas: la banda
+/* --cell/--gap/--jhl/--sep los inyecta el script (`gridVars`), que es donde viven las medidas: la banda
    de sprints tiene que sumar los márgenes en JS para posicionarse, así que no pueden estar en dos lados. */
 .jm { display: flex; flex-direction: column; gap: var(--gap); overflow-x: auto }
 .jrow { display: flex; align-items: center; gap: var(--gap) }
 .jhl { width: var(--jhl); flex: none; font-size: var(--text-xs); font-weight: 600; color: var(--mut); text-align: right;
   font-variant-numeric: tabular-nums }
-.cel { width: var(--cel); height: 21px; border-radius: var(--radius-md); flex: none; transition: .12s }
+.cell { width: var(--cell); height: 21px; border-radius: var(--radius-md); flex: none; transition: .12s }
 /* el finde solo atenúa el FONDO: si una celda tiene registro, el color no se toca — sería mentirle al
    ojo sobre cuánto tiempo hubo ahí */
-.cel.weekend.n0 { opacity: .45 }
-.cel:hover { outline: 2px solid var(--acc); outline-offset: 1px }
+.cell.weekend.n0 { opacity: .45 }
+.cell:hover { outline: 2px solid var(--acc); outline-offset: 1px }
 .n0 { background: repeating-linear-gradient(-45deg, var(--sel) 0 3px, transparent 3px 6px), var(--panel2) }
 /* PULSO (fuente «código»): usa una segunda escala gris. No mide lo mismo que los avances,
    pero conservar una sola familia visual evita que el color compita con el contenido.
@@ -2591,8 +2587,8 @@ function documentAction(id) {
 /* frontera de sprint: un MARGEN, no una línea. El aire extra antes de la primera columna del sprint y
    después de la última separa los bloques sin sumarle tinta a la grilla. Va en las tres clases de fila
    (horas, totales, fechas) para que las columnas no se desalineen. */
-.cel.spStart { margin-left: var(--sep) }
-.cel.spEnd { margin-right: var(--sep) }
+.cell.spStart { margin-left: var(--sep) }
+.cell.spEnd { margin-right: var(--sep) }
 /* almuerzo: NO se apaga. Se trabaja ahí a veces y hay que verlo igual que cualquier hora. Solo queda
    marcado con la etiqueta en violeta, para que se lea "esto es el almuerzo" sin restarle a la data. */
 .jrow.lunch .jhl { color: var(--acc); opacity: .8 }
@@ -2608,10 +2604,10 @@ function documentAction(id) {
 /* el sprint que estás viendo arriba se resalta acá, para atar el mapa al selector */
 .jspan.sel { color: var(--accent-foreground); background: var(--accent);
   box-shadow: inset 0 -2px 0 var(--acc), inset 2px 0 0 var(--acc), inset -2px 0 0 var(--acc) }
-.jtot .cel { height: 16px; background: none; font-size: var(--text-xs); color: var(--mut); text-align: center;
+.jtot .cell { height: 16px; background: none; font-size: var(--text-xs); color: var(--mut); text-align: center;
   font-variant-numeric: tabular-nums }
-.jaxis .cel { height: auto; background: none; font-size: var(--text-xs); color: var(--mut); text-align: center }
-.jtot .cel:hover, .jaxis .cel:hover { outline: none }
+.jaxis .cell { height: auto; background: none; font-size: var(--text-xs); color: var(--mut); text-align: center }
+.jtot .cell:hover, .jaxis .cell:hover { outline: none }
 .legend { display: flex; align-items: center; gap: 5px; margin-top: 12px; font-size: var(--text-xs); color: var(--mut) }
 .legend i { width: 13px; height: 13px; border-radius: var(--radius-md); display: inline-block }
 .legend .note { margin-left: 12px }
@@ -2652,8 +2648,8 @@ function documentAction(id) {
 /* GRUPOS DE PENDIENTES -------------------------------------------------------------------------
    (Eran los de «Hallazgos», que salían de las anotaciones del documento y se fueron el 2026-09-23 con
    ellas, a la pila. Los pendientes heredaron el grupo y su conteo.) */
-.hgrupo { margin-bottom: 22px; }
-.hgrupo h4 { font-size: var(--text-base); margin: 0 0 2px; display: flex; align-items: center; gap: 7px; }
+.group-head { margin-bottom: 22px; }
+.group-head h4 { font-size: var(--text-base); margin: 0 0 2px; display: flex; align-items: center; gap: 7px; }
 /* ⚠ Sin `opacity: .55`: apilada sobre el color dejaba el conteo abajo del umbral. El escalón lo da
    la rampa, no un velo. */
 .hcnt { font: var(--text-xs)/1 var(--mono, ui-monospace, monospace); color: var(--fg-3);
@@ -2662,21 +2658,21 @@ function documentAction(id) {
    gesto que las tarjetas terminadas—: sigue estando (dice qué se resolvió) pero ya no es trabajo. */
 .pitem { display: flex; gap: 9px; align-items: baseline; padding: 3px 0; }
 .pmark { font-size: var(--text-sm); color: var(--acc); line-height: 1.5; }
-.pque { margin: 0; font-size: var(--text-body); line-height: 1.5; }
-.pitem.hecho { color: var(--tenue); }
-.pitem.hecho .pmark { color: var(--mut); }
-.pitem.hecho .pque { text-decoration: line-through; }
+.why { margin: 0; font-size: var(--text-body); line-height: 1.5; }
+.pitem.done { color: var(--faint); }
+.pitem.done .pmark { color: var(--mut); }
+.pitem.done .why { text-decoration: line-through; }
 /* PUNTOS ---------------------------------------------------------------------------------------- */
-.stat .v .de { color: var(--tenue); font-size: .62em; font-weight: 500; margin-left: 1px; }
+.stat .v .de { color: var(--faint); font-size: .62em; font-weight: 500; margin-left: 1px; }
 /* la marca de por dónde va el sprint, sobre la barra de lo entregado */
 .stat .bar { position: relative; }
 .stat .bar u { position: absolute; top: -2px; bottom: -2px; width: 2px; background: currentColor;
                opacity: .55; border-radius: var(--radius-sm); }
-.pts-detalle { display: flex; flex-wrap: wrap; gap: 6px 14px; align-items: baseline;
+.points-detail { display: flex; flex-wrap: wrap; gap: 6px 14px; align-items: baseline;
                margin: -6px 0 18px; font-size: var(--text-base); color: var(--mut); }
-.pd-k { color: var(--tenue); }
+.pd-k { color: var(--faint); }
 .pd-i b { font-weight: 600; }
-.pd-mal { color: var(--bad); }
+.pd-bad { color: var(--bad); }
 
 /* ── el CUERPO TÉCNICO en el cajón ───────────────────────────────────────────────────────────────
    Son documentos largos con tablas, citas y bloques de código: sin estilo propio `marked` los deja
@@ -2701,17 +2697,17 @@ function documentAction(id) {
 .task-completion:focus-visible { outline: 2px solid var(--acc); outline-offset: 3px; border-radius: 2px }
 .task-head-panels .qa-box { margin-top: 3px; max-width: 760px }
 /* ⚠ el `pre-wrap` de `.desc` respeta los saltos del markdown crudo y deja el HTML lleno de huecos */
-.desc.cuerpo-md { white-space: normal; line-height: 1.55 }
-.cuerpo-md :deep(h2) { font-size: var(--text-title); margin: 22px 0 8px; padding-top: 12px; border-top: 1px solid var(--line) }
-.cuerpo-md :deep(h3) { font-size: var(--text-base); margin: 16px 0 6px; opacity: .9 }
-.cuerpo-md :deep(h2:first-child), .cuerpo-md :deep(h3:first-child) { margin-top: 0; padding-top: 0; border-top: 0 }
-.cuerpo-md :deep(p) { margin: 0 0 10px }
-.cuerpo-md :deep(ul), .cuerpo-md :deep(ol) { margin: 0 0 10px; padding-left: 20px }
-.cuerpo-md :deep(li) { margin: 3px 0 }
-.cuerpo-md :deep(code) { font-size: var(--text-sm); padding: 1px 4px; border-radius: var(--radius-md); background: var(--panel2) }
-.cuerpo-md :deep(pre) { overflow-x: auto; padding: 10px 12px; border-radius: var(--radius); background: var(--panel2);
+.desc.md-body { white-space: normal; line-height: 1.55 }
+.md-body :deep(h2) { font-size: var(--text-title); margin: 22px 0 8px; padding-top: 12px; border-top: 1px solid var(--line) }
+.md-body :deep(h3) { font-size: var(--text-base); margin: 16px 0 6px; opacity: .9 }
+.md-body :deep(h2:first-child), .md-body :deep(h3:first-child) { margin-top: 0; padding-top: 0; border-top: 0 }
+.md-body :deep(p) { margin: 0 0 10px }
+.md-body :deep(ul), .md-body :deep(ol) { margin: 0 0 10px; padding-left: 20px }
+.md-body :deep(li) { margin: 3px 0 }
+.md-body :deep(code) { font-size: var(--text-sm); padding: 1px 4px; border-radius: var(--radius-md); background: var(--panel2) }
+.md-body :deep(pre) { overflow-x: auto; padding: 10px 12px; border-radius: var(--radius); background: var(--panel2);
                         margin: 0 0 12px }
-.cuerpo-md :deep(pre code) { padding: 0; background: none }
+.md-body :deep(pre code) { padding: 0; background: none }
 /* SQL tiene su propia señal visual: es evidencia de datos, no un comando de Harness ni texto libre.
    El resaltado se calcula localmente y escapa cada fragmento antes de inyectarlo. */
 .sql-block { position: relative; padding-top: 29px !important; border: 1px solid color-mix(in srgb, var(--acc) 28%, var(--line));
@@ -2726,33 +2722,33 @@ function documentAction(id) {
 .sql-block :deep(.sql-token.sql-comment), .block-code :deep(.sql-token.sql-comment) { color: var(--mut); font-style: italic; }
 .sql-block :deep(.sql-token.sql-identifier), .block-code :deep(.sql-token.sql-identifier) { color: var(--sql-identifier); }
 /* la cita es el marcador de MEDICIÓN / RIESGO / PREGUNTA: se resalta porque es lo que envejece */
-.cuerpo-md :deep(blockquote) { margin: 0 0 12px; padding: 8px 12px; border-left: 3px solid var(--acc);
+.md-body :deep(blockquote) { margin: 0 0 12px; padding: 8px 12px; border-left: 3px solid var(--acc);
                                background: var(--panel2); border-radius: 0 8px 8px 0 }
-.cuerpo-md :deep(blockquote p:last-child) { margin-bottom: 0 }
+.md-body :deep(blockquote p:last-child) { margin-bottom: 0 }
 /* las tablas son la mitad del valor de estos cuerpos: scrollean solas antes que romper el cajón.
    ⚠ `width: fit-content` y no el ancho del cajón: `display: block` las volvía block-level, así que una
    tabla de dos columnas cortas se ESTIRABA hasta los 771 px del panel y quedaba con celdas enormes y
    vacías. Medido: las de contenido corto pasan de 771 a ~350; las que de verdad necesitan más siguen
    en el tope y scrollean, que es para lo que está el `max-width`. */
-.cuerpo-md :deep(table) { border-collapse: collapse; margin: 0 0 12px; font-size: var(--text-sm); display: block;
+.md-body :deep(table) { border-collapse: collapse; margin: 0 0 12px; font-size: var(--text-sm); display: block;
                           overflow-x: auto; width: fit-content; max-width: 100% }
 /* ⚠ Cada celda tenía su propio marco: una grilla de rectángulos de 1px que pesa más que los datos, y
    en una tabla de diez columnas es lo único que se ve. Con una línea por FILA las columnas se siguen
    leyendo —las alinea el texto— y el dibujo desaparece. Mismo cambio que en `context`. */
-.cuerpo-md :deep(th), .cuerpo-md :deep(td) { border-bottom: 1px solid var(--line); padding: 5px 12px 5px 0; text-align: left; vertical-align: top }
-.cuerpo-md :deep(tr:last-child td) { border-bottom: 0 }
-.cuerpo-md :deep(th) { color: var(--mut); font-weight: 600; white-space: nowrap }
-.cuerpo-md :deep(hr) { border: 0; border-top: 1px solid var(--line); margin: 18px 0 }
+.md-body :deep(th), .md-body :deep(td) { border-bottom: 1px solid var(--line); padding: 5px 12px 5px 0; text-align: left; vertical-align: top }
+.md-body :deep(tr:last-child td) { border-bottom: 0 }
+.md-body :deep(th) { color: var(--mut); font-weight: 600; white-space: nowrap }
+.md-body :deep(hr) { border: 0; border-top: 1px solid var(--line); margin: 18px 0 }
 /* Los enlaces del documento. Sin esta regla quedaban con el azul del navegador (#0000ee) sobre el fondo
    oscuro, cerca de 2:1. Van subrayados porque están en medio de la prosa: el color solo no los distingue. */
-.cuerpo-md :deep(a) { color: var(--acc); text-underline-offset: 2px }
-.cuerpo-md :deep(a:hover) { text-decoration-thickness: 2px }
+.md-body :deep(a) { color: var(--acc); text-underline-offset: 2px }
+.md-body :deep(a:hover) { text-decoration-thickness: 2px }
 
 /* una tarea LOCAL se distingue de una de Jira, pero no grita: es material de trabajo, no un problema */
 .key.local { color: var(--mut); font-style: normal; letter-spacing: .02em }
-.status.sin-jira { border-style: dashed; color: var(--mut) }
+.status.no-jira { border-style: dashed; color: var(--mut) }
 /* la etapa suelta (tarjeta local): mismo chip que dentro del esfuerzo, sin el contenedor */
-.stg.suelto { font-style: normal }
+.stg.loose { font-style: normal }
 
 /* Estructura compacta del tablero y de las tarjetas. */
 /* El reset del `<button>` como encabezado vive en `workbench.css` (`button.region-head`). */
@@ -2768,24 +2764,24 @@ function documentAction(id) {
    marcada en `--primary` con el tilde dibujado con dos bordes—; `accent-color` sólo teñía la casilla
    nativa del sistema y dejaba su forma, que cambia con el SO. */
 .pending-document :deep(input[type=checkbox]),
-.cuerpo-md :deep(input[type=checkbox]) {
+.md-body :deep(input[type=checkbox]) {
   appearance: none; -webkit-appearance: none; flex: none; display: inline-grid; place-content: center;
   width: 14px; height: 14px; margin: 0 7px 0 0; vertical-align: -2px;
   border: 1px solid var(--line2); border-radius: var(--radius-md); background: transparent; color: var(--acc-ink);
 }
 .pending-document :deep(input[type=checkbox])::after,
-.cuerpo-md :deep(input[type=checkbox])::after {
+.md-body :deep(input[type=checkbox])::after {
   content: ""; width: 3px; height: 7px; margin-top: -2px;
   border: solid currentColor; border-width: 0 2px 2px 0; transform: rotate(45deg) scale(0);
 }
 .pending-document :deep(input[type=checkbox]:checked),
-.cuerpo-md :deep(input[type=checkbox]:checked) { background: var(--acc); border-color: var(--acc) }
+.md-body :deep(input[type=checkbox]:checked) { background: var(--acc); border-color: var(--acc) }
 .pending-document :deep(input[type=checkbox]:checked)::after,
-.cuerpo-md :deep(input[type=checkbox]:checked)::after { transform: rotate(45deg) scale(1) }
+.md-body :deep(input[type=checkbox]:checked)::after { transform: rotate(45deg) scale(1) }
 /* La casilla ya ES la marca del ítem: con la viñeta del `<ul>` encima cada pendiente tenía dos. Sólo a
    los ítems con casilla —una lista común conserva su viñeta—, y también cuando `marked` los envuelve
    en un `<p>` (lista «suelta», con líneas en blanco entre ítems). */
-.cuerpo-md :deep(li:has(> input[type=checkbox], > p > input[type=checkbox])) { list-style: none }
+.md-body :deep(li:has(> input[type=checkbox], > p > input[type=checkbox])) { list-style: none }
 .jira-tab-panel { padding: 0; overflow: hidden }
 /* Sin padding por el iframe de la vista previa, que va a sangre; el aviso de una tarea local no es un
    iframe y quedaba pegado al borde de la región. Mismo aire que el encabezado de Jira. */

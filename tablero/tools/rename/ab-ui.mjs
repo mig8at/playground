@@ -66,9 +66,9 @@ try {
   for (const slug of TASKS) {
     await page.goto(`${APP}/#/tareas/${slug}`);
     await settle();
-    const shot = { editor: await region('.editor'), branches: await region('.ramas-panel') };
+    const shot = { editor: await region('.editor'), branches: await region('.branch-panel') };
     for (const tab of TABS) {
-      const t = page.locator(`.aux-tab[data-vista="${tab}"]`);
+      const t = page.locator(`.aux-tabs .tab[data-view="${tab}"]`);
       if (await t.count()) { await t.click(); await page.waitForTimeout(250); shot['aux-' + tab] = await region('#task-views'); }
     }
     print[slug] = shot;

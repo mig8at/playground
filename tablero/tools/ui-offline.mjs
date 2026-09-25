@@ -103,13 +103,13 @@ async function openTablero(viewport) {
 // 1 — así cada chequeo falla por su propia causa y no en cascada.
 async function showAuxTab(page, id) {
   if (!await page.locator('#task-views').count()) await page.getByRole('button', { name: 'Mostrar u ocultar vistas' }).click();
-  await page.locator(`.aux-tab[data-vista="${id}"]`).click();
+  await page.locator(`.aux-tabs .tab[data-view="${id}"]`).click();
 }
 async function pendingOpensAux(page) {
   assert.equal(await page.locator('#task-views').count(), 0, 'la región tenía que arrancar oculta');
   await page.locator('.task-completion').click();
   await page.locator('#task-views').waitFor({ timeout: 3000 });
-  assert.equal(await page.locator('.aux-tab[aria-selected="true"]').getAttribute('data-vista'), 'pendientes');
+  assert.equal(await page.locator('.aux-tabs .tab[aria-selected="true"]').getAttribute('data-view'), 'pendientes');
 }
 
 try {
@@ -166,8 +166,8 @@ try {
       await new Promise((ok) => requestAnimationFrame(() => requestAnimationFrame(ok)));
       const box = (s) => document.querySelector(s).getBoundingClientRect();
       // Y lo de ADENTRO: con el grupo encogido y el campo con ancho fijo, el grupo cabe y el campo se sale.
-      const inner = Math.max(...[...document.querySelectorAll('.fbusca *')].map((el) => el.getBoundingClientRect().right));
-      const out = { width: box('.sidebar').width, sidebar: box('.sidebar').right, search: box('.fbusca').right, inner };
+      const inner = Math.max(...[...document.querySelectorAll('.search-field *')].map((el) => el.getBoundingClientRect().right));
+      const out = { width: box('.sidebar').width, sidebar: box('.sidebar').right, search: box('.search-field').right, inner };
       wb.style.setProperty('--sidebar-w', before);
       return out;
     });
@@ -198,7 +198,7 @@ try {
     assert.equal(r.time, false, 'la hora no se pinta');
   });
   await check('los enlaces del documento no quedan con el azul del navegador', async () => {
-    const color = await page.locator('.cuerpo-md a').first().evaluate((a) => getComputedStyle(a).color);
+    const color = await page.locator('.md-body a').first().evaluate((a) => getComputedStyle(a).color);
     assert.notEqual(color, 'rgb(0, 0, 238)');
   });
   await check('una casilla de pendiente no lleva además la viñeta', async () => {

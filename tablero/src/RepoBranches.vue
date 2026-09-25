@@ -1,6 +1,7 @@
 <script setup>
-import { computed, ref, watch } from 'vue';
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import { readPreference, savePreference } from './ui-state.js';
+import { bindPanelMaximize } from './workbench.js';
 
 const props = defineProps({
   snapshot: { type: Object, required: true },
@@ -60,6 +61,11 @@ const exactMeasurement = computed(() => {
   if (Number.isNaN(date.getTime())) return props.snapshot.measuredAt;
   return new Intl.DateTimeFormat('es-CO', { dateStyle: 'medium', timeStyle: 'short' }).format(date);
 });
+// El botón de maximizar es el de la base: temporal, Escape desde la consola restaura.
+const maximizeButton = ref(null);
+let maximize = null;
+onMounted(() => { if (maximizeButton.value) maximize = bindPanelMaximize(maximizeButton.value); });
+onBeforeUnmount(() => { maximize?.set(false); maximize?.destroy(); });
 const relativeMeasurement = computed(() => {
   if (!props.snapshot.measuredAt) return 'sin medición';
   const min = Math.max(0, Math.round((Date.now() - new Date(props.snapshot.measuredAt).getTime()) / 60000));
@@ -73,42 +79,47 @@ const relativeMeasurement = computed(() => {
 </script>
 
 <template>
-  <section class="repo-branches" aria-label="Consola de ramas de la tarea">
-    <header class="console-head">
-      <div class="console-title">
-        <span class="ui-icon" data-icon="console" aria-hidden="true"></span>
-        <span>Ramas</span><span class="count">{{ branches.length }}</span>
-      </div>
-      <p>{{ taskLabel || 'Tarea' }} · Git local ·
+  <!-- La consola de ramas, en la forma de la base: banda de 40 con las acciones (refrescar, maximizar,
+       cerrar), subbanda con el repo elegido y la leyenda, la tabla, y el sidebar interno de repos a la
+       derecha. Con la consola angosta el sidebar se pliega solo y el repo se elige en la subbanda. -->
+  <div class="repo-branches" aria-label="Consola de ramas de la tarea">
+    <div class="region-head">
+      <span class="console-title">Ramas <span class="count">{{ branches.length }}</span></span>
+      <span class="console-meta">{{ taskLabel || 'Tarea' }} · Git local ·
         <time v-if="snapshot.measuredAt" :datetime="snapshot.measuredAt" :title="exactMeasurement">{{ relativeMeasurement }}</time>
         <span v-else>sin medición</span>
         <span v-if="refreshing" class="refresh-state" role="status"> · midiendo Git y PRs…</span>
         <span v-else-if="refreshError" class="refresh-error" role="status" :title="refreshError"> · sin actualizar</span>
-      </p>
-      <button type="button" class="region-action refresh-branches" :disabled="refreshing" :aria-busy="refreshing"
-              :aria-label="refreshing ? 'Actualizando ramas' : 'Refrescar ramas'"
-              :title="refreshing ? 'Midiendo Git y PRs…' : 'Refrescar ramas'" @click="emit('refresh')">
-        <span v-if="refreshing" class="spinner branch-spinner" aria-hidden="true"></span>
-        <span v-else class="ui-icon" data-icon="refresh" aria-hidden="true"></span>
-      </button>
-      <button type="button" class="region-action" aria-label="Ocultar ramas" title="Ocultar ramas" @click="emit('close')">
-        <span class="ui-icon" data-icon="close" aria-hidden="true"></span>
-      </button>
-    </header>
+      </span>
+      <div class="region-actions">
+        <button type="button" class="region-action" :disabled="refreshing" :aria-busy="refreshing"
+                :aria-label="refreshing ? 'Actualizando ramas' : 'Refrescar ramas'"
+                :title="refreshing ? 'Midiendo Git y PRs…' : 'Refrescar ramas'" @click="emit('refresh')">
+          <span v-if="refreshing" class="spinner branch-spinner" aria-hidden="true"></span>
+          <span v-else class="ui-icon" data-icon="refresh" aria-hidden="true"></span>
+        </button>
+        <button ref="maximizeButton" type="button" class="region-action"><span class="ui-icon" aria-hidden="true"></span></button>
+        <button type="button" class="region-action" aria-label="Ocultar ramas" title="Ocultar ramas" @click="maximize?.set(false); emit('close')">
+          <span class="ui-icon" data-icon="close" aria-hidden="true"></span>
+        </button>
+      </div>
+    </div>
 
-    <div v-if="repo" class="console-body">
-      <main class="console-main">
-        <header class="table-head">
-          <span><b>{{ repo.name }}</b></span>
-          <span>{{ repo.branches.length }} {{ repo.branches.length === 1 ? 'rama' : 'ramas' }} de esta tarea</span>
-          <span class="environment-legend" aria-label="Leyenda de ambientes: llegó, pendiente, no aplica">
-            <span title="el cambio llegó al ambiente"><b class="reached">✓</b> llegó</span>
-            <span title="el ambiente existe pero el cambio todavía no llegó"><b>·</b> pendiente</span>
-            <span title="ese ambiente no existe en el repositorio"><b>—</b> no aplica</span>
-          </span>
-        </header>
-        <div class="branch-table">
-          <table :aria-label="`Ramas de ${repo.name} para ${taskLabel || 'la tarea'}`">
+    <template v-if="repo">
+      <div class="subband">
+        <span class="grow"><strong>{{ repo.name }}</strong> · {{ repo.branches.length }} {{ repo.branches.length === 1 ? 'rama' : 'ramas' }} de esta tarea</span>
+        <span class="select repo-picker"><select v-model="chosen" class="input input-xs" aria-label="Repositorio">
+          <option v-for="item in repos" :key="item.id" :value="item.id">{{ item.name }}</option>
+        </select></span>
+        <span class="environment-legend" aria-label="Leyenda de ambientes: llegó, pendiente, no aplica">
+          <span title="el cambio llegó al ambiente"><b class="reached">✓</b> llegó</span>
+          <span title="el ambiente existe pero el cambio todavía no llegó"><b>·</b> pendiente</span>
+          <span title="ese ambiente no existe en el repositorio"><b>—</b> no aplica</span>
+        </span>
+      </div>
+      <div class="split">
+        <div class="split-main branch-table">
+          <table class="table" :aria-label="`Ramas de ${repo.name} para ${taskLabel || 'la tarea'}`">
             <thead><tr>
               <th>Rama</th><th>PR</th>
               <th v-for="environment in environments" :key="environment" :class="{ main: environment === 'main' }">{{ environment }}</th>
@@ -116,7 +127,7 @@ const relativeMeasurement = computed(() => {
             </tr></thead>
             <tbody>
               <tr v-for="branch in repo.branches" :key="branch.branch">
-                <td class="branch-name" :title="branch.branch"><span>{{ branch.branch }}</span><small v-if="branch.local">local</small></td>
+                <td class="branch-name" :title="branch.branch"><span>{{ branch.branch }}</span><span v-if="branch.local" class="badge badge-outline badge-xs">local</span></td>
                 <td class="pr-cell">
                   <a v-if="branch.pr" :href="branch.pr.url" target="_blank" rel="noopener">#{{ branch.pr.number }}</a>
                   <span :class="{ open: branch.pr?.state === 'OPEN' }">{{ prLabel(branch.pr) }}</span>
@@ -131,88 +142,67 @@ const relativeMeasurement = computed(() => {
             </tbody>
           </table>
         </div>
-      </main>
-
-      <aside class="repo-sidebar" aria-label="Repositorios de la tarea">
-        <header>Repos de esta tarea <span class="count">{{ repos.length }}</span></header>
-        <div class="repo-list" role="listbox" aria-label="Repositorios trabajados en la tarea">
-          <button v-for="item in repos" :key="item.id" type="button" class="repo-option"
-                  :class="{ selected: item.id === repo.id }" role="option" :aria-selected="item.id === repo.id" @click="chosen = item.id">
-            <span class="ui-icon" data-icon="server" aria-hidden="true"></span>
-            <span class="repo-text"><b>{{ item.name }}</b><small>{{ item.branches.length }} {{ item.branches.length === 1 ? 'rama' : 'ramas' }}</small></span>
-          </button>
-        </div>
-      </aside>
-    </div>
+        <aside class="split-side" aria-label="Repositorios de la tarea">
+          <div class="region-head group"><span>Repos de esta tarea</span><span class="count">{{ repos.length }}</span></div>
+          <div class="repo-list" role="listbox" aria-label="Repositorios trabajados en la tarea">
+            <div v-for="item in repos" :key="item.id" class="row" :class="{ on: item.id === repo.id }"
+                 role="option" tabindex="0" :aria-selected="item.id === repo.id"
+                 @click="chosen = item.id" @keydown.enter.prevent="chosen = item.id" @keydown.space.prevent="chosen = item.id">
+              <span class="ui-icon" data-icon="server" aria-hidden="true"></span>
+              <span>{{ item.name }}</span>
+              <span class="row-meta" :title="`${item.branches.length} ${item.branches.length === 1 ? 'rama' : 'ramas'}`">{{ item.branches.length }}</span>
+            </div>
+          </div>
+        </aside>
+      </div>
+    </template>
 
     <div v-else class="empty-branches">
       <strong>{{ taskLabel || 'Esta tarea' }}</strong><span>no tiene ramas asociadas en la medición local.</span><code>make tareas-ramas</code>
     </div>
-  </section>
+  </div>
 </template>
 
 <style scoped>
+/* Casi todo es de la base (region-head, subband, split, table, row, count). Acá queda lo que sólo
+   significa algo en esta consola: los ambientes, las dos columnas fijas y el color del estado. */
 .repo-branches { display:flex; flex-direction:column; min-width:0; min-height:0; height:100%; container-type:inline-size;
-  color:var(--txt); background:var(--card); border-top:1px solid var(--line) }
-.console-head { flex:none; display:flex; align-items:center; min-height:36px; gap:10px; padding:0 10px;
-  border-bottom:1px solid var(--line); background:var(--panel2) }
-.console-title { display:flex; align-items:center; gap:6px; padding:0 4px; font-size:var(--text-sm); font-weight:600 }
-.console-title .ui-icon { width:14px; height:14px; color:var(--acc) }
-.count { display:grid; place-items:center; min-width:18px; height:18px; padding:0 5px;
-  color:var(--txt); background:var(--line2); border-radius:999px; font-size:var(--text-xs); font-variant-numeric:tabular-nums }
-.console-head p { min-width:0; margin:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; color:var(--mut); font-size:var(--text-xs) }
-.refresh-branches { margin-left:auto }.console-head .region-action + .region-action { margin-left:2px }
-.refresh-state { color:var(--acc) }.refresh-error { color:var(--warn) }.branch-spinner { width:13px; height:13px; border-width:1.5px }
-.console-body { flex:1; display:flex; min-width:0; min-height:0; overflow:hidden }
-.console-main { flex:1 1 auto; display:flex; flex-direction:column; width:calc(100% - 220px); min-width:0; min-height:0;
-  background:var(--card) }
-.table-head { flex:none; display:flex; align-items:center; gap:10px; min-height:32px; padding:0 12px;
-  color:var(--mut); border-bottom:1px solid var(--line); font-size:var(--text-xs) }
-.table-head > :last-child { margin-left:auto; white-space:nowrap }.table-head b { color:var(--txt); font-size:var(--text-xs) }
-.environment-legend { display:flex; align-items:center; gap:9px; color:var(--mut); font-size:var(--text-xs) }
-.environment-legend > span { display:inline-flex; align-items:center; gap:3px }.environment-legend b { min-width:8px; text-align:center }
+  --region-bg: var(--card) }
+/* `.region-head > :first-child` de la base estira el primer hijo; acá lo que se estira es la medición. */
+.region-head > .console-title { flex:none; display:inline-flex; align-items:center; gap:var(--space-2) }
+.console-meta { flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; color:var(--mut);
+  font-size:var(--text-xs); font-weight:400 }
+.refresh-state { color:var(--acc) }.refresh-error { color:var(--warn) }
+.branch-spinner { width:14px; height:14px; border-width:1.5px }
+.environment-legend { display:flex; align-items:center; gap:var(--space-3); color:var(--mut); font-size:var(--text-xs) }
+.environment-legend > span { display:inline-flex; align-items:center; gap:var(--space-1) }
+.environment-legend b { min-width:8px; text-align:center }
 .environment-legend .reached { color:var(--ok) }
-.branch-table { min-width:0; min-height:0; overflow:auto }
-table { width:100%; min-width:800px; border-collapse:separate; border-spacing:0; font-size:var(--text-xs) }
-th { position:sticky; top:0; z-index:1; height:27px; padding:0 10px; color:var(--mut); background:var(--panel2);
-  border-bottom:1px solid var(--line); text-align:left; font-size:var(--text-xs); font-weight:600 }
-td { height:33px; max-width:260px; padding:0 10px; color:var(--mut); border-bottom:1px solid var(--line);
-  overflow:hidden; text-overflow:ellipsis; white-space:nowrap }
-th:first-child, td:first-child { width:230px; min-width:230px; max-width:230px; position:sticky; left:0 }
-th:nth-child(2), td:nth-child(2) { width:108px; min-width:108px; max-width:108px; position:sticky; left:230px;
-  box-shadow:8px 0 10px -11px color-mix(in oklab, var(--txt) 75%, transparent) }
-th:first-child, th:nth-child(2) { z-index:4; background:var(--panel2) }
-td:first-child, td:nth-child(2) { z-index:2; background:var(--card) }
-th.main, td.main { background:color-mix(in oklab, var(--panel2) 82%, var(--card)); border-left:1px solid var(--line) }
-tbody tr:hover td { background:color-mix(in oklab, var(--acc) 5%, var(--card)) }
-tbody tr:hover td.main { background:color-mix(in oklab, var(--acc) 5%, var(--panel2)) }
-.branch-name { color:var(--txt); font-family:var(--mono) }.branch-name span { vertical-align:middle }
-.branch-name small { margin-left:7px; padding:1px 5px; color:var(--warn); border:1px solid var(--line); border-radius:999px; font:var(--text-xs) var(--font-sans) }
-.pr-cell a { margin-right:6px; color:var(--acc); text-decoration:none }.pr-cell span { font-size:var(--text-xs) }.pr-cell span.open { color:var(--warn) }
-.environment { width:70px; text-align:center; font-weight:600 }.environment.reached { color:var(--ok) }
-.commit code { margin-right:6px; padding:0; background:none }.commit span { color:var(--mut) }
-.repo-sidebar { flex:0 0 220px; display:flex; flex-direction:column; width:220px; min-width:0; min-height:0;
-  background:var(--panel2); border-left:1px solid var(--line) }
-.repo-sidebar > header { flex:none; display:flex; align-items:center; gap:7px; min-height:32px; padding:0 10px;
-  color:var(--mut); border-bottom:1px solid var(--line); font-size:var(--text-xs); font-weight:600; text-transform: none }
-.repo-list { flex:1; min-height:0; overflow:auto; display:flex; flex-direction:column; gap:2px; padding:6px }
-.repo-option { display:flex; align-items:center; gap:8px; min-width:0; min-height:38px; padding:5px 8px; color:var(--mut);
-  text-align:left; background:transparent; border:0; border-radius:var(--radius-md); cursor:pointer }
-.repo-option:hover { color:var(--txt); background:color-mix(in oklab, var(--acc) 7%, var(--panel2)) }
-.repo-option.selected { color:var(--accent-foreground); background:var(--accent) }
-.repo-option:focus-visible { outline:2px solid var(--ring); outline-offset:-1px }.repo-option .ui-icon { flex:none; width:15px; height:15px; color:var(--mut) }
-.repo-option.selected .ui-icon { color:var(--acc) }.repo-text { display:flex; flex:1; flex-direction:column; gap:2px; min-width:0 }
-.repo-text b, .repo-text small { overflow:hidden; text-overflow:ellipsis; white-space:nowrap }.repo-text b { font-size:var(--text-xs) }
-.repo-text small { color:var(--mut); font-size:var(--text-xs) }
-/* `--accent` es una superficie y su tinta es `--accent-foreground`: con --mut encima, «4 ramas» quedaba en 3,86:1. */
-.repo-option.selected .repo-text small { color:var(--accent-foreground) }
-.empty-branches { display:flex; align-items:center; justify-content:center; flex:1; gap:7px; padding:16px;
-  color:var(--mut); font-size:var(--text-xs); text-align:center }.empty-branches strong { color:var(--txt) }
-@container (max-width:620px) {
-  .console-head p { display:none }
-  .console-main { width:calc(100% - 180px) }
-  .repo-sidebar { flex-basis:180px; width:180px }
-  .environment-legend { gap:5px }.environment-legend > span { font-size:0 }.environment-legend b { font-size:var(--text-xs) }
-  table { min-width:760px }
+/* El repo se elige en el sidebar interno; cuando la consola es angosta ese sidebar no está (la base lo
+   pliega bajo 600) y aparece este select en la subbanda, que es el otro camino para lo mismo. */
+.repo-picker { display:none; width:180px; flex:none }
+@container (max-width:600px) {
+  .repo-picker { display:block }
+  .console-meta, .environment-legend > span { display:none }
 }
+.branch-table { display:block }
+.table { min-width:800px; border-collapse:separate; border-spacing:0 }
+.table th { position:sticky; top:0; z-index:1; background:var(--card) }
+.table td { max-width:260px; color:var(--mut); overflow:hidden; text-overflow:ellipsis; white-space:nowrap }
+.table th:first-child, .table td:first-child { width:240px; min-width:240px; max-width:240px; position:sticky; left:0 }
+.table th:nth-child(2), .table td:nth-child(2) { width:112px; min-width:112px; max-width:112px; position:sticky; left:240px;
+  box-shadow:8px 0 10px -11px color-mix(in oklab, var(--txt) 75%, transparent) }
+.table th:first-child, .table th:nth-child(2) { z-index:4 }
+.table td:first-child, .table td:nth-child(2) { z-index:2; background:var(--card) }
+.table th.main, .table td.main { background:color-mix(in oklab, var(--foreground) 3%, var(--card)); border-left:1px solid var(--line) }
+.table tbody tr:hover td { background:color-mix(in oklab, var(--foreground) 5%, var(--card)) }
+.branch-name { color:var(--txt); font-family:var(--font-mono); font-size:var(--text-sm) }
+.branch-name .badge { margin-left:var(--space-2); vertical-align:middle; color:var(--warn) }
+.pr-cell a { margin-right:var(--space-2); color:var(--acc); text-decoration:none }
+.pr-cell span { font-size:var(--text-xs) }.pr-cell span.open { color:var(--warn) }
+.environment { width:72px; text-align:center; font-weight:600 }.environment.reached { color:var(--ok) }
+.commit code { margin-right:var(--space-2); padding:0; background:none; font-size:var(--text-sm) }.commit span { color:var(--mut) }
+.repo-list { padding:var(--space-1) 0 }
+.empty-branches { display:flex; align-items:center; justify-content:center; flex:1; gap:var(--space-2); padding:var(--space-4);
+  color:var(--mut); font-size:var(--text-xs); text-align:center }.empty-branches strong { color:var(--txt) }
 </style>

@@ -37,11 +37,13 @@
      llega a 4,5:1 en NINGUNA superficie de este tema, ni siquiera sobre el fondo (4,41). Los dos
      escalones que sí pasan son `--fg-2` (74%) y `--fg-3` (66%). */
   --mut: var(--fg-2);
-  --tenue: var(--fg-3);
+  --faint: var(--fg-3);
   --sel: color-mix(in oklab, var(--foreground) 10%, transparent);
   /* La acción primaria: en este tema es un chip CLARO con texto oscuro (el par primary/foreground de
      shadcn), que es justo la inversión que el tablero ya hacía a mano con #d4d4d4 sobre #171717. */
-  --acc: var(--primary);
+  /* El acento lleva texto (enlaces, referencias, el botón principal): va el primario-tinta de la base,
+     que pasa en los dos temas. */
+  --acc: var(--primary-ink);
   --acc-ink: var(--primary-foreground);
   --mono: var(--font-mono);
 }
@@ -51,8 +53,12 @@
    borraría), y el tema de hoy es monocromo a propósito — pero un semáforo no puede ser tres grises.
    `--bad` sale del tema (`destructive`), así que cuando un tema traiga su propio rojo lo adopta solo. */
 :root {
-  --ok:   #4ade80;
-  --warn: #fbbf24;
+  /* Cada color de estado, en los dos temas: el claro en `:root` y el oscuro en `.dark`, que es la
+     clase que pone el botón de tema (`bindThemeToggle`). Un color pensado para fondo oscuro sobre
+     blanco no se lee —el ámbar #fbbf24 da 1,7:1—, así que el claro es otro color, no el mismo.
+     Los dos juegos se miden con `make estilo-contraste`. */
+  --ok:   #15803d;
+  --warn: #b45309;
   /* ⚠ Y una medición que sobrevive a la vista que la motivó, porque es del TEMA y no de ella: el par
      «tinte suave + texto del mismo color» —el patrón de shadcn para las pastillas— con este rojo NO
      llega a 4,5:1 en NINGÚN porcentaje. `--destructive` es #e06666, un rojo medio y desaturado, así
@@ -60,9 +66,19 @@
      Si alguna vez hace falta ese patrón, la palanca no está acá: está en el `--destructive` de
      `theme.css`. Como TINTA sobre una card normal sí funciona (4,7:1). */
   --bad:  var(--destructive);
-  --info: #60a5fa;
+  --info: #1d4ed8;
   /* El resaltado del SQL de los hallazgos: los tonos de un editor. Tampoco los trae un tema, y como
      literales sueltos en su regla un tema nuevo no los alcanzaba (lo marca `make estilo-check`). */
+  --sql-keyword:    #6d28d9;
+  --sql-function:   #0369a1;
+  --sql-string:     #3f6212;
+  --sql-number:     #b45309;
+  --sql-identifier: #92400e;
+}
+.dark {
+  --ok:   #4ade80;
+  --warn: #fbbf24;
+  --info: #60a5fa;
   --sql-keyword:    #bd94ff;   /* #b07cff daba 4,48:1 sobre el fondo de un hallazgo vencido */
   --sql-function:   #74c8ff;
   --sql-string:     #95c77b;
@@ -97,7 +113,7 @@ body {
   overflow: hidden;
   background: var(--background);
   color: var(--foreground);
-  font: var(--text-title)/1.5 var(--font-sans);
+  font: var(--text-base)/1.4 var(--font-sans);
   -webkit-font-smoothing: antialiased;
 }
 
