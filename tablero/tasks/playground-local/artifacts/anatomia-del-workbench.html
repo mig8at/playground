@@ -235,6 +235,36 @@ ol.steps li::marker { color: var(--fg-3); font-variant-numeric: tabular-nums }
 .open .q { font-weight: 600 }
 footer { font-size: 12px; color: var(--fg-3); border-top: 1px solid var(--border); padding-top: 16px }
 
+
+/* ── mínimo o nada: la demo ──────────────────────────────── */
+.mn-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 16px; font-size: 13px; color: var(--fg-2) }
+.mn-bar input[type=range] { accent-color: var(--primary); width: 220px; max-width: 100% }
+.mn-bar output { font-family: var(--mono); font-size: 12px; color: var(--fg); font-variant-numeric: tabular-nums }
+.mn-stage { overflow-x: auto; padding-bottom: 4px }
+.mn { --s: .5; position: relative; height: 230px; border: 1px solid var(--border); border-radius: 10px; overflow: hidden; display: grid; grid-template-rows: minmax(0, 1fr) 26px; background: var(--bg); user-select: none; touch-action: none; font-size: 11.5px; transition: width .12s }
+.mn-cols { display: flex; min-height: 0 }
+.mn-col { position: relative; flex: none; overflow: hidden; display: flex; flex-direction: column; background: var(--sidebar) }
+.mn-col.sb { border-right: 1px solid var(--border) }
+.mn-col.ax { border-left: 1px solid var(--border) }
+.mn-col.ed { flex: 1; min-width: 0; background: var(--bg) }
+.mn-col.zero { border-width: 0 }
+.mn-col .rh { min-height: 26px }
+.mn-w { font-family: var(--mono); font-size: 10.5px; color: var(--fg-3); padding: 6px 8px; font-variant-numeric: tabular-nums; white-space: nowrap }
+.mn-w b { color: var(--fg); font-weight: 600 }
+.mn-w.bad b { color: var(--primary-ink) }
+.mn-h { position: absolute; top: 0; bottom: 26px; width: 9px; margin-left: -4px; cursor: col-resize; z-index: 4 }
+.mn-h::before { content: ""; position: absolute; top: 0; bottom: 0; left: 4px; width: 1px; background: transparent; transition: background .12s }
+.mn-h:hover::before, .mn-h.on::before, .mn-h:focus-visible::before { background: var(--primary) }
+.mn-h:focus-visible { outline: none }
+.mn-ghost { position: absolute; top: 0; bottom: 26px; width: 0; border-left: 1px dashed var(--primary); z-index: 3; pointer-events: none }
+.mn-ghost span { position: absolute; top: 4px; left: 4px; font-family: var(--mono); font-size: 10px; color: var(--primary-ink); white-space: nowrap; background: var(--bg); padding: 0 3px }
+.mn-status { display: flex; align-items: center; gap: 10px; padding: 0 8px; background: var(--card); border-top: 1px solid var(--border); color: var(--fg-2); font-size: 10.5px }
+.mn-status .status-l { flex: 1 }
+.mn-status .tg { cursor: pointer }
+.mn-log { font-size: 13px; color: var(--fg-2); min-height: 1.5em }
+.mn-log b { color: var(--fg); font-weight: 600 }
+.mins td.bad { color: var(--primary-ink) }
+
 /* ── índice de la página ─────────────────────────────────── */
 nav.toc { display: flex; flex-wrap: wrap; gap: 4px 14px; font-size: 13px }
 nav.toc a { color: var(--fg-2); text-decoration: none; border-bottom: 1px solid transparent }
@@ -323,7 +353,7 @@ nav.toc a:hover, nav.toc a:focus-visible { color: var(--fg); border-bottom-color
     </div>
     <nav class="toc" aria-label="Secciones">
       <a href="#esqueleto">Esqueleto</a><a href="#partes">Partes</a><a href="#region">Región</a>
-      <a href="#tipografia">Tipografía</a><a href="#espacios">Espacios</a><a href="#iconos">Iconos</a>
+      <a href="#minimo">Mínimo o nada</a><a href="#tipografia">Tipografía</a><a href="#espacios">Espacios</a><a href="#iconos">Iconos</a>
       <a href="#forma">Forma</a><a href="#medido">Hoy contra el estándar</a><a href="#adopcion">Adopción</a>
       <a href="#reglas">Reglas</a><a href="#decisiones">Decisiones</a><a href="#nueva">Herramienta nueva</a>
     </nav>
@@ -411,6 +441,76 @@ nav.toc a:hover, nav.toc a:focus-visible { color: var(--fg); border-bottom-color
         <li><span class="pin">5</span><div><b>Vista plegada</b> <code>.view</code> · <code>.view-tog</code><p>Una región puede apilar varias vistas que se reparten el alto. Cerrada, una vista ocupa una fila: sigue a la vista para que nadie crea que no existe.</p></div></li>
       </ol>
     </div>
+  </section>
+
+  <section id="minimo">
+    <div class="sec-head">
+      <h2>Mínimo o nada</h2>
+      <p>Toda región que se redimensiona tiene un ancho (o alto) mínimo, y entre cero y ese mínimo no hay nada: si se la achica por debajo, se pliega a 0. Nunca queda una columna de 90px con el texto cortado. Probalo: arrastrá las manijas, usá las flechas con la manija enfocada o achicá la ventana.</p>
+    </div>
+    <div class="mn-bar">
+      <label for="mnWin">Ancho de la ventana</label>
+      <input type="range" id="mnWin" min="640" max="1600" step="8" value="1440">
+      <output id="mnWinOut" for="mnWin">1440 px</output>
+      <span class="hint">La demo está a media escala; los números son los reales.</span>
+    </div>
+    <div class="mn-stage">
+      <div class="mn" id="mn" aria-label="Demo de mínimo o nada">
+        <div class="mn-cols">
+          <div class="mn-col sb" id="mnSb"><div class="rh"><span class="t">Sidebar</span></div><div class="mn-w" id="mnSbW"></div></div>
+          <div class="mn-col ed" id="mnEd"><div class="rh"><span class="t">Editor</span></div><div class="mn-w" id="mnEdW"></div></div>
+          <div class="mn-col ax" id="mnAx"><div class="rh"><span class="t">Sidebar secundario</span></div><div class="mn-w" id="mnAxW"></div></div>
+        </div>
+        <div class="mn-status">
+          <span class="status-l">pie</span>
+          <span class="toggles">
+            <span class="tg" id="mnTgSb" role="button" tabindex="0" aria-label="Mostrar u ocultar el sidebar" title="Sidebar"><svg viewBox="0 0 12 10"><rect x=".5" y=".5" width="11" height="9" rx="1.5" fill="none" stroke="currentColor"/><rect x="1" y="1" width="3.5" height="8" fill="currentColor"/></svg></span>
+            <span class="tg" id="mnTgAx" role="button" tabindex="0" aria-label="Mostrar u ocultar el sidebar secundario" title="Sidebar secundario"><svg viewBox="0 0 12 10"><rect x=".5" y=".5" width="11" height="9" rx="1.5" fill="none" stroke="currentColor"/><rect x="7.5" y="1" width="3.5" height="8" fill="currentColor"/></svg></span>
+          </span>
+        </div>
+        <span class="mn-h" id="mnHSb" role="separator" tabindex="0" aria-orientation="vertical" aria-label="Ancho del sidebar"></span>
+        <span class="mn-h" id="mnHAx" role="separator" tabindex="0" aria-orientation="vertical" aria-label="Ancho del sidebar secundario"></span>
+        <span class="mn-ghost" id="mnGhost" hidden><span>mínimo 240</span></span>
+      </div>
+    </div>
+    <p class="mn-log" id="mnLog" aria-live="polite">Arrastrá el borde del sidebar hacia la izquierda: al cruzar los 240 se pliega.</p>
+
+    <div class="two">
+      <div class="col">
+        <h3>La regla, en cinco partes</h3>
+        <div class="spec">
+          <div class="spec-row"><span class="tok">0 o ≥ mín</span><span class="val">medida</span><span class="use">Una región mide 0 o al menos su mínimo. No hay estado intermedio por ningún camino: arrastre, teclado, ventana o preferencia guardada.</span></div>
+          <div class="spec-row"><span class="tok">arrastre</span><span class="val">umbral</span><span class="use">Al cruzar el mínimo se pliega en el acto, sin franja muerta (hoy son 24px de más). Si en el mismo gesto se vuelve a pasar el mínimo, reabre.</span></div>
+          <div class="spec-row"><span class="tok">teclado</span><span class="val">flechas</span><span class="use">Una flecha que lleva por debajo del mínimo pliega. Home pliega, End lleva al máximo, Enter alterna.</span></div>
+          <div class="spec-row"><span class="tok">ventana</span><span class="val">orden</span><span class="use">Si no entra, primero se achican las columnas hasta su mínimo; después se pliega el sidebar secundario, y recién después el sidebar. El editor nunca se pliega ni baja de su mínimo.</span></div>
+          <div class="spec-row"><span class="tok">plegar</span><span class="val">= ocultar</span><span class="use">Plegar arrastrando es lo mismo que el botón del pie: el botón se apaga y al reabrir vuelve la última medida abierta, no la de fábrica ni el 0. Si esa medida ya no entra, abre al mínimo.</span></div>
+        </div>
+      </div>
+      <div class="col">
+        <h3>Los mínimos</h3>
+        <div class="spec">
+          <div class="spec-row"><span class="tok">--sidebar-min</span><span class="val">240px</span><span class="use">Sidebar y sidebar secundario, el mismo número: entran un título, sus iconos y un nombre legible. Por defecto 300 y 340, como hoy.</span></div>
+          <div class="spec-row"><span class="tok">--panel-min</span><span class="val">124px</span><span class="use">El encabezado (40) más tres filas (3 × 28). Menos que eso ya no es una consola.</span></div>
+          <div class="spec-row"><span class="tok">--editor-min</span><span class="val">360px</span><span class="use">Ancho que el editor conserva siempre; es lo que calcula el máximo de las otras. Y 240px de alto frente al panel.</span></div>
+        </div>
+        <h3>Hoy, medido en el código</h3>
+        <div class="tbl-wrap">
+          <table class="mins" style="min-width:520px">
+            <thead><tr><th>Región</th><th>harness</th><th>tablero</th><th>trazador</th><th>visor</th></tr></thead>
+            <tbody>
+              <tr><td>sidebar</td><td>240 · pliega</td><td class="bad">200 · no pliega; la ventana lo aprieta a 160</td><td>240 · pliega</td><td class="bad">220 · no pliega</td></tr>
+              <tr><td>sidebar secundario</td><td>220 · pliega</td><td class="bad">260 · no pliega</td><td>280 · pliega</td><td class="bad">220 · no pliega</td></tr>
+              <tr><td>panel</td><td>90 · pliega</td><td>150 · pliega</td><td>116 · pliega</td><td class="no">no tiene</td></tr>
+              <tr><td>editor</td><td>≈328</td><td>320</td><td>220</td><td>360</td></tr>
+              <tr><td>umbral</td><td colspan="4">mínimo − 24px en <code>workbench.js</code>, igual en las cuatro</td></tr>
+              <tr><td>ventana angosta</td><td class="bad">el máximo cae a 160 y queda debajo del mínimo</td><td class="bad">aprieta el sidebar a 160</td><td>el máximo puede caer debajo del mínimo</td><td>el editor puede bajar de 360</td></tr>
+              <tr><td>última medida</td><td colspan="4">cada una la guarda con su propio código (<code>lastKey</code> en el harness, tres <code>watch</code> en el trazador)</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+    <p class="never">Esto se implementa una vez, en <code>workbench.js</code>: plegar pasa a ser el comportamiento por defecto de <code>bindResize</code> (hoy es opcional, <code>collapsible</code>), el umbral pasa a ser el mínimo, la última medida abierta la guarda el módulo y un <code>fitRegions()</code> reparte el ancho al cambiar la ventana. Las herramientas borran sus copias.</p>
   </section>
 
   <section id="tipografia">
@@ -583,6 +683,7 @@ nav.toc a:hover, nav.toc a:focus-visible { color: var(--fg); border-bottom-color
       <div><h3>Las acciones viven en su región</h3><p>Nada de botones globales. Frecuente y de hacer: toolbar. Poco usado y de alternar: menú <span class="mono">⋯</span>. Los avisos van junto a la operación, como el de dev compartido del harness dentro del editor.</p></div>
       <div><h3>Se separa con una línea, no con una caja</h3><p>Escalón de fondo más una línea de 1px. Sin marcos alrededor de algo que ocupa toda su columna, y sin costura doble: la línea la pone una sola de las dos regiones.</p></div>
       <div><h3>Ocultar no es borrar</h3><p>Una región plegada deja su control en el pie y, al volver, recupera la última medida que eligió la persona, no la de fábrica.</p></div>
+      <div><h3>Mínimo o nada</h3><p>Una región mide 0 o al menos su mínimo. Por debajo se pliega, igual que con el botón del pie, y al volver recupera su última medida abierta.</p></div>
       <div><h3>El tope de un arrastre se calcula</h3><p>El máximo de una manija sale de la ventana y del ancho de la otra columna. Con un número fijo, el editor se queda sin ancho usable.</p></div>
       <div><h3>El color es un token, siempre</h3><p>Los colores salen de <code>tema.css</code>; el semántico propio de cada herramienta, de su hoja puente. Un literal suelto no sobrevive a un cambio de tema.</p></div>
     </div>
@@ -615,12 +716,12 @@ nav.toc a:hover, nav.toc a:focus-visible { color: var(--fg); border-bottom-color
       <li>Escribir todo tamaño, espacio y radio con su token (<code>var(--text-sm)</code>, <code>var(--space-3)</code>). Si un valor no está en la escala, no se inventa ahí: se trae a esta página.</li>
       <li>Usar sólo iconos de <code>.ui-icon</code>, a 16px, en botones de 24×24 con <code>title</code> y <code>aria-label</code>.</li>
       <li>Poner en el <code>statusbar</code> el estado a la izquierda y un control por cada región que se pueda plegar a la derecha.</li>
-      <li>Agregar las manijas <code>.rsz</code> con <code>vResize</code>, con mínimo, máximo calculado y la medida guardada por persona.</li>
+      <li>Agregar las manijas <code>.rsz</code> con <code>vResize</code>, con el mínimo de su región (<code>--sidebar-min</code>, <code>--panel-min</code>) y el máximo calculado contra <code>--editor-min</code>. Por debajo del mínimo pliega; eso no se configura.</li>
       <li>Correr <code>make estilo-check</code>, <code>make estilo-contraste</code> y <code>make estilo-ui</code> con la herramienta encendida.</li>
     </ol>
   </section>
 
-  <footer>Prototipo de la tarea #96 · segundo borrador, 24 sep 2026 · el contrato vigente sigue siendo <span class="mono">tools/ui/README.md</span> hasta que esto se apruebe.</footer>
+  <footer>Prototipo de la tarea #96 · tercer borrador, 24 sep 2026 · el contrato vigente sigue siendo <span class="mono">tools/ui/README.md</span> hasta que esto se apruebe.</footer>
 </div>
 
 <script>
@@ -770,7 +871,7 @@ nav.toc a:hover, nav.toc a:focus-visible { color: var(--fg); border-bottom-color
     { g: 'Entre regiones' },
     { id: 'rsz', name: 'Manija', cls: '.rsz · vResize', short: 'Redimensiona una región. Se ve de 1px, se agarra de 8.',
       what: 'El borde arrastrable entre dos regiones.', when: 'Entre toda región de medida variable y su vecina.', size: '1px visible, 8px de agarre', surface: '--ring al pasar',
-      rule: 'Enfocable: flechas 16px, Shift más flecha 48px, Home al mínimo, End amplía. El máximo se calcula contra la ventana, nunca un número fijo.' },
+      rule: '<b>Mínimo o nada</b>: por debajo del mínimo la región se pliega a 0. Enfocable: flechas 16px, Shift más flecha 48px, Home pliega, End amplía. El máximo se calcula contra la ventana, nunca un número fijo.' },
     { id: 'layout', name: 'Controles de disposición', cls: '.statusbar › toggles', short: 'Un botón por región plegable, en el pie.',
       what: 'Pliegan y despliegan sidebar, panel y sidebar secundario.', when: 'Siempre que haya una región plegable.', size: 'iconos en el extremo derecho del pie', surface: 'la del pie',
       rule: 'Es el control de recuperación: una región oculta sin botón en el pie es una región que nadie vuelve a encontrar.' },
@@ -889,6 +990,97 @@ nav.toc a:hover, nav.toc a:focus-visible { color: var(--fg); border-bottom-color
   document.getElementById('demoA').innerHTML = svg(ICONS.copy);
   document.getElementById('demoB').innerHTML = svg(ICONS.refresh);
   document.getElementById('demoC').innerHTML = svg(ICONS.more);
+
+
+  // ── mínimo o nada: la demo. Misma lógica que se propone para workbench.js, a media escala.
+  (function () {
+    const S = 0.5, MIN = 240, ED_MIN = 360;
+    const st = { sb: 300, ax: 340, lastSb: 300, lastAx: 340, win: 1440 };
+    const $ = (id) => document.getElementById(id);
+    const mn = $('mn'), log = $('mnLog'), ghost = $('mnGhost');
+    const say = (html) => { log.innerHTML = html; };
+    // lo que la ventana deja: primero se achican a su mínimo, después se pliega el secundario y al final el sidebar
+    function fit(reason) {
+      const room = () => st.win - ED_MIN - st.sb - st.ax;
+      if (room() >= 0) return;
+      if (st.ax > MIN) st.ax = Math.max(MIN, st.ax + room());
+      if (room() < 0 && st.sb > MIN) st.sb = Math.max(MIN, st.sb + room());
+      if (room() < 0 && st.ax) { st.ax = 0; if (reason) say('No entraba: se plegó el <b>sidebar secundario</b>; su última medida abierta queda guardada.'); }
+      if (room() < 0 && st.sb) { st.sb = 0; if (reason) say('Tampoco entraba el sidebar: se plegó. El editor conserva sus <b>360</b>.'); }
+    }
+    const maxOf = (k) => st.win - ED_MIN - (k === 'sb' ? st.ax : st.sb);
+    function setSize(k, v, how) {
+      const max = maxOf(k);
+      const before = st[k];
+      let next = v < MIN ? 0 : Math.min(v, max);
+      if (next && next < MIN) next = 0; // no entra ni al mínimo
+      st[k] = Math.round(next);
+      if (st[k]) st[k === 'sb' ? 'lastSb' : 'lastAx'] = st[k];
+      const name = k === 'sb' ? 'sidebar' : 'sidebar secundario';
+      if (before && !st[k]) say(`${how}: el <b>${name}</b> bajó de ${MIN} y se plegó a 0. El botón del pie se apagó.`);
+      else if (!before && st[k]) say(`El <b>${name}</b> volvió a ${st[k]}.`);
+      render();
+    }
+    function toggle(k) {
+      if (st[k]) { st[k] = 0; say(`Plegado desde el pie; la última medida (${st[k === 'sb' ? 'lastSb' : 'lastAx']}) queda guardada.`); }
+      else {
+        const other = k === 'sb' ? 'ax' : 'sb';
+        let want = st[k === 'sb' ? 'lastSb' : 'lastAx'];
+        if (maxOf(k) < MIN && st[other]) { st[other] = 0; }
+        want = Math.min(want, maxOf(k));
+        if (want < MIN) { say('No hay lugar ni para el mínimo en esta ventana.'); render(); return; }
+        st[k] = want;
+        say(`Reabierto en su última medida abierta: <b>${want}</b>.`);
+      }
+      render();
+    }
+    function render() {
+      mn.style.width = st.win * S + 'px';
+      $('mnSb').style.width = st.sb * S + 'px'; $('mnSb').classList.toggle('zero', !st.sb);
+      $('mnAx').style.width = st.ax * S + 'px'; $('mnAx').classList.toggle('zero', !st.ax);
+      const ed = st.win - st.sb - st.ax;
+      $('mnSbW').innerHTML = st.sb ? `<b>${st.sb}</b> · mín ${MIN}` : '';
+      $('mnAxW').innerHTML = st.ax ? `<b>${st.ax}</b> · mín ${MIN}` : '';
+      $('mnEdW').innerHTML = `<b>${ed}</b> · mín ${ED_MIN}`;
+      $('mnHSb').style.left = st.sb * S + 'px';
+      $('mnHAx').style.left = (st.win - st.ax) * S + 'px';
+      $('mnTgSb').classList.toggle('off', !st.sb); $('mnTgSb').setAttribute('aria-pressed', String(!!st.sb));
+      $('mnTgAx').classList.toggle('off', !st.ax); $('mnTgAx').setAttribute('aria-pressed', String(!!st.ax));
+      $('mnHSb').setAttribute('aria-valuenow', String(st.sb)); $('mnHAx').setAttribute('aria-valuenow', String(st.ax));
+      $('mnWinOut').textContent = st.win + ' px';
+    }
+    function drag(k, sign) {
+      const h = $(k === 'sb' ? 'mnHSb' : 'mnHAx');
+      h.addEventListener('pointerdown', (e) => {
+        if (e.button !== 0) return;
+        e.preventDefault(); h.setPointerCapture(e.pointerId); h.classList.add('on');
+        const x0 = e.clientX, v0 = st[k] || 0;
+        ghost.hidden = false;
+        ghost.style.left = (k === 'sb' ? MIN : st.win - MIN) * S + 'px';
+        const move = (ev) => setSize(k, v0 + (ev.clientX - x0) * sign / S, 'Arrastre');
+        const up = () => { h.classList.remove('on'); ghost.hidden = true; h.removeEventListener('pointermove', move); h.removeEventListener('pointerup', up); h.removeEventListener('pointercancel', up); };
+        h.addEventListener('pointermove', move); h.addEventListener('pointerup', up); h.addEventListener('pointercancel', up);
+      });
+      h.addEventListener('keydown', (e) => {
+        const dec = sign > 0 ? 'ArrowLeft' : 'ArrowRight', inc = sign > 0 ? 'ArrowRight' : 'ArrowLeft';
+        const step = e.shiftKey ? 48 : 16;
+        if (e.key === dec) setSize(k, (st[k] || 0) - step, 'Teclado');
+        else if (e.key === inc) st[k] ? setSize(k, st[k] + step, 'Teclado') : toggle(k);
+        else if (e.key === 'Home') setSize(k, 0, 'Teclado');
+        else if (e.key === 'End') setSize(k, maxOf(k), 'Teclado');
+        else if (e.key === 'Enter') toggle(k);
+        else return;
+        e.preventDefault();
+      });
+    }
+    drag('sb', 1); drag('ax', -1);
+    for (const [id, k] of [['mnTgSb', 'sb'], ['mnTgAx', 'ax']]) {
+      $(id).addEventListener('click', () => toggle(k));
+      $(id).addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggle(k); } });
+    }
+    $('mnWin').addEventListener('input', (e) => { st.win = +e.target.value; fit(true); render(); });
+    render();
+  })();
 
   const fromHash = (location.hash || '').slice(1);
   render();

@@ -14,6 +14,11 @@ jira_title: ""
 - [ ] Aprobar o ajustar las decisiones propuestas en el prototipo (sección «Decisiones»); termina cuando
   cada una queda marcada hecha o descartada con su motivo.
   Depende de: Miguel — visto bueno sobre las cinco propuestas.
+- [ ] «Mínimo o nada» en `tools/ui/workbench.js`: plegar por defecto en `bindResize`, umbral = mínimo,
+  la última medida abierta guardada por el módulo y un `fitRegions()` para la ventana; tokens
+  `--sidebar-min` 240, `--panel-min` 124, `--editor-min` 360. Termina cuando las cuatro borran su copia
+  (harness `lastKey`, los `watch` del trazador, el apretado a 160 del tablero) y `make estilo-ui` prueba
+  que ninguna región queda entre 0 y su mínimo arrastrando, con teclado y con tres anchos de ventana.
 - [ ] Llevar la escala a `tools/ui/taller.css`: `--text-title`, `--row-h`, retirar `--space-5`, toolbar y
   menú con `--radius-sm`; termina cuando `make estilo-sync` la reparte y `make estilo-check` sigue verde.
 - [ ] Agregar a `make estilo-check` un chequeo de literales fuera de la escala (tamaños, pesos, espacios,
