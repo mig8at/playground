@@ -2642,7 +2642,10 @@
       markStepOnMap(null);   // el mapa arranca sin marca: todavía no navegó a ningún lado
       $('lastResult').hidden = true;
       $('webhookZone').style.display = 'none';
-      showLog(false); $('stopBtn').classList.add('on');
+      // ⚠ ABRIR, no cerrar: `showLog(false)` venía de cuando la consola era una tarjeta plegable y
+      // «false» la dejaba plegada con su cabecera. Al quitarse el plegado (2026-09-18) pasó a ESCONDER
+      // la salida, y cada Lanzar dejaba la consola oscura hasta recargar la página.
+      showLog(true); $('stopBtn').classList.add('on');
       $('routeMap').open = true;
       startPoll();
     }
@@ -2940,7 +2943,7 @@
           if (!runRunning) { setRunningUI(true); $('routeMap').open = true; }
           $('stopBtn').classList.add('on');
           setGoLabel('Corriendo…'); $('go').disabled = true;          $('runDot').className = 'run-dot running';
-          if ($('consoleBody').style.display === 'none') showLog(false);
+          if (!logOpen) showLog(true);
         } else {
           setRunningUI(false);
           setGoLabel('Preparar + Lanzar'); updateGo();          $('stopBtn').classList.remove('on'); $('runDot').className = 'run-dot';
