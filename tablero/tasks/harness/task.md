@@ -11,7 +11,7 @@ jira_title: ""
 
 ## Pendientes
 
-- [ ] Que «Buró inyectado» gobierne también la categoría en una corrida del panel: hoy el motor evalúa con el reporte fijo del mock de centrales (score 654, 59 consultas, sin tarjetas), no con el inyectado. Camino probable: dictarle al mock el perfil del caso, como `LAMBDA=1` del caminador (`pkg/risk-lambda.ts`). Termina cuando una corrida del panel en local registra la misma categoría que predice «Categoría por entidad».
+- [ ] Confirmar con una corrida del panel en local que «Buró inyectado» gobierna la categoría: ya se le dicta el caso al mock de centrales antes de personal-info (`dictateCase`). Termina cuando «Categoría por entidad» muestra la categoría de la corrida igual a la predicha, sin la nota «el motor leyó otros datos». Depende de: Miguel — la corrida, con el mock de centrales arriba (`make harness-centrales`).
 
 - [ ] Validar preparación, ejecución, progreso y resultado durante una corrida real.
 - [ ] Migrar un llamador a la vez a las funciones de escritura seguras cuando se modifique.
