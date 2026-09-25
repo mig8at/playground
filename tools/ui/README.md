@@ -26,7 +26,7 @@ Adentro de cada región:
 | Vista | `view` · `view-tog` | Vistas apiladas que se reparten el alto. Cerrada cuesta una fila, no cero |
 | Encabezado de grupo | `region-head.group` | Separa grupos de una lista y se pega arriba. Nunca más fuerte que la banda |
 | Sección plegable | `accordion-item` | Dentro de un cuerpo que ya scrollea; es un `<details>`, no una vista |
-| Manija | `rsz` | Redimensiona entre dos regiones. Se ve de 1 px y se agarra de 8 |
+| Manija | `rsz` | Redimensiona entre dos regiones. Se ve de 1 px y se agarra de 8. `::before` es la **línea** (se pinta en `--ring` al pasar, al enfocar y al arrastrar) y `::after` la **zona de agarre**, transparente: la herramienta posiciona la línea, nunca invierte los dos |
 
 No hay titlebar, banner ni activitybar. Una barra a lo ancho le cobra su alto a todas las regiones: lo que tendría va a la banda de la región de la que habla, y el nombre de la herramienta ya lo dice la pestaña del navegador. Un aviso va junto a la operación que avisa.
 
