@@ -29,11 +29,32 @@ la misma escala. Lo que no entra a lo ancho se mueve **arrastrando**, o con la r
 fondo la centra. Un clic sólo cuenta si el puntero no se movió, y arrastrar sobre el HTML también mueve el
 lienzo.
 
-## Para el modelo: la API por consola (lo visual es para Miguel)
+## Para el modelo: la URL que pega Miguel es el ancla
 
 Decisión de Miguel (2026-09-25): **la interfaz es para mirar; el modelo trabaja con comandos**, como con el
-harness. Todo lo que el modelo necesita de un diseño sale por `make`, sin el visor corriendo
-(`visor/server/cli.go`; adentro los verbos van en inglés —`cd visor/server && go run . search|screens|screen|html|assets|tokens|components|fidelity|layer`—):
+harness. Y **el trabajo empieza con lo que Miguel pega, no con el modelo buscando**: un diseño nuevo está
+asociado a una tarea del tablero, y en algún momento Miguel dice «esta es la pantalla que hay que
+adelantar» o «mirá esta capa, los chulos no se ven», con una URL. El modelo no sale a buscar qué podría ser:
+entiende esa URL y trae eso.
+
+    make visor-url U='<lo que pegó Miguel>'
+
+**Es la puerta** (`visor/server/route.go`). Acepta la URL del visor (con `?capa=` y `?huella=`), el enlace
+`visor:…@huella` de una tarea, la URL de Figma —de una pantalla o de CUALQUIER capa de adentro, lo que da
+«Copy link to selection»: la pantalla que la contiene se encuentra por su lugar en el lienzo y se confirma
+en su árbol— y `<clave>/<nodo>`. Contesta, en este orden:
+
+1. **qué es**: una pantalla, o una capa de una pantalla, y de qué archivo;
+2. **a qué tarea del tablero está asociada**: las que la enlazan, en su documento o en su pila (y si ninguna,
+   el enlace listo para la pila);
+3. **si cambió** desde que se enlazó, cuando lo pegado trae huella;
+4. lo que hace falta para colaborar: con una **capa**, el informe de la capa (qué dice Figma, los recortes de
+   Figma y del HTML en esa zona con cuánto se parecen, y el HTML exacto que la dibuja); con una **pantalla**,
+   el paquete entero.
+
+Lo demás son piezas sueltas, para cuando hace falta una sola cosa (adentro los verbos van en inglés —`cd
+visor/server && go run . url|search|screens|screen|html|assets|tokens|components|fidelity|layer`—), y ninguno
+necesita el visor corriendo:
 
     make visor-pantallas                                        # los proyectos, con su clave de Figma
     make visor-pantallas P=RkyauDfqEsFbJZBBoqChAV               # el flujo: carriles y pantallas, cada una con su id
@@ -42,7 +63,7 @@ harness. Todo lo que el modelo necesita de un diseño sale por `make`, sin el vi
     make visor-html R=… [OUT=<archivo>] · make visor-tokens P=<clave> [FORMATO=css|tailwind|json] · make visor-componentes P=<clave>
     make visor-fidelidad R=RkyauDfqEsFbJZBBoqChAV/266-1279      # ¿cuánto se parece el HTML a Figma? sin el suavizado de las letras [NUEVA=1]
     make visor-capa R='<enlace con ?capa=>'                     # UNA capa que Miguel señaló: qué es, Figma, su HTML y los recortes
-    make visor-buscar Q='alquila moto'                          # sólo si no hay id: busca por lo que dice la pantalla, devuelve ids
+    make visor-buscar Q='alquila moto'                          # el caso RARO: nadie pegó nada; busca por lo que dice la pantalla
 
 **El CLI habla en IDS de Figma** (decisión de Miguel, 2026-09-25): la pantalla es `<clave del archivo>/<nodo>`
 —o la URL de Figma, que trae los dos—, y todo lo que imprime la nombra así. Los ids no dependen de cómo se

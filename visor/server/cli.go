@@ -27,8 +27,11 @@ import (
 // caché y las mismas reglas que el server. La pantalla se nombra como en la ruta —`altafinanciera/266-1279`—,
 // o con el enlace `visor:` de una tarea, la URL del visor o la de Figma.
 //
-// Los verbos van en inglés, como todo identificador; por `make` se llaman en castellano (visor-buscar…):
+// Los verbos van en inglés, como todo identificador; por `make` se llaman en castellano (visor-buscar…).
+// ⚠ La puerta es `url`: el trabajo empieza con la URL que pega Miguel (la pantalla a adelantar, o una capa
+// que no cuadra), y `url` la entiende y trae eso. Los demás son piezas sueltas.
 //
+//	url <lo que se pegó>             QUÉ es (pantalla o capa), su tarea, y lo que hace falta (make visor-url)
 //	search <texto>                   ¿qué pantalla es? por título, carril o archivo      (make visor-buscar)
 //	screens <proyecto>               el flujo: carriles y pantallas, con su ruta          (make visor-pantallas)
 //	screen <ruta>                    el paquete para el modelo (Markdown)                 (make visor-pantalla)
@@ -50,13 +53,14 @@ var cliVerbs = map[string]func(s *server, ctx context.Context, args []string, ou
 	"components": cliInventory,
 	"fidelity":   cliFidelity,
 	"layer":      cliLayer,
+	"url":        cliURL,
 }
 
 func runCLI(s *server, args []string) int {
 	verb := args[0]
 	run, ok := cliVerbs[verb]
 	if !ok {
-		fmt.Fprintf(os.Stderr, "visor: no existe «%s». Los verbos: search · screens · screen · html · assets · tokens · components · fidelity · layer (por make: visor-buscar · visor-pantallas · visor-pantalla · visor-html · visor-recursos · visor-tokens · visor-componentes · visor-fidelidad · visor-capa)\n", verb)
+		fmt.Fprintf(os.Stderr, "visor: no existe «%s». Los verbos: search · screens · screen · html · assets · tokens · components · fidelity · layer · url (por make: visor-url · visor-buscar · visor-pantallas · visor-pantalla · visor-html · visor-recursos · visor-tokens · visor-componentes · visor-fidelidad · visor-capa)\n", verb)
 		return 2
 	}
 	out := bufio.NewWriter(os.Stdout)
@@ -700,6 +704,12 @@ func cliLayer(s *server, ctx context.Context, args []string, out io.Writer) erro
 	if err != nil {
 		return err
 	}
+	return s.writeLayer(ctx, out, key, id, layer, *dir)
+}
+
+// writeLayer es el informe de UNA capa: qué es, qué dice Figma, los recortes y cuánto se parecen en esa
+// zona, y el HTML que la dibuja. Lo usan `layer` y `url`.
+func (s *server) writeLayer(ctx context.Context, out io.Writer, key, id, layer, dir string) error {
 	d, err := s.layerDetail(ctx, key, id, layer)
 	if err != nil {
 		return err
@@ -728,7 +738,7 @@ func cliLayer(s *server, ctx context.Context, args []string, out io.Writer) erro
 
 	// Los recortes y cuánto se parece la zona: un Chromium, como la fidelidad de la pantalla.
 	fmt.Fprintln(out, "\n## Esa zona, en Figma y en el HTML")
-	crops, m, err := s.layerCrops(ctx, key, id, d, *dir)
+	crops, m, err := s.layerCrops(ctx, key, id, d, dir)
 	if err != nil {
 		fmt.Fprintf(out, "\nNo se pudo recortar: %v\n", err)
 	} else {

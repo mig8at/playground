@@ -191,6 +191,10 @@ visor-fidelidad: ## @dia ¿cuánto se parece el HTML traducido a Figma? R=<clave
 # comandos, como con el harness. No necesitan el visor corriendo. La pantalla se nombra como en su ruta
 # por IDS de Figma —`<clave del archivo>/<nodo>`, o la URL de Figma—; también acepta el proyecto por su
 # nombre (`altafinanciera/266-1279`) o el enlace `visor:` de una tarea, pero contesta en ids.
+visor-url: ## @dia ⚠ LA PUERTA: lo que Miguel pegó —la URL de una pantalla o de una capa, del visor, de Figma o el enlace de una tarea— entendido: qué es, a qué tarea está asociada, si cambió, y lo que hace falta (el paquete de la pantalla, o el HTML y los recortes de la capa). U='<lo que pegó>'
+	@test -n "$(U)" || { echo "falta U='<lo que pegó Miguel>'  ·  ej: make visor-url U='http://localhost:5193/uO5zJoYjnJnfDCTqOSG1uR/1-6660?capa=I1-6711_1265-1238'"; exit 2; }
+	@cd visor/server && go run . url '$(U)'
+
 visor-buscar: ## @dia ¿qué pantalla es? busca en los flujos por título, carril o proyecto; si nada tiene todas las palabras, da las que abren cada carril del proyecto nombrado. Q='alta bienvenida'
 	@test -n "$(Q)" || { echo "falta Q='<palabras>'  ·  ej: make visor-buscar Q='alta bienvenida'"; exit 2; }
 	@cd visor/server && go run . search $(Q)
