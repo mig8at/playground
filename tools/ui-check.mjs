@@ -289,7 +289,7 @@ try {
     }
     if (name === 'tablero') {
       await page.locator('.tree-row').first().click();
-      const right = page.locator('.rsz-aux');
+      const right = page.locator('.rsz-edge-left');
       const width = Number(await right.getAttribute('aria-valuenow'));
       await right.press('ArrowLeft');
       assert.equal(Number(await right.getAttribute('aria-valuenow')), width + 16);

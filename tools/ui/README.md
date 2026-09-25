@@ -26,7 +26,7 @@ Adentro de cada región:
 | Vista | `view` · `view-tog` | Vistas apiladas que se reparten el alto. Cerrada cuesta una fila, no cero |
 | Encabezado de grupo | `region-head.group` | Separa grupos de una lista y se pega arriba. Nunca más fuerte que la banda |
 | Sección plegable | `accordion-item` | Dentro de un cuerpo que ya scrollea; es un `<details>`, no una vista |
-| Manija | `rsz` | Redimensiona entre dos regiones. Se ve de 1 px y se agarra de 8. `::before` es la **línea** (se pinta en `--ring` al pasar, al enfocar y al arrastrar) y `::after` la **zona de agarre**, transparente: la herramienta posiciona la línea, nunca invierte los dos |
+| Manija | `rsz` | Redimensiona entre dos regiones. Se ve de 1 px y se agarra de 8. `::before` es la **línea** (se pinta en `--ring` al pasar, al enfocar y al arrastrar) y `::after` la **zona de agarre**, transparente: la herramienta posiciona la línea, nunca invierte los dos. Pegada al borde de una región es `rsz-edge-right` · `rsz-edge-left` · `rsz-edge-top`: la herramienta elige el lado y nada más |
 
 No hay titlebar, banner ni activitybar. Una barra a lo ancho le cobra su alto a todas las regiones: lo que tendría va a la banda de la región de la que habla, y el nombre de la herramienta ya lo dice la pestaña del navegador. Un aviso va junto a la operación que avisa.
 
@@ -40,7 +40,7 @@ Además de su banda y su cuerpo, una región puede llevar tres cosas, siempre en
 | Vistas apiladas | `view` | listas distintas | no | grupos de propiedades | no | encabezado 32 |
 | Subbanda | `subband` | no | qué documento, su leyenda | no | qué corrida, su filtro | 32 |
 | Sidebar interno | `split` › `split-side` | no | no: es el secundario | no | qué repo, qué consulta | 240 · se pliega bajo 600 |
-| Maximizar | `.workbench.panel-max` · `bindPanelMaximize` | no | no | no | salida larga | botón 24 · temporal |
+| Maximizar | `.panel-max` · `bindPanelMaximize` | no | no | no | salida larga | botón 24 · temporal |
 | Dos paneles | `panes` › `pane` | no | comparar dos cosas | no | no | mitades · se pliega bajo 720 |
 | Acciones de fila | `row` › `row-actions` | sí | en listas | sí | en su sidebar interno | botones 24 · dos |
 | Barra de iconos y menú | `region-actions` · `RegionMenu` | sí | sí | sí | sí | botones 24 |
@@ -107,9 +107,21 @@ Radio 6, peso 500 e icono de 16 en los cuatro. El ancho mínimo es igual al alto
 | Estado | Regla |
 | --- | --- |
 | Al pasar | Fantasma, contorno, icono, alternador y fila: fondo `--hover` (la tinta al 8 %). Primario y destructivo: su color al 90 % |
-| Encendido o elegido | `--accent` de fondo y `--accent-foreground` de tinta; la fila elegida suma una barra de 2 a la izquierda en `--primary` |
+| Elegido | La fila de una lista o de una tabla (`.row.on`, `.table tr.on`): `--accent` de fondo y `--accent-foreground` de tinta, más una barra de 2 a la izquierda en `--primary` |
+| Encendido | El alternador y los botones del pie: se lee en la **tinta** —apagado en `--fg-3`, encendido en `--foreground`— y sin caja; al pasar, el `--hover` de siempre |
 | Foco | Un solo anillo para todo: `outline` de 2 en `--ring`, separado 2 |
 | Deshabilitado | Opacidad .5 y sin puntero |
+
+Piezas que completan una fila, una tabla y un menú:
+
+| Pieza | Clase | Regla |
+| --- | --- | --- |
+| Fila botón | `button.row` | La fila que elige en vez de navegar. El reset va en `:where`, así el fondo al pasar y el de la elegida siguen siendo los de `.row` |
+| Número de orden | `.row-index` | Un `<small>` adelante del nombre: 11, `--fg-3`, cifras tabulares, 16 de ancho mínimo |
+| Fila de dos renglones | `.row.stacked` › `.row-desc` | El nombre y, debajo, un dato largo que no entra a la derecha (11, `--fg-3`, una línea con elipsis). No se mezcla con filas de 28 en la misma lista |
+| Campo xs | `.input-group.input-group-xs` | El campo con unidad o icono dentro de una fila de 28 |
+| Rótulo y nota de menú | `.region-menu-caption` · `.region-menu-note` | Agrupan o explican dentro de un menú; no se enfocan. La nota mide 340 como máximo |
+| Destructivo | `.btn-destructive` · `.badge-destructive` | Sobre `--destructive-ink` (el rojo del tema mezclado con la tinta), que pasa AA en los dos temas: el rojo puro con texto blanco en claro medía 3,76:1 |
 
 El texto de un botón es un verbo en infinitivo, con objeto si hace falta («Guardar», «Correr el caso»): de una a tres palabras, mayúscula inicial y sin punto. Un solo botón primario por región; el resto, contorno o fantasma, y en un grupo el primario va primero.
 
@@ -253,7 +265,7 @@ const sidebarResize = {
 ```
 
 ```html
-<div class="rsz" v-resize="sidebarResize"></div>
+<div class="rsz rsz-edge-right" v-resize="sidebarResize"></div>
 ```
 
 8. Verificar con `make estilo-componentes` que un componente nuevo o cambiado pinta lo que dice `spec.json`, y con los chequeos de abajo.

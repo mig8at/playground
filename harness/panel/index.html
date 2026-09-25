@@ -80,13 +80,6 @@
        2026-09-18: `color-mix(in oklch, #4ade80 20%, var(--card))` da #4d3530, un marrón rojizo;
        `in oklab` da #2d4132. `make estilo-check` lo frena. */
 
-    /* ── LOS ICONOS QUE LE FALTAN A LA BASE ─────────────────────────────────────────────────────
-       PROPUESTA A LA BASE: `edit` (renombrar una entrada) y `grip` (la manija de arrastre de una
-       fila que se reordena). Dibujados en la misma grilla de 24 y con el mismo trazo que el juego de
-       `workbench.css`; eran los caracteres ✎ y ⠿, que cambian con la fuente y no se centran. */
-    .ui-icon[data-icon="edit"] { --ui-icon: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22black%22%20stroke-width%3D%221.75%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Cpath%20d%3D%22M4%2020h4L19%209a2.1%202.1%200%200%200-4-4L4%2016Z%22%2F%3E%3Cpath%20d%3D%22m13.5%206.5%204%204%22%2F%3E%3C%2Fsvg%3E") }
-    .ui-icon[data-icon="grip"] { --ui-icon: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22black%22%20stroke-width%3D%221.75%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Ccircle%20cx%3D%229%22%20cy%3D%226%22%20r%3D%221%22%2F%3E%3Ccircle%20cx%3D%2215%22%20cy%3D%226%22%20r%3D%221%22%2F%3E%3Ccircle%20cx%3D%229%22%20cy%3D%2212%22%20r%3D%221%22%2F%3E%3Ccircle%20cx%3D%2215%22%20cy%3D%2212%22%20r%3D%221%22%2F%3E%3Ccircle%20cx%3D%229%22%20cy%3D%2218%22%20r%3D%221%22%2F%3E%3Ccircle%20cx%3D%2215%22%20cy%3D%2218%22%20r%3D%221%22%2F%3E%3C%2Fsvg%3E") }
-
     /* ── EL DOCUMENTO ─────────────────────────────────────────────────────────────────────────── */
     html, body { height: 100% }
     body {
@@ -119,9 +112,9 @@
     }
     .workbench > .shell { grid-area: shell }
     .workbench > .rsz-b { grid-area: rszpanel }
-    /* La consola maximizada (`bindPanelMaximize`). ⚠ PROPUESTA A LA BASE: su regla ubica la consola
-       en `editor-start / panel-end`, que es la grilla de la base; con una grilla propia esas líneas no
-       existen. Acá la consola ya cruza las tres columnas, así que maximizar es taparle la cáscara. */
+    /* La consola maximizada (`bindPanelMaximize`). ⚠ DESVIACIÓN DECLARADA: la base oculta el editor y
+       ubica la consola en `editor-start / panel-end`, que son líneas de SU grilla; acá el editor vive
+       dentro de la cáscara y la consola ya cruza las tres columnas, así que maximizar es taparle la cáscara. */
     .workbench.panel-max { grid-template-rows: 0 0 minmax(0, 1fr) var(--statusbar-h) }
     .workbench.panel-max > .shell { display: none }
     .workbench.panel-max > .panel { grid-row: panel }
@@ -168,10 +161,9 @@
     .run-dot.running { background: var(--ok); animation: pulse 1.2s ease-in-out infinite }
     @keyframes pulse { 50% { opacity: .3 } }
     .run-time { font-size: var(--text-xs); font-weight: 400; color: var(--fg-2); white-space: nowrap }
-    /* Detener es la acción que corta: contorno y tinta en el rojo propio. PROPUESTA A LA BASE:
-       `.btn-destructive` en el tema claro es blanco sobre #ef4444 y mide 3,76:1 (medido acá, con la
-       corrida andando); como tinta sobre el fondo, `--danger` pasa en los dos temas. */
-    .stop { display: none; color: var(--danger); border-color: color-mix(in oklab, var(--danger) 50%, transparent) }
+    /* Detener es la acción que corta: el destructivo de la base (`--destructive-ink`, que pasa AA en
+       los dos temas), visible sólo con una corrida andando. */
+    .stop { display: none }
     .stop.on { display: inline-flex }
     /* El aviso de ambiente compartido: pertenece a la corrida, dentro del editor y sobre el mapa. Es el
        `.alert` de la base; lo propio es el ÁMBAR, que es semántico y por eso no vive en la base. */
@@ -299,16 +291,6 @@
     .prop > .label { white-space: nowrap; overflow: hidden; text-overflow: ellipsis }
     .prop-value { display: flex; align-items: center; gap: var(--space-2); min-width: 0 }
     .prop-value > .mono { flex: 1; min-width: 0; font-family: var(--font-mono); font-size: var(--text-sm) }
-    /* PROPUESTA A LA BASE: un `.input-group` de 24 (`xs`), como ya lo tienen el campo y el botón. El
-       monto lleva su `$` adentro y vive en una fila de 28. */
-    .props .input-group { height: var(--control-xs) }
-    /* PROPUESTA A LA BASE: el alternador encendido se lee en la TINTA, como ya los botones del pie
-       (8add6584). Con el fondo `--accent` de la base, en el tema claro el encendido es #eee sobre el
-       #f3f4f6 del sidebar: «CC» y «CE» se ven iguales. Acá: apagado en `--fg-3`, encendido en la tinta
-       plena y en 600, sin caja; al pasar, el `--hover` de siempre. */
-    .props .toggle { color: var(--fg-3) }
-    .props .toggle.on { background: none; color: var(--foreground); font-weight: 600 }
-    .props .toggle.on:hover { background: var(--hover) }
     /* La pista del control ocupa la columna del control y un renglón; el texto entero va al tooltip. */
     .prop-hint { margin: 0; padding: 0 var(--gutter) var(--space-1) calc(var(--gutter) + var(--prop-label-w) + var(--space-2));
       font-size: var(--text-xs); line-height: 16px; color: var(--fg-2);
@@ -339,14 +321,11 @@
     /* ═══ LOS MENÚS DE LA CORRIDA Y DE LA ENTIDAD ═════════════════════════════════════════════════
        Tienen la piel del menú de la base (`.region-menu`) pero su propio comportamiento: se abren en
        un punto (el click derecho) y toman PRESTADOS nodos que viven en otro lado (las pistas, el estado
-       de los servicios), que `bindMenu` no hace. PROPUESTA A LA BASE: un rótulo de grupo y una nota de
-       prosa dentro de `.region-menu`. */
-    .menu-caption { padding: var(--space-1) var(--space-2); font-size: var(--text-xs); color: var(--fg-2) }
+       de los servicios), que `bindMenu` no hace. El rótulo de grupo y la nota son los de la base
+       (`.region-menu-caption`, `.region-menu-note`). */
     .menu-title { font-size: var(--text-base); font-weight: 600; color: var(--popover-foreground);
       overflow: hidden; text-overflow: ellipsis; white-space: nowrap }
-    .menu-note { max-width: 340px; margin: 0; padding: var(--space-1) var(--space-2);
-      font-size: var(--text-xs); line-height: 1.5; color: var(--fg-2); white-space: normal }
-    .menu-note code, .dependency code { font-family: var(--font-mono) }
+    .region-menu-note code, .dependency code { font-family: var(--font-mono) }
     .menu-danger { color: var(--danger) }
     .health-popover { width: var(--health-w); max-width: calc(100vw - var(--space-4)) }
     .health { display: flex; flex-direction: column; gap: var(--space-3); padding: var(--space-1) }
@@ -464,7 +443,7 @@
             </button>
             <span class="run-dot" id="runDot"></span>
             <span class="run-time" id="activityTime"></span>
-            <button type="button" class="btn btn-outline btn-sm stop" id="stopBtn">Detener</button>
+            <button type="button" class="btn btn-destructive btn-sm stop" id="stopBtn">Detener</button>
             <button type="button" class="btn btn-sm" id="go" disabled>Preparar + Lanzar ▶</button>
           </div>
         </div>
@@ -510,7 +489,7 @@
           <div class="region-head group"><span>Caso</span></div>
           <div class="prop">
             <label class="label" for="amount">Monto solicitado</label>
-            <div class="input-group"><span class="ico-txt">$</span><input id="amount" class="input input-xs" type="text" inputmode="numeric" value="2.000.000" oninput="onMoney(this)" /></div>
+            <div class="input-group input-group-xs"><span class="ico-txt">$</span><input id="amount" class="input input-xs" type="text" inputmode="numeric" value="2.000.000" oninput="onMoney(this)" /></div>
           </div>
           <!-- Cupo ya confirmado: al inyectar, firma el flujo `already-confirmed-pre-approval` (flow_id=2).
                Es INYECTAR el estado del cupo, no validar nada (eso sigue por CLI: dev/experian-check.ts).
@@ -572,7 +551,7 @@
             <div class="region-head group"><span>Ingreso y empleo</span></div>
             <div class="prop">
               <label class="label" for="income">Ingreso mensual (COP)</label>
-              <div class="input-group"><span class="ico-txt">$</span><input id="income" class="input input-xs" type="text" inputmode="numeric" value="2.500.000" oninput="onMoney(this)" /></div>
+              <div class="input-group input-group-xs"><span class="ico-txt">$</span><input id="income" class="input input-xs" type="text" inputmode="numeric" value="2.500.000" oninput="onMoney(this)" /></div>
             </div>
             <div class="prop">
               <label class="label" for="occupation">Ocupación</label>
@@ -622,7 +601,7 @@
                `loadStatus()` le sigue escribiendo esté donde esté. -->
           <div id="healthHolder" hidden>
             <div class="health" id="healthDetails">
-              <p class="menu-caption" id="healthSummary">Consultando servicios…</p>
+              <p class="region-menu-caption" id="healthSummary">Consultando servicios…</p>
               <div class="stats" id="stats"></div>
               <div class="dependency-list" id="missingServices"></div>
             </div>
@@ -1379,7 +1358,7 @@
     }
 
     function caption(m, txt, cls = '') {
-      const t = document.createElement('div'); t.className = 'menu-caption' + (cls ? ' ' + cls : ''); t.textContent = txt; m.appendChild(t); return t;
+      const t = document.createElement('div'); t.className = 'region-menu-caption' + (cls ? ' ' + cls : ''); t.textContent = txt; m.appendChild(t); return t;
     }
     function separator(m) { const hr = document.createElement('hr'); hr.setAttribute('role', 'separator'); m.appendChild(hr); }
 
@@ -1393,7 +1372,7 @@
       // La pista del front se MUEVE acá: es la explicación de lo que acabás de elegir, y en el header
       // no entra (se recortaba a 22 caracteres).
       const hint = $('frontHint');
-      if (hint) { hint.className = 'menu-note'; m.appendChild(hint); }
+      if (hint) { hint.className = 'region-menu-note'; m.appendChild(hint); }
       separator(m);
       itemMenu(m, { txt: 'Abrir el admin', plain: true, icon: 'external', off: !!$('btn-admin')?.disabled,
         motivo: $('btn-admin')?.title || '', accion: () => $('btn-admin').click() });
@@ -1406,7 +1385,7 @@
       caption(m, 'Canal de entrada');
       for (const it of buttonItems('#channelOptions button')) itemMenu(m, it);
       const hint = $('channelHint');
-      if (hint) { hint.className = 'menu-note'; m.appendChild(hint); }
+      if (hint) { hint.className = 'region-menu-note'; m.appendChild(hint); }
       const r = anchor.getBoundingClientRect();
       mountMenu(m, r.left, r.bottom + 4);
     }
@@ -2623,7 +2602,7 @@
       for (const it of buttonItems('#stepOptions button')) itemMenu(m, it);
       // La pista se MUEVE al menú, igual que las de Entorno y Canal: es la explicación de lo elegido.
       const hint = $('stepHint');
-      if (hint) { hint.className = 'menu-note'; m.appendChild(hint); }
+      if (hint) { hint.className = 'region-menu-note'; m.appendChild(hint); }
       const r = $('btnStart').getBoundingClientRect();
       mountMenu(m, r.left, r.bottom + 4);
     };

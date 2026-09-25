@@ -1693,7 +1693,7 @@ function documentAction(id) {
          con su conteo quedan a la vista SIEMPRE, sin desplegar nada. Antes había que abrir un
          grupo para saber cuántas tenía. -->
     <aside id="tasks-sidebar" class="sidebar" v-show="sidebarVisible && sidebarShown" aria-label="Lista de tareas">
-      <div class="rsz rsz-sb" v-resize="resizeOptions('--sidebar-w', 1)"></div>
+      <div class="rsz rsz-edge-right" v-resize="resizeOptions('--sidebar-w', 1)"></div>
       <div class="region-head">
         <span>{{ wideView ? `Mis tareas · ${bySprint.length} sprints` : "Mis tareas" }}</span>
         <!-- ⚠ ESTE CONTADOR ES LO QUE HABILITA MANDAR LOS FILTROS AL MENÚ. Un filtro escondido que
@@ -2146,7 +2146,7 @@ function documentAction(id) {
              :class="{ 'sin-ramas': !activeTaskBranches.branches.length }"
              :data-size="activeTaskBranches.branches.length ? null : 'fixed'"
              :style="{ height: (activeTaskBranches.branches.length ? branchConsoleShown : 76) + 'px' }">
-      <div v-if="activeTaskBranches.branches.length" class="rsz rsz-panel" data-rsz="panel" v-resize="branchPanelResize"></div>
+      <div v-if="activeTaskBranches.branches.length" class="rsz rsz-edge-top" data-rsz="panel" v-resize="branchPanelResize"></div>
       <RepoBranches :snapshot="activeTaskBranches" :task-label="active?.Summary || ''"
                     :refreshing="refreshingBranches" :refresh-error="branchesError"
                     @refresh="refreshBranches" @close="hideBranchConsole" />
@@ -2155,7 +2155,7 @@ function documentAction(id) {
     <!-- AUXILIARYBAR · consultas que conviene mantener al lado del trabajo: el contrato publicado
          (Jira), el checklist accionable (Pendientes) y los Artifacts navegables. -->
     <aside id="task-views" v-if="showAux && auxShown" class="auxiliarybar" aria-label="Vistas de la tarea">
-      <div class="rsz rsz-aux" v-resize="resizeOptions('--auxiliarybar-w', -1)"></div>
+      <div class="rsz rsz-edge-left" v-resize="resizeOptions('--auxiliarybar-w', -1)"></div>
       <nav class="tabs aux-tabs" role="tablist" aria-label="Contenido de la tarea">
         <button v-for="v in auxViews" :key="v.id" type="button" role="tab" class="tab"
                 :class="{ on: auxOpen(v.id) }" :data-view="v.id"
@@ -2374,7 +2374,6 @@ function documentAction(id) {
    `workbench.css` pone el aspecto; acá va DÓNDE: pegadas al borde interior de cada sidebar, en capa
    sobre él. ⚠ Se salen 3px hacia afuera (`margin`) para que la zona de agarre cubra el borde de
    verdad y no haya que apuntarle a un píxel. */
-.sidebar, .auxiliarybar, .branch-panel { position: relative }
 .workbench.with-branch-panel {
   grid-template-areas:
     "titlebar    titlebar  titlebar  titlebar"
@@ -2383,14 +2382,7 @@ function documentAction(id) {
     "activitybar sidebar   panel     panel"
     "statusbar   statusbar statusbar statusbar";
 }
-.rsz-sb, .rsz-aux { position: absolute; top: 0; bottom: 0; width: calc(var(--rsz) + 6px) }
-.rsz-sb { right: -3px }
-.rsz-aux { left: -3px }
-.rsz-sb::before { left: 3px; right: auto; width: 1px }
-.rsz-aux::before { left: auto; right: 3px; width: 1px }
 .branch-panel { overflow: visible }
-.rsz-panel { position:absolute; inset:-3px 0 auto; height:calc(var(--rsz) + 6px) }
-.rsz-panel::before { top:3px; bottom:auto; height:1px }
 
 /* ── LAS PESTAÑAS DEL EDITOR ─────────────────────────────────────────────────────────────────────
    Son las de la base (`.tabs` › `.tab` con `.tab-label` y `.tab-close`): banda de 40, la activa con el

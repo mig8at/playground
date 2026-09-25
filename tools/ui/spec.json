@@ -238,6 +238,26 @@
     },
     {
       "group": "Campos",
+      "id": "input-group-xs",
+      "name": "Campo con icono xs",
+      "cls": ".input-group.input-group-xs",
+      "html": "<div class=\"input-group input-group-xs\"><span class=\"ico-txt\">$</span><input class=\"input\" value=\"2.000.000\"></div>",
+      "measure": {
+        "height": 24,
+        "paddingLeft": 4,
+        "paddingRight": 4,
+        "gap": 4,
+        "borderRadius": 6
+      },
+      "parts": {
+        ".input": {
+          "fontSize": 12
+        }
+      },
+      "use": "El campo con unidad o icono dentro de una fila de 28 (una propiedad, un filtro de la banda)."
+    },
+    {
+      "group": "Campos",
       "id": "select",
       "name": "Select",
       "cls": ".select",
@@ -333,6 +353,25 @@
       "use": "Elegir una de dos a cinco opciones cortas, a la vista. En una banda, toggle-sm (28)."
     },
     {
+      "group": "Campos",
+      "id": "toggle-on",
+      "name": "Alternador encendido",
+      "cls": ".toggle.on",
+      "html": "<div class=\"toggle-group\"><button class=\"toggle on\">CC</button><button class=\"toggle\">CE</button></div>",
+      "target": ".toggle.on",
+      "measure": {
+        "height": 32,
+        "backgroundColor": "rgba(0, 0, 0, 0)",
+        "fontWeight": 500
+      },
+      "parts": {
+        ".toggle:not(.on)": {
+          "height": 32
+        }
+      },
+      "use": "El encendido se lee en la TINTA plena, sin caja; el apagado en --fg-3. Al pasar, el --hover de siempre."
+    },
+    {
       "group": "Datos",
       "id": "badge",
       "name": "Píldora",
@@ -413,6 +452,27 @@
       "use": "Datos en columnas. Una línea por fila, sin grilla; los números a la derecha y tabulares."
     },
     {
+      "group": "Datos",
+      "id": "table-row-on",
+      "name": "Fila de tabla elegida",
+      "cls": ".table tr.on",
+      "html": "<table class=\"table\"><tbody><tr class=\"on\"><td>519245</td><td>Autorizada</td></tr><tr><td>519246</td><td>Rechazada</td></tr></tbody></table>",
+      "target": "tr.on td",
+      "measure": {
+        "height": 32,
+        "paddingLeft": 12
+      },
+      "parts": {
+        "tr.on td + td": {
+          "boxShadow": "none"
+        },
+        "tr:not(.on) td": {
+          "backgroundColor": "rgba(0, 0, 0, 0)"
+        }
+      },
+      "use": "La fila abierta de una tabla: la superficie del acento y la barra de 2 en la primera celda, como la .row elegida."
+    },
+    {
       "group": "Listas",
       "id": "row",
       "name": "Fila",
@@ -434,6 +494,47 @@
         }
       },
       "use": "Un elemento de una lista o de un árbol. 4 afuera y 8 adentro: el texto a 12 del borde, como la banda. Un nivel de árbol, 16 más."
+    },
+    {
+      "group": "Listas",
+      "id": "row-button",
+      "name": "Fila botón",
+      "cls": "button.row",
+      "html": "<button class=\"row\"><small class=\"row-index\">3</small><span>Completa tu solicitud</span></button>",
+      "measure": {
+        "height": 28,
+        "paddingLeft": 8,
+        "fontSize": 13,
+        "borderWidth": 0,
+        "marginLeft": 4,
+        "textAlign": "left"
+      },
+      "parts": {
+        ".row-index": {
+          "fontSize": 11,
+          "minWidth": 16
+        }
+      },
+      "use": "Una fila que es un botón (elige, no navega). El número de orden va adelante en .row-index."
+    },
+    {
+      "group": "Listas",
+      "id": "row-stacked",
+      "name": "Fila de dos renglones",
+      "cls": ".row.stacked",
+      "html": "<div class=\"row stacked\"><span>Completa tu solicitud</span><span class=\"row-desc\">Inicio › Datos › Completa tu solicitud</span></div>",
+      "measure": {
+        "paddingTop": 4,
+        "paddingBottom": 4,
+        "gap": 0,
+        "flexDirection": "column"
+      },
+      "parts": {
+        ".row-desc": {
+          "fontSize": 11
+        }
+      },
+      "use": "El nombre y, debajo, un dato largo que no entra a la derecha. Crece a 44; no se mezcla con filas de 28 en la misma lista."
     },
     {
       "group": "Listas",
@@ -461,6 +562,27 @@
         }
       },
       "use": "Una opción del menú ⋯. La caja: 4 de aire y radio 10; entre 220 y 320 de ancho."
+    },
+    {
+      "group": "Menús",
+      "id": "menu-caption",
+      "name": "Rótulo y nota de menú",
+      "cls": ".region-menu-caption · .region-menu-note",
+      "html": "<div class=\"region-menu\" style=\"position:static;display:block\"><p class=\"region-menu-caption\">Servicios</p><p class=\"region-menu-note\">El OTP se tipea a mano: la prueba llega hasta la pantalla que lo pide.</p></div>",
+      "target": ".region-menu-caption",
+      "measure": {
+        "fontSize": 11,
+        "paddingLeft": 8,
+        "paddingTop": 4
+      },
+      "parts": {
+        ".region-menu-note": {
+          "fontSize": 11,
+          "maxWidth": 340,
+          "marginTop": 0
+        }
+      },
+      "use": "Un rótulo que agrupa ítems y una nota en prosa dentro de un menú. No son ítems: no se enfocan."
     },
     {
       "group": "Estructura",
@@ -697,6 +819,21 @@
         }
       },
       "use": "El botón de la banda de la consola le da todo el alto de la columna y tapa el editor. Temporal: no se guarda, y se deshace con el mismo botón o con Escape."
+    },
+    {
+      "group": "Consola",
+      "id": "rsz-edge",
+      "name": "Manija de borde",
+      "cls": ".rsz-edge-right · -left · -top",
+      "html": "<div class=\"sidebar\" style=\"height:60px\"><div class=\"rsz rsz-edge-right\"></div></div>",
+      "target": ".rsz-edge-right",
+      "measure": {
+        "width": 10,
+        "height": 60,
+        "right": -3,
+        "position": "absolute"
+      },
+      "use": "La manija pegada al borde de una región: la herramienta sólo elige el lado; la zona de agarre se sale 3 px y la línea queda en el borde."
     },
     {
       "group": "Opciones de una región",

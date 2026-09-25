@@ -746,7 +746,7 @@ const rowMetaTitle = (sc) => [sc.hotspots?.length ? 'Tiene zonas del prototipo' 
 <template>
   <div class="workbench" :style="layoutVars">
     <aside v-show="shown.sidebar" class="sidebar" aria-label="Proyectos">
-      <div class="rsz rsz-sb" v-resize="resizeOptions('sidebar')"></div>
+      <div class="rsz rsz-edge-right" v-resize="resizeOptions('sidebar')"></div>
       <!-- La banda superior de la columna, de 40 como la del editor y la del detalle: sin ella la primera
            vista (32) dejaba la costura de arriba escalonada contra las otras dos columnas. -->
       <div class="region-head"><span>Proyectos</span><span v-if="flows.length" class="count">{{ flows.length }}</span></div>
@@ -883,7 +883,7 @@ const rowMetaTitle = (sc) => [sc.hotspots?.length ? 'Tiene zonas del prototipo' 
     </main>
 
     <aside v-show="shown.aux" class="auxiliarybar" aria-label="Detalle de la pantalla">
-      <div class="rsz rsz-aux" v-resize="resizeOptions('aux')"></div>
+      <div class="rsz rsz-edge-left" v-resize="resizeOptions('aux')"></div>
       <div class="region-head"><span>Pantalla</span></div>
       <div class="region-body detail">
         <div v-if="!current" class="empty">
@@ -972,19 +972,9 @@ const rowMetaTitle = (sc) => [sc.hotspots?.length ? 'Tiene zonas del prototipo' 
 </template>
 
 <style scoped>
-/* Lo que queda acá es lo que la base NO da: dónde van las manijas, la fila de pantalla con su número, el
+/* Lo que queda acá es lo que la base NO da: la fila de pantalla con su meta, el
    lienzo que se arrastra, el marco del dispositivo y las zonas del prototipo. Todo lo demás —bandas,
    vistas, filas, contadores, alternador, avisos, estado vacío, pie— es de `workbench.css`. */
-
-/* Las manijas van pegadas al borde de cada sidebar, igual que en el tablero.
-   PROPUESTA A LA BASE: esta geometría está copiada idéntica en el tablero; podría ser una clase de la
-   base (`.rsz-edge-right` / `.rsz-edge-left`). */
-.sidebar, .auxiliarybar { position: relative }
-.rsz-sb, .rsz-aux { position: absolute; top: 0; bottom: 0; width: calc(var(--rsz) + 6px) }
-.rsz-sb { right: -3px }
-.rsz-aux { left: -3px }
-.rsz-sb::before { left: 3px; right: auto; width: 1px }
-.rsz-aux::before { left: auto; right: 3px; width: 1px }
 
 /* El tema va antes de los de disposición y separado 8: el `gap` de 4 de la base más estos 4. */
 .theme-toggle { margin-right: var(--space-1) }
@@ -998,26 +988,7 @@ const rowMetaTitle = (sc) => [sc.hotspots?.length ? 'Tiene zonas del prototipo' 
 .section-name { padding: var(--space-3) var(--gutter) var(--space-1); font-size: var(--text-xs); color: var(--fg-3) }
 .region-head.group.unlabeled > span:first-child { font-style: italic }
 
-/* PROPUESTA A LA BASE: una fila que ES un botón necesita el reset que ya tiene `button.region-head`
-   (borde, fondo, familia y alineación del navegador) y el ancho de la región menos su aire. */
-/* Con `:where` no suma peso: el fondo al pasar y el de la fila elegida (`.row:hover`, `.row.on`) siguen
-   siendo los de la base. */
-:where(button.row) { width: calc(100% - 2 * var(--space-1)); border: 0; background: none; font: inherit; font-size: var(--text-base);
-  text-align: left }
-/* Deshabilitada como cualquier control de la base: opacidad .5 y sin puntero (tampoco el fondo al pasar). */
-:where(button.row):disabled { opacity: .5; pointer-events: none }
-/* PROPUESTA A LA BASE: la fila no tiene un lugar para un dato ADELANTE (el número de orden). Va en un
-   `<small>` porque la regla de la base que estira el rótulo toma cualquier `<span>` que no sea icono,
-   dato ni píldora. */
-.row-index { flex: none; min-width: var(--space-4); font-size: var(--text-xs); color: var(--fg-3); font-variant-numeric: tabular-nums }
 .row-meta { display: inline-flex; align-items: center; gap: var(--space-1) }
-/* PROPUESTA A LA BASE: una fila de DOS renglones —el nombre y, debajo, por dónde se llega—. El segundo
-   renglón es largo y no entra como `.row-meta` a la derecha. */
-.row.stacked { flex-direction: column; align-items: stretch; gap: 0; padding-top: var(--space-1); padding-bottom: var(--space-1) }
-.row-desc { overflow: hidden; text-overflow: ellipsis; font-size: var(--text-xs); color: var(--fg-3) }
-/* Sobre la fila elegida, lo apagado toma la tinta del acento, como el `.row-meta` de la base. */
-.row.on .row-index, .row.on .row-desc { color: var(--accent-foreground) }
-
 /* El lienzo: la región no scrollea, la pantalla se arrastra. */
 .stage { position: relative; flex: 1; min-height: 0; overflow: hidden; cursor: grab; touch-action: none; user-select: none }
 .stage.dragging { cursor: grabbing }
@@ -1035,12 +1006,6 @@ const rowMetaTitle = (sc) => [sc.hotspots?.length ? 'Tiene zonas del prototipo' 
 .editor > .region-head { flex-wrap: wrap; row-gap: var(--space-1) }
 /* Al envolver, el título no cede todo el ancho: sin una base, `flex: 1` con `min-width: 0` lo dejaba en 0. */
 .editor > .region-head > span:first-child { flex: 1 1 140px }
-/* PROPUESTA A LA BASE: el alternador encendido todavía se pinta con fondo (`--accent`), y la regla del pie
-   (8add6584) es que un estado encendido se lee en la TINTA, no en una caja. Hasta que la base lo traiga
-   para `.toggle`, el de los modos lo hace acá: apagado en --fg-3, encendido en --foreground. */
-.mode-toggle > .toggle { color: var(--fg-3) }
-.mode-toggle > .toggle.on { background: none; color: var(--foreground) }
-.mode-toggle > .toggle.on:hover { background: var(--hover) }
 /* La base no trae una flecha hacia la izquierda: se da vuelta la de la derecha. */
 .icon-flip { transform: scaleX(-1) }
 

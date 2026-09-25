@@ -462,15 +462,6 @@ async function copyTrace() {
   margin-right:var(--detail-width, 0px) }
 .workspace .editor-map { flex:1 1 0; min-width:0; min-height:220px }
 .workspace .recent-panel { flex:none; min-height:0 }
-/* LA CONSOLA MAXIMIZADA. La base la resuelve para su grid (`.workbench.panel-max > .editor`); acá la
-   columna central es flex, así que se repite para ella.
-   PROPUESTA A LA BASE: que la regla de maximizar no dependa de que editor y panel sean hijos directos
-   del grid `.workbench` (por ejemplo, `.panel-max > .editor` y `.panel-max > .panel` sobre la raíz que
-   se le pasa a `bindPanelMaximize`), así una columna flex la recibe sin repetirla. */
-.workspace.panel-max > .editor { display:none }
-.workspace.panel-max > .panel { flex:1 1 0; height:auto !important }
-.workspace.panel-max > [data-rsz="panel"] { display:none }
-
 /* ⚠ DESVIACIÓN DECLARADA: en capa, pegado a la derecha y por encima del mapa. La base lo pone en su
    propia pista del grid; acá flota para que ensancharlo no relocalice el DOM del mapa. La superficie, la
    línea y la columna flex son las de `.auxiliarybar`. */

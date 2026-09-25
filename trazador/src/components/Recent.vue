@@ -183,10 +183,7 @@ defineExpose({ restore: () => maximize?.set(false) })
 .table th:last-child { width:96px }
 .request-row { cursor:pointer }
 .request-row:hover td { background:var(--hover) }
-/* La solicitud abierta, como la fila elegida de la base: la superficie del acento y la barra de 2.
-   PROPUESTA A LA BASE: la fila elegida de una `.table` (`tr.on`), que hoy existe sólo para `.row`. */
-.request-row.on td { background:var(--accent); color:var(--accent-foreground) }
-.request-row.on td:first-child { box-shadow:inset 2px 0 0 var(--primary) }
+/* La solicitud abierta es la fila elegida de la `.table` de la base (`tr.on`). */
 .request-id { font-family:var(--font-mono); font-size:var(--text-sm); color:var(--txt) }
 .request-date { font-variant-numeric:tabular-nums }
 .request-status { font-weight:600 }

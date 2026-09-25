@@ -92,6 +92,8 @@
      (3,12:1, medido en el tablero); mezclado con un 30 % de la tinta pasa en los dos temas (≈5:1 en
      claro, ≈8:1 en oscuro). Es una derivación, así que vale para cualquier tema que se pegue. */
   --primary-ink: color-mix(in oklab, var(--primary) 70%, var(--foreground));
+  /* Lo mismo para el destructivo: blanco sobre el rojo del tema en claro mide 3,76:1 (el Detener del harness). */
+  --destructive-ink: color-mix(in oklab, var(--destructive) 70%, var(--foreground));
   --titlebar-h: 52px;
   --statusbar-h: 30px;
   --banner-h: auto;
@@ -363,10 +365,10 @@ button.region-head:focus-visible { outline: none; box-shadow: inset 0 0 0 2px va
    ⚠ Y el panel del harness dibuja su línea con `::after`. Esta usa `::before` a propósito: si usara
    la misma, en el panel pintarían las DOS y se verían dos líneas. */
 .rsz { z-index: 5; touch-action: none; cursor: col-resize; position: relative }
-.rsz[aria-orientation="horizontal"], .rsz.rsz-b, .rsz.rsz-y { cursor: row-resize }
+.rsz[aria-orientation="horizontal"], .rsz.rsz-b, .rsz.rsz-y, .rsz.rsz-edge-top { cursor: row-resize }
 .rsz::before { content: ""; position: absolute; inset: 0; background: transparent; transition: background .12s }
 .rsz::after { content: ""; position: absolute; inset: 0 -4px; z-index: 1 }
-.rsz[aria-orientation="horizontal"]::after, .rsz.rsz-b::after, .rsz.rsz-y::after { inset: -4px 0 }
+.rsz[aria-orientation="horizontal"]::after, .rsz.rsz-b::after, .rsz.rsz-y::after, .rsz.rsz-edge-top::after { inset: -4px 0 }
 .rsz:hover::before, .rsz:focus-visible::before, .rsz.on::before, body.resizing .rsz.on::before { background: var(--ring) }
 body.resizing { cursor: col-resize; user-select: none }
 
@@ -431,8 +433,8 @@ body.resizing { cursor: col-resize; user-select: none }
    rojo medio, y el blanco encima mide 3,35:1. Lo cazó `make estilo-check` sobre este mismo archivo.
    Va el fondo de la app como tinta —la misma inversión que usa el tooltip del original—, que sobre
    ese rojo sí llega. Si un tema trae un rojo oscuro, esto sigue funcionando: se invierte solo. */
-.btn-destructive { background: var(--destructive); color: var(--background) }
-.btn-destructive:hover { background: color-mix(in oklab, var(--destructive) 90%, transparent) }
+.btn-destructive { background: var(--destructive-ink); color: var(--background) }
+.btn-destructive:hover { background: color-mix(in oklab, var(--destructive-ink) 90%, transparent) }
 /* El de enlace no es un botón disfrazado de texto: es texto que se comporta como enlace. */
 .btn-link { height: auto; padding: 0; background: none; border: 0; color: var(--primary-ink);
   text-underline-offset: 4px }
@@ -490,7 +492,7 @@ textarea.input { height: auto; min-height: 80px; padding: var(--space-2) var(--g
   transition: color .12s, box-shadow .12s;
 }
 .badge-secondary { background: var(--secondary); color: var(--secondary-foreground) }
-.badge-destructive { background: var(--destructive); color: var(--background) }
+.badge-destructive { background: var(--destructive-ink); color: var(--background) }
 .badge-outline { background: transparent; color: var(--foreground); border-color: var(--border) }
 .badge-ghost { background: transparent; color: var(--fg-3) }
 /* ⚠ `badge-xs` NO está en el original, y es una extensión DECLARADA: estas herramientas son densas y
@@ -576,6 +578,7 @@ textarea.input { height: auto; min-height: 80px; padding: var(--space-2) var(--g
 .empty-media { display: flex; align-items: center; justify-content: center; flex: none;
   width: var(--control-lg); height: var(--control-lg); margin-bottom: var(--space-2); border-radius: var(--radius-float);
   color: var(--fg-3); font-size: var(--text-title) }
+.empty-title, .empty-desc { margin: 0 }
 .empty-title { font-size: var(--text-title); font-weight: 600; letter-spacing: -.01em; color: var(--foreground) }
 .empty-desc { font-size: var(--text-base); line-height: 1.6; color: var(--fg-2) }
 .empty-content { display: flex; width: 100%; max-width: 24rem; min-width: 0;
@@ -598,9 +601,13 @@ textarea.input { height: auto; min-height: 80px; padding: var(--space-2) var(--g
    usan `region-head` y `.kbd`. No es que shadcn esté mal — es que su paleta de referencia tiene más
    separación entre esos dos escalones que la nuestra, y por eso los colores se vuelven a medir. */
 .toggle:hover { background: var(--hover) }
+/* Apagado en --fg-3 y encendido en la tinta plena, sin caja: en claro el --accent de antes (#eee) no se
+   distinguía del sidebar (lo midió el harness). Es la misma regla que los botones del pie. */
+.toggle { color: var(--fg-3) }
 .toggle[aria-pressed="true"], .toggle.on, .toggle[data-state="on"] {
-  background: var(--accent); color: var(--accent-foreground);
+  background: none; color: var(--foreground);
 }
+.toggle[aria-pressed="true"]:hover, .toggle.on:hover, .toggle[data-state="on"]:hover { background: var(--hover) }
 .toggle:disabled { pointer-events: none; opacity: .5 }
 
 .toggle-outline > .toggle { border-color: var(--input) }
@@ -774,6 +781,12 @@ textarea.input { height: auto; min-height: 80px; padding: var(--space-2) var(--g
    No cambia con el estado —el sol y la luna no calzaban con el resto del juego—; lo que dice qué
    hace el clic es la etiqueta. Es el único glifo con relleno: una mitad llena es el dibujo. */
 .ui-icon[data-icon="theme"] { --ui-icon: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22black%22%20stroke-width%3D%221.75%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Ccircle%20cx%3D%2212%22%20cy%3D%2212%22%20r%3D%228.5%22%2F%3E%3Cpath%20d%3D%22M12%203.5a8.5%208.5%200%200%201%200%2017Z%22%20fill%3D%22black%22%20stroke%3D%22none%22%2F%3E%3C%2Fsvg%3E") }
+/* Subidos desde las herramientas: `edit` y `grip` (eran ✎ y ⠿ en el harness), `comment` (el visor)
+   y `alert` (los avisos del trazador no tenían icono). Misma grilla de 24 y trazo de 1,75. */
+.ui-icon[data-icon="edit"] { --ui-icon: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22black%22%20stroke-width%3D%221.75%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Cpath%20d%3D%22M4%2020h4L19%209a2.1%202.1%200%200%200-4-4L4%2016Z%22%2F%3E%3Cpath%20d%3D%22m13.5%206.5%204%204%22%2F%3E%3C%2Fsvg%3E") }
+.ui-icon[data-icon="grip"] { --ui-icon: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22black%22%20stroke-width%3D%221.75%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Ccircle%20cx%3D%229%22%20cy%3D%226%22%20r%3D%221%22%2F%3E%3Ccircle%20cx%3D%2215%22%20cy%3D%226%22%20r%3D%221%22%2F%3E%3Ccircle%20cx%3D%229%22%20cy%3D%2212%22%20r%3D%221%22%2F%3E%3Ccircle%20cx%3D%2215%22%20cy%3D%2212%22%20r%3D%221%22%2F%3E%3Ccircle%20cx%3D%229%22%20cy%3D%2218%22%20r%3D%221%22%2F%3E%3Ccircle%20cx%3D%2215%22%20cy%3D%2218%22%20r%3D%221%22%2F%3E%3C%2Fsvg%3E") }
+.ui-icon[data-icon="comment"] { --ui-icon: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22black%22%20stroke-width%3D%221.75%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Cpath%20d%3D%22M20%2015a2%202%200%200%201-2%202H8l-4%204V6a2%202%200%200%201%202-2h12a2%202%200%200%201%202%202Z%22%2F%3E%3C%2Fsvg%3E") }
+.ui-icon[data-icon="alert"] { --ui-icon: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22black%22%20stroke-width%3D%221.75%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Cpath%20d%3D%22M12%203.5%202.5%2020h19Z%22%2F%3E%3Cpath%20d%3D%22M12%2010v4.5M12%2017.2h.01%22%2F%3E%3C%2Fsvg%3E") }
 .ui-icon[data-icon="maximize"] { --ui-icon: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22black%22%20stroke-width%3D%221.75%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Cpath%20d%3D%22M14%204h6v6M10%2020H4v-6M20%204l-6.5%206.5M4%2020l6.5-6.5%22%2F%3E%3C%2Fsvg%3E") }
 .ui-icon[data-icon="restore"] { --ui-icon: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22black%22%20stroke-width%3D%221.75%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Cpath%20d%3D%22M4%2014h6v6M20%2010h-6V4M14%2010l6.5-6.5M10%2014l-6.5%206.5%22%2F%3E%3C%2Fsvg%3E") }
 
@@ -874,7 +887,11 @@ textarea.input { height: auto; min-height: 80px; padding: var(--space-2) var(--g
 /* La consola MAXIMIZADA toma todo el alto de la columna del editor. Es la única forma de tapar el
    editor, y por eso es temporal: no se guarda, y se deshace con el mismo botón o con Escape
    (`bindPanelMaximize`). Su manija, marcada `data-rsz="panel"`, no aparece mientras tanto. */
-.workbench.panel-max > .editor { display: none }
+/* Vale sobre cualquier raíz que reciba `bindPanelMaximize` (la grilla de la base o una columna flex,
+   como la del trazador). La ubicación en la grilla es sólo de `.workbench`. */
+.panel-max > .editor { display: none }
+.panel-max > .panel { flex: 1 1 0; height: auto !important }
+.panel-max > [data-rsz="panel"] { display: none }
 /* ⚠ `!important` a propósito: la herramienta suele fijar el alto de la consola en línea (lo que arrastró
    la persona), y maximizar tiene que ganarle sin tocar esa medida, que es la que vuelve al restaurar.
    Y va por encima de lo que tape (el sidebar secundario, si la consola cruza su columna). */
@@ -909,6 +926,46 @@ textarea.input { height: auto; min-height: 80px; padding: var(--space-2) var(--g
   .row:has(.row-actions) { padding-right: calc(var(--space-1) + 2 * var(--control-xs) + 2px + var(--space-1)) }
   .row:has(.row-actions) .row-meta { display: none }
 }
+
+/* ── SUBIDO DESDE LAS HERRAMIENTAS ─────────────────────────────────────────────────────────────
+   Lo que el visor, el trazador y el harness resolvieron cada uno por su lado al pasar a la base, y
+   que ahora tiene una sola forma. */
+
+/* Una fila que ES un botón: el reset de `button.region-head`. Con `:where` no suma peso, así el fondo
+   al pasar y el de la elegida siguen siendo los de `.row`. */
+:where(button.row) { width: calc(100% - 2 * var(--space-1)); border: 0; background: none; font: inherit;
+  font-size: var(--text-base); text-align: left }
+:where(button.row):disabled { opacity: .5; pointer-events: none }
+/* Un dato ADELANTE (el número de orden): va en un <small>, que la regla que estira el rótulo no toma. */
+.row-index { flex: none; min-width: var(--space-4); font-size: var(--text-xs); color: var(--fg-3); font-variant-numeric: tabular-nums }
+/* Una fila de DOS renglones: el nombre y, debajo, un dato largo que no entra a la derecha. */
+.row.stacked { flex-direction: column; align-items: stretch; gap: 0; padding-top: var(--space-1); padding-bottom: var(--space-1) }
+.row-desc { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: var(--text-xs); color: var(--fg-3) }
+.row.on .row-index, .row.on .row-desc, .row[aria-selected="true"] .row-index, .row[aria-selected="true"] .row-desc { color: var(--accent-foreground) }
+
+/* La fila elegida de una tabla, como la de una lista: la superficie del acento y la barra de 2. */
+.table tbody tr.on td, .table tbody tr[aria-selected="true"] td { background: var(--accent); color: var(--accent-foreground) }
+.table tbody tr.on td:first-child, .table tbody tr[aria-selected="true"] td:first-child { box-shadow: inset 2px 0 0 var(--primary) }
+
+/* El campo con icono de 24, para una fila de 28. */
+.input-group.input-group-xs { height: var(--control-xs); padding: 0 var(--space-1); gap: var(--space-1) }
+.input-group-xs > .input { font-size: var(--text-sm); line-height: 16px }
+
+/* Dentro de un menú: un rótulo de grupo y una nota de prosa. */
+.region-menu-caption { padding: var(--space-1) var(--space-2); font-size: var(--text-xs); color: var(--fg-2) }
+.region-menu-note { max-width: 340px; margin: 0; padding: var(--space-1) var(--space-2);
+  font-size: var(--text-xs); line-height: 1.5; color: var(--fg-2); white-space: normal }
+
+/* La manija pegada al BORDE de una región (el sidebar, el secundario, la consola): la zona de agarre se
+   sale 3 px hacia afuera y la línea queda sobre el borde. La herramienta sólo elige el lado. */
+:where(.sidebar, .auxiliarybar, .panel):has(> .rsz-edge-right, > .rsz-edge-left, > .rsz-edge-top) { position: relative }
+.rsz-edge-right, .rsz-edge-left { position: absolute; top: 0; bottom: 0; width: calc(var(--rsz) + 6px) }
+.rsz-edge-right { right: -3px }
+.rsz-edge-left { left: -3px }
+.rsz-edge-right::before { left: 3px; right: auto; width: 1px }
+.rsz-edge-left::before { left: auto; right: 3px; width: 1px }
+.rsz-edge-top { position: absolute; left: 0; right: 0; top: -3px; height: calc(var(--rsz) + 6px) }
+.rsz-edge-top::before { top: 3px; bottom: auto; height: 1px }
 
 /* ── UN CONTROL DENTRO DE UNA BANDA ───────────────────────────────────────────────────────────────
    La banda superior mide 40 con su línea: 4 de aire, un control de 28 y 4 de aire. Un control de 32
