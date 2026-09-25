@@ -16,7 +16,7 @@ loki logql gemini twilio figma tailwindcss tailwind
 cognito laravel wompi experian imei vtex agildata netco tusdatos selfmanager smartpay credipullman
 motai pullman abaco welli payvalida bancolombia creditop wizard blade cuotealo creditopx
 posthog hogql mermaid deceval corbeta credifamilia datacredito allied allieds pesos
-vue vite babel mcp pinia
+vue vite babel mcp pinia lucide
 
 # ── términos técnicos que la stdlib casi no usa ───────────────────────────────────────────────────
 slug frontmatter jsonl upsert shortstat squash changelog pathspec
