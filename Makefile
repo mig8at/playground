@@ -176,7 +176,7 @@ trazador: ## @dia ¿QUÉ LE PASÓ a esta solicitud? el flujo por etapas, del sis
 # El VISOR de Figma: el recorrido de un diseño, pantalla por pantalla y con el prototipo navegable.
 # Lee por connectors/figma (el mismo `figma map` de bin/pg) y guarda las imágenes en visor/.cache/.
 .PHONY: visor visor-test
-visor: ## @dia ¿CÓMO ES el diseño de este flujo? un diseño de Figma recorrido pantalla por pantalla, con el prototipo navegable (:5193 · API :5194)
+visor: ## @dia ¿CÓMO ES el diseño de este flujo, y qué tan bien pasa a HTML? un diseño de Figma pantalla por pantalla, al lado de su HTML traducido (:5193 · API :5194). El modelo usa los visor-* de abajo
 	@cd visor && npm run dev
 
 visor-test: ## @dia las pruebas del visor: la traducción a HTML (flex, absolutas, recortes, dibujos) y el server (rutas de disco, una sola bajada)
