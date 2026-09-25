@@ -51,6 +51,30 @@ Una grilla de 4 y cuatro alturas que se repiten en todas las regiones, para que 
 
 Un control dentro de una banda mide 28 (24 si es de icono): 4 de aire, 28 y 4 dan los 40. `taller.css` lo aplica al final del archivo.
 
+## Componentes
+
+Cada componente tiene una medida exacta —alto, padding, gap, letra, peso, interlineado, radio, icono— escrita en [`spec.json`](spec.json), que es la fuente: se cambia ahí primero y después `taller.css`. `make estilo-componentes` dibuja cada uno con `tema.css` y `taller.css` y compara lo que pinta el navegador contra esos números, así la base no puede decir una medida y pintar otra. El artifact muestra la misma especificación, con cada componente dibujado con este `taller.css`.
+
+Los controles comparten una escalera de cuatro tamaños. Un control de un tamaño mide lo mismo, sea botón, botón de icono, campo, alternador o select:
+
+| Tamaño | Alto | Padding | Gap | Letra | Línea | Dónde |
+| --- | --- | --- | --- | --- | --- | --- |
+| `xs` | 24 | 8 | 4 | 12 | 16 | Adentro de una fila o de una barra de iconos |
+| `sm` | 28 | 12 | 8 | 13 | 20 | Adentro de una banda superior |
+| `md` | 32 | 12 | 8 | 13 | 20 | Por defecto: el cuerpo de una región, un formulario |
+| `lg` | 40 | 16 | 8 | 14 | 20 | Sólo la acción principal de un estado vacío |
+
+Radio 6, peso 500 e icono de 16 en los cuatro. El ancho mínimo es igual al alto. Las medidas cuentan la caja entera, con el borde adentro (`border-box`).
+
+| Estado | Regla |
+| --- | --- |
+| Al pasar | Fantasma, contorno, icono, alternador y fila: fondo `--hover` (la tinta al 8 %). Primario y destructivo: su color al 90 % |
+| Encendido o elegido | `--accent` de fondo y `--accent-foreground` de tinta; la fila elegida suma una barra de 2 a la izquierda en `--primary` |
+| Foco | Un solo anillo para todo: `outline` de 2 en `--ring`, separado 2 |
+| Deshabilitado | Opacidad .5 y sin puntero |
+
+El texto de un botón es un verbo en infinitivo, con objeto si hace falta («Guardar», «Correr el caso»): de una a tres palabras, mayúscula inicial y sin punto. Un solo botón primario por región; el resto, contorno o fantasma, y en un grupo el primario va primero.
+
 ## Tipografía
 
 | Tamaño | Token | Uso |
@@ -190,11 +214,14 @@ const sidebarResize = {
 <div class="rsz" v-resize="sidebarResize"></div>
 ```
 
+8. Verificar con `make estilo-componentes` que un componente nuevo o cambiado pinta lo que dice `spec.json`, y con los chequeos de abajo.
+
 ## Archivos y verificación
 
 - `tema.css`: los tokens de color, tipografía y radio del tema (hoy Darkmatter, de ShadcnThemer). Se reemplaza entero con `make estilo-tema DE=archivo.css`.
 - `taller.css`: las regiones, las medidas, los componentes, el foco y los iconos. Un tema no lo toca.
 - `workbench.js`: el comportamiento (manijas con mínimo o nada, `regionSize`, `fitRegions`, `reopenSize`, `cssSize`; el tema, `THEME_BOOT`, `bindThemeToggle`, `setTheme`, `applyTheme`; el menú `bindMenu` y la directiva `vResize`). Sus pruebas sin navegador están en `workbench.test.mjs`.
+- `spec.json`: la medida exacta de cada componente; la lee `make estilo-componentes` y de ahí sale la sección de componentes del artifact.
 - `RegionMenu.vue`: el adaptador Vue del mismo menú.
 - `index.html`: el catálogo interactivo, que usa estos mismos archivos (`make estilo-guia`, en http://127.0.0.1:5198).
 
@@ -203,6 +230,7 @@ Se edita acá y se reparte con `make estilo-sync`: cada herramienta tiene su cop
 | Comando | Qué verifica |
 | --- | --- |
 | `make estilo-check` | Que las copias sean iguales a la fuente, los tokens, el contraste estático y la estructura |
+| `make estilo-componentes` | Que cada componente pinte la medida exacta de `spec.json` (sin herramientas encendidas) |
 | `make estilo-minimo` | Mínimo o nada: la lógica sin navegador y, con las herramientas encendidas, cuatro anchos de ventana y cada paso del teclado |
 | `make estilo-contraste` | El contraste de lo que se pinta, con las herramientas encendidas |
 | `make estilo-ui` | Teclado, arrastre, persistencia, menús y tres anchos de ventana, con las herramientas encendidas (`SOLO=` elige cuáles) |

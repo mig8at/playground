@@ -220,6 +220,9 @@ estilo-minimo: ## @dia «mínimo o nada» en las cuatro UIs encendidas: ninguna 
 	@node --test tools/ui/workbench.test.mjs >/dev/null && echo '  ✓  workbench.js: la lógica, sin navegador'
 	@SOLO="$(SOLO)" node tools/ui-minimum.mjs
 
+estilo-componentes: ## @dia ¿la base pinta lo que dice? dibuja cada componente de tools/ui/spec.json con taller.css y compara alto, padding, letra, radio e icono contra la especificación. No necesita las herramientas encendidas
+	@node tools/ui-spec.mjs
+
 estilo-guia: ## @dia catálogo interactivo de la UI compartida en http://127.0.0.1:5198
 	@python3 -m http.server 5198 --bind 127.0.0.1 --directory tools/ui
 

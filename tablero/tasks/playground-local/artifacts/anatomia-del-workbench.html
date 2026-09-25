@@ -247,6 +247,24 @@ ol.steps li::marker { color: var(--fg-3); font-variant-numeric: tabular-nums }
 .mn-status .tg.off { opacity: .45 }
 .mn-log { font-size: 13px; color: var(--fg-2); min-height: 1.5em }
 .mn-log b { color: var(--fg); font-weight: 600 }
+
+/* ══ COMPONENTES ═════════════════════════════════════════════════════════════════════════════
+   Cada uno se dibuja con el taller.css real, adentro de un shadow DOM: no toca los estilos de acá. */
+.ladder td.val { color: var(--fg) }
+.states { display: grid; gap: 0 32px; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)) }
+.states > div { padding: 12px 0; border-top: 1px solid var(--border); display: grid; grid-template-columns: 120px minmax(0, 1fr); gap: 12px; font-size: 13px }
+.states b { font-weight: 600 } .states span { color: var(--fg-2) }
+.cgroup { display: flex; flex-direction: column; gap: 12px }
+.cgroup > h3 { font-size: 13px; color: var(--fg-2); padding-top: 8px }
+.cards { display: grid; gap: 16px; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)) }
+.card { display: flex; flex-direction: column; gap: 8px; min-width: 0 }
+.card .spec-host { display: block; border: 1px solid var(--border); border-radius: 6px; overflow: hidden }
+.card .nm { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 8px; font-size: 13px; font-weight: 600 }
+.card .nm code { font-size: 12px; font-weight: 500; color: var(--primary-ink) }
+.card .ms { display: flex; flex-wrap: wrap; gap: 4px }
+.card .ms span { font-family: var(--mono); font-size: 11px; color: var(--fg-2); background: color-mix(in oklab, var(--fg) 6%, transparent); border-radius: 4px; padding: 1px 6px; white-space: nowrap }
+.card .us { font-size: 13px; color: var(--fg-2) }
+
 footer { font-size: 12px; color: var(--fg-3); border-top: 1px solid var(--border); padding-top: 16px }
 @media (prefers-reduced-motion: reduce) { * { transition: none !important } }
 </style>
@@ -265,7 +283,7 @@ footer { font-size: 12px; color: var(--fg-3); border-top: 1px solid var(--border
     <nav class="toc" aria-label="Secciones">
       <a href="#base">La base</a><a href="#piezas">Las piezas</a><a href="#medidas">Medidas</a>
       <a href="#tipografia">Tipografía</a><a href="#espacios">Espacios</a><a href="#iconos">Iconos</a>
-      <a href="#forma">Forma</a><a href="#comportamiento">Comportamiento</a><a href="#reglas">Reglas</a>
+      <a href="#componentes">Componentes</a><a href="#forma">Forma</a><a href="#comportamiento">Comportamiento</a><a href="#reglas">Reglas</a>
       <a href="#construir">Construir sobre la base</a>
     </nav>
   </header>
@@ -431,6 +449,22 @@ footer { font-size: 12px; color: var(--fg-3); border-top: 1px solid var(--border
       <div class="col"><h3>La grilla del dibujo</h3><div class="grid24" id="grid24"></div>
         <p class="never"><s>✕</s><s>⧉</s><s>▸</s><s>⋯</s><s>✓</s><s>⚠</s><s>emoji</s> Un carácter no es un icono: cambia con la fuente, no respeta el trazo ni se centra en el botón. Un icono nuevo se dibuja en esta grilla y se suma a <code>taller.css</code>; no se mezclan juegos.</p></div>
     </div>
+  </section>
+
+  <section id="componentes">
+    <div class="sec-head">
+      <h2>Componentes</h2>
+      <p>Cada componente de la base con su medida exacta. Se dibujan con el mismo <code>taller.css</code> que usan las herramientas, y <code>make estilo-componentes</code> comprueba que lo que pinta el navegador coincida con estos números: la base no puede decir una medida y pintar otra. La fuente es <code>tools/ui/spec.json</code>.</p>
+    </div>
+    <div class="col"><h3>Cuatro tamaños de control</h3>
+      <div class="tbl-wrap"><table class="ladder"><thead><tr><th>Tamaño</th><th>Alto</th><th>Padding</th><th>Gap</th><th>Letra</th><th>Línea</th><th>Dónde</th></tr></thead><tbody id="ladderRows"></tbody></table></div>
+      <p class="hint" id="ladderShared"></p>
+    </div>
+    <div class="two">
+      <div class="col"><h3>Estados</h3><div class="states" id="statesList" style="grid-template-columns:minmax(0,1fr)"></div></div>
+      <div class="col"><h3>El texto de un botón</h3><div class="states" id="copyList" style="grid-template-columns:minmax(0,1fr)"></div></div>
+    </div>
+    <div id="componentGroups" style="display:flex;flex-direction:column;gap:24px"></div>
   </section>
 
   <section id="forma">
@@ -632,6 +666,49 @@ footer { font-size: 12px; color: var(--fg-3); border-top: 1px solid var(--border
     + Object.entries(PROPOSED).map(([n, d]) => `<div class="icon-cell new" title="${n} · por sumar">${svg(d)}<code>${n} · por sumar</code></div>`).join('');
   $('grid24').innerHTML = ['copy', 'search', 'chevron'].map((n) => `<figure><span class="big">${svg(ICONS[n]).replace('<svg ', '<svg width="120" height="120" ')}</span><figcaption>${n} · 24 × 24</figcaption></figure>`).join('');
 
+
+  // ── componentes: la especificación y el taller.css reales, inyectados por build.py ──
+  // (los datos van al final del archivo, así que esto espera a que se haya leído entero)
+  document.addEventListener('DOMContentLoaded', function () {
+    const SPEC = JSON.parse(document.getElementById('ui-spec').textContent);
+    const UICSS = document.getElementById('ui-css').textContent;
+    const L = { height: 'alto', width: 'ancho', minWidth: 'ancho mín.', minHeight: 'alto mín.', paddingTop: 'arriba', gap: 'gap',
+      fontSize: 'letra', fontWeight: 'peso', lineHeight: 'línea', borderRadius: 'radio', borderWidth: 'borde', borderLeftWidth: 'barra',
+      iconSize: 'icono', marginLeft: 'afuera' };
+    function chips(m) {
+      const out = [];
+      if (m.paddingLeft !== undefined) out.push(m.paddingLeft === m.paddingRight || m.paddingRight === undefined ? `padding ${m.paddingLeft}` : `padding ${m.paddingLeft} · ${m.paddingRight}`);
+      for (const [k, v] of Object.entries(m)) {
+        if (k === 'paddingLeft' || k === 'paddingRight') continue;
+        out.push(`${L[k] || k} ${k === 'borderRadius' && v >= 999 ? 'completo' : v}`);
+      }
+      return out.map((t) => `<span>${t}</span>`).join('');
+    }
+    document.getElementById('ladderRows').innerHTML = SPEC.ladder.sizes.map((z) =>
+      `<tr><td class="tok">${z.size}</td><td class="val">${z.height}</td><td class="val">${z.padX}</td><td class="val">${z.gap}</td><td class="val">${z.font}</td><td class="val">${z.line}</td><td>${z.use}</td></tr>`).join('');
+    document.getElementById('ladderShared').textContent = SPEC.ladder.shared;
+    document.getElementById('statesList').innerHTML = SPEC.states.map((x) => `<div><b>${x.state}</b><span>${x.rule}</span></div>`).join('');
+    document.getElementById('copyList').innerHTML = SPEC.copy.map((x, i) => `<div><b>${['Qué dice', 'Cuántos', 'Con icono'][i] || ''}</b><span>${x.replace(/«/g, '«').replace(/»/g, '»')}</span></div>`).join('');
+    const groups = [...new Set(SPEC.components.map((c) => c.group))];
+    const root = document.getElementById('componentGroups');
+    root.innerHTML = groups.map((g) => `<div class="cgroup"><h3>${g}</h3><div class="cards">${SPEC.components.filter((c) => c.group === g).map((c) =>
+      `<div class="card"><span class="spec-host" data-id="${c.id}"></span><div class="nm">${c.name} <code>${c.cls}</code></div><div class="ms">${chips(c.measure)}${Object.entries(c.parts || {}).map(([sel, m]) => chips(Object.fromEntries(Object.entries(m).map(([k, v]) => [k, v])))).join('')}</div><div class="us">${c.use}</div></div>`).join('')}</div></div>`).join('');
+    // el CSS de la base, con :root → :host para que viva adentro de cada shadow
+    const shadowCss = UICSS.replace(/:root\b/g, ':host').replace(/(^|\n)\.dark\s*\{/g, '$1:host(.dark) {')
+      + ':host{display:block}.pad{padding:16px;background:var(--background);color:var(--foreground);font-family:var(--font-sans);font-size:var(--text-base);line-height:1.4}';
+    const hosts = [...document.querySelectorAll('.spec-host')];
+    for (const h of hosts) {
+      const c = SPEC.components.find((x) => x.id === h.dataset.id);
+      const sh = h.attachShadow({ mode: 'open' });
+      sh.innerHTML = `<style>${shadowCss}</style><div class="pad">${c.html}</div>`;
+    }
+    const dark = () => (document.documentElement.dataset.theme || (matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light')) === 'dark';
+    const sync = () => hosts.forEach((h) => h.classList.toggle('dark', dark()));
+    new MutationObserver(sync).observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
+    try { matchMedia('(prefers-color-scheme: dark)').addEventListener('change', sync); } catch {}
+    sync();
+  });
+
   // ── mínimo o nada: la misma lógica que `workbench.js`, a media escala ──
   (function () {
     const S = 0.5, MIN = 240, ED_MIN = 360;
@@ -712,4 +789,964 @@ footer { font-size: 12px; color: var(--fg-3); border-top: 1px solid var(--border
     render();
   })();
 })();
+</script>
+<script type="application/json" id="ui-spec">{"schema": "ui.spec/v1", "about": "La medida exacta de cada componente de la base. La lee tools/ui-spec.mjs, que dibuja cada uno con tema.css y taller.css y compara lo que pinta el navegador contra estos números; y de acá sale la sección de componentes del artifact. Se cambia acá primero, y después taller.css.", "ladder": {"about": "Los cuatro tamaños de control. Botón, botón de icono, campo, alternador y select usan la misma escalera: un control de un tamaño mide lo mismo sea lo que sea.", "sizes": [{"size": "xs", "height": 24, "padX": 8, "gap": 4, "font": 12, "line": 16, "use": "Adentro de una fila o de una barra de iconos"}, {"size": "sm", "height": 28, "padX": 12, "gap": 8, "font": 13, "line": 20, "use": "Adentro de una banda superior"}, {"size": "md", "height": 32, "padX": 12, "gap": 8, "font": 13, "line": 20, "use": "Por defecto: el cuerpo de una región, un formulario"}, {"size": "lg", "height": 40, "padX": 16, "gap": 8, "font": 14, "line": 20, "use": "Sólo la acción principal de un estado vacío"}], "shared": "Radio 6. Peso 500. Icono de 16. Ancho mínimo igual al alto, así un botón de una letra es cuadrado."}, "states": [{"state": "Reposo", "rule": "Cada variante con su superficie y su tinta."}, {"state": "Al pasar", "rule": "Fantasma, contorno, icono, alternador y fila: fondo --hover (la tinta al 8 %). Primario y destructivo: su color al 90 %."}, {"state": "Encendido o elegido", "rule": "--accent de fondo y --accent-foreground de tinta; la fila elegida suma una barra de 2 a la izquierda en --primary."}, {"state": "Foco", "rule": "Un solo anillo para todo: outline de 2 en --ring, separado 2. Nunca se saca sin reemplazo."}, {"state": "Deshabilitado", "rule": "Opacidad .5 y sin puntero. No se cambia el color."}], "copy": ["El texto de un botón es un verbo en infinitivo, con objeto si hace falta: «Guardar», «Correr el caso». De una a tres palabras, mayúscula inicial, sin punto.", "Un solo botón primario por región; el resto, contorno o fantasma. En un grupo, el primario va primero.", "Un icono en un botón con texto, sólo en la acción principal. Un botón de icono lleva title y aria-label."], "components": [{"group": "Botones", "id": "btn-md", "name": "Botón", "cls": ".btn", "html": "<button class=\"btn\">Guardar<\/button>", "measure": {"height": 32, "paddingLeft": 12, "paddingRight": 12, "fontSize": 13, "fontWeight": 500, "lineHeight": 20, "borderRadius": 6, "minWidth": 32}, "use": "La acción de un formulario o de una sección. Primario: uno por región."}, {"group": "Botones", "id": "btn-sm", "name": "Botón en banda", "cls": ".btn.btn-sm", "html": "<button class=\"btn btn-outline btn-sm\">Correr<\/button>", "measure": {"height": 28, "paddingLeft": 12, "paddingRight": 12, "fontSize": 13, "fontWeight": 500, "lineHeight": 20, "borderRadius": 6, "minWidth": 28}, "use": "Adentro de una banda superior de 40."}, {"group": "Botones", "id": "btn-xs", "name": "Botón compacto", "cls": ".btn.btn-xs", "html": "<button class=\"btn btn-ghost btn-xs\">Ver<\/button>", "measure": {"height": 24, "paddingLeft": 8, "paddingRight": 8, "fontSize": 12, "fontWeight": 500, "lineHeight": 16, "borderRadius": 6, "minWidth": 24}, "use": "Adentro de una fila, al lado de un dato."}, {"group": "Botones", "id": "btn-lg", "name": "Botón grande", "cls": ".btn.btn-lg", "html": "<button class=\"btn btn-lg\">Crear la primera<\/button>", "measure": {"height": 40, "paddingLeft": 16, "paddingRight": 16, "fontSize": 14, "fontWeight": 500, "lineHeight": 20, "borderRadius": 6, "minWidth": 40}, "use": "Sólo la acción principal de un estado vacío."}, {"group": "Botones", "id": "btn-icon", "name": "Botón de icono", "cls": ".region-action", "html": "<button class=\"region-action\" title=\"Copiar\" aria-label=\"Copiar\"><span class=\"ui-icon\" data-icon=\"copy\" aria-hidden=\"true\"><\/span><\/button>", "measure": {"height": 24, "width": 24, "borderRadius": 6, "iconSize": 16}, "use": "Las acciones de una banda o de una barra de iconos. Entre dos vecinos, 2."}, {"group": "Botones", "id": "btn-icon-md", "name": "Botón de icono suelto", "cls": ".btn.btn-icon", "html": "<button class=\"btn btn-outline btn-icon\" title=\"Refrescar\" aria-label=\"Refrescar\"><span class=\"ui-icon\" data-icon=\"refresh\" aria-hidden=\"true\"><\/span><\/button>", "measure": {"height": 32, "width": 32, "borderRadius": 6, "iconSize": 16}, "use": "Un icono al lado de un campo o de un botón de 32."}, {"group": "Campos", "id": "input-md", "name": "Campo", "cls": ".input", "html": "<input class=\"input\" placeholder=\"Monto\">", "measure": {"height": 32, "paddingLeft": 12, "paddingRight": 12, "fontSize": 13, "lineHeight": 20, "borderRadius": 6, "borderWidth": 1}, "use": "Un dato de un formulario."}, {"group": "Campos", "id": "input-sm", "name": "Campo en banda", "cls": ".input.input-sm", "html": "<input class=\"input input-sm\" placeholder=\"Buscar\">", "measure": {"height": 28, "paddingLeft": 8, "paddingRight": 8, "fontSize": 13, "lineHeight": 20, "borderRadius": 6}, "use": "El buscador de una banda superior."}, {"group": "Campos", "id": "input-xs", "name": "Campo compacto", "cls": ".input.input-xs", "html": "<input class=\"input input-xs\" placeholder=\"Filtrar\">", "measure": {"height": 24, "paddingLeft": 8, "paddingRight": 8, "fontSize": 12, "lineHeight": 16, "borderRadius": 6}, "use": "Un filtro dentro de un grupo o de una fila."}, {"group": "Campos", "id": "input-group", "name": "Campo con icono", "cls": ".input-group", "html": "<div class=\"input-group\"><span class=\"ui-icon\" data-icon=\"search\" aria-hidden=\"true\"><\/span><input class=\"input\" placeholder=\"Buscar\"><\/div>", "measure": {"height": 32, "paddingLeft": 8, "paddingRight": 8, "gap": 8, "borderRadius": 6, "iconSize": 16}, "use": "Un campo con una lupa, una unidad o una ✕. El borde lo lleva el grupo."}, {"group": "Campos", "id": "select", "name": "Select", "cls": ".select", "html": "<span class=\"select\"><select class=\"input\"><option>Todos<\/option><option>Errores<\/option><\/select><\/span>", "target": "select", "measure": {"height": 32, "paddingLeft": 12, "paddingRight": 32, "fontSize": 13, "borderRadius": 6}, "use": "Elegir una opción de una lista cerrada. La flecha es un icono de 16 a 8 del borde."}, {"group": "Campos", "id": "textarea", "name": "Texto largo", "cls": "textarea.input", "html": "<textarea class=\"input\" placeholder=\"Nota\"><\/textarea>", "measure": {"minHeight": 80, "paddingLeft": 12, "paddingTop": 8, "fontSize": 13, "lineHeight": 20, "borderRadius": 6}, "use": "Una nota o un texto de más de una línea. Tres renglones a la vista."}, {"group": "Campos", "id": "field", "name": "Campo con rótulo", "cls": ".field", "html": "<div class=\"field\"><label>Monto<\/label><input class=\"input\"><span class=\"field-hint\">En pesos, sin puntos<\/span><\/div>", "measure": {"gap": 8}, "parts": {"label": {"fontSize": 12, "fontWeight": 500}, ".field-hint": {"fontSize": 12, "lineHeight": 16}}, "use": "Rótulo arriba a 8 del campo, pista abajo. Entre dos campos, 12."}, {"group": "Campos", "id": "checkbox", "name": "Casilla", "cls": ".checkbox", "html": "<input type=\"checkbox\" class=\"checkbox\" checked>", "measure": {"height": 16, "width": 16, "borderRadius": 4}, "use": "Una opción que se prende o se apaga dentro de una lista. El rótulo a 8, en 13."}, {"group": "Campos", "id": "switch", "name": "Interruptor", "cls": ".switch", "html": "<button class=\"switch\" role=\"switch\" aria-checked=\"true\" aria-label=\"Activo\"><\/button>", "measure": {"height": 18, "width": 32, "borderRadius": 999}, "use": "Un ajuste que surte efecto en el acto."}, {"group": "Campos", "id": "toggle", "name": "Alternador", "cls": ".toggle-group.toggle-joined", "html": "<div class=\"toggle-group toggle-joined toggle-outline\"><button class=\"toggle on\">Día<\/button><button class=\"toggle\">Semana<\/button><button class=\"toggle\">Mes<\/button><\/div>", "target": ".toggle", "measure": {"height": 32, "paddingLeft": 8, "paddingRight": 8, "fontSize": 13, "fontWeight": 500, "minWidth": 32}, "use": "Elegir una de dos a cinco opciones cortas, a la vista. En una banda, toggle-sm (28)."}, {"group": "Datos", "id": "badge", "name": "Píldora", "cls": ".badge", "html": "<span class=\"badge badge-secondary\">En curso<\/span>", "measure": {"height": 20, "paddingLeft": 8, "paddingRight": 8, "fontSize": 11, "fontWeight": 500, "borderRadius": 999}, "use": "Un estado de una o dos palabras. Relleno o contorno, nunca los dos."}, {"group": "Datos", "id": "badge-xs", "name": "Píldora compacta", "cls": ".badge.badge-xs", "html": "<span class=\"badge badge-outline badge-xs\">rt2<\/span>", "measure": {"height": 16, "paddingLeft": 6, "paddingRight": 6, "fontSize": 11, "borderRadius": 999}, "use": "Una etiqueta adentro de una fila de 28."}, {"group": "Datos", "id": "count", "name": "Contador", "cls": ".count", "html": "<span class=\"count\">12<\/span>", "measure": {"fontSize": 11, "fontWeight": 400}, "use": "El número al lado del título de una banda o una vista. Con un filtro puesto pasa a «9 / 16» en --primary, peso 600."}, {"group": "Datos", "id": "kbd", "name": "Tecla", "cls": ".kbd", "html": "<kbd class=\"kbd\">Esc<\/kbd>", "measure": {"height": 20, "minWidth": 20, "paddingLeft": 4, "paddingRight": 4, "fontSize": 11, "borderRadius": 4}, "use": "Un atajo de teclado dentro de un texto o de un menú."}, {"group": "Datos", "id": "table", "name": "Tabla", "cls": ".table", "html": "<table class=\"table\"><thead><tr><th>Entidad<\/th><th class=\"num\">Monto<\/th><\/tr><\/thead><tbody><tr><td>Pullman<\/td><td class=\"num\">2.000.000<\/td><\/tr><\/tbody><\/table>", "target": "td", "measure": {"height": 32, "paddingLeft": 12, "fontSize": 13}, "parts": {"th": {"fontSize": 12, "fontWeight": 600, "height": 32}}, "use": "Datos en columnas. Una línea por fila, sin grilla; los números a la derecha y tabulares."}, {"group": "Listas", "id": "row", "name": "Fila", "cls": ".row", "html": "<div class=\"row\"><span class=\"ui-icon\" data-icon=\"server\" aria-hidden=\"true\"><\/span><span>Solicitud 519245<\/span><span class=\"row-meta\">hoy<\/span><\/div>", "measure": {"height": 28, "paddingLeft": 8, "paddingRight": 8, "gap": 8, "fontSize": 13, "borderRadius": 6, "marginLeft": 4, "iconSize": 16}, "parts": {".row-meta": {"fontSize": 11}}, "use": "Un elemento de una lista o de un árbol. 4 afuera y 8 adentro: el texto a 12 del borde, como la banda. Un nivel de árbol, 16 más."}, {"group": "Listas", "id": "menu-item", "name": "Ítem de menú", "cls": ".region-menu-item", "html": "<div class=\"region-menu\" style=\"position:static\"><button class=\"region-menu-item\"><span class=\"ui-icon\" data-icon=\"check\" aria-hidden=\"true\"><\/span><span class=\"menu-label\">Sólo errores<\/span><span class=\"n\">3<\/span><\/button><\/div>", "target": ".region-menu-item", "measure": {"height": 28, "paddingLeft": 8, "paddingRight": 8, "gap": 8, "fontSize": 13, "borderRadius": 6, "iconSize": 16}, "parts": {".region-menu": {"paddingTop": 4, "borderRadius": 10}, ".n": {"fontSize": 11}}, "use": "Una opción del menú ⋯. La caja: 4 de aire y radio 10; entre 220 y 320 de ancho."}, {"group": "Estructura", "id": "region-head", "name": "Banda superior", "cls": ".region-head", "html": "<div class=\"region-head\"><span>Explorador<\/span><div class=\"region-actions\"><button class=\"region-action\" aria-label=\"Agregar\"><span class=\"ui-icon\" data-icon=\"plus\" aria-hidden=\"true\"><\/span><\/button><\/div><\/div>", "measure": {"height": 40, "paddingLeft": 12, "paddingRight": 12, "gap": 8, "fontSize": 12, "fontWeight": 600}, "use": "La primera fila de cada columna, con su línea adentro."}, {"group": "Estructura", "id": "view-head", "name": "Encabezado de grupo", "cls": ".region-head.grupo", "html": "<div class=\"region-head grupo\"><span>Del equipo<\/span><\/div>", "measure": {"height": 32, "paddingLeft": 12, "fontSize": 12, "fontWeight": 600}, "use": "Un grupo dentro de una lista, o el encabezado de una vista."}, {"group": "Estructura", "id": "tabs", "name": "Pestaña", "cls": ".tabs › .tab", "html": "<nav class=\"tabs\"><button class=\"tab on\">Documento<\/button><button class=\"tab\">Pila<\/button><\/nav>", "target": ".tab", "measure": {"height": 36, "paddingLeft": 12, "paddingRight": 12, "fontSize": 12, "fontWeight": 400}, "parts": {".tabs": {"height": 40}}, "use": "La barra de pestañas es la banda superior (40); cada pestaña mide 36 y se apoya en la línea. La activa: fondo del cuerpo y una línea de 2 en --primary."}, {"group": "Estructura", "id": "statusbar", "name": "Pie", "cls": ".statusbar", "html": "<footer class=\"statusbar\"><span>local · sincronizado<\/span><\/footer>", "measure": {"height": 30, "paddingLeft": 12, "gap": 16, "fontSize": 11}, "use": "Estado a la izquierda; tema y disposición a la derecha, en botones de 24."}, {"group": "Avisos", "id": "alert", "name": "Aviso", "cls": ".alert", "html": "<div class=\"alert\"><span class=\"ui-icon alert-icon\" data-icon=\"eye\" aria-hidden=\"true\"><\/span><div class=\"alert-title\">Datos compartidos<\/div><div class=\"alert-desc\">Lo que escribas acá lo ven los demás.<\/div><\/div>", "measure": {"paddingLeft": 12, "paddingTop": 12, "borderRadius": 0, "borderLeftWidth": 2, "fontSize": 13}, "parts": {".alert-title": {"fontWeight": 600}}, "use": "Un aviso junto a la operación que avisa: una barra de 2 a la izquierda y un tinte, cuadrado."}, {"group": "Avisos", "id": "empty", "name": "Estado vacío", "cls": ".empty", "html": "<div class=\"empty\"><div class=\"empty-head\"><div class=\"empty-media\"><span class=\"ui-icon\" data-icon=\"search\" aria-hidden=\"true\"><\/span><\/div><div class=\"empty-title\">Sin resultados<\/div><div class=\"empty-desc\">Probá con otra palabra.<\/div><\/div><\/div>", "measure": {"paddingTop": 24}, "parts": {".empty-media": {"height": 40, "width": 40, "borderRadius": 10}, ".empty-title": {"fontSize": 16, "fontWeight": 600}, ".empty-desc": {"fontSize": 13}}, "use": "Lo que se ve cuando una región no tiene nada: qué falta y qué hacer."}]}</script>
+<script type="text/plain" id="ui-css">/* Tema compartido de CreditOp.
+ *
+ * Fuente canónica: tema Darkmatter de ShadcnThemer, aportado por Miguel el 2026-09-19.
+ * Se cambia únicamente aquí y `make estilo-sync` distribuye la misma paleta, tipografía y radios
+ * a context, trazador, tablero y harness/panel.
+ */
+
+@custom-variant dark (&:is(.dark *));
+
+:root {
+  --background: oklch(1.0000 0 0);
+  --foreground: oklch(0.2101 0.0318 264.6645);
+  --card: oklch(1.0000 0 0);
+  --card-foreground: oklch(0.2101 0.0318 264.6645);
+  --popover: oklch(1.0000 0 0);
+  --popover-foreground: oklch(0.2101 0.0318 264.6645);
+  --primary: oklch(0.6716 0.1368 48.5130);
+  --primary-foreground: oklch(1.0000 0 0);
+  --secondary: oklch(0.5360 0.0398 196.0280);
+  --secondary-foreground: oklch(1.0000 0 0);
+  --muted: oklch(0.9670 0.0029 264.5419);
+  --muted-foreground: oklch(0.5510 0.0234 264.3637);
+  --accent: oklch(0.9491 0 0);
+  --accent-foreground: oklch(0.2101 0.0318 264.6645);
+  --destructive: oklch(0.6368 0.2078 25.3313);
+  --border: oklch(0.9276 0.0058 264.5313);
+  --input: oklch(0.9276 0.0058 264.5313);
+  --ring: oklch(0.6716 0.1368 48.5130);
+  --chart-1: oklch(0.5940 0.0443 196.0233);
+  --chart-2: oklch(0.7214 0.1337 49.9802);
+  --chart-3: oklch(0.8721 0.0864 68.5474);
+  --chart-4: oklch(0.6268 0 0);
+  --chart-5: oklch(0.6830 0 0);
+  --sidebar: oklch(0.9670 0.0029 264.5419);
+  --sidebar-foreground: oklch(0.2101 0.0318 264.6645);
+  --sidebar-primary: oklch(0.6716 0.1368 48.5130);
+  --sidebar-primary-foreground: oklch(1.0000 0 0);
+  --sidebar-accent: oklch(1.0000 0 0);
+  --sidebar-accent-foreground: oklch(0.2101 0.0318 264.6645);
+  --sidebar-border: oklch(0.9276 0.0058 264.5313);
+  --sidebar-ring: oklch(0.6716 0.1368 48.5130);
+  --font-sans: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, 'Noto Sans', sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol', 'Noto Color Emoji';
+  --font-serif: ui-serif, Georgia, Cambria, "Times New Roman", Times, serif;
+  --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+  --radius: 0.625rem;
+}
+
+.dark {
+  --background: oklch(0.1797 0.0043 308.1928);
+  --foreground: oklch(0.8109 0 0);
+  --card: oklch(0.1822 0 0);
+  --card-foreground: oklch(0.8109 0 0);
+  --popover: oklch(0.1797 0.0043 308.1928);
+  --popover-foreground: oklch(0.8109 0 0);
+  --primary: oklch(0.7214 0.1337 49.9802);
+  --primary-foreground: oklch(0.1797 0.0043 308.1928);
+  --secondary: oklch(0.5940 0.0443 196.0233);
+  --secondary-foreground: oklch(0.1797 0.0043 308.1928);
+  --muted: oklch(0.2520 0 0);
+  --muted-foreground: oklch(0.6268 0 0);
+  --accent: oklch(0.3211 0 0);
+  --accent-foreground: oklch(0.8109 0 0);
+  --destructive: oklch(0.5940 0.0443 196.0233);
+  --border: oklch(0.2520 0 0);
+  --input: oklch(0.2520 0 0);
+  --ring: oklch(0.7214 0.1337 49.9802);
+  --chart-1: oklch(0.5940 0.0443 196.0233);
+  --chart-2: oklch(0.7214 0.1337 49.9802);
+  --chart-3: oklch(0.8721 0.0864 68.5474);
+  --chart-4: oklch(0.6268 0 0);
+  --chart-5: oklch(0.6830 0 0);
+  --sidebar: oklch(0.1822 0 0);
+  --sidebar-foreground: oklch(0.8109 0 0);
+  --sidebar-primary: oklch(0.7214 0.1337 49.9802);
+  --sidebar-primary-foreground: oklch(0.1797 0.0043 308.1928);
+  --sidebar-accent: oklch(0.3211 0 0);
+  --sidebar-accent-foreground: oklch(0.8109 0 0);
+  --sidebar-border: oklch(0.2520 0 0);
+  --sidebar-ring: oklch(0.7214 0.1337 49.9802);
+  --font-sans: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, 'Noto Sans', sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol', 'Noto Color Emoji';
+  --font-serif: ui-serif, Georgia, Cambria, "Times New Roman", Times, serif;
+  --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+  --radius: 0.625rem;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-ring: var(--sidebar-ring);
+
+  --font-sans: var(--font-sans);
+  --font-mono: var(--font-mono);
+  --font-serif: var(--font-serif);
+
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+}
+
+/* Fuente: tools/ui/taller.css. Distribuir con make estilo-sync.
+ *
+ * EL TALLER: cómo se divide la pantalla, con los nombres de VS Code.
+ *
+ * Hermano de `tema.css` y con la misma regla: es IDÉNTICO en las cuatro herramientas y `make
+ * estilo-check` compara los md5. Si se separan, el chequeo lo dice.
+ *
+ * `tema.css` dice de qué COLOR es cada cosa. Este dice QUÉ COSA ES. Son dos ejes distintos y por eso
+ * son dos archivos: un tema se reemplaza entero y esto no, porque acá hay decisiones del taller
+ * —cuánto mide un sidebar, qué scrollea— que ningún export trae.
+ *
+ * ── LAS REGIONES ────────────────────────────────────────────────────────────────────────────────
+ *
+ *   ┌───────────────────────────────────────────────┐
+ *   │ titlebar      el nombre y las acciones globales│
+ *   ├───────────────────────────────────────────────┤
+ *   │ banner        avisos que valen para TODO       │
+ *   ├────┬─────────┬──────────────────┬─────────────┤
+ *   │ a  │ sidebar │ editor           │ auxiliary   │
+ *   │ c  │         │ lo que viniste   │ bar         │
+ *   │ t  │ el      │ a mirar          │             │
+ *   │ i  │ árbol,  ├──────────────────┤ el detalle  │
+ *   │ v  │ la      │ panel            │ de lo       │
+ *   │ b  │ lista   │ la consola       │ elegido     │
+ *   ├────┴─────────┴──────────────────┴─────────────┤
+ *   │ statusbar     el target, el estado. NO scrollea│
+ *   └───────────────────────────────────────────────┘
+ *
+ * ⚠ **Una región existe cuando tiene contenido propio Y scroll propio.** Esa es la regla, y es lo que
+ * separa un vocabulario de una ceremonia: un `activitybar` vacío porque «está en la lista» es peor
+ * que no tenerlo. Una herramienta de lectura puede ser `titlebar` + `editor` y ya está bien.
+ *
+ * ⚠ Y la región que NO ponés en el markup **no cuesta nada**: sus pistas son `auto`, así que colapsan
+ * a 0. Por eso el ancho va en el ELEMENTO (`.sidebar { width }`) y no en la pista del grid — con la
+ * medida en la pista, un sidebar ausente seguiría ocupando sus 300 px.
+ *
+ * ⚠ Cada elemento declara SU área por nombre, nunca su número de fila. El panel del harness aprendió
+ * esto a los golpes: tenía las filas por índice y un aviso en `display:none` —que no ocupa celda—
+ * corría todo un renglón hacia arriba; se veía como «la consola desapareció». Con áreas nombradas
+ * eso no puede pasar.
+ *
+ * ── EL CONTRATO DE SCROLL ───────────────────────────────────────────────────────────────────────
+ *
+ * `.workbench` ocupa la ventana y **cada región scrollea sola; la página nunca scrollea**. Es lo que
+ * hace que leer un log largo no te empuje el mapa fuera de la vista.
+ *
+ * Es OPT-IN: una herramienta que es una página de lectura usa los nombres sin `.workbench` y sigue
+ * scrolleando como una página. Lo que no se vale es fingirlo con `max-height: 82vh` — el día que el
+ * header crezca una línea, ese 82 miente y la columna se corta sin que nadie lo note.
+ */
+
+/* ── MEDIDAS ──────────────────────────────────────────────────────────────────────────────────── */
+:root {
+  /* ── LAS MEDIDAS ─────────────────────────────────────────────────────────────────────────────
+     Todo sale de una grilla de 4 y de CUATRO alturas que se repiten en cada región, así las líneas
+     de una columna siguen en la de al lado:
+
+       40  la banda superior de cada columna (encabezado de región, barra de pestañas)
+       32  un encabezado de vista o de grupo, y un control (campo, botón, select)
+       28  una fila (lista, árbol, menú) y un botón compacto
+       24  un botón de icono y un control dentro de una barra
+
+     Y un margen: el texto de una región arranca a 12px de su borde, en el encabezado y en cada fila,
+     así el título y lo que titula quedan en la misma vertical. El editor que muestra un documento
+     usa 24. Entre secciones 24, entre bloques 16, entre un rótulo y su control 8. */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-6: 24px;          /* (no hay --space-5: entre 16 y 24 no hizo falta nunca) */
+  --control-xs: 24px;
+  --control-sm: 28px;
+  --control-md: 32px;
+  --control-lg: 40px;
+  --region-head-h: 40px;
+  --view-head-h: 32px;
+  --row-h: 28px;
+  --gutter: var(--space-3); /* el margen del texto de una región */
+  --indent: 16px;           /* un nivel de un árbol */
+  --text-xs: 11px;          /* pie, conteos, metadatos */
+  --text-sm: 12px;          /* encabezados, rótulos, controles compactos */
+  --text-base: 13px;        /* la interfaz: filas, campos, botones, menús */
+  --text-body: 14px;        /* la prosa de un documento */
+  --text-title: 16px;       /* el título del documento abierto; uno por pantalla */
+  --icon-size: 16px;
+  --radius-control: 6px;    /* botón, campo, ítem de menú, botón de icono */
+  --radius-float: 10px;     /* lo que flota: radio del ítem + el aire del menú (6 + 4), concéntricos */
+  --hover: color-mix(in oklab, var(--foreground) 8%, transparent); /* fondo al pasar: fantasma, icono, fila */
+  --titlebar-h: 52px;
+  --statusbar-h: 30px;
+  --banner-h: auto;
+  --activitybar-w: 48px;
+  --sidebar-w: 300px;      /* navegación: una lista, un árbol */
+  --auxiliarybar-w: 340px; /* detalle: formularios, logs */
+  --panel-h: 240px;
+  /* Mínimo o nada: por debajo de estos números la región se pliega a 0 (workbench.js los lee).
+     El sidebar y el secundario comparten mínimo; el panel es su encabezado más tres filas; el
+     editor no se pliega nunca y es lo que calcula el máximo de las demás. */
+  --sidebar-min: 240px;
+  --panel-min: 124px;
+  --editor-min: 360px;
+  --rsz: 4px;              /* el grosor de una manija de redimensionar */
+
+  /* ── LA RAMPA DE TEXTO ────────────────────────────────────────────────────────────────────────
+     `muted-foreground` depende de cada tema y no se usa como tinta densa sin medirlo. Esta rampa
+     sale del foreground contra el lienzo, por lo que conserva jerarquía al cambiar la paleta.
+     `make estilo-check` valida las reglas que fijan tinta y superficie; no apilar `opacity` sobre
+     estos valores, porque el contraste efectivo baja sin que se note en la regla aislada. */
+  --texto-2: color-mix(in oklab, var(--foreground) 74%, var(--background));
+  --texto-3: color-mix(in oklab, var(--foreground) 70%, var(--background));
+}
+
+/* Dos pesos: 400 y 600. Lo que el navegador pone en negrita por su cuenta (700) baja a 600; con
+   `:where` no suma especificidad, así cualquier regla de una herramienta le gana. */
+:where(b, strong, h1, h2, h3, h4, h5, h6, th) { font-weight: 600 }
+
+/* ── EL GRID ──────────────────────────────────────────────────────────────────────────────────── */
+.workbench {
+  height: 100dvh;
+  display: grid;
+  grid-template-columns: auto auto minmax(0, 1fr) auto;
+  grid-template-rows: auto auto 1fr auto auto;
+  grid-template-areas:
+    "titlebar    titlebar  titlebar  titlebar"
+    "banner      banner    banner    banner"
+    "activitybar sidebar   editor    auxiliarybar"
+    "activitybar sidebar   panel     auxiliarybar"
+    "statusbar   statusbar statusbar statusbar";
+}
+.workbench > .titlebar     { grid-area: titlebar }
+.workbench > .banner       { grid-area: banner }
+.workbench > .activitybar  { grid-area: activitybar }
+.workbench > .sidebar      { grid-area: sidebar }
+.workbench > .editor       { grid-area: editor }
+.workbench > .panel        { grid-area: panel }
+.workbench > .auxiliarybar { grid-area: auxiliarybar }
+.workbench > .statusbar    { grid-area: statusbar }
+
+/* ⚠ `min-height: 0` es LA trampa de grid y flex, y es la que rompe esto más seguido: sin ella el
+   tamaño mínimo de un hijo es su CONTENIDO, así que una región con un log largo estira el grid en vez
+   de scrollear — y el statusbar se va abajo del borde de la ventana. Va en los dos ejes. */
+.workbench > * { min-height: 0; min-width: 0 }
+
+/* ⚠ Las MEDIDAS cuelgan del grid compartido, no del elemento suelto. Es lo que hace que una región
+   que no ponés en el markup no cueste nada —su pista es `auto`, colapsa a 0—, y a la vez deja en paz
+   a la herramienta que arma su propio contenedor: el panel del harness mete sus tres columnas dentro
+   de un `.shell` con pistas propias, y abajo de 1080px las apila. Con la medida suelta en el
+   elemento, ese apilado quedaba con el sidebar secundario de 340 px de ancho y 0 de alto. */
+.workbench > .titlebar     { height: var(--titlebar-h) }
+.workbench > .statusbar    { height: var(--statusbar-h) }
+.workbench > .activitybar  { width: var(--activitybar-w) }
+.workbench > .sidebar      { width: var(--sidebar-w) }
+.workbench > .auxiliarybar { width: var(--auxiliarybar-w) }
+.workbench > .panel        { height: var(--panel-h) }
+
+/* ── LAS REGIONES ─────────────────────────────────────────────────────────────────────────────── */
+.titlebar {
+  flex: none;
+  display: flex; align-items: center; gap: 16px; padding: 0 12px;
+  background: var(--card); border-bottom: 1px solid var(--border);
+  overflow: hidden;
+}
+.banner {
+  display: flex; align-items: center; gap: var(--space-2); padding: var(--space-2) var(--gutter);
+  border-bottom: 1px solid var(--border);
+}
+.activitybar {
+  flex: none;
+  display: flex; flex-direction: column; align-items: center; gap: var(--space-1); padding: var(--space-2) 0;
+  background: var(--sidebar); border-right: 1px solid var(--sidebar-border);
+  overflow: hidden;
+}
+.sidebar {
+  flex: none;
+  display: flex; flex-direction: column; min-height: 0;
+  background: var(--sidebar); color: var(--sidebar-foreground);
+  border-right: 1px solid var(--sidebar-border);
+}
+.auxiliarybar {
+  flex: none;
+  display: flex; flex-direction: column; min-height: 0;
+  background: var(--sidebar); color: var(--sidebar-foreground);
+  border-left: 1px solid var(--sidebar-border);
+}
+.editor {
+  display: flex; flex-direction: column; min-height: 0;
+  background: var(--background);
+}
+.panel {
+  flex: none;
+  display: flex; flex-direction: column; min-height: 0;
+  background: var(--card); border-top: 1px solid var(--border);
+}
+.statusbar {
+  flex: none;
+  display: flex; align-items: center; gap: var(--space-4); padding: 0 var(--gutter);
+  font-size: var(--text-xs);
+  /* La barra comunica estado; usa la rampa derivada del foreground, no un gris fijo del tema. */
+  color: var(--texto-2);
+  background: var(--card); border-top: 1px solid var(--border);
+  overflow: hidden;
+}
+
+/* ── LO QUE VA ADENTRO DE UNA REGIÓN ──────────────────────────────────────────────────────────── */
+/* Dos nombres, y sirven en CUALQUIER región — `region-head` y no `sidebar-header`/`panel-header`/…:
+   cuatro nombres paralelos para lo mismo es justo lo que este archivo viene a terminar.
+
+   ⚠ Lo que scrollea es el CUERPO, no la región. Si scrolleara la región, su `region-head` se iría
+   con el contenido y perderías de vista qué estás mirando. */
+.region-head {
+  flex: none; display: flex; align-items: center; gap: 8px;
+  /* `border-box`: los 40 incluyen la línea de abajo, así la banda mide lo mismo en las cuatro
+     herramientas —medidas antes: 41, 42, 53 y 57— y la costura sigue derecha de columna a columna. */
+  box-sizing: border-box; min-height: var(--region-head-h); padding: var(--space-1) var(--gutter);
+  font-size: var(--text-sm); font-weight: 600;
+  text-transform: none; letter-spacing: normal;
+  /* El título de una región se lee en tamaños compactos: usa la misma rampa que el statusbar. */
+  color: var(--texto-2);
+  border-bottom: 1px solid var(--border);
+}
+.region-body { flex: 1; min-height: 0; min-width: 0; overflow: auto }
+
+/* ── EL ENCABEZADO DE UN GRUPO, DENTRO DE UNA VISTA ──────────────────────────────────────────────
+   Misma forma que el de la región —12px, peso medio, con su chevron— y a propósito: un grupo
+   que se ve MÁS fuerte que la vista que lo contiene invierte la jerarquía, y era justo lo que pasaba
+   en el tablero (los grupos eran `<h3>` a 17px en blanco debajo de un «MIS TAREAS» a 11px apagado).
+
+   Lo que los distingue no es el tamaño sino el COMPORTAMIENTO: el de la región está fijo y el del
+   grupo scrollea con la lista — pero se PEGA arriba, así que mientras recorrés un grupo largo siempre
+   sabés en cuál estás. Sin borde abajo: con uno, cinco grupos dibujan cinco rayas y la lista se ve
+   como una tabla. */
+.region-head.grupo, .view > .region-head { min-height: var(--view-head-h) }
+.region-head.grupo {
+  position: sticky; top: 0; z-index: 1;
+  background: var(--region-bg, var(--background));
+  border-bottom: 0;
+}
+
+/* Y el encabezado puede SER el botón que pliega su grupo —la jornada del tablero, el bloque técnico
+   del trazador—. Un `<button>` trae piel propia: borde 3D a los costados, fondo, su propia familia y
+   el texto centrado. Se le quita todo eso y se le deja lo único que aporta, que es ser alcanzable por
+   teclado y anunciarse como algo que se aprieta (`aria-expanded`).
+
+   ⚠ Va acá y no en cada hoja porque las dos herramientas lo necesitaron el mismo día y lo escribieron
+   distinto — y la que olvidó `border-left/right` se llevó dos rayas grises a los costados de la
+   banda, que se leen como un error de dibujo y no como un botón.
+   ⚠ Y el de ARRIBA también, que este reset olvidó hasta el 2026-09-23: abajo lo fija `.region-head`
+   (o lo quita `.grupo`), pero arriba quedaba el del navegador, 2px `outset`, pintado como una raya
+   gruesa sobre cada día pegado de la línea de tiempo del tablero. */
+button.region-head {
+  width: 100%; border-top: 0; border-left: 0; border-right: 0; background: none; color: inherit;
+  font: inherit; font-size: var(--text-sm); font-weight: 600; text-align: left; cursor: pointer;
+}
+button.region-head:hover { background: var(--sel, color-mix(in oklab, var(--foreground) 10%, transparent)) }
+button.region-head:focus-visible { outline: none; box-shadow: inset 0 0 0 2px var(--ring) }
+
+/* Cada región declara SU superficie. Lo necesita cualquier hijo `sticky`: para no dejar pasar el
+   contenido por debajo tiene que pintarse opaco, y el color correcto es el de la región donde esté,
+   no uno fijo. */
+.sidebar, .auxiliarybar, .activitybar { --region-bg: var(--sidebar) }
+.editor { --region-bg: var(--background) }
+.titlebar, .panel, .statusbar { --region-bg: var(--card) }
+/* El título empuja a las acciones al borde. `min-width: 0` para que un título largo se recorte en vez
+   de sacar los botones fuera de la región. (En una vista de acordeón el primer hijo es `.view-tog`,
+   que ya trae su propio `flex: 1`.) */
+.region-head > :first-child { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap }
+
+/* ── VARIAS VISTAS EN UNA REGIÓN: EL ACORDEÓN ────────────────────────────────────────────────────
+   El sidebar primario de VS Code no tiene UNA cosa: tiene varias apiladas —el árbol arriba, OUTLINE y
+   TIMELINE colapsadas abajo—. Cada una es un `.view`: su propio encabezado, su propio cuerpo y su
+   propio scroll.
+
+   ⚠ **Una vista cerrada cuesta UNA FILA, no cero**, y eso es la mitad del valor. Es la misma regla
+   que el canal deshabilitado del panel del harness: verla apagada dice que existe y que ahora no
+   corresponde; esconderla hace creer que no existe. Una vista que al cerrarse desaparece es una
+   funcionalidad que nadie vuelve a encontrar.
+
+   ⚠ **No todo lo que se pliega es un `.view`.** Esto es para vistas que SE REPARTEN EL ALTO de una
+   región de alto fijo: cerrar una le da el espacio a la otra. Para secciones que se pliegan dentro de
+   un cuerpo que scrollea —donde no hay alto que repartir— el elemento correcto es `<details>`, que no
+   necesita una línea de JS. El panel del harness ya tiene ocho así, y convertirlos por consistencia
+   sería cambiar algo que funciona sin JS por algo que lo necesita.
+
+   ⚠ Y NO hay manija entre vistas. Las abiertas se reparten el alto en partes iguales (`flex: 1 1 0`).
+   Arrastrar el borde entre dos vistas es bastante JS —dos alturas que persistir, un mínimo por vista,
+   qué pasa al colapsar la de arriba— para algo que con dos o tres vistas casi no se usa. Si algún día
+   una herramienta lo necesita, se agrega ahí y se sube acá cuando lo necesite la segunda. */
+.view { display: flex; flex-direction: column; min-height: 0; border-bottom: 1px solid var(--border) }
+.view.abierta { flex: 1 1 0 }
+.view:not(.abierta) { flex: none }
+.view:last-child { border-bottom: 0 }
+/* El chevron y el título son UN botón: el área de clic de un encabezado de acordeón es el encabezado
+   entero, no una flechita de 12px. Las acciones quedan afuera del botón para que no lo disparen. */
+.view-tog {
+  flex: 1; min-width: 0; display: flex; align-items: center; gap: var(--space-2);
+  border: 0; background: none; padding: 0; cursor: pointer;
+  color: inherit; font: inherit; text-align: left;
+}
+.view-tog > span:last-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap }
+.view-tog .chev { flex: none; width: 12px; font-size: var(--text-xs); opacity: .8 }
+.view-tog:hover { color: var(--foreground) }
+
+/* ── LA BARRA DE ACCIONES DE UNA REGIÓN ──────────────────────────────────────────────────────────
+   El patrón del Explorer de VS Code, y la división es lo que lo hace funcionar:
+
+     en la BARRA   lo que se HACE y es frecuente (nuevo, refrescar, colapsar) — iconos, siempre a mano
+     en el MENÚ …  lo que se ALTERNA y se toca poco (qué se ve, qué se filtra) — con su tilde
+
+   ⚠ Y hay una condición para mandar un filtro al menú: **el encabezado tiene que delatar que está
+   puesto.** Un filtro escondido que nadie ve es un filtro que se olvida encendido, y después la tarea
+   que falta se lee como «no existe». En el tablero eso lo dice el contador, que pasa a «9 / 16» en
+   cuanto algo queda afuera. Sin esa señal, el filtro se queda a la vista. */
+.region-actions { display: flex; align-items: center; gap: 2px; flex: none }
+.region-action {
+  width: var(--control-xs); height: var(--control-xs); flex: none; display: grid; place-items: center; padding: 0;
+  border: 0; border-radius: var(--radius-control); background: none; cursor: pointer;
+  color: inherit; font: inherit; font-size: var(--text-base); line-height: 1;
+}
+.region-action:hover { background: var(--hover) }
+.region-action[aria-expanded="true"] { background: var(--sel, color-mix(in oklab, var(--foreground) 10%, transparent)); color: var(--foreground) }
+
+/* ── EL MENÚ … ───────────────────────────────────────────────────────────────────────────────────
+   Se dibuja FUERA de la región (teleportado al `body`) y se ubica por coordenadas. ⚠ No es un
+   capricho: `region-body` tiene `overflow: auto`, y un hijo posicionado dentro de un contenedor con
+   overflow queda recortado contra su borde — el menú se cortaría contra el canto del sidebar. */
+.region-menu {
+  position: fixed; z-index: 50; min-width: min(220px, calc(100vw - 16px)); padding: var(--space-1); overflow-y: auto;
+  border: 1px solid var(--border); border-radius: var(--radius-float);
+  background: var(--popover); color: var(--popover-foreground);
+  box-shadow: 0 10px 30px #0008;
+  font-size: var(--text-base); font-weight: 400; text-transform: none; letter-spacing: 0;
+}
+.region-menu-item {
+  display: flex; align-items: center; gap: var(--space-2); width: 100%; min-height: var(--row-h);
+  padding: var(--space-1) var(--space-2); border: 0; border-radius: var(--radius-control); background: none;
+  color: inherit; font: inherit; text-align: left; cursor: pointer; text-decoration: none;
+}
+.region-menu-item:hover:not(:disabled) { background: var(--accent); color: var(--accent-foreground) }
+.region-menu-item:disabled { opacity: .4; cursor: default }
+/* La tilde ocupa su lugar SIEMPRE, marcada o no: si apareciera y desapareciera, el texto de cada
+   fila bailaría un carácter al tildar. */
+.region-menu-item .tick { width: 12px; flex: none; text-align: center }
+.region-menu-item .label, .region-menu-item .menu-label { flex: 1; min-width: 0; overflow-wrap: anywhere }
+.region-menu-item .n { flex: none; font-size: var(--text-xs); color: var(--texto-2); font-variant-numeric: tabular-nums }
+.region-menu hr { border: 0; border-top: 1px solid var(--border); margin: var(--space-1) calc(-1 * var(--space-1)) }
+
+/* ── LA MANIJA ────────────────────────────────────────────────────────────────────────────────────
+   Acá vivía una nota que decía que esto NO se compartía «hasta que lo necesite la segunda
+   herramienta». Ya son dos —el panel del harness y el tablero—, así que sube: lo que se repite es el
+   ASPECTO, que es una decisión de taller. Una línea de 1px se ve pero no se agarra, así que la zona
+   de agarre es más ancha que la línea y sólo se pinta al pasar por encima.
+
+   ⚠ Lo que NO sube es dónde va: el panel la tiene como pista de su propio grid, el trazador en capa
+   sobre el mapa (ahí el mapa no se deforma) y el tablero pegada al borde de cada sidebar. Por eso acá
+   no hay `position` ni `inset`: eso lo pone cada una.
+
+   ⚠ Y el panel del harness dibuja su línea con `::after`. Esta usa `::before` a propósito: si usara
+   la misma, en el panel pintarían las DOS y se verían dos líneas. */
+.rsz { z-index: 5; touch-action: none; cursor: col-resize; position: relative }
+.rsz[aria-orientation="horizontal"], .rsz.rsz-b, .rsz.rsz-y { cursor: row-resize }
+.rsz::before { content: ""; position: absolute; inset: 0; background: transparent; transition: background .12s }
+.rsz::after { content: ""; position: absolute; inset: 0 -4px; z-index: 1 }
+.rsz[aria-orientation="horizontal"]::after, .rsz.rsz-b::after, .rsz.rsz-y::after { inset: -4px 0 }
+.rsz:hover::before, .rsz:focus-visible::before, .rsz.on::before, body.redimensionando .rsz.on::before { background: var(--ring) }
+body.redimensionando { cursor: col-resize; user-select: none }
+
+/* ═══════════════════════════════════════════════════════════════════════════════════════════════
+   LOS CONTROLES · la anatomía de shadcn, en CSS plano
+   ═══════════════════════════════════════════════════════════════════════════════════════════════
+   El tema dice de qué COLOR es cada cosa y las regiones de arriba dicen QUÉ COSA ES. Esto es la
+   tercera capa: cómo se ve un botón, un campo, una píldora. Las cuatro herramientas los tenían
+   escritos a mano y distintos — medido: 19 reglas de `button` en el panel, 6 en el trazador, 1 en el
+   tablero y 0 en context, cada juego con su alto, su radio y su foco.
+
+   ⚠ NO se instala shadcn y no se puede: es React + Radix, y el panel del harness no tiene bundler
+   —su `npm run dev` es `node panel/server.ts` sobre un HTML suelto— así que consume este archivo por
+   `<link>` crudo. Por eso acá no hay `@apply` ni `@utility`: sería CSS que el panel no entiende.
+   Lo que se copia es la ANATOMÍA y las variantes, leídas de la fuente de shadcn (new-york-v4) y
+   traducidas a los tokens que ya tenemos. Las tres apps de Vite además siguen teniendo las utilidades
+   de Tailwind disponibles para marcado nuevo.
+
+   ⚠ Y esta hoja va ANTES que la de cada herramienta, así que lo propio sigue ganando. Es a propósito:
+   estas clases son la BASE y el destino de la migración, no un cambio de golpe. Para adoptar una, se
+   le borra la regla local — no se le compite. */
+
+/* El anillo de foco es lo más reconocible del sistema, y es UNO solo para todo lo que se enfoca:
+   el borde se tiñe y afuera va un halo de 3px al 50%. Nada de `outline` del navegador. */
+/* Un solo anillo de foco para todo, el mismo que `:where(button, a, …)`: 2 en --ring, separado 2. */
+.btn:focus-visible, .input:focus-visible, .switch:focus-visible, .checkbox:focus-visible,
+.badge:focus-visible, .region-action:focus-visible, .toggle:focus-visible, .tab:focus-visible, .row:focus-visible {
+  outline: 2px solid var(--ring); outline-offset: 2px; box-shadow: none;
+}
+.input-group:focus-within { outline: 2px solid var(--ring); outline-offset: 2px }
+.input-group > .input:focus-visible { outline: none }
+
+/* ⚠ Las medidas de un control son su caja ENTERA: sin esto, un campo de 32 con su borde medía 34 en
+   una herramienta y 32 en otra, según si esa herramienta fijaba `box-sizing` por su cuenta. */
+:where(.btn, .input, .input-group, .select, .badge, .kbd, .toggle, .switch, .checkbox, .region-action,
+  .region-menu, .region-menu-item, .row, .tabs, .tab, .statusbar, .region-head, .table th, .table td,
+  .alert, .empty-media) { box-sizing: border-box }
+
+/* ── BOTÓN ──────────────────────────────────────────────────────────────────────────────────────
+   Base + seis variantes + cuatro tamaños, como el `cva` del original. El tamaño por defecto es
+   `h-9` (36px) y el radio `--radius`; `shadow-xs` es la sombra de un pelo que separa el control de
+   su fondo sin dibujarle un marco. */
+.btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+  flex-shrink: 0; white-space: nowrap; border: 1px solid transparent;
+  height: var(--control-md); min-width: var(--control-md); padding: 0 var(--space-3);
+  border-radius: var(--radius-control);
+  font: inherit; font-size: var(--text-base); font-weight: 500; line-height: 20px;
+  background: var(--primary); color: var(--primary-foreground);
+  cursor: pointer; transition: background .12s, color .12s, border-color .12s, box-shadow .12s;
+}
+.btn:hover { background: color-mix(in oklab, var(--primary) 90%, transparent) }
+.btn:disabled, .btn[aria-disabled="true"] { pointer-events: none; opacity: .5 }
+
+.btn-secondary { background: var(--secondary); color: var(--secondary-foreground) }
+.btn-secondary:hover { background: color-mix(in oklab, var(--secondary) 80%, transparent) }
+.btn-outline { background: transparent; color: var(--foreground); border-color: var(--border);
+  box-shadow: 0 1px 2px 0 rgb(0 0 0 / .05) }
+.btn-outline:hover { background: var(--hover) }
+.btn-ghost { background: transparent; color: inherit }
+.btn-ghost:hover { background: var(--hover) }
+/* ⚠ El original pone `text-white` sobre destructive, y ACÁ NO SIRVE: `--destructive` es #e06666, un
+   rojo medio, y el blanco encima mide 3,35:1. Lo cazó `make estilo-check` sobre este mismo archivo.
+   Va el fondo de la app como tinta —la misma inversión que usa el tooltip del original—, que sobre
+   ese rojo sí llega. Si un tema trae un rojo oscuro, esto sigue funcionando: se invierte solo. */
+.btn-destructive { background: var(--destructive); color: var(--background) }
+.btn-destructive:hover { background: color-mix(in oklab, var(--destructive) 90%, transparent) }
+.btn-destructive:focus-visible { box-shadow: 0 0 0 3px color-mix(in oklab, var(--destructive) 40%, transparent) }
+/* El de enlace no es un botón disfrazado de texto: es texto que se comporta como enlace. */
+.btn-link { height: auto; padding: 0; background: none; border: 0; color: var(--primary);
+  text-underline-offset: 4px }
+.btn-link:hover { background: none; text-decoration: underline }
+
+.btn-xs { height: var(--control-xs); min-width: var(--control-xs); padding: 0 var(--space-2); gap: var(--space-1); font-size: var(--text-sm); line-height: 16px }
+.btn-sm { height: var(--control-sm); min-width: var(--control-sm); padding: 0 var(--space-3); gap: var(--space-2); font-size: var(--text-base) }
+.btn-lg { height: var(--control-lg); min-width: var(--control-lg); padding: 0 var(--space-4); font-size: var(--text-body) }
+/* Los de icono son CUADRADOS: un botón de icono con padding horizontal se lee como un botón vacío. */
+.btn-icon { width: var(--control-md); padding: 0 } .btn-icon.btn-xs { width: var(--control-xs) }
+.btn-icon.btn-sm { width: var(--control-sm) } .btn-icon.btn-lg { width: var(--control-lg) }
+
+/* ── CAMPO ──────────────────────────────────────────────────────────────────────────────────────
+   Fondo TRANSPARENTE, no una superficie propia: el campo se apoya en donde está, y lo que lo
+   delimita es el borde. Es lo que hace que un formulario no se vea como una pila de cajitas. */
+.input {
+  display: block; width: 100%; min-width: 0; height: var(--control-md);
+  padding: 0 var(--gutter); border: 1px solid var(--input); border-radius: var(--radius-control);
+  background: transparent; color: var(--foreground);
+  font: inherit; font-size: var(--text-base); line-height: 20px;
+  box-shadow: 0 1px 2px 0 rgb(0 0 0 / .05);
+  outline: none; transition: color .12s, border-color .12s, box-shadow .12s;
+}
+.input::placeholder { color: var(--texto-3) }
+.input:disabled { pointer-events: none; cursor: not-allowed; opacity: .5 }
+.input[aria-invalid="true"] { border-color: var(--destructive) }
+.input[aria-invalid="true"]:focus-visible { box-shadow: 0 0 0 3px color-mix(in oklab, var(--destructive) 40%, transparent) }
+textarea.input { height: auto; min-height: 80px; padding: var(--space-2) var(--gutter); resize: vertical }
+.input-sm { height: var(--control-sm); padding: 0 var(--space-2); font-size: var(--text-base) }
+/* Extensión declarada: shadcn corta en `sm`. Hace falta un escalón más para el campo que vive
+   DENTRO de una barra —el buscador de una etapa, el filtro de un grupo—, donde 32px empujan la
+   barra a 50 y dejan de leerse como barra. Es el mismo 24px de `.btn-xs`. */
+.input-xs { height: var(--control-xs); padding: 0 var(--space-2); font-size: var(--text-sm); line-height: 16px }
+
+/* Un campo con algo adentro —una lupa, una ✕, una unidad—. El borde lo lleva el GRUPO y el input
+   queda desnudo adentro: si lo llevan los dos, se ven dos marcos concéntricos. */
+.input-group { display: flex; align-items: center; gap: var(--space-2); height: var(--control-md); padding: 0 var(--space-2);
+  border: 1px solid var(--input); border-radius: var(--radius-control); background: transparent;
+  box-shadow: 0 1px 2px 0 rgb(0 0 0 / .05); transition: border-color .12s, box-shadow .12s }
+.input-group > .input { height: auto; border: 0; box-shadow: none; padding: 0; flex: 1 }
+.input-group > svg, .input-group > .ico-txt { flex: none; color: var(--texto-3) }
+
+/* La etiqueta de un campo y su pista, que es lo que `field` del original resuelve. */
+.field { display: flex; flex-direction: column; gap: var(--space-2) }
+.field > label, .label { font-size: var(--text-sm); font-weight: 500; line-height: 16px; color: var(--texto-2) }
+.field-hint { font-size: var(--text-sm); color: var(--texto-3); line-height: 16px }
+.field-error { font-size: var(--text-sm); color: var(--destructive) }
+
+/* ── PÍLDORA ────────────────────────────────────────────────────────────────────────────────────
+   Relleno O contorno, nunca los dos: es la regla del barrido de marcos y también la del original,
+   donde el borde de las variantes rellenas es `transparent`. */
+.badge {
+  display: inline-flex; align-items: center; justify-content: center; gap: 4px;
+  width: fit-content; flex-shrink: 0; overflow: hidden; white-space: nowrap;
+  height: 20px; padding: 0 var(--space-2); border: 1px solid transparent; border-radius: 999px;
+  font-size: var(--text-xs); font-weight: 500; line-height: 16px;
+  background: var(--primary); color: var(--primary-foreground);
+  transition: color .12s, box-shadow .12s;
+}
+.badge-secondary { background: var(--secondary); color: var(--secondary-foreground) }
+.badge-destructive { background: var(--destructive); color: var(--background) }
+.badge-outline { background: transparent; color: var(--foreground); border-color: var(--border) }
+.badge-ghost { background: transparent; color: var(--texto-3) }
+/* ⚠ `badge-xs` NO está en el original, y es una extensión DECLARADA: estas herramientas son densas y
+   tienen ~25 etiquetas de 10px —la fuente de un dato, el conteo de errores, la etapa de un esfuerzo—
+   que a 12px empujan la fila a otro renglón. Es el mismo componente, un escalón abajo. */
+.badge-xs { height: 16px; padding: 0 6px; font-size: var(--text-xs); line-height: 14px; gap: var(--space-1) }
+
+/* ── TECLA ──────────────────────────────────────────────────────────────────────────────────────
+   Las pistas de teclado eran texto plano («←/→ recorren», «⌥R»). Una tecla se lee como tecla. */
+.kbd {
+  pointer-events: none; user-select: none;
+  display: inline-flex; align-items: center; justify-content: center; gap: 4px;
+  height: 20px; min-width: 20px; width: fit-content; padding: 0 4px;
+  border-radius: 4px; background: var(--muted);
+  /* ⚠ El original es `text-muted-foreground`, que acá mide 3,63:1 sobre `--muted`. En este tema el
+     muted es el escalón MÁS BAJO legible, no el del medio: la rampa cuelga de `--foreground`, igual
+     que en `region-head`. Es la misma corrección de siempre y la volvió a encontrar el chequeo. */
+  color: var(--texto-2);
+  font: inherit; font-size: var(--text-xs); font-weight: 500;
+}
+
+/* ── INTERRUPTOR ────────────────────────────────────────────────────────────────────────────────
+   Con `role="switch"` y `aria-checked`, que es lo que lo hace un interruptor y no dos divs. */
+.switch {
+  position: relative; display: inline-flex; align-items: center; flex-shrink: 0;
+  width: 32px; height: 18px; padding: 0; border: 1px solid transparent; border-radius: 999px;
+  background: var(--input); cursor: pointer;
+  box-shadow: 0 1px 2px 0 rgb(0 0 0 / .05); transition: background .12s, box-shadow .12s;
+}
+.switch::after { content: ""; display: block; width: 14px; height: 14px; margin-left: 1px;
+  border-radius: 999px; background: var(--foreground); transition: transform .12s }
+.switch[aria-checked="true"] { background: var(--primary) }
+.switch[aria-checked="true"]::after { transform: translateX(14px); background: var(--primary-foreground) }
+.switch:disabled { cursor: not-allowed; opacity: .5 }
+
+/* ── SEPARADOR ──────────────────────────────────────────────────────────────────────────────────
+   Un pelo, y el mismo en las cuatro. Horizontal por defecto. */
+.separator { flex-shrink: 0; background: var(--border); height: 1px; width: 100%; border: 0 }
+.separator[aria-orientation="vertical"] { height: 100%; width: 1px }
+
+/* ── GIRO ───────────────────────────────────────────────────────────────────────────────────────
+   «Sigue vivo», sin fabricar un porcentaje que no sabemos. */
+.spinner { display: inline-block; width: 16px; height: 16px; flex: none;
+  border: 2px solid color-mix(in oklab, currentColor 25%, transparent);
+  border-top-color: currentColor; border-radius: 999px; animation: spinner .7s linear infinite }
+@keyframes spinner { to { transform: rotate(360deg) } }
+@media (prefers-reduced-motion: reduce) { .spinner { animation-duration: 2.4s } }
+
+/* ── BARRA DE AVANCE ────────────────────────────────────────────────────────────────────────────
+   shadcn `Progress`: una PISTA teñida con el primario y un INDICADOR opaco encima. El indicador es
+   un hijo cualquiera (`i`, o `.progress-bar`) — así las dos implementaciones que ya existían a mano
+   entran sin reescribir su markup.
+
+   ⚠ La pista va teñida con el mismo color del relleno (`--primary` al 20 %) y NO con `--border`.
+   Sobre un tema neutro las dos se ven casi igual con la barra a la mitad; con un avance del 3 % la
+   teñida se sigue leyendo como UNA barra con dos partes, y la otra como una raya con una mota. */
+.progress { position: relative; width: 100%; height: 8px; overflow: hidden; flex: none;
+  border-radius: var(--radius-full, 999px);
+  background: color-mix(in oklab, var(--primary) 20%, transparent) }
+.progress > i, .progress > .progress-bar {
+  display: block; height: 100%; width: 100%; border-radius: inherit;
+  background: var(--primary); transition: width .3s ease }
+
+/* Dos extensiones declaradas —shadcn no las trae— y las dos ya existían a mano en dos herramientas:
+
+   `-xs`   un filete de 3px DEBAJO de un número. A los 8px de shadcn la barra compite con el dato en
+           vez de acompañarlo; es el alto que tenían el tablero y el trazador.
+   `-ind`  INDETERMINADA: no sabemos cuánto falta. Es la misma decisión que el `.spinner` de arriba —
+           una barra que se llena sola fabrica un porcentaje y miente; ésta sólo dice «sigue vivo». */
+.progress-xs { height: 3px }
+.progress-ind > i, .progress-ind > .progress-bar {
+  width: 40%; animation: progress-ind 1.1s ease-in-out infinite }
+@keyframes progress-ind { 0% { transform: translateX(-100%) } 100% { transform: translateX(250%) } }
+@media (prefers-reduced-motion: reduce) {
+  .progress-ind > i, .progress-ind > .progress-bar { animation: none; width: 100%; opacity: .5 }
+}
+
+/* ── VACÍO ──────────────────────────────────────────────────────────────────────────────────────
+   Las cuatro tenían estados vacíos con cuatro formas distintas. Esta es la del original: medio,
+   título, descripción y acción, centrados, sin marco. */
+.empty { display: flex; flex: 1; min-width: 0; flex-direction: column;
+  align-items: center; justify-content: center; gap: 24px; padding: 24px; text-align: center }
+.empty-head { display: flex; max-width: 24rem; flex-direction: column; align-items: center; gap: 8px }
+.empty-media { display: flex; align-items: center; justify-content: center; flex: none;
+  width: var(--control-lg); height: var(--control-lg); margin-bottom: var(--space-2); border-radius: var(--radius-float);
+  background: var(--muted); color: var(--foreground); font-size: var(--text-title) }
+.empty-title { font-size: var(--text-title); font-weight: 600; letter-spacing: -.01em; color: var(--foreground) }
+.empty-desc { font-size: var(--text-base); line-height: 1.6; color: var(--texto-2) }
+.empty-content { display: flex; width: 100%; max-width: 24rem; min-width: 0;
+  flex-direction: column; align-items: center; gap: var(--space-4); font-size: var(--text-base) }
+
+/* ── ALTERNADOR ─────────────────────────────────────────────────────────────────────────────────
+   El `toggle-group` del original: N opciones, una encendida. Dos formas —sueltas o UNIDAS— y la
+   unida es la que el panel del harness ya usaba a mano como `.seg`. El estado encendido es una
+   SUPERFICIE (`--accent`), no un color de texto: es lo que hace que se vea cuál está sin pintar. */
+.toggle-group { display: inline-flex; align-items: center; width: fit-content; gap: 4px }
+.toggle {
+  display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+  height: var(--control-md); min-width: var(--control-md); padding: 0 var(--space-2);
+  border: 1px solid transparent; border-radius: var(--radius-control); background: transparent;
+  font: inherit; font-size: var(--text-base); font-weight: 500; color: inherit; white-space: nowrap;
+  cursor: pointer; transition: color .12s, background .12s, border-color .12s, box-shadow .12s;
+}
+/* ⚠ El original es `hover:bg-muted hover:text-muted-foreground`, y es la TERCERA vez que ese par
+   falla en este tema: `--muted-foreground` sobre `--muted` mide 3,63:1. Va la rampa del 74% que ya
+   usan `region-head` y `.kbd`. No es que shadcn esté mal — es que su paleta de referencia tiene más
+   separación entre esos dos escalones que la nuestra, y por eso los colores se vuelven a medir. */
+.toggle:hover { background: var(--hover) }
+.toggle[aria-pressed="true"], .toggle.on, .toggle[data-state="on"] {
+  background: var(--accent); color: var(--accent-foreground);
+}
+.toggle:disabled { pointer-events: none; opacity: .5 }
+
+.toggle-outline > .toggle { border-color: var(--input); box-shadow: 0 1px 2px 0 rgb(0 0 0 / .05) }
+.toggle-outline > .toggle:hover { background: var(--accent); color: var(--accent-foreground) }
+/* Unidas: un solo bloque con los bordes internos colapsados. Sin esto se ven N botones sueltos y
+   deja de leerse como «elegí UNA de estas». */
+.toggle-joined { gap: 0 }
+.toggle-joined > .toggle { border-radius: 0; margin-left: -1px }
+.toggle-joined > .toggle:first-child { border-radius: var(--radius-control) 0 0 var(--radius-control); margin-left: 0 }
+.toggle-joined > .toggle:last-child { border-radius: 0 var(--radius-control) var(--radius-control) 0 }
+.toggle-joined > .toggle:only-child { border-radius: var(--radius-control) }
+.toggle-joined > .toggle:focus-visible { z-index: 1 }
+.toggle-sm > .toggle, .toggle.toggle-sm { height: var(--control-sm); min-width: var(--control-sm); padding: 0 var(--space-2); font-size: var(--text-base) }
+.toggle-xs > .toggle, .toggle.toggle-xs { height: var(--control-xs); min-width: var(--control-xs); padding: 0 var(--space-2); font-size: var(--text-sm) }
+
+/* El tamaño `sm` del interruptor, que es el que cabe en una fila densa (el original también lo trae). */
+.switch-sm { width: 28px; height: 14px }
+.switch-sm::after { width: 10px; height: 10px }
+.switch-sm[aria-checked="true"]::after { transform: translateX(14px) }
+
+/* ── ACORDEÓN ───────────────────────────────────────────────────────────────────────────────────
+   ⚠ NO es el `.view` de más arriba, y la diferencia importa: `.view` reparte el ALTO de una región
+   de alto fijo (el sidebar primario de VS Code); esto es contenido que se abre y se cierra dentro de
+   un cuerpo que scrollea. La regla vieja sigue valiendo — para lo segundo el elemento correcto es
+   `<details>`, que no necesita JS—, así que estas clases se ponen SOBRE `<details>`/`<summary>`.
+   Del original: separador por ítem, disparador de 14px con el chevron a la derecha que rota 180°,
+   y el cuerpo sin padding arriba. */
+.accordion-item { border-bottom: 1px solid var(--border) }
+.accordion-item:last-child { border-bottom: 0 }
+.accordion-trigger {
+  display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; width: 100%;
+  padding: var(--space-3) 0; border: 1px solid transparent; border-radius: var(--radius-control);
+  background: none; color: inherit; font: inherit; font-size: var(--text-base); font-weight: 500;
+  text-align: left; cursor: pointer; list-style: none; transition: all .12s; outline: none;
+}
+.accordion-trigger::-webkit-details-marker { display: none }
+.accordion-trigger:hover { text-decoration: underline }
+.accordion-trigger:focus-visible { border-color: var(--ring);
+  box-shadow: 0 0 0 3px color-mix(in oklab, var(--ring) 50%, transparent) }
+.accordion-trigger:disabled, .accordion-trigger[aria-disabled="true"] { pointer-events: none; opacity: .5 }
+/* El chevron es lo único que dice si está abierto, así que la rotación no es decoración. */
+.accordion-chev { pointer-events: none; flex: none; width: 16px; text-align: center;
+  color: var(--texto-3); transition: transform .2s; transform: translateY(2px) }
+[open] > .accordion-trigger .accordion-chev,
+.accordion-trigger[aria-expanded="true"] .accordion-chev { transform: translateY(2px) rotate(180deg) }
+.accordion-content { overflow: hidden; padding: 0 0 var(--space-3); font-size: var(--text-base) }
+
+/* ── AVISO ──────────────────────────────────────────────────────────────────────────────────────
+   Una grilla de dos columnas —icono y texto— para que el título y la descripción queden alineados
+   entre sí aunque el icono mida distinto. Sin icono, la primera columna es 0 y no deja hueco.
+   ⚠ Sólo las dos variantes del original. El ámbar y el verde NO van acá: son color SEMÁNTICO, que
+   vive en la hoja de cada herramienta (el export del tema no los trae y pegarlo los borraría). */
+.alert {
+  /* Un aviso de la base: una barra de 2 a la izquierda y un tinte, cuadrado. Ni marco ni radio. */
+  position: relative; display: grid; grid-template-columns: 0 1fr; align-items: start;
+  row-gap: var(--space-1); width: 100%; padding: var(--space-3);
+  border: 0; border-left: 2px solid var(--primary); border-radius: 0;
+  background: color-mix(in oklab, var(--primary) 8%, transparent); color: var(--foreground); font-size: var(--text-base);
+}
+.alert:has(> .alert-icon) { grid-template-columns: 16px 1fr; column-gap: var(--space-2) }
+.alert-icon { grid-column: 1; width: 16px; height: 16px; line-height: 16px; text-align: center;
+  transform: translateY(2px); color: currentColor }
+.alert-title { grid-column: 2; min-height: 16px; font-weight: 600;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap }
+.alert-desc { grid-column: 2; display: grid; justify-items: start; gap: 4px;
+  font-size: var(--text-base); color: var(--texto-2) }
+.alert-desc p { margin: 0; line-height: 1.6 }
+.alert-destructive { border-left-color: var(--destructive); background: color-mix(in oklab, var(--destructive) 8%, transparent) }
+.alert-destructive .alert-desc { color: color-mix(in oklab, var(--destructive) 90%, var(--card)) }
+
+/* ── MIGAS ──────────────────────────────────────────────────────────────────────────────────────
+   El camino hasta lo que estás mirando. La página ACTUAL no es un enlace y va en el color del
+   texto; el resto, apagado. Es lo que hace que se lea dónde estás sin contar los separadores. */
+.breadcrumb { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2);
+  font-size: var(--text-base); color: var(--texto-3); word-break: break-word }
+.breadcrumb-item { display: inline-flex; align-items: center; gap: var(--space-2) }
+.breadcrumb-link { color: inherit; text-decoration: none; background: none; border: 0; padding: 0;
+  font: inherit; cursor: pointer; transition: color .12s }
+.breadcrumb-link:hover { color: var(--foreground) }
+.breadcrumb-page { font-weight: 400; color: var(--foreground) }
+/* ⚠ Sin `opacity`: sobre `--texto-3` lo dejaba en 2,8:1. Un separador es tenue por su TAMAÑO. */
+.breadcrumb-sep { flex: none; font-size: .78em; user-select: none }
+
+/* ── CASILLA ────────────────────────────────────────────────────────────────────────────────────
+   Sobre un `<input type=checkbox>` de verdad: el navegador ya trae el estado, el teclado y el
+   `indeterminate`. Lo único que se reemplaza es la piel.
+   ⚠ El tilde se dibuja con dos bordes rotados 45°, no con un carácter: un ✓ de la tipografía cambia
+   de forma y de peso con cada tema, y a 16px eso se ve. */
+.checkbox {
+  appearance: none; -webkit-appearance: none; flex: none; display: grid; place-content: center;
+  width: 16px; height: 16px; margin: 0;
+  border: 1px solid var(--input); border-radius: 4px; background: transparent; color: var(--primary-foreground);
+  box-shadow: 0 1px 2px 0 rgb(0 0 0 / .05); cursor: pointer;
+  transition: background .12s, border-color .12s, box-shadow .12s;
+}
+.checkbox::after { content: ""; width: 4px; height: 8px; margin-top: -2px;
+  border: solid currentColor; border-width: 0 2px 2px 0; transform: rotate(45deg) scale(0);
+  transition: transform .1s }
+.checkbox:checked { background: var(--primary); border-color: var(--primary) }
+.checkbox:checked::after { transform: rotate(45deg) scale(1) }
+.checkbox:indeterminate { background: var(--primary); border-color: var(--primary) }
+.checkbox:indeterminate::after { width: 8px; height: 0; margin: 0; border-width: 0 0 2px 0;
+  transform: none }
+.checkbox:focus-visible { outline: none; border-color: var(--ring);
+  box-shadow: 0 0 0 3px color-mix(in oklab, var(--ring) 50%, transparent) }
+.checkbox:disabled { cursor: not-allowed; opacity: .5 }
+/* La etiqueta al lado, que es como se usa siempre: el click en el texto también marca. */
+.checkbox-row { display: inline-flex; align-items: center; gap: 8px; cursor: pointer;
+  font-size: var(--text-base); line-height: 1 }
+.checkbox-row:has(> .checkbox:disabled) { cursor: not-allowed; opacity: .5 }
+
+
+/* Herramientas: agrupar acciones no crea otra región. Mantener el tabulado nativo
+   (no role=toolbar sin implementar su navegación por flechas). */
+.toolbar { display: flex; align-items: center; flex-wrap: wrap; gap: var(--space-1); min-width: 0 }
+.toolbar-separator { width: 1px; height: 16px; background: var(--border); margin: 0 var(--space-1); flex: none }
+.layout-controls { display: flex; align-items: center; gap: var(--space-1); margin-left: auto; flex: none }
+.layout-controls .region-action { color: var(--texto-2) }
+.region-action[aria-pressed="true"] { color: var(--foreground); background: var(--accent) }
+.region-action:disabled { opacity: .5; cursor: not-allowed }
+.region-action:disabled:hover { background: transparent }
+.statusbar > :not(.layout-controls) { min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis }
+.statusbar { min-height: var(--statusbar-h) }
+.region-body { overscroll-behavior: contain; scrollbar-width: thin; scrollbar-color: var(--border) transparent }
+:where(button, a, summary, [tabindex="0"]):focus-visible { outline: 2px solid var(--ring); outline-offset: 2px }
+.rsz:focus-visible { outline: none; box-shadow: 0 0 0 2px var(--ring); z-index: 6 }
+.ui-icon { display: inline-block; width: var(--icon-size); height: var(--icon-size); flex: none;
+  background: currentColor; mask: var(--ui-icon, none) center / contain no-repeat;
+  -webkit-mask: var(--ui-icon, none) center / contain no-repeat; vertical-align: middle; pointer-events: none }
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { scroll-behavior: auto !important; animation-duration: .01ms !important;
+    animation-iteration-count: 1 !important; transition-duration: .01ms !important }
+}
+.ui-icon[data-icon="sidebar"] { --ui-icon: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22black%22%20stroke-width%3D%221.75%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Crect%20x%3D%223%22%20y%3D%224%22%20width%3D%2218%22%20height%3D%2216%22%20rx%3D%222%22%2F%3E%3Cpath%20d%3D%22M9%204v16%22%2F%3E%3C%2Fsvg%3E") }
+.ui-icon[data-icon="detail"] { --ui-icon: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22black%22%20stroke-width%3D%221.75%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Crect%20x%3D%223%22%20y%3D%224%22%20width%3D%2218%22%20height%3D%2216%22%20rx%3D%222%22%2F%3E%3Cpath%20d%3D%22M15%204v16%22%2F%3E%3C%2Fsvg%3E") }
+.ui-icon[data-icon="console"] { --ui-icon: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22black%22%20stroke-width%3D%221.75%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Crect%20x%3D%223%22%20y%3D%224%22%20width%3D%2218%22%20height%3D%2216%22%20rx%3D%222%22%2F%3E%3Cpath%20d%3D%22M3%2014h18M7%208l2%202-2%202%22%2F%3E%3C%2Fsvg%3E") }
+.ui-icon[data-icon="collapse"] { --ui-icon: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22black%22%20stroke-width%3D%221.75%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Crect%20x%3D%226%22%20y%3D%226%22%20width%3D%2215%22%20height%3D%2215%22%20rx%3D%222%22%2F%3E%3Cpath%20d%3D%22M17%203H5a2%202%200%200%200-2%202v12M10%2013h7%22%2F%3E%3C%2Fsvg%3E") }
+.ui-icon[data-icon="search"] { --ui-icon: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22black%22%20stroke-width%3D%221.75%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Ccircle%20cx%3D%2210.5%22%20cy%3D%2210.5%22%20r%3D%226.5%22%2F%3E%3Cpath%20d%3D%22m16%2016%205%205%22%2F%3E%3C%2Fsvg%3E") }
+.ui-icon[data-icon="plus"] { --ui-icon: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22black%22%20stroke-width%3D%221.75%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Cpath%20d%3D%22M12%205v14M5%2012h14%22%2F%3E%3C%2Fsvg%3E") }
+.ui-icon[data-icon="refresh"] { --ui-icon: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22black%22%20stroke-width%3D%221.75%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Cpath%20d%3D%22M20%2011a8%208%200%201%200%202%205.5%22%2F%3E%3Cpath%20d%3D%22M20%204v7h-7%22%2F%3E%3C%2Fsvg%3E") }
+.ui-icon[data-icon="close"] { --ui-icon: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22black%22%20stroke-width%3D%221.75%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Cpath%20d%3D%22m6%206%2012%2012M6%2018%2018%206%22%2F%3E%3C%2Fsvg%3E") }
+.ui-icon[data-icon="more"] { --ui-icon: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22black%22%20stroke-width%3D%221.75%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Ccircle%20cx%3D%225%22%20cy%3D%2212%22%20r%3D%221%22%2F%3E%3Ccircle%20cx%3D%2212%22%20cy%3D%2212%22%20r%3D%221%22%2F%3E%3Ccircle%20cx%3D%2219%22%20cy%3D%2212%22%20r%3D%221%22%2F%3E%3C%2Fsvg%3E") }
+.ui-icon[data-icon="copy"] { --ui-icon: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22black%22%20stroke-width%3D%221.75%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Crect%20x%3D%228%22%20y%3D%228%22%20width%3D%2212%22%20height%3D%2213%22%20rx%3D%222%22%2F%3E%3Cpath%20d%3D%22M16%208V5a2%202%200%200%200-2-2H5a2%202%200%200%200-2%202v9a2%202%200%200%200%202%202h3%22%2F%3E%3C%2Fsvg%3E") }
+.ui-icon[data-icon="check"] { --ui-icon: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22black%22%20stroke-width%3D%221.75%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Cpath%20d%3D%22m5%2012%204%204L19%206%22%2F%3E%3C%2Fsvg%3E") }
+.ui-icon[data-icon="chevron"] { --ui-icon: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22black%22%20stroke-width%3D%221.75%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Cpath%20d%3D%22m9%205%207%207-7%207%22%2F%3E%3C%2Fsvg%3E") }
+.ui-icon[data-icon="filter"] { --ui-icon: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22black%22%20stroke-width%3D%221.75%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Cpath%20d%3D%22M4%205h16l-6%207v6l-4%202v-8Z%22%2F%3E%3C%2Fsvg%3E") }
+.ui-icon[data-icon="eye"] { --ui-icon: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22black%22%20stroke-width%3D%221.75%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Cpath%20d%3D%22M2%2012s3.5-7%2010-7%2010%207%2010%207-3.5%207-10%207S2%2012%202%2012Z%22%2F%3E%3Ccircle%20cx%3D%2212%22%20cy%3D%2212%22%20r%3D%223%22%2F%3E%3C%2Fsvg%3E") }
+.ui-icon[data-icon="play"] { --ui-icon: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22black%22%20stroke-width%3D%221.75%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Cpath%20d%3D%22m7%204%2014%208-14%208Z%22%2F%3E%3C%2Fsvg%3E") }
+.ui-icon[data-icon="external"] { --ui-icon: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22black%22%20stroke-width%3D%221.75%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Cpath%20d%3D%22M14%203h7v7M21%203%2010%2014M10%203H5a2%202%200%200%200-2%202v14a2%202%200%200%200%202%202h14a2%202%200%200%200%202-2v-5%22%2F%3E%3C%2Fsvg%3E") }
+[aria-expanded="true"] > .ui-icon[data-icon="chevron"],
+.section-toggle[aria-expanded="true"] .ui-icon[data-icon="chevron"] { transform: rotate(90deg) }
+
+/* Una opción activa se delata en el disparador, incluso con el menú cerrado. */
+.region-action { position: relative; text-decoration: none }
+.region-action.has-options::after { content: ''; position: absolute; width: 5px; height: 5px;
+  top: 2px; right: 2px; border-radius: 50%; background: var(--foreground) }
+.region-menu-item:focus-visible { outline: none; box-shadow: none; background: var(--accent); color: var(--accent-foreground) }
+.toolbar-note { color: var(--texto-2); font-size: var(--text-xs); font-weight: 400 }
+.ui-icon[data-icon="move"] { --ui-icon: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22black%22%20stroke-width%3D%221.75%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Cpath%20d%3D%22M4%2012h16m-5-5%205%205-5%205M4%205v14%22%2F%3E%3C%2Fsvg%3E") }
+.ui-icon[data-icon="settings"] { --ui-icon: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22black%22%20stroke-width%3D%221.75%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Cpath%20d%3D%22M4%207h16M4%2017h16%22%2F%3E%3Ccircle%20cx%3D%229%22%20cy%3D%227%22%20r%3D%223%22%2F%3E%3Ccircle%20cx%3D%2215%22%20cy%3D%2217%22%20r%3D%223%22%2F%3E%3C%2Fsvg%3E") }
+.ui-icon[data-icon="clock"] { --ui-icon: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22black%22%20stroke-width%3D%221.75%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Ccircle%20cx%3D%2212%22%20cy%3D%2212%22%20r%3D%229%22%2F%3E%3Cpath%20d%3D%22M12%207v5l3%202%22%2F%3E%3C%2Fsvg%3E") }
+.ui-icon[data-icon="server"] { --ui-icon: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22black%22%20stroke-width%3D%221.75%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Crect%20x%3D%223%22%20y%3D%223%22%20width%3D%2218%22%20height%3D%227%22%20rx%3D%222%22%2F%3E%3Crect%20x%3D%223%22%20y%3D%2214%22%20width%3D%2218%22%20height%3D%227%22%20rx%3D%222%22%2F%3E%3Cpath%20d%3D%22M7%206.5h.01M7%2017.5h.01%22%2F%3E%3C%2Fsvg%3E") }
+.ui-icon[data-icon="channel"] { --ui-icon: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22black%22%20stroke-width%3D%221.75%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Cpath%20d%3D%22M12%204v6M5%2020v-6h14v6M12%2014v6%22%2F%3E%3Ccircle%20cx%3D%2212%22%20cy%3D%224%22%20r%3D%222%22%2F%3E%3C%2Fsvg%3E") }
+.ui-icon[data-icon="down"] { --ui-icon: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22black%22%20stroke-width%3D%221.75%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Cpath%20d%3D%22m6%209%206%206%206-6%22%2F%3E%3C%2Fsvg%3E") }
+.ui-icon[data-icon="bottom"] { --ui-icon: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22black%22%20stroke-width%3D%221.75%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Cpath%20d%3D%22M5%2020h14M12%203v12m-5-5%205%205%205-5%22%2F%3E%3C%2Fsvg%3E") }
+/* El tema: el icono muestra el tema ACTUAL (sol = claro, luna = oscuro); la etiqueta dice la acción. */
+.ui-icon[data-icon="sun"] { --ui-icon: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22black%22%20stroke-width%3D%221.75%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Ccircle%20cx%3D%2212%22%20cy%3D%2212%22%20r%3D%224%22%2F%3E%3Cpath%20d%3D%22M12%202.5v2M12%2019.5v2M4.6%204.6%206%206M18%2018l1.4%201.4M2.5%2012h2M19.5%2012h2M4.6%2019.4%206%2018M18%206l1.4-1.4%22%2F%3E%3C%2Fsvg%3E") }
+.ui-icon[data-icon="moon"] { --ui-icon: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22black%22%20stroke-width%3D%221.75%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Cpath%20d%3D%22M20%2014.5A8%208%200%201%201%209.5%204a6.5%206.5%200%200%200%2010.5%2010.5Z%22%2F%3E%3C%2Fsvg%3E") }
+
+/* ── PIEZAS DE LA BASE ────────────────────────────────────────────────────────────────────────────
+   Las que faltaban para que cada cosa de la base tenga UNA forma: el select, el contador, la tabla,
+   la fila y las pestañas. Sus medidas son las de `tools/ui/spec.json`, y `make estilo-componentes`
+   comprueba que lo pintado coincida. */
+
+/* El select: un `.input` con la flecha como icono de 16 a 8 del borde, pintada con la tinta. */
+.select { position: relative; display: block; min-width: 0 }
+.select > select { appearance: none; -webkit-appearance: none; padding-right: 32px; cursor: pointer }
+.select::after { content: ""; position: absolute; top: 50%; right: var(--space-2); width: var(--icon-size); height: var(--icon-size);
+  translate: 0 -50%; background: var(--texto-3); pointer-events: none;
+  mask: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22black%22%20stroke-width%3D%221.75%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Cpath%20d%3D%22m6%209%206%206%206-6%22%2F%3E%3C%2Fsvg%3E") center / contain no-repeat; -webkit-mask: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22black%22%20stroke-width%3D%221.75%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Cpath%20d%3D%22m6%209%206%206%206-6%22%2F%3E%3C%2Fsvg%3E") center / contain no-repeat }
+.select:has(> select.input-sm) > select, .select:has(> select.input-xs) > select { padding-right: 28px }
+.select:has(> select.input-sm)::after, .select:has(> select.input-xs)::after { right: 6px }
+
+/* El contador de una banda o una vista. Con un filtro puesto se delata: «9 / 16» en el color de acción. */
+.count { flex: none; font-size: var(--text-xs); font-weight: 400; color: var(--texto-3); font-variant-numeric: tabular-nums }
+.count.filtered { color: var(--primary); font-weight: 600 }
+
+/* La tabla: una línea por fila y ninguna grilla; los números a la derecha. */
+.table { width: 100%; border-collapse: collapse; font-size: var(--text-base) }
+.table th, .table td { height: 32px; padding: 0 var(--gutter); border-bottom: 1px solid var(--border); text-align: left; vertical-align: middle }
+.table th { font-size: var(--text-sm); font-weight: 600; color: var(--texto-3) }
+.table .num { text-align: right; font-variant-numeric: tabular-nums }
+
+/* La fila de una lista o de un árbol: 4 afuera y 8 adentro dejan el texto a 12 del borde, como la
+   banda. La elegida lleva fondo y una barra de 2: sólo con fondo, en una lista larga hay que comparar. */
+.row { display: flex; align-items: center; gap: var(--space-2); min-height: var(--row-h); margin: 0 var(--space-1);
+  padding: 0 var(--space-2); border-radius: var(--radius-control); font-size: var(--text-base); color: var(--texto-2);
+  white-space: nowrap; min-width: 0; cursor: pointer }
+.row > span:not(.ui-icon):not(.row-meta):not(.badge) { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis }
+.row:hover { background: var(--hover) }
+.row.on, .row[aria-selected="true"] { background: var(--accent); color: var(--accent-foreground); box-shadow: inset 2px 0 0 var(--primary) }
+.row-meta { flex: none; margin-left: auto; font-size: var(--text-xs); color: var(--texto-3); font-variant-numeric: tabular-nums }
+.row[data-level="1"] { padding-left: calc(var(--space-2) + var(--indent)) }
+.row[data-level="2"] { padding-left: calc(var(--space-2) + 2 * var(--indent)) }
+
+/* Las pestañas: la barra ES la banda superior (40) y cada pestaña mide 36, apoyada en la línea. */
+.tabs { display: flex; flex: none; align-items: flex-end; gap: 2px; height: var(--region-head-h);
+  padding: var(--space-1) var(--space-1) 0; border-bottom: 1px solid var(--border); background: var(--sidebar);
+  overflow-x: auto; overflow-y: hidden; scrollbar-width: thin }
+.tab { position: relative; display: inline-flex; align-items: center; gap: var(--space-2); flex: none; height: 36px;
+  padding: 0 var(--gutter); border: 0; border-radius: var(--radius-control) var(--radius-control) 0 0; background: none;
+  color: var(--texto-3); font: inherit; font-size: var(--text-sm); font-weight: 400; white-space: nowrap; cursor: pointer }
+.tab:hover { color: var(--foreground) }
+.tab.on, .tab[aria-selected="true"] { background: var(--background); color: var(--foreground) }
+.tab.on::after, .tab[aria-selected="true"]::after { content: ""; position: absolute; left: var(--space-2); right: var(--space-2);
+  bottom: -1px; height: 2px; border-radius: 2px 2px 0 0; background: var(--primary) }
+
+/* ── UN CONTROL DENTRO DE UNA BANDA ───────────────────────────────────────────────────────────────
+   La banda superior mide 40 con su línea: 4 de aire, un control de 28 y 4 de aire. Un control de 32
+   adentro la estiraba a 49 —medido en el recorrido del harness y en el mapa del trazador—, y la
+   costura dejaba de seguir derecha contra la columna de al lado. Va al FINAL del archivo a propósito:
+   `.region-head :where(…)` pesa lo mismo que `.btn`, y a igual peso gana la regla de más abajo. Los
+   de 24 (`-xs`) quedan como están. */
+.region-head :where(.btn:not(.btn-xs):not(.btn-link), .input:not(.input-xs), .input-group, select.btn) {
+  height: var(--control-sm);
+}
+.region-head :where(.btn-icon:not(.btn-xs)) { width: var(--control-sm) }
 </script>

@@ -85,6 +85,7 @@
   --icon-size: 16px;
   --radius-control: 6px;    /* botón, campo, ítem de menú, botón de icono */
   --radius-float: 10px;     /* lo que flota: radio del ítem + el aire del menú (6 + 4), concéntricos */
+  --hover: color-mix(in oklab, var(--foreground) 8%, transparent); /* fondo al pasar: fantasma, icono, fila */
   --titlebar-h: 52px;
   --statusbar-h: 30px;
   --banner-h: auto;
@@ -315,7 +316,7 @@ button.region-head:focus-visible { outline: none; box-shadow: inset 0 0 0 2px va
   border: 0; border-radius: var(--radius-control); background: none; cursor: pointer;
   color: inherit; font: inherit; font-size: var(--text-base); line-height: 1;
 }
-.region-action:hover { background: var(--sel, color-mix(in oklab, var(--foreground) 10%, transparent)) }
+.region-action:hover { background: var(--hover) }
 .region-action[aria-expanded="true"] { background: var(--sel, color-mix(in oklab, var(--foreground) 10%, transparent)); color: var(--foreground) }
 
 /* ── EL MENÚ … ───────────────────────────────────────────────────────────────────────────────────
@@ -384,12 +385,19 @@ body.redimensionando { cursor: col-resize; user-select: none }
 
 /* El anillo de foco es lo más reconocible del sistema, y es UNO solo para todo lo que se enfoca:
    el borde se tiñe y afuera va un halo de 3px al 50%. Nada de `outline` del navegador. */
-.btn:focus-visible, .input:focus-visible, .switch:focus-visible,
-.badge:focus-visible, .region-action:focus-visible {
-  outline: none;
-  border-color: var(--ring);
-  box-shadow: 0 0 0 3px color-mix(in oklab, var(--ring) 50%, transparent);
+/* Un solo anillo de foco para todo, el mismo que `:where(button, a, …)`: 2 en --ring, separado 2. */
+.btn:focus-visible, .input:focus-visible, .switch:focus-visible, .checkbox:focus-visible,
+.badge:focus-visible, .region-action:focus-visible, .toggle:focus-visible, .tab:focus-visible, .row:focus-visible {
+  outline: 2px solid var(--ring); outline-offset: 2px; box-shadow: none;
 }
+.input-group:focus-within { outline: 2px solid var(--ring); outline-offset: 2px }
+.input-group > .input:focus-visible { outline: none }
+
+/* ⚠ Las medidas de un control son su caja ENTERA: sin esto, un campo de 32 con su borde medía 34 en
+   una herramienta y 32 en otra, según si esa herramienta fijaba `box-sizing` por su cuenta. */
+:where(.btn, .input, .input-group, .select, .badge, .kbd, .toggle, .switch, .checkbox, .region-action,
+  .region-menu, .region-menu-item, .row, .tabs, .tab, .statusbar, .region-head, .table th, .table td,
+  .alert, .empty-media) { box-sizing: border-box }
 
 /* ── BOTÓN ──────────────────────────────────────────────────────────────────────────────────────
    Base + seis variantes + cuatro tamaños, como el `cva` del original. El tamaño por defecto es
@@ -398,7 +406,7 @@ body.redimensionando { cursor: col-resize; user-select: none }
 .btn {
   display: inline-flex; align-items: center; justify-content: center; gap: 8px;
   flex-shrink: 0; white-space: nowrap; border: 1px solid transparent;
-  height: var(--control-md); padding: 0 var(--space-3);
+  height: var(--control-md); min-width: var(--control-md); padding: 0 var(--space-3);
   border-radius: var(--radius-control);
   font: inherit; font-size: var(--text-base); font-weight: 500; line-height: 20px;
   background: var(--primary); color: var(--primary-foreground);
@@ -411,9 +419,9 @@ body.redimensionando { cursor: col-resize; user-select: none }
 .btn-secondary:hover { background: color-mix(in oklab, var(--secondary) 80%, transparent) }
 .btn-outline { background: transparent; color: var(--foreground); border-color: var(--border);
   box-shadow: 0 1px 2px 0 rgb(0 0 0 / .05) }
-.btn-outline:hover { background: var(--accent); color: var(--accent-foreground) }
+.btn-outline:hover { background: var(--hover) }
 .btn-ghost { background: transparent; color: inherit }
-.btn-ghost:hover { background: var(--accent); color: var(--accent-foreground) }
+.btn-ghost:hover { background: var(--hover) }
 /* ⚠ El original pone `text-white` sobre destructive, y ACÁ NO SIRVE: `--destructive` es #e06666, un
    rojo medio, y el blanco encima mide 3,35:1. Lo cazó `make estilo-check` sobre este mismo archivo.
    Va el fondo de la app como tinta —la misma inversión que usa el tooltip del original—, que sobre
@@ -426,9 +434,9 @@ body.redimensionando { cursor: col-resize; user-select: none }
   text-underline-offset: 4px }
 .btn-link:hover { background: none; text-decoration: underline }
 
-.btn-xs { height: var(--control-xs); padding: 0 var(--space-2); gap: var(--space-1); font-size: var(--text-sm) }
-.btn-sm { height: var(--control-sm); padding: 0 var(--space-3); gap: var(--space-2); font-size: var(--text-base) }
-.btn-lg { height: var(--control-lg); padding: 0 var(--space-4) }
+.btn-xs { height: var(--control-xs); min-width: var(--control-xs); padding: 0 var(--space-2); gap: var(--space-1); font-size: var(--text-sm); line-height: 16px }
+.btn-sm { height: var(--control-sm); min-width: var(--control-sm); padding: 0 var(--space-3); gap: var(--space-2); font-size: var(--text-base) }
+.btn-lg { height: var(--control-lg); min-width: var(--control-lg); padding: 0 var(--space-4); font-size: var(--text-body) }
 /* Los de icono son CUADRADOS: un botón de icono con padding horizontal se lee como un botón vacío. */
 .btn-icon { width: var(--control-md); padding: 0 } .btn-icon.btn-xs { width: var(--control-xs) }
 .btn-icon.btn-sm { width: var(--control-sm) } .btn-icon.btn-lg { width: var(--control-lg) }
@@ -448,28 +456,25 @@ body.redimensionando { cursor: col-resize; user-select: none }
 .input:disabled { pointer-events: none; cursor: not-allowed; opacity: .5 }
 .input[aria-invalid="true"] { border-color: var(--destructive) }
 .input[aria-invalid="true"]:focus-visible { box-shadow: 0 0 0 3px color-mix(in oklab, var(--destructive) 40%, transparent) }
-textarea.input { height: auto; min-height: 64px; padding: var(--space-2) var(--gutter); resize: vertical }
-.input-sm { height: var(--control-sm); font-size: var(--text-base) }
+textarea.input { height: auto; min-height: 80px; padding: var(--space-2) var(--gutter); resize: vertical }
+.input-sm { height: var(--control-sm); padding: 0 var(--space-2); font-size: var(--text-base) }
 /* Extensión declarada: shadcn corta en `sm`. Hace falta un escalón más para el campo que vive
    DENTRO de una barra —el buscador de una etapa, el filtro de un grupo—, donde 32px empujan la
    barra a 50 y dejan de leerse como barra. Es el mismo 24px de `.btn-xs`. */
-.input-xs { height: var(--control-xs); padding: 0 var(--space-2); font-size: var(--text-sm) }
+.input-xs { height: var(--control-xs); padding: 0 var(--space-2); font-size: var(--text-sm); line-height: 16px }
 
 /* Un campo con algo adentro —una lupa, una ✕, una unidad—. El borde lo lleva el GRUPO y el input
    queda desnudo adentro: si lo llevan los dos, se ven dos marcos concéntricos. */
 .input-group { display: flex; align-items: center; gap: var(--space-2); height: var(--control-md); padding: 0 var(--space-2);
   border: 1px solid var(--input); border-radius: var(--radius-control); background: transparent;
   box-shadow: 0 1px 2px 0 rgb(0 0 0 / .05); transition: border-color .12s, box-shadow .12s }
-.input-group:focus-within { border-color: var(--ring);
-  box-shadow: 0 0 0 3px color-mix(in oklab, var(--ring) 50%, transparent) }
 .input-group > .input { height: auto; border: 0; box-shadow: none; padding: 0; flex: 1 }
-.input-group > .input:focus-visible { box-shadow: none }
 .input-group > svg, .input-group > .ico-txt { flex: none; color: var(--texto-3) }
 
 /* La etiqueta de un campo y su pista, que es lo que `field` del original resuelve. */
 .field { display: flex; flex-direction: column; gap: var(--space-2) }
-.field > label, .label { font-size: var(--text-base); font-weight: 500; line-height: 1; color: var(--foreground) }
-.field-hint { font-size: var(--text-sm); color: var(--texto-3); line-height: 1.4 }
+.field > label, .label { font-size: var(--text-sm); font-weight: 500; line-height: 16px; color: var(--texto-2) }
+.field-hint { font-size: var(--text-sm); color: var(--texto-3); line-height: 16px }
 .field-error { font-size: var(--text-sm); color: var(--destructive) }
 
 /* ── PÍLDORA ────────────────────────────────────────────────────────────────────────────────────
@@ -478,8 +483,8 @@ textarea.input { height: auto; min-height: 64px; padding: var(--space-2) var(--g
 .badge {
   display: inline-flex; align-items: center; justify-content: center; gap: 4px;
   width: fit-content; flex-shrink: 0; overflow: hidden; white-space: nowrap;
-  padding: 2px 8px; border: 1px solid transparent; border-radius: var(--radius-full, 999px);
-  font-size: var(--text-sm); font-weight: 500; line-height: 16px;
+  height: 20px; padding: 0 var(--space-2); border: 1px solid transparent; border-radius: 999px;
+  font-size: var(--text-xs); font-weight: 500; line-height: 16px;
   background: var(--primary); color: var(--primary-foreground);
   transition: color .12s, box-shadow .12s;
 }
@@ -490,7 +495,7 @@ textarea.input { height: auto; min-height: 64px; padding: var(--space-2) var(--g
 /* ⚠ `badge-xs` NO está en el original, y es una extensión DECLARADA: estas herramientas son densas y
    tienen ~25 etiquetas de 10px —la fuente de un dato, el conteo de errores, la etapa de un esfuerzo—
    que a 12px empujan la fila a otro renglón. Es el mismo componente, un escalón abajo. */
-.badge-xs { padding: 0 6px; font-size: var(--text-xs); line-height: 16px; gap: var(--space-1) }
+.badge-xs { height: 16px; padding: 0 6px; font-size: var(--text-xs); line-height: 14px; gap: var(--space-1) }
 
 /* ── TECLA ──────────────────────────────────────────────────────────────────────────────────────
    Las pistas de teclado eran texto plano («←/→ recorren», «⌥R»). Una tecla se lee como tecla. */
@@ -498,12 +503,12 @@ textarea.input { height: auto; min-height: 64px; padding: var(--space-2) var(--g
   pointer-events: none; user-select: none;
   display: inline-flex; align-items: center; justify-content: center; gap: 4px;
   height: 20px; min-width: 20px; width: fit-content; padding: 0 4px;
-  border-radius: var(--radius-sm, 3px); background: var(--muted);
+  border-radius: 4px; background: var(--muted);
   /* ⚠ El original es `text-muted-foreground`, que acá mide 3,63:1 sobre `--muted`. En este tema el
      muted es el escalón MÁS BAJO legible, no el del medio: la rampa cuelga de `--foreground`, igual
      que en `region-head`. Es la misma corrección de siempre y la volvió a encontrar el chequeo. */
   color: var(--texto-2);
-  font: inherit; font-size: var(--text-sm); font-weight: 500;
+  font: inherit; font-size: var(--text-xs); font-weight: 500;
 }
 
 /* ── INTERRUPTOR ────────────────────────────────────────────────────────────────────────────────
@@ -571,7 +576,7 @@ textarea.input { height: auto; min-height: 64px; padding: var(--space-2) var(--g
 .empty-media { display: flex; align-items: center; justify-content: center; flex: none;
   width: var(--control-lg); height: var(--control-lg); margin-bottom: var(--space-2); border-radius: var(--radius-float);
   background: var(--muted); color: var(--foreground); font-size: var(--text-title) }
-.empty-title { font-size: var(--text-title); font-weight: 500; letter-spacing: -.01em; color: var(--foreground) }
+.empty-title { font-size: var(--text-title); font-weight: 600; letter-spacing: -.01em; color: var(--foreground) }
 .empty-desc { font-size: var(--text-base); line-height: 1.6; color: var(--texto-2) }
 .empty-content { display: flex; width: 100%; max-width: 24rem; min-width: 0;
   flex-direction: column; align-items: center; gap: var(--space-4); font-size: var(--text-base) }
@@ -592,13 +597,12 @@ textarea.input { height: auto; min-height: 64px; padding: var(--space-2) var(--g
    falla en este tema: `--muted-foreground` sobre `--muted` mide 3,63:1. Va la rampa del 74% que ya
    usan `region-head` y `.kbd`. No es que shadcn esté mal — es que su paleta de referencia tiene más
    separación entre esos dos escalones que la nuestra, y por eso los colores se vuelven a medir. */
-.toggle:hover { background: var(--muted); color: var(--texto-2) }
+.toggle:hover { background: var(--hover) }
 .toggle[aria-pressed="true"], .toggle.on, .toggle[data-state="on"] {
   background: var(--accent); color: var(--accent-foreground);
 }
 .toggle:disabled { pointer-events: none; opacity: .5 }
-.toggle:focus-visible { outline: none; border-color: var(--ring);
-  box-shadow: 0 0 0 3px color-mix(in oklab, var(--ring) 50%, transparent) }
+
 .toggle-outline > .toggle { border-color: var(--input); box-shadow: 0 1px 2px 0 rgb(0 0 0 / .05) }
 .toggle-outline > .toggle:hover { background: var(--accent); color: var(--accent-foreground) }
 /* Unidas: un solo bloque con los bordes internos colapsados. Sin esto se ven N botones sueltos y
@@ -650,20 +654,21 @@ textarea.input { height: auto; min-height: 64px; padding: var(--space-2) var(--g
    ⚠ Sólo las dos variantes del original. El ámbar y el verde NO van acá: son color SEMÁNTICO, que
    vive en la hoja de cada herramienta (el export del tema no los trae y pegarlo los borraría). */
 .alert {
+  /* Un aviso de la base: una barra de 2 a la izquierda y un tinte, cuadrado. Ni marco ni radio. */
   position: relative; display: grid; grid-template-columns: 0 1fr; align-items: start;
-  row-gap: 2px; width: 100%; padding: 12px 16px;
-  border: 1px solid var(--border); border-radius: var(--radius);
-  background: var(--card); color: var(--card-foreground); font-size: var(--text-base);
+  row-gap: var(--space-1); width: 100%; padding: var(--space-3);
+  border: 0; border-left: 2px solid var(--primary); border-radius: 0;
+  background: color-mix(in oklab, var(--primary) 8%, transparent); color: var(--foreground); font-size: var(--text-base);
 }
-.alert:has(> .alert-icon) { grid-template-columns: 16px 1fr; column-gap: 12px }
+.alert:has(> .alert-icon) { grid-template-columns: 16px 1fr; column-gap: var(--space-2) }
 .alert-icon { grid-column: 1; width: 16px; height: 16px; line-height: 16px; text-align: center;
   transform: translateY(2px); color: currentColor }
-.alert-title { grid-column: 2; min-height: 16px; font-weight: 500; letter-spacing: -.01em;
+.alert-title { grid-column: 2; min-height: 16px; font-weight: 600;
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap }
 .alert-desc { grid-column: 2; display: grid; justify-items: start; gap: 4px;
   font-size: var(--text-base); color: var(--texto-2) }
 .alert-desc p { margin: 0; line-height: 1.6 }
-.alert-destructive { color: var(--destructive) }
+.alert-destructive { border-left-color: var(--destructive); background: color-mix(in oklab, var(--destructive) 8%, transparent) }
 .alert-destructive .alert-desc { color: color-mix(in oklab, var(--destructive) 90%, var(--card)) }
 
 /* ── MIGAS ──────────────────────────────────────────────────────────────────────────────────────
@@ -764,6 +769,54 @@ textarea.input { height: auto; min-height: 64px; padding: var(--space-2) var(--g
 /* El tema: el icono muestra el tema ACTUAL (sol = claro, luna = oscuro); la etiqueta dice la acción. */
 .ui-icon[data-icon="sun"] { --ui-icon: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22black%22%20stroke-width%3D%221.75%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Ccircle%20cx%3D%2212%22%20cy%3D%2212%22%20r%3D%224%22%2F%3E%3Cpath%20d%3D%22M12%202.5v2M12%2019.5v2M4.6%204.6%206%206M18%2018l1.4%201.4M2.5%2012h2M19.5%2012h2M4.6%2019.4%206%2018M18%206l1.4-1.4%22%2F%3E%3C%2Fsvg%3E") }
 .ui-icon[data-icon="moon"] { --ui-icon: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22black%22%20stroke-width%3D%221.75%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Cpath%20d%3D%22M20%2014.5A8%208%200%201%201%209.5%204a6.5%206.5%200%200%200%2010.5%2010.5Z%22%2F%3E%3C%2Fsvg%3E") }
+
+/* ── PIEZAS DE LA BASE ────────────────────────────────────────────────────────────────────────────
+   Las que faltaban para que cada cosa de la base tenga UNA forma: el select, el contador, la tabla,
+   la fila y las pestañas. Sus medidas son las de `tools/ui/spec.json`, y `make estilo-componentes`
+   comprueba que lo pintado coincida. */
+
+/* El select: un `.input` con la flecha como icono de 16 a 8 del borde, pintada con la tinta. */
+.select { position: relative; display: block; min-width: 0 }
+.select > select { appearance: none; -webkit-appearance: none; padding-right: 32px; cursor: pointer }
+.select::after { content: ""; position: absolute; top: 50%; right: var(--space-2); width: var(--icon-size); height: var(--icon-size);
+  translate: 0 -50%; background: var(--texto-3); pointer-events: none;
+  mask: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22black%22%20stroke-width%3D%221.75%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Cpath%20d%3D%22m6%209%206%206%206-6%22%2F%3E%3C%2Fsvg%3E") center / contain no-repeat; -webkit-mask: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22black%22%20stroke-width%3D%221.75%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Cpath%20d%3D%22m6%209%206%206%206-6%22%2F%3E%3C%2Fsvg%3E") center / contain no-repeat }
+.select:has(> select.input-sm) > select, .select:has(> select.input-xs) > select { padding-right: 28px }
+.select:has(> select.input-sm)::after, .select:has(> select.input-xs)::after { right: 6px }
+
+/* El contador de una banda o una vista. Con un filtro puesto se delata: «9 / 16» en el color de acción. */
+.count { flex: none; font-size: var(--text-xs); font-weight: 400; color: var(--texto-3); font-variant-numeric: tabular-nums }
+.count.filtered { color: var(--primary); font-weight: 600 }
+
+/* La tabla: una línea por fila y ninguna grilla; los números a la derecha. */
+.table { width: 100%; border-collapse: collapse; font-size: var(--text-base) }
+.table th, .table td { height: 32px; padding: 0 var(--gutter); border-bottom: 1px solid var(--border); text-align: left; vertical-align: middle }
+.table th { font-size: var(--text-sm); font-weight: 600; color: var(--texto-3) }
+.table .num { text-align: right; font-variant-numeric: tabular-nums }
+
+/* La fila de una lista o de un árbol: 4 afuera y 8 adentro dejan el texto a 12 del borde, como la
+   banda. La elegida lleva fondo y una barra de 2: sólo con fondo, en una lista larga hay que comparar. */
+.row { display: flex; align-items: center; gap: var(--space-2); min-height: var(--row-h); margin: 0 var(--space-1);
+  padding: 0 var(--space-2); border-radius: var(--radius-control); font-size: var(--text-base); color: var(--texto-2);
+  white-space: nowrap; min-width: 0; cursor: pointer }
+.row > span:not(.ui-icon):not(.row-meta):not(.badge) { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis }
+.row:hover { background: var(--hover) }
+.row.on, .row[aria-selected="true"] { background: var(--accent); color: var(--accent-foreground); box-shadow: inset 2px 0 0 var(--primary) }
+.row-meta { flex: none; margin-left: auto; font-size: var(--text-xs); color: var(--texto-3); font-variant-numeric: tabular-nums }
+.row[data-level="1"] { padding-left: calc(var(--space-2) + var(--indent)) }
+.row[data-level="2"] { padding-left: calc(var(--space-2) + 2 * var(--indent)) }
+
+/* Las pestañas: la barra ES la banda superior (40) y cada pestaña mide 36, apoyada en la línea. */
+.tabs { display: flex; flex: none; align-items: flex-end; gap: 2px; height: var(--region-head-h);
+  padding: var(--space-1) var(--space-1) 0; border-bottom: 1px solid var(--border); background: var(--sidebar);
+  overflow-x: auto; overflow-y: hidden; scrollbar-width: thin }
+.tab { position: relative; display: inline-flex; align-items: center; gap: var(--space-2); flex: none; height: 36px;
+  padding: 0 var(--gutter); border: 0; border-radius: var(--radius-control) var(--radius-control) 0 0; background: none;
+  color: var(--texto-3); font: inherit; font-size: var(--text-sm); font-weight: 400; white-space: nowrap; cursor: pointer }
+.tab:hover { color: var(--foreground) }
+.tab.on, .tab[aria-selected="true"] { background: var(--background); color: var(--foreground) }
+.tab.on::after, .tab[aria-selected="true"]::after { content: ""; position: absolute; left: var(--space-2); right: var(--space-2);
+  bottom: -1px; height: 2px; border-radius: 2px 2px 0 0; background: var(--primary) }
 
 /* ── UN CONTROL DENTRO DE UNA BANDA ───────────────────────────────────────────────────────────────
    La banda superior mide 40 con su línea: 4 de aire, un control de 28 y 4 de aire. Un control de 32
