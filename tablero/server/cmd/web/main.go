@@ -819,7 +819,10 @@ func main() {
 	})
 
 	log.Printf("server on · http://localhost:%s · integraciones: %s", port, integrations)
-	if err := http.ListenAndServe(":"+port, mux); err != nil {
+	// ⚠ Sólo loopback: este server publica en Jira y Slack y no tiene autenticación. Escuchando en
+	// `:"+port` (todas las interfaces) cualquiera en la misma red podía llamarlo. `WEB_HOST=0.0.0.0` lo
+	// abre a propósito.
+	if err := http.ListenAndServe(envDefault("WEB_HOST", "127.0.0.1")+":"+port, mux); err != nil {
 		log.Fatalf("server error: %v", err)
 	}
 }

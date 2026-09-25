@@ -18,6 +18,10 @@ import { homedir } from 'node:os';
 const HERE = dirname(fileURLToPath(import.meta.url));
 const ROOT = resolve(HERE, '..');              // raíz de harness
 const PORT = Number(process.env.PANEL_PORT || 5195);
+// ⚠ Sólo loopback. El panel ESCRIBE —asigna el asesor en la base del ambiente elegido, siembra, lanza
+// corridas— y no tiene autenticación: escuchando en todas las interfaces (era `listen(PORT)`, o sea
+// `*:5195`) cualquiera en la misma red podía llamar a esas rutas. `PANEL_HOST=0.0.0.0` lo abre a propósito.
+const HOST = process.env.PANEL_HOST || '127.0.0.1';
 const RUN_LOG = '/tmp/asesor-panel-run.log';
 /* El stdout del WIZARD (SSR). No lo inventa el panel: `bin/advisor:500` ya lanza `pnpm dev` con
  * `> /tmp/asesor-wizard.log`, y lo TRUNCA antes de cada arranque — o sea que el archivo es siempre el de
@@ -1481,7 +1485,7 @@ server.on('error', (err: NodeJS.ErrnoException) => {
     process.exit(1);
 });
 
-server.listen(PORT, () => {
+server.listen(PORT, HOST, () => {
     console.log(`\n  🎛  Panel del harness → http://localhost:${PORT}   (local · dev)\n`);
     void bootPrewarm().catch(() => {});
 });
