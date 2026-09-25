@@ -938,8 +938,8 @@
         const chosenOne = !!sel && (sel.slug === e.slug || (e.hash && sel.slug === e.hash));
         // La elegida es la `.row` elegida de la base (`aria-selected`: fondo y barra de 2), no una tilde.
         // Sin chevron: la fila ya no se despliega, ABRE el comercio (su mapa al centro y su pestaña
-        // «Comercio» a la derecha). El icono es el del recorrido, que es lo que se abre.
-        const rowEl = treeRow(e.missing ? 'missing' : '', 0, 'channel', escTxt(e.alias || e.name),
+        // «Comercio» a la derecha). El icono es el de comercio (`store`): cada fila es una sucursal.
+        const rowEl = treeRow(e.missing ? 'missing' : '', 0, 'merchant', escTxt(e.alias || e.name),
           e.missing ? (e.meta || '') : (e.hash || '…'));
         rowEl.title = `${e.alias || e.name}${e.hash ? ` · sucursal ${e.hash}` : ''}`
           + (e.fav ? ' · agregado por vos' : ' · curado, vive en el código')
