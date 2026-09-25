@@ -12,7 +12,7 @@
 tablero trazador cuadrilla visor
 jev noul
 jira jql atlassian confluence cql redash dependabot claude
-loki logql gemini twilio figma tailwindcss
+loki logql gemini twilio figma tailwindcss tailwind
 cognito laravel wompi experian imei vtex agildata netco tusdatos selfmanager smartpay credipullman
 motai pullman abaco welli payvalida bancolombia creditop wizard blade cuotealo creditopx
 posthog hogql mermaid deceval corbeta credifamilia datacredito allied allieds pesos

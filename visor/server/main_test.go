@@ -195,7 +195,7 @@ func TestSlugMatchesTheUI(t *testing.T) {
 
 // La hoja de tokens sale del mapa con más colores con nombre del archivo, lista para pegar; y el HTML los
 // recibe por id de estilo.
-func TestTokensComeFromTheRichestMap(t *testing.T) {
+func TestTokensComeFromTheMapWithMostColors(t *testing.T) {
 	s := newServer(nil, t.TempDir())
 	s.maps["SsvFsK5tLvR1jNT3Hh6znD|334:455"] = figma.Structure{FileName: "flujo ecommerce", Tokens: &figma.Tokens{
 		Colors: []figma.ColorToken{{ID: "C1", Name: "Colors/morado/morado-500", Var: "--morado-500", Value: "#4c39ff", Uses: 3}}}}
