@@ -192,3 +192,28 @@ func TestSlugMatchesTheUI(t *testing.T) {
 		}
 	}
 }
+
+// La hoja de tokens sale del mapa con más colores con nombre del archivo, lista para pegar; y el HTML los
+// recibe por id de estilo.
+func TestTokensComeFromTheRichestMap(t *testing.T) {
+	s := newServer(nil, t.TempDir())
+	s.maps["SsvFsK5tLvR1jNT3Hh6znD|334:455"] = figma.Structure{FileName: "flujo ecommerce", Tokens: &figma.Tokens{
+		Colors: []figma.ColorToken{{ID: "C1", Name: "Colors/morado/morado-500", Var: "--morado-500", Value: "#4c39ff", Uses: 3}}}}
+	s.maps["SsvFsK5tLvR1jNT3Hh6znD|1:259"] = figma.Structure{FileName: "flujo ecommerce", Tokens: &figma.Tokens{
+		Colors: []figma.ColorToken{{ID: "C1", Name: "Colors/morado/morado-500", Var: "--morado-500", Value: "#4c39ff", Uses: 9},
+			{ID: "C2", Name: "Colors/neutral/neutral-0", Var: "--neutral-0", Value: "#ffffff", Uses: 4}},
+		Texts: []figma.TextToken{{ID: "T1", Name: "text-small/medium", Class: "text-small-medium", Family: "Satoshi", Size: 14}}}}
+	rec := httptest.NewRecorder()
+	s.routes().ServeHTTP(rec, httptest.NewRequest("GET", "/api/tokens?key=SsvFsK5tLvR1jNT3Hh6znD&format=css", nil))
+	if body := rec.Body.String(); rec.Code != 200 || !strings.Contains(body, "--neutral-0: #ffffff;") || !strings.Contains(body, "«flujo ecommerce»") {
+		t.Errorf("HTTP %d:\n%s", rec.Code, body)
+	}
+	if st := s.styleTokens("SsvFsK5tLvR1jNT3Hh6znD"); st["C2"].Var != "--neutral-0" || st["T1"].Class != "text-small-medium" {
+		t.Errorf("tokens para el HTML: %+v", st)
+	}
+	rec = httptest.NewRecorder()
+	s.routes().ServeHTTP(rec, httptest.NewRequest("GET", "/api/tokens?key=AbCdEf1234567890", nil))
+	if rec.Code != 404 {
+		t.Errorf("sin mapa leído no hay hoja: HTTP %d", rec.Code)
+	}
+}

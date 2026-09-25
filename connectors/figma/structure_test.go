@@ -303,3 +303,68 @@ func TestFingerprintFollowsContentNotKeyOrder(t *testing.T) {
 		t.Error("lo que no es JSON no tiene huella")
 	}
 }
+
+// Los tokens: el nombre sale del estilo y el valor, de los nodos que lo usan; lo que no tiene estilo va
+// aparte (y si su valor es el de un estilo, lo dice); la barra de estado no cuenta; y cada uno sabe en
+// cuántas pantallas aparece.
+func TestTokensNameStylesAndSeparateWhatIsLoose(t *testing.T) {
+	doc := []byte(`{"id":"0:1","type":"SECTION","children":[
+	  {"id":"1:1","type":"FRAME","children":[
+	    {"id":"1:2","type":"TEXT","styles":{"text":"T1","fill":"C1"},"fills":[{"type":"SOLID","color":{"r":0.298,"g":0.224,"b":1,"a":1}}],
+	     "style":{"fontFamily":"Satoshi Variable","fontWeight":500,"fontSize":14,"lineHeightPx":21.000000953}},
+	    {"id":"1:3","type":"RECTANGLE","cornerRadius":16,"fills":[{"type":"SOLID","color":{"r":0.298,"g":0.224,"b":1,"a":1}}]},
+	    {"id":"1:4","type":"FRAME","name":"Status bar","fills":[{"type":"SOLID","color":{"r":0,"g":0,"b":0,"a":1}}]}]},
+	  {"id":"2:1","type":"FRAME","children":[
+	    {"id":"2:2","type":"RECTANGLE","styles":{"fill":"C1"},"fills":[{"type":"SOLID","color":{"r":0.298,"g":0.224,"b":1,"a":1}}]},
+	    {"id":"2:3","type":"RECTANGLE","visible":false,"fills":[{"type":"SOLID","color":{"r":1,"g":0,"b":0,"a":1}}]}]}]}`)
+	styles := map[string]styleMeta{"C1": {Name: "Colors/morado/morado-500", StyleType: "FILL"}, "T1": {Name: "text-small/medium", StyleType: "TEXT"}}
+	tk, err := ComputeTokens(doc, styles, map[string]bool{"1:1": true, "2:1": true})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(tk.Colors) != 1 || tk.Colors[0].Var != "--morado-500" || tk.Colors[0].Value != "#4c39ff" || tk.Colors[0].Uses != 2 || tk.Colors[0].Screens != 2 {
+		t.Errorf("color con estilo: %+v", tk.Colors)
+	}
+	if len(tk.Texts) != 1 || tk.Texts[0].Class != "text-small-medium" || tk.Texts[0].Size != 14 || tk.Texts[0].LineHeight != 21 || tk.Texts[0].Weight != 500 {
+		t.Errorf("estilo de texto: %+v", tk.Texts)
+	}
+	if len(tk.Loose) != 1 || tk.Loose[0].Value != "#4c39ff" || tk.Loose[0].Matches != "--morado-500" {
+		t.Errorf("sueltos: sólo el rectángulo sin estilo —ni la barra de estado ni lo oculto— y con su token: %+v", tk.Loose)
+	}
+	if len(tk.Radii) != 1 || tk.Radii[0].Value != 16 {
+		t.Errorf("radios: %+v", tk.Radii)
+	}
+	css := tk.CSS("x")
+	for _, want := range []string{"--morado-500: #4c39ff;", ".text-small-medium {", "font-family: 'Satoshi', sans-serif;", "line-height: 21px;", "es el valor de --morado-500"} {
+		if !strings.Contains(css, want) {
+			t.Errorf("falta %q en el CSS:\n%s", want, css)
+		}
+	}
+	tw := tk.Tailwind("x")
+	for _, want := range []string{"--color-morado-500: #4c39ff;", "--text-small-medium: 14px;", "--text-small-medium--line-height: 21px;", "--font-satoshi:", "--radius-16: 16px;"} {
+		if !strings.Contains(tw, want) {
+			t.Errorf("falta %q en el tema:\n%s", want, tw)
+		}
+	}
+}
+
+// El nombre de la variable junta las dos formas de las bibliotecas de producto, no deja un `--0`, y si
+// un mismo nombre tiene dos valores, el menos usado lleva el suyo pegado.
+func TestColorVarsJoinBothNamingSchemes(t *testing.T) {
+	cs := []ColorToken{
+		{Name: "Colors/violet/violet-500", Value: "#252256", Uses: 10}, {Name: "colors/violet/500", Value: "#252256", Uses: 3},
+		{Name: "colors/neutral/0", Value: "#ffffff", Uses: 5}, {Name: "Colors/Verde creditop/verde creditop-200", Value: "#8cecc8", Uses: 1},
+		{Name: "Colors/neutral/neutral-50", Value: "#fcfcfc", Uses: 6}, {Name: "Colors/neutral/neutral-50", Value: "#e6e6e6", Uses: 1},
+	}
+	nameColorVars(cs)
+	want := []string{"--violet-500", "--violet-500", "--neutral-0", "--verde-creditop-200", "--neutral-50", "--neutral-50-e6e6e6"}
+	for i, w := range want {
+		if cs[i].Var != w {
+			t.Errorf("%s → %s, quería %s", cs[i].Name, cs[i].Var, w)
+		}
+	}
+	css := Tokens{Colors: cs}.CSS("x")
+	if strings.Count(css, "--violet-500:") != 1 || !strings.Contains(css, "13 usos") {
+		t.Errorf("el mismo token se declara una vez, con los usos sumados:\n%s", css)
+	}
+}

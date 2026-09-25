@@ -122,6 +122,36 @@ URL, no el de los archivos que se ven en esa pantalla: «recientes» mezcla arch
 - **Una pantalla que avanza sola** (prototipo con `AFTER_TIMEOUT`) no avanza sola acá: muestra el botón
   «Avanza sola a …». Un temporizador haría saltar la pantalla mientras se la está mirando.
 
+## Los tokens: el diseño en el idioma de su sistema de diseño
+
+Para que un modelo pase una pantalla a Vue o React sin copiar colores sueltos, el visor saca los **tokens**
+del diseño: cada color y estilo de texto con su **nombre de Figma**, su valor y cuánto se usa
+(`connectors/figma/tokens.go`). Salen de la misma respuesta que el árbol del mapa: no cuestan un pedido más.
+
+- **Dónde:** `bin/pg figma tokens '<url de la sección o página>'` por consola (`--css` · `--tailwind` ·
+  `--json`), y en el visor, en el detalle de cada pantalla («Estilos del diseño»: los que usa esa
+  pantalla, con enlaces a la hoja del archivo en CSS, Tailwind y JSON).
+- **El HTML los usa:** lo que toma un estilo se escribe `var(--morado-500, rgba(76,57,255,1))` —con el valor
+  por si falta la variable, así la fidelidad no cambia: medido idéntica en Credifamilia (31) y flujo
+  ecommerce (49)— y el texto lleva la clase de su estilo (`class="text-small-medium"`). El documento
+  declara en su `:root` las variables que usa, así se copia con su hoja.
+- **El nombre de la variable junta las dos formas de las bibliotecas de producto**: la vieja
+  «Colors/violet/violet-500» y la nueva «colors/violet/500» son el mismo `--violet-500`. ⚠ Un mismo nombre
+  con dos valores es real —«neutral-50» es #fcfcfc y #e6e6e6 en flujo ecommerce y Motai—: el menos usado
+  lleva su valor pegado (`--neutral-50-e6e6e6`) en vez de esconderse.
+- **Los colores sin estilo van aparte**: se salen del sistema de diseño. Si su valor es el de un token, la
+  hoja lo dice («es el valor de --neutral-0: usar el token»): en Credifamilia 13 de los 38 sueltos. La barra
+  de estado del teléfono no cuenta: sus negros eran la mitad de los sueltos.
+- ⚠ **Radios y espaciados van por valor, sin nombre**: las variables de Figma se leen con un permiso que el
+  token no tiene (`/variables/local` contesta 403) y que Figma da en planes Enterprise.
+
+Medido el 2026-09-25, estilos con nombre por archivo (variables después de juntar las dos formas):
+
+    Credifamilia     33 colores → 33 variables · 17 textos · 38 colores sueltos
+    flujo ecommerce  66 colores → 44 variables · 23 textos · 42 colores sueltos
+    Motai            54 colores → 48 variables · 22 textos · 55 colores sueltos
+    BCP              31 colores → 21 variables · 22 textos · 26 colores sueltos
+
 ## Los controles del HTML responden: campos, casillas y botones
 
 El HTML no es sólo un dibujo: sus **campos se escriben, sus casillas se marcan y sus botones siguen al

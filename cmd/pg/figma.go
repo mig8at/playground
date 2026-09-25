@@ -291,6 +291,81 @@ func runFigmaMap(args []string) int {
 	return 0
 }
 
+// runFigmaTokens: la hoja de tokens de un diseño. Sale de la misma lectura que `figma map`.
+func runFigmaTokens(args []string) int {
+	fs := flag.NewFlagSet("figma tokens", flag.ContinueOnError)
+	id := fs.String("id", "", "el nodo a leer (una sección o una página), si la URL no trae node-id")
+	asCSS := fs.Bool("css", false, "como variables y clases CSS")
+	asTailwind := fs.Bool("tailwind", false, "como tema de Tailwind v4")
+	asJSON := fs.Bool("json", false, "la hoja en JSON")
+	ref, code := figmaRef(fs, args)
+	if code != 0 {
+		return code
+	}
+	nodeID := ref.NodeID
+	if *id != "" {
+		nodeID = strings.ReplaceAll(*id, "-", ":")
+	}
+	if nodeID == "" {
+		return fail(2, "falta qué leer: una URL con node-id (una sección o una página), o --id 1:2")
+	}
+	cl, code := figmaClient()
+	if cl == nil {
+		return code
+	}
+	st, err := cl.Structure(context.Background(), ref.FileKey, nodeID, false)
+	if err != nil {
+		return fail(1, "%v", err)
+	}
+	if st.Tokens == nil {
+		return fail(1, "Figma no devolvió estilos para %s", nodeID)
+	}
+	t := *st.Tokens
+	title := st.FileName + " · " + st.Name
+	switch {
+	case *asJSON:
+		return printJSON(t)
+	case *asCSS:
+		fmt.Print(t.CSS(title))
+		return 0
+	case *asTailwind:
+		fmt.Print(t.Tailwind(title))
+		return 0
+	}
+	fmt.Printf("%s — %d colores y %d estilos de texto con nombre; %d colores sin estilo\n\n", title, len(t.Colors), len(t.Texts), len(t.Loose))
+	fmt.Println("  COLORES")
+	for _, c := range t.Colors {
+		fmt.Printf("    %-22s %-24s %-38s %4d usos · %d pantallas\n", c.Var, c.Value, c.Name, c.Uses, c.Screens)
+	}
+	fmt.Println("\n  TEXTOS")
+	for _, x := range t.Texts {
+		fmt.Printf("    %-26s %-10s %3s · %4spx / %-4s %4d usos · %d pantallas\n", x.Name, strings.TrimSuffix(x.Family, " Variable"),
+			fmt.Sprint(x.Weight), fmt.Sprint(x.Size), fmt.Sprint(x.LineHeight), x.Uses, x.Screens)
+	}
+	if len(t.Loose) > 0 {
+		fmt.Println("\n  SIN ESTILO (se salen del sistema de diseño)")
+		for i, l := range t.Loose {
+			if i == 12 {
+				fmt.Printf("    … y %d más\n", len(t.Loose)-12)
+				break
+			}
+			same := ""
+			if l.Matches != "" {
+				same = " · es el valor de " + l.Matches
+			}
+			fmt.Printf("    %-24s %4d usos · %d pantallas%s\n", l.Value, l.Uses, l.Screens, same)
+		}
+	}
+	var radii []string
+	for _, r := range t.Radii {
+		radii = append(radii, fmt.Sprintf("%g (%d)", r.Value, r.Uses))
+	}
+	fmt.Printf("\n  RADIOS   %s\n", strings.Join(radii, " · "))
+	fmt.Println("\n⚠ radios y espaciados van por valor: Figma no le da a este token los nombres de sus variables.")
+	fmt.Println("  Como hoja: --css (variables y clases) · --tailwind (tema de Tailwind v4) · --json")
+	return 0
+}
+
 func printStructure(st figma.Structure, level int) {
 	in := strings.Repeat("  ", level)
 	var kinds []string

@@ -2,6 +2,8 @@ package figma
 
 import (
 	"context"
+	"encoding/json"
+	"fmt"
 	"math"
 	"net/url"
 	"regexp"
@@ -36,6 +38,9 @@ type Structure struct {
 	FileName     string `json:"file_name,omitempty"`
 	Version      string `json:"version,omitempty"`
 	LastModified string `json:"last_modified,omitempty"`
+	// Tokens, sólo en la raíz: los colores y estilos de texto del diseño con su nombre de Figma
+	// (tokens.go). Salen de la misma respuesta que el árbol.
+	Tokens *Tokens `json:"tokens,omitempty"`
 }
 
 // Lane es un carril: una fila de pantallas bajo un rótulo, en el orden del lienzo (izquierda a derecha).
@@ -159,9 +164,10 @@ func (c *Client) Structure(ctx context.Context, key, nodeID string, withComments
 		Version      string `json:"version"`
 		LastModified string `json:"lastModified"`
 		Nodes        map[string]*struct {
-			Document      fullNode                         `json:"document"`
+			Document      json.RawMessage                  `json:"document"`
 			Components    map[string]componentMeta         `json:"components"`
 			ComponentSets map[string]struct{ Name string } `json:"componentSets"`
+			Styles        map[string]styleMeta             `json:"styles"`
 		} `json:"nodes"`
 	}
 	q := url.Values{"ids": {nodeID}}
@@ -193,9 +199,34 @@ func (c *Client) Structure(ctx context.Context, key, nodeID string, withComments
 			}
 		}
 	}
-	st := Read(n.Document, names, open)
+	var doc fullNode
+	if err := json.Unmarshal(n.Document, &doc); err != nil {
+		return Structure{}, fmt.Errorf("el árbol de %s no es el JSON esperado: %v", nodeID, err)
+	}
+	st := Read(doc, names, open)
 	st.FileName, st.Version, st.LastModified = raw.Name, raw.Version, raw.LastModified
+	if tokens, err := ComputeTokens(n.Document, n.Styles, screenIDs(st)); err == nil {
+		st.Tokens = &tokens
+	}
 	return st, nil
+}
+
+// screenIDs son las pantallas de un mapa, con las de sus secciones.
+func screenIDs(st Structure) map[string]bool {
+	out := map[string]bool{}
+	var walk func(s Structure)
+	walk = func(s Structure) {
+		for _, l := range s.Lanes {
+			for _, sc := range l.Screens {
+				out[sc.ID] = true
+			}
+		}
+		for _, sub := range s.Sections {
+			walk(sub)
+		}
+	}
+	walk(st)
+	return out
 }
 
 var (

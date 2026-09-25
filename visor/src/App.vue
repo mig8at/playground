@@ -498,15 +498,20 @@ async function copyLink() {
 const htmlURL = computed(() => (data.value && current.value ? `/api/html?key=${data.value.key}&id=${encodeURIComponent(current.value.id)}` : ''))
 // El reporte de la traducción: qué se tradujo y qué no. Se pide al cambiar de pantalla sólo si se está
 // mirando el HTML, para no traducir pantallas que nadie abre.
-watch([htmlURL, mode], async ([u, m]) => {
+// El reporte se pide en los tres modos: además de la traducción dice qué estilos del sistema de diseño usa
+// la pantalla, y eso sirve también mirando la imagen.
+watch([htmlURL, mode], async ([u]) => {
   report.value = null
-  if (!u || m === 'image') return
+  if (!u) return
   try {
     const res = await fetch(u + '&report=1')
     if (res.ok && u === htmlURL.value) report.value = await res.json()
   } catch { /* el reporte es un extra: sin él, la pantalla se ve igual */ }
 }, { immediate: true })
 const missingList = computed(() => Object.entries(report.value?.missing || {}).map(([why, n]) => `${why} ×${n}`))
+// Los estilos de Figma que usa la pantalla (colores y textos), de más a menos usado.
+const tokenList = computed(() => Object.entries(report.value?.tokens || {}).sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0])))
+const tokensURL = (format) => (data.value ? `/api/tokens?key=${data.value.key}${format ? '&format=' + format : ''}` : '')
 // Los controles que el HTML deja usar: campos para escribir, casillas para marcar, botones.
 const controlList = computed(() => Object.entries(report.value?.controls || {}).map(([kind, n]) => `${n} ${kind}`))
 const imageURL = computed(() => (data.value && current.value ? `/api/screen?key=${data.value.key}&id=${encodeURIComponent(current.value.id)}` : ''))
@@ -923,6 +928,18 @@ const rowMetaTitle = (sc) => [sc.hotspots?.length ? 'Tiene zonas del prototipo' 
               <dt>Sin traducir</dt><dd>{{ missingList.join(' · ') || 'nada' }}</dd>
             </dl>
           </div>
+          <div v-if="report" class="block">
+            <div class="region-head group"><span>Estilos del diseño</span><span class="count">{{ tokenList.length }}</span></div>
+            <ul v-if="tokenList.length" class="tokens">
+              <li v-for="[name, uses] in tokenList" :key="name"><span>{{ name }}</span><small>×{{ uses }}</small></li>
+            </ul>
+            <p v-else class="hint">Esta pantalla no usa estilos del sistema de diseño.</p>
+            <p v-if="report.loose" class="hint">{{ report.loose }} color(es) escrito(s) sin estilo: se salen del sistema.</p>
+            <p class="hint">La hoja del archivo, para pasar el diseño a código:
+              <a :href="tokensURL('css')" target="_blank" rel="noopener">CSS</a> ·
+              <a :href="tokensURL('tailwind')" target="_blank" rel="noopener">Tailwind</a> ·
+              <a :href="tokensURL('')" target="_blank" rel="noopener">JSON</a></p>
+          </div>
           <div v-if="current.actions?.length" class="block">
             <div class="region-head group"><span>Botones</span><span class="count">{{ current.actions.length }}</span></div>
             <ul class="plain-list"><li v-for="a in current.actions" :key="a">{{ a }}</li></ul>
@@ -1032,6 +1049,9 @@ const rowMetaTitle = (sc) => [sc.hotspots?.length ? 'Tiene zonas del prototipo' 
 .detail dt { font-size: var(--text-sm); color: var(--fg-3) }
 .detail dd { margin: 0; overflow-wrap: anywhere }
 .detail dd small { font-size: var(--text-xs); color: var(--fg-3) }
+.tokens { list-style: none; margin: 0; padding: var(--space-2) var(--space-3); font-size: var(--text-sm) }
+.tokens li { display: flex; justify-content: space-between; gap: var(--space-2) }
+.tokens small { color: var(--fg-3); font-variant-numeric: tabular-nums }
 .task-ref { display: flex; align-items: flex-start; gap: var(--space-1) }
 .task-ref code { flex: 1; min-width: 0; font-family: var(--font-mono); font-size: var(--text-sm); color: var(--fg-2);
   overflow-wrap: anywhere }

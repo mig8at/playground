@@ -293,7 +293,7 @@ func TestButtonsAreButtons(t *testing.T) {
 			t.Errorf("%s es un botón:\n%s", id, doc)
 		}
 	}
-	if !strings.Contains(styleOf(t, doc, "2"), "background:linear-gradient(rgba(77,56,255,1)") {
+	if !strings.Contains(styleOf(t, doc, "2"), "background:rgba(77,56,255,1)") {
 		t.Errorf("el botón conserva su caja de Figma: %s", styleOf(t, doc, "2"))
 	}
 	if rep.Controls["botón"] != 2 {
@@ -330,5 +330,36 @@ func TestSelectKeepsTheOnlyOptionTheDesignShows(t *testing.T) {
 	}
 	if rep.Controls["lista"] != 1 || rep.Missing["lista sin opciones en el diseño (sólo la que se ve)"] != 1 {
 		t.Errorf("controles %v · sin traducir %v", rep.Controls, rep.Missing)
+	}
+}
+
+// Con los tokens del archivo, lo que usa un estilo de Figma se escribe con su variable —y el valor por si
+// falta— y el texto lleva la clase de su estilo; lo que no tiene estilo queda con el valor, y se cuenta.
+func TestStylesBecomeTokens(t *testing.T) {
+	label := Node{ID: "3", Type: "TEXT", Box: box(20, 20, 100, 20), Characters: "Continuar", Styles: map[string]string{"text": "T1", "fill": "C2"},
+		Style: &TextStyle{FontFamily: "Satoshi Variable", FontSize: 14}, Fills: solid(1, 1, 1)}
+	button := Node{ID: "2", Name: "Caja", Type: "FRAME", Box: box(0, 0, 200, 60), Styles: map[string]string{"fill": "C1"}, Fills: solid(0.298, 0.224, 1),
+		Children: []Node{label}}
+	loose := Node{ID: "4", Type: "RECTANGLE", Box: box(0, 100, 10, 10), Fills: solid(1, 0, 0)}
+	screen := Node{ID: "1", Type: "FRAME", Box: box(0, 0, 430, 932), Children: []Node{button, loose}}
+	doc, rep := HTML(screen, Assets{Styles: map[string]StyleToken{
+		"C1": {Name: "Colors/morado/morado-500", Var: "--morado-500", Value: "#4c39ff"},
+		"C2": {Name: "Colors/neutral/neutral-0", Var: "--neutral-0", Value: "#ffffff"},
+		"T1": {Name: "text-small/medium", Class: "text-small-medium"},
+	}})
+	if !strings.Contains(styleOf(t, doc, "2"), "background:var(--morado-500, rgba(76,57,255,1))") {
+		t.Errorf("el relleno con estilo es su variable: %s", styleOf(t, doc, "2"))
+	}
+	if !strings.Contains(doc, `data-figma="3" class="text-small-medium"`) || !strings.Contains(styleOf(t, doc, "3"), "color:var(--neutral-0, rgba(255,255,255,1))") {
+		t.Errorf("el texto lleva la clase de su estilo y su color como variable:\n%s", doc)
+	}
+	if !strings.Contains(styleOf(t, doc, "4"), "background:rgba(255,0,0,1)") || rep.Loose != 1 {
+		t.Errorf("sin estilo queda el valor, y se cuenta: %s · %d", styleOf(t, doc, "4"), rep.Loose)
+	}
+	if !strings.Contains(doc, ":root{--morado-500:#4c39ff;--neutral-0:#ffffff;}") {
+		t.Errorf("el documento declara las variables que usa:\n%s", doc)
+	}
+	if rep.Tokens["Colors/morado/morado-500"] != 1 || rep.Tokens["text-small/medium"] != 1 {
+		t.Errorf("tokens del reporte: %v", rep.Tokens)
 	}
 }

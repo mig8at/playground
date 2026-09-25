@@ -38,40 +38,42 @@ type Node struct {
 	RenderBox *Rect  `json:"absoluteRenderBounds"`
 	Children  []Node `json:"children"`
 
-	LayoutMode         string                   `json:"layoutMode"`
-	PrimaryAlign       string                   `json:"primaryAxisAlignItems"`
-	CounterAlign       string                   `json:"counterAxisAlignItems"`
-	ItemSpacing        float64                  `json:"itemSpacing"`
-	CounterSpacing     *float64                 `json:"counterAxisSpacing"`
-	LayoutWrap         string                   `json:"layoutWrap"`
-	PaddingLeft        float64                  `json:"paddingLeft"`
-	PaddingRight       float64                  `json:"paddingRight"`
-	PaddingTop         float64                  `json:"paddingTop"`
-	PaddingBottom      float64                  `json:"paddingBottom"`
-	SizingH            string                   `json:"layoutSizingHorizontal"`
-	SizingV            string                   `json:"layoutSizingVertical"`
-	LayoutAlign        string                   `json:"layoutAlign"`
-	LayoutGrow         float64                  `json:"layoutGrow"`
-	LayoutPositioning  string                   `json:"layoutPositioning"`
-	ClipsContent       bool                     `json:"clipsContent"`
-	Fills              []Paint                  `json:"fills"`
-	Strokes            []Paint                  `json:"strokes"`
-	StrokeWeight       float64                  `json:"strokeWeight"`
-	StrokeAlign        string                   `json:"strokeAlign"`
-	IndividualStrokes  *Sides                   `json:"individualStrokeWeights"`
-	CornerRadius       float64                  `json:"cornerRadius"`
-	CornerRadii        []float64                `json:"rectangleCornerRadii"`
-	Effects            []Effect                 `json:"effects"`
-	Opacity            *float64                 `json:"opacity"`
-	BlendMode          string                   `json:"blendMode"`
-	IsMask             bool                     `json:"isMask"`
-	Rotation           float64                  `json:"rotation"`
-	Arc                *ArcData                 `json:"arcData"`
-	ComponentProps     map[string]ComponentProp `json:"componentProperties"`
-	Characters         string                   `json:"characters"`
-	Style              *TextStyle               `json:"style"`
-	CharacterOverrides []int                    `json:"characterStyleOverrides"`
-	OverrideTable      map[string]TextStyle     `json:"styleOverrideTable"`
+	LayoutMode        string                   `json:"layoutMode"`
+	PrimaryAlign      string                   `json:"primaryAxisAlignItems"`
+	CounterAlign      string                   `json:"counterAxisAlignItems"`
+	ItemSpacing       float64                  `json:"itemSpacing"`
+	CounterSpacing    *float64                 `json:"counterAxisSpacing"`
+	LayoutWrap        string                   `json:"layoutWrap"`
+	PaddingLeft       float64                  `json:"paddingLeft"`
+	PaddingRight      float64                  `json:"paddingRight"`
+	PaddingTop        float64                  `json:"paddingTop"`
+	PaddingBottom     float64                  `json:"paddingBottom"`
+	SizingH           string                   `json:"layoutSizingHorizontal"`
+	SizingV           string                   `json:"layoutSizingVertical"`
+	LayoutAlign       string                   `json:"layoutAlign"`
+	LayoutGrow        float64                  `json:"layoutGrow"`
+	LayoutPositioning string                   `json:"layoutPositioning"`
+	ClipsContent      bool                     `json:"clipsContent"`
+	Fills             []Paint                  `json:"fills"`
+	Strokes           []Paint                  `json:"strokes"`
+	StrokeWeight      float64                  `json:"strokeWeight"`
+	StrokeAlign       string                   `json:"strokeAlign"`
+	IndividualStrokes *Sides                   `json:"individualStrokeWeights"`
+	CornerRadius      float64                  `json:"cornerRadius"`
+	CornerRadii       []float64                `json:"rectangleCornerRadii"`
+	Effects           []Effect                 `json:"effects"`
+	Opacity           *float64                 `json:"opacity"`
+	BlendMode         string                   `json:"blendMode"`
+	IsMask            bool                     `json:"isMask"`
+	Rotation          float64                  `json:"rotation"`
+	Arc               *ArcData                 `json:"arcData"`
+	ComponentProps    map[string]ComponentProp `json:"componentProperties"`
+	// Styles son los estilos del sistema de diseño que usa el nodo, por dónde: `fill`, `stroke`, `text`.
+	Styles             map[string]string    `json:"styles"`
+	Characters         string               `json:"characters"`
+	Style              *TextStyle           `json:"style"`
+	CharacterOverrides []int                `json:"characterStyleOverrides"`
+	OverrideTable      map[string]TextStyle `json:"styleOverrideTable"`
 }
 
 type Rect struct{ X, Y, Width, Height float64 }
@@ -135,6 +137,18 @@ type Assets struct {
 	// Variants es, para la casilla, una instancia que dibuja cada variante en TODO el archivo: la otra
 	// variante de una casilla puede no estar en su pantalla. Opcional.
 	Variants map[string]string
+	// Styles son los TOKENS del archivo, por id de estilo de Figma (connectors/figma, tokens.go): con ellos
+	// el HTML escribe `var(--morado-500, #4c39ff)` y `class="text-small-medium"` en vez del valor suelto.
+	// Opcional: sin ellos sale el valor, igual de fiel.
+	Styles map[string]StyleToken
+}
+
+// StyleToken es cómo se escribe un estilo de Figma en el HTML: un color es una variable; un texto, una clase.
+type StyleToken struct {
+	Name  string // «Colors/morado/morado-500»
+	Var   string // «--morado-500», si es un color
+	Value string // «#4c39ff», si es un color
+	Class string // «text-small-medium», si es un texto
 }
 
 // Report cuenta qué se tradujo y qué no. Lo que no tiene equivalente se nombra: una pantalla que sale
@@ -148,6 +162,8 @@ type Report struct {
 	Images   []string       `json:"images"`   // referencias de imágenes de relleno
 	Fonts    []string       `json:"fonts"`    // familia · peso
 	Controls map[string]int `json:"controls"` // campos, casillas y botones que responden
+	Tokens   map[string]int `json:"tokens"`   // los estilos del sistema de diseño que usa la pantalla, con sus usos
+	Loose    int            `json:"loose"`    // colores escritos sin estilo
 	Missing  map[string]int `json:"missing"`  // lo que no se tradujo, por qué
 }
 
@@ -175,7 +191,7 @@ func HTML(screen Node, assets Assets) (string, Report) {
 	r := &Report{}
 	fonts := map[string]bool{}
 	var body strings.Builder
-	w := &writer{assets: assets, report: r, fonts: fonts, out: &body, controls: indexControls(screen, assets.Variants)}
+	w := &writer{assets: assets, report: r, fonts: fonts, out: &body, controls: indexControls(screen, assets.Variants), used: map[string]bool{}}
 	w.node(screen, nil, true)
 	for f := range fonts {
 		r.Fonts = append(r.Fonts, f)
@@ -189,6 +205,7 @@ func HTML(screen Node, assets Assets) (string, Report) {
 	doc.WriteString("<style>\n*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}\n")
 	doc.WriteString("html,body{background:transparent}\nbody{overflow:hidden;-webkit-font-smoothing:antialiased;text-rendering:geometricPrecision}\n")
 	doc.WriteString("img{display:block}\n")
+	doc.WriteString(w.rootVars())
 	doc.WriteString(controlCSS)
 	doc.WriteString("</style>\n</head>\n<body>\n")
 	doc.WriteString(body.String())
@@ -202,7 +219,8 @@ type writer struct {
 	fonts    map[string]bool
 	out      *strings.Builder
 	controls *controlIndex
-	inLabel  bool // adentro del <label> de una opción: la casilla no abre otro
+	inLabel  bool            // adentro del <label> de una opción: la casilla no abre otro
+	used     map[string]bool // los estilos de color que usó la pantalla: se declaran en su <head>
 }
 
 func visible(v *bool) bool { return v == nil || *v }
@@ -441,7 +459,10 @@ func (w *writer) box(n Node, css *style) {
 			layers = append(layers, l)
 		}
 	}
-	if len(layers) > 0 {
+	// Un solo relleno liso es un COLOR, no una capa: se escribe como tal, con su token si tiene estilo.
+	if solid := firstSolid(n.Fills); len(layers) == 1 && solid != "" && strings.HasPrefix(layers[0], "linear-gradient("+solid+",") {
+		css.set("background", w.color(n, solid, "fill", "fills"))
+	} else if len(layers) > 0 {
 		css.set("background", strings.Join(layers, ", "))
 	}
 	if n.Type == "ELLIPSE" {
@@ -453,6 +474,7 @@ func (w *writer) box(n Node, css *style) {
 	}
 	var shadows []string
 	if stroke := firstSolid(n.Strokes); stroke != "" && (n.StrokeWeight > 0 || n.IndividualStrokes != nil) {
+		stroke = w.color(n, stroke, "stroke", "strokes")
 		if s := n.IndividualStrokes; s != nil {
 			// Bordes por lado: CSS los dibuja por dentro con border-box, que es lo que hace Figma.
 			css.set("border-style", "solid")
@@ -592,6 +614,9 @@ func (w *writer) text(n Node, parent *Node, css *style) {
 		st = &TextStyle{}
 	}
 	w.font(*st, n.Fills, css)
+	if c := firstSolid(n.Fills); c != "" {
+		css.set("color", w.color(n, c, "fill", "fills"))
+	}
 	css.set("white-space", "pre-wrap")
 	css.set("overflow-wrap", "break-word")
 	if st.AutoResize == "WIDTH_AND_HEIGHT" {
@@ -608,7 +633,7 @@ func (w *writer) text(n Node, parent *Node, css *style) {
 		}
 	}
 	w.opacity(n, css)
-	fmt.Fprintf(w.out, `<div data-figma="%s" style="%s">`, html.EscapeString(n.ID), css)
+	fmt.Fprintf(w.out, `<div data-figma="%s"%s style="%s">`, html.EscapeString(n.ID), w.textClass(n), css)
 	if st.AlignV == "CENTER" || st.AlignV == "BOTTOM" {
 		w.out.WriteString("<span>")
 	}
@@ -894,4 +919,62 @@ func num(v float64) string {
 func rgba(c Color, op float64) string {
 	a := c.A * op
 	return fmt.Sprintf("rgba(%d,%d,%d,%s)", int(math.Round(c.R*255)), int(math.Round(c.G*255)), int(math.Round(c.B*255)), num(a))
+}
+
+// color devuelve el color como lo escribe el HTML: `var(--morado-500, #4c39ff)` si el nodo lo toma de un
+// estilo del sistema de diseño (y el valor por si la variable no está), o el valor solo. Cuenta cuál fue.
+func (w *writer) color(n Node, literal string, keys ...string) string {
+	for _, k := range keys {
+		if id := n.Styles[k]; id != "" {
+			if t, ok := w.assets.Styles[id]; ok && t.Var != "" {
+				w.report.token(t.Name)
+				w.used[id] = true
+				return "var(" + t.Var + ", " + literal + ")"
+			}
+		}
+	}
+	w.report.Loose++
+	return literal
+}
+
+// textClass es la clase del estilo de texto del nodo: el mismo nombre que la hoja de tokens.
+func (w *writer) textClass(n Node) string {
+	if id := n.Styles["text"]; id != "" {
+		if t, ok := w.assets.Styles[id]; ok && t.Class != "" {
+			w.report.token(t.Name)
+			return ` class="` + html.EscapeString(t.Class) + `"`
+		}
+	}
+	return ""
+}
+
+// rootVars declara las variables de los tokens que usó la pantalla, así el HTML se copia con su hoja.
+func (w *writer) rootVars() string {
+	var ids []string
+	for id := range w.used {
+		ids = append(ids, id)
+	}
+	if len(ids) == 0 {
+		return ""
+	}
+	sort.Slice(ids, func(i, j int) bool { return w.assets.Styles[ids[i]].Var < w.assets.Styles[ids[j]].Var })
+	var b strings.Builder
+	b.WriteString(":root{")
+	declared := map[string]bool{} // dos estilos con el mismo nombre y valor son una sola variable
+	for _, id := range ids {
+		t := w.assets.Styles[id]
+		if !declared[t.Var] {
+			declared[t.Var] = true
+			b.WriteString(t.Var + ":" + t.Value + ";")
+		}
+	}
+	b.WriteString("}\n")
+	return b.String()
+}
+
+func (r *Report) token(name string) {
+	if r.Tokens == nil {
+		r.Tokens = map[string]int{}
+	}
+	r.Tokens[name]++
 }

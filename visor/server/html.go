@@ -9,8 +9,10 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"strings"
 	"time"
 
+	"creditop/playground/connectors/figma"
 	"creditop/playground/visor/render"
 )
 
@@ -63,12 +65,84 @@ func (s *server) screenRaw(ctx context.Context, key, id string) ([]byte, string,
 
 // assets arma las URLs que el HTML usa para lo que no es CSS. Van por este mismo server, así que el
 // navegador nunca ve un enlace de Figma ni de S3.
-func assets(key string, variants map[string]string) render.Assets {
+func assets(key string, variants map[string]string, styles map[string]render.StyleToken) render.Assets {
 	return render.Assets{
 		SVG:      func(id string) string { return "/api/asset?key=" + key + "&svg=" + url.QueryEscape(id) },
 		Image:    func(ref string) string { return "/api/asset?key=" + key + "&fill=" + url.QueryEscape(ref) },
 		Variants: variants,
+		Styles:   styles,
 	}
+}
+
+// fileTokens son los tokens del archivo que ya se leyó: los del mapa con más colores con nombre (la página
+// de flujo, casi siempre; una sección suelta ve menos). Sin ningún mapa en memoria no hay tokens y el HTML
+// sale con los valores, igual de fiel.
+func (s *server) fileTokens(key string) *figma.Tokens {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	var best *figma.Tokens
+	for k, st := range s.maps {
+		if strings.HasPrefix(k, key+"|") && st.Tokens != nil && (best == nil || len(st.Tokens.Colors) > len(best.Colors)) {
+			best = st.Tokens
+		}
+	}
+	return best
+}
+
+// styleTokens: los tokens del archivo como los usa el traductor, por id de estilo.
+func (s *server) styleTokens(key string) map[string]render.StyleToken {
+	t := s.fileTokens(key)
+	if t == nil {
+		return nil
+	}
+	out := map[string]render.StyleToken{}
+	for _, c := range t.Colors {
+		out[c.ID] = render.StyleToken{Name: c.Name, Var: c.Var, Value: c.Value}
+	}
+	for _, x := range t.Texts {
+		out[x.ID] = render.StyleToken{Name: x.Name, Class: x.Class}
+	}
+	return out
+}
+
+// handleTokens: la hoja de tokens de un mapa ya leído. `format=css` o `format=tailwind` la dan lista para
+// pegar; sin formato, en JSON.
+func (s *server) handleTokens(w http.ResponseWriter, r *http.Request) {
+	key := r.URL.Query().Get("key")
+	if !reFileKey.MatchString(key) {
+		fail(w, 400, "clave inválida")
+		return
+	}
+	t := s.fileTokens(key)
+	if t == nil {
+		fail(w, 404, "todavía no se leyó ningún mapa de este archivo: abrilo en el visor")
+		return
+	}
+	title := key
+	if name := s.fileName(key); name != "" {
+		title = name
+	}
+	switch r.URL.Query().Get("format") {
+	case "css":
+		w.Header().Set("Content-Type", "text/css; charset=utf-8")
+		_, _ = io.WriteString(w, t.CSS(title))
+	case "tailwind":
+		w.Header().Set("Content-Type", "text/css; charset=utf-8")
+		_, _ = io.WriteString(w, t.Tailwind(title))
+	default:
+		writeJSON(w, 200, t)
+	}
+}
+
+func (s *server) fileName(key string) string {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	for k, st := range s.maps {
+		if strings.HasPrefix(k, key+"|") && st.FileName != "" {
+			return st.FileName
+		}
+	}
+	return ""
 }
 
 type variantSet struct {
@@ -119,7 +193,7 @@ func (s *server) handleHTML(w http.ResponseWriter, r *http.Request) {
 		fail(w, statusOf(err), "%v", err)
 		return
 	}
-	doc, rep := render.HTML(n, assets(key, s.fileVariants(key, version)))
+	doc, rep := render.HTML(n, assets(key, s.fileVariants(key, version), s.styleTokens(key)))
 	if r.URL.Query().Get("report") != "" {
 		writeJSON(w, 200, rep)
 		return
