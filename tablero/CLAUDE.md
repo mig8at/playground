@@ -252,7 +252,7 @@ Repositorio, rama, PR, ambientes y fecha de medición vienen del snapshot. No ma
 tabla de estados en Markdown ni presentes una medición antigua como una comprobación de hoy. Si el
 trabajo no tiene rama propia, no inventes un patrón para llenar la consola.
 
-Los siete contenedores locales no declaran una lista histórica de ramas: agrupan mejoras sucesivas y
+Los ocho contenedores locales no declaran una lista histórica de ramas: agrupan mejoras sucesivas y
 una rama vieja deja de representar su estado. Si una mejora activa necesita seguimiento de entrega,
 se anota dentro de su frente mientras exista; una tarea de producto en `work` sí mantiene `ramas:`.
 
@@ -304,7 +304,7 @@ esto en la tarea» que cierra el `CLAUDE.md` de cada una:
 ## Retomar una tarea: Claude Code + canon
 
 Un agente que empieza el día no debería reconstruir el sistema desde cero ni confiar en un resumen
-viejo. Primero corre `make tareas TODAS=1`, identifica la tarea o uno de los siete contenedores
+viejo. Primero corre `make tareas TODAS=1`, identifica la tarea o uno de los ocho contenedores
 locales, y corre `make retomar N=<id>`: la pila primero —el último bloque entero, con sus archivos
 fijados a su commit— y lo que la tarea tenga en su documento. Con eso arma una hipótesis verificable.
 Antes de editar, revisa `canon:` del frontmatter:
@@ -442,10 +442,10 @@ cambió. ⚠ Y su límite conocido: un falso amigo (`taller`, `once`, `red`) pas
 - **Una tarea de producto o del equipo = un archivo ligado a Jira.** Si todavía no se decidió publicar
   un frente general, se trabaja dentro de `playground.md`; al comprometerlo, se crea o vincula Jira y
   sale de esa lista. No se crea un archivo local intermedio por cada idea.
-- **Sólo existen siete tareas locales permanentes:** `canon.md`, `context.md`, `harness.md`,
-  `tablero.md`, `trazador.md`, `workers.md` y `playground.md` (`context` y `workers` quedan por su
+- **Sólo existen ocho tareas locales permanentes:** `canon.md`, `context.md`, `harness.md`,
+  `tablero.md`, `trazador.md`, `workers.md`, `playground.md` y `playground-local.md` (`context` y `workers` quedan por su
   historia: las dos carpetas se retiraron, el 2026-09-21 y el 2026-09-24). Una mejora de una herramienta se agrega
-  a su archivo; una mejora transversal o sin destino va a `playground`. El lint y `make tareas` validan
+  a su archivo; lo transversal a las herramientas —cómo se ven, cómo se divide la pantalla, el contrato de una herramienta nueva— va a `playground-local` (#96); lo demás transversal o sin destino, a `playground`. El lint y `make tareas` validan
   esta lista para que no dependa de acordarse.
 - **El estado vigente se reescribe y los frentes se consolidan.** No apiles una tarea nueva por cada
   mejora de la misma herramienta. Dentro del contenedor, cada frente conserva objetivo y condición de
@@ -460,7 +460,7 @@ cambió. ⚠ Y su límite conocido: un falso amigo (`taller`, `once`, `red`) pas
   ligadas a Jira usan `clase: tarea` —el default— y pueden conservar el cuerpo privado y el borrador
   publicable. El botón «Mover» sólo aparece para Jira.
 - ⚠ **Antes de crear cualquier archivo, corré `make tareas TODAS=1`.** Para trabajo local casi siempre
-  hay que editar uno de los siete contenedores. Para trabajo de producto, primero verificá si el issue
+  hay que editar uno de los ocho contenedores. Para trabajo de producto, primero verificá si el issue
   ya está registrado.
 
 - **Frontmatter**: `id` · `title` · `clase?` (`tarea`|`proyecto`, default `tarea`) · `stage` (`evaluation`|`work`|`tasks`) · `created` ·

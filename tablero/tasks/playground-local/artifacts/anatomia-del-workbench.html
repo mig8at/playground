@@ -113,7 +113,7 @@ section { display: flex; flex-direction: column; gap: 16px }
 .rh > .t { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap }
 .acts { display: inline-flex; gap: 1px; padding: 1px; border-radius: 4px }
 .ic { width: 16px; height: 16px; border-radius: 3px; display: grid; place-items: center; color: var(--fg-3) }
-.ic svg { width: 10px; height: 10px }
+.ic svg { width: 11px; height: 11px }
 .more { width: 16px; height: 16px; border-radius: 3px; display: grid; place-items: center; color: var(--fg-3); font-weight: 700; letter-spacing: -1px }
 .rb { flex: 1; min-height: 0; overflow: hidden; padding: 4px 0; display: flex; flex-direction: column }
 .row { padding: 2px 10px; color: var(--fg-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis }
@@ -234,6 +234,80 @@ ol.steps li::marker { color: var(--fg-3); font-variant-numeric: tabular-nums }
 .open p { color: var(--fg-2); font-size: 13.5px }
 .open .q { font-weight: 600 }
 footer { font-size: 12px; color: var(--fg-3); border-top: 1px solid var(--border); padding-top: 16px }
+
+/* ── índice de la página ─────────────────────────────────── */
+nav.toc { display: flex; flex-wrap: wrap; gap: 4px 14px; font-size: 13px }
+nav.toc a { color: var(--fg-2); text-decoration: none; border-bottom: 1px solid transparent }
+nav.toc a:hover, nav.toc a:focus-visible { color: var(--fg); border-bottom-color: var(--primary); outline: none }
+
+/* ── el estándar en una línea por medida ─────────────────── */
+.spec { display: flex; flex-direction: column }
+.spec-row { display: grid; grid-template-columns: 120px 64px minmax(0, 1fr); gap: 4px 16px; align-items: baseline; padding: 12px 0; border-top: 1px solid var(--border) }
+@media (max-width: 640px) { .spec-row { grid-template-columns: 96px minmax(0, 1fr) } .spec-row .use { grid-column: 1 / -1 } }
+.spec-row .tok { font-family: var(--mono); font-size: 12px; color: var(--primary-ink) }
+.spec-row .val { font-family: var(--mono); font-size: 12px; color: var(--fg-3); font-variant-numeric: tabular-nums }
+.spec-row .use { color: var(--fg-2); font-size: 13px; min-width: 0 }
+.spec-row .use > .sample, .spec-row .use > .bar-4, .spec-row .use > .btn-demo { display: flex; width: fit-content; max-width: 100%; margin-bottom: 4px }
+.spec-row .sample { color: var(--fg); line-height: 1.4; overflow-wrap: anywhere }
+.two { display: grid; gap: 32px; grid-template-columns: minmax(0, 1fr) }
+@media (min-width: 960px) { .two { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) } }
+.col { display: flex; flex-direction: column; gap: 12px; min-width: 0 }
+.col > h3 { font-size: 13px; color: var(--fg-2) }
+.never { font-size: 13px; color: var(--fg-2); border-top: 1px solid var(--border); padding-top: 12px }
+.never s { color: var(--fg-3); text-decoration-color: color-mix(in oklab, var(--primary) 70%, transparent); font-family: var(--mono); font-size: 12px; margin-right: 6px; white-space: nowrap }
+
+.bar-4 { height: 12px; background: color-mix(in oklab, var(--primary) 55%, transparent); border-radius: 1px }
+.heights { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 16px; padding: 12px 0; border-top: 1px solid var(--border) }
+.heights > div { display: flex; flex-direction: column; gap: 6px; align-items: flex-start }
+.heights .box { border: 1px solid var(--border); background: var(--card); border-radius: 6px; display: flex; align-items: center; padding: 0 12px; color: var(--fg-2); font-size: 12px; white-space: nowrap }
+.heights .box.sq { width: 24px; padding: 0; justify-content: center; }
+.heights .box.band { border-radius: 0; border-width: 0 0 1px 0; background: var(--sidebar); width: 180px; font-weight: 600 }
+.heights .box.foot { border-radius: 0; border-width: 1px 0 0 0; width: 180px; font-size: 11px }
+.heights small { font-family: var(--mono); font-size: 11px; color: var(--fg-3) }
+.gutter { border: 1px solid var(--border); border-radius: 8px; overflow: hidden; background: var(--sidebar); font-size: 13px; position: relative }
+.gutter .gh { height: 40px; display: flex; align-items: center; padding: 0 12px; font-size: 12px; font-weight: 600; color: var(--fg-2); border-bottom: 1px solid var(--border) }
+.gutter .gr { height: 28px; display: flex; align-items: center; padding: 0 12px; color: var(--fg-2) }
+.gutter .gr.on { background: color-mix(in oklab, var(--fg) 8%, transparent); color: var(--fg) }
+.gutter .guide { position: absolute; top: 0; bottom: 0; left: 12px; width: 1px; background: var(--primary); opacity: .7 }
+.gutter .guide.r { left: auto; right: 12px }
+.gutter .lbl { position: absolute; bottom: 6px; left: 16px; font-family: var(--mono); font-size: 11px; color: var(--primary-ink) }
+
+.icons { display: grid; grid-template-columns: repeat(auto-fill, minmax(92px, 1fr)); gap: 0 }
+.icon-cell { display: flex; flex-direction: column; align-items: center; gap: 8px; padding: 14px 4px 12px; border-top: 1px solid var(--border); color: var(--fg-2) }
+.icon-cell svg { width: 16px; height: 16px }
+.icon-cell code { font-size: 11px; color: var(--fg-3) }
+.icon-cell.new { color: var(--primary-ink) }
+.icon-cell.new code { color: var(--primary-ink) }
+.icon-cell:hover { color: var(--fg) }
+.grid24 { display: flex; flex-wrap: wrap; gap: 24px; align-items: center }
+.grid24 figure { margin: 0; display: flex; flex-direction: column; gap: 8px; align-items: center }
+.grid24 .big { display: block; width: 120px; height: 120px; background-size: 5px 5px; color: var(--fg); background-image: linear-gradient(var(--hatch) 1px, transparent 1px), linear-gradient(90deg, var(--hatch) 1px, transparent 1px); background-size: 5px 5px; border: 1px solid var(--border) }
+.grid24 figcaption { font-size: 12px; color: var(--fg-3) }
+.btn-demo { display: inline-flex; gap: 2px; align-items: center }
+.btn-demo span { width: 24px; height: 24px; border-radius: 6px; display: grid; place-items: center; color: var(--fg-2) }
+.btn-demo span:hover, .btn-demo span.h { background: color-mix(in oklab, var(--fg) 10%, transparent); color: var(--fg) }
+.btn-demo svg { width: 16px; height: 16px }
+
+.shape { display: flex; flex-wrap: wrap; gap: 20px; align-items: center; padding: 12px 0; border-top: 1px solid var(--border) }
+.shape .o { height: 32px; padding: 0 12px; display: inline-flex; align-items: center; border: 1px solid var(--border); background: var(--card); color: var(--fg-2); font-size: 13px }
+.shape .o.r6 { border-radius: 6px }
+.shape .o.pill { border-radius: 999px; height: 20px; font-size: 11px; padding: 0 8px; background: color-mix(in oklab, var(--secondary) 22%, transparent); border-color: transparent; color: var(--fg) }
+.shape .o.r0 { border-radius: 0; border-width: 0 1px 0 0; background: var(--sidebar); height: 48px }
+
+.measure { overflow-x: auto }
+.measure table { min-width: 560px }
+.measure td.std, .measure th.std { color: var(--primary-ink); font-weight: 600 }
+.measure td { font-variant-numeric: tabular-nums }
+
+.decisions { display: flex; flex-direction: column }
+.decisions > div { display: grid; grid-template-columns: 96px minmax(0, 1fr); gap: 4px 16px; padding: 14px 0; border-top: 1px solid var(--border) }
+@media (max-width: 640px) { .decisions > div { grid-template-columns: minmax(0, 1fr) } }
+.decisions .st { font-size: 11px; font-weight: 600; letter-spacing: .04em; text-transform: uppercase; color: var(--fg-3); padding-top: 2px }
+.decisions .st.done { color: var(--secondary) }
+.decisions .st.prop { color: var(--primary-ink) }
+.decisions .q { font-weight: 600 }
+.decisions p { color: var(--fg-2); font-size: 13.5px }
+.decisions .body { display: flex; flex-direction: column; gap: 4px }
 @media (prefers-reduced-motion: reduce) { * { transition: none !important } }
 </style>
 
@@ -247,6 +321,12 @@ footer { font-size: 12px; color: var(--fg-3); border-top: 1px solid var(--border
       <span>Fuente <b class="mono">tools/ui/taller.css</b> · <b class="mono">workbench.js</b> · <b class="mono">RegionMenu.vue</b></span>
       <span>Verificado con <b class="mono">make estilo-check</b> · 24 sep 2026</span>
     </div>
+    <nav class="toc" aria-label="Secciones">
+      <a href="#esqueleto">Esqueleto</a><a href="#partes">Partes</a><a href="#region">Región</a>
+      <a href="#tipografia">Tipografía</a><a href="#espacios">Espacios</a><a href="#iconos">Iconos</a>
+      <a href="#forma">Forma</a><a href="#medido">Hoy contra el estándar</a><a href="#adopcion">Adopción</a>
+      <a href="#reglas">Reglas</a><a href="#decisiones">Decisiones</a><a href="#nueva">Herramienta nueva</a>
+    </nav>
   </header>
 
   <section id="esqueleto">
@@ -333,6 +413,141 @@ footer { font-size: 12px; color: var(--fg-3); border-top: 1px solid var(--border
     </div>
   </section>
 
+  <section id="tipografia">
+    <div class="sec-head">
+      <h2>Tipografía</h2>
+      <p>Dos familias, cinco tamaños y dos pesos. La jerarquía la da el peso y el tono de la tinta, no el tamaño: adentro de una región hay a lo sumo dos tamaños.</p>
+    </div>
+    <div class="two">
+      <div class="col">
+        <h3>Tamaños</h3>
+        <div class="spec">
+          <div class="spec-row"><span class="tok">--text-xs</span><span class="val">11px</span><span class="use"><span class="sample" style="font-size:11px;color:var(--fg-2)">target local · 47 tareas · 00:41</span>Pie, conteos, metadatos, píldoras.</span></div>
+          <div class="spec-row"><span class="tok">--text-sm</span><span class="val">12px</span><span class="use"><span class="sample" style="font-size:12px;font-weight:600;color:var(--fg-2)">Comercios</span>Encabezados de región y de grupo, pestañas, texto de los botones compactos.</span></div>
+          <div class="spec-row"><span class="tok">--text-base</span><span class="val">13px</span><span class="use"><span class="sample" style="font-size:13px">#96 Playground local</span>El texto de la interfaz: filas, formularios, menús, logs.</span></div>
+          <div class="spec-row"><span class="tok">--text-body</span><span class="val">14px</span><span class="use"><span class="sample" style="font-size:14px;line-height:1.6">La prosa de un documento en el editor, a 65 caracteres por renglón.</span>Sólo en el editor, cuando lo que se muestra es texto para leer.</span></div>
+          <div class="spec-row"><span class="tok">--text-title</span><span class="val">16px</span><span class="use"><span class="sample" style="font-size:16px;font-weight:600">Playground local</span>El título del documento abierto y el de un estado vacío. Uno por pantalla. <em style="font-style:normal;color:var(--primary-ink)">Propuesto: hoy existe como literal en <code>.empty-title</code>.</em></span></div>
+        </div>
+      </div>
+      <div class="col">
+        <h3>Familias, pesos e interlineado</h3>
+        <div class="spec">
+          <div class="spec-row"><span class="tok">--font-sans</span><span class="val">sistema</span><span class="use"><span class="sample" style="font-size:13px">San Francisco en macOS, Segoe en Windows</span>Todo el texto. Sin fuentes descargadas: la herramienta arranca sin red y se ve nativa.</span></div>
+          <div class="spec-row"><span class="tok">--font-mono</span><span class="val">sistema</span><span class="use"><span class="sample" style="font-size:12px;font-family:var(--mono)">ureq 519245 · feature/motai-v2</span>Sólo datos literales: ids, ramas, rutas, comandos, logs, hashes. Un tamaño menos que el texto que lo rodea.</span></div>
+          <div class="spec-row"><span class="tok">400</span><span class="val">regular</span><span class="use"><span class="sample" style="font-size:13px">Texto, filas, valores</span>Todo lo que no es un título.</span></div>
+          <div class="spec-row"><span class="tok">600</span><span class="val">semibold</span><span class="use"><span class="sample" style="font-size:13px;font-weight:600">Títulos y la fila elegida</span>Encabezados de región, grupo y documento. El 500 queda adentro de los componentes de <code>taller.css</code> (botón, label, badge) y ninguna herramienta lo escribe.</span></div>
+          <div class="spec-row"><span class="tok">1.4 · 1.6</span><span class="val">línea</span><span class="use">1.4 en la interfaz, 1.6 en la prosa. Números en columna con <code>tabular-nums</code>.</span></div>
+        </div>
+        <p class="never"><s>9px</s><s>10.5px</s><s>12.5px</s><s>15px</s><s>22px</s><s>clamp()</s><s>700</s><s>800</s><s>MAYÚSCULAS</s><s>letter-spacing</s> Fuera del estándar. Un tamaño o peso que no está en la escala no se agrega en una herramienta: se discute acá.</p>
+      </div>
+    </div>
+  </section>
+
+  <section id="espacios">
+    <div class="sec-head">
+      <h2>Espacios y alturas</h2>
+      <p>Una grilla de 4 con cinco pasos. Los grupos se separan con <code>gap</code>, nunca con márgenes por elemento, y todo borde interior de una región está a 12px.</p>
+    </div>
+    <div class="two">
+      <div class="col">
+        <h3>La escala</h3>
+        <div class="spec">
+          <div class="spec-row"><span class="tok">--space-1</span><span class="val">4px</span><span class="use"><span class="bar-4" style="width:4px"></span>Icono y su texto; padding vertical de una fila.</span></div>
+          <div class="spec-row"><span class="tok">--space-2</span><span class="val">8px</span><span class="use"><span class="bar-4" style="width:8px"></span>Entre controles de una misma fila; entre label y control; padding vertical del encabezado.</span></div>
+          <div class="spec-row"><span class="tok">--space-3</span><span class="val">12px</span><span class="use"><span class="bar-4" style="width:12px"></span>El margen de región: izquierda y derecha del encabezado y del cuerpo.</span></div>
+          <div class="spec-row"><span class="tok">--space-4</span><span class="val">16px</span><span class="use"><span class="bar-4" style="width:16px"></span>Entre bloques dentro de una sección; padding del editor cuando muestra un documento.</span></div>
+          <div class="spec-row"><span class="tok">--space-6</span><span class="val">24px</span><span class="use"><span class="bar-4" style="width:24px"></span>Entre secciones del editor. El paso más grande.</span></div>
+        </div>
+        <p class="never"><s>--space-5 · 20px</s><s>3px</s><s>5px</s><s>6px</s><s>7px</s><s>9px</s><s>10px</s><s>14px</s> Fuera. La única excepción es 2px entre botones de icono contiguos de una toolbar, que ya vive en <code>taller.css</code>. <code>--space-5</code> se retira: nadie lo necesita entre 16 y 24.</p>
+      </div>
+      <div class="col">
+        <h3>El margen de región alinea todo</h3>
+        <div class="gutter" aria-hidden="true">
+          <span class="guide"></span><span class="guide r"></span>
+          <div class="gh">Comercios</div>
+          <div class="gr on">pullman</div>
+          <div class="gr">corbeta · QR</div>
+          <div class="gr">alta-fleet</div>
+          <div class="gr" style="height:36px"></div>
+          <span class="lbl">12px a cada lado, arriba y abajo del encabezado</span>
+        </div>
+        <h3>Alturas fijas</h3>
+        <div class="heights" aria-hidden="true">
+          <div><span class="box sq" style="height:24px"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><rect x="8" y="8" width="12" height="13" rx="2"/><path d="M16 8V5a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h3"/></svg></span><small>24 · icono</small></div>
+          <div><span class="box" style="height:28px;border-color:transparent;background:color-mix(in oklab,var(--fg) 8%,transparent)">pullman</span><small>28 · fila</small></div>
+          <div><span class="box" style="height:32px">Buscar comercio</span><small>32 · control</small></div>
+          <div><span class="box band" style="height:40px">Comercios</span><small>40 · encabezado</small></div>
+          <div><span class="box foot" style="height:30px">target local</span><small>30 · pie</small></div>
+        </div>
+        <p class="never"><s>36px</s><s>40px en un botón</s> Un control dentro de una herramienta mide 32 (el <code>btn-sm</code> e <code>input-sm</code> de hoy). Los 36 y 40 de shadcn son para páginas, no para un workbench denso. <em style="font-style:normal;color:var(--primary-ink)">La fila de 28 es propuesta: hoy cada lista elige la suya.</em></p>
+      </div>
+    </div>
+  </section>
+
+  <section id="iconos">
+    <div class="sec-head">
+      <h2>Iconos</h2>
+      <p>Un solo juego, el de <code>taller.css</code>: 23 glifos dibujados en una grilla de 24, trazo de 1,75, extremos redondeados y sin relleno. Se pintan con el color del texto (<code>currentColor</code>), así que el tema los alcanza solo.</p>
+    </div>
+    <div class="icons" id="iconGrid"></div>
+    <div class="two">
+      <div class="col">
+        <h3>Cómo se usan</h3>
+        <div class="spec">
+          <div class="spec-row"><span class="tok">16px</span><span class="val">tamaño</span><span class="use">Un solo tamaño, siempre. Adentro de un botón de 24×24, con la zona de toque en el botón y no en el dibujo.</span></div>
+          <div class="spec-row"><span class="tok">tinta</span><span class="val">color</span><span class="use"><span class="btn-demo" aria-hidden="true"><span id="demoA"></span><span id="demoB" class="h"></span><span id="demoC"></span></span><code>--texto-2</code> en reposo, <code>--foreground</code> al pasar o activo. Un icono con color semántico sólo marca un estado, y va con texto o forma que diga lo mismo.</span></div>
+          <div class="spec-row"><span class="tok">solo</span><span class="val">etiqueta</span><span class="use">Un icono sin texto lleva <code>title</code> y <code>aria-label</code>. Icono más texto, sólo en la acción principal de una región («Lanzar»).</span></div>
+          <div class="spec-row"><span class="tok">&lt;span&gt;</span><span class="val">marcado</span><span class="use"><code>&lt;span class="ui-icon" data-icon="copy" aria-hidden="true"&gt;</code>. Nada de SVG pegado a mano en el markup de una herramienta.</span></div>
+        </div>
+      </div>
+      <div class="col">
+        <h3>La grilla del dibujo</h3>
+        <div class="grid24" id="grid24"></div>
+        <p class="never"><s>✕</s><s>⧉</s><s>▸</s><s>▾</s><s>⋯</s><s>✓</s><s>●</s><s>⚠</s><s>emoji</s> Un carácter no es un icono: cambia de dibujo según la fuente del sistema, no respeta el trazo ni el tamaño y no se alinea al centro del botón. Hoy quedan 17 en el texto visible de las cuatro, sin contar el HTML que arma el JS del harness. El aviso <span class="mono">⚠</span> pasa a <code>.alert</code> con el icono <code>alert</code>, que es el único que falta.</p>
+        <p class="never">Un icono nuevo se dibuja en esta grilla, se suma a <code>taller.css</code> y entra sólo si una herramienta lo va a usar. Nada de mezclar juegos (Lucide, Heroicons, Material): el trazo y las esquinas se notan juntos.</p>
+      </div>
+    </div>
+  </section>
+
+  <section id="forma">
+    <div class="sec-head">
+      <h2>Forma: radios, líneas y sombras</h2>
+      <p>Tres radios, un grosor de línea y una sola sombra. Lo que ocupa una columna entera es plano; lo que es una pieza suelta se redondea.</p>
+    </div>
+    <div class="shape" aria-hidden="true">
+      <span class="o r0">región · 0</span>
+      <span class="o r6">control · 6px</span>
+      <span class="o pill">píldora · completo</span>
+    </div>
+    <div class="spec">
+      <div class="spec-row"><span class="tok">0</span><span class="val">radio</span><span class="use">Regiones, encabezados, filas, tablas y callouts. Todo lo que va a sangre.</span></div>
+      <div class="spec-row"><span class="tok">--radius-sm</span><span class="val">6px</span><span class="use">Botones, inputs, selects, botones de icono, ítems y caja del menú. <em style="font-style:normal;color:var(--primary-ink)">Propuesto: hoy el toolbar y el menú usan <code>--radius</code> (10px) y <code>--radius-xl</code>.</em></span></div>
+      <div class="spec-row"><span class="tok">999px</span><span class="val">radio</span><span class="use">Píldoras, contadores y puntos de estado.</span></div>
+      <div class="spec-row"><span class="tok">1px</span><span class="val">línea</span><span class="use"><code>--border</code>, y una sola por costura: la pone una de las dos regiones.</span></div>
+      <div class="spec-row"><span class="tok">sombra</span><span class="val">una</span><span class="use">Sólo lo que flota: menú y popover. Nada más proyecta sombra.</span></div>
+    </div>
+  </section>
+
+  <section id="medido">
+    <div class="sec-head">
+      <h2>Hoy contra el estándar</h2>
+      <p>Valores distintos que cada herramienta escribe en sus propias hojas y templates, sin contar <code>tema.css</code> ni <code>taller.css</code>. Lo que va por token no se cuenta, por eso el visor sale casi en cero: es la herramienta que ya escribe como pide esto. El script queda en la tarea (<code>artifacts/medir-estilo.py</code>).</p>
+    </div>
+    <div class="measure">
+      <table>
+        <thead><tr><th>Medida</th><th>harness</th><th>tablero</th><th>trazador</th><th>visor</th><th class="std">estándar</th></tr></thead>
+        <tbody>
+          <tr><td>Tamaños de fuente</td><td>20</td><td>18</td><td>11</td><td>3, los tres tokens</td><td class="std">5</td></tr>
+          <tr><td>Pesos</td><td>5</td><td>5</td><td>6</td><td>1</td><td class="std">2</td></tr>
+          <tr><td>Espacios (padding, margin, gap)</td><td>30</td><td>30</td><td>16</td><td>casi todo por token</td><td class="std">5 + el 2px</td></tr>
+          <tr><td>Radios</td><td>6</td><td>13</td><td>3</td><td>2</td><td class="std">3</td></tr>
+          <tr><td>Caracteres usados como icono</td><td>5</td><td>6</td><td>5</td><td>1</td><td class="std">0</td></tr>
+          <tr><td>Iconos del juego compartido</td><td>13 distintos</td><td>11</td><td>5</td><td>9</td><td class="std">de los 23</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
   <section id="adopcion">
     <div class="sec-head">
       <h2>Quién usa qué, hoy</h2>
@@ -345,7 +560,7 @@ footer { font-size: 12px; color: var(--fg-3); border-top: 1px solid var(--border
           <tr><td><code>.workbench</code></td><td>grilla compartida</td><td>grilla compartida</td><td><span class="warn">layout propio</span></td><td>grilla compartida</td></tr>
           <tr><td><code>sidebar</code></td><td>Comercios</td><td>Lista de tareas</td><td>Persona y solicitudes</td><td>Proyectos</td></tr>
           <tr><td><code>editor</code></td><td>Recorrido</td><td>La tarea, con pestañas</td><td>Mapa</td><td>La pantalla</td></tr>
-          <tr><td><code>auxiliarybar</code></td><td>Configuración</td><td>Vistas de la tarea</td><td>Logs <span class="warn">(superpuesto al mapa)</span></td><td>Pantalla</td></tr>
+          <tr><td><code>auxiliarybar</code></td><td>Configuración</td><td>Jira · Pendientes · Artifacts, en pestañas</td><td>Logs <span class="warn">(superpuesto al mapa)</span></td><td>Pantalla</td></tr>
           <tr><td><code>panel</code></td><td>Consola</td><td>Ramas</td><td>Recientes</td><td><span class="no">no tiene</span></td></tr>
           <tr><td><code>statusbar</code></td><td>sí</td><td>sí</td><td>sí</td><td>sí</td></tr>
           <tr><td><code>.view</code> (acordeón)</td><td><span class="no">no</span></td><td>grupos de tareas y Jira</td><td><span class="no">no</span></td><td>un archivo por vista</td></tr>
@@ -373,47 +588,48 @@ footer { font-size: 12px; color: var(--fg-3); border-top: 1px solid var(--border
     </div>
   </section>
 
+  <section id="decisiones">
+    <div class="sec-head">
+      <h2>Decisiones</h2>
+      <p>Los huecos que quedaron abiertos en el primer borrador, cada uno con una propuesta. «Propuesta» espera tu visto bueno; «hecho» ya está en el repo.</p>
+    </div>
+    <div class="decisions">
+      <div><span class="st done">Hecho</span><div class="body"><span class="q">El README de la UI decía que el panel es sólo del harness</span><p>Corregido: la tabla dice que lo usan el harness (Consola), el tablero (Ramas) y el trazador (Recientes).</p></div></div>
+      <div><span class="st prop">Propuesta</span><div class="body"><span class="q">La barra de herramientas del editor no es una parte nueva</span><p>Es el <code>.region-head</code> del editor, que envuelve cuando junta muchas cosas. El <code>.stagehead</code> y el <code>.editorbox</code> del harness se disuelven en eso; el trazador ya lo hace así con el buscador de su mapa. Un nombre menos.</p></div></div>
+      <div><span class="st prop">Propuesta</span><div class="body"><span class="q">Las pestañas suben a <code>taller.css</code> como <code>.tabs</code> y <code>.tab</code></span><p>El tablero ya tiene dos barras de pestañas escritas por separado: <code>.editor-tabs</code> (tareas abiertas) y <code>.aux-tabs</code> (Jira, Pendientes, Artifacts), con la misma gramática y dos hojas de estilo. Eso ya es el segundo uso. Las dos pasan a ser <code>.tabs</code>, y la parte se llama «pestañas» en cualquier región.</p></div></div>
+      <div><span class="st prop">Propuesta</span><div class="body"><span class="q">El trazador entra a <code>.workbench</code> y su detalle flota como <code>.auxiliarybar.overlay</code></span><p>La razón para flotar es real: no recalcular el grafo en cada píxel del arrastre. Pero eso es del sidebar secundario, no del resto del layout. Con el modificador declarado en <code>taller.css</code>, la desviación queda escrita y el chequeo de scroll mide al trazador como a las demás.</p></div></div>
+      <div><span class="st prop">Propuesta</span><div class="body"><span class="q">El estado vacío es <code>.empty</code>, en todas</span><p>El <code>.sidebar-vacio</code> del trazador se reemplaza por <code>.empty</code> de <code>taller.css</code>, en su forma corta: una línea de <code>--text-base</code> en <code>--texto-2</code>, sin ilustración.</p></div></div>
+      <div><span class="st prop">Propuesta</span><div class="body"><span class="q">El estándar de tipografía, espacios, iconos y forma de arriba</span><p>Cinco tamaños, dos pesos, cinco espacios, alturas 24 · 28 · 32 · 40 · 30, un solo tamaño de icono, tres radios. Entra a <code>taller.css</code> como tokens (<code>--text-title</code>, <code>--row-h</code>, <code>--radius-sm</code> para toolbar y menú) y a <code>make estilo-check</code> como un chequeo nuevo que cuente literales fuera de la escala, igual que hoy cuenta colores literales.</p></div></div>
+    </div>
+  </section>
+
   <section id="nueva">
     <div class="sec-head">
       <h2>Armar una herramienta nueva</h2>
-      <p>El orden importa: los dos primeros pasos son los que hacen que después el chequeo la vea.</p>
+      <p>El orden importa: los dos primeros pasos son los que hacen que después el chequeo la vea. El visor es el modelo a copiar: casi todo su estilo va por token.</p>
     </div>
     <ol class="steps">
       <li>Sumarla a <code>make estilo-sync</code> para que reciba <code>tema.css</code>, <code>taller.css</code> y <code>workbench.js</code>, y a <code>make estilo-check</code> para que la mida.</li>
       <li>Montar la raíz como <code>.workbench</code> y poner sólo las regiones que tienen algo que mostrar. Empezar por <code>editor</code>, que es la única obligatoria.</li>
       <li>Darle a cada región su <code>.region-head</code> con título, toolbar y menú, y su <code>.region-body</code> con el scroll.</li>
+      <li>Escribir todo tamaño, espacio y radio con su token (<code>var(--text-sm)</code>, <code>var(--space-3)</code>). Si un valor no está en la escala, no se inventa ahí: se trae a esta página.</li>
+      <li>Usar sólo iconos de <code>.ui-icon</code>, a 16px, en botones de 24×24 con <code>title</code> y <code>aria-label</code>.</li>
       <li>Poner en el <code>statusbar</code> el estado a la izquierda y un control por cada región que se pueda plegar a la derecha.</li>
       <li>Agregar las manijas <code>.rsz</code> con <code>vResize</code>, con mínimo, máximo calculado y la medida guardada por persona.</li>
       <li>Correr <code>make estilo-check</code>, <code>make estilo-contraste</code> y <code>make estilo-ui</code> con la herramienta encendida.</li>
     </ol>
   </section>
 
-  <section id="abierto">
-    <div class="sec-head">
-      <h2>Lo que este estándar todavía no decide</h2>
-      <p>Huecos encontrados al armar esta página. Cada uno es una pregunta para esta tarea, no una regla.</p>
-    </div>
-    <div class="open">
-      <div><span class="q">¿Las pestañas del editor son parte del vocabulario?</span><p>El tablero tiene <code>.editor-tabs</code> (tareas abiertas) y es la única. Si una segunda herramienta las necesita, suben a <code>taller.css</code>; hasta entonces es un nombre local haciendo un trabajo compartido.</p></div>
-      <div><span class="q">¿Cómo se llama la barra de herramientas del editor?</span><p>El harness pone perillas y «Preparar + Lanzar» en un <code>.region-head.stagehead</code> dentro de un <code>.editorbox</code>; el trazador pone el buscador en el encabezado de su mapa. Hacen lo mismo con dos nombres.</p></div>
-      <div><span class="q">¿El trazador entra a la grilla?</span><p>Es la única con layout propio, y su detalle de logs flota sobre el mapa para no recalcular el grafo en cada píxel del arrastre. ¿Es una desviación declarada o una deuda?</p></div>
-      <div><span class="q">El README de <code>tools/ui</code> dice que el panel es sólo del harness</span><p>Hoy lo usan tres: Consola, Ramas y Recientes. El README quedó viejo; el chequeo ya lo cuenta bien.</p></div>
-      <div><span class="q">¿Qué nombre lleva el estado vacío de una región?</span><p><code>taller.css</code> tiene <code>.empty</code>, y el trazador usa <code>.sidebar-vacio</code> para lo mismo.</p></div>
-    </div>
-  </section>
-
-  <footer>Prototipo de la tarea #96 · el contrato vigente sigue siendo <span class="mono">tools/ui/README.md</span> hasta que esto se apruebe.</footer>
+  <footer>Prototipo de la tarea #96 · segundo borrador, 24 sep 2026 · el contrato vigente sigue siendo <span class="mono">tools/ui/README.md</span> hasta que esto se apruebe.</footer>
 </div>
 
 <script>
 (function () {
-  const ICON = {
-    plus: '<svg viewBox="0 0 10 10" fill="none" stroke="currentColor" stroke-width="1.3"><path d="M5 1.5v7M1.5 5h7"/></svg>',
-    copy: '<svg viewBox="0 0 10 10" fill="none" stroke="currentColor" stroke-width="1.2"><rect x="3" y="3" width="5.5" height="5.5" rx="1"/><path d="M1.5 6.5v-5h5"/></svg>',
-    x: '<svg viewBox="0 0 10 10" fill="none" stroke="currentColor" stroke-width="1.3"><path d="M2 2l6 6M8 2l-6 6"/></svg>',
-    play: '<svg viewBox="0 0 10 10" fill="currentColor"><path d="M2.5 1.5l6 3.5-6 3.5z"/></svg>',
-    search: '<svg viewBox="0 0 10 10" fill="none" stroke="currentColor" stroke-width="1.3"><circle cx="4.3" cy="4.3" r="2.8"/><path d="M6.4 6.4l2.3 2.3"/></svg>',
-  };
+  // Los 23 glifos de tools/ui/taller.css, decodificados tal cual (grilla 24, trazo 1,75). `alert` es el único propuesto.
+  const ICONS = {"sidebar": "<rect x=\"3\" y=\"4\" width=\"18\" height=\"16\" rx=\"2\"/><path d=\"M9 4v16\"/>", "detail": "<rect x=\"3\" y=\"4\" width=\"18\" height=\"16\" rx=\"2\"/><path d=\"M15 4v16\"/>", "console": "<rect x=\"3\" y=\"4\" width=\"18\" height=\"16\" rx=\"2\"/><path d=\"M3 14h18M7 8l2 2-2 2\"/>", "collapse": "<rect x=\"6\" y=\"6\" width=\"15\" height=\"15\" rx=\"2\"/><path d=\"M17 3H5a2 2 0 0 0-2 2v12M10 13h7\"/>", "search": "<circle cx=\"10.5\" cy=\"10.5\" r=\"6.5\"/><path d=\"m16 16 5 5\"/>", "plus": "<path d=\"M12 5v14M5 12h14\"/>", "refresh": "<path d=\"M20 11a8 8 0 1 0 2 5.5\"/><path d=\"M20 4v7h-7\"/>", "close": "<path d=\"m6 6 12 12M6 18 18 6\"/>", "more": "<circle cx=\"5\" cy=\"12\" r=\"1\"/><circle cx=\"12\" cy=\"12\" r=\"1\"/><circle cx=\"19\" cy=\"12\" r=\"1\"/>", "copy": "<rect x=\"8\" y=\"8\" width=\"12\" height=\"13\" rx=\"2\"/><path d=\"M16 8V5a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h3\"/>", "check": "<path d=\"m5 12 4 4L19 6\"/>", "chevron": "<path d=\"m9 5 7 7-7 7\"/>", "filter": "<path d=\"M4 5h16l-6 7v6l-4 2v-8Z\"/>", "eye": "<path d=\"M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12Z\"/><circle cx=\"12\" cy=\"12\" r=\"3\"/>", "play": "<path d=\"m7 4 14 8-14 8Z\"/>", "external": "<path d=\"M14 3h7v7M21 3 10 14M10 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-5\"/>", "move": "<path d=\"M4 12h16m-5-5 5 5-5 5M4 5v14\"/>", "settings": "<path d=\"M4 7h16M4 17h16\"/><circle cx=\"9\" cy=\"7\" r=\"3\"/><circle cx=\"15\" cy=\"17\" r=\"3\"/>", "clock": "<circle cx=\"12\" cy=\"12\" r=\"9\"/><path d=\"M12 7v5l3 2\"/>", "server": "<rect x=\"3\" y=\"3\" width=\"18\" height=\"7\" rx=\"2\"/><rect x=\"3\" y=\"14\" width=\"18\" height=\"7\" rx=\"2\"/><path d=\"M7 6.5h.01M7 17.5h.01\"/>", "channel": "<path d=\"M12 4v6M5 20v-6h14v6M12 14v6\"/><circle cx=\"12\" cy=\"4\" r=\"2\"/>", "down": "<path d=\"m6 9 6 6 6-6\"/>", "bottom": "<path d=\"M5 20h14M12 3v12m-5-5 5 5 5-5\"/>"};
+  const PROPOSED = { alert: '<path d="M12 4 3 20h18Z"/><path d="M12 10v4M12 17h.01"/>' };
+  const svg = (inner) => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${inner}</svg>`;
+  const ICON = { plus: svg(ICONS.plus), copy: svg(ICONS.copy), x: svg(ICONS.close), play: svg(ICONS.play), search: svg(ICONS.search) };
 
   const head = (title, icons = ['copy'], menu = true) =>
     `<div class="rh" data-part="region-head" tabindex="0"><span class="t">${title}</span>` +
@@ -453,7 +669,7 @@ footer { font-size: 12px; color: var(--fg-3); border-top: 1px solid var(--border
       panel: head('Ramas', ['copy', 'x']) + body(
         '<div class="log"><span class="ok">●</span> main · al día</div>' +
         '<div class="log"><span class="w">●</span> feature/… · 3 commits sin mergear</div>'),
-      aux: head('Vistas de la tarea', ['copy']) + body(lines('m', 'l', 's', 'm', 'l')),
+      aux: '<nav class="tabs" data-part="editor-tabs" tabindex="0"><span class="tab on">Jira</span><span class="tab">Pendientes 3</span><span class="tab">Artifacts</span></nav>' + body(lines('m', 'l', 's', 'm', 'l')),
       status: '<span><span class="dot"></span>47 tareas</span><span>sprint activo</span>',
       has: { sidebar: 1, panel: 1, auxiliarybar: 1 },
     },
@@ -485,7 +701,7 @@ footer { font-size: 12px; color: var(--fg-3); border-top: 1px solid var(--border
   const USES = {
     sidebar: { harness: 'Comercios', tablero: 'Lista de tareas', trazador: 'Persona y solicitudes', visor: 'Proyectos' },
     editor: { harness: 'Recorrido', tablero: 'La tarea', trazador: 'Mapa', visor: 'La pantalla' },
-    auxiliarybar: { harness: 'Configuración', tablero: 'Vistas de la tarea', trazador: 'Logs, superpuesto', visor: 'Pantalla' },
+    auxiliarybar: { harness: 'Configuración', tablero: 'Jira · Pendientes · Artifacts', trazador: 'Logs, superpuesto', visor: 'Pantalla' },
     panel: { harness: 'Consola', tablero: 'Ramas', trazador: 'Recientes', visor: null },
     statusbar: { harness: 'sí', tablero: 'sí', trazador: 'sí', visor: 'sí' },
     titlebar: { harness: null, tablero: null, trazador: null, visor: null },
@@ -493,7 +709,7 @@ footer { font-size: 12px; color: var(--fg-3); border-top: 1px solid var(--border
     activitybar: { harness: null, tablero: null, trazador: null, visor: null },
     view: { harness: null, tablero: 'grupos de tareas y Jira', trazador: null, visor: 'un archivo por vista' },
     grupo: { harness: 'secciones del recorrido', tablero: 'días de la pila', trazador: 'solicitudes', visor: 'carriles y detalle' },
-    'editor-tabs': { harness: null, tablero: 'tareas abiertas', trazador: null, visor: null },
+    'editor-tabs': { harness: null, tablero: 'editor y sidebar secundario', trazador: null, visor: null },
   };
 
   const PARTS = [
@@ -548,9 +764,9 @@ footer { font-size: 12px; color: var(--fg-3); border-top: 1px solid var(--border
     { id: 'grupo', name: 'Encabezado de grupo', cls: '.region-head.grupo', short: 'Separa grupos dentro de una lista y se pega arriba.',
       what: 'Un día de la pila, un carril del visor, una sección del recorrido.', when: 'Cuando una lista larga tiene grupos.', size: 'igual al de la región', surface: '--region-bg',
       rule: 'Nunca más fuerte que el encabezado de la región que lo contiene. Se distingue por comportamiento: scrollea y se pega.' },
-    { id: 'editor-tabs', name: 'Pestañas del editor', cls: '.editor-tabs', tag: 'propuesto', short: 'Varias cosas abiertas en el editor.',
-      what: 'Las tareas abiertas en el tablero.', when: 'Cuando se trabaja con más de un documento a la vez.', size: 'una fila', surface: '--sidebar la barra, --background la activa',
-      rule: 'Hoy sólo existe en el tablero y no está en <code>taller.css</code>. Sube cuando la pida una segunda herramienta.' },
+    { id: 'editor-tabs', name: 'Pestañas', cls: '.tabs · .tab', tag: 'propuesto', short: 'Varias caras o documentos en una región, de a uno.',
+      what: 'En el tablero: las tareas abiertas en el editor, y Jira · Pendientes · Artifacts en el sidebar secundario.', when: 'Cuando una región muestra de a una cosa entre varias; si hay que ver varias a la vez, es un acordeón.', size: 'una fila de 32px, texto 12px', surface: '--sidebar la barra, --background la activa',
+      rule: 'Hoy son dos piezas del tablero con dos hojas (<code>.editor-tabs</code>, <code>.aux-tabs</code>). Suben juntas a <code>taller.css</code> como <code>.tabs</code>.' },
     { g: 'Entre regiones' },
     { id: 'rsz', name: 'Manija', cls: '.rsz · vResize', short: 'Redimensiona una región. Se ve de 1px, se agarra de 8.',
       what: 'El borde arrastrable entre dos regiones.', when: 'Entre toda región de medida variable y su vecina.', size: '1px visible, 8px de agarre', surface: '--ring al pasar',
@@ -663,6 +879,16 @@ footer { font-size: 12px; color: var(--fg-3); border-top: 1px solid var(--border
     select(id, true);
     document.getElementById('esqueleto').scrollIntoView({ behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth', block: 'start' });
   });
+
+  // la grilla de iconos, la ampliación y el botón de muestra
+  document.getElementById('iconGrid').innerHTML =
+    Object.entries(ICONS).map(([n, d]) => `<div class="icon-cell" title="${n}">${svg(d)}<code>${n}</code></div>`).join('') +
+    Object.entries(PROPOSED).map(([n, d]) => `<div class="icon-cell new" title="${n} · propuesto">${svg(d)}<code>${n} · nuevo</code></div>`).join('');
+  document.getElementById('grid24').innerHTML = ['copy', 'search', 'refresh'].map(n =>
+    `<figure><span class="big">${svg(ICONS[n]).replace('<svg ', '<svg width="120" height="120" ')}</span><figcaption>${n} · 24 × 24</figcaption></figure>`).join('');
+  document.getElementById('demoA').innerHTML = svg(ICONS.copy);
+  document.getElementById('demoB').innerHTML = svg(ICONS.refresh);
+  document.getElementById('demoC').innerHTML = svg(ICONS.more);
 
   const fromHash = (location.hash || '').slice(1);
   render();

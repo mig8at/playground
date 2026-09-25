@@ -12,7 +12,7 @@ Fuente común para `context`, `tablero`, `trazador` y `harness/panel`. Inspirada
 | `editor` | Contenido principal | Documento, tarea, mapa o recorrido |
 | `toolbar` | Grupo de acciones dentro del encabezado de una región | Las cuatro |
 | `auxiliarybar` | Detalle o propiedades de la selección | Tablero, Harness, Trazador |
-| `panel` | Consola inferior | Harness |
+| `panel` | Consola inferior: salida que se sigue en el tiempo | Harness (Consola), Tablero (Ramas), Trazador (Recientes) |
 | `statusbar` | Estado y controles de disposición | Las cuatro |
 | `region-head` | Encabezado fijo, título y acciones | Cualquier región |
 | `region-body` | Cuerpo con scroll independiente | Cualquier región |
