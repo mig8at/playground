@@ -247,7 +247,7 @@ func (s *server) brief(ctx context.Context, key, id string) (string, error) {
 	// acá —cuesta un Chromium y el paquete tiene que salir rápido—: sin medida, se dice cómo tomarla.
 	b.WriteString("\n## Fidelidad del HTML contra Figma\n\n")
 	if f, _, err := s.fidelityOf(ctx, key, id, false, true); err == nil {
-		fmt.Fprintf(&b, "- %.1f %% de los píxeles iguales (medida %s). El borde de las letras siempre difiere un poco.\n", f.Same*100, f.Measured.Format("2006-01-02 15:04"))
+		fmt.Fprintf(&b, "- %.2f %% igual sin contar el suavizado de las letras (%.1f %% píxel a píxel; medida %s).\n", f.SameReal*100, f.Same*100, f.Measured.Format("2006-01-02 15:04"))
 		for i, z := range f.Zones {
 			if i == 5 {
 				break

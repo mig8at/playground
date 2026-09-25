@@ -25,8 +25,10 @@ import (
 
 // LA FIDELIDAD DE UNA PANTALLA: cuánto se parece el HTML traducido a la imagen de Figma, y DÓNDE no.
 //
-// La medida es la de `visor/tools/fidelity.mjs` —Chromium dibuja el HTML al doble, se compara píxel a
-// píxel con la exportación—, en su modo de una pantalla. Lo que agrega el server es el DÓNDE: la grilla de
+// La medida es la de `visor/tools/fidelity.mjs` —Chromium dibuja el HTML al doble, se compara con la
+// exportación—, en su modo de una pantalla, y la que importa es la REAL: comparar píxel a píxel marca el
+// borde de todas las letras (Chromium y Figma no suavizan igual), así que un píxel sólo cuenta si no hay
+// uno parecido a menos de 1 px en la otra imagen, y sólo en celdas donde la diferencia ocupa algo. Lo que agrega el server es el DÓNDE: la grilla de
 // diferencias se cruza con las capas de Figma, y cada celda distinta se le cuenta a la capa MÁS CHICA que
 // la contiene. Así la respuesta no es «hay rojo abajo a la izquierda» sino «el texto “Iniciar solicitud”
 // difiere en un 30 %», que es lo que dice qué arreglar.
@@ -37,7 +39,11 @@ import (
 
 // fidelity es lo que se devuelve, y lo que se guarda.
 type fidelity struct {
-	Same      float64   `json:"same"`      // fracción de píxeles iguales
+	// SameReal es LA medida: la fracción de píxeles sin una diferencia REAL —la que no se explica con el
+	// suavizado de las letras ni con medio píxel de corrimiento (ver RADIUS y FLOOR en fidelity.mjs)—. Same
+	// es la estricta, píxel a píxel, la de `make visor-fidelidad REF=` y la de las medidas viejas.
+	SameReal  float64   `json:"same_real"`
+	Same      float64   `json:"same"`
 	Threshold int       `json:"threshold"` // cuánto tiene que diferir un canal para contar
 	Version   string    `json:"version"`
 	Measured  time.Time `json:"measured_at"`
@@ -48,7 +54,11 @@ type fidelity struct {
 	// cambio en `visor/render` la deja vieja aunque el diseño sea el mismo (con `go run`, cada cambio de
 	// código es otro binario).
 	Renderer string `json:"renderer"`
+	Method   string `json:"method"`
 }
+
+// fidelityMethod nombra cómo se mide: cambiarlo invalida las medidas guardadas con otro método.
+const fidelityMethod = "radio-2-piso-15"
 
 // zone es una capa de Figma con su parte de la diferencia.
 type zone struct {
@@ -56,6 +66,9 @@ type zone struct {
 	Name  string  `json:"name"`
 	Type  string  `json:"type"`
 	Text  string  `json:"text,omitempty"` // lo que dice, si es un texto
+	// Parent es la capa con nombre propio que la contiene: tres «Icon» iguales se distinguen por dónde
+	// están («Step 1», «Step 2»…).
+	Parent string `json:"parent,omitempty"`
 	X     float64 `json:"x"`              // la caja, en píxeles de la pantalla
 	Y     float64 `json:"y"`
 	W     float64 `json:"w"`
@@ -67,6 +80,7 @@ type zone struct {
 // measured es lo que imprime fidelity.mjs en su modo de una pantalla.
 type measured struct {
 	Same      float64 `json:"same"`
+	SameReal  float64 `json:"same_real"`
 	Threshold int     `json:"threshold"`
 	Scale     float64 `json:"scale"`
 	Cell      int     `json:"cell"`
@@ -119,7 +133,7 @@ func (s *server) fidelityOf(ctx context.Context, key, id string, fresh, onlyCach
 	if !fresh {
 		if b, err := os.ReadFile(jsonPath); err == nil {
 			var f fidelity
-			if json.Unmarshal(b, &f) == nil && f.Renderer == rendererPrint() {
+			if json.Unmarshal(b, &f) == nil && f.Renderer == rendererPrint() && f.Method == fidelityMethod {
 				return f, heatPath, nil
 			}
 		}
@@ -138,7 +152,7 @@ func (s *server) fidelityOf(ctx context.Context, key, id string, fresh, onlyCach
 	if err != nil || len(grid) != m.GW*m.GH {
 		return fidelity{}, "", fmt.Errorf("la grilla de la medición no tiene %d×%d celdas", m.GW, m.GH)
 	}
-	f := fidelity{Same: m.Same, Threshold: m.Threshold, Version: version, Measured: time.Now(),
+	f := fidelity{Same: m.Same, SameReal: m.SameReal, Method: fidelityMethod, Threshold: m.Threshold, Version: version, Measured: time.Now(),
 		Zones: attribute(n, grid, m.GW, m.GH, float64(m.Cell)/m.Scale), W: n.Box.Width, H: n.Box.Height, Renderer: rendererPrint()}
 	if b, err := json.Marshal(f); err == nil {
 		_ = os.WriteFile(jsonPath+".tmp", b, 0o644)
@@ -248,24 +262,30 @@ func findTool(rel string) (string, error) {
 // ninguna capa es del fondo de la pantalla. `cell` es el lado de una celda en píxeles de pantalla.
 func attribute(screen render.Node, grid []byte, gw, gh int, cell float64) []zone {
 	type layer struct {
-		n    render.Node
-		x, y float64
-		w, h float64
+		n      render.Node
+		parent string
+		x, y   float64
+		w, h   float64
 	}
 	var layers []layer
-	var walk func(n render.Node, root bool)
-	walk = func(n render.Node, root bool) {
+	var walk func(n render.Node, root bool, parent string)
+	walk = func(n render.Node, root bool, parent string) {
 		if n.Visible != nil && !*n.Visible {
 			return
 		}
 		if !root && n.Box != nil && n.Box.Width > 0 && n.Box.Height > 0 {
-			layers = append(layers, layer{n: n, x: n.Box.X - screen.Box.X, y: n.Box.Y - screen.Box.Y, w: n.Box.Width, h: n.Box.Height})
+			layers = append(layers, layer{n: n, parent: parent, x: n.Box.X - screen.Box.X, y: n.Box.Y - screen.Box.Y, w: n.Box.Width, h: n.Box.Height})
+		}
+		// El padre que se muestra es el primero con nombre propio: «Frame 12» o «Container» no ubican nada.
+		next := parent
+		if !root && !genericName(n.Name) {
+			next = n.Name
 		}
 		for _, c := range n.Children {
-			walk(c, false)
+			walk(c, false, next)
 		}
 	}
-	walk(screen, true)
+	walk(screen, true, "")
 	// De la más chica a la más grande: la primera que contiene la celda es la dueña.
 	sort.SliceStable(layers, func(i, j int) bool { return layers[i].w*layers[i].h < layers[j].w*layers[j].h })
 
@@ -301,7 +321,7 @@ func attribute(screen render.Node, grid []byte, gw, gh int, cell float64) []zone
 			continue
 		}
 		l := layers[i]
-		z := zone{ID: l.n.ID, Name: l.n.Name, Type: l.n.Type, X: l.x, Y: l.y, W: l.w, H: l.h, Share: d / total, Cover: min(1, d/(l.w*l.h))}
+		z := zone{ID: l.n.ID, Name: l.n.Name, Parent: l.parent, Type: l.n.Type, X: l.x, Y: l.y, W: l.w, H: l.h, Share: d / total, Cover: min(1, d/(l.w*l.h))}
 		if l.n.Type == "TEXT" {
 			z.Text = strings.Join(strings.Fields(l.n.Characters), " ")
 			if r := []rune(z.Text); len(r) > 60 {
@@ -315,6 +335,17 @@ func attribute(screen render.Node, grid []byte, gw, gh int, cell float64) []zone
 		zones = zones[:maxZones]
 	}
 	return zones
+}
+
+// genericName: los nombres que Figma pone solo y que no dicen dónde se está.
+func genericName(name string) bool {
+	n := strings.ToLower(strings.TrimSpace(name))
+	for _, p := range []string{"frame", "group", "container", "rectangle", "vector", "icon", "auto layout", "instance", "ellipse", "line"} {
+		if n == p || strings.HasPrefix(n, p+" ") {
+			return true
+		}
+	}
+	return n == ""
 }
 
 func (s *server) handleFidelity(w http.ResponseWriter, r *http.Request) {

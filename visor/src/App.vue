@@ -669,11 +669,13 @@ watch(showHeat, (on) => {
   if (on && !fidelity.value && fidelityState.value !== 'measuring' && fidelityURL.value) loadFidelity(fidelityURL.value, { measure: true })
 })
 const measureNow = () => { if (fidelityURL.value) loadFidelity(fidelityURL.value, { measure: true, fresh: Boolean(fidelity.value) }) }
-// En palabras y no en color: el tema no trae un «bien / regular / mal», y un número solo no dice si 97 es mucho.
+// En palabras y no en color: el tema no trae un «bien / regular / mal», y un número solo no dice si 99 es
+// mucho. Sobre la medida REAL (sin el suavizado): una pantalla bien traducida da 99,9 y pico; unos chulos
+// que faltan la bajan poco, por eso lo que dice QUÉ falta son las capas de abajo.
 const fidelityWord = computed(() => {
-  const x = fidelity.value?.same
+  const x = fidelity.value?.same_real
   if (x === undefined) return ''
-  return x >= 0.98 ? 'alta: lo que difiere es casi todo el suavizado de las letras' : x >= 0.93 ? 'media: hay capas corridas o de otro tamaño' : 'baja: el HTML no sirve de guía sin revisar'
+  return x >= 0.995 ? 'alta' : x >= 0.97 ? 'media: hay capas corridas o de otro tamaño' : 'baja: el HTML no sirve de guía sin revisar'
 })
 const pct = (x, digits = 1) => (x * 100).toFixed(digits).replace('.', ',') + ' %'
 const zoneStyle = (z) => {
@@ -1236,20 +1238,20 @@ const rowMetaTitle = (sc) => [sc.hotspots?.length ? 'Tiene zonas del prototipo' 
             <p v-else-if="fidelityState === 'error'" class="hint">No se pudo medir: {{ fidelityError }}</p>
             <template v-else-if="fidelity">
               <div class="fidelity">
-                <strong>{{ pct(fidelity.same) }}</strong>
-                <span>de los píxeles iguales · fidelidad {{ fidelityWord }}</span>
+                <strong>{{ pct(fidelity.same_real, 2) }}</strong>
+                <span>igual a Figma · fidelidad {{ fidelityWord }}</span>
               </div>
-              <div class="progress progress-xs fidelity-bar"><i :style="{ width: fidelity.same * 100 + '%' }"></i></div>
+              <div class="progress progress-xs fidelity-bar"><i :style="{ width: fidelity.same_real * 100 + '%' }"></i></div>
               <template v-if="fidelity.zones?.length">
                 <div class="zones-head"><span>Dónde difiere</span><small>parte de la diferencia · de la capa</small></div>
                 <button v-for="z in fidelity.zones" :key="z.id" type="button" class="row stacked zone-row" :aria-pressed="pinnedZone?.id === z.id"
                   :title="'Marcar ' + (z.text ? '«' + z.text + '»' : z.name) + ' sobre la pantalla'"
                   @mouseenter="hoverZone = z" @mouseleave="hoverZone = null" @focus="hoverZone = z" @blur="hoverZone = null" @click="pinZone(z)">
                   <span class="zone-line"><span class="zone-name">{{ z.text ? '«' + z.text + '»' : z.name }}</span><span class="zone-num">{{ pct(z.share, 0) }}</span></span>
-                  <small class="row-desc">{{ z.text ? z.name + ' · ' : '' }}{{ pct(z.cover, 0) }} de la capa es distinta · {{ Math.round(z.w) }}×{{ Math.round(z.h) }}</small>
+                  <small class="row-desc">{{ z.text ? z.name + ' · ' : '' }}{{ z.parent ? 'en «' + z.parent + '» · ' : '' }}{{ pct(z.cover, 0) }} de la capa es distinta · {{ Math.round(z.w) }}×{{ Math.round(z.h) }}</small>
                 </button>
               </template>
-              <p class="hint">Medida el {{ new Date(fidelity.measured_at).toLocaleString('es-CO', { dateStyle: 'short', timeStyle: 'short' }) }} · un píxel es distinto si algún canal difiere más de {{ fidelity.threshold }}/255. El borde de las letras siempre difiere un poco, porque Chromium y Figma no suavizan igual; una capa pesa cuando su parte es grande <em>y</em> está muy distinta. <kbd class="kbd">M</kbd> muestra el mapa de calor.</p>
+              <p class="hint">Medida el {{ new Date(fidelity.measured_at).toLocaleString('es-CO', { dateStyle: 'short', timeStyle: 'short' }) }} · no cuenta el suavizado de las letras ni medio píxel de corrimiento: un píxel es distinto si en la otra imagen no hay uno parecido a menos de 1 px. Píxel a píxel da {{ pct(fidelity.same) }}. <kbd class="kbd">M</kbd> muestra el mapa de calor.</p>
             </template>
             <p v-else class="hint">Sin medir en esta versión. <button type="button" class="link-inline" @click="measureNow">Medir</button> o encender el mapa de calor (<kbd class="kbd">M</kbd>).</p>
           </div>

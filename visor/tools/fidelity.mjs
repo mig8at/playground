@@ -48,6 +48,17 @@ if (!args.ref && !single) {
 // La celda de la grilla, en píxeles de la IMAGEN (la exportación va al doble): 8 = 4×4 de pantalla. Chica
 // para que una zona se pueda atribuir a un texto de una línea, grande para que el JSON no pese.
 const CELL = 8
+// EL RADIO DE TOLERANCIA, en píxeles de la imagen (2 = 1 px de pantalla). Comparar píxel a píxel marca el
+// borde de TODAS las letras: Chromium y Figma no suavizan igual, y medio píxel de corrimiento pinta un
+// contorno entero. Para el mapa y las capas, un píxel sólo es distinto si en la otra imagen NO hay uno
+// parecido a menos de este radio, en los dos sentidos: el suavizado y el corrimiento encuentran su pareja
+// al lado; un chulo que no se dibujó, no.
+const RADIUS = Number(args.radius || 2)
+// EL PISO de una celda: lo que queda del suavizado después del radio son motas sueltas —una celda con uno
+// o dos píxeles—; lo que falta de verdad ocupa la celda. Medido en Motai 1:6660 (la barra de pasos sin sus
+// chulos): con un piso de 15 % quedan 15 celdas y 12 son los tres chulos; sin piso eran 132, casi todas
+// motas de texto.
+const FLOOR = Number(args.floor || 0.15)
 
 async function getJSON(path) {
   const res = await fetch(API + path)
@@ -82,7 +93,7 @@ async function measure(browser, compare, key, id, w, h) {
   const shot = (await page.screenshot({ clip: { x: 0, y: 0, width: w, height: h } })).toString('base64')
   await ctx.close()
 
-  return compare.evaluate(async ({ figma, shot, threshold, cell }) => {
+  return compare.evaluate(async ({ figma, shot, threshold, cell, radius, floor }) => {
     const load = (b64) => new Promise((res, rej) => { const i = new Image(); i.onload = () => res(i); i.onerror = rej; i.src = 'data:image/png;base64,' + b64 })
     const [a, b] = await Promise.all([load(figma), load(shot)])
     const W = a.naturalWidth, H = a.naturalHeight
@@ -94,15 +105,33 @@ async function measure(browser, compare, key, id, w, h) {
     const out = new ImageData(W, H)
     const gw = Math.ceil(W / cell), gh = Math.ceil(H / cell)
     const counts = new Uint32Array(gw * gh)
+    const A = pa.data, B = pb.data
+    const near = (x, y, src, dst) => {
+      // ¿hay en `dst`, a menos de `radius`, un píxel parecido al de `src` en (x, y)?
+      const i = (y * W + x) * 4
+      for (let dy = -radius; dy <= radius; dy++) {
+        const yy = y + dy
+        if (yy < 0 || yy >= H) continue
+        for (let dx = -radius; dx <= radius; dx++) {
+          const xx = x + dx
+          if (xx < 0 || xx >= W) continue
+          const j = (yy * W + xx) * 4
+          if (Math.abs(src[i] - dst[j]) <= threshold && Math.abs(src[i + 1] - dst[j + 1]) <= threshold && Math.abs(src[i + 2] - dst[j + 2]) <= threshold) return true
+        }
+      }
+      return false
+    }
     let diff = 0
-    for (let i = 0; i < pa.data.length; i += 4) {
-      const d = Math.max(Math.abs(pa.data[i] - pb.data[i]), Math.abs(pa.data[i + 1] - pb.data[i + 1]), Math.abs(pa.data[i + 2] - pb.data[i + 2]))
-      const g = (pa.data[i] * 0.3 + pa.data[i + 1] * 0.59 + pa.data[i + 2] * 0.11) * 0.35 + 160
+    for (let i = 0; i < A.length; i += 4) {
+      const d = Math.max(Math.abs(A[i] - B[i]), Math.abs(A[i + 1] - B[i + 1]), Math.abs(A[i + 2] - B[i + 2]))
+      const g = (A[i] * 0.3 + A[i + 1] * 0.59 + A[i + 2] * 0.11) * 0.35 + 160
       if (d > threshold) {
         diff++
         out.data.set([230, 40, 40, 255], i)
-        const p = i / 4
-        counts[Math.floor(Math.floor(p / W) / cell) * gw + Math.floor((p % W) / cell)]++
+        const p = i / 4, x = p % W, y = Math.floor(p / W)
+        if (!near(x, y, A, B) || !near(x, y, B, A)) {
+          counts[Math.floor(y / cell) * gw + Math.floor(x / cell)]++
+        }
       } else out.data.set([g, g, g, 255], i)
     }
     const toB64 = async (canvas) => {
@@ -117,9 +146,12 @@ async function measure(browser, compare, key, id, w, h) {
     // donde no hay diferencia: va ENCIMA de la imagen de Figma.
     const grid = new Uint8Array(gw * gh)
     const small = new ImageData(gw, gh)
+    let kept = 0
     for (let k = 0; k < counts.length; k++) {
       const cw = Math.min(cell, W - (k % gw) * cell), ch = Math.min(cell, H - Math.floor(k / gw) * cell)
-      const f = counts[k] / (cw * ch)
+      let f = counts[k] / (cw * ch)
+      if (f < floor) f = 0
+      else kept += counts[k]
       grid[k] = Math.round(f * 255)
       if (f > 0) {
         const t = Math.min(1, f * 1.6)
@@ -132,8 +164,8 @@ async function measure(browser, compare, key, id, w, h) {
     hx.drawImage(sc, 0, 0, gw * cell, gh * cell)
     let gs = ''; for (let i = 0; i < grid.length; i += 0x8000) gs += String.fromCharCode(...grid.subarray(i, i + 0x8000))
 
-    return { same: 1 - diff / (W * H), sizes: [W, H, b.naturalWidth, b.naturalHeight], png: await toB64(c), heat: await toB64(heat), grid: btoa(gs), gw, gh }
-  }, { figma, shot, threshold: THRESHOLD, cell: CELL })
+    return { same: 1 - diff / (W * H), sameReal: 1 - kept / (W * H), sizes: [W, H, b.naturalWidth, b.naturalHeight], png: await toB64(c), heat: await toB64(heat), grid: btoa(gs), gw, gh }
+  }, { figma, shot, threshold: THRESHOLD, cell: CELL, radius: RADIUS, floor: FLOOR })
 }
 
 if (single) {
@@ -144,7 +176,7 @@ if (single) {
     if (r.error) { console.log(JSON.stringify({ error: r.error })); process.exit(1) }
     if (args.heat) writeFileSync(args.heat, Buffer.from(r.heat, 'base64'))
     if (args.diff) writeFileSync(args.diff, Buffer.from(r.png, 'base64'))
-    console.log(JSON.stringify({ same: r.same, threshold: THRESHOLD, scale: r.sizes[0] / Math.round(Number(args.w)), cell: CELL, gw: r.gw, gh: r.gh, grid: r.grid }))
+    console.log(JSON.stringify({ same: r.same, same_real: r.sameReal, radius: RADIUS, floor: FLOOR, threshold: THRESHOLD, scale: r.sizes[0] / Math.round(Number(args.w)), cell: CELL, gw: r.gw, gh: r.gh, grid: r.grid }))
   } finally {
     await browser.close()
   }
@@ -176,24 +208,27 @@ try {
     if (r.error) { results.push({ sc, error: r.error }); continue }
     const file = join(OUT, `${map.key}-${sc.id.replace(/[^0-9]/g, '-')}.png`)
     writeFileSync(file, Buffer.from(r.png, 'base64'))
-    results.push({ sc, same: r.same, file, sizes: r.sizes })
+    results.push({ sc, same: r.same, real: r.sameReal, file, sizes: r.sizes })
   }
 } finally {
   await browser.close()
 }
 
-writeFileSync(join(OUT, 'results.json'), JSON.stringify(results.map((x) => ({ id: x.sc.id, title: x.sc.title, lane: x.sc.lane, same: x.same, error: x.error, file: x.file })), null, 1))
+writeFileSync(join(OUT, 'results.json'), JSON.stringify(results.map((x) => ({ id: x.sc.id, title: x.sc.title, lane: x.sc.lane, same: x.same, same_real: x.real, error: x.error, file: x.file })), null, 1))
 console.log(`\n  fidelidad del HTML contra la imagen de Figma · ${map.structure.file_name} · «${map.structure.name}»`)
-console.log(`  un píxel es distinto si algún canal difiere en más de ${THRESHOLD}/255\n`)
+console.log(`  un píxel es distinto si algún canal difiere en más de ${THRESHOLD}/255 · «real»: sin el suavizado ni medio píxel de corrimiento\n`)
+console.log('  estricta   real')
 const ok = results.filter((x) => x.same !== undefined).sort((a, b) => a.same - b.same)
 for (const x of results.filter((x) => x.error)) console.log(`  ✗ ${x.sc.id.padEnd(11)} ${x.error}`)
 for (const x of ok) {
-  const pct = (x.same * 100).toFixed(1).padStart(5)
-  console.log(`  ${pct}%  ${x.sc.id.padEnd(11)} ${(x.sc.title || x.sc.name).slice(0, 44).padEnd(44)} ${x.sc.lane.slice(0, 22)}`)
+  const pct = (x.same * 100).toFixed(1).padStart(5), real = (x.real * 100).toFixed(2).padStart(6)
+  console.log(`  ${pct}%  ${real}%  ${x.sc.id.padEnd(11)} ${(x.sc.title || x.sc.name).slice(0, 44).padEnd(44)} ${x.sc.lane.slice(0, 22)}`)
 }
 if (ok.length) {
   const vals = ok.map((x) => x.same).sort((a, b) => a - b)
+  const reals = ok.map((x) => x.real).sort((a, b) => a - b)
   const median = vals[Math.floor(vals.length / 2)]
-  console.log(`\n  ${ok.length} pantalla(s) · mediana ${(median * 100).toFixed(1)}% · peor ${(vals[0] * 100).toFixed(1)}%`)
+  console.log(`\n  ${ok.length} pantalla(s) · mediana ${(median * 100).toFixed(1)}% · peor ${(vals[0] * 100).toFixed(1)}%`
+    + ` · real: mediana ${(reals[Math.floor(reals.length / 2)] * 100).toFixed(2)}%, peor ${(reals[0] * 100).toFixed(2)}%`)
   console.log(`  mapas de diferencias (rojo = distinto): ${OUT}`)
 }

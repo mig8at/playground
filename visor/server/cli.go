@@ -661,8 +661,8 @@ func cliFidelity(s *server, ctx context.Context, args []string, out io.Writer) e
 		title = place.screen.Title
 	}
 	fmt.Fprintf(out, "\n  fidelidad del HTML contra Figma · «%s» · %s/%s\n", title, key, strings.ReplaceAll(id, ":", "-"))
-	fmt.Fprintf(out, "  %.1f %% de los píxeles iguales · distinto = algún canal difiere más de %d/255 · medida %s\n\n",
-		f.Same*100, f.Threshold, f.Measured.Format("2006-01-02 15:04"))
+	fmt.Fprintf(out, "  %.2f %% igual, sin contar el suavizado de las letras · %.1f %% píxel a píxel · medida %s\n\n",
+		f.SameReal*100, f.Same*100, f.Measured.Format("2006-01-02 15:04"))
 	if len(f.Zones) == 0 {
 		fmt.Fprintln(out, "  no difiere en ninguna capa.")
 	} else {
@@ -671,6 +671,9 @@ func cliFidelity(s *server, ctx context.Context, args []string, out io.Writer) e
 			what := z.Name
 			if z.Text != "" {
 				what = fmt.Sprintf("texto «%s» (%s)", z.Text, z.Name)
+			}
+			if z.Parent != "" {
+				what += " en «" + z.Parent + "»"
 			}
 			fmt.Fprintf(out, "  %5.1f %%  %-58s %s · %.0f,%.0f %.0f×%.0f · %.0f %% distinta\n",
 				z.Share*100, truncate(what, 58), z.ID, z.X, z.Y, z.W, z.H, z.Cover*100)
@@ -690,7 +693,7 @@ func cliFidelity(s *server, ctx context.Context, args []string, out io.Writer) e
 		heatPath = abs
 	}
 	fmt.Fprintf(out, "\n  mapa de calor (PNG transparente, del tamaño de la exportación): %s\n", heatPath)
-	fmt.Fprintln(out, "  ⚠ el borde de las letras siempre difiere un poco: Chromium y Figma no suavizan igual. Una capa pesa cuando su parte es grande Y está muy distinta.")
+	fmt.Fprintln(out, "  Un píxel cuenta si no hay uno parecido a menos de 1 px en la otra imagen: el suavizado de las letras y medio píxel de corrimiento no son diferencias.")
 	return nil
 }
 

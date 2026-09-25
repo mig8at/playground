@@ -38,6 +38,9 @@ func TestAttributeGoesToTheSmallestLayer(t *testing.T) {
 	for _, z := range zones {
 		byID[z.ID] = z
 	}
+	if zones[0].Parent != "Botón" {
+		t.Errorf("la zona dice en qué capa con nombre propio está: %q", zones[0].Parent)
+	}
 	if byID["2"].Share != 0.25 || byID["1"].Name != "fondo de la pantalla" || byID["1"].Share != 0.25 {
 		t.Errorf("botón y fondo, un cuarto cada uno: %+v", zones)
 	}

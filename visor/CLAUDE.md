@@ -326,7 +326,8 @@ con la exportación de Figma—, ahora también **de a una pantalla**: `make vis
 consola (sin el visor corriendo: abre su propia API en un puerto libre para que Chromium lea el HTML) y
 `/api/fidelity` en la interfaz (`server/fidelity.go`). Lo que suma a «un porcentaje» es el **DÓNDE**: cada
 celda distinta de 4×4 px se le cuenta a la **capa visible más chica** que la contiene, así que la respuesta
-dice «Bontones: 30 % de toda la diferencia, 89 % de la capa distinta» y no «hay rojo abajo».
+dice «Bontones: 30 % de toda la diferencia, 89 % de la capa distinta» y no «hay rojo abajo». Cada zona
+nombra además la capa con nombre propio que la contiene («Icon en «Checkmark»»).
 
 - En la interfaz: el botón de llama (o <kbd>M</kbd>) pone el **mapa de calor** encima de la imagen y del
   HTML —las mismas coordenadas en los dos—; la barra derecha da el porcentaje, las zonas (señalar una la
@@ -340,10 +341,21 @@ dice «Bontones: 30 % de toda la diferencia, 89 % de la capa distinta» y no «h
   «Medir» o al encender el mapa: recorrer un carril no lanza un Chromium por pantalla. El paquete para el
   modelo (`visor-pantalla`) tampoco mide: si hay medida, la incluye con sus cinco capas peores; si no, da
   el comando.
-- ⚠ **El borde de las letras siempre difiere**: Chromium y Figma no suavizan igual, y una pantalla bien
-  traducida queda en ~99 % con casi toda la diferencia en los textos, cada uno con un 5–15 % de su caja
-  distinta. Lo que delata un problema es una capa con una parte grande **y** casi toda distinta: en
-  Motai 29:3117 (86,1 %), «Bontones» al 89 % y «Elige una opción» al 92 % — el bloque de opciones sale corrido.
+- ⚠ **Comparar píxel a píxel no concluye nada, y por eso la medida que se muestra es la REAL.** La primera
+  versión del mapa marcaba el borde de TODAS las letras —Chromium y Figma no suavizan igual, y medio píxel
+  de corrimiento pinta un contorno entero—, y lo que de verdad faltaba (los chulos de la barra de pasos,
+  que el HTML no dibuja) quedaba perdido en el ruido; Miguel lo leyó así y tenía razón. Hoy un píxel sólo
+  es distinto si en la otra imagen **no hay uno parecido a menos de 1 px, en los dos sentidos** (el
+  suavizado y el corrimiento encuentran su pareja al lado; un chulo que no existe, no), y sólo cuenta en
+  celdas donde ocupa **al menos el 15 %** (lo que sobrevive del suavizado son motas sueltas). Medido en
+  Motai 1:6660: de 132 celdas marcadas quedan 15, y 12 son los tres chulos; las zonas son exactamente
+  esos tres «Icon». `RADIUS` y `FLOOR` están en `fidelity.mjs`, y cambiar el método invalida lo guardado
+  (`fidelityMethod`).
+- El número real queda alto en una pantalla bien traducida (Alta 266:1279: **99,98 %** real contra 99,0
+  píxel a píxel) y baja de verdad cuando algo está corrido (Motai 29:3117: 86,5 %, con «Bontones» y «Elige
+  una opción» casi enteras distintas). Unos chulos que faltan lo mueven poco (99,98 %): **lo que dice QUÉ
+  falta son las capas**, no el número. El estricto se sigue mostrando al lado, y es el de las medianas de
+  arriba y de `make visor-fidelidad REF=`, que ahora imprime las dos columnas.
 
 ## Cómo se comprueba
 
