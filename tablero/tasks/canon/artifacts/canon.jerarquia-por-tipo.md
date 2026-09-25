@@ -75,6 +75,23 @@ Y aparte, **cobros** (`nequi`, Wompi, la cuota inicial): Nequi no presta, cobra.
   `smartpay` → `imei`, lo común de `welli`/`meddipay`/`bancolombia`/`bcp`/`credito365` → `agregador`.
 - Lo que quede en un tema de entidad es sólo su contrato propio.
 
+## La primera mudanza: `motai` (plan del 2026-09-25)
+
+`motai` tiene 14 secciones, 9 áreas y un recorrido de 13 estaciones que es en realidad el del **codeudor** (una ruta
+renting y una rent to own). Alta es rent to own (decisión de Miguel; en producción su entidad 199 todavía figura
+como `credit` a 2026-09-25, y la sección lo dice con fecha hasta que se corrija la base).
+
+- `creditopx` → padre de `arrendamiento` y de `codeudor`.
+- `arrendamiento` (nuevo): la calculadora como dato, el precio de la calculadora como lo que consume cupo, el
+  recorrido paso a paso y de punta a punta, el id distinto por ambiente, los ingresos de plataformas, y dos
+  secciones con nombre: «Lo que es a la medida de Motai» (el espejo de hitos a su servicio) y Alta.
+- `renting` (hijo de arrendamiento): su contrato, la tarjeta sin total, sin opción de compra.
+- `rto` (hijo de arrendamiento): opción de compra, garantía mobiliaria, tarjeta con total, el hueco de la categoría
+  «Codeudor» que firma un contrato de renting, y Alta.
+- `codeudor` = `motai` renombrado: sus cinco secciones del codeudor y el recorrido, intactos.
+
+Se hace con `POST /api/restructure` (renombrar, crear, mover, editar) en un lote, y la prosa nueva por borrador.
+
 ## El criterio de admisión (para `skills/dictar.md`)
 
 Entra información técnica, de negocio o de producto que existe hoy en `main`, que no se entiende
