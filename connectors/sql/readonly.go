@@ -19,24 +19,26 @@ var writeFile = regexp.MustCompile(`(?is)\binto\s+(outfile|dumpfile)\b`)
 // `updated_at` ni un `FROM inserts`.
 var writeVerb = regexp.MustCompile(`(?is)\b(insert|update|delete|drop|alter|create|truncate|replace|grant|revoke|rename|call|load|handler|lock|unlock|commit|rollback|savepoint|prepare|execute|do|set)\b`)
 
-var blockComment = regexp.MustCompile(`(?s)/\*.*?\*/`)
-
 // MaxQuery es el largo máximo de una consulta, en caracteres.
 const MaxQuery = 12000
 
 /* ValidateReadOnly decide si la consulta puede salir a la red, ANTES de abrir una conexión.
  *
  * Es la unión de los dos chequeos que había (el del tablero y el del trazador), que ya eran casi iguales:
- * el del tablero sumaba el tope de largo. El orden importa: primero se sacan los comentarios —el
- * escondite clásico, y al revés un `-- update` en un comentario rechazaría una consulta legítima—, después
- * se exige el arranque de lectura, y recién al final se buscan verbos. */
+ * el del tablero sumaba el tope de largo. El orden importa: primero se arma el ESQUELETO de la consulta
+ * —sin comentarios y con el texto entre comillas vaciado—, después se exige el arranque de lectura, y
+ * recién al final se buscan verbos sobre ese esqueleto. */
 func ValidateReadOnly(query string) error {
-	clean := withoutComments(query)
+	// El tope se mide sobre lo que se escribió, no sobre el esqueleto: un literal largo también pesa.
+	if len([]rune(query)) > MaxQuery {
+		return fmt.Errorf("la consulta supera %d caracteres", MaxQuery)
+	}
+	clean, err := skeleton(query)
+	if err != nil {
+		return err
+	}
 	if strings.TrimSpace(clean) == "" {
 		return fmt.Errorf("la consulta está vacía")
-	}
-	if len([]rune(clean)) > MaxQuery {
-		return fmt.Errorf("la consulta supera %d caracteres", MaxQuery)
 	}
 	if !readStart.MatchString(clean) {
 		return fmt.Errorf("sólo se permiten consultas que empiecen con SELECT o WITH")
@@ -61,18 +63,74 @@ func ValidateReadOnly(query string) error {
 	return nil
 }
 
-// withoutComments saca `-- …`, `# …` y `/* … */` para que el chequeo mire SQL y no prosa.
-func withoutComments(query string) string {
+// skeleton devuelve la consulta como la lee MySQL, sin lo que no ejecuta: saca los comentarios y vacía el
+// texto entre comillas (queda `”`), para que el chequeo mire SQL y no prosa ni datos.
+//
+// ⚠ Hasta el 2026-09-25 esto era un borrado por líneas que no sabía de comillas, y tenía tres agujeros,
+// medidos con ValidateReadOnly:
+//   - `/*! … */` es un comentario EJECUTABLE: MySQL corre lo de adentro. Borrarlo como comentario dejaba
+//     pasar `SELECT 1 /*!50000 INTO OUTFILE '/tmp/x' */`. Ahora se rechaza.
+//   - `--` sólo abre un comentario si lo sigue un espacio o un control. `SELECT 5--1 INTO OUTFILE …` es
+//     una resta para MySQL; borrar desde `--` escondía el INTO OUTFILE.
+//   - un `--`, `#` o `;` DENTRO de comillas se leía como sintaxis, y una palabra dentro de un literal
+//     (`SELECT 'drop'`) rechazaba una lectura legítima.
+//
+// Una comilla sin cerrar se rechaza: no se sabe dónde termina el texto, y MySQL tampoco la correría.
+func skeleton(query string) (string, error) {
 	var b strings.Builder
-	for _, line := range strings.Split(query, "\n") {
-		if i := strings.Index(line, "--"); i >= 0 {
-			line = line[:i]
+	n := len(query)
+	for i := 0; i < n; i++ {
+		c := query[i]
+		switch {
+		case c == '\'' || c == '"' || c == '`':
+			end, ok := closeQuote(query, i)
+			if !ok {
+				return "", fmt.Errorf("hay una comilla %c sin cerrar", c)
+			}
+			b.WriteByte(c)
+			b.WriteByte(c)
+			i = end
+		case c == '/' && i+1 < n && query[i+1] == '*':
+			if i+2 < n && query[i+2] == '!' {
+				return "", fmt.Errorf("contiene un comentario ejecutable de MySQL (/*! … */): MySQL corre lo de adentro")
+			}
+			end := strings.Index(query[i+2:], "*/")
+			if end < 0 {
+				i = n
+			} else {
+				i += 2 + end + 1
+			}
+			b.WriteByte(' ')
+		case c == '#', c == '-' && i+1 < n && query[i+1] == '-' && (i+2 == n || query[i+2] <= ' '):
+			for i < n && query[i] != '\n' {
+				i++
+			}
+			b.WriteByte('\n')
+		default:
+			b.WriteByte(c)
 		}
-		if i := strings.Index(line, "#"); i >= 0 {
-			line = line[:i]
-		}
-		b.WriteString(line)
-		b.WriteByte('\n')
 	}
-	return blockComment.ReplaceAllString(b.String(), " ")
+	return b.String(), nil
+}
+
+// closeQuote devuelve dónde termina el texto que abre la comilla de `start`. Adentro, la barra escapa el
+// carácter siguiente (el modo por defecto de MySQL) y la comilla doblada (`”`) es una comilla literal.
+// Entre backticks (un identificador) la barra no escapa.
+func closeQuote(query string, start int) (int, bool) {
+	q := query[start]
+	for i := start + 1; i < len(query); i++ {
+		switch query[i] {
+		case '\\':
+			if q != '`' {
+				i++
+			}
+		case q:
+			if i+1 < len(query) && query[i+1] == q {
+				i++
+				continue
+			}
+			return i, true
+		}
+	}
+	return 0, false
 }

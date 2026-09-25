@@ -23,6 +23,10 @@ func TestValidateReadOnly(t *testing.T) {
 		"SELECT updated_at FROM inserts;",
 		"SELECT 1 -- update users\n",
 		"SELECT 1 /* delete */",
+		// Lo que hay entre comillas es texto, no sintaxis (antes rechazaba la primera por el 'drop').
+		"SELECT 'drop' AS word, 'a;b' AS semi, '--x' AS dash FROM t",
+		"SELECT `update` FROM t WHERE name = 'it''s' OR note = 'a\\'b'",
+		"SELECT 5 - -1, 3 # un comentario con delete\n",
 	} {
 		if err := ValidateReadOnly(q); err != nil {
 			t.Errorf("rechazó una lectura %q: %v", q, err)
@@ -38,6 +42,11 @@ func TestValidateReadOnly(t *testing.T) {
 		"SELECT 1 FROM t WHERE x IN (SELECT 1) UNION SELECT 1 FROM t; DROP TABLE t",
 		"WITH x AS (SELECT 1) UPDATE users SET a = 1",
 		"SELECT '" + strings.Repeat("a", MaxQuery) + "'",
+		// Los agujeros del borrado de comentarios por líneas (2026-09-25): los tres pasaban.
+		"SELECT 1 /*!50000 INTO OUTFILE '/tmp/x' */",
+		"SELECT 5--1 INTO OUTFILE '/tmp/x'",
+		"SELECT 'x'; DROP TABLE t",
+		"SELECT 'sin cerrar FROM t",
 	} {
 		if err := ValidateReadOnly(q); err == nil {
 			t.Errorf("dejó pasar %q", q[:min(len(q), 60)])
