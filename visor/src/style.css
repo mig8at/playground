@@ -1,22 +1,34 @@
 /* EL VOCABULARIO VISUAL DEL VISOR.
  *
  * Las mismas tres capas que el trazador, en el mismo orden: Tailwind (utilidades, sin preflight), el
- * tema compartido —que se REEMPLAZA entero y no se edita— y el taller. Abajo, lo que sólo significa
- * algo acá: la zona clicable de un prototipo y el marco del dispositivo.
+ * tema compartido —que se REEMPLAZA entero y no se edita— y la base (`workbench.css`). Abajo, lo que
+ * sólo significa algo acá: la zona clicable de un prototipo y el marco del dispositivo.
  */
 @import "tailwindcss/theme.css" layer(theme);
 @import "tailwindcss/utilities.css" layer(utilities);
 @import "./theme.css";
 @import "./workbench.css";
 
+/* Los colores propios del visor, en los dos temas. Salen de tokens del tema a propósito —el color de
+ * acción y la línea—, así que el claro (`:root`) y el oscuro (`.dark`, la clase que pone el botón de
+ * tema) son la misma declaración: cada tema trae su `--primary` y su `--border`, y la zona se tiñe
+ * con el de cada uno. Ninguno es texto; el contraste lo mide `make estilo-contraste` igual. */
 :root {
   /* La zona del prototipo usa el color de acción del tema: es «tocá acá». */
   --hotspot: var(--primary);
   --hotspot-fill: color-mix(in oklab, var(--primary) 18%, transparent);
+  --hotspot-fill-hover: color-mix(in oklab, var(--primary) 32%, transparent);
+  /* El borde de la pantalla: un objeto (la miniatura), así que lleva su marco. */
   --device-edge: var(--border);
 }
 
-/* La página no scrollea: scrollea cada región (el contrato de `.workbench`). */
+/* La página no scrollea: scrollea cada región (el contrato de `.workbench`). La letra de la interfaz es
+ * la de la base, 13 sobre 1,4. */
 html, body { margin: 0; height: 100%; overflow: hidden; background: var(--background); color: var(--foreground);
-  font-family: var(--font-sans); font-size: var(--text-body) }
+  font: var(--text-base)/1.4 var(--font-sans) }
 #app { height: 100% }
+
+/* PROPUESTA A LA BASE: un icono de comentario. La fila de una pantalla con comentarios abiertos en Figma
+ * lo necesita y la base no lo trae; está dibujado en la misma grilla de 24, con trazo de 1,75 y extremos
+ * redondeados, para subirlo a `workbench.css` tal cual. */
+.ui-icon[data-icon="comment"] { --ui-icon: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22black%22%20stroke-width%3D%221.75%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Cpath%20d%3D%22M20%2015a2%202%200%200%201-2%202H8l-4%204V6a2%202%200%200%201%202-2h12a2%202%200%200%201%202%202Z%22%2F%3E%3C%2Fsvg%3E") }

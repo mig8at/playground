@@ -1,6 +1,6 @@
 <script setup>
 import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
-import { vResize, readSize, saveSize, refreshResizers, fitRegions, reopenSize, cssSize } from './workbench.js'
+import { vResize, readSize, saveSize, refreshResizers, fitRegions, reopenSize, cssSize, bindThemeToggle } from './workbench.js'
 
 // EL VISOR: un diseño de Figma leído como recorrido. A la izquierda los carriles que armó el
 // diseñador, al centro la pantalla con las zonas del prototipo, a la derecha lo que la pantalla dice
@@ -704,7 +704,13 @@ function onPopState() {
   if (r) openRoute(r)
 }
 
+// El tema lo elige la persona con el botón del pie (la base: `bindThemeToggle`). El renglón que lo aplica
+// antes de pintar lo inyecta Vite en el <head> desde `THEME_BOOT` (vite.config.js). El HTML traducido y
+// la imagen de Figma no lo siguen a propósito: son el diseño, y el diseño tiene sus propios colores.
+const themeToggle = ref(null)
+let themeBinding = null
 onMounted(async () => {
+  if (themeToggle.value) themeBinding = bindThemeToggle(themeToggle.value)
   window.addEventListener('resize', onWindowResize)
   window.addEventListener('hashchange', onHash)
   window.addEventListener('popstate', onPopState)
@@ -722,6 +728,7 @@ onMounted(async () => {
   else if (last) { refInput.value = last; load(last) }
 })
 onUnmounted(() => {
+  themeBinding?.destroy()
   window.removeEventListener('resize', onWindowResize)
   observer?.disconnect()
   window.removeEventListener('keydown', onKey)
@@ -731,6 +738,9 @@ onUnmounted(() => {
 
 const kindName = { mobile: 'móvil', web: 'web', panel: 'panel', textless: 'sin texto' }
 const laneName = (lane) => (lane.label ? lane.label : 'Fila sin rótulo')
+// El dato de la derecha de una fila son dos iconos; su `title` dice los dos en palabras.
+const rowMetaTitle = (sc) => [sc.hotspots?.length ? 'Tiene zonas del prototipo' : '',
+  sc.open_comments ? sc.open_comments + ' comentario(s) abierto(s)' : ''].filter(Boolean).join(' · ')
 </script>
 
 <template>
@@ -750,25 +760,32 @@ const laneName = (lane) => (lane.label ? lane.label : 'Fila sin rótulo')
             <span class="ui-icon" data-icon="chevron" aria-hidden="true"></span><span>{{ f.name }}</span>
           </button>
           <span v-if="countOf(f.key)" class="count" :title="countOf(f.key) + ' pantallas en el flujo'">{{ countOf(f.key) }}</span>
-          <button v-if="maps[f.key]" class="region-action" title="Volver a leer el flujo desde Figma" aria-label="Volver a leer" @click="openFlow(f.key, true)">
-            <span class="ui-icon" data-icon="refresh" aria-hidden="true"></span>
-          </button>
+          <div v-if="maps[f.key]" class="region-actions">
+            <button class="region-action" title="Volver a leer el flujo desde Figma" aria-label="Volver a leer" @click="openFlow(f.key, true)">
+              <span class="ui-icon" data-icon="refresh" aria-hidden="true"></span>
+            </button>
+          </div>
         </div>
         <div v-if="isOpenFile(f.key)" :id="'flow-' + f.key" class="region-body">
           <p v-if="mapState[f.key] === 'loading'" class="hint">Leyendo el flujo…</p>
-          <p v-else-if="mapState[f.key]?.error" class="notice">{{ mapState[f.key].error }}</p>
+          <div v-else-if="mapState[f.key]?.error" class="alert alert-destructive" role="alert"><div class="alert-desc">{{ mapState[f.key].error }}</div></div>
           <template v-for="g in groupsFor(maps[f.key]?.structure)" :key="g.id">
             <div v-if="groupsFor(maps[f.key]?.structure).length > 1" class="section-name">{{ g.name }}</div>
             <template v-for="(lane, li) in g.lanes" :key="g.id + '-' + li">
               <div class="region-head group" :class="{ unlabeled: !lane.label }">
                 <span>{{ laneName(lane) }}</span><span class="count">{{ lane.screens.length }}</span>
               </div>
-              <button v-for="(sc, i) in lane.screens" :key="sc.id" class="screen-row" :data-screen="sc.id"
+              <!-- Una pantalla es una fila de la base (`.row`, 28): su número de orden adelante y, a la
+                   derecha, si lleva a otra (zonas del prototipo) y si tiene comentarios abiertos. -->
+              <button v-for="(sc, i) in lane.screens" :key="sc.id" type="button" class="row" :data-screen="sc.id"
+                :class="{ on: data && data.key === f.key && sc.id === currentID }"
                 :aria-current="data && data.key === f.key && sc.id === currentID ? 'true' : undefined" @click="pick(f.key, sc.id)">
-                <span class="n">{{ i + 1 }}</span>
-                <span class="t">{{ sc.title || sc.name }}</span>
-                <span v-if="sc.hotspots?.length" class="tag" title="Tiene zonas del prototipo">↗</span>
-                <span v-if="sc.open_comments" class="tag" :title="sc.open_comments + ' comentario(s) abierto(s)'">💬</span>
+                <small class="row-index">{{ i + 1 }}</small>
+                <span>{{ sc.title || sc.name }}</span>
+                <span v-if="sc.hotspots?.length || sc.open_comments" class="row-meta" :title="rowMetaTitle(sc)">
+                  <span v-if="sc.hotspots?.length" class="ui-icon" data-icon="play" role="img" aria-label="Tiene zonas del prototipo"></span>
+                  <span v-if="sc.open_comments" class="ui-icon" data-icon="comment" role="img" :aria-label="sc.open_comments + ' comentario(s) abierto(s)'"></span>
+                </span>
               </button>
             </template>
           </template>
@@ -781,18 +798,20 @@ const laneName = (lane) => (lane.label ? lane.label : 'Fila sin rótulo')
           <button type="button" class="view-tog" :aria-expanded="adding" aria-controls="view-add" @click="adding = !adding">
             <span class="ui-icon" data-icon="plus" aria-hidden="true"></span><span>Sumar un flujo</span>
           </button>
-          <button class="region-action" title="Volver a pedir los proyectos a Figma" aria-label="Actualizar los proyectos" @click="loadLibrary(true)">
-            <span class="ui-icon" data-icon="refresh" aria-hidden="true"></span>
-          </button>
+          <div class="region-actions">
+            <button class="region-action" title="Volver a pedir los proyectos a Figma" aria-label="Actualizar los proyectos" @click="loadLibrary(true)">
+              <span class="ui-icon" data-icon="refresh" aria-hidden="true"></span>
+            </button>
+          </div>
         </div>
         <div v-if="adding || libraryError || libraryErrors.length || !flows.length" id="view-add" class="region-body">
-          <form v-if="adding || !flows.length" class="loader" @submit.prevent="addToLibrary()">
-            <input v-model="addURL" class="input input-sm" type="url" placeholder="Enlace de un archivo, proyecto o equipo" aria-label="Enlace de Figma" />
-            <button class="btn btn-sm" :disabled="libraryBusy || !addURL.trim()">{{ libraryBusy ? 'Sumando…' : 'Sumar' }}</button>
+          <form v-if="adding || !flows.length" class="add-form" @submit.prevent="addToLibrary()">
+            <input v-model="addURL" class="input" type="url" placeholder="Enlace de un archivo, proyecto o equipo" aria-label="Enlace de Figma" />
+            <button class="btn" :disabled="libraryBusy || !addURL.trim()">{{ libraryBusy ? 'Sumando…' : 'Sumar' }}</button>
           </form>
           <p v-if="adding || !flows.length" class="hint">Pegá el enlace de un archivo de Figma, o la página de un proyecto (<span class="mono">figma.com/files/project/…</span>) o de un equipo (<span class="mono">figma.com/files/team/…</span>) para sumar todos sus flujos. La API de Figma no lista lo visto recientemente.</p>
-          <p v-if="libraryError" class="notice" role="alert">{{ libraryError }}</p>
-          <p v-for="e in libraryErrors" :key="e" class="notice">{{ e }}</p>
+          <div v-if="libraryError" class="alert alert-destructive" role="alert"><div class="alert-desc">{{ libraryError }}</div></div>
+          <div v-for="e in libraryErrors" :key="e" class="alert alert-destructive"><div class="alert-desc">{{ e }}</div></div>
         </div>
       </section>
     </aside>
@@ -801,48 +820,61 @@ const laneName = (lane) => (lane.label ? lane.label : 'Fila sin rótulo')
       <div class="region-head">
         <span>{{ current ? (current.title || current.name) : 'Visor' }}</span>
         <template v-if="current">
-          <button class="region-action" title="Volver (Retroceso)" aria-label="Volver" :disabled="!trail.length" @click="back">
-            <span class="ui-icon" data-icon="move" aria-hidden="true" style="transform: scaleX(-1)"></span>
-          </button>
-          <button class="region-action" title="Anterior del carril (←)" aria-label="Anterior" :disabled="current.index === 0" @click="step(-1)">
-            <span class="ui-icon" data-icon="chevron" aria-hidden="true" style="transform: scaleX(-1)"></span>
-          </button>
-          <button class="region-action" title="Siguiente del carril (→)" aria-label="Siguiente" :disabled="current.index === current.lane.screens.length - 1" @click="step(1)">
-            <span class="ui-icon" data-icon="chevron" aria-hidden="true"></span>
-          </button>
-          <div class="modes" role="group" aria-label="Cómo ver la pantalla">
-            <button v-for="m in modes" :key="m.id" class="btn btn-xs" :class="mode === m.id ? 'btn-secondary' : 'btn-ghost'"
+          <div class="region-actions">
+            <button class="region-action" title="Volver (Retroceso)" aria-label="Volver" :disabled="!trail.length" @click="back">
+              <span class="ui-icon icon-flip" data-icon="move" aria-hidden="true"></span>
+            </button>
+            <button class="region-action" title="Anterior del carril (←)" aria-label="Anterior" :disabled="current.index === 0" @click="step(-1)">
+              <span class="ui-icon icon-flip" data-icon="chevron" aria-hidden="true"></span>
+            </button>
+            <button class="region-action" title="Siguiente del carril (→)" aria-label="Siguiente" :disabled="current.index === current.lane.screens.length - 1" @click="step(1)">
+              <span class="ui-icon" data-icon="chevron" aria-hidden="true"></span>
+            </button>
+          </div>
+          <!-- Los tres modos son el alternador de la base, de 28 (el tamaño de un control en una banda): se
+               elige UNO y se ven los tres. Sin contorno ni unidos: sería una caja alrededor de un grupo. -->
+          <div class="toggle-group toggle-sm mode-toggle" role="group" aria-label="Cómo ver la pantalla">
+            <button v-for="m in modes" :key="m.id" type="button" class="toggle" :class="{ on: mode === m.id }"
               :aria-pressed="mode === m.id" @click="mode = m.id">{{ m.label }}</button>
           </div>
-          <button class="region-action" :aria-pressed="showHotspots" title="Mostrar las zonas del prototipo (H)" aria-label="Zonas del prototipo" @click="showHotspots = !showHotspots">
-            <span class="ui-icon" data-icon="eye" aria-hidden="true"></span>
-          </button>
-          <button class="region-action" title="Centrar la pantalla (0)" aria-label="Centrar la pantalla" @click="center">
-            <span class="ui-icon" data-icon="collapse" aria-hidden="true"></span>
-          </button>
-          <button class="region-action" :title="copied === 'huella' ? 'Copiado, con la huella de la pantalla' : copied ? 'Copiado, sin huella: no se pudo leer' : 'Copiar el enlace a esta pantalla, con su huella para saber después si cambió'" aria-label="Copiar el enlace" @click="copyLink">
-            <span class="ui-icon" :data-icon="copied ? 'check' : 'copy'" aria-hidden="true"></span>
-          </button>
-          <a class="region-action" :href="figmaURL" target="_blank" rel="noopener" title="Abrir esta pantalla en Figma" aria-label="Abrir en Figma">
-            <span class="ui-icon" data-icon="external" aria-hidden="true"></span>
-          </a>
+          <div class="region-actions">
+            <button class="region-action" :aria-pressed="showHotspots" title="Mostrar las zonas del prototipo (H)" aria-label="Zonas del prototipo" @click="showHotspots = !showHotspots">
+              <span class="ui-icon" data-icon="eye" aria-hidden="true"></span>
+            </button>
+            <button class="region-action" title="Centrar la pantalla (0)" aria-label="Centrar la pantalla" @click="center">
+              <span class="ui-icon" data-icon="collapse" aria-hidden="true"></span>
+            </button>
+            <button class="region-action" :title="copied === 'huella' ? 'Copiado, con la huella de la pantalla' : copied ? 'Copiado, sin huella: no se pudo leer' : 'Copiar el enlace a esta pantalla, con su huella para saber después si cambió'" aria-label="Copiar el enlace" @click="copyLink">
+              <span class="ui-icon" :data-icon="copied ? 'check' : 'copy'" aria-hidden="true"></span>
+            </button>
+            <a class="region-action" :href="figmaURL" target="_blank" rel="noopener" title="Abrir esta pantalla en Figma" aria-label="Abrir en Figma">
+              <span class="ui-icon" data-icon="external" aria-hidden="true"></span>
+            </a>
+          </div>
         </template>
       </div>
       <div ref="stage" class="stage" :class="{ dragging }" @pointerdown="onPointerDown" @pointermove="onPointerMove"
         @pointerup="onPointerUp" @pointercancel="onPointerUp" @click.capture="onClickCapture" @wheel="onWheel" @dblclick.self="center">
-        <p v-if="!current" class="empty">{{ loading ? 'Leyendo el diseño…' : (error || 'Sin pantalla elegida.') }}</p>
+        <div v-if="!current" class="empty">
+          <div class="empty-head">
+            <div class="empty-title">{{ loading ? 'Leyendo el diseño…' : error ? 'No se abrió la pantalla' : 'Sin pantalla elegida' }}</div>
+            <div class="empty-desc">{{ loading ? 'El primer mapa de una sección grande tarda: baja el árbol entero de Figma.' : (error || 'Elegí una pantalla de un carril en la barra de la izquierda.') }}</div>
+          </div>
+        </div>
         <div v-else ref="canvas" class="canvas" :style="{ transform: `translate(${pan.x}px, ${pan.y}px)` }">
-        <figure v-for="p in panes" :key="p" class="pane">
+        <figure v-for="p in panes" :key="p" class="screen-pane">
         <div class="device" :data-kind="current.kind" :style="{ width: current.w * scale + 'px', height: current.h * scale + 'px' }">
           <img v-if="p === 'image'" :key="imageURL" :src="imageURL" :alt="current.title || current.name" draggable="false" @error="imageFailed = true" />
           <iframe v-else :key="htmlURL" :src="htmlURL" :title="'HTML de ' + (current.title || current.name)" class="html" @load="bindFrame"
             :style="{ width: current.w + 'px', height: current.h + 'px', transform: `scale(${scale})` }"></iframe>
-          <p v-if="p === 'image' && imageFailed" class="notice over">Figma no devolvió la imagen de esta pantalla.</p>
+          <div v-if="p === 'image' && imageFailed" class="alert alert-destructive"><div class="alert-desc">Figma no devolvió la imagen de esta pantalla.</div></div>
           <template v-if="showHotspots">
             <button v-for="(h, i) in clickable" :key="i" class="hotspot" :class="{ outside: !h.to }" :style="hotspotStyle(h)"
               :title="h.via + ' → ' + h.to_name" :aria-label="h.via + ' → ' + h.to_name" :disabled="!h.to" @click="follow(h)"></button>
           </template>
-          <button v-if="autoNext" class="auto" @click="follow(autoNext)">▶ Avanza sola a {{ autoNext.to_name }}</button>
+          <button v-if="autoNext" type="button" class="btn auto-next" @click="follow(autoNext)">
+            <span class="ui-icon" data-icon="play" aria-hidden="true"></span><span>Avanza sola a {{ autoNext.to_name }}</span>
+          </button>
         </div>
         <figcaption v-if="panes.length > 1">{{ p === 'image' ? 'Figma (imagen)' : 'HTML traducido' }}</figcaption>
         </figure>
@@ -854,13 +886,15 @@ const laneName = (lane) => (lane.label ? lane.label : 'Fila sin rótulo')
       <div class="rsz rsz-aux" v-resize="resizeOptions('aux')"></div>
       <div class="region-head"><span>Pantalla</span></div>
       <div class="region-body detail">
-        <p v-if="!current" class="empty">Elegí una pantalla de un carril.</p>
+        <div v-if="!current" class="empty">
+          <div class="empty-head"><div class="empty-desc">Elegí una pantalla de un carril.</div></div>
+        </div>
         <template v-else>
           <template v-if="linkCheck && linkCheck.id === current.id">
             <p v-if="linkCheck.status === 'checking'" class="hint">Comprobando si la pantalla cambió desde que se copió el enlace…</p>
             <p v-else-if="linkCheck.status === 'same'" class="hint">Sin cambios desde que se copió el enlace (huella {{ linkCheck.linked }}).</p>
-            <p v-else-if="linkCheck.status === 'changed'" class="notice" role="status">El diseño cambió desde que se copió el enlace: huella {{ linkCheck.linked }} → {{ linkCheck.print }}. Lo que diga la tarea sobre esta pantalla puede estar viejo.</p>
-            <p v-else-if="linkCheck.status === 'deleted'" class="notice" role="status">Figma ya no tiene esta pantalla: el diseñador la borró.</p>
+            <div v-else-if="linkCheck.status === 'changed'" class="alert" role="status"><div class="alert-desc">El diseño cambió desde que se copió el enlace: huella {{ linkCheck.linked }} → {{ linkCheck.print }}. Lo que diga la tarea sobre esta pantalla puede estar viejo.</div></div>
+            <div v-else-if="linkCheck.status === 'deleted'" class="alert alert-destructive" role="status"><div class="alert-desc">Figma ya no tiene esta pantalla: el diseñador la borró.</div></div>
             <p v-else-if="linkCheck.status === 'error'" class="hint">No se pudo comprobar la huella: {{ linkCheck.error }}</p>
           </template>
           <dl>
@@ -890,28 +924,30 @@ const laneName = (lane) => (lane.label ? lane.label : 'Fila sin rótulo')
             </dl>
           </div>
           <div v-if="current.actions?.length" class="block">
-            <div class="region-head group"><span>Botones</span></div>
-            <ul><li v-for="a in current.actions" :key="a">{{ a }}</li></ul>
+            <div class="region-head group"><span>Botones</span><span class="count">{{ current.actions.length }}</span></div>
+            <ul class="plain-list"><li v-for="a in current.actions" :key="a">{{ a }}</li></ul>
           </div>
+          <!-- Las pantallas a las que se va y de las que se llega son filas de la base, con un segundo
+               renglón: por dónde (el clic, el temporizador), que es largo y no entra como dato a la derecha. -->
           <div v-if="current.hotspots?.length" class="block">
-            <div class="region-head group"><span>Lleva a</span></div>
-            <button v-for="(h, i) in current.hotspots" :key="i" class="link" :disabled="!h.to" @click="follow(h)">
-              <span>{{ h.to_name }}</span><small>{{ h.via }}</small>
+            <div class="region-head group"><span>Lleva a</span><span class="count">{{ current.hotspots.length }}</span></div>
+            <button v-for="(h, i) in current.hotspots" :key="i" type="button" class="row stacked" :disabled="!h.to" @click="follow(h)">
+              <span>{{ h.to_name }}</span><small class="row-desc">{{ h.via }}</small>
             </button>
           </div>
           <div v-if="incoming.length" class="block">
-            <div class="region-head group"><span>Llega desde</span></div>
-            <button v-for="(x, i) in incoming" :key="i" class="link" @click="go(x.from.id)">
-              <span>{{ x.from.title || x.from.name }}</span><small>{{ x.via }} · {{ laneName(x.from.lane) }}</small>
+            <div class="region-head group"><span>Llega desde</span><span class="count">{{ incoming.length }}</span></div>
+            <button v-for="(x, i) in incoming" :key="i" type="button" class="row stacked" @click="go(x.from.id)">
+              <span>{{ x.from.title || x.from.name }}</span><small class="row-desc">{{ x.via }} · {{ laneName(x.from.lane) }}</small>
             </button>
           </div>
           <div v-if="variantsOfCurrent.length" class="block">
-            <div class="region-head group"><span>La misma pantalla en otro lugar</span></div>
-            <button v-for="v in variantsOfCurrent" :key="v.id" class="link" @click="go(v.id)">
-              <span>{{ laneName(v.lane) }}</span><small>{{ v.index + 1 }} de {{ v.lane.screens.length }} · {{ v.name }}</small>
+            <div class="region-head group"><span>La misma pantalla en otro lugar</span><span class="count">{{ variantsOfCurrent.length }}</span></div>
+            <button v-for="v in variantsOfCurrent" :key="v.id" type="button" class="row stacked" @click="go(v.id)">
+              <span>{{ laneName(v.lane) }}</span><small class="row-desc">{{ v.index + 1 }} de {{ v.lane.screens.length }} · {{ v.name }}</small>
             </button>
           </div>
-          <p class="hint">El carril y el título se deducen de cómo está dibujado el lienzo. ← → recorren el carril, Retroceso vuelve y H muestra u oculta las zonas del prototipo.</p>
+          <p class="hint">El carril y el título se deducen de cómo está dibujado el lienzo. <kbd class="kbd">←</kbd> <kbd class="kbd">→</kbd> recorren el carril, <kbd class="kbd">Retroceso</kbd> vuelve y <kbd class="kbd">H</kbd> muestra u oculta las zonas del prototipo.</p>
         </template>
       </div>
     </aside>
@@ -920,18 +956,29 @@ const laneName = (lane) => (lane.label ? lane.label : 'Fila sin rótulo')
       <span v-if="structure">{{ structure.file_name }} · {{ structure.name }}</span>
       <span v-if="structure?.last_modified">guardado {{ new Date(structure.last_modified).toLocaleString('es-CO') }}</span>
       <span v-if="screenCount">{{ screenCount }} pantallas</span>
-      <span class="grow"></span>
-      <button class="region-action" :aria-pressed="!!shown.sidebar" title="Carriles" aria-label="Mostrar u ocultar los carriles" @click="toggle('sidebar')">
-        <span class="ui-icon" data-icon="sidebar" aria-hidden="true"></span>
-      </button>
-      <button class="region-action" :aria-pressed="!!shown.aux" title="Detalle" aria-label="Mostrar u ocultar el detalle" @click="toggle('aux')">
-        <span class="ui-icon" data-icon="detail" aria-hidden="true"></span>
-      </button>
+      <div class="layout-controls" role="group" aria-label="Tema y regiones visibles">
+        <!-- El tema, antes de los botones de disposición y separado 8: los de disposición van al final
+             porque su orden copia la pantalla (izquierda, derecha). -->
+        <button ref="themeToggle" type="button" class="region-action theme-toggle"><span class="ui-icon" aria-hidden="true"></span></button>
+        <button type="button" class="region-action" :aria-pressed="!!shown.sidebar" title="Mostrar u ocultar los carriles" aria-label="Mostrar u ocultar los carriles" @click="toggle('sidebar')">
+          <span class="ui-icon" data-icon="sidebar" aria-hidden="true"></span>
+        </button>
+        <button type="button" class="region-action" :aria-pressed="!!shown.aux" title="Mostrar u ocultar el detalle" aria-label="Mostrar u ocultar el detalle" @click="toggle('aux')">
+          <span class="ui-icon" data-icon="detail" aria-hidden="true"></span>
+        </button>
+      </div>
     </footer>
   </div>
 </template>
 
 <style scoped>
+/* Lo que queda acá es lo que la base NO da: dónde van las manijas, la fila de pantalla con su número, el
+   lienzo que se arrastra, el marco del dispositivo y las zonas del prototipo. Todo lo demás —bandas,
+   vistas, filas, contadores, alternador, avisos, estado vacío, pie— es de `workbench.css`. */
+
+/* Las manijas van pegadas al borde de cada sidebar, igual que en el tablero.
+   PROPUESTA A LA BASE: esta geometría está copiada idéntica en el tablero; podría ser una clase de la
+   base (`.rsz-edge-right` / `.rsz-edge-left`). */
 .sidebar, .auxiliarybar { position: relative }
 .rsz-sb, .rsz-aux { position: absolute; top: 0; bottom: 0; width: calc(var(--rsz) + 6px) }
 .rsz-sb { right: -3px }
@@ -939,42 +986,64 @@ const laneName = (lane) => (lane.label ? lane.label : 'Fila sin rótulo')
 .rsz-sb::before { left: 3px; right: auto; width: 1px }
 .rsz-aux::before { left: auto; right: 3px; width: 1px }
 
-.count { flex: none; color: var(--fg-3); font-weight: 500 }
-.loader { display: flex; gap: var(--space-2); padding: var(--space-2) var(--space-3); border-bottom: 1px solid var(--sidebar-border) }
-.loader .input { flex: 1; min-width: 0 }
-.notice { margin: var(--space-2) var(--space-3); padding: var(--space-2) var(--space-3); font-size: var(--text-sm);
-  border-left: 3px solid var(--destructive); background: color-mix(in oklab, var(--destructive) 12%, transparent) }
-.notice.over { position: absolute; left: var(--space-3); right: var(--space-3); top: var(--space-3) }
-.mono { font-family: var(--font-mono, ui-monospace, monospace) }
-.empty, .hint { padding: var(--space-3); color: var(--fg-3); font-size: var(--text-sm) }
-.section-name { padding: var(--space-3) var(--space-3) var(--space-1); font-size: var(--text-xs); color: var(--fg-3) }
+/* El tema va antes de los de disposición y separado 8: el `gap` de 4 de la base más estos 4. */
+.theme-toggle { margin-right: var(--space-1) }
+
+.add-form { display: flex; gap: var(--space-2); padding: var(--space-3) var(--gutter) 0 }
+.add-form .input { flex: 1 }
+.hint { margin: 0; padding: var(--space-3) var(--gutter); color: var(--fg-3); font-size: var(--text-sm) }
+.hint .mono { font-family: var(--font-mono); font-size: var(--text-xs) }
+/* El nombre de una sección cuando la página trae varias: por encima de los grupos de carriles, así que
+   no es otro encabezado de grupo (serían dos pegajosos compitiendo) sino un rótulo que scrollea. */
+.section-name { padding: var(--space-3) var(--gutter) var(--space-1); font-size: var(--text-xs); color: var(--fg-3) }
 .region-head.group.unlabeled > span:first-child { font-style: italic }
 
-.screen-row { display: flex; align-items: center; gap: var(--space-2); width: 100%; min-height: 30px;
-  padding: 0 var(--space-3); border: 0; background: none; color: inherit; font: inherit; font-size: var(--text-sm);
-  text-align: left; cursor: pointer }
-.screen-row:hover { background: color-mix(in oklab, var(--foreground) 6%, transparent) }
-.screen-row[aria-current="true"] { background: var(--sidebar-accent); color: var(--sidebar-accent-foreground) }
-.screen-row .n { flex: none; width: 1.6em; text-align: right; color: var(--fg-3); font-variant-numeric: tabular-nums }
-.screen-row .t { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap }
-.screen-row .tag { flex: none; font-size: var(--text-xs); color: var(--fg-3) }
+/* PROPUESTA A LA BASE: una fila que ES un botón necesita el reset que ya tiene `button.region-head`
+   (borde, fondo, familia y alineación del navegador) y el ancho de la región menos su aire. */
+/* Con `:where` no suma peso: el fondo al pasar y el de la fila elegida (`.row:hover`, `.row.on`) siguen
+   siendo los de la base. */
+:where(button.row) { width: calc(100% - 2 * var(--space-1)); border: 0; background: none; font: inherit; font-size: var(--text-base);
+  text-align: left }
+/* Deshabilitada como cualquier control de la base: opacidad .5 y sin puntero (tampoco el fondo al pasar). */
+:where(button.row):disabled { opacity: .5; pointer-events: none }
+/* PROPUESTA A LA BASE: la fila no tiene un lugar para un dato ADELANTE (el número de orden). Va en un
+   `<small>` porque la regla de la base que estira el rótulo toma cualquier `<span>` que no sea icono,
+   dato ni píldora. */
+.row-index { flex: none; min-width: var(--space-4); font-size: var(--text-xs); color: var(--fg-3); font-variant-numeric: tabular-nums }
+.row-meta { display: inline-flex; align-items: center; gap: var(--space-1) }
+/* PROPUESTA A LA BASE: una fila de DOS renglones —el nombre y, debajo, por dónde se llega—. El segundo
+   renglón es largo y no entra como `.row-meta` a la derecha. */
+.row.stacked { flex-direction: column; align-items: stretch; gap: 0; padding-top: var(--space-1); padding-bottom: var(--space-1) }
+.row-desc { overflow: hidden; text-overflow: ellipsis; font-size: var(--text-xs); color: var(--fg-3) }
+/* Sobre la fila elegida, lo apagado toma la tinta del acento, como el `.row-meta` de la base. */
+.row.on .row-index, .row.on .row-desc { color: var(--accent-foreground) }
 
+/* El lienzo: la región no scrollea, la pantalla se arrastra. */
 .stage { position: relative; flex: 1; min-height: 0; overflow: hidden; cursor: grab; touch-action: none; user-select: none }
 .stage.dragging { cursor: grabbing }
+.stage > .empty { position: absolute; inset: 0; cursor: default }
 /* El lienzo mide lo que miden sus pantallas (no la región) y se mueve con `transform`: arrastrarlo no
    reacomoda nada, y `offsetWidth` sigue dando su tamaño sin el desplazamiento. */
-.canvas { position: absolute; left: 0; top: 0; display: flex; align-items: flex-start; gap: 24px; padding-bottom: 24px;
-  will-change: transform }
-.stage .empty { position: absolute; inset: 0; display: grid; place-items: center; cursor: default }
-.pane { margin: 0; display: flex; flex-direction: column; align-items: center; gap: var(--space-2) }
-.pane figcaption { font-size: var(--text-xs); color: var(--fg-3) }
-.modes { display: flex; gap: 2px }
+.canvas { position: absolute; left: 0; top: 0; display: flex; align-items: flex-start; gap: var(--space-6);
+  padding-bottom: var(--space-6); will-change: transform }
+/* Una pantalla del lienzo con su rótulo. No es el `.pane` de la base (los dos paneles del editor): con
+   ese nombre, en Comparar la segunda pantalla se llevaba su línea a la izquierda. */
+.screen-pane { margin: 0; display: flex; flex-direction: column; align-items: center; gap: var(--space-2) }
+.screen-pane figcaption { font-size: var(--text-xs); color: var(--fg-3) }
 /* La cabecera del editor junta título, navegación, modos y acciones: con los dos sidebars abiertos no
-   entra en un renglón, y la regla del taller es ENVOLVER, no desbordar (con height:auto, o la caja fija
-   de .region-head deja el segundo renglón afuera). */
-.editor > .region-head { flex-wrap: wrap; height: auto; row-gap: var(--space-1) }
+   entra en un renglón, y la regla del taller es ENVOLVER, no desbordar. */
+.editor > .region-head { flex-wrap: wrap; row-gap: var(--space-1) }
 /* Al envolver, el título no cede todo el ancho: sin una base, `flex: 1` con `min-width: 0` lo dejaba en 0. */
 .editor > .region-head > span:first-child { flex: 1 1 140px }
+/* PROPUESTA A LA BASE: el alternador encendido todavía se pinta con fondo (`--accent`), y la regla del pie
+   (8add6584) es que un estado encendido se lee en la TINTA, no en una caja. Hasta que la base lo traiga
+   para `.toggle`, el de los modos lo hace acá: apagado en --fg-3, encendido en --foreground. */
+.mode-toggle > .toggle { color: var(--fg-3) }
+.mode-toggle > .toggle.on { background: none; color: var(--foreground) }
+.mode-toggle > .toggle.on:hover { background: var(--hover) }
+/* La base no trae una flecha hacia la izquierda: se da vuelta la de la derecha. */
+.icon-flip { transform: scaleX(-1) }
+
 /* El HTML se dibuja a su tamaño de Figma y se escala entero, a la misma escala que la imagen: el texto
    conserva sus medidas y la comparación es de igual a igual. Recibe el puntero porque sus controles se
    usan; el arrastre y la rueda que caen fuera de un control los reenvía bindFrame al lienzo. */
@@ -983,28 +1052,24 @@ const laneName = (lane) => (lane.label ? lane.label : 'Fila sin rótulo')
    esquinas. La pantalla se muestra con el borde que dibujó el diseñador. */
 .device { position: relative; flex: none; border: 1px solid var(--device-edge); overflow: hidden; background: var(--card) }
 .device img { display: block; width: 100%; height: 100%; user-select: none }
-.hotspot { position: absolute; padding: 0; border: 1px solid var(--hotspot); border-radius: 4px; background: var(--hotspot-fill);
-  cursor: pointer }
-.hotspot:hover { background: color-mix(in oklab, var(--primary) 32%, transparent) }
+.device > .alert { position: absolute; left: 0; right: 0; top: 0 }
+.hotspot { position: absolute; padding: 0; border: 1px solid var(--hotspot); border-radius: var(--radius-control);
+  background: var(--hotspot-fill); cursor: pointer }
+.hotspot:hover { background: var(--hotspot-fill-hover) }
 .hotspot.outside { border-style: dashed; cursor: not-allowed }
-.auto { position: absolute; left: 50%; bottom: var(--space-4); transform: translateX(-50%); max-width: 90%;
-  padding: var(--space-2) var(--space-3); border: 0; border-radius: 999px; background: var(--primary);
-  color: var(--primary-foreground); font: inherit; font-size: var(--text-sm); cursor: pointer;
-  white-space: nowrap; overflow: hidden; text-overflow: ellipsis }
+/* «Avanza sola a …»: el botón primario de la base, flotando al pie de la pantalla. */
+.auto-next { position: absolute; left: 50%; bottom: var(--space-4); translate: -50% 0; max-width: 90% }
+.auto-next > span:last-child { overflow: hidden; text-overflow: ellipsis }
 
-.detail dl { display: grid; grid-template-columns: auto 1fr; gap: var(--space-1) var(--space-3); margin: 0; padding: var(--space-3);
-  font-size: var(--text-sm) }
-.detail dt { color: var(--fg-3) }
+/* El detalle: una lista de propiedades, rótulo y valor. */
+.detail dl { display: grid; grid-template-columns: auto 1fr; align-items: baseline; gap: var(--space-1) var(--space-3); margin: 0;
+  padding: var(--space-3) var(--gutter); font-size: var(--text-base) }
+.detail dt { font-size: var(--text-sm); color: var(--fg-3) }
 .detail dd { margin: 0; overflow-wrap: anywhere }
-.detail small { color: var(--fg-3) }
+.detail dd small { font-size: var(--text-xs); color: var(--fg-3) }
 .task-ref { display: flex; align-items: flex-start; gap: var(--space-1) }
-.task-ref code { flex: 1; min-width: 0; font-family: var(--font-mono, ui-monospace, monospace); font-size: var(--text-xs);
-  color: var(--fg-2); overflow-wrap: anywhere }
-.block ul { margin: 0; padding: var(--space-2) var(--space-3) var(--space-2) calc(var(--space-3) + 14px); font-size: var(--text-sm) }
-.link { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; width: 100%; padding: var(--space-2) var(--space-3);
-  border: 0; background: none; color: inherit; font: inherit; font-size: var(--text-sm); text-align: left; cursor: pointer }
-.link:hover:not(:disabled) { background: color-mix(in oklab, var(--foreground) 6%, transparent) }
-.link:disabled { cursor: default }
-.link small { color: var(--fg-3) }
-.grow { flex: 1 }
+.task-ref code { flex: 1; min-width: 0; font-family: var(--font-mono); font-size: var(--text-sm); color: var(--fg-2);
+  overflow-wrap: anywhere }
+.plain-list { margin: 0; padding: 0 0 var(--space-2); list-style: none; font-size: var(--text-base) }
+.plain-list li { display: flex; align-items: center; min-height: var(--row-h); padding: 0 var(--gutter) }
 </style>

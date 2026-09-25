@@ -100,6 +100,11 @@ URL, no el de los archivos que se ven en esa pantalla: «recientes» mezcla arch
   pantalla), y la UI lo dice. Las reglas y lo que las justifica están en
   `connectors/figma/structure.go`; si un archivo nuevo sale mal agrupado, se corrige ahí, con su prueba,
   no en la Vue.
+- **La interfaz sigue la base, en claro y en oscuro.** El botón de tema va en el pie (`bindThemeToggle`) y
+  el renglón que lo aplica antes de pintar lo inyecta Vite desde `THEME_BOOT`. La imagen y el HTML de la
+  pantalla NO siguen el tema: son el diseño, con sus propios colores. Las piezas son las de
+  `tools/ui` (filas `.row`, alternador, avisos `.alert`, vacío `.empty`); lo propio del visor —el lienzo, el
+  marco de la pantalla, las zonas— está al final de `App.vue`, y sus colores salen de tokens del tema.
 - **El token no sale del server.** El navegador pide `/api/screen` y nunca ve ni el token ni el enlace
   de S3 que devuelve Figma (que además vence). El enlace se baja SIN el token.
 
