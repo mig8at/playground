@@ -461,10 +461,10 @@ async function correr(c: Case, i: number): Promise<Result> {
             if (FLOW === 'ecommerce' && sheet === 'personal-info' && !prefillSeen) {
                 prefillSeen = true;
                 const pf: unknown = res.datos?.prefill;
-                const campos = pf && typeof pf === 'object' ? Object.keys(pf as object) : [];
+                const prefilled = pf && typeof pf === 'object' ? Object.keys(pf as object) : [];
                 const lf: unknown = res.datos?.lockedFields;
-                const bloqueados = Array.isArray(lf) ? (lf as string[]) : [];
-                if (campos.length > 0) log(`personal-info: ${campos.length} campo(s) del comercio prellenados (${campos.join(', ')}) · bloqueados: ${bloqueados.length ? bloqueados.join(', ') : 'ninguno'}`);
+                const locked = Array.isArray(lf) ? (lf as string[]) : [];
+                if (prefilled.length > 0) log(`personal-info: ${prefilled.length} campo(s) del comercio prellenados (${prefilled.join(', ')}) · bloqueados: ${locked.length ? locked.join(', ') : 'ninguno'}`);
                 else return finish('malo', 'personal-info llegó SIN prefill del comercio: el loader no encontró el pedido de esta solicitud');
             }
             form = sheet === 'personal-info'

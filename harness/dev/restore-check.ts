@@ -85,7 +85,7 @@ function checkCodes(file: string): Result & { brokenCodes: string[] } {
         if (hasUser && hasLender) m.ok++; else res.brokenCodes.push(c.id);
         byMerchant.set(c.comercio, m);
     }
-    res.rows = [...byMerchant].map(([comercio, m]) => ({ comercio, ...m }));
+    res.rows = [...byMerchant].map(([merchant, m]) => ({ comercio: merchant, ...m }));
     if (res.brokenCodes.length) {
         res.problems.push(`${res.brokenCodes.length} de ${codes.length} códigos no se pueden canjear`
             + ` (sin usuario: ${codes.length - codes.filter((c) => users.has(String(c.user_id))).length}`

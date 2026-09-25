@@ -196,18 +196,18 @@ export class Trace {
             else der = gray(`│ BD  ${label}`);
 
             // ── detectores en caliente (no esperan al final) ──
-            let alerta: string | undefined;
+            let stepAlert: string | undefined;
             if (s.st !== null && BAD.has(s.st) && (!this.previo || !BAD.has(this.previo.st ?? -1))) {
                 this.alertas.push(`la solicitud pasó a estado ${s.st} «${s.estado}» en el paso ${n} (${window} ${path})`);
                 der += red('  ← DESENLACE MALO');
-                alerta = `desenlace malo: la solicitud pasó a ${s.st} «${s.estado}»`;
+                stepAlert = `desenlace malo: la solicitud pasó a ${s.st} «${s.estado}»`;
             }
             if (SUCCESS_PATH.test(path) && s.st !== null && !SEALED.has(s.st)) {
                 this.alertas.push(`pantalla de ÉXITO (${path}) con la BD en estado ${s.st} «${s.estado}» — el front miente (ver F-50)`);
                 der += red('  ← ÉXITO SIN RESPALDO EN BD');
-                alerta = `éxito sin respaldo en BD: la pantalla dice éxito y la solicitud está en ${s.st} «${s.estado}»`;
+                stepAlert = `éxito sin respaldo en BD: la pantalla dice éxito y la solicitud está en ${s.st} «${s.estado}»`;
             }
-            this.notify({ n, window, path, st: s.st, estado: s.estado ?? null, cambio: change && !!this.previo, alerta });
+            this.notify({ n, window, path, st: s.st, estado: s.estado ?? null, cambio: change && !!this.previo, alerta: stepAlert });
 
             this.log(`${left}${der}${queue}`);
             this.linea.push({ n, ventana: window, ruta: path, st: s.st, estado: s.estado, cambio: change });
