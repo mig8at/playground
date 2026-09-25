@@ -36,6 +36,9 @@
 // proveedor en local/dev— (`synthFill` al llegar a personal-info) y, con `--manual`, la validación
 // manual de identidad (`manualValidation`, ver su cabecera). El teléfono y la cédula se DERIVAN por
 // caso, igual que en `case.ts`: así dos casos en paralelo nunca comparten usuario.
+// Con `--lambda` además se le DICTAN el empleo y el buró al mock de centrales para esa cédula, antes de
+// arrancar: sin eso, al enviar personal-info Agildata contesta su default —una persona sin empleo— y
+// Experian su reporte fijo, y el perfilamiento evalúa las categorías con eso (ver `employmentFor`).
 //
 // LAS TRES FUENTES: cada pantalla se contrasta con la BD en el momento (la columna de la derecha), y si
 // el caso termina MAL se consulta además PostHog —qué eventos dejó y en qué pantalla registró el error—.
@@ -50,6 +53,7 @@ export {};
 const { FrontSession } = await import('../pkg/front.ts');
 const { one, exec, close, TARGET, writeLines, dumpWrites } = await import('../pkg/db.ts');
 const { synthFill, manualValidation } = await import('../pkg/inject.ts');
+const { dictateEmployment, dictateBureauProfile, LAMBDA: RISK_LAMBDA } = await import('../pkg/risk-lambda.ts');
 const { config, docGenNotice, backendLogsNotice } = await import('../pkg/config.ts');
 const { env } = await import('../pkg/env.ts');
 const { branchDocument, branchPhone, syntheticPhone } = await import('../pkg/phones.ts');
@@ -204,6 +208,38 @@ async function seed(ur: number, doc: string, log: (s: string) => void, lender?: 
     log(`buró inyectado para uReq ${ur} (Experian ${injected.datacredito_forged})${flag('manual') ? ' · identidad aprobada a mano' : ''}`);
 }
 
+/**
+ * `--lambda`: le dicta al mock de centrales un empleo para la cédula del caso, ANTES de que arranque.
+ *
+ * ⚠ La siembra de arriba NO alcanza para las categorías. `synthFill` escribe la ocupación al CARGAR
+ * personal-info, pero al ENVIARLA el backend consulta Agildata y guarda lo que conteste, y con eso
+ * evalúa las categorías de cada entidad. Para una cédula que no se dictó el mock contesta una persona
+ * sin empleo. Medido el 2026-09-25 en local (Amoblando Pullman, CrediPullman): la categoría Premium se
+ * rechazaba sólo por `occupation`, el cliente caía en «Segunda oportunidad», que exige cuota inicial, y
+ * la compra paraba en `/down-payment`, que este runner no sabe pagar.
+ *
+ * Sólo contra el mock local, salvo que `RISK_LAMBDA_URL` diga otro: en dev/qa el backend le pregunta a
+ * la lambda de la empresa, y dictarle al mock de esta máquina no cambiaría nada.
+ */
+async function employmentFor(doc: string, log: (s: string) => void): Promise<void> {
+    if (!flag('lambda')) return;
+    if (TARGET !== 'local' && !process.env.RISK_LAMBDA_URL) {
+        log(`--lambda ignorado: contra ${TARGET} el backend no le pregunta al mock local (${RISK_LAMBDA}); pasá RISK_LAMBDA_URL`);
+        return;
+    }
+    const occupation = arg('ocupacion', 'Empleado');
+    const ok = await dictateEmployment(doc, INCOME, occupation);
+    log(ok
+        ? `empleo dictado al mock de centrales para ${doc}: ${occupation} · ${INCOME}`
+        : `⚠ el empleo NO quedó dictado para ${doc} (${RISK_LAMBDA}): Agildata va a contestar su default`);
+    // Y el buró: sin esto Experian contesta su reporte fijo (score 654, 59 consultas, sin tarjetas).
+    // Mismo perfil que siembra `synthFill` —consultas 1— más el score del caso y una tarjeta activa.
+    const bureau = { score: SCORE, consultedLast6Months: 1, creditCards: 1 };
+    log(await dictateBureauProfile(doc, bureau)
+        ? `buró dictado para ${doc}: score ${bureau.score} · ${bureau.consultedLast6Months} consulta · ${bureau.creditCards} tarjeta`
+        : `⚠ el buró NO quedó dictado para ${doc} (${RISK_LAMBDA}): Experian va a contestar su reporte fijo`);
+}
+
 // ─── la traza contra la BD ───────────────────────────────────────────────────────────────────────
 // Es `pkg/trace.ts`, no una copia: la misma clase que usan el visual y el rápido, así que «pasó» tiene
 // UNA definición para los tres (la regla de harness/CLAUDE.md). Se pide **una instancia por caso** —
@@ -264,6 +300,7 @@ async function correr(c: Case, i: number): Promise<Result> {
     // documento de 10 dígitos muere en `request-personal-info` con «la cédula debe tener exactamente 11».
     doc = await merchantDocument(br.hash, i).catch(() => doc);
     r.doc = doc;
+    await employmentFor(doc, log);
     const docType = await merchantDocumentType(br.hash);
 
     const s = new FrontSession();
@@ -625,6 +662,7 @@ async function runBrowser(c: Case, i: number, browser: any): Promise<Result> {
     // documento de 10 dígitos muere en `request-personal-info` con «la cédula debe tener exactamente 11».
     doc = await merchantDocument(br.hash, i).catch(() => doc);
     r.doc = doc;
+    await employmentFor(doc, log);
     // EL CANAL DE ASESOR pide sesión de Cognito. No se loguea acá: se REUSA el storageState que dejó el
     // panel (`pkg/cognito.ts`), y los N contextos de una tanda cargan EL MISMO archivo — un solo login
     // para todos, que es lo que evita golpear el pool.

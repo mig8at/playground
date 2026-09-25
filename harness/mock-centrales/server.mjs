@@ -15,6 +15,7 @@
 //   POST   /mockoon-admin/global-vars   {"key":"agildata_<céd>","value":"<json como STRING>"}
 //   GET    /mockoon-admin/global-vars   → lo dictado hasta ahora  (el lambda perdió esta ruta)
 //   POST   /mockoon-admin/state/purge   → limpia todo
+// Claves propias de este mock (el lambda no las tiene): `experian_score_<céd>` y `experian_profile_<céd>`.
 //
 // Rutas de las centrales, sacadas de `app/Actions/RiskCentrals/*` y no de suponer:
 //   GET  /agildata/agildata-services/rest/afiliado/historicoDetalladoEmpleo/{type}/{number}
@@ -130,11 +131,42 @@ const EXPERIAN = {
     'acierta-quanto': read('./acierta-quanto.json'),
 };
 
+/** Una tarjeta de crédito ACTIVA, con los campos que lee el backend y nada más: el estado de la cuenta
+ *  (0-7 es activa), el evento de pago (01 es al día), el vector de comportamiento (sin guiones es que
+ *  hay historia) y los saldos de `values[0]`, que usan la capacidad de endeudamiento y el resumen de
+ *  deuda. Sale de `LenderUserCategoryService::validateCreditCards` y de `DebtSummaryService`. */
+const activeCreditCard = (i) => ({
+    idNumber: `CC-SYNTH-${i + 1}`,
+    status: { account: { businessAccountStatus: '01' }, payment: { businessBureauEvent: '01' } },
+    creditCardAccount: { businessBehaviourVectorProduct: 'NNNNNNNNNNNN' },
+    values: [{ availableBalance: 1000, debtBalance: 0, valueMonthlyPayment: 0 }],
+});
+
+/**
+ * ⚠ EL REPORTE FIJO NO PUEDE SER UN CLIENTE PREMIUM, y por eso existe `experian_profile_<cédula>`.
+ * Trae score 654, 59 consultas en seis meses y ninguna tarjeta, y la categoría Premium de CrediPullman
+ * pide score ≥ 700, a lo sumo 20 consultas y una tarjeta activa. Medido el 2026-09-25 en local: con el
+ * empleo ya dictado, la categoría seguía rechazándose por esos tres criterios, el cliente caía en la
+ * que exige cuota inicial y la corrida no cerraba. Se dicta como JSON:
+ *   {"score": 750, "consultedLast6Months": 1, "creditCards": 1}   — cada campo es opcional
+ */
 const experianDefault = (doc, variant = 'hdcplus') => {
     const base = structuredClone(EXPERIAN[variant] ?? EXPERIAN.hdcplus);
+    const report = base?.ReportHDCplus;
     const overwritten = doc && dictated.get(`experian_score_${doc}`);
-    if (overwritten && base?.ReportHDCplus?.models?.[0]) {
-        base.ReportHDCplus.models[0].scoreValue = Number(overwritten);
+    if (overwritten && report?.models?.[0]) {
+        report.models[0].scoreValue = Number(overwritten);
+    }
+    let profile = null;
+    try { profile = doc && dictated.has(`experian_profile_${doc}`) ? JSON.parse(dictated.get(`experian_profile_${doc}`)) : null; }
+    catch { log('experian_profile no es JSON para', doc); }
+    if (profile && report) {
+        if (profile.score != null && report.models?.[0]) report.models[0].scoreValue = Number(profile.score);
+        const principals = report.agregatedInfo?.overview?.principals;
+        if (profile.consultedLast6Months != null && principals) principals.consultedLast6Months = Number(profile.consultedLast6Months);
+        if (profile.creditCards != null) {
+            report.creditCard = Array.from({ length: Number(profile.creditCards) }, (_, i) => activeCreditCard(i));
+        }
     }
     return base;
 };

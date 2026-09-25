@@ -629,6 +629,18 @@ roto** (F-88). Si trabajás Bancolombia, cargá `harness-canal-qr` y corré `npm
   un cliente—; con `LAMBDA=1`, además, se dicta la respuesta de cada central para esa cédula. `synthFill`
   sólo queda para el cupo del codeudor.
 
+- **`harness-caminar` también acepta `LAMBDA=1`, y sin él una compra de CrediPullman no cierra en
+  local.** El dictado vive en `pkg/risk-lambda.ts` y lo comparten los dos runners. `synthFill` siembra
+  «Empleado» al CARGAR personal-info, pero al ENVIARLA el backend consulta Agildata y Experian y evalúa
+  las categorías con lo que contesten; sin dictado, el mock local contesta una persona sin empleo y un
+  reporte fijo (score 654, 59 consultas, ninguna tarjeta). Con eso Premium se rechaza, el cliente cae en
+  «Segunda oportunidad», que exige cuota inicial, y la corrida para en `/down-payment`, que el caminador
+  no sabe pagar (el `WOMPI_MOCK_ENABLED` del `.env` local no lo lee ningún código). Con `LAMBDA=1` se
+  dictan el empleo y un perfil de buró (`experian_profile_<cédula>`: score del caso, 1 consulta,
+  1 tarjeta activa), una clave que sólo tiene el mock local. Medido el 2026-09-25: 0/2 → 2/2 en estado 11
+  (`make harness-caminar CASOS='#13874eb6:77;#13874eb6:77' FLOW=ecommerce CERRAR=1 MANUAL=1 PAR=1
+  LAMBDA=1 TARGET=local`). Contra dev/qa se ignora: ahí el backend le pregunta a la lambda de la empresa.
+
 - **Un solo helper HTTP con bitácora, y el listado está adentro.** `llamar()` es la única implementación;
   `get`/`post` son dos verbos sobre él. Antes eran dos copias que divergían (timeout 90 s vs 150 s, cómo
   reportaban un cuerpo no-JSON, y sólo una distinguía timeout de caída), más `http()` en el camino
