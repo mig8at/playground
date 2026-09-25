@@ -118,7 +118,7 @@ func (s *server) brief(ctx context.Context, key, id string) (string, error) {
 		}
 		fmt.Fprintf(&b, "- **Dónde está:** carril «%s», %d de %d · %s %.0f×%.0f\n", lane, place.index, place.total, kind, place.screen.W, place.screen.H)
 	}
-	fmt.Fprintf(&b, "- **Hoja de tokens del archivo:** `make visor-tokens P=%s` (o `FORMATO=tailwind`)\n", slug)
+	fmt.Fprintf(&b, "- **Hoja de tokens del archivo:** `make visor-tokens P=%s` (o `FORMATO=tailwind`)\n", key)
 
 	b.WriteString("\n## Textos, en orden de lectura\n\n")
 	for i, t := range render.ScreenTexts(n) {
@@ -173,7 +173,7 @@ func (s *server) brief(ctx context.Context, key, id string) (string, error) {
 		b.WriteString("La pantalla no tiene imágenes (fotos, logos en bitmap).\n")
 	}
 	fmt.Fprintf(&b, "- %d dibujo(s) de Figma (íconos, logos vectoriales).\n", len(unique(rep.Drawings)))
-	fmt.Fprintf(&b, "\nBajalas en su resolución ORIGINAL, con el nombre de su capa: `make visor-recursos R=%s/%s DIR=<carpeta>` (`SVG=1` suma los dibujos). No hace falta pedírselas a diseño.\n", slug, dashed)
+	fmt.Fprintf(&b, "\nBajalas en su resolución ORIGINAL, con el nombre de su capa: `make visor-recursos R=%s/%s DIR=<carpeta>` (`SVG=1` suma los dibujos). No hace falta pedírselas a diseño.\n", key, dashed)
 
 	if len(rep.Controls) > 0 {
 		b.WriteString("\n## Controles\n\n")

@@ -126,14 +126,15 @@ func slugOf(name string) string {
 // por uno que tuvo antes, o por la clave del archivo.
 func (s *server) keyOfProject(project string) string {
 	lib := s.library.read()
+	name := strings.ToLower(project) // el nombre sin importar mayúsculas; la CLAVE sí las distingue
 	for _, o := range lib.Opened {
-		if slugOf(o.Name) == project {
+		if slugOf(o.Name) == name {
 			return o.Key
 		}
 	}
 	for _, o := range lib.Opened {
 		for _, a := range o.Aliases {
-			if slugOf(a) == project {
+			if slugOf(a) == name {
 				return o.Key
 			}
 		}

@@ -89,9 +89,9 @@ func (s *server) resolveScreen(ref string) (key, id string, err error) {
 	}
 	m := reRouteRef.FindStringSubmatch(ref)
 	if m == nil {
-		return "", "", usageError(fmt.Sprintf("«%s» no es una pantalla: se escribe proyecto/1-2 (la ruta del visor)", ref))
+		return "", "", usageError(fmt.Sprintf("«%s» no es una pantalla: se escribe <clave del archivo>/<nodo> (RkyauDfqEsFbJZBBoqChAV/266-1279) o la URL de Figma", ref))
 	}
-	key = s.keyOfProject(strings.ToLower(m[1]))
+	key = s.keyOfProject(m[1])
 	if key == "" {
 		return "", "", fmt.Errorf("no text un proyecto «%s» en la biblioteca del visor (make visor-pantallas los lista)", m[1])
 	}
@@ -111,7 +111,7 @@ func (s *server) resolveProject(ref string) (string, error) {
 	if m == nil {
 		return "", usageError(fmt.Sprintf("«%s» no es un proyecto", ref))
 	}
-	if key := s.keyOfProject(strings.ToLower(m[1])); key != "" {
+	if key := s.keyOfProject(m[1]); key != "" {
 		return key, nil
 	}
 	return "", fmt.Errorf("no text un proyecto «%s» en la biblioteca del visor", m[1])
@@ -149,7 +149,10 @@ func laneLabel(l string) string {
 	return l
 }
 
-func route(slug, id string) string { return slug + "/" + strings.ReplaceAll(id, ":", "-") }
+// route es cómo el CLI nombra una pantalla: por IDS de Figma —la clave del archivo y el nodo—, que no
+// dependen de cómo se llame nada. La interfaz y las tareas la nombran por proyecto (`altafinanciera/…`),
+// que se lee mejor; el CLI acepta las dos, pero contesta en ids.
+func route(key, id string) string { return key + "/" + strings.ReplaceAll(id, ":", "-") }
 
 // ── buscar ──
 
@@ -161,6 +164,7 @@ func cliSearch(s *server, ctx context.Context, args []string, out io.Writer) err
 	words := strings.Fields(q)
 	type hit struct {
 		fs    flowScreen
+		key   string
 		slug  string
 		file  string
 		named bool // alguna palabra nombra su proyecto
@@ -189,7 +193,7 @@ func cliSearch(s *server, ctx context.Context, args []string, out io.Writer) err
 					break
 				}
 			}
-			h := hit{fs: fs, slug: slug, file: o.Name, named: named}
+			h := hit{fs: fs, key: o.Key, slug: slug, file: o.Name, named: named}
 			if all {
 				hits = append(hits, h)
 			} else if named && fs.index == 1 {
@@ -202,7 +206,7 @@ func cliSearch(s *server, ctx context.Context, args []string, out io.Writer) err
 		if title == "" {
 			title = h.fs.sc.Name
 		}
-		fmt.Fprintf(out, "  %-32s «%s» · carril «%s», %d de %d · %s\n", route(h.slug, h.fs.sc.ID), title, laneLabel(h.fs.lane), h.fs.index, h.fs.total, h.file)
+		fmt.Fprintf(out, "  %-36s «%s» · carril «%s», %d de %d · %s\n", route(h.key, h.fs.sc.ID), title, laneLabel(h.fs.lane), h.fs.index, h.fs.total, h.file)
 	}
 	for _, h := range hits {
 		print(h)
@@ -231,9 +235,9 @@ func cliSearch(s *server, ctx context.Context, args []string, out io.Writer) err
 
 func cliScreens(s *server, ctx context.Context, args []string, out io.Writer) error {
 	if len(args) == 0 {
-		fmt.Fprintln(out, "  Los proyectos de la biblioteca:")
+		fmt.Fprintln(out, "  Los proyectos de la biblioteca (la clave de Figma es su id):")
 		for _, o := range s.libraryKeys() {
-			fmt.Fprintf(out, "    %-18s %s\n", s.projectSlug(o.Key), o.Name)
+			fmt.Fprintf(out, "    %-24s %s\n", o.Key, o.Name)
 		}
 		return nil
 	}
@@ -245,8 +249,7 @@ func cliScreens(s *server, ctx context.Context, args []string, out io.Writer) er
 	if err != nil {
 		return err
 	}
-	slug := s.projectSlug(key)
-	fmt.Fprintf(out, "  %s · «%s» · versión %s\n", st.FileName, st.Name, st.Version)
+	fmt.Fprintf(out, "  %s (%s) · «%s» · versión %s\n", st.FileName, key, st.Name, st.Version)
 	section, lane := "\x00", "\x00"
 	n := 0
 	for _, fs := range flowScreens(st) {
@@ -266,7 +269,7 @@ func cliScreens(s *server, ctx context.Context, args []string, out io.Writer) er
 		if len(fs.sc.Hotspots) > 0 {
 			link = "  →"
 		}
-		fmt.Fprintf(out, "      %2d. %-44s %s%s\n", fs.index, clip(title, 44), route(slug, fs.sc.ID), link)
+		fmt.Fprintf(out, "      %2d. %-44s %s%s\n", fs.index, clip(title, 44), route(key, fs.sc.ID), link)
 		n++
 	}
 	fmt.Fprintf(out, "\n  %d pantallas. «→» lleva a otra por el prototipo. Una pantalla: make visor-pantalla R=<ruta>\n", n)
@@ -294,7 +297,7 @@ func (s *server) screenReady(ctx context.Context, ref string) (key, id string, e
 
 func cliBrief(s *server, ctx context.Context, args []string, out io.Writer) error {
 	if len(args) == 0 {
-		return usageError("falta la pantalla: make visor-pantalla R=altafinanciera/266-1279")
+		return usageError("falta la pantalla: make visor-pantalla R=RkyauDfqEsFbJZBBoqChAV/266-1279")
 	}
 	key, id, err := s.screenReady(ctx, args[0])
 	if err != nil {
@@ -352,7 +355,7 @@ func parseRefArgs(fs *flag.FlagSet, args []string) (string, error) {
 		args = fs.Args()[1:]
 	}
 	if len(pos) == 0 {
-		return "", usageError("falta la pantalla: proyecto/1-2")
+		return "", usageError("falta la pantalla: <clave del archivo>/<nodo>, o la URL de Figma")
 	}
 	return pos[0], nil
 }
@@ -575,7 +578,6 @@ func cliInventory(s *server, ctx context.Context, args []string, out io.Writer) 
 		}
 		titles[fs.sc.ID] = t
 	}
-	slug := s.projectSlug(key)
 	fmt.Fprintf(out, "  Componentes de «%s»: instancias de primer nivel, con sus variantes y dónde aparecen.\n", st.FileName)
 	for _, c := range st.Inventory {
 		fmt.Fprintf(out, "\n  %s — %d usos en %d pantallas\n", c.Name, c.Uses, len(c.Screens))
@@ -608,9 +610,9 @@ func cliInventory(s *server, ctx context.Context, args []string, out io.Writer) 
 		var parts []string
 		for _, t := range order {
 			g := byTitle[t]
-			p := fmt.Sprintf("%s (%s)", t, route(slug, g.first))
+			p := fmt.Sprintf("%s (%s)", t, route(key, g.first))
 			if g.n > 1 {
-				p = fmt.Sprintf("%s ×%d (%s…)", t, g.n, route(slug, g.first))
+				p = fmt.Sprintf("%s ×%d (%s…)", t, g.n, route(key, g.first))
 			}
 			parts = append(parts, p)
 		}

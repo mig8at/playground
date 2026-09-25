@@ -267,7 +267,7 @@ func TestBriefGathersEverythingAboutAScreen(t *testing.T) {
 	for _, want := range []string{"# «Elige tu plan» · flujo ecommerce", "(visor:flujo-ecommerce/1-2@" + print + ")",
 		"carril «No paga cuota inicial», 2 de 2 · móvil 430×932", "1. Elige tu plan\n2. Continuar", "- clic en «Continuar» → «Pago»",
 		"- Botones — variantes en el archivo: Estado: Primary button", "`--violet-500` #252256 — Colors/violet/violet-500 ×1", "```html\n<!doctype html>",
-		"make visor-recursos R=flujo-ecommerce/1-2 DIR=<carpeta>", "make visor-tokens P=flujo-ecommerce"} {
+		"make visor-recursos R=SsvFsK5tLvR1jNT3Hh6znD/1-2 DIR=<carpeta>", "make visor-tokens P=SsvFsK5tLvR1jNT3Hh6znD"} {
 		if !strings.Contains(text, want) {
 			t.Errorf("falta %q en:\n%s", want, text)
 		}
@@ -279,7 +279,7 @@ func TestBriefGathersEverythingAboutAScreen(t *testing.T) {
 func TestCLINamesAScreenLikeTheRouteDoes(t *testing.T) {
 	s := newServer(nil, t.TempDir())
 	s.library.opened("RkyauDfqEsFbJZBBoqChAV", "Altafinanciera", "PRODUCTO")
-	for _, ref := range []string{"altafinanciera/266-1279", "visor:altafinanciera/266-1279@53265587646d",
+	for _, ref := range []string{"RkyauDfqEsFbJZBBoqChAV/266-1279", "altafinanciera/266-1279", "visor:altafinanciera/266-1279@53265587646d",
 		"http://localhost:5193/altafinanciera/266-1279?modo=html", "https://www.figma.com/design/RkyauDfqEsFbJZBBoqChAV/x?node-id=266-1279"} {
 		key, id, err := s.resolveScreen(ref)
 		if err != nil || key != "RkyauDfqEsFbJZBBoqChAV" || id != "266:1279" {

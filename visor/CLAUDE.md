@@ -28,13 +28,19 @@ Decisión de Miguel (2026-09-25): **la interfaz es para mirar; el modelo trabaja
 harness. Todo lo que el modelo necesita de un diseño sale por `make`, sin el visor corriendo
 (`visor/server/cli.go`; adentro los verbos van en inglés —`cd visor/server && go run . search|screens|screen|html|assets|tokens|components`—):
 
-    make visor-buscar Q='alta bienvenida'              # ¿qué pantalla es? → altafinanciera/266-1279
-    make visor-pantallas P=altafinanciera              # el flujo: carriles y pantallas, con su ruta
-    make visor-pantalla R=altafinanciera/266-1279      # el paquete: textos, destinos, imágenes, componentes, tokens, HTML
-    make visor-recursos R=altafinanciera/266-1279 DIR=<carpeta> [SVG=1]   # las imágenes ORIGINALES, con el nombre de su capa
-    make visor-html R=… [OUT=<archivo>] · make visor-tokens P=… [FORMATO=css|tailwind|json] · make visor-componentes P=…
+    make visor-pantallas                                        # los proyectos, con su clave de Figma
+    make visor-pantallas P=RkyauDfqEsFbJZBBoqChAV               # el flujo: carriles y pantallas, cada una con su id
+    make visor-pantalla R=RkyauDfqEsFbJZBBoqChAV/266-1279       # el paquete: textos, destinos, imágenes, componentes, tokens, HTML
+    make visor-recursos R=RkyauDfqEsFbJZBBoqChAV/266-1279 DIR=<carpeta> [SVG=1]   # las imágenes ORIGINALES, con el nombre de su capa
+    make visor-html R=… [OUT=<archivo>] · make visor-tokens P=<clave> [FORMATO=css|tailwind|json] · make visor-componentes P=<clave>
+    make visor-buscar Q='alquila moto'                          # sólo si no hay id: busca por lo que dice la pantalla, devuelve ids
 
-La pantalla se nombra como en su ruta, con el enlace `visor:` de una tarea, la URL del visor o la de Figma.
+**El CLI habla en IDS de Figma** (decisión de Miguel, 2026-09-25): la pantalla es `<clave del archivo>/<nodo>`
+—o la URL de Figma, que trae los dos—, y todo lo que imprime la nombra así. Los ids no dependen de cómo se
+llame nada, y el nodo sobrevive a que el diseñador edite o renombre la pantalla. Acepta también el proyecto
+por su nombre (`altafinanciera/266-1279`) y el enlace `visor:` de una tarea, que es como la nombran la
+interfaz y el tablero, porque ahí se leen mejor. `visor-buscar` es lo único por nombre, para cuando alguien
+dice «la de bienvenida» sin dar el id.
 
 - ⚠ **Una pantalla se llama por lo que DICE, no por lo que es.** «bienvenida» no aparece en la bienvenida de
   Alta: su capa es «home» y su título, el titular. Por eso `visor-buscar`, cuando ninguna pantalla tiene todas
