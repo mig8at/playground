@@ -655,9 +655,17 @@ roto** (F-88). Si trabajás Bancolombia, cargá `harness-canal-qr` y corré `npm
   solicitud queda en 3 y la fecha de pago la devuelve a `/down-payment`); `CUOTA=` paga más que el
   mínimo. Medido: 2/2 compras de tienda de CrediPullman en «Segunda oportunidad» cerraron en 11 con
   $500.000 de cuota inicial (`make harness-caminar CASOS='#13874eb6:77;#13874eb6:77' FLOW=ecommerce
-  CERRAR=1 MANUAL=1 PAR=1 TARGET=local`). ⚠ Sólo el motor HTTP: el de navegador abre el widget de verdad.
+  CERRAR=1 MANUAL=1 PAR=1 TARGET=local`).
+  **En el navegador (desde el 2026-09-25) el widget es SIMULADO** (`pkg/wompi-widget.ts`, enganchado en
+  `openWindow`): se intercepta `checkout.wompi.co/widget.js` y se sirve un `WidgetCheckout` con el mismo
+  contrato que muestra el monto y dos botones, **Pagar** y **Rechazar**. Cada uno registra la transacción
+  en el mock (APPROVED o DECLINED) y le devuelve al wizard lo que devolvería Wompi; de ahí sigue el
+  camino real (`processing` → estado → el backend le pregunta al mock). Lo único que se acorta es la
+  gracia de 20 s: se atrasa el `created_at` de la transacción 25 s en la base local, así la primera
+  consulta ya reconcilia. Sólo con target `local`; `E2E_WOMPI_WIDGET=0` deja el widget real.
   ⚠ La base local trae la credencial de Wompi de producción de Pullman (`pub_prod_…`): con el mock la
-  consulta del backend no sale de la máquina, pero el widget del navegador usaría esa llave.
+  consulta del backend no sale de la máquina, y el widget simulado evita que el navegador abra el
+  checkout real con esa llave.
 
 - **Un solo helper HTTP con bitácora, y el listado está adentro.** `llamar()` es la única implementación;
   `get`/`post` son dos verbos sobre él. Antes eran dos copias que divergían (timeout 90 s vs 150 s, cómo

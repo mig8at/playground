@@ -1,5 +1,6 @@
 import type { Browser, BrowserContext, BrowserContextOptions, Page } from '@playwright/test';
 import { installAutofill } from './autofill.ts';
+import { installWompiWidget } from './wompi-widget.ts';
 
 /**
  * windows — fuente ÚNICA del manejo de ventanas A/B del suite e2e (preview/headed).
@@ -93,6 +94,8 @@ export async function openWindow(browser: Browser, col: number, opts: OpenWindow
        nadie se acuerde de instalarlo. Es `addInitScript` sobre el CONTEXTO, así que sobrevive a las
        navegaciones y a las pestañas que abre el wizard. Se apaga con `E2E_AUTORELLENO=0`. */
     await installAutofill(context);
+    // El widget de Wompi de la cuota inicial, simulado en local (`pkg/wompi-widget.ts`): Pagar/Rechazar y sigue.
+    await installWompiWidget(context);
     const page = await context.newPage();
     await tileWindow(page, col);
     return { context, page };
