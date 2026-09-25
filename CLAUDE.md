@@ -35,7 +35,7 @@ herramienta: es suponer que no está y contestar de memoria.
 | **¿qué entidades le salen a ESTE comercio, y por qué no las otras?** | `make harness-listado COMERCIO=…` — **3 s**, por API y sin browser. Canon (`listado`) explica la CASCADA; esto contesta el CASO |
 | **¿qué pasa si el cliente es así?** (ingreso, score, ocupación, plazo, entidad) | `make harness-caso CASOS='…'` — el flujo entero por API, en paralelo. `CERRAR=1` llega hasta el desenlace |
 | **¿esta regla de verdad excluye, o sólo reordena?** | corré el caso con y sin el dato. Una regla que «debería» excluir y no excluye es el error más caro del dominio (F-162) |
-| **¿funciona, corriéndolo?** | `harness` (`make panel`) es el camino VISUAL, de Miguel. **El tuyo es por consola**: `harness-caso` · `harness-listado` · `harness-suite` |
+| **¿funciona, corriéndolo?** | `harness` (`make panel`) es el camino VISUAL, de Miguel. **El tuyo es por consola, y son tres**: `harness-caso` (el backend directo, segundos) · `harness-caminar` (el wizard por HTTP, ~20 s) · `harness-caminar MOTOR=navegador` (el wizard en Chromium sin ventana, ~3 min, corre el JS de la página). Todos en paralelo. Cuál elegir: `harness/CLAUDE.md` §«Cuatro formas de correr un flujo». El canal de asesor pide sesión: `make harness-sesion` la revisa y `make harness-login` la saca por consola |
 | **¿en qué anda el equipo?** | Slack (MCP) · `make cuadrilla` · `make tablero` |
 | **buscar, crear o borrar en Jira · mandar a Slack** | `bin/pg jira …` · `bin/pg slack …` — leer es libre; lo que escribe **sin `--apply` sólo muestra** y el texto pasa por el guard. Registrado como MCP (`bin/pg mcp`), llegan como herramientas `jira_*` / `slack_*` junto con `sql`, `logs`, `confluence_*`… |
 

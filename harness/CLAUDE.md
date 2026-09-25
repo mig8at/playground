@@ -534,6 +534,57 @@ que distingue "ventana cerrada" y **tira** (`dev/guided.spec.ts:538-545`); el re
   en pantalla sin persistir: la traza lo señala solo.
 - Si escribís pasos nuevos, no envuelvas en `.catch` vacío el paso que le da sentido a la corrida (F-03).
 
+## Cuatro formas de correr un flujo — cuál elegir
+
+Se diferencian en **qué recorren**, y eso decide qué pueden encontrar. Medido el 2026-09-25 salvo
+donde se dice otra cosa:
+
+| camino | qué recorre | qué ve que los otros no | tiempo (local) |
+|---|---|---|---|
+| **1 · UI** — el panel (`make panel`, :5195). Es el de Miguel | el wizard en una ventana, manejado por una persona | lo que ve una persona: el diseño, la tarjeta del harness, lo que se siente raro | el de quien maneja (una compra por la tienda: 2 min) |
+| **2 · navegador sin ventana** — `make harness-caminar MOTOR=navegador` | el mismo wizard en Chromium sin ventana: llena y hace clic | el JavaScript de la página: consola, botones que no se habilitan, tarjetas que se despliegan, el visor de PDF, pantallas que no existen | **~3 min por caso** (174–182 s hasta el estado 11), y en paralelo lo mismo |
+| **3a · el wizard por HTTP** — `make harness-caminar` (el motor por defecto) | el lado de servidor de cada pantalla (`.data`: loaders, actions, zod), sin navegador | el vínculo con el pedido y el prellenado en ecommerce; un action que redirige a donde no debe | ~20 s por caso (medido el 2026-09-03) |
+| **3b · el backend directo** — `make harness-caso` | la API del backend, sin front: crea la solicitud, inyecta el riesgo, pide el listado y elige la entidad | qué decide el backend y cómo responde cada entidad: espera, modal, redirect, OTP propio, error | segundos (no medido acá) |
+
+**Cuál usar:**
+- **¿Esta regla excluye de verdad?** o **¿qué pasa si el cliente es así?** → **3b**.
+- **¿El flujo pasa pantalla por pantalla?**, rápido y con varios comercios → **3a**.
+- **¿Funciona en la pantalla?**, o cuando 3a da verde y algo se rompe al hacer clic → **2**. El 2026-09-25
+  encontró, en una sola tarde, cosas que 3a no ve: el 500 de la firma, la pantalla de OTP de la entidad que
+  no existe fuera del asesor, las tarjetas que se despliegan.
+- **Para mirarlo** → **1**.
+
+**Las diferencias que hacen equivocarse de camino:**
+- **Canales.** 3a y 2 entran por `FLOW=self-service|merchant|ecommerce`. **3b no tiene la tienda.**
+- **Las perillas del cliente.** En 3b cada caso lleva las suyas (`CASOS='pullman@score=700;pullman@score=300,income=900000'`).
+  En 3a y 2, `MONTO`, el score y el ingreso valen para **toda la tanda**: dos montos distintos son dos tandas.
+- **Dos tandas lanzadas a la vez comparten identidad** (ver abajo, en el caminador): los casos que tienen
+  que ir juntos van en UNA tanda, con `PAR=1`.
+- **En paralelo sale casi gratis** en 2 y 3a: la tanda tarda lo que su caso más lento, y un caso completo
+  cuesta lo mismo solo que con cinco al lado. Con `PHP_CLI_SERVER_WORKERS` ≥ casos (§«Local monohilo»).
+
+### El login de ASESOR por consola
+
+El canal de asesor (`FLOW=merchant`, y el panel en ese canal) pide una sesión de Cognito. **No hace falta
+entrar por el panel para tenerla:**
+
+    make harness-sesion TARGET=local    # ¿sirve la sesión cacheada? un fetch, sin login: valid · invalid · missing · unreachable
+    make harness-login  TARGET=local    # ⚠ abre una ventana: entra a Cognito y deja la sesión en harness/.auth/
+
+- La cuenta sale de `harness/.cognito.json` (o `E2E_COGNITO_USER`/`E2E_COGNITO_PASS`), y la sesión queda en
+  `harness/.auth/cognito-state.<clave>.json`. Los N contextos de una tanda **reusan esa misma** (un solo
+  login para todos: no se golpea el pool). O sea que «diez asesores en paralelo» son diez sesiones del
+  MISMO asesor.
+- **Va con ventana a propósito**: el Managed Login corta la automatización headless por fingerprint
+  (F-66). En local y dev pide el front :5174 arriba.
+- **Local y dev comparten la sesión**: con el front local la clave es `dev` en los dos. Staging y qa tienen
+  la suya.
+- **El caminador la renueva solo** antes de arrancar si no sirve (abre la ventana y lo avisa;
+  `--sin-warm` lo apaga), porque el token vive ~4 min y entre renovar a mano y arrancar ya se estaría
+  muriendo.
+- ⚠ **La sesión manda sobre la sucursal**: `/merchant` redirige al comercio asignado al asesor, no al que
+  pidió la corrida. El caminador corta y dice el `dbops assign` que lo movería; no reasigna solo.
+
 ## Dos caminos, y cada uno tiene su dueño
 
 - **Rápido — es TU camino (el del agente), por CLI.** `dev/sweep.ts`: el flujo por API, sin navegador.
