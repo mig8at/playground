@@ -634,12 +634,30 @@ roto** (F-88). Si trabajás Bancolombia, cargá `harness-canal-qr` y corré `npm
   «Empleado» al CARGAR personal-info, pero al ENVIARLA el backend consulta Agildata y Experian y evalúa
   las categorías con lo que contesten; sin dictado, el mock local contesta una persona sin empleo y un
   reporte fijo (score 654, 59 consultas, ninguna tarjeta). Con eso Premium se rechaza, el cliente cae en
-  «Segunda oportunidad», que exige cuota inicial, y la corrida para en `/down-payment`, que el caminador
-  no sabe pagar (el `WOMPI_MOCK_ENABLED` del `.env` local no lo lee ningún código). Con `LAMBDA=1` se
+  «Segunda oportunidad», que exige cuota inicial, y la corrida pasa por `/down-payment` (ver el punto
+  siguiente). Con `LAMBDA=1` se
   dictan el empleo y un perfil de buró (`experian_profile_<cédula>`: score del caso, 1 consulta,
   1 tarjeta activa), una clave que sólo tiene el mock local. Medido el 2026-09-25: 0/2 → 2/2 en estado 11
   (`make harness-caminar CASOS='#13874eb6:77;#13874eb6:77' FLOW=ecommerce CERRAR=1 MANUAL=1 PAR=1
   LAMBDA=1 TARGET=local`). Contra dev/qa se ignora: ahí el backend le pregunta a la lambda de la empresa.
+
+- **La cuota inicial se paga contra `make harness-wompi` (:8112), el mock de Wompi.** `/down-payment` no
+  tiene action: corre en el navegador y abre el widget. El caminador hace lo que haría el cliente
+  (`pkg/wompi-down-payment.ts`; no confundir con `pkg/wompi-mock.ts`, que intercepta en Playwright el checkout alojado del asesor): pide el preview y crea el intento por el proxy del wizard, le dice al mock que el
+  comprador pagó (`POST /__mock/pay`) y consulta el estado hasta que sea terminal. Después sigue a
+  `/first-payment-date`, como el «Continuar» de la pantalla de resultado. El backend no se entera en el
+  momento: `PaymentStatusService` le pregunta a Wompi (`GET {WOMPI_HOST}/transactions?reference=`)
+  cuando la transacción tiene más de 20 s, así que cada cuota tarda ~21 s. Es el camino que corre en
+  producción: medido el 2026-09-25, las 121 cuotas iniciales de 30 días se confirmaron por esa consulta y
+  ninguna por webhook, y la forma de la respuesta del mock es la de esas 121. Pide
+  `WOMPI_HOST=http://host.docker.internal:8112/v1` en el `.env` del backend y `php artisan config:clear`;
+  el `WOMPI_MOCK_ENABLED` que ya estaba no lo lee ningún código. `PAGO=DECLINED` prueba el rechazo (la
+  solicitud queda en 3 y la fecha de pago la devuelve a `/down-payment`); `CUOTA=` paga más que el
+  mínimo. Medido: 2/2 compras de tienda de CrediPullman en «Segunda oportunidad» cerraron en 11 con
+  $500.000 de cuota inicial (`make harness-caminar CASOS='#13874eb6:77;#13874eb6:77' FLOW=ecommerce
+  CERRAR=1 MANUAL=1 PAR=1 TARGET=local`). ⚠ Sólo el motor HTTP: el de navegador abre el widget de verdad.
+  ⚠ La base local trae la credencial de Wompi de producción de Pullman (`pub_prod_…`): con el mock la
+  consulta del backend no sale de la máquina, pero el widget del navegador usaría esa llave.
 
 - **Un solo helper HTTP con bitácora, y el listado está adentro.** `llamar()` es la única implementación;
   `get`/`post` son dos verbos sobre él. Antes eran dos copias que divergían (timeout 90 s vs 150 s, cómo

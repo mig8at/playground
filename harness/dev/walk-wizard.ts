@@ -54,6 +54,7 @@ const { FrontSession } = await import('../pkg/front.ts');
 const { one, exec, close, TARGET, writeLines, dumpWrites } = await import('../pkg/db.ts');
 const { synthFill, manualValidation } = await import('../pkg/inject.ts');
 const { dictateEmployment, dictateBureauProfile, LAMBDA: RISK_LAMBDA } = await import('../pkg/risk-lambda.ts');
+const { payDownPayment } = await import('../pkg/wompi-down-payment.ts');
 const { config, docGenNotice, backendLogsNotice } = await import('../pkg/config.ts');
 const { env } = await import('../pkg/env.ts');
 const { branchDocument, branchPhone, syntheticPhone } = await import('../pkg/phones.ts');
@@ -215,8 +216,8 @@ async function seed(ur: number, doc: string, log: (s: string) => void, lender?: 
  * personal-info, pero al ENVIARLA el backend consulta Agildata y guarda lo que conteste, y con eso
  * evalúa las categorías de cada entidad. Para una cédula que no se dictó el mock contesta una persona
  * sin empleo. Medido el 2026-09-25 en local (Amoblando Pullman, CrediPullman): la categoría Premium se
- * rechazaba sólo por `occupation`, el cliente caía en «Segunda oportunidad», que exige cuota inicial, y
- * la compra paraba en `/down-payment`, que este runner no sabe pagar.
+ * rechazaba sólo por `occupation` y el cliente caía en «Segunda oportunidad», que exige cuota inicial.
+ * Esa rama también cierra —`/down-payment` se paga contra el mock de Wompi—, pero es otro caso.
  *
  * Sólo contra el mock local, salvo que `RISK_LAMBDA_URL` diga otro: en dev/qa el backend le pregunta a
  * la lambda de la empresa, y dictarle al mock de esta máquina no cambiaría nada.
@@ -522,6 +523,19 @@ async function correr(c: Case, i: number): Promise<Result> {
             };
         } else if (sheet === 'confirmation' || sheet === 'sign-documents') {
             form = {};
+        } else if (sheet === 'down-payment') {
+            // ⚠ ESTA PANTALLA NO TIENE ACTION: corre entera en el navegador (clientLoader + el widget de
+            // Wompi), así que no hay botón que postear. Se hace lo que hace el cliente —intento de pago,
+            // el comprador paga, se consulta el estado— contra el mock de Wompi, y después se sigue a donde
+            // lleva el «Continuar» de la pantalla de resultado: la fecha de pago, que ahora sí avanza.
+            // `--pago DECLINED` prueba el rechazo; `--cuota-inicial` paga más que el mínimo.
+            const paid = await payDownPayment({
+                feBase: config.feBaseUrl, loanRequestId: r.ur!,
+                amountPesos: DOWN_PAYMENT || undefined, status: arg('pago', 'APPROVED'), log,
+            });
+            if (!paid.ok) return finish('trabado', `down-payment: ${paid.reason}`);
+            routePath = `${path.replace(/\/down-payment$/, '')}/first-payment-date`;
+            continue;
         } else if (sheet === 'first-payment-date') {
             const dates: any[] = res.datos?.response?.payload?.nextPaymentDates ?? [];
             if (!dates.length) return finish('trabado', `first-payment-date sin fechas: ${JSON.stringify(res.datos?.response).slice(0, 160)}`);
