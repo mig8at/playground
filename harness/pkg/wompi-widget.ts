@@ -60,8 +60,9 @@ async function payInMock(p: WidgetPayment): Promise<{ ok: boolean; id?: string; 
 }
 
 /** El script que reemplaza a `widget.js`. Se sirve como texto: corre en la página, no en Node. */
-function widgetScript(): string {
+function widgetScript(auto: boolean): string {
     return `(() => {
+  const AUTO = ${auto ? 'true' : 'false'};
   const fmt = (c) => '$' + Math.round(c / 100).toLocaleString('es-CO');
   class WidgetCheckout {
     constructor(config) { this.config = config || {}; }
@@ -112,17 +113,20 @@ function widgetScript(): string {
       };
       root.querySelector('.pay').onclick = () => finish('APPROVED');
       root.querySelector('.no').onclick = () => finish('DECLINED');
+      // Sin nadie mirando (el caminador sin ventana), paga solo: el recuadro queda en la traza igual.
+      if (AUTO) setTimeout(() => finish('APPROVED'), 300);
     }
   }
   window.WidgetCheckout = WidgetCheckout;
 })();`;
 }
 
-/** Engancha el widget simulado en un contexto del navegador. No hace nada fuera de local. */
-export async function installWompiWidget(context: BrowserContext): Promise<void> {
+/** Engancha el widget simulado en un contexto del navegador. No hace nada fuera de local.
+ *  `auto`: paga solo, sin esperar el clic — para el caminador sin ventana, donde no hay quién apriete. */
+export async function installWompiWidget(context: BrowserContext, opts: { auto?: boolean } = {}): Promise<void> {
     if ((process.env.E2E_TARGET || 'dev').toLowerCase() !== 'local') return;
     if (process.env.E2E_WOMPI_WIDGET === '0') return;
     await context.exposeBinding('__harnessWompiPay', (_source, p: WidgetPayment) => payInMock(p));
     await context.route(WIDGET_SRC, (route) =>
-        route.fulfill({ status: 200, contentType: 'application/javascript', body: widgetScript() }));
+        route.fulfill({ status: 200, contentType: 'application/javascript', body: widgetScript(!!opts.auto) }));
 }

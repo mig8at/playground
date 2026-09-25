@@ -365,7 +365,9 @@ export async function readToEnd(page: Page): Promise<number> {
 // arma desde el esquema que manda el backend— cierra con «Enviar», así que el caminador se paraba ahí
 // diciendo «ningún botón de avance». Esa pantalla nunca se había caminado con navegador, y el motivo
 // era esta palabra. Medido el 2026-09-18.
-export const ADVANCE = /continuar|siguiente|aceptar|validar|verificar|confirmar|firmar|autenticarme|solicit|entendido|finalizar|ver mi|empezar|comenzar|activar|iniciar|enviar/i;
+// La cuota inicial (`/down-payment`): «registrar pago» abre el widget de Wompi, y «elegir fecha de pago» es
+// el del resultado cuando el pago salió APROBADO (con el pago rechazado ofrece reintentar, y ése no avanza).
+export const ADVANCE = /continuar|siguiente|aceptar|validar|verificar|confirmar|firmar|autenticarme|solicit|entendido|finalizar|ver mi|empezar|comenzar|activar|iniciar|enviar|registrar pago|elegir fecha de pago/i;
 
 /**
  * El botón para avanzar: el primero VISIBLE y HABILITADO de verdad.

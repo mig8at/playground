@@ -202,6 +202,11 @@ cualquier corrida de asesor:
   lo mismo. ⚠ Y los dos comercios probados tienen `show_products = 0`, así que **por qué se exige el
   selector no está explicado**: mirar antes de llamarlo bug.
 
+⚠ **Dos tandas lanzadas a la vez se pisan la identidad.** El teléfono y la cédula de cada caso salen de su
+índice y de la hora de arranque, así que el caso 0 de dos `harness-caminar` lanzados en el mismo momento
+es la MISMA persona: el 2026-09-25 una tanda de Sistecrédito giró 480 s en personal-info mientras otra
+usaba su cédula. Casos que tienen que correr juntos van en UNA tanda (`CASOS='a;b' PAR=1`).
+
 ⚠ **TOPE DE TIEMPO POR CASO (`--tope`, 360 s por defecto), y no es un lujo.** La primera corrida del canal
 de asesor giró **18 minutos sin imprimir una línea**: cada vuelta puede esperar `networkidle` + el cambio
 de URL + los reintentos del click, y 40 vueltas sin progreso son media hora de silencio — por caso, en
@@ -663,10 +668,11 @@ roto** (F-88). Si trabajás Bancolombia, cargá `harness-canal-qr` y corré `npm
   camino real (`processing` → estado → el backend le pregunta al mock). Lo único que se acorta es la
   gracia de 20 s: se atrasa el `created_at` de la transacción 25 s en la base local, así la primera
   consulta ya reconcilia. Sólo con target `local`; `E2E_WOMPI_WIDGET=0` deja el widget real.
-  ⚠ **Es del camino VISUAL (`openWindow`), no del caminador con `MOTOR=navegador`**: ése abre sus
-  contextos en `pkg/wizard-browser.ts` (`openContext`), no instala el widget simulado, y además «Registrar
-  pago» no está en `ADVANCE` — una compra con cuota inicial se queda en `/down-payment`. El `MOTOR=http`
-  sí la paga (`payDownPayment`).
+  El caminador con `MOTOR=navegador` lo instala en `openContext` (`pkg/wizard-browser.ts`) en modo
+  **automático**: paga solo, sin esperar el clic, y «Registrar pago» / «Elegir fecha de pago» están en
+  `ADVANCE`. Medido el 2026-09-25 por la tienda con Compucredit: el pago quedó APPROVED y el backend
+  recalculó la solicitud (cuota inicial $400.000, financiado $1.600.000). El `MOTOR=http` la paga con
+  `payDownPayment`.
   ⚠ La base local trae la credencial de Wompi de producción de Pullman (`pub_prod_…`): con el mock la
   consulta del backend no sale de la máquina, y el widget simulado evita que el navegador abra el
   checkout real con esa llave.

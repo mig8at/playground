@@ -30,7 +30,7 @@
 // un contrato base64 armado con la identidad del caso, sigue el 302 con `?erId=`, y comprueba lo único
 // que ese canal promete: que la solicitud quede ATADA al pedido y que personal-info llegue con los
 // campos del comercio prellenados y bloqueados — `lockedFields`, la decisión del propio loader). El
-// motor navegador cubre los dos primeros; ecommerce sólo el HTTP.
+// motor navegador cubre los tres (en ecommerce, el vínculo con el pedido; el prefill lo mira el HTTP).
 //
 // QUÉ SEED: lo mismo que `case.ts` y el panel, y por la misma razón —el buró no lo contesta el
 // proveedor en local/dev— (`synthFill` al llegar a personal-info) y, con `--manual`, la validación
@@ -391,19 +391,9 @@ async function correr(c: Case, i: number): Promise<Result> {
         // `/ecommerce/{hash}/checkout?o=…&p=…&t=…&u=…&ps=…&config=…` con el pedido en base64; el loader
         // lo persiste en legacy y redirige a /solicitar con `?erId=`. Ese GET CREA el ecommerce_request,
         // así que se hace UNA vez y se sigue su redirección — el caminador no adivina la URL siguiente.
-        const token = await branchToken(br.hash);
-        if (!token) return finish('trabado', `la sucursal ${br.hash} (${br.com}) no tiene credencial de ecommerce: sin ella no hay checkout. Probá el hash de una sucursal «Ecommerce» de ese comercio (node bin/dbops.ts ecommerce-url ${c.ref.replace(/^#/, '')} te la da)`);
-        // El contrato lleva LA IDENTIDAD DEL CASO —el mismo doc, celular y nombre que después se postean
-        // en personal-info—, como haría la tienda con su comprador; y por defecto sin destinos externos
-        // (puerto 9 = discard), igual que `dev/ecommerce.ts`. `E2E_WEBHOOK_URL` / `E2E_RETURN_URL` los
-        // apuntan a una bandeja (webhook.site) cuando lo que se quiere ver es el veredicto que llega.
-        // ⚠ Por `env()` y no por `process.env`: lo que declara `.env.<target>` no llega a process.env, así
-        // que leído directo el valor del archivo se ignoraba, y el preflight del panel frenaba la corrida.
-        const webhook = env('E2E_WEBHOOK_URL') || 'http://localhost:9/notificacion/';
-        const returnValue = env('E2E_RETURN_URL') || 'http://localhost:9/volver-al-comercio';
-        const c64 = ecommerceContract(br.hash, token, tel, webhook, returnValue,
-            { docType: docType, doc, name: 'CARLOS', surname: 'RUIZ', email: `qa${doc}@gmail.com` }, AMOUNT);
-        routePath = `${base}/checkout?${new URLSearchParams({ o: c64.order, p: c64.products, t: c64.token, u: c64.returnUrl, ps: c64.processUrl, config: c64.config })}`;
+        const entry = await ecommerceEntry(br, c.ref, tel, doc, docType);
+        if ('error' in entry) return finish('trabado', entry.error);
+        routePath = entry.path;
     }
     let bureauInjected = false;
     let chosenLender: any = null;
@@ -645,6 +635,30 @@ async function correr(c: Case, i: number): Promise<Result> {
 }
 
 
+/**
+ * LA ENTRADA DEL CANAL ECOMMERCE, la misma para los dos motores: la tienda manda al cliente a
+ * `/ecommerce/{hash}/checkout?o=…&p=…&t=…&u=…&ps=…&config=…` con el pedido en base64; el loader lo
+ * persiste en legacy y redirige a /solicitar con `?erId=`. Ese GET CREA el ecommerce_request, así que se
+ * hace UNA vez y se sigue su redirección — el caminador no adivina la URL siguiente.
+ *
+ * El contrato lleva LA IDENTIDAD DEL CASO —el mismo doc, celular y nombre que después se postean en
+ * personal-info—, como haría la tienda con su comprador; y por defecto sin destinos externos (puerto 9 =
+ * discard), igual que `dev/ecommerce.ts`. `E2E_WEBHOOK_URL` / `E2E_RETURN_URL` los apuntan a una bandeja
+ * (webhook.site) cuando lo que se quiere ver es el veredicto que llega.
+ * ⚠ Por `env()` y no por `process.env`: lo que declara `.env.<target>` no llega a process.env, así que
+ * leído directo el valor del archivo se ignoraba, y el preflight del panel frenaba la corrida.
+ */
+async function ecommerceEntry(br: { hash: string; com: string }, ref: string, tel: string, doc: string, docType: string)
+: Promise<{ path: string } | { error: string }> {
+    const token = await branchToken(br.hash);
+    if (!token) return { error: `la sucursal ${br.hash} (${br.com}) no tiene credencial de ecommerce: sin ella no hay checkout. Probá el hash de una sucursal «Ecommerce» de ese comercio (node bin/dbops.ts ecommerce-url ${ref.replace(/^#/, '')} te la da)` };
+    const webhook = env('E2E_WEBHOOK_URL') || 'http://localhost:9/notificacion/';
+    const returnValue = env('E2E_RETURN_URL') || 'http://localhost:9/volver-al-comercio';
+    const c64 = ecommerceContract(br.hash, token, tel, webhook, returnValue,
+        { docType, doc, name: 'CARLOS', surname: 'RUIZ', email: `qa${doc}@gmail.com` }, AMOUNT);
+    return { path: `/ecommerce/${br.hash}/checkout?${new URLSearchParams({ o: c64.order, p: c64.products, t: c64.token, u: c64.returnUrl, ps: c64.processUrl, config: c64.config })}` };
+}
+
 // ─── el motor NAVEGADOR ──────────────────────────────────────────────────────────────────────────
 /**
  * El mismo caso, operado con Chromium sin ventana: se clickea, no se postea. Comparte con el motor HTTP
@@ -754,8 +768,15 @@ async function runBrowser(c: Case, i: number, browser: any): Promise<Result> {
      *  hasta el tope de pasos, reportando «se pasó de 40 pasos» — que se lee como un fallo del producto
      *  cuando era del runner. Medido el 2026-09-15. */
     const baseHandoff = `/self-service/${br.hash}`;
-    await page.goto(`${base}/solicitar?amount=${AMOUNT}`, { waitUntil: 'domcontentloaded', timeout: 90_000 }).catch(() => {});
+    let entry = `${base}/solicitar?amount=${AMOUNT}`;
+    if (FLOW === 'ecommerce') {
+        const e = await ecommerceEntry(br, c.ref, tel, doc, await merchantDocumentType(br.hash));
+        if ('error' in e) return finish('trabado', e.error);
+        entry = e.path;
+    }
+    await page.goto(entry, { waitUntil: 'domcontentloaded', timeout: 90_000 }).catch(() => {});
     let seeded = false;
+    let linkSeen = false;
     let lastOne = '';
 
     let withoutProgress = 0;
@@ -770,6 +791,13 @@ async function runBrowser(c: Case, i: number, browser: any): Promise<Result> {
         const sheet = path.split('/').filter(Boolean).pop() ?? '';
         const u = path.match(new RegExp(`^/${FLOW}/[^/]+/(\\d+)/(?!otp(/|$))`));
         if (u) { r.ur = Number(u[1]); t.trazarUReq(r.ur); }
+        // Canal ecommerce: la promesa del canal es que la solicitud quede ATADA al pedido (ver el motor HTTP).
+        if (FLOW === 'ecommerce' && r.ur && !linkSeen) {
+            linkSeen = true;
+            const v = await one<{ er: number }>('SELECT ecommerce_request_id AS er FROM user_requests_by_ecommerce_request WHERE user_request_id = ? ORDER BY id DESC LIMIT 1', [r.ur]).catch(() => null);
+            if (v) log(`vínculo comercio ↔ crédito: uReq ${r.ur} atada al pedido ${v.er} ✓`);
+            else return finish('malo', `la solicitud ${r.ur} nació SIN atarse al pedido: el comercio no recibiría el veredicto`);
+        }
 
         if (routePath === lastOne) {
             withoutProgress += 1;
@@ -857,7 +885,7 @@ async function runBrowser(c: Case, i: number, browser: any): Promise<Result> {
             const el = await chooseEntity(page, entityName);
             r.enListado = el.ok;
             if (!el.ok) return finish('trabado', `«${entityName}» no está en el listado · visibles: ${el.visibles.slice(0, 8).join(' · ')}`);
-            log(`elegí «${entityName}» en el listado`);
+            log(`elegí «${entityName}» en el listado${el.motivo ? ` · ⚠ ${el.motivo}` : ''}`);
             await page.waitForTimeout(1500);
             continue;
         }
@@ -997,10 +1025,6 @@ if (TARGET !== 'local') {
 const t0 = Date.now();
 let results: Result[];
 // UN navegador para toda la tanda; un CONTEXTO por caso (el perfil aislado = «otro cliente»).
-if (ENGINE === 'navegador' && FLOW === 'ecommerce') {
-    console.log('  ✗ el canal ecommerce está cableado sólo en el motor HTTP: el navegador entra por /solicitar y este canal entra por el checkout de la tienda. Corré sin --motor navegador.\n');
-    process.exit(2);
-}
 const browser = ENGINE === 'navegador' ? await openBrowser({ headed: flag('headed') }) : null;
 const oneCase = (c: Case, i: number) => (ENGINE === 'navegador' ? runBrowser(c, i, browser) : correr(c, i));
 try {

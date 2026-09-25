@@ -17,24 +17,20 @@ está en la cabecera de `pkg/checkout-b64.ts`. Para armar una URL a mano está e
 checkout» de la tarea #95. La copia del plugin se borró del playground el 2026-09-24 y sigue en la
 historia: `git show 2b9d13be:creditop-woocommerce/class-creditop-gateway.php`.
 
-## ⚠ El techo del canal, y hay que saber exactamente dónde está
+## El techo del canal: ya NO es el de F-54
 
-**Hoy el canal ecommerce NO cierra un crédito CreditopX.** Aterriza en `resolve-ecommerce-flow`, que es el
-resolvedor de **Bancolombia**, y para un comercio CreditopX el `flowType` sale `no_preapproved` y su loader
-**cancela** la solicitud (F-54).
+*(Acá decía que el canal ecommerce no cierra un crédito CreditopX (F-54): aterrizaba en el resolvedor de
+Bancolombia y cancelaba la solicitud. Ya no es así: medido el 2026-09-25 en local, CrediPullman cerró en
+estado 11 entrando por la tienda tres veces —dos por el caminador con navegador (uReq 467013 y 467026) y
+una por el camino visual del panel (467012)—, con la solicitud atada al pedido.)*
 
-Lo que sí funciona y lo que no, para no medir de más ni de menos:
+Lo que frena hoy una compra por la tienda, medido ese día con varios comercios, y ninguno es del canal:
 
 | | |
 |---|---|
-| ✅ **el contrato base64** | funciona: decodifica y **crea la solicitud** |
-| ❌ **llegar a Aprobado** | no: falta portar la landing genérica `checkout-redirection.tsx`, que vive solo en la rama `feat/ecommerce-checkout-integration` |
-
-Esto **corrige a F-40** (que decía que el eje andaba) — la versión buena es **F-54**. Y las suites
-`channel/ecommerce-*.spec.ts` viejas dan 404 por esta misma razón: no es que estén mal escritas.
-
-**Consecuencia práctica:** sirve para ejercitar el contrato, no para cerrar. Si necesitás un cierre real
-por esta puerta, primero hay que portar la landing.
+| una entidad que pide su propio OTP (Sistecrédito) | el wizard manda a `/ecommerce/…/validate-lender-otp`, que en `main` sólo está montada bajo `/merchant/…`: «Página no encontrada» |
+| el comercio «Creditop» (`bb534d6a`, `eeddcc1c`) | el backend lo lleva por el onboarding de Corbeta (sin personal-info) y la confirmación falla después |
+| una CreditopX sin `pdf_mapper_project_slug` en local | con los documentos por el microservicio, `sign-documents` da 500. En local sólo CrediPullman tiene el slug |
 
 ## Lo que sí se puede probar hoy
 

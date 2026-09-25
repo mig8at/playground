@@ -17,6 +17,7 @@
 // la base — el listado lo muestra y es lo único estable sin testids.
 import { chromium, type Browser, type BrowserContext, type Page } from '@playwright/test';
 import { autofill, clickAdvance, validationErrors, readToEnd, type Field } from './autofill-qr.ts';
+import { installWompiWidget } from './wompi-widget.ts';
 
 export type WizardData = {
     tel: string; doc: string; amount: number; income: number;
@@ -170,6 +171,9 @@ export async function openContext(browser: Browser, baseURL: string, opts: { tra
     // `npx playwright show-trace`. Es la evidencia que un log no puede dar, y se guarda SÓLO si el caso
     // falla (quien llama decide en `closeContext`).
     if (opts.traza) await ctx.tracing.start({ screenshots: true, snapshots: true, sources: false }).catch(() => {});
+    // La cuota inicial: el widget de Wompi simulado, que acá paga solo (`pkg/wompi-widget.ts`). Sin esto la
+    // compra con cuota inicial se quedaba en `/down-payment`, frente al checkout real de Wompi.
+    await installWompiWidget(ctx, { auto: true });
     const page = await ctx.newPage();
     await blockDevTools(page);
 
@@ -246,7 +250,48 @@ export async function errorBanner(page: Page): Promise<string | null> {
  * Elige una entidad del listado por su NOMBRE (el caso pide una concreta, no «la primera»).
  * Devuelve lo que encontró: la lista de nombres visibles sirve para reportar por qué no estaba.
  */
-export async function chooseEntity(page: Page, name: string): Promise<{ ok: boolean; visibles: string[] }> {
+/** ¿El botón se puede clickear de verdad? `isVisible` no alcanza: una tarjeta CERRADA deja su botón en
+ *  el DOM, con tamaño, recortado por el `overflow-hidden` de la tarjeta — Playwright lo da por visible y
+ *  el click se queda 15 s esperando porque «la tarjeta intercepta el puntero». Se mira qué elemento hay
+ *  en el centro del botón: si no es él, no está a la vista. */
+async function reachable(btn: ReturnType<Page['getByRole']>): Promise<boolean> {
+    // Al CENTRO de la pantalla y no «a la vista»: en el front local la barra flotante de desarrollo
+    // («120 FPS», abajo a la derecha) tapa justo el borde inferior, donde `scrollIntoViewIfNeeded` deja
+    // el botón. Medido el 2026-09-25 con «Validar Pre aprobado» de Creditop X.
+    await btn.evaluate((b) => b.scrollIntoView({ block: 'center' })).catch(() => {});
+    return btn.evaluate((b) => {
+        const r = b.getBoundingClientRect();
+        const top = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2);
+        return !!top && (top === b || b.contains(top));
+    }).catch(() => false);
+}
+
+/** El botón que ELIGE la entidad dentro de su tarjeta desplegada: el más cercano por debajo del
+ *  encabezado. Por posición y no por el DOM, porque la tarjeta no tiene un contenedor con nombre. */
+const CARD_CTA = /validar pre ?aprobado|activar mi cr[eé]dito|continuar|solicitar|elegir|seleccionar/i;
+async function ctaInCard(page: Page, header: ReturnType<Page['getByRole']>) {
+    const cands = page.getByRole('button', { name: CARD_CTA });
+    const n = await cands.count().catch(() => 0);
+    let best: ReturnType<Page['getByRole']> | null = null;
+    let bestDy = Infinity;
+    for (let i = 0; i < n; i++) {
+        const c = cands.nth(i);
+        if (!(await c.isVisible().catch(() => false)) || !(await c.isEnabled().catch(() => false))) continue;
+        if (!(await reachable(c))) continue;
+        // El encabezado se mide DESPUÉS de `reachable`, que mueve la página: medido antes, la distancia
+        // comparaba dos coordenadas de pantallas distintas y el botón de la tarjeta quedaba descartado.
+        const hb = await header.boundingBox().catch(() => null);
+        const box = await c.boundingBox().catch(() => null);
+        if (!hb || !box) continue;
+        const dy = box.y - (hb.y + hb.height);
+        // Hasta 600 px: lo que mide una tarjeta abierta con su aviso de cuota inicial. Más lejos ya es
+        // otra tarjeta.
+        if (dy >= 0 && dy <= 600 && dy < bestDy) { best = c; bestDy = dy; }
+    }
+    return best;
+}
+
+export async function chooseEntity(page: Page, name: string): Promise<{ ok: boolean; visibles: string[]; motivo?: string }> {
     // El listado se arma con las tarjetas ya resueltas: se espera a que aparezca alguna antes de mirar.
     await page.getByRole('button', { name: /continuar|solicitar|elegir|seleccionar/i }).first()
         .waitFor({ state: 'visible', timeout: 30_000 }).catch(() => {});
@@ -259,7 +304,27 @@ export async function chooseEntity(page: Page, name: string): Promise<{ ok: bool
         const txt = ((await b.textContent().catch(() => '')) ?? '').replace(/\s+/g, ' ').trim();
         if (txt) visibles.push(txt.slice(0, 40));
         if (txt.toLowerCase().includes(name.toLowerCase()) && (await b.isEnabled().catch(() => false))) {
-            await b.click({ timeout: 15_000 }).catch(() => {});
+            /* ⚠ UNA TARJETA QUE SE DESPLIEGA: el botón con el nombre sólo la ABRE, y el que elige la
+             * entidad es otro botón, debajo, adentro de la tarjeta («Validar Pre aprobado», «Activar mi
+             * crédito»). Clickear sólo el encabezado decía «elegí X» sin elegir nada, y la vuelta siguiente
+             * la cerraba: cinco intentos y «la pantalla no avanza». Medido el 2026-09-25 con Compucredit,
+             * Creditop X y Credifamilia por la tienda.
+             * Se decide por lo que SE VE y no por `aria-expanded`, que esta tarjeta no tiene: si ya hay un
+             * botón de elegir pegado debajo, está abierta y no se vuelve a clickear (la cerraría). */
+            let cta = await ctaInCard(page, b);
+            if (!cta) {
+                const before = page.url();
+                await b.click({ timeout: 15_000 }).catch(() => {});
+                await page.waitForTimeout(700);   // la animación de apertura
+                if (page.url() !== before) return { ok: true, visibles };   // la tarjeta misma navegó
+                cta = await ctaInCard(page, b);
+            }
+            if (cta) {
+                // Que el click falle NO puede quedar en silencio (ver `clickAdvance`): se devuelve el motivo.
+                const failure = await cta.click({ timeout: 15_000 }).then(() => null)
+                    .catch((e) => String(e?.message ?? e).replace(/\s+/g, ' ').slice(0, 300));
+                if (failure) return { ok: true, visibles, motivo: `el click sobre el botón de la tarjeta falló: ${failure}` };
+            }
             return { ok: true, visibles };
         }
     }
