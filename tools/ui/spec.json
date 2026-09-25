@@ -677,6 +677,25 @@
       "use": "Estado a la izquierda; tema y disposición a la derecha, en botones de 24."
     },
     {
+      "group": "Regiones",
+      "id": "statusbar-item",
+      "name": "Dato del pie que se abre",
+      "cls": ".statusbar-item",
+      "html": "<footer class=\"statusbar\"><button class=\"statusbar-item\"><span class=\"ui-icon\" data-icon=\"server\" aria-hidden=\"true\"></span><span>servicios ok</span></button></footer>",
+      "target": ".statusbar-item",
+      "measure": {
+        "height": 22,
+        "paddingLeft": 4,
+        "gap": 4,
+        "fontSize": 11,
+        "borderWidth": 0,
+        "borderRadius": 6,
+        "backgroundColor": "rgba(0, 0, 0, 0)",
+        "iconSize": 16
+      },
+      "use": "Un estado del pie con detalle (los servicios): se lee como el resto del pie y abre su detalle hacia arriba."
+    },
+    {
       "group": "Avisos",
       "id": "alert",
       "name": "Aviso",

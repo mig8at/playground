@@ -227,10 +227,15 @@ estilo-guia: ## @dia catálogo interactivo de la UI compartida en http://127.0.0
 	@python3 -m http.server 5198 --bind 127.0.0.1 --directory tools/ui
 
 estilo-sync: ## @dia distribuye tools/ui a las cuatro herramientas
+	@node tools/ui-icons.mjs
 	@python3 tools/ui-sync.py
+
+estilo-iconos: ## @dia genera el bloque de iconos de la base desde Lucide (tools/ui/icons.json); CHECK=1 sólo comprueba
+	@node tools/ui-icons.mjs $(if $(CHECK),--check,)
 
 estilo-check: ## @dia ¿las cuatro UIs comparten de verdad UN tema? md5 de los `theme.css`, mezclas `in oklch` (que tiñen de rojo), contraste y variables usadas sin declarar
 	@python3 tools/ui-sync.py --check
+	@node tools/ui-icons.mjs --check
 	@python3 tools/style.py
 
 estilo-contraste: ## @dia mide el contraste de lo que SE PINTA en las cuatro UIs (lo que `estilo-check` no puede ver: el color viene de un ancestro y el fondo de otro). Necesita las UIs CORRIENDO. SOLO=<herramienta> · THEME=light|dark fija el tema de las que tienen botón

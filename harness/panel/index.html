@@ -337,8 +337,9 @@
     /* ═══ EL PIE ══════════════════════════════════════════════════════════════════════════════════ */
     .statusbar strong { color: var(--foreground) }
     .theme-toggle { margin-right: var(--space-1) }
-    .readiness-link { border: 0; padding: 0; background: none; color: var(--warn); font: inherit; cursor: pointer }
-    .readiness-link:hover { text-decoration: underline }
+    /* Los servicios van al final del estado, pegados a los botones de la derecha. */
+    .statusbar > .health-item { flex: none; margin-left: auto }
+    .statusbar > .health-item + .layout-controls { margin-left: 0 }
 
     /* ⛔ NO HAY VERSIÓN ANGOSTA, y es una decisión: es una herramienta de ESCRITORIO, que se usa con el
        wizard en otra ventana, y las tres columnas son el punto. Si la ventana no da, se pliega un
@@ -436,15 +437,11 @@
             <button type="button" class="btn btn-ghost btn-sm delay-knob" id="btnDelay"><span class="ui-icon" data-icon="clock" aria-hidden="true"></span><span id="valDelay">0 s</span></button>
           </div>
           <div class="run-actions">
-            <!-- El estado de los servicios está siempre a la vista: es lo que decide si una corrida puede
-                 cerrar. El detalle (con los comandos para levantar lo que falte) se abre desde acá. -->
-            <button type="button" class="btn btn-ghost btn-sm" id="btnHealth" aria-haspopup="dialog" title="Estado de los servicios">
-              <span class="status-dot" id="healthDot"></span><span id="healthText">servicios…</span>
-            </button>
             <span class="run-dot" id="runDot"></span>
             <span class="run-time" id="activityTime"></span>
             <button type="button" class="btn btn-destructive btn-sm stop" id="stopBtn">Detener</button>
-            <button type="button" class="btn btn-sm" id="go" disabled>Preparar + Lanzar ▶</button>
+            <!-- Lanzar es sólo el icono: lo que va a hacer (preparar o loguear, y lanzar) lo dice su título. -->
+            <button type="button" class="btn btn-sm btn-icon" id="go" disabled title="Preparar + Lanzar" aria-label="Preparar + Lanzar"><span class="ui-icon" data-icon="play" aria-hidden="true"></span></button>
           </div>
         </div>
         <div class="alert alert-warn" id="devwarn" style="display:none" role="alert">
@@ -641,7 +638,11 @@
       <strong id="caseTitle">Elegí un comercio</strong>
       <span id="caseDetails"></span>
       <span id="runSummary" role="status">Elegí un comercio primero.</span>
-      <button class="readiness-link" id="readinessLink" type="button" hidden></button>
+      <!-- El estado de los servicios, siempre a la vista en el pie: es lo que decide si una corrida puede
+           cerrar. El detalle, con los comandos para levantar lo que falte, se abre desde acá hacia arriba. -->
+      <button type="button" class="statusbar-item health-item" id="btnHealth" aria-haspopup="dialog" title="Estado de los servicios">
+        <span class="status-dot" id="healthDot"></span><span id="healthText">servicios…</span>
+      </button>
       <div class="layout-controls" role="group" aria-label="Regiones visibles">
         <!-- El tema, antes de los botones de disposición y separado 8: los de disposición van al final
              porque su orden copia la pantalla (izquierda, abajo, derecha). -->
@@ -1390,6 +1391,9 @@
       mountMenu(m, r.left, r.bottom + 4);
     }
 
+    /** Lanzar es un botón de icono: lo que hace lo dicen su título y su nombre accesible. */
+    function setGoLabel(text) { $('go').title = text; $('go').setAttribute('aria-label', text); }
+
     function openHealth(anchor) {
       const m = menuBase('contextMenu');
       m.classList.add('health-popover');
@@ -1399,6 +1403,8 @@
       if (boxEl) m.appendChild(boxEl);
       const r = anchor.getBoundingClientRect();
       mountMenu(m, r.right, r.bottom + 4, true);
+      // Desde el pie se abre hacia ARRIBA: abajo no hay lugar y el acotado a la ventana lo taparía.
+      if (anchor.closest('.statusbar')) m.style.top = Math.max(4, r.top - m.offsetHeight - 4) + 'px';
     }
 
     /** El header refleja lo elegido. Se llama desde donde ya se aplica cada cosa, no en un timer. */
@@ -1554,8 +1560,6 @@
       $('healthSummary').textContent = e ? 'Ver servicios, entidades y mapa' : 'No se pudo consultar el estado';
       $('missingServices').replaceChildren();
       $('healthDetails').classList.remove('needs-attention');
-      $('readinessLink').textContent = '';
-      $('readinessLink').hidden = true;
       const box = $('stats'); if (!box) return;
       // Un indicador: rótulo, valor y contexto, sin caja ni icono decorativo. El color del valor dice
       // el estado (`stat-ok` · `stat-warn` · `stat-bad`); sin clase, es un dato neutro.
@@ -1602,10 +1606,6 @@
           ? `Falta iniciar: ${critical.map(m => m.nombre).join(', ')} — clic para ver los comandos`
           : 'Todos los servicios necesarios responden';
         $('healthDetails').classList.toggle('needs-attention', critical.length > 0);
-        if (critical.length) {
-          $('readinessLink').textContent = `Falta iniciar ${critical.length === 1 ? critical[0].nombre : `${critical.length} servicios`} · ver comandos`;
-          $('readinessLink').hidden = runRunning;
-        }
         for (const mock of critical) {
           const command = COMMAND[mock.puerto];
           const row = document.createElement('div'); row.className = 'dependency';
@@ -2096,7 +2096,6 @@
       runRunning = running;
       // Eran un fieldset; ahora son tres (header · sidebar izq · sidebar der) y la regla no cambió.
       document.querySelectorAll('fieldset.cfg').forEach((f) => { f.disabled = running; });
-      $('readinessLink').hidden = running || !$('readinessLink').textContent;
       document.querySelectorAll('#results .row').forEach(m => {
         m.setAttribute('aria-disabled', String(running));
         m.tabIndex = running ? -1 : 0;
@@ -2202,14 +2201,14 @@
       // espera; sin token, apunta al dot. 'unreachable' NO bloquea (ver el comentario de sessionState).
       const sess = channel === 'asesor' ? (sessionState[target] || 'unknown') : 'valid';
       if (sess === 'checking' || sess === 'warming') {
-        $('go').disabled = true; $('go').textContent = 'obteniendo token…';
+        $('go').disabled = true; setGoLabel('Obteniendo token…');
         $('runSummary').innerHTML = `autenticando <b>${target}</b> (headless) — el botón se habilita solo`;
         return;
       }
       if (sess === 'invalid' || sess === 'missing') {
         // Antes bloqueaba y mandaba al punto gris (que era clickeable — perilla escondida, retirada el
         // 2026-08-19). Ahora el botón loguea primero (fase "Logueando…") y recién lanza.
-        $('go').disabled = !sel; $('go').textContent = 'Login + Lanzar ▶';
+        $('go').disabled = !sel; setGoLabel('Login + Lanzar');
         $('runSummary').innerHTML = sel
           ? `sin sesión en <b>${target}</b> — al lanzar te <b>logueo primero</b> (headless) y sigo, sin pasar por /solicitar`
           : 'Elegí un comercio primero.';
@@ -2217,16 +2216,16 @@
       }
       // Paso "comercio" del funnel: el permiso del asesor se puso al ELEGIR; acá solo se espera/avisa.
       if (permState === 'checking') {
-        $('go').disabled = true; $('go').textContent = 'asignando permiso…';
+        $('go').disabled = true; setGoLabel('Asignando permiso…');
         $('runSummary').innerHTML = `asignando el permiso del asesor a <b>${sel ? sel.name : '…'}</b> — el botón se habilita solo`;
         return;
       }
       if (permState === 'fail') {
-        $('go').disabled = true; $('go').textContent = 'sin permiso ▶';
+        $('go').disabled = true; setGoLabel('Sin permiso');
         $('runSummary').innerHTML = `✗ permiso del asesor: ${permDetail} — reelegí el comercio para reintentar`;
         return;
       }
-      $('go').textContent = 'Preparar + Lanzar ▶';
+      setGoLabel('Preparar + Lanzar');
       $('go').disabled = !sel;      if (!sel) { $('runSummary').innerHTML = 'Elegí un comercio primero.'; return; }
       $('runSummary').textContent = '';
     }
@@ -2244,7 +2243,7 @@
       // warmea (front caído: la corrida levanta el front y loguea sola); 'checking'/'warming' no llega
       // acá porque updateGo deja el botón deshabilitado mientras un warm está en curso.
       if (channel === 'asesor' && (sessionState[target] === 'invalid' || sessionState[target] === 'missing')) {
-        $('go').disabled = true; $('go').textContent = 'Logueando…';
+        $('go').disabled = true; setGoLabel('Logueando…');
         await warmSession(target);
         if (sessionState[target] !== 'valid') {
           alert(`No pude autenticar en ${target} — revisá las credenciales de .env.${target} o el estado de Cognito. No lanzo, para no caer en /solicitar.`);
@@ -2263,17 +2262,17 @@
       // Sin sesión en el target (canal asesor): loguear ACÁ, con el botón como loader, y recién lanzar.
       // 'unreachable' no se intenta (el front del target no responde; la corrida loguea en el flujo).
       if (channel === 'asesor' && ['invalid', 'missing', 'unknown'].includes(sessionState[target] || 'unknown')) {
-        $('go').disabled = true; $('go').textContent = 'Logueando…';
+        $('go').disabled = true; setGoLabel('Logueando…');
         $('runSummary').innerHTML = `logueando en <b>${target}</b> (headless) antes de lanzar…`;
         await warmSession(target);
         if (sessionState[target] !== 'valid' && sessionState[target] !== 'unreachable') {
           alert(`no se pudo autenticar en ${target} — revisá las credenciales del .env.${target}`);
-          $('go').textContent = 'Preparar + Lanzar ▶'; updateGo(); return;
+          setGoLabel('Preparar + Lanzar'); updateGo(); return;
         }
       }
       activeCaseSummary = `${$('caseTitle').textContent} · ${$('caseDetails').textContent}`;
       setRunningUI(true);
-      $('go').disabled = true; $('go').textContent = 'Lanzando…';
+      $('go').disabled = true; setGoLabel('Lanzando…');
       try {
         const r = await fetch('/api/launch', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) });
         const j = await r.json();
@@ -2494,11 +2493,11 @@
         if (j.running) {
           if (!runRunning) { setRunningUI(true); $('routeMap').open = true; }
           $('stopBtn').classList.add('on');
-          $('go').textContent = 'corriendo…'; $('go').disabled = true;          $('runDot').className = 'run-dot running';
+          setGoLabel('Corriendo…'); $('go').disabled = true;          $('runDot').className = 'run-dot running';
           if ($('consoleBody').style.display === 'none') showLog(false);
         } else {
           setRunningUI(false);
-          $('go').textContent = 'Preparar + Lanzar ▶'; updateGo();          $('stopBtn').classList.remove('on'); $('runDot').className = 'run-dot';
+          setGoLabel('Preparar + Lanzar'); updateGo();          $('stopBtn').classList.remove('on'); $('runDot').className = 'run-dot';
           loadStatus();   // terminó una corrida → refrescar el veredicto
           checkSession(target, true);   // la corrida pudo renovar (o quemar) la sesión → re-verificar el dot
           clearInterval(poll); poll = null;
@@ -2847,7 +2846,6 @@
     //  es una zona fija del layout y siempre está a la vista)
     // Abre el detalle del estado de los servicios, con los comandos. (Antes hacía `scrollIntoView` sobre
     // un nodo que vive en un refugio oculto: el enlace no mostraba nada.)
-    $('readinessLink').onclick = () => openHealth($('btnHealth'));
     // Filtro de la consola: re-pinta desde el array en memoria (no vuelve a pedir nada al server).
     function toggleLogFilter() {
       importantOnly = !importantOnly;

@@ -121,6 +121,7 @@ Piezas que completan una fila, una tabla y un menú:
 | Fila de dos renglones | `.row.stacked` › `.row-desc` | El nombre y, debajo, un dato largo que no entra a la derecha (11, `--fg-3`, una línea con elipsis). No se mezcla con filas de 28 en la misma lista |
 | Campo xs | `.input-group.input-group-xs` | El campo con unidad o icono dentro de una fila de 28 |
 | Rótulo y nota de menú | `.region-menu-caption` · `.region-menu-note` | Agrupan o explican dentro de un menú; no se enfocan. La nota mide 340 como máximo |
+| Dato del pie que se abre | `.statusbar-item` | Un estado del pie con detalle (los servicios del harness): 11, `--fg-2`, sin caja; al pasar, la tinta y el `--hover`. Su detalle se abre hacia arriba |
 | Destructivo | `.btn-destructive` · `.badge-destructive` | Sobre `--destructive-ink` (el rojo del tema mezclado con la tinta), que pasa AA en los dos temas: el rojo puro con texto blanco en claro medía 3,76:1 |
 
 El texto de un botón es un verbo en infinitivo, con objeto si hace falta («Guardar», «Correr el caso»): de una a tres palabras, mayúscula inicial y sin punto. Un solo botón primario por región; el resto, contorno o fantasma, y en un grupo el primario va primero.
@@ -156,12 +157,12 @@ No hay 20. La única excepción a la escala son los 2 px entre botones de icono 
 
 ## Iconos
 
-Un solo juego, el de `workbench.css` (`.ui-icon[data-icon]`): glifos dibujados en una grilla de 24, trazo de 1,75, extremos redondeados y sin relleno, pintados con `currentColor`.
+Un solo juego: **Lucide** (`lucide-static`, la biblioteca de shadcn), en la versión que fija [`icons.json`](icons.json). **No se dibuja ningún icono**: cada nombre de `data-icon` apunta a un icono de Lucide, que se usa tal cual —grilla de 24, trazo de 2, extremos redondeados, sin relleno— y se pinta con `currentColor`. `make estilo-iconos` genera el bloque de `workbench.css` desde esa lista (lo corre también `make estilo-sync`) y `make estilo-check` falla si el bloque no coincide, si una herramienta define un icono propio o si pide un nombre que no está en la lista.
 
 - Un solo tamaño, 16 px, adentro de un botón de 24. La zona de toque es el botón.
 - `--fg-2` en reposo y `--foreground` al pasar o activo. Con color sólo para un estado, y con texto o forma que diga lo mismo.
 - Un icono sin texto lleva `title` y `aria-label`. Icono y texto, sólo en la acción principal de una región.
-- Un carácter no es un icono (✕ ⧉ ▸ ⋯ ✓ ⚠ o un emoji): cambia con la fuente y no se centra en el botón. Un icono nuevo se dibuja en la misma grilla y se suma a `workbench.css`; no se mezclan juegos.
+- Un carácter no es un icono (✕ ⧉ ▸ ⋯ ✓ ⚠ o un emoji): cambia con la fuente y no se centra en el botón. Un icono nuevo se elige en Lucide y se suma a `icons.json`; no se mezclan juegos.
 
 ```html
 <button class="region-action" title="Copiar" aria-label="Copiar">
