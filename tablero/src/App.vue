@@ -1,5 +1,6 @@
 <script setup>
-import { vResize, refreshResizers, fitRegions, regionSize, reopenSize, cssSize, bindThemeToggle, currentTheme } from './workbench.js';
+import { vResize, refreshResizers, fitRegions, regionSize, reopenSize, cssSize, bindThemeToggle, currentTheme,
+  setRoute, readHashRoute, hashRoute } from './workbench.js';
 // Tablero — mi sprint, con registro de tiempo y avances.
 //
 // El registro persiste como JSONL del lado del server (internal/store). Lo de arriba (sprint, tareas)
@@ -56,7 +57,12 @@ const issues = ref(bootstrapCache?.issues || []);
 // se llega a llamar a la equivocada.
 // `iniciada` es «En curso»: lo que estás haciendo hoy. Las demás arrancan cerradas — cerradas cuestan
 // una fila, así que los cinco estados con su conteo quedan a la vista igual.
-const sections = ref(new Set(['iniciada']));
+// Qué GRUPOS quedaron abiertos es una preferencia y se recuerda (`tablero:open-groups`). La vista
+// `jira` no: abierta sin tarea es lo que muestra el editor, así que va en la ruta (`#/importar`).
+const GROUP_IDS = new Set(TASK_GROUPS.map(group => group.id));
+const savedGroups = readPreference('open-groups', null);
+const sections = ref(new Set(Array.isArray(savedGroups) ? savedGroups.filter(id => GROUP_IDS.has(id)) : ['iniciada']));
+watch(sections, (open) => savePreference('open-groups', [...open].filter(id => GROUP_IDS.has(id))));
 const isOpen = (id) => sections.value.has(id);
 function toggleSection(id) {
   const n = new Set(sections.value);
@@ -298,8 +304,9 @@ const normalizedSearch = computed(() => withoutAccents(searchQuery.value).trim()
 // el día que valga la pena compartirla se decide, no se filtra por estar en pantalla.
 // APAGADO por defecto: el tablero es, antes que nada, el sprint — lo que el equipo ve. Las locales son
 // material propio y son MUCHAS (16 contra 7 del sprint el 2026-08-27): encendidas por defecto ahogaban
-// justo lo que uno viene a mirar. Se prenden cuando se las está trabajando.
-const showLocals = ref(false);
+// justo lo que uno viene a mirar. Se prenden cuando se las está trabajando, y la elección se recuerda.
+const showLocals = ref(readPreference('show-locals', false) === true);
+watch(showLocals, (value) => savePreference('show-locals', value));
 
 const allLocals = computed(() => {
   const linked = new Set(Object.values(taskLocals.value).map(v => v?.effortId).filter(Boolean));
@@ -1080,6 +1087,8 @@ function openTask(task, pin = false) {
 function closeTab(k) {
   const i = tabItems.value.findIndex((t) => t.Key === k);
   if (i < 0) return;
+  // Cerrada antes de que llegaran todos los datos: que la restauración no la vuelva a abrir.
+  if (pendingTabs) pendingTabs = pendingTabs.filter((slug) => slug !== taskSlug(tabItems.value[i]));
   tabItems.value = tabItems.value.filter((t) => t.Key !== k);
   if (preview.value === k) preview.value = '';
   // Al cerrar la activa se enfoca la VECINA —la de la derecha, y si no hay, la de la izquierda—, no se
@@ -1093,7 +1102,7 @@ function closeTab(k) {
   }
 }
 
-/* ── RUTAS DE TAREA ──────────────────────────────────────────────────────────────────────────────
+/* ── RUTAS Y PESTAÑAS ──────────────────────────────────────────────────────────────────────────
  * El estado visible vive también en la URL: `#/tareas/context` o `#/tareas/core-543`. Se usa hash
  * routing porque Tablero se sirve como archivos estáticos y una recarga de `/tareas/context`
  * dependería de que cada servidor conociera el fallback a index.html. El hash sobrevive igual a una
@@ -1102,12 +1111,7 @@ function closeTab(k) {
  * Los contenedores locales se nombran por su título canónico; las tareas de Jira por su clave. No se
  * usa el id local porque puede renumerarse al consolidar archivos. */
 const routeSlug = (value) => withoutAccents(value).trim().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
-const taskRoute = (task) => task ? `#/tareas/${task._local ? routeSlug(task.Summary) : task.Key.toLowerCase()}` : '';
-const slugFromRoute = () => {
-  const m = window.location.hash.match(/^#\/tareas\/([^/?#]+)\/?$/);
-  try { return m ? decodeURIComponent(m[1]).toLowerCase() : ''; }
-  catch { return ''; }
-};
+const taskSlug = (task) => task._local ? routeSlug(task.Summary) : task.Key.toLowerCase();
 const tasksForRoute = () => {
   const unique = new Map();
   for (const task of [...issues.value, ...bySprint.value.flatMap(g => g.issues || []), ...allLocals.value]) {
@@ -1115,29 +1119,89 @@ const tasksForRoute = () => {
   }
   return [...unique.values()];
 };
-let routesReady = false;
-let restoringRoute = false;
-function writeRoute(task) {
-  const hash = taskRoute(task);
-  if (window.location.hash === hash) return;
-  window.history.pushState({}, '', `${window.location.pathname}${window.location.search}${hash}`);
+
+/* La ruta dice QUÉ se mira y, de una tarea, con qué pestaña del sidebar derecho:
+ *   (sin hash)                          el sprint, la bienvenida
+ *   #/tareas/core-543                   la tarea, con Jira (el default no se escribe)
+ *   #/tareas/context?vista=pendientes   la tarea, con Pendientes (o `artifacts`)
+ *   #/importar                          sin tarea, «Traer de Jira» en el editor
+ * Otra tarea u otra vista del editor entra al historial (push); otra pestaña lo reemplaza, porque
+ * recorrer las tres caras de una tarea no es navegar. Los enlaces viejos `#/tareas/<slug>` son la
+ * misma ruta sin parámetros, así que siguen abriendo. */
+const AUX_DEFAULT = 'jira';
+const IMPORT_ROUTE = 'importar';
+const currentRoute = computed(() => {
+  if (active.value) {
+    return hashRoute(['tareas', taskSlug(active.value)], { vista: activeAuxView.value }, { vista: AUX_DEFAULT });
+  }
+  return isOpen('jira') ? hashRoute([IMPORT_ROUTE]) : '';
+});
+const routePath = (hash) => readHashRoute(hash).parts.join('/');
+function writeRoute(hash, push) {
+  setRoute(`${window.location.pathname}${window.location.search}${hash}`, { push });
 }
-function restoreRoute() {
+function setImportOpen(open) {
+  if (isOpen('jira') === open) return;
+  const n = new Set(sections.value);
+  open ? n.add('jira') : n.delete('jira');
+  sections.value = n;
+}
+
+/* Las pestañas FIJADAS se recuerdan (`tablero:open-tabs`, sus slugs en orden) y vuelven al recargar;
+ * la que está en previsualización no, porque todavía no se eligió. Se guardan slugs —lo mismo que la
+ * ruta— y no claves: el id de una local puede renumerarse al consolidar archivos.
+ * ⚠ Reabrirlas NO enfoca ninguna: al entrar sin tarea en la URL el editor muestra el sprint (ver
+ * tablero/CLAUDE.md). Las locales llegan después que Jira, así que la lista queda PENDIENTE hasta la
+ * última restauración: recién ahí se descartan las que ya no existen y se vuelve a guardar. */
+let pendingTabs = (() => {
+  const saved = readPreference('open-tabs', []);
+  return Array.isArray(saved) ? saved.filter((slug) => typeof slug === 'string') : [];
+})();
+function restoreTabs(settle) {
+  if (!pendingTabs) return;
+  const known = new Map(tasksForRoute().map((task) => [taskSlug(task), task]));
+  const found = pendingTabs.map((slug) => known.get(slug)).filter(Boolean);
+  const keys = new Set(found.map((task) => task.Key));
+  if (found.length) tabItems.value = [...found, ...tabItems.value.filter((task) => !keys.has(task.Key))];
+  if (keys.has(preview.value)) preview.value = '';
+  if (settle) pendingTabs = null;
+}
+watch([tabItems, preview], () => {
+  if (pendingTabs) return;
+  savePreference('open-tabs', tabItems.value.filter((task) => task.Key !== preview.value).map(taskSlug));
+});
+
+let routesReady = false;
+// `settle` es la última pasada, con todos los datos: una ruta que todavía no se puede cumplir puede
+// ser una local que no llegó; en la última ya es una que no existe, y abre el estado inicial.
+function restoreRoute({ settle = false } = {}) {
   if (!routesReady) return;
-  const slug = slugFromRoute();
-  restoringRoute = true;
-  if (!slug) {
+  restoreTabs(settle);
+  const { parts, params } = readHashRoute(window.location.hash);
+  const [view, slug] = parts;
+  let fulfilled = !parts.length || (view === IMPORT_ROUTE && parts.length === 1);
+  if (fulfilled) {
     active.value = null;
-  } else {
-    const task = tasksForRoute().find(item => (item._local ? routeSlug(item.Summary) : item.Key.toLowerCase()) === slug);
+    setImportOpen(view === IMPORT_ROUTE);
+  } else if (view === 'tareas' && parts.length === 2) {
+    const task = tasksForRoute().find(item => taskSlug(item) === slug.toLowerCase());
     if (task) {
       if (task._local) showLocals.value = true;
       openTask(task, true);
+      const vista = params.get('vista');
+      activeAuxView.value = taskTabs.value.some((tab) => tab.id === vista) ? vista : AUX_DEFAULT;
+      fulfilled = true;
     }
   }
-  restoringRoute = false;
+  if (!fulfilled) {
+    if (!settle) return;
+    active.value = null;
+    setImportOpen(false);
+  }
+  // La URL queda en su forma canónica (sin lo que no se pudo cumplir) SIN sumar una entrada.
+  writeRoute(currentRoute.value, false);
 }
-const onHistoryNavigate = () => restoreRoute();
+const onHistoryNavigate = () => restoreRoute({ settle: true });
 onMounted(() => window.addEventListener('popstate', onHistoryNavigate));
 onUnmounted(() => window.removeEventListener('popstate', onHistoryNavigate));
 
@@ -1145,7 +1209,12 @@ onUnmounted(() => window.removeEventListener('popstate', onHistoryNavigate));
 // setea `active` directo, y sin este punto único el editor y la URL podrían contradecirse.
 watch(active, (t) => {
   if (t && !tabItems.value.some((x) => x.Key === t.Key)) tabItems.value = [...tabItems.value, t];
-  if (routesReady && !restoringRoute) writeRoute(t);
+});
+// Una sola escritura por cambio, cuando ya se asentó todo lo que cambió junto: `openTask` mueve la
+// tarea y la pestaña a la vez, y eso es UNA navegación. Restaurar ya dejó la URL igual, así que acá no
+// escribe nada.
+watch(currentRoute, (hash) => {
+  if (routesReady) writeRoute(hash, routePath(hash) !== routePath(window.location.hash));
 });
 
 // ── PENDIENTES ───────────────────────────────────────────────────────────────────────────────────
@@ -1652,7 +1721,7 @@ async function updateStart() {
 
     await locales;
     // Una ruta local depende de efforts/task-locals, y una Jira antigua puede depender de bySprint.
-    restoreRoute();
+    restoreRoute({ settle: true });
     saveBootstrap();
   } finally { jiraSyncing.value = false; }
 }

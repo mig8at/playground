@@ -1,13 +1,10 @@
-// Preferencias locales: una falla de almacenamiento nunca impide abrir el tablero.
-export function readPreference(key, fallback) {
-  try { return JSON.parse(localStorage.getItem(`tablero:${key}`)) ?? fallback; }
-  catch { return fallback; }
-}
+import { readPref, savePref } from './workbench.js';
 
-export function savePreference(key, value) {
-  try { localStorage.setItem(`tablero:${key}`, JSON.stringify(value)); }
-  catch { /* memoria disponible durante esta visita */ }
-}
+// Preferencias locales, con los helpers de la base (`readPref`/`savePref`: JSON, y una falla del
+// almacenamiento nunca impide abrir el tablero). Se conserva el prefijo `tablero:` que ya usaban las
+// claves guardadas: cambiarlo al `tablero.` de la base las perdería todas en la próxima recarga.
+export const readPreference = (key, fallback) => readPref(`tablero:${key}`, fallback);
+export const savePreference = (key, value) => savePref(`tablero:${key}`, value);
 
 export const TASK_GROUPS = [
   { id: 'iniciada', title: 'En curso' },

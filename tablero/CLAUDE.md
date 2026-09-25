@@ -9,7 +9,7 @@ página que scrollea:
 
 | Región | Qué tiene |
 |---|---|
-| `sidebar` | su título (`Mis tareas`, el conteo, **⊟** y **⋯**), el buscador, y debajo **un acordeón con una vista por estado** — *En curso · Bloqueadas · En pruebas · Por empezar · Terminadas* — más *Traer de Jira* al final. Cada fila Jira lleva al borde el icono para **avanzar al paso siguiente**, como acción de fila de la base: aparece al pasar, al enfocar o en la fila elegida, en el lugar del «2 pend.». Arranca abierta sólo **En curso**; las demás cuestan una fila y muestran su conteo igual. El **⋯** lleva los filtros (con tilde y conteo), «locales», «ver todas» y el ancho del sprint |
+| `sidebar` | su título (`Mis tareas`, el conteo, **⊟** y **⋯**), el buscador, y debajo **un acordeón con una vista por estado** — *En curso · Bloqueadas · En pruebas · Por empezar · Terminadas* — más *Traer de Jira* al final. Cada fila Jira lleva al borde el icono para **avanzar al paso siguiente**, como acción de fila de la base: aparece al pasar, al enfocar o en la fila elegida, en el lugar del «2 pend.». Arranca abierta sólo **En curso** y después recuerda qué grupos dejaste abiertos; los cerrados cuestan una fila y muestran su conteo igual. El **⋯** lleva los filtros (con tilde y conteo), «locales», «ver todas» y el ancho del sprint |
 | `editor` | **una barra con las tareas abiertas** (como los archivos en VS Code) y debajo, de la enfocada, una cabecera con estado, sprint, puntos y Jira, seguida por la cronología curada de `task-context/`: **Hoy**, **Ayer** y las fechas reales anteriores, cada una un encabezado que se pega arriba mientras se lee y se pliega con un clic. Después queda el documento como consulta. Sin ninguna abierta manda **la vista abierta del acordeón** izquierdo: el sprint (los 4 indicadores + Mi jornada) o el import de Jira |
 | `panel` | la consola de ramas de la tarea enfocada, en la forma de la base: banda con refrescar, **maximizar** y cerrar; subbanda con el repo elegido y la leyenda; la tabla; y el sidebar interno de 240 a la derecha con **sólo los repos trabajados en esa tarea** (con la consola por debajo de 600 se pliega y el repo se elige con el select de la subbanda). Está abierta por defecto y **Ramas** queda visible en el pie cuando se cierra. Lee `data/cache/ramas.json`, no corre Git al renderizar y se puede redimensionar; sin ramas se reduce a una franja informativa |
 | `statusbar` | sprint, cuánto le queda y cuántas tareas hay a la vista; a la derecha el **botón de tema** (claro u oscuro, de la base) y los de disposición |
@@ -78,7 +78,9 @@ el contador no refleje, ese filtro **no puede ir al menú**: tiene que quedar a 
 ⚠ **Y al entrar NO hay ninguna tarea seleccionada, a propósito.** Antes sí —quedaba la que estaba en
 curso— porque `active` sólo decía «sobre cuál se registra el tiempo». Ahora `active` es **lo que
 muestra el editor**, así que autoseleccionar significaba entrar directo a una tarea y no ver nunca el
-sprint.
+sprint. Las pestañas **fijadas** sí vuelven al recargar (la prevista no), pero **ninguna queda
+enfocada**: sólo la URL enfoca una tarea. Sin hash, el editor muestra el sprint con la barra de
+pestañas arriba.
 
 ## Plantilla por vista
 
@@ -271,9 +273,19 @@ Rama y PR permanecen fijas al desplazar ambientes, la cabecera explica los tres 
 lee de forma relativa con el instante exacto al pasar el cursor.
 
 Cada tarea tiene una ruta copiable: `#/tareas/context` para los contenedores locales y
-`#/tareas/core-543` para Jira. La ruta abre las locales aunque el filtro «locales» estuviera apagado,
-se restaura al recargar y participa de atrás/adelante. Se usa hash routing para no depender de un
-fallback del servidor estático.
+`#/tareas/core-543` para Jira. La pestaña derecha va como parámetro —`#/tareas/core-543?vista=pendientes`
+o `?vista=artifacts`—, y Jira, que es el default, no se escribe: por eso un enlace viejo sin parámetros
+sigue abriendo. Sin tarea, «Traer de Jira» abierta es `#/importar` y el sprint es la URL sin hash.
+Cambiar de tarea o de vista del editor **entra al historial**; cambiar de pestaña **lo reemplaza**. La
+ruta abre las locales aunque el filtro «locales» estuviera apagado y se restaura al recargar y con
+atrás/adelante; una que no se puede cumplir (una tarea que ya no existe, una vista inventada) abre el
+estado inicial y deja la URL limpia, pero recién en la última pasada, porque una local llega después
+que Jira. Se usa hash routing para no depender de un fallback del servidor estático.
+
+Lo demás son **preferencias** y van a `localStorage` con el prefijo `tablero:` (la regla es la de
+`tools/ui/README.md` §«Qué se guarda y dónde»): los anchos y la visibilidad de las regiones, el filtro
+`show-locals`, los grupos abiertos del acordeón (`open-groups`) y las pestañas fijadas (`open-tabs`,
+sus slugs en orden; las que ya no existen se descartan al volver).
 
 La recarga sigue el patrón **cache-first + stale-while-revalidate**: `tablero:bootstrap:v1` conserva
 durante siete días el último sprint, sus tareas y la ventana de cuatro sprints. Se pinta y restaura la
