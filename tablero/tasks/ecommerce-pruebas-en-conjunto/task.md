@@ -6,7 +6,7 @@ created: "2026-09-23T17:30:00-05:00"
 canon: []
 jira: [CORE-543]
 jira_title: "Ecommerce: pruebas en conjunto de todo el flujo"
-ramas: feat/ecommerce-checkout-por-settings, fix/restaurar-ecommerce-en-qa, fix/profiling-reviews-user-id-bigint, fix/ecommerce-amount-from-order
+ramas: feat/ecommerce-checkout-por-settings, fix/restaurar-ecommerce-en-qa, fix/profiling-reviews-user-id-bigint, fix/ecommerce-amount-from-order, fix/ecommerce-celular-editable, fix/ecommerce-datos-editables, fix/ecommerce-aviso-cuota-inicial-solo-tienda, fix/ecommerce-monto-del-pedido
 ---
 
 ## Pendientes
@@ -45,12 +45,16 @@ ramas: feat/ecommerce-checkout-por-settings, fix/restaurar-ecommerce-en-qa, fix/
       `originaciones-qa.dev.creditop.com`.
 - [ ] **Unificar la lista de Corbeta**: el código de #169 tiene `[24, 209, 210, 211, 311]` y
       `settings.corbeta_allieds` dice `[209, 210, 211]` (y la fila está duplicada, ids 21 y 26).
-- [ ] **Leer `new_frontend_allied_branches` y `new_frontend_allieds` en producción** antes de llevar
-      #201 a `main` (pide la VPN de prod).
-- [ ] **Mergear a `qa` los dos PRs del monto de la compra** —`legacy-backend#1483` y
-      `frontend-monorepo#1061`, en cualquier orden— y repetir en QA la compra que reportaron, con un
-      comprador nuevo después de la restauración de la base. Termina cuando `/lenders?amount=<otro>`
-      muestre el total del pedido y elegir entidad con otro monto responda 422.
+- [x] ~~Leer `new_frontend_allied_branches` y `new_frontend_allieds` en producción~~ — leídas el
+      25/9, con #201 ya en `main` (v1.1.25): ninguno de los 11 comercios con tienda está habilitado.
+- [x] ~~Mergear a `qa` los dos PRs del monto de la compra~~ — reemplazado: #1061 y #1483 se cerraron y
+      el cambio va directo a `main` en `frontend-monorepo#1073` y `legacy-backend#1492`.
+- [ ] **Mergear a `main` `legacy-backend#1492` y después `frontend-monorepo#1073`, y taguear los dos**
+      (backend `v0.5.42`, front `v1.10.17`). Termina cuando los dos tags desplegaron y en producción
+      `/lenders` de una compra de tienda ya no trae `?amount=`.
+      Depende de: revisión del equipo — los dos piden aprobación.
+- [ ] **Avisar que `soft-update-user-request` responde 500 siempre** (el controlador no pasa `rate`).
+      Hoy no lo usa nadie; termina cuando quede un issue o un PR que lo arregle.
 - [ ] **(Diferido) Sacar `erId` de la URL antes del OTP.** El monto ya no viaja en la dirección y
       después del OTP las pantallas van sólo por el id de solicitud; lo único que queda es `?erId=` en
       `solicitar` y `otp`, porque ahí todavía no hay solicitud. No es un dato de negocio: editarlo

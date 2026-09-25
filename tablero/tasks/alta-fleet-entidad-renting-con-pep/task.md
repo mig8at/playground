@@ -2,7 +2,7 @@
 id: 76
 title: "Alta Fleet: entidad propia, pantalla de bienvenida y autogestión"
 stage: work
-ramas: feat/comercio-pantalla-de-bienvenida, feat/la-card-de-alta
+ramas: feat/comercio-pantalla-de-bienvenida, feat/la-card-de-alta, feat/bienvenida-del-comercio-fiel-al-diseno
 created: "2026-09-09T10:00:00-05:00"
 canon: [motai, altas, creditopx, listado]
 jira: [CORE-558]
