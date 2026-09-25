@@ -3,7 +3,8 @@
 // `make estilo-ui`.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { regionSize, reopenSize, fitRegions, bindResize, preferredTheme, setTheme, bindThemeToggle, THEME_KEY, THEME_BOOT, bindPanelMaximize } from './workbench.js';
+import { regionSize, reopenSize, fitRegions, bindResize, preferredTheme, setTheme, bindThemeToggle, THEME_KEY, THEME_BOOT, bindPanelMaximize,
+  readPref, savePref, setRoute, readHashRoute, hashRoute } from './workbench.js';
 
 test('regionSize: 0 o al menos el mínimo', () => {
   assert.equal(regionSize(300, 240), 300);
@@ -209,4 +210,40 @@ test('maximizar: el botón alterna, dice qué hace y Escape desde la consola res
   w.root.key({ key: 'Escape', target: w.inside });
   assert.equal(w.classes.has('panel-max'), false);
   assert.equal(button.attrs['aria-label'], 'Maximizar la consola');
+});
+
+test('readPref / savePref: JSON, default ante lo roto y undefined borra', () => {
+  const store = new Map();
+  globalThis.localStorage = { getItem: (k) => store.get(k) ?? null, setItem: (k, v) => store.set(k, String(v)), removeItem: (k) => store.delete(k) };
+  assert.equal(readPref('x.a', 'def'), 'def', 'sin guardar, el default');
+  savePref('x.a', { open: ['iniciada'] });
+  assert.deepEqual(readPref('x.a', null), { open: ['iniciada'] });
+  store.set('x.b', '{roto');
+  assert.equal(readPref('x.b', 7), 7, 'un valor roto no rompe: vuelve el default');
+  savePref('x.a', undefined);
+  assert.equal(store.has('x.a'), false, 'undefined borra la clave');
+  globalThis.localStorage = { getItem() { throw new Error('bloqueado'); }, setItem() { throw new Error('bloqueado'); } };
+  assert.equal(readPref('x.a', 'def'), 'def', 'un navegador que no deja leer: el default');
+  assert.doesNotThrow(() => savePref('x.a', 1));
+});
+
+test('hashRoute / readHashRoute: ida y vuelta, sin los defaults ni los vacíos', () => {
+  const url = hashRoute(['comercio', 'bcp perú'], { canal: 'qr', inicio: 'inicio', vista: '' }, { inicio: 'inicio' });
+  assert.equal(url, '#/comercio/bcp%20per%C3%BA?canal=qr');
+  const back = readHashRoute(url);
+  assert.deepEqual(back.parts, ['comercio', 'bcp perú']);
+  assert.equal(back.params.get('canal'), 'qr');
+  assert.equal(back.params.get('inicio'), null, 'el default no se escribe');
+  assert.deepEqual(readHashRoute('').parts, []);
+  assert.deepEqual(readHashRoute('#/tareas/%E0%A4%A').parts, ['tareas', ''], 'un trozo mal codificado no rompe');
+});
+
+test('setRoute: push para cambiar qué se mira, replace para el detalle, nada si no cambió', () => {
+  const calls = [];
+  globalThis.location = { pathname: '/', search: '', hash: '#/a' };
+  globalThis.history = { pushState: (_, __, u) => calls.push(['push', u]), replaceState: (_, __, u) => calls.push(['replace', u]) };
+  assert.equal(setRoute('/#/a'), false, 'la misma URL no escribe');
+  setRoute('/#/b', { push: true });
+  setRoute('/#/b?vista=comercio');
+  assert.deepEqual(calls, [['push', '/#/b'], ['replace', '/#/b?vista=comercio']]);
 });

@@ -217,6 +217,22 @@ Un solo juego: **Lucide** (`lucide-static`, la biblioteca de shadcn), en la vers
 
 **El teclado llega a todo.** En una manija enfocada, las flechas ajustan 16 px y la que cruza el mínimo pliega; Shift más flecha, 48 px; Home pliega; End amplía; Enter alterna y reabre en la última medida. El arrastre sigue al puntero y se cancela limpio ante `pointercancel` o si se pierde la captura.
 
+## Qué se guarda y dónde
+
+Una herramienta que olvida lo que elegiste obliga a rearmarlo en cada recarga, y una que no tiene ruta no se puede señalar: «abrí Alkosto con canal QR» es una instrucción; un enlace es la cosa. La regla es una sola para las cuatro:
+
+| Qué es | Dónde va | Ejemplos |
+| --- | --- | --- |
+| Lo que identifica lo que estás mirando o haciendo | **la URL** | la tarea del tablero, el comercio y el canal del harness, la traza del trazador, la pantalla del visor |
+| Una preferencia personal | **`localStorage`**, con `readPref` / `savePref` y la clave `<herramienta>.<nombre>` | una pestaña, un filtro, los grupos abiertos, un modo, los datos del caso |
+| Datos grandes | **IndexedDB** | las trazas completas del trazador |
+| Lo peligroso o lo generado por corrida | **nada** | el ambiente compartido (recargar y seguir en `dev` sin darse cuenta), la cédula sintética |
+
+- **`push` cuando cambia QUÉ se mira, `replace` para el detalle.** Otra tarea, otro comercio u otra solicitud entran al historial y atrás vuelve a lo anterior; una pestaña, un modo o una etapa reemplazan la URL, porque diez entradas por traza dejan inútil el botón atrás. `setRoute(url, { push })` no escribe si la URL no cambió.
+- **La URL dice sólo lo que se eligió.** `hashRoute(partes, params, defaults)` omite lo vacío y lo que vale su default, así un enlace viejo no queda atado a un default que cambió. `readHashRoute()` lo lee.
+- **Hash o ruta.** El hash (`#/tareas/core-543`) no necesita que el servidor sepa de rutas y es lo que usan el tablero y el harness. Una ruta de verdad (`/traza/prod/…`, `/<proyecto>/<pantalla>`) pide que el servidor devuelva la página en cualquier camino; la usan el trazador y el visor.
+- **Una ruta que no se puede cumplir no rompe.** Un comercio, una tarea o una pantalla que ya no existe abre la herramienta en su estado inicial; nunca queda en blanco.
+
 ## Menús
 
 La barra de iconos de una región lleva lo frecuente. El resto va al menú de tres puntos (`RegionMenu`): nombres completos, tildes y conteos, y un punto sobre el botón cuando hay opciones activas. **Un filtro sólo puede vivir en el menú si la banda delata que está puesto** (un contador que pasa de `9` a `9 / 16`, o un rótulo «Filtrada»); sin esa señal, el filtro se queda a la vista.

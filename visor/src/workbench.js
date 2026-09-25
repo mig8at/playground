@@ -12,6 +12,67 @@ export function saveSize(key, value) {
   try { localStorage.setItem(key, String(value)); } catch { /* Preferencias opcionales. */ }
 }
 
+/* ── QUÉ SE GUARDA Y DÓNDE ─────────────────────────────────────────────────────────────────────
+ * Una regla para las cuatro herramientas (README §«Qué se guarda y dónde»):
+ *   lo que identifica lo que estás mirando o haciendo → la URL: se copia, se pega en una tarea, vuelve
+ *     con F5 y con atrás/adelante (la tarea del tablero, el comercio del harness, la traza, la pantalla);
+ *   una preferencia personal (una pestaña, un filtro, un grupo abierto, un modo) → `localStorage`, con
+ *     `readPref`/`savePref`, bajo `<herramienta>.<nombre>`;
+ *   datos grandes (las trazas del trazador) → IndexedDB;
+ *   lo peligroso o lo generado por corrida (el ambiente compartido, la cédula sintética) → NO se guarda:
+ *     recargar y quedar escribiendo en `dev` sin darse cuenta es peor que volver a elegirlo. */
+
+/** Una preferencia en JSON. Si no está, está rota o el navegador no deja leer, vuelve `fallback`. */
+export function readPref(key, fallback) {
+  try {
+    const raw = localStorage.getItem(key);
+    if (raw === null) return fallback;
+    const value = JSON.parse(raw);
+    return value ?? fallback;
+  } catch { return fallback; }
+}
+
+/** Guarda una preferencia en JSON; `undefined` la borra. Una falla del almacenamiento nunca rompe la UI. */
+export function savePref(key, value) {
+  try {
+    if (value === undefined) localStorage.removeItem(key);
+    else localStorage.setItem(key, JSON.stringify(value));
+  } catch { /* preferencia opcional: vale durante esta visita */ }
+}
+
+/** Escribe la URL sin recargar, y sólo si cambió. `push` cuando cambia QUÉ se mira (otra tarea, otro
+ * comercio, otra solicitud): atrás vuelve a lo anterior. Sin `push` reemplaza: elegir una pestaña, un
+ * modo o una etapa no es navegar, y diez entradas por traza dejan inútil el botón atrás. */
+export function setRoute(url, { push = false } = {}) {
+  const current = location.pathname + location.search + location.hash;
+  if (!url || current === url) return false;
+  history[push ? 'pushState' : 'replaceState'](null, '', url);
+  return true;
+}
+
+/** Lee una ruta de hash, `#/comercio/motai?canal=qr`: sus partes decodificadas y sus parámetros. El hash
+ * no necesita que el servidor sepa de rutas; por eso lo usan el tablero y el harness. */
+export function readHashRoute(hash = location.hash) {
+  const raw = String(hash || '').replace(/^#\/?/, '');
+  const cut = raw.indexOf('?');
+  const path = cut < 0 ? raw : raw.slice(0, cut);
+  const parts = path.split('/').filter(Boolean).map((part) => { try { return decodeURIComponent(part); } catch { return ''; } });
+  return { parts, params: new URLSearchParams(cut < 0 ? '' : raw.slice(cut + 1)) };
+}
+
+/** Arma una ruta de hash. Un parámetro vacío, nulo o igual a su valor por defecto (`defaults`) no se
+ * escribe: la URL dice sólo lo que se eligió, y un enlace viejo no queda atado a un default que cambió. */
+export function hashRoute(parts, params = {}, defaults = {}) {
+  const path = parts.filter((p) => p !== undefined && p !== null && p !== '').map((p) => encodeURIComponent(String(p))).join('/');
+  const query = new URLSearchParams();
+  for (const [key, value] of Object.entries(params)) {
+    if (value === undefined || value === null || value === '' || String(value) === String(defaults[key] ?? '\u0000')) continue;
+    query.set(key, String(value));
+  }
+  const qs = query.toString();
+  return `#/${path}${qs ? `?${qs}` : ''}`;
+}
+
 /* ── MÍNIMO O NADA ─────────────────────────────────────────────────────────────────────────────
  * Una región que se redimensiona mide 0 o al menos su mínimo: entre los dos no hay nada. Vale por
  * cualquier camino —arrastre, teclado, ventana o una medida guardada— y por eso vive acá y no en cada
