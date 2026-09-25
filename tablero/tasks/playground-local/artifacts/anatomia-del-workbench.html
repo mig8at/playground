@@ -8,12 +8,14 @@
   --fg-3: color-mix(in oklab, var(--fg) 64%, var(--bg));
   --sidebar: oklch(0.967 0.0029 264.54);
   --card: oklch(0.985 0.002 264);
-  --muted: oklch(0.955 0.003 264);
   --border: oklch(0.9 0.006 264.5);
   --primary: oklch(0.6716 0.1368 48.51);
   --primary-ink: oklch(0.52 0.13 45);
+  --on-primary: oklch(1 0 0);
   --secondary: oklch(0.536 0.0398 196.03);
-  --sel: color-mix(in oklab, var(--primary) 14%, transparent);
+  --sel: color-mix(in oklab, var(--fg) 7%, transparent);
+  --hover: color-mix(in oklab, var(--fg) 5%, transparent);
+  --redline: oklch(0.62 0.2 18);
   --hatch: color-mix(in oklab, var(--fg) 10%, transparent);
   --mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
   --sans: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
@@ -21,1034 +23,610 @@
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
     color-scheme: dark;
-    --bg: oklch(0.1797 0.0043 308.19);
-    --fg: oklch(0.8109 0 0);
-    --sidebar: oklch(0.205 0.003 300);
-    --card: oklch(0.215 0 0);
-    --muted: oklch(0.252 0 0);
-    --border: oklch(0.29 0.004 300);
-    --primary: oklch(0.7214 0.1337 49.98);
-    --primary-ink: oklch(0.76 0.12 52);
-    --secondary: oklch(0.594 0.0443 196.02);
+    --bg: oklch(0.1797 0.0043 308.19); --fg: oklch(0.8109 0 0);
+    --sidebar: oklch(0.205 0.003 300); --card: oklch(0.215 0 0); --border: oklch(0.29 0.004 300);
+    --primary: oklch(0.7214 0.1337 49.98); --primary-ink: oklch(0.76 0.12 52); --on-primary: oklch(0.1797 0.0043 308.19);
+    --secondary: oklch(0.594 0.0443 196.02); --redline: oklch(0.72 0.17 18);
   }
 }
 :root[data-theme="dark"] {
   color-scheme: dark;
-  --bg: oklch(0.1797 0.0043 308.19);
-  --fg: oklch(0.8109 0 0);
-  --sidebar: oklch(0.205 0.003 300);
-  --card: oklch(0.215 0 0);
-  --muted: oklch(0.252 0 0);
-  --border: oklch(0.29 0.004 300);
-  --primary: oklch(0.7214 0.1337 49.98);
-  --primary-ink: oklch(0.76 0.12 52);
-  --secondary: oklch(0.594 0.0443 196.02);
+  --bg: oklch(0.1797 0.0043 308.19); --fg: oklch(0.8109 0 0);
+  --sidebar: oklch(0.205 0.003 300); --card: oklch(0.215 0 0); --border: oklch(0.29 0.004 300);
+  --primary: oklch(0.7214 0.1337 49.98); --primary-ink: oklch(0.76 0.12 52); --on-primary: oklch(0.1797 0.0043 308.19);
+  --secondary: oklch(0.594 0.0443 196.02); --redline: oklch(0.72 0.17 18);
 }
 
 * { box-sizing: border-box }
-body { background: var(--bg); color: var(--fg); font: 14px/1.55 var(--sans); padding-inline: 16px; padding-block: 28px 64px }
-.page { max-width: 1240px; margin: 0 auto; display: flex; flex-direction: column; gap: 48px }
+body { background: var(--bg); color: var(--fg); font: 14px/1.55 var(--sans); padding-inline: 16px; padding-block: 32px 72px }
+.page { max-width: 1180px; margin: 0 auto; display: flex; flex-direction: column; gap: 56px }
 code, .mono { font-family: var(--mono); font-size: .9em }
-h1, h2, h3 { text-wrap: balance; margin: 0; font-weight: 650; letter-spacing: -.01em }
+h1, h2, h3 { text-wrap: balance; margin: 0; font-weight: 600; letter-spacing: -.01em }
 h1 { font-size: 30px; line-height: 1.15 }
-h2 { font-size: 19px }
+h2 { font-size: 20px }
 h3 { font-size: 14px }
 p { margin: 0; max-width: 68ch }
-.eyebrow { font-size: 11px; letter-spacing: .06em; text-transform: uppercase; color: var(--fg-3); font-weight: 600 }
-.lede { color: var(--fg-2); font-size: 15px }
-header.top { display: flex; flex-direction: column; gap: 10px; padding-bottom: 20px; border-bottom: 1px solid var(--border) }
-.meta { display: flex; flex-wrap: wrap; gap: 6px 16px; font-size: 12px; color: var(--fg-3) }
+.eyebrow { font-size: 12px; color: var(--fg-3); font-weight: 600 }
+.lede { color: var(--fg-2); font-size: 16px; max-width: 64ch }
+header.top { display: flex; flex-direction: column; gap: 12px; padding-bottom: 24px; border-bottom: 1px solid var(--border) }
+.meta { display: flex; flex-wrap: wrap; gap: 4px 16px; font-size: 12px; color: var(--fg-3) }
 .meta b { color: var(--fg-2); font-weight: 600 }
-section { display: flex; flex-direction: column; gap: 16px }
-.sec-head { display: flex; flex-direction: column; gap: 6px }
+nav.toc { display: flex; flex-wrap: wrap; gap: 4px 16px; font-size: 13px }
+nav.toc a { color: var(--fg-2); text-decoration: none; border-bottom: 1px solid transparent }
+nav.toc a:hover, nav.toc a:focus-visible { color: var(--fg); border-bottom-color: var(--primary); outline: none }
+section { display: flex; flex-direction: column; gap: 20px }
+.sec-head { display: flex; flex-direction: column; gap: 8px }
 .sec-head p { color: var(--fg-2) }
-
-/* ── selector de herramienta ─────────────────────────────── */
-.bar { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 16px }
-.seg { display: inline-flex; border: 1px solid var(--border); border-radius: 8px; padding: 2px; gap: 2px }
-.seg button { font: inherit; font-size: 13px; border: 0; background: none; color: var(--fg-2); padding: 5px 12px; border-radius: 6px; cursor: pointer }
-.seg button[aria-pressed="true"] { background: var(--primary); color: oklch(0.18 0.004 308) }
-.seg button:focus-visible, .chk:focus-within, .wb [data-part]:focus-visible { outline: 2px solid var(--primary); outline-offset: 1px }
-.chk { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; color: var(--fg-2); cursor: pointer; border-radius: 4px }
+.bar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 20px; font-size: 13px; color: var(--fg-2) }
+.chk { display: inline-flex; align-items: center; gap: 8px; cursor: pointer }
 .chk input { accent-color: var(--primary) }
 .hint { font-size: 12px; color: var(--fg-3) }
+:focus-visible { outline: 2px solid var(--primary); outline-offset: 1px }
 
-/* ── el lienzo: diagrama + inspector ─────────────────────── */
-.canvas { display: grid; gap: 20px; grid-template-columns: minmax(0, 1fr) }
-@media (min-width: 1100px) { .canvas { grid-template-columns: minmax(0, 1fr) 360px } }
-.scroll-x { overflow-x: auto; padding-bottom: 4px }
-
+/* ══ EL EJEMPLO EN TAMAÑO REAL ═══════════════════════════════════════════════════════════════
+   Todo lo de adentro usa las medidas de la base y nada más: 40 · 32 · 28 · 24, margen 12. */
+.stage { overflow-x: auto; padding-bottom: 4px }
 .wb {
-  --tb: 0px; --bn: 0px; --ab: 0px; --sb: 200px; --ax: 210px; --pn: 118px;
-  min-width: 720px; height: 520px;
-  display: grid;
-  grid-template-columns: var(--ab) var(--sb) minmax(0, 1fr) var(--ax);
-  grid-template-rows: var(--tb) var(--bn) minmax(0, 1fr) var(--pn) 26px;
-  grid-template-areas:
-    "titlebar titlebar titlebar titlebar"
-    "banner banner banner banner"
-    "activitybar sidebar editor auxiliarybar"
-    "activitybar sidebar panel auxiliarybar"
-    "statusbar statusbar statusbar statusbar";
-  border: 1px solid var(--border); border-radius: 10px; overflow: hidden;
-  font-size: 11.5px; background: var(--bg); user-select: none;
+  --band: 40px; --view: 32px; --row: 28px; --ctl: 32px; --ctl-sm: 28px; --ico: 24px; --gut: 12px; --status: 30px;
+  position: relative; width: 1180px; height: 620px;
+  display: grid; grid-template-columns: 280px minmax(0, 1fr) 300px; grid-template-rows: minmax(0, 1fr) 156px var(--status);
+  grid-template-areas: "sidebar editor aux" "sidebar panel aux" "status status status";
+  border: 1px solid var(--border); border-radius: 10px; overflow: hidden; background: var(--bg);
+  font-size: 13px; line-height: 1.4; color: var(--fg); user-select: none;
 }
-.wb.reserved-on { --tb: 30px; --bn: 22px; --ab: 34px }
-.wb > * { min-width: 0; min-height: 0; position: relative }
 .wb [data-part] { cursor: pointer }
-.r { display: flex; flex-direction: column; overflow: hidden }
-.r-titlebar { grid-area: titlebar; background: var(--card); border-bottom: 1px solid var(--border) }
-.r-banner { grid-area: banner; border-bottom: 1px solid var(--border) }
-.r-activitybar { grid-area: activitybar; background: var(--sidebar); border-right: 1px solid var(--border) }
-.r-sidebar { grid-area: sidebar; background: var(--sidebar); border-right: 1px solid var(--border) }
-.r-editor { grid-area: editor; background: var(--bg) }
-.r-panel { grid-area: panel; background: var(--card); border-top: 1px solid var(--border) }
-.r-aux { grid-area: auxiliarybar; background: var(--sidebar); border-left: 1px solid var(--border) }
-.r-status { grid-area: statusbar; background: var(--card); border-top: 1px solid var(--border); flex-direction: row; align-items: center; gap: 10px; padding: 0 8px; color: var(--fg-2); font-size: 10.5px }
-.reserved { background-image: repeating-linear-gradient(135deg, var(--hatch) 0 1px, transparent 1px 7px); align-items: center; justify-content: center; color: var(--fg-3); font-family: var(--mono); font-size: 10px }
-.wb:not(.reserved-on) .reserved { display: none }
-.r-activitybar.reserved { writing-mode: vertical-rl }
+.wb [data-part].hover { box-shadow: inset 0 0 0 1px color-mix(in oklab, var(--primary) 50%, transparent) }
+.wb [data-part].sel { box-shadow: inset 0 0 0 2px var(--primary) }
+.reg { display: flex; flex-direction: column; min-width: 0; min-height: 0; overflow: hidden; position: relative }
+.sb { grid-area: sidebar; background: var(--sidebar); border-right: 1px solid var(--border) }
+.ed { grid-area: editor; background: var(--bg) }
+.ax { grid-area: aux; background: var(--sidebar); border-left: 1px solid var(--border) }
+.pn { grid-area: panel; background: var(--card); border-top: 1px solid var(--border) }
+.st { grid-area: status; background: var(--card); border-top: 1px solid var(--border); display: flex; align-items: center; gap: 16px; padding: 0 var(--gut); font-size: 11px; color: var(--fg-2) }
+.st .l { flex: 1; display: flex; gap: 16px; min-width: 0 }
+.st .dot { display: inline-block; width: 6px; height: 6px; border-radius: 50%; background: var(--secondary); margin-right: 6px; vertical-align: 1px }
 
-.rh { flex: none; display: flex; align-items: center; gap: 4px; min-height: 26px; padding: 0 6px 0 8px; border-bottom: 1px solid var(--border); color: var(--fg-2); font-weight: 600 }
-.rh > .t { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap }
-.acts { display: inline-flex; gap: 1px; padding: 1px; border-radius: 4px }
-.ic { width: 16px; height: 16px; border-radius: 3px; display: grid; place-items: center; color: var(--fg-3) }
-.ic svg { width: 11px; height: 11px }
-.more { width: 16px; height: 16px; border-radius: 3px; display: grid; place-items: center; color: var(--fg-3); font-weight: 700; letter-spacing: -1px }
-.rb { flex: 1; min-height: 0; overflow: hidden; padding: 4px 0; display: flex; flex-direction: column }
-.row { padding: 2px 10px; color: var(--fg-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis }
-.row.on { background: color-mix(in oklab, var(--fg) 8%, transparent); color: var(--fg) }
-.grp { padding: 3px 8px; font-weight: 600; color: var(--fg-2); background: var(--region-bg, var(--bg)); display: flex; gap: 4px; align-items: center }
-.r-sidebar, .r-aux { --region-bg: var(--sidebar) }
-.r-panel { --region-bg: var(--card) }
-.chev { font-size: 8px; color: var(--fg-3); width: 8px }
-.view { display: flex; flex-direction: column; min-height: 0; border-bottom: 1px solid var(--border) }
-.view.open { flex: 1 1 0 }
-.view:last-child { border-bottom: 0 }
-.view .rh { border-bottom: 0 }
-.view.open .rh { border-bottom: 1px solid var(--border) }
-.tabs { display: flex; flex: none; border-bottom: 1px solid var(--border); background: var(--sidebar) }
-.tab { padding: 4px 10px; border-right: 1px solid var(--border); color: var(--fg-3); white-space: nowrap }
-.tab.on { background: var(--bg); color: var(--fg); box-shadow: inset 0 1px 0 var(--primary) }
-.line { height: 6px; border-radius: 3px; background: color-mix(in oklab, var(--fg) 12%, transparent); margin: 5px 10px }
-.line.s { width: 45% } .line.m { width: 70% } .line.l { width: 88% }
-.log { font-family: var(--mono); font-size: 10px; padding: 1px 8px; color: var(--fg-3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis }
-.log .ok { color: var(--secondary) } .log .w { color: var(--primary-ink) }
-.map { flex: 1; position: relative; margin: 8px }
-.node { position: absolute; padding: 3px 7px; border: 1px solid var(--border); border-radius: 5px; background: var(--card); color: var(--fg-2); font-size: 10px; white-space: nowrap }
-.node.hot { border-color: var(--primary); color: var(--fg) }
-.edges { position: absolute; inset: 0; width: 100%; height: 100% }
-.edges path { stroke: var(--border); stroke-width: 1.2; fill: none }
-.shot { flex: 1; margin: 10px 18%; border: 1px solid var(--border); border-radius: 12px; background: var(--card); display: flex; flex-direction: column; padding: 10px; gap: 2px }
-.shot .btnm { margin-top: auto; height: 16px; border-radius: 5px; background: var(--primary); opacity: .85 }
-.status-l { flex: 1; min-width: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; display: flex; gap: 10px }
-.dot { display: inline-block; width: 6px; height: 6px; border-radius: 50%; background: var(--secondary); margin-right: 4px; vertical-align: 1px }
-.toggles { display: inline-flex; gap: 2px; padding: 1px; border-radius: 4px }
-.tg { width: 18px; height: 16px; border-radius: 3px; display: grid; place-items: center; cursor: pointer; color: var(--fg-3) }
-.tg svg { width: 12px; height: 10px }
-.tg.off { opacity: .45 }
-.rsz { position: absolute; z-index: 3; background: transparent }
-.rsz::before { content: ""; position: absolute; background: transparent; transition: background .12s }
-.rsz.v { top: 0; bottom: 0; width: 7px }
-.rsz.v::before { top: 0; bottom: 0; left: 3px; width: 1px }
-.rsz.h { left: 0; right: 0; height: 7px }
-.rsz.h::before { left: 0; right: 0; top: 3px; height: 1px }
-.rsz:hover::before, .rsz.hl::before { background: var(--primary) }
-.r-sidebar > .rsz { right: -4px }
-.r-aux > .rsz { left: -4px }
-.r-panel > .rsz { top: -4px }
-.overlay-note { position: absolute; right: 6px; bottom: 6px; font-size: 9.5px; color: var(--fg-3); font-family: var(--mono) }
-.hidden { display: none !important }
+.head { flex: none; display: flex; align-items: center; gap: 8px; height: var(--band); padding: 4px var(--gut); border-bottom: 1px solid var(--border); font-size: 12px; font-weight: 600; color: var(--fg-2) }
+.head .t { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap }
+.acts { display: flex; gap: 2px }
+.ib { width: var(--ico); height: var(--ico); border-radius: 6px; display: grid; place-items: center; color: var(--fg-2) }
+.ib:hover { background: var(--sel); color: var(--fg) }
+.ib svg, .ic16 { width: 16px; height: 16px }
+.body { flex: 1; min-height: 0; overflow: hidden }
+.cnt { font-size: 11px; font-weight: 400; color: var(--fg-3); font-variant-numeric: tabular-nums }
 
-/* resaltado de la parte elegida, y de la que está bajo el puntero */
-.wb [data-part].hover { box-shadow: inset 0 0 0 1px color-mix(in oklab, var(--primary) 55%, transparent) }
-.wb [data-part].sel { box-shadow: inset 0 0 0 2px var(--primary); background-color: var(--sel) }
-.wb .rsz.sel::before { background: var(--primary); width: 3px; left: 2px }
-.wb .rsz.h.sel::before { height: 3px; top: 2px; width: auto; left: 0 }
+.view { display: flex; flex-direction: column; border-bottom: 1px solid var(--border) }
+.view.open { flex: 1; min-height: 0 }
+.vh { flex: none; display: flex; align-items: center; gap: 8px; height: var(--view); padding: 0 var(--gut); font-size: 12px; font-weight: 600; color: var(--fg-2) }
+.vh svg { width: 16px; height: 16px; flex: none; color: var(--fg-3) }
+.vh.open svg { transform: rotate(90deg) }
+.vh .t { flex: 1 }
+.search { margin: 8px var(--gut) 4px; height: var(--ctl); display: flex; align-items: center; gap: 8px; padding: 0 8px; border: 1px solid var(--border); border-radius: 6px; color: var(--fg-3); font-size: 13px }
+.search svg { width: 16px; height: 16px; flex: none }
+.row { position: relative; display: flex; align-items: center; gap: 8px; height: var(--row); margin: 0 4px; padding: 0 8px; border-radius: 6px; color: var(--fg-2); white-space: nowrap }
+.row .n { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis }
+.row .m { font-size: 11px; color: var(--fg-3); font-variant-numeric: tabular-nums }
+.row:hover { background: var(--hover) }
+.row.on { background: var(--sel); color: var(--fg); box-shadow: inset 2px 0 0 var(--primary) }
+.row.i1 { padding-left: 24px }
+.gh { display: flex; align-items: center; gap: 8px; height: var(--view); padding: 0 var(--gut); font-size: 12px; font-weight: 600; color: var(--fg-2) }
+.gh svg { width: 16px; height: 16px; color: var(--fg-3); transform: rotate(90deg) }
 
-/* ── inspector ───────────────────────────────────────────── */
-.insp { border-left: 3px solid var(--primary); background: color-mix(in oklab, var(--primary) 5%, var(--bg)); padding: 16px 18px; display: flex; flex-direction: column; gap: 12px; align-self: start }
-.insp .kind { font-size: 11px; color: var(--fg-3); text-transform: uppercase; letter-spacing: .06em; font-weight: 600 }
-.insp h3 { font-size: 20px; display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 10px }
+.tabs { flex: none; display: flex; align-items: stretch; gap: 2px; height: var(--band); padding: 4px 4px 0; border-bottom: 1px solid var(--border); background: var(--sidebar) }
+.tab { position: relative; display: flex; align-items: center; gap: 8px; padding: 0 8px 0 var(--gut); border-radius: 6px 6px 0 0; font-size: 12px; color: var(--fg-3) }
+.tab.on { background: var(--bg); color: var(--fg) }
+.tab.on::after { content: ""; position: absolute; left: 8px; right: 8px; bottom: -1px; height: 2px; border-radius: 2px 2px 0 0; background: var(--primary) }
+.tab .x { width: 16px; height: 16px; color: var(--fg-3) }
+.doc { padding: 24px; display: flex; flex-direction: column; gap: 16px; max-width: 620px }
+.doc .kick { font-size: 11px; color: var(--fg-3) }
+.doc h4 { margin: 0; font-size: 16px; font-weight: 600; letter-spacing: -.01em; line-height: 1.3 }
+.doc p { font-size: 14px; line-height: 1.6; color: var(--fg-2); margin: 0 }
+.doc .sec { display: flex; flex-direction: column; gap: 8px; margin-top: 8px }
+.doc .sec h5 { margin: 0; font-size: 12px; font-weight: 600; color: var(--fg-2) }
+.doc .btns { display: flex; gap: 8px }
+.btn { height: var(--ctl); display: inline-flex; align-items: center; gap: 8px; padding: 0 12px; border-radius: 6px; font-size: 13px; font-weight: 500; border: 1px solid transparent }
+.btn.p { background: var(--primary); color: var(--on-primary) }
+.btn.o { border-color: var(--border); color: var(--fg) }
+
+.fields { padding: 4px var(--gut) 12px; display: flex; flex-direction: column; gap: 12px }
+.field { display: flex; flex-direction: column; gap: 8px }
+.field label { font-size: 12px; font-weight: 500; color: var(--fg-2) }
+.input { height: var(--ctl); display: flex; align-items: center; padding: 0 var(--gut); border: 1px solid var(--border); border-radius: 6px; font-size: 13px; color: var(--fg) }
+.pill { display: inline-flex; align-items: center; height: 20px; padding: 0 8px; border-radius: 999px; font-size: 11px; background: color-mix(in oklab, var(--secondary) 22%, transparent); color: var(--fg) }
+
+.select { height: var(--ctl-sm); display: inline-flex; align-items: center; gap: 4px; padding: 0 8px; border: 1px solid var(--border); border-radius: 6px; font-size: 12px; font-weight: 400; color: var(--fg) }
+.select svg { width: 16px; height: 16px; transform: rotate(90deg); color: var(--fg-3) }
+.log { font-family: var(--mono); font-size: 12px; line-height: var(--row); padding: 0 var(--gut); color: var(--fg-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis }
+.log .ok { color: var(--secondary) } .log .w { color: var(--primary-ink) } .log .tm { color: var(--fg-3); margin-right: 12px }
+.grip { position: absolute; z-index: 3 }
+.grip.v { top: 0; bottom: 0; width: 8px } .grip.h { left: 0; right: 0; height: 8px }
+.grip::before { content: ""; position: absolute; background: transparent; transition: background .12s }
+.grip.v::before { top: 0; bottom: 0; left: 4px; width: 1px } .grip.h::before { left: 0; right: 0; top: 4px; height: 1px }
+.grip:hover::before, .grip.sel::before { background: var(--primary) }
+.sb > .grip { right: -4px } .ax > .grip { left: -4px } .pn > .grip { top: -4px }
+.tg { width: var(--ico); height: var(--ico); display: grid; place-items: center; border-radius: 6px; color: var(--fg-2) }
+.tg svg { width: 16px; height: 16px }
+.tg.on { background: var(--sel); color: var(--fg) }
+
+/* las cotas */
+.rl { position: absolute; z-index: 6; pointer-events: none; color: var(--redline); font: 600 10px/1 var(--mono) }
+.rl.v { border-left: 1px solid var(--redline) }
+.rl.h { border-top: 1px solid var(--redline) }
+.rl.v::before, .rl.v::after { content: ""; position: absolute; left: -4px; width: 7px; border-top: 1px solid var(--redline) }
+.rl.v::before { top: 0 } .rl.v::after { bottom: 0 }
+.rl.h::before, .rl.h::after { content: ""; position: absolute; top: -4px; height: 7px; border-left: 1px solid var(--redline) }
+.rl.h::before { left: 0 } .rl.h::after { right: 0 }
+.rl span { position: absolute; background: var(--bg); padding: 1px 3px; border-radius: 3px; white-space: nowrap; box-shadow: 0 0 0 1px color-mix(in oklab, var(--redline) 40%, transparent) }
+.rl.v span { left: 5px; top: 50%; transform: translateY(-50%) }
+.rl.h span { top: 4px; left: 50%; transform: translateX(-50%) }
+.wb:not(.show-rl) .rl { display: none }
+
+/* ══ INSPECTOR ═══════════════════════════════════════════════════════════════════════════════ */
+.below { display: grid; gap: 24px; grid-template-columns: minmax(0, 1fr) }
+@media (min-width: 980px) { .below { grid-template-columns: minmax(0, 1fr) 380px } }
+.insp { border-left: 3px solid var(--primary); background: color-mix(in oklab, var(--primary) 5%, var(--bg)); padding: 16px 20px; display: flex; flex-direction: column; gap: 12px; align-self: start }
+.insp .kind { font-size: 12px; color: var(--fg-3); font-weight: 600 }
+.insp h3 { font-size: 20px; display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 12px }
 .insp h3 code { font-size: 13px; color: var(--primary-ink); font-weight: 500 }
-.insp dl { margin: 0; display: grid; grid-template-columns: 92px minmax(0, 1fr); gap: 6px 10px; font-size: 13px }
-.insp dt { color: var(--fg-3) }
-.insp dd { margin: 0; color: var(--fg) }
-.insp .rule { font-size: 13px; color: var(--fg-2); border-top: 1px solid var(--border); padding-top: 10px }
+.insp dl { margin: 0; display: grid; grid-template-columns: 96px minmax(0, 1fr); gap: 8px 12px; font-size: 13px }
+.insp dt { color: var(--fg-3) } .insp dd { margin: 0 }
+.insp .rule { font-size: 13px; color: var(--fg-2); border-top: 1px solid var(--border); padding-top: 12px }
 .insp .rule b { color: var(--fg) }
-.insp .uses { display: flex; flex-direction: column; gap: 3px; font-size: 13px }
-.insp .uses div { display: grid; grid-template-columns: 70px 1fr; gap: 8px }
-.insp .uses span:first-child { color: var(--fg-3); font-family: var(--mono); font-size: 12px }
-.insp .uses .no { color: var(--fg-3) }
-
-/* ── índice de partes ────────────────────────────────────── */
-.parts { display: grid; gap: 0 28px; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)) }
-.part { display: grid; grid-template-columns: 130px minmax(0, 1fr); gap: 10px; padding: 10px 0; border-top: 1px solid var(--border); background: none; border-left: 0; border-right: 0; border-bottom: 0; text-align: left; font: inherit; color: inherit; cursor: pointer }
+.parts { display: grid; gap: 0 32px; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); align-content: start }
+.pg { grid-column: 1 / -1; padding: 16px 0 4px; font-size: 12px; color: var(--fg-3); font-weight: 600 }
+.part { display: grid; grid-template-columns: 124px minmax(0, 1fr); gap: 12px; padding: 8px 0; border: 0; border-top: 1px solid var(--border); background: none; text-align: left; font: inherit; color: inherit; cursor: pointer }
+.part code { font-size: 12px; font-weight: 600; color: var(--fg) }
+.part span { font-size: 13px; color: var(--fg-2) }
 .part:hover code, .part[aria-current="true"] code { color: var(--primary-ink) }
-.part[aria-current="true"] { box-shadow: inset 3px 0 0 var(--primary); padding-left: 10px }
-.part code { font-size: 12.5px; color: var(--fg); font-weight: 600 }
-.part span { color: var(--fg-2); font-size: 13px }
-.part .tag { display: inline-block; font-size: 10.5px; color: var(--fg-3); border: 1px solid var(--border); border-radius: 99px; padding: 0 6px; margin-left: 4px; vertical-align: 1px }
-.part-group { grid-column: 1 / -1; padding: 18px 0 6px; font-size: 11px; letter-spacing: .06em; text-transform: uppercase; color: var(--fg-3); font-weight: 600 }
+.part[aria-current="true"] { box-shadow: inset 3px 0 0 var(--primary); padding-left: 12px }
 
-/* ── anatomía de una región ──────────────────────────────── */
-.anat { display: grid; gap: 24px; grid-template-columns: minmax(0, 1fr) }
-@media (min-width: 900px) { .anat { grid-template-columns: minmax(0, 460px) minmax(0, 1fr); align-items: start } }
-.zoom { border: 1px solid var(--border); border-radius: 10px; overflow: hidden; background: var(--sidebar); font-size: 13px; --region-bg: var(--sidebar) }
-.zoom .zh { display: flex; align-items: center; gap: 6px; min-height: 40px; padding: 8px 8px 8px 12px; border-bottom: 1px solid var(--border); color: var(--fg-2); font-weight: 600; font-size: 12px }
-.zoom .zh .t { flex: 1 }
-.zoom .zi { width: 24px; height: 24px; display: grid; place-items: center; border-radius: 5px; color: var(--fg-2) }
-.zoom .zi svg { width: 16px; height: 16px }
-.zoom .zi.m { position: relative }
-.zoom .zi.m::after { content: ""; position: absolute; top: 3px; right: 3px; width: 5px; height: 5px; border-radius: 50%; background: var(--primary) }
-.zoom .count { font-weight: 500; color: var(--primary-ink); font-variant-numeric: tabular-nums; font-size: 11.5px }
-.zoom .zg { display: flex; gap: 6px; align-items: center; padding: 6px 12px; font-weight: 600; font-size: 12px; color: var(--fg-2); background: var(--region-bg) }
-.zoom .zr { padding: 4px 12px 4px 26px; color: var(--fg-2); font-size: 13px }
-.zoom .zr.on { background: color-mix(in oklab, var(--fg) 8%, transparent); color: var(--fg) }
-.zoom .zv { display: flex; gap: 6px; align-items: center; padding: 0 12px; min-height: 32px; border-top: 1px solid var(--border); color: var(--fg-2); font-weight: 600; font-size: 12px }
-.pin { display: inline-grid; place-items: center; width: 18px; height: 18px; border-radius: 50%; background: var(--primary); color: oklch(0.18 0.004 308); font-size: 10.5px; font-weight: 700; flex: none; font-variant-numeric: tabular-nums }
-.legend { display: flex; flex-direction: column; gap: 12px; margin: 0; padding: 0; list-style: none }
-.legend li { display: grid; grid-template-columns: 18px minmax(0, 1fr); gap: 10px }
-.legend b { font-weight: 600 }
-.legend p { color: var(--fg-2); font-size: 13.5px }
-
-/* ── tabla de adopción ───────────────────────────────────── */
+/* ══ TABLAS Y FICHAS DEL ESTÁNDAR ════════════════════════════════════════════════════════════ */
 .tbl-wrap { overflow-x: auto }
-table { border-collapse: collapse; width: 100%; min-width: 640px; font-size: 13px }
-th, td { text-align: left; padding: 8px 12px 8px 0; border-bottom: 1px solid var(--border); vertical-align: top }
+table { border-collapse: collapse; width: 100%; min-width: 620px; font-size: 13px }
+th, td { text-align: left; padding: 8px 16px 8px 0; border-bottom: 1px solid var(--border); vertical-align: baseline }
 th { color: var(--fg-3); font-weight: 600; font-size: 12px }
-td:first-child code { font-weight: 600 }
-td .no { color: var(--fg-3) }
-td .warn { color: var(--primary-ink) }
-
-/* ── reglas y preguntas ──────────────────────────────────── */
+td.val { font-family: var(--mono); font-size: 12px; white-space: nowrap; font-variant-numeric: tabular-nums }
+td.tok { font-family: var(--mono); font-size: 12px; color: var(--primary-ink); white-space: nowrap }
+.two { display: grid; gap: 32px; grid-template-columns: minmax(0, 1fr) }
+@media (min-width: 960px) { .two { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) } }
+.col { display: flex; flex-direction: column; gap: 12px; min-width: 0 }
+.col > h3 { font-size: 13px; color: var(--fg-2) }
+.spec { display: flex; flex-direction: column }
+.spec-row { display: grid; grid-template-columns: 120px 60px minmax(0, 1fr); gap: 4px 16px; align-items: baseline; padding: 12px 0; border-top: 1px solid var(--border) }
+@media (max-width: 640px) { .spec-row { grid-template-columns: 100px minmax(0, 1fr) } .spec-row .use { grid-column: 1 / -1 } }
+.spec-row .tok { font-family: var(--mono); font-size: 12px; color: var(--primary-ink) }
+.spec-row .val { font-family: var(--mono); font-size: 12px; color: var(--fg-3); font-variant-numeric: tabular-nums }
+.spec-row .use { color: var(--fg-2); font-size: 13px; min-width: 0 }
+.spec-row .use > .sample, .spec-row .use > .bar4 { display: flex; width: fit-content; max-width: 100%; margin-bottom: 4px }
+.sample { color: var(--fg); line-height: 1.4 }
+.bar4 { height: 12px; background: color-mix(in oklab, var(--primary) 55%, transparent); border-radius: 1px }
+.never { font-size: 13px; color: var(--fg-2); border-top: 1px solid var(--border); padding-top: 12px }
+.never s { color: var(--fg-3); text-decoration-color: color-mix(in oklab, var(--primary) 70%, transparent); font-family: var(--mono); font-size: 12px; margin-right: 8px; white-space: nowrap }
+.icons { display: grid; grid-template-columns: repeat(auto-fill, minmax(92px, 1fr)) }
+.icon-cell { display: flex; flex-direction: column; align-items: center; gap: 8px; padding: 16px 4px 12px; border-top: 1px solid var(--border); color: var(--fg-2) }
+.icon-cell svg { width: 16px; height: 16px }
+.icon-cell code { font-size: 11px; color: var(--fg-3) }
+.icon-cell.new, .icon-cell.new code { color: var(--primary-ink) }
+.grid24 { display: flex; flex-wrap: wrap; gap: 24px; align-items: center }
+.grid24 figure { margin: 0; display: flex; flex-direction: column; gap: 8px; align-items: center }
+.grid24 .big { display: block; width: 120px; height: 120px; color: var(--fg); background-image: linear-gradient(var(--hatch) 1px, transparent 1px), linear-gradient(90deg, var(--hatch) 1px, transparent 1px); background-size: 5px 5px; border: 1px solid var(--border) }
+.grid24 figcaption { font-size: 12px; color: var(--fg-3) }
 .rules { display: grid; gap: 0 32px; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)) }
 .rules > div { padding: 12px 0; border-top: 1px solid var(--border); display: flex; flex-direction: column; gap: 4px }
-.rules h3 { font-size: 14px }
 .rules p { color: var(--fg-2); font-size: 13.5px }
-ol.steps { margin: 0; padding-left: 22px; display: flex; flex-direction: column; gap: 8px; max-width: 80ch }
-ol.steps li { padding-left: 4px }
+ol.steps { margin: 0; padding-left: 24px; display: flex; flex-direction: column; gap: 8px; max-width: 80ch }
 ol.steps li::marker { color: var(--fg-3); font-variant-numeric: tabular-nums }
-.open { display: flex; flex-direction: column; gap: 0 }
-.open > div { padding: 12px 0 12px 14px; border-top: 1px solid var(--border); box-shadow: inset 2px 0 0 var(--secondary); display: flex; flex-direction: column; gap: 4px }
-.open p { color: var(--fg-2); font-size: 13.5px }
-.open .q { font-weight: 600 }
-footer { font-size: 12px; color: var(--fg-3); border-top: 1px solid var(--border); padding-top: 16px }
 
-
-/* ── mínimo o nada: la demo ──────────────────────────────── */
+/* ══ MÍNIMO O NADA: LA DEMO ══════════════════════════════════════════════════════════════════ */
 .mn-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 16px; font-size: 13px; color: var(--fg-2) }
 .mn-bar input[type=range] { accent-color: var(--primary); width: 220px; max-width: 100% }
 .mn-bar output { font-family: var(--mono); font-size: 12px; color: var(--fg); font-variant-numeric: tabular-nums }
 .mn-stage { overflow-x: auto; padding-bottom: 4px }
-.mn { --s: .5; position: relative; height: 230px; border: 1px solid var(--border); border-radius: 10px; overflow: hidden; display: grid; grid-template-rows: minmax(0, 1fr) 26px; background: var(--bg); user-select: none; touch-action: none; font-size: 11.5px; transition: width .12s }
+.mn { position: relative; height: 200px; border: 1px solid var(--border); border-radius: 10px; overflow: hidden; display: grid; grid-template-rows: minmax(0, 1fr) 26px; background: var(--bg); user-select: none; touch-action: none; font-size: 11.5px; transition: width .12s }
 .mn-cols { display: flex; min-height: 0 }
 .mn-col { position: relative; flex: none; overflow: hidden; display: flex; flex-direction: column; background: var(--sidebar) }
-.mn-col.sb { border-right: 1px solid var(--border) }
-.mn-col.ax { border-left: 1px solid var(--border) }
+.mn-col.sb { border-right: 1px solid var(--border) } .mn-col.ax { border-left: 1px solid var(--border) }
 .mn-col.ed { flex: 1; min-width: 0; background: var(--bg) }
 .mn-col.zero { border-width: 0 }
-.mn-col .rh { min-height: 26px }
+.mn-col .hd { flex: none; height: 26px; display: flex; align-items: center; padding: 0 8px; border-bottom: 1px solid var(--border); font-weight: 600; color: var(--fg-2); white-space: nowrap; overflow: hidden }
 .mn-w { font-family: var(--mono); font-size: 10.5px; color: var(--fg-3); padding: 6px 8px; font-variant-numeric: tabular-nums; white-space: nowrap }
 .mn-w b { color: var(--fg); font-weight: 600 }
-.mn-w.bad b { color: var(--primary-ink) }
 .mn-h { position: absolute; top: 0; bottom: 26px; width: 9px; margin-left: -4px; cursor: col-resize; z-index: 4 }
 .mn-h::before { content: ""; position: absolute; top: 0; bottom: 0; left: 4px; width: 1px; background: transparent; transition: background .12s }
 .mn-h:hover::before, .mn-h.on::before, .mn-h:focus-visible::before { background: var(--primary) }
 .mn-h:focus-visible { outline: none }
 .mn-ghost { position: absolute; top: 0; bottom: 26px; width: 0; border-left: 1px dashed var(--primary); z-index: 3; pointer-events: none }
 .mn-ghost span { position: absolute; top: 4px; left: 4px; font-family: var(--mono); font-size: 10px; color: var(--primary-ink); white-space: nowrap; background: var(--bg); padding: 0 3px }
-.mn-status { display: flex; align-items: center; gap: 10px; padding: 0 8px; background: var(--card); border-top: 1px solid var(--border); color: var(--fg-2); font-size: 10.5px }
-.mn-status .status-l { flex: 1 }
-.mn-status .tg { cursor: pointer }
+.mn-status { display: flex; align-items: center; gap: 8px; padding: 0 8px; background: var(--card); border-top: 1px solid var(--border); color: var(--fg-2); font-size: 10.5px }
+.mn-status .grow { flex: 1 }
+.mn-status .tg { width: 18px; height: 16px; cursor: pointer }
+.mn-status .tg svg { width: 12px; height: 10px }
+.mn-status .tg.off { opacity: .45 }
 .mn-log { font-size: 13px; color: var(--fg-2); min-height: 1.5em }
 .mn-log b { color: var(--fg); font-weight: 600 }
-.mins td.bad { color: var(--primary-ink) }
-
-
-/* ── antes y después ─────────────────────────────────────── */
-.ba { display: grid; gap: 24px; grid-template-columns: minmax(0, 1fr) }
-.ba figure { margin: 0; display: grid; gap: 8px; grid-template-columns: minmax(0, 1fr) }
-@media (min-width: 900px) { .ba figure { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) } }
-.ba img { width: 100%; height: auto; display: block; border: 1px solid var(--border); border-radius: 6px; background: var(--card) }
-.ba figcaption { grid-column: 1 / -1; font-size: 13px; color: var(--fg-2) }
-.ba .tag2 { font-size: 11px; color: var(--fg-3); margin-bottom: 4px }
-
-/* ── índice de la página ─────────────────────────────────── */
-nav.toc { display: flex; flex-wrap: wrap; gap: 4px 14px; font-size: 13px }
-nav.toc a { color: var(--fg-2); text-decoration: none; border-bottom: 1px solid transparent }
-nav.toc a:hover, nav.toc a:focus-visible { color: var(--fg); border-bottom-color: var(--primary); outline: none }
-
-/* ── el estándar en una línea por medida ─────────────────── */
-.spec { display: flex; flex-direction: column }
-.spec-row { display: grid; grid-template-columns: 120px 64px minmax(0, 1fr); gap: 4px 16px; align-items: baseline; padding: 12px 0; border-top: 1px solid var(--border) }
-@media (max-width: 640px) { .spec-row { grid-template-columns: 96px minmax(0, 1fr) } .spec-row .use { grid-column: 1 / -1 } }
-.spec-row .tok { font-family: var(--mono); font-size: 12px; color: var(--primary-ink) }
-.spec-row .val { font-family: var(--mono); font-size: 12px; color: var(--fg-3); font-variant-numeric: tabular-nums }
-.spec-row .use { color: var(--fg-2); font-size: 13px; min-width: 0 }
-.spec-row .use > .sample, .spec-row .use > .bar-4, .spec-row .use > .btn-demo { display: flex; width: fit-content; max-width: 100%; margin-bottom: 4px }
-.spec-row .sample { color: var(--fg); line-height: 1.4; overflow-wrap: anywhere }
-.two { display: grid; gap: 32px; grid-template-columns: minmax(0, 1fr) }
-@media (min-width: 960px) { .two { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) } }
-.col { display: flex; flex-direction: column; gap: 12px; min-width: 0 }
-.col > h3 { font-size: 13px; color: var(--fg-2) }
-.never { font-size: 13px; color: var(--fg-2); border-top: 1px solid var(--border); padding-top: 12px }
-.never s { color: var(--fg-3); text-decoration-color: color-mix(in oklab, var(--primary) 70%, transparent); font-family: var(--mono); font-size: 12px; margin-right: 6px; white-space: nowrap }
-
-.bar-4 { height: 12px; background: color-mix(in oklab, var(--primary) 55%, transparent); border-radius: 1px }
-.heights { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 16px; padding: 12px 0; border-top: 1px solid var(--border) }
-.heights > div { display: flex; flex-direction: column; gap: 6px; align-items: flex-start }
-.heights .box { border: 1px solid var(--border); background: var(--card); border-radius: 6px; display: flex; align-items: center; padding: 0 12px; color: var(--fg-2); font-size: 12px; white-space: nowrap }
-.heights .box.sq { width: 24px; padding: 0; justify-content: center; }
-.heights .box.band { border-radius: 0; border-width: 0 0 1px 0; background: var(--sidebar); width: 180px; font-weight: 600 }
-.heights .box.foot { border-radius: 0; border-width: 1px 0 0 0; width: 180px; font-size: 11px }
-.heights small { font-family: var(--mono); font-size: 11px; color: var(--fg-3) }
-.gutter { border: 1px solid var(--border); border-radius: 8px; overflow: hidden; background: var(--sidebar); font-size: 13px; position: relative }
-.gutter .gh { height: 40px; display: flex; align-items: center; padding: 0 12px; font-size: 12px; font-weight: 600; color: var(--fg-2); border-bottom: 1px solid var(--border) }
-.gutter .gr { height: 28px; display: flex; align-items: center; padding: 0 12px; color: var(--fg-2) }
-.gutter .gr.on { background: color-mix(in oklab, var(--fg) 8%, transparent); color: var(--fg) }
-.gutter .guide { position: absolute; top: 0; bottom: 0; left: 12px; width: 1px; background: var(--primary); opacity: .7 }
-.gutter .guide.r { left: auto; right: 12px }
-.gutter .lbl { position: absolute; bottom: 6px; left: 16px; font-family: var(--mono); font-size: 11px; color: var(--primary-ink) }
-
-.icons { display: grid; grid-template-columns: repeat(auto-fill, minmax(92px, 1fr)); gap: 0 }
-.icon-cell { display: flex; flex-direction: column; align-items: center; gap: 8px; padding: 14px 4px 12px; border-top: 1px solid var(--border); color: var(--fg-2) }
-.icon-cell svg { width: 16px; height: 16px }
-.icon-cell code { font-size: 11px; color: var(--fg-3) }
-.icon-cell.new { color: var(--primary-ink) }
-.icon-cell.new code { color: var(--primary-ink) }
-.icon-cell:hover { color: var(--fg) }
-.grid24 { display: flex; flex-wrap: wrap; gap: 24px; align-items: center }
-.grid24 figure { margin: 0; display: flex; flex-direction: column; gap: 8px; align-items: center }
-.grid24 .big { display: block; width: 120px; height: 120px; background-size: 5px 5px; color: var(--fg); background-image: linear-gradient(var(--hatch) 1px, transparent 1px), linear-gradient(90deg, var(--hatch) 1px, transparent 1px); background-size: 5px 5px; border: 1px solid var(--border) }
-.grid24 figcaption { font-size: 12px; color: var(--fg-3) }
-.btn-demo { display: inline-flex; gap: 2px; align-items: center }
-.btn-demo span { width: 24px; height: 24px; border-radius: 6px; display: grid; place-items: center; color: var(--fg-2) }
-.btn-demo span:hover, .btn-demo span.h { background: color-mix(in oklab, var(--fg) 10%, transparent); color: var(--fg) }
-.btn-demo svg { width: 16px; height: 16px }
-
-.shape { display: flex; flex-wrap: wrap; gap: 20px; align-items: center; padding: 12px 0; border-top: 1px solid var(--border) }
-.shape .o { height: 32px; padding: 0 12px; display: inline-flex; align-items: center; border: 1px solid var(--border); background: var(--card); color: var(--fg-2); font-size: 13px }
-.shape .o.r6 { border-radius: 6px }
-.shape .o.pill { border-radius: 999px; height: 20px; font-size: 11px; padding: 0 8px; background: color-mix(in oklab, var(--secondary) 22%, transparent); border-color: transparent; color: var(--fg) }
-.shape .o.r0 { border-radius: 0; border-width: 0 1px 0 0; background: var(--sidebar); height: 48px }
-
-.measure { overflow-x: auto }
-.measure table { min-width: 560px }
-.measure td.std, .measure th.std { color: var(--primary-ink); font-weight: 600 }
-.measure td { font-variant-numeric: tabular-nums }
-
-.decisions { display: flex; flex-direction: column }
-.decisions > div { display: grid; grid-template-columns: 96px minmax(0, 1fr); gap: 4px 16px; padding: 14px 0; border-top: 1px solid var(--border) }
-@media (max-width: 640px) { .decisions > div { grid-template-columns: minmax(0, 1fr) } }
-.decisions .st { font-size: 11px; font-weight: 600; letter-spacing: .04em; text-transform: uppercase; color: var(--fg-3); padding-top: 2px }
-.decisions .st.done { color: var(--secondary) }
-.decisions .st.prop { color: var(--primary-ink) }
-.decisions .q { font-weight: 600 }
-.decisions p { color: var(--fg-2); font-size: 13.5px }
-.decisions .body { display: flex; flex-direction: column; gap: 4px }
+footer { font-size: 12px; color: var(--fg-3); border-top: 1px solid var(--border); padding-top: 16px }
 @media (prefers-reduced-motion: reduce) { * { transition: none !important } }
 </style>
 
 <div class="page">
   <header class="top">
-    <span class="eyebrow">Playground local · estándar de herramientas · borrador</span>
+    <span class="eyebrow">Playground local · la base de las herramientas</span>
     <h1>Anatomía del workbench</h1>
-    <p class="lede">Cada herramienta local (harness, tablero, trazador, visor) se arma sobre el mismo esqueleto. Esta página le pone nombre a cada parte, dice cuándo existe y qué regla la gobierna, para que una herramienta nueva se construya leyendo esto y no copiando otra.</p>
+    <p class="lede">La base sobre la que se construye y se mejora cada herramienta local: cómo se divide la pantalla, cuánto mide cada pieza y cómo se comporta. Es el punto de llegada. Una herramienta nueva arranca de acá, y una existente se acerca a esto cuando se la toca.</p>
     <div class="meta">
       <span>Tarea <b>#96 Playground local</b></span>
-      <span>Fuente <b class="mono">tools/ui/taller.css</b> · <b class="mono">workbench.js</b> · <b class="mono">RegionMenu.vue</b></span>
-      <span>Verificado con <b class="mono">make estilo-check</b> · 24 sep 2026</span>
+      <span>Tokens en <b class="mono">tools/ui/taller.css</b> y <b class="mono">tema.css</b></span>
+      <span>Comportamiento en <b class="mono">tools/ui/workbench.js</b></span>
+      <span>Borrador del 24 sep 2026</span>
     </div>
     <nav class="toc" aria-label="Secciones">
-      <a href="#esqueleto">Esqueleto</a><a href="#partes">Partes</a><a href="#region">Región</a>
-      <a href="#minimo">Mínimo o nada</a><a href="#tipografia">Tipografía</a><a href="#espacios">Espacios</a><a href="#iconos">Iconos</a>
-      <a href="#forma">Forma</a><a href="#antesdespues">Antes y después</a><a href="#medido">Hoy contra el estándar</a><a href="#adopcion">Adopción</a>
-      <a href="#reglas">Reglas</a><a href="#decisiones">Decisiones</a><a href="#nueva">Herramienta nueva</a>
+      <a href="#base">La base</a><a href="#piezas">Las piezas</a><a href="#medidas">Medidas</a>
+      <a href="#tipografia">Tipografía</a><a href="#espacios">Espacios</a><a href="#iconos">Iconos</a>
+      <a href="#forma">Forma</a><a href="#comportamiento">Comportamiento</a><a href="#reglas">Reglas</a>
+      <a href="#construir">Construir sobre la base</a>
     </nav>
   </header>
 
-  <section id="esqueleto">
+  <section id="base">
     <div class="sec-head">
-      <h2>El esqueleto</h2>
-      <p>Tocá cualquier parte del diagrama para ver su nombre y su regla. El selector cambia el contenido por el de cada herramienta; las regiones que esa herramienta no usa desaparecen. Los botones del pie del diagrama pliegan regiones, igual que en las herramientas.</p>
+      <h2>La base, en tamaño real</h2>
+      <p>Un workbench de ejemplo armado sólo con las medidas de la base: cada píxel es un píxel. Las cotas marcan las medidas que se repiten. Tocá una pieza para ver su nombre y su regla.</p>
     </div>
     <div class="bar">
-      <div class="seg" role="group" aria-label="Herramienta de ejemplo" id="tools">
-        <button type="button" data-tool="harness" aria-pressed="true">harness</button>
-        <button type="button" data-tool="tablero" aria-pressed="false">tablero</button>
-        <button type="button" data-tool="trazador" aria-pressed="false">trazador</button>
-        <button type="button" data-tool="visor" aria-pressed="false">visor</button>
-      </div>
-      <label class="chk"><input type="checkbox" id="showReserved"> Mostrar regiones reservadas</label>
-      <span class="hint">El contenido de cada región es ilustrativo; los títulos son los reales.</span>
+      <label class="chk"><input type="checkbox" id="showRl" checked> Mostrar medidas</label>
+      <span class="hint">El contenido es de ejemplo; lo que importa es la forma.</span>
     </div>
+    <div class="stage">
+      <div class="wb show-rl" id="wb" aria-label="Workbench de ejemplo">
+        <aside class="reg sb" data-part="sidebar" tabindex="0" id="xSb">
+          <div class="head" data-part="region-head" tabindex="0" id="xSbHead"><span class="t">Explorador</span>
+            <span class="acts" data-part="toolbar" tabindex="0" id="xTools"><span class="ib" data-i="plus"></span><span class="ib" data-i="collapse"></span></span>
+            <span class="ib" data-part="menu" tabindex="0" data-i="more"></span></div>
+          <div class="search" data-part="control" tabindex="0" id="xSearch"><span data-i="search"></span>Buscar</div>
+          <div class="view open" data-part="view" tabindex="0">
+            <div class="vh open" id="xViewHead"><span data-i="chevron"></span><span class="t">Abiertos</span><span class="cnt">5</span></div>
+            <div class="body" data-part="region-body">
+              <div class="row on" id="xRow"><span class="n">Solicitud 519245</span><span class="m">hoy</span></div>
+              <div class="row"><span class="n">Solicitud 518870</span><span class="m">ayer</span></div>
+              <div class="gh" data-part="grupo" tabindex="0"><span data-i="chevron"></span>Del equipo</div>
+              <div class="row i1" id="xRowI"><span class="n">Comercio de prueba</span><span class="m">3</span></div>
+              <div class="row i1"><span class="n">Entidad sintética</span><span class="m">1</span></div>
+            </div>
+          </div>
+          <div class="view" data-part="view" tabindex="0"><div class="vh"><span data-i="chevron"></span><span class="t">Recientes</span><span class="cnt">12</span></div></div>
+          <div class="view" data-part="view" tabindex="0"><div class="vh"><span data-i="chevron"></span><span class="t">Guardados</span><span class="cnt">4</span></div></div>
+          <span class="grip v" data-part="rsz" tabindex="0" title="Manija"></span>
+        </aside>
 
-    <div class="canvas">
-      <div class="scroll-x">
-        <div class="wb" id="wb" aria-label="Diagrama del workbench">
-          <div class="r r-titlebar reserved" data-part="titlebar" tabindex="0">titlebar · reservada</div>
-          <div class="r r-banner reserved" data-part="banner" tabindex="0">banner · reservada</div>
-          <div class="r r-activitybar reserved" data-part="activitybar" tabindex="0">activitybar</div>
+        <main class="reg ed" data-part="editor" tabindex="0" id="xEd">
+          <nav class="tabs" data-part="tabs" tabindex="0" id="xTabs">
+            <span class="tab on" id="xTab">Solicitud 519245 <span class="x" data-i="close"></span></span>
+            <span class="tab">Solicitud 518870</span>
+          </nav>
+          <div class="doc" data-part="region-body" id="xDoc">
+            <span class="kick">Etapa 3 de 5 · actualizado hace 4 min</span>
+            <h4 id="xTitle">Solicitud 519245</h4>
+            <p>La prosa del editor va en 14 con interlineado de 1,6 y un renglón de no más de 65 caracteres. Los párrafos se separan con 16 y las secciones con 24.</p>
+            <div class="sec"><h5>Siguiente paso</h5>
+              <div class="btns"><span class="btn p" data-part="control" tabindex="0" id="xBtn">Continuar</span><span class="btn o">Ver detalle</span></div>
+            </div>
+          </div>
+        </main>
 
-          <aside class="r r-sidebar" data-part="sidebar" tabindex="0" id="d-sidebar"></aside>
-          <main class="r r-editor" data-part="editor" tabindex="0" id="d-editor"></main>
-          <section class="r r-panel" data-part="panel" tabindex="0" id="d-panel"></section>
-          <aside class="r r-aux" data-part="auxiliarybar" tabindex="0" id="d-aux"></aside>
+        <section class="reg pn" data-part="panel" tabindex="0" id="xPn">
+          <div class="head" id="xPnHead"><span class="t">Consola</span>
+            <span class="select" data-part="control" tabindex="0" id="xSelect">Todo<span data-i="chevron"></span></span>
+            <span class="acts"><span class="ib" data-i="copy"></span><span class="ib" data-i="close"></span></span></div>
+          <div class="body">
+            <div class="log" id="xLog"><span class="tm">12:41:03</span><span class="ok">✓</span> identidad · validada</div>
+            <div class="log"><span class="tm">12:41:05</span><span class="w">!</span> listado · 3 de 7 entidades excluidas</div>
+            <div class="log"><span class="tm">12:41:09</span>esperando la elección del cliente</div>
+          </div>
+          <span class="grip h" data-part="rsz" tabindex="0" title="Manija"></span>
+        </section>
 
-          <footer class="r r-status" data-part="statusbar" tabindex="0">
-            <span class="status-l" id="d-status"></span>
-            <span class="toggles" data-part="layout" tabindex="0" aria-label="Controles de disposición">
-              <span class="tg" data-toggle="sidebar" title="Sidebar"><svg viewBox="0 0 12 10"><rect x=".5" y=".5" width="11" height="9" rx="1.5" fill="none" stroke="currentColor"/><rect x="1" y="1" width="3.5" height="8" fill="currentColor"/></svg></span>
-              <span class="tg" data-toggle="panel" title="Panel"><svg viewBox="0 0 12 10"><rect x=".5" y=".5" width="11" height="9" rx="1.5" fill="none" stroke="currentColor"/><rect x="1" y="5.5" width="10" height="3.5" fill="currentColor"/></svg></span>
-              <span class="tg" data-toggle="auxiliarybar" title="Sidebar secundario"><svg viewBox="0 0 12 10"><rect x=".5" y=".5" width="11" height="9" rx="1.5" fill="none" stroke="currentColor"/><rect x="7.5" y="1" width="3.5" height="8" fill="currentColor"/></svg></span>
-            </span>
-          </footer>
-        </div>
+        <aside class="reg ax" data-part="auxiliarybar" tabindex="0" id="xAx">
+          <div class="head" id="xAxHead"><span class="t">Detalle</span><span class="ib" data-part="menu" tabindex="0" data-i="more"></span></div>
+          <div class="gh" data-part="grupo" tabindex="0" id="xGroup"><span data-i="chevron"></span>Propiedades</div>
+          <div class="fields">
+            <div class="field"><label>Monto</label><div class="input" id="xInput">$ 2.000.000</div></div>
+            <div class="field"><label>Estado</label><div><span class="pill" data-part="pill" tabindex="0">En curso</span></div></div>
+          </div>
+          <span class="grip v" data-part="rsz" tabindex="0" title="Manija"></span>
+        </aside>
+
+        <footer class="st" data-part="statusbar" tabindex="0" id="xSt">
+          <span class="l"><span><span class="dot"></span>local · sincronizado</span><span>5 abiertas</span></span>
+          <span class="acts" data-part="layout" tabindex="0" id="xToggles"><span class="tg on" data-i="sidebar"></span><span class="tg on" data-i="console"></span><span class="tg on" data-i="detail"></span></span>
+        </footer>
       </div>
-
+    </div>
+    <div class="below">
+      <div class="parts" id="parts"></div>
       <aside class="insp" id="insp" aria-live="polite"></aside>
     </div>
   </section>
 
-  <section id="partes">
+  <section id="medidas">
     <div class="sec-head">
-      <h2>Todas las partes, por nombre</h2>
-      <p>El vocabulario es el de VS Code a propósito: es el que ya conoce cualquiera que abra una de estas herramientas. Los nombres de clase son los de <code>taller.css</code>; los que tienen la etiqueta «propuesto» todavía no están ahí.</p>
+      <h2>Medidas</h2>
+      <p>Una grilla de 4 y cuatro alturas que se repiten en todas las regiones. Por eso las líneas de una columna siguen en la de al lado, y la pantalla se lee ordenada sin que nada lo diga.</p>
     </div>
-    <div class="parts" id="partsList"></div>
+    <div class="tbl-wrap">
+      <table>
+        <thead><tr><th>Pieza</th><th>Medida</th><th>Token</th><th>Por qué</th></tr></thead>
+        <tbody>
+          <tr><td>Banda superior de cada columna</td><td class="val">40</td><td class="tok">--region-head-h</td><td>Con su línea adentro. Todas las columnas arrancan con la misma banda, así la costura de arriba es una sola línea.</td></tr>
+          <tr><td>Encabezado de vista o de grupo</td><td class="val">32</td><td class="tok">--view-head-h</td><td>Un escalón debajo de la banda: se lee como parte de la región, no como otra región.</td></tr>
+          <tr><td>Fila de lista, árbol o menú</td><td class="val">28</td><td class="tok">--row-h</td><td>Se acierta sin mirar y entran 20 filas en una columna de 600.</td></tr>
+          <tr><td>Campo, botón, select</td><td class="val">32</td><td class="tok">--control-md</td><td>El control de un formulario dentro de una región.</td></tr>
+          <tr><td>Control dentro de una banda</td><td class="val">28</td><td class="tok">--control-sm</td><td>4 de aire, 28 y 4 dan los 40. Uno de 32 la estira y rompe la costura.</td></tr>
+          <tr><td>Botón de icono</td><td class="val">24</td><td class="tok">--control-xs</td><td>Icono de 16 centrado; la zona de toque es el botón.</td></tr>
+          <tr><td>Pie</td><td class="val">30</td><td class="tok">--statusbar-h</td><td>Texto de 11 y los botones de 24 que pliegan cada región.</td></tr>
+          <tr><td>Margen del texto</td><td class="val">12</td><td class="tok">--gutter</td><td>El mismo en el encabezado y en cada fila: título y contenido en la misma vertical.</td></tr>
+          <tr><td>Margen del documento</td><td class="val">24</td><td class="tok">--space-6</td><td>El editor que muestra prosa se separa más del borde.</td></tr>
+          <tr><td>Nivel de un árbol</td><td class="val">16</td><td class="tok">--indent</td><td>Lo que ocupa un chevron: el hijo arranca donde terminó el icono del padre.</td></tr>
+          <tr><td>Anchos por defecto</td><td class="val">300 · 340</td><td class="tok">--sidebar-w · --auxiliarybar-w</td><td>El sidebar y el secundario; se arrastran y se recuerdan.</td></tr>
+          <tr><td>Mínimos</td><td class="val">240 · 124 · 360</td><td class="tok">--sidebar-min · --panel-min · --editor-min</td><td>Por debajo, la región se pliega (ver comportamiento).</td></tr>
+        </tbody>
+      </table>
+    </div>
   </section>
 
-  <section id="region">
+  <section id="tipografia">
     <div class="sec-head">
-      <h2>Adentro de una región</h2>
-      <p>Toda región tiene la misma forma: un encabezado fijo y un cuerpo que scrollea. Lo que cambia es qué pone cada una adentro. Este es el sidebar del tablero, ampliado.</p>
+      <h2>Tipografía</h2>
+      <p>Dos familias, cinco tamaños y dos pesos. La jerarquía la dan el peso y el tono de la tinta, no el tamaño: adentro de una región hay a lo sumo dos tamaños.</p>
     </div>
-    <div class="anat">
-      <div class="zoom" aria-hidden="true">
-        <div class="zh"><span class="pin">1</span><span class="t">Tareas <span class="count">9 / 16</span></span>
-          <span class="pin">2</span>
-          <span class="zi"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4"><path d="M8 3v10M3 8h10"/></svg></span>
-          <span class="zi"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4"><path d="M13 8a5 5 0 1 1-1.5-3.5M13 3v2.5h-2.5"/></svg></span>
-          <span class="pin">3</span>
-          <span class="zi m"><svg viewBox="0 0 16 16" fill="currentColor"><circle cx="3.5" cy="8" r="1.3"/><circle cx="8" cy="8" r="1.3"/><circle cx="12.5" cy="8" r="1.3"/></svg></span>
-        </div>
-        <div class="zg"><span class="pin">4</span><span>▾</span> Trabajo · 6</div>
-        <div class="zr on">#96 Playground local</div>
-        <div class="zr">#95 Ecommerce: pruebas en conjunto</div>
-        <div class="zr">#94 Código de preaprobado de la app</div>
-        <div class="zg"><span>▾</span> Evaluación · 3</div>
-        <div class="zr">#90 Playground</div>
-        <div class="zr">#91 Trazador</div>
-        <div class="zv"><span class="pin">5</span><span>▸</span> Jira</div>
+    <div class="two">
+      <div class="col"><h3>Tamaños</h3><div class="spec">
+        <div class="spec-row"><span class="tok">--text-xs</span><span class="val">11</span><span class="use"><span class="sample" style="font-size:11px;color:var(--fg-2)">local · 5 abiertas · 12:41</span>Pie, conteos, metadatos, píldoras.</span></div>
+        <div class="spec-row"><span class="tok">--text-sm</span><span class="val">12</span><span class="use"><span class="sample" style="font-size:12px;font-weight:600;color:var(--fg-2)">Explorador</span>Encabezados de región y de grupo, pestañas, rótulos de campo.</span></div>
+        <div class="spec-row"><span class="tok">--text-base</span><span class="val">13</span><span class="use"><span class="sample" style="font-size:13px">Solicitud 519245</span>La interfaz: filas, campos, botones, menús.</span></div>
+        <div class="spec-row"><span class="tok">--text-body</span><span class="val">14</span><span class="use"><span class="sample" style="font-size:14px;line-height:1.6">La prosa de un documento, a 65 caracteres por renglón.</span>Sólo en el editor, cuando lo que se muestra es para leer.</span></div>
+        <div class="spec-row"><span class="tok">--text-title</span><span class="val">16</span><span class="use"><span class="sample" style="font-size:16px;font-weight:600">Solicitud 519245</span>El título del documento abierto y el de un estado vacío. Uno por pantalla.</span></div>
+      </div></div>
+      <div class="col"><h3>Familias, pesos e interlineado</h3><div class="spec">
+        <div class="spec-row"><span class="tok">--font-sans</span><span class="val">sistema</span><span class="use">Todo el texto. Sin fuentes descargadas: la herramienta arranca sin red y se ve nativa.</span></div>
+        <div class="spec-row"><span class="tok">--font-mono</span><span class="val">sistema</span><span class="use"><span class="sample mono" style="font-size:12px">ureq 519245 · feature/rama</span>Sólo datos literales: ids, ramas, rutas, comandos, logs. Un tamaño menos que el texto que lo rodea.</span></div>
+        <div class="spec-row"><span class="tok">400 · 600</span><span class="val">pesos</span><span class="use">400 el texto, 600 los títulos y lo elegido. El 500 vive sólo adentro de los componentes (botón, rótulo, píldora).</span></div>
+        <div class="spec-row"><span class="tok">1,4 · 1,6</span><span class="val">línea</span><span class="use">1,4 en la interfaz, 1,6 en la prosa. Los números en columna, con <code>tabular-nums</code>.</span></div>
       </div>
-      <ol class="legend">
-        <li><span class="pin">1</span><div><b>Título de la región</b> <code>.region-head</code><p>12px, peso 600, mayúscula inicial, 40px de alto mínimo. Empuja las acciones al borde y se recorta con puntos suspensivos antes de sacarlas de la región. Si el encabezado junta varias cosas, envuelve a otro renglón (<code>flex-wrap</code> más <code>height: auto</code>).</p></div></li>
-        <li><span class="pin">2</span><div><b>Toolbar</b> <code>.region-actions</code> › <code>.region-action</code><p>Lo que se hace seguido. Botones de 24×24 con un icono de 16px; el texto va en <code>title</code> y <code>aria-label</code>, nunca adentro del botón, porque se parte en dos renglones.</p></div></li>
-        <li><span class="pin">3</span><div><b>Menú de la región</b> <code>RegionMenu</code> · <code>bindMenu()</code><p>Lo que se alterna y se toca poco, con su tilde y su conteo. El punto sobre el botón avisa que hay opciones activas. Un filtro sólo puede vivir acá si el encabezado lo delata: el contador pasa de <span class="mono">9</span> a <span class="mono">9 / 16</span>.</p></div></li>
-        <li><span class="pin">4</span><div><b>Encabezado de grupo</b> <code>.region-head.grupo</code><p>Misma forma que el título de la región, nunca más fuerte. La diferencia es de comportamiento: scrollea con la lista y se pega arriba, pintado con el fondo de su región (<code>--region-bg</code>).</p></div></li>
-        <li><span class="pin">5</span><div><b>Vista plegada</b> <code>.view</code> · <code>.view-tog</code><p>Una región puede apilar varias vistas que se reparten el alto. Cerrada, una vista ocupa una fila: sigue a la vista para que nadie crea que no existe.</p></div></li>
-      </ol>
+      <p class="never"><s>MAYÚSCULAS</s><s>letter-spacing</s><s>700</s><s>9–10,5px</s><s>12,5px</s><s>clamp()</s> Fuera de la base. Un rótulo va en mayúscula inicial.</p></div>
     </div>
   </section>
 
-  <section id="minimo">
+  <section id="espacios">
     <div class="sec-head">
-      <h2>Mínimo o nada</h2>
-      <p>Toda región que se redimensiona tiene un ancho (o alto) mínimo, y entre cero y ese mínimo no hay nada: si se la achica por debajo, se pliega a 0. Nunca queda una columna de 90px con el texto cortado. Probalo: arrastrá las manijas, usá las flechas con la manija enfocada o achicá la ventana.</p>
+      <h2>Espacios</h2>
+      <p>Cinco pasos sobre una grilla de 4, cada uno con un uso. Los grupos se separan con <code>gap</code>, nunca con márgenes por elemento.</p>
+    </div>
+    <div class="spec">
+      <div class="spec-row"><span class="tok">--space-1</span><span class="val">4</span><span class="use"><span class="bar4" style="width:4px"></span>Aire de un control dentro de una banda; entre una fila y el borde de su región.</span></div>
+      <div class="spec-row"><span class="tok">--space-2</span><span class="val">8</span><span class="use"><span class="bar4" style="width:8px"></span>Icono y texto; controles vecinos; un rótulo y su campo.</span></div>
+      <div class="spec-row"><span class="tok">--space-3</span><span class="val">12</span><span class="use"><span class="bar4" style="width:12px"></span>El margen de una región, y entre campos de un formulario.</span></div>
+      <div class="spec-row"><span class="tok">--space-4</span><span class="val">16</span><span class="use"><span class="bar4" style="width:16px"></span>Entre bloques de una sección: párrafos, tarjetas de datos.</span></div>
+      <div class="spec-row"><span class="tok">--space-6</span><span class="val">24</span><span class="use"><span class="bar4" style="width:24px"></span>Entre secciones del editor y el margen del documento. El paso más grande.</span></div>
+    </div>
+    <p class="never"><s>20</s><s>3</s><s>5</s><s>6</s><s>7</s><s>9</s><s>10</s><s>14</s> Fuera. La única excepción es 2px entre botones de icono vecinos de una barra.</p>
+  </section>
+
+  <section id="iconos">
+    <div class="sec-head">
+      <h2>Iconos</h2>
+      <p>Un solo juego, el de <code>taller.css</code>: glifos dibujados en una grilla de 24, trazo de 1,75, extremos redondeados y sin relleno. Toman el color del texto, así un tema nuevo los alcanza solo.</p>
+    </div>
+    <div class="icons" id="iconGrid"></div>
+    <div class="two">
+      <div class="col"><h3>Cómo se usan</h3><div class="spec">
+        <div class="spec-row"><span class="tok">16</span><span class="val">tamaño</span><span class="use">Un solo tamaño, siempre, adentro de un botón de 24. La zona de toque es el botón.</span></div>
+        <div class="spec-row"><span class="tok">tinta</span><span class="val">color</span><span class="use"><code>--texto-2</code> en reposo, <code>--foreground</code> al pasar o activo. Con color sólo para un estado, y con texto o forma que diga lo mismo.</span></div>
+        <div class="spec-row"><span class="tok">solo</span><span class="val">rótulo</span><span class="use">Sin texto lleva <code>title</code> y <code>aria-label</code>. Icono y texto, sólo en la acción principal de una región.</span></div>
+        <div class="spec-row"><span class="tok">marcado</span><span class="val">html</span><span class="use"><code>&lt;span class="ui-icon" data-icon="copy" aria-hidden="true"&gt;</code>. Nada de SVG pegado a mano.</span></div>
+      </div></div>
+      <div class="col"><h3>La grilla del dibujo</h3><div class="grid24" id="grid24"></div>
+        <p class="never"><s>✕</s><s>⧉</s><s>▸</s><s>⋯</s><s>✓</s><s>⚠</s><s>emoji</s> Un carácter no es un icono: cambia con la fuente, no respeta el trazo ni se centra en el botón. Un icono nuevo se dibuja en esta grilla y se suma a <code>taller.css</code>; no se mezclan juegos.</p></div>
+    </div>
+  </section>
+
+  <section id="forma">
+    <div class="sec-head">
+      <h2>Forma</h2>
+      <p>Lo que ocupa una columna entera es plano; lo que es una pieza suelta se redondea. Una línea de 1px separa, y la sombra es sólo para lo que flota.</p>
+    </div>
+    <div class="spec">
+      <div class="spec-row"><span class="tok">0</span><span class="val">radio</span><span class="use">Regiones, bandas, filas a sangre, tablas y avisos.</span></div>
+      <div class="spec-row"><span class="tok">--radius-control</span><span class="val">6</span><span class="use">Botón, campo, botón de icono, fila elegida, ítem de menú.</span></div>
+      <div class="spec-row"><span class="tok">--radius-float</span><span class="val">10</span><span class="use">Lo que flota (menú, popover): el radio del ítem más el aire que lo rodea, 6 + 4. Así las dos curvas son concéntricas.</span></div>
+      <div class="spec-row"><span class="tok">999</span><span class="val">radio</span><span class="use">Píldoras, contadores y puntos de estado. Una píldora es relleno o contorno, nunca los dos.</span></div>
+      <div class="spec-row"><span class="tok">1px</span><span class="val">línea</span><span class="use"><code>--border</code>, y una sola por costura: la pone una de las dos regiones.</span></div>
+      <div class="spec-row"><span class="tok">elegido</span><span class="val">fila</span><span class="use">Fondo suave y una barra de 2 a la izquierda en el color de acción. Sólo con fondo, en una lista larga hay que comparar contra la vecina.</span></div>
+    </div>
+  </section>
+
+  <section id="comportamiento">
+    <div class="sec-head">
+      <h2>Comportamiento</h2>
+      <p>Cuatro reglas de cómo se mueve la base. Las implementa <code>workbench.js</code> una sola vez, y una herramienta no las reescribe.</p>
+    </div>
+    <div class="rules">
+      <div><h3>La página no scrollea; cada región sí</h3><p>El workbench ocupa la ventana y lo que scrollea es el cuerpo de cada región. El encabezado queda fijo, así siempre se sabe qué se está mirando.</p></div>
+      <div><h3>Mínimo o nada</h3><p>Una región mide 0 o al menos su mínimo. Por debajo se pliega, por cualquier camino. Probalo abajo.</p></div>
+      <div><h3>Plegar es lo mismo que el botón del pie</h3><p>El botón se apaga, y al reabrir vuelve la última medida abierta. Lo plegado por falta de lugar vuelve solo cuando la ventana crece.</p></div>
+      <div><h3>El teclado llega a todo</h3><p>Una manija enfocada: flechas de 16, Shift más flecha de 48, Home pliega, End amplía, Enter alterna. Un menú: flechas, Home, End y Escape, que devuelve el foco.</p></div>
     </div>
     <div class="mn-bar">
       <label for="mnWin">Ancho de la ventana</label>
       <input type="range" id="mnWin" min="640" max="1600" step="8" value="1440">
       <output id="mnWinOut" for="mnWin">1440 px</output>
-      <span class="hint">La demo está a media escala; los números son los reales.</span>
+      <span class="hint">Media escala; los números son los reales.</span>
     </div>
     <div class="mn-stage">
       <div class="mn" id="mn" aria-label="Demo de mínimo o nada">
         <div class="mn-cols">
-          <div class="mn-col sb" id="mnSb"><div class="rh"><span class="t">Sidebar</span></div><div class="mn-w" id="mnSbW"></div></div>
-          <div class="mn-col ed" id="mnEd"><div class="rh"><span class="t">Editor</span></div><div class="mn-w" id="mnEdW"></div></div>
-          <div class="mn-col ax" id="mnAx"><div class="rh"><span class="t">Sidebar secundario</span></div><div class="mn-w" id="mnAxW"></div></div>
+          <div class="mn-col sb" id="mnSb"><div class="hd">Sidebar</div><div class="mn-w" id="mnSbW"></div></div>
+          <div class="mn-col ed"><div class="hd">Editor</div><div class="mn-w" id="mnEdW"></div></div>
+          <div class="mn-col ax" id="mnAx"><div class="hd">Secundario</div><div class="mn-w" id="mnAxW"></div></div>
         </div>
-        <div class="mn-status">
-          <span class="status-l">pie</span>
-          <span class="toggles">
-            <span class="tg" id="mnTgSb" role="button" tabindex="0" aria-label="Mostrar u ocultar el sidebar" title="Sidebar"><svg viewBox="0 0 12 10"><rect x=".5" y=".5" width="11" height="9" rx="1.5" fill="none" stroke="currentColor"/><rect x="1" y="1" width="3.5" height="8" fill="currentColor"/></svg></span>
-            <span class="tg" id="mnTgAx" role="button" tabindex="0" aria-label="Mostrar u ocultar el sidebar secundario" title="Sidebar secundario"><svg viewBox="0 0 12 10"><rect x=".5" y=".5" width="11" height="9" rx="1.5" fill="none" stroke="currentColor"/><rect x="7.5" y="1" width="3.5" height="8" fill="currentColor"/></svg></span>
-          </span>
+        <div class="mn-status"><span class="grow">pie</span>
+          <span class="tg" id="mnTgSb" role="button" tabindex="0" aria-label="Mostrar u ocultar el sidebar"><svg viewBox="0 0 12 10"><rect x=".5" y=".5" width="11" height="9" rx="1.5" fill="none" stroke="currentColor"/><rect x="1" y="1" width="3.5" height="8" fill="currentColor"/></svg></span>
+          <span class="tg" id="mnTgAx" role="button" tabindex="0" aria-label="Mostrar u ocultar el sidebar secundario"><svg viewBox="0 0 12 10"><rect x=".5" y=".5" width="11" height="9" rx="1.5" fill="none" stroke="currentColor"/><rect x="7.5" y="1" width="3.5" height="8" fill="currentColor"/></svg></span>
         </div>
         <span class="mn-h" id="mnHSb" role="separator" tabindex="0" aria-orientation="vertical" aria-label="Ancho del sidebar"></span>
         <span class="mn-h" id="mnHAx" role="separator" tabindex="0" aria-orientation="vertical" aria-label="Ancho del sidebar secundario"></span>
         <span class="mn-ghost" id="mnGhost" hidden><span>mínimo 240</span></span>
       </div>
     </div>
-    <p class="mn-log" id="mnLog" aria-live="polite">Arrastrá el borde del sidebar hacia la izquierda: al cruzar los 240 se pliega.</p>
-
-    <div class="two">
-      <div class="col">
-        <h3>La regla, en cinco partes</h3>
-        <div class="spec">
-          <div class="spec-row"><span class="tok">0 o ≥ mín</span><span class="val">medida</span><span class="use">Una región mide 0 o al menos su mínimo. No hay estado intermedio por ningún camino: arrastre, teclado, ventana o preferencia guardada.</span></div>
-          <div class="spec-row"><span class="tok">arrastre</span><span class="val">umbral</span><span class="use">Al cruzar el mínimo se pliega en el acto, sin franja muerta (hoy son 24px de más). Si en el mismo gesto se vuelve a pasar el mínimo, reabre.</span></div>
-          <div class="spec-row"><span class="tok">teclado</span><span class="val">flechas</span><span class="use">Una flecha que lleva por debajo del mínimo pliega. Home pliega, End lleva al máximo, Enter alterna.</span></div>
-          <div class="spec-row"><span class="tok">ventana</span><span class="val">orden</span><span class="use">Si no entra, primero se achican las columnas hasta su mínimo; después se pliega el sidebar secundario, y recién después el sidebar. El editor nunca se pliega ni baja de su mínimo.</span></div>
-          <div class="spec-row"><span class="tok">plegar</span><span class="val">= ocultar</span><span class="use">Plegar arrastrando es lo mismo que el botón del pie: el botón se apaga y al reabrir vuelve la última medida abierta, no la de fábrica ni el 0. Si esa medida ya no entra, abre al mínimo.</span></div>
-        </div>
-      </div>
-      <div class="col">
-        <h3>Los mínimos</h3>
-        <div class="spec">
-          <div class="spec-row"><span class="tok">--sidebar-min</span><span class="val">240px</span><span class="use">Sidebar y sidebar secundario, el mismo número: entran un título, sus iconos y un nombre legible. Por defecto 300 y 340, como hoy.</span></div>
-          <div class="spec-row"><span class="tok">--panel-min</span><span class="val">124px</span><span class="use">El encabezado (40) más tres filas (3 × 28). Menos que eso ya no es una consola.</span></div>
-          <div class="spec-row"><span class="tok">--editor-min</span><span class="val">360px</span><span class="use">Ancho que el editor conserva siempre; es lo que calcula el máximo de las otras. Y 240px de alto frente al panel.</span></div>
-        </div>
-        <h3>Antes del cambio, medido en el código</h3>
-        <div class="tbl-wrap">
-          <table class="mins" style="min-width:520px">
-            <thead><tr><th>Región</th><th>harness</th><th>tablero</th><th>trazador</th><th>visor</th></tr></thead>
-            <tbody>
-              <tr><td>sidebar</td><td>240 · pliega</td><td class="bad">200 · no pliega; la ventana lo aprieta a 160</td><td>240 · pliega</td><td class="bad">220 · no pliega</td></tr>
-              <tr><td>sidebar secundario</td><td>220 · pliega</td><td class="bad">260 · no pliega</td><td>280 · pliega</td><td class="bad">220 · no pliega</td></tr>
-              <tr><td>panel</td><td>90 · pliega</td><td>150 · pliega</td><td>116 · pliega</td><td class="no">no tiene</td></tr>
-              <tr><td>editor</td><td>≈328</td><td>320</td><td>220</td><td>360</td></tr>
-              <tr><td>umbral</td><td colspan="4">mínimo − 24px en <code>workbench.js</code>, igual en las cuatro</td></tr>
-              <tr><td>ventana angosta</td><td class="bad">el máximo cae a 160 y queda debajo del mínimo</td><td class="bad">aprieta el sidebar a 160</td><td>el máximo puede caer debajo del mínimo</td><td>el editor puede bajar de 360</td></tr>
-              <tr><td>última medida</td><td colspan="4">cada una la guarda con su propio código (<code>lastKey</code> en el harness, tres <code>watch</code> en el trazador)</td></tr>
-            </tbody>
-          </table>
-        </div>
-      </div>
-    </div>
-    <p class="never"><b style="color:var(--fg)">Implementado el 24 sep 2026.</b> <code>workbench.js</code> trae <code>regionSize</code>, <code>fitRegions</code> y <code>reopenSize</code>; <code>bindResize</code> pliega por defecto con el umbral en el mínimo, y las cuatro herramientas borraron su versión. Lo verifica <code>make estilo-minimo</code>: la lógica sin navegador y, en las cuatro apps encendidas, cuatro anchos de ventana y cada paso del teclado sobre cada manija. Una región fija sin manija (la consola del tablero sin ramas) lo declara con <code>data-size="fixed"</code>.</p>
-  </section>
-
-  <section id="tipografia">
-    <div class="sec-head">
-      <h2>Tipografía</h2>
-      <p>Dos familias, cinco tamaños y dos pesos. La jerarquía la da el peso y el tono de la tinta, no el tamaño: adentro de una región hay a lo sumo dos tamaños.</p>
-    </div>
-    <div class="two">
-      <div class="col">
-        <h3>Tamaños</h3>
-        <div class="spec">
-          <div class="spec-row"><span class="tok">--text-xs</span><span class="val">11px</span><span class="use"><span class="sample" style="font-size:11px;color:var(--fg-2)">target local · 47 tareas · 00:41</span>Pie, conteos, metadatos, píldoras.</span></div>
-          <div class="spec-row"><span class="tok">--text-sm</span><span class="val">12px</span><span class="use"><span class="sample" style="font-size:12px;font-weight:600;color:var(--fg-2)">Comercios</span>Encabezados de región y de grupo, pestañas, texto de los botones compactos.</span></div>
-          <div class="spec-row"><span class="tok">--text-base</span><span class="val">13px</span><span class="use"><span class="sample" style="font-size:13px">#96 Playground local</span>El texto de la interfaz: filas, formularios, menús, logs.</span></div>
-          <div class="spec-row"><span class="tok">--text-body</span><span class="val">14px</span><span class="use"><span class="sample" style="font-size:14px;line-height:1.6">La prosa de un documento en el editor, a 65 caracteres por renglón.</span>Sólo en el editor, cuando lo que se muestra es texto para leer.</span></div>
-          <div class="spec-row"><span class="tok">--text-title</span><span class="val">16px</span><span class="use"><span class="sample" style="font-size:16px;font-weight:600">Playground local</span>El título del documento abierto y el de un estado vacío. Uno por pantalla.</span></div>
-        </div>
-      </div>
-      <div class="col">
-        <h3>Familias, pesos e interlineado</h3>
-        <div class="spec">
-          <div class="spec-row"><span class="tok">--font-sans</span><span class="val">sistema</span><span class="use"><span class="sample" style="font-size:13px">San Francisco en macOS, Segoe en Windows</span>Todo el texto. Sin fuentes descargadas: la herramienta arranca sin red y se ve nativa.</span></div>
-          <div class="spec-row"><span class="tok">--font-mono</span><span class="val">sistema</span><span class="use"><span class="sample" style="font-size:12px;font-family:var(--mono)">ureq 519245 · feature/motai-v2</span>Sólo datos literales: ids, ramas, rutas, comandos, logs, hashes. Un tamaño menos que el texto que lo rodea.</span></div>
-          <div class="spec-row"><span class="tok">400</span><span class="val">regular</span><span class="use"><span class="sample" style="font-size:13px">Texto, filas, valores</span>Todo lo que no es un título.</span></div>
-          <div class="spec-row"><span class="tok">600</span><span class="val">semibold</span><span class="use"><span class="sample" style="font-size:13px;font-weight:600">Títulos y la fila elegida</span>Encabezados de región, grupo y documento. El 500 queda adentro de los componentes de <code>taller.css</code> (botón, label, badge) y ninguna herramienta lo escribe.</span></div>
-          <div class="spec-row"><span class="tok">1.4 · 1.6</span><span class="val">línea</span><span class="use">1.4 en la interfaz, 1.6 en la prosa. Números en columna con <code>tabular-nums</code>.</span></div>
-        </div>
-        <p class="never"><s>9px</s><s>10.5px</s><s>12.5px</s><s>15px</s><s>22px</s><s>clamp()</s><s>700</s><s>800</s><s>MAYÚSCULAS</s><s>letter-spacing</s> Fuera del estándar. Un tamaño o peso que no está en la escala no se agrega en una herramienta: se discute acá.</p>
-      </div>
-    </div>
-  </section>
-
-  <section id="espacios">
-    <div class="sec-head">
-      <h2>Espacios y alturas</h2>
-      <p>Una grilla de 4 con cinco pasos. Los grupos se separan con <code>gap</code>, nunca con márgenes por elemento, y todo borde interior de una región está a 12px.</p>
-    </div>
-    <div class="two">
-      <div class="col">
-        <h3>La escala</h3>
-        <div class="spec">
-          <div class="spec-row"><span class="tok">--space-1</span><span class="val">4px</span><span class="use"><span class="bar-4" style="width:4px"></span>Icono y su texto; padding vertical de una fila.</span></div>
-          <div class="spec-row"><span class="tok">--space-2</span><span class="val">8px</span><span class="use"><span class="bar-4" style="width:8px"></span>Entre controles de una misma fila; entre label y control; padding vertical del encabezado.</span></div>
-          <div class="spec-row"><span class="tok">--space-3</span><span class="val">12px</span><span class="use"><span class="bar-4" style="width:12px"></span>El margen de región: izquierda y derecha del encabezado y del cuerpo.</span></div>
-          <div class="spec-row"><span class="tok">--space-4</span><span class="val">16px</span><span class="use"><span class="bar-4" style="width:16px"></span>Entre bloques dentro de una sección; padding del editor cuando muestra un documento.</span></div>
-          <div class="spec-row"><span class="tok">--space-6</span><span class="val">24px</span><span class="use"><span class="bar-4" style="width:24px"></span>Entre secciones del editor. El paso más grande.</span></div>
-        </div>
-        <p class="never"><s>--space-5 · 20px</s><s>3px</s><s>5px</s><s>6px</s><s>7px</s><s>9px</s><s>10px</s><s>14px</s> Fuera. La única excepción es 2px entre botones de icono contiguos de una toolbar. <code>--space-5</code> ya no existe en <code>taller.css</code>.</p>
-      </div>
-      <div class="col">
-        <h3>El margen de región alinea todo</h3>
-        <div class="gutter" aria-hidden="true">
-          <span class="guide"></span><span class="guide r"></span>
-          <div class="gh">Comercios</div>
-          <div class="gr on">pullman</div>
-          <div class="gr">corbeta · QR</div>
-          <div class="gr">alta-fleet</div>
-          <div class="gr" style="height:36px"></div>
-          <span class="lbl">12px a cada lado, arriba y abajo del encabezado</span>
-        </div>
-        <h3>Alturas fijas</h3>
-        <div class="heights" aria-hidden="true">
-          <div><span class="box sq" style="height:24px"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><rect x="8" y="8" width="12" height="13" rx="2"/><path d="M16 8V5a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h3"/></svg></span><small>24 · icono</small></div>
-          <div><span class="box" style="height:28px;border-color:transparent;background:color-mix(in oklab,var(--fg) 8%,transparent)">pullman</span><small>28 · fila</small></div>
-          <div><span class="box" style="height:32px">Buscar comercio</span><small>32 · control</small></div>
-          <div><span class="box band" style="height:40px">Comercios</span><small>40 · encabezado</small></div>
-          <div><span class="box foot" style="height:30px">target local</span><small>30 · pie</small></div>
-        </div>
-        <p class="never"><s>36px</s><s>40px en un botón</s> Un control dentro de una herramienta mide 32 (el <code>btn-sm</code> e <code>input-sm</code> de hoy). Los 36 y 40 de shadcn son para páginas, no para un workbench denso. <b style="color:var(--fg)">Y dentro de una banda, 28</b>: 4 de aire, 28 y 4 dan los 40; un control de 32 adentro la estiraba a 49.</p>
-      </div>
-    </div>
-  </section>
-
-  <section id="iconos">
-    <div class="sec-head">
-      <h2>Iconos</h2>
-      <p>Un solo juego, el de <code>taller.css</code>: 23 glifos dibujados en una grilla de 24, trazo de 1,75, extremos redondeados y sin relleno. Se pintan con el color del texto (<code>currentColor</code>), así que el tema los alcanza solo.</p>
-    </div>
-    <div class="icons" id="iconGrid"></div>
-    <div class="two">
-      <div class="col">
-        <h3>Cómo se usan</h3>
-        <div class="spec">
-          <div class="spec-row"><span class="tok">16px</span><span class="val">tamaño</span><span class="use">Un solo tamaño, siempre. Adentro de un botón de 24×24, con la zona de toque en el botón y no en el dibujo.</span></div>
-          <div class="spec-row"><span class="tok">tinta</span><span class="val">color</span><span class="use"><span class="btn-demo" aria-hidden="true"><span id="demoA"></span><span id="demoB" class="h"></span><span id="demoC"></span></span><code>--texto-2</code> en reposo, <code>--foreground</code> al pasar o activo. Un icono con color semántico sólo marca un estado, y va con texto o forma que diga lo mismo.</span></div>
-          <div class="spec-row"><span class="tok">solo</span><span class="val">etiqueta</span><span class="use">Un icono sin texto lleva <code>title</code> y <code>aria-label</code>. Icono más texto, sólo en la acción principal de una región («Lanzar»).</span></div>
-          <div class="spec-row"><span class="tok">&lt;span&gt;</span><span class="val">marcado</span><span class="use"><code>&lt;span class="ui-icon" data-icon="copy" aria-hidden="true"&gt;</code>. Nada de SVG pegado a mano en el markup de una herramienta.</span></div>
-        </div>
-      </div>
-      <div class="col">
-        <h3>La grilla del dibujo</h3>
-        <div class="grid24" id="grid24"></div>
-        <p class="never"><s>✕</s><s>⧉</s><s>▸</s><s>▾</s><s>⋯</s><s>✓</s><s>●</s><s>⚠</s><s>emoji</s> Un carácter no es un icono: cambia de dibujo según la fuente del sistema, no respeta el trazo ni el tamaño y no se alinea al centro del botón. Hoy quedan 17 en el texto visible de las cuatro, sin contar el HTML que arma el JS del harness. El aviso <span class="mono">⚠</span> pasa a <code>.alert</code> con el icono <code>alert</code>, que es el único que falta.</p>
-        <p class="never">Un icono nuevo se dibuja en esta grilla, se suma a <code>taller.css</code> y entra sólo si una herramienta lo va a usar. Nada de mezclar juegos (Lucide, Heroicons, Material): el trazo y las esquinas se notan juntos.</p>
-      </div>
-    </div>
-  </section>
-
-  <section id="forma">
-    <div class="sec-head">
-      <h2>Forma: radios, líneas y sombras</h2>
-      <p>Tres radios, un grosor de línea y una sola sombra. Lo que ocupa una columna entera es plano; lo que es una pieza suelta se redondea.</p>
-    </div>
-    <div class="shape" aria-hidden="true">
-      <span class="o r0">región · 0</span>
-      <span class="o r6">control · 6px</span>
-      <span class="o pill">píldora · completo</span>
-    </div>
-    <div class="spec">
-      <div class="spec-row"><span class="tok">0</span><span class="val">radio</span><span class="use">Regiones, encabezados, filas, tablas y callouts. Todo lo que va a sangre.</span></div>
-      <div class="spec-row"><span class="tok">--radius-sm</span><span class="val">6px</span><span class="use">Botones, inputs, selects, botones de icono e ítems del menú (<code>--radius-control</code>). La caja del menú lleva 10 (<code>--radius-float</code>): el radio del ítem más el aire que lo rodea, así las dos curvas son concéntricas.</span></div>
-      <div class="spec-row"><span class="tok">999px</span><span class="val">radio</span><span class="use">Píldoras, contadores y puntos de estado.</span></div>
-      <div class="spec-row"><span class="tok">1px</span><span class="val">línea</span><span class="use"><code>--border</code>, y una sola por costura: la pone una de las dos regiones.</span></div>
-      <div class="spec-row"><span class="tok">sombra</span><span class="val">una</span><span class="use">Sólo lo que flota: menú y popover. Nada más proyecta sombra.</span></div>
-    </div>
-  </section>
-
-  <section id="antesdespues">
-    <div class="sec-head">
-      <h2>Antes y después</h2>
-      <p>Las cuatro herramientas a 1440px, el 24 sep 2026, antes y después de llevar las medidas a la escala. Lo que más cambia es la costura de arriba: cada columna tenía su propia altura de banda, y ahora las tres miden 40 y la línea sigue derecha.</p>
-    </div>
-    <div class="tbl-wrap">
-      <table style="min-width:560px">
-        <thead><tr><th>Banda superior por columna</th><th>harness</th><th>tablero</th><th>trazador</th><th>visor</th></tr></thead>
-        <tbody>
-          <tr><td>antes</td><td>41 · 53 · 41</td><td>40 · 35 · 37</td><td>42 · 53 · 42</td><td>57 · 57 · 57</td></tr>
-          <tr><td class="std" style="color:var(--primary-ink);font-weight:600">después</td><td>40 · 40 · 40</td><td>40 · 40 · 40</td><td>40 · 40 · 40</td><td>40 · 40 · 40</td></tr>
-          <tr><td>margen del texto, antes</td><td>12 · 25 · 13</td><td>10 · 30 · 16</td><td>12 · 12 · 13</td><td>33 · 12 · 13</td></tr>
-          <tr><td>texto en peso 700, antes → después</td><td>22 → 1</td><td>232 → 0</td><td>0 → 0</td><td>0 → 0</td></tr>
-        </tbody>
-      </table>
-    </div>
-    <div class="ba">
-      <figure><div><p class="tag2">Tablero · antes</p><img src="capturas/tablero-antes.jpg" alt="Tablero antes: la barra de pestañas del editor mide 35 y la del detalle 37, más bajas que el encabezado del sidebar" loading="lazy"></div><div><p class="tag2">Tablero · después</p><img src="capturas/tablero-despues.jpg" alt="Tablero después: las tres columnas arrancan con una banda de 40" loading="lazy"></div><figcaption>Las pestañas del editor y las del detalle suben a 40 y alinean con «Mis tareas». Las filas del árbol quedan en 28 con el texto a 12 del borde, en la misma vertical que el título.</figcaption></figure>
-      <figure><div><p class="tag2">Visor · antes</p><img src="capturas/visor-antes.jpg" alt="Visor antes: cada proyecto ocupa una banda de 57 px" loading="lazy"></div><div><p class="tag2">Visor · después</p><img src="capturas/visor-despues.jpg" alt="Visor después: banda Proyectos de 40 y vistas de 32" loading="lazy"></div><figcaption>El encabezado de cada vista pasa de 57 a 32, y el sidebar gana su banda «Proyectos» de 40, que le faltaba para alinear con el editor y el detalle.</figcaption></figure>
-      <figure><div><p class="tag2">Harness · antes</p><img src="capturas/harness-antes.jpg" alt="Harness antes: el recorrido mide 53 de alto y los rótulos del detalle van en mayúsculas espaciadas" loading="lazy"></div><div><p class="tag2">Harness · después</p><img src="capturas/harness-despues.jpg" alt="Harness después: las tres bandas en 40 y los rótulos en mayúscula inicial" loading="lazy"></div><figcaption>La barra del recorrido baja de 53 a 40 con los controles en 28. Los rótulos «CASO» e «IDENTIDAD» pasan a «Caso» e «Identidad», sin espaciado entre letras, y la lista de comercios usa filas de 28.</figcaption></figure>
-    </div>
-  </section>
-
-  <section id="medido">
-    <div class="sec-head">
-      <h2>Hoy contra el estándar</h2>
-      <p>Valores distintos que cada herramienta escribe en sus propias hojas y templates, sin contar <code>tema.css</code> ni <code>taller.css</code>. Lo que va por token no se cuenta, por eso el visor sale casi en cero: es la herramienta que ya escribe como pide esto. El script queda en la tarea (<code>artifacts/medir-estilo.py</code>).</p>
-    </div>
-    <div class="measure">
-      <table>
-        <thead><tr><th>Medida</th><th>harness</th><th>tablero</th><th>trazador</th><th>visor</th><th class="std">estándar</th></tr></thead>
-        <tbody>
-          <tr><td>Tamaños de fuente</td><td>20</td><td>18</td><td>11</td><td>3, los tres tokens</td><td class="std">5</td></tr>
-          <tr><td>Pesos</td><td>5</td><td>5</td><td>6</td><td>1</td><td class="std">2</td></tr>
-          <tr><td>Espacios (padding, margin, gap)</td><td>30</td><td>30</td><td>16</td><td>casi todo por token</td><td class="std">5 + el 2px</td></tr>
-          <tr><td>Radios</td><td>6</td><td>13</td><td>3</td><td>2</td><td class="std">3</td></tr>
-          <tr><td>Caracteres usados como icono</td><td>5</td><td>6</td><td>5</td><td>1</td><td class="std">0</td></tr>
-          <tr><td>Iconos del juego compartido</td><td>13 distintos</td><td>11</td><td>5</td><td>9</td><td class="std">de los 23</td></tr>
-        </tbody>
-      </table>
-    </div>
-  </section>
-
-  <section id="adopcion">
-    <div class="sec-head">
-      <h2>Quién usa qué, hoy</h2>
-      <p>Medido en el markup de cada app y en la sección 9 de <code>make estilo-check</code>. Los títulos son los que muestra cada región.</p>
-    </div>
-    <div class="tbl-wrap">
-      <table>
-        <thead><tr><th>Parte</th><th>harness</th><th>tablero</th><th>trazador</th><th>visor</th></tr></thead>
-        <tbody>
-          <tr><td><code>.workbench</code></td><td>grilla compartida</td><td>grilla compartida</td><td><span class="warn">layout propio</span></td><td>grilla compartida</td></tr>
-          <tr><td><code>sidebar</code></td><td>Comercios</td><td>Lista de tareas</td><td>Persona y solicitudes</td><td>Proyectos</td></tr>
-          <tr><td><code>editor</code></td><td>Recorrido</td><td>La tarea, con pestañas</td><td>Mapa</td><td>La pantalla</td></tr>
-          <tr><td><code>auxiliarybar</code></td><td>Configuración</td><td>Jira · Pendientes · Artifacts, en pestañas</td><td>Logs <span class="warn">(superpuesto al mapa)</span></td><td>Pantalla</td></tr>
-          <tr><td><code>panel</code></td><td>Consola</td><td>Ramas</td><td>Recientes</td><td><span class="no">no tiene</span></td></tr>
-          <tr><td><code>statusbar</code></td><td>sí</td><td>sí</td><td>sí</td><td>sí</td></tr>
-          <tr><td><code>.view</code> (acordeón)</td><td><span class="no">no</span></td><td>grupos de tareas y Jira</td><td><span class="no">no</span></td><td>un archivo por vista</td></tr>
-          <tr><td><code>.region-head.grupo</code></td><td><span class="no">no</span></td><td>días de la pila</td><td><span class="no">no</span></td><td>carriles y secciones del detalle</td></tr>
-          <tr><td><code>titlebar</code> · <code>banner</code> · <code>activitybar</code></td><td><span class="no">no</span></td><td><span class="no">no</span></td><td><span class="no">no</span></td><td><span class="no">no</span></td></tr>
-        </tbody>
-      </table>
-    </div>
+    <p class="mn-log" id="mnLog" aria-live="polite">Arrastrá el borde del sidebar hacia la izquierda: al cruzar los 240 se pliega. Con la ventana angosta se pliega primero el secundario.</p>
   </section>
 
   <section id="reglas">
     <div class="sec-head">
-      <h2>Las reglas del esqueleto</h2>
-      <p>Cada una salió de un error que ya pasó en alguna de las herramientas. El detalle y lo medido viven en el <code>CLAUDE.md</code> raíz.</p>
+      <h2>Reglas</h2>
+      <p>Lo que decide qué va y qué no, cuando la base no lo dice con una medida.</p>
     </div>
     <div class="rules">
-      <div><h3>Una región existe si tiene contenido y scroll propios</h3><p>Una región vacía porque «está en la lista» es peor que no tenerla. La que no se pone en el markup no cuesta nada: su pista de la grilla colapsa a cero.</p></div>
-      <div><h3>La página nunca scrollea; cada región sí</h3><p>El <code>.workbench</code> ocupa la ventana y lo que scrollea es el <code>.region-body</code>, no la región. Fingirlo con <code>max-height: 82vh</code> está prohibido y el chequeo lo caza.</p></div>
-      <div><h3>Sin barras a lo ancho</h3><p>Un titlebar le cobra su alto a todas las regiones. Lo que tenía baja al encabezado de la región de la que habla; el nombre de la herramienta ya lo dice la pestaña del navegador.</p></div>
-      <div><h3>Las acciones viven en su región</h3><p>Nada de botones globales. Frecuente y de hacer: toolbar. Poco usado y de alternar: menú <span class="mono">⋯</span>. Los avisos van junto a la operación, como el de dev compartido del harness dentro del editor.</p></div>
-      <div><h3>Se separa con una línea, no con una caja</h3><p>Escalón de fondo más una línea de 1px. Sin marcos alrededor de algo que ocupa toda su columna, y sin costura doble: la línea la pone una sola de las dos regiones.</p></div>
-      <div><h3>Ocultar no es borrar</h3><p>Una región plegada deja su control en el pie y, al volver, recupera la última medida que eligió la persona, no la de fábrica.</p></div>
-      <div><h3>Mínimo o nada</h3><p>Una región mide 0 o al menos su mínimo. Por debajo se pliega, igual que con el botón del pie, y al volver recupera su última medida abierta.</p></div>
-      <div><h3>El tope de un arrastre se calcula</h3><p>El máximo de una manija sale de la ventana y del ancho de la otra columna. Con un número fijo, el editor se queda sin ancho usable.</p></div>
-      <div><h3>El color es un token, siempre</h3><p>Los colores salen de <code>tema.css</code>; el semántico propio de cada herramienta, de su hoja puente. Un literal suelto no sobrevive a un cambio de tema.</p></div>
+      <div><h3>Una región existe si tiene contenido y scroll propios</h3><p>Una región vacía porque «está en la lista» es peor que no tenerla. La que no se pone no cuesta nada.</p></div>
+      <div><h3>Sin barras a lo ancho</h3><p>Ni titlebar ni banner: le cobran su alto a todas las regiones. Lo que tendrían va al encabezado de la región de la que habla; el nombre de la herramienta ya lo dice la pestaña.</p></div>
+      <div><h3>Las acciones viven en su región</h3><p>Frecuente y de hacer, en la barra de iconos. Poco usado y de alternar, en el menú. Un aviso, junto a la operación que avisa.</p></div>
+      <div><h3>Un filtro escondido se delata</h3><p>Si un filtro vive en el menú, el encabezado lo dice: el contador pasa de 9 a 9 / 16. Sin esa señal, el filtro se queda a la vista.</p></div>
+      <div><h3>Se separa con una línea, no con una caja</h3><p>Escalón de fondo más una línea. Sin marco alrededor de algo que ocupa toda su columna. Una caja es para un objeto: un campo, un botón, una imagen.</p></div>
+      <div><h3>El color es un token</h3><p>Los colores salen del tema, y el color de un estado de la hoja propia de cada herramienta. Un color escrito a mano no sobrevive a un cambio de tema.</p></div>
     </div>
   </section>
 
-  <section id="decisiones">
+  <section id="construir">
     <div class="sec-head">
-      <h2>Decisiones</h2>
-      <p>Los huecos que quedaron abiertos en el primer borrador, cada uno con una propuesta. «Propuesta» espera tu visto bueno; «hecho» ya está en el repo.</p>
-    </div>
-    <div class="decisions">
-      <div><span class="st done">Hecho</span><div class="body"><span class="q">El README de la UI decía que el panel es sólo del harness</span><p>Corregido: la tabla dice que lo usan el harness (Consola), el tablero (Ramas) y el trazador (Recientes).</p></div></div>
-      <div><span class="st prop">Propuesta</span><div class="body"><span class="q">La barra de herramientas del editor no es una parte nueva</span><p>Es el <code>.region-head</code> del editor, que envuelve cuando junta muchas cosas. El <code>.stagehead</code> y el <code>.editorbox</code> del harness se disuelven en eso; el trazador ya lo hace así con el buscador de su mapa. Un nombre menos.</p></div></div>
-      <div><span class="st prop">Propuesta</span><div class="body"><span class="q">Las pestañas suben a <code>taller.css</code> como <code>.tabs</code> y <code>.tab</code></span><p>El tablero ya tiene dos barras de pestañas escritas por separado: <code>.editor-tabs</code> (tareas abiertas) y <code>.aux-tabs</code> (Jira, Pendientes, Artifacts), con la misma gramática y dos hojas de estilo. Eso ya es el segundo uso. Las dos pasan a ser <code>.tabs</code>, y la parte se llama «pestañas» en cualquier región.</p></div></div>
-      <div><span class="st prop">Propuesta</span><div class="body"><span class="q">El trazador entra a <code>.workbench</code> y su detalle flota como <code>.auxiliarybar.overlay</code></span><p>La razón para flotar es real: no recalcular el grafo en cada píxel del arrastre. Pero eso es del sidebar secundario, no del resto del layout. Con el modificador declarado en <code>taller.css</code>, la desviación queda escrita y el chequeo de scroll mide al trazador como a las demás.</p></div></div>
-      <div><span class="st prop">Propuesta</span><div class="body"><span class="q">El estado vacío es <code>.empty</code>, en todas</span><p>El <code>.sidebar-vacio</code> del trazador se reemplaza por <code>.empty</code> de <code>taller.css</code>, en su forma corta: una línea de <code>--text-base</code> en <code>--texto-2</code>, sin ilustración.</p></div></div>
-      <div><span class="st done">Hecho</span><div class="body"><span class="q">El estándar de tipografía, espacios, iconos y forma de arriba</span><p>En <code>taller.css</code> desde el 24 sep: <code>--text-title</code>, <code>--row-h</code>, <code>--view-head-h</code>, <code>--gutter</code>, <code>--radius-control</code> y <code>--radius-float</code>, y cada componente del taller medido con ellos. Las cuatro herramientas llevaron sus tamaños y pesos a la escala y sus bandas a 40. Falta el chequeo que cuente literales fuera de la escala, y los espacios propios de cada herramienta (siguen con ~30 valores distintos en el harness y el tablero).</p></div></div>
-    </div>
-  </section>
-
-  <section id="nueva">
-    <div class="sec-head">
-      <h2>Armar una herramienta nueva</h2>
-      <p>El orden importa: los dos primeros pasos son los que hacen que después el chequeo la vea. El visor es el modelo a copiar: casi todo su estilo va por token.</p>
+      <h2>Construir sobre la base</h2>
+      <p>Para una herramienta nueva, y en ese orden para acercar una existente cada vez que se la toca.</p>
     </div>
     <ol class="steps">
-      <li>Sumarla a <code>make estilo-sync</code> para que reciba <code>tema.css</code>, <code>taller.css</code> y <code>workbench.js</code>, y a <code>make estilo-check</code> para que la mida.</li>
-      <li>Montar la raíz como <code>.workbench</code> y poner sólo las regiones que tienen algo que mostrar. Empezar por <code>editor</code>, que es la única obligatoria.</li>
-      <li>Darle a cada región su <code>.region-head</code> con título, toolbar y menú, y su <code>.region-body</code> con el scroll.</li>
-      <li>Escribir todo tamaño, espacio y radio con su token (<code>var(--text-sm)</code>, <code>var(--space-3)</code>). Si un valor no está en la escala, no se inventa ahí: se trae a esta página.</li>
-      <li>Usar sólo iconos de <code>.ui-icon</code>, a 16px, en botones de 24×24 con <code>title</code> y <code>aria-label</code>.</li>
-      <li>Poner en el <code>statusbar</code> el estado a la izquierda y un control por cada región que se pueda plegar a la derecha.</li>
-      <li>Agregar las manijas <code>.rsz</code> con <code>vResize</code>, con el mínimo de su región (<code>--sidebar-min</code>, <code>--panel-min</code>) y el máximo calculado contra <code>--editor-min</code>. Por debajo del mínimo pliega; eso no se configura.</li>
-      <li>Correr <code>make estilo-check</code>, <code>make estilo-contraste</code> y <code>make estilo-ui</code> con la herramienta encendida.</li>
+      <li>Sumarla a <code>make estilo-sync</code> y <code>make estilo-check</code>, para que reciba <code>tema.css</code>, <code>taller.css</code> y <code>workbench.js</code> y el chequeo la vea.</li>
+      <li>La raíz es <code>.workbench</code>. Empezar por el <code>editor</code>, que es la única región obligatoria, y sumar las demás sólo si tienen algo que mostrar.</li>
+      <li>Cada región arranca con su banda de 40 (<code>.region-head</code> o una barra de pestañas) y sigue con un cuerpo que scrollea.</li>
+      <li>Escribir cada medida con su token: <code>var(--row-h)</code>, <code>var(--gutter)</code>, <code>var(--text-sm)</code>. Si una medida no está en la base, no se inventa en la herramienta: se trae a esta página.</li>
+      <li>Iconos sólo de <code>.ui-icon</code>, a 16, en botones de 24 con <code>title</code> y <code>aria-label</code>.</li>
+      <li>El pie lleva el estado a la izquierda y un botón por región plegable a la derecha. Las manijas usan <code>bindResize</code>, que ya pliega por debajo del mínimo.</li>
+      <li>Verificar con <code>make estilo-check</code>, <code>make estilo-minimo</code>, <code>make estilo-contraste</code> y <code>make estilo-ui</code>, con la herramienta encendida.</li>
     </ol>
   </section>
 
-  <footer>Prototipo de la tarea #96 · quinto borrador, 24 sep 2026 · el contrato vigente sigue siendo <span class="mono">tools/ui/README.md</span> hasta que esto se apruebe.</footer>
+  <footer>Tarea #96 · borrador de la base, 24 sep 2026. Hasta que se apruebe, el contrato vigente es <span class="mono">tools/ui/README.md</span>.</footer>
 </div>
 
 <script>
 (function () {
-  // Los 23 glifos de tools/ui/taller.css, decodificados tal cual (grilla 24, trazo 1,75). `alert` es el único propuesto.
   const ICONS = {"sidebar": "<rect x=\"3\" y=\"4\" width=\"18\" height=\"16\" rx=\"2\"/><path d=\"M9 4v16\"/>", "detail": "<rect x=\"3\" y=\"4\" width=\"18\" height=\"16\" rx=\"2\"/><path d=\"M15 4v16\"/>", "console": "<rect x=\"3\" y=\"4\" width=\"18\" height=\"16\" rx=\"2\"/><path d=\"M3 14h18M7 8l2 2-2 2\"/>", "collapse": "<rect x=\"6\" y=\"6\" width=\"15\" height=\"15\" rx=\"2\"/><path d=\"M17 3H5a2 2 0 0 0-2 2v12M10 13h7\"/>", "search": "<circle cx=\"10.5\" cy=\"10.5\" r=\"6.5\"/><path d=\"m16 16 5 5\"/>", "plus": "<path d=\"M12 5v14M5 12h14\"/>", "refresh": "<path d=\"M20 11a8 8 0 1 0 2 5.5\"/><path d=\"M20 4v7h-7\"/>", "close": "<path d=\"m6 6 12 12M6 18 18 6\"/>", "more": "<circle cx=\"5\" cy=\"12\" r=\"1\"/><circle cx=\"12\" cy=\"12\" r=\"1\"/><circle cx=\"19\" cy=\"12\" r=\"1\"/>", "copy": "<rect x=\"8\" y=\"8\" width=\"12\" height=\"13\" rx=\"2\"/><path d=\"M16 8V5a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h3\"/>", "check": "<path d=\"m5 12 4 4L19 6\"/>", "chevron": "<path d=\"m9 5 7 7-7 7\"/>", "filter": "<path d=\"M4 5h16l-6 7v6l-4 2v-8Z\"/>", "eye": "<path d=\"M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12Z\"/><circle cx=\"12\" cy=\"12\" r=\"3\"/>", "play": "<path d=\"m7 4 14 8-14 8Z\"/>", "external": "<path d=\"M14 3h7v7M21 3 10 14M10 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-5\"/>", "move": "<path d=\"M4 12h16m-5-5 5 5-5 5M4 5v14\"/>", "settings": "<path d=\"M4 7h16M4 17h16\"/><circle cx=\"9\" cy=\"7\" r=\"3\"/><circle cx=\"15\" cy=\"17\" r=\"3\"/>", "clock": "<circle cx=\"12\" cy=\"12\" r=\"9\"/><path d=\"M12 7v5l3 2\"/>", "server": "<rect x=\"3\" y=\"3\" width=\"18\" height=\"7\" rx=\"2\"/><rect x=\"3\" y=\"14\" width=\"18\" height=\"7\" rx=\"2\"/><path d=\"M7 6.5h.01M7 17.5h.01\"/>", "channel": "<path d=\"M12 4v6M5 20v-6h14v6M12 14v6\"/><circle cx=\"12\" cy=\"4\" r=\"2\"/>", "down": "<path d=\"m6 9 6 6 6-6\"/>", "bottom": "<path d=\"M5 20h14M12 3v12m-5-5 5 5 5-5\"/>"};
   const PROPOSED = { alert: '<path d="M12 4 3 20h18Z"/><path d="M12 10v4M12 17h.01"/>' };
   const svg = (inner) => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${inner}</svg>`;
-  const ICON = { plus: svg(ICONS.plus), copy: svg(ICONS.copy), x: svg(ICONS.close), play: svg(ICONS.play), search: svg(ICONS.search) };
+  document.querySelectorAll('[data-i]').forEach((el) => { el.innerHTML = svg(ICONS[el.dataset.i] || ''); });
 
-  const head = (title, icons = ['copy'], menu = true) =>
-    `<div class="rh" data-part="region-head" tabindex="0"><span class="t">${title}</span>` +
-    `<span class="acts" data-part="toolbar" tabindex="0">${icons.map(i => `<span class="ic">${ICON[i]}</span>`).join('')}</span>` +
-    (menu ? `<span class="more" data-part="menu" tabindex="0">···</span>` : '') + `</div>`;
-  const rows = (list, on = 0) => list.map((r, i) => `<div class="row${i === on ? ' on' : ''}">${r}</div>`).join('');
-  const grp = (t) => `<div class="grp" data-part="grupo" tabindex="0"><span class="chev">▾</span>${t}</div>`;
-  const lines = (...w) => w.map(x => `<div class="line ${x}"></div>`).join('');
-  const body = (html) => `<div class="rb" data-part="region-body" tabindex="0">${html}</div>`;
-  const view = (title, open, inner) =>
-    `<div class="view${open ? ' open' : ''}" data-part="view" tabindex="0"><div class="rh"><span class="chev">${open ? '▾' : '▸'}</span><span class="t">${title}</span></div>${open ? body(inner) : ''}</div>`;
-  const rszV = '<span class="rsz v" data-part="rsz" tabindex="0" title="Manija"></span>';
-  const rszH = '<span class="rsz h" data-part="rsz" tabindex="0" title="Manija"></span>';
-
-  const TOOLS = {
-    harness: {
-      sidebar: head('Comercios', ['plus', 'copy']) + body(rows(['pullman', 'corbeta · QR', 'alta-fleet', 'bcp-peru', 'motai', 'credifamilia'], 0)),
-      editor: `<div class="rh" data-part="region-head" tabindex="0" style="flex-wrap:wrap"><span class="t">Recorrido</span><span class="acts" data-part="toolbar" tabindex="0"><span class="ic">${ICON.play}</span><span class="ic">${ICON.copy}</span></span><span class="more" data-part="menu" tabindex="0">···</span></div>` +
-        body(grp('Preparar') + lines('l', 'm') + grp('Lanzar') + lines('m', 's', 'l') + grp('Resultado') + lines('s')),
-      panel: head('Consola', ['copy', 'x']) + body(
-        '<div class="log"><span class="ok">✓</span> auth · otp aceptado · 412 ms</div>' +
-        '<div class="log"><span class="ok">✓</span> personal-info · 200</div>' +
-        '<div class="log"><span class="w">!</span> lenders · 3 de 7 excluidas por regla dura</div>' +
-        '<div class="log">… esperando /solicitar</div>'),
-      aux: head('Configuración', ['copy']) + body(grp('Ambiente') + rows(['local'], -1) + grp('Canal') + rows(['asesor'], -1) + grp('Cliente') + lines('m', 's')),
-      status: '<span><span class="dot"></span>target local</span><span>corrida 3 · 00:41</span>',
-      has: { sidebar: 1, panel: 1, auxiliarybar: 1 },
-    },
-    tablero: {
-      sidebar: `<div class="rh" data-part="region-head" tabindex="0"><span class="t">Tareas</span><span class="acts" data-part="toolbar" tabindex="0"><span class="ic">${ICON.search}</span></span><span class="more" data-part="menu" tabindex="0">···</span></div>` +
-        `<div style="flex:1;min-height:0;display:flex;flex-direction:column">` +
-        view('Trabajo · 6', true, rows(['#96 Playground local', '#95 Ecommerce', '#94 Preaprobado app', '#86 Harness'], 0)) +
-        view('Evaluación · 3', false) + view('Jira', false) + `</div>`,
-      editor: head('#96 Playground local', ['copy']) +
-        '<nav class="tabs" data-part="editor-tabs" tabindex="0"><span class="tab on">#96 Playground local</span><span class="tab">#90 Playground</span><span class="tab">#86 Harness</span></nav>' +
-        body(lines('l', 'l', 'm') + grp('24 sep') + lines('m', 'l') + grp('23 sep') + lines('s', 'm')),
-      panel: head('Ramas', ['copy', 'x']) + body(
-        '<div class="log"><span class="ok">●</span> main · al día</div>' +
-        '<div class="log"><span class="w">●</span> feature/… · 3 commits sin mergear</div>'),
-      aux: '<nav class="tabs" data-part="editor-tabs" tabindex="0"><span class="tab on">Jira</span><span class="tab">Pendientes 3</span><span class="tab">Artifacts</span></nav>' + body(lines('m', 'l', 's', 'm', 'l')),
-      status: '<span><span class="dot"></span>47 tareas</span><span>sprint activo</span>',
-      has: { sidebar: 1, panel: 1, auxiliarybar: 1 },
-    },
-    trazador: {
-      sidebar: head('Persona y solicitudes', ['search', 'x']) + body(grp('Solicitud 519245') + lines('m', 's') + grp('Anteriores') + rows(['518870 · autorizada', '517002 · cancelada'], -1)),
-      editor: head('Mapa', ['search', 'copy']) +
-        `<div class="map"><svg class="edges" viewBox="0 0 100 100" preserveAspectRatio="none"><path d="M18 18 C 30 18, 30 45, 42 45"/><path d="M18 18 C 30 18, 30 75, 42 75"/><path d="M58 45 C 70 45, 70 45, 80 45"/></svg>` +
-        `<span class="node" style="left:4%;top:12%">auth</span><span class="node hot" style="left:36%;top:39%">kyc</span><span class="node" style="left:36%;top:69%">buró</span><span class="node" style="left:72%;top:39%">lenders</span></div>`,
-      panel: head('Recientes', ['x']) + body(rows(['519245 · prod · hace 4 min', '518870 · prod · ayer'], 0)),
-      aux: head('Logs', ['copy', 'x']) + body(
-        '<div class="log">kyc · TusDatos · 200</div><div class="log"><span class="w">!</span> nombre no coincide</div><div class="log">kyc · reintento</div>') +
-        '<span class="overlay-note">flota sobre el mapa</span>',
-      status: '<span><span class="dot"></span>prod · sólo lectura</span><span>39 pasos</span>',
-      has: { sidebar: 1, panel: 1, auxiliarybar: 1 },
-    },
-    visor: {
-      sidebar: `<div class="rh" data-part="region-head" tabindex="0"><span class="t">Proyectos</span><span class="acts" data-part="toolbar" tabindex="0"><span class="ic">${ICON.plus}</span></span></div>` +
-        `<div style="flex:1;min-height:0;display:flex;flex-direction:column">` +
-        view('Onboarding asesor', true, grp('Identidad') + rows(['Cédula', 'OTP', 'Datos personales'], 1) + grp('Entidades') + rows(['Listado'], -1)) +
-        view('Ecommerce', false) + view('Agregar diseño', false) + `</div>`,
-      editor: head('OTP', ['copy'], false) + `<div class="shot">${lines('m', 's', 'l', 'l')}<div class="btnm"></div></div>`,
-      panel: '',
-      aux: head('Pantalla', [], false) + body(grp('La traducción a HTML') + lines('m') + grp('Botones') + lines('s') + grp('Lleva a') + rows(['Datos personales'], -1) + grp('Llega desde') + rows(['Cédula'], -1)),
-      status: '<span><span class="dot"></span>fidelidad 99,3 %</span><span>12 pantallas</span>',
-      has: { sidebar: 1, panel: 0, auxiliarybar: 1 },
-    },
-  };
-
-  const USES = {
-    sidebar: { harness: 'Comercios', tablero: 'Lista de tareas', trazador: 'Persona y solicitudes', visor: 'Proyectos' },
-    editor: { harness: 'Recorrido', tablero: 'La tarea', trazador: 'Mapa', visor: 'La pantalla' },
-    auxiliarybar: { harness: 'Configuración', tablero: 'Jira · Pendientes · Artifacts', trazador: 'Logs, superpuesto', visor: 'Pantalla' },
-    panel: { harness: 'Consola', tablero: 'Ramas', trazador: 'Recientes', visor: null },
-    statusbar: { harness: 'sí', tablero: 'sí', trazador: 'sí', visor: 'sí' },
-    titlebar: { harness: null, tablero: null, trazador: null, visor: null },
-    banner: { harness: null, tablero: null, trazador: null, visor: null },
-    activitybar: { harness: null, tablero: null, trazador: null, visor: null },
-    view: { harness: null, tablero: 'grupos de tareas y Jira', trazador: null, visor: 'un archivo por vista' },
-    grupo: { harness: 'secciones del recorrido', tablero: 'días de la pila', trazador: 'solicitudes', visor: 'carriles y detalle' },
-    'editor-tabs': { harness: null, tablero: 'editor y sidebar secundario', trazador: null, visor: null },
-  };
-
+  // ── las piezas: qué es, cuándo existe, cuánto mide, la regla ──
   const PARTS = [
     { g: 'Regiones' },
-    { id: 'editor', name: 'Editor', cls: '.editor', short: 'El contenido principal. La única región obligatoria.',
-      what: 'El documento, el mapa, el recorrido o la pantalla: lo que la herramienta existe para mostrar.',
-      when: 'Siempre. Es la única que no se pliega.', size: 'El resto del ancho (1fr)', surface: '--background',
-      rule: 'Si la herramienta tiene una barra de acciones sobre el contenido, va en el <b>encabezado del editor</b>, no en un titlebar.' },
-    { id: 'sidebar', name: 'Sidebar', cls: '.sidebar', short: 'Navegación: una lista, un árbol, una búsqueda.',
-      what: 'Lo que se elige acá cambia lo que muestra el editor.',
-      when: 'Cuando hay más de una cosa entre la cual elegir.', size: '300px, arrastrable', surface: '--sidebar',
-      rule: 'Va a la izquierda y pone <b>su</b> línea a la derecha. El buscador que filtra la lista vive en su encabezado.' },
-    { id: 'auxiliarybar', name: 'Sidebar secundario', cls: '.auxiliarybar', short: 'Detalle o propiedades de lo seleccionado.',
-      what: 'Formularios, logs o propiedades de lo que está abierto en el editor.',
-      when: 'Cuando la selección del editor tiene detalle que no cabe en él.', size: '340px, arrastrable', surface: '--sidebar',
-      rule: 'Va a la derecha. El del trazador <b>flota</b> sobre el mapa para no recalcular el grafo en cada píxel: es una desviación declarada.' },
-    { id: 'panel', name: 'Panel', cls: '.panel', short: 'La consola de abajo: salida que se sigue en el tiempo.',
-      what: 'Logs de una corrida, ramas de una tarea, corridas recientes.',
-      when: 'Sólo si hay salida que seguir. No se crea una consola vacía.', size: '240px de alto, arrastrable', surface: '--card',
-      rule: '<b>«panel» es una región, no un color.</b> El color es <code>--card</code> y un cajón es <code>.drawer</code>: tres significados para un nombre fue lo que hubo que desarmar.' },
-    { id: 'statusbar', name: 'Barra de estado', cls: '.statusbar', short: 'Estado a la izquierda, controles de disposición a la derecha.',
-      what: 'Ambiente, conteos, progreso; y un botón por cada región que se puede plegar.',
-      when: 'Siempre que haya al menos una región plegable.', size: '30px de alto, texto 11,5px', surface: '--card',
-      rule: 'Ocultar una región <b>nunca</b> borra su control del pie. Al reabrirla recupera la última medida elegida.' },
-    { g: 'Reservadas (existen en taller.css, no las usa nadie)' },
-    { id: 'titlebar', name: 'Titlebar', cls: '.titlebar', tag: 'reservada', short: 'Barra a lo ancho arriba de todo.',
-      what: 'El lugar de VS Code para el nombre de la ventana y el menú.',
-      when: 'Hoy nunca. Se midió cuatro veces.', size: '52px (token), 0 si no se pone', surface: '--card',
-      rule: 'Le cobra su alto a todas las regiones. Al sacarla se ganaron <b>77px</b> en el tablero, <b>60</b> en el trazador, <b>52</b> en el harness y <b>44</b> en context.' },
-    { id: 'banner', name: 'Banner', cls: '.banner', tag: 'reservada', short: 'Aviso a lo ancho, bajo el titlebar.',
-      what: 'Un aviso global.', when: 'Hoy nunca.', size: 'auto', surface: '(la del contenedor)',
-      rule: 'Los avisos van <b>junto a la operación</b> que avisan: el de dev compartido del harness vive dentro del editor.' },
-    { id: 'activitybar', name: 'Activity bar', cls: '.activitybar', tag: 'reservada', short: 'Columna de iconos que cambia el contenido del sidebar.',
-      what: 'Selector de contenedores de vistas (explorador, búsqueda, git…).', when: 'Cuando el sidebar tenga dos o más contenedores de vistas.', size: '48px', surface: '--sidebar',
-      rule: 'Con un solo contenedor, esa columna no cambia nada. El tablero usa acordeón en vez de activity bar por eso.' },
+    { id: 'editor', name: 'Editor', cls: '.editor', short: 'El contenido principal. La única obligatoria.', what: 'Lo que la herramienta existe para mostrar: un documento, un mapa, un recorrido.', when: 'Siempre. Es la única que no se pliega.', size: 'El resto del ancho; nunca menos de 360', rule: 'Si muestra prosa, su cuerpo va a <b>24 del borde</b> y el texto a 14 con 65 caracteres por renglón.' },
+    { id: 'sidebar', name: 'Sidebar', cls: '.sidebar', short: 'Navegación: una lista, un árbol, una búsqueda.', what: 'Lo que se elige acá cambia lo que muestra el editor.', when: 'Cuando hay más de una cosa entre la cual elegir.', size: '300 por defecto · mínimo 240', rule: 'A la izquierda, con <b>su</b> línea a la derecha. El buscador que filtra la lista va arriba del cuerpo, a 32.' },
+    { id: 'auxiliarybar', name: 'Sidebar secundario', cls: '.auxiliarybar', short: 'Detalle o propiedades de lo elegido.', what: 'Formularios, propiedades o registros de lo que está abierto en el editor.', when: 'Cuando lo elegido tiene detalle que no cabe en el editor.', size: '340 por defecto · mínimo 240', rule: 'Es lo primero que se pliega cuando la ventana no alcanza.' },
+    { id: 'panel', name: 'Panel', cls: '.panel', short: 'La consola de abajo: salida que se sigue en el tiempo.', what: 'Logs de una corrida, eventos, resultados.', when: 'Sólo si hay salida que seguir. No se crea una consola vacía.', size: '240 por defecto · mínimo 124 (banda + 3 filas)', rule: '«panel» es una región, no un color: el color es <code>--card</code>.' },
+    { id: 'statusbar', name: 'Pie', cls: '.statusbar', short: 'Estado a la izquierda, disposición a la derecha.', what: 'Ambiente, conteos, progreso; y un botón por región plegable.', when: 'Siempre que haya una región plegable.', size: '30 de alto · texto 11 · botones 24', rule: 'Ocultar una región <b>nunca</b> borra su botón del pie.' },
     { g: 'Adentro de una región' },
-    { id: 'region-head', name: 'Encabezado de región', cls: '.region-head', short: 'Título a la izquierda, acciones al borde.',
-      what: 'La banda fija de arriba de cada región.', when: 'En toda región.', size: '40px mínimo, 12px, peso 600', surface: 'la de su región',
-      rule: 'Mayúscula inicial, nunca todo en mayúsculas. Si junta varias cosas, <b>envuelve</b>: <code>flex-wrap: wrap</code> más <code>height: auto</code>.' },
-    { id: 'toolbar', name: 'Toolbar', cls: '.region-actions › .region-action', short: 'Acciones frecuentes, como iconos.',
-      what: 'Copiar, agregar, cerrar, correr.', when: 'Cuando la región tiene algo que se hace seguido.', size: 'botón 24×24, icono 16px', surface: 'transparente',
-      rule: 'El texto va en <code>title</code> y <code>aria-label</code>. «⧉ copiar traza» adentro del botón terminó como «copi / traz» tapado por el panel de al lado.' },
-    { id: 'menu', name: 'Menú de región', cls: 'RegionMenu · bindMenu()', short: 'El botón ⋯ con lo que se alterna y se toca poco.',
-      what: 'Filtros, opciones, vistas. Con tilde, conteo y separadores.', when: 'Cuando hay opciones secundarias.', size: 'se ajusta a la ventana', surface: '--popover',
-      rule: 'Un filtro sólo va al menú si el encabezado <b>delata</b> que está puesto (contador <span class="mono">9 / 16</span>, punto sobre el botón, «Filtrada»). Escape cierra y devuelve el foco.' },
-    { id: 'region-body', name: 'Cuerpo de región', cls: '.region-body', short: 'Lo que scrollea.',
-      what: 'El contenido de la región.', when: 'En toda región.', size: 'el resto del alto', surface: 'la de su región',
-      rule: 'Scrollea el cuerpo, no la región: si no, el encabezado se va con el contenido y se pierde de vista qué se está mirando.' },
-    { id: 'view', name: 'Vista', cls: '.view · .view-tog', short: 'Vistas apiladas que se reparten el alto.',
-      what: 'Como OUTLINE y TIMELINE bajo el explorador de VS Code.', when: 'Cuando una región de alto fijo muestra dos o más cosas.', size: 'abiertas en partes iguales', surface: 'la de su región',
-      rule: 'Cerrada cuesta <b>una fila, no cero</b>. Dentro de un cuerpo que ya scrollea, lo que se pliega es un <code>&lt;details&gt;</code>, no una vista.' },
-    { id: 'grupo', name: 'Encabezado de grupo', cls: '.region-head.grupo', short: 'Separa grupos dentro de una lista y se pega arriba.',
-      what: 'Un día de la pila, un carril del visor, una sección del recorrido.', when: 'Cuando una lista larga tiene grupos.', size: 'igual al de la región', surface: '--region-bg',
-      rule: 'Nunca más fuerte que el encabezado de la región que lo contiene. Se distingue por comportamiento: scrollea y se pega.' },
-    { id: 'editor-tabs', name: 'Pestañas', cls: '.tabs · .tab', tag: 'propuesto', short: 'Varias caras o documentos en una región, de a uno.',
-      what: 'En el tablero: las tareas abiertas en el editor, y Jira · Pendientes · Artifacts en el sidebar secundario.', when: 'Cuando una región muestra de a una cosa entre varias; si hay que ver varias a la vez, es un acordeón.', size: 'una fila de 32px, texto 12px', surface: '--sidebar la barra, --background la activa',
-      rule: 'Hoy son dos piezas del tablero con dos hojas (<code>.editor-tabs</code>, <code>.aux-tabs</code>). Suben juntas a <code>taller.css</code> como <code>.tabs</code>.' },
+    { id: 'region-head', name: 'Banda superior', cls: '.region-head', short: 'Título a la izquierda, acciones al borde.', what: 'La primera fila de cada columna.', when: 'En toda región.', size: '40 con su línea · texto 12/600 · margen 12', rule: 'Todas las columnas arrancan con la misma banda: <b>la costura de arriba es una sola línea</b>. Si junta muchas cosas, envuelve en vez de desbordar.' },
+    { id: 'tabs', name: 'Pestañas', cls: '.tabs', short: 'Varias caras o documentos, de a uno.', what: 'La banda superior cuando la región muestra de a una cosa entre varias.', when: 'Cuando se trabaja con más de una a la vez. Si hay que ver varias juntas, es un acordeón.', size: 'Banda de 40 · pestaña de 36 apoyada en la línea', rule: 'La activa toma el fondo del cuerpo y una línea de 2 en el color de acción.' },
+    { id: 'toolbar', name: 'Barra de iconos', cls: '.region-actions', short: 'Lo frecuente, a la vista.', what: 'Agregar, colapsar, copiar, cerrar.', when: 'Cuando la región tiene algo que se hace seguido.', size: 'Botones de 24 · icono de 16 · 2 entre botones', rule: 'El texto va en <code>title</code> y <code>aria-label</code>, nunca adentro del botón.' },
+    { id: 'menu', name: 'Menú de la región', cls: 'RegionMenu', short: 'El ⋯: lo que se alterna y se toca poco.', what: 'Filtros, opciones y vistas, con tilde y conteo.', when: 'Cuando hay opciones secundarias.', size: 'Ítems de 28 · caja con radio 10 y 4 de aire', rule: 'Un filtro sólo va al menú si el encabezado delata que está puesto.' },
+    { id: 'view', name: 'Vista', cls: '.view', short: 'Vistas apiladas que se reparten el alto.', what: 'Abiertos, recientes, guardados: caras distintas de una misma lista.', when: 'Cuando una región de alto fijo muestra dos o más cosas.', size: 'Encabezado de 32 · chevron de 16', rule: 'Cerrada cuesta <b>una fila, no cero</b>: se ve que existe.' },
+    { id: 'grupo', name: 'Encabezado de grupo', cls: '.region-head.grupo', short: 'Separa grupos de una lista y se pega arriba.', what: 'Un grupo dentro de una lista larga.', when: 'Cuando una lista tiene grupos.', size: '32 · texto 12/600', rule: 'Nunca más fuerte que la banda de su región. Se distingue porque scrollea y se pega.' },
+    { id: 'region-body', name: 'Cuerpo', cls: '.region-body', short: 'Lo que scrollea.', what: 'El contenido de la región.', when: 'En toda región.', size: 'El resto del alto', rule: 'Scrollea el cuerpo, no la región.' },
+    { id: 'control', name: 'Control', cls: '.btn · .input', short: 'Campo, botón o select.', what: 'Lo que se escribe o se aprieta.', when: 'Donde se toma una decisión.', size: '32 en el cuerpo · 28 dentro de una banda · radio 6', rule: 'Texto de 13. El botón principal lleva el color de acción; los demás, contorno.' },
+    { id: 'pill', name: 'Píldora', cls: '.badge', short: 'Un estado o un conteo.', what: 'En curso, abierto, 3 pendientes.', when: 'Cuando un dato cabe en una o dos palabras.', size: '20 de alto · texto 11 · radio completo', rule: 'Relleno o contorno, nunca los dos.' },
     { g: 'Entre regiones' },
-    { id: 'rsz', name: 'Manija', cls: '.rsz · vResize', short: 'Redimensiona una región. Se ve de 1px, se agarra de 8.',
-      what: 'El borde arrastrable entre dos regiones.', when: 'Entre toda región de medida variable y su vecina.', size: '1px visible, 8px de agarre', surface: '--ring al pasar',
-      rule: '<b>Mínimo o nada</b>: por debajo del mínimo la región se pliega a 0. Enfocable: flechas 16px, Shift más flecha 48px, Home pliega, End amplía. El máximo se calcula contra la ventana, nunca un número fijo.' },
-    { id: 'layout', name: 'Controles de disposición', cls: '.statusbar › toggles', short: 'Un botón por región plegable, en el pie.',
-      what: 'Pliegan y despliegan sidebar, panel y sidebar secundario.', when: 'Siempre que haya una región plegable.', size: 'iconos en el extremo derecho del pie', surface: 'la del pie',
-      rule: 'Es el control de recuperación: una región oculta sin botón en el pie es una región que nadie vuelve a encontrar.' },
+    { id: 'rsz', name: 'Manija', cls: '.rsz', short: 'Redimensiona. Se ve de 1, se agarra de 8.', what: 'El borde arrastrable entre dos regiones.', when: 'Entre toda región de medida variable y su vecina.', size: '1 visible · 8 de agarre', rule: 'Por debajo del mínimo, la región se pliega. El máximo se calcula contra la ventana.' },
+    { id: 'layout', name: 'Botones de disposición', cls: '.statusbar › toggles', short: 'Pliegan y despliegan cada región.', what: 'Un botón por región plegable, al final del pie.', when: 'Siempre que haya una región plegable.', size: '24 cada uno', rule: 'Es el camino de vuelta de una región plegada.' },
   ];
-  const BY = Object.fromEntries(PARTS.filter(p => p.id).map(p => [p.id, p]));
-
-  const wb = document.getElementById('wb');
-  const insp = document.getElementById('insp');
-  const els = { sidebar: document.getElementById('d-sidebar'), editor: document.getElementById('d-editor'), panel: document.getElementById('d-panel'), auxiliarybar: document.getElementById('d-aux') };
-  const hidden = { sidebar: false, panel: false, auxiliarybar: false };
-  let tool = 'harness', selected = 'editor';
-
-  function render() {
-    const t = TOOLS[tool];
-    els.sidebar.innerHTML = t.sidebar + rszV;
-    els.editor.innerHTML = t.editor;
-    els.panel.innerHTML = t.panel ? t.panel + rszH : '';
-    els.auxiliarybar.innerHTML = t.aux + rszV;
-    document.getElementById('d-status').innerHTML = t.status;
-    for (const k of ['sidebar', 'panel', 'auxiliarybar']) {
-      const absent = !t.has[k], off = absent || hidden[k];
-      els[k].classList.toggle('hidden', off);
-      const tg = wb.querySelector(`[data-toggle="${k}"]`);
-      tg.classList.toggle('hidden', absent);
-      tg.classList.toggle('off', hidden[k]);
-    }
-    wb.style.setProperty('--sb', els.sidebar.classList.contains('hidden') ? '0px' : '200px');
-    wb.style.setProperty('--ax', els.auxiliarybar.classList.contains('hidden') ? '0px' : '210px');
-    wb.style.setProperty('--pn', els.panel.classList.contains('hidden') ? '0px' : '118px');
-    mark();
-  }
-
-  function mark() {
-    wb.querySelectorAll('.sel').forEach(e => e.classList.remove('sel'));
-    let targets = [...wb.querySelectorAll(`[data-part="${selected}"]`)].filter(e => !e.closest('.hidden'));
-    if (selected === 'region-head' || selected === 'toolbar' || selected === 'menu') targets = targets.slice(0, 99);
-    targets.forEach(e => e.classList.add('sel'));
-    document.querySelectorAll('.part').forEach(b => b.setAttribute('aria-current', b.dataset.id === selected ? 'true' : 'false'));
-    showInsp();
-  }
-
-  function showInsp() {
+  const BY = Object.fromEntries(PARTS.filter((p) => p.id).map((p) => [p.id, p]));
+  const wb = document.getElementById('wb'), insp = document.getElementById('insp'), list = document.getElementById('parts');
+  let selected = 'region-head', touched = false;
+  list.innerHTML = PARTS.map((p) => p.g ? `<div class="pg">${p.g}</div>`
+    : `<button type="button" class="part" data-id="${p.id}"><code>${p.cls.split(' ')[0]}</code><span>${p.name} · ${p.short}</span></button>`).join('');
+  function show() {
     const p = BY[selected];
-    const uses = USES[selected];
-    const useRows = uses ? Object.entries(uses).map(([k, v]) => `<div><span>${k}</span><span class="${v ? '' : 'no'}">${v || 'no la usa'}</span></div>`).join('') : '';
-    insp.innerHTML =
-      `<span class="kind">${p.tag ? p.tag : 'Parte'}</span>` +
-      `<h3>${p.name} <code>${p.cls}</code></h3>` +
-      `<p>${p.what}</p>` +
-      `<dl><dt>Cuándo existe</dt><dd>${p.when}</dd><dt>Medida</dt><dd>${p.size}</dd><dt>Superficie</dt><dd><code>${p.surface}</code></dd></dl>` +
-      (useRows ? `<div class="uses">${useRows}</div>` : '') +
-      `<p class="rule">${p.rule}</p>`;
-  }
-
-  function select(id, push) {
-    if (!BY[id]) return;
-    selected = id;
-    if (id === 'titlebar' || id === 'banner' || id === 'activitybar') {
-      document.getElementById('showReserved').checked = true;
-      wb.classList.add('reserved-on');
+    wb.querySelectorAll('.sel').forEach((e) => e.classList.remove('sel'));
+    if (touched) {
+      wb.querySelectorAll(`[data-part="${selected}"]`).forEach((e) => e.classList.add('sel'));
+      if (selected === 'region-head') wb.querySelectorAll('.head, .tabs').forEach((e) => e.classList.add('sel'));
+      if (selected === 'grupo') wb.querySelectorAll('.gh').forEach((e) => e.classList.add('sel'));
     }
-    mark();
-    if (push) try { history.replaceState(null, '', '#' + id); } catch (e) {}
+    list.querySelectorAll('.part').forEach((b) => b.setAttribute('aria-current', String(b.dataset.id === selected)));
+    insp.innerHTML = `<span class="kind">Pieza</span><h3>${p.name} <code>${p.cls}</code></h3><p>${p.what}</p>
+      <dl><dt>Cuándo existe</dt><dd>${p.when}</dd><dt>Medida</dt><dd>${p.size}</dd></dl><p class="rule">${p.rule}</p>`;
   }
+  const pick = (id) => { if (BY[id]) { selected = id; touched = true; show(); } };
+  wb.addEventListener('click', (e) => { const t = e.target.closest('[data-part]'); if (t) pick(t.dataset.part); });
+  wb.addEventListener('keydown', (e) => { if (e.key !== 'Enter' && e.key !== ' ') return; const t = e.target.closest('[data-part]'); if (t) { e.preventDefault(); pick(t.dataset.part); } });
+  wb.addEventListener('mouseover', (e) => { wb.querySelectorAll('.hover').forEach((x) => x.classList.remove('hover')); e.target.closest('[data-part]')?.classList.add('hover'); });
+  wb.addEventListener('mouseleave', () => wb.querySelectorAll('.hover').forEach((x) => x.classList.remove('hover')));
+  list.addEventListener('click', (e) => { const b = e.target.closest('.part'); if (b) { pick(b.dataset.id); document.getElementById('base').scrollIntoView({ behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' }); } });
+  show();
 
-  // clic: la parte más interna gana
-  wb.addEventListener('click', (e) => {
-    const tg = e.target.closest('[data-toggle]');
-    if (tg) { const k = tg.dataset.toggle; hidden[k] = !hidden[k]; render(); return; }
-    const part = e.target.closest('[data-part]');
-    if (part) select(part.dataset.part, true);
-  });
-  wb.addEventListener('keydown', (e) => {
-    if (e.key !== 'Enter' && e.key !== ' ') return;
-    const part = e.target.closest('[data-part]');
-    if (part) { e.preventDefault(); e.stopPropagation(); select(part.dataset.part, true); }
-  });
-  wb.addEventListener('mouseover', (e) => {
-    wb.querySelectorAll('.hover').forEach(x => x.classList.remove('hover'));
-    const part = e.target.closest('[data-part]');
-    if (part) part.classList.add('hover');
-  });
-  wb.addEventListener('mouseleave', () => wb.querySelectorAll('.hover').forEach(x => x.classList.remove('hover')));
+  // ── las cotas: se miden sobre el ejemplo, no se escriben a mano ──
+  const $ = (id) => document.getElementById(id);
+  function rect(el) { const a = el.getBoundingClientRect(), b = wb.getBoundingClientRect(); return { x: a.left - b.left, y: a.top - b.top, w: a.width, h: a.height }; }
+  function cota(axis, x, y, len, label) {
+    const d = document.createElement('div'); d.className = `rl ${axis}`;
+    if (axis === 'v') Object.assign(d.style, { left: x + 'px', top: y + 'px', height: len + 'px' });
+    else Object.assign(d.style, { left: x + 'px', top: y + 'px', width: len + 'px' });
+    d.innerHTML = `<span>${label}</span>`; wb.appendChild(d);
+  }
+  function drawCotas() {
+    wb.querySelectorAll('.rl').forEach((d) => d.remove());
+    let r;
+    r = rect($('xSbHead')); cota('v', r.x + 96, r.y, r.h, `banda ${Math.round(r.h)}`);
+    r = rect($('xTabs')); cota('v', r.x + r.w - 150, r.y, r.h, `banda ${Math.round(r.h)}`);
+    r = rect($('xAxHead')); cota('v', r.x + 110, r.y, r.h, `banda ${Math.round(r.h)}`);
+    r = rect($('xSearch')); cota('v', r.x + 150, r.y, r.h, `control ${Math.round(r.h)}`);
+    r = rect($('xViewHead')); cota('v', r.x + 120, r.y, r.h, `vista ${Math.round(r.h)}`);
+    r = rect($('xRow')); cota('v', r.x + r.w - 58, r.y, r.h, `fila ${Math.round(r.h)}`);
+    const t = rect($('xSbHead').querySelector('.t')), s = rect($('xSb'));
+    cota('h', s.x, t.y + t.h + 6, t.x - s.x, `${Math.round(t.x - s.x)}`);
+    r = rect($('xTools').children[0]); cota('h', r.x, r.y + r.h + 6, r.w, `${Math.round(r.w)}`);
+    r = rect($('xSelect')); cota('v', r.x - 10, r.y, r.h, `${Math.round(r.h)} en banda`);
+    r = rect($('xPnHead')); cota('v', r.x + 110, r.y, r.h, `banda ${Math.round(r.h)}`);
+    r = rect($('xGroup')); cota('v', r.x + 130, r.y, r.h, `grupo ${Math.round(r.h)}`);
+    r = rect($('xInput')); cota('v', r.x + 150, r.y, r.h, `control ${Math.round(r.h)}`);
+    const d = rect($('xDoc')), e = rect($('xEd'));
+    cota('h', e.x, d.y + 10, 24, '24');
+    r = rect($('xSt')); cota('v', r.x + 420, r.y, r.h, `pie ${Math.round(r.h)}`);
+  }
+  $('showRl').addEventListener('change', (ev) => wb.classList.toggle('show-rl', ev.target.checked));
+  requestAnimationFrame(drawCotas);
 
-  document.getElementById('tools').addEventListener('click', (e) => {
-    const b = e.target.closest('button[data-tool]'); if (!b) return;
-    tool = b.dataset.tool;
-    document.querySelectorAll('#tools button').forEach(x => x.setAttribute('aria-pressed', x === b ? 'true' : 'false'));
-    if (selected === 'panel' && !TOOLS[tool].has.panel) selected = 'editor';
-    if (selected === 'editor-tabs' && tool !== 'tablero') selected = 'editor';
-    if (selected === 'view' && !(tool === 'tablero' || tool === 'visor')) selected = 'sidebar';
-    render();
-  });
-  document.getElementById('showReserved').addEventListener('change', (e) => { wb.classList.toggle('reserved-on', e.target.checked); mark(); });
+  // ── iconos ──
+  $('iconGrid').innerHTML = Object.entries(ICONS).map(([n, d]) => `<div class="icon-cell" title="${n}">${svg(d)}<code>${n}</code></div>`).join('')
+    + Object.entries(PROPOSED).map(([n, d]) => `<div class="icon-cell new" title="${n} · por sumar">${svg(d)}<code>${n} · por sumar</code></div>`).join('');
+  $('grid24').innerHTML = ['copy', 'search', 'chevron'].map((n) => `<figure><span class="big">${svg(ICONS[n]).replace('<svg ', '<svg width="120" height="120" ')}</span><figcaption>${n} · 24 × 24</figcaption></figure>`).join('');
 
-  // índice de partes
-  const list = document.getElementById('partsList');
-  list.innerHTML = PARTS.map(p => p.g
-    ? `<div class="part-group">${p.g}</div>`
-    : `<button type="button" class="part" data-id="${p.id}"><code>${p.cls.split(' ')[0]}</code><span>${p.name}${p.tag ? `<span class="tag">${p.tag}</span>` : ''} · ${p.short}</span></button>`).join('');
-  list.addEventListener('click', (e) => {
-    const b = e.target.closest('.part'); if (!b) return;
-    const id = b.dataset.id;
-    if (id === 'editor-tabs' && tool !== 'tablero') document.querySelector('#tools [data-tool="tablero"]').click();
-    if (id === 'view' && !(tool === 'tablero' || tool === 'visor')) document.querySelector('#tools [data-tool="tablero"]').click();
-    select(id, true);
-    document.getElementById('esqueleto').scrollIntoView({ behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth', block: 'start' });
-  });
-
-  // la grilla de iconos, la ampliación y el botón de muestra
-  document.getElementById('iconGrid').innerHTML =
-    Object.entries(ICONS).map(([n, d]) => `<div class="icon-cell" title="${n}">${svg(d)}<code>${n}</code></div>`).join('') +
-    Object.entries(PROPOSED).map(([n, d]) => `<div class="icon-cell new" title="${n} · propuesto">${svg(d)}<code>${n} · nuevo</code></div>`).join('');
-  document.getElementById('grid24').innerHTML = ['copy', 'search', 'refresh'].map(n =>
-    `<figure><span class="big">${svg(ICONS[n]).replace('<svg ', '<svg width="120" height="120" ')}</span><figcaption>${n} · 24 × 24</figcaption></figure>`).join('');
-  document.getElementById('demoA').innerHTML = svg(ICONS.copy);
-  document.getElementById('demoB').innerHTML = svg(ICONS.refresh);
-  document.getElementById('demoC').innerHTML = svg(ICONS.more);
-
-
-  // ── mínimo o nada: la demo. Misma lógica que se propone para workbench.js, a media escala.
+  // ── mínimo o nada: la misma lógica que `workbench.js`, a media escala ──
   (function () {
     const S = 0.5, MIN = 240, ED_MIN = 360;
     const st = { sb: 300, ax: 340, lastSb: 300, lastAx: 340, win: 1440 };
-    const $ = (id) => document.getElementById(id);
     const mn = $('mn'), log = $('mnLog'), ghost = $('mnGhost');
-    const say = (html) => { log.innerHTML = html; };
-    // lo que la ventana deja: primero se achican a su mínimo, después se pliega el secundario y al final el sidebar
+    const say = (h) => { log.innerHTML = h; };
     function fit(reason) {
       const room = () => st.win - ED_MIN - st.sb - st.ax;
       if (room() >= 0) return;
       if (st.ax > MIN) st.ax = Math.max(MIN, st.ax + room());
       if (room() < 0 && st.sb > MIN) st.sb = Math.max(MIN, st.sb + room());
-      if (room() < 0 && st.ax) { st.ax = 0; if (reason) say('No entraba: se plegó el <b>sidebar secundario</b>; su última medida abierta queda guardada.'); }
+      if (room() < 0 && st.ax) { st.ax = 0; if (reason) say('No entraba: se plegó el <b>secundario</b>; su última medida queda guardada.'); }
       if (room() < 0 && st.sb) { st.sb = 0; if (reason) say('Tampoco entraba el sidebar: se plegó. El editor conserva sus <b>360</b>.'); }
     }
     const maxOf = (k) => st.win - ED_MIN - (k === 'sb' ? st.ax : st.sb);
     function setSize(k, v, how) {
-      const max = maxOf(k);
       const before = st[k];
-      let next = v < MIN ? 0 : Math.min(v, max);
-      if (next && next < MIN) next = 0; // no entra ni al mínimo
+      let next = v < MIN ? 0 : Math.min(v, maxOf(k));
+      if (next && next < MIN) next = 0;
       st[k] = Math.round(next);
       if (st[k]) st[k === 'sb' ? 'lastSb' : 'lastAx'] = st[k];
-      const name = k === 'sb' ? 'sidebar' : 'sidebar secundario';
+      const name = k === 'sb' ? 'sidebar' : 'secundario';
       if (before && !st[k]) say(`${how}: el <b>${name}</b> bajó de ${MIN} y se plegó a 0. El botón del pie se apagó.`);
       else if (!before && st[k]) say(`El <b>${name}</b> volvió a ${st[k]}.`);
       render();
@@ -1057,12 +635,10 @@ nav.toc a:hover, nav.toc a:focus-visible { color: var(--fg); border-bottom-color
       if (st[k]) { st[k] = 0; say(`Plegado desde el pie; la última medida (${st[k === 'sb' ? 'lastSb' : 'lastAx']}) queda guardada.`); }
       else {
         const other = k === 'sb' ? 'ax' : 'sb';
-        let want = st[k === 'sb' ? 'lastSb' : 'lastAx'];
-        if (maxOf(k) < MIN && st[other]) { st[other] = 0; }
-        want = Math.min(want, maxOf(k));
+        if (maxOf(k) < MIN && st[other]) st[other] = 0;
+        const want = Math.min(st[k === 'sb' ? 'lastSb' : 'lastAx'], maxOf(k));
         if (want < MIN) { say('No hay lugar ni para el mínimo en esta ventana.'); render(); return; }
-        st[k] = want;
-        say(`Reabierto en su última medida abierta: <b>${want}</b>.`);
+        st[k] = want; say(`Reabierto en su última medida abierta: <b>${want}</b>.`);
       }
       render();
     }
@@ -1070,14 +646,11 @@ nav.toc a:hover, nav.toc a:focus-visible { color: var(--fg); border-bottom-color
       mn.style.width = st.win * S + 'px';
       $('mnSb').style.width = st.sb * S + 'px'; $('mnSb').classList.toggle('zero', !st.sb);
       $('mnAx').style.width = st.ax * S + 'px'; $('mnAx').classList.toggle('zero', !st.ax);
-      const ed = st.win - st.sb - st.ax;
       $('mnSbW').innerHTML = st.sb ? `<b>${st.sb}</b> · mín ${MIN}` : '';
       $('mnAxW').innerHTML = st.ax ? `<b>${st.ax}</b> · mín ${MIN}` : '';
-      $('mnEdW').innerHTML = `<b>${ed}</b> · mín ${ED_MIN}`;
-      $('mnHSb').style.left = st.sb * S + 'px';
-      $('mnHAx').style.left = (st.win - st.ax) * S + 'px';
-      $('mnTgSb').classList.toggle('off', !st.sb); $('mnTgSb').setAttribute('aria-pressed', String(!!st.sb));
-      $('mnTgAx').classList.toggle('off', !st.ax); $('mnTgAx').setAttribute('aria-pressed', String(!!st.ax));
+      $('mnEdW').innerHTML = `<b>${st.win - st.sb - st.ax}</b> · mín ${ED_MIN}`;
+      $('mnHSb').style.left = st.sb * S + 'px'; $('mnHAx').style.left = (st.win - st.ax) * S + 'px';
+      for (const [id, k] of [['mnTgSb', 'sb'], ['mnTgAx', 'ax']]) { $(id).classList.toggle('off', !st[k]); $(id).setAttribute('aria-pressed', String(!!st[k])); }
       $('mnHSb').setAttribute('aria-valuenow', String(st.sb)); $('mnHAx').setAttribute('aria-valuenow', String(st.ax));
       $('mnWinOut').textContent = st.win + ' px';
     }
@@ -1087,15 +660,13 @@ nav.toc a:hover, nav.toc a:focus-visible { color: var(--fg); border-bottom-color
         if (e.button !== 0) return;
         e.preventDefault(); h.setPointerCapture(e.pointerId); h.classList.add('on');
         const x0 = e.clientX, v0 = st[k] || 0;
-        ghost.hidden = false;
-        ghost.style.left = (k === 'sb' ? MIN : st.win - MIN) * S + 'px';
+        ghost.hidden = false; ghost.style.left = (k === 'sb' ? MIN : st.win - MIN) * S + 'px';
         const move = (ev) => setSize(k, v0 + (ev.clientX - x0) * sign / S, 'Arrastre');
         const up = () => { h.classList.remove('on'); ghost.hidden = true; h.removeEventListener('pointermove', move); h.removeEventListener('pointerup', up); h.removeEventListener('pointercancel', up); };
         h.addEventListener('pointermove', move); h.addEventListener('pointerup', up); h.addEventListener('pointercancel', up);
       });
       h.addEventListener('keydown', (e) => {
-        const dec = sign > 0 ? 'ArrowLeft' : 'ArrowRight', inc = sign > 0 ? 'ArrowRight' : 'ArrowLeft';
-        const step = e.shiftKey ? 48 : 16;
+        const dec = sign > 0 ? 'ArrowLeft' : 'ArrowRight', inc = sign > 0 ? 'ArrowRight' : 'ArrowLeft', step = e.shiftKey ? 48 : 16;
         if (e.key === dec) setSize(k, (st[k] || 0) - step, 'Teclado');
         else if (e.key === inc) st[k] ? setSize(k, st[k] + step, 'Teclado') : toggle(k);
         else if (e.key === 'Home') setSize(k, 0, 'Teclado');
@@ -1113,9 +684,5 @@ nav.toc a:hover, nav.toc a:focus-visible { color: var(--fg); border-bottom-color
     $('mnWin').addEventListener('input', (e) => { st.win = +e.target.value; fit(true); render(); });
     render();
   })();
-
-  const fromHash = (location.hash || '').slice(1);
-  render();
-  if (BY[fromHash]) select(fromHash, false);
 })();
 </script>
