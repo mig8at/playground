@@ -148,17 +148,17 @@ test('tema: sin elección sigue al sistema; con elección, gana lo elegido', () 
   assert.equal(preferredTheme(), 'light', 'un valor guardado raro se ignora');
 });
 
-test('tema: el botón muestra el tema actual y su etiqueta dice lo que hace el clic', () => {
+test('tema: el botón lleva el icono de contraste y su etiqueta dice lo que hace el clic', () => {
   const b = fakeBrowser({ systemDark: true });
   const button = fakeButton();
   bindThemeToggle(button);
   assert.equal(b.classes.has('dark'), true);
   assert.equal(document.documentElement.style.colorScheme, 'dark');
-  assert.equal(button.icon.dataset.icon, 'moon', 'oscuro se ve como luna');
+  assert.equal(button.icon.dataset.icon, 'theme', 'un solo icono, fijo');
   assert.equal(button.attrs['aria-label'], 'Cambiar a tema claro');
   button.click();
   assert.equal(b.classes.has('dark'), false);
-  assert.equal(button.icon.dataset.icon, 'sun');
+  assert.equal(button.icon.dataset.icon, 'theme', 'no cambia con el tema');
   assert.equal(button.attrs['aria-label'], 'Cambiar a tema oscuro');
   assert.equal(b.store.get(THEME_KEY), 'light', 'elegir se guarda');
 });

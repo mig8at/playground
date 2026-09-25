@@ -182,7 +182,7 @@ Un solo juego, el de `workbench.css` (`.ui-icon[data-icon]`): glifos dibujados e
 
 **Plegar es lo mismo que el botón del pie.** El botón se apaga y, al reabrir, la región vuelve con la última medida abierta. Ocultar una región nunca borra su botón del pie. Los anchos se guardan en el navegador de cada persona y no cambian datos de trabajo.
 
-**El tema lo elige la persona.** Un botón en el pie alterna claro y oscuro, antes de los botones de disposición y separado de ellos por 8 (los de disposición van al final porque su orden copia la pantalla: izquierda, abajo, derecha). El icono muestra el tema **actual** —sol claro, luna oscuro— y la etiqueta dice lo que hace el clic: «Cambiar a tema claro». La primera vez sigue al sistema, y mientras la persona no elija acompaña su modo nocturno; lo elegido se guarda en su navegador (`ui.theme`). El tema es la clase `.dark` de `theme.css` en el `<html>`, más `color-scheme` para los controles nativos. Lo que pinta por su cuenta —un iframe, un canvas— escucha el evento `ui-theme`.
+**El tema lo elige la persona.** Un botón en el pie alterna claro y oscuro, antes de los botones de disposición y separado de ellos por 8 (los de disposición van al final porque su orden copia la pantalla: izquierda, abajo, derecha). El icono es uno solo y fijo, el de contraste (`theme`: un círculo con la mitad llena), y la etiqueta dice lo que hace el clic: «Cambiar a tema claro». La primera vez sigue al sistema, y mientras la persona no elija acompaña su modo nocturno; lo elegido se guarda en su navegador (`ui.theme`). El tema es la clase `.dark` de `theme.css` en el `<html>`, más `color-scheme` para los controles nativos. Lo que pinta por su cuenta —un iframe, un canvas— escucha el evento `ui-theme`.
 
 ```html
 <head>

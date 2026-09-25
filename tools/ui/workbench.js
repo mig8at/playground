@@ -234,14 +234,14 @@ export function setTheme(theme) {
   applyTheme(theme);
 }
 
-// El botón del pie. Muestra el icono del tema ACTUAL y su etiqueta dice lo que hace el clic.
+// El botón del pie: el icono de contraste, fijo, y la etiqueta dice lo que hace el clic.
 export function bindThemeToggle(button) {
   const icon = button.querySelector('.ui-icon') || button.appendChild(Object.assign(document.createElement('span'), { className: 'ui-icon' }));
   icon.setAttribute('aria-hidden', 'true');
   function paint() {
     const theme = currentTheme();
     const label = theme === 'dark' ? 'Cambiar a tema claro' : 'Cambiar a tema oscuro';
-    icon.dataset.icon = theme === 'dark' ? 'moon' : 'sun';
+    icon.dataset.icon = 'theme';
     button.setAttribute('aria-label', label);
     button.title = `${theme === 'dark' ? 'Tema oscuro' : 'Tema claro'} · ${label.toLowerCase()}`;
   }
