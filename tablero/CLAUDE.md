@@ -148,7 +148,7 @@ sostiene con enlaces con tipo y comandos con su resultado:
 | un archivo | `[texto](repo:<repo>/<ruta>#L12)`, nunca una ruta local | que el repo se pueda citar y la ruta exista; **lo fija al commit** |
 | un PR · un issue | `[#1140](pr:legacy-backend#1140)` · `[CORE-431](jira:CORE-431)` | que el repo se pueda citar |
 | otro bloque | `[el de ayer](bloque:<id>)`: así se corrige uno sin editarlo | que esté en la pila |
-| una pantalla del diseño | `[Completa tu solicitud](visor:credifamilia/381-1052@52065d0ce692)`: el tablero lo abre en el visor, en esa pantalla. Lo da listo el detalle del visor («Para la tarea»), con la huella del contenido de ese momento | la forma. Si la pantalla cambió o la borraron lo dice `make visor-enlaces`, que pregunta a Figma |
+| una pantalla del diseño | `[Completa tu solicitud](visor:7M01d0CZPzzJs0iZeKhwvf/381-1052@52065d0ce692)` —la clave del archivo de Figma y el nodo—: el tablero lo abre en el visor, en esa pantalla. Lo da listo el detalle del visor («Para la tarea»), con la huella del contenido de ese momento | la forma. Si la pantalla cambió o la borraron lo dice `make visor-enlaces`, que pregunta a Figma |
 | una página | `[texto](https://…)` | nada |
 | una prueba | bloque ` ```harness ` o ` ```trazador ` con el comando, y debajo `Resultado: …` | que el comando diga su `TARGET=` |
 | una consulta | bloque ` ```sql prod ` con el `SELECT`, y debajo `Resultado: …` | ambiente presente y sólo lectura |

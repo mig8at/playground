@@ -450,21 +450,15 @@ function follow(h) {
 const autoNext = computed(() => (current.value?.hotspots || []).find((h) => h.auto && h.to && screens.value.has(h.to)) || null)
 const clickable = computed(() => (current.value?.hotspots || []).filter((h) => !h.auto))
 
-// ── la ruta: /<proyecto>/<pantalla> ──
-// Para poder enlazar una pantalla desde afuera (el tablero, una tarea) la ruta dice el PROYECTO por su
-// nombre y la pantalla por su id de Figma con guion, como lo escribe Figma en `node-id`:
-// `/credifamilia/1-4063`. Opcionales: `?modo=html|comparar` y `?nodo=<id>` cuando el mapa no es la
+// ── la ruta: /<clave del archivo>/<pantalla> ──
+// Para poder enlazar una pantalla desde afuera (el tablero, una tarea) la ruta va por IDS de Figma: la
+// clave del archivo y el nodo con guion, como lo escribe Figma en `node-id`:
+// `/7M01d0CZPzzJs0iZeKhwvf/381-1052`. Los nombres son para la barra; un id no depende de cómo se llame
+// nada. Una ruta vieja con el nombre del proyecto (`/credifamilia/1-4063`) sigue abriendo. Opcionales: `?modo=html|comparar` y `?nodo=<id>` cuando el mapa no es la
 // página de flujo del archivo sino una sección pegada a mano. Vite sirve `index.html` en cualquier ruta
 // sin extensión, así que no hace falta un router.
 const slugOf = (name) => (name || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase()
   .replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '')
-// Un nombre que se repite no sirve de ruta: esos proyectos van por su clave, que no se repite.
-function projectSlug(key) {
-  const f = flows.value.find((x) => x.key === key)
-  const slug = f && slugOf(f.name)
-  if (!slug || flows.value.some((x) => x.key !== key && slugOf(x.name) === slug)) return key
-  return slug
-}
 // Un nombre que el archivo tuvo antes también abre el proyecto: el diseñador lo puede renombrar y los
 // enlaces pegados en las tareas no se enteran (la biblioteca guarda los nombres de antes).
 const keyOfProject = (project) => {
@@ -478,7 +472,7 @@ const fromID = (id) => (id || '').replace(/:/g, '-')
 // La comprobación del enlace con que se llegó (ver checkLink, más abajo).
 const linkCheck = ref(null) // { id, linked, status: 'checking' | 'same' | 'changed' | 'deleted', print }
 const routePath = computed(() => {
-  if (sheetKey.value) return `/${projectSlug(sheetKey.value)}/${sheetPaths[sheetKind.value]}`
+  if (sheetKey.value) return `/${sheetKey.value}/${sheetPaths[sheetKind.value]}`
   if (!data.value || !currentID.value) return ''
   const q = new URLSearchParams()
   const inFlow = flowIDs.value[data.value.key]?.has(currentID.value)
@@ -487,7 +481,7 @@ const routePath = computed(() => {
   // La huella del enlace con que se llegó se queda en la barra mientras se mira ESA pantalla.
   if (linkCheck.value?.linked && linkCheck.value.id === currentID.value) q.set('huella', linkCheck.value.linked)
   const qs = q.toString()
-  return `/${projectSlug(data.value.key)}/${fromID(currentID.value)}${qs ? '?' + qs : ''}`
+  return `/${data.value.key}/${fromID(currentID.value)}${qs ? '?' + qs : ''}`
 })
 function writeRoute() {
   const p = routePath.value
@@ -575,7 +569,7 @@ const taskRef = computed(() => {
   if (!data.value || !current.value) return ''
   const print = screenPrint.value.id === current.value.id && screenPrint.value.print ? '@' + screenPrint.value.print : ''
   const title = (current.value.title || current.value.name || 'pantalla').replace(/[\[\]()\n]/g, ' ').trim()
-  return `[${title}](visor:${projectSlug(data.value.key)}/${fromID(current.value.id)}${print})`
+  return `[${title}](visor:${data.value.key}/${fromID(current.value.id)}${print})`
 })
 const refCopied = ref(false)
 async function copyTaskRef() {

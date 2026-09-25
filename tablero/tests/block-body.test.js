@@ -76,4 +76,6 @@ test('una pantalla del diseño (visor:) abre el visor en esa pantalla, con la hu
   assert.equal(visorHref(part), 'http://localhost:5193/credifamilia/381-1052?huella=52065d0ce692');
   assert.equal(visorHref(inlineParts('[x](visor:motai-renting/1176-2003)')[0]), 'http://localhost:5193/motai-renting/1176-2003');
   assert.equal(inlineParts('[x](visor:credifamilia/381-1052@nohuella)')[0].kind, 'text', 'una huella mal escrita no es un enlace');
+  assert.equal(visorHref(inlineParts('[x](visor:7M01d0CZPzzJs0iZeKhwvf/381-1052@52065d0ce692)')[0]),
+    'http://localhost:5193/7M01d0CZPzzJs0iZeKhwvf/381-1052?huella=52065d0ce692', 'por ids: la clave del archivo, con mayúsculas');
 });

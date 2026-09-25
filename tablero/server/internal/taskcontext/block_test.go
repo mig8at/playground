@@ -80,7 +80,7 @@ func TestBlockAcceptsProseLinksAndCommandsWithTheirResult(t *testing.T) {
 		"```sql prod\nSELECT count(*) FROM user_requests\n```\nResultado: 560.727 filas.\n\n" +
 		"```harness\nmake harness-caso TARGET=local CASOS='ingreso=0'\n```\n" +
 		"Resultado: salen 7 entidades.\n\n- Un ejemplo `<div>` entre comillas no es HTML.\n- [CORE-431](jira:CORE-431) · [PR](pr:legacy-backend#1140) · [doc](https://example.com/x.json)\n" +
-		"- El diseño: [Completa tu solicitud](visor:credifamilia/381-1052@52065d0ce692) · [sin huella](visor:motai-renting/1176-2003)"
+		"- El diseño: [Completa tu solicitud](visor:credifamilia/381-1052@52065d0ce692) · [sin huella](visor:motai-renting/1176-2003) · [por ids](visor:7M01d0CZPzzJs0iZeKhwvf/381-1052@52065d0ce692)"
 	e, warnings, err := prepare(t, body)
 	if err != nil || len(warnings) > 0 {
 		t.Fatalf("err=%v warnings=%v", err, warnings)

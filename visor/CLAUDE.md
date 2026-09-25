@@ -56,11 +56,13 @@ dice «la de bienvenida» sin dar el id.
 - Sale ≠0 si algo falla: 2 si es de uso (una ruta mal escrita, un verbo que no existe), 1 si es de datos
   (un proyecto que la biblioteca no conoce, Figma que no contesta).
 
-## La ruta: `/<proyecto>/<pantalla>`, para enlazar desde afuera
+## La ruta: `/<clave del archivo>/<pantalla>`, por ids de Figma
 
-`http://localhost:5193/credifamilia/1-4063` abre ese proyecto en esa pantalla: el proyecto por su nombre
-en minúsculas y con guiones (`flujo-ecommerce`, `motai-renting`), la pantalla por su id de Figma con
-guion, como lo escribe Figma en `node-id`. Sin pantalla abre la primera. Opcionales: `?modo=html` o
+`http://localhost:5193/7M01d0CZPzzJs0iZeKhwvf/381-1052` abre ese archivo en esa pantalla: la **clave del
+archivo** y el **nodo** con guion, como lo escribe Figma en `node-id`. **Los nombres son para la barra; la
+ruta, el enlace de las tareas y el CLI van por ids** (decisión de Miguel, 2026-09-25): un id no depende de
+cómo se llame nada. Una ruta vieja con el nombre del proyecto en minúsculas y con guiones
+(`/credifamilia/381-1052`) sigue abriendo y queda reescrita a la de ids. Sin pantalla abre la primera. Opcionales: `?modo=html` o
 `?modo=comparar`, y `?nodo=<id>` **sólo cuando hace falta**: si la pantalla vive fuera de la página de flujo
 del archivo (la página «prototipo», por ejemplo) y se abrió pegando su sección. Una sección pegada que está
 adentro de la página de flujo —el caso de `flujo-ecommerce`, 334-455 dentro de «Flujo»— no lo lleva: el

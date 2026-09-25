@@ -104,7 +104,7 @@ export function parseBlockBody(body) {
 const INLINE = /\[([^[\]\n]+)\]\(([^()\s]+)\)|`([^`\n]+)`|\*\*([^*\n]+)\*\*/g;
 const REPO = /^repo:([a-z0-9][a-z0-9-]*)(?:@([0-9a-f]{7,40}))?\/([^#\s]+?)(#L\d+(?:-L\d+)?)?$/;
 // Una pantalla de un diseño en el visor (`make visor`): `visor:<proyecto>/<pantalla>[@<huella>]`.
-const VISOR = /^visor:([a-z0-9][a-z0-9-]*)\/([0-9]+-[0-9]+)(?:@([0-9a-f]{12}))?$/;
+const VISOR = /^visor:([A-Za-z0-9][A-Za-z0-9-]*)\/([0-9]+-[0-9]+)(?:@([0-9a-f]{12}))?$/;
 // Dónde corre el visor. Es local, como el tablero: el enlace lo abre la misma máquina.
 export const VISOR_ORIGIN = 'http://localhost:5193';
 

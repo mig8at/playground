@@ -92,7 +92,7 @@ func (s *server) brief(ctx context.Context, key, id string) (string, error) {
 	if file == "" {
 		file = s.fileName(key)
 	}
-	slug, dashed := s.projectSlug(key), strings.ReplaceAll(id, ":", "-")
+	dashed := strings.ReplaceAll(id, ":", "-")
 	print := ""
 	if t, err := s.track(ctx, key, id, ""); err == nil {
 		print = t.Print
@@ -101,7 +101,7 @@ func (s *server) brief(ctx context.Context, key, id string) (string, error) {
 	var b strings.Builder
 	fmt.Fprintf(&b, "# «%s» · %s\n\n", title, file)
 	b.WriteString("Para pasar esta pantalla a código (Vue o React). Todo sale de Figma: el HTML de abajo es la traducción fiel del diseño y ya usa los tokens del archivo.\n\n")
-	ref := "visor:" + slug + "/" + dashed
+	ref := "visor:" + key + "/" + dashed
 	if print != "" {
 		ref += "@" + print
 	}

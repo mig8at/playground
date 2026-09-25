@@ -98,7 +98,7 @@ var (
 	// Un enlace del visor como se pega en una tarea: `http://localhost:5193/credifamilia/381-1052?huella=…`.
 	reVisorLink = regexp.MustCompile(`https?://(?:localhost|127\.0\.0\.1):5193/([A-Za-z0-9-]+)/([0-9]+-[0-9]+)(\?[^\s)\]>"'` + "`" + `]*)?`)
 	// Y como se escribe en un bloque del tablero: `[Título](visor:credifamilia/381-1052@52065d0ce692)`.
-	reVisorRef = regexp.MustCompile(`visor:([a-z0-9][a-z0-9-]*)/([0-9]+-[0-9]+)(?:@([0-9a-f]{12}))?`)
+	reVisorRef = regexp.MustCompile(`visor:([A-Za-z0-9][A-Za-z0-9-]*)/([0-9]+-[0-9]+)(?:@([0-9a-f]{12}))?`)
 )
 
 // slugOf es el nombre de un proyecto en la ruta, igual que en la UI (App.vue): minúsculas, sin tildes y
