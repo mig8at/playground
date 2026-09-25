@@ -144,15 +144,17 @@ section { display: flex; flex-direction: column; gap: 20px }
 .grip.v::before { top: 0; bottom: 0; left: 4px; width: 1px } .grip.h::before { left: 0; right: 0; top: 4px; height: 1px }
 .grip:hover::before, .grip.sel::before { background: var(--primary) }
 .sb > .grip { right: -4px } .ax > .grip { left: -4px } .pn > .grip { top: -4px }
-.tg { width: var(--ico); height: var(--ico); display: grid; place-items: center; border-radius: 6px; color: var(--fg-2) }
+/* Los botones del pie, sin caja: el estado se lee en la tinta (encendido pleno, apagado apagado) y al
+   pasar aparece el fondo suave. */
+.tg { width: var(--ico); height: var(--ico); display: grid; place-items: center; border-radius: 6px; color: var(--fg-3) }
+.tg:hover { background: var(--hover); color: var(--fg) }
 .tg svg { width: 16px; height: 16px }
-.tg.on { background: var(--sel); color: var(--fg) }
+.tg.on { color: var(--fg) }
 .maxbtn { border: 0; background: none; padding: 0; cursor: pointer; font: inherit }
 .wb.pmax { grid-template-areas: "sidebar panel aux" "sidebar panel aux" "status status status" }
 .wb.pmax .ed { display: none }
 .wb.pmax .pn > .grip { display: none }
 .themebtn { border: 0; background: none; padding: 0; cursor: pointer; font: inherit }
-.themebtn:hover { background: var(--sel); color: var(--fg) }
 .st .themebtn { margin-right: 6px } /* 6 + el gap de 2 del grupo = los 8 de la base */
 
 /* las cotas */
@@ -248,7 +250,8 @@ ol.steps li::marker { color: var(--fg-3); font-variant-numeric: tabular-nums }
 .mn-status .grow { flex: 1 }
 .mn-status .tg { width: 18px; height: 16px; cursor: pointer }
 .mn-status .tg svg { width: 12px; height: 10px }
-.mn-status .tg.off { opacity: .45 }
+.mn-status .tg { color: var(--fg) }
+.mn-status .tg.off { color: var(--fg-3) }
 .mn-log { font-size: 13px; color: var(--fg-2); min-height: 1.5em }
 .mn-log b { color: var(--fg); font-weight: 600 }
 
@@ -675,7 +678,7 @@ footer { font-size: 12px; color: var(--fg-3); border-top: 1px solid var(--border
     { id: 'sidebar', name: 'Sidebar', cls: '.sidebar', short: 'Navegación: una lista, un árbol, una búsqueda.', what: 'Lo que se elige acá cambia lo que muestra el editor.', when: 'Cuando hay más de una cosa entre la cual elegir.', size: '300 por defecto · mínimo 240', rule: 'A la izquierda, con <b>su</b> línea a la derecha. El buscador que filtra la lista va arriba del cuerpo, a 32.' },
     { id: 'auxiliarybar', name: 'Sidebar secundario', cls: '.auxiliarybar', short: 'Detalle o propiedades de lo elegido.', what: 'Formularios, propiedades o registros de lo que está abierto en el editor.', when: 'Cuando lo elegido tiene detalle que no cabe en el editor.', size: '340 por defecto · mínimo 240', rule: 'Es lo primero que se pliega cuando la ventana no alcanza.' },
     { id: 'panel', name: 'Panel', cls: '.panel', short: 'La consola de abajo: salida que se sigue en el tiempo.', what: 'Logs de una corrida, eventos, resultados.', when: 'Sólo si hay salida que seguir. No se crea una consola vacía.', size: '240 por defecto · mínimo 124 (banda + 3 filas)', rule: '«panel» es una región, no un color: el color es <code>--card</code>.' },
-    { id: 'statusbar', name: 'Pie', cls: '.statusbar', short: 'Estado a la izquierda, tema y disposición a la derecha.', what: 'Ambiente, conteos, progreso; el botón de tema; y un botón por región plegable, al final y en el orden de la pantalla.', when: 'Siempre que haya una región plegable.', size: '30 de alto · texto 11 · botones 24', rule: 'Ocultar una región <b>nunca</b> borra su botón del pie.' },
+    { id: 'statusbar', name: 'Pie', cls: '.statusbar', short: 'Estado a la izquierda, tema y disposición a la derecha.', what: 'Ambiente, conteos, progreso; el botón de tema; y un botón por región plegable, al final y en el orden de la pantalla.', when: 'Siempre que haya una región plegable.', size: '30 de alto · texto 11 · botones 24', rule: 'Ocultar una región <b>nunca</b> borra su botón del pie. Los botones van <b>sin caja</b>: ni el grupo ni el encendido llevan fondo; el estado se lee en la tinta.' },
     { g: 'Adentro de una región' },
     { id: 'region-head', name: 'Banda superior', cls: '.region-head', short: 'Título a la izquierda, acciones al borde.', what: 'La primera fila de cada columna.', when: 'En toda región.', size: '40 con su línea · texto 12/600 · margen 12', rule: 'Todas las columnas arrancan con la misma banda: <b>la costura de arriba es una sola línea</b>. Si junta muchas cosas, envuelve en vez de desbordar.' },
     { id: 'tabs', name: 'Pestañas', cls: '.tabs', short: 'Varias caras o documentos, de a uno.', what: 'La banda superior cuando la región muestra de a una cosa entre varias.', when: 'Cuando se trabaja con más de una a la vez. Si hay que ver varias juntas, es un acordeón.', size: 'Banda de 40 · pestaña de 36 apoyada en la línea', rule: 'La activa toma el fondo del cuerpo y una línea de 2 en el color de acción.' },
@@ -1735,8 +1738,12 @@ textarea.input { height: auto; min-height: 80px; padding: var(--space-2) var(--g
 .toolbar { display: flex; align-items: center; flex-wrap: wrap; gap: var(--space-1); min-width: 0 }
 .toolbar-separator { width: 1px; height: 16px; background: var(--border); margin: 0 var(--space-1); flex: none }
 .layout-controls { display: flex; align-items: center; gap: var(--space-1); margin-left: auto; flex: none }
-.layout-controls .region-action { color: var(--fg-2) }
-.region-action[aria-pressed="true"] { color: var(--foreground); background: var(--accent) }
+/* Sin caja: ni el grupo lleva fondo ni el botón encendido. El estado se lee en la TINTA —encendido en
+   --foreground, apagado en --fg-3— y al pasar aparece el --hover de siempre. Una caja por botón y otra
+   alrededor del grupo eran dos contenedores que no separaban nada. */
+.layout-controls .region-action { color: var(--fg-3) }
+.region-action[aria-pressed="true"] { color: var(--foreground); background: none }
+.region-action[aria-pressed="true"]:hover { background: var(--hover) }
 .region-action:disabled { opacity: .5; cursor: not-allowed }
 .region-action:disabled:hover { background: transparent }
 .statusbar > :not(.layout-controls) { min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis }

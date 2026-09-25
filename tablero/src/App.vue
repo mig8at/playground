@@ -2238,7 +2238,7 @@ function documentAction(id) {
                 :aria-pressed="showBranchConsole" aria-controls="context-branches-panel"
                 aria-label="Mostrar u ocultar ramas" title="Mostrar u ocultar ramas" @click="toggleBranchConsole">
           <span class="ui-icon" data-icon="console" aria-hidden="true"></span>
-          <span>Ramas</span><span class="sb-count">{{ activeTaskBranches.branches.length }}</span>
+          <span>Ramas</span><span class="count">{{ activeTaskBranches.branches.length }}</span>
         </button>
         <button type="button" class="region-action" :aria-pressed="!!(showAux && auxShown)" :disabled="!active"
                 aria-label="Mostrar u ocultar vistas" title="Mostrar u ocultar vistas" @click="toggleDetail">
@@ -2360,11 +2360,9 @@ function documentAction(id) {
 .sync-state { color: var(--mut); font-size: var(--text-xs) }
 .sync-error { color: var(--warn) }
 .sync-state + .sb-act { margin-left: 0 }
-.sb-console { display:inline-flex; align-items:center; width:auto; gap:5px; padding:0 7px; font-size:var(--text-xs) }
-.sb-console .ui-icon { width:13px; height:13px }
+.sb-console { display:inline-flex; align-items:center; width:auto; gap:var(--space-1); padding:0 var(--space-1); font-size:var(--text-xs) }
 .theme-toggle { margin-right: 6px }
-.sb-count { min-width:17px; padding:0 4px; color:var(--txt); background:var(--line2);
-  border-radius:999px; font-size:var(--text-xs); font-variant-numeric:tabular-nums }
+
 
 /* LAS PESTAÑAS DEL DETALLE son las de la base (`.tabs` › `.tab`, con su `.count`): la barra es la banda
    de 40 del sidebar secundario. Queda lo propio: el punto de aviso, dibujado y no un carácter. */
@@ -2795,8 +2793,6 @@ function documentAction(id) {
 .sidebar > .nota { padding: 8px 10px; margin: 0 }
 .sidebar .view > .region-head { min-height: var(--view-head-h); border-bottom: 0 }
 .sidebar .view > .region-body { padding-top: 3px; padding-bottom: 3px }
-.statusbar .layout-controls { gap: 2px; padding: 2px; border-radius: var(--radius-md); background: var(--panel2) }
-.statusbar .layout-controls .region-action { border-radius: var(--radius-md) }
 button:focus-visible, summary:focus-visible { outline: 2px solid var(--mut); outline-offset: 3px }
 @media (max-width: 650px) {
   .stats { grid-template-columns: repeat(2, minmax(0, 1fr)) }

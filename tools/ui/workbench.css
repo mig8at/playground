@@ -724,8 +724,12 @@ textarea.input { height: auto; min-height: 80px; padding: var(--space-2) var(--g
 .toolbar { display: flex; align-items: center; flex-wrap: wrap; gap: var(--space-1); min-width: 0 }
 .toolbar-separator { width: 1px; height: 16px; background: var(--border); margin: 0 var(--space-1); flex: none }
 .layout-controls { display: flex; align-items: center; gap: var(--space-1); margin-left: auto; flex: none }
-.layout-controls .region-action { color: var(--fg-2) }
-.region-action[aria-pressed="true"] { color: var(--foreground); background: var(--accent) }
+/* Sin caja: ni el grupo lleva fondo ni el botón encendido. El estado se lee en la TINTA —encendido en
+   --foreground, apagado en --fg-3— y al pasar aparece el --hover de siempre. Una caja por botón y otra
+   alrededor del grupo eran dos contenedores que no separaban nada. */
+.layout-controls .region-action { color: var(--fg-3) }
+.region-action[aria-pressed="true"] { color: var(--foreground); background: none }
+.region-action[aria-pressed="true"]:hover { background: var(--hover) }
 .region-action:disabled { opacity: .5; cursor: not-allowed }
 .region-action:disabled:hover { background: transparent }
 .statusbar > :not(.layout-controls) { min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis }
