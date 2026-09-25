@@ -36,6 +36,10 @@ func main() {
 		log.Fatal(err)
 	}
 	srv := newServer(figma.New(tok), *cache)
+	// Un verbo después de las banderas es la API por consola (cli.go): el modelo trabaja con comandos.
+	if flag.NArg() > 0 {
+		os.Exit(runCLI(srv, flag.Args()))
+	}
 	if *links != "" {
 		out := bufio.NewWriter(os.Stdout)
 		code := srv.checkLinks(context.Background(), *links, out)
@@ -77,7 +81,7 @@ func newServer(cl *figma.Client, cache string) *server {
 	s.exportSVG = s.svgFromFigma
 	s.fills = s.fillsFromFigma
 	s.nodeJSON = func(ctx context.Context, key, id string) ([]byte, error) { return cl.NodeJSON(ctx, key, id) }
-	s.readFlow = s.readFlowFromFigma
+	s.readFlow = s.loadFlow
 	return s
 }
 

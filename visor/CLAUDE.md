@@ -22,6 +22,34 @@ fondo la centra. Un clic en una zona del prototipo sólo cuenta si el puntero no
 HTML no recibe el puntero (es un dibujo: las zonas van encima), así que arrastrar sobre él también mueve
 el lienzo.
 
+## Para el modelo: la API por consola (lo visual es para Miguel)
+
+Decisión de Miguel (2026-09-25): **la interfaz es para mirar; el modelo trabaja con comandos**, como con el
+harness. Todo lo que el modelo necesita de un diseño sale por `make`, sin el visor corriendo
+(`visor/server/cli.go`; adentro los verbos van en inglés —`cd visor/server && go run . search|screens|screen|html|assets|tokens|components`—):
+
+    make visor-buscar Q='alta bienvenida'              # ¿qué pantalla es? → altafinanciera/266-1279
+    make visor-pantallas P=altafinanciera              # el flujo: carriles y pantallas, con su ruta
+    make visor-pantalla R=altafinanciera/266-1279      # el paquete: textos, destinos, imágenes, componentes, tokens, HTML
+    make visor-recursos R=altafinanciera/266-1279 DIR=<carpeta> [SVG=1]   # las imágenes ORIGINALES, con el nombre de su capa
+    make visor-html R=… [OUT=<archivo>] · make visor-tokens P=… [FORMATO=css|tailwind|json] · make visor-componentes P=…
+
+La pantalla se nombra como en su ruta, con el enlace `visor:` de una tarea, la URL del visor o la de Figma.
+
+- ⚠ **Una pantalla se llama por lo que DICE, no por lo que es.** «bienvenida» no aparece en la bienvenida de
+  Alta: su capa es «home» y su título, el titular. Por eso `visor-buscar`, cuando ninguna pantalla tiene todas
+  las palabras pero una nombra un proyecto, da las pantallas que **abren cada carril** de ese proyecto —una
+  bienvenida o un inicio suele ser una de ésas—. Medido: la de Alta sale entre las 12 entradas de Altafinanciera.
+- **`visor-recursos` baja la resolución ORIGINAL** —la que se subió a Figma, no la exportación de la
+  pantalla—: en la bienvenida de Alta, la foto de fondo es un PNG de 1448×1086 y el logo un JPEG de 200×200,
+  los dos que la implementación reemplazó por los de otra marca porque «los tenía que dar diseño». El paquete
+  (`visor-pantalla`) ya dice qué imágenes tiene la pantalla y con qué comando se bajan.
+- **El mapa del flujo queda en disco por versión** (`<clave>/<versión>/maps/`): un comando cuesta un pedido
+  chico a Figma (`Head`, un nivel del archivo) para saber si el diseñador guardó algo; el árbol entero sólo
+  se vuelve a bajar entonces. La primera vez que se leen los siete flujos tarda ~24 s; después, ~4 s.
+- Sale ≠0 si algo falla: 2 si es de uso (una ruta mal escrita, un verbo que no existe), 1 si es de datos
+  (un proyecto que la biblioteca no conoce, Figma que no contesta).
+
 ## La ruta: `/<proyecto>/<pantalla>`, para enlazar desde afuera
 
 `http://localhost:5193/credifamilia/1-4063` abre ese proyecto en esa pantalla: el proyecto por su nombre

@@ -530,9 +530,26 @@ func (c *Client) Meta(ctx context.Context, key string) (FileMeta, error) {
 // Pages son las páginas de un archivo (los CANVAS): id y nombre. Pide sólo un nivel, que es barato
 // aunque el archivo sea enorme.
 func (c *Client) Pages(ctx context.Context, key string) (string, []Project, error) {
+	h, err := c.Head(ctx, key)
+	return h.Name, h.Pages, err
+}
+
+// FileHead es lo que cuesta un pedido chico de un archivo: su nombre, su VERSIÓN —cambia con cada
+// guardado del diseñador, así que dice si lo que se guardó de él sigue sirviendo— y sus páginas.
+type FileHead struct {
+	Name         string
+	Version      string
+	LastModified string
+	Pages        []Project
+}
+
+// Head pide el archivo con un solo nivel: barato aunque el archivo sea enorme.
+func (c *Client) Head(ctx context.Context, key string) (FileHead, error) {
 	var raw struct {
-		Name     string `json:"name"`
-		Document struct {
+		Name         string `json:"name"`
+		Version      string `json:"version"`
+		LastModified string `json:"lastModified"`
+		Document     struct {
 			Children []struct {
 				ID   string `json:"id"`
 				Name string `json:"name"`
@@ -541,13 +558,13 @@ func (c *Client) Pages(ctx context.Context, key string) (string, []Project, erro
 		} `json:"document"`
 	}
 	if err := c.get(ctx, "/v1/files/"+url.PathEscape(key)+"?depth=1", &raw); err != nil {
-		return "", nil, err
+		return FileHead{}, err
 	}
-	var out []Project
+	h := FileHead{Name: raw.Name, Version: raw.Version, LastModified: raw.LastModified}
 	for _, ch := range raw.Document.Children {
 		if ch.Type == "CANVAS" {
-			out = append(out, Project{ID: ch.ID, Name: ch.Name})
+			h.Pages = append(h.Pages, Project{ID: ch.ID, Name: ch.Name})
 		}
 	}
-	return raw.Name, out, nil
+	return h, nil
 }

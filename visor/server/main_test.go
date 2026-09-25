@@ -2,7 +2,10 @@ package main
 
 import (
 	"bufio"
+	"bytes"
 	"context"
+	"image"
+	"image/png"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -263,9 +266,67 @@ func TestBriefGathersEverythingAboutAScreen(t *testing.T) {
 	print, _ := figma.Fingerprint([]byte(screen))
 	for _, want := range []string{"# «Elige tu plan» · flujo ecommerce", "(visor:flujo-ecommerce/1-2@" + print + ")",
 		"carril «No paga cuota inicial», 2 de 2 · móvil 430×932", "1. Elige tu plan\n2. Continuar", "- clic en «Continuar» → «Pago»",
-		"- Botones — variantes en el archivo: Estado: Primary button", "`--violet-500` #252256 — Colors/violet/violet-500 ×1", "```html\n<!doctype html>"} {
+		"- Botones — variantes en el archivo: Estado: Primary button", "`--violet-500` #252256 — Colors/violet/violet-500 ×1", "```html\n<!doctype html>",
+		"make visor-recursos R=flujo-ecommerce/1-2 DIR=<carpeta>", "make visor-tokens P=flujo-ecommerce"} {
 		if !strings.Contains(text, want) {
 			t.Errorf("falta %q en:\n%s", want, text)
+		}
+	}
+}
+
+// La API por consola nombra la pantalla como la ruta, el enlace visor: de una tarea, la URL del visor o la
+// de Figma: las cuatro llegan al mismo archivo y nodo.
+func TestCLINamesAScreenLikeTheRouteDoes(t *testing.T) {
+	s := newServer(nil, t.TempDir())
+	s.library.opened("RkyauDfqEsFbJZBBoqChAV", "Altafinanciera", "PRODUCTO")
+	for _, ref := range []string{"altafinanciera/266-1279", "visor:altafinanciera/266-1279@53265587646d",
+		"http://localhost:5193/altafinanciera/266-1279?modo=html", "https://www.figma.com/design/RkyauDfqEsFbJZBBoqChAV/x?node-id=266-1279"} {
+		key, id, err := s.resolveScreen(ref)
+		if err != nil || key != "RkyauDfqEsFbJZBBoqChAV" || id != "266:1279" {
+			t.Errorf("%s → %s %s %v", ref, key, id, err)
+		}
+	}
+	if _, _, err := s.resolveScreen("nada"); err == nil {
+		t.Error("lo que no es una ruta es un error de uso")
+	}
+}
+
+// `visor recursos` baja las imágenes ORIGINALES de la pantalla con el nombre de su capa, y dice cuál es
+// el fondo y cuál va en círculo.
+func TestCLIAssetsDownloadOriginalsNamedByLayer(t *testing.T) {
+	s := newServer(nil, t.TempDir())
+	s.library.opened("RkyauDfqEsFbJZBBoqChAV", "Altafinanciera", "PRODUCTO")
+	s.readFlow = func(context.Context, string) (figma.Structure, string, error) { return figma.Structure{}, "0:1", nil }
+	screen := `{"id":"266:1279","name":"home","type":"FRAME","absoluteBoundingBox":{"x":0,"y":0,"width":430,"height":903},
+	  "fills":[{"type":"IMAGE","imageRef":"ed64224686598c2ab9c32603378aae637c8e8b84","scaleMode":"STRETCH"}],
+	  "children":[{"id":"266:1300","name":"Logo","type":"FRAME","cornerRadius":100,"absoluteBoundingBox":{"x":171,"y":64,"width":88,"height":88},
+	    "fills":[{"type":"IMAGE","imageRef":"e88a28145b5cce8ddf0f5aca0b7d1b73493abc05","scaleMode":"FILL"}]}]}`
+	s.nodeJSON = func(context.Context, string, string) ([]byte, error) { return []byte(screen), nil }
+	var buf bytes.Buffer
+	_ = png.Encode(&buf, image.NewGray(image.Rect(0, 0, 1448, 1086)))
+	pngBytes := buf.Bytes()
+	jpg := []byte("\xff\xd8\xff\xe0\x00\x10JFIF\x00")
+	s.fills = func(_ context.Context, _ string, refs []string) (map[string][]byte, error) {
+		out := map[string][]byte{}
+		for _, r := range refs {
+			out[r] = map[bool][]byte{true: pngBytes, false: jpg}[strings.HasPrefix(r, "ed64")]
+		}
+		return out, nil
+	}
+	dir := t.TempDir()
+	var out strings.Builder
+	if err := cliAssets(s, context.Background(), []string{"altafinanciera/266-1279", "--dir", dir}, &out); err != nil {
+		t.Fatal(err)
+	}
+	got := out.String()
+	for _, want := range []string{"home.png", "1448×1086", "fondo de la pantalla «home»", "logo.jpg", "imagen en círculo (logo o avatar) «Logo»"} {
+		if !strings.Contains(got, want) {
+			t.Errorf("falta %q en:\n%s", want, got)
+		}
+	}
+	for _, f := range []string{"home.png", "logo.jpg"} {
+		if _, err := os.Stat(dir + "/" + f); err != nil {
+			t.Errorf("no quedó %s: %v", f, err)
 		}
 	}
 }

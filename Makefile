@@ -186,6 +186,36 @@ visor-fidelidad: ## @dia ¿cuánto se parece el HTML traducido a Figma? píxel a
 	@test -n "$(REF)" || { echo "falta REF='<url de la sección de Figma>'"; exit 2; }
 	@node visor/tools/fidelity.mjs --ref '$(REF)' $(if $(SOLO),--only $(SOLO)) $(if $(TODAS),--all)
 
+# La API del visor POR CONSOLA (visor/server/cli.go): la interfaz es para mirar, el modelo trabaja con
+# comandos, como con el harness. No necesitan el visor corriendo. La pantalla se nombra como en su ruta
+# (`altafinanciera/266-1279`), con el enlace `visor:` de una tarea o con la URL de Figma.
+visor-buscar: ## @dia ¿qué pantalla es? busca en los flujos por título, carril o proyecto; si nada tiene todas las palabras, da las que abren cada carril del proyecto nombrado. Q='alta bienvenida'
+	@test -n "$(Q)" || { echo "falta Q='<palabras>'  ·  ej: make visor-buscar Q='alta bienvenida'"; exit 2; }
+	@cd visor/server && go run . search $(Q)
+
+visor-pantallas: ## @dia el flujo de un proyecto: carriles y pantallas, cada una con su ruta. P=<proyecto> (sin P, la lista de proyectos)
+	@cd visor/server && go run . screens $(P)
+
+visor-pantalla: ## @dia el PAQUETE PARA EL MODELO de una pantalla: textos en orden, a dónde lleva, imágenes, componentes, tokens y el HTML traducido. R=<proyecto/pantalla>
+	@test -n "$(R)" || { echo "falta R=<proyecto/pantalla>  ·  ej: make visor-pantalla R=altafinanciera/266-1279"; exit 2; }
+	@cd visor/server && go run . screen '$(R)'
+
+visor-html: ## @dia el HTML traducido de una pantalla (fiel a Figma, con los tokens). R=<proyecto/pantalla> [OUT=<archivo>]
+	@test -n "$(R)" || { echo "falta R=<proyecto/pantalla>"; exit 2; }
+	@cd visor/server && go run . html '$(R)' $(if $(OUT),--out "$(abspath $(OUT))")
+
+visor-recursos: ## @dia BAJA las imágenes de una pantalla en su resolución ORIGINAL, con el nombre de su capa. R=<proyecto/pantalla> [DIR=<carpeta>] [SVG=1 también los dibujos]
+	@test -n "$(R)" || { echo "falta R=<proyecto/pantalla>  ·  ej: make visor-recursos R=altafinanciera/266-1279 DIR=./recursos"; exit 2; }
+	@cd visor/server && go run . assets '$(R)' $(if $(DIR),--dir "$(abspath $(DIR))") $(if $(SVG),--svg)
+
+visor-tokens: ## @dia los tokens del diseño de un proyecto: colores y textos con su nombre del sistema. P=<proyecto> [FORMATO=css|tailwind|json]
+	@test -n "$(P)" || { echo "falta P=<proyecto>  ·  ej: make visor-tokens P=credifamilia FORMATO=tailwind"; exit 2; }
+	@cd visor/server && go run . tokens '$(P)' --$(or $(FORMATO),css)
+
+visor-componentes: ## @dia los componentes del sistema de diseño que usa un flujo, con sus variantes y en qué pantallas. P=<proyecto>
+	@test -n "$(P)" || { echo "falta P=<proyecto>"; exit 2; }
+	@cd visor/server && go run . components '$(P)'
+
 visor-enlaces: ## @dia ¿siguen vivas las pantallas que enlazan las tareas? recorre el tablero y dice, por cada enlace del visor, si la pantalla sigue igual, CAMBIÓ o la BORRARON (por su huella). Sale ≠0 si hay alguno roto. DIR=<carpeta> (default: las tareas)
 	@cd visor/server && go run . -links "$(abspath $(or $(DIR),tablero/tasks))"
 

@@ -118,7 +118,7 @@ func (s *server) brief(ctx context.Context, key, id string) (string, error) {
 		}
 		fmt.Fprintf(&b, "- **Dónde está:** carril «%s», %d de %d · %s %.0f×%.0f\n", lane, place.index, place.total, kind, place.screen.W, place.screen.H)
 	}
-	fmt.Fprintf(&b, "- **Hoja de tokens del archivo:** http://localhost:5193/api/tokens?key=%s&format=css (o `&format=tailwind`)\n", key)
+	fmt.Fprintf(&b, "- **Hoja de tokens del archivo:** `make visor-tokens P=%s` (o `FORMATO=tailwind`)\n", slug)
 
 	b.WriteString("\n## Textos, en orden de lectura\n\n")
 	for i, t := range render.ScreenTexts(n) {
@@ -137,6 +137,43 @@ func (s *server) brief(ctx context.Context, key, id string) (string, error) {
 	} else {
 		b.WriteString("El prototipo no dice a dónde lleva esta pantalla.\n")
 	}
+
+	// Las imágenes, para que el modelo las BAJE en vez de dejar un hueco o pedírselas a diseño: en la
+	// bienvenida de Alta, el logo y la foto estaban en Figma y se implementaron con los de otra marca.
+	var images []string
+	seenImage := map[string]bool{}
+	var findImages func(nd render.Node, root bool)
+	findImages = func(nd render.Node, root bool) {
+		if nd.Visible != nil && !*nd.Visible {
+			return
+		}
+		for _, p := range nd.Fills {
+			if p.Type == "IMAGE" && p.ImageRef != "" && (p.Visible == nil || *p.Visible) && !seenImage[p.ImageRef] {
+				seenImage[p.ImageRef] = true
+				where := ""
+				if nd.Box != nil {
+					where = fmt.Sprintf(", %.0f×%.0f en pantalla", nd.Box.Width, nd.Box.Height)
+				}
+				role := ""
+				if root {
+					role = " (fondo de la pantalla)"
+				}
+				images = append(images, fmt.Sprintf("- «%s»%s%s", nd.Name, role, where))
+			}
+		}
+		for _, ch := range nd.Children {
+			findImages(ch, false)
+		}
+	}
+	findImages(n, true)
+	b.WriteString("\n## Imágenes y dibujos\n\n")
+	if len(images) > 0 {
+		b.WriteString(strings.Join(images, "\n") + "\n")
+	} else {
+		b.WriteString("La pantalla no tiene imágenes (fotos, logos en bitmap).\n")
+	}
+	fmt.Fprintf(&b, "- %d dibujo(s) de Figma (íconos, logos vectoriales).\n", len(unique(rep.Drawings)))
+	fmt.Fprintf(&b, "\nBajalas en su resolución ORIGINAL, con el nombre de su capa: `make visor-recursos R=%s/%s DIR=<carpeta>` (`SVG=1` suma los dibujos). No hace falta pedírselas a diseño.\n", slug, dashed)
 
 	if len(rep.Controls) > 0 {
 		b.WriteString("\n## Controles\n\n")

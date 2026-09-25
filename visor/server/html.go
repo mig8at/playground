@@ -173,19 +173,6 @@ func flowPage(pages []figma.Project) (figma.Project, bool) {
 	return figma.Project{}, false
 }
 
-func (s *server) readFlowFromFigma(ctx context.Context, key string) (figma.Structure, string, error) {
-	_, pages, err := s.figma.Pages(ctx, key)
-	if err != nil {
-		return figma.Structure{}, "", err
-	}
-	page, ok := flowPage(pages)
-	if !ok {
-		return figma.Structure{}, "", &figma.Error{Status: 404, Message: "el archivo no tiene páginas"}
-	}
-	st, err := s.figma.Structure(ctx, key, page.ID, false)
-	return st, page.ID, err
-}
-
 func (s *server) fileName(key string) string {
 	s.mu.Lock()
 	defer s.mu.Unlock()
