@@ -347,7 +347,7 @@ try {
       assert.equal(await filter.getAttribute('aria-checked'), 'true');
       assert(await page.locator('#consoleFilterState').isVisible());
       await escapeMenu(page, trigger);
-      await page.locator('#pestSsr').click();
+      await page.locator('#tabSsr').click();
       assert.equal(await page.locator('#consoleFilterState').isVisible(), false, 'Filtros independientes por consola');
       await openMenu(page, 'Opciones de consola');
       await menu.getByRole('menuitemcheckbox', { name: 'Sólo llamadas salientes' }).click();
@@ -361,7 +361,7 @@ try {
       assert.equal(await page.locator('#bottomPanel').isVisible(), true, 'La consola vuelve desde el pie');
       const merchants = await openMenu(page, 'Opciones de comercios');
       await merchants.menu.getByRole('menuitem', { name: 'Buscar o agregar comercio' }).click();
-      assert(await page.locator('#buscom').evaluate((el) => el === document.activeElement));
+      assert(await page.locator('#merchantSearch').evaluate((el) => el === document.activeElement));
     }
     if (name === 'tablero') {
       const { trigger, menu } = await openMenu(page, 'Qué tareas se ven');
