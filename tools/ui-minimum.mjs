@@ -17,7 +17,7 @@ const { chromium } = require('playwright');
 const only = (process.env.SOLO || '').split(',').map((x) => x.trim()).filter(Boolean);
 const apps = [
   ['harness', 'http://localhost:5195'], ['tablero', 'http://localhost:5191'],
-  ['trazador', 'http://localhost:5192'], ['visor', 'http://localhost:5193'],
+  ['trazador', 'http://localhost:5192'], ['visor', 'http://localhost:5186'],
 ].filter(([name]) => !only.length || only.includes(name));
 const WIDTHS = [1440, 1024, 768, 640];
 

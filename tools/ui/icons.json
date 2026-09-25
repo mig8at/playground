@@ -40,6 +40,7 @@
     "code": "code-xml",
     "compare": "columns-2",
     "local": "laptop",
-    "merchant": "store"
+    "merchant": "store",
+    "stop": "square"
   }
 }

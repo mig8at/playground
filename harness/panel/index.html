@@ -332,6 +332,20 @@
     .log-lines:empty::before { content: attr(data-vacio); display: block; padding: 0 var(--gutter);
       font-size: var(--text-sm); color: var(--fg-2) }
     .log-failed { color: var(--danger) }
+    /* La vista de mocks: la tabla de la base con una fila por mock y, al elegir una, su salida debajo.
+       La fila se elige con clic; las acciones son iconos de la base, a la derecha. */
+    .mocks-table tbody tr { cursor: pointer }
+    .mocks-table td:first-child { white-space: nowrap }
+    .mocks-table .mock-name { display: inline-flex; align-items: center; gap: var(--space-2) }
+    .mocks-table .mock-last { max-width: 0; width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+      font-family: var(--font-mono); font-size: var(--text-sm); color: var(--fg-2) }
+    .mocks-table .mock-owner { white-space: nowrap; color: var(--fg-2) }
+    .mocks-table .mock-actions { white-space: nowrap; text-align: right }
+    .mocks-table .mock-actions .region-action { display: inline-flex }
+    .mock-log { border-top: 1px solid var(--border) }
+    /* Se cae al arrancar: el supervisor dejó de reintentarlo, hay que mirar su salida. */
+    .status-dot.fail { background: var(--danger) }
+    .status-dot.starting { animation: pulse 1.2s ease-in-out infinite }
     /* La miniatura de un screenshot: reemplaza a «andá a buscar el png». Es un OBJETO y lleva su marco. */
     .shot-thumb { display: block; max-width: var(--shot-w); max-height: var(--shot-h);
       margin: var(--space-1) var(--gutter) var(--space-2) calc(var(--gutter) + var(--space-6));
@@ -668,6 +682,7 @@
       <nav class="tabs" role="tablist" aria-label="Consolas">
         <button type="button" class="tab on" id="tabRun" role="tab" aria-selected="true" title="Lo que imprime el launcher de la corrida">Corrida</button>
         <button type="button" class="tab" id="tabSsr" role="tab" aria-selected="false" title="El stdout del wizard (SSR): sus llamadas salientes y sus errores">SSR</button>
+        <button type="button" class="tab" id="tabMocks" role="tab" aria-selected="false" title="Los mocks locales que vigila el panel: si responden, quién los levantó y su salida">Mocks</button>
         <div class="region-actions" role="group" aria-label="Acciones de consola">
           <span id="consoleFilterState" class="count filtered" hidden>Filtrada</span>
           <button type="button" class="region-action" id="copyLog" title="Copiar ambas consolas completas" aria-label="Copiar ambas consolas completas"><span class="ui-icon" data-icon="copy" aria-hidden="true"></span></button>
@@ -683,6 +698,16 @@
         </div>
         <div id="logSsrScroll" class="region-body console-log" style="display:none">
           <div id="logSsr" class="log-lines" role="log" data-vacio="El stdout del wizard (SSR): sus llamadas salientes y sus errores. Es la ÚNICA vista de eso."></div>
+        </div>
+        <!-- Los mocks: el panel es su DUEÑO (`panel/mocks.ts`). Levanta al arrancar los que falten, adopta
+             los que ya estaban, y reinicia el que se cae o cuyo código cambió. Arriba la tabla; al elegir
+             una fila, su salida abajo. -->
+        <div id="mocksScroll" class="region-body mocks-view" style="display:none">
+          <table class="table mocks-table">
+            <thead><tr><th>Mock</th><th class="num">Puerto</th><th>Lo levantó</th><th>Última línea</th><th><span class="sr-only">Acciones</span></th></tr></thead>
+            <tbody id="mockRows"></tbody>
+          </table>
+          <div id="mockLog" class="log-lines mock-log" role="log" hidden></div>
         </div>
       </div>
     </section>
@@ -1825,6 +1850,12 @@
           const label = document.createElement('span'); label.textContent = mock.nombre;
           const code = document.createElement('code'); code.textContent = command || `Revisá el servicio en el puerto ${mock.puerto}`;
           row.append(label, code);
+          if (mock.mock) {
+            const start = document.createElement('button'); start.type = 'button'; start.className = 'btn btn-xs'; start.textContent = 'Iniciar';
+            start.title = 'Lo levanta el panel y lo vigila: si se cae, lo reinicia';
+            start.onclick = async () => { start.disabled = true; start.textContent = 'Iniciando…'; await mockAction(mock.mock, 'start'); };
+            row.append(start);
+          }
           if (command) {
             const copy = document.createElement('button'); copy.type = 'button'; copy.className = 'btn btn-outline btn-xs'; copy.textContent = 'Copiar comando';
             copy.onclick = async () => {
@@ -2627,9 +2658,10 @@
       // Cadena vacía y no 'block': BORRA la declaración inline en vez de imponer una, así el
       // layout del panel inferior (columna flex, para que el <pre> llene) lo sigue decidiendo el CSS.
       $('consoleBody').style.display = '';
-      const isSsr = $('tabSsr').classList.contains('on');
-      $('logScroll').style.display = on && !isSsr ? '' : 'none';
-      $('logSsrScroll').style.display = on && isSsr ? '' : 'none';
+      const tab = consoleTab();
+      $('logScroll').style.display = on && tab === 'corrida' ? '' : 'none';
+      $('logSsrScroll').style.display = on && tab === 'ssr' ? '' : 'none';
+      $('mocksScroll').style.display = on && tab === 'mocks' ? '' : 'none';
       // (el botón de plegar se quitó: la consola es una ZONA fija del layout, no una tarjeta que
       //  compita por alto con lo de arriba. `showLog` se queda: lo llaman el arranque y las corridas.)
     }
@@ -2779,23 +2811,113 @@
       } catch { /* el panel sigue andando sin esto */ }
     }
 
+    const CONSOLE_TABS = [['tabRun', 'corrida'], ['tabSsr', 'ssr'], ['tabMocks', 'mocks']];
+    function consoleTab() {
+      return (CONSOLE_TABS.find(([id]) => $(id).classList.contains('on')) || CONSOLE_TABS[0])[1];
+    }
     function showTab(which) {
-      const isSsr = which === 'ssr';
+      const tab = CONSOLE_TABS.some(([, t]) => t === which) ? which : 'corrida';
       // Mismo mecanismo que `showLog` —`style.display`, no el atributo `hidden`— para que plegar y
       // cambiar de pestaña no se pisen.
-      $('logScroll').style.display = isSsr || !logOpen ? 'none' : '';
-      $('logSsrScroll').style.display = isSsr && logOpen ? '' : 'none';
-      $('tabRun').classList.toggle('on', !isSsr);
-      $('tabSsr').classList.toggle('on', isSsr);
-      $('tabRun').setAttribute('aria-selected', String(!isSsr));
-      $('tabSsr').setAttribute('aria-selected', String(isSsr));
+      for (const [id, t] of CONSOLE_TABS) {
+        $(id).classList.toggle('on', t === tab);
+        $(id).setAttribute('aria-selected', String(t === tab));
+      }
+      showLog(logOpen);
       if (ssrPoll) { clearInterval(ssrPoll); ssrPoll = null; }
-      if (isSsr) { tickSsr(); ssrPoll = setInterval(tickSsr, 2000); }
+      if (tab === 'ssr') { tickSsr(); ssrPoll = setInterval(tickSsr, 2000); }
+      // Los mocks se consultan sólo mientras la pestaña está a la vista: cada consulta prueba 19 puertos.
+      if (mocksPoll) { clearInterval(mocksPoll); mocksPoll = null; }
+      if (tab === 'mocks') { tickMocks(); mocksPoll = setInterval(tickMocks, 3000); }
       routeChanged();
     }
 
     $('tabRun').onclick = () => showTab('corrida');
     $('tabSsr').onclick = () => showTab('ssr');
+    $('tabMocks').onclick = () => showTab('mocks');
+
+    // ── Mocks: la vista del supervisor (`panel/mocks.ts`) ─────────────────────────────────────────
+    // El panel es el DUEÑO de los mocks locales: al arrancar levanta los que falten y adopta los que ya
+    // estaban (esos quedan como «otro proceso»: no los mató ni los reemplazó). Acá se ve eso y se actúa.
+    let mocksPoll = null;
+    let mockSelected = null;
+    // El error de la última acción, en la fila del mock que lo dio: hasta que una acción suya salga bien.
+    const mockErrors = {};
+    const MOCK_STATE = {
+      up: ['ok', 'responde'], starting: ['starting', 'arrancando'], down: ['bad', 'no responde'],
+      stopped: ['', 'detenido'], failing: ['fail', 'se cae al arrancar: mirá su salida'],
+    };
+    const MOCK_OWNER = { panel: 'el panel', external: 'otro proceso', none: '—' };
+    async function tickMocks() {
+      try { renderMocks((await (await fetch('/api/mocks')).json()).mocks || []); }
+      catch { /* el panel se está reiniciando: lo contesta el próximo tick */ }
+      if (mockSelected) tickMockLog();
+    }
+    async function mockAction(id, action) {
+      try {
+        const r = await (await fetch(`/api/mocks/${encodeURIComponent(id)}/${action}`, { method: 'POST' })).json();
+        if (r.error) mockErrors[id] = r.error; else delete mockErrors[id];
+        if (r.mocks) renderMocks(r.mocks);
+      } catch { mockErrors[id] = 'el panel no contestó'; }
+      if (mockSelected === id) tickMockLog();
+      loadStatus();
+    }
+    function iconButton(icon, label, onClick) {
+      const b = document.createElement('button');
+      b.type = 'button'; b.className = 'region-action'; b.title = label; b.setAttribute('aria-label', label);
+      const i = document.createElement('span'); i.className = 'ui-icon'; i.dataset.icon = icon; i.setAttribute('aria-hidden', 'true');
+      b.append(i);
+      b.onclick = (ev) => { ev.stopPropagation(); onClick(); };
+      return b;
+    }
+    function renderMocks(mocks) {
+      const rows = mocks.map((m) => {
+        const tr = document.createElement('tr');
+        tr.setAttribute('aria-selected', String(m.id === mockSelected));
+        tr.onclick = () => { mockSelected = mockSelected === m.id ? null : m.id; renderMocks(mocks); tickMockLog(); };
+        const [dot, stateText] = MOCK_STATE[m.state] || ['', m.state];
+        const name = document.createElement('td');
+        const wrap = document.createElement('span'); wrap.className = 'mock-name';
+        const d = document.createElement('span'); d.className = 'status-dot ' + dot; d.title = stateText;
+        const label = document.createElement('span'); label.textContent = m.label;
+        wrap.append(d, label);
+        // Código nuevo con un proceso ajeno: el panel no lo reinicia por su cuenta (no es suyo), lo avisa.
+        if (m.staleCode) {
+          const pill = document.createElement('span'); pill.className = 'badge badge-outline'; pill.textContent = 'código nuevo';
+          pill.title = 'El código cambió y este proceso no es del panel: reinicialo para que tome el cambio';
+          wrap.append(pill);
+        }
+        name.append(wrap); name.title = `${m.label} · ${stateText} · lo necesita: ${m.needs}`;
+        const port = document.createElement('td'); port.className = 'num'; port.textContent = m.port;
+        const owner = document.createElement('td'); owner.className = 'mock-owner';
+        owner.textContent = (MOCK_OWNER[m.owner] || '—') + (m.restarts ? ` · ${m.restarts} reinicio${m.restarts === 1 ? '' : 's'}` : '');
+        const last = document.createElement('td'); last.className = 'mock-last' + (mockErrors[m.id] ? ' log-failed' : '');
+        last.textContent = mockErrors[m.id] || m.lastLine || (m.lastExit ? `terminó: ${m.lastExit}` : '');
+        last.title = last.textContent;
+        const actions = document.createElement('td'); actions.className = 'mock-actions';
+        const live = m.state === 'up' || m.state === 'starting';
+        actions.append(
+          live ? iconButton('stop', `Detener ${m.label}` + (m.owner === 'external' ? ' (corta el proceso que lo levantó)' : ''), () => mockAction(m.id, 'stop'))
+               : iconButton('play', `Iniciar ${m.label}`, () => mockAction(m.id, 'start')),
+          iconButton('refresh', `Reiniciar ${m.label}`, () => mockAction(m.id, 'restart')),
+        );
+        tr.append(name, port, owner, last, actions);
+        return tr;
+      });
+      $('mockRows').replaceChildren(...rows);
+    }
+    async function tickMockLog() {
+      const box = $('mockLog');
+      box.hidden = !mockSelected;
+      if (!mockSelected) return;
+      const id = mockSelected;
+      try {
+        const r = await (await fetch(`/api/mocks/${encodeURIComponent(id)}/log?n=200`)).json();
+        if (mockSelected !== id) return;   // se eligió otra fila mientras llegaba: ésta ya no se pinta
+        box.dataset.vacio = `${id} todavía no escribió nada.`;
+        box.replaceChildren(...(r.lines || []).map((l) => logLine(l)));
+      } catch { /* el próximo tick */ }
+    }
     function toggleSsrFilter() {
       ssrOnly = !ssrOnly;
       repaintSsr();
@@ -3918,13 +4040,16 @@ export function bindMenu(trigger, { getItems, onSelect, label = 'Más opciones' 
       ],
       onSelect: (id) => { if (id === 'ocultar') { toggleRegion(1); document.getElementById('toggleDetail').focus(); } },
     });
-    const isSsr = () => document.getElementById('tabSsr').classList.contains('on');
+    const isSsr = () => consoleTab() === 'ssr';
+    const isMocks = () => consoleTab() === 'mocks';
     const consoleOptions = bindMenu(document.getElementById('consoleMenu'), {
       label: 'Opciones de consola',
       getItems: () => [
-        { id: 'filtrar', label: isSsr() ? 'Sólo llamadas salientes' : 'Sólo eventos importantes', checked: isSsr() ? ssrOnly : importantOnly },
-        { id: 'final', label: 'Ir al final', icon: 'bottom' },
-        { separator: true },
+        ...(isMocks() ? [] : [
+          { id: 'filtrar', label: isSsr() ? 'Sólo llamadas salientes' : 'Sólo eventos importantes', checked: isSsr() ? ssrOnly : importantOnly },
+          { id: 'final', label: 'Ir al final', icon: 'bottom' },
+          { separator: true },
+        ]),
         { id: 'ocultar', label: 'Ocultar consola', icon: 'console' },
       ],
       onSelect: (id) => {
@@ -3934,14 +4059,14 @@ export function bindMenu(trigger, { getItems, onSelect, label = 'Más opciones' 
       },
     });
     function reflectConsoleFilter() {
-      const filtered = isSsr() ? ssrOnly : importantOnly;
+      const filtered = isMocks() ? false : isSsr() ? ssrOnly : importantOnly;
       const label = document.getElementById('consoleFilterState');
       label.hidden = !filtered;
       label.title = isSsr() ? 'Sólo llamadas salientes' : 'Sólo eventos importantes';
       document.getElementById('consoleMenu').classList.toggle('has-options', filtered);
       consoleOptions.refresh();
     }
-    for (const id of ['tabRun', 'tabSsr']) document.getElementById(id).addEventListener('click', reflectConsoleFilter);
+    for (const id of ['tabRun', 'tabSsr', 'tabMocks']) document.getElementById(id).addEventListener('click', reflectConsoleFilter);
     reflectConsoleFilter();
 
     // ══ RUTA Y PREFERENCIAS ═══════════════════════════════════════════════════════════════════════
@@ -3972,7 +4097,7 @@ export function bindMenu(trigger, { getItems, onSelect, label = 'Más opciones' 
       const clickButton = (selector) => document.querySelector(selector)?.click();
 
       const currentView = () => byId('tabMerchant').classList.contains('on') ? 'merchant' : 'client';
-      const currentConsole = () => byId('tabSsr').classList.contains('on') ? 'ssr' : 'corrida';
+      const currentConsole = () => consoleTab();
       const findEntry = (slug) => spaceEntries().find((e) => e.slug === slug || (e.hash && e.hash === slug));
       const isChosen = (e) => !!sel && (sel.slug === e.slug || (!!e.hash && sel.slug === e.hash));
 
@@ -4025,8 +4150,8 @@ export function bindMenu(trigger, { getItems, onSelect, label = 'Más opciones' 
           if (currentView() !== wantedView) showAuxView(wantedView);
 
           // La consola por su pestaña real: el rótulo «Filtrada» escucha ese click.
-          const wantedConsole = params.get('consola') === 'ssr' ? 'ssr' : 'corrida';
-          if (currentConsole() !== wantedConsole) byId(wantedConsole === 'ssr' ? 'tabSsr' : 'tabRun').click();
+          const wantedConsole = ['ssr', 'mocks'].includes(params.get('consola')) ? params.get('consola') : 'corrida';
+          if (currentConsole() !== wantedConsole) byId({ ssr: 'tabSsr', mocks: 'tabMocks' }[wantedConsole] || 'tabRun').click();
         } finally {
           if (seq === routeSeq) { restoring = false; syncRoute({ replace: true }); }
         }

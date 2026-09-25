@@ -13,10 +13,13 @@ import { spawn, execFile } from 'node:child_process';
 import { readFileSync, existsSync, writeFileSync, readdirSync, statSync, mkdirSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, resolve, join } from 'node:path';
+import { MockSupervisor, MOCKS as MOCK_REGISTRY } from './mocks.ts';
 import { homedir } from 'node:os';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const ROOT = resolve(HERE, '..');              // raíz de harness
+// El dueño de los mocks locales (`panel/mocks.ts`): los levanta al arrancar, los vigila y los expone por /api/mocks.
+const mockSupervisor = new MockSupervisor(ROOT);
 const PORT = Number(process.env.PANEL_PORT || 5195);
 // ⚠ Sólo loopback. El panel ESCRIBE —asigna el asesor en la base del ambiente elegido, siembra, lanza
 // corridas— y no tiene autenticación: escuchando en todas las interfaces (era `listen(PORT)`, o sea
@@ -956,6 +959,22 @@ const server = createServer(async (req, res) => {
         return json(res, 200, { ...r, familia: fam });
     }
 
+    /* LOS MOCKS LOCALES: estado, dueño y log de cada uno, y levantar, apagar o reiniciar a pedido. */
+    if (path === '/api/mocks' && req.method === 'GET') return json(res, 200, { mocks: await mockSupervisor.list() });
+    {
+        const m = path.match(/^\/api\/mocks\/([a-z0-9-]+)\/(start|stop|restart|log)$/);
+        if (m) {
+            const [, id, action] = m;
+            if (!MOCK_REGISTRY.some((x) => x.id === id)) return json(res, 404, { error: `no conozco el mock «${id}»` });
+            if (action === 'log') return json(res, 200, { lines: mockSupervisor.log(id, Number(url.searchParams.get('n')) || 200) });
+            if (req.method !== 'POST') return json(res, 405, { error: 'usá POST' });
+            try {
+                await (action === 'start' ? mockSupervisor.start(id) : action === 'stop' ? mockSupervisor.stop(id) : mockSupervisor.restart(id));
+                return json(res, 200, { ok: true, mocks: await mockSupervisor.list() });
+            } catch (e) { return json(res, 500, { error: e instanceof Error ? e.message : String(e) }); }
+        }
+    }
+
     if (path === '/api/estado') {
         // `para` dice QUIÉN lo necesita, y existe porque un contador «n/n» no sirve para decidir: lo
         // que importa no es cuántos faltan sino si falta ALGUNO DE LOS QUE ESTA CORRIDA VA A USAR.
@@ -997,22 +1016,16 @@ const server = createServer(async (req, res) => {
             } catch { return { modo: '?', detalle: 'no se pudo leer el .env de legacy-backend' }; }
         })();
 
+        // Los mocks salen del MISMO registro que usa el supervisor (`panel/mocks.ts`): dos listas de puertos
+        // es como empiezan a derivar. Acá sólo se ajusta a quién le hace falta el pdf-mapper.
         const MOCKS: Array<[string, number, string]> = [
-            ['pre-aprobaciones', 8095, 'todos'], ['redirect', 8096, 'ecommerce'],
-            ['payvalida', 8097, 'todos'], ['mdm/IMEI', 8098, 'smartpay'],
-            ['entidades', 8099, 'rt1'],
-            // ⚠ A QUIÉN le hace falta este mock DEPENDE del `.env` del backend, no del flujo.
-            // Con los `DOC_GEN_*` en Blade sólo lo usa rt=4 (`vinculacion` no tiene plantilla y
-            // es 'microservice' por diseño); con `DOC_GEN_*=microservice` lo usan TODOS, porque
-            // el pagaré, el consentimiento y el FGA salen por ahí. Decir 'rt4' con el micro
-            // prendido manda a creer que apagarlo no afecta al resto — y lo tumba entero.
-            ['pdf-mapper', 8100, docGen.modo === 'blade' ? 'rt4' : 'todos'],
-            ['forms', 8101, 'todos'], ['ábaco', 8102, 'motai'],
-            ['corbeta/fondos', 8103, 'qr'], ['bancolombia', 8104, 'qr'],
-            ['centrales', 8105, 'todos'],
-            // Los tres que separan a Credifamilia del estado 11, y que NO los levanta `bin/advisor`.
-            ['deceval/pagaré', 8106, 'rt4'], ['netco/firma', 8107, 'rt4'],
-            ['credifamilia/radicación', 8108, 'rt4'],
+            ...MOCK_REGISTRY.map((m): [string, number, string] => [m.label, m.port,
+                // ⚠ A QUIÉN le hace falta el pdf-mapper DEPENDE del `.env` del backend, no del flujo.
+                // Con los `DOC_GEN_*` en Blade sólo lo usa rt=4 (`vinculacion` no tiene plantilla y
+                // es 'microservice' por diseño); con `DOC_GEN_*=microservice` lo usan TODOS, porque
+                // el pagaré, el consentimiento y el FGA salen por ahí. Decir 'rt4' con el micro
+                // prendido manda a creer que apagarlo no afecta al resto — y lo tumba entero.
+                m.id === 'pdf-mapper' ? (docGen.modo === 'blade' ? 'rt4' : 'todos') : m.needs]),
             // No son mocks pero sin ellos la corrida miente igual: MinIO guarda los documentos (sin él
             // cada subida falla en silencio y la URL da 404 — F-174) y el monolito viejo es el ÚNICO
             // que recibe los webhooks con los que rt=0 y rt=1 llegan a un desenlace (F-170).
@@ -1023,7 +1036,6 @@ const server = createServer(async (req, res) => {
             // prueba el puerto que el backend tiene configurado, sea MinIO (9000) o ministack (4566).
             [`s3/documentos (${s3Port().etiqueta})`, s3Port().puerto, 'documentos'],
             ['app-vieja/webhooks', 8000, 'rt0-rt1'],
-            ['fin-health', Number(process.env.MOCK_FINHEALTH_PORT) || 4000, 'todos'],
         ];
         const alive = (p: number) => new Promise<boolean>((ok) => {
             const req = get({ host: '127.0.0.1', port: p, path: '/', timeout: 400 }, (r) => { r.destroy(); ok(true); });
@@ -1031,8 +1043,11 @@ const server = createServer(async (req, res) => {
             req.on('timeout', () => { req.destroy(); ok(false); });
         });
 
+        // `mock` es el id del supervisor: con él, el aviso de «falta» ofrece levantarlo ahí mismo en vez
+        // de mandar a copiar un comando. S3 y la app vieja no lo llevan: no son del panel.
         const statuses = await Promise.all(MOCKS.map(async ([n, p, forValue]) => ({
             nombre: n, puerto: p, para: forValue, arriba: await alive(p),
+            mock: MOCK_REGISTRY.find((m) => m.port === p)?.id ?? null,
         })));
 
         // última corrida: el volcado que hace el scrub ANTES de borrar (F-52)
@@ -1545,4 +1560,15 @@ server.on('error', (err: NodeJS.ErrnoException) => {
 server.listen(PORT, HOST, () => {
     console.log(`\n  🎛  Panel del harness → http://localhost:${PORT}   (local · dev)\n`);
     void bootPrewarm().catch(() => {});
+    // Los mocks locales, salvo `HARNESS_MOCKS=0`. Los que ya estén arriba se adoptan, no se duplican.
+    if (process.env.HARNESS_MOCKS !== '0') {
+        void mockSupervisor.startAll().then(async () => {
+            const all = await mockSupervisor.list();
+            const own = all.filter((m) => m.owner === 'panel').length, ext = all.filter((m) => m.owner === 'external').length;
+            const bad = all.filter((m) => m.state !== 'up').map((m) => m.id);
+            console.log(`  🧪 mocks: ${own} levantados por el panel · ${ext} ya estaban arriba${bad.length ? ` · ✗ ${bad.join(', ')}` : ''}`);
+        });
+    }
 });
+// Al cerrar el panel se apagan SÓLO los mocks que levantó él; los que estaban arriba siguen.
+for (const sig of ['SIGINT', 'SIGTERM'] as const) process.on(sig, () => { mockSupervisor.shutdown(); setTimeout(() => process.exit(0), 300); });

@@ -680,6 +680,17 @@ PHP sigue escribiendo (F-180). Ninguno de los dos sirve para medir carga.
 
 ## Mocks: arrancá a mano los que nadie levanta
 
+**Desde el 2026-09-25 el panel es su dueño** (`panel/mocks.ts`, un registro de 19 con el mismo puerto y
+el mismo «para quién» que usa `/api/estado`). Al arrancar, `npm run dev` levanta los que falten y
+**adopta** los que ya estaban: un puerto que responde no se mata ni se reemplaza, queda como «otro
+proceso». Mientras el panel viva, el que levantó él y se cae se reinicia (tres veces por minuto, después
+queda en «se cae al arrancar») y el que tiene el código editado se reinicia solo — el F-87 de abajo deja
+de pasar **para esos**. Uno ajeno con código nuevo no se toca: se marca «código nuevo». Al cerrar el panel
+se cortan sólo los suyos. Se ve y se maneja en la pestaña **Mocks** de la consola (`#…?consola=mocks`),
+por `GET /api/mocks` y `POST /api/mocks/<id>/(start|stop|restart)`, y el aviso de «falta» del pie ofrece
+**Iniciar** en el lugar. `HARNESS_MOCKS=0` arranca el panel sin tocar ninguno. Lo de abajo sigue valiendo
+cuando el panel no está corriendo (los runners por consola).
+
 - `bin/advisor` levanta `mock-preapprovals` siempre (`bin/advisor:120`) y, **solo con target `local`**,
   payvalida + mdm + lenders + forms + **ábaco** + **financial-health** (`bin/advisor:189-199`).
   `mock-redirect` lo levanta `bin/ecommerce` (`bin/advisor:56`). Contra `dev` no se levanta ninguno de
