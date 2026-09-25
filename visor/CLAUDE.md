@@ -122,6 +122,22 @@ URL, no el de los archivos que se ven en esa pantalla: «recientes» mezcla arch
 - **Una pantalla que avanza sola** (prototipo con `AFTER_TIMEOUT`) no avanza sola acá: muestra el botón
   «Avanza sola a …». Un temporizador haría saltar la pantalla mientras se la está mirando.
 
+## Los componentes: qué piezas hay que tener antes de armar pantallas
+
+Debajo de «Tokens del diseño», cada proyecto tiene **«Componentes»** (`/<proyecto>/componentes`): las piezas
+del sistema de diseño que usa el flujo (`connectors/figma/inventory.go`), cada una dibujada con una instancia
+real (el SVG de Figma), con las **variantes con que aparece** y las pantallas donde está —tocar una la abre—.
+Es la lista de componentes de Vue o React que hay que tener: los que ya existen en el front se reusan, los
+que no se arman primero. El botón de la cabecera copia el inventario como texto, para el modelo o la tarea.
+
+- Cuenta las instancias de **primer nivel**: el ícono de adentro de un botón es parte del botón. La barra de
+  estado no cuenta.
+- ⚠ Los nombres son los de Figma **con sus erratas**, y a veces dicen algo del sistema: en Credifamilia hay dos
+  sets de botón, «Botones» y «Bontones», y la variante de «Text- fields» se llama «Etate». Son dos componentes
+  distintos en el archivo: conviene saberlo antes de programar uno solo.
+- Medido el 2026-09-25 en Credifamilia: 25 componentes en 27 pantallas; el más repartido, «Text- fields»
+  (35 usos en 14 pantallas).
+
 ## Los tokens: el diseño en el idioma de su sistema de diseño
 
 Para que un modelo pase una pantalla a Vue o React sin copiar colores sueltos, el visor saca los **tokens**

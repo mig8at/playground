@@ -329,9 +329,14 @@ async function load(ref_ = refInput.value, screen = '', fresh = false) {
 // Cada bloque de la barra tiene arriba «Tokens del diseño»: los colores y estilos de texto con su nombre
 // del sistema de diseño (connectors/figma, tokens.go). Vienen en el mismo mapa del flujo, así que no
 // cuestan un pedido; la hoja para copiar (CSS o Tailwind) la escribe el server.
-const tokensKey = ref('') // el proyecto cuya hoja se mira; vacío: se mira una pantalla
+const sheetKey = ref('') // el proyecto cuya hoja se mira; vacío: se mira una pantalla
+// Qué hoja: los tokens o los componentes. La ruta es /<proyecto>/tokens o /<proyecto>/componentes.
+const sheetKind = ref('tokens')
+const sheetPaths = { tokens: 'tokens', components: 'componentes' }
 const tokensOf = (key) => maps.value[key]?.structure?.tokens || null
-const sheet = computed(() => (tokensKey.value ? tokensOf(tokensKey.value) : null))
+const sheet = computed(() => (sheetKey.value ? tokensOf(sheetKey.value) : null))
+const inventoryOf = (key) => maps.value[key]?.structure?.inventory || null
+const inventory = computed(() => (sheetKey.value ? inventoryOf(sheetKey.value) || [] : []))
 const sheetFormat = ref('css')
 const sheetFormats = [{ id: 'css', label: 'CSS' }, { id: 'tailwind', label: 'Tailwind' }, { id: 'json', label: 'JSON' }]
 // Una entrada por variable (dos estilos con el mismo nombre y valor son el mismo token), agrupadas por
@@ -353,17 +358,43 @@ const sheetFamilies = computed(() => {
     .sort((a, b) => b.colors.reduce((n, c) => n + c.uses, 0) - a.colors.reduce((n, c) => n + c.uses, 0))
 })
 const sheetCount = (key) => { const t = tokensOf(key); return t ? `${new Set(t.colors.map((c) => c.var)).size} colores · ${t.texts.length} textos` : '' }
-function openTokens(key) {
+function openSheet(key, kind = 'tokens') {
   routeHold = false
   if (!data.value || data.value.key !== key) activate(key)
-  tokensKey.value = key
+  sheetKind.value = kind
+  sheetKey.value = key
   writeRoute()
 }
+const componentCount = (key) => { const inv = inventoryOf(key); return inv ? `${inv.length} en ${new Set(inv.flatMap((c) => c.screens)).size} pantallas` : '' }
+const screenTitle = (id) => { const sc = screens.value.get(id); return sc ? sc.title || sc.name : id }
+// Las pantallas de un componente, juntas por título: en Credifamilia nueve se llaman «Completa tu
+// solicitud». Tocar el título abre la primera; el conteo dice cuántas son.
+const screensByTitle = (ids) => {
+  const out = new Map()
+  for (const id of ids) {
+    const t = screenTitle(id)
+    if (!out.has(t)) out.set(t, { title: t, first: id, n: 0 })
+    out.get(t).n++
+  }
+  return [...out.values()]
+}
+const propLine = (p) => (p.type === 'TEXT' ? `${p.name} (texto)` : `${p.name}: ${(p.values || []).map((v) => `${v.value} ×${v.uses}`).join(' · ')}`)
+// El inventario como texto, para pegarlo en la conversación con el modelo o en la tarea.
+const inventoryText = computed(() => {
+  const name = maps.value[sheetKey.value]?.structure?.file_name || ''
+  const lines = [`Componentes de «${name}» (de Figma: instancias de primer nivel, con sus variantes y dónde aparecen)`, '']
+  for (const c of inventory.value) {
+    lines.push(`- ${c.name} — ${c.uses} usos en ${c.screens.length} pantallas`)
+    for (const p of c.props || []) lines.push(`  - ${propLine(p)}`)
+    lines.push(`  - pantallas: ${c.screens.map(screenTitle).filter((t, i, a) => a.indexOf(t) === i).join(' · ')}`)
+  }
+  return lines.join('\n')
+})
 const sheetCopied = ref(false)
 async function copySheet() {
-  if (!tokensKey.value) return
+  if (!sheetKey.value) return
   try {
-    const q = new URLSearchParams({ key: tokensKey.value })
+    const q = new URLSearchParams({ key: sheetKey.value })
     if (sheetFormat.value !== 'json') q.set('format', sheetFormat.value)
     const res = await fetch('/api/tokens?' + q)
     if (!res.ok) throw new Error(`HTTP ${res.status}`)
@@ -372,7 +403,7 @@ async function copySheet() {
     setTimeout(() => { sheetCopied.value = false }, 1500)
   } catch { /* sin la hoja o sin portapapeles: el enlace de al lado la abre */ }
 }
-const sheetURL = computed(() => (tokensKey.value ? `/api/tokens?key=${tokensKey.value}${sheetFormat.value === 'json' ? '' : '&format=' + sheetFormat.value}` : ''))
+const sheetURL = computed(() => (sheetKey.value ? `/api/tokens?key=${sheetKey.value}${sheetFormat.value === 'json' ? '' : '&format=' + sheetFormat.value}` : ''))
 const copiedVar = ref('')
 async function copyVar(text) {
   try { await navigator.clipboard.writeText(text); copiedVar.value = text; setTimeout(() => { if (copiedVar.value === text) copiedVar.value = '' }, 1200) } catch { /* sin portapapeles */ }
@@ -395,7 +426,7 @@ const textSample = (x) => ({ fontFamily: `'${(x.family || '').replace(/ Variable
   lineHeight: x.line_height ? x.line_height + 'px' : 'normal', letterSpacing: x.letter_spacing ? x.letter_spacing + 'px' : 'normal' })
 
 function go(id, remember = true) {
-  if (id && tokensKey.value) { tokensKey.value = ''; if (id === currentID.value) { writeRoute(); return } }
+  if (id && sheetKey.value) { sheetKey.value = ''; if (id === currentID.value) { writeRoute(); return } }
   if (!id || id === currentID.value) return
   if (remember && currentID.value) trail.value.push(currentID.value)
   currentID.value = id
@@ -447,7 +478,7 @@ const fromID = (id) => (id || '').replace(/:/g, '-')
 // La comprobación del enlace con que se llegó (ver checkLink, más abajo).
 const linkCheck = ref(null) // { id, linked, status: 'checking' | 'same' | 'changed' | 'deleted', print }
 const routePath = computed(() => {
-  if (tokensKey.value) return `/${projectSlug(tokensKey.value)}/tokens`
+  if (sheetKey.value) return `/${projectSlug(sheetKey.value)}/${sheetPaths[sheetKind.value]}`
   if (!data.value || !currentID.value) return ''
   const q = new URLSearchParams()
   const inFlow = flowIDs.value[data.value.key]?.has(currentID.value)
@@ -466,11 +497,12 @@ function writeRoute() {
 // página de flujo: la ruta se reescribe cuando cambia cualquiera de los dos.
 watch(routePath, () => writeRoute())
 function readRoute() {
-  const m = location.pathname.match(/^\/([^/]+)(?:\/([0-9]+-[0-9]+|tokens))?\/?$/)
+  const m = location.pathname.match(/^\/([^/]+)(?:\/([0-9]+-[0-9]+|tokens|componentes))?\/?$/)
   if (!m) return null
   const q = new URLSearchParams(location.search)
   const modeID = Object.keys(modeSlugs).find((k) => modeSlugs[k] === q.get('modo')) || ''
-  if (m[2] === 'tokens') return { project: decodeURIComponent(m[1]), tokens: true, screen: '', node: '', mode: modeID, print: '' }
+  const sheetOf = { tokens: 'tokens', componentes: 'components' }
+  if (sheetOf[m[2]]) return { project: decodeURIComponent(m[1]), sheet: sheetOf[m[2]], screen: '', node: '', mode: modeID, print: '' }
   return { project: decodeURIComponent(m[1]), screen: toID(m[2]), node: toID(q.get('nodo')), mode: modeID, print: q.get('huella') || '' }
 }
 const figmaRef = (key, node) => `https://www.figma.com/design/${key}/?node-id=${fromID(node)}`
@@ -496,7 +528,7 @@ async function openRoute(r) {
   routeHold = false
   if (r.print && r.screen) checkLink(key, r.screen, r.print)
   activate(key, r.screen)
-  if (r.tokens) openTokens(key)
+  if (r.sheet) openSheet(key, r.sheet)
 }
 // whyMissing distingue una pantalla BORRADA (Figma ya no la tiene) de una que sigue en el archivo pero
 // fuera de la página de flujo (la movieron a otra página, o a una sección de archivo).
@@ -761,7 +793,7 @@ const hotspotStyle = (h) => {
 }
 
 function onKey(e) {
-  if (e.target.closest('input, textarea') || tokensKey.value) return
+  if (e.target.closest('input, textarea') || sheetKey.value) return
   if (e.key === 'ArrowRight') { step(1); e.preventDefault() }
   else if (e.key === 'ArrowLeft' && !e.altKey) { step(-1); e.preventDefault() }
   else if (e.key === 'Backspace' || (e.key === 'ArrowLeft' && e.altKey)) { back(); e.preventDefault() }
@@ -848,9 +880,13 @@ const rowMetaTitle = (sc) => [sc.hotspots?.length ? 'Tiene zonas del prototipo' 
           <p v-if="mapState[f.key] === 'loading'" class="hint">Leyendo el flujo…</p>
           <div v-else-if="mapState[f.key]?.error" class="alert alert-destructive" role="alert"><div class="alert-desc">{{ mapState[f.key].error }}</div></div>
           <!-- Arriba de los carriles, la hoja de tokens del proyecto: se abre en el centro. -->
-          <button v-if="tokensOf(f.key)" type="button" class="row" :class="{ on: tokensKey === f.key }"
-            :aria-current="tokensKey === f.key ? 'true' : undefined" @click="openTokens(f.key)">
+          <button v-if="tokensOf(f.key)" type="button" class="row" :class="{ on: sheetKey === f.key && sheetKind === 'tokens' }"
+            :aria-current="sheetKey === f.key && sheetKind === 'tokens' ? 'true' : undefined" @click="openSheet(f.key, 'tokens')">
             <span>Tokens del diseño</span><span class="row-meta">{{ sheetCount(f.key) }}</span>
+          </button>
+          <button v-if="inventoryOf(f.key)?.length" type="button" class="row" :class="{ on: sheetKey === f.key && sheetKind === 'components' }"
+            :aria-current="sheetKey === f.key && sheetKind === 'components' ? 'true' : undefined" @click="openSheet(f.key, 'components')">
+            <span>Componentes</span><span class="row-meta">{{ componentCount(f.key) }}</span>
           </button>
           <template v-for="g in groupsFor(maps[f.key]?.structure)" :key="g.id">
             <div v-if="groupsFor(maps[f.key]?.structure).length > 1" class="section-name">{{ g.name }}</div>
@@ -901,8 +937,15 @@ const rowMetaTitle = (sc) => [sc.hotspots?.length ? 'Tiene zonas del prototipo' 
 
     <main class="editor">
       <div class="region-head">
-        <span>{{ tokensKey ? 'Tokens del diseño · ' + (maps[tokensKey]?.structure?.file_name || '') : current ? (current.title || current.name) : 'Visor' }}</span>
-        <template v-if="tokensKey">
+        <span>{{ sheetKey ? (sheetKind === 'tokens' ? 'Tokens del diseño · ' : 'Componentes · ') + (maps[sheetKey]?.structure?.file_name || '') : current ? (current.title || current.name) : 'Visor' }}</span>
+        <template v-if="sheetKey && sheetKind === 'components'">
+          <div class="region-actions">
+            <button class="region-action" :title="copiedVar === inventoryText ? 'Copiado' : 'Copiar el inventario como texto, para el modelo o la tarea'" aria-label="Copiar el inventario" @click="copyVar(inventoryText)">
+              <span class="ui-icon" :data-icon="copiedVar === inventoryText ? 'check' : 'copy'" aria-hidden="true"></span>
+            </button>
+          </div>
+        </template>
+        <template v-else-if="sheetKey">
           <div class="toggle-group toggle-sm mode-toggle" role="group" aria-label="Formato de la hoja">
             <button v-for="f in sheetFormats" :key="f.id" type="button" class="toggle" :class="{ on: sheetFormat === f.id }"
               :aria-pressed="sheetFormat === f.id" @click="sheetFormat = f.id">{{ f.label }}</button>
@@ -950,7 +993,7 @@ const rowMetaTitle = (sc) => [sc.hotspots?.length ? 'Tiene zonas del prototipo' 
           </div>
         </template>
       </div>
-      <div v-show="!tokensKey" ref="stage" class="stage" :class="{ dragging }" @pointerdown="onPointerDown" @pointermove="onPointerMove"
+      <div v-show="!sheetKey" ref="stage" class="stage" :class="{ dragging }" @pointerdown="onPointerDown" @pointermove="onPointerMove"
         @pointerup="onPointerUp" @pointercancel="onPointerUp" @click.capture="onClickCapture" @wheel="onWheel" @dblclick.self="center">
         <div v-if="!current" class="empty">
           <div class="empty-head">
@@ -979,7 +1022,25 @@ const rowMetaTitle = (sc) => [sc.hotspots?.length ? 'Tiene zonas del prototipo' 
       </div>
       <!-- La hoja de tokens: una muestra por color (tocarla copia su variable), cada estilo de texto escrito
            en su letra, los colores que se salen del sistema y los radios. -->
-      <div v-if="tokensKey && sheet" class="region-body sheet">
+      <!-- El inventario: un componente por fila, dibujado con una instancia real (el SVG de Figma), con sus
+           variantes y las pantallas donde aparece —tocar una la abre—. -->
+      <div v-if="sheetKey && sheetKind === 'components'" class="region-body sheet">
+        <div v-for="c in inventory" :key="c.name" class="component">
+          <div class="component-thumb"><img :src="'/api/asset?key=' + sheetKey + '&svg=' + encodeURIComponent(c.sample)" :alt="c.name" loading="lazy" /></div>
+          <div class="component-body">
+            <div class="component-name"><strong>{{ c.name }}</strong><small>{{ c.uses }} usos · {{ c.screens.length }} pantallas</small></div>
+            <div v-for="p in c.props" :key="p.name" class="component-prop">
+              <small class="prop-name">{{ p.name }}{{ p.type === 'TEXT' ? ' · texto' : p.type === 'BOOLEAN' ? ' · sí/no' : '' }}</small>
+              <span v-for="v in p.values" :key="v.value" class="badge badge-outline badge-xs">{{ v.value }} <small>×{{ v.uses }}</small></span>
+            </div>
+            <div class="component-screens">
+              <button v-for="g in screensByTitle(c.screens).slice(0, 8)" :key="g.first" type="button" class="link-inline" @click="pick(sheetKey, g.first)">{{ g.title }}<small v-if="g.n > 1"> ×{{ g.n }}</small></button>
+              <small v-if="screensByTitle(c.screens).length > 8">y {{ screensByTitle(c.screens).length - 8 }} más</small>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div v-if="sheetKey && sheetKind === 'tokens' && sheet" class="region-body sheet">
         <section class="sheet-part">
           <div class="region-head group"><span>Colores</span><span class="count">{{ sheetFamilies.reduce((n, f) => n + f.colors.length, 0) }}</span></div>
           <div v-for="fam in sheetFamilies" :key="fam.name" class="swatch-row">
@@ -1024,9 +1085,16 @@ const rowMetaTitle = (sc) => [sc.hotspots?.length ? 'Tiene zonas del prototipo' 
 
     <aside v-show="shown.aux" class="auxiliarybar" aria-label="Detalle de la pantalla">
       <div class="rsz rsz-edge-left" v-resize="resizeOptions('aux')"></div>
-      <div class="region-head"><span>{{ tokensKey ? 'Cómo usar la hoja' : 'Pantalla' }}</span></div>
+      <div class="region-head"><span>{{ sheetKey ? (sheetKind === 'tokens' ? 'Cómo usar la hoja' : 'Cómo usar el inventario') : 'Pantalla' }}</span></div>
       <div class="region-body detail">
-        <div v-if="tokensKey" class="sheet-help">
+        <div v-if="sheetKey && sheetKind === 'components'" class="sheet-help">
+          <p>Las piezas del sistema de diseño que usa el flujo: cada una con las variantes con que aparece y dónde.</p>
+          <p><strong>Para pasar el flujo a código</strong>, estos son los componentes de Vue o React que hay que tener antes
+            de armar pantallas: si ya existen en el front, se reusan; si no, se arman primero, con esas variantes.</p>
+          <p>Cuenta las piezas de primer nivel: el ícono de adentro de un botón es parte del botón. Tocar una pantalla la abre.</p>
+          <p class="hint">Los nombres son los de Figma, con sus erratas: «Bontones» y «Botones» son dos componentes distintos en el archivo.</p>
+        </div>
+        <div v-else-if="sheetKey" class="sheet-help">
           <p>Estos son los estilos del sistema de diseño que usa el flujo, con el nombre que tienen en Figma.</p>
           <p><strong>Para pasar una pantalla a código</strong>, pegá la hoja en el proyecto —CSS: las variables y las
             clases de texto; Tailwind: el <code>@theme</code>, que da <code>bg-morado-500</code> o <code>text-small-medium</code>— y el
@@ -1207,6 +1275,17 @@ const rowMetaTitle = (sc) => [sc.hotspots?.length ? 'Tiene zonas del prototipo' 
 .text-meta small { font-size: var(--text-xs); color: var(--fg-3) }
 .radius { display: flex; flex-direction: column; align-items: center; gap: 4px; width: 64px }
 .radius-box { width: 48px; height: 48px; border: 2px solid var(--fg-3) }
+.component { display: flex; gap: var(--space-3); padding: var(--space-3); border-bottom: 1px solid var(--border) }
+.component-thumb { flex: none; display: grid; place-items: center; width: 132px; height: 72px }
+.component-thumb img { max-width: 100%; max-height: 100%; object-fit: contain }
+.component-body { flex: 1; min-width: 0; display: grid; gap: var(--space-1) }
+.component-name { display: flex; flex-wrap: wrap; align-items: baseline; gap: var(--space-2) }
+.component-name small, .prop-name, .component-screens small { font-size: var(--text-xs); color: var(--fg-3) }
+.component-prop { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-1) }
+.component-prop .badge small { color: var(--fg-3) }
+.component-screens { display: flex; flex-wrap: wrap; gap: var(--space-1) var(--space-2); font-size: var(--text-xs) }
+.link-inline { padding: 0; border: 0; background: none; color: var(--foreground); font: inherit; text-decoration: underline; text-decoration-color: var(--border); cursor: pointer }
+.link-inline:hover { text-decoration-color: currentColor }
 .sheet-help { display: grid; gap: var(--space-2); padding: var(--space-3); font-size: var(--text-sm) }
 .sheet-help p { margin: 0 }
 .detail dl { display: grid; grid-template-columns: auto 1fr; align-items: baseline; gap: var(--space-1) var(--space-3); margin: 0;

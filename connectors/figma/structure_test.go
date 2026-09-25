@@ -368,3 +368,31 @@ func TestColorVarsJoinBothNamingSchemes(t *testing.T) {
 		t.Errorf("el mismo token se declara una vez, con los usos sumados:\n%s", css)
 	}
 }
+
+// El inventario cuenta las instancias de PRIMER nivel —el ícono de adentro de un botón es parte del
+// botón—, junta las variantes con que se usa cada componente y dice en qué pantallas, en orden.
+func TestInventoryCountsTopLevelComponentsWithTheirVariants(t *testing.T) {
+	doc := []byte(`{"id":"0:1","type":"SECTION","children":[
+	  {"id":"1:1","type":"FRAME","children":[
+	    {"id":"1:2","type":"INSTANCE","name":"Botones","componentId":"B1","componentProperties":{"Estado":{"type":"VARIANT","value":"Primary button"},"name#3:4":{"type":"TEXT","value":"Continuar"},"icon#5:6":{"type":"BOOLEAN","value":false}},
+	     "children":[{"id":"1:3","type":"INSTANCE","name":"icon","componentId":"I1"}]},
+	    {"id":"1:4","type":"INSTANCE","name":"Status bar","componentId":"S1"}]},
+	  {"id":"2:1","type":"FRAME","children":[
+	    {"id":"2:2","type":"INSTANCE","name":"Botones","componentId":"B2","componentProperties":{"Estado":{"type":"VARIANT","value":"Secondary"},"icon#5:6":{"type":"BOOLEAN","value":true}}},
+	    {"id":"2:3","type":"INSTANCE","name":"Check Box","componentId":"C1","componentProperties":{"tipe":{"type":"VARIANT","value":"deafult"}}}]}]}`)
+	names := map[string]string{"B1": "Botones", "B2": "Botones", "I1": "icon", "C1": "Check Box"}
+	inv, err := ComputeInventory(doc, names, []string{"1:1", "2:1"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(inv) != 2 || inv[0].Name != "Botones" || inv[0].Uses != 2 || strings.Join(inv[0].Screens, ",") != "1:1,2:1" || inv[0].Sample != "1:2" {
+		t.Fatalf("sin el ícono de adentro ni la barra de estado, el botón primero (está en más pantallas): %+v", inv)
+	}
+	props := map[string]PropValues{}
+	for _, p := range inv[0].Props {
+		props[p.Name] = p
+	}
+	if inv[0].Props[0].Name != "Estado" || len(props["Estado"].Values) != 2 || props["icon"].Type != "BOOLEAN" || len(props["name"].Values) != 0 {
+		t.Errorf("la variante primero, con sus dos valores; el booleano sin su sufijo; el texto sin valores: %+v", inv[0].Props)
+	}
+}

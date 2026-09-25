@@ -41,6 +41,9 @@ type Structure struct {
 	// Tokens, sólo en la raíz: los colores y estilos de texto del diseño con su nombre de Figma
 	// (tokens.go). Salen de la misma respuesta que el árbol.
 	Tokens *Tokens `json:"tokens,omitempty"`
+	// Inventory, sólo en la raíz: los componentes de primer nivel del flujo, con sus variantes y en qué
+	// pantallas aparecen (inventory.go).
+	Inventory []ComponentUse `json:"inventory,omitempty"`
 }
 
 // Lane es un carril: una fila de pantallas bajo un rótulo, en el orden del lienzo (izquierda a derecha).
@@ -208,7 +211,28 @@ func (c *Client) Structure(ctx context.Context, key, nodeID string, withComments
 	if tokens, err := ComputeTokens(n.Document, n.Styles, screenIDs(st)); err == nil {
 		st.Tokens = &tokens
 	}
+	if inv, err := ComputeInventory(n.Document, names, screenOrder(st)); err == nil {
+		st.Inventory = inv
+	}
 	return st, nil
+}
+
+// screenOrder son las pantallas de un mapa en su orden: por sección, carril y posición.
+func screenOrder(st Structure) []string {
+	var out []string
+	var walk func(s Structure)
+	walk = func(s Structure) {
+		for _, l := range s.Lanes {
+			for _, sc := range l.Screens {
+				out = append(out, sc.ID)
+			}
+		}
+		for _, sub := range s.Sections {
+			walk(sub)
+		}
+	}
+	walk(st)
+	return out
 }
 
 // screenIDs son las pantallas de un mapa, con las de sus secciones.
