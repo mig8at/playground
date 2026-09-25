@@ -663,6 +663,10 @@ roto** (F-88). Si trabajás Bancolombia, cargá `harness-canal-qr` y corré `npm
   camino real (`processing` → estado → el backend le pregunta al mock). Lo único que se acorta es la
   gracia de 20 s: se atrasa el `created_at` de la transacción 25 s en la base local, así la primera
   consulta ya reconcilia. Sólo con target `local`; `E2E_WOMPI_WIDGET=0` deja el widget real.
+  ⚠ **Es del camino VISUAL (`openWindow`), no del caminador con `MOTOR=navegador`**: ése abre sus
+  contextos en `pkg/wizard-browser.ts` (`openContext`), no instala el widget simulado, y además «Registrar
+  pago» no está en `ADVANCE` — una compra con cuota inicial se queda en `/down-payment`. El `MOTOR=http`
+  sí la paga (`payDownPayment`).
   ⚠ La base local trae la credencial de Wompi de producción de Pullman (`pub_prod_…`): con el mock la
   consulta del backend no sale de la máquina, y el widget simulado evita que el navegador abra el
   checkout real con esa llave.
