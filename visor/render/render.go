@@ -38,10 +38,13 @@ type Node struct {
 	RenderBox *Rect  `json:"absoluteRenderBounds"`
 	Children  []Node `json:"children"`
 
-	LayoutMode        string                   `json:"layoutMode"`
-	PrimaryAlign      string                   `json:"primaryAxisAlignItems"`
-	CounterAlign      string                   `json:"counterAxisAlignItems"`
-	ItemSpacing       float64                  `json:"itemSpacing"`
+	LayoutMode   string  `json:"layoutMode"`
+	PrimaryAlign string  `json:"primaryAxisAlignItems"`
+	CounterAlign string  `json:"counterAxisAlignItems"`
+	ItemSpacing  float64 `json:"itemSpacing"`
+	// ItemReverseZIndex es «el primero queda arriba» en un auto-layout: con separación negativa decide
+	// qué hijo tapa a cuál.
+	ItemReverseZIndex bool                     `json:"itemReverseZIndex"`
 	CounterSpacing    *float64                 `json:"counterAxisSpacing"`
 	LayoutWrap        string                   `json:"layoutWrap"`
 	PaddingLeft       float64                  `json:"paddingLeft"`
@@ -379,6 +382,27 @@ func (w *writer) place(n Node, parent *Node, root bool, css *style) {
 			counter = "FIXED"
 		}
 	}
+	if parent.ItemSpacing < 0 && parent.PrimaryAlign != "SPACE_BETWEEN" && parent.LayoutWrap != "WRAP" {
+		ids := inFlowIDs(*parent)
+		for i, id := range ids {
+			if id != n.ID {
+				continue
+			}
+			if i > 0 {
+				side := "margin-top"
+				if row {
+					side = "margin-left"
+				}
+				css.set(side, px(parent.ItemSpacing))
+			}
+			// Encimados, alguien tapa a alguien: por defecto el que viene después; con «el primero queda
+			// arriba», al revés, y eso pide un z-index que baje con el orden.
+			if parent.ItemReverseZIndex {
+				css.setDefault("position", "relative")
+				css.set("z-index", strconv.Itoa(len(ids)-i))
+			}
+		}
+	}
 	switch primary {
 	case "FILL":
 		css.set("flex", "1 1 0")
@@ -435,7 +459,10 @@ func (w *writer) flex(n Node, css *style) {
 	default:
 		css.set("align-items", "flex-start")
 	}
-	if n.ItemSpacing != 0 && n.PrimaryAlign != "SPACE_BETWEEN" {
+	// Una separación NEGATIVA encima a los hijos —es como el diseñador apila las hojas bajo el panel de la
+	// bienvenida de Alta (−192)—, y CSS no la acepta en `gap`: la descarta callado y los hijos quedan uno
+	// debajo del otro. Va como margen negativo de cada hijo (place). Medido: 62 nodos así en los archivos.
+	if n.ItemSpacing > 0 && n.PrimaryAlign != "SPACE_BETWEEN" {
 		gap := "gap"
 		if n.LayoutWrap == "WRAP" {
 			gap = "column-gap"
@@ -977,4 +1004,15 @@ func (r *Report) token(name string) {
 		r.Tokens = map[string]int{}
 	}
 	r.Tokens[name]++
+}
+
+// inFlowIDs son los hijos que ocupan lugar en un auto-layout: visibles y no en posición absoluta.
+func inFlowIDs(parent Node) []string {
+	var out []string
+	for _, ch := range parent.Children {
+		if visible(ch.Visible) && ch.LayoutPositioning != "ABSOLUTE" && !ch.IsMask {
+			out = append(out, ch.ID)
+		}
+	}
+	return out
 }

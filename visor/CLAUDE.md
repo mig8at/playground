@@ -301,6 +301,12 @@ cargara una imagen: antes de creerle a una caída, medila sola con `SOLO=<id>`. 
   límites descuentan también el recorte del marco padre y el SVG de un vector cualquiera no, y ubicar así
   todos los dibujos achicó 1 px el velo de «Pago mínimo» (99,7 % → 99,5 %). Medido: 10 de las 31
   pantallas de Credifamilia mejoran (mediana 98,6 → 98,8 %) y `flujo-ecommerce` queda igual.
+- **Un `itemSpacing` NEGATIVO es SOLAPE, y `gap` no lo acepta.** Figma deja que los hijos de un auto
+  layout se monten (−192 en la cortina de la bienvenida de Alta: el panel y dos hojas semitransparentes
+  que asoman debajo); CSS tira un `gap` negativo sin decir nada y las hojas salían apiladas, estiradas
+  hacia abajo. Va como margen negativo desde el segundo hijo, y con `itemReverseZIndex` el primero queda
+  ENCIMA (`z-index` descendente). Medido en los cuatro flujos: 11 pantallas mejoran y ninguna empeora —la
+  bienvenida 95,7 → 99,0 %, Motai 42:2144 65,2 → 98,5 %—.
 - **Un marco en absoluta que además tiene hijos no se puede pisar con `position: relative`** para
   ubicarlos: ya sirve de referencia siendo absoluto.
 - **En la medición**, dos trampas que dieron números falsos: la exportación de Figma deja transparente

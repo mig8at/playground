@@ -379,3 +379,26 @@ func TestScreenTextsInReadingOrder(t *testing.T) {
 		t.Errorf("orden de lectura: %s", got)
 	}
 }
+
+// Una separación negativa encima a los hijos, como las hojas bajo el panel de la bienvenida de Alta: CSS
+// no la acepta en `gap`, así que va como margen negativo; y con «el primero queda arriba» el panel tapa a
+// las hojas.
+func TestNegativeSpacingOverlapsChildren(t *testing.T) {
+	panel := Node{ID: "2", Type: "FRAME", Box: box(0, 0, 430, 404), SizingH: "FILL", SizingV: "FIXED", Fills: solid(0, 0.23, 1)}
+	sheet1 := Node{ID: "3", Type: "FRAME", Box: box(0, 212, 430, 224), SizingH: "FILL", SizingV: "FIXED"}
+	sheet2 := Node{ID: "4", Type: "FRAME", Box: box(0, 244, 430, 224), SizingH: "FILL", SizingV: "FIXED"}
+	stack := Node{ID: "1a", Type: "FRAME", Box: box(0, 0, 430, 468), LayoutMode: "VERTICAL", ItemSpacing: -192, ItemReverseZIndex: true,
+		Children: []Node{panel, sheet1, sheet2}}
+	doc, _ := render(t, Node{ID: "1", Type: "FRAME", Box: box(0, 0, 430, 903), Children: []Node{stack}})
+	if st := styleOf(t, doc, "1a"); strings.Contains(st, "gap") {
+		t.Errorf("un gap negativo no se escribe: CSS lo descarta callado: %s", st)
+	}
+	if st := styleOf(t, doc, "2"); strings.Contains(st, "margin-top") || !strings.Contains(st, "z-index:3") {
+		t.Errorf("el primero no se corre, y queda arriba: %s", st)
+	}
+	for id, z := range map[string]string{"3": "z-index:2", "4": "z-index:1"} {
+		if st := styleOf(t, doc, id); !strings.Contains(st, "margin-top:-192px") || !strings.Contains(st, z) {
+			t.Errorf("%s se encima con margen negativo y queda debajo del anterior: %s", id, st)
+		}
+	}
+}
