@@ -170,7 +170,9 @@ func (s *server) handleMap(w http.ResponseWriter, r *http.Request) {
 	}
 	ctx, cancel := context.WithTimeout(r.Context(), 2*time.Minute)
 	defer cancel()
-	st, err = s.figma.Structure(ctx, ref.FileKey, node, true)
+	// Sin contar comentarios: la interfaz ya no los muestra (Miguel, 2026-09-25), y contarlos es un pedido
+	// más a Figma por cada mapa.
+	st, err = s.figma.Structure(ctx, ref.FileKey, node, false)
 	if err != nil {
 		fail(w, statusOf(err), "%v", err)
 		return

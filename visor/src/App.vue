@@ -3,8 +3,8 @@ import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
 import { vResize, readSize, saveSize, refreshResizers, fitRegions, reopenSize, cssSize, bindThemeToggle } from './workbench.js'
 
 // EL VISOR: un diseño de Figma leído como recorrido. A la izquierda los carriles que armó el
-// diseñador, al centro la pantalla con las zonas del prototipo, a la derecha lo que la pantalla dice
-// y a dónde lleva. Todo sale de `/api/map` (connectors/figma, `Structure`) y `/api/screen`.
+// diseñador, al centro la pantalla (la imagen de Figma, su HTML o las dos), a la derecha lo que la
+// pantalla es y cuánto se parece su HTML. Todo sale de `/api/map` (connectors/figma, `Structure`) y `/api/screen`.
 
 const refInput = ref('')
 const loading = ref(false)
@@ -14,7 +14,6 @@ const currentID = ref('')
 // La capa señalada de la pantalla, por su id de Figma (ver «SEÑALAR UNA CAPA»): va arriba porque la ruta la lee.
 const selectedLayer = ref('')
 const trail = ref([]) // las pantallas por las que se vino, para volver
-const showHotspots = ref(true)
 const imageFailed = ref(false)
 // Cómo se ve la pantalla: la imagen que exporta Figma, el HTML que traduce el server, o las dos lado a
 // lado —la imagen es la vara del HTML—.
@@ -108,22 +107,6 @@ const screens = computed(() => {
 })
 const current = computed(() => screens.value.get(currentID.value) || null)
 const screenCount = computed(() => screens.value.size)
-
-// Lo que llega a la pantalla actual desde otras (el prototipo al revés): sirve para entender de dónde
-// se viene cuando se entra por la mitad de un carril.
-const incoming = computed(() => {
-  const out = []
-  if (!current.value) return out
-  for (const sc of screens.value.values()) {
-    for (const h of sc.hotspots || []) if (h.to === current.value.id) out.push({ from: sc, via: h.via })
-  }
-  return out
-})
-const variantsOfCurrent = computed(() => {
-  if (!current.value?.title) return []
-  const t = current.value.title.toLowerCase()
-  return [...screens.value.values()].filter((sc) => sc.id !== current.value.id && sc.title?.toLowerCase() === t)
-})
 
 // ── la biblioteca: equipos y archivos, en acordeón ──
 const library = ref({ teams: [], opened: [] })
@@ -446,11 +429,6 @@ function step(delta) {
   const next = c.lane.screens[c.index + delta]
   if (next) go(next.id)
 }
-function follow(h) {
-  if (h.to && screens.value.has(h.to)) go(h.to)
-}
-const autoNext = computed(() => (current.value?.hotspots || []).find((h) => h.auto && h.to && screens.value.has(h.to)) || null)
-const clickable = computed(() => (current.value?.hotspots || []).filter((h) => !h.auto))
 
 // ── la ruta: /<clave del archivo>/<pantalla> ──
 // Para poder enlazar una pantalla desde afuera (el tablero, una tarea) la ruta va por IDS de Figma: la
@@ -635,10 +613,7 @@ watch([htmlURL, mode], async ([u]) => {
     if (res.ok && u === htmlURL.value) report.value = await res.json()
   } catch { /* el reporte es un extra: sin él, la pantalla se ve igual */ }
 }, { immediate: true })
-const missingList = computed(() => Object.entries(report.value?.missing || {}).map(([why, n]) => `${why} ×${n}`))
 const tokensURL = (format) => (data.value ? `/api/tokens?key=${data.value.key}${format ? '&format=' + format : ''}` : '')
-// Los controles que el HTML deja usar: campos para escribir, casillas para marcar, botones.
-const controlList = computed(() => Object.entries(report.value?.controls || {}).map(([kind, n]) => `${n} ${kind}`))
 
 // LA FIDELIDAD DE LA PANTALLA: cuánto se parece el HTML a Figma, en un número (`server/fidelity.go`). Medir
 // cuesta unos segundos —un Chromium dibuja el HTML y lo compara con la imagen—, así que al abrir una
@@ -803,7 +778,7 @@ const figmaURL = computed(() => (data.value && current.value
 // Miguel no quiere un control en la cabecera. Depende sólo del ALTO, así que arrastrar un separador —que cambia el ancho— no la
 // cambia de tamaño, y en Comparar las dos van a la misma escala. Lo que no entra a lo ancho se trae
 // ARRASTRANDO (o con la rueda), como un lienzo.
-// Arrastrar no dispara las zonas del prototipo: un clic sólo cuenta si el puntero no se movió.
+// Arrastrar no dispara un clic: un clic sólo cuenta si el puntero no se movió.
 const stage = ref(null)
 const canvas = ref(null)
 const pan = ref({ x: 0, y: 0 })
@@ -915,8 +890,7 @@ function onWheel(e) {
 // ── el HTML responde: sus campos, casillas y botones se usan, y el resto sigue moviendo el lienzo ──
 // El iframe es del mismo origen (lo sirve este server por el proxy de Vite), así que la página escucha
 // sus eventos directo; el documento de adentro no corre scripts. Un clic en un control es del control;
-// un arrastre desde cualquier otra parte mueve el lienzo, la rueda hace lo mismo que afuera, y un botón
-// del HTML sigue la zona del prototipo que tiene encima — también con las zonas ocultas (H).
+// un arrastre desde cualquier otra parte mueve el lienzo y la rueda hace lo mismo que afuera.
 const CONTROLS = 'input, select, textarea, label, button'
 function bindFrame(ev) {
   const frame = ev.target
@@ -940,13 +914,10 @@ function bindFrame(ev) {
   doc.addEventListener('pointercancel', (e) => onPointerUp(toPage(e)))
   doc.addEventListener('wheel', (e) => onWheel({ ...toPage(e), deltaX: e.deltaX, deltaY: e.deltaY, ctrlKey: e.ctrlKey,
     metaKey: e.metaKey, preventDefault: () => e.preventDefault() }), { passive: false })
-  // Con el foco adentro del HTML las flechas y la H siguen andando, salvo mientras se escribe.
+  // Con el foco adentro del HTML las flechas siguen andando, salvo mientras se escribe.
   doc.addEventListener('keydown', (e) => { if (!e.target.closest?.('input, textarea, select')) onKey(e) })
   doc.addEventListener('click', (e) => {
-    if (swallowClick) { e.preventDefault(); e.stopPropagation(); swallowClick = false; return }
-    if (!e.target.closest?.('button')) return
-    const h = clickable.value.find((z) => e.clientX >= z.X && e.clientX <= z.X + z.W && e.clientY >= z.Y && e.clientY <= z.Y + z.H)
-    if (h) follow(h)
+    if (swallowClick) { e.preventDefault(); e.stopPropagation(); swallowClick = false }
   }, true)
 }
 
@@ -960,17 +931,12 @@ watch(() => [current.value?.id, current.value?.w, current.value?.h], (now, befor
     else pan.value = clampPan(pan.value.x, pan.value.y)
   })
 }))
-const hotspotStyle = (h) => {
-  const c = current.value
-  return { left: (h.X / c.w) * 100 + '%', top: (h.Y / c.h) * 100 + '%', width: (h.W / c.w) * 100 + '%', height: (h.H / c.h) * 100 + '%' }
-}
 
 function onKey(e) {
   if (e.target.closest('input, textarea') || sheetKey.value) return
   if (e.key === 'ArrowRight') { step(1); e.preventDefault() }
   else if (e.key === 'ArrowLeft' && !e.altKey) { step(-1); e.preventDefault() }
   else if (e.key === 'Backspace' || (e.key === 'ArrowLeft' && e.altKey)) { back(); e.preventDefault() }
-  else if (e.key === 'h' || e.key === 'H') showHotspots.value = !showHotspots.value
   else if (e.key === 's' || e.key === 'S') picking.value = !picking.value
   else if (e.key === 'Escape' && (picking.value || selectedLayer.value)) { if (picking.value) picking.value = false; else selectedLayer.value = '' }
   else if (e.key === '0') center()
@@ -1024,8 +990,6 @@ onUnmounted(() => {
 const kindName = { mobile: 'móvil', web: 'web', panel: 'panel', textless: 'sin texto' }
 const laneName = (lane) => (lane.label ? lane.label : 'Fila sin rótulo')
 // El dato de la derecha de una fila son dos iconos; su `title` dice los dos en palabras.
-const rowMetaTitle = (sc) => [sc.hotspots?.length ? 'Tiene zonas del prototipo' : '',
-  sc.open_comments ? sc.open_comments + ' comentario(s) abierto(s)' : ''].filter(Boolean).join(' · ')
 </script>
 
 <template>
@@ -1069,17 +1033,13 @@ const rowMetaTitle = (sc) => [sc.hotspots?.length ? 'Tiene zonas del prototipo' 
               <div class="region-head group" :class="{ unlabeled: !lane.label }">
                 <span>{{ laneName(lane) }}</span><span class="count">{{ lane.screens.length }}</span>
               </div>
-              <!-- Una pantalla es una fila de la base (`.row`, 28): su número de orden adelante y, a la
-                   derecha, si lleva a otra (zonas del prototipo) y si tiene comentarios abiertos. -->
+              <!-- Una pantalla es una fila de la base (`.row`, 28), con su número de orden adelante. -->
               <button v-for="(sc, i) in lane.screens" :key="sc.id" type="button" class="row" :data-screen="sc.id"
                 :class="{ on: data && data.key === f.key && sc.id === currentID }"
                 :aria-current="data && data.key === f.key && sc.id === currentID ? 'true' : undefined" @click="pick(f.key, sc.id)">
                 <small class="row-index">{{ i + 1 }}</small>
                 <span>{{ sc.title || sc.name }}</span>
-                <span v-if="sc.hotspots?.length || sc.open_comments" class="row-meta" :title="rowMetaTitle(sc)">
-                  <span v-if="sc.hotspots?.length" class="ui-icon" data-icon="play" role="img" aria-label="Tiene zonas del prototipo"></span>
-                  <span v-if="sc.open_comments" class="ui-icon" data-icon="comment" role="img" :aria-label="sc.open_comments + ' comentario(s) abierto(s)'"></span>
-                </span>
+                
               </button>
             </template>
           </template>
@@ -1153,13 +1113,6 @@ const rowMetaTitle = (sc) => [sc.hotspots?.length ? 'Tiene zonas del prototipo' 
               :aria-pressed="mode === m.id" @click="mode = m.id">{{ m.label }}</button>
           </div>
           <div class="region-actions">
-            <!-- Sin zonas el ojo no tiene nada que mostrar: deshabilitado y diciéndolo, porque encendido o
-                 apagado se veía igual y parecía roto. -->
-            <button class="region-action" :aria-pressed="showHotspots" :disabled="!clickable.length"
-              :title="clickable.length ? `${showHotspots ? 'Ocultar' : 'Mostrar'} ${clickable.length === 1 ? 'la zona' : 'las ' + clickable.length + ' zonas'} del prototipo: tocar una lleva a la pantalla a la que conecta en Figma (H)` : 'Esta pantalla no tiene zonas del prototipo: en Figma no se conectó a ninguna otra'"
-              aria-label="Zonas del prototipo" @click="showHotspots = !showHotspots">
-              <span class="ui-icon" data-icon="eye" aria-hidden="true"></span>
-            </button>
             <button class="region-action" :aria-pressed="picking" title="Señalar una capa: tocala para marcarla y copiar el enlace (S)" aria-label="Señalar una capa" @click="picking = !picking">
               <span class="ui-icon" data-icon="pick" aria-hidden="true"></span>
             </button>
@@ -1192,16 +1145,8 @@ const rowMetaTitle = (sc) => [sc.hotspots?.length ? 'Tiene zonas del prototipo' 
           <div v-if="p === 'image' && imageFailed" class="alert alert-destructive"><div class="alert-desc">Figma no devolvió la imagen de esta pantalla.</div></div>
           <div v-if="selectedBox && selectedLayer" class="layer-box on" :style="layerStyle(selectedBox)" aria-hidden="true"></div>
           <div v-if="picking && hoverLayer && hoverLayer.id !== selectedLayer" class="layer-box" :style="layerStyle(hoverLayer)" aria-hidden="true"></div>
-          <!-- Señalando, una superficie transparente se queda con el mouse: el iframe del HTML se lo llevaría, y
-               las zonas del prototipo navegarían en vez de marcar. -->
+          <!-- Señalando, una superficie transparente se queda con el mouse: el iframe del HTML se lo llevaría. -->
           <div v-if="picking" class="pick-surface" :title="hoverLayer ? hoverLayer.name : ''" @pointermove="onPickMove" @pointerleave="hoverLayer = null" @click="onPick"></div>
-          <template v-if="showHotspots && !picking">
-            <button v-for="(h, i) in clickable" :key="i" class="hotspot" :class="{ outside: !h.to }" :style="hotspotStyle(h)"
-              :title="h.via + ' → ' + h.to_name" :aria-label="h.via + ' → ' + h.to_name" :disabled="!h.to" @click="follow(h)"></button>
-          </template>
-          <button v-if="autoNext" type="button" class="btn auto-next" @click="follow(autoNext)">
-            <span class="ui-icon" data-icon="play" aria-hidden="true"></span><span>Avanza sola a {{ autoNext.to_name }}</span>
-          </button>
         </div>
         <figcaption v-if="panes.length > 1">{{ p === 'image' ? 'Figma (imagen)' : 'HTML traducido' }}</figcaption>
         </figure>
@@ -1341,10 +1286,8 @@ const rowMetaTitle = (sc) => [sc.hotspots?.length ? 'Tiene zonas del prototipo' 
           </div>
           <dl>
             <dt>Título</dt><dd>{{ current.title || '—' }}<small v-if="current.title_from === 'capa'"> · del nombre de la capa</small></dd>
-            <dt>Capa</dt><dd>{{ current.name }}</dd>
             <dt>Carril</dt><dd>{{ laneName(current.lane) }} · {{ current.index + 1 }} de {{ current.lane.screens.length }}</dd>
             <dt>Tipo</dt><dd>{{ kindName[current.kind] || current.kind }} · {{ Math.round(current.w) }}×{{ Math.round(current.h) }}</dd>
-            <template v-if="current.open_comments"><dt>Comentarios</dt><dd>{{ current.open_comments }} abierto(s) en Figma</dd></template>
             <dt>Para la tarea</dt>
             <dd class="task-ref">
               <code :title="screenPrint.print ? 'Pegalo en un bloque de la tarea: el tablero lo abre acá y make visor-enlaces avisa si la pantalla cambia' : 'Sin huella todavía: el tablero lo abre igual, pero no se podrá saber si cambió'">{{ taskRef }}</code>
@@ -1385,18 +1328,6 @@ const rowMetaTitle = (sc) => [sc.hotspots?.length ? 'Tiene zonas del prototipo' 
             </template>
             <p v-else class="hint">Sin medir en esta versión. <button type="button" class="link-inline" @click="measureNow">Medir</button> dibuja el HTML y lo compara con la imagen de Figma (unos segundos).</p>
           </div>
-          <div v-if="report && mode !== 'image'" class="block">
-            <div class="region-head group"><span>La traducción a HTML</span></div>
-            <dl>
-              <dt>Cajas</dt><dd>{{ report.elements }} · {{ report.flex }} con auto-layout → flex · {{ report.absolute }} en posición absoluta</dd>
-              <dt>Textos</dt><dd>{{ report.texts }}</dd>
-              <dt>Dibujos</dt><dd>{{ report.drawings?.length || 0 }} como SVG de Figma</dd>
-              <template v-if="report.images?.length"><dt>Imágenes</dt><dd>{{ report.images.length }}</dd></template>
-              <dt>Controles</dt><dd>{{ controlList.join(' · ') || 'ninguno' }}</dd>
-              <dt>Fuentes</dt><dd>{{ (report.fonts || []).join(' · ') || '—' }}</dd>
-              <dt>Sin traducir</dt><dd>{{ missingList.join(' · ') || 'nada' }}</dd>
-            </dl>
-          </div>
           <div v-if="report" class="block">
             <div class="region-head group"><span>Paleta</span><span class="count">{{ palette.length }}</span></div>
             <div v-if="palette.length" class="palette">
@@ -1424,31 +1355,6 @@ const rowMetaTitle = (sc) => [sc.hotspots?.length ? 'Tiene zonas del prototipo' 
               <a :href="tokensURL('tailwind')" target="_blank" rel="noopener">Tailwind</a> ·
               <a :href="tokensURL('')" target="_blank" rel="noopener">JSON</a></p>
           </div>
-          <div v-if="current.actions?.length" class="block">
-            <div class="region-head group"><span>Botones</span><span class="count">{{ current.actions.length }}</span></div>
-            <ul class="plain-list"><li v-for="a in current.actions" :key="a">{{ a }}</li></ul>
-          </div>
-          <!-- Las pantallas a las que se va y de las que se llega son filas de la base, con un segundo
-               renglón: por dónde (el clic, el temporizador), que es largo y no entra como dato a la derecha. -->
-          <div v-if="current.hotspots?.length" class="block">
-            <div class="region-head group"><span>Lleva a</span><span class="count">{{ current.hotspots.length }}</span></div>
-            <button v-for="(h, i) in current.hotspots" :key="i" type="button" class="row stacked" :disabled="!h.to" @click="follow(h)">
-              <span>{{ h.to_name }}</span><small class="row-desc">{{ h.via }}</small>
-            </button>
-          </div>
-          <div v-if="incoming.length" class="block">
-            <div class="region-head group"><span>Llega desde</span><span class="count">{{ incoming.length }}</span></div>
-            <button v-for="(x, i) in incoming" :key="i" type="button" class="row stacked" @click="go(x.from.id)">
-              <span>{{ x.from.title || x.from.name }}</span><small class="row-desc">{{ x.via }} · {{ laneName(x.from.lane) }}</small>
-            </button>
-          </div>
-          <div v-if="variantsOfCurrent.length" class="block">
-            <div class="region-head group"><span>La misma pantalla en otro lugar</span><span class="count">{{ variantsOfCurrent.length }}</span></div>
-            <button v-for="v in variantsOfCurrent" :key="v.id" type="button" class="row stacked" @click="go(v.id)">
-              <span>{{ laneName(v.lane) }}</span><small class="row-desc">{{ v.index + 1 }} de {{ v.lane.screens.length }} · {{ v.name }}</small>
-            </button>
-          </div>
-          <p class="hint">El carril y el título se deducen de cómo está dibujado el lienzo. <kbd class="kbd">←</kbd> <kbd class="kbd">→</kbd> recorren el carril, <kbd class="kbd">Retroceso</kbd> vuelve y <kbd class="kbd">H</kbd> muestra u oculta las zonas del prototipo.</p>
         </template>
       </div>
     </aside>
@@ -1473,8 +1379,8 @@ const rowMetaTitle = (sc) => [sc.hotspots?.length ? 'Tiene zonas del prototipo' 
 </template>
 
 <style scoped>
-/* Lo que queda acá es lo que la base NO da: la fila de pantalla con su meta, el
-   lienzo que se arrastra, el marco del dispositivo y las zonas del prototipo. Todo lo demás —bandas,
+/* Lo que queda acá es lo que la base NO da: el lienzo que se arrastra, el marco del dispositivo, la capa
+   señalada y los recortes. Todo lo demás —bandas,
    vistas, filas, contadores, alternador, avisos, estado vacío, pie— es de `workbench.css`. */
 
 /* El tema va antes de los de disposición y separado 8: el `gap` de 4 de la base más estos 4. */
@@ -1489,7 +1395,6 @@ const rowMetaTitle = (sc) => [sc.hotspots?.length ? 'Tiene zonas del prototipo' 
 .section-name { padding: var(--space-3) var(--gutter) var(--space-1); font-size: var(--text-xs); color: var(--fg-3) }
 .region-head.group.unlabeled > span:first-child { font-style: italic }
 
-.row-meta { display: inline-flex; align-items: center; gap: var(--space-1) }
 /* El lienzo: la región no scrollea, la pantalla se arrastra. */
 .stage { position: relative; flex: 1; min-height: 0; overflow: hidden; cursor: grab; touch-action: none; user-select: none }
 .stage.dragging { cursor: grabbing }
@@ -1520,13 +1425,7 @@ const rowMetaTitle = (sc) => [sc.hotspots?.length ? 'Tiene zonas del prototipo' 
 .device img { display: block; width: 100%; height: 100%; user-select: none }
 .device > .alert { position: absolute; left: 0; right: 0; top: 0 }
 /* 2 px y no 1: con 1 px sobre un botón del mismo color la zona no se notaba, y el ojo parecía no hacer nada. */
-.hotspot { position: absolute; padding: 0; border: 2px solid var(--hotspot); border-radius: var(--radius-control);
-  background: var(--hotspot-fill); cursor: pointer }
-.hotspot:hover { background: var(--hotspot-fill-hover) }
-.hotspot.outside { border-style: dashed; cursor: not-allowed }
 /* «Avanza sola a …»: el botón primario de la base, flotando al pie de la pantalla. */
-.auto-next { position: absolute; left: 50%; bottom: var(--space-4); translate: -50% 0; max-width: 90% }
-.auto-next > span:last-child { overflow: hidden; text-overflow: ellipsis }
 
 /* El detalle: una lista de propiedades, rótulo y valor. */
 /* La hoja de tokens. Una muestra de color y la caja de un radio son OBJETOS —se ven como lo que son—, así

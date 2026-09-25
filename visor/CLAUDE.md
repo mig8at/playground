@@ -9,18 +9,25 @@ La página del archivo se elige sola: la que se llama «Flujo» o «Flow» (así
 producto) o, si no hay, la primera que no sea portada, benchmark ni prototipo. *(Hubo tres versiones
 antes, las tres descartadas por Miguel el mismo día: un bloque «Proyectos» con una lista adentro, la
 carpeta de Figma como nivel, y las páginas del archivo —«Cover · Benchmark · Flujo»— como nivel. Lo que se
-busca es el recorrido, no dónde vive ni cómo se reparte el archivo.)* Al centro la pantalla con las zonas del prototipo que se pueden tocar; a
-la derecha qué dice, a dónde lleva y de dónde se llega. ← → recorren el carril, Retroceso vuelve, H
-muestra u oculta las zonas, 0 centra la pantalla y + / − son el zoom.
+busca es el recorrido, no dónde vive ni cómo se reparte el archivo.)* Al centro la pantalla —la imagen de
+Figma, su HTML o las dos—; a la derecha qué es, la capa señalada, la fidelidad, la paleta y la
+tipografía. ← → recorren el carril, Retroceso vuelve, S señala una capa, 0 centra la pantalla y + / − son
+el zoom.
+
+⛔ **No hay zonas del prototipo, ni íconos de «tiene zonas» o «tiene comentarios» en los carriles, ni
+«Lleva a» / «Llega desde»** (Miguel, 2026-09-25): las flechas ya recorren el carril, casi ninguna pantalla
+de estos archivos tiene conexiones de prototipo, y el ojo que las mostraba parecía no hacer nada. La barra
+derecha se aligeró en la misma pasada —sin «La traducción a HTML», «Botones» ni «La misma pantalla en otro
+lugar»—: la interfaz es para mirar, y ese detalle es del modelo. Las conexiones **siguen** en el conector y
+en el paquete para el modelo («A dónde lleva»), que es por consola.
 
 **El tamaño máximo de la pantalla es el alto de la región**: al 100 % la llena de arriba abajo, y el zoom
 la achica hasta el 25 %. El zoom es SÓLO por gestos —Ctrl + rueda o el pellizco del trackpad, anclado en
 el puntero, y + / − en el teclado—: hubo una barra en la cabecera y Miguel la sacó. Depende sólo del ALTO, así que arrastrar un separador no la cambia de tamaño —el
 primer intento, que la escalaba para entrar entera en la región, sí lo hacía—, y en Comparar las dos van a
 la misma escala. Lo que no entra a lo ancho se mueve **arrastrando**, o con la rueda; doble clic en el
-fondo la centra. Un clic en una zona del prototipo sólo cuenta si el puntero no se movió, y el iframe del
-HTML no recibe el puntero (es un dibujo: las zonas van encima), así que arrastrar sobre él también mueve
-el lienzo.
+fondo la centra. Un clic sólo cuenta si el puntero no se movió, y arrastrar sobre el HTML también mueve el
+lienzo.
 
 ## Para el modelo: la API por consola (lo visual es para Miguel)
 
@@ -142,7 +149,7 @@ URL, no el de los archivos que se ven en esa pantalla: «recientes» mezcla arch
   el renglón que lo aplica antes de pintar lo inyecta Vite desde `THEME_BOOT`. La imagen y el HTML de la
   pantalla NO siguen el tema: son el diseño, con sus propios colores. Las piezas son las de
   `tools/ui` (filas `.row`, alternador, avisos `.alert`, vacío `.empty`); lo propio del visor —el lienzo, el
-  marco de la pantalla, las zonas— está al final de `App.vue`, y sus colores salen de tokens del tema.
+  marco de la pantalla, la capa señalada— está al final de `App.vue`, y sus colores salen de tokens del tema.
 - **El token no sale del server.** El navegador pide `/api/screen` y nunca ve ni el token ni el enlace
   de S3 que devuelve Figma (que además vence). El enlace se baja SIN el token.
 
@@ -157,8 +164,6 @@ URL, no el de los archivos que se ven en esa pantalla: «recientes» mezcla arch
 - **La clave y el id terminan en una ruta de disco**: se validan contra su forma exacta, no se limpian.
 - **El tipo de pantalla va en `data-kind`, no en una clase**: `panel` es la región compartida del
   workbench, y como clase le ponía su fondo y su borde al dispositivo. Lo frenó `make estilo-check`.
-- **Una pantalla que avanza sola** (prototipo con `AFTER_TIMEOUT`) no avanza sola acá: muestra el botón
-  «Avanza sola a …». Un temporizador haría saltar la pantalla mientras se la está mirando.
 
 ## El paquete para el modelo: una pantalla, lista para pasar a código
 
@@ -270,8 +275,7 @@ nombres de capa en Credifamilia, flujo ecommerce, Motai y BCP (las reglas y el c
   server). ⚠ No del componente: Figma no exporta los componentes de las variantes de este sistema
   («invisible o vacío», medido con los de Credifamilia). Una pregunta de «Sí» y «No» es un radio; una
   lista de opciones, casillas. La opción entera es un `<label>`: tocar el texto también marca;
-- **botón**: la instancia «Botones» o el marco con un texto «Button Text» es un `<button>`. Un clic sigue la
-  zona del prototipo que tiene encima, también con las zonas ocultas (H).
+- **botón**: la instancia «Botones» o el marco con un texto «Button Text» es un `<button>`.
 
 Para que se usen, el iframe **recibe el puntero**. La página escucha su documento (es del mismo origen):
 un clic en un control es del control, y un arrastre o la rueda desde cualquier otra parte mueven el lienzo
@@ -336,7 +340,7 @@ Miguel señala en la interfaz y el modelo lo lee por consola, con **el mismo enl
 - En la interfaz, el modo **Señalar** (botón de mira o <kbd>S</kbd>) marca la capa de abajo del mouse —la
   visible **más chica** cuya caja contiene el punto, igual en la imagen y en el HTML, con las cajas de
   `/api/layers`— y un clic la fija. Una superficie transparente se queda con el mouse mientras tanto: el
-  iframe del HTML se lo llevaría y las zonas del prototipo navegarían. <kbd>Esc</kbd> sale del modo y
+  iframe del HTML se lo llevaría. <kbd>Esc</kbd> sale del modo y
   después suelta la capa.
 - La capa va a la ruta como **`?capa=<id>`** con guiones por «:» y **guion bajo por «;»**
   (`?capa=I1-6711_1265-1238`): las capas de adentro de un componente se llaman `I<instancia>;<pieza>`, y
