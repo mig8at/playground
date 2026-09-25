@@ -511,7 +511,7 @@
           "height": 40
         }
       },
-      "use": "La barra de pestañas es la banda superior (40); cada pestaña mide 36 y se apoya en la línea. La activa: fondo del cuerpo y una línea de 2 en --primary."
+      "use": "La barra de pestañas es la banda superior (40); cada pestaña mide 36 y se apoya en la línea. La activa se marca con la tinta plena y una línea de 2 en --primary; sin fondo propio, ni en la barra ni en la pestaña."
     },
     {
       "group": "Estructura",
@@ -597,7 +597,7 @@
           "fontSize": 13
         }
       },
-      "use": "Lo que se ve cuando una región no tiene nada: qué falta y qué hacer."
+      "use": "Lo que se ve cuando una región no tiene nada: qué falta y qué hacer. El icono va sin caja, en --fg-3."
     },
     {
       "group": "Opciones de una región",

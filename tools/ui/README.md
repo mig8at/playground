@@ -46,7 +46,7 @@ Además de su banda y su cuerpo, una región puede llevar tres cosas, siempre en
 | Barra de iconos y menú | `region-actions` · `RegionMenu` | sí | sí | sí | sí | botones 24 |
 
 - **Una pestaña que se cierra** lleva su rótulo como botón (`.tab-label`) y una ✕ de 20 (`.tab-close`) que aparece al pasar o en la activa y ocupa su lugar siempre. La que se reemplaza al elegir otra va en itálica (`.tab.preview`).
-- **Las pestañas son la banda.** No se agrega una banda arriba: las acciones de la región van al borde derecho de la misma barra (`.tabs > .region-actions`). La activa toma el fondo del cuerpo de su región; una pestaña puede llevar su `.count`.
+- **Las pestañas son la banda.** No se agrega una banda arriba: las acciones de la región van al borde derecho de la misma barra (`.tabs > .region-actions`). La activa se marca con la tinta plena y su línea de 2, sin fondo propio (ni la barra ni la pestaña llevan tinte); una pestaña puede llevar su `.count`.
 - **La subbanda dice qué se está viendo.** Existe sólo si el cuerpo cambia según lo elegido. Si hay un filtro puesto, su contador lo delata ahí (`.count.filtered`).
 - **El sidebar interno va a la derecha y se pliega solo.** Mide 240 (`--split-side-w`). Si la región no le deja 360 al contenido, desaparece con una consulta de contenedor, sin JavaScript. Lo que muestra también tiene que poder elegirse de otra forma, porque en una consola angosta no está.
 - **Maximizar es temporal.** El botón de la banda de la consola (`bindPanelMaximize`, iconos `maximize` y `restore`) le da todo el alto de la columna y tapa el editor. Es la única forma de hacerlo, y por eso no se guarda: se deshace con el mismo botón o con Escape desde la consola. Su manija, marcada `data-rsz="panel"`, no aparece mientras tanto.
@@ -170,7 +170,8 @@ Un solo juego, el de `workbench.css` (`.ui-icon[data-icon]`): glifos dibujados e
 - Una caja es para un objeto (un campo, un botón, una imagen), no para envolver contenido.
 - Una píldora es relleno o contorno, nunca los dos.
 - La fila elegida lleva un fondo suave y una barra de 2 px a la izquierda en el color de acción.
-- La sombra es sólo para lo que flota.
+- La sombra es sólo para lo que flota (menú, popover). Los controles no llevan la sombra de un pelo de shadcn: sobre un borde no agrega nada.
+- Un solo anillo de foco (`outline` de 2 en `--ring`), sin halos.
 - Un color es un token: el tema da los colores y la hoja de cada herramienta, los de sus estados. Un color escrito a mano no sobrevive a un cambio de tema.
 - El primario que lleva **texto** —un enlace, el botón principal, el contador filtrado— es `--primary-ink`: el primario del tema mezclado con un 30 % de la tinta. El primario en claro de Darkmatter no llega a 4,5:1 ni como texto sobre blanco ni con texto blanco encima; `--primary-ink` pasa en los dos temas y, como es una derivación, en cualquier tema que se pegue. El primario solo queda para lo que no es texto: una línea, una barra, un punto.
 

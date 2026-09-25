@@ -257,7 +257,7 @@ button.region-head {
   width: 100%; border-top: 0; border-left: 0; border-right: 0; background: none; color: inherit;
   font: inherit; font-size: var(--text-sm); font-weight: 600; text-align: left; cursor: pointer;
 }
-button.region-head:hover { background: var(--sel, color-mix(in oklab, var(--foreground) 10%, transparent)) }
+button.region-head:hover { background: var(--hover) }
 button.region-head:focus-visible { outline: none; box-shadow: inset 0 0 0 2px var(--ring) }
 
 /* Cada región declara SU superficie. Lo necesita cualquier hijo `sticky`: para no dejar pasar el
@@ -323,7 +323,7 @@ button.region-head:focus-visible { outline: none; box-shadow: inset 0 0 0 2px va
   color: inherit; font: inherit; font-size: var(--text-base); line-height: 1;
 }
 .region-action:hover { background: var(--hover) }
-.region-action[aria-expanded="true"] { background: var(--sel, color-mix(in oklab, var(--foreground) 10%, transparent)); color: var(--foreground) }
+.region-action[aria-expanded="true"] { background: var(--hover); color: var(--foreground) }
 
 /* ── EL MENÚ … ───────────────────────────────────────────────────────────────────────────────────
    Se dibuja FUERA de la región (teleportado al `body`) y se ubica por coordenadas. ⚠ No es un
@@ -423,8 +423,7 @@ body.resizing { cursor: col-resize; user-select: none }
 
 .btn-secondary { background: var(--secondary); color: var(--secondary-foreground) }
 .btn-secondary:hover { background: color-mix(in oklab, var(--secondary) 80%, transparent) }
-.btn-outline { background: transparent; color: var(--foreground); border-color: var(--border);
-  box-shadow: 0 1px 2px 0 rgb(0 0 0 / .05) }
+.btn-outline { background: transparent; color: var(--foreground); border-color: var(--border) }
 .btn-outline:hover { background: var(--hover) }
 .btn-ghost { background: transparent; color: inherit }
 .btn-ghost:hover { background: var(--hover) }
@@ -434,7 +433,6 @@ body.resizing { cursor: col-resize; user-select: none }
    ese rojo sí llega. Si un tema trae un rojo oscuro, esto sigue funcionando: se invierte solo. */
 .btn-destructive { background: var(--destructive); color: var(--background) }
 .btn-destructive:hover { background: color-mix(in oklab, var(--destructive) 90%, transparent) }
-.btn-destructive:focus-visible { box-shadow: 0 0 0 3px color-mix(in oklab, var(--destructive) 40%, transparent) }
 /* El de enlace no es un botón disfrazado de texto: es texto que se comporta como enlace. */
 .btn-link { height: auto; padding: 0; background: none; border: 0; color: var(--primary-ink);
   text-underline-offset: 4px }
@@ -455,13 +453,11 @@ body.resizing { cursor: col-resize; user-select: none }
   padding: 0 var(--gutter); border: 1px solid var(--input); border-radius: var(--radius-control);
   background: transparent; color: var(--foreground);
   font: inherit; font-size: var(--text-base); line-height: 20px;
-  box-shadow: 0 1px 2px 0 rgb(0 0 0 / .05);
   outline: none; transition: color .12s, border-color .12s, box-shadow .12s;
 }
 .input::placeholder { color: var(--fg-3) }
 .input:disabled { pointer-events: none; cursor: not-allowed; opacity: .5 }
 .input[aria-invalid="true"] { border-color: var(--destructive) }
-.input[aria-invalid="true"]:focus-visible { box-shadow: 0 0 0 3px color-mix(in oklab, var(--destructive) 40%, transparent) }
 textarea.input { height: auto; min-height: 80px; padding: var(--space-2) var(--gutter); resize: vertical }
 .input-sm { height: var(--control-sm); padding: 0 var(--space-2); font-size: var(--text-base) }
 /* Extensión declarada: shadcn corta en `sm`. Hace falta un escalón más para el campo que vive
@@ -472,8 +468,7 @@ textarea.input { height: auto; min-height: 80px; padding: var(--space-2) var(--g
 /* Un campo con algo adentro —una lupa, una ✕, una unidad—. El borde lo lleva el GRUPO y el input
    queda desnudo adentro: si lo llevan los dos, se ven dos marcos concéntricos. */
 .input-group { display: flex; align-items: center; gap: var(--space-2); height: var(--control-md); padding: 0 var(--space-2);
-  border: 1px solid var(--input); border-radius: var(--radius-control); background: transparent;
-  box-shadow: 0 1px 2px 0 rgb(0 0 0 / .05); transition: border-color .12s, box-shadow .12s }
+  border: 1px solid var(--input); border-radius: var(--radius-control); background: transparent; transition: border-color .12s, box-shadow .12s }
 .input-group > .input { height: auto; border: 0; box-shadow: none; padding: 0; flex: 1 }
 .input-group > svg, .input-group > .ico-txt { flex: none; color: var(--fg-3) }
 
@@ -522,8 +517,7 @@ textarea.input { height: auto; min-height: 80px; padding: var(--space-2) var(--g
 .switch {
   position: relative; display: inline-flex; align-items: center; flex-shrink: 0;
   width: 32px; height: 18px; padding: 0; border: 1px solid transparent; border-radius: 999px;
-  background: var(--input); cursor: pointer;
-  box-shadow: 0 1px 2px 0 rgb(0 0 0 / .05); transition: background .12s, box-shadow .12s;
+  background: var(--input); cursor: pointer; transition: background .12s, box-shadow .12s;
 }
 .switch::after { content: ""; display: block; width: 14px; height: 14px; margin-left: 1px;
   border-radius: 999px; background: var(--foreground); transition: transform .12s }
@@ -581,7 +575,7 @@ textarea.input { height: auto; min-height: 80px; padding: var(--space-2) var(--g
 .empty-head { display: flex; max-width: 24rem; flex-direction: column; align-items: center; gap: 8px }
 .empty-media { display: flex; align-items: center; justify-content: center; flex: none;
   width: var(--control-lg); height: var(--control-lg); margin-bottom: var(--space-2); border-radius: var(--radius-float);
-  background: var(--muted); color: var(--foreground); font-size: var(--text-title) }
+  color: var(--fg-3); font-size: var(--text-title) }
 .empty-title { font-size: var(--text-title); font-weight: 600; letter-spacing: -.01em; color: var(--foreground) }
 .empty-desc { font-size: var(--text-base); line-height: 1.6; color: var(--fg-2) }
 .empty-content { display: flex; width: 100%; max-width: 24rem; min-width: 0;
@@ -609,8 +603,8 @@ textarea.input { height: auto; min-height: 80px; padding: var(--space-2) var(--g
 }
 .toggle:disabled { pointer-events: none; opacity: .5 }
 
-.toggle-outline > .toggle { border-color: var(--input); box-shadow: 0 1px 2px 0 rgb(0 0 0 / .05) }
-.toggle-outline > .toggle:hover { background: var(--accent); color: var(--accent-foreground) }
+.toggle-outline > .toggle { border-color: var(--input) }
+.toggle-outline > .toggle:hover { background: var(--hover) }
 /* Unidas: un solo bloque con los bordes internos colapsados. Sin esto se ven N botones sueltos y
    deja de leerse como «elegí UNA de estas». */
 .toggle-joined { gap: 0 }
@@ -644,8 +638,7 @@ textarea.input { height: auto; min-height: 80px; padding: var(--space-2) var(--g
 }
 .accordion-trigger::-webkit-details-marker { display: none }
 .accordion-trigger:hover { text-decoration: underline }
-.accordion-trigger:focus-visible { border-color: var(--ring);
-  box-shadow: 0 0 0 3px color-mix(in oklab, var(--ring) 50%, transparent) }
+.accordion-trigger:focus-visible { outline: 2px solid var(--ring); outline-offset: 2px }
 .accordion-trigger:disabled, .accordion-trigger[aria-disabled="true"] { pointer-events: none; opacity: .5 }
 /* El chevron es lo único que dice si está abierto, así que la rotación no es decoración. */
 .accordion-chev { pointer-events: none; flex: none; width: 16px; text-align: center;
@@ -698,8 +691,7 @@ textarea.input { height: auto; min-height: 80px; padding: var(--space-2) var(--g
 .checkbox {
   appearance: none; -webkit-appearance: none; flex: none; display: grid; place-content: center;
   width: 16px; height: 16px; margin: 0;
-  border: 1px solid var(--input); border-radius: 4px; background: transparent; color: var(--primary-foreground);
-  box-shadow: 0 1px 2px 0 rgb(0 0 0 / .05); cursor: pointer;
+  border: 1px solid var(--input); border-radius: 4px; background: transparent; color: var(--primary-foreground); cursor: pointer;
   transition: background .12s, border-color .12s, box-shadow .12s;
 }
 .checkbox::after { content: ""; width: 4px; height: 8px; margin-top: -2px;
@@ -710,8 +702,7 @@ textarea.input { height: auto; min-height: 80px; padding: var(--space-2) var(--g
 .checkbox:indeterminate { background: var(--primary); border-color: var(--primary) }
 .checkbox:indeterminate::after { width: 8px; height: 0; margin: 0; border-width: 0 0 2px 0;
   transform: none }
-.checkbox:focus-visible { outline: none; border-color: var(--ring);
-  box-shadow: 0 0 0 3px color-mix(in oklab, var(--ring) 50%, transparent) }
+.checkbox:focus-visible { outline: 2px solid var(--ring); outline-offset: 2px; box-shadow: none }
 .checkbox:disabled { cursor: not-allowed; opacity: .5 }
 /* La etiqueta al lado, que es como se usa siempre: el click en el texto también marca. */
 .checkbox-row { display: inline-flex; align-items: center; gap: 8px; cursor: pointer;
@@ -828,7 +819,6 @@ textarea.input { height: auto; min-height: 80px; padding: var(--space-2) var(--g
 /* Las pestañas: la barra ES la banda superior (40) y cada pestaña mide 36, apoyada en la línea. */
 .tabs { display: flex; flex: none; align-items: flex-end; gap: 2px; height: var(--region-head-h);
   padding: var(--space-1) var(--space-1) 0; border-bottom: 1px solid var(--border);
-  background: color-mix(in oklab, var(--foreground) 4%, var(--region-bg, var(--background)));
   overflow-x: auto; overflow-y: hidden; scrollbar-width: thin }
 /* Las acciones de la región van al borde derecho de la misma banda, centradas: la barra de pestañas
    ES la banda superior, no se le agrega otra. */
@@ -838,7 +828,7 @@ textarea.input { height: auto; min-height: 80px; padding: var(--space-2) var(--g
   padding: 0 var(--gutter); border: 0; border-radius: var(--radius-control) var(--radius-control) 0 0; background: none;
   color: var(--fg-3); font: inherit; font-size: var(--text-sm); font-weight: 400; white-space: nowrap; cursor: pointer }
 .tab:hover { color: var(--foreground) }
-.tab.on, .tab[aria-selected="true"] { background: var(--region-bg, var(--background)); color: var(--foreground) }
+.tab.on, .tab[aria-selected="true"] { color: var(--foreground) }
 .tab.preview .tab-label { font-style: italic }
 /* Una pestaña que se cierra: el rótulo es su propio botón y la ✕ es un botón de 20 que aparece al pasar
    o en la activa. El ancho no cambia: la ✕ ocupa su lugar siempre. */
