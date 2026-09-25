@@ -423,14 +423,21 @@ async function correr(c: Case, i: number): Promise<Result> {
         } else if (sheet === 'personal-info' || sheet === 'employment-info') {
             const ur = urOf(routePath)!;
             if (!bureauInjected) { await seed(ur, doc, log); bureauInjected = true; }
-            // Canal ecommerce: lo que el comercio entregó tiene que llegar PRELLENADO Y BLOQUEADO, y eso lo
-            // decide el LOADER (`resolvePrefillDelComercio` → `lockedFields`): se lee de él, no se supone.
+            // Canal ecommerce: lo que el comercio entregó tiene que llegar PRELLENADO, y eso lo decide el
+            // LOADER (`resolvePrefillDelComercio` → `prefill`): se lee de él, no se supone.
+            //
+            // ⚠ La señal es `prefill`, NO `lockedFields`. Hasta el 2026-09-24 el documento llegaba
+            // bloqueado y este chequeo contaba los bloqueados; desde frontend-monorepo#1072 todo llega
+            // editable (`lockedFields` vacío a propósito), y contar bloqueados daba «sin prefill» con los
+            // cinco campos prellenados. Los bloqueados se informan, no se exigen.
             if (FLOW === 'ecommerce' && sheet === 'personal-info' && !prefillSeen) {
                 prefillSeen = true;
+                const pf: unknown = res.datos?.prefill;
+                const campos = pf && typeof pf === 'object' ? Object.keys(pf as object) : [];
                 const lf: unknown = res.datos?.lockedFields;
-                const n = Array.isArray(lf) ? lf.length : 0;
-                if (n > 0) log(`personal-info: ${n} campo(s) del comercio prellenados y bloqueados (${(lf as string[]).join(', ')})`);
-                else return finish('malo', 'personal-info llegó SIN prefill del comercio (lockedFields vacío): el loader no encontró el pedido de esta solicitud');
+                const bloqueados = Array.isArray(lf) ? (lf as string[]) : [];
+                if (campos.length > 0) log(`personal-info: ${campos.length} campo(s) del comercio prellenados (${campos.join(', ')}) · bloqueados: ${bloqueados.length ? bloqueados.join(', ') : 'ninguno'}`);
+                else return finish('malo', 'personal-info llegó SIN prefill del comercio: el loader no encontró el pedido de esta solicitud');
             }
             form = sheet === 'personal-info'
                 ? { intent: 'save-personal-info', documentType: docType, documentNumber: doc, name: 'CARLOS', surname: 'RUIZ',
