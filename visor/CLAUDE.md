@@ -346,10 +346,13 @@ Miguel señala en la interfaz y el modelo lo lee por consola, con **el mismo enl
 - La capa va a la ruta como **`?capa=<id>`** con guiones por «:» y **guion bajo por «;»**
   (`?capa=I1-6711_1265-1238`): las capas de adentro de un componente se llaman `I<instancia>;<pieza>`, y
   Go descarta sin avisar un parámetro con «;» sin codificar — un enlace pegado a mano lo perdería.
-- La barra derecha («Capa señalada», `/api/layer`) dice qué es, por dónde se llega, su caja, lo que dice,
-  lo que Figma sabe de ella (auto-layout, cómo se ajusta, rellenos y trazos con su token, radio, letra,
-  propiedades de componente) y los **dos recortes** —Figma y el HTML— armados en el navegador, sin
-  Chromium. El botón de copiar deja el enlace con una línea para el chat.
+- La barra derecha («Capa señalada», `/api/layer`) dice qué es, por dónde se llega, su caja y lo que dice,
+  muestra los **dos recortes** —Figma y el HTML— armados en el navegador, sin Chromium, y el **HTML de la
+  capa** repartido para leer (`src/html-format.js`: una etiqueta por renglón con su sangría y una
+  declaración del `style` por renglón; sigue siendo HTML válido). Copiar el HTML copia el original, exacto,
+  de un renglón. Lo que Figma sabe de ella (auto-layout, ajuste, rellenos con su token, propiedades de
+  componente) NO va en la barra —Miguel prefirió ver el código— y sí en `make visor-capa`. El botón de
+  copiar de la cabecera deja el enlace con una línea para el chat.
 - **`make visor-capa R='<ese enlace>'`** le da al modelo lo mismo y lo que no puede ver: los recortes en
   archivo (`<clave>/<versión>/layers/`), cuánto se parecen **en esa zona** (`fidelity.mjs --clip`) y el
   **pedazo de HTML** que la dibuja (`htmlFragment`: el elemento con su `data-figma` y todo lo de adentro).

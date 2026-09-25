@@ -1,5 +1,6 @@
 <script setup>
 import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
+import { formatHTML } from './html-format.js'
 import { vResize, readSize, saveSize, refreshResizers, fitRegions, reopenSize, cssSize, bindThemeToggle } from './workbench.js'
 
 // EL VISOR: un diseño de Figma leído como recorrido. A la izquierda los carriles que armó el
@@ -640,6 +641,15 @@ const cropFrameHTML = computed(() => {
   const b = selectedBox.value, k = cropScale.value, c = current.value
   return b && c ? { width: c.w + 'px', height: c.h + 'px', transform: `scale(${k}) translate(${-b.x}px, ${-b.y}px)` } : {}
 })
+const layerHTML = computed(() => formatHTML(layerDetail.value?.html || ''))
+const htmlCopied = ref(false)
+async function copyLayerHTML() {
+  try {
+    await navigator.clipboard.writeText(layerDetail.value?.html || '')
+    htmlCopied.value = true
+    setTimeout(() => { htmlCopied.value = false }, 1500)
+  } catch { /* sin portapapeles */ }
+}
 const layerCopied = ref(false)
 async function copyLayerLink() {
   const url = location.origin + routePath.value
@@ -1062,7 +1072,6 @@ const laneName = (lane) => (lane.label ? lane.label : 'Fila sin rótulo')
                 <template v-if="layerDetail.path?.length"><dt>Adentro de</dt><dd>{{ layerDetail.path.slice(1).join(' › ') || layerDetail.path[0] }}</dd></template>
                 <dt>Caja</dt><dd>{{ Math.round(layerDetail.x) }},{{ Math.round(layerDetail.y) }} · {{ Math.round(layerDetail.w) }}×{{ Math.round(layerDetail.h) }}</dd>
                 <template v-if="layerDetail.text"><dt>Dice</dt><dd>«{{ layerDetail.text }}»</dd></template>
-                <template v-for="(f, i) in layerDetail.facts" :key="i"><dt>{{ f.label }}</dt><dd>{{ f.value }}</dd></template>
               </dl>
               <div class="crops">
                 <figure>
@@ -1074,7 +1083,19 @@ const laneName = (lane) => (lane.label ? lane.label : 'Fila sin rótulo')
                   <figcaption>HTML</figcaption>
                 </figure>
               </div>
-              <p class="hint">El enlace lleva la capa: pegalo en el chat o en la tarea. Por consola, <code>make visor-capa R='…'</code> con ese enlace da lo mismo, con los recortes en archivo y cuánto se parecen en esa zona.</p>
+              <!-- El código que la dibuja, repartido para leer (html-format.js). Lo que se copia es el original,
+                   exacto: el de un renglón que escribe el render. -->
+              <div class="region-head group">
+                <span>HTML</span>
+                <div class="region-actions">
+                  <button class="region-action" :disabled="!layerDetail.html" :title="htmlCopied ? 'Copiado' : 'Copiar el HTML de la capa'" aria-label="Copiar el HTML de la capa" @click="copyLayerHTML">
+                    <span class="ui-icon" :data-icon="htmlCopied ? 'check' : 'copy'" aria-hidden="true"></span>
+                  </button>
+                </div>
+              </div>
+              <pre v-if="layerDetail.html" class="layer-code"><code>{{ layerHTML }}</code></pre>
+              <p v-else class="hint">No tiene un elemento propio en el HTML: va dibujada adentro de otra capa (un SVG de Figma o una imagen).</p>
+              <p class="hint">El enlace lleva la capa: pegalo en el chat o en la tarea. Por consola, <code>make visor-capa R='…'</code> con ese enlace da además lo que Figma sabe de ella, los recortes en archivo y cuánto se parecen en esa zona.</p>
             </template>
           </div>
           <dl>
@@ -1240,6 +1261,10 @@ const laneName = (lane) => (lane.label ? lane.label : 'Fila sin rótulo')
 .layer-box { position: absolute; pointer-events: none; outline: 1px dashed var(--primary); outline-offset: 0 }
 .layer-box.on { outline: 2px solid var(--primary); box-shadow: 0 0 0 100vmax color-mix(in oklab, var(--background) 45%, transparent) }
 .pick-surface { position: absolute; inset: 0; cursor: crosshair; z-index: 1 }
+/* El código: su propio desplazamiento, así una capa grande no empuja todo lo demás de la barra. */
+.layer-code { margin: 0 var(--gutter) var(--space-2); max-height: 360px; overflow: auto; padding: var(--space-2) var(--space-3);
+  background: var(--muted); color: var(--foreground); border-radius: var(--radius-sm); font-family: var(--font-mono);
+  font-size: var(--text-xs); line-height: 1.5; white-space: pre; tab-size: 2 }
 .crops { display: flex; flex-direction: column; gap: var(--space-3); padding: 0 var(--gutter) var(--space-2) }
 .crops figure { margin: 0; display: flex; flex-direction: column; gap: var(--space-1) }
 .crops figcaption { font-size: var(--text-xs); color: var(--fg-3) }

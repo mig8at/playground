@@ -5,6 +5,8 @@ import (
 	"errors"
 	"strings"
 	"testing"
+
+	"creditop/playground/visor/render"
 )
 
 // El pedazo de HTML de una capa es su elemento con todo lo de adentro: los <div> anidados cuentan, un
@@ -61,6 +63,11 @@ func TestLayerBoxesAndDetail(t *testing.T) {
 	}
 	if facts["Letra"] != "Satoshi 700 · 20/30" {
 		t.Errorf("lo que dice Figma de la letra: %+v", d.Facts)
+	}
+	// El mismo estilo por las dos vías con que Figma lo nombra sale una sola vez.
+	if got := layerFacts(render.Node{Fills: []render.Paint{{Type: "SOLID", Color: &render.Color{R: 1, G: 1, B: 1, A: 1}}},
+		Styles: map[string]string{"fill": "S1", "fills": "S1"}}, map[string]render.StyleToken{"S1": {Name: "colors/rojo/50"}}); len(got) != 1 || got[0].Value != "#ffffff (colors/rojo/50)" {
+		t.Errorf("el token del relleno, una vez: %+v", got)
 	}
 	card, _ := s.layerDetail(context.Background(), "KKKKKKKKKK", "1:1", "1:2")
 	if !strings.Contains(card.Facts[0].Value, "en columna · separación 8") {

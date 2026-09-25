@@ -131,9 +131,13 @@ func layerFacts(n render.Node, tokens map[string]render.StyleToken) []layerFact 
 	add := func(label, format string, args ...any) {
 		out = append(out, layerFact{label, fmt.Sprintf(format, args...)})
 	}
-	token := func(key string) string {
-		if t, ok := tokens[n.Styles[key]]; ok && t.Name != "" {
-			return " (" + t.Name + ")"
+	// token es el estilo del sistema de diseño que usa la capa por esa vía. Figma nombra la misma vía de
+	// dos formas (`fill` y `fills`): con las dos a la vez el token salía repetido.
+	token := func(keys ...string) string {
+		for _, key := range keys {
+			if t, ok := tokens[n.Styles[key]]; ok && t.Name != "" {
+				return " (" + t.Name + ")"
+			}
 		}
 		return ""
 	}
@@ -150,12 +154,12 @@ func layerFacts(n render.Node, tokens map[string]render.StyleToken) []layerFact 
 	}
 	for _, p := range n.Fills {
 		if f := paintText(p); f != "" {
-			add("Relleno", "%s%s", f, token("fill")+token("fills"))
+			add("Relleno", "%s%s", f, token("fill", "fills"))
 		}
 	}
 	for _, p := range n.Strokes {
 		if f := paintText(p); f != "" {
-			add("Trazo", "%s · %s px %s%s", f, num(n.StrokeWeight), lower(n.StrokeAlign, "CENTER"), token("stroke")+token("strokes"))
+			add("Trazo", "%s · %s px %s%s", f, num(n.StrokeWeight), lower(n.StrokeAlign, "CENTER"), token("stroke", "strokes"))
 		}
 	}
 	if len(n.CornerRadii) == 4 {
