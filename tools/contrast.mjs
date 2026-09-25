@@ -85,7 +85,7 @@ const onlyTool = process.env.SOLO || null;
 const belowThreshold = [];
 let unverified = 0;
 
-console.log('\n  contraste de lo que SE PINTA · AA: 4,5:1 (texto grande, 3:1)');
+console.log(`\n  contraste de lo que SE PINTA · AA: 4,5:1 (texto grande, 3:1)${process.env.THEME ? ` · tema ${process.env.THEME}` : ''}`);
 console.log('  ⚠ audita lo que está CORRIENDO; no levanta servidores\n');
 
 const headless = await chromium.launch();
@@ -99,6 +99,9 @@ try {
       continue;
     }
     const ctx = await headless.newContext({ viewport: { width: 1512, height: 900 } });
+    // `THEME=light|dark` fija el tema de la base (`ui.theme`) antes de cargar: la regla es que una
+    // herramienta con botón de tema pase en los DOS. Las que fijan `.dark` en su HTML no cambian.
+    if (process.env.THEME) await ctx.addInitScript((t) => { try { localStorage.setItem('ui.theme', t); } catch { /* sin almacenamiento */ } }, process.env.THEME);
     const page = await ctx.newPage();
     let note = null;
     try {

@@ -515,6 +515,33 @@
     },
     {
       "group": "Estructura",
+      "id": "tab-close",
+      "name": "Pestaña que se cierra",
+      "cls": ".tab › .tab-label + .tab-close",
+      "html": "<nav class=\"tabs\"><div class=\"tab on\"><button class=\"tab-label\"><span>CORE-614</span></button><button class=\"tab-close\" aria-label=\"Cerrar CORE-614\"><span class=\"ui-icon\" data-icon=\"close\" aria-hidden=\"true\"></span></button></div><div class=\"tab preview\"><button class=\"tab-label\"><span>CORE-543</span></button><button class=\"tab-close\" aria-label=\"Cerrar CORE-543\"><span class=\"ui-icon\" data-icon=\"close\" aria-hidden=\"true\"></span></button></div></nav>",
+      "target": ".tab",
+      "measure": {
+        "height": 36,
+        "paddingLeft": 12,
+        "paddingRight": 4
+      },
+      "parts": {
+        ".tab-close": {
+          "height": 20,
+          "width": 20,
+          "visibility": "visible"
+        },
+        ".tab.preview .tab-label": {
+          "fontStyle": "italic"
+        },
+        ".tab.preview .tab-close": {
+          "visibility": "hidden"
+        }
+      },
+      "use": "Documentos abiertos que se cierran. La ✕ (20) aparece al pasar o en la activa y ocupa su lugar siempre, así el ancho no salta. La que se reemplaza al elegir otra, en itálica (`.preview`)."
+    },
+    {
+      "group": "Estructura",
       "id": "statusbar",
       "name": "Pie",
       "cls": ".statusbar",

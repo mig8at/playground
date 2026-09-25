@@ -87,6 +87,11 @@
   --radius-control: 6px;    /* botón, campo, ítem de menú, botón de icono */
   --radius-float: 10px;     /* lo que flota: radio del ítem + el aire del menú (6 + 4), concéntricos */
   --hover: color-mix(in oklab, var(--foreground) 8%, transparent); /* fondo al pasar: fantasma, icono, fila */
+  /* El primario cuando lleva TEXTO (un enlace, un botón, un contador filtrado). El primario del tema en
+     claro (Darkmatter, #d87943) no llega a 4,5:1 ni como texto sobre blanco ni con texto blanco encima
+     (3,12:1, medido en el tablero); mezclado con un 30 % de la tinta pasa en los dos temas (≈5:1 en
+     claro, ≈8:1 en oscuro). Es una derivación, así que vale para cualquier tema que se pegue. */
+  --primary-ink: color-mix(in oklab, var(--primary) 70%, var(--foreground));
   --titlebar-h: 52px;
   --statusbar-h: 30px;
   --banner-h: auto;
@@ -397,7 +402,7 @@ body.resizing { cursor: col-resize; user-select: none }
 /* ⚠ Las medidas de un control son su caja ENTERA: sin esto, un campo de 32 con su borde medía 34 en
    una herramienta y 32 en otra, según si esa herramienta fijaba `box-sizing` por su cuenta. */
 :where(.btn, .input, .input-group, .select, .badge, .kbd, .toggle, .switch, .checkbox, .region-action,
-  .region-menu, .region-menu-item, .row, .tabs, .tab, .statusbar, .region-head, .table th, .table td,
+  .region-menu, .region-menu-item, .row, .tabs, .tab, .tab-close, .statusbar, .region-head, .table th, .table td,
   .alert, .empty-media, .subband, .split-side) { box-sizing: border-box }
 
 /* ── BOTÓN ──────────────────────────────────────────────────────────────────────────────────────
@@ -410,10 +415,10 @@ body.resizing { cursor: col-resize; user-select: none }
   height: var(--control-md); min-width: var(--control-md); padding: 0 var(--space-3);
   border-radius: var(--radius-control);
   font: inherit; font-size: var(--text-base); font-weight: 500; line-height: 20px;
-  background: var(--primary); color: var(--primary-foreground);
+  background: var(--primary-ink); color: var(--primary-foreground);
   cursor: pointer; transition: background .12s, color .12s, border-color .12s, box-shadow .12s;
 }
-.btn:hover { background: color-mix(in oklab, var(--primary) 90%, transparent) }
+.btn:hover { background: color-mix(in oklab, var(--primary-ink) 90%, transparent) }
 .btn:disabled, .btn[aria-disabled="true"] { pointer-events: none; opacity: .5 }
 
 .btn-secondary { background: var(--secondary); color: var(--secondary-foreground) }
@@ -431,7 +436,7 @@ body.resizing { cursor: col-resize; user-select: none }
 .btn-destructive:hover { background: color-mix(in oklab, var(--destructive) 90%, transparent) }
 .btn-destructive:focus-visible { box-shadow: 0 0 0 3px color-mix(in oklab, var(--destructive) 40%, transparent) }
 /* El de enlace no es un botón disfrazado de texto: es texto que se comporta como enlace. */
-.btn-link { height: auto; padding: 0; background: none; border: 0; color: var(--primary);
+.btn-link { height: auto; padding: 0; background: none; border: 0; color: var(--primary-ink);
   text-underline-offset: 4px }
 .btn-link:hover { background: none; text-decoration: underline }
 
@@ -486,7 +491,7 @@ textarea.input { height: auto; min-height: 80px; padding: var(--space-2) var(--g
   width: fit-content; flex-shrink: 0; overflow: hidden; white-space: nowrap;
   height: 20px; padding: 0 var(--space-2); border: 1px solid transparent; border-radius: 999px;
   font-size: var(--text-xs); font-weight: 500; line-height: 16px;
-  background: var(--primary); color: var(--primary-foreground);
+  background: var(--primary-ink); color: var(--primary-foreground);
   transition: color .12s, box-shadow .12s;
 }
 .badge-secondary { background: var(--secondary); color: var(--secondary-foreground) }
@@ -789,7 +794,7 @@ textarea.input { height: auto; min-height: 80px; padding: var(--space-2) var(--g
 
 /* El contador de una banda o una vista. Con un filtro puesto se delata: «9 / 16» en el color de acción. */
 .count { flex: none; font-size: var(--text-xs); font-weight: 400; color: var(--fg-3); font-variant-numeric: tabular-nums }
-.count.filtered { color: var(--primary); font-weight: 600 }
+.count.filtered { color: var(--primary-ink); font-weight: 600 }
 
 /* La tabla: una línea por fila y ninguna grilla; los números a la derecha. */
 .table { width: 100%; border-collapse: collapse; font-size: var(--text-base) }
@@ -806,6 +811,9 @@ textarea.input { height: auto; min-height: 80px; padding: var(--space-2) var(--g
 .row:hover { background: var(--hover) }
 .row.on, .row[aria-selected="true"] { background: var(--accent); color: var(--accent-foreground); box-shadow: inset 2px 0 0 var(--primary) }
 .row-meta { flex: none; margin-left: auto; font-size: var(--text-xs); color: var(--fg-3); font-variant-numeric: tabular-nums }
+/* Sobre la superficie de la fila elegida, --fg-3 queda en 3,48:1 (lo midió el contraste del tablero):
+   el dato toma la tinta del acento. */
+.row.on .row-meta, .row[aria-selected="true"] .row-meta { color: var(--accent-foreground) }
 .row[data-level="1"] { padding-left: calc(var(--space-2) + var(--indent)) }
 .row[data-level="2"] { padding-left: calc(var(--space-2) + 2 * var(--indent)) }
 
@@ -823,6 +831,18 @@ textarea.input { height: auto; min-height: 80px; padding: var(--space-2) var(--g
   color: var(--fg-3); font: inherit; font-size: var(--text-sm); font-weight: 400; white-space: nowrap; cursor: pointer }
 .tab:hover { color: var(--foreground) }
 .tab.on, .tab[aria-selected="true"] { background: var(--region-bg, var(--background)); color: var(--foreground) }
+.tab.preview .tab-label { font-style: italic }
+/* Una pestaña que se cierra: el rótulo es su propio botón y la ✕ es un botón de 20 que aparece al pasar
+   o en la activa. El ancho no cambia: la ✕ ocupa su lugar siempre. */
+.tab:has(.tab-close) { padding-right: var(--space-1) }
+.tab-label { display: inline-flex; align-items: center; gap: var(--space-2); min-width: 0; max-width: 200px; height: 100%;
+  padding: 0; border: 0; background: none; color: inherit; font: inherit; cursor: pointer }
+.tab-label > span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap }
+.tab-close { display: grid; place-items: center; flex: none; width: 20px; height: 20px; padding: 0; border: 0;
+  border-radius: var(--radius-control); background: none; color: var(--fg-3); cursor: pointer; visibility: hidden }
+.tab-close .ui-icon { width: 14px; height: 14px }
+.tab:hover .tab-close, .tab.on .tab-close, .tab[aria-selected="true"] .tab-close, .tab-close:focus-visible { visibility: visible }
+.tab-close:hover { background: var(--hover); color: var(--foreground) }
 .tab.on::after, .tab[aria-selected="true"]::after { content: ""; position: absolute; left: var(--space-2); right: var(--space-2);
   bottom: -1px; height: 2px; border-radius: 2px 2px 0 0; background: var(--primary) }
 
@@ -857,7 +877,10 @@ textarea.input { height: auto; min-height: 80px; padding: var(--space-2) var(--g
    editor, y por eso es temporal: no se guarda, y se deshace con el mismo botón o con Escape
    (`bindPanelMaximize`). Su manija, marcada `data-rsz="panel"`, no aparece mientras tanto. */
 .workbench.panel-max > .editor { display: none }
-.workbench.panel-max > .panel { grid-row: editor-start / panel-end; height: auto }
+/* ⚠ `!important` a propósito: la herramienta suele fijar el alto de la consola en línea (lo que arrastró
+   la persona), y maximizar tiene que ganarle sin tocar esa medida, que es la que vuelve al restaurar.
+   Y va por encima de lo que tape (el sidebar secundario, si la consola cruza su columna). */
+.workbench.panel-max > .panel { grid-row: editor-start / panel-end; height: auto !important; z-index: 2 }
 .workbench.panel-max [data-rsz="panel"] { display: none }
 
 /* DOS PANELES lado a lado dentro del editor, para comparar. Cada uno lleva su banda de 40, así la

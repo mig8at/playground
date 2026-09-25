@@ -45,6 +45,7 @@ Además de su banda y su cuerpo, una región puede llevar tres cosas, siempre en
 | Acciones de fila | `row` › `row-actions` | sí | en listas | sí | en su sidebar interno | botones 24 · dos |
 | Barra de iconos y menú | `region-actions` · `RegionMenu` | sí | sí | sí | sí | botones 24 |
 
+- **Una pestaña que se cierra** lleva su rótulo como botón (`.tab-label`) y una ✕ de 20 (`.tab-close`) que aparece al pasar o en la activa y ocupa su lugar siempre. La que se reemplaza al elegir otra va en itálica (`.tab.preview`).
 - **Las pestañas son la banda.** No se agrega una banda arriba: las acciones de la región van al borde derecho de la misma barra (`.tabs > .region-actions`). La activa toma el fondo del cuerpo de su región; una pestaña puede llevar su `.count`.
 - **La subbanda dice qué se está viendo.** Existe sólo si el cuerpo cambia según lo elegido. Si hay un filtro puesto, su contador lo delata ahí (`.count.filtered`).
 - **El sidebar interno va a la derecha y se pliega solo.** Mide 240 (`--split-side-w`). Si la región no le deja 360 al contenido, desaparece con una consulta de contenedor, sin JavaScript. Lo que muestra también tiene que poder elegirse de otra forma, porque en una consola angosta no está.
@@ -171,6 +172,7 @@ Un solo juego, el de `workbench.css` (`.ui-icon[data-icon]`): glifos dibujados e
 - La fila elegida lleva un fondo suave y una barra de 2 px a la izquierda en el color de acción.
 - La sombra es sólo para lo que flota.
 - Un color es un token: el tema da los colores y la hoja de cada herramienta, los de sus estados. Un color escrito a mano no sobrevive a un cambio de tema.
+- El primario que lleva **texto** —un enlace, el botón principal, el contador filtrado— es `--primary-ink`: el primario del tema mezclado con un 30 % de la tinta. El primario en claro de Darkmatter no llega a 4,5:1 ni como texto sobre blanco ni con texto blanco encima; `--primary-ink` pasa en los dos temas y, como es una derivación, en cualquier tema que se pegue. El primario solo queda para lo que no es texto: una línea, una barra, un punto.
 
 ## Comportamiento
 
@@ -269,5 +271,5 @@ Se edita acá y se reparte con `make estilo-sync`: cada herramienta tiene su cop
 | `make estilo-check` | Que las copias sean iguales a la fuente, los tokens, el contraste estático y la estructura |
 | `make estilo-componentes` | Que cada componente pinte la medida exacta de `spec.json` (sin herramientas encendidas) |
 | `make estilo-minimo` | Mínimo o nada: la lógica sin navegador y, con las herramientas encendidas, cuatro anchos de ventana y cada paso del teclado |
-| `make estilo-contraste` | El contraste de lo que se pinta, con las herramientas encendidas |
+| `make estilo-contraste` | El contraste de lo que se pinta, con las herramientas encendidas. `THEME=light` o `THEME=dark` fija el tema de las que tienen botón: una herramienta con botón de tema tiene que pasar en los dos |
 | `make estilo-ui` | Teclado, arrastre, persistencia, menús y tres anchos de ventana, con las herramientas encendidas (`SOLO=` elige cuáles) |

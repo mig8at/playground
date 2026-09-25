@@ -233,8 +233,8 @@ estilo-check: ## @dia ¿las cuatro UIs comparten de verdad UN tema? md5 de los `
 	@python3 tools/ui-sync.py --check
 	@python3 tools/style.py
 
-estilo-contraste: ## @dia mide el contraste de lo que SE PINTA en las cuatro UIs (lo que `estilo-check` no puede ver: el color viene de un ancestro y el fondo de otro). Necesita las UIs CORRIENDO. SOLO=<herramienta>
-	@node tools/contrast.mjs
+estilo-contraste: ## @dia mide el contraste de lo que SE PINTA en las cuatro UIs (lo que `estilo-check` no puede ver: el color viene de un ancestro y el fondo de otro). Necesita las UIs CORRIENDO. SOLO=<herramienta> · THEME=light|dark fija el tema de las que tienen botón
+	@THEME="$(THEME)" SOLO="$(SOLO)" node tools/contrast.mjs
 
 estilo-tema: ## @dia cambia el tema de LAS CUATRO UIs de un saque: pegás un export de tweakcn en un archivo y esto lo reparte. DE=<archivo.css> (sin DE, sólo dice cuál está puesto)
 	@python3 tools/style.py --tema $(if $(DE),$(DE))
