@@ -88,6 +88,36 @@ export function docGenLocal(): { microservicio: string[]; blade: string[]; leido
     }
 }
 
+/** El proyecto del pdf-mapper que el arnés le pone a las entidades que no tienen uno. El mock lo acepta
+ *  cualquiera (`/api/projects/{slug}/…`), y es el mismo que ya tenía CrediPullman en la base local. */
+export const MOCK_DOC_SLUG = 'harness-local';
+
+/**
+ * CON LOS PDF POR EL MOCK, TODA ENTIDAD NECESITA UN PROYECTO DEL PDF-MAPPER, y eso se cablea acá.
+ *
+ * El backend arma la ruta del microservicio con `lenders.pdf_mapper_project_slug`
+ * (`EloquentLenderProjectSlugResolver`), y sin él tira `LenderDocumentSettingsMissingException` ANTES de
+ * llamar al mock: `sign-documents` da 500 y la corrida se corta en la firma. En la base local sólo
+ * CrediPullman lo tenía, puesto a mano, y por eso era la única entidad que cerraba. Medido el 2026-09-25
+ * con Compucredit por la tienda: pagó la cuota inicial y murió firmando.
+ *
+ * Sólo en local, sólo con algún `DOC_GEN_*=microservice`, y sólo a las entidades SIN proyecto: una que ya
+ * tiene uno no se toca. En producción ninguna lo tiene (los documentos van por las plantillas), así que
+ * esto no copia nada de allá: es lo que el mock necesita para contestar.
+ */
+export async function wireMockDocProjects(target: string): Promise<string | null> {
+    if (target !== 'local') return null;
+    const d = docGenLocal();
+    if (!d.leido || !d.microservicio.length) return null;
+    // Import dinámico: un import estático de `db.ts` resuelve el TARGET al cargar este módulo (F-187).
+    const { exec, isLocalDb } = await import('./db.ts');
+    if (!isLocalDb()) return null;
+    const r = await exec('UPDATE lenders SET pdf_mapper_project_slug = ? WHERE pdf_mapper_project_slug IS NULL', [MOCK_DOC_SLUG]);
+    return r.affectedRows
+        ? `PDF por el mock: ${r.affectedRows} entidad(es) sin proyecto del pdf-mapper quedaron en «${MOCK_DOC_SLUG}» (sin eso, la firma da 500)`
+        : null;
+}
+
 /** La línea de aviso, o `null` si no hay nada que advertir. La imprimen los runners en su cabecera. */
 export function docGenNotice(target: string): string | null {
     if (target !== 'local') return null;

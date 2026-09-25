@@ -30,7 +30,7 @@ Lo que frena hoy una compra por la tienda, medido ese día con varios comercios,
 |---|---|
 | una entidad que pide su propio OTP (Sistecrédito) | el wizard manda a `/ecommerce/…/validate-lender-otp`, que en `main` sólo está montada bajo `/merchant/…`: «Página no encontrada» |
 | el comercio «Creditop» (`bb534d6a`, `eeddcc1c`) | el backend lo lleva por el onboarding de Corbeta (sin personal-info) y la confirmación falla después |
-| una CreditopX sin `pdf_mapper_project_slug` en local | con los documentos por el microservicio, `sign-documents` da 500. En local sólo CrediPullman tiene el slug |
+| ~~una CreditopX sin `pdf_mapper_project_slug` en local~~ | **resuelto**: con los PDF por el mock, los runners le ponen `harness-local` a toda entidad sin proyecto (`wireMockDocProjects`, `pkg/config.ts`). Compucredit cerró en 11 con cuota inicial (467033) |
 
 ## Lo que sí se puede probar hoy
 

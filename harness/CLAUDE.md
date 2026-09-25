@@ -231,6 +231,17 @@ sin que nada avisara. El inyectado la recibe por un `addInitScript` aparte (`inj
 porque su guion se serializa y no puede importar; `pkg/date-trio.spec.ts` fija esa serialización
 evaluándola en un Chromium.
 
+### PDF por el mock: toda entidad necesita un proyecto del pdf-mapper, y los runners se lo ponen
+
+Con `DOC_GEN_*=microservice` en el `.env` del backend, los documentos los devuelve el mock del
+pdf-mapper (:8100) — pero el backend arma la ruta con `lenders.pdf_mapper_project_slug` y, sin él, tira
+`LenderDocumentSettingsMissingException` antes de llamarlo: `sign-documents` da 500. En la base local sólo
+CrediPullman lo tenía (puesto a mano), y por eso era la única CreditopX que cerraba. Desde el 2026-09-25
+**`wireMockDocProjects()` (`pkg/config.ts`) lo cablea**: el caminador, `case.ts` y el camino visual del
+panel le ponen `harness-local` a toda entidad sin proyecto, sólo en local y sólo con los PDF por el mock
+(la primera vez fueron 151). El mock acepta cualquier proyecto. En prod ninguna entidad lo tiene: no se
+copia nada de allá.
+
 ### S3 en local: MinIO, o los documentos no existen
 
 Sin esto, **cada subida de documento falla en silencio** y la URL que queda en la base da 404 (F-174).

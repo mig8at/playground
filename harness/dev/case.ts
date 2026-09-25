@@ -90,7 +90,8 @@ const { integrationWebhook, webhookSelfManager, WELLI_IDS, OLD_APP } =
     await import('../pkg/entity-webhook.ts');
 const { scalar, one, exec, close } = await import('../pkg/db.ts');
 const { synthFill, manualValidation } = await import('../pkg/inject.ts');
-const { config: e2eConfig } = await import('../pkg/config.ts');
+const e2eConfigMod = await import('../pkg/config.ts');
+const { config: e2eConfig } = e2eConfigMod;
 const { appKey } = await import('../pkg/db.ts');
 const { encryptLaravelString } = await import('../pkg/laravel-crypt.ts');
 const { forensicOnClose } = await import('../pkg/loki.ts');
@@ -1532,6 +1533,7 @@ async function main(): Promise<number> {
     // La línea base para conciliar al final: qué había en la base ANTES de que este runner tocara nada.
     // Son dos lecturas, así que pasan sin el permiso de escritura (que sólo cubre lo que escribe).
     const baseline = await dbBaseline();
+    { const wired = await e2eConfigMod.wireMockDocProjects((process.env.E2E_TARGET || 'local').toLowerCase()).catch((e: any) => `⚠ no pude cablear los proyectos del pdf-mapper: ${e?.message ?? e}`); if (wired) console.log(`  ${wired}\n`); }
     const missing = await preflightCheck(cases);
     if (missing.length) {
         console.log('  ⚠ PREVUELO — falta algo, y sin esto el resultado MIENTE:\n');
