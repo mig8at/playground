@@ -77,6 +77,7 @@
   --row-h: 28px;
   --gutter: var(--space-3); /* el margen del texto de una región */
   --indent: 16px;           /* un nivel de un árbol */
+  --split-side-w: 240px;    /* el sidebar interno de una región (la consola) */
   --text-xs: 11px;          /* pie, conteos, metadatos */
   --text-sm: 12px;          /* encabezados, rótulos, controles compactos */
   --text-base: 13px;        /* la interfaz: filas, campos, botones, menús */
@@ -397,7 +398,7 @@ body.redimensionando { cursor: col-resize; user-select: none }
    una herramienta y 32 en otra, según si esa herramienta fijaba `box-sizing` por su cuenta. */
 :where(.btn, .input, .input-group, .select, .badge, .kbd, .toggle, .switch, .checkbox, .region-action,
   .region-menu, .region-menu-item, .row, .tabs, .tab, .statusbar, .region-head, .table th, .table td,
-  .alert, .empty-media) { box-sizing: border-box }
+  .alert, .empty-media, .subband, .split-side) { box-sizing: border-box }
 
 /* ── BOTÓN ──────────────────────────────────────────────────────────────────────────────────────
    Base + seis variantes + cuatro tamaños, como el `cva` del original. El tamaño por defecto es
@@ -808,15 +809,47 @@ textarea.input { height: auto; min-height: 80px; padding: var(--space-2) var(--g
 
 /* Las pestañas: la barra ES la banda superior (40) y cada pestaña mide 36, apoyada en la línea. */
 .tabs { display: flex; flex: none; align-items: flex-end; gap: 2px; height: var(--region-head-h);
-  padding: var(--space-1) var(--space-1) 0; border-bottom: 1px solid var(--border); background: var(--sidebar);
+  padding: var(--space-1) var(--space-1) 0; border-bottom: 1px solid var(--border);
+  background: color-mix(in oklab, var(--foreground) 4%, var(--region-bg, var(--background)));
   overflow-x: auto; overflow-y: hidden; scrollbar-width: thin }
+/* Las acciones de la región van al borde derecho de la misma banda, centradas: la barra de pestañas
+   ES la banda superior, no se le agrega otra. */
+.tabs > .region-actions { margin-left: auto; align-self: center; padding: 0 var(--space-1) var(--space-1) 0 }
+.tab .count { margin-left: 2px }
 .tab { position: relative; display: inline-flex; align-items: center; gap: var(--space-2); flex: none; height: 36px;
   padding: 0 var(--gutter); border: 0; border-radius: var(--radius-control) var(--radius-control) 0 0; background: none;
   color: var(--texto-3); font: inherit; font-size: var(--text-sm); font-weight: 400; white-space: nowrap; cursor: pointer }
 .tab:hover { color: var(--foreground) }
-.tab.on, .tab[aria-selected="true"] { background: var(--background); color: var(--foreground) }
+.tab.on, .tab[aria-selected="true"] { background: var(--region-bg, var(--background)); color: var(--foreground) }
 .tab.on::after, .tab[aria-selected="true"]::after { content: ""; position: absolute; left: var(--space-2); right: var(--space-2);
   bottom: -1px; height: 2px; border-radius: 2px 2px 0 0; background: var(--primary) }
+
+/* ── OPCIONES DE UNA REGIÓN ───────────────────────────────────────────────────────────────────────
+   Además de banda + cuerpo, una región puede llevar tres cosas, cada una con una sola forma:
+
+     pestañas        la banda ES una barra de pestañas (editor, secundario, consola)
+     subbanda        32 debajo de la banda: qué muestra el cuerpo, su leyenda o su filtro
+     sidebar interno una lista al costado del contenido, a la derecha (la consola)
+
+   El sidebar interno mide 240 y, si la región no le deja 360 al contenido, se pliega solo: es
+   «mínimo o nada» con una consulta de contenedor, sin JavaScript. */
+.subband { display: flex; flex: none; align-items: center; gap: var(--space-2); box-sizing: border-box;
+  height: var(--view-head-h); padding: 0 var(--gutter); border-bottom: 1px solid var(--border);
+  font-size: var(--text-sm); color: var(--texto-2); white-space: nowrap; overflow: hidden }
+.subband > .grow { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis }
+.subband strong { color: var(--foreground); font-weight: 600 }
+
+.split { display: flex; flex: 1; min-height: 0; min-width: 0; container-type: inline-size }
+.split-main { flex: 1; min-width: 0; min-height: 0; overflow: auto }
+.split-side { flex: none; box-sizing: border-box; width: var(--split-side-w); min-height: 0; overflow: auto;
+  border-left: 1px solid var(--border); background: var(--sidebar); --region-bg: var(--sidebar) }
+@container (max-width: 600px) { .split-side { display: none } }
+
+/* Una línea de log: mono de 12 sobre 20, la hora aparte y apagada. Las líneas no llevan separador:
+   las separa el interlineado. */
+.log-line { display: flex; gap: var(--space-3); padding: 0 var(--gutter); font-family: var(--font-mono);
+  font-size: var(--text-sm); line-height: 20px; color: var(--texto-2); white-space: pre-wrap; overflow-wrap: anywhere }
+.log-time { flex: none; font-size: var(--text-xs); color: var(--texto-3); font-variant-numeric: tabular-nums }
 
 /* ── UN CONTROL DENTRO DE UNA BANDA ───────────────────────────────────────────────────────────────
    La banda superior mide 40 con su línea: 4 de aire, un control de 28 y 4 de aire. Un control de 32

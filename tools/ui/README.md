@@ -30,6 +30,37 @@ Adentro de cada región:
 
 No hay titlebar, banner ni activitybar. Una barra a lo ancho le cobra su alto a todas las regiones: lo que tendría va a la banda de la región de la que habla, y el nombre de la herramienta ya lo dice la pestaña del navegador. Un aviso va junto a la operación que avisa.
 
+## Opciones de una región
+
+Además de su banda y su cuerpo, una región puede llevar tres cosas, siempre en este orden de arriba abajo: la banda (con título o con pestañas), una subbanda y el cuerpo, con un sidebar interno a la derecha si hace falta. **Una de cada una, como máximo.**
+
+| Opción | Clase | Sidebar | Editor | Secundario | Consola | Medida |
+| --- | --- | --- | --- | --- | --- | --- |
+| Pestañas en la banda | `tabs` › `tab` | no: son vistas | documentos abiertos | caras de lo elegido | canales de salida | banda 40 · pestaña 36 |
+| Vistas apiladas | `view` | listas distintas | no | grupos de propiedades | no | encabezado 32 |
+| Subbanda | `subband` | no | qué documento, su leyenda | no | qué corrida, su filtro | 32 |
+| Sidebar interno | `split` › `split-side` | no | no: es el secundario | no | qué repo, qué consulta | 240 · se pliega bajo 600 |
+| Barra de iconos y menú | `region-actions` · `RegionMenu` | sí | sí | sí | sí | botones 24 |
+
+- **Las pestañas son la banda.** No se agrega una banda arriba: las acciones de la región van al borde derecho de la misma barra (`.tabs > .region-actions`). La activa toma el fondo del cuerpo de su región; una pestaña puede llevar su `.count`.
+- **La subbanda dice qué se está viendo.** Existe sólo si el cuerpo cambia según lo elegido. Si hay un filtro puesto, su contador lo delata ahí (`.count.filtered`).
+- **El sidebar interno va a la derecha y se pliega solo.** Mide 240 (`--split-side-w`). Si la región no le deja 360 al contenido, desaparece con una consulta de contenedor, sin JavaScript. Lo que muestra también tiene que poder elegirse de otra forma, porque en una consola angosta no está.
+- **Una salida se escribe en líneas de log** (`.log-line` y `.log-time`): mono de 12 sobre 20, la hora aparte y apagada, sin separadores entre líneas.
+
+```html
+<section class="panel">
+  <nav class="tabs">
+    <button class="tab on">Corrida</button><button class="tab">SSR <span class="count">3</span></button>
+    <div class="region-actions">…</div>
+  </nav>
+  <div class="subband"><span class="grow"><strong>Solicitud 519245</strong> · local</span><span class="count filtered">9 / 16</span></div>
+  <div class="split">
+    <div class="split-main"><div class="log-line"><span class="log-time">12:41:03</span><span>identidad · validada</span></div></div>
+    <aside class="split-side"><div class="region-head grupo"><span>Consultas guardadas</span></div>…</aside>
+  </div>
+</section>
+```
+
 ## Medidas
 
 Una grilla de 4 y cuatro alturas que se repiten en todas las regiones, para que las líneas de una columna sigan en la de al lado:
