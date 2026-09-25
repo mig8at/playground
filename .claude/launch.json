@@ -100,12 +100,18 @@
     },
     {
       "name": "canon",
-      "runtimeExecutable": "/Users/miguelochoa/Desktop/CREDITOP/github/playground/tools/canon/dev/servir-local.sh",
+      "runtimeExecutable": "sh",
       "runtimeArgs": [
-        "8383"
+        "-c",
+        "cd /Users/miguelochoa/Desktop/CREDITOP/github/playground/tools/canon && npm run build -- --outDir public --emptyOutDir false && exec go run ."
       ],
       "port": 8383,
-      "autoPort": false
+      "autoPort": false,
+      "env": {
+        "PORT": "8383",
+        "CANON_LOCAL": "1",
+        "CANON_REPOS": "/Users/miguelochoa/Desktop/CREDITOP/github"
+      }
     },
     {
       "name": "wizard-local",
