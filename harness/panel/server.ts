@@ -48,7 +48,27 @@ function envFor(target: string): NodeJS.ProcessEnv {
 }
 
 // una sola corrida a la vez (un browser headed a la vez).
-let current: { child: ReturnType<typeof spawn>; slug: string; target: string; inject: boolean; canal: string; startedAt: number; finishedAt?: number; done: boolean; code: number | null } | null = null;
+let current: { child: ReturnType<typeof spawn>; slug: string; target: string; inject: boolean; canal: string; startedAt: number; finishedAt?: number; done: boolean; code: number | null;
+    // La categoría que el motor REGISTRÓ en cada entidad (`users_category_log`), leída al cerrar. Es la vara de
+    // la predicción del panel: si no coinciden, la réplica del simulador o una siembra pisada lo explican.
+    categories?: { lenderId: number; lender: string; category: string | null }[] | null;
+    // Lo que el motor LEYÓ del usuario (el solicitante que el backend deriva de los datos guardados).
+    categoryRead?: Record<string, unknown> | null } | null = null;
+
+/** Corre `bin/category.ts` contra LOCAL y devuelve su JSON. El simulador vive en el contenedor del backend. */
+function runCategory(args: string[], input = ''): Promise<any> {
+    return new Promise((ok) => {
+        const child = spawn('node', ['bin/category.ts', ...args], { cwd: ROOT, env: envFor('local') });
+        let out = '';
+        const timer = setTimeout(() => child.kill('SIGKILL'), 60000);
+        child.stdout.on('data', (b: Buffer) => { out += b.toString(); });
+        child.on('close', () => {
+            clearTimeout(timer);
+            try { ok(JSON.parse(out.trim().split('\n').pop() || '{}')); } catch { ok({ error: out.slice(0, 300) || 'bin/category.ts no contestó' }); }
+        });
+        child.stdin.end(input);
+    });
+}
 
 // ── BITÁCORA DE LA CORRIDA ───────────────────────────────────────────────────────────────────────
 // Al CERRAR la corrida se hace UNA consulta `dbops activity` (ventana = duración) y se vuelca acá: a la
@@ -518,7 +538,7 @@ function slugFor(nameValue: string, hash: string, flows: any): string {
 
 // lanza `bin/advisor <slug>` en MODO MANUAL (sin `auto` → no auto-rellena; vos manejás desde monto) con
 // E2E_INJECT=1 (inyecta el buró invisible al llegar a personal-info) + el perfil por env, contra el target.
-interface Profile { income?: number; score?: number; name?: string; documentType?: string; document?: string; gender?: string; age?: number; negatives?: number; consulted?: number; occupation?: string; dob?: string; expeditionDate?: string; email?: string; }
+interface Profile { income?: number; score?: number; name?: string; documentType?: string; document?: string; gender?: string; age?: number; negatives?: number; consulted?: number; delinquencies?: number; occupation?: string; dob?: string; expeditionDate?: string; email?: string; }
 
 // RASTRO de la corrida: vuelca TODO lo que elegiste en el panel al log, para que quede registro de con qué
 // configuración corriste (antes solo salía el perfil, como un JSON crudo, y los selects de pre-aprobación y
@@ -569,7 +589,7 @@ async function runHeader(slug: string, p: Profile, t: string, inject: boolean, s
             + `\n${' '.repeat(16)}  este ambiente contesta el lambda de mocks y para una cédula sin dictar`
             + `\n${' '.repeat(16)}  devuelve «Desempleado · 0». El runner lo repone y lo avisa — y las`
             + `\n${' '.repeat(16)}  reglas duras evalúan esto, así que sin reponerlo el listado sale corto.`));
-        L.push(row('buró', p.documentType === 'PEP' ? 'sin buró (PEP)' : `score ${p.score ?? '-'} · negativos ${p.negatives ?? 0} · consultas ${p.consulted ?? 0}`));
+        L.push(row('buró', p.documentType === 'PEP' ? 'sin buró (PEP)' : `score ${p.score ?? '-'} · negativos ${p.negatives ?? 0} · mora ${p.delinquencies ?? p.negatives ?? 0} · consultas ${p.consulted ?? 0}`));
         if (p.email) L.push(row('email', p.email));
     }
     // Pre-aprobación por lender: lo que devolverá el mock. Los que no tocaste van 'aprobado' por defecto.
@@ -701,6 +721,7 @@ async function launch(slug: string, profile: Profile, target: string, inject: bo
         E2E_SYNTH_AGE: profile.age ? String(profile.age) : '',
         E2E_SYNTH_NEG: profile.negatives != null ? String(profile.negatives) : '',
         E2E_SYNTH_CONS: profile.consulted != null ? String(profile.consulted) : '',
+        E2E_SYNTH_MORA: profile.delinquencies != null ? String(profile.delinquencies) : '',
         E2E_SYNTH_OCC: profile.occupation || '',
         E2E_SYNTH_DOB: profile.dob || '',
         E2E_SYNTH_EXP: profile.expeditionDate || '',
@@ -773,6 +794,15 @@ async function launch(slug: string, profile: Profile, target: string, inject: bo
                 if (ureq) logbook.ecommerce = await dbopsJson(['ecommerce-vinculo', String(ureq)], current.target);
             }
             const info = dumpLogbook();
+            // La categoría que el motor registró en cada entidad, para ponerla al lado de la predicción del
+            // panel. Sólo local: es la misma base donde corre el simulador, y fuera de local no hay predicción.
+            if (current?.target === 'local' && logbook.user) {
+                const got = await runCategory(['actual', String(logbook.user)]);
+                current.categories = Array.isArray(got?.lenders) ? got.lenders : null;
+                current.categoryRead = got?.read ?? null;
+                for (const c of current.categories || [])
+                    append(Buffer.from(`  categoría registrada · ${c.lender}: ${c.category ?? 'ninguna'}\n`));
+            }
             // ¿la UI mostró algún banner de error durante la corrida? El spec los vuelca como "⚠ FALLO EN
             // PANTALLA …" (errorShot). Con el salto por `commit`, un error POSTERIOR no tumba la corrida
             // (queda "passed"), así que hay que CANTARLO en el cierre o pasa inadvertido.
@@ -1204,6 +1234,27 @@ const server = createServer(async (req, res) => {
         return json(res, 200, { hash, lenders: r, mockPA: await usesMockPA(target) });
     }
 
+    /* EN QUÉ CATEGORÍA CAE EL CASO en cada entidad CreditopX (rt=2) del comercio: Premium, Segunda
+     * oportunidad… La categoría es la primera cuyas reglas cumple el caso, en el orden de `priority`, y decide
+     * la cuota inicial, el plazo, el monto y el codeudor. Lo contesta el simulador del backend (el de la
+     * pantalla de reglas del backoffice), no una copia nuestra de las reglas: `bin/category.ts`.
+     * ⚠ SÓLO LOCAL: el simulador corre adentro del contenedor; en dev y staging su endpoint pide un token del
+     * pool staff de Cognito, que el harness no tiene. */
+    if (path === '/api/category-preview' && req.method === 'POST') {
+        const b = await readBody(req);
+        if (String(b.target || 'local') !== 'local')
+            return json(res, 200, { available: false, msg: 'La predicción de categoría es sólo local: en dev y staging el simulador pide un token de staff.' });
+        const hash = branchHashForSlug(String(b.slug || ''), 'local');
+        if (!hash) return json(res, 200, { available: false, msg: 'Este comercio no tiene sucursal en local.' });
+        const all = await dbopsJson(['lenders-for', hash], 'local');
+        const lenders = (Array.isArray(all) ? all : [])
+            .filter((l: any) => Number(l.rt) === 2 && Number(l.lender_status) === 1 && Number(l.branch_status) === 1)
+            .map((l: any) => ({ id: Number(l.id), name: String(l.name) }));
+        if (!lenders.length) return json(res, 200, { available: true, lenders: [], msg: 'Sin entidades CreditopX activas: las categorías son de esa familia.' });
+        const out = await runCategory(['predict'], JSON.stringify({ lenders, case: b.case || {} }));
+        return json(res, 200, out.error ? { available: false, msg: out.error } : { available: true, ...out });
+    }
+
     // QUÉ CANALES DE ENTRADA APLICAN a esta sucursal. El servidor decide la POLÍTICA y la UI sólo la
     // dibuja: si la UI re-derivara la regla, habría dos definiciones de "este comercio es Corbeta".
     //
@@ -1348,6 +1399,7 @@ const server = createServer(async (req, res) => {
             age: Number(b.age) || undefined,
             negatives: b.negatives !== undefined && b.negatives !== '' ? Number(b.negatives) : undefined,
             consulted: b.consulted !== undefined && b.consulted !== '' ? Number(b.consulted) : undefined,
+            delinquencies: b.delinquencies !== undefined && b.delinquencies !== '' ? Number(b.delinquencies) : undefined,
             occupation: b.occupation ? String(b.occupation) : undefined,
             dob: b.dob ? String(b.dob) : undefined,
             expeditionDate: b.expeditionDate ? String(b.expeditionDate) : undefined,
@@ -1436,6 +1488,8 @@ const server = createServer(async (req, res) => {
             startedAt: current?.startedAt ?? null,
             finishedAt: current?.finishedAt ?? null,
             code: current?.done ? current?.code : null,
+            categories: current?.done ? (current?.categories ?? null) : null,
+            categoryRead: current?.done ? (current?.categoryRead ?? null) : null,
         };
         // Con `?from=N` va incremental (el cliente appendea). Sin él, el log recortado de siempre —
         // así cualquier consumidor viejo sigue funcionando igual.

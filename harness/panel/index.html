@@ -298,6 +298,18 @@
       column-gap: var(--space-2); min-height: var(--row-h); padding: 0 var(--gutter) }
     .prop > .label { white-space: nowrap; overflow: hidden; text-overflow: ellipsis }
     .prop-value { display: flex; align-items: center; gap: var(--space-2); min-width: 0 }
+    /* La categoría por entidad: filas de dos renglones de la base; la categoría a la derecha del nombre. */
+    .category-preview { padding-bottom: var(--space-2) }
+    .category-preview[aria-busy="true"] { opacity: .6 }
+    .category-row { cursor: default }
+    .category-head { display: flex; align-items: baseline; gap: var(--space-2); min-width: 0 }
+    .category-head .row-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap }
+    .category-name { flex: none; font-weight: 600 }
+    .category-name.bad { color: var(--danger) }
+    .category-row .row-desc.warn { color: var(--warn) }
+    .category-row .row-desc.ok { color: var(--ok) }
+    .category-note { margin: 0; padding: var(--space-1) var(--gutter); font-size: var(--text-xs); color: var(--fg-2) }
+    .category-note.warn { color: var(--warn) }
     .prop-value > .mono { flex: 1; min-width: 0; font-family: var(--font-mono); font-size: var(--text-sm) }
     /* La pista del control ocupa la columna del control y un renglón; el texto entero va al tooltip. */
     .prop-hint { margin: 0; padding: 0 var(--gutter) var(--space-1) calc(var(--gutter) + var(--prop-label-w) + var(--space-2));
@@ -577,8 +589,19 @@
               <div class="prop"><label class="label" for="score">Score</label><input id="score" class="input input-xs" type="number" value="700" step="10" /></div>
               <div class="prop"><label class="label" for="negatives">Negativos 12m</label><input id="negatives" class="input input-xs" type="number" value="0" step="1" min="0" /></div>
               <div class="prop"><label class="label" for="consulted">Consultas 6m</label><input id="consulted" class="input input-xs" type="number" value="1" step="1" min="0" /></div>
+              <!-- La mora ACTUAL (`currentNegativeCredits`), la que mira el criterio de moras vigentes de cada
+                   categoría. Vacía sigue igual a los negativos, que es lo que la inyección hizo siempre. -->
+              <div class="prop"><label class="label" for="delinquencies">Moras actuales</label><input id="delinquencies" class="input input-xs" type="number" step="1" min="0" placeholder="igual a negativos" /></div>
             </fieldset>
           </fieldset>
+
+          <!-- EN QUÉ CATEGORÍA CAE el caso en cada entidad CreditopX del comercio, con los datos de arriba. La
+               categoría es la primera cuyas reglas cumple, en orden (Premium, Recuperar mejores, Segunda
+               oportunidad…), y decide la cuota inicial, el plazo, el monto y el codeudor. La contesta el
+               simulador del backend, no una copia de las reglas; al terminar una corrida se pone al lado la
+               que el motor REGISTRÓ, que es la vara de la predicción. Sólo local. -->
+          <div class="region-head group"><span>Categoría por entidad</span><span class="count" id="categoryCount"></span></div>
+          <div id="categoryPreview" class="category-preview" aria-live="polite"></div>
 
           <!-- La demora dejó de ser una sección: subió a la banda (es de la CORRIDA). Este bloque se queda
                oculto porque el reloj de la banda lo clickea, y así `applyMockPAGate()` y `setSeg` siguen
@@ -2429,7 +2452,100 @@
     // El resumen de Identidad existía porque el grupo estaba PLEGADO: decía lo elegido sin abrirlo.
     // Con los ocho campos a la vista no hay nada que resumir — se ven.
     function updateIdSum() { }
-    const refresh = () => { updateGo(); updateIdSum(); };
+    // ── CATEGORÍA POR ENTIDAD ─────────────────────────────────────────────────────────────────────
+    // La predicción se pide al servidor del panel, que corre el simulador del backend (bin/category.ts). Se
+    // recalcula al cambiar cualquier perilla que la mueve, con un respiro de 350 ms para no pedir una por
+    // tecla, y una respuesta que llega después de otra pedida más tarde se descarta.
+    let categoryPrediction = null;     // la última respuesta del servidor
+    let categoriesAtLaunch = null;     // la que había al lanzar
+    let categoryActual = null;         // lo que registró el motor en la última corrida
+    let categoryRead = null;           // lo que el motor LEYÓ del usuario en esa corrida
+    // Los datos que mueven la categoría, con el nombre de su perilla (o de lo que fija la inyección).
+    const CATEGORY_INPUTS = { score: 'score', negativeReports12m: 'negativos 12m', currentDelinquencies: 'moras actuales',
+      inquiries6m: 'consultas 6m', activeCreditCards: 'tarjetas activas', occupation: 'ocupación', income: 'ingreso',
+      age: 'edad', gender: 'género', employmentContinuity: 'continuidad (meses)', financialSectorMonths: 'antigüedad en el sector (meses)' };
+    let categoryTimer = null, categorySeq = 0;
+    function categoryCase() {
+      return {
+        age: +$('age').value || undefined, gender, occupation: $('occupation').value, income: moneyNum('income'),
+        score: +$('score').value, negatives: +$('negatives').value, consulted: +$('consulted').value,
+        delinquencies: $('delinquencies').value === '' ? undefined : +$('delinquencies').value, documentType: doctype,
+      };
+    }
+    function scheduleCategories() {
+      clearTimeout(categoryTimer);
+      categoryTimer = setTimeout(refreshCategories, 350);
+    }
+    async function refreshCategories() {
+      const box = $('categoryPreview'); if (!box || !sel) return;
+      const seq = ++categorySeq;
+      if (target !== 'local') { categoryPrediction = null; return renderCategories('La predicción de categoría es sólo local: en dev y staging el simulador del backend pide un token de staff.'); }
+      if (!inject) { categoryPrediction = null; return renderCategories('Sin inyección el buró lo contesta el mock de centrales, no estas perillas: la predicción no aplica.'); }
+      box.setAttribute('aria-busy', 'true');
+      try {
+        const r = await (await fetch('/api/category-preview', { method: 'POST', headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({ slug: sel.slug, target, case: categoryCase() }) })).json();
+        if (seq !== categorySeq) return;
+        categoryPrediction = r.available ? r : null;
+        renderCategories(r.available ? (r.msg || '') : (r.msg || 'No se pudo simular.'));
+      } catch (e) {
+        if (seq === categorySeq) { categoryPrediction = null; renderCategories('No se pudo hablar con el panel para simular la categoría.'); }
+      } finally { if (seq === categorySeq) box.removeAttribute('aria-busy'); }
+    }
+    // Una fila por entidad: dónde cae, con qué condiciones, qué la bajó de las de arriba y —después de una
+    // corrida— dónde cayó de verdad. Se escribe con textContent: los nombres vienen de la base.
+    function renderCategories(note) {
+      const box = $('categoryPreview'); if (!box) return;
+      box.replaceChildren();
+      const lenders = categoryPrediction?.lenders || [];
+      $('categoryCount').textContent = lenders.length ? String(lenders.length) : '';
+      if (note) { const p = document.createElement('p'); p.className = 'category-note'; p.textContent = note; box.appendChild(p); }
+      // Si el motor leyó otros datos que los del caso, eso explica una predicción que no acertó: casi siempre
+      // el buró que contestó el mock de centrales pisó el inyectado, o Agildata devolvió otra ocupación.
+      const sent = categoriesAtLaunch?.applicant;
+      if (categoryActual && categoryRead && sent) {
+        const diffs = Object.entries(CATEGORY_INPUTS)
+          .filter(([k]) => sent[k] !== undefined && categoryRead[k] !== undefined && String(sent[k]) !== String(categoryRead[k]))
+          .map(([k, label]) => `${label} ${categoryRead[k]} (el caso decía ${sent[k]})`);
+        if (diffs.length) {
+          const p = document.createElement('p'); p.className = 'category-note warn';
+          p.textContent = `En la corrida el motor leyó otros datos: ${diffs.join(' · ')}.`;
+          box.appendChild(p);
+        }
+      }
+      const launched = new Map((categoriesAtLaunch?.lenders || []).map((l) => [l.id, l.category ?? null]));
+      const actual = new Map((categoryActual || []).map((c) => [c.lenderId, c.category ?? null]));
+      for (const l of lenders) {
+        const row = document.createElement('div'); row.className = 'row stacked category-row';
+        const head = document.createElement('span'); head.className = 'category-head';
+        const name = document.createElement('span'); name.className = 'row-name'; name.textContent = l.name;
+        const cat = document.createElement('span'); cat.className = 'category-name';
+        cat.textContent = l.verdict === 'approved' ? l.category : l.verdict === 'rejected' ? 'no aparece'
+          : l.verdict === 'no_profile' ? 'sin categoría' : l.verdict === 'no_rules' ? 'por puntaje' : 'error';
+        if (l.verdict === 'rejected' || l.verdict === 'no_profile' || l.verdict === 'error') cat.classList.add('bad');
+        head.append(name, cat); row.appendChild(head);
+        const line = (text, cls = '') => { if (!text) return; const d = document.createElement('span'); d.className = 'row-desc' + (cls ? ' ' + cls : ''); d.textContent = text; d.title = text; row.appendChild(d); };
+        const c = l.conditions;
+        if (l.verdict === 'approved' && c)
+          line(`${c.minInitialFee ?? 0} % de cuota inicial · hasta ${c.maxFeeNumber ?? '–'} cuotas · hasta $${fmt(c.maxAmount ?? 0)}${l.requiresCosigner ? ' · con codeudor' : ''}`);
+        if (l.verdict === 'rejected') line(`política dura: ${l.policyFailed.join(' · ')}`);
+        if (l.verdict === 'error') line(l.error);
+        if (l.verdict === 'no_rules') line('sin categorías por reglas: la decide el puntaje, que el simulador no evalúa');
+        if (l.above?.length) line(`${l.verdict === 'approved' ? 'no llegó a' : 'no cumple'} ${l.above.map((a) => `${a.name} (${a.failed.join(', ') || 'sin dato'})`).join(' · ')}`);
+        if (!l.complete && l.notSimulated?.length) line(`sin simular: ${l.notSimulated.join(', ')}`, 'warn');
+        // La corrida: lo que registró el motor, al lado de lo que se predijo AL LANZAR.
+        if (categoryActual) {
+          const got = actual.has(l.id) ? actual.get(l.id) : undefined;
+          const predicted = launched.has(l.id) ? launched.get(l.id) : undefined;
+          if (got === undefined) line('corrida: el motor no evaluó esta entidad');
+          else line(`corrida: ${got ?? 'ninguna'}${predicted !== undefined && predicted !== got ? ` · se había predicho ${predicted ?? 'ninguna'}` : ''}`,
+            predicted !== undefined && predicted !== got ? 'warn' : 'ok');
+        }
+        box.appendChild(row);
+      }
+    }
+
+    const refresh = () => { updateGo(); updateIdSum(); scheduleCategories(); };
 
     async function launch() {
       if (!sel) return;
@@ -2453,7 +2569,11 @@
         email: $('email').value.trim(), occupation: $('occupation').value,
         income: moneyNum('income'),
         score: +$('score').value, negatives: +$('negatives').value, consulted: +$('consulted').value,
+        delinquencies: $('delinquencies').value === '' ? undefined : +$('delinquencies').value,
       };
+      // La predicción con la que se lanzó: al terminar se compara con lo que el motor registró. Lo de la
+      // corrida anterior se borra: si no, quedaría al lado de una predicción que ya no le corresponde.
+      categoriesAtLaunch = categoryPrediction; categoryActual = null; categoryRead = null; renderCategories('');
       // Sin sesión en el target (canal asesor): loguear ACÁ, con el botón como loader, y recién lanzar.
       // 'unreachable' no se intenta (el front del target no responde; la corrida loguea en el flujo).
       if (channel === 'asesor' && ['invalid', 'missing', 'unknown'].includes(sessionState[target] || 'unknown')) {
@@ -2695,6 +2815,8 @@
           setRunningUI(false);
           setGoLabel('Preparar + Lanzar'); updateGo();          $('stopBtn').classList.remove('on'); $('runDot').className = 'run-dot';
           loadStatus();   // terminó una corrida → refrescar el veredicto
+          // Lo que el motor registró en cada entidad, al lado de la predicción con la que se lanzó.
+          if (Array.isArray(j.categories)) { categoryActual = j.categories; categoryRead = j.categoryRead || null; renderCategories(''); }
           checkSession(target, true);   // la corrida pudo renovar (o quemar) la sesión → re-verificar el dot
           clearInterval(poll); poll = null;
         }
@@ -3038,8 +3160,11 @@
       applyChannel();
     }
 
-    ['name', 'document', 'age', 'dob', 'expedition', 'email', 'occupation', 'score', 'negatives', 'consulted']
+    ['name', 'document', 'age', 'dob', 'expedition', 'email', 'occupation', 'score', 'negatives', 'consulted', 'delinquencies']
       .forEach(id => $(id).addEventListener('input', refresh));
+    // El ingreso tiene su propio formateo (`onMoney`) y el ambiente y el buró cambian si la predicción aplica.
+    $('income').addEventListener('input', scheduleCategories);
+    document.querySelectorAll('#targets .toggle, #injectOptions button').forEach((b) => b.addEventListener('click', scheduleCategories));
     $('go').onclick = launch;    $('stopBtn').onclick = stop;
     // (el botón «Ver consola ↓» vivía en la tarjeta de actividad, que ya no existe: la consola
     //  es una zona fija del layout y siempre está a la vista)
@@ -3910,7 +4035,7 @@ export function bindMenu(trigger, { getItems, onSelect, label = 'Más opciones' 
       const FIELD_PREFS = {
         amount: 'harness.amount', income: 'harness.income', occupation: 'harness.occupation',
         age: 'harness.age', dob: 'harness.dob', expedition: 'harness.expedition',
-        score: 'harness.score', negatives: 'harness.negatives', consulted: 'harness.consulted',
+        score: 'harness.score', negatives: 'harness.negatives', consulted: 'harness.consulted', delinquencies: 'harness.delinquencies',
       };
       for (const [id, key] of Object.entries(FIELD_PREFS)) {
         const field = byId(id);

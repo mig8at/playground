@@ -26,17 +26,23 @@ export interface SynthFillResult {
 
 const firstPipe = (s: string): string => (s.includes('|') ? s.slice(0, s.indexOf('|')) : s);
 
+// El inicio de la historia en el sector financiero que lleva el reporte inyectado. Lo usan el reporte y la
+// traducción al simulador (`categoryApplicant`): una sola fuente, así la predicción no se aparta de lo inyectado.
+const MATURATION_SINCE = '2015-01-01';
+
 // datacreditoData: perfil que LenderUserCategoryService lee de `$user->datacredito->data`. Por defecto LIMPIO
 // (0 negativos, 1 consulta, 1 TC activa con vector OK, deuda baja); negatives/consulted son configurables (panel).
-function datacreditoData(negatives = 0, consulted = 1): Record<string, unknown> {
+// `delinquencies` es la mora ACTUAL (`currentNegativeCredits`, la que mira el criterio de moras vigentes). Sin
+// dato sigue igual a los negativos, que es lo que hacía siempre: así una corrida que no la pide no cambia.
+function datacreditoData(negatives = 0, consulted = 1, delinquencies = negatives): Record<string, unknown> {
     return {
         agregatedInfo: {
             overview: {
                 principals: {
-                    currentNegativeCredits: negatives,
+                    currentNegativeCredits: delinquencies,
                     negativeHistoricalLast12Months: negatives,
                     consultedLast6Months: consulted,
-                    maturationSince: '2015-01-01',
+                    maturationSince: MATURATION_SINCE,
                 },
                 balances: { valueMonthlyPayment: 100, totalValueBalanceOverdue: 0 },
             },
@@ -53,6 +59,47 @@ function datacreditoData(negatives = 0, consulted = 1): Record<string, unknown> 
         liabilities: [
             { liabilitiesAccount: { businessBehaviourVectorProduct: 'NNNNNNNNNNNNNNNNNNNNNNNN' } },
         ],
+    };
+}
+
+/** Las perillas del caso que mueven la categoría de una entidad. */
+export interface CategoryCase {
+    age?: number; gender?: string; occupation?: string; income?: number;
+    score?: number; negatives?: number; consulted?: number; delinquencies?: number;
+    documentType?: string;
+}
+
+/**
+ * El solicitante que el simulador de reglas del backend (`LenderRulesSimulatorService::simulate`) evalúa, armado
+ * con LO MISMO que esta inyección escribe: las perillas del caso más lo que el reporte forjado trae fijo —una
+ * tarjeta activa con vector, obligaciones sin mora, la historia desde `MATURATION_SINCE` y las tres banderas de
+ * continuidad de Agildata—. Si la inyección cambia, esto cambia con ella: por eso vive al lado.
+ *
+ * Lo que NO se manda queda «sin simular» en la respuesta, y así se muestra: `freeCapacityPercent` (el motor la
+ * calcula con cuotas que salen de otro lado) y `bureauReported` (el campo 160, que declara el cliente en el
+ * formulario). Un PEP no tiene buró: sin score, el simulador rechaza los perfiles como el motor.
+ */
+export function categoryApplicant(c: CategoryCase, now = new Date()): Record<string, unknown> {
+    const pep = (c.documentType || 'CC').toUpperCase() === 'PEP';
+    const since = new Date(`${MATURATION_SINCE}T00:00:00`);
+    const months = (now.getFullYear() - since.getFullYear()) * 12 + (now.getMonth() - since.getMonth());
+    const negatives = c.negatives ?? 0;
+    return {
+        age: c.age ?? null,
+        gender: c.gender || null,
+        occupation: c.occupation || 'Empleado',
+        income: c.income ?? null,
+        employmentContinuity: 12,
+        ...(pep ? {} : {
+            score: c.score ?? null,
+            negativeReports12m: negatives,
+            currentDelinquencies: c.delinquencies ?? negatives,
+            inquiries6m: c.consulted ?? 1,
+            financialSectorMonths: months,
+            activeCreditCards: 1,
+            activeCreditCardsWithVector: 1,
+            overdueVectorClean: true,
+        }),
     };
 }
 
@@ -172,7 +219,7 @@ async function setSynthIdentity(userID: number, doc: string, email: string, gend
     );
 }
 
-async function injectSummary(userID: number, income: number, score: number, negatives = 0, consulted = 1, withBureau = true): Promise<void> {
+async function injectSummary(userID: number, income: number, score: number, negatives = 0, consulted = 1, withBureau = true, delinquencies = negatives): Promise<void> {
     const agildata = JSON.stringify({
         employed: true, self_employed: false, retired: false,
         approximate_real_salary: income, last_payment_value: income, lowest_payment_value: income,
@@ -180,7 +227,7 @@ async function injectSummary(userID: number, income: number, score: number, nega
     });
     // withBureau=false (PEP): guardamos el ingreso (agildata) pero NO el bloque de datacrédito.
     const datacredito = withBureau
-        ? JSON.stringify({ score, value_monthly_payment: Math.floor(income / 3), data: datacreditoData(negatives, consulted) })
+        ? JSON.stringify({ score, value_monthly_payment: Math.floor(income / 3), data: datacreditoData(negatives, consulted, delinquencies) })
         : null;
     const id = await scalar<number>('SELECT id FROM user_summaries WHERE user_id = ? LIMIT 1', [userID]);
     if (id && id > 0) {
@@ -226,11 +273,11 @@ async function experianRiskCentralID(): Promise<number> {
 
 // injectDatacredito: FORJA la fila Experian (risk_central_user_data) — score plano + data ENCRIPTADA
 // igual que el cast encrypted:collection de Laravel. Sin esto /lenders nunca ofrece los Creditop X.
-async function injectDatacredito(userID: number, income: number, score: number, negatives = 0, consulted = 1): Promise<void> {
+async function injectDatacredito(userID: number, income: number, score: number, negatives = 0, consulted = 1, delinquencies = negatives): Promise<void> {
     const key = appKey();
     const rcID = await experianRiskCentralID();
     if (rcID === 0) throw new Error('no encontré risk_central Experian (Acierta/+Quanto)');
-    const enc = encryptLaravelString(JSON.stringify(datacreditoData(negatives, consulted)), key);
+    const enc = encryptLaravelString(JSON.stringify(datacreditoData(negatives, consulted, delinquencies)), key);
     await exec('DELETE FROM risk_central_user_data WHERE user_id=? AND risk_central_id=?', [userID, rcID],
                { permiso: 'siembra', usuario: userID });
     await exec(
@@ -261,6 +308,7 @@ export interface SynthFillOpts {
     age?: number;
     negatives?: number;      // negativeHistoricalLast12Months del buró (default 0)
     consulted?: number;      // consultedLast6Months del buró (default 1)
+    delinquencies?: number;  // currentNegativeCredits del buró: la mora ACTUAL (default = negatives)
     occupation?: string;     // field 29 (Empleado | Independiente | Pensionado) — default Empleado
     dob?: string;            // date_of_birth (YYYY-MM-DD) — default 1990-01-01
     expeditionDate?: string; // expedition_date (YYYY-MM-DD) — default 2010-01-01
@@ -325,6 +373,7 @@ async function seedOver(uReqID: number, userID: number, branchHash: string, opts
     const hasBureau = documentType !== 'PEP';                  // PEP = migrante sin buró → se salta la consulta
     const negatives = opts.negatives ?? 0;
     const consulted = opts.consulted ?? 1;
+    const delinquencies = opts.delinquencies ?? negatives;
 
     const doc = (opts.document && opts.document.trim()) || String(2_900_000_000 + uReqID);
     const email = (opts.email && opts.email.trim()) || `synth-${uReqID}@creditop.com`;
@@ -337,13 +386,13 @@ async function seedOver(uReqID: number, userID: number, branchHash: string, opts
     const bureauDone: Promise<string> = (hasBureau && opts.skipBuro)
         ? Promise.resolve('OMITIDO a propósito (flujo already-confirmed-pre-approval): sin fila forjada, "no hay buró" es evidencia')
         : hasBureau
-            ? injectDatacredito(userID, req.income, req.score, negatives, consulted)
-                .then(() => `ok (neg ${negatives} · consultas ${consulted})`)
+            ? injectDatacredito(userID, req.income, req.score, negatives, consulted, delinquencies)
+                .then(() => `ok (neg ${negatives} · mora ${delinquencies} · consultas ${consulted})`)
                 .catch((e) => (e instanceof Error ? e.message : String(e)))
             : Promise.resolve('PEP: sin buró (no se inyecta la fila Experian)');
     const [, , , dc] = await Promise.all([
         opts.skipIdentity ? Promise.resolve() : setSynthIdentity(userID, doc, email, req.gender, req.age, opts.name, opts.keepDocumentType ? null : documentType, dobValue, expeditionDate),
-        injectSummary(userID, req.income, req.score, negatives, consulted, hasBureau),
+        injectSummary(userID, req.income, req.score, negatives, consulted, hasBureau, delinquencies),
         injectIncomeFields(userID, uReqID, req.fields),
         bureauDone,
     ]);

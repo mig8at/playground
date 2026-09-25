@@ -601,6 +601,7 @@ test('guided (semiautomático)', async ({ browser }) => {
         age: Number(process.env.E2E_SYNTH_AGE) || undefined,
         negatives: process.env.E2E_SYNTH_NEG ? Number(process.env.E2E_SYNTH_NEG) : undefined,
         consulted: process.env.E2E_SYNTH_CONS ? Number(process.env.E2E_SYNTH_CONS) : undefined,
+        delinquencies: process.env.E2E_SYNTH_MORA ? Number(process.env.E2E_SYNTH_MORA) : undefined,
         occupation: process.env.E2E_SYNTH_OCC || undefined,
         dob: process.env.E2E_SYNTH_DOB || undefined,
         expeditionDate: process.env.E2E_SYNTH_EXP || undefined,
