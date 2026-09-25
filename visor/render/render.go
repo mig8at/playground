@@ -168,6 +168,57 @@ type Report struct {
 	Tokens   map[string]int `json:"tokens"`   // los estilos del sistema de diseño que usa la pantalla, con sus usos
 	Loose    int            `json:"loose"`    // colores escritos sin estilo
 	Missing  map[string]int `json:"missing"`  // lo que no se tradujo, por qué
+	// La PALETA y la TIPOGRAFÍA de la pantalla, como las escribe el HTML: cada color y cada combinación
+	// de letra con su token si lo tiene, y cuántas veces aparece. Es lo que la barra de la interfaz
+	// muestra con muestras, y lo que dice de un vistazo si una pantalla se sale del sistema de diseño.
+	Colors []ColorUse `json:"colors"`
+	Type   []TypeUse  `json:"type"`
+}
+
+// ColorUse es un color de la pantalla: el valor que escribe el HTML y, si sale de un estilo, cuál.
+type ColorUse struct {
+	Value string `json:"value"`           // «rgba(1,58,255,1)», tal cual va al CSS
+	Token string `json:"token,omitempty"` // «Colors/violet/violet-500»
+	Var   string `json:"var,omitempty"`   // «--violet-500»
+	Uses  int    `json:"uses"`
+}
+
+// TypeUse es una combinación de letra de la pantalla: familia, peso, tamaño e interlineado.
+type TypeUse struct {
+	Family     string  `json:"family"`
+	Weight     float64 `json:"weight"`
+	Size       float64 `json:"size"`
+	LineHeight float64 `json:"line_height,omitempty"`
+	Token      string  `json:"token,omitempty"` // el estilo de texto de Figma, si lo tiene
+	Class      string  `json:"class,omitempty"`
+	Uses       int     `json:"uses"`
+}
+
+func (r *Report) useColor(value string, t *StyleToken) {
+	c := ColorUse{Value: value}
+	if t != nil {
+		c.Token, c.Var = t.Name, t.Var
+	}
+	for i := range r.Colors {
+		if r.Colors[i].Value == c.Value && r.Colors[i].Token == c.Token {
+			r.Colors[i].Uses++
+			return
+		}
+	}
+	c.Uses = 1
+	r.Colors = append(r.Colors, c)
+}
+
+func (r *Report) useType(u TypeUse) {
+	for i := range r.Type {
+		x := r.Type[i]
+		if x.Family == u.Family && x.Weight == u.Weight && x.Size == u.Size && x.LineHeight == u.LineHeight && x.Token == u.Token {
+			r.Type[i].Uses++
+			return
+		}
+	}
+	u.Uses = 1
+	r.Type = append(r.Type, u)
 }
 
 func (r *Report) miss(why string) {
@@ -200,6 +251,13 @@ func HTML(screen Node, assets Assets) (string, Report) {
 		r.Fonts = append(r.Fonts, f)
 	}
 	sort.Strings(r.Fonts)
+	sort.SliceStable(r.Colors, func(i, j int) bool { return r.Colors[i].Uses > r.Colors[j].Uses })
+	sort.SliceStable(r.Type, func(i, j int) bool {
+		if r.Type[i].Size != r.Type[j].Size {
+			return r.Type[i].Size > r.Type[j].Size
+		}
+		return r.Type[i].Weight > r.Type[j].Weight
+	})
 	var doc strings.Builder
 	doc.WriteString("<!doctype html>\n<html lang=\"es\">\n<head>\n<meta charset=\"utf-8\">\n")
 	doc.WriteString(fmt.Sprintf("<meta name=\"viewport\" content=\"width=%d\">\n", int(math.Round(screen.Box.Width))))
@@ -641,6 +699,13 @@ func (w *writer) text(n Node, parent *Node, css *style) {
 		st = &TextStyle{}
 	}
 	w.font(*st, n.Fills, css)
+	if st.FontFamily != "" {
+		u := TypeUse{Family: st.FontFamily, Weight: st.FontWeight, Size: st.FontSize, LineHeight: st.LineHeightPx}
+		if t, ok := w.assets.Styles[n.Styles["text"]]; ok && t.Class != "" {
+			u.Token, u.Class = t.Name, t.Class
+		}
+		w.report.useType(u)
+	}
 	if c := firstSolid(n.Fills); c != "" {
 		css.set("color", w.color(n, c, "fill", "fills"))
 	}
@@ -955,12 +1020,14 @@ func (w *writer) color(n Node, literal string, keys ...string) string {
 		if id := n.Styles[k]; id != "" {
 			if t, ok := w.assets.Styles[id]; ok && t.Var != "" {
 				w.report.token(t.Name)
+				w.report.useColor(literal, &t)
 				w.used[id] = true
 				return "var(" + t.Var + ", " + literal + ")"
 			}
 		}
 	}
 	w.report.Loose++
+	w.report.useColor(literal, nil)
 	return literal
 }
 

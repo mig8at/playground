@@ -37,6 +37,8 @@ import (
 //	                                 las imágenes ORIGINALES (y sus dibujos en SVG)       (make visor-recursos)
 //	tokens <proyecto> [--css|--tailwind|--json]                                           (make visor-tokens)
 //	components <proyecto>            el inventario de componentes del flujo               (make visor-componentes)
+//	fidelity <ruta> [--fresh] [--heat <png>]
+//	                                 cuánto se parece el HTML a Figma, y dónde no         (make visor-fidelidad R=)
 var cliVerbs = map[string]func(s *server, ctx context.Context, args []string, out io.Writer) error{
 	"search":     cliSearch,
 	"screens":    cliScreens,
@@ -45,13 +47,14 @@ var cliVerbs = map[string]func(s *server, ctx context.Context, args []string, ou
 	"assets":     cliAssets,
 	"tokens":     cliTokens,
 	"components": cliInventory,
+	"fidelity":   cliFidelity,
 }
 
 func runCLI(s *server, args []string) int {
 	verb := args[0]
 	run, ok := cliVerbs[verb]
 	if !ok {
-		fmt.Fprintf(os.Stderr, "visor: no existe «%s». Los verbos: search · screens · screen · html · assets · tokens · components (por make: visor-buscar · visor-pantallas · visor-pantalla · visor-html · visor-recursos · visor-tokens · visor-componentes)\n", verb)
+		fmt.Fprintf(os.Stderr, "visor: no existe «%s». Los verbos: search · screens · screen · html · assets · tokens · components · fidelity (por make: visor-buscar · visor-pantallas · visor-pantalla · visor-html · visor-recursos · visor-tokens · visor-componentes · visor-fidelidad)\n", verb)
 		return 2
 	}
 	out := bufio.NewWriter(os.Stdout)
@@ -633,3 +636,67 @@ type jsonWriter struct{ out io.Writer }
 func (j *jsonWriter) Header() http.Header         { return http.Header{} }
 func (j *jsonWriter) Write(b []byte) (int, error) { return j.out.Write(b) }
 func (j *jsonWriter) WriteHeader(int)             {}
+
+// cliFidelity dice cuánto se parece el HTML traducido a la imagen de Figma y DÓNDE difiere, capa por capa:
+// es lo que dice por dónde empezar a arreglar una traducción, o qué tan en serio tomar el HTML de una
+// pantalla antes de pasarla a código.
+func cliFidelity(s *server, ctx context.Context, args []string, out io.Writer) error {
+	fs := flag.NewFlagSet("fidelity", flag.ContinueOnError)
+	fresh := fs.Bool("fresh", false, "medir de nuevo aunque haya una medida de esta versión")
+	heat := fs.String("heat", "", "copiar el mapa de calor (PNG transparente) a este archivo")
+	ref, err := parseRefArgs(fs, args)
+	if err != nil {
+		return err
+	}
+	key, id, err := s.screenReady(ctx, ref)
+	if err != nil {
+		return err
+	}
+	f, heatPath, err := s.fidelityOf(ctx, key, id, *fresh, false)
+	if err != nil {
+		return err
+	}
+	title := id
+	if place, ok := s.findScreen(key, id); ok && place.screen.Title != "" {
+		title = place.screen.Title
+	}
+	fmt.Fprintf(out, "\n  fidelidad del HTML contra Figma · «%s» · %s/%s\n", title, key, strings.ReplaceAll(id, ":", "-"))
+	fmt.Fprintf(out, "  %.1f %% de los píxeles iguales · distinto = algún canal difiere más de %d/255 · medida %s\n\n",
+		f.Same*100, f.Threshold, f.Measured.Format("2006-01-02 15:04"))
+	if len(f.Zones) == 0 {
+		fmt.Fprintln(out, "  no difiere en ninguna capa.")
+	} else {
+		fmt.Fprintln(out, "  dónde difiere — su parte de toda la diferencia, y cuánto de la capa es distinto:")
+		for _, z := range f.Zones {
+			what := z.Name
+			if z.Text != "" {
+				what = fmt.Sprintf("texto «%s» (%s)", z.Text, z.Name)
+			}
+			fmt.Fprintf(out, "  %5.1f %%  %-58s %s · %.0f,%.0f %.0f×%.0f · %.0f %% distinta\n",
+				z.Share*100, truncate(what, 58), z.ID, z.X, z.Y, z.W, z.H, z.Cover*100)
+		}
+	}
+	if *heat != "" {
+		b, err := os.ReadFile(heatPath)
+		if err != nil {
+			return err
+		}
+		if err := os.WriteFile(*heat, b, 0o644); err != nil {
+			return err
+		}
+		heatPath = *heat
+	}
+	if abs, err := filepath.Abs(heatPath); err == nil {
+		heatPath = abs
+	}
+	fmt.Fprintf(out, "\n  mapa de calor (PNG transparente, del tamaño de la exportación): %s\n", heatPath)
+	fmt.Fprintln(out, "  ⚠ el borde de las letras siempre difiere un poco: Chromium y Figma no suavizan igual. Una capa pesa cuando su parte es grande Y está muy distinta.")
+	return nil
+}
+
+func truncate(s string, n int) string {
+	if r := []rune(s); len(r) > n {
+		return string(r[:n-1]) + "…"
+	}
+	return s
+}

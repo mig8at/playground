@@ -624,11 +624,77 @@ watch([htmlURL, mode], async ([u]) => {
   } catch { /* el reporte es un extra: sin él, la pantalla se ve igual */ }
 }, { immediate: true })
 const missingList = computed(() => Object.entries(report.value?.missing || {}).map(([why, n]) => `${why} ×${n}`))
-// Los estilos de Figma que usa la pantalla (colores y textos), de más a menos usado.
-const tokenList = computed(() => Object.entries(report.value?.tokens || {}).sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0])))
 const tokensURL = (format) => (data.value ? `/api/tokens?key=${data.value.key}${format ? '&format=' + format : ''}` : '')
 // Los controles que el HTML deja usar: campos para escribir, casillas para marcar, botones.
 const controlList = computed(() => Object.entries(report.value?.controls || {}).map(([kind, n]) => `${n} ${kind}`))
+
+// LA FIDELIDAD DE LA PANTALLA: cuánto se parece el HTML a Figma y DÓNDE no (`server/fidelity.go`). Medir
+// cuesta unos segundos —un Chromium dibuja el HTML y lo compara píxel a píxel—, así que al abrir una
+// pantalla sólo se pide la medida GUARDADA (`cached=1`); se mide al tocar «Medir» o al encender el mapa
+// de calor. La medida vale para la versión del archivo y la traducción con que se tomó.
+const showHeat = ref(false)
+const fidelity = ref(null)
+const fidelityState = ref('') // '' · 'measuring' · 'none' (sin medir) · 'error'
+const fidelityError = ref('')
+// La zona que se marca sobre la pantalla: la que se está señalando en la lista, o la que se fijó con clic.
+const hoverZone = ref(null)
+const pinnedZone = ref(null)
+const focusZone = computed(() => hoverZone.value || pinnedZone.value)
+const fidelityURL = computed(() => (data.value && current.value ? `/api/fidelity?key=${data.value.key}&id=${encodeURIComponent(current.value.id)}` : ''))
+const heatURL = computed(() => (fidelity.value ? `${fidelityURL.value}&heat=1&at=${encodeURIComponent(fidelity.value.measured_at)}` : ''))
+async function loadFidelity(u, { measure = false, fresh = false } = {}) {
+  if (measure) fidelityState.value = 'measuring'
+  try {
+    const res = await fetch(u + (measure ? (fresh ? '&fresh=1' : '') : '&cached=1'))
+    if (u !== fidelityURL.value) return
+    if (!measure && res.status === 404) {
+      fidelityState.value = 'none'
+      if (showHeat.value) loadFidelity(u, { measure: true })
+      return
+    }
+    const body = await res.json()
+    if (u !== fidelityURL.value) return
+    if (!res.ok) { fidelityState.value = 'error'; fidelityError.value = body.error || `HTTP ${res.status}`; return }
+    fidelity.value = body
+    fidelityState.value = ''
+  } catch (e) {
+    if (u === fidelityURL.value) { fidelityState.value = 'error'; fidelityError.value = String(e?.message || e) }
+  }
+}
+watch(fidelityURL, (u) => {
+  fidelity.value = null; hoverZone.value = null; pinnedZone.value = null; fidelityState.value = ''
+  if (u) loadFidelity(u)
+}, { immediate: true })
+watch(showHeat, (on) => {
+  if (on && !fidelity.value && fidelityState.value !== 'measuring' && fidelityURL.value) loadFidelity(fidelityURL.value, { measure: true })
+})
+const measureNow = () => { if (fidelityURL.value) loadFidelity(fidelityURL.value, { measure: true, fresh: Boolean(fidelity.value) }) }
+// En palabras y no en color: el tema no trae un «bien / regular / mal», y un número solo no dice si 97 es mucho.
+const fidelityWord = computed(() => {
+  const x = fidelity.value?.same
+  if (x === undefined) return ''
+  return x >= 0.98 ? 'alta: lo que difiere es casi todo el suavizado de las letras' : x >= 0.93 ? 'media: hay capas corridas o de otro tamaño' : 'baja: el HTML no sirve de guía sin revisar'
+})
+const pct = (x, digits = 1) => (x * 100).toFixed(digits).replace('.', ',') + ' %'
+const zoneStyle = (z) => {
+  const c = current.value
+  return { left: (z.x / c.w) * 100 + '%', top: (z.y / c.h) * 100 + '%', width: (z.w / c.w) * 100 + '%', height: (z.h / c.h) * 100 + '%' }
+}
+const pinZone = (z) => { pinnedZone.value = pinnedZone.value?.id === z.id ? null : z }
+
+// LA PALETA Y LA TIPOGRAFÍA de la pantalla, como las escribe el HTML (`render.Report`): cada color con su
+// token si lo tiene, cada combinación de letra con su clase.
+const palette = computed(() => report.value?.colors || [])
+const typeList = computed(() => report.value?.type || [])
+const hexOf = (value) => {
+  const m = /rgba?\((\d+),(\d+),(\d+)(?:,([\d.]+))?\)/.exec(value || '')
+  if (!m) return value
+  const hex = '#' + [m[1], m[2], m[3]].map((n) => Number(n).toString(16).padStart(2, '0')).join('')
+  const alpha = m[4] === undefined ? 1 : Number(m[4])
+  return alpha < 1 ? `${hex} al ${Math.round(alpha * 100)} %` : hex
+}
+const tokenLeaf = (name) => name.split('/').pop()
+const round1 = (x) => Math.round(x * 10) / 10
 const imageURL = computed(() => (data.value && current.value ? `/api/screen?key=${data.value.key}&id=${encodeURIComponent(current.value.id)}` : ''))
 const figmaURL = computed(() => (data.value && current.value
   ? `https://www.figma.com/design/${data.value.key}/?node-id=${current.value.id.replace(':', '-')}`
@@ -808,6 +874,7 @@ function onKey(e) {
   else if (e.key === 'ArrowLeft' && !e.altKey) { step(-1); e.preventDefault() }
   else if (e.key === 'Backspace' || (e.key === 'ArrowLeft' && e.altKey)) { back(); e.preventDefault() }
   else if (e.key === 'h' || e.key === 'H') showHotspots.value = !showHotspots.value
+  else if (e.key === 'm' || e.key === 'M') showHeat.value = !showHeat.value
   else if (e.key === '0') center()
   else if (e.key === '+' || e.key === '=') setZoom(zoom.value + ZOOM_STEP)
   else if (e.key === '-') setZoom(zoom.value - ZOOM_STEP)
@@ -991,6 +1058,10 @@ const rowMetaTitle = (sc) => [sc.hotspots?.length ? 'Tiene zonas del prototipo' 
             <button class="region-action" :aria-pressed="showHotspots" title="Mostrar las zonas del prototipo (H)" aria-label="Zonas del prototipo" @click="showHotspots = !showHotspots">
               <span class="ui-icon" data-icon="eye" aria-hidden="true"></span>
             </button>
+            <button class="region-action" :aria-pressed="showHeat" :disabled="fidelityState === 'measuring'"
+              :title="fidelityState === 'measuring' ? 'Midiendo contra Figma…' : 'Mapa de calor: dónde el HTML no es fiel a Figma (M)'" aria-label="Mapa de calor" @click="showHeat = !showHeat">
+              <span class="ui-icon" data-icon="heat" aria-hidden="true"></span>
+            </button>
             <button class="region-action" title="Centrar la pantalla (0)" aria-label="Centrar la pantalla" @click="center">
               <span class="ui-icon" data-icon="collapse" aria-hidden="true"></span>
             </button>
@@ -1018,6 +1089,10 @@ const rowMetaTitle = (sc) => [sc.hotspots?.length ? 'Tiene zonas del prototipo' 
           <iframe v-else :key="htmlURL" :src="htmlURL" :title="'HTML de ' + (current.title || current.name)" class="html" @load="bindFrame"
             :style="{ width: current.w + 'px', height: current.h + 'px', transform: `scale(${scale})` }"></iframe>
           <div v-if="p === 'image' && imageFailed" class="alert alert-destructive"><div class="alert-desc">Figma no devolvió la imagen de esta pantalla.</div></div>
+          <!-- El mapa de calor va encima de las DOS (imagen y HTML): marca las mismas coordenadas, y en
+               Comparar deja ver qué dibuja cada lado donde difieren. -->
+          <img v-if="showHeat && heatURL" :src="heatURL" class="heat" alt="" aria-hidden="true" draggable="false" />
+          <div v-if="focusZone" class="zone-box" :style="zoneStyle(focusZone)" aria-hidden="true"></div>
           <template v-if="showHotspots">
             <button v-for="(h, i) in clickable" :key="i" class="hotspot" :class="{ outside: !h.to }" :style="hotspotStyle(h)"
               :title="h.via + ' → ' + h.to_name" :aria-label="h.via + ' → ' + h.to_name" :disabled="!h.to" @click="follow(h)"></button>
@@ -1147,6 +1222,37 @@ const rowMetaTitle = (sc) => [sc.hotspots?.length ? 'Tiene zonas del prototipo' 
               </a>
             </dd>
           </dl>
+          <div class="block">
+            <div class="region-head group">
+              <span>Fidelidad del HTML</span>
+              <div class="region-actions">
+                <button class="region-action" :disabled="fidelityState === 'measuring'" :title="fidelity ? 'Volver a medir' : 'Medir contra Figma'"
+                  :aria-label="fidelity ? 'Volver a medir' : 'Medir'" @click="measureNow">
+                  <span class="ui-icon" data-icon="refresh" aria-hidden="true"></span>
+                </button>
+              </div>
+            </div>
+            <p v-if="fidelityState === 'measuring'" class="hint">Midiendo: Chromium dibuja el HTML y lo compara píxel a píxel con la imagen de Figma. Tarda unos segundos.</p>
+            <p v-else-if="fidelityState === 'error'" class="hint">No se pudo medir: {{ fidelityError }}</p>
+            <template v-else-if="fidelity">
+              <div class="fidelity">
+                <strong>{{ pct(fidelity.same) }}</strong>
+                <span>de los píxeles iguales · fidelidad {{ fidelityWord }}</span>
+              </div>
+              <div class="progress progress-xs fidelity-bar"><i :style="{ width: fidelity.same * 100 + '%' }"></i></div>
+              <template v-if="fidelity.zones?.length">
+                <div class="zones-head"><span>Dónde difiere</span><small>parte de la diferencia · de la capa</small></div>
+                <button v-for="z in fidelity.zones" :key="z.id" type="button" class="row stacked zone-row" :aria-pressed="pinnedZone?.id === z.id"
+                  :title="'Marcar ' + (z.text ? '«' + z.text + '»' : z.name) + ' sobre la pantalla'"
+                  @mouseenter="hoverZone = z" @mouseleave="hoverZone = null" @focus="hoverZone = z" @blur="hoverZone = null" @click="pinZone(z)">
+                  <span class="zone-line"><span class="zone-name">{{ z.text ? '«' + z.text + '»' : z.name }}</span><span class="zone-num">{{ pct(z.share, 0) }}</span></span>
+                  <small class="row-desc">{{ z.text ? z.name + ' · ' : '' }}{{ pct(z.cover, 0) }} de la capa es distinta · {{ Math.round(z.w) }}×{{ Math.round(z.h) }}</small>
+                </button>
+              </template>
+              <p class="hint">Medida el {{ new Date(fidelity.measured_at).toLocaleString('es-CO', { dateStyle: 'short', timeStyle: 'short' }) }} · un píxel es distinto si algún canal difiere más de {{ fidelity.threshold }}/255. El borde de las letras siempre difiere un poco, porque Chromium y Figma no suavizan igual; una capa pesa cuando su parte es grande <em>y</em> está muy distinta. <kbd class="kbd">M</kbd> muestra el mapa de calor.</p>
+            </template>
+            <p v-else class="hint">Sin medir en esta versión. <button type="button" class="link-inline" @click="measureNow">Medir</button> o encender el mapa de calor (<kbd class="kbd">M</kbd>).</p>
+          </div>
           <div v-if="report && mode !== 'image'" class="block">
             <div class="region-head group"><span>La traducción a HTML</span></div>
             <dl>
@@ -1160,12 +1266,27 @@ const rowMetaTitle = (sc) => [sc.hotspots?.length ? 'Tiene zonas del prototipo' 
             </dl>
           </div>
           <div v-if="report" class="block">
-            <div class="region-head group"><span>Estilos del diseño</span><span class="count">{{ tokenList.length }}</span></div>
-            <ul v-if="tokenList.length" class="tokens">
-              <li v-for="[name, uses] in tokenList" :key="name"><span>{{ name }}</span><small>×{{ uses }}</small></li>
-            </ul>
-            <p v-else class="hint">Esta pantalla no usa estilos del sistema de diseño.</p>
-            <p v-if="report.loose" class="hint">{{ report.loose }} color(es) escrito(s) sin estilo: se salen del sistema.</p>
+            <div class="region-head group"><span>Paleta</span><span class="count">{{ palette.length }}</span></div>
+            <div v-if="palette.length" class="palette">
+              <div v-for="c in palette" :key="c.value + '|' + (c.token || '')" class="palette-row" :title="(c.token || 'sin estilo en Figma') + ' · ' + c.value">
+                <span class="palette-chip" :style="{ background: c.value }"></span>
+                <span class="palette-name">{{ c.token ? tokenLeaf(c.token) : 'sin estilo' }}<small>{{ hexOf(c.value) }}{{ c.var ? ' · var(' + c.var + ')' : '' }}</small></span>
+                <small class="palette-uses">×{{ c.uses }}</small>
+              </div>
+            </div>
+            <p v-else class="hint">La pantalla no pinta colores propios.</p>
+            <p v-if="report.loose" class="hint">{{ report.loose }} uso(s) de color sin estilo: se salen del sistema de diseño.</p>
+          </div>
+          <div v-if="report" class="block">
+            <div class="region-head group"><span>Tipografía</span><span class="count">{{ typeList.length }}</span></div>
+            <div v-if="typeList.length" class="palette">
+              <div v-for="t in typeList" :key="[t.family, t.weight, t.size, t.line_height, t.token].join('|')" class="palette-row" :title="t.token || 'sin estilo de texto en Figma'">
+                <span class="type-size">{{ round1(t.size) }}</span>
+                <span class="palette-name">{{ t.family.replace(/ Variable$/, '') }} {{ t.weight }}{{ t.line_height ? ' · interlineado ' + round1(t.line_height) : '' }}<small>{{ t.class ? '.' + t.class : 'sin estilo de texto' }}</small></span>
+                <small class="palette-uses">×{{ t.uses }}</small>
+              </div>
+            </div>
+            <p v-else class="hint">La pantalla no tiene textos.</p>
             <p class="hint">La hoja del archivo, para pasar el diseño a código:
               <a :href="tokensURL('css')" target="_blank" rel="noopener">CSS</a> ·
               <a :href="tokensURL('tailwind')" target="_blank" rel="noopener">Tailwind</a> ·
@@ -1195,7 +1316,7 @@ const rowMetaTitle = (sc) => [sc.hotspots?.length ? 'Tiene zonas del prototipo' 
               <span>{{ laneName(v.lane) }}</span><small class="row-desc">{{ v.index + 1 }} de {{ v.lane.screens.length }} · {{ v.name }}</small>
             </button>
           </div>
-          <p class="hint">El carril y el título se deducen de cómo está dibujado el lienzo. <kbd class="kbd">←</kbd> <kbd class="kbd">→</kbd> recorren el carril, <kbd class="kbd">Retroceso</kbd> vuelve y <kbd class="kbd">H</kbd> muestra u oculta las zonas del prototipo.</p>
+          <p class="hint">El carril y el título se deducen de cómo está dibujado el lienzo. <kbd class="kbd">←</kbd> <kbd class="kbd">→</kbd> recorren el carril, <kbd class="kbd">Retroceso</kbd> vuelve y <kbd class="kbd">H</kbd> muestra u oculta las zonas del prototipo y <kbd class="kbd">M</kbd> el mapa de calor.</p>
         </template>
       </div>
     </aside>
@@ -1321,4 +1442,31 @@ const rowMetaTitle = (sc) => [sc.hotspots?.length ? 'Tiene zonas del prototipo' 
   overflow-wrap: anywhere }
 .plain-list { margin: 0; padding: 0 0 var(--space-2); list-style: none; font-size: var(--text-base) }
 .plain-list li { display: flex; align-items: center; min-height: var(--row-h); padding: 0 var(--gutter) }
+
+/* EL MAPA DE CALOR va encima de la pantalla, del mismo tamaño, y no se lleva los clics (las zonas del
+   prototipo siguen andando). La zona marcada oscurece lo demás: se ve qué capa es sin tapar la capa. */
+.device img.heat { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none }
+.zone-box { position: absolute; pointer-events: none; outline: 2px solid var(--primary); outline-offset: 1px;
+  box-shadow: 0 0 0 100vmax color-mix(in oklab, var(--background) 55%, transparent) }
+.fidelity { display: flex; flex-wrap: wrap; align-items: baseline; gap: var(--space-1) var(--space-2); padding: var(--space-3) var(--gutter) var(--space-2) }
+.fidelity strong { font-size: var(--text-title); font-variant-numeric: tabular-nums }
+.fidelity span { font-size: var(--text-sm); color: var(--fg-2) }
+.fidelity-bar { width: auto; margin: 0 var(--gutter) var(--space-2) }
+.zones-head { display: flex; justify-content: space-between; gap: var(--space-2); padding: var(--space-2) var(--gutter) var(--space-1);
+  font-size: var(--text-xs); color: var(--fg-3) }
+.zone-line { display: flex; justify-content: space-between; gap: var(--space-2); min-width: 0 }
+.zone-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap }
+.zone-num { flex: none; font-variant-numeric: tabular-nums; color: var(--fg-2) }
+.zone-row[aria-pressed="true"] { background: var(--accent); color: var(--accent-foreground) }
+.zone-row[aria-pressed="true"] .row-desc, .zone-row[aria-pressed="true"] .zone-num { color: var(--accent-foreground) }
+/* La paleta y la tipografía: una fila por color o por letra, la muestra a la izquierda, los usos a la
+   derecha. La muestra de color es un objeto, así que lleva su borde (sobre un fondo del mismo tono no
+   se vería). */
+.palette { display: grid; padding: var(--space-1) 0 var(--space-2) }
+.palette-row { display: flex; align-items: center; gap: var(--space-2); min-height: var(--row-h); padding: var(--space-1) var(--gutter) }
+.palette-chip { flex: none; width: 20px; height: 20px; border: 1px solid var(--border); border-radius: var(--radius-sm) }
+.palette-name { flex: 1; min-width: 0; display: flex; flex-direction: column; font-size: var(--text-sm); overflow-wrap: anywhere }
+.palette-name small { font-family: var(--font-mono); font-size: var(--text-xs); color: var(--fg-3) }
+.palette-uses { flex: none; font-size: var(--text-xs); color: var(--fg-3); font-variant-numeric: tabular-nums }
+.type-size { flex: none; width: 28px; font-size: var(--text-sm); font-weight: 600; font-variant-numeric: tabular-nums; text-align: right; color: var(--fg-2) }
 </style>

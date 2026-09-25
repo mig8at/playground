@@ -362,6 +362,17 @@ func TestStylesBecomeTokens(t *testing.T) {
 	if rep.Tokens["Colors/morado/morado-500"] != 1 || rep.Tokens["text-small/medium"] != 1 {
 		t.Errorf("tokens del reporte: %v", rep.Tokens)
 	}
+	// La paleta dice qué color sale de qué estilo y cuál está suelto; la tipografía, con qué clase.
+	byValue := map[string]ColorUse{}
+	for _, c := range rep.Colors {
+		byValue[c.Value] = c
+	}
+	if byValue["rgba(76,57,255,1)"].Var != "--morado-500" || byValue["rgba(255,0,0,1)"].Token != "" || byValue["rgba(255,0,0,1)"].Uses != 1 {
+		t.Errorf("paleta: %+v", rep.Colors)
+	}
+	if len(rep.Type) != 1 || rep.Type[0].Family != "Satoshi Variable" || rep.Type[0].Size != 14 || rep.Type[0].Class != "text-small-medium" {
+		t.Errorf("tipografía: %+v", rep.Type)
+	}
 }
 
 // Los textos de la pantalla en orden de lectura, sin la barra de estado ni lo oculto.

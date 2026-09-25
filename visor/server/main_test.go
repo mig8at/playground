@@ -267,7 +267,9 @@ func TestBriefGathersEverythingAboutAScreen(t *testing.T) {
 	for _, want := range []string{"# «Elige tu plan» · flujo ecommerce", "(visor:SsvFsK5tLvR1jNT3Hh6znD/1-2@" + print + ")",
 		"carril «No paga cuota inicial», 2 de 2 · móvil 430×932", "1. Elige tu plan\n2. Continuar", "- clic en «Continuar» → «Pago»",
 		"- Botones — variantes en el archivo: Estado: Primary button", "`--violet-500` #252256 — Colors/violet/violet-500 ×1", "```html\n<!doctype html>",
-		"make visor-recursos R=SsvFsK5tLvR1jNT3Hh6znD/1-2 DIR=<carpeta>", "make visor-tokens P=SsvFsK5tLvR1jNT3Hh6znD"} {
+		"make visor-recursos R=SsvFsK5tLvR1jNT3Hh6znD/1-2 DIR=<carpeta>", "make visor-tokens P=SsvFsK5tLvR1jNT3Hh6znD",
+		// sin medida guardada, el paquete no mide (tardaría): dice cómo medir
+		"Sin medir en esta versión: `make visor-fidelidad R=SsvFsK5tLvR1jNT3Hh6znD/1-2`"} {
 		if !strings.Contains(text, want) {
 			t.Errorf("falta %q en:\n%s", want, text)
 		}

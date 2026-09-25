@@ -26,13 +26,14 @@ el lienzo.
 
 Decisión de Miguel (2026-09-25): **la interfaz es para mirar; el modelo trabaja con comandos**, como con el
 harness. Todo lo que el modelo necesita de un diseño sale por `make`, sin el visor corriendo
-(`visor/server/cli.go`; adentro los verbos van en inglés —`cd visor/server && go run . search|screens|screen|html|assets|tokens|components`—):
+(`visor/server/cli.go`; adentro los verbos van en inglés —`cd visor/server && go run . search|screens|screen|html|assets|tokens|components|fidelity`—):
 
     make visor-pantallas                                        # los proyectos, con su clave de Figma
     make visor-pantallas P=RkyauDfqEsFbJZBBoqChAV               # el flujo: carriles y pantallas, cada una con su id
     make visor-pantalla R=RkyauDfqEsFbJZBBoqChAV/266-1279       # el paquete: textos, destinos, imágenes, componentes, tokens, HTML
     make visor-recursos R=RkyauDfqEsFbJZBBoqChAV/266-1279 DIR=<carpeta> [SVG=1]   # las imágenes ORIGINALES, con el nombre de su capa
     make visor-html R=… [OUT=<archivo>] · make visor-tokens P=<clave> [FORMATO=css|tailwind|json] · make visor-componentes P=<clave>
+    make visor-fidelidad R=RkyauDfqEsFbJZBBoqChAV/266-1279      # ¿cuánto se parece el HTML a Figma, y qué capas difieren? [NUEVA=1] [CALOR=<png>]
     make visor-buscar Q='alquila moto'                          # sólo si no hay id: busca por lo que dice la pantalla, devuelve ids
 
 **El CLI habla en IDS de Figma** (decisión de Miguel, 2026-09-25): la pantalla es `<clave del archivo>/<nodo>`
@@ -318,10 +319,37 @@ cargara una imagen: antes de creerle a una caída, medila sola con `SOLO=<id>`. 
   reintenta; el server guarda el JSON de cada pantalla en disco por versión, para no volver a pedirlo
   en cada reinicio.
 
+## La fidelidad: cuánto confiar en el HTML de una pantalla, y qué capa mirar
+
+La medida es la de `visor/tools/fidelity.mjs` —Chromium dibuja el HTML al doble y lo compara píxel a píxel
+con la exportación de Figma—, ahora también **de a una pantalla**: `make visor-fidelidad R=<clave/nodo>` por
+consola (sin el visor corriendo: abre su propia API en un puerto libre para que Chromium lea el HTML) y
+`/api/fidelity` en la interfaz (`server/fidelity.go`). Lo que suma a «un porcentaje» es el **DÓNDE**: cada
+celda distinta de 4×4 px se le cuenta a la **capa visible más chica** que la contiene, así que la respuesta
+dice «Bontones: 30 % de toda la diferencia, 89 % de la capa distinta» y no «hay rojo abajo».
+
+- En la interfaz: el botón de llama (o <kbd>M</kbd>) pone el **mapa de calor** encima de la imagen y del
+  HTML —las mismas coordenadas en los dos—; la barra derecha da el porcentaje, las zonas (señalar una la
+  marca sobre la pantalla; tocarla la fija) y, del reporte del render, la **paleta** (cada color con su
+  muestra, su token y sus usos, y los que no tienen estilo) y la **tipografía** (familia, peso, tamaño e
+  interlineado, con su clase).
+- **Se guarda en disco por versión del archivo Y por binario** (`<clave>/<versión>/fidelity/`): la medida
+  es de ESA traducción, así que un cambio en `visor/render` la invalida aunque el diseño sea el mismo (con
+  `go run`, cada cambio de código es otro binario; se compara la huella del ejecutable). Medir cuesta 3–6 s.
+- Por eso la interfaz, al abrir una pantalla, pide sólo la medida **guardada** (`cached=1`) y mide al tocar
+  «Medir» o al encender el mapa: recorrer un carril no lanza un Chromium por pantalla. El paquete para el
+  modelo (`visor-pantalla`) tampoco mide: si hay medida, la incluye con sus cinco capas peores; si no, da
+  el comando.
+- ⚠ **El borde de las letras siempre difiere**: Chromium y Figma no suavizan igual, y una pantalla bien
+  traducida queda en ~99 % con casi toda la diferencia en los textos, cada uno con un 5–15 % de su caja
+  distinta. Lo que delata un problema es una capa con una parte grande **y** casi toda distinta: en
+  Motai 29:3117 (86,1 %), «Bontones» al 89 % y «Elige una opción» al 92 % — el bloque de opciones sale corrido.
+
 ## Cómo se comprueba
 
     make visor-test                   # la traducción (visor/render) y las guardas del server, sin red
-    make visor-fidelidad REF='<url>'  # el HTML contra la imagen de Figma, con el visor corriendo
+    make visor-fidelidad R=<clave/nodo>  # una pantalla: porcentaje y capas que difieren, sin el visor corriendo
+    make visor-fidelidad REF='<url>'  # el flujo entero contra la imagen de Figma, con el visor corriendo
     make visor-enlaces                # ¿las pantallas que enlazan las tareas siguen igual, cambiaron o las borraron?
     go test ./connectors/figma/       # las reglas que deducen carriles, títulos y zonas
     make estilo-check                 # el visor es la cuarta UI del tema compartido

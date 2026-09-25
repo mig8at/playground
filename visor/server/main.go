@@ -46,6 +46,7 @@ func main() {
 		out.Flush()
 		os.Exit(code)
 	}
+	srv.self = "http://" + *serve // la medición de fidelidad le pide el HTML a esta misma API
 	log.Printf("visor: API en http://%s (caché en %s)", *serve, *cache)
 	log.Fatal(http.ListenAndServe(*serve, srv.routes()))
 }
@@ -60,6 +61,9 @@ type server struct {
 	fills     fetcher
 	nodeJSON  func(ctx context.Context, key, id string) ([]byte, error)
 	readFlow  func(ctx context.Context, key string) (figma.Structure, string, error) // la página de flujo de un archivo
+	// measure mide una pantalla contra Figma (fidelity.go); self es dónde escucha la API de este proceso.
+	measure func(ctx context.Context, key, id string, w, h float64, heatPath string) (measured, error)
+	self    string
 
 	mu       sync.Mutex
 	maps     map[string]figma.Structure // clave+nodo → mapa, mientras corre el server
@@ -82,6 +86,7 @@ func newServer(cl *figma.Client, cache string) *server {
 	s.fills = s.fillsFromFigma
 	s.nodeJSON = func(ctx context.Context, key, id string) ([]byte, error) { return cl.NodeJSON(ctx, key, id) }
 	s.readFlow = s.loadFlow
+	s.measure = s.measureWithChromium
 	return s
 }
 
@@ -97,6 +102,7 @@ func (s *server) routes() http.Handler {
 	mux.HandleFunc("/api/track", s.handleTrack)
 	mux.HandleFunc("/api/tokens", s.handleTokens)
 	mux.HandleFunc("/api/brief", s.handleBrief)
+	mux.HandleFunc("/api/fidelity", s.handleFidelity)
 	return mux
 }
 
