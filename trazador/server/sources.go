@@ -136,12 +136,12 @@ var (
 // respuestas, así que en varias operaciones ESTE es el único veredicto disponible.
 const decevalOKCode = "SDL.SE.0000"
 
-// GetDeceval trae las operaciones contra Deceval de esta solicitud. Ante cualquier error devuelve vacío:
-// no saber no es saber que no.
-func GetDeceval(r Runner, ureq int64) []DecevalOp {
+// GetDeceval trae las operaciones contra Deceval de esta solicitud. Un error se devuelve, no se convierte
+// en vacío: no saber no es saber que no (quien llama lo anota en `Unread`).
+func GetDeceval(r Runner, ureq int64) ([]DecevalOp, error) {
 	fs, err := r.Rows(sqlDeceval, ureq)
 	if err != nil {
-		return nil
+		return nil, err
 	}
 	out := make([]DecevalOp, 0, len(fs))
 	for _, f := range fs {
@@ -190,7 +190,7 @@ func GetDeceval(r Runner, ureq int64) []DecevalOp {
 		}
 		out = append(out, o)
 	}
-	return out
+	return out, nil
 }
 
 // ─── users_category_log: POR QUÉ el perfilamiento dijo que no ──────────────────────────────────────
@@ -256,17 +256,17 @@ type Category struct {
 }
 
 // GetCategories trae la evaluación de categoría de todas las entidades para este cliente en la ventana de
-// la solicitud. Ante cualquier error devuelve vacío: no saber no es saber que no.
-func GetCategories(r Runner, userID int64, since, until time.Time, run time.Time) []Category {
+// la solicitud. Un error se devuelve, no se convierte en vacío: no saber no es saber que no.
+func GetCategories(r Runner, userID int64, since, until time.Time, run time.Time) ([]Category, error) {
 	if userID == 0 || since.IsZero() {
-		return nil
+		return nil, nil
 	}
 	// El reloj de pared TAL COMO LO DEVUELVE ESTA FUENTE: `fecha()` parseó con `r.Zone()`, así que
 	// volver a esa zona reconstruye exactamente el texto que hay en la columna.
 	clock := func(t time.Time) string { return t.In(r.Zone()).Format("20060102150405") }
 	fs, err := r.Rows(sqlCategories, userID, clock(since), clock(until))
 	if err != nil {
-		return nil
+		return nil, err
 	}
 	out := make([]Category, 0, len(fs))
 	for _, f := range fs {
@@ -335,7 +335,7 @@ func GetCategories(r Runner, userID int64, since, until time.Time, run time.Time
 		}
 		out = append(out, c)
 	}
-	return out
+	return out, nil
 }
 
 // sqlCorbeta lee el setting que define el CANAL Corbeta. Es una LISTA EN BD, no una constante: en prod hoy
@@ -348,22 +348,26 @@ func GetCategories(r Runner, userID int64, since, until time.Time, run time.Time
 // del OBV22000 normal. Como el buró se dispara al guardar lo laboral, sin formulario no hay buró.
 const sqlCorbeta = "SELECT value FROM settings WHERE `key` = 'corbeta_allieds' LIMIT 1"
 
-// GetCorbetaAllieds devuelve los allied_id del canal Corbeta. Ante cualquier error devuelve vacío: no saber
-// es distinto de saber que no, y un canal mal supuesto esconde etapas que sí ocurrieron.
-func GetCorbetaAllieds(r Runner) map[int64]bool {
+// GetCorbetaAllieds devuelve los allied_id del canal Corbeta. Un error se devuelve: no saber es distinto
+// de saber que no, y un canal mal supuesto esconde etapas que sí ocurrieron. Sin la fila de settings no
+// hay comercios Corbeta, y eso no es un error.
+func GetCorbetaAllieds(r Runner) (map[int64]bool, error) {
 	out := map[int64]bool{}
 	fs, err := r.Rows(sqlCorbeta)
-	if err != nil || len(fs) == 0 {
-		return out
+	if err != nil {
+		return out, err
+	}
+	if len(fs) == 0 {
+		return out, nil
 	}
 	var ids []int64
 	if err := json.Unmarshal([]byte(asText(fs[0]["value"])), &ids); err != nil {
-		return out
+		return out, fmt.Errorf("corbeta_allieds no es una lista de ids: %w", err)
 	}
 	for _, id := range ids {
 		out[id] = true
 	}
-	return out
+	return out, nil
 }
 
 const sqlIsEcommerce = `SELECT COUNT(*) AS n FROM ecommerce_requests WHERE user_request_id = ?`
@@ -388,7 +392,9 @@ func GetLoanRequest(r Runner, ureq int64) (*LoanRequest, error) {
 		Validation: int(integer(f["validation"])),
 	}
 
-	if hs, err := r.Rows(sqlHistory, ureq); err == nil {
+	hs, err := r.Rows(sqlHistory, ureq)
+	s.couldNotRead("el historial de estados", err)
+	if err == nil {
 		prev := -1
 		for _, h := range hs {
 			st := int(integer(h["st"]))
@@ -399,7 +405,9 @@ func GetLoanRequest(r Runner, ureq int64) (*LoanRequest, error) {
 			s.Transitions = append(s.Transitions, Transition{Status: st, Name: asText(h["status"]), At: date(h["created_at"], r.Zone())})
 		}
 	}
-	if bs, err := r.Rows(sqlBureau, s.UserID); err == nil {
+	bs, err := r.Rows(sqlBureau, s.UserID)
+	s.couldNotRead("las consultas a buró", err)
+	if err == nil {
 		for _, b := range bs {
 			at := date(b["created_at"], r.Zone())
 			if at.Before(s.Created.Add(-5 * time.Minute)) {
@@ -414,10 +422,13 @@ func GetLoanRequest(r Runner, ureq int64) (*LoanRequest, error) {
 		}
 	}
 
-	s.Profiling = GetProfiling(r, ureq)
+	s.Profiling, err = GetProfiling(r, ureq)
+	s.couldNotRead("el perfilamiento", err)
 
 	s.Origin, s.DerivedOrigin = "asesor", false
-	if is, err := r.Rows(sqlIsEcommerce, ureq); err == nil && len(is) > 0 && integer(is[0]["n"]) > 0 {
+	is, err := r.Rows(sqlIsEcommerce, ureq)
+	s.couldNotRead("si entró por ecommerce", err)
+	if err == nil && len(is) > 0 && integer(is[0]["n"]) > 0 {
 		s.Origin, s.DerivedOrigin = "ecommerce", true
 	}
 	return s, nil
@@ -613,10 +624,13 @@ type ShownLender struct {
 	Amount      *float64 `json:"available_amount"`
 }
 
-func GetProfiling(r Runner, ureq int64) *Profiling {
+func GetProfiling(r Runner, ureq int64) (*Profiling, error) {
 	fs, err := r.Rows(sqlProfiling, ureq)
-	if err != nil || len(fs) == 0 {
-		return nil
+	if err != nil {
+		return nil, err
+	}
+	if len(fs) == 0 {
+		return nil, nil
 	}
 	f := fs[0]
 	p := &Profiling{
@@ -688,5 +702,5 @@ func GetProfiling(r Runner, ureq int64) *Profiling {
 			}
 		}
 	}
-	return p
+	return p, nil
 }

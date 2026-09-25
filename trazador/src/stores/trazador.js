@@ -98,6 +98,13 @@ function recentList(value) {
 }
 
 // Con los helpers de la base: una falla del almacenamiento no impide usar el trazador.
+// Cada búsqueda y cada apertura de traza lleva un número. Una respuesta que llega cuando ya se pidió otra
+// cosa —otra búsqueda, otra solicitud u otro ambiente— se descarta: hasta el 2026-09-25 la búsqueda leía
+// `this.target` DESPUÉS del await, así que cambiar el selector mientras consultaba prod guardaba el
+// resultado de prod bajo dev y lo mostraba como de dev.
+let searchGen = 0
+let traceGen = 0
+
 function readRecent() {
   const saved = readPref('trazador.recent', [])
   return recentList(Array.isArray(saved) ? saved : [])
@@ -252,17 +259,26 @@ export const useTrazador = defineStore('trazador', {
     async search() {
       const q = this.q.trim()
       if (!q) return
+      // El ambiente y la consulta se fijan AL EMPEZAR: todo lo que sigue usa éstos, no los de la pantalla.
+      const target = this.target
+      const gen = ++searchGen
+      const stale = () => gen !== searchGen
       this.searching = true; this.phase = 'buscando'
       this.error = ''; this.results = null; this.trace = null
       try {
-        const saved = await readSearch(this.target, q)
+        const saved = await readSearch(target, q)
+        if (stale()) return
         const cached = cacheResult(saved, q)
         if (cached && searchHasPerson(cached)) this.results = cached
         else {
           try {
-            this.results = await json(`/api/buscar?q=${encodeURIComponent(q)}&target=${this.target}`)
-            await saveSearch({ target: this.target, q, results: toRaw(this.results) })
+            const fresh = await json(`/api/buscar?q=${encodeURIComponent(q)}&target=${target}`)
+            // Se guarda bajo SU ambiente aunque ya no se muestre: el resultado es correcto para él.
+            await saveSearch({ target, q, results: fresh })
+            if (stale()) return
+            this.results = fresh
           } catch (e) {
+            if (stale()) return
             // Actualizar una caché de la versión anterior es una mejora, no una razón para ocultar una
             // consulta útil cuando la fuente remota está caída.
             if (saved?.results) this.results = saved.results
@@ -279,8 +295,8 @@ export const useTrazador = defineStore('trazador', {
         // Cuando la consulta es cédula o celular no se abre arbitrariamente una solicitud, pero sí se
         // canoniza el link a la cédula. Una búsqueda por uReq termina arriba con su corrida seleccionada.
         this.aURL()
-      } catch (e) { this.error = e.message }
-      finally { this.searching = false; this.phase = '' }
+      } catch (e) { if (!stale()) this.error = e.message }
+      finally { if (!stale()) { this.searching = false; this.phase = '' } }
     },
 
     async viewTrace(ureq) {
@@ -293,9 +309,12 @@ export const useTrazador = defineStore('trazador', {
       }
       this.loadingTrace = false; this.phase = ''
       this.error = ''; this.selectedStage = null
+      const gen = ++traceGen
+      const stale = () => gen !== traceGen
       try {
         const target = this.target
         const saved = await readQuery(target, id)
+        if (stale()) return
         // La corrida sólo llega a IndexedDB después de terminar. La ficha nueva de perfil de cupo no
         // puede derivarse sin riesgo de las líneas ya renderizadas de una caché vieja; una copia sin ese
         // campo se actualiza UNA vez. Luego queda completa en IndexedDB como cualquier otra corrida.
@@ -314,6 +333,7 @@ export const useTrazador = defineStore('trazador', {
           // La barra representa exclusivamente trabajo remoto (BD + logs), nunca la lectura local.
           this.loadingTrace = true; this.phase = 'armando'
           const remote = await json(`/api/traza?ureq=${id}&target=${target}`)
+          if (stale()) return
           // Un servidor que todavía no se reinició tras agregar perfilesCupo no debe invalidar la misma
           // entrada para siempre: al migrarla se persiste `[]`, y la próxima recarga es totalmente local.
           this.trace = {
@@ -327,8 +347,8 @@ export const useTrazador = defineStore('trazador', {
         this.selectedStage = this.stages[this.interestingIndex]?.id ?? null
         this.enrichRecent(this.trace)
         this.aURL()
-      } catch (e) { this.error = e.message; this.trace = null }
-      finally { this.loadingTrace = false; this.phase = '' }
+      } catch (e) { if (!stale()) { this.error = e.message; this.trace = null } }
+      finally { if (!stale()) { this.loadingTrace = false; this.phase = '' } }
     },
 
     select(id) {
@@ -344,6 +364,9 @@ export const useTrazador = defineStore('trazador', {
       this.results = null
       this.selectedStage = null
       this.error = ''
+      // Lo que estaba en vuelo queda descartado: su respuesta es del ambiente anterior.
+      searchGen++; traceGen++
+      this.searching = false; this.loadingTrace = false; this.phase = ''
       this.aURL()
     },
 

@@ -9,6 +9,8 @@ import Detail from './components/Detail.vue'
 import Recent from './components/Recent.vue'
 
 const t = useTrazador()
+// Los avisos de una traza a la que le faltó una fuente (el server los escribe con este prefijo).
+const partialWarnings = computed(() => (t.trace?.warnings || []).filter((w) => w.startsWith('traza parcial')))
 // El mapa primero y solo: no toca ninguna fuente, así que el árbol se dibuja al instante y la app no
 // arranca en blanco esperando a Redash. Después se mira la ruta: `/traza/:target/:cedula/:ureq` rearma esa corrida.
 onMounted(async () => {
@@ -333,6 +335,16 @@ async function copyTrace() {
         <span v-else class="grow">sin coincidencias en {{ t.results.target }}</span>
         <span class="count">fuente {{ t.results.source }}</span>
       </div>
+      <!-- «TRAZA PARCIAL», a la vista: una consulta a la base falló, y lo que falta por un error se lee
+           igual que lo que no pasó. Es el único aviso que va en pantalla —la regla de esta herramienta es
+           avisar sólo lo grave; los demás (líneas por span, sin ubicar…) salen en casi toda traza y siguen
+           en el texto copiado—. Va en el editor y no en el panel de la persona: esconder ese panel no
+           puede esconder el aviso. -->
+      <div v-if="partialWarnings.length" class="subband trace-warnings" role="status" :title="partialWarnings.join('\n')">
+        <span class="ui-icon" data-icon="alert" aria-hidden="true"></span>
+        <span class="grow">{{ partialWarnings[0] }}</span>
+        <span v-if="partialWarnings.length > 1" class="count">+{{ partialWarnings.length - 1 }}</span>
+      </div>
       <StageMap :closed="closed" :panel-width="visibleWidth" />
     </section>
 
@@ -414,6 +426,8 @@ async function copyTrace() {
 /* Excepción declarada a «sin mayúsculas»: el ambiente del pie es una alarma (PROD), no una etiqueta. */
 .statusbar strong { color:var(--dim); text-transform:uppercase; letter-spacing:.06em }
 .statusbar strong.prod { color:var(--warn) }
+.trace-warnings .ui-icon { color:var(--warn) }
+.trace-warnings .grow { overflow:hidden; text-overflow:ellipsis; white-space:nowrap }
 .statusbar b { color:var(--txt) }
 /* La pista de teclado al borde: es ayuda, no estado — lo último que se lee. */
 .ureq { font-variant-numeric:tabular-nums }

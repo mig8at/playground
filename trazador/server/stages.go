@@ -226,6 +226,18 @@ type LoanRequest struct {
 	// Las operaciones contra Deceval (`deceval_logs`), el tramo del pagaré digital. Vacío = o el lender no
 	// firma con Deceval, o no llegó — el veredicto se cruza con la etapa, no se decide acá.
 	Deceval []DecevalOp
+	// Lo que se quiso leer y la fuente no contestó, con su error. Cada consulta que falla deja acá su
+	// nombre y la traza sale con un aviso de parcial: una lista vacía por error se lee igual que «no
+	// pasó», y ese es el diagnóstico equivocado más caro (el CLAUDE.md raíz, «menos se lee igual que no
+	// existe»). Hasta el 2026-09-25 estas consultas devolvían vacío en silencio.
+	Unread []string
+}
+
+// couldNotRead anota una consulta que falló. Sin error no anota nada.
+func (s *LoanRequest) couldNotRead(what string, err error) {
+	if err != nil {
+		s.Unread = append(s.Unread, fmt.Sprintf("%s (%v)", what, err))
+	}
 }
 
 type Transition struct {
@@ -318,6 +330,9 @@ func assemble(stageMap *Map, subMap *SubMap, s *LoanRequest, lines []Line, targe
 	stageStatus, closingStatus, stoppingStatus = stageMap.StageStatus(), stageMap.ClosingStatus(), stageMap.StoppingStatus()
 
 	t := Trace{UReq: s.ID, Target: target, Sources: []string{"db"}, Status: s.Status, StatusName: s.StatusN}
+	for _, what := range s.Unread {
+		t.Warnings = append(t.Warnings, "traza parcial: no se pudo leer "+what+" — que falte no quiere decir que no pasó")
+	}
 	if len(lines) > 0 {
 		t.Sources = append(t.Sources, "loki")
 	}
@@ -2654,7 +2669,9 @@ func BuildTrace(target string, ureq int64) (Trace, *LoanRequest, error) {
 	}
 
 	bureaus := GetBureaus(source)
-	s.Corbeta = GetCorbetaAllieds(source)[s.AlliedID]
+	corbeta, err := GetCorbetaAllieds(source)
+	s.couldNotRead("los comercios del canal Corbeta", err)
+	s.Corbeta = corbeta[s.AlliedID]
 
 	// La evaluación de categoría, entidad por entidad. Va acotada a la ventana de ESTA solicitud porque la
 	// tabla se indexa por `user_id`: un cliente con dos intentos el mismo día trae las filas de los dos.
@@ -2668,10 +2685,12 @@ func BuildTrace(target string, ureq int64) (Trace, *LoanRequest, error) {
 		if s.Profiling != nil {
 			run = s.Profiling.CreatedAt
 		}
-		s.Categories = GetCategories(source, s.UserID, s.Created.Add(-15*time.Minute), s.Created.Add(6*time.Hour), run)
+		s.Categories, err = GetCategories(source, s.UserID, s.Created.Add(-15*time.Minute), s.Created.Add(6*time.Hour), run)
+		s.couldNotRead("la evaluación de categoría por entidad", err)
 	}
 	// El pagaré digital. Ésta SÍ se ancla por `user_request_id`: no hace falta ventana ni heurística.
-	s.Deceval = GetDeceval(source, s.ID)
+	s.Deceval, err = GetDeceval(source, s.ID)
+	s.couldNotRead("las operaciones de Deceval", err)
 	var lenderIDs []int64
 	for _, l := range lines {
 		if v := pick(l.ctx, []string{"lender_id"}); v != "" {
