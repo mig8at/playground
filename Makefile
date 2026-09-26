@@ -593,7 +593,7 @@ confluence: ## @har el POR QUÉ del negocio, que el código no tiene (sólo lect
 # ── CANON ─────────────────────────────────────────────────────────────────────────────────────────
 # Lectura gratis y escritura por la API, contra CANON_URL (producción por defecto: pide la VPN de
 # prod). Cuándo y qué se escribe: `.claude/skills/canon/SKILL.md`. La llave no se imprime nunca.
-.PHONY: canon-search canon-read canon-code canon-propose canon-write
+.PHONY: canon-search canon-read canon-code canon-propose canon-write canon-local-sync
 canon-search: ## @can ¿canon ya lo tiene? qué sección y qué área lo cubren, gratis. Q='monto avisado al comercio'
 	@test -n "$(Q)" || { echo "falta Q='<palabras del negocio>'"; exit 2; }
 	@cd tablero/server && go run ./cmd/canon search $(Q)
@@ -609,6 +609,17 @@ canon-propose: ## @can ensaya una pieza sin escribir: dónde iría y qué rechaz
 canon-write: ## @can ⚠ ESCRIBE en canon: borrador → piezas → cierre, en UNA revisión que ve el equipo. PIECE='a.json b.json' TITLE='…'
 	@test -n "$(PIECE)" || { echo "falta PIECE=<pieza.json…>"; exit 2; }
 	@cd tablero/server && go run ./cmd/canon write -title '$(or $(TITLE),canon: dictado desde el playground)' $(abspath $(PIECE))
+# El canon LOCAL al día con el de producción: baja el corpus (`GET /api/export`, lectura) y lo escribe
+# como UNA revisión en la base de esta máquina (`canon -pg importar`, que se niega a una base remota sin
+# conectarse), y le pide a la instancia local que relea. Nada de esto escribe en producción.
+# CANON_DIR es el checkout desde el que corre el canon local (su `.env` apunta a la base local);
+# LOCAL, la instancia que relee.
+CANON_DIR ?= $(HOME)/Desktop/CREDITOP/github/playground-canon-workbench/tools/canon
+canon-local-sync: ## @can el canon LOCAL igual al de producción: baja el corpus y lo carga en la base local (no escribe en prod). [LOCAL=http://localhost:8383] [CANON_DIR=…]
+	@cd '$(CANON_DIR)' && set -a && . ./.env && set +a && go run . -pg importar https://canon.playground.creditop.com 2>&1 | grep -v '^20[0-9][0-9]/' ; \
+	  r=$$(curl -s -m 20 -X POST '$(or $(LOCAL),http://localhost:8383)/api/reload' -H "x-canon-key: $$CANON_WRITE_KEY") ; \
+	  if [ -n "$$r" ]; then echo "  releída: $$(echo "$$r" | python3 -c 'import json,sys;d=json.load(sys.stdin);print(d.get("temas"),"temas · diccionario",(d.get("diccionario") or {}).get("generado"))')"; \
+	  else echo "  ⚠ la instancia local no respondió: al levantarla lee el corpus nuevo"; fi
 
 trazador-sql: ## @har UNA consulta de SOLO LECTURA a la BD del ambiente. SQL='SELECT …' [TARGET=prod|staging|qa|dev|local] [CSV=1] [MD=1 anotación + tabla markdown, para pegar en la tarea] [BLOQUE=<id|slug> la agrega como bloque a la pila de esa tarea]
 	@# ⚠ el mismo escapado que la línea de abajo, y por la misma razón: `test -n "$(SQL)"` se rompía
