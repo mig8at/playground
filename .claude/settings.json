@@ -4,7 +4,7 @@
     "CLAUDE.md como 'acordate de correr X' — y una regla que depende de que alguien se acuerde es una regla",
     "que se olvida, sobre todo cuando olvidarla NO ROMPE NADA.",
     "",
-    "Los cinco los corre `.claude/hooks/run <nombre>`, que compila tablero/server/cmd/hooks cuando cambia su",
+    "Los seis los corre `.claude/hooks/run <nombre>`, que compila tablero/server/cmd/hooks cuando cambia su",
     "código (la lógica y el porqué de cada uno: tablero/server/internal/hooks). `args` va aparte a propósito:",
     "con `args` el comando se ejecuta sin shell. Si un hook se rompe, sale 0 o 1: avisa y la sesión sigue.",
     "",
@@ -25,7 +25,12 @@
     "",
     "Stop        · closeout: al terminar de responder corre `closeout -json` y mira SÓLO las tareas que ESTA",
     "              sesión tocó. Si a alguna le falta una pieza, devuelve `block` con la lista. UNA vez por",
-    "              sesión y por día (marca en tablero/data/cache/)."
+    "              sesión y por día (marca en tablero/data/cache/).",
+    "",
+    "Stop        · verify: corre el chequeo de cada zona de código que ESTA sesión escribió —harness-check,",
+    "              go vet + go test de los paquetes tocados, estilo-check— y devuelve `block` con la salida",
+    "              si falla. Una vez por ESTADO del árbol (huella en tablero/data/cache/verify-*.json): un",
+    "              rojo se avisa una vez, y cambiar el código vuelve a medir."
   ],
   "hooks": {
     "SessionStart": [
@@ -95,6 +100,14 @@
               "closeout"
             ],
             "timeout": 120
+          },
+          {
+            "type": "command",
+            "command": "${CLAUDE_PROJECT_DIR}/.claude/hooks/run",
+            "args": [
+              "verify"
+            ],
+            "timeout": 360
           }
         ]
       }

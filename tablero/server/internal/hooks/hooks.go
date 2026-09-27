@@ -7,6 +7,7 @@
 //	destructive-tests  PreToolUse (Bash) · frena lo que puede recrear una base desde legacy-backend
 //	task-lint          PostToolUse (Write|Edit) · valida una tarea del tablero apenas se escribe
 //	closeout           Stop · el cierre de sesión del tablero, sobre las tareas que ESTA sesión tocó
+//	verify             Stop · los chequeos del código que ESTA sesión escribió (typecheck, go test, estilos)
 //
 // Nacieron como cinco scripts de Python en `.claude/hooks/` y pasaron a Go el 2026-09-23, comparados
 // entrada por entrada contra esa versión. Los corre `.claude/hooks/run`, que compila el binario cuando
@@ -54,6 +55,8 @@ func Run(name string, env Env) int {
 		return TaskLint(env)
 	case "closeout":
 		return Closeout(env)
+	case "verify":
+		return Verify(env)
 	}
 	fmt.Fprintf(env.Stderr, "(hook desconocido: %q; no se bloquea)\n", name)
 	return 0
