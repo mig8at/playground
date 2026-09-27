@@ -996,7 +996,7 @@ const server = createServer(async (req, res) => {
 
         // ⚠ QUÉ GENERA LOS DOCUMENTOS, que es una perilla del `.env` de OTRO repo y por eso es
         // invisible desde acá. El factor depende de cuántos workers tenga PHP —la tabla está en
-        // `CLAUDE.md` §«Corridas 4× más rápidas»—; con el `harness-caso` de un caso suelto, medido el
+        // la skill `harness-local` §«Corridas 4× más rápidas»—; con el `harness-caso` de un caso suelto, medido el
         // 2026-09-18, son **65,7 s con Blade contra 9,8 s con el mock**. Lo que se paga a cambio es que
         // la corrida DEJA DE EJERCITAR las plantillas Blade — o sea que deja de atrapar la clase de bug
         // de F-150 (un builder que produce claves que la plantilla no espera revienta EN PLENO RENDER y

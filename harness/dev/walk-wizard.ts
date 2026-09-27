@@ -935,7 +935,7 @@ async function runBrowser(c: Case, i: number, browser: any): Promise<Result> {
         // son dos: identificación y fecha de expedición). Se le da tiempo y el bucle vuelve a mirar.
         // ⚠ WAIT GENEROSA DESPUÉS DE UN CLICK ACEPTADO, y el número tiene una razón: el envío de
         // `payment-schedule` es el que dispara la GENERACIÓN DE DOCUMENTOS, ~30 s con plantillas Blade
-        // (§«Corridas 4× más rápidas»). Con 12 s el caminador abandonaba una pantalla que estaba
+        // (skill `harness-local`, §«Corridas 4× más rápidas»). Con 12 s el caminador abandonaba una pantalla que estaba
         // funcionando —la captura mostraba el botón con el spinner— y lo reportaba como «sin botón para
         // avanzar»: un falso negativo sobre el paso más lento del flujo.
         //

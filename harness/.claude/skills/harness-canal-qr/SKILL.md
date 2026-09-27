@@ -324,3 +324,9 @@ la venta que cierra en CAJA. Los otros tres están en `.flows.json` por nombre (
   680 ms) y su último caso fija una **divergencia deliberada**: `retrieve-order-details` contesta el 404
   de negocio y **no** el `SA409` del catálogo `Sandbox`, que es una limitación de Microcks. Si alguien
   cruza el mock contra el sandbox y «corrige» eso, lo rompe.
+
+## Hasta dónde llega una prueba de Bancolombia
+
+- **La decisión no es inyectable** (la toma la API del banco), pero **el escenario sí es direccionable en no-prod** por cédula y por celular (§7). Eso es más de lo que decía el padre ("frontera dura"): se pueden ejercitar con-cupo, sin-cupo, sesión expirada y riesgo de fraude sin mockear el transporte.
+- El harness lo rutea **por ID antes que por `rt==1`** (`bancolombiaClose`: `validate-preapproved` con `Http::fake` + override `TestDoc=1998228194`). **No llega a Estado 11.**
+- El eje ecommerce se degrada en local (Mixed Content contra el host interno) → usar dev desplegado.
