@@ -39,9 +39,10 @@ negocio»): una regla técnica, de negocio o de producto **que existe en `main`*
 curso agregó y todavía no está en `main`.
 
 **Antes de escribir, verificala:** `git show origin/main:<ruta>` en **los dos monolitos**
-(`legacy-backend` y `legacy-application`), `git log -S` para saber desde cuándo, y si se puede, cuánto
-pasa en producción (`make trazador-sql TARGET=prod`). Un dato de un sistema vivo va con su fecha en la
-misma frase.
+(`legacy-backend` y `legacy-application`). Medir en producción (`make trazador-sql TARGET=prod`) sirve
+para entender qué camino pesa, pero **la medición no va a la prosa**: ni cifras del ambiente ni fechas de
+cuándo se midió o descubrió algo. Caducan, no ahorran leer el código y el agente las repite como regla;
+el lint las rechaza. Entra lo que el código no dice o lo que ahorra leerlo.
 
 1. **Armá la pieza** (`pieza.json`, formato abajo).
 2. `make canon-propose PIECE=pieza.json` — no escribe; dice `ready`, qué rechaza el lint y dónde iría.
