@@ -2438,7 +2438,7 @@ function documentAction(id) {
 .block-command-label { margin-bottom: 5px; color: var(--mut); font-size: var(--text-xs) }
 .block-code { margin: 0; color: var(--txt); font: var(--text-sm)/1.5 var(--mono, ui-monospace, monospace); white-space: pre-wrap; overflow-wrap: anywhere }
 .block-material { margin: var(--space-1) 0 var(--space-2); padding: var(--space-2) var(--gutter); background: var(--panel2) }
-/* Una tabla son líneas por FILA, no una grilla de celdas (regla 4 del CLAUDE.md raíz); el encabezado se
+/* Una tabla son líneas por FILA, no una grilla de celdas (regla 4 de tools/ui/CLAUDE.md); el encabezado se
    distingue en gris, no con fondo. */
 .block-table { margin: 2px 0 9px; border-collapse: collapse; font-size: var(--text-base); line-height: 1.45 }
 .block-table th, .block-table td { padding: 4px 12px 4px 0; text-align: left; vertical-align: top; border-bottom: 1px solid var(--line) }

@@ -4,7 +4,7 @@ Qué es y cómo se corre: `README.md`. Acá solo las reglas al trabajar con las 
 
 ## Dónde está cada cosa en pantalla
 
-El tablero es un **workbench** (ver el `CLAUDE.md` raíz, §«Y cómo se DIVIDE la pantalla»), no una
+El tablero es un **workbench** (ver `tools/ui/CLAUDE.md`, §«Y cómo se DIVIDE la pantalla»), no una
 página que scrollea:
 
 | Región | Qué tiene |
