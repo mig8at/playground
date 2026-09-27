@@ -168,7 +168,7 @@ func IndexGuardHook(env Env) int {
 	if len(reasons) == 0 {
 		return 0
 	}
-	fmt.Fprint(env.Stderr, "⛔ Bloqueado por el hook index-guard (tablero/server/internal/hooks/indexguard.go): varias sesiones "+
+	fmt.Fprint(env.Stderr, "⛔ Bloqueado por el hook index-guard (tablero/server/internal/hooks/index_guard.go): varias sesiones "+
 		"comparten este worktree y su índice de git.\n")
 	for _, r := range reasons {
 		fmt.Fprintf(env.Stderr, "  ✗ %s\n", r)

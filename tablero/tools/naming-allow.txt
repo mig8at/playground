@@ -22,6 +22,8 @@ skill skills
 
 # ── términos técnicos que la stdlib casi no usa ───────────────────────────────────────────────────
 slug frontmatter jsonl upsert shortstat squash changelog pathspec
+# `broad` es inglés común; `reedit` es la opción `--reedit-message` de `git commit`
+broad reedit
 dbquery taskcontext repocheck
 hotspot hotspots inflight clickable asset assets radii opacity flexbox hug cropped crop crops fidelity thumbnail
 # `deafult` no es un nombre nuestro: es el VALOR que trae Figma en la variante de la casilla del sistema
