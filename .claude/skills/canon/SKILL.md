@@ -38,7 +38,7 @@ negocio»): una regla técnica, de negocio o de producto **que existe en `main`*
 **No entra:** la crónica (quién lo descubrió, cómo se probó), un PR sin mergear, ni lo que la tarea en
 curso agregó y todavía no está en `main`.
 
-**Antes de escribir, verificala:** `git show origin/main:<ruta>` en **los dos monolitos**
+**Antes de escribir, verificala** (el subagente `main-verifier` lo hace y devuelve archivo:línea con su commit): `git show origin/main:<ruta>` en **los dos monolitos**
 (`legacy-backend` y `legacy-application`). Medir en producción (`make trazador-sql TARGET=prod`) sirve
 para entender qué camino pesa, pero **la medición no va a la prosa**: ni cifras del ambiente ni fechas de
 cuándo se midió o descubrió algo. Caducan, no ahorran leer el código y el agente las repite como regla;

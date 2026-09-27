@@ -195,7 +195,7 @@ de un listado). **Cada una pasa por esto, sin que nadie lo pida** (Miguel, 2026-
 
 1. **¿Canon la tiene?** `make canon-search` → `make canon-read`. Si coincide, se cita y el tema entra a
    `canon:`. Si **contradice** el código, se reescribe esa sección, no se agrega otra al lado.
-2. **Si no, ¿es real y está viva?** `git show origin/main:<ruta>` en **los dos monolitos**, `git log -S`
+2. **Si no, ¿es real y está viva?** Delegalo al subagente **`main-verifier`**, o a mano: `git show origin/main:<ruta>` en **los dos monolitos**, `git log -S`
    para saber desde cuándo, y que el código se alcance. Si se puede, se mide en prod con el trazador.
 3. **Si es viva, va a canon** con el filtro de `skills/dictar.md`: existe en `main`, sin crónica, sin nada
    de un PR abierto. Las recetas, en la skill **`canon`**.
