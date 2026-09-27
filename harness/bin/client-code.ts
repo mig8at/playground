@@ -16,6 +16,7 @@ const [hash, lenderArg, codeArg] = process.argv.slice(2);
 
 const { generateClientCode, ClientCodeSkip } = await import('../pkg/client-code.ts');
 const { close } = await import('../pkg/db.ts');
+export {};   // sin imports estáticos, TypeScript lo leería como script: sin await arriba y con el close() global
 
 let out: Record<string, unknown>;
 try {

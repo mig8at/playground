@@ -19,6 +19,7 @@
 // ⚠ El E2E_TARGET se fija ANTES de importar `pkg/db.ts`: un `||=` no le gana a un import estático (F-187).
 process.env.E2E_TARGET = 'qa';
 const { query, close } = await import('../pkg/db.ts');
+export {};   // sin imports estáticos (ver arriba), TypeScript lo leería como script y no aceptaría el await
 
 const FRONT = 'https://originaciones-qa.dev.creditop.com';
 
