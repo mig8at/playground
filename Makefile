@@ -617,7 +617,7 @@ canon-write: ## @can ⚠ ESCRIBE en canon: borrador → piezas → cierre, en UN
 # conectarse), y le pide a la instancia local que relea. Nada de esto escribe en producción.
 # CANON_DIR es el checkout desde el que corre el canon local (su `.env` apunta a la base local);
 # LOCAL, la instancia que relee.
-CANON_DIR ?= $(HOME)/Desktop/CREDITOP/github/playground-canon-workbench/tools/canon
+CANON_DIR ?= $(HOME)/Desktop/CREDITOP/github/playground/tools/canon
 canon-local-sync: ## @can el canon LOCAL igual al de producción: baja el corpus y lo carga en la base local (no escribe en prod). [LOCAL=http://localhost:8383] [CANON_DIR=…]
 	@cd '$(CANON_DIR)' && set -a && . ./.env && set +a && go run . -pg importar https://canon.playground.creditop.com 2>&1 | grep -v '^20[0-9][0-9]/' ; \
 	  r=$$(curl -s -m 20 -X POST '$(or $(LOCAL),http://localhost:8383)/api/reload' -H "x-canon-key: $$CANON_WRITE_KEY") ; \
