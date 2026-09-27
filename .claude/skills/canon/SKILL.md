@@ -1,6 +1,6 @@
 ---
 name: canon
-description: Leer y escribir canon, el corpus compartido de CreditOp. Usala ANTES de investigar cómo funciona algo (buscar, leer la sección, ver el código que la respalda) y cada vez que aparezca una regla de negocio que canon no tiene y hay que dictarle (verificarla viva en main, ensayar la pieza, dictarla en una revisión). Cubre `make canon-*`, la API (/api/search, /api/read, /api/code, /api/propose, /api/draft) y sus trampas.
+description: Leer y escribir canon, el corpus compartido de CreditOp. Usala ANTES de investigar cómo funciona algo (buscar, leer la sección, ver el código que la respalda) y cada vez que aparezca una regla de negocio que canon no tiene y hay que dictarle (verificarla viva en main, ensayar la pieza, dictarla en una revisión), y para ponerlo al día con lo que mergeó el equipo (-ronda, -peso). Cubre `make canon-*`, la API (/api/search, /api/read, /api/code, /api/propose, /api/draft) y sus trampas.
 ---
 
 # Canon · leerlo y dictarle
@@ -49,6 +49,10 @@ misma frase.
    cierra en una sola revisión. Si algo falla, abandona el borrador y no queda nada a medias.
 4. Verificá con `make canon-search` que aparece, y dejá en la tarea un bloque con la cita.
 
+Por debajo es la API con la llave de escritura (`CANON_WRITE_KEY`, en el `.env` de `tools/canon`):
+`POST /api/draft` → una pieza por sección con `POST /api/draft/{id}` → `POST /api/draft/{id}/close`,
+que valida el corpus entero y guarda todo en una revisión. `POST /api/propose` ensaya sin escribir.
+
 ### La pieza
 
 ```json
@@ -77,6 +81,29 @@ misma frase.
 - `archivos` usa los nombres de repo de canon (`legacy-application`, no `application`) y se valida
   contra `main`. Un archivo que otra área ya declara no crea área nueva: la sección se **enlaza** a ésa.
 - `source`: `verified` (leído en el código) · `measured` (medido) · `testimony` · `inference`.
+
+## Mantenerlo al día — lo que mergea OTRO
+
+Dictar cubre lo que mergeás vos. Lo que mergea el resto del equipo entra sin que nadie lo escriba, y
+el hueco no avisa. **El bucle, probado el 2026-08-16 sobre el árbol que precedió a canon y que encontró
+dos funcionalidades invisibles:**
+
+1. **`go run . -ronda`** desde el repo de canon (`~/Desktop/CREDITOP/github/playground/tools/canon`) —
+   qué archivos declarados cambiaron en `main` o desaparecieron. Cada área declara sus `fuentes` con el
+   **hash del blob** contra el que se verificó, así que esto es una comparación exacta, no una
+   estimación. ⚠ Y **`-peso`** ordena esa lista por actividad de 90 días: sin eso, el ranking mezcla un
+   archivo que cambió una vez con el que cambia todas las semanas. ⚠ Los dos aportan cosas distintas, y
+   está medido: Credifamilia salió de la deriva (un archivo repitiéndose en varios temas), y
+   `can_check_preapproval` salió de mirar el cambio de un tema con deriva **baja**. Mirar sólo el
+   ranking se pierde lo segundo.
+2. Confirmá que el hueco es real: `git log main --oneline -- <ruta>` (cuándo entró y quién) + una
+   búsqueda en canon (`make canon-search`). Si nadie lo menciona, ahí hay algo.
+3. Leé el código que cambió, en `main` y en los dos monolitos.
+4. **Verificá contra `main`** lo que devuelva, y recién ahí dictalo (arriba). ⚠ El cambio de prosa y el
+   del hash van **juntos**: mover el hash sin releer dice «esto sigue siendo cierto» sin que nadie lo
+   haya comprobado.
+5. **Una sección nueva no revalida el área entera.** Agregar no es revisar; decir que revisaste lo que
+   sólo ampliaste es la forma más barata de envejecer un corpus sin que se note.
 
 ## Trampas que ya costaron
 
