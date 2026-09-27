@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"creditop/playground/tablero/server/internal/shell"
 )
@@ -161,7 +162,50 @@ func TestTheConnectorCatalogComesFromPgAndMarksWrites(t *testing.T) {
 		t.Fatal(err)
 	}
 	got := connectorCatalog(root)
-	if !strings.Contains(got, "  sql ") || !strings.Contains(got, "⚠ jira create") || strings.Contains(got, "⚠ sql") {
+	if !strings.Contains(got, "    sql · ⚠jira create") || strings.Contains(got, "⚠sql") {
 		t.Errorf("catálogo:\n%s", got)
+	}
+}
+
+// El catálogo con descripciones pesaba 28 KB y Claude Code lo cortó a un preview de 2 KB: el modelo no
+// veía ni canon ni el harness. Esta prueba lee el Makefile REAL, así que un target nuevo que empuje el
+// catálogo por encima del presupuesto la hace fallar acá, y no en silencio al arrancar una sesión.
+func TestTheRealCatalogFitsTheContextBudget(t *testing.T) {
+	root, err := filepath.Abs(filepath.Join("..", "..", "..", ".."))
+	if err != nil {
+		t.Fatal(err)
+	}
+	makefile, err := os.ReadFile(filepath.Join(root, "Makefile"))
+	if err != nil {
+		t.Fatalf("no encuentro el Makefile del playground: %v", err)
+	}
+	_, out, _, err := run(root, 20*time.Second, "make")
+	if err != nil {
+		t.Fatalf("make: %v", err)
+	}
+	targets := makeTargets(string(makefile))
+	if len(targets) < 50 {
+		t.Fatalf("leí %d targets del Makefile: el patrón dejó de reconocerlos", len(targets))
+	}
+	got := compactCatalog(withoutColors(out), targets)
+	for name := range targets {
+		if !strings.Contains(got, name) {
+			t.Errorf("el catálogo perdió %q", name)
+		}
+	}
+	// Los conectores no entran en la cuenta (piden compilar pg): se les reserva 1,5 KB.
+	if size := len(header) + len(root) + len(got) + 1500; size > contextBudget {
+		t.Errorf("el catálogo pesa ~%d B, por encima de %d: Claude Code lo va a cortar", size, contextBudget)
+	}
+}
+
+// Una línea del grupo que no es un target (los `go run` de canon) se queda entera, y un target que
+// escribe lleva su ⚠ pegado al nombre.
+func TestTheCompactCatalogKeepsGroupsAndNonTargetLines(t *testing.T) {
+	catalog := "  CANON\n    canon-search       busca\n    canon-write        ⚠ ESCRIBE\n    go run . -ronda    qué cambió\n\n  HARNESS\n    harness-case       casos"
+	got := compactCatalog(catalog, map[string]bool{"canon-search": false, "canon-write": true, "harness-case": false})
+	want := "  CANON\n    canon-search · ⚠canon-write\n    go run . -ronda    qué cambió\n\n  HARNESS\n    harness-case"
+	if got != want {
+		t.Errorf("catálogo:\n%s\nquería:\n%s", got, want)
 	}
 }

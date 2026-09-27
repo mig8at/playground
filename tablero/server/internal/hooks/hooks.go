@@ -23,8 +23,10 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"time"
+	"unicode/utf8"
 
 	"creditop/playground/lib/text"
 )
@@ -81,7 +83,8 @@ const header = `# Herramientas de este repo (playground) — inyectado al arranc
 
 ` + "`make <comando>`" + ` desde %s es la puerta única. Antes de decir que NO podés
 acceder a algo (logs, base de datos, documentación de negocio), buscalo en esta lista: casi todo
-lo externo ya está cableado y con credenciales puestas.
+lo externo ya está cableado y con credenciales puestas. Acá van SÓLO LOS NOMBRES (⚠ = escribe):
+` + "`make`" + ` sin argumentos da qué hace cada uno y sus parámetros, y ` + "`make | grep <palabra>`" + ` lo busca.
 
 La base, Loki, PostHog, Confluence, Jira y Slack se consultan por ` + "`bin/pg`" + ` (la lista, al final): leer es libre
 y lo que escribe (Jira, Slack) sin ` + "`--apply`" + ` sólo muestra. Registrado como servidor MCP (` + "`bin/pg mcp`" + `), los
@@ -89,6 +92,84 @@ mismos comandos llegan como herramientas nativas (` + "`sql`, `logs`, `jira_sear
 Slack sigue por su MCP de claude.ai.
 
 `
+
+// contextBudget es lo que el hook puede imprimir sin que Claude Code lo corte. Por encima, el harness
+// guarda la salida en un archivo y al contexto entra un PREVIEW de ~2 KB: medido el 2026-09-27, el
+// catálogo con descripciones pesaba 28 KB y el modelo veía sólo el principio de «LO QUE SE USA TODOS
+// LOS DÍAS» — ni canon, ni el harness, ni los conectores. El umbral exacto no está documentado; 9 KB
+// deja margen y lo fija una prueba contra el Makefile real.
+const contextBudget = 9000
+
+// catalogWidth es el ancho al que se envuelven los nombres de un grupo.
+const catalogWidth = 100
+
+// reTarget es un target documentado del Makefile: la misma forma que lee `listar` para imprimir la ayuda.
+var reTarget = regexp.MustCompile(`(?m)^([a-z][a-zA-Z0-9_-]*):.*## @[a-z]+ (.*)$`)
+
+// makeTargets: los targets que la ayuda lista, y si escriben (su descripción arranca con «⚠ ESCRIBE»).
+func makeTargets(makefile string) map[string]bool {
+	targets := map[string]bool{}
+	for _, m := range reTarget.FindAllStringSubmatch(makefile, -1) {
+		targets[m[1]] = strings.HasPrefix(m[2], "⚠ ESCRIBE")
+	}
+	return targets
+}
+
+/* compactCatalog deja del catálogo de `make` los grupos y los NOMBRES, en el orden en que la ayuda los
+ * imprime, envueltos a lo ancho. Una línea de un grupo que no es un target —los `go run` de canon— queda
+ * como está: son pocas y no hay otro lugar donde se lean.
+ *
+ * Por qué sólo nombres: las descripciones son el 90 % del peso (medido: 2,3 KB sin ellas, 8 KB cortadas a
+ * 40 caracteres, y eso sin los conectores). Un nombre alcanza para saber que la herramienta EXISTE —que
+ * es el error que este hook evita—; qué hace y con qué parámetros lo contesta `make` en una llamada. */
+func compactCatalog(catalog string, targets map[string]bool) string {
+	var out strings.Builder
+	var group []string
+	flush := func() {
+		out.WriteString(wrapNames(group))
+		group = nil
+	}
+	for _, line := range strings.Split(catalog, "\n") {
+		if fields := strings.Fields(line); strings.HasPrefix(line, "    ") && len(fields) > 0 {
+			if writes, ok := targets[fields[0]]; ok {
+				group = append(group, marked(fields[0], writes))
+				continue
+			}
+		}
+		flush()
+		out.WriteString(line + "\n")
+	}
+	flush()
+	return strings.TrimRightFunc(out.String(), text.IsSpace)
+}
+
+func marked(name string, writes bool) string {
+	if writes {
+		return "⚠" + name
+	}
+	return name
+}
+
+// wrapNames pone los nombres en renglones de hasta catalogWidth, separados por « · ». Un nombre no se
+// parte nunca, aunque tenga espacios («jira create»).
+func wrapNames(names []string) string {
+	var out, row strings.Builder
+	for _, name := range names {
+		if row.Len() > 0 && utf8.RuneCountInString(row.String())+3+utf8.RuneCountInString(name) > catalogWidth {
+			out.WriteString(row.String() + "\n")
+			row.Reset()
+		}
+		if row.Len() == 0 {
+			row.WriteString("    " + name)
+		} else {
+			row.WriteString(" · " + name)
+		}
+	}
+	if row.Len() > 0 {
+		out.WriteString(row.String() + "\n")
+	}
+	return out.String()
+}
 
 // withoutColors saca las secuencias ANSI del help de `make`: en la terminal son color, en contexto ruido.
 // Una secuencia rara que no cierra en 12 caracteres no se come el texto.
@@ -127,6 +208,11 @@ func SessionStart(env Env) int {
 	if catalog == "" {
 		return 0
 	}
+	// Sin el Makefile legible no se sabe qué línea es un target: sale el catálogo entero, que es peor
+	// (lo corta el harness) pero no miente.
+	if makefile, err := os.ReadFile(filepath.Join(env.Root, "Makefile")); err == nil {
+		catalog = compactCatalog(catalog, makeTargets(string(makefile)))
+	}
 	fmt.Fprintf(env.Stdout, header, env.Root)
 	fmt.Fprintln(env.Stdout, catalog)
 	if list := connectorCatalog(env.Root); list != "" {
@@ -155,16 +241,14 @@ func connectorCatalog(root string) string {
 	if json.Unmarshal([]byte(out), &cmds) != nil || len(cmds) == 0 {
 		return ""
 	}
-	var b strings.Builder
-	b.WriteString("  CONECTORES   (bin/pg <comando> --help · ⚠ = escribe: sin --apply sólo muestra · MCP: bin/pg mcp)\n")
+	// Como los targets: sólo nombres, porque `bin/pg help` los describe y el MCP ya los trae como
+	// herramientas con su esquema.
+	names := make([]string, 0, len(cmds))
 	for _, c := range cmds {
-		mark := " "
-		if c.Write {
-			mark = "⚠"
-		}
-		fmt.Fprintf(&b, "    %s %-22s %s\n", mark, c.Name, c.Summary)
+		names = append(names, marked(c.Name, c.Write))
 	}
-	return strings.TrimRight(b.String(), "\n")
+	return "  CONECTORES   (bin/pg help · ⚠ = escribe: sin --apply sólo muestra · MCP: bin/pg mcp)\n" +
+		strings.TrimRight(wrapNames(names), "\n")
 }
 
 // ── PreToolUse: generados ───────────────────────────────────────────────────────────────────────
