@@ -24,7 +24,7 @@ import (
 	"fmt"
 	"strings"
 
-	"creditop/playground/tablero/server/internal/shell"
+	"creditop/playground/lib/shell"
 )
 
 // IndexOverride es lo que deja pasar un commit sin rutas cuando ya se miró el índice.
@@ -47,11 +47,7 @@ var broadAdd = map[string]bool{"-A": true, "--all": true, "-u": true, "--update"
 // Se parte el segmento UNA vez: `executable` devuelve el resto re-unido con espacios, sin las comillas,
 // y re-partirlo convertía el mensaje «quita el flag -a» en un `-a` de verdad.
 func gitCall(seg string) (string, []string) {
-	loc := envPrefix.FindStringIndex(seg)
-	toks := shell.Tokens(seg[loc[1]:])
-	for len(toks) > 0 && prefixes[name(toks[0])] {
-		toks = toks[1:]
-	}
+	toks := shell.Program(seg)
 	if len(toks) == 0 || name(toks[0]) != "git" {
 		return "", nil
 	}
@@ -113,7 +109,7 @@ func IndexGuard(cmd string) []string {
 	}
 	var reasons []string
 	stagedExplicitly := false
-	for _, seg := range Segments(cmd) {
+	for _, seg := range shell.Segments(cmd) {
 		sub, args := gitCall(seg)
 		switch sub {
 		case "add":

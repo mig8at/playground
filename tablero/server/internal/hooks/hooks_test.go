@@ -10,7 +10,7 @@ import (
 	"testing"
 	"time"
 
-	"creditop/playground/tablero/server/internal/shell"
+	"creditop/playground/lib/shell"
 )
 
 // toyRepo arma un HOME con `Desktop/CREDITOP/github/legacy-backend` y un test que arrastra el trait.
