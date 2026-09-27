@@ -67,7 +67,7 @@ json: trazador/server/reproduce.go:map abandonado aprobado en-curso roto   # ids
 json: trazador/server/slack.go directa fuera parcial            # categorías de cobertura (valores)
 json: trazador/server/serve.go:map dev local prod qa staging    # nombres de ambiente (valores)
 json: trazador/server/main.go:map prod-us-east-0                # la región de Grafana Cloud
-path: trazador/server/mapa                                      # datos: el mapa del trazador, citado por el harness (vocabulario de ramales) y por el CLAUDE.md raíz
+path: trazador/server/mapa                                      # datos: el mapa del trazador, citado por el harness (vocabulario de ramales) y por tools/CLAUDE.md
 path: trazador/server/mapa/etapas.json                          # dato, ídem
 path: trazador/server/mapa/negocio.json                         # dato, ídem
 path: trazador/server/mapa/ramales.json                         # dato, ídem
