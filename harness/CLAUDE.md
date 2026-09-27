@@ -852,6 +852,25 @@ Confundirlos hace medir la rama equivocada: probando Ábaco contra `legacy-backe
 cuando en `qa` respondía `MOTV1001`. Para saber qué rama tenés enfrente, pedí un campo que solo exista en
 una: `GET /api/loans/allied/{hash}` trae `allowed_document_types` solo con motai-v2 (o sea, solo en `qa`).
 
+⚠ **El `APP_ENV` de `staging` está EN DISPUTA, y no conviene apoyarse en él.** Se llegó a dar por
+`APP_ENV=development`, deducido de que el bypass de OTP de QA funcionaba ahí y ese exige
+`local`/`development` (2026-08-14). **El código dice otra cosa**: verificado contra `main` el 2026-09-07,
+los cuatro ambientes que no son producción construyen la imagen con **`APP_ENV=develop`** —así lo pasan
+`main-dev.yaml`, `main-qa.yaml`, `main-stg.yaml` y `main-lab.yaml`—, el Dockerfile convierte ese
+argumento en la variable del contenedor, y **`APP_ENV=development` no aparece ni una vez en la historia
+de esos workflows** (`git log -S` devuelve cero). Y `develop` no es `development`: la comparación de
+Laravel es de cadena exacta.
+
+Con `develop`, el bypass de OTP devuelve falso en su primera línea y la comparación de nombre del KYC
+vuelve a ser estricta. Las dos observaciones no encajan, y la explicación posible es que el secreto del
+servicio pise `APP_ENV` en tiempo de ejecución, que no se lee desde el repositorio.
+
+**La regla práctica hasta que alguien lo mida en el servicio: NO des por apagado nada en staging.** Ni
+el OTP, ni la validación de nombre del KYC, ni ninguna otra condición
+`app()->environment(['local','development'])`. Comprobá el valor efectivo antes de armar una prueba
+encima. Y al revés, un `config('app.env') === 'staging'` (hay uno en `InitialFeePaymentService`)
+tampoco dispara con ninguno de los dos valores. *(Vivía en el `CLAUDE.md` raíz hasta el 2026-09-27.)*
+
 ## El comercio de BCP (Perú), por ambiente
 
 No hace falta sembrarlo en `qa`: **ya está**, y mejor repartido que en local — una entidad por sucursal.
