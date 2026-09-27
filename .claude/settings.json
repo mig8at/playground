@@ -4,7 +4,7 @@
     "CLAUDE.md como 'acordate de correr X' — y una regla que depende de que alguien se acuerde es una regla",
     "que se olvida, sobre todo cuando olvidarla NO ROMPE NADA.",
     "",
-    "Los seis los corre `.claude/hooks/run <nombre>`, que compila tablero/server/cmd/hooks cuando cambia su",
+    "Los siete los corre `.claude/hooks/run <nombre>`, que compila tablero/server/cmd/hooks cuando cambia su",
     "código (la lógica y el porqué de cada uno: tablero/server/internal/hooks). `args` va aparte a propósito:",
     "con `args` el comando se ejecuta sin shell. Si un hook se rompe, sale 0 o 1: avisa y la sesión sigue.",
     "",
@@ -19,6 +19,10 @@
     "              `db:wipe`, `make fresh`, `make test` en legacy-backend, y `artisan test <ruta>` cuando la",
     "              ruta arrastra RefreshDatabase. Es la regla de CLAUDE.md que costó la BD compartida el",
     "              2026-08-19, hecha PreToolUse. Sólo mira comandos que hablen de legacy-backend.",
+    "",
+    "PreToolUse  · index-guard (Bash): frena `git add -A|-u|.` sin rutas, `git commit -a` y el `git commit` sin rutas",
+    "              (salvo que el mismo comando stagee rutas antes): el índice de git es UNO para todas las sesiones",
+    "              que comparten este worktree. Salida: I_CHECKED_THE_INDEX=1, después de mirar el índice.",
     "",
     "PostToolUse · task-lint (Write|Edit): al escribir tablero/tasks/<slug>/task.md corre `tasks -lint`.",
     "              Exit 2 con la lista si algo está mal.",
@@ -70,6 +74,13 @@
               "destructive-tests"
             ],
             "timeout": 30
+          },
+          {
+            "type": "command",
+            "command": "${CLAUDE_PROJECT_DIR}/.claude/hooks/run",
+            "args": [
+              "index-guard"
+            ]
           }
         ]
       }

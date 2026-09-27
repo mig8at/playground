@@ -160,6 +160,10 @@ tarea → canon es unidireccional (`canon:` en el frontmatter). De una tarea só
 
 - **Este repo** (`playground`) se trabaja directamente sobre `main` y se commitea local. No crees ramas
   para sus mejoras. El push lo decide Miguel: no pushees por tu cuenta.
+- **Varias sesiones comparten este worktree y su índice de git**: se stagea y se commitea por RUTA
+  (`git commit -m … -- <rutas>`, o `git add <rutas> && git commit …` en el mismo comando). El hook
+  `index-guard` frena `git add -A`, `git commit -a` y el commit sin rutas. *(Un worktree por sesión no
+  sirve hoy: los `.env`, la bitácora y las cachés están fuera de git, y desde un worktree fallan en silencio.)*
 - **Los repos reales** (`legacy-backend`, `frontend-monorepo`, `legacy-application`) trabajan en ramas y
   stashes locales. **No armes PRs ni pushees ahí sin pedir permiso explícito.**
 - **UN PR por tarea y por repo, con TODO lo que la tarea toque de ese repo.** Cinco PRs chicos de la

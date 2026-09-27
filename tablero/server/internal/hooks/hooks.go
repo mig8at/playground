@@ -5,6 +5,7 @@
 //	session-start      SessionStart · el catálogo de `make`, para que un modelo no decida que no puede
 //	generated          PreToolUse (Write|Edit) · frena editar a mano un archivo GENERADO
 //	destructive-tests  PreToolUse (Bash) · frena lo que puede recrear una base desde legacy-backend
+//	index-guard        PreToolUse (Bash) · frena el `git add -A` y el commit sin rutas: el índice es de todas las sesiones
 //	task-lint          PostToolUse (Write|Edit) · valida una tarea del tablero apenas se escribe
 //	closeout           Stop · el cierre de sesión del tablero, sobre las tareas que ESTA sesión tocó
 //	verify             Stop · los chequeos del código que ESTA sesión escribió (typecheck, go test, estilos)
@@ -51,6 +52,8 @@ func Run(name string, env Env) int {
 		return Generated(env)
 	case "destructive-tests":
 		return DestructiveTests(env)
+	case "index-guard":
+		return IndexGuardHook(env)
 	case "task-lint":
 		return TaskLint(env)
 	case "closeout":
