@@ -112,5 +112,32 @@
         ]
       }
     ]
+  },
+  "permissions": {
+    "allow": [
+      "Bash(make trazador-sql *)",
+      "Bash(go vet *)",
+      "Bash(gofmt -l *)",
+      "Bash(make tareas *)",
+      "Bash(make tareas-ramas *)",
+      "Bash(make cierre *)",
+      "Bash(make trazador-acceso *)",
+      "Bash(make estilo-check *)",
+      "Bash(make pulso *)",
+      "Bash(make tareas-guard *)",
+      "Bash(make bitacora *)",
+      "Bash(make harness-check *)",
+      "Bash(make retomar *)",
+      "Bash(make trampas *)",
+      "Bash(make harness-loki *)",
+      "Bash(make harness-posthog *)",
+      "mcp__Claude_Browser__find",
+      "mcp__Claude_Browser__read_console_messages",
+      "mcp__Claude_Browser__read_page",
+      "mcp__Claude_Browser__get_page_text",
+      "mcp__Claude_Browser__read_network_requests",
+      "mcp__Claude_Browser__tabs_context",
+      "mcp__ccd_pr__get_status"
+    ]
   }
 }
