@@ -12,7 +12,7 @@
 //
 // ⚠ Y «falló el sonar» son dos cosas: el PASO del deploy (raro, y tumba el despliegue) o el GATE de
 // calidad (el análisis corrió y el código no pasó el umbral). Cómo se consulta cada uno, con los
-// comandos: `tablero/CLAUDE.md` §«SONAR».
+// comandos: la skill `tablero-delivery` (`tablero/.claude/skills`), §«Sonar».
 //
 // ⚠ DE UNA CORRIDA FALLIDA SE MUESTRA EL JOB Y EL PASO, no «falló». Medido el 2026-09-15 sobre las 8
 // últimas fallas de `legacy-backend`: dos eran de Dependabot (ni siquiera son despliegues), tres del

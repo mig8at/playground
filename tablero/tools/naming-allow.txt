@@ -17,6 +17,8 @@ cognito laravel wompi experian imei vtex agildata netco tusdatos selfmanager sma
 motai pullman abaco welli payvalida bancolombia creditop wizard blade cuotealo creditopx
 posthog hogql mermaid deceval corbeta credifamilia datacredito allied allieds pesos colombia
 vue vite babel mcp pinia lucide
+# `skills` y `SKILL.md` son la carpeta y el archivo que Claude Code exige para una skill: nombre propio de la herramienta
+skill skills
 
 # ── términos técnicos que la stdlib casi no usa ───────────────────────────────────────────────────
 slug frontmatter jsonl upsert shortstat squash changelog pathspec
