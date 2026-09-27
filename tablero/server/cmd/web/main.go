@@ -159,7 +159,8 @@ type app struct {
 	branchesRoot string
 	// Los enlaces de herramientas no se queman en la UI: local y el entorno compartido pueden tener
 	// direcciones distintas. El server los entrega desde server/.env.
-	canonURL string
+	canonURL    string
+	canonClient *canon.Client
 	// repos dice dónde se ve en la web cada repo que un bloque puede citar. Sale de tools/repos.json,
 	// la lista única: la UI arma el enlace a GitHub de un archivo fijado a su commit.
 	repos *repos.Client
@@ -177,6 +178,7 @@ func main() {
 	slackCfg, _ := slack.LoadConfig()
 	a := &app{
 		canonURL:    canon.URL(),
+		canonClient: canon.FromEnv(),
 		jiraSite:    jiraCfg.Site,
 		jiraProject: envDefault("JIRA_PROJECT_KEY", "CORE"),
 		jiraBoardID: atoiDefault(os.Getenv("JIRA_BOARD_ID"), 384),
@@ -214,6 +216,7 @@ func main() {
 	mux := http.NewServeMux()
 	mux.HandleFunc("/health", func(w http.ResponseWriter, _ *http.Request) { w.Write([]byte("ok")) })
 	mux.HandleFunc("/api/config", a.config)
+	mux.HandleFunc("/api/canon/route", a.canonRoute)
 
 	// ARTIFACTS de las tareas: `/artifacts/<slug>/<archivo>` sirve `tasks/<slug>/artifacts/<archivo>`,
 	// tal cual, para que el tablero los abra en una pestaña. Los sirve este server y no uno aparte a

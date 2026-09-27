@@ -56,6 +56,12 @@ func canonMissing(ctx context.Context, refs []string) ([]string, error) {
 	return missing, nil
 }
 
+func canonRoutesMissing(ctx context.Context, refs []string) ([]string, error) {
+	ctx, cancel := context.WithTimeout(ctx, 4*time.Second)
+	defer cancel()
+	return canon.FromEnv().MissingRoutes(ctx, refs)
+}
+
 func main() {
 	task := flag.String("tarea", "", "id o slug de la tarea")
 	blockPath := flag.String("bloque", "", "Markdown del bloque: `# título` y la descripción (`-`: por stdin)")
@@ -118,7 +124,7 @@ func main() {
 	if err != nil {
 		fail("bloque inválido: %v", err)
 	}
-	deps := taskcontext.BlockDeps{Files: repos.New(layout.Find().Tools()), Canon: canonMissing, Existing: events}
+	deps := taskcontext.BlockDeps{Files: repos.New(layout.Find().Tools()), Canon: canonMissing, CanonRoutes: canonRoutesMissing, Existing: events}
 	block, warnings, err := taskcontext.PrepareBlock(context.Background(), title, body, *via, deps, time.Now())
 	for _, w := range warnings {
 		fmt.Fprintf(os.Stderr, "  ⚠ %s\n", w)

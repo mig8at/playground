@@ -14,12 +14,13 @@ import { vResize, refreshResizers, fitRegions, regionSize, reopenSize, cssSize, 
 import { ref, computed, onMounted, onUnmounted, watch, nextTick } from 'vue';
 import TaskEditor from './TaskEditor.vue';
 import BlockText from './BlockText.vue';
+import CanonRoute from './CanonRoute.vue';
 import RegionMenu from './RegionMenu.vue';
 import RepoBranches from './RepoBranches.vue';
 import { readPreference, savePreference, groupTasks, TASK_GROUPS } from './ui-state.js';
 import { organizeDocument } from './task-document.js';
 import { highlightSQL } from './sql-highlight.js';
-import { parseBlockBody } from './block-body.js';
+import { parseBlockBody, blockRouteLinks } from './block-body.js';
 import { jiraPreview } from './jira-preview.js';
 import { readBootstrapCache, writeBootstrapCache } from './bootstrap-cache.js';
 
@@ -651,7 +652,8 @@ async function toggleDay(day, event) {
   await nextTick();
   scroller.scrollTop += section.getBoundingClientRect().top - scroller.getBoundingClientRect().top;
 }
-const blockLinks = computed(() => ({ repos: repos.value, canonLink, jiraLink }));
+const routeURLs = ref({});
+const blockLinks = computed(() => ({ repos: repos.value, canonLink, jiraLink, canonRouteLink: reference => routeURLs.value[reference] || '' }));
 // Citar un bloque lleva a él; si su día está plegado, primero lo despliega.
 async function goToBlock(id) {
   const group = contextGroups.value.find(g => g.items.some(event => event.id === id));
@@ -2029,6 +2031,8 @@ function documentAction(id) {
                 </ul>
                 <p v-else><BlockText :text="part.text" v-bind="blockLinks" @block="goToBlock" /></p>
               </template>
+              <CanonRoute v-for="link in blockRouteLinks(event.body)" :key="link.ref" :reference="link.ref" :label="link.label" :server="SERVER"
+                          @resolved="(reference, url) => routeURLs[reference] = url" />
             </article>
             </div>
           </section>

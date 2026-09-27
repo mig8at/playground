@@ -1,6 +1,17 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { parseBlockBody, inlineParts, repoHref, visorHref } from '../src/block-body.js';
+import { parseBlockBody, inlineParts, repoHref, visorHref, blockRouteLinks } from '../src/block-body.js';
+import { routeReference } from '../src/canon-routes.js';
+
+test('las rutas guardan variante y paso, conviven con las citas y se deduplican fuera del código', () => {
+  const link = '[firma](canon-ruta:codeudor/renting#firma)';
+  assert.deepEqual(routeReference('codeudor/renting#firma'), { topic: 'codeudor/context', variant: 'renting', step: 'firma' });
+  assert.equal(inlineParts(link)[0].kind, 'canon-route');
+  assert.equal(inlineParts('[tema](canon:codeudor#firma)')[0].kind, 'canon');
+  for (const bad of ['codeudor', '../renting', 'codeudor/renting#', 'codeudor/renting?x=y']) assert.equal(routeReference(bad), null);
+  const body = `${link} y ${link}\n\n- ${link}\n\n\`\`\`text\n[ejemplo](canon-ruta:bcp/otra)\n\`\`\`\n\n\`${link}\``;
+  assert.deepEqual(blockRouteLinks(body).map(l => l.ref), ['codeudor/renting#firma']);
+});
 
 const body = [
   'La guarda vive en [CreatesApplication](repo:legacy-backend@cfc577218f2d/tests/CreatesApplication.php#L12)',

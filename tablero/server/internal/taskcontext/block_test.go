@@ -11,6 +11,42 @@ import (
 // Las pruebas no persiguen cobertura: cada una fija una regla que existe para que un bloque se pueda
 // volver a comprobar meses después, o un caso donde el validador podía equivocarse de lado.
 
+func TestCanonRouteBlockValidation(t *testing.T) {
+	body := "Se cambia [la firma](canon-ruta:codeudor/renting#firma), con [su regla](canon:codeudor#firma)."
+	deps := BlockDeps{
+		Canon: func(_ context.Context, refs []string) ([]string, error) {
+			if len(refs) != 1 || refs[0] != "codeudor#firma" {
+				t.Fatalf("citas antiguas: %v", refs)
+			}
+			return nil, nil
+		},
+		CanonRoutes: func(_ context.Context, refs []string) ([]string, error) {
+			if len(refs) != 1 || refs[0] != "codeudor/renting#firma" {
+				t.Fatalf("recorrido: %v", refs)
+			}
+			return nil, nil
+		},
+	}
+	e, warnings, err := PrepareBlock(context.Background(), "Firma", body, "", deps, time.Now())
+	if err != nil || len(warnings) != 0 || e.Body != body {
+		t.Fatalf("%+v %v %v", e, warnings, err)
+	}
+	if err := ValidateBlock(e); err != nil {
+		t.Fatalf("no se puede volver a leer: %v", err)
+	}
+	deps.CanonRoutes = func(_ context.Context, refs []string) ([]string, error) { return refs, nil }
+	if _, _, err := PrepareBlock(context.Background(), "Firma", body, "", deps, time.Now()); err == nil {
+		t.Fatal("aceptó un paso ausente")
+	}
+	deps.CanonRoutes = func(_ context.Context, refs []string) ([]string, error) { return nil, errors.New("sin red") }
+	if _, warnings, err := PrepareBlock(context.Background(), "Firma", body, "", deps, time.Now()); err != nil || len(warnings) != 1 {
+		t.Fatalf("red caída: %v %v", warnings, err)
+	}
+	if _, _, err := PrepareBlock(context.Background(), "Firma", "[x](canon-ruta:codeudor)", "", deps, time.Now()); err == nil {
+		t.Fatal("aceptó referencia incompleta")
+	}
+}
+
 type fakeRepos struct{ files map[string]string }
 
 func (f fakeRepos) Pin(alias, path, sha string) (string, error) {

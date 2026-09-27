@@ -13,3 +13,5 @@ Resultado: acá va lo que dio la corrida, resumido — cuántas entidades salier
 SELECT count(*) AS solicitudes FROM user_requests WHERE user_request_status_id = 11
 ```
 Resultado: el número, y qué dice de la tarea.
+
+La ubicación de una tarea de firma puede precisarse con [Firma del codeudor](canon-ruta:codeudor/renting#renting-codeudor). La secuencia describe lo publicado; el bloque debe explicar por separado el cambio propuesto.

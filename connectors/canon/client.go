@@ -14,6 +14,7 @@ import (
 	"os"
 	"sort"
 	"strings"
+	"sync"
 	"time"
 )
 
@@ -30,8 +31,12 @@ func URL() string {
 }
 
 type Client struct {
-	baseURL string
-	http    *http.Client
+	baseURL     string
+	http        *http.Client
+	catalogMu   sync.Mutex
+	catalog     *routeCatalog
+	catalogETag string
+	catalogAt   time.Time
 }
 
 func New(baseURL string) *Client {

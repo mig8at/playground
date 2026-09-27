@@ -41,6 +41,16 @@ func main() {
 		err = search(ctx, client, strings.Join(args, " "))
 	case "read":
 		err = read(ctx, client, args)
+	case "route":
+		if len(args) != 1 {
+			err = fmt.Errorf("indica tema/variante#paso")
+			break
+		}
+		var view canon.RouteView
+		view, err = client.Route(ctx, args[0])
+		if err == nil {
+			err = json.NewEncoder(os.Stdout).Encode(view)
+		}
 	case "code":
 		err = code(ctx, client, args)
 	case "propose":
@@ -59,7 +69,7 @@ func main() {
 }
 
 func usage() {
-	fmt.Fprintln(os.Stderr, "uso: canon search|read|code|propose|write …  (ver `make canon-search` y sus vecinos)")
+	fmt.Fprintln(os.Stderr, "uso: canon search|read|route|code|propose|write …  (ver `make canon-search` y sus vecinos)")
 	os.Exit(2)
 }
 

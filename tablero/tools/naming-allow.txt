@@ -72,3 +72,6 @@ path: trazador/server/mapa/etapas.json                          # dato, ídem
 path: trazador/server/mapa/negocio.json                         # dato, ídem
 path: trazador/server/mapa/ramales.json                         # dato, ídem
 path: trazador/server/mapa/substeps.json                        # dato, ídem
+
+# Contrato de /api/globalmap de Canon; no son claves del tablero.
+json: connectors/canon/routes.go mapa desde hasta titulo rutas estaciones cuando pasos estacion_global referencia nota

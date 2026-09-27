@@ -147,6 +147,7 @@ sostiene con enlaces con tipo y comandos con su resultado:
 | Qué se nombra | Cómo se escribe | Qué comprueba el validador |
 |---|---|---|
 | un tema de canon | `[texto](canon:tema#ancla)` | que canon lo conozca (sin red, entra con un aviso) |
+| un paso o recorrido de Canon | `[Firma](canon-ruta:codeudor/renting#renting-codeudor)`; sin `#paso`, la variante completa | que existan tema, variante y paso en el mapa vigente; un paso de otra variante se rechaza. Sin red, entra con aviso |
 | un archivo | `[texto](repo:<repo>/<ruta>#L12)`, nunca una ruta local | que el repo se pueda citar y la ruta exista; **lo fija al commit** |
 | un PR · un issue | `[#1140](pr:legacy-backend#1140)` · `[CORE-431](jira:CORE-431)` | que el repo se pueda citar |
 | otro bloque | `[el de ayer](bloque:<id>)`: así se corrige uno sin editarlo | que esté en la pila |
@@ -164,6 +165,12 @@ de enlace, se reinicia el tablero.
 
 El material que no es un comando —un JSON de ejemplo, un texto— va en ` ```json ` o ` ```text `. El título
 puede llevar `código` entre comillas invertidas; enlaces, no.
+
+El recorrido se cita en el bloque que lo usa, junto a la prosa cuando aporta la regla. La vista muestra
+el paso y sus vecinos; no deduce recorridos por proximidad ni mezcla variantes. Los pasos conservan
+su identidad aunque compartan estación global. `make canon-route REF='tema/variante#paso'` verifica
+la referencia por lectura. Es una ubicación en el funcionamiento publicado de Creditop, no evidencia
+de que la tarea esté terminada ni de que una solicitud real haya recorrido esas paradas.
 
 **Lo que antes era una anotación es un bloque.** Una medición, una decisión o un riesgo son un hecho
 con fecha: el título dice el hecho —«la 199 quedó con product credit y sólo CC»— y la descripción lo que

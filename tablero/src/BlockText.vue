@@ -13,12 +13,14 @@ const props = defineProps({
   text: { type: String, default: '' },
   repos: { type: Object, default: () => ({}) },
   canonLink: { type: Function, required: true },
+  canonRouteLink: { type: Function, default: () => '' },
   jiraLink: { type: Function, required: true },
 });
 const emit = defineEmits(['block']);
 const parts = computed(() => inlineParts(props.text));
 const hrefOf = (part) => {
   if (part.kind === 'canon') return props.canonLink(part.ref);
+  if (part.kind === 'canon-route') return props.canonRouteLink(part.ref);
   if (part.kind === 'repo' || part.kind === 'pr') return repoHref(part, props.repos);
   if (part.kind === 'jira') return props.jiraLink(part.key);
   if (part.kind === 'web') return part.url;
@@ -29,6 +31,7 @@ const titleOf = (part) => {
   if (part.kind === 'repo') return `${part.repo}/${part.path}${part.sha ? ` @ ${part.sha}` : ''}`;
   if (part.kind === 'pr') return `${part.repo} #${part.number}`;
   if (part.kind === 'canon') return `canon · ${part.ref}`;
+  if (part.kind === 'canon-route') return `recorrido de Canon · ${part.ref}`;
   if (part.kind === 'visor') return `visor · ${part.project}/${part.screen}${part.print ? ` · huella ${part.print}` : ' · sin huella: no se puede saber si cambió'}`;
   return undefined;
 };

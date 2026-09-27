@@ -47,7 +47,7 @@
       "type": "string",
       "minLength": 1,
       "maxLength": 3000,
-      "description": "Prosa libre. Enlaces con tipo: canon:tema#ancla · repo:<repo>@<commit>/<ruta>#L12 · pr:<repo>#N · jira:CLAVE-N · bloque:<id> · https://…; comandos en bloques de código harness · trazador · sql <ambiente> · sh, cada uno seguido de «Resultado: …»; material en json · text. Lo valida server/internal/taskcontext/block.go."
+      "description": "Prosa libre. Enlaces con tipo: canon:tema#ancla · canon-ruta:tema/variante#paso · repo:<repo>@<commit>/<ruta>#L12 · pr:<repo>#N · jira:CLAVE-N · bloque:<id> · https://…; comandos en bloques de código harness · trazador · sql <ambiente> · sh, cada uno seguido de «Resultado: …»; material en json · text. Lo valida server/internal/taskcontext/block.go."
     }
   }
 }

@@ -7,6 +7,7 @@ import (
 	"strings"
 	"time"
 
+	"creditop/playground/connectors/canon"
 	dbsql "creditop/playground/connectors/sql"
 )
 
@@ -161,6 +162,10 @@ func checkLinks(prose string, pinned bool) error {
 	for _, m := range blockLinkRe.FindAllStringSubmatch(prose, -1) {
 		target := m[2]
 		switch {
+		case strings.HasPrefix(target, "canon-ruta:"):
+			if _, err := canon.ParseRouteRef(strings.TrimPrefix(target, "canon-ruta:")); err != nil {
+				return err
+			}
 		case canonTargetRe.MatchString(target), prTargetRe.MatchString(target), jiraTargetRe.MatchString(target),
 			blockTargetRe.MatchString(target), httpsTargetRe.MatchString(target), visorTargetRe.MatchString(target):
 		case repoTargetRe.MatchString(target):
@@ -254,9 +259,10 @@ type CanonCheck func(ctx context.Context, refs []string) (missing []string, err 
 // BlockDeps son las comprobaciones que tocan el mundo —git, canon y la pila actual—. Van aparte para
 // que la lectura no dependa de la red ni de los clones: sólo se pagan al agregar.
 type BlockDeps struct {
-	Files    FileResolver
-	Canon    CanonCheck
-	Existing []Event
+	Files       FileResolver
+	Canon       CanonCheck
+	CanonRoutes CanonCheck
+	Existing    []Event
 }
 
 // mapProse aplica fn a cada línea de prosa, sin tocar lo que va adentro de un bloque de código.
@@ -293,7 +299,7 @@ func PrepareBlock(ctx context.Context, title, body, via string, deps BlockDeps, 
 	if err := validateBlockText(title, body, false); err != nil {
 		return Event{}, nil, err
 	}
-	var problems, warnings, canonRefs []string
+	var problems, warnings, canonRefs, routeRefs []string
 	known := make(map[string]bool, len(deps.Existing))
 	for _, e := range deps.Existing {
 		known[e.ID] = true
@@ -303,6 +309,8 @@ func PrepareBlock(ctx context.Context, title, body, via string, deps BlockDeps, 
 			m := blockLinkRe.FindStringSubmatch(link)
 			label, target := m[1], m[2]
 			switch {
+			case strings.HasPrefix(target, "canon-ruta:"):
+				routeRefs = append(routeRefs, strings.TrimPrefix(target, "canon-ruta:"))
 			case repoTargetRe.MatchString(target):
 				r := repoTargetRe.FindStringSubmatch(target)
 				alias, sha, path, anchor := r[1], r[2], r[3], r[4]
@@ -333,6 +341,15 @@ func PrepareBlock(ctx context.Context, title, body, via string, deps BlockDeps, 
 		}
 		for _, ref := range missing {
 			problems = append(problems, "canon:"+ref)
+		}
+	}
+	if len(routeRefs) > 0 && deps.CanonRoutes != nil {
+		missing, err := deps.CanonRoutes(ctx, routeRefs)
+		if err != nil {
+			warnings = append(warnings, "no se pudo comprobar el recorrido en Canon: "+err.Error())
+		}
+		for _, ref := range missing {
+			problems = append(problems, "canon-ruta:"+ref)
 		}
 	}
 	if len(problems) > 0 {

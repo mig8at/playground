@@ -65,6 +65,16 @@ Un proyecto con **varios comandos Go y un frontend Vue**, todos apoyados en los 
 - El documento muestra el plan y el material después de la cronología. Una referencia de Canon se
   enlaza dentro del bloque que la usó; no hay una sección especial ni una colección genérica de temas
   declarados.
+- Un enlace `canon-ruta:tema/variante#paso` sitúa ese bloque en el recorrido publicado de Canon.
+  Muestra el paso citado y sus vecinos, con la regla y su fuente plegadas; sin `#paso`, muestra
+  la variante completa. Conserva los pasos distintos que comparten estación. «Ver mapa» abre la
+  variante en esa estación. Los enlaces `canon:tema#sección` siguen abriendo la prosa.
+  Ejemplo: `[Firma del codeudor](canon-ruta:codeudor/renting#renting-codeudor)`.
+  `make canon-route REF='codeudor/renting#renting-codeudor'` permite comprobar el destino.
+  Se consulta el mapa al mostrar el bloque y se revalida al volver a la ventana; una referencia
+  eliminada o una caída de Canon deja visible el relato y ofrece reintentar. No se copia el mapa
+  a las tareas ni se usan modelos. El recorrido describe producción; el bloque explica el cambio
+  propuesto o su evidencia, sin darlo por desplegado.
 - **Jira** muestra el estado y la descripción recibida al cargar el sprint, con el formato adaptado al
   tema del tablero. El HTML se aísla en un marco sin scripts. Si falta una descripción o la tarea es
   local, lo indica; nunca sustituye el contenido publicado por el borrador local.

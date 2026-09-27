@@ -5,6 +5,8 @@
 // listas, comandos con su resultado y material, y cada línea en texto, código, negrita y enlaces.
 // Nada se interpreta como HTML: el texto viaja como texto hasta el template.
 
+import { routeReference } from './canon-routes.js';
+
 const FENCE = /^```(\S*)(?:[ \t]+(\S+))?[ \t]*$/;
 const FENCE_CLOSE = /^```[ \t]*$/;
 const COMMANDS = new Set(['harness', 'trazador', 'sql', 'sh']);
@@ -110,6 +112,7 @@ export const VISOR_ORIGIN = 'http://localhost:5193';
 
 export function parseTarget(target) {
   let m;
+  if ((m = target.match(/^canon-ruta:(.+)$/)) && routeReference(m[1])) return { kind: 'canon-route', ref: m[1] };
   if ((m = target.match(/^canon:(.+)$/))) return { kind: 'canon', ref: m[1] };
   if ((m = target.match(REPO))) return { kind: 'repo', repo: m[1], sha: m[2] || '', path: m[3], anchor: m[4] || '' };
   if ((m = target.match(/^pr:([a-z0-9][a-z0-9-]*)#(\d+)$/))) return { kind: 'pr', repo: m[1], number: m[2] };
@@ -133,6 +136,20 @@ export function inlineParts(text) {
   }
   if (from < source.length || !parts.length) parts.push({ type: 'text', value: source.slice(from) });
   return parts;
+}
+
+// Sólo enlaces usados por la prosa del bloque: el material de ejemplo no activa recorridos.
+export function blockRouteLinks(body) {
+  const found = new Map();
+  for (const part of parseBlockBody(body)) {
+    const texts = part.type === 'paragraph' ? [part.text]
+      : part.type === 'list' ? part.items
+      : part.type === 'command' ? [part.result] : [];
+    for (const text of texts) for (const link of inlineParts(text)) {
+      if (link.kind === 'canon-route' && !found.has(link.ref)) found.set(link.ref, link);
+    }
+  }
+  return [...found.values()];
 }
 
 // El enlace al visor: la pantalla, con la huella del momento en que se enlazó. Abrirlo dice en el visor si
