@@ -37,6 +37,13 @@ jira_title: ""
 - [ ] Reemplazar los caracteres usados como icono en las cuatro herramientas (`alert`, `edit`, `grip` y
   `comment` ya están en la base); termina cuando ninguna pinta un ✕ ⧉ ▸ ⚠ o un emoji como icono.
 - [ ] Trazador: entrar a `.workbench` con `.auxiliarybar.overlay`, y `.sidebar-vacio` → `.empty`.
+- [ ] radar, fase 1 · consola: `make radar-uso`, `-friccion`, `-deriva` y `-sesion` sobre las transcripciones
+  de este playground, con `JSON=1`; termina cuando las cuatro corren con pruebas que fallan si se cuenta
+  un target como muerto sin mirar la fecha en que se sacó del Makefile, o si se ignoran sus alias.
+- [ ] radar, fase 2 · interfaz en :5196 con `tools/ui` (sidebar con vistas y período, editor con la tabla,
+  panel con la sesión); termina cuando `make estilo-check` y `make estilo-contraste` la cuentan verde.
+- [ ] radar, fase 3 · `make cierre` avisa la fricción NUEVA del día (lo que pidió aprobación, lo que frenó
+  un hook); termina cuando un rechazo inventado en un transcript de prueba aparece en el cierre.
 
 ## Alcance
 
@@ -59,4 +66,21 @@ de cuándo existe cada una, para que una herramienta nueva se arme leyendo eso y
 esqueleto, la tipografía (5 tamaños, 2 pesos), los espacios (4 · 8 · 12 · 16 · 24), las alturas
 (24 · 28 · 32 · 40 · 30), los iconos (el juego de `workbench.css`, un solo tamaño de 16px) y la forma
 (radios 0 · 6 · completo). El contrato vigente sigue siendo `tools/ui/README.md` hasta aprobarlo.
+
+## Frente: radar — el uso real de las herramientas
+
+**Objetivo.** Una herramienta que lee las transcripciones de Claude Code de ESTE playground y muestra
+cómo se usan de verdad las herramientas: uso, fricción (lo que pidió aprobación, lo que frenó un hook,
+lo que falló), deriva (lo documentado que nadie usa y lo usado que nadie documenta) y el recorrido de una
+sesión. Nace de haber encontrado a mano, en una tarde, el catálogo de `make` cortado, diez skills
+invisibles desde la raíz y `canon-search` pidiendo aprobación cada vez.
+
+**Reglas.** Sin modelo y sin copias a mano: todo se deriva de las transcripciones, el Makefile (con sus
+alias), las skills y `git log`. Sólo lectura y sólo `localhost`; los comandos se muestran cortados y sin
+secretos. Un target sin uso es una señal con fecha, no un veredicto — un «muerto» se decide contra la
+fecha en que salió del Makefile. Para partir comandos se reusa lo de los hooks, no un parser nuevo.
+
+**Lo que se evaluó y NO se eligió.** Un router con Jev que conteste con JSON qué herramienta usar: sería
+un segundo modelo decidiendo por el primero, y sus «stores» una copia del catálogo que envejece. Medido
+el mismo día, con las skills visibles el ruteo nativo acertó 74 de 84 corridas sin falsos positivos.
 

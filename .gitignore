@@ -47,3 +47,5 @@ test-results/
 # Volcado forense pre-scrub (harness/.runs/) — estado de solicitudes por corrida, local por máquina
 .runs/
 
+# el índice de radar: derivado de las transcripciones, se reconstruye solo
+radar/.cache/

@@ -346,6 +346,20 @@ trazador-huella: ## @dia la huella MEDIDA de un flujo (tablas/eventos/código) d
 	@test -n "$(UREQ)" || { python3 trazador/tools/footprint.py; exit 2; }
 	@python3 trazador/tools/footprint.py $(UREQ) $(if $(NOMBRE),--nombre "$(NOMBRE)",) $(if $(MYSQL),--mysql $(MYSQL),)
 
+# radar: cómo se usan DE VERDAD las herramientas, leído de las transcripciones de Claude Code de este
+# playground. Sin modelo y sin copias: todo sale de las transcripciones, este Makefile (con sus alias) y
+# su historia en git. Guarda un índice en radar/.cache (una transcripción se relee sólo si cambió).
+RADAR = go run ./radar/server $(if $(DIAS),-days $(DIAS),) $(if $(JSON),-json,)
+.PHONY: radar-uso radar-friccion radar-deriva radar-sesion
+radar-uso: ## @dia ¿qué herramientas se usan de verdad? targets, skills, subagentes y conectores, del último mes. DIAS=30 · JSON=1
+	@$(RADAR) -view usage
+radar-friccion: ## @dia ¿qué pidió aprobación y no la tuvo, qué rechazó Miguel, qué frenó un hook, qué falló? DIAS=30 · JSON=1
+	@$(RADAR) -view friction
+radar-deriva: ## @dia ¿qué se sigue usando después de borrado, qué nombres viejos siguen vivos, qué nadie usa? (con fechas) DIAS=30 · JSON=1
+	@$(RADAR) -view drift
+radar-sesion: ## @dia el recorrido de UNA sesión: cada herramienta, en orden, con cómo terminó. SESION=<id o su comienzo> (sin él, la última)
+	@$(RADAR) -view session $(if $(SESION),-session $(SESION),)
+
 # ── PRUEBAS (harness) ────────────────────────────────────────────────────────────────────────────
 # ── los nombres VIEJOS (en español) del harness: siguen andando, y avisan ─────────────────────────
 # Los targets, sus variables y los flags de los scripts pasaron a inglés el 2026-09-25. Los viejos NO se
