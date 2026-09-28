@@ -2,39 +2,37 @@ package main
 
 /* `-canon`: el CONTEXTO de canon para la tarea que se retoma — secciones enteras, no fichas.
  *
- * La ficha (`-brief`) dice qué tema abrir; esto trae lo que el tema dice, elegido por el título de la
- * tarea dentro de los temas que declara y cortado a un presupuesto de bytes. Sale de `/api/context`, que
- * NO pasa por ningún modelo: es selección léxica, y canon lo aclara en su `nota`. ⛔ Nada de `/api/ask`
- * (decisión de Miguel, 2026-09-27: desde el playground canon se lee, no se le pregunta).
+ * La ficha (`-brief`) dice qué tema abrir; esto trae lo que el tema dice, elegido por el título y el
+ * resumen de la tarea dentro de los temas que declara y cortado a un presupuesto de bytes. Se lee de la
+ * COPIA LOCAL de canon (`tablero/data/cache/canon`, al día con su ETag): desde el 2026-09-27 canon ya
+ * no sirve `/api/context` —el único cliente remoto es Credibot— y leer archivos es más rápido que la red.
  *
- * ⚠ Los temas declarados se validan contra la copia local de canon ANTES de pedir: canon ignora en
- * silencio un tema que no existe —200, cero secciones, `faltantes: []`, medido el 2026-09-27 con `motai`
- * y `altas`—, así que sin esto «no trajo nada» se lee igual que «canon no sabe». Ese día había 12
- * declaraciones así en tareas abiertas. */
+ * ⚠ Un tema declarado que la copia no tiene se AVISA: sin eso, «no trajo nada» se lee igual que «canon
+ * no sabe» (medido el 2026-09-27: 12 declaraciones de temas inexistentes en tareas abiertas). */
 
 import (
-	"context"
 	"fmt"
-	"sort"
+	"path/filepath"
 	"strings"
-	"time"
 
-	"creditop/playground/connectors/canon"
+	"creditop/playground/tablero/server/internal/canoncache"
 )
 
 // canonContextBytes es el presupuesto por defecto: unas tres secciones largas. Lo que no entra queda
-// en `Pending`, con el comando para leerlo.
+// en `Pending`, con su cita.
 const canonContextBytes = 12000
 
 // taskCanonContext es lo que `-canon` agrega a la retoma.
 type taskCanonContext struct {
-	Topics  []string              `json:"topics"`            // los que se mandaron a canon
-	Unknown []string              `json:"unknown,omitempty"` // declarados que canon no tiene
-	Query   string                `json:"query"`
-	Package *canon.ContextPackage `json:"package,omitempty"`
-	Error   string                `json:"error,omitempty"`
-	Offline bool                  `json:"offline,omitempty"` // sin copia local: no se pudo validar
-	Skipped bool                  `json:"skipped,omitempty"` // sin temas válidos ni consulta propia: no se buscó
+	Topics   []string                  `json:"topics"`            // donde se buscó
+	Unknown  []string                  `json:"unknown,omitempty"` // declarados que la copia no tiene
+	Query    string                    `json:"query"`
+	Sections []canoncache.LocalSection `json:"sections,omitempty"`
+	Pending  []string                  `json:"pending,omitempty"`
+	MaxBytes int                       `json:"maxBytes"`
+	Offline  bool                      `json:"offline,omitempty"` // no hay copia local
+	Skipped  bool                      `json:"skipped,omitempty"` // sin temas válidos ni consulta propia: no se buscó
+	Mirror   *canoncache.Manifest      `json:"mirror,omitempty"`
 }
 
 // topicOf: `kyc`, `kyc/context` o `kyc/context#ancla` → `kyc`.
@@ -43,12 +41,27 @@ func topicOf(ref string) string {
 	return strings.SplitN(ref, "/", 2)[0]
 }
 
-/* buildCanonContext separa los temas declarados en conocidos y desconocidos (known=nil: no hay copia
- * local, se mandan todos y se avisa) y pide el paquete. Con una consulta propia y ningún tema válido, la
- * búsqueda va al corpus entero, y eso queda dicho en `Topics` vacío. */
-func buildCanonContext(declared []string, query string, explicit bool, known map[string]bool, maxBytes int,
-	fetch func(canon.ContextRequest) (canon.ContextPackage, error)) taskCanonContext {
-	out := taskCanonContext{Query: query, Offline: known == nil}
+// allTopics: los temas que tiene la copia, para buscar en todo el corpus cuando se da una consulta propia.
+func allTopics(cacheDir string) []string {
+	files, _ := filepath.Glob(filepath.Join(canoncache.MirrorDir(cacheDir), "content", "*", "context.md"))
+	var out []string
+	for _, f := range files {
+		out = append(out, filepath.Base(filepath.Dir(f)))
+	}
+	return out
+}
+
+/* buildCanonContext separa los temas declarados en los que la copia tiene y los que no, y elige las
+ * secciones. Sin ningún tema válido NO busca en todo el corpus —el título de una tarea de herramientas
+ * trajo ruido de comercios y entidades—, salvo que quien retoma dé su propia consulta (`explicit`). */
+func buildCanonContext(declared []string, query string, explicit bool, cacheDir string, maxBytes int) taskCanonContext {
+	out := taskCanonContext{Query: query, MaxBytes: maxBytes}
+	m, ok := canoncache.LoadMirror(cacheDir)
+	if !ok {
+		out.Offline = true
+		return out
+	}
+	out.Mirror = &m
 	seen := map[string]bool{}
 	for _, ref := range declared {
 		topic := topicOf(ref)
@@ -56,132 +69,56 @@ func buildCanonContext(declared []string, query string, explicit bool, known map
 			continue
 		}
 		seen[topic] = true
-		if known != nil && !known[topic] {
+		if !canoncache.HasTopic(cacheDir, topic) {
 			out.Unknown = append(out.Unknown, topic)
 			continue
 		}
 		out.Topics = append(out.Topics, topic)
 	}
-	// Sin ningún tema válido NO se busca en todo el corpus: con el título de una tarea de herramientas
-	// («Tablero») eso trajo áreas de comercios y entidades, ruido con buena puntuación. Se busca sólo si
-	// quien retoma dio su propia consulta (`explicit`).
-	if len(out.Topics) == 0 && !explicit {
-		out.Skipped = true
-		return out
+	scope := out.Topics
+	if len(scope) == 0 {
+		if !explicit {
+			out.Skipped = true
+			return out
+		}
+		scope = allTopics(cacheDir)
 	}
-	req := canon.ContextRequest{Q: query, MaxBytes: maxBytes}
-	for _, t := range out.Topics {
-		req.Topics = append(req.Topics, t+"/context")
-	}
-	pkg, err := fetch(req)
-	if err != nil {
-		out.Error = err.Error()
-		return out
-	}
-	out.Package = &pkg
+	out.Sections, out.Pending, _ = canoncache.SelectContext(cacheDir, scope, query, maxBytes)
 	return out
 }
 
-func contextFromCanon(client *canon.Client) func(canon.ContextRequest) (canon.ContextPackage, error) {
-	return func(req canon.ContextRequest) (canon.ContextPackage, error) {
-		ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
-		defer cancel()
-		return client.Context(ctx, req)
-	}
-}
-
-// sectionBody: el texto de una sección sin el comentario HTML con que canon abre cada una.
-func sectionBody(text string) string {
-	text = strings.TrimSpace(text)
-	for strings.HasPrefix(text, "<!--") {
-		end := strings.Index(text, "-->")
-		if end < 0 {
-			break
-		}
-		text = strings.TrimSpace(text[end+3:])
-	}
-	// y sin el `## título` con que abre: ya va en la cabecera del ítem.
-	if strings.HasPrefix(text, "#") {
-		if nl := strings.Index(text, "\n"); nl >= 0 {
-			text = strings.TrimSpace(text[nl+1:])
-		} else {
-			text = ""
-		}
-	}
-	return text
-}
-
 func printCanonContext(c taskCanonContext) {
-	fmt.Println("\n  ── Canon: el contexto de la tarea (secciones enteras, sin modelo) ──")
+	fmt.Println("\n  ── Canon: el contexto de la tarea (secciones enteras, de la copia local) ──")
+	if c.Offline {
+		fmt.Println("  ✗ no hay copia local de canon: se arma al iniciar una sesión, o con `make canon-mapa` (VPN de prod)")
+		return
+	}
 	if len(c.Unknown) > 0 {
 		fmt.Printf("  ⚠ la tarea declara temas que canon NO tiene: %s — corregí `canon:` (make canon-mapa los lista)\n", strings.Join(c.Unknown, ", "))
 	}
-	if c.Offline {
-		fmt.Println("  ⚠ no hay copia local de canon para validar los temas declarados (se arma al iniciar una sesión)")
-	}
 	if c.Skipped {
 		fmt.Println("  ✗ la tarea no declara ningún tema de canon que exista, así que no se buscó: el título de una tarea")
-		fmt.Println("    no es una pregunta. Con palabras del negocio: make canon-search Q='…', o CANON_Q='…' acá.")
+		fmt.Println("    no es una pregunta. Con palabras del negocio: grep en la copia, o CANON_Q='…' acá.")
 		return
 	}
 	scope := "en todo el corpus (con la consulta dada; la tarea no declara temas que existan)"
 	if len(c.Topics) > 0 {
 		scope = "dentro de " + strings.Join(c.Topics, ", ")
 	}
-	fmt.Printf("  buscado por «%s», %s\n", truncate(c.Query, 60), scope)
-	if c.Error != "" {
-		fmt.Printf("  ✗ %s\n", c.Error)
-		return
-	}
-	p := c.Package
-	if len(p.Sections) == 0 {
+	fmt.Printf("  buscado por «%s», %s · copia del %s\n", truncate(c.Query, 60), scope, c.Mirror.SyncedAt.Local().Format("2006-01-02 15:04"))
+	if len(c.Sections) == 0 {
 		fmt.Println("  ✗ ninguna sección. El silencio de canon no es «no existe»: la pregunta va al código de main.")
 		return
 	}
-	for _, s := range p.Sections {
-		if s.Area != nil {
-			printCanonArea(s)
-			continue
-		}
-		fmt.Printf("\n  ▌ %s  ·  %s", s.Title, s.ID)
-		if s.Verified != "" {
-			fmt.Printf("  ·  verificada %s", s.Verified)
-		}
-		fmt.Println()
-		for _, line := range strings.Split(sectionBody(s.Text), "\n") {
+	for _, s := range c.Sections {
+		fmt.Printf("\n  ▌ %s  ·  %s\n", s.Title, s.ID)
+		for _, line := range strings.Split(s.Text, "\n") {
 			fmt.Println("  " + line)
 		}
-		for _, b := range s.Backing {
-			fmt.Printf("    ↳ %s\n", fit(b.Goal, 92, "      "))
-		}
 	}
-	if len(p.Pending) > 0 {
-		fmt.Printf("\n  no entraron en %d B (%d más): make canon-read IDS='%s'\n", p.MaxBytes, len(p.Pending), strings.Join(p.Pending, ","))
-	}
-	if p.Note != "" {
-		fmt.Println("  " + fit(p.Note, 96, "  "))
-	}
-}
-
-// printCanonArea: un área de código no trae prosa — trae qué pregunta contesta, dónde está el código y qué
-// secciones sostiene, que son las que hay que leer.
-func printCanonArea(s canon.ContextSection) {
-	fmt.Printf("\n  ▌ código · %s  ·  %s\n", fit(s.Area.Goal, 80, "    "), s.ID)
-	repos := make([]string, 0, len(s.Files))
-	for repo := range s.Files {
-		repos = append(repos, repo)
-	}
-	sort.Strings(repos)
-	for _, repo := range repos {
-		fmt.Printf("    %s: %s\n", repo, fit(strings.Join(s.Files[repo], ", "), 88, "      "))
-	}
-	var ids []string
-	for _, sup := range s.Supports {
-		fmt.Printf("    sostiene «%s»\n", sup.Section)
-		ids = append(ids, sup.Read)
-	}
-	if len(ids) > 0 {
-		fmt.Printf("    make canon-read IDS='%s'\n", strings.Join(ids, ","))
+	if len(c.Pending) > 0 {
+		fmt.Printf("\n  no entraron en %d B (%d más, por puntaje): %s\n", c.MaxBytes, len(c.Pending), strings.Join(c.Pending, " · "))
+		fmt.Printf("  se leen en %s\n", filepath.Join("tablero/data/cache/canon/content", "<tema>", "context.md"))
 	}
 }
 

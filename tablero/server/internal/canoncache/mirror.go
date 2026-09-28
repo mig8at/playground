@@ -10,9 +10,11 @@ package canoncache
  * cuando cambia el corpus, y lo que se quiera cambiar se dicta a canon (`make canon-write`). Así no vuelve
  * a pasar lo de `context/`, que eran dos contextos para mantener a la par.
  *
- * Cuándo se refresca: el corpus entero comparte UN `ETag` (el «hash global»), el mismo que ya revalida la
- * lista de temas con un pedido condicional. Si coincide con el de la copia, no se baja nada; si cambió, se
- * baja el export (~1,7 MB, ~1,6 s), se verifica contra su sha256 y se cambia de una vez. */
+ * Cuándo se refresca: el export lleva en su header un `ETag` que es el sha256 de TODOS los archivos (el
+ * «hash global»). Se le pide con el de la copia: si no cambió, canon contesta 304 y no se baja nada; si
+ * cambió, se baja (~1,7 MB, ~1,6 s), se verifica contra su sha256 y se cambia de una vez. El ETag del
+ * corpus (el de `/api/topics`) NO sirve para esto: no ve el diccionario ni el guion del agente, que
+ * también vienen en el export. */
 
 import (
 	"context"
@@ -28,7 +30,8 @@ import (
 
 // Manifest es `VERSION.json`: de qué corpus es la copia.
 type Manifest struct {
-	ETag       string    `json:"etag"`
+	ETag       string    `json:"etag"`      // el del corpus (el cuerpo del export)
+	ExportTag  string    `json:"exportTag"` // el del header: el hash de TODOS los archivos, con el que se revalida
 	SHA256     string    `json:"sha256"`
 	ExportedAt string    `json:"exportedAt"`
 	SyncedAt   time.Time `json:"syncedAt"`
@@ -53,22 +56,37 @@ func LoadMirror(cacheDir string) (Manifest, bool) {
 	return m, true
 }
 
-/* SyncMirror deja la copia en la versión `etag` del corpus (la que acaba de confirmar `Refresh`). Si ya
- * está, no hace nada (changed=false). Si no, baja, verifica y reemplaza; ante cualquier error la copia
- * anterior queda intacta. */
-func SyncMirror(ctx context.Context, client *canon.Client, source, cacheDir, etag string, now time.Time) (Manifest, bool, error) {
-	if m, ok := LoadMirror(cacheDir); ok && etag != "" && m.ETag == etag {
-		return m, false, nil
+/* SyncMirror deja la copia al día con canon. Si no cambió (304, o el mismo sha256 de una instancia que
+ * todavía no contesta 304), no hace nada (changed=false). Si cambió, baja, verifica y reemplaza; ante
+ * cualquier error la copia anterior queda intacta. */
+func SyncMirror(ctx context.Context, client *canon.Client, source, cacheDir string, now time.Time) (Manifest, bool, error) {
+	old, had := LoadMirror(cacheDir)
+	tag := ""
+	if had {
+		tag = old.ExportTag
 	}
-	old, _ := LoadMirror(cacheDir)
-	exp, err := client.Export(ctx)
+	exp, newTag, notModified, err := client.Export(ctx, tag)
 	if err != nil {
 		return old, false, err
+	}
+	if notModified {
+		return old, false, nil
+	}
+	if had && exp.SHA256 == old.SHA256 {
+		/* Mismo contenido, pero el tag puede faltar (una copia anterior a este campo) o ser otro: se anota,
+		 * o la próxima revalidación no tendría con qué pedir el 304 y bajaría todo cada vez. */
+		if newTag != "" && newTag != old.ExportTag {
+			old.ExportTag = newTag
+			if err := saveManifest(cacheDir, old); err != nil {
+				return old, false, err
+			}
+		}
+		return old, false, nil
 	}
 	if err := exp.Verify(); err != nil {
 		return old, false, err
 	}
-	m := Manifest{ETag: exp.ETag, SHA256: exp.SHA256, ExportedAt: exp.ExportedAt, SyncedAt: now,
+	m := Manifest{ETag: exp.ETag, ExportTag: newTag, SHA256: exp.SHA256, ExportedAt: exp.ExportedAt, SyncedAt: now,
 		Files: len(exp.Files), Source: source,
 		Note: "Copia de canon: no se edita, se reemplaza entera cuando cambia el corpus. Para cambiar algo: make canon-write."}
 	if err := writeMirror(cacheDir, exp.Files, m); err != nil {
@@ -85,6 +103,20 @@ func safePath(p string) (string, bool) {
 		return "", false
 	}
 	return clean, true
+}
+
+// saveManifest reescribe sólo `VERSION.json`, por renombre (el archivo es de sólo lectura).
+func saveManifest(cacheDir string, m Manifest) error {
+	raw, err := json.MarshalIndent(m, "", "  ")
+	if err != nil {
+		return err
+	}
+	path := filepath.Join(MirrorDir(cacheDir), "VERSION.json")
+	tmp := fmt.Sprintf("%s.%d.tmp", path, os.Getpid())
+	if err := os.WriteFile(tmp, raw, 0o444); err != nil {
+		return err
+	}
+	return os.Rename(tmp, path)
 }
 
 // writeMirror arma la copia al lado y la cambia con dos renombres: quien lee nunca ve una a medias.

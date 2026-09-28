@@ -10,7 +10,6 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
-	"strconv"
 	"strings"
 	"time"
 )
@@ -78,26 +77,6 @@ func (c *Client) Markdown(ctx context.Context, ids string) (string, error) {
 	var out rawText
 	err := c.call(ctx, http.MethodGet, "/api/read?format=md&ids="+url.QueryEscape(ids), nil, "", &out)
 	return string(out), err
-}
-
-type CodeFile struct {
-	Repo string `json:"repo"`
-	Path string `json:"path"`
-	Hash string `json:"declared_hash"`
-}
-
-type CodeArea struct {
-	Area struct {
-		Goal string `json:"objetivo"`
-	} `json:"area"`
-	Files []CodeFile `json:"files"`
-}
-
-// Code devuelve los archivos que declara el área `n` de un tema.
-func (c *Client) Code(ctx context.Context, area string, n int) (CodeArea, error) {
-	var out CodeArea
-	err := c.call(ctx, http.MethodGet, "/api/code?area="+url.QueryEscape(area)+"&n="+strconv.Itoa(n), nil, "", &out)
-	return out, err
 }
 
 // Piece es una pieza del borrador, con las claves que pide canon (`node`, `section`, `text`, `kind`,

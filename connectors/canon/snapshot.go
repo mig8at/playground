@@ -1,9 +1,10 @@
 package canon
 
 /* Lo que el tablero guarda de canon para trabajar el día a día: la lista de temas y el mapa global. Dos
- * pedidos GRATIS (no pasan por ningún modelo) y condicionales: el corpus entero comparte un `ETag`, así que
- * si nada cambió canon contesta 304 y no se baja nada. La copia en disco la maneja el tablero; acá sólo
- * viven las rutas de la API, como manda `TestNoOtherCanonClientInTheRepo`. */
+ * pedidos GRATIS (no pasan por ningún modelo) y chicos. Se piden con If-None-Match, pero ⚠ `/api/topics`
+ * nunca contestó 304 (medido el 2026-09-27): baja la lista entera cada vez. La revalidación de verdad es la
+ * del export (abajo). La copia en disco la maneja el tablero; acá sólo viven las rutas de la API, como
+ * manda `TestNoOtherCanonClientInTheRepo`. */
 
 import (
 	"context"
@@ -130,8 +131,8 @@ func Stages(globalMap json.RawMessage) ([]Stage, error) {
 
 /* Export es el corpus ENTERO tal como está en la base de canon: ruta → contenido (`content/<tema>/context.md`,
  * `map.json`, `flow.json`…). Es lo que arma la copia local del tablero, para leer canon con grep y sin VPN.
- * Lleva el `ETag` del corpus —el mismo de `/api/topics`, así que para saber si cambió alcanza con el pedido
- * condicional de la lista— y un `sha256` de todos los archivos, que `Verify` recalcula. */
+ * Trae un `sha256` de todos los archivos, que `Verify` recalcula. El `etag` del cuerpo es el del corpus
+ * (el If-Match de las escrituras); el del HEADER es ese sha256, y es con el que se revalida la copia. */
 type Export struct {
 	ETag       string            `json:"etag"`
 	SHA256     string            `json:"sha256"`
@@ -139,21 +140,18 @@ type Export struct {
 	ExportedAt string            `json:"exportado"`
 }
 
-// Export baja el corpus. ⚠ `/api/export` NO respeta If-None-Match (contesta 200 siempre, 1,7 MB): quien
-// lo llame decide antes, con `Topics`, si hace falta.
-func (c *Client) Export(ctx context.Context) (Export, error) {
-	body, etag, _, err := c.conditionalGet(ctx, "/api/export", "")
-	if err != nil {
-		return Export{}, err
+/* Export baja el corpus si cambió desde `tag` (el ETag del header de la última vez): con uno igual canon
+ * contesta 304 y no se baja nada. Devuelve el ETag nuevo del header. ⚠ Una instancia anterior al
+ * 2026-09-27 no respeta If-None-Match y contesta 200 siempre: quien llama compara el sha256. */
+func (c *Client) Export(ctx context.Context, tag string) (exp Export, newTag string, notModified bool, err error) {
+	body, newTag, notModified, err := c.conditionalGet(ctx, "/api/export", tag)
+	if err != nil || notModified {
+		return Export{}, newTag, notModified, err
 	}
-	var out Export
-	if err := json.Unmarshal(body, &out); err != nil {
-		return Export{}, fmt.Errorf("Canon devolvió un export inválido: %w", err)
+	if err := json.Unmarshal(body, &exp); err != nil {
+		return Export{}, "", false, fmt.Errorf("Canon devolvió un export inválido: %w", err)
 	}
-	if out.ETag == "" {
-		out.ETag = etag
-	}
-	return out, nil
+	return exp, newTag, false, nil
 }
 
 /* Verify recalcula el sha256 con la fórmula de canon (`snapshotSHA`, en `internal/api/patch.go` de su

@@ -624,7 +624,7 @@ canon-search: ## @can ¿canon ya lo tiene? qué sección y qué área lo cubren,
 canon-read: ## @can las secciones completas. IDS='cuota/context#<ancla>' (varias por coma) o el tema entero
 	@test -n "$(IDS)" || { echo "falta IDS='<tema/capa#ancla>'"; exit 2; }
 	@cd tablero/server && go run ./cmd/canon read '$(IDS)'
-canon-code: ## @can los archivos que declara un área. AREA=cuota/context [N=0]
+canon-code: ## @can los archivos que declara un área, del map.json de la copia local (sin red). AREA=cuota/context [N=0]
 	@test -n "$(AREA)" || { echo "falta AREA='<tema/capa>'"; exit 2; }
 	@cd tablero/server && go run ./cmd/canon code '$(AREA)' $(or $(N),0)
 canon-propose: ## @can ensaya una pieza sin escribir: dónde iría y qué rechaza el lint. PIECE=<pieza.json>

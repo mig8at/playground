@@ -1,48 +1,60 @@
 package main
 
 import (
-	"errors"
+	"os"
+	"path/filepath"
 	"reflect"
 	"testing"
-
-	"creditop/playground/connectors/canon"
 )
 
-// Un tema declarado que canon no tiene NO se manda —canon lo ignora en silencio— y se reporta; las citas
-// con ancla se reducen a su tema, sin repetirlo.
-func TestCanonContextValidatesDeclaredTopics(t *testing.T) {
-	var sent canon.ContextRequest
-	fetch := func(r canon.ContextRequest) (canon.ContextPackage, error) {
-		sent = r
-		return canon.ContextPackage{}, nil
+// mirror arma una copia local mínima: `kyc` y `preaprobado`, con su manifiesto.
+func mirror(t *testing.T) string {
+	t.Helper()
+	dir := t.TempDir()
+	write := func(rel, body string) {
+		p := filepath.Join(dir, "canon", rel)
+		if err := os.MkdirAll(filepath.Dir(p), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(p, []byte(body), 0o644); err != nil {
+			t.Fatal(err)
+		}
 	}
-	known := map[string]bool{"kyc": true, "preaprobado": true}
-	c := buildCanonContext([]string{"motai", "kyc", "kyc/context#ancla", "preaprobado"}, "q", false, known, 5000, fetch)
-	if !reflect.DeepEqual(c.Unknown, []string{"motai"}) || !reflect.DeepEqual(sent.Topics, []string{"kyc/context", "preaprobado/context"}) || sent.MaxBytes != 5000 {
-		t.Fatalf("desconocidos %v, mandados %v", c.Unknown, sent.Topics)
+	write("VERSION.json", `{"etag":"\"v1\"","sha256":"x"}`)
+	write("content/kyc/context.md", "# KYC\n\n## El ingreso declarado casi nunca decide\n\nEl ingreso que declara la persona no decide.\n\n## Otra cosa\n\nNada que ver.\n")
+	write("content/preaprobado/context.md", "# Preaprobado\n\n## La compuerta\n\nCon el ingreso validado se consulta.\n")
+	return dir
+}
+
+// Un tema declarado que la copia no tiene NO se busca —canon lo ignoraba en silencio— y se avisa; las
+// citas con ancla se reducen a su tema, sin repetirlo.
+func TestCanonContextValidatesDeclaredTopics(t *testing.T) {
+	dir := mirror(t)
+	c := buildCanonContext([]string{"motai", "kyc", "kyc/context#ancla", "preaprobado"}, "ingreso", false, dir, 5000)
+	if !reflect.DeepEqual(c.Unknown, []string{"motai"}) || !reflect.DeepEqual(c.Topics, []string{"kyc", "preaprobado"}) {
+		t.Fatalf("desconocidos %v, buscados %v", c.Unknown, c.Topics)
+	}
+	if len(c.Sections) != 2 || c.Sections[0].ID != "kyc/context#el-ingreso-declarado-casi-nunca-decide" {
+		t.Fatalf("secciones: %+v", c.Sections)
 	}
 	// ninguno existe y no hay consulta propia: NO se busca (el título no es una pregunta)
-	sent = canon.ContextRequest{Q: "sin pedir"}
-	c = buildCanonContext([]string{"altas"}, "q", false, known, 5000, fetch)
-	if !c.Skipped || sent.Q != "sin pedir" {
-		t.Fatalf("sin temas válidos buscó igual: %+v %+v", c, sent)
+	c = buildCanonContext([]string{"altas"}, "ingreso", false, dir, 5000)
+	if !c.Skipped || len(c.Sections) != 0 {
+		t.Fatalf("sin temas válidos buscó igual: %+v", c)
 	}
 	// con consulta propia sí, en todo el corpus
-	c = buildCanonContext([]string{"altas"}, "cuota", true, known, 5000, fetch)
-	if c.Skipped || len(sent.Topics) != 0 || sent.Q != "cuota" {
-		t.Fatalf("con consulta propia: %+v %+v", c, sent)
+	c = buildCanonContext([]string{"altas"}, "compuerta", true, dir, 5000)
+	if c.Skipped || len(c.Sections) != 1 || c.Sections[0].ID != "preaprobado/context#la-compuerta" {
+		t.Fatalf("con consulta propia: %+v", c)
 	}
-	// sin copia local no se puede validar: se manda todo y se avisa
-	c = buildCanonContext([]string{"altas"}, "q", false, nil, 5000, fetch)
-	if !c.Offline || len(sent.Topics) != 1 {
+	// sin copia local no hay nada que leer, y se dice
+	if c := buildCanonContext([]string{"kyc"}, "ingreso", false, t.TempDir(), 5000); !c.Offline {
 		t.Fatalf("sin copia: %+v", c)
 	}
-	// un error de canon se devuelve, no se calla
-	c = buildCanonContext([]string{"kyc"}, "q", false, known, 5000, func(canon.ContextRequest) (canon.ContextPackage, error) {
-		return canon.ContextPackage{}, errors.New("sin VPN")
-	})
-	if c.Error != "sin VPN" || c.Package != nil {
-		t.Fatalf("error: %+v", c)
+	// lo que no entra en el presupuesto queda pendiente, por su cita
+	c = buildCanonContext([]string{"kyc", "preaprobado"}, "ingreso", false, dir, 60)
+	if len(c.Sections) != 1 || len(c.Pending) != 1 {
+		t.Fatalf("presupuesto: %+v", c)
 	}
 }
 
@@ -59,8 +71,3 @@ func TestTaskQueryAddsTheSummary(t *testing.T) {
 	}
 }
 
-func TestSectionBodyDropsCommentAndHeading(t *testing.T) {
-	if got := sectionBody("<!-- canon -->\n## Título\n\ncuerpo"); got != "cuerpo" {
-		t.Fatalf("%q", got)
-	}
-}

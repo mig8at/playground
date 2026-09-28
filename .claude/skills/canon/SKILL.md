@@ -18,7 +18,7 @@ propia base**: sirve para ensayar, y lo que se escribe ahí no lo ve nadie.
 
     make canon-search Q='monto avisado al comercio'     # qué sección (prosa) y qué área (mapa) lo cubren
     make canon-read IDS='cuota/context#<ancla>'         # la sección completa; varias por coma, o el tema
-    make canon-code AREA=cuota/context N=2              # los archivos que declara esa área
+    make canon-code AREA=cuota/context N=2              # los archivos que declara esa área (de la copia local)
 
 **Y está copiado en disco**: `tablero/data/cache/canon/content/<tema>/context.md` (la prosa) y `map.json`
 (las áreas con sus archivos y hashes), más `globalmap.json`, `tablas.json` y `diccionario.json`. Se lee con

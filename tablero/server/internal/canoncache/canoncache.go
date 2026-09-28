@@ -79,8 +79,8 @@ func writeAtomic(path string, data []byte) error {
 	return os.Rename(tmp, path)
 }
 
-/* Refresh confirma la copia contra canon. Si el corpus no cambió (304) sólo anota que se revisó; si
- * cambió, baja la lista y el mapa global y recalcula las etapas. Si canon no contesta devuelve la copia que
+/* Refresh confirma la copia contra canon. Si el corpus no cambió (304, o el mismo ETag) sólo anota que se
+ * revisó; si cambió, baja la lista y el mapa global y recalcula las etapas. Si canon no contesta devuelve la copia que
  * había —puede estar vacía— y el error, para que quien la muestre diga de cuándo es. */
 func Refresh(ctx context.Context, client *canon.Client, source, cacheDir string, now time.Time) (Cache, error) {
 	old, _ := Load(cacheDir)
@@ -88,7 +88,9 @@ func Refresh(ctx context.Context, client *canon.Client, source, cacheDir string,
 	if err != nil {
 		return old, err
 	}
-	if notModified {
+	// `/api/topics` contesta 200 aunque nada haya cambiado: el mismo ETag también es «sin cambios», y así no
+	// se vuelve a bajar el mapa global en cada arranque.
+	if notModified || (etag != "" && etag == old.ETag && len(old.Stages) > 0) {
 		old.CheckedAt = now
 		return old, save(cacheDir, old, nil)
 	}

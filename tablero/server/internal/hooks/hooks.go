@@ -255,12 +255,12 @@ func canonSection(root string, now time.Time) string {
 	if err != nil {
 		state = "copia del " + c.CheckedAt.Local().Format("2006-01-02 15:04") + ": canon no respondió"
 	}
-	// La copia del corpus entero cuelga del MISMO ETag: si canon confirmó que no cambió, no se baja nada.
+	// La copia del corpus entero se revalida con el ETag del export: si no cambió, canon contesta 304.
 	syncErr := err
 	if err == nil {
 		syncCtx, syncCancel := context.WithTimeout(context.Background(), canoncache.MirrorWait)
 		defer syncCancel()
-		_, _, syncErr = canoncache.SyncMirror(syncCtx, canon.FromEnv(), canon.URL(), dir, c.ETag, now)
+		_, _, syncErr = canoncache.SyncMirror(syncCtx, canon.FromEnv(), canon.URL(), dir, now)
 	}
 	m, ok := canoncache.LoadMirror(dir)
 	return formatCanon(c, state) + "\n" + canoncache.MirrorLine(m, ok, syncErr, "tablero/data/cache/canon")

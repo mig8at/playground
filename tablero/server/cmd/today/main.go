@@ -39,7 +39,6 @@ import (
 	"time"
 
 	"creditop/playground/connectors/canon"
-	"creditop/playground/tablero/server/internal/canoncache"
 	"creditop/playground/tablero/server/internal/env"
 	"creditop/playground/tablero/server/internal/layout"
 	"creditop/playground/tablero/server/internal/store"
@@ -666,18 +665,11 @@ func resume(data string, tasks []task, snap branchesSnap, ref string, asJSON boo
 	}
 	var canonCtx taskCanonContext
 	if withCanon {
-		var known map[string]bool
-		if cache, ok := canoncache.Load(filepath.Join(data, "cache")); ok {
-			known = map[string]bool{}
-			for _, topic := range cache.Topics {
-				known[topic.Topic] = true
-			}
-		}
 		query := taskQuery(*t)
 		if canonQuery != "" {
 			query = canonQuery
 		}
-		canonCtx = buildCanonContext(t.Nodes, query, canonQuery != "", known, canonBytes, contextFromCanon(canon.FromEnv()))
+		canonCtx = buildCanonContext(t.Nodes, query, canonQuery != "", filepath.Join(data, "cache"), canonBytes)
 	}
 
 	if asJSON {

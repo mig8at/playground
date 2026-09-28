@@ -20,6 +20,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -124,7 +125,9 @@ func read(ctx context.Context, client *canon.Client, args []string) error {
 	return nil
 }
 
-func code(ctx context.Context, client *canon.Client, args []string) error {
+/* code: los archivos que declara un área, leídos del map.json de la COPIA LOCAL. Canon retiró `/api/code`
+ * el 2026-09-27: el código se lee en los repos de esta máquina, y el mapa dice cuáles y contra qué hash. */
+func code(_ context.Context, _ *canon.Client, args []string) error {
 	if len(args) == 0 {
 		return fmt.Errorf("falta el área: `cuota/context` y, si hace falta, su número")
 	}
@@ -132,14 +135,34 @@ func code(ctx context.Context, client *canon.Client, args []string) error {
 	if len(args) > 1 {
 		n, _ = strconv.Atoi(args[1])
 	}
-	area, err := client.Code(ctx, args[0], n)
+	dir := filepath.Join(layout.Find().Data, "cache")
+	area, total, err := canoncache.Area(dir, args[0], n)
 	if err != nil {
 		return err
 	}
-	fmt.Printf("  %s · área %d: %s\n", args[0], n, area.Area.Goal)
-	for _, f := range area.Files {
-		fmt.Printf("    %s:%s  (%s)\n", f.Repo, f.Path, f.Hash)
+	fmt.Printf("  %s · área %d de %d: %s\n", args[0], n, total, area.Goal)
+	if area.Deduce != "" {
+		fmt.Printf("  se deduce leyendo: %s\n", area.Deduce)
 	}
+	repos := make([]string, 0, len(area.Files))
+	for repo := range area.Files {
+		repos = append(repos, repo)
+	}
+	sort.Strings(repos)
+	for _, repo := range repos {
+		paths := make([]string, 0, len(area.Files[repo]))
+		for p := range area.Files[repo] {
+			paths = append(paths, p)
+		}
+		sort.Strings(paths)
+		for _, p := range paths {
+			fmt.Printf("    %s:%s  (%s)\n", repo, p, area.Files[repo][p])
+		}
+	}
+	if len(area.Tables) > 0 {
+		fmt.Printf("  tablas: %s\n", strings.Join(area.Tables, ", "))
+	}
+	fmt.Println("  el código se lee en main de cada repo: git show origin/main:<ruta> desde ~/Desktop/CREDITOP/github/<repo>")
 	return nil
 }
 
@@ -256,7 +279,7 @@ func clip(text string, n int) string {
 }
 
 /* topicMap: el mapa de canon que usa el tablero —los temas por etapa del crédito, con su título y resumen—,
- * refrescando la copia local (gratis: si el corpus no cambió, canon contesta 304). Es lo que el hook de
+ * refrescando la copia local (gratis: la del corpus entero se revalida con el ETag del export). Es lo que el hook de
  * inicio resume en una línea por etapa. */
 func topicMap(ctx context.Context, client *canon.Client) error {
 	dir := filepath.Join(layout.Find().Data, "cache")
@@ -280,7 +303,7 @@ func topicMap(ctx context.Context, client *canon.Client) error {
 	if err == nil {
 		syncCtx, cancel := context.WithTimeout(context.Background(), canoncache.MirrorWait)
 		defer cancel()
-		_, _, syncErr = canoncache.SyncMirror(syncCtx, client, canon.URL(), dir, c.ETag, time.Now())
+		_, _, syncErr = canoncache.SyncMirror(syncCtx, client, canon.URL(), dir, time.Now())
 	}
 	m, ok := canoncache.LoadMirror(dir)
 	fmt.Println(canoncache.MirrorLine(m, ok, syncErr, "tablero/data/cache/canon"))
