@@ -256,14 +256,15 @@ func canonSection(root string, now time.Time) string {
 		state = "copia del " + c.CheckedAt.Local().Format("2006-01-02 15:04") + ": canon no respondió"
 	}
 	// La copia del corpus entero se revalida con el ETag del export: si no cambió, canon contesta 304.
+	mirror := filepath.Join(root, "tablero", "canon")
 	syncErr := err
 	if err == nil {
 		syncCtx, syncCancel := context.WithTimeout(context.Background(), canoncache.MirrorWait)
 		defer syncCancel()
-		_, _, syncErr = canoncache.SyncMirror(syncCtx, canon.FromEnv(), canon.URL(), dir, now)
+		_, _, syncErr = canoncache.SyncMirror(syncCtx, canon.FromEnv(), canon.URL(), mirror, now)
 	}
-	m, ok := canoncache.LoadMirror(dir)
-	return formatCanon(c, state) + "\n" + canoncache.MirrorLine(m, ok, syncErr, "tablero/data/cache/canon")
+	m, ok := canoncache.LoadMirror(mirror)
+	return formatCanon(c, state) + "\n" + canoncache.MirrorLine(m, ok, syncErr, "tablero/canon")
 }
 
 // formatCanon es la sección tal como la ve el agente (aparte para que la prueba de presupuesto la mida

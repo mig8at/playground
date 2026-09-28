@@ -212,7 +212,7 @@ func main() {
 	a.branchesRoot = envDefault("TABLERO_RAMAS_ROOT", filepath.Join(os.Getenv("HOME"), "Desktop", "CREDITOP", "github"))
 
 	integrations := a.connectIntegrations()
-	a.canonKeeper = newCanonKeeper(a.canonClient, a.canonURL, filepath.Join(dataDir, "cache"))
+	a.canonKeeper = newCanonKeeper(a.canonClient, a.canonURL, layout.At(dataDir).Canon())
 	go a.canonKeeper.run(context.Background())
 
 	port := envDefault("WEB_PORT", "8787")

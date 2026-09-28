@@ -4,7 +4,7 @@ package main
  *
  * La ficha (`-brief`) dice qué tema abrir; esto trae lo que el tema dice, elegido por el título y el
  * resumen de la tarea dentro de los temas que declara y cortado a un presupuesto de bytes. Se lee de la
- * COPIA LOCAL de canon (`tablero/data/cache/canon`, al día con su ETag): desde el 2026-09-27 canon ya
+ * COPIA LOCAL de canon (`tablero/canon`, al día con su ETag): desde el 2026-09-27 canon ya
  * no sirve `/api/context` —el único cliente remoto es Credibot— y leer archivos es más rápido que la red.
  *
  * ⚠ Un tema declarado que la copia no tiene se AVISA: sin eso, «no trajo nada» se lee igual que «canon
@@ -42,8 +42,8 @@ func topicOf(ref string) string {
 }
 
 // allTopics: los temas que tiene la copia, para buscar en todo el corpus cuando se da una consulta propia.
-func allTopics(cacheDir string) []string {
-	files, _ := filepath.Glob(filepath.Join(canoncache.MirrorDir(cacheDir), "content", "*", "context.md"))
+func allTopics(dir string) []string {
+	files, _ := filepath.Glob(filepath.Join(dir, "content", "*", "context.md"))
 	var out []string
 	for _, f := range files {
 		out = append(out, filepath.Base(filepath.Dir(f)))
@@ -54,9 +54,9 @@ func allTopics(cacheDir string) []string {
 /* buildCanonContext separa los temas declarados en los que la copia tiene y los que no, y elige las
  * secciones. Sin ningún tema válido NO busca en todo el corpus —el título de una tarea de herramientas
  * trajo ruido de comercios y entidades—, salvo que quien retoma dé su propia consulta (`explicit`). */
-func buildCanonContext(declared []string, query string, explicit bool, cacheDir string, maxBytes int) taskCanonContext {
+func buildCanonContext(declared []string, query string, explicit bool, dir string, maxBytes int) taskCanonContext {
 	out := taskCanonContext{Query: query, MaxBytes: maxBytes}
-	m, ok := canoncache.LoadMirror(cacheDir)
+	m, ok := canoncache.LoadMirror(dir)
 	if !ok {
 		out.Offline = true
 		return out
@@ -69,7 +69,7 @@ func buildCanonContext(declared []string, query string, explicit bool, cacheDir 
 			continue
 		}
 		seen[topic] = true
-		if !canoncache.HasTopic(cacheDir, topic) {
+		if !canoncache.HasTopic(dir, topic) {
 			out.Unknown = append(out.Unknown, topic)
 			continue
 		}
@@ -81,9 +81,9 @@ func buildCanonContext(declared []string, query string, explicit bool, cacheDir 
 			out.Skipped = true
 			return out
 		}
-		scope = allTopics(cacheDir)
+		scope = allTopics(dir)
 	}
-	out.Sections, out.Pending, _ = canoncache.SelectContext(cacheDir, scope, query, maxBytes)
+	out.Sections, out.Pending, _ = canoncache.SelectContext(dir, scope, query, maxBytes)
 	return out
 }
 
@@ -118,7 +118,7 @@ func printCanonContext(c taskCanonContext) {
 	}
 	if len(c.Pending) > 0 {
 		fmt.Printf("\n  no entraron en %d B (%d más, por puntaje): %s\n", c.MaxBytes, len(c.Pending), strings.Join(c.Pending, " · "))
-		fmt.Printf("  se leen en %s\n", filepath.Join("tablero/data/cache/canon/content", "<tema>", "context.md"))
+		fmt.Printf("  se leen en %s\n", filepath.Join("tablero/canon/content", "<tema>", "context.md"))
 	}
 }
 

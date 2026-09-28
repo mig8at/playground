@@ -10,7 +10,7 @@ func fakeMirror(t *testing.T, files map[string]string) string {
 	t.Helper()
 	dir := t.TempDir()
 	for rel, body := range files {
-		p := filepath.Join(MirrorDir(dir), filepath.FromSlash(rel))
+		p := filepath.Join(dir, filepath.FromSlash(rel))
 		if err := os.MkdirAll(filepath.Dir(p), 0o755); err != nil {
 			t.Fatal(err)
 		}

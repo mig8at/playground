@@ -37,6 +37,16 @@ type Layout struct {
 	Tasks string
 }
 
+// Canon es la copia local de canon (`tablero/canon/`): el export entero, para leerlo como archivos. Está
+// fuera de git porque se regenera sola; vive al lado de `data/` y no adentro de `data/cache/` para que se vea.
+func (l Layout) Canon() string {
+	data, err := filepath.Abs(l.Data)
+	if err != nil {
+		data = l.Data
+	}
+	return filepath.Join(filepath.Dir(data), "canon")
+}
+
 // Tools es la carpeta `tools/` de la raíz del playground: ahí vive `repos.json`, la lista ÚNICA de repos que
 // el tablero consulta en vez de copiarla, y su padre es desde donde se corre `make`.
 //

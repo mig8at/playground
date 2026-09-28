@@ -135,8 +135,7 @@ func code(_ context.Context, _ *canon.Client, args []string) error {
 	if len(args) > 1 {
 		n, _ = strconv.Atoi(args[1])
 	}
-	dir := filepath.Join(layout.Find().Data, "cache")
-	area, total, err := canoncache.Area(dir, args[0], n)
+	area, total, err := canoncache.Area(layout.Find().Canon(), args[0], n)
 	if err != nil {
 		return err
 	}
@@ -303,9 +302,9 @@ func topicMap(ctx context.Context, client *canon.Client) error {
 	if err == nil {
 		syncCtx, cancel := context.WithTimeout(context.Background(), canoncache.MirrorWait)
 		defer cancel()
-		_, _, syncErr = canoncache.SyncMirror(syncCtx, client, canon.URL(), dir, time.Now())
+		_, _, syncErr = canoncache.SyncMirror(syncCtx, client, canon.URL(), layout.Find().Canon(), time.Now())
 	}
-	m, ok := canoncache.LoadMirror(dir)
-	fmt.Println(canoncache.MirrorLine(m, ok, syncErr, "tablero/data/cache/canon"))
+	m, ok := canoncache.LoadMirror(layout.Find().Canon())
+	fmt.Println(canoncache.MirrorLine(m, ok, syncErr, "tablero/canon"))
 	return nil
 }

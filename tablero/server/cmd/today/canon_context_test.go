@@ -12,7 +12,7 @@ func mirror(t *testing.T) string {
 	t.Helper()
 	dir := t.TempDir()
 	write := func(rel, body string) {
-		p := filepath.Join(dir, "canon", rel)
+		p := filepath.Join(dir, rel)
 		if err := os.MkdirAll(filepath.Dir(p), 0o755); err != nil {
 			t.Fatal(err)
 		}
@@ -70,4 +70,3 @@ func TestTaskQueryAddsTheSummary(t *testing.T) {
 		t.Fatalf("query %q", got)
 	}
 }
-

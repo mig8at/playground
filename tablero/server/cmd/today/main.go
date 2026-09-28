@@ -669,7 +669,7 @@ func resume(data string, tasks []task, snap branchesSnap, ref string, asJSON boo
 		if canonQuery != "" {
 			query = canonQuery
 		}
-		canonCtx = buildCanonContext(t.Nodes, query, canonQuery != "", filepath.Join(data, "cache"), canonBytes)
+		canonCtx = buildCanonContext(t.Nodes, query, canonQuery != "", layout.At(data).Canon(), canonBytes)
 	}
 
 	if asJSON {

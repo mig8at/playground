@@ -53,7 +53,7 @@ func exportServer(t *testing.T, files map[string]string, hash string, old bool, 
 
 func TestMirrorSyncsOnlyWhenTheCorpusChanged(t *testing.T) {
 	for _, old := range []bool{false, true} {
-		dir, hits := t.TempDir(), 0
+		dir, hits := filepath.Join(t.TempDir(), "canon"), 0
 		files := map[string]string{"content/kyc/context.md": "# KYC\n", "content/kyc/map.json": "{}"}
 		srv := exportServer(t, files, "", old, &hits)
 		client, now := canon.New(srv.URL), time.Now()
@@ -62,11 +62,11 @@ func TestMirrorSyncsOnlyWhenTheCorpusChanged(t *testing.T) {
 		if err != nil || !changed || m.Files != 2 || m.ExportTag == "" {
 			t.Fatalf("old=%v primera copia: %+v %v %v", old, m, changed, err)
 		}
-		got, _ := os.ReadFile(filepath.Join(MirrorDir(dir), "content", "kyc", "context.md"))
+		got, _ := os.ReadFile(filepath.Join(dir, "content", "kyc", "context.md"))
 		if string(got) != "# KYC\n" {
 			t.Fatalf("contenido %q", got)
 		}
-		if info, _ := os.Stat(filepath.Join(MirrorDir(dir), "content", "kyc", "context.md")); info.Mode().Perm()&0o222 != 0 {
+		if info, _ := os.Stat(filepath.Join(dir, "content", "kyc", "context.md")); info.Mode().Perm()&0o222 != 0 {
 			t.Errorf("la copia tiene que quedar de sólo lectura: %v", info.Mode())
 		}
 		// nada cambió: 304 (o, en una instancia vieja, el mismo sha) y no se reescribe
@@ -91,10 +91,10 @@ func TestMirrorSyncsOnlyWhenTheCorpusChanged(t *testing.T) {
 		if _, changed, err := SyncMirror(context.Background(), client, "x", dir, now); !changed || err != nil {
 			t.Fatalf("old=%v con cambios: %v %v", old, changed, err)
 		}
-		if _, err := os.Stat(filepath.Join(MirrorDir(dir), "content", "kyc", "map.json")); !os.IsNotExist(err) {
+		if _, err := os.Stat(filepath.Join(dir, "content", "kyc", "map.json")); !os.IsNotExist(err) {
 			t.Error("un archivo que salió del corpus sigue en la copia")
 		}
-		if left, _ := filepath.Glob(filepath.Join(dir, "canon.*")); len(left) != 0 {
+		if left, _ := filepath.Glob(filepath.Join(filepath.Dir(dir), "canon.*")); len(left) != 0 {
 			t.Errorf("quedaron carpetas temporales: %v", left)
 		}
 		srv.Close()
@@ -103,7 +103,7 @@ func TestMirrorSyncsOnlyWhenTheCorpusChanged(t *testing.T) {
 
 // Un export que no coincide con su hash, o que trae una ruta fuera de content/, no toca la copia que hay.
 func TestMirrorKeepsTheOldCopyOnABadExport(t *testing.T) {
-	dir, hits := t.TempDir(), 0
+	dir, hits := filepath.Join(t.TempDir(), "canon"), 0
 	good := exportServer(t, map[string]string{"content/a/context.md": "bien"}, "", false, &hits)
 	defer good.Close()
 	if _, _, err := SyncMirror(context.Background(), canon.New(good.URL), "x", dir, time.Now()); err != nil {
@@ -120,7 +120,7 @@ func TestMirrorKeepsTheOldCopyOnABadExport(t *testing.T) {
 			t.Errorf("%s: se aceptó (%v)", name, err)
 		}
 		m, _ := LoadMirror(dir)
-		got, _ := os.ReadFile(filepath.Join(MirrorDir(dir), "content", "a", "context.md"))
+		got, _ := os.ReadFile(filepath.Join(dir, "content", "a", "context.md"))
 		if m.SHA256 != sha(map[string]string{"content/a/context.md": "bien"}) || string(got) != "bien" {
 			t.Errorf("%s: la copia cambió: %+v %q", name, m, got)
 		}

@@ -18,6 +18,12 @@ server/data/
 data/entries/
 data/cache/
 
+# La copia local de canon: el export entero, que se regenera solo (arranque de sesión, el server del
+# tablero cada 10 minutos). Se lee, no se edita ni se versiona: lo que se cambia se dicta a canon.
+/canon/
+/canon.tmp-*
+/canon.old-*
+
 # El pulso: cuándo toqué los repos de la compañía, en tramos de 5'. Mismo criterio que la bitácora
 # (dato personal), más una razón propia: son ~288 líneas por día, apendeadas por un agente de fondo.
 # Commitearlo sería un diff diario que nadie lee y que además cuenta la jornada de una sola persona.

@@ -36,17 +36,17 @@ type LocalArea struct {
 }
 
 // TopicPath es el archivo de prosa de un tema en la copia (`kyc` o `kyc/context`).
-func TopicPath(cacheDir, topic string) string {
+func TopicPath(dir, topic string) string {
 	name, kind, ok := strings.Cut(topic, "/")
 	if !ok {
 		kind = "context"
 	}
-	return filepath.Join(MirrorDir(cacheDir), "content", name, kind+".md")
+	return filepath.Join(dir, "content", name, kind+".md")
 }
 
 // HasTopic dice si el tema está en la copia.
-func HasTopic(cacheDir, topic string) bool {
-	_, err := os.Stat(TopicPath(cacheDir, topic))
+func HasTopic(dir, topic string) bool {
+	_, err := os.Stat(TopicPath(dir, topic))
 	return err == nil
 }
 
@@ -69,8 +69,8 @@ var accents = strings.NewReplacer("á", "a", "é", "e", "í", "i", "ó", "o", "�
 func fold(s string) string { return accents.Replace(strings.ToLower(s)) }
 
 // ReadTopic parte la prosa de un tema en sus secciones (`## título`).
-func ReadTopic(cacheDir, topic string) ([]LocalSection, error) {
-	raw, err := os.ReadFile(TopicPath(cacheDir, topic))
+func ReadTopic(dir, topic string) ([]LocalSection, error) {
+	raw, err := os.ReadFile(TopicPath(dir, topic))
 	if err != nil {
 		return nil, err
 	}
@@ -128,11 +128,11 @@ var commonWords = func() map[string]bool {
 /* SelectContext elige, dentro de `topics`, las secciones que más palabras de `query` nombran —el título
  * pesa triple— y las entrega ENTERAS hasta `maxBytes`. Lo que puntúa y no entra va en `pending`, por su
  * cita, para leerlo aparte. Un tema que no está en la copia va en `missing`. */
-func SelectContext(cacheDir string, topics []string, query string, maxBytes int) (chosen []LocalSection, pending, missing []string) {
+func SelectContext(dir string, topics []string, query string, maxBytes int) (chosen []LocalSection, pending, missing []string) {
 	ts := terms(query)
 	var all []LocalSection
 	for _, t := range topics {
-		secs, err := ReadTopic(cacheDir, t)
+		secs, err := ReadTopic(dir, t)
 		if err != nil {
 			missing = append(missing, t)
 			continue
@@ -160,11 +160,11 @@ func SelectContext(cacheDir string, topics []string, query string, maxBytes int)
 }
 
 // Area lee el área `n` del mapa de un tema.
-func Area(cacheDir, topic string, n int) (LocalArea, int, error) {
+func Area(dir, topic string, n int) (LocalArea, int, error) {
 	name, _, _ := strings.Cut(topic, "/")
-	raw, err := os.ReadFile(filepath.Join(MirrorDir(cacheDir), "content", name, "map.json"))
+	raw, err := os.ReadFile(filepath.Join(dir, "content", name, "map.json"))
 	if err != nil {
-		return LocalArea{}, 0, fmt.Errorf("el tema %q no está en la copia local (%s)", name, MirrorDir(cacheDir))
+		return LocalArea{}, 0, fmt.Errorf("el tema %q no está en la copia local (%s)", name, dir)
 	}
 	var m struct {
 		Areas []struct {

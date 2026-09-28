@@ -2,7 +2,7 @@ package main
 
 /* El tablero mantiene al día la copia local de canon y dice en el pie si lo está.
  *
- * La copia (`data/cache/canon`) es de donde se lee canon para trabajar: grep, `retomar CANON=1`,
+ * La copia (`tablero/canon`) es de donde se lee canon para trabajar: grep, `retomar CANON=1`,
  * `canon-code`. El arranque de sesión ya la revalida, pero una sesión larga no vuelve a arrancar, y lo que
  * el equipo dicta a canon en el medio no llegaría. Mientras el tablero está abierto, esto la revalida
  * cada tanto contra el ETag del export —304 si nada cambió, sin bajar nada—, y la UI lo muestra: «al
@@ -29,7 +29,7 @@ type canonKeeper struct {
 	mu        sync.Mutex
 	client    *canon.Client
 	source    string
-	cacheDir  string
+	dir       string
 	checkedAt time.Time
 	lastErr   string
 	now       func() time.Time
@@ -48,8 +48,8 @@ type canonStatus struct {
 	Error      string    `json:"error,omitempty"`
 }
 
-func newCanonKeeper(client *canon.Client, source, cacheDir string) *canonKeeper {
-	return &canonKeeper{client: client, source: source, cacheDir: cacheDir, now: time.Now}
+func newCanonKeeper(client *canon.Client, source, dir string) *canonKeeper {
+	return &canonKeeper{client: client, source: source, dir: dir, now: time.Now}
 }
 
 // check revalida si la última vez fue hace más de `maxAge` (0 = siempre) y devuelve el estado.
@@ -59,7 +59,7 @@ func (k *canonKeeper) check(maxAge time.Duration) canonStatus {
 	updated := false
 	if maxAge == 0 || k.now().Sub(k.checkedAt) > maxAge {
 		ctx, cancel := context.WithTimeout(context.Background(), canoncache.MirrorWait)
-		_, changed, err := canoncache.SyncMirror(ctx, k.client, k.source, k.cacheDir, k.now())
+		_, changed, err := canoncache.SyncMirror(ctx, k.client, k.source, k.dir, k.now())
 		cancel()
 		k.lastErr = ""
 		if err != nil {
@@ -72,7 +72,7 @@ func (k *canonKeeper) check(maxAge time.Duration) canonStatus {
 }
 
 func (k *canonKeeper) status(updated bool) canonStatus {
-	m, ok := canoncache.LoadMirror(k.cacheDir)
+	m, ok := canoncache.LoadMirror(k.dir)
 	out := canonStatus{CheckedAt: k.checkedAt, Updated: updated, Error: k.lastErr}
 	if ok {
 		out.SyncedAt, out.ExportedAt, out.Files = m.SyncedAt, m.ExportedAt, m.Files

@@ -1,6 +1,6 @@
 package canoncache
 
-/* La copia local del corpus: `tablero/data/cache/canon/content/<tema>/context.md` y su `map.json`, para leer
+/* La copia local del corpus: `tablero/canon/content/<tema>/context.md` y su `map.json`, para leer
  * canon como se lee cualquier archivo —grep, Read— y sin la VPN de prod.
  *
  * Por qué existe: la API obliga a acordarse de un comando por cada lectura, y lo que se lee con grep se
@@ -40,12 +40,13 @@ type Manifest struct {
 	Note       string    `json:"note"`
 }
 
-// MirrorDir es la carpeta de la copia.
-func MirrorDir(cacheDir string) string { return filepath.Join(cacheDir, "canon") }
+/* La copia vive en `tablero/canon/` —la da `layout.Canon()`—, fuera de git: se regenera sola. Todas las
+ * funciones de este archivo y de local.go reciben ESA carpeta (`dir`). Hasta el 2026-09-27 estaba en
+ * `data/cache/canon`, al lado de las cachés; se mudó para que se vea como lo que es. */
 
 // LoadMirror lee el manifiesto; ok=false si no hay copia.
-func LoadMirror(cacheDir string) (Manifest, bool) {
-	raw, err := os.ReadFile(filepath.Join(MirrorDir(cacheDir), "VERSION.json"))
+func LoadMirror(dir string) (Manifest, bool) {
+	raw, err := os.ReadFile(filepath.Join(dir, "VERSION.json"))
 	if err != nil {
 		return Manifest{}, false
 	}
@@ -59,8 +60,8 @@ func LoadMirror(cacheDir string) (Manifest, bool) {
 /* SyncMirror deja la copia al día con canon. Si no cambió (304, o el mismo sha256 de una instancia que
  * todavía no contesta 304), no hace nada (changed=false). Si cambió, baja, verifica y reemplaza; ante
  * cualquier error la copia anterior queda intacta. */
-func SyncMirror(ctx context.Context, client *canon.Client, source, cacheDir string, now time.Time) (Manifest, bool, error) {
-	old, had := LoadMirror(cacheDir)
+func SyncMirror(ctx context.Context, client *canon.Client, source, dir string, now time.Time) (Manifest, bool, error) {
+	old, had := LoadMirror(dir)
 	tag := ""
 	if had {
 		tag = old.ExportTag
@@ -77,7 +78,7 @@ func SyncMirror(ctx context.Context, client *canon.Client, source, cacheDir stri
 		 * o la próxima revalidación no tendría con qué pedir el 304 y bajaría todo cada vez. */
 		if newTag != "" && newTag != old.ExportTag {
 			old.ExportTag = newTag
-			if err := saveManifest(cacheDir, old); err != nil {
+			if err := saveManifest(dir, old); err != nil {
 				return old, false, err
 			}
 		}
@@ -89,7 +90,7 @@ func SyncMirror(ctx context.Context, client *canon.Client, source, cacheDir stri
 	m := Manifest{ETag: exp.ETag, ExportTag: newTag, SHA256: exp.SHA256, ExportedAt: exp.ExportedAt, SyncedAt: now,
 		Files: len(exp.Files), Source: source,
 		Note: "Copia de canon: no se edita, se reemplaza entera cuando cambia el corpus. Para cambiar algo: make canon-write."}
-	if err := writeMirror(cacheDir, exp.Files, m); err != nil {
+	if err := writeMirror(dir, exp.Files, m); err != nil {
 		return old, false, err
 	}
 	return m, true, nil
@@ -106,12 +107,12 @@ func safePath(p string) (string, bool) {
 }
 
 // saveManifest reescribe sólo `VERSION.json`, por renombre (el archivo es de sólo lectura).
-func saveManifest(cacheDir string, m Manifest) error {
+func saveManifest(dir string, m Manifest) error {
 	raw, err := json.MarshalIndent(m, "", "  ")
 	if err != nil {
 		return err
 	}
-	path := filepath.Join(MirrorDir(cacheDir), "VERSION.json")
+	path := filepath.Join(dir, "VERSION.json")
 	tmp := fmt.Sprintf("%s.%d.tmp", path, os.Getpid())
 	if err := os.WriteFile(tmp, raw, 0o444); err != nil {
 		return err
@@ -120,11 +121,12 @@ func saveManifest(cacheDir string, m Manifest) error {
 }
 
 // writeMirror arma la copia al lado y la cambia con dos renombres: quien lee nunca ve una a medias.
-func writeMirror(cacheDir string, files map[string]string, m Manifest) error {
-	if err := os.MkdirAll(cacheDir, 0o755); err != nil {
+func writeMirror(dir string, files map[string]string, m Manifest) error {
+	parent := filepath.Dir(dir)
+	if err := os.MkdirAll(parent, 0o755); err != nil {
 		return err
 	}
-	tmp, err := os.MkdirTemp(cacheDir, "canon.tmp-")
+	tmp, err := os.MkdirTemp(parent, filepath.Base(dir)+".tmp-")
 	if err != nil {
 		return err
 	}
@@ -149,7 +151,6 @@ func writeMirror(cacheDir string, files map[string]string, m Manifest) error {
 	if err := os.WriteFile(filepath.Join(tmp, "VERSION.json"), raw, 0o444); err != nil {
 		return err
 	}
-	dir := MirrorDir(cacheDir)
 	retired := fmt.Sprintf("%s.old-%d", dir, os.Getpid())
 	if _, err := os.Stat(dir); err == nil {
 		if err := os.Rename(dir, retired); err != nil {
