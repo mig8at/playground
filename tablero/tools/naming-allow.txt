@@ -81,3 +81,4 @@ path: trazador/server/mapa/substeps.json                        # dato, ídem
 
 # Contrato de /api/globalmap de Canon; no son claves del tablero.
 json: connectors/canon/routes.go mapa desde hasta titulo rutas estaciones cuando pasos estacion_global referencia nota
+json: connectors/canon/context.go referencia texto verificado respaldo archivos respalda leer seccion pendientes omitidas faltantes nota titulo objetivo tema area     # el paquete de /api/context: el contrato de canon

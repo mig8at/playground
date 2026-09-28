@@ -39,6 +39,7 @@ import (
 	"time"
 
 	"creditop/playground/connectors/canon"
+	"creditop/playground/tablero/server/internal/canoncache"
 	"creditop/playground/tablero/server/internal/env"
 	"creditop/playground/tablero/server/internal/layout"
 	"creditop/playground/tablero/server/internal/store"
@@ -260,11 +261,14 @@ func truncate(s string, n int) string {
 
 func main() {
 	var (
-		single  = flag.String("n", "", "retomar UNA tarea, por id o slug (acepta subcadena del slug)")
-		stage   = flag.String("stage", "", "sólo esta etapa (work · evaluation · tasks)")
-		anatomy = flag.Bool("anatomia", false, "cómo está repartido el archivo de cada tarea, y qué sección parece estar en el lugar equivocado")
-		asJSON  = flag.Bool("json", false, "salida en JSON")
-		brief   = flag.String("brief", "", "al final, la ficha de las referencias de Canon declaradas: 1 = las declaradas (hasta 4) · a,b = sólo esas")
+		single     = flag.String("n", "", "retomar UNA tarea, por id o slug (acepta subcadena del slug)")
+		stage      = flag.String("stage", "", "sólo esta etapa (work · evaluation · tasks)")
+		anatomy    = flag.Bool("anatomia", false, "cómo está repartido el archivo de cada tarea, y qué sección parece estar en el lugar equivocado")
+		asJSON     = flag.Bool("json", false, "salida en JSON")
+		brief      = flag.String("brief", "", "al final, la ficha de las referencias de Canon declaradas: 1 = las declaradas (hasta 4) · a,b = sólo esas")
+		withCanon  = flag.Bool("canon", false, "al final, las secciones de canon que el título de la tarea encuentra en sus temas declarados (/api/context, sin modelo)")
+		canonBytes = flag.Int("canon-bytes", canonContextBytes, "presupuesto de -canon, en bytes")
+		canonQuery = flag.String("canon-q", "", "con -canon: buscar esto en vez del título y el resumen de la tarea")
 	)
 	flag.Parse()
 	env.LoadDefaults()
@@ -283,7 +287,7 @@ func main() {
 		os.Exit(showAnatomy(data, tasks, *single))
 	}
 	if *single != "" {
-		os.Exit(resume(data, tasks, snap, *single, *asJSON, *brief))
+		os.Exit(resume(data, tasks, snap, *single, *asJSON, *brief, *withCanon, *canonBytes, *canonQuery))
 	}
 	os.Exit(agenda(data, tasks, snap, *stage, *asJSON))
 }
@@ -617,7 +621,7 @@ func briefFromCanon(client *canon.Client) func(string) (canonBrief, error) {
 	}
 }
 
-func resume(data string, tasks []task, snap branchesSnap, ref string, asJSON bool, brief string) int {
+func resume(data string, tasks []task, snap branchesSnap, ref string, asJSON bool, brief string, withCanon bool, canonBytes int, canonQuery string) int {
 	var t *task
 	for i := range tasks {
 		if tasks[i].Slug == ref || strconv.Itoa(tasks[i].ID) == ref {
@@ -660,6 +664,21 @@ func resume(data string, tasks []task, snap branchesSnap, ref string, asJSON boo
 	if brief != "" {
 		briefs, briefsNotice = canonBriefs(t.Nodes, brief, briefFromCanon(canon.FromEnv()))
 	}
+	var canonCtx taskCanonContext
+	if withCanon {
+		var known map[string]bool
+		if cache, ok := canoncache.Load(filepath.Join(data, "cache")); ok {
+			known = map[string]bool{}
+			for _, topic := range cache.Topics {
+				known[topic.Topic] = true
+			}
+		}
+		query := taskQuery(*t)
+		if canonQuery != "" {
+			query = canonQuery
+		}
+		canonCtx = buildCanonContext(t.Nodes, query, canonQuery != "", known, canonBytes, contextFromCanon(canon.FromEnv()))
+	}
 
 	if asJSON {
 		output := map[string]any{
@@ -669,6 +688,9 @@ func resume(data string, tasks []task, snap branchesSnap, ref string, asJSON boo
 		}
 		if brief != "" {
 			output["canon"], output["canonNotice"] = briefs, briefsNotice
+		}
+		if withCanon {
+			output["canonContext"] = canonCtx
 		}
 		_ = json.NewEncoder(os.Stdout).Encode(output)
 		return 0
@@ -680,6 +702,9 @@ func resume(data string, tasks []task, snap branchesSnap, ref string, asJSON boo
 	}
 	if len(t.Nodes) > 0 && brief == "" {
 		fmt.Printf("  la ficha de cada referencia de Canon: make retomar N=%d BRIEF=1\n", t.ID)
+	}
+	if !withCanon {
+		fmt.Printf("  lo que canon dice de esta tarea, en secciones enteras: make retomar N=%d CANON=1\n", t.ID)
 	}
 	fmt.Printf("  archivo: %s\n", t.Path)
 
@@ -775,7 +800,7 @@ func resume(data string, tasks []task, snap branchesSnap, ref string, asJSON boo
 		fmt.Println("\n  ── Canon: referencias declaradas por la tarea ──")
 		if len(briefs) == 0 {
 			fmt.Println("  ✗ la tarea no declara `canon:`. Para encontrar una referencia de una pregunta nueva:")
-			fmt.Println("    canon -pregunta '<la pregunta>'   (desde github/playground/tools/canon)")
+			fmt.Println("    make canon-search Q='<palabras del negocio>'   (gratis, sin modelo)")
 		}
 		for i, f := range briefs {
 			if i > 0 {
@@ -814,6 +839,9 @@ func resume(data string, tasks []task, snap branchesSnap, ref string, asJSON boo
 			fmt.Println("  " + briefsNotice)
 		}
 		fmt.Println("  la ficha decide qué referencia se abre; si ninguna contesta, la pregunta va al código de main — no a otra referencia")
+	}
+	if withCanon {
+		printCanonContext(canonCtx)
 	}
 	fmt.Println()
 	return 0

@@ -54,3 +54,22 @@ func TestTopicsIsConditional(t *testing.T) {
 		t.Errorf("pedidos: %d", calls)
 	}
 }
+
+// El contexto se pide por POST con los temas, la consulta y el presupuesto, y vuelve con lo que entró y
+// lo que quedó pendiente.
+func TestContextSendsTopicsAndBudget(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		var in map[string]any
+		json.NewDecoder(r.Body).Decode(&in)
+		if r.Method != http.MethodPost || r.URL.Path != "/api/context" || in["q"] != "cuota" || in["max_bytes"].(float64) != 8000 {
+			t.Errorf("pedido: %s %s %v", r.Method, r.URL.Path, in)
+		}
+		w.Write([]byte(`{"secciones":[{"id":"cuota/context#a","titulo":"A","texto":"x","verificado":"2026-09-03",
+			"respaldo":[{"objetivo":"armar la cuota","referencia":"cuota/context#a=area-1"}]}],"pendientes":["cuota/context#s=b"],"omitidas":1}`))
+	}))
+	defer srv.Close()
+	p, err := New(srv.URL).Context(context.Background(), ContextRequest{Q: "cuota", Topics: []string{"cuota/context"}, MaxBytes: 8000})
+	if err != nil || len(p.Sections) != 1 || p.Sections[0].Backing[0].Goal != "armar la cuota" || len(p.Pending) != 1 {
+		t.Fatalf("paquete: %+v %v", p, err)
+	}
+}

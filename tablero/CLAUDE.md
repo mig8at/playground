@@ -178,6 +178,10 @@ fijados a su commit) y lo que tenga el documento. Con eso, una hipótesis verifi
 1. **Hay referencias:** `make retomar N=<id> BRIEF=1` trae la **ficha** de cada una (hasta cuatro;
    `BRIEF=a,b` elige), derivada de la API de canon sin llamar a un modelo. La ficha decide qué abrir; no
    reemplaza la lectura. Preferí una cita exacta (`tema/context#ancla`) sobre un tema entero.
+   **`CANON=1`** trae ya las SECCIONES enteras que el título y el resumen de la tarea encuentran dentro de
+   esos temas (`/api/context`, sin modelo, 12 KB; lo que no entra sale como `make canon-read IDS=…`), y
+   avisa si la tarea declara un tema que canon no tiene — canon lo ignora en silencio. `CANON_Q='…'` busca
+   otra cosa.
 2. **No hay, o el pedido es general:** una pregunta técnica sin datos de caso a canon (`make canon-search`).
    Una sugerencia no se copia sola al frontmatter: se confirma leyendo.
 3. **La pregunta es de una persona, una solicitud o una medición actual:** ningún corpus la contesta. Va el
