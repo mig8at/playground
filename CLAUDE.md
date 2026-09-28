@@ -34,7 +34,7 @@ tener la herramienta: es suponer que no está y contestar de memoria.
 
 | Tu pregunta | Con qué se contesta |
 |---|---|
-| **no conozco el dominio** · **¿cómo funciona X?** | **canon, siempre primero**: `make canon-search Q='…'` con palabras del negocio (gratis) → `make canon-read IDS=…`, el tema entero |
+| **no conozco el dominio** · **¿cómo funciona X?** | **canon, siempre primero**: `make canon-search Q='…'` con palabras del negocio (gratis) → `make canon-read IDS=…`, el tema entero. Y está copiado en disco, al día con su `ETag`: `grep -rn '…' tablero/data/cache/canon/content` y leer `<tema>/context.md` y su `map.json`, sin VPN (no se edita) |
 | **retomo una tarea del tablero** | `make retomar N=… BRIEF=1`: la tarea ya declara sus temas en `canon:` y la ficha de cada uno alcanza para decidir cuál abrir. `CANON=1` trae ya las secciones enteras de esos temas que el título y el resumen de la tarea encuentran (sin modelo), y avisa si declara un tema que canon no tiene. Si la ficha no contesta, no probés otro tema: la pregunta va al código de `main` |
 | **¿ya nos pasó?** | `tablero/data/traps/doc.md`, entrando por su índice de síntomas |
 | **¿por qué existe esta regla?** (política, contrato, qué se le ofreció al comercio) | `make confluence`: el porqué del negocio no está en el código |

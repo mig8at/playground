@@ -20,6 +20,12 @@ propia base**: sirve para ensayar, y lo que se escribe ahí no lo ve nadie.
     make canon-read IDS='cuota/context#<ancla>'         # la sección completa; varias por coma, o el tema
     make canon-code AREA=cuota/context N=2              # los archivos que declara esa área
 
+**Y está copiado en disco**: `tablero/data/cache/canon/content/<tema>/context.md` (la prosa) y `map.json`
+(las áreas con sus archivos y hashes), más `globalmap.json`, `tablas.json` y `diccionario.json`. Se lee con
+grep y Read, sin VPN. Cuelga del `ETag` del corpus: el arranque de sesión lo revalida gratis y, si canon
+cambió, baja el export, lo verifica contra su sha256 y lo reemplaza entero (`VERSION.json` dice de cuál es).
+**No se edita** (es de sólo lectura): lo que haya que cambiar se dicta abajo.
+
 1. **Buscá con palabras del negocio, en español y cortas.** La búsqueda es léxica: una consulta en
    inglés o un relato largo no encuentran nada. Probá dos o tres formulaciones antes de concluir.
 2. **Leé la sección entera** antes de citarla: un buen puesto en la búsqueda no garantiza que conteste.

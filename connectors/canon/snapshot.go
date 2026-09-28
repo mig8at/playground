@@ -7,6 +7,8 @@ package canon
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -124,4 +126,59 @@ func Stages(globalMap json.RawMessage) ([]Stage, error) {
 		stages[idx].Topics = append(stages[idx].Topics, s.Topic)
 	}
 	return stages, nil
+}
+
+/* Export es el corpus ENTERO tal como está en la base de canon: ruta → contenido (`content/<tema>/context.md`,
+ * `map.json`, `flow.json`…). Es lo que arma la copia local del tablero, para leer canon con grep y sin VPN.
+ * Lleva el `ETag` del corpus —el mismo de `/api/topics`, así que para saber si cambió alcanza con el pedido
+ * condicional de la lista— y un `sha256` de todos los archivos, que `Verify` recalcula. */
+type Export struct {
+	ETag       string            `json:"etag"`
+	SHA256     string            `json:"sha256"`
+	Files      map[string]string `json:"files"`
+	ExportedAt string            `json:"exportado"`
+}
+
+// Export baja el corpus. ⚠ `/api/export` NO respeta If-None-Match (contesta 200 siempre, 1,7 MB): quien
+// lo llame decide antes, con `Topics`, si hace falta.
+func (c *Client) Export(ctx context.Context) (Export, error) {
+	body, etag, _, err := c.conditionalGet(ctx, "/api/export", "")
+	if err != nil {
+		return Export{}, err
+	}
+	var out Export
+	if err := json.Unmarshal(body, &out); err != nil {
+		return Export{}, fmt.Errorf("Canon devolvió un export inválido: %w", err)
+	}
+	if out.ETag == "" {
+		out.ETag = etag
+	}
+	return out, nil
+}
+
+/* Verify recalcula el sha256 con la fórmula de canon (`snapshotSHA`, en `internal/api/patch.go` de su
+ * repo): por ruta ordenada, `len(ruta):ruta len(contenido):contenido`. Un export cortado a mitad de camino
+ * o un contenido que cambió en el viaje no coinciden. */
+func (e Export) Verify() error {
+	paths := make([]string, 0, len(e.Files))
+	for p := range e.Files {
+		paths = append(paths, p)
+	}
+	sort.Strings(paths)
+	h := sha256.New()
+	for _, p := range paths {
+		fmt.Fprintf(h, "%d:%s%d:", len(p), p, len(e.Files[p]))
+		io.WriteString(h, e.Files[p])
+	}
+	if got := hex.EncodeToString(h.Sum(nil)); got != e.SHA256 {
+		return fmt.Errorf("el export no coincide con su sha256 (%s… ≠ %s…)", got[:12], clipHash(e.SHA256))
+	}
+	return nil
+}
+
+func clipHash(h string) string {
+	if len(h) > 12 {
+		return h[:12]
+	}
+	return h
 }

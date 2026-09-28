@@ -276,5 +276,13 @@ func topicMap(ctx context.Context, client *canon.Client) error {
 		fmt.Printf("  %-22s %s\n  %-22s %s\n", t.Topic, t.Title, "", t.Summary)
 	}
 	fmt.Println("\n  leer un tema entero: make canon-read IDS='<tema>' · buscar: make canon-search Q='…'")
+	var syncErr error
+	if err == nil {
+		syncCtx, cancel := context.WithTimeout(context.Background(), canoncache.MirrorWait)
+		defer cancel()
+		_, _, syncErr = canoncache.SyncMirror(syncCtx, client, canon.URL(), dir, c.ETag, time.Now())
+	}
+	m, ok := canoncache.LoadMirror(dir)
+	fmt.Println(canoncache.MirrorLine(m, ok, syncErr, "tablero/data/cache/canon"))
 	return nil
 }

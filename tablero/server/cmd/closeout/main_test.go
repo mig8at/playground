@@ -143,12 +143,15 @@ func TestTheDaysNewFrictionReachesTheCloseout(t *testing.T) {
 	}
 	today := time.Date(2026, 9, 27, 0, 0, 0, 0, time.Local)
 	session := func(name string, when time.Time, cmd, result string) {
+		// cada llamada con su propio id, como los `toolu_…` reales: radar descarta un id repetido porque
+		// es lo que deja una sesión reanudada.
+		id := "toolu_" + name
 		lines := []map[string]any{
 			{"type": "user", "turnOrigin": "human", "timestamp": when.UTC().Format(time.RFC3339), "message": map[string]any{"content": "hola"}},
 			{"type": "assistant", "timestamp": when.UTC().Format(time.RFC3339), "message": map[string]any{"content": []any{
-				map[string]any{"type": "tool_use", "id": "t1", "name": "Bash", "input": map[string]any{"command": cmd}}}}},
+				map[string]any{"type": "tool_use", "id": id, "name": "Bash", "input": map[string]any{"command": cmd}}}}},
 			{"type": "user", "timestamp": when.UTC().Format(time.RFC3339), "message": map[string]any{"content": []any{
-				map[string]any{"type": "tool_result", "tool_use_id": "t1", "is_error": true, "content": result}}}},
+				map[string]any{"type": "tool_result", "tool_use_id": id, "is_error": true, "content": result}}}},
 		}
 		var b strings.Builder
 		for _, l := range lines {
