@@ -46,6 +46,14 @@ jira_title: ""
 - [x] radar, fase 3 · `make cierre` avisa la fricción NUEVA del día (lo que pidió aprobación, lo que frenó
   un hook); termina cuando un rechazo inventado en un transcript de prueba aparece en el cierre.
   Hecho: `TestTheDaysNewFrictionReachesTheCloseout` (cmd/closeout); «nueva» = no pasó igual en los 30 días anteriores.
+- [ ] accesos, fase 2 · el aviso al arrancar: que el hook `SessionStart` agregue una línea con lo que
+  falla o vence pronto (VPN, AWS, sesiones de asesor); termina cuando una sesión nueva sin VPN de dev
+  lo dice antes de la primera pregunta, sin sumar más de un par de segundos al arranque.
+- [ ] accesos, fase 3 · la vista: Vue + servidor Go con `theme.css` y `workbench.css`, las mismas filas
+  que la consola; termina cuando `make estilo-ui` la recorre como a las demás.
+- [ ] Gemini responde 401 con la llave de `connectors/.env`; termina cuando `make accesos SOLO=servicios`
+  lo da en verde.
+  Depende de: Miguel — una llave nueva de Gemini.
 
 ## Alcance
 
@@ -85,4 +93,20 @@ fecha en que salió del Makefile. Para partir comandos se reusa lo de los hooks,
 **Lo que se evaluó y NO se eligió.** Un router con Jev que conteste con JSON qué herramienta usar: sería
 un segundo modelo decidiendo por el primero, y sus «stores» una copia del catálogo que envejece. Medido
 el mismo día, con las skills visibles el ruteo nativo acertó 74 de 84 corridas sin falsos positivos.
+
+## Frente: accesos — a qué hay acceso ahora y cuándo vence
+
+**Objetivo.** Saber antes de empezar qué credenciales y redes están vivas: VPN de dev y de prod, perfiles
+de AWS, las bases, Loki y PostHog por ambiente, los servicios de `connectors/` y las sesiones de asesor
+del harness, con su vencimiento cuando lo hay. Nace de un curl a dev que murió por DNS: sin VPN, «no
+tengo acceso» y «no estoy conectado» se leen igual.
+
+**Reglas.** Cada fila hace UNA lectura barata con las credenciales de `connectors/`, nunca una copia; no
+escribe, no gasta (Jev y la escritura de canon sólo se miran, no se prueban) y nunca muestra un valor
+secreto: sólo si hay, de quién es y cuándo vence. Sale 1 si algo falla. Consola primero
+(`make accesos`, en `accesos/server`), después el aviso al arrancar, y la vista al final.
+
+**Lo que se evaluó y NO se eligió.** Adivinar el vencimiento de las credenciales de AWS pegadas del
+portal de SSO: no lo declaran (lo fija el permission set), así que la fila dice cuándo se pegaron y no
+inventa una hora.
 
