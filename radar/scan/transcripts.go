@@ -1,4 +1,4 @@
-package main
+package scan
 
 /* Las transcripciones de Claude Code de ESTE playground, leídas como llamadas a herramientas.
  *

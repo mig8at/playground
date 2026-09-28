@@ -1,4 +1,4 @@
-package main
+package scan
 
 /* Lo que radar sabe del Makefile, sacado del Makefile y de su historia en git — nunca escrito a mano.
  *

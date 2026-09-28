@@ -43,8 +43,9 @@ jira_title: ""
 - [x] radar, fase 2 · interfaz en :5188 con `tools/ui` (sidebar con vistas y período, editor con la tabla,
   panel con la sesión); termina cuando `make estilo-check` y `make estilo-contraste` la cuentan verde.
   Hecho: `make radar` (:5188 · API :5189); los dos chequeos la cuentan verde, el de contraste en claro y oscuro.
-- [ ] radar, fase 3 · `make cierre` avisa la fricción NUEVA del día (lo que pidió aprobación, lo que frenó
+- [x] radar, fase 3 · `make cierre` avisa la fricción NUEVA del día (lo que pidió aprobación, lo que frenó
   un hook); termina cuando un rechazo inventado en un transcript de prueba aparece en el cierre.
+  Hecho: `TestTheDaysNewFrictionReachesTheCloseout` (cmd/closeout); «nueva» = no pasó igual en los 30 días anteriores.
 
 ## Alcance
 

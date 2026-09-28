@@ -1,4 +1,4 @@
-package main
+package scan
 
 // No persiguen cobertura: cada prueba fija un error que radar ya cometió, o que se cometió a mano antes de
 // que radar existiera (2026-09-27).
@@ -155,10 +155,10 @@ func TestRedactHidesSecrets(t *testing.T) {
 // que nadie escribió. El 2026-09-27 eran 93 de 147 sesiones, y las skills «cargadas» eran casi todas suyas.
 func TestAutomatedRunsAreLeftOutByDefault(t *testing.T) {
 	sessions := []Session{{ID: "persona", Human: true}, {ID: "banco"}, {ID: "banco2"}}
-	if got, skipped := humanOnly(sessions, false); len(got) != 1 || got[0].ID != "persona" || skipped != 2 {
+	if got, skipped := HumanOnly(sessions, false); len(got) != 1 || got[0].ID != "persona" || skipped != 2 {
 		t.Errorf("por defecto quedan sólo las humanas: %v (sacó %d)", got, skipped)
 	}
-	if got, _ := humanOnly(sessions, true); len(got) != 3 {
+	if got, _ := HumanOnly(sessions, true); len(got) != 3 {
 		t.Errorf("con -all van todas: %d", len(got))
 	}
 }

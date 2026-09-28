@@ -42,6 +42,7 @@ import (
 	"strings"
 	"time"
 
+	"creditop/playground/radar/scan"
 	"creditop/playground/tablero/server/internal/layout"
 	"creditop/playground/tablero/server/internal/pulse"
 	"creditop/playground/tablero/server/internal/store"
@@ -91,7 +92,10 @@ type Report struct {
 	BranchesWithoutTask []string `json:"branchesWithoutTask"`
 	Warnings            []string `json:"warnings"`
 	MissingPieces       int      `json:"missingPieces"`
-	PulseAvailable      bool     `json:"pulseAvailable"`
+	// Friction: lo que se trabó HOY y no se había trabado igual en el último mes, leído por radar de las
+	// transcripciones. Avisa, no frena: no suma a MissingPieces ni cambia el código de salida.
+	Friction       []FrictionNote `json:"friction,omitempty"`
+	PulseAvailable bool           `json:"pulseAvailable"`
 }
 
 type Swept struct {
@@ -101,6 +105,41 @@ type Swept struct {
 }
 
 var reCitation = regexp.MustCompile(`^["']|["']$`)
+
+// FrictionNote es una fricción nueva del día.
+type FrictionNote struct {
+	Kind  string `json:"kind"` // «pidió aprobación» · «lo frenó un hook»
+	Key   string `json:"key"`
+	Calls int    `json:"calls"`
+	Note  string `json:"note,omitempty"`
+}
+
+// frictionLookback: contra cuántos días anteriores se decide si una fricción es NUEVA.
+const frictionLookback = 30
+
+/* dayFriction: la fricción nueva del día, con el mismo código que `make radar-friccion` (radar/scan). Si no
+ * hay transcripciones de este playground —otra máquina, TABLERO_DATA afuera del repo— no dice nada: el
+ * cierre no puede depender de radar para lo que sí es suyo. */
+func dayFriction(root, projects, cachePath string, day time.Time) []FrictionNote {
+	dirs := scan.TranscriptDirs(projects, root)
+	if len(dirs) == 0 {
+		return nil
+	}
+	sessions, _, err := scan.LoadSessions(dirs, cachePath)
+	if err != nil {
+		return nil
+	}
+	sessions, _ = scan.HumanOnly(sessions, false)
+	f := scan.NewFriction(sessions, day, frictionLookback)
+	var out []FrictionNote
+	for _, r := range f.Denied {
+		out = append(out, FrictionNote{Kind: "pidió aprobación", Key: r.Key, Calls: r.Calls})
+	}
+	for _, r := range f.Blocked {
+		out = append(out, FrictionNote{Kind: "lo frenó un hook", Key: r.Key, Calls: r.Calls, Note: r.Note})
+	}
+	return out
+}
 
 func value(l string) string {
 	_, v, _ := strings.Cut(l, ":")
@@ -479,6 +518,12 @@ func main() {
 		inf.Warnings = append(inf.Warnings, fmt.Sprintf("%d′ de bitácora sin tarea asignada (effortId vacío)", withoutTask))
 	}
 
+	if abs, err := filepath.Abs(data); err == nil {
+		root := filepath.Dir(filepath.Dir(abs)) // tablero/data → la raíz del playground
+		dayT, _ := time.ParseInLocation("2006-01-02", *day, time.Local)
+		inf.Friction = dayFriction(root, filepath.Join(os.Getenv("HOME"), ".claude", "projects"), scan.CachePath(root), dayT)
+	}
+
 	failure := inf.MissingPieces > 0 || len(inf.BranchesWithoutTask) > 0
 	if *asJSON {
 		_ = json.NewEncoder(os.Stdout).Encode(inf)
@@ -556,6 +601,19 @@ func printReport(inf Report) {
 		fmt.Println("  ramas tocadas hoy que NINGUNA tarea declara en `ramas:`:")
 		for _, r := range inf.BranchesWithoutTask {
 			fmt.Printf("    · %s\n", r)
+		}
+		fmt.Println()
+	}
+	// ▲ y no ✗: la fricción es para mirar, no una pieza que falte (misma regla que «tocó código y no dice
+	// con qué se comprobó»).
+	if len(inf.Friction) > 0 {
+		fmt.Println("  ▲ fricción NUEVA del día (no pasó en el último mes · `make radar-friccion DIAS=1`):")
+		for _, f := range inf.Friction {
+			line := fmt.Sprintf("    · %s — %s, %d vez/veces", f.Key, f.Kind, f.Calls)
+			if f.Note != "" {
+				line += " (" + f.Note + ")"
+			}
+			fmt.Println(line)
 		}
 		fmt.Println()
 	}

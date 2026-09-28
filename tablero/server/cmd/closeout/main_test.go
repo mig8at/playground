@@ -1,9 +1,12 @@
 package main
 
 import (
+	"encoding/json"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
+	"time"
 
 	"creditop/playground/tablero/server/internal/pulse"
 	"creditop/playground/tablero/server/internal/taskcontext"
@@ -125,5 +128,62 @@ func TestABlockCountsOnTheDayItWasWritten(t *testing.T) {
 	}
 	if any, work := blocksOn(events, "2026-09-22"); !any || work {
 		t.Fatalf("el hito del 22 convertido cumple con el bloque del 22 sin ser trabajo del 22: any=%v work=%v", any, work)
+	}
+}
+
+// La fase 3 de radar (#96): una fricción inventada HOY en una transcripción de prueba aparece en el cierre,
+// y la misma, ocurrida también días antes, ya no es nueva y no se repite. Se escribe una transcripción en
+// una carpeta de proyectos falsa, con el nombre que Claude Code le da a una raíz inventada.
+func TestTheDaysNewFrictionReachesTheCloseout(t *testing.T) {
+	root := filepath.Join(t.TempDir(), "playground")
+	projects := t.TempDir()
+	dir := filepath.Join(projects, strings.ReplaceAll(root, "/", "-"))
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	today := time.Date(2026, 9, 27, 0, 0, 0, 0, time.Local)
+	session := func(name string, when time.Time, cmd, result string) {
+		lines := []map[string]any{
+			{"type": "user", "turnOrigin": "human", "timestamp": when.UTC().Format(time.RFC3339), "message": map[string]any{"content": "hola"}},
+			{"type": "assistant", "timestamp": when.UTC().Format(time.RFC3339), "message": map[string]any{"content": []any{
+				map[string]any{"type": "tool_use", "id": "t1", "name": "Bash", "input": map[string]any{"command": cmd}}}}},
+			{"type": "user", "timestamp": when.UTC().Format(time.RFC3339), "message": map[string]any{"content": []any{
+				map[string]any{"type": "tool_result", "tool_use_id": "t1", "is_error": true, "content": result}}}},
+		}
+		var b strings.Builder
+		for _, l := range lines {
+			raw, _ := json.Marshal(l)
+			b.Write(raw)
+			b.WriteByte('\n')
+		}
+		if err := os.WriteFile(filepath.Join(dir, name+".jsonl"), []byte(b.String()), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	session("hoy", today.Add(15*time.Hour), "grep x && make trampas", "The following part requires approval: make trampas")
+	session("frenada", today.Add(16*time.Hour), "git commit -m x", "⛔ Bloqueado por el hook index-guard (…): …")
+	session("vieja", today.AddDate(0, 0, -3).Add(10*time.Hour), "git commit -m y", "⛔ Bloqueado por el hook index-guard (…): …")
+
+	notes := dayFriction(root, projects, filepath.Join(t.TempDir(), "idx.json"), today)
+	if len(notes) != 1 || notes[0].Key != "make trampas" || notes[0].Kind != "pidió aprobación" {
+		t.Fatalf("fricción nueva del día: %+v (quería sólo make trampas; el commit frenado ya había pasado hace 3 días)", notes)
+	}
+
+	// y sale en el texto del cierre, como aviso —no cambia lo que falta—
+	var out strings.Builder
+	stdout := os.Stdout
+	r, w, _ := os.Pipe()
+	os.Stdout = w
+	printReport(Report{Day: "2026-09-27", Friction: notes})
+	w.Close()
+	os.Stdout = stdout
+	buf := make([]byte, 1<<16)
+	n, _ := r.Read(buf)
+	out.Write(buf[:n])
+	if !strings.Contains(out.String(), "▲ fricción NUEVA del día") || !strings.Contains(out.String(), "make trampas") {
+		t.Errorf("el cierre no la muestra:\n%s", out.String())
+	}
+	if !strings.Contains(out.String(), "todo en orden") {
+		t.Errorf("la fricción avisa, no hace fallar el cierre:\n%s", out.String())
 	}
 }

@@ -1,4 +1,4 @@
-package main
+package scan
 
 /* Las cuatro vistas: uso, fricción, deriva y una sesión. Todas son CONTEOS de lo que ya pasó, sin modelo. */
 
@@ -16,19 +16,6 @@ type Count struct {
 	Last     time.Time `json:"last"`
 	Note     string    `json:"note,omitempty"`
 	Example  string    `json:"example,omitempty"`
-}
-
-// inPeriod: las llamadas desde `since`, de las sesiones que cuentan.
-func inPeriod(sessions []Session, since time.Time) []Call {
-	var out []Call
-	for _, s := range sessions {
-		for _, c := range s.Calls {
-			if !c.Time.Before(since) {
-				out = append(out, c)
-			}
-		}
-	}
-	return out
 }
 
 // tally cuenta por clave; `keep` decide qué claves entran y `rename` cómo se muestran.
