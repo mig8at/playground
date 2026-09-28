@@ -59,6 +59,8 @@ type Account struct {
 	Expires       *time.Time `json:"expires,omitempty"`
 	Error         string     `json:"error,omitempty"`
 	Services      []Service  `json:"services"`
+
+	noCredentials bool
 }
 
 // accountLabels nombra las cuentas de CreditOp. Sale del README y de los ARNs de `infrastructure`: la de
@@ -123,14 +125,15 @@ var reDenied = regexp.MustCompile(`AccessDenied|UnauthorizedOperation|Authorizat
 // deny» (alguien lo quitó a propósito), que son dos conversaciones distintas con quien administra AWS.
 var reWhy = regexp.MustCompile(`because (no identity-based policy allows the [^ ]+ action|[^.]*explicit deny[^.]*)`)
 
-// AWSAccounts mide cada perfil de ~/.aws, en paralelo.
-func AWSAccounts(ctx context.Context) ([]Account, error) {
+// AWSAccounts mide cada perfil de ~/.aws, en paralelo. Los perfiles sin credenciales propias no son un
+// acceso: salen aparte, en `hidden`, para que quien mira sepa que se ocultaron y no que no existen.
+func AWSAccounts(ctx context.Context) (accounts []Account, hidden []string, err error) {
 	if _, err := exec.LookPath("aws"); err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	raw, err := exec.CommandContext(ctx, "aws", "configure", "list-profiles").Output()
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	profiles := strings.Fields(string(raw))
 	out := make([]Account, len(profiles))
@@ -143,7 +146,14 @@ func AWSAccounts(ctx context.Context) ([]Account, error) {
 		}(i, p)
 	}
 	wg.Wait()
-	return out, nil
+	for _, a := range out {
+		if a.noCredentials {
+			hidden = append(hidden, a.Profile)
+			continue
+		}
+		accounts = append(accounts, a)
+	}
+	return accounts, hidden, nil
 }
 
 func awsAccount(ctx context.Context, profile string) Account {
@@ -154,6 +164,7 @@ func awsAccount(ctx context.Context, profile string) Account {
 	raw, err := cmd.Output()
 	if err != nil {
 		a.Error = awsReason(stderr.String(), err)
+		a.noCredentials = noCredentials(stderr.String())
 		return a
 	}
 	var id struct{ Account, Arn string }

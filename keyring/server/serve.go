@@ -46,12 +46,12 @@ func handler(timeout time.Duration) http.Handler {
 	mux.HandleFunc("/api/aws", func(w http.ResponseWriter, r *http.Request) {
 		ctx, cancel := context.WithTimeout(r.Context(), 30*time.Second)
 		defer cancel()
-		accounts, err := check.AWSAccounts(ctx)
+		accounts, hidden, err := check.AWSAccounts(ctx)
 		if err != nil {
 			writeJSON(w, http.StatusInternalServerError, map[string]string{"error": err.Error()})
 			return
 		}
-		writeJSON(w, http.StatusOK, map[string]any{"categories": check.Categories, "services": check.AWSServiceList(), "accounts": accounts})
+		writeJSON(w, http.StatusOK, map[string]any{"categories": check.Categories, "services": check.AWSServiceList(), "accounts": accounts, "hidden": hidden})
 	})
 	mux.HandleFunc("/api/checks", func(w http.ResponseWriter, r *http.Request) {
 		group := r.URL.Query().Get("group")

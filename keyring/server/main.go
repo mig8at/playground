@@ -88,7 +88,7 @@ func render(checks []check.Check) {
 func runAWS(asJSON bool) int {
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
-	accounts, err := check.AWSAccounts(ctx)
+	accounts, hidden, err := check.AWSAccounts(ctx)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, "keyring:", err)
 		return 1
@@ -96,7 +96,7 @@ func runAWS(asJSON bool) int {
 	if asJSON {
 		enc := json.NewEncoder(os.Stdout)
 		enc.SetIndent("", "  ")
-		_ = enc.Encode(accounts)
+		_ = enc.Encode(map[string]any{"accounts": accounts, "hidden": hidden})
 		return 0
 	}
 	fmt.Printf("\n  KEYRING · AWS · %s\n", time.Now().Format("2006-01-02 15:04"))
@@ -133,6 +133,9 @@ func runAWS(asJSON bool) int {
 		}
 	}
 	fmt.Println("\n  ✔ lectura · ✗ negada · ? no se pudo saber (no es de permisos) · · perfil sin identidad")
+	if len(hidden) > 0 {
+		fmt.Printf("  ocultos por no tener credenciales: %s\n", strings.Join(hidden, ", "))
+	}
 	fmt.Println()
 	return 0
 }

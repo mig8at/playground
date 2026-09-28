@@ -42,6 +42,8 @@ async function loadAWS() {
   }
 }
 const accounts = computed(() => aws.value?.accounts || [])
+// Los perfiles sin credenciales propias (un `default` que sólo guarda la región) no se muestran; el pie dice cuáles.
+const hidden = computed(() => aws.value?.hidden || [])
 const categories = computed(() => (aws.value?.categories || []).map((c) => ({
   id: c, rows: (aws.value?.services || []).map((s, i) => ({ ...s, index: i })).filter((s) => s.category === c),
 })))
@@ -241,6 +243,7 @@ onBeforeUnmount(() => {
 
     <footer class="statusbar">
       <span v-if="checkedAt" :title="fmtFull(checkedAt)">probado a las {{ fmtTime(checkedAt) }}</span>
+      <span v-if="hidden.length" title="Perfiles de ~/.aws sin credenciales propias: no dan acceso a nada">ocultos sin credenciales: {{ hidden.join(', ') }}</span>
       <span v-if="failTotal" class="hot">{{ failTotal }} accesos fallan en la consola</span>
       <div class="layout-controls" role="group" aria-label="Tema y regiones visibles">
         <button ref="themeToggle" type="button" class="region-action theme-toggle"><span class="ui-icon" aria-hidden="true"></span></button>

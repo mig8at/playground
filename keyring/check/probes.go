@@ -83,16 +83,28 @@ func probeAWS(ctx context.Context) []Check {
 	if len(profiles) == 0 {
 		return []Check{{Name: "aws", State: Fail, Detail: "no hay perfiles: `aws configure sso` o `aws login`"}}
 	}
-	out := make([]Check, len(profiles))
+	all := make([]Check, len(profiles))
 	done := make(chan struct{}, len(profiles))
 	for i, p := range profiles {
 		go func(i int, p string) {
-			out[i] = awsProfile(ctx, p)
+			all[i] = awsProfile(ctx, p)
 			done <- struct{}{}
 		}(i, p)
 	}
 	for range profiles {
 		<-done
+	}
+	var out []Check
+	var hidden []string
+	for i, c := range all {
+		if c.State == Off {
+			hidden = append(hidden, profiles[i])
+			continue
+		}
+		out = append(out, c)
+	}
+	if len(out) == 0 {
+		return []Check{{Name: "aws", State: Fail, Detail: "ningún perfil tiene credenciales: " + strings.Join(hidden, ", ")}}
 	}
 	return out
 }
@@ -106,6 +118,9 @@ func awsProfile(ctx context.Context, profile string) Check {
 	raw, err := cmd.Output()
 	if err != nil {
 		c.State, c.Detail = Fail, awsReason(stderr.String(), err)
+		if noCredentials(stderr.String()) {
+			c.State = Off
+		}
 		c.Millis = time.Since(start).Milliseconds()
 		return c
 	}
@@ -163,6 +178,13 @@ func pastedAt(profile string) (time.Time, bool) {
 		}
 	}
 	return time.Time{}, false
+}
+
+// noCredentials: el perfil no tiene credenciales propias (sólo configuración, como un `default` que guarda
+// la región). No es un acceso vencido —ese sí se muestra, porque hay que renovarlo—: es un perfil que no
+// da acceso a nada, y se oculta diciendo cuál se ocultó.
+func noCredentials(stderr string) bool {
+	return strings.Contains(stderr, "Unable to locate credentials") || strings.Contains(stderr, "could not be found")
 }
 
 func awsReason(stderr string, err error) string {

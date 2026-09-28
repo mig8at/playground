@@ -132,8 +132,9 @@ const keyringAWS = {
       services: [{ ...keyringServices[0], read: 'yes', write: 'unmeasured', detail: 'autorizado', ms: 5 },
         { ...keyringServices[1], read: 'no', write: 'unmeasured', detail: 'ninguna política lo da', ms: 5 },
         { ...keyringServices[2], read: 'yes', write: 'unmeasured', detail: 'autorizado', ms: 5 }] },
-    { profile: 'viejo', error: 'sin credenciales', services: [] },
+    { profile: 'viejo', error: 'la sesión venció: `aws sso login` (o `aws login`)', services: [] },
   ],
+  hidden: ['default'],
 };
 const keyringGroups = [
   { id: 'network', label: 'red', quick: true }, { id: 'aws', label: 'aws', quick: true },
@@ -351,8 +352,11 @@ try {
       await editor.getByText('ecr:DescribeRepositories').waitFor();
       assert.match(await editor.getByRole('table', { name: 'Perfiles de AWS' }).textContent(), /DeveloperAccess.*2 \/ 3.*pegadas 28\/09 10:56/s,
         'Keyring: cada perfil dice su permission set, cuánto lee y desde cuándo tiene las credenciales');
-      assert.match(await editor.getByRole('table', { name: 'Perfiles de AWS' }).textContent(), /sin credenciales/,
-        'Keyring: un perfil sin credenciales lo dice en su fila');
+      assert.match(await editor.getByRole('table', { name: 'Perfiles de AWS' }).textContent(), /la sesión venció/,
+        'Keyring: un perfil vencido sigue a la vista y dice qué hacer');
+      assert.doesNotMatch(await editor.textContent(), /\bdefault\b/, 'Keyring: un perfil sin credenciales no ocupa la matriz');
+      assert.match(await page.locator('.statusbar').textContent(), /ocultos sin credenciales: default/,
+        'Keyring: el pie dice qué perfil se ocultó, para que no se lea como que no existe');
       assert.equal(await editor.locator('td.access[data-read="no"]').count(), 1, 'Keyring: la lectura negada se marca en su celda');
       assert.equal(await editor.getByRole('note').isVisible(), true, 'Keyring: avisa que la escritura todavía no se mide');
       const panel = page.locator('.panel');
