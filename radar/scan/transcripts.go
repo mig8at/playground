@@ -25,6 +25,7 @@ import (
 
 // Call es una llamada a una herramienta y cómo terminó.
 type Call struct {
+	ID      string    `json:"id,omitempty"` // el id de la herramienta: lo que repite una sesión reanudada
 	Session string    `json:"session"`
 	Time    time.Time `json:"time"`
 	Tool    string    `json:"tool"`
@@ -322,7 +323,7 @@ func ReadSession(path string) (Session, error) {
 		for _, b := range blocks {
 			switch b.Type {
 			case "tool_use":
-				c := Call{Session: s.ID, Time: ev.Timestamp, Tool: b.Name, Outcome: OutcomeOK}
+				c := Call{ID: b.ID, Session: s.ID, Time: ev.Timestamp, Tool: b.Name, Outcome: OutcomeOK}
 				var in map[string]any
 				_ = json.Unmarshal(b.Input, &in)
 				switch b.Name {

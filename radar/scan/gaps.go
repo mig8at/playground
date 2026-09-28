@@ -200,6 +200,22 @@ const (
 // gapWindow: hasta cuándo una ida al código se atribuye a la consulta anterior.
 const gapWindow = 20 * time.Minute
 
+/* canonDevSession: desde cuántos comandos en `tools/canon` una sesión es de DESARROLLO de canon, y
+ * ninguna de sus consultas cuenta. Un curl suelto a la API de prod en medio de esa sesión es una sonda
+ * (¿qué forma tiene la respuesta?), no una pregunta de trabajo, y por comando no se distingue. Medido el
+ * 2026-09-27: las sesiones de trabajo tienen de 0 a 6 comandos ahí, las de desarrollo de 131 a 2.235. */
+const canonDevSession = 20
+
+func isCanonDevSession(s Session) bool {
+	n := 0
+	for _, c := range s.Calls {
+		if strings.Contains(c.Command, "tools/canon") {
+			n++
+		}
+	}
+	return n >= canonDevSession
+}
+
 // GapsView recorre cada sesión en orden: una consulta abre una ventana, la próxima consulta o el tiempo
 // la cierran, y lo que cae adentro decide la señal.
 func GapsView(sessions []Session, since time.Time) Gaps {
@@ -211,6 +227,7 @@ func GapsView(sessions []Session, since time.Time) Gaps {
 	}
 	var events []event
 	for _, s := range sessions {
+		devSession := isCanonDevSession(s)
 		var open *event
 		flush := func() {
 			if open != nil && len(open.repos) > 0 {
@@ -224,7 +241,7 @@ func GapsView(sessions []Session, since time.Time) Gaps {
 			}
 			if l := c.Canon; l != nil {
 				switch {
-				case l.Dev:
+				case l.Dev || devSession:
 					out.Dev++
 					continue
 				case l.Kind == LookupWrite:

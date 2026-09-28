@@ -23,7 +23,7 @@ func gitOutput(dir string, args ...string) (string, error) {
 
 // indexVersion cambia cada vez que cambia CÓMO se clasifica una llamada: el índice guarda las llamadas ya
 // clasificadas, y sin esto un arreglo del parser no se aplicaría a lo que ya estaba leído.
-const indexVersion = 7
+const indexVersion = 8
 
 // CachePath es el índice de radar dentro del playground.
 func CachePath(root string) string { return filepath.Join(root, "radar", ".cache", "sessions.json") }
@@ -80,7 +80,30 @@ func LoadSessions(dirs []string, cachePath string) ([]Session, int, error) {
 		}
 	}
 	sort.Slice(sessions, func(i, j int) bool { return sessions[i].Start.Before(sessions[j].Start) })
-	return sessions, read, nil
+	return dedupeResumed(sessions), read, nil
+}
+
+/* dedupeResumed saca las llamadas repetidas entre transcripciones. Al reanudar una sesión, Claude Code
+ * abre un archivo nuevo que COPIA la historia anterior, con los mismos ids de herramienta: sin esto, cada
+ * reanudación contaba dos veces todo lo que había pasado antes. Medido el 2026-09-27: los dos «huecos de
+ * canon» que se repetían «en 2 sesiones» eran cada uno UNA llamada vista en dos archivos. Se queda la
+ * primera aparición (las sesiones vienen ordenadas por comienzo). */
+func dedupeResumed(sessions []Session) []Session {
+	seen := map[string]bool{}
+	for i := range sessions {
+		kept := sessions[i].Calls[:0:0]
+		for _, c := range sessions[i].Calls {
+			if c.ID != "" {
+				if seen[c.ID] {
+					continue
+				}
+				seen[c.ID] = true
+			}
+			kept = append(kept, c)
+		}
+		sessions[i].Calls = kept
+	}
+	return sessions
 }
 
 // SkillNames: las skills del proyecto, por su carpeta.

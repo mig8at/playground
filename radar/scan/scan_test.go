@@ -270,3 +270,26 @@ func TestCodeRepoIgnoresThePlayground(t *testing.T) {
 		t.Errorf("agent: %q", r)
 	}
 }
+
+// Una sesión reanudada copia la historia: la misma llamada (mismo id) no se cuenta dos veces.
+func TestResumedSessionsDoNotCountTwice(t *testing.T) {
+	a := Session{ID: "a", Start: day("2026-09-01"), Calls: []Call{{ID: "t1"}, {ID: "t2"}}}
+	b := Session{ID: "b", Start: day("2026-09-02"), Calls: []Call{{ID: "t1"}, {ID: "t2"}, {ID: "t3"}, {}}}
+	out := dedupeResumed([]Session{a, b})
+	if len(out[0].Calls) != 2 || len(out[1].Calls) != 2 || out[1].Calls[0].ID != "t3" {
+		t.Fatalf("%+v", out)
+	}
+}
+
+// En una sesión de desarrollo de canon, un curl suelto a prod es una sonda, no una pregunta.
+func TestCanonDevSessionLookupsDoNotCount(t *testing.T) {
+	var calls []Call
+	for i := 0; i < canonDevSession; i++ {
+		calls = append(calls, Call{Time: day("2026-09-20"), Command: "cd ~/Desktop/CREDITOP/github/playground/tools/canon && go test ./..."})
+	}
+	calls = append(calls, Call{Time: day("2026-09-20"), Canon: &CanonLookup{Kind: LookupSearch, Query: "q", Empty: true}})
+	g := GapsView([]Session{{ID: "dev", Calls: calls}}, day("2026-09-01"))
+	if g.Lookups != 0 || g.Dev != 1 || len(g.Gaps) != 0 {
+		t.Fatalf("%+v", g)
+	}
+}
