@@ -63,6 +63,14 @@ func handler(timeout time.Duration) http.Handler {
 		}
 		writeJSON(w, http.StatusOK, map[string]any{"categories": check.Categories, "services": check.AWSServiceList(), "profiles": profiles})
 	})
+	mux.HandleFunc("/api/aws/writes", func(w http.ResponseWriter, r *http.Request) {
+		writes, err := check.RecordedWrites()
+		if err != nil {
+			writeJSON(w, http.StatusInternalServerError, map[string]string{"error": err.Error()})
+			return
+		}
+		writeJSON(w, http.StatusOK, writes)
+	})
 	mux.HandleFunc("/api/aws/account", func(w http.ResponseWriter, r *http.Request) {
 		profile := r.URL.Query().Get("profile")
 		profiles, _ := check.AWSProfiles(r.Context())

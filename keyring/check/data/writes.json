@@ -1,0 +1,18 @@
+{
+  "_nota": "Escritura por servicio MEDIDA A MANO: keyring no la sondea solo (el control de permisos de la sesión no deja mandar llamadas de escritura). Cada medición dice cuenta, fecha, quién y con qué sonda. Se reemplaza con una corrida nueva, nunca se edita un resultado suelto. yes = autorizado sobre un recurso inexistente (no cambió nada) · no = AccessDenied · unreliable = el servicio busca el recurso antes de autorizar, así que NotFound no prueba el permiso · unmeasured = no se probó.",
+  "measurements": [
+    {
+      "account": "697767917359",
+      "date": "2026-09-28",
+      "by": "Miguel, desde su terminal",
+      "probe": "keyring-probe-ea725846a8b5",
+      "results": {
+        "ecs": "yes", "lambda": "yes", "ecr": "no", "s3": "unmeasured", "dynamodb": "yes", "rds": "no",
+        "secretsmanager": "yes", "ssm": "no", "ec2": "yes", "elbv2": "no", "apigatewayv2": "yes",
+        "route53": "unreliable", "servicediscovery": "no", "cloudfront": "no", "sqs": "unreliable", "sns": "no",
+        "events": "no", "iam": "no", "kms": "unreliable", "acm": "unmeasured", "cognito-idp": "yes",
+        "logs": "yes", "cloudwatch": "yes", "cloudformation": "yes"
+      }
+    }
+  ]
+}
