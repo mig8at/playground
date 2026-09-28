@@ -22,7 +22,7 @@ parámetros de cada uno. El hook `SessionStart` (`tablero/server/internal/hooks`
 arrancar, al reanudar y después de compactar, y con ellos el **mapa de canon**: sus temas por etapa del
 crédito, desde una copia local del tablero que se revalida gratis (`make canon-mapa` da títulos y resúmenes).
 ⛔ Canon se LEE (`canon-search`, `canon-read`, `canon-mapa`); `/api/ask` es para credibot y herramientas
-externas, no para trabajar desde acá. Acá va lo que `make` no puede decir: **cuál elegir, y
+externas, no para trabajar desde acá — el hook `ask-guard` lo frena (calibrar canon: `I_AM_CALIBRATING_CANON=1`). Acá va lo que `make` no puede decir: **cuál elegir, y
 contra qué ambiente**. Convención de nombres: los nombres propios se quedan (`tablero`, `harness`,
 `panel`) y los verbos van en inglés (`align`, `refs`, `seal`, `check`), como `proyecto-verbo`.
 

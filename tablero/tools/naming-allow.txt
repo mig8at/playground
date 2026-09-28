@@ -16,7 +16,7 @@ loki logql gemini twilio figma tailwindcss tailwind
 cognito laravel wompi experian imei vtex agildata netco tusdatos selfmanager smartpay credipullman
 motai pullman abaco welli payvalida bancolombia creditop wizard blade cuotealo creditopx
 posthog hogql mermaid deceval corbeta credifamilia datacredito allied allieds pesos colombia
-vue vite babel mcp pinia lucide
+vue vite babel mcp pinia lucide wget bun deno
 # `skills` y `SKILL.md` son la carpeta y el archivo que Claude Code exige para una skill: nombre propio de la herramienta
 skill skills
 
