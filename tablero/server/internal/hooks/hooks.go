@@ -32,6 +32,7 @@ import (
 	"time"
 	"unicode/utf8"
 
+	"creditop/playground/accesos/check"
 	"creditop/playground/connectors/canon"
 	"creditop/playground/lib/text"
 	"creditop/playground/tablero/server/internal/canoncache"
@@ -211,6 +212,9 @@ func withoutColors(s string) string {
  * así que también entra al reanudar y DESPUÉS DE COMPACTAR — que es cuando más se olvida. Para
  * SessionStart el stdout entra como texto plano al contexto. */
 func SessionStart(env Env) int {
+	// Los accesos corren mientras se arma el catálogo: el aviso no suma tiempo al arranque.
+	access := make(chan string, 1)
+	go func() { access <- accessSection() }()
 	_, out, _, err := run(env.Root, 20*time.Second, "make")
 	if err != nil {
 		fmt.Fprintf(env.Stderr, "(no se pudo listar las herramientas: %s)\n", err)
@@ -233,7 +237,21 @@ func SessionStart(env Env) int {
 	}
 	fmt.Fprintln(env.Stdout)
 	fmt.Fprintln(env.Stdout, canonSection(env.Root, time.Now()))
+	fmt.Fprintln(env.Stdout)
+	fmt.Fprintln(env.Stdout, <-access)
 	return 0
+}
+
+// accessWait es el tope de cada sonda de accesos al arrancar: sin VPN, un DNS o un `aws sts` no pueden
+// dejar la sesión esperando.
+const accessWait = 4 * time.Second
+
+/* accessSection: a qué hay acceso ahora (VPN, AWS, sesiones de asesor) y qué vence pronto, desde
+ * `accesos/check`. Existe porque sin VPN «no tengo acceso» y «no estoy conectado» se leen igual: el
+ * 2026-09-28 un curl a dev murió por DNS y se supo recién al ver el error. Sólo los grupos rápidos; las
+ * bases, los logs y los servicios los contesta `make accesos`. */
+func accessSection() string {
+	return check.Brief(check.Run(check.Select(check.Quick), accessWait))
 }
 
 // canonWait es lo que el arranque espera a canon: sin la VPN de prod no puede quedar colgado.

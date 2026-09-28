@@ -46,9 +46,9 @@ jira_title: ""
 - [x] radar, fase 3 · `make cierre` avisa la fricción NUEVA del día (lo que pidió aprobación, lo que frenó
   un hook); termina cuando un rechazo inventado en un transcript de prueba aparece en el cierre.
   Hecho: `TestTheDaysNewFrictionReachesTheCloseout` (cmd/closeout); «nueva» = no pasó igual en los 30 días anteriores.
-- [ ] accesos, fase 2 · el aviso al arrancar: que el hook `SessionStart` agregue una línea con lo que
-  falla o vence pronto (VPN, AWS, sesiones de asesor); termina cuando una sesión nueva sin VPN de dev
-  lo dice antes de la primera pregunta, sin sumar más de un par de segundos al arranque.
+- [x] accesos, fase 2 · el aviso al arrancar: el hook `SessionStart` corre red, AWS y sesiones de asesor
+  (`accesos/check`, `check.Quick`) en paralelo con el catálogo y agrega el bloque ACCESOS con lo que
+  falla, vence pronto o no tiene VPN.
 - [ ] accesos, fase 3 · la vista: Vue + servidor Go con `theme.css` y `workbench.css`, las mismas filas
   que la consola; termina cuando `make estilo-ui` la recorre como a las demás.
 - [ ] Gemini responde 401 con la llave de `connectors/.env`; termina cuando `make accesos SOLO=servicios`

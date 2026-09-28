@@ -211,8 +211,9 @@ func TestTheRealCatalogFitsTheContextBudget(t *testing.T) {
 		fake.Stages = append(fake.Stages, st)
 	}
 	canonText := formatCanon(fake, "copia del 2026-09-27 19:00: canon no respondió")
-	// Los conectores no entran en la cuenta (piden compilar pg): se les reserva 1,5 KB.
-	if size := len(header) + len(root) + len(got) + 1500 + len(canonText); size > contextBudget {
+	// Los conectores no entran en la cuenta (piden compilar pg): se les reserva 1,5 KB. Los accesos
+	// tampoco (piden red): 700 B alcanzan para el renglón de estados y cuatro avisos.
+	if size := len(header) + len(root) + len(got) + 1500 + 700 + len(canonText); size > contextBudget {
 		t.Errorf("el catálogo pesa ~%d B, por encima de %d: Claude Code lo va a cortar", size, contextBudget)
 	}
 }
