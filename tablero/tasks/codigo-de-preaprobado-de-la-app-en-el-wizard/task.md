@@ -1,10 +1,9 @@
 ---
 id: 94
 title: "Código de preaprobado de la app en la plataforma nueva"
-ramas: feat/CORE-614-codigo-preaprobado-app, feat/CORE-614-codigo-app-solo-colombia, feat/codigo-alfanumerico-en-main
+ramas: feat/CORE-614-codigo-preaprobado-app, feat/CORE-614-codigo-app-solo-colombia, feat/codigo-alfanumerico-en-main, feat/CORE-614-conmutador-usuario-app-estilo
 stage: work
 created: "2026-09-21T16:40:00-05:00"
-archived: "2026-09-28T10:10:00-05:00"
 canon: [preaprobado, listado, onboarding, creditopx]
 jira: [CORE-614]
 jira_title: "Código de preaprobado de la app en la plataforma nueva"
@@ -61,6 +60,12 @@ jira_title: "Código de preaprobado de la app en la plataforma nueva"
 - [x] Graduar a canon lo que la tarea cambió — el canje y el recorte ya estaban en `onboarding` y
       `preaprobado`; se agregó el emisor (comercio, reuso y vencimiento) en `onboarding`, revisión 163
       (2026-09-28). Tarea archivada.
+
+- [ ] Llevar a `qa` el diseño nuevo del selector «Usuario nuevo / Usuario app» (contenedor celeste con
+      borde, íconos de escritorio y celular, la activa en `creditop-500`): rama
+      `feat/CORE-614-conmutador-usuario-app-estilo` desde `qa`, un commit, sólo estilo. Termina con el PR
+      contra `qa` mergeado. `develop` no sirve de base: quedó en el 31/08, sin nada de CORE-614.
+      Depende de: Miguel — permiso para pushear y abrir el PR.
 
 ## Objetivo
 
