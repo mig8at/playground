@@ -52,6 +52,10 @@ jira_title: ""
 - [x] keyring, fase 3 · la vista: Vue + servidor Go (`make keyring-ui`, :5182 · API :5183) con
   `theme.css` y `workbench.css`, las mismas filas que la consola, cada grupo apenas contesta; la recorren
   `estilo-ui`, `estilo-minimo`, `estilo-contraste` y `estilo-check`.
+- [ ] keyring · la escritura por servicio de AWS: hoy la matriz mide sólo lectura (una llamada List/Describe
+  por servicio y perfil). Termina cuando cada celda dice también si hay escritura, medida sin cambiar nada.
+  Depende de: Miguel — elegir cómo medirla (sondas contra un recurso inexistente, `--dry-run` de EC2, o
+  sólo bajo demanda).
 - [ ] Gemini responde 401 con la llave de `connectors/.env`; termina cuando `make keyring SOLO=services`
   lo da en verde.
   Depende de: Miguel — una llave nueva de Gemini.

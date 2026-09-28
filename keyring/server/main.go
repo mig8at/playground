@@ -5,6 +5,7 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"flag"
 	"fmt"
@@ -20,6 +21,7 @@ func main() {
 	only := flag.String("only", "", "sólo estos grupos, separados por coma: "+strings.Join(check.Groups, ","))
 	brief := flag.Bool("brief", false, "el resumen del arranque de sesión: sólo red, AWS y sesiones")
 	timeout := flag.Duration("timeout", 12*time.Second, "tope por sonda")
+	awsOnly := flag.Bool("aws", false, "sólo la matriz de AWS: qué servicios alcanza cada perfil")
 	addr := flag.String("serve", "", "levanta la API para la interfaz en esta dirección (sólo 127.0.0.1)")
 	flag.Parse()
 
@@ -31,6 +33,9 @@ func main() {
 		return
 	}
 
+	if *awsOnly {
+		os.Exit(runAWS(*asJSON))
+	}
 	var groups []string
 	if *only != "" {
 		groups = strings.Split(*only, ",")
@@ -77,4 +82,69 @@ func render(checks []check.Check) {
 		fmt.Println(line)
 	}
 	fmt.Println()
+}
+
+// runAWS imprime la matriz de AWS: un renglón por servicio, una columna por perfil.
+func runAWS(asJSON bool) int {
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+	accounts, err := check.AWSAccounts(ctx)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, "keyring:", err)
+		return 1
+	}
+	if asJSON {
+		enc := json.NewEncoder(os.Stdout)
+		enc.SetIndent("", "  ")
+		_ = enc.Encode(accounts)
+		return 0
+	}
+	fmt.Printf("\n  KEYRING · AWS · %s\n", time.Now().Format("2006-01-02 15:04"))
+	fmt.Println("  lectura medida con una llamada List/Describe por servicio · la escritura, sin medir")
+	fmt.Println()
+	for _, a := range accounts {
+		if a.Error != "" {
+			fmt.Printf("  %-8s ✗ %s\n", a.Profile, a.Error)
+			continue
+		}
+		fmt.Printf("  %-8s %s (%s) · permission set %s · %s · %s\n", a.Profile, a.Account, a.AccountLabel, a.PermissionSet, a.Person, a.Credentials)
+	}
+	const col = 10
+	fmt.Printf("\n  %-24s", "")
+	for _, a := range accounts {
+		fmt.Printf("%-*s", col, a.Profile)
+	}
+	fmt.Println()
+	for _, cat := range check.Categories {
+		fmt.Printf("  %s\n", strings.ToUpper(cat))
+		for i, svc := range check.AWSServiceList() {
+			if svc.Category != cat {
+				continue
+			}
+			fmt.Printf("    %-22s", svc.Label)
+			for _, a := range accounts {
+				mark := "·"
+				if i < len(a.Services) {
+					mark = readMark(a.Services[i].Read)
+				}
+				fmt.Printf("%-*s", col, mark)
+			}
+			fmt.Println()
+		}
+	}
+	fmt.Println("\n  ✔ lectura · ✗ negada · ? no se pudo saber (no es de permisos) · · perfil sin identidad")
+	fmt.Println()
+	return 0
+}
+
+func readMark(a check.Access) string {
+	switch a {
+	case check.Yes:
+		return "✔"
+	case check.No:
+		return "✗"
+	case check.Unknown:
+		return "?"
+	}
+	return "·"
 }

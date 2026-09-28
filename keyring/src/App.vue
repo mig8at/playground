@@ -1,38 +1,23 @@
 <script setup>
-/* keyring · la interfaz. Muestra las MISMAS filas que la consola (`make keyring`), que salen de la API en
- * Go: acá no se prueba nada, se pinta. Pide los grupos a la vez y pinta cada uno cuando llega, porque la
- * red contesta en milisegundos y una base sin VPN tarda hasta el tope. El grupo elegido y el filtro viven
- * en la URL. */
+/* keyring · la interfaz. El editor es AWS: qué servicios lee cada perfil de ~/.aws, medido con una llamada
+ * List/Describe por servicio. Abajo, en la consola, el resto de los accesos (red, bases, logs, eventos,
+ * servicios, sesiones), un grupo por pestaña. Todo sale de la API en Go —las mismas filas que
+ * `make keyring`—: acá no se prueba nada, se pinta. La pestaña elegida vive en la URL. */
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import {
   vResize, readSize, saveSize, fitRegions, cssSize, bindThemeToggle,
   readHashRoute, hashRoute, setRoute,
 } from './workbench.js'
 
-const ALL = 'all'
+const READ_LABEL = { yes: 'lectura', no: 'negada', error: 'no se supo', unmeasured: 'sin medir' }
 const STATE_LABEL = { ok: 'ok', warn: 'vence pronto', fail: 'falla', off: 'no aplica' }
 const STATE_RANK = { fail: 0, warn: 1, ok: 2, off: 3 }
 
-// ── la ruta: #/<grupo>?failing=1 ──
+// ── la ruta: #/?tab=<grupo> ──
 const route = readHashRoute()
-const selected = ref(route.parts[0] || ALL)
-const failingOnly = ref(route.params.get('failing') === '1')
-function writeRoute(push) {
-  setRoute(hashRoute([selected.value], { failing: failingOnly.value ? 1 : 0 }, { failing: 0 }), { push })
-}
-function onHashChange() {
-  const r = readHashRoute()
-  selected.value = r.parts[0] || ALL
-  failingOnly.value = r.params.get('failing') === '1'
-}
-
-// ── los datos: la lista de grupos, y las filas de cada uno según van llegando ──
-const groups = ref([])
-const rows = ref({}) // grupo → filas
-const pending = ref({}) // grupo → true mientras se prueba
-const errors = ref({}) // grupo → mensaje
-const checkedAt = ref(null)
-const apiError = ref('')
+const tab = ref(route.params.get('tab') || '')
+function writeRoute(push) { setRoute(hashRoute([], { tab: tab.value }, { tab: '' }), { push }) }
+function onHashChange() { tab.value = readHashRoute().params.get('tab') || tab.value }
 
 async function getJSON(path) {
   const res = await fetch(path)
@@ -40,9 +25,42 @@ async function getJSON(path) {
   if (!res.ok) throw new Error(body.error || `HTTP ${res.status}`)
   return body
 }
+
+// ── AWS: el editor ──
+const aws = ref(null)
+const awsLoading = ref(false)
+const awsError = ref('')
+async function loadAWS() {
+  awsLoading.value = true
+  awsError.value = ''
+  try {
+    aws.value = await getJSON('/api/aws')
+  } catch (e) {
+    awsError.value = `No se pudo leer: ${e.message}. ¿Está la API arriba? (make keyring-ui levanta las dos partes)`
+  } finally {
+    awsLoading.value = false
+  }
+}
+const accounts = computed(() => aws.value?.accounts || [])
+const categories = computed(() => (aws.value?.categories || []).map((c) => ({
+  id: c, rows: (aws.value?.services || []).map((s, i) => ({ ...s, index: i })).filter((s) => s.category === c),
+})))
+const cell = (account, index) => account.services?.[index] || null
+const readCount = (account) => (account.services || []).filter((s) => s.read === 'yes').length
+// «pegadas a mano el 28/09 10:56, sin vencimiento declarado» → «pegadas 28/09 10:56»; el texto entero va en el title.
+const credShort = (text) => text?.replace(/^pegadas a mano el ([^,]+),.*$/, 'pegadas $1') || ''
+const serviceCount = computed(() => aws.value?.services?.length || 0)
+
+// ── los demás accesos: la consola ──
+const groups = ref([])
+const rows = ref({})
+const pending = ref({})
+const errors = ref({})
 async function loadGroup(id) {
   pending.value = { ...pending.value, [id]: true }
   try {
+    // Primero la respuesta, después la copia: copiar antes del await pisa con un objeto viejo lo que los
+    // otros grupos escribieron mientras tanto (pasó: sólo quedaba el último en llegar).
     const body = await getJSON(`/api/checks?group=${encodeURIComponent(id)}`)
     rows.value = { ...rows.value, [id]: body }
     errors.value = { ...errors.value, [id]: '' }
@@ -52,92 +70,68 @@ async function loadGroup(id) {
     pending.value = { ...pending.value, [id]: false }
   }
 }
-async function loadAll() {
-  apiError.value = ''
+async function loadGroups() {
   try {
-    if (!groups.value.length) groups.value = await getJSON('/api/groups')
-  } catch (e) {
-    apiError.value = `No se pudo leer: ${e.message}. ¿Está la API arriba? (make keyring-ui levanta las dos partes)`
-    return
-  }
-  // Siempre todos: el lateral resume cada grupo aunque se esté mirando uno.
+    // La identidad de AWS ya está en el editor: la consola no la repite.
+    if (!groups.value.length) groups.value = (await getJSON('/api/groups')).filter((g) => g.id !== 'aws')
+  } catch { return }
+  if (!groups.value.some((g) => g.id === tab.value)) tab.value = groups.value[0]?.id || ''
   await Promise.all(groups.value.map((g) => loadGroup(g.id)))
-  checkedAt.value = new Date()
 }
-const anyPending = computed(() => Object.values(pending.value).some(Boolean))
-
-// ── lo que se muestra ──
 function worst(list) {
   if (!list?.length) return null
   return list.reduce((w, r) => (STATE_RANK[r.state] < STATE_RANK[w] ? r.state : w), 'off')
 }
-const sidebarRows = computed(() => groups.value.map((g) => {
-  const list = rows.value[g.id] || []
-  const ok = list.filter((r) => r.state === 'ok').length
-  const live = list.filter((r) => r.state !== 'off').length
-  return { ...g, state: worst(list), summary: list.length ? `${ok}/${live}` : '', pending: !!pending.value[g.id] }
-}))
-const allState = computed(() => worst(Object.values(rows.value).flat()))
-const visibleGroups = computed(() => {
-  const chosen = selected.value === ALL ? groups.value : groups.value.filter((g) => g.id === selected.value)
-  return chosen.map((g) => {
-    const list = rows.value[g.id] || []
-    const shown = failingOnly.value ? list.filter((r) => r.state === 'fail' || r.state === 'warn') : list
-    return { ...g, rows: shown, total: list.length, pending: !!pending.value[g.id], error: errors.value[g.id] }
-  }).filter((g) => !(failingOnly.value && selected.value === ALL && !g.rows.length && !g.pending && !g.error))
-})
-const shownCount = computed(() => visibleGroups.value.reduce((n, g) => n + g.rows.length, 0))
-// El total es el del grupo elegido, sin filtro: con el filtro puesto el encabezado dice «2 / 31», no «2 / 3».
-const totalCount = computed(() => (selected.value === ALL ? groups.value : groups.value.filter((g) => g.id === selected.value))
-  .reduce((n, g) => n + (rows.value[g.id]?.length || 0), 0))
-const counts = computed(() => {
-  const c = { ok: 0, warn: 0, fail: 0, off: 0 }
-  for (const r of Object.values(rows.value).flat()) c[r.state]++
-  return c
-})
-const title = computed(() => (selected.value === ALL ? 'Todo' : groups.value.find((g) => g.id === selected.value)?.label || selected.value))
+const tabs = computed(() => groups.value.map((g) => ({
+  ...g, state: pending.value[g.id] ? 'pending' : worst(rows.value[g.id]),
+  fails: (rows.value[g.id] || []).filter((r) => r.state === 'fail').length,
+})))
+const tabRows = computed(() => rows.value[tab.value] || [])
+const failTotal = computed(() => Object.values(rows.value).flat().filter((r) => r.state === 'fail').length)
 
-// El vencimiento se relee cada 30 s: «vence en 40′» no puede quedar congelado mientras la pestaña está abierta.
+const checkedAt = ref(null)
+async function loadAll() {
+  await Promise.all([loadAWS(), loadGroups()])
+  checkedAt.value = new Date()
+}
+const busy = computed(() => awsLoading.value || Object.values(pending.value).some(Boolean))
+
+// El vencimiento se relee cada 30 s: «en 40′» no puede quedar congelado mientras la pestaña está abierta.
 const now = ref(Date.now())
 let clock = null
 function until(t) {
   const d = new Date(t).getTime() - now.value
-  const abs = Math.abs(d)
-  const mins = Math.floor(abs / 60000)
+  const mins = Math.floor(Math.abs(d) / 60000)
   const text = mins < 60 ? `${mins}′` : mins < 48 * 60 ? `${Math.floor(mins / 60)}h${String(mins % 60).padStart(2, '0')}` : `${Math.floor(mins / 1440)}d`
-  return d <= 0 ? `venció hace ${text}` : `en ${text}`
+  return d <= 0 ? `venció hace ${text}` : `vence en ${text}`
 }
-const soon = (t) => { const d = new Date(t).getTime() - now.value; return d > 0 && d < 3600000 }
 const fmtFull = (t) => (t ? new Date(t).toLocaleString('es-CO') : '')
 const fmtTime = (t) => (t ? t.toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit' }) : '')
 
-function pick(id) { selected.value = id }
-function toggleFailing() { failingOnly.value = !failingOnly.value }
-watch(selected, () => writeRoute(true))
-watch(failingOnly, () => writeRoute(false))
+watch(tab, () => writeRoute(false))
 
-// ── las regiones, con el contrato de la base: se guarda lo que eligió la persona, se pinta con fitRegions ──
-const sidebarOpen = ref(readSize('keyring.sidebar-open', 1) !== 0)
-const sidebarW = ref(readSize('keyring.sidebar-w', 260))
-const viewportW = ref(window.innerWidth)
-const onWindowResize = () => { viewportW.value = window.innerWidth }
+// ── las regiones: la consola se redimensiona y se pliega, con el contrato de la base ──
+const panelOpen = ref(readSize('keyring.panel-open', 1) !== 0)
+const panelH = ref(readSize('keyring.panel-h', 240))
+const viewportH = ref(window.innerHeight)
+const onWindowResize = () => { viewportH.value = window.innerHeight }
 const shown = computed(() => {
-  const [sidebar] = fitRegions(viewportW.value - cssSize('--editor-min', 360), [
-    { size: sidebarOpen.value ? sidebarW.value : 0, min: cssSize('--sidebar-min', 240) },
+  const [panel] = fitRegions(viewportH.value - 200, [
+    { size: panelOpen.value ? panelH.value : 0, min: cssSize('--panel-min', 124) },
   ])
-  return { sidebar }
+  return { panel }
 })
-const layoutVars = computed(() => ({ '--sidebar-w': `${shown.value.sidebar}px` }))
-const sidebarResize = {
-  label: 'Ancho de los grupos', sign: 1, defaultValue: 260,
-  min: () => cssSize('--sidebar-min', 240),
-  max: () => viewportW.value - cssSize('--editor-min', 360),
-  get: () => shown.value.sidebar,
-  set: (v) => { if (!v) sidebarOpen.value = false; else { sidebarOpen.value = true; sidebarW.value = v } },
-  reopen: () => sidebarW.value,
-  commit: (v) => { saveSize('keyring.sidebar-open', v ? 1 : 0); if (v) saveSize('keyring.sidebar-w', sidebarW.value) },
+const layoutVars = computed(() => ({ '--panel-h': `${shown.value.panel}px` }))
+const panelResize = {
+  label: 'Alto de la consola', axis: 'y', sign: -1, defaultValue: 240,
+  min: () => cssSize('--panel-min', 124),
+  max: () => viewportH.value - 200,
+  get: () => shown.value.panel,
+  set: (v) => { if (!v) panelOpen.value = false; else { panelOpen.value = true; panelH.value = v } },
+  reopen: () => panelH.value,
+  commit: (v) => { saveSize('keyring.panel-open', v ? 1 : 0); if (v) saveSize('keyring.panel-h', panelH.value) },
 }
-function toggleSidebar() { sidebarOpen.value = !shown.value.sidebar; saveSize('keyring.sidebar-open', sidebarOpen.value ? 1 : 0) }
+function togglePanel() { panelOpen.value = !shown.value.panel; saveSize('keyring.panel-open', panelOpen.value ? 1 : 0) }
 
 const themeToggle = ref(null)
 let themeBinding = null
@@ -146,7 +140,6 @@ onMounted(() => {
   window.addEventListener('hashchange', onHashChange)
   if (themeToggle.value) themeBinding = bindThemeToggle(themeToggle.value)
   clock = setInterval(() => { now.value = Date.now() }, 30000)
-  writeRoute(false)
   loadAll()
 })
 onBeforeUnmount(() => {
@@ -159,76 +152,100 @@ onBeforeUnmount(() => {
 
 <template>
   <div class="workbench" :style="layoutVars">
-    <aside v-show="shown.sidebar" class="sidebar" aria-label="Grupos">
-      <div class="rsz rsz-edge-right" v-resize="sidebarResize"></div>
-      <div class="region-head"><span>Grupos</span></div>
-      <div class="region-body">
-        <button type="button" class="row" :class="{ on: selected === 'all' }" :aria-current="selected === 'all' ? 'page' : undefined" @click="pick('all')">
-          <i class="dot" :data-state="allState" aria-hidden="true"></i>
-          <span>Todo</span>
-          <span class="row-meta">{{ counts.fail ? `${counts.fail} fallan` : '' }}</span>
-        </button>
-        <button v-for="g in sidebarRows" :key="g.id" type="button" class="row" :class="{ on: g.id === selected }"
-          :aria-current="g.id === selected ? 'page' : undefined" @click="pick(g.id)">
-          <i class="dot" :data-state="g.pending ? 'pending' : g.state" aria-hidden="true"></i>
-          <span class="label">{{ g.label }}</span>
-          <span class="row-meta" :title="g.summary ? 'con acceso / que aplican' : ''">{{ g.pending ? '…' : g.summary }}</span>
-        </button>
-      </div>
-    </aside>
-
     <main class="editor">
       <div class="region-head">
-        <span>{{ title }}</span>
-        <span class="count" :class="{ filtered: failingOnly }">{{ failingOnly ? `${shownCount} / ${totalCount}` : totalCount }}</span>
+        <span>AWS</span>
+        <span v-if="aws" class="count">{{ serviceCount }} servicios · {{ accounts.length }} perfiles</span>
         <div class="region-actions">
-          <button type="button" class="region-action" :aria-pressed="failingOnly"
-            :title="failingOnly ? 'Mostrar todo' : 'Mostrar sólo lo que falla o vence pronto'"
-            :aria-label="failingOnly ? 'Mostrar todo' : 'Mostrar sólo lo que falla o vence pronto'" @click="toggleFailing">
-            <span class="ui-icon" data-icon="filter" aria-hidden="true"></span>
-          </button>
-          <button type="button" class="region-action" :disabled="anyPending" title="Volver a probar" aria-label="Volver a probar" @click="loadAll">
+          <button type="button" class="region-action" :disabled="busy" title="Volver a probar" aria-label="Volver a probar" @click="loadAll">
             <span class="ui-icon" data-icon="refresh" aria-hidden="true"></span>
           </button>
         </div>
       </div>
       <div class="region-body">
-        <div v-if="apiError" class="alert alert-destructive" role="alert">
+        <div v-if="awsError" class="alert alert-destructive" role="alert">
           <span class="ui-icon alert-icon" data-icon="alert" aria-hidden="true"></span>
-          <div class="alert-title">{{ apiError }}</div>
+          <div class="alert-title">{{ awsError }}</div>
         </div>
-        <section v-for="g in visibleGroups" v-else :key="g.id">
-          <div class="region-head group">
-            <span>{{ g.label }}</span>
-            <span class="count">{{ g.pending && !g.total ? 'probando…' : g.rows.length }}</span>
-          </div>
-          <p v-if="g.error" class="none hot">{{ g.error }}</p>
-          <p v-else-if="g.pending && !g.total" class="none">Probando{{ g.quick ? '' : ' (hasta 12 s sin VPN)' }}…</p>
-          <table v-else-if="g.rows.length" class="table">
-            <thead><tr><th>Estado</th><th>Acceso</th><th>Qué contestó</th><th>Vence</th><th class="num">ms</th></tr></thead>
+        <div v-else-if="!aws" class="empty"><div class="empty-desc">Preguntando a cada servicio de cada perfil…</div></div>
+        <template v-else>
+          <div class="region-head group"><span>Perfiles de ~/.aws</span><span class="count">{{ accounts.length }}</span></div>
+          <table class="table" aria-label="Perfiles de AWS">
+            <thead><tr><th>Perfil</th><th>Cuenta</th><th>Permission set</th><th class="num">Lectura</th><th>Credenciales</th></tr></thead>
             <tbody>
-              <tr v-for="r in g.rows" :key="r.name" :data-state="r.state">
-                <td class="nowrap"><i class="dot" :data-state="r.state" aria-hidden="true"></i> <span class="state">{{ STATE_LABEL[r.state] }}</span></td>
-                <td class="nowrap">{{ r.name }}</td>
-                <td class="detail">{{ r.detail }}</td>
-                <td class="nowrap" :class="{ soon: r.expires && soon(r.expires), hot: r.expires && r.state === 'fail' }"
-                  :title="r.expires ? fmtFull(r.expires) : ''">{{ r.expires ? until(r.expires) : '—' }}</td>
-                <td class="num">{{ r.ms }}</td>
+              <tr v-for="a in accounts" :key="a.profile">
+                <td :title="a.person ? `sesión de ${a.person}` : ''"><code>{{ a.profile }}</code></td>
+                <template v-if="a.error"><td colspan="4" class="hot">{{ a.error }}</td></template>
+                <template v-else>
+                  <td class="nowrap">{{ a.account }} <span class="muted">· {{ a.accountLabel }}</span></td>
+                  <td class="nowrap" :title="a.role"><code>{{ a.permissionSet || a.role }}</code></td>
+                  <td class="num">{{ readCount(a) }} / {{ serviceCount }}</td>
+                  <td class="nowrap muted" :title="a.credentials">{{ a.expires ? until(a.expires) : credShort(a.credentials) }}</td>
+                </template>
               </tr>
             </tbody>
           </table>
-          <p v-else class="none">{{ failingOnly ? 'Nada falla acá.' : 'Sin filas.' }}</p>
-        </section>
+          <div class="alert" role="note">
+            <span class="ui-icon alert-icon" data-icon="alert" aria-hidden="true"></span>
+            <div class="alert-desc">La lectura se mide con una llamada List/Describe por servicio. La escritura todavía no se mide: el nombre del permission set es una pista, no una medición.</div>
+          </div>
+          <section v-for="c in categories" :key="c.id">
+            <div class="region-head group"><span>{{ c.id }}</span><span class="count">{{ c.rows.length }}</span></div>
+            <table class="table matrix">
+              <colgroup><col class="c-service"><col><col v-for="a in accounts" :key="a.profile" class="c-access"></colgroup>
+              <thead>
+                <tr><th>Servicio</th><th>Acción probada</th><th v-for="a in accounts" :key="a.profile" class="access">{{ a.profile }}</th></tr>
+              </thead>
+              <tbody>
+                <tr v-for="s in c.rows" :key="s.id">
+                  <td class="nowrap">{{ s.label }}</td>
+                  <td class="action"><code>{{ s.action }}</code></td>
+                  <td v-for="a in accounts" :key="a.profile" class="access" :data-read="cell(a, s.index)?.read || 'none'"
+                    :title="cell(a, s.index) ? `${cell(a, s.index).detail} · ${cell(a, s.index).ms} ms` : a.error">
+                    <template v-if="cell(a, s.index)">
+                      <i class="dot" :data-read="cell(a, s.index).read" aria-hidden="true"></i>
+                      {{ READ_LABEL[cell(a, s.index).read] }}
+                    </template>
+                    <span v-else class="muted">—</span>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </section>
+        </template>
       </div>
     </main>
 
+    <section v-if="shown.panel" class="panel" aria-label="Otros accesos">
+      <div class="rsz rsz-edge-top" v-resize="panelResize"></div>
+      <nav class="tabs" role="tablist" aria-label="Otros accesos">
+        <button v-for="t in tabs" :key="t.id" type="button" role="tab" class="tab" :class="{ on: t.id === tab }"
+          :aria-selected="t.id === tab" @click="tab = t.id">
+          <i class="dot" :data-state="t.state" aria-hidden="true"></i>
+          {{ t.label }}
+          <span v-if="t.fails" class="count">{{ t.fails }}</span>
+        </button>
+      </nav>
+      <div class="region-body">
+        <p v-if="errors[tab]" class="none hot">{{ errors[tab] }}</p>
+        <p v-else-if="pending[tab] && !tabRows.length" class="none">Probando…</p>
+        <div v-for="r in tabRows" :key="r.name" class="log-line" :data-state="r.state">
+          <i class="dot" :data-state="r.state" aria-hidden="true"></i>
+          <span class="name">{{ r.name }}</span>
+          <span class="state">{{ STATE_LABEL[r.state] }}</span>
+          <span class="what">{{ r.detail }}</span>
+          <span v-if="r.expires" class="log-time" :title="fmtFull(r.expires)">{{ until(r.expires) }}</span>
+        </div>
+      </div>
+    </section>
+
     <footer class="statusbar">
       <span v-if="checkedAt" :title="fmtFull(checkedAt)">probado a las {{ fmtTime(checkedAt) }}</span>
-      <span>{{ counts.ok }} ok · {{ counts.warn }} por vencer · {{ counts.fail }} fallan · {{ counts.off }} no aplican</span>
+      <span v-if="failTotal" class="hot">{{ failTotal }} accesos fallan en la consola</span>
       <div class="layout-controls" role="group" aria-label="Tema y regiones visibles">
         <button ref="themeToggle" type="button" class="region-action theme-toggle"><span class="ui-icon" aria-hidden="true"></span></button>
-        <button type="button" class="region-action" :aria-pressed="!!shown.sidebar" title="Mostrar u ocultar los grupos" aria-label="Mostrar u ocultar los grupos" @click="toggleSidebar">
-          <span class="ui-icon" data-icon="sidebar" aria-hidden="true"></span>
+        <button type="button" class="region-action" :aria-pressed="!!shown.panel" title="Mostrar u ocultar la consola" aria-label="Mostrar u ocultar la consola" @click="togglePanel">
+          <span class="ui-icon" data-icon="bottom" aria-hidden="true"></span>
         </button>
       </div>
     </footer>
@@ -236,22 +253,34 @@ onBeforeUnmount(() => {
 </template>
 
 <style scoped>
-/* Lo que la base no da. Todo lo demás —bandas, filas, tabla, grupos, avisos, pie— es de workbench.css. */
+/* Lo que la base no da. Todo lo demás —bandas, pestañas, tabla, grupos, avisos, líneas, pie— es de workbench.css. */
 .theme-toggle { margin-right: var(--space-1) }
 .none { margin: 0; padding: var(--space-2) var(--gutter); color: var(--fg-3); font-size: var(--text-sm) }
 .nowrap { white-space: nowrap }
-.alert { margin: var(--space-2) var(--gutter) }
-.label { flex: 1; min-width: 0 }
-/* lo que contestó es lo que se lee: se parte en renglones antes que empujar las demás columnas afuera */
-.detail { width: 100%; overflow-wrap: anywhere; color: var(--fg-2) }
-.state { color: var(--fg-2) }
+.muted { color: var(--fg-3) }
 .hot { color: var(--access-fail) }
-.soon { color: var(--access-warn) }
-/* El estado es un punto (un <i>: la base estira todo <span> de una fila): la forma no cambia, sólo el color, y el texto de al lado lo dice para quien no lo ve. */
-.dot { display: inline-block; flex: none; width: 8px; height: 8px; border-radius: 50%; background: var(--access-off) }
-.dot[data-state="ok"] { background: var(--access-ok) }
-.dot[data-state="warn"] { background: var(--access-warn) }
+.alert { margin: var(--space-2) var(--gutter) }
+code { font-family: var(--font-mono); font-size: var(--text-sm) }
+/* Las tablas de cada categoría son tablas distintas: con anchos fijos, las columnas quedan alineadas de una a otra. */
+.matrix { table-layout: fixed }
+.matrix .c-service { width: 176px }
+.matrix .c-access { width: 104px }
+.action { color: var(--fg-3); overflow: hidden; text-overflow: ellipsis; white-space: nowrap }
+.access { white-space: nowrap; min-width: 96px }
+.access[data-read="yes"] { color: var(--access-ok) }
+.access[data-read="no"] { color: var(--fg-3) }
+.access[data-read="error"] { color: var(--access-warn) }
+/* El estado es un punto (un <i>: la base estira todo <span> de una fila); el texto de al lado lo dice para quien no lo ve. */
+.dot { display: inline-block; flex: none; width: 8px; height: 8px; border-radius: 50%; margin-right: var(--space-1); background: var(--access-off) }
+.dot[data-read="yes"], .dot[data-state="ok"] { background: var(--access-ok) }
+.dot[data-read="error"], .dot[data-state="warn"] { background: var(--access-warn) }
 .dot[data-state="fail"] { background: var(--access-fail) }
 .dot[data-state="pending"] { background: transparent; box-shadow: inset 0 0 0 1px var(--access-off) }
-tr[data-state="off"] td { color: var(--fg-3) }
+.log-line { display: flex; gap: var(--space-2); align-items: baseline }
+.log-line .dot { align-self: center; margin-right: 0 }
+.log-line .name { min-width: 120px }
+.log-line .state { min-width: 80px; color: var(--fg-3) }
+.log-line .what { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--fg-2) }
+.log-line[data-state="off"] .name { color: var(--fg-3) }
+.log-line[data-state="fail"] .state { color: var(--access-fail) }
 </style>

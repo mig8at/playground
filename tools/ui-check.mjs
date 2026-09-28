@@ -117,19 +117,33 @@ const radarFixture = {
     { session: 'sesion-a', time: '2026-09-27T14:02:00Z', tool: 'Bash', keys: ['make tareas'], command: 'make tareas', outcome: 'ok' },
   ] },
 };
-// keyring: un grupo rápido, uno lento con fallas y uno con un vencimiento cercano. Datos de ejemplo: la
-// prueba no toca ninguna credencial real.
-const soonISO = () => new Date(Date.now() + 30 * 60000).toISOString();
+// keyring: dos perfiles de AWS (uno sin credenciales) y la consola con un grupo rápido y uno lento con una
+// falla. Datos de ejemplo: la prueba no toca ninguna credencial real.
+const keyringServices = [
+  { id: 'ecs', label: 'ECS', category: 'cómputo', action: 'ecs:ListClusters' },
+  { id: 'ecr', label: 'ECR', category: 'cómputo', action: 'ecr:DescribeRepositories' },
+  { id: 's3', label: 'S3', category: 'datos', action: 's3:ListAllMyBuckets' },
+];
+const keyringAWS = {
+  categories: ['cómputo', 'datos'], services: keyringServices,
+  accounts: [
+    { profile: 'dev', account: '111111111111', accountLabel: 'desarrollo', role: 'AWSReservedSSO_DeveloperAccess_0000000000000000',
+      permissionSet: 'DeveloperAccess', person: 'persona', credentials: 'pegadas a mano el 28/09 10:56, sin vencimiento declarado',
+      services: [{ ...keyringServices[0], read: 'yes', write: 'unmeasured', detail: 'autorizado', ms: 5 },
+        { ...keyringServices[1], read: 'no', write: 'unmeasured', detail: 'ninguna política lo da', ms: 5 },
+        { ...keyringServices[2], read: 'yes', write: 'unmeasured', detail: 'autorizado', ms: 5 }] },
+    { profile: 'viejo', error: 'sin credenciales', services: [] },
+  ],
+};
 const keyringGroups = [
-  { id: 'network', label: 'red', quick: true }, { id: 'databases', label: 'bases', quick: false },
-  { id: 'sessions', label: 'sesiones de asesor', quick: true },
+  { id: 'network', label: 'red', quick: true }, { id: 'aws', label: 'aws', quick: true },
+  { id: 'databases', label: 'bases', quick: false },
 ];
 const keyringChecks = {
   network: [{ group: 'network', name: 'VPN dev', state: 'off', detail: 'no resuelve: sin esa VPN', ms: 1 },
     { group: 'network', name: 'VPN prod', state: 'ok', detail: 'legacy-backend → 172.31.0.1', ms: 20 }],
   databases: [{ group: 'databases', name: 'local', state: 'ok', detail: 'mysql 127.0.0.1', ms: 10 },
     { group: 'databases', name: 'dev', state: 'fail', detail: 'i/o timeout · ¿VPN de dev?', ms: 10000 }],
-  sessions: [{ group: 'sessions', name: 'asesor qa', state: 'warn', detail: 'originaciones-qa', ms: 2 }],
 };
 const browser = await chromium.launch();
 const screenshotDir = process.env.UI_SCREENSHOTS;
@@ -205,11 +219,11 @@ try {
       }
       if (name === 'keyring') {
         if (path === '/api/groups') return route.fulfill({ json: keyringGroups });
+        if (path === '/api/aws') return route.fulfill({ json: keyringAWS });
         const group = new URL(route.request().url()).searchParams.get('group');
-        const json = (keyringChecks[group] || []).map((c) => (c.state === 'warn' ? { ...c, expires: soonISO() } : c));
         // Las bases tardan: es lo que obliga a pintar cada grupo cuando llega y no esperar al más lento.
-        if (group === 'databases') return new Promise((ok) => setTimeout(() => ok(route.fulfill({ json })), 600));
-        return route.fulfill({ json });
+        if (group === 'databases') return new Promise((ok) => setTimeout(() => ok(route.fulfill({ json: keyringChecks.databases })), 600));
+        return route.fulfill({ json: keyringChecks[group] || [] });
       }
       if (name === 'radar') {
         const headers = { 'X-Radar-Read': '0', 'X-Radar-Skipped': '3' };
@@ -334,24 +348,24 @@ try {
     }
     if (name === 'keyring') {
       const editor = page.locator('.editor');
-      await editor.getByText('VPN prod', { exact: true }).waitFor();
-      assert.match(await editor.textContent(), /probando/,
-        'Keyring: un grupo rápido se pinta mientras el lento sigue probando');
-      await editor.getByText('i/o timeout · ¿VPN de dev?').waitFor();
-      assert.match(await page.locator('.sidebar .row').first().textContent(), /1 fallan/,
-        'Keyring: «Todo» resume cuántos accesos fallan');
-      assert.equal(await editor.locator('td.soon').count(), 1, 'Keyring: lo que vence en menos de una hora se marca');
-      await page.getByRole('button', { name: 'Mostrar sólo lo que falla o vence pronto', exact: true }).click();
-      assert.equal(new URL(page.url()).hash, '#/all?failing=1', 'Keyring: el filtro queda en la ruta');
-      assert.match(await page.locator('.editor > .region-head .count.filtered').textContent(), /2 \/ 5/,
-        'Keyring: el encabezado delata el filtro puesto');
-      assert.equal(await editor.locator('tbody tr').count(), 2, 'Keyring: con el filtro quedan la falla y el vencimiento');
-      await page.reload();
-      await editor.getByText('i/o timeout · ¿VPN de dev?').waitFor();
-      assert.equal(await editor.locator('tbody tr').count(), 2, 'Keyring: el filtro sobrevive a la recarga');
-      await page.getByRole('button', { name: /^bases/ }).click();
-      assert.equal(new URL(page.url()).hash, '#/databases?failing=1', 'Keyring: el grupo elegido queda en la ruta');
-      assert.equal(await editor.locator('tbody tr').count(), 1, 'Keyring: un grupo muestra sólo sus filas');
+      await editor.getByText('ecr:DescribeRepositories').waitFor();
+      assert.match(await editor.getByRole('table', { name: 'Perfiles de AWS' }).textContent(), /DeveloperAccess.*2 \/ 3.*pegadas 28\/09 10:56/s,
+        'Keyring: cada perfil dice su permission set, cuánto lee y desde cuándo tiene las credenciales');
+      assert.match(await editor.getByRole('table', { name: 'Perfiles de AWS' }).textContent(), /sin credenciales/,
+        'Keyring: un perfil sin credenciales lo dice en su fila');
+      assert.equal(await editor.locator('td.access[data-read="no"]').count(), 1, 'Keyring: la lectura negada se marca en su celda');
+      assert.equal(await editor.getByRole('note').isVisible(), true, 'Keyring: avisa que la escritura todavía no se mide');
+      const panel = page.locator('.panel');
+      assert.equal(await panel.getByRole('tab', { name: /aws/ }).count(), 0, 'Keyring: la consola no repite la identidad de AWS');
+      await panel.getByText('VPN prod').waitFor();
+      assert.equal(await panel.locator('.log-line').count(), 2, 'Keyring: la consola muestra las filas de la pestaña elegida');
+      // Las dos pestañas se cargan a la vez: la lenta no puede borrar lo que escribió la rápida.
+      await panel.getByRole('tab', { name: /bases/ }).click();
+      await panel.getByText('i/o timeout · ¿VPN de dev?').waitFor();
+      await panel.getByRole('tab', { name: /red/ }).click();
+      assert.equal(await panel.locator('.log-line').count(), 2, 'Keyring: un grupo lento no pisa a uno rápido');
+      assert.equal(new URL(page.url()).hash, '#/?tab=network', 'Keyring: la pestaña queda en la ruta');
+      assert.match(await page.locator('.statusbar').textContent(), /1 accesos fallan/, 'Keyring: el pie cuenta las fallas de la consola');
     }
     const separator = name === 'trazador'
       ? page.locator('.handle-detail')
@@ -359,7 +373,8 @@ try {
     await separator.waitFor();
     await separator.focus();
     const before = Number(await separator.getAttribute('aria-valuenow'));
-    await separator.press(name === 'trazador' ? 'ArrowLeft' : 'ArrowRight');
+    // keyring sólo tiene la manija de la consola, que es vertical: sube con ArrowUp, como el #rszB del harness.
+    await separator.press(name === 'trazador' ? 'ArrowLeft' : name === 'keyring' ? 'ArrowUp' : 'ArrowRight');
     const after = Number(await separator.getAttribute('aria-valuenow'));
     assert.equal(after, before + 16, `${name}: ajuste con teclado`);
     if (name === 'tablero') {
