@@ -1,4 +1,4 @@
-// Package check contesta, sin escribir nada, a qué tenemos acceso AHORA desde esta máquina y cuándo
+// Package check es keyring, el llavero del playground: contesta, sin escribir nada, a qué tenemos acceso AHORA desde esta máquina y cuándo
 // vence cada cosa: la VPN, AWS, las bases, Loki, PostHog, los servicios de connectors/ y las sesiones de
 // asesor del harness.
 //
@@ -8,7 +8,7 @@
 // connectors/, nunca una copia— y dice qué contestó, sin mostrar jamás un valor secreto: sólo si hay,
 // de quién es y cuándo vence.
 //
-// Lo usan dos: la consola (`make accesos`, en accesos/server) y el hook de arranque, que corre sólo los
+// Lo usan dos: la consola (`make keyring`, en keyring/server) y el hook de arranque, que corre sólo los
 // grupos rápidos (Quick) para avisar antes de la primera pregunta.
 //
 // CONVENCIÓN: identificadores en inglés, comentarios y texto visible en español.
@@ -50,11 +50,17 @@ type Probe struct {
 }
 
 // Groups es el orden en que se muestran los grupos: primero lo que condiciona al resto.
-var Groups = []string{"red", "aws", "bases", "logs", "eventos", "servicios", "sesiones"}
+var Groups = []string{"network", "aws", "databases", "logs", "events", "services", "sessions"}
+
+// GroupLabel es cómo se muestra cada grupo.
+var GroupLabel = map[string]string{
+	"network": "red", "aws": "aws", "databases": "bases", "logs": "logs",
+	"events": "eventos", "services": "servicios", "sessions": "sesiones de asesor",
+}
 
 // Quick son los grupos que contestan en un par de segundos sin tocar la red de nadie más que la propia:
 // los que el arranque de sesión se puede permitir esperar.
-var Quick = []string{"red", "aws", "sesiones"}
+var Quick = []string{"network", "aws", "sessions"}
 
 // soon es desde cuándo un vencimiento se marca como aviso.
 const soon = time.Hour
@@ -80,26 +86,26 @@ func Select(groups []string) []Probe {
 
 func allProbes() []Probe {
 	ps := []Probe{
-		{"red", probeVPN},
+		{"network", probeVPN},
 		{"aws", probeAWS},
 	}
 	for _, t := range targets {
 		t := t
 		ps = append(ps,
-			Probe{"bases", func(ctx context.Context) []Check { return []Check{probeSQL(ctx, t)} }},
+			Probe{"databases", func(ctx context.Context) []Check { return []Check{probeSQL(ctx, t)} }},
 			Probe{"logs", func(ctx context.Context) []Check { return []Check{probeLogs(ctx, t)} }},
-			Probe{"eventos", func(ctx context.Context) []Check { return []Check{probeEvents(ctx, t)} }},
+			Probe{"events", func(ctx context.Context) []Check { return []Check{probeEvents(ctx, t)} }},
 		)
 	}
 	return append(ps,
-		Probe{"servicios", one(probeAtlassian)},
-		Probe{"servicios", probeSlack},
-		Probe{"servicios", one(probeFigma)},
-		Probe{"servicios", one(probeTwilio)},
-		Probe{"servicios", one(probeGemini)},
-		Probe{"servicios", one(probeJev)},
-		Probe{"servicios", probeCanon},
-		Probe{"sesiones", probeSessions},
+		Probe{"services", one(probeAtlassian)},
+		Probe{"services", probeSlack},
+		Probe{"services", one(probeFigma)},
+		Probe{"services", one(probeTwilio)},
+		Probe{"services", one(probeGemini)},
+		Probe{"services", one(probeJev)},
+		Probe{"services", probeCanon},
+		Probe{"sessions", probeSessions},
 	)
 }
 
@@ -185,18 +191,18 @@ func expiring(c *Check) {
 // vence pronto con su motivo. Lo que está bien no ocupa más que su nombre.
 func Brief(checks []Check) string {
 	var b strings.Builder
-	b.WriteString("  ACCESOS — red, AWS y sesiones de asesor al arrancar (`make accesos`: también bases, logs y servicios)\n")
+	b.WriteString("  KEYRING — a qué hay acceso al arrancar: red, AWS y sesiones de asesor (`make keyring`: también bases, logs y servicios)\n")
 	var names []string
 	for _, c := range checks {
 		// Una sesión apagada es un archivo viejo, no un acceso: en el arranque sólo ensucia.
-		if c.State == Off && c.Group != "red" {
+		if c.State == Off && c.Group != "network" {
 			continue
 		}
 		names = append(names, Mark(c.State)+" "+c.Name)
 	}
 	b.WriteString("    " + strings.Join(names, " · ") + "\n")
 	for _, c := range checks {
-		if c.State == Off && c.Group == "red" {
+		if c.State == Off && c.Group == "network" {
 			b.WriteString("    – " + c.Name + ": " + c.Detail + offHint[c.Name] + "\n")
 			continue
 		}

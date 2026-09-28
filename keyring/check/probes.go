@@ -495,4 +495,3 @@ func host(raw string) string {
 	}
 	return u.Host
 }
-

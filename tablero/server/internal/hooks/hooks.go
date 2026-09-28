@@ -32,8 +32,8 @@ import (
 	"time"
 	"unicode/utf8"
 
-	"creditop/playground/accesos/check"
 	"creditop/playground/connectors/canon"
+	"creditop/playground/keyring/check"
 	"creditop/playground/lib/text"
 	"creditop/playground/tablero/server/internal/canoncache"
 )
@@ -247,9 +247,9 @@ func SessionStart(env Env) int {
 const accessWait = 4 * time.Second
 
 /* accessSection: a qué hay acceso ahora (VPN, AWS, sesiones de asesor) y qué vence pronto, desde
- * `accesos/check`. Existe porque sin VPN «no tengo acceso» y «no estoy conectado» se leen igual: el
+ * `keyring/check`. Existe porque sin VPN «no tengo acceso» y «no estoy conectado» se leen igual: el
  * 2026-09-28 un curl a dev murió por DNS y se supo recién al ver el error. Sólo los grupos rápidos; las
- * bases, los logs y los servicios los contesta `make accesos`. */
+ * bases, los logs y los servicios los contesta `make keyring`. */
 func accessSection() string {
 	return check.Brief(check.Run(check.Select(check.Quick), accessWait))
 }

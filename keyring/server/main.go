@@ -1,4 +1,4 @@
-// Command accesos es la consola de accesos/check: la tabla entera de a qué hay acceso ahora y cuándo
+// Command keyring es la consola de keyring/check: la tabla entera de a qué hay acceso ahora y cuándo
 // vence. Sale 1 si alguna fila falló, para que lo pueda usar un script antes de arrancar.
 //
 // CONVENCIÓN: identificadores en inglés, comentarios y texto visible en español.
@@ -12,13 +12,13 @@ import (
 	"strings"
 	"time"
 
-	"creditop/playground/accesos/check"
+	"creditop/playground/keyring/check"
 )
 
 func main() {
 	asJSON := flag.Bool("json", false, "las filas en JSON")
-	only := flag.String("solo", "", "sólo estos grupos, separados por coma: "+strings.Join(check.Groups, ","))
-	brief := flag.Bool("breve", false, "el resumen del arranque de sesión: sólo red, AWS y sesiones")
+	only := flag.String("only", "", "sólo estos grupos, separados por coma: "+strings.Join(check.Groups, ","))
+	brief := flag.Bool("brief", false, "el resumen del arranque de sesión: sólo red, AWS y sesiones")
 	timeout := flag.Duration("timeout", 12*time.Second, "tope por sonda")
 	flag.Parse()
 
@@ -48,7 +48,7 @@ func main() {
 }
 
 func render(checks []check.Check) {
-	fmt.Printf("\n  ACCESOS · %s\n", time.Now().Format("2006-01-02 15:04"))
+	fmt.Printf("\n  KEYRING · %s\n", time.Now().Format("2006-01-02 15:04"))
 	counts := map[check.State]int{}
 	for _, c := range checks {
 		counts[c.State]++
@@ -59,7 +59,7 @@ func render(checks []check.Check) {
 	for _, c := range checks {
 		if c.Group != group {
 			group = c.Group
-			fmt.Printf("\n  %s\n", strings.ToUpper(group))
+			fmt.Printf("\n  %s\n", strings.ToUpper(check.GroupLabel[group]))
 		}
 		line := fmt.Sprintf("    %s %-20s %s", check.Mark(c.State), c.Name, c.Detail)
 		if c.Expires != nil {
