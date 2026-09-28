@@ -291,20 +291,17 @@ function pick(key, id) {
   if (!data.value || data.value.key !== key) activate(key, id)
   else go(id)
 }
-// ── las PÁGINAS del archivo, como pestañas en el pie (como las hojas de Excel) ──
-// La barra arranca en la página de flujo; una pestaña trae otra página del mismo archivo al centro y a su
-// bloque. Cada página se lee de Figma al tocarla (una de benchmark puede ser enorme) y queda en memoria.
+// ── las PÁGINAS del archivo, como pestañas adentro del bloque de su proyecto ──
+// El bloque arranca en la página de flujo; una pestaña trae otra página del mismo archivo al bloque y al
+// centro. Van ADENTRO del proyecto y no en el pie (Miguel, 2026-09-28): en el pie no se veía de qué archivo
+// eran, y una página es del proyecto, no de la ventana. Cada página se lee de Figma al tocarla (una de benchmark puede ser enorme) y queda en memoria.
 // La ruta la nombra con `?nodo=<página>`, el mismo parámetro que ya usaba una sección pegada: los enlaces
 // de antes siguen abriendo.
 const pageBusy = ref('') // la página que se está leyendo
 const pageError = ref('')
 // La portada no lleva pestaña: es la tapa del archivo, no tiene pantallas que mirar (Miguel, 2026-09-28).
 const reCoverPage = /cover|portada/i
-const pageTabs = computed(() => {
-  const p = data.value && pagesOf.value[data.value.key]
-  return p && p.pages ? p.pages.filter((x) => !reCoverPage.test(x.name)) : []
-})
-const onPage = computed(() => pageTabs.value.some((p) => p.id === data.value?.node))
+const pagesFor = (key) => (pagesOf.value[key]?.pages || []).filter((x) => !reCoverPage.test(x.name))
 async function openPage(key, pageID, screen = '') {
   routeHold = false
   pageError.value = ''
@@ -326,7 +323,7 @@ async function openPage(key, pageID, screen = '') {
     go(screen && screens.value.has(screen) ? screen : first, false)
     writeRoute()
   } catch (e) {
-    if (pageBusy.value === pageID) pageError.value = String(e.message || e)
+    if (pageBusy.value === pageID) pageError.value = { key, message: String(e.message || e) }
   } finally {
     if (pageBusy.value === pageID) pageBusy.value = ''
   }
@@ -1040,10 +1037,17 @@ const laneName = (lane) => (lane.label ? lane.label : 'Fila sin rótulo')
             </button>
           </div>
         </div>
+        <!-- Las páginas del archivo, cuando tiene más de una: el bloque muestra los carriles de la elegida. -->
+        <div v-if="isOpenFile(f.key) && pagesFor(f.key).length > 1" class="page-tabs" role="tablist" :aria-label="'Páginas de ' + f.name">
+          <button v-for="p in pagesFor(f.key)" :key="p.id" type="button" role="tab" class="page-tab" :class="{ busy: pageBusy === p.id }"
+            :aria-selected="maps[f.key]?.node === p.id" :title="pageBusy === p.id ? 'Leyendo la página de Figma…' : 'Página «' + p.name + '»'"
+            @click="openPage(f.key, p.id)">{{ p.name }}</button>
+        </div>
+        <div v-if="isOpenFile(f.key) && pageError && pageError.key === f.key" class="alert alert-destructive" role="alert"><div class="alert-desc">No se leyó la página: {{ pageError.message }}</div></div>
         <div v-if="isOpenFile(f.key)" :id="'flow-' + f.key" class="region-body">
           <p v-if="mapState[f.key] === 'loading'" class="hint">Leyendo el flujo…</p>
           <div v-else-if="mapState[f.key]?.error" class="alert alert-destructive" role="alert"><div class="alert-desc">{{ mapState[f.key].error }}</div></div>
-          <p v-else-if="maps[f.key] && !countOf(f.key)" class="hint">La página «{{ maps[f.key].structure?.name }}» no tiene pantallas. Las otras páginas están en las pestañas del pie.</p>
+          <p v-else-if="maps[f.key] && !countOf(f.key)" class="hint">La página «{{ maps[f.key].structure?.name }}» no tiene pantallas.</p>
           <!-- Arriba de los carriles, la hoja de tokens del proyecto: se abre en el centro. -->
           <template v-for="g in groupsFor(maps[f.key]?.structure)" :key="g.id">
             <div v-if="groupsFor(maps[f.key]?.structure).length > 1" class="section-name">{{ g.name }}</div>
@@ -1268,15 +1272,7 @@ const laneName = (lane) => (lane.label ? lane.label : 'Fila sin rótulo')
     </aside>
 
     <footer class="statusbar">
-      <!-- Las páginas del archivo como pestañas, igual que las hojas de Excel. Una sección pegada a mano no es
-           una página: se nombra al lado, sin pestaña elegida. -->
-      <div v-if="pageTabs.length" class="page-tabs" role="tablist" :aria-label="'Páginas de ' + (structure?.file_name || 'el archivo')">
-        <button v-for="p in pageTabs" :key="p.id" type="button" role="tab" class="page-tab" :class="{ busy: pageBusy === p.id }"
-          :aria-selected="data?.node === p.id" :title="pageBusy === p.id ? 'Leyendo la página de Figma…' : 'Página «' + p.name + '»'"
-          @click="openPage(data.key, p.id)">{{ p.name }}</button>
-      </div>
-      <span v-if="structure && (!pageTabs.length || !onPage)">{{ structure.file_name }} · {{ structure.name }}</span>
-      <span v-if="pageError" class="page-error" :title="pageError">No se leyó la página: {{ pageError }}</span>
+      <span v-if="structure">{{ structure.file_name }} · {{ structure.name }}</span>
       <span v-if="structure?.last_modified" :title="new Date(structure.last_modified).toLocaleString('es-CO')">guardado {{ ago(structure.last_modified) }}</span>
       <span v-if="screenCount">{{ screenCount }} pantallas</span>
       <div class="layout-controls" role="group" aria-label="Tema y regiones visibles">
@@ -1358,23 +1354,20 @@ const laneName = (lane) => (lane.label ? lane.label : 'Fila sin rótulo')
 .plain-list { margin: 0; padding: 0 0 var(--space-2); list-style: none; font-size: var(--text-base) }
 .plain-list li { display: flex; align-items: center; min-height: var(--row-h); padding: 0 var(--gutter) }
 
-/* LAS PÁGINAS en el pie, como las hojas de Excel: una pestaña ocupa el alto del pie y la elegida se marca
-   con la tinta y una línea arriba (la de las pestañas de arriba va abajo: éstas se apoyan en el borde de
-   abajo de la ventana). Si no entran, la tira scrollea sola y el resto del pie queda quieto. */
-.statusbar > .page-tabs { display: flex; flex: 0 1 auto; align-self: stretch; min-width: 0; overflow-x: auto; overflow-y: hidden;
-  margin-left: calc(-1 * var(--space-2)); scrollbar-width: none }
-/* Sin lugar, ceden primero los datos del pie («guardado hace…», el conteo): las pestañas son para tocar. */
-.statusbar > span { flex-shrink: 100 }
-.page-tab { position: relative; flex: none; height: 100%; padding: 0 var(--space-3); border: 0; background: none;
-  color: var(--fg-3); font: inherit; white-space: nowrap; cursor: pointer }
-.page-tab:hover { color: var(--foreground); background: var(--hover) }
+/* LAS PÁGINAS de un proyecto: una fila de pestañas chicas entre la cabecera del bloque y sus carriles. No
+   scrollea con la lista (el bloque sigue diciendo qué página muestra) y, si no entran, la fila se corre de
+   costado. La elegida lleva la tinta y la línea abajo, como las pestañas de la base, en tamaño de fila. */
+.page-tabs { display: flex; flex: none; gap: 2px; min-height: var(--row-h); padding: 0 var(--space-2); overflow-x: auto;
+  overflow-y: hidden; border-bottom: 1px solid var(--border); scrollbar-width: none }
+.page-tab { position: relative; flex: none; padding: 0 var(--space-2); border: 0; background: none; color: var(--fg-3);
+  font: inherit; font-size: var(--text-xs); white-space: nowrap; cursor: pointer }
+.page-tab:hover { color: var(--foreground) }
 .page-tab[aria-selected="true"] { color: var(--foreground) }
-.page-tab[aria-selected="true"]::before { content: ""; position: absolute; left: var(--space-2); right: var(--space-2); top: 0;
-  height: 2px; border-radius: 0 0 2px 2px; background: var(--primary) }
+.page-tab[aria-selected="true"]::after { content: ""; position: absolute; left: var(--space-2); right: var(--space-2); bottom: 0;
+  height: 2px; border-radius: 2px 2px 0 0; background: var(--primary) }
 .page-tab.busy { color: var(--fg-2); cursor: progress }
-.page-tab.busy::after { content: "…" }
-.page-error { color: var(--destructive) }
-/* El campo del buscador toma la banda de la barra derecha, al lado de su lupa. */
+.page-tab.busy::before { content: "…"; position: absolute; right: 0 }
+/* El campo del buscador toma la banda de la barra izquierda, al lado de su lupa. */
 .sidebar > .region-head > .search-input { flex: 1; min-width: 0 }
 .search-results { padding-bottom: var(--space-2) }
 .search-results .region-head.group:first-child { margin-top: 0 }

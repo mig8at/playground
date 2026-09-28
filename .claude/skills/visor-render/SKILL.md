@@ -17,10 +17,11 @@ Smartpay), y adentro están directamente **sus pantallas** en los carriles del d
 
 La página del archivo arranca sola: la que se llama «Flujo» o «Flow» (así las nombran los siete de
 producto) o, si no hay, la primera que no sea portada, benchmark ni prototipo. **Las demás páginas son
-pestañas en el pie**, como las hojas de Excel, **menos la portada**, que no tiene nada que mirar (Miguel, 2026-09-28): App Creditop tiene el recorrido en
-«✏️ Flujo» y la versión Q3 en «App_Q3_2026_v1.0». Una pestaña trae su página al centro y al bloque de la
-barra, se lee de Figma al tocarla —una de benchmark puede ser enorme— y la ruta la nombra con `?nodo=`.
-Las páginas NO van en la barra: Miguel quiere ver el recorrido, no «Cover · Benchmark · Flujo».
+pestañas ADENTRO del bloque de su proyecto**, una fila chica entre su cabecera y sus carriles, menos la
+portada, que no tiene nada que mirar (Miguel, 2026-09-28): App Creditop tiene el recorrido en «✏️ Flujo» y
+la versión Q3 en «App_Q3_2026_v1.0». Una pestaña trae su página al bloque y al centro, se lee de Figma al
+tocarla —una de benchmark puede ser enorme— y la ruta la nombra con `?nodo=`. ⚠ Estuvieron primero en el
+pie, como las hojas de Excel, y se movieron el mismo día: ahí no se veía de qué proyecto eran. Las páginas NO son otro nivel del acordeón: Miguel quiere ver el recorrido, no «Cover · Benchmark · Flujo»; la fila de pestañas sólo elige cuál.
 
 **El buscador** es la lupa de la cabecera de la barra IZQUIERDA (Miguel lo pidió ahí, no en la derecha): la
 lupa vuelve la cabecera un campo, y mientras haya algo escrito los resultados toman el lugar de los
