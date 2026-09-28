@@ -4,6 +4,7 @@ title: "Código de preaprobado de la app en la plataforma nueva"
 ramas: feat/CORE-614-codigo-preaprobado-app, feat/CORE-614-codigo-app-solo-colombia, feat/codigo-alfanumerico-en-main
 stage: work
 created: "2026-09-21T16:40:00-05:00"
+archived: "2026-09-28T10:10:00-05:00"
 canon: [preaprobado, listado, onboarding, creditopx]
 jira: [CORE-614]
 jira_title: "Código de preaprobado de la app en la plataforma nueva"
@@ -57,8 +58,9 @@ jira_title: "Código de preaprobado de la app en la plataforma nueva"
       camino viejo, que se apaga, no se arregla.
 - [x] Llevar a `main` los tres PRs de la tarea (backend #1455, front #1045 y #1049) — en `main` y en
       producción: legacy-backend `v0.5.39`…`v0.5.47` y el wizard `v1.10.14`…`v1.10.21` (2026-09-28).
-- [ ] Graduar a canon lo que la tarea cambió (la pantalla del código, el canje y el recorte del listado) y
-      archivar la tarea. Termina cuando canon lo cite desde `main` y la tarea tenga `archived`.
+- [x] Graduar a canon lo que la tarea cambió — el canje y el recorte ya estaban en `onboarding` y
+      `preaprobado`; se agregó el emisor (comercio, reuso y vencimiento) en `onboarding`, revisión 163
+      (2026-09-28). Tarea archivada.
 
 ## Objetivo
 
