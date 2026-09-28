@@ -35,7 +35,7 @@ tener la herramienta: es suponer que no está y contestar de memoria.
 | Tu pregunta | Con qué se contesta |
 |---|---|
 | **no conozco el dominio** · **¿cómo funciona X?** | **canon, siempre primero**: `make canon-search Q='…'` con palabras del negocio (gratis) → `make canon-read IDS=…`, el tema entero |
-| **retomo una tarea del tablero** | `make retomar N=… BRIEF=1`: la tarea ya declara sus temas en `canon:` y la ficha de cada uno alcanza para decidir cuál abrir. Si la ficha no contesta, no probés otro tema: la pregunta va al código de `main` |
+| **retomo una tarea del tablero** | `make retomar N=… BRIEF=1`: la tarea ya declara sus temas en `canon:` y la ficha de cada uno alcanza para decidir cuál abrir. `CANON=1` trae ya las secciones enteras de esos temas que el título y el resumen de la tarea encuentran (sin modelo), y avisa si declara un tema que canon no tiene. Si la ficha no contesta, no probés otro tema: la pregunta va al código de `main` |
 | **¿ya nos pasó?** | `tablero/data/traps/doc.md`, entrando por su índice de síntomas |
 | **¿por qué existe esta regla?** (política, contrato, qué se le ofreció al comercio) | `make confluence`: el porqué del negocio no está en el código |
 | **canon no lo cubre** · **¿qué archivos toco?** | el código de `main` con `git grep` contra la rama, nunca el working tree. La ref de cada repo: `go run ./cmd/repos ref <alias>` desde `tablero/server`. **En los dos monolitos**, o la afirmación sale falsa con evidencia real. Para verificar una afirmación, delegala al subagente **`main-verifier`**: mira los dos, sin tocar nada, y devuelve veredicto con archivo:línea |
