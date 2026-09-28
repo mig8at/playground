@@ -19,9 +19,11 @@ ramas: fix/CORE-653-credifamilia-monto-total
   Depende de: producto / Credifamilia — y si el SOAP acepta decimales en ese campo (hoy se manda entero).
 - [ ] Confirmar qué va con fianza **Mensual/Vencida**; termina cuando esté escrito si `montoTotalCredito = montoSolicitado` (lo que ya hace el motor: la fianza no se financia, se cobra por cuota) o si también suma fianza.
   Depende de: producto
+- [ ] Alinear el redondeo del voucher con el del SOAP; termina cuando el «Total a financiar» y `montoTotalCredito` den el mismo entero (hoy 2.430.113 vs 2.430.114: el formateador de documentos trunca, el SOAP aproxima arriba). Se hace sólo para ese campo de Credifamilia, no en el formateador compartido.
+  Depende de: la decisión de redondeo de arriba.
 - [ ] Implementar en `legacy-backend` el cálculo de `montoTotalCredito` para la radicación; termina cuando el SOAP de una solicitud Anticipada lleve monto + total fianza, con una prueba unitaria que reproduzca el ejemplo del alcance ($5.223.964 → $6.343.651,72 o lo que se decida arriba).
 - [ ] Alinear el motor del plan de pagos si la base del 4x1000 cambia; termina cuando voucher («Total a financiar»), plan de cuotas y SOAP den el mismo total para el mismo caso.
-- [ ] Correr en local una solicitud Credifamilia con fianza Anticipada hasta la radicación contra el mock SOAP; termina cuando el log `credifamilia.consumo.soap_payload` de esa solicitud muestre el total correcto.
+- [x] Correr en local una solicitud Credifamilia con fianza Anticipada hasta la radicación contra el mock SOAP — 3/3 en estado 11 con CREDIT_COMPLETED y `montoTotalCredito` 2.430.114 para 2.000.000 (ver la pila).
 - [ ] Escribir la publicable y pasarla por el guard antes de que Miguel la vea.
 
 ## Objetivo

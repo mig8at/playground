@@ -61,15 +61,15 @@ function txData(key, amount) {
             //     (1,0182^12 − 1) × 100 ≈ 24,18
             //   · `max_amount` = 12.000.000, el tope de su línea de crédito
             //
-            // ⚠ NO MEDIDO — valores plausibles, no reales: `guarantee_percentage`,
-            // `life_insurance_percentage` y `guarantee_type`. Vienen del microservicio externo y no
-            // quedan guardados en nuestra base, así que no hay contra qué compararlos. Si algún día
+            // ⚠ NO MEDIDO — valor plausible, no real: `life_insurance_percentage`. `guarantee_type` y
+            // `guarantee_percentage` sí se midieron: la respuesta queda en `logs`
+            // (name='credifamilia.pre-approval.check'). Si algún día
             // importan para lo que se está probando, sacalos de una respuesta real y actualizá esto.
             return {
                   annual_effective_rate: 24.18,      // medido (derivado del 1,82 % mensual)
                   max_amount: 12000000,              // medido (tope de la línea de crédito)
-                  guarantee_type: "2",               // NO medido — '2' = FIANZA_ANTICIPADA
-                  guarantee_percentage: 3,           // NO medido
+                  guarantee_type: "2",               // medido — '2' = FIANZA_ANTICIPADA (22 radicaciones en prod, 2026-09-28)
+                  guarantee_percentage: 0.18,        // medido — DECIMAL (0.18 = 18 %) en logs credifamilia.pre-approval.check de prod
                   life_insurance_percentage: 0.1,    // NO medido
             };
       }
