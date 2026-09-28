@@ -361,7 +361,12 @@ async function runSearch(key, q) {
   searchState.value = 'loading'
   try {
     const res = await fetch('/api/search?' + new URLSearchParams({ key, q }))
-    const body = await res.json()
+    // Un server de antes del buscador contesta «404 page not found» en texto: se dice eso, no un error de JSON.
+    const text = await res.text()
+    let body
+    try { body = JSON.parse(text) } catch {
+      throw new Error(res.status === 404 ? 'el server del visor es de antes del buscador: reiniciá `make visor`' : `respuesta inesperada del server (HTTP ${res.status})`)
+    }
     if (q !== searchQ.value.trim() || key !== data.value?.key) return
     if (!res.ok) throw new Error(body.error || `HTTP ${res.status}`)
     searchResult.value = body
