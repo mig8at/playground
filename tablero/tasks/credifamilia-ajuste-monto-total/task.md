@@ -4,8 +4,9 @@ title: "Credifamilia alcance desarrollo: ajuste monto total"
 stage: evaluation
 created: "2026-09-28T12:00:00-05:00"
 canon: [credifamilia/context#autorizada-no-es-radicada-el-estado-no-prueba-que-llego-al-proveedor, credifamilia/context#es-un-hibrido-y-esa-palabra-evita-dos-errores]
-jira: []
+jira: [CORE-653]
 jira_title: "Credifamilia alcance desarrollo: ajuste monto total"
+ramas: fix/CORE-653-credifamilia-monto-total
 ---
 
 # Credifamilia alcance desarrollo: ajuste monto total
@@ -117,6 +118,7 @@ suite `harness/suites/credifamilia.json`) + `bin/mock-credifamilia start` y
 - Alcance: «Alcance - Ajuste Campo MontoTotal Crédito» (PDF de Credifamilia/producto, en Downloads de Miguel).
 - CORE-127 (`datos-erroneos-voucher-credifamilia`): cuando el voucher pasó a salir del motor y se agregó el 4x1000.
 - Canon no documenta todavía la fianza ni el total a financiar de Credifamilia: al mergear, gradúa.
+
 
 
 ## Tarea (publicable)
