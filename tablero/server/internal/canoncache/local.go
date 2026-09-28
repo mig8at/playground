@@ -68,37 +68,59 @@ var accents = strings.NewReplacer("á", "a", "é", "e", "í", "i", "ó", "o", "�
 
 func fold(s string) string { return accents.Replace(strings.ToLower(s)) }
 
+// LocalTopic es un tema entero: su título, lo que va antes de la primera sección, y las secciones.
+type LocalTopic struct {
+	ID       string         `json:"id"` // tema/context
+	Title    string         `json:"title"`
+	Intro    string         `json:"intro"`
+	Sections []LocalSection `json:"sections"`
+}
+
 // ReadTopic parte la prosa de un tema en sus secciones (`## título`).
 func ReadTopic(dir, topic string) ([]LocalSection, error) {
+	t, err := ReadTopicDoc(dir, topic)
+	return t.Sections, err
+}
+
+// ReadTopicDoc lee un tema entero de la copia. `topic` acepta `kyc`, `kyc/context` o `kyc/context#ancla`.
+func ReadTopicDoc(dir, topic string) (LocalTopic, error) {
+	topic, _, _ = strings.Cut(topic, "#")
 	raw, err := os.ReadFile(TopicPath(dir, topic))
 	if err != nil {
-		return nil, err
+		return LocalTopic{}, err
 	}
 	name, kind, ok := strings.Cut(topic, "/")
 	if !ok {
 		kind = "context"
 	}
-	var out []LocalSection
+	out := LocalTopic{ID: name + "/" + kind}
 	var cur *LocalSection
-	var body []string
+	var body, intro []string
 	flush := func() {
 		if cur != nil {
 			cur.Text = strings.TrimSpace(strings.Join(body, "\n"))
-			out = append(out, *cur)
+			out.Sections = append(out.Sections, *cur)
 		}
 	}
 	for _, line := range strings.Split(string(raw), "\n") {
 		if title, ok := strings.CutPrefix(line, "## "); ok {
 			flush()
 			title = strings.TrimSpace(title)
-			cur, body = &LocalSection{ID: name + "/" + kind + "#" + anchorOf(title), Title: title}, nil
+			cur, body = &LocalSection{ID: out.ID + "#" + anchorOf(title), Title: title}, nil
 			continue
 		}
 		if cur != nil {
 			body = append(body, line)
+			continue
 		}
+		if title, ok := strings.CutPrefix(line, "# "); ok && out.Title == "" {
+			out.Title = strings.TrimSpace(title)
+			continue
+		}
+		intro = append(intro, line)
 	}
 	flush()
+	out.Intro = strings.TrimSpace(strings.Join(intro, "\n"))
 	return out, nil
 }
 

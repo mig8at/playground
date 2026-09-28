@@ -16,7 +16,14 @@ const props = defineProps({
   canonRouteLink: { type: Function, default: () => '' },
   jiraLink: { type: Function, required: true },
 });
-const emit = defineEmits(['block']);
+const emit = defineEmits(['block', 'canon']);
+/* Un enlace de canon abre la sección en la pestaña «Canon» de la tarea —leída de la copia local—, no en
+ * canon de producción. Con Cmd/Ctrl/Shift o la ruedita se respeta el navegador: ahí sí va a la web. */
+const onLinkClick = (event, part) => {
+  if (part.kind !== 'canon' || event.metaKey || event.ctrlKey || event.shiftKey || event.button !== 0) return;
+  event.preventDefault();
+  emit('canon', part.ref);
+};
 const parts = computed(() => inlineParts(props.text));
 const hrefOf = (part) => {
   if (part.kind === 'canon') return props.canonLink(part.ref);
@@ -38,7 +45,7 @@ const titleOf = (part) => {
 </script>
 
 <template>
-  <template v-for="(part, index) in parts" :key="index"><code v-if="part.type === 'code'" class="inline-code">{{ part.value }}</code><strong v-else-if="part.type === 'strong'">{{ part.value }}</strong><button v-else-if="part.type === 'link' && part.kind === 'block'" type="button" class="ref ref-block" @click="emit('block', part.id)">{{ part.label }}</button><component :is="hrefOf(part) ? 'a' : 'span'" v-else-if="part.type === 'link'" class="ref" :class="'ref-' + part.kind" :href="hrefOf(part) || undefined" :title="titleOf(part)" :target="hrefOf(part) ? '_blank' : undefined" :rel="hrefOf(part) ? 'noopener' : undefined"><span v-if="part.kind === 'repo' || part.kind === 'pr'" class="ref-source">{{ part.repo }} · </span><span v-else-if="part.kind === 'visor'" class="ref-source">diseño · </span>{{ part.label }}</component><template v-else>{{ part.value }}</template></template>
+  <template v-for="(part, index) in parts" :key="index"><code v-if="part.type === 'code'" class="inline-code">{{ part.value }}</code><strong v-else-if="part.type === 'strong'">{{ part.value }}</strong><button v-else-if="part.type === 'link' && part.kind === 'block'" type="button" class="ref ref-block" @click="emit('block', part.id)">{{ part.label }}</button><component :is="hrefOf(part) ? 'a' : 'span'" v-else-if="part.type === 'link'" class="ref" :class="'ref-' + part.kind" :href="hrefOf(part) || undefined" :title="titleOf(part)" :target="hrefOf(part) ? '_blank' : undefined" :rel="hrefOf(part) ? 'noopener' : undefined" @click="onLinkClick($event, part)"><span v-if="part.kind === 'repo' || part.kind === 'pr'" class="ref-source">{{ part.repo }} · </span><span v-else-if="part.kind === 'visor'" class="ref-source">diseño · </span>{{ part.label }}</component><template v-else>{{ part.value }}</template></template>
 </template>
 
 <style scoped>

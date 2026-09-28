@@ -222,6 +222,7 @@ func main() {
 	mux.HandleFunc("/api/config", a.config)
 	mux.HandleFunc("/api/canon/route", a.canonRoute)
 	mux.HandleFunc("/api/canon/status", a.canonStatusHandler)
+	mux.HandleFunc("/api/canon/topic", a.canonTopic)
 
 	// ARTIFACTS de las tareas: `/artifacts/<slug>/<archivo>` sirve `tasks/<slug>/artifacts/<archivo>`,
 	// tal cual, para que el tablero los abra en una pestaña. Los sirve este server y no uno aparte a
