@@ -207,15 +207,20 @@ async function addToLibrary() {
   const ok = await loadLibrary(false, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ url: addURL.value.trim() }) })
   if (ok) { addURL.value = ''; adding.value = false }
 }
-// ── el mapa de cada bloque ──
-// Un bloque abierto muestra directamente las PANTALLAS de su flujo, no las páginas del archivo: Miguel
-// no quiere ver «Cover · Benchmark · Flujo», quiere el recorrido. La página se elige sola: la que se
-// llama «Flujo» o «Flow» (así las nombran los siete archivos de producto); si no hay, la primera que no
-// sea portada, benchmark ni prototipo.
-const maps = ref({}) // clave → la respuesta de /api/map de la página que muestra su bloque
+// ── el ÁRBOL de cada bloque: Proyecto › Página › Sección › pantallas ──
+// Un bloque abierto muestra el archivo como lo organizó el diseñador, por los niveles que tienen NOMBRE: las
+// páginas (sin la portada) y adentro sus secciones, plegables, con las pantallas en el orden de sus carriles.
+// El carril no es un nivel: con rótulo es un subtítulo, y sin rótulo —la mayoría: 46 de 71 en el Flujo de App
+// Creditop— una raya fina. Un archivo de una sola página se salta ese nivel. (Miguel, 2026-09-28: primero
+// fueron pestañas en el pie y después adentro del bloque; no se leían como parte del proyecto.)
+// La página de flujo arranca abierta y es la que abre el bloque al centro; las demás se leen de Figma al
+// abrirlas (una de benchmark puede ser enorme). Las secciones arrancan PLEGADAS, salvo la de la pantalla que
+// se está mirando. La ruta nombra otra página con `?nodo=<página>`.
+const maps = ref({}) // clave → el mapa de su página de flujo: lo que el bloque pone al centro
 const flowNodes = {} // clave → el id de su página de flujo: una ruta sin `nodo` se refiere a ella
-// clave → la página elegida en las pestañas del pie. Sin elegir, el bloque muestra la de flujo.
-const blockPage = {}
+const pageMaps = ref({}) // clave|página → la respuesta de /api/map · 'loading' · { error }
+const pageKey = (key, page) => key + '|' + page
+const keepPageMap = (key, body) => { pageMaps.value = { ...pageMaps.value, [pageKey(key, body.node)]: body } }
 // clave → las pantallas de su página de flujo. La ruta lleva `?nodo=` sólo si la pantalla NO está ahí:
 // una sección pegada a mano casi siempre vive adentro de la página de flujo, y entonces sobra.
 const flowIDs = ref({})
@@ -242,11 +247,13 @@ const reSkipPage = /cover|portada|bench|bechmarck|prototipo|prototype|archivo|ar
 function flowPage(pages) {
   return pages.find((p) => reFlowPage.test(p.name)) || pages.find((p) => !reSkipPage.test(p.name)) || pages[0] || null
 }
+// La portada no es un nivel del árbol: es la tapa del archivo, no tiene pantallas que mirar (Miguel, 2026-09-28).
+const reCoverPage = /cover|portada/i
+const pagesFor = (key) => (pagesOf.value[key]?.pages || []).filter((x) => !reCoverPage.test(x.name))
+const isPageNode = (key, node) => node === flowNodes[key] || pagesFor(key).some((p) => p.id === node)
 async function openFlow(key, fresh = false) {
-  // Lo que hay en memoria puede ser una sección pegada a mano: el bloque muestra la página de flujo, o la
-  // que se eligió en las pestañas.
-  const want = blockPage[key] || flowNodes[key]
-  if (maps.value[key] && want && maps.value[key].node === want && !fresh) return
+  // Lo que hay en memoria puede ser una sección pegada a mano: el bloque pone al centro la página de flujo.
+  if (maps.value[key] && maps.value[key].node === flowNodes[key] && !fresh) return
   mapState.value = { ...mapState.value, [key]: 'loading' }
   try {
     await loadPages(key)
@@ -254,13 +261,14 @@ async function openFlow(key, fresh = false) {
     const page = flowPage(pages)
     if (!page) throw new Error(pagesOf.value[key]?.error || 'el archivo no tiene páginas')
     flowNodes[key] = page.id
-    const target = blockPage[key] || page.id
-    const q = new URLSearchParams({ ref: figmaRef(key, target) })
+    const q = new URLSearchParams({ ref: figmaRef(key, page.id) })
     if (fresh) q.set('fresh', '1')
     const res = await fetch('/api/map?' + q)
     const body = await res.json()
     if (!res.ok) throw new Error(body.error || `HTTP ${res.status}`)
     maps.value = { ...maps.value, [key]: body }
+    keepPageMap(key, body)
+    openNode('p:' + pageKey(key, page.id))
     rememberFlow(key, body.structure)
     const { [key]: _, ...rest } = mapState.value
     mapState.value = rest
@@ -268,12 +276,45 @@ async function openFlow(key, fresh = false) {
     // un error a la vista (una ruta a un proyecto que no está) no: el bloque que se recordaba abierto lo
     // tapaba y la ruta quedaba reescrita a otro proyecto sin avisar. Mientras una ruta manda tampoco: la
     // pantalla la elige la ruta, y si no se pudo abrir su aviso queda a la vista hasta que se toque otra.
-    // Y si al centro hay una sección de OTRA página del mismo archivo (pegada, o de una ruta con `nodo`),
-    // se queda: releer el bloque no la reemplaza por la página de flujo.
-    const showingBlock = data.value?.key === key && data.value.node === target
-    if (!routeHold && ((!data.value && !error.value) || showingBlock)) activate(key)
+    // Y si al centro hay otra página o una sección del mismo archivo, se queda: releer no la reemplaza.
+    const showingFlow = data.value?.key === key && data.value.node === page.id
+    if (!routeHold && ((!data.value && !error.value) || showingFlow)) activate(key)
   } catch (e) {
     mapState.value = { ...mapState.value, [key]: { error: String(e.message || e) } }
+  }
+}
+// loadPageMap lee UNA página del archivo sin tocar el centro: la usa el árbol al abrirla.
+async function loadPageMap(key, pageID, fresh = false) {
+  const k = pageKey(key, pageID)
+  const have = pageMaps.value[k]
+  if (have === 'loading') {
+    // Ya se está pidiendo: se espera a ese pedido en vez de hacer otro.
+    while (pageMaps.value[k] === 'loading') await new Promise((r) => setTimeout(r, 100))
+    return pageMaps.value[k]?.structure ? pageMaps.value[k] : null
+  }
+  if (have?.structure && !fresh) return have
+  pageMaps.value = { ...pageMaps.value, [k]: 'loading' }
+  try {
+    const q = new URLSearchParams({ ref: figmaRef(key, pageID) })
+    if (fresh) q.set('fresh', '1')
+    const res = await fetch('/api/map?' + q)
+    const body = await res.json()
+    if (!res.ok) throw new Error(body.error || `HTTP ${res.status}`)
+    pageMaps.value = { ...pageMaps.value, [k]: body }
+    return body
+  } catch (e) {
+    pageMaps.value = { ...pageMaps.value, [k]: { error: String(e.message || e) } }
+    return null
+  }
+}
+// «Volver a leer» del bloque: la página de flujo y las demás que ya se abrieron. Si al centro hay una de
+// ellas, queda la versión nueva en la misma pantalla.
+async function refreshProject(key) {
+  const others = pagesFor(key).map((p) => p.id).filter((id) => id !== flowNodes[key] && pageMaps.value[pageKey(key, id)]?.structure)
+  await openFlow(key, true)
+  for (const id of others) {
+    const body = await loadPageMap(key, id, true)
+    if (body && data.value?.key === key && data.value.node === id) data.value = body
   }
 }
 function activate(key, screen = '') {
@@ -285,49 +326,103 @@ function activate(key, screen = '') {
   go(screen && screens.value.has(screen) ? screen : (screens.value.has(currentID.value) ? currentID.value : first), false)
   writeRoute()
 }
-// Tocar una pantalla de un bloque que no es el que está al centro lo trae al centro.
-function pick(key, id) {
+// showPage pone una página al centro, en `screen` o en su primera pantalla.
+function showPage(key, body, screen = '') {
   routeHold = false
-  if (!data.value || data.value.key !== key) activate(key, id)
-  else go(id)
+  error.value = ''
+  const same = data.value?.key === key && data.value.node === body.node
+  if (!same) { data.value = body; trail.value = []; currentID.value = '' }
+  const first = groups.value[0]?.lanes[0]?.screens[0]?.id || ''
+  if (screen && screens.value.has(screen)) go(screen, same)
+  else if (!same) go(first, false)
+  writeRoute()
 }
-// ── las PÁGINAS del archivo, como pestañas adentro del bloque de su proyecto ──
-// El bloque arranca en la página de flujo; una pestaña trae otra página del mismo archivo al bloque y al
-// centro. Van ADENTRO del proyecto y no en el pie (Miguel, 2026-09-28): en el pie no se veía de qué archivo
-// eran, y una página es del proyecto, no de la ventana. Cada página se lee de Figma al tocarla (una de benchmark puede ser enorme) y queda en memoria.
-// La ruta la nombra con `?nodo=<página>`, el mismo parámetro que ya usaba una sección pegada: los enlaces
-// de antes siguen abriendo.
-const pageBusy = ref('') // la página que se está leyendo
-const pageError = ref('')
-// La portada no lleva pestaña: es la tapa del archivo, no tiene pantallas que mirar (Miguel, 2026-09-28).
-const reCoverPage = /cover|portada/i
-const pagesFor = (key) => (pagesOf.value[key]?.pages || []).filter((x) => !reCoverPage.test(x.name))
+// Tocar una pantalla del árbol la trae al centro con su página.
+function pick(key, pageID, id) {
+  const body = pageMaps.value[pageKey(key, pageID)]
+  if (body?.structure) showPage(key, body, id)
+}
+// openPage lee una página (si hace falta) y la pone al centro: la usan el buscador y una ruta vieja.
 async function openPage(key, pageID, screen = '') {
-  routeHold = false
-  pageError.value = ''
-  if (data.value?.key === key && data.value.node === pageID) { if (screen) go(screen); return }
-  pageBusy.value = pageID
-  try {
-    const res = await fetch('/api/map?' + new URLSearchParams({ ref: figmaRef(key, pageID) }))
-    const body = await res.json()
-    if (!res.ok) throw new Error(body.error || `HTTP ${res.status}`)
-    // Si mientras se leía se tocó otra pestaña, gana la última.
-    if (pageBusy.value !== pageID) return
-    blockPage[key] = pageID
-    maps.value = { ...maps.value, [key]: body }
-    error.value = ''
-    data.value = body
-    trail.value = []
-    currentID.value = ''
-    const first = groups.value[0]?.lanes[0]?.screens[0]?.id || ''
-    go(screen && screens.value.has(screen) ? screen : first, false)
-    writeRoute()
-  } catch (e) {
-    if (pageBusy.value === pageID) pageError.value = { key, message: String(e.message || e) }
-  } finally {
-    if (pageBusy.value === pageID) pageBusy.value = ''
-  }
+  openNode('p:' + pageKey(key, pageID))
+  const body = await loadPageMap(key, pageID)
+  if (body) showPage(key, body, screen)
+  else error.value = pageMaps.value[pageKey(key, pageID)]?.error || 'No se leyó la página.'
 }
+
+// Qué está abierto en el árbol: 'p:<clave>|<página>' y 's:<clave>|<página>|<sección>'.
+const treeOpen = ref(new Set())
+const isOpen = (id) => treeOpen.value.has(id)
+function openNode(id) { if (!treeOpen.value.has(id)) treeOpen.value = new Set([...treeOpen.value, id]) }
+function toggleNode(id) {
+  const s = new Set(treeOpen.value)
+  if (s.has(id)) s.delete(id); else s.add(id)
+  treeOpen.value = s
+}
+function togglePage(key, pageID) {
+  toggleNode('p:' + pageKey(key, pageID))
+  if (isOpen('p:' + pageKey(key, pageID))) loadPageMap(key, pageID)
+}
+// La pantalla que se mira abre su página y sus secciones. Sólo abre: lo que se plegó a mano se queda así
+// mientras no se cambie de pantalla.
+watch(() => [data.value?.key, data.value?.node, currentID.value], ([key, node, id]) => {
+  if (!key || !id || !isPageNode(key, node)) return
+  const path = []
+  const find = (x, trail) => {
+    if ((x.lanes || []).some((l) => l.screens.some((sc) => sc.id === id))) { path.push(...trail); return true }
+    return (x.sections || []).some((sub) => find(sub, [...trail, sub.id]))
+  }
+  if (!find(data.value.structure, [])) return
+  const ids = ['p:' + pageKey(key, node), ...path.map((sid) => 's:' + pageKey(key, node) + '|' + sid)]
+  if (ids.every((x) => treeOpen.value.has(x))) return
+  treeOpen.value = new Set([...treeOpen.value, ...ids])
+  nextTick(() => document.querySelector(`[data-screen="${CSS.escape(id)}"]`)?.scrollIntoView({ block: 'nearest' }))
+})
+const screensIn = (x) => (x.lanes || []).reduce((n, l) => n + l.screens.length, 0) + (x.sections || []).reduce((n, sub) => n + screensIn(sub), 0)
+// treeRows aplana el árbol de un proyecto a las filas que se ven, según qué está abierto.
+function treeRows(key) {
+  const out = []
+  const pages = pagesFor(key)
+  const multi = pages.length > 1
+  const list = multi ? pages : (flowNodes[key] ? [{ id: flowNodes[key], name: '' }] : [])
+  const pushLanes = (page, lanes, level) => lanes.forEach((lane, li) => {
+    if (lane.label) out.push({ type: 'lane', id: `l:${page}:${out.length}`, name: lane.label, count: lane.screens.length, level })
+    else if (li > 0) out.push({ type: 'sep', id: `r:${page}:${out.length}`, level })
+    lane.screens.forEach((sc, i) => out.push({ type: 'screen', id: `sc:${page}:${sc.id}:${out.length}`, page, sc, index: i + 1, level }))
+  })
+  const pushSection = (page, x, level) => {
+    const count = screensIn(x)
+    if (!count) return
+    const id = 's:' + pageKey(key, page) + '|' + x.id
+    const open = isOpen(id)
+    out.push({ type: 'section', id, name: x.name, count, open, level })
+    if (!open) return
+    pushLanes(page, x.lanes || [], level + 1)
+    for (const sub of x.sections || []) pushSection(page, sub, level + 1)
+  }
+  for (const p of list) {
+    const k = pageKey(key, p.id)
+    const m = pageMaps.value[k]
+    const level = multi ? 1 : 0
+    if (multi) {
+      const open = isOpen('p:' + k)
+      out.push({ type: 'page', id: 'p:' + k, page: p.id, name: p.name, open, level: 0,
+        count: m?.structure ? screensIn(m.structure) : null, busy: m === 'loading' })
+      if (!open) continue
+    }
+    if (!m || m === 'loading') { if (multi) out.push({ type: 'hint', id: 'h:' + k, text: 'Leyendo la página de Figma…', level }); continue }
+    if (m.error) { out.push({ type: 'error', id: 'e:' + k, text: m.error, level }); continue }
+    const before = out.length
+    pushLanes(p.id, m.structure.lanes || [], level)
+    for (const sub of m.structure.sections || []) pushSection(p.id, sub, level)
+    if (out.length === before) out.push({ type: 'hint', id: 'h:' + k, text: 'La página no tiene pantallas.', level })
+  }
+  return out
+}
+const indent = (level) => ({ paddingLeft: `calc(var(--space-2) + ${level} * var(--indent))` })
+// Una pantalla está elegida si es la del centro, en su página (o en la sección pegada que se esté mirando).
+const isCurrent = (key, page, id) => data.value?.key === key && currentID.value === id && (data.value.node === page || !isPageNode(key, data.value.node))
+
 // locatePage dice en qué página del archivo vive una pantalla (`/api/search?id=`): la primera vez lee todas
 // las páginas de Figma, y después salen de la caché del server.
 async function locatePage(key, screen) {
@@ -339,8 +434,8 @@ async function locatePage(key, screen) {
 }
 
 // ── BUSCAR pantallas en todas las páginas del archivo que está al centro ──
-// La lupa de la barra derecha: busca por lo que la pantalla dice (título), su capa, su carril, su sección y
-// su página (`/api/search`, server/pages.go). Un resultado de otra página la abre en su pestaña.
+// La lupa de la barra izquierda: busca por lo que la pantalla dice (título), su capa, su carril, su sección y
+// su página (`/api/search`, server/pages.go). Un resultado de otra página la abre en el árbol y al centro.
 const searching = ref(false)
 const searchQ = ref('')
 const searchInput = ref(null)
@@ -390,7 +485,14 @@ const searchGroups = computed(() => {
 })
 const openHit = (h) => openPage(data.value.key, h.page, h.id)
 
-const countOf = (key) => groupsFor(maps.value[key]?.structure).reduce((n, g) => n + g.lanes.reduce((m, l) => m + l.screens.length, 0), 0)
+// Las pantallas del proyecto: con varias páginas, la suma sólo cuando se leyeron todas —una suma de las
+// leídas se leería como el total—.
+function countOf(key) {
+  const pages = pagesFor(key)
+  if (pages.length <= 1) return maps.value[key]?.structure ? screensIn(maps.value[key].structure) : 0
+  const read = pages.map((p) => pageMaps.value[pageKey(key, p.id)]?.structure)
+  return read.every(Boolean) ? read.reduce((n, st) => n + screensIn(st), 0) : 0
+}
 // Los bloques que arrancan abiertos (se recuerdan entre visitas) cargan su flujo.
 watch(flows, (list) => { for (const f of list) if (openFiles.value.has(f.key)) openFlow(f.key) })
 
@@ -410,7 +512,7 @@ async function load(ref_ = refInput.value, screen = '', fresh = false) {
     data.value = body
     refInput.value = value
     learnFlow(body.key)
-    loadPages(body.key).then(() => { if ((pagesOf.value[body.key]?.pages || []).some((p) => p.id === body.node)) blockPage[body.key] = body.node })
+    loadPages(body.key).then(() => { if (isPageNode(body.key, body.node)) keepPageMap(body.key, body) })
     loadLibrary()
     if (!openFiles.value.has(body.key)) {
       const set = new Set([body.key]); openFiles.value = set; saveSet('visor.open-files', set)
@@ -979,7 +1081,6 @@ onUnmounted(() => {
   window.removeEventListener('popstate', onPopState)
 })
 
-const laneName = (lane) => (lane.label ? lane.label : 'Fila sin rótulo')
 </script>
 
 <template>
@@ -1030,38 +1131,35 @@ const laneName = (lane) => (lane.label ? lane.label : 'Fila sin rótulo')
           <button type="button" class="view-tog" :aria-expanded="isOpenFile(f.key)" :aria-controls="'flow-' + f.key" @click="toggleFile(f.key)">
             <span class="ui-icon" data-icon="chevron" aria-hidden="true"></span><span>{{ f.name }}</span>
           </button>
-          <span v-if="countOf(f.key)" class="count" :title="countOf(f.key) + ' pantallas en el flujo'">{{ countOf(f.key) }}</span>
+          <span v-if="countOf(f.key)" class="count" :title="countOf(f.key) + ' pantallas en el archivo'">{{ countOf(f.key) }}</span>
           <div v-if="maps[f.key]" class="region-actions">
-            <button class="region-action" title="Volver a leer el flujo desde Figma" aria-label="Volver a leer" @click="openFlow(f.key, true)">
+            <button class="region-action" title="Volver a leer desde Figma las páginas abiertas" aria-label="Volver a leer" @click="refreshProject(f.key)">
               <span class="ui-icon" data-icon="refresh" aria-hidden="true"></span>
             </button>
           </div>
         </div>
-        <!-- Las páginas del archivo, cuando tiene más de una: el bloque muestra los carriles de la elegida. -->
-        <div v-if="isOpenFile(f.key) && pagesFor(f.key).length > 1" class="page-tabs" role="tablist" :aria-label="'Páginas de ' + f.name">
-          <button v-for="p in pagesFor(f.key)" :key="p.id" type="button" role="tab" class="page-tab" :class="{ busy: pageBusy === p.id }"
-            :aria-selected="maps[f.key]?.node === p.id" :title="pageBusy === p.id ? 'Leyendo la página de Figma…' : 'Página «' + p.name + '»'"
-            @click="openPage(f.key, p.id)">{{ p.name }}</button>
-        </div>
-        <div v-if="isOpenFile(f.key) && pageError && pageError.key === f.key" class="alert alert-destructive" role="alert"><div class="alert-desc">No se leyó la página: {{ pageError.message }}</div></div>
-        <div v-if="isOpenFile(f.key)" :id="'flow-' + f.key" class="region-body">
+        <!-- El árbol del archivo, aplanado a filas (treeRows): página y sección se pliegan con su flecha, el
+             carril con rótulo es un subtítulo y el que no tiene, una raya. -->
+        <div v-if="isOpenFile(f.key)" :id="'flow-' + f.key" class="region-body tree">
           <p v-if="mapState[f.key] === 'loading'" class="hint">Leyendo el flujo…</p>
           <div v-else-if="mapState[f.key]?.error" class="alert alert-destructive" role="alert"><div class="alert-desc">{{ mapState[f.key].error }}</div></div>
-          <p v-else-if="maps[f.key] && !countOf(f.key)" class="hint">La página «{{ maps[f.key].structure?.name }}» no tiene pantallas.</p>
-          <!-- Arriba de los carriles, la hoja de tokens del proyecto: se abre en el centro. -->
-          <template v-for="g in groupsFor(maps[f.key]?.structure)" :key="g.id">
-            <div v-if="groupsFor(maps[f.key]?.structure).length > 1" class="section-name">{{ g.name }}</div>
-            <template v-for="(lane, li) in g.lanes" :key="g.id + '-' + li">
-              <div class="region-head group" :class="{ unlabeled: !lane.label }">
-                <span>{{ laneName(lane) }}</span><span class="count">{{ lane.screens.length }}</span>
-              </div>
-              <!-- Una pantalla es una fila de la base (`.row`, 28), con su número de orden adelante. -->
-              <button v-for="(sc, i) in lane.screens" :key="sc.id" type="button" class="row" :data-screen="sc.id"
-                :class="{ on: data && data.key === f.key && sc.id === currentID }"
-                :aria-current="data && data.key === f.key && sc.id === currentID ? 'true' : undefined" @click="pick(f.key, sc.id)">
-                <small class="row-index">{{ i + 1 }}</small>
-                <span>{{ sc.title || sc.name }}</span>
-                
+          <template v-else>
+            <template v-for="r in treeRows(f.key)" :key="r.id">
+              <button v-if="r.type === 'page' || r.type === 'section'" type="button" class="row tree-node" :class="'tree-' + r.type"
+                :style="indent(r.level)" :aria-expanded="r.open" @click="r.type === 'page' ? togglePage(f.key, r.page) : toggleNode(r.id)">
+                <span class="ui-icon" data-icon="chevron" aria-hidden="true"></span><span>{{ r.name }}</span>
+                <small v-if="r.count" class="row-meta">{{ r.count }}</small><small v-else-if="r.busy" class="row-meta">…</small>
+              </button>
+              <div v-else-if="r.type === 'lane'" class="tree-lane" :style="indent(r.level)"><span>{{ r.name }}</span><small>{{ r.count }}</small></div>
+              <div v-else-if="r.type === 'sep'" class="tree-sep" :style="indent(r.level)" aria-hidden="true"></div>
+              <p v-else-if="r.type === 'hint'" class="hint" :style="indent(r.level)">{{ r.text }}</p>
+              <p v-else-if="r.type === 'error'" class="hint tree-error" :style="indent(r.level)">No se leyó la página: {{ r.text }}</p>
+              <!-- Una pantalla es una fila de la base (`.row`, 28), con su número en el carril adelante. -->
+              <button v-else type="button" class="row" :data-screen="r.sc.id" :style="indent(r.level)"
+                :class="{ on: isCurrent(f.key, r.page, r.sc.id) }" :aria-current="isCurrent(f.key, r.page, r.sc.id) ? 'true' : undefined"
+                @click="pick(f.key, r.page, r.sc.id)">
+                <small class="row-index">{{ r.index }}</small>
+                <span>{{ r.sc.title || r.sc.name }}</span>
               </button>
             </template>
           </template>
@@ -1302,10 +1400,6 @@ const laneName = (lane) => (lane.label ? lane.label : 'Fila sin rótulo')
 .add-form .input { flex: 1 }
 .hint { margin: 0; padding: var(--space-3) var(--gutter); color: var(--fg-3); font-size: var(--text-sm) }
 .hint .mono { font-family: var(--font-mono); font-size: var(--text-xs) }
-/* El nombre de una sección cuando la página trae varias: por encima de los grupos de carriles, así que
-   no es otro encabezado de grupo (serían dos pegajosos compitiendo) sino un rótulo que scrollea. */
-.section-name { padding: var(--space-3) var(--gutter) var(--space-1); font-size: var(--text-xs); color: var(--fg-3) }
-.region-head.group.unlabeled > span:first-child { font-style: italic }
 
 /* El lienzo: la región no scrollea, la pantalla se arrastra. */
 .stage { position: relative; flex: 1; min-height: 0; overflow: hidden; cursor: grab; touch-action: none; user-select: none }
@@ -1354,19 +1448,19 @@ const laneName = (lane) => (lane.label ? lane.label : 'Fila sin rótulo')
 .plain-list { margin: 0; padding: 0 0 var(--space-2); list-style: none; font-size: var(--text-base) }
 .plain-list li { display: flex; align-items: center; min-height: var(--row-h); padding: 0 var(--gutter) }
 
-/* LAS PÁGINAS de un proyecto: una fila de pestañas chicas entre la cabecera del bloque y sus carriles. No
-   scrollea con la lista (el bloque sigue diciendo qué página muestra) y, si no entran, la fila se corre de
-   costado. La elegida lleva la tinta y la línea abajo, como las pestañas de la base, en tamaño de fila. */
-.page-tabs { display: flex; flex: none; gap: 2px; min-height: var(--row-h); padding: 0 var(--space-2); overflow-x: auto;
-  overflow-y: hidden; border-bottom: 1px solid var(--border); scrollbar-width: none }
-.page-tab { position: relative; flex: none; padding: 0 var(--space-2); border: 0; background: none; color: var(--fg-3);
-  font: inherit; font-size: var(--text-xs); white-space: nowrap; cursor: pointer }
-.page-tab:hover { color: var(--foreground) }
-.page-tab[aria-selected="true"] { color: var(--foreground) }
-.page-tab[aria-selected="true"]::after { content: ""; position: absolute; left: var(--space-2); right: var(--space-2); bottom: 0;
-  height: 2px; border-radius: 2px 2px 0 0; background: var(--primary) }
-.page-tab.busy { color: var(--fg-2); cursor: progress }
-.page-tab.busy::before { content: "…"; position: absolute; right: 0 }
+/* EL ÁRBOL de un proyecto. Página y sección son filas con flecha (la base la gira con `aria-expanded`); la
+   página pesa más que la sección, y ninguna se pega arriba: con dos niveles pegajosos competirían. El carril
+   con rótulo es un subtítulo chico, y el que no tiene, una raya: no es un nivel, sólo separa filas. */
+.tree-node .ui-icon { flex: none; width: 12px; height: 12px; color: var(--fg-3) }
+.tree-page { font-weight: 600 }
+.tree-section { color: var(--fg-2) }
+.tree-section[aria-expanded="true"] { color: var(--foreground) }
+.tree-lane { display: flex; align-items: baseline; gap: var(--space-2); margin: 0 var(--space-1); padding: var(--space-2) var(--space-2) var(--space-1);
+  font-size: var(--text-xs); color: var(--fg-3) }
+.tree-lane > span { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap }
+.tree-lane > small { flex: none; font-variant-numeric: tabular-nums }
+.tree-sep { height: 1px; margin: var(--space-1) var(--space-3); background-clip: content-box; background-color: var(--border) }
+.tree-error { color: var(--destructive) }
 /* El campo del buscador toma la banda de la barra izquierda, al lado de su lupa. */
 .sidebar > .region-head > .search-input { flex: 1; min-width: 0 }
 .search-results { padding-bottom: var(--space-2) }

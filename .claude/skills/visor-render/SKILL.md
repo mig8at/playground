@@ -16,18 +16,21 @@ Smartpay), y adentro están directamente **sus pantallas** en los carriles del d
 —con varios, cada bloque quedaba de dos renglones— y al final está «Sumar un flujo».
 
 La página del archivo arranca sola: la que se llama «Flujo» o «Flow» (así las nombran los siete de
-producto) o, si no hay, la primera que no sea portada, benchmark ni prototipo. **Las demás páginas son
-pestañas ADENTRO del bloque de su proyecto**, una fila chica entre su cabecera y sus carriles, menos la
-portada, que no tiene nada que mirar (Miguel, 2026-09-28): App Creditop tiene el recorrido en «✏️ Flujo» y
-la versión Q3 en «App_Q3_2026_v1.0». Una pestaña trae su página al bloque y al centro, se lee de Figma al
-tocarla —una de benchmark puede ser enorme— y la ruta la nombra con `?nodo=`. ⚠ Estuvieron primero en el
-pie, como las hojas de Excel, y se movieron el mismo día: ahí no se veía de qué proyecto eran. Las páginas NO son otro nivel del acordeón: Miguel quiere ver el recorrido, no «Cover · Benchmark · Flujo»; la fila de pestañas sólo elige cuál.
+producto) o, si no hay, la primera que no sea portada, benchmark ni prototipo. **El bloque es un ÁRBOL por los niveles que tienen nombre:
+Proyecto › Página › Sección › pantallas** (Miguel, 2026-09-28). Las páginas van sin la portada, que no tiene
+nada que mirar; la de flujo arranca abierta y las demás se leen de Figma al abrirlas —una de benchmark
+puede ser enorme—. Las secciones arrancan PLEGADAS, salvo la de la pantalla que se está mirando, y cada
+nivel dice cuántas pantallas tiene. El carril NO es un nivel: con rótulo es un subtítulo, y sin rótulo
+—46 de 71 en el Flujo de App Creditop, casi todos en su Prototipo— una raya fina; antes cada carril era un
+encabezado y la barra se llenaba de «Fila sin rótulo». Un archivo de una sola página se salta ese nivel.
+La ruta nombra otra página con `?nodo=`. ⚠ Antes del árbol fueron pestañas, primero en el pie y después
+adentro del bloque, el mismo día: ninguna de las dos se leía como parte del proyecto.
 
 **El buscador** es la lupa de la cabecera de la barra IZQUIERDA (Miguel lo pidió ahí, no en la derecha): la
 lupa vuelve la cabecera un campo, y mientras haya algo escrito los resultados toman el lugar de los
 proyectos. Busca pantallas en todas las páginas del archivo del centro (menos la portada),
 por título, capa, carril, sección y nombre de la página (`/api/search`, `server/pages.go`), agrupadas por
-página; un resultado de otra página la abre en su pestaña. Cada página se guarda en disco por versión,
+página; un resultado de otra página la abre en el árbol y al centro. Cada página se guarda en disco por versión,
 como la de flujo: la primera búsqueda en App Creditop tardó ~20–30 s. Después, lo leído queda en memoria
 un minuto (`pagesMemo`): sin eso cada palabra le preguntaba a Figma la versión y tardaba ~2,8 s; con eso,
 4–6 ms (medido el 2026-09-28). Por ahora busca sólo en el archivo abierto (Miguel, 2026-09-28). Al centro la pantalla —la imagen de
