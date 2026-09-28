@@ -52,11 +52,13 @@ jira_title: "Código de preaprobado de la app en la plataforma nueva"
       (imagen base de Go desde ECR Public: Docker Hub cortaba con 429). Dev lo sirve desde el 2026-09-24
       15:07; la página de QA tiene 125 códigos de 6 caracteres. ⚠ La infraestructura sigue fijando
       `v0.0.3` para dev: un `apply` futuro puede revertirlo hasta que se cambie ahí.
-- [ ] Que `main` de legacy-backend y de aliados acepten `AA0000`: con `v0.0.6` en prod los códigos nuevos
-      salen con letras y ahí todavía se exige `^\d{4}$` / `digits:4`.
-- [ ] Llevar a `main` los tres PRs de la tarea (backend #1455, front #1045 y #1049), hoy sólo en `qa`.
-      Es el único pendiente: el alcance está hecho y probado en `qa` (2026-09-24). Al llegar a `main`,
-      graduar a canon y archivar.
+- [x] Que `main` de legacy-backend acepte `AA0000` — `ClientCodeRedemptionService` acepta los dos
+      formatos y está desplegado en prod desde `v0.5.39` (2026-09-28). Aliados sigue en `digits:4`: es el
+      camino viejo, que se apaga, no se arregla.
+- [x] Llevar a `main` los tres PRs de la tarea (backend #1455, front #1045 y #1049) — en `main` y en
+      producción: legacy-backend `v0.5.39`…`v0.5.47` y el wizard `v1.10.14`…`v1.10.21` (2026-09-28).
+- [ ] Graduar a canon lo que la tarea cambió (la pantalla del código, el canje y el recorte del listado) y
+      archivar la tarea. Termina cuando canon lo cite desde `main` y la tarea tenga `archived`.
 
 ## Objetivo
 
