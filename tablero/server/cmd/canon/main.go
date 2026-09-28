@@ -1,6 +1,7 @@
 // canon lee y dicta canon, el corpus compartido de CreditOp, en un comando (`make canon-*`).
 //
 //	search "<palabras del negocio>"      qué sección y qué área lo cubren (gratis, sin modelo)
+//	map                                  los temas por etapa del crédito, con título y resumen (refresca la copia local)
 //	read <id>[,<id>…]                    secciones completas: `cuota/context#<ancla>` o el tema entero
 //	code <tema/capa> [n]                 los archivos que declara el área n del tema
 //	propose <pieza.json>                 dónde iría y qué le rechaza el lint. NO escribe
@@ -24,6 +25,8 @@ import (
 	"time"
 
 	"creditop/playground/connectors/canon"
+	"creditop/playground/tablero/server/internal/canoncache"
+	"creditop/playground/tablero/server/internal/layout"
 )
 
 func main() {
@@ -59,6 +62,8 @@ func main() {
 		err = write(ctx, client, args)
 	case "corpus":
 		err = corpus(ctx, client)
+	case "map":
+		err = topicMap(ctx, client)
 	default:
 		usage()
 	}
@@ -248,4 +253,28 @@ func clip(text string, n int) string {
 		return text
 	}
 	return string(runes[:n]) + "…"
+}
+
+/* topicMap: el mapa de canon que usa el tablero —los temas por etapa del crédito, con su título y resumen—,
+ * refrescando la copia local (gratis: si el corpus no cambió, canon contesta 304). Es lo que el hook de
+ * inicio resume en una línea por etapa. */
+func topicMap(ctx context.Context, client *canon.Client) error {
+	dir := filepath.Join(layout.Find().Data, "cache")
+	c, err := canoncache.Refresh(ctx, client, canon.URL(), dir, time.Now())
+	if len(c.Topics) == 0 {
+		if err != nil {
+			return fmt.Errorf("canon no respondió y no hay copia local (¿VPN de prod?): %w", err)
+		}
+		return fmt.Errorf("canon no devolvió temas")
+	}
+	state := "al día"
+	if err != nil {
+		state = "copia del " + c.CheckedAt.Local().Format("2006-01-02 15:04") + " — canon no respondió: " + err.Error()
+	}
+	fmt.Printf("\n  mapa de canon · %d temas · %s · %s\n\n%s\n\n", len(c.Topics), c.Source, state, c.Compact())
+	for _, t := range c.Topics {
+		fmt.Printf("  %-22s %s\n  %-22s %s\n", t.Topic, t.Title, "", t.Summary)
+	}
+	fmt.Println("\n  leer un tema entero: make canon-read IDS='<tema>' · buscar: make canon-search Q='…'")
+	return nil
 }

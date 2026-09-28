@@ -19,7 +19,10 @@ concreto vive al lado de ese algo, y se lee ahí:
 
 `make` sin argumentos lista todo lo que se puede correr, agrupado por para qué sirve, con los
 parámetros de cada uno. El hook `SessionStart` (`tablero/server/internal/hooks`) inyecta los NOMBRES al
-arrancar, al reanudar y después de compactar. Acá va lo que `make` no puede decir: **cuál elegir, y
+arrancar, al reanudar y después de compactar, y con ellos el **mapa de canon**: sus temas por etapa del
+crédito, desde una copia local del tablero que se revalida gratis (`make canon-mapa` da títulos y resúmenes).
+⛔ Canon se LEE (`canon-search`, `canon-read`, `canon-mapa`); `/api/ask` es para credibot y herramientas
+externas, no para trabajar desde acá. Acá va lo que `make` no puede decir: **cuál elegir, y
 contra qué ambiente**. Convención de nombres: los nombres propios se quedan (`tablero`, `harness`,
 `panel`) y los verbos van en inglés (`align`, `refs`, `seal`, `check`), como `proyecto-verbo`.
 

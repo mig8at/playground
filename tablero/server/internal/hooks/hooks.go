@@ -19,6 +19,7 @@
 package hooks
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -30,7 +31,9 @@ import (
 	"time"
 	"unicode/utf8"
 
+	"creditop/playground/connectors/canon"
 	"creditop/playground/lib/text"
+	"creditop/playground/tablero/server/internal/canoncache"
 )
 
 // Env es lo que un hook necesita saber de afuera.
@@ -225,7 +228,40 @@ func SessionStart(env Env) int {
 		fmt.Fprintln(env.Stdout)
 		fmt.Fprintln(env.Stdout, list)
 	}
+	fmt.Fprintln(env.Stdout)
+	fmt.Fprintln(env.Stdout, canonSection(env.Root, time.Now()))
 	return 0
+}
+
+// canonWait es lo que el arranque espera a canon: sin la VPN de prod no puede quedar colgado.
+const canonWait = 4 * time.Second
+
+/* canonSection: lo que canon ya sabe de CreditOp, por etapa del recorrido del crédito, desde la copia del
+ * tablero (`internal/canoncache`), revalidada contra canon si responde a tiempo. Es lo que hace que canon sea
+ * el contexto de partida y no algo que el agente tiene que acordarse de buscar: medido el 2026-09-27, en 53
+ * sesiones reales del mes no hubo UNA búsqueda en canon que llegara a correr. */
+func canonSection(root string, now time.Time) string {
+	dir := filepath.Join(root, "tablero", "data", "cache")
+	ctx, cancel := context.WithTimeout(context.Background(), canonWait)
+	defer cancel()
+	c, err := canoncache.Refresh(ctx, canon.FromEnv(), canon.URL(), dir, now)
+	if len(c.Topics) == 0 {
+		return "  MAPA DE CANON — no respondió y no hay copia local: con la VPN de prod, `make canon-mapa` la arma."
+	}
+	state := "al día"
+	if err != nil {
+		state = "copia del " + c.CheckedAt.Local().Format("2006-01-02 15:04") + ": canon no respondió"
+	}
+	return formatCanon(c, state)
+}
+
+// formatCanon es la sección tal como la ve el agente (aparte para que la prueba de presupuesto la mida
+// sin red).
+func formatCanon(c canoncache.Cache, state string) string {
+	return fmt.Sprintf("  MAPA DE CANON — lo que el equipo ya sabe de CreditOp, por etapa del crédito (%d temas · %s)\n"+
+		"    buscá: `make canon-search Q='…'` · leé: `make canon-read IDS='tema'` · títulos y resúmenes: `make canon-mapa`\n"+
+		"    ⛔ `/api/ask` no se usa desde acá (es para credibot): se LEE el contexto, no se le pregunta a un modelo.\n%s",
+		len(c.Topics), state, c.Compact())
 }
 
 // pgCommand es lo que el catálogo usa de `pg help --json`.

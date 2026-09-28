@@ -613,6 +613,9 @@ confluence: ## @har el POR QUÉ del negocio, que el código no tiene (sólo lect
 canon-route: ## @can el tramo de una variante publicada. REF='codeudor/renting#renting-codeudor'; sin #paso trae la variante entera
 	@cd tablero/server && go run ./cmd/canon route '$(REF)'
 
+canon-mapa: ## @can el mapa de canon: sus temas por etapa del crédito, con título y resumen. Refresca la copia local del tablero (gratis: si nada cambió, 304). Es lo que el inicio de sesión resume
+	@cd tablero/server && go run ./cmd/canon map
+
 canon-search: ## @can ¿canon ya lo tiene? qué sección y qué área lo cubren, gratis. Q='monto avisado al comercio'
 	@test -n "$(Q)" || { echo "falta Q='<palabras del negocio>'"; exit 2; }
 	@cd tablero/server && go run ./cmd/canon search $(Q)

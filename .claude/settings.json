@@ -11,6 +11,8 @@
     "SessionStart · session-start: imprime el catálogo de `make` y lo suma al contexto. Sin matcher a",
     "              propósito: también dispara al REANUDAR y DESPUÉS DE COMPACTAR, que es cuando se pierde.",
     "              Se genera del Makefile: un target nuevo aparece solo.",
+    "              Suma el MAPA DE CANON: los temas por etapa del crédito, de la copia en tablero/data/cache",
+    "              revalidada contra canon con ETag (espera 4 s; sin VPN usa la copia y dice de cuándo es).",
     "",
     "PreToolUse  · generated (Write|Edit): bloquea (exit 2) escribir a mano un archivo GENERADO (el índice de logs del trazador).",
     "              Corre ANTES, así que de verdad lo impide.",
@@ -153,7 +155,8 @@
       "Bash(make canon-read *)",
       "Bash(make canon-code *)",
       "Bash(make canon-route *)",
-      "Bash(make deploys *)"
+      "Bash(make deploys *)",
+      "Bash(make canon-mapa *)"
     ]
   }
 }
