@@ -239,7 +239,7 @@ La barra de iconos de una región lleva lo frecuente. El resto va al menú de tr
 
 El menú se monta fuera del scroll de la región y se ajusta a la ventana. Se abre con clic, Enter, Espacio o flechas; las flechas, Home y End lo recorren, y Escape lo cierra y devuelve el foco al botón. Las tildes lo dejan abierto para ajustar varias opciones. Un clic afuera, un cambio de foco o el scroll de la región lo cierran.
 
-En Vue se pasan `items` y se maneja `@select`. En HTML, `bindMenu(button, { getItems, onSelect, label })`. Cada opción tiene `id` y `label`, y puede tener `icon`, `disabled`, `count` o `checked`; `{ separator: true }` divide grupos.
+En Vue se pasan `items` y se maneja `@select`. En HTML, `bindMenu(button, { getItems, onSelect, label })`. Cada opción tiene `id` y `label`, y puede tener `icon`, `disabled`, `count`, `checked` (una casilla: se alterna y el menú queda abierto) o `selected` (una opción única, como elegir un perfil: se marca y el menú se cierra); `{ separator: true }` divide grupos. Si el menú no entra abajo del botón, se abre arriba.
 
 ## Construir sobre la base
 

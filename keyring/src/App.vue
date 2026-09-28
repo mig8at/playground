@@ -1,37 +1,44 @@
 <script setup>
 /* keyring · la interfaz. El editor es AWS: qué servicios lee cada perfil de ~/.aws, medido con una llamada
- * List/Describe por servicio. Cada perfil se pide por separado, así su columna aparece apenas contesta. Al
- * elegir un servicio, el sidebar secundario dice qué se probó, qué contestó cada perfil y el comando que lo
- * reproduce. Abajo, en la consola, el resto de los accesos, un grupo por pestaña. Todo sale de la API en
- * Go —lo mismo que `make keyring`—: acá no se prueba nada, se pinta. Filtro, servicio y pestaña viven en
- * la URL. */
+ * List/Describe por servicio, y cada perfil se pide por separado para que aparezca apenas contesta.
+ *
+ * QUÉ SE MIRA lo elige el selector del pie (como la rama en la barra de estado de VS Code): «comparar» es
+ * la matriz de todos los perfiles; un perfil muestra sólo el suyo, con más detalle por fila y su identidad
+ * en una subbanda. Al elegir un servicio, el sidebar secundario dice qué se probó, qué contestó cada
+ * perfil y el comando que lo reproduce. Abajo, en la consola, el resto de los accesos.
+ *
+ * Todo sale de la API en Go —lo mismo que `make keyring`—: acá no se prueba nada, se pinta. Perfil,
+ * filtro, servicio y pestaña viven en la URL. */
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import RegionMenu from './RegionMenu.vue'
 import {
-  vResize, readSize, saveSize, fitRegions, cssSize, bindThemeToggle,
+  vResize, readSize, saveSize, fitRegions, cssSize, bindThemeToggle, bindMenu,
   readHashRoute, hashRoute, setRoute,
 } from './workbench.js'
 
+const COMPARE = 'compare'
 const READ_LABEL = { yes: 'lectura', no: 'negada', error: 'no se supo', unmeasured: 'sin medir' }
 const STATE_LABEL = { ok: 'ok', warn: 'vence pronto', fail: 'falla', off: 'no aplica' }
 const STATE_RANK = { fail: 0, warn: 1, ok: 2, off: 3 }
 const FILTERS = [
   { id: 'all', label: 'Todos los servicios' },
-  { id: 'access', label: 'Con lectura en algún perfil' },
+  { id: 'access', label: 'Con lectura' },
   { id: 'diff', label: 'Donde los perfiles difieren' },
 ]
 
-// ── la ruta: #/?filter=diff&service=ecs&tab=databases ──
+// ── la ruta: #/?env=dev&filter=diff&service=ecs&tab=databases ──
 const route = readHashRoute()
+const env = ref(route.params.get('env') || COMPARE)
 const filter = ref(FILTERS.some((f) => f.id === route.params.get('filter')) ? route.params.get('filter') : 'all')
 const selectedId = ref(route.params.get('service') || '')
 const tab = ref(route.params.get('tab') || '')
 function writeRoute(push) {
-  setRoute(hashRoute([], { filter: filter.value, service: selectedId.value, tab: tab.value },
-    { filter: 'all', service: '', tab: '' }), { push })
+  setRoute(hashRoute([], { env: env.value, filter: filter.value, service: selectedId.value, tab: tab.value },
+    { env: COMPARE, filter: 'all', service: '', tab: '' }), { push })
 }
 function onHashChange() {
   const r = readHashRoute()
+  env.value = r.params.get('env') || COMPARE
   filter.value = FILTERS.some((f) => f.id === r.params.get('filter')) ? r.params.get('filter') : 'all'
   selectedId.value = r.params.get('service') || ''
   tab.value = r.params.get('tab') || tab.value
@@ -71,22 +78,30 @@ async function loadAWS() {
   await Promise.all(meta.value.profiles.map(loadAccount))
 }
 // Un perfil sin credenciales propias (un `default` que sólo guarda la región) no es un acceso: no ocupa
-// columna, y el pie dice cuál se ocultó para que no se lea como que no existe.
+// columna; el selector lo muestra deshabilitado, para que se vea que existe y por qué no cuenta.
 const profiles = computed(() => (meta.value?.profiles || []).filter((p) => !accounts.value[p]?.noCredentials))
 const hidden = computed(() => (meta.value?.profiles || []).filter((p) => accounts.value[p]?.noCredentials))
 const services = computed(() => (meta.value?.services || []).map((s, index) => ({ ...s, index })))
 const cell = (profile, index) => accounts.value[profile]?.services?.[index] || null
 const readCount = (profile) => (accounts.value[profile]?.services || []).filter((s) => s.read === 'yes').length
-
-// ── el filtro: se alterna y se toca poco, así que va al menú; el contador del encabezado lo delata ──
-const hasAccess = (s) => profiles.value.some((p) => cell(p, s.index)?.read === 'yes')
-// Sólo entre perfiles medidos: uno vencido o todavía midiendo no es una diferencia de permisos.
 const measured = computed(() => profiles.value.filter((p) => accounts.value[p]?.services?.length))
+const broken = computed(() => profiles.value.filter((p) => accounts.value[p]?.error))
+
+// ── qué se mira: comparar, o un perfil. Un perfil que ya no está (se quitó de ~/.aws) vuelve a comparar ──
+const single = computed(() => (env.value !== COMPARE && profiles.value.includes(env.value) ? env.value : ''))
+const columns = computed(() => (single.value ? [single.value] : profiles.value))
+const current = computed(() => (single.value ? accounts.value[single.value] : null))
+
+// ── el filtro: se alterna y se toca poco, así que va al menú de la región; el contador lo delata ──
+const hasAccess = (s) => columns.value.some((p) => cell(p, s.index)?.read === 'yes')
+// Sólo entre perfiles medidos: uno vencido o todavía midiendo no es una diferencia de permisos.
 const differs = (s) => new Set(measured.value.map((p) => cell(p, s.index)?.read)).size > 1
-const passes = (s) => (filter.value === 'access' ? hasAccess(s) : filter.value === 'diff' ? differs(s) : true)
+const filters = computed(() => (single.value ? FILTERS.filter((f) => f.id !== 'diff') : FILTERS))
+const activeFilter = computed(() => (filters.value.some((f) => f.id === filter.value) ? filter.value : 'all'))
+const passes = (s) => (activeFilter.value === 'access' ? hasAccess(s) : activeFilter.value === 'diff' ? differs(s) : true)
 const shownServices = computed(() => services.value.filter(passes))
-const filterMenu = computed(() => FILTERS.map((f) => ({
-  id: f.id, label: f.label, checked: filter.value === f.id,
+const filterMenu = computed(() => filters.value.map((f) => ({
+  id: f.id, label: f.label, checked: activeFilter.value === f.id,
   count: f.id === 'all' ? services.value.length : services.value.filter(f.id === 'access' ? hasAccess : differs).length,
 })))
 const categories = computed(() => (meta.value?.categories || []).map((c) => {
@@ -94,10 +109,28 @@ const categories = computed(() => (meta.value?.categories || []).map((c) => {
   return {
     id: c, rows: all.filter(passes), total: all.length,
     // Sólo los perfiles medidos: «dev 0/3» de un perfil vencido se leía como «sin acceso».
-    perProfile: profiles.value.filter((p) => accounts.value[p]?.services?.length)
+    perProfile: columns.value.filter((p) => accounts.value[p]?.services?.length)
       .map((p) => ({ p, n: all.filter((s) => cell(p, s.index)?.read === 'yes').length })),
   }
 }).filter((c) => c.rows.length))
+
+// ── el selector del pie ──
+const envTrigger = ref(null)
+let envMenu = null
+const envMenuItems = computed(() => {
+  const items = [{ id: COMPARE, label: 'Comparar perfiles', selected: !single.value, count: profiles.value.length }]
+  items.push({ separator: true })
+  for (const p of profiles.value) {
+    const a = accounts.value[p]
+    const why = a?.error ? 'la sesión no sirve' : a?.permissionSet || (measuring.value[p] ? 'midiendo…' : '')
+    items.push({ id: p, label: `${p} · ${why}`, selected: single.value === p, count: a?.services?.length ? `${readCount(p)}/${services.value.length}` : undefined,
+      title: a?.error || (a ? `${a.account} · ${a.accountLabel}` : '') })
+  }
+  for (const p of hidden.value) items.push({ id: p, label: `${p} · sin credenciales`, disabled: true, title: 'sólo tiene configuración en ~/.aws: no da acceso a nada' })
+  return items
+})
+const envLabel = computed(() => (single.value ? single.value : 'comparar'))
+watch(envMenuItems, () => envMenu?.refresh(), { deep: true, flush: 'post' })
 
 // ── el servicio elegido: su detalle va al sidebar secundario ──
 const selected = computed(() => services.value.find((s) => s.id === selectedId.value) || null)
@@ -163,11 +196,13 @@ function until(t) {
 }
 // «pegadas a mano el 28/09 10:56, sin vencimiento declarado» → «pegadas 28/09 10:56»; el texto entero va en el title.
 const credShort = (text) => text?.replace(/^pegadas a mano el ([^,]+),.*$/, 'pegadas $1') || ''
+const credentials = (a) => (a?.expires ? until(a.expires) : credShort(a?.credentials))
 const fmtFull = (t) => (t ? new Date(t).toLocaleString('es-CO') : '')
 const fmtTime = (t) => (t ? t.toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit' }) : '')
 
 watch(tab, () => writeRoute(false))
 watch(filter, () => writeRoute(false))
+watch(env, () => writeRoute(true))
 watch(selectedId, () => writeRoute(true))
 
 // ── las regiones: el detalle a la derecha y la consola abajo, con el contrato de la base ──
@@ -215,6 +250,10 @@ onMounted(() => {
   window.addEventListener('resize', onWindowResize)
   window.addEventListener('hashchange', onHashChange)
   if (themeToggle.value) themeBinding = bindThemeToggle(themeToggle.value)
+  envMenu = bindMenu(envTrigger.value, {
+    label: 'Qué perfil de AWS se mira', getItems: () => envMenuItems.value,
+    onSelect: (id) => { env.value = id },
+  })
   clock = setInterval(() => { now.value = Date.now() }, 30000)
   loadAll()
 })
@@ -223,6 +262,7 @@ onBeforeUnmount(() => {
   window.removeEventListener('hashchange', onHashChange)
   clearInterval(clock)
   themeBinding?.destroy?.()
+  envMenu?.destroy()
 })
 </script>
 
@@ -230,16 +270,29 @@ onBeforeUnmount(() => {
   <div class="workbench" :style="layoutVars">
     <main class="editor">
       <div class="region-head">
-        <span>AWS</span>
-        <span v-if="meta" class="count" :class="{ filtered: filter !== 'all' }">
-          {{ filter === 'all' ? `${services.length} servicios` : `${shownServices.length} / ${services.length}` }}
+        <span>AWS · {{ single || 'comparar perfiles' }}</span>
+        <span v-if="meta" class="count" :class="{ filtered: activeFilter !== 'all' }">
+          {{ activeFilter === 'all' ? `${services.length} servicios` : `${shownServices.length} / ${services.length}` }}
         </span>
         <div class="region-actions">
           <button type="button" class="region-action" :disabled="busy" title="Volver a probar" aria-label="Volver a probar" @click="loadAll">
             <span class="ui-icon" data-icon="refresh" aria-hidden="true"></span>
           </button>
-          <RegionMenu :items="filterMenu" :active="filter !== 'all'" title="Qué servicios se ven" icon="filter" @select="(id) => (filter = id)" />
+          <RegionMenu :items="filterMenu" :active="activeFilter !== 'all'" title="Qué servicios se ven" icon="filter" @select="(id) => (filter = id)" />
         </div>
+      </div>
+      <!-- Con un perfil elegido, la subbanda dice de quién es lo que se está viendo. -->
+      <div v-if="single" class="subband" aria-label="Perfil elegido">
+        <template v-if="current?.error"><span class="hot grow">{{ current.error }}</span></template>
+        <template v-else-if="current">
+          <strong>{{ current.account }}</strong>
+          <span class="muted wide">{{ current.accountLabel }}</span>
+          <code>{{ current.permissionSet || current.role }}</code>
+          <span class="grow"></span>
+          <span>{{ readCount(single) }} / {{ services.length }}</span>
+          <span class="muted" :title="current.credentials">{{ credentials(current) }}</span>
+        </template>
+        <span v-else class="muted">midiendo…</span>
       </div>
       <div class="region-body">
         <div v-if="awsError" class="alert alert-destructive" role="alert">
@@ -248,43 +301,48 @@ onBeforeUnmount(() => {
         </div>
         <div v-else-if="!meta" class="empty"><div class="empty-desc">Leyendo los perfiles de ~/.aws…</div></div>
         <template v-else>
-          <div class="region-head group"><span>Perfiles</span><span class="count">{{ profiles.length }}</span></div>
-          <table class="table" aria-label="Perfiles de AWS">
-            <thead><tr><th>Perfil</th><th>Cuenta</th><th>Permission set</th><th class="num">Lectura</th><th class="wide">Credenciales</th></tr></thead>
-            <tbody>
-              <tr v-for="p in profiles" :key="p">
-                <td :title="accounts[p]?.person ? `sesión de ${accounts[p].person}` : ''"><code>{{ p }}</code></td>
-                <template v-if="measuring[p] && !accounts[p]"><td colspan="4" class="muted">midiendo…</td></template>
-                <template v-else-if="accounts[p]?.error"><td colspan="4" class="hot">{{ accounts[p].error }}</td></template>
-                <template v-else-if="accounts[p]">
-                  <td class="nowrap" :title="accounts[p].accountLabel">{{ accounts[p].account }}<span class="muted wide"> · {{ accounts[p].accountLabel }}</span></td>
-                  <td class="nowrap" :title="accounts[p].role"><code>{{ accounts[p].permissionSet || accounts[p].role }}</code></td>
-                  <td class="num">{{ readCount(p) }} / {{ services.length }}</td>
-                  <td class="nowrap muted wide" :title="accounts[p].credentials">{{ accounts[p].expires ? until(accounts[p].expires) : credShort(accounts[p].credentials) }}</td>
-                </template>
-              </tr>
-            </tbody>
-          </table>
-
           <section v-for="c in categories" :key="c.id">
             <div class="region-head group">
               <span>{{ c.id }}</span>
               <span class="count">{{ c.rows.length === c.total ? c.total : `${c.rows.length} / ${c.total}` }}</span>
               <span class="group-meta">
-                <span v-for="x in c.perProfile" :key="x.p">{{ x.p }} {{ x.n }}/{{ c.total }}</span>
+                <span v-for="x in c.perProfile" :key="x.p">{{ single ? '' : `${x.p} ` }}{{ x.n }}/{{ c.total }}</span>
               </span>
             </div>
-            <table class="table matrix">
-              <colgroup><col class="c-service"><col class="c-action wide"><col v-for="p in profiles" :key="p" class="c-access"></colgroup>
+            <!-- un perfil: una fila con todo lo que contestó -->
+            <table v-if="single" class="table matrix">
+              <colgroup><col class="c-service"><col class="c-access"><col><col class="c-ms wide"></colgroup>
+              <thead><tr><th>Servicio</th><th>Resultado</th><th>Qué contestó</th><th class="num wide">ms</th></tr></thead>
+              <tbody>
+                <tr v-for="s in c.rows" :key="s.id" class="clickable" tabindex="0" :aria-selected="s.id === selectedId"
+                  @click="pick(s.id)" @keydown.enter.prevent="pick(s.id)" @keydown.space.prevent="pick(s.id)">
+                  <td class="nowrap" :title="s.action">{{ s.label }}</td>
+                  <td class="access" :data-read="cell(single, s.index)?.read || 'none'">
+                    <template v-if="cell(single, s.index)"><i class="dot" :data-read="cell(single, s.index).read" aria-hidden="true"></i>{{ READ_LABEL[cell(single, s.index).read] }}</template>
+                    <span v-else class="muted">{{ measuring[single] ? '…' : '—' }}</span>
+                  </td>
+                  <td class="answer-cell">{{ cell(single, s.index)?.detail || '' }}</td>
+                  <td class="num muted wide">{{ cell(single, s.index)?.ms ?? '' }}</td>
+                </tr>
+              </tbody>
+            </table>
+            <!-- comparar: una columna por perfil -->
+            <table v-else class="table matrix">
+              <colgroup><col class="c-service"><col class="c-action wide"><col v-for="p in columns" :key="p" class="c-access"></colgroup>
               <thead>
-                <tr><th>Servicio</th><th class="wide">Acción probada</th><th v-for="p in profiles" :key="p" class="access">{{ p }}</th></tr>
+                <tr>
+                  <th>Servicio</th><th class="wide">Acción probada</th>
+                  <th v-for="p in columns" :key="p" class="access" :class="{ hot: accounts[p]?.error }" :title="accounts[p]?.error || accounts[p]?.permissionSet || ''">
+                    {{ p }}<template v-if="accounts[p]?.error"> · vencida</template>
+                  </th>
+                </tr>
               </thead>
               <tbody>
                 <tr v-for="s in c.rows" :key="s.id" class="clickable" tabindex="0" :aria-selected="s.id === selectedId"
                   @click="pick(s.id)" @keydown.enter.prevent="pick(s.id)" @keydown.space.prevent="pick(s.id)">
                   <td class="nowrap">{{ s.label }}</td>
                   <td class="action wide"><code>{{ s.action }}</code></td>
-                  <td v-for="p in profiles" :key="p" class="access" :data-read="cell(p, s.index)?.read || 'none'">
+                  <td v-for="p in columns" :key="p" class="access" :data-read="cell(p, s.index)?.read || 'none'">
                     <template v-if="cell(p, s.index)">
                       <i class="dot" :data-read="cell(p, s.index).read" aria-hidden="true"></i>{{ READ_LABEL[cell(p, s.index).read] }}
                     </template>
@@ -316,7 +374,7 @@ onBeforeUnmount(() => {
         <p class="fact"><code>{{ selected.action }}</code></p>
         <p class="none">Una llamada de lectura de a un elemento: pregunta si se puede, no qué hay.</p>
         <div class="region-head group"><span>Qué contestó</span></div>
-        <div v-for="p in profiles" :key="p" class="answer" :data-read="cell(p, selected.index)?.read || 'none'">
+        <div v-for="p in columns" :key="p" class="answer" :data-read="cell(p, selected.index)?.read || 'none'">
           <div class="answer-head">
             <i class="dot" :data-read="cell(p, selected.index)?.read" aria-hidden="true"></i>
             <code>{{ p }}</code>
@@ -327,7 +385,7 @@ onBeforeUnmount(() => {
           <p v-else-if="accounts[p]?.error" class="answer-detail hot">{{ accounts[p].error }}</p>
         </div>
         <div class="region-head group"><span>Reproducirlo</span></div>
-        <div v-for="p in profiles" :key="p" class="command">
+        <div v-for="p in columns" :key="p" class="command">
           <code>{{ selected.command }} --profile {{ p }}</code>
           <button type="button" class="region-action" :title="copied === `${selected.command} --profile ${p}` ? 'Copiado' : 'Copiar el comando'"
             :aria-label="`Copiar el comando para ${p}`" @click="copy(`${selected.command} --profile ${p}`)">
@@ -361,9 +419,15 @@ onBeforeUnmount(() => {
     </section>
 
     <footer class="statusbar">
+      <!-- El selector de perfil, como la rama en la barra de estado de VS Code. Un perfil que no sirve lo delata. -->
+      <button ref="envTrigger" type="button" class="statusbar-item env" :title="broken.length ? `sin sesión: ${broken.join(', ')}` : 'Qué perfil de AWS se mira'">
+        <span class="ui-icon" data-icon="server" aria-hidden="true"></span>
+        <span>AWS: {{ envLabel }}</span>
+        <i v-if="broken.length" class="dot" data-state="fail" aria-hidden="true"></i>
+        <span class="ui-icon" data-icon="down" aria-hidden="true"></span>
+      </button>
       <span v-if="busy">probando…</span>
       <span v-else-if="checkedAt" :title="fmtFull(checkedAt)">probado a las {{ fmtTime(checkedAt) }}</span>
-      <span v-if="hidden.length" title="Perfiles de ~/.aws sin credenciales propias: no dan acceso a nada">ocultos sin credenciales: {{ hidden.join(', ') }}</span>
       <span v-if="failTotal" class="hot">{{ failTotal }} accesos fallan en la consola</span>
       <div class="layout-controls" role="group" aria-label="Tema y regiones visibles">
         <button ref="themeToggle" type="button" class="region-action theme-toggle"><span class="ui-icon" aria-hidden="true"></span></button>
@@ -379,7 +443,7 @@ onBeforeUnmount(() => {
 </template>
 
 <style scoped>
-/* Lo que la base no da. Todo lo demás —bandas, pestañas, tabla, grupos, avisos, líneas, pie— es de workbench.css. */
+/* Lo que la base no da. Todo lo demás —bandas, subbanda, pestañas, tabla, grupos, avisos, líneas, pie— es de workbench.css. */
 .theme-toggle { margin-right: var(--space-1) }
 .none { margin: 0; padding: var(--space-2) var(--gutter); color: var(--fg-3); font-size: var(--text-sm) }
 .nowrap { white-space: nowrap }
@@ -387,22 +451,26 @@ onBeforeUnmount(() => {
 .hot { color: var(--access-fail) }
 .clickable { cursor: pointer }
 code { font-family: var(--font-mono); font-size: var(--text-sm) }
+.env .dot { margin-right: 0 }
 /* El conteo por perfil va al borde del encabezado del grupo, apagado: resume sin competirle al título. */
 .group-meta { margin-left: auto; display: flex; gap: var(--space-3); font-size: var(--text-xs); font-weight: 400; color: var(--fg-3); font-variant-numeric: tabular-nums }
-/* Con el detalle abierto el editor se angosta: lo que ya dice el detalle (la acción) y lo que tiene su
-   title (las credenciales) se van antes de que las columnas se pisen. Sin JS: una consulta de contenedor. */
+/* Con el detalle abierto el editor se angosta: lo que ya dice el detalle (la acción, los ms) y lo que tiene
+   su title se van antes de que las columnas se pisen. Sin JS: una consulta de contenedor. */
 .editor { container-type: inline-size }
 @container (max-width: 620px) { .wide { display: none } }
 /* Las tablas de cada categoría son tablas distintas: con anchos fijos, las columnas quedan alineadas de una a otra. */
 .matrix { table-layout: fixed }
 .matrix .c-service { width: 176px }
 .matrix .c-access { width: 104px }
+.matrix .c-ms { width: 64px }
 .matrix tr[aria-selected="true"] td { background: var(--accent); color: var(--accent-foreground) }
 .action { color: var(--fg-3); overflow: hidden; text-overflow: ellipsis; white-space: nowrap }
+.answer-cell { color: var(--fg-2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap }
 .access { white-space: nowrap }
 .access[data-read="yes"] { color: var(--access-ok) }
 .access[data-read="no"] { color: var(--fg-3) }
 .access[data-read="error"] { color: var(--access-warn) }
+th.hot { color: var(--access-fail) }
 /* El estado es un punto (un <i>: la base estira todo <span> de una fila); el texto de al lado lo dice para quien no lo ve. */
 .dot { display: inline-block; flex: none; width: 8px; height: 8px; border-radius: 50%; margin-right: var(--space-1); background: var(--access-off) }
 .dot[data-read="yes"], .dot[data-state="ok"] { background: var(--access-ok) }

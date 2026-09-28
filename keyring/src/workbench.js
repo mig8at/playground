@@ -373,7 +373,12 @@ export function bindMenu(trigger, { getItems, onSelect, label = 'Más opciones' 
     menu.style.maxHeight = `${Math.max(0, innerHeight - 16)}px`;
     const box = menu.getBoundingClientRect();
     menu.style.left = `${Math.max(8, Math.min(anchor.right - box.width, innerWidth - box.width - 8))}px`;
-    menu.style.top = `${Math.max(8, Math.min(anchor.bottom + 4, innerHeight - box.height - 8))}px`;
+    // Abajo del botón si entra; si no, ARRIBA: un menú que se abre desde el pie y se empuja contra el borde
+    // tapaba al propio botón que lo abrió (el selector de perfil de keyring).
+    const below = anchor.bottom + 4;
+    const above = anchor.top - box.height - 4;
+    const top = below + box.height + 8 <= innerHeight || above < 8 ? below : above;
+    menu.style.top = `${Math.max(8, Math.min(top, innerHeight - box.height - 8))}px`;
   }
   function close(restoreFocus = false) {
     if (!menu) return;
@@ -411,19 +416,24 @@ export function bindMenu(trigger, { getItems, onSelect, label = 'Más opciones' 
         const separator = document.createElement('hr'); separator.setAttribute('role', 'separator');
         menu.appendChild(separator); continue;
       }
-      const checkbox = Object.hasOwn(item, 'checked');
+      // Tres clases de ítem: una casilla (`checked`) se alterna y deja el menú abierto; una opción única
+      // (`selected`: elegir un perfil, un ambiente) se marca igual pero cierra, porque ya se eligió; el
+      // resto es una acción, que cierra.
+      const radio = Object.hasOwn(item, 'selected');
+      const checkbox = !radio && Object.hasOwn(item, 'checked');
       const link = !item.disabled && item.href && /^(https?:\/\/|\/)/.test(item.href);
       const control = document.createElement(link ? 'a' : 'button');
       control.className = 'region-menu-item';
       control.dataset.menuId = item.id;
-      control.setAttribute('role', checkbox ? 'menuitemcheckbox' : 'menuitem');
+      control.setAttribute('role', radio ? 'menuitemradio' : checkbox ? 'menuitemcheckbox' : 'menuitem');
       control.tabIndex = -1;
       if (checkbox) control.setAttribute('aria-checked', String(!!item.checked));
+      if (radio) control.setAttribute('aria-checked', String(!!item.selected));
       if (link) { control.href = item.href; control.target = item.target || '_blank'; control.rel = 'noopener noreferrer'; }
       else { control.type = 'button'; control.disabled = !!item.disabled; }
       if (item.title) control.title = item.title;
-      const glyph = icon(checkbox ? 'check' : (item.icon || 'more'));
-      if (checkbox && !item.checked) glyph.style.visibility = 'hidden';
+      const glyph = icon(checkbox || radio ? 'check' : (item.icon || 'more'));
+      if ((checkbox && !item.checked) || (radio && !item.selected)) glyph.style.visibility = 'hidden';
       control.appendChild(glyph);
       const text = document.createElement('span'); text.className = 'menu-label'; text.textContent = item.label;
       control.appendChild(text);

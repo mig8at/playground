@@ -363,13 +363,10 @@ try {
       const editor = page.locator('.editor');
       await editor.getByText('ecr:DescribeRepositories').waitFor();
       await editor.locator('td.access[data-read="no"]').waitFor();
-      assert.match(await editor.getByRole('table', { name: 'Perfiles de AWS' }).textContent(), /DeveloperAccess.*2 \/ 3.*pegadas 28\/09 10:56/s,
-        'Keyring: cada perfil dice su permission set, cuánto lee y desde cuándo tiene las credenciales');
-      assert.match(await editor.getByRole('table', { name: 'Perfiles de AWS' }).textContent(), /la sesión venció/,
-        'Keyring: un perfil vencido sigue a la vista y dice qué hacer');
+      assert.equal(await editor.locator('td.access[data-read="no"]').count(), 1, 'Keyring: la lectura negada se marca en su celda');
+      assert.match(await editor.locator('thead th.hot').first().textContent(), /viejo · vencida/,
+        'Keyring: un perfil vencido lo dice en el encabezado de su columna');
       assert.doesNotMatch(await editor.textContent(), /\bdefault\b/, 'Keyring: un perfil sin credenciales no ocupa la matriz');
-      assert.match(await page.locator('.statusbar').textContent(), /ocultos sin credenciales: default/,
-        'Keyring: el pie dice qué perfil se ocultó, para que no se lea como que no existe');
       assert.doesNotMatch(await editor.locator('.region-head.group').first().textContent(), /viejo \d/,
         'Keyring: un perfil sin medir no cuenta «0/n» en el encabezado de la categoría');
       // El detalle: elegir un servicio lo abre con la acción, lo que contestó cada perfil y el comando.
@@ -379,15 +376,33 @@ try {
       assert.match(await aux.textContent(), /ecr:DescribeRepositories.*ninguna política lo da/s, 'Keyring: el detalle dice qué se probó y qué contestó');
       assert.match(await aux.textContent(), /aws ecr describe-repositories --max-items 1 --profile dev/, 'Keyring: el detalle da el comando que lo reproduce');
       assert.match(new URL(page.url()).hash, /service=ecr/, 'Keyring: el servicio elegido queda en la ruta');
-      // El filtro vive en el menú, y el encabezado lo delata.
+      // El filtro vive en el menú de la región, y el encabezado lo delata.
       const { menu: filterMenu } = await openMenu(page, 'Qué servicios se ven');
       await filterMenu.getByRole('menuitemcheckbox', { name: /Donde los perfiles difieren/ }).click();
       assert.match(await page.locator('.editor > .region-head .count.filtered').textContent(), /1 \/ 3/,
         'Keyring: «difieren» compara sólo perfiles medidos (ECR: negada en dev, lectura en prod; el vencido no cuenta)');
       assert.match(new URL(page.url()).hash, /filter=diff/, 'Keyring: el filtro queda en la ruta');
+      await page.keyboard.press('Escape');
       await page.getByRole('button', { name: 'Cerrar el detalle', exact: true }).click();
       await paint(page);
       assert.equal(await page.locator('.auxiliarybar').count(), 0, 'Keyring: cerrar el detalle lo saca de la pantalla');
+      // El perfil se elige en el pie, como la rama en VS Code: opción única, se abre ARRIBA y se cierra al elegir.
+      const envButton = page.locator('.statusbar .env');
+      await envButton.click();
+      const envMenu = page.getByRole('menu', { name: 'Qué perfil de AWS se mira', exact: true });
+      await envMenu.waitFor();
+      const [buttonBox, menuBox] = [await envButton.boundingBox(), await envMenu.boundingBox()];
+      assert(menuBox.y + menuBox.height <= buttonBox.y + 1, 'Keyring: el menú del pie se abre arriba y no tapa su botón');
+      assert.equal(await envMenu.getByRole('menuitem', { name: /default · sin credenciales/ }).isDisabled(), true,
+        'Keyring: el perfil sin credenciales se ve en el selector, deshabilitado');
+      await envMenu.getByRole('menuitemradio', { name: /dev · DeveloperAccess/ }).click();
+      assert.equal(await page.getByRole('menu', { name: 'Qué perfil de AWS se mira' }).count(), 0, 'Keyring: elegir un perfil cierra el menú');
+      assert.match(new URL(page.url()).hash, /env=dev/, 'Keyring: el perfil elegido queda en la ruta');
+      assert.match(await page.locator('.subband').textContent(), /111111111111.*DeveloperAccess.*2 \/ 3/s,
+        'Keyring: con un perfil elegido, la subbanda dice de quién es lo que se ve');
+      assert.match(await editor.textContent(), /ninguna política lo da/, 'Keyring: la vista de un perfil muestra qué contestó cada servicio');
+      assert.equal(await page.locator('.editor > .region-head .count.filtered').count(), 0,
+        'Keyring: «difieren» no aplica a un solo perfil, y el encabezado no lo muestra filtrado');
       const panel = page.locator('.panel');
       assert.equal(await panel.getByRole('tab', { name: /aws/ }).count(), 0, 'Keyring: la consola no repite la identidad de AWS');
       await panel.getByText('VPN prod').waitFor();
