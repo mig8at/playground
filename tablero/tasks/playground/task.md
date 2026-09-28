@@ -28,6 +28,18 @@ jira_title: ""
   experiencia propuesta es realista.
 - **Una consulta por ambiente, en `connectors/`:** fases 0 a 3 hechas (`sql`, `logs`, `events` y
   `bin/pg`); sigue la 4, mudar canon, Jira y Slack a `connectors/`.
+- **Acceso a las herramientas del playground compartido** (mergeado en `Creditop-SAS/playground#316`;
+  el código está en producción, falta la configuración):
+  - [ ] Activar el login de GitHub del home: se sabe que terminó cuando la galería muestra «Entrar con
+    GitHub» encendido en cuadrilla. Depende de: infra (Dani) — una OAuth App de la organización con
+    callback `https://playground.creditop.com/api/github/callback`, `GITHUB_CLIENT_ID` y
+    `GITHUB_CLIENT_SECRET` en `prod/home`, y redesplegar el home.
+  - [ ] Destrabar `/api/*` desde la terminal: se sabe que terminó cuando un `curl` con VPN a
+    `https://canon.playground.creditop.com/api/topics` contesta 200 en vez de 302. Depende de: infra
+    (Dani) — una regla por subdominio con prioridad sobre la de Google: host + path `/api/*` + IP de
+    origen de la VPN → forward sin autenticación. Falta que diga el CIDR de la VPN.
+  - [ ] Decidir si se activa el token de la terminal (regla `jwt-validation`, `CONSOLA_LLAVE`): sólo
+    hace falta para entrar sin VPN; mientras la regla de la VPN alcance, queda sin aplicar.
 
 ## Frente: una consulta por ambiente, en `connectors/`
 
