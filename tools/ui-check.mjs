@@ -11,6 +11,7 @@ const only = (process.env.SOLO || '').split(',').map((x) => x.trim()).filter(Boo
 const apps = [
   ['harness', 'http://localhost:5195'],
   ['tablero', 'http://localhost:5191'], ['trazador', 'http://localhost:5192'],
+  ['radar', 'http://localhost:5188'],
 ].filter(([name]) => !only.length || only.includes(name));
 const sprint = { id: 1, name: 'Sprint UI', state: 'active', startDate: '2026-09-14', endDate: '2026-09-28' };
 const sample = {
@@ -98,6 +99,24 @@ const tracerResultsFixture = {
     { ureq: 987000, personKey: 'p-prod-2a', date: '2025-12-20', time: '09:32', statusN: 'En curso', merchant: 'Comercio B', outcome: 'en-curso', direct: false },
   ],
 };
+// radar: las cuatro vistas con filas en cada grupo, dos sesiones y el recorrido de una. Datos de ejemplo:
+// la prueba no lee transcripciones reales.
+const row = (key, calls, note = '') => ({ key, calls, sessions: 1, last: '2026-09-27T15:00:00Z', note, example: key });
+const radarFixture = {
+  '/api/usage': { make: [row('make tareas', 40), row('make cierre', 12)], skills: [row('skill canon', 3)], agents: [row('agent Explore', 2)], other: [] },
+  '/api/friction': { denied: [row('make canon-search', 18)], rejected: [row('grep', 2)], blocked: [row('git commit', 1, 'index-guard')], errors: [row('python3', 4)] },
+  '/api/drift': { usedAfterRemoval: [], neverExisted: [row('make tipeo', 1)], oldNames: [row('make harness-caso', 2, 'hoy se llama `harness-case`')],
+    unusedTargets: [{ target: 'visor-html', since: '2026-09-24T10:00:00Z' }], unusedSkills: ['harness-panel'] },
+  '/api/sessions': [
+    { id: 'sesion-a', entrypoint: 'claude-desktop', start: '2026-09-27T14:00:00Z', calls: 3, friction: 1, skills: ['canon'] },
+    { id: 'sesion-b', entrypoint: 'claude-desktop', start: '2026-09-26T10:00:00Z', calls: 1, friction: 0, skills: null },
+  ],
+  '/api/session': { id: 'sesion-a', entrypoint: 'claude-desktop', start: '2026-09-27T14:00:00Z', human: true, calls: [
+    { session: 'sesion-a', time: '2026-09-27T14:00:05Z', tool: 'Skill', keys: ['skill canon'], outcome: 'ok' },
+    { session: 'sesion-a', time: '2026-09-27T14:01:00Z', tool: 'Bash', keys: ['make canon-search'], command: "make canon-search Q='x'", outcome: 'denied' },
+    { session: 'sesion-a', time: '2026-09-27T14:02:00Z', tool: 'Bash', keys: ['make tareas'], command: 'make tareas', outcome: 'ok' },
+  ] },
+};
 const browser = await chromium.launch();
 const screenshotDir = process.env.UI_SCREENSHOTS;
 if (screenshotDir) await mkdir(screenshotDir, { recursive: true });
@@ -169,6 +188,13 @@ try {
           return route.fulfill({ json: { ...tracerFullFixture, ureq } });
         }
         return route.fulfill({ json: {} });
+      }
+      if (name === 'radar') {
+        const headers = { 'X-Radar-Read': '0', 'X-Radar-Skipped': '3' };
+        const json = radarFixture[path] ?? {};
+        // La fricción tarda: es lo que dejaba ver los datos de la vista anterior como «nada en el período».
+        if (path === '/api/friction') return new Promise((ok) => setTimeout(() => ok(route.fulfill({ json, headers })), 400));
+        return route.fulfill({ json, headers });
       }
       return route.continue();
     });
@@ -250,6 +276,39 @@ try {
       assert.equal(await recentInitial.getAttribute('aria-selected'), 'true',
         'Trazador: la consola arranca en las solicitudes en curso antes de seleccionar una solicitud');
       assert.equal(await page.locator('.recent-row').count(), 1, 'Trazador: muestra las consultas guardadas');
+    }
+    if (name === 'radar') {
+      const editor = page.locator('.editor');
+      await editor.getByText('make tareas', { exact: true }).waitFor();
+      assert.match(await page.locator('.statusbar').textContent(), /sin 3 corridas automáticas/,
+        'Radar: el pie dice cuántas corridas automáticas quedaron afuera');
+      await page.getByRole('button', { name: /^Fricción/ }).click();
+      // mientras la fricción no llega, se ve que se está leyendo, NUNCA los grupos vacíos con datos de «Uso»
+      assert.equal(await editor.getByText('Nada en el período.', { exact: true }).count(), 0,
+        'Radar: al cambiar de vista no se pintan los datos de la anterior como vacíos');
+      await editor.getByText('make canon-search', { exact: true }).waitFor();
+      assert.equal(new URL(page.url()).hash, '#/friction', 'Radar: la vista queda en la ruta');
+      assert.equal(await editor.getByRole('note').isVisible(), true, 'Radar: la fricción avisa que un permiso aprobado no deja marca');
+      assert.match(await editor.textContent(), /index-guard/, 'Radar: un bloqueo dice qué hook lo frenó');
+      await page.getByRole('button', { name: '7 días', exact: true }).click();
+      await editor.getByText('make canon-search', { exact: true }).waitFor();
+      assert.equal(new URL(page.url()).hash, '#/friction?days=7', 'Radar: el período queda en la ruta');
+      await page.getByRole('button', { name: /^Deriva/ }).click();
+      await editor.getByText('make harness-caso', { exact: true }).waitFor();
+      assert.match(await editor.textContent(), /hoy se llama `harness-case`/, 'Radar: un nombre viejo dice cuál es el nuevo');
+      await page.getByRole('button', { name: /^Sesiones/ }).click();
+      await editor.locator('tbody tr').first().click();
+      const panel = page.locator('.panel');
+      await panel.getByText("make canon-search Q='x'").waitFor();
+      assert.equal(await panel.locator('.log-line').count(), 3, 'Radar: el panel muestra el recorrido de la sesión elegida');
+      assert.equal(await panel.locator('.log-line[data-outcome="denied"] .mark').count(), 1,
+        'Radar: el recorrido marca lo que pidió aprobación');
+      await page.reload();
+      await page.locator('.panel .log-line').first().waitFor();
+      assert.match(new URL(page.url()).hash, /session=sesion-a/, 'Radar: la sesión elegida sobrevive a la recarga');
+      await page.getByRole('button', { name: 'Cerrar el recorrido', exact: true }).click();
+      await paint(page);
+      assert.equal(await page.locator('.panel').count(), 0, 'Radar: cerrar el recorrido lo saca de la pantalla');
     }
     const separator = name === 'trazador'
       ? page.locator('.handle-detail')
@@ -626,8 +685,9 @@ try {
       }
       if (screenshotDir && width !== 1024) await page.screenshot({ path: `${screenshotDir}/${name}-${width}.png` });
     }
-    if (name !== 'trazador') {
-      const menuTitle = { harness: 'Opciones de consola', tablero: 'Opciones del documento' }[name];
+    // Sólo las que tienen menú ⋯ (radar no lo tiene: todo lo suyo está a la vista).
+    const menuTitle = { harness: 'Opciones de consola', tablero: 'Opciones del documento' }[name];
+    if (menuTitle) {
       const compactMenu = await openMenu(page, menuTitle);
       await page.locator('.statusbar').click({ position: { x: 5, y: 5 } });
       assert.equal(await compactMenu.trigger.getAttribute('aria-expanded'), 'false', 'Clic fuera cierra el menú');

@@ -253,7 +253,7 @@ trazador-chequeo: ## @dia ¿el mapa del trazador sigue siendo cierto? sin corpus
 trazador-indexar-logs: ## @dia reconstruye el índice de LOGS del trazador (mensaje → archivo que lo emite) desde los repos, con las refs remotas al día. [SIN_FETCH=1]
 	@cd trazador/server && go run . -indexar-logs $(if $(SIN_FETCH),-sin-fetch)
 
-estilo-ui: ## @dia verifica teclado, arrastre y persistencia de las cuatro UIs encendidas; Jira usa datos de prueba. SOLO=<herramienta,…>
+estilo-ui: ## @dia verifica teclado, arrastre y persistencia de las UIs encendidas (harness, tablero, trazador, radar); con datos de prueba. SOLO=<herramienta,…>
 	@SOLO="$(SOLO)" node tools/ui-check.mjs
 
 estilo-minimo: ## @dia «mínimo o nada» en las cuatro UIs encendidas: ninguna región mide entre 0 y su mínimo, en cuatro anchos de ventana ni con el teclado. SOLO=<herramienta,…>
