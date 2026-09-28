@@ -64,8 +64,8 @@ jira_title: "Código de preaprobado de la app en la plataforma nueva"
 - [ ] Llevar a `qa` el diseño nuevo del selector «Usuario nuevo / Usuario app» (contenedor celeste con
       borde, íconos de escritorio y celular, la activa en `creditop-500`): rama
       `feat/CORE-614-conmutador-usuario-app-estilo` desde `qa`, un commit, sólo estilo. Termina con el PR
-      contra `qa` mergeado. `develop` no sirve de base: quedó en el 31/08, sin nada de CORE-614.
-      Depende de: Miguel — permiso para pushear y abrir el PR.
+      contra `qa` mergeado: [frontend-monorepo#1094](https://github.com/Creditop-SAS/frontend-monorepo/pull/1094).
+      `develop` no sirve de base: quedó en el 31/08, sin nada de CORE-614.
 
 ## Objetivo
 
