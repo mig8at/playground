@@ -436,8 +436,8 @@ async function locatePage(key, screen) {
 }
 
 // ── BUSCAR pantallas en todas las páginas del archivo que está al centro ──
-// La lupa de la barra izquierda: busca por lo que la pantalla dice (título), su capa, su carril, su sección y
-// su página (`/api/search`, server/pages.go). Un resultado de otra página la abre en el árbol y al centro.
+// La lupa de la barra izquierda: busca en TODO lo que la pantalla dice, su capa, su carril, su sección y su
+// página (`/api/search`, server/pages.go); lo encontrado por el texto trae el pedazo donde lo dice. Un resultado de otra página la abre en el árbol y al centro.
 const searching = ref(false)
 const searchQ = ref('')
 const searchInput = ref(null)
@@ -1110,12 +1110,13 @@ onUnmounted(() => {
         <p v-if="searchState === 'loading' && !searchResult" class="hint">Buscando en todas las páginas… la primera vez lee cada una de Figma y puede tardar medio minuto.</p>
         <p v-else-if="searchState === 'error'" class="hint">No se pudo buscar: {{ searchError }}</p>
         <template v-else-if="searchResult">
-          <p v-if="!searchResult.total" class="hint">Ninguna pantalla con «{{ searchQ.trim() }}» en las {{ searchResult.pages }} páginas. Busca en el título, la capa, el carril, la sección y el nombre de la página.</p>
+          <p v-if="!searchResult.total" class="hint">Ninguna pantalla con «{{ searchQ.trim() }}» en las {{ searchResult.pages }} páginas. Busca en lo que dice la pantalla, su capa, su carril, su sección y el nombre de la página.</p>
           <template v-for="g in searchGroups" :key="g.page">
             <div class="region-head group"><span>{{ g.name }}</span><span class="count">{{ g.hits.length }}</span></div>
             <button v-for="h in g.hits" :key="h.id" type="button" class="row stacked"
               :class="{ on: data?.node === h.page && currentID === h.id }" :title="h.page_name + ' · ' + h.title" @click="openHit(h)">
               <span>{{ h.title }}</span>
+              <span v-if="h.match" class="row-desc search-match">«{{ h.match }}»</span>
               <span class="row-desc">{{ h.lane || 'Fila sin rótulo' }} · {{ h.index }} de {{ h.total }}{{ h.section && h.section !== h.page_name ? ' · ' + h.section : '' }}</span>
             </button>
           </template>
@@ -1466,6 +1467,8 @@ onUnmounted(() => {
 /* El campo del buscador toma la banda de la barra izquierda, al lado de su lupa. */
 .sidebar > .region-head > .search-input { flex: 1; min-width: 0 }
 .search-results { padding-bottom: var(--space-2) }
+/* Dónde lo dice, cuando se encontró por el texto de la pantalla y no por su título. */
+.search-match { color: var(--fg-2) }
 .search-results .region-head.group:first-child { margin-top: 0 }
 
 /* SEÑALAR: el recuadro de la capa (el que sigue al mouse, punteado; el fijado, entero) y la superficie que

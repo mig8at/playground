@@ -28,9 +28,14 @@ type pageMap struct {
 	Error string
 }
 
+// mapsDir es la carpeta de los mapas en la caché. Cambia cuando el mapa guarda algo nuevo que hace falta leer:
+// «maps-text» desde que cada pantalla trae todo su texto (figma.Screen.Text, para el buscador). Un mapa de
+// la carpeta vieja no lo tiene, y sin esto el buscador no encontraría por texto hasta que el diseñador guarde.
+const mapsDir = "maps-text"
+
 // loadPage lee una página con la caché en disco de su versión.
 func (s *server) loadPage(ctx context.Context, key string, h figma.FileHead, page figma.Project) (figma.Structure, error) {
-	path := filepath.Join(s.cache, key, versionDir(h.Version), "maps", reNotDigit.ReplaceAllString(page.ID, "-")+".json")
+	path := filepath.Join(s.cache, key, versionDir(h.Version), mapsDir, reNotDigit.ReplaceAllString(page.ID, "-")+".json")
 	var st figma.Structure
 	if b, err := os.ReadFile(path); err == nil && json.Unmarshal(b, &st) == nil && st.Version == h.Version {
 		s.keepMap(key, page.ID, st)
@@ -102,7 +107,8 @@ func (s *server) pageLock(key string) *sync.Mutex {
 	return m.(*sync.Mutex)
 }
 
-// searchHit es una pantalla encontrada, con la página donde vive.
+// searchHit es una pantalla encontrada, con la página donde vive. Match es el pedazo del texto de la pantalla
+// donde están las palabras, cuando no alcanzó con el título, la capa, el carril, la sección o la página.
 type searchHit struct {
 	Page     string `json:"page"`
 	PageName string `json:"page_name"`
@@ -112,45 +118,89 @@ type searchHit struct {
 	Section  string `json:"section"`
 	Index    int    `json:"index"`
 	Total    int    `json:"total"`
+	Match    string `json:"match,omitempty"`
 }
 
 const searchLimit = 200
 
 // searchPages busca pantallas en las páginas: todas las palabras tienen que estar en el título, la capa, el
-// carril, la sección o el nombre de la página. Con `id`, la pantalla con ese id (para saber en qué página vive).
+// carril, la sección, el nombre de la página o TODO el texto de la pantalla. Adentro de cada página van
+// primero las que se encontraron sin leer el texto: una palabra del título dice más que una de un párrafo.
+// Con `id`, la pantalla con ese id (para saber en qué página vive).
 func searchPages(pages []pageMap, q, id string) (hits []searchHit, total int) {
 	words := strings.Fields(fold(q))
+	has := func(text string, ws []string) bool {
+		for _, w := range ws {
+			if !strings.Contains(text, w) {
+				return false
+			}
+		}
+		return len(ws) > 0
+	}
+	var all []searchHit
 	for _, p := range pages {
+		var named, bySaid []searchHit
 		for _, fs := range flowScreens(p.St) {
-			if id != "" {
-				if fs.sc.ID != id {
-					continue
+			title := fs.sc.Title
+			if title == "" {
+				title = fs.sc.Name
+			}
+			h := searchHit{Page: p.ID, PageName: p.Name, ID: fs.sc.ID, Title: title, Lane: fs.lane,
+				Section: fs.section, Index: fs.index, Total: fs.total}
+			meta := fold(strings.Join([]string{fs.sc.Title, fs.sc.Name, fs.lane, fs.section, p.Name}, " "))
+			switch {
+			case id != "":
+				if fs.sc.ID == id {
+					named = append(named, h)
 				}
-			} else {
-				text := fold(strings.Join([]string{fs.sc.Title, fs.sc.Name, fs.lane, fs.section, p.Name}, " "))
-				all := len(words) > 0
+			case has(meta, words):
+				named = append(named, h)
+			case has(meta+" "+fold(fs.sc.Text), words):
+				// Se muestra dónde dice la primera palabra que el título no tiene.
 				for _, w := range words {
-					if !strings.Contains(text, w) {
-						all = false
+					if !strings.Contains(meta, w) {
+						h.Match = snippet(fs.sc.Text, w)
 						break
 					}
 				}
-				if !all {
-					continue
-				}
-			}
-			total++
-			if len(hits) < searchLimit {
-				title := fs.sc.Title
-				if title == "" {
-					title = fs.sc.Name
-				}
-				hits = append(hits, searchHit{Page: p.ID, PageName: p.Name, ID: fs.sc.ID, Title: title, Lane: fs.lane,
-					Section: fs.section, Index: fs.index, Total: fs.total})
+				bySaid = append(bySaid, h)
 			}
 		}
+		all = append(append(all, named...), bySaid...)
 	}
-	return hits, total
+	if len(all) > searchLimit {
+		return all[:searchLimit], len(all)
+	}
+	return all, len(all)
+}
+
+// snippet es el pedazo de `text` alrededor de la palabra `w` (ya plegada con fold), con «…» si se cortó. Se
+// busca runa por runa, porque plegar las tildes cambia los bytes pero no la cantidad de letras.
+func snippet(text, w string) string {
+	const around = 36
+	orig := []rune(text)
+	folded := make([]rune, len(orig))
+	for i, r := range orig {
+		if f := []rune(fold(string(r))); len(f) == 1 {
+			folded[i] = f[0]
+		} else {
+			folded[i] = r
+		}
+	}
+	at := strings.Index(string(folded), w)
+	if at < 0 {
+		return ""
+	}
+	start := len([]rune(string(folded)[:at]))
+	from, to := max(0, start-around), min(len(orig), start+len([]rune(w))+around)
+	out := strings.TrimSpace(string(orig[from:to]))
+	if from > 0 {
+		out = "…" + out
+	}
+	if to < len(orig) {
+		out += "…"
+	}
+	return out
 }
 
 // handleSearch: `/api/search?key=<clave>&q=<palabras>` busca en todas las páginas del archivo;

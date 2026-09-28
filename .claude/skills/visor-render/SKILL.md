@@ -30,11 +30,17 @@ adentro del bloque, el mismo día: ninguna de las dos se leía como parte del pr
 **El buscador** es la lupa de la cabecera de la barra IZQUIERDA (Miguel lo pidió ahí, no en la derecha): la
 lupa vuelve la cabecera un campo, y mientras haya algo escrito los resultados toman el lugar de los
 proyectos. Busca pantallas en todas las páginas de pantallas del archivo del centro (sin las de `reHiddenPage`),
-por título, capa, carril, sección y nombre de la página (`/api/search`, `server/pages.go`), agrupadas por
+por TODO lo que dice la pantalla, su capa, su carril, su sección y el nombre de la página (`/api/search`,
+`server/pages.go`), agrupadas por
 página; un resultado de otra página la abre en el árbol y al centro. Cada página se guarda en disco por versión,
 como la de flujo: la primera búsqueda en App Creditop tardó ~20–30 s. Después, lo leído queda en memoria
 un minuto (`pagesMemo`): sin eso cada palabra le preguntaba a Figma la versión y tardaba ~2,8 s; con eso,
-4–6 ms (medido el 2026-09-28). Por ahora busca sólo en el archivo abierto (Miguel, 2026-09-28). Al centro la pantalla —la imagen de
+4–6 ms (medido el 2026-09-28). **El texto de cada pantalla sale del mismo árbol** que ya se bajaba
+para deducir el título (`figma.Screen.Text`, sin la barra de estado, hasta 4000 letras): no cuesta otro
+pedido a Figma. Lo encontrado sólo por el texto va después de lo encontrado por el título, con el pedazo
+donde lo dice. Medido en App Creditop: «iniciar solicitud» (sólo en un botón) pasó de 0 a 14 pantallas, y
+«monto» de 44 a 110. ⚠ La caché de mapas se llama `maps-text` (`mapsDir`): los de la carpeta vieja no traen
+el texto. Si el mapa vuelve a guardar algo que haga falta leer, se cambia ese nombre. Por ahora busca sólo en el archivo abierto (Miguel, 2026-09-28). Al centro la pantalla —la imagen de
 Figma, su HTML o las dos—; a la derecha qué es, la capa señalada, la fidelidad, la paleta y la
 tipografía. ← → recorren el carril, Retroceso vuelve, S señala una capa, 0 centra la pantalla y + / − son
 el zoom.

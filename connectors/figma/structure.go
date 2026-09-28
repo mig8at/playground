@@ -64,7 +64,11 @@ type Screen struct {
 	TitleFrom string   `json:"title_from,omitempty"`
 	Actions   []string `json:"actions,omitempty"` // los textos de sus botones
 	Texts     int      `json:"texts"`
-	Comments  int      `json:"open_comments,omitempty"`
+	// Text es TODO lo que dice la pantalla, sin la barra de estado del celular: sus textos en el orden del
+	// árbol, sin repetir, unidos con « · ». Sale del mismo árbol que el título, sin otro pedido a Figma, y es
+	// lo que deja al buscador del visor encontrar una pantalla por una palabra de un botón o un párrafo.
+	Text     string `json:"text,omitempty"`
+	Comments int    `json:"open_comments,omitempty"`
 	// Hotspots son las zonas del prototipo: dónde tocar y a qué pantalla lleva, relativo a la pantalla.
 	Hotspots []Hotspot `json:"hotspots,omitempty"`
 	X        float64   `json:"x"`
@@ -606,6 +610,16 @@ func firstText(n fullNode) string {
 	return ""
 }
 
+// screenTextMax corta el texto de una pantalla: una con un contrato entero pegado no infla el mapa.
+const screenTextMax = 4000
+
+func clipRunes(s string, n int) string {
+	if r := []rune(s); len(r) > n {
+		return string(r[:n]) + "…"
+	}
+	return s
+}
+
 func oneLine(s string) string {
 	s = strings.Join(strings.Fields(s), " ")
 	if r := []rune(s); len(r) > 80 {
@@ -678,11 +692,17 @@ func screenOf(n fullNode, texts []textNode, b box, kind string) Screen {
 	// pantallas móviles del archivo medido («07-Feb», «3», «$2.000.000»).
 	best := [3]float64{-1, -1, -1}
 	titles := [3]string{}
+	var said []string
+	seen := map[string]bool{}
 	for _, t := range texts {
 		if t.status {
 			continue
 		}
 		sc.Texts++
+		if line := strings.Join(strings.Fields(t.text), " "); line != "" && !seen[line] {
+			seen[line] = true
+			said = append(said, line)
+		}
 		if t.inButton {
 			if a := oneLine(t.text); a != "" && !contains(sc.Actions, a) {
 				sc.Actions = append(sc.Actions, a)
@@ -701,6 +721,7 @@ func screenOf(n fullNode, texts []textNode, b box, kind string) Screen {
 			}
 		}
 	}
+	sc.Text = clipRunes(strings.Join(said, " · "), screenTextMax)
 	switch {
 	case titles[0] != "":
 		sc.Title, sc.TitleFrom = titles[0], "texto"

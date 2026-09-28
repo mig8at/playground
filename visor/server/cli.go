@@ -194,7 +194,7 @@ func cliSearch(s *server, ctx context.Context, args []string, out io.Writer) err
 			}
 		}
 		for _, fs := range flowScreens(st) {
-			text := fold(strings.Join([]string{fs.sc.Title, fs.sc.Name, fs.lane, fs.section, o.Name, slug}, " "))
+			text := fold(strings.Join([]string{fs.sc.Title, fs.sc.Name, fs.lane, fs.section, o.Name, slug, fs.sc.Text}, " "))
 			all := true
 			for _, w := range words {
 				if !strings.Contains(text, w) {
@@ -222,7 +222,7 @@ func cliSearch(s *server, ctx context.Context, args []string, out io.Writer) err
 	}
 	switch {
 	case len(hits) > 0:
-		fmt.Fprintf(out, "\n  %d pantalla(s) con todas las palabras (en el título, la capa, el carril o el proyecto).\n", len(hits))
+		fmt.Fprintf(out, "\n  %d pantalla(s) con todas las palabras (en el título, la capa, el carril, el proyecto o lo que dice la pantalla).\n", len(hits))
 	case len(laneStarts) > 0:
 		// En Figma una pantalla se llama por lo que DICE, no por lo que es: «bienvenida» no aparece en la
 		// bienvenida de Alta (su capa es «home» y su título, el titular). Lo que sí se sabe es dónde está:
@@ -234,7 +234,7 @@ func cliSearch(s *server, ctx context.Context, args []string, out io.Writer) err
 			print(h)
 		}
 	default:
-		fmt.Fprintln(out, "  Ninguna pantalla. Busca en el título, la capa, el carril y el proyecto; el flujo entero: make visor-pantallas P=<proyecto>")
+		fmt.Fprintln(out, "  Ninguna pantalla. Busca en el título, la capa, el carril, el proyecto y lo que dice la pantalla; el flujo entero: make visor-pantallas P=<proyecto>")
 	}
 	fmt.Fprintln(out, "  Una pantalla entera: make visor-pantalla R=<ruta> · sus imágenes: make visor-recursos R=<ruta>")
 	return nil

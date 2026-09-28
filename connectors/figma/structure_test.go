@@ -73,6 +73,15 @@ func TestTitleComesFromWhatTheScreenSays(t *testing.T) {
 	if sc.Title != "Confirma tu plan" || len(sc.Actions) != 1 || sc.Actions[0] != "Confirmar" {
 		t.Errorf("el texto de un botón es una acción, no el título: %+v", sc)
 	}
+	// Lo que dice la pantalla entera va en Text: el título, el botón y cada texto una sola vez, sin la barra
+	// de estado del celular.
+	full := mobile("7", "Frame", 0, 0, text("a", "x", "Ingresa el  monto\na solicitar", 20, 100),
+		frame("st", "Status Bar", 0, 0, 390, 44, text("h", "Time", "11:28", 14, 10)),
+		text("c", "x", "Monto a solicitar", 14, 200), text("d", "x", "Monto a solicitar", 14, 300),
+		frame("b", "Botones/Primary", 0, 800, 300, 40, text("bt", "Label", "Iniciar solicitud", 16, 800)))
+	if got := screenOf(full, textsOf(full, nil), boxOf(full), "mobile").Text; got != "Ingresa el monto a solicitar · Monto a solicitar · Iniciar solicitud" {
+		t.Errorf("el texto de la pantalla: %q", got)
+	}
 }
 
 // Una flecha con la punta suelta se ubica por su posición, que Figma guarda RELATIVA a la sección.
