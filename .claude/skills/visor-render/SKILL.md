@@ -12,7 +12,7 @@ consola está en `visor/CLAUDE.md`. Vivía allí hasta el 2026-09-27.
 
 `make visor` (UI :5193 · API :5194). La barra de la izquierda es un acordeón donde **cada proyecto es un
 bloque en la raíz** (Altafinanciera, BCP, Credifamilia, CreditopX, flujo ecommerce, Motai Renting,
-Smartpay), y adentro están directamente **sus pantallas** en los carriles del diseñador. Se abre de a uno
+Smartpay), y adentro está **el árbol de su archivo** (páginas y secciones, abajo). Se abre de a uno
 —con varios, cada bloque quedaba de dos renglones— y al final está «Sumar un flujo».
 
 La página del archivo arranca sola: la que se llama «Flujo» o «Flow» (así las nombran los siete de
