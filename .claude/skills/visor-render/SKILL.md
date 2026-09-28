@@ -17,16 +17,19 @@ Smartpay), y adentro están directamente **sus pantallas** en los carriles del d
 
 La página del archivo arranca sola: la que se llama «Flujo» o «Flow» (así las nombran los siete de
 producto) o, si no hay, la primera que no sea portada, benchmark ni prototipo. **Las demás páginas son
-pestañas en el pie**, como las hojas de Excel (Miguel, 2026-09-28): App Creditop tiene el recorrido en
+pestañas en el pie**, como las hojas de Excel, **menos la portada**, que no tiene nada que mirar (Miguel, 2026-09-28): App Creditop tiene el recorrido en
 «✏️ Flujo» y la versión Q3 en «App_Q3_2026_v1.0». Una pestaña trae su página al centro y al bloque de la
 barra, se lee de Figma al tocarla —una de benchmark puede ser enorme— y la ruta la nombra con `?nodo=`.
 Las páginas NO van en la barra: Miguel quiere ver el recorrido, no «Cover · Benchmark · Flujo».
 
-**El buscador** es la lupa de la barra derecha: busca pantallas en TODAS las páginas del archivo del centro,
+**El buscador** es la lupa de la cabecera de la barra IZQUIERDA (Miguel lo pidió ahí, no en la derecha): la
+lupa vuelve la cabecera un campo, y mientras haya algo escrito los resultados toman el lugar de los
+proyectos. Busca pantallas en todas las páginas del archivo del centro (menos la portada),
 por título, capa, carril, sección y nombre de la página (`/api/search`, `server/pages.go`), agrupadas por
 página; un resultado de otra página la abre en su pestaña. Cada página se guarda en disco por versión,
-como la de flujo: la primera búsqueda en App Creditop (5 páginas) tardó ~20–30 s, las siguientes salen
-de la caché. Por ahora busca sólo en el archivo abierto (Miguel, 2026-09-28). Al centro la pantalla —la imagen de
+como la de flujo: la primera búsqueda en App Creditop tardó ~20–30 s. Después, lo leído queda en memoria
+un minuto (`pagesMemo`): sin eso cada palabra le preguntaba a Figma la versión y tardaba ~2,8 s; con eso,
+4–6 ms (medido el 2026-09-28). Por ahora busca sólo en el archivo abierto (Miguel, 2026-09-28). Al centro la pantalla —la imagen de
 Figma, su HTML o las dos—; a la derecha qué es, la capa señalada, la fidelidad, la paleta y la
 tipografía. ← → recorren el carril, Retroceso vuelve, S señala una capa, 0 centra la pantalla y + / − son
 el zoom.

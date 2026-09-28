@@ -298,9 +298,11 @@ function pick(key, id) {
 // de antes siguen abriendo.
 const pageBusy = ref('') // la página que se está leyendo
 const pageError = ref('')
+// La portada no lleva pestaña: es la tapa del archivo, no tiene pantallas que mirar (Miguel, 2026-09-28).
+const reCoverPage = /cover|portada/i
 const pageTabs = computed(() => {
   const p = data.value && pagesOf.value[data.value.key]
-  return p && p.pages ? p.pages : []
+  return p && p.pages ? p.pages.filter((x) => !reCoverPage.test(x.name)) : []
 })
 const onPage = computed(() => pageTabs.value.some((p) => p.id === data.value?.node))
 async function openPage(key, pageID, screen = '') {
@@ -984,7 +986,39 @@ const laneName = (lane) => (lane.label ? lane.label : 'Fila sin rótulo')
       <div class="rsz rsz-edge-right" v-resize="resizeOptions('sidebar')"></div>
       <!-- La banda superior de la columna, de 40 como la del editor y la del detalle: sin ella la primera
            vista (32) dejaba la costura de arriba escalonada contra las otras dos columnas. -->
-      <div class="region-head"><span>Proyectos</span><span v-if="flows.length" class="count">{{ flows.length }}</span></div>
+      <!-- El buscador vive en la cabecera de la barra: la lupa la vuelve un campo, y mientras haya algo escrito
+           los resultados toman el lugar de los proyectos. Busca en TODAS las páginas del archivo del centro. -->
+      <div class="region-head">
+        <input v-if="searching" ref="searchInput" v-model="searchQ" class="input input-xs search-input" type="text"
+          :placeholder="'Buscar en ' + (structure?.file_name || 'el archivo')" aria-label="Buscar pantallas en todas las páginas del archivo"
+          @keydown.esc="closeSearch" />
+        <template v-else><span>Proyectos</span><span v-if="flows.length" class="count">{{ flows.length }}</span></template>
+        <div class="region-actions">
+          <button class="region-action" :aria-pressed="searching" :disabled="!data"
+            :title="searching ? 'Cerrar el buscador (Esc)' : 'Buscar pantallas en todas las páginas del archivo abierto'"
+            :aria-label="searching ? 'Cerrar el buscador' : 'Buscar pantallas'" @click="toggleSearch">
+            <span class="ui-icon" :data-icon="searching ? 'close' : 'search'" aria-hidden="true"></span>
+          </button>
+        </div>
+      </div>
+      <div v-if="searching && searchQ.trim()" class="region-body search-results">
+        <p v-if="searchState === 'loading' && !searchResult" class="hint">Buscando en todas las páginas… la primera vez lee cada una de Figma y puede tardar medio minuto.</p>
+        <p v-else-if="searchState === 'error'" class="hint">No se pudo buscar: {{ searchError }}</p>
+        <template v-else-if="searchResult">
+          <p v-if="!searchResult.total" class="hint">Ninguna pantalla con «{{ searchQ.trim() }}» en las {{ searchResult.pages }} páginas. Busca en el título, la capa, el carril, la sección y el nombre de la página.</p>
+          <template v-for="g in searchGroups" :key="g.page">
+            <div class="region-head group"><span>{{ g.name }}</span><span class="count">{{ g.hits.length }}</span></div>
+            <button v-for="h in g.hits" :key="h.id" type="button" class="row stacked"
+              :class="{ on: data?.node === h.page && currentID === h.id }" :title="h.page_name + ' · ' + h.title" @click="openHit(h)">
+              <span>{{ h.title }}</span>
+              <span class="row-desc">{{ h.lane || 'Fila sin rótulo' }} · {{ h.index }} de {{ h.total }}{{ h.section && h.section !== h.page_name ? ' · ' + h.section : '' }}</span>
+            </button>
+          </template>
+          <p v-if="searchResult.total > searchResult.hits.length" class="hint">Se muestran {{ searchResult.hits.length }} de {{ searchResult.total }}: agregá otra palabra.</p>
+          <p v-for="f in searchResult.failed || []" :key="f.page" class="hint">No se leyó la página «{{ f.page }}»: {{ f.error }}</p>
+        </template>
+      </div>
+      <template v-else>
 
       <!-- Cada PROYECTO (un flujo, un archivo de Figma) es un bloque del acordeón en la raíz de la barra, y
            adentro están sus pantallas en los carriles del diseñador, sin pasar por las páginas del
@@ -1047,6 +1081,7 @@ const laneName = (lane) => (lane.label ? lane.label : 'Fila sin rótulo')
           <div v-for="e in libraryErrors" :key="e" class="alert alert-destructive"><div class="alert-desc">{{ e }}</div></div>
         </div>
       </section>
+      </template>
     </aside>
 
     <main class="editor">
@@ -1116,40 +1151,9 @@ const laneName = (lane) => (lane.label ? lane.label : 'Fila sin rótulo')
 
     <aside v-show="shown.aux" class="auxiliarybar" aria-label="Detalle de la pantalla">
       <div class="rsz rsz-edge-left" v-resize="resizeOptions('aux')"></div>
-      <!-- El buscador vive en la cabecera de la barra: la lupa la vuelve un campo, y los resultados ocupan
-           el cuerpo mientras haya algo escrito. Busca en TODAS las páginas del archivo del centro. -->
-      <div class="region-head">
-        <input v-if="searching" ref="searchInput" v-model="searchQ" class="input input-xs search-input" type="text"
-          :placeholder="'Buscar en ' + (structure?.file_name || 'el archivo')" aria-label="Buscar pantallas en todas las páginas del archivo"
-          @keydown.esc="closeSearch" />
-        <span v-else>Pantalla</span>
-        <div class="region-actions">
-          <button class="region-action" :aria-pressed="searching" :disabled="!data"
-            :title="searching ? 'Cerrar el buscador (Esc)' : 'Buscar pantallas en todas las páginas del archivo'"
-            :aria-label="searching ? 'Cerrar el buscador' : 'Buscar pantallas'" @click="toggleSearch">
-            <span class="ui-icon" :data-icon="searching ? 'close' : 'search'" aria-hidden="true"></span>
-          </button>
-        </div>
-      </div>
+      <div class="region-head"><span>Pantalla</span></div>
       <div class="region-body detail">
-        <div v-if="searching && searchQ.trim()" class="search-results">
-          <p v-if="searchState === 'loading' && !searchResult" class="hint">Buscando en todas las páginas… la primera vez lee cada una de Figma y puede tardar medio minuto.</p>
-          <p v-else-if="searchState === 'error'" class="hint">No se pudo buscar: {{ searchError }}</p>
-          <template v-else-if="searchResult">
-            <p v-if="!searchResult.total" class="hint">Ninguna pantalla con «{{ searchQ.trim() }}» en las {{ searchResult.pages }} páginas. Busca en el título, la capa, el carril, la sección y el nombre de la página.</p>
-            <template v-for="g in searchGroups" :key="g.page">
-              <div class="region-head group"><span>{{ g.name }}</span><span class="count">{{ g.hits.length }}</span></div>
-              <button v-for="h in g.hits" :key="h.id" type="button" class="row stacked"
-                :class="{ on: data?.node === h.page && currentID === h.id }" :title="h.page_name + ' · ' + h.title" @click="openHit(h)">
-                <span>{{ h.title }}</span>
-                <span class="row-desc">{{ h.lane || 'Fila sin rótulo' }} · {{ h.index }} de {{ h.total }}{{ h.section && h.section !== h.page_name ? ' · ' + h.section : '' }}</span>
-              </button>
-            </template>
-            <p v-if="searchResult.total > searchResult.hits.length" class="hint">Se muestran {{ searchResult.hits.length }} de {{ searchResult.total }}: agregá otra palabra.</p>
-            <p v-for="f in searchResult.failed || []" :key="f.page" class="hint">No se leyó la página «{{ f.page }}»: {{ f.error }}</p>
-          </template>
-        </div>
-        <div v-else-if="!current" class="empty">
+        <div v-if="!current" class="empty">
           <div class="empty-head"><div class="empty-desc">Elegí una pantalla de un carril.</div></div>
         </div>
         <template v-else>
@@ -1366,7 +1370,7 @@ const laneName = (lane) => (lane.label ? lane.label : 'Fila sin rótulo')
 .page-tab.busy::after { content: "…" }
 .page-error { color: var(--destructive) }
 /* El campo del buscador toma la banda de la barra derecha, al lado de su lupa. */
-.auxiliarybar > .region-head > .search-input { flex: 1; min-width: 0 }
+.sidebar > .region-head > .search-input { flex: 1; min-width: 0 }
 .search-results { padding-bottom: var(--space-2) }
 .search-results .region-head.group:first-child { margin-top: 0 }
 

@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"sync"
 	"time"
@@ -47,18 +48,26 @@ func (s *server) loadPage(ctx context.Context, key string, h figma.FileHead, pag
 	return st, nil
 }
 
-// loadPages lee todas las páginas del archivo, en el orden de Figma. Una que falla no tumba las demás: va
+// loadPages lee todas las páginas del archivo menos la portada, en el orden de Figma. Una que falla no tumba las demás: va
 // con su error. Dos pedidos del mismo archivo a la vez (el buscador mientras se escribe) esperan al primero.
 func (s *server) loadPages(ctx context.Context, key string) ([]pageMap, error) {
 	lock := s.pageLock(key)
 	lock.Lock()
 	defer lock.Unlock()
+	// Mientras se escribe en el buscador llega un pedido por palabra: preguntarle a Figma la versión en cada
+	// uno costaba ~2,8 s aun con todo en caché. Lo leído vale un minuto; después se vuelve a preguntar.
+	if v, ok := pagesMemo.Load(s.cache + "|" + key); ok && time.Since(v.(pagesRead).at) < pagesFresh {
+		return v.(pagesRead).pages, nil
+	}
 	h, err := s.figma.Head(ctx, key)
 	if err != nil {
 		return nil, err
 	}
 	out := make([]pageMap, 0, len(h.Pages))
 	for _, p := range h.Pages {
+		if reCoverPage.MatchString(p.Name) {
+			continue // la portada es la tapa del archivo: ni pestaña ni búsqueda (Miguel, 2026-09-28)
+		}
 		pm := pageMap{ID: p.ID, Name: p.Name}
 		if st, err := s.loadPage(ctx, key, h, p); err != nil {
 			pm.Error = err.Error()
@@ -67,8 +76,21 @@ func (s *server) loadPages(ctx context.Context, key string) ([]pageMap, error) {
 		}
 		out = append(out, pm)
 	}
+	pagesMemo.Store(s.cache+"|"+key, pagesRead{at: time.Now(), pages: out})
 	return out, nil
 }
+
+// pagesMemo guarda la última lectura de las páginas de cada archivo, por pagesFresh.
+var pagesMemo sync.Map
+
+const pagesFresh = time.Minute
+
+type pagesRead struct {
+	at    time.Time
+	pages []pageMap
+}
+
+var reCoverPage = regexp.MustCompile(`(?i)cover|portada`)
 
 var pageLocks sync.Map // clave del archivo → *sync.Mutex
 
