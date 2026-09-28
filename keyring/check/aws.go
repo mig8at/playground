@@ -38,7 +38,8 @@ type Service struct {
 	ID       string `json:"id"`
 	Label    string `json:"label"`
 	Category string `json:"category"`
-	Action   string `json:"action"` // la acción de IAM que se probó
+	Action   string `json:"action"`  // la acción de IAM que se probó
+	Command  string `json:"command"` // la llamada del CLI que la prueba, sin el perfil: se reproduce a mano
 	Read     Access `json:"read"`
 	Write    Access `json:"write"`
 	Detail   string `json:"detail"`
@@ -60,7 +61,8 @@ type Account struct {
 	Error         string     `json:"error,omitempty"`
 	Services      []Service  `json:"services"`
 
-	noCredentials bool
+	// NoCredentials: el perfil no tiene credenciales propias (sólo configuración). No es un acceso: se oculta.
+	NoCredentials bool `json:"noCredentials,omitempty"`
 }
 
 // accountLabels nombra las cuentas de CreditOp. Sale del README y de los ARNs de `infrastructure`: la de
@@ -110,7 +112,7 @@ var awsServices = []struct {
 func AWSServiceList() []Service {
 	out := make([]Service, len(awsServices))
 	for i, s := range awsServices {
-		out[i] = Service{ID: s.id, Label: s.label, Category: s.category, Action: s.action}
+		out[i] = Service{ID: s.id, Label: s.label, Category: s.category, Action: s.action, Command: "aws " + strings.Join(s.args, " ")}
 	}
 	return out
 }
@@ -124,6 +126,22 @@ var reDenied = regexp.MustCompile(`AccessDenied|UnauthorizedOperation|Authorizat
 // reWhy extrae el motivo de la negativa: «no identity-based policy allows» (nadie lo dio) o «explicit
 // deny» (alguien lo quitó a propósito), que son dos conversaciones distintas con quien administra AWS.
 var reWhy = regexp.MustCompile(`because (no identity-based policy allows the [^ ]+ action|[^.]*explicit deny[^.]*)`)
+
+// AWSProfiles son los perfiles de ~/.aws, sin medir: la interfaz los pide primero para dibujar las columnas
+// y después mide cada uno por separado.
+func AWSProfiles(ctx context.Context) ([]string, error) {
+	if _, err := exec.LookPath("aws"); err != nil {
+		return nil, err
+	}
+	raw, err := exec.CommandContext(ctx, "aws", "configure", "list-profiles").Output()
+	if err != nil {
+		return nil, err
+	}
+	return strings.Fields(string(raw)), nil
+}
+
+// AWSAccount mide UN perfil: su identidad y la lectura de cada servicio.
+func AWSAccount(ctx context.Context, profile string) Account { return awsAccount(ctx, profile) }
 
 // AWSAccounts mide cada perfil de ~/.aws, en paralelo. Los perfiles sin credenciales propias no son un
 // acceso: salen aparte, en `hidden`, para que quien mira sepa que se ocultaron y no que no existen.
@@ -147,7 +165,7 @@ func AWSAccounts(ctx context.Context) (accounts []Account, hidden []string, err 
 	}
 	wg.Wait()
 	for _, a := range out {
-		if a.noCredentials {
+		if a.NoCredentials {
 			hidden = append(hidden, a.Profile)
 			continue
 		}
@@ -164,7 +182,7 @@ func awsAccount(ctx context.Context, profile string) Account {
 	raw, err := cmd.Output()
 	if err != nil {
 		a.Error = awsReason(stderr.String(), err)
-		a.noCredentials = noCredentials(stderr.String())
+		a.NoCredentials = noCredentials(stderr.String())
 		return a
 	}
 	var id struct{ Account, Arn string }
@@ -197,7 +215,8 @@ func awsAccount(ctx context.Context, profile string) Account {
 		wg.Add(1)
 		go func(i int, id, label, category, action string, args []string) {
 			defer wg.Done()
-			a.Services[i] = probeRead(ctx, profile, Service{ID: id, Label: label, Category: category, Action: action, Write: Unmeasured}, args)
+			a.Services[i] = probeRead(ctx, profile, Service{ID: id, Label: label, Category: category, Action: action,
+				Command: "aws " + strings.Join(args, " "), Write: Unmeasured}, args)
 		}(i, s.id, s.label, s.category, s.action, s.args)
 	}
 	wg.Wait()

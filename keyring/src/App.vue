@@ -1,9 +1,12 @@
 <script setup>
 /* keyring · la interfaz. El editor es AWS: qué servicios lee cada perfil de ~/.aws, medido con una llamada
- * List/Describe por servicio. Abajo, en la consola, el resto de los accesos (red, bases, logs, eventos,
- * servicios, sesiones), un grupo por pestaña. Todo sale de la API en Go —las mismas filas que
- * `make keyring`—: acá no se prueba nada, se pinta. La pestaña elegida vive en la URL. */
+ * List/Describe por servicio. Cada perfil se pide por separado, así su columna aparece apenas contesta. Al
+ * elegir un servicio, el sidebar secundario dice qué se probó, qué contestó cada perfil y el comando que lo
+ * reproduce. Abajo, en la consola, el resto de los accesos, un grupo por pestaña. Todo sale de la API en
+ * Go —lo mismo que `make keyring`—: acá no se prueba nada, se pinta. Filtro, servicio y pestaña viven en
+ * la URL. */
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import RegionMenu from './RegionMenu.vue'
 import {
   vResize, readSize, saveSize, fitRegions, cssSize, bindThemeToggle,
   readHashRoute, hashRoute, setRoute,
@@ -12,12 +15,27 @@ import {
 const READ_LABEL = { yes: 'lectura', no: 'negada', error: 'no se supo', unmeasured: 'sin medir' }
 const STATE_LABEL = { ok: 'ok', warn: 'vence pronto', fail: 'falla', off: 'no aplica' }
 const STATE_RANK = { fail: 0, warn: 1, ok: 2, off: 3 }
+const FILTERS = [
+  { id: 'all', label: 'Todos los servicios' },
+  { id: 'access', label: 'Con lectura en algún perfil' },
+  { id: 'diff', label: 'Donde los perfiles difieren' },
+]
 
-// ── la ruta: #/?tab=<grupo> ──
+// ── la ruta: #/?filter=diff&service=ecs&tab=databases ──
 const route = readHashRoute()
+const filter = ref(FILTERS.some((f) => f.id === route.params.get('filter')) ? route.params.get('filter') : 'all')
+const selectedId = ref(route.params.get('service') || '')
 const tab = ref(route.params.get('tab') || '')
-function writeRoute(push) { setRoute(hashRoute([], { tab: tab.value }, { tab: '' }), { push }) }
-function onHashChange() { tab.value = readHashRoute().params.get('tab') || tab.value }
+function writeRoute(push) {
+  setRoute(hashRoute([], { filter: filter.value, service: selectedId.value, tab: tab.value },
+    { filter: 'all', service: '', tab: '' }), { push })
+}
+function onHashChange() {
+  const r = readHashRoute()
+  filter.value = FILTERS.some((f) => f.id === r.params.get('filter')) ? r.params.get('filter') : 'all'
+  selectedId.value = r.params.get('service') || ''
+  tab.value = r.params.get('tab') || tab.value
+}
 
 async function getJSON(path) {
   const res = await fetch(path)
@@ -26,32 +44,68 @@ async function getJSON(path) {
   return body
 }
 
-// ── AWS: el editor ──
-const aws = ref(null)
-const awsLoading = ref(false)
+// ── AWS: primero la lista de perfiles, después cada perfil por separado ──
+const meta = ref(null) // { categories, services, profiles }
+const accounts = ref({}) // perfil → cuenta medida
+const measuring = ref({}) // perfil → true mientras se mide
 const awsError = ref('')
-async function loadAWS() {
-  awsLoading.value = true
-  awsError.value = ''
+async function loadAccount(profile) {
+  measuring.value = { ...measuring.value, [profile]: true }
   try {
-    aws.value = await getJSON('/api/aws')
+    const body = await getJSON(`/api/aws/account?profile=${encodeURIComponent(profile)}`)
+    accounts.value = { ...accounts.value, [profile]: body }
   } catch (e) {
-    awsError.value = `No se pudo leer: ${e.message}. ¿Está la API arriba? (make keyring-ui levanta las dos partes)`
+    accounts.value = { ...accounts.value, [profile]: { profile, error: e.message, services: [] } }
   } finally {
-    awsLoading.value = false
+    measuring.value = { ...measuring.value, [profile]: false }
   }
 }
-const accounts = computed(() => aws.value?.accounts || [])
-// Los perfiles sin credenciales propias (un `default` que sólo guarda la región) no se muestran; el pie dice cuáles.
-const hidden = computed(() => aws.value?.hidden || [])
-const categories = computed(() => (aws.value?.categories || []).map((c) => ({
-  id: c, rows: (aws.value?.services || []).map((s, i) => ({ ...s, index: i })).filter((s) => s.category === c),
+async function loadAWS() {
+  awsError.value = ''
+  try {
+    meta.value = await getJSON('/api/aws/profiles')
+  } catch (e) {
+    awsError.value = `No se pudo leer: ${e.message}. ¿Está la API arriba? (make keyring-ui levanta las dos partes)`
+    return
+  }
+  await Promise.all(meta.value.profiles.map(loadAccount))
+}
+// Un perfil sin credenciales propias (un `default` que sólo guarda la región) no es un acceso: no ocupa
+// columna, y el pie dice cuál se ocultó para que no se lea como que no existe.
+const profiles = computed(() => (meta.value?.profiles || []).filter((p) => !accounts.value[p]?.noCredentials))
+const hidden = computed(() => (meta.value?.profiles || []).filter((p) => accounts.value[p]?.noCredentials))
+const services = computed(() => (meta.value?.services || []).map((s, index) => ({ ...s, index })))
+const cell = (profile, index) => accounts.value[profile]?.services?.[index] || null
+const readCount = (profile) => (accounts.value[profile]?.services || []).filter((s) => s.read === 'yes').length
+
+// ── el filtro: se alterna y se toca poco, así que va al menú; el contador del encabezado lo delata ──
+const hasAccess = (s) => profiles.value.some((p) => cell(p, s.index)?.read === 'yes')
+// Sólo entre perfiles medidos: uno vencido o todavía midiendo no es una diferencia de permisos.
+const measured = computed(() => profiles.value.filter((p) => accounts.value[p]?.services?.length))
+const differs = (s) => new Set(measured.value.map((p) => cell(p, s.index)?.read)).size > 1
+const passes = (s) => (filter.value === 'access' ? hasAccess(s) : filter.value === 'diff' ? differs(s) : true)
+const shownServices = computed(() => services.value.filter(passes))
+const filterMenu = computed(() => FILTERS.map((f) => ({
+  id: f.id, label: f.label, checked: filter.value === f.id,
+  count: f.id === 'all' ? services.value.length : services.value.filter(f.id === 'access' ? hasAccess : differs).length,
 })))
-const cell = (account, index) => account.services?.[index] || null
-const readCount = (account) => (account.services || []).filter((s) => s.read === 'yes').length
-// «pegadas a mano el 28/09 10:56, sin vencimiento declarado» → «pegadas 28/09 10:56»; el texto entero va en el title.
-const credShort = (text) => text?.replace(/^pegadas a mano el ([^,]+),.*$/, 'pegadas $1') || ''
-const serviceCount = computed(() => aws.value?.services?.length || 0)
+const categories = computed(() => (meta.value?.categories || []).map((c) => {
+  const all = services.value.filter((s) => s.category === c)
+  return {
+    id: c, rows: all.filter(passes), total: all.length,
+    // Sólo los perfiles medidos: «dev 0/3» de un perfil vencido se leía como «sin acceso».
+    perProfile: profiles.value.filter((p) => accounts.value[p]?.services?.length)
+      .map((p) => ({ p, n: all.filter((s) => cell(p, s.index)?.read === 'yes').length })),
+  }
+}).filter((c) => c.rows.length))
+
+// ── el servicio elegido: su detalle va al sidebar secundario ──
+const selected = computed(() => services.value.find((s) => s.id === selectedId.value) || null)
+function pick(id) { selectedId.value = selectedId.value === id ? '' : id; if (selectedId.value) { auxOpen.value = true } }
+const copied = ref('')
+async function copy(text) {
+  try { await navigator.clipboard.writeText(text); copied.value = text; setTimeout(() => { if (copied.value === text) copied.value = '' }, 1500) } catch { /* sin portapapeles, el comando igual está a la vista */ }
+}
 
 // ── los demás accesos: la consola ──
 const groups = ref([])
@@ -96,9 +150,9 @@ async function loadAll() {
   await Promise.all([loadAWS(), loadGroups()])
   checkedAt.value = new Date()
 }
-const busy = computed(() => awsLoading.value || Object.values(pending.value).some(Boolean))
+const busy = computed(() => Object.values(measuring.value).some(Boolean) || Object.values(pending.value).some(Boolean))
 
-// El vencimiento se relee cada 30 s: «en 40′» no puede quedar congelado mientras la pestaña está abierta.
+// El vencimiento se relee cada 30 s: «vence en 40′» no puede quedar congelado mientras la pestaña está abierta.
 const now = ref(Date.now())
 let clock = null
 function until(t) {
@@ -107,23 +161,42 @@ function until(t) {
   const text = mins < 60 ? `${mins}′` : mins < 48 * 60 ? `${Math.floor(mins / 60)}h${String(mins % 60).padStart(2, '0')}` : `${Math.floor(mins / 1440)}d`
   return d <= 0 ? `venció hace ${text}` : `vence en ${text}`
 }
+// «pegadas a mano el 28/09 10:56, sin vencimiento declarado» → «pegadas 28/09 10:56»; el texto entero va en el title.
+const credShort = (text) => text?.replace(/^pegadas a mano el ([^,]+),.*$/, 'pegadas $1') || ''
 const fmtFull = (t) => (t ? new Date(t).toLocaleString('es-CO') : '')
 const fmtTime = (t) => (t ? t.toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit' }) : '')
 
 watch(tab, () => writeRoute(false))
+watch(filter, () => writeRoute(false))
+watch(selectedId, () => writeRoute(true))
 
-// ── las regiones: la consola se redimensiona y se pliega, con el contrato de la base ──
+// ── las regiones: el detalle a la derecha y la consola abajo, con el contrato de la base ──
+const auxOpen = ref(readSize('keyring.aux-open', 1) !== 0)
+const auxW = ref(readSize('keyring.aux-w', 340))
 const panelOpen = ref(readSize('keyring.panel-open', 1) !== 0)
 const panelH = ref(readSize('keyring.panel-h', 240))
+const viewportW = ref(window.innerWidth)
 const viewportH = ref(window.innerHeight)
-const onWindowResize = () => { viewportH.value = window.innerHeight }
+const onWindowResize = () => { viewportW.value = window.innerWidth; viewportH.value = window.innerHeight }
 const shown = computed(() => {
+  const [aux] = fitRegions(viewportW.value - cssSize('--editor-min', 360), [
+    { size: auxOpen.value && selected.value ? auxW.value : 0, min: cssSize('--sidebar-min', 240) },
+  ])
   const [panel] = fitRegions(viewportH.value - 200, [
     { size: panelOpen.value ? panelH.value : 0, min: cssSize('--panel-min', 124) },
   ])
-  return { panel }
+  return { aux, panel }
 })
-const layoutVars = computed(() => ({ '--panel-h': `${shown.value.panel}px` }))
+const layoutVars = computed(() => ({ '--auxiliarybar-w': `${shown.value.aux}px`, '--panel-h': `${shown.value.panel}px` }))
+const auxResize = {
+  label: 'Ancho del detalle', sign: -1, defaultValue: 340,
+  min: () => cssSize('--sidebar-min', 240),
+  max: () => viewportW.value - cssSize('--editor-min', 360),
+  get: () => shown.value.aux,
+  set: (v) => { if (!v) auxOpen.value = false; else { auxOpen.value = true; auxW.value = v } },
+  reopen: () => auxW.value,
+  commit: (v) => { saveSize('keyring.aux-open', v ? 1 : 0); if (v) saveSize('keyring.aux-w', auxW.value) },
+}
 const panelResize = {
   label: 'Alto de la consola', axis: 'y', sign: -1, defaultValue: 240,
   min: () => cssSize('--panel-min', 124),
@@ -133,6 +206,7 @@ const panelResize = {
   reopen: () => panelH.value,
   commit: (v) => { saveSize('keyring.panel-open', v ? 1 : 0); if (v) saveSize('keyring.panel-h', panelH.value) },
 }
+function toggleAux() { auxOpen.value = !shown.value.aux; saveSize('keyring.aux-open', auxOpen.value ? 1 : 0) }
 function togglePanel() { panelOpen.value = !shown.value.panel; saveSize('keyring.panel-open', panelOpen.value ? 1 : 0) }
 
 const themeToggle = ref(null)
@@ -157,11 +231,14 @@ onBeforeUnmount(() => {
     <main class="editor">
       <div class="region-head">
         <span>AWS</span>
-        <span v-if="aws" class="count">{{ serviceCount }} servicios · {{ accounts.length }} perfiles</span>
+        <span v-if="meta" class="count" :class="{ filtered: filter !== 'all' }">
+          {{ filter === 'all' ? `${services.length} servicios` : `${shownServices.length} / ${services.length}` }}
+        </span>
         <div class="region-actions">
           <button type="button" class="region-action" :disabled="busy" title="Volver a probar" aria-label="Volver a probar" @click="loadAll">
             <span class="ui-icon" data-icon="refresh" aria-hidden="true"></span>
           </button>
+          <RegionMenu :items="filterMenu" :active="filter !== 'all'" title="Qué servicios se ven" icon="filter" @select="(id) => (filter = id)" />
         </div>
       </div>
       <div class="region-body">
@@ -169,54 +246,96 @@ onBeforeUnmount(() => {
           <span class="ui-icon alert-icon" data-icon="alert" aria-hidden="true"></span>
           <div class="alert-title">{{ awsError }}</div>
         </div>
-        <div v-else-if="!aws" class="empty"><div class="empty-desc">Preguntando a cada servicio de cada perfil…</div></div>
+        <div v-else-if="!meta" class="empty"><div class="empty-desc">Leyendo los perfiles de ~/.aws…</div></div>
         <template v-else>
-          <div class="region-head group"><span>Perfiles de ~/.aws</span><span class="count">{{ accounts.length }}</span></div>
+          <div class="region-head group"><span>Perfiles</span><span class="count">{{ profiles.length }}</span></div>
           <table class="table" aria-label="Perfiles de AWS">
-            <thead><tr><th>Perfil</th><th>Cuenta</th><th>Permission set</th><th class="num">Lectura</th><th>Credenciales</th></tr></thead>
+            <thead><tr><th>Perfil</th><th>Cuenta</th><th>Permission set</th><th class="num">Lectura</th><th class="wide">Credenciales</th></tr></thead>
             <tbody>
-              <tr v-for="a in accounts" :key="a.profile">
-                <td :title="a.person ? `sesión de ${a.person}` : ''"><code>{{ a.profile }}</code></td>
-                <template v-if="a.error"><td colspan="4" class="hot">{{ a.error }}</td></template>
-                <template v-else>
-                  <td class="nowrap">{{ a.account }} <span class="muted">· {{ a.accountLabel }}</span></td>
-                  <td class="nowrap" :title="a.role"><code>{{ a.permissionSet || a.role }}</code></td>
-                  <td class="num">{{ readCount(a) }} / {{ serviceCount }}</td>
-                  <td class="nowrap muted" :title="a.credentials">{{ a.expires ? until(a.expires) : credShort(a.credentials) }}</td>
+              <tr v-for="p in profiles" :key="p">
+                <td :title="accounts[p]?.person ? `sesión de ${accounts[p].person}` : ''"><code>{{ p }}</code></td>
+                <template v-if="measuring[p] && !accounts[p]"><td colspan="4" class="muted">midiendo…</td></template>
+                <template v-else-if="accounts[p]?.error"><td colspan="4" class="hot">{{ accounts[p].error }}</td></template>
+                <template v-else-if="accounts[p]">
+                  <td class="nowrap" :title="accounts[p].accountLabel">{{ accounts[p].account }}<span class="muted wide"> · {{ accounts[p].accountLabel }}</span></td>
+                  <td class="nowrap" :title="accounts[p].role"><code>{{ accounts[p].permissionSet || accounts[p].role }}</code></td>
+                  <td class="num">{{ readCount(p) }} / {{ services.length }}</td>
+                  <td class="nowrap muted wide" :title="accounts[p].credentials">{{ accounts[p].expires ? until(accounts[p].expires) : credShort(accounts[p].credentials) }}</td>
                 </template>
               </tr>
             </tbody>
           </table>
-          <div class="alert" role="note">
-            <span class="ui-icon alert-icon" data-icon="alert" aria-hidden="true"></span>
-            <div class="alert-desc">La lectura se mide con una llamada List/Describe por servicio. La escritura todavía no se mide: el nombre del permission set es una pista, no una medición.</div>
-          </div>
+
           <section v-for="c in categories" :key="c.id">
-            <div class="region-head group"><span>{{ c.id }}</span><span class="count">{{ c.rows.length }}</span></div>
+            <div class="region-head group">
+              <span>{{ c.id }}</span>
+              <span class="count">{{ c.rows.length === c.total ? c.total : `${c.rows.length} / ${c.total}` }}</span>
+              <span class="group-meta">
+                <span v-for="x in c.perProfile" :key="x.p">{{ x.p }} {{ x.n }}/{{ c.total }}</span>
+              </span>
+            </div>
             <table class="table matrix">
-              <colgroup><col class="c-service"><col><col v-for="a in accounts" :key="a.profile" class="c-access"></colgroup>
+              <colgroup><col class="c-service"><col class="c-action wide"><col v-for="p in profiles" :key="p" class="c-access"></colgroup>
               <thead>
-                <tr><th>Servicio</th><th>Acción probada</th><th v-for="a in accounts" :key="a.profile" class="access">{{ a.profile }}</th></tr>
+                <tr><th>Servicio</th><th class="wide">Acción probada</th><th v-for="p in profiles" :key="p" class="access">{{ p }}</th></tr>
               </thead>
               <tbody>
-                <tr v-for="s in c.rows" :key="s.id">
+                <tr v-for="s in c.rows" :key="s.id" class="clickable" tabindex="0" :aria-selected="s.id === selectedId"
+                  @click="pick(s.id)" @keydown.enter.prevent="pick(s.id)" @keydown.space.prevent="pick(s.id)">
                   <td class="nowrap">{{ s.label }}</td>
-                  <td class="action"><code>{{ s.action }}</code></td>
-                  <td v-for="a in accounts" :key="a.profile" class="access" :data-read="cell(a, s.index)?.read || 'none'"
-                    :title="cell(a, s.index) ? `${cell(a, s.index).detail} · ${cell(a, s.index).ms} ms` : a.error">
-                    <template v-if="cell(a, s.index)">
-                      <i class="dot" :data-read="cell(a, s.index).read" aria-hidden="true"></i>
-                      {{ READ_LABEL[cell(a, s.index).read] }}
+                  <td class="action wide"><code>{{ s.action }}</code></td>
+                  <td v-for="p in profiles" :key="p" class="access" :data-read="cell(p, s.index)?.read || 'none'">
+                    <template v-if="cell(p, s.index)">
+                      <i class="dot" :data-read="cell(p, s.index).read" aria-hidden="true"></i>{{ READ_LABEL[cell(p, s.index).read] }}
                     </template>
+                    <span v-else-if="measuring[p]" class="muted">…</span>
                     <span v-else class="muted">—</span>
                   </td>
                 </tr>
               </tbody>
             </table>
           </section>
+          <p v-if="!categories.length" class="none">Ningún servicio pasa el filtro.</p>
         </template>
       </div>
     </main>
+
+    <aside v-if="shown.aux" class="auxiliarybar" aria-label="Detalle del servicio">
+      <div class="rsz rsz-edge-left" v-resize="auxResize"></div>
+      <div class="region-head">
+        <span>{{ selected.label }}</span>
+        <span class="count">{{ selected.category }}</span>
+        <div class="region-actions">
+          <button type="button" class="region-action" title="Cerrar el detalle" aria-label="Cerrar el detalle" @click="selectedId = ''">
+            <span class="ui-icon" data-icon="close" aria-hidden="true"></span>
+          </button>
+        </div>
+      </div>
+      <div class="region-body">
+        <div class="region-head group"><span>Qué se probó</span></div>
+        <p class="fact"><code>{{ selected.action }}</code></p>
+        <p class="none">Una llamada de lectura de a un elemento: pregunta si se puede, no qué hay.</p>
+        <div class="region-head group"><span>Qué contestó</span></div>
+        <div v-for="p in profiles" :key="p" class="answer" :data-read="cell(p, selected.index)?.read || 'none'">
+          <div class="answer-head">
+            <i class="dot" :data-read="cell(p, selected.index)?.read" aria-hidden="true"></i>
+            <code>{{ p }}</code>
+            <span class="state">{{ cell(p, selected.index) ? READ_LABEL[cell(p, selected.index).read] : (measuring[p] ? 'midiendo…' : 'sin medir') }}</span>
+            <span v-if="cell(p, selected.index)" class="muted ms">{{ cell(p, selected.index).ms }} ms</span>
+          </div>
+          <p v-if="cell(p, selected.index)" class="answer-detail">{{ cell(p, selected.index).detail }}</p>
+          <p v-else-if="accounts[p]?.error" class="answer-detail hot">{{ accounts[p].error }}</p>
+        </div>
+        <div class="region-head group"><span>Reproducirlo</span></div>
+        <div v-for="p in profiles" :key="p" class="command">
+          <code>{{ selected.command }} --profile {{ p }}</code>
+          <button type="button" class="region-action" :title="copied === `${selected.command} --profile ${p}` ? 'Copiado' : 'Copiar el comando'"
+            :aria-label="`Copiar el comando para ${p}`" @click="copy(`${selected.command} --profile ${p}`)">
+            <span class="ui-icon" :data-icon="copied === `${selected.command} --profile ${p}` ? 'check' : 'copy'" aria-hidden="true"></span>
+          </button>
+        </div>
+      </div>
+    </aside>
 
     <section v-if="shown.panel" class="panel" aria-label="Otros accesos">
       <div class="rsz rsz-edge-top" v-resize="panelResize"></div>
@@ -247,6 +366,9 @@ onBeforeUnmount(() => {
       <span v-if="failTotal" class="hot">{{ failTotal }} accesos fallan en la consola</span>
       <div class="layout-controls" role="group" aria-label="Tema y regiones visibles">
         <button ref="themeToggle" type="button" class="region-action theme-toggle"><span class="ui-icon" aria-hidden="true"></span></button>
+        <button type="button" class="region-action" :aria-pressed="!!shown.aux" :disabled="!selected" title="Mostrar u ocultar el detalle" aria-label="Mostrar u ocultar el detalle" @click="toggleAux">
+          <span class="ui-icon" data-icon="detail" aria-hidden="true"></span>
+        </button>
         <button type="button" class="region-action" :aria-pressed="!!shown.panel" title="Mostrar u ocultar la consola" aria-label="Mostrar u ocultar la consola" @click="togglePanel">
           <span class="ui-icon" data-icon="bottom" aria-hidden="true"></span>
         </button>
@@ -262,14 +384,21 @@ onBeforeUnmount(() => {
 .nowrap { white-space: nowrap }
 .muted { color: var(--fg-3) }
 .hot { color: var(--access-fail) }
-.alert { margin: var(--space-2) var(--gutter) }
+.clickable { cursor: pointer }
 code { font-family: var(--font-mono); font-size: var(--text-sm) }
+/* El conteo por perfil va al borde del encabezado del grupo, apagado: resume sin competirle al título. */
+.group-meta { margin-left: auto; display: flex; gap: var(--space-3); font-size: var(--text-xs); font-weight: 400; color: var(--fg-3); font-variant-numeric: tabular-nums }
+/* Con el detalle abierto el editor se angosta: lo que ya dice el detalle (la acción) y lo que tiene su
+   title (las credenciales) se van antes de que las columnas se pisen. Sin JS: una consulta de contenedor. */
+.editor { container-type: inline-size }
+@container (max-width: 620px) { .wide { display: none } }
 /* Las tablas de cada categoría son tablas distintas: con anchos fijos, las columnas quedan alineadas de una a otra. */
 .matrix { table-layout: fixed }
 .matrix .c-service { width: 176px }
 .matrix .c-access { width: 104px }
+.matrix tr[aria-selected="true"] td { background: var(--accent); color: var(--accent-foreground) }
 .action { color: var(--fg-3); overflow: hidden; text-overflow: ellipsis; white-space: nowrap }
-.access { white-space: nowrap; min-width: 96px }
+.access { white-space: nowrap }
 .access[data-read="yes"] { color: var(--access-ok) }
 .access[data-read="no"] { color: var(--fg-3) }
 .access[data-read="error"] { color: var(--access-warn) }
@@ -279,6 +408,17 @@ code { font-family: var(--font-mono); font-size: var(--text-sm) }
 .dot[data-read="error"], .dot[data-state="warn"] { background: var(--access-warn) }
 .dot[data-state="fail"] { background: var(--access-fail) }
 .dot[data-state="pending"] { background: transparent; box-shadow: inset 0 0 0 1px var(--access-off) }
+/* El detalle */
+.fact { margin: 0; padding: var(--space-2) var(--gutter) 0 }
+.answer { padding: var(--space-2) var(--gutter) }
+.answer-head { display: flex; align-items: center; gap: var(--space-2) }
+.answer-head .state { color: var(--fg-2) }
+.answer[data-read="yes"] .state { color: var(--access-ok) }
+.answer-head .ms { margin-left: auto; font-size: var(--text-xs) }
+.answer-detail { margin: var(--space-1) 0 0 calc(8px + var(--space-2)); color: var(--fg-3); font-size: var(--text-sm); overflow-wrap: anywhere }
+.command { display: flex; align-items: flex-start; gap: var(--space-2); padding: var(--space-1) var(--gutter) }
+.command code { flex: 1; min-width: 0; overflow-wrap: anywhere; color: var(--fg-2) }
+/* La consola */
 .log-line { display: flex; gap: var(--space-2); align-items: baseline }
 .log-line .dot { align-self: center; margin-right: 0 }
 .log-line .name { flex: none; width: 160px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap }

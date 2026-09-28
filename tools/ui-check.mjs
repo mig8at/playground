@@ -120,9 +120,9 @@ const radarFixture = {
 // keyring: dos perfiles de AWS (uno sin credenciales) y la consola con un grupo rápido y uno lento con una
 // falla. Datos de ejemplo: la prueba no toca ninguna credencial real.
 const keyringServices = [
-  { id: 'ecs', label: 'ECS', category: 'cómputo', action: 'ecs:ListClusters' },
-  { id: 'ecr', label: 'ECR', category: 'cómputo', action: 'ecr:DescribeRepositories' },
-  { id: 's3', label: 'S3', category: 'datos', action: 's3:ListAllMyBuckets' },
+  { id: 'ecs', label: 'ECS', category: 'cómputo', action: 'ecs:ListClusters', command: 'aws ecs list-clusters --max-items 1' },
+  { id: 'ecr', label: 'ECR', category: 'cómputo', action: 'ecr:DescribeRepositories', command: 'aws ecr describe-repositories --max-items 1' },
+  { id: 's3', label: 'S3', category: 'datos', action: 's3:ListAllMyBuckets', command: 'aws s3api list-buckets --max-items 1' },
 ];
 const keyringAWS = {
   categories: ['cómputo', 'datos'], services: keyringServices,
@@ -132,6 +132,9 @@ const keyringAWS = {
       services: [{ ...keyringServices[0], read: 'yes', write: 'unmeasured', detail: 'autorizado', ms: 5 },
         { ...keyringServices[1], read: 'no', write: 'unmeasured', detail: 'ninguna política lo da', ms: 5 },
         { ...keyringServices[2], read: 'yes', write: 'unmeasured', detail: 'autorizado', ms: 5 }] },
+    { profile: 'prod', account: '222222222222', accountLabel: 'producción', role: 'AWSReservedSSO_ReadOnlyAccess_0000000000000000',
+      permissionSet: 'ReadOnlyAccess', person: 'persona', credentials: 'pegadas a mano el 28/09 10:56, sin vencimiento declarado',
+      services: keyringServices.map((x) => ({ ...x, read: 'yes', write: 'unmeasured', detail: 'autorizado', ms: 5 })) },
     { profile: 'viejo', error: 'la sesión venció: `aws sso login` (o `aws login`)', services: [] },
   ],
   hidden: ['default'],
@@ -220,7 +223,16 @@ try {
       }
       if (name === 'keyring') {
         if (path === '/api/groups') return route.fulfill({ json: keyringGroups });
-        if (path === '/api/aws') return route.fulfill({ json: keyringAWS });
+        if (path === '/api/aws/profiles') {
+          return route.fulfill({ json: { categories: keyringAWS.categories, services: keyringAWS.services, profiles: ['dev', 'prod', 'viejo', 'default'] } });
+        }
+        if (path === '/api/aws/account') {
+          const profile = new URL(route.request().url()).searchParams.get('profile');
+          if (profile === 'default') return route.fulfill({ json: { profile, noCredentials: true, error: 'sin credenciales', services: [] } });
+          const json = keyringAWS.accounts.find((a) => a.profile === profile);
+          // dev tarda: su columna tiene que aparecer después, sin esperar a los demás
+          return profile === 'dev' ? new Promise((ok) => setTimeout(() => ok(route.fulfill({ json })), 400)) : route.fulfill({ json });
+        }
         const group = new URL(route.request().url()).searchParams.get('group');
         // Las bases tardan: es lo que obliga a pintar cada grupo cuando llega y no esperar al más lento.
         if (group === 'databases') return new Promise((ok) => setTimeout(() => ok(route.fulfill({ json: keyringChecks.databases })), 600));
@@ -350,6 +362,7 @@ try {
     if (name === 'keyring') {
       const editor = page.locator('.editor');
       await editor.getByText('ecr:DescribeRepositories').waitFor();
+      await editor.locator('td.access[data-read="no"]').waitFor();
       assert.match(await editor.getByRole('table', { name: 'Perfiles de AWS' }).textContent(), /DeveloperAccess.*2 \/ 3.*pegadas 28\/09 10:56/s,
         'Keyring: cada perfil dice su permission set, cuánto lee y desde cuándo tiene las credenciales');
       assert.match(await editor.getByRole('table', { name: 'Perfiles de AWS' }).textContent(), /la sesión venció/,
@@ -357,8 +370,24 @@ try {
       assert.doesNotMatch(await editor.textContent(), /\bdefault\b/, 'Keyring: un perfil sin credenciales no ocupa la matriz');
       assert.match(await page.locator('.statusbar').textContent(), /ocultos sin credenciales: default/,
         'Keyring: el pie dice qué perfil se ocultó, para que no se lea como que no existe');
-      assert.equal(await editor.locator('td.access[data-read="no"]').count(), 1, 'Keyring: la lectura negada se marca en su celda');
-      assert.equal(await editor.getByRole('note').isVisible(), true, 'Keyring: avisa que la escritura todavía no se mide');
+      assert.doesNotMatch(await editor.locator('.region-head.group').first().textContent(), /viejo \d/,
+        'Keyring: un perfil sin medir no cuenta «0/n» en el encabezado de la categoría');
+      // El detalle: elegir un servicio lo abre con la acción, lo que contestó cada perfil y el comando.
+      await editor.getByText('ECR', { exact: true }).click();
+      const aux = page.locator('.auxiliarybar');
+      await aux.waitFor();
+      assert.match(await aux.textContent(), /ecr:DescribeRepositories.*ninguna política lo da/s, 'Keyring: el detalle dice qué se probó y qué contestó');
+      assert.match(await aux.textContent(), /aws ecr describe-repositories --max-items 1 --profile dev/, 'Keyring: el detalle da el comando que lo reproduce');
+      assert.match(new URL(page.url()).hash, /service=ecr/, 'Keyring: el servicio elegido queda en la ruta');
+      // El filtro vive en el menú, y el encabezado lo delata.
+      const { menu: filterMenu } = await openMenu(page, 'Qué servicios se ven');
+      await filterMenu.getByRole('menuitemcheckbox', { name: /Donde los perfiles difieren/ }).click();
+      assert.match(await page.locator('.editor > .region-head .count.filtered').textContent(), /1 \/ 3/,
+        'Keyring: «difieren» compara sólo perfiles medidos (ECR: negada en dev, lectura en prod; el vencido no cuenta)');
+      assert.match(new URL(page.url()).hash, /filter=diff/, 'Keyring: el filtro queda en la ruta');
+      await page.getByRole('button', { name: 'Cerrar el detalle', exact: true }).click();
+      await paint(page);
+      assert.equal(await page.locator('.auxiliarybar').count(), 0, 'Keyring: cerrar el detalle lo saca de la pantalla');
       const panel = page.locator('.panel');
       assert.equal(await panel.getByRole('tab', { name: /aws/ }).count(), 0, 'Keyring: la consola no repite la identidad de AWS');
       await panel.getByText('VPN prod').waitFor();
@@ -368,7 +397,7 @@ try {
       await panel.getByText('i/o timeout · ¿VPN de dev?').waitFor();
       await panel.getByRole('tab', { name: /red/ }).click();
       assert.equal(await panel.locator('.log-line').count(), 2, 'Keyring: un grupo lento no pisa a uno rápido');
-      assert.equal(new URL(page.url()).hash, '#/?tab=network', 'Keyring: la pestaña queda en la ruta');
+      assert.match(new URL(page.url()).hash, /tab=network/, 'Keyring: la pestaña queda en la ruta');
       assert.match(await page.locator('.statusbar').textContent(), /1 accesos fallan/, 'Keyring: el pie cuenta las fallas de la consola');
     }
     const separator = name === 'trazador'

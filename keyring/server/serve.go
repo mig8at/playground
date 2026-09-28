@@ -53,6 +53,27 @@ func handler(timeout time.Duration) http.Handler {
 		}
 		writeJSON(w, http.StatusOK, map[string]any{"categories": check.Categories, "services": check.AWSServiceList(), "accounts": accounts, "hidden": hidden})
 	})
+	// La interfaz pide primero la lista (instantáneo) y después cada perfil por separado: la columna de un
+	// perfil aparece apenas contesta, sin esperar al más lento.
+	mux.HandleFunc("/api/aws/profiles", func(w http.ResponseWriter, r *http.Request) {
+		profiles, err := check.AWSProfiles(r.Context())
+		if err != nil {
+			writeJSON(w, http.StatusInternalServerError, map[string]string{"error": err.Error()})
+			return
+		}
+		writeJSON(w, http.StatusOK, map[string]any{"categories": check.Categories, "services": check.AWSServiceList(), "profiles": profiles})
+	})
+	mux.HandleFunc("/api/aws/account", func(w http.ResponseWriter, r *http.Request) {
+		profile := r.URL.Query().Get("profile")
+		profiles, _ := check.AWSProfiles(r.Context())
+		if !slices.Contains(profiles, profile) {
+			writeJSON(w, http.StatusBadRequest, map[string]string{"error": fmt.Sprintf("perfil %q desconocido", profile)})
+			return
+		}
+		ctx, cancel := context.WithTimeout(r.Context(), 30*time.Second)
+		defer cancel()
+		writeJSON(w, http.StatusOK, check.AWSAccount(ctx, profile))
+	})
 	mux.HandleFunc("/api/checks", func(w http.ResponseWriter, r *http.Request) {
 		group := r.URL.Query().Get("group")
 		if !slices.Contains(check.Groups, group) {
