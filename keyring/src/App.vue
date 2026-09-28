@@ -16,7 +16,8 @@ import {
   readHashRoute, hashRoute, setRoute,
 } from './workbench.js'
 
-const COMPARE = 'compare'
+// El perfil que se mira si la URL no dice otro: producción, que es lo que más se consulta.
+const DEFAULT_ENV = 'prod'
 const READ_LABEL = { yes: 'sí', no: 'no', error: 'no se supo', unmeasured: 'sin medir' }
 const WRITE_LABEL = { yes: 'sí', no: 'no', unreliable: 'no confiable', unmeasured: 'sin medir' }
 const WRITE_WHY = {
@@ -28,22 +29,21 @@ const STATE_RANK = { fail: 0, warn: 1, ok: 2, off: 3 }
 const FILTERS = [
   { id: 'all', label: 'Todos los servicios' },
   { id: 'access', label: 'Con lectura' },
-  { id: 'diff', label: 'Donde los perfiles difieren' },
 ]
 
 // ── la ruta: #/?env=dev&service=ecs&filter=access&tab=databases ──
 const route = readHashRoute()
-const env = ref(route.params.get('env') || COMPARE)
+const env = ref(route.params.get('env') || DEFAULT_ENV)
 const filter = ref(FILTERS.some((f) => f.id === route.params.get('filter')) ? route.params.get('filter') : 'all')
 const selectedId = ref(route.params.get('service') || '')
 const tab = ref(route.params.get('tab') || '')
 function writeRoute(push) {
   setRoute(hashRoute([], { env: env.value, service: selectedId.value, filter: filter.value, tab: tab.value },
-    { env: COMPARE, service: '', filter: 'all', tab: '' }), { push })
+    { env: DEFAULT_ENV, service: '', filter: 'all', tab: '' }), { push })
 }
 function onHashChange() {
   const r = readHashRoute()
-  env.value = r.params.get('env') || COMPARE
+  env.value = r.params.get('env') || DEFAULT_ENV
   filter.value = FILTERS.some((f) => f.id === r.params.get('filter')) ? r.params.get('filter') : 'all'
   selectedId.value = r.params.get('service') || ''
   tab.value = r.params.get('tab') || tab.value
@@ -93,12 +93,16 @@ const services = computed(() => (meta.value?.services || []).map((s, index) => (
 const readOf = (profile, s) => accounts.value[profile]?.services?.[s.index]?.read || null
 const writeRecord = (profile) => writes.value.find((w) => w.account === accounts.value[profile]?.account) || null
 const writeOf = (profile, s) => writeRecord(profile)?.results?.[s.id] || 'unmeasured'
-const measured = computed(() => profiles.value.filter((p) => accounts.value[p]?.services?.length))
 const broken = computed(() => profiles.value.filter((p) => accounts.value[p]?.error))
 
-// ── qué perfil se mira: comparar, o uno. Un perfil que ya no está (se quitó de ~/.aws) vuelve a comparar ──
-const single = computed(() => (env.value !== COMPARE && profiles.value.includes(env.value) ? env.value : ''))
-const columns = computed(() => (single.value ? [single.value] : profiles.value))
+// ── qué perfil se mira: siempre uno. Si el pedido no está (se quitó de ~/.aws, o todavía se mide), prod;
+// y si tampoco hay prod, el primero con credenciales ──
+const single = computed(() => {
+  if (profiles.value.includes(env.value)) return env.value
+  if (profiles.value.includes(DEFAULT_ENV)) return DEFAULT_ENV
+  return profiles.value[0] || ''
+})
+const columns = computed(() => (single.value ? [single.value] : []))
 
 // La marca corta de un archivo del árbol: RW, R, W (raro), — o ? mientras no se sabe.
 function badge(profile, s) {
@@ -112,15 +116,12 @@ function badge(profile, s) {
 
 // ── el filtro: va al menú de la barra del árbol; el contador lo delata ──
 const hasAccess = (s) => columns.value.some((p) => readOf(p, s) === 'yes')
-// Sólo entre perfiles medidos: uno vencido o todavía midiendo no es una diferencia de permisos.
-const differs = (s) => new Set(measured.value.map((p) => badge(p, s))).size > 1
-const filters = computed(() => (single.value ? FILTERS.filter((f) => f.id !== 'diff') : FILTERS))
-const activeFilter = computed(() => (filters.value.some((f) => f.id === filter.value) ? filter.value : 'all'))
-const passes = (s) => (activeFilter.value === 'access' ? hasAccess(s) : activeFilter.value === 'diff' ? differs(s) : true)
+const activeFilter = computed(() => (FILTERS.some((f) => f.id === filter.value) ? filter.value : 'all'))
+const passes = (s) => (activeFilter.value === 'access' ? hasAccess(s) : true)
 const shownCount = computed(() => services.value.filter(passes).length)
-const filterMenu = computed(() => filters.value.map((f) => ({
+const filterMenu = computed(() => FILTERS.map((f) => ({
   id: f.id, label: f.label, checked: activeFilter.value === f.id,
-  count: f.id === 'all' ? services.value.length : services.value.filter(f.id === 'access' ? hasAccess : differs).length,
+  count: f.id === 'all' ? services.value.length : services.value.filter(hasAccess).length,
 })))
 
 // ── el árbol: una carpeta por categoría, plegable; lo plegado se recuerda en el navegador ──
@@ -145,7 +146,7 @@ const envTrigger = ref(null)
 let envMenu = null
 const readCount = (profile) => (accounts.value[profile]?.services || []).filter((s) => s.read === 'yes').length
 const envMenuItems = computed(() => {
-  const items = [{ id: COMPARE, label: 'Comparar perfiles', selected: !single.value, count: profiles.value.length }, { separator: true }]
+  const items = []
   for (const p of profiles.value) {
     const a = accounts.value[p]
     const why = a?.error ? 'la sesión no sirve' : a?.permissionSet || (measuring.value[p] ? 'midiendo…' : '')
@@ -302,10 +303,6 @@ onBeforeUnmount(() => {
         <p v-if="awsError" class="none hot">{{ awsError }}</p>
         <p v-else-if="!meta" class="none">Leyendo los perfiles de ~/.aws…</p>
         <template v-else>
-        <!-- En «comparar» hay una marca por perfil: esta fila dice de quién es cada columna. -->
-        <div v-if="columns.length > 1" class="tree-columns" aria-hidden="true">
-          <span v-for="p in columns" :key="p" class="badge-access">{{ p }}</span>
-        </div>
         <ul class="tree" role="tree" aria-label="Servicios por categoría">
           <li v-for="f in folders" :key="f.id" role="treeitem" :aria-expanded="f.open" class="folder">
             <button type="button" class="row" @click="toggleFolder(f.id)">
@@ -395,7 +392,7 @@ onBeforeUnmount(() => {
       <!-- El selector de perfil, como la rama en la barra de estado de VS Code. Un perfil que no sirve lo delata. -->
       <button ref="envTrigger" type="button" class="statusbar-item env" :title="broken.length ? `sin sesión: ${broken.join(', ')}` : 'Qué perfil de AWS se mira'">
         <span class="ui-icon" data-icon="server" aria-hidden="true"></span>
-        <span>AWS: {{ single || 'comparar' }}</span>
+        <span>AWS: {{ single || '…' }}</span>
         <i v-if="broken.length" class="dot" data-state="fail" aria-hidden="true"></i>
         <span class="ui-icon" data-icon="down" aria-hidden="true"></span>
       </button>
@@ -433,9 +430,6 @@ code { font-family: var(--font-mono); font-size: var(--text-sm) }
 .chevron { transition: transform .12s }
 .chevron.open { transform: rotate(90deg) }
 .badges { flex: none; display: flex; gap: var(--space-1) }
-.tree-columns { position: sticky; top: 0; z-index: 1; display: flex; justify-content: flex-end; gap: var(--space-1);
-  padding: var(--space-1) calc(var(--space-1) + var(--space-2)); background: var(--region-bg, var(--sidebar)) }
-.tree-columns .badge-access { color: var(--fg-3) }
 /* La marca de acceso: un rótulo mono de ancho fijo, así las columnas de los perfiles quedan alineadas. */
 .badge-access { min-width: 22px; text-align: center; font-family: var(--font-mono); font-size: var(--text-xs); color: var(--fg-3) }
 .badge-access[data-badge="RW"] { color: var(--access-ok); font-weight: 600 }

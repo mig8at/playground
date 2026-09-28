@@ -366,47 +366,45 @@ try {
     if (name === 'keyring') {
       const tree = page.getByRole('tree', { name: 'Servicios por categoría' });
       const editor = page.locator('.editor');
-      await tree.getByText('ECR', { exact: true }).waitFor();
-      // dev tarda a propósito: su columna aparece cuando contesta, sin frenar a las demás.
-      await page.locator('.tree-columns').getByText('dev', { exact: true }).waitFor();
-      assert.match(await page.locator('.tree-columns').textContent(), /dev\s*prod\s*viejo/,
-        'Keyring: en «comparar» una fila dice de qué perfil es cada columna de marcas');
-      assert.doesNotMatch(await page.locator('.sidebar').textContent(), /\bdefault\b/, 'Keyring: un perfil sin credenciales no ocupa columna');
-      const ecsRow = tree.getByRole('button', { name: /ECS/ });
-      assert.match(await ecsRow.textContent(), /ECS\s*RW\s*R/, 'Keyring: el archivo marca RW donde lee y escribe, R donde sólo lee');
-      // Elegir un archivo: el editor dice sólo lectura y escritura, por perfil, y de dónde sale cada una.
-      await tree.getByRole('button', { name: /ECR/ }).click();
-      await editor.getByText('Escritura').first().waitFor();
-      assert.match(await editor.textContent(), /dev.*Lectura.*no.*medida ahora.*Escritura.*no.*medida a mano el 28\/09/s,
-        'Keyring: la escritura se muestra como medición registrada, con su fecha');
-      assert.match(await editor.textContent(), /viejo.*la sesión venció/s, 'Keyring: un perfil vencido lo dice en el editor');
-      assert.match(new URL(page.url()).hash, /service=ecr/, 'Keyring: el servicio elegido queda en la ruta');
-      // Las carpetas se pliegan y lo plegado se recuerda.
-      await tree.getByRole('button', { name: /datos/ }).click();
-      assert.equal(await tree.getByRole('button', { name: /^S3/ }).count(), 0, 'Keyring: plegar una carpeta esconde sus archivos');
-      // El filtro vive en el menú del árbol, y el encabezado lo delata.
-      const { menu: filterMenu } = await openMenu(page, 'Qué servicios se ven');
-      await filterMenu.getByRole('menuitemcheckbox', { name: /Donde los perfiles difieren/ }).click();
-      assert.match(await page.locator('.sidebar > .region-head .count.filtered').textContent(), /\d \/ 3/,
-        'Keyring: con el filtro puesto el encabezado del árbol dice cuántos quedan de cuántos');
-      assert.match(new URL(page.url()).hash, /filter=diff/, 'Keyring: el filtro queda en la ruta');
-      await page.keyboard.press('Escape');
-      // El perfil se elige en el pie, como la rama en VS Code: opción única, se abre ARRIBA y se cierra al elegir.
       const envButton = page.locator('.statusbar .env');
+      // Sin nada en la URL se mira prod, aunque dev conteste después.
+      await tree.getByText('ECR', { exact: true }).waitFor();
+      await envButton.getByText('AWS: prod').waitFor();
+      assert.match(await tree.getByRole('button', { name: /ECS/ }).textContent(), /ECS\s*R\b/, 'Keyring: en prod, ECS sólo se lee');
+      assert.doesNotMatch(await page.locator('.sidebar').textContent(), /\bdefault\b/, 'Keyring: un perfil sin credenciales no aparece');
+      // El perfil se elige en el pie, como la rama en VS Code: opción única, se abre ARRIBA y se cierra al elegir.
       await envButton.click();
       const envMenu = page.getByRole('menu', { name: 'Qué perfil de AWS se mira', exact: true });
       await envMenu.waitFor();
       const [buttonBox, menuBox] = [await envButton.boundingBox(), await envMenu.boundingBox()];
       assert(menuBox.y + menuBox.height <= buttonBox.y + 1, 'Keyring: el menú del pie se abre arriba y no tapa su botón');
+      assert.equal(await envMenu.getByRole('menuitemradio', { name: /Comparar/ }).count(), 0, 'Keyring: no hay modo comparar');
+      assert.equal(await envMenu.getByRole('menuitemradio', { name: /prod · ReadOnlyAccess/ }).getAttribute('aria-checked'), 'true',
+        'Keyring: prod es el perfil por defecto');
       assert.equal(await envMenu.getByRole('menuitem', { name: /default · sin credenciales/ }).isDisabled(), true,
         'Keyring: el perfil sin credenciales se ve en el selector, deshabilitado');
       await envMenu.getByRole('menuitemradio', { name: /dev · DeveloperAccess/ }).click();
       assert.equal(await page.getByRole('menu', { name: 'Qué perfil de AWS se mira' }).count(), 0, 'Keyring: elegir un perfil cierra el menú');
       assert.match(new URL(page.url()).hash, /env=dev/, 'Keyring: el perfil elegido queda en la ruta');
-      assert.equal(await page.locator('.tree-columns').count(), 0, 'Keyring: con un perfil, el árbol tiene una sola marca por archivo');
-      assert.doesNotMatch(await editor.textContent(), /prod/, 'Keyring: con un perfil elegido, el editor muestra sólo ese');
-      assert.equal(await page.locator('.sidebar > .region-head .count.filtered').count(), 0,
-        'Keyring: «difieren» no aplica a un solo perfil, y el encabezado no lo muestra filtrado');
+      assert.match(await tree.getByRole('button', { name: /ECS/ }).textContent(), /ECS\s*RW/, 'Keyring: en dev, ECS se lee y se escribe');
+      // Elegir un archivo: el editor dice sólo lectura y escritura del perfil, y de dónde sale cada una.
+      await tree.getByRole('button', { name: /ECR/ }).click();
+      await editor.getByText('Escritura').first().waitFor();
+      assert.match(await editor.textContent(), /dev.*Lectura.*no.*medida ahora.*Escritura.*no.*medida a mano el 28\/09/s,
+        'Keyring: la escritura se muestra como medición registrada, con su fecha');
+      assert.doesNotMatch(await editor.textContent(), /prod/, 'Keyring: el editor muestra sólo el perfil elegido');
+      assert.match(new URL(page.url()).hash, /service=ecr/, 'Keyring: el servicio elegido queda en la ruta');
+      // Las carpetas se pliegan.
+      await tree.getByRole('button', { name: /datos/ }).click();
+      assert.equal(await tree.getByRole('button', { name: /^S3/ }).count(), 0, 'Keyring: plegar una carpeta esconde sus archivos');
+      // El filtro vive en el menú del árbol, y el encabezado lo delata.
+      const { menu: filterMenu } = await openMenu(page, 'Qué servicios se ven');
+      assert.equal(await filterMenu.getByRole('menuitemcheckbox', { name: /difieren/ }).count(), 0, 'Keyring: sin comparar no hay «difieren»');
+      await filterMenu.getByRole('menuitemcheckbox', { name: /Con lectura/ }).click();
+      assert.match(await page.locator('.sidebar > .region-head .count.filtered').textContent(), /2 \/ 3/,
+        'Keyring: con el filtro puesto el encabezado del árbol dice cuántos quedan de cuántos');
+      assert.match(new URL(page.url()).hash, /filter=access/, 'Keyring: el filtro queda en la ruta');
+      await page.keyboard.press('Escape');
       const panel = page.locator('.panel');
       assert.equal(await panel.getByRole('tab', { name: /aws/ }).count(), 0, 'Keyring: la consola no repite la identidad de AWS');
       await panel.getByText('VPN prod').waitFor();
