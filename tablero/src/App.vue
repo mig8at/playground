@@ -44,6 +44,50 @@ const loading = ref(!bootstrapCache);
 const error = ref('');
 const jiraSyncing = ref(false);
 const syncError = ref('');
+
+// ── canon: la copia local, y si está al día ─────────────────────────────────────────────────────
+// El server la revalida contra canon (304 si no cambió) y dice cómo quedó. Acá sólo se muestra: al día,
+// o de cuándo es la copia si canon no contesta. Un clic revalida ya.
+const canonState = ref(null);
+const canonChecking = ref(false);
+async function loadCanonStatus(force = false) {
+  if (canonChecking.value) return;
+  canonChecking.value = true;
+  try {
+    const res = await fetch(`${SERVER}/api/canon/status`, { method: force ? 'POST' : 'GET' });
+    if (res.ok) canonState.value = await res.json();
+  } catch { /* sin server: el pie no muestra nada de canon */ }
+  finally { canonChecking.value = false; }
+}
+const canonLabel = computed(() => {
+  const c = canonState.value;
+  if (canonChecking.value && !c) return 'revisando canon…';
+  if (!c) return '';
+  if (c.state === 'current') return c.updated ? 'canon actualizado' : 'canon al día';
+  if (c.state === 'stale') return `canon: copia del ${new Date(c.syncedAt).toLocaleDateString('es-CO', { day: 'numeric', month: 'numeric' })}`;
+  return 'canon sin copia local';
+});
+const canonTitle = computed(() => {
+  const c = canonState.value;
+  if (!c) return '';
+  const parts = [];
+  if (c.syncedAt) parts.push(`copia local del ${new Date(c.syncedAt).toLocaleString('es-CO')} (${c.files} archivos)`);
+  if (c.checkedAt && c.state === 'current') parts.push(`confirmada contra canon ${new Date(c.checkedAt).toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit' })}`);
+  if (c.error) parts.push(`canon no contestó: ${c.error}`);
+  parts.push('clic: revalidar ahora');
+  return parts.join(' · ');
+});
+let canonTimer = null;
+const onCanonVisible = () => { if (document.visibilityState === 'visible') loadCanonStatus(); };
+onMounted(() => {
+  loadCanonStatus();
+  canonTimer = setInterval(loadCanonStatus, 5 * 60 * 1000);
+  document.addEventListener('visibilitychange', onCanonVisible);
+});
+onUnmounted(() => {
+  clearInterval(canonTimer);
+  document.removeEventListener('visibilitychange', onCanonVisible);
+});
 const sprint = ref(bootstrapCache?.sprint || null);
 const sprints = ref(bootstrapCache?.sprints || []); // los más recientes, del actual hacia atrás — los usan las bandas de la jornada
 const SPRINT_TABS = 4;        // cuántos ofrece el selector del header (los demás sólo pintan banda)
@@ -2317,6 +2361,9 @@ function documentAction(id) {
       <span v-if="!loadingWide">{{ visible }} tarea{{ visible === 1 ? '' : 's' }} a la vista</span>
       <span v-if="jiraSyncing" class="sync-state" role="status">actualizando Jira…</span>
       <span v-else-if="syncError" class="sync-state sync-error" :title="syncError">Jira sin actualizar</span>
+      <button v-if="canonLabel" type="button" class="sync-state canon-state"
+              :class="{ 'sync-error': canonState && canonState.state !== 'current' }"
+              :aria-busy="canonChecking" :title="canonTitle" @click="loadCanonStatus(true)">{{ canonChecking && canonState ? 'revisando canon…' : canonLabel }}</button>
       <span v-if="active && !active._local" class="sb-act">{{ active.Key }}</span>
       <div class="layout-controls" role="group" aria-label="Regiones visibles">
         <!-- El tema, antes de los botones de disposición y separado 8: los de disposición van al final
@@ -2456,6 +2503,9 @@ function documentAction(id) {
 .sb-act { margin-left: auto; font: var(--text-xs) var(--font-mono); color: var(--txt) }
 .sync-state { color: var(--mut); font-size: var(--text-xs) }
 .sync-error { color: var(--warn) }
+/* El estado de canon es un botón (un clic revalida), pero se lee como el texto del pie. */
+.canon-state { background: none; border: 0; padding: 0; font: inherit; cursor: pointer }
+.canon-state:hover { text-decoration: underline }
 .sync-state + .sb-act { margin-left: 0 }
 .theme-toggle { margin-right: 6px }
 
