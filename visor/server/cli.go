@@ -300,7 +300,13 @@ func (s *server) screenReady(ctx context.Context, ref string) (key, id string, e
 	if key, id, err = s.resolveScreen(ref); err != nil {
 		return
 	}
-	_, _, err = s.readFlow(ctx, key)
+	if _, _, err = s.readFlow(ctx, key); err != nil {
+		return
+	}
+	// Una pantalla de otra página: su carril sale del mapa de esa página.
+	if _, ok := s.findScreen(key, id); !ok {
+		_, _ = s.readPages(ctx, key)
+	}
 	return
 }
 

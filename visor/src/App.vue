@@ -212,8 +212,10 @@ async function addToLibrary() {
 // no quiere ver «Cover · Benchmark · Flujo», quiere el recorrido. La página se elige sola: la que se
 // llama «Flujo» o «Flow» (así las nombran los siete archivos de producto); si no hay, la primera que no
 // sea portada, benchmark ni prototipo.
-const maps = ref({}) // clave → la respuesta de /api/map de su página de flujo
+const maps = ref({}) // clave → la respuesta de /api/map de la página que muestra su bloque
 const flowNodes = {} // clave → el id de su página de flujo: una ruta sin `nodo` se refiere a ella
+// clave → la página elegida en las pestañas del pie. Sin elegir, el bloque muestra la de flujo.
+const blockPage = {}
 // clave → las pantallas de su página de flujo. La ruta lleva `?nodo=` sólo si la pantalla NO está ahí:
 // una sección pegada a mano casi siempre vive adentro de la página de flujo, y entonces sobra.
 const flowIDs = ref({})
@@ -241,8 +243,10 @@ function flowPage(pages) {
   return pages.find((p) => reFlowPage.test(p.name)) || pages.find((p) => !reSkipPage.test(p.name)) || pages[0] || null
 }
 async function openFlow(key, fresh = false) {
-  // Lo que hay en memoria puede ser una sección pegada a mano: el bloque muestra la página de flujo.
-  if (maps.value[key] && maps.value[key].node === flowNodes[key] && !fresh) return
+  // Lo que hay en memoria puede ser una sección pegada a mano: el bloque muestra la página de flujo, o la
+  // que se eligió en las pestañas.
+  const want = blockPage[key] || flowNodes[key]
+  if (maps.value[key] && want && maps.value[key].node === want && !fresh) return
   mapState.value = { ...mapState.value, [key]: 'loading' }
   try {
     await loadPages(key)
@@ -250,7 +254,8 @@ async function openFlow(key, fresh = false) {
     const page = flowPage(pages)
     if (!page) throw new Error(pagesOf.value[key]?.error || 'el archivo no tiene páginas')
     flowNodes[key] = page.id
-    const q = new URLSearchParams({ ref: `https://www.figma.com/design/${key}/?node-id=${page.id.replace(':', '-')}` })
+    const target = blockPage[key] || page.id
+    const q = new URLSearchParams({ ref: figmaRef(key, target) })
     if (fresh) q.set('fresh', '1')
     const res = await fetch('/api/map?' + q)
     const body = await res.json()
@@ -265,8 +270,8 @@ async function openFlow(key, fresh = false) {
     // pantalla la elige la ruta, y si no se pudo abrir su aviso queda a la vista hasta que se toque otra.
     // Y si al centro hay una sección de OTRA página del mismo archivo (pegada, o de una ruta con `nodo`),
     // se queda: releer el bloque no la reemplaza por la página de flujo.
-    const showingFlow = data.value?.key === key && data.value.node === flowNodes[key]
-    if (!routeHold && ((!data.value && !error.value) || showingFlow)) activate(key)
+    const showingBlock = data.value?.key === key && data.value.node === target
+    if (!routeHold && ((!data.value && !error.value) || showingBlock)) activate(key)
   } catch (e) {
     mapState.value = { ...mapState.value, [key]: { error: String(e.message || e) } }
   }
@@ -286,6 +291,101 @@ function pick(key, id) {
   if (!data.value || data.value.key !== key) activate(key, id)
   else go(id)
 }
+// ── las PÁGINAS del archivo, como pestañas en el pie (como las hojas de Excel) ──
+// La barra arranca en la página de flujo; una pestaña trae otra página del mismo archivo al centro y a su
+// bloque. Cada página se lee de Figma al tocarla (una de benchmark puede ser enorme) y queda en memoria.
+// La ruta la nombra con `?nodo=<página>`, el mismo parámetro que ya usaba una sección pegada: los enlaces
+// de antes siguen abriendo.
+const pageBusy = ref('') // la página que se está leyendo
+const pageError = ref('')
+const pageTabs = computed(() => {
+  const p = data.value && pagesOf.value[data.value.key]
+  return p && p.pages ? p.pages : []
+})
+const onPage = computed(() => pageTabs.value.some((p) => p.id === data.value?.node))
+async function openPage(key, pageID, screen = '') {
+  routeHold = false
+  pageError.value = ''
+  if (data.value?.key === key && data.value.node === pageID) { if (screen) go(screen); return }
+  pageBusy.value = pageID
+  try {
+    const res = await fetch('/api/map?' + new URLSearchParams({ ref: figmaRef(key, pageID) }))
+    const body = await res.json()
+    if (!res.ok) throw new Error(body.error || `HTTP ${res.status}`)
+    // Si mientras se leía se tocó otra pestaña, gana la última.
+    if (pageBusy.value !== pageID) return
+    blockPage[key] = pageID
+    maps.value = { ...maps.value, [key]: body }
+    error.value = ''
+    data.value = body
+    trail.value = []
+    currentID.value = ''
+    const first = groups.value[0]?.lanes[0]?.screens[0]?.id || ''
+    go(screen && screens.value.has(screen) ? screen : first, false)
+    writeRoute()
+  } catch (e) {
+    if (pageBusy.value === pageID) pageError.value = String(e.message || e)
+  } finally {
+    if (pageBusy.value === pageID) pageBusy.value = ''
+  }
+}
+// locatePage dice en qué página del archivo vive una pantalla (`/api/search?id=`): la primera vez lee todas
+// las páginas de Figma, y después salen de la caché del server.
+async function locatePage(key, screen) {
+  try {
+    const res = await fetch('/api/search?' + new URLSearchParams({ key, id: screen }))
+    if (!res.ok) return ''
+    return (await res.json()).hits?.[0]?.page || ''
+  } catch { return '' }
+}
+
+// ── BUSCAR pantallas en todas las páginas del archivo que está al centro ──
+// La lupa de la barra derecha: busca por lo que la pantalla dice (título), su capa, su carril, su sección y
+// su página (`/api/search`, server/pages.go). Un resultado de otra página la abre en su pestaña.
+const searching = ref(false)
+const searchQ = ref('')
+const searchInput = ref(null)
+const searchState = ref('') // '' · 'loading' · 'error'
+const searchError = ref('')
+const searchResult = ref(null) // { hits, total, pages, failed }
+let searchTimer
+function toggleSearch() {
+  searching.value = !searching.value
+  if (searching.value) nextTick(() => searchInput.value?.focus())
+  else searchQ.value = ''
+}
+function closeSearch() { searching.value = false; searchQ.value = '' }
+async function runSearch(key, q) {
+  searchState.value = 'loading'
+  try {
+    const res = await fetch('/api/search?' + new URLSearchParams({ key, q }))
+    const body = await res.json()
+    if (q !== searchQ.value.trim() || key !== data.value?.key) return
+    if (!res.ok) throw new Error(body.error || `HTTP ${res.status}`)
+    searchResult.value = body
+    searchState.value = ''
+  } catch (e) {
+    if (q === searchQ.value.trim()) { searchState.value = 'error'; searchError.value = String(e.message || e) }
+  }
+}
+watch([searchQ, () => data.value?.key], ([q, key]) => {
+  clearTimeout(searchTimer)
+  const text = (q || '').trim()
+  if (!text || !key) { searchResult.value = null; searchState.value = ''; return }
+  searchTimer = setTimeout(() => runSearch(key, text), 250)
+})
+// Los resultados, agrupados por página en el orden del archivo.
+const searchGroups = computed(() => {
+  const out = []
+  for (const h of searchResult.value?.hits || []) {
+    let g = out[out.length - 1]
+    if (!g || g.page !== h.page) out.push(g = { page: h.page, name: h.page_name, hits: [] })
+    g.hits.push(h)
+  }
+  return out
+})
+const openHit = (h) => openPage(data.value.key, h.page, h.id)
+
 const countOf = (key) => groupsFor(maps.value[key]?.structure).reduce((n, g) => n + g.lanes.reduce((m, l) => m + l.screens.length, 0), 0)
 // Los bloques que arrancan abiertos (se recuerdan entre visitas) cargan su flujo.
 watch(flows, (list) => { for (const f of list) if (openFiles.value.has(f.key)) openFlow(f.key) })
@@ -306,6 +406,7 @@ async function load(ref_ = refInput.value, screen = '', fresh = false) {
     data.value = body
     refInput.value = value
     learnFlow(body.key)
+    loadPages(body.key).then(() => { if ((pagesOf.value[body.key]?.pages || []).some((p) => p.id === body.node)) blockPage[body.key] = body.node })
     loadLibrary()
     if (!openFiles.value.has(body.key)) {
       const set = new Set([body.key]); openFiles.value = set; saveSet('visor.open-files', set)
@@ -418,20 +519,32 @@ async function openRoute(r) {
   // flujo NO abre otra en su lugar —antes abría la primera y reescribía la ruta, así que el enlace roto
   // de una tarea parecía sano—: se dice qué pasó.
   const ids = new Set(groupsFor(maps.value[key]?.structure).flatMap((g) => g.lanes.flatMap((l) => l.screens.map((sc) => sc.id))))
-  if (r.screen && !ids.has(r.screen)) { fail(await whyMissing(key, r.screen)); return }
+  if (r.screen && !ids.has(r.screen)) {
+    // Puede vivir en otra página del archivo (la ruta sin `nodo` de antes de las pestañas, o pegada a mano).
+    loading.value = true
+    const page = await locatePage(key, r.screen)
+    loading.value = false
+    if (page) {
+      routeLayer = r.layer ? { screen: r.screen, layer: r.layer } : null
+      await openPage(key, page, r.screen)
+      if (r.print) checkLink(key, r.screen, r.print)
+      return
+    }
+    fail(await whyMissing(key, r.screen)); return
+  }
   routeHold = false
   if (r.print && r.screen) checkLink(key, r.screen, r.print)
   routeLayer = r.layer && r.screen ? { screen: r.screen, layer: r.layer } : null
   activate(key, r.screen)
 }
 // whyMissing distingue una pantalla BORRADA (Figma ya no la tiene) de una que sigue en el archivo pero
-// fuera de la página de flujo (la movieron a otra página, o a una sección de archivo).
+// pero no como pantalla de ninguna página (quedó adentro de otra capa, o es una sección).
 async function whyMissing(key, screen) {
   const name = fromID(screen)
   try {
     const res = await fetch('/api/map?' + new URLSearchParams({ ref: figmaRef(key, screen) }))
     if (res.status === 404) return `La pantalla ${name} ya no existe: el diseñador la borró.`
-    if (res.ok) return `La pantalla ${name} sigue en el archivo, pero ya no está en la página de flujo. Abrila en Figma: figma.com/design/${key}/?node-id=${name}`
+    if (res.ok) return `La pantalla ${name} sigue en el archivo, pero no es una pantalla de ninguna de sus páginas. Abrila en Figma: figma.com/design/${key}/?node-id=${name}`
   } catch { /* sin red: no se sabe */ }
   return `La pantalla ${name} no está en el flujo.`
 }
@@ -891,6 +1004,7 @@ const laneName = (lane) => (lane.label ? lane.label : 'Fila sin rótulo')
         <div v-if="isOpenFile(f.key)" :id="'flow-' + f.key" class="region-body">
           <p v-if="mapState[f.key] === 'loading'" class="hint">Leyendo el flujo…</p>
           <div v-else-if="mapState[f.key]?.error" class="alert alert-destructive" role="alert"><div class="alert-desc">{{ mapState[f.key].error }}</div></div>
+          <p v-else-if="maps[f.key] && !countOf(f.key)" class="hint">La página «{{ maps[f.key].structure?.name }}» no tiene pantallas. Las otras páginas están en las pestañas del pie.</p>
           <!-- Arriba de los carriles, la hoja de tokens del proyecto: se abre en el centro. -->
           <template v-for="g in groupsFor(maps[f.key]?.structure)" :key="g.id">
             <div v-if="groupsFor(maps[f.key]?.structure).length > 1" class="section-name">{{ g.name }}</div>
@@ -976,8 +1090,10 @@ const laneName = (lane) => (lane.label ? lane.label : 'Fila sin rótulo')
         @pointerup="onPointerUp" @pointercancel="onPointerUp" @click.capture="onClickCapture" @wheel="onWheel" @dblclick.self="center">
         <div v-if="!current" class="empty">
           <div class="empty-head">
-            <div class="empty-title">{{ loading ? 'Leyendo el diseño…' : error ? 'No se abrió la pantalla' : 'Sin pantalla elegida' }}</div>
-            <div class="empty-desc">{{ loading ? 'El primer mapa de una sección grande tarda: baja el árbol entero de Figma.' : (error || 'Elegí una pantalla de un carril en la barra de la izquierda.') }}</div>
+            <div class="empty-title">{{ loading ? 'Leyendo el diseño…' : error ? 'No se abrió la pantalla' : data && !screenCount ? 'Esta página no tiene pantallas' : 'Sin pantalla elegida' }}</div>
+            <div class="empty-desc">{{ loading ? 'El primer mapa de una sección grande tarda: baja el árbol entero de Figma.' : (error || (data && !screenCount
+              ? `El visor no reconoce pantallas en «${structure?.name}»: puede ser una portada o una página de notas.`
+              : 'Elegí una pantalla de un carril en la barra de la izquierda.')) }}</div>
           </div>
         </div>
         <div v-else ref="canvas" class="canvas" :style="{ transform: `translate(${pan.x}px, ${pan.y}px)` }">
@@ -1000,9 +1116,40 @@ const laneName = (lane) => (lane.label ? lane.label : 'Fila sin rótulo')
 
     <aside v-show="shown.aux" class="auxiliarybar" aria-label="Detalle de la pantalla">
       <div class="rsz rsz-edge-left" v-resize="resizeOptions('aux')"></div>
-      <div class="region-head"><span>Pantalla</span></div>
+      <!-- El buscador vive en la cabecera de la barra: la lupa la vuelve un campo, y los resultados ocupan
+           el cuerpo mientras haya algo escrito. Busca en TODAS las páginas del archivo del centro. -->
+      <div class="region-head">
+        <input v-if="searching" ref="searchInput" v-model="searchQ" class="input input-xs search-input" type="text"
+          :placeholder="'Buscar en ' + (structure?.file_name || 'el archivo')" aria-label="Buscar pantallas en todas las páginas del archivo"
+          @keydown.esc="closeSearch" />
+        <span v-else>Pantalla</span>
+        <div class="region-actions">
+          <button class="region-action" :aria-pressed="searching" :disabled="!data"
+            :title="searching ? 'Cerrar el buscador (Esc)' : 'Buscar pantallas en todas las páginas del archivo'"
+            :aria-label="searching ? 'Cerrar el buscador' : 'Buscar pantallas'" @click="toggleSearch">
+            <span class="ui-icon" :data-icon="searching ? 'close' : 'search'" aria-hidden="true"></span>
+          </button>
+        </div>
+      </div>
       <div class="region-body detail">
-        <div v-if="!current" class="empty">
+        <div v-if="searching && searchQ.trim()" class="search-results">
+          <p v-if="searchState === 'loading' && !searchResult" class="hint">Buscando en todas las páginas… la primera vez lee cada una de Figma y puede tardar medio minuto.</p>
+          <p v-else-if="searchState === 'error'" class="hint">No se pudo buscar: {{ searchError }}</p>
+          <template v-else-if="searchResult">
+            <p v-if="!searchResult.total" class="hint">Ninguna pantalla con «{{ searchQ.trim() }}» en las {{ searchResult.pages }} páginas. Busca en el título, la capa, el carril, la sección y el nombre de la página.</p>
+            <template v-for="g in searchGroups" :key="g.page">
+              <div class="region-head group"><span>{{ g.name }}</span><span class="count">{{ g.hits.length }}</span></div>
+              <button v-for="h in g.hits" :key="h.id" type="button" class="row stacked"
+                :class="{ on: data?.node === h.page && currentID === h.id }" :title="h.page_name + ' · ' + h.title" @click="openHit(h)">
+                <span>{{ h.title }}</span>
+                <span class="row-desc">{{ h.lane || 'Fila sin rótulo' }} · {{ h.index }} de {{ h.total }}{{ h.section && h.section !== h.page_name ? ' · ' + h.section : '' }}</span>
+              </button>
+            </template>
+            <p v-if="searchResult.total > searchResult.hits.length" class="hint">Se muestran {{ searchResult.hits.length }} de {{ searchResult.total }}: agregá otra palabra.</p>
+            <p v-for="f in searchResult.failed || []" :key="f.page" class="hint">No se leyó la página «{{ f.page }}»: {{ f.error }}</p>
+          </template>
+        </div>
+        <div v-else-if="!current" class="empty">
           <div class="empty-head"><div class="empty-desc">Elegí una pantalla de un carril.</div></div>
         </div>
         <template v-else>
@@ -1112,7 +1259,15 @@ const laneName = (lane) => (lane.label ? lane.label : 'Fila sin rótulo')
     </aside>
 
     <footer class="statusbar">
-      <span v-if="structure">{{ structure.file_name }} · {{ structure.name }}</span>
+      <!-- Las páginas del archivo como pestañas, igual que las hojas de Excel. Una sección pegada a mano no es
+           una página: se nombra al lado, sin pestaña elegida. -->
+      <div v-if="pageTabs.length" class="page-tabs" role="tablist" :aria-label="'Páginas de ' + (structure?.file_name || 'el archivo')">
+        <button v-for="p in pageTabs" :key="p.id" type="button" role="tab" class="page-tab" :class="{ busy: pageBusy === p.id }"
+          :aria-selected="data?.node === p.id" :title="pageBusy === p.id ? 'Leyendo la página de Figma…' : 'Página «' + p.name + '»'"
+          @click="openPage(data.key, p.id)">{{ p.name }}</button>
+      </div>
+      <span v-if="structure && (!pageTabs.length || !onPage)">{{ structure.file_name }} · {{ structure.name }}</span>
+      <span v-if="pageError" class="page-error" :title="pageError">No se leyó la página: {{ pageError }}</span>
       <span v-if="structure?.last_modified" :title="new Date(structure.last_modified).toLocaleString('es-CO')">guardado {{ ago(structure.last_modified) }}</span>
       <span v-if="screenCount">{{ screenCount }} pantallas</span>
       <div class="layout-controls" role="group" aria-label="Tema y regiones visibles">
@@ -1193,6 +1348,27 @@ const laneName = (lane) => (lane.label ? lane.label : 'Fila sin rótulo')
   overflow-wrap: anywhere }
 .plain-list { margin: 0; padding: 0 0 var(--space-2); list-style: none; font-size: var(--text-base) }
 .plain-list li { display: flex; align-items: center; min-height: var(--row-h); padding: 0 var(--gutter) }
+
+/* LAS PÁGINAS en el pie, como las hojas de Excel: una pestaña ocupa el alto del pie y la elegida se marca
+   con la tinta y una línea arriba (la de las pestañas de arriba va abajo: éstas se apoyan en el borde de
+   abajo de la ventana). Si no entran, la tira scrollea sola y el resto del pie queda quieto. */
+.statusbar > .page-tabs { display: flex; flex: 0 1 auto; align-self: stretch; min-width: 0; overflow-x: auto; overflow-y: hidden;
+  margin-left: calc(-1 * var(--space-2)); scrollbar-width: none }
+/* Sin lugar, ceden primero los datos del pie («guardado hace…», el conteo): las pestañas son para tocar. */
+.statusbar > span { flex-shrink: 100 }
+.page-tab { position: relative; flex: none; height: 100%; padding: 0 var(--space-3); border: 0; background: none;
+  color: var(--fg-3); font: inherit; white-space: nowrap; cursor: pointer }
+.page-tab:hover { color: var(--foreground); background: var(--hover) }
+.page-tab[aria-selected="true"] { color: var(--foreground) }
+.page-tab[aria-selected="true"]::before { content: ""; position: absolute; left: var(--space-2); right: var(--space-2); top: 0;
+  height: 2px; border-radius: 0 0 2px 2px; background: var(--primary) }
+.page-tab.busy { color: var(--fg-2); cursor: progress }
+.page-tab.busy::after { content: "…" }
+.page-error { color: var(--destructive) }
+/* El campo del buscador toma la banda de la barra derecha, al lado de su lupa. */
+.auxiliarybar > .region-head > .search-input { flex: 1; min-width: 0 }
+.search-results { padding-bottom: var(--space-2) }
+.search-results .region-head.group:first-child { margin-top: 0 }
 
 /* SEÑALAR: el recuadro de la capa (el que sigue al mouse, punteado; el fijado, entero) y la superficie que
    se queda con el mouse mientras se señala. */

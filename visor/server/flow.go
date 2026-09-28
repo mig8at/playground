@@ -2,9 +2,6 @@ package main
 
 import (
 	"context"
-	"encoding/json"
-	"os"
-	"path/filepath"
 	"strings"
 
 	"creditop/playground/connectors/figma"
@@ -24,20 +21,10 @@ func (s *server) loadFlow(ctx context.Context, key string) (figma.Structure, str
 	if !ok {
 		return figma.Structure{}, "", &figma.Error{Status: 404, Message: "el archivo no tiene páginas"}
 	}
-	path := filepath.Join(s.cache, key, versionDir(h.Version), "maps", reNotDigit.ReplaceAllString(page.ID, "-")+".json")
-	var st figma.Structure
-	if b, err := os.ReadFile(path); err == nil && json.Unmarshal(b, &st) == nil && st.Version == h.Version {
-		s.keepMap(key, page.ID, st)
-		return st, page.ID, nil
-	}
-	if st, err = s.figma.Structure(ctx, key, page.ID, false); err != nil {
+	st, err := s.loadPage(ctx, key, h, page)
+	if err != nil {
 		return figma.Structure{}, "", err
 	}
-	if b, err := json.Marshal(st); err == nil && os.MkdirAll(filepath.Dir(path), 0o755) == nil {
-		_ = os.WriteFile(path+".tmp", b, 0o644)
-		_ = os.Rename(path+".tmp", path)
-	}
-	s.keepMap(key, page.ID, st)
 	return st, page.ID, nil
 }
 

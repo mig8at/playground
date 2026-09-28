@@ -1,0 +1,38 @@
+package main
+
+import (
+	"testing"
+
+	"creditop/playground/connectors/figma"
+)
+
+// El buscador lee todas las páginas: una pantalla que no está en la de flujo se encuentra en la suya, con
+// todas las palabras (sin tildes), y el nombre de la página también cuenta. Con `id` dice dónde vive.
+func TestSearchPagesFindsScreensInEveryPage(t *testing.T) {
+	lane := func(label string, screens ...figma.Screen) figma.Structure {
+		return figma.Structure{Lanes: []figma.Lane{{Label: label, Screens: screens}}}
+	}
+	pages := []pageMap{
+		{ID: "0:1", Name: "🟦 Cover"},
+		{ID: "3:26", Name: "✏️ Flujo", St: lane("Cargando", figma.Screen{ID: "6448:24283", Title: "Mis créditos"})},
+		{ID: "9448:11256", Name: "App_Q3_2026_v1.0", St: lane("Asesor",
+			figma.Screen{ID: "10171:5278", Name: "Monto a solicitar", Title: "Ingresa el monto a solicitar"},
+			figma.Screen{ID: "10171:5300", Title: "Créditos del cliente"})},
+	}
+	hits, total := searchPages(pages, "monto SOLICITAR", "")
+	if total != 1 || hits[0].ID != "10171:5278" || hits[0].Page != "9448:11256" || hits[0].PageName != "App_Q3_2026_v1.0" || hits[0].Index != 1 || hits[0].Total != 2 {
+		t.Fatalf("monto solicitar → %d %+v", total, hits)
+	}
+	if hits, _ := searchPages(pages, "creditos", ""); len(hits) != 2 {
+		t.Errorf("«creditos» sin tilde tiene que encontrar las dos: %+v", hits)
+	}
+	if hits, _ := searchPages(pages, "q3 asesor", ""); len(hits) != 2 {
+		t.Errorf("el nombre de la página y el carril cuentan: %+v", hits)
+	}
+	if hits, _ := searchPages(pages, "", "6448:24283"); len(hits) != 1 || hits[0].Page != "3:26" {
+		t.Errorf("por id, la página donde vive: %+v", hits)
+	}
+	if hits, total := searchPages(pages, "   ", ""); total != 0 || len(hits) != 0 {
+		t.Errorf("sin palabras no hay resultados: %+v", hits)
+	}
+}

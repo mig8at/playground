@@ -61,6 +61,7 @@ type server struct {
 	fills     fetcher
 	nodeJSON  func(ctx context.Context, key, id string) ([]byte, error)
 	readFlow  func(ctx context.Context, key string) (figma.Structure, string, error) // la página de flujo de un archivo
+	readPages func(ctx context.Context, key string) ([]pageMap, error)               // todas las páginas (pages.go)
 	// measure mide una pantalla contra Figma (fidelity.go); self es dónde escucha la API de este proceso.
 	measure func(ctx context.Context, key, id string, w, h float64) (measured, error)
 	self    string
@@ -86,6 +87,7 @@ func newServer(cl *figma.Client, cache string) *server {
 	s.fills = s.fillsFromFigma
 	s.nodeJSON = func(ctx context.Context, key, id string) ([]byte, error) { return cl.NodeJSON(ctx, key, id) }
 	s.readFlow = s.loadFlow
+	s.readPages = s.loadPages
 	s.measure = s.measureWithChromium
 	return s
 }
@@ -99,6 +101,7 @@ func (s *server) routes() http.Handler {
 	mux.HandleFunc("/api/asset", s.handleAsset)
 	mux.HandleFunc("/api/library", s.handleLibrary)
 	mux.HandleFunc("/api/pages", s.handlePages)
+	mux.HandleFunc("/api/search", s.handleSearch)
 	mux.HandleFunc("/api/track", s.handleTrack)
 	mux.HandleFunc("/api/tokens", s.handleTokens)
 	mux.HandleFunc("/api/brief", s.handleBrief)

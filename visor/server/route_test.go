@@ -16,6 +16,7 @@ func TestPastedIsUnderstoodInEveryForm(t *testing.T) {
 	s := newServer(nil, t.TempDir())
 	s.library.opened("RkyauDfqEsFbJZBBoqChAV", "Altafinanciera", "PRODUCTO")
 	s.readFlow = func(context.Context, string) (figma.Structure, string, error) { return figma.Structure{}, "", nil }
+	s.readPages = func(context.Context, string) ([]pageMap, error) { return nil, nil } // sin red: sólo la página de flujo
 	cases := []struct{ raw, layer, print, from string }{
 		{"http://localhost:5193/altafinanciera/266-1279?modo=comparar&capa=I1-6711_1265-1238&huella=0123456789ab", "I1:6711;1265:1238", "0123456789ab", "el visor"},
 		{"visor:altafinanciera/266-1279@53265587646d", "", "53265587646d", "una tarea"},

@@ -34,6 +34,9 @@ Las piezas sueltas, para cuando hace falta una sola cosa (ninguna necesita el vi
     make visor-capa R='<enlace con ?capa=>'                     # UNA capa que Miguel señaló
     make visor-buscar Q='alquila moto'                          # el caso RARO: nadie pegó nada
 
+- **Lee todas las páginas del archivo**, no sólo la de flujo: una pantalla que no está en «Flujo» (la versión
+  Q3 de App Creditop, el prototipo) se busca en las demás. La primera vez que hace falta lee cada página de
+  Figma (~30 s en App Creditop); después salen de la caché por versión.
 - **El CLI habla en IDS de Figma**: la pantalla es `<clave del archivo>/<nodo>` —o la URL de Figma, que trae
   los dos—. Los ids sobreviven a que el diseñador edite o renombre la pantalla. Acepta también el proyecto
   por nombre y el enlace `visor:` de una tarea.

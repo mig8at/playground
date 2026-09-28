@@ -218,6 +218,7 @@ func TestTokensComeFromTheMapWithMostColors(t *testing.T) {
 	s.readFlow = func(_ context.Context, key string) (figma.Structure, string, error) {
 		return figma.Structure{FileName: "Motai", Tokens: &figma.Tokens{Colors: []figma.ColorToken{{ID: "C9", Name: "colors/verde/500", Var: "--verde-500", Value: "#01a702"}}}}, "1:259", nil
 	}
+	s.readPages = func(context.Context, string) ([]pageMap, error) { return nil, nil } // sin red: sólo la página de flujo
 	rec = httptest.NewRecorder()
 	s.routes().ServeHTTP(rec, httptest.NewRequest("GET", "/api/tokens?key=AbCdEf1234567890&format=tailwind", nil))
 	if body := rec.Body.String(); rec.Code != 200 || !strings.Contains(body, "--color-verde-500: #01a702;") {
@@ -299,6 +300,7 @@ func TestCLIAssetsDownloadOriginalsNamedByLayer(t *testing.T) {
 	s := newServer(nil, t.TempDir())
 	s.library.opened("RkyauDfqEsFbJZBBoqChAV", "Altafinanciera", "PRODUCTO")
 	s.readFlow = func(context.Context, string) (figma.Structure, string, error) { return figma.Structure{}, "0:1", nil }
+	s.readPages = func(context.Context, string) ([]pageMap, error) { return nil, nil } // sin red: sólo la página de flujo
 	screen := `{"id":"266:1279","name":"home","type":"FRAME","absoluteBoundingBox":{"x":0,"y":0,"width":430,"height":903},
 	  "fills":[{"type":"IMAGE","imageRef":"ed64224686598c2ab9c32603378aae637c8e8b84","scaleMode":"STRETCH"}],
 	  "children":[{"id":"266:1300","name":"Logo","type":"FRAME","cornerRadius":100,"absoluteBoundingBox":{"x":171,"y":64,"width":88,"height":88},

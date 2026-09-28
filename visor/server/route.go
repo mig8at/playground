@@ -88,6 +88,13 @@ func (s *server) parseFigmaURL(ctx context.Context, raw string) (pasted, error) 
 		p.screen = ref.NodeID
 		return p, nil
 	}
+	// No está en la de flujo: se leen las demás páginas del archivo (la versión Q3, el prototipo…).
+	if _, err := s.readPages(ctx, p.key); err == nil {
+		if _, ok := s.findScreen(p.key, ref.NodeID); ok {
+			p.screen = ref.NodeID
+			return p, nil
+		}
+	}
 	rawNode, err := s.nodeJSON(ctx, p.key, ref.NodeID)
 	if err != nil {
 		return p, err
@@ -110,10 +117,10 @@ func (s *server) parseFigmaURL(ctx context.Context, raw string) (pasted, error) 
 			return p, nil
 		}
 	}
-	return p, fmt.Errorf("el node-id %s («%s») no es una pantalla del flujo ni está adentro de una: si es una sección, pasá la URL de una pantalla", ref.NodeID, n.Name)
+	return p, fmt.Errorf("el node-id %s («%s») no es una pantalla de ninguna página del archivo ni está adentro de una: si es una sección, pasá la URL de una pantalla", ref.NodeID, n.Name)
 }
 
-// flowScreensOf son las pantallas de los mapas del archivo que ya se leyeron.
+// flowScreensOf son las pantallas de los mapas del archivo que ya se leyeron (la de flujo y, si se leyeron, las demás páginas).
 func (s *server) flowScreensOf(key string) []figma.Screen {
 	s.mu.Lock()
 	defer s.mu.Unlock()

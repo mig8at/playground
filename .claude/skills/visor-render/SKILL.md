@@ -15,8 +15,18 @@ bloque en la raíz** (Altafinanciera, BCP, Credifamilia, CreditopX, flujo ecomme
 Smartpay), y adentro están directamente **sus pantallas** en los carriles del diseñador. Se abre de a uno
 —con varios, cada bloque quedaba de dos renglones— y al final está «Sumar un flujo».
 
-La página del archivo se elige sola: la que se llama «Flujo» o «Flow» (así las nombran los siete de
-producto) o, si no hay, la primera que no sea portada, benchmark ni prototipo. Al centro la pantalla —la imagen de
+La página del archivo arranca sola: la que se llama «Flujo» o «Flow» (así las nombran los siete de
+producto) o, si no hay, la primera que no sea portada, benchmark ni prototipo. **Las demás páginas son
+pestañas en el pie**, como las hojas de Excel (Miguel, 2026-09-28): App Creditop tiene el recorrido en
+«✏️ Flujo» y la versión Q3 en «App_Q3_2026_v1.0». Una pestaña trae su página al centro y al bloque de la
+barra, se lee de Figma al tocarla —una de benchmark puede ser enorme— y la ruta la nombra con `?nodo=`.
+Las páginas NO van en la barra: Miguel quiere ver el recorrido, no «Cover · Benchmark · Flujo».
+
+**El buscador** es la lupa de la barra derecha: busca pantallas en TODAS las páginas del archivo del centro,
+por título, capa, carril, sección y nombre de la página (`/api/search`, `server/pages.go`), agrupadas por
+página; un resultado de otra página la abre en su pestaña. Cada página se guarda en disco por versión,
+como la de flujo: la primera búsqueda en App Creditop (5 páginas) tardó ~20–30 s, las siguientes salen
+de la caché. Por ahora busca sólo en el archivo abierto (Miguel, 2026-09-28). Al centro la pantalla —la imagen de
 Figma, su HTML o las dos—; a la derecha qué es, la capa señalada, la fidelidad, la paleta y la
 tipografía. ← → recorren el carril, Retroceso vuelve, S señala una capa, 0 centra la pantalla y + / − son
 el zoom.
@@ -52,7 +62,8 @@ ruta, el enlace de las tareas y el CLI van por ids** (decisión de Miguel, 2026-
 cómo se llame nada. Una ruta vieja con el nombre del proyecto en minúsculas y con guiones
 (`/credifamilia/381-1052`) sigue abriendo y queda reescrita a la de ids. Sin pantalla abre la primera. Opcionales: `?modo=html` o
 `?modo=comparar`, y `?nodo=<id>` **sólo cuando hace falta**: si la pantalla vive fuera de la página de flujo
-del archivo (la página «prototipo», por ejemplo) y se abrió pegando su sección. Una sección pegada que está
+del archivo —en otra pestaña, o en una sección pegada—. Una ruta SIN `nodo` a una pantalla de otra página
+también abre: el visor averigua en qué página vive (`/api/search?id=`) y la abre en su pestaña. Una sección pegada que está
 adentro de la página de flujo —el caso de `flujo-ecommerce`, 334-455 dentro de «Flujo»— no lo lleva: el
 visor averigua en segundo plano qué pantallas tiene la página de flujo y lo saca. ⚠ Y al centro se queda lo
 que se abrió: releer el bloque de la barra no reemplaza una sección de otra página por la de flujo (lo hacía,
