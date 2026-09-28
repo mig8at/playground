@@ -13,18 +13,17 @@ ramas: fix/CORE-653-credifamilia-monto-total
 
 ## Pendientes
 
-- [ ] Confirmar la base del 4x1000; termina cuando haya respuesta escrita de cuál vale: el alcance lo calcula sobre el IVA (`IVA × 0,004` → $714,64 en el ejemplo) y el motor del plan de pagos sobre fianza + IVA (`(fianza + IVA) × 0,004` → $4.475,89). Son $3.761 de diferencia en el ejemplo.
-  Depende de: producto / Credifamilia — cuál es la fórmula oficial (la calculadora de Credifamilia se citó en CORE-127 como la vara del motor).
-- [ ] Confirmar la regla de redondeo; termina cuando se sepa si `montoTotalCredito` va con 2 decimales o redondeado al entero superior (el alcance pide las dos cosas), y si el redondeo es por componente o sólo al total. Ojo: el ejemplo del alcance TRUNCA (4x1000 714,638 → «714,63»; total «6.343.651,72»); redondeando da 714,64 y 6.343.651,73.
-  Depende de: producto / Credifamilia — y si el SOAP acepta decimales en ese campo (hoy se manda entero).
-- [ ] Confirmar qué va con fianza **Mensual/Vencida**; termina cuando esté escrito si `montoTotalCredito = montoSolicitado` (lo que ya hace el motor: la fianza no se financia, se cobra por cuota) o si también suma fianza.
+- [ ] Confirmar el redondeo de `montoTotalCredito`; termina cuando producto diga cuál vale: $6.343.651,72 (el ejemplo corta), $6.343.651,73 (redondeado, lo que hace hoy el PR) o $6.343.652 (entero superior).
   Depende de: producto
-- [ ] Alinear el redondeo del voucher con el del SOAP; termina cuando el «Total a financiar» y `montoTotalCredito` den el mismo entero (hoy 2.430.113 vs 2.430.114: el formateador de documentos trunca, el SOAP aproxima arriba). Se hace sólo para ese campo de Credifamilia, no en el formateador compartido.
-  Depende de: la decisión de redondeo de arriba.
-- [ ] Implementar en `legacy-backend` el cálculo de `montoTotalCredito` para la radicación; termina cuando el SOAP de una solicitud Anticipada lleve monto + total fianza, con una prueba unitaria que reproduzca el ejemplo del alcance ($5.223.964 → $6.343.651,72 o lo que se decida arriba).
-- [ ] Alinear el motor del plan de pagos si la base del 4x1000 cambia; termina cuando voucher («Total a financiar»), plan de cuotas y SOAP den el mismo total para el mismo caso.
-- [x] Correr en local una solicitud Credifamilia con fianza Anticipada hasta la radicación contra el mock SOAP — 3/3 en estado 11 con CREDIT_COMPLETED y `montoTotalCredito` 2.430.114 para 2.000.000 (ver la pila).
-- [ ] Escribir la publicable y pasarla por el guard antes de que Miguel la vea.
+- [ ] Confirmar si las cuotas y el comprobante también pasan al 4x1000 sobre el IVA; termina con la respuesta. Si es sí, `CalculationContext` usa `calculateForDisbursementOrder()` y se revisa el redondeo del «Total a financiar» (hoy el formateador de documentos trunca).
+  Depende de: producto
+- [ ] Confirmar que con fianza Mensual el total es el monto solicitado.
+  Depende de: producto
+- [ ] Confirmar que el servicio de Credifamilia acepta decimales en `montoTotalCredito` (antes iba entero); termina con la respuesta o con una radicación real aceptada.
+  Depende de: producto / Credifamilia
+- [x] Implementar `montoTotalCredito` en la radicación con la fórmula del alcance y dos decimales — [#1521](pr:legacy-backend#1521), 6 pruebas nuevas, ejemplo del alcance en 6343651.73.
+- [x] Correr en local una solicitud con fianza Anticipada hasta la radicación — 3/3 en 11 con CREDIT_COMPLETED y `montoTotalCredito` 2428673.60 para 2.000.000.
+- [ ] Escribir la publicable (Dónde probar, Cómo validar) antes de que Miguel la vea.
 
 ## Objetivo
 
