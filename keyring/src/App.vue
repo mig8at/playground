@@ -361,7 +361,8 @@ onBeforeUnmount(() => {
     </section>
 
     <footer class="statusbar">
-      <span v-if="checkedAt" :title="fmtFull(checkedAt)">probado a las {{ fmtTime(checkedAt) }}</span>
+      <span v-if="busy">probando…</span>
+      <span v-else-if="checkedAt" :title="fmtFull(checkedAt)">probado a las {{ fmtTime(checkedAt) }}</span>
       <span v-if="hidden.length" title="Perfiles de ~/.aws sin credenciales propias: no dan acceso a nada">ocultos sin credenciales: {{ hidden.join(', ') }}</span>
       <span v-if="failTotal" class="hot">{{ failTotal }} accesos fallan en la consola</span>
       <div class="layout-controls" role="group" aria-label="Tema y regiones visibles">
