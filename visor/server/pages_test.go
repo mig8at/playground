@@ -36,3 +36,15 @@ func TestSearchPagesFindsScreensInEveryPage(t *testing.T) {
 		t.Errorf("sin palabras no hay resultados: %+v", hits)
 	}
 }
+
+// Las páginas que no son de pantallas no se leen: la portada, el benchmark y los separadores con rayas.
+func TestHiddenPagesAreNotScreens(t *testing.T) {
+	for name, hidden := range map[string]bool{
+		"🟦 Cover": true, "Portada": true, "🔍 Bechmarck": true, "Benchmark": true, "———": true, "--- ": true, "": true,
+		"✏️ Flujo": false, "App_Q3_2026_v1.0": false, "📲Prototipo": false, "Research - v2": false,
+	} {
+		if got := reHiddenPage.MatchString(name); got != hidden {
+			t.Errorf("«%s»: oculta %v, se esperaba %v", name, got, hidden)
+		}
+	}
+}

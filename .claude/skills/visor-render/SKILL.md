@@ -17,8 +17,9 @@ Smartpay), y adentro está **el árbol de su archivo** (páginas y secciones, ab
 
 La página del archivo arranca sola: la que se llama «Flujo» o «Flow» (así las nombran los siete de
 producto) o, si no hay, la primera que no sea portada, benchmark ni prototipo. **El bloque es un ÁRBOL por los niveles que tienen nombre:
-Proyecto › Página › Sección › pantallas** (Miguel, 2026-09-28). Las páginas van sin la portada, que no tiene
-nada que mirar; la de flujo arranca abierta y las demás se leen de Figma al abrirlas —una de benchmark
+Proyecto › Página › Sección › pantallas** (Miguel, 2026-09-28). Las páginas van sin las que no son de pantallas
+—la portada, el benchmark (una tarjeta que agrupa referencias) y los separadores con rayas: `reHiddenPage`,
+la misma regla en App.vue y en server/pages.go—; la de flujo arranca abierta y las demás se leen de Figma al abrirlas —una de benchmark
 puede ser enorme—. Las secciones arrancan PLEGADAS, salvo la de la pantalla que se está mirando, y cada
 nivel dice cuántas pantallas tiene. El carril NO es un nivel: con rótulo es un subtítulo, y sin rótulo
 —46 de 71 en el Flujo de App Creditop, casi todos en su Prototipo— una raya fina; antes cada carril era un
@@ -28,7 +29,7 @@ adentro del bloque, el mismo día: ninguna de las dos se leía como parte del pr
 
 **El buscador** es la lupa de la cabecera de la barra IZQUIERDA (Miguel lo pidió ahí, no en la derecha): la
 lupa vuelve la cabecera un campo, y mientras haya algo escrito los resultados toman el lugar de los
-proyectos. Busca pantallas en todas las páginas del archivo del centro (menos la portada),
+proyectos. Busca pantallas en todas las páginas de pantallas del archivo del centro (sin las de `reHiddenPage`),
 por título, capa, carril, sección y nombre de la página (`/api/search`, `server/pages.go`), agrupadas por
 página; un resultado de otra página la abre en el árbol y al centro. Cada página se guarda en disco por versión,
 como la de flujo: la primera búsqueda en App Creditop tardó ~20–30 s. Después, lo leído queda en memoria

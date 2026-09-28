@@ -247,9 +247,11 @@ const reSkipPage = /cover|portada|bench|bechmarck|prototipo|prototype|archivo|ar
 function flowPage(pages) {
   return pages.find((p) => reFlowPage.test(p.name)) || pages.find((p) => !reSkipPage.test(p.name)) || pages[0] || null
 }
-// La portada no es un nivel del árbol: es la tapa del archivo, no tiene pantallas que mirar (Miguel, 2026-09-28).
-const reCoverPage = /cover|portada/i
-const pagesFor = (key) => (pagesOf.value[key]?.pages || []).filter((x) => !reCoverPage.test(x.name))
+// Las páginas que no son de pantallas no son un nivel del árbol: la portada (la tapa del archivo), el benchmark
+// (una tarjeta que agrupa referencias) y los separadores que los diseñadores arman con rayas (Miguel,
+// 2026-09-28). La misma regla que el server (`reHiddenPage`, server/pages.go).
+const reHiddenPage = /cover|portada|bench|bechmarck|^[\s\-–—_=*·.|]*$/i
+const pagesFor = (key) => (pagesOf.value[key]?.pages || []).filter((x) => !reHiddenPage.test(x.name))
 const isPageNode = (key, node) => node === flowNodes[key] || pagesFor(key).some((p) => p.id === node)
 async function openFlow(key, fresh = false) {
   // Lo que hay en memoria puede ser una sección pegada a mano: el bloque pone al centro la página de flujo.

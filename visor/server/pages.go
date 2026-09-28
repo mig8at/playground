@@ -48,7 +48,7 @@ func (s *server) loadPage(ctx context.Context, key string, h figma.FileHead, pag
 	return st, nil
 }
 
-// loadPages lee todas las páginas del archivo menos la portada, en el orden de Figma. Una que falla no tumba las demás: va
+// loadPages lee todas las páginas de pantallas del archivo (no las de reHiddenPage), en el orden de Figma. Una que falla no tumba las demás: va
 // con su error. Dos pedidos del mismo archivo a la vez (el buscador mientras se escribe) esperan al primero.
 func (s *server) loadPages(ctx context.Context, key string) ([]pageMap, error) {
 	lock := s.pageLock(key)
@@ -65,8 +65,8 @@ func (s *server) loadPages(ctx context.Context, key string) ([]pageMap, error) {
 	}
 	out := make([]pageMap, 0, len(h.Pages))
 	for _, p := range h.Pages {
-		if reCoverPage.MatchString(p.Name) {
-			continue // la portada es la tapa del archivo: ni pestaña ni búsqueda (Miguel, 2026-09-28)
+		if reHiddenPage.MatchString(p.Name) {
+			continue
 		}
 		pm := pageMap{ID: p.ID, Name: p.Name}
 		if st, err := s.loadPage(ctx, key, h, p); err != nil {
@@ -90,7 +90,10 @@ type pagesRead struct {
 	pages []pageMap
 }
 
-var reCoverPage = regexp.MustCompile(`(?i)cover|portada`)
+// reHiddenPage son las páginas que no son de pantallas: la portada (la tapa del archivo), el benchmark (una
+// tarjeta que agrupa referencias) y los separadores hechos con rayas. No se muestran ni se buscan (Miguel,
+// 2026-09-28). La interfaz usa la misma regla (App.vue).
+var reHiddenPage = regexp.MustCompile(`(?i)cover|portada|bench|bechmarck|^[\s\-–—_=*·.|]*$`)
 
 var pageLocks sync.Map // clave del archivo → *sync.Mutex
 
