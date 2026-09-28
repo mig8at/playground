@@ -18,6 +18,7 @@ const only = (process.env.SOLO || '').split(',').map((x) => x.trim()).filter(Boo
 const apps = [
   ['harness', 'http://localhost:5195'], ['tablero', 'http://localhost:5191'],
   ['trazador', 'http://localhost:5192'], ['visor', 'http://localhost:5186'],
+  ['keyring', 'http://localhost:5182'],
 ].filter(([name]) => !only.length || only.includes(name));
 const WIDTHS = [1440, 1024, 768, 640];
 

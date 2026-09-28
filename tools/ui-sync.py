@@ -6,7 +6,7 @@ import sys
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 FILES = ('theme.css', 'workbench.css', 'workbench.js', 'RegionMenu.vue')
-DESTINATIONS = ('tablero/src', 'trazador/src', 'visor/src', 'radar/src', 'harness/panel')
+DESTINATIONS = ('tablero/src', 'trazador/src', 'visor/src', 'radar/src', 'keyring/src', 'harness/panel')
 # El panel del harness no tiene bundler: el renglón que aplica el tema antes de pintar (`THEME_BOOT` de
 # workbench.js) va escrito en su <head>, entre estos marcadores, y se rellena desde la fuente.
 THEME_BOOT_TARGETS = ('harness/panel/index.html',)

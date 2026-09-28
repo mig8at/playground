@@ -49,8 +49,9 @@ jira_title: ""
 - [x] keyring, fase 2 · el aviso al arrancar: el hook `SessionStart` corre red, AWS y sesiones de asesor
   (`keyring/check`, `check.Quick`) en paralelo con el catálogo y agrega el bloque KEYRING con lo que
   falla, vence pronto o no tiene VPN.
-- [ ] keyring, fase 3 · la vista: Vue + servidor Go con `theme.css` y `workbench.css`, las mismas filas
-  que la consola; termina cuando `make estilo-ui` la recorre como a las demás.
+- [x] keyring, fase 3 · la vista: Vue + servidor Go (`make keyring-ui`, :5182 · API :5183) con
+  `theme.css` y `workbench.css`, las mismas filas que la consola, cada grupo apenas contesta; la recorren
+  `estilo-ui`, `estilo-minimo`, `estilo-contraste` y `estilo-check`.
 - [ ] Gemini responde 401 con la llave de `connectors/.env`; termina cuando `make keyring SOLO=services`
   lo da en verde.
   Depende de: Miguel — una llave nueva de Gemini.

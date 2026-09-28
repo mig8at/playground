@@ -20,7 +20,16 @@ func main() {
 	only := flag.String("only", "", "sólo estos grupos, separados por coma: "+strings.Join(check.Groups, ","))
 	brief := flag.Bool("brief", false, "el resumen del arranque de sesión: sólo red, AWS y sesiones")
 	timeout := flag.Duration("timeout", 12*time.Second, "tope por sonda")
+	addr := flag.String("serve", "", "levanta la API para la interfaz en esta dirección (sólo 127.0.0.1)")
 	flag.Parse()
+
+	if *addr != "" {
+		if err := serve(*addr, *timeout); err != nil {
+			fmt.Fprintln(os.Stderr, "keyring:", err)
+			os.Exit(1)
+		}
+		return
+	}
 
 	var groups []string
 	if *only != "" {

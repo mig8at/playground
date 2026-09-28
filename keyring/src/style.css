@@ -1,0 +1,33 @@
+/* EL VOCABULARIO VISUAL DE KEYRING.
+ *
+ * Las mismas capas que radar y el trazador, en el mismo orden: Tailwind (utilidades, sin preflight), el
+ * tema compartido —que se REEMPLAZA entero— y la base (`workbench.css`). Abajo, lo único que significa
+ * algo sólo acá: el color del estado de un acceso.
+ */
+@import "tailwindcss/theme.css" layer(theme);
+@import "tailwindcss/utilities.css" layer(utilities);
+@import "./theme.css";
+@import "./workbench.css";
+
+/* El estado de un acceso. El verde y el ámbar son los del trazador y el tablero, uno por tema, porque el
+ * ámbar para fondo oscuro sobre blanco no se lee (1,7:1).
+ * ⚠ La falla NO sale de `--destructive`: en el tema Darkmatter es un verde azulado apagado
+ * (oklch 0.59 0.04 196), y derivada de ahí se pintaba casi igual al gris de «no aplica» — medido en el
+ * navegador, 125,152,152 contra la rampa. Acá lo único que importa es separar «falla» de «no aplica»,
+ * así que es un rojo declarado, por tema, como los otros dos. */
+:root {
+  --access-ok: #15803d;
+  --access-warn: #b45309;
+  --access-fail: #b91c1c;
+  --access-off: var(--fg-3);
+}
+.dark {
+  --access-ok: #4ade80;
+  --access-warn: #fbbf24;
+  --access-fail: #f87171;
+}
+
+/* La página no scrollea: scrollea cada región (el contrato de `.workbench`). La letra es la de la base. */
+html, body { margin: 0; height: 100%; overflow: hidden; background: var(--background); color: var(--foreground);
+  font: var(--text-base)/1.4 var(--font-sans) }
+#app { height: 100% }

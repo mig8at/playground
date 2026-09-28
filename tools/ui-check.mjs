@@ -11,7 +11,7 @@ const only = (process.env.SOLO || '').split(',').map((x) => x.trim()).filter(Boo
 const apps = [
   ['harness', 'http://localhost:5195'],
   ['tablero', 'http://localhost:5191'], ['trazador', 'http://localhost:5192'],
-  ['radar', 'http://localhost:5188'],
+  ['radar', 'http://localhost:5188'], ['keyring', 'http://localhost:5182'],
 ].filter(([name]) => !only.length || only.includes(name));
 const sprint = { id: 1, name: 'Sprint UI', state: 'active', startDate: '2026-09-14', endDate: '2026-09-28' };
 const sample = {
@@ -117,6 +117,20 @@ const radarFixture = {
     { session: 'sesion-a', time: '2026-09-27T14:02:00Z', tool: 'Bash', keys: ['make tareas'], command: 'make tareas', outcome: 'ok' },
   ] },
 };
+// keyring: un grupo rápido, uno lento con fallas y uno con un vencimiento cercano. Datos de ejemplo: la
+// prueba no toca ninguna credencial real.
+const soonISO = () => new Date(Date.now() + 30 * 60000).toISOString();
+const keyringGroups = [
+  { id: 'network', label: 'red', quick: true }, { id: 'databases', label: 'bases', quick: false },
+  { id: 'sessions', label: 'sesiones de asesor', quick: true },
+];
+const keyringChecks = {
+  network: [{ group: 'network', name: 'VPN dev', state: 'off', detail: 'no resuelve: sin esa VPN', ms: 1 },
+    { group: 'network', name: 'VPN prod', state: 'ok', detail: 'legacy-backend → 172.31.0.1', ms: 20 }],
+  databases: [{ group: 'databases', name: 'local', state: 'ok', detail: 'mysql 127.0.0.1', ms: 10 },
+    { group: 'databases', name: 'dev', state: 'fail', detail: 'i/o timeout · ¿VPN de dev?', ms: 10000 }],
+  sessions: [{ group: 'sessions', name: 'asesor qa', state: 'warn', detail: 'originaciones-qa', ms: 2 }],
+};
 const browser = await chromium.launch();
 const screenshotDir = process.env.UI_SCREENSHOTS;
 if (screenshotDir) await mkdir(screenshotDir, { recursive: true });
@@ -188,6 +202,14 @@ try {
           return route.fulfill({ json: { ...tracerFullFixture, ureq } });
         }
         return route.fulfill({ json: {} });
+      }
+      if (name === 'keyring') {
+        if (path === '/api/groups') return route.fulfill({ json: keyringGroups });
+        const group = new URL(route.request().url()).searchParams.get('group');
+        const json = (keyringChecks[group] || []).map((c) => (c.state === 'warn' ? { ...c, expires: soonISO() } : c));
+        // Las bases tardan: es lo que obliga a pintar cada grupo cuando llega y no esperar al más lento.
+        if (group === 'databases') return new Promise((ok) => setTimeout(() => ok(route.fulfill({ json })), 600));
+        return route.fulfill({ json });
       }
       if (name === 'radar') {
         const headers = { 'X-Radar-Read': '0', 'X-Radar-Skipped': '3' };
@@ -309,6 +331,27 @@ try {
       await page.getByRole('button', { name: 'Cerrar el recorrido', exact: true }).click();
       await paint(page);
       assert.equal(await page.locator('.panel').count(), 0, 'Radar: cerrar el recorrido lo saca de la pantalla');
+    }
+    if (name === 'keyring') {
+      const editor = page.locator('.editor');
+      await editor.getByText('VPN prod', { exact: true }).waitFor();
+      assert.match(await editor.textContent(), /probando/,
+        'Keyring: un grupo rápido se pinta mientras el lento sigue probando');
+      await editor.getByText('i/o timeout · ¿VPN de dev?').waitFor();
+      assert.match(await page.locator('.sidebar .row').first().textContent(), /1 fallan/,
+        'Keyring: «Todo» resume cuántos accesos fallan');
+      assert.equal(await editor.locator('td.soon').count(), 1, 'Keyring: lo que vence en menos de una hora se marca');
+      await page.getByRole('button', { name: 'Mostrar sólo lo que falla o vence pronto', exact: true }).click();
+      assert.equal(new URL(page.url()).hash, '#/all?failing=1', 'Keyring: el filtro queda en la ruta');
+      assert.match(await page.locator('.editor > .region-head .count.filtered').textContent(), /2 \/ 5/,
+        'Keyring: el encabezado delata el filtro puesto');
+      assert.equal(await editor.locator('tbody tr').count(), 2, 'Keyring: con el filtro quedan la falla y el vencimiento');
+      await page.reload();
+      await editor.getByText('i/o timeout · ¿VPN de dev?').waitFor();
+      assert.equal(await editor.locator('tbody tr').count(), 2, 'Keyring: el filtro sobrevive a la recarga');
+      await page.getByRole('button', { name: /^bases/ }).click();
+      assert.equal(new URL(page.url()).hash, '#/databases?failing=1', 'Keyring: el grupo elegido queda en la ruta');
+      assert.equal(await editor.locator('tbody tr').count(), 1, 'Keyring: un grupo muestra sólo sus filas');
     }
     const separator = name === 'trazador'
       ? page.locator('.handle-detail')

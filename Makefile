@@ -41,7 +41,7 @@ define listar
 endef
 
 # ── DÍA A DÍA ────────────────────────────────────────────────────────────────────────────────────
-.PHONY: keyring status tablero tareas tareas-guard cuadrilla-publicar sprint bitacora tarea-bloque tarea-context-add tarea-context tablero-db panel trazador trazador-buscar trazador-ureq \
+.PHONY: keyring keyring-ui status tablero tareas tareas-guard cuadrilla-publicar sprint bitacora tarea-bloque tarea-context-add tarea-context tablero-db panel trazador trazador-buscar trazador-ureq \
 	trazador-diag trazador-chequeo trazador-indexar-logs trazador-validar trazador-slack trazador-hilos
 status: ## @dia ¿está el contexto al día? (resumen, no escribe nada)
 	@$(MAKE) --no-print-directory trampas
@@ -97,6 +97,8 @@ deploys: ## @dia ¿qué se desplegó y a qué ambiente? FALLAS=1 deja SÓLO lo q
 
 keyring: ## @dia el llavero: ¿a qué tengo acceso AHORA y cuándo vence? VPN, AWS, bases, Loki, PostHog, servicios y sesiones de asesor; sólo lee y nunca muestra un secreto. SOLO=network,aws,databases,logs,events,services,sessions · JSON=1 · sale 1 si algo falla
 	@go run ./keyring/server $(if $(SOLO),-only "$(SOLO)") $(if $(JSON),-json)
+keyring-ui: ## @dia abre keyring, el llavero, visual (:5182 · API :5183): las mismas filas que `make keyring`, cada grupo apenas contesta
+	@cd keyring && npm run dev
 
 anatomia: ## @dia ¿cuánto pesa el documento de cada tarea, cuántos bloques tiene su pila, y qué sección con fecha parece historia fuera de lugar? N=<id|slug>
 	@cd tablero/server && go run ./cmd/today -anatomia $(if $(N),-n "$(N)")

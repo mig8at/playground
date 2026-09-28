@@ -33,6 +33,7 @@ const UIS = [
   { tool: 'trazador', url: 'http://localhost:5192' },
   { tool: 'visor', url: 'http://localhost:5186' },
   { tool: 'radar', url: 'http://localhost:5188' },
+  { tool: 'keyring', url: 'http://localhost:5182' },
 ];
 
 /* Algunas vistas no existen hasta que alguien toca algo. Lo mínimo para que el barrido vea el
