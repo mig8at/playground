@@ -61,11 +61,14 @@ jira_title: "Código de preaprobado de la app en la plataforma nueva"
       `preaprobado`; se agregó el emisor (comercio, reuso y vencimiento) en `onboarding`, revisión 163
       (2026-09-28). Tarea archivada.
 
-- [ ] Llevar a `qa` el diseño nuevo del selector «Usuario nuevo / Usuario app» (contenedor celeste con
-      borde, íconos de escritorio y celular, la activa en `creditop-500`): rama
-      `feat/CORE-614-conmutador-usuario-app-estilo` desde `qa`, un commit, sólo estilo. Termina con el PR
-      contra `qa` mergeado: [frontend-monorepo#1094](https://github.com/Creditop-SAS/frontend-monorepo/pull/1094).
-      `develop` no sirve de base: quedó en el 31/08, sin nada de CORE-614.
+- [x] Llevar a `qa` el diseño nuevo del selector «Usuario nuevo / Usuario app»: en el header del asesor
+      (a la derecha en escritorio, debajo y centrado en móvil), contenedor celeste con íconos, la activa en
+      `creditop-500`, y con «Usuario app» el mensaje «Te tomará menos tiempo» —
+      [frontend-monorepo#1094](https://github.com/Creditop-SAS/frontend-monorepo/pull/1094), mergeado a `qa`
+      en `d9ccd77f` (2026-09-28). Se hizo desde `qa` porque `develop` quedó en el 31/08, sin nada de CORE-614.
+- [ ] Llevar a `main` el diseño nuevo del selector (#1094): sus tres commits (`2867e947`, `a6835d04`,
+      `f4c28497`) están en `qa` y no en `main`. Termina cuando `git branch -r --contains f4c28497` muestra
+      `origin/main`.
 
 ## Objetivo
 
