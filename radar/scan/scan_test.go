@@ -198,3 +198,75 @@ func TestReadSessionPairsCallsWithResults(t *testing.T) {
 		t.Errorf("skill con prefijo de plugin: %v", s.Calls[1].Keys)
 	}
 }
+
+// Consultar canon para trabajar cuenta; desarrollarlo (bucles, localhost, tools/canon, -pregunta) no.
+func TestCanonLookupSeparatesWorkFromDev(t *testing.T) {
+	cases := []struct {
+		cmd, kind, query string
+		dev              bool
+	}{
+		{`make canon-search Q='cuota inicial'`, LookupSearch, "cuota inicial", false},
+		{`make canon-read IDS='kyc/context#a'`, LookupRead, "kyc/context#a", false},
+		{`make retomar N=84 CANON=1`, LookupContext, "", false},
+		{`make canon-write PIECE=a.json`, LookupWrite, "", false},
+		{`cd tablero/server && go run ./cmd/canon search codigo de compra`, LookupSearch, "codigo de compra", false},
+		{`curl -s --get "https://canon.playground.creditop.com/api/search" --data-urlencode "q=firmo en prami"`, LookupSearch, "firmo en prami", false},
+		{`curl -s "https://canon.playground.creditop.com/api/read?ids=kyc/context%23x"`, LookupRead, "kyc/context#x", false},
+		{"curl -s -X POST https://canon.playground.creditop.com/api/context -d '{\"q\":\"Ábaco\"}' | python3 -c \"\nimport json\nfor s in d: print(s)\"", LookupContext, "Ábaco", false},
+		{`for q in a b; do curl -s "https://canon.playground.creditop.com/api/search?q=$q"; done`, LookupSearch, "$q", true},
+		{`curl -s 'localhost:8220/api/read?ids=listado/context' -H 'x: y' && curl https://canon.playground.creditop.com/api/read?ids=a`, LookupRead, "a", true},
+		{`cd ~/Desktop/CREDITOP/github/playground/tools/canon && curl https://canon.playground.creditop.com/api/search?q=x`, LookupSearch, "x", true},
+	}
+	for _, c := range cases {
+		got := canonLookupOf(c.cmd)
+		if got == nil || got.Kind != c.kind || got.Query != c.query || got.Dev != c.dev {
+			t.Errorf("%q: %+v, quería %s «%s» dev=%v", c.cmd, got, c.kind, c.query, c.dev)
+		}
+	}
+	if canonLookupOf("grep -rn /api/search tools") != nil || canonLookupOf("make tareas") != nil {
+		t.Error("nombrar la API o correr otro target no es consultar canon")
+	}
+}
+
+// Una consulta seguida de leer un repo real, dentro de la ventana, es un hueco; lo que pasa después de
+// otra consulta o fuera de la ventana, no. Una búsqueda vacía es un hueco por sí sola.
+func TestGapsPairLookupsWithCode(t *testing.T) {
+	at := func(min int) time.Time { return day("2026-09-20").Add(time.Duration(min) * time.Minute) }
+	s := Session{ID: "s1", Calls: []Call{
+		{Time: at(0), Canon: &CanonLookup{Kind: LookupSearch, Query: "Código de compra"}},
+		{Time: at(1), Code: "legacy-backend"},
+		{Time: at(2), Code: "legacy-application"},
+		{Time: at(3), Canon: &CanonLookup{Kind: LookupRead, Query: "kyc/context"}},
+		{Time: at(40), Code: "legacy-backend"}, // fuera de la ventana
+		{Time: at(41), Canon: &CanonLookup{Kind: LookupSearch, Query: "zz", Empty: true}},
+		{Time: at(42), Canon: &CanonLookup{Kind: LookupSearch, Dev: true}},
+		{Time: at(43), Canon: &CanonLookup{Kind: LookupWrite}},
+	}}
+	s2 := Session{ID: "s2", Calls: []Call{
+		{Time: at(0), Canon: &CanonLookup{Kind: LookupSearch, Query: "codigo  de compra"}},
+		{Time: at(5), Code: "main-verifier"},
+	}}
+	g := GapsView([]Session{s, s2}, day("2026-09-01"))
+	if g.Lookups != 4 || g.Dev != 1 || g.Writes != 1 || len(g.Gaps) != 2 {
+		t.Fatalf("%+v", g)
+	}
+	top := g.Gaps[0]
+	if top.Signal != SignalSearchedCode || top.Sessions != 2 || top.Times != 2 || len(top.Repos) != 3 {
+		t.Fatalf("el hueco repetido: %+v", top)
+	}
+	if g.Gaps[1].Signal != SignalEmpty {
+		t.Fatalf("la vacía: %+v", g.Gaps[1])
+	}
+}
+
+func TestCodeRepoIgnoresThePlayground(t *testing.T) {
+	if r := codeRepoOf("Read", map[string]any{"file_path": "/Users/x/Desktop/CREDITOP/github/legacy-backend/app/A.php"}); r != "legacy-backend" {
+		t.Errorf("Read: %q", r)
+	}
+	if r := codeRepoOf("Bash", map[string]any{"command": "git -C ~/Desktop/CREDITOP/github/playground log"}); r != "" {
+		t.Errorf("el playground compartido no es código del producto: %q", r)
+	}
+	if r := codeRepoOf("Agent", map[string]any{"subagent_type": "main-verifier"}); r != "main-verifier" {
+		t.Errorf("agent: %q", r)
+	}
+}

@@ -2,7 +2,7 @@
 // Code. Sólo lectura, sólo local y sin modelo: todo se deriva de las transcripciones, el Makefile (con sus
 // alias), las skills y `git log`.
 //
-//	go run ./radar/server -view usage|friction|drift|session [-days 30] [-session <id>] [-json]
+//	go run ./radar/server -view usage|friction|drift|gaps|session [-days 30] [-session <id>] [-json]
 package main
 
 import (
@@ -15,6 +15,7 @@ import (
 	"strings"
 	"time"
 
+	"creditop/playground/connectors/canon"
 	"creditop/playground/radar/scan"
 )
 
@@ -39,10 +40,11 @@ func playgroundRoot() (string, error) {
 }
 
 func main() {
-	view := flag.String("view", "usage", "usage · friction · drift · session")
+	view := flag.String("view", "usage", "usage · friction · drift · gaps · session")
 	days := flag.Int("days", 30, "el período, en días hacia atrás")
 	sessionID := flag.String("session", "", "con -view session: el id (o su comienzo) de la sesión")
 	asJSON := flag.Bool("json", false, "la salida en JSON")
+	recheckFlag := flag.Bool("recheck", false, "con -view gaps: vuelve a correr contra canon las búsquedas vacías (gratis, sin modelo; pide red)")
 	all := flag.Bool("all", false, "incluir las corridas automáticas (sin nadie escribiendo: claude -p, bancos de prueba)")
 	addr := flag.String("serve", "", "levanta la API para la interfaz en esta dirección (sólo 127.0.0.1)")
 	projects := flag.String("projects", filepath.Join(os.Getenv("HOME"), ".claude", "projects"), "dónde guarda Claude Code las transcripciones")
@@ -84,6 +86,12 @@ func main() {
 		out = scan.FrictionView(calls)
 	case "drift":
 		out = scan.DriftView(calls, mk, scan.GitHistory(root), scan.SkillNames(root))
+	case "gaps":
+		g := scan.GapsView(sessions, since)
+		if *recheckFlag {
+			recheck(&g, canon.FromEnv())
+		}
+		out = g
 	case "session":
 		s, ok := scan.FindSession(sessions, *sessionID)
 		if !ok {
@@ -92,7 +100,7 @@ func main() {
 		}
 		out = s
 	default:
-		fmt.Fprintf(os.Stderr, "radar: -view %q no existe (usage · friction · drift · session)\n", *view)
+		fmt.Fprintf(os.Stderr, "radar: -view %q no existe (usage · friction · drift · gaps · session)\n", *view)
 		os.Exit(2)
 	}
 	if *asJSON {
@@ -155,6 +163,8 @@ func printView(w io.Writer, v any) {
 		fmt.Fprintln(w)
 		fmt.Fprintf(w, "── skills que no se cargaron nunca en el período: %d\n   %s\n",
 			len(x.UnusedSkills), strings.Join(x.UnusedSkills, " · "))
+	case scan.Gaps:
+		printGaps(w, x)
 	case scan.Session:
 		fmt.Fprintf(w, "sesión %s · %s · %s · %d llamadas\n\n", x.ID, x.Entrypoint, x.Start.Local().Format("2006-01-02 15:04"), len(x.Calls))
 		marks := map[string]string{scan.OutcomeOK: " ", scan.OutcomeDenied: "⊘", scan.OutcomeRejected: "✗", scan.OutcomeBlocked: "⛔", scan.OutcomeError: "!"}

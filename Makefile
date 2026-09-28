@@ -359,6 +359,8 @@ radar-friccion: ## @dia ¿qué pidió aprobación y no la tuvo, qué rechazó Mi
 	@$(RADAR) -view friction
 radar-deriva: ## @dia ¿qué se sigue usando después de borrado, qué nombres viejos siguen vivos, qué nadie usa? (con fechas) DIAS=30 · JSON=1
 	@$(RADAR) -view drift
+radar-huecos: ## @dia ¿dónde canon no alcanzó? búsquedas vacías y consultas tras las que se fue al código de main, agrupadas. DIAS=30 · JSON=1 · RECHECK=1 vuelve a buscar las vacías (gratis)
+	@$(RADAR) -view gaps $(if $(RECHECK),-recheck)
 radar-sesion: ## @dia el recorrido de UNA sesión: cada herramienta, en orden, con cómo terminó. SESION=<id o su comienzo> (sin él, la última)
 	@$(RADAR) -view session $(if $(SESION),-session $(SESION),)
 

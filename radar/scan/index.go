@@ -23,7 +23,7 @@ func gitOutput(dir string, args ...string) (string, error) {
 
 // indexVersion cambia cada vez que cambia CÓMO se clasifica una llamada: el índice guarda las llamadas ya
 // clasificadas, y sin esto un arreglo del parser no se aplicaría a lo que ya estaba leído.
-const indexVersion = 6
+const indexVersion = 7
 
 // CachePath es el índice de radar dentro del playground.
 func CachePath(root string) string { return filepath.Join(root, "radar", ".cache", "sessions.json") }

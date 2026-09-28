@@ -1,5 +1,5 @@
 <script setup>
-/* radar · la interfaz. Muestra las MISMAS cuatro vistas que la consola (`make radar-*`), que salen de la
+/* radar · la interfaz. Muestra las MISMAS vistas que la consola (`make radar-*`), que salen de la
  * API en Go: acá no se calcula nada, se pinta. La vista, el período y la sesión elegida viven en la URL. */
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import {
@@ -11,6 +11,7 @@ const VIEWS = [
   { id: 'usage', label: 'Uso', hint: 'qué herramientas se usan de verdad' },
   { id: 'friction', label: 'Fricción', hint: 'lo que no terminó bien' },
   { id: 'drift', label: 'Deriva', hint: 'lo documentado contra lo usado, con fechas' },
+  { id: 'gaps', label: 'Huecos de canon', hint: 'dónde se le preguntó al corpus y no alcanzó' },
   { id: 'sessions', label: 'Sesiones', hint: 'cada sesión y su recorrido' },
 ]
 const PERIODS = [7, 30, 90]
@@ -48,9 +49,9 @@ async function getJSON(path) {
 // Al cambiar de vista se limpia lo anterior: los datos de «Uso» leídos como «Fricción» se pintaban como
 // «nada en el período». Y sólo se acepta la respuesta del ÚLTIMO pedido, para que una lenta no pise a otra.
 let requestSeq = 0
-async function load() {
+async function load(recheck = false) {
   const seq = ++requestSeq
-  const path = `/api/${view.value}?days=${days.value}`
+  const path = `/api/${view.value}?days=${days.value}${recheck ? '&recheck=1' : ''}`
   data.value = null
   loading.value = true
   error.value = ''
@@ -107,9 +108,21 @@ const groups = computed(() => {
     default: return []
   }
 })
+// Los huecos, por señal: el orden es de la más clara (no encontró nada) a la más interpretable.
+const GAP_SIGNALS = [
+  { id: 'empty', title: 'Sin resultados' },
+  { id: 'searched-then-code', title: 'Buscó y se fue al código' },
+  { id: 'read-then-code', title: 'Leyó y se fue al código' },
+]
+const gapGroups = computed(() => {
+  const d = data.value
+  if (view.value !== 'gaps' || !d) return []
+  return GAP_SIGNALS.map((s) => ({ ...s, rows: (d.gaps || []).filter((g) => g.signal === s.id) }))
+})
 const sessions = computed(() => (view.value === 'sessions' && Array.isArray(data.value) ? data.value : []))
 const total = computed(() => {
   if (view.value === 'sessions') return sessions.value.length
+  if (view.value === 'gaps') return data.value?.gaps?.length || 0
   return groups.value.reduce((n, g) => n + (g.rows?.length || 0), 0)
 })
 const currentView = computed(() => VIEWS.find((v) => v.id === view.value))
@@ -201,7 +214,12 @@ onBeforeUnmount(() => {
         <span>{{ currentView.label }}</span>
         <span v-if="!loading && data" class="count">{{ total }}</span>
         <div class="region-actions">
-          <button type="button" class="region-action" title="Volver a leer" aria-label="Volver a leer" @click="load">
+          <button v-if="view === 'gaps'" type="button" class="region-action" :disabled="loading"
+            title="Volver a buscar en canon las consultas vacías (gratis, sin modelo)" aria-label="Volver a buscar en canon las consultas vacías"
+            @click="load(true)">
+            <span class="ui-icon" data-icon="search" aria-hidden="true"></span>
+          </button>
+          <button type="button" class="region-action" title="Volver a leer" aria-label="Volver a leer" @click="load()">
             <span class="ui-icon" data-icon="refresh" aria-hidden="true"></span>
           </button>
         </div>
@@ -228,6 +246,31 @@ onBeforeUnmount(() => {
             </tbody>
           </table>
           <div v-if="!sessions.length" class="empty"><div class="empty-desc">No hay sesiones en el período.</div></div>
+        </template>
+
+        <template v-else-if="view === 'gaps'">
+          <p class="none">
+            {{ data.lookups }} consultas a canon para trabajar · {{ data.writes }} piezas escritas o ensayadas ·
+            {{ data.dev }} llamadas de desarrollo de canon, que no cuentan. Ir al código después de consultar no prueba que
+            canon no lo tuviera; donde se repite, el corpus no alcanzó.
+          </p>
+          <section v-for="g in gapGroups" :key="g.id">
+            <div class="region-head group"><span>{{ g.title }}</span><span class="count">{{ g.rows.length }}</span></div>
+            <table v-if="g.rows.length" class="table">
+              <thead><tr><th>Consulta</th><th class="num">Veces</th><th class="num">Ses.</th><th>Última</th><th>Fue a</th><th v-if="g.id === 'empty'">Hoy</th></tr></thead>
+              <tbody>
+                <tr v-for="r in g.rows" :key="r.query + r.signal">
+                  <td class="query"><code>{{ r.query || '(sin consulta legible)' }}</code></td>
+                  <td class="num">{{ r.times }}</td>
+                  <td class="num">{{ r.sessions }}</td>
+                  <td class="nowrap" :title="fmtFull(r.last)">{{ fmtDay(r.last) }}</td>
+                  <td class="muted">{{ (r.repos || []).join(' · ') }}</td>
+                  <td v-if="g.id === 'empty'" class="muted">{{ r.recheck || '—' }}</td>
+                </tr>
+              </tbody>
+            </table>
+            <p v-else class="none">Nada en el período.</p>
+          </section>
         </template>
 
         <template v-else-if="data">
@@ -316,6 +359,8 @@ onBeforeUnmount(() => {
 .nowrap { white-space: nowrap }
 .hot { color: var(--outcome-error) }
 .alert { margin: var(--space-2) var(--gutter) }
+/* la consulta es lo que se lee: se parte en renglones antes que empujar las demás columnas afuera */
+.query { width: 100%; overflow-wrap: anywhere }
 code { font-family: var(--font-mono); font-size: var(--text-sm) }
 .log-line { display: flex; gap: var(--space-2); align-items: baseline }
 .log-line .tool { color: var(--fg-3); min-width: 56px }

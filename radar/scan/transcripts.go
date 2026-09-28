@@ -37,6 +37,10 @@ type Call struct {
 	// Culprit: de las Keys, las que causaron la fricción. Un comando de cinco tramos donde uno pidió
 	// aprobación no es fricción de los cinco.
 	Culprit []string `json:"culprit,omitempty"`
+	// Canon: si la llamada consultó canon, qué y cómo le fue. Code: el repo real que leyó. Los dos juntos
+	// son los huecos (gaps.go).
+	Canon *CanonLookup `json:"canon,omitempty"`
+	Code  string       `json:"code,omitempty"`
 }
 
 // Session es una transcripción: de dónde se lanzó y qué hizo.
@@ -325,6 +329,7 @@ func ReadSession(path string) (Session, error) {
 				case "Bash":
 					cmd, _ := in["command"].(string)
 					c.Keys, c.Command = BashKeys(cmd), Redact(cmd, 160)
+					c.Canon = canonLookupOf(cmd)
 				case "Skill":
 					name, _ := in["skill"].(string)
 					c.Keys = []string{"skill " + name[strings.LastIndex(name, ":")+1:]}
@@ -337,6 +342,7 @@ func ReadSession(path string) (Session, error) {
 				default:
 					c.Keys = []string{b.Name}
 				}
+				c.Code = codeRepoOf(b.Name, in)
 				pending[b.ID] = len(s.Calls)
 				s.Calls = append(s.Calls, c)
 			case "tool_result":
@@ -345,6 +351,9 @@ func ReadSession(path string) (Session, error) {
 					c := &s.Calls[i]
 					c.Outcome, c.Hook = outcomeOf(text, b.IsError)
 					c.Culprit = culprit(*c, text)
+					if c.Canon != nil && c.Canon.Kind == LookupSearch && emptySearch.MatchString(text) {
+						c.Canon.Empty = true
+					}
 				}
 			}
 		}
