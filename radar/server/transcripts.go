@@ -44,7 +44,10 @@ type Session struct {
 	ID         string    `json:"id"`
 	Entrypoint string    `json:"entrypoint"`
 	Start      time.Time `json:"start"`
-	Calls      []Call    `json:"calls"`
+	// Human: alguien escribió en la sesión (`turnOrigin: human`). Las corridas automáticas —`claude -p`, un
+	// banco de pruebas— heredan el `entrypoint` de la app que las lanzó, así que ése no las distingue.
+	Human bool   `json:"human"`
+	Calls []Call `json:"calls"`
 }
 
 // Outcomes, en el orden en que se chequean contra el texto del resultado.
@@ -277,15 +280,22 @@ func ReadSession(path string) (Session, error) {
 	sc.Buffer(make([]byte, 1<<20), 64<<20)
 	for sc.Scan() {
 		var ev struct {
-			Type       string    `json:"type"`
-			Entrypoint string    `json:"entrypoint"`
-			Timestamp  time.Time `json:"timestamp"`
-			Message    struct {
+			Type       string `json:"type"`
+			Entrypoint string `json:"entrypoint"`
+			TurnOrigin string `json:"turnOrigin"`
+			Origin     struct {
+				Kind string `json:"kind"`
+			} `json:"origin"`
+			Timestamp time.Time `json:"timestamp"`
+			Message   struct {
 				Content json.RawMessage `json:"content"`
 			} `json:"message"`
 		}
 		if json.Unmarshal(sc.Bytes(), &ev) != nil {
 			continue
+		}
+		if ev.TurnOrigin == "human" || ev.Origin.Kind == "human" {
+			s.Human = true
 		}
 		if s.Entrypoint == "" && ev.Entrypoint != "" {
 			s.Entrypoint = ev.Entrypoint

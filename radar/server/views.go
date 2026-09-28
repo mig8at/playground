@@ -18,7 +18,7 @@ type Count struct {
 	Example  string    `json:"example,omitempty"`
 }
 
-// inPeriod: las llamadas desde `since`.
+// inPeriod: las llamadas desde `since`, de las sesiones que cuentan.
 func inPeriod(sessions []Session, since time.Time) []Call {
 	var out []Call
 	for _, s := range sessions {
@@ -103,7 +103,7 @@ func UsageView(calls []Call, mk Makefile) Usage {
 			return "make " + n, "incluye el nombre viejo `" + t + "`"
 		}
 		if !mk.Known(t) {
-			return k, "hoy no existe (ver -view drift)"
+			return k, "hoy no existe (ver la deriva)"
 		}
 		return k, ""
 	}

@@ -6,7 +6,7 @@ import sys
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 FILES = ('theme.css', 'workbench.css', 'workbench.js', 'RegionMenu.vue')
-DESTINATIONS = ('tablero/src', 'trazador/src', 'visor/src', 'harness/panel')
+DESTINATIONS = ('tablero/src', 'trazador/src', 'visor/src', 'radar/src', 'harness/panel')
 # El panel del harness no tiene bundler: el renglón que aplica el tema antes de pintar (`THEME_BOOT` de
 # workbench.js) va escrito en su <head>, entre estos marcadores, y se rellena desde la fuente.
 THEME_BOOT_TARGETS = ('harness/panel/index.html',)
@@ -69,7 +69,7 @@ def sync(check=False):
         print('UI compartida desincronizada. Ejecuta make estilo-sync:')
         print('\n'.join(drift))
         return 1
-    print('UI compartida: cuatro herramientas sincronizadas.' if not drift or not check else '')
+    print(f'UI compartida: {len(DESTINATIONS)} destinos sincronizados.' if not drift or not check else '')
     return 0
 
 if __name__ == '__main__':

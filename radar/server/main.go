@@ -47,7 +47,7 @@ func playgroundRoot() (string, error) {
 
 // indexVersion cambia cada vez que cambia CÓMO se clasifica una llamada: el índice guarda las llamadas ya
 // clasificadas, y sin esto un arreglo del parser no se aplicaría a lo que ya estaba leído.
-const indexVersion = 5
+const indexVersion = 6
 
 // cacheFile es el índice en disco.
 type cacheFile struct {
@@ -121,6 +121,8 @@ func main() {
 	days := flag.Int("days", 30, "el período, en días hacia atrás")
 	sessionID := flag.String("session", "", "con -view session: el id (o su comienzo) de la sesión")
 	asJSON := flag.Bool("json", false, "la salida en JSON")
+	all := flag.Bool("all", false, "incluir las corridas automáticas (sin nadie escribiendo: claude -p, bancos de prueba)")
+	addr := flag.String("serve", "", "levanta la API para la interfaz en esta dirección (sólo 127.0.0.1)")
 	projects := flag.String("projects", filepath.Join(os.Getenv("HOME"), ".claude", "projects"), "dónde guarda Claude Code las transcripciones")
 	flag.Parse()
 
@@ -128,6 +130,13 @@ func main() {
 	if err != nil {
 		fmt.Fprintln(os.Stderr, "radar:", err)
 		os.Exit(2)
+	}
+	if *addr != "" {
+		if err := serve(root, *projects, *addr); err != nil {
+			fmt.Fprintln(os.Stderr, "radar:", err)
+			os.Exit(1)
+		}
+		return
 	}
 	dirs := TranscriptDirs(*projects, root)
 	if len(dirs) == 0 {
@@ -140,6 +149,7 @@ func main() {
 		os.Exit(1)
 	}
 	since := time.Now().AddDate(0, 0, -*days)
+	sessions, skipped := humanOnly(sessions, *all)
 	calls := inPeriod(sessions, since)
 	src, _ := os.ReadFile(filepath.Join(root, "Makefile"))
 	mk := ParseMakefile(string(src))
@@ -169,9 +179,27 @@ func main() {
 		_ = enc.Encode(out)
 		return
 	}
-	fmt.Printf("radar · %s · últimos %d días · %d sesiones de este playground (%d leídas de nuevo)\n\n",
+	fmt.Printf("radar · %s · últimos %d días · %d sesiones de este playground (%d leídas de nuevo)",
 		*view, *days, countSince(sessions, since), read)
+	if skipped > 0 {
+		fmt.Printf(" · sin %d corridas automáticas (-all las suma)", skipped)
+	}
+	fmt.Print("\n\n")
 	printView(os.Stdout, out)
+}
+
+// humanOnly deja las sesiones donde escribió una persona, salvo que se pidan todas; devuelve cuántas sacó.
+func humanOnly(sessions []Session, all bool) ([]Session, int) {
+	if all {
+		return sessions, 0
+	}
+	var out []Session
+	for _, s := range sessions {
+		if s.Human {
+			out = append(out, s)
+		}
+	}
+	return out, len(sessions) - len(out)
 }
 
 func countSince(sessions []Session, since time.Time) int {

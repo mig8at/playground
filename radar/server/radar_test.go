@@ -151,10 +151,22 @@ func TestRedactHidesSecrets(t *testing.T) {
 	}
 }
 
+// Las corridas automáticas (`claude -p` lanzado desde la app) heredan su `entrypoint`: lo que las separa es
+// que nadie escribió. El 2026-09-27 eran 93 de 147 sesiones, y las skills «cargadas» eran casi todas suyas.
+func TestAutomatedRunsAreLeftOutByDefault(t *testing.T) {
+	sessions := []Session{{ID: "persona", Human: true}, {ID: "banco"}, {ID: "banco2"}}
+	if got, skipped := humanOnly(sessions, false); len(got) != 1 || got[0].ID != "persona" || skipped != 2 {
+		t.Errorf("por defecto quedan sólo las humanas: %v (sacó %d)", got, skipped)
+	}
+	if got, _ := humanOnly(sessions, true); len(got) != 3 {
+		t.Errorf("con -all van todas: %d", len(got))
+	}
+}
+
 // Una transcripción: el tool_use y su tool_result se unen por id, y la sesión dice cómo se lanzó.
 func TestReadSessionPairsCallsWithResults(t *testing.T) {
 	lines := []map[string]any{
-		{"type": "user", "entrypoint": "claude-desktop", "timestamp": "2026-09-27T10:00:00Z", "message": map[string]any{"content": "hola"}},
+		{"type": "user", "entrypoint": "claude-desktop", "turnOrigin": "human", "timestamp": "2026-09-27T10:00:00Z", "message": map[string]any{"content": "hola"}},
 		{"type": "assistant", "timestamp": "2026-09-27T10:00:01Z", "message": map[string]any{"content": []any{
 			map[string]any{"type": "tool_use", "id": "t1", "name": "Bash", "input": map[string]any{"command": "make canon-search Q=x"}},
 			map[string]any{"type": "tool_use", "id": "t2", "name": "Skill", "input": map[string]any{"skill": "harness:harness-local"}},
@@ -176,7 +188,7 @@ func TestReadSessionPairsCallsWithResults(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if s.Entrypoint != "claude-desktop" || len(s.Calls) != 2 {
+	if s.Entrypoint != "claude-desktop" || !s.Human || len(s.Calls) != 2 {
 		t.Fatalf("sesión: %+v", s)
 	}
 	if s.Calls[0].Outcome != OutcomeDenied || s.Calls[1].Outcome != OutcomeOK {

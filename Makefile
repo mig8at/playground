@@ -350,7 +350,9 @@ trazador-huella: ## @dia la huella MEDIDA de un flujo (tablas/eventos/código) d
 # playground. Sin modelo y sin copias: todo sale de las transcripciones, este Makefile (con sus alias) y
 # su historia en git. Guarda un índice en radar/.cache (una transcripción se relee sólo si cambió).
 RADAR = go run ./radar/server $(if $(DIAS),-days $(DIAS),) $(if $(JSON),-json,)
-.PHONY: radar-uso radar-friccion radar-deriva radar-sesion
+.PHONY: radar radar-uso radar-friccion radar-deriva radar-sesion
+radar: ## @dia abre radar: el uso real de las herramientas, visual (:5188 · API :5189). Lo mismo que los radar-* de abajo
+	@cd radar && npm run dev
 radar-uso: ## @dia ¿qué herramientas se usan de verdad? targets, skills, subagentes y conectores, del último mes. DIAS=30 · JSON=1
 	@$(RADAR) -view usage
 radar-friccion: ## @dia ¿qué pidió aprobación y no la tuvo, qué rechazó Miguel, qué frenó un hook, qué falló? DIAS=30 · JSON=1

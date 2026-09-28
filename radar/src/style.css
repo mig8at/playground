@@ -1,0 +1,22 @@
+/* EL VOCABULARIO VISUAL DE RADAR.
+ *
+ * Las mismas capas que el trazador y el visor, en el mismo orden: Tailwind (utilidades, sin preflight), el
+ * tema compartido —que se REEMPLAZA entero— y la base (`workbench.css`). Abajo, lo único que significa
+ * algo sólo acá: el color de cómo terminó una llamada.
+ */
+@import "tailwindcss/theme.css" layer(theme);
+@import "tailwindcss/utilities.css" layer(utilities);
+@import "./theme.css";
+@import "./workbench.css";
+
+/* Cómo terminó una llamada. Salen de tokens del tema, así valen en claro y en oscuro sin redeclararlos. */
+:root {
+  --outcome-denied: var(--chart-4);
+  --outcome-blocked: var(--destructive);
+  --outcome-error: var(--destructive);
+}
+
+/* La página no scrollea: scrollea cada región (el contrato de `.workbench`). La letra es la de la base. */
+html, body { margin: 0; height: 100%; overflow: hidden; background: var(--background); color: var(--foreground);
+  font: var(--text-base)/1.4 var(--font-sans) }
+#app { height: 100% }
