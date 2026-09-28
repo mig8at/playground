@@ -278,7 +278,7 @@ code { font-family: var(--font-mono); font-size: var(--text-sm) }
 .dot[data-state="pending"] { background: transparent; box-shadow: inset 0 0 0 1px var(--access-off) }
 .log-line { display: flex; gap: var(--space-2); align-items: baseline }
 .log-line .dot { align-self: center; margin-right: 0 }
-.log-line .name { min-width: 120px }
+.log-line .name { flex: none; width: 160px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap }
 .log-line .state { min-width: 80px; color: var(--fg-3) }
 .log-line .what { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--fg-2) }
 .log-line[data-state="off"] .name { color: var(--fg-3) }
