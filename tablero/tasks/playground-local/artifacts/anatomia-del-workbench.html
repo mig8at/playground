@@ -163,6 +163,78 @@ section { display: flex; flex-direction: column; gap: 20px }
   --r-ctl: 4px; --r-float: 6px;
   --shadow: 0 2px 6px 0 rgb(0 0 0 / .15); --shadow-ctl: none;
 }
+[data-preset="dracula"] {
+  --bg: light-dark(#fffbeb, #282a36); --fg: light-dark(#1f1f1f, #f8f8f2);
+  --sidebar: light-dark(#f5f0dd, #21222c); --card: light-dark(#f5f0dd, #343746);
+  --border: light-dark(#cfcfde, #44475a);
+  --primary: light-dark(#644ac9, #bd93f9); --primary-ink: light-dark(#644ac9, #bd93f9);
+  --on-primary: light-dark(#fffbeb, #282a36); --secondary: light-dark(#036a96, #8be9fd); --on-secondary: light-dark(#ffffff, #282a36); --redline: light-dark(#cb3a2a, #ff6e6e);
+  --fg-2: color-mix(in oklab, var(--fg) 84%, var(--bg)); --fg-3: color-mix(in oklab, var(--fg) 78%, var(--bg));
+  --sel: color-mix(in oklab, var(--fg) 9%, transparent); --hover: color-mix(in oklab, var(--fg) 6%, transparent);
+  --hatch: color-mix(in oklab, var(--fg) 11%, transparent);
+  --r-ctl: 4px; --r-float: 8px;
+  --shadow: 0 2px 8px 0 rgb(0 0 0 / .10); --shadow-ctl: none;
+}
+[data-preset="solarized"] {
+  --bg: light-dark(#fdf6e3, #002b36); --fg: light-dark(#2a3f46, #c2cccc);
+  --sidebar: light-dark(#eee8d5, #00212b); --card: light-dark(#eee8d5, #073642);
+  --border: light-dark(#ddd6c1, #124855);
+  --primary: light-dark(#17578e, #7cc0f3); --primary-ink: light-dark(#17578e, #7cc0f3);
+  --on-primary: light-dark(#fdf6e3, #002b36); --secondary: light-dark(#15665f, #3fbdb2); --on-secondary: light-dark(#fdf6e3, #002b36); --redline: light-dark(#b8221f, #f47370);
+  --fg-2: color-mix(in oklab, var(--fg) 84%, var(--bg)); --fg-3: color-mix(in oklab, var(--fg) 84%, var(--bg));
+  --sel: color-mix(in oklab, var(--fg) 9%, transparent); --hover: color-mix(in oklab, var(--fg) 6%, transparent);
+  --hatch: color-mix(in oklab, var(--fg) 11%, transparent);
+  --r-ctl: 4px; --r-float: 8px;
+  --shadow: 0 2px 8px 0 rgb(0 0 0 / .10); --shadow-ctl: none;
+}
+[data-preset="tokyo"] {
+  --bg: light-dark(#e1e2e7, #1a1b26); --fg: light-dark(#272d47, #c0caf5);
+  --sidebar: light-dark(#d5d6db, #16161e); --card: light-dark(#e9e9ed, #24283b);
+  --border: light-dark(#c4c8da, #3b4261);
+  --primary: light-dark(#2e5cbf, #7aa2f7); --primary-ink: light-dark(#2e5cbf, #7aa2f7);
+  --on-primary: light-dark(#e1e2e7, #1a1b26); --secondary: light-dark(#0f6a8a, #7dcfff); --on-secondary: light-dark(#e1e2e7, #1a1b26); --redline: light-dark(#a3302a, #f7768e);
+  --fg-2: color-mix(in oklab, var(--fg) 84%, var(--bg)); --fg-3: color-mix(in oklab, var(--fg) 78%, var(--bg));
+  --sel: color-mix(in oklab, var(--fg) 9%, transparent); --hover: color-mix(in oklab, var(--fg) 6%, transparent);
+  --hatch: color-mix(in oklab, var(--fg) 11%, transparent);
+  --r-ctl: 6px; --r-float: 10px;
+  --shadow: 0 2px 8px 0 rgb(0 0 0 / .10); --shadow-ctl: none;
+}
+[data-preset="rosepine"] {
+  --bg: light-dark(#faf4ed, #191724); --fg: light-dark(#463f66, #e0def4);
+  --sidebar: light-dark(#fffaf3, #1f1d2e); --card: light-dark(#fffaf3, #26233a);
+  --border: light-dark(#dfdad9, #403d52);
+  --primary: light-dark(#a04e68, #ebbcba); --primary-ink: light-dark(#a04e68, #ebbcba);
+  --on-primary: light-dark(#faf4ed, #191724); --secondary: light-dark(#6e5a8a, #c4a7e7); --on-secondary: light-dark(#faf4ed, #191724); --redline: light-dark(#a03b57, #eb6f92);
+  --fg-2: color-mix(in oklab, var(--fg) 84%, var(--bg)); --fg-3: color-mix(in oklab, var(--fg) 78%, var(--bg));
+  --sel: color-mix(in oklab, var(--fg) 9%, transparent); --hover: color-mix(in oklab, var(--fg) 6%, transparent);
+  --hatch: color-mix(in oklab, var(--fg) 11%, transparent);
+  --r-ctl: 8px; --r-float: 12px;
+  --shadow: 0 2px 8px 0 rgb(0 0 0 / .10); --shadow-ctl: none;
+}
+[data-preset="lavanda"] {
+  --bg: light-dark(#f8f5ff, #1c1530); --fg: light-dark(#2e2447, #ece6ff);
+  --sidebar: light-dark(#f0ebfb, #171126); --card: light-dark(#ffffff, #261d40);
+  --border: light-dark(#ddd3f2, #3d3163);
+  --primary: light-dark(#6d3fd1, #b79cff); --primary-ink: light-dark(#6d3fd1, #b79cff);
+  --on-primary: light-dark(#ffffff, #1c1530); --secondary: light-dark(#a02d80, #f0a6d8); --on-secondary: light-dark(#ffffff, #1c1530); --redline: light-dark(#b3264d, #ff7a9c);
+  --fg-2: color-mix(in oklab, var(--fg) 84%, var(--bg)); --fg-3: color-mix(in oklab, var(--fg) 78%, var(--bg));
+  --sel: color-mix(in oklab, var(--fg) 9%, transparent); --hover: color-mix(in oklab, var(--fg) 6%, transparent);
+  --hatch: color-mix(in oklab, var(--fg) 11%, transparent);
+  --r-ctl: 8px; --r-float: 12px;
+  --shadow: 0 2px 8px 0 rgb(0 0 0 / .10); --shadow-ctl: none;
+}
+[data-preset="coral"] {
+  --bg: light-dark(#fff7f3, #2a1a1c); --fg: light-dark(#3d2a2a, #ffe9e2);
+  --sidebar: light-dark(#fdebe3, #231415); --card: light-dark(#ffffff, #362224);
+  --border: light-dark(#f1d5c9, #553739);
+  --primary: light-dark(#b93b3b, #ff9b8a); --primary-ink: light-dark(#b93b3b, #ff9b8a);
+  --on-primary: light-dark(#ffffff, #2a1a1c); --secondary: light-dark(#3f7a6d, #9fd8c6); --on-secondary: light-dark(#ffffff, #2a1a1c); --redline: light-dark(#a8322f, #ff8a8a);
+  --fg-2: color-mix(in oklab, var(--fg) 84%, var(--bg)); --fg-3: color-mix(in oklab, var(--fg) 78%, var(--bg));
+  --sel: color-mix(in oklab, var(--fg) 9%, transparent); --hover: color-mix(in oklab, var(--fg) 6%, transparent);
+  --hatch: color-mix(in oklab, var(--fg) 11%, transparent);
+  --r-ctl: 8px; --r-float: 12px;
+  --shadow: 0 2px 8px 0 rgb(0 0 0 / .10); --shadow-ctl: none;
+}
 .wb [data-part] { cursor: pointer }
 .wb [data-part].hover { box-shadow: inset 0 0 0 1px color-mix(in oklab, var(--primary) 50%, transparent) }
 .wb [data-part].sel { box-shadow: inset 0 0 0 2px var(--primary) }
@@ -402,6 +474,12 @@ footer { font-size: 12px; color: var(--fg-3); border-top: 1px solid var(--border
           <option value="nord">Nord</option>
           <option value="darkmatter">Darkmatter</option>
           <option value="gruvbox">Gruvbox</option>
+          <option value="dracula">Dracula</option>
+          <option value="solarized">Solarized</option>
+          <option value="tokyo">Tokyo Night</option>
+          <option value="rosepine">Rosé Pine</option>
+          <option value="lavanda">Lavanda</option>
+          <option value="coral">Coral</option>
         </select></label>
       <span class="hint">El contenido es de ejemplo; lo que importa es la forma.</span>
     </div>
