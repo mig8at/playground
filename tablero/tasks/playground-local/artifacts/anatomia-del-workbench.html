@@ -235,6 +235,53 @@ section { display: flex; flex-direction: column; gap: 20px }
   --r-ctl: 8px; --r-float: 12px;
   --shadow: 0 2px 8px 0 rgb(0 0 0 / .10); --shadow-ctl: none;
 }
+/* ══ FLOTANTES: tooltip, diálogo y toast ═══════════════════════════════════════════════════════
+   Propuestas, sólo en esta página (no están en workbench.css). Usan los tokens del tema del
+   prototipo, así que respetan el select. Prefijo fl- para no chocar con las piezas de arriba. */
+.fl { position: relative; min-height: 260px; padding: 40px 16px 16px; display: flex; flex-direction: column; gap: 16px; overflow: hidden;
+  background: var(--bg); color: var(--fg); border: 1px solid var(--border); border-radius: var(--r-float); font-size: 13px; line-height: 1.4; box-shadow: var(--shadow) }
+.fl-row { display: flex; flex-wrap: wrap; gap: 8px }
+.fl-lbl { font-size: 12px; color: var(--fg-2) }
+.fl-btn { height: 32px; display: inline-flex; align-items: center; justify-content: center; gap: 8px; padding: 0 12px; border: 1px solid transparent; border-radius: var(--r-ctl);
+  font: inherit; font-size: 13px; font-weight: 500; cursor: pointer; background: transparent; color: var(--fg); box-shadow: var(--shadow-ctl);
+  transition: background .12s, border-color .12s }
+.fl-btn:hover { background: var(--hover) }
+.fl-btn:focus-visible, .fl-x:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px }
+.fl-btn.pri { background: var(--primary-ink); color: var(--on-primary) }
+.fl-btn.pri:hover { background: color-mix(in oklab, var(--primary-ink) 88%, var(--fg)) }
+.fl-btn.out { border-color: var(--border) }
+.fl-btn.dan { background: color-mix(in oklab, var(--redline) 84%, var(--fg)); color: var(--bg) }
+.fl-btn.dan:hover { background: color-mix(in oklab, var(--redline) 76%, var(--fg)) }
+.fl-btn.ico { width: 32px; padding: 0 }
+.fl svg { width: 16px; height: 16px; flex-shrink: 0; stroke: currentColor; fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round }
+/* tooltip: la tinta invertida, un renglón o dos, sin nada esencial adentro */
+.fl-tip { position: absolute; z-index: 5; max-width: 240px; padding: 4px 8px; border-radius: var(--r-ctl); background: var(--fg); color: var(--bg);
+  font-size: 12px; line-height: 16px; pointer-events: none; opacity: 0; transform: translateY(2px); transition: opacity .12s, transform .12s; box-shadow: var(--shadow) }
+.fl-tip.on { opacity: 1; transform: none }
+.fl-tip kbd { margin-left: 8px; padding: 0 4px; border-radius: 3px; background: color-mix(in oklab, var(--bg) 12%, transparent); font: inherit; font-size: 11px }
+/* diálogo: <dialog> nativo, con foco atrapado y Escape gratis */
+.fl-dialog { width: 400px; max-width: calc(100vw - 32px); padding: 0; border: 1px solid var(--border); border-radius: var(--r-float);
+  background: var(--card); color: var(--fg); font-size: 13px; line-height: 1.4; box-shadow: 0 16px 48px rgb(0 0 0 / .35) }
+.fl-dialog::backdrop { background: rgb(0 0 0 / .5) }
+.fl-dialog form { display: flex; flex-direction: column; gap: 12px; padding: 16px; margin: 0 }
+.fl-dhead { display: flex; align-items: center; justify-content: space-between; gap: 8px }
+.fl-dhead h4 { margin: 0; font-size: 14px; font-weight: 600 }
+.fl-dialog p { margin: 0; color: var(--fg-2) }
+.fl-dfoot { display: flex; justify-content: flex-end; gap: 8px; padding-top: 4px }
+.fl-x { width: 24px; height: 24px; display: grid; place-items: center; border: 0; border-radius: var(--r-ctl); background: none; color: var(--fg-2); cursor: pointer }
+.fl-x:hover { background: var(--hover); color: var(--fg) }
+/* toast: abajo a la derecha, uno sobre otro; en la herramienta real va fixed, acá se queda en el cuadro */
+.fl-toasts { position: absolute; right: 16px; bottom: 16px; z-index: 6; display: flex; flex-direction: column; gap: 8px; width: 320px; max-width: calc(100% - 32px) }
+.fl-toast { display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: 8px; padding: 8px 8px 8px 12px; border: 1px solid var(--border);
+  border-radius: var(--r-float); background: var(--card); color: var(--fg); box-shadow: var(--shadow), 0 8px 24px rgb(0 0 0 / .18); animation: fl-in .16s ease-out }
+.fl-toast .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--primary) }
+.fl-toast.ok .dot { background: var(--secondary) }
+.fl-toast.error .dot { background: var(--redline) }
+.fl-toast .act { padding: 0 8px; height: 24px; border: 0; border-radius: var(--r-ctl); background: none; color: var(--primary-ink); font: inherit; font-weight: 600; cursor: pointer }
+.fl-toast .act:hover { background: var(--hover) }
+.fl-toast .end { display: flex; align-items: center; gap: 4px }
+@keyframes fl-in { from { opacity: 0; transform: translateY(8px) } }
+@media (prefers-reduced-motion: reduce) { .fl-tip, .fl-toast, .fl-btn { transition: none; animation: none } }
 .wb [data-part] { cursor: pointer }
 .wb [data-part].hover { box-shadow: inset 0 0 0 1px color-mix(in oklab, var(--primary) 50%, transparent) }
 .wb [data-part].sel { box-shadow: inset 0 0 0 2px var(--primary) }
@@ -453,7 +500,7 @@ footer { font-size: 12px; color: var(--fg-3); border-top: 1px solid var(--border
     <nav class="toc" aria-label="Secciones">
       <a href="#base">La base</a><a href="#piezas">Las piezas</a><a href="#opciones">Opciones de una región</a><a href="#medidas">Medidas</a>
       <a href="#tipografia">Tipografía</a><a href="#espacios">Espacios</a><a href="#iconos">Iconos</a>
-      <a href="#componentes">Componentes</a><a href="#forma">Forma</a><a href="#comportamiento">Comportamiento</a><a href="#reglas">Reglas</a>
+      <a href="#componentes">Componentes</a><a href="#flotantes">Flotantes</a><a href="#forma">Forma</a><a href="#comportamiento">Comportamiento</a><a href="#reglas">Reglas</a>
       <a href="#construir">Construir sobre la base</a>
     </nav>
   </header>
@@ -723,6 +770,112 @@ footer { font-size: 12px; color: var(--fg-3); border-top: 1px solid var(--border
     <div id="componentGroups" style="display:flex;flex-direction:column;gap:24px"></div>
   </section>
 
+
+  <section id="flotantes">
+    <div class="sec-head">
+      <h2>Flotantes: tooltip, diálogo y toast</h2>
+      <p>Tres piezas que hoy se resuelven con parches (el <code>title</code> del navegador, confirmaciones sueltas, avisos en la consola). Son una <b>propuesta</b>: viven sólo en esta página y todavía no están en <code>workbench.css</code>. Usan los tokens del tema del prototipo, así que cambian con el select.</p>
+    </div>
+    <div class="fl" id="flDemo">
+      <div class="col"><span class="fl-lbl">Tooltip · pasá el mouse o enfocá con Tab</span>
+        <div class="fl-row">
+          <button class="fl-btn ico out" data-tip="Copiar el enlace" data-kbd="⌘C" aria-label="Copiar el enlace"><svg viewBox="0 0 24 24"><rect width="14" height="14" x="8" y="8" rx="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg></button>
+          <button class="fl-btn ico out" data-tip="Buscar en la consola" data-kbd="⌘F" aria-label="Buscar en la consola"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg></button>
+          <button class="fl-btn out" data-tip="Corre el caso hasta el desenlace. Escribe en la base local.">Correr con CLOSE=1</button>
+        </div></div>
+      <div class="col"><span class="fl-lbl">Diálogo · Escape o tocar afuera lo cierra</span>
+        <div class="fl-row">
+          <button class="fl-btn out" id="flOpenDan">Sembrar en dev…</button>
+          <button class="fl-btn out" id="flOpenInfo">Renombrar tarea…</button>
+        </div></div>
+      <div class="col"><span class="fl-lbl">Toast · se va solo a los 4 s, se detiene al pasar el mouse</span>
+        <div class="fl-row">
+          <button class="fl-btn out" data-toast="ok">Guardado</button>
+          <button class="fl-btn out" data-toast="info">Con acción</button>
+          <button class="fl-btn out" data-toast="error">Error (no se va solo)</button>
+        </div></div>
+      <div class="fl-toasts" id="flToasts" role="region" aria-label="Avisos"></div>
+      <div class="fl-tip" id="flTip" role="tooltip"></div>
+      <dialog class="fl-dialog" id="flDialog" aria-labelledby="flDT">
+        <form method="dialog">
+          <div class="fl-dhead"><h4 id="flDT"></h4><button class="fl-x" value="cancel" aria-label="Cerrar"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M18 6 6 18M6 6l12 12"/></svg></button></div>
+          <p id="flDB"></p>
+          <div class="fl-dfoot"><button class="fl-btn out" value="cancel" id="flDNo" autofocus>Cancelar</button><button class="fl-btn" value="ok" id="flDYes"></button></div>
+        </form>
+      </dialog>
+    </div>
+    <div class="spec">
+      <div class="spec-row"><span class="tok">tooltip</span><span class="val">12 · 4/8</span><span class="use">Tinta invertida, radio de control. Sale a los 300 ms (sin espera si ya salió otro hace medio segundo) y también con el foco. Escape lo esconde. Un renglón o dos: si lleva algo que hay que leer, no es un tooltip. El atajo va en <code>kbd</code>.</span></div>
+      <div class="spec-row"><span class="tok">diálogo</span><span class="val">400 · 16</span><span class="use">Un solo diálogo a la vez, con <code>&lt;dialog&gt;</code> para tener foco atrapado y Escape. El foco cae en la salida segura (Cancelar); el botón que hace la acción va a la derecha y, si borra o escribe en lo compartido, es el destructivo.</span></div>
+      <div class="spec-row"><span class="tok">toast</span><span class="val">320 · 8/12</span><span class="use">Abajo a la derecha, máximo tres. Se va a los 4 s y se detiene con el mouse o el foco; el error se queda hasta cerrarlo. <code>role="status"</code> (el error, <code>alert</code>). Una acción como máximo («Deshacer»).</span></div>
+    </div>
+  </section>
+<script>
+(function () {
+  const fl = document.getElementById('flDemo'), tip = document.getElementById('flTip'), toasts = document.getElementById('flToasts');
+  const dlg = document.getElementById('flDialog'), X = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M18 6 6 18M6 6l12 12"/></svg>';
+  // ── tooltip: retardo de 300 ms, sin espera si ya hubo otro hace poco; con foco sale al instante ──
+  let timer = 0, last = 0, cur = null;
+  const hide = () => { clearTimeout(timer); tip.classList.remove('on'); if (cur) { cur.removeAttribute('aria-describedby'); cur = null; } };
+  function show(el) {
+    cur = el; tip.textContent = el.dataset.tip;
+    if (el.dataset.kbd) { const k = document.createElement('kbd'); k.textContent = el.dataset.kbd; tip.appendChild(k); }
+    el.setAttribute('aria-describedby', 'flTip');
+    const f = fl.getBoundingClientRect(), r = el.getBoundingClientRect();
+    tip.style.left = '0px'; tip.style.top = '0px';
+    const w = tip.offsetWidth, h = tip.offsetHeight;
+    let x = r.left - f.left + r.width / 2 - w / 2; x = Math.max(8, Math.min(x, f.width - w - 8));
+    let y = r.top - f.top - h - 6; if (y < 4) y = r.bottom - f.top + 6;
+    tip.style.left = x + 'px'; tip.style.top = y + 'px'; tip.classList.add('on'); last = Date.now();
+  }
+  fl.querySelectorAll('[data-tip]').forEach((el) => {
+    el.addEventListener('mouseenter', () => { clearTimeout(timer); timer = setTimeout(() => show(el), Date.now() - last < 500 ? 0 : 300); });
+    el.addEventListener('mouseleave', () => { last = Date.now(); hide(); });
+    el.addEventListener('focus', () => { if (el.matches(':focus-visible')) show(el); });
+    el.addEventListener('blur', hide);
+  });
+  document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && cur) hide(); });
+
+  // ── toast ──
+  function toast(kind, text, action) {
+    const t = document.createElement('div');
+    t.className = 'fl-toast ' + kind; t.setAttribute('role', kind === 'error' ? 'alert' : 'status');
+    t.innerHTML = '<span class="dot"></span><span></span><span class="end"></span>';
+    t.children[1].textContent = text;
+    const end = t.children[2];
+    if (action) { const a = document.createElement('button'); a.className = 'act'; a.textContent = action; a.onclick = () => { close(); toast('ok', 'Deshecho'); }; end.appendChild(a); }
+    const x = document.createElement('button'); x.className = 'fl-x'; x.setAttribute('aria-label', 'Cerrar el aviso'); x.innerHTML = X; end.appendChild(x);
+    let left = 4000, started = 0, id = 0;
+    const close = () => { clearTimeout(id); t.remove(); };
+    const run = () => { if (kind === 'error') return; started = Date.now(); id = setTimeout(close, left); };
+    const pause = () => { if (kind === 'error' || !id) return; clearTimeout(id); left -= Date.now() - started; };
+    x.onclick = close;
+    t.addEventListener('mouseenter', pause); t.addEventListener('focusin', pause);
+    t.addEventListener('mouseleave', run); t.addEventListener('focusout', run);
+    toasts.appendChild(t); while (toasts.children.length > 3) toasts.firstElementChild.remove();
+    run();
+  }
+  const MSG = { ok: ['ok', 'Tarea guardada en la bitácora.'], info: ['info', 'Se copió el enlace de la tarea.', 'Deshacer'], error: ['error', 'No se pudo llegar a dev: revisá la VPN.'] };
+  fl.querySelectorAll('[data-toast]').forEach((b) => b.addEventListener('click', () => toast(...MSG[b.dataset.toast])));
+
+  // ── diálogo ──
+  const yes = document.getElementById('flDYes');
+  function open(kind) {
+    hide();
+    document.getElementById('flDT').textContent = kind === 'dan' ? '¿Sembrar en el dev compartido?' : 'Renombrar la tarea';
+    document.getElementById('flDB').textContent = kind === 'dan'
+      ? 'Esto crea 3 solicitudes en la base que usa todo el equipo. No se puede deshacer.'
+      : 'El nombre nuevo se ve en el tablero y en Jira. La carpeta de la tarea no cambia.';
+    yes.textContent = kind === 'dan' ? 'Sembrar' : 'Renombrar'; yes.className = 'fl-btn ' + (kind === 'dan' ? 'dan' : 'pri');
+    dlg.dataset.kind = kind; dlg.showModal();
+  }
+  document.getElementById('flOpenDan').onclick = () => open('dan');
+  document.getElementById('flOpenInfo').onclick = () => open('info');
+  dlg.addEventListener('click', (e) => { if (e.target === dlg) dlg.close('cancel'); });
+  dlg.addEventListener('close', () => { if (dlg.returnValue === 'ok') toast(dlg.dataset.kind === 'dan' ? 'ok' : 'info', dlg.dataset.kind === 'dan' ? 'Sembradas 3 solicitudes.' : 'Tarea renombrada.'); dlg.returnValue = ''; });
+})();
+</script>
+
   <section id="forma">
     <div class="sec-head">
       <h2>Forma</h2>
@@ -929,7 +1082,7 @@ footer { font-size: 12px; color: var(--fg-3); border-top: 1px solid var(--border
   }
   $('presetSel').addEventListener('change', (ev) => {
     // todo lo que muestra piezas del workbench: el ejemplo, los componentes (shadow) y la demo de comportamiento
-    document.querySelectorAll('#wb, .spec-host, #mn').forEach((el) => { ev.target.value ? el.dataset.preset = ev.target.value : el.removeAttribute('data-preset'); });
+    document.querySelectorAll('#wb, .spec-host, #mn, #flDemo').forEach((el) => { ev.target.value ? el.dataset.preset = ev.target.value : el.removeAttribute('data-preset'); });
   });
   $('showRl').addEventListener('change', (ev) => wb.classList.toggle('show-rl', ev.target.checked));
   requestAnimationFrame(drawCotas);
