@@ -144,6 +144,18 @@ section { display: flex; flex-direction: column; gap: 20px }
   --hatch: color-mix(in oklab, var(--fg) 10%, transparent);
   --r-ctl: 6px; --r-float: 10px;
 }
+.wb[data-preset="gruvbox"] {
+  --bg: light-dark(#fbf1c7, #282828); --fg: light-dark(#3c3836, #ebdbb2);
+  --sidebar: light-dark(#f2e5bc, #1d2021); --card: light-dark(#f2e5bc, #32302f);
+  --border: light-dark(#d5c4a1, #504945);
+  --primary: light-dark(#af3a03, #fe8019); --primary-ink: light-dark(#af3a03, #fe8019);
+  --on-primary: light-dark(#fbf1c7, #1d2021); --secondary: light-dark(#2f6647, #8ec07c); --redline: light-dark(#9d0006, #ff6a55);
+  --fg-2: color-mix(in oklab, var(--fg) 84%, var(--bg)); --fg-3: color-mix(in oklab, var(--fg) 82%, var(--bg));   /* rampa más firme: la base (74/64) queda bajo AA */
+  --sel: color-mix(in oklab, var(--fg) 9%, transparent); --hover: color-mix(in oklab, var(--fg) 6%, transparent);
+  --hatch: color-mix(in oklab, var(--fg) 11%, transparent);
+  --r-ctl: 4px; --r-float: 6px;
+  --shadow: 0 2px 6px 0 rgb(0 0 0 / .15); --shadow-ctl: none;
+}
 .wb [data-part] { cursor: pointer }
 .wb [data-part].hover { box-shadow: inset 0 0 0 1px color-mix(in oklab, var(--primary) 50%, transparent) }
 .wb [data-part].sel { box-shadow: inset 0 0 0 2px var(--primary) }
@@ -382,6 +394,7 @@ footer { font-size: 12px; color: var(--fg-3); border-top: 1px solid var(--border
           <option value="catppuccin">Catppuccin</option>
           <option value="nord">Nord</option>
           <option value="darkmatter">Darkmatter</option>
+          <option value="gruvbox">Gruvbox</option>
         </select></label>
       <span class="hint">El contenido es de ejemplo; lo que importa es la forma.</span>
     </div>
