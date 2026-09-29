@@ -13,14 +13,12 @@ ramas: fix/CORE-653-credifamilia-monto-total
 
 ## Pendientes
 
-- [ ] Confirmar el redondeo de `montoTotalCredito`; termina cuando producto diga cuál vale: $6.343.651,72 (el ejemplo corta), $6.343.651,73 (redondeado, lo que hace hoy el PR) o $6.343.652 (entero superior).
-  Depende de: producto
-- [ ] Confirmar si las cuotas y el comprobante también pasan al 4x1000 sobre el IVA; termina con la respuesta. Si es sí, `CalculationContext` usa `calculateForDisbursementOrder()` y se revisa el redondeo del «Total a financiar» (hoy el formateador de documentos trunca).
-  Depende de: producto
-- [ ] Confirmar que con fianza Mensual el total es el monto solicitado.
-  Depende de: producto
-- [ ] Confirmar que el servicio de Credifamilia acepta decimales en `montoTotalCredito` (antes iba entero); termina con la respuesta o con una radicación real aceptada.
+- [x] Redondeo de `montoTotalCredito`: dos decimales redondeados ($6.343.651,73 en el ejemplo), decidido por Miguel; es lo que ya hace el PR, sin cambios.
+- [x] Cuotas y comprobante alineados al 4x1000 sobre el IVA (decisión de Miguel, 2026-09-29), en el mismo PR [#1521](pr:legacy-backend#1521), commit 7f294290.
+- [ ] Confirmar con Credifamilia sobre qué base calcula el 4x1000 en su plan de pagos; si no es el IVA, se revierte el commit 7f294290 y el resto del PR queda igual. Pesa más de lo previsto: con fianza Mensual (el 96 % de las radicaciones) la cuota baja unos $60 (2.000.000, 18 %, 24 cuotas: 17.921,40 a 17.861,40).
   Depende de: producto / Credifamilia
+- [x] Fianza Mensual: el alcance sólo suma la fianza cuando es Anticipada, así que con Mensual el total es el monto solicitado.
+- [x] Decimales en `montoTotalCredito`: el alcance pide expresamente dos decimales, se toma como aceptado por Credifamilia; se verá en la primera radicación real.
 - [x] Implementar `montoTotalCredito` en la radicación con la fórmula del alcance y dos decimales — [#1521](pr:legacy-backend#1521), 6 pruebas nuevas, ejemplo del alcance en 6343651.73.
 - [x] Correr en local una solicitud con fianza Anticipada hasta la radicación — 3/3 en 11 con CREDIT_COMPLETED y `montoTotalCredito` 2428673.60 para 2.000.000.
 - [ ] Escribir la publicable (Dónde probar, Cómo validar) antes de que Miguel la vea.
