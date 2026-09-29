@@ -17,6 +17,7 @@
   --hover: color-mix(in oklab, var(--fg) 5%, transparent);
   --redline: oklch(0.62 0.2 18);
   --hatch: color-mix(in oklab, var(--fg) 10%, transparent);
+  --r-ctl: 6px; --r-float: 10px; --shadow: none; --shadow-ctl: none;   /* forma: la que usa la base */
   --mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
   --sans: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
 }
@@ -71,8 +72,40 @@ section { display: flex; flex-direction: column; gap: 20px }
   position: relative; width: 1180px; height: 620px;
   display: grid; grid-template-columns: 280px minmax(0, 1fr) 300px; grid-template-rows: minmax(0, 1fr) 156px var(--status);
   grid-template-areas: "sidebar editor aux" "sidebar panel aux" "status status status";
-  border: 1px solid var(--border); border-radius: 10px; overflow: hidden; background: var(--bg);
+  border: 1px solid var(--border); border-radius: var(--r-float); overflow: hidden; background: var(--bg);
   font-size: 13px; line-height: 1.4; color: var(--fg); user-select: none;
+}
+/* ══ TEMAS DEL PROTOTIPO ═══════════════════════════════════════════════════════════════════
+   El selector de «Tema» pone data-preset en .wb: sólo el prototipo cambia, la página no. Sin
+   atributo es la base tal cual. Un preset redefine color Y forma (radio, sombra), como un export
+   de tweakcn; light-dark() sigue el modo de la página. ⚠ --fg-2, --fg-3, --sel, --hover y --hatch
+   se derivan de --fg y --bg en :root, así que un preset tiene que volver a derivarlos. */
+.wb { box-shadow: var(--shadow) }
+.wb .btn { box-shadow: var(--shadow-ctl) }
+.wb[data-preset="neo"] {
+  --bg: light-dark(oklch(1 0 0), oklch(0 0 0)); --fg: light-dark(oklch(0 0 0), oklch(1 0 0));
+  --sidebar: light-dark(oklch(0.96 0 0), oklch(0.15 0 0)); --card: light-dark(oklch(1 0 0), oklch(0.15 0 0));
+  --border: light-dark(oklch(0 0 0), oklch(1 0 0));
+  --primary: oklch(0.7 0.19 22); --primary-ink: light-dark(oklch(0.5 0.21 25), oklch(0.7 0.19 22));
+  --on-primary: oklch(0 0 0); --secondary: oklch(0.96 0.2 105); --redline: oklch(0.6 0.25 25);
+  --fg-2: color-mix(in oklab, var(--fg) 74%, var(--bg)); --fg-3: color-mix(in oklab, var(--fg) 64%, var(--bg));
+  --sel: color-mix(in oklab, var(--fg) 10%, transparent); --hover: color-mix(in oklab, var(--fg) 7%, transparent);
+  --hatch: color-mix(in oklab, var(--fg) 12%, transparent);
+  --r-ctl: 0px; --r-float: 0px;
+  --shadow: 4px 4px 0 0 var(--border); --shadow-ctl: 2px 2px 0 0 var(--border);
+}
+.sel-native { height: 28px; margin-left: 6px; padding: 0 8px; border: 1px solid var(--border); border-radius: var(--r-ctl); background: var(--bg); color: var(--fg); font: inherit; font-size: 12px }
+.wb[data-preset="vintage"] {
+  --bg: light-dark(hsl(39 35% 92%), hsl(25 15.4% 15.3%)); --fg: light-dark(hsl(25 15% 18%), hsl(39 34.5% 88.6%));
+  --sidebar: light-dark(hsl(38 26% 87%), hsl(27.3 12.6% 17.1%)); --card: light-dark(hsl(39 34% 95%), hsl(26 14% 18.5%));
+  --border: light-dark(hsl(34 20% 76%), hsl(24.7 13% 25.7%));
+  --primary: light-dark(hsl(30 34% 44%), hsl(30 33.7% 62.7%)); --primary-ink: light-dark(hsl(30 42% 32%), hsl(30 33.7% 62.7%));
+  --on-primary: light-dark(hsl(39 35% 95%), hsl(25 15% 14%)); --secondary: light-dark(hsl(28 22% 46%), hsl(24.4 17.9% 29.6%));
+  --fg-2: color-mix(in oklab, var(--fg) 74%, var(--bg)); --fg-3: color-mix(in oklab, var(--fg) 64%, var(--bg));
+  --sel: color-mix(in oklab, var(--fg) 8%, transparent); --hover: color-mix(in oklab, var(--fg) 5%, transparent);
+  --hatch: color-mix(in oklab, var(--fg) 10%, transparent);
+  --r-ctl: 4px; --r-float: 6px;
+  --shadow: 2px 3px 5px 0 hsl(28 13% 20% / .12); --shadow-ctl: 1px 2px 3px 0 hsl(28 13% 20% / .12);
 }
 .wb [data-part] { cursor: pointer }
 .wb [data-part].hover { box-shadow: inset 0 0 0 1px color-mix(in oklab, var(--primary) 50%, transparent) }
@@ -89,7 +122,7 @@ section { display: flex; flex-direction: column; gap: 20px }
 .head { flex: none; display: flex; align-items: center; gap: 8px; height: var(--band); padding: 4px var(--gut); border-bottom: 1px solid var(--border); font-size: 12px; font-weight: 600; color: var(--fg-2) }
 .head .t { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap }
 .acts { display: flex; gap: 2px }
-.ib { width: var(--ico); height: var(--ico); border-radius: 6px; display: grid; place-items: center; color: var(--fg-2) }
+.ib { width: var(--ico); height: var(--ico); border-radius: var(--r-ctl); display: grid; place-items: center; color: var(--fg-2) }
 .ib:hover { background: var(--sel); color: var(--fg) }
 .ib svg, .ic16 { width: 16px; height: 16px }
 .body { flex: 1; min-height: 0; overflow: hidden }
@@ -101,9 +134,9 @@ section { display: flex; flex-direction: column; gap: 20px }
 .vh svg { width: 16px; height: 16px; flex: none; color: var(--fg-3) }
 .vh.open svg { transform: rotate(90deg) }
 .vh .t { flex: 1 }
-.search { margin: 8px var(--gut) 4px; height: var(--ctl); display: flex; align-items: center; gap: 8px; padding: 0 8px; border: 1px solid var(--border); border-radius: 6px; color: var(--fg-3); font-size: 13px }
+.search { margin: 8px var(--gut) 4px; height: var(--ctl); display: flex; align-items: center; gap: 8px; padding: 0 8px; border: 1px solid var(--border); border-radius: var(--r-ctl); color: var(--fg-3); font-size: 13px }
 .search svg { width: 16px; height: 16px; flex: none }
-.row { position: relative; display: flex; align-items: center; gap: 8px; height: var(--row); margin: 0 4px; padding: 0 8px; border-radius: 6px; color: var(--fg-2); white-space: nowrap }
+.row { position: relative; display: flex; align-items: center; gap: 8px; height: var(--row); margin: 0 4px; padding: 0 8px; border-radius: var(--r-ctl); color: var(--fg-2); white-space: nowrap }
 .row .n { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis }
 .row .m { font-size: 11px; color: var(--fg-3); font-variant-numeric: tabular-nums }
 .row:hover { background: var(--hover) }
@@ -113,7 +146,7 @@ section { display: flex; flex-direction: column; gap: 20px }
 .gh svg { width: 16px; height: 16px; color: var(--fg-3); transform: rotate(90deg) }
 
 .tabs { flex: none; display: flex; align-items: stretch; gap: 2px; height: var(--band); padding: 4px 4px 0; border-bottom: 1px solid var(--border) }
-.tab { position: relative; display: flex; align-items: center; gap: 8px; padding: 0 8px 0 var(--gut); border-radius: 6px 6px 0 0; font-size: 12px; color: var(--fg-3) }
+.tab { position: relative; display: flex; align-items: center; gap: 8px; padding: 0 8px 0 var(--gut); border-radius: var(--r-ctl) var(--r-ctl) 0 0; font-size: 12px; color: var(--fg-3) }
 .tab.on { color: var(--fg) }
 .tab.on::after { content: ""; position: absolute; left: 8px; right: 8px; bottom: -1px; height: 2px; border-radius: 2px 2px 0 0; background: var(--primary) }
 .tab .x { width: 16px; height: 16px; color: var(--fg-3) }
@@ -124,17 +157,17 @@ section { display: flex; flex-direction: column; gap: 20px }
 .doc .sec { display: flex; flex-direction: column; gap: 8px; margin-top: 8px }
 .doc .sec h5 { margin: 0; font-size: 12px; font-weight: 600; color: var(--fg-2) }
 .doc .btns { display: flex; gap: 8px }
-.btn { height: var(--ctl); display: inline-flex; align-items: center; gap: 8px; padding: 0 12px; border-radius: 6px; font-size: 13px; font-weight: 500; border: 1px solid transparent }
+.btn { height: var(--ctl); display: inline-flex; align-items: center; gap: 8px; padding: 0 12px; border-radius: var(--r-ctl); font-size: 13px; font-weight: 500; border: 1px solid transparent }
 .btn.p { background: var(--primary); color: var(--on-primary) }
 .btn.o { border-color: var(--border); color: var(--fg) }
 
 .fields { padding: 4px var(--gut) 12px; display: flex; flex-direction: column; gap: 12px }
 .field { display: flex; flex-direction: column; gap: 8px }
 .field label { font-size: 12px; font-weight: 500; color: var(--fg-2) }
-.input { height: var(--ctl); display: flex; align-items: center; padding: 0 var(--gut); border: 1px solid var(--border); border-radius: 6px; font-size: 13px; color: var(--fg) }
+.input { height: var(--ctl); display: flex; align-items: center; padding: 0 var(--gut); border: 1px solid var(--border); border-radius: var(--r-ctl); font-size: 13px; color: var(--fg) }
 .pill { display: inline-flex; align-items: center; height: 20px; padding: 0 8px; border-radius: 999px; font-size: 11px; background: color-mix(in oklab, var(--secondary) 22%, transparent); color: var(--fg) }
 
-.select { height: var(--ctl-sm); display: inline-flex; align-items: center; gap: 4px; padding: 0 8px; border: 1px solid var(--border); border-radius: 6px; font-size: 12px; font-weight: 400; color: var(--fg) }
+.select { height: var(--ctl-sm); display: inline-flex; align-items: center; gap: 4px; padding: 0 8px; border: 1px solid var(--border); border-radius: var(--r-ctl); font-size: 12px; font-weight: 400; color: var(--fg) }
 .select svg { width: 16px; height: 16px; transform: rotate(90deg); color: var(--fg-3) }
 .log { font-family: var(--mono); font-size: 12px; line-height: var(--row); padding: 0 var(--gut); color: var(--fg-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis }
 .log .ok { color: var(--secondary) } .log .w { color: var(--primary-ink) } .log .tm { color: var(--fg-3); margin-right: 12px }
@@ -146,7 +179,7 @@ section { display: flex; flex-direction: column; gap: 20px }
 .sb > .grip { right: -4px } .ax > .grip { left: -4px } .pn > .grip { top: -4px }
 /* Los botones del pie, sin caja: el estado se lee en la tinta (encendido pleno, apagado apagado) y al
    pasar aparece el fondo suave. */
-.tg { width: var(--ico); height: var(--ico); display: grid; place-items: center; border-radius: 6px; color: var(--fg-3) }
+.tg { width: var(--ico); height: var(--ico); display: grid; place-items: center; border-radius: var(--r-ctl); color: var(--fg-3) }
 .tg:hover { background: var(--hover); color: var(--fg) }
 .tg svg { width: 16px; height: 16px }
 .tg.on { color: var(--fg) }
@@ -231,7 +264,7 @@ ol.steps li::marker { color: var(--fg-3); font-variant-numeric: tabular-nums }
 .mn-bar input[type=range] { accent-color: var(--primary); width: 220px; max-width: 100% }
 .mn-bar output { font-family: var(--mono); font-size: 12px; color: var(--fg); font-variant-numeric: tabular-nums }
 .mn-stage { overflow-x: auto; padding-bottom: 4px }
-.mn { position: relative; height: 200px; border: 1px solid var(--border); border-radius: 10px; overflow: hidden; display: grid; grid-template-rows: minmax(0, 1fr) 26px; background: var(--bg); user-select: none; touch-action: none; font-size: 11.5px; transition: width .12s }
+.mn { position: relative; height: 200px; border: 1px solid var(--border); border-radius: var(--r-float); overflow: hidden; display: grid; grid-template-rows: minmax(0, 1fr) 26px; background: var(--bg); user-select: none; touch-action: none; font-size: 11.5px; transition: width .12s }
 .mn-cols { display: flex; min-height: 0 }
 .mn-col { position: relative; flex: none; overflow: hidden; display: flex; flex-direction: column; background: var(--sidebar) }
 .mn-col.sb { border-right: 1px solid var(--border) } .mn-col.ax { border-left: 1px solid var(--border) }
@@ -265,7 +298,7 @@ ol.steps li::marker { color: var(--fg-3); font-variant-numeric: tabular-nums }
 .cgroup > h3 { font-size: 13px; color: var(--fg-2); padding-top: 8px }
 .cards { display: grid; gap: 16px; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)) }
 .card { display: flex; flex-direction: column; gap: 8px; min-width: 0 }
-.card .spec-host { display: block; border: 1px solid var(--border); border-radius: 6px; overflow: hidden }
+.card .spec-host { display: block; border: 1px solid var(--border); border-radius: var(--r-ctl); overflow: hidden }
 .card .nm { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 8px; font-size: 13px; font-weight: 600 }
 .card .nm code { font-size: 12px; font-weight: 500; color: var(--primary-ink) }
 .card .ms { display: flex; flex-wrap: wrap; gap: 4px }
@@ -304,6 +337,12 @@ footer { font-size: 12px; color: var(--fg-3); border-top: 1px solid var(--border
     </div>
     <div class="bar">
       <label class="chk"><input type="checkbox" id="showRl" checked> Mostrar medidas</label>
+      <label class="chk">Tema del prototipo
+        <select id="presetSel" class="sel-native" aria-label="Tema del prototipo">
+          <option value="">Por defecto</option>
+          <option value="neo">Neo Brutalism</option>
+          <option value="vintage">Vintage Paper</option>
+        </select></label>
       <span class="hint">El contenido es de ejemplo; lo que importa es la forma.</span>
     </div>
     <div class="stage">
@@ -750,6 +789,7 @@ footer { font-size: 12px; color: var(--fg-3); border-top: 1px solid var(--border
     cota('h', e.x, d.y + 10, 24, '24');
     r = rect($('xSt')); cota('v', r.x + 420, r.y, r.h, `pie ${Math.round(r.h)}`);
   }
+  $('presetSel').addEventListener('change', (ev) => { ev.target.value ? wb.dataset.preset = ev.target.value : wb.removeAttribute('data-preset'); });
   $('showRl').addEventListener('change', (ev) => wb.classList.toggle('show-rl', ev.target.checked));
   requestAnimationFrame(drawCotas);
 
