@@ -80,9 +80,9 @@ section { display: flex; flex-direction: column; gap: 20px }
    atributo es la base tal cual. Un preset redefine color Y forma (radio, sombra), como un export
    de tweakcn; light-dark() sigue el modo de la página. ⚠ --fg-2, --fg-3, --sel, --hover y --hatch
    se derivan de --fg y --bg en :root, así que un preset tiene que volver a derivarlos. */
-.wb { box-shadow: var(--shadow) }
+.wb, .mn { box-shadow: var(--shadow) }
 .wb .btn { box-shadow: var(--shadow-ctl) }
-.wb[data-preset="neo"] {
+[data-preset="neo"] {
   --bg: light-dark(oklch(1 0 0), oklch(0 0 0)); --fg: light-dark(oklch(0 0 0), oklch(1 0 0));
   --sidebar: light-dark(oklch(0.96 0 0), oklch(0.15 0 0)); --card: light-dark(oklch(1 0 0), oklch(0.15 0 0));
   --border: light-dark(oklch(0 0 0), oklch(1 0 0));
@@ -95,7 +95,7 @@ section { display: flex; flex-direction: column; gap: 20px }
   --shadow: 4px 4px 0 0 var(--border); --shadow-ctl: 2px 2px 0 0 var(--border);
 }
 .sel-native { height: 28px; margin-left: 6px; padding: 0 8px; border: 1px solid var(--border); border-radius: var(--r-ctl); background: var(--bg); color: var(--fg); font: inherit; font-size: 12px }
-.wb[data-preset="vintage"] {
+[data-preset="vintage"] {
   --bg: light-dark(hsl(39 35% 92%), hsl(25 15.4% 15.3%)); --fg: light-dark(hsl(25 15% 18%), hsl(39 34.5% 88.6%));
   --sidebar: light-dark(hsl(38 26% 87%), hsl(27.3 12.6% 17.1%)); --card: light-dark(hsl(39 34% 95%), hsl(26 14% 18.5%));
   --border: light-dark(hsl(34 20% 76%), hsl(24.7 13% 25.7%));
@@ -107,7 +107,7 @@ section { display: flex; flex-direction: column; gap: 20px }
   --r-ctl: 4px; --r-float: 6px;
   --shadow: 2px 3px 5px 0 hsl(28 13% 20% / .12); --shadow-ctl: 1px 2px 3px 0 hsl(28 13% 20% / .12);
 }
-.wb[data-preset="catppuccin"] {
+[data-preset="catppuccin"] {
   --bg: light-dark(#eff1f5, #1e1e2e); --fg: light-dark(#4c4f69, #cdd6f4);
   --sidebar: light-dark(#e6e9ef, #181825); --card: light-dark(#e6e9ef, #181825);
   --border: light-dark(#ccd0da, #313244);
@@ -119,7 +119,7 @@ section { display: flex; flex-direction: column; gap: 20px }
   --r-ctl: 6px; --r-float: 10px;
   --shadow: 0 4px 12px 0 rgb(0 0 0 / .12); --shadow-ctl: 0 1px 3px 0 rgb(0 0 0 / .12);
 }
-.wb[data-preset="nord"] {
+[data-preset="nord"] {
   --bg: light-dark(#eceff4, #2e3440); --fg: light-dark(#2e3440, #eceff4);
   --sidebar: light-dark(#e5e9f0, #292e39); --card: light-dark(#e5e9f0, #3b4252);
   --border: light-dark(#d8dee9, #434c5e);
@@ -131,7 +131,7 @@ section { display: flex; flex-direction: column; gap: 20px }
   --r-ctl: 4px; --r-float: 8px;
   --shadow: 0 2px 8px 0 rgb(0 0 0 / .10); --shadow-ctl: none;
 }
-.wb[data-preset="darkmatter"] {   /* los tokens tal cual de tools/ui/theme.css, sin los retoques de la página */
+[data-preset="darkmatter"] {   /* los tokens tal cual de tools/ui/theme.css, sin los retoques de la página */
   --bg: light-dark(oklch(1 0 0), oklch(0.1797 0.0043 308.1928)); --fg: light-dark(oklch(0.2101 0.0318 264.6645), oklch(0.8109 0 0));
   --sidebar: light-dark(oklch(0.9670 0.0029 264.5419), oklch(0.1822 0 0)); --card: light-dark(oklch(1 0 0), oklch(0.1822 0 0));
   --border: light-dark(oklch(0.9276 0.0058 264.5313), oklch(0.2520 0 0));
@@ -144,7 +144,7 @@ section { display: flex; flex-direction: column; gap: 20px }
   --hatch: color-mix(in oklab, var(--fg) 10%, transparent);
   --r-ctl: 6px; --r-float: 10px;
 }
-.wb[data-preset="gruvbox"] {
+[data-preset="gruvbox"] {
   --bg: light-dark(#fbf1c7, #282828); --fg: light-dark(#3c3836, #ebdbb2);
   --sidebar: light-dark(#f2e5bc, #1d2021); --card: light-dark(#f2e5bc, #32302f);
   --border: light-dark(#d5c4a1, #504945);
@@ -842,7 +842,10 @@ footer { font-size: 12px; color: var(--fg-3); border-top: 1px solid var(--border
     cota('h', e.x, d.y + 10, 24, '24');
     r = rect($('xSt')); cota('v', r.x + 420, r.y, r.h, `pie ${Math.round(r.h)}`);
   }
-  $('presetSel').addEventListener('change', (ev) => { ev.target.value ? wb.dataset.preset = ev.target.value : wb.removeAttribute('data-preset'); });
+  $('presetSel').addEventListener('change', (ev) => {
+    // todo lo que muestra piezas del workbench: el ejemplo, los componentes (shadow) y la demo de comportamiento
+    document.querySelectorAll('#wb, .spec-host, #mn').forEach((el) => { ev.target.value ? el.dataset.preset = ev.target.value : el.removeAttribute('data-preset'); });
+  });
   $('showRl').addEventListener('change', (ev) => wb.classList.toggle('show-rl', ev.target.checked));
   requestAnimationFrame(drawCotas);
 
@@ -879,7 +882,8 @@ footer { font-size: 12px; color: var(--fg-3); border-top: 1px solid var(--border
       `<div class="card"><span class="spec-host" data-id="${c.id}"></span><div class="nm">${c.name} <code>${c.cls}</code></div><div class="ms">${chips(c.measure)}${Object.entries(c.parts || {}).map(([sel, m]) => chips(Object.fromEntries(Object.entries(m).map(([k, v]) => [k, v])))).join('')}</div><div class="us">${c.use}</div></div>`).join('')}</div></div>`).join('');
     // el CSS de la base, con :root → :host para que viva adentro de cada shadow
     const shadowCss = UICSS.replace(/:root\b/g, ':host').replace(/(^|\n)\.dark\s*\{/g, '$1:host(.dark) {')
-      + ':host{display:block}.pad{padding:16px;background:var(--background);color:var(--foreground);font-family:var(--font-sans);font-size:var(--text-base);line-height:1.4}';
+      + ':host{display:block}.pad{padding:16px;background:var(--background);color:var(--foreground);font-family:var(--font-sans);font-size:var(--text-base);line-height:1.4}'
+      + ':host([data-preset]){--background:var(--bg);--foreground:var(--fg);--primary-foreground:var(--on-primary);--card-foreground:var(--fg);--popover:var(--card);--popover-foreground:var(--fg);--secondary-foreground:var(--fg);--input:var(--border);--ring:var(--primary);--muted:color-mix(in oklab,var(--fg) 6%,var(--bg));--muted-foreground:var(--fg-3);--accent:color-mix(in oklab,var(--fg) 9%,var(--bg));--accent-foreground:var(--fg);--destructive:var(--redline);--sidebar-foreground:var(--fg);--sidebar-border:var(--border);--sidebar-accent:color-mix(in oklab,var(--fg) 9%,var(--bg));--sidebar-accent-foreground:var(--fg);--sidebar-primary:var(--primary);--sidebar-primary-foreground:var(--on-primary);--sidebar-ring:var(--primary);--radius-control:var(--r-ctl);--radius-float:var(--r-float)}:host([data-preset]) .btn{box-shadow:var(--shadow-ctl)}:host([data-preset]) .region-menu{box-shadow:var(--shadow)}';
     const hosts = [...document.querySelectorAll('.spec-host')];
     for (const h of hosts) {
       const html = h.dataset.template ? document.getElementById(h.dataset.template).innerHTML
