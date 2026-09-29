@@ -18,7 +18,7 @@ ramas: fix/CORE-653-credifamilia-monto-total
 - [ ] Confirmar con Credifamilia sobre qué base calcula el 4x1000 en su plan de pagos; si no es el IVA, se revierte el commit 7f294290 y el resto del PR queda igual. Pesa más de lo previsto: con fianza Mensual (el 96 % de las radicaciones) la cuota baja unos $60 (2.000.000, 18 %, 24 cuotas: 17.921,40 a 17.861,40).
   Depende de: producto / Credifamilia
 - [x] Fianza Mensual: el alcance sólo suma la fianza cuando es Anticipada, así que con Mensual el total es el monto solicitado.
-- [x] Decimales en `montoTotalCredito`: el alcance pide expresamente dos decimales, se toma como aceptado por Credifamilia; se verá en la primera radicación real.
+- [x] Decimales en `montoTotalCredito`: el WSDL lo declara `xs:double` y el servicio de pruebas de Credifamilia guardó una transacción con `2428673.60` (200, 2026-09-29). Falta sólo verlo en una radicación real de producción.
 - [x] Implementar `montoTotalCredito` en la radicación con la fórmula del alcance y dos decimales — [#1521](pr:legacy-backend#1521), 6 pruebas nuevas, ejemplo del alcance en 6343651.73.
 - [x] Correr en local una solicitud con fianza Anticipada hasta la radicación — 3/3 en 11 con CREDIT_COMPLETED y `montoTotalCredito` 2428673.60 para 2.000.000.
 - [ ] Escribir la publicable (Dónde probar, Cómo validar) antes de que Miguel la vea.
@@ -111,6 +111,29 @@ fórmula del motor: 4x1000 4.475,89 · **total 6.347.412,98**.
 Local: el cierre entero de Credifamilia en local (receta en la memoria `credifamilia-flujo-mapa` y la
 suite `harness/suites/credifamilia.json`) + `bin/mock-credifamilia start` y
 `CREDIFAMILIA_CONSUMO_WSDL` apuntado al mock. Hace falta un preaprobado con `guarantee_type = 2`.
+
+### Contra el SOAP de pruebas de Credifamilia (cómo conectarse y repetirlo)
+
+Sirve para comprobar el formato de lo que se radica sin pasar por el flujo del cliente. **Valida formato y
+obligatorios, no la fórmula.** Cada 200 deja una transacción de prueba en el QA de Credifamilia: avisar a Oscar.
+
+- **Endpoint**: `https://pruebas.credifamilia.com.mx/proptech-ws-sec/services/consumoEndPoint?wsdl` (responde 200 sin
+  credenciales; el manual V5.3 lista otro host, `cfbolsillo`, no probado). El TLS no pide certificado de cliente:
+  la autenticación es WS-Security firmada en el mensaje, así que sin un certificado registrado allá sólo se lee el WSDL.
+- **Certificado**: de `temp/keys` sirve `clientQA2026.cert` + `.key` (autofirmado, CN=mejorCDT, vence 2063).
+  `credifamilia.cert/.key` es la firma de PDF de Certicámara, vencida el 2026-02-28: el servicio la rechaza
+  («No trusted certs found»). El oficial vive cifrado en la BD de dev (`lender_allied_credentials` 926) y pide el
+  `APP_KEY` de dev; la guía está en legacy-backend, `docs/credifamilia/README.md`.
+- **Cliente**: el `SoapClient` de legacy-backend (firma WSSE) dentro del contenedor `laravel.test`. El script
+  `artifacts/credifamilia-qa-soap.sh` copia el certificado al contenedor, manda UN `transaccionConsumo` y lo borra:
+  `KEYS=temp/keys NIT=<nit> MONTO_TOTAL=2428673.60 FIANZA=Anticipada artifacts/credifamilia-qa-soap.sh`.
+- **El NIT de convenio** (`nitConvenio` = `allieds.nit`) tiene que existir en Credifamilia: si no, 500 «nit no existe»
+  ANTES de guardar. Los de dev (Pullman, Dentix) no sirven; los reales salen de prod con la VPN de prod (ver el bloque
+  del 2026-09-29): 830108482 fue el que dio 200.
+- **Lectura del resultado**: 400 = falta un obligatorio o un formato; 500 «nit no existe» = convenio; 200 = guardó;
+  409 = la solicitud ya existe (usar otro `CODE`).
+- **Dev no sirve para esto hoy**: la pre-aprobación de Credifamilia falla en el servicio de pre-aprobados (decode
+  de `genero`) y la radicación no llega; `qa` y `staging` no tienen el merge todavía.
 
 ## Referencias
 
