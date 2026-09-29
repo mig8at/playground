@@ -228,6 +228,7 @@ orden de archivo — el ancla `### F-xx` es la única dirección.)
 | **«dice que el documento ya existe» y es de otra persona, de otro país** / HTTP 409 al registrarse | **F-178** |
 | **«creé la solicitud en qa y el forense no encuentra sus logs»** / `service_name` que no existe en Loki | **F-179** |
 | **«la solicitud de HOY en dev/qa sale sin una sola línea de log»** / la hora de la BD y la de Loki no coinciden por 5 h | **F-241** |
+| **«rotamos el certificado del SOAP de consumo de Credifamilia y la radicación sigue firmando con el anterior»** | **F-242** |
 | **«el backend se cayó bajo carga»** / muchos 504 a los 60 s exactos que igual terminaron escribiendo | **F-180** |
 | **«el código serializa»** / medir concurrencia en local y ver las peticiones de a una | **F-181** |
 | **«genera el documento en prod y en local tira 500»** / `Undefined variable` en una plantilla de Rent to Own | **F-182** · F-150 |
@@ -243,6 +244,7 @@ distinto según con qué pregunta llegues.
 |---|---|---|
 | F-240 | Una ruta del recorrido apunta a un método borrado, armada tras cuatro ids quemados | TRAMPA |
 | F-241 | Desde el 2026-09-23 la BD compartida de dev/qa guarda la hora en Bogotá, no en UTC | TRAMPA |
+| F-242 | El comando que siembra las credenciales del SOAP de consumo de Credifamilia escribe claves `credifamilia_consumo_*` que **ningún código en ejecución lee**: rotar el certificado por ahí no cambia la radicación | TRAMPA |
 | F-01 | El loader SSR esconde los 5xx del backend | TRAMPA |
 | F-02 | "Firmar" rebota a los documentos sin ningún mensaje | TRAMPA |
 | F-03 | Un `.catch(() => {})` convirtió una corrida rota en "1 passed" | cerrado |
@@ -1210,7 +1212,7 @@ Dos pools ⇒ la misma persona tiene **dos `sub` distintos**. Y del lado del bac
 - `pkg/cognito.ts` — el cache de sesión pasó de `.auth/cognito-state.json` a `.auth/cognito-state.<clave>.json`. ⚠ **Y la clave NO es el target**, aunque casi siempre coincida: es `SESSION_KEY = FRONT_LOCAL ? 'dev' : TARGET` (`harness/pkg/cognito.ts:32-33`), así que **con el front local dos targets comparten un mismo archivo de sesión**. Recomprobado el 2026-09-19. **No era cosmético**: el archivo viejo tenía cookies de los **dos** pools mezcladas (`login.creditop.com` **y** `.auth.merchant.creditop.com`), y con un único archivo la sesión de dev se inyecta en la corrida de staging — el front queda autenticado para Cognito y desconocido para el backend, **sin que aparezca el login** que lo corregiría.
 - `bin/advisor` — `E2E_ADVISOR_SUB` / `E2E_COGNITO_USER` de `.env.<target>` pisan al `asesor` de `.flows.json` (que describe al de dev). Es el `sub` que usa `load-permiso` para el assign.
 
-En dev existe una familia de cuentas QA `oscar+<comercio>@creditop.com`, una por sucursal (`oscar+mediarte` ya está en la 375 de Mediarte, `oscar+dentix` en la 844 de DENTIX). Son las candidatas naturales para el pool de staging.
+En dev existe una familia de cuentas QA `oscar+<comercio>@creditop.com`, una por sucursal (`oscar+mediarte` ya está en la 375 de Mediarte, `miguel8a` en la 844 de DENTIX). Son las candidatas naturales para el pool de staging.
 
 **Lo que queda abierto.** El `sub` de staging **no se puede deducir offline** (los de ambos pools son UUIDv7, sin nada que los distinga) y el storageState cacheado **no guarda JWT** — solo cookies. Se confirma en el primer login: si el wizard abre el comercio, el `cognito_id` que la fila ya tenía era el de staging; si repite "no tienes un comercio asignado", era del otro pool y hay que leer el real del id_token de esa sesión.
 
@@ -6280,3 +6282,21 @@ dos. **No se sabe cuántos diagnósticos viejos eran esto.**
   `user_request_id` es exacta) o busque en una ventana que cubra las dos lecturas.
 - **Estado:** vivo. Para re-medirlo: la hora de `user_requests.created_at` de una solicitud de hoy
   contra `{service_name=~".+"} | json | context_user_request_id="<id>"` con `direction=forward`.
+
+### F-242 · El comando que siembra las credenciales del SOAP de consumo de Credifamilia escribe claves que ningún código en ejecución lee
+
+- **Síntoma:** se rota o se siembra el certificado del consumo con `credifamilia-consumo:seed-credentials`
+  (o siguiendo el README del lender) y la radicación sigue firmando con el certificado anterior.
+- **Causa raíz:** el comando escribe `credifamilia_consumo_cert`, `credifamilia_consumo_key` y
+  `credifamilia_consumo_cert_password` en `lender_allied_credentials.credential`, y el README las
+  documenta. La radicación lee otras: `CredifamiliaConsumo.php:423-424,448` toma `credifamilia_cert`,
+  `credifamilia_key` y `credifamilia_password`, las mismas del REST. Con `--copy-from-rest` el comando deja
+  esas claves como estaban, así que la fila funciona mientras el REST tenga certificado, pero cambiar el
+  del consumo no llega a ningún lado.
+- **Evidencia:** `git grep` de `credifamilia_consumo_cert` en `origin/main` de `legacy-backend`: sólo el
+  comando `SeedCredifamiliaConsumoCredentialCommand.php` y el README; ninguna lectura en `app/` ni `Modules/`.
+  Las claves que sí se leen, verificadas por `main-verifier` contra `b801c145`.
+- **Arreglo:** sin hacer. Que la radicación lea las claves `_consumo_*` con caída a las del REST, o que el
+  comando escriba las que se leen. Mientras tanto, para cambiar el certificado del consumo se cambian las
+  `credifamilia_cert/key/password`, que también mueven el REST.
+- **Estado:** vivo en `main` (b801c145). No se comprobó qué claves tiene cada fila en la BD de los ambientes.
