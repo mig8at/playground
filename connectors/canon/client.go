@@ -46,7 +46,7 @@ func New(baseURL string) *Client {
 	}
 	return &Client{
 		baseURL: baseURL,
-		http:    &http.Client{Timeout: 8 * time.Second},
+		http:    &http.Client{Timeout: 8 * time.Second, Transport: newSessionTransport(nil)},
 	}
 }
 

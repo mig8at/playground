@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -12,6 +13,8 @@ import (
 	"path/filepath"
 	"strings"
 	"time"
+
+	"creditop/playground/connectors/env"
 )
 
 /* LEER Y DICTAR CANON DESDE LA CONSOLA. `References` y `Brief` son lo que el tablero necesita para una
@@ -27,11 +30,17 @@ const writeTimeout = 90 * time.Second
 // sharedEnv es el `.env` de canon en el repo compartido, de donde sale la llave si no está en el entorno.
 var sharedEnv = filepath.Join(os.Getenv("HOME"), "Desktop", "CREDITOP", "github", "playground", "tools", "canon", ".env")
 
-// WriteKey devuelve la llave de escritura: `CANON_WRITE_KEY` del entorno o la del `.env` de canon.
+// WriteKey devuelve la llave de escritura: `CANON_WRITE_KEY` del proceso, de `connectors/.env.prod` o, en
+// último lugar, del `.env` de canon en el repo compartido.
 // Nunca se imprime; se pasa sólo en el encabezado de la escritura.
 func WriteKey() (string, error) {
 	if key := strings.TrimSpace(os.Getenv("CANON_WRITE_KEY")); key != "" {
 		return key, nil
+	}
+	if values, err := env.Load("prod"); err == nil {
+		if key := values.Get("CANON_WRITE_KEY"); key != "" {
+			return key, nil
+		}
 	}
 	raw, err := os.ReadFile(sharedEnv)
 	if err == nil {
@@ -43,7 +52,7 @@ func WriteKey() (string, error) {
 			}
 		}
 	}
-	return "", fmt.Errorf("falta la llave: exportá CANON_WRITE_KEY o ponela en %s", sharedEnv)
+	return "", fmt.Errorf("falta la llave: exportá CANON_WRITE_KEY o ponela en connectors/.env.prod (o en %s)", sharedEnv)
 }
 
 // Hit es una sección que la búsqueda devolvió como prosa.
@@ -201,9 +210,12 @@ func (c *Client) call(ctx context.Context, method, path string, body any, key st
 	client := c.http
 	if key != "" {
 		req.Header.Set("Authorization", "Bearer "+key)
-		client = &http.Client{Timeout: writeTimeout}
+		client = &http.Client{Timeout: writeTimeout, Transport: newSessionTransport(nil)}
 	}
 	res, err := client.Do(req)
+	if errors.Is(err, ErrSession) {
+		return err
+	}
 	if err != nil {
 		return fmt.Errorf("canon no respondió en %s (¿VPN de prod? CANON_URL apunta a otro): %w", c.baseURL, err)
 	}
