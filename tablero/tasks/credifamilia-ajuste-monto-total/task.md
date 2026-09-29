@@ -3,7 +3,7 @@ id: 97
 title: "Credifamilia alcance desarrollo: ajuste monto total"
 stage: evaluation
 created: "2026-09-28T12:00:00-05:00"
-canon: [credifamilia/context#autorizada-no-es-radicada-el-estado-no-prueba-que-llego-al-proveedor, credifamilia/context#es-un-hibrido-y-esa-palabra-evita-dos-errores]
+canon: [credifamilia/context#autorizada-no-es-radicada-el-estado-no-prueba-que-llego-al-proveedor, credifamilia/context#es-un-hibrido-y-esa-palabra-evita-dos-errores, credifamilia/context#el-codigo-de-respuesta-decide-el-estado-de-la-transaccion-de-radicacion-y-un-409-no-es-un-fallo]
 jira: [CORE-653]
 jira_title: "Credifamilia alcance desarrollo: ajuste monto total"
 ramas: fix/CORE-653-credifamilia-monto-total
@@ -21,6 +21,8 @@ ramas: fix/CORE-653-credifamilia-monto-total
 - [x] Decimales en `montoTotalCredito`: el WSDL lo declara `xs:double` y el servicio de pruebas de Credifamilia guardó una transacción con `2428673.60` (200, 2026-09-29). Falta sólo verlo en una radicación real de producción.
 - [x] Implementar `montoTotalCredito` en la radicación con la fórmula del alcance y dos decimales — [#1521](pr:legacy-backend#1521), 6 pruebas nuevas, ejemplo del alcance en 6343651.73.
 - [x] Correr en local una solicitud con fianza Anticipada hasta la radicación — 3/3 en 11 con CREDIT_COMPLETED y `montoTotalCredito` 2428673.60 para 2.000.000.
+- [ ] Graduar a canon al llegar #1521 a `main`: la base del 4x1000 (sobre el IVA) y cómo se compone `montoTotalCredito`; hoy en `main` la radicación informa `final_amount`, sin la fianza. Termina con la sección de fianza de `credifamilia/context` corregida.
+  Depende de: el merge de develop a main
 - [ ] Escribir la publicable (Dónde probar, Cómo validar) antes de que Miguel la vea.
 
 ## Objetivo
