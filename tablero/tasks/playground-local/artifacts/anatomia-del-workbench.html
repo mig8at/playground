@@ -131,6 +131,19 @@ section { display: flex; flex-direction: column; gap: 20px }
   --r-ctl: 4px; --r-float: 8px;
   --shadow: 0 2px 8px 0 rgb(0 0 0 / .10); --shadow-ctl: none;
 }
+.wb[data-preset="darkmatter"] {   /* los tokens tal cual de tools/ui/theme.css, sin los retoques de la página */
+  --bg: light-dark(oklch(1 0 0), oklch(0.1797 0.0043 308.1928)); --fg: light-dark(oklch(0.2101 0.0318 264.6645), oklch(0.8109 0 0));
+  --sidebar: light-dark(oklch(0.9670 0.0029 264.5419), oklch(0.1822 0 0)); --card: light-dark(oklch(1 0 0), oklch(0.1822 0 0));
+  --border: light-dark(oklch(0.9276 0.0058 264.5313), oklch(0.2520 0 0));
+  --primary: light-dark(oklch(0.6716 0.1368 48.5130), oklch(0.7214 0.1337 49.9802));
+  --primary-ink: light-dark(oklch(0.6716 0.1368 48.5130), oklch(0.7214 0.1337 49.9802));
+  --on-primary: light-dark(oklch(1 0 0), oklch(0.1797 0.0043 308.1928));
+  --secondary: light-dark(oklch(0.5360 0.0398 196.0280), oklch(0.5940 0.0443 196.0233));
+  --fg-2: color-mix(in oklab, var(--fg) 74%, var(--bg)); --fg-3: color-mix(in oklab, var(--fg) 64%, var(--bg));
+  --sel: color-mix(in oklab, var(--fg) 7%, transparent); --hover: color-mix(in oklab, var(--fg) 5%, transparent);
+  --hatch: color-mix(in oklab, var(--fg) 10%, transparent);
+  --r-ctl: 6px; --r-float: 10px;
+}
 .wb [data-part] { cursor: pointer }
 .wb [data-part].hover { box-shadow: inset 0 0 0 1px color-mix(in oklab, var(--primary) 50%, transparent) }
 .wb [data-part].sel { box-shadow: inset 0 0 0 2px var(--primary) }
@@ -368,6 +381,7 @@ footer { font-size: 12px; color: var(--fg-3); border-top: 1px solid var(--border
           <option value="vintage">Vintage Paper</option>
           <option value="catppuccin">Catppuccin</option>
           <option value="nord">Nord</option>
+          <option value="darkmatter">Darkmatter</option>
         </select></label>
       <span class="hint">El contenido es de ejemplo; lo que importa es la forma.</span>
     </div>
