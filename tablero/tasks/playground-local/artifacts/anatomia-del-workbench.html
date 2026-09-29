@@ -107,6 +107,18 @@ section { display: flex; flex-direction: column; gap: 20px }
   --r-ctl: 4px; --r-float: 6px;
   --shadow: 2px 3px 5px 0 hsl(28 13% 20% / .12); --shadow-ctl: 1px 2px 3px 0 hsl(28 13% 20% / .12);
 }
+.wb[data-preset="catppuccin"] {
+  --bg: light-dark(#eff1f5, #1e1e2e); --fg: light-dark(#4c4f69, #cdd6f4);
+  --sidebar: light-dark(#e6e9ef, #181825); --card: light-dark(#e6e9ef, #181825);
+  --border: light-dark(#ccd0da, #313244);
+  --primary: light-dark(#8839ef, #cba6f7); --primary-ink: light-dark(#7528d8, #cba6f7);
+  --on-primary: light-dark(#eff1f5, #11111b); --secondary: light-dark(#179299, #94e2d5); --redline: light-dark(#d20f39, #f38ba8);
+  --fg-2: color-mix(in oklab, var(--fg) 74%, var(--bg)); --fg-3: color-mix(in oklab, var(--fg) 64%, var(--bg));
+  --sel: color-mix(in oklab, var(--fg) 9%, transparent); --hover: color-mix(in oklab, var(--fg) 6%, transparent);
+  --hatch: color-mix(in oklab, var(--fg) 11%, transparent);
+  --r-ctl: 6px; --r-float: 10px;
+  --shadow: 0 4px 12px 0 rgb(0 0 0 / .12); --shadow-ctl: 0 1px 3px 0 rgb(0 0 0 / .12);
+}
 .wb [data-part] { cursor: pointer }
 .wb [data-part].hover { box-shadow: inset 0 0 0 1px color-mix(in oklab, var(--primary) 50%, transparent) }
 .wb [data-part].sel { box-shadow: inset 0 0 0 2px var(--primary) }
@@ -342,6 +354,7 @@ footer { font-size: 12px; color: var(--fg-3); border-top: 1px solid var(--border
           <option value="">Por defecto</option>
           <option value="neo">Neo Brutalism</option>
           <option value="vintage">Vintage Paper</option>
+          <option value="catppuccin">Catppuccin</option>
         </select></label>
       <span class="hint">El contenido es de ejemplo; lo que importa es la forma.</span>
     </div>
