@@ -649,7 +649,7 @@ Llegó a **1,2 GB** de `Driver [loki] is not supported`: `GRAFANA_LOKI_ENABLED=f
 **Causa raíz — una inconsistencia dentro del propio código:**
 
 ```php
-// legacy-backend/app/Models/UserRequest.php:241-253
+// legacy-backend/app/Models/UserRequest.php:241-253 (releída en main el 2026-09-29)
 public function isSmartPay(): bool
 {
     // desde el 2026-08-19 el id quemado depende del ambiente, y el propio comentario
@@ -1917,7 +1917,7 @@ en producción — el webhook no deja registro cuando `firstOrFail()` lanza, as�
   **198** validaciones pasaron con un no-coincide declarado — 87 de segundo apellido, 87 de segundo
   nombre, 24 de segundo apellido sin segundo nombre. Caso testigo uReq 523201: `{first_name: 1,
   middle_name: null, first_surname: 1, second_surname: 0}` y `passed = 1`.
-- **Arreglo:** `=== null`. **YA EN `main`** — `TusDatosService.php:203`, verificado el 2026-09-18.
+- **Arreglo:** `=== null`. **YA EN `main`** — `TusDatosService.php:203`, verificado el 2026-09-18 y releído el 2026-09-29.
   Mergeó primero a `staging` el 2026-08-15 (PR #1098, `eb429dda`; la rama original sobre `main` quedó
   como respaldo y su PR #1082 se cerró), y de ahí llegó. *(La marca `⏳ PENDIENTE DE MERGE` estuvo un
   mes de más.)*
