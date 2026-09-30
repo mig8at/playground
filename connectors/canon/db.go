@@ -149,7 +149,7 @@ func OpenDB(ctx context.Context, c DBConfig) (*DB, error) {
 	cfg, err := pgx.ParseConfig(c.ConnString())
 	if err != nil {
 		// Nunca se repite la cadena en el error: lleva la contraseña.
-		return nil, fmt.Errorf("la configuración de la base de canon no es válida: %s", redactar(err.Error(), c.Password))
+		return nil, fmt.Errorf("la configuración de la base de canon no es válida: %s", redact(err.Error(), c.Password))
 	}
 	db := stdlib.OpenDB(*cfg)
 	db.SetMaxOpenConns(2)
@@ -159,7 +159,7 @@ func OpenDB(ctx context.Context, c DBConfig) (*DB, error) {
 	if err := db.PingContext(pingCtx); err != nil {
 		db.Close()
 		return nil, fmt.Errorf("no se pudo conectar a la base de canon en %s (%s:%s; ¿VPN de prod?): %s",
-			c.Target, c.Host, orDefault(c.Port, "5432"), redactar(err.Error(), c.Password))
+			c.Target, c.Host, orDefault(c.Port, "5432"), redact(err.Error(), c.Password))
 	}
 	return &DB{db: db, source: fmt.Sprintf("canon postgres %s/%s", c.Host, orDefault(c.Database, "canon"))}, nil
 }
@@ -172,7 +172,7 @@ func orDefault(v, def string) string {
 }
 
 // redactar saca la contraseña de un texto: un error de conexión puede traer la cadena entera.
-func redactar(s, secret string) string {
+func redact(s, secret string) string {
 	if secret == "" {
 		return s
 	}

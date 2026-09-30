@@ -83,3 +83,15 @@ path: trazador/server/mapa/substeps.json                        # dato, ídem
 json: connectors/canon/routes.go mapa desde hasta titulo rutas estaciones cuando pasos estacion_global referencia nota
 json: connectors/canon/snapshot.go exportado     # el export de canon
 json: server/internal/canoncache/local.go objetivo se_deduce_leyendo secciones tablas fuentes     # las áreas del map.json de canon, leídas de la copia local
+
+# ── canon (`tools/canon`, repo compartido): inglés que la stdlib casi no usa, y nombres de su dominio ────────────────────────────
+# `rig` es el banco de prueba (test rig); `atlas` es el mapa de recorridos; `globalmap` es el mapa completo (una sola pieza);
+# `upkeep` el mantenimiento del corpus; `spaces`/`vision` los espacios de prosa (vision es la palabra inglesa: la visión del producto).
+rig rigs atlas globalmap upkeep vision seedfiles testcorpus showcase
+postgres bedrock anthropic sonnet sigv sigv4 credibot manuela meddipay onboarding
+restructure reactive breadcrumb breadcrumbs faithful travels administer headline omissions symptoms chevron fleet neighborhood neighborhoods
+rescue chronicle detour heartbeat heartbeats ladder mints refusal alittle anim ccw compass compete darkness disguise editorial fixable hedged
+hfov vfov idf inm intruder lateral lcs lightbulb lightness llp merch migs navigable paintable pencil prurl ray recomposes requestable
+revalidate revalidates rise rope spheres stopwords telescope tomorrow topple traceability twin twins vocab weave weigh withdrawals yardstick yesterday arn
+homonym
+sslmode

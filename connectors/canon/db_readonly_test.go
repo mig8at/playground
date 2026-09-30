@@ -6,7 +6,7 @@ import (
 )
 
 // Lo que debe pasar como lectura, incluidos los casos donde una palabra "peligrosa" es DATO, nombre o función.
-func TestUnaLecturaDePostgresPasa(t *testing.T) {
+func TestAPostgresReadPasses(t *testing.T) {
 	ok := []string{
 		`SELECT 1`,
 		`select * from canon_revision order by id desc limit 5;`,
@@ -34,8 +34,8 @@ func TestUnaLecturaDePostgresPasa(t *testing.T) {
 }
 
 // Lo que NO es una lectura, con el motivo en español.
-func TestLoQueNoEsUnaLecturaNoPasa(t *testing.T) {
-	casos := []struct{ q, motivo string }{
+func TestWhatIsNotAReadDoesNotPass(t *testing.T) {
+	cases := []struct{ q, reason string }{
 		{`INSERT INTO canon_revision (author) VALUES ('x')`, "SELECT o WITH"},
 		{`UPDATE canon_file SET content = ''`, "SELECT o WITH"},
 		{`DROP TABLE canon_file`, "SELECT o WITH"},
@@ -59,21 +59,21 @@ func TestLoQueNoEsUnaLecturaNoPasa(t *testing.T) {
 		{`   `, "vacía"},
 		{`SELECT ` + strings.Repeat("a", MaxQueryDB), "supera"},
 	}
-	for _, c := range casos {
+	for _, c := range cases {
 		err := ValidateReadOnlyPG(c.q)
 		if err == nil {
 			t.Errorf("no debía pasar:\n  %.80s", c.q)
 			continue
 		}
-		if !strings.Contains(strings.ToLower(err.Error()), strings.ToLower(c.motivo)) {
-			t.Errorf("el motivo tenía que mencionar %q y dijo %q\n  %.80s", c.motivo, err, c.q)
+		if !strings.Contains(strings.ToLower(err.Error()), strings.ToLower(c.reason)) {
+			t.Errorf("el motivo tenía que mencionar %q y dijo %q\n  %.80s", c.reason, err, c.q)
 		}
 	}
 }
 
 // Un truco clásico: esconder el verbo detrás de un comentario o un texto para que el chequeo lo lea como dato.
-func TestNoSePuedeEsconderUnVerboDetrasDeUnComentarioNiUnTexto(t *testing.T) {
-	trucos := []string{
+func TestAVerbCannotHideBehindACommentOrAString(t *testing.T) {
+	tricks := []string{
 		"SELECT 1 --\n; DROP TABLE canon_file",
 		"SELECT 1; -- inocente\nDROP TABLE canon_file",
 		"SELECT 1 /* x */; DROP TABLE canon_file",
@@ -81,7 +81,7 @@ func TestNoSePuedeEsconderUnVerboDetrasDeUnComentarioNiUnTexto(t *testing.T) {
 		`SELECT $$ x $$; DROP TABLE canon_file`,
 		`SELECT E'\\'; DROP TABLE canon_file; --'`,
 	}
-	for _, q := range trucos {
+	for _, q := range tricks {
 		if err := ValidateReadOnlyPG(q); err == nil {
 			t.Errorf("no debía pasar: %q", q)
 		}

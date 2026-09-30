@@ -25,7 +25,7 @@ func canonTarget() param {
 }
 
 // abrirCanonDB carga, valida y abre. Devuelve el código de salida si algo falla.
-func abrirCanonDB(target string) (*canon.DB, int) {
+func openCanonDB(target string) (*canon.DB, int) {
 	if !canon.ValidDBTarget(target) {
 		return nil, fail(2, "falta o no es válido --target (canon sólo tiene base en %s)", strings.Join(canon.DBTargets, " · "))
 	}
@@ -42,7 +42,7 @@ func abrirCanonDB(target string) (*canon.DB, int) {
 	return db, 0
 }
 
-func imprimirResultado(target string, r canon.Result, query string, asJSON bool) int {
+func printResult(target string, r canon.Result, query string, asJSON bool) int {
 	if asJSON {
 		out := map[string]any{"target": target, "source": r.Source, "columns": r.Columns, "rows": r.Rows}
 		if query != "" {
@@ -53,11 +53,11 @@ func imprimirResultado(target string, r canon.Result, query string, asJSON bool)
 		}
 		return writeJSON(out)
 	}
-	corte := ""
+	truncation := ""
 	if r.Truncated {
-		corte = fmt.Sprintf(" (cortado en %d)", canon.MaxRowsDB)
+		truncation = fmt.Sprintf(" (cortado en %d)", canon.MaxRowsDB)
 	}
-	fmt.Printf("%s · %s · %d fila(s)%s\n", target, r.Source, len(r.Rows), corte)
+	fmt.Printf("%s · %s · %d fila(s)%s\n", target, r.Source, len(r.Rows), truncation)
 	for _, row := range r.Rows {
 		parts := make([]string, len(r.Columns))
 		for i, c := range r.Columns {
@@ -87,7 +87,7 @@ func runCanonSQL(args []string) int {
 	if err := canon.ValidateReadOnlyPG(*query); err != nil {
 		return fail(2, "consulta rechazada: %v", err)
 	}
-	db, code := abrirCanonDB(*target)
+	db, code := openCanonDB(*target)
 	if db == nil {
 		return code
 	}
@@ -98,7 +98,7 @@ func runCanonSQL(args []string) int {
 	if err != nil {
 		return fail(1, "consulta en %s: %v", *target, err)
 	}
-	return imprimirResultado(*target, r, *query, *asJSON)
+	return printResult(*target, r, *query, *asJSON)
 }
 
 func runCanonTables(args []string) int {
@@ -108,7 +108,7 @@ func runCanonTables(args []string) int {
 	if fs.Parse(args) != nil {
 		return 2
 	}
-	db, code := abrirCanonDB(*target)
+	db, code := openCanonDB(*target)
 	if db == nil {
 		return code
 	}
@@ -119,7 +119,7 @@ func runCanonTables(args []string) int {
 	if err != nil {
 		return fail(1, "tablas en %s: %v", *target, err)
 	}
-	return imprimirResultado(*target, r, "", *asJSON)
+	return printResult(*target, r, "", *asJSON)
 }
 
 // runCanonConfig no abre ninguna conexión: dice qué base atendería el ambiente y qué falta, sin la contraseña.

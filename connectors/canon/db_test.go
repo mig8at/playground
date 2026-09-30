@@ -8,7 +8,7 @@ import (
 	"github.com/jackc/pgx/v5"
 )
 
-func TestLaCadenaDeConexionCodificaLaContrasenaYViajaElSslmode(t *testing.T) {
+func TestConnectionStringEncodesThePasswordAndCarriesSslmode(t *testing.T) {
 	// Una contraseña generada trae de todo: si va cruda parte el host o la base, y el error apunta a la red, no a la contraseña.
 	c := DBConfig{Target: "prod", Host: "db.interno", Port: "5432", Database: "canon", User: "solo_lectura", Password: `p@ss/w:rd#1?&=%`, SSLMode: "require"}
 	cfg, err := pgx.ParseConfig(c.ConnString())
@@ -32,7 +32,7 @@ func TestLaCadenaDeConexionCodificaLaContrasenaYViajaElSslmode(t *testing.T) {
 	}
 }
 
-func TestSinCredencialesDiceCualesFaltanYNoSaleARedNiCaeAOtroAmbiente(t *testing.T) {
+func TestWithoutCredentialsSaysWhichAreMissingAndNeitherHitsTheNetworkNorFallsBackToAnotherEnvironment(t *testing.T) {
 	c := DBConfig{Target: "prod", Host: "db.interno"}
 	if m := c.Missing(); strings.Join(m, ",") != "CANON_POSTGRES_USER,CANON_POSTGRES_PASSWORD" {
 		t.Fatalf("faltan, en orden: %v", m)
@@ -41,15 +41,15 @@ func TestSinCredencialesDiceCualesFaltanYNoSaleARedNiCaeAOtroAmbiente(t *testing
 	if err == nil || !strings.Contains(err.Error(), "CANON_POSTGRES_USER") || !strings.Contains(err.Error(), ".env.prod") {
 		t.Fatalf("tenía que decir qué falta y dónde: %v", err)
 	}
-	for _, malo := range []string{"", "dev", "qa", "staging", "producción"} {
-		if ValidDBTarget(malo) {
-			t.Errorf("%q no tiene base de canon", malo)
+	for _, bad := range []string{"", "dev", "qa", "staging", "producción"} {
+		if ValidDBTarget(bad) {
+			t.Errorf("%q no tiene base de canon", bad)
 		}
-		if _, _, err := LoadDBConfig(malo); err == nil {
-			t.Errorf("LoadDBConfig(%q) tenía que fallar", malo)
+		if _, _, err := LoadDBConfig(bad); err == nil {
+			t.Errorf("LoadDBConfig(%q) tenía que fallar", bad)
 		}
-		if _, err := OpenDB(context.Background(), DBConfig{Target: malo, Host: "h", User: "u", Password: "p"}); err == nil {
-			t.Errorf("OpenDB con el ambiente %q tenía que fallar", malo)
+		if _, err := OpenDB(context.Background(), DBConfig{Target: bad, Host: "h", User: "u", Password: "p"}); err == nil {
+			t.Errorf("OpenDB con el ambiente %q tenía que fallar", bad)
 		}
 	}
 	if !ValidDBTarget("local") || !ValidDBTarget("prod") {
@@ -57,7 +57,7 @@ func TestSinCredencialesDiceCualesFaltanYNoSaleARedNiCaeAOtroAmbiente(t *testing
 	}
 }
 
-func TestUnErrorDeConexionNuncaTraeLaContrasena(t *testing.T) {
+func TestAConnectionErrorNeverCarriesThePassword(t *testing.T) {
 	// Sin base a la que llegar (puerto cerrado): el error dice dónde intentó, no la contraseña.
 	c := DBConfig{Target: "local", Host: "127.0.0.1", Port: "1", User: "u", Password: `clave-rara@/:#`, SSLMode: "disable"}
 	_, err := OpenDB(context.Background(), c)
@@ -67,7 +67,7 @@ func TestUnErrorDeConexionNuncaTraeLaContrasena(t *testing.T) {
 	if strings.Contains(err.Error(), c.Password) || strings.Contains(err.Error(), "clave-rara") {
 		t.Fatalf("el error trae la contraseña: %v", err)
 	}
-	if got := redactar("password authentication failed for clave%2Frara", "clave/rara"); strings.Contains(got, "rara") {
+	if got := redact("password authentication failed for clave%2Frara", "clave/rara"); strings.Contains(got, "rara") {
 		t.Fatalf("redactar tiene que sacarla también codificada: %q", got)
 	}
 }
@@ -75,7 +75,7 @@ func TestUnErrorDeConexionNuncaTraeLaContrasena(t *testing.T) {
 // ── contra el Postgres del laboratorio de canon (`python3 dev/local.py prepare`) ────────────────────────────────────────────
 // Se salta —y `go test` lo imprime como `ok`— si el ambiente `local` no está configurado: el mensaje dice qué no se comprobó.
 // NUNCA contra prod: sólo abre `local`.
-func laboratorio(t *testing.T, timeoutMs int) *DB {
+func lab(t *testing.T, timeoutMs int) *DB {
 	t.Helper()
 	cfg, _, err := LoadDBConfig("local")
 	if err != nil || len(cfg.Missing()) > 0 {
@@ -90,8 +90,8 @@ func laboratorio(t *testing.T, timeoutMs int) *DB {
 	return db
 }
 
-func TestLeeConTiposYDiceDeQueBaseSalio(t *testing.T) {
-	db := laboratorio(t, 0)
+func TestReadsWithTypesAndSaysWhichDatabaseItCameFrom(t *testing.T) {
+	db := lab(t, 0)
 	r, err := db.Query(context.Background(), `SELECT 1::int AS n, 'hola'::text AS t, now() AS ahora, '{"a": [1, 2]}'::jsonb AS j, NULL AS nada`)
 	if err != nil {
 		t.Fatal(err)
@@ -114,18 +114,18 @@ func TestLeeConTiposYDiceDeQueBaseSalio(t *testing.T) {
 	}
 }
 
-func TestLaBaseMismaRechazaEscribirAunqueSeSaltenElChequeo(t *testing.T) {
+func TestTheDatabaseItselfRefusesToWriteEvenIfTheCheckIsSkipped(t *testing.T) {
 	// La prueba que importa: el chequeo previo es el mensaje; la protección es de la BASE. Se escribe DIRECTO por la conexión, sin pasar por Query.
-	db := laboratorio(t, 0)
-	for _, sentencia := range []string{
+	db := lab(t, 0)
+	for _, statement := range []string{
 		`CREATE TABLE zz_no_debe_existir (x int)`,
 		`INSERT INTO canon_revision (author, reason) VALUES ('no', 'no')`,
 		`UPDATE canon_revision SET author = 'no'`,
 		`DELETE FROM canon_revision`,
 	} {
-		_, err := db.db.ExecContext(context.Background(), sentencia)
+		_, err := db.db.ExecContext(context.Background(), statement)
 		if err == nil {
-			t.Fatalf("⛔ la base dejó escribir: %s", sentencia)
+			t.Fatalf("⛔ la base dejó escribir: %s", statement)
 		}
 		if !strings.Contains(strings.ToLower(err.Error()), "read-only") {
 			t.Errorf("rechazó por otra cosa que sólo lectura: %v", err)
@@ -137,12 +137,12 @@ func TestLaBaseMismaRechazaEscribirAunqueSeSaltenElChequeo(t *testing.T) {
 	}
 }
 
-func TestCortaLoQueTardaYLoQueTraeDeMas(t *testing.T) {
-	db := laboratorio(t, 300)
+func TestCutsWhatTakesTooLongAndWhatBringsTooMuch(t *testing.T) {
+	db := lab(t, 300)
 	if _, err := db.Query(context.Background(), `SELECT count(*) FROM generate_series(1, 900000000)`); err == nil || !strings.Contains(err.Error(), "statement timeout") {
 		t.Fatalf("una consulta larga la corta la base: %v", err)
 	}
-	db2 := laboratorio(t, 0)
+	db2 := lab(t, 0)
 	r, err := db2.Query(context.Background(), `SELECT g FROM generate_series(1, 2000) AS g`)
 	if err != nil {
 		t.Fatal(err)
@@ -152,25 +152,25 @@ func TestCortaLoQueTardaYLoQueTraeDeMas(t *testing.T) {
 	}
 }
 
-func TestListaLasTablasDeLaBase(t *testing.T) {
-	db := laboratorio(t, 0)
+func TestListsTheTablesOfTheDatabase(t *testing.T) {
+	db := lab(t, 0)
 	r, err := db.Tables(context.Background())
 	if err != nil {
 		t.Fatal(err)
 	}
-	visto := map[string]bool{}
+	seen := map[string]bool{}
 	for _, row := range r.Rows {
-		visto[row["esquema"].(string)+"."+row["tabla"].(string)] = true
+		seen[row["esquema"].(string)+"."+row["tabla"].(string)] = true
 	}
-	if !visto["public.canon_revision"] || !visto["public.canon_file"] {
-		t.Fatalf("tienen que estar las tablas del corpus: %v", visto)
+	if !seen["public.canon_revision"] || !seen["public.canon_file"] {
+		t.Fatalf("tienen que estar las tablas del corpus: %v", seen)
 	}
 	for _, row := range r.Rows {
 		if n, ok := row["filas_estimadas"].(int64); ok && n < 0 {
 			t.Errorf("una tabla sin analizar no puede decir %d filas: %v", n, row)
 		}
 	}
-	for k := range visto {
+	for k := range seen {
 		if strings.HasPrefix(k, "pg_catalog.") || strings.HasPrefix(k, "information_schema.") {
 			t.Errorf("no se listan las del sistema: %s", k)
 		}

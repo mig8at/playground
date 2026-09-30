@@ -198,6 +198,24 @@ func Visor(root string) Board {
 	}
 }
 
+// Canon es canon (`tools/canon`), que vive en el repo COMPARTIDO del equipo y no en éste: su Go, su Vue/JS y sus scripts. `shared` es la raíz de ese repo;
+// `playground` la de éste, de donde salen los extractores de Vue/JS. Lo que se revisa es el código; el CORPUS (las secciones de prosa y los `map.json`)
+// se queda en español, y su formato de datos —las claves de esos archivos— es un contrato con todo lo que lo lee, no un nombre de código.
+func Canon(shared, playground string) Board {
+	return Board{
+		Name:        "canon",
+		Root:        shared,
+		GoRoots:     []string{"tools/canon"},
+		JSGlobs:     []string{"tools/canon/src/*.vue", "tools/canon/src/*.js", "tools/canon/src/components/*.vue", "tools/canon/dev/*.mjs", "tools/canon/vite.config.js"},
+		PyGlobs:     []string{"tools/canon/dev/*.py"},
+		DeclsScript: filepath.Join(playground, "tablero", "tools", "rename", "js", "decls.mjs"),
+		// Sin `JSONRoots`: las claves JSON de canon son contrato con el navegador y con credibot, y se renombran en una pasada aparte
+		// que compara la forma de la API antes y después. Y sin `tools/canon/dev/` ni `testdata/` en las rutas: ahí viven los temas del
+		// corpus, que se escribe en español a propósito.
+		PathRoots: []string{"tools/canon/internal/", "tools/canon/src/", "tools/canon/main.go", "tools/canon/migrations/"},
+	}
+}
+
 // Harness es el TypeScript del harness: sus runners, sus paquetes, el server del panel y los mocks.
 // El JS de `panel/index.html` se lee de sus <script> inline, salvo la copia sincronizada de workbench.js.
 func Harness(root string) Board {

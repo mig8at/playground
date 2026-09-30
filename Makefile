@@ -339,8 +339,8 @@ jev-test: ## @dia la conexión con la API de Jev, sin uso encima hasta que aterr
 # archivos y carpetas; los comentarios siguen en español. La vara del inglés es la stdlib de Go y de
 # Python, NO el diccionario del sistema, que deja pasar `aviso` o `leer`. Lo legítimo que la vara no
 # conoce va a tablero/tools/naming-allow.txt, con su categoría.
-tablero-naming: ## @dia ¿el código del tablero, o el compartido (connectors, cmd, lib), nombra algo en español? identificadores de Go, Vue/JS y Python, claves JSON, archivos y carpetas. Sale 1 si sí. WORDS=1 lista las palabras desconocidas
-	@cd tablero/server && go run ./cmd/naming $(if $(WORDS),-words)
+tablero-naming: ## @dia ¿el código del tablero, o el compartido (connectors, cmd, lib), nombra algo en español? identificadores de Go, Vue/JS y Python, claves JSON, archivos y carpetas. Sale 1 si sí. WORDS=1 lista las palabras desconocidas · CANON=<raíz del repo compartido> revisa SÓLO canon (tools/canon)
+	@cd tablero/server && go run ./cmd/naming $(if $(WORDS),-words) $(if $(CANON),-canon $(CANON))
 
 tablero-naming-test: ## @dia pruebas del chequeo de nombres: la vara, las formas derivadas y un nombre español inventado en cada lenguaje
 	@cd tablero/server && go test -count=1 ./internal/naming
