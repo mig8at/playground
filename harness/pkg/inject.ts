@@ -5,6 +5,7 @@
 import { query, one, scalar, exec, appKey, withSeedScope, TARGET } from './db.ts';
 import { encryptLaravelString } from './laravel-crypt.ts';
 import { synthIdImageUrl, type IdFace } from './synth-id-images.ts';
+import { credifamiliaFormFields, isCredifamilia } from './credifamilia-form.ts';
 
 export interface SynthReq {
     fields: Record<number, string>; // user_field_values (29 ocupación, 160 reportado, 87 ingreso, …)
@@ -243,7 +244,7 @@ async function injectSummary(userID: number, income: number, score: number, nega
     }
 }
 
-async function injectIncomeFields(userID: number, uReqID: number, fields: Record<number, string>): Promise<void> {
+export async function injectIncomeFields(userID: number, uReqID: number, fields: Record<number, string>): Promise<void> {
     // Upserts EN PARALELO: cada campo es una fila EAV distinta (user_id, field_id) — no se pisan entre sí.
     // Contra dev cada query paga ~100ms de round-trip remoto; en serie esto era la mitad del "sembrando"
     // (2 queries × N campos). El pool (connectionLimit 5) encola lo que exceda.
@@ -358,6 +359,8 @@ async function seedOver(uReqID: number, userID: number, branchHash: string, opts
         if (l) {
             req = await deriveSynthReq(branchHash, l.id, l.rt);
             target = `${l.name} #${l.id} (rt=${l.rt})`;
+            // El SOAP de Credifamilia (real en dev/qa/staging) rechaza la radicación si faltan estos campos.
+            if (isCredifamilia(l.name)) req.fields = { ...credifamiliaFormFields(req.income), ...req.fields };
             if (l.rt !== 2 && l.rt !== 3) {
                 const alliedID = (await scalar<number>('SELECT allied_id FROM allied_branches WHERE hash=? LIMIT 1', [branchHash])) ?? 0;
                 await ensureLenderCredential(alliedID, l.id);
