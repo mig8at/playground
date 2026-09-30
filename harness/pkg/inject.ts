@@ -4,6 +4,7 @@
 // injectIncomeFields/injectDatacredito/datacreditoData). harness ya no shellea al mcp.
 import { query, one, scalar, exec, appKey, withSeedScope, TARGET } from './db.ts';
 import { encryptLaravelString } from './laravel-crypt.ts';
+import { synthIdImageUrl, type IdFace } from './synth-id-images.ts';
 
 export interface SynthReq {
     fields: Record<number, string>; // user_field_values (29 ocupación, 160 reportado, 87 ingreso, …)
@@ -196,11 +197,11 @@ async function setSynthIdentity(userID: number, doc: string, email: string, gend
     // obligatorios: Cédula frontal, Cédula reverso». El runner mientras tanto reporta «CERRÓ en 11»,
     // así que el hueco se lee como si el flujo hubiera terminado entero.
     //
-    // Un string cualquiera alcanza: la validación es sólo que la URL no esté vacía
-    // (`CredifamiliaLegalizationDocumentService::isUsableUrl`) y el merge lo hace el pdf-mapper, que en
-    // local es un mock y no descarga nada. Se les pone forma de URL de S3 para que se reconozcan como
-    // sintéticas al mirarlas en la base.
-    const idNumber = (face: string) => `https://mock-s3.local/front-web/users/documents/synth/${doc}/${face}.jpg`;
+    // En local un string cualquiera alcanza: la validación es sólo que la URL no esté vacía
+    // (`CredifamiliaLegalizationDocumentService::isUsableUrl`) y el merge lo hace el pdf-mapper, que ahí es
+    // un mock y no descarga nada. En dev, qa y staging el pdf-mapper es real y SÍ las descarga: ver
+    // `synth-id-images.ts`.
+    const idNumber = (face: IdFace) => synthIdImageUrl(face, doc);
     // `documentType: null` = NO tocar la columna, dejar el que escribió el alta.
     //
     // ⚠ Existe porque este relleno adelantaba el reloj y tapaba un incidente de producción. En los

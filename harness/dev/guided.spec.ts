@@ -6,6 +6,7 @@ import type { Page } from '@playwright/test';
 import { identityWithoutProviderNotice, backendLogsNotice, config, cognitoCreds, wireLocal } from '../pkg/config';
 import { cognitoLogin, cognitoStorageState, persistCognitoState } from '../pkg/cognito';
 import { overwrittenEmploymentNotice, restoreEmployment, synthFill, requestStatus11, manualValidation, MATURATION_SINCE } from '../pkg/inject';
+import { synthIdImageUrl } from '../pkg/synth-id-images';
 import { dictateCase } from '../pkg/risk-lambda';
 import { quotaWithoutExitNotice, branchActiveRt0 } from '../pkg/merchants';
 import { closeCreditopX, resolveRequestStatus } from '../pkg/close';
@@ -1248,8 +1249,7 @@ test('guided (semiautomático)', async ({ browser }) => {
                             const doc = process.env.E2E_SYNTH_DOC || String(ur);
                             await exec(
                                 'UPDATE users SET front_url=?, back_url=?, updated_at=NOW() WHERE id=?',
-                                [`https://mock-s3.local/front-web/users/documents/synth/${doc}/frontal.jpg`,
-                                 `https://mock-s3.local/front-web/users/documents/synth/${doc}/reverso.jpg`, u.user_id],
+                                [synthIdImageUrl('frontal', doc), synthIdImageUrl('reverso', doc), u.user_id],
                             ).catch(() => null);
                             const rowList = await manualValidation(u.user_id).catch(() => 0);
                             log(rowList
