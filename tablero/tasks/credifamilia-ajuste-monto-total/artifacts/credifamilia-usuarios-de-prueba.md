@@ -36,10 +36,16 @@ E2E_TARGET=dev I_KNOW_THIS_TOUCHES_SHARED_DEV=1 make harness-case CASES='#82e896
 
 ## Qué se comprobó contra dev (2026-09-30)
 
-- **No sirven para llegar a un «aprobado»:** los dos aprobados que se podían registrar (15348200 y 37670195) recibieron del sandbox `rejected` con «Fallo en el análisis - Listas restrictivas: Error en la consulta», el mismo mensaje que el cliente sintético. Por eso la causa no es la cédula: parece un fallo del análisis de listas del QA de Credifamilia (por confirmar con ellos).
-- **Ya existen en la BD de dev** (de pruebas de mayo y junio): 79799966, 27250362, 71713842 y 1090381858. Registrarlos de nuevo falla con `ONB005 DOCUMENT_DUPLICATE`; habría que reusar el usuario existente.
-- **Un negado (80761796)** no llegó al análisis: el alta salió con ocupación «Desempleado», que Credifamilia no acepta (`does not support occupation type`). La ocupación sale del buró, no del Excel.
+Se corrieron los 12, cada uno con su cédula, nombre, nacimiento, correo y celular. **10 llegaron al análisis del sandbox y los 10 recibieron exactamente el mismo resultado**: `rejected` con «Fallo en el análisis - Listas restrictivas: Error en la consulta», sean «aprobados» o «negados» en la lista. Como el sandbox no distingue unos de otros, el fallo no depende de la cédula: parece el servicio de listas restrictivas del QA de Credifamilia (por confirmar con ellos).
+
+| grupo | llegaron al análisis | no llegaron |
+|---|---|---|
+| Aprobados (6) | los 6, todos `rejected` (transacciones 2088 a 2093 y una más del 79799966) | — |
+| Negados (6) | 1129572728, 1144187830, 12229740 y 15437078, todos `rejected` | 80761796: sale con ocupación «Desempleado», que Credifamilia no acepta (`does not support occupation type`), aunque se fuerce «Empleado»; 1022370286: nuestro wizard lo frena por edad (nació en 2009, «mínimo 18 años») |
+
+- Cuatro aprobados ya existían en la BD de dev (79799966, 27250362, 71713842, 1090381858): el caso los corre como cliente que vuelve en vez de registrarlos de nuevo.
 - Ninguno llegó a dar tasa ni tipo de fianza, así que la fórmula nueva del monto total no se puede ver de punta a punta en dev con estos datos.
+- Diferencia sin controlar: el Excel trae una fecha de ingreso a la ocupación distinta por persona y el servicio de pre-aprobados manda siempre «hoy menos 760 días»; tampoco se conoce el ingreso con el que Credifamilia los dio de alta (se mandó 2.500.000).
 
 ## Pendiente
 
