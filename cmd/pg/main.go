@@ -3,6 +3,7 @@
 //
 //	pg help [--json]                                           los comandos, de la misma lista que el binario
 //	pg sql    --target T --query 'SELECT …' [--json | --csv]
+//	pg canon sql --target local|prod --query 'SELECT …'        la base de Postgres de canon, sólo lectura (también `canon tables`, `canon config`)
 //	pg logs   --target T --query '{…}' [--since 1h | --start … --end …] [--limit N] [--direction d] [--json]
 //	pg logs labels --target T --label L [--since 1h]
 //	pg logs config --target T                                  qué Loki atiende ese ambiente, sin secretos

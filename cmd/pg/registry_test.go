@@ -117,7 +117,17 @@ func TestArgvBuildsTheCommandLineAndRejectsWhatDoesNotFit(t *testing.T) {
 
 // Sólo las herramientas que escriben ofrecen `apply`, y el ambiente se ofrece con sus cinco valores.
 func TestTheSchemaOffersApplyOnlyToWritesAndTheTargetEnum(t *testing.T) {
+	// Canon sólo tiene base en local (el laboratorio) y en prod: ofrecer dev/qa/staging invitaría a leer otro ambiente por accidente.
+	onlyLocalAndProd := map[string]bool{"canon sql": true, "canon tables": true, "canon config": true}
 	for _, c := range tools() {
+		if onlyLocalAndProd[c.Name] {
+			props := toolSchema(c)["properties"].(map[string]any)
+			tp, _ := props["target"].(map[string]any)
+			if got := strings.Join(tp["enum"].([]string), ","); got != "local,prod" {
+				t.Errorf("%s: el target tiene que ofrecer exactamente local y prod, ofrece %q", c.Name, got)
+			}
+			continue
+		}
 		props := toolSchema(c)["properties"].(map[string]any)
 		if _, has := props["apply"]; has != c.Write {
 			t.Errorf("%s: ¿apply en el esquema? %v, ¿escribe? %v", c.Name, has, c.Write)

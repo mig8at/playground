@@ -48,6 +48,7 @@ tener la herramienta: es suponer que no está y contestar de memoria.
 | **¿qué pasa si el cliente es así?** | `make harness-case CASES='…'`, en paralelo; `CLOSE=1` llega al desenlace |
 | **¿esta regla excluye, o sólo reordena?** | corré el caso con y sin el dato. Una regla que «debería» excluir y no excluye es el error más caro del dominio (F-162) |
 | **¿funciona, corriéndolo?** | por consola: `harness-case` (segundos) · `harness-walk-wizard` (HTTP, ~20 s) · `harness-walk-wizard ENGINE=browser` (Chromium, ~3 min). `make panel` es el camino visual de Miguel. El canal de asesor pide sesión: `make harness-session` / `make harness-login` |
+| **¿qué hay en la base de canon?** (revisiones, galaxias, mantenedores, quién cambió qué) | `bin/pg canon sql --target local\|prod --query 'SELECT …'` (solo lectura, impuesta por la base) · `canon tables` las lista · `canon config` dice qué falta. `local` es el laboratorio de canon; `prod` va por la VPN con un usuario de solo lectura. ⚠ Tiene las preguntas y conversaciones de la gente: se consulta para diagnosticar, no se pega en tareas ni PRs |
 | **¿en qué anda el equipo?** | Slack (MCP) · `make cuadrilla` · `make tablero` |
 | **Jira o Slack** | `bin/pg jira …` · `bin/pg slack …`, o sus herramientas MCP. Leer es libre; lo que escribe **sin `--apply` sólo muestra** |
 

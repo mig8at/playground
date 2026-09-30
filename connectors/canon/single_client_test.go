@@ -17,3 +17,12 @@ func TestNoOtherCanonClientInTheRepo(t *testing.T) {
 		t.Errorf("hay clientes de canon fuera de connectors/ (usá connectors/canon): %v", offenders)
 	}
 }
+
+// La base de canon se abre SÓLO acá: sólo lectura, con el ambiente obligatorio y sin devolver la contraseña en un error. Un segundo cliente de Postgres
+// fuera de connectors/ es cómo se pierde todo eso (y cómo una herramienta termina con una conexión de escritura a prod).
+func TestNoOtherPostgresClientInTheRepo(t *testing.T) {
+	client := regexp.MustCompile(`jackc/pgx|lib/pq|["'\x60]postgres(ql)?://`)
+	if offenders := repocheck.Offenders(t, client, nil); len(offenders) > 0 {
+		t.Errorf("hay clientes de Postgres fuera de connectors/ (usá connectors/canon): %v", offenders)
+	}
+}
