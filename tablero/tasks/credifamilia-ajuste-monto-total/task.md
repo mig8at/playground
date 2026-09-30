@@ -23,6 +23,8 @@ ramas: fix/CORE-653-credifamilia-monto-total
 - [x] Correr en local una solicitud con fianza Anticipada hasta la radicación — 3/3 en 11 con CREDIT_COMPLETED y `montoTotalCredito` 2428673.60 para 2.000.000.
 - [ ] Graduar a canon al llegar #1521 a `main`: la base del 4x1000 (sobre el IVA) y cómo se compone `montoTotalCredito`; hoy en `main` la radicación informa `final_amount`, sin la fianza. Termina con la sección de fianza de `credifamilia/context` corregida.
   Depende de: el merge de develop a main
+- [ ] Conseguir que el QA de Credifamilia apruebe a un cliente (tasa y tipo de fianza), para ver la fórmula nueva de punta a punta en dev; termina cuando la pre-aprobación devuelva `approved`. La lista de clientes de prueba no bastó: ver el artefacto de clientes de prueba.
+  Depende de: Credifamilia
 - [ ] Escribir la publicable (Dónde probar, Cómo validar) antes de que Miguel la vea.
 
 ## Objetivo
