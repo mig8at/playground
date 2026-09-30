@@ -25,6 +25,7 @@ ramas: fix/CORE-653-credifamilia-monto-total
   Depende de: el merge de develop a main
 - [ ] Conseguir que el QA de Credifamilia apruebe a un cliente (tasa y tipo de fianza), para ver la fórmula nueva de punta a punta en dev; termina cuando la pre-aprobación devuelva `approved`. La lista de clientes de prueba no bastó: ver el artefacto de clientes de prueba.
   Depende de: Credifamilia
+- [ ] Dictar a canon las piezas de `artifacts/canon-credifamilia-propuesta.md` (4 nuevas y 3 reescrituras); termina con las secciones visibles en `make canon-search`. Las 7 pasaron el ensayo de canon y están verificadas contra `main`.
 - [ ] Escribir la publicable (Dónde probar, Cómo validar) antes de que Miguel la vea.
 
 ## Objetivo
