@@ -1,7 +1,7 @@
 ---
 id: 94
 title: "Código de preaprobado de la app en la plataforma nueva"
-ramas: feat/CORE-614-codigo-preaprobado-app, feat/CORE-614-codigo-app-solo-colombia, feat/codigo-alfanumerico-en-main, feat/CORE-614-conmutador-usuario-app-estilo
+ramas: feat/CORE-614-codigo-preaprobado-app, feat/CORE-614-codigo-app-solo-colombia, feat/codigo-alfanumerico-en-main, feat/CORE-614-conmutador-usuario-app-estilo, fix/CORE-614-borrar-codigo-erroneo
 stage: work
 created: "2026-09-21T16:40:00-05:00"
 canon: [preaprobado, listado, onboarding, creditopx]
@@ -69,6 +69,10 @@ jira_title: "Código de preaprobado de la app en la plataforma nueva"
 - [ ] Llevar a `main` el diseño nuevo del selector (#1094): sus tres commits (`2867e947`, `a6835d04`,
       `f4c28497`) están en `qa` y no en `main`. Termina cuando `git branch -r --contains f4c28497` muestra
       `origin/main`.
+- [ ] Subir y mergear a `qa` el arreglo que borra el código rechazado de las casillas —
+      rama `fix/CORE-614-borrar-codigo-erroneo`, commit `657aed15`, un archivo
+      (`apps/loan-request-wizard/app/routes/loan-application-form/client-code.tsx`). PENDIENTE DE MERGE.
+      Después hay que llevarlo a `main`, como el #1094.
 
 ## Objetivo
 
