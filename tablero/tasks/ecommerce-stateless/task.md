@@ -63,10 +63,9 @@ ramas: flujo-por-origen, autogestion-sin-entrega-al-propio-cliente, ecommerce-cu
       Amazon ECS»). Hoy el workflow sale ✔ apenas ECS acepta la orden, así que una flota a medio rotar
       se ve igual que una desplegada — es lo que costó la tarde del 21/9. Termina cuando un despliegue
       que no rota salga en rojo. Es de `config-ci`, no de esta tarea: hay que pasárselo a infra.
-- [ ] **Confirmar si `harness/.env.qa` apunta bien.** Declara `E2E_DB_HOST=inertia-dev`; la corrida del
-      arnés contra `qa` del 21/9 murió en el OTP y se leyó como que la base era otra, pero eso fue
-      durante la restauración. **Por confirmar, no es un hecho** — rehacer la corrida con la base
-      estable antes de tocar nada.
+- [x] **Confirmar si `harness/.env.qa` apunta bien.** Apunta a `inertia-development`, la misma instancia
+      que `.env.dev`, `.env.staging` y los conectores ([la medición](bloque:blk_20261001T223646.702450000Z_26514b7a)). Que el BACKEND de
+      `qa` escriba en esa instancia no está confirmado: lo cubre el pendiente de abajo.
 - [ ] **Cablear en el arnés el chequeo que faltó:** crear un id y preguntarle al backend si lo conoce.
       Es el equivalente, para la BASE, de lo que el `CLAUDE.md` del arnés ya recomienda para la RAMA
       (`allowed_document_types`). Y su hermano: **sondear el render del servidor varias veces**, que es
