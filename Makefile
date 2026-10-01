@@ -617,7 +617,7 @@ confluence: ## @har el POR QUÉ del negocio, que el código no tiene (sólo lect
 # ── CANON ─────────────────────────────────────────────────────────────────────────────────────────
 # Lectura gratis y escritura por la API, contra CANON_URL (producción por defecto: pide la VPN de
 # prod). Cuándo y qué se escribe: `.claude/skills/canon/SKILL.md`. La llave no se imprime nunca.
-.PHONY: canon-search canon-read canon-route canon-code canon-propose canon-write canon-local-sync
+.PHONY: canon-search canon-read canon-route canon-code canon-propose canon-write canon-export canon-patch canon-local-sync
 canon-route: ## @can el tramo de una variante publicada. REF='codeudor/renting#renting-codeudor'; sin #paso trae la variante entera
 	@cd tablero/server && go run ./cmd/canon route '$(REF)'
 
@@ -636,9 +636,15 @@ canon-code: ## @can los archivos que declara un área, del map.json de la copia 
 canon-propose: ## @can ensaya una pieza sin escribir: dónde iría y qué rechaza el lint. PIECE=<pieza.json>
 	@test -n "$(PIECE)" || { echo "falta PIECE=<pieza.json> (formato: .claude/skills/canon/SKILL.md)"; exit 2; }
 	@cd tablero/server && go run ./cmd/canon propose '$(abspath $(PIECE))'
-canon-write: ## @can ⚠ ESCRIBE en canon: borrador → piezas → cierre, en UNA revisión que ve el equipo. PIECE='a.json b.json' TITLE='…'
+canon-write: ## @can ⚠ ESCRIBE en canon: borrador → piezas → cierre, en UNA revisión que ve el equipo. PIECE='a.json b.json' TITLE='…' [DRY=1 ensaya el recorrido entero —cada pieza al borrador, con sus avisos y los archivos que un `verificado` releería— y lo abandona: no escribe]
 	@test -n "$(PIECE)" || { echo "falta PIECE=<pieza.json…>"; exit 2; }
-	@cd tablero/server && go run ./cmd/canon write -title '$(or $(TITLE),canon: dictado desde el playground)' $(abspath $(PIECE))
+	@cd tablero/server && go run ./cmd/canon write $(if $(DRY),-dry) -title '$(or $(TITLE),canon: dictado desde el playground)' $(foreach p,$(PIECE),$(abspath $(p)))
+canon-export: ## @can baja el corpus de canon, tal como está HOY, a una carpeta nueva para editar archivos enteros (un map.json con fuentes que ya no existen en main). DIR=<carpeta nueva>. Se publica con canon-patch
+	@test -n "$(DIR)" || { echo "falta DIR=<carpeta nueva>"; exit 2; }
+	@cd tablero/server && go run ./cmd/canon export -out '$(abspath $(DIR))'
+canon-patch: ## @can ⚠ ESCRIBE con APPLY=1 (sin él ensaya: canon valida el corpus resultante y muestra el diff): publica los archivos que cambiaste en DIR (la de canon-export), en una revisión parcial. DIR=… REASON='…'. Canon lo rechaza si el corpus cambió desde el export
+	@test -n "$(DIR)" -a -n "$(REASON)" || { echo "falta DIR=<carpeta de canon-export> y REASON='<por qué>'"; exit 2; }
+	@cd tablero/server && go run ./cmd/canon patch $(if $(APPLY),-apply) -dir '$(abspath $(DIR))' -reason '$(REASON)'
 # El canon LOCAL al día con el de producción: baja el corpus (`GET /api/export`, lectura) y lo escribe
 # como UNA revisión en la base de esta máquina (`canon -pg importar`, que se niega a una base remota sin
 # conectarse), y le pide a la instancia local que relea. Nada de esto escribe en producción.
@@ -646,7 +652,11 @@ canon-write: ## @can ⚠ ESCRIBE en canon: borrador → piezas → cierre, en UN
 # LOCAL, la instancia que relee.
 CANON_DIR ?= $(HOME)/Desktop/CREDITOP/github/playground/tools/canon
 canon-local-sync: ## @can el canon LOCAL igual al de producción: baja el corpus y lo carga en la base local (no escribe en prod). [LOCAL=http://localhost:8383] [CANON_DIR=…]
-	@cd '$(CANON_DIR)' && set -a && . ./.env && set +a && go run . -pg importar https://canon.playground.creditop.com 2>&1 | grep -v '^20[0-9][0-9]/' ; \
+	@# ⚠ prod está detrás de Google: sin la cookie `AUTH_GOOGLE` el export llega como la página de login («no es JSON»).
+	@# Vive en el conector de prod, no en el `.env` de canon.
+	@cd '$(CANON_DIR)' && set -a && . ./.env && set +a && \
+	  export AUTH_GOOGLE="$${AUTH_GOOGLE:-$$(grep '^AUTH_GOOGLE=' '$(CURDIR)/connectors/.env.prod' 2>/dev/null | cut -d= -f2-)}" && \
+	  go run . -pg importar https://canon.playground.creditop.com 2>&1 | grep -v '^20[0-9][0-9]/' ; \
 	  r=$$(curl -s -m 20 -X POST '$(or $(LOCAL),http://localhost:8383)/api/reload' -H "x-canon-key: $$CANON_WRITE_KEY") ; \
 	  if [ -n "$$r" ]; then echo "  releída: $$(echo "$$r" | python3 -c 'import json,sys;d=json.load(sys.stdin);print(d.get("temas"),"temas · diccionario",(d.get("diccionario") or {}).get("generado"))')"; \
 	  else echo "  ⚠ la instancia local no respondió: al levantarla lee el corpus nuevo"; fi

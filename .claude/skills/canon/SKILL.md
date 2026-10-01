@@ -52,9 +52,18 @@ el lint las rechaza. Entra lo que el código no dice o lo que ahorra leerlo.
 
 1. **Armá la pieza** (`pieza.json`, formato abajo).
 2. `make canon-propose PIECE=pieza.json` — no escribe; dice `ready`, qué rechaza el lint y dónde iría.
+   Para un lote de piezas (o una `operacion:"verificado"`, que `canon-propose` no entiende):
+   `make canon-write DRY=1 PIECE='a.json b.json'` hace el recorrido entero SIN cerrar —cada pieza al borrador,
+   con sus avisos y los archivos que un `verificado` releería— y abandona el borrador. No escribe.
 3. `make canon-write PIECE=pieza.json TITLE='…'` — **escribe**: abre el borrador, manda cada pieza y
    cierra en una sola revisión. Si algo falla, abandona el borrador y no queda nada a medias.
 4. Verificá con `make canon-search` que aparece, y dejá en la tarea un bloque con la cita.
+
+**Cuando una pieza no alcanza** (un archivo que main borró o renombró: un `verificado` no reapunta el mapa), se
+reescribe el archivo entero: `make canon-export DIR=<carpeta nueva>` baja el corpus de HOY, se edita el
+`content/<tema>/map.json`, y `make canon-patch DIR=… REASON='…'` ensaya (valida el corpus resultante y muestra
+el diff); con `APPLY=1` publica. Sólo viajan los archivos que cambiaron, y canon lo rechaza si el corpus
+cambió desde el export. ⚠ No se edita sobre `tablero/canon`: esa copia puede ir atrás.
 
 Por debajo es la API con la llave de escritura (`CANON_WRITE_KEY`, en el `.env` de `tools/canon`):
 `POST /api/draft` → una pieza por sección con `POST /api/draft/{id}` → `POST /api/draft/{id}/close`,

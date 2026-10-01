@@ -119,17 +119,23 @@ func (c *Client) Propose(ctx context.Context, piece Piece) (Proposal, error) {
 }
 
 // PieceResult es lo que canon contesta por cada pieza, con los avisos que no frenan pero importan.
+// Una pieza `verificado` además dice cuántos archivos releyó (`Reread`) y cuáles retiró por haber
+// desaparecido de main (`Retired`).
 type PieceResult struct {
 	OK        bool   `json:"ok"`
 	Operation string `json:"operacion"`
 	Error     string `json:"error"`
 	Notes     map[string]string
+	Reread    int
+	Retired   any
 }
 
+// Written es el resultado de dictar. En un ensayo (`Dry`) no hay revisión: el borrador se abandonó.
 type Written struct {
 	Revision int64 `json:"revision"`
 	Unlinked any   `json:"sin_enlazar"`
 	Pieces   []PieceResult
+	Dry      bool
 }
 
 // notes son los avisos de una pieza que conviene mostrar aunque haya entrado.
@@ -138,6 +144,17 @@ var notes = []string{"objetivo_de_plantilla", "archivos_nota", "tablas_nota", "y
 /* Write dicta: abre un borrador, manda cada pieza y lo cierra en UNA revisión. Si una pieza no entra o
  * el cierre falla, abandona el borrador: no queda nada a medias, ni en el corpus ni vivo en memoria. */
 func (c *Client) Write(ctx context.Context, author, title string, pieces []Piece) (Written, error) {
+	return c.write(ctx, author, title, pieces, false)
+}
+
+/* DryWrite es Write sin el cierre: manda cada pieza al borrador, recoge lo que canon contesta de cada una
+ * —la operación, los avisos, los archivos que un `verificado` releería— y abandona el borrador. No deja
+ * ninguna revisión. Es el ensayo completo; `Propose` sólo mira una pieza suelta. */
+func (c *Client) DryWrite(ctx context.Context, author string, pieces []Piece) (Written, error) {
+	return c.write(ctx, author, "", pieces, true)
+}
+
+func (c *Client) write(ctx context.Context, author, title string, pieces []Piece, dry bool) (Written, error) {
 	key, err := WriteKey()
 	if err != nil {
 		return Written{}, err
@@ -150,7 +167,7 @@ func (c *Client) Write(ctx context.Context, author, title string, pieces []Piece
 	}
 	abandon := func() { _ = c.call(ctx, http.MethodDelete, "/api/draft/"+draft.ID, nil, key, nil) }
 
-	var out Written
+	out := Written{Dry: dry}
 	for _, piece := range pieces {
 		var raw map[string]any
 		if err := c.call(ctx, http.MethodPost, "/api/draft/"+draft.ID, piece, key, &raw); err != nil {
@@ -170,7 +187,15 @@ func (c *Client) Write(ctx context.Context, author, title string, pieces []Piece
 				result.Notes[note] = text
 			}
 		}
+		if reread, ok := raw["releidos"].([]any); ok {
+			result.Reread = len(reread)
+		}
+		result.Retired = raw["retirados"]
 		out.Pieces = append(out.Pieces, result)
+	}
+	if dry {
+		abandon()
+		return out, nil
 	}
 
 	var closed struct {
@@ -188,12 +213,97 @@ func (c *Client) Write(ctx context.Context, author, title string, pieces []Piece
 	return out, nil
 }
 
+// PatchBase es el export del que se partió para editar. Canon rechaza el parche (412) si el corpus ya no
+// es ése: por eso el contenido que se manda tiene que salir de ESA base, no de una copia vieja.
+type PatchBase struct {
+	ETag   string // el `etag` del cuerpo del export: el If-Match
+	SHA256 string // el `sha256` del export: el `base_sha256`
+}
+
+// PatchRequest reemplaza archivos enteros del corpus (map.json, flow.json, los .md de un tema). Es una revisión
+// PARCIAL: lo que no se nombra se conserva, y un valor nil borra el archivo.
+type PatchRequest struct {
+	Author string
+	Reason string
+	Base   PatchBase
+	Files  map[string]*string
+	DryRun bool
+}
+
+// Patched es lo que canon contesta a un parche: qué archivos tocaría (o tocó) y, en un ensayo, el diff.
+type Patched struct {
+	DryRun   bool
+	Revision int64
+	SHA256   string
+	Files    []PatchedFile
+	Diff     map[string]string
+}
+
+type PatchedFile struct {
+	Action string
+	Path   string
+}
+
+/* Patch publica archivos enteros con /api/patch. Es lo que hace falta cuando una pieza no alcanza: un
+ * archivo que desapareció o cambió de nombre en main no lo reapunta un `verificado`, hay que reescribir
+ * el map.json. Valida el corpus resultante entero y no guarda nada si algo no cierra. */
+func (c *Client) Patch(ctx context.Context, request PatchRequest) (Patched, error) {
+	key, err := WriteKey()
+	if err != nil {
+		return Patched{}, err
+	}
+	if request.Base.ETag == "" || request.Base.SHA256 == "" {
+		return Patched{}, errors.New("falta la base del parche: el etag y el sha256 del export del que se editó")
+	}
+	body := map[string]any{
+		"author":      request.Author,
+		"reason":      request.Reason,
+		"base_sha256": request.Base.SHA256,
+		"dry_run":     request.DryRun,
+		"files":       request.Files,
+	}
+	var raw map[string]any
+	headers := map[string]string{"If-Match": request.Base.ETag}
+	if err := c.callWith(ctx, http.MethodPost, "/api/patch", body, key, headers, &raw); err != nil {
+		return Patched{}, err
+	}
+	if ok, _ := raw["ok"].(bool); !ok {
+		detail, _ := json.Marshal(raw)
+		return Patched{}, fmt.Errorf("canon no aceptó el parche (no se guardó nada): %s", detail)
+	}
+	out := Patched{DryRun: request.DryRun, Diff: map[string]string{}}
+	out.SHA256, _ = raw["sha256"].(string)
+	if revision, ok := raw["revision"].(float64); ok {
+		out.Revision = int64(revision)
+	}
+	if files, ok := raw["files"].([]any); ok {
+		for _, entry := range files {
+			if file, ok := entry.(map[string]any); ok {
+				action, _ := file["accion"].(string)
+				path, _ := file["path"].(string)
+				out.Files = append(out.Files, PatchedFile{Action: action, Path: path})
+			}
+		}
+	}
+	if diffs, ok := raw["diff"].(map[string]any); ok {
+		for path, text := range diffs {
+			out.Diff[path], _ = text.(string)
+		}
+	}
+	return out, nil
+}
+
 // rawText recibe el cuerpo tal cual, para las respuestas que no son JSON.
 type rawText string
 
 /* call hace un pedido a canon. Con `key` escribe, y ahí el tiempo es el de un cierre. Una respuesta de
  * error con cuerpo JSON se decodifica igual: canon explica ahí qué corregir, y es lo que hay que ver. */
 func (c *Client) call(ctx context.Context, method, path string, body any, key string, into any) error {
+	return c.callWith(ctx, method, path, body, key, nil, into)
+}
+
+// callWith es call con encabezados extra (el If-Match de un parche).
+func (c *Client) callWith(ctx context.Context, method, path string, body any, key string, headers map[string]string, into any) error {
 	var reader io.Reader
 	if body != nil {
 		encoded, err := json.Marshal(body)
@@ -207,6 +317,9 @@ func (c *Client) call(ctx context.Context, method, path string, body any, key st
 		return fmt.Errorf("CANON_URL inválida: %w", err)
 	}
 	req.Header.Set("Content-Type", "application/json")
+	for name, value := range headers {
+		req.Header.Set(name, value)
+	}
 	client := c.http
 	if key != "" {
 		req.Header.Set("Authorization", "Bearer "+key)
