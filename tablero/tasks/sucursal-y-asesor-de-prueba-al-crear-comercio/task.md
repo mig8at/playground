@@ -31,9 +31,17 @@ jira_title: "Sucursal y asesor de prueba al crear un comercio"
   Depende de: Daniel Sánchez (infra) — él sostiene que los servicios de dev no llegan a un pool de prod.
 - [ ] Cambiar la clave compartida de dev (`ALLIED_TEST_ADVISOR_PASSWORD`): quedó escrita en una
   conversación; termina cuando el secret tiene una clave nueva y la anterior ya no abre la cuenta.
-- [ ] Antes de activar Cognito en producción: pool de prod, variables, permisos IAM y una clave **distinta**
-  a la de dev; termina cuando prod las tiene y se hizo una prueba acotada.
-  Depende de: infra — pool de producción para comercios y permisos.
+- [ ] Hacer la Fase 1 de «Cómo se ataca» (leer prod, sólo lectura); termina cuando se sabe qué pool usa el
+  wizard de prod, qué permisos tiene el rol de la tarea, qué dice la política de claves del pool y cómo se
+  reconocen las solicitudes de prueba.
+  Depende de: Miguel — renovar la sesión del perfil de producción.
+- [ ] Decidir en prod si la cuenta de Cognito es automática desde el primer día o se pasa antes por la Fase 2 (sin
+  Cognito); se recomienda la Fase 2 primero. Termina cuando está escrita la decisión en un bloque.
+- [ ] Definir la clave propia de producción y su rotación; termina cuando `prod/legacy-application` la tiene y no es
+  la de dev.
+  Depende de: Miguel — la clave.
+- [ ] Ensayar en dev la reversa (claves vacías y reinicio de los servicios); termina cuando las tareas arrancan con
+  valores vacíos o se descubre que no y se cambia la reversa.
 - [ ] Opcional: enrutar `c*-fake@creditop.com` a un buzón compartido; termina cuando un correo de
   recuperación de clave a ese formato llega a alguien.
   Depende de: quien administra el Workspace.
@@ -96,7 +104,52 @@ desde el secret `dev/legacy-application` en **cada** despliegue).
 3. **Activación por ambiente** (variables en el secret + permisos IAM del rol de la tarea + el lambda del pool).
    Dev: variables hechas, faltan los permisos. Sin las variables el servicio no llama a Cognito: crea sucursal y
    asesor y deja la cuenta «omitida».
-4. **Producción**, con su propio pool, sus permisos y **otra** clave.
+4. **Producción**, por fases y cada una reversible. Es un plan, todavía no se ejecuta nada.
+
+   **Qué cambia respecto de dev:**
+
+   | | dev | producción |
+   |---|---|---|
+   | Cómo llega el código | push a `develop` | tag sobre `main` (`push: tags: "*"`); clúster `inertia-production`, **cuatro** servicios: `legacy-application`, `-worker`, `-worker-high`, `-scheduler` |
+   | Secret | `dev/legacy-application` | `prod/legacy-application` |
+   | Pool de comercios | Merchants Dev `us-east-2_Mh2hIqeQ5` | el que use el wizard **de prod**: `us-east-1_XnF2zz3Ou` por los secrets de dev (a confirmar leyendo `prod/loan-request-wizard`); el `.env` local apunta a `us-east-2_3n9lxmKCe`, **otro** pool de la misma cuenta: hay que saber cuál es el vivo. Región `us-east-1` o `us-east-2` según el caso |
+   | Lambda de pre-registro | `cognito-pre-sign-up-development` → backend de dev | el de producción → `legacy-backend.inertia-production`; el pool ya está en uso, pero hay que comprobar que su política autoriza al pool vigente |
+   | IAM | rol de la tarea de dev | rol de la tarea de prod, sobre el ARN del pool **de prod** (cuenta y región de prod) |
+   | Clave compartida | la de dev | **otra**, propia de prod, nunca la de dev |
+   | La cuenta creada | **no** entra al wizard (otro pool) | **sí** entra: es un asesor real de un comercio real |
+
+   **Fase 0 — antes de tocar prod (en dev).** Que infra dé el IAM y deje el permiso del lambda en el stack; probar el
+   flujo completo en dev (comercio nuevo, cuenta, reintento); **ensayar la reversa** (claves vacías + reinicio) para
+   comprobar que las tareas arrancan con valores vacíos, hoy sin verificar; y cerrar con infra a qué pool apunta cada
+   ambiente.
+
+   **Fase 1 — leer prod, sin cambiar nada** (perfil de producción, sólo lectura): el pool que usa el wizard de prod
+   y su región; el rol de la tarea y qué permisos de Cognito tiene ya; el lambda del pool, su política y su
+   `USER_SERVICE_URL`; `AllowAdminCreateUserOnly` y la política de claves del pool (la clave de prod tiene que
+   cumplirla); colisiones de datos (`users` tiene únicos el correo, el celular y el documento: buscar `4-9000%` en
+   documentos, `4-399%` en celulares y `c%-fake@%` en correos); y **cómo se reconocen las solicitudes de prueba**
+   en producción.
+
+   **Fase 2 — el código a prod, sin variables de Cognito** (un tag). Cada comercio nuevo nace con sucursal y asesor,
+   sin cuenta de Cognito, y la tarjeta lo explica. Se comprueba creando **un** comercio de prueba dedicado desde el
+   admin de prod (una operación normal del admin) y se deja identificado. Es el paso que valida que el alta no se
+   rompe antes de dar acceso a nadie.
+
+   **Fase 3 — permisos y variables de prod:** IAM del rol de la tarea de prod (cuatro acciones, ARN del pool de
+   prod), `MERCHANT_AWS_COGNITO_REGION`, `MERCHANT_AWS_COGNITO_USER_POOL_ID` y `ALLIED_TEST_ADVISOR_PASSWORD` con la
+   clave propia de prod. Las variables llegan en el **siguiente despliegue** (el workflow reconstruye la tarea desde
+   el secret), y como son cuatro servicios, hay que re-ejecutar el despliegue del último tag o sacar uno nuevo.
+
+   **Fase 4 — prueba acotada en prod:** el comercio de prueba dedicado → la cuenta aparece en el pool de prod,
+   `users.cognito_id` es igual a su `sub`, y Miguel inicia sesión en el wizard de prod con ese asesor. Después, dar de
+   baja el comercio (apaga a sus asesores en la base, ver canon) **y borrar la cuenta del pool**: la baja no la toca.
+
+   **Fase 5 — monitoreo:** buscar en los logs los eventos `allied.test_advisor`, `allied.test_advisor.failed` y
+   `allied.test_advisor.cognito_failed`; contar los asesores de prueba por correo `c%-fake@%`.
+
+   **Reversa en prod:** vaciar `MERCHANT_AWS_COGNITO_USER_POOL_ID` (con eso no se llama a Cognito) y reiniciar los
+   cuatro servicios; para apagar todo, revertir el release con un tag nuevo. Las cuentas ya creadas se borran del pool
+   y sus usuarios se desactivan.
 
 ## Lo que se evaluó y NO se eligió
 
