@@ -48,8 +48,15 @@ jira_title: "Sucursal y asesor de prueba al crear un comercio"
 - [ ] Publicar en canon cómo se crea un comercio (qué crea y qué no, las dos altas) y, cuando #243 llegue a
   `main`, el usuario de prueba; termina cuando `make canon-search` los encuentra.
   Depende de: que #243 llegue a `main` (sólo la parte nueva; lo del alta ya está verificado en `main`).
+- [ ] Que el motivo de una falla de Cognito sea visible sin logs: mostrar el código de error de AWS en la nota que ve
+  el admin (no es un secreto); termina cuando el diálogo y la tarjeta lo muestran y una prueba lo fija.
+- [ ] Que los eventos del servicio lleguen a Loki en dev: activar Loki para `legacy-application` (hoy
+  `GRAFANA_LOKI_ENABLED=false` y sin endpoint ni credenciales) **y** registrar los eventos por `TracerService`; termina
+  cuando `{service_name="legacy-application"}` devuelve líneas `allied.test_advisor`.
+  Depende de: Daniel Sánchez (infra) — activar Loki con las credenciales del backend.
 - [ ] Comprobar en un log real de dev que una falla de Cognito no escribe la clave; termina cuando se
   provoca una falla y el log no la contiene.
+  Depende de: que los eventos sean legibles (los dos pendientes anteriores).
 - [ ] Quitar de `.claude/launch.json` la entrada `admin-test-advisor`, que apunta a un worktree que ya no
   existe; termina cuando no figura.
   Depende de: Miguel — confirmar que se quita sólo esa entrada y no el archivo.
