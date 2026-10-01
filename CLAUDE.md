@@ -225,7 +225,7 @@ en el proceso no tapa la del archivo. Desde otro lenguaje se llega por **`bin/pg
   credencial vence sin avisar.
 
 **Qué rama sirve cada target:** `local` → local · `dev` → `develop` · `staging` → `staging` · `qa` →
-`qa`. `dev`, `qa` y `staging` **comparten la BD** (`inertia-dev`) pero **no el backend**: el detalle, en
+`qa`. `dev`, `qa` y `staging` **comparten la BD** (`inertia-development`, en la cuenta de desarrollo; antes de la migración se llamaba `inertia-dev`) pero **no el backend**: el detalle, en
 `harness/CLAUDE.md` §«Qué es real en cada target».
 
 **Los permisos no van en archivo.** `I_KNOW_THIS_TOUCHES_SHARED_DEV` se exporta a mano en la shell

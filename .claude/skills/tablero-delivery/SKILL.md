@@ -75,7 +75,7 @@ el 2026-09-27.
   Lo que sí es estable, y es lo que hay que tener claro al escribir una tarea:
 
   1. **Comparten la base de datos, no el código.** Medido el 2026-08-20: `dev`, `qa` y `staging`
-     apuntan los tres a la **misma** base (`inertia-dev`), pero a **backends distintos**
+     apuntan los tres a la **misma** base (hoy `inertia-development`, en la cuenta de desarrollo, reconfirmado el 2026-10-01 por el host de cada `.env`; antes de la migración se llamaba `inertia-dev`), pero a **backends distintos**
      (`legacy-backend`, `legacy-backend-qa`, `legacy-backend-stg`) y **fronts distintos**. De ahí las
      dos caras: sembrar un dato o correr una migración **una vez sirve para los tres** —por eso las
      migraciones de Motai aparecen aplicadas en dev y en qa a la vez—, pero **la misma solicitud se
