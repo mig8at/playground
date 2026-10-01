@@ -65,6 +65,12 @@ reescribe el archivo entero: `make canon-export DIR=<carpeta nueva>` baja el cor
 el diff); con `APPLY=1` publica. Sólo viajan los archivos que cambiaron, y canon lo rechaza si el corpus
 cambió desde el export. ⚠ No se edita sobre `tablero/canon`: esa copia puede ir atrás.
 
+**Para saber qué falta ponerse al día:** `make canon-round` es la ronda del SERVIDOR (qué archivos que el corpus declara
+cambiaron en main; sale 1 si alguno). Compara contra los clones del servidor, así que si main avanzó hace un rato,
+primero `make canon-clones SYNC=1` (los refresca; `make canon-clones` dice a qué commit llega cada uno) y después
+`make canon-round FORCE=1`: el servidor cachea la ronda diez minutos y sin `FORCE` puede decir «al día» con un merge
+de hace minutos sin ver.
+
 Por debajo es la API con la llave de escritura (`CANON_WRITE_KEY`, en el `.env` de `tools/canon`):
 `POST /api/draft` → una pieza por sección con `POST /api/draft/{id}` → `POST /api/draft/{id}/close`,
 que valida el corpus entero y guarda todo en una revisión. `POST /api/propose` ensaya sin escribir.

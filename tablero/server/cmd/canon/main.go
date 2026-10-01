@@ -8,6 +8,8 @@
 //	write <pieza.json>… [-title T]       borrador → piezas → cierre: UNA revisión. ESCRIBE
 //	write -dry <pieza.json>…             el mismo recorrido SIN el cierre: dice qué haría canon con cada pieza y abandona el borrador
 //	export -out <carpeta>                el corpus de canon, tal como está hoy, para editar archivos enteros (map.json…)
+//	round [-force]                       qué archivos que el corpus declara cambiaron en main (contra los clones del servidor)
+//	clones [-sync] [-repo R]             a qué commit de main está el clon de cada repo en el servidor; -sync le pide que los refresque
 //	patch -dir <carpeta> -reason R       publica los archivos que cambiaste en esa carpeta. Sin -apply sólo ensaya y muestra el diff
 //	corpus                               el corpus entero en JSON, para los cruces de `tools/canon.py`
 //
@@ -70,6 +72,10 @@ func main() {
 		err = exportCorpus(ctx, client, args)
 	case "patch":
 		err = patch(ctx, client, args)
+	case "clones":
+		err = clones(ctx, client, args)
+	case "round":
+		err = round(ctx, client, args)
 	case "corpus":
 		err = corpus(ctx, client)
 	case "map":
@@ -84,7 +90,7 @@ func main() {
 }
 
 func usage() {
-	fmt.Fprintln(os.Stderr, "uso: canon search|read|route|code|propose|write|export|patch …  (ver `make canon-search` y sus vecinos)")
+	fmt.Fprintln(os.Stderr, "uso: canon search|read|route|code|propose|write|export|patch|clones|round …  (ver `make canon-search` y sus vecinos)")
 	os.Exit(2)
 }
 
@@ -255,6 +261,52 @@ func write(ctx context.Context, client *canon.Client, args []string) error {
 		if text, _ := json.Marshal(written.Unlinked); len(text) > 4 {
 			fmt.Printf("    ⚠ sin enlazar: %s\n", text)
 		}
+	}
+	return nil
+}
+
+// round: la ronda del servidor. Sale 1 si algo cambió, para poder usarla en un chequeo.
+func round(ctx context.Context, client *canon.Client, args []string) error {
+	flags := flag.NewFlagSet("round", flag.ExitOnError)
+	force := flags.Bool("force", false, "volver a medir en vez de servir el caché de diez minutos del servidor")
+	_ = flags.Parse(args)
+	result, err := client.Round(ctx, *force)
+	if err != nil {
+		return err
+	}
+	if len(result.Changes) == 0 {
+		fmt.Printf("  ronda al día: %d archivos declarados, ninguno cambió en main\n", result.Declared)
+		return nil
+	}
+	fmt.Printf("  ronda: %d de %d archivos declarados cambiaron en main\n", len(result.Changes), result.Declared)
+	for _, change := range result.Changes {
+		fmt.Printf("    %-16s %s:%s  %s → %s\n", change.Topic, change.Repo, change.Path, change.Before, change.Now)
+	}
+	return fmt.Errorf("«cambió» no es «dejó de ser cierto»: se relee cada archivo antes de mover su hash")
+}
+
+/* clones dice a qué commit de main llega el clon que el servidor tiene de cada repo. La ronda del servidor compara
+ * contra ESOS clones: si main avanzó después, no ve el cambio hasta que se refresquen. Con -sync se lo pide. */
+func clones(ctx context.Context, client *canon.Client, args []string) error {
+	flags := flag.NewFlagSet("clones", flag.ExitOnError)
+	sync := flags.Bool("sync", false, "pedirle al servidor que refresque los clones")
+	repo := flags.String("repo", "", "sólo ese repo (Creditop-SAS/<nombre>); sin esto, todos")
+	_ = flags.Parse(args)
+	if *sync {
+		if err := client.SyncClones(ctx, *repo); err != nil {
+			return err
+		}
+		fmt.Println("  ✓ el servidor empezó a refrescar los clones (corre allá: volvé a mirar en unos segundos)")
+	}
+	list, err := client.Clones(ctx)
+	if err != nil {
+		return err
+	}
+	for _, clone := range list {
+		if *repo != "" && clone.Repo != *repo {
+			continue
+		}
+		fmt.Printf("  %-46s %s  %s\n", clone.Repo, clone.Commit, clone.State)
 	}
 	return nil
 }

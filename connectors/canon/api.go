@@ -293,6 +293,114 @@ func (c *Client) Patch(ctx context.Context, request PatchRequest) (Patched, erro
 	return out, nil
 }
 
+// CloneState es el estado del clon de main que el servidor de canon tiene de un repo: el commit hasta el que
+// llega lo que canon puede comparar contra lo que el corpus declara.
+type CloneState struct {
+	Repo   string
+	Commit string
+	State  string
+}
+
+// Clones dice, por repo, a qué commit de main está el clon del servidor. Si main avanzó después, la ronda del
+// servidor no ve el cambio hasta que el clon se refresque (`SyncClones`).
+func (c *Client) Clones(ctx context.Context) ([]CloneState, error) {
+	var raw map[string]any
+	if err := c.call(ctx, http.MethodGet, "/api/clones", nil, "", &raw); err != nil {
+		return nil, err
+	}
+	list, _ := raw["repos"].([]any)
+	out := make([]CloneState, 0, len(list))
+	for _, entry := range list {
+		item, ok := entry.(map[string]any)
+		if !ok {
+			continue
+		}
+		repo, _ := item["repo"].(string)
+		commit, _ := item["commit"].(string)
+		state, _ := item["estado"].(string)
+		out = append(out, CloneState{Repo: repo, Commit: commit, State: state})
+	}
+	return out, nil
+}
+
+// SyncClones le pide al servidor que refresque sus clones (todos, o sólo `repo`, que es `Creditop-SAS/<nombre>`).
+// Contesta enseguida: la sincronización corre en el servidor y se ve con `Clones`.
+func (c *Client) SyncClones(ctx context.Context, repo string) error {
+	key, err := WriteKey()
+	if err != nil {
+		return err
+	}
+	var raw map[string]any
+	if err := c.call(ctx, http.MethodPost, "/api/clones/sync", map[string]string{"repo": repo}, key, &raw); err != nil {
+		return err
+	}
+	if ok, _ := raw["ok"].(bool); !ok {
+		detail, _ := json.Marshal(raw)
+		return fmt.Errorf("canon no sincronizó los clones: %s", detail)
+	}
+	return nil
+}
+
+// RoundChange es un archivo que el corpus declara y cambió en main desde el hash que declara.
+type RoundChange struct {
+	Topic  string
+	Repo   string
+	Path   string
+	Before string
+	Now    string
+}
+
+// Round es la ronda del servidor: cuántos archivos declarados cambiaron en main (contra los clones del servidor)
+// y cuáles. «Cambió» no es «dejó de ser cierto»: cada uno se relee antes de mover su hash.
+type Round struct {
+	Declared int
+	UpToDate bool
+	Changes  []RoundChange
+}
+
+// Round pide la ronda. El servidor la cachea diez minutos: con `force` la vuelve a medir, que es lo que hace falta
+// justo después de refrescar los clones o de mover un hash.
+func (c *Client) Round(ctx context.Context, force bool) (Round, error) {
+	path := "/api/round"
+	if force {
+		path += "?force=1"
+	}
+	var raw map[string]any
+	var client *http.Client
+	if force {
+		client = patientClient()
+	}
+	if err := c.callOn(ctx, client, http.MethodGet, path, nil, "", nil, &raw); err != nil {
+		return Round{}, err
+	}
+	out := Round{}
+	if declared, ok := raw["declared"].(float64); ok {
+		out.Declared = int(declared)
+	}
+	out.UpToDate, _ = raw["up_to_date"].(bool)
+	round, _ := raw["round"].(map[string]any)
+	topics, _ := round["topics"].([]any)
+	for _, entry := range topics {
+		topic, _ := entry.(map[string]any)
+		name, _ := topic["topic"].(string)
+		areas, _ := topic["areas"].([]any)
+		for _, areaEntry := range areas {
+			area, _ := areaEntry.(map[string]any)
+			changes, _ := area["changes"].([]any)
+			for _, changeEntry := range changes {
+				change, _ := changeEntry.(map[string]any)
+				item := RoundChange{Topic: name}
+				item.Repo, _ = change["repo"].(string)
+				item.Path, _ = change["path"].(string)
+				item.Before, _ = change["before"].(string)
+				item.Now, _ = change["now"].(string)
+				out.Changes = append(out.Changes, item)
+			}
+		}
+	}
+	return out, nil
+}
+
 // rawText recibe el cuerpo tal cual, para las respuestas que no son JSON.
 type rawText string
 
@@ -302,8 +410,18 @@ func (c *Client) call(ctx context.Context, method, path string, body any, key st
 	return c.callWith(ctx, method, path, body, key, nil, into)
 }
 
+// patientClient es el cliente de lo que tarda más que una lectura: un cierre, o medir la ronda entera de nuevo.
+func patientClient() *http.Client {
+	return &http.Client{Timeout: writeTimeout, Transport: newSessionTransport(nil)}
+}
+
 // callWith es call con encabezados extra (el If-Match de un parche).
 func (c *Client) callWith(ctx context.Context, method, path string, body any, key string, headers map[string]string, into any) error {
+	return c.callOn(ctx, nil, method, path, body, key, headers, into)
+}
+
+// callOn hace el pedido con `client` (nil: el de lectura, o el paciente si hay `key`).
+func (c *Client) callOn(ctx context.Context, client *http.Client, method, path string, body any, key string, headers map[string]string, into any) error {
 	var reader io.Reader
 	if body != nil {
 		encoded, err := json.Marshal(body)
@@ -320,10 +438,12 @@ func (c *Client) callWith(ctx context.Context, method, path string, body any, ke
 	for name, value := range headers {
 		req.Header.Set(name, value)
 	}
-	client := c.http
+	if client == nil {
+		client = c.http
+	}
 	if key != "" {
 		req.Header.Set("Authorization", "Bearer "+key)
-		client = &http.Client{Timeout: writeTimeout, Transport: newSessionTransport(nil)}
+		client = patientClient()
 	}
 	res, err := client.Do(req)
 	if errors.Is(err, ErrSession) {

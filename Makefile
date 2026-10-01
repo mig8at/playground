@@ -617,7 +617,7 @@ confluence: ## @har el POR QUÉ del negocio, que el código no tiene (sólo lect
 # ── CANON ─────────────────────────────────────────────────────────────────────────────────────────
 # Lectura gratis y escritura por la API, contra CANON_URL (producción por defecto: pide la VPN de
 # prod). Cuándo y qué se escribe: `.claude/skills/canon/SKILL.md`. La llave no se imprime nunca.
-.PHONY: canon-search canon-read canon-route canon-code canon-propose canon-write canon-export canon-patch canon-local-sync
+.PHONY: canon-search canon-read canon-route canon-code canon-propose canon-write canon-round canon-clones canon-export canon-patch canon-local-sync
 canon-route: ## @can el tramo de una variante publicada. REF='codeudor/renting#renting-codeudor'; sin #paso trae la variante entera
 	@cd tablero/server && go run ./cmd/canon route '$(REF)'
 
@@ -639,6 +639,10 @@ canon-propose: ## @can ensaya una pieza sin escribir: dónde iría y qué rechaz
 canon-write: ## @can ⚠ ESCRIBE en canon: borrador → piezas → cierre, en UNA revisión que ve el equipo. PIECE='a.json b.json' TITLE='…' [DRY=1 ensaya el recorrido entero —cada pieza al borrador, con sus avisos y los archivos que un `verificado` releería— y lo abandona: no escribe]
 	@test -n "$(PIECE)" || { echo "falta PIECE=<pieza.json…>"; exit 2; }
 	@cd tablero/server && go run ./cmd/canon write $(if $(DRY),-dry) -title '$(or $(TITLE),canon: dictado desde el playground)' $(foreach p,$(PIECE),$(abspath $(p)))
+canon-round: ## @can la ronda del SERVIDOR: qué archivos que el corpus declara cambiaron en main (contra los clones del servidor: si main avanzó, antes canon-clones SYNC=1). El servidor la cachea 10 min: FORCE=1 la vuelve a medir. Sale 1 si algo cambió
+	@cd tablero/server && go run ./cmd/canon round $(if $(FORCE),-force)
+canon-clones: ## @can a qué commit de main está el clon de cada repo EN EL SERVIDOR de canon (la ronda compara contra eso). SYNC=1 le pide que los refresque [REPO=Creditop-SAS/<nombre>]
+	@cd tablero/server && go run ./cmd/canon clones $(if $(SYNC),-sync) $(if $(REPO),-repo '$(REPO)')
 canon-export: ## @can baja el corpus de canon, tal como está HOY, a una carpeta nueva para editar archivos enteros (un map.json con fuentes que ya no existen en main). DIR=<carpeta nueva>. Se publica con canon-patch
 	@test -n "$(DIR)" || { echo "falta DIR=<carpeta nueva>"; exit 2; }
 	@cd tablero/server && go run ./cmd/canon export -out '$(abspath $(DIR))'
