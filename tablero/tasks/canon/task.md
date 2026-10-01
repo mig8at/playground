@@ -7,6 +7,7 @@ created: "2026-09-07T08:30:00-05:00"
 canon: []
 jira: []
 jira_title: ""
+ramas: feat/canon-clones-encendido, feat/canon-corrector-busca-en-todos, feat/canon-sonda-clone
 ---
 
 ## Frentes activos
