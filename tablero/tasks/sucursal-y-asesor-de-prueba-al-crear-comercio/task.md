@@ -233,6 +233,7 @@ arrancar la tarea); la reversa segura sigue sin probarse.
 ## Referencias
 
 - Plan para qa y staging (cambiar el login del wizard a Merchants Dev, con hoja de vuelta): `artifacts/plan-pruebas-qa-staging.html`, del 2026-10-02.
+- Scripts para cambiar el login de un wizard desplegado a Merchants Dev y volver (carpeta local `~/Desktop/CREDITOP/cognito`, fuera de git, sin secretos): estado, crear el cliente, cambiar, probar el login y revertir, con `--dry-run`.
 - Plan para producción (mantener el pool de producción; apagar es vaciar una variable): `artifacts/plan-produccion.html`, del 2026-10-02.
 - [PR #243](pr:application#243) — mergeado a `develop` el 2026-10-01.
 - Canon: [comercio](canon:comercio), [sucursal](canon:sucursal), [asesor](canon:asesor), [actores](canon:actores).
