@@ -17,10 +17,15 @@ jira_title: "Sucursal y asesor de prueba al crear un comercio"
 - [x] Obtener los permisos IAM del rol `inertia-develop-legacy-application-task-role` sobre Merchants Dev
   (`AdminCreateUser`, `AdminSetUserPassword`, `AdminGetUser`, `AdminDeleteUser`). Verificado el 2026-10-02 por
   efecto, no leyendo IAM (el rol de desarrollo no lo lee): los comercios 346 y 347 crearon su cuenta en el pool.
-- [ ] Mergear el PR del lambda que agrega al stack el permiso para Merchants Dev; termina cuando
-  `aws lambda get-policy` muestra una entrada del stack hacia `us-east-2_Mh2hIqeQ5` y se quita la manual
-  `merchants-dev-pool` sin que crear un comercio en dev falle.
-  Depende de: Daniel Sánchez (infra) — revisar y mergear [PR 3 del lambda](https://github.com/Creditop-SAS/cognito-pre-sign-up/pull/3).
+- [x] Mergear el PR del lambda que agrega al stack el permiso para Merchants Dev (hecho el 2026-10-02; el
+  despliegue terminó en `UPDATE_COMPLETE` y el lambda rechaza con su mensaje un correo ajeno).
+- [ ] Quitar la entrada manual `merchants-dev-pool` de la política del lambda; termina cuando
+  `aws lambda get-policy` ya no la muestra y crear un comercio en dev sigue dejando la cuenta de Cognito.
+  Depende de: Miguel — correr `aws lambda remove-permission` (el rol de desarrollo no puede).
+- [ ] Decidir cómo entran al wizard los asesores de prueba: los clientes del login de dev, qa y staging no
+  existen en Merchants Dev, donde se crean las cuentas. Termina cuando hay un ambiente donde el asesor de
+  prueba entra de verdad y `make harness-login-check` lo confirma.
+  Depende de: Daniel Sánchez (infra) — a qué pool y cliente debe apuntar el login del wizard en dev.
 - [ ] Confirmar a qué pool apuntan dev, qa y staging; termina cuando infra confirma o desmiente que
   `us-east-1_XnF2zz3Ou` es el pool de comercios de producción. Prueba decisiva: buscar
   `oscar+dentix@creditop.com` en ese pool desde la consola de producción.
