@@ -46,6 +46,12 @@
     <tr><th>Sin verificar</th><td>(1) Si el wizard desplegado de qa necesita algo más que esos tres valores. (2) Si el gateway que valida tokens antes del backend acepta el pool nuevo: los autorizadores de dev apuntan a otros pools. (3) Cuánto tarda de verdad el redespliegue de qa. Se resuelven en el ensayo del paso 0.</td></tr>
   </table>
 
+  <h2>El orden: dev desplegado, después qa, después staging</h2>
+  <div class="card">
+    <p><strong>Dev primero.</strong> Es el ambiente donde equivocarse cuesta menos, y funciona como ensayo real de la vuelta atrás (reemplaza al «paso 0» de abajo). Si sale bien, qa repite los mismos pasos. Staging va al final y solo cuando qa lleve un tiempo bien.</p>
+    <p><strong>Qué se gana en dev.</strong> Cualquier compañero (por ejemplo Duncan) puede crear un comercio en el admin de dev y entrar como su asesor de prueba en <code>originaciones.dev.creditop.com</code>, sin hacer nada manual en Cognito. Solo necesita la clave compartida, que se le pasa por un canal privado.</p>
+  </div>
+
   <h2>Qué se puede deshacer y qué no</h2>
   <div class="card">
     <p><strong>Se deshace fácil:</strong> la configuración del wizard. Vive en un secret con versiones: se guarda la actual, se pone la nueva y, si hace falta, se devuelve la anterior y se reinicia el servicio.</p>
@@ -58,15 +64,16 @@
   <h2>Hoja de vuelta (con los datos de hoy)</h2>
   <table>
     <tr><th>Ambiente</th><th>Servicio</th><th>Secret</th><th>Versión actual (a la que se vuelve)</th></tr>
+    <tr><td>dev (desplegado)</td><td><code>loan-request-wizard</code></td><td><code>dev/loan-request-wizard</code></td><td><code>f8b5cc84-320d-4bef-976c-bbaecee973c9</code></td></tr>
     <tr><td>qa</td><td><code>loan-request-wizard-qa</code></td><td><code>dev/loan-request-wizard-qa</code></td><td><code>c6a02706-73fb-48a4-8f5f-d1bf55e1c6e2</code></td></tr>
     <tr><td>staging</td><td><code>loan-request-wizard-stg</code></td><td><code>dev/loan-request-wizard-stg</code></td><td><code>def326e3-d77a-4827-b00a-ef389b7519ab</code></td></tr>
   </table>
-  <p>Clúster: <code>inertia-develop</code> · región <code>us-east-2</code> · perfil <code>dev</code>. Valores de hoy en ambos (no secretos): dominio <code>auth.merchant.creditop.com</code>, cliente <code>il7p9uebtjjaoaqc6q9brg6f</code>. URL de retorno de qa: <code>https://originaciones-qa.dev.creditop.com/auth/callback</code>; de staging: <code>https://originaciones-stg.dev.creditop.com/auth/callback</code>. <em>Las versiones cambian si alguien edita el secret antes del día: se vuelven a leer ese día.</em></p>
+  <p>Clúster: <code>inertia-develop</code> · región <code>us-east-2</code> · perfil <code>dev</code>. Valores de hoy en ambos (no secretos): dominio <code>auth.merchant.creditop.com</code>, cliente <code>il7p9uebtjjaoaqc6q9brg6f</code>. URL de retorno de dev: <code>https://originaciones.dev.creditop.com/auth/callback</code>; de qa: <code>https://originaciones-qa.dev.creditop.com/auth/callback</code>; de staging: <code>https://originaciones-stg.dev.creditop.com/auth/callback</code>. <em>Las versiones cambian si alguien edita el secret antes del día: se vuelven a leer ese día.</em></p>
 
   <h2>Pasos</h2>
   <ol class="steps">
     <li><span class="who">Antes · sin riesgo</span>
-      <strong>Paso 0 · ensayar la vuelta.</strong> En un secret que no importe (el del wizard de dev) cambiar un valor irrelevante, redesplegar, devolver la versión anterior y comprobar que el servicio arranca igual. Así se sabe cuánto tarda y que el comando de vuelta funciona antes de necesitarlo.
+      <strong>Paso 0 · dev desplegado, de principio a fin.</strong> Hacer los pasos 1 a 6 sobre el wizard desplegado de dev (cliente <code>wizard-dev</code>, secret <code>dev/loan-request-wizard</code>, servicio <code>loan-request-wizard</code>, retorno <code>https://originaciones.dev.creditop.com/auth/callback</code>). Después, <em>ensayar la vuelta</em> aunque todo haya salido bien: devolver la versión anterior, comprobar que el servicio arranca igual y cuánto tarda, y volver a poner la nueva. Así el comando de vuelta está probado antes de usarlo en qa.
     </li>
     <li><span class="who">Miguel · solo agrega</span>
       <strong>Paso 1 · crear el cliente de qa en Merchants Dev.</strong> No afecta a nadie y se puede borrar. Un cliente por ambiente, para que cada uno tenga su secreto y quitar uno no toque al otro.
@@ -92,6 +99,8 @@ aws ecs wait services-stable --cluster inertia-develop --services loan-request-w
       <strong>Paso 5 · comprobar que el asesor de prueba entra.</strong> Crear un comercio en el admin de dev (la base es la misma que usa qa) y correr, desde la raíz de <code>playground</code>:
 <pre><code>make harness-login-check TARGETS=qa ALLIED=last BLOQUE=98</code></pre>
       Sin la clave en la shell solo descubre a qué login manda qa: debe decir <code>merchant-develop…</code>.
+      Para el wizard <em>desplegado</em> de dev (el harness usa por defecto el local), apuntar la herramienta a su URL:
+<pre><code>cd harness &amp;&amp; E2E_BASE_URL=https://originaciones.dev.creditop.com node dev/login-check.ts --targets dev --allied last</code></pre>
     </li>
     <li><span class="who">Decisión</span>
       <strong>Paso 6 · seguir o volver.</strong> Ver la regla de salida abajo.</li>
