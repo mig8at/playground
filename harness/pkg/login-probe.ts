@@ -204,6 +204,16 @@ async function signInClassic(page: Page, user: string, pass: string, returnHost:
     await page.waitForLoadState('networkidle', { timeout: 8_000 }).catch(() => {});
 }
 
+/**
+ * Entra en la página de login que tenga delante `page` y espera a que la app asiente la sesión. Hay dos formas de
+ * login y se elige sola: la clásica de una página (Merchants Dev) y la de dos pasos (Managed Login, que sabe hacer
+ * `cognitoLogin`). Nunca guarda nada en el cache compartido (`savePath: null`).
+ */
+export async function loginOnPage(page: Page, user: string, pass: string, returnHost: string): Promise<void> {
+    if (await isClassicLogin(page)) await signInClassic(page, user, pass, returnHost);
+    else await cognitoLogin(page, user, pass, returnHost, null);
+}
+
 export interface ProbeOptions {
     user: string;
     pass: string;
@@ -234,10 +244,7 @@ export async function probeLogin(browser: Browser, opts: ProbeOptions): Promise<
     const { context, page } = await openA(browser, { baseURL: front, userAgent: IPHONE_UA });
     try {
         await page.goto('/merchant', { waitUntil: 'domcontentloaded', timeout: 60_000 }).catch(() => { /* lo decide la URL */ });
-        // Dos formas de login: la clásica de una página (Merchants Dev) y la de dos pasos (Managed Login).
-        // `savePath: null` en `cognitoLogin` = no escribe ningún cache (ver el aviso de arriba).
-        if (await isClassicLogin(page)) await signInClassic(page, opts.user, opts.pass, returnHost);
-        else await cognitoLogin(page, opts.user, opts.pass, returnHost, null);
+        await loginOnPage(page, opts.user, opts.pass, returnHost);
         // Si hubo formulario y volvió a la app, `cognitoLogin` ya esperó el callback. Si no hubo
         // formulario, o seguimos en Cognito, no entramos.
         const url = page.url();
