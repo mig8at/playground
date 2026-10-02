@@ -32,10 +32,9 @@ jira_title: "Sucursal y asesor de prueba al crear un comercio"
   que valida el token acepta ese pool.
 - [ ] Reubicar los asesores que ya entran a qa y staging: su `cognito_id` es del pool actual y dejarán de
   entrar al cambiar; termina cuando cada uno existe en Merchants Dev con su `sub` en la base.
-- [ ] Confirmar a qué pool apuntan dev, qa y staging; termina cuando infra confirma o desmiente que
-  `us-east-1_XnF2zz3Ou` es el pool de comercios de producción. Prueba decisiva: buscar
-  `oscar+dentix@creditop.com` en ese pool desde la consola de producción.
-  Depende de: Daniel Sánchez (infra) — él sostiene que los servicios de dev no llegan a un pool de prod.
+- [x] Confirmar a qué pool apuntan dev, qa y staging (2026-10-02): al de PRODUCCIÓN. El id `us-east-1_XnF2zz3Ou` es el
+  pool Merchants de la consola de producción. Falta, sólo para cerrar del todo, ver en esa consola que el dominio
+  `auth.merchant.creditop.com` y el cliente `il7p9ueb…` son los de ese pool.
 - [ ] Cambiar la clave compartida de dev (`ALLIED_TEST_ADVISOR_PASSWORD`): quedó escrita en una
   conversación; termina cuando el secret tiene una clave nueva y la anterior ya no abre la cuenta.
 - [ ] Hacer la Fase 1 de «Cómo se ataca» (leer prod, sólo lectura); termina cuando se sabe qué pool usa el
