@@ -117,14 +117,23 @@ func TestArgvBuildsTheCommandLineAndRejectsWhatDoesNotFit(t *testing.T) {
 
 // Sólo las herramientas que escriben ofrecen `apply`, y el ambiente se ofrece con sus cinco valores.
 func TestTheSchemaOffersApplyOnlyToWritesAndTheTargetEnum(t *testing.T) {
-	// Canon sólo tiene base en local (el laboratorio) y en prod: ofrecer dev/qa/staging invitaría a leer otro ambiente por accidente.
-	onlyLocalAndProd := map[string]bool{"canon sql": true, "canon tables": true, "canon config": true}
+	// Los que sólo existen en algunos ambientes ofrecen exactamente ésos. Canon sólo tiene base en local (el laboratorio) y en
+	// prod: ofrecer dev/qa/staging invitaría a leer otro ambiente por accidente. El admin sólo existe en local, dev y staging: qa
+	// no tiene admin propio (comparte la base con dev) y producción es sólo lectura, así que ofrecerlos invitaría a crear un
+	// comercio donde no se debe.
+	restricted := map[string]string{
+		"canon sql": "local,prod", "canon tables": "local,prod", "canon config": "local,prod",
+		"admin status": "local,dev,staging", "admin allied-create": "local,dev,staging",
+	}
 	for _, c := range tools() {
-		if onlyLocalAndProd[c.Name] {
+		if want, ok := restricted[c.Name]; ok {
 			props := toolSchema(c)["properties"].(map[string]any)
 			tp, _ := props["target"].(map[string]any)
-			if got := strings.Join(tp["enum"].([]string), ","); got != "local,prod" {
-				t.Errorf("%s: el target tiene que ofrecer exactamente local y prod, ofrece %q", c.Name, got)
+			if got := strings.Join(tp["enum"].([]string), ","); got != want {
+				t.Errorf("%s: el target tiene que ofrecer exactamente %s, ofrece %q", c.Name, want, got)
+			}
+			if _, has := props["apply"]; has != c.Write {
+				t.Errorf("%s: ¿apply en el esquema? %v, ¿escribe? %v", c.Name, has, c.Write)
 			}
 			continue
 		}
