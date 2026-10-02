@@ -10,13 +10,9 @@
 // En local `bin/admin-session` emite una sesión con el guard real de Laravel y acá se inyecta la cookie.
 // Se puede porque hay `artisan` a mano; el PHP además aborta si `APP_ENV` no es `local`.
 //
-// Contra dev, staging o producción **eso no se puede ni se debe**: no hay shell en esos contenedores, y
-// meter una contraseña de admin en un script del harness sería peor que la molestia que ahorra. Así que
-// para los remotos esto abre la URL y **vos te logueás**.
-//
-// Lo que sí hace por vos: cada target remoto tiene su PERFIL PERSISTENTE de navegador (`.auth/admin-<t>`),
-// así que te logueás UNA vez y las siguientes ya entra. Es el mismo mecanismo con el que un navegador
-// normal te recuerda: cookies en disco, sin credenciales nuestras de por medio.
+// Contra dev y staging **no hay shell** en los contenedores: la sesión sale de `make harness-signin KIND=admin
+// TARGET=<t>` (la guarda `pkg/sessions.ts`, de UNA persona, con las credenciales de su `connectors/.env.<t>`) y esta
+// ventana la usa. Sin sesión guardada no entra: dice cómo conseguirla. Nunca cae a la credencial de otra persona.
 //
 // ⚠ Producción NO está en la lista, y es a propósito. Esto es el panel con el que se corren flujos de
 // prueba; un click al admin de producción al lado del botón de correr un caso es un accidente esperando.
@@ -30,7 +26,6 @@
 // dominio de la ruta con `getHost()`, que excluye el puerto, así que con `localhost` todo da 404.
 
 import { execFileSync, spawn } from 'node:child_process';
-import { mkdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 
 const ROOT = process.cwd();
@@ -50,36 +45,6 @@ const ADMINS: Record<string, string> = {
     dev: 'https://admin.dev.creditop.com',
     staging: 'https://admin.staging.creditop.com',
 };
-
-/**
- * Credenciales del admin de un ambiente remoto. **No inventa formato**: reusa el que ya existe en el
- * harness —`E2E_ADMIN_USER/PASS` o el `.admin.json` gitignoreado que usa `dev/admin-cities.spec.ts`—
- * y le agrega la variante por target, porque el admin de dev y el de staging son dos despliegues y
- * pueden tener usuarios distintos.
- *
- *   .admin.json plano (el de hoy)   {"user": "…", "pass": "…"}
- *   por target (opcional)           {"dev": {"user": "…", "pass": "…"}, "staging": {…}}
- *
- * ⚠ Esto NO es una puerta trasera: es el formulario de login de siempre, completado con una credencial
- * que ponés vos. Sin credencial, la ventana se abre en el login y entrás a mano. Nunca se commitea nada:
- * `.admin.json` y `.auth/` están en el `.gitignore`.
- */
-function credentialsOf(target: string): { user?: string; pass?: string } {
-    const T = target.toUpperCase();
-    const byEnv = process.env[`E2E_ADMIN_USER_${T}`] || process.env.E2E_ADMIN_USER;
-    if (byEnv) {
-        return { user: byEnv, pass: process.env[`E2E_ADMIN_PASS_${T}`] || process.env.E2E_ADMIN_PASS };
-    }
-
-    try {
-        const raw = JSON.parse(readFileSync(join(ROOT, '.admin.json'), 'utf8'));
-        // Lo del target manda; si no hay, la forma plana, que es la que ya está en uso.
-        const c = raw?.[target] ?? raw ?? {};
-        return { user: c.user, pass: c.pass };
-    } catch {
-        return {};
-    }
-}
 
 const PATH = process.argv[2] || '/aliados';
 const TARGET = (process.argv[3] || process.env.E2E_TARGET || 'local').trim();
@@ -149,60 +114,37 @@ async function startIfNeeded(): Promise<boolean> {
         process.exit(1);
     }
 
-    // ── Los remotos: se abre y te logueás vos, con perfil que recuerda ────────────────────────────
+    // ── Los remotos: se abre con la sesión GUARDADA ───────────────────────────────────────────────
+    // Sin contraseña y sin perfil de navegador: la sesión sale de `make harness-signin KIND=admin TARGET=<t>` (la que
+    // guarda `pkg/sessions.ts`, de UNA persona, con sus credenciales de `connectors/`). Esta ventana sólo la usa.
     if (!IS_LOCAL) {
-        const profile = join(ROOT, '.auth', `admin-${TARGET}`);
-        mkdirSync(profile, { recursive: true });
-
+        const { readSession } = await import('../pkg/sessions.ts');
+        const stored = readSession('admin', TARGET);
+        if (!stored) {
+            console.error(`  ✖ no hay sesión de admin guardada para ${TARGET}. Entra con:\n      make harness-signin KIND=admin TARGET=${TARGET}`);
+            process.exit(1);
+        }
         console.log(`  · admin de ${TARGET}: ${BASE}`);
-        console.log(`  · perfil persistente en .auth/admin-${TARGET} — te logueás una vez y queda`);
+        console.log(`  · sesión guardada de ${stored.who ?? stored.user} (${stored.user})`);
 
-        const ctx = await chromium.launchPersistentContext(profile, {
-            headless: false,
-            viewport: { width: 1440, height: 900 },
-            args: ['--window-position=0,0'],
-        });
-
-        const pageObj = ctx.pages()[0] ?? await ctx.newPage();
+        let browser;
+        try { browser = await chromium.launch({ channel: 'chrome', headless: false, args: ['--window-position=0,0'] }); }
+        catch { browser = await chromium.launch({ headless: false, args: ['--window-position=0,0'] }); }
+        const ctx = await browser.newContext({ viewport: { width: 1440, height: 900 } });
+        await ctx.addCookies(stored.cookies.map((c) => ({
+            name: c.name, value: c.value, domain: c.domain, path: c.path, expires: c.expires,
+            httpOnly: c.httpOnly, secure: c.secure, sameSite: c.sameSite ?? 'Lax',
+        })));
+        const pageObj = await ctx.newPage();
         await pageObj.goto(BASE + PATH, { waitUntil: 'domcontentloaded' });
 
-        // Si el perfil todavía tenía sesión, ya estamos adentro y no hay nada que completar.
-        if (pageObj.url().includes('/login')) {
-            const { user, pass } = credentialsOf(TARGET);
-
-            if (user && pass) {
-                console.log(`  · completando el login con la credencial de ${TARGET} (${user})`);
-                try {
-                    // Los selectores son los del formulario de Laravel/Inertia del admin. Si cambian, esto
-                    // NO rompe nada: falla el fill, se avisa, y la ventana queda en el login para entrar
-                    // a mano — que es exactamente lo de antes.
-                    await pageObj.fill('input[type="email"], input[name="email"]', user);
-                    await pageObj.fill('input[type="password"], input[name="password"]', pass);
-                    await Promise.all([
-                        pageObj.waitForURL((u) => !u.pathname.includes('/login'), { timeout: 20000 }),
-                        pageObj.click('button[type="submit"]'),
-                    ]);
-                    if (PATH !== '/login') {
-                        await pageObj.goto(BASE + PATH, { waitUntil: 'domcontentloaded' });
-                    }
-                } catch (e) {
-                    console.warn(`  ⚠ no pude completar el login (${String(e).split('\n')[0].slice(0, 120)})`);
-                    console.warn('    la ventana queda en el login: entrá a mano.');
-                }
-            } else {
-                console.log('  · sin credencial guardada para este target: entrá a mano (queda en el perfil).');
-                console.log(`    Para que entre solo: E2E_ADMIN_USER_${TARGET.toUpperCase()}/E2E_ADMIN_PASS_${TARGET.toUpperCase()},`);
-                console.log('    o un `.admin.json` gitignoreado: {"' + TARGET + '": {"user": "…", "pass": "…"}}');
-            }
-        }
-
         console.log(pageObj.url().includes('/login')
-            ? '  · quedó en el login'
+            ? `  ✖ el admin mandó al login: la sesión venció. Vuelve a entrar con  make harness-signin KIND=admin TARGET=${TARGET}`
             : `  ✓ abierto en ${pageObj.url()}`);
 
         await new Promise<void>((resolve) => {
             pageObj.on('close', () => resolve());
-            ctx.on('close', () => resolve());
+            browser.on('disconnected', () => resolve());
         });
         console.log('  · ventana cerrada');
         process.exit(0);

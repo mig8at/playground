@@ -49,6 +49,7 @@ if (args.child) {
 async function runChild(): Promise<void> {
     const { chromium } = await import('@playwright/test');
     const { env, TARGET } = await import('../pkg/env.ts');
+    const { connectorValue } = await import('../pkg/connector-env.ts');
     const { config } = await import('../pkg/config.ts');
     const { discoverHostedUi, findTestAdvisor, latestTestAdvisor, notProbed, probeLogin } = await import('../pkg/login-probe.ts');
     const { close } = await import('../pkg/db.ts');
@@ -86,7 +87,8 @@ async function runChild(): Promise<void> {
     }
     if (!user) return finish(notProbed({ veredicto: 'sin clave', hosted, detalle: 'login descubierto; falta ALLIED=<id> o ACCOUNT=<correo> para entrar' }));
 
-    const pass = env('ALLIED_TEST_ADVISOR_PASSWORD');
+    // La clave compartida de los asesores de prueba: de `connectors/`, y si no está ahí, de donde ya estaba (`harness/.env.<ambiente>`).
+    const pass = connectorValue('ALLIED_TEST_ADVISOR_PASSWORD', TARGET) || env('ALLIED_TEST_ADVISOR_PASSWORD');
     if (!pass) return finish(notProbed({ veredicto: 'sin clave', hosted, user, advisor, detalle: `${advisor ? 'login y asesor encontrados' : 'login descubierto'}; falta ALLIED_TEST_ADVISOR_PASSWORD para entrar` }));
 
     // Con ventana por defecto, como el panel: se ve quién entra y dónde se queda. `--headless` la quita, salvo

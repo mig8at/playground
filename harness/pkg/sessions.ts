@@ -2,7 +2,7 @@ import { execFileSync } from 'node:child_process';
 import { chmodSync, existsSync, mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { ADMIN_URLS, parseDataPage } from './admin-http.ts';
+import { ADMIN_URLS, AdminClient, CookieJar, NoAdminSession, adminBaseFor, parseDataPage } from './admin-http.ts';
 import { credentialKeys, credentialsFor, type CredentialKind } from './connector-env.ts';
 
 /**
@@ -281,4 +281,45 @@ export async function signIn(kind: SessionKind, target: string, opts: SignInOpti
     if (probe.valid === false) throw new Error(`entré pero la sesión no sirve: ${probe.motivo}`);
     session.who = probe.who;
     return { session, path: writeSession(session), who: probe.who };
+}
+
+// ── el cliente del admin, con la sesión guardada ─────────────────────────────────────────────────────
+
+export interface AdminAccess {
+    client: AdminClient;
+    /** Con quién actúa la herramienta: el correo con que se entró y el nombre que mostró el admin. Se imprime SIEMPRE. */
+    user: string;
+    who: string | null;
+}
+
+/**
+ * Un cliente HTTP del admin de `target` con la sesión GUARDADA (`make harness-signin KIND=admin TARGET=…`).
+ *
+ * Sin sesión, o con una vencida, falla diciendo cómo conseguirla: NUNCA entra por su cuenta con una credencial
+ * (en un ambiente compartido, eso sería elegir una identidad que nadie eligió). La excepción es local: ahí la sesión
+ * la emite la propia app, sin contraseña, así que se renueva sola.
+ */
+export async function adminClientFor(target: string): Promise<AdminAccess> {
+    const base = adminBaseFor(target);
+    const t = target.trim().toLowerCase();
+    const how = `make harness-signin KIND=admin TARGET=${t}`;
+
+    let session = readSession('admin', t);
+    if (!session && t === 'local') session = (await signIn('admin', 'local')).session;
+    if (!session) throw new NoAdminSession(`no hay sesión de admin para ${t}. Entra con:  ${how}`);
+
+    let probe = await probeSession(session);
+    if (probe.valid === false && t === 'local') {
+        session = (await signIn('admin', 'local')).session;
+        probe = await probeSession(session);
+    }
+    if (probe.valid === false) throw new NoAdminSession(`la sesión de admin de ${t} (${session.user}) venció. Vuelve a entrar con:  ${how}`);
+    if (probe.valid === null) throw new NoAdminSession(`el admin de ${t} no contestó: ${probe.motivo}`);
+
+    const jar = new CookieJar();
+    const host = new URL(base).hostname;
+    for (const c of session.cookies) {
+        if (host === c.domain.replace(/^\./, '') || host.endsWith(`.${c.domain.replace(/^\./, '')}`)) jar.set(c.name, c.value);
+    }
+    return { client: new AdminClient(base, jar), user: session.user, who: probe.who ?? session.who };
 }

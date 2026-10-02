@@ -17,7 +17,7 @@ import { query } from '../pkg/db';
  * **Entra SIN contraseña.** `bin/admin-session` emite una sesión con el guard real de Laravel y este spec
  * inyecta la cookie. Se hizo así porque la única credencial disponible es de staging y puede no
  * corresponder al hash del dump local — y porque una contraseña no tiene por qué andar en un script.
- * Para ejercitar el login de Fortify de verdad, poné `E2E_ADMIN_LOGIN=1` y credenciales en `.admin.json`.
+ * Para ejercitar el login de Fortify de verdad, poné `E2E_ADMIN_LOGIN=1` y tus credenciales (ADMIN_USER y ADMIN_PASS) en `connectors/.env.<ambiente>`.
  *
  * Requiere el admin corriendo en local:
  *   php <legacy-application>/artisan serve --host=127.0.0.1 --port=8000
@@ -45,7 +45,7 @@ test('el selector de ciudad del admin filtra por el país del comercio', async (
     // ── 1. Sesión ─────────────────────────────────────────────────────────────────────────────────
     if (BY_FORM) {
         expect(adminCreds.user && adminCreds.pass,
-            'E2E_ADMIN_LOGIN=1 exige credenciales en .admin.json o E2E_ADMIN_USER/PASS').toBeTruthy();
+            'E2E_ADMIN_LOGIN=1 exige ADMIN_USER y ADMIN_PASS en connectors/.env.<ambiente>').toBeTruthy();
         await page.goto('/login');
         await page.getByLabel(/correo/i).fill(adminCreds.user!);
         await page.getByLabel(/contrase/i).fill(adminCreds.pass!);

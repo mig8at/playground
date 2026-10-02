@@ -11,8 +11,9 @@
 // asesor en el wizard (`dev/login-check.ts`, con ventana: la clave la teclea esa herramienta en tu corrida), 5) opcional,
 // el borrado por id exacto del comercio, la sucursal, el asesor y su cuenta del pool.
 //
-// La sesión del admin no se inventa (ver `pkg/admin-http.ts`): local la emite la propia app; dev y staging salen del
-// perfil de navegador donde entraste una vez a mano. Producción no se toca, y qa no tiene admin propio: usa dev.
+// La sesión del admin no se inventa (ver `pkg/sessions.ts`): se usa la que se guardó con `make harness-signin KIND=admin
+// TARGET=<t>` —local la renueva sola, porque la emite la propia app— y la herramienta dice con QUIÉN actúa antes de escribir.
+// Producción no se toca, y qa no tiene admin propio: usa dev.
 // El alta ESCRIBE (en dev, en la base compartida): lo creado lleva el prefijo «PRUEBA AUTO», y es lo único que se borra.
 //
 // Exit code: 0 todo bien · 1 algo quedó mal (la pantalla o la base no cuadran, o el login no entró) · 2 no se pudo empezar.
@@ -20,10 +21,11 @@ import { spawn, spawnSync } from 'node:child_process';
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { parseArgs } from 'node:util';
-import { NoAdminSession, openAdminClient } from '../pkg/admin-http.ts';
+import { NoAdminSession } from '../pkg/admin-http.ts';
 import { cleanupAllied, createAllied, verifyAdvisor, type CleanupResult, type TestAdvisorFlash } from '../pkg/allied-admin.ts';
 import { close } from '../pkg/db.ts';
 import { env, TARGET } from '../pkg/env.ts';
+import { adminClientFor } from '../pkg/sessions.ts';
 
 const { values: args } = parseArgs({
     options: {
@@ -85,12 +87,11 @@ async function main(): Promise<void> {
     // ── sólo comprobar ──────────────────────────────────────────────────────────────────────────────
     if (args.check) {
         try {
-            const client = await openAdminClient(TARGET);
+            const { client, user, who } = await adminClientFor(TARGET);
             const form = await client.get('/aliados/crear');
             const s = form.page?.props?.settings;
             if (!s) fail(`el formulario de alta no trajo opciones (HTTP ${form.status})`, 1);
-            const who = form.page?.props?.auth?.full_name ?? '—';
-            console.log(`  ✔ sesión de admin válida en ${client.base} (${who})`);
+            console.log(`  ✔ sesión de admin válida en ${client.base} · actúa como ${who ?? user} (${user})`);
             console.log(`  ✔ el formulario trae ${s.alliedTypes?.length ?? 0} tipo(s), ${s.alliedIndustries?.length ?? 0} industria(s) y ${s.countries?.length ?? 0} país(es) · no se creó nada\n`);
         } catch (e) {
             if (e instanceof NoAdminSession) fail(`sin sesión de admin: ${e.message}`);
@@ -101,8 +102,11 @@ async function main(): Promise<void> {
 
     // ── 1) el alta por el admin ────────────────────────────────────────────────────────────────────
     let created;
+    let actingAs = '';
     try {
-        const client = await openAdminClient(TARGET);
+        const { client, user, who } = await adminClientFor(TARGET);
+        actingAs = `${who ?? user} (${user})`;
+        console.log(`  actúa como ${actingAs}`);
         created = await createAllied(client, { name: args.name });
     } catch (e) {
         if (e instanceof NoAdminSession) fail(`sin sesión de admin: ${e.message}`);
@@ -126,7 +130,7 @@ async function main(): Promise<void> {
 
     mkdirSync(join(process.cwd(), '.runs'), { recursive: true });
     writeFileSync(join(process.cwd(), '.runs', `allied-create-${TARGET}-${created.id}.json`), JSON.stringify({
-        target: TARGET, allied: created.id, name: created.name, advisor: verified.advisor, flash, problems, at: new Date().toISOString(),
+        target: TARGET, allied: created.id, name: created.name, createdBy: actingAs, advisor: verified.advisor, flash, problems, at: new Date().toISOString(),
     }, null, 2));
 
     // ── 4) el login del asesor, si se pidió ──────────────────────────────────────────────────────────

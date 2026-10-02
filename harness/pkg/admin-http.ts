@@ -1,7 +1,3 @@
-import { execFileSync } from 'node:child_process';
-import { existsSync } from 'node:fs';
-import { dirname, join, resolve } from 'node:path';
-import { fileURLToPath } from 'node:url';
 
 /**
  * Hablarle al ADMIN de `legacy-application` por HTTP, como lo haría un navegador: sesión, token CSRF y las
@@ -12,16 +8,9 @@ import { fileURLToPath } from 'node:url';
  * repetir la prueba en otro ambiente. Esto lo vuelve un paso de un comando, por el MISMO camino real: nada de
  * insertar filas directo.
  *
- * LA SESIÓN SE PIDE, NO SE INVENTA, y es la misma decisión que ya tomó `dev/open-admin.ts`:
- *   · local → `bin/admin-session` emite una sesión con el guard real de Laravel (sólo corre con `APP_ENV=local`);
- *   · dev y staging → el PERFIL PERSISTENTE de navegador `.auth/admin-<target>`: te logueás una vez con
- *     `node dev/open-admin.ts /aliados dev` y de ahí se leen las cookies. **Ninguna contraseña de admin pasa
- *     por este código.**
- *   · producción y qa no están: producción es sólo lectura, y qa no tiene admin propio (comparte la base con dev,
- *     así que el comercio se crea en el de dev).
- */
-
-const HARNESS = resolve(dirname(fileURLToPath(import.meta.url)), '..');
+ * DE DÓNDE SALE LA SESIÓN NO LO SABE ESTE ARCHIVO: es sólo el cliente HTTP. La sesión la entrega `pkg/sessions.ts`
+ * (`adminClientFor`), que lee la que se guardó con `make harness-signin` y dice QUIÉN es. Ninguna contraseña pasa por acá.
+ * Producción y qa no están: producción es sólo lectura, y qa no tiene admin propio (comparte la base con dev). */
 
 /** Dónde vive el admin de cada ambiente. Espejo de `ADMINS` en `dev/open-admin.ts` (que es un script y no se importa). */
 export const ADMIN_URLS: Readonly<Record<string, string>> = {
@@ -187,51 +176,4 @@ export class AdminClient {
     follow(location: string): Promise<AdminReply> {
         return this.get(new URL(location, this.base).toString());
     }
-}
-
-/** Cookies de un perfil persistente de navegador: lo que dejó `dev/open-admin.ts` al loguearse a mano. */
-async function cookiesFromProfile(target: string, host: string): Promise<Array<{ name: string; value: string }>> {
-    const profile = join(HARNESS, '.auth', `admin-${target}`);
-    if (!existsSync(profile)) {
-        throw new NoAdminSession(`no hay sesión de admin para ${target}. Entra una vez a mano (queda en el perfil):\n     node dev/open-admin.ts /aliados ${target}`);
-    }
-    const { chromium } = await import('@playwright/test');
-    let ctx;
-    try {
-        ctx = await chromium.launchPersistentContext(profile, { headless: true });
-    } catch (e) {
-        throw new NoAdminSession(`no pude abrir el perfil de ${target} (¿la ventana de open-admin sigue abierta? ciérrala): ${(e as Error).message.split('\n')[0].slice(0, 120)}`);
-    }
-    try {
-        const cookies = await ctx.cookies();
-        return cookies.filter((c) => host === c.domain.replace(/^\./, '') || host.endsWith(`.${c.domain.replace(/^\./, '')}`));
-    } finally {
-        await ctx.close().catch(() => { /* ya cerrado */ });
-    }
-}
-
-/** Abre una conversación autenticada con el admin de `target`, o falla diciendo cómo conseguir la sesión. */
-export async function openAdminClient(target: string): Promise<AdminClient> {
-    const t = target.trim().toLowerCase();
-    const base = adminBaseFor(t);
-    const jar = new CookieJar();
-
-    if (t === 'local') {
-        try {
-            const s = JSON.parse(execFileSync(join(HARNESS, 'bin/admin-session'), { encoding: 'utf8' }).trim());
-            jar.set(s.cookie, s.value);
-        } catch (e) {
-            throw new NoAdminSession(`no pude emitir la sesión local (¿el admin local está arriba y APP_ENV=local?): ${String((e as Error).message).split('\n')[0].slice(0, 140)}`);
-        }
-    } else {
-        const cookies = await cookiesFromProfile(t, new URL(base).hostname);
-        if (!cookies.length) throw new NoAdminSession(`el perfil de ${t} no trae cookies del admin: entra una vez a mano con  node dev/open-admin.ts /aliados ${t}`);
-        for (const c of cookies) jar.set(c.name, c.value);
-    }
-
-    const client = new AdminClient(base, jar);
-    // Comprobar que la sesión SIRVE antes de usarla: si no, el primer POST fallaría con un 419 que no explica nada.
-    const probe = await client.get('/aliados');
-    if (probe.status >= 400) throw new NoAdminSession(`el admin contestó HTTP ${probe.status} al pedir /aliados`);
-    return client;
 }

@@ -1,4 +1,5 @@
-import { env } from './env.ts';
+import { credentialsFor } from './connector-env.ts';
+import { env, TARGET } from './env.ts';
 /**
  * Datos de prueba reutilizables por todos los specs.
  *
@@ -45,14 +46,10 @@ export const cognitoCreds = loadCognitoCreds();
  * hipótesis — no un bug del script.
  */
 function loadAdminCreds(): { user?: string; pass?: string } {
-    const user = env('E2E_ADMIN_USER');
-    if (user) return { user, pass: env('E2E_ADMIN_PASS') };
-    try {
-        const raw = JSON.parse(readFileSync(join(process.cwd(), '.admin.json'), 'utf8'));
-        return { user: raw.user, pass: raw.pass };
-    } catch {
-        return {};
-    }
+    // Sólo de `connectors/.env.<ambiente>` (ADMIN_USER y ADMIN_PASS: una cuenta por persona). El `.admin.json` ya no se lee:
+    // en esta máquina guardaba la cuenta de otra persona y entraba con ella sin que nadie lo notara (2026-10-02).
+    const c = credentialsFor('admin', TARGET);
+    return c ? { user: c.user, pass: c.pass } : {};
 }
 
 export const adminCreds = loadAdminCreds();

@@ -138,3 +138,12 @@ export function legacyCredentialHint(kind: CredentialKind, target: string): { us
     const c = legacyCredentials(kind, target);
     return c ? { user: c.user, source: c.source } : null;
 }
+
+/**
+ * Un valor suelto (no una credencial de persona) de `connectors/`, o `''`. Por ahora sólo lo usa la clave compartida de los
+ * asesores de prueba: es un secreto del AMBIENTE y no la cuenta de nadie, así que, a diferencia de las credenciales de login,
+ * sí puede caer a donde ya estaba (`harness/.env.<ambiente>`) mientras se muda.
+ */
+export function connectorValue(key: string, target: string, sources: EnvSources = loadSources(target)): string {
+    return resolveKey([key], sources)?.value ?? '';
+}
