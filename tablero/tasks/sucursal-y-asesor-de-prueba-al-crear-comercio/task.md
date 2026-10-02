@@ -17,12 +17,10 @@ jira_title: "Sucursal y asesor de prueba al crear un comercio"
 - [x] Obtener los permisos IAM del rol `inertia-develop-legacy-application-task-role` sobre Merchants Dev
   (`AdminCreateUser`, `AdminSetUserPassword`, `AdminGetUser`, `AdminDeleteUser`). Verificado el 2026-10-02 por
   efecto, no leyendo IAM (el rol de desarrollo no lo lee): los comercios 346 y 347 crearon su cuenta en el pool.
-- [ ] Hacer que infra incorpore a su stack el permiso del lambda `cognito-pre-sign-up-development` que se
-  agregó a mano (`merchants-dev-pool`); termina cuando figura en el stack y sigue ahí después de un
-  despliegue del lambda.
-  Depende de: Daniel Sánchez (infra) — incorporarlo al stack.
-- [x] Probar en dev, con la versión desplegada, un comercio creado desde el admin: la cuenta aparece en
-  Merchants Dev, `users.cognito_id` es igual a su `sub` y lo creado se borró (2026-10-02; pool en 0 usuarios).
+- [ ] Mergear el PR del lambda que agrega al stack el permiso para Merchants Dev; termina cuando
+  `aws lambda get-policy` muestra una entrada del stack hacia `us-east-2_Mh2hIqeQ5` y se quita la manual
+  `merchants-dev-pool` sin que crear un comercio en dev falle.
+  Depende de: Daniel Sánchez (infra) — revisar y mergear [PR 3 del lambda](https://github.com/Creditop-SAS/cognito-pre-sign-up/pull/3).
 - [ ] Confirmar a qué pool apuntan dev, qa y staging; termina cuando infra confirma o desmiente que
   `us-east-1_XnF2zz3Ou` es el pool de comercios de producción. Prueba decisiva: buscar
   `oscar+dentix@creditop.com` en ese pool desde la consola de producción.
