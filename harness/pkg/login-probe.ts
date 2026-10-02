@@ -139,10 +139,51 @@ async function sessionOf(page: Page): Promise<{ sirve: boolean; minutos: number 
 /** Texto de error visible en el login alojado, si lo hay (credenciales malas, usuario inexistente…). */
 async function visibleError(page: Page): Promise<string> {
     const texts = await page
-        .locator('[role=alert], [class*=error], [class*=Error], [data-testid*=error]')
+        .locator('[role=alert]:visible, [class*=error]:visible, [class*=Error]:visible, [id*=ErrorMessage]:visible, [data-testid*=error]:visible')
         .allInnerTexts()
         .catch(() => [] as string[]);
     return texts.map((t) => t.trim()).filter(Boolean).join(' · ').slice(0, 160);
+}
+
+/** Rutas de la app que sólo REDIRIGEN tras el callback (no son destino): se espera a salir de ellas. */
+const IN_TRANSIT = /^\/(auth\/callback|merchant)\/?$/;
+
+/**
+ * ¿El login es el CLÁSICO de una sola página? Merchants Dev (dominio sin Managed Login) muestra usuario,
+ * contraseña y «Sign in» juntos; el Managed Login de `login.creditop.com` y `auth.merchant` pide el usuario,
+ * «Siguiente», y recién ahí la contraseña (lo que sabe hacer `cognitoLogin`).
+ *
+ * ⚠ El clásico trae el formulario DUPLICADO en el HTML (uno para escritorio y otro oculto), así que
+ * `input[name=username]` tiene dos coincidencias y los `expect(locator)` estrictos de `cognitoLogin` tiran.
+ * Por eso aquí todo va con `:visible`.
+ */
+async function isClassicLogin(page: Page): Promise<boolean> {
+    await page.locator('input[name=username]:visible').first().waitFor({ state: 'visible', timeout: 15_000 }).catch(() => { /* lo decide el conteo */ });
+    return (await page.locator('input[name=password]:visible').count()) > 0;
+}
+
+/** Llena un campo del login clásico y verifica que el valor quedó, sin imprimirlo. */
+async function fillChecked(page: Page, selector: string, value: string): Promise<void> {
+    const field = page.locator(`${selector}:visible`).first();
+    await field.click();
+    await field.fill(value);
+    if ((await field.inputValue()) !== value) {
+        await field.fill('');
+        await field.pressSequentially(value, { delay: 60 });
+    }
+    if ((await field.inputValue()) !== value) throw new Error(`el campo ${selector} no recibió el valor`);
+}
+
+/** Entra por el login clásico y espera a que la app asiente la sesión (no sólo a tocar su host). */
+async function signInClassic(page: Page, user: string, pass: string, returnHost: string): Promise<void> {
+    await fillChecked(page, 'input[name=username]', user);
+    await fillChecked(page, 'input[name=password]', pass);
+    await page.locator('input[name=signInSubmitButton]:visible, button[name=signInSubmitButton]:visible').first().click();
+    // Comparar el HOST de la URL, no un substring: el login lleva el host de la app dentro del query (F-66).
+    const onApp = (url: URL) => url.host === returnHost;
+    await page.waitForURL(onApp, { timeout: 30_000 });
+    await page.waitForURL((url) => onApp(url) && !IN_TRANSIT.test(url.pathname), { timeout: 15_000 }).catch(() => { /* seguimos con lo que haya */ });
+    await page.waitForLoadState('networkidle', { timeout: 8_000 }).catch(() => {});
 }
 
 export interface ProbeOptions {
@@ -175,8 +216,10 @@ export async function probeLogin(browser: Browser, opts: ProbeOptions): Promise<
     const { context, page } = await openA(browser, { baseURL: front, userAgent: IPHONE_UA });
     try {
         await page.goto('/merchant', { waitUntil: 'domcontentloaded', timeout: 60_000 }).catch(() => { /* lo decide la URL */ });
-        // `savePath: null` = no escribe ningún cache (ver el aviso de arriba).
-        await cognitoLogin(page, opts.user, opts.pass, returnHost, null);
+        // Dos formas de login: la clásica de una página (Merchants Dev) y la de dos pasos (Managed Login).
+        // `savePath: null` en `cognitoLogin` = no escribe ningún cache (ver el aviso de arriba).
+        if (await isClassicLogin(page)) await signInClassic(page, opts.user, opts.pass, returnHost);
+        else await cognitoLogin(page, opts.user, opts.pass, returnHost, null);
         // Si hubo formulario y volvió a la app, `cognitoLogin` ya esperó el callback. Si no hubo
         // formulario, o seguimos en Cognito, no entramos.
         const url = page.url();
