@@ -14,17 +14,17 @@ jira_title: "Sucursal y asesor de prueba al crear un comercio"
 - [ ] Reemplazar el marcador `CORE-0000` por el CORE real en `jira:`; termina cuando el issue figura en el
   frontmatter y `CORE-0000` desaparece. (El tablero exige `CORE-` con dígitos: el marcador no es un issue.)
   Depende de: asignación en Slack — número del issue.
-- [ ] Obtener los permisos IAM del rol `inertia-develop-legacy-application-task-role` sobre Merchants Dev
-  (`AdminCreateUser`, `AdminSetUserPassword`, `AdminGetUser`, `AdminDeleteUser`); termina cuando crear un
-  comercio en dev deja la cuenta de Cognito en `created` y no en `failed`.
-  Depende de: Daniel Sánchez (infra) — pedido enviado el 2026-10-01.
+- [x] Obtener los permisos IAM del rol `inertia-develop-legacy-application-task-role` sobre Merchants Dev
+  (`AdminCreateUser`, `AdminSetUserPassword`, `AdminGetUser`, `AdminDeleteUser`). Verificado el 2026-10-02 por
+  efecto, no leyendo IAM (el rol de desarrollo no lo lee): los comercios 346 y 347 crearon su cuenta en el pool.
 - [ ] Hacer que infra incorpore a su stack el permiso del lambda `cognito-pre-sign-up-development` que se
   agregó a mano (`merchants-dev-pool`); termina cuando figura en el stack y sigue ahí después de un
   despliegue del lambda.
   Depende de: Daniel Sánchez (infra) — incorporarlo al stack.
-- [ ] Probar en dev, con la versión desplegada, un comercio creado desde el admin; termina cuando la cuenta
-  aparece en Merchants Dev, `users.cognito_id` es igual a su `sub` y lo creado queda borrado (receta abajo).
-  Depende de: los dos permisos anteriores.
+- [ ] Terminar la prueba en dev: la creación y el `sub` ya cuadran (2026-10-02); falta borrar lo creado
+  (comercios 346 y 347 y sus dos cuentas en Merchants Dev); termina cuando el pool queda en 0 usuarios y la
+  base sin esas filas (receta abajo).
+  Depende de: Miguel — decir cuándo se borra.
 - [ ] Confirmar a qué pool apuntan dev, qa y staging; termina cuando infra confirma o desmiente que
   `us-east-1_XnF2zz3Ou` es el pool de comercios de producción. Prueba decisiva: buscar
   `oscar+dentix@creditop.com` en ese pool desde la consola de producción.
