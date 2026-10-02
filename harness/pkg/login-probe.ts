@@ -259,6 +259,7 @@ export async function probeLogin(browser: Browser, opts: ProbeOptions): Promise<
             detalle: branchMatches === false
                 ? `entró, pero a otra sucursal (${landingBranch}, esperaba ${expected})`
                 : `entró · sesión de ${session.minutos ?? '?'} min`
+                    + (branchMatches ? ` · sucursal ${landingBranch} ✔` : '')
                     + (expected && !landingBranch ? ` · sucursal sin confirmar (aterrizó en ${path})` : ''),
             landing: path, landingBranch, branchMatches, sessionMinutes: session.minutos,
         });
