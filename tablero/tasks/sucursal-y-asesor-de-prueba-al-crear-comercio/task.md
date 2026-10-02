@@ -21,10 +21,8 @@ jira_title: "Sucursal y asesor de prueba al crear un comercio"
   agregó a mano (`merchants-dev-pool`); termina cuando figura en el stack y sigue ahí después de un
   despliegue del lambda.
   Depende de: Daniel Sánchez (infra) — incorporarlo al stack.
-- [ ] Terminar la prueba en dev: la creación y el `sub` ya cuadran (2026-10-02); falta borrar lo creado
-  (comercios 346 y 347 y sus dos cuentas en Merchants Dev); termina cuando el pool queda en 0 usuarios y la
-  base sin esas filas (receta abajo).
-  Depende de: Miguel — decir cuándo se borra.
+- [x] Probar en dev, con la versión desplegada, un comercio creado desde el admin: la cuenta aparece en
+  Merchants Dev, `users.cognito_id` es igual a su `sub` y lo creado se borró (2026-10-02; pool en 0 usuarios).
 - [ ] Confirmar a qué pool apuntan dev, qa y staging; termina cuando infra confirma o desmiente que
   `us-east-1_XnF2zz3Ou` es el pool de comercios de producción. Prueba decisiva: buscar
   `oscar+dentix@creditop.com` en ese pool desde la consola de producción.
