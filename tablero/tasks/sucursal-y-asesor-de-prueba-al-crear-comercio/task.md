@@ -21,6 +21,8 @@ jira_title: "Sucursal y asesor de prueba al crear un comercio"
   despliegue terminó en `UPDATE_COMPLETE` y el lambda rechaza con su mensaje un correo ajeno).
 - [x] Quitar la entrada manual `merchants-dev-pool` de la política del lambda (hecho el 2026-10-02): la política
   quedó con las dos entradas del stack y Cognito sigue invocando al lambda.
+- [x] Ensayar el cambio y la vuelta en el wizard desplegado de dev (hecho el 2026-10-02): el asesor de prueba entra y la
+  vuelta deja el secret en su versión anterior, con el servicio estable.
 - [ ] Extender a qa y staging lo ya probado en dev con el front local (2026-10-02, cliente `wizard-local`):
   un cliente nuevo en el pool para el wizard (código de autorización, secreto, scopes `openid phone email`,
   retorno y salida de cada front), esas tres variables más la de retorno en cada wizard, y
