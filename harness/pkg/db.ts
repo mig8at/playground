@@ -71,6 +71,25 @@ const NARROW_PERMISSIONS: Record<string, NarrowPermission> = {
     'credencial-de-entidad': {
         patrones: [/^INSERT\s+INTO\s+lender_allied_credentials\s+\(lender_id,\s*allied_type,\s*allied_id,\s*credential,[\s\S]+$/i],
     },
+    // Borrar el COMERCIO DE PRUEBA que creó `dev/allied-create.ts` y su sucursal: tablas de CONFIG, sin datos
+    // de personas. Va angosto en la propia sentencia: el comercio tiene que llevar el prefijo de la automatización
+    // en el nombre, y la sucursal el sufijo `-fake` que le pone el admin. Sólo DELETE por id, de a una fila.
+    'prueba-comercio': {
+        patrones: [
+            /^DELETE\s+FROM\s+allied_branches\s+WHERE\s+id\s*=\s*\?\s+AND\s+allied_id\s*=\s*\?\s+AND\s+name\s+LIKE\s+'b%-fake'\s*$/i,
+            /^DELETE\s+FROM\s+allieds\s+WHERE\s+id\s*=\s*\?\s+AND\s+name\s+LIKE\s+'PRUEBA AUTO %'\s*$/i,
+        ],
+    },
+    // Borrar el ASESOR de prueba (`c…-fake@`) de ese comercio y su rol. `users` es una tabla de PERSONAS, así que
+    // la sentencia no alcanza: va con ámbito por usuario, el que abre `withSeedScope([id])` con el id del asesor
+    // que la herramienta acaba de encontrar por correo y por comercio.
+    'prueba-asesor': {
+        porUsuario: true,
+        patrones: [
+            /^DELETE\s+FROM\s+model_has_roles\s+WHERE\s+model_type\s+LIKE\s+'%User'\s+AND\s+model_id\s*=\s*\?\s*$/i,
+            /^DELETE\s+FROM\s+users\s+WHERE\s+id\s*=\s*\?\s+AND\s+allied_id\s*=\s*\?\s+AND\s+email\s+LIKE\s+'c%-fake@%'\s*$/i,
+        ],
+    },
     // La siembra del cliente sintético — `pkg/inject.ts`. Ver el bloque de arriba: acá la angostura NO
     // la da sólo la sentencia (estas tablas son de personas), la da el ÁMBITO por usuario.
     siembra: {
