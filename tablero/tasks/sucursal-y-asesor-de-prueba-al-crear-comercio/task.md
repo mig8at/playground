@@ -22,7 +22,7 @@ jira_title: "Sucursal y asesor de prueba al crear un comercio"
 - [ ] Quitar la entrada manual `merchants-dev-pool` de la política del lambda; termina cuando
   `aws lambda get-policy` ya no la muestra y crear un comercio en dev sigue dejando la cuenta de Cognito.
   Depende de: Miguel — correr `aws lambda remove-permission` (el rol de desarrollo no puede).
-- [ ] Hacer que el wizard de dev, qa y staging se autentique contra Merchants Dev (decidido el 2026-10-02):
+- [ ] Extender a qa y staging lo ya probado en dev con el front local (2026-10-02, cliente `wizard-local`):
   un cliente nuevo en el pool para el wizard (código de autorización, secreto, scopes `openid phone email`,
   retorno y salida de cada front), esas tres variables más la de retorno en cada wizard, y
   `MERCHANT_AWS_COGNITO_*` en el admin de qa y staging; termina cuando `make harness-login-check
