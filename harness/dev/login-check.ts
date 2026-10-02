@@ -1,6 +1,7 @@
 // dev/login-check.ts — ¿el ASESOR DE PRUEBA de un comercio entra al wizard en cada ambiente?
 //
 //   make harness-login-check ALLIED=346 TARGETS=dev,qa,staging
+//   make harness-login-check ALLIED=last BLOQUE=98     el comercio recién creado, y la prueba queda en la tarea
 //   make harness-login-check TARGETS=dev,qa,staging             (sólo descubre a qué login manda cada front)
 //
 // Por cada ambiente lanza UN PROCESO HIJO con `E2E_TARGET` propio, porque la config del harness (front,
@@ -49,7 +50,7 @@ async function runChild(): Promise<void> {
     const { chromium } = await import('@playwright/test');
     const { env, TARGET } = await import('../pkg/env.ts');
     const { config } = await import('../pkg/config.ts');
-    const { discoverHostedUi, findTestAdvisor, notProbed, probeLogin } = await import('../pkg/login-probe.ts');
+    const { discoverHostedUi, findTestAdvisor, latestTestAdvisor, notProbed, probeLogin } = await import('../pkg/login-probe.ts');
     const { close } = await import('../pkg/db.ts');
 
     const emit = (r: object): never => {
@@ -74,11 +75,12 @@ async function runChild(): Promise<void> {
     let user = args.user ?? '';
     if (args.allied) {
         try {
-            advisor = await findTestAdvisor(Number(args.allied));
+            // `last` = el asesor de prueba más reciente del ambiente (el comercio que se acaba de crear).
+            advisor = args.allied === 'last' ? await latestTestAdvisor() : await findTestAdvisor(Number(args.allied));
         } catch (e) {
             return finish(notProbed({ veredicto: 'no se pudo probar', hosted, detalle: `no pude leer la base de ${TARGET}: ${(e as Error).message.split('\n')[0].slice(0, 120)}` }));
         }
-        if (!advisor) return finish(notProbed({ veredicto: 'no se pudo probar', hosted, detalle: `el comercio ${args.allied} no tiene asesor de prueba en ${TARGET}` }));
+        if (!advisor) return finish(notProbed({ veredicto: 'no se pudo probar', hosted, detalle: args.allied === 'last' ? `no hay ningún asesor de prueba en ${TARGET}` : `el comercio ${args.allied} no tiene asesor de prueba en ${TARGET}` }));
         if (!advisor.hasSub) return finish(notProbed({ veredicto: 'no entró', hosted, user: advisor.email, advisor, detalle: 'el asesor existe pero su fila no tiene cognito_id: el backend no lo reconocería' }));
         user = advisor.email;
     }
@@ -143,9 +145,14 @@ async function runParent(): Promise<void> {
         console.log('');
     }
 
-    if (process.env.MD === '1' || process.env.BLOQUE) {
+    // Un bloque es un hecho con fecha: sólo si alguien INTENTÓ entrar. «Sin clave» o «no se pudo probar» no
+    // prueban nada, y anotarlos llenaría la pila de corridas que no corrieron.
+    const attempted = results.some((r) => r.veredicto === 'entró' || r.veredicto === 'no entró');
+    if (process.env.BLOQUE && !attempted) console.log('  ▸ no se agregó bloque: ningún ambiente llegó a intentar el login');
+    if ((process.env.MD === '1' || process.env.BLOQUE) && attempted) {
         const entered = results.filter((r) => r.veredicto === 'entró').length;
-        const summary = `${entered}/${results.length} ambiente(s) dejaron entrar al asesor de prueba${args.allied ? ` del comercio ${args.allied}` : ''}.`;
+        const who = results.find((r) => r.advisor)?.advisor;
+        const summary = `${entered}/${results.length} ambiente(s) dejaron entrar al asesor de prueba${who ? ` del comercio ${who.alliedId}` : ''}.`;
         const evidence = results.map((r) => `${r.veredicto === 'entró' ? '✔' : '✘'} ${r.target} — ${r.veredicto}: ${r.detalle}${r.hosted ? ` (login ${r.hosted.host})` : ''}`);
         const { emit, cmdMake } = await import('../pkg/annotation.ts');
         emit(summary, cmdMake('harness-login-check', targets.join(','), { ALLIED: args.allied, ACCOUNT: args.user, TARGETS: targets.join(',') }), evidence);

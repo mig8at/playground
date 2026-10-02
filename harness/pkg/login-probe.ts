@@ -96,6 +96,24 @@ export async function findTestAdvisor(alliedId: number): Promise<TestAdvisor | n
         : null;
 }
 
+/**
+ * El asesor de prueba MÁS RECIENTE del ambiente: para probar «el comercio que acabo de crear» sin buscar su id.
+ * Se ordena por la fila del usuario (el id crece con cada alta), no por la fecha del comercio.
+ */
+export async function latestTestAdvisor(): Promise<TestAdvisor | null> {
+    const rows = await query<{ allied_id: number | null }>(
+        `SELECT u.allied_id FROM users u
+          WHERE u.email LIKE 'c%-fake@%' AND u.allied_id IS NOT NULL
+          ORDER BY u.id DESC LIMIT 20`,
+    );
+    for (const r of rows) {
+        if (r.allied_id === null) continue;
+        const found = await findTestAdvisor(r.allied_id);
+        if (found) return found;
+    }
+    return null;
+}
+
 /** Dónde se quedó una entrada que no terminó. Lo deduce de la URL: el Managed Login no avisa de otra forma. */
 export type LoginStage = 'usuario' | 'clave' | 'callback' | 'app';
 
