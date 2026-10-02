@@ -232,6 +232,8 @@ arrancar la tarea); la reversa segura sigue sin probarse.
 
 ## Referencias
 
+- Plan para qa y staging (cambiar el login del wizard a Merchants Dev, con hoja de vuelta): `artifacts/plan-pruebas-qa-staging.html`, del 2026-10-02.
+- Plan para producción (mantener el pool de producción; apagar es vaciar una variable): `artifacts/plan-produccion.html`, del 2026-10-02.
 - [PR #243](pr:application#243) — mergeado a `develop` el 2026-10-01.
 - Canon: [comercio](canon:comercio), [sucursal](canon:sucursal), [asesor](canon:asesor), [actores](canon:actores).
 - Hilo con infra en Slack (Daniel Sánchez): pools por ambiente y permisos.

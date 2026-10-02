@@ -1,0 +1,97 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Plan de producción · asesor de prueba en el pool de prod</title>
+<style>
+  :root { --bg:#fafaf8; --fg:#1d1d1b; --muted:#5f5f5a; --card:#fff; --line:#e1e0da; --accent:#1b6ef3; --warn:#9a5b00; --warnbg:#fff4de; --ok:#176a3a; --okbg:#e6f5ec; --bad:#a3261c; --badbg:#fdeceb; --code:#f2f1ec; }
+  @media (prefers-color-scheme: dark) { :root { --bg:#161615; --fg:#eceae4; --muted:#a3a29b; --card:#201f1e; --line:#33322f; --accent:#6fa3ff; --warn:#f0b35a; --warnbg:#33290f; --ok:#6fd195; --okbg:#10291b; --bad:#ff8a80; --badbg:#321513; --code:#2a2927; } }
+  * { box-sizing: border-box; }
+  body { margin:0; background:var(--bg); color:var(--fg); font:16px/1.55 -apple-system, system-ui, "Segoe UI", sans-serif; }
+  main { max-width: 860px; margin: 0 auto; padding: 24px 16px 64px; }
+  h1 { font-size: 1.6rem; margin: 0 0 4px; }
+  h2 { font-size: 1.2rem; margin: 32px 0 8px; }
+  h3 { font-size: 1rem; margin: 20px 0 6px; }
+  .meta { color: var(--muted); font-size: .9rem; margin-bottom: 16px; }
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: 10px; padding: 14px 16px; margin: 12px 0; }
+  .ok { background: var(--okbg); border-color: transparent; color: var(--ok); }
+  .warn { background: var(--warnbg); border-color: transparent; color: var(--warn); }
+  .bad { background: var(--badbg); border-color: transparent; color: var(--bad); }
+  .card p:first-child { margin-top: 0; } .card p:last-child { margin-bottom: 0; }
+  table { width: 100%; border-collapse: collapse; font-size: .92rem; display: block; overflow-x: auto; }
+  th, td { text-align: left; padding: 7px 10px; border-bottom: 1px solid var(--line); vertical-align: top; }
+  th { color: var(--muted); font-weight: 600; white-space: nowrap; }
+  pre { background: var(--code); border-radius: 8px; padding: 12px; overflow-x: auto; font-size: .85rem; line-height: 1.45; margin: 8px 0; }
+  code { font-family: ui-monospace, "SF Mono", Menlo, monospace; font-size: .88em; }
+  p code, li code, td code { background: var(--code); padding: 1px 5px; border-radius: 4px; }
+  ol.steps { padding-left: 1.2rem; } ol.steps > li { margin: 14px 0; }
+  .who { font-size: .8rem; color: var(--muted); text-transform: uppercase; letter-spacing: .04em; display: block; }
+</style>
+</head>
+<body>
+<main>
+  <h1>Plan de producción · asesor de prueba en el pool de prod</h1>
+  <div class="meta">Tarea 98 · escrito el 2026-10-02 · es un plan, no se ejecutó nada en producción · complementa las fases de la tarea; no las reemplaza</div>
+
+  <div class="card ok">
+    <p><strong>Por qué en producción es más simple que en qa.</strong> El wizard de producción ya inicia sesión contra el pool de producción. Aquí <em>no se cambia el login de nadie</em>: no hay cliente nuevo, no se bloquea a ningún usuario y no hay nada que «devolver» en el wizard. Solo hay que activar el admin de producción para que cree las cuentas de prueba <em>en ese mismo pool</em>, y entran de una.</p>
+  </div>
+  <div class="card warn">
+    <p><strong>Lo que sí cambia de riesgo.</strong> Son cuentas reales en el pool real, con acceso a la sucursal de un comercio real. Por eso en producción la clave es propia (nunca la de dev), se puede apagar de un golpe, y la primera prueba va en un comercio de prueba dedicado.</p>
+  </div>
+
+  <h2>Qué se sabe y qué no</h2>
+  <table>
+    <tr><th>Verificado</th><td>El código ya está en <code>develop</code> y en dev funciona de punta a punta. Si la variable del pool está vacía, la app no llama a Cognito: el alta del comercio no cambia. El workflow de producción despliega por tag a cuatro servicios (<code>legacy-application</code>, <code>-worker</code>, <code>-worker-high</code>, <code>-scheduler</code>) y reconstruye las variables desde <code>prod/legacy-application</code> en cada despliegue.</td></tr>
+    <tr><th>Sin verificar</th><td>(1) Qué pool usa de verdad el wizard de producción: los secrets de dev lo dan como <code>us-east-1_XnF2zz3Ou</code>, con ids idénticos a los de la consola de producción, pero falta leer <code>prod/loan-request-wizard</code>. (2) Qué permisos de Cognito tiene ya el rol de la tarea de producción. (3) Si el lambda de pre-registro de producción autoriza a ese pool y en qué región vive. (4) La política de claves del pool: la clave de prueba tiene que cumplirla.</td></tr>
+  </table>
+
+  <h2>Qué hay que tener antes de activar</h2>
+  <table>
+    <tr><th>Pieza</th><th>Qué es</th><th>Quién</th></tr>
+    <tr><td>El pool vivo</td><td>Confirmar cuál es el del wizard de producción (región y id).</td><td>Miguel, solo lectura con el perfil de producción</td></tr>
+    <tr><td>Permisos</td><td>El rol de la tarea de producción necesita crear, poner clave, leer y borrar usuarios en <em>ese</em> pool.</td><td>Daniel (infra)</td></tr>
+    <tr><td>El lambda de pre-registro</td><td>La política del lambda de producción debe autorizar a ese pool. En el repo del lambda, el valor de producción para el pool de comercios hoy está vacío a propósito (<code>MerchantsUserPoolId</code>).</td><td>Daniel / PR al repo del lambda</td></tr>
+    <tr><td>Clave propia</td><td>Una clave solo de producción, que cumpla la política del pool, guardada únicamente en <code>prod/legacy-application</code> y con fecha de rotación.</td><td>Miguel</td></tr>
+    <tr><td>Un comercio de prueba</td><td>Uno dedicado, identificado como de prueba, para la primera alta.</td><td>Miguel</td></tr>
+  </table>
+
+  <h2>Pasos</h2>
+  <ol class="steps">
+    <li><span class="who">Solo lectura</span><strong>Fase 1 · leer producción.</strong> Pool del wizard, permisos del rol, política de claves, estado del lambda. Nada cambia. Termina cuando las cuatro cosas «sin verificar» de arriba tienen respuesta.</li>
+    <li><span class="who">Sin riesgo</span><strong>Fase 2 · el código a producción, con Cognito apagado.</strong> Un tag. Cada comercio nuevo nace con su sucursal y su asesor de prueba, pero sin cuenta de Cognito (variables vacías). Se valida con un comercio normal que el alta no se rompe.</li>
+    <li><span class="who">Infra</span><strong>Fase 3 · permisos, lambda y variables.</strong> Permisos del rol sobre el pool de producción; política del lambda; y en <code>prod/legacy-application</code> las tres variables (región, id del pool y la clave propia). Llegan con el <em>siguiente despliegue</em>, que reconstruye la tarea desde el secret.</li>
+    <li><span class="who">Acotada</span><strong>Fase 4 · una prueba.</strong> Crear el comercio de prueba dedicado. Debe aparecer la cuenta en el pool, el <code>cognito_id</code> debe ser igual a su <code>sub</code>, y Miguel entra al wizard de producción con ese asesor. La verificación en el pool es de solo lectura.</li>
+    <li><span class="who">Después</span><strong>Fase 5 · dejarlo encendido o no.</strong> Decidir si desde el primer día todo comercio nuevo lleva su cuenta, o si queda apagado y se enciende cuando se necesite.</li>
+  </ol>
+
+  <h2>Reversa: apagar es dejar una variable vacía</h2>
+  <div class="card ok">
+    <p><strong>Para apagar:</strong> vaciar <code>MERCHANT_AWS_COGNITO_USER_POOL_ID</code> en <code>prod/legacy-application</code> y reiniciar los cuatro servicios. Con eso la app deja de llamar a Cognito y el alta de comercios sigue igual. No se borran las claves: la definición de la tarea las referencia por nombre.</p>
+    <p>Un detalle por ensayar antes: que las tareas arranquen bien con un valor vacío. Hoy no está comprobado en ningún ambiente.</p>
+  </div>
+  <div class="card bad">
+    <p><strong>Lo que apagar no deshace:</strong> las cuentas que ya se crearon quedan en el pool y en <code>users</code>. Se limpian aparte, una por una, por correo exacto en el pool y por id exacto en la base, sin tocar nada que no sea de la prueba.</p>
+  </div>
+
+  <h2>Reglas de seguridad propias de producción</h2>
+  <ul>
+    <li>La clave de producción no se comparte con dev ni se escribe en chats, tareas o PRs. Rotarla después de la primera prueba, porque se usa para entrar a mano.</li>
+    <li>No se crean comercios de prueba reales para probar: se usa el dedicado y se borra al terminar.</li>
+    <li>La herramienta de login del harness <strong>no prueba producción</strong> (es sola lectura). La comprobación de la Fase 4 la hace Miguel a mano.</li>
+    <li>Nada de esto se ejecuta sin que Miguel lo confirme paso a paso.</li>
+  </ul>
+
+  <h2>Qué tiene en común con el plan de qa y qué no</h2>
+  <table>
+    <tr><th></th><th>Qa y staging</th><th>Producción</th></tr>
+    <tr><td>Pool</td><td>Se cambia el del wizard a Merchants Dev</td><td>Se mantiene el que ya usa el wizard</td></tr>
+    <tr><td>Cliente nuevo</td><td>Sí, uno por ambiente</td><td>No</td></tr>
+    <tr><td>Cuentas actuales</td><td>Dejan de entrar mientras dure el cambio</td><td>No se ven afectadas</td></tr>
+    <tr><td>Cómo se vuelve</td><td>Devolver la versión anterior del secret del wizard</td><td>Vaciar una variable del admin y reiniciar</td></tr>
+    <tr><td>Clave</td><td>La compartida de dev</td><td>Una propia de producción</td></tr>
+  </table>
+</main>
+</body>
+</html>

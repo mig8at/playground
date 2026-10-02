@@ -1,0 +1,120 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Plan de pruebas · qa y staging con Merchants Dev</title>
+<style>
+  :root { --bg:#fafaf8; --fg:#1d1d1b; --muted:#5f5f5a; --card:#fff; --line:#e1e0da; --accent:#1b6ef3; --warn:#9a5b00; --warnbg:#fff4de; --ok:#176a3a; --okbg:#e6f5ec; --bad:#a3261c; --badbg:#fdeceb; --code:#f2f1ec; }
+  @media (prefers-color-scheme: dark) { :root { --bg:#161615; --fg:#eceae4; --muted:#a3a29b; --card:#201f1e; --line:#33322f; --accent:#6fa3ff; --warn:#f0b35a; --warnbg:#33290f; --ok:#6fd195; --okbg:#10291b; --bad:#ff8a80; --badbg:#321513; --code:#2a2927; } }
+  * { box-sizing: border-box; }
+  body { margin:0; background:var(--bg); color:var(--fg); font:16px/1.55 -apple-system, system-ui, "Segoe UI", sans-serif; }
+  main { max-width: 860px; margin: 0 auto; padding: 24px 16px 64px; }
+  h1 { font-size: 1.6rem; margin: 0 0 4px; }
+  h2 { font-size: 1.2rem; margin: 32px 0 8px; }
+  h3 { font-size: 1rem; margin: 20px 0 6px; }
+  .meta { color: var(--muted); font-size: .9rem; margin-bottom: 16px; }
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: 10px; padding: 14px 16px; margin: 12px 0; }
+  .ok { background: var(--okbg); border-color: transparent; color: var(--ok); }
+  .warn { background: var(--warnbg); border-color: transparent; color: var(--warn); }
+  .bad { background: var(--badbg); border-color: transparent; color: var(--bad); }
+  .card p:first-child { margin-top: 0; } .card p:last-child { margin-bottom: 0; }
+  table { width: 100%; border-collapse: collapse; font-size: .92rem; display: block; overflow-x: auto; }
+  th, td { text-align: left; padding: 7px 10px; border-bottom: 1px solid var(--line); vertical-align: top; }
+  th { color: var(--muted); font-weight: 600; white-space: nowrap; }
+  pre { background: var(--code); border-radius: 8px; padding: 12px; overflow-x: auto; font-size: .85rem; line-height: 1.45; margin: 8px 0; }
+  code { font-family: ui-monospace, "SF Mono", Menlo, monospace; font-size: .88em; }
+  p code, li code, td code { background: var(--code); padding: 1px 5px; border-radius: 4px; }
+  ol.steps { padding-left: 1.2rem; } ol.steps > li { margin: 14px 0; }
+  .who { font-size: .8rem; color: var(--muted); text-transform: uppercase; letter-spacing: .04em; }
+</style>
+</head>
+<body>
+<main>
+  <h1>Plan de pruebas · qa y staging con Merchants Dev</h1>
+  <div class="meta">Tarea 98 · escrito el 2026-10-02 · es un plan, todavía no se ejecutó nada en qa ni en staging · solo vale para ambientes de prueba (producción tiene su propio plan)</div>
+
+  <div class="card ok">
+    <p><strong>La idea en una línea.</strong> Que el wizard de qa (y después el de staging) inicie sesión con Merchants Dev, para que los asesores de prueba que crea el admin puedan entrar. Si algo sale mal, se vuelve a la configuración de hoy en pocos minutos.</p>
+  </div>
+
+  <h2>Qué se sabe y qué no</h2>
+  <table>
+    <tr><th>Verificado el 2026-10-02</th><td>
+      Cada wizard (dev, qa, staging) es un servicio propio con su secret. Los tres apuntan hoy al mismo login y al mismo cliente (<code>auth.merchant.creditop.com</code>, cliente <code>il7p9ueb…</code>). El servicio lee del secret solo el dominio, el cliente y el secreto del cliente (más la URL de retorno). Cada arranque toma la versión «actual» del secret.</td></tr>
+    <tr><th>Verificado en dev local</th><td>Con un cliente nuevo en Merchants Dev y esos tres valores en el <code>.env</code>, el asesor de prueba entra al wizard (a mano y con <code>harness-login-check</code>).</td></tr>
+    <tr><th>Sin verificar</th><td>(1) Si el wizard desplegado de qa necesita algo más que esos tres valores. (2) Si el gateway que valida tokens antes del backend acepta el pool nuevo: los autorizadores de dev apuntan a otros pools. (3) Cuánto tarda de verdad el redespliegue de qa. Se resuelven en el ensayo del paso 0.</td></tr>
+  </table>
+
+  <h2>Qué se puede deshacer y qué no</h2>
+  <div class="card">
+    <p><strong>Se deshace fácil:</strong> la configuración del wizard. Vive en un secret con versiones: se guarda la actual, se pone la nueva y, si hace falta, se devuelve la anterior y se reinicia el servicio.</p>
+    <p><strong>No se toca nunca:</strong> el <code>cognito_id</code> de las cuentas que ya existen. La base de datos es la misma para dev, qa y staging, y el backend reconoce a cada asesor por ese valor. No hace falta tocarlo: las cuentas nuevas nacen en Merchants Dev y las viejas siguen en su pool.</p>
+  </div>
+  <div class="card warn">
+    <p><strong>El costo real.</strong> Mientras qa apunte a Merchants Dev, el equipo de QA no puede entrar con sus cuentas actuales (viven en el pool viejo). Se hace en una hora tranquila, avisando antes, y con una regla de salida clara.</p>
+  </div>
+
+  <h2>Hoja de vuelta (con los datos de hoy)</h2>
+  <table>
+    <tr><th>Ambiente</th><th>Servicio</th><th>Secret</th><th>Versión actual (a la que se vuelve)</th></tr>
+    <tr><td>qa</td><td><code>loan-request-wizard-qa</code></td><td><code>dev/loan-request-wizard-qa</code></td><td><code>c6a02706-73fb-48a4-8f5f-d1bf55e1c6e2</code></td></tr>
+    <tr><td>staging</td><td><code>loan-request-wizard-stg</code></td><td><code>dev/loan-request-wizard-stg</code></td><td><code>def326e3-d77a-4827-b00a-ef389b7519ab</code></td></tr>
+  </table>
+  <p>Clúster: <code>inertia-develop</code> · región <code>us-east-2</code> · perfil <code>dev</code>. Valores de hoy en ambos (no secretos): dominio <code>auth.merchant.creditop.com</code>, cliente <code>il7p9uebtjjaoaqc6q9brg6f</code>. URL de retorno de qa: <code>https://originaciones-qa.dev.creditop.com/auth/callback</code>; de staging: <code>https://originaciones-stg.dev.creditop.com/auth/callback</code>. <em>Las versiones cambian si alguien edita el secret antes del día: se vuelven a leer ese día.</em></p>
+
+  <h2>Pasos</h2>
+  <ol class="steps">
+    <li><span class="who">Antes · sin riesgo</span>
+      <strong>Paso 0 · ensayar la vuelta.</strong> En un secret que no importe (el del wizard de dev) cambiar un valor irrelevante, redesplegar, devolver la versión anterior y comprobar que el servicio arranca igual. Así se sabe cuánto tarda y que el comando de vuelta funciona antes de necesitarlo.
+    </li>
+    <li><span class="who">Miguel · solo agrega</span>
+      <strong>Paso 1 · crear el cliente de qa en Merchants Dev.</strong> No afecta a nadie y se puede borrar. Un cliente por ambiente, para que cada uno tenga su secreto y quitar uno no toque al otro.
+<pre><code>export AWS_PROFILE=dev AWS_DEFAULT_REGION=us-east-2
+aws cognito-idp create-user-pool-client --user-pool-id us-east-2_Mh2hIqeQ5 --client-name wizard-qa --generate-secret --allowed-o-auth-flows code --allowed-o-auth-flows-user-pool-client --allowed-o-auth-scopes openid phone email --callback-urls https://originaciones-qa.dev.creditop.com/auth/callback --logout-urls https://originaciones-qa.dev.creditop.com https://originaciones-qa.dev.creditop.com/ --supported-identity-providers COGNITO --explicit-auth-flows ALLOW_REFRESH_TOKEN_AUTH --prevent-user-existence-errors ENABLED &gt; /tmp/wizard-qa-client.json</code></pre>
+    </li>
+    <li><span class="who">Miguel · el día del cambio</span>
+      <strong>Paso 2 · avisar y confirmar la hoja de vuelta.</strong> Avisar al equipo de QA de la ventana y volver a leer la versión actual del secret (tiene que coincidir con la tabla de arriba).
+<pre><code>aws secretsmanager describe-secret --secret-id dev/loan-request-wizard-qa --query VersionIdsToStages</code></pre>
+    </li>
+    <li><span class="who">Miguel · el cambio</span>
+      <strong>Paso 3 · poner el login nuevo en el secret.</strong> Cambia solo tres claves; el resto queda igual. Imprime únicamente el id de la versión nueva: <em>anótalo, es lo que se necesita para volver</em>.
+<pre><code>SECRET=dev/loan-request-wizard-qa
+NEW=$(aws secretsmanager get-secret-value --secret-id $SECRET --query SecretString --output text | jq -c --slurpfile c /tmp/wizard-qa-client.json '.COGNITO_DOMAIN="merchant-develop.auth.us-east-2.amazoncognito.com" | .COGNITO_CLIENT_ID=$c[0].UserPoolClient.ClientId | .COGNITO_CLIENT_SECRET=$c[0].UserPoolClient.ClientSecret')
+aws secretsmanager put-secret-value --secret-id $SECRET --secret-string "$NEW" --query VersionId --output text</code></pre>
+    </li>
+    <li><span class="who">Miguel · el cambio</span>
+      <strong>Paso 4 · reiniciar el servicio y esperar.</strong>
+<pre><code>aws ecs update-service --cluster inertia-develop --service loan-request-wizard-qa --force-new-deployment --query 'service.deployments[0].rolloutState' --output text
+aws ecs wait services-stable --cluster inertia-develop --services loan-request-wizard-qa</code></pre>
+    </li>
+    <li><span class="who">Miguel · la prueba</span>
+      <strong>Paso 5 · comprobar que el asesor de prueba entra.</strong> Crear un comercio en el admin de dev (la base es la misma que usa qa) y correr, desde la raíz de <code>playground</code>:
+<pre><code>make harness-login-check TARGETS=qa ALLIED=last BLOQUE=98</code></pre>
+      Sin la clave en la shell solo descubre a qué login manda qa: debe decir <code>merchant-develop…</code>.
+    </li>
+    <li><span class="who">Decisión</span>
+      <strong>Paso 6 · seguir o volver.</strong> Ver la regla de salida abajo.</li>
+  </ol>
+
+  <h2>Regla de salida</h2>
+  <div class="card ok"><p><strong>Se queda</strong> si el asesor de prueba entra al wizard de qa y llega a la sucursal que le corresponde.</p></div>
+  <div class="card bad"><p><strong>Se vuelve</strong> si no entra, si el wizard no levanta, o si pasan 30 minutos sin resolverlo. No se investiga con qa bloqueado: se vuelve y se investiga después.</p></div>
+
+  <h3>Cómo se vuelve</h3>
+<pre><code>aws secretsmanager update-secret-version-stage --secret-id dev/loan-request-wizard-qa --version-stage AWSCURRENT --move-to-version-id c6a02706-73fb-48a4-8f5f-d1bf55e1c6e2 --remove-from-version-id NUEVA_VERSION_ID
+aws ecs update-service --cluster inertia-develop --service loan-request-wizard-qa --force-new-deployment --query 'service.deployments[0].rolloutState' --output text
+aws ecs wait services-stable --cluster inertia-develop --services loan-request-wizard-qa</code></pre>
+  <p>Comprobar la vuelta: <code>make harness-login-check TARGETS=qa</code> debe volver a decir <code>auth.merchant.creditop.com</code>, y alguien del equipo de QA entra con su cuenta de siempre. Lo creado por la prueba (el cliente <code>wizard-qa</code>, el comercio de prueba y sus cuentas) no molesta y se limpia aparte.</p>
+
+  <h2>Staging</h2>
+  <p>Se repite igual, solo después de que qa quede bien y se haya vivido un tiempo: otro cliente (<code>wizard-stg</code>) con la URL de retorno de staging, el secret <code>dev/loan-request-wizard-stg</code>, el servicio <code>loan-request-wizard-stg</code> y la versión de vuelta <code>def326e3-…</code>. El admin de staging no hace falta tocarlo: el comercio de prueba se crea en el admin de dev y la base es compartida.</p>
+
+  <h2>Lo que este plan no resuelve</h2>
+  <ul>
+    <li>Las cuentas del equipo de QA no pasan a Merchants Dev. Si algún día se quiere que QA entre por ahí, hay que crearlas allí y cambiarles el <code>cognito_id</code>, y eso sí es una decisión aparte porque la base es compartida y no se deshace con un comando.</li>
+    <li>Mientras qa use Merchants Dev, staging y dev desplegado siguen con el login viejo: los ambientes quedan, por un tiempo, con logins distintos.</li>
+  </ul>
+</main>
+</body>
+</html>
