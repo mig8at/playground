@@ -497,6 +497,24 @@ if [ "$UP" = 1 ] && [ "$FRESH" = 0 ]; then
     fi
   fi
 fi
+# (5) ¿SE EDITÓ SU CONFIGURACIÓN DESPUÉS DE ARRANCAR? Vite lee el `.env` UNA vez. El 2026-10-02 se cambió el
+#     login de Cognito del wizard en su `.env` y el proceso siguió sirviendo el viejo: pasaba las cuatro
+#     comprobaciones de arriba (respondía, era el suyo, mismo backend, no más viejo que la rama) y lo detectó
+#     una persona. Se compara el arranque del proceso con la fecha de cada archivo de configuración.
+if [ "$UP" = 1 ] && [ "$FRESH" = 0 ] && [ -n "${LISTEN_PID:-}" ]; then
+  P5_T="$(ps -o lstart= -p "$LISTEN_PID" 2>/dev/null | sed 's/^ *//; s/  */ /g' || true)"
+  P5_S="$(date -j -f '%a %b %d %T %Y' "$P5_T" +%s 2>/dev/null || true)"
+  if [ -n "$P5_S" ]; then
+    for f in "$WIZARD/.env" "$WIZARD/.env.local"; do
+      [ -f "$f" ] || continue
+      F_S="$(stat -f %m "$f" 2>/dev/null || true)"
+      if [ -n "$F_S" ] && [ "$F_S" -gt "$P5_S" ]; then
+        log "${f##*/} del wizard se editó el $(date -r "$F_S" '+%d/%m %H:%M'), después de que arrancó (${P5_T}): sirve la configuración vieja → reinicio limpio"; FRESH=1
+        break
+      fi
+    done
+  fi
+fi
 if [ "$UP" = 1 ] && [ "$FRESH" = 0 ]; then
   ok "frontend" "reusado (:5174 pid ${LISTEN_PID:-?} → ${WIZ_API} · ${TARGET} · backend y antigüedad verificados)"
 else

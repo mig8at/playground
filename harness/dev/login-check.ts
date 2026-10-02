@@ -30,6 +30,7 @@ const { values: args } = parseArgs({
         headless: { type: 'boolean', default: false },
         child: { type: 'boolean', default: false },
         json: { type: 'boolean', default: false },
+        'no-restart': { type: 'boolean', default: false },
     },
 });
 
@@ -56,6 +57,15 @@ async function runChild(): Promise<void> {
         process.exit(0);
     };
     const finish = async (r: object): Promise<never> => { await close().catch(() => {}); return emit(r); };
+
+    // Si el front es el wizard LOCAL, que esté al día con su propia configuración: Vite lee el `.env` una sola vez
+    // y un cambio de login sin reiniciar hace probar el login viejo (2026-10-02). Si no lo está, se reinicia solo.
+    if (/^(localhost|127\.0\.0\.1)$/.test(new URL(config.feBaseUrl).hostname) && !args['no-restart']) {
+        const { ensureWizard } = await import('../pkg/wizard-health.ts');
+        const w = await ensureWizard();
+        if (w.estado !== 'sano') console.error(`  wizard: ${w.estado} — ${w.detalle}${w.reasons.length ? ` (${w.reasons.join('; ')})` : ''}`);
+        if (w.estado === 'falló') return finish(notProbed({ veredicto: 'no se pudo probar', detalle: `el wizard local no quedó al día: ${w.detalle}` }));
+    }
 
     const { hosted, motivo } = await discoverHostedUi(config.feBaseUrl);
     if (!hosted) return finish(notProbed({ veredicto: 'no se pudo probar', detalle: motivo }));
@@ -106,7 +116,7 @@ async function runParent(): Promise<void> {
         const out = await new Promise<string>((resolve) => {
             const p = spawn(process.execPath, [new URL(import.meta.url).pathname, '--child', '--targets', target,
                 ...(args.allied ? ['--allied', args.allied] : []), ...(args.user ? ['--user', args.user] : []),
-                ...(args.headless ? ['--headless'] : [])],
+                ...(args.headless ? ['--headless'] : []), ...(args['no-restart'] ? ['--no-restart'] : [])],
             // E2E_PREVIEW=1: ventana acomodada como la del panel. El autorrelleno del harness se apaga: llena
             // pantallas del wizard y no tiene nada que hacer en el formulario de Cognito.
             { env: { ...process.env, E2E_TARGET: target, E2E_AUTORELLENO: '0', ...(args.headless ? {} : { E2E_PREVIEW: '1' }) }, stdio: ['ignore', 'pipe', 'inherit'] });
