@@ -17,7 +17,8 @@
 //
 // Exit code = veredicto: 0 todos entraron · 1 alguno no entró · 2 alguno no se pudo probar.
 //
-// ⚠ Contra qa y staging el Managed Login corta la automatización sin ventana (F-66): ahí va con ventana.
+// Va CON ventana, como el panel (`HEADLESS=1` la quita). ⚠ Contra qa y staging el Managed Login corta la
+// automatización sin ventana (F-66): ahí va con ventana siempre.
 import { spawn } from 'node:child_process';
 import { parseArgs } from 'node:util';
 
@@ -26,7 +27,7 @@ const { values: args } = parseArgs({
         targets: { type: 'string', default: 'dev' },
         allied: { type: 'string' },
         user: { type: 'string' },
-        headed: { type: 'boolean', default: false },
+        headless: { type: 'boolean', default: false },
         child: { type: 'boolean', default: false },
         json: { type: 'boolean', default: false },
     },
@@ -76,7 +77,9 @@ async function runChild(): Promise<void> {
     const pass = env('ALLIED_TEST_ADVISOR_PASSWORD');
     if (!pass) return finish(notProbed({ veredicto: 'sin clave', hosted, user, advisor, detalle: `${advisor ? 'login y asesor encontrados' : 'login descubierto'}; falta ALLIED_TEST_ADVISOR_PASSWORD para entrar` }));
 
-    const headless = !(args.headed || HEADED_ALWAYS.has(TARGET));
+    // Con ventana por defecto, como el panel: se ve quién entra y dónde se queda. `--headless` la quita, salvo
+    // en qa y staging, donde el Managed Login corta la automatización sin ventana (F-66).
+    const headless = args.headless && !HEADED_ALWAYS.has(TARGET);
     const browser = await chromium.launch({ headless });
     try {
         return await finish(await probeLogin(browser, { user, pass, hosted, advisor, expectedBranch: advisor?.branchHash }));
@@ -103,8 +106,10 @@ async function runParent(): Promise<void> {
         const out = await new Promise<string>((resolve) => {
             const p = spawn(process.execPath, [new URL(import.meta.url).pathname, '--child', '--targets', target,
                 ...(args.allied ? ['--allied', args.allied] : []), ...(args.user ? ['--user', args.user] : []),
-                ...(args.headed ? ['--headed'] : [])],
-            { env: { ...process.env, E2E_TARGET: target }, stdio: ['ignore', 'pipe', 'inherit'] });
+                ...(args.headless ? ['--headless'] : [])],
+            // E2E_PREVIEW=1: ventana acomodada como la del panel. El autorrelleno del harness se apaga: llena
+            // pantallas del wizard y no tiene nada que hacer en el formulario de Cognito.
+            { env: { ...process.env, E2E_TARGET: target, E2E_AUTORELLENO: '0', ...(args.headless ? {} : { E2E_PREVIEW: '1' }) }, stdio: ['ignore', 'pipe', 'inherit'] });
             let buf = '';
             p.stdout.on('data', (d) => { buf += d; });
             p.on('close', () => resolve(buf));

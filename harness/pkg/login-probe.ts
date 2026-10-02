@@ -3,7 +3,7 @@ import { cognitoLogin, cookiesHealth } from './cognito.ts';
 import { config } from './config.ts';
 import { query } from './db.ts';
 import { TARGET } from './env.ts';
-import { IPHONE_UA } from './windows.ts';
+import { IPHONE_UA, openA } from './windows.ts';
 
 /**
  * ¿El asesor de prueba de un comercio ENTRA al wizard en este ambiente?
@@ -170,8 +170,9 @@ export async function probeLogin(browser: Browser, opts: ProbeOptions): Promise<
     };
     const done = (patch: Partial<LoginResult>): LoginResult => ({ ...base, ...patch, ms: Date.now() - started });
 
-    const context = await browser.newContext({ baseURL: front, userAgent: IPHONE_UA });
-    const page = await context.newPage();
+    // La misma ventana que usa el resto del harness (acomodada en su columna, UA de celular), para que se
+    // vea igual que el camino visual. Sin `storageState`: el contexto nace limpio.
+    const { context, page } = await openA(browser, { baseURL: front, userAgent: IPHONE_UA });
     try {
         await page.goto('/merchant', { waitUntil: 'domcontentloaded', timeout: 60_000 }).catch(() => { /* lo decide la URL */ });
         // `savePath: null` = no escribe ningún cache (ver el aviso de arriba).
