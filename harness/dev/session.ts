@@ -6,12 +6,14 @@
 //   make harness-signin KIND=advisor TARGET=dev [ORIGIN=…]   entra al wizard con ADVISOR_USER/ADVISOR_PASS
 //   make harness-signout KIND=admin TARGET=dev               borra la sesión guardada
 //
-// Entrar con usuario y contraseña lo corre una persona; lo guardado lo usan después las herramientas (`allied-create`,
-// `login-check`…). Ningún valor de sesión se imprime. Producción no se toca.
+// El ADMIN lo maneja el conector (`bin/pg admin …`): acá se delega, y el asesor sigue siendo de este módulo. Entrar con usuario y
+// contraseña lo corre una persona; lo guardado lo usan después las herramientas. Ningún valor de sesión se imprime. Producción no.
 // Exit code: 0 bien · 1 no se pudo entrar o no sirve · 2 faltan credenciales o argumentos.
+import { spawnSync } from 'node:child_process';
 import { parseArgs } from 'node:util';
 import { MissingCredentials, removeSession, sessionStatus, signIn, type SessionKind } from '../pkg/sessions.ts';
 import { credentialKeys, credentialsFor, legacyCredentialHint } from '../pkg/connector-env.ts';
+import { runPg } from '../pkg/pg.ts';
 
 const { positionals, values: args } = parseArgs({
     allowPositionals: true,
@@ -40,6 +42,12 @@ function targetOf(): string {
     return t;
 }
 
+/** El admin lo maneja el conector: se le pasa el comando tal cual, con la salida a la vista. */
+function viaPg(sub: string, target: string): never {
+    const r = spawnSync(`${process.cwd()}/../bin/pg`, ['admin', sub, '--target', target], { stdio: 'inherit', cwd: `${process.cwd()}/..` });
+    process.exit(r.status ?? 1);
+}
+
 if (command === 'status') {
     const kinds = args.kind ? [kindOf()] : KINDS;
     const targets = args.target ? [targetOf()] : TARGETS;
@@ -47,7 +55,19 @@ if (command === 'status') {
     for (const kind of kinds) {
         for (const target of targets) {
             if (kind === 'admin' && target === 'qa') continue;   // qa no tiene admin propio
-            const s = await sessionStatus(kind, target, kind === 'advisor' ? args.origin : undefined);
+            if (kind === 'admin') {
+                // El estado del admin lo dice el conector, que es quien lo maneja.
+                const r = runPg(['admin', 'status', '--target', target, '--json']);
+                const row = r.status === 0 ? (JSON.parse(r.stdout) as Array<Record<string, any>>)[0] : null;
+                const exists = !!row?.exists;
+                const mark = !exists ? '—' : row!.valid === true ? '✅' : row!.valid === false ? '✖ ' : '? ';
+                const label = !exists ? 'no hay' : row!.valid === true ? 'sirve' : row!.valid === false ? 'vencida' : 'sin saber';
+                const who = exists ? `${row!.who || row!.user}${row!.who && row!.user && row!.who !== row!.user ? ` (${row!.user})` : ''}` : '';
+                const when = exists && row!.since ? String(row!.since).slice(0, 16).replace('T', ' ') : '';
+                rows.push([kind, target, `${mark}${label}`, who, exists ? `${when} · ${row!.detail}` : (row?.detail ?? 'no se pudo preguntar al conector')]);
+                continue;
+            }
+            const s = await sessionStatus(kind, target, args.origin);
             const mark = !s.exists ? '—' : s.valid === true ? '✅' : s.valid === false ? '✖ ' : '? ';
             const when = s.createdAt ? s.createdAt.slice(0, 16).replace('T', ' ') : '';
             rows.push([`${kind}`, target, `${mark}${s.exists ? (s.valid === true ? 'sirve' : s.valid === false ? 'vencida' : 'sin saber') : 'no hay'}`,
@@ -62,6 +82,7 @@ if (command === 'status') {
 } else if (command === 'signin') {
     const kind = kindOf();
     const target = targetOf();
+    if (kind === 'admin') viaPg('login', target);
     if (target !== 'local' || kind === 'advisor') {
         const creds = credentialsFor(kind, target);
         if (creds) {
@@ -86,6 +107,7 @@ if (command === 'status') {
 } else if (command === 'signout') {
     const kind = kindOf();
     const target = targetOf();
+    if (kind === 'admin') viaPg('logout', target);
     console.log(removeSession(kind, target, args.origin) ? `  ✔ sesión de ${kind} en ${target} borrada` : `  · no había sesión de ${kind} en ${target}`);
 } else {
     fail(`comando desconocido «${command}». Los que hay: status · signin · signout`);

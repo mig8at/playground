@@ -11,9 +11,10 @@
 // asesor en el wizard (`dev/login-check.ts`, con ventana: la clave la teclea esa herramienta en tu corrida), 5) opcional,
 // el borrado por id exacto del comercio, la sucursal, el asesor y su cuenta del pool.
 //
-// La sesión del admin no se inventa (ver `pkg/sessions.ts`): se usa la que se guardó con `make harness-signin KIND=admin
-// TARGET=<t>` —local la renueva sola, porque la emite la propia app— y la herramienta dice con QUIÉN actúa antes de escribir.
-// Producción no se toca, y qa no tiene admin propio: usa dev.
+// El alta la hace el conector del admin (`bin/pg admin allied-create`, en Go): usa la sesión que se guardó con `bin/pg admin login
+// --target <t>` —local la renueva sola, porque la emite la propia app— y dice con QUIÉN actúa antes de escribir. Lo que sigue siendo
+// del harness es verificar el asesor en la BASE y borrar lo creado con permisos angostos. Producción no se toca, y qa no tiene admin
+// propio: usa dev.
 // El alta ESCRIBE (en dev, en la base compartida): lo creado lleva el prefijo «PRUEBA AUTO», y es lo único que se borra.
 //
 // Exit code: 0 todo bien · 1 algo quedó mal (la pantalla o la base no cuadran, o el login no entró) · 2 no se pudo empezar.
@@ -21,11 +22,9 @@ import { spawn, spawnSync } from 'node:child_process';
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { parseArgs } from 'node:util';
-import { NoAdminSession } from '../pkg/admin-http.ts';
-import { cleanupAllied, createAllied, verifyAdvisor, type CleanupResult, type TestAdvisorFlash } from '../pkg/allied-admin.ts';
+import { cleanupAllied, createAllied, previewAllied, verifyAdvisor, type CleanupResult, type TestAdvisorFlash } from '../pkg/allied-admin.ts';
 import { close } from '../pkg/db.ts';
 import { env, TARGET } from '../pkg/env.ts';
-import { adminClientFor } from '../pkg/sessions.ts';
 
 const { values: args } = parseArgs({
     options: {
@@ -74,6 +73,9 @@ async function runCleanup(alliedId: number): Promise<CleanupResult> {
 
 async function main(): Promise<void> {
     if (TARGET === 'prod' || TARGET === 'production') fail('producción es sólo lectura: esta herramienta no crea ni borra nada ahí');
+    // ESCRIBE, así que el ambiente se dice SIEMPRE: `E2E_TARGET` cae a dev si nadie lo fija, y un comando que escribe no puede elegir
+    // por su cuenta la base compartida. (El 2026-10-02 una comprobación de sintaxis la ejecutó y creó un comercio en dev.)
+    if (!process.env.E2E_TARGET) fail('falta el ambiente. Usa: make harness-allied-create TARGET=local|dev|staging');
     console.log(`\n  harness-allied-create · ${TARGET}${HAS_POOL ? ` · pool ${POOL_ID}` : ''}`);
 
     // ── sólo borrar ─────────────────────────────────────────────────────────────────────────────────
@@ -86,32 +88,24 @@ async function main(): Promise<void> {
 
     // ── sólo comprobar ──────────────────────────────────────────────────────────────────────────────
     if (args.check) {
-        try {
-            const { client, user, who } = await adminClientFor(TARGET);
-            const form = await client.get('/aliados/crear');
-            const s = form.page?.props?.settings;
-            if (!s) fail(`el formulario de alta no trajo opciones (HTTP ${form.status})`, 1);
-            console.log(`  ✔ sesión de admin válida en ${client.base} · actúa como ${who ?? user} (${user})`);
-            console.log(`  ✔ el formulario trae ${s.alliedTypes?.length ?? 0} tipo(s), ${s.alliedIndustries?.length ?? 0} industria(s) y ${s.countries?.length ?? 0} país(es) · no se creó nada\n`);
-        } catch (e) {
-            if (e instanceof NoAdminSession) fail(`sin sesión de admin: ${e.message}`);
-            fail((e as Error).message, 1);
-        }
+        const p = previewAllied(TARGET);
+        if (!p.ok) fail(`sin sesión de admin o el formulario no cargó: ${p.text}`);
+        console.log(p.text.replace(/\n+$/, '').split('\n').filter((l) => l.trim() && !/Va a CREARSE|vista previa|⚠ escribe/.test(l)).map((l) => `  ✔ ${l.trim()}`).join('\n'));
+        console.log('  ✔ el formulario de alta carga · no se creó nada\n');
         return;
     }
 
     // ── 1) el alta por el admin ────────────────────────────────────────────────────────────────────
     let created;
-    let actingAs = '';
     try {
-        const { client, user, who } = await adminClientFor(TARGET);
-        actingAs = `${who ?? user} (${user})`;
-        console.log(`  actúa como ${actingAs}`);
-        created = await createAllied(client, { name: args.name });
+        created = createAllied(TARGET, { name: args.name });
     } catch (e) {
-        if (e instanceof NoAdminSession) fail(`sin sesión de admin: ${e.message}`);
-        fail(`no se pudo crear el comercio: ${(e as Error).message}`, 1);
+        const msg = (e as Error).message;
+        if (/no hay sesión|venció|login/.test(msg)) fail(`sin sesión de admin: ${msg}`);
+        fail(`no se pudo crear el comercio: ${msg}`, 1);
     }
+    const actingAs = created.actingAs;
+    console.log(`  actúa como ${actingAs || '(el conector no lo dijo)'}`);
     const flash: TestAdvisorFlash | null = created.flash;
     console.log(`  comercio   ${created.id} · ${created.name}   (alta en ${(created.ms / 1000).toFixed(1)} s)`);
 

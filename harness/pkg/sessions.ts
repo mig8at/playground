@@ -1,23 +1,25 @@
-import { execFileSync } from 'node:child_process';
 import { chmodSync, existsSync, mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { ADMIN_URLS, AdminClient, CookieJar, NoAdminSession, adminBaseFor, parseDataPage } from './admin-http.ts';
 import { credentialKeys, credentialsFor, type CredentialKind } from './connector-env.ts';
 
 /**
- * Las SESIONES de login en un solo lugar: la del admin de legacy-application y la del asesor del wizard.
+ * Las SESIONES de login del ASESOR del wizard (Cognito), y el formato en disco que comparten con el conector del admin.
  *
- * POR QUÉ EXISTE. El login estaba desperdigado: `.admin.json`, `.cognito.json`, variables `E2E_*`, un perfil de navegador
- * por ambiente y un cache de Cognito aparte. Cada herramienta lo resolvía a su manera, y el 2026-10-02 eso costó que la
- * sesión «de dev» fuera la de otra persona sin que nadie lo viera. Acá hay UNA forma: las credenciales salen de
- * `connectors/` (`pkg/connector-env.ts`), el login lo hace Chrome por debajo, y lo que queda guardado dice QUIÉN es.
+ * POR QUÉ EXISTE. El login estaba desperdigado: `.admin.json`, `.cognito.json`, variables `E2E_*`, un perfil de navegador por
+ * ambiente y un cache de Cognito aparte. Cada herramienta lo resolvía a su manera, y el 2026-10-02 eso costó que la sesión «de
+ * dev» fuera la de otra persona sin que nadie lo viera. Acá hay UNA forma: las credenciales salen de `connectors/`
+ * (`pkg/connector-env.ts`), el login lo hace Chrome por debajo, y lo que queda guardado dice QUIÉN es.
+ *
+ * EL ADMIN YA NO ES DE ESTE MÓDULO: lo maneja el conector `admin` (`bin/pg admin …`, en Go, por HTTP y sin navegador). Acá sólo se
+ * LEE su archivo de sesión (`readSession('admin', …)`, que usa `dev/open-admin.ts` para abrir una ventana ya logueada): el formato
+ * en disco es el mismo para los dos lados.
  *
  * LAS FRONTERAS:
- *  · Entrar con usuario y contraseña lo corre una persona (`make harness-signin`). Lo guardado después lo usan las
- *    herramientas —y quien las maneja— sin volver a pedir nada.
+ *  · Entrar con usuario y contraseña lo corre una persona (`make harness-signin`). Lo guardado después lo usan las herramientas
+ *    —y quien las maneja— sin volver a pedir nada.
  *  · Ningún valor de sesión se imprime: `status` muestra quién, de cuándo y si sirve, nunca la cookie.
- *  · Producción no se toca. qa no tiene admin propio (comparte la base con dev).
+ *  · Producción no se toca.
  *
  * Se guarda en `.auth/sessions/` (fuera de git, permisos 600): `<tipo>-<ambiente>.json`; para el asesor lleva además el
  * host del wizard, porque el wizard local y el desplegado de un mismo ambiente no comparten cookies.
@@ -47,10 +49,15 @@ export interface StoredSession {
     cookies: StoredCookie[];
 }
 
+/** Los admin de cada ambiente: sólo para ubicar el archivo de sesión que guarda el conector (que es quien los maneja). */
+const ADMIN_ORIGINS: Record<string, string> = {
+    local: 'http://admin.localhost:8000', dev: 'https://admin.dev.creditop.com', staging: 'https://admin.staging.creditop.com',
+};
+
 /** Dónde vive el wizard (o el admin) de cada ambiente: el origen al que pertenece la sesión. */
 export function defaultOrigin(kind: SessionKind, target: string): string {
     if (kind === 'admin') {
-        const base = ADMIN_URLS[target];
+        const base = ADMIN_ORIGINS[target];
         if (!base) throw new Error(adminTargetError(target));
         return base;
     }
@@ -66,7 +73,7 @@ export function defaultOrigin(kind: SessionKind, target: string): string {
 function adminTargetError(target: string): string {
     if (/^prod/.test(target)) return 'producción es sólo lectura: no se guardan sesiones de ahí';
     if (target === 'qa') return 'qa no tiene admin propio: comparte la base con dev (usa dev)';
-    return `no conozco el admin de «${target}». Los que hay: ${Object.keys(ADMIN_URLS).join(', ')}`;
+    return `no conozco el admin de «${target}». Los que hay: ${Object.keys(ADMIN_ORIGINS).join(', ')}`;
 }
 
 /** El nombre del archivo. Pura. El asesor lleva el host: localhost y el desplegado de dev no comparten cookies. */
@@ -145,10 +152,9 @@ export interface SessionStatus {
     motivo: string;
 }
 
-/** Le pregunta al servidor si la sesión sigue viva: una petición a una ruta protegida, sin seguir redirecciones. */
+/** Le pregunta al servidor si la sesión del ASESOR sigue viva: una petición a una ruta protegida, sin seguir redirecciones. */
 export async function probeSession(s: StoredSession): Promise<{ valid: boolean | null; who: string | null; motivo: string }> {
-    const path = s.kind === 'admin' ? '/aliados' : '/merchant';
-    const url = `${s.origin}${path}`;
+    const url = `${s.origin}/merchant`;
     let res: Response;
     try {
         res = await fetch(url, {
@@ -163,8 +169,7 @@ export async function probeSession(s: StoredSession): Promise<{ valid: boolean |
         return { valid: false, who: null, motivo: 'el servidor manda al login: la sesión venció' };
     }
     if (res.status >= 400) return { valid: false, who: null, motivo: `el servidor contestó HTTP ${res.status}` };
-    const who = s.kind === 'admin' ? (parseDataPage(await res.text())?.props?.auth?.full_name ?? null) : null;
-    return { valid: true, who, motivo: 'sirve' };
+    return { valid: true, who: null, motivo: 'sirve' };
 }
 
 export async function sessionStatus(kind: SessionKind, target: string, origin?: string): Promise<SessionStatus> {
@@ -203,48 +208,6 @@ export interface SignInOptions {
 
 export class MissingCredentials extends Error {}
 
-/** Entra al admin de `target`. Local no necesita credencial: la propia app emite la sesión con su guard real. */
-async function signInAdmin(target: string, opts: SignInOptions): Promise<StoredSession> {
-    const origin = defaultOrigin('admin', target);
-
-    if (target === 'local') {
-        let s: { cookie: string; value: string; email: string };
-        try {
-            s = JSON.parse(execFileSync(join(HARNESS, 'bin/admin-session'), { encoding: 'utf8' }).trim());
-        } catch (e) {
-            throw new Error(`no pude emitir la sesión local (¿el admin local está arriba y APP_ENV=local?): ${String((e as Error).message).split('\n')[0].slice(0, 140)}`);
-        }
-        const host = new URL(origin).hostname;
-        return {
-            version: 1, kind: 'admin', target, user: s.email, who: null, origin, createdAt: new Date().toISOString(),
-            cookies: [{ name: s.cookie, value: s.value, domain: host, path: '/', expires: -1, httpOnly: true, secure: false, sameSite: 'Lax' }],
-        };
-    }
-
-    const creds = credentialsFor('admin', target);
-    if (!creds) {
-        const k = credentialKeys('admin');
-        throw new MissingCredentials(`faltan las credenciales del admin de ${target}: pon ${k.user} y ${k.pass} en connectors/.env.${target}`);
-    }
-    const browser = await launchChrome(opts.headless ?? true);
-    try {
-        const context = await browser.newContext();
-        const page = await context.newPage();
-        await page.goto(`${origin}/login`, { waitUntil: 'domcontentloaded', timeout: 60_000 });
-        await page.locator('input[type="email"], input[name="email"]').first().fill(creds.user);
-        await page.locator('input[type="password"], input[name="password"]').first().fill(creds.pass);
-        await Promise.all([
-            page.waitForURL((u) => !u.pathname.includes('/login'), { timeout: 30_000 }),
-            page.locator('button[type="submit"]').first().click(),
-        ]);
-        const host = new URL(origin).hostname;
-        const cookies = (await context.cookies()).filter((c) => host === c.domain.replace(/^\./, '') || host.endsWith(`.${c.domain.replace(/^\./, '')}`)).map(toStored);
-        return { version: 1, kind: 'admin', target, user: creds.user, who: null, origin, createdAt: new Date().toISOString(), cookies };
-    } finally {
-        await browser.close().catch(() => { /* ya cerrado */ });
-    }
-}
-
 /** Entra al wizard como asesor (Cognito). Reusa el mismo paso de login que la sonda: clásico o de dos pasos. */
 async function signInAdvisor(target: string, opts: SignInOptions): Promise<StoredSession> {
     const origin = opts.origin ?? defaultOrigin('advisor', target);
@@ -276,50 +239,10 @@ async function signInAdvisor(target: string, opts: SignInOptions): Promise<Store
  */
 export async function signIn(kind: SessionKind, target: string, opts: SignInOptions = {}): Promise<{ session: StoredSession; path: string; who: string | null }> {
     if (/^prod/.test(target)) throw new Error('producción es sólo lectura: no se guardan sesiones de ahí');
-    const session = kind === 'admin' ? await signInAdmin(target, opts) : await signInAdvisor(target, opts);
+    if (kind === 'admin') throw new Error('el admin lo maneja el conector: bin/pg admin login --target ' + target);
+    const session = await signInAdvisor(target, opts);
     const probe = await probeSession(session);
     if (probe.valid === false) throw new Error(`entré pero la sesión no sirve: ${probe.motivo}`);
     session.who = probe.who;
     return { session, path: writeSession(session), who: probe.who };
-}
-
-// ── el cliente del admin, con la sesión guardada ─────────────────────────────────────────────────────
-
-export interface AdminAccess {
-    client: AdminClient;
-    /** Con quién actúa la herramienta: el correo con que se entró y el nombre que mostró el admin. Se imprime SIEMPRE. */
-    user: string;
-    who: string | null;
-}
-
-/**
- * Un cliente HTTP del admin de `target` con la sesión GUARDADA (`make harness-signin KIND=admin TARGET=…`).
- *
- * Sin sesión, o con una vencida, falla diciendo cómo conseguirla: NUNCA entra por su cuenta con una credencial
- * (en un ambiente compartido, eso sería elegir una identidad que nadie eligió). La excepción es local: ahí la sesión
- * la emite la propia app, sin contraseña, así que se renueva sola.
- */
-export async function adminClientFor(target: string): Promise<AdminAccess> {
-    const base = adminBaseFor(target);
-    const t = target.trim().toLowerCase();
-    const how = `make harness-signin KIND=admin TARGET=${t}`;
-
-    let session = readSession('admin', t);
-    if (!session && t === 'local') session = (await signIn('admin', 'local')).session;
-    if (!session) throw new NoAdminSession(`no hay sesión de admin para ${t}. Entra con:  ${how}`);
-
-    let probe = await probeSession(session);
-    if (probe.valid === false && t === 'local') {
-        session = (await signIn('admin', 'local')).session;
-        probe = await probeSession(session);
-    }
-    if (probe.valid === false) throw new NoAdminSession(`la sesión de admin de ${t} (${session.user}) venció. Vuelve a entrar con:  ${how}`);
-    if (probe.valid === null) throw new NoAdminSession(`el admin de ${t} no contestó: ${probe.motivo}`);
-
-    const jar = new CookieJar();
-    const host = new URL(base).hostname;
-    for (const c of session.cookies) {
-        if (host === c.domain.replace(/^\./, '') || host.endsWith(`.${c.domain.replace(/^\./, '')}`)) jar.set(c.name, c.value);
-    }
-    return { client: new AdminClient(base, jar), user: session.user, who: probe.who ?? session.who };
 }

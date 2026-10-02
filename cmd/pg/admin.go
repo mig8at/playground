@@ -233,13 +233,22 @@ func runAdminAlliedCreate(args []string) int {
 	if err != nil {
 		return fail(1, "%v", err)
 	}
-	fmt.Printf("  Va a CREARSE en el admin de %s el comercio %q\n", t, plan.Name)
-	fmt.Printf("    actúa como %s\n", plan.ActingAs)
-	fmt.Printf("    tipo %d · industria %d · país %d · precio %d\n", plan.TypeID, plan.IndustryID, plan.CountryID, plan.Price)
+	// Con --json la salida estándar es JSON puro (la lee el harness); la vista previa va a stderr.
+	out := os.Stdout
+	if *asJSON {
+		out = os.Stderr
+	}
+	fmt.Fprintf(out, "  Va a CREARSE en el admin de %s el comercio %q\n", t, plan.Name)
+	fmt.Fprintf(out, "    actúa como %s\n", plan.ActingAs)
+	fmt.Fprintf(out, "    tipo %d · industria %d · país %d · precio %d\n", plan.TypeID, plan.IndustryID, plan.CountryID, plan.Price)
 	if t != "local" {
-		fmt.Printf("    ⚠ escribe en la base COMPARTIDA y sube una imagen al bucket del admin; y se crean su sucursal, su asesor de prueba y su cuenta de Cognito\n")
+		fmt.Fprintf(out, "    ⚠ escribe en la base COMPARTIDA y sube una imagen al bucket del admin; y se crean su sucursal, su asesor de prueba y su cuenta de Cognito\n")
 	}
 	if !*apply {
+		if *asJSON {
+			fmt.Fprintln(os.Stderr, "\n  (vista previa: no se escribió nada — repetí con --apply para hacerlo)")
+			return 0
+		}
 		return dryRun()
 	}
 	got, err := c.CreateAllied(ctx, plan)
@@ -260,5 +269,3 @@ func runAdminAlliedCreate(args []string) int {
 	}
 	return 0
 }
-
-var _ = os.Stdout
