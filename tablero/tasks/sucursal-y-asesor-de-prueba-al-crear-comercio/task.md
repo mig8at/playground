@@ -19,9 +19,8 @@ jira_title: "Sucursal y asesor de prueba al crear un comercio"
   efecto, no leyendo IAM (el rol de desarrollo no lo lee): los comercios 346 y 347 crearon su cuenta en el pool.
 - [x] Mergear el PR del lambda que agrega al stack el permiso para Merchants Dev (hecho el 2026-10-02; el
   despliegue terminó en `UPDATE_COMPLETE` y el lambda rechaza con su mensaje un correo ajeno).
-- [ ] Quitar la entrada manual `merchants-dev-pool` de la política del lambda; termina cuando
-  `aws lambda get-policy` ya no la muestra y crear un comercio en dev sigue dejando la cuenta de Cognito.
-  Depende de: Miguel — correr `aws lambda remove-permission` (el rol de desarrollo no puede).
+- [x] Quitar la entrada manual `merchants-dev-pool` de la política del lambda (hecho el 2026-10-02): la política
+  quedó con las dos entradas del stack y Cognito sigue invocando al lambda.
 - [ ] Extender a qa y staging lo ya probado en dev con el front local (2026-10-02, cliente `wizard-local`):
   un cliente nuevo en el pool para el wizard (código de autorización, secreto, scopes `openid phone email`,
   retorno y salida de cada front), esas tres variables más la de retorno en cada wizard, y
