@@ -1,0 +1,109 @@
+{
+  "version": 1,
+  "title": "Catálogo geográfico y árbol de opciones",
+  "summary": "Relaciones geográficas, país explícito o configurado, caché del árbol y límites de la migración de RD y Perú.",
+  "reviewedAt": "2026-10-03T20:24:47Z",
+  "sources": [
+    {
+      "repo": "application",
+      "path": "app/Http/Controllers/Admin/AlliedAlliedBranchController.php",
+      "commit": "fc74ac8bc1b364191f859bb6830e8d47c15bb882",
+      "blob": "19c834fb1143725cf6bcc5f9cd6c73387467ec73",
+      "sections": [
+        "relacion-entre-pais-zona-y-ciudad"
+      ]
+    },
+    {
+      "repo": "form-service",
+      "path": "internal/infra/storage/mysql/queries/country_queries.sql",
+      "commit": "cfd0f02ede473649498f47b87218fb9ab075bdb3",
+      "blob": "c314b61e8d1f257d4edf76e6474b607d7a884534",
+      "sections": [
+        "arbol-de-opciones"
+      ]
+    },
+    {
+      "repo": "form-service",
+      "path": "internal/infra/storage/mysql/queries/country_zone_queries.sql",
+      "commit": "cfd0f02ede473649498f47b87218fb9ab075bdb3",
+      "blob": "3c717bf0541192499435126bf2bbda554783ee64",
+      "sections": [
+        "arbol-de-opciones"
+      ]
+    },
+    {
+      "repo": "form-service",
+      "path": "internal/infra/storage/mysql/queries/country_city_queries.sql",
+      "commit": "cfd0f02ede473649498f47b87218fb9ab075bdb3",
+      "blob": "915daffaa6807733cd394d4bfbc09debecd5919a",
+      "sections": [
+        "arbol-de-opciones"
+      ]
+    },
+    {
+      "repo": "form-service",
+      "path": "internal/core/usecases/field_options/country_resolver.go",
+      "commit": "cfd0f02ede473649498f47b87218fb9ab075bdb3",
+      "blob": "705dce27b8983aca97d896c4dd0107780fa5eee6",
+      "sections": [
+        "arbol-de-opciones",
+        "reconstruccion-del-catalogo"
+      ]
+    },
+    {
+      "repo": "form-service",
+      "path": "internal/core/usecases/field_options/country_tree_builder.go",
+      "commit": "cfd0f02ede473649498f47b87218fb9ab075bdb3",
+      "blob": "e4d8f7c02898322c973e112305ee29f1367e0ab1",
+      "sections": [
+        "arbol-de-opciones"
+      ]
+    },
+    {
+      "repo": "form-service",
+      "path": "internal/core/usecases/field_options/get_country_tree/usecase.go",
+      "commit": "cfd0f02ede473649498f47b87218fb9ab075bdb3",
+      "blob": "f561da9656eea018aad9eaa5a21ca0e1ad28b18b",
+      "sections": [
+        "arbol-de-opciones",
+        "reconstruccion-del-catalogo"
+      ]
+    },
+    {
+      "repo": "form-service",
+      "path": "internal/core/usecases/field_options/create_country_tree/usecase.go",
+      "commit": "cfd0f02ede473649498f47b87218fb9ab075bdb3",
+      "blob": "179572a5c689308784ed1a1726cce542d15a98aa",
+      "sections": [
+        "reconstruccion-del-catalogo"
+      ]
+    },
+    {
+      "repo": "form-service",
+      "path": "internal/core/usecases/field_options/country_tree_persistence.go",
+      "commit": "cfd0f02ede473649498f47b87218fb9ab075bdb3",
+      "blob": "ca632733e31095e34f02c681896d82af1e60a733",
+      "sections": [
+        "reconstruccion-del-catalogo"
+      ]
+    },
+    {
+      "repo": "form-service",
+      "path": "internal/infra/handlers/http/module.go",
+      "commit": "cfd0f02ede473649498f47b87218fb9ab075bdb3",
+      "blob": "b5ea2f9d387bc211938d805d1e8fa8262113762a",
+      "sections": [
+        "reconstruccion-del-catalogo"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "database/migrations/2026_09_03_120000_ciudades_de_rd_y_peru_y_sucursales_en_pais_equivocado.php",
+      "commit": "63123374a5d0875c908a83e3145f334b2ff913ee",
+      "blob": "28f6b08bbc36f5ab44cb8215e1763b92bf491b83",
+      "sections": [
+        "migracion-de-rd-y-peru"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,71 @@
+{
+  "version": 1,
+  "title": "País y documentos del flujo",
+  "summary": "Origen del país, documentos permitidos y diferencias entre API modular, monolito y selector; país activo frente a país con operación.",
+  "reviewedAt": "2026-10-03T20:24:47Z",
+  "sources": [
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/Loans/App/Http/Controllers/Customer/AlliedInfoController.php",
+      "commit": "63123374a5d0875c908a83e3145f334b2ff913ee",
+      "blob": "3575c457121af054e02c5020c08494366435542f",
+      "sections": [
+        "pais-del-comercio"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "app/Services/DocumentTypesService.php",
+      "commit": "63123374a5d0875c908a83e3145f334b2ff913ee",
+      "blob": "93d93cdfd539f898a4917d3da71ac794dfd7f2ee",
+      "sections": [
+        "documentos-del-backend-modular"
+      ]
+    },
+    {
+      "repo": "application",
+      "path": "app/Services/DocumentTypesService.php",
+      "commit": "fc74ac8bc1b364191f859bb6830e8d47c15bb882",
+      "blob": "a405baff204400c9cd2a28d763bc9974e5aa0862",
+      "sections": [
+        "diferencias-del-monolito"
+      ]
+    },
+    {
+      "repo": "frontend-monorepo",
+      "path": "modules/loan-request-wizard/loan-application-form/src/lib/types/document-type.ts",
+      "commit": "68ce7349c4e2a52c83fe4ee174a23ac71fe667cc",
+      "blob": "67c1584d853a5b83dc0f45fcea65129a1d645142",
+      "sections": [
+        "selector-del-wizard"
+      ]
+    },
+    {
+      "repo": "application",
+      "path": "app/Models/Country.php",
+      "commit": "fc74ac8bc1b364191f859bb6830e8d47c15bb882",
+      "blob": "51736b69d658a28a21538fd5fa3e4fe702aa8296",
+      "sections": [
+        "pais-activo-y-pais-con-operacion"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/Onboarding/App/Repositories/UserRepository.php",
+      "commit": "63123374a5d0875c908a83e3145f334b2ff913ee",
+      "blob": "bd8770df42fa8a862766473379594a2f9b804f46",
+      "sections": [
+        "pais-activo-y-pais-con-operacion"
+      ]
+    },
+    {
+      "repo": "form-service",
+      "path": "internal/infra/storage/mysql/queries/country_queries.sql",
+      "commit": "cfd0f02ede473649498f47b87218fb9ab075bdb3",
+      "blob": "c314b61e8d1f257d4edf76e6474b607d7a884534",
+      "sections": [
+        "pais-activo-y-pais-con-operacion"
+      ]
+    }
+  ]
+}

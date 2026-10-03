@@ -1,0 +1,135 @@
+{
+  "version": 1,
+  "title": "Esquema y respuestas de formularios dinámicos",
+  "summary": "Form types, campos y vínculos, caché del esquema, cascada geográfica y reemplazo de respuestas en form-service.",
+  "reviewedAt": "2026-10-03T20:24:47Z",
+  "sources": [
+    {
+      "repo": "form-service",
+      "path": "internal/infra/storage/mysql/queries/form_queries.sql",
+      "commit": "cfd0f02ede473649498f47b87218fb9ab075bdb3",
+      "blob": "278457407384de5263866045da8678a352a20f09",
+      "sections": [
+        "composicion-del-esquema"
+      ]
+    },
+    {
+      "repo": "form-service",
+      "path": "internal/infra/storage/mysql/queries/field_queries.sql",
+      "commit": "cfd0f02ede473649498f47b87218fb9ab075bdb3",
+      "blob": "011c8ed738cc9cfc0cf01f048d27e1f3c118ddc3",
+      "sections": [
+        "composicion-del-esquema"
+      ]
+    },
+    {
+      "repo": "form-service",
+      "path": "internal/core/mappers/dynamic_form_schema_mapper.go",
+      "commit": "cfd0f02ede473649498f47b87218fb9ab075bdb3",
+      "blob": "cbcba02d56f88fce7016cd8394bd8be8c8415936",
+      "sections": [
+        "composicion-del-esquema"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "database/migrations/2026_07_23_193000_add_ciudad_de_nacimiento_field_to_credifamilia_form.php",
+      "commit": "63123374a5d0875c908a83e3145f334b2ff913ee",
+      "blob": "3fb5475b1c05663dcf1c6029453de3f0abc39303",
+      "sections": [
+        "composicion-del-esquema"
+      ]
+    },
+    {
+      "repo": "form-service",
+      "path": "internal/core/usecases/dynamic_forms/get_schema/usecase.go",
+      "commit": "cfd0f02ede473649498f47b87218fb9ab075bdb3",
+      "blob": "d9d47239f9358e12fad7048023a8bcb3e0b64799",
+      "sections": [
+        "lectura-y-reconstruccion"
+      ]
+    },
+    {
+      "repo": "form-service",
+      "path": "internal/core/usecases/dynamic_forms/create_schema/usecase.go",
+      "commit": "cfd0f02ede473649498f47b87218fb9ab075bdb3",
+      "blob": "9c34a7d38fafa317fe927fe8c0e97e9321f17875",
+      "sections": [
+        "lectura-y-reconstruccion"
+      ]
+    },
+    {
+      "repo": "form-service",
+      "path": "internal/core/workflows/build_and_replace_schema_workflow.go",
+      "commit": "cfd0f02ede473649498f47b87218fb9ab075bdb3",
+      "blob": "01c0046e4bf9a01a58bdd21d800c9a9a0182fddf",
+      "sections": [
+        "lectura-y-reconstruccion"
+      ]
+    },
+    {
+      "repo": "form-service",
+      "path": "internal/core/workflow_activities/build_and_replace_schema_activities.go",
+      "commit": "cfd0f02ede473649498f47b87218fb9ab075bdb3",
+      "blob": "452a7c56425f82ce85c93bac7ed1cb115fd58186",
+      "sections": [
+        "lectura-y-reconstruccion"
+      ]
+    },
+    {
+      "repo": "form-service",
+      "path": "internal/infra/handlers/http/module.go",
+      "commit": "cfd0f02ede473649498f47b87218fb9ab075bdb3",
+      "blob": "b5ea2f9d387bc211938d805d1e8fa8262113762a",
+      "sections": [
+        "lectura-y-reconstruccion",
+        "persistencia-de-respuestas"
+      ]
+    },
+    {
+      "repo": "frontend-monorepo",
+      "path": "modules/loan-request-wizard/backend-driven-form/src/application/resolve-country-tree-options.ts",
+      "commit": "68ce7349c4e2a52c83fe4ee174a23ac71fe667cc",
+      "blob": "3ce0599ff9aa78092aae4e400ef4871b9d32cf6e",
+      "sections": [
+        "cascada-de-zona-y-ciudad"
+      ]
+    },
+    {
+      "repo": "frontend-monorepo",
+      "path": "modules/loan-request-wizard/backend-driven-form/src/ui/components/DynamicSection.tsx",
+      "commit": "68ce7349c4e2a52c83fe4ee174a23ac71fe667cc",
+      "blob": "36fc5bda055d8feec8905a4da5e3c9d94fdb3980",
+      "sections": [
+        "cascada-de-zona-y-ciudad"
+      ]
+    },
+    {
+      "repo": "form-service",
+      "path": "internal/core/usecases/dynamic_forms/store_response/usecase.go",
+      "commit": "cfd0f02ede473649498f47b87218fb9ab075bdb3",
+      "blob": "74c85c160626fb196bef270dae5fec0af61af088",
+      "sections": [
+        "persistencia-de-respuestas"
+      ]
+    },
+    {
+      "repo": "form-service",
+      "path": "internal/infra/storage/mysql/repositories/user_field_value_repository.go",
+      "commit": "cfd0f02ede473649498f47b87218fb9ab075bdb3",
+      "blob": "6412a0d6c5a6782817bf3ffa5c45df38054170f2",
+      "sections": [
+        "persistencia-de-respuestas"
+      ]
+    },
+    {
+      "repo": "form-service",
+      "path": "internal/infra/storage/mysql/queries/user_field_value_queries.sql",
+      "commit": "cfd0f02ede473649498f47b87218fb9ab075bdb3",
+      "blob": "59af3bc486749ac05537d05ca82595b188dcc005",
+      "sections": [
+        "persistencia-de-respuestas"
+      ]
+    }
+  ]
+}
