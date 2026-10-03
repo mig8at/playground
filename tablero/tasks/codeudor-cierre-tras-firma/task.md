@@ -1,7 +1,7 @@
 ---
 id: 12
 title: "Codeudor — cierre propio tras la firma (pantalla \"Firma realizada con éxito\")"
-ramas: cosigner-signature-success, motai/flujo-codeudor
+ramas: cosigner-signature-success, motai/flujo-codeudor, fix/cosigner-signature-confirmation
 stage: work
 created: "2026-07-27T12:13:57-05:00"
 knowledge: [cosigner-signature]
@@ -18,9 +18,11 @@ jira_title: "Codeudor: confirmación propia al terminar la firma"
   termina cuando la evidencia identifica firma registrada, autorización y archivos finales por separado.
 - [ ] Validar la espera del titular después de su firma y los casos sin codeudor e IMEI;
   termina cuando el destino coincide con el estado de la solicitud en cada caso.
-- [ ] Revisar el copy del cierre cuando `userRequestAuthorized` es false; termina cuando no se
-  presenta como crédito formalizado una solicitud cuya autorización no se logró.
-  Depende de: producto y backend — comportamiento esperado para firma registrada con cierre pendiente.
+- [x] Corregir la confirmación local para afirmar únicamente la firma registrada: probado con
+  autorización lograda, pendiente y dato ausente, más código inválido, vencido y limitación de intentos.
+- [ ] Integrar la corrección de confirmación y verificarla en el ambiente elegido; termina cuando
+  ese ambiente sirve el texto «Tu firma fue registrada correctamente» y no promete autorización
+  sólo por el éxito del OTP. La rama local es `fix/cosigner-signature-confirmation`.
 
 ## Objetivo
 
@@ -37,6 +39,22 @@ registra la firma antes de intentar reanudar la autorización diferida.
 
 El titular mantiene su OTP y autorización. Su redirección distingue
 `data.user_request.deferred_for_cosigner`; success por sí solo no significa cierre del crédito.
+
+## Corrección preparada
+
+La rama local del frontend cambia únicamente el mensaje de `cosigner/signature/success` y
+agrega una regresión que atraviesa HttpClient, el schema, el repositorio, el caso de uso y el
+action real con respuestas HTTP controladas. Confirma el acto de firma sin atribuirle el estado
+del crédito; no agrega otra llamada con el token ya terminal ni altera el cierre del titular.
+El cambio está en `2b801a4a`, disponible para revisión e integración.
+
+`knowledge/cosigner-signature` sigue describiendo el código de main, incluida su afirmación
+anterior de crédito formalizado: esta corrección es una propuesta de rama hasta integrarla.
+La prueba del cierre en backend se ejecuta con SQLite en memoria y dependencias simuladas;
+acredita sus decisiones de catálogo y autorización, no un OTP externo ni documentos finales reales.
+Los chequeos generales de diseño y tipos conservan exactamente sus diagnósticos anteriores;
+la confirmación y su regresión pasan el chequeo de formato.
+
 
 ## Lo que se evaluó y ya no describe el camino actual
 
@@ -62,34 +80,35 @@ declara aceptada ni cerrada la tarea de producto por esta adaptación de context
 Cuando quien firma es el **codeudor**, al terminar la firma ve una confirmación propia ("¡Firma realizada con éxito!") en lugar de la pantalla de monto aprobado del comprador.
 
 ## Por qué
-Hoy el codeudor recorre el mismo flujo de solicitud que el comprador y, al firmar, termina viendo "¡Felicidades, tu monto ha sido aprobado!" con el monto del crédito. Eso no corresponde: el crédito no es suyo, él solo lo respalda. Necesita una confirmación que le diga que su firma quedó registrada.
+La firma del codeudor puede quedar registrada aunque la autorización del crédito siga pendiente. Su confirmación debe acreditar la firma que acaba de realizar, sin presentar como formalizado un crédito cuyo cierre todavía no se logró.
 
 ## Qué cambia
-Al confirmar el código de la firma (consentimiento, pagaré y fondo de garantías), el sistema reconoce quién firmó:
+Al confirmar el código en el recorrido de firma correspondiente:
 
 - **Comprador** → pantalla actual: "¡Felicidades, tu monto ha sido aprobado!", con el monto y sus accesos.
-- **Codeudor** → pantalla nueva: "¡Firma realizada con éxito! / Tu firma fue registrada correctamente. El crédito ha quedado formalizado." Sin monto y sin botones.
+- **Codeudor** → confirmación propia: "¡Firma realizada con éxito! / Tu firma fue registrada correctamente." Sin monto y sin botones.
 
 ## Alcance
 - Aplica al último paso del flujo, después de confirmar el código de la firma.
 - El flujo del comprador **no cambia**: mismo recorrido y el mismo cierre con su monto.
-- La firma en sí no cambia: el codeudor firma igual que hoy y el crédito queda formalizado igual.
-- Si el sistema no logra determinar quién firmó, se muestra la pantalla actual (la del comprador). El cierre nunca se bloquea ni se corta.
+- La firma en sí no cambia. La confirmación acredita que quedó registrada, incluso si la autorización del crédito sigue pendiente.
+- Una firma no confirmada no muestra éxito: los errores de código y acceso siguen su tratamiento actual.
 
 ## Dónde probar
-- Ambiente de pruebas, flujo de solicitud hasta la firma con código.
+- Pruebas automáticas locales de la confirmación y errores de código. El recorrido completo en un ambiente desplegado sigue pendiente.
 - **Precondición:** una solicitud con codeudor y la forma de entrar a firmar como codeudor, más una solicitud normal para comparar.
 
 ## Cómo validar
 1. **Comprador (regresión).** Recorrer una solicitud normal hasta la firma. Al confirmar el código, sigue apareciendo "¡Felicidades, tu monto ha sido aprobado!" con el monto.
-2. **Codeudor.** Firmar como codeudor. Al confirmar el código, aparece "¡Firma realizada con éxito!" con el texto "Tu firma fue registrada correctamente. El crédito ha quedado formalizado.", sin monto y sin botones.
-3. **Borde.** Si no se puede determinar quién firmó, se muestra la pantalla de monto aprobado (comportamiento actual) y el crédito igual queda formalizado.
+2. **Codeudor.** Firmar como codeudor. Al confirmar el código, aparece "¡Firma realizada con éxito!" con el texto "Tu firma fue registrada correctamente.", sin monto y sin botones.
+3. **Autorización pendiente.** Si la firma quedó registrada pero el crédito sigue pendiente, la confirmación del codeudor sigue diciendo únicamente que su firma fue registrada.
+4. **Código rechazado.** Un código incorrecto, vencido o limitado por intentos conserva su error y no muestra confirmación.
 
 ## Criterios de aceptación
 - [ ] El comprador sigue viendo la pantalla de monto aprobado, sin cambios.
 - [ ] El codeudor ve "¡Firma realizada con éxito!" con su mensaje de confirmación.
 - [ ] La pantalla del codeudor no muestra monto ni botones.
-- [ ] En ambos casos la firma se completa y el crédito queda formalizado.
+- [ ] La confirmación de la firma del codeudor no afirma que el crédito quedó autorizado; ese estado se comprueba por separado.
 
 ## Dependencias / contraparte
-Backend: falta que, al validar el código de la firma, el sistema informe si quien firmó es el comprador o el codeudor. Mientras ese dato no esté disponible, todos siguen viendo la pantalla actual (no hay cambio visible ni riesgo). Una vez disponible, la separación funciona sin necesidad de otra publicación de la aplicación.
+El recorrido propio del codeudor ya registra su firma y devuelve el resultado de la autorización por separado. Esta corrección cambia su confirmación; queda pendiente integrarla y comprobar el recorrido completo con la configuración y documentos del ambiente elegido.
