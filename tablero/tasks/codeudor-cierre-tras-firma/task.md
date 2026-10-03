@@ -1,7 +1,7 @@
 ---
 id: 12
 title: "Codeudor — cierre propio tras la firma (pantalla \"Firma realizada con éxito\")"
-ramas: cosigner-signature-success, motai/flujo-codeudor, fix/cosigner-signature-confirmation
+ramas: cosigner-signature-success, motai/flujo-codeudor, fix/cosigner-signature-confirmation, fix/cosigner-entry-policy
 stage: work
 created: "2026-07-27T12:13:57-05:00"
 knowledge: [cosigner-signature]
@@ -19,16 +19,16 @@ jira_title: "Codeudor: confirmación propia al terminar la firma"
   evidencias contrastados por separado, incluida la confirmación renderizada en Chromium.
 - [x] Comprobar el control local sin codeudor por el action de OTP del titular: destino aprobado,
   monto visible y autorización persistida. Comprobar IMEI por API con registro de dispositivo y desembolso.
-- [ ] Resolver y volver a validar la entrada del titular al flujo con codeudor: el recorrido local
-  desde confirmación llega a fecha de pago sin registrar/aprobar al codeudor y el backend lo frena.
-  Termina cuando su OTP dirige a la espera con el crédito pendiente y la segunda firma permite cerrar.
+- [x] Resolver y volver a validar la entrada local del titular al flujo con codeudor: la consulta
+  extendida conserva la política inicial cuando no hay type 2. El titular registra al codeudor,
+  firma y queda en espera (29); la segunda firma cierra en 11. Elegibilidad por API y OTP simulado.
 - [ ] Validar en el frontend el recorrido de IMEI y la salida del titular por el estado del saga;
   los controles locales por API y loaders no certifican ese recorrido ni el servicio externo.
 - [x] Corregir la confirmación local para afirmar únicamente la firma registrada: probado con
   autorización lograda, pendiente y dato ausente, más código inválido, vencido y limitación de intentos.
-- [ ] Integrar la corrección de confirmación y verificarla en el ambiente elegido; termina cuando
-  ese ambiente sirve el texto «Tu firma fue registrada correctamente» y no promete autorización
-  sólo por el éxito del OTP. La rama local es `fix/cosigner-signature-confirmation`.
+- [ ] Integrar las correcciones locales y verificarlas en el ambiente elegido: confirmación
+  `fix/cosigner-signature-confirmation` y entrada `fix/cosigner-entry-policy`. Termina cuando se
+  sirve el texto de firma registrada y la solicitud que exige codeudor pasa por su registro y espera.
 
 ## Objetivo
 
@@ -60,13 +60,24 @@ Las pruebas del cierre con SQLite en memoria acreditan sus decisiones de catálo
 Además se comprobó el tramo local del codeudor contra la base MySQL y plantillas Blade: rechazo
 controlado de código, aceptación, autorización y archivos finales con las evidencias de ambos roles.
 El proveedor OTP es simulado, el riesgo se prepara para el caso y el correo queda en log; esa prueba
-no acredita la entrega externa del código/correo ni el saga del proveedor. La entrada completa del
-titular sigue pendiente por el freno previo a registrar al codeudor.
+no acredita la entrega externa del código/correo ni el saga del proveedor. La entrada del titular
+se comprobó después con la corrección de política descrita abajo, conservando esos límites.
 El contador `signedDocuments` registra tipos del módulo, no la cantidad de PDF finales del catálogo.
 El contrato para comprobarlos está en el tema local.
 Los chequeos generales de diseño y tipos conservan exactamente sus diagnósticos anteriores;
 la confirmación y su regresión pasan el chequeo de formato.
 
+
+La rama local del backend `fix/cosigner-entry-policy` (`96b9b84f`) corrige la discrepancia entre
+la consulta extendida y la firma: sin política type 2 conserva el requisito de codeudor de type 1.
+Mantiene el envelope de cupo aprobado y los montos; las decisiones con política extendida,
+rechazo y aprobación manual conservan sus reglas. Se comprobaron 45 tests de decisión/guards
+y cinco del endpoint con SQLite aislado. El caso local 467111 pasó por 15 pantallas HTTP,
+registro del codeudor, firma del titular y espera en 29; código incorrecto no cerró, y la firma
+correcta cerró en 11 con cuatro PDF que contienen ambas evidencias. El control 467112 sin
+codeudor terminó en 11 y mostró su monto en Chromium. La elegibilidad del codeudor se preparó
+por API y el runner avanzó las esperas tras comprobar su resultado; la salida por saga sigue pendiente.
+La evidencia reproducible está en `artifacts/holder-cosigner-entry-validation.json`.
 
 ## Lo que se evaluó y ya no describe el camino actual
 

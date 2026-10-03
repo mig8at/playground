@@ -1,0 +1,223 @@
+{
+  "schema": "creditop.local-cosigner-entry-validation/v1",
+  "measuredAt": "2026-10-03T22:27:20Z",
+  "environment": {
+    "target": "local",
+    "database": "creditop",
+    "api": "http://127.0.0.1:8012",
+    "frontend": "http://127.0.0.1:5186",
+    "otpProvider": "Prueba: acepta el código controlado y rechaza el incorrecto con HTTP 422.",
+    "riskAndIdentity": "Datos sintéticos, buró preparado e identidad manual aprobada.",
+    "documents": "Blade/dompdf y almacenamiento en localhost; PHP temporal con límite 120 s.",
+    "mail": "log",
+    "merchantApi": "Sin conexión al servicio externo."
+  },
+  "revisions": {
+    "backendMain": "63123374a5d0875c908a83e3145f334b2ff913ee",
+    "backendBranch": "fix/cosigner-entry-policy",
+    "backendCommit": "96b9b84f6dc6d75d6f60ed09f345d561c33e8418",
+    "frontendMain": "68ce7349c4e2a52c83fe4ee174a23ac71fe667cc",
+    "frontendBranch": "fix/cosigner-signature-confirmation",
+    "frontendCommit": "2b801a4ae9f1940b3094482e1f34378ea567ec3c",
+    "knowledgeCommit": "910d0308"
+  },
+  "cause": "Sin política type 2, la consulta extendida aprobaba con categoría nula y next_step first_payment_date. La firma sí vuelve a type 1 y exige codeudor si la categoría inicial lo pide.",
+  "change": "La consulta conserva el requisito de codeudor de la categoría type 1 únicamente cuando no hay política extendida. No cambia los montos ni la categoría nula del envelope aprobado.",
+  "before": {
+    "id": 467110,
+    "lenderId": 173,
+    "extendedPolicyConfigured": false,
+    "extendedNextStep": "first_payment_date",
+    "paymentDateStatus": 409,
+    "message": "Tu solicitud requiere un codeudor aprobado antes de firmar los documentos.",
+    "finalState": {
+      "id": 467110,
+      "lender_id": 173,
+      "state": 10,
+      "hasRequestNumber": 0
+    },
+    "cosignerRegistered": false
+  },
+  "fixedCase": {
+    "id": 467111,
+    "lenderId": 173,
+    "screens": 15,
+    "durationSeconds": 37.6,
+    "holderRoute": [
+      "confirmation",
+      "cosigner/phone",
+      "cosigner/validating",
+      "cosigner/approved",
+      "first-payment-date",
+      "payment-schedule",
+      "additional-info",
+      "sign-documents",
+      "otp-validation",
+      "cosigner/waiting-signature"
+    ],
+    "finalState": {
+      "id": 467111,
+      "lender_id": 173,
+      "state": 11,
+      "hasRequestNumber": 1
+    },
+    "signatureObservations": [
+      {
+        "name": "before-cosigner-signature",
+        "state": 29,
+        "cosignerStatus": "waiting_cosigner_signature"
+      },
+      {
+        "name": "holder-wait-screen",
+        "status": 200,
+        "redirect": null
+      },
+      {
+        "name": "cosigner-preview",
+        "count": 4,
+        "types": [
+          "lease_agreement",
+          "cosigner_agreement",
+          "promissory_note",
+          "chattel_mortgage"
+        ]
+      },
+      {
+        "name": "after-invalid-otp",
+        "state": 29,
+        "cosignerStatus": "waiting_cosigner_signature"
+      },
+      {
+        "name": "after-valid-otp",
+        "state": 11,
+        "cosignerStatus": "formalized"
+      },
+      {
+        "name": "terminal-token",
+        "status": 409,
+        "code": "URV1CT409"
+      }
+    ],
+    "documents": [
+      {
+        "type": "lease_agreement",
+        "status": 200,
+        "contentType": "application/pdf",
+        "bytes": 905347,
+        "pdf": true,
+        "cosignerOtpId": null,
+        "holderOtpId": 299264,
+        "holderSignature": true,
+        "cosignerSignature": true
+      },
+      {
+        "type": "cosigner_agreement",
+        "status": 200,
+        "contentType": "application/pdf",
+        "bytes": 1281724,
+        "pdf": true,
+        "cosignerOtpId": null,
+        "holderOtpId": 299264,
+        "holderSignature": true,
+        "cosignerSignature": true
+      },
+      {
+        "type": "promissory_note",
+        "status": 200,
+        "contentType": "application/pdf",
+        "bytes": 1288959,
+        "pdf": true,
+        "cosignerOtpId": null,
+        "holderOtpId": 299264,
+        "holderSignature": true,
+        "cosignerSignature": true
+      },
+      {
+        "type": "chattel_mortgage",
+        "status": 200,
+        "contentType": "application/pdf",
+        "bytes": 904921,
+        "pdf": true,
+        "cosignerOtpId": null,
+        "holderOtpId": 299264,
+        "holderSignature": true,
+        "cosignerSignature": true
+      }
+    ]
+  },
+  "control": {
+    "id": 467112,
+    "lenderId": 77,
+    "screens": 11,
+    "durationSeconds": 86.6,
+    "cosignerRequired": false,
+    "holderRoute": [
+      "confirmation",
+      "first-payment-date",
+      "payment-schedule",
+      "additional-info",
+      "sign-documents",
+      "otp-validation",
+      "loan-approved"
+    ],
+    "finalState": {
+      "id": 467112,
+      "lender_id": 77,
+      "state": 11,
+      "hasRequestNumber": 1
+    }
+  },
+  "browserChecks": [
+    {
+      "id": 467111,
+      "status": 200,
+      "registeredSignature": true,
+      "money": false,
+      "buttons": 0
+    },
+    {
+      "id": 467112,
+      "status": 200,
+      "approvedScreen": true,
+      "money": true
+    }
+  ],
+  "tests": {
+    "backendUnit": {
+      "tests": 45,
+      "assertions": 73,
+      "status": "passed",
+      "database": "SQLite en memoria",
+      "files": [
+        "ExtendedQuotaCosignerFallbackTest",
+        "ExtendedQuotaOwnershipTest",
+        "ManualApprovalNextStepResolverTest",
+        "CosignerRequirementServiceTest"
+      ]
+    },
+    "backendHttp": {
+      "tests": 5,
+      "assertions": 22,
+      "status": "passed",
+      "filter": "extended_quota",
+      "database": "Archivo SQLite temporal con dos tablas vacías para multiplicadores."
+    },
+    "style": {
+      "newTest": "Pint pasa.",
+      "existingFiles": "Controller y feature test conservan los dos archivos con diagnósticos de estilo presentes en main."
+    },
+    "knowledge": {
+      "topics": 12,
+      "sources": 122,
+      "unchanged": 122
+    }
+  },
+  "limits": [
+    "El recorrido HTTP ejecuta loaders y actions; la elegibilidad del codeudor se prepara por API.",
+    "El runner avanza las esperas de elegibilidad y de firma tras comprobar su resultado. No acredita la salida automática por websocket/saga.",
+    "El proveedor de OTP y el correo son locales de prueba; no acredita entregas externas.",
+    "La autorización se comprobó en estado 11. No se infiere un desembolso real por el texto de la pantalla.",
+    "Los cambios siguen en ramas locales, sin push, PR ni despliegue.",
+    "La advertencia de PDF del runner lee la configuración del checkout principal; este servidor temporal usó Blade/dompdf."
+  ]
+}
