@@ -4,11 +4,21 @@ title: "Alta Fleet: entidad propia, pantalla de bienvenida y autogestión"
 stage: work
 ramas: feat/comercio-pantalla-de-bienvenida, feat/la-card-de-alta, feat/bienvenida-del-comercio-fiel-al-diseno
 created: "2026-09-09T10:00:00-05:00"
-knowledge: [merchant-onboarding, lender-listing]
+knowledge: [merchant-onboarding, lender-listing, renting-plans#tarjeta-y-seleccion-del-plan, renting-plans#simulacion-y-documentos, abaco-requirements#cupo-sin-reporte-de-buro]
 canon: [arrendamiento, comercio, creditopx, listado]
 jira: [CORE-558]
 jira_title: "Alta Fleet: entidad propia, pantalla de bienvenida y autogestión"
 ---
+
+## Lectura técnica vigente
+
+La selección de plan y el límite entre oferta, simulación y documentos están en las secciones
+locales de `renting-plans`; el cupo sin buró está en `abaco-requirements`. Las referencias a
+«sólo QA» y al builder por id del libro mayor de abajo corresponden al estado original de esos
+PRs, superado por la promoción a `main` que registra la pila. El resolver actual da precedencia
+al slug con plantilla propia y luego al producto. Ninguna de esas promociones prueba el estado
+de la fila de configuración en producción; ese pendiente sigue siendo una medición de esta tarea.
+
 
 ## Lo que se mergeó: el libro mayor de los PRs
 

@@ -4,14 +4,15 @@ title: "Card de renting: planes, pago semanal y estados de carga"
 ramas: motai-renting-planes, monto-actualizando, renting-sin-chips
 stage: tasks
 created: "2026-07-30T12:30:19-05:00"
+knowledge: [renting-plans]
 canon: [arrendamiento, creditopx]
 jira: [CORE-323]
 jira_title: "Renting: la tarjeta muestra plan y pago semanal"
 ---
 
-ESTADO 2026-07-30: 3 cambios. Uno mergeado en `qa`, dos en ramas locales sin pushear.
+Los tres mecanismos descritos tienen implementación disponible en las refs locales de `main`: chips por producto, migración de planes y recálculo con indicador en el monto. `knowledge/renting-plans` conserva el contrato actual y sus límites. Su presencia en código no demuestra que la configuración de la entidad esté aplicada ni que se haya validado funcionalmente en un ambiente.
 
-1) CHIPS — PR #758, MERGEADO en qa (rama fix/renting-sin-chips-de-cupo, commit bc6f07a4).
+1) CHIPS — implementados en el mapper inicial y las resoluciones de preaprobación; el producto actual cubre renting y RTO.
    Los chips "Pre aprobado"/"Cupo disponible" se armaban en TRES lugares y ninguno miraba el producto:
    `createTags` (mapper del listado), `createApprovedLenderTags` (tras la pre-aprobación) y
    `buildTagsFromResolution` (rechazo). Ahora `productHidesQuotaTags(product)` en
@@ -21,7 +22,7 @@ ESTADO 2026-07-30: 3 cambios. Uno mergeado en `qa`, dos en ramas locales sin pus
    `else` y mostraba un chip de probabilidad. En el rechazo se va el cupo pero queda "Sin cupo
    disponible" (el cliente tiene que saber que no pasó). 7 tests nuevos.
 
-2) PLANES + PAGO SEMANAL — rama `feature/motai-renting-planes`, commit 9390b3ff, SIN PUSHEAR.
+2) PLANES + PAGO SEMANAL — la migración de planes existe en `main`; la card actual es `CalculatorLenderCardContent`. La configuración medida en esta tarea debe repetirse antes de asumir su vigencia.
    Migración `2026_07_30_120000_seed_motai_renting_plans_calculator`: agrega al `lenders.calculator` de
    158 la matriz `plans` y `formulas.payment`. Sin esto `buildCalculated` (LenderListingService) no
    emite `plans` ni `payment_unit`, y el bloque de la card está detrás de `plans.length > 0`.
@@ -38,7 +39,7 @@ ESTADO 2026-07-30: 3 cambios. Uno mergeado en `qa`, dos en ramas locales sin pus
    El 1,8% en renting NO es interés: es parámetro de precio (sin opción de compra no hay saldo). Tocar
    el prorrateo ÷30×7 recaracteriza el producto → decisión legal, no técnica.
 
-3) PUNTITOS EN EL MONTO — rama `fix/monto-actualizando-sin-banner`, commit 71a7a949, SIN PUSHEAR.
+3) PUNTITOS EN EL MONTO — `RecalculatingAmountBridge` y la espera por debounce/fetcher ya están en `main`.
    Se borró el `<p>Actualizando opciones con el nuevo monto…</p>` de AvailableLenders y se agregó
    `RecalculatingAmountBridge` (headless, dentro del provider, mismo patrón que ExternalAmountUpdater):
    espeja "recálculo en curso" al flag por lender `isUpdatingAmount` que ya existía (el de Welli), así
@@ -48,14 +49,10 @@ ESTADO 2026-07-30: 3 cambios. Uno mergeado en `qa`, dos en ramas locales sin pus
    se apagan en la TRANSICIÓN del fetcher a idle, no cuando llega `data` — si el recálculo falla `data`
    queda undefined y la card se quedaba cargando para siempre.
 
-PENDIENTES
-a) Pushear las dos ramas y abrir PR a `qa` (la 2 y la 3). Hasta que se despliegue, Duncan solo puede
-   validar los chips.
-b) La story de Storybook de Motai Renting quedó en la versión pre-des-motaización (sin `product` ni
-   `calculated`) → no dibuja la card nueva. Deuda de esa story; por eso lo visual no se pudo verificar
-   fuera del wizard.
-c) RTO (Motai RB): el backend ya emite `terms` (plazo + cuota) pero la card solo lee `plans` → sin
-   selector. Ahí sí hace falta tocar el front.
+## Pendientes
+- [ ] Validar la tarjeta contra la configuración real del ambiente: planes, pago por período, persistencia de `fee_number` e indicador de recálculo; termina cuando un cambio de monto y un error dejan un estado coherente. Las ramas locales antiguas no son la fuente del mecanismo actual.
+- [ ] Comprobar la cobertura de la tarjeta actual en Storybook al retomar el frente visual; la limitación de la story anterior no acredita el estado de la versión vigente.
+- [ ] Resolver el contrato de una configuración que emita `terms`: el backend conserva esa clave y la tarjeta revisada sólo lee `plans`. Termina cuando el producto y el payload elegido tengan el selector previsto, con un plan único sin elección y varios con elección.
 
 HERRAMIENTA (no va a Jira)
 Switch de front en el harness: `CFE_FRONT=local|ambiente` + selector en el panel, para probar el front

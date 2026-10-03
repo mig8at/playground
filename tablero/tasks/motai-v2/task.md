@@ -4,10 +4,23 @@ title: "Motai v2 — des-motaización y TyC por comercio"
 ramas: motai-v2
 stage: tasks
 created: "2026-07-21T10:30:30-05:00"
+knowledge: [renting-plans, abaco-requirements]
 canon: [arrendamiento, creditopx, comercio, formularios, kyc]
 jira: [CORE-265, CORE-266, CORE-267, CORE-268]
 jira_title: ""
 ---
+
+## Lectura técnica vigente
+
+El mecanismo comprobable del listado, la calculadora, el selector y la simulación está en
+`knowledge/renting-plans`; el requisito y la vigencia de Ábaco, en `knowledge/abaco-requirements`.
+La calculadora compartida, los planes y el drop de modos ya tienen implementación en `main`.
+Esto no acredita migraciones aplicadas, tarifas vigentes ni aceptación de la política MVP2.
+El diseño de abajo delimita lo planteado por esta tarea: sus referencias a ramas, ambientes,
+ids, precios y contrato de negocio deben contrastarse al retomar y no se usan como reglas generales.
+La fuente del requisito actual es `lender_requirements`, no la antigua columna `lenders.abaco`.
+Los límites del selector de `terms` y de los inputs de inicial están explicitados en el tema local.
+
 
 # Motai v2
 (migrado del nodo-tarea `motai-v2` del árbol de context, 2026-07-21)
@@ -52,7 +65,7 @@ Llevar Motai v1 al modelo único paramétrico (deber-ser del group Plataforma; m
 ⚠ El diff del PR de backend contra su base mostraba ~52 archivos: arrastraba la divergencia entre ramas (ruido heredado), **no todo es nuestro** — lo real son los commits de arriba. Los fixes `098322a8` (`$hasCredifamilia` indefinido) y `4022b6c9` (ProfilerML 500 sin `H2O_API_HOST`) son bugs pre-existentes de develop; el de `$hasCredifamilia` **también vive en develop → avisar al equipo**.
 `application` no se toca (§3.3, verificado 2026-07-12): sin lógica Motai, solo copy de marketing (`resources/js/pages/customer/lenders/list/v2/ListLenders.vue:296,813,1225`) + 2 migraciones de esquema Ábaco (`2026_03_06_003223_add_abaco_settings_to_settings_table.php` · `2026_03_09_000000_add_abaco_column_to_user_summaries_table.php`) — schema del equipo de Ábaco, no des-motaización.
 
-## Lo que se hizo
+## Alcance técnico del diseño
 <!-- por frente: QUÉ · POR QUÉ · dónde vive (anclas verificadas 2026-07-12 vs staging) · CÓMO AJUSTAR -->
 
 ### 1 · Des-hardcode del disparador Motai (front + back)
@@ -105,10 +118,10 @@ Lo que legítimamente queda con "motai"/"158" NO es lógica: el `158` en la migr
 
 ## Pendientes
 - [ ] Migración en staging/prod (por pipeline); sin ella Motai se comporta como `credit`.
-- [ ] `calculator` de 158 con `plans`/`payment` (hoy solo `amount`) + backfills idempotentes (`updateOrInsert`).
+- [ ] Comprobar la configuración vigente de `calculator` y sus planes en el ambiente de prueba; la migración de planes ya está en `main`, pero eso no prueba su ejecución ni el contenido actual de la fila.
 - [ ] RTO (`product='rto'`): seed de `terms` **52/78/104 semanas** (= 12/18/24 meses — **C10**, el PRD dice mal 12/18/24 "semanas"), card propia, fórmula de valor a financiar (VF no reversa limpio).
 - [ ] TyC: docs `13`/`18` hardcodeados en el fallback + validar entrega por entidad con **legal**.
-- [ ] Drop físico `allied_modes`/`user_request_modes` (BD compartida con `application`) · `PHP >= 8.4` en CI (por `symfony/expression-language ^8.1`) · rename rutas `/api/onboarding/motai/*` → genéricas · CRUD admin de `product`/`calculator`/`document_types`/`allied_documents`.
+- [ ] Comprobar la ejecución del drop de modos en la BD compartida: el archivo de migración ya está en `main` y su rollback no recupera filas. Verificar por separado compatibilidad de CI, rutas pendientes y cobertura del admin de configuración.
 - [ ] Cerrar con negocio: **C9** score mínimo titular (PRD dice **400** en un lado, **0** en otro) · **C2/C3** ¿Datacrédito 100% aplica a PEP (thin-file)? · **D6** ¿el producto se elige en el marketplace (cae la pantalla de modos)? · **D7** ¿renting y RTO son 2 lenders o 1 con flag "opción de compra"?
 
 ## Enlaces

@@ -4,12 +4,13 @@ title: "Ábaco alineado a lender_requirements — se retiran los modos"
 ramas: abaco-cupo-sin-buro, abaco-fuente-unica
 stage: work
 created: "2026-07-29T20:23:53-05:00"
+knowledge: [abaco-requirements, lender-listing]
 canon: [arrendamiento, kyc, preaprobado]
 jira: [CORE-321]
 jira_title: "Ábaco: el requisito lo define la entidad, sin «modos»"
 ---
 
-ESTADO 2026-07-29: dos PRs MERGEADOS en `qa`. Falta llevarlo a `develop` y aplicar migraciones.
+El mecanismo revisado en `main` está en `knowledge/abaco-requirements`: requisito por entidad, vigencia configurable y salto de buró del motor modular. Las ramas llegaron a `main`, como registra la pila; queda comprobar migraciones, configuración y criterios de aceptación en el ambiente pertinente. La evidencia local y de QA de abajo conserva el alcance de su medición original.
 
 QUÉ SE HIZO
 1) PR #1028 — fuente única del requisito de Ábaco.
@@ -44,22 +45,22 @@ VALIDADO
 - qa: `POST /api/loans/lender/available-quota` {user 1827761, lender 158} → approved, 20.000.000, cat 179.
   El mismo POST contra dev → `eligibility_criteria_not_met`, 0.
 
-PENDIENTES (ninguno es código de estos PRs)
-a) Las migraciones NO están aplicadas en dev/qa: `main-qa.yaml` solo actualiza el servicio ECS; las
-   migraciones van en `run-migrations.yml`, manual (y que además parece roto: usa inputs no declarados
-   y le faltan las barras de continuación del `docker run`). `allied_modes` y `user_request_modes`
-   siguen existiendo allá. → findings F-77.
-b) El fix de cupo está solo en `qa`, pero el MS de pre-approvals pregunta el cupo a
-   `legacy-backend.inertia-develop` (rama develop) → el badge del marketplace sigue diciendo
-   "Sin cupo disponible". Hay que llevar el cambio a `develop` o repuntar la config del MS. → F-78.
-c) Hardcode `if ($ctopx_lender_id == 160)` en `LenderRetrievalService.php:720`: solo CrediPullman va al
-   servicio de Loans (el parcheado); el resto de ctopx (158) va a la GEMELA de
-   `Modules/Onboarding/App/Services/lenders/LenderUserCategoryService`, que no tiene el skip. De ahí
-   salen plazo, `initial_fee_percentage`, `max_amount` y el filtro que elimina al lender. Decidir:
-   parchear la gemela o unificar las dos clases.
-d) F-76 sin decidir: `document_types` (PEP) lo sembró un backfill; las filas de
-   `lenders_by_allied_branches` que se crean después nacen NULL. Opciones: heredar en
-   `AlliedManagementService`, default de columna, o mover el dato a `lender_requirements`.
+## Pendientes
+
+- [ ] Comprobar flags y ejecución de las migraciones en el ambiente de prueba; termina cuando
+  el requisito responde según `lender_requirements` y la retirada de modos está acreditada.
+- [ ] Repetir cupo con y sin reporte de buró, con Ábaco encendido y apagado; termina cuando
+  las reglas de categoría se conservan y el salto sólo aplica en los casos previstos.
+- [ ] Comprobar el backend al que consulta pre-approvals y la configuración de vigencia;
+  termina cuando la medición identifica el ambiente y no confunde el default de 7 días con un mes.
+- [ ] Resolver la configuración de documentos PEP de entidades y sucursales al retomar ese frente;
+  termina cuando la decisión tiene dueño y su comportamiento está probado, sin inferirlo de Ábaco.
+  Depende de: producto y configuración — tipos de documento admitidos por entidad.
+
+El viejo pendiente de parchear una segunda clase de categorías en Onboarding ya no describe
+`main`: el listado modular usa el motor de Loans. `application` conserva otra implementación;
+compartir BD no le agrega el salto de buró del backend modular. La publicación histórica del
+contexto y los PRs de abajo no condicionan el cierre local ni sustituyen la aceptación funcional.
 
 CONTEXTO ESCRITO
 Nodo `motai` reescrito a v2 (commit b4c88da) + findings F-73…F-78 (commit 62077e5).
