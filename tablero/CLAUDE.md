@@ -24,7 +24,7 @@ lugar: el paquete `server/internal/layout`**; no armes `../data/<algo>` a mano e
   objetivo y condición de cierre; al terminar, lo que pasó queda en un bloque y el frente sale de los
   pendientes. No apiles una tarea nueva por cada mejora de la misma herramienta.
 - **Frontmatter**: `id` · `title` · `clase?` (`tarea`|`proyecto`) · `stage` (`evaluation`|`work`|`tasks`) ·
-  `created` · `archived?` · `canon[]` · `jira[]` · `jira_title` · `ramas?`. Archivar es poner `archived`,
+  `created` · `archived?` · `knowledge[]?` · `canon[]` · `jira[]` · `jira_title` · `ramas?`. Archivar es poner `archived`,
   no mover el archivo. **`id: 0` no aparece en el tablero.**
 - **Renombrar o mover una tarea NO es tocarla**: «días sin tocar» y el cierre siguen las mudanzas de git.
 - **JSON es una proyección, no otro archivo**: `make tarea-json N=<slug|id>` deriva `tablero.task.v3` del
@@ -45,10 +45,10 @@ lee y qué necesita**:
 | **avances** (`data/entries/`) | ¿en qué se fue el tiempo? | vos, y el worklog de Jira |
 | **`## Tarea (publicable)`** | qué problema resuelve (producto) y cómo se prueba (QA) | el equipo, vía Jira |
 
-**El test de enrutamiento: *si esto se mergea mañana, ¿sigue siendo cierto?*** Sí y es del sistema →
-**canon**. Sí y es de la tarea → el documento. No → un **bloque** de la pila. Una trampa del sistema
-(síntoma → causa → evidencia → arreglo) → `data/traps/doc.md`, no la tarea. Al mergear, lo aprendido
-**gradúa** a canon y la tarea se archiva.
+**El conocimiento técnico reutilizable** va a `knowledge/` con fuentes revisadas; las decisiones y
+mediciones de esta tarea van a su pila. Una trampa reproducible del sistema va a `data/traps/doc.md`.
+El conocimiento de negocio/producto sin comprobación local puede consultarse en Canon o la documentación
+del equipo, citando la fuente y el límite. No se exige publicar en Canon para cerrar o archivar.
 
 ### El documento
 
@@ -172,48 +172,31 @@ no se escribe a mano. Se lee con `make pulso`. El pulso dice **cuándo**; la bit
 
 ## Retomar una tarea
 
-`make tareas TODAS=1` → `make retomar N=<id>`: la pila primero (el último bloque entero, con sus archivos
-fijados a su commit) y lo que tenga el documento. Con eso, una hipótesis verificable. Después, `canon:`:
+`make tareas TODAS=1` → `make retomar N=<id>`: pila, documento y los temas locales declarados en
+`knowledge:`. Acepta `lender-listing` o `lender-listing#ancla`. Lee `knowledge/<topic>/rules.md` y sus
+fuentes sin red; avisa si falta una referencia o queda fuera del presupuesto, sin cortar una regla.
 
-1. **Hay referencias:** `make retomar N=<id> BRIEF=1` trae la **ficha** de cada una (hasta cuatro;
-   `BRIEF=a,b` elige), derivada de la API de canon sin llamar a un modelo. La ficha decide qué abrir; no
-   reemplaza la lectura. Preferí una cita exacta (`tema/context#ancla`) sobre un tema entero.
-   **`CANON=1`** trae ya las SECCIONES enteras que el título y el resumen de la tarea encuentran dentro de
-   esos temas, leídas de la copia local (sin red ni modelo, 12 KB; lo que no entra sale por su cita), y
-   avisa si la tarea declara un tema que canon no tiene — canon lo ignora en silencio. `CANON_Q='…'` busca
-   otra cosa.
-2. **No hay, o el pedido es general:** una pregunta técnica sin datos de caso a canon (`make canon-search`).
-   Una sugerencia no se copia sola al frontmatter: se confirma leyendo.
-3. **La pregunta es de una persona, una solicitud o una medición actual:** ningún corpus la contesta. Va el
-   trazador o el harness, y la evidencia se registra con su comando.
+No consultar Canon es el comportamiento por defecto. Para una consulta de negocio/producto que no
+se puede comprobar en local, Canon es opcional. Las tareas históricas conservan `canon:`:
+`BRIEF=1` consulta su API; `CANON=1` lee su copia local. Se eligen sólo cuando hacen falta.
+Una pregunta sobre un caso o sobre el estado de un ambiente va al trazador, harness o consultas de datos.
 
-⚠ **La regla de corte: si la ficha del tema no contesta, no se prueba otro tema — la pregunta va al código
-de `main`.** El silencio del corpus es su modo de falla conocido, y una búsqueda devuelve el tema más
-parecido con buena puntuación. Una referencia que cambió el curso de la tarea se cita en el bloque que la
-usó (`[texto](canon:tema#ancla)`).
+## Cuando aparece conocimiento reutilizable
 
-## Cuando aparece una regla de negocio
-
-Trabajando una tarea aparecen reglas que la tarea no inventó (cómo se calcula un monto, quién queda afuera
-de un listado). **Cada una pasa por esto, sin que nadie lo pida** (Miguel, 2026-09-23):
-
-1. **¿Canon la tiene?** `make canon-search` → `make canon-read`. Si coincide, se cita y el tema entra a
-   `canon:`. Si **contradice** el código, se reescribe esa sección, no se agrega otra al lado.
-2. **Si no, ¿es real y está viva?** Delegalo al subagente **`main-verifier`**, o a mano: `git show origin/main:<ruta>` en **los dos monolitos**, `git log -S`
-   para saber desde cuándo, y que el código se alcance. Si se puede, se mide en prod con el trazador.
-3. **Si es viva, va a canon** con el filtro de `skills/dictar.md`: existe en `main`, sin crónica, sin nada
-   de un PR abierto. Las recetas, en la skill **`canon`**.
-4. **Queda en la tarea** un bloque con qué regla era, con qué se verificó y su cita. Sin la VPN de prod, la
-   pieza queda en `artifacts/` y un pendiente «Publicar en canon»: no está documentada hasta que aparezca.
-
-⚠ **No es lo mismo que graduar**: graduar pasa lo que la tarea CAMBIÓ, al mergear; esto es lo que
-ENCONTRÓ que ya existía, y no espera.
+1. Verificá las afirmaciones técnicas contra el `main` local de los repos pertinentes. Para reglas que
+   cruzan los monolitos, revisá ambos. Conservá el commit y los archivos que las respaldan.
+2. Guardá la explicación estable en `knowledge/<topic>/rules.md` con su `sources.json`, siguiendo
+   `knowledge/CLAUDE.md`. Las hipótesis y cambios sin mergear siguen en la tarea.
+3. Citá en el bloque la evidencia usada y sumá a `knowledge:` los temas que sirven para retomar.
+4. Si Miguel pide compartirlo con el equipo, prepará la publicación en Canon con la skill `canon`.
+   La publicación es independiente: no se crea un pendiente por faltar VPN o no publicar.
 
 ## De dónde sale lo que se escribe acá
 
 | herramienta | contesta | deja en la tarea |
 |---|---|---|
-| **canon** | lo que ya se sabe del sistema, compartido con el equipo | `canon:` al abrir · una graduación al cerrar |
+| **knowledge/** | conocimiento técnico local con fuentes | `knowledge:` para retomar · evidencia en el bloque |
+| **Canon**, opcional | conocimiento compartido de negocio/producto | `canon:` si se usó · cita en el bloque |
 | el código de `main` | lo que nadie escribió | **«Dónde se toca»**: archivos con el porqué |
 | [`harness/`](../harness/CLAUDE.md) | ¿funciona, corriéndolo? | **«Cómo se comprueba»**: el comando, no la conclusión |
 | `tablero-db` | ¿qué dicen los datos en un ambiente? | la consulta SQL de sólo lectura, con su ambiente |
@@ -230,7 +213,7 @@ ENCONTRÓ que ya existía, y no espera.
     make bitacora DAYS=7              el tiempo registrado, por día
     make tareas-ramas                 en qué ramas vive cada tarea y hasta dónde llegó (mide git)
     make hoy                          la agenda: último bloque, preguntas vencidas, entrega, dormidas
-    make retomar N=84                 retomar UNA en frío. BRIEF=1 suma la ficha de canon
+    make retomar N=84                 retomar UNA en frío. suma knowledge: local; BRIEF=1 consulta Canon explícitamente
     make cierre                       el cierre del día: a qué tarea tocada le falta qué
     make bitacora-add TAREA=84 …      la bitácora con minutos medidos por el comando
     make tarea-bloque N=84 ARCHIVO=…  apilar un bloque validado

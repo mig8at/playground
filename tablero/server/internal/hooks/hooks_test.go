@@ -11,9 +11,8 @@ import (
 	"testing"
 	"time"
 
-	"creditop/playground/connectors/canon"
+	"creditop/playground/knowledge"
 	"creditop/playground/lib/shell"
-	"creditop/playground/tablero/server/internal/canoncache"
 )
 
 // toyRepo arma un HOME con `Desktop/CREDITOP/github/legacy-backend` y un test que arrastra el trait.
@@ -196,24 +195,14 @@ func TestTheRealCatalogFitsTheContextBudget(t *testing.T) {
 			t.Errorf("el catálogo perdió %q", name)
 		}
 	}
-	// La sección de canon se mide con un canon MÁS GRANDE que el de hoy: 80 temas (hoy son 54) con nombres
-	// de 12 caracteres (los reales promedian ~9), repartidos en seis etapas. Si canon crece más que eso,
-	// falla acá y no se corta el inicio en silencio.
-	var fake canoncache.Cache
+	var fake knowledge.Library
 	for i := 0; i < 80; i++ {
-		fake.Topics = append(fake.Topics, canon.TopicSummary{Topic: fmt.Sprintf("tema-sint-%02d", i)})
+		fake.Topics = append(fake.Topics, knowledge.Topic{ID: fmt.Sprintf("topic-%02d", i), Metadata: knowledge.Metadata{Title: "Una regla de negocio vigente"}})
 	}
-	for s := 0; s < 6; s++ {
-		st := canon.Stage{Title: fmt.Sprintf("ETAPA NÚMERO %d", s)}
-		for i := s * 6; i < s*6+10; i++ {
-			st.Topics = append(st.Topics, fake.Topics[i].Topic)
-		}
-		fake.Stages = append(fake.Stages, st)
-	}
-	canonText := formatCanon(fake, "copia del 2026-09-27 19:00: canon no respondió")
+	knowledgeText := formatKnowledge(fake)
 	// Los conectores no entran en la cuenta (piden compilar pg): se les reserva 1,5 KB. Los accesos
 	// tampoco (piden red): 700 B alcanzan para el renglón de estados y cuatro avisos.
-	if size := len(header) + len(root) + len(got) + 1500 + 700 + len(canonText); size > contextBudget {
+	if size := len(header) + len(root) + len(got) + 1500 + 700 + len(knowledgeText); size > contextBudget {
 		t.Errorf("el catálogo pesa ~%d B, por encima de %d: Claude Code lo va a cortar", size, contextBudget)
 	}
 }

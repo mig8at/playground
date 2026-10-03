@@ -1,7 +1,7 @@
 # harness · reglas de trabajo
 
 > **Para qué existe:** es **la herramienta con la que se valida una tarea contra el código real.** No es
-> contexto (eso es **canon**) ni el trabajo en sí (eso es `tablero/`): es lo que se usa para **comprobar
+> contexto (eso vive en **knowledge/** y las fuentes) ni el trabajo en sí (eso es `tablero/`): es lo que se usa para **comprobar
 > corriendo** lo que en los otros dos está escrito. Si una afirmación se puede verificar acá, verificala
 > antes de escribirla como cierta en un nodo.
 

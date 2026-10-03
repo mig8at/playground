@@ -3,6 +3,7 @@ id: 0
 title: ""
 stage: evaluation
 created: ""
+knowledge: []
 canon: []
 jira: []
 jira_title: ""
@@ -31,7 +32,7 @@ jira_title: ""
 
   Reescribí el plan; mantené el material reproducible. Lo que pasa —una medición, una decisión, una
   pregunta, un riesgo, lo que se hizo en el día— entra a la pila como bloque con `make tarea-bloque`;
-  no copies sesiones ni logs. El conocimiento estable gradúa a canon.
+  no copies sesiones ni logs. El conocimiento técnico reutilizable va a knowledge/ con fuentes verificadas.
   No crees seis copias del contenido ni encabezados con los contadores de la interfaz.
 -->
 <!--
@@ -43,11 +44,9 @@ jira_title: ""
     ramas         patrón de rama, o varios por coma. Se omite hasta que la rama exista
     stage         evaluation → work → tasks
     created       ISO-8601 con offset, ej "2026-08-20T09:00:00-05:00"
-    canon         las referencias de Canon que se usaron o hay que leer antes de investigar. ⚠ ACÁ,
-                  no en la prosa: es lo que el tablero lista y lo que `make retomar BRIEF=1`
-                  convierte en ficha. Acepta `tema` (abre `tema/context`) o, mejor, una sección
-                  exacta como `tema/context#ancla`; Tablero las resuelve por CANON_URL y valida que
-                  existan. No copies el contenido de Canon dentro de la tarea.
+    knowledge     temas locales, ej [lender-listing] o [lender-listing#ancla]. Retomar los lee sin red
+    canon         referencias opcionales o históricas del equipo. BRIEF=1 consulta su API y CANON=1
+                  lee la copia local, sólo cuando se eligen. No bloquea la edición de la tarea
     jira          [CORE-123]. Se omite hasta que el issue exista
     jira_title    se llena al publicar; con varios issues se deja en ""
 -->
@@ -117,10 +116,10 @@ jira_title: ""
 
 ## Referencias
 
-<!-- Temas de canon, PRs y enlaces útiles para retomar. El conocimiento estable vive en canon/;
+<!-- Temas de canon, PRs y enlaces útiles para retomar. El conocimiento técnico reutilizable vive en knowledge/;
      acá sólo se enlaza. No copies el historial dentro de esta sección.
-     ⚠ La llena 1 de 68 tareas, así que si está vacía no es que sobre: es que se olvida. Los nodos que
-     de verdad hay que leer van igual en `canon:` del frontmatter, que es lo que el tablero
+     Los temas locales usados van en `knowledge:`; las referencias de Canon elegidas van en `canon:`,
+     en el frontmatter, que es lo que el tablero
      lee; acá van los que ayudan a retomar y lo que no es un tema (PRs, un tablero, un documento). -->
 
 <!-- Si una referencia de Canon sirvió para avanzar, citala en el bloque que la usó como

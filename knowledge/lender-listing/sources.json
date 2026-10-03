@@ -1,0 +1,63 @@
+{
+  "version": 1,
+  "title": "Listado de entidades",
+  "summary": "Puertas del listado en ambos monolitos y resolución del monto en lenders-v2.",
+  "reviewedAt": "2026-10-03T17:30:26.255619+00:00",
+  "sources": [
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/Onboarding/routes/api.php",
+      "commit": "63123374a5d0875c908a83e3145f334b2ff913ee",
+      "blob": "caaae90492dbc44142a359fa687488e31e266119",
+      "sections": [
+        "dos-puertas-en-el-backend-modular"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/Onboarding/App/Http/Controllers/ListLenderController.php",
+      "commit": "63123374a5d0875c908a83e3145f334b2ff913ee",
+      "blob": "7de4791a0bd3ac77187346f853644df19bf04e26",
+      "sections": [
+        "dos-puertas-en-el-backend-modular"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/Onboarding/App/Http/Controllers/LenderListingController.php",
+      "commit": "63123374a5d0875c908a83e3145f334b2ff913ee",
+      "blob": "692916187803b04d738b2609530fe1e289623948",
+      "sections": [
+        "dos-puertas-en-el-backend-modular",
+        "el-monto-del-listado-v2-se-resuelve-antes-del-calculo"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/Onboarding/App/Services/lenders/LenderListingService.php",
+      "commit": "63123374a5d0875c908a83e3145f334b2ff913ee",
+      "blob": "b5c813f1c70bc407b080d15a05c44ce3fdb0e681",
+      "sections": [
+        "el-monto-del-listado-v2-se-resuelve-antes-del-calculo"
+      ]
+    },
+    {
+      "repo": "application",
+      "path": "app/Http/Controllers/Customer/ListLenderController.php",
+      "commit": "fc74ac8bc1b364191f859bb6830e8d47c15bb882",
+      "blob": "dbcca80e12698d93c43a1d2dbd421430f2cce05a",
+      "sections": [
+        "el-monolito-anterior-tiene-su-propia-entrada"
+      ]
+    },
+    {
+      "repo": "application",
+      "path": "app/Services/lenders/LenderRetrievalService.php",
+      "commit": "fc74ac8bc1b364191f859bb6830e8d47c15bb882",
+      "blob": "38b005b601df3b012316b49abe604b4de48b016a",
+      "sections": [
+        "el-monolito-anterior-tiene-su-propia-entrada"
+      ]
+    }
+  ]
+}

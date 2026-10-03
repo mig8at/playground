@@ -4,15 +4,14 @@
     "CLAUDE.md como 'acordate de correr X' — y una regla que depende de que alguien se acuerde es una regla",
     "que se olvida, sobre todo cuando olvidarla NO ROMPE NADA.",
     "",
-    "Los ocho los corre `.claude/hooks/run <nombre>`, que compila tablero/server/cmd/hooks cuando cambia su",
+    "Los hooks los corre `.claude/hooks/run <nombre>`, que compila tablero/server/cmd/hooks cuando cambia su",
     "código (la lógica y el porqué de cada uno: tablero/server/internal/hooks). `args` va aparte a propósito:",
     "con `args` el comando se ejecuta sin shell. Si un hook se rompe, sale 0 o 1: avisa y la sesión sigue.",
     "",
     "SessionStart · session-start: imprime el catálogo de `make` y lo suma al contexto. Sin matcher a",
     "              propósito: también dispara al REANUDAR y DESPUÉS DE COMPACTAR, que es cuando se pierde.",
     "              Se genera del Makefile: un target nuevo aparece solo.",
-    "              Suma el MAPA DE CANON: los temas por etapa del crédito, de la copia en tablero/data/cache",
-    "              revalidada contra canon con ETag (espera 4 s; sin VPN usa la copia y dice de cuándo es).",
+    "              Suma el catálogo LOCAL de knowledge/: no consulta ni sincroniza Canon al iniciar.",
     "",
     "PreToolUse  · generated (Write|Edit): bloquea (exit 2) escribir a mano un archivo GENERADO (el índice de logs del trazador).",
     "              Corre ANTES, así que de verdad lo impide.",
@@ -26,9 +25,7 @@
     "              (salvo que el mismo comando stagee rutas antes): el índice de git es UNO para todas las sesiones",
     "              que comparten este worktree. Salida: I_CHECKED_THE_INDEX=1, después de mirar el índice.",
     "",
-    "PreToolUse  · ask-guard (Bash): frena preguntarle a canon —un POST a /api/ask, un script que lo llama,",
-    "              `-pregunta`—: desde acá canon se LEE (canon-search/-read/-mapa). /api/ask es para credibot.",
-    "              Una sonda GET pasa (405, no toca el modelo). Calibrar canon: I_AM_CALIBRATING_CANON=1.",
+    "Canon queda como consulta opcional de negocio/producto; ask-guard no se ejecuta automáticamente.",
     "",
     "PostToolUse · task-lint (Write|Edit): al escribir tablero/tasks/<slug>/task.md corre `tasks -lint`.",
     "              Exit 2 con la lista si algo está mal.",
@@ -86,13 +83,6 @@
             "command": "${CLAUDE_PROJECT_DIR}/.claude/hooks/run",
             "args": [
               "index-guard"
-            ]
-          },
-          {
-            "type": "command",
-            "command": "${CLAUDE_PROJECT_DIR}/.claude/hooks/run",
-            "args": [
-              "ask-guard"
             ]
           }
         ]
@@ -167,7 +157,11 @@
       "Bash(make canon-code *)",
       "Bash(make canon-route *)",
       "Bash(make deploys *)",
-      "Bash(make canon-mapa *)"
+      "Bash(make canon-mapa *)",
+      "Bash(make knowledge-map *)",
+      "Bash(make knowledge-search *)",
+      "Bash(make knowledge-read *)",
+      "Bash(make knowledge-check *)"
     ]
   }
 }

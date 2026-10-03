@@ -21,7 +21,7 @@ help: ## esta lista
 	@echo ""
 	@echo "  CREDITOP · playground        (make <comando>)"
 	@$(call listar,@dia,LO QUE SE USA TODOS LOS DÍAS)
-	@$(call listar,@can,CANON — el corpus del equipo: leerlo y dictarle (skill: .claude/skills/canon))
+	@$(call listar,@can,CANON — opcional para negocio/producto: consultar o publicar (skill: .claude/skills/canon))
 	@echo "    y desde ~/Desktop/CREDITOP/github/playground/tools/canon:"
 	@echo "    go run . -ronda                      ¿qué cambió en main de lo que el corpus declara?"
 	@echo "    go run . -peso                       …y cuál de eso pesa, por actividad de 90 días"
@@ -46,9 +46,7 @@ endef
 status: ## @dia ¿está el contexto al día? (resumen, no escribe nada)
 	@$(MAKE) --no-print-directory trampas
 	@echo ""
-	@echo "  El contexto compartido es CANON, que vive en otro repo y tiene su propia ronda:"
-	@echo "    cd ~/Desktop/CREDITOP/github/playground/tools/canon && go run . -ronda"
-	@echo "  (dice qué fuentes declaradas cambiaron o desaparecieron de main; -peso las prioriza)"
+	@$(MAKE) --no-print-directory knowledge-check
 
 tablero: ## @dia abre el tablero: las tareas a realizar (:5191)
 	@cd tablero && npm run dev
@@ -88,7 +86,7 @@ cuadrilla-publicar: ## @dia publica en cuadrilla las ramas de una tarea (a tu pa
 hoy: ## @dia la agenda derivada de las tareas: en movimiento (último bloque, lo que espera a alguien, entrega) y dormidas (≥14 d sin tocar). STAGE=work · JSON=1
 	@cd tablero/server && go run ./cmd/today $(if $(STAGE),-stage $(STAGE)) $(if $(JSON),-json)
 
-retomar: ## @dia retomar UNA tarea en frío: la pila (el último bloque entero), ramas y PRs, pendientes (y a quién esperan), bitácora — y qué falta. N=<id|slug> · BRIEF=1 suma la FICHA de sus nodos de context sin abrir los docs (~1/10 del doc; hasta 4, BRIEF=a,b elige) — decide qué doc abrir, no lo reemplaza · CANON=1 trae las SECCIONES de canon que el título y el resumen encuentran en sus temas (sin modelo; CANON_Q=… busca otra cosa)
+retomar: ## @dia retomar UNA tarea: pila, documento, pendientes, ramas y conocimiento LOCAL declarado en knowledge:. N=<id|slug> [BRIEF=1 o CANON=1 sólo si se necesita el contexto opcional de negocio/producto]
 	@test -n "$(N)" || { echo "falta N=<id|slug>  ·  ej: make retomar N=84"; exit 2; }
 	@cd tablero/server && go run ./cmd/today -n "$(N)" $(if $(JSON),-json) $(if $(BRIEF),-brief "$(BRIEF)") $(if $(CANON),-canon) $(if $(CANON_Q),-canon -canon-q "$(CANON_Q)")
 
@@ -631,6 +629,21 @@ trazador-posthog: ## @har ¿qué VIO el cliente en el navegador? Sin UREQ = sond
 # un PRD describe lo que se quiso. La regla de admisión está en las `skills/` del repo de canon.
 confluence: ## @har el POR QUÉ del negocio, que el código no tiene (sólo lectura). Sin CMD muestra su ayuda. CMD='search cupo rotativo' | 'spaces' | 'pages Creditop' | 'read <id>'
 	@$(if $(CMD),bin/pg confluence $(CMD),bin/pg help | grep -A1 confluence)
+
+# ── KNOWLEDGE ───────────────────────────────────────────────────────────────────────────────────
+.PHONY: knowledge-map knowledge-search knowledge-read knowledge-check knowledge-test
+knowledge-map: ## @dia los temas de conocimiento LOCAL, editable y versionado en knowledge/. Sin red [JSON=1]
+	@go run ./cmd/knowledge map $(if $(JSON),--json)
+knowledge-search: ## @dia buscar en el conocimiento LOCAL. Q='monto listado' [JSON=1]
+	@test -n "$(Q)" || { echo "falta Q='<consulta>'"; exit 2; }
+	@go run ./cmd/knowledge search $(if $(JSON),--json) '$(Q)'
+knowledge-read: ## @dia leer un tema o sección local. ID='lender-listing[#ancla]' [JSON=1]
+	@test -n "$(ID)" || { echo "falta ID='<tema[#ancla]>'"; exit 2; }
+	@go run ./cmd/knowledge read $(if $(JSON),--json) '$(ID)'
+knowledge-check: ## @dia contrastar fuentes con las refs de main disponibles en disco. Sin fetch; un cambio o fuente ilegible sale 1 [JSON=1]
+	@go run ./cmd/knowledge check $(if $(JSON),--json)
+knowledge-test: ## @dia comprobar lectura, fuentes, retoma local y ausencia de consultas automáticas a Canon
+	@go test ./knowledge ./cmd/knowledge ./tablero/server/cmd/today ./tablero/server/cmd/tasks ./tablero/server/internal/hooks ./tablero/server/internal/layout ./tablero/server/internal/store ./tablero/server/cmd/web
 
 # ── CANON ─────────────────────────────────────────────────────────────────────────────────────────
 # Lectura gratis y escritura por la API, contra CANON_URL (producción por defecto: pide la VPN de

@@ -7,7 +7,7 @@ vista, los JSON de etapas, los matchers, las pruebas— cargá la skill **`traza
 
 ## Qué contesta esto que ninguna otra herramienta contesta
 
-- **canon** describe el **mecanismo**, y por eso generaliza — pero no sabe nada de tu caso.
+- **knowledge/** y el código describen el **mecanismo**; un tema general no demuestra tu caso.
 - `harness/` **corre un caso que vos sembrás**: contesta *¿qué pasaría si el cliente es así?*
 - **el trazador mira lo que YA pasó, en el ambiente donde pasó** — y es el único que llega a `prod`.
 
@@ -23,7 +23,7 @@ tarda segundos.
 
 ## Cuándo NO es esto
 
-- **«¿cómo funciona X?»** → **canon**. Una corrida no es el mecanismo, y leer el mecanismo desde un caso
+- **«¿cómo funciona X?»** → **knowledge/** y código de `main`. Una corrida no es el mecanismo, y leer el mecanismo desde un caso
   es cómo se sacan conclusiones falsas.
 - **«¿qué pasaría si…?»** → `harness/`. El trazador sólo ve lo que ocurrió.
 - **«¿por qué existe esta regla?»** → `make confluence`. El porqué del negocio no está en los datos.
@@ -80,7 +80,7 @@ ese modo, leé el hallazgo antes. **`prod` es SOLO LECTURA, siempre.**
 
 - **Qué significa cada tabla o columna**, **con qué string se busca cada decisión** (`CATEGORY_*`,
   `QUOTA_CHECK_REJECTED`, `REVOLVING_CREDIT_*`, `STAGE 0…4`) y **por qué el sistema se comporta así** →
-  canon, en el tema dueño de esa decisión.
+  código de `main` y `knowledge/`; el porqué de negocio/producto puede consultarse opcionalmente en Canon o Confluence.
 - **Los hallazgos** que el trazador ayudó a encontrar → las trampas del sistema (`tablero/data/traps/`).
 - **Ejercitar un flujo** → `harness`. El trazador LEE lo que ya pasó; el harness lo PROVOCA.
 

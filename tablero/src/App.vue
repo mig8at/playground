@@ -46,9 +46,7 @@ const error = ref('');
 const jiraSyncing = ref(false);
 const syncError = ref('');
 
-// ── canon: la copia local, y si está al día ─────────────────────────────────────────────────────
-// El server la revalida contra canon (304 si no cambió) y dice cómo quedó. Acá sólo se muestra: al día,
-// o de cuándo es la copia si canon no contesta. Un clic revalida ya.
+// Canon es opcional: el pie actualiza su copia sólo cuando se pulsa el botón.
 const canonState = ref(null);
 const canonChecking = ref(false);
 async function loadCanonStatus(force = false) {
@@ -63,19 +61,19 @@ async function loadCanonStatus(force = false) {
 const canonLabel = computed(() => {
   const c = canonState.value;
   if (canonChecking.value && !c) return 'revisando canon…';
-  if (!c) return '';
+  if (!c) return 'Canon · opcional';
   if (c.state === 'current') return c.updated ? 'canon actualizado' : 'canon al día';
   if (c.state === 'stale') return `canon: copia del ${new Date(c.syncedAt).toLocaleDateString('es-CO', { day: 'numeric', month: 'numeric' })}`;
   return 'canon sin copia local';
 });
 const canonTitle = computed(() => {
   const c = canonState.value;
-  if (!c) return '';
+  if (!c) return 'Consultar contexto de negocio o producto: clic para actualizar la copia de Canon';
   const parts = [];
   if (c.syncedAt) parts.push(`copia local del ${new Date(c.syncedAt).toLocaleString('es-CO')} (${c.files} archivos)`);
   if (c.checkedAt && c.state === 'current') parts.push(`confirmada contra canon ${new Date(c.checkedAt).toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit' })}`);
   if (c.error) parts.push(`canon no contestó: ${c.error}`);
-  parts.push('clic: revalidar ahora');
+  parts.push('opcional para negocio o producto · clic: actualizar ahora');
   return parts.join(' · ');
 });
 // ── canon: la pestaña de la tarea ───────────────────────────────────────────────────────────────
@@ -127,17 +125,6 @@ function onCanonClick(event) {
   event.preventDefault();
   openCanon(link.dataset.canon);
 }
-let canonTimer = null;
-const onCanonVisible = () => { if (document.visibilityState === 'visible') loadCanonStatus(); };
-onMounted(() => {
-  loadCanonStatus();
-  canonTimer = setInterval(loadCanonStatus, 5 * 60 * 1000);
-  document.addEventListener('visibilitychange', onCanonVisible);
-});
-onUnmounted(() => {
-  clearInterval(canonTimer);
-  document.removeEventListener('visibilitychange', onCanonVisible);
-});
 const sprint = ref(bootstrapCache?.sprint || null);
 const sprints = ref(bootstrapCache?.sprints || []); // los más recientes, del actual hacia atrás — los usan las bandas de la jornada
 const SPRINT_TABS = 4;        // cuántos ofrece el selector del header (los demás sólo pintan banda)
@@ -2403,7 +2390,7 @@ function documentAction(id) {
 
           </template>
           <template v-if="v.id === 'canon'">
-            <p class="nota">De la copia local de canon, la misma que lee el agente<template v-if="canonLabel"> · {{ canonLabel }}</template>. Un enlace entre temas se abre acá.</p>
+            <p class="nota">De la copia local histórica de Canon, disponible para consultas opcionales<template v-if="canonLabel"> · {{ canonLabel }}</template>. Un enlace entre temas se abre acá.</p>
             <section v-if="canonOpen" class="canon-open" aria-live="polite">
               <div class="canon-open-head">
                 <h3>{{ canonOpen.missing ? 'Sección que canon no tiene' : canonOpen.title }}</h3>
@@ -2457,7 +2444,7 @@ function documentAction(id) {
       <span v-if="jiraSyncing" class="sync-state" role="status">actualizando Jira…</span>
       <span v-else-if="syncError" class="sync-state sync-error" :title="syncError">Jira sin actualizar</span>
       <button v-if="canonLabel" type="button" class="sync-state canon-state"
-              :class="{ 'sync-error': canonState && canonState.state !== 'current' }"
+              :class="{ 'sync-error': canonState && !!canonState.error }"
               :aria-busy="canonChecking" :title="canonTitle" @click="loadCanonStatus(true)">{{ canonChecking && canonState ? 'revisando canon…' : canonLabel }}</button>
       <span v-if="active && !active._local" class="sb-act">{{ active.Key }}</span>
       <div class="layout-controls" role="group" aria-label="Regiones visibles">

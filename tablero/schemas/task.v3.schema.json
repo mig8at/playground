@@ -73,6 +73,13 @@
         "file": {
           "type": "string",
           "minLength": 1
+        },
+        "knowledge": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "uniqueItems": true
         }
       }
     },

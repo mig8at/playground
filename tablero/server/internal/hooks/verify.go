@@ -53,7 +53,7 @@ var verifyZones = []zone{
 	},
 	{
 		name:     "go",
-		prefixes: []string{"tablero/server/", "trazador/server/", "visor/", "cmd/", "connectors/", "lib/"},
+		prefixes: []string{"tablero/server/", "trazador/server/", "visor/", "cmd/", "connectors/", "lib/", "knowledge/"},
 		exts:     []string{".go"},
 		commands: func(touched []string) [][]string {
 			pkgs := make([]string, 0, len(touched))

@@ -161,7 +161,7 @@ type app struct {
 	// direcciones distintas. El server los entrega desde server/.env.
 	canonURL    string
 	canonClient *canon.Client
-	// canonKeeper mantiene al día la copia local de canon y le dice a la UI si lo está.
+	// canonKeeper actualiza la copia local de Canon sólo por pedido explícito.
 	canonKeeper *canonKeeper
 	// repos dice dónde se ve en la web cada repo que un bloque puede citar. Sale de tools/repos.json,
 	// la lista única: la UI arma el enlace a GitHub de un archivo fijado a su commit.
@@ -213,7 +213,6 @@ func main() {
 
 	integrations := a.connectIntegrations()
 	a.canonKeeper = newCanonKeeper(a.canonClient, a.canonURL, layout.At(dataDir).Canon())
-	go a.canonKeeper.run(context.Background())
 
 	port := envDefault("WEB_PORT", "8787")
 

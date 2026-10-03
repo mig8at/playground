@@ -156,7 +156,7 @@ func Default(root string) Board {
 // binario que los expone y las bibliotecas. Hasta el 2026-09-24 vivía adentro del tablero y lo cubría su
 // pasada; al mudarse quedó sin vara, y el conteo de Go del tablero bajó de 6.100 a 5.292 sin avisar.
 func Shared(root string) Board {
-	trees := []string{"connectors", "cmd", "lib"}
+	trees := []string{"connectors", "cmd", "lib", "knowledge"}
 	return Board{
 		Name:        "compartido",
 		Root:        root,
@@ -165,7 +165,7 @@ func Shared(root string) Board {
 		JSGlobs:     []string{"tools/*.js", "tools/*.mjs", "tools/ui/*.js"},
 		PyGlobs:     []string{"tools/*.py"},
 		DeclsScript: filepath.Join(root, "tablero", "tools", "rename", "js", "decls.mjs"),
-		PathRoots:   []string{"connectors/", "cmd/", "lib/", "bin/", "tools/"},
+		PathRoots:   []string{"connectors/", "cmd/", "lib/", "knowledge/", "bin/", "tools/"},
 	}
 }
 

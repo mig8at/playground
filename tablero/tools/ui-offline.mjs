@@ -31,7 +31,7 @@ const API = 'http://localhost:8787';
 // quedó llamándose — o una nueva que hay que sumar.
 const LIVE = new Set(['/api/config', '/api/sprints', '/api/sprint', '/api/ramas', '/api/ramas/refresh', '/api/efforts',
   '/api/task-locals', '/api/jira-inbox', '/api/jira-import', '/api/qa-notice',
-  '/api/transitions', '/api/entries', '/api/task-context', '/api/pulse', '/api/canon/route']);
+  '/api/transitions', '/api/entries', '/api/task-context', '/api/pulse', '/api/canon/route', '/api/canon/status']);
 
 const sprint = { id: 1, name: 'Sprint UI', state: 'active', startDate: '2026-09-14', endDate: '2026-09-28' };
 const techNotes = [
@@ -251,10 +251,19 @@ try {
     }
   });
   await check('sin errores de consola', () => assert.deepEqual([...errors, ...narrow.errors], []));
+  await check('abrir el tablero y una tarea con citas antiguas no consulta Canon', async () => {
+    assert.equal(asked.has('/api/canon/status'), false);
+    assert.equal(asked.has('/api/canon/route'), false);
+    await page.evaluate(() => window.dispatchEvent(new Event('focus')));
+    await page.evaluate(() => window.dispatchEvent(new Event('online')));
+    assert.equal(asked.has('/api/canon/route'), false);
+    assert.equal(await page.getByRole('button', { name: 'Canon · opcional', exact: true }).isVisible(), true);
+  });
   await check('el recorrido enfoca el paso exacto, conserva su vecino en la misma estación y pliega fuentes', async () => {
     const routePage = await openTablero({ width: 780, height: 900 });
     const card = routePage.page.locator('.canon-route').first();
     await card.scrollIntoViewIfNeeded();
+    await card.getByRole('button', { name: 'Consultar en Canon' }).click();
     await card.locator('ol').waitFor();
     assert.deepEqual(await card.locator('li').allInnerTexts(), ['Espera segunda firma', 'Firma del codeudor', 'Solicitud autorizada']);
     assert.equal(await card.locator('[aria-current="step"]').innerText(), 'Firma del codeudor');
@@ -274,6 +283,7 @@ try {
     const routePage = await openTablero({ width: 1440, height: 900 });
     const card = routePage.page.locator('.canon-route').first();
     await card.scrollIntoViewIfNeeded();
+    await card.getByRole('button', { name: 'Consultar en Canon' }).click();
     // Este fallo también cubre una respuesta incompleta: el componente debe conservar el bloque.
     await card.getByRole('button', { name: 'Reintentar' }).waitFor();
     assert.equal(await routePage.page.locator('.block-title').first().isVisible(), true);

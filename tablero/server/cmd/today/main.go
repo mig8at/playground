@@ -55,7 +55,7 @@ type task struct {
 	ID                                       int
 	Archived                                 bool
 	Branches                                 []string
-	Jira, Nodes                              []string
+	Jira, Nodes, Knowledge                   []string
 	Body                                     string
 	Touch                                    time.Time // último cambio del archivo (git; hoy si está sucio)
 }
@@ -110,6 +110,8 @@ func readTaskFile(path string, touches map[string]string) task {
 				t.Archived = v != "" && v != "false" && v != "null"
 			case strings.HasPrefix(l, "jira:"):
 				t.Jira = list(l)
+			case strings.HasPrefix(l, "knowledge:"):
+				t.Knowledge = list(l)
 			case strings.HasPrefix(l, "canon:"):
 				t.Nodes = list(l)
 			case strings.HasPrefix(l, "ramas:"):
@@ -265,7 +267,7 @@ func main() {
 		anatomy    = flag.Bool("anatomia", false, "cómo está repartido el archivo de cada tarea, y qué sección parece estar en el lugar equivocado")
 		asJSON     = flag.Bool("json", false, "salida en JSON")
 		brief      = flag.String("brief", "", "al final, la ficha de las referencias de Canon declaradas: 1 = las declaradas (hasta 4) · a,b = sólo esas")
-		withCanon  = flag.Bool("canon", false, "al final, las secciones de canon que el título de la tarea encuentra en sus temas declarados (/api/context, sin modelo)")
+		withCanon  = flag.Bool("canon", false, "opcional: secciones de la copia histórica de Canon; sólo con -canon")
 		canonBytes = flag.Int("canon-bytes", canonContextBytes, "presupuesto de -canon, en bytes")
 		canonQuery = flag.String("canon-q", "", "con -canon: buscar esto en vez del título y el resumen de la tarea")
 	)
@@ -463,7 +465,7 @@ func printRow(f row, detail bool) {
 //	1 PLAN         objetivo, cómo se ataca            → se REESCRIBE, en el documento
 //	2 MATERIAL     recetas, consultas, datos de prueba → se MANTIENE, en el documento
 //	3 HISTORIA     qué pasó, qué se midió o se decidió → se APILA, en la pila (un bloque por hecho)
-//	4 CONOCIMIENTO cómo funciona el sistema            → GRADÚA a canon
+//	4 CONOCIMIENTO cómo funciona el sistema            → knowledge/ con fuentes
 //
 // Lo que más se equivoca es la 3 escrita como 2: una sección nueva con fecha en el documento («🔧 Segunda
 // pasada (13/9)»). Medido el 2026-09-15 sobre las 40 abiertas, antes de la pila: la mediana pesaba 16 KB,
@@ -523,7 +525,7 @@ func showAnatomy(data string, tasks []task, ref string) int {
 
 	fmt.Printf("\n  ANATOMÍA · qué hay dentro del documento de cada tarea, y qué parece estar fuera de lugar\n")
 	fmt.Printf("  El documento tiene PLAN (se reescribe) y MATERIAL (se mantiene); la HISTORIA va a la pila y lo que\n")
-	fmt.Printf("  es CONOCIMIENTO gradúa a canon. Más de %d KB ya cuesta retomarlo leyéndolo.\n\n", kbUncomfortable)
+	fmt.Printf("  es CONOCIMIENTO técnico va a knowledge/ con fuentes. Más de %d KB ya cuesta retomarlo leyéndolo.\n\n", kbUncomfortable)
 	for _, f := range rows {
 		mark := " "
 		switch {
@@ -539,7 +541,7 @@ func showAnatomy(data string, tasks []task, ref string) int {
 			for _, e := range f.examples {
 				fmt.Printf("           · %s\n", truncate(e, 86))
 			}
-			fmt.Printf("           el test: si esto se mergea mañana, ¿sigue siendo cierto? sí → queda (o gradúa a canon); no → la pila\n")
+			fmt.Printf("           el test: si esto se mergea mañana, ¿sigue siendo cierto? sí → queda (o va a knowledge/); no → la pila\n")
 		}
 	}
 	fmt.Println()
@@ -658,6 +660,7 @@ func resume(data string, tasks []task, snap branchesSnap, ref string, asJSON boo
 	if len(bit) == 0 {
 		missing = append(missing, "bitácora: ninguna entrada apunta a esta tarea")
 	}
+	localContext := buildKnowledgeContext(t.Knowledge, layout.At(data).Knowledge())
 	var briefs []canonBrief
 	var briefsNotice string
 	if brief != "" {
@@ -677,6 +680,7 @@ func resume(data string, tasks []task, snap branchesSnap, ref string, asJSON boo
 			"id": t.ID, "slug": t.Slug, "title": t.Title, "stage": t.Stage, "daysUntouched": t.days(),
 			"delivery": delivery(snap, t.ID), "branches": snap.Tasks[strconv.Itoa(t.ID)].Branches,
 			"pending": pend, "worklog": bit, "context": contextInfo, "missing": missing,
+			"knowledge": localContext,
 		}
 		if brief != "" {
 			output["canon"], output["canonNotice"] = briefs, briefsNotice
@@ -691,12 +695,6 @@ func resume(data string, tasks []task, snap branchesSnap, ref string, asJSON boo
 	fmt.Printf("\n  #%d · %s\n  %s · %s · tocada hace %d día(s) · creada %s\n", t.ID, t.Title, t.Slug, t.Stage, t.days(), strings.SplitN(t.Created+"T", "T", 2)[0])
 	if len(t.Jira) > 0 || len(t.Nodes) > 0 {
 		fmt.Printf("  jira: %s · referencias de Canon: %s\n", strings.Join(t.Jira, ", "), strings.Join(t.Nodes, ", "))
-	}
-	if len(t.Nodes) > 0 && brief == "" {
-		fmt.Printf("  la ficha de cada referencia de Canon: make retomar N=%d BRIEF=1\n", t.ID)
-	}
-	if !withCanon {
-		fmt.Printf("  lo que canon dice de esta tarea, en secciones enteras: make retomar N=%d CANON=1\n", t.ID)
 	}
 	fmt.Printf("  archivo: %s\n", t.Path)
 
@@ -832,6 +830,7 @@ func resume(data string, tasks []task, snap branchesSnap, ref string, asJSON boo
 		}
 		fmt.Println("  la ficha decide qué referencia se abre; si ninguna contesta, la pregunta va al código de main — no a otra referencia")
 	}
+	printKnowledgeContext(localContext)
 	if withCanon {
 		printCanonContext(canonCtx)
 	}

@@ -6,7 +6,7 @@
 //	generated          PreToolUse (Write|Edit) · frena editar a mano un archivo GENERADO
 //	destructive-tests  PreToolUse (Bash) · frena lo que puede recrear una base desde legacy-backend
 //	index-guard        PreToolUse (Bash) · frena el `git add -A` y el commit sin rutas: el índice es de todas las sesiones
-//	ask-guard          PreToolUse (Bash) · frena preguntarle a canon (`/api/ask`, `-pregunta`): canon se lee
+//	ask-guard          compatibilidad manual · no registrado: Canon es una consulta opcional
 //	task-lint          PostToolUse (Write|Edit) · valida una tarea del tablero apenas se escribe
 //	closeout           Stop · el cierre de sesión del tablero, sobre las tareas que ESTA sesión tocó
 //	verify             Stop · los chequeos del código que ESTA sesión escribió (typecheck, go test, estilos)
@@ -20,7 +20,6 @@
 package hooks
 
 import (
-	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -32,10 +31,9 @@ import (
 	"time"
 	"unicode/utf8"
 
-	"creditop/playground/connectors/canon"
 	"creditop/playground/keyring/check"
+	"creditop/playground/knowledge"
 	"creditop/playground/lib/text"
-	"creditop/playground/tablero/server/internal/canoncache"
 )
 
 // Env es lo que un hook necesita saber de afuera.
@@ -236,7 +234,7 @@ func SessionStart(env Env) int {
 		fmt.Fprintln(env.Stdout, list)
 	}
 	fmt.Fprintln(env.Stdout)
-	fmt.Fprintln(env.Stdout, canonSection(env.Root, time.Now()))
+	fmt.Fprintln(env.Stdout, knowledgeSection(env.Root))
 	fmt.Fprintln(env.Stdout)
 	fmt.Fprintln(env.Stdout, <-access)
 	return 0
@@ -254,44 +252,28 @@ func accessSection() string {
 	return check.Brief(check.Run(check.Select(check.Quick), accessWait))
 }
 
-// canonWait es lo que el arranque espera a canon: sin la VPN de prod no puede quedar colgado.
-const canonWait = 4 * time.Second
-
-/* canonSection: lo que canon ya sabe de CreditOp, por etapa del recorrido del crédito, desde la copia del
- * tablero (`internal/canoncache`), revalidada contra canon si responde a tiempo. Es lo que hace que canon sea
- * el contexto de partida y no algo que el agente tiene que acordarse de buscar: medido el 2026-09-27, en 53
- * sesiones reales del mes no hubo UNA búsqueda en canon que llegara a correr. */
-func canonSection(root string, now time.Time) string {
-	dir := filepath.Join(root, "tablero", "data", "cache")
-	ctx, cancel := context.WithTimeout(context.Background(), canonWait)
-	defer cancel()
-	c, err := canoncache.Refresh(ctx, canon.FromEnv(), canon.URL(), dir, now)
-	if len(c.Topics) == 0 {
-		return "  MAPA DE CANON — no respondió y no hay copia local: con la VPN de prod, `make canon-mapa` la arma."
-	}
-	state := "al día"
+// knowledgeSection sólo lee archivos del taller. El arranque nunca sincroniza Canon.
+func knowledgeSection(root string) string {
+	library, err := knowledge.Open(filepath.Join(root, "knowledge"))
 	if err != nil {
-		state = "copia del " + c.CheckedAt.Local().Format("2006-01-02 15:04") + ": canon no respondió"
+		return "  CONOCIMIENTO LOCAL — " + err.Error() + "\n    El código y las fuentes disponibles permiten continuar; Canon es opcional para negocio o producto."
 	}
-	// La copia del corpus entero se revalida con el ETag del export: si no cambió, canon contesta 304.
-	mirror := filepath.Join(root, "tablero", "canon")
-	syncErr := err
-	if err == nil {
-		syncCtx, syncCancel := context.WithTimeout(context.Background(), canoncache.MirrorWait)
-		defer syncCancel()
-		_, _, syncErr = canoncache.SyncMirror(syncCtx, canon.FromEnv(), canon.URL(), mirror, now)
-	}
-	m, ok := canoncache.LoadMirror(mirror)
-	return formatCanon(c, state) + "\n" + canoncache.MirrorLine(m, ok, syncErr, "tablero/canon")
+	return formatKnowledge(library)
 }
 
-// formatCanon es la sección tal como la ve el agente (aparte para que la prueba de presupuesto la mida
-// sin red).
-func formatCanon(c canoncache.Cache, state string) string {
-	return fmt.Sprintf("  MAPA DE CANON — lo que el equipo ya sabe de CreditOp, por etapa del crédito (%d temas · %s)\n"+
-		"    buscá: `make canon-search Q='…'` · leé: `make canon-read IDS='tema'` · títulos y resúmenes: `make canon-mapa`\n"+
-		"    ⛔ `/api/ask` no se usa desde acá (es para credibot): se LEE el contexto, no se le pregunta a un modelo.\n%s",
-		len(c.Topics), state, c.Compact())
+func formatKnowledge(library knowledge.Library) string {
+	var out strings.Builder
+	fmt.Fprintf(&out, "  CONOCIMIENTO LOCAL — %d tema(s), en knowledge/ (editable, versionado y sin red)\n", len(library.Topics))
+	out.WriteString("    buscá: `make knowledge-search Q='…'` · leé: `make knowledge-read ID=tema` · fuentes: `make knowledge-check`\n")
+	for i, topic := range library.Topics {
+		if i == 30 {
+			out.WriteString("    … el resto: make knowledge-map\n")
+			break
+		}
+		fmt.Fprintf(&out, "    %s · %s\n", topic.ID, topic.Title)
+	}
+	out.WriteString("    Canon es opcional: políticas o decisiones de negocio/producto que las fuentes disponibles no explican. No hace falta consultarlo para investigar, probar, registrar ni cerrar tareas.")
+	return out.String()
 }
 
 // pgCommand es lo que el catálogo usa de `pg help --json`.

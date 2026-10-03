@@ -21,7 +21,6 @@
 package main
 
 import (
-	"context"
 	"encoding/json"
 	"flag"
 	"fmt"
@@ -32,10 +31,9 @@ import (
 	"sort"
 	"strconv"
 	"strings"
-	"time"
 
-	"creditop/playground/connectors/canon"
 	"creditop/playground/connectors/guard"
+	"creditop/playground/knowledge"
 	"creditop/playground/tablero/server/internal/env"
 	"creditop/playground/tablero/server/internal/layout"
 	"creditop/playground/tablero/server/internal/store"
@@ -44,14 +42,15 @@ import (
 
 // Task es lo que se puede saber de un `.md` SIN abrirlo entero: su frontmatter.
 type Task struct {
-	Slug     string   `json:"slug"`
-	ID       int      `json:"id"`
-	Title    string   `json:"title"`
-	Stage    string   `json:"stage"`
-	Class    string   `json:"class,omitempty"` // tarea (default) | proyecto — ver store.Effort.Clase
-	Archived bool     `json:"archived"`
-	Jira     []string `json:"jira,omitempty"`
-	Nodes    []string `json:"canon,omitempty"`
+	Slug      string   `json:"slug"`
+	ID        int      `json:"id"`
+	Title     string   `json:"title"`
+	Stage     string   `json:"stage"`
+	Class     string   `json:"class,omitempty"` // tarea (default) | proyecto — ver store.Effort.Clase
+	Archived  bool     `json:"archived"`
+	Jira      []string `json:"jira,omitempty"`
+	Nodes     []string `json:"canon,omitempty"`
+	Knowledge []string `json:"knowledge,omitempty"`
 	// OldNodes es el `context_nodes:` de antes del 2026-09-21. No se usa para nada salvo para
 	// poder FALLAR nombrándolo: un campo que se ignora en silencio se lee como un campo vacío.
 	OldNodes []string `json:"-"`
@@ -247,6 +246,8 @@ func readTaskFile(path string) (Task, string, error) {
 			t.Jira = list(l)
 		case strings.HasPrefix(l, "canon:"):
 			t.Nodes = list(l)
+		case strings.HasPrefix(l, "knowledge:"):
+			t.Knowledge = list(l)
 		case strings.HasPrefix(l, "context_nodes:"):
 			// El campo se renombró el 2026-09-21, cuando el árbol de `context/` empezó a apagarse y su
 			// contenido pasó a canon. Se sigue LEYENDO para poder decirlo: si se ignorara, una tarea
@@ -321,22 +322,18 @@ func showLint(path string) int {
 			failure("id %d repetido con %s — en el tablero sobrevive uno solo. El siguiente libre es %d", t.ID, o.Slug, maxID(ts)+1)
 		}
 	}
-	// Las referencias se validan contra la API que Canon sirve desde Postgres. Si la API no responde,
-	// no se bloquea una edición local: se avisa claramente y se conserva la misma degradación segura
-	// que había cuando el corpus compartido no estaba clonado en esta máquina.
+	// El lint local no consulta Canon por las referencias históricas de una tarea.
 	if len(t.OldNodes) > 0 {
-		failure("`context_nodes:` se renombró a `canon:` — usá temas o referencias de Canon (esta tarea todavía dice: %s)", strings.Join(t.OldNodes, ", "))
+		failure("`context_nodes:` es histórico — elegí referencias locales `knowledge:` u opcionales `canon:` (esta tarea todavía dice: %s)", strings.Join(t.OldNodes, ", "))
 	}
-	if len(t.Nodes) > 0 {
-		ctx, cancel := context.WithTimeout(context.Background(), 8*time.Second)
-		references, err := canon.FromEnv().References(ctx, t.Nodes)
-		cancel()
+	if len(t.Knowledge) > 0 {
+		library, err := knowledge.Open(layout.Find().Knowledge())
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "  ⚠ no validé `canon:` — Canon no respondió en %s (%v)\n", canon.URL(), err)
+			failure("knowledge: %v", err)
 		} else {
-			for _, reference := range references {
-				if reference.Error != "" {
-					failure("canon: la referencia «%s» no existe o no es válida (%s)", reference.Requested, reference.Error)
+			for _, reference := range t.Knowledge {
+				if _, err := library.Read(reference); err != nil {
+					failure("knowledge: %v", err)
 				}
 			}
 		}

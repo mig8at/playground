@@ -50,13 +50,17 @@ func TestCanonStatusKeepsTheCopyAndSaysSo(t *testing.T) {
 	now := time.Date(2026, 9, 28, 10, 0, 0, 0, time.UTC)
 	a := &app{canonKeeper: newCanonKeeper(canon.New(srv.URL), "x", dir)}
 	a.canonKeeper.now = func() time.Time { return now }
+	if s := statusOf(t, a, "GET"); s.State != "missing" || hits != 0 {
+		t.Fatalf("GET inició una sincronización: %+v, %d pedidos", s, hits)
+	}
 
-	if s := statusOf(t, a, "GET"); s.State != "current" || !s.Updated || s.Files != 1 {
+	if s := statusOf(t, a, "POST"); s.State != "current" || !s.Updated || s.Files != 1 {
 		t.Fatalf("primera revalidación: %+v", s)
 	}
-	// dentro del minuto no se le vuelve a preguntar a canon
+	// Incluso mucho después, GET sólo describe la copia y nunca revalida.
+	now = now.Add(24 * time.Hour)
 	if s := statusOf(t, a, "GET"); s.State != "current" || hits != 1 {
-		t.Fatalf("revalidó antes de tiempo: %+v, %d pedidos", s, hits)
+		t.Fatalf("GET volvió a consultar Canon: %+v, %d pedidos", s, hits)
 	}
 	// POST revalida ya: 304, sigue al día y no dice que trajo algo nuevo
 	if s := statusOf(t, a, "POST"); s.State != "current" || s.Updated || hits != 2 {
@@ -65,7 +69,7 @@ func TestCanonStatusKeepsTheCopyAndSaysSo(t *testing.T) {
 	// canon deja de contestar: la copia sigue, marcada con su fecha
 	srv.Close()
 	now = now.Add(2 * time.Minute)
-	if s := statusOf(t, a, "GET"); s.State != "stale" || s.SyncedAt.IsZero() || s.Error == "" {
+	if s := statusOf(t, a, "POST"); s.State != "stale" || s.SyncedAt.IsZero() || s.Error == "" {
 		t.Fatalf("sin canon: %+v", s)
 	}
 	// sin copia y sin canon

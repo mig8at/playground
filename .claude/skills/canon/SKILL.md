@@ -1,6 +1,6 @@
 ---
 name: canon
-description: Leer y escribir canon, el corpus compartido de CreditOp. Usala ANTES de investigar cómo funciona algo (buscar, leer la sección, ver el código que la respalda) y cada vez que aparezca una regla de negocio que canon no tiene y hay que dictarle (verificarla viva en main, ensayar la pieza, dictarla en una revisión), y para ponerlo al día con lo que mergeó el equipo (-ronda, -peso). Cubre `make canon-*`, la API (/api/search, /api/read, /api/code, /api/propose, /api/draft) y sus trampas.
+description: Consulta opcional de conocimiento de negocio o producto de CreditOp que no se puede comprobar en local. Usala cuando se elige consultar Canon o Miguel solicita publicar o mantener el corpus del equipo. No se activa por toda investigación técnica ni obliga a publicar hallazgos o cerrar tareas. Cubre make canon-* y su API.
 ---
 
 # Canon · leerlo y dictarle
@@ -14,7 +14,7 @@ Todo sale de `CANON_URL`: por defecto **producción**, que pide la **VPN de prod
 dicen «canon no respondió». `CANON_URL=http://localhost:8080` apunta al canon local, que tiene **su
 propia base**: sirve para ensayar, y lo que se escribe ahí no lo ve nadie.
 
-## Leer — antes de investigar, siempre
+## Leer — cuando hace falta conocimiento de negocio o producto
 
     make canon-search Q='monto avisado al comercio'     # qué sección (prosa) y qué área (mapa) lo cubren
     make canon-read IDS='cuota/context#<ancla>'         # la sección completa; varias por coma, o el tema
@@ -22,14 +22,14 @@ propia base**: sirve para ensayar, y lo que se escribe ahí no lo ve nadie.
 
 **Y está copiado en disco**: `tablero/canon/content/<tema>/context.md` (la prosa) y `map.json`
 (las áreas con sus archivos y hashes), más `globalmap.json`, `tablas.json` y `diccionario.json`. Se lee con
-grep y Read, sin VPN. Cuelga del `ETag` del corpus: el arranque de sesión lo revalida gratis y, si canon
-cambió, baja el export, lo verifica contra su sha256 y lo reemplaza entero (`VERSION.json` dice de cuál es).
+rg y Read, sin VPN. Es una copia histórica: el arranque de sesión y el servidor del tablero no la
+revalidan. El botón «Canon · opcional» solicita una actualización explícita (`VERSION.json` dice de cuál es).
 **No se edita** (es de sólo lectura): lo que haya que cambiar se dicta abajo.
 
 1. **Buscá con palabras del negocio, en español y cortas.** La búsqueda es léxica: una consulta en
    inglés o un relato largo no encuentran nada. Probá dos o tres formulaciones antes de concluir.
 2. **Leé la sección entera** antes de citarla: un buen puesto en la búsqueda no garantiza que conteste.
-3. **El silencio de canon NO es «no existe».** Si no está, la pregunta va al código de `main`, y si resulta una regla viva, se dicta (abajo).
+3. **El silencio de Canon NO es «no existe».** Una afirmación técnica se verifica en `main`; una política de negocio sin fuente queda pendiente de verificar. No se dicta automáticamente.
 4. En una tarea, lo que se usó se cita en su bloque como `[texto](canon:tema#ancla)` y el tema entra a
    `canon:` del frontmatter.
 
@@ -37,10 +37,12 @@ Los comandos son `tablero/server/cmd/canon` (Go, sobre el conector `connectors/c
 Python, `tools/canon.py` da `maps()`, `prose()`, `files_by_topic()`, `topics_by_repo()` y
 `tables_by_topic()`: no lee canon, se lo pide a `canon corpus`, así que hay un solo cliente.
 
-## Escribir — cuando aparece una regla que canon no tiene
+## Escribir — cuando Miguel solicita publicar o mantener Canon
 
-**Qué entra** (`skills/dictar.md` del repo de canon, y `tablero/CLAUDE.md` §«Cuando aparece una regla de
-negocio»): una regla técnica, de negocio o de producto **que existe en `main`**, incluidos sus errores.
+La publicación no es parte obligatoria de una tarea local. Prepará una pieza revisable cuando se
+solicita compartir conocimiento; tener un tema en `knowledge/` no autoriza su publicación.
+
+**Qué entra** (`skills/dictar.md` del repo de canon): una regla técnica, de negocio o de producto **que existe en `main`**, incluidos sus errores.
 **No entra:** la crónica (quién lo descubrió, cómo se probó), un PR sin mergear, ni lo que la tarea en
 curso agregó y todavía no está en `main`.
 
@@ -50,12 +52,12 @@ para entender qué camino pesa, pero **la medición no va a la prosa**: ni cifra
 cuándo se midió o descubrió algo. Caducan, no ahorran leer el código y el agente las repite como regla;
 el lint las rechaza. Entra lo que el código no dice o lo que ahorra leerlo.
 
-1. **Armá la pieza** (`pieza.json`, formato abajo).
-2. `make canon-propose PIECE=pieza.json` — no escribe; dice `ready`, qué rechaza el lint y dónde iría.
+1. **Armá la pieza** (`piece.json`, formato abajo).
+2. `make canon-propose PIECE=piece.json` — no escribe; dice `ready`, qué rechaza el lint y dónde iría.
    Para un lote de piezas (o una `operacion:"verificado"`, que `canon-propose` no entiende):
    `make canon-write DRY=1 PIECE='a.json b.json'` hace el recorrido entero SIN cerrar —cada pieza al borrador,
    con sus avisos y los archivos que un `verificado` releería— y abandona el borrador. No escribe.
-3. `make canon-write PIECE=pieza.json TITLE='…'` — **escribe**: abre el borrador, manda cada pieza y
+3. `make canon-write PIECE=piece.json TITLE='…'` — **escribe**: abre el borrador, manda cada pieza y
    cierra en una sola revisión. Si algo falla, abandona el borrador y no queda nada a medias.
 4. Verificá con `make canon-search` que aparece, y dejá en la tarea un bloque con la cita.
 

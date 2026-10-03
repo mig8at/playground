@@ -1,17 +1,14 @@
 <script setup>
-import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
+import { computed, onBeforeUnmount, ref, watch } from 'vue';
 
 const props = defineProps({ reference: { type: String, required: true }, label: String, server: { type: String, required: true } });
 const emit = defineEmits(['resolved']);
 const view = ref(null);
 const error = ref('');
 const loading = ref(false);
-const root = ref(null);
-const visible = ref(false);
 const detailsOpen = ref(false);
 const focus = computed(() => view.value?.steps.find(step => step.focused));
-let controller, observer;
-let loadedAt = 0;
+let controller;
 
 async function load() {
   controller?.abort();
@@ -27,7 +24,6 @@ async function load() {
     if (data.reference !== reference || !Array.isArray(data.steps) || !data.steps.length || !data.url) throw new Error('Canon devolvió un recorrido incompleto.');
     if (current.signal.aborted) return;
     view.value = data;
-    loadedAt = Date.now();
     emit('resolved', reference, data.url);
   } catch (err) {
     if (current.signal.aborted) return;
@@ -39,33 +35,21 @@ async function load() {
   }
 }
 
-function refresh() { if (visible.value && Date.now() - loadedAt >= 60000) load(); }
+// Un enlace histórico no autoriza consultar Canon al aparecer en pantalla.
 watch(() => [props.reference, props.server], () => {
   controller?.abort();
   view.value = null;
   detailsOpen.value = false;
-  loadedAt = 0;
-  if (visible.value) load();
-});
-onMounted(() => {
-  observer = new IntersectionObserver(entries => {
-    visible.value = entries.some(entry => entry.isIntersecting);
-    if (visible.value && !loading.value && !view.value && !error.value) load();
-  });
-  observer.observe(root.value);
-  window.addEventListener('focus', refresh);
-  window.addEventListener('online', refresh);
+  error.value = '';
+  loading.value = false;
 });
 onBeforeUnmount(() => {
   controller?.abort();
-  observer?.disconnect();
-  window.removeEventListener('focus', refresh);
-  window.removeEventListener('online', refresh);
 });
 </script>
 
 <template>
-  <section ref="root" class="canon-route" :aria-label="label || 'Recorrido de Canon'" :aria-busy="loading">
+  <section class="canon-route" :aria-label="label || 'Recorrido de Canon'" :aria-busy="loading">
     <template v-if="view">
       <div class="route-heading">
         <span>{{ view.title }} <span class="route-variant">· {{ view.variant_title }}</span></span>
@@ -90,8 +74,8 @@ onBeforeUnmount(() => {
       </details>
     </template>
     <div v-else class="route-unavailable" role="status">
-      <span>{{ error || 'Cargando recorrido…' }}</span>
-      <button v-if="error" type="button" @click="load">Reintentar</button>
+      <span>{{ loading ? 'Consultando recorrido…' : (error || label || 'Recorrido de Canon · opcional') }}</span>
+      <button v-if="!loading" type="button" @click="load">{{ error ? 'Reintentar' : 'Consultar en Canon' }}</button>
     </div>
   </section>
 </template>

@@ -1,7 +1,7 @@
 # tablero — LAS TAREAS A REALIZAR (y el sprint: tiempo, avances, conectores Jira/Slack)
 
 > **Qué contesta este proyecto:** *¿en qué se está trabajando, por qué y para qué?*
-> Lo que contesta *¿cómo **es** CreditOp?* es **canon**, y son cosas distintas: si algo **sigue siendo
+> El mecanismo técnico se consulta en **knowledge/** y el código de `main`, y son cosas distintas: si algo **sigue siendo
 > cierto después de mergear**, es contexto; si deja de tener sentido porque hablaba de una decisión, un
 > riesgo o una pregunta abierta, es tarea y va acá.
 
@@ -13,7 +13,8 @@
 | decidir qué mover hoy | `make hoy` o los grupos de estado en **Mis tareas** |
 | crear o actualizar una tarea | `TASK-TEMPLATE.md` y después `CLAUDE.md` |
 | entender cómo está compuesta la herramienta | `docs/ARCHITECTURE.md` |
-| encontrar conocimiento estable del producto | **canon**: `github/playground/tools/canon`, o canon.playground.creditop.com |
+| encontrar conocimiento técnico local | `make knowledge-map`, `knowledge-search` y `knowledge-read` |
+| consultar negocio/producto sin comprobación local | **Canon**, opcional: `make canon-search` y `canon-read` |
 
 ## La conexión con Jev (sin uso, a propósito)
 
@@ -72,7 +73,8 @@ Un proyecto con **varios comandos Go y un frontend Vue**, todos apoyados en los 
   Ejemplo: `[Firma del codeudor](canon-ruta:codeudor/renting#renting-codeudor)`.
   `make canon-route REF='codeudor/renting#renting-codeudor'` permite comprobar el destino.
   Se consulta el mapa al mostrar el bloque y se revalida al volver a la ventana; una referencia
-  eliminada o una caída de Canon deja visible el relato y ofrece reintentar. No se copia el mapa
+  eliminada o una caída de Canon deja visible el relato y ofrece reintentar. El recorrido se consulta
+  sólo al pulsar «Consultar en Canon»; aparecer en pantalla no llama a su API. No se copia el mapa
   a las tareas ni se usan modelos. El recorrido describe producción; el bloque explica el cambio
   propuesto o su evidencia, sin darlo por desplegado.
 - **Jira** muestra el estado y la descripción recibida al cargar el sprint, con el formato adaptado al
@@ -256,7 +258,8 @@ Un **esfuerzo** (`efforts`) es el trabajo real privado del que salen las tareas 
 |---|---|---|
 | `title` | cómo lo llamás vos | privado, sin guard |
 | `tech_notes` | el detalle técnico: archivos, análisis, rutas | **sin guard** — nunca sale de local, por eso *sí* puede nombrar archivos y repos |
-| `canon` | a qué temas de **canon** apunta (el corpus compartido vive en otro repo) | — |
+| `knowledge` | temas locales usados por la retoma, conservados al editar desde el tablero | — |
+| `canon` | referencias opcionales o históricas del corpus del equipo | — |
 | `jira_title` · `jira_description` | el borrador de la tarea (se escribe en la etapa `tasks`) | **con guard** — termina publicado en Jira |
 | `stage` | en qué etapa del método está | — |
 
@@ -395,7 +398,8 @@ id: 4
 title: "..."                     ← privado: nombra el esfuerzo, no sale de acá
 stage: tasks                     ← evaluation | work | tasks
 created: "..."
-canon: [onboarding, kyc/context#validacion]  ← referencias de Canon usadas por la tarea
+knowledge: [lender-listing]                 ← contexto local que retomar lee sin red
+canon: [onboarding, kyc/context#validacion]  ← referencias opcionales de Canon usadas por la tarea
 jira: [CORE-293]                 ← las tareas de Jira que salieron de este esfuerzo
 jira_title: "..."                ← PUBLICABLE: pasa el guard
 ---

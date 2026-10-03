@@ -4,12 +4,15 @@ title: "Playground local"
 clase: proyecto
 stage: work
 created: "2026-09-24T12:00:00-05:00"
+knowledge: [lender-listing]
 canon: []
 jira: []
 jira_title: ""
 ---
 
 ## Pendientes
+
+- [x] Separar el contexto local de Canon: `knowledge/` versionado con fuentes, retoma sin red y consultas de negocio/producto opcionales. Termina cuando las pruebas verifican ausencia de llamadas a Canon por defecto y `make knowledge-check` valida el primer tema contra ambos monolitos.
 
 - [ ] Sumar el visor a `tools/ui-check.mjs` (`make estilo-ui`) y hacer que falle si termina verificando cero apps; termina cuando `make estilo-ui` recorre las cuatro.
 

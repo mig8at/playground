@@ -13,16 +13,18 @@ concreto vive al lado de ese algo, y se lee ahí:
 | el diseño de una herramienta, o cómo se valida contra otra | [`tools/CLAUDE.md`](tools/CLAUDE.md) |
 | una tarea del tablero, el cierre de sesión, Jira | [`tablero/CLAUDE.md`](tablero/CLAUDE.md) |
 | el harness, o qué es real en cada ambiente | [`harness/CLAUDE.md`](harness/CLAUDE.md) |
-| canon: leerlo, dictarle, ponerlo al día | el skill **`canon`** (`.claude/skills/canon/SKILL.md`) |
+| conocimiento local: leerlo, verificarlo, editarlo | [`knowledge/CLAUDE.md`](knowledge/CLAUDE.md) |
+| Canon: consulta opcional de negocio/producto o mantenimiento solicitado | el skill **`canon`** (`.claude/skills/canon/SKILL.md`) |
 
 ## `make` es la puerta única
 
 `make` sin argumentos lista todo lo que se puede correr, agrupado por para qué sirve, con los
 parámetros de cada uno. El hook `SessionStart` (`tablero/server/internal/hooks`) inyecta los NOMBRES al
-arrancar, al reanudar y después de compactar, y con ellos el **mapa de canon**: sus temas por etapa del
-crédito, desde una copia local del tablero que se revalida gratis (`make canon-mapa` da títulos y resúmenes).
-⛔ Canon se LEE (`canon-search`, `canon-read`, `canon-mapa`); `/api/ask` es para credibot y herramientas
-externas, no para trabajar desde acá — el hook `ask-guard` lo frena (calibrar canon: `I_AM_CALIBRATING_CANON=1`). Acá va lo que `make` no puede decir: **cuál elegir, y
+arrancar, al reanudar y después de compactar, junto al catálogo LOCAL de `knowledge/`. No consulta
+ni sincroniza Canon. `make knowledge-map` lista títulos y resúmenes; `make knowledge-check` detecta
+cambios en sus fuentes usando las refs locales de `main`, sin fetch. Canon es opcional para conocimiento
+de negocio o producto que no se puede comprobar en local; su disponibilidad no bloquea las herramientas.
+Acá va lo que `make` no puede decir: **cuál elegir, y
 contra qué ambiente**. Convención de nombres: los nombres propios se quedan (`tablero`, `harness`,
 `panel`) y los verbos van en inglés (`align`, `refs`, `seal`, `check`), como `proyecto-verbo`.
 
@@ -34,17 +36,18 @@ tener la herramienta: es suponer que no está y contestar de memoria.
 
 | Tu pregunta | Con qué se contesta |
 |---|---|
-| **no conozco el dominio** · **¿cómo funciona X?** | **canon, siempre primero**: `make canon-search Q='…'` con palabras del negocio (gratis) → `make canon-read IDS=…`, el tema entero. Y está copiado en disco, al día con su `ETag`: `grep -rn '…' tablero/canon/content` y leer `<tema>/context.md` y su `map.json`, sin VPN (no se edita) |
-| **retomo una tarea del tablero** | `make retomar N=… BRIEF=1`: la tarea ya declara sus temas en `canon:` y la ficha de cada uno alcanza para decidir cuál abrir. `CANON=1` trae ya las secciones enteras de esos temas que el título y el resumen de la tarea encuentran (sin modelo), y avisa si declara un tema que canon no tiene. Si la ficha no contesta, no probés otro tema: la pregunta va al código de `main` |
+| **¿cómo funciona X técnicamente?** | `make knowledge-search Q='…'` → `make knowledge-read ID=…`, si hay un tema local. Verificá su alcance en el código de `main`; si falta el tema, investigá el código directamente. La biblioteca es una ayuda, no un paso obligatorio |
+| **me falta conocimiento de negocio o producto que no puedo comprobar en local** | Canon es una consulta opcional: `make canon-search Q='…'` → `make canon-read IDS=…`. Contrastá con documentación del equipo si necesitás política o contrato. Citá la fuente y señalá lo que queda sin verificar |
+| **retomo una tarea del tablero** | `make retomar N=…`: pila, documento y temas locales declarados en `knowledge:`. No pide Canon ni VPN. Las referencias históricas `canon:` se conservan; `BRIEF=1` consulta su API y `CANON=1` lee su copia sólo cuando se eligen explícitamente |
 | **¿ya nos pasó?** | `tablero/data/traps/doc.md`, entrando por su índice de síntomas |
 | **¿por qué existe esta regla?** (política, contrato, qué se le ofreció al comercio) | `make confluence`: el porqué del negocio no está en el código |
-| **canon no lo cubre** · **¿qué archivos toco?** | el código de `main` con `git grep` contra la rama, nunca el working tree. La ref de cada repo: `go run ./cmd/repos ref <alias>` desde `tablero/server`. **En los dos monolitos**, o la afirmación sale falsa con evidencia real. Para verificar una afirmación, delegala al subagente **`main-verifier`**: mira los dos, sin tocar nada, y devuelve veredicto con archivo:línea |
+| **¿qué archivos toco o cómo verifico una afirmación técnica?** | el código de `main` con `git grep` contra la rama, nunca el working tree. La ref de cada repo: `go run ./cmd/repos ref <alias>` desde `tablero/server`. **En los dos monolitos**, o la afirmación sale falsa con evidencia real. Para verificar una afirmación, delegala al subagente **`main-verifier`**: mira los dos, sin tocar nada, y devuelve veredicto con archivo:línea |
 | **¿esto pasa de verdad, y cuánto?** | `make trazador-sql` contra **prod** |
 | **¿qué le pasó a ESTA solicitud?** | `make trazador-ureq UREQ=…` ancla en la BD y es la única que llega a **prod**; `make harness-loki UREQ=…` ancla en los logs, trae la regla de cada entidad y el `timeline.ndjson`, y **no mira prod**. ⚠ Sus defaults son opuestos (`local` vs `prod`): escribí `TARGET=` siempre (F-234). Con sólo la cédula o el celular, `make trazador-buscar Q=…` primero |
 | **leí un error, ¿de qué archivo salió?** | `trazador/logs.json` (mensaje → archivo:línea); para una corrida entera, la sección «archivos» de `make trazador-ureq` |
 | **¿qué VIO el cliente en pantalla?** | `make trazador-posthog UREQ=… TEL=…`. ⚠ Sin `TEL` ves la mitad: la fase de AUTH se identifica por teléfono |
 | **Miguel pegó una URL de una pantalla o capa** · pasar un diseño a código | `make visor-url U='<lo que pegó>'`. ⚠ Lo que pega es el ANCLA: no salgas a buscar pantallas. `visor-buscar` sólo si nadie pegó nada |
-| **¿qué entidades le salen a ESTE comercio?** | `make harness-listing MERCHANT=…` (3 s, por API). Canon explica la cascada; esto contesta el caso |
+| **¿qué entidades le salen a ESTE comercio?** | `make harness-listing MERCHANT=…` (3 s, por API). El código y el conocimiento local explican el mecanismo; esto contesta el caso |
 | **¿qué pasa si el cliente es así?** | `make harness-case CASES='…'`, en paralelo; `CLOSE=1` llega al desenlace |
 | **¿esta regla excluye, o sólo reordena?** | corré el caso con y sin el dato. Una regla que «debería» excluir y no excluye es el error más caro del dominio (F-162) |
 | **¿funciona, corriéndolo?** | por consola: `harness-case` (segundos) · `harness-walk-wizard` (HTTP, ~20 s) · `harness-walk-wizard ENGINE=browser` (Chromium, ~3 min). `make panel` es el camino visual de Miguel. El canal de asesor pide sesión: `make harness-session` / `make harness-login` |
@@ -52,12 +55,12 @@ tener la herramienta: es suponer que no está y contestar de memoria.
 | **¿en qué anda el equipo?** | Slack (MCP) · `make cuadrilla` · `make tablero` |
 | **Jira o Slack** | `bin/pg jira …` · `bin/pg slack …`, o sus herramientas MCP. Leer es libre; lo que escribe **sin `--apply` sólo muestra** |
 
-⚠ **Hay preguntas que no se contestan leyendo: se contestan corriendo.** Canon describe el mecanismo;
+⚠ **Hay preguntas que no se contestan leyendo: se contestan corriendo.** El conocimiento local y el código describen el mecanismo;
 una corrida describe el caso. Y correr encuentra lo que leer no puede: de 12 hallazgos del 2026-08-23,
 11 salieron de una corrida.
 
-⚠ **El silencio de canon NO es «no existe».** El corpus sólo sabe lo que alguien escribió. Cuando no
-diga nada de algo que debería existir, andá al código de `main`, que es lo que corre.
+⚠ **El silencio de una biblioteca NO es «no existe».** Sólo sabe lo que alguien escribió. Verificá
+las afirmaciones técnicas en el código de `main`; el comportamiento de un ambiente se mide allí.
 
 ⚠ **Menos se lee igual que «no existe».** Una herramienta que lee de una fuente vieja o incompleta no
 falla: devuelve menos. Ante un resultado tranquilizador, preguntá de qué está leyendo.
@@ -123,9 +126,9 @@ arrastraban el trait y la guarda: `tablero/tasks/tests-pueden-borrar-la-bd-compa
 
 ## EL CICLO — acá siempre pasa lo mismo
 
-Se resuelven **tareas** sobre CreditOp con cuatro piezas: **tablero** (la tarea), **canon** (el
-conocimiento curado, compartido con el equipo), **harness** (la prueba) y **trazador** (lo que ya pasó,
-incluido prod). Lo que canon no cubre se lee en el código de `main`.
+Se resuelven **tareas** con **tablero** (historia y plan), **knowledge/** (conocimiento local con
+fuentes), **harness** (pruebas) y **trazador** (evidencia de los ambientes). El código de `main`
+respalda las afirmaciones técnicas. Canon queda como consulta opcional de negocio/producto.
 
 Canon vive en otro repo (`~/Desktop/CREDITOP/github/playground/tools/canon`, `Creditop-SAS/playground`)
 y se publica en canon.playground.creditop.com. **`context/` y `workers/` ya no existen**: si los ves
@@ -136,13 +139,12 @@ citados, está viejo. Las exploraciones de Miguel (`flow`, `engine`, `plantillas
    **Buscá la que ya cubre esto antes de crear una: `make tareas TODAS=1`.** Una con `id: 0` no aparece
    en el tablero. Al cerrar la sesión, `make cierre` chequea las tres piezas —el bloque del día, `ramas:`
    medidas y la bitácora con minutos MEDIDOS— y el hook de `Stop` lo corre solo.
-2. **El CONTEXTO se lee ANTES de investigar, y está en canon** (`make canon-search`, o
-   `go run . -pregunta '…'` desde su repo). El código real vive en
-   `~/Desktop/CREDITOP/github/` (`legacy-backend`, `frontend-monorepo`, `legacy-application`,
-   `pre-approvals-service`); entrar por grep sin mapa es la forma lenta.
+2. **El contexto de la tarea se lee antes de investigar** con `make retomar`. Si existe contexto
+   local pertinente, se lee en `knowledge/` con sus fuentes y límites. El código real vive en
+   `~/Desktop/CREDITOP/github/`. No exige consultar Canon para empezar.
 3. **Lo que se descubre SE REGISTRA.** El test: *si esto se mergea mañana, ¿sigue siendo cierto?*
-   - una **regla de negocio** que existe en `main` y canon no tiene → **canon**, en el momento (el
-     recorrido: `tablero/CLAUDE.md` §«Cuando aparece una regla de negocio»);
+   - conocimiento técnico reutilizable, verificado en `main` → **knowledge/** con sus fuentes;
+     políticas de negocio/producto sin comprobación local quedan citadas a su fuente y con ese límite;
    - hallazgos **de la tarea** → su **pila**, como bloques (`make tarea-bloque`, o `BLOQUE=`);
    - trampas **del sistema**, verificadas → `tablero/data/traps/doc.md`. **Mirala antes de depurar un
      muro.**
@@ -150,14 +152,13 @@ citados, está viejo. Las exploraciones de Miguel (`flow`, `engine`, `plantillas
    centrales de riesgo las atiende un lambda de mocks de la empresa
    (`Creditop-SAS/risk-services-mockery-lambda`, un Mockoon), al que se le dicta la respuesta por
    cédula (F-139): sin saberlo, una prueba de identidad siempre devuelve la misma persona.
-5. **Al mergear, GRADÚA:** lo aprendido pasa a canon y la tarea se marca `archived`. Canon rechaza la
-   crónica: van las reglas que existen en `main`, sin el relato ni PRs sin mergear. **Un PR sin mergear
-   no se dicta.** Lo que no pasa ese filtro y aun así vale es una trampa del sistema. En una tarea, una
-   nota sobre algo sin mergear es legítima: `grep -rn "PENDIENTE DE MERGE" .` las junta para revisarlas
-   después de cada merge.
+5. **Al mergear**, revisá el conocimiento local afectado y archivá la tarea cuando su objetivo
+   terminó. Un PR abierto sigue siendo una propuesta de la tarea, no comportamiento vigente.
+   Publicar conocimiento para el equipo en Canon es una acción separada, cuando Miguel la solicita;
+   no es condición de cierre ni crea un pendiente automático.
 
-Canon no documenta las herramientas de este repo: cada una se documenta en su `CLAUDE.md`. El enlace
-tarea → canon es unidireccional (`canon:` en el frontmatter). De una tarea sólo salen a Jira
+Las herramientas se documentan en su propio `CLAUDE.md`. `knowledge:` enlaza los temas locales
+de una tarea; `canon:` conserva las referencias opcionales del corpus del equipo. De una tarea sólo salen a Jira
 `jira_title` y `## Tarea (publicable)`, que pasan el guard; el resto es privado.
 
 ## Git

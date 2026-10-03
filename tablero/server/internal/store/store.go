@@ -302,8 +302,9 @@ func (s *Store) readEffort(slug string) (Effort, string, error) {
 		CreatedAt:       fm["created"],
 		// el struct expone los temas como cadena separada por comas (así lo consume la UI);
 		// en el archivo son una lista YAML, que es lo legible
-		CanonTopics:    strings.Join(yamlList(fm["canon"]), ","),
-		BranchPatterns: fm["ramas"],
+		CanonTopics:     strings.Join(yamlList(fm["canon"]), ","),
+		KnowledgeTopics: strings.Join(yamlList(fm["knowledge"]), ","),
+		BranchPatterns:  fm["ramas"],
 	}
 	if e.Stage == "" {
 		e.Stage = "evaluation"
@@ -579,7 +580,8 @@ type Effort struct {
 	// Referencias de Canon que toca, separadas por coma. En el archivo son una lista YAML; acá van
 	// como cadena porque así lo consume la UI. Preferir `tema/context#ancla` evita presentar un tema
 	// entero como evidencia de una decisión puntual.
-	CanonTopics string `json:"canon"`
+	CanonTopics     string `json:"canon"`
+	KnowledgeTopics string `json:"knowledge"`
 	// ETAPA del método de trabajo: evaluar → trabajar → crear las tareas. Las tareas de Jira se
 	// escriben AL FINAL, cuando ya se entendió el problema — por eso la etapa es explícita y no
 	// derivada: "evaluando" y "trabajando" se distinguen por decisión, no por si ya hay tarea.
@@ -844,6 +846,7 @@ func (s *Store) writeEffort(id int64) error {
 	if a := s.archived[id]; a != "" {
 		fmt.Fprintf(&b, "archived: %s\n", escapeYAML(a))
 	}
+	fmt.Fprintf(&b, "knowledge: [%s]\n", strings.Join(yamlList(e.KnowledgeTopics), ", "))
 	fmt.Fprintf(&b, "canon: [%s]\n", strings.Join(yamlList(e.CanonTopics), ", "))
 	fmt.Fprintf(&b, "jira: [%s]\n", strings.Join(keys, ", "))
 	fmt.Fprintf(&b, "jira_title: %s\n", escapeYAML(e.JiraTitle))
