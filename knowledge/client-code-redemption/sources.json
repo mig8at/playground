@@ -1,0 +1,72 @@
+{
+  "version": 1,
+  "title": "Canje del código de preaprobado",
+  "summary": "Consulta, creación, consumo y filtro del listado; formatos y diferencias con el receptor anterior.",
+  "reviewedAt": "2026-10-03T19:10:48+00:00",
+  "sources": [
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/Onboarding/routes/api.php",
+      "commit": "63123374a5d0875c908a83e3145f334b2ff913ee",
+      "blob": "caaae90492dbc44142a359fa687488e31e266119",
+      "sections": [
+        "el-receptor-admite-dos-formatos-y-consulta-por-comercio"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/Onboarding/App/Services/ClientCodeRedemptionService.php",
+      "commit": "63123374a5d0875c908a83e3145f334b2ff913ee",
+      "blob": "65a8a7ec6453c6b13936e31ef554083868bc49a4",
+      "sections": [
+        "el-receptor-admite-dos-formatos-y-consulta-por-comercio",
+        "se-crea-la-solicitud-antes-de-consumir-el-codigo"
+      ]
+    },
+    {
+      "repo": "frontend-monorepo",
+      "path": "modules/loan-request-wizard/loan-application-form/src/lib/infrastructure/client-code.repository.ts",
+      "commit": "68ce7349c4e2a52c83fe4ee174a23ac71fe667cc",
+      "blob": "9001bda278856c50411b2dd12aa08938224deea8",
+      "sections": [
+        "el-recorte-del-wizard-depende-de-una-marca-de-sesion"
+      ]
+    },
+    {
+      "repo": "frontend-monorepo",
+      "path": "apps/loan-request-wizard/app/routes/loan-application-form/client-code.tsx",
+      "commit": "68ce7349c4e2a52c83fe4ee174a23ac71fe667cc",
+      "blob": "feb30c8fbf87fa560770c28da0e7f51438b8eaff",
+      "sections": [
+        "el-recorte-del-wizard-depende-de-una-marca-de-sesion"
+      ]
+    },
+    {
+      "repo": "frontend-monorepo",
+      "path": "apps/loan-request-wizard/app/routes/lenders-marketplace/available-lenders.tsx",
+      "commit": "68ce7349c4e2a52c83fe4ee174a23ac71fe667cc",
+      "blob": "a249ab2853f9fb97f0271aaa0acbf3a15b9f312b",
+      "sections": [
+        "el-recorte-del-wizard-depende-de-una-marca-de-sesion"
+      ]
+    },
+    {
+      "repo": "application",
+      "path": "app/Http/Controllers/Customer/ClientCodeController.php",
+      "commit": "fc74ac8bc1b364191f859bb6830e8d47c15bb882",
+      "blob": "6d9f48c3e3920fc947986189872ae722e9b5235b",
+      "sections": [
+        "el-receptor-anterior-conserva-cuatro-digitos-y-otro-estado-de-sesion"
+      ]
+    },
+    {
+      "repo": "application",
+      "path": "app/Http/Controllers/Customer/ListLenderController.php",
+      "commit": "fc74ac8bc1b364191f859bb6830e8d47c15bb882",
+      "blob": "dbcca80e12698d93c43a1d2dbd421430f2cce05a",
+      "sections": [
+        "el-receptor-anterior-conserva-cuatro-digitos-y-otro-estado-de-sesion"
+      ]
+    }
+  ]
+}

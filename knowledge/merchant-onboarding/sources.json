@@ -1,0 +1,55 @@
+{
+  "version": 1,
+  "title": "Alta y baja de comercios",
+  "summary": "Las dos entradas de alta, sus efectos explícitos y el alcance de la baja en la base.",
+  "reviewedAt": "2026-10-03T19:10:48+00:00",
+  "sources": [
+    {
+      "repo": "application",
+      "path": "app/Http/Controllers/Admin/AlliedController.php",
+      "commit": "fc74ac8bc1b364191f859bb6830e8d47c15bb882",
+      "blob": "743b42621c102ce18c289a42d0b385d9f005c340",
+      "sections": [
+        "el-admin-anterior-tiene-su-propia-alta",
+        "la-baja-modifica-usuarios-en-la-base-bajo-condiciones-concretas"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/Partner/App/Providers/RouteServiceProvider.php",
+      "commit": "63123374a5d0875c908a83e3145f334b2ff913ee",
+      "blob": "c3198cd3b61cdc1556d205b7e9a235642ba9a481",
+      "sections": [
+        "la-api-modular-es-otra-entrada"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/Partner/routes/api.php",
+      "commit": "63123374a5d0875c908a83e3145f334b2ff913ee",
+      "blob": "29bc9b60adf04a7182ef2774c151522c121b029a",
+      "sections": [
+        "la-api-modular-es-otra-entrada"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/Partner/App/Http/Controllers/AlliedController.php",
+      "commit": "63123374a5d0875c908a83e3145f334b2ff913ee",
+      "blob": "c0b92e90ac417386651b2b03d1ec1eb7ce331c60",
+      "sections": [
+        "la-api-modular-es-otra-entrada"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/Partner/App/Services/AlliedManagementService.php",
+      "commit": "63123374a5d0875c908a83e3145f334b2ff913ee",
+      "blob": "6b076af1a82864ede0afc8bb193be8e3ccd74ef7",
+      "sections": [
+        "la-api-modular-es-otra-entrada",
+        "la-baja-modifica-usuarios-en-la-base-bajo-condiciones-concretas"
+      ]
+    }
+  ]
+}

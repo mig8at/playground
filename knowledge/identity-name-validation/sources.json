@@ -1,0 +1,54 @@
+{
+  "version": 1,
+  "title": "Identidad: coincidencia y adopción de nombres",
+  "summary": "Códigos de TusDatos, adopción de Ágil Data y Mareigua, y límites de la comparación de nombres.",
+  "reviewedAt": "2026-10-03T19:10:48+00:00",
+  "sources": [
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/Identity/App/Services/TusDatosService.php",
+      "commit": "63123374a5d0875c908a83e3145f334b2ff913ee",
+      "blob": "b03fe5ab99e950f98e2bfe45a8ef1e83f373f941",
+      "sections": [
+        "tusdatos-distingue-ausencia-de-desacuerdo-para-cedula"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/Identity/App/Services/AgildataService.php",
+      "commit": "63123374a5d0875c908a83e3145f334b2ff913ee",
+      "blob": "d91b22626913e4ece5ebe02cb41265df3388fd9d",
+      "sections": [
+        "agil-data-y-mareigua-pueden-devolver-una-version-adoptada"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/Identity/App/Services/MareiguaService.php",
+      "commit": "63123374a5d0875c908a83e3145f334b2ff913ee",
+      "blob": "608cc94a9ce9ce2c0b496000e83df924caa1e522",
+      "sections": [
+        "agil-data-y-mareigua-pueden-devolver-una-version-adoptada"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/Identity/App/Services/NameSimilarity.php",
+      "commit": "63123374a5d0875c908a83e3145f334b2ff913ee",
+      "blob": "82674f9915783b9fd427c0f9e4ae279d0ccaebdd",
+      "sections": [
+        "agil-data-y-mareigua-pueden-devolver-una-version-adoptada",
+        "la-tolerancia-no-certifica-identidad-ni-completa-todos-los-nombres"
+      ]
+    },
+    {
+      "repo": "application",
+      "path": "app/Http/Controllers/Customer/PersonalInfoController.php",
+      "commit": "fc74ac8bc1b364191f859bb6830e8d47c15bb882",
+      "blob": "53a4ca5d99d8139623f1d3bf9809c69a54137efa",
+      "sections": [
+        "la-aplicacion-anterior-tiene-otro-camino-de-escritura"
+      ]
+    }
+  ]
+}

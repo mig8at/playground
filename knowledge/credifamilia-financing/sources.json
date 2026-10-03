@@ -1,0 +1,88 @@
+{
+  "version": 1,
+  "title": "Credifamilia: fianza y monto de radicación",
+  "summary": "Origen de la fianza, fórmula compartida y diferencias de entradas, formatos y respaldo entre SOAP, cuotas y comprobante.",
+  "reviewedAt": "2026-10-03T19:10:48+00:00",
+  "sources": [
+    {
+      "repo": "legacy-backend",
+      "path": "app/Services/PaymentPlan/Credifamilia/CredifamiliaPayloadBuilder.php",
+      "commit": "63123374a5d0875c908a83e3145f334b2ff913ee",
+      "blob": "07f02efd29b806ca9076c58c10496ab74e30426b",
+      "sections": [
+        "la-fianza-viene-de-la-preaprobacion",
+        "compartir-formula-no-garantiza-montos-ni-formatos-identicos",
+        "los-respaldos-tambien-son-distintos"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/Onboarding/App/Services/lenders/CredifamiliaConsumo/CredifamiliaConsumoService.php",
+      "commit": "63123374a5d0875c908a83e3145f334b2ff913ee",
+      "blob": "174f8895edb80da5ae429b8727d911c9a36c90f8",
+      "sections": [
+        "la-fianza-viene-de-la-preaprobacion"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "app/Actions/Lenders/CredifamiliaConsumo/TransactionRequest.php",
+      "commit": "63123374a5d0875c908a83e3145f334b2ff913ee",
+      "blob": "425a6d999da9fd9cf2fde7a7fe44acdd0a39a87e",
+      "sections": [
+        "la-fianza-viene-de-la-preaprobacion",
+        "una-formula-compartida-con-dos-tratamientos-de-fianza",
+        "compartir-formula-no-garantiza-montos-ni-formatos-identicos",
+        "los-respaldos-tambien-son-distintos"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "app/Services/PaymentPlan/Credifamilia/ValueObjects/BondBreakdown.php",
+      "commit": "63123374a5d0875c908a83e3145f334b2ff913ee",
+      "blob": "72aebd46e1ce158763d8f50b9754b9efddf250b8",
+      "sections": [
+        "una-formula-compartida-con-dos-tratamientos-de-fianza",
+        "los-respaldos-tambien-son-distintos"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "app/Services/PaymentPlan/Credifamilia/Engine/CalculationContext.php",
+      "commit": "63123374a5d0875c908a83e3145f334b2ff913ee",
+      "blob": "85f00a8bdae37020df6a4b9d4ccc0ddbfad348f9",
+      "sections": [
+        "una-formula-compartida-con-dos-tratamientos-de-fianza"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "app/Services/PaymentPlan/Credifamilia/PaymentPlanSummary/CredifamiliaPaymentPlanSummaryService.php",
+      "commit": "63123374a5d0875c908a83e3145f334b2ff913ee",
+      "blob": "c8d9553e19cf1908e83fd8b78e68d689bae50b92",
+      "sections": [
+        "compartir-formula-no-garantiza-montos-ni-formatos-identicos",
+        "los-respaldos-tambien-son-distintos"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/Loans/App/Services/DocumentGeneration/Payload/OnboardingPayloadBuilder.php",
+      "commit": "63123374a5d0875c908a83e3145f334b2ff913ee",
+      "blob": "fc28ebc2932c825cbd108ac804fd45da21f2e9f0",
+      "sections": [
+        "compartir-formula-no-garantiza-montos-ni-formatos-identicos",
+        "los-respaldos-tambien-son-distintos"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/Loans/App/Services/DocumentGeneration/Payload/PayloadFormatters.php",
+      "commit": "63123374a5d0875c908a83e3145f334b2ff913ee",
+      "blob": "e6264e810dbfe5f7ae0aa03724207798cd52c875",
+      "sections": [
+        "compartir-formula-no-garantiza-montos-ni-formatos-identicos"
+      ]
+    }
+  ]
+}

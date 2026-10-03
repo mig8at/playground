@@ -41,3 +41,17 @@ Los contratos de una herramienta se mantienen junto a ella, en su CLAUDE.md.
 Canon conserva el conocimiento compartido del equipo. Consultarlo es opcional; publicar allí requiere
 una solicitud de Miguel, y no condiciona el cierre. La copia tablero/canon/ es histórica y no se edita
 ni se sincroniza hacia knowledge/. Esta biblioteca depende de archivos locales y fuentes comprobables.
+
+## Adaptar lo que aparece en el tablero
+
+Trabajá por pregunta y mecanismo reutilizable, no por cantidad de tareas o tamaño del corpus.
+Leé el documento y la pila para encontrar la evidencia; después contrastá la explicación con el
+código de la ref local de `main`. Un título de tarea, una casilla cerrada o una publicación en
+Canon no sustituyen esa comprobación. Conservá la diferencia entre código disponible, despliegue
+y comportamiento medido. Si el documento viejo contradice el código, aclaralo sin reescribir
+los bloques históricos.
+
+Reutilizá el tema existente y enlazá sólo el alcance que ayuda a retomar. No conviertas casos
+individuales, porcentajes medidos en producción o secretos de ambiente en reglas generales.
+Los pendientes de producto y los cambios que todavía no están en `main` permanecen en la tarea.
+Actualizar una tarea publicada no implica reescribir su sección pública durante este barrido.

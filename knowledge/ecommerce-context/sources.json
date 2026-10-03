@@ -1,0 +1,90 @@
+{
+  "version": 1,
+  "title": "Ecommerce: entrada, contexto y monto",
+  "summary": "Rehidratación del pedido sin cookie de contexto, tres vínculos con la solicitud y prioridad del canal sobre la sesión.",
+  "reviewedAt": "2026-10-03T19:10:48+00:00",
+  "sources": [
+    {
+      "repo": "application",
+      "path": "app/Http/Controllers/Customer/WoocommerceController.php",
+      "commit": "fc74ac8bc1b364191f859bb6830e8d47c15bb882",
+      "blob": "0a1f21899f1935b99c7dc24241703b124d4f2a17",
+      "sections": [
+        "el-monolito-anterior-decide-si-envia-al-wizard"
+      ]
+    },
+    {
+      "repo": "application",
+      "path": "app/Services/NewFrontendUrlService.php",
+      "commit": "fc74ac8bc1b364191f859bb6830e8d47c15bb882",
+      "blob": "0b1f1409bf275fd103e7e7ad43d3f36d42982f42",
+      "sections": [
+        "el-monolito-anterior-decide-si-envia-al-wizard"
+      ]
+    },
+    {
+      "repo": "frontend-monorepo",
+      "path": "apps/loan-request-wizard/app/routes/ecommerce/checkout.tsx",
+      "commit": "68ce7349c4e2a52c83fe4ee174a23ac71fe667cc",
+      "blob": "7a51deeeadf5c670ccdec12a54073ece35387444",
+      "sections": [
+        "el-pedido-se-relee-por-id-antes-y-despues-del-otp"
+      ]
+    },
+    {
+      "repo": "frontend-monorepo",
+      "path": "apps/loan-request-wizard/app/server/services/ecommerce-context.server.ts",
+      "commit": "68ce7349c4e2a52c83fe4ee174a23ac71fe667cc",
+      "blob": "9ec360c071ca44d7e668db2d0ba71d00d503f811",
+      "sections": [
+        "el-pedido-se-relee-por-id-antes-y-despues-del-otp"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/Onboarding/App/Services/EcommerceRequestService.php",
+      "commit": "63123374a5d0875c908a83e3145f334b2ff913ee",
+      "blob": "6badf6d8be8d5dd5e8608b22c538ccc70e64c126",
+      "sections": [
+        "el-pedido-se-relee-por-id-antes-y-despues-del-otp",
+        "el-vinculo-con-la-solicitud-vive-en-tres-lugares"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "app/Models/EcommerceRequest.php",
+      "commit": "63123374a5d0875c908a83e3145f334b2ff913ee",
+      "blob": "189d08fd697bb32714b50de3e290046592de251a",
+      "sections": [
+        "el-vinculo-con-la-solicitud-vive-en-tres-lugares"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/Onboarding/App/Services/lenders/OnboardingOrigin.php",
+      "commit": "63123374a5d0875c908a83e3145f334b2ff913ee",
+      "blob": "b2538b3e577dcbc25540f51f7d7ca163ec2e5aab",
+      "sections": [
+        "el-canal-de-tienda-tiene-precedencia-y-gobierna-el-monto"
+      ]
+    },
+    {
+      "repo": "frontend-monorepo",
+      "path": "apps/loan-request-wizard/app/routes/lenders-marketplace/available-lenders.tsx",
+      "commit": "68ce7349c4e2a52c83fe4ee174a23ac71fe667cc",
+      "blob": "a249ab2853f9fb97f0271aaa0acbf3a15b9f312b",
+      "sections": [
+        "el-canal-de-tienda-tiene-precedencia-y-gobierna-el-monto"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/Onboarding/App/Services/lenders/LenderListingService.php",
+      "commit": "63123374a5d0875c908a83e3145f334b2ff913ee",
+      "blob": "b5c813f1c70bc407b080d15a05c44ce3fdb0e681",
+      "sections": [
+        "el-canal-de-tienda-tiene-precedencia-y-gobierna-el-monto"
+      ]
+    }
+  ]
+}
