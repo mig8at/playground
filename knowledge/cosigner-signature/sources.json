@@ -1,8 +1,8 @@
 {
   "version": 1,
   "title": "Firma y cierre del codeudor",
-  "summary": "Token de invitación, APIs exclusivas de firma y diferencia entre firma registrada, pantalla de éxito y autorización.",
-  "reviewedAt": "2026-10-03T21:23:21Z",
+  "summary": "Entrada por política de codeudor, APIs propias de firma y diferencia entre firma registrada, pantalla de éxito y autorización.",
+  "reviewedAt": "2026-10-03T22:21:50Z",
   "sources": [
     {
       "repo": "legacy-backend",
@@ -188,6 +188,42 @@
       "blob": "3f1eed62da53855d1436d1accf34c1897502f41f",
       "sections": [
         "respuesta-del-proveedor-de-otp"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/Loans/App/Http/Controllers/Customer/CreditopXQuotaController.php",
+      "commit": "63123374a5d0875c908a83e3145f334b2ff913ee",
+      "blob": "fd9b361f7c94a7070dee80cd68fc28ac55de5f52",
+      "sections": [
+        "entrada-del-titular-y-politica-de-codeudor"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/Loans/App/Services/Signing/CosignerRequirementService.php",
+      "commit": "63123374a5d0875c908a83e3145f334b2ff913ee",
+      "blob": "506e98e432e87140d02dc4b6b0d19bd1146b6fc4",
+      "sections": [
+        "entrada-del-titular-y-politica-de-codeudor"
+      ]
+    },
+    {
+      "repo": "frontend-monorepo",
+      "path": "apps/loan-request-wizard/app/routes/loan-confirmation.tsx",
+      "commit": "68ce7349c4e2a52c83fe4ee174a23ac71fe667cc",
+      "blob": "d724df6690f53c018f71f0b5853dfe2008dabf93",
+      "sections": [
+        "entrada-del-titular-y-politica-de-codeudor"
+      ]
+    },
+    {
+      "repo": "frontend-monorepo",
+      "path": "apps/loan-request-wizard/app/utils/post-validation-step.server.ts",
+      "commit": "68ce7349c4e2a52c83fe4ee174a23ac71fe667cc",
+      "blob": "059bfe0c13b6992d250cfa4d2dd8d659cf6000e5",
+      "sections": [
+        "entrada-del-titular-y-politica-de-codeudor"
       ]
     }
   ]
