@@ -86,6 +86,10 @@ ese modo, leé el hallazgo antes. **`prod` es SOLO LECTURA, siempre.**
 
 ## Qué deja esto en la tarea
 
+`make trazador-huella` mide tablas, eventos y código desde la corrida local sin consultar Canon.
+`CANON=1` agrega el cruce explícito con el corpus del equipo. Si no se solicita o no responde, la
+cobertura se muestra «sin comprobar», nunca como ausencia de documentación.
+
 Lo que devuelve **no se resume a mano**. Con `BLOQUE=<id|slug>` (`trazador-ureq` · `-buscar` · `-sql`) se
 agrega solo como bloque a la pila de la tarea, con el comando exacto y lo que dio (`via: trazador`):
 

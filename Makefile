@@ -93,7 +93,7 @@ retomar: ## @dia retomar UNA tarea: pila, documento, pendientes, ramas y conocim
 deploys: ## @dia ¿qué se desplegó y a qué ambiente? FALLAS=1 deja SÓLO lo que falló, con el error del log. DIAS=7 · REPO=legacy-backend · JSON=1
 	@cd tablero/server && go run ./cmd/deploys $(if $(DIAS),-dias $(DIAS)) $(if $(REPO),-repo $(REPO)) $(if $(FALLAS),-fallas) $(if $(JSON),-json)
 
-keyring: ## @dia el llavero: ¿a qué tengo acceso AHORA y cuándo vence? Primero, qué servicios de AWS lee cada perfil; después VPN, bases, Loki, PostHog, servicios y sesiones de asesor; sólo lee y nunca muestra un secreto. SOLO=network,aws,databases,logs,events,services,sessions · JSON=1 · sale 1 si algo falla
+keyring: ## @dia el llavero: ¿a qué tengo acceso AHORA y cuándo vence? Primero, qué servicios de AWS lee cada perfil; después VPN, bases, Loki, PostHog, servicios y sesiones de asesor; sólo lee y nunca muestra un secreto. SOLO=network,aws,databases,logs,events,services,sessions · Canon sólo con SOLO=canon · JSON=1 · sale 1 si algo falla
 	@go run ./keyring/server -aws $(if $(JSON),-json)
 	@go run ./keyring/server $(if $(SOLO),-only "$(SOLO)") $(if $(JSON),-json)
 keyring-ui: ## @dia abre keyring, el llavero, visual (:5182 · API :5183): las mismas filas que `make keyring`, cada grupo apenas contesta
@@ -346,9 +346,12 @@ tablero-naming-test: ## @dia pruebas del chequeo de nombres: la vara, las formas
 tablero-ui-offline: ## @dia prueba la interfaz del tablero SIN servidores: compila, sirve el dist/ desde disco y simula la API en Chromium. No toca datos
 	@cd tablero && npx vite build --logLevel error && node tools/ui-offline.mjs
 
-trazador-huella: ## @dia la huella MEDIDA de un flujo (tablas/eventos/código) desde una corrida, cruzada contra canon. UREQ=x [MYSQL=/tmp/huella-mysql.log]
+trazador-huella: ## @dia la huella MEDIDA LOCAL de un flujo (tablas/eventos/código), sin Canon por defecto. UREQ=x [MYSQL=/tmp/huella-mysql.log] [CANON=1: cruce explícito con el corpus del equipo]
 	@test -n "$(UREQ)" || { python3 trazador/tools/footprint.py; exit 2; }
-	@python3 trazador/tools/footprint.py $(UREQ) $(if $(NOMBRE),--nombre "$(NOMBRE)",) $(if $(MYSQL),--mysql $(MYSQL),)
+	@python3 trazador/tools/footprint.py $(UREQ) $(if $(NOMBRE),--nombre "$(NOMBRE)",) $(if $(MYSQL),--mysql $(MYSQL),) $(if $(CANON),--canon,)
+
+trazador-footprint-test: ## @dia prueba que la huella mide sin consultar Canon y distingue una cobertura sin comprobar
+	@python3 -m unittest discover -s trazador/tools -p footprint_test.py
 
 # radar: cómo se usan DE VERDAD las herramientas, leído de las transcripciones de Claude Code de este
 # playground. Sin modelo y sin copias: todo sale de las transcripciones, este Makefile (con sus alias) y

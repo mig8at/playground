@@ -55,7 +55,7 @@ var Groups = []string{"network", "aws", "databases", "logs", "events", "services
 // GroupLabel es cómo se muestra cada grupo.
 var GroupLabel = map[string]string{
 	"network": "red", "aws": "aws", "databases": "bases", "logs": "logs",
-	"events": "eventos", "services": "servicios", "sessions": "sesiones de asesor",
+	"events": "eventos", "services": "servicios", "sessions": "sesiones de asesor", "canon": "Canon (opcional)",
 }
 
 // Quick son los grupos que contestan en un par de segundos sin tocar la red de nadie más que la propia:
@@ -65,11 +65,11 @@ var Quick = []string{"network", "aws", "sessions"}
 // soon es desde cuándo un vencimiento se marca como aviso.
 const soon = time.Hour
 
-// Select deja las sondas de esos grupos; sin grupos, todas.
+// Select deja las sondas de esos grupos; sin grupos, las habituales. Canon exige elegir su grupo.
 func Select(groups []string) []Probe {
 	all := allProbes()
 	if len(groups) == 0 {
-		return all
+		groups = Groups
 	}
 	want := map[string]bool{}
 	for _, g := range groups {
@@ -104,7 +104,7 @@ func allProbes() []Probe {
 		Probe{"services", one(probeTwilio)},
 		Probe{"services", one(probeGemini)},
 		Probe{"services", one(probeJev)},
-		Probe{"services", probeCanon},
+		Probe{"canon", probeCanon},
 		Probe{"sessions", probeSessions},
 	)
 }
@@ -154,6 +154,7 @@ func Run(ps []Probe, timeout time.Duration) []Check {
 	for i, g := range Groups {
 		rank[g] = i
 	}
+	rank["canon"] = len(Groups)
 	sort.SliceStable(out, func(a, b int) bool {
 		if rank[out[a].Group] != rank[out[b].Group] {
 			return rank[out[a].Group] < rank[out[b].Group]

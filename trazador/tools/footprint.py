@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """footprint.py — la HUELLA MEDIDA de un flujo: qué TABLAS, qué EVENTOS y qué CÓDIGO toca de punta a
-punta, y cuánto de eso cubre canon. GENERADO desde una corrida real: no se edita a mano.
+punta. GENERADO desde una corrida real: no se edita a mano. --canon agrega un cruce opcional con el corpus.
 
 POR QUÉ EXISTE. Canon está organizado por TEMA y responde *por qué* el sistema hace lo que hace.
 Una tarea, en cambio, llega por FLUJO («el rt=2 de Pullman no cierra»), y ahí la pregunta previa es
@@ -132,7 +132,8 @@ def main():
     esc, lee = tables(mysql)
     rows, traces = events(ureq)
     sp = spans(traces)
-    maps = _canon.maps()
+    with_canon = "--canon" in sys.argv
+    maps = _canon.maps() if with_canon else {}
     owner, by_class = canon_coverage(maps)
     # `None` = automático: la ref se resuelve por repo (ver `roots.ref_a_indexar`). Con el literal,
     # contra un `main` local atrasado faltan archivos y la huella los cuenta como inexistentes.
@@ -146,7 +147,8 @@ def main():
         for a in m.get("areas") or []:
             for t in a.get("tablas") or []:
                 declaring[t].add(theme)
-    prose = _canon.prose()
+    prose = _canon.prose() if with_canon else {}
+    coverage_checked = with_canon and _canon.available()
     def who_explains(t):
         in_prose = {n for n, txt in prose.items() if re.search(rf'`?\b{re.escape(t)}\b`?', txt)}
         return sorted(declaring.get(t, set()) | in_prose)
@@ -154,7 +156,10 @@ def main():
     L = []
     L.append(f"# Huella medida · {name}\n")
     L.append(f"> GENERADO por `trazador/tools/footprint.py` desde la corrida **uReq {ureq}** (target `local`). "
-             f"Es EVIDENCIA de qué toca el flujo, no explicación de por qué — eso vive en canon.\n")
+             "Es EVIDENCIA de qué toca el flujo; el mecanismo se verifica en el código y knowledge/.\n")
+    if not coverage_checked:
+        reason = "Canon no respondió" if with_canon else "Canon no se solicitó"
+        L.append(f"> {reason}: cobertura del corpus sin comprobar. La medición sigue siendo local.\n")
 
     L.append(f"## Tablas ({len(esc)} escritas · {len(lee)} leídas)\n")
     L.append("| tabla | escrituras | ¿algún tema de canon la explica? |")
@@ -162,9 +167,10 @@ def main():
     orphans = []
     for t, n in esc.most_common():
         qs = who_explains(t)
-        if not qs:
+        if coverage_checked and not qs:
             orphans.append(t)
-        L.append(f"| `{t}` | {n} | {' · '.join(qs[:3]) if qs else '**ninguno**'} |")
+        coverage = (' · '.join(qs[:3]) if qs else '**ninguno**') if coverage_checked else 'sin comprobar'
+        L.append(f"| `{t}` | {n} | {coverage} |")
     L.append("")
     if orphans:
         L.append(f"**{len(orphans)} tabla(s) que el flujo ESCRIBE y ningún tema de canon nombra:** "
@@ -179,8 +185,8 @@ def main():
             arch = by_class.get(cls) or [f for f in existing
                                           if os.path.basename(f).startswith(cls + ".")]
             ns = sorted({x for f in arch for x in owner.get(f, [])})
-            L.append(f"| `{s}` | {n} | {arch[0] if arch else '—'} | "
-                     f"{' · '.join(ns) if ns else '**ninguno**'} |")
+            coverage = (' · '.join(ns) if ns else '**ninguno**') if coverage_checked else 'sin comprobar'
+            L.append(f"| `{s}` | {n} | {arch[0] if arch else '—'} | {coverage} |")
     L.append("")
     L.append(f"## Eventos ({len(rows)} líneas en {len(traces)} traces)\n")
     lvl = Counter(f.get("level") for f in rows)
