@@ -2,7 +2,7 @@
   "version": 1,
   "title": "Firma y cierre del codeudor",
   "summary": "Token de invitación, APIs exclusivas de firma y diferencia entre firma registrada, pantalla de éxito y autorización.",
-  "reviewedAt": "2026-10-03T19:56:03Z",
+  "reviewedAt": "2026-10-03T21:23:21Z",
   "sources": [
     {
       "repo": "legacy-backend",
@@ -112,7 +112,9 @@
       "commit": "63123374a5d0875c908a83e3145f334b2ff913ee",
       "blob": "b8de15b9b998e55b55861ecec511188ebe546119",
       "sections": [
-        "firma-registrada-y-autorizacion-de-la-solicitud"
+        "firma-registrada-y-autorizacion-de-la-solicitud",
+        "catalogo-y-evidencia-de-documentos",
+        "respuesta-del-proveedor-de-otp"
       ]
     },
     {
@@ -139,7 +141,53 @@
       "commit": "63123374a5d0875c908a83e3145f334b2ff913ee",
       "blob": "38dcaa9045e58fa4073581d59ac14a0ba8d6d126",
       "sections": [
-        "firma-registrada-y-autorizacion-de-la-solicitud"
+        "firma-registrada-y-autorizacion-de-la-solicitud",
+        "catalogo-y-evidencia-de-documentos"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/UserRequestV1/App/Services/GetCosignerSignatureDocumentsService.php",
+      "commit": "63123374a5d0875c908a83e3145f334b2ff913ee",
+      "blob": "f5b0547469257502cd3ad2560cf5df5b4605a172",
+      "sections": [
+        "catalogo-y-evidencia-de-documentos"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/Loans/App/Services/Signing/SigningDocumentResolver.php",
+      "commit": "63123374a5d0875c908a83e3145f334b2ff913ee",
+      "blob": "5533e96c1c7cf3ffcbe78c2c26d4bdfaf2a22f33",
+      "sections": [
+        "catalogo-y-evidencia-de-documentos"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/UserRequestV1/App/Repositories/CosignerSignedDocumentRepository.php",
+      "commit": "63123374a5d0875c908a83e3145f334b2ff913ee",
+      "blob": "a867b1154725087e586d7964b8e815bcde86ad64",
+      "sections": [
+        "catalogo-y-evidencia-de-documentos"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/UserRequestV1/config/config.php",
+      "commit": "63123374a5d0875c908a83e3145f334b2ff913ee",
+      "blob": "35fdedae1b9843b76342526df63864c14ce73eef",
+      "sections": [
+        "catalogo-y-evidencia-de-documentos"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/AuthV1/App/Services/ValidateOtpService.php",
+      "commit": "63123374a5d0875c908a83e3145f334b2ff913ee",
+      "blob": "3f1eed62da53855d1436d1accf34c1897502f41f",
+      "sections": [
+        "respuesta-del-proveedor-de-otp"
       ]
     }
   ]
