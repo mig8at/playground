@@ -1,0 +1,146 @@
+{
+  "version": 1,
+  "title": "Firma y cierre del codeudor",
+  "summary": "Token de invitación, APIs exclusivas de firma y diferencia entre firma registrada, pantalla de éxito y autorización.",
+  "reviewedAt": "2026-10-03T19:56:03Z",
+  "sources": [
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/UserRequestV1/App/Http/Middleware/ResolveCosignerToken.php",
+      "commit": "63123374a5d0875c908a83e3145f334b2ff913ee",
+      "blob": "6b596f831939002298a9936bab4bca57513931d5",
+      "sections": [
+        "contexto-del-codeudor-y-token"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/UserRequestV1/App/Http/Middleware/RequireCosignerToken.php",
+      "commit": "63123374a5d0875c908a83e3145f334b2ff913ee",
+      "blob": "6ff2759770de768d58623c98d78a6533787b62ef",
+      "sections": [
+        "contexto-del-codeudor-y-token"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/UserRequestV1/routes/api.php",
+      "commit": "63123374a5d0875c908a83e3145f334b2ff913ee",
+      "blob": "727c19abbf6f082f37d7964a666fe09e5b42c739",
+      "sections": [
+        "contexto-del-codeudor-y-token",
+        "recorrido-propio-de-firma"
+      ]
+    },
+    {
+      "repo": "frontend-monorepo",
+      "path": "apps/loan-request-wizard/app/utils/cosigner-auth-headers.server.ts",
+      "commit": "68ce7349c4e2a52c83fe4ee174a23ac71fe667cc",
+      "blob": "c5f2c6b3b1209b89ce89a4fdf6a2969aaac49cd8",
+      "sections": [
+        "contexto-del-codeudor-y-token"
+      ]
+    },
+    {
+      "repo": "frontend-monorepo",
+      "path": "apps/loan-request-wizard/app/modules/cosigner/infrastructure/cosigner-signature.repository.ts",
+      "commit": "68ce7349c4e2a52c83fe4ee174a23ac71fe667cc",
+      "blob": "4458942fc285bc2b0fa79bdda6dc255e99a8ca9b",
+      "sections": [
+        "recorrido-propio-de-firma"
+      ]
+    },
+    {
+      "repo": "frontend-monorepo",
+      "path": "apps/loan-request-wizard/app/modules/cosigner/application/verify-cosigner-signature-otp.uc.ts",
+      "commit": "68ce7349c4e2a52c83fe4ee174a23ac71fe667cc",
+      "blob": "7cd556c32d673826c5c35fa6015b893467718bd3",
+      "sections": [
+        "recorrido-propio-de-firma",
+        "firma-registrada-y-autorizacion-de-la-solicitud"
+      ]
+    },
+    {
+      "repo": "frontend-monorepo",
+      "path": "apps/loan-request-wizard/app/routes/cosigner/signature/otp.tsx",
+      "commit": "68ce7349c4e2a52c83fe4ee174a23ac71fe667cc",
+      "blob": "23bbeb389439bfd2757b34627c92431ea4c483ae",
+      "sections": [
+        "recorrido-propio-de-firma",
+        "firma-registrada-y-autorizacion-de-la-solicitud"
+      ]
+    },
+    {
+      "repo": "frontend-monorepo",
+      "path": "apps/loan-request-wizard/app/routes/cosigner/signature/success.tsx",
+      "commit": "68ce7349c4e2a52c83fe4ee174a23ac71fe667cc",
+      "blob": "607266b22734a16eb863b503cf4bedfeb4b8693f",
+      "sections": [
+        "recorrido-propio-de-firma"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/Loans/App/Http/Controllers/Customer/ValidateOtpPromissoryNoteController.php",
+      "commit": "63123374a5d0875c908a83e3145f334b2ff913ee",
+      "blob": "7274f70f93d1bca064f16ecd584786e1f32c6800",
+      "sections": [
+        "firma-del-titular-y-espera"
+      ]
+    },
+    {
+      "repo": "frontend-monorepo",
+      "path": "apps/loan-request-wizard/app/routes/otp-validation.tsx",
+      "commit": "68ce7349c4e2a52c83fe4ee174a23ac71fe667cc",
+      "blob": "49588af04fc92e290754d295e341f0d07f432288",
+      "sections": [
+        "firma-del-titular-y-espera"
+      ]
+    },
+    {
+      "repo": "frontend-monorepo",
+      "path": "apps/loan-request-wizard/app/utils/signer-role.server.ts",
+      "commit": "68ce7349c4e2a52c83fe4ee174a23ac71fe667cc",
+      "blob": "c8785db1abf628057fc775b73b39e59f868a8d35",
+      "sections": [
+        "firma-del-titular-y-espera"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/UserRequestV1/App/Services/VerifyCosignerSignatureOtpService.php",
+      "commit": "63123374a5d0875c908a83e3145f334b2ff913ee",
+      "blob": "b8de15b9b998e55b55861ecec511188ebe546119",
+      "sections": [
+        "firma-registrada-y-autorizacion-de-la-solicitud"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/UserRequestV1/App/Enums/CosignerStatus.php",
+      "commit": "63123374a5d0875c908a83e3145f334b2ff913ee",
+      "blob": "690d5eec71734f165a8da8ac4577282ab39e048b",
+      "sections": [
+        "firma-registrada-y-autorizacion-de-la-solicitud"
+      ]
+    },
+    {
+      "repo": "frontend-monorepo",
+      "path": "apps/loan-request-wizard/app/modules/cosigner/types/cosigner-signature.ts",
+      "commit": "68ce7349c4e2a52c83fe4ee174a23ac71fe667cc",
+      "blob": "198e6b8176781fe8588367f7222ebe93a8c5c7de",
+      "sections": [
+        "firma-registrada-y-autorizacion-de-la-solicitud"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/Loans/App/Services/Signing/CosignerSignatureCloser.php",
+      "commit": "63123374a5d0875c908a83e3145f334b2ff913ee",
+      "blob": "38dcaa9045e58fa4073581d59ac14a0ba8d6d126",
+      "sections": [
+        "firma-registrada-y-autorizacion-de-la-solicitud"
+      ]
+    }
+  ]
+}

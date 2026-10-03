@@ -1,0 +1,90 @@
+{
+  "version": 1,
+  "title": "Requisitos y consulta vigente de Ábaco",
+  "summary": "Flag por entidad, vigencia configurable y alcance del salto de buró en el motor modular.",
+  "reviewedAt": "2026-10-03T19:56:03Z",
+  "sources": [
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/Onboarding/App/Repositories/LenderRequirementRepository.php",
+      "commit": "63123374a5d0875c908a83e3145f334b2ff913ee",
+      "blob": "e0c1238f0d3d12deba6b1fefb67a17ce300aa877",
+      "sections": [
+        "requisito-por-entidad"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/Onboarding/App/Services/AbacoRequirementService.php",
+      "commit": "63123374a5d0875c908a83e3145f334b2ff913ee",
+      "blob": "a0a8090d0bdbc84cbe817c1c0f19096e17b8c44c",
+      "sections": [
+        "requisito-por-entidad"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/Onboarding/App/Services/AbacoStepResolver.php",
+      "commit": "63123374a5d0875c908a83e3145f334b2ff913ee",
+      "blob": "b99c638db0600a35fc2ab931c4409b284ef6963b",
+      "sections": [
+        "requisito-por-entidad",
+        "vigencia-de-la-consulta"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/Onboarding/App/Repositories/AbacoConsultRepository.php",
+      "commit": "63123374a5d0875c908a83e3145f334b2ff913ee",
+      "blob": "ff4684ac498887ff15d82f17cf62d821cdfa82b6",
+      "sections": [
+        "vigencia-de-la-consulta"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/Loans/App/Services/LenderUserCategoryService.php",
+      "commit": "63123374a5d0875c908a83e3145f334b2ff913ee",
+      "blob": "9375d7b790542bbfc27291f379803ebb4929de6c",
+      "sections": [
+        "cupo-sin-reporte-de-buro"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/Onboarding/App/Services/lenders/LenderRetrievalService.php",
+      "commit": "63123374a5d0875c908a83e3145f334b2ff913ee",
+      "blob": "efaa8452d3a435a8c25cd44f9f9edf54ec3d9a59",
+      "sections": [
+        "cupo-sin-reporte-de-buro"
+      ]
+    },
+    {
+      "repo": "application",
+      "path": "app/Services/lenders/LenderUserCategoryService.php",
+      "commit": "fc74ac8bc1b364191f859bb6830e8d47c15bb882",
+      "blob": "f4be1ea52fc748151fc499d9e4f2160b88362fe0",
+      "sections": [
+        "cupo-sin-reporte-de-buro"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "database/migrations/2026_07_28_100000_backfill_abaco_is_enabled_from_lender_product.php",
+      "commit": "63123374a5d0875c908a83e3145f334b2ff913ee",
+      "blob": "5442d174a01aa4ec21e7ac07871fe4b013fada37",
+      "sections": [
+        "backfill-y-retirada-de-modos"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "database/migrations/2026_07_28_110000_drop_allied_modes_and_user_request_modes_tables.php",
+      "commit": "63123374a5d0875c908a83e3145f334b2ff913ee",
+      "blob": "9a2ebc989feae4944b49e8e799335f223e99a31d",
+      "sections": [
+        "backfill-y-retirada-de-modos"
+      ]
+    }
+  ]
+}
