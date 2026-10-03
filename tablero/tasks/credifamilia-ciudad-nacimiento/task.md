@@ -4,10 +4,24 @@ title: "Credifamilia — campo Ciudad de nacimiento en cascada (form dinámico G
 ramas: credifamilia-add-ciudad-nacimiento
 stage: tasks
 created: "2026-07-23T15:46:04-05:00"
+knowledge: [dynamic-form-schema, country-geography#arbol-de-opciones]
 canon: [formularios, credifamilia]
 jira: [CORE-301]
 jira_title: "Credifamilia: campo Ciudad de nacimiento en cascada"
 ---
+
+## Lectura técnica vigente · 2026-10-03
+
+`dynamic-form-schema` explica la composición del formulario, la cascada y el reemplazo de
+respuestas; `country-geography#arbol-de-opciones` explica cómo se obtiene su catálogo.
+La migración de ciudad de nacimiento existe en `main`: resuelve por nombre dentro del form type,
+clona la gemela y fija `related_field_id` al departamento de nacimiento. El paso de reconstruir
+el esquema sigue siendo necesario para sustituir una copia anterior en Redis/S3.
+Los ids y la validación de dev de abajo son evidencia del trabajo original; deben medirse de
+nuevo para certificar otro ambiente. El árbol de ciudades tiene un PUT separado del esquema.
+
+## Implementación y validación registradas
+
 
 JIRA: CORE-301 (https://creditop.atlassian.net/browse/CORE-301) · Sprint 8 · En pruebas
 
@@ -17,14 +31,14 @@ GAP: "Departamento de nacimiento" (field 183) no tenía su "Ciudad" asociada —
 
 FIX (cero código, solo data): clonar la gemela "Ciudad de residencia" (185) → nuevo field "Ciudad de nacimiento" con related_field_id=183, data_source='field_options.country_tree.zones.cities', linkeado en forms (form_type_id=6) en sort debajo del departamento.
 
-MIGRACIÓN: legacy-backend, rama feat/credifamilia-add-ciudad-nacimiento-field (commit 925820c1, pusheada; PR pendiente). Archivo database/migrations/2026_07_23_193000_add_ciudad_de_nacimiento_field_to_credifamilia_form.php. Idempotente, resuelve por NOMBRE (ids difieren por ambiente: 233 dev, 221/222 local), reversible, no-op en BD fresca/CI. Probada local con artisan (up/down/idempotencia).
+MIGRACIÓN: el archivo ya está en la ref local de `main` de legacy-backend revisada el 2026-10-03; la rama y el commit 925820c1 corresponden a su implementación original. Su presencia no confirma ejecución en otro ambiente. Archivo database/migrations/2026_07_23_193000_add_ciudad_de_nacimiento_field_to_credifamilia_form.php. Idempotente, resuelve por NOMBRE (ids difieren por ambiente: 233 dev, 221/222 local), reversible, no-op en BD fresca/CI. Probada local con artisan (up/down/idempotencia).
 
 POST-DEPLOY OBLIGATORIO: PUT {form-service}/v1/dynamic-form/6/schema (cache-aside Redis/S3).
 
 VALIDADO EN DEV: field 233 aplicado, GET/PUT schema + POST response OK (fila en user_field_values). Render + cascada verificados por el flow self-service con harness/dev/credifamilia-form.spec.ts (elegir Antioquia pobló Ciudad con municipios de Antioquia).
 
 HARNESS: bin/asesor ahora pasa VITE_FORM_SERVICE_BASE_URL; panel con pre-warm de sesiones al arrancar.
-CONTEXTO: nodos form-service (nuevo) + dynamic-forms + credifamilia actualizados.
+CONTEXTO HISTÓRICO: los nodos compartidos se actualizaron durante esa implementación. La retoma actual carga `dynamic-form-schema` y el árbol local de `country-geography`; esa publicación anterior no condiciona el cierre.
 
 
 ## Tarea (publicable)

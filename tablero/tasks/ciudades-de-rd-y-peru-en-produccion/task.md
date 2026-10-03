@@ -3,11 +3,26 @@ id: 73
 title: "Cargar en producción el catálogo de ciudades de RD y Perú"
 stage: work
 created: "2026-09-04T09:00:00-05:00"
+knowledge: [country-geography]
 canon: [comercio, onboarding, arquitectura]
 jira: [CORE-516]
 jira_title: "Cargar en producción el catálogo de ciudades de RD y Perú"
 ramas: "fix/sucursales-rd-apuntan-a-ciudades-de-colombia"
 ---
+
+## Lectura técnica vigente · 2026-10-03
+
+La relación país → zona → ciudad y la reconstrucción del catálogo están en
+`country-geography`. La migración de septiembre ya existe en la ref local de `main` del backend.
+Siembra RD y Perú; su reparación examina referencias rotas o de otro país en comercios no
+colombianos, usando sólo un comodín del país correspondiente cuando existe. `down()` no revierte.
+
+Las cifras y los usos de filas de abajo son mediciones de septiembre conservadas con su fecha,
+no una lectura actual de producción. Para retomar, identificar el ambiente, contar por el join
+geográfico y verificar ciudad contra país del comercio. En un formulario dinámico también hay
+que comprobar el árbol servido por form-service: cambiar tablas no sustituye su copia de Redis/S3.
+La presencia de la migración en `main` no acredita su ejecución ni la alineación de otras ramas.
+
 
 # Cargar en producción el catálogo de ciudades de RD y Perú
 

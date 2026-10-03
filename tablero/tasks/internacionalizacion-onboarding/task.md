@@ -3,7 +3,7 @@ id: 43
 title: "Internacionalización de CreditOp"
 stage: tasks
 created: "2026-08-05T17:11:17-05:00"
-knowledge: [merchant-onboarding, lender-listing]
+knowledge: [country-context, country-geography#relacion-entre-pais-zona-y-ciudad, dynamic-form-schema#composicion-del-esquema, dynamic-form-schema#lectura-y-reconstruccion, merchant-onboarding]
 canon: [onboarding, formularios, comercio, listado, imei]
 jira: [CORE-365]
 jira_title: "Internacionalización de CreditOp"
@@ -11,6 +11,33 @@ ramas: pais/el-pais-deja-de-suponerse, pais/el-usuario-temporal-no-nace-colombia
 ---
 
 # Internacionalización de CreditOp
+
+## Lectura técnica vigente · 2026-10-03
+
+Las reglas reutilizables están en los temas locales enlazados en `knowledge:`. El código revisado
+publica el país desde el comercio de la sucursal y cruza el catálogo del país con los documentos
+de sus entidades. El backend modular ya consulta `document_types` por país cuando la tabla existe;
+el monolito conserva la lista de `countries.document_types` y otro comportamiento ante catálogo
+vacío. El wizard distingue una lista explícita vacía de una lista ausente. No hay un piso CC/CE
+en la resolución modular; el respaldo CC/CE del selector sólo aplica cuando falta la lista.
+
+El país con operación (`is_operating`) y el país activo del catálogo (`status`) son criterios
+distintos. El árbol geográfico del formulario puede usar el país configurado en form-service;
+no debe suponerse que adopta automáticamente el país del comercio.
+
+**Al retomar.** Contrastar el endpoint y el payload concretos antes de generalizar entre repos.
+La biblioteca fija las fuentes y el mecanismo; catálogos cargados, despliegues, PRs abiertos y
+comportamiento de un ambiente se verifican en el momento. Los snapshots en solicitudes, la base
+por país y el significado de comodines siguen siendo propuestas o decisiones del frente; el código
+revisado no los convierte en contrato vigente ni esta adaptación aprueba una política nueva.
+
+## Historial y propuestas de la tarea
+
+Las tablas, rutas de entrega, censos y diseños que siguen registran el trabajo de agosto y
+septiembre. Sus afirmaciones sobre «hoy», ramas pendientes, defaults y modelos futuros corresponden
+a esas fechas. Si contradicen la lectura técnica de arriba, no se usan como regla de retoma;
+los bloques originales y la sección publicable conservan su evidencia histórica.
+
 
 ## Las ramas de esta tarea
 
@@ -110,17 +137,16 @@ correcto: `main` es producción y esta tarea todavía no está probada. De ahí 
 destino de una tarea sin probar nunca es `main`.* La convención `<rama>-onto-<ambiente>` que el repo ya
 usa es el parche, no el plan — sirve para portar algo que ya existe, no para decidir a dónde va.
 
-## Contextos que usa
-- **onboarding** — el journey que hay que parametrizar: entrada por hash de sucursal → celular/OTP → nace la
-  `user_request` → formulario personal/laboral. El gate de país está en el loader de la pantalla de celular.
-- **dynamic-forms** — la generación **G1 es el fork de RD** ("dynamic" quiere decir República Dominicana):
-  5 pantallas propias con los tipos de documento y los rangos en RD$ escritos a mano en TS.
-- **merchants** — donde vive la config por comercio/sucursal (`allieds.country_id`, la copia de reglas por
-  sucursal, `lenders_by_allied_branches`). El país del comercio está acotado a `Rule::in([47, 60])`.
-- **entities** — `lenders.country_id` (default 1) y el `response_type` como eje de despacho.
-- **smartpay** — el canal por donde entra la tarea (RD: `country_id=60`, locale `es_DO`, moneda `DOP`).
-- **hardcodes-entidades** — la lente transversal: la fila **"país RD/Colombia" (6 sitios, P2)** ya está en su
-  catálogo de bloqueadores. Este trabajo es des-hardcodear esa fila.
+## Referencias para retomar
+
+- `country-context`: origen del país, documentos permitidos, diferencias del monolito y selector.
+- `country-geography`: relaciones y catálogo de zonas/ciudades; reconstrucción independiente.
+- `dynamic-form-schema`: composición y lectura/reconstrucción del formulario backend-driven.
+- `merchant-onboarding`: alta y baja del comercio, incluido en esta retoma.
+- `lender-listing`: alcance del listado, disponible para consultar cuando se retome ese frente.
+
+Los antiguos nombres de nodos de contexto quedan como referencias históricas de esta tarea.
+Canon es opcional si falta una definición de negocio o producto que no se pueda comprobar localmente.
 
 ## El dolor en una frase
 **RD ya está en producción, pero como un fork y no como configuración.** `alliedCountry === 60` en el loader
