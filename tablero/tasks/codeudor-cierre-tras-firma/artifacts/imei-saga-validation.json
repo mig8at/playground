@@ -1,0 +1,126 @@
+{
+  "version": 1,
+  "measuredAt": "2026-10-03T23:23:26+00:00",
+  "target": "local",
+  "repositories": {
+    "frontendBranch": "fix/cosigner-signature-confirmation",
+    "frontendCommit": "7a679dc7b1efaf5992abd383dffb4704a68980d6",
+    "backendBranch": "fix/cosigner-entry-policy",
+    "backendCommit": "96b9b84f6dc6d75d6f60ed09f345d561c33e8418",
+    "merchantApiMain": "25b95b35845c3c47a27db498c2a5c69df4525922"
+  },
+  "imei": {
+    "id": 467115,
+    "beforeState": 28,
+    "afterState": 11,
+    "externalDisbursementVerified": false,
+    "imeiPersisted": true,
+    "invalidImeiRejected": true,
+    "advisorAction": {
+      "httpStatus": 202,
+      "redirect": "/imei/scan/success",
+      "browserFormValidated": false
+    },
+    "holder": {
+      "pendingPoll": true,
+      "polls": 2,
+      "automaticNavigation": true
+    },
+    "limits": [
+      "Riesgo e identidad preparados; OTP de prueba; MDM simulado local",
+      "Action real del asesor por HTTP; formulario/login del asesor pendientes por sesión vencida",
+      "is_disbursed del endpoint deriva de estado 11; no prueba desembolso externo"
+    ]
+  },
+  "sagaConsumer": {
+    "provider": "local-state-double",
+    "transport": "local-Soketi",
+    "temporalConnected": false,
+    "checks": [
+      {
+        "kind": "websocket",
+        "automaticNavigation": true,
+        "rawStateBff": true,
+        "ignoredOlderEvent": true,
+        "stats": {
+          "reads": 12,
+          "authorizations": 5,
+          "publishes": 6
+        }
+      },
+      {
+        "kind": "initial-snapshot",
+        "automaticNavigation": true,
+        "rawStateBff": true,
+        "ignoredOlderEvent": false,
+        "stats": {
+          "reads": 14,
+          "authorizations": 6,
+          "publishes": 6
+        }
+      },
+      {
+        "kind": "online-recovery",
+        "automaticNavigation": true,
+        "rawStateBff": true,
+        "ignoredOlderEvent": false,
+        "stats": {
+          "reads": 17,
+          "authorizations": 7,
+          "publishes": 6
+        }
+      }
+    ]
+  },
+  "navigationRegression": {
+    "beforeFix": {
+      "case": 467114,
+      "pathChanged": true,
+      "approvedDataRequested": false,
+      "visibleContent": false
+    },
+    "afterFix": {
+      "case": 467114,
+      "approvedDataRequested": true,
+      "visibleContent": true,
+      "pageErrors": []
+    },
+    "fix": "Esperar fetcher.state idle antes de navigate: la revalidación pendiente impedía cargar el loader de aprobado."
+  },
+  "checks": {
+    "workflowTests": {
+      "passed": 21,
+      "environment": "Temporal TestWorkflowEnvironment; archivos del workflow sin bootstrap fx"
+    },
+    "soketiTests": {
+      "passed": 7,
+      "skippedLiveIntegration": 1
+    },
+    "signatureConfirmationTests": {
+      "passed": 6
+    },
+    "changedFileBiome": "passed",
+    "designLint": {
+      "errors": 2,
+      "warnings": 143,
+      "sameCountsAsPreviousBaseline": true,
+      "changedRouteDiagnostics": 0
+    },
+    "patchApplyCheck": "passed",
+    "knowledge": {
+      "topics": 13,
+      "sources": 146,
+      "allUnchangedAgainstLocalMainRefs": true,
+      "tests": "passed",
+      "canonCalls": 0
+    }
+  },
+  "limits": [
+    "Proveedor de estado controlado: no se ejecutó servidor Temporal ni su integración con el monolito.",
+    "La prueba del módulo completo de merchant-api no compiló: tipos OpenAPI ausentes y dependencia privada de bootstrap sin resolver en el primer intento. No se generó ni se validó el ejecutable completo.",
+    "Registro IMEI del asesor por action HTTP; formulario/login aún pendiente por sesión Cognito vencida.",
+    "Riesgo/identidad preparados, OTP/MDM simulados, correo local y documentos Blade.",
+    "COMPLETED del saga no verifica autorización de MySQL; queda pendiente probar cierre fallido y su destino.",
+    "Cambios de producto sólo en ramas locales; no publicados ni desplegados."
+  ]
+}

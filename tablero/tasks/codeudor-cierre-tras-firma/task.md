@@ -4,7 +4,7 @@ title: "Codeudor — cierre propio tras la firma (pantalla \"Firma realizada con
 ramas: cosigner-signature-success, motai/flujo-codeudor, fix/cosigner-signature-confirmation, fix/cosigner-entry-policy
 stage: work
 created: "2026-07-27T12:13:57-05:00"
-knowledge: [cosigner-signature]
+knowledge: [cosigner-signature, device-imei-validation]
 canon: [formalizacion, creditopx]
 jira: [CORE-317]
 jira_title: "Codeudor: confirmación propia al terminar la firma"
@@ -22,8 +22,16 @@ jira_title: "Codeudor: confirmación propia al terminar la firma"
 - [x] Resolver y volver a validar la entrada local del titular al flujo con codeudor: la consulta
   extendida conserva la política inicial cuando no hay type 2. El titular registra al codeudor,
   firma y queda en espera (29); la segunda firma cierra en 11. Elegibilidad por API y OTP simulado.
-- [ ] Validar en el frontend el recorrido de IMEI y la salida del titular por el estado del saga;
-  los controles locales por API y loaders no certifican ese recorrido ni el servicio externo.
+- [x] Comprobar la espera IMEI del titular en Chromium y el action del asesor por HTTP:
+  estado 28, primer poll pendiente, registro del equipo, estado 11 y segundo poll con confirmación visible.
+- [x] Comprobar el consumidor del saga en Chromium: evento nuevo, snapshot al entrar y
+  recuperación HTTP al volver la red; descarta secuencia antigua. Soketi real local y estado controlado.
+- [ ] Completar la integración con Temporal y los reportes reales de firma. El consumidor probado
+  con estado controlado y las pruebas del workflow no acreditan el servicio completo.
+- [ ] Contrastar la salida por `COMPLETED` cuando el cierre no logra autorización: el saga recibe
+  ambas firmas y no comprueba estado 11; actualmente el titular navega a aprobado.
+- [ ] Completar el formulario/login del asesor para IMEI con sesión vigente; el action real ya
+  pasó por HTTP. La sesión Cognito cacheada devolvió `invalid_grant` al renovarse.
 - [x] Corregir la confirmación local para afirmar únicamente la firma registrada: probado con
   autorización lograda, pendiente y dato ausente, más código inválido, vencido y limitación de intentos.
 - [ ] Integrar las correcciones locales y verificarlas en el ambiente elegido: confirmación
@@ -78,6 +86,21 @@ correcta cerró en 11 con cuatro PDF que contienen ambas evidencias. El control 
 codeudor terminó en 11 y mostró su monto en Chromium. La elegibilidad del codeudor se preparó
 por API y el runner avanzó las esperas tras comprobar su resultado; la salida por saga sigue pendiente.
 La evidencia reproducible está en `artifacts/holder-cosigner-entry-validation.json`.
+
+La misma rama del frontend agrega `7a679dc7`: la espera IMEI aguarda a que el fetcher termine
+su revalidación antes de navegar. Antes cambiaba la URL a aprobado y dejaba la pantalla vacía;
+la corrección carga `loan-approved.data` y muestra el contenido. El caso 467115 empezó en 28,
+consultó pendiente, rechazó IMEI inválido y registró el correcto mediante el action real del asesor.
+Persistió equipo/estado 11 y el segundo poll mostró la confirmación. MDM/OTP locales; formulario
+con login del asesor aún pendiente por sesión vencida. La evidencia está en
+`artifacts/imei-saga-validation.json`.
+
+El consumidor del saga pasó tres casos en Chromium con estado controlado y Soketi real local.
+Las 21 pruebas del workflow y siete del cliente Soketi pasan; no acreditan servidor Temporal ni
+compilación del servicio entero. `merchant-api` se registra sólo como repo citable, sin afirmar
+actividad productiva. Los mecanismos y límites están en ambos temas de knowledge; casos y
+correcciones de rama permanecen en esta tarea. El próximo contraste es el cierre fallido:
+`COMPLETED` y autorización son hechos distintos, también para la pantalla del titular.
 
 ## Lo que se evaluó y ya no describe el camino actual
 
