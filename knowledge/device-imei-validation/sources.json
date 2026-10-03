@@ -1,0 +1,116 @@
+{
+  "version": 1,
+  "title": "Registro de IMEI y espera del titular",
+  "summary": "Registro por asesor, persistencia del equipo y polling del titular; límites de la señal is_disbursed.",
+  "reviewedAt": "2026-10-03T23:10:52+00:00",
+  "sources": [
+    {
+      "repo": "frontend-monorepo",
+      "path": "apps/loan-request-wizard/app/routes/imei/imei.tsx",
+      "commit": "68ce7349c4e2a52c83fe4ee174a23ac71fe667cc",
+      "blob": "9a0a9c04cd7cd85e4f27882e57d8ad84ccf6cae9",
+      "sections": [
+        "registro-del-equipo-desde-el-asesor"
+      ]
+    },
+    {
+      "repo": "frontend-monorepo",
+      "path": "apps/loan-request-wizard/app/routes/imei/register-imei-action.server.ts",
+      "commit": "68ce7349c4e2a52c83fe4ee174a23ac71fe667cc",
+      "blob": "9cefcb5ed1916d61c78531ef748738bb5674a0f9",
+      "sections": [
+        "registro-del-equipo-desde-el-asesor"
+      ]
+    },
+    {
+      "repo": "frontend-monorepo",
+      "path": "apps/loan-request-wizard/app/modules/imei/application/register-device-imei.uc.ts",
+      "commit": "68ce7349c4e2a52c83fe4ee174a23ac71fe667cc",
+      "blob": "6deced3db657de05aea5f70d2ec43a851ce7f6f2",
+      "sections": [
+        "registro-del-equipo-desde-el-asesor"
+      ]
+    },
+    {
+      "repo": "frontend-monorepo",
+      "path": "apps/loan-request-wizard/app/modules/imei/types/schemas/device-imei.schema.ts",
+      "commit": "68ce7349c4e2a52c83fe4ee174a23ac71fe667cc",
+      "blob": "29bd38e38ef4dfc0b907d54ea086f1e0c23b4581",
+      "sections": [
+        "registro-del-equipo-desde-el-asesor"
+      ]
+    },
+    {
+      "repo": "frontend-monorepo",
+      "path": "modules/loan-request-wizard/loan-origination/src/components/imei/Entry.tsx",
+      "commit": "68ce7349c4e2a52c83fe4ee174a23ac71fe667cc",
+      "blob": "6adcaa230ecb8756032dd66d84668fafb80a68d5",
+      "sections": [
+        "registro-del-equipo-desde-el-asesor"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/Loans/App/Http/Requests/Customer/AssociateImeiRequest.php",
+      "commit": "63123374a5d0875c908a83e3145f334b2ff913ee",
+      "blob": "69e103ae0706f0bffc9a080841fb8941070fd961",
+      "sections": [
+        "registro-del-equipo-desde-el-asesor"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/Partner/App/Services/AlliedProductService.php",
+      "commit": "63123374a5d0875c908a83e3145f334b2ff913ee",
+      "blob": "9396a083e363c2bf2fc0e8a37cf5c1f2b2203a53",
+      "sections": [
+        "registro-del-equipo-desde-el-asesor"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/Loans/App/Http/Controllers/Customer/DeviceController.php",
+      "commit": "63123374a5d0875c908a83e3145f334b2ff913ee",
+      "blob": "d4aced89c87106c3302318f98228b8aa85ba406f",
+      "sections": [
+        "registro-del-equipo-desde-el-asesor"
+      ]
+    },
+    {
+      "repo": "frontend-monorepo",
+      "path": "apps/loan-request-wizard/app/routes/otp-validation.tsx",
+      "commit": "68ce7349c4e2a52c83fe4ee174a23ac71fe667cc",
+      "blob": "49588af04fc92e290754d295e341f0d07f432288",
+      "sections": [
+        "espera-del-titular-y-senal-de-finalizacion"
+      ]
+    },
+    {
+      "repo": "frontend-monorepo",
+      "path": "apps/loan-request-wizard/app/routes/security-validation.tsx",
+      "commit": "68ce7349c4e2a52c83fe4ee174a23ac71fe667cc",
+      "blob": "0a3263a8599918ce7636048b388685758d89143f",
+      "sections": [
+        "espera-del-titular-y-senal-de-finalizacion"
+      ]
+    },
+    {
+      "repo": "frontend-monorepo",
+      "path": "apps/loan-request-wizard/app/modules/imei/infrastructure/device-imei.repository.ts",
+      "commit": "68ce7349c4e2a52c83fe4ee174a23ac71fe667cc",
+      "blob": "adcdcb53d434393d82bfa053cbcec6fe1d4ba713",
+      "sections": [
+        "espera-del-titular-y-senal-de-finalizacion"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/Loans/App/Http/Controllers/Customer/AdvisorStatusController.php",
+      "commit": "63123374a5d0875c908a83e3145f334b2ff913ee",
+      "blob": "0e3f221b102215d067a4cf151bcb91aec0f5aefd",
+      "sections": [
+        "espera-del-titular-y-senal-de-finalizacion"
+      ]
+    }
+  ]
+}

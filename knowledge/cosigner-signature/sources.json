@@ -1,8 +1,8 @@
 {
   "version": 1,
   "title": "Firma y cierre del codeudor",
-  "summary": "Entrada por política de codeudor, APIs propias de firma y diferencia entre firma registrada, pantalla de éxito y autorización.",
-  "reviewedAt": "2026-10-03T22:21:50Z",
+  "summary": "Firma del codeudor, autorización y documentos; entrada por política y sincronización del titular por el saga.",
+  "reviewedAt": "2026-10-03T23:10:52+00:00",
   "sources": [
     {
       "repo": "legacy-backend",
@@ -85,7 +85,8 @@
       "commit": "63123374a5d0875c908a83e3145f334b2ff913ee",
       "blob": "7274f70f93d1bca064f16ecd584786e1f32c6800",
       "sections": [
-        "firma-del-titular-y-espera"
+        "firma-del-titular-y-espera",
+        "estado-del-saga-y-sincronizacion-de-la-espera"
       ]
     },
     {
@@ -114,7 +115,8 @@
       "sections": [
         "firma-registrada-y-autorizacion-de-la-solicitud",
         "catalogo-y-evidencia-de-documentos",
-        "respuesta-del-proveedor-de-otp"
+        "respuesta-del-proveedor-de-otp",
+        "estado-del-saga-y-sincronizacion-de-la-espera"
       ]
     },
     {
@@ -224,6 +226,114 @@
       "blob": "059bfe0c13b6992d250cfa4d2dd8d659cf6000e5",
       "sections": [
         "entrada-del-titular-y-politica-de-codeudor"
+      ]
+    },
+    {
+      "repo": "frontend-monorepo",
+      "path": "apps/loan-request-wizard/app/routes/cosigner/cosigner-waiting-signature.tsx",
+      "commit": "68ce7349c4e2a52c83fe4ee174a23ac71fe667cc",
+      "blob": "a1112ff7c50f86a3693d632dcec9c35482762adf",
+      "sections": [
+        "estado-del-saga-y-sincronizacion-de-la-espera"
+      ]
+    },
+    {
+      "repo": "frontend-monorepo",
+      "path": "apps/loan-request-wizard/app/modules/cosigner/components/cosigner-wait-screen.tsx",
+      "commit": "68ce7349c4e2a52c83fe4ee174a23ac71fe667cc",
+      "blob": "bce12166157e0ca4a94ca122560a10a3ef0df33a",
+      "sections": [
+        "estado-del-saga-y-sincronizacion-de-la-espera"
+      ]
+    },
+    {
+      "repo": "frontend-monorepo",
+      "path": "apps/loan-request-wizard/app/routes/api/credit-state.tsx",
+      "commit": "68ce7349c4e2a52c83fe4ee174a23ac71fe667cc",
+      "blob": "1f3d38a37ea7605f7040ecf1f9732ac656bbc1c3",
+      "sections": [
+        "estado-del-saga-y-sincronizacion-de-la-espera"
+      ]
+    },
+    {
+      "repo": "frontend-monorepo",
+      "path": "apps/loan-request-wizard/app/routes/api/credit-channel-auth.tsx",
+      "commit": "68ce7349c4e2a52c83fe4ee174a23ac71fe667cc",
+      "blob": "8557e8843c2f26f8686b174942717b9fa1d3a7dd",
+      "sections": [
+        "estado-del-saga-y-sincronizacion-de-la-espera"
+      ]
+    },
+    {
+      "repo": "frontend-monorepo",
+      "path": "modules/loan-request-wizard/loan-origination/src/lib/domain/credit-state.entity.ts",
+      "commit": "68ce7349c4e2a52c83fe4ee174a23ac71fe667cc",
+      "blob": "789d20c3136ccff801806321d8556c477ebda9bb",
+      "sections": [
+        "estado-del-saga-y-sincronizacion-de-la-espera"
+      ]
+    },
+    {
+      "repo": "frontend-monorepo",
+      "path": "modules/loan-request-wizard/loan-origination/src/lib/infrastructure/credit-state-socket.ts",
+      "commit": "68ce7349c4e2a52c83fe4ee174a23ac71fe667cc",
+      "blob": "3794d5741c486cf5f488ed0778de1785c4abc4a2",
+      "sections": [
+        "estado-del-saga-y-sincronizacion-de-la-espera"
+      ]
+    },
+    {
+      "repo": "merchant-api",
+      "path": "internal/modules/credit/core/workflows/application.go",
+      "commit": "25b95b35845c3c47a27db498c2a5c69df4525922",
+      "blob": "bd9a897bf0131d177d7e703181041cb1fa7e4eca",
+      "sections": [
+        "estado-del-saga-y-sincronizacion-de-la-espera"
+      ]
+    },
+    {
+      "repo": "merchant-api",
+      "path": "internal/modules/credit/core/workflows/activities.go",
+      "commit": "25b95b35845c3c47a27db498c2a5c69df4525922",
+      "blob": "097d4e366da6a2b99d1b519b089d5d3eecd70027",
+      "sections": [
+        "estado-del-saga-y-sincronizacion-de-la-espera"
+      ]
+    },
+    {
+      "repo": "merchant-api",
+      "path": "internal/modules/credit/core/domain/realtime.go",
+      "commit": "25b95b35845c3c47a27db498c2a5c69df4525922",
+      "blob": "15a797085885f0790b15e40c47055246f2e592eb",
+      "sections": [
+        "estado-del-saga-y-sincronizacion-de-la-espera"
+      ]
+    },
+    {
+      "repo": "merchant-api",
+      "path": "internal/modules/credit/infra/temporal/saga_engine.go",
+      "commit": "25b95b35845c3c47a27db498c2a5c69df4525922",
+      "blob": "753e228f67f4bbf95e0bfb5da64f028f626ed8fc",
+      "sections": [
+        "estado-del-saga-y-sincronizacion-de-la-espera"
+      ]
+    },
+    {
+      "repo": "merchant-api",
+      "path": "internal/modules/credit/infra/handlers/http_handler.go",
+      "commit": "25b95b35845c3c47a27db498c2a5c69df4525922",
+      "blob": "e8bdcf54f8171be26f66ca0e2a087e4a2c1eea12",
+      "sections": [
+        "estado-del-saga-y-sincronizacion-de-la-espera"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/UserRequestV1/App/Http/Clients/MerchantApiClient.php",
+      "commit": "63123374a5d0875c908a83e3145f334b2ff913ee",
+      "blob": "00d7a68de2995e903335c5d352eefe870f9541cc",
+      "sections": [
+        "estado-del-saga-y-sincronizacion-de-la-espera"
       ]
     }
   ]
