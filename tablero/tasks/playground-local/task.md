@@ -19,8 +19,9 @@ jira_title: ""
 - [x] Adaptar renting/RTO, firma del codeudor y requisitos de Ábaco desde #5, #12, #13,
   #14 y #76: fuentes revisadas en `main`, tareas enlazadas y retoma comprobada. El contexto
   distingue firma registrada de autorización, consulta vigente de ingreso aprobado y código de configuración aplicada.
-- [ ] Adaptar formularios y país al retomar #8, #43 y #73. Termina por tema cuando la regla
-  reutilizable está verificada contra `main`, enlazada a su tarea y comprobada localmente.
+- [x] Adaptar formularios y país desde #8, #43 y #73: país y documentos, catálogo geográfico
+  y esquema/respuestas del formulario con fuentes revisadas en `main`, tareas enlazadas y
+  retoma comprobada. Las mediciones de ambientes y propuestas de arquitectura quedan en sus tareas.
 
 
 - [x] Separar el contexto local de Canon: `knowledge/` versionado con fuentes, retoma sin red y consultas de negocio/producto opcionales. Termina cuando las pruebas verifican ausencia de llamadas a Canon por defecto y `make knowledge-check` valida el primer tema contra ambos monolitos.
