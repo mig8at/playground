@@ -16,8 +16,10 @@ jira_title: ""
   comercios, canje de códigos, contexto ecommerce e identidad. Termina cuando sus fuentes pasan
   `make knowledge-check`, las tareas relacionadas los cargan con `make retomar` y las hipótesis
   o cambios fuera de `main` siguen distinguidos del mecanismo local.
-- [ ] Adaptar el siguiente tema al retomar sus tareas: priorizar renting y codeudor (#5, #12,
-  #13, #14, #76), después formularios y país (#8, #43, #73). Termina por tema cuando la regla
+- [x] Adaptar renting/RTO, firma del codeudor y requisitos de Ábaco desde #5, #12, #13,
+  #14 y #76: fuentes revisadas en `main`, tareas enlazadas y retoma comprobada. El contexto
+  distingue firma registrada de autorización, consulta vigente de ingreso aprobado y código de configuración aplicada.
+- [ ] Adaptar formularios y país al retomar #8, #43 y #73. Termina por tema cuando la regla
   reutilizable está verificada contra `main`, enlazada a su tarea y comprobada localmente.
 
 
