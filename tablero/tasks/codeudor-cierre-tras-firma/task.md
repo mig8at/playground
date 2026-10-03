@@ -14,10 +14,16 @@ jira_title: "Codeudor: confirmación propia al terminar la firma"
 
 - [x] Contrastar el cierre disponible en `main` y enlazar su mecanismo local: recorrido propio
   del codeudor, token obligatorio, OTP, firma registrada y autorización separadas.
-- [ ] Validar el recorrido real del codeudor hasta la confirmación con su propio OTP y documentos;
-  termina cuando la evidencia identifica firma registrada, autorización y archivos finales por separado.
-- [ ] Validar la espera del titular después de su firma y los casos sin codeudor e IMEI;
-  termina cuando el destino coincide con el estado de la solicitud en cada caso.
+- [x] Comprobar en local el tramo de firma del codeudor: monto, documentos y OTP por los loaders
+  y actions reales del wizard, con proveedor OTP de prueba; firma, autorización y PDF con ambas
+  evidencias contrastados por separado, incluida la confirmación renderizada en Chromium.
+- [x] Comprobar el control local sin codeudor por el action de OTP del titular: destino aprobado,
+  monto visible y autorización persistida. Comprobar IMEI por API con registro de dispositivo y desembolso.
+- [ ] Resolver y volver a validar la entrada del titular al flujo con codeudor: el recorrido local
+  desde confirmación llega a fecha de pago sin registrar/aprobar al codeudor y el backend lo frena.
+  Termina cuando su OTP dirige a la espera con el crédito pendiente y la segunda firma permite cerrar.
+- [ ] Validar en el frontend el recorrido de IMEI y la salida del titular por el estado del saga;
+  los controles locales por API y loaders no certifican ese recorrido ni el servicio externo.
 - [x] Corregir la confirmación local para afirmar únicamente la firma registrada: probado con
   autorización lograda, pendiente y dato ausente, más código inválido, vencido y limitación de intentos.
 - [ ] Integrar la corrección de confirmación y verificarla en el ambiente elegido; termina cuando
@@ -50,8 +56,14 @@ El cambio está en `2b801a4a`, disponible para revisión e integración.
 
 `knowledge/cosigner-signature` sigue describiendo el código de main, incluida su afirmación
 anterior de crédito formalizado: esta corrección es una propuesta de rama hasta integrarla.
-La prueba del cierre en backend se ejecuta con SQLite en memoria y dependencias simuladas;
-acredita sus decisiones de catálogo y autorización, no un OTP externo ni documentos finales reales.
+Las pruebas del cierre con SQLite en memoria acreditan sus decisiones de catálogo y autorización.
+Además se comprobó el tramo local del codeudor contra la base MySQL y plantillas Blade: rechazo
+controlado de código, aceptación, autorización y archivos finales con las evidencias de ambos roles.
+El proveedor OTP es simulado, el riesgo se prepara para el caso y el correo queda en log; esa prueba
+no acredita la entrega externa del código/correo ni el saga del proveedor. La entrada completa del
+titular sigue pendiente por el freno previo a registrar al codeudor.
+El contador `signedDocuments` registra tipos del módulo, no la cantidad de PDF finales del catálogo.
+El contrato para comprobarlos está en el tema local.
 Los chequeos generales de diseño y tipos conservan exactamente sus diagnósticos anteriores;
 la confirmación y su regresión pasan el chequeo de formato.
 

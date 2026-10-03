@@ -1,0 +1,293 @@
+{
+  "schema": "local-cosigner-validation/v1",
+  "measuredAt": "2026-10-03T21:33:25Z",
+  "environment": {
+    "target": "local",
+    "backendPort": 8012,
+    "wizardPort": 5186,
+    "database": "creditop",
+    "pdfGenerator": "Blade/dompdf",
+    "otpProvider": "isolated stub: 200 valid, 422 invalid",
+    "risk": "synthetic fixtures",
+    "identity": "manual test validation",
+    "mail": "log",
+    "externalSaga": "not verified"
+  },
+  "revisions": {
+    "backend": "63123374a5d0875c908a83e3145f334b2ff913ee",
+    "frontend": "2b801a4ae9f1940b3094482e1f34378ea567ec3c"
+  },
+  "cosignerCase": {
+    "id": 467105,
+    "observations": [
+      {
+        "name": "before-cosigner-signature",
+        "state": 29,
+        "cosignerStatus": "waiting_cosigner_signature"
+      },
+      {
+        "name": "holder-wait-screen",
+        "status": 200,
+        "redirect": null,
+        "data": {
+          "creditState": {
+            "actor": "HOLDER",
+            "loanRequestId": "467105",
+            "targets": {
+              "COMPLETED": "/self-service/f0548728/467105/loan-approved",
+              "EXPIRED": "/self-service/f0548728/467105/request-canceled"
+            },
+            "debug": true
+          },
+          "notFoundPath": "/self-service/f0548728/467105/cosigner/phone"
+        }
+      },
+      {
+        "name": "cosigner-preview",
+        "count": 4,
+        "types": [
+          "lease_agreement",
+          "cosigner_agreement",
+          "promissory_note",
+          "chattel_mortgage"
+        ]
+      },
+      {
+        "name": "after-invalid-otp",
+        "state": 29,
+        "cosignerStatus": "waiting_cosigner_signature"
+      },
+      {
+        "name": "after-valid-otp",
+        "state": 11,
+        "cosignerStatus": "formalized"
+      },
+      {
+        "name": "terminal-token",
+        "status": 409,
+        "code": "URV1CT409"
+      }
+    ],
+    "calls": [
+      {
+        "t": 134,
+        "metodo": "GET",
+        "ruta": "/self-service/f0548728/467105/cosigner/waiting-signature",
+        "status": 200,
+        "ms": 132,
+        "redirect": null
+      },
+      {
+        "t": 253,
+        "metodo": "GET",
+        "ruta": "/cosigner/invitation?token=[redacted]",
+        "status": 202,
+        "ms": 119,
+        "redirect": "/self-service/f0548728/phone"
+      },
+      {
+        "t": 368,
+        "metodo": "GET",
+        "ruta": "/self-service/f0548728/467105/cosigner/signature/amount",
+        "status": 200,
+        "ms": 115,
+        "redirect": null
+      },
+      {
+        "t": 468,
+        "metodo": "POST",
+        "ruta": "/self-service/f0548728/467105/cosigner/signature/amount",
+        "status": 202,
+        "ms": 100,
+        "redirect": "/self-service/f0548728/467105/cosigner/signature/documents"
+      },
+      {
+        "t": 607,
+        "metodo": "GET",
+        "ruta": "/self-service/f0548728/467105/cosigner/signature/documents",
+        "status": 200,
+        "ms": 138,
+        "redirect": null
+      },
+      {
+        "t": 611,
+        "metodo": "POST",
+        "ruta": "/self-service/f0548728/467105/cosigner/signature/documents",
+        "status": 202,
+        "ms": 3,
+        "redirect": "/self-service/f0548728/467105/cosigner/signature/otp"
+      },
+      {
+        "t": 758,
+        "metodo": "GET",
+        "ruta": "/self-service/f0548728/467105/cosigner/signature/otp",
+        "status": 200,
+        "ms": 147,
+        "redirect": null
+      },
+      {
+        "t": 879,
+        "metodo": "POST",
+        "ruta": "/self-service/f0548728/467105/cosigner/signature/otp",
+        "status": 200,
+        "ms": 121,
+        "redirect": null
+      },
+      {
+        "t": 6057,
+        "metodo": "POST",
+        "ruta": "/self-service/f0548728/467105/cosigner/signature/otp",
+        "status": 202,
+        "ms": 5177,
+        "redirect": "/self-service/f0548728/467105/cosigner/signature/success"
+      }
+    ],
+    "success": {
+      "status": 200,
+      "buttons": 0,
+      "money": false,
+      "registeredSignatureText": true,
+      "formalizationPromise": false
+    },
+    "holderEvidence": [
+      {
+        "document_type": "lease_agreement",
+        "status": "signed",
+        "otp_id": 299253
+      },
+      {
+        "document_type": "cosigner_agreement",
+        "status": "signed",
+        "otp_id": 299253
+      },
+      {
+        "document_type": "promissory_note",
+        "status": "signed",
+        "otp_id": 299253
+      },
+      {
+        "document_type": "chattel_mortgage",
+        "status": "signed",
+        "otp_id": 299253
+      },
+      {
+        "document_type": "payment_schedule",
+        "status": "signed",
+        "otp_id": 299253
+      }
+    ],
+    "preliminaryEvidence": [
+      {
+        "document_type": "consent",
+        "otp_id": 299254,
+        "hasPdfUrl": false
+      },
+      {
+        "document_type": "promissory_note",
+        "otp_id": 299254,
+        "hasPdfUrl": false
+      }
+    ],
+    "finalPdfs": [
+      {
+        "type": "lease_agreement",
+        "status": 200,
+        "contentType": "application/pdf",
+        "bytes": 905349,
+        "pdf": true,
+        "cosignerOtpId": null,
+        "holderOtpId": 299253
+      },
+      {
+        "type": "cosigner_agreement",
+        "status": 200,
+        "contentType": "application/pdf",
+        "bytes": 1281719,
+        "pdf": true,
+        "cosignerOtpId": null,
+        "holderOtpId": 299253
+      },
+      {
+        "type": "promissory_note",
+        "status": 200,
+        "contentType": "application/pdf",
+        "bytes": 1288960,
+        "pdf": true,
+        "cosignerOtpId": null,
+        "holderOtpId": 299253
+      },
+      {
+        "type": "chattel_mortgage",
+        "status": 200,
+        "contentType": "application/pdf",
+        "bytes": 904888,
+        "pdf": true,
+        "cosignerOtpId": null,
+        "holderOtpId": 299253
+      }
+    ],
+    "pdfContent": [
+      {
+        "document": "lease_agreement",
+        "applicantEvidence": true,
+        "cosignerEvidence": true
+      },
+      {
+        "document": "cosigner_agreement",
+        "applicantEvidence": true,
+        "cosignerEvidence": true
+      },
+      {
+        "document": "promissory_note",
+        "applicantEvidence": true,
+        "cosignerEvidence": true
+      },
+      {
+        "document": "chattel_mortgage",
+        "applicantEvidence": true,
+        "cosignerEvidence": true
+      }
+    ]
+  },
+  "withoutCosigner": {
+    "id": 467106,
+    "state": 11,
+    "requestNumberPresent": true,
+    "actionRedirect": "/self-service/e9409aff/467106/loan-approved",
+    "renderHttp": 200,
+    "amountVisible": true
+  },
+  "imeiCase": {
+    "id": 467109,
+    "state": 11,
+    "selectedTerm": 3,
+    "requestedTerm": 6,
+    "transport": "backend API",
+    "sequence": [
+      "verify-otp",
+      "device/register",
+      "device/disburse"
+    ],
+    "databaseDevice": {
+      "table": "user_request_products",
+      "hasImei": true
+    }
+  },
+  "fullHolderJourney": {
+    "id": 467110,
+    "transport": "wizard HTTP",
+    "result": "stopped",
+    "lastRoute": "first-payment-date",
+    "reason": "Tu solicitud requiere un codeudor aprobado antes de firmar los documentos.",
+    "externalSagaVerified": false
+  },
+  "limits": [
+    "Full wizard journey does not yet reach cosigner enrollment",
+    "OTP expiration and rate limit covered by the existing contract tests, not this provider stub",
+    "IMEI frontend path and external saga not validated",
+    "Not deployed or merged",
+    "PHP execution limit raised from 30 to 120 seconds in the temporary server only",
+    "Unmodified harness labels completion separately from credit closure; database is the final state evidence"
+  ],
+  "knowledgeCommit": "b1621fc6"
+}
