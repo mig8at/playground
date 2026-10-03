@@ -4,6 +4,7 @@ title: "Sucursal y asesor de prueba al crear un comercio"
 ramas: feat/usuario-y-sucursal-de-prueba-al-crear-comercio
 stage: work
 created: "2026-10-01T10:48:29-05:00"
+knowledge: [merchant-onboarding]
 canon: [comercio, sucursal, asesor, actores]
 jira: [CORE-0000]
 jira_title: "Sucursal y asesor de prueba al crear un comercio"
@@ -51,9 +52,12 @@ jira_title: "Sucursal y asesor de prueba al crear un comercio"
 - [ ] Opcional: enrutar `c*-fake@creditop.com` a un buzón compartido; termina cuando un correo de
   recuperación de clave a ese formato llega a alguien.
   Depende de: quien administra el Workspace.
-- [ ] Publicar en canon cómo se crea un comercio (qué crea y qué no, las dos altas) y, cuando #243 llegue a
-  `main`, el usuario de prueba; termina cuando `make canon-search` los encuentra.
-  Depende de: que #243 llegue a `main` (sólo la parte nueva; lo del alta ya está verificado en `main`).
+- [x] Documentar las dos altas y el alcance de la baja verificados en `main` en
+  `knowledge/merchant-onboarding`, con fuentes de ambos monolitos.
+- [ ] Ampliar `knowledge/merchant-onboarding` con el usuario de prueba cuando #243 esté en `main`;
+  termina con el servicio y sus condiciones comprobados contra esa ref. Las pruebas y la
+  configuración de desarrollo siguen en esta tarea; no se convierten en reglas de producción.
+  Depende de: que #243 llegue a `main`.
 - [ ] Que el motivo de una falla de Cognito sea visible sin logs: mostrar el código de error de AWS en la nota que ve
   el admin (no es un secreto); termina cuando el diálogo y la tarjeta lo muestran y una prueba lo fija.
 - [ ] Que los eventos del servicio lleguen a Loki en dev: activar Loki para `legacy-application` (hoy
@@ -155,7 +159,7 @@ desde el secret `dev/legacy-application` en **cada** despliegue).
 
    **Fase 4 — prueba acotada en prod:** el comercio de prueba dedicado → la cuenta aparece en el pool de prod,
    `users.cognito_id` es igual a su `sub`, y Miguel inicia sesión en el wizard de prod con ese asesor. Después, dar de
-   baja el comercio (apaga a sus asesores en la base, ver canon) **y borrar la cuenta del pool**: la baja no la toca.
+   baja el comercio (apaga a sus asesores en la base bajo las condiciones de `knowledge/merchant-onboarding`) **y borrar la cuenta del pool**: la baja no la toca.
 
    **Fase 5 — monitoreo:** buscar en los logs los eventos `allied.test_advisor`, `allied.test_advisor.failed` y
    `allied.test_advisor.cognito_failed`; contar los asesores de prueba por correo `c%-fake@%`.
@@ -237,7 +241,8 @@ arrancar la tarea); la reversa segura sigue sin probarse.
 - Scripts para cambiar el login de un wizard desplegado a Merchants Dev y volver (la carpeta local `cognito`, junto a `playground`, fuera de git y sin secretos): estado, crear el cliente, cambiar, probar el login y revertir, con `--dry-run`.
 - Plan para producción (mantener el pool de producción; apagar es vaciar una variable): `artifacts/plan-produccion.html`, del 2026-10-02.
 - [PR #243](pr:application#243) — mergeado a `develop` el 2026-10-01.
-- Canon: [comercio](canon:comercio), [sucursal](canon:sucursal), [asesor](canon:asesor), [actores](canon:actores).
+- Conocimiento local: `knowledge/merchant-onboarding/rules.md`; cubre las entradas de `main`, no la configuración de pools por ambiente.
+- Canon (opcional para negocio/producto): [comercio](canon:comercio), [sucursal](canon:sucursal), [asesor](canon:asesor), [actores](canon:actores).
 - Hilo con infra en Slack (Daniel Sánchez): pools por ambiente y permisos.
 
 ## Tarea (publicable)

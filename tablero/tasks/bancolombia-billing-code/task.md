@@ -12,8 +12,9 @@ jira_title: ""
 # Reemplazar el emisor del código de compra: Corbeta → Bancolombia
 
 > Origen: handoff de Santiago Villaquiran (2026-07-29) + sus dos revisiones (07-31 y 08-03) + el OpenAPI
-> del servicio nuevo. Jira: **CORE-19**. Cuando esto se mergee, lo que quede vivo **gradúa** al tema
-> `bancolombia` de canon y este esfuerzo se archiva.
+> del servicio nuevo. Jira: **CORE-19**. Al mergear, el mecanismo reutilizable se revisa
+> contra `main` para incorporarlo al conocimiento local; la tarea se archiva al completar su objetivo
+> y validación. Publicar en Canon queda independiente, sólo si Miguel lo solicita.
 
 ## 0.bis · Dónde estamos contra los criterios de CORE-19
 

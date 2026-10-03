@@ -3,6 +3,7 @@ id: 97
 title: "Credifamilia alcance desarrollo: ajuste monto total"
 stage: evaluation
 created: "2026-09-28T12:00:00-05:00"
+knowledge: [credifamilia-financing]
 canon: [credifamilia/context#autorizada-no-es-radicada-el-estado-no-prueba-que-llego-al-proveedor, credifamilia/context#es-un-hibrido-y-esa-palabra-evita-dos-errores, credifamilia/context#el-codigo-de-respuesta-decide-el-estado-de-la-transaccion-de-radicacion-y-un-409-no-es-un-fallo]
 jira: [CORE-653]
 jira_title: "Credifamilia alcance desarrollo: ajuste monto total"
@@ -21,11 +22,9 @@ ramas: fix/CORE-653-credifamilia-monto-total
 - [x] Decimales en `montoTotalCredito`: el WSDL lo declara `xs:double` y el servicio de pruebas de Credifamilia guardó una transacción con `2428673.60` (200, 2026-09-29). Falta sólo verlo en una radicación real de producción.
 - [x] Implementar `montoTotalCredito` en la radicación con la fórmula del alcance y dos decimales — [#1521](pr:legacy-backend#1521), 6 pruebas nuevas, ejemplo del alcance en 6343651.73.
 - [x] Correr en local una solicitud con fianza Anticipada hasta la radicación — 3/3 en 11 con CREDIT_COMPLETED y `montoTotalCredito` 2428673.60 para 2.000.000.
-- [ ] Graduar a canon al llegar #1521 a `main`: la base del 4x1000 (sobre el IVA) y cómo se compone `montoTotalCredito`; hoy en `main` la radicación informa `final_amount`, sin la fianza. Termina con la sección de fianza de `credifamilia/context` corregida.
-  Depende de: el merge de develop a main
+- [x] Documentar en `knowledge/credifamilia-financing` la fianza y el total de radicación verificados en `main`, con sus fuentes y los límites de entradas, formatos y respaldos. La publicación en Canon queda independiente y sólo se hace si Miguel la solicita.
 - [ ] Conseguir que el QA de Credifamilia apruebe a un cliente (tasa y tipo de fianza), para ver la fórmula nueva de punta a punta en dev; termina cuando la pre-aprobación devuelva `approved`. La lista de clientes de prueba no bastó: ver el artefacto de clientes de prueba.
   Depende de: Credifamilia
-- [ ] Dictar a canon las piezas de `artifacts/canon-credifamilia-propuesta.md` (4 nuevas y 3 reescrituras); termina con las secciones visibles en `make canon-search`. Las 7 pasaron el ensayo de canon y están verificadas contra `main`.
 - [ ] Escribir la publicable (Dónde probar, Cómo validar) antes de que Miguel la vea.
 
 ## Objetivo
@@ -37,42 +36,38 @@ mismo total que ya muestran el voucher y el plan de cuotas.
 
 ## Dónde se toca
 
-Todo está en `legacy-backend`. En `legacy-application` no existe la radicación SOAP
-(`git grep montoTotalCredito origin/main` no da nada ahí): el cambio es de un solo repo.
+El mecanismo vigente está en `legacy-backend` y se explica en
+`knowledge/credifamilia-financing/rules.md`, con commits y blobs en `sources.json`.
+La búsqueda de radicación SOAP en la ref local de `main` de `application` no encuentra ese camino.
 
-- **El campo, hoy**: `app/Actions/Lenders/CredifamiliaConsumo/TransactionRequest.php:131` —
-  `'montoTotalCredito' => (int) $this->userRequest->final_amount`. `montoSolicitado` (L128) es
-  `(int) user_requests.amount` (trunca; `amount` trae decimales en prod, ej. 8083032.6425). El docblock
-  (L43-44) ya lista «composición de montoTotalCredito» como decisión de producto pendiente.
-- **De dónde sale `final_amount` al autorizar**: `Modules/Loans/App/Services/LoanAuthorizationService.php:586`
-  `authorizeRequest()` → sin calculadora, `PromissoryNoteService::calculateAmounts()` (L625-632), el
-  desglose genérico `total_amount_no_fee_no_guarantee`. Para el lender 24 ese desglose **no** trae la
-  fianza (lo dice el propio `OnboardingPayloadBuilder`: «el breakdown genérico da 0 para lender 24»).
-- **Quién arma el request del SOAP**: `Modules/Onboarding/App/Services/lenders/CredifamiliaConsumo/CredifamiliaConsumoService.php:156`
-  `buildRequest()` — ya lee el preaprobado (`transaction_data`) para la TEA y el `bond_type`; de ahí
-  mismo sale `guarantee_percentage` (decimal, 0.18 en prod) y `guarantee_type` (2 = Anticipada).
-- **El motor que ya lo calcula**: `app/Services/PaymentPlan/Credifamilia/Engine/CalculationContext.php:95-111`
-  — `bondBase = monto × %`, `bondIva = bondBase × 0,19`, `fourPerThousand = (bondBase + bondIva) × 0,004`,
-  `totalDisbursement = monto + totalBond` sólo si `Anticipada`. El IVA sale de
-  `CredifamiliaPayloadBuilder::DEFAULT_IVA_RATE = 0.19` (L15).
-- **El voucher ya usa el motor**: `Modules/Loans/App/Services/DocumentGeneration/Payload/OnboardingPayloadBuilder.php:248`
-  `total_financed_amount = credit_conditions.total_disbursement` (vía `CredifamiliaPaymentPlanSummaryService`).
-  O sea: **el voucher ya dice el total con fianza, y el SOAP no**.
-- Mock local de la radicación: `harness/bin/mock-credifamilia` (:8108).
+- `app/Actions/Lenders/CredifamiliaConsumo/TransactionRequest.php`: obtiene el total de
+  `BondBreakdown`, sobre el monto solicitado convertido a entero; informa dos decimales y
+  conserva `final_amount` como respaldo cuando faltan datos de fianza.
+- `Modules/Onboarding/App/Services/lenders/CredifamiliaConsumo/CredifamiliaConsumoService.php`:
+  transporta porcentaje y tipo de fianza de la preaprobación, además de las tasas.
+- `app/Services/PaymentPlan/Credifamilia/ValueObjects/BondBreakdown.php`: fianza + IVA +
+  4x1000 sobre el IVA; sólo suma la fianza al capital con `Anticipada`.
+- `app/Services/PaymentPlan/Credifamilia/Engine/CalculationContext.php`: reutiliza ese desglose
+  para el motor del plan de pagos.
+- `app/Services/PaymentPlan/Credifamilia/PaymentPlanSummary/CredifamiliaPaymentPlanSummaryService.php`:
+  puede conservar los centavos del monto de la solicitud, a diferencia del SOAP.
+- `Modules/Loans/App/Services/DocumentGeneration/Payload/OnboardingPayloadBuilder.php`:
+  toma el total del resumen cuando existe; el formateador del comprobante lo convierte a entero.
+- Mock local de radicación: `harness/bin/mock-credifamilia` (:8108).
 
 ## Cómo se ataca
 
-1. **Cerrar las tres preguntas** (4x1000, redondeo, Mensual). Sin la del 4x1000 no hay una sola fórmula:
-   implementar la del alcance tal cual dejaría el SOAP con un total distinto al del voucher y al capital
-   sobre el que el motor calcula las cuotas.
-2. **Una sola fuente del total**: que `TransactionRequest` tome `montoTotalCredito` del motor
-   (`total_disbursement` del resumen del plan, la misma que ya imprime el voucher) en vez de
-   `final_amount`. Si la fórmula oficial difiere del motor, se corrige **en el motor** (paso 1 de
-   `CalculationContext`), y así voucher, cuotas y SOAP se mueven juntos.
-3. **Redondeo** según lo que se decida, aplicado en un lugar (el armado del SOAP), con prueba.
-4. **Prueba unitaria** del ejemplo del alcance y de un caso Mensual (total = monto).
-5. **Corrida local** hasta la radicación con el mock, mirando el payload registrado.
-6. Un PR en `legacy-backend` con todo.
+1. Cerrar con producto / Credifamilia las preguntas abiertas de base y redondeo de los pendientes.
+   Lo que calcula el código no sustituye la confirmación del proveedor.
+2. Si cambia la fórmula, corregir `BondBreakdown` y comprobar sus consumidores. Conservar la
+   semántica de `final_amount`; el SOAP no depende de cambiar esa columna.
+3. Comparar las entradas y el total numérico del SOAP, del resumen y del comprobante, incluyendo
+   un monto con centavos y la fianza Mensual. La fórmula compartida no garantiza igualdad exacta:
+   el SOAP usa entero y dos decimales de salida; el resumen puede usar float; el PDF no imprime centavos.
+4. Repetir las pruebas unitarias del ejemplo y la corrida local con el mock según la receta.
+   La aceptación en un ambiente y sus impedimentos se conservan en la pila.
+5. Revisar el tema local si cambia cualquiera de sus fuentes. Compartir una explicación en
+   Canon es una acción separada solicitada por Miguel, no una condición para completar este trabajo.
 
 ## Lo que se evaluó y NO se eligió
 
@@ -110,8 +105,8 @@ GROUP BY 1
 `$` del JSON path va como `$$`.)
 
 El ejemplo del alcance, para la prueba unitaria: monto 5.223.964 · 18 % → fianza 940.313,52 · IVA
-178.659,57 · 4x1000 714,64 (sobre IVA) · total fianza 1.119.687,73 · **total 6.343.651,73**. Con la
-fórmula del motor: 4x1000 4.475,89 · **total 6.347.412,98**.
+178.659,57 · 4x1000 714,64 (sobre IVA) · total fianza 1.119.687,73 · **total 6.343.651,73**. La comparación histórica con 4x1000
+sobre fianza + IVA daba 4.475,89 · **total 6.347.412,98**; no es la fórmula vigente del motor.
 
 Local: el cierre entero de Credifamilia en local (receta en la memoria `credifamilia-flujo-mapa` y la
 suite `harness/suites/credifamilia.json`) + `bin/mock-credifamilia start` y
@@ -144,7 +139,7 @@ obligatorios, no la fórmula.** Cada 200 deja una transacción de prueba en el Q
 
 - Alcance: «Alcance - Ajuste Campo MontoTotal Crédito» (PDF de Credifamilia/producto, en Downloads de Miguel).
 - CORE-127 (`datos-erroneos-voucher-credifamilia`): cuando el voucher pasó a salir del motor y se agregó el 4x1000.
-- Canon no documenta todavía la fianza ni el total a financiar de Credifamilia: al mergear, gradúa.
+- Conocimiento local: `knowledge/credifamilia-financing/rules.md` y sus fuentes verificadas. Canon queda opcional para el contexto de negocio/producto; no se exige sincronizarlo al cerrar.
 
 
 

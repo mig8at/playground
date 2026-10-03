@@ -4,6 +4,7 @@ title: "Código de preaprobado de la app en la plataforma nueva"
 ramas: feat/CORE-614-codigo-preaprobado-app, feat/CORE-614-codigo-app-solo-colombia, feat/codigo-alfanumerico-en-main, feat/CORE-614-conmutador-usuario-app-estilo, fix/CORE-614-borrar-codigo-erroneo
 stage: work
 created: "2026-09-21T16:40:00-05:00"
+knowledge: [client-code-redemption, lender-listing]
 canon: [preaprobado, listado, onboarding, creditopx]
 jira: [CORE-614]
 jira_title: "Código de preaprobado de la app en la plataforma nueva"
@@ -393,7 +394,7 @@ llegó al servicio:
 - Temas de canon: `preaprobado`, `listado`, `onboarding`, `creditopx` (van en el frontmatter).
   `fronteras` ayuda para la parte de rutas internas entre módulos.
 - Canon **no cubre** el código de cliente: la búsqueda por API no devuelve ninguna sección de este
-  flujo. Si algo de acá queda en firme, es candidato a graduar.
+  flujo. Si algo de acá queda en firme, es candidato al conocimiento local después de verificar sus fuentes.
 - El precedente más cercano en el wizard nuevo es «Confirmación de cupo» (`flowSignatureChoice`), que
   marca una variante de flujo en la sesión del wizard.
 - Jira: [CORE-614](https://creditop.atlassian.net/browse/CORE-614), creada por Laura Cabra. Su título

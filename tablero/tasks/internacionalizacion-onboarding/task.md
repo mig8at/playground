@@ -3,6 +3,7 @@ id: 43
 title: "Internacionalización de CreditOp"
 stage: tasks
 created: "2026-08-05T17:11:17-05:00"
+knowledge: [merchant-onboarding, lender-listing]
 canon: [onboarding, formularios, comercio, listado, imei]
 jira: [CORE-365]
 jira_title: "Internacionalización de CreditOp"
@@ -655,7 +656,7 @@ moneda de `$userRequest->allied?->country` — **el país del COMERCIO**. O sea 
 
 **2. ✅ Se resuelven dos preguntas abiertas del nodo `smartpay`.** El lender **160 de prod es `rt=2`**
 (el nodo lo daba por dudoso: su seeder lo crea `rt=1`) y su `country_id` **está bien puesto en 60** — no
-es basura como los otros 155. Cuando se toque el nodo, esto gradúa.
+es basura como los otros 155. Al retomar este tema, se verifica contra `main` antes de incorporarlo al conocimiento local.
 
 **3. ✅ Muere la alerta del consentimiento colombiano.** En prod el lender 152 es **Refurbicredit** — y
 el consentimiento nombra a *REFURBI COLOMBIA S.A.S.*, o sea que **está bien**. La alerta salía de que en

@@ -4,10 +4,20 @@ title: "KYC: el «no coincide» del segundo apellido se traga — `0 == null` en
 ramas: kyc-name-match, kyc-second-surname
 stage: work
 created: "2026-08-13T09:16:27-05:00"
+knowledge: [identity-name-validation]
 canon: [kyc, credifamilia, formalizacion]
 jira: [CORE-420]
 jira_title: "Identidad: el «no coincide» del nombre ya no se ignora"
 ---
+
+## Referencia técnica para retomar
+
+`knowledge/identity-name-validation/rules.md` describe los servicios de la ref local de `main`,
+con las fuentes fijadas en `sources.json`: TusDatos ya distingue `0` de `null`, y Ágil Data y
+Mareigua pueden adoptar nombres dentro de sus condiciones. El diagnóstico y las recetas de
+implementación de abajo explican el origen del trabajo; sus menciones de «main» corresponden a
+esa investigación y no sustituyen la referencia actual. La validación funcional y el estado
+de entrega se conservan en esta tarea y su pila; la lectura del código no los da por completados.
 
 ## El caso
 
