@@ -12,6 +12,15 @@ jira_title: ""
 
 ## Pendientes
 
+- [x] Adaptar la primera tanda de conocimiento desde el tablero: Credifamilia, alta y baja de
+  comercios, canje de códigos, contexto ecommerce e identidad. Termina cuando sus fuentes pasan
+  `make knowledge-check`, las tareas relacionadas los cargan con `make retomar` y las hipótesis
+  o cambios fuera de `main` siguen distinguidos del mecanismo local.
+- [ ] Adaptar el siguiente tema al retomar sus tareas: priorizar renting y codeudor (#5, #12,
+  #13, #14, #76), después formularios y país (#8, #43, #73). Termina por tema cuando la regla
+  reutilizable está verificada contra `main`, enlazada a su tarea y comprobada localmente.
+
+
 - [x] Separar el contexto local de Canon: `knowledge/` versionado con fuentes, retoma sin red y consultas de negocio/producto opcionales. Termina cuando las pruebas verifican ausencia de llamadas a Canon por defecto y `make knowledge-check` valida el primer tema contra ambos monolitos.
 
 - [ ] Sumar el visor a `tools/ui-check.mjs` (`make estilo-ui`) y hacer que falle si termina verificando cero apps; termina cuando `make estilo-ui` recorre las cuatro.
@@ -72,6 +81,17 @@ contenedor; lo que no es de herramientas (negocio, conectores, país) sigue en `
 
 La fuente de lo que ya existe es `tools/ui/` (`theme.css`, `workbench.css`, `workbench.js`,
 `RegionMenu.vue`) y `make estilo-check`, que lo verifica en las cuatro.
+
+## Frente: conocimiento local desde las tareas
+
+**Objetivo.** Recuperar el conocimiento técnico útil del trabajo real, de forma incremental y
+con fuentes comprobables. Cada tema explica un mecanismo y sus límites; el tablero conserva
+los casos, las propuestas, los pendientes de negocio y las mediciones de ambientes.
+
+**Cierre de cada tanda.** Leer las tareas pertinentes y sus bloques, verificar el código de
+`main`, escribir o ajustar el tema, enlazarlo en `knowledge:` y comprobar fuentes y retoma.
+Los temas se descubren con `make knowledge-map`; no se mantiene un segundo tablero en la biblioteca.
+Publicar en Canon no es parte de este cierre. Sus referencias anteriores quedan opcionales.
 
 ## Frente: el estándar del esqueleto
 
