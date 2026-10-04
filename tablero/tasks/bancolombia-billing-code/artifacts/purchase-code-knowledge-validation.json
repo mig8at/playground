@@ -137,5 +137,11 @@
     "No confirma equivalencia billingCode/PIN ni quién crea la orden con el emisor nuevo: requieren proveedor/contrato/medición.",
     "La biblioteca explica main; la propuesta y las mediciones históricas del proveedor permanecen en la tarea.",
     "Los resultados SSR caracterizan el problema vigente; no acreditan una corrección ni el recorrido completo en navegador."
-  ]
+  ],
+  "reproduction": {
+    "script": "tablero/tasks/bancolombia-billing-code/artifacts/observe-purchase-code-main.mjs",
+    "command": "node tablero/tasks/bancolombia-billing-code/artifacts/observe-purchase-code-main.mjs",
+    "requiredEnvironment": "FRONTEND_REPO apunta al clon local con dependencias del wizard; OBSERVATION_OUTPUT elige la salida. FRONTEND_REF permite cambiar la ref, cuyo default está fijado al commit comprobado.",
+    "defaultSourceRef": "68ce7349c4e2a52c83fe4ee174a23ac71fe667cc"
+  }
 }
