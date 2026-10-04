@@ -1,7 +1,7 @@
 ---
 id: 12
 title: "Codeudor — cierre propio tras la firma (pantalla \"Firma realizada con éxito\")"
-ramas: cosigner-signature-success, motai/flujo-codeudor, fix/cosigner-signature-confirmation, fix/cosigner-entry-policy
+ramas: cosigner-signature-success, motai/flujo-codeudor, fix/cosigner-signature-confirmation, fix/cosigner-entry-policy, fix/cosigner-authorization-recovery
 stage: work
 created: "2026-07-27T12:13:57-05:00"
 knowledge: [cosigner-signature, device-imei-validation]
@@ -30,8 +30,11 @@ jira_title: "Codeudor: confirmación propia al terminar la firma"
   con estado controlado y las pruebas del workflow no acreditan el servicio completo.
 - [x] Contrastar y corregir localmente `COMPLETED` con autorización fallida: ambas firmas y
   cuatro PDF finales conservados, solicitud 29 y token terminal; el titular confirma el estado real.
-- [ ] Definir la recuperación de la autorización fallida con las firmas ya registradas; consultar
-  estado no reintenta el cierre y el token terminal no debe reutilizarse.
+- [x] Preparar y comprobar recuperación operativa local con las firmas registradas: revisión
+  previa, aplicación explícita, rollback y concurrencia; conserva documentos y no pide otro OTP.
+- [ ] Integrar y verificar la recuperación de backend en el ambiente elegido; rama local
+  `fix/cosigner-authorization-recovery`. Acordar su uso operativo y seguimiento de efectos que fallen
+  después del commit: una solicitud ya autorizada no debe volver a cerrarse para reenviar un aviso.
 - [ ] Completar el formulario/login del asesor para IMEI con sesión vigente; el action real ya
   pasó por HTTP. La sesión Cognito cacheada devolvió `invalid_grant` al renovarse.
 - [x] Corregir la confirmación local para afirmar únicamente la firma registrada: probado con
@@ -113,8 +116,32 @@ titular ve que aún no está autorizado por enlace directo, snapshot y socket. L
 pasan; diseño y tipos mantienen sus diagnósticos del entorno, sin nuevos errores del cambio.
 `artifacts/holder-authorization-validation.json` conserva las mediciones y sus límites. El caminador
 positivo reintentó la firma al conservar 29 y terminó con error; la prueba negativa usa el tramo
-registrado más consultas y navegador, sin afirmar que aquel caminador completo pasó. Sigue pendiente
-recuperar la autorización sin pedir otra firma ni depender del token terminal.
+registrado más consultas y navegador, sin afirmar que aquel caminador completo pasó. La recuperación operativa local se describe abajo; aún requiere integración y validación
+fuera de local.
+
+## Recuperación operativa preparada
+
+El backend `82ec2658` incorpora `loans:recover-cosigner-authorization`: por defecto inspecciona
+una solicitud; `--apply` revalida bajo bloqueo y recupera con las evidencias ya persistidas.
+Exige número, estado pendiente, último codeudor formalizado/inactivo con monto aceptado y OTP,
+y documentos finales consistentes por catálogo/rol. Un histórico previo o cambio de montos a
+persistir requiere revisión. Reutiliza número y URLs, sin otro OTP ni render. El cierre normal
+comparte el bloqueo; si ya está en 11 termina sin repetir transición, histórico ni avisos.
+
+La solicitud sintética 467117 quedó en 29 con ambas firmas por fallo controlado del cierre.
+Dos aplicaciones solapadas terminaron en 11: una autorizó y otra respondió ya autorizada,
+con un histórico y una transición nuevos. Conservaron número, montos, codeudor y filas de firma;
+los cuatro PDF locales contienen ambas evidencias. Chromium mostró pendiente antes y confirmación
+tras consultar estado por GET. Los 34 tests/159 assertions pasan con SQLite propio en memoria;
+MySQL local también revirtió todos los cambios al fallar después de crear histórico en 467116.
+
+Los avisos y voucher se simularon para contar una llamada por efecto, sin envío externo.
+La revisión valida metadatos, sin certificar archivos remotos. Fallos posteriores al commit
+conservan 11 y no se reparan repitiendo autorización; requieren seguimiento propio. No hay retry
+automático, API nueva ni integración Temporal acreditada. La rama local de recuperación parte
+de `96b9b84f` y su parche aplica al checkout principal. Evidencia y límites en
+`artifacts/cosigner-authorization-recovery-validation.json`. Knowledge conserva el mecanismo
+comprobado en `main`, incluida la guarda que ya existía para el histórico.
 
 ## Lo que se evaluó y ya no describe el camino actual
 

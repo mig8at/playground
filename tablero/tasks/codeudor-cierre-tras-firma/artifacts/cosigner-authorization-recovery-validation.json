@@ -1,0 +1,140 @@
+{
+  "date": "2026-10-03",
+  "environment": "local",
+  "backend": {
+    "branch": "fix/cosigner-authorization-recovery",
+    "commit": "82ec26586b0757490841a18e413aba54a0ba9553",
+    "parentCommit": "96b9b84f6dc6d75d6f60ed09f345d561c33e8418"
+  },
+  "scenario": "Recuperación operativa de autorización pendiente con ambas firmas persistidas; sin otro OTP ni regenerar PDF.",
+  "commands": {
+    "inspect": "php artisan loans:recover-cosigner-authorization <request-id> --json",
+    "apply": "php artisan loans:recover-cosigner-authorization <request-id> --apply --json"
+  },
+  "rollback": {
+    "requestId": 467116,
+    "fault": "Excepción controlada después de crear histórico, antes del commit.",
+    "stateAfterFailure": 29,
+    "allSnapshotGroupsUnchanged": true,
+    "signaturesPreserved": true
+  },
+  "concurrency": {
+    "attempts": [
+      {
+        "code": 0,
+        "started": 1791074633621,
+        "finished": 1791074638668,
+        "payload": {
+          "action": "authorized",
+          "user_request_id": 467117,
+          "status_id": 11,
+          "mode": "apply"
+        }
+      },
+      {
+        "code": 0,
+        "started": 1791074634571,
+        "finished": 1791074638607,
+        "payload": {
+          "action": "already_authorized",
+          "user_request_id": 467117,
+          "status_id": 11,
+          "mode": "apply"
+        }
+      }
+    ],
+    "sideEffects": [
+      {
+        "method": "sendAuthorizationNotifications",
+        "requestId": 467117
+      },
+      {
+        "method": "generateVoucher",
+        "requestId": 467117
+      }
+    ],
+    "deliverySimulated": true
+  },
+  "persistence": {
+    "id": 467117,
+    "beforeState": 29,
+    "afterState": 11,
+    "sameNumber": true,
+    "sameAmounts": true,
+    "histories": 1,
+    "newRecords": 1,
+    "sameCosigner": true,
+    "sameDocuments": true,
+    "sameOtpEvidence": true
+  },
+  "holder": {
+    "id": 467117,
+    "beforeState": 29,
+    "afterState": 11,
+    "initialPendingVisible": true,
+    "approvalAfterReadOnlyRefresh": true,
+    "refreshMethods": [
+      "GET"
+    ],
+    "newOtpRequests": 0,
+    "provider": "local MySQL; side effects simulated"
+  },
+  "documents": [
+    {
+      "type": "chattel_mortgage",
+      "holderSignature": true,
+      "cosignerSignature": true
+    },
+    {
+      "type": "cosigner_agreement",
+      "holderSignature": true,
+      "cosignerSignature": true
+    },
+    {
+      "type": "lease_agreement",
+      "holderSignature": true,
+      "cosignerSignature": true
+    },
+    {
+      "type": "promissory_note",
+      "holderSignature": true,
+      "cosignerSignature": true
+    }
+  ],
+  "validation": {
+    "targetedTests": 34,
+    "assertions": 159,
+    "database": "SQLite en memoria con esquema propio, sin migraciones ni RefreshDatabase",
+    "nativeDatabase": "MySQL local creditop",
+    "pintNewFiles": "pass",
+    "existingAuthorizationStyle": "Conserva deuda de estilo previa; no se reformateó el servicio completo.",
+    "patchAppliesToPrimaryCheckout": true,
+    "knowledge": {
+      "topics": 13,
+      "sources": 151,
+      "allUnchanged": true,
+      "tests": "pass",
+      "resumedTopics": [
+        "cosigner-signature",
+        "device-imei-validation"
+      ],
+      "missing": [],
+      "pending": []
+    }
+  },
+  "guards": [
+    "Sólo solicitud numerada pendiente de firma de codeudor; estado 11 retorna sin repetir cierre.",
+    "Último intento de codeudor formalizado/inactivo, monto aceptado, OTP y evidencias finales consistentes por catálogo/rol.",
+    "Bloqueo de la solicitud compartido por cierre normal y recuperación; cambios de los montos que se persistirían o un histórico previo requieren revisión."
+  ],
+  "limits": [
+    "Firmas e identidad/riesgo sintéticos; proveedor OTP simulado; setup mediante loaders/actions reales y PDF Blade locales.",
+    "Avisos y voucher sustituidos por dobles que registran llamadas: se comprobó una invocación por efecto, sin acreditar entrega externa.",
+    "La verificación operativa valida metadatos/URLs persistidas; no certifica disponibilidad ni contenido remoto de cada PDF. El contenido de cuatro PDF sí se contrastó en este caso local.",
+    "Una falla posterior al commit conserva 11: el comando no vuelve a autorizar ni repara la entrega/radicación posterior.",
+    "El primer intento de concurrencia tuvo un fallo del doble de voucher después del commit; no cuenta como prueba concurrente completa. Se corrigió el retorno del doble y se repitió con la solicitud nueva 467117, ambas salidas 0.",
+    "No se ejecutó Temporal ni se probó un ambiente desplegado.",
+    "Guardas compartidas en resumeDeferredAuthorization: no se afirma idempotencia de todos los caminos legacy de authorize.",
+    "Rama local, sin API nueva ni retry automático; integración y uso operativo pendientes."
+  ]
+}
