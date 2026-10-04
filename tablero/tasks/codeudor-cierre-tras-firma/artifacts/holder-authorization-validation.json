@@ -1,0 +1,137 @@
+{
+  "date": "2026-10-03",
+  "environment": "local",
+  "requestId": 467116,
+  "scenario": "Ambas firmas registradas; excepción controlada al reanudar autorización, limitada a esta solicitud en el router de prueba.",
+  "frontend": {
+    "branch": "fix/cosigner-signature-confirmation",
+    "commit": "7d592088d3ea8c007ebc0260f76396df5d2b5b5b"
+  },
+  "signature": {
+    "observations": [
+      {
+        "name": "before-cosigner-signature",
+        "state": 29,
+        "cosignerStatus": "waiting_cosigner_signature"
+      },
+      {
+        "name": "after-invalid-otp",
+        "state": 29,
+        "cosignerStatus": "waiting_cosigner_signature"
+      },
+      {
+        "name": "after-valid-otp",
+        "state": 29,
+        "cosignerStatus": "formalized"
+      },
+      {
+        "name": "terminal-token",
+        "status": 409,
+        "code": "URV1CT409"
+      }
+    ],
+    "registeredConfirmationVisible": true,
+    "terminalTokenStatus": 409,
+    "controlledAuthorizationFailureLogged": true
+  },
+  "documents": [
+    {
+      "type": "chattel_mortgage",
+      "holderSignature": true,
+      "cosignerSignature": true
+    },
+    {
+      "type": "cosigner_agreement",
+      "holderSignature": true,
+      "cosignerSignature": true
+    },
+    {
+      "type": "lease_agreement",
+      "holderSignature": true,
+      "cosignerSignature": true
+    },
+    {
+      "type": "promissory_note",
+      "holderSignature": true,
+      "cosignerSignature": true
+    }
+  ],
+  "before": [
+    {
+      "kind": "before-fix",
+      "state": 29,
+      "backendStatus": 29,
+      "falseApprovalVisible": true
+    }
+  ],
+  "after": [
+    {
+      "kind": "direct-url-and-refresh",
+      "state": 29,
+      "noFalseApproval": true,
+      "refreshReadOnly": true
+    },
+    {
+      "kind": "completed-snapshot",
+      "saga": "COMPLETED",
+      "state": 29,
+      "noFalseApproval": true
+    },
+    {
+      "kind": "websocket",
+      "saga": "COMPLETED",
+      "state": 29,
+      "noFalseApproval": true
+    },
+    {
+      "kind": "authorized-control",
+      "id": 467111,
+      "state": 11,
+      "approvalVisible": true
+    },
+    {
+      "kind": "authorized-control",
+      "id": 467112,
+      "state": 11,
+      "approvalVisible": true
+    },
+    {
+      "kind": "authorized-control",
+      "id": 467115,
+      "state": 11,
+      "approvalVisible": true
+    }
+  ],
+  "validation": {
+    "frontendTests": 14,
+    "closerTests": 9,
+    "closerAssertions": 13,
+    "biome": "pass",
+    "patchAppliesToPrimaryCheckout": true,
+    "design": {
+      "errorsBefore": 2,
+      "errorsAfter": 2,
+      "warningsBefore": 143,
+      "warningsAfter": 143
+    },
+    "types": {
+      "beforeErrors": 220,
+      "afterErrors": 220,
+      "added": [],
+      "removed": []
+    },
+    "knowledge": {
+      "topics": 13,
+      "sources": 148,
+      "allUnchanged": true,
+      "tests": "pass"
+    }
+  },
+  "limits": [
+    "OTP y riesgo controlados; identidad preparada y correo local.",
+    "Proveedor del saga controlado y Soketi real local; no se ejecutó Temporal.",
+    "El caminador de cierre positivo no acredita un recorrido completo: al conservar estado 29 volvió a intentar una firma ya terminal y terminó con error. El tramo de firma guardado y las comprobaciones negativas del navegador/documentos sí pasaron.",
+    "Consultar estado es lectura: no recupera automáticamente la autorización ni reutiliza el token terminal.",
+    "Corrección local pendiente de integrar y verificar en el ambiente elegido."
+  ]
+}

@@ -28,8 +28,10 @@ jira_title: "Codeudor: confirmación propia al terminar la firma"
   recuperación HTTP al volver la red; descarta secuencia antigua. Soketi real local y estado controlado.
 - [ ] Completar la integración con Temporal y los reportes reales de firma. El consumidor probado
   con estado controlado y las pruebas del workflow no acreditan el servicio completo.
-- [ ] Contrastar la salida por `COMPLETED` cuando el cierre no logra autorización: el saga recibe
-  ambas firmas y no comprueba estado 11; actualmente el titular navega a aprobado.
+- [x] Contrastar y corregir localmente `COMPLETED` con autorización fallida: ambas firmas y
+  cuatro PDF finales conservados, solicitud 29 y token terminal; el titular confirma el estado real.
+- [ ] Definir la recuperación de la autorización fallida con las firmas ya registradas; consultar
+  estado no reintenta el cierre y el token terminal no debe reutilizarse.
 - [ ] Completar el formulario/login del asesor para IMEI con sesión vigente; el action real ya
   pasó por HTTP. La sesión Cognito cacheada devolvió `invalid_grant` al renovarse.
 - [x] Corregir la confirmación local para afirmar únicamente la firma registrada: probado con
@@ -99,8 +101,20 @@ El consumidor del saga pasó tres casos en Chromium con estado controlado y Soke
 Las 21 pruebas del workflow y siete del cliente Soketi pasan; no acreditan servidor Temporal ni
 compilación del servicio entero. `merchant-api` se registra sólo como repo citable, sin afirmar
 actividad productiva. Los mecanismos y límites están en ambos temas de knowledge; casos y
-correcciones de rama permanecen en esta tarea. El próximo contraste es el cierre fallido:
-`COMPLETED` y autorización son hechos distintos, también para la pantalla del titular.
+correcciones de rama permanecen en esta tarea.
+
+La misma rama agrega `7d592088`: conserva `status_id` del GET de validación y muestra el monto
+como desembolsado sólo cuando el backend confirma 11. Estado pendiente o consulta fallida tienen
+una pantalla explícita y consulta manual de lectura. La espera del codeudor deja de prometer cierre
+al firmar. El caso 467116 registró ambas firmas y cuatro PDF finales, pero una excepción controlada
+al reanudar dejó la solicitud en 29 con token terminal. Antes se veía «Felicidades»; después el
+titular ve que aún no está autorizado por enlace directo, snapshot y socket. Los controles 467111,
+467112 y 467115 en 11 conservan la confirmación. Catorce tests del frontend y nueve del cierre
+pasan; diseño y tipos mantienen sus diagnósticos del entorno, sin nuevos errores del cambio.
+`artifacts/holder-authorization-validation.json` conserva las mediciones y sus límites. El caminador
+positivo reintentó la firma al conservar 29 y terminó con error; la prueba negativa usa el tramo
+registrado más consultas y navegador, sin afirmar que aquel caminador completo pasó. Sigue pendiente
+recuperar la autorización sin pedir otra firma ni depender del token terminal.
 
 ## Lo que se evaluó y ya no describe el camino actual
 
