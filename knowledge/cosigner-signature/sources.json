@@ -1,8 +1,8 @@
 {
   "version": 1,
   "title": "Firma y cierre del codeudor",
-  "summary": "Firma del codeudor, autorización y documentos; entrada por política y sincronización del titular por el saga.",
-  "reviewedAt": "2026-10-03T23:10:52+00:00",
+  "summary": "Firma del codeudor, autorización y documentos; entrada por política, saga y confirmación del estado persistido.",
+  "reviewedAt": "2026-10-04T00:01:54+00:00",
   "sources": [
     {
       "repo": "legacy-backend",
@@ -86,7 +86,8 @@
       "blob": "7274f70f93d1bca064f16ecd584786e1f32c6800",
       "sections": [
         "firma-del-titular-y-espera",
-        "estado-del-saga-y-sincronizacion-de-la-espera"
+        "estado-del-saga-y-sincronizacion-de-la-espera",
+        "confirmacion-del-titular-y-estado-persistido"
       ]
     },
     {
@@ -334,6 +335,24 @@
       "blob": "00d7a68de2995e903335c5d352eefe870f9541cc",
       "sections": [
         "estado-del-saga-y-sincronizacion-de-la-espera"
+      ]
+    },
+    {
+      "repo": "frontend-monorepo",
+      "path": "apps/loan-request-wizard/app/routes/loan-approved.tsx",
+      "commit": "68ce7349c4e2a52c83fe4ee174a23ac71fe667cc",
+      "blob": "24329838e6d8764f53b47400c650a08cbe201e42",
+      "sections": [
+        "confirmacion-del-titular-y-estado-persistido"
+      ]
+    },
+    {
+      "repo": "frontend-monorepo",
+      "path": "modules/loan-request-wizard/loan-origination/src/lib/domain/promissory-note.entity.ts",
+      "commit": "68ce7349c4e2a52c83fe4ee174a23ac71fe667cc",
+      "blob": "ae62ee0211ffe9786e29ba355b959ce6cc685587",
+      "sections": [
+        "confirmacion-del-titular-y-estado-persistido"
       ]
     }
   ]
