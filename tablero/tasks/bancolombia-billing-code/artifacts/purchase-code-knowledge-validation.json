@@ -1,0 +1,141 @@
+{
+  "date": "2026-10-04",
+  "taskId": 15,
+  "environment": "Lectura de refs locales de main; render SSR aislado sin servicios externos.",
+  "topic": "purchase-code-lifecycle",
+  "sourceRefs": {
+    "legacy-backend": "63123374a5d0875c908a83e3145f334b2ff913ee",
+    "application": "fc74ac8bc1b364191f859bb6830e8d47c15bb882",
+    "frontend-monorepo": "68ce7349c4e2a52c83fe4ee174a23ac71fe667cc"
+  },
+  "newSourceCount": 22,
+  "findings": [
+    {
+      "claim": "La API modular exige setting corbeta_allieds, estado 25 y lender 68/100; el emisor usa un switch separado por los cuatro comercios. El controller antiguo usa ids, sin ese setting.",
+      "basis": "Código de main revisado en ambos monolitos; no configuración medida en un ambiente."
+    },
+    {
+      "claim": "El PIN enlaza la emisión y los consumidores de factura en data_json.verification_token. PCS001/200 puede incluir showBarCode:false.",
+      "basis": "PurchaseCodeService y comandos de application."
+    },
+    {
+      "claim": "Con isExpired:false, FinalizePurchase de main muestra éxito y PIN incluso si showBarCode es false.",
+      "basis": "Cuatro combinaciones renderizadas con React SSR y wrappers visuales sustituidos; no navegador ni diseño certificado."
+    },
+    {
+      "claim": "El schema acepta la bandera false, pero rechaza codeType/codeImageUrl null que la API puede emitir sin tipo/imagen.",
+      "basis": "Schema Zod real de main, tres comprobaciones con payloads sintéticos."
+    },
+    {
+      "claim": "El contador calcula próximo corte 01:30 UTC, 20:30 de Bogotá; en el instante del corte ya salta al día siguiente. No usa caducidad del PIN.",
+      "basis": "Función original de la ruta con reloj controlado, cuatro instantes comprobados. El texto del contador dice hoy por default."
+    },
+    {
+      "claim": "barcode_checked se actualiza fuera de la condición de confirmación recibida y no es una guarda previa para omitir la llamada bancaria.",
+      "basis": "InvoiceProcessCorbeta y InvoiceProcessCorbetaBnpl; lectura, sin ejecutar comandos."
+    },
+    {
+      "claim": "UpdateOrdersFromCorbeta y la consulta del admin actualizan estado 26 al cambiar monto/factura, sin confirmar con el banco en esos métodos. Si los datos coinciden no corrigen otro estado.",
+      "basis": "Código de main de application; no factura externa ni desembolso acreditado."
+    }
+  ],
+  "observation": {
+    "sourceCommit": "68ce7349c4e2a52c83fe4ee174a23ac71fe667cc",
+    "renders": [
+      {
+        "isExpired": false,
+        "showBarCode": false,
+        "codeVisible": true,
+        "readyMessage": true,
+        "unavailableMessage": false,
+        "expiredMessage": false
+      },
+      {
+        "isExpired": false,
+        "showBarCode": true,
+        "codeVisible": true,
+        "readyMessage": true,
+        "unavailableMessage": false,
+        "expiredMessage": false
+      },
+      {
+        "isExpired": true,
+        "showBarCode": false,
+        "codeVisible": false,
+        "readyMessage": false,
+        "unavailableMessage": true,
+        "expiredMessage": false
+      },
+      {
+        "isExpired": true,
+        "showBarCode": true,
+        "codeVisible": false,
+        "readyMessage": false,
+        "unavailableMessage": false,
+        "expiredMessage": true
+      }
+    ],
+    "clocks": [
+      {
+        "nowUtc": "2026-10-05T01:29:59Z",
+        "deadlineUtc": "2026-10-05T01:30:00.000Z"
+      },
+      {
+        "nowUtc": "2026-10-05T01:30:00Z",
+        "deadlineUtc": "2026-10-06T01:30:00.000Z"
+      },
+      {
+        "nowUtc": "2026-10-05T02:00:00Z",
+        "deadlineUtc": "2026-10-06T01:30:00.000Z"
+      },
+      {
+        "nowUtc": "2026-10-05T20:00:00Z",
+        "deadlineUtc": "2026-10-06T01:30:00.000Z"
+      }
+    ],
+    "parsing": {
+      "unavailablePinPayloadAccepted": true,
+      "nullCodeTypeAccepted": false,
+      "nullImageAccepted": false
+    },
+    "readFiles": [
+      "modules/loan-request-wizard/bancolombia-origination/src/ui/components/origination/shared/finalize-purchase/FinalizePurchase.tsx",
+      "modules/loan-request-wizard/bancolombia-origination/src/ui/components/origination/shared/finalize-purchase/ExpiredView.tsx",
+      "modules/loan-request-wizard/bancolombia-origination/src/ui/components/origination/shared/finalize-purchase/SuccessView.tsx",
+      "modules/loan-request-wizard/bancolombia-origination/src/ui/components/origination/shared/finalize-purchase/CodeDisplay.tsx",
+      "modules/loan-request-wizard/bancolombia-origination/src/ui/components/origination/shared/finalize-purchase/CountdownDisplay.tsx",
+      "modules/loan-request-wizard/bancolombia-origination/src/ui/components/origination/shared/finalize-purchase/ImportantNotice.tsx",
+      "modules/loan-request-wizard/bancolombia-origination/src/ui/components/origination/shared/finalize-purchase/PaymentSteps.tsx",
+      "apps/loan-request-wizard/app/routes/bancolombia/purchase-code.tsx",
+      "modules/loan-request-wizard/bancolombia-origination/src/domain/schemas/origination/bnpl/bnpl-api.schema.ts"
+    ],
+    "limits": [
+      "Render de componentes de main con React 19 SSR. Los wrappers visuales, ilustraciones y header/support compartidos se sustituyen; no es validación del diseño ni navegador.",
+      "Lógica de selección, contenido del PIN y contador sin cambios de producto. Sin HTTP, base, SMS ni banco.",
+      "Observación del comportamiento disponible; el caso showBarCode:false con reloj vigente evidencia el problema, no un criterio correcto."
+    ]
+  },
+  "knowledgeCheck": {
+    "topics": 14,
+    "sources": 179,
+    "allUnchanged": true,
+    "retomaTopics": [
+      "purchase-code-lifecycle"
+    ],
+    "missing": [],
+    "pending": []
+  },
+  "taskChanges": [
+    "Tema técnico local enlazado para retomar.",
+    "Pendientes del identificador de conciliación, creador de orden y acceso del banco expresados con dependencia.",
+    "Disponibilidad y vigencia visual quedan como observaciones por corregir/comprobar.",
+    "Eliminada de la receta privada la afirmación no verificada de vigencia 24 h/corte 21:30."
+  ],
+  "limits": [
+    "Sin llamadas a Corbeta/Bancolombia, SMS, escritura en base ni ejecución de crons.",
+    "Sin cambio de código de producto, PR, push, Jira ni Canon.",
+    "No confirma equivalencia billingCode/PIN ni quién crea la orden con el emisor nuevo: requieren proveedor/contrato/medición.",
+    "La biblioteca explica main; la propuesta y las mediciones históricas del proveedor permanecen en la tarea.",
+    "Los resultados SSR caracterizan el problema vigente; no acreditan una corrección ni el recorrido completo en navegador."
+  ]
+}

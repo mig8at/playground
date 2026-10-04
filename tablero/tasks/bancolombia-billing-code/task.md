@@ -4,10 +4,37 @@ title: "Bancolombia · el código de compra lo emite el banco (reemplazo de la A
 ramas: bancolombia-billing-code
 stage: work
 created: "2026-07-31T17:13:02-05:00"
+knowledge: [purchase-code-lifecycle]
 canon: [bancolombia]
 jira: [CORE-19]
 jira_title: ""
 ---
+
+## Pendientes
+
+- [x] Contrastar emisión, reuso, disponibilidad y conciliación en main de ambos monolitos
+  y el wizard; mecanismo reutilizable en `knowledge/purchase-code-lifecycle` con fuentes Git.
+- [ ] Resolver la equivalencia del código nuevo con el PIN que enlazan las órdenes y la factura.
+  Depende de: banco — documentación o medición que pruebe el identificador de conciliación.
+- [ ] Confirmar quién crea la orden de Corbeta al emitir con Bancolombia y evitar dos creadores.
+  Depende de: banco — definición del contrato y prueba de una misma compra.
+- [ ] Conseguir un ambiente del proveedor que permita medir emisión y conciliación con datos reales.
+  Depende de: banco — acceso operativo; el resultado histórico de sandbox no acredita esa integración.
+- [ ] Contrastar disponibilidad del PIN en el wizard: con `showBarCode:false` y contador vigente,
+  main aún muestra éxito y el código. Termina cuando la disponibilidad gobierna la presentación,
+  incluidos consulta fallida y contador vencido; observación actual, sin corrección preparada.
+- [ ] Verificar vigencia efectiva del proveedor y texto/contador al consultar después del corte.
+  El reloj actual calcula el próximo corte a las 20:30 de Bogotá, sin fecha de emisión del PIN.
+- [ ] Integrar y comprobar el emisor elegido con los consumidores de factura y confirmación bancaria,
+  después de resolver identificador/creación de orden; no se cierra por emisión ni por estado 26 solamente.
+
+## Contexto técnico para retomar
+
+`knowledge/purchase-code-lifecycle` describe el mecanismo disponible en main: el setting del guard
+y el switch del generador son distintos; PIN, URL y factura tienen persistencias y consumidores propios.
+La actualización a 26 y la confirmación bancaria no constituyen una sola operación. `barcode_checked`
+tampoco prueba respuesta recibida del banco. Las mediciones históricas y la propuesta del emisor nuevo
+permanecen en la pila y esta tarea; no se trasladan como hechos vigentes al conocimiento local.
 
 # Reemplazar el emisor del código de compra: Corbeta → Bancolombia
 
@@ -143,7 +170,7 @@ documentado responde **409 a cualquier dato real** y no ejercita la seguridad (F
   request del usuario**. El emisor nuevo hereda eso si no se le pone timeout explícito.
 - **`getRequestExceptionCode()` accede por índice directo** (`['errors'][0]['code']`, triplicado): una
   respuesta de error sin `errors` **lanza dentro del propio manejador de errores**.
-- **La vigencia (24 h, corte 21:30) "no se toca" es una intención, no una verificación**: hay que comprobar
+- **La vigencia "no se toca" es una intención, no una verificación**: hay que comprobar
   que no se apoye en el mismo efecto colateral del filtro `EstadoOrden=2` que sostiene a
   `validateCurrentOrder`.
 - **HTTP 400 en `Allieds/Corbeta::register()` → variable indefinida**: sin seed de `LenderErrorCode`,

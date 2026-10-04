@@ -1,0 +1,217 @@
+{
+  "version": 1,
+  "title": "Código de compra y conciliación",
+  "summary": "Emisión y reuso del PIN, disponibilidad y reloj del wizard; factura local, confirmación bancaria y límites de conciliación.",
+  "reviewedAt": "2026-10-04T19:44:39+00:00",
+  "sources": [
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/Onboarding/routes/api.php",
+      "commit": "63123374a5d0875c908a83e3145f334b2ff913ee",
+      "blob": "caaae90492dbc44142a359fa687488e31e266119",
+      "sections": [
+        "entrada-y-emisor"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/Onboarding/App/Services/merchants/PurchaseCodeService.php",
+      "commit": "63123374a5d0875c908a83e3145f334b2ff913ee",
+      "blob": "5db40bc4beac9d1d1d4267368fd5908e0665a66a",
+      "sections": [
+        "entrada-y-emisor",
+        "reuso-y-persistencia",
+        "disponibilidad-y-vigencia-visual"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/Onboarding/App/Services/merchants/CodeGenerationService.php",
+      "commit": "63123374a5d0875c908a83e3145f334b2ff913ee",
+      "blob": "77ccd4fcf65a3126a134a4febaa201a16e61d3d4",
+      "sections": [
+        "entrada-y-emisor",
+        "reuso-y-persistencia"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "app/Actions/Allieds/Corbeta.php",
+      "commit": "63123374a5d0875c908a83e3145f334b2ff913ee",
+      "blob": "4bdd4e4065318c2b68a0f0b9d71d6ff7de175825",
+      "sections": [
+        "entrada-y-emisor",
+        "disponibilidad-y-vigencia-visual"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "database/migrations/2025_05_30_144735_create_purchase_codes_table.php",
+      "commit": "63123374a5d0875c908a83e3145f334b2ff913ee",
+      "blob": "006b650ab3ba5038a8f85ada3a100ad5ea43629e",
+      "sections": [
+        "reuso-y-persistencia"
+      ]
+    },
+    {
+      "repo": "application",
+      "path": "app/Http/Controllers/Customer/PurchaseCodeController.php",
+      "commit": "fc74ac8bc1b364191f859bb6830e8d47c15bb882",
+      "blob": "14bad50dee9403f77df86636bef3d59224c94054",
+      "sections": [
+        "entrada-y-emisor",
+        "reuso-y-persistencia",
+        "disponibilidad-y-vigencia-visual"
+      ]
+    },
+    {
+      "repo": "application",
+      "path": "app/Services/CodeGenerationService.php",
+      "commit": "fc74ac8bc1b364191f859bb6830e8d47c15bb882",
+      "blob": "cb82691f91e0c435176a590b10d34ee0c402d25c",
+      "sections": [
+        "entrada-y-emisor"
+      ]
+    },
+    {
+      "repo": "application",
+      "path": "app/Actions/Allies/Corbeta.php",
+      "commit": "fc74ac8bc1b364191f859bb6830e8d47c15bb882",
+      "blob": "cc88397d8847bfc9c12c876fef783b7332eb5a6f",
+      "sections": [
+        "confirmacion-bancaria-de-la-compra"
+      ]
+    },
+    {
+      "repo": "application",
+      "path": "app/Console/Commands/InvoiceProcessCorbeta.php",
+      "commit": "fc74ac8bc1b364191f859bb6830e8d47c15bb882",
+      "blob": "0aac534de0c125a9c94b09325c3a9d78ec0a5d88",
+      "sections": [
+        "confirmacion-bancaria-de-la-compra",
+        "calendario-y-limites-de-verificacion"
+      ]
+    },
+    {
+      "repo": "application",
+      "path": "app/Console/Commands/InvoiceProcessCorbetaBnpl.php",
+      "commit": "fc74ac8bc1b364191f859bb6830e8d47c15bb882",
+      "blob": "5202adbbad050ed708e840295e6a20c39d731efe",
+      "sections": [
+        "confirmacion-bancaria-de-la-compra",
+        "calendario-y-limites-de-verificacion"
+      ]
+    },
+    {
+      "repo": "application",
+      "path": "app/Console/Commands/UpdateOrdersFromCorbeta.php",
+      "commit": "fc74ac8bc1b364191f859bb6830e8d47c15bb882",
+      "blob": "393da5db9c981248c99a624441c457145ca8e96e",
+      "sections": [
+        "factura-y-estado-26",
+        "calendario-y-limites-de-verificacion"
+      ]
+    },
+    {
+      "repo": "application",
+      "path": "app/Http/Controllers/Admin/PurchaseCodeController.php",
+      "commit": "fc74ac8bc1b364191f859bb6830e8d47c15bb882",
+      "blob": "f070fea59a321e70b341bf4a12862fc20ca2383f",
+      "sections": [
+        "factura-y-estado-26"
+      ]
+    },
+    {
+      "repo": "application",
+      "path": "app/Console/Kernel.php",
+      "commit": "fc74ac8bc1b364191f859bb6830e8d47c15bb882",
+      "blob": "151662a0814b06fd89930f5252a7e08a6eb2d7f5",
+      "sections": [
+        "calendario-y-limites-de-verificacion"
+      ]
+    },
+    {
+      "repo": "frontend-monorepo",
+      "path": "modules/loan-request-wizard/bancolombia-origination/src/infrastructure/repositories/origination/bnpl/bnpl.repository.ts",
+      "commit": "68ce7349c4e2a52c83fe4ee174a23ac71fe667cc",
+      "blob": "5bece2a1e20489a1c7d38820d182a56b6308ddea",
+      "sections": [
+        "entrada-y-emisor",
+        "disponibilidad-y-vigencia-visual"
+      ]
+    },
+    {
+      "repo": "frontend-monorepo",
+      "path": "modules/loan-request-wizard/bancolombia-origination/src/application/use-cases/origination/bnpl/get-bnpl-purchase-code.uc.ts",
+      "commit": "68ce7349c4e2a52c83fe4ee174a23ac71fe667cc",
+      "blob": "4ac33c76ceb59176ee4fa774c3ff963e41ea0193",
+      "sections": [
+        "entrada-y-emisor",
+        "disponibilidad-y-vigencia-visual"
+      ]
+    },
+    {
+      "repo": "frontend-monorepo",
+      "path": "modules/loan-request-wizard/bancolombia-origination/src/domain/schemas/origination/bnpl/bnpl-api.schema.ts",
+      "commit": "68ce7349c4e2a52c83fe4ee174a23ac71fe667cc",
+      "blob": "65998a883b790be2b846b6de16d1660dbda2aea8",
+      "sections": [
+        "disponibilidad-y-vigencia-visual"
+      ]
+    },
+    {
+      "repo": "frontend-monorepo",
+      "path": "apps/loan-request-wizard/app/routes/bancolombia/purchase-code.tsx",
+      "commit": "68ce7349c4e2a52c83fe4ee174a23ac71fe667cc",
+      "blob": "d850653ac8753cd72905fc5c7c820da29f83c66c",
+      "sections": [
+        "disponibilidad-y-vigencia-visual"
+      ]
+    },
+    {
+      "repo": "frontend-monorepo",
+      "path": "modules/loan-request-wizard/bancolombia-origination/src/ui/components/origination/shared/finalize-purchase/FinalizePurchase.tsx",
+      "commit": "68ce7349c4e2a52c83fe4ee174a23ac71fe667cc",
+      "blob": "8b720920647a14e019e2aca95d10f37a414a7783",
+      "sections": [
+        "disponibilidad-y-vigencia-visual"
+      ]
+    },
+    {
+      "repo": "frontend-monorepo",
+      "path": "modules/loan-request-wizard/bancolombia-origination/src/ui/components/origination/shared/finalize-purchase/SuccessView.tsx",
+      "commit": "68ce7349c4e2a52c83fe4ee174a23ac71fe667cc",
+      "blob": "5b1218fbbffba6f4cb6d2b5e436e187039df47af",
+      "sections": [
+        "disponibilidad-y-vigencia-visual"
+      ]
+    },
+    {
+      "repo": "frontend-monorepo",
+      "path": "modules/loan-request-wizard/bancolombia-origination/src/ui/components/origination/shared/finalize-purchase/ExpiredView.tsx",
+      "commit": "68ce7349c4e2a52c83fe4ee174a23ac71fe667cc",
+      "blob": "15466132dcb671b2e70994a576e328007897b625",
+      "sections": [
+        "disponibilidad-y-vigencia-visual"
+      ]
+    },
+    {
+      "repo": "frontend-monorepo",
+      "path": "modules/loan-request-wizard/bancolombia-origination/src/ui/components/origination/shared/finalize-purchase/CountdownDisplay.tsx",
+      "commit": "68ce7349c4e2a52c83fe4ee174a23ac71fe667cc",
+      "blob": "bb185c7b8ae818a22801898107a156954072ccca",
+      "sections": [
+        "disponibilidad-y-vigencia-visual"
+      ]
+    },
+    {
+      "repo": "frontend-monorepo",
+      "path": "modules/loan-request-wizard/bancolombia-origination/src/ui/components/origination/shared/finalize-purchase/CodeDisplay.tsx",
+      "commit": "68ce7349c4e2a52c83fe4ee174a23ac71fe667cc",
+      "blob": "cc773bb75ee41257dfab4558f3696b63f268ec12",
+      "sections": [
+        "disponibilidad-y-vigencia-visual"
+      ]
+    }
+  ]
+}
