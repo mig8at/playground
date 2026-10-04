@@ -1,14 +1,14 @@
 # Firma y cierre del codeudor
 
-Describe backend modular y wizard de `main`. La receta antigua que esperaba `data.signer_role` en el OTP del titular no describe el recorrido propio del codeudor. No acredita firma real ni despliegue.
+Describe backend modular y wizard de `main`, sin acreditar despliegue. El codeudor tiene recorrido propio, no depende de `data.signer_role` en el OTP del titular.
 
 ## Contexto del codeudor y token
 
-`ResolveCosignerToken` toma `X-Cosigner-Token` y después input `token`. Sin credencial pasa sin contexto. Ignora un token encontrado que pertenece a otra solicitud indicada en ruta o payload, antes de validar estado o vencimiento. Para la solicitud correspondiente valida estado/TTL y deriva actor, solicitud y `cosigner_id` desde el servidor. Token desconocido, terminal, vencido o estado ilegible producen respuestas distintas. El guard opcional no asegura acceso exclusivo: `RequireCosignerToken` exige contexto y devuelve 401 sin actor. `/cosigner/signature` usa esa variante estricta sin id de solicitud en ruta. El wizard toma token de query o sesión; filtra el de sesión por solicitud sólo si el llamador pasa su id.
+`ResolveCosignerToken` prioriza `X-Cosigner-Token` sobre input `token`. Sin credencial pasa sin contexto; ignora token de otra solicitud en ruta/payload antes de validar estado/TTL. Para la propia deriva actor, solicitud y `cosigner_id`; distingue desconocido, terminal, vencido y estado ilegible. `RequireCosignerToken` exige contexto (401 sin actor); `/cosigner/signature` usa ese guard estricto sin id en ruta. El wizard toma query o sesión, filtrando esta última por solicitud sólo si recibe su id.
 
 ## Recorrido propio de firma
 
-El wizard usa `/api/v1/user-request/cosigner/signature` para contexto, monto, documentos y envío/reenvío/verificación OTP. La action de `cosigner/signature/otp` exige token y dirige a `cosigner/signature/success` cuando su caso de uso devuelve `signed`. Éste toma `result.success` como firma lograda y distingue código inválido, vencido y limitación de intentos. La pantalla afirma que el crédito quedó formalizado, sin volver a consultar autorización. Renderizarla acredita esa bifurcación del frontend, no el estado del crédito.
+El wizard usa `/api/v1/user-request/cosigner/signature` para contexto, monto, documentos y OTP. La action `cosigner/signature/otp` exige token y dirige a `cosigner/signature/success` por `signed`: el caso de uso toma `result.success` y distingue código inválido, vencido y límite de intentos. La pantalla afirma formalización sin consultar autorización; renderizarla acredita esa bifurcación, no estado del crédito.
 
 ## Entrada del titular y política de codeudor
 
@@ -38,19 +38,23 @@ AuthV1 decide por HTTP: 200 acepta sin exigir `payload.success:true`; 429 limita
 
 ## Estado del saga y sincronización de la espera
 
-La espera del titular consume el saga de `merchant-api` como `HOLDER`: `COMPLETED` dirige a aprobado y `EXPIRED` a cancelado. Sin `statusUrl` no hace polling legado. El wizard proxya estado y autorización del canal mediante `MERCHANT_API_URL`, conservando snapshot y HTTP; PHP configura `MERCHANT_API_HOST`. Ambas deben apuntar al ambiente comprobado.
+`merchant-api` separa API y worker: `cmd/http-server` conecta HTTP, MySQL y cliente Temporal; `cmd/worker` ejecuta workflows/actividades sin MySQL. Necesitan servidor, namespace y task queue coincidentes. Levantar sólo HTTP no ejecuta el saga. La Query exige `HOLDER` o `COSIGNER`, con esas mayúsculas.
 
-Escucha `state.changed` en `private-credit.{id}.{actor}`; Echo recibe nombre sin `private-` y evento con punto inicial. Se suscribe antes de leer; acepta sólo snapshots válidos con `seq` mayor al máximo visto, compartido entre actores de la solicitud. Lee al montar, confirmar suscripción, reconectar, recuperar red y volver a primer plano. Sin Echo mantiene lectura inicial y disparadores del navegador; no hay timer que recupere indefinidamente una lectura fallida. HTTP y socket se diagnostican por separado.
+`RegisterCosignerService` crea la aplicación, persiste el marcador `merchant_api_workflow` en `user_request_additional_information` tras HTTP 2xx y registra al codeudor. Sin 2xx no marca ni registra. El marcador usa `corporate_user_id` obligatorio; fallar al guardarlo no deshace la creación. `hasStarted` comprueba su existencia, no salud del saga: perderlo omite el reporte del titular. Resolver un token válido reporta inicio en cada consulta; evaluar cupo reporta validación si hay `has_quota`. Transporte o HTTP no exitoso se registran sin invalidar el resultado local. Un inicio repetido fuera de turno puede recibir 409; el comentario de idempotencia no acredita aceptación en cualquier estado.
 
-Workflow v1 coordina validación del codeudor, firma del titular, espera y segunda firma mediante Updates con validador y Query. Soketi puede fallar sin detenerlo. La Query lee saga, sin consultar autorización MySQL. El monolito reporta al titular sólo con marcador de workflow y al codeudor tras intentar cerrar, aunque `userRequestAuthorized` sea falso; captura fallos de reporte sin alterar éxito de firma. `COMPLETED` acredita ambas firmas recibidas, sin certificar autorización, PDF ni desembolso. Un cierre correcto no cubre uno fallido ni demuestra reportes recibidos por Temporal.
+La espera usa el actor `HOLDER`: `COMPLETED` dirige a aprobado y `EXPIRED` a cancelado; sin `statusUrl` no hace polling legado. El wizard proxya estado y autorización del canal por `MERCHANT_API_URL`, conservando snapshot/HTTP; PHP usa `MERCHANT_API_HOST`. Deben apuntar al ambiente comprobado.
+
+Escucha `state.changed` en `private-credit.{id}.{actor}`; Echo recibe nombre sin `private-` y evento con punto inicial. Se suscribe antes de leer y acepta snapshots válidos con `seq` mayor al máximo compartido entre actores. Lee al montar, confirmar suscripción, reconectar, recuperar red y volver a primer plano. Sin Echo quedan lectura inicial y disparadores del navegador, sin timer para recuperar indefinidamente errores. HTTP y socket se comprueban por separado.
+
+Workflow v1 coordina validación, firma del titular y segunda firma mediante Updates con validador y Query. Soketi puede fallar sin detenerlo. La Query no consulta autorización MySQL. El titular reporta sólo con marcador; el codeudor después de intentar cerrar, aunque `userRequestAuthorized` sea falso. Los errores de reporte no alteran el éxito de firma. `COMPLETED` acredita ambas firmas recibidas, sin certificar autorización, PDF ni desembolso. Las decisiones del workflow no demuestran que los reportes llegaron al servidor.
 
 ## Confirmación del titular y estado persistido
 
-El GET de validación de pagaré devuelve `data.user_request.status_id` desde la solicitud al responder `pending_validation` y `already_authorized`. El último texto agrupa autorizado 11 e intermedio IMEI 28. Tampoco saga, success, número de solicitud o codeudor terminal reemplazan comprobar estado.
+El GET de validación devuelve `data.user_request.status_id` en `pending_validation` y `already_authorized`; éste agrupa autorizado 11 e IMEI 28. Saga, success, número y token terminal no sustituyen estado.
 
-En `main`, `PromissoryNoteValidationUserRequestSchema` no declara `status_id` y lo descarta al parsear. El loader de `loan-approved` consulta validación, pero toda respuesta exitosa entrega datos a confirmación sin exigir estado. Un enlace directo o `COMPLETED` pueden mostrar monto como desembolsado cuando aún está pendiente. Ante error, captura sin retornar estado de recuperación y el componente queda vacío. La corrección propuesta y sus mediciones viven en la tarea hasta integrarse.
+En `main`, `PromissoryNoteValidationUserRequestSchema` descarta `status_id`. El loader de `loan-approved` confirma con cualquier respuesta exitosa: enlace directo o `COMPLETED` pueden mostrar desembolso pendiente. Ante error no retorna recuperación y el componente queda vacío. Corrección y mediciones de rama viven en la tarea.
 
-Confirmar exige conservar y contrastar estado persistido. Consultarlo de nuevo es lectura, sin reenviar OTP con token terminal ni ejecutar cierre. Mostrar espera evita una afirmación falsa; no repara la autorización fallida ni acredita recuperación automática.
+Confirmar exige estado persistido. Volver a consultarlo es lectura, sin OTP ni cierre: mostrar espera evita una afirmación falsa, sin reparar autorización ni acreditar recuperación automática.
 
 ## Reanudar autorización y efectos posteriores
 
@@ -58,4 +62,4 @@ En `main`, `resumeDeferredAuthorization` reutiliza número y documentos del cier
 
 El histórico sí tiene guarda: `createFirstRegister` devuelve la creación existente consultada por `getInitialRegisterByUserRequest`, cuyo filtro selecciona `movement_type:CREACIÓN`, excluye status 5 y ordena por id. Esa guarda no evita repetir transición o efectos de autorización ni demuestra serialización concurrente.
 
-El commit precede a radicación, avisos, voucher y limpieza posterior, con tratamientos de error propios. Una falla posterior no revierte autorización persistida. Al recuperar se distingue crédito pendiente con ambas firmas, crédito autorizado y entrega posterior fallida. Repetir OTP con token terminal o consultar saga no repara esa separación. Describe mecanismo y límites, sin acreditar recuperación automática ni comando operativo integrado; las propuestas locales siguen en la tarea hasta llegar a `main`.
+Radicación, avisos, voucher y limpieza suceden tras commit, con errores propios: fallar no revierte autorización. Se distingue pendiente con ambas firmas, autorizado y entrega fallida; repetir OTP o consultar saga no los repara. Sin acreditar recuperación automática ni comando integrado: propuestas locales quedan en la tarea hasta `main`.

@@ -2,7 +2,7 @@
   "version": 1,
   "title": "Firma y cierre del codeudor",
   "summary": "Firma del codeudor, autorización y documentos; política de entrada, saga, confirmación persistida y límites de recuperación.",
-  "reviewedAt": "2026-10-04T00:47:05+00:00",
+  "reviewedAt": "2026-10-04T19:23:07+00:00",
   "sources": [
     {
       "repo": "legacy-backend",
@@ -199,7 +199,8 @@
       "commit": "63123374a5d0875c908a83e3145f334b2ff913ee",
       "blob": "fd9b361f7c94a7070dee80cd68fc28ac55de5f52",
       "sections": [
-        "entrada-del-titular-y-politica-de-codeudor"
+        "entrada-del-titular-y-politica-de-codeudor",
+        "estado-del-saga-y-sincronizacion-de-la-espera"
       ]
     },
     {
@@ -380,6 +381,60 @@
       "blob": "8d98b9dcf3ac7cb152f5ffb3eefeeb48f9a81f43",
       "sections": [
         "reanudar-autorizacion-y-efectos-posteriores"
+      ]
+    },
+    {
+      "repo": "merchant-api",
+      "path": "cmd/http-server/main.go",
+      "commit": "25b95b35845c3c47a27db498c2a5c69df4525922",
+      "blob": "ea25eeb66f4c05ba8100e18c675294672d0e3d99",
+      "sections": [
+        "estado-del-saga-y-sincronizacion-de-la-espera"
+      ]
+    },
+    {
+      "repo": "merchant-api",
+      "path": "cmd/worker/main.go",
+      "commit": "25b95b35845c3c47a27db498c2a5c69df4525922",
+      "blob": "e76ec27763cc283f884eb36e010e5082e9c4dd9a",
+      "sections": [
+        "estado-del-saga-y-sincronizacion-de-la-espera"
+      ]
+    },
+    {
+      "repo": "merchant-api",
+      "path": "internal/modules/credit/core/usecases/get_state.go",
+      "commit": "25b95b35845c3c47a27db498c2a5c69df4525922",
+      "blob": "14493be2d20454e3c3ad891843046d5ca75083b1",
+      "sections": [
+        "estado-del-saga-y-sincronizacion-de-la-espera"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/UserRequestV1/App/Services/RegisterCosignerService.php",
+      "commit": "63123374a5d0875c908a83e3145f334b2ff913ee",
+      "blob": "142eba3448334c3716017ff03be2d33785450103",
+      "sections": [
+        "estado-del-saga-y-sincronizacion-de-la-espera"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/UserRequestV1/App/Repositories/MerchantApiWorkflowRepository.php",
+      "commit": "63123374a5d0875c908a83e3145f334b2ff913ee",
+      "blob": "ad8d57add077c48c0e399f5d15eb984d39aecd9b",
+      "sections": [
+        "estado-del-saga-y-sincronizacion-de-la-espera"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/UserRequestV1/App/Services/ResolveCosignerTokenService.php",
+      "commit": "63123374a5d0875c908a83e3145f334b2ff913ee",
+      "blob": "433b8c4215e81873b5c7dd68b333a9456334f116",
+      "sections": [
+        "estado-del-saga-y-sincronizacion-de-la-espera"
       ]
     }
   ]
