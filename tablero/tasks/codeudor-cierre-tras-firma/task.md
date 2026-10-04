@@ -26,8 +26,8 @@ jira_title: "Codeudor: confirmación propia al terminar la firma"
   estado 28, primer poll pendiente, registro del equipo, estado 11 y segundo poll con confirmación visible.
 - [x] Comprobar el consumidor del saga en Chromium: evento nuevo, snapshot al entrar y
   recuperación HTTP al volver la red; descarta secuencia antigua. Soketi real local y estado controlado.
-- [ ] Completar la integración con Temporal y los reportes reales de firma. El consumidor probado
-  con estado controlado y las pruebas del workflow no acreditan el servicio completo.
+- [x] Comprobar en local Temporal, API/worker, reportes reales del backend y Soketi:
+  recorrido completo positivo y navegador con autorización lograda/fallida; no acredita despliegue.
 - [x] Contrastar y corregir localmente `COMPLETED` con autorización fallida: ambas firmas y
   cuatro PDF finales conservados, solicitud 29 y token terminal; el titular confirma el estado real.
 - [x] Preparar y comprobar recuperación operativa local con las firmas registradas: revisión
@@ -100,11 +100,10 @@ Persistió equipo/estado 11 y el segundo poll mostró la confirmación. MDM/OTP 
 con login del asesor aún pendiente por sesión vencida. La evidencia está en
 `artifacts/imei-saga-validation.json`.
 
-El consumidor del saga pasó tres casos en Chromium con estado controlado y Soketi real local.
-Las 21 pruebas del workflow y siete del cliente Soketi pasan; no acreditan servidor Temporal ni
-compilación del servicio entero. `merchant-api` se registra sólo como repo citable, sin afirmar
-actividad productiva. Los mecanismos y límites están en ambos temas de knowledge; casos y
-correcciones de rama permanecen en esta tarea.
+La primera prueba del consumidor usó estado controlado y Soketi real local: tres casos en
+Chromium, 21 tests del workflow y siete de Soketi. El servicio completo y los reportes reales
+se comprobaron después en la integración local descrita abajo. `merchant-api` sigue como repo
+citable, sin afirmar actividad productiva. Mecanismos en knowledge; casos y ramas en esta tarea.
 
 La misma rama agrega `7d592088`: conserva `status_id` del GET de validación y muestra el monto
 como desembolsado sólo cuando el backend confirma 11. Estado pendiente o consulta fallida tienen
@@ -138,10 +137,32 @@ MySQL local también revirtió todos los cambios al fallar después de crear his
 Los avisos y voucher se simularon para contar una llamada por efecto, sin envío externo.
 La revisión valida metadatos, sin certificar archivos remotos. Fallos posteriores al commit
 conservan 11 y no se reparan repitiendo autorización; requieren seguimiento propio. No hay retry
-automático, API nueva ni integración Temporal acreditada. La rama local de recuperación parte
+automático ni API nueva. La integración local con Temporal se describe abajo. La rama local de recuperación parte
 de `96b9b84f` y su parche aplica al checkout principal. Evidencia y límites en
 `artifacts/cosigner-authorization-recovery-validation.json`. Knowledge conserva el mecanismo
 comprobado en `main`, incluida la guarda que ya existía para el histórico.
+
+## Integración local con Temporal
+
+El servicio `merchant-api` de main `25b95b35` compila sus dos binarios tras generar los modelos
+OpenAPI ignorados y obtener su dependencia privada. Servidor Temporal local 1.32.0 con SQLite,
+API y worker en una task queue exclusiva, Soketi y MySQL reales. Backend `82ec2658` y frontend
+`7d592088`, sin cambios nuevos de producto. Los seis paquetes Go dirigidos pasan, incluido bootstrap.
+
+467118 completó el recorrido desde confirmación hasta ambas firmas y estado 11. En Chromium,
+467119 recibió `state.changed` con titular `COMPLETED`, consultó estado y mostró aprobación 11.
+467120 recibió el mismo evento, pero una excepción controlada al reanudar conservó 29: mostró
+«Tu crédito aún no está autorizado». En ambos, el codeudor quedó `SIGNED`, sus workflows terminaron
+y ocho PDF locales contienen las evidencias de ambos roles. Un inicio repetido fuera de turno
+recibió 409 sin impedir la firma; los reportes siguen siendo best-effort.
+
+Los primeros preflights del wrapper usaron actor minúsculo y fallaron antes del OTP del codeudor;
+se corrigieron y retomaron los mismos casos. No se declaran completos esos dos caminadores iniciales.
+Riesgo/identidad preparados, OTP de prueba y mensajería/voucher simulados. No acredita Temporal Cloud,
+entrega externa, API público autenticado ni despliegue. El comando de recuperación conserva su
+validación anterior; este caso pendiente no se reautorizó. Evidencia saneada en
+`artifacts/temporal-signature-integration-validation.json`. Knowledge describe main, incluidos
+arranque separado, marcador y reportes; 13 temas/157 fuentes y retoma sin ausentes ni pendientes.
 
 ## Lo que se evaluó y ya no describe el camino actual
 

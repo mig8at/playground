@@ -1,0 +1,453 @@
+{
+  "date": "2026-10-04",
+  "environment": "local",
+  "refs": {
+    "backend": {
+      "branch": "fix/cosigner-authorization-recovery",
+      "commit": "82ec26586b0757490841a18e413aba54a0ba9553"
+    },
+    "frontend": {
+      "branch": "fix/cosigner-signature-confirmation",
+      "commit": "7d592088d3ea8c007ebc0260f76396df5d2b5b5b"
+    },
+    "merchantApi": {
+      "mainCommit": "25b95b35845c3c47a27db498c2a5c69df4525922",
+      "trackedProductChanges": false
+    }
+  },
+  "runtime": {
+    "temporal": {
+      "cliVersion": "1.9.1",
+      "serverVersion": "1.32.0",
+      "address": "127.0.0.1:7233",
+      "namespace": "default",
+      "taskQueue": "creditop-local-signature-20261004",
+      "storage": "SQLite persistente local"
+    },
+    "merchantApi": "127.0.0.1:8126",
+    "backend": "127.0.0.1:8012",
+    "frontend": "127.0.0.1:5186",
+    "soketi": "127.0.0.1:6001",
+    "scope": "Servidor Temporal, API, worker, MySQL, Soketi, loaders/actions y Chromium reales en local."
+  },
+  "nativeWorkflows": [
+    {
+      "requestId": 467118,
+      "parent": {
+        "workflow": "CreditApplicationWorkflow",
+        "status": "WORKFLOW_EXECUTION_STATUS_COMPLETED",
+        "historyEvents": 153,
+        "startTime": "2026-10-04T19:09:56.252827Z",
+        "closeTime": "2026-10-04T19:10:12.428123Z"
+      },
+      "cosigner": {
+        "workflow": "CreditCosignerWorkflow",
+        "status": "WORKFLOW_EXECUTION_STATUS_COMPLETED",
+        "historyEvents": 47,
+        "startTime": "2026-10-04T19:09:56.353419Z",
+        "closeTime": "2026-10-04T19:10:12.398705Z"
+      },
+      "states": {
+        "HOLDER": {
+          "actor": "HOLDER",
+          "state": "COMPLETED",
+          "seq": 9,
+          "terminal": true
+        },
+        "COSIGNER": {
+          "actor": "COSIGNER",
+          "state": "SIGNED",
+          "seq": 9,
+          "terminal": true
+        }
+      }
+    },
+    {
+      "requestId": 467119,
+      "parent": {
+        "workflow": "CreditApplicationWorkflow",
+        "status": "WORKFLOW_EXECUTION_STATUS_COMPLETED",
+        "historyEvents": 157,
+        "startTime": "2026-10-04T19:13:19.979835Z",
+        "closeTime": "2026-10-04T19:15:37.303419Z"
+      },
+      "cosigner": {
+        "workflow": "CreditCosignerWorkflow",
+        "status": "WORKFLOW_EXECUTION_STATUS_COMPLETED",
+        "historyEvents": 47,
+        "startTime": "2026-10-04T19:13:20.066018Z",
+        "closeTime": "2026-10-04T19:15:37.276249Z"
+      },
+      "states": {
+        "HOLDER": {
+          "actor": "HOLDER",
+          "state": "COMPLETED",
+          "seq": 9,
+          "terminal": true
+        },
+        "COSIGNER": {
+          "actor": "COSIGNER",
+          "state": "SIGNED",
+          "seq": 9,
+          "terminal": true
+        }
+      }
+    },
+    {
+      "requestId": 467120,
+      "parent": {
+        "workflow": "CreditApplicationWorkflow",
+        "status": "WORKFLOW_EXECUTION_STATUS_COMPLETED",
+        "historyEvents": 160,
+        "startTime": "2026-10-04T19:14:36.407566Z",
+        "closeTime": "2026-10-04T19:19:42.110263Z"
+      },
+      "cosigner": {
+        "workflow": "CreditCosignerWorkflow",
+        "status": "WORKFLOW_EXECUTION_STATUS_COMPLETED",
+        "historyEvents": 47,
+        "startTime": "2026-10-04T19:14:56.424378Z",
+        "closeTime": "2026-10-04T19:19:42.084341Z"
+      },
+      "states": {
+        "HOLDER": {
+          "actor": "HOLDER",
+          "state": "COMPLETED",
+          "seq": 9,
+          "terminal": true
+        },
+        "COSIGNER": {
+          "actor": "COSIGNER",
+          "state": "SIGNED",
+          "seq": 9,
+          "terminal": true
+        }
+      }
+    }
+  ],
+  "nativeBackendReports": [
+    {
+      "method": "createCreditApplication",
+      "requestId": 467118,
+      "status": 202,
+      "state": null,
+      "seq": null
+    },
+    {
+      "method": "registerCosigner",
+      "requestId": 467118,
+      "status": 200,
+      "state": "AWAITING_COSIGNER",
+      "seq": 1
+    },
+    {
+      "method": "markCosignerStarted",
+      "requestId": 467118,
+      "status": 200,
+      "state": "VALIDATING",
+      "seq": 3
+    },
+    {
+      "method": "markCosignerValidated",
+      "requestId": 467118,
+      "status": 200,
+      "state": "STANDBY",
+      "seq": 4
+    },
+    {
+      "method": "markHolderSignature",
+      "requestId": 467118,
+      "status": 200,
+      "state": "AWAITING_COSIGNER_SIGNATURE",
+      "seq": 6
+    },
+    {
+      "method": "markCosignerStarted",
+      "requestId": 467118,
+      "status": 409,
+      "state": null,
+      "seq": null
+    },
+    {
+      "method": "markCosignerSignature",
+      "requestId": 467118,
+      "status": 200,
+      "state": "SIGNED",
+      "seq": 8
+    },
+    {
+      "method": "createCreditApplication",
+      "requestId": 467119,
+      "status": 202,
+      "state": null,
+      "seq": null
+    },
+    {
+      "method": "registerCosigner",
+      "requestId": 467119,
+      "status": 200,
+      "state": "AWAITING_COSIGNER",
+      "seq": 1
+    },
+    {
+      "method": "markCosignerStarted",
+      "requestId": 467119,
+      "status": 200,
+      "state": "VALIDATING",
+      "seq": 3
+    },
+    {
+      "method": "markCosignerValidated",
+      "requestId": 467119,
+      "status": 200,
+      "state": "STANDBY",
+      "seq": 4
+    },
+    {
+      "method": "markHolderSignature",
+      "requestId": 467119,
+      "status": 200,
+      "state": "AWAITING_COSIGNER_SIGNATURE",
+      "seq": 6
+    },
+    {
+      "method": "createCreditApplication",
+      "requestId": 467120,
+      "status": 202,
+      "state": null,
+      "seq": null
+    },
+    {
+      "method": "registerCosigner",
+      "requestId": 467120,
+      "status": 200,
+      "state": "AWAITING_COSIGNER",
+      "seq": 1
+    },
+    {
+      "method": "markCosignerStarted",
+      "requestId": 467120,
+      "status": 200,
+      "state": "VALIDATING",
+      "seq": 3
+    },
+    {
+      "method": "markCosignerStarted",
+      "requestId": 467119,
+      "status": 409,
+      "state": null,
+      "seq": null
+    },
+    {
+      "method": "markCosignerValidated",
+      "requestId": 467120,
+      "status": 200,
+      "state": "STANDBY",
+      "seq": 4
+    },
+    {
+      "method": "markCosignerSignature",
+      "requestId": 467119,
+      "status": 200,
+      "state": "SIGNED",
+      "seq": 8
+    },
+    {
+      "method": "markHolderSignature",
+      "requestId": 467120,
+      "status": 200,
+      "state": "AWAITING_COSIGNER_SIGNATURE",
+      "seq": 6
+    },
+    {
+      "method": "markCosignerStarted",
+      "requestId": 467120,
+      "status": 409,
+      "state": null,
+      "seq": null
+    },
+    {
+      "method": "markCosignerSignature",
+      "requestId": 467120,
+      "status": 200,
+      "state": "SIGNED",
+      "seq": 8
+    }
+  ],
+  "browser": [
+    {
+      "id": 467119,
+      "scenario": "authorized",
+      "beforeSaga": "AWAITING_COSIGNER_SIGNATURE",
+      "afterSaga": "COMPLETED",
+      "beforeSeq": 7,
+      "afterSeq": 9,
+      "databaseState": 11,
+      "nativeSocketEvents": [
+        {
+          "actor": "HOLDER",
+          "state": "COMPLETED",
+          "seq": 9,
+          "terminal": true
+        }
+      ],
+      "holderView": "authorized",
+      "temporalReal": true,
+      "soketiReal": true
+    },
+    {
+      "id": 467120,
+      "scenario": "authorization-failed",
+      "beforeSaga": "AWAITING_COSIGNER_SIGNATURE",
+      "afterSaga": "COMPLETED",
+      "beforeSeq": 7,
+      "afterSeq": 9,
+      "databaseState": 29,
+      "nativeSocketEvents": [
+        {
+          "actor": "HOLDER",
+          "state": "COMPLETED",
+          "seq": 9,
+          "terminal": true
+        }
+      ],
+      "holderView": "authorization-pending",
+      "temporalReal": true,
+      "soketiReal": true
+    }
+  ],
+  "documents": [
+    {
+      "requestId": 467119,
+      "type": "lease_agreement",
+      "httpStatus": 200,
+      "pdf": true,
+      "holderSignature": true,
+      "cosignerSignature": true,
+      "finalUrlsMatch": true
+    },
+    {
+      "requestId": 467119,
+      "type": "cosigner_agreement",
+      "httpStatus": 200,
+      "pdf": true,
+      "holderSignature": true,
+      "cosignerSignature": true,
+      "finalUrlsMatch": true
+    },
+    {
+      "requestId": 467119,
+      "type": "promissory_note",
+      "httpStatus": 200,
+      "pdf": true,
+      "holderSignature": true,
+      "cosignerSignature": true,
+      "finalUrlsMatch": true
+    },
+    {
+      "requestId": 467119,
+      "type": "chattel_mortgage",
+      "httpStatus": 200,
+      "pdf": true,
+      "holderSignature": true,
+      "cosignerSignature": true,
+      "finalUrlsMatch": true
+    },
+    {
+      "requestId": 467120,
+      "type": "lease_agreement",
+      "httpStatus": 200,
+      "pdf": true,
+      "holderSignature": true,
+      "cosignerSignature": true,
+      "finalUrlsMatch": true
+    },
+    {
+      "requestId": 467120,
+      "type": "cosigner_agreement",
+      "httpStatus": 200,
+      "pdf": true,
+      "holderSignature": true,
+      "cosignerSignature": true,
+      "finalUrlsMatch": true
+    },
+    {
+      "requestId": 467120,
+      "type": "promissory_note",
+      "httpStatus": 200,
+      "pdf": true,
+      "holderSignature": true,
+      "cosignerSignature": true,
+      "finalUrlsMatch": true
+    },
+    {
+      "requestId": 467120,
+      "type": "chattel_mortgage",
+      "httpStatus": 200,
+      "pdf": true,
+      "holderSignature": true,
+      "cosignerSignature": true,
+      "finalUrlsMatch": true
+    }
+  ],
+  "checks": {
+    "positiveCompleteWalk": {
+      "requestId": 467118,
+      "passed": true,
+      "databaseState": 11,
+      "scope": "Entrada desde confirmación, registro/validación del codeudor, firma del titular y firma propia del codeudor."
+    },
+    "browserPositive": {
+      "requestId": 467119,
+      "passed": true,
+      "databaseState": 11
+    },
+    "browserControlledAuthorizationFailure": {
+      "requestId": 467120,
+      "passed": true,
+      "databaseState": 29,
+      "failure": "Excepción limitada a este id en resumeDeferredAuthorization del router de prueba; la firma y su reporte se conservan."
+    },
+    "invalidOtp": "En ambos tramos de navegador, proveedor estricto rechaza código incorrecto y action conserva otpError:invalid; después acepta el correcto.",
+    "build": {
+      "api": "pass",
+      "worker": "pass",
+      "requiredPreparation": "Modelos OpenAPI generados en archivo ignorado; dependencia privada platform v0.0.18 descargada mediante autenticación existente.",
+      "generatorVersion": "oapi-codegen v2.7.0"
+    },
+    "targetedGoCommand": "go test ./internal/modules/credit/... ./cmd/http-server ./cmd/worker",
+    "passingGoPackages": [
+      "github.com/Creditop-SAS/go-template/internal/modules/credit/core/domain",
+      "github.com/Creditop-SAS/go-template/internal/modules/credit/core/workflows",
+      "github.com/Creditop-SAS/go-template/internal/modules/credit/infra/handlers",
+      "github.com/Creditop-SAS/go-template/internal/modules/credit/infra/notifier/soketi",
+      "github.com/Creditop-SAS/go-template/cmd/http-server",
+      "github.com/Creditop-SAS/go-template/cmd/worker"
+    ],
+    "knowledge": {
+      "topics": 13,
+      "sources": 157,
+      "allUnchanged": true,
+      "retomaTopics": [
+        "cosigner-signature",
+        "device-imei-validation"
+      ],
+      "missing": [],
+      "pending": []
+    }
+  },
+  "finding": "Los dos casos de navegador reciben por Soketi state.changed/HOLDER/COMPLETED seq 9 y GET confirma el mismo snapshot. La interfaz consulta MySQL a través del backend: aprueba sólo 11; conserva pendiente en 29 aun con codeudor SIGNED.",
+  "fixtureCorrections": [
+    "El primer arranque del router omitía Request::capture antes del bootstrap de Laravel; falló antes de crear solicitud. Se corrigió el router temporal.",
+    "El primer preflight del wrapper de navegador usó actor=holder y recibió 400; el contrato exige HOLDER. Se corrigió y retomaron las solicitudes 467119/467120, antes de su primer OTP de firma del codeudor. Los caminadores iniciales de esos dos casos no se declaran completos."
+  ],
+  "limits": [
+    "Identidad y riesgo preparados para usuarios sintéticos; proveedor OTP simulado. Avisos, mensajería y voucher sustituidos por dobles; sin entrega ni desembolso externo.",
+    "PDF Blade/dompdf y archivos locales reales; las dos evidencias se contrastaron en ocho PDF de 467119/467120.",
+    "No acredita Temporal Cloud, disponibilidad de producción, autenticación del API ni integración desplegada. API y UI Temporal enlazados sólo a loopback.",
+    "Inicio repetido al resolver la invitación durante espera de firma recibió 409. Es best-effort y no cambió la firma; no demuestra aceptación idempotente en todos los estados.",
+    "Sin cambios nuevos de producto, push, PR, Jira o Canon. Las correcciones backend/frontend siguen en ramas locales.",
+    "SQLite persistente utilizada; no se ensayó reinicio del servidor ni recuperación ante caída de Temporal.",
+    "La recuperación operativa con comando y efectos posteriores conserva su validación previa; esta corrida no reautoriza el caso 467120 ni acredita un retry automático."
+  ]
+}
