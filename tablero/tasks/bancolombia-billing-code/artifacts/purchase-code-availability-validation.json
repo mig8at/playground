@@ -1,0 +1,275 @@
+{
+  "reviewedAt": "2026-10-04T20:15:18.057521+00:00",
+  "task": 15,
+  "repo": "frontend-monorepo",
+  "baseCommit": "68ce7349c4e2a52c83fe4ee174a23ac71fe667cc",
+  "branch": "fix/bancolombia-purchase-code-availability",
+  "commit": "319f9a6f05a7d90af050665e667f24011ae1532f",
+  "change": "Código, imagen, instrucciones de caja y contador sólo se presentan cuando showBarCode es true e isExpired es false. Conserva las vistas existentes de PIN no encontrado y tiempo caducado.",
+  "consumers": [
+    "Wizard /bancolombia/bnpl/purchase-code/:encrypt_code",
+    "Wizard /bancolombia/consumo/purchase-code/:encrypt_code",
+    "Storybook: recorridos BNPL, consumo y purchase-code; agrega Unavailable."
+  ],
+  "checks": {
+    "regression": {
+      "before": {
+        "passed": 8,
+        "failed": 2,
+        "failure": "PIN no disponible con contador vigente en BNPL y consumo"
+      },
+      "after": {
+        "passed": 10,
+        "failed": 0
+      },
+      "limits": "React SSR con wrappers UI, ilustraciones y LoanHeader/SupportContact sustituidos; FinalizePurchase y sus vistas son reales."
+    },
+    "browser": {
+      "checks": [
+        {
+          "flow": "bnpl",
+          "kind": "available",
+          "status": 200,
+          "codeVisible": true,
+          "imageVisible": true,
+          "clientErrors": [],
+          "unexpectedClientErrors": [],
+          "blockedExternalOrigins": [
+            "https://unpkg.com"
+          ],
+          "expiryClock": null
+        },
+        {
+          "flow": "bnpl",
+          "kind": "unavailable",
+          "status": 200,
+          "codeVisible": false,
+          "imageVisible": false,
+          "clientErrors": [],
+          "unexpectedClientErrors": [],
+          "blockedExternalOrigins": [
+            "https://unpkg.com"
+          ],
+          "expiryClock": null
+        },
+        {
+          "flow": "bnpl",
+          "kind": "expired",
+          "status": 200,
+          "codeVisible": false,
+          "imageVisible": false,
+          "clientErrors": [],
+          "unexpectedClientErrors": [],
+          "blockedExternalOrigins": [
+            "https://unpkg.com"
+          ],
+          "expiryClock": "2099-01-01T00:00:00Z"
+        },
+        {
+          "flow": "bnpl",
+          "kind": "error",
+          "status": 200,
+          "codeVisible": false,
+          "imageVisible": false,
+          "clientErrors": [
+            "PCS000"
+          ],
+          "unexpectedClientErrors": [],
+          "blockedExternalOrigins": [
+            "https://unpkg.com"
+          ],
+          "expiryClock": null
+        },
+        {
+          "flow": "consumo",
+          "kind": "available",
+          "status": 200,
+          "codeVisible": true,
+          "imageVisible": true,
+          "clientErrors": [],
+          "unexpectedClientErrors": [],
+          "blockedExternalOrigins": [
+            "https://unpkg.com"
+          ],
+          "expiryClock": null
+        },
+        {
+          "flow": "consumo",
+          "kind": "unavailable",
+          "status": 200,
+          "codeVisible": false,
+          "imageVisible": false,
+          "clientErrors": [],
+          "unexpectedClientErrors": [],
+          "blockedExternalOrigins": [
+            "https://unpkg.com"
+          ],
+          "expiryClock": null
+        },
+        {
+          "flow": "consumo",
+          "kind": "expired",
+          "status": 200,
+          "codeVisible": false,
+          "imageVisible": false,
+          "clientErrors": [],
+          "unexpectedClientErrors": [],
+          "blockedExternalOrigins": [
+            "https://unpkg.com"
+          ],
+          "expiryClock": "2099-01-01T00:00:00Z"
+        },
+        {
+          "flow": "consumo",
+          "kind": "error",
+          "status": 200,
+          "codeVisible": false,
+          "imageVisible": false,
+          "clientErrors": [
+            "PCS000"
+          ],
+          "unexpectedClientErrors": [],
+          "blockedExternalOrigins": [
+            "https://unpkg.com"
+          ],
+          "expiryClock": null
+        }
+      ],
+      "requests": [
+        {
+          "method": "POST",
+          "path": "/api/onboarding/purchase-code/generate/910001"
+        },
+        {
+          "method": "GET",
+          "path": "/app/local-fixture"
+        },
+        {
+          "method": "POST",
+          "path": "/api/onboarding/purchase-code/generate/910002"
+        },
+        {
+          "method": "GET",
+          "path": "/app/local-fixture"
+        },
+        {
+          "method": "POST",
+          "path": "/api/onboarding/purchase-code/generate/910001"
+        },
+        {
+          "method": "GET",
+          "path": "/app/local-fixture"
+        },
+        {
+          "method": "POST",
+          "path": "/api/onboarding/purchase-code/generate/910003"
+        },
+        {
+          "method": "GET",
+          "path": "/app/local-fixture"
+        },
+        {
+          "method": "POST",
+          "path": "/api/onboarding/purchase-code/generate/910001"
+        },
+        {
+          "method": "GET",
+          "path": "/app/local-fixture"
+        },
+        {
+          "method": "POST",
+          "path": "/api/onboarding/purchase-code/generate/910002"
+        },
+        {
+          "method": "GET",
+          "path": "/app/local-fixture"
+        },
+        {
+          "method": "POST",
+          "path": "/api/onboarding/purchase-code/generate/910001"
+        },
+        {
+          "method": "GET",
+          "path": "/app/local-fixture"
+        },
+        {
+          "method": "POST",
+          "path": "/api/onboarding/purchase-code/generate/910003"
+        },
+        {
+          "method": "GET",
+          "path": "/app/local-fixture"
+        }
+      ],
+      "limits": [
+        "Wizard y ruta reales con API HTTP local controlado; no acredita Corbeta, banco, SMS, base ni TTL del proveedor.",
+        "Vencimiento inducido al adelantar Date.now del navegador; deadline original calculado por el loader real.",
+        "Solicitudes externas del navegador bloqueadas; el inicio de autenticación consulta /app/local-fixture en el mismo mock local y recibe 404.",
+        "La respuesta 500 induce PCS000 en la promesa diferida: el navegador registra ese error esperado y muestra el errorElement real."
+      ]
+    },
+    "biomeChangedFiles": "Sin diagnósticos; hook de commit también pasó.",
+    "lint": {
+      "passed": true,
+      "tasks": 26,
+      "warnings": "Deuda previa del repositorio; los archivos cambiados cumplen Biome."
+    },
+    "typecheck": {
+      "passed": false,
+      "sameCheckoutMainErrors": 220,
+      "branchErrors": 220,
+      "addedDiagnostics": [],
+      "removedDiagnostics": [],
+      "primaryMainErrors": 218,
+      "environmentDifference": "Dos diagnósticos adicionales del checkout nuevo aparecen también al restaurar los mismos archivos de origin/main en ese checkout."
+    },
+    "design": {
+      "passed": false,
+      "mainWarnings": 143,
+      "mainErrors": 2,
+      "branchWarnings": 143,
+      "branchErrors": 2,
+      "addedDiagnostics": []
+    }
+  },
+  "delivery": {
+    "measuredAt": "2026-10-04T15:13:47-05:00",
+    "localBranch": true,
+    "environments": {
+      "develop": false,
+      "main": false,
+      "qa": false,
+      "staging": false
+    },
+    "pullRequest": null,
+    "published": false
+  },
+  "knowledge": {
+    "topic": "purchase-code-lifecycle",
+    "basis": "main",
+    "branchResultsStoredIn": "task 15 and its artifacts; technical knowledge unchanged until integration"
+  },
+  "pending": [
+    "Integrar y verificar la corrección en el ambiente elegido.",
+    "Contrastar TTL real del proveedor, el próximo corte y el texto de vencimiento.",
+    "Comprobar contrato bancario: equivalencia con PIN de Corbeta y creación de orden antes de conmutar emisor."
+  ],
+  "reproduction": {
+    "dependencies": "Checkout frontend con dependencias del wizard y checkout playground con Playwright instalado en harness. No instala paquetes ni usa credenciales reales.",
+    "startup": [
+      "FRONTEND_REPO=\"$FRONTEND_REPO\" node tablero/tasks/bancolombia-billing-code/artifacts/start-purchase-code-wizard.mjs",
+      "node tablero/tasks/bancolombia-billing-code/artifacts/mock-purchase-code-api.mjs"
+    ],
+    "browser": "HARNESS_REPO=\"$HARNESS_REPO\" VALIDATION_OUTPUT_DIR=\"$VALIDATION_OUTPUT_DIR\" node tablero/tasks/bancolombia-billing-code/artifacts/validate-purchase-code-browser.mjs",
+    "regression": "pnpm --filter loan-request-wizard exec vitest run ../../modules/loan-request-wizard/bancolombia-origination/src/ui/components/origination/shared/finalize-purchase/FinalizePurchase.test.tsx",
+    "cleanup": "Cerrar ambos procesos con SIGINT. Sólo escuchan en 127.0.0.1:5187 y 127.0.0.1:8127."
+  },
+  "limits": [
+    "Wizard y ruta reales con API HTTP local controlado; no acredita Corbeta, banco, SMS, base ni TTL del proveedor.",
+    "Vencimiento inducido al adelantar Date.now del navegador; deadline original calculado por el loader real.",
+    "Solicitudes externas del navegador bloqueadas; el inicio de autenticación consulta /app/local-fixture en el mismo mock local y recibe 404.",
+    "La respuesta 500 induce PCS000 en la promesa diferida: el navegador registra ese error esperado y muestra el errorElement real.",
+    "La bandera false oculta el PIN en la interfaz; el payload sigue siendo recibido por el cliente. No pretende revocar ni invalidar el PIN en backend.",
+    "No cambia la nulabilidad del esquema, el deadline, el corte ni la emisión/conciliación. No verifica vigencia del proveedor."
+  ]
+}

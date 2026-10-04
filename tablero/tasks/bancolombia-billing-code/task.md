@@ -1,7 +1,7 @@
 ---
 id: 15
 title: "Bancolombia · el código de compra lo emite el banco (reemplazo de la API Fondos de Corbeta)"
-ramas: bancolombia-billing-code
+ramas: bancolombia-billing-code, fix/bancolombia-purchase-code-availability
 stage: work
 created: "2026-07-31T17:13:02-05:00"
 knowledge: [purchase-code-lifecycle]
@@ -20,9 +20,12 @@ jira_title: ""
   Depende de: banco — definición del contrato y prueba de una misma compra.
 - [ ] Conseguir un ambiente del proveedor que permita medir emisión y conciliación con datos reales.
   Depende de: banco — acceso operativo; el resultado histórico de sandbox no acredita esa integración.
-- [ ] Contrastar disponibilidad del PIN en el wizard: con `showBarCode:false` y contador vigente,
-  main aún muestra éxito y el código. Termina cuando la disponibilidad gobierna la presentación,
-  incluidos consulta fallida y contador vencido; observación actual, sin corrección preparada.
+- [x] Corregir y comprobar localmente la disponibilidad del PIN en BNPL y consumo: el código,
+  la imagen y el mensaje de éxito requieren `showBarCode:true` y contador vigente. Diez regresiones
+  de componente y ocho casos en el wizard real con API controlado, incluidos error y vencimiento.
+- [ ] Integrar la corrección de disponibilidad y comprobarla en el ambiente elegido; rama local
+  `fix/bancolombia-purchase-code-availability`. Main aún muestra el PIN no disponible antes del corte;
+  esta validación no acredita al emisor bancario ni la vigencia efectiva del proveedor.
 - [ ] Verificar vigencia efectiva del proveedor y texto/contador al consultar después del corte.
   El reloj actual calcula el próximo corte a las 20:30 de Bogotá, sin fecha de emisión del PIN.
 - [ ] Integrar y comprobar el emisor elegido con los consumidores de factura y confirmación bancaria,
