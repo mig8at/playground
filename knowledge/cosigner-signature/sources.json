@@ -1,8 +1,8 @@
 {
   "version": 1,
   "title": "Firma y cierre del codeudor",
-  "summary": "Firma del codeudor, autorización y documentos; entrada por política, saga y confirmación del estado persistido.",
-  "reviewedAt": "2026-10-04T00:01:54+00:00",
+  "summary": "Firma del codeudor, autorización y documentos; política de entrada, saga, confirmación persistida y límites de recuperación.",
+  "reviewedAt": "2026-10-04T00:47:05+00:00",
   "sources": [
     {
       "repo": "legacy-backend",
@@ -353,6 +353,33 @@
       "blob": "ae62ee0211ffe9786e29ba355b959ce6cc685587",
       "sections": [
         "confirmacion-del-titular-y-estado-persistido"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/Loans/App/Services/LoanAuthorizationService.php",
+      "commit": "63123374a5d0875c908a83e3145f334b2ff913ee",
+      "blob": "4fb932391068d222712731b748c0a99c5942562c",
+      "sections": [
+        "reanudar-autorizacion-y-efectos-posteriores"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/Loans/App/Services/CreditopXRequestHistoryService.php",
+      "commit": "63123374a5d0875c908a83e3145f334b2ff913ee",
+      "blob": "8167ba51bf251960c0fb4ca762868427612ce002",
+      "sections": [
+        "reanudar-autorizacion-y-efectos-posteriores"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/Loans/App/Repositories/CreditopXRequestHistoryRepository.php",
+      "commit": "63123374a5d0875c908a83e3145f334b2ff913ee",
+      "blob": "8d98b9dcf3ac7cb152f5ffb3eefeeb48f9a81f43",
+      "sections": [
+        "reanudar-autorizacion-y-efectos-posteriores"
       ]
     }
   ]
