@@ -167,8 +167,8 @@ async function visibleError(page: Page): Promise<string> {
 const IN_TRANSIT = /^\/(auth\/callback|merchant)\/?$/;
 
 /**
- * ¿El login es el CLÁSICO de una sola página? Merchants Dev (dominio sin Managed Login) muestra usuario,
- * contraseña y «Sign in» juntos; el Managed Login de `login.creditop.com` y `auth.merchant` pide el usuario,
+ * ¿El login es de UNA sola página? La pantalla clásica de Merchants Dev y su Managed Login v2 con marca muestran usuario,
+ * contraseña y el botón juntos; el Managed Login de `login.creditop.com` y `auth.merchant` pide el usuario,
  * «Siguiente», y recién ahí la contraseña (lo que sabe hacer `cognitoLogin`).
  *
  * ⚠ El clásico trae el formulario DUPLICADO en el HTML (uno para escritorio y otro oculto), así que
@@ -180,14 +180,19 @@ async function isClassicLogin(page: Page): Promise<boolean> {
     return (await page.locator('input[name=password]:visible').count()) > 0;
 }
 
-/** Llena un campo del login clásico y verifica que el valor quedó, sin imprimirlo. */
+/**
+ * Llena un campo del login de UNA página y verifica que el valor quedó, sin imprimirlo. Se TECLEA (no `fill`): la pantalla de Managed
+ * Login es de React y sus inputs son controlados, así que un `fill` puede dejar el DOM con el valor y el estado de React vacío, y el
+ * formulario se envía sin él. La clásica de Merchants Dev lo acepta igual.
+ */
 async function fillChecked(page: Page, selector: string, value: string): Promise<void> {
     const field = page.locator(`${selector}:visible`).first();
     await field.click();
-    await field.fill(value);
+    await field.fill('');
+    await field.pressSequentially(value, { delay: 40 });
     if ((await field.inputValue()) !== value) {
         await field.fill('');
-        await field.pressSequentially(value, { delay: 60 });
+        await field.pressSequentially(value, { delay: 90 });
     }
     if ((await field.inputValue()) !== value) throw new Error(`el campo ${selector} no recibió el valor`);
 }
@@ -196,7 +201,9 @@ async function fillChecked(page: Page, selector: string, value: string): Promise
 async function signInClassic(page: Page, user: string, pass: string, returnHost: string): Promise<void> {
     await fillChecked(page, 'input[name=username]', user);
     await fillChecked(page, 'input[name=password]', pass);
-    await page.locator('input[name=signInSubmitButton]:visible, button[name=signInSubmitButton]:visible').first().click();
+    // La pantalla clásica llama al botón `signInSubmitButton`; Managed Login v2 (la de prod y la de Merchants Dev con marca) sólo trae un
+    // `button[type=submit]`. Medido el 2026-10-05 sobre la pantalla con marca: un solo botón de envío visible.
+    await page.locator('input[name=signInSubmitButton]:visible, button[name=signInSubmitButton]:visible, button[type=submit]:visible').first().click();
     // Comparar el HOST de la URL, no un substring: el login lleva el host de la app dentro del query (F-66).
     const onApp = (url: URL) => url.host === returnHost;
     await page.waitForURL(onApp, { timeout: 30_000 });
