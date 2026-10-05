@@ -32,10 +32,8 @@ jira_title: "Sucursal y asesor de prueba al crear un comercio"
 - [ ] Avisar a infra de que los secrets de los wizards de dev y qa se editaron a mano y llevan la etiqueta de Terraform; termina
   cuando infra confirma que un apply no los pisa o los deja en su código.
   Depende de: Daniel Sánchez (infra).
-- [ ] Comprobar el login con clave contra la pantalla nueva de Merchants Dev (ya con la marca de prod, 2026-10-05); termina cuando
-  el asesor de prueba entra al wizard de qa y de dev con la herramienta de login. Hay script con vista previa y vuelta atrás
-  si algo falla.
-  Depende de: Miguel — correr el login (teclea la clave).
+- [x] Comprobar el login con clave contra la pantalla nueva de Merchants Dev (2026-10-05): el asesor de prueba entra al wizard de qa
+  con la marca de prod y llega a su sucursal. Falta repetirlo en dev, que usa la misma pantalla (`./login-test.sh dev`).
 - [ ] Dar a QA sus propios asesores de prueba: sus cuentas de siempre (del pool de producción) ya no entran a qa ni a dev; termina
   cuando cada quien que prueba en qa tiene uno creado desde el admin.
 - [ ] Reubicar los asesores que ya entran a qa y staging: su `cognito_id` es del pool actual y dejarán de
