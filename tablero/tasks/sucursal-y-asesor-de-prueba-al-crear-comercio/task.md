@@ -24,13 +24,16 @@ jira_title: "Sucursal y asesor de prueba al crear un comercio"
   quedó con las dos entradas del stack y Cognito sigue invocando al lambda.
 - [x] Ensayar el cambio y la vuelta en el wizard desplegado de dev (hecho el 2026-10-02): el asesor de prueba entra y la
   vuelta deja el secret en su versión anterior, con el servicio estable.
-- [ ] Extender a qa y staging lo ya probado en dev con el front local (2026-10-02, cliente `wizard-local`):
-  un cliente nuevo en el pool para el wizard (código de autorización, secreto, scopes `openid phone email`,
-  retorno y salida de cada front), esas tres variables más la de retorno en cada wizard, y
-  `MERCHANT_AWS_COGNITO_*` en el admin de qa y staging; termina cuando `make harness-login-check
-  TARGETS=dev,qa,staging ALLIED=<id>` da «entró» en los tres.
-  Depende de: Daniel Sánchez (infra) — crear el cliente y cargar las variables; verificar si el gateway
-  que valida el token acepta ese pool.
+- [x] Pasar qa y el wizard desplegado de dev a Merchants Dev y dejarlos así (2026-10-05, decisión de Miguel tras la prueba con
+  Duncan en qa): el login de los dos ya no es el del pool de producción.
+- [ ] Decidir si staging también pasa a Merchants Dev; termina cuando hay respuesta y, si es que sí, el cambio hecho con los mismos
+  scripts (hace falta su `config.env`, copia del de qa).
+  Depende de: Miguel — la pregunta que está haciendo.
+- [ ] Avisar a infra de que los secrets de los wizards de dev y qa se editaron a mano y llevan la etiqueta de Terraform; termina
+  cuando infra confirma que un apply no los pisa o los deja en su código.
+  Depende de: Daniel Sánchez (infra).
+- [ ] Dar a QA sus propios asesores de prueba: sus cuentas de siempre (del pool de producción) ya no entran a qa ni a dev; termina
+  cuando cada quien que prueba en qa tiene uno creado desde el admin.
 - [ ] Reubicar los asesores que ya entran a qa y staging: su `cognito_id` es del pool actual y dejarán de
   entrar al cambiar; termina cuando cada uno existe en Merchants Dev con su `sub` en la base.
 - [x] Confirmar a qué pool apuntan dev, qa y staging (2026-10-02): al de PRODUCCIÓN. El id `us-east-1_XnF2zz3Ou` es el
