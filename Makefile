@@ -492,8 +492,8 @@ harness-suite-countries: ## @har ¿el cliente nace con el país de su comercio, 
 harness-ecommerce: ## @har EL CANAL ECOMMERCE de punta a punta: ¿el carrito de la tienda entra, el comercio queda atado al crédito y sus datos llegan al formulario? [SUITE=suites/ecommerce.json] [MERCHANT=amoblar] [TEL=<uno de qa_otp_bypass_phones> — obligatorio contra un ambiente desplegado: el OTP sólo es predecible para los teléfonos de esa lista]
 	@cd harness && node dev/ecommerce.ts $(if $(SUITE),--suite '$(patsubst harness/%,%,$(SUITE))',--suite suites/ecommerce.json) $(if $(MERCHANT),--merchant $(MERCHANT)) $(if $(TEL),--tel $(TEL))
 
-harness-environment: ## @har ¿la config de un target es coherente, y nadie resuelve el ambiente por fuera de la cadena? TARGET=qa [JSON=1]
-	@cd harness && node bin/preflight.ts $(if $(TARGET),$(TARGET)) $(if $(JSON),--json)
+harness-environment: ## @har ¿la config del target es coherente? [TARGET=qa] [JSON=1] [LIVE=1 consulta API, wizard, MySQL y puertos de mocks; sólo lectura] [MOCKS=bureaus,pdf-mapper exige esos mocks, sólo local] [TIMEOUT_MS=5000 por sonda; máximo 60000]
+	@cd harness && node bin/preflight.ts $(if $(TARGET),$(TARGET)) $(if $(JSON),--json) $(if $(LIVE),--live) $(if $(MOCKS),--mocks '$(MOCKS)') $(if $(TIMEOUT_MS),--timeout-ms '$(TIMEOUT_MS)')
 
 harness-restore: ## @har ¿la base de dev/QA sigue teniendo lo que NUESTRAS TAREAS necesitan (ecommerce, Alta, códigos)? solo lectura. SNAPSHOT=1 la guarda en harness/.runs/ ANTES de una restauración · COMPARE=.runs/qa-restore-….json dice qué se PERDIÓ después
 	@cd harness && node dev/restore-check.ts $(if $(SNAPSHOT),--snapshot) $(if $(COMPARE),--compare $(COMPARE)) $(if $(TARGET),--target $(TARGET))

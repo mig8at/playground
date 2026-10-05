@@ -4,7 +4,7 @@
 // Se prueba, sobre todo, lo que el 2026-10-02 falló en la primera corrida real: una credencial de un archivo
 // viejo se usó SOLA para entrar a dev, y era la de otra persona.
 import { expect, test } from '@playwright/test';
-import { credentialsFor, parseEnvText, resolveKey, type EnvSources } from './connector-env.ts';
+import { credentialsFor, legacyCredentialHint, parseEnvText, resolveKey, type EnvSources } from './connector-env.ts';
 import { cookieHeaderFor, sessionFile, type StoredCookie } from './sessions.ts';
 
 const src = (over: Partial<EnvSources> = {}): EnvSources => ({ proc: {}, target: {}, shared: {}, ...over });
@@ -45,6 +45,12 @@ test.describe('las credenciales de login', () => {
       // 🔴 EL CASO DEL 2026-10-02. En esta máquina `harness/.admin.json` guarda la cuenta de Duncan. Con fuentes vacías,
       // `credentialsFor` NO puede devolver nada: lo viejo se avisa, no se usa. Si este test falla, un `signin` vuelve a
       // poder entrar a un ambiente compartido con una identidad que nadie eligió.
+      test('las variables viejas sólo producen un aviso sin contraseña, nunca una credencial de login', () => {
+            const sources = src({ proc: { E2E_COGNITO_USER: 'old@example.test', E2E_COGNITO_PASS: 'old-secret' } });
+            expect(legacyCredentialHint('advisor', 'qa', sources)).toEqual({ user: 'old@example.test', source: 'variables E2E_COGNITO_*' });
+            expect(credentialsFor('advisor', 'qa', sources)).toBeNull();
+      });
+
       test('una credencial de un archivo viejo NO se devuelve para entrar', () => {
             expect(credentialsFor('admin', 'dev', src())).toBeNull();
             expect(credentialsFor('advisor', 'qa', src())).toBeNull();

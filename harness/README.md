@@ -43,6 +43,32 @@ El panel es un `node panel/server.ts` sin dependencias. Elegís comercio → def
 sucursal → "Preparar + Lanzar ▶". Por debajo shellea `bin/dbops.ts` y `bin/advisor`, y te muestra la
 consola de la corrida en vivo.
 
+### Diagnóstico antes de una corrida
+
+```bash
+make harness-environment TARGET=local LIVE=1
+make harness-environment TARGET=local LIVE=1 MOCKS=bureaus,pdf-mapper JSON=1
+```
+
+Sin `LIVE=1`, conserva el chequeo estático de configuración. Con él añade sondas de **sólo lectura**:
+el ping real de la API (`GET /api/`, `ping=Pong!`), una petición al wizard sin seguir redirecciones,
+y conexión/autenticación de MySQL con `SELECT 1`. No crea clientes, inicia sesiones ni reinicia procesos.
+Consulta los servicios en paralelo, con cinco segundos de espera por sonda
+(`TIMEOUT_MS=10000` para ampliar la espera; máximo 60000).
+
+En local también consulta los puertos del registro de mocks que comparte con el panel.
+Los mocks son **opcionales** salvo los ids declarados en `MOCKS=`: exige los que use tu caso.
+Un puerto accesible sólo demuestra que hay un proceso escuchando; no valida su contrato.
+La respuesta del wizard tampoco comprueba sus rutas, login ni configuración:
+para eso está `make harness-wizard TARGET=local CHECK=1`.
+
+El diagnóstico distingue una conexión rechazada, una espera agotada, un HTTP de error y un 200
+que no identifica al backend. Cada fallo lleva el comando o la configuración que revisar.
+`TARGET=local` rechaza URLs/hosts remotos antes de consultarlos.
+Devuelve **0** cuando la configuración y las sondas requeridas pasan, **1** si hay fallos y **2** si los argumentos son inválidos.
+`JSON=1` añade `health.checks` con estado, motivo, duración y recomendación.
+Esto comprueba el entorno; el desenlace del crédito sigue comprobándose con una corrida.
+
 ### Preparar y observar una corrida en el panel
 
 La configuración se agrupa en **Dónde**, **Qué recorrido** y **Con qué persona**. La barra de
@@ -347,10 +373,10 @@ GRAFANA_TEMPO_ENDPOINT=http://host.docker.internal:4318/v1/traces
 | [`lender/README.md`](lender/README.md) | ⚠ **stale**: dice "vacío por ahora", pero el eje ya tiene `close.ts` + 3 specs |
 | [`mock-forms/schemas/README.md`](mock-forms/schemas/README.md) | cómo bajar el schema REAL de un comercio del flujo dinámico (con VPN) para que `mock-forms` lo sirva en vez del genérico |
 
-**Contexto de negocio** (qué es CreditOp, `response_type`, estados, entidades): el árbol de contexto en
-**canon** (`github/playground/tools/canon`) — empezá preguntándole (`go run . -pregunta '…'`) y el tema
-`harness` (este `CLAUDE.md`). `tablero/data/traps/doc.md` es la **bitácora de muros
-locales**: buscá tu síntoma en su índice antes de depurar algo que huele a "ya nos pasó".
+**Contexto técnico** (`response_type`, estados, entidades): `knowledge/` y el código de `main`.
+Canon es una consulta opcional de negocio o producto cuando falta algo que no se puede comprobar
+en local; no es requisito para preparar ni correr el harness.
+`tablero/data/traps/doc.md` reúne los muros conocidos: buscá tu síntoma antes de depurarlo.
 
 > ⚠ Varios docs de esta carpeta (`VALIDATION.md`, `PLAN-PRUEBAS.md`, `lender/README.md`) y algunos
 > comentarios de specs todavía enlazan `../docs/*.md`. **Esa carpeta fue borrada** de `main` (absorbida por

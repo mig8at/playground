@@ -2,7 +2,7 @@
 // preflight — ¿la configuración de ESTE target es coherente? Resuelve cada valor que depende del
 // ambiente por la cadena real y marca el que apunte a localhost cuando el target NO es local.
 //
-//   node bin/preflight.ts [<target>] [--json]
+//   node bin/preflight.ts [<target>] [--json] [--live] [--mocks bureaus,pdf-mapper]
 //
 // POR QUÉ EXISTE. Tres bugs de la misma semana fueron el MISMO bug —un valor dependiente del ambiente
 // resuelto por fuera de la cadena, fallando en silencio—:
@@ -16,6 +16,7 @@
 import { readdirSync, readFileSync, statSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { parseArgs } from 'node:util';
 
 const JSON_OUT = process.argv.includes('--json');
 
@@ -35,7 +36,29 @@ const JSON_OUT = process.argv.includes('--json');
 // la primera versión del spec chequeó un target llamado «test» y encima el `process.exit` del final
 // habría matado la corrida. Un módulo que se puede importar no puede tener el CLI en el cuerpo.
 const isCLI = process.argv[1] ? fileURLToPath(import.meta.url) === resolve(process.argv[1]) : false;
-const order = isCLI ? process.argv.slice(2).find((a) => !a.startsWith('-')) : undefined;
+function cliError(message: string): never {
+    if (JSON_OUT) console.log(JSON.stringify({ ok: false, error: message }));
+    else console.error(`✗ ${message}`);
+    process.exit(2);
+}
+
+function parseCLI() {
+    try {
+        return parseArgs({ allowPositionals: true, options: {
+            json: { type: 'boolean' }, live: { type: 'boolean' }, mocks: { type: 'string' },
+            'timeout-ms': { type: 'string' },
+        } });
+    } catch (error) {
+        return cliError((error as Error).message);
+    }
+}
+
+const args = isCLI ? parseCLI() : { values: {}, positionals: [] };
+const order = args.positionals[0];
+if (isCLI && args.positionals.length > 1) cliError('uso: preflight.ts [target] [--live] [--mocks id,id] [--json]');
+if (isCLI && args.values.mocks && !args.values.live) cliError('--mocks necesita --live');
+const timeoutMs = Number(args.values['timeout-ms'] ?? 5000);
+if (!Number.isInteger(timeoutMs) || timeoutMs < 1 || timeoutMs > 60000) cliError('--timeout-ms necesita un entero entre 1 y 60000');
 if (order) process.env.E2E_TARGET = order.toLowerCase();
 
 const { TARGET, env, INHERITS } = await import('../pkg/env.ts');
@@ -168,9 +191,23 @@ export function outsideChain(): Array<{ archivo: string; linea: number; clave: s
 const outside = outsideChain();
 
 if (isCLI) {
+    let health: Awaited<ReturnType<typeof import('../pkg/environment-health.ts').environmentHealth>> | undefined;
+    if (args.values.live) {
+        const { environmentHealth } = await import('../pkg/environment-health.ts');
+        try {
+            health = await environmentHealth({ target: TARGET, backend: config.mockUrl, wizard: config.feBaseUrl,
+                database: { host: env('E2E_DB_HOST', '127.0.0.1'), port: Number(env('E2E_DB_PORT', '3306')),
+                    user: env('E2E_DB_USER', 'root'), password: env('E2E_DB_PASS'), database: env('E2E_DB_NAME') },
+                requiredMocks: args.values.mocks?.split(',').map((id) => id.trim()).filter(Boolean), timeoutMs,
+            });
+        } catch (error) {
+            cliError((error as Error).message);
+        }
+    }
+    const ok = badList.length === 0 && outside.length === 0 && (!health || health.ok);
     if (JSON_OUT) {
-        console.log(JSON.stringify({ target: TARGET, hereda: INHERITS || null, ok: badList.length === 0 && outside.length === 0, chequeos: checkList, informativo: informative, fueraDeLaCadena: outside }));
-        process.exit(badList.length || outside.length ? 1 : 0);
+        console.log(JSON.stringify({ target: TARGET, hereda: INHERITS || null, ok, chequeos: checkList, informativo: informative, fueraDeLaCadena: outside, ...(health ? { health } : {}) }));
+        process.exit(ok ? 0 : 1);
     }
 
     console.log(`\n▶ PREFLIGHT · target ${TARGET}${INHERITS ? ` (hereda de ${INHERITS})` : ''}`);
@@ -195,6 +232,15 @@ if (isCLI) {
         console.log(`    lejos del origen (un 500 en /lenders, un mapa vacío). Revisá harness/.env.${TARGET}`);
         console.log(`    antes de correr.\n`);
     }
-    if (badList.length || outside.length) process.exit(1);
+    if (health) {
+        console.log('\n▶ SERVICIOS · sólo lectura; no inicia ni reinicia procesos');
+        for (const c of health.checks) {
+            const mark = c.state === 'ok' ? '✓' : c.required ? '✗' : '·';
+            console.log(`  ${mark} ${c.id.padEnd(22)} ${c.endpoint} · ${c.detail}${c.required ? '' : ' (opcional)'}`);
+            if (c.state !== 'ok') console.log(`      ${c.fix}`);
+        }
+        console.log('  Un diagnóstico correcto no demuestra que el flujo cierre. Para config/login del wizard: harness-wizard CHECK=1.');
+    }
+    if (!ok) process.exit(1);
     console.log(`\n  ✓ configuración coherente para '${TARGET}', y nadie resuelve el ambiente por fuera de la cadena\n`);
 }

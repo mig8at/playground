@@ -90,11 +90,11 @@ const KEYS: Record<CredentialKind, { user: string; pass: string }> = {
 export const credentialKeys = (kind: CredentialKind) => KEYS[kind];
 
 /** Las credenciales viejas: archivos del harness y variables `E2E_*`. Se siguen leyendo, avisando, mientras se mudan. */
-function legacyCredentials(kind: CredentialKind, target: string): Credentials | null {
+function legacyCredentials(kind: CredentialKind, target: string, sources: EnvSources): Credentials | null {
     const T = target.toUpperCase();
     const pick = (user?: string, pass?: string, source = ''): Credentials | null => (user && pass ? { user, pass, source, legacy: true } : null);
     if (kind === 'admin') {
-        const byEnv = pick(process.env[`E2E_ADMIN_USER_${T}`] || process.env.E2E_ADMIN_USER, process.env[`E2E_ADMIN_PASS_${T}`] || process.env.E2E_ADMIN_PASS, 'variables E2E_ADMIN_*');
+        const byEnv = pick(sources.proc[`E2E_ADMIN_USER_${T}`] || sources.proc.E2E_ADMIN_USER, sources.proc[`E2E_ADMIN_PASS_${T}`] || sources.proc.E2E_ADMIN_PASS, 'variables E2E_ADMIN_*');
         if (byEnv) return byEnv;
         const file = join(dirname(CONNECTORS_DIR), 'harness', '.admin.json');
         if (existsSync(file)) {
@@ -106,7 +106,7 @@ function legacyCredentials(kind: CredentialKind, target: string): Credentials | 
         }
         return null;
     }
-    const byEnv = pick(process.env.E2E_COGNITO_USER, process.env.E2E_COGNITO_PASS, 'variables E2E_COGNITO_*');
+    const byEnv = pick(sources.proc.E2E_COGNITO_USER, sources.proc.E2E_COGNITO_PASS, 'variables E2E_COGNITO_*');
     if (byEnv) return byEnv;
     const file = join(dirname(CONNECTORS_DIR), 'harness', '.cognito.json');
     if (existsSync(file)) {
@@ -134,8 +134,8 @@ export function credentialsFor(kind: CredentialKind, target: string, sources: En
 }
 
 /** ¿Hay una credencial en un lugar viejo? Devuelve de quién, SIN la clave, para avisar. Nunca se usa para entrar. */
-export function legacyCredentialHint(kind: CredentialKind, target: string): { user: string; source: string } | null {
-    const c = legacyCredentials(kind, target);
+export function legacyCredentialHint(kind: CredentialKind, target: string, sources: EnvSources = loadSources(target)): { user: string; source: string } | null {
+    const c = legacyCredentials(kind, target, sources);
     return c ? { user: c.user, source: c.source } : null;
 }
 

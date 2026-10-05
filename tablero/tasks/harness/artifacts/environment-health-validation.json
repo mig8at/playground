@@ -1,0 +1,152 @@
+{
+  "schema": "harness.environment-health-validation/v1",
+  "observedAt": "2026-10-05T14:21:08.398709+00:00",
+  "change": "Diagnóstico opcional de servicios reales antes de correr un caso, sin Canon ni mutaciones de clientes",
+  "commands": [
+    "make harness-environment TARGET=local LIVE=1 MOCKS=bureaus,pdf-mapper TIMEOUT_MS=10000 JSON=1",
+    "cd harness && npx playwright test pkg/environment-health.spec.ts bin/preflight.spec.ts pkg/wizard-health.spec.ts pkg/sessions.spec.ts --reporter=json",
+    "cd harness && npm run typecheck",
+    "node tablero/tasks/harness/artifacts/observe-environment-health.mjs"
+  ],
+  "tests": {
+    "startTime": "2026-10-05T14:19:00.830Z",
+    "duration": 1098.9470000000001,
+    "expected": 42,
+    "skipped": 0,
+    "unexpected": 0,
+    "flaky": 0
+  },
+  "cliScenarios": [
+    {
+      "name": "mock opcional caído permite continuar",
+      "expectedExit": 0,
+      "observedExit": 0,
+      "ok": true,
+      "backendState": "ok",
+      "absentMock": {
+        "required": false,
+        "state": "unreachable"
+      }
+    },
+    {
+      "name": "mock requerido caído impide continuar",
+      "expectedExit": 1,
+      "observedExit": 1,
+      "ok": false,
+      "backendState": "ok",
+      "absentMock": {
+        "required": true,
+        "state": "unreachable"
+      }
+    },
+    {
+      "name": "HTTP 500 impide continuar",
+      "expectedExit": 1,
+      "observedExit": 1,
+      "ok": false,
+      "backendState": "http-error",
+      "absentMock": {
+        "required": false,
+        "state": "unreachable"
+      }
+    },
+    {
+      "name": "HTTP 200 de otra API impide continuar",
+      "expectedExit": 1,
+      "observedExit": 1,
+      "ok": false,
+      "backendState": "wrong-service",
+      "absentMock": {
+        "required": false,
+        "state": "unreachable"
+      }
+    },
+    {
+      "name": "typo de mock produce JSON y código 2",
+      "expectedExit": 2,
+      "observedExit": 2,
+      "ok": false,
+      "error": "mock desconocido: unknown-mock"
+    },
+    {
+      "name": "tiempo inválido produce JSON y código 2",
+      "expectedExit": 2,
+      "observedExit": 2,
+      "ok": false,
+      "error": "--timeout-ms necesita un entero entre 1 y 60000"
+    }
+  ],
+  "live": {
+    "target": "local",
+    "ok": false,
+    "outsideChain": [],
+    "requiredChecks": [
+      {
+        "id": "backend",
+        "endpoint": "http://localhost/api/",
+        "required": true,
+        "state": "http-error",
+        "detail": "respondió HTTP 500",
+        "fix": "make -C ../github/legacy-backend logs; revisar harness/.env.local (API)",
+        "ms": 5275
+      },
+      {
+        "id": "wizard",
+        "endpoint": "http://localhost:5174/",
+        "required": true,
+        "state": "ok",
+        "detail": "HTTP 302; no comprueba rutas, login ni configuración del wizard",
+        "fix": "make harness-wizard TARGET=local",
+        "ms": 97
+      },
+      {
+        "id": "database",
+        "endpoint": "127.0.0.1:3306/creditop",
+        "required": true,
+        "state": "ok",
+        "detail": "conexión, autenticación y SELECT 1 correctos; no comprueba el esquema",
+        "ms": 19,
+        "fix": "make -C ../github/legacy-backend up; revisar harness/.env.local (E2E_DB_*)"
+      },
+      {
+        "id": "mock-pdf-mapper",
+        "endpoint": "127.0.0.1:8100",
+        "required": true,
+        "state": "ok",
+        "detail": "puerto accesible; no valida la respuesta del mock",
+        "ms": 1,
+        "fix": "harness/bin/mock-pdf-mapper start"
+      },
+      {
+        "id": "mock-bureaus",
+        "endpoint": "127.0.0.1:8105",
+        "required": true,
+        "state": "ok",
+        "detail": "puerto accesible; no valida la respuesta del mock",
+        "ms": 2,
+        "fix": "harness/bin/mock-bureaus start"
+      }
+    ],
+    "optionalMocks": {
+      "count": 17,
+      "accessible": 17
+    }
+  },
+  "limits": [
+    "API, wizard y mocks no se reinician: se reporta su estado observado.",
+    "El wizard sólo prueba disponibilidad HTTP; no comprueba rutas, login ni configuración fresca.",
+    "SELECT 1 no verifica el esquema ni permisos de escritura.",
+    "Los mocks sólo prueban acceso al puerto; no comprueban su contrato ni si sirvieron en una corrida.",
+    "No se ejecutó un flujo de crédito: la API local respondió HTTP 500."
+  ],
+  "sideEffects": {
+    "clientDataWritten": false,
+    "externalLogins": false,
+    "servicesRestarted": false,
+    "published": false
+  },
+  "verification": {
+    "typecheck": "passed",
+    "diffCheck": "passed"
+  }
+}
