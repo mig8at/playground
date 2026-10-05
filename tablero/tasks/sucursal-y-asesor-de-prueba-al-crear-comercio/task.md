@@ -26,8 +26,11 @@ jira_title: "Sucursal y asesor de prueba al crear un comercio"
   vuelta deja el secret en su versión anterior, con el servicio estable.
 - [x] Pasar qa y el wizard desplegado de dev a Merchants Dev y dejarlos así (2026-10-05, decisión de Miguel tras la prueba con
   Duncan en qa): el login de los dos ya no es el del pool de producción.
+- [ ] Enviar a infra el mensaje de `artifacts/mensaje-para-infra.md` (qué se hizo y qué falta en prod); termina cuando infra
+  responde sobre el `terraform apply` de los secrets, staging y los permisos y las tres claves de prod.
+  Depende de: Miguel — enviarlo; Daniel Sánchez (infra) — responder.
 - [ ] Decidir si staging también pasa a Merchants Dev; termina cuando hay respuesta y, si es que sí, el cambio hecho con los mismos
-  scripts (hace falta su `config.env`, copia del de qa).
+  scripts (los scripts de staging ya están escritos, falta correr `create-client`, `switch` y la marca).
   Depende de: Miguel — la pregunta que está haciendo.
 - [ ] Avisar a infra de que los secrets de los wizards de dev y qa se editaron a mano y llevan la etiqueta de Terraform; termina
   cuando infra confirma que un apply no los pisa o los deja en su código.
