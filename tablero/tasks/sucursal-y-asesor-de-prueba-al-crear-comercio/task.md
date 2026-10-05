@@ -38,7 +38,7 @@ jira_title: "Sucursal y asesor de prueba al crear un comercio"
   `auth.merchant.creditop.com` y el cliente `il7p9ueb…` son los de ese pool.
 - [x] Mergear el [PR 252](pr:application#252) y comprobarlo en dev (2026-10-05): los asesores nacen con `is_test = 1` y
   `test_reason = 'manual'`, y siguen entrando.
-- [ ] Borrar las dos cuentas del pool Merchants Dev que dejaron los comercios 353 y 354 (cuentas `cb5c7fdad-fake` y
+- [x] Borrar las dos cuentas del pool Merchants Dev que dejaron los comercios 353 y 354 (hecho el 2026-10-05, pool en 0) (cuentas `cb5c7fdad-fake` y
   `c5073e8d9-fake`); termina cuando el pool está en 0 usuarios.
   Depende de: Miguel — renovar la sesión de AWS.
 - [ ] Evitar que el revert del 2026-10-01 que sacó el asesor de prueba de `main` ([PR 251](pr:application#251)) lo saque también de
