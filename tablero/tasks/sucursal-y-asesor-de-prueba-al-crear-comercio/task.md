@@ -36,9 +36,11 @@ jira_title: "Sucursal y asesor de prueba al crear un comercio"
 - [x] Confirmar a qué pool apuntan dev, qa y staging (2026-10-02): al de PRODUCCIÓN. El id `us-east-1_XnF2zz3Ou` es el
   pool Merchants de la consola de producción. Falta, sólo para cerrar del todo, ver en esa consola que el dominio
   `auth.merchant.creditop.com` y el cliente `il7p9ueb…` son los de ese pool.
-- [ ] Mergear el [PR 252](pr:application#252) y, ya en `develop`, crear un comercio en dev; termina cuando su asesor queda con
-  `is_test = 1` y `test_reason = 'manual'`. (Las columnas ya existen en la base de dev: comprobado el 2026-10-05.)
-  Depende de: revisión del PR.
+- [x] Mergear el [PR 252](pr:application#252) y comprobarlo en dev (2026-10-05): los asesores nacen con `is_test = 1` y
+  `test_reason = 'manual'`, y siguen entrando.
+- [ ] Borrar las dos cuentas del pool Merchants Dev que dejaron los comercios 353 y 354 (cuentas `cb5c7fdad-fake` y
+  `c5073e8d9-fake`); termina cuando el pool está en 0 usuarios.
+  Depende de: Miguel — renovar la sesión de AWS.
 - [ ] Evitar que el revert del 2026-10-01 que sacó el asesor de prueba de `main` ([PR 251](pr:application#251)) lo saque también de
   `develop` en el próximo merge de `main`; termina cuando el flujo de promoción a `main` lo incluye de nuevo (un revert del revert).
 - [ ] Cambiar la clave compartida de dev (`ALLIED_TEST_ADVISOR_PASSWORD`): quedó escrita en una
