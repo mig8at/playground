@@ -1,7 +1,7 @@
 ---
 id: 98
 title: "Sucursal y asesor de prueba al crear un comercio"
-ramas: feat/usuario-y-sucursal-de-prueba-al-crear-comercio
+ramas: feat/usuario-y-sucursal-de-prueba-al-crear-comercio, feat/asesor-de-prueba-marca-is-test, fix/timeout-validacion-correo, feat/permiso-pool-merchants-dev
 stage: work
 created: "2026-10-01T10:48:29-05:00"
 knowledge: [merchant-onboarding]
