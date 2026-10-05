@@ -26,7 +26,7 @@ jira_title: "Sucursal y asesor de prueba al crear un comercio"
   vuelta deja el secret en su versión anterior, con el servicio estable.
 - [x] Pasar qa y el wizard desplegado de dev a Merchants Dev y dejarlos así (2026-10-05, decisión de Miguel tras la prueba con
   Duncan en qa): el login de los dos ya no es el del pool de producción.
-- [ ] Esperar la respuesta de infra al mensaje enviado el 2026-10-05 por mensaje directo (versión corta, solo lo que le toca a él):
+- [ ] Esperar la respuesta de infra en [CORE-682](jira:CORE-682) (tarea en el sprint activo del board de CORE, asignada a Daniel, creada el 2026-10-05; antes se le mandó el resumen por mensaje directo):
   el `terraform apply` de los secrets de dev y qa, staging, y en prod el permiso de IAM y las claves nuevas. La clave
   `MERCHANT_AWS_COGNITO_USER_POOL_ID` de prod se agrega solo el día de la prueba, porque es el interruptor.
   Depende de: Daniel Sánchez (infra) — responder; Miguel — pasarle por privado la clave propia de prod.
