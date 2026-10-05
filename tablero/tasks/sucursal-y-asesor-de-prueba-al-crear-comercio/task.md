@@ -26,9 +26,10 @@ jira_title: "Sucursal y asesor de prueba al crear un comercio"
   vuelta deja el secret en su versión anterior, con el servicio estable.
 - [x] Pasar qa y el wizard desplegado de dev a Merchants Dev y dejarlos así (2026-10-05, decisión de Miguel tras la prueba con
   Duncan en qa): el login de los dos ya no es el del pool de producción.
-- [ ] Enviar a infra el mensaje de `artifacts/mensaje-para-infra.md` (qué se hizo y qué falta en prod); termina cuando infra
-  responde sobre el `terraform apply` de los secrets, staging y los permisos y las tres claves de prod.
-  Depende de: Miguel — enviarlo; Daniel Sánchez (infra) — responder.
+- [ ] Esperar la respuesta de infra al mensaje enviado el 2026-10-05 por mensaje directo (versión corta, solo lo que le toca a él):
+  el `terraform apply` de los secrets de dev y qa, staging, y en prod el permiso de IAM y las claves nuevas. La clave
+  `MERCHANT_AWS_COGNITO_USER_POOL_ID` de prod se agrega solo el día de la prueba, porque es el interruptor.
+  Depende de: Daniel Sánchez (infra) — responder; Miguel — pasarle por privado la clave propia de prod.
 - [ ] Decidir si staging también pasa a Merchants Dev; termina cuando hay respuesta y, si es que sí, el cambio hecho con los mismos
   scripts (los scripts de staging ya están escritos, falta correr `create-client`, `switch` y la marca).
   Depende de: Miguel — la pregunta que está haciendo.
