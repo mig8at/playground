@@ -2,7 +2,7 @@
   "version": 1,
   "title": "Código de compra y conciliación",
   "summary": "Emisión y reuso del PIN, disponibilidad y reloj del wizard; factura local, confirmación bancaria y límites de conciliación.",
-  "reviewedAt": "2026-10-04T19:44:39+00:00",
+  "reviewedAt": "2026-10-05T13:08:14.554405+00:00",
   "sources": [
     {
       "repo": "legacy-backend",
@@ -21,7 +21,8 @@
       "sections": [
         "entrada-y-emisor",
         "reuso-y-persistencia",
-        "disponibilidad-y-vigencia-visual"
+        "disponibilidad-y-vigencia-visual",
+        "fecha-limite-y-relojes"
       ]
     },
     {
@@ -50,7 +51,8 @@
       "commit": "63123374a5d0875c908a83e3145f334b2ff913ee",
       "blob": "006b650ab3ba5038a8f85ada3a100ad5ea43629e",
       "sections": [
-        "reuso-y-persistencia"
+        "reuso-y-persistencia",
+        "fecha-limite-y-relojes"
       ]
     },
     {
@@ -61,7 +63,8 @@
       "sections": [
         "entrada-y-emisor",
         "reuso-y-persistencia",
-        "disponibilidad-y-vigencia-visual"
+        "disponibilidad-y-vigencia-visual",
+        "fecha-limite-y-relojes"
       ]
     },
     {
@@ -147,7 +150,8 @@
       "blob": "4ac33c76ceb59176ee4fa774c3ff963e41ea0193",
       "sections": [
         "entrada-y-emisor",
-        "disponibilidad-y-vigencia-visual"
+        "disponibilidad-y-vigencia-visual",
+        "fecha-limite-y-relojes"
       ]
     },
     {
@@ -156,7 +160,8 @@
       "commit": "68ce7349c4e2a52c83fe4ee174a23ac71fe667cc",
       "blob": "65998a883b790be2b846b6de16d1660dbda2aea8",
       "sections": [
-        "disponibilidad-y-vigencia-visual"
+        "disponibilidad-y-vigencia-visual",
+        "fecha-limite-y-relojes"
       ]
     },
     {
@@ -165,7 +170,8 @@
       "commit": "68ce7349c4e2a52c83fe4ee174a23ac71fe667cc",
       "blob": "d850653ac8753cd72905fc5c7c820da29f83c66c",
       "sections": [
-        "disponibilidad-y-vigencia-visual"
+        "disponibilidad-y-vigencia-visual",
+        "fecha-limite-y-relojes"
       ]
     },
     {
@@ -201,7 +207,8 @@
       "commit": "68ce7349c4e2a52c83fe4ee174a23ac71fe667cc",
       "blob": "bb185c7b8ae818a22801898107a156954072ccca",
       "sections": [
-        "disponibilidad-y-vigencia-visual"
+        "disponibilidad-y-vigencia-visual",
+        "fecha-limite-y-relojes"
       ]
     },
     {
@@ -211,6 +218,25 @@
       "blob": "cc773bb75ee41257dfab4558f3696b63f268ec12",
       "sections": [
         "disponibilidad-y-vigencia-visual"
+      ]
+    },
+    {
+      "repo": "application",
+      "path": "resources/js/pages/customer/purchase-code/FinalizePurchase.vue",
+      "commit": "fc74ac8bc1b364191f859bb6830e8d47c15bb882",
+      "blob": "e762a094edce65362ac95110ddb2e439edccf848",
+      "sections": [
+        "fecha-limite-y-relojes"
+      ]
+    },
+    {
+      "repo": "application",
+      "path": "database/migrations/2025_05_30_144735_create_purchase_codes_table.php",
+      "commit": "fc74ac8bc1b364191f859bb6830e8d47c15bb882",
+      "blob": "006b650ab3ba5038a8f85ada3a100ad5ea43629e",
+      "sections": [
+        "reuso-y-persistencia",
+        "fecha-limite-y-relojes"
       ]
     }
   ]

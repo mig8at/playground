@@ -22,7 +22,15 @@ Al recuperar un PIN guardado, `validateCurrentOrder` consulta Corbeta entre ayer
 
 La respuesta puede ser PCS001/success con `showBarCode:false`. El schema del wizard conserva esa bandera, pero `FinalizePurchase` decide entre éxito y vencido únicamente por `isExpired`: con contador vigente sigue mostrando el PIN; sólo la vista vencida usa `showBarCode` para elegir «Tiempo caducado» o «No encontramos el PIN para facturar». El schema exige `codeType` y `codeImageUrl` como strings: los null que admite el camino sin tipo/imagen del backend no forman un payload válido para ese consumidor. HTTP 200 no demuestra ni disponibilidad en caja ni compatibilidad del payload.
 
-El loader calcula el próximo corte a las 01:30 UTC (20:30 de Bogotá): al llegar al corte lo mueve al día siguiente. Lo calcula al consultar, sin usar fecha de emisión o TTL del PIN; una nueva consulta puede mover el contador. `CountdownDisplay` conserva el texto fijo «Vence hoy a las 8:30 p.m.», aunque el corte calculado corresponda a mañana. El reloj, el texto y la disponibilidad del proveedor requieren comprobaciones separadas; ninguno acredita una vigencia contractual de 24 horas.
+## Fecha límite y relojes
+
+El payload modular no entrega fecha de emisión, fecha límite ni TTL. El schema y el use case del wizard tampoco declaran esos datos. La migración de `purchase_codes` de ambos monolitos guarda timestamps de la fila, URL y marca de consulta; no guarda una caducidad del PIN. La fecha de creación de una fila o de una orden necesita una regla de vigencia confirmada antes de transformarse en vencimiento.
+
+El loader del wizard calcula el próximo corte a las 01:30 UTC (20:30 de Bogotá): al llegar al corte lo mueve al día siguiente. Lo calcula al consultar, sin usar fecha de emisión o TTL del PIN; una nueva consulta puede mover el contador si el backend vuelve a devolver el código disponible. `CountdownDisplay` conserva el texto fijo «Vence hoy a las 8:30 p.m.», aunque el corte calculado corresponda a mañana. El contador no identifica ni revoca el PIN y no acredita vigencia contractual de 24 horas.
+
+La pantalla Inertia `customer/purchase-code/FinalizePurchase` de `application` usa otra regla visual: fija las 20:30 del mismo día con `setHours`, sin avanzar al siguiente corte. Si ya pasó, deja el contador en cero y avisa; al llegar a cero durante el intervalo también avisa. Usa la zona local del navegador, no una zona Colombia explícita, así que ese reloj cambia para clientes en otra zona. El SMS de ambos caminos dice «activo hasta las 8:30pm», pero no incluye fecha ni representa una respuesta de caducidad del proveedor.
+
+Disponibilidad de la orden, reloj, texto y vencimiento del proveedor son comprobaciones separadas. Reemplazar el reloj del wizard por el de Inertia no resuelve por sí solo la zona horaria ni conserva un vencimiento a través de recargas y cambios de día. Un corte local debe distinguirse de una fecha límite respaldada por el proveedor o una regla de negocio confirmada y vinculada al PIN.
 
 ## Confirmación bancaria de la compra
 

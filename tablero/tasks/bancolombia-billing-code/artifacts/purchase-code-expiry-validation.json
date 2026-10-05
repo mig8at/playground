@@ -1,0 +1,539 @@
+{
+  "observedAt": "2026-10-05T13:06:11.334Z",
+  "refs": {
+    "frontend": "68ce7349c4e2a52c83fe4ee174a23ac71fe667cc",
+    "application": "fc74ac8bc1b364191f859bb6830e8d47c15bb882"
+  },
+  "files": {
+    "routePath": "apps/loan-request-wizard/app/routes/bancolombia/purchase-code.tsx",
+    "vuePath": "resources/js/pages/customer/purchase-code/FinalizePurchase.vue",
+    "countdownPath": "modules/loan-request-wizard/bancolombia-origination/src/ui/components/origination/shared/finalize-purchase/CountdownDisplay.tsx",
+    "schemaPath": "modules/loan-request-wizard/bancolombia-origination/src/domain/schemas/origination/bnpl/bnpl-api.schema.ts"
+  },
+  "clocks": [
+    {
+      "timezone": "America/Bogota",
+      "nowUtc": "2026-10-06T01:29:59Z",
+      "wizardDeadlineUtc": "2026-10-06T01:30:00.000Z",
+      "wizardSeconds": 1,
+      "labelSaysToday": true,
+      "labelMatchesBogotaDay": true,
+      "legacySeconds": 1,
+      "legacyEndedAtMount": false,
+      "legacyEndedAfterTick": false
+    },
+    {
+      "timezone": "America/Bogota",
+      "nowUtc": "2026-10-06T01:30:00Z",
+      "wizardDeadlineUtc": "2026-10-07T01:30:00.000Z",
+      "wizardSeconds": 86400,
+      "labelSaysToday": true,
+      "labelMatchesBogotaDay": false,
+      "legacySeconds": 0,
+      "legacyEndedAtMount": false,
+      "legacyEndedAfterTick": true
+    },
+    {
+      "timezone": "America/Bogota",
+      "nowUtc": "2026-10-06T01:30:01Z",
+      "wizardDeadlineUtc": "2026-10-07T01:30:00.000Z",
+      "wizardSeconds": 86399,
+      "labelSaysToday": true,
+      "labelMatchesBogotaDay": false,
+      "legacySeconds": 0,
+      "legacyEndedAtMount": true,
+      "legacyEndedAfterTick": false
+    },
+    {
+      "timezone": "America/Bogota",
+      "nowUtc": "2026-10-06T04:59:59Z",
+      "wizardDeadlineUtc": "2026-10-07T01:30:00.000Z",
+      "wizardSeconds": 73801,
+      "labelSaysToday": true,
+      "labelMatchesBogotaDay": false,
+      "legacySeconds": 0,
+      "legacyEndedAtMount": true,
+      "legacyEndedAfterTick": false
+    },
+    {
+      "timezone": "America/Bogota",
+      "nowUtc": "2026-10-06T05:00:00Z",
+      "wizardDeadlineUtc": "2026-10-07T01:30:00.000Z",
+      "wizardSeconds": 73800,
+      "labelSaysToday": true,
+      "labelMatchesBogotaDay": true,
+      "legacySeconds": 73800,
+      "legacyEndedAtMount": false,
+      "legacyEndedAfterTick": false
+    },
+    {
+      "timezone": "America/Bogota",
+      "nowUtc": "2026-10-06T07:00:00Z",
+      "wizardDeadlineUtc": "2026-10-07T01:30:00.000Z",
+      "wizardSeconds": 66600,
+      "labelSaysToday": true,
+      "labelMatchesBogotaDay": true,
+      "legacySeconds": 66600,
+      "legacyEndedAtMount": false,
+      "legacyEndedAfterTick": false
+    },
+    {
+      "timezone": "America/Bogota",
+      "nowUtc": "2027-01-01T01:31:00Z",
+      "wizardDeadlineUtc": "2027-01-02T01:30:00.000Z",
+      "wizardSeconds": 86340,
+      "labelSaysToday": true,
+      "labelMatchesBogotaDay": false,
+      "legacySeconds": 0,
+      "legacyEndedAtMount": true,
+      "legacyEndedAfterTick": false
+    },
+    {
+      "timezone": "America/Bogota",
+      "nowUtc": "2028-03-01T01:31:00Z",
+      "wizardDeadlineUtc": "2028-03-02T01:30:00.000Z",
+      "wizardSeconds": 86340,
+      "labelSaysToday": true,
+      "labelMatchesBogotaDay": false,
+      "legacySeconds": 0,
+      "legacyEndedAtMount": true,
+      "legacyEndedAfterTick": false
+    },
+    {
+      "timezone": "America/Los_Angeles",
+      "nowUtc": "2026-10-06T01:29:59Z",
+      "wizardDeadlineUtc": "2026-10-06T01:30:00.000Z",
+      "wizardSeconds": 1,
+      "labelSaysToday": true,
+      "labelMatchesBogotaDay": true,
+      "legacySeconds": 7201,
+      "legacyEndedAtMount": false,
+      "legacyEndedAfterTick": false
+    },
+    {
+      "timezone": "America/Los_Angeles",
+      "nowUtc": "2026-10-06T01:30:00Z",
+      "wizardDeadlineUtc": "2026-10-07T01:30:00.000Z",
+      "wizardSeconds": 86400,
+      "labelSaysToday": true,
+      "labelMatchesBogotaDay": false,
+      "legacySeconds": 7200,
+      "legacyEndedAtMount": false,
+      "legacyEndedAfterTick": false
+    },
+    {
+      "timezone": "America/Los_Angeles",
+      "nowUtc": "2026-10-06T01:30:01Z",
+      "wizardDeadlineUtc": "2026-10-07T01:30:00.000Z",
+      "wizardSeconds": 86399,
+      "labelSaysToday": true,
+      "labelMatchesBogotaDay": false,
+      "legacySeconds": 7199,
+      "legacyEndedAtMount": false,
+      "legacyEndedAfterTick": false
+    },
+    {
+      "timezone": "America/Los_Angeles",
+      "nowUtc": "2026-10-06T04:59:59Z",
+      "wizardDeadlineUtc": "2026-10-07T01:30:00.000Z",
+      "wizardSeconds": 73801,
+      "labelSaysToday": true,
+      "labelMatchesBogotaDay": false,
+      "legacySeconds": 0,
+      "legacyEndedAtMount": true,
+      "legacyEndedAfterTick": false
+    },
+    {
+      "timezone": "America/Los_Angeles",
+      "nowUtc": "2026-10-06T05:00:00Z",
+      "wizardDeadlineUtc": "2026-10-07T01:30:00.000Z",
+      "wizardSeconds": 73800,
+      "labelSaysToday": true,
+      "labelMatchesBogotaDay": true,
+      "legacySeconds": 0,
+      "legacyEndedAtMount": true,
+      "legacyEndedAfterTick": false
+    },
+    {
+      "timezone": "America/Los_Angeles",
+      "nowUtc": "2026-10-06T07:00:00Z",
+      "wizardDeadlineUtc": "2026-10-07T01:30:00.000Z",
+      "wizardSeconds": 66600,
+      "labelSaysToday": true,
+      "labelMatchesBogotaDay": true,
+      "legacySeconds": 73800,
+      "legacyEndedAtMount": false,
+      "legacyEndedAfterTick": false
+    },
+    {
+      "timezone": "America/Los_Angeles",
+      "nowUtc": "2027-01-01T01:31:00Z",
+      "wizardDeadlineUtc": "2027-01-02T01:30:00.000Z",
+      "wizardSeconds": 86340,
+      "labelSaysToday": true,
+      "labelMatchesBogotaDay": false,
+      "legacySeconds": 10740,
+      "legacyEndedAtMount": false,
+      "legacyEndedAfterTick": false
+    },
+    {
+      "timezone": "America/Los_Angeles",
+      "nowUtc": "2028-03-01T01:31:00Z",
+      "wizardDeadlineUtc": "2028-03-02T01:30:00.000Z",
+      "wizardSeconds": 86340,
+      "labelSaysToday": true,
+      "labelMatchesBogotaDay": false,
+      "legacySeconds": 10740,
+      "legacyEndedAtMount": false,
+      "legacyEndedAfterTick": false
+    },
+    {
+      "timezone": "Europe/Madrid",
+      "nowUtc": "2026-10-06T01:29:59Z",
+      "wizardDeadlineUtc": "2026-10-06T01:30:00.000Z",
+      "wizardSeconds": 1,
+      "labelSaysToday": true,
+      "labelMatchesBogotaDay": true,
+      "legacySeconds": 61201,
+      "legacyEndedAtMount": false,
+      "legacyEndedAfterTick": false
+    },
+    {
+      "timezone": "Europe/Madrid",
+      "nowUtc": "2026-10-06T01:30:00Z",
+      "wizardDeadlineUtc": "2026-10-07T01:30:00.000Z",
+      "wizardSeconds": 86400,
+      "labelSaysToday": true,
+      "labelMatchesBogotaDay": false,
+      "legacySeconds": 61200,
+      "legacyEndedAtMount": false,
+      "legacyEndedAfterTick": false
+    },
+    {
+      "timezone": "Europe/Madrid",
+      "nowUtc": "2026-10-06T01:30:01Z",
+      "wizardDeadlineUtc": "2026-10-07T01:30:00.000Z",
+      "wizardSeconds": 86399,
+      "labelSaysToday": true,
+      "labelMatchesBogotaDay": false,
+      "legacySeconds": 61199,
+      "legacyEndedAtMount": false,
+      "legacyEndedAfterTick": false
+    },
+    {
+      "timezone": "Europe/Madrid",
+      "nowUtc": "2026-10-06T04:59:59Z",
+      "wizardDeadlineUtc": "2026-10-07T01:30:00.000Z",
+      "wizardSeconds": 73801,
+      "labelSaysToday": true,
+      "labelMatchesBogotaDay": false,
+      "legacySeconds": 48601,
+      "legacyEndedAtMount": false,
+      "legacyEndedAfterTick": false
+    },
+    {
+      "timezone": "Europe/Madrid",
+      "nowUtc": "2026-10-06T05:00:00Z",
+      "wizardDeadlineUtc": "2026-10-07T01:30:00.000Z",
+      "wizardSeconds": 73800,
+      "labelSaysToday": true,
+      "labelMatchesBogotaDay": true,
+      "legacySeconds": 48600,
+      "legacyEndedAtMount": false,
+      "legacyEndedAfterTick": false
+    },
+    {
+      "timezone": "Europe/Madrid",
+      "nowUtc": "2026-10-06T07:00:00Z",
+      "wizardDeadlineUtc": "2026-10-07T01:30:00.000Z",
+      "wizardSeconds": 66600,
+      "labelSaysToday": true,
+      "labelMatchesBogotaDay": true,
+      "legacySeconds": 41400,
+      "legacyEndedAtMount": false,
+      "legacyEndedAfterTick": false
+    },
+    {
+      "timezone": "Europe/Madrid",
+      "nowUtc": "2027-01-01T01:31:00Z",
+      "wizardDeadlineUtc": "2027-01-02T01:30:00.000Z",
+      "wizardSeconds": 86340,
+      "labelSaysToday": true,
+      "labelMatchesBogotaDay": false,
+      "legacySeconds": 64740,
+      "legacyEndedAtMount": false,
+      "legacyEndedAfterTick": false
+    },
+    {
+      "timezone": "Europe/Madrid",
+      "nowUtc": "2028-03-01T01:31:00Z",
+      "wizardDeadlineUtc": "2028-03-02T01:30:00.000Z",
+      "wizardSeconds": 86340,
+      "labelSaysToday": true,
+      "labelMatchesBogotaDay": false,
+      "legacySeconds": 64740,
+      "legacyEndedAtMount": false,
+      "legacyEndedAfterTick": false
+    },
+    {
+      "timezone": "UTC",
+      "nowUtc": "2026-10-06T01:29:59Z",
+      "wizardDeadlineUtc": "2026-10-06T01:30:00.000Z",
+      "wizardSeconds": 1,
+      "labelSaysToday": true,
+      "labelMatchesBogotaDay": true,
+      "legacySeconds": 68401,
+      "legacyEndedAtMount": false,
+      "legacyEndedAfterTick": false
+    },
+    {
+      "timezone": "UTC",
+      "nowUtc": "2026-10-06T01:30:00Z",
+      "wizardDeadlineUtc": "2026-10-07T01:30:00.000Z",
+      "wizardSeconds": 86400,
+      "labelSaysToday": true,
+      "labelMatchesBogotaDay": false,
+      "legacySeconds": 68400,
+      "legacyEndedAtMount": false,
+      "legacyEndedAfterTick": false
+    },
+    {
+      "timezone": "UTC",
+      "nowUtc": "2026-10-06T01:30:01Z",
+      "wizardDeadlineUtc": "2026-10-07T01:30:00.000Z",
+      "wizardSeconds": 86399,
+      "labelSaysToday": true,
+      "labelMatchesBogotaDay": false,
+      "legacySeconds": 68399,
+      "legacyEndedAtMount": false,
+      "legacyEndedAfterTick": false
+    },
+    {
+      "timezone": "UTC",
+      "nowUtc": "2026-10-06T04:59:59Z",
+      "wizardDeadlineUtc": "2026-10-07T01:30:00.000Z",
+      "wizardSeconds": 73801,
+      "labelSaysToday": true,
+      "labelMatchesBogotaDay": false,
+      "legacySeconds": 55801,
+      "legacyEndedAtMount": false,
+      "legacyEndedAfterTick": false
+    },
+    {
+      "timezone": "UTC",
+      "nowUtc": "2026-10-06T05:00:00Z",
+      "wizardDeadlineUtc": "2026-10-07T01:30:00.000Z",
+      "wizardSeconds": 73800,
+      "labelSaysToday": true,
+      "labelMatchesBogotaDay": true,
+      "legacySeconds": 55800,
+      "legacyEndedAtMount": false,
+      "legacyEndedAfterTick": false
+    },
+    {
+      "timezone": "UTC",
+      "nowUtc": "2026-10-06T07:00:00Z",
+      "wizardDeadlineUtc": "2026-10-07T01:30:00.000Z",
+      "wizardSeconds": 66600,
+      "labelSaysToday": true,
+      "labelMatchesBogotaDay": true,
+      "legacySeconds": 48600,
+      "legacyEndedAtMount": false,
+      "legacyEndedAfterTick": false
+    },
+    {
+      "timezone": "UTC",
+      "nowUtc": "2027-01-01T01:31:00Z",
+      "wizardDeadlineUtc": "2027-01-02T01:30:00.000Z",
+      "wizardSeconds": 86340,
+      "labelSaysToday": true,
+      "labelMatchesBogotaDay": false,
+      "legacySeconds": 68340,
+      "legacyEndedAtMount": false,
+      "legacyEndedAfterTick": false
+    },
+    {
+      "timezone": "UTC",
+      "nowUtc": "2028-03-01T01:31:00Z",
+      "wizardDeadlineUtc": "2028-03-02T01:30:00.000Z",
+      "wizardSeconds": 86340,
+      "labelSaysToday": true,
+      "labelMatchesBogotaDay": false,
+      "legacySeconds": 68340,
+      "legacyEndedAtMount": false,
+      "legacyEndedAfterTick": false
+    }
+  ],
+  "payloadKeys": [
+    "codeType",
+    "code",
+    "codeImageUrl",
+    "lender_id",
+    "payment_method",
+    "allied_id",
+    "showBarCode"
+  ],
+  "conclusions": [
+    "El wizard mueve el próximo corte al día siguiente al llegar a 20:30 Bogotá; no depende de fecha de emisión, PIN ni TTL.",
+    "Application calcula 20:30 del día local del navegador y avisa al haber pasado, sin renovar el reloj al siguiente corte.",
+    "El texto del wizard dice hoy incluso cuando el corte es mañana en Bogotá.",
+    "El reloj legacy cambia al cambiar la zona del navegador; el wizard usa UTC fijo.",
+    "El payload del wizard no ofrece fecha de emisión ni fecha límite."
+  ],
+  "limits": [
+    "Evaluación de funciones tomadas literalmente de Git con reloj controlado; no ejecuta loaders HTTP, efectos React, navegador, base, SMS, scheduler ni banco.",
+    "Render del CountdownDisplay real de main con React SSR; el contrato del proveedor y su caducidad efectiva requieren evidencia separada.",
+    "No demuestra que el mismo PIN esté disponible después del corte: muestra cómo lo presenta el reloj si el backend lo devuelve disponible."
+  ],
+  "providerDocument": {
+    "filename": "api_in-store-billing-code-code-management.yaml",
+    "title": "In Store Billing Code - Code Management",
+    "version": "1.0.0",
+    "sha256": "4c5ddad8943d0f4129c2d2222cb14ab2d4ee324025827202aa1446f340091397",
+    "generateResponseFields": [
+      "billingCode"
+    ],
+    "orderResponseFields": [
+      "invoiceId",
+      "billingCode",
+      "billingStatus",
+      "totalAmount",
+      "invoiceAmount",
+      "createDateTime",
+      "invoiceDateTime",
+      "updateDateTime"
+    ],
+    "declaredOrderDateFields": {
+      "createDateTime": {
+        "format": "date-time",
+        "description": "fecha y hora de creación del código único de facturación",
+        "type": "string",
+        "example": "2026-04-09T14:43:09.779-05:00"
+      },
+      "invoiceDateTime": {
+        "format": "date-time",
+        "description": "fecha y hora de facturación",
+        "type": "string",
+        "example": "2026-04-09T14:43:09.779-05:00"
+      },
+      "updateDateTime": {
+        "format": "date-time",
+        "description": "fecha y hora de cambio de estado del código único de facturación",
+        "type": "string",
+        "example": "2026-04-09T14:43:09.779-05:00"
+      }
+    },
+    "expiryRuleDeclared": false,
+    "scope": "Documento original disponible en disco. No prueba vigencia del contrato, DTF v18, implementación desplegada ni comportamiento del banco."
+  },
+  "reviewedMainSources": [
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/Onboarding/App/Services/merchants/PurchaseCodeService.php",
+      "commit": "63123374a5d0875c908a83e3145f334b2ff913ee",
+      "blob": "5db40bc4beac9d1d1d4267368fd5908e0665a66a",
+      "sections": [
+        "entrada-y-emisor",
+        "reuso-y-persistencia",
+        "disponibilidad-y-vigencia-visual",
+        "fecha-limite-y-relojes"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "database/migrations/2025_05_30_144735_create_purchase_codes_table.php",
+      "commit": "63123374a5d0875c908a83e3145f334b2ff913ee",
+      "blob": "006b650ab3ba5038a8f85ada3a100ad5ea43629e",
+      "sections": [
+        "reuso-y-persistencia",
+        "fecha-limite-y-relojes"
+      ]
+    },
+    {
+      "repo": "application",
+      "path": "app/Http/Controllers/Customer/PurchaseCodeController.php",
+      "commit": "fc74ac8bc1b364191f859bb6830e8d47c15bb882",
+      "blob": "14bad50dee9403f77df86636bef3d59224c94054",
+      "sections": [
+        "entrada-y-emisor",
+        "reuso-y-persistencia",
+        "disponibilidad-y-vigencia-visual",
+        "fecha-limite-y-relojes"
+      ]
+    },
+    {
+      "repo": "frontend-monorepo",
+      "path": "modules/loan-request-wizard/bancolombia-origination/src/application/use-cases/origination/bnpl/get-bnpl-purchase-code.uc.ts",
+      "commit": "68ce7349c4e2a52c83fe4ee174a23ac71fe667cc",
+      "blob": "4ac33c76ceb59176ee4fa774c3ff963e41ea0193",
+      "sections": [
+        "entrada-y-emisor",
+        "disponibilidad-y-vigencia-visual",
+        "fecha-limite-y-relojes"
+      ]
+    },
+    {
+      "repo": "frontend-monorepo",
+      "path": "modules/loan-request-wizard/bancolombia-origination/src/domain/schemas/origination/bnpl/bnpl-api.schema.ts",
+      "commit": "68ce7349c4e2a52c83fe4ee174a23ac71fe667cc",
+      "blob": "65998a883b790be2b846b6de16d1660dbda2aea8",
+      "sections": [
+        "disponibilidad-y-vigencia-visual",
+        "fecha-limite-y-relojes"
+      ]
+    },
+    {
+      "repo": "frontend-monorepo",
+      "path": "apps/loan-request-wizard/app/routes/bancolombia/purchase-code.tsx",
+      "commit": "68ce7349c4e2a52c83fe4ee174a23ac71fe667cc",
+      "blob": "d850653ac8753cd72905fc5c7c820da29f83c66c",
+      "sections": [
+        "disponibilidad-y-vigencia-visual",
+        "fecha-limite-y-relojes"
+      ]
+    },
+    {
+      "repo": "frontend-monorepo",
+      "path": "modules/loan-request-wizard/bancolombia-origination/src/ui/components/origination/shared/finalize-purchase/CountdownDisplay.tsx",
+      "commit": "68ce7349c4e2a52c83fe4ee174a23ac71fe667cc",
+      "blob": "bb185c7b8ae818a22801898107a156954072ccca",
+      "sections": [
+        "disponibilidad-y-vigencia-visual",
+        "fecha-limite-y-relojes"
+      ]
+    },
+    {
+      "repo": "application",
+      "path": "resources/js/pages/customer/purchase-code/FinalizePurchase.vue",
+      "commit": "fc74ac8bc1b364191f859bb6830e8d47c15bb882",
+      "blob": "e762a094edce65362ac95110ddb2e439edccf848",
+      "sections": [
+        "fecha-limite-y-relojes"
+      ]
+    },
+    {
+      "repo": "application",
+      "path": "database/migrations/2025_05_30_144735_create_purchase_codes_table.php",
+      "commit": "fc74ac8bc1b364191f859bb6830e8d47c15bb882",
+      "blob": "006b650ab3ba5038a8f85ada3a100ad5ea43629e",
+      "sections": [
+        "reuso-y-persistencia",
+        "fecha-limite-y-relojes"
+      ]
+    }
+  ],
+  "productChangesPreparedThisTurn": false,
+  "reason": "La corrección de caducidad requiere una regla respaldada: cambiar sólo el corte o decir mañana conservaría una promesa de vigencia sin fuente del proveedor.",
+  "reproduction": {
+    "command": "FRONTEND_REPO=\"$FRONTEND_REPO\" APPLICATION_REPO=\"$APPLICATION_REPO\" OBSERVATION_OUTPUT=\"$OBSERVATION_OUTPUT\" node tablero/tasks/bancolombia-billing-code/artifacts/observe-purchase-code-expiry.mjs",
+    "dependencies": "Node, TypeScript, React 19, React DOM y Zod instalados en el frontend local; no instala paquetes ni abre puertos."
+  },
+  "checks": {
+    "clockCases": 32,
+    "knowledgeTopics": 14,
+    "knowledgeSources": 181,
+    "allSourcesUnchangedAgainstLocalMain": true,
+    "retomaMissing": null,
+    "providerExpiryTextReferences": 0
+  }
+}

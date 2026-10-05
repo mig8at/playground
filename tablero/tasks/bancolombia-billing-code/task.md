@@ -26,8 +26,17 @@ jira_title: ""
 - [ ] Integrar la corrección de disponibilidad y comprobarla en el ambiente elegido; rama local
   `fix/bancolombia-purchase-code-availability`. Main aún muestra el PIN no disponible antes del corte;
   esta validación no acredita al emisor bancario ni la vigencia efectiva del proveedor.
-- [ ] Verificar vigencia efectiva del proveedor y texto/contador al consultar después del corte.
-  El reloj actual calcula el próximo corte a las 20:30 de Bogotá, sin fecha de emisión del PIN.
+- [x] Contrastar el corte del wizard con el de application y el contrato documental disponible:
+  32 casos de reloj en cuatro zonas; el wizard renueva su corte al consultar después de 20:30 Bogotá
+  y mantiene «hoy», mientras Inertia usa el día y la zona local del navegador. El OpenAPI no declara TTL.
+- [ ] Obtener la regla de vencimiento y disponibilidad efectiva del PIN para BNPL y consumo.
+  Depende de: banco — fecha límite o regla confirmada (origen, duración/corte, zona horaria y estados),
+  incluyendo consulta después del corte y recarga del mismo PIN; creación de orden no equivale a caducidad.
+- [ ] Alinear contador y texto con una fecha límite vinculada al PIN: conserva el vencimiento entre
+  recargas y cambios de día, coincide en distintas zonas y trata correctamente el instante del corte.
+  Depende de: regla de vigencia — la API actual no entrega fecha límite; no se cierra por corregir «hoy».
+- [ ] Comprobar compatibilidad del wizard con los null de tipo/imagen admitidos por el backend;
+  termina cuando esos payloads permiten la presentación correspondiente o un error definido, sin éxito falso.
 - [ ] Integrar y comprobar el emisor elegido con los consumidores de factura y confirmación bancaria,
   después de resolver identificador/creación de orden; no se cierra por emisión ni por estado 26 solamente.
 
