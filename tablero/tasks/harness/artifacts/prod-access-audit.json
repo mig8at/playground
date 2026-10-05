@@ -1,0 +1,251 @@
+{
+  "scope": "Base creditop, datasource Redash 1 configurado en connectors para prod; no es una auditoría de todos los accesos de la compañía",
+  "observations": [
+    {
+      "observedAt": "2026-10-05T20:06:48.054258+00:00",
+      "command": [
+        "bin/pg",
+        "sql",
+        "--target",
+        "prod",
+        "--query",
+        "SELECT DATABASE() AS database_name, CURRENT_USER() AS database_account, @@read_only AS server_read_only, VERSION() AS server_version",
+        "--json"
+      ],
+      "result": {
+        "columns": [
+          "database_account",
+          "database_name",
+          "server_read_only",
+          "server_version"
+        ],
+        "query": "SELECT DATABASE() AS database_name, CURRENT_USER() AS database_account, @@read_only AS server_read_only, VERSION() AS server_version",
+        "rows": [
+          {
+            "database_account": "ms_app@%",
+            "database_name": "creditop",
+            "server_read_only": 1,
+            "server_version": "8.0.45"
+          }
+        ],
+        "source": "redash ds=1",
+        "target": "prod"
+      }
+    },
+    {
+      "observedAt": "2026-10-05T20:06:49.872840+00:00",
+      "command": [
+        "bin/pg",
+        "sql",
+        "--target",
+        "prod",
+        "--query",
+        "SELECT @@super_read_only AS server_super_read_only, CURRENT_ROLE() AS active_roles",
+        "--json"
+      ],
+      "result": {
+        "columns": [
+          "active_roles",
+          "server_super_read_only"
+        ],
+        "query": "SELECT @@super_read_only AS server_super_read_only, CURRENT_ROLE() AS active_roles",
+        "rows": [
+          {
+            "active_roles": "NONE",
+            "server_super_read_only": 0
+          }
+        ],
+        "source": "redash ds=1",
+        "target": "prod"
+      }
+    },
+    {
+      "observedAt": "2026-10-05T20:06:51.695133+00:00",
+      "command": [
+        "bin/pg",
+        "sql",
+        "--target",
+        "prod",
+        "--query",
+        "SELECT 'global' AS privilege_scope, NULL AS schema_name, NULL AS table_name, PRIVILEGE_TYPE, IS_GRANTABLE FROM information_schema.USER_PRIVILEGES WHERE GRANTEE = CONCAT(CHAR(39), SUBSTRING_INDEX(CURRENT_USER(), '@', 1), CHAR(39), '@', CHAR(39), SUBSTRING_INDEX(CURRENT_USER(), '@', -1), CHAR(39)) UNION ALL SELECT 'schema', TABLE_SCHEMA, NULL, PRIVILEGE_TYPE, IS_GRANTABLE FROM information_schema.SCHEMA_PRIVILEGES WHERE TABLE_SCHEMA = DATABASE() AND GRANTEE = CONCAT(CHAR(39), SUBSTRING_INDEX(CURRENT_USER(), '@', 1), CHAR(39), '@', CHAR(39), SUBSTRING_INDEX(CURRENT_USER(), '@', -1), CHAR(39)) UNION ALL SELECT 'table', TABLE_SCHEMA, TABLE_NAME, PRIVILEGE_TYPE, IS_GRANTABLE FROM information_schema.TABLE_PRIVILEGES WHERE TABLE_SCHEMA = DATABASE() AND GRANTEE = CONCAT(CHAR(39), SUBSTRING_INDEX(CURRENT_USER(), '@', 1), CHAR(39), '@', CHAR(39), SUBSTRING_INDEX(CURRENT_USER(), '@', -1), CHAR(39))",
+        "--json"
+      ],
+      "result": {
+        "columns": [
+          "IS_GRANTABLE",
+          "PRIVILEGE_TYPE",
+          "privilege_scope",
+          "schema_name",
+          "table_name"
+        ],
+        "query": "SELECT 'global' AS privilege_scope, NULL AS schema_name, NULL AS table_name, PRIVILEGE_TYPE, IS_GRANTABLE FROM information_schema.USER_PRIVILEGES WHERE GRANTEE = CONCAT(CHAR(39), SUBSTRING_INDEX(CURRENT_USER(), '@', 1), CHAR(39), '@', CHAR(39), SUBSTRING_INDEX(CURRENT_USER(), '@', -1), CHAR(39)) UNION ALL SELECT 'schema', TABLE_SCHEMA, NULL, PRIVILEGE_TYPE, IS_GRANTABLE FROM information_schema.SCHEMA_PRIVILEGES WHERE TABLE_SCHEMA = DATABASE() AND GRANTEE = CONCAT(CHAR(39), SUBSTRING_INDEX(CURRENT_USER(), '@', 1), CHAR(39), '@', CHAR(39), SUBSTRING_INDEX(CURRENT_USER(), '@', -1), CHAR(39)) UNION ALL SELECT 'table', TABLE_SCHEMA, TABLE_NAME, PRIVILEGE_TYPE, IS_GRANTABLE FROM information_schema.TABLE_PRIVILEGES WHERE TABLE_SCHEMA = DATABASE() AND GRANTEE = CONCAT(CHAR(39), SUBSTRING_INDEX(CURRENT_USER(), '@', 1), CHAR(39), '@', CHAR(39), SUBSTRING_INDEX(CURRENT_USER(), '@', -1), CHAR(39))",
+        "rows": [
+          {
+            "IS_GRANTABLE": "NO",
+            "PRIVILEGE_TYPE": "SHOW DATABASES",
+            "privilege_scope": "global",
+            "schema_name": null,
+            "table_name": null
+          },
+          {
+            "IS_GRANTABLE": "NO",
+            "PRIVILEGE_TYPE": "SELECT",
+            "privilege_scope": "schema",
+            "schema_name": "creditop",
+            "table_name": null
+          },
+          {
+            "IS_GRANTABLE": "NO",
+            "PRIVILEGE_TYPE": "INSERT",
+            "privilege_scope": "schema",
+            "schema_name": "creditop",
+            "table_name": null
+          },
+          {
+            "IS_GRANTABLE": "NO",
+            "PRIVILEGE_TYPE": "UPDATE",
+            "privilege_scope": "schema",
+            "schema_name": "creditop",
+            "table_name": null
+          },
+          {
+            "IS_GRANTABLE": "NO",
+            "PRIVILEGE_TYPE": "DELETE",
+            "privilege_scope": "schema",
+            "schema_name": "creditop",
+            "table_name": null
+          },
+          {
+            "IS_GRANTABLE": "NO",
+            "PRIVILEGE_TYPE": "CREATE",
+            "privilege_scope": "schema",
+            "schema_name": "creditop",
+            "table_name": null
+          },
+          {
+            "IS_GRANTABLE": "NO",
+            "PRIVILEGE_TYPE": "DROP",
+            "privilege_scope": "schema",
+            "schema_name": "creditop",
+            "table_name": null
+          },
+          {
+            "IS_GRANTABLE": "NO",
+            "PRIVILEGE_TYPE": "REFERENCES",
+            "privilege_scope": "schema",
+            "schema_name": "creditop",
+            "table_name": null
+          },
+          {
+            "IS_GRANTABLE": "NO",
+            "PRIVILEGE_TYPE": "INDEX",
+            "privilege_scope": "schema",
+            "schema_name": "creditop",
+            "table_name": null
+          },
+          {
+            "IS_GRANTABLE": "NO",
+            "PRIVILEGE_TYPE": "ALTER",
+            "privilege_scope": "schema",
+            "schema_name": "creditop",
+            "table_name": null
+          },
+          {
+            "IS_GRANTABLE": "NO",
+            "PRIVILEGE_TYPE": "CREATE TEMPORARY TABLES",
+            "privilege_scope": "schema",
+            "schema_name": "creditop",
+            "table_name": null
+          },
+          {
+            "IS_GRANTABLE": "NO",
+            "PRIVILEGE_TYPE": "LOCK TABLES",
+            "privilege_scope": "schema",
+            "schema_name": "creditop",
+            "table_name": null
+          },
+          {
+            "IS_GRANTABLE": "NO",
+            "PRIVILEGE_TYPE": "EXECUTE",
+            "privilege_scope": "schema",
+            "schema_name": "creditop",
+            "table_name": null
+          },
+          {
+            "IS_GRANTABLE": "NO",
+            "PRIVILEGE_TYPE": "CREATE VIEW",
+            "privilege_scope": "schema",
+            "schema_name": "creditop",
+            "table_name": null
+          },
+          {
+            "IS_GRANTABLE": "NO",
+            "PRIVILEGE_TYPE": "SHOW VIEW",
+            "privilege_scope": "schema",
+            "schema_name": "creditop",
+            "table_name": null
+          },
+          {
+            "IS_GRANTABLE": "NO",
+            "PRIVILEGE_TYPE": "CREATE ROUTINE",
+            "privilege_scope": "schema",
+            "schema_name": "creditop",
+            "table_name": null
+          },
+          {
+            "IS_GRANTABLE": "NO",
+            "PRIVILEGE_TYPE": "ALTER ROUTINE",
+            "privilege_scope": "schema",
+            "schema_name": "creditop",
+            "table_name": null
+          },
+          {
+            "IS_GRANTABLE": "NO",
+            "PRIVILEGE_TYPE": "EVENT",
+            "privilege_scope": "schema",
+            "schema_name": "creditop",
+            "table_name": null
+          },
+          {
+            "IS_GRANTABLE": "NO",
+            "PRIVILEGE_TYPE": "TRIGGER",
+            "privilege_scope": "schema",
+            "schema_name": "creditop",
+            "table_name": null
+          }
+        ],
+        "source": "redash ds=1",
+        "target": "prod"
+      }
+    }
+  ],
+  "configuration": {
+    "connectorProdDirectMysqlConfigured": false,
+    "harnessProdDirectMysqlConfigured": false,
+    "redashConfigured": true,
+    "configuredDataSource": 1
+  },
+  "localGuard": {
+    "path": "connectors/sql/readonly.go",
+    "consumer": "cmd/pg/main.go:118",
+    "rejects": [
+      "CREATE",
+      "ALTER",
+      "DROP",
+      "INSERT",
+      "UPDATE",
+      "DELETE"
+    ],
+    "note": "Guarda de la herramienta; no restringe por sí sola el API de Redash ni cambia privilegios de la base."
+  },
+  "limits": [
+    "No se ejecutó ninguna sentencia de escritura, DDL ni cambios de permisos.",
+    "Permisos visibles no son prueba de que se hayan creado tablas.",
+    "read_only es una configuración actual del servidor; no demuestra su historial ni todos los privilegios dinámicos.",
+    "No se comprobó quién creó las tablas mencionadas ni su fecha."
+  ],
+  "sources": [
+    "https://redash.io/help/user-guide/getting-started/",
+    "https://dev.mysql.com/doc/refman/8.0/en/server-system-variables.html"
+  ]
+}
