@@ -130,7 +130,9 @@
     "optionalMocks": {
       "count": 17,
       "accessible": 17
-    }
+    },
+    "programExitCode": 1,
+    "makeExitCode": 2
   },
   "limits": [
     "API, wizard y mocks no se reinician: se reporta su estado observado.",

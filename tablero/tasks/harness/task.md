@@ -27,7 +27,7 @@ Declarar sólo los mocks que necesita el caso:
 make harness-environment TARGET=local LIVE=1 MOCKS=bureaus,pdf-mapper JSON=1
 ```
 Resultado: muestra si la API se identifica, el wizard contesta y MySQL acepta `SELECT 1`, además de los
-puertos de los mocks. Devuelve 1 ante un fallo requerido; los mocks opcionales caídos no bloquean.
+puertos de los mocks. El programa devuelve 1 ante un fallo requerido (Make informa 2); los mocks opcionales caídos no bloquean.
 Un timeout conserva su incertidumbre y un HTTP 500 no se lee como servicio listo.
 
 Las regresiones se comprueban sin login real ni datos de clientes:

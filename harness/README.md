@@ -65,8 +65,9 @@ para eso está `make harness-wizard TARGET=local CHECK=1`.
 El diagnóstico distingue una conexión rechazada, una espera agotada, un HTTP de error y un 200
 que no identifica al backend. Cada fallo lleva el comando o la configuración que revisar.
 `TARGET=local` rechaza URLs/hosts remotos antes de consultarlos.
-Devuelve **0** cuando la configuración y las sondas requeridas pasan, **1** si hay fallos y **2** si los argumentos son inválidos.
+El programa devuelve **0** cuando la configuración y las sondas requeridas pasan, **1** si hay fallos y **2** si los argumentos son inválidos.
 `JSON=1` añade `health.checks` con estado, motivo, duración y recomendación.
+Con `make`, un fallo del programa se informa con código 2 (la convención de Make).
 Esto comprueba el entorno; el desenlace del crédito sigue comprobándose con una corrida.
 
 ### Preparar y observar una corrida en el panel
