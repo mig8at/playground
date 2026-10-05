@@ -60,8 +60,8 @@ test.describe('las credenciales de login', () => {
 test.describe('dónde queda cada sesión', () => {
       test('el admin va por ambiente; el asesor lleva además el host del wizard', () => {
             expect(sessionFile('admin', 'dev', 'https://admin.dev.creditop.com')).toBe('admin-dev.json');
-            expect(sessionFile('advisor', 'dev', 'http://localhost:5174')).toBe('advisor-dev-localhost.json');
-            expect(sessionFile('advisor', 'dev', 'https://originaciones.dev.creditop.com')).toBe('advisor-dev-originaciones.dev.creditop.com.json');
+            expect(sessionFile('advisor', 'dev', 'http://localhost:5174')).toMatch(/^advisor-dev-localhost_5174-[a-f0-9]+\.json$/);
+            expect(sessionFile('advisor', 'dev', 'https://originaciones.dev.creditop.com')).toMatch(/^advisor-dev-originaciones.dev.creditop.com-[a-f0-9]+\.json$/);
       });
 });
 

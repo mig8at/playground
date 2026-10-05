@@ -12,10 +12,10 @@ harness están en `harness/CLAUDE.md`; esto es la receta de cada pieza. Vivía a
 
 - **Puertos**: wizard **:5174** · panel **:5195** · MySQL local `127.0.0.1:3306` (schema `creditop`) ·
   API legacy `http://127.0.0.1:80/api` (vhost por header `Host`). Mocks → `harness/CLAUDE.md`.
-- **Cognito** (`/merchant/*` = Motai/SmartPay exigen sesión): credenciales en `.cognito.json`
-  (gitignored; el env `E2E_COGNITO_USER/PASS` gana). Sin credenciales los specs gated **skipean**, no
-  fallan. **Caché de sesión**: los specs reusan `storageState` (`.auth/cognito-state.json`) →
-  `cognitoLogin` es no-op mientras viva el refresh token (días); tras un login real re-guarda el estado.
+- **Cognito** (`/merchant/*` = Motai/SmartPay exigen sesión): credenciales `ADVISOR_USER/PASS` en `connectors/.env.<ambiente>`
+  (gitignored; el proceso gana). Sin credenciales los specs gated **skipean**, no
+  fallan. **Caché de sesión**: los specs reusan `storageState` (`connectors/.auth/sessions/`) →
+  `cognitoLogin` es no-op si la página ya está autenticada; el servidor comprueba la vigencia; tras un login real re-guarda el estado.
   Cubre también el camino del panel (`E2E_ENTRY=cognito`): «Preparar + Lanzar ▶» no re-abre el Hosted UI
   por corrida.
 - **Assign por SUB**: el backend resuelve el comercio por `x-cognito-identity-id` = el **sub real** del

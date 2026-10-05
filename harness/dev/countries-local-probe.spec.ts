@@ -1,3 +1,4 @@
+import { cognitoStorageState } from '../pkg/cognito.ts';
 import { test } from '@playwright/test';
 
 /**
@@ -8,7 +9,7 @@ import { test } from '@playwright/test';
 const HASH = process.env.PROBE_HASH ?? '1bfb8cd0';
 const TAG  = process.env.PROBE_TAG  ?? 'rd';
 
-test.use({ storageState: '.auth/cognito-state.dev.json' });
+test.use({ storageState: cognitoStorageState() });
 
 test(`prefijo del pais (${TAG})`, async ({ page }) => {
     test.setTimeout(120_000);

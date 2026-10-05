@@ -85,7 +85,7 @@ const LINGER = Number(process.env.E2E_LINGER_MS ?? 5_000);
 // 1 ventana = A vía openA (browser.newContext); NO el fixture `page` + PREVIEW_VP (choca con deviceScaleFactor
 // del device 'Desktop Chrome' del config: undefined no lo desova). slowMo es browser-level → va en test.use.
 test.use({ launchOptions: { slowMo: PREVIEW ? Number(process.env.E2E_PREVIEW_SLOWMO ?? 150) : 0 } });
-test.skip(ENTRY === 'cognito' && (!cognitoCreds.user || !cognitoCreds.pass), 'guided cognito: requiere .cognito.json');
+test.skip(ENTRY === 'cognito' && (!cognitoCreds.user || !cognitoCreds.pass), 'guided cognito: requiere ADVISOR_USER/PASS en connectors');
 test.afterAll(async () => { await close(); });
 
 // La tarjeta del harness en el wizard (`pkg/autofill.ts`) se ESCONDE durante cada captura: la evidencia
@@ -206,7 +206,7 @@ test('guided (semiautomático)', async ({ browser }) => {
     test.setTimeout(900_000); // interactivo: esperamos TUS clicks (PICK_TIMEOUT por pantalla)
     mkdirSync(AUTH, { recursive: true });
 
-    // Cache de sesión Cognito: si hay .auth/cognito-state.json lo inyectamos → el Hosted UI no aparece y
+    // Cache de sesión Cognito: si hay una sesión del conector lo inyectamos → el Hosted UI no aparece y
     // cognitoLogin es no-op. Si la sesión murió, el form reaparece y cognitoLogin re-loguea + re-guarda.
     const { page } = await openA(browser, { baseURL: config.feBaseUrl, userAgent: IPHONE_UA, storageState: ENTRY === 'cognito' ? cognitoStorageState() : undefined }); // A = mitad izquierda (comercio/asesor)
     // React Scan (overlay FPS/inspección del wizard en dev): se bloquea acá — cortamos su script — SIN tocar

@@ -30,7 +30,7 @@ test-results/
 .env.*
 !.env.example
 !.env.*.example
-# Artefactos de sesión/tokens del login Cognito (harness/.auth/) — nunca commitear
+# Artefactos de sesión/tokens del login Cognito (connectors/.auth/ y capturas locales del harness) — nunca commitear
 .auth/
 # Ledger de recursos creados en BD (backend-e2e/.created-resources.json) — estado local por máquina
 .created-resources.json

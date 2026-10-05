@@ -1,5 +1,5 @@
 import type { Browser, Page } from '@playwright/test';
-import { cognitoLogin, cookiesHealth } from './cognito.ts';
+import { cookiesHealth } from './cognito.ts';
 import { config } from './config.ts';
 import { query } from './db.ts';
 import { TARGET } from './env.ts';
@@ -15,9 +15,9 @@ import { IPHONE_UA, openA } from './windows.ts';
  *
  * Todo en `pkg/cognito.ts` se resuelve UNA vez al importar, según `E2E_TARGET`. Por eso esta sonda sirve
  * para el ambiente del proceso, y para recorrer varios hay que lanzar un proceso por ambiente
- * (`dev/login-check.ts`), como ya hace `renewSession`.
+ * (`dev/login-check.ts`), como hace el runner.
  *
- * ⚠ NO TOCA LA SESIÓN CACHEADA. El cache `.auth/cognito-state.<target>.json` es de la cuenta de trabajo del
+ * ⚠ NO TOCA LA SESIÓN CACHEADA. El cache `connectors/.auth/sessions/` es de la cuenta de trabajo del
  * harness; entrar con un asesor de prueba y guardarlo ahí dejaría a las corridas siguientes operando como
  * otra persona, en otra sucursal. Se entra con un contexto limpio y no se guarda nada.
  */
@@ -163,63 +163,9 @@ async function visibleError(page: Page): Promise<string> {
     return texts.map((t) => t.trim()).filter(Boolean).join(' · ').slice(0, 160);
 }
 
-/** Rutas de la app que sólo REDIRIGEN tras el callback (no son destino): se espera a salir de ellas. */
-const IN_TRANSIT = /^\/(auth\/callback|merchant)\/?$/;
-
-/**
- * ¿El login es de UNA sola página? La pantalla clásica de Merchants Dev y su Managed Login v2 con marca muestran usuario,
- * contraseña y el botón juntos; el Managed Login de `login.creditop.com` y `auth.merchant` pide el usuario,
- * «Siguiente», y recién ahí la contraseña (lo que sabe hacer `cognitoLogin`).
- *
- * ⚠ El clásico trae el formulario DUPLICADO en el HTML (uno para escritorio y otro oculto), así que
- * `input[name=username]` tiene dos coincidencias y los `expect(locator)` estrictos de `cognitoLogin` tiran.
- * Por eso aquí todo va con `:visible`.
- */
-async function isClassicLogin(page: Page): Promise<boolean> {
-    await page.locator('input[name=username]:visible').first().waitFor({ state: 'visible', timeout: 15_000 }).catch(() => { /* lo decide el conteo */ });
-    return (await page.locator('input[name=password]:visible').count()) > 0;
-}
-
-/**
- * Llena un campo del login de UNA página y verifica que el valor quedó, sin imprimirlo. Se TECLEA (no `fill`): la pantalla de Managed
- * Login es de React y sus inputs son controlados, así que un `fill` puede dejar el DOM con el valor y el estado de React vacío, y el
- * formulario se envía sin él. La clásica de Merchants Dev lo acepta igual.
- */
-async function fillChecked(page: Page, selector: string, value: string): Promise<void> {
-    const field = page.locator(`${selector}:visible`).first();
-    await field.click();
-    await field.fill('');
-    await field.pressSequentially(value, { delay: 40 });
-    if ((await field.inputValue()) !== value) {
-        await field.fill('');
-        await field.pressSequentially(value, { delay: 90 });
-    }
-    if ((await field.inputValue()) !== value) throw new Error(`el campo ${selector} no recibió el valor`);
-}
-
-/** Entra por el login clásico y espera a que la app asiente la sesión (no sólo a tocar su host). */
-async function signInClassic(page: Page, user: string, pass: string, returnHost: string): Promise<void> {
-    await fillChecked(page, 'input[name=username]', user);
-    await fillChecked(page, 'input[name=password]', pass);
-    // La pantalla clásica llama al botón `signInSubmitButton`; Managed Login v2 (la de prod y la de Merchants Dev con marca) sólo trae un
-    // `button[type=submit]`. Medido el 2026-10-05 sobre la pantalla con marca: un solo botón de envío visible.
-    await page.locator('input[name=signInSubmitButton]:visible, button[name=signInSubmitButton]:visible, button[type=submit]:visible').first().click();
-    // Comparar el HOST de la URL, no un substring: el login lleva el host de la app dentro del query (F-66).
-    const onApp = (url: URL) => url.host === returnHost;
-    await page.waitForURL(onApp, { timeout: 30_000 });
-    await page.waitForURL((url) => onApp(url) && !IN_TRANSIT.test(url.pathname), { timeout: 15_000 }).catch(() => { /* seguimos con lo que haya */ });
-    await page.waitForLoadState('networkidle', { timeout: 8_000 }).catch(() => {});
-}
-
-/**
- * Entra en la página de login que tenga delante `page` y espera a que la app asiente la sesión. Hay dos formas de
- * login y se elige sola: la clásica de una página (Merchants Dev) y la de dos pasos (Managed Login, que sabe hacer
- * `cognitoLogin`). Nunca guarda nada en el cache compartido (`savePath: null`).
- */
-export async function loginOnPage(page: Page, user: string, pass: string, returnHost: string): Promise<void> {
-    if (await isClassicLogin(page)) await signInClassic(page, user, pass, returnHost);
-    else await cognitoLogin(page, user, pass, returnHost, null);
-}
+// El conector adapta login clásico o de dos pasos; la sonda nunca guarda su sesión.
+export { loginOnPage } from '../../connectors/advisor/login.ts';
+import { loginOnPage } from '../../connectors/advisor/login.ts';
 
 export interface ProbeOptions {
     user: string;

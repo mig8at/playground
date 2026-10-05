@@ -8,27 +8,16 @@ import { env, TARGET } from './env.ts';
  */
 
 import { readFileSync } from 'node:fs';
-import { join } from 'node:path';
+import { advisorTarget } from '../../connectors/auth/sessions.ts';
 
-/**
- * Credenciales Cognito MERCHANT para pruebas `/merchant/*` (asesor) por UI. Orden: la CADENA por target
- * (`process.env` > `.env.<target>` > `env/<target>.env`) → archivo gitignored `.cognito.json`. Nunca commitear.
- *
- * Van por target, no globales: **staging entra por otro pool de Cognito** que dev
- * (`auth.merchant.creditop.com` vs `login.creditop.com`), así que necesita su propia cuenta. Un único
- * `.cognito.json` obligaría a pisar las de dev para probar staging y viceversa (F-61).
- */
+/** Identidad de asesor: la del pool del front y sólo desde connectors. */
 function loadCognitoCreds(): { user?: string; pass?: string } {
-    const user = env('E2E_COGNITO_USER');
-    if (user) return { user, pass: env('E2E_COGNITO_PASS') };
-    try {
-        const raw = JSON.parse(readFileSync(join(process.cwd(), '.cognito.json'), 'utf8'));
-        return { user: raw.user, pass: raw.pass };
-    } catch {
-        return {};
-    }
+    // Las consultas de producción importan config; no deben intentar preparar un login.
+    if (TARGET === 'prod') return {};
+    const origin = env('E2E_BASE_URL', 'http://localhost:5174');
+    const c = credentialsFor('advisor', advisorTarget(TARGET, origin));
+    return c ? { user: c.user, pass: c.pass } : {};
 }
-
 export const cognitoCreds = loadCognitoCreds();
 
 /**

@@ -16,7 +16,7 @@ import (
 	"creditop/playground/connectors/env"
 )
 
-// La sesión se guarda en `harness/.auth/sessions/admin-<ambiente>.json` (fuera de git, permisos 600): el formato es
+// La sesión se guarda en `connectors/.auth/sessions/admin-<ambiente>.json` (fuera de git, permisos 600): el formato es
 // el MISMO que lee el harness en TypeScript (`pkg/sessions.ts`), así los dos lados comparten la sesión. Dice QUIÉN
 // entró, y nunca se imprime su contenido.
 
@@ -53,11 +53,14 @@ func playgroundRoot() (string, error) {
 }
 
 func sessionPath(target string) (string, error) {
+	if _, err := BaseFor(target); err != nil {
+		return "", err
+	}
 	root, err := playgroundRoot()
 	if err != nil {
 		return "", err
 	}
-	return filepath.Join(root, "harness", ".auth", "sessions", "admin-"+target+".json"), nil
+	return filepath.Join(root, "connectors", ".auth", "sessions", "admin-"+target+".json"), nil
 }
 
 // ReadSession lee la sesión guardada; nil si no hay.
@@ -67,8 +70,22 @@ func ReadSession(target string) (*StoredSession, error) {
 		return nil, err
 	}
 	raw, err := os.ReadFile(path)
+	legacy := false
 	if os.IsNotExist(err) {
-		return nil, nil
+		if _, tombErr := os.Stat(path + ".signed-out"); tombErr == nil {
+			return nil, nil
+		}
+	}
+	if os.IsNotExist(err) {
+		root, rootErr := playgroundRoot()
+		if rootErr != nil {
+			return nil, rootErr
+		}
+		raw, err = os.ReadFile(filepath.Join(root, "harness", ".auth", "sessions", "admin-"+target+".json"))
+		legacy = err == nil
+		if os.IsNotExist(err) {
+			return nil, nil
+		}
 	}
 	if err != nil {
 		return nil, err
@@ -77,11 +94,42 @@ func ReadSession(target string) (*StoredSession, error) {
 	if err := json.Unmarshal(raw, &s); err != nil || s.Version != 1 {
 		return nil, nil
 	}
+	base, err := BaseFor(target)
+	if err != nil {
+		return nil, err
+	}
+	if s.Kind != "admin" || s.Target != target || s.Origin != base || s.User == "" {
+		return nil, nil
+	}
+	if target != "local" {
+		values, err := env.Load(target)
+		if err != nil {
+			return nil, err
+		}
+		if user := values.Get("ADMIN_USER"); user != "" && user != s.User {
+			return nil, nil
+		}
+	}
+	if legacy {
+		if _, err := WriteSession(&s); err != nil {
+			return nil, err
+		}
+	}
 	return &s, nil
 }
 
 // WriteSession guarda la sesión con permisos 600 y devuelve dónde.
 func WriteSession(s *StoredSession) (string, error) {
+	if s == nil {
+		return "", errors.New("sesión vacía")
+	}
+	base, err := BaseFor(s.Target)
+	if err != nil {
+		return "", err
+	}
+	if s.Version != 1 || s.Kind != "admin" || s.Origin != base || s.User == "" {
+		return "", errors.New("metadatos de sesión inválidos")
+	}
 	path, err := sessionPath(s.Target)
 	if err != nil {
 		return "", err
@@ -93,25 +141,46 @@ func WriteSession(s *StoredSession) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	if err := os.WriteFile(path, raw, 0o600); err != nil {
+	if err := os.Chmod(filepath.Dir(path), 0o700); err != nil {
 		return "", err
 	}
-	return path, os.Chmod(path, 0o600)
+	tmp, err := os.CreateTemp(filepath.Dir(path), ".admin-session-*.tmp")
+	if err != nil {
+		return "", err
+	}
+	defer os.Remove(tmp.Name())
+	if _, err := tmp.Write(raw); err != nil {
+		tmp.Close()
+		return "", err
+	}
+	if err := tmp.Close(); err != nil {
+		return "", err
+	}
+	if err := os.Rename(tmp.Name(), path); err != nil {
+		return "", err
+	}
+	_ = os.Remove(path + ".signed-out")
+	return path, nil
 }
 
-// RemoveSession borra la sesión guardada; false si no había.
+// RemoveSession cierra también la lectura de backups antiguos: nunca resucitan al consultar status.
 func RemoveSession(target string) (bool, error) {
 	path, err := sessionPath(target)
 	if err != nil {
 		return false, err
 	}
-	if err := os.Remove(path); err != nil {
-		if os.IsNotExist(err) {
-			return false, nil
-		}
+	_, statErr := os.Stat(path)
+	removed := statErr == nil
+	if err := os.Remove(path); err != nil && !os.IsNotExist(err) {
 		return false, err
 	}
-	return true, nil
+	if err := os.MkdirAll(filepath.Dir(path), 0o700); err != nil {
+		return false, err
+	}
+	if err := os.WriteFile(path+".signed-out", []byte(""), 0o600); err != nil {
+		return false, err
+	}
+	return removed, nil
 }
 
 func hostMatches(host, domain string) bool {
@@ -229,7 +298,7 @@ func Login(ctx context.Context, target, user, pass string) (*Client, *StoredSess
 	return c, c.toSession(target, user, who), nil
 }
 
-// LoginLocal pide la sesión del admin LOCAL a la propia app (`harness/bin/admin-session`, con el guard real de Laravel y sólo
+// LoginLocal pide la sesión del admin LOCAL a la propia app (`connectors/admin/local-session`, con el guard real de Laravel y sólo
 // con APP_ENV=local): no hay contraseña de por medio.
 func LoginLocal(ctx context.Context) (*Client, *StoredSession, error) {
 	base, err := BaseFor("local")
@@ -242,7 +311,7 @@ func LoginLocal(ctx context.Context) (*Client, *StoredSession, error) {
 	}
 	ctx, cancel := context.WithTimeout(ctx, 3*time.Minute)
 	defer cancel()
-	out, err := exec.CommandContext(ctx, filepath.Join(root, "harness", "bin", "admin-session")).Output()
+	out, err := exec.CommandContext(ctx, filepath.Join(root, "connectors", "admin", "local-session")).Output()
 	if err != nil {
 		return nil, nil, fmt.Errorf("no pude emitir la sesión local (¿el admin local está arriba y APP_ENV=local?): %w", err)
 	}

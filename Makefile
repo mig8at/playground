@@ -510,8 +510,8 @@ harness-walk-wizard: ## @har el WIZARD entero por HTTP, sin navegador: pasa por 
 harness-session: ## @har ¿sirve la sesión de ASESOR cacheada para este ambiente? Un fetch contra /merchant, sin navegador ni login: valid · invalid · missing · unreachable. TARGET=local|dev|qa|staging (default local; local y dev comparten la misma sesión)
 	@cd harness && E2E_TARGET=$(or $(TARGET),local) node bin/session-check.ts
 
-harness-login: ## @har ⚠ ABRE UNA VENTANA · el login de ASESOR por consola: entra a Cognito con la cuenta de `harness/.cognito.json` (o E2E_COGNITO_USER/PASS) y deja la sesión en `harness/.auth/`, de donde la reusan el caminador (FLOW=merchant), los casos y el panel. Va con ventana a propósito: el Managed Login corta el headless por fingerprint (F-66). TARGET=local|dev|qa|staging (default local; en local y dev pide el front :5174 arriba)
-	@cd harness && E2E_TARGET=$(or $(TARGET),local) npx playwright test dev/warm-session.spec.ts --headed --project=chromium
+harness-login: ## @har ⚠ abre una ventana y guarda la sesión del ASESOR en connectors/.auth/sessions. Credenciales ADVISOR_USER/PASS en connectors/.env.<ambiente de autenticación>. TARGET=local|dev|qa|staging (default local; front local :5174 usa dev) [ORIGIN=https://…]
+	@cd harness && E2E_TARGET=$(or $(TARGET),local) node dev/session.ts signin --kind advisor --target '$(or $(TARGET),local)' $(if $(ORIGIN),--origin '$(ORIGIN)')
 
 harness-wizard: ## @har ¿el WIZARD local (:5174) está al día con SU configuración? Mide tres cosas —que conteste, que su `.env` no se haya editado después de arrancar (Vite lo lee una sola vez) y que el login que sirve sea el que dice su `.env`— y, si algo falla, lo baja y lo vuelve a levantar con `bin/advisor <comercio> preboot`, el mismo arranque del panel. [CHECK=1 sólo diagnostica] [MERCHANT=pullman el comercio con que arranca] [TARGET=dev|local con qué backend arranca, default dev]
 	@cd harness && E2E_TARGET=$(or $(TARGET),dev) node dev/wizard-ensure.ts $(if $(CHECK),--check) $(if $(MERCHANT),--merchant $(MERCHANT))
@@ -519,7 +519,7 @@ harness-wizard: ## @har ¿el WIZARD local (:5174) está al día con SU configura
 harness-sessions: ## @har ¿qué SESIONES de login hay guardadas (admin y asesor), de quién y si siguen sirviendo? Una sola tabla por tipo y ambiente; pregunta al servidor, no se fía de la fecha del archivo. No imprime ningún valor de sesión. [KIND=admin|advisor] [TARGET=local|dev|qa|staging] [ORIGIN=https://… el wizard, para el asesor]
 	@cd harness && node dev/session.ts status $(if $(KIND),--kind $(KIND)) $(if $(TARGET),--target $(TARGET)) $(if $(ORIGIN),--origin $(ORIGIN))
 
-harness-signin: ## @har ENTRA y guarda la sesión (admin o asesor) de un ambiente, con Chrome por debajo y las credenciales de `connectors/.env.<ambiente>` (ADMIN_USER/ADMIN_PASS · ADVISOR_USER/ADVISOR_PASS; una cuenta por persona). Local no pide credencial: la propia app emite la sesión. Lo corre una persona: es el paso que teclea la contraseña. qa y staging abren ventana (F-66). Producción no. KIND=admin|advisor TARGET=local|dev|qa|staging [ORIGIN=https://… el wizard del asesor] [HEADLESS=1]
+harness-signin: ## @har ENTRA y guarda la sesión (admin o asesor) de un ambiente, con Chrome por debajo y las credenciales de `connectors/.env.<ambiente>` (ADMIN_USER/ADMIN_PASS · ADVISOR_USER/ADVISOR_PASS; una cuenta por persona). Admin local no pide credencial: la propia app emite la sesión. El asesor local usa el pool del front. Lo corre una persona: es el paso que teclea la contraseña. qa y staging abren ventana (F-66). Producción no. KIND=admin|advisor TARGET=local|dev|qa|staging [ORIGIN=https://… el wizard del asesor] [HEADLESS=1]
 	@cd harness && node dev/session.ts signin --kind '$(KIND)' --target '$(TARGET)' $(if $(ORIGIN),--origin $(ORIGIN)) $(if $(HEADLESS),--headless)
 
 harness-signout: ## @har borra la sesión guardada (admin o asesor) de un ambiente. KIND=admin|advisor TARGET=local|dev|qa|staging [ORIGIN=https://…]

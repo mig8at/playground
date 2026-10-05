@@ -6,7 +6,7 @@ import { TARGET } from '../pkg/env';
 
 /**
  * warm-session — PRE-LOGIN dedicado. Loguea contra Cognito y deja el cache de sesión
- * (`.auth/cognito-state.<target>.json`) listo, SIN correr un flujo. Se corre UNA vez cuando el token
+ * (`connectors/.auth/sessions/`) listo, SIN correr un flujo. Se corre UNA vez cuando el token
  * caducó (o no existe); a partir de ahí toda corrida arranca ya autenticada — sin login y, por lo tanto,
  * sin pasar por `/solicitar` (ese desvío solo aparece cuando hay que loguear; ver F-66).
  *
@@ -25,7 +25,7 @@ const HASH = process.env.E2E_ADVISOR_HASH ?? config.partnerHash;
 
 test.skip(
     !cognitoCreds.user || !cognitoCreds.pass,
-    'warm-session: requiere credenciales Cognito (.cognito.json {user,pass} o E2E_COGNITO_USER/PASS)',
+    'warm-session: requiere credenciales ADVISOR_USER/PASS en connectors/.env.<ambiente>',
 );
 
 test('warm-session (pre-login)', async ({ browser }) => {

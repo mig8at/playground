@@ -123,7 +123,8 @@ func TestTheSchemaOffersApplyOnlyToWritesAndTheTargetEnum(t *testing.T) {
 	// comercio donde no se debe.
 	restricted := map[string]string{
 		"canon sql": "local,prod", "canon tables": "local,prod", "canon config": "local,prod",
-		"admin status": "local,dev,staging", "admin allied-create": "local,dev,staging",
+		"advisor status": "local,dev,qa,staging",
+		"admin status":   "local,dev,staging", "admin allied-create": "local,dev,staging",
 	}
 	for _, c := range tools() {
 		if want, ok := restricted[c.Name]; ok {
@@ -143,6 +144,14 @@ func TestTheSchemaOffersApplyOnlyToWritesAndTheTargetEnum(t *testing.T) {
 		}
 		if tp, ok := props["target"].(map[string]any); ok && len(tp["enum"].([]string)) != 5 {
 			t.Errorf("%s: el target tiene que ofrecer los cinco ambientes", c.Name)
+		}
+	}
+}
+
+func TestAdvisorLoginAndLogoutAreHumanCommands(t *testing.T) {
+	for _, c := range tools() {
+		if c.Name == "advisor login" || c.Name == "advisor logout" {
+			t.Fatalf("human auth exposed as MCP: %s", c.Name)
 		}
 	}
 }

@@ -153,10 +153,10 @@ El canal de asesor (`FLOW=merchant`, y el panel en ese canal) pide una sesión d
 entrar por el panel para tenerla:**
 
     make harness-session TARGET=local    # ¿sirve la sesión cacheada? un fetch, sin login: valid · invalid · missing · unreachable
-    make harness-login  TARGET=local    # ⚠ abre una ventana: entra a Cognito y deja la sesión en harness/.auth/
+    make harness-login  TARGET=local    # ⚠ abre una ventana: entra a Cognito y deja la sesión en connectors/.auth/sessions/
 
-- La cuenta sale de `harness/.cognito.json` (o `E2E_COGNITO_USER`/`E2E_COGNITO_PASS`), y la sesión queda en
-  `harness/.auth/cognito-state.<clave>.json`. Los N contextos de una tanda **reusan esa misma** (un solo
+- La cuenta sale de `ADVISOR_USER`/`ADVISOR_PASS` en `connectors/.env.<ambiente de autenticación>`, y la sesión queda en
+  `connectors/.auth/sessions/advisor-<ambiente>-<origen>.json`. Los N contextos de una tanda **reusan esa misma** (un solo
   login para todos: no se golpea el pool). O sea que «diez asesores en paralelo» son diez sesiones del
   MISMO asesor.
 - **Va con ventana a propósito**: el Managed Login corta la automatización headless por fingerprint

@@ -1,0 +1,94 @@
+{
+  "date": "2026-10-05",
+  "playwright": {
+    "startTime": "2026-10-05T19:40:25.174Z",
+    "duration": 9794.278,
+    "expected": 47,
+    "skipped": 0,
+    "unexpected": 0,
+    "flaky": 0
+  },
+  "playwrightErrors": [],
+  "cli": [
+    {
+      "name": "status",
+      "command": "bin/pg advisor status --target local --json",
+      "expectedExit": 0,
+      "actualExit": 0,
+      "stdout": "[{\"kind\":\"advisor\",\"target\":\"local\",\"origin\":\"http://localhost:5174\",\"exists\":false,\"user\":null,\"who\":null,\"createdAt\":null,\"valid\":null,\"motivo\":\"no hay sesión guardada\",\"authTarget\":\"dev\"}]",
+      "stderr": ""
+    },
+    {
+      "name": "human-login-help",
+      "command": "bin/pg advisor login --help",
+      "expectedExit": 0,
+      "actualExit": 0,
+      "stdout": "pg advisor status|check|login|logout [--target local|dev|qa|staging] [--origin URL] [--json] [--headless]",
+      "stderr": ""
+    },
+    {
+      "name": "prod-rejected",
+      "command": "bin/pg advisor status --target prod --json",
+      "expectedExit": 2,
+      "actualExit": 2,
+      "stdout": "",
+      "stderr": "no conozco el wizard de «prod». Los que hay: local, dev, qa, staging"
+    },
+    {
+      "name": "login-target-required",
+      "command": "node connectors/advisor/cli.ts login",
+      "expectedExit": 2,
+      "actualExit": 2,
+      "stdout": "",
+      "stderr": "falta --target local|dev|qa|staging"
+    },
+    {
+      "name": "unknown-flag",
+      "command": "node connectors/advisor/cli.ts status --unknown",
+      "expectedExit": 2,
+      "actualExit": 2,
+      "stdout": "",
+      "stderr": "Unknown option '--unknown'. To specify a positional argument starting with a '-', place it at the end of the command after '--', as in '-- \"--unknown\""
+    },
+    {
+      "name": "harness-status",
+      "command": "make harness-sessions KIND=advisor TARGET=local",
+      "expectedExit": 0,
+      "actualExit": 0,
+      "stdout": "local: no hay · — · no hay sesión guardada",
+      "stderr": ""
+    },
+    {
+      "name": "harness-session",
+      "command": "make harness-session TARGET=local",
+      "expectedExit": 0,
+      "actualExit": 0,
+      "stdout": "{\"target\":\"local\",\"status\":\"missing\",\"detail\":\"sin sesión del conector para este origen y cuenta; entra con pg advisor login\"}",
+      "stderr": ""
+    },
+    {
+      "name": "login-alias",
+      "command": "make -n harness-login TARGET=local",
+      "expectedExit": 0,
+      "actualExit": 0,
+      "stdout": "cd harness && E2E_TARGET=local node dev/session.ts signin --kind advisor --target 'local'",
+      "stderr": ""
+    }
+  ],
+  "go": {
+    "command": "GOCACHE=/private/tmp/creditop-knowledge-go-cache go test ./connectors/admin ./cmd/pg",
+    "result": "passed"
+  },
+  "typecheck": {
+    "command": "npm --prefix harness run typecheck",
+    "result": "passed"
+  },
+  "scope": {
+    "browser": "Chromium con fixtures HTTP efímeros en loopback",
+    "realLogin": false,
+    "realDatabases": false,
+    "sharedEnvironmentWrites": false,
+    "localWizardCheck": "missing; primer login en el almacén nuevo pendiente de ejecutar por una persona"
+  },
+  "runtime": "Node 25; playwright-core instalado en harness reutilizado por connectors/auth/browser.ts"
+}

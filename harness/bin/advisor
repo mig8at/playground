@@ -4,7 +4,7 @@
 #   bin/advisor <merchant> auto      → GUIADO: siembra cada pantalla, vos das "Continuar"; en /lenders elegís
 #                                     el lender y el demo sigue (CreditopX abre 2ª ventana B; aggregator/redirect, 1).
 #   bin/ecommerce <merchant> [auto] → idem, pero ENTRA POR EL CHECKOUT de la tienda mock (no login de asesor).
-# Lee .flows.json (asesor.email/sub + merchants.<m>.branch_hash) y .cognito.json (login del asesor). El wizard
+# Lee .flows.json (asesor.email/sub + merchants.<m>.branch_hash) y la identidad de connectors (login del asesor). El wizard
 # local (Vite) apunta a DEV; se reusa si está arriba (se reinicia solo si apuntaba a otro backend).
 set -euo pipefail
 
@@ -108,12 +108,7 @@ export E2E_TARGET="$TARGET" E2E_BASE_URL="$WIZ_BASE" E2E_ENTRY="$ENTRY" E2E_GUID
 # El POOL de Cognito lo trae el FRONT, no el target: el wizard local usa su propio `.env` del monorepo
 # (login.creditop.com = pool de dev) y acá solo le pisamos las URLs de API. Así que con front LOCAL hay que
 # loguear con la cuenta de ESE pool; la de `.env.staging` (otro pool) se queda dando vueltas en el login.
-# Vaciar las variables hace que `loadCognitoCreds` caiga a `.cognito.json`, que es la cuenta del pool de dev.
-# Funciona porque dev y staging COMPARTEN LA BD: el `sub` del asesor es el mismo para los dos backends.
-if [ "$REMOTE_FRONT" = 0 ] && [ "$TARGET" != "local" ] && [ "$TARGET" != "dev" ]; then
-  export E2E_COGNITO_USER="" E2E_COGNITO_PASS=""
-  echo "  ● cognito       front local → pool de dev: se loguea con la cuenta de .cognito.json (no la de .env.$TARGET)"
-fi
+# El conector decide el ambiente de autenticación a partir del origen del front. No se mezclan credenciales E2E antiguas.
 
 log() { printf '▶ %s\n' "$*"; }
 step() { printf '  ○ %-13s …\n' "$1"; }
@@ -128,11 +123,13 @@ json_pick() { node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>{t
 # El asesor es POR TARGET. `.flows.json` describe al de dev; staging entra por OTRO pool de Cognito, así
 # que la MISMA persona tiene otro `sub` — y como el backend y la BD son los mismos para dev y staging, el
 # backend no la reconoce y el wizard responde "No tienes un comercio asignado" (F-61). Si `.env.<target>`
-# define E2E_ADVISOR_SUB / E2E_COGNITO_USER, mandan ellos.
+# define E2E_ADVISOR_SUB, manda ese sub; la cuenta de login sale de connectors.
 EMAIL="$(fget asesor.email)"; SUB="$(fget asesor.sub)"
 OV="$(envget E2E_ADVISOR_SUB)";   [ -z "$OV" ] && OV="$(envget E2E_ASESOR_SUB)"   # el nombre viejo sigue andando
 [ -n "$OV" ] && SUB="$OV"
-OV="$(envget E2E_COGNITO_USER)"; [ -n "$OV" ] && EMAIL="$OV"
+# Sólo el correo, nunca la contraseña, sale al shell; config delega en el conector.
+LOGIN_EMAIL="$(node --input-type=module -e 'import { cognitoCreds } from "./pkg/config.ts"; process.stdout.write(cognitoCreds.user || "")')"
+[ -z "$LOGIN_EMAIL" ] || EMAIL="$LOGIN_EMAIL"
 [ -n "$EMAIL" ] && [ -n "$SUB" ] || { echo "✗ sin asesor: definí E2E_ADVISOR_SUB en .env.$TARGET o asesor.email/sub en $FLOWS"; exit 1; }
 export E2E_ADVISOR_SUB="$SUB"   # lo usa el spec (salto headless a /lenders) para el corporate_user_id del uReq
 # ⚠ EL HASH DE LA SUCURSAL NO ES EL MISMO EN TODAS LAS BASES, así que primero se mira el mapa POR
@@ -223,17 +220,10 @@ else
     I_KNOW_THIS_TOUCHES_SHARED_DEV=1 node bin/dbops.ts assign "$SUB" "$MERCHANT" "$HASH" "$SUB" >/dev/null \
       || { echo "✗ falló el assign (corré: node bin/dbops.ts assign $SUB $MERCHANT $HASH $SUB)"; exit 1; }
     ok "load-permiso" "asignado → '$MERCHANT' ($HASH) [antes: ${CUR:-ninguno}]"
-    # El wizard FIJA el comercio del asesor en su cookie de sesión AL LOGUEAR: si la asignación cambió,
-    # una sesión cacheada sigue entrando al comercio ANTERIOR — el deploy responde 302 al hash viejo y
-    # la corrida "se va" por otro comercio (visto contra originaciones-stg el 2026-08-19: pediste dentix
-    # y el front te devolvió a celurd). Se invalida el cache para que ESTA corrida loguee de nuevo y la
-    # sesión nazca con la asignación nueva. La clave espeja a pkg/cognito.ts (SESSION_KEY): front del
-    # ambiente cachea por target; front local (o una ruta) cachea como 'dev'.
-    if [ "${CFE_FRONT:-}" = "ambiente" ]; then SESKEY="$TARGET"; else SESKEY="dev"; fi
-    if [ -f ".auth/cognito-state.$SESKEY.json" ]; then
-      rm -f ".auth/cognito-state.$SESKEY.json"
-      echo "  ↻ sesión cacheada invalidada (cognito-state.$SESKEY.json): el comercio cambió — esta corrida loguea de nuevo"
-    fi
+    # Al cambiar la asignación, cerrar la única sesión obliga al siguiente login a leer la sucursal nueva.
+    node ../connectors/advisor/cli.ts logout --target "$TARGET" --origin "$WIZ_BASE" \
+      || { echo "✗ no se pudo cerrar la sesión de asesor"; exit 1; }
+    echo "  ↻ sesión compartida invalidada: el comercio cambió — esta corrida loguea de nuevo"
   fi
 fi
 

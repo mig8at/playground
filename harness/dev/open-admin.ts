@@ -118,6 +118,8 @@ async function startIfNeeded(): Promise<boolean> {
     // Sin contraseña y sin perfil de navegador: la sesión sale de `make harness-signin KIND=admin TARGET=<t>` (la que
     // guarda `pkg/sessions.ts`, de UNA persona, con sus credenciales de `connectors/`). Esta ventana sólo la usa.
     if (!IS_LOCAL) {
+        const { runPg } = await import('../pkg/pg.ts');
+        runPg(['admin', 'status', '--target', TARGET, '--json']); // migra una sesión anterior con identidad conocida
         const { readSession } = await import('../pkg/sessions.ts');
         const stored = readSession('admin', TARGET);
         if (!stored) {

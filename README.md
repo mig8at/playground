@@ -22,7 +22,7 @@ nodos, qué valida, qué derivó) los imprimen las herramientas, no la prosa.
 | Carpeta | Qué es |
 |---|---|
 | [`knowledge/`](knowledge/README.md) | Conocimiento local editable y versionado, con fuentes revisadas contra el código. |
-| [`connectors/`](connectors/) | El cliente ÚNICO de cada servicio externo (base, Loki, PostHog, Gemini, repos), por ambiente y con la fuente que contestó. Se usa con `bin/pg` (`make pg ARGS=help`). |
+| [`connectors/`](connectors/) | El cliente ÚNICO de cada servicio externo (base, Loki, PostHog, Gemini, repos), por ambiente y con la fuente que contestó. Se usa con `bin/pg` (`make pg ARGS=help`). También posee los logins y sesiones de admin/asesor: [contrato](connectors/CLAUDE.md). |
 | [`harness/`](harness/README.md) | Playwright + TypeScript manejando el wizard real punta a punta con KYC/buró sintético: panel visual, flota de mocks y barrido headless por API. |
 | [`tablero/`](tablero/README.md) | Las **tareas** (una = una carpeta en `tasks/`), el dashboard del sprint y el pulso. |
 | [`trazador/`](trazador/) | Herramienta de soporte (Go) sobre Loki + BD: «¿qué le pasó a ESTA solicitud y por qué?». `make trazador-acceso` prueba el acceso. |

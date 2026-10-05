@@ -18,6 +18,21 @@ jira_title: ""
 - [ ] Migrar los specs de burós al lambda y conservar `source=lambda` como evidencia de participación.
 - [ ] Mantener asserts, transiciones y veredicto como reglas determinísticas.
 
+## Sesiones compartidas
+
+El harness delega las sesiones a `connectors/admin` y `connectors/advisor`. La configuración de login
+vive en `connectors/.env.<ambiente>` y el único estado de navegador en `connectors/.auth/sessions/`.
+Los comandos existentes se conservan. Las cachés Cognito antiguas sin identidad necesitan un primer
+login desde el conector; no se atribuyen automáticamente a la cuenta configurada.
+
+```sh
+make harness-login TARGET=local
+make harness-session TARGET=local
+bin/pg advisor status --target local --json
+```
+Resultado: login abre una ventana y guarda la cuenta elegida; los chequeos muestran validez sin cookies.
+El contrato y las pruebas están en [connectors](repo:playground/connectors/CLAUDE.md#L1).
+
 ## Cómo se comprueba — y el material
 
 El diagnóstico combina configuración y sondas de lectura; la corrida sigue comprobando el desenlace.
