@@ -32,6 +32,11 @@ jira_title: "Sucursal y asesor de prueba al crear un comercio"
 - [ ] Avisar a infra de que los secrets de los wizards de dev y qa se editaron a mano y llevan la etiqueta de Terraform; termina
   cuando infra confirma que un apply no los pisa o los deja en su código.
   Depende de: Daniel Sánchez (infra).
+- [ ] Copiar la marca de la pantalla de login de prod a Merchants Dev (hoy muestra el formulario básico de Cognito): pasar su dominio a
+  Managed Login versión 2 (mismo plan Essentials que prod, sin costo extra) y crear la marca de prod en cada cliente `wizard-*`;
+  termina cuando el login de qa y dev se ve con la marca de CreditOp y el asesor de prueba sigue entrando. Hay script con vista previa
+  y vuelta atrás.
+  Depende de: Miguel — correr el script (cambia la pantalla de todos los clientes del pool a la vez).
 - [ ] Dar a QA sus propios asesores de prueba: sus cuentas de siempre (del pool de producción) ya no entran a qa ni a dev; termina
   cuando cada quien que prueba en qa tiene uno creado desde el admin.
 - [ ] Reubicar los asesores que ya entran a qa y staging: su `cognito_id` es del pool actual y dejarán de
