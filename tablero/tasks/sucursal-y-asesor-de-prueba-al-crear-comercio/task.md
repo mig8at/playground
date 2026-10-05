@@ -38,7 +38,7 @@ jira_title: "Sucursal y asesor de prueba al crear un comercio"
   entrar al cambiar; termina cuando cada uno existe en Merchants Dev con su `sub` en la base.
 - [x] Confirmar a qué pool apuntan dev, qa y staging (2026-10-02): al de PRODUCCIÓN. El id `us-east-1_XnF2zz3Ou` es el
   pool Merchants de la consola de producción. Falta, sólo para cerrar del todo, ver en esa consola que el dominio
-  `auth.merchant.creditop.com` y el cliente `il7p9ueb…` son los de ese pool.
+  `auth.merchant.creditop.com` y el cliente `il7p9ueb…` son los de ese pool. Cerrado del todo el 2026-10-05 con la consola de prod.
 - [x] Mergear el [PR 252](pr:application#252) y comprobarlo en dev (2026-10-05): los asesores nacen con `is_test = 1` y
   `test_reason = 'manual'`, y siguen entrando.
 - [x] Borrar las dos cuentas del pool Merchants Dev que dejaron los comercios 353 y 354 (hecho el 2026-10-05, pool en 0) (cuentas `cb5c7fdad-fake` y
