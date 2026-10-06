@@ -228,6 +228,13 @@
       position: relative; display: flex; flex-direction: column; background: var(--background); font-size: var(--text-body);
     }
     .phone-app[hidden] { display: none }
+    .device-live { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: top; background: var(--background) }
+    .device-live[hidden], .device-status[hidden] { display: none }
+    .device-label .region-action[hidden] { display: none }
+    .device-label { height: 20px }
+    .device-label .region-action { width: 20px; height: 20px; margin: 0; padding: 0 }
+    .device-status { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: var(--space-2); background: var(--background); z-index: 3 }
+    .device-status .spinner[hidden] { display: none }
     /* El cliente: los datos que llegaron, en filas de rótulo y valor. */
     .client-head { display: flex; align-items: baseline; justify-content: space-between; gap: var(--space-2); padding: 28px var(--space-3) var(--space-2); border-bottom: 1px solid var(--border) }
     .client-head span { color: var(--fg-3); font-size: var(--text-sm) }
@@ -624,10 +631,19 @@
               </div>
             </figure>
             <figure class="device" id="deviceClient">
-              <figcaption class="device-label"><span class="ui-icon" data-icon="channel" aria-hidden="true"></span>Cliente</figcaption>
+              <figcaption class="device-label"><span class="ui-icon" data-icon="channel" aria-hidden="true"></span>Cliente
+                <button type="button" class="region-action" id="clientClose" hidden title="Cerrar el navegador del cliente" aria-label="Cerrar el navegador del cliente"><span class="ui-icon" data-icon="close" aria-hidden="true"></span></button></figcaption>
               <div class="device-frame"><div class="device-notch"></div>
                 <div class="device-screen" id="screenClient">
                   <p class="device-empty" id="clientEmpty">El celular del cliente</p>
+                  <!-- El navegador REAL del cliente (`panel/devices.ts`): «Pagar con Creditop» en la tienda lo
+                       REDIRIGE acá, al checkout. Por ahora es una foto que se refresca; los clics llegan con el
+                       screencast. -->
+                  <img class="device-live" id="clientLive" alt="Pantalla del celular del cliente" hidden />
+                  <div class="device-status" id="clientStatus" hidden role="status">
+                    <span class="spinner" id="clientSpinner" aria-hidden="true"></span>
+                    <p class="device-empty" id="clientStatusText"></p>
+                  </div>
                   <!-- Lo que le llegó al cliente desde la tienda al «Pagar con Creditop». Por ahora sólo los
                        datos, tal como los mandó el pedido. -->
                   <div class="phone-app client-app" id="clientApp" hidden>
@@ -2465,33 +2481,73 @@
     }
     let isCorbeta = false;
 
-    // ── La tienda del celular «Tienda» ─────────────────────────────────────────────────────────────
-    // Por ahora es el DISEÑO: se prellena con el caso del sidebar al mostrarse y se edita ahí mismo;
-    // todavía no arma el pedido ni lanza nada.
+    // ── EL CASO: UNA SOLA FUENTE para la tienda, el asesor y el pedido ─────────────────────────────
+    // El «Cliente» del panel derecho y los datos de la tienda son la MISMA persona, así que hay un solo
+    // estado: los campos del panel derecho (son los que lee la corrida). `caseStore` los lee y los
+    // escribe —disparando sus eventos, para que su lógica corra igual que con el teclado— y la tienda es
+    // una vista más. Lo que el panel derecho no tiene vive acá: el PAÍS. El celular es el del bypass del
+    // OTP: se muestra, no se edita.
     const SHOP_DOC_TYPES = { CO: ['CC', 'CE', 'PEP'], DO: ['Cédula', 'Pasaporte'], PE: ['DNI', 'CE'] };
-    function fillShopDocTypes(keep) {
-      const sel = $('shopDocType'), types = SHOP_DOC_TYPES[$('shopCountry').value] || SHOP_DOC_TYPES.CO;
-      sel.replaceChildren(...types.map((t) => new Option(t, t)));
-      if (keep && types.includes(keep)) sel.value = keep;
+    const caseStore = {
+      country: 'CO',
+      docType: '',   // el tipo que no es un chip del panel (los de RD y Perú)
+      read() {
+        const full = ($('name').value || $('name').placeholder || '').trim().split(/\s+/).filter(Boolean);
+        return {
+          amount: $('amount').value, firstName: full[0] || '', lastName: full.slice(1).join(' '),
+          birth: $('dob').value, country: this.country,
+          docType: this.docType || document.querySelector('#doctype .on')?.dataset.v || '',
+          doc: $('document').value, expedition: $('expedition').value,
+          phone: $('phone').textContent.trim(), email: $('email').value,
+        };
+      },
+      write(key, value) {
+        const set = (id, v) => { $(id).value = v; for (const ev of ['input', 'change']) $(id).dispatchEvent(new Event(ev, { bubbles: true })); };
+        const cur = this.read();
+        if (key === 'amount') set('amount', value);
+        else if (key === 'firstName' || key === 'lastName') {
+          const parts = { firstName: cur.firstName, lastName: cur.lastName, [key]: value };
+          set('name', [parts.firstName, parts.lastName].map((x) => x.trim()).filter(Boolean).join(' '));
+        } else if (key === 'birth') set('dob', value);
+        else if (key === 'doc') set('document', value);
+        else if (key === 'expedition') set('expedition', value);
+        else if (key === 'email') set('email', value);
+        else if (key === 'country') { this.country = value; this.docType = ''; }
+        else if (key === 'docType') {
+          const chip = document.querySelector(`#doctype button[data-v="${value}"]`);
+          this.docType = chip ? '' : value;
+          if (chip && !chip.classList.contains('on')) chip.click();
+        }
+        renderCaseViews();
+      },
+    };
+    // La tienda escribe en el caso; cada campo, a su clave.
+    const SHOP_BINDINGS = {
+      shopAmount: 'amount', shopFirstName: 'firstName', shopLastName: 'lastName', shopBirth: 'birth',
+      shopCountry: 'country', shopDocType: 'docType', shopDoc: 'doc', shopExpedition: 'expedition', shopEmail: 'email',
+    };
+    for (const [id, key] of Object.entries(SHOP_BINDINGS)) {
+      $(id).addEventListener(id === 'shopCountry' || id === 'shopDocType' ? 'change' : 'input', () => caseStore.write(key, $(id).value));
     }
-    function updateShopTotal() { $('shopTotal').textContent = '$' + ($('shopAmount').value || '0'); }
-    let shopFilled = false;
-    function fillShopFromCase() {
-      if (shopFilled) return;
-      shopFilled = true;
-      const full = ($('name')?.value || $('name')?.placeholder || '').trim().split(/\s+/).filter(Boolean);
-      $('shopFirstName').value = full[0] || '';
-      $('shopLastName').value = full.slice(1).join(' ');
-      $('shopBirth').value = $('dob')?.value || '';
-      $('shopAmount').value = $('amount')?.value || '';
-      fillShopDocTypes(document.querySelector('#doctype .on')?.textContent?.trim());
-      $('shopDoc').value = $('document')?.value || '';
-      $('shopExpedition').value = $('expedition')?.value || '';
-      $('shopPhone').value = $('phone')?.textContent?.trim() || '';
-      $('shopEmail').value = $('email')?.value || '';
-      $('shopName').textContent = (sel && sel.name) || 'Tienda demo';
-      updateShopTotal();
+    $('shopPhone').readOnly = true;
+    $('shopPhone').title = 'El celular del bypass del OTP: es el del caso y no se edita';
+    // Repinta la tienda desde el caso. El campo que tiene el foco no se toca: le movería el cursor.
+    function renderShop() {
+      const c = caseStore.read();
+      const put = (id, v) => { if (document.activeElement !== $(id) && $(id).value !== v) $(id).value = v; };
+      put('shopCountry', c.country);
+      const types = SHOP_DOC_TYPES[c.country] || SHOP_DOC_TYPES.CO;
+      if ([...$('shopDocType').options].map((o) => o.value).join() !== types.join()) {
+        $('shopDocType').replaceChildren(...types.map((t) => new Option(t, t)));
+      }
+      put('shopDocType', types.includes(c.docType) ? c.docType : types[0]);
+      put('shopAmount', c.amount); put('shopFirstName', c.firstName); put('shopLastName', c.lastName);
+      put('shopBirth', c.birth); put('shopDoc', c.doc); put('shopExpedition', c.expedition);
+      put('shopPhone', c.phone); put('shopEmail', c.email);
+      $('shopTotal').textContent = '$' + (c.amount || '0');
+      $('shopName').textContent = (sel && (sel.alias || sel.name)) || 'Tienda demo';
     }
+    function renderCaseViews() { renderShop(); renderAdvisor(); }
     // Cada pantalla de 360 px se escala al ancho de su marco.
     function fitShop() {
       for (const app of document.querySelectorAll('.phone-app')) {
@@ -2509,14 +2565,13 @@
       }));
     }
     // Lo que sabe el asesor: el caso del panel derecho.
+    // Lo que sabe el asesor: el caso, igual que la tienda.
     function advisorRows() {
-      const full = ($('name')?.value || $('name')?.placeholder || '').trim();
+      const c = caseStore.read();
       return [
-        ['Monto', '$' + ($('amount')?.value || '0')], ['Nombre', full],
-        ['Nacimiento', $('dob')?.value || ''],
-        ['Documento', [document.querySelector('#doctype .on')?.textContent?.trim(), $('document')?.value].filter(Boolean).join(' ')],
-        ['Expedición', $('expedition')?.value || ''], ['Celular', $('phone')?.textContent?.trim() || ''],
-        ['Email', $('email')?.value || ''],
+        ['Monto', '$' + (c.amount || '0')], ['Nombre', [c.firstName, c.lastName].filter(Boolean).join(' ')],
+        ['Nacimiento', c.birth], ['Documento', [c.docType, c.doc].filter(Boolean).join(' ')],
+        ['Expedición', c.expedition], ['Celular', c.phone], ['Email', c.email],
       ];
     }
     function renderAdvisor() {
@@ -2543,20 +2598,20 @@
     $('advisorLenderGo').addEventListener('click', () => sendToLender('advisor'));
     $('clientLenderGo').addEventListener('click', () => sendToLender('client'));
     // El celular del asesor sigue al caso: cualquier cambio en el panel derecho lo repinta.
-    for (const ev of ['input', 'click']) $('sideRight').addEventListener(ev, () => requestAnimationFrame(renderAdvisor));
+    for (const ev of ['input', 'change', 'click']) $('sideRight').addEventListener(ev, () => requestAnimationFrame(renderCaseViews));
     renderAdvisor(); fillLenderPickers();
 
     // «Pagar con Creditop»: la tienda le pasa el pedido al celular del cliente, que por ahora sólo
     // muestra lo que le llegó.
     function payWithCreditop() {
-      const v = (id) => $(id).value.trim();
+      const c = caseStore.read();
       const countryName = $('shopCountry').selectedOptions[0]?.textContent || '';
       const rows = [
-        ['Monto', '$' + (v('shopAmount') || '0')],
-        ['Nombre', v('shopFirstName')], ['Apellido', v('shopLastName')],
-        ['Nacimiento', v('shopBirth')], ['País', countryName],
-        ['Documento', [v('shopDocType'), v('shopDoc')].filter(Boolean).join(' ')],
-        ['Expedición', v('shopExpedition')], ['Celular', v('shopPhone')], ['Email', v('shopEmail')],
+        ['Monto', '$' + (c.amount || '0')],
+        ['Nombre', c.firstName], ['Apellido', c.lastName],
+        ['Nacimiento', c.birth], ['País', countryName],
+        ['Documento', [c.docType, c.doc].filter(Boolean).join(' ')],
+        ['Expedición', c.expedition], ['Celular', c.phone], ['Email', c.email],
       ];
       clientRows = rows;
       renderData($('clientData'), rows);
@@ -2565,9 +2620,47 @@
       $('clientApp').hidden = false;
       requestAnimationFrame(fitShop);
     }
-    $('shopPay').addEventListener('click', payWithCreditop);
-    $('shopCountry').addEventListener('change', () => fillShopDocTypes($('shopDocType').value));
-    $('shopAmount').addEventListener('input', updateShopTotal);
+    // ── El navegador real del cliente ─────────────────────────────────────────────────────────────
+    // La tienda queda a la vista; «Pagar con Creditop» REDIRIGE al celular del cliente, que abre el
+    // checkout en un contexto de Chromium aislado (`/api/device/client/open`).
+    let liveTimer = null;
+    // `loading` es la espera con el loader; `status` un mensaje sin él (un error).
+    function setClientMode(mode, text = '') {
+      $('clientLive').hidden = mode !== 'live';
+      $('clientStatus').hidden = mode !== 'status' && mode !== 'loading';
+      $('clientSpinner').hidden = mode !== 'loading';
+      $('clientStatusText').textContent = text;
+      $('shopPay').disabled = mode === 'loading';
+      $('clientClose').hidden = mode === 'idle';
+      if (mode !== 'idle') $('clientApp').hidden = true;
+      if (liveTimer) { clearInterval(liveTimer); liveTimer = null; }
+      if (mode === 'live') {
+        const tick = () => { $('clientLive').src = '/api/device/client/shot?t=' + Date.now(); };
+        tick(); liveTimer = setInterval(tick, 1500);
+      }
+      requestAnimationFrame(fitShop);
+    }
+    async function openClientBrowser() {
+      if (!(channel === 'ecommerce' || channel === 'auto') || !sel) return;
+      setClientMode('loading', channel === 'auto' && target === 'local'
+        ? 'Levantando el wizard del auto-onboarding y abriendo el checkout… (si hay que compilarlo, tarda unos minutos)'
+        : 'Abriendo el checkout…');
+      try {
+        const r = await (await fetch('/api/device/client/open', {
+          method: 'POST', headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({
+            slug: sel.slug, target, channel, order: caseStore.read(),
+          }),
+        })).json();
+        if (!r.ok) return setClientMode('status', r.detail || 'No se pudo abrir el checkout.');
+        $('clientLive').title = r.url || '';
+        setClientMode('live');
+      } catch (e) {
+        setClientMode('status', 'El panel no respondió: ' + e.message);
+      }
+    }
+    $('clientClose').addEventListener('click', () => { fetch('/api/device/client/close', { method: 'POST' }).catch(() => { }); setClientMode('idle'); });
+    $('shopPay').addEventListener('click', () => { payWithCreditop(); openClientBrowser(); });
     const toggleShopUser = (open) => { $('shopUser').hidden = !open; $('shopUserBtn').setAttribute('aria-expanded', String(open)); };
     $('shopUserBtn').addEventListener('click', () => toggleShopUser($('shopUser').hidden));
     $('shopUserDone').addEventListener('click', () => toggleShopUser(false));
@@ -2584,7 +2677,7 @@
       $('deviceStore').hidden = !viaStore;
       $('deviceAdvisor').hidden = noAdvisor;
       $('devices').dataset.count = String(document.querySelectorAll('.device:not([hidden])').length);
-      if (viaStore) { fillShopFromCase(); requestAnimationFrame(fitShop); }
+      if (viaStore) { renderShop(); requestAnimationFrame(fitShop); }
       document.querySelectorAll('#channelOptions button').forEach(b => {
         b.classList.toggle('on', b.dataset.c === channel);
         // Un canal que no aplica se deshabilita, no se esconde: verlo apagado dice que existe y que acá

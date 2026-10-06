@@ -1,4 +1,5 @@
 import type { Browser, BrowserContext, BrowserContextOptions, Page } from '@playwright/test';
+import { blockDevOverlays } from './dev-overlays.ts';
 import { installAutofill } from './autofill.ts';
 import { installWompiWidget } from './wompi-widget.ts';
 
@@ -89,6 +90,7 @@ export async function openWindow(browser: Browser, col: number, opts: OpenWindow
         storageState: opts.storageState,
         ...PREVIEW_VP,
     });
+    await blockDevOverlays(context);
     /* EL AUTORELLENO va acá y no en cada spec, porque este es el único lugar por donde pasan TODAS las
        ventanas: engancharlo una vez lo deja disponible en A, en B y en cualquier spec futuro sin que
        nadie se acuerde de instalarlo. Es `addInitScript` sobre el CONTEXTO, así que sobrevive a las

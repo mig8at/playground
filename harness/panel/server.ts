@@ -14,6 +14,7 @@ import { readFileSync, existsSync, writeFileSync, readdirSync, statSync, mkdirSy
 import { fileURLToPath } from 'node:url';
 import { dirname, resolve, join } from 'node:path';
 import { MockSupervisor, MOCKS as MOCK_REGISTRY } from './mocks.ts';
+import { openDevice, deviceState, deviceShot, closeDevice, closeAllDevices, type DeviceId } from './devices.ts';
 import { homedir } from 'node:os';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
@@ -272,9 +273,9 @@ function dbopsList(q: string, target: string): Promise<any[]> {
 }
 
 // corre `node bin/dbops.ts <args...>` y devuelve el JSON parseado (o null si falla). Target-aware (dev → I_KNOW).
-function dbopsJson(args: string[], target: string): Promise<any> {
+function dbopsJson(args: string[], target: string, extraEnv: NodeJS.ProcessEnv = {}): Promise<any> {
     return new Promise((ok) => {
-        execFile('node', ['bin/dbops.ts', ...args], { cwd: ROOT, env: envFor(target), timeout: 30000 }, (err, stdout) => {
+        execFile('node', ['bin/dbops.ts', ...args], { cwd: ROOT, env: { ...envFor(target), ...extraEnv }, timeout: 30000 }, (err, stdout) => {
             if (err) return ok(null);
             try { ok(JSON.parse(stdout)); } catch { ok(null); }
         });
@@ -1485,6 +1486,68 @@ const server = createServer(async (req, res) => {
     // Existe porque el cold-boot se pagaba DENTRO de la corrida (304s medidos el 2026-08-19 contra ~11s
     // con el wizard tibio). NO escribe en RUN_LOG: no es una corrida, y ensuciaría la consola de la
     // última. Uno a la vez, y nunca durante una corrida (reiniciaría el :5174 que la corrida usa).
+    // ── Los celulares como navegadores aislados (`panel/devices.ts`) ────────────────────────────────
+    // `POST /api/device/client/open` arma el pedido de la tienda del panel —la misma URL base64 que usa
+    // la corrida (`dbops ecommerce-url`)— y abre el checkout en el contexto del cliente. Por ahora sólo
+    // navega: el bypass del OTP y la siembra del buró vienen después.
+    const deviceRoute = /^\/api\/device\/(client|advisor|lender)(?:\/(open|state|shot|close))?$/.exec(path);
+    if (deviceRoute) {
+        const id = deviceRoute[1] as DeviceId, action = deviceRoute[2] || 'state';
+        if (action === 'state') return json(res, 200, deviceState(id));
+        if (action === 'shot') {
+            const png = await deviceShot(id).catch(() => null);
+            if (!png) { res.writeHead(404); return res.end(); }
+            res.writeHead(200, { 'content-type': 'image/png', 'cache-control': 'no-store' });
+            return res.end(png);
+        }
+        if (action === 'close' && req.method === 'POST') { await closeDevice(id); return json(res, 200, { ok: true }); }
+        if (action === 'open' && req.method === 'POST' && id === 'client') {
+            const b = await readBody(req);
+            const t = TARGETS.has(String(b.target)) ? String(b.target) : 'local';
+            const o = b.order || {};
+            const str = (v: unknown) => String(v ?? '').trim();
+            const auto = b.channel === 'auto';
+            // La identidad del pedido viaja por las mismas variables que lee `caseIdentity()`.
+            const orderEnv: NodeJS.ProcessEnv = {
+                E2E_SYNTH_DOC: str(o.doc), E2E_SYNTH_DOCTYPE: str(o.docType) || 'CC', E2E_SYNTH_EMAIL: str(o.email),
+                E2E_SYNTH_NAME: [str(o.firstName), str(o.lastName)].filter(Boolean).join(' '),
+                // La fecha de expedición y la de nacimiento sólo las manda el auto-onboarding: así una sucursal
+                // habilitada para el auto se sigue pudiendo probar por la puerta normal.
+                E2E_AUTO_ONBOARDING: auto ? '1' : '', E2E_SYNTH_EXP: auto ? str(o.expedition) : '',
+                E2E_SYNTH_DOB: auto ? str(o.birth) : '', E2E_AUTO_NO_BIRTH: auto && !str(o.birth) ? '1' : '',
+            };
+            const amount = String(Number(str(o.amount).replace(/\D/g, '')) || '');
+            const built = await dbopsJson(['ecommerce-url', String(b.slug || ''), str(o.phone), amount], t, orderEnv);
+            if (!built?.checkout_path) return json(res, 200, { ok: false, detail: `no pude armar el pedido de ${b.slug} en ${t} (¿sucursal con credencial de ecommerce?)` });
+            // El auto-onboarding vive en OTRO worktree del front: en local hay que servir ése en :5174, o el
+            // checkout cae al ecommerce normal sin decir nada. Lo levanta `bin/advisor … preboot` con el
+            // canal auto, igual que la corrida (mide la carpeta y reinicia si no es la suya).
+            if (auto && t === 'local') {
+                if (current && !current.done) return json(res, 200, { ok: false, detail: 'hay una corrida activa usando el wizard de :5174' });
+                for (let i = 0; prebooting && i < 600; i++) await new Promise((r) => setTimeout(r, 500));
+                prebooting = true;
+                const boot = await new Promise<{ code: number; out: string }>((ok) => {
+                    const child = spawn('/bin/bash', [join(ROOT, 'bin', 'advisor'), String(b.slug || ''), 'preboot'],
+                        { cwd: ROOT, env: { ...envFor(t), CFE_FRONT: 'local', E2E_AUTO_ONBOARDING: '1', CFE_ENTRY: 'ecommerce' } });
+                    let out = '';
+                    child.stdout?.on('data', (d: Buffer) => { out += d.toString(); });
+                    child.stderr?.on('data', (d: Buffer) => { out += d.toString(); });
+                    child.on('close', (code) => ok({ code: code ?? 1, out }));
+                }).finally(() => { prebooting = false; });
+                if (boot.code !== 0) return json(res, 200, { ok: false, detail: 'no pude levantar el wizard del auto-onboarding: ' + (boot.out.trim().split('\n').pop() || `código ${boot.code}`) });
+            }
+            const front = await new Promise<string>((ok) => execFile('node', ['bin/env-get.ts', 'E2E_BASE_URL', 'http://localhost:5174'],
+                { cwd: ROOT, env: envFor(t), timeout: 10000 }, (err, out) => ok(err ? 'http://localhost:5174' : String(out || '').trim())));
+            try {
+                const r = await openDevice('client', front.replace(/\/$/, '') + built.checkout_path);
+                return json(res, 200, { ok: true, hash: built.hash, merchant: built.merchant, ...r });
+            } catch (e) {
+                return json(res, 200, { ok: false, detail: `el celular no pudo abrir ${front}: ${(e as Error).message.split('\n')[0]}` });
+            }
+        }
+        return json(res, 405, { ok: false, detail: 'acción no soportada' });
+    }
+
     if (path === '/api/preboot' && req.method === 'POST') {
         const b = await readBody(req);
         const t = TARGETS.has(String(b.target)) ? String(b.target) : 'local';
@@ -1589,4 +1652,4 @@ server.listen(PORT, HOST, () => {
     }
 });
 // Al cerrar el panel se apagan SÓLO los mocks que levantó él; los que estaban arriba siguen.
-for (const sig of ['SIGINT', 'SIGTERM'] as const) process.on(sig, () => { mockSupervisor.shutdown(); setTimeout(() => process.exit(0), 300); });
+for (const sig of ['SIGINT', 'SIGTERM'] as const) process.on(sig, () => { mockSupervisor.shutdown(); void closeAllDevices(); setTimeout(() => process.exit(0), 300); });

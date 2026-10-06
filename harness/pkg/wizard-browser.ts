@@ -15,6 +15,7 @@
 // Lo único que SÍ necesita puntería es elegir una entidad concreta del listado, porque ahí el caminador
 // no puede tomar «la primera»: el caso pide una. Se resuelve por el NOMBRE de la entidad, que se lee de
 // la base — el listado lo muestra y es lo único estable sin testids.
+import { blockDevOverlays } from './dev-overlays.ts';
 import { chromium, type Browser, type BrowserContext, type Page } from '@playwright/test';
 import { autofill, clickAdvance, validationErrors, readToEnd, type Field } from './autofill-qr.ts';
 import { installWompiWidget } from './wompi-widget.ts';
@@ -167,6 +168,7 @@ export async function openContext(browser: Browser, baseURL: string, opts: { tra
         baseURL, userAgent: UA_MOBILE, viewport: { width: 420, height: 900 },
         ...(opts.storageState ? { storageState: opts.storageState } : {}),
     });
+    await blockDevOverlays(ctx);
     // La TRAZA de Playwright: DOM por acción, red y consola, en un zip que se abre con
     // `npx playwright show-trace`. Es la evidencia que un log no puede dar, y se guarda SÓLO si el caso
     // falla (quien llama decide en `closeContext`).
