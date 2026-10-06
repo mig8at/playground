@@ -616,6 +616,19 @@ async function testAdvisorFor(slug: string, target: string): Promise<TestAdvisor
     testAdvisorCache.set(key, { at: Date.now(), data });
     return data;
 }
+/**
+ * LA SUCURSAL DEL CANAL ASESOR. Fuera de local se entra como CUALQUIERA que abre originaciones con el asesor de
+ * prueba del comercio: en SU sucursal falsa —la del correo, `c<sucursal>-fake@`— y sin reasignarlo, porque la base
+ * es la del equipo (2026-10-06). En local, la del catálogo (ahí se asigna, la base es tuya). ⚠ La falsa tiene sus
+ * propias entidades, no las de la principal: el panel muestra ésas para no anunciar un listado que no va a salir.
+ * Es lo mismo que decide `bin/advisor` en «load-permiso».
+ */
+async function advisorBranch(slug: string, target: string): Promise<string> {
+    const hash = branchHashForSlug(slug, target);
+    if (target === 'local' || !hash) return hash;
+    const advisor = await testAdvisorFor(slug, target);
+    return /^c([0-9a-f]{8})-fake@/.exec(advisor.email || '')?.[1] || hash;
+}
 /** El env de un proceso que entra como el asesor de prueba del comercio (lo leen `pkg/config.ts` y `pkg/cognito.ts`). */
 const accountEnv = (account?: string): NodeJS.ProcessEnv => (account ? { E2E_ADVISOR_ACCOUNT: account } : {});
 
@@ -624,7 +637,7 @@ const accountEnv = (account?: string): NodeJS.ProcessEnv => (account ? { E2E_ADV
 const assignOk = new Set<string>();
 
 async function ensureAssign(slug: string, target: string): Promise<{ ok: boolean; already?: boolean; detail: string }> {
-    const hash = branchHashForSlug(slug, target);
+    const hash = await advisorBranch(slug, target);
     if (!hash) return { ok: false, detail: `no sé el hash de la sucursal de '${slug}'` };
     const key = `${target}|${hash}`;
     if (assignOk.has(key)) return { ok: true, already: true, detail: 'permiso ya confirmado' };
@@ -653,7 +666,7 @@ async function ensureAssign(slug: string, target: string): Promise<{ ok: boolean
     // la usan otros (2026-10-06: así quedó la de Pullman fuera de su sucursal). Sólo se avisa dónde está; el que
     // lo asigna, si hace falta, es lanzar la corrida (`bin/advisor`, «load-permiso»), que es una acción explícita.
     if (target !== 'local') {
-        return { ok: true, already: true, detail: `fuera de local no se mueve al asesor: está en ${where || 'ninguna sucursal'}; lanzar la corrida lo asigna a ${hash}` };
+        return { ok: true, already: true, detail: `el asesor está en ${where || 'ninguna sucursal'}, no en su sucursal falsa ${hash}: alguien lo movió. Fuera de local no se toca` };
     }
     const r = await dbopsJson(['assign', sub, slug, hash, sub], target);
     if (!r || r.error) return { ok: false, detail: r?.error || 'el assign falló (mirá la consola del panel)' };
@@ -1400,7 +1413,8 @@ const server = createServer(async (req, res) => {
     if (path === '/api/lenders') {
         const slug = (url.searchParams.get('slug') || '').trim();
         const target = (url.searchParams.get('target') || 'local').trim();
-        const hash = branchHashForSlug(slug, target);
+        // Con el canal asesor fuera de local, la sucursal es la falsa del comercio (`advisorBranch`): sus entidades.
+        const hash = url.searchParams.get('channel') === 'asesor' ? await advisorBranch(slug, target) : branchHashForSlug(slug, target);
         if (!hash) return json(res, 200, { hash: '', lenders: [], msg: `sin branch_hash en .flows.json para '${slug}'` });
         const r = await dbopsJson(['lenders-for', hash], target);
         // Si la consulta falla, `dbops` devuelve {error}. Antes se normalizaba a [] y el panel dibujaba
@@ -1790,7 +1804,7 @@ connect();
             for (let i = 0; prebooting && i < 600; i++) await new Promise((r) => setTimeout(r, 500));
             const t = TARGETS.has(String(b.target)) ? String(b.target) : 'local';
             const slug = String(b.slug || '');
-            let hash = branchHashForSlug(slug, t);
+            let hash = await advisorBranch(slug, t);
             if (!hash) return json(res, 200, { ok: false, detail: `no conozco la sucursal de ${slug} en ${t}` });
             // El celular anterior se cierra YA y no al final: así su navegador nuevo se prepara mientras corren las
             // consultas de abajo (asesor de prueba, sesión, asignación), en vez de después.
@@ -1817,7 +1831,7 @@ connect();
             const current = who?.matches?.[0]?.allied_branch_hash;
             if (t !== 'local') {
                 if (current && current !== hash) {
-                    assigned = `no se mueve fuera de local: abre su sucursal ${current} (la del comercio en el panel es ${hash})`;
+                    assigned = `está en ${current} y no en su sucursal falsa ${hash}: alguien lo movió; fuera de local no se toca y se abre donde está`;
                     hash = current;
                 } else if (!current) assigned = `no tiene sucursal en la base de ${t} y fuera de local no se le asigna: el wizard puede decir que no tiene comercio`;
             } else if (current !== hash) {

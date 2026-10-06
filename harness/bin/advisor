@@ -231,7 +231,20 @@ else
   export E2E_ADVISOR_ACCOUNT="$EMAIL" E2E_ADVISOR_SUB="$SUB"   # el spec entra con esta cuenta y la usa como corporate_user_id
   echo "  ● asesor      $EMAIL (asesor de prueba del comercio)"
   CUR="$(node bin/dbops.ts whois "$SUB" 2>/dev/null | json_pick '.matches[0].allied_branch_hash')"
-  if [ "$CUR" = "$HASH" ]; then
+  # ⛔ FUERA DE LOCAL NO SE MUEVE AL ASESOR (2026-10-06). La base es la del equipo y la cuenta `c<hash>-fake@` la
+  # usan otros: la corrida entra COMO CUALQUIERA que abre originaciones con ella, en la sucursal falsa del comercio
+  # (la del correo: `c<sucursal>-fake@`). Antes había que asignar porque crear un asesor era un trámite; con el
+  # asesor de prueba de cada comercio, ya no. ⚠ Esa sucursal tiene SUS entidades, que no son las de la principal.
+  FAKE="$(printf '%s' "$EMAIL" | sed -nE 's/^c([0-9a-f]{8})-fake@.*/\1/p')"
+  if [ "$TARGET" != "local" ] && [ -n "$FAKE" ]; then
+    [ "$FAKE" = "$HASH" ] || echo "  ↪ sucursal   $FAKE (la falsa del comercio, en vez de $HASH): fuera de local la corrida no reasigna al asesor"
+    HASH="$FAKE"; export E2E_ADVISOR_HASH="$HASH"
+    if [ "$CUR" = "$HASH" ]; then
+      ok "load-permiso" "en su sucursal falsa ($HASH) — sin write"
+    else
+      ok "load-permiso" "⚠ el asesor está en ${CUR:-ninguna sucursal}, no en la suya ($HASH): alguien lo movió. No se toca; la corrida puede caer en otra sucursal"
+    fi
+  elif [ "$CUR" = "$HASH" ]; then
     ok "load-permiso" "ya en '$MERCHANT' ($HASH) — sin write"
   else
     # query = SUB (cognito_id): el assign matchea/crea la fila users por cognito_id (el email puede diferir).

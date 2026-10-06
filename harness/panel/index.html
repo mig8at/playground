@@ -1553,10 +1553,10 @@
       // Una respuesta que vuelve cuando ya se eligió otro comercio (u otro ambiente) se descarta: si no,
       // pinta las entidades del anterior. Pasa al abrir el panel desde una ruta, que cambia el comercio
       // con la carga del default todavía en vuelo.
-      const askedSlug = sel.slug, askedTarget = target;
+      const askedSlug = sel.slug, askedTarget = target, askedChannel = channel;
       try {
-        const r = await (await fetch('/api/lenders?slug=' + encodeURIComponent(sel.slug) + '&target=' + target)).json();
-        if (!sel || sel.slug !== askedSlug || target !== askedTarget) return;
+        const r = await (await fetch('/api/lenders?slug=' + encodeURIComponent(sel.slug) + '&target=' + target + '&channel=' + channel)).json();
+        if (!sel || sel.slug !== askedSlug || target !== askedTarget || channel !== askedChannel) return;
         $('lendersbranch').textContent = r.hash ? '· ' + r.hash : (r.msg || '');
         paStatus = (await (await fetch('/api/pa-statuses')).json().catch(() => ({}))) || {};
         if (!sel || sel.slug !== askedSlug || target !== askedTarget) return;
@@ -3786,7 +3786,7 @@
     document.querySelectorAll('#injectOptions button').forEach(b => b.onclick = () => { if (b.disabled) return; inject = b.dataset.i === '1'; applyInjMode(); });
     // `canalTocado` fija que el canal de ESTE comercio ya lo decidiste vos: la sugerencia del servidor
     // no vuelve a pisarlo en los refrescos siguientes.
-    document.querySelectorAll('#channelOptions button').forEach(b => b.onclick = () => { channel = b.dataset.c; channelTouched = (sel && sel.slug) || channelTouched; applyChannel(); ensureAssignUI(); });
+    document.querySelectorAll('#channelOptions button').forEach(b => b.onclick = () => { channel = b.dataset.c; channelTouched = (sel && sel.slug) || channelTouched; applyChannel(); ensureAssignUI(); loadLenders(); });
 
     // Real (buró + OTP reales) NO existe en local → solo dev/staging. En local se fuerza Sintético.
     // ── Front del ambiente vs front local ────────────────────────────────────────────────────────────
