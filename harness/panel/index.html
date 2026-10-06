@@ -2652,6 +2652,7 @@
         if (!r.ok) return setClientMode('status', r.detail || 'No se pudo abrir el checkout.');
         $('clientLive').title = r.url || '';
         setClientMode('live', '', r.view || '');
+        if (!runRunning) startPoll();   // la consola sigue la secuencia de los celulares
         // El código: el teléfono quedó en el bypass del OTP (sus últimos 4). Si no se pudo, se avisa el motivo.
         const otpChip = $('clientOtp');
         otpChip.hidden = false;
@@ -2698,6 +2699,7 @@
         if (!r.ok) return setAdvisorMode('status', r.detail || 'No se pudo abrir el wizard del asesor.');
         $('advisorVnc').title = [r.url, r.user && 'asesor de prueba ' + r.user, r.session && 'sesión: ' + r.session, r.assigned].filter(Boolean).join(' · ');
         setAdvisorMode('live', '', r.view || '');
+        if (!runRunning) startPoll();   // la consola sigue la secuencia de los celulares
       } catch (e) {
         setAdvisorMode('status', 'El panel no respondió: ' + e.message);
       }
@@ -3462,6 +3464,9 @@
           if (!runRunning) { setRunningUI(true); $('routeMap').open = true; }
           $('stopBtn').classList.add('on');
           setGoLabel('Corriendo…'); $('go').disabled = true;          $('runDot').className = 'run-dot running';
+          if (!logOpen) showLog(true);
+        } else if (Array.isArray(j.devices) && j.devices.length) {
+          // Sin corrida pero con celulares abiertos: su secuencia sigue llegando a la consola.
           if (!logOpen) showLog(true);
         } else {
           setRunningUI(false);

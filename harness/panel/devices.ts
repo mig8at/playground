@@ -33,6 +33,33 @@ interface Device {
 const PHONE = devices['Pixel 7'];
 const open = new Map<DeviceId, Device>();
 
+/** A dónde va lo que pasa en cada celular (el panel lo escribe en la consola de la corrida). */
+type DeviceLogger = (id: DeviceId, line: string) => void;
+let deviceLogger: DeviceLogger = () => { };
+export function setDeviceLogger(fn: DeviceLogger): void { deviceLogger = fn; }
+
+/** Lo que el NAVEGADOR de un celular hace solo y conviene ver en orden: adónde navega, los errores de JS y de
+ *  consola, y las respuestas ≥ 400 de documentos y llamadas (no de imágenes ni fuentes: son ruido). */
+function narrate(id: DeviceId, d: Omit<Device, 'openedAt'>, isCurrent: () => boolean): void {
+    const log = (line: string) => { if (isCurrent()) deviceLogger(id, line); };
+    let lastUrl = '';
+    d.page.on('framenavigated', (frame) => {
+        if (frame !== d.page.mainFrame()) return;
+        const u = frame.url();
+        if (u === lastUrl || u === 'about:blank') return;
+        lastUrl = u;
+        log(`→ ${u.replace(/^https?:\/\/[^/]+/, '')}`);
+    });
+    d.page.on('pageerror', (e) => log(`✗ error de JS: ${e.message.split('\n')[0].slice(0, 220)}`));
+    d.page.on('console', (m) => { if (m.type() === 'error') log(`⚠ consola: ${m.text().split('\n')[0].slice(0, 220)}`); });
+    d.page.on('response', (r) => {
+        if (r.status() < 400) return;
+        const kind = r.request().resourceType();
+        if (!['document', 'fetch', 'xhr'].includes(kind)) return;
+        log(`⚠ HTTP ${r.status()} ${r.request().method()} ${r.url().replace(/^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?/, '').slice(0, 160)}`);
+    });
+}
+
 // ── Motor selenium ───────────────────────────────────────────────────────────────────────────────
 // Un contenedor por celular, cada uno con su navegador y sus puertos: el cliente y el asesor no comparten
 // nada. Puertos sólo en 127.0.0.1: el noVNC no tiene contraseña.
@@ -177,7 +204,12 @@ export async function openDevice(id: DeviceId, url: string, opts: {
     // Si el navegador muere por fuera (el contenedor se borró o se reinició, Selenium venció la sesión), el
     // celular deja de figurar como abierto. Sin esto el panel seguía mostrando la sesión vieja como viva y el
     // traspaso al cliente no volvía a abrir nada: el visor quedaba en «El celular del cliente» (2026-10-06).
-    d.context.browser()?.on('disconnected', () => { if (open.get(id)?.openedAt === openedAt) open.delete(id); });
+    d.context.browser()?.on('disconnected', () => {
+        if (open.get(id)?.openedAt !== openedAt) return;
+        open.delete(id);
+        deviceLogger(id, '✗ el navegador se cerró por fuera (contenedor borrado o sesión vencida)');
+    });
+    narrate(id, d, () => open.get(id)?.openedAt === openedAt);
     await d.page.goto(url, { waitUntil: 'domcontentloaded', timeout: 60_000 });
     if (then) await then(d.page);
     return { url: d.page.url(), title: await d.page.title().catch(() => ''), view: d.view };

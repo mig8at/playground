@@ -18,7 +18,7 @@ import { advisorSession } from '../../connectors/advisor/session.ts';
 import { credentialsFor } from '../../connectors/auth/env.ts';
 import { envData, type AutofillData } from '../pkg/autofill.ts';
 import { identityWithoutProviderNotice } from '../pkg/config.ts';
-import { openDevice, openDevices, watchNavigation, deviceGoto, deviceText, deviceEval, deviceOpenedAt, deviceState, deviceShot, deviceInput, closeDevice, closeAllDevices, SELENIUM_BOXES, type DeviceId, type DeviceInput, type DeviceSession } from './devices.ts';
+import { openDevice, openDevices, setDeviceLogger, watchNavigation, deviceGoto, deviceText, deviceEval, deviceOpenedAt, deviceState, deviceShot, deviceInput, closeDevice, closeAllDevices, SELENIUM_BOXES, type DeviceId, type DeviceInput, type DeviceSession } from './devices.ts';
 import { homedir } from 'node:os';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
@@ -330,6 +330,29 @@ const deviceBypass = new Map<DeviceId, { target: string; puesto: unknown }>();
 const deviceNotes = new Map<DeviceId, string>();
 
 /**
+ * LA SECUENCIA DE LOS CELULARES EN LA CONSOLA DE LA CORRIDA. Lo que pasa en cada celular —navegaciones, errores
+ * del navegador, traspasos, rescates, webhook— se escribe en el mismo `RUN_LOG`, con hora y de qué celular, para
+ * leer en orden todo lo que pasó (y que «copiar» lo lleve). Abrir un celular sin corrida activa arranca una
+ * consola nueva (`startDeviceLog`); con una corrida andando, se suma a la suya.
+ */
+const DEVICE_LABEL: Record<DeviceId, string> = { advisor: 'asesor ', client: 'cliente' };
+function deviceLog(id: DeviceId | 'panel', line: string): void {
+    const at = new Date().toLocaleTimeString('es-CO', { hour12: false });
+    const who = id === 'panel' ? 'panel  ' : DEVICE_LABEL[id];
+    try { writeFileSync(RUN_LOG, `  ${at} [${who}] ${line}\n`, { flag: 'a' }); } catch { }
+}
+setDeviceLogger(deviceLog);
+function startDeviceLog(title: string): void {
+    if (current && !current.done) { deviceLog('panel', title); return; }
+    try { writeFileSync(RUN_LOG, `▶ CELULARES · ${title}\n\n`); } catch { }
+}
+/** La nota del chip de un celular, y la misma línea en la consola. */
+function setNote(id: DeviceId, text: string): void {
+    deviceNotes.set(id, text);
+    deviceLog(id, '◆ ' + text);
+}
+
+/**
  * F-220 EN LOS CELULARES. Sin `ADO_HOST` en el backend LOCAL, la validación de identidad manda a una ruta que no
  * existe (`…/validar-persona?callback=…`) y el celular queda muerto. Se hace lo mismo que la corrida guiada: la
  * identidad se aprueba A MANO como el admin (`dbops identity-approve`) ANTES de que el flujo la pida —al llegar a
@@ -345,7 +368,7 @@ function rescueIdentity(id: DeviceId, target: string): void {
         if (approved.has(ur)) return true;
         const r = await dbopsJson(['identity-approve', ur], target);
         if (r?.ok) approved.add(ur);
-        deviceNotes.set(id, r?.ok
+        setNote(id, r?.ok
             ? `identidad aprobada a mano (F-220: falta ADO_HOST en local) · solicitud ${ur}`
             : `no pude aprobar la identidad de ${ur}: la validación va a quedar muerta (F-220)`);
         return !!r?.ok;
@@ -1695,6 +1718,7 @@ connect();
             const phone = str(o.phone) || String(built.phone || '');
             // Se cierra ANTES el celular anterior: además, el precalentado del auto puede reiniciar el wizard que mostraba.
             await releaseDevice('client');
+            startDeviceLog(`${b.slug} (${t}) · tienda → cliente · ${auto ? 'auto-onboarding' : 'ecommerce'} · cel ${phone}`);
             const scrub = await dbopsJson(['scrubphone', phone], t);
             const bypass = await dbopsJson(['otp-bypass-add', phone], t);
             if (bypass?.ok) deviceBypass.set('client', { target: t, puesto: bypass.puesto });
@@ -1720,6 +1744,7 @@ connect();
             const front = await new Promise<string>((ok) => execFile('node', ['bin/env-get.ts', 'E2E_BASE_URL', 'http://localhost:5174'],
                 { cwd: ROOT, env: envFor(t), timeout: 10000 }, (err, out) => ok(err ? 'http://localhost:5174' : String(out || '').trim())));
             try {
+                deviceLog('panel', `pedido armado: ${built.checkout_path.split('?')[0]} · ${scrub?.users_deleted ?? 0} cliente(s) previos borrados · OTP ${otp.otp ? 'resuelto (' + otp.otp + ')' : 'SIN bypass'}`);
                 const r = await openDevice('client', front.replace(/\/$/, '') + built.checkout_path, { autofill: caseAutofill(o) });
                 rescueIdentity('client', t);
                 return json(res, 200, { ok: true, hash: built.hash, merchant: built.merchant, scrubbed: scrub, ...otp, ...r });
@@ -1760,6 +1785,8 @@ connect();
                 stored = null;   // la sesión vieja trae fijada la sucursal anterior: se entra de nuevo
             }
             await releaseDevice('advisor');
+            startDeviceLog(`${slug} (${t}) · celular del asesor · ${account} · sucursal ${hash}`);
+            deviceLog('panel', `asesor de prueba ${account}: ${stored ? 'sesión guardada' : 'entra con el login del conector'}${assigned ? ' · ' + assigned : ''}`);
             try {
                 let signedIn = false;
                 const r = await openDevice('advisor', front.replace(/\/$/, '') + `/merchant/${hash}/solicitar`, {
@@ -1778,6 +1805,7 @@ connect();
                     if (!m || handedOff === m[3]) return;
                     handedOff = m[3];
                     const link = `${m[1]}/self-service/${m[2]}/${m[3]}/confirmation`;
+                    deviceLog('panel', `traspaso asesor → cliente: la solicitud ${m[3]} sigue en el celular del cliente`);
                     void (async () => {
                         await releaseDevice('client');
                         const phone = String(b.order?.phone || '').replace(/\D/g, '');
@@ -1787,7 +1815,7 @@ connect();
                         }
                         await openDevice('client', link, { autofill: caseAutofill(b.order) })
                             .then(() => rescueIdentity('client', t))
-                            .catch((e) => console.error('traspaso al cliente:', (e as Error).message.split('\n')[0]));
+                            .catch((e) => deviceLog('client', '✗ el traspaso no abrió: ' + (e as Error).message.split('\n')[0]));
                     })();
                 });
                 // EL TRASPASO DE UN AGREGADOR (Meddipay, Sistecrédito…): no navega. Sobre el listado aparece un modal
@@ -1812,8 +1840,9 @@ connect();
                     const link = `http://localhost:${PORT}/mock-bank?lender=${encodeURIComponent(lender || 'la entidad')}&monto=${amount}&comercio=${encodeURIComponent(slug)}`;
                     const ur = Number(/\/merchant\/[^/]+\/(\d+)\/lenders/.exec(st.url ?? '')?.[1] || 0);
                     await releaseDevice('client');
-                    await openDevice('client', link).catch((e) => console.error('traspaso del agregador:', (e as Error).message.split('\n')[0]));
-                    deviceNotes.set('client', `portal SIMULADO de ${lender || 'la entidad'}: el link que le llega al cliente por WhatsApp (en local no hay entidad real)`);
+                    deviceLog('panel', `traspaso del agregador ${lender || ''}: el cliente sigue en el portal de la entidad (simulado)`);
+                    await openDevice('client', link).catch((e) => deviceLog('client', '✗ el portal no abrió: ' + (e as Error).message.split('\n')[0]));
+                    setNote('client', `portal SIMULADO de ${lender || 'la entidad'}: el link que le llega al cliente por WhatsApp (en local no hay entidad real)`);
                     // AL TERMINAR EN EL PORTAL, LA ENTIDAD LE AVISA AL BACKEND: el webhook simulado de esa entidad, con
                     // «aprueba». Es lo que saca al asesor de «Estamos esperando la confirmación de la entidad». Sólo
                     // en local (el receptor es el monolito de esta máquina); se anota en los dos celulares.
@@ -1830,7 +1859,7 @@ connect();
                             ? `portal SIMULADO de ${lender || 'la entidad'} · webhook SIMULADO enviado: ${chosen?.name || 'la entidad'} aprobó la solicitud ${ur}`
                             : `portal SIMULADO de ${lender || 'la entidad'} · el webhook no salió: ${r.detalle}`;
                         deviceNotes.set('client', note);
-                        deviceNotes.set('advisor', note.replace(/^portal SIMULADO de [^·]+· /, ''));
+                        setNote('advisor', note.replace(/^portal SIMULADO de [^·]+· /, ''));
                         // El AVISO AL ASESOR: la entidad le confirma por socket (`LenderConfirmed`) y recién ahí sale de
                         // «Estamos esperando la confirmación de la entidad». En local ese socket no llega (el monolito
                         // viejo emite al log), así que se lo entrega el gancho que el wizard expone en desarrollo.
@@ -1841,7 +1870,8 @@ connect();
                                 w.__triggerLenderConfirmation(p);
                                 return true;
                             }, (r as any).confirmation ?? {});
-                            if (!delivered) deviceNotes.set('advisor', note.replace(/^portal SIMULADO de [^·]+· /, '') + ' · el aviso al asesor no se pudo entregar: el wizard no expone `__triggerLenderConfirmation` (sólo en desarrollo)');
+                            if (delivered) deviceLog('advisor', `◆ aviso de la entidad entregado («${(r as any).confirmation?.title ?? 'confirmación'}»): sale de «Estamos esperando la confirmación»`);
+                            if (!delivered) setNote('advisor', note.replace(/^portal SIMULADO de [^·]+· /, '') + ' · el aviso al asesor no se pudo entregar: el wizard no expone `__triggerLenderConfirmation` (sólo en desarrollo)');
                         }
                     }, 2000);
                 }, 2000);
@@ -1888,6 +1918,7 @@ connect();
         const from = url.searchParams.get('from');
         const base = {
             running: !!(current && !current.done),
+            devices: openDevices(),   // con un celular abierto la consola sigue viva aunque no haya corrida
             slug: current?.slug ?? null,
             target: current?.target ?? null,
             canal: current?.canal ?? null,
