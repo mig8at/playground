@@ -96,6 +96,13 @@ jira_title: "Sucursal y asesor de prueba al crear un comercio"
 - [ ] Quitar de `.claude/launch.json` la entrada `admin-test-advisor`, que apunta a un worktree que ya no
   existe; termina cuando no figura.
   Depende de: Miguel — confirmar que se quita sólo esa entrada y no el archivo.
+- [ ] Que la prueba de un comercio cubra también ecommerce: la sucursal `b<hash>-fake` sólo sirve al canal asesor (no
+  tiene entidades, reglas ni credencial de ecommerce), y en el admin la credencial de ecommerce vive en una sucursal
+  APARTE, `Ecommerce-<nombre>`, con sus entidades y reglas copiadas (ver la pila, 2026-10-06). Revisar si el alta debe
+  crear también una sucursal ecommerce de prueba con su credencial, y si la de prueba debe recibir las entidades del
+  comercio. Suposiciones sin verificar: el auto-onboarding necesitaría esa sucursal ecommerce de prueba en el setting
+  `auto_onboarding_allied_branches`, y la autogestión (self-service) quizá algo propio. Termina cuando está decidido y,
+  si va, una sucursal de prueba entra por la tienda en dev.
 - [x] PR #243 revisado, mergeado a `develop` y desplegado en dev — 2026-10-01 (ver la pila).
 - [x] Variables del secret de dev puestas y verificadas (`MERCHANT_AWS_COGNITO_*` y la clave compartida) —
   2026-10-01.
