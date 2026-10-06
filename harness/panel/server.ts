@@ -18,7 +18,7 @@ import { advisorSession } from '../../connectors/advisor/session.ts';
 import { credentialsFor } from '../../connectors/auth/env.ts';
 import { envData, type AutofillData } from '../pkg/autofill.ts';
 import { identityWithoutProviderNotice } from '../pkg/config.ts';
-import { openDevice, openDevices, watchNavigation, deviceGoto, deviceText, deviceOpenedAt, deviceState, deviceShot, deviceInput, closeDevice, closeAllDevices, SELENIUM_BOXES, type DeviceId, type DeviceInput, type DeviceSession } from './devices.ts';
+import { openDevice, openDevices, watchNavigation, deviceGoto, deviceText, deviceEval, deviceOpenedAt, deviceState, deviceShot, deviceInput, closeDevice, closeAllDevices, SELENIUM_BOXES, type DeviceId, type DeviceInput, type DeviceSession } from './devices.ts';
 import { homedir } from 'node:os';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
@@ -311,7 +311,7 @@ function caseAutofill(o: any = {}): AutofillData {
  * cliente termina con ella. `estado` = la respuesta, o `aprueba` para la que aprueba en la familia de la entidad
  * (rt=0 `completed`, rt=1 `fulfilled`). Fijo a local: el receptor es el monolito viejo de esta máquina.
  */
-async function fireEntityWebhook(uReq: number, lender: number, stateValue: string): Promise<{ ok: boolean; detalle: string; familia?: string }> {
+async function fireEntityWebhook(uReq: number, lender: number, stateValue: string): Promise<{ ok: boolean; detalle: string; familia?: string; confirmation?: { title: string; message: string; buttonText: string } }> {
     // ⚠ EL TARGET SE FIJA A `local` A MANO, Y NO ES DEFENSIVO: `pkg/db.ts` toma `E2E_TARGET` y su
     // default es **dev** (harness/CLAUDE.md lo advierte para `bin/dbops.ts`, y acá pasa igual). Sin
     // esto el módulo buscaba la transacción de la entidad en la base de DEV, no la encontraba y
@@ -1831,6 +1831,18 @@ connect();
                             : `portal SIMULADO de ${lender || 'la entidad'} · el webhook no salió: ${r.detalle}`;
                         deviceNotes.set('client', note);
                         deviceNotes.set('advisor', note.replace(/^portal SIMULADO de [^·]+· /, ''));
+                        // El AVISO AL ASESOR: la entidad le confirma por socket (`LenderConfirmed`) y recién ahí sale de
+                        // «Estamos esperando la confirmación de la entidad». En local ese socket no llega (el monolito
+                        // viejo emite al log), así que se lo entrega el gancho que el wizard expone en desarrollo.
+                        if (r.ok) {
+                            const delivered = await deviceEval('advisor', (p: unknown) => {
+                                const w = window as unknown as { __triggerLenderConfirmation?: (p: unknown) => void };
+                                if (!w.__triggerLenderConfirmation) return false;
+                                w.__triggerLenderConfirmation(p);
+                                return true;
+                            }, (r as any).confirmation ?? {});
+                            if (!delivered) deviceNotes.set('advisor', note.replace(/^portal SIMULADO de [^·]+· /, '') + ' · el aviso al asesor no se pudo entregar: el wizard no expone `__triggerLenderConfirmation` (sólo en desarrollo)');
+                        }
                     }, 2000);
                 }, 2000);
                 return json(res, 200, { ok: true, hash, user: account, session: stored ? 'guardada' : signedIn ? 'entró y la guardó' : 'sin entrar', assigned, ...r });

@@ -172,7 +172,12 @@ export async function openDevice(id: DeviceId, url: string, opts: {
             }, session.origins);
         }
     }
-    open.set(id, { ...d, openedAt: Date.now() });
+    const openedAt = Date.now();
+    open.set(id, { ...d, openedAt });
+    // Si el navegador muere por fuera (el contenedor se borró o se reinició, Selenium venció la sesión), el
+    // celular deja de figurar como abierto. Sin esto el panel seguía mostrando la sesión vieja como viva y el
+    // traspaso al cliente no volvía a abrir nada: el visor quedaba en «El celular del cliente» (2026-10-06).
+    d.context.browser()?.on('disconnected', () => { if (open.get(id)?.openedAt === openedAt) open.delete(id); });
     await d.page.goto(url, { waitUntil: 'domcontentloaded', timeout: 60_000 });
     if (then) await then(d.page);
     return { url: d.page.url(), title: await d.page.title().catch(() => ''), view: d.view };
@@ -241,6 +246,12 @@ export async function deviceGoto(id: DeviceId, url: string): Promise<void> {
 export async function deviceText(id: DeviceId): Promise<string> {
     const d = open.get(id);
     return d ? await d.page.evaluate(() => document.body?.innerText ?? '').catch(() => '') : '';
+}
+
+/** Corre una función en la página de un celular (p. ej. entregarle al asesor el aviso de socket que en local no llega). */
+export async function deviceEval<A, R>(id: DeviceId, fn: (arg: A) => R, arg: A): Promise<R | undefined> {
+    const d = open.get(id);
+    return d ? await d.page.evaluate(fn as any, arg).catch(() => undefined) as R : undefined;
 }
 
 /** Cuándo se abrió el celular (para saber si un vigilante sigue mirando al MISMO navegador). */

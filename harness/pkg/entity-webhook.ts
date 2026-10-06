@@ -224,7 +224,21 @@ async function meddipayToken(): Promise<string> {
     return token;
 }
 
-export async function meddipayWebhook(ur: number, lender: number, status: string): Promise<{ ok: boolean; detalle: string }> {
+/** El aviso `LenderConfirmed` que manda `MeddipayController::webhook` al asesor por socket (canal
+ *  `App.Models.UserRequest.{id}`), con el MISMO texto por estado. En local `legacy-application` corre con
+ *  `BROADCAST_DRIVER=log` y el wizard apunta a otro servidor de sockets: el aviso no llega nunca y el asesor se
+ *  queda en «Estamos esperando la confirmación de la entidad». El panel se lo entrega a mano (`__triggerLenderConfirmation`). */
+export type LenderConfirmation = { title: string; message: string; buttonText: string };
+function meddipayConfirmation(statusName: string, finalAmount: number): LenderConfirmation | undefined {
+    const amount = '$' + Math.round(finalAmount).toLocaleString('es-CO');
+    return ({
+        Aprobado: { title: '¡Desembolso exitoso!', message: `¡Gracias por elegir Meddipay! Estamos aquí para apoyarte en cada paso y ayudarte a alcanzar tus metas. Valor desembolsado al cliente: ${amount}.`, buttonText: 'Entendido' },
+        Rechazado: { title: 'Solicitud no aprobada', message: 'Tu solicitud de crédito con Meddipay no fue aprobada en esta ocasión.', buttonText: 'Entendido' },
+        No_Completado: { title: 'Proceso sin finalizar', message: 'No se completó el proceso con Meddipay. Puedes intentarlo nuevamente cuando quieras.', buttonText: 'Entendido' },
+    } as Record<string, LenderConfirmation>)[statusName];
+}
+
+export async function meddipayWebhook(ur: number, lender: number, status: string): Promise<{ ok: boolean; detalle: string; confirmation?: LenderConfirmation }> {
     const statusName = ({ completed: 'Aprobado', fulfilled: 'Aprobado', aprueba: 'Aprobado', failed: 'Rechazado', rejected: 'Rechazado',
         cancelled: 'No_Completado', dismissed: 'No_Completado' } as Record<string, string>)[status] ?? status;
     const existing = await one<{ o: string }>(
@@ -253,6 +267,7 @@ export async function meddipayWebhook(ur: number, lender: number, status: string
     const body = (await r.text().catch(() => '')).slice(0, 140);
     if (r.status === 401 || r.status === 403) return { ok: false, detalle: `el webhook de Meddipay devolvió ${r.status}: el token no tiene la habilidad \`meddipay\`` };
     if (r.status !== 200) return { ok: false, detalle: `el webhook de Meddipay devolvió HTTP ${r.status}: ${body}` };
-    const end = await one<{ e: number }>('SELECT user_request_status_id e FROM user_requests WHERE id=?', [ur]).catch(() => null);
-    return { ok: true, detalle: `webhook \`${statusName}\` → estado ${end?.e ?? '?'} (lo aplicó legacy-application)` };
+    const end = await one<{ e: number; f: number }>('SELECT user_request_status_id e, final_amount f FROM user_requests WHERE id=?', [ur]).catch(() => null);
+    return { ok: true, detalle: `webhook \`${statusName}\` → estado ${end?.e ?? '?'} (lo aplicó legacy-application)`,
+        confirmation: meddipayConfirmation(statusName, Number(end?.f ?? amount?.a ?? 0)) };
 }

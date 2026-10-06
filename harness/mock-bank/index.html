@@ -146,7 +146,10 @@
       go(3);
       setTimeout(function () { document.getElementById('proc').classList.add('hidden'); document.getElementById('done').classList.remove('hidden'); }, 2200);
     }
-    function volver() { if (volverUrl) { try { location.href = decodeURIComponent(volverUrl); } catch (e) {} } else { history.back(); } }
+    // Sin `volver` (el celular del cliente en el panel abre el portal en un navegador NUEVO): `history.back()` caía en
+    // la página en blanco con la que arranca el navegador. Sin a dónde volver, el botón no se muestra.
+    if (!volverUrl) document.querySelector('#done .btn').style.display = 'none';
+    function volver() { if (volverUrl) { try { location.href = decodeURIComponent(volverUrl); } catch (e) {} } }
   </script>
 </body>
 </html>
