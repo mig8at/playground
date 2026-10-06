@@ -102,10 +102,10 @@ keyring-ui: ## @dia abre keyring, el llavero, visual (:5182 · API :5183): las m
 anatomia: ## @dia ¿cuánto pesa el documento de cada tarea, cuántos bloques tiene su pila, y qué sección con fecha parece historia fuera de lugar? N=<id|slug>
 	@cd tablero/server && go run ./cmd/today -anatomia $(if $(N),-n "$(N)")
 
-bitacora-add: ## @dia ⚠ ESCRIBE la bitácora con minutos MEDIDOS por el comando. TAREA=<id|slug> TITULO='…' [NOTA='…'|NOTA_F=archivo] y UNA fuente: LAPSO=HH:MM-HH:MM · PULSO=HH:MM · MIN=N FUENTE='…'. [KIND=progress] [SECO=1]
+bitacora-add: ## @dia ⚠ ESCRIBE la bitácora con minutos MEDIDOS por el comando. TAREA=<id|slug> TITULO='…' [NOTA='…'|NOTA_F=archivo] y UNA fuente: LAPSO=HH:MM-HH:MM · PULSO=HH:MM · MIN=N FUENTE='…'. [DIA=AAAA-MM-DD trabajo de un día anterior: con LAPSO, o con MIN y SINCE=HH:MM] [KIND=progress] [SECO=1]
 	@test -n "$(TAREA)" -a -n "$(TITULO)" || { echo "faltan TAREA= y TITULO=  ·  ej: make bitacora-add TAREA=84 LAPSO=21:58-22:11 TITULO='…' NOTA='…'"; exit 2; }
 	@cd tablero/server && go run ./cmd/worklog -tarea "$(TAREA)" -titulo "$(TITULO)" $(if $(NOTA),-nota "$(NOTA)") $(if $(NOTA_F),-nota-archivo ../../$(NOTA_F)) \
-	  $(if $(LAPSO),-lapso $(LAPSO)) $(if $(PULSO),-pulso $(PULSO)) $(if $(MIN),-min $(MIN)) $(if $(FUENTE),-fuente "$(FUENTE)") $(if $(KIND),-kind $(KIND)) $(if $(SECO),-n)
+	  $(if $(LAPSO),-lapso $(LAPSO)) $(if $(PULSO),-pulso $(PULSO)) $(if $(MIN),-min $(MIN)) $(if $(FUENTE),-fuente "$(FUENTE)") $(if $(DIA),-dia $(DIA)) $(if $(SINCE),-desde $(SINCE)) $(if $(KIND),-kind $(KIND)) $(if $(SECO),-n)
 
 tarea-bloque: ## @dia ⚠ ESCRIBE un bloque en la pila de una tarea: `# título` y la descripción, en un Markdown. N=<id|slug> ARCHIVO=<bloque.md> (o `-`: por stdin, como lo usan las herramientas con BLOQUE=) · [VIA=harness|trazador|db] · [SECO=1]
 	@test -n "$(N)" -a -n "$(ARCHIVO)" || { echo "faltan N= y ARCHIVO=  ·  ej: make tarea-bloque N=84 ARCHIVO=tablero/docs/task-context-block.example.md SECO=1"; exit 2; }

@@ -12,6 +12,8 @@
 //	bitacora -tarea 84 -lapso 21:58-22:11 -titulo "…" -nota "…"        minutos = el lapso
 //	bitacora -tarea 84 -pulso 21:30 -titulo "…" -nota-archivo n.txt    minutos = tramos del pulso desde esa hora, hoy
 //	bitacora -tarea 84 -min 40 -fuente "lapso entre los commits a1 y b2" -titulo "…"
+//	bitacora -tarea 98 -dia 2026-10-05 -lapso 14:47-14:55 -titulo "…"       trabajo de un día anterior que no se anotó
+//	bitacora -tarea 98 -dia 2026-10-05 -desde 09:14 -min 130 -fuente "…"    ídem, con minutos medidos y la hora de inicio
 //
 // La nota y el título pasan el guard: la bitácora sube a Jira como worklog.
 package main
@@ -33,13 +35,28 @@ import (
 // dataDir: la carpeta `data/`; las tareas viven al lado, en `tasks/`. Ver el paquete layout.
 func dataDir() string { return layout.Find().Data }
 
-func todayAt(hhmm string) (time.Time, error) {
+// atDay es la hora HH:MM del día de `base`. Pura: el día entra por parámetro para poder probarla.
+func atDay(base time.Time, hhmm string) (time.Time, error) {
 	t, err := time.ParseInLocation("15:04", hhmm, time.Local)
 	if err != nil {
 		return t, fmt.Errorf("hora %q: tiene que ser HH:MM", hhmm)
 	}
-	h := time.Now()
-	return time.Date(h.Year(), h.Month(), h.Day(), t.Hour(), t.Minute(), 0, 0, time.Local), nil
+	return time.Date(base.Year(), base.Month(), base.Day(), t.Hour(), t.Minute(), 0, 0, time.Local), nil
+}
+
+// entryDay es el día al que pertenece la entrada: hoy, o el que se pidió con -dia (que nunca puede ser futuro).
+func entryDay(now time.Time, dia string) (time.Time, error) {
+	if dia == "" {
+		return now, nil
+	}
+	d, err := time.ParseInLocation("2006-01-02", dia, time.Local)
+	if err != nil {
+		return d, fmt.Errorf("-dia %q: tiene que ser AAAA-MM-DD", dia)
+	}
+	if d.After(now) {
+		return d, fmt.Errorf("-dia %s es futuro: la bitácora anota lo que ya pasó", dia)
+	}
+	return d, nil
 }
 
 // slotsSince cuenta los tramos de 5' con actividad en el pulso desde `since` hasta ahora (hoy), en
@@ -76,6 +93,8 @@ func main() {
 		fromPulse = flag.String("pulso", "", "HH:MM de hoy: los minutos son los tramos del pulso desde esa hora")
 		min       = flag.Int("min", 0, "minutos, si ya los mediste: exige -fuente")
 		source    = flag.String("fuente", "", "de dónde salió -min (ej. «lapso entre el primer y el último commit»)")
+		day       = flag.String("dia", "", "AAAA-MM-DD: el día de un trabajo que no se anotó a tiempo (por defecto, hoy). Sólo con -lapso, o con -min y -desde; no con -pulso, que sólo lee hoy")
+		since     = flag.String("desde", "", "HH:MM de inicio del trabajo, con -min y -dia")
 		dryRun    = flag.Bool("n", false, "mostrar la entrada y NO escribirla")
 	)
 	flag.Parse()
@@ -110,17 +129,29 @@ func main() {
 		origin  string
 	)
 	data := dataDir()
+	now := time.Now()
+	base, err := entryDay(now, *day)
+	if err != nil {
+		fail("%v", err)
+	}
+	late := ""
+	if *day != "" {
+		if *fromPulse != "" {
+			fail("-dia no se combina con -pulso: el pulso sólo se lee de hoy. Usá -lapso o -min con -desde")
+		}
+		late = fmt.Sprintf(" Entrada registrada el %s para el %s.", now.Format("2006-01-02"), *day)
+	}
 	switch {
 	case *span != "":
 		a, b, ok := strings.Cut(*span, "-")
 		if !ok {
 			fail("-lapso tiene que ser HH:MM-HH:MM")
 		}
-		ta, err := todayAt(a)
+		ta, err := atDay(base, a)
 		if err != nil {
 			fail("%v", err)
 		}
-		tb, err := todayAt(b)
+		tb, err := atDay(base, b)
 		if err != nil {
 			fail("%v", err)
 		}
@@ -130,7 +161,7 @@ func main() {
 		minutes, start = int(tb.Sub(ta).Minutes()), ta
 		origin = fmt.Sprintf("medidos por el lapso de la sesión (%s a %s), no por el pulso", a, b)
 	case *fromPulse != "":
-		td, err := todayAt(*fromPulse)
+		td, err := atDay(base, *fromPulse)
 		if err != nil {
 			fail("%v", err)
 		}
@@ -147,7 +178,18 @@ func main() {
 		if strings.TrimSpace(*source) == "" {
 			fail("-min exige -fuente: la bitácora sube a Jira y un número sin origen es una estimación")
 		}
-		minutes, start = *min, time.Now().Add(-time.Duration(*min)*time.Minute)
+		if *day != "" {
+			if *since == "" {
+				fail("-dia con -min necesita -desde HH:MM: sin la hora de inicio la entrada caería a la hora de ahora")
+			}
+			st, err := atDay(base, *since)
+			if err != nil {
+				fail("%v", err)
+			}
+			minutes, start = *min, st
+		} else {
+			minutes, start = *min, now.Add(-time.Duration(*min)*time.Minute)
+		}
 		origin = "medidos: " + strings.TrimSpace(*source)
 	default:
 		fail("decí de dónde salen los minutos: -lapso HH:MM-HH:MM · -pulso HH:MM · -min N -fuente \"…\"")
@@ -177,7 +219,7 @@ func main() {
 	if body != "" {
 		body += "\n\n"
 	}
-	body += "MINUTOS: " + origin + "."
+	body += "MINUTOS: " + origin + "." + late
 	if v := guard.Violations(*title + "\n" + body); len(v) > 0 {
 		for _, x := range v {
 			fmt.Fprintf(os.Stderr, "✗ no pasa el guard (%s): %q\n", x["what"], x["found"])
