@@ -16,7 +16,9 @@ import { dirname, resolve, join } from 'node:path';
 import { MockSupervisor, MOCKS as MOCK_REGISTRY } from './mocks.ts';
 import { advisorSession } from '../../connectors/advisor/session.ts';
 import { credentialsFor } from '../../connectors/auth/env.ts';
-import { openDevice, openDevices, deviceState, deviceShot, deviceInput, closeDevice, closeAllDevices, SELENIUM_BOXES, type DeviceId, type DeviceInput, type DeviceSession } from './devices.ts';
+import { envData, type AutofillData } from '../pkg/autofill.ts';
+import { identityWithoutProviderNotice } from '../pkg/config.ts';
+import { openDevice, openDevices, watchNavigation, deviceGoto, deviceState, deviceShot, deviceInput, closeDevice, closeAllDevices, SELENIUM_BOXES, type DeviceId, type DeviceInput, type DeviceSession } from './devices.ts';
 import { homedir } from 'node:os';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
@@ -286,12 +288,67 @@ function dbopsJson(args: string[], target: string, extraEnv: NodeJS.ProcessEnv =
 
 // El bypass del OTP que puso cada celular al abrirse, para sacarlo al cerrarlo: lo mismo que hace una
 // corrida con su teléfono, y sólo lo suyo (`pkg/otp-bypass.ts` no le borra los teléfonos a otra corrida).
+/** El autorrelleno de los celulares con el CASO del panel (el panel derecho = `caseStore`): la persona que se
+ *  escribe en cada pantalla es la misma de la tienda y de la siembra. Lo que el caso no trae, del default. */
+function caseAutofill(o: any = {}): AutofillData {
+    const base = envData();
+    const str = (v: unknown) => String(v ?? '').trim();
+    const digits = (v: unknown) => str(v).replace(/\D/g, '');
+    const names = str(o.firstName).split(/\s+/).filter(Boolean);
+    const last = str(o.lastName).split(/\s+/).filter(Boolean);
+    const tel = digits(o.phone) || base.telefono;
+    return {
+        ...base, telefono: tel, otp: tel.slice(-4), otpFirma: tel.slice(-6),
+        documento: digits(o.doc) || base.documento, email: str(o.email) || base.email,
+        nombre: names[0] || base.nombre, segundoNombre: names.slice(1).join(' '),
+        apellido: last[0] || base.apellido, segundoApellido: last.slice(1).join(' '),
+        nacimiento: str(o.birth) || base.nacimiento, expedicion: str(o.expedition) || base.expedicion,
+        ingreso: digits(o.income) || base.ingreso, monto: digits(o.amount) || base.monto,
+    };
+}
 const deviceBypass = new Map<DeviceId, { target: string; puesto: unknown }>();
+// Lo que el arnés hizo por su cuenta en un celular y el panel tiene que mostrar (p. ej. aprobar la identidad).
+const deviceNotes = new Map<DeviceId, string>();
+
+/**
+ * F-220 EN LOS CELULARES. Sin `ADO_HOST` en el backend LOCAL, la validación de identidad manda a una ruta que no
+ * existe (`…/validar-persona?callback=…`) y el celular queda muerto. Se hace lo mismo que la corrida guiada: la
+ * identidad se aprueba A MANO como el admin (`dbops identity-approve`) ANTES de que el flujo la pida —al llegar a
+ * `…/{solicitud}/confirmation`—, y así «Confirmar» la saltea y sigue a la fecha de pago. Si igual cae en la ruta
+ * muerta, se aprueba y se vuelve a `…/confirmation` (el `callback` no sirve: espera un resultado de ADO que nunca
+ * llega). Sólo en local y sólo si falta el proveedor; y se ANOTA para el panel: es un rodeo del arnés, no prueba
+ * que la validación real funcione.
+ */
+function rescueIdentity(id: DeviceId, target: string): void {
+    if (!identityWithoutProviderNotice(target).length) return;
+    const approved = new Set<string>();
+    const approve = async (ur: string): Promise<boolean> => {
+        if (approved.has(ur)) return true;
+        const r = await dbopsJson(['identity-approve', ur], target);
+        if (r?.ok) approved.add(ur);
+        deviceNotes.set(id, r?.ok
+            ? `identidad aprobada a mano (F-220: falta ADO_HOST en local) · solicitud ${ur}`
+            : `no pude aprobar la identidad de ${ur}: la validación va a quedar muerta (F-220)`);
+        return !!r?.ok;
+    };
+    watchNavigation(id, (u) => {
+        let url: URL;
+        try { url = new URL(u); } catch { return; }
+        const atConfirmation = /^\/[^/]+\/[^/]+\/(\d+)\/confirmation\/?$/.exec(url.pathname);
+        if (atConfirmation) { void approve(atConfirmation[1]); return; }
+        if (!/\/validar-persona\/?$/.test(url.pathname)) return;
+        const callback = url.searchParams.get('callback') || '';
+        const m = /^(https?:\/\/[^/]+\/[^/]+\/[^/]+\/(\d+))\/identity-validation-status/.exec(callback);
+        if (!m) return;
+        void (async () => { if (await approve(m[2])) await deviceGoto(id, `${m[1]}/confirmation`).catch(() => { }); })();
+    });
+}
 // Celulares ABRIÉNDOSE: entre cerrar el anterior y abrir el nuevo no hay ninguno «abierto», y un precalentado
 // que entrara justo ahí reiniciaría el wizard que el celular está por mostrar (pasó el 2026-10-06).
 let devicesOpening = 0;
 async function releaseDevice(id: DeviceId): Promise<void> {
     await closeDevice(id);
+    deviceNotes.delete(id);
     const b = deviceBypass.get(id);
     deviceBypass.delete(id);
     if (b) await dbopsJson(['otp-bypass-restore', JSON.stringify(b.puesto)], b.target);
@@ -1155,6 +1212,12 @@ const server = createServer(async (req, res) => {
     // Las cards muestran el hash de la sucursal que se LANZA (el de .flows.json, vía branchHashForSlug),
     // no el de una búsqueda por slug: eran distintos y la card mostraba una sucursal mientras el flujo
     // corría contra otra, con OTRA lista de lenders.
+    // País y canales de las sucursales del espacio, para los filtros de la barra izquierda (sólo lectura).
+    if (path === '/api/merchant-tags') {
+        const hashes = (url.searchParams.get('hashes') || '').split(',').map((s) => s.trim()).filter((h) => /^[0-9a-f]{8}$/i.test(h));
+        const target = (url.searchParams.get('target') || 'local').trim();
+        return json(res, 200, hashes.length ? ((await dbopsJson(['merchant-tags', ...hashes], target)) ?? {}) : {});
+    }
     if (path === '/api/branches') {
         const slugs = (url.searchParams.get('slugs') || '').split(',').map((s) => s.trim()).filter(Boolean);
         const target = (url.searchParams.get('target') || 'local').trim();
@@ -1552,10 +1615,13 @@ const server = createServer(async (req, res) => {
 const port = Number(new URLSearchParams(location.search).get('vnc')) || 7900;
 const { default: RFB } = await import('/novnc/' + port + '/core/rfb.js');
 const ws = 'ws://127.0.0.1:' + port + '/websockify';
+// Reintenta mientras el contenedor arranca o se reinicia; si el celular se cerró, deja de insistir (≈1 min).
+let tries = 0;
 const connect = () => {
   const rfb = new RFB(document.getElementById('screen'), ws);
   rfb.scaleViewport = true; rfb.resizeSession = false; rfb.background = 'transparent';
-  rfb.addEventListener('disconnect', () => setTimeout(connect, 1500));
+  rfb.addEventListener('connect', () => { tries = 0; });
+  rfb.addEventListener('disconnect', () => { if (++tries < 40) setTimeout(connect, 1500); });
 };
 connect();
 </script></body></html>`);
@@ -1572,7 +1638,7 @@ connect();
             devicesOpening++;
             res.once('close', () => { devicesOpening--; });
         }
-        if (action === 'state') return json(res, 200, deviceState(id));
+        if (action === 'state') return json(res, 200, { ...deviceState(id), note: deviceNotes.get(id) ?? null });
         if (action === 'shot') {
             const png = await deviceShot(id).catch(() => null);
             if (!png) { res.writeHead(404); return res.end(); }
@@ -1639,7 +1705,8 @@ connect();
             const front = await new Promise<string>((ok) => execFile('node', ['bin/env-get.ts', 'E2E_BASE_URL', 'http://localhost:5174'],
                 { cwd: ROOT, env: envFor(t), timeout: 10000 }, (err, out) => ok(err ? 'http://localhost:5174' : String(out || '').trim())));
             try {
-                const r = await openDevice('client', front.replace(/\/$/, '') + built.checkout_path);
+                const r = await openDevice('client', front.replace(/\/$/, '') + built.checkout_path, { autofill: caseAutofill(o) });
+                rescueIdentity('client', t);
                 return json(res, 200, { ok: true, hash: built.hash, merchant: built.merchant, scrubbed: scrub, ...otp, ...r });
             } catch (e) {
                 return json(res, 200, { ok: false, detail: `el celular no pudo abrir ${front}: ${(e as Error).message.split('\n')[0]}` });
@@ -1680,8 +1747,34 @@ connect();
             await releaseDevice('advisor');
             try {
                 let signedIn = false;
-                const r = await openDevice('advisor', front.replace(/\/$/, '') + `/merchant/${hash}/solicitar`, stored ?? undefined,
-                    stored ? undefined : async (page) => { await connector.login(page); signedIn = true; await page.goto(front.replace(/\/$/, '') + `/merchant/${hash}/solicitar`, { waitUntil: 'domcontentloaded' }).catch(() => { }); });
+                const r = await openDevice('advisor', front.replace(/\/$/, '') + `/merchant/${hash}/solicitar`, {
+                    session: stored ?? undefined, autofill: caseAutofill(b.order),
+                    then: stored ? undefined : async (page) => { await connector.login(page); signedIn = true; await page.goto(front.replace(/\/$/, '') + `/merchant/${hash}/solicitar`, { waitUntil: 'domcontentloaded' }).catch(() => { }); },
+                });
+                // EL TRASPASO AL CLIENTE. En el canal asesor, al elegir una entidad en plataforma (CreditopX) el
+                // asesor queda en «continuá en tu celular» (`/merchant/{hash}/{ur}/continue` o `/confirmation`) y
+                // el CLIENTE sigue en su teléfono por `/self-service/{hash}/{ur}/confirmation`. Ese link se abre en
+                // el celular del cliente, como hace la ventana B de la corrida guiada. Sin scrub: es la MISMA
+                // solicitud; sí el bypass del OTP, porque la firma le pide código al cliente.
+                rescueIdentity('advisor', t);
+                let handedOff = '';
+                watchNavigation('advisor', (u) => {
+                    const m = /^(https?:\/\/[^/]+)\/merchant\/([^/]+)\/(\d+)\/(?:continue|confirmation)(?:[?#]|$)/.exec(u);
+                    if (!m || handedOff === m[3]) return;
+                    handedOff = m[3];
+                    const link = `${m[1]}/self-service/${m[2]}/${m[3]}/confirmation`;
+                    void (async () => {
+                        await releaseDevice('client');
+                        const phone = String(b.order?.phone || '').replace(/\D/g, '');
+                        if (phone) {
+                            const bp = await dbopsJson(['otp-bypass-add', phone], t);
+                            if (bp?.ok) deviceBypass.set('client', { target: t, puesto: bp.puesto });
+                        }
+                        await openDevice('client', link, { autofill: caseAutofill(b.order) })
+                            .then(() => rescueIdentity('client', t))
+                            .catch((e) => console.error('traspaso al cliente:', (e as Error).message.split('\n')[0]));
+                    })();
+                });
                 return json(res, 200, { ok: true, hash, user: account, session: stored ? 'guardada' : signedIn ? 'entró y la guardó' : 'sin entrar', assigned, ...r });
             } catch (e) {
                 return json(res, 200, { ok: false, detail: `el celular del asesor no pudo abrir ${front}: ${(e as Error).message.split('\n')[0]}` });

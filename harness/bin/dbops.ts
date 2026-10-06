@@ -25,7 +25,8 @@ import { findTestAdvisor } from '../pkg/login-probe.ts';
 import { resolveMerchant } from '../pkg/merchants.ts';
 import { branchCorbeta } from '../pkg/merchants.ts';
 import { preflightBranch, mismatchNotice } from '../pkg/preflight-branch.ts';
-import { synthFill, requestStatus11 } from '../pkg/inject.ts';
+import { synthFill, requestStatus11, manualValidation } from '../pkg/inject.ts';
+import { synthIdImageUrl } from '../pkg/synth-id-images.ts';
 import { verifyLaravelMac } from '../pkg/laravel-crypt.ts';
 import { appKey } from '../pkg/db.ts';
 
@@ -85,6 +86,21 @@ try {
             r = await synthFill(num(a[0]), { lender: a[1] || undefined, income: num(a[2]) || undefined, score: num(a[3]) || undefined });
             break;
         case 'estado11': case 'creditopx': r = await requestStatus11(num(a[0])); break;
+        // F-220 en los celulares del panel: sin `ADO_HOST` en el backend local la validación de identidad queda en
+        // una ruta muerta. Se aprueba A MANO como el admin —con las dos fotos sintéticas del documento—, igual que la
+        // corrida guiada. SÓLO LOCAL: en un ambiente desplegado la pantalla funciona y aprobar por detrás mentiría.
+        case 'identity-approve': {
+            if (TARGET !== 'local') throw new Error('identity-approve es sólo para local (F-220)');
+            const ur = num(a[0]);
+            const u = await one<{ user_id: number; doc: string | null }>(
+                'SELECT ur.user_id, u.document_number AS doc FROM user_requests ur JOIN users u ON u.id = ur.user_id WHERE ur.id = ? LIMIT 1', [ur]);
+            if (!u?.user_id) { r = { ok: false, motivo: `no encontré la solicitud ${ur}` }; break; }
+            const doc = u.doc || String(ur);
+            await exec('UPDATE users SET front_url=?, back_url=?, updated_at=NOW() WHERE id=?',
+                [synthIdImageUrl('frontal', doc), synthIdImageUrl('reverso', doc), u.user_id]).catch(() => null);
+            r = { ok: (await manualValidation(u.user_id)) > 0, userId: u.user_id };
+            break;
+        }
         case 'lender-rt': // response_type del lender por nombre o id (2=creditopx, 1=integración, 0=estándar)
             r = await one(
                 "SELECT id, COALESCE(name,'') AS name, response_type AS rt FROM lenders WHERE status=1 AND (CAST(id AS CHAR)=? OR name LIKE ?) ORDER BY id LIMIT 1",
@@ -198,6 +214,34 @@ try {
                     ? 'el APP_KEY es el de este target: el MAC de una fila real valida'
                     : '⚠ APP_KEY EQUIVOCADO — la inyección de buró va a escribir un blob ilegible y /lenders no va a ofrecer nada, SIN error visible',
             };
+            break;
+        }
+        case 'merchant-tags': { // SÓLO LECTURA: país y canales de VARIAS sucursales, para filtrar la barra del panel.
+            // Canales que el comercio TIENE (no los que el panel ofrece): asesor salvo Corbeta (que es QR de caja),
+            // tienda si alguna sucursal del comercio tiene credencial de ecommerce, autogestión por su marca y
+            // auto si su tienda está en `auto_onboarding_allied_branches`. → {hash: {pais, iso, canales[]}}
+            const hashes = a.filter((h) => /^[0-9a-f]{8}$/i.test(h));
+            const rows = hashes.length ? await query<{ hash: string; allied_id: number; self_managed: number; pais: string | null; iso: string | null; stores: string | null }>(
+                `SELECT ab.hash, al.id AS allied_id, al.self_managed, c.name AS pais, c.iso_code_2 AS iso,
+                        (SELECT GROUP_CONCAT(sb.hash) FROM allied_ecommerce_credentials aec JOIN allied_branches sb ON sb.id = aec.allied_branch_id
+                          WHERE sb.allied_id = al.id) AS stores
+                   FROM allied_branches ab JOIN allieds al ON al.id = ab.allied_id LEFT JOIN countries c ON c.id = al.country_id
+                  WHERE ab.hash IN (?)`, [hashes]) : [];
+            const setting = async (key: string) => (await one<{ value: string }>('SELECT value FROM settings WHERE `key` = ? LIMIT 1', [key]).catch(() => null))?.value;
+            let corbeta: number[] = [], autoHashes: string[] = [];
+            try { const v: any = await setting('corbeta_allieds'); corbeta = (Array.isArray(v) ? v : JSON.parse(String(v ?? '[]'))).map(Number); } catch { /* sin setting */ }
+            try { autoHashes = (JSON.parse(String((await setting('auto_onboarding_allied_branches')) ?? '{}')).hashes ?? []).map(String); } catch { /* sin setting */ }
+            r = Object.fromEntries(rows.map((x) => {
+                const stores = (x.stores ?? '').split(',').filter(Boolean);
+                const isCorbeta = corbeta.includes(Number(x.allied_id));
+                const canales = isCorbeta ? ['qr'] : [
+                    'asesor',
+                    ...(Number(x.self_managed) === 1 ? ['autogestion'] : []),
+                    ...(stores.length ? ['ecommerce'] : []),
+                    ...(stores.some((h) => autoHashes.includes(h)) ? ['auto'] : []),
+                ];
+                return [x.hash, { pais: x.pais ?? '', iso: x.iso ?? '', canales }];
+            }));
             break;
         }
         case 'branches': // resuelve VARIOS hashes de sucursal de una: nombre del comercio y si existe en

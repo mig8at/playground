@@ -16,6 +16,7 @@
 import { execFile } from 'node:child_process';
 import { chromium, devices, type BrowserContext, type Page } from '@playwright/test';
 import { blockDevOverlays } from '../pkg/dev-overlays.ts';
+import { installAutofill, type AutofillData } from '../pkg/autofill.ts';
 
 export type DeviceId = 'client' | 'advisor';
 
@@ -135,12 +136,26 @@ export interface DeviceSession {
 
 /** Abre (o reabre limpio) el celular en `url`. Un navegador nuevo cada vez: nada de la corrida anterior.
  *  Con `session`, el navegador arranca con esa sesión puesta (el asesor entra sin loguearse). */
-export async function openDevice(id: DeviceId, url: string, session?: DeviceSession,
+export async function openDevice(id: DeviceId, url: string, opts: {
+    session?: DeviceSession;
     /** Algo más para hacer sobre la página ya abierta (p. ej. entrar con el asesor de prueba). */
-    then?: (page: Page) => Promise<void>): Promise<{ url: string; title: string; view?: string }> {
+    then?: (page: Page) => Promise<void>;
+    /** Los datos del caso para el AUTORRELLENO (`pkg/autofill.ts`): cada pantalla del wizard se llena sola, sin
+     *  pisar lo que escribas y sin apretar «Continuar». */
+    autofill?: AutofillData;
+} = {}): Promise<{ url: string; title: string; view?: string }> {
+    const { session, then, autofill } = opts;
     await closeDevice(id);
     const d = await ENGINE[id]();
     await blockDevOverlays(d.context);
+    if (autofill) {
+        // En un celular la tarjeta «harness» del autorrelleno tapa media pantalla: arranca PLEGADA (una píldora
+        // que se despliega con un clic). Su estado vive en `sessionStorage`; si ya lo tocaste, se respeta.
+        await d.context.addInitScript(() => {
+            try { if (!sessionStorage.getItem('__harness_card')) sessionStorage.setItem('__harness_card', JSON.stringify({ folded: true })); } catch { }
+        });
+        await installAutofill(d.context, autofill);
+    }
     if (session) {
         if (session.cookies?.length) await d.context.addCookies(session.cookies);
         // El `localStorage` se escribe ANTES de que cargue la página de su origen, como hace `storageState`,
@@ -207,4 +222,16 @@ export async function deviceInput(id: DeviceId, ev: DeviceInput): Promise<boolea
     else if (ev.type === 'text') await d.page.keyboard.type(ev.text);
     else if (ev.type === 'wheel') { const [x, y] = at(ev.x, ev.y); await d.page.mouse.move(x, y); await d.page.mouse.wheel(0, ev.dy); }
     return true;
+}
+
+/** Avisa cada navegación de la página principal de un celular (para seguir el flujo desde el panel). */
+export function watchNavigation(id: DeviceId, onUrl: (url: string) => void): void {
+    const d = open.get(id);
+    if (!d) return;
+    d.page.on('framenavigated', (frame) => { if (frame === d.page.mainFrame()) onUrl(frame.url()); });
+}
+
+/** Lleva un celular a otra URL (para el rescate de F-220: seguir por el `callback` de la validación de identidad). */
+export async function deviceGoto(id: DeviceId, url: string): Promise<void> {
+    await open.get(id)?.page.goto(url, { waitUntil: 'domcontentloaded', timeout: 60_000 });
 }
