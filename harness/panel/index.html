@@ -854,6 +854,8 @@
            que explica un 500 o un timeout, y no están en el log de la corrida. -->
       <nav class="tabs" role="tablist" aria-label="Consolas">
         <button type="button" class="tab on" id="tabRun" role="tab" aria-selected="true" title="Lo que imprime el launcher de la corrida">Corrida</button>
+        <button type="button" class="tab" id="tabAdvisor" role="tab" aria-selected="false" title="Lo que pasó en el celular del ASESOR (más lo que hizo el panel): la misma consola, filtrada">Asesor</button>
+        <button type="button" class="tab" id="tabClient" role="tab" aria-selected="false" title="Lo que pasó en el celular del CLIENTE (más lo que hizo el panel): la misma consola, filtrada">Cliente</button>
         <button type="button" class="tab" id="tabSsr" role="tab" aria-selected="false" title="El stdout del wizard (SSR): sus llamadas salientes y sus errores">SSR</button>
         <button type="button" class="tab" id="tabMocks" role="tab" aria-selected="false" title="Los mocks locales que vigila el panel: si responden, quién los levantó y su salida">Mocks</button>
         <button type="button" class="tab" id="tabMap" role="tab" aria-selected="false" title="El mapa del recorrido del comercio: sus carriles y dónde va la corrida">Mapa</button>
@@ -3179,7 +3181,7 @@
       // layout del panel inferior (columna flex, para que el <pre> llene) lo sigue decidiendo el CSS.
       $('consoleBody').style.display = '';
       const tab = consoleTab();
-      $('logScroll').style.display = on && tab === 'corrida' ? '' : 'none';
+      $('logScroll').style.display = on && LOG_VIEWS.includes(tab) ? '' : 'none';
       $('logSsrScroll').style.display = on && tab === 'ssr' ? '' : 'none';
       $('mocksScroll').style.display = on && tab === 'mocks' ? '' : 'none';
       $('mapScroll').style.display = on && tab === 'mapa' ? '' : 'none';
@@ -3262,10 +3264,23 @@
       return frag;
     }
 
+    /* LAS CONSOLAS DE CADA CELULAR son la MISMA salida filtrada por su rótulo (`[asesor ]`, `[cliente]`, que
+     * escribe `deviceLog` en el servidor): «Corrida» muestra la secuencia entera intercalada y «copiar» la lleva
+     * completa. En cada una van también las líneas del panel (`[panel  ]`: traspasos, pedido armado) y el
+     * encabezado, porque sin ellas no se entiende por qué el celular cambió de pantalla. */
+    const LOG_VIEWS = ['corrida', 'asesor', 'cliente'];
+    let logView = 'corrida';
+    function inLogView(l) {
+      if (logView === 'corrida') return true;
+      if (/^\s*\d{1,2}:\d{2}:\d{2} \[panel {2}\]/.test(l) || /^▶ CELULARES/.test(l)) return true;
+      return logView === 'asesor' ? /^\s*\d{1,2}:\d{2}:\d{2} \[asesor \]/.test(l) : /^\s*\d{1,2}:\d{2}:\d{2} \[cliente\]/.test(l);
+    }
+    const showsLine = (l) => inLogView(l) && (!importantOnly || isImportant(l));
+
     // Re-pinta TODO desde el array (para el toggle del filtro o cuando arranca una corrida nueva).
     function repaintLog() {
       const frag = document.createDocumentFragment();
-      for (const l of logLines) if (!importantOnly || isImportant(l)) frag.appendChild(lineNodes(l));
+      for (const l of logLines) if (showsLine(l)) frag.appendChild(lineNodes(l));
       $('log').replaceChildren(frag);
     }
 
@@ -3275,7 +3290,7 @@
       const frag = document.createDocumentFragment();
       for (const l of newOnes) {
         logLines.push(l);
-        if (!importantOnly || isImportant(l)) frag.appendChild(lineNodes(l));
+        if (showsLine(l)) frag.appendChild(lineNodes(l));
       }
       $('log').appendChild(frag);
       renderTyping(logLines.join('\n'));
@@ -3332,7 +3347,7 @@
       } catch { /* el panel sigue andando sin esto */ }
     }
 
-    const CONSOLE_TABS = [['tabRun', 'corrida'], ['tabSsr', 'ssr'], ['tabMocks', 'mocks'], ['tabMap', 'mapa']];
+    const CONSOLE_TABS = [['tabRun', 'corrida'], ['tabAdvisor', 'asesor'], ['tabClient', 'cliente'], ['tabSsr', 'ssr'], ['tabMocks', 'mocks'], ['tabMap', 'mapa']];
     function consoleTab() {
       return (CONSOLE_TABS.find(([id]) => $(id).classList.contains('on')) || CONSOLE_TABS[0])[1];
     }
@@ -3345,6 +3360,7 @@
         $(id).setAttribute('aria-selected', String(t === tab));
       }
       showLog(logOpen);
+      if (LOG_VIEWS.includes(tab) && tab !== logView) { logView = tab; repaintLog(); }
       if (ssrPoll) { clearInterval(ssrPoll); ssrPoll = null; }
       if (tab === 'ssr') { tickSsr(); ssrPoll = setInterval(tickSsr, 2000); }
       // Los mocks se consultan sólo mientras la pestaña está a la vista: cada consulta prueba 19 puertos.
@@ -3356,6 +3372,8 @@
     }
 
     $('tabRun').onclick = () => showTab('corrida');
+    $('tabAdvisor').onclick = () => showTab('asesor');
+    $('tabClient').onclick = () => showTab('cliente');
     $('tabSsr').onclick = () => showTab('ssr');
     $('tabMocks').onclick = () => showTab('mocks');
     $('tabMap').onclick = () => showTab('mapa');
@@ -4625,7 +4643,7 @@ export function bindMenu(trigger, { getItems, onSelect, label = 'Más opciones' 
       document.getElementById('consoleMenu').classList.toggle('has-options', filtered);
       consoleOptions.refresh();
     }
-    for (const id of ['tabRun', 'tabSsr', 'tabMocks', 'tabMap']) document.getElementById(id).addEventListener('click', reflectConsoleFilter);
+    for (const id of ['tabRun', 'tabAdvisor', 'tabClient', 'tabSsr', 'tabMocks', 'tabMap']) document.getElementById(id).addEventListener('click', reflectConsoleFilter);
     reflectConsoleFilter();
 
     // ══ RUTA Y PREFERENCIAS ═══════════════════════════════════════════════════════════════════════
@@ -4709,8 +4727,8 @@ export function bindMenu(trigger, { getItems, onSelect, label = 'Más opciones' 
           if (currentView() !== wantedView) showAuxView(wantedView);
 
           // La consola por su pestaña real: el rótulo «Filtrada» escucha ese click.
-          const wantedConsole = ['ssr', 'mocks', 'mapa'].includes(params.get('consola')) ? params.get('consola') : 'corrida';
-          if (currentConsole() !== wantedConsole) byId({ ssr: 'tabSsr', mocks: 'tabMocks', mapa: 'tabMap' }[wantedConsole] || 'tabRun').click();
+          const wantedConsole = ['asesor', 'cliente', 'ssr', 'mocks', 'mapa'].includes(params.get('consola')) ? params.get('consola') : 'corrida';
+          if (currentConsole() !== wantedConsole) byId({ asesor: 'tabAdvisor', cliente: 'tabClient', ssr: 'tabSsr', mocks: 'tabMocks', mapa: 'tabMap' }[wantedConsole] || 'tabRun').click();
         } finally {
           if (seq === routeSeq) { restoring = false; syncRoute({ replace: true }); }
         }
