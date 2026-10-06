@@ -306,6 +306,25 @@ function caseAutofill(o: any = {}): AutofillData {
         ingreso: digits(o.income) || base.ingreso, monto: digits(o.amount) || base.monto,
     };
 }
+/**
+ * El webhook de la ENTIDAD contra local (`pkg/entity-webhook.ts`): lo que la entidad le avisa al backend cuando el
+ * cliente termina con ella. `estado` = la respuesta, o `aprueba` para la que aprueba en la familia de la entidad
+ * (rt=0 `completed`, rt=1 `fulfilled`). Fijo a local: el receptor es el monolito viejo de esta máquina.
+ */
+async function fireEntityWebhook(uReq: number, lender: number, stateValue: string): Promise<{ ok: boolean; detalle: string; familia?: string }> {
+    // ⚠ EL TARGET SE FIJA A `local` A MANO, Y NO ES DEFENSIVO: `pkg/db.ts` toma `E2E_TARGET` y su
+    // default es **dev** (harness/CLAUDE.md lo advierte para `bin/dbops.ts`, y acá pasa igual). Sin
+    // esto el módulo buscaba la transacción de la entidad en la base de DEV, no la encontraba y
+    // respondía «sin transacción: el webhook no tendría a qué apuntar».
+    process.env.E2E_TARGET = 'local';
+    const { webhookFamily, integrationWebhook, webhookSelfManager, meddipayWebhook } = await import('../pkg/entity-webhook.ts');
+    const fam = await webhookFamily(lender);
+    if (!fam) return { ok: false, detalle: 'esta entidad no recibe webhook: es redirección pura o su familia no está cubierta (F-170)' };
+    const estado = stateValue === 'aprueba' ? (fam === 'rt0' ? 'completed' : 'fulfilled') : stateValue;
+    const r = fam === 'meddipay' ? await meddipayWebhook(uReq, lender, stateValue)
+        : fam === 'rt0' ? await webhookSelfManager(uReq, lender, estado) : await integrationWebhook(uReq, estado);
+    return { ...r, familia: fam };
+}
 const deviceBypass = new Map<DeviceId, { target: string; puesto: unknown }>();
 // Lo que el arnés hizo por su cuenta en un celular y el panel tiene que mostrar (p. ej. aprobar la identidad).
 const deviceNotes = new Map<DeviceId, string>();
@@ -1053,17 +1072,7 @@ const server = createServer(async (req, res) => {
         // la corrida quedó mal armada cuando lo que estaba mal era la base a la que se preguntó.
         // Y va fijo, no configurable: el receptor del webhook es el monolito viejo en localhost, así
         // que este botón sólo tiene sentido contra local.
-        process.env.E2E_TARGET = 'local';
-        const { webhookFamily, integrationWebhook, webhookSelfManager } =
-            await import('../pkg/entity-webhook.ts');
-        const fam = await webhookFamily(lender);
-        if (!fam) {
-            return json(res, 200, { ok: false, detalle: 'esta entidad no recibe webhook: es redirección '
-                + 'pura o su familia no está cubierta (F-170)' });
-        }
-        const r = fam === 'rt0' ? await webhookSelfManager(uReq, lender, stateValue)
-                                : await integrationWebhook(uReq, stateValue);
-        return json(res, 200, { ...r, familia: fam });
+        return json(res, 200, await fireEntityWebhook(uReq, lender, stateValue));
     }
 
     /* LOS MOCKS LOCALES: estado, dueño y log de cada uno, y levantar, apagar o reiniciar a pedido. */
@@ -1421,6 +1430,14 @@ const server = createServer(async (req, res) => {
             return json(res, 200, { hash, corbeta: null, canales: ['asesor', 'autogestion', 'ecommerce', 'qr'], msg: `no pude determinar si es Corbeta (${msg})` });
         }
         const corbeta = !!(r as any).corbeta;
+        // `auto` (auto-onboarding) corre en local y en qa, donde está desplegado, y sólo si el comercio
+        // tiene una tienda en `auto_onboarding_allied_branches`. Sin eso sería una puerta que cae al ecommerce normal.
+        const autoTargets = ['local', 'qa'];
+        const autoCheck = autoTargets.includes(target) && !corbeta ? await dbopsJson(['auto-onboarding-ok', hash], target).catch(() => null) : null;
+        const auto = autoCheck?.ok === true ? ['auto'] : [];
+        const autoMotivo = !autoTargets.includes(target) ? 'el auto-onboarding corre contra local o qa'
+            : corbeta ? 'en un comercio Corbeta la entrada es el QR de la caja'
+            : autoCheck?.motivo || (autoCheck ? '' : 'no se pudo comprobar la tienda del comercio');
         return json(res, 200, {
             hash, corbeta, alliedId: (r as any).alliedId ?? null,
             canales: corbeta ? ['qr'] : ['asesor', 'autogestion', 'ecommerce', ...auto],
@@ -1432,14 +1449,6 @@ const server = createServer(async (req, res) => {
             // ⚠ Es un DEFAULT, no un candado: los otros canales siguen ofrecidos y clickeables, porque
             // correr un comercio autogestionado por el canal del asesor es una comparación legítima.
             sugerido: corbeta ? 'qr' : (r as any).selfManaged === true ? 'autogestion' : 'asesor',
-        // `auto` (auto-onboarding) corre en local y en qa, donde está desplegado, y sólo si el comercio
-        // tiene una tienda en `auto_onboarding_allied_branches`. Sin eso sería una puerta que cae al ecommerce normal.
-        const autoTargets = ['local', 'qa'];
-        const autoCheck = autoTargets.includes(target) && !corbeta ? await dbopsJson(['auto-onboarding-ok', hash], target).catch(() => null) : null;
-        const auto = autoCheck?.ok === true ? ['auto'] : [];
-        const autoMotivo = !autoTargets.includes(target) ? 'el auto-onboarding corre contra local o qa'
-            : corbeta ? 'en un comercio Corbeta la entrada es el QR de la caja'
-            : autoCheck?.motivo || (autoCheck ? '' : 'no se pudo comprobar la tienda del comercio');
         });
     }
 
@@ -1801,9 +1810,28 @@ connect();
                     const lender = (m[1] || '').trim();
                     const amount = String(b.order?.amount || '').replace(/\D/g, '') || '2000000';
                     const link = `http://localhost:${PORT}/mock-bank?lender=${encodeURIComponent(lender || 'la entidad')}&monto=${amount}&comercio=${encodeURIComponent(slug)}`;
+                    const ur = Number(/\/merchant\/[^/]+\/(\d+)\/lenders/.exec(st.url ?? '')?.[1] || 0);
                     await releaseDevice('client');
                     await openDevice('client', link).catch((e) => console.error('traspaso del agregador:', (e as Error).message.split('\n')[0]));
                     deviceNotes.set('client', `portal SIMULADO de ${lender || 'la entidad'}: el link que le llega al cliente por WhatsApp (en local no hay entidad real)`);
+                    // AL TERMINAR EN EL PORTAL, LA ENTIDAD LE AVISA AL BACKEND: el webhook simulado de esa entidad, con
+                    // «aprueba». Es lo que saca al asesor de «Estamos esperando la confirmación de la entidad». Sólo
+                    // en local (el receptor es el monolito de esta máquina); se anota en los dos celulares.
+                    if (t !== 'local' || !ur) return;
+                    const clientAt = deviceOpenedAt('client');
+                    const approvedPoll = setInterval(async () => {
+                        if (deviceOpenedAt('client') !== clientAt) { clearInterval(approvedPoll); return; }
+                        if (!/tu financiaci[óo]n fue aprobada/i.test(await deviceText('client'))) return;
+                        clearInterval(approvedPoll);
+                        const chosen = await dbopsJson(['lender-de', String(ur)], t);
+                        const r = chosen?.id ? await fireEntityWebhook(ur, Number(chosen.id), 'aprueba')
+                            : { ok: false, detalle: `la solicitud ${ur} no tiene entidad elegida` };
+                        const note = r.ok
+                            ? `portal SIMULADO de ${lender || 'la entidad'} · webhook SIMULADO enviado: ${chosen?.name || 'la entidad'} aprobó la solicitud ${ur}`
+                            : `portal SIMULADO de ${lender || 'la entidad'} · el webhook no salió: ${r.detalle}`;
+                        deviceNotes.set('client', note);
+                        deviceNotes.set('advisor', note.replace(/^portal SIMULADO de [^·]+· /, ''));
+                    }, 2000);
                 }, 2000);
                 return json(res, 200, { ok: true, hash, user: account, session: stored ? 'guardada' : signedIn ? 'entró y la guardó' : 'sin entrar', assigned, ...r });
             } catch (e) {

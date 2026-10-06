@@ -12,5 +12,6 @@ playwright-report/
 
 # Token de Sanctum para el webhook de rt=0 (se emite a mano, es local)
 .selfmanager-token
+.meddipay-token
 .bcp-llaves.json
 .bcp-front-previo.json

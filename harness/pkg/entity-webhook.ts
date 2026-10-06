@@ -25,7 +25,8 @@
 //   · sin el token en el `.env` de application, el guard rechaza con 401 aunque el llamante traiga uno.
 
 import { execFile } from 'node:child_process';
-import { readFileSync } from 'node:fs';
+import { readFileSync, writeFileSync } from 'node:fs';
+import { randomUUID } from 'node:crypto';
 import { one } from './db.ts';
 
 /** ⚠ VA CON EL SUBDOMINIO EN LA URL, no con un header `Host` (ver arriba). `api.localhost` resuelve
@@ -65,11 +66,13 @@ export function inRow<T>(task: () => Promise<T>): Promise<T> {
 }
 
 /** ¿Esta entidad puede recibir un webhook, y de cuál de las dos formas? */
-export async function webhookFamily(lenderId: number): Promise<'rt0' | 'rt1' | null> {
-    const l = await one<{ rt: number; a: string | null }>(
-        'SELECT response_type rt, action a FROM lenders WHERE id=?', [lenderId]).catch(() => null);
+export async function webhookFamily(lenderId: number): Promise<'rt0' | 'rt1' | 'meddipay' | null> {
+    const l = await one<{ rt: number; a: string | null; n: string }>(
+        'SELECT response_type rt, action a, name n FROM lenders WHERE id=?', [lenderId]).catch(() => null);
     if (!l) return null;
     if (Number(l.rt) === 1 && WELLI_IDS.includes(lenderId)) return 'rt1';
+    // Meddipay (agregador, rt=1) tiene webhook PROPIO en legacy-application: `POST /api/meddipay/webhook`.
+    if (l.n === 'Meddipay') return 'meddipay';
     // ⚠ La mayoría de los rt=0 NO tienen integración: de 20 entidades con solicitudes en 90 días, sólo
     // 3 tienen clase `action` —y se llevan el 88 % del volumen—; las otras 17 son redirección pura y
     // no reciben webhook (F-170).
@@ -194,4 +197,62 @@ export async function webhookSelfManager(ur: number, lender: number, status: str
 
     const end = await one<{ e: number }>('SELECT user_request_status_id e FROM user_requests WHERE id=?', [ur]).catch(() => null);
     return { ok: true, detalle: `webhook self-manager \`${status}\` → estado ${end?.e ?? '?'} (lo aplicó legacy-application)` };
+}
+
+
+/** EL DESENLACE DE MEDDIPAY — agregador rt=1 con webhook PROPIO en `legacy-application`
+ *  (`MeddipayController::webhook`, ruta `api.localhost/meddipay/webhook`, Sanctum con habilidad `meddipay`).
+ *
+ *  DOS PASOS, igual que el genérico: el webhook no crea nada, busca la transacción por `order_id` (un UUID).
+ *    1. La transacción se crea con el MISMO `LenderTransaction::create` que usa `Meddipay::register` (lender 39,
+ *       estado `No_Completado`). No se llama a `register` entero porque después le pide token a la API real de
+ *       Meddipay (`auth()`), que en local no hay.
+ *    2. El webhook real con `Aprobado` | `Rechazado` | `No_Completado`: él mueve la solicitud (Autorizada, Negada,
+ *       No terminó proceso) con su propio mapa. Lo simulado es sólo QUIÉN llama.
+ *
+ *  El token se emite UNA vez por `artisan tinker` y se guarda en `harness/.meddipay-token` (gitignoreado): Sanctum
+ *  guarda el hash, así que no se puede releer de la base. */
+async function meddipayToken(): Promise<string> {
+    if (process.env.MEDDIPAY_TOKEN) return process.env.MEDDIPAY_TOKEN;
+    const file = new URL('../.meddipay-token', import.meta.url);
+    try { const t = readFileSync(file, 'utf8').trim(); if (t) return t; } catch { /* se emite */ }
+    const out = await inRow(() => new Promise<string>((res) => execFile('php', ['artisan', 'tinker', '--execute',
+        "echo \\App\\Models\\User::orderBy('id')->first()->createToken('harness-local', ['meddipay'])->plainTextToken;"],
+        { cwd: OLD_APP_DIR, timeout: 60_000 }, (e, o) => res(e ? '' : String(o)))));
+    const token = (out.match(/\d+\|[A-Za-z0-9]+/) ?? [''])[0];
+    if (token) writeFileSync(file, token + '\n', { mode: 0o600 });
+    return token;
+}
+
+export async function meddipayWebhook(ur: number, lender: number, status: string): Promise<{ ok: boolean; detalle: string }> {
+    const statusName = ({ completed: 'Aprobado', fulfilled: 'Aprobado', aprueba: 'Aprobado', failed: 'Rechazado', rejected: 'Rechazado',
+        cancelled: 'No_Completado', dismissed: 'No_Completado' } as Record<string, string>)[status] ?? status;
+    const existing = await one<{ o: string }>(
+        'SELECT order_id o FROM lender_transactions WHERE user_request_id = ? AND lender_id = ? ORDER BY id DESC LIMIT 1', [ur, lender]).catch(() => null);
+    let orderId = existing?.o ?? '';
+    if (!orderId) {
+        orderId = randomUUID();
+        const php = `
+            $s = \\App\\Models\\LenderTransactionStatus::where('lender_id', ${lender})->where('name', 'No_Completado')->value('id');
+            \\App\\Models\\LenderTransaction::create(['lender_id' => ${lender}, 'user_request_id' => ${ur}, 'status_id' => $s,
+                'order_id' => '${orderId}', 'request' => json_encode('harness'), 'response' => json_encode('harness')]);
+            echo 'listo';`;
+        const prep = await inRow(() => new Promise<string>((res) => execFile('php', ['artisan', 'tinker', '--execute', php],
+            { cwd: OLD_APP_DIR, timeout: 60_000 }, (e, o, err) => res(e ? `ERROR ${String(err || e).slice(0, 130)}` : String(o)))));
+        if (!/listo/.test(prep)) return { ok: false, detalle: `no pude crear la transacción de Meddipay: ${prep.trim().slice(0, 130)}` };
+    }
+    const token = await meddipayToken();
+    if (!token) return { ok: false, detalle: 'no pude emitir el token de Sanctum con habilidad `meddipay` (artisan tinker en legacy-application)' };
+    const amount = await one<{ a: number }>('SELECT amount a FROM user_requests WHERE id=?', [ur]).catch(() => null);
+    const r = await fetch(`${OLD_APP}/meddipay/webhook`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json', accept: 'application/json', authorization: `Bearer ${token}` },
+        body: JSON.stringify({ order_id: orderId, status: statusName, amount: Number(amount?.a ?? 0), installments: 12 }),
+        signal: AbortSignal.timeout(20_000),
+    }).catch((e) => ({ ok: false, status: 0, text: async () => String(e) } as any));
+    const body = (await r.text().catch(() => '')).slice(0, 140);
+    if (r.status === 401 || r.status === 403) return { ok: false, detalle: `el webhook de Meddipay devolvió ${r.status}: el token no tiene la habilidad \`meddipay\`` };
+    if (r.status !== 200) return { ok: false, detalle: `el webhook de Meddipay devolvió HTTP ${r.status}: ${body}` };
+    const end = await one<{ e: number }>('SELECT user_request_status_id e FROM user_requests WHERE id=?', [ur]).catch(() => null);
+    return { ok: true, detalle: `webhook \`${statusName}\` → estado ${end?.e ?? '?'} (lo aplicó legacy-application)` };
 }
