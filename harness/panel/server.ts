@@ -644,9 +644,16 @@ async function ensureAssign(slug: string, target: string): Promise<{ ok: boolean
     const sub = advisor.sub;
     if (!advisor.ok || !sub) return { ok: false, detail: `sin asesor de prueba en ${target}: ${advisor.motivo || 'el comercio no tiene c<hash>-fake@'}` };
     const cur = await dbopsJson(['whois', sub], target);
-    if (cur?.matches?.[0]?.allied_branch_hash === hash) {
+    const where = cur?.matches?.[0]?.allied_branch_hash;
+    if (where === hash) {
         remember();
         return { ok: true, already: true, detail: 'el asesor ya estaba en esta sucursal — sin write' };
+    }
+    // ⛔ ELEGIR un comercio no mueve al asesor FUERA DE LOCAL: la base es la del equipo y la cuenta `c<hash>-fake@`
+    // la usan otros (2026-10-06: así quedó la de Pullman fuera de su sucursal). Sólo se avisa dónde está; el que
+    // lo asigna, si hace falta, es lanzar la corrida (`bin/advisor`, «load-permiso»), que es una acción explícita.
+    if (target !== 'local') {
+        return { ok: true, already: true, detail: `fuera de local no se mueve al asesor: está en ${where || 'ninguna sucursal'}; lanzar la corrida lo asigna a ${hash}` };
     }
     const r = await dbopsJson(['assign', sub, slug, hash, sub], target);
     if (!r || r.error) return { ok: false, detail: r?.error || 'el assign falló (mirá la consola del panel)' };
@@ -1783,7 +1790,7 @@ connect();
             for (let i = 0; prebooting && i < 600; i++) await new Promise((r) => setTimeout(r, 500));
             const t = TARGETS.has(String(b.target)) ? String(b.target) : 'local';
             const slug = String(b.slug || '');
-            const hash = branchHashForSlug(slug, t);
+            let hash = branchHashForSlug(slug, t);
             if (!hash) return json(res, 200, { ok: false, detail: `no conozco la sucursal de ${slug} en ${t}` });
             // El celular anterior se cierra YA y no al final: así su navegador nuevo se prepara mientras corren las
             // consultas de abajo (asesor de prueba, sesión, asignación), en vez de después.
@@ -1801,11 +1808,19 @@ connect();
                 const saved = connector.storageState();
                 if (saved && connector.sessionHealth().sirve) stored = JSON.parse(readFileSync(saved, 'utf8'));
             } catch { /* sin sesión: entra en el celular */ }
-            // Como la corrida («load-permiso»): el asesor de prueba a la sucursal elegida.
+            // Como la corrida («load-permiso»): el asesor de prueba a la sucursal elegida — SÓLO EN LOCAL.
+            // ⛔ Fuera de local la base es la del EQUIPO (dev, qa y staging comparten una) y el asesor `c<hash>-fake@`
+            // es el mismo que usan los demás: moverlo de sucursal les cambiaba la cuenta sin avisar (2026-10-06, la de
+            // Pullman quedó en 13874eb6 y no en su sucursal falsa). Ahí se abre la sucursal donde YA está.
             let assigned: string | null = null;
             const who = await dbopsJson(['whois', advisor.sub], t);
             const current = who?.matches?.[0]?.allied_branch_hash;
-            if (current !== hash) {
+            if (t !== 'local') {
+                if (current && current !== hash) {
+                    assigned = `no se mueve fuera de local: abre su sucursal ${current} (la del comercio en el panel es ${hash})`;
+                    hash = current;
+                } else if (!current) assigned = `no tiene sucursal en la base de ${t} y fuera de local no se le asigna: el wizard puede decir que no tiene comercio`;
+            } else if (current !== hash) {
                 const a = await dbopsJson(['assign', advisor.sub, slug, hash, advisor.sub], t);
                 assigned = a && !a.error ? `asignado a ${hash} (antes: ${current || 'ninguna'})` : 'no se pudo asignar a esta sucursal';
                 stored = null;   // la sesión vieja trae fijada la sucursal anterior: se entra de nuevo
