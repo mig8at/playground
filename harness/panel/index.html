@@ -531,6 +531,7 @@
               <button type="button" class="toggle on" data-c="asesor">Asesor</button>
               <button type="button" class="toggle" data-c="autogestion">Autogestión</button>
               <button type="button" class="toggle" data-c="ecommerce">Tienda online</button>
+              <button type="button" class="toggle" data-c="auto">Auto (tienda)</button>
               <button type="button" class="toggle" data-c="qr">QR en caja</button>
             </div>
             <p id="channelHint"></p>
@@ -859,7 +860,7 @@
     // mock es quien contesta, y no según una lista que se desincroniza sola.
     let mockPA = true;
     let inject = true;           // true = inyecta buró sintético (salta consulta real) · false = prueba real
-    let channel = 'asesor';        // por dónde ENTRA la solicitud: 'asesor' (login + wizard) | 'autogestion' (el cliente solo) | 'ecommerce' (URL base64) | 'qr' (caja Corbeta)
+    let channel = 'asesor';        // por dónde ENTRA la solicitud: 'asesor' (login + wizard) | 'autogestion' (el cliente solo) | 'ecommerce' (URL base64) | 'auto' (tienda con fecha: sólo el código) | 'qr' (caja Corbeta)
     let channelTouched = null;      // slug del comercio cuyo canal ya se resolvió (sugerido o a mano): no se vuelve a pisar
     let doctype = 'CC';
     let gender = 'M';
@@ -1258,7 +1259,7 @@
     }
 
     function channelLabel(c) {
-      return { asesor: 'Asesor', autogestion: 'Autogestión', ecommerce: 'Tienda online', qr: 'QR en caja' }[c] || c;
+      return { asesor: 'Asesor', autogestion: 'Autogestión', ecommerce: 'Tienda online', auto: 'Auto (tienda)', qr: 'QR en caja' }[c] || c;
     }
 
     async function setMerchantFlag(flag, value) {
@@ -2256,6 +2257,7 @@
     // dibuja: si la UI re-derivara "esto es Corbeta" habría dos definiciones de la misma regla. `null` =
     // todavía no se consultó (o falló) → no se gatea nada, que es el default menos entrometido.
     let channelsOk = null;
+    let autoMotivo = '';   // por qué «Auto (tienda)» no aplica a este comercio (lo dice el servidor)
 
     async function loadChannels() {
       if (!sel) return;
@@ -2265,6 +2267,7 @@
         // Respuesta tardía de otro comercio: aplicarla le pondría a éste la sugerencia y los canales del anterior.
         if (!sel || sel.slug !== askedSlug || target !== askedTarget) return;
         channelsOk = Array.isArray(r.canales) ? r.canales : null;
+        autoMotivo = r.autoMotivo || '';
         // El servidor sugiere el canal según el comercio (autogestión si tiene el flag). Se aplica UNA
         // vez por comercio: si ya tocaste los botones, tu elección manda — un default que te pisa la
         // selección cada vez que el panel refresca es peor que no tener default.
@@ -2290,6 +2293,8 @@
           ? 'En un comercio Corbeta la autogestión ya es el canal QR: el cliente entra escaneando en la caja, no por un link.'
           : b.dataset.c === 'qr'
           ? 'El QR sólo aplica a comercios del grupo Corbeta: para el resto cae en el flujo normal, que es el mismo del asesor.'
+          : b.dataset.c === 'auto'
+          ? `Auto (tienda) no aplica: ${autoMotivo || 'sólo corre contra local, con un comercio que tenga tienda online habilitada para el auto-onboarding'}.`
           : isCorbeta
           ? 'En un comercio Corbeta el camino de producción es el QR de la caja: el cliente entra escaneando, sin asesor '
             + 'ni carrito. (Asesor acá no está roto: entrega el flujo al celular del cliente por WhatsApp y termina en las '
@@ -2306,6 +2311,11 @@
           + 'Es el recorrido de un comercio con «Habilitar auto gestión» prendido (<code>allieds.self_managed</code>), como Alta Fleet. '
           + '<b>Si el comercio NO lo tiene prendido</b>, la puerta abre igual y sirve para comparar: lo que cambia es el desenlace, '
           + 'que vuelve al handoff.'
+        : channel === 'auto'
+        ? 'Como «Tienda online», pero el pedido trae también la <b>fecha de expedición</b> (la del caso). Si la sucursal está en '
+          + '<code>auto_onboarding_allied_branches</code>, el checkout salta celular y datos personales: el código llega al celular '
+          + 'del pedido, lo escribís, y <code>/auto/{hash}/{id}/validando</code> corre la cascada de burós → <b>lenders</b>; si no '
+          + 'pasa, <code>personal-info</code> prellenado con el aviso «No pudimos validar tus datos». El front sale de <code>CFE_AUTO_FRONT_PATH</code> (harness/.env.local). Sólo local.'
         : channel === 'qr'
         ? 'El cliente escanea el QR en la CAJA de un comercio Corbeta (Alkosto/K-TRONIX/Alkomprar): autogestión pura, sin asesor. '
           + '<b>No pasa por el marketplace</b> — el OTP resuelve la pre-aprobación y decide solo entre BNPL (68) y Consumo (100). '
@@ -2327,7 +2337,7 @@
       document.querySelectorAll('.bureau').forEach(el => { el.disabled = pep; el.title = pep ? 'PEP no pasa por el buró: score, negativos y consultas no aplican' : ''; });
     }
 
-    const CHANNEL_LABELS = { asesor: 'Asesor', autogestion: 'Autogestión', ecommerce: 'Tienda online', qr: 'QR en caja' };
+    const CHANNEL_LABELS = { asesor: 'Asesor', autogestion: 'Autogestión', ecommerce: 'Tienda online', auto: 'Auto (tienda)', qr: 'QR en caja' };
     let activeCaseSummary = '';
 
     function updateCaseSummary() {
@@ -3007,7 +3017,7 @@
      */
     function applyStepGate() {
       setTimeout(syncHeader, 0);
-      const startOnly = channel === 'ecommerce' || channel === 'qr';
+      const startOnly = channel === 'ecommerce' || channel === 'auto' || channel === 'qr';
       const bStart = document.querySelector('#stepOptions button[data-v="monto"]');
       const bLenders = document.querySelector('#stepOptions button[data-v="lenders"]');
       if (bLenders) {
@@ -3016,7 +3026,7 @@
         bLenders.style.opacity = ok ? '' : '.4';
         bLenders.title = ok ? ''
           : channel === 'qr' ? 'El canal QR no pasa por el marketplace: su recorrido es solicitar → OTP → producto.'
-          : channel === 'ecommerce' ? 'En el canal ecommerce el salto a lenders no está implementado en el spec: no haría nada.'
+          : channel === 'ecommerce' || channel === 'auto' ? 'Por la tienda el salto a lenders no está implementado en el spec: no haría nada.'
           : 'Lenders siembra un usuario sintético — con buró Real no hay nada que sembrar: arrancás desde el inicio';
         if (!ok && step === 'lenders') { step = 'monto'; setSeg('stepOptions', step); }
       }

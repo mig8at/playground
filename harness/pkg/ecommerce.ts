@@ -4,7 +4,11 @@ import { config } from './config.ts';
 import { scalar, env } from './db.ts';
 import { resolveMerchant, listEcommerce } from './merchants.ts';
 
-export interface PersonalInfo { docType: string; doc: string; name: string; surname: string; email: string; }
+export interface PersonalInfo {
+    docType: string; doc: string; name: string; surname: string; email: string;
+    /** `YYYY-MM-DD`. Sólo la manda el auto-onboarding: con ella el comprador no llena el formulario personal. */
+    expeditionDate?: string;
+}
 
 export const b64 = (s: string): string => Buffer.from(s, 'utf8').toString('base64');
 
@@ -41,6 +45,7 @@ export function ecommerceContract(hash: string, token: string, phone: string, pr
         billing: {
             first_name: p.name, last_name: p.surname, phone,
             email: p.email, document_type: p.docType, document_number: p.doc,
+            ...(p.expeditionDate ? { document_expedition_date: p.expeditionDate } : {}),
         },
     };
     // productos de mentiras (solo para el ejercicio): 2 ítems que suman el total.
@@ -84,6 +89,9 @@ export function caseIdentity(): PersonalInfo {
         surname: parts.slice(1).join(' ') || 'ECOM',
         // El default sigue el documento para que dos casos distintos no compartan correo: es UNIQUE.
         email: process.env.E2E_SYNTH_EMAIL || (parts.length ? `synth-${doc}@creditop.com` : 'synth-ecom@creditop.com'),
+        // Sólo en el auto-onboarding (`bin/auto-onboarding`): el canal ecommerce de siempre NO la manda, así
+        // una sucursal habilitada para el auto se sigue pudiendo probar por la puerta normal.
+        expeditionDate: process.env.E2E_AUTO_ONBOARDING === '1' ? (process.env.E2E_SYNTH_EXP || '2010-01-01') : undefined,
     };
 }
 

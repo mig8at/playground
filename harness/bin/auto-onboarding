@@ -1,0 +1,17 @@
+#!/usr/bin/env bash
+# auto-onboarding — la entrada por tienda en la que el comprador sólo escribe el código.
+#
+# La tienda manda en el pedido los datos del formulario personal, la fecha de expedición incluida. Si la
+# sucursal está en el setting `auto_onboarding_allied_branches`, el checkout salta `solicitar` y
+# `personal-info`: `/auto/{hash}/inicio` envía el OTP al celular del pedido, el código valida y
+# `/auto/{hash}/{id}/validando` corre la cascada de burós con esos datos → `lenders`; si no pasa, el
+# `personal-info` de ecommerce prellenado con el aviso (`?validacion=fallida`).
+#
+#   bin/auto-onboarding <merchant>   → entra por la tienda mock y te deja seguir a mano
+#
+# Local o qa. En local el front sale de `CFE_AUTO_FRONT_PATH` (harness/.env.local) si apunta al worktree de la
+# rama; en qa es el desplegado.
+# Es un wrapper: el canal ecommerce de `bin/advisor` con `E2E_AUTO_ONBOARDING=1`.
+set -euo pipefail
+DIR="$(cd "$(dirname "$0")" && pwd)"
+exec env CFE_ENTRY=ecommerce E2E_AUTO_ONBOARDING=1 "$DIR/advisor" "$@"

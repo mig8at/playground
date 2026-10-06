@@ -102,6 +102,22 @@ ECOMMERCE=0; [ "$ENTRY" = "ecommerce" ] && ECOMMERCE=1
 # loguea le rompe la próxima corrida del asesor.
 SIN_ASESOR=0; { [ "$ENTRY" = "self-service" ] || [ "$ENTRY" = "qr" ]; } && SIN_ASESOR=1
 
+# AUTO-ONBOARDING (`bin/auto-onboarding`): la entrada por tienda en la que el pedido trae también la fecha de
+# expedición y el comprador sólo escribe el código (`/auto/{hash}/…`). Es el canal ecommerce con dos
+# diferencias: el contrato lleva la fecha (lo lee `caseIdentity()`), y el front puede servirse desde OTRA
+# carpeta —el worktree de la rama donde vive `/auto`— con `CFE_AUTO_FRONT_PATH` en la cadena de env
+# (harness/.env.local). Corre contra local y contra qa, donde está desplegado; en qa el front es el del
+# ambiente, así que la carpeta no se cambia. La bandera vive en el setting `auto_onboarding_allied_branches`.
+if [ "${E2E_AUTO_ONBOARDING:-}" = "1" ]; then
+  case "$TARGET" in local|qa) ;; *) echo "✗ el auto-onboarding corre contra local o qa (TARGET=$TARGET)."; exit 1;; esac
+  AUTO_FRONT="$(envget CFE_AUTO_FRONT_PATH)"
+  if [ "$TARGET" = "local" ] && [ -z "${CFE_FRONT_PATH:-}" ] && [ -n "$AUTO_FRONT" ]; then
+    [ -d "$AUTO_FRONT/apps/loan-request-wizard" ] || { echo "✗ CFE_AUTO_FRONT_PATH no es un monorepo: $AUTO_FRONT"; exit 1; }
+    FRONT="$AUTO_FRONT"; WIZARD="$FRONT/apps/loan-request-wizard"
+  fi
+  export E2E_AUTO_ONBOARDING=1
+fi
+
 # env que lee el spec (dev/guided.spec.ts cubre GUIADO y MANUAL según E2E_GUIDED)
 export E2E_TARGET="$TARGET" E2E_BASE_URL="$WIZ_BASE" E2E_ENTRY="$ENTRY" E2E_GUIDED="$GUIDED" E2E_RESULT="$RESULT" E2E_PREVIEW=1
 
@@ -428,7 +444,10 @@ esac
 # «reusado (:5174 → http://localhost · local)» y el wizard de verdad (a) servía el bundle de SERVIDOR de la
 # rama del día anterior y (b) tras un reinicio a mano leía su .env y pegaba contra dev con `/api` doblado
 # (502 mudo). Ninguna de las dos se veía. Cuatro comprobaciones antes de reusar, en este orden:
-WANT="${WIZ_API}|${PREAPPROVALS}"
+# La CARPETA del front entra en lo que se pide: el auto-onboarding sirve el wizard desde otro worktree, y
+# reusar el de :5174 serviría el código de la otra carpeta con el mismo backend — idéntico en las cuatro
+# comprobaciones de abajo y sin las rutas que se quieren probar.
+WANT="${WIZ_API}|${PREAPPROVALS}|${FRONT}"
 MARKER=/tmp/asesor-wizard.api
 if [ "$UP" = 1 ] && [ "$FRESH" = 0 ]; then
   LISTEN_PID="$(lsof -ti:5174 2>/dev/null | head -1)"
@@ -468,7 +487,11 @@ if [ "$UP" = 1 ] && [ "$FRESH" = 0 ]; then
   fi
   CUR_API="${CUR_API%/}"
   if [ -n "$CUR_API" ] && [ "$CUR_API" != "$WANT" ]; then
-    log "el wizard en :5174 apunta a ${CUR_API%%|*} pero pedís ${WIZ_API} → reinicio limpio"; FRESH=1
+    if [ "${CUR_API%%|*}" = "$WIZ_API" ]; then
+      log "el wizard en :5174 no sirve la carpeta que pedís (${FRONT}) → reinicio limpio"; FRESH=1
+    else
+      log "el wizard en :5174 apunta a ${CUR_API%%|*} pero pedís ${WIZ_API} → reinicio limpio"; FRESH=1
+    fi
   elif [ -z "$CUR_API" ]; then
     log "no pude confirmar el backend del wizard en :5174 → reinicio limpio"; FRESH=1
   elif [ "$OWNED_BY_ASESOR" = 0 ]; then

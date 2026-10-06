@@ -1023,6 +1023,45 @@ test('guided (semiautomático)', async ({ browser }) => {
         } else {
             await page.goto(url, { waitUntil: 'domcontentloaded' }).catch(() => {});
         }
+
+        // ── AUTO-ONBOARDING (`bin/auto-onboarding`): el pedido trae la fecha de expedición y, si la
+        // sucursal está habilitada, el checkout va a `/auto/{hash}/inicio`, que manda el código al celular
+        // del pedido. Se recorre entero acá porque no pasa por ninguna pantalla del tronco de abajo.
+        if (process.env.E2E_AUTO_ONBOARDING === '1') {
+            const enabled = await one<{ value: string }>("SELECT value FROM settings WHERE `key` = 'auto_onboarding_allied_branches' LIMIT 1").catch(() => null);
+            if (!enabled?.value?.includes(HASH)) {
+                log(`⚠ la sucursal ${HASH} NO está en el setting 'auto_onboarding_allied_branches': el checkout va a seguir al ecommerce normal.`);
+                log(`   Para habilitarla en local: UPDATE settings SET value = JSON_ARRAY_APPEND(value, '$.hashes', '${HASH}') WHERE \`key\`='auto_onboarding_allied_branches';`);
+            }
+            await page.waitForURL(/\/auto\/[^/]+\/\d+\/otp|\/ecommerce\/[^/]+\/solicitar/, { timeout: PICK_TIMEOUT }).catch(() => {});
+            if (!/\/auto\//.test(page.url())) {
+                // `inicio` sale al flujo normal cuando al pedido le falta un dato o el envío del código falla:
+                // es la salida de respaldo, no un error, pero la corrida ya no prueba el auto-onboarding.
+                log(`⚠ el auto-onboarding NO tomó la compra: quedó en ${page.url()} (sucursal sin bandera, pedido sin fecha, o el código no salió). Sigue el ecommerce normal.`);
+            } else {
+                const otpBox = page.getByTestId('otp-input').or(page.locator('input:not([type="hidden"])').first());
+                await otpBox.waitFor({ state: 'visible', timeout: 15_000 }).catch(() => {});
+                await otpBox.click().catch(() => {});
+                await page.keyboard.type(OTP, { delay: 80 }).catch(() => {});
+                await shot(page, 'auto-otp');
+                tip(`AUTO: el código llegó al celular del pedido. OTP prellenado (${OTP}, bypass de QA). Dale "Continuar".`);
+                await page.waitForURL(/\/auto\/[^/]+\/\d+\/validando|\/ecommerce\/[^/]+\/\d+\//, { timeout: PICK_TIMEOUT }).catch(() => {});
+                const urAuto = page.url().match(/\/(?:auto|ecommerce)\/[^/]+\/(\d+)\//)?.[1];
+                if (urAuto) trace.traceUReq(urAuto);
+                await page.waitForURL(/\/ecommerce\/[^/]+\/\d+\//, { timeout: 120_000 }).catch(() => {});
+                await shot(page, 'auto-desenlace');
+                // Si la validación con los datos del pedido no pasa, el comprador sigue por `personal-info`
+                // prellenado y con el aviso (`?validacion=fallida`); si falta el empleo, por `employment-info`.
+                log(/validacion=fallida/.test(page.url())
+                    ? `AUTO: la validación no pasó → personal-info prellenado con el aviso (uReq ${urAuto ?? '?'}). El motivo está en el SSR del wizard (auto-onboarding.verifying.action).`
+                    : /employment-info/.test(page.url())
+                    ? `AUTO: faltan los datos laborales → employment-info (uReq ${urAuto ?? '?'}).`
+                    : `AUTO: datos comprobados con el pedido → ${page.url().replace(/^https?:\/\/[^/]+/, '')} (uReq ${urAuto ?? '?'}).`);
+                tip('AUTO: seguí desde acá a mano. (para terminar: cerrá la ventana o «Detener» en el panel)');
+                await holdOpen(page, B);
+                return;
+            }
+        }
         // aterrizajes válidos: el resolvedor de ecommerce o cualquier pantalla del árbol público
         await page.waitForURL(/resolve-ecommerce-flow|\/(solicitar|otp|personal-info|employment-info|lenders|confirmation)/, { timeout: PICK_TIMEOUT })
             .catch(() => log(`⚠ no aterrizó en una pantalla conocida — quedó en ${page.url()}`));

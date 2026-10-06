@@ -347,6 +347,28 @@ try {
             r = { ok: true, alliedId: br.allied_id, flag, value: value === 1, affected: res.affectedRows };
             break;
         }
+        case 'auto-onboarding-ok': { // ¿el COMERCIO de esta sucursal puede entrar por el auto-onboarding? → {ok, motivo, tiendas, habilitadas}
+            // SÓLO LECTURA. Hacen falta dos cosas: una sucursal con credencial de tienda (el checkout entra por
+            // ahí, no por la sucursal elegida) y que ESA sucursal esté en `auto_onboarding_allied_branches`.
+            const branch = await one<{ allied_id: number }>('SELECT allied_id FROM allied_branches WHERE hash = ? LIMIT 1', [String(a[0] ?? '')]);
+            const stores = branch
+                ? (await query<{ hash: string }>(
+                    'SELECT ab.hash FROM allied_ecommerce_credentials aec JOIN allied_branches ab ON ab.id = aec.allied_branch_id WHERE ab.allied_id = ?',
+                    [branch.allied_id])).map((s) => s.hash)
+                : [];
+            const setting = await one<{ value: string }>("SELECT value FROM settings WHERE `key` = 'auto_onboarding_allied_branches' LIMIT 1").catch(() => null);
+            let enabledHashes: string[] = [];
+            try { enabledHashes = (JSON.parse(setting?.value ?? '{}').hashes ?? []).map(String); } catch { /* forma inesperada: nadie habilitado */ }
+            const enabled = stores.filter((h) => enabledHashes.includes(h));
+            r = {
+                ok: enabled.length > 0, tiendas: stores, habilitadas: enabled,
+                motivo: !branch ? 'sucursal no encontrada'
+                    : !stores.length ? 'el comercio no tiene tienda online (ninguna sucursal con credencial ecommerce)'
+                    : !enabled.length ? `su tienda (${stores.join(', ')}) no está en auto_onboarding_allied_branches`
+                    : '',
+            };
+            break;
+        }
         case 'is-corbeta': { // ¿esta SUCURSAL pertenece al grupo Corbeta? → {hash, alliedId, corbeta, selfManaged, allieds}
             // La lógica vive en `pkg/merchants.ts` porque la comparten este subcomando y `guided.spec.ts`.
             const hash = String(a[0] ?? '');

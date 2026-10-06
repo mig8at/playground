@@ -214,7 +214,7 @@ const server = http.createServer((req, res) => {
     const url = new URL(String(req.url).replace(/^\/{2,}/, '/'), `http://localhost:${PORT}`);
     let body = '';
     req.on('data', (c) => (body += c));
-    req.on('end', () => {
+    req.on('end', async () => {
         if (req.method === 'GET' && url.pathname === '/') {
             return json(res, 200, { mock: 'bureaus', port: PORT, dictados: dictated.size });
         }
@@ -249,8 +249,21 @@ const server = http.createServer((req, res) => {
         const doc = idNumberOf(url, body);
         const key = `${hit.central}_${doc}`;
         if (doc && dictated.has(key)) {
+            // Un dictado puede pedir además CÓMO contestar: `{"__http_status": 500, "__body": {...},
+            // "__delay_ms": 30000}`. Es lo que permite probar una central CAÍDA o LENTA —no sólo una que
+            // contesta «sin datos»—, que es otra rama del backend y la que más cuesta reproducir.
+            const raw = dictated.get(key);
+            let meta = null;
+            try { const v = JSON.parse(raw); if (v && typeof v === 'object' && ('__http_status' in v || '__delay_ms' in v)) meta = v; } catch { /* no es meta */ }
+            if (meta) {
+                const status = Number(meta.__http_status ?? 200);
+                const delay = Math.max(0, Number(meta.__delay_ms ?? 0));
+                log(`${req.method} ${url.pathname} → ${hit.central} DICTADO (doc ${doc}) · HTTP ${status}${delay ? ` tras ${delay} ms` : ''}`);
+                if (delay) await new Promise((r) => setTimeout(r, delay));
+                return json(res, status, meta.__body ?? { error: `falla dictada (${status})` });
+            }
             log(`${req.method} ${url.pathname} → ${hit.central} DICTADO (doc ${doc})`);
-            return json(res, 200, dictated.get(key));
+            return json(res, 200, raw);
         }
         log(`${req.method} ${url.pathname} → ${hit.central} default`
             + (doc ? ` (doc ${doc}, sin dictado para esa cédula)`

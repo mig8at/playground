@@ -555,6 +555,8 @@ async function runHeader(slug: string, p: Profile, t: string, inject: boolean, s
             ? 'ECOMMERCE — entra por URL base64 de la tienda (sin asesor)'
             : channel === 'qr'
             ? 'QR — caja de un comercio Corbeta, autogestión pura (sin asesor y SIN marketplace)'
+            : channel === 'auto'
+            ? 'AUTO — tienda con fecha de expedición: sólo el código, la cascada corre sola (/auto/…)'
             : channel === 'autogestion'
             ? 'AUTOGESTIÓN — el cliente entra solo por /self-service (sin login, un solo dispositivo)'
             : 'ASESOR — login Cognito + wizard en /merchant'),
@@ -670,7 +672,7 @@ async function runHeader(slug: string, p: Profile, t: string, inject: boolean, s
      * de `ec977139`, dos sucursales del MISMO comercio con listas distintas.
      *
      * Sólo lectura y sin romper nada: si no se pudo comprobar, no se dice nada. */
-    if (hash && channel !== 'ecommerce') {
+    if (hash && channel !== 'ecommerce' && channel !== 'auto') {
         try {
             const sub = await advisorSub(t);
             if (sub) {
@@ -708,7 +710,7 @@ async function launch(slug: string, profile: Profile, target: string, inject: bo
         // sesión, que es como llega el cliente de un comercio con «Habilitar auto gestión» prendido.
         // ⚠ No es una variante cosmética del canal del asesor: las dos puertas montan el mismo módulo del
         // front, pero `/merchant/*` está detrás de login y con sesión el backend resuelve punto de venta.
-        E2E_ENTRY: channel === 'ecommerce' ? 'ecommerce' : channel === 'qr' ? 'qr' : channel === 'autogestion' ? 'self-service' : 'cognito',
+        E2E_ENTRY: channel === 'ecommerce' || channel === 'auto' ? 'ecommerce' : channel === 'qr' ? 'qr' : channel === 'autogestion' ? 'self-service' : 'cognito',
         // salto de pasos: monto (vos manejás) | phone | personal-info | lenders (auto-avanza inyectando el sintético).
         E2E_STEP_TARGET: step,
         // monto solicitado (lo usa el spec para sembrar/monto y el /lenders?amount=).
@@ -741,7 +743,7 @@ async function launch(slug: string, profile: Profile, target: string, inject: bo
     // 2026-09-24, en inglés. Se traduce acá y no se arma el nombre desde el canal: así se escapó del
     // renombre de `a92ae4f0`, que tocó cada ruta escrita y no ésta, y el panel lanzaba un `bin/asesor`
     // inexistente (exit 127, sin solicitud creada).
-    const bin = channel === 'ecommerce' ? 'ecommerce' : channel === 'qr' ? 'qr' : channel === 'autogestion' ? 'self-service' : 'advisor';   // ecommerce/qr/self-service son wrappers que exportan CFE_ENTRY
+    const bin = channel === 'ecommerce' ? 'ecommerce' : channel === 'auto' ? 'auto-onboarding' : channel === 'qr' ? 'qr' : channel === 'autogestion' ? 'self-service' : 'advisor';   // ecommerce/qr/self-service son wrappers que exportan CFE_ENTRY
     const child = spawn('/bin/bash', [join(ROOT, 'bin', bin), slug], { cwd: ROOT, env, detached: true });  // sin `auto` → manual
     current = { child, slug, target: t, inject, canal: channel, startedAt: Date.now(), done: false, code: null };
     logbook = { user: null, eventos: new Map() };   // arranca limpia: si no, arrastraría la corrida anterior
@@ -793,7 +795,7 @@ async function launch(slug: string, profile: Profile, target: string, inject: bo
             const act = await dbopsJson(['activity', String(seg)], current?.target || 'local');
             accumulate(act);
             // Sólo para el canal ecommerce: ¿quedó atada al pedido? (ver el comentario en `dumpLogbook`).
-            if (current?.canal === 'ecommerce') {
+            if (current?.canal === 'ecommerce' || current?.canal === 'auto') {
                 const urList = [...logbook.eventos.values()].filter((e) => e.tabla === 'user_requests');
                 const ureq = urList.length ? urList[urList.length - 1].id : null;
                 if (ureq) logbook.ecommerce = await dbopsJson(['ecommerce-vinculo', String(ureq)], current.target);
@@ -1310,7 +1312,8 @@ const server = createServer(async (req, res) => {
         const corbeta = !!(r as any).corbeta;
         return json(res, 200, {
             hash, corbeta, alliedId: (r as any).alliedId ?? null,
-            canales: corbeta ? ['qr'] : ['asesor', 'autogestion', 'ecommerce'],
+            canales: corbeta ? ['qr'] : ['asesor', 'autogestion', 'ecommerce', ...auto],
+            autoMotivo,
             // Qué canal viene PRESELECCIONADO. No es cosmético: asesor y autogestión se ven idénticos en
             // pantalla y el default equivocado hace que la corrida pruebe el otro camino sin avisar —
             // pasó el 2026-09-09 y costó dos vueltas de diagnóstico. Un comercio con «Habilitar auto
@@ -1318,6 +1321,14 @@ const server = createServer(async (req, res) => {
             // ⚠ Es un DEFAULT, no un candado: los otros canales siguen ofrecidos y clickeables, porque
             // correr un comercio autogestionado por el canal del asesor es una comparación legítima.
             sugerido: corbeta ? 'qr' : (r as any).selfManaged === true ? 'autogestion' : 'asesor',
+        // `auto` (auto-onboarding) corre en local y en qa, donde está desplegado, y sólo si el comercio
+        // tiene una tienda en `auto_onboarding_allied_branches`. Sin eso sería una puerta que cae al ecommerce normal.
+        const autoTargets = ['local', 'qa'];
+        const autoCheck = autoTargets.includes(target) && !corbeta ? await dbopsJson(['auto-onboarding-ok', hash], target).catch(() => null) : null;
+        const auto = autoCheck?.ok === true ? ['auto'] : [];
+        const autoMotivo = !autoTargets.includes(target) ? 'el auto-onboarding corre contra local o qa'
+            : corbeta ? 'en un comercio Corbeta la entrada es el QR de la caja'
+            : autoCheck?.motivo || (autoCheck ? '' : 'no se pudo comprobar la tienda del comercio');
         });
     }
 
