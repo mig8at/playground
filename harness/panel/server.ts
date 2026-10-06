@@ -18,7 +18,7 @@ import { advisorSession } from '../../connectors/advisor/session.ts';
 import { credentialsFor } from '../../connectors/auth/env.ts';
 import { envData, type AutofillData } from '../pkg/autofill.ts';
 import { identityWithoutProviderNotice } from '../pkg/config.ts';
-import { openDevice, openDevices, setDeviceLogger, watchNavigation, deviceGoto, deviceText, deviceEval, deviceOpenedAt, deviceState, deviceShot, deviceInput, closeDevice, closeAllDevices, SELENIUM_BOXES, type DeviceId, type DeviceInput, type DeviceSession } from './devices.ts';
+import { openDevice, openDevices, setDeviceLogger, prewarmDevices, warmDevice, watchNavigation, deviceGoto, deviceText, deviceEval, deviceOpenedAt, deviceState, deviceShot, deviceInput, closeDevice, closeAllDevices, SELENIUM_BOXES, type DeviceId, type DeviceInput, type DeviceSession } from './devices.ts';
 import { homedir } from 'node:os';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
@@ -595,6 +595,14 @@ async function bootPrewarm(): Promise<void> {
  */
 interface TestAdvisorInfo { ok: boolean; email?: string; sub?: string; motivo?: string }
 const testAdvisorCache = new Map<string, { at: number; data: TestAdvisorInfo }>();
+/** La URL del front de un ambiente (`E2E_BASE_URL` por la cadena de `.env`). Se lee una vez por ambiente y queda:
+ *  era un `node` por apertura de celular (~0,2 s) para un valor que no cambia mientras el panel corre. */
+const frontCache = new Map<string, Promise<string>>();
+function frontFor(target: string): Promise<string> {
+    if (!frontCache.has(target)) frontCache.set(target, new Promise<string>((ok) => execFile('node', ['bin/env-get.ts', 'E2E_BASE_URL', 'http://localhost:5174'],
+        { cwd: ROOT, env: envFor(target), timeout: 10000 }, (err, out) => ok(err ? 'http://localhost:5174' : String(out || '').trim()))));
+    return frontCache.get(target)!;
+}
 async function testAdvisorFor(slug: string, target: string): Promise<TestAdvisorInfo> {
     const hash = branchHashForSlug(slug, target) || slug;
     if (!hash) return { ok: false, motivo: 'no hay comercio elegido' };
@@ -1694,6 +1702,7 @@ connect();
         }
         if (action === 'open' && req.method === 'POST' && id === 'client') {
             const b = await readBody(req);
+            warmDevice('client');   // su navegador se prepara mientras se arma el pedido
             // Un precalentado en curso puede estar por reiniciar el wizard: se espera a que termine.
             for (let i = 0; prebooting && i < 600; i++) await new Promise((r) => setTimeout(r, 500));
             const t = TARGETS.has(String(b.target)) ? String(b.target) : 'local';
@@ -1741,8 +1750,7 @@ connect();
                 }).finally(() => { prebooting = false; });
                 if (boot.code !== 0) return json(res, 200, { ok: false, detail: 'no pude levantar el wizard del auto-onboarding: ' + (boot.out.trim().split('\n').pop() || `código ${boot.code}`) });
             }
-            const front = await new Promise<string>((ok) => execFile('node', ['bin/env-get.ts', 'E2E_BASE_URL', 'http://localhost:5174'],
-                { cwd: ROOT, env: envFor(t), timeout: 10000 }, (err, out) => ok(err ? 'http://localhost:5174' : String(out || '').trim())));
+            const front = await frontFor(t);
             try {
                 deviceLog('panel', `pedido armado: ${built.checkout_path.split('?')[0]} · ${scrub?.users_deleted ?? 0} cliente(s) previos borrados · OTP ${otp.otp ? 'resuelto (' + otp.otp + ')' : 'SIN bypass'}`);
                 const r = await openDevice('client', front.replace(/\/$/, '') + built.checkout_path, { autofill: caseAutofill(o) });
@@ -1762,8 +1770,11 @@ connect();
             const slug = String(b.slug || '');
             const hash = branchHashForSlug(slug, t);
             if (!hash) return json(res, 200, { ok: false, detail: `no conozco la sucursal de ${slug} en ${t}` });
-            const front = await new Promise<string>((ok) => execFile('node', ['bin/env-get.ts', 'E2E_BASE_URL', 'http://localhost:5174'],
-                { cwd: ROOT, env: envFor(t), timeout: 10000 }, (err, out) => ok(err ? 'http://localhost:5174' : String(out || '').trim())));
+            // El celular anterior se cierra YA y no al final: así su navegador nuevo se prepara mientras corren las
+            // consultas de abajo (asesor de prueba, sesión, asignación), en vez de después.
+            await releaseDevice('advisor');
+            warmDevice('advisor');
+            const front = await frontFor(t);
             // El asesor de prueba del comercio: su sesión guardada si la hay; si no, entra solo en el propio
             // celular (el login del conector, con la clave compartida) y la guarda para la próxima.
             const advisor = await testAdvisorFor(slug, t);
@@ -1784,7 +1795,6 @@ connect();
                 assigned = a && !a.error ? `asignado a ${hash} (antes: ${current || 'ninguna'})` : 'no se pudo asignar a esta sucursal';
                 stored = null;   // la sesión vieja trae fijada la sucursal anterior: se entra de nuevo
             }
-            await releaseDevice('advisor');
             startDeviceLog(`${slug} (${t}) · celular del asesor · ${account} · sucursal ${hash}`);
             deviceLog('panel', `asesor de prueba ${account}: ${stored ? 'sesión guardada' : 'entra con el login del conector'}${assigned ? ' · ' + assigned : ''}`);
             try {
@@ -1980,6 +1990,10 @@ server.on('error', (err: NodeJS.ErrnoException) => {
 server.listen(PORT, HOST, () => {
     console.log(`\n  🎛  Panel del harness → http://localhost:${PORT}   (local · dev)\n`);
     void bootPrewarm().catch(() => {});
+    // Los celulares quedan listos desde el arranque (contenedor + navegador de reserva): la primera apertura
+    // no paga el contenedor frío (~3 s). `HARNESS_DEVICES=0` lo apaga —p. ej. un panel de prueba en otro
+    // puerto, que si no se quedaría con los contenedores del panel de verdad—.
+    if (process.env.HARNESS_DEVICES !== '0') prewarmDevices();
     // Los mocks locales, salvo `HARNESS_MOCKS=0`. Los que ya estén arriba se adoptan, no se duplican.
     if (process.env.HARNESS_MOCKS !== '0') {
         void mockSupervisor.startAll().then(async () => {

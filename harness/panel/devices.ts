@@ -69,10 +69,16 @@ const SCREEN = { width: 412, height: 892 };   // 412 × 19,5 / 9: la proporción
 interface SeleniumBox { container: string; gridPort: number; vncPort: number; grid: string }
 const box = (container: string, gridPort: number, vncPort: number): SeleniumBox =>
     ({ container, gridPort, vncPort, grid: `http://127.0.0.1:${gridPort}` });
+// `HARNESS_DEVICES_SLOT=N` da OTRO par de contenedores (nombre `-N`, puertos +10·N): un segundo panel —uno de
+// prueba en otro puerto— tiene sus propios celulares en vez de quedarse con los del panel de verdad.
+const SLOT = Number(process.env.HARNESS_DEVICES_SLOT || 0) || 0;
+const slotName = (n: string) => (SLOT ? `${n}-${SLOT}` : n);
 export const SELENIUM_BOXES: Record<DeviceId, SeleniumBox> = {
-    client: box('harness-device-client', 4444, 7900),
-    advisor: box('harness-device-advisor', 4445, 7901),
+    client: box(slotName('harness-device-client'), 4444 + SLOT * 10, 7900 + SLOT * 10),
+    advisor: box(slotName('harness-device-advisor'), 4445 + SLOT * 10, 7901 + SLOT * 10),
 };
+// Los contenedores que ESTE panel usó: al salir apaga sólo ésos.
+const usedBoxes = new Set<SeleniumBox>();
 const docker = (args: string[]) => new Promise<string>((ok, fail) =>
     execFile('docker', args, { timeout: 120_000 }, (err, out, errOut) => err ? fail(new Error(String(errOut || err.message).trim())) : ok(String(out).trim())));
 
@@ -83,6 +89,7 @@ async function gridReady(b: SeleniumBox): Promise<boolean> {
 /** El contenedor arriba y con su único lugar libre. Lo levanta si no existe; si quedó una sesión
  *  colgada de antes, la cierra. */
 async function ensureSelenium(b: SeleniumBox): Promise<void> {
+    usedBoxes.add(b);
     const running = await docker(['inspect', '-f', '{{.State.Running}}', b.container]).catch(() => 'missing');
     if (running !== 'true') {
         if (running !== 'missing') await docker(['rm', '-f', b.container]).catch(() => '');
@@ -154,6 +161,31 @@ const ENGINE: Record<DeviceId, () => Promise<Omit<Device, 'openedAt'>>> = {
     client: () => openSelenium(SELENIUM_BOXES.client), advisor: () => openSelenium(SELENIUM_BOXES.advisor),
 };
 
+/* ── EL NAVEGADOR DE RESERVA ─────────────────────────────────────────────────────────────────────────
+ * Abrir un celular era: contenedor (frío, ~3 s) + sesión de Chromium (0,3–0,8 s) + CDP + la página. Medido el
+ * 2026-10-06 en un contenedor aparte. Lo único que depende de QUÉ se abre es la página; lo demás se adelanta:
+ * con el celular cerrado, su contenedor ya tiene un Chromium nuevo esperando, y abrir sólo lo toma y navega.
+ * Cada reserva es un navegador SIN USAR (perfil limpio, como antes): se toma una vez y al cerrar el celular se
+ * prepara la siguiente. Sólo con el celular cerrado: el contenedor tiene un lugar y la pantalla es una sola. */
+const spare = new Map<DeviceId, Promise<Omit<Device, 'openedAt'> | null>>();
+function refillSpare(id: DeviceId): void {
+    if (open.has(id) || spare.has(id)) return;
+    spare.set(id, ENGINE[id]().catch(() => null));
+}
+async function takeSpare(id: DeviceId): Promise<{ d: Omit<Device, 'openedAt'>; reused: boolean }> {
+    const pending = spare.get(id);
+    spare.delete(id);
+    const d = pending ? await pending : null;
+    // Una reserva que se murió mientras esperaba (sesión vencida, contenedor reiniciado) no sirve: se abre otra.
+    if (d && d.context.browser()?.isConnected() !== false && !d.page.isClosed()) return { d, reused: true };
+    if (d) await d.close().catch(() => { });
+    return { d: await ENGINE[id](), reused: false };
+}
+/** Prepara los dos celulares en segundo plano (el contenedor y su navegador de reserva). Lo llama el panel al
+ *  arrancar; y `warmDevice`, antes de las consultas que preceden a abrir uno, para que corran en paralelo. */
+export function prewarmDevices(): void { for (const id of Object.keys(SELENIUM_BOXES) as DeviceId[]) refillSpare(id); }
+export function warmDevice(id: DeviceId): void { refillSpare(id); }
+
 /** Una sesión guardada (la del conector del asesor): cookies y `localStorage` por origen, como
  *  `storageState` de Playwright. */
 export interface DeviceSession {
@@ -172,8 +204,10 @@ export async function openDevice(id: DeviceId, url: string, opts: {
     autofill?: AutofillData;
 } = {}): Promise<{ url: string; title: string; view?: string }> {
     const { session, then, autofill } = opts;
+    const started = performance.now();
     await closeDevice(id);
-    const d = await ENGINE[id]();
+    const { d, reused } = await takeSpare(id);
+    const browserMs = performance.now() - started;
     await blockDevOverlays(d.context);
     if (autofill) {
         // En un celular la tarjeta «harness» del autorrelleno tapa la pantalla y su estado de BD no aplica (no hay
@@ -210,7 +244,10 @@ export async function openDevice(id: DeviceId, url: string, opts: {
         deviceLogger(id, '✗ el navegador se cerró por fuera (contenedor borrado o sesión vencida)');
     });
     narrate(id, d, () => open.get(id)?.openedAt === openedAt);
+    const pageAt = performance.now();
     await d.page.goto(url, { waitUntil: 'domcontentloaded', timeout: 60_000 });
+    const s = (x: number) => (x / 1000).toLocaleString('es-CO', { maximumFractionDigits: 1 });
+    deviceLogger(id, `✓ abierto en ${s(performance.now() - started)} s (navegador ${s(browserMs)}${reused ? ' · de reserva' : ' · nuevo'} · página ${s(performance.now() - pageAt)})`);
     if (then) await then(d.page);
     return { url: d.page.url(), title: await d.page.title().catch(() => ''), view: d.view };
 }
@@ -234,12 +271,14 @@ export async function closeDevice(id: DeviceId): Promise<void> {
     const d = open.get(id);
     open.delete(id);
     await d?.close().catch(() => { });
+    if (d) refillSpare(id);   // el lugar quedó libre: la próxima apertura ya tiene navegador
 }
 
 /** Cierra todo, contenedores incluidos. Lo llama el panel al salir. */
 export async function closeAllDevices(): Promise<void> {
-    for (const id of [...open.keys()]) await closeDevice(id);
-    for (const b of Object.values(SELENIUM_BOXES)) await docker(['stop', b.container]).catch(() => '');
+    for (const id of [...open.keys()]) { const d = open.get(id); open.delete(id); await d?.close().catch(() => { }); }
+    for (const [id, p] of [...spare]) { spare.delete(id); await (await p)?.close().catch(() => { }); }
+    for (const b of usedBoxes) await docker(['stop', b.container]).catch(() => '');
 }
 
 /** Lo que el panel le reenvía a un celular SIN visor: un toque, una tecla, texto o la rueda. Las
