@@ -282,6 +282,16 @@ function dbopsJson(args: string[], target: string, extraEnv: NodeJS.ProcessEnv =
     });
 }
 
+// El bypass del OTP que puso cada celular al abrirse, para sacarlo al cerrarlo: lo mismo que hace una
+// corrida con su teléfono, y sólo lo suyo (`pkg/otp-bypass.ts` no le borra los teléfonos a otra corrida).
+const deviceBypass = new Map<DeviceId, { target: string; puesto: unknown }>();
+async function releaseDevice(id: DeviceId): Promise<void> {
+    await closeDevice(id);
+    const b = deviceBypass.get(id);
+    deviceBypass.delete(id);
+    if (b) await dbopsJson(['otp-bypass-restore', JSON.stringify(b.puesto)], b.target);
+}
+
 /**
  * POR QUÉ TERMINÓ ASÍ — el post-mortem de los LOGS, anclado a la solicitud de esta corrida.
  *
@@ -697,7 +707,7 @@ async function launch(slug: string, profile: Profile, target: string, inject: bo
     // de la corrida a :5176 sin fallar (2026-10-06: el auto-onboarding corrió sobre el front de main).
     for (let i = 0; prebooting && i < 600; i++) await new Promise((r) => setTimeout(r, 500));
     // La corrida puede reiniciar el wizard de :5174: un celular abierto quedaría con la página cortada.
-    for (const id of openDevices()) await closeDevice(id);
+    for (const id of openDevices()) await releaseDevice(id);
     const amt = amount > 0 ? Math.round(amount) : 2_000_000; // monto solicitado (default 2M)
     const mode = inject ? 'manual + inyección de buró' : 'manual REAL (consulta buró real, sin inyección)';
     const jump = step === 'monto' ? '' : ` · salto → ${step}`;
@@ -1501,13 +1511,13 @@ const server = createServer(async (req, res) => {
     if (path === '/device-view' && req.method === 'GET') {
         res.writeHead(200, { 'content-type': 'text/html; charset=utf-8', 'cache-control': 'no-store' });
         return res.end(`<!doctype html><html lang="es"><head><meta charset="utf-8"><title>Celular</title>
-<style>html,body{margin:0;height:100%;overflow:hidden;background:#000}#screen{width:100%;height:100%}</style></head>
+<style>html,body{margin:0;height:100%;overflow:hidden;background:transparent}#screen{width:100%;height:100%}</style></head>
 <body><div id="screen"></div><script type="module">
 import RFB from '/novnc/core/rfb.js';
 const ws = new URLSearchParams(location.search).get('ws');
 const connect = () => {
   const rfb = new RFB(document.getElementById('screen'), ws);
-  rfb.scaleViewport = true; rfb.resizeSession = false; rfb.background = '#000';
+  rfb.scaleViewport = true; rfb.resizeSession = false; rfb.background = 'transparent';
   rfb.addEventListener('disconnect', () => setTimeout(connect, 1500));
 };
 connect();
@@ -1528,7 +1538,7 @@ connect();
             res.writeHead(200, { 'content-type': 'image/png', 'cache-control': 'no-store' });
             return res.end(png);
         }
-        if (action === 'close' && req.method === 'POST') { await closeDevice(id); return json(res, 200, { ok: true }); }
+        if (action === 'close' && req.method === 'POST') { await releaseDevice(id); return json(res, 200, { ok: true }); }
         // Lo que tocás en el celular del panel llega acá: un clic, una tecla, texto o la rueda.
         if (action === 'input' && req.method === 'POST') {
             const ev = await readBody(req) as DeviceInput;
@@ -1557,12 +1567,22 @@ connect();
             const amount = String(Number(str(o.amount).replace(/\D/g, '')) || '');
             const built = await dbopsJson(['ecommerce-url', String(b.slug || ''), str(o.phone), amount], t, orderEnv);
             if (!built?.checkout_path) return json(res, 200, { ok: false, detail: `no pude armar el pedido de ${b.slug} en ${t} (¿sucursal con credencial de ecommerce?)` });
+            // El celular de prueba arranca LIMPIO y con el OTP resuelto, como en una corrida (`bin/advisor`): se
+            // borra el cliente sintético que haya dejado otra corrida con ese teléfono y se lo suma al bypass, así
+            // el código son sus últimos 4 dígitos y no sale ningún SMS.
+            const phone = str(o.phone) || String(built.phone || '');
+            // Se cierra ANTES el celular anterior: además, el precalentado del auto puede reiniciar el wizard que mostraba.
+            await releaseDevice('client');
+            const scrub = await dbopsJson(['scrubphone', phone], t);
+            const bypass = await dbopsJson(['otp-bypass-add', phone], t);
+            if (bypass?.ok) deviceBypass.set('client', { target: t, puesto: bypass.puesto });
+            const otp = bypass?.ok ? { otp: phone.slice(-4), otpBypass: bypass.puesto?.comodin ? 'comodín' : 'agregado' }
+                : { otpBypassError: bypass?.motivo || 'no se pudo registrar el bypass del OTP' };
             // El auto-onboarding vive en OTRO worktree del front: en local hay que servir ése en :5174, o el
             // checkout cae al ecommerce normal sin decir nada. Lo levanta `bin/advisor … preboot` con el
             // canal auto, igual que la corrida (mide la carpeta y reinicia si no es la suya).
             if (auto && t === 'local') {
                 if (current && !current.done) return json(res, 200, { ok: false, detail: 'hay una corrida activa usando el wizard de :5174' });
-                await closeDevice('client');   // el precalentado puede reiniciar el wizard que este celular muestra
                 for (let i = 0; prebooting && i < 600; i++) await new Promise((r) => setTimeout(r, 500));
                 prebooting = true;
                 const boot = await new Promise<{ code: number; out: string }>((ok) => {
@@ -1579,7 +1599,7 @@ connect();
                 { cwd: ROOT, env: envFor(t), timeout: 10000 }, (err, out) => ok(err ? 'http://localhost:5174' : String(out || '').trim())));
             try {
                 const r = await openDevice('client', front.replace(/\/$/, '') + built.checkout_path);
-                return json(res, 200, { ok: true, hash: built.hash, merchant: built.merchant, ...r });
+                return json(res, 200, { ok: true, hash: built.hash, merchant: built.merchant, scrubbed: scrub, ...otp, ...r });
             } catch (e) {
                 return json(res, 200, { ok: false, detail: `el celular no pudo abrir ${front}: ${(e as Error).message.split('\n')[0]}` });
             }

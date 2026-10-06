@@ -10,12 +10,15 @@
 //   node bin/dbops.ts scrub-sinteticos          (SÓLO LOCAL: borra los usuarios sintéticos que creó el arnés)
 //   node bin/dbops.ts list [merchant]
 //   node bin/dbops.ts ecommerce-url <merchant> [phone] [amount]
+//   node bin/dbops.ts otp-bypass-add <tel…>        (suma los teléfonos al bypass del OTP → {ok, puesto})
+//   node bin/dbops.ts otp-bypass-restore '<puesto>' (saca SÓLO lo que puso ese `add`)
 //   node bin/dbops.ts synth-fill <uReqID> [lender] [income] [score]
 //   node bin/dbops.ts sucursal-check <merchant|hash> <sub>   (SÓLO LECTURA: ¿la sucursal que vamos a anunciar es la que el backend le da a ese asesor?)
 import { close, one, query, scalar, exec, assertWriteAllowed, TARGET } from '../pkg/db.ts';
 import { whois, assign, revoke, scrubphone, scrubHarnessUsers } from '../pkg/advisor.ts';
 import { listMerchants, listEcommerce } from '../pkg/merchants.ts';
 import { buildEcommerceUrl } from '../pkg/ecommerce.ts';
+import { registerBypass, restoreBypass } from '../pkg/otp-bypass.ts';
 import { branchCorbeta } from '../pkg/merchants.ts';
 import { preflightBranch, mismatchNotice } from '../pkg/preflight-branch.ts';
 import { synthFill, requestStatus11 } from '../pkg/inject.ts';
@@ -41,6 +44,9 @@ try {
         case 'scrubphone': r = await scrubphone(a[0] ?? ''); break;
         case 'list': r = await listMerchants(a[0] ?? ''); break;
         case 'ecommerce-url': r = await buildEcommerceUrl(a[0] ?? '', a[1] ?? '', num(a[2])); break;
+        // El bypass del OTP para los celulares del panel: la misma suma y la misma limpieza que las corridas.
+        case 'otp-bypass-add': r = await registerBypass(a); break;
+        case 'otp-bypass-restore': await restoreBypass(JSON.parse(a[0] || 'null')); r = { ok: true }; break;
         case 'synth-fill':
             r = await synthFill(num(a[0]), { lender: a[1] || undefined, income: num(a[2]) || undefined, score: num(a[3]) || undefined });
             break;

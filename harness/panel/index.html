@@ -211,7 +211,10 @@
          para dos teléfonos con su separación, y el ancho sale de la proporción. Va EXPLÍCITO y no con
          `aspect-ratio`: el `<figure>` no contaba ese ancho, medía 63 px y los dos se pisaban. */
       --phone-h: min(100cqh - 28px, (var(--phone-share) - var(--space-6)) * 19.5 / 9, 760px);
-      position: relative; box-sizing: border-box; height: var(--phone-h); width: calc(var(--phone-h) * 9 / 19.5);
+      /* El HUECO de la pantalla (sin los 10 px de borde) va en 412:892, la pantalla del celular real del
+         cliente (`panel/devices.ts`): con otra proporción el visor la escala sin deformarla y rellena lo
+         que sobra con bandas. */
+      position: relative; box-sizing: border-box; height: var(--phone-h); width: calc((var(--phone-h) - 20px) * 412 / 892 + 20px);
       border: 10px solid var(--muted); border-radius: 36px; background: var(--card);
       box-shadow: 0 0 0 1px var(--border); overflow: hidden;
     }
@@ -230,7 +233,12 @@
     .phone-app[hidden] { display: none }
     .device-live { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: top; background: var(--background) }
     .device-live[hidden], .device-status[hidden] { display: none }
-    .device-vnc { border: 0 }
+    .device-vnc { border: 0; background: transparent }
+    /* El código del OTP del celular de prueba, al lado de su rótulo: se copia con un clic. */
+    .device-otp { height: 20px; padding: 0 6px; border: 1px solid var(--border); border-radius: var(--radius); background: transparent;
+      color: var(--fg-2); font: inherit; font-size: var(--text-xs); font-weight: 500; cursor: pointer }
+    .device-otp.warn { color: var(--warn) }
+    .device-otp[hidden] { display: none }
     .device-label .region-action[hidden] { display: none }
     .device-label { height: 20px }
     .device-label .region-action { width: 20px; height: 20px; margin: 0; padding: 0 }
@@ -633,6 +641,7 @@
             </figure>
             <figure class="device" id="deviceClient">
               <figcaption class="device-label"><span class="ui-icon" data-icon="channel" aria-hidden="true"></span>Cliente
+                <button type="button" class="device-otp" id="clientOtp" hidden></button>
                 <button type="button" class="region-action" id="clientClose" hidden title="Cerrar el navegador del cliente" aria-label="Cerrar el navegador del cliente"><span class="ui-icon" data-icon="close" aria-hidden="true"></span></button></figcaption>
               <div class="device-frame"><div class="device-notch"></div>
                 <div class="device-screen" id="screenClient">
@@ -2639,6 +2648,7 @@
       $('clientStatusText').textContent = text;
       $('shopPay').disabled = mode === 'loading';
       $('clientClose').hidden = mode === 'idle';
+      if (mode === 'idle' || mode === 'loading') $('clientOtp').hidden = true;
       if (mode !== 'idle') $('clientApp').hidden = true;
       if (liveTimer) { clearInterval(liveTimer); liveTimer = null; }
       if (mode === 'live' && !view) {
@@ -2662,12 +2672,20 @@
         if (!r.ok) return setClientMode('status', r.detail || 'No se pudo abrir el checkout.');
         $('clientLive').title = r.url || '';
         setClientMode('live', '', r.view || '');
+        // El código: el teléfono quedó en el bypass del OTP (sus últimos 4). Si no se pudo, se avisa el motivo.
+        const otpChip = $('clientOtp');
+        otpChip.hidden = false;
+        otpChip.classList.toggle('warn', !r.otp);
+        otpChip.textContent = r.otp ? 'código ' + r.otp : 'sin bypass del OTP';
+        otpChip.title = r.otp ? 'Bypass del OTP: el código son los últimos 4 del celular. Clic para copiar.' : (r.otpBypassError || '');
+        otpChip.dataset.code = r.otp || '';
       } catch (e) {
         setClientMode('status', 'El panel no respondió: ' + e.message);
       }
     }
     // El visor toma el foco al pasar el mouse: si no, el primer clic se gasta en dárselo y no llega al celular.
     $('clientVnc').addEventListener('mouseenter', () => { try { $('clientVnc').contentWindow?.focus(); } catch { } });
+    $('clientOtp').addEventListener('click', () => { const c = $('clientOtp').dataset.code; if (c) navigator.clipboard?.writeText(c).catch(() => { }); });
     $('clientClose').addEventListener('click', () => { fetch('/api/device/client/close', { method: 'POST' }).catch(() => { }); setClientMode('idle'); });
     $('shopPay').addEventListener('click', () => { payWithCreditop(); openClientBrowser(); });
     const toggleShopUser = (open) => { $('shopUser').hidden = !open; $('shopUserBtn').setAttribute('aria-expanded', String(open)); };
