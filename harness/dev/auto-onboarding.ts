@@ -20,6 +20,7 @@ import { FrontSession } from '../pkg/front.ts';
 import { dictate, dictateBureauProfile, dictateEmployment } from '../pkg/risk-lambda.ts';
 import { buildEcommerceUrl } from '../pkg/ecommerce.ts';
 import { close, one, query } from '../pkg/db.ts';
+import { env } from '../pkg/env.ts';
 
 if ((process.env.E2E_TARGET || 'local') !== 'local') {
     console.error('✗ auto-onboarding corre sólo contra local (dicta al mock local de centrales).');
@@ -27,7 +28,7 @@ if ((process.env.E2E_TARGET || 'local') !== 'local') {
 }
 process.env.E2E_TARGET = 'local';
 
-const FRONT = process.env.E2E_BASE_URL || 'http://localhost:5174';
+const FRONT = env('E2E_BASE_URL', 'http://localhost:5174');
 const MERCHANT = process.env.MERCHANT || 'pullman';
 
 const AGIL_SIN_DATOS = { codRespuesta: '02', observaciones: 'No se encontró información.', respuesta: null };
