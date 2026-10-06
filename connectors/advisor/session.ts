@@ -1,6 +1,6 @@
 import { writeFileSync, mkdirSync, chmodSync } from 'node:fs';
 import { dirname } from 'node:path';
-import { credentialsFor } from '../auth/env.ts';
+import { credentialsFor, connectorValue } from '../auth/env.ts';
 import { launchChrome, type Page } from '../auth/browser.ts';
 import { advisorTarget, sessionPath, readSession, writeSession, cookieHeaderFor, probeSession, isLoginRedirect, MissingCredentials, type StoredCookie, type StoredSession, type SignInOptions } from '../auth/sessions.ts';
 import { loginOnPage } from './login.ts';
@@ -8,17 +8,35 @@ import { cookiesHealth, type SessionHealth } from './health.ts';
 export { cookiesHealth, type SessionHealth } from './health.ts';
 export const NO_CACHEABLES = /^(oauth2:|merchant_context$)/;
 
-/** Una instancia por ambiente de autenticación y origen del front, independiente del backend de la corrida. */
-export function advisorSession(target: string, origin: string) {
+/** El asesor de prueba de un comercio: `c<hash de su sucursal de prueba>-fake@creditop.com`. Lo crea el alta del
+ *  comercio en legacy-application (tarea #98); su clave es la compartida del ambiente. */
+export const TEST_ADVISOR_ACCOUNT = /^c[0-9a-f]+-fake@creditop\.com$/i;
+
+/**
+ * Una instancia por ambiente de autenticación y origen del front, independiente del backend de la corrida.
+ *
+ * Con `account` (el asesor de prueba de un comercio) entra con ESA cuenta y la clave compartida de los asesores
+ * de prueba del pool (`ALLIED_TEST_ADVISOR_PASSWORD`), y guarda una sesión propia de esa cuenta. Sin `account`, la
+ * cuenta de la persona (`ADVISOR_USER/PASS`), como siempre.
+ */
+export function advisorSession(target: string, origin: string, account?: string) {
     const config = { feBaseUrl: new URL(origin).origin };
     const authTarget = advisorTarget(target, config.feBaseUrl);
-    const COGNITO_STATE_PATH = sessionPath('advisor', authTarget, config.feBaseUrl);
-    const read = () => readSession('advisor', authTarget, config.feBaseUrl);
+    if (account && !TEST_ADVISOR_ACCOUNT.test(account)) throw new Error(`«${account}» no es un asesor de prueba (c<hash>-fake@creditop.com)`);
+    const COGNITO_STATE_PATH = sessionPath('advisor', authTarget, config.feBaseUrl, account);
+    const read = () => readSession('advisor', authTarget, config.feBaseUrl, account);
+    // La clave del asesor de prueba es la del POOL al que manda el front (el wizard local usa el de dev).
+    const creds = () => account
+        ? { user: account, pass: connectorValue('ALLIED_TEST_ADVISOR_PASSWORD', authTarget) }
+        : credentialsFor('advisor', authTarget);
+    const missing = () => account
+        ? `falta ALLIED_TEST_ADVISOR_PASSWORD en connectors/.env.${authTarget}`
+        : `faltan ADVISOR_USER y ADVISOR_PASS en connectors/.env.${authTarget}`;
     function storageState(): string | undefined {
         const s = read();
         if (!s) return undefined;
         const cookies = s.cookies.filter(c => !NO_CACHEABLES.test(c.name));
-        if (cookies.length !== s.cookies.length) writeSession({ ...s, cookies });
+        if (cookies.length !== s.cookies.length) writeSession({ ...s, cookies }, account);
         return COGNITO_STATE_PATH;
     }
     function sessionHealth(): SessionHealth {
@@ -38,35 +56,35 @@ export function advisorSession(target: string, origin: string) {
             user: identity, who: previous?.user === identity ? previous.who : null,
             createdAt: previous?.user === identity ? previous.createdAt : new Date().toISOString(),
             cookies: state.cookies.filter(c => !NO_CACHEABLES.test(c.name)), origins: state.origins };
-        if (savePath === COGNITO_STATE_PATH) writeSession(s);
+        if (savePath === COGNITO_STATE_PATH) writeSession(s, account);
         else { // compatibilidad con una captura explícita; nunca se descubre ni reusa como sesión compartida
             mkdirSync(dirname(savePath), { recursive: true, mode: 0o700 });
             writeFileSync(savePath, JSON.stringify(s, null, 2), { mode: 0o600 }); chmodSync(savePath, 0o600);
         }
     }
     async function login(page: Page, user?: string, pass?: string, returnHost = new URL(config.feBaseUrl).host, savePath: string | null = COGNITO_STATE_PATH): Promise<void> {
-        const creds = credentialsFor('advisor', authTarget);
-        const account = user ?? creds?.user;
-        const loggedIn = await loginOnPage(page, account ?? '', pass ?? creds?.pass ?? '', returnHost);
-        if (loggedIn) await persist(page, savePath, account);
+        const c = creds();
+        const who = user ?? c?.user;
+        const loggedIn = await loginOnPage(page, who ?? '', pass ?? c?.pass ?? '', returnHost);
+        if (loggedIn) await persist(page, savePath, who);
     }
     async function signIn(opts: SignInOptions = {}) {
-        const creds = credentialsFor('advisor', authTarget);
-        if (!creds) throw new MissingCredentials(`faltan ADVISOR_USER y ADVISOR_PASS en connectors/.env.${authTarget}`);
+        const c = creds();
+        if (!c?.pass) throw new MissingCredentials(missing());
         const browser = await launchChrome((opts.headless ?? false) && authTarget !== 'qa' && authTarget !== 'staging');
         try {
             const context = await browser.newContext({ baseURL: config.feBaseUrl });
             const page = await context.newPage();
             await page.goto('/merchant', { waitUntil: 'domcontentloaded', timeout: 60_000 });
-            if (!await loginOnPage(page, creds.user, creds.pass, new URL(config.feBaseUrl).host)) throw new Error('no hubo login; no se puede atribuir esta sesión');
+            if (!await loginOnPage(page, c.user, c.pass, new URL(config.feBaseUrl).host)) throw new Error('no hubo login; no se puede atribuir esta sesión');
             const state = await context.storageState();
-            const session: StoredSession = { version: 1, kind: 'advisor', target: authTarget, user: creds.user, who: null,
+            const session: StoredSession = { version: 1, kind: 'advisor', target: authTarget, user: c.user, who: null,
                 origin: config.feBaseUrl, createdAt: new Date().toISOString(),
                 cookies: state.cookies.filter(c => !NO_CACHEABLES.test(c.name)), origins: state.origins };
             const probe = await probeSession(session);
             if (probe.valid !== true) throw new Error(`no se confirmó la sesión: ${probe.motivo}`);
             session.who = probe.who;
-            return { session, path: writeSession(session), who: session.who };
+            return { session, path: writeSession(session, account), who: session.who };
         } finally { await browser.close(); }
     }
 async function refreshSession(opts: { repin?: boolean } = {}): Promise<{ ok: boolean; motivo: string; sucursal: string | null }> {
@@ -156,7 +174,7 @@ async function refreshSession(opts: { repin?: boolean } = {}): Promise<{ ok: boo
         const previous = read()?.cookies.find(c => c.name === '_at');
         if (previous) state.cookies.push(previous);
     }
-    writeSession(state);
+    writeSession(state, account);
     const after = sessionHealth();
     return {
         ok: after.sirve,

@@ -369,3 +369,30 @@ export async function scrubphone(phone: string): Promise<Record<string, unknown>
         note: 'el próximo register de ese teléfono crea un TEMPORAL USER → /personal-info',
     };
 }
+
+/**
+ * El asesor de prueba de un comercio EN LA BASE LOCAL (WRITE, sólo local). Los asesores `c<hash>-fake@` nacen en
+ * la base compartida al crear el comercio (tarea #98), con su cuenta en el pool de dev; el dump local no los
+ * trae, y el wizard local (:5174) entra contra ESE pool. Copiar la fila —mismo correo y mismo `cognito_id`—
+ * basta para que el backend local reconozca a quien entra. Idempotente: si la fila ya está, sólo la corrige.
+ */
+export async function ensureLocalTestAdvisor(alliedId: number, branchId: number, email: string, sub: string): Promise<{ id: number; created: boolean }> {
+    if (TARGET !== 'local') throw new Error('ensureLocalTestAdvisor es sólo para la base local');
+    assertWriteAllowed();
+    const profileID = (await scalar<number>('SELECT id FROM user_profiles WHERE name=? LIMIT 1', ['Comercial'])) ?? 0;
+    const existing = await one<{ id: number }>('SELECT id FROM users WHERE email = ? OR cognito_id = ? LIMIT 1', [email, sub]);
+    if (existing) {
+        await exec('UPDATE users SET email=?, cognito_id=?, allied_id=?, user_profile_id=?, is_test=1, status=1, updated_at=NOW() WHERE id=?',
+            [email, sub, alliedId, nullIfZero(profileID), existing.id]);
+        return { id: existing.id, created: false };
+    }
+    const tag = email.replace(/@.*/, '');
+    const res = await exec(
+        'INSERT INTO users (cognito_id, first_name, surname, full_name, email, cell_phone, document_number, document_type, country_id, ' +
+        'allied_id, allied_branch_id, user_profile_id, status, is_test, test_reason, password, created_at, updated_at) ' +
+        "VALUES (?,?,?,?,?,?,?,?,?,?,?,?,1,1,'manual',?,NOW(),NOW())",
+        [sub, 'ASESOR', 'PRUEBA', 'ASESOR PRUEBA', email, uniquePhone(sub), ('TA' + alnum(tag)).toUpperCase().slice(0, 20), 'CC', 1,
+            alliedId, branchId, nullIfZero(profileID), PLACEHOLDER_PASSWORD],
+    );
+    return { id: res.insertId, created: true };
+}

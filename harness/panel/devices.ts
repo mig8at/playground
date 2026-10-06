@@ -135,7 +135,9 @@ export interface DeviceSession {
 
 /** Abre (o reabre limpio) el celular en `url`. Un navegador nuevo cada vez: nada de la corrida anterior.
  *  Con `session`, el navegador arranca con esa sesión puesta (el asesor entra sin loguearse). */
-export async function openDevice(id: DeviceId, url: string, session?: DeviceSession): Promise<{ url: string; title: string; view?: string }> {
+export async function openDevice(id: DeviceId, url: string, session?: DeviceSession,
+    /** Algo más para hacer sobre la página ya abierta (p. ej. entrar con el asesor de prueba). */
+    then?: (page: Page) => Promise<void>): Promise<{ url: string; title: string; view?: string }> {
     await closeDevice(id);
     const d = await ENGINE[id]();
     await blockDevOverlays(d.context);
@@ -156,6 +158,7 @@ export async function openDevice(id: DeviceId, url: string, session?: DeviceSess
     }
     open.set(id, { ...d, openedAt: Date.now() });
     await d.page.goto(url, { waitUntil: 'domcontentloaded', timeout: 60_000 });
+    if (then) await then(d.page);
     return { url: d.page.url(), title: await d.page.title().catch(() => ''), view: d.view };
 }
 

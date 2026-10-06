@@ -12,8 +12,8 @@
 //   2. busca el asesor de prueba del comercio en la base del ambiente (sólo lectura),
 //   3. si hay clave, entra de verdad en un contexto limpio.
 //
-// La clave del asesor de prueba es compartida y sale de `ALLIED_TEST_ADVISOR_PASSWORD` (shell o
-// `harness/.env.<target>`): nunca por la línea de comandos y nunca se imprime. Sin ella, el recorrido
+// La clave del asesor de prueba es compartida y sale de `ALLIED_TEST_ADVISOR_PASSWORD` del conector
+// (`connectors/.env.<target>`): nunca por la línea de comandos y nunca se imprime. Sin ella, el recorrido
 // llega hasta el paso 2 y lo dice (`sin clave`).
 //
 // Exit code = veredicto: 0 todos entraron · 1 alguno no entró · 2 alguno no se pudo probar.
@@ -48,7 +48,7 @@ if (args.child) {
 /** El hijo: un ambiente, el de `E2E_TARGET`. Imprime su resultado como UNA línea marcada. */
 async function runChild(): Promise<void> {
     const { chromium } = await import('@playwright/test');
-    const { env, TARGET } = await import('../pkg/env.ts');
+    const { TARGET } = await import('../pkg/env.ts');
     const { connectorValue } = await import('../pkg/connector-env.ts');
     const { config } = await import('../pkg/config.ts');
     const { discoverHostedUi, findTestAdvisor, latestTestAdvisor, notProbed, probeLogin } = await import('../pkg/login-probe.ts');
@@ -87,8 +87,8 @@ async function runChild(): Promise<void> {
     }
     if (!user) return finish(notProbed({ veredicto: 'sin clave', hosted, detalle: 'login descubierto; falta ALLIED=<id> o ACCOUNT=<correo> para entrar' }));
 
-    // La clave compartida de los asesores de prueba: de `connectors/`, y si no está ahí, de donde ya estaba (`harness/.env.<ambiente>`).
-    const pass = connectorValue('ALLIED_TEST_ADVISOR_PASSWORD', TARGET) || env('ALLIED_TEST_ADVISOR_PASSWORD');
+    // La clave compartida de los asesores de prueba: vive en el conector (`connectors/.env.<ambiente>`).
+    const pass = connectorValue('ALLIED_TEST_ADVISOR_PASSWORD', TARGET);
     if (!pass) return finish(notProbed({ veredicto: 'sin clave', hosted, user, advisor, detalle: `${advisor ? 'login y asesor encontrados' : 'login descubierto'}; falta ALLIED_TEST_ADVISOR_PASSWORD para entrar` }));
 
     // Con ventana por defecto, como el panel: se ve quién entra y dónde se queda. `--headless` la quita, salvo

@@ -32,6 +32,7 @@ func runAdvisorStatus(args []string) int {
 	target := fs.String("target", "", "local | dev | qa | staging (default todos)")
 	origin := fs.String("origin", "", "origen del wizard")
 	asJSON := fs.Bool("json", false, "estado en JSON")
+	account := fs.String("account", "", "el asesor de prueba de un comercio (c<hash>-fake@creditop.com)")
 	if fs.Parse(args) != nil {
 		return 2
 	}
@@ -44,6 +45,9 @@ func runAdvisorStatus(args []string) int {
 	}
 	if *asJSON {
 		flags = append(flags, "--json")
+	}
+	if *account != "" {
+		flags = append(flags, "--account", *account)
 	}
 	return runAdvisor("status", flags)
 }

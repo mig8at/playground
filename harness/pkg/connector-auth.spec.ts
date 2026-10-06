@@ -79,6 +79,21 @@ test('cambiar de cuenta no reusa la anterior ni la atribuye al nuevo usuario', (
     expect(readFileSync(path, 'utf8')).toBe(before);
 });
 
+test('el asesor de prueba de cada comercio tiene SU sesión, aparte de la de la persona y de la de otro comercio', () => {
+    const a = 'c036610aa-fake@creditop.com', b = 'c44ed36af-fake@creditop.com';
+    expect(sessionFile('advisor', 'qa', origin, a)).not.toBe(sessionFile('advisor', 'qa', origin));
+    expect(sessionFile('advisor', 'qa', origin, a)).not.toBe(sessionFile('advisor', 'qa', origin, b));
+    const person = writeSession(session());
+    const mine = writeSession({ ...session(), user: a }, a);
+    expect(mine).not.toBe(person);
+    expect(readSession('advisor', 'qa', origin, a)?.user).toBe(a);
+    expect(readSession('advisor', 'qa', origin, b)).toBeNull();
+    expect(() => writeSession({ ...session(), user: b }, a)).toThrow();
+    expect(() => advisorSession('qa', origin, 'alguien@creditop.com')).toThrow();
+    removeSession('advisor', 'qa', origin, a);
+    expect(readSession('advisor', 'qa', origin, a)).toBeNull();
+});
+
 test('un archivo sin identidad o con origen cambiado no es una sesión reutilizable', () => {
     const path = writeSession(session());
     writeFileSync(path, JSON.stringify({ cookies: session().cookies, origins: [] }));

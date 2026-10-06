@@ -85,7 +85,7 @@ const LINGER = Number(process.env.E2E_LINGER_MS ?? 5_000);
 // 1 ventana = A vía openA (browser.newContext); NO el fixture `page` + PREVIEW_VP (choca con deviceScaleFactor
 // del device 'Desktop Chrome' del config: undefined no lo desova). slowMo es browser-level → va en test.use.
 test.use({ launchOptions: { slowMo: PREVIEW ? Number(process.env.E2E_PREVIEW_SLOWMO ?? 150) : 0 } });
-test.skip(ENTRY === 'cognito' && (!cognitoCreds.user || !cognitoCreds.pass), 'guided cognito: requiere ADVISOR_USER/PASS en connectors');
+test.skip(ENTRY === 'cognito' && (!cognitoCreds.user || !cognitoCreds.pass), 'guided cognito: requiere el asesor de prueba del comercio con ALLIED_TEST_ADVISOR_PASSWORD (o ADVISOR_USER/PASS) en connectors');
 test.afterAll(async () => { await close(); });
 
 // La tarjeta del harness en el wizard (`pkg/autofill.ts`) se ESCONDE durante cada captura: la evidencia

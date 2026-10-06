@@ -70,41 +70,44 @@ function adminTargetError(target: string): string {
     return `no conozco el admin de «${target}». Los que hay: ${Object.keys(ADMIN_ORIGINS).join(', ')}`;
 }
 
-/** Separa esquema, host y puerto: dos fronts en localhost no pueden compartir estado accidentalmente. */
-export function sessionFile(kind: SessionKind, target: string, origin: string): string {
+/** Separa esquema, host y puerto: dos fronts en localhost no pueden compartir estado accidentalmente.
+ *  Con `account` (el asesor de prueba de un comercio, `c<hash>-fake@…`) la sesión es de ESA cuenta: cada
+ *  comercio tiene la suya y entrar con uno no pisa la del otro. Sin `account`, la de la persona de siempre. */
+export function sessionFile(kind: SessionKind, target: string, origin: string, account?: string): string {
     if (kind === 'admin') { defaultOrigin(kind, target); return `admin-${target}.json`; }
     const org = new URL(origin).origin;
     const t = advisorTarget(target, org);
     const host = new URL(org).host.replace(/[^a-z0-9.-]/gi, '_');
     const hash = createHash('sha256').update(org).digest('hex').slice(0, 12);
-    return `advisor-${t}-${host}-${hash}.json`;
+    const who = account ? '-' + createHash('sha256').update(account.toLowerCase()).digest('hex').slice(0, 10) : '';
+    return `advisor-${t}-${host}-${hash}${who}.json`;
 }
 
-export const sessionPath = (kind: SessionKind, target: string, origin = defaultOrigin(kind, target)) =>
-    join(SESSIONS_DIR, sessionFile(kind, target, origin));
+export const sessionPath = (kind: SessionKind, target: string, origin = defaultOrigin(kind, target), account?: string) =>
+    join(SESSIONS_DIR, sessionFile(kind, target, origin, account));
 
-export function matchesSession(s: StoredSession, kind: SessionKind, target: string, origin: string): boolean {
+export function matchesSession(s: StoredSession, kind: SessionKind, target: string, origin: string, account?: string): boolean {
     const t = kind === 'advisor' ? advisorTarget(target, origin) : target;
-    const user = credentialsFor(kind, t)?.user;
+    const user = account ?? credentialsFor(kind, t)?.user;
     return s?.version === 1 && s.kind === kind && s.target === t && s.origin === new URL(origin).origin
         && typeof s.user === 'string' && !!s.user && Array.isArray(s.cookies)
-        && (!user || kind === 'admin' && target === 'local' || s.user === user);
+        && (!user || kind === 'admin' && target === 'local' || s.user.toLowerCase() === user.toLowerCase());
 }
 
-export function readSession(kind: SessionKind, target: string, origin = defaultOrigin(kind, target)): StoredSession | null {
-    const path = sessionPath(kind, target, origin);
+export function readSession(kind: SessionKind, target: string, origin = defaultOrigin(kind, target), account?: string): StoredSession | null {
+    const path = sessionPath(kind, target, origin, account);
     if (!existsSync(path)) return null;
     try {
         const s = JSON.parse(readFileSync(path, 'utf8')) as StoredSession;
-        return matchesSession(s, kind, target, origin) ? s : null;
+        return matchesSession(s, kind, target, origin, account) ? s : null;
     } catch { return null; }
 }
 
 /** Reemplazo atómico: permisos privados incluso si ya existía el archivo. */
-export function writeSession(s: StoredSession): string {
+export function writeSession(s: StoredSession, account?: string): string {
     if (s.kind === 'admin') throw new Error('admin lo guarda bin/pg admin login');
-    const path = sessionPath(s.kind, s.target, s.origin);
-    if (!matchesSession(s, s.kind, s.target, s.origin)) throw new Error('la sesión no coincide con ambiente, origen o cuenta configurada');
+    const path = sessionPath(s.kind, s.target, s.origin, account);
+    if (!matchesSession(s, s.kind, s.target, s.origin, account)) throw new Error('la sesión no coincide con ambiente, origen o cuenta configurada');
     mkdirSync(SESSIONS_DIR, { recursive: true, mode: 0o700 });
     chmodSync(SESSIONS_DIR, 0o700);
     const tmp = `${path}.${randomUUID()}.tmp`;
@@ -115,9 +118,9 @@ export function writeSession(s: StoredSession): string {
     return path;
 }
 
-export function removeSession(kind: SessionKind, target: string, origin = defaultOrigin(kind, target)): boolean {
+export function removeSession(kind: SessionKind, target: string, origin = defaultOrigin(kind, target), account?: string): boolean {
     if (kind === 'admin') throw new Error('admin se cierra con bin/pg admin logout');
-    const path = sessionPath(kind, target, origin);
+    const path = sessionPath(kind, target, origin, account);
     if (!existsSync(path)) return false;
     rmSync(path);
     return true;
@@ -184,12 +187,12 @@ export async function probeSession(s: StoredSession): Promise<{ valid: boolean |
     return { valid: true, who: null, motivo: 'sirve' };
 }
 
-export async function sessionStatus(kind: SessionKind, target: string, origin?: string): Promise<SessionStatus> {
+export async function sessionStatus(kind: SessionKind, target: string, origin?: string, account?: string): Promise<SessionStatus> {
     let org: string;
     try { org = origin ?? defaultOrigin(kind, target); } catch (e) {
         return { kind, target, origin: '—', exists: false, user: null, who: null, createdAt: null, valid: null, motivo: (e as Error).message };
     }
-    const s = readSession(kind, target, org);
+    const s = readSession(kind, target, org, account);
     if (!s) return { kind, target, origin: org, exists: false, user: null, who: null, createdAt: null, valid: null, motivo: 'no hay sesión guardada' };
     const p = await probeSession(s);
     return { kind, target, origin: org, exists: true, user: s.user, who: p.who ?? s.who, createdAt: s.createdAt, valid: p.valid, motivo: p.motivo };

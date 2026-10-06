@@ -10,15 +10,19 @@
 //   node bin/dbops.ts scrub-sinteticos          (SÓLO LOCAL: borra los usuarios sintéticos que creó el arnés)
 //   node bin/dbops.ts list [merchant]
 //   node bin/dbops.ts ecommerce-url <merchant> [phone] [amount]
+//   node bin/dbops.ts test-advisor <hash|comercio>   (SÓLO LECTURA: el asesor de prueba c<hash>-fake@ del comercio → {ok, email, sub, …})
 //   node bin/dbops.ts otp-bypass-add <tel…>        (suma los teléfonos al bypass del OTP → {ok, puesto})
 //   node bin/dbops.ts otp-bypass-restore '<puesto>' (saca SÓLO lo que puso ese `add`)
 //   node bin/dbops.ts synth-fill <uReqID> [lender] [income] [score]
 //   node bin/dbops.ts sucursal-check <merchant|hash> <sub>   (SÓLO LECTURA: ¿la sucursal que vamos a anunciar es la que el backend le da a ese asesor?)
 import { close, one, query, scalar, exec, assertWriteAllowed, TARGET } from '../pkg/db.ts';
-import { whois, assign, revoke, scrubphone, scrubHarnessUsers } from '../pkg/advisor.ts';
+import { whois, assign, revoke, scrubphone, scrubHarnessUsers, ensureLocalTestAdvisor } from '../pkg/advisor.ts';
 import { listMerchants, listEcommerce } from '../pkg/merchants.ts';
 import { buildEcommerceUrl } from '../pkg/ecommerce.ts';
+import { execFile } from 'node:child_process';
 import { registerBypass, restoreBypass } from '../pkg/otp-bypass.ts';
+import { findTestAdvisor } from '../pkg/login-probe.ts';
+import { resolveMerchant } from '../pkg/merchants.ts';
 import { branchCorbeta } from '../pkg/merchants.ts';
 import { preflightBranch, mismatchNotice } from '../pkg/preflight-branch.ts';
 import { synthFill, requestStatus11 } from '../pkg/inject.ts';
@@ -46,6 +50,36 @@ try {
         case 'ecommerce-url': r = await buildEcommerceUrl(a[0] ?? '', a[1] ?? '', num(a[2])); break;
         // El bypass del OTP para los celulares del panel: la misma suma y la misma limpieza que las corridas.
         case 'otp-bypass-add': r = await registerBypass(a); break;
+        // El asesor de prueba del COMERCIO (tarea #98): con él entra el harness, no con una cuenta de persona.
+        case 'test-advisor': {
+            const q = (a[0] ?? '').trim();
+            const byHash = /^[0-9a-f]{8}$/i.test(q)
+                ? await one<{ id: number; allied_id: number }>('SELECT id, allied_id FROM allied_branches WHERE hash = ? LIMIT 1', [q]) : null;
+            const alliedId = /^allied:\d+$/.test(q) ? Number(q.slice(7)) : byHash?.allied_id ?? (await resolveMerchant(q)).alliedId;
+            let adv = await findTestAdvisor(alliedId);
+            let synced: string | null = null;
+            // EN LOCAL, el asesor de prueba se trae de la base COMPARTIDA (donde lo crea el alta del comercio, con su
+            // cuenta en el pool de dev, el mismo que usa el wizard local). La compartida sólo se lee.
+            if (!adv && TARGET === 'local' && byHash) {
+                const shared = await new Promise<any>((ok) => execFile(process.execPath, [process.argv[1], 'test-advisor', `allied:${alliedId}`],
+                    { env: { ...process.env, E2E_TARGET: 'dev' }, timeout: 30_000 }, (err, out) => { try { ok(JSON.parse(String(out))); } catch { ok(null); } }));
+                if (shared?.ok && shared.email && shared.sub) {
+                    const made = await ensureLocalTestAdvisor(alliedId, byHash.id, shared.email, shared.sub);
+                    synced = made.created ? 'traído de la base compartida' : 'corregido con la base compartida';
+                    adv = await findTestAdvisor(alliedId);
+                } else if (shared) {
+                    r = { ok: false, alliedId, motivo: `tampoco en la base compartida: ${shared.motivo || 'sin asesor de prueba'}` }; break;
+                }
+            }
+            if (!adv) { r = { ok: false, alliedId, motivo: 'el comercio no tiene asesor de prueba (c<hash>-fake@); se crea desde el admin' }; break; }
+            const row = await one<{ cognito_id: string | null; fake: string | null }>(
+                `SELECT u.cognito_id, (SELECT b.hash FROM allied_branches b WHERE b.allied_id = u.allied_id AND b.name LIKE 'b%-fake' ORDER BY b.id DESC LIMIT 1) AS fake
+                   FROM users u WHERE u.id = ?`, [adv.id]);
+            r = { ok: !!row?.cognito_id, alliedId, id: adv.id, email: adv.email, sub: row?.cognito_id || null, ...(synced ? { synced } : {}),
+                  testBranch: row?.fake || null, assignedBranch: adv.branchHash,
+                  ...(row?.cognito_id ? {} : { motivo: 'el asesor de prueba no tiene cognito_id en esta base: no puede entrar' }) };
+            break;
+        }
         case 'otp-bypass-restore': await restoreBypass(JSON.parse(a[0] || 'null')); r = { ok: true }; break;
         case 'synth-fill':
             r = await synthFill(num(a[0]), { lender: a[1] || undefined, income: num(a[2]) || undefined, score: num(a[3]) || undefined });

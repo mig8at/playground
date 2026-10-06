@@ -1,4 +1,4 @@
-import { credentialsFor } from './connector-env.ts';
+import { credentialsFor, connectorValue } from './connector-env.ts';
 import { env, TARGET } from './env.ts';
 /**
  * Datos de prueba reutilizables por todos los specs.
@@ -15,7 +15,14 @@ function loadCognitoCreds(): { user?: string; pass?: string } {
     // Las consultas de producción importan config; no deben intentar preparar un login.
     if (TARGET === 'prod') return {};
     const origin = env('E2E_BASE_URL', 'http://localhost:5174');
-    const c = credentialsFor('advisor', advisorTarget(TARGET, origin));
+    const authTarget = advisorTarget(TARGET, origin);
+    // El asesor de prueba del comercio de la corrida (lo exporta `bin/advisor`), con la clave compartida del pool.
+    const account = process.env.E2E_ADVISOR_ACCOUNT?.trim();
+    if (account) {
+        const pass = connectorValue('ALLIED_TEST_ADVISOR_PASSWORD', authTarget);
+        return pass ? { user: account, pass } : { user: account };
+    }
+    const c = credentialsFor('advisor', authTarget);
     return c ? { user: c.user, pass: c.pass } : {};
 }
 export const cognitoCreds = loadCognitoCreds();

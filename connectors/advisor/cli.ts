@@ -1,7 +1,7 @@
 import { parseArgs } from 'node:util';
-import { advisorSession } from './session.ts';
+import { advisorSession, TEST_ADVISOR_ACCOUNT } from './session.ts';
 import { advisorTarget, defaultOrigin, readSession, sessionStatus, probeSession, removeSession, MissingCredentials } from '../auth/sessions.ts';
-import { credentialKeys, credentialsFor, legacyCredentialHint } from '../auth/env.ts';
+import { credentialKeys, credentialsFor, legacyCredentialHint, connectorValue } from '../auth/env.ts';
 
 class UsageError extends Error {}
 
@@ -9,9 +9,12 @@ class UsageError extends Error {}
 async function main(): Promise<void> {
     const { positionals, values: args } = parseArgs({ allowPositionals: true, options: {
         help: { type: 'boolean' }, h: { type: 'boolean' }, target: { type: 'string' }, origin: { type: 'string' }, json: { type: 'boolean' },
-        headless: { type: 'boolean' }, headed: { type: 'boolean' },
+        headless: { type: 'boolean' }, headed: { type: 'boolean' }, account: { type: 'string' },
     } });
-    if (args.help || args.h) { console.log('pg advisor status|check|login|logout [--target local|dev|qa|staging] [--origin URL] [--json] [--headless]'); return; }
+    if (args.help || args.h) { console.log('pg advisor status|check|login|logout [--target local|dev|qa|staging] [--origin URL] [--account c<hash>-fake@creditop.com] [--json] [--headless]'); return; }
+    // `--account`: el asesor de prueba de un comercio, con la clave compartida del ambiente y su propia sesión.
+    const account = args.account?.trim() || undefined;
+    if (account && !TEST_ADVISOR_ACCOUNT.test(account)) throw new UsageError(`«${account}» no es un asesor de prueba (c<hash>-fake@creditop.com)`);
     const command = positionals[0] ?? 'status';
     if (!['status', 'check', 'login', 'logout'].includes(command) || positionals.length > 1) throw new UsageError('usa advisor status|check|login|logout');
     if (command !== 'status' && !args.target) throw new UsageError('falta --target local|dev|qa|staging');
@@ -21,7 +24,7 @@ async function main(): Promise<void> {
     if (command === 'status') {
         const rows = [];
         for (const target of targets) {
-            const s = await sessionStatus('advisor', target, args.origin);
+            const s = await sessionStatus('advisor', target, args.origin, account);
             rows.push({ ...s, authTarget: advisorTarget(target, s.origin) });
         }
         if (args.json) console.log(JSON.stringify(rows));
@@ -32,7 +35,7 @@ async function main(): Promise<void> {
     const origin = args.origin ?? defaultOrigin('advisor', target);
     const authTarget = advisorTarget(target, origin);
     if (command === 'check') {
-        const s = readSession('advisor', target, origin);
+        const s = readSession('advisor', target, origin, account);
         // Aun sin caché se sondea el front: apagado no significa sesión vencida.
         const p = await probeSession(s ?? { version: 1, kind: 'advisor', target: authTarget, origin, user: '', who: null, createdAt: '', cookies: [] });
         const status = p.valid === null ? 'unreachable' : !s ? 'missing' : p.valid ? 'valid' : 'invalid';
@@ -40,7 +43,14 @@ async function main(): Promise<void> {
         return;
     }
     if (command === 'logout') {
-        console.log(removeSession('advisor', target, origin) ? 'sesión de asesor borrada' : 'no había sesión de asesor');
+        console.log(removeSession('advisor', target, origin, account) ? 'sesión de asesor borrada' : 'no había sesión de asesor');
+        return;
+    }
+    if (account) {
+        if (!connectorValue('ALLIED_TEST_ADVISOR_PASSWORD', authTarget)) throw new MissingCredentials(`falta ALLIED_TEST_ADVISOR_PASSWORD en connectors/.env.${authTarget}`);
+        console.log(`credencial: ${account} · asesor de prueba (clave compartida del ambiente) · pool ${authTarget}`);
+        const { session, path } = await advisorSession(target, origin, account).signIn({ headless: !!args.headless && !args.headed });
+        console.log(`entró ${session.user} → ${path} (contenido privado)`);
         return;
     }
     const creds = credentialsFor('advisor', authTarget);

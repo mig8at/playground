@@ -15,6 +15,7 @@ import { fileURLToPath } from 'node:url';
 import { dirname, resolve, join } from 'node:path';
 import { MockSupervisor, MOCKS as MOCK_REGISTRY } from './mocks.ts';
 import { advisorSession } from '../../connectors/advisor/session.ts';
+import { credentialsFor } from '../../connectors/auth/env.ts';
 import { openDevice, openDevices, deviceState, deviceShot, deviceInput, closeDevice, closeAllDevices, SELENIUM_BOXES, type DeviceId, type DeviceInput, type DeviceSession } from './devices.ts';
 import { homedir } from 'node:os';
 
@@ -406,9 +407,9 @@ const SESSION_STATUS_TTL = 60_000;   // el chequeo real es una request de red �
 let warming: string | null = null;   // target del pre-login en curso (uno a la vez, y no durante una corrida)
 let prebooting = false;              // precalentado del wizard en curso (uno a la vez)
 
-function sessionCheck(target: string): Promise<any> {
+function sessionCheck(target: string, account?: string): Promise<any> {
     return new Promise((ok) => {
-        execFile('node', ['bin/session-check.ts'], { cwd: ROOT, env: envFor(target), timeout: 20000 }, (err, stdout) => {
+        execFile('node', ['bin/session-check.ts'], { cwd: ROOT, env: { ...envFor(target), ...accountEnv(account) }, timeout: 20000 }, (err, stdout) => {
             const line = String(stdout || '').trim().split('\n').filter(Boolean).pop() || '';
             try { ok(JSON.parse(line)); }
             catch { ok({ target, status: 'unreachable', detail: err ? 'el chequeo falló' : 'salida no-JSON' }); }
@@ -418,7 +419,7 @@ function sessionCheck(target: string): Promise<any> {
 
 // Pre-login HEADLESS: corre dev/warm-session.spec.ts (cognitoLogin + persistCognitoState). Resuelve al
 // terminar (el panel muestra el loader mientras). Uno a la vez, y NO mientras hay una corrida (un browser a la vez).
-function runWarm(target: string): Promise<{ ok: boolean; detail: string }> {
+function runWarm(target: string, account?: string): Promise<{ ok: boolean; detail: string }> {
     return new Promise((ok) => {
         if (current && !current.done) return ok({ ok: false, detail: 'hay una corrida activa; detenela antes de autenticar' });
         if (warming) return ok({ ok: false, detail: `ya hay una autenticación en curso (${warming})` });
@@ -428,17 +429,17 @@ function runWarm(target: string): Promise<{ ok: boolean; detail: string }> {
         // el `redirect_uri` del query en la propia página del password) y el veredicto "colgado" era un
         // auth en vuelo abandonado a los 0s. Con la espera real (pkg/cognito.ts) headless completa. F-66.
         const child = spawn('npx', ['playwright', 'test', 'dev/warm-session.spec.ts', '--project=chromium', '--reporter=line'],
-            { cwd: ROOT, env: envFor(target) });
+            { cwd: ROOT, env: { ...envFor(target), ...accountEnv(account) } });
         let out = '';
         const cap = (b: Buffer) => { out += b.toString(); };
         child.stdout?.on('data', cap); child.stderr?.on('data', cap);
         child.on('close', (code) => {
             warming = null;
-            sessionStatusCache.delete(target);   // el estado cambió → forzar re-chequeo
+            sessionStatusCache.delete(`${target}|${account ?? ''}`);   // el estado cambió → forzar re-chequeo
             const okWarm = code === 0 && /WARM_OK/.test(out);
             let detail = 'sesión guardada';
             if (!okWarm) {
-                if (/requiere credenciales|\bskipped\b/i.test(out)) detail = 'faltan credenciales Cognito (.cognito.json)';
+                if (/requiere credenciales|\bskipped\b/i.test(out)) detail = account ? 'falta ALLIED_TEST_ADVISOR_PASSWORD en connectors/.env.<ambiente>' : 'faltan credenciales del asesor en connectors';
                 else if (/MFA|captcha|no volvió al wizard|Cognito/i.test(out)) detail = 'el login no volvió al wizard (¿credenciales o MFA/captcha?)';
                 else detail = `el pre-login terminó con código ${code}`;
             }
@@ -456,6 +457,13 @@ function runWarm(target: string): Promise<{ ok: boolean; detail: string }> {
 // Reemplaza el hack `make login & node panel/server.ts`: make login (sin arg) es SOLO lectura (no warmea),
 // y encadenar por shell no respeta el single-flight `warming` ni sabe qué targets son warmeable-s.
 async function bootPrewarm(): Promise<void> {
+    // Desde el 2026-10-06 el asesor es el de PRUEBA DE CADA COMERCIO (`c<hash>-fake@`): no hay una cuenta de
+    // persona que precalentar al arrancar. La sesión se mira al elegir el comercio y el login lo hace la corrida
+    // (o el celular del asesor). Si alguien todavía tiene `ADVISOR_USER/PASS` en connectors, se precalienta esa.
+    if (!['staging', 'dev'].some((t) => credentialsFor('advisor', t))) {
+        console.log('  🔐 asesor: el de prueba de cada comercio — la sesión se resuelve al elegirlo');
+        return;
+    }
     const targets = ['staging', 'dev', 'local'];
     const checks = await Promise.all(targets.map((t) => sessionCheck(t)));
     console.log('  🔐 sesiones Cognito (pre-login):');
@@ -481,15 +489,26 @@ async function bootPrewarm(): Promise<void> {
 
 // SUB del asesor por target — la MISMA cadena que usa bin/advisor (envget E2E_ADVISOR_SUB), con fallback
 // a `.flows.json` (asesor.sub). Si se leyera del shell del panel, ponerlo en .env.<target> no haría nada.
-function advisorSub(target: string): Promise<string> {
-    return new Promise((ok) => {
-        execFile('node', ['bin/env-get.ts', 'E2E_ADVISOR_SUB', ''], { cwd: ROOT, env: envFor(target), timeout: 10000 },
-            (err, out) => {
-                const sub = !err ? String(out || '').trim() : '';
-                ok(sub || String(readFlows()?.asesor?.sub || '').trim());
-            });
-    });
+/**
+ * El asesor de prueba del COMERCIO (`c<hash>-fake@`, tarea #98): con él entran el panel y sus corridas, no con
+ * una cuenta de persona. Lo lee `dbops test-advisor` de la base del ambiente; se cachea unos minutos por
+ * sucursal porque el panel lo pregunta al elegir, al chequear la sesión y al lanzar.
+ */
+interface TestAdvisorInfo { ok: boolean; email?: string; sub?: string; motivo?: string }
+const testAdvisorCache = new Map<string, { at: number; data: TestAdvisorInfo }>();
+async function testAdvisorFor(slug: string, target: string): Promise<TestAdvisorInfo> {
+    const hash = branchHashForSlug(slug, target) || slug;
+    if (!hash) return { ok: false, motivo: 'no hay comercio elegido' };
+    const key = `${target}|${hash}`;
+    const c = testAdvisorCache.get(key);
+    if (c && Date.now() - c.at < 5 * 60_000) return c.data;
+    const r = await dbopsJson(['test-advisor', hash], target);
+    const data: TestAdvisorInfo = r ? { ok: !!r.ok, email: r.email, sub: r.sub || undefined, motivo: r.motivo } : { ok: false, motivo: `no pude leer el asesor de prueba en ${target}` };
+    testAdvisorCache.set(key, { at: Date.now(), data });
+    return data;
 }
+/** El env de un proceso que entra como el asesor de prueba del comercio (lo leen `pkg/config.ts` y `pkg/cognito.ts`). */
+const accountEnv = (account?: string): NodeJS.ProcessEnv => (account ? { E2E_ADVISOR_ACCOUNT: account } : {});
 
 // asignaciones ya confirmadas en esta sesión del panel (target|hash) — evita re-consultar en cada click.
 // Si otra corrida reasigna por afuera, bin/advisor lo corrige al lanzar (es la verificación autoritativa).
@@ -512,8 +531,9 @@ async function ensureAssign(slug: string, target: string): Promise<{ ok: boolean
         for (const k of [...assignOk]) if (k.startsWith(`${target}|`)) assignOk.delete(k);
         assignOk.add(key);
     };
-    const sub = await advisorSub(target);
-    if (!sub) return { ok: false, detail: `sin asesor para ${target}: definí E2E_ADVISOR_SUB en .env.${target} (o asesor.sub en .flows.json)` };
+    const advisor = await testAdvisorFor(slug, target);
+    const sub = advisor.sub;
+    if (!advisor.ok || !sub) return { ok: false, detail: `sin asesor de prueba en ${target}: ${advisor.motivo || 'el comercio no tiene c<hash>-fake@'}` };
     const cur = await dbopsJson(['whois', sub], target);
     if (cur?.matches?.[0]?.allied_branch_hash === hash) {
         remember();
@@ -689,7 +709,7 @@ async function runHeader(slug: string, p: Profile, t: string, inject: boolean, s
      * Sólo lectura y sin romper nada: si no se pudo comprobar, no se dice nada. */
     if (hash && channel !== 'ecommerce' && channel !== 'auto') {
         try {
-            const sub = await advisorSub(t);
+            const sub = (await testAdvisorFor(slug, t)).sub;
             if (sub) {
                 const chk = await dbopsJson(['sucursal-check', hash, sub], t);
                 const notice: string[] = Array.isArray(chk?.aviso) ? chk.aviso : [];
@@ -917,13 +937,18 @@ const server = createServer(async (req, res) => {
 
     // Estado de la sesión Cognito precargada (dot verde/gris en los botones de ambiente). Chequeo REAL
     // (bin/session-check), cacheado por target para no pegarle al front en cada render. `force=1` lo salta.
+    // La sesión es la del asesor de prueba del COMERCIO elegido (`slug`); sin comercio, la de la persona.
     if (path === '/api/session-status') {
         const t = url.searchParams.get('target') || 'local';
         const force = url.searchParams.get('force') === '1';
-        const c = sessionStatusCache.get(t);
+        const slug = url.searchParams.get('slug') || '';
+        const advisor = slug ? await testAdvisorFor(slug, t) : null;
+        if (advisor && !advisor.ok) return json(res, 200, { target: t, status: 'missing', detail: advisor.motivo || 'el comercio no tiene asesor de prueba' });
+        const key = `${t}|${advisor?.email ?? ''}`;
+        const c = sessionStatusCache.get(key);
         if (!force && c && Date.now() - c.at < SESSION_STATUS_TTL) return json(res, 200, c.data);
-        const data = await sessionCheck(t);
-        sessionStatusCache.set(t, { at: Date.now(), data });
+        const data = { ...(await sessionCheck(t, advisor?.email)), account: advisor?.email ?? null };
+        sessionStatusCache.set(key, { at: Date.now(), data });
         return json(res, 200, data);
     }
 
@@ -940,9 +965,11 @@ const server = createServer(async (req, res) => {
     if (path === '/api/session-refresh' && req.method === 'POST') {
         const body = await readBody(req);
         const t = TARGETS.has(body?.target) ? body.target : 'local';
-        const r = await runWarm(t);
-        const status = await sessionCheck(t);
-        sessionStatusCache.set(t, { at: Date.now(), data: status });
+        const advisor = body?.slug ? await testAdvisorFor(String(body.slug), t) : null;
+        if (advisor && !advisor.ok) return json(res, 200, { ok: false, detail: advisor.motivo, status: { target: t, status: 'missing', detail: advisor.motivo } });
+        const r = await runWarm(t, advisor?.email);
+        const status = { ...(await sessionCheck(t, advisor?.email)), account: advisor?.email ?? null };
+        sessionStatusCache.set(`${t}|${advisor?.email ?? ''}`, { at: Date.now(), data: status });
         return json(res, 200, { ...r, status });
     }
 
@@ -1630,24 +1657,32 @@ connect();
             if (!hash) return json(res, 200, { ok: false, detail: `no conozco la sucursal de ${slug} en ${t}` });
             const front = await new Promise<string>((ok) => execFile('node', ['bin/env-get.ts', 'E2E_BASE_URL', 'http://localhost:5174'],
                 { cwd: ROOT, env: envFor(t), timeout: 10000 }, (err, out) => ok(err ? 'http://localhost:5174' : String(out || '').trim())));
-            let stored: (DeviceSession & { user?: string }) | null = null;
+            // El asesor de prueba del comercio: su sesión guardada si la hay; si no, entra solo en el propio
+            // celular (el login del conector, con la clave compartida) y la guarda para la próxima.
+            const advisor = await testAdvisorFor(slug, t);
+            if (!advisor.ok || !advisor.email || !advisor.sub) return json(res, 200, { ok: false, detail: `sin asesor de prueba para ${slug} en ${t}: ${advisor.motivo || 'el comercio no tiene c<hash>-fake@'}` });
+            const account = advisor.email;
+            const connector = advisorSession(t, front, account);
+            let stored: DeviceSession | null = null;
             try {
-                const saved = advisorSession(t, front).storageState();
-                if (saved) stored = JSON.parse(readFileSync(saved, 'utf8'));
-            } catch { /* sin sesión: el celular abre el login */ }
+                const saved = connector.storageState();
+                if (saved && connector.sessionHealth().sirve) stored = JSON.parse(readFileSync(saved, 'utf8'));
+            } catch { /* sin sesión: entra en el celular */ }
+            // Como la corrida («load-permiso»): el asesor de prueba a la sucursal elegida.
             let assigned: string | null = null;
-            if (stored?.user) {
-                const who = await dbopsJson(['whois', stored.user], t);
-                const current = who?.matches?.[0]?.allied_branch_hash;
-                if (current !== hash) {
-                    const a = await dbopsJson(['assign', stored.user, slug, hash], t);
-                    assigned = a ? `asignado a ${hash} (antes: ${current || 'ninguna'})` : 'no se pudo asignar a esta sucursal';
-                }
+            const who = await dbopsJson(['whois', advisor.sub], t);
+            const current = who?.matches?.[0]?.allied_branch_hash;
+            if (current !== hash) {
+                const a = await dbopsJson(['assign', advisor.sub, slug, hash, advisor.sub], t);
+                assigned = a && !a.error ? `asignado a ${hash} (antes: ${current || 'ninguna'})` : 'no se pudo asignar a esta sucursal';
+                stored = null;   // la sesión vieja trae fijada la sucursal anterior: se entra de nuevo
             }
             await releaseDevice('advisor');
             try {
-                const r = await openDevice('advisor', front.replace(/\/$/, '') + `/merchant/${hash}/solicitar`, stored ?? undefined);
-                return json(res, 200, { ok: true, hash, user: stored?.user ?? null, assigned, ...r });
+                let signedIn = false;
+                const r = await openDevice('advisor', front.replace(/\/$/, '') + `/merchant/${hash}/solicitar`, stored ?? undefined,
+                    stored ? undefined : async (page) => { await connector.login(page); signedIn = true; await page.goto(front.replace(/\/$/, '') + `/merchant/${hash}/solicitar`, { waitUntil: 'domcontentloaded' }).catch(() => { }); });
+                return json(res, 200, { ok: true, hash, user: account, session: stored ? 'guardada' : signedIn ? 'entró y la guardó' : 'sin entrar', assigned, ...r });
             } catch (e) {
                 return json(res, 200, { ok: false, detail: `el celular del asesor no pudo abrir ${front}: ${(e as Error).message.split('\n')[0]}` });
             }

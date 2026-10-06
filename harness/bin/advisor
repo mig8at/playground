@@ -136,18 +136,11 @@ cd "$E2E"
 fget() { node -e 'const fs=require("fs");let j={};try{j=JSON.parse(fs.readFileSync(process.argv[1]))}catch(e){};let v=j;for(const k of process.argv[2].split(".")){v=(v==null?undefined:v[k])};process.stdout.write(v==null?"":String(v))' "$FLOWS" "$1"; }
 json_pick() { node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>{try{const j=JSON.parse(s);const v=eval("j"+process.argv[1]);process.stdout.write(v==null?"":String(v))}catch(e){}})' "$1"; }
 
-# El asesor es POR TARGET. `.flows.json` describe al de dev; staging entra por OTRO pool de Cognito, así
-# que la MISMA persona tiene otro `sub` — y como el backend y la BD son los mismos para dev y staging, el
-# backend no la reconoce y el wizard responde "No tienes un comercio asignado" (F-61). Si `.env.<target>`
-# define E2E_ADVISOR_SUB, manda ese sub; la cuenta de login sale de connectors.
-EMAIL="$(fget asesor.email)"; SUB="$(fget asesor.sub)"
-OV="$(envget E2E_ADVISOR_SUB)";   [ -z "$OV" ] && OV="$(envget E2E_ASESOR_SUB)"   # el nombre viejo sigue andando
-[ -n "$OV" ] && SUB="$OV"
-# Sólo el correo, nunca la contraseña, sale al shell; config delega en el conector.
-LOGIN_EMAIL="$(node --input-type=module -e 'import { cognitoCreds } from "./pkg/config.ts"; process.stdout.write(cognitoCreds.user || "")')"
-[ -z "$LOGIN_EMAIL" ] || EMAIL="$LOGIN_EMAIL"
-[ -n "$EMAIL" ] && [ -n "$SUB" ] || { echo "✗ sin asesor: definí E2E_ADVISOR_SUB en .env.$TARGET o asesor.email/sub en $FLOWS"; exit 1; }
-export E2E_ADVISOR_SUB="$SUB"   # lo usa el spec (salto headless a /lenders) para el corporate_user_id del uReq
+# El asesor ya NO sale de `.flows.json` ni de los `.env`: es el ASESOR DE PRUEBA DEL COMERCIO
+# (`c<hash>-fake@creditop.com`, tarea #98), que se resuelve en «load-permiso» cuando ya se sabe la sucursal.
+# Entra con la clave compartida del ambiente (`connectors/.env.<ambiente>`, ALLIED_TEST_ADVISOR_PASSWORD).
+# Su `sub` es el de la base del ambiente, así que no hay un sub por target que mantener a mano (F-61).
+EMAIL=""; SUB=""
 # ⚠ EL HASH DE LA SUCURSAL NO ES EL MISMO EN TODAS LAS BASES, así que primero se mira el mapa POR
 # TARGET. Una sucursal es una fila con su propio hash en cada base: el comercio peruano se sembró a
 # mano en local (`montar-peru`) y ahí quedó `50e007e4`, mientras que en la base compartida de dev/qa
@@ -228,6 +221,15 @@ elif [ "$ECOMMERCE" = 1 ]; then
 elif [ "$SIN_ASESOR" = 1 ]; then
   ok "load-permiso" "n/a (${ENTRY}, sin asesor)"
 else
+  TA="$(node bin/dbops.ts test-advisor "$HASH" 2>/dev/null)"
+  EMAIL="$(printf '%s' "$TA" | json_pick '.email')"; SUB="$(printf '%s' "$TA" | json_pick '.sub')"
+  if [ "$(printf '%s' "$TA" | json_pick '.ok')" != "true" ] || [ -z "$SUB" ]; then
+    echo "✗ sin asesor de prueba para '$MERCHANT' ($HASH) en $TARGET: $(printf '%s' "$TA" | json_pick '.motivo')"
+    echo "  Cada comercio trae el suyo (c<hash>-fake@creditop.com) al crearse; si falta, se crea desde la edición del comercio en el admin."
+    exit 1
+  fi
+  export E2E_ADVISOR_ACCOUNT="$EMAIL" E2E_ADVISOR_SUB="$SUB"   # el spec entra con esta cuenta y la usa como corporate_user_id
+  echo "  ● asesor      $EMAIL (asesor de prueba del comercio)"
   CUR="$(node bin/dbops.ts whois "$SUB" 2>/dev/null | json_pick '.matches[0].allied_branch_hash')"
   if [ "$CUR" = "$HASH" ]; then
     ok "load-permiso" "ya en '$MERCHANT' ($HASH) — sin write"
@@ -237,7 +239,7 @@ else
       || { echo "✗ falló el assign (corré: node bin/dbops.ts assign $SUB $MERCHANT $HASH $SUB)"; exit 1; }
     ok "load-permiso" "asignado → '$MERCHANT' ($HASH) [antes: ${CUR:-ninguno}]"
     # Al cambiar la asignación, cerrar la única sesión obliga al siguiente login a leer la sucursal nueva.
-    node ../connectors/advisor/cli.ts logout --target "$TARGET" --origin "$WIZ_BASE" \
+    node ../connectors/advisor/cli.ts logout --target "$TARGET" --origin "$WIZ_BASE" --account "$EMAIL" \
       || { echo "✗ no se pudo cerrar la sesión de asesor"; exit 1; }
     echo "  ↻ sesión compartida invalidada: el comercio cambió — esta corrida loguea de nuevo"
   fi

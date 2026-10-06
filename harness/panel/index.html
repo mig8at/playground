@@ -1025,6 +1025,8 @@
       if (seq !== permSeq) return;   // respuesta vieja: ya hay otra selección en curso
       permState = r.ok ? 'ok' : 'fail'; permDetail = r.detail || '';
       updateGo();
+      // Cada comercio tiene SU asesor de prueba, y por lo tanto su sesión: al cambiar, se vuelve a mirar.
+      checkSession(target, false);
     }
 
     // ── QUÉ FUNCIONA EN CADA TARGET ──────────────────────────────────────────────────────────────
@@ -2664,7 +2666,7 @@
           method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ slug: sel.slug, target }),
         })).json();
         if (!r.ok) return setAdvisorMode('status', r.detail || 'No se pudo abrir el wizard del asesor.');
-        $('advisorVnc').title = [r.url, r.user ? 'sesión de ' + r.user : 'sin sesión guardada: entrá en el celular', r.assigned].filter(Boolean).join(' · ');
+        $('advisorVnc').title = [r.url, r.user && 'asesor de prueba ' + r.user, r.session && 'sesión: ' + r.session, r.assigned].filter(Boolean).join(' · ');
         setAdvisorMode('live', '', r.view || '');
       } catch (e) {
         setAdvisorMode('status', 'El panel no respondió: ' + e.message);
@@ -3550,18 +3552,19 @@
       if (s === 'valid') el.classList.add('ok');
       else if (s === 'checking' || s === 'warming') el.classList.add('checking');
       // gris (invalid/missing/unreachable/unknown) = sin sesión: el launch la resuelve, el dot solo informa
-      el.title = `${t}: ${TXT[s] || TXT.unknown}${r && r.detail ? ` · ${r.detail}` : ''}`;
+      el.title = `${t}: ${TXT[s] || TXT.unknown}${r && r.detail ? ` · ${r.detail}` : ''}${r && r.account ? ` · ${r.account}` : ''}`;
     }
     async function checkSession(t, force) {
       renderSdot(t, { status: 'checking' });
-      try { renderSdot(t, await (await fetch(`/api/session-status?target=${t}${force ? '&force=1' : ''}`)).json()); }
+      // La sesión es la del asesor de prueba del comercio elegido: viaja el `slug`.
+      try { renderSdot(t, await (await fetch(`/api/session-status?target=${t}${force ? '&force=1' : ''}${sel ? '&slug=' + encodeURIComponent(sel.slug) : ''}`)).json()); }
       catch { renderSdot(t, { status: 'unreachable', detail: 'no se pudo consultar el panel' }); }
     }
     async function warmSession(t) {
       const el = sdotEl(t); if (el && el.classList.contains('checking')) return;   // ya en curso
       renderSdot(t, { status: 'warming', detail: 'autenticando headless (sin ventana)…' });
       try {
-        const r = await (await fetch('/api/session-refresh', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ target: t }) })).json();
+        const r = await (await fetch('/api/session-refresh', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ target: t, slug: sel?.slug }) })).json();
         renderSdot(t, r.status || { status: r.ok ? 'valid' : 'invalid', detail: r.detail });
       } catch { renderSdot(t, { status: 'unreachable', detail: 'la autenticación falló' }); }
     }
@@ -3609,7 +3612,7 @@
     // ámbar) cada 15s; cuando :5174 responde y falta sesión, loguea UNA vez (cooldown 2min → no martilla
     // Cognito). Con el dot ya verde es no-op. staging no entra (se resuelve al abrir). Pausado en corrida.
     async function quietCheck(t) {
-      try { const r = await (await fetch(`/api/session-status?target=${t}&force=1`)).json(); renderSdot(t, r); return r.status; }
+      try { const r = await (await fetch(`/api/session-status?target=${t}&force=1${sel ? '&slug=' + encodeURIComponent(sel.slug) : ''}`)).json(); renderSdot(t, r); return r.status; }
       catch { renderSdot(t, { status: 'unreachable', detail: 'no se pudo consultar el panel' }); return 'unreachable'; }
     }
     const lastAutoWarm = { dev: 0, local: 0 };
