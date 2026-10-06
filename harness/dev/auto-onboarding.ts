@@ -62,7 +62,7 @@ const agilOldJobs = (doc: string) => {
     };
 };
 
-type Case = { id: string; what: string; name?: string; dictate: (doc: string) => Promise<unknown> };
+type Case = { id: string; what: string; name?: string; noBirth?: boolean; dictate: (doc: string) => Promise<unknown> };
 
 const employed = (doc: string) => dictateEmployment(doc, 2_500_000, 'Empleado');
 const CASES: Case[] = [
@@ -74,6 +74,7 @@ const CASES: Case[] = [
     { id: 'todas-caidas', what: 'AgilData, Mareigua y TusDatos caídas (HTTP 500)', dictate: async (d) => { for (const c of ['agildata', 'mareigua', 'tusdatos']) await dictate(d, c, CAIDA); } },
     { id: 'tusdatos-no-coincide', what: 'sin empleo en Agil/Mareigua y TusDatos: el apellido no coincide', dictate: async (d) => { await dictate(d, 'agildata', AGIL_SIN_DATOS); await dictate(d, 'mareigua', MAREIGUA_SIN_DATOS); await dictate(d, 'tusdatos', tusdatos({ first_surname: 0 })); } },
     { id: 'fecha-no-coincide', what: 'sin empleo en Agil/Mareigua y TusDatos: la fecha de expedición no coincide', dictate: async (d) => { await dictate(d, 'agildata', AGIL_SIN_DATOS); await dictate(d, 'mareigua', MAREIGUA_SIN_DATOS); await dictate(d, 'tusdatos', tusdatos({ issue_date: 0 })); } },
+    { id: 'sin-nacimiento', what: 'la tienda no manda la fecha de nacimiento (la exige la sucursal si tiene Welli, Credifamilia…)', noBirth: true, dictate: employed },
     { id: 'nombre-corto', what: 'el pedido trae un nombre de 2 letras (el backend exige 3)', name: 'QA PRUEBA AUTO', dictate: employed },
 ];
 
@@ -103,6 +104,8 @@ for (const [i, c] of cases.entries()) {
     process.env.E2E_SYNTH_DOC = doc;
     process.env.E2E_SYNTH_NAME = c.name ?? 'LAURA AUTO PRUEBA';
     process.env.E2E_SYNTH_EXP = '2012-09-10';
+    process.env.E2E_SYNTH_DOB = '1990-05-14';
+    process.env.E2E_AUTO_NO_BIRTH = c.noBirth ? '1' : '';
     const url = await buildEcommerceUrl(MERCHANT, phone, 2_000_000);
 
     const s = new FrontSession(FRONT);

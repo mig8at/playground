@@ -8,6 +8,8 @@ export interface PersonalInfo {
     docType: string; doc: string; name: string; surname: string; email: string;
     /** `YYYY-MM-DD`. Sólo la manda el auto-onboarding: con ella el comprador no llena el formulario personal. */
     expeditionDate?: string;
+    /** `YYYY-MM-DD`. También sólo del auto-onboarding: la exigen las sucursales con Welli, Credifamilia… */
+    birthDate?: string;
 }
 
 export const b64 = (s: string): string => Buffer.from(s, 'utf8').toString('base64');
@@ -46,6 +48,7 @@ export function ecommerceContract(hash: string, token: string, phone: string, pr
             first_name: p.name, last_name: p.surname, phone,
             email: p.email, document_type: p.docType, document_number: p.doc,
             ...(p.expeditionDate ? { document_expedition_date: p.expeditionDate } : {}),
+            ...(p.birthDate ? { birth_date: p.birthDate } : {}),
         },
     };
     // productos de mentiras (solo para el ejercicio): 2 ítems que suman el total.
@@ -92,7 +95,18 @@ export function caseIdentity(): PersonalInfo {
         // Sólo en el auto-onboarding (`bin/auto-onboarding`): el canal ecommerce de siempre NO la manda, así
         // una sucursal habilitada para el auto se sigue pudiendo probar por la puerta normal.
         expeditionDate: process.env.E2E_AUTO_ONBOARDING === '1' ? (process.env.E2E_SYNTH_EXP || '2010-01-01') : undefined,
+        // La de nacimiento, la misma persona que el caso: su fecha o, si no, la que da su edad.
+        // `E2E_AUTO_NO_BIRTH=1` la omite, para probar la tienda que no la manda.
+        birthDate: process.env.E2E_AUTO_ONBOARDING === '1' && process.env.E2E_AUTO_NO_BIRTH !== '1' ? caseBirthDate() : undefined,
     };
+}
+
+function caseBirthDate(): string {
+    if (process.env.E2E_SYNTH_DOB) return process.env.E2E_SYNTH_DOB;
+    const age = Number(process.env.E2E_SYNTH_AGE);
+    if (!age) return '1990-01-01';
+    const d = new Date(); d.setFullYear(d.getFullYear() - age); d.setMonth(0, 1);
+    return d.toISOString().slice(0, 10);
 }
 
 /** Arma la URL del CHECKOUT que abre el wizard: /ecommerce/{hash}/checkout?o=…&t=… Port de opEcommerceURL. */
