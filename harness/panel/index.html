@@ -148,11 +148,15 @@
     /* ⚠ Las perillas y los botones de correr van JUNTOS: son los parámetros de la próxima corrida y
        el botón que la dispara. Y la banda ENVUELVE, no desborda: dentro de una región el ancho depende
        de los sidebars de al lado, y desbordando «Preparar + Lanzar» quedaba debajo del vecino. */
-    .stagehead { flex-wrap: wrap }
-    /* El nombre de la región no se queda con el ancho: lo quieren las perillas. */
-    .stagehead > :first-child { flex: 0 0 auto }
-    .run-knobs { display: flex; align-items: center; flex-wrap: wrap; gap: var(--space-1); min-width: 0 }
-    .run-actions { display: flex; align-items: center; flex-wrap: wrap; gap: var(--space-2); margin-left: auto; min-width: 0 }
+    /* El ambiente y la corrida, en el pie: el ambiente con su color de texto pleno (es lo global), Detener
+       con el tono destructivo y Lanzar como un ítem más del pie. */
+    .statusbar > .env-item { color: var(--foreground); font-weight: 600 }
+    .statusbar > .stop { color: var(--destructive-ink, var(--danger)) }
+    .statusbar > .run-state:has(#activityTime:empty):not(:has(.run-dot.running)) { display: none }
+    .statusbar > .go-item:not(:disabled) { color: var(--foreground) }
+    .statusbar > #caseTitle { margin-left: var(--space-2) }
+    /* El canal es una fila del panel de propiedades: el botón del menú ocupa el control y se alinea a la izquierda. */
+    .prop-menu { justify-content: flex-start; gap: var(--space-1); padding-inline: var(--space-1) }
     /* La demora con espera puesta se delata: una corrida con 15 s de demora se explica sola. */
     .delay-knob.active { color: var(--warn) }
     .status-dot, .run-dot { width: 8px; height: 8px; flex: none; border-radius: 50%; background: var(--fg-3) }
@@ -522,13 +526,12 @@
       <!-- EL RECORRIDO ES UNA REGIÓN, y su banda lleva lo que antes era la barra de título: las cuatro
            perillas de la corrida y los botones de correrla. Se la cobra la columna que sí la usa. -->
       <section class="editorbox">
-        <div class="region-head stagehead" aria-label="Herramientas de la corrida">
-          <span>Recorrido</span>
-          <!-- ⚠ LOS CONTROLES DE VERDAD SIGUEN ACÁ, OCULTOS, y los menús de la banda los CLICKEAN. El
-               gateo de canales pone `disabled` y un `title` distinto por caso (`applyChannel`), y el de
-               ambiente arrastra el punto de sesión por target: reimplementarlo en el menú serían dos
-               definiciones de la misma regla. Y siguen dentro de un `fieldset.cfg`, así que la corrida
-               los deshabilita igual. -->
+        <!-- ⛔ SIN BANDA (2026-10-06): el centro es de los CELULARES y el mapa vive en su pestaña de la consola, así
+             que «Recorrido» ya no rotulaba nada. Lo que llevaba se repartió por lo que es: el AMBIENTE y la
+             corrida automática (lanzar · detener · su tiempo) al pie, que es global y siempre está a la vista;
+             el CANAL al grupo «Caso» de la configuración, porque es un dato del caso.
+             ⚠ Los controles de verdad de ambiente y front siguen acá, ocultos, y los menús los CLICKEAN (ver
+             `applyChannel` y el punto de sesión por target): reimplementarlos serían dos definiciones. -->
           <fieldset class="cfg" id="runConfig" hidden><legend class="sr-only">Ambiente y frontend</legend>
             <div class="toggle-group" id="targets">
               <button type="button" class="toggle on" data-t="local">local<span class="session-dot" data-sd="local" title="sesión: sin verificar"></span></button>
@@ -543,18 +546,6 @@
             </div>
             <p id="frontHint"></p>
           </fieldset>
-          <div class="run-knobs">
-            <button type="button" class="btn btn-ghost btn-sm" id="btnEnvironment" aria-haspopup="menu"><span class="ui-icon" data-icon="server" aria-hidden="true"></span><span id="valEnvironment">local</span><span class="ui-icon" data-icon="down" aria-hidden="true"></span></button>
-            <button type="button" class="btn btn-ghost btn-sm" id="btnChannel" aria-haspopup="menu"><span class="ui-icon" data-icon="channel" aria-hidden="true"></span><span id="valChannel">Asesor</span><span class="ui-icon" data-icon="down" aria-hidden="true"></span></button>
-          </div>
-          <div class="run-actions">
-            <span class="run-dot" id="runDot"></span>
-            <span class="run-time" id="activityTime"></span>
-            <button type="button" class="btn btn-destructive btn-sm stop" id="stopBtn">Detener</button>
-            <!-- Lanzar es sólo el icono: lo que va a hacer (preparar o loguear, y lanzar) lo dice su título. -->
-            <button type="button" class="btn btn-sm btn-icon" id="go" disabled title="Preparar + Lanzar" aria-label="Preparar + Lanzar"><span class="ui-icon" data-icon="play" aria-hidden="true"></span></button>
-          </div>
-        </div>
         <div class="alert alert-warn" id="devwarn" style="display:none" role="alert">
           <div class="alert-title"><span id="warnTarget">dev</span> = data COMPARTIDA</div>
           <div class="alert-desc">El flujo escribe datos sintéticos (assign · scrub · buró) en la DB de dev. El login es
@@ -684,6 +675,10 @@
                las filas de 28 entra todo sin plegables. «Arranque», «Canal» y la demora son de la CORRIDA
                y viven en la banda del recorrido; sus controles reales quedan acá abajo, ocultos. -->
           <div class="region-head group"><span>Caso</span></div>
+          <div class="prop">
+            <span class="label">Canal</span>
+            <div class="prop-value"><button type="button" class="btn btn-ghost btn-xs prop-menu" id="btnChannel" aria-haspopup="menu"><span class="ui-icon" data-icon="channel" aria-hidden="true"></span><span id="valChannel">Asesor</span><span class="ui-icon" data-icon="down" aria-hidden="true"></span></button></div>
+          </div>
           <div class="prop">
             <label class="label" for="amount">Monto solicitado</label>
             <div class="input-group input-group-xs"><span class="ico-txt">$</span><input id="amount" class="input input-xs" type="text" inputmode="numeric" value="2.000.000" oninput="onMoney(this)" /></div>
@@ -905,6 +900,12 @@
     </section>
 
     <footer class="statusbar">
+      <!-- El AMBIENTE primero: es lo global (contra qué base y qué servicios corre todo), como el indicador
+           remoto de un editor. Al lado, la corrida automática: su estado, Detener y Lanzar. -->
+      <button type="button" class="statusbar-item env-item" id="btnEnvironment" aria-haspopup="menu"><span class="ui-icon" data-icon="server" aria-hidden="true"></span><span id="valEnvironment">local</span><span class="ui-icon" data-icon="down" aria-hidden="true"></span></button>
+      <span class="statusbar-item run-state"><span class="run-dot" id="runDot"></span><span class="run-time" id="activityTime"></span></span>
+      <button type="button" class="statusbar-item stop" id="stopBtn">Detener</button>
+      <button type="button" class="statusbar-item go-item" id="go" disabled title="Preparar + Lanzar" aria-label="Preparar + Lanzar"><span class="ui-icon" data-icon="play" aria-hidden="true"></span><span>Corrida</span></button>
       <strong id="caseTitle">Elegí un comercio</strong>
       <span id="caseDetails"></span>
       <span id="runSummary" role="status">Elegí un comercio primero.</span>
