@@ -1204,7 +1204,7 @@ Dos pools ⇒ la misma persona tiene **dos `sub` distintos**. Y del lado del bac
 **Solución (aplicada).** Una **cuenta de asesor por pool**, y que todo lo de Cognito sea **por target**:
 
 - `pkg/config.ts` — `loadCognitoCreds()` pasó de `process.env` pelado a la cadena `env()`, así que las credenciales viven en `harness/.env.<target>` (gitignored) en vez de un `.cognito.json` único que habría que pisar para alternar.
-- `pkg/cognito.ts` — el cache de sesión pasó de `.auth/cognito-state.json` a `.auth/cognito-state.<clave>.json`. ⚠ **Y la clave NO es el target**, aunque casi siempre coincida: es `SESSION_KEY = FRONT_LOCAL ? 'dev' : TARGET` (`harness/pkg/cognito.ts:32-33`), así que **con el front local dos targets comparten un mismo archivo de sesión**. Recomprobado el 2026-09-19. **No era cosmético**: el archivo viejo tenía cookies de los **dos** pools mezcladas (`login.creditop.com` **y** `.auth.merchant.creditop.com`), y con un único archivo la sesión de dev se inyecta en la corrida de staging — el front queda autenticado para Cognito y desconocido para el backend, **sin que aparezca el login** que lo corregiría.
+- `pkg/cognito.ts` — el cache de sesión pasó de `.auth/cognito-state.json` a `.auth/cognito-state.<clave>.json`. ⚠ **Y la clave NO es el target**, aunque casi siempre coincida: era `SESSION_KEY = FRONT_LOCAL ? 'dev' : TARGET`, así que **con el front local dos targets compartían un mismo archivo de sesión** (recomprobado el 2026-09-19). ⚠ **Ya no vive ahí** (2026-10-06): la sesión del asesor la guarda el conector, con el archivo armado por target, ORIGEN del front y cuenta (`connectors/auth/sessions.ts:76-84`), así que hoy no se pisan ni por front ni por comercio. **No era cosmético**: el archivo viejo tenía cookies de los **dos** pools mezcladas (`login.creditop.com` **y** `.auth.merchant.creditop.com`), y con un único archivo la sesión de dev se inyecta en la corrida de staging — el front queda autenticado para Cognito y desconocido para el backend, **sin que aparezca el login** que lo corregiría.
 - `bin/advisor` — `E2E_ADVISOR_SUB` / `E2E_COGNITO_USER` de `.env.<target>` pisan al `asesor` de `.flows.json` (que describe al de dev). Es el `sub` que usa `load-permiso` para el assign.
 
 En dev existe una familia de cuentas QA `oscar+<comercio>@creditop.com`, una por sucursal (`oscar+mediarte` ya está en la 375 de Mediarte, `miguel8a` en la 844 de DENTIX). Son las candidatas naturales para el pool de staging.
@@ -1443,7 +1443,7 @@ control al front está en esta situación. El referrer sirve para *loguear*, no 
 
 **Causa raíz (verificada):** el recorrido sale al banco **dos veces** (autenticación al empezar, clave
 dinámica al firmar) y el wizard tiene una ruta dedicada para el regreso:
-`routes/bancolombia/bnpl/redirect.tsx` y su gemela `loan/redirect.tsx` (`routes.ts:333` y `routes.ts:363`). Su
+`routes/bancolombia/bnpl/redirect.tsx` y su gemela `loan/redirect.tsx` (`routes.ts:338` y `routes.ts:368`). Su
 `clientLoader` lee la sesión del cliente y decide solo:
 
 ```
@@ -1669,17 +1669,20 @@ cliente cotizó dos veces —o si el `order_id` que devuelve Prami no es el de l
 solicitudes desde Prami, pero ninguno de los `order_id` que llega coincide con la solicitud del cliente
 … por esta razón nunca se actualiza»*.
 
-⚠ **CORREGIDO A MEDIAS en `main`, verificado el 2026-09-16 — y la mitad que queda es la que duele.** Acá el bloque decía `firstOrFail()`; hoy es `first()` más un `if (! $transaction)` explícito que hace `rollBack` y contesta **404 con el motivo** (`application/app/Http/Controllers/Api/PramiController.php:49-56`), y `rejectWebhook` (`application/app/Http/Controllers/Api/PramiController.php:332`) además deja una fila en `logs` con el `order_id` que no matcheó. Lo trajo el commit `68ece53c` *«answer Prami's webhook with the reason it rejected the call»* (CORE-319). **Lo que NO cambió: el único vínculo sigue siendo el `order_id`** (`application/app/Http/Controllers/Api/PramiController.php:45-46`), así que la solicitud se sigue quedando en «Seleccionó entidad». O sea: el fallo dejó de ser MUDO —ahora hay un log y Prami se entera— pero el síntoma que soporte reportó seis veces sigue pasando igual. Y ahora se puede MEDIR cuántas veces: esas filas de `logs`.
+⚠ **CORREGIDO A MEDIAS en `main`, verificado el 2026-09-16 — y la mitad que queda es la que duele.** Acá el bloque decía `firstOrFail()`; hoy es `first()` más un `if (! $transaction)` explícito que hace `rollBack` y contesta **404 con el motivo** (`application/app/Http/Controllers/Api/PramiController.php:49-56`), y `rejectWebhook` (`application/app/Http/Controllers/Api/PramiController.php:384`) además deja una fila en `logs` con el `order_id` que no matcheó. Lo trajo el commit `68ece53c` *«answer Prami's webhook with the reason it rejected the call»* (CORE-319). **Lo que NO cambió: el único vínculo sigue siendo el `order_id`** (`application/app/Http/Controllers/Api/PramiController.php:45-46`), así que la solicitud se sigue quedando en «Seleccionó entidad». O sea: el fallo dejó de ser MUDO —ahora hay un log y Prami se entera— pero el síntoma que soporte reportó seis veces sigue pasando igual. Y ahora se puede MEDIR cuántas veces: esas filas de `logs`.
 
 **Y dos cosas más que el mismo código revela:**
 
 1. **De acá salen los estados 7 y 20** — los que ninguna etapa del trazador mapeaba (F-105/F-106 los
-   dejaron como hueco). El webhook traduce el estado del agregador al nuestro (`application/app/Http/Controllers/Api/PramiController.php:77-81`):
+   dejaron como hueco). El webhook traduce el estado del agregador al nuestro (`application/app/Http/Controllers/Api/PramiController.php:129-133`):
    `No_Completado`→**7** «No terminó proceso» · `Rechazado`→**6** «Negada» ·
    `Aprobado`→**20** «Aprobada no desembolsada» · `Originado`→**11** «Autorizada».
-   Mismo mapeo en `MeddipayController.php:61`. O sea que **7 y 20 son estados de AGREGADOR**, no del
-   flujo in-platform: por eso no aparecían en el recorrido de rt=2.
-2. **El webhook PISA el monto**: `'final_amount' => $request->amount` (`application/app/Http/Controllers/Api/PramiController.php:84`). Si hubiera matcheado, el
+   ⚠ **Meddipay NO usa el mismo mapeo** (antes acá decía que sí): tiene tres estados y no `Originado`, y
+   su `Aprobado` va directo a **11** «Autorizada» (`application/app/Http/Controllers/Api/MeddipayController.php:61-63`;
+   medido en local el 2026-10-06: el webhook `Aprobado` llevó una solicitud de 3 a 11). O sea que **7 es
+   estado de AGREGADOR y 20 sólo de los que separan aprobar de originar (Prami)**, no del flujo
+   in-platform: por eso no aparecían en el recorrido de rt=2.
+2. **El webhook PISA el monto**: `'final_amount' => $request->amount` (`application/app/Http/Controllers/Api/PramiController.php:136`). Si hubiera matcheado, el
    valor de la solicitud pasaba a ser el que manda Prami — y en el caso del hilo diferían ($799.000 del
    webhook contra $918.900 de la solicitud). Cuando el `order_id` no matchea, esa discrepancia queda
    invisible; cuando matchea, gana el agregador sin avisar.
@@ -1761,13 +1764,13 @@ en producción — el webhook no deja registro cuando `firstOrFail()` lanza, as�
 
 - **Síntoma:** desde el admin de cartera, reversar un pago tira **500** (`Attempt to read property "id"
   on null`). Reversar otros pagos del mismo crédito funciona, así que se lee como intermitente.
-- **Causa raíz (verificada 2026-08-08):** `application/app/Http/Controllers/Admin/CreditopXPaymentController.php:1387`
+- **Causa raíz (verificada 2026-08-08):** `application/app/Http/Controllers/Admin/CreditopXPaymentController.php:1462`
   resuelve el tipo con `CreditopXPaymentType::where('name', 'PAGO REVERSADO')->first()->id`, pero en
   `creditop_x_payment_types` **la fila se llama `REVERSADO`** (id 8). `first()` devuelve `null` y el
   `->id` es fatal. No hay `try` que lo cubra: el `catch` del método envuelve más abajo.
 - **Por qué parece intermitente:** la línea vive dentro de la rama `if ($payment->paymentType->name == 'RETENIDO')`
-  (`application/app/Http/Controllers/Admin/CreditopXPaymentController.php:1459-1460`), o sea **solo los pagos que entraron ANTES de la fecha de corte y todavía no se aplicaron**.
-  Las otras dos ramas —ya aplicado (`application/app/Http/Controllers/Admin/CreditopXPaymentController.php:1478-1479`) y ya reversado (`application/app/Http/Controllers/Admin/CreditopXPaymentController.php:1469-1470`)— no tocan el catálogo y andan bien.
+  (`application/app/Http/Controllers/Admin/CreditopXPaymentController.php:1461-1462`), o sea **solo los pagos que entraron ANTES de la fecha de corte y todavía no se aplicaron**.
+  Las otras dos ramas —ya aplicado (`application/app/Http/Controllers/Admin/CreditopXPaymentController.php:1485-1486`) y ya reversado (`application/app/Http/Controllers/Admin/CreditopXPaymentController.php:1471-1472`)— no tocan el catálogo y andan bien.
 - **Evidencia:** `SELECT id,name FROM creditop_x_payment_types WHERE name LIKE '%REVERSAD%'` → una sola
   fila, `8 · REVERSADO`. Y `SELECT payment_type_id, COUNT(*) FROM creditop_x_payments GROUP BY 1` da
   **56 pagos en `payment_type_id=1` (RETENIDO)** en el dump local: el camino es alcanzable, no teórico.
@@ -1838,9 +1841,9 @@ en producción — el webhook no deja registro cuando `firstOrFail()` lanza, as�
 - **Síntoma:** la comisión de un crédito Corbeta sale en cero, o sale con valores viejos después de
   renegociar el acuerdo comercial. No hay error: la celda simplemente trae 0.
 - **Causa raíz (verificada 2026-08-09):** `application/app/Exports/UserRequestsCorbetaExport.php:38`
-  define un JSON con **40 tramos** (1.000.000 → 40.000.000, uno por millón) y `application/app/Exports/UserRequestsCorbetaExport.php:168` lo recorre buscando
+  define un JSON con **40 tramos** (1.000.000 → 40.000.000, uno por millón) y `application/app/Exports/UserRequestsCorbetaExport.php:172` lo recorre buscando
   el tramo por **igualdad exacta**: `if ($row['monto'] == $millones)`, donde
-  `$millones = floor($user_request->final_amount / 1000000) * 1000000` (`application/app/Exports/UserRequestsCorbetaExport.php:166`). Si el monto truncado no
+  `$millones = floor($user_request->final_amount / 1000000) * 1000000` (`application/app/Exports/UserRequestsCorbetaExport.php:170`). Si el monto truncado no
   está en la tabla, `$consumoTotal` **queda en 0** y no hay `else` ni log. Los dos huecos:
   - `final_amount < 1.000.000` → `floor` da **0**, que no está en la tabla → comisión 0.
   - `final_amount >= 41.000.000` → fuera del último tramo → comisión 0.
@@ -1896,7 +1899,7 @@ en producción — el webhook no deja registro cuando `firstOrFail()` lanza, as�
   18/3/2024 y desde entonces ningún usuario temporal lleva país. Hoy ninguno de los dos caminos que lo
   crean lo setea —`Onboarding/App/Services/RegisterCellPhoneService.php:376` y
   `Onboarding/App/Services/UserService.php:161`— y en los módulos de onboarding `country_id` sólo aparece
-  **leyéndose** (`UsersV1/App/Domain/UserData.php:112`). Refuerza el arreglo de arriba: derivar del
+  **leyéndose** (`UsersV1/App/Domain/UserData.php:118`). Refuerza el arreglo de arriba: derivar del
   comercio, porque el usuario no tiene el dato ni va a tenerlo por accidente.
 - **Estado:** vivo. ⚠ Y no confundir con las cifras de otra medición (186 / 364.527): esas son de otro
   ambiente. Las de arriba son de la copia local.
@@ -2198,7 +2201,7 @@ en producción — el webhook no deja registro cuando `firstOrFail()` lanza, as�
   excepción de PHP.
 - **Causa raíz (verificada 2026-08-18 en local contra `main`):** `app/Actions/Lenders/Credifamilia.php:69`
   hace `->baseUrl(config('services.credifamilia.host_oauth'))`, y esa clave sale de
-  `CREDIFAMILIA_HOST_OAUTH` (`config/services.php:115`), que **no está en el `.env` local**. Con la
+  `CREDIFAMILIA_HOST_OAUTH` (`config/services.php:122`), que **no está en el `.env` local**. Con la
   variable ausente `config()` devuelve `null` y `PendingRequest::baseUrl()` tira
   `TypeError: Argument #1 ($url) must be of type string, null given`. La excepción **no queda contenida
   en esa card**: se lleva la construcción del listado completo.
@@ -2375,10 +2378,10 @@ en producción — el webhook no deja registro cuando `firstOrFail()` lanza, as�
   con «Undefined variable» — una firma caída, no un documento con huecos. No se ve venir: el catálogo
   está bien sembrado y las plantillas existen.
 - **Causa raíz (verificada 2026-08-22 contra `main`, reproducida en local):**
-  `Modules/Loans/App/Services/DocumentGeneration/CatalogDocumentPayloadResolver.php:42-46` mapea
+  `Modules/Loans/App/Services/DocumentGeneration/CatalogDocumentPayloadResolver.php:44-48` mapea
   `lender_id => builder` con ids **literales** (`158 => MotaiRentingPayloadBuilder`,
   `205 => MotaiRentToOwnPayloadBuilder`) y cae en silencio al genérico:
-  `self::BUILDERS_BY_LENDER[$lenderId] ?? OnboardingPayloadBuilder::class` (`Modules/Loans/App/Services/DocumentGeneration/CatalogDocumentPayloadResolver.php:65`).
+  `self::BUILDERS_BY_LENDER[$lenderId] ?? OnboardingPayloadBuilder::class` (`Modules/Loans/App/Services/DocumentGeneration/CatalogDocumentPayloadResolver.php:67`).
   Pero **el id del clon NO es estable entre ambientes** — y no es una hipótesis: las migraciones del
   Rent to Own resuelven por `lenders.slug` **justamente por eso**, y su comentario lo dice («en qa el
   clon es el 205»). Medido: al correr esas migraciones en local, el clon quedó con **id 173**.
@@ -3678,7 +3681,7 @@ F-xx citados siguen vigentes salvo los que sus propias entradas ya marcan cerrad
   `127.0.0.1`. Se ve también en la primera línea que imprime: antes del arreglo la API era
   `http://legacy-backend.inertia-develop`, después `http://localhost`.
 - **⚠ Y no era sólo lectura.** `dev/listing.ts` registra un teléfono y hace `INSERT INTO user_requests`
-  **sin** `assertWriteAllowed()` — la guarda se DEFINE en `harness/pkg/db.ts:165` y a `listing.ts`
+  **sin** `assertWriteAllowed()` — la guarda se DEFINE en `harness/pkg/db.ts:184` y a `listing.ts`
   sólo le llega tres llamadas más adelante, a través de `pkg/inject.ts`. *(Acá decía «vive dentro de
   `pkg/inject.ts`», que se lee como si estuviera definida ahí; `inject.ts` es de los doce archivos que
   la LLAMAN.* ⚠ *Recomprobado el 2026-09-19: `dev/listing.ts` sigue sin llamarla y sigue teniendo su
@@ -4000,7 +4003,7 @@ se lee como «el arnés inyecta demasiado» o «esa pantalla no existe en este f
 **Causa raíz — DOS eslabones, y el primero engaña:**
 
 1. **No es la inyección.** `dev/guided.spec.ts` ya pasa `skipIdentity: true` a `synthFill` en sus dos
-   sitios (`dev/guided.spec.ts:1224`, `dev/guided.spec.ts:1313`), o sea que la corrida **no** escribe la identidad: sólo el buró.
+   sitios (`dev/guided.spec.ts:1264`, `dev/guided.spec.ts:1352`), o sea que la corrida **no** escribe la identidad: sólo el buró.
 2. **Es el SCRUB.** `pkg/advisor.ts` buscaba los usuarios a borrar con
    `WHERE cell_phone = ?` — **igualdad exacta**. Y el mismo teléfono vive en la base con formatos
    distintos según por dónde entró. Medido el 2026-09-10 en la compartida, para `3131010101`:
@@ -6034,7 +6037,7 @@ dos. **No se sabe cuántos diagnósticos viejos eran esto.**
 - **Causa raíz:** el número de documento superaba el techo del proveedor de KYC. Un `CC` colombiano
   numérico tiene que caer entre **10.000 y 3.000.000.000**, y lo validan los dos monolitos con la misma
   regla —`Modules/Onboarding/App/Http/Requests/PersonalInfoRequest.php:125` y
-  `Modules/OnboardingV2/App/Http/Requests/StorePersonalInfoRequest.php:164`, verificados contra `main`—.
+  `Modules/OnboardingV2/App/Http/Requests/StorePersonalInfoRequest.php:176`, verificados contra `main`—.
   El arnés generaba `9553649100`: nueve mil quinientos millones.
 - **Por qué salía así, que es lo que vale para la próxima:** `syntheticDocument` conocía **media regla**.
   Sabía el LARGO por país (10 en Colombia) y no el RANGO, y para variar el número entre corridas toma la
