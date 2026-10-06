@@ -691,6 +691,10 @@ async function launch(slug: string, profile: Profile, target: string, inject: bo
     if (current && !current.done) return { ok: false, msg: `ya hay una corrida activa (${current.slug}). Parala primero.` };
     const t = TARGETS.has(target) ? target : 'local';
     const step = ['monto', 'phone', 'personal-info', 'lenders'].includes(stepTarget) ? stepTarget : 'monto';
+    // Un precalentado en curso está levantando SU wizard en :5174. Lanzar encima corría las dos a la vez:
+    // la corrida bajaba el :5174, el precalentado lo volvía a tomar con OTRA carpeta, y Vite mandaba el
+    // de la corrida a :5176 sin fallar (2026-10-06: el auto-onboarding corrió sobre el front de main).
+    for (let i = 0; prebooting && i < 600; i++) await new Promise((r) => setTimeout(r, 500));
     const amt = amount > 0 ? Math.round(amount) : 2_000_000; // monto solicitado (default 2M)
     const mode = inject ? 'manual + inyección de buró' : 'manual REAL (consulta buró real, sin inyección)';
     const jump = step === 'monto' ? '' : ` · salto → ${step}`;
@@ -1488,8 +1492,11 @@ const server = createServer(async (req, res) => {
         if (prebooting) return json(res, 200, { ok: false, detail: 'ya se está precalentando' });
         prebooting = true;
         const slug = String(b.slug || 'pullman');
+        // El auto-onboarding sirve el wizard desde otra carpeta (CFE_AUTO_FRONT_PATH): precalentar la de
+        // siempre obligaba a la corrida a bajarlo y volver a compilar.
+        const auto = b.auto === true ? { E2E_AUTO_ONBOARDING: '1', CFE_ENTRY: 'ecommerce' } : {};
         const child = spawn('/bin/bash', [join(ROOT, 'bin', 'advisor'), slug, 'preboot'],
-            { cwd: ROOT, env: { ...envFor(t), CFE_FRONT: 'local' }, detached: true });
+            { cwd: ROOT, env: { ...envFor(t), CFE_FRONT: 'local', ...auto }, detached: true });
         let out = '';
         child.stdout?.on('data', (d: Buffer) => { out += d.toString(); });
         child.stderr?.on('data', (d: Buffer) => { out += d.toString(); });

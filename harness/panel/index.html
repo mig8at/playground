@@ -3159,7 +3159,7 @@
       const s = $('runSummary'), previous = s.innerHTML;
       s.innerHTML = 'precalentando el wizard (Vite) — la corrida no va a esperar el cold-boot…';
       try {
-        const r = await (await fetch('/api/preboot', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ target, slug: sel?.slug || 'pullman' }) })).json();
+        const r = await (await fetch('/api/preboot', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ target, slug: sel?.slug || 'pullman', auto: channel === 'auto' }) })).json();
         if (!r.ok) prebootDone = false;   // no quedó tibio → que lo reintente el próximo cambio de front
         s.innerHTML = r.ok
           ? `wizard listo (${r.reused ? 'ya estaba arriba' : r.detail}) — ` + previous
