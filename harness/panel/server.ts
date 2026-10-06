@@ -30,7 +30,9 @@ const PORT = Number(process.env.PANEL_PORT || 5195);
 // corridas— y no tiene autenticación: escuchando en todas las interfaces (era `listen(PORT)`, o sea
 // `*:5195`) cualquiera en la misma red podía llamar a esas rutas. `PANEL_HOST=0.0.0.0` lo abre a propósito.
 const HOST = process.env.PANEL_HOST || '127.0.0.1';
-const RUN_LOG = '/tmp/asesor-panel-run.log';
+// Uno por PUERTO: un panel de prueba (`PANEL_PORT=5196`) escribía en la consola del de verdad, y abrir un
+// celular ahí (`startDeviceLog`) la vaciaba (2026-10-06).
+const RUN_LOG = PORT === 5195 ? '/tmp/asesor-panel-run.log' : `/tmp/asesor-panel-run-${PORT}.log`;
 /* El stdout del WIZARD (SSR). No lo inventa el panel: `bin/advisor:500` ya lanza `pnpm dev` con
  * `> /tmp/asesor-wizard.log`, y lo TRUNCA antes de cada arranque — o sea que el archivo es siempre el de
  * la sesión actual del wizard, y que `total` baje significa «arrancó otro», el mismo contrato que el log
@@ -1703,6 +1705,10 @@ connect();
         if (action === 'open' && req.method === 'POST' && id === 'client') {
             const b = await readBody(req);
             warmDevice('client');   // su navegador se prepara mientras se arma el pedido
+            // Cuánto tarda cada fase, para la consola: abrir desde la tienda es lo que más se repite.
+            const phases: string[] = [];
+            let phaseAt = performance.now();
+            const phase = (name: string) => { phases.push(`${name} ${((performance.now() - phaseAt) / 1000).toLocaleString('es-CO', { maximumFractionDigits: 1 })}`); phaseAt = performance.now(); };
             // Un precalentado en curso puede estar por reiniciar el wizard: se espera a que termine.
             for (let i = 0; prebooting && i < 600; i++) await new Promise((r) => setTimeout(r, 500));
             const t = TARGETS.has(String(b.target)) ? String(b.target) : 'local';
@@ -1719,17 +1725,23 @@ connect();
                 E2E_SYNTH_DOB: auto ? str(o.birth) : '', E2E_AUTO_NO_BIRTH: auto && !str(o.birth) ? '1' : '',
             };
             const amount = String(Number(str(o.amount).replace(/\D/g, '')) || '');
-            const built = await dbopsJson(['ecommerce-url', String(b.slug || ''), str(o.phone), amount], t, orderEnv);
-            if (!built?.checkout_path) return json(res, 200, { ok: false, detail: `no pude armar el pedido de ${b.slug} en ${t} (¿sucursal con credencial de ecommerce?)` });
+            // LAS CONSULTAS VAN A LA VEZ, no una tras otra (eran ~1,2 s en fila, medido el 2026-10-06). Armar el
+            // pedido sólo arma la URL (no escribe), así que no choca con la limpieza. El único orden que importa:
+            // devolver el bypass del celular anterior ANTES de sumar el nuevo, que puede ser el mismo teléfono.
+            // Se cierra ANTES el celular anterior: además, el precalentado del auto puede reiniciar el wizard que mostraba.
+            const releasing = releaseDevice('client');
+            const builtP = dbopsJson(['ecommerce-url', String(b.slug || ''), str(o.phone), amount], t, orderEnv);
             // El celular de prueba arranca LIMPIO y con el OTP resuelto, como en una corrida (`bin/advisor`): se
             // borra el cliente sintético que haya dejado otra corrida con ese teléfono y se lo suma al bypass, así
             // el código son sus últimos 4 dígitos y no sale ningún SMS.
+            const scrubP = str(o.phone) ? dbopsJson(['scrubphone', str(o.phone)], t) : null;
+            const built = await builtP;
+            if (!built?.checkout_path) { await releasing; return json(res, 200, { ok: false, detail: `no pude armar el pedido de ${b.slug} en ${t} (¿sucursal con credencial de ecommerce?)` }); }
             const phone = str(o.phone) || String(built.phone || '');
-            // Se cierra ANTES el celular anterior: además, el precalentado del auto puede reiniciar el wizard que mostraba.
-            await releaseDevice('client');
+            const bypassP = releasing.then(() => dbopsJson(['otp-bypass-add', phone], t));
+            const [scrub, bypass] = await Promise.all([scrubP ?? dbopsJson(['scrubphone', phone], t), bypassP]);
+            phase('pedido, limpieza y OTP');
             startDeviceLog(`${b.slug} (${t}) · tienda → cliente · ${auto ? 'auto-onboarding' : 'ecommerce'} · cel ${phone}`);
-            const scrub = await dbopsJson(['scrubphone', phone], t);
-            const bypass = await dbopsJson(['otp-bypass-add', phone], t);
             if (bypass?.ok) deviceBypass.set('client', { target: t, puesto: bypass.puesto });
             const otp = bypass?.ok ? { otp: phone.slice(-4), otpBypass: bypass.puesto?.comodin ? 'comodín' : 'agregado' }
                 : { otpBypassError: bypass?.motivo || 'no se pudo registrar el bypass del OTP' };
@@ -1749,11 +1761,14 @@ connect();
                     child.on('close', (code) => ok({ code: code ?? 1, out }));
                 }).finally(() => { prebooting = false; });
                 if (boot.code !== 0) return json(res, 200, { ok: false, detail: 'no pude levantar el wizard del auto-onboarding: ' + (boot.out.trim().split('\n').pop() || `código ${boot.code}`) });
+                phase('wizard del auto');
             }
             const front = await frontFor(t);
             try {
                 deviceLog('panel', `pedido armado: ${built.checkout_path.split('?')[0]} · ${scrub?.users_deleted ?? 0} cliente(s) previos borrados · OTP ${otp.otp ? 'resuelto (' + otp.otp + ')' : 'SIN bypass'}`);
                 const r = await openDevice('client', front.replace(/\/$/, '') + built.checkout_path, { autofill: caseAutofill(o) });
+                phase('celular');
+                deviceLog('panel', `tienda → cliente: ${phases.join(' · ')} (s)`);
                 rescueIdentity('client', t);
                 return json(res, 200, { ok: true, hash: built.hash, merchant: built.merchant, scrubbed: scrub, ...otp, ...r });
             } catch (e) {
