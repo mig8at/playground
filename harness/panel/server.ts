@@ -18,7 +18,7 @@ import { advisorSession } from '../../connectors/advisor/session.ts';
 import { credentialsFor } from '../../connectors/auth/env.ts';
 import { envData, type AutofillData } from '../pkg/autofill.ts';
 import { identityWithoutProviderNotice } from '../pkg/config.ts';
-import { openDevice, openDevices, watchNavigation, deviceGoto, deviceState, deviceShot, deviceInput, closeDevice, closeAllDevices, SELENIUM_BOXES, type DeviceId, type DeviceInput, type DeviceSession } from './devices.ts';
+import { openDevice, openDevices, watchNavigation, deviceGoto, deviceText, deviceOpenedAt, deviceState, deviceShot, deviceInput, closeDevice, closeAllDevices, SELENIUM_BOXES, type DeviceId, type DeviceInput, type DeviceSession } from './devices.ts';
 import { homedir } from 'node:os';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
@@ -1607,6 +1607,12 @@ const server = createServer(async (req, res) => {
             up.pipe(res);
         }).on('error', () => { res.writeHead(502); res.end(); });
     }
+    // El portal SIMULADO de una entidad (`mock-bank/index.html`): el destino del traspaso de un AGREGADOR en el
+    // celular del cliente. Lo sirve el panel porque el contenedor no alcanza un archivo de la Mac.
+    if (path === '/mock-bank' && req.method === 'GET') {
+        res.writeHead(200, { 'content-type': 'text/html; charset=utf-8', 'cache-control': 'no-store' });
+        return res.end(readFileSync(join(ROOT, 'mock-bank', 'index.html')));
+    }
     if (path === '/device-view' && req.method === 'GET') {
         res.writeHead(200, { 'content-type': 'text/html; charset=utf-8', 'cache-control': 'no-store' });
         return res.end(`<!doctype html><html lang="es"><head><meta charset="utf-8"><title>Celular</title>
@@ -1775,6 +1781,30 @@ connect();
                             .catch((e) => console.error('traspaso al cliente:', (e as Error).message.split('\n')[0]));
                     })();
                 });
+                // EL TRASPASO DE UN AGREGADOR (Meddipay, Sistecrédito…): no navega. Sobre el listado aparece un modal
+                // («el cliente debe continuar en su celular… <Entidad> ha enviado al cliente un enlace») y el cliente
+                // sigue en el portal de la entidad por el link de WhatsApp. Se mira el texto del asesor mientras está
+                // en `/lenders` y, al verlo, el celular del cliente abre el portal SIMULADO de esa entidad.
+                const openedAt = deviceOpenedAt('advisor');
+                let aggregatorDone = false;
+                const aggregatorPoll = setInterval(async () => {
+                    if (deviceOpenedAt('advisor') !== openedAt) { clearInterval(aggregatorPoll); return; }
+                    if (aggregatorDone || handedOff) return;
+                    const st = deviceState('advisor');
+                    if (!/\/lenders(?:[?#]|$)/.test(st.url ?? '')) return;
+                    const text = await deviceText('advisor');
+                    // El nombre: las palabras con MAYÚSCULA pegadas a «ha enviado» («Meddipay», «Sistecrédito»).
+                    const m = /([A-ZÁÉÍÓÚÑ][\wÁÉÍÓÚáéíóúÑñ-]*(?: [A-ZÁÉÍÓÚÑ][\wÁÉÍÓÚáéíóúÑñ-]*)*) ha enviado al cliente un enlace/.exec(text)
+                        || (/el cliente debe continuar el proceso en su celular/i.test(text) ? [text, ''] : null);
+                    if (!m) return;
+                    aggregatorDone = true;
+                    const lender = (m[1] || '').trim();
+                    const amount = String(b.order?.amount || '').replace(/\D/g, '') || '2000000';
+                    const link = `http://localhost:${PORT}/mock-bank?lender=${encodeURIComponent(lender || 'la entidad')}&monto=${amount}&comercio=${encodeURIComponent(slug)}`;
+                    await releaseDevice('client');
+                    await openDevice('client', link).catch((e) => console.error('traspaso del agregador:', (e as Error).message.split('\n')[0]));
+                    deviceNotes.set('client', `portal SIMULADO de ${lender || 'la entidad'}: el link que le llega al cliente por WhatsApp (en local no hay entidad real)`);
+                }, 2000);
                 return json(res, 200, { ok: true, hash, user: account, session: stored ? 'guardada' : signedIn ? 'entró y la guardó' : 'sin entrar', assigned, ...r });
             } catch (e) {
                 return json(res, 200, { ok: false, detail: `el celular del asesor no pudo abrir ${front}: ${(e as Error).message.split('\n')[0]}` });

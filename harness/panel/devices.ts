@@ -149,10 +149,11 @@ export async function openDevice(id: DeviceId, url: string, opts: {
     const d = await ENGINE[id]();
     await blockDevOverlays(d.context);
     if (autofill) {
-        // En un celular la tarjeta «harness» del autorrelleno tapa media pantalla: arranca PLEGADA (una píldora
-        // que se despliega con un clic). Su estado vive en `sessionStorage`; si ya lo tocaste, se respeta.
+        // En un celular la tarjeta «harness» del autorrelleno tapa la pantalla y su estado de BD no aplica (no hay
+        // una corrida que la alimente): arranca CERRADA. El autorrelleno sigue llenando igual; ⌥H la vuelve a
+        // abrir. Su estado vive en `sessionStorage`; si ya la abriste, se respeta.
         await d.context.addInitScript(() => {
-            try { if (!sessionStorage.getItem('__harness_card')) sessionStorage.setItem('__harness_card', JSON.stringify({ folded: true })); } catch { }
+            try { if (!sessionStorage.getItem('__harness_card')) sessionStorage.setItem('__harness_card', JSON.stringify({ closed: true })); } catch { }
         });
         await installAutofill(d.context, autofill);
     }
@@ -234,4 +235,15 @@ export function watchNavigation(id: DeviceId, onUrl: (url: string) => void): voi
 /** Lleva un celular a otra URL (para el rescate de F-220: seguir por el `callback` de la validación de identidad). */
 export async function deviceGoto(id: DeviceId, url: string): Promise<void> {
     await open.get(id)?.page.goto(url, { waitUntil: 'domcontentloaded', timeout: 60_000 });
+}
+
+/** El texto visible de la pantalla de un celular (para ver un modal que aparece sin navegar), o `''`. */
+export async function deviceText(id: DeviceId): Promise<string> {
+    const d = open.get(id);
+    return d ? await d.page.evaluate(() => document.body?.innerText ?? '').catch(() => '') : '';
+}
+
+/** Cuándo se abrió el celular (para saber si un vigilante sigue mirando al MISMO navegador). */
+export function deviceOpenedAt(id: DeviceId): number | null {
+    return open.get(id)?.openedAt ?? null;
 }

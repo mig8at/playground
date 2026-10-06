@@ -2710,6 +2710,7 @@
           const st = await (await fetch(`/api/device/${id}/state`)).json();
           $(chip).hidden = !(st.open && st.note);
           $(chip).title = st.note || '';
+          $(chip).textContent = /^portal/i.test(st.note || '') ? 'portal simulado' : 'identidad a mano';
         } catch { /* el panel no respondió */ }
       }
     }
