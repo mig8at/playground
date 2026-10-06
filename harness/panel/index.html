@@ -192,6 +192,80 @@
     /* ⚠ Chrome envuelve el contenido de un `<details>` en `::details-content`: sin esta regla el lienzo
        se queda en su alto de contenido (152 px) y el `flex: 1` no tiene a quién pedirle espacio. */
     .route-map::details-content { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column }
+    .map-view { display: flex; flex-direction: column; padding: var(--space-2) var(--space-3) }
+    .map-view > .empty { flex: 1 1 auto; display: flex; align-items: center; justify-content: center }
+
+    /* ═══ LOS DOS CELULARES ═══════════════════════════════════════════════════════════════════════
+       Asesor a la izquierda, cliente a la derecha: el alto lo pone el centro y el ancho sale de la
+       proporción de un teléfono, así que se achican juntos al mover las manijas. */
+    .devices { flex: 1 1 auto; min-height: 0; container-type: size; display: flex; justify-content: center; align-items: flex-start; gap: var(--space-6) }
+    .devices { --phone-share: 50cqw }
+    .devices[data-count="2"] { --phone-share: 50cqw }
+    .devices[data-count="3"] { --phone-share: 33.3cqw }
+    .devices[data-count="4"] { --phone-share: 25cqw }
+    .device[hidden] { display: none }
+    .device { margin: 0; flex: none; display: flex; flex-direction: column; align-items: center; gap: var(--space-2) }
+    .device-label { display: flex; align-items: center; gap: 6px; font-size: var(--text-sm); font-weight: 600; color: var(--fg-2) }
+    .device-frame {
+      /* El alto es el MENOR entre lo que deja el centro (menos el rótulo) y lo que permite el ancho
+         para dos teléfonos con su separación, y el ancho sale de la proporción. Va EXPLÍCITO y no con
+         `aspect-ratio`: el `<figure>` no contaba ese ancho, medía 63 px y los dos se pisaban. */
+      --phone-h: min(100cqh - 28px, (var(--phone-share) - var(--space-6)) * 19.5 / 9, 760px);
+      position: relative; box-sizing: border-box; height: var(--phone-h); width: calc(var(--phone-h) * 9 / 19.5);
+      border: 10px solid var(--muted); border-radius: 36px; background: var(--card);
+      box-shadow: 0 0 0 1px var(--border); overflow: hidden;
+    }
+    .device-notch { position: absolute; top: 0; left: 50%; translate: -50% 0; width: 34%; height: 18px; background: var(--muted); border-radius: 0 0 12px 12px; z-index: 1 }
+    .device-screen { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; overflow: auto }
+    /* En espera: la pantalla con un borde punteado por dentro y el `.spinner` compartido; deja de esperar cuando haya entidad elegida. */
+    .device.waiting .device-screen { margin: var(--space-3); border: 1px dashed var(--border); border-radius: 20px }
+    .device-wait { display: flex; flex-direction: column; align-items: center; gap: var(--space-2) }
+    /* ═══ LA TIENDA ═══ Un teléfono de 360 px escalado al marco: el diseño no depende del tamaño. */
+    .device-screen:has(> .phone-app:not([hidden])) { align-items: flex-start; justify-content: flex-start; overflow: hidden }
+    .device-screen:has(> .phone-app:not([hidden])) > .device-empty { display: none }
+    .phone-app {
+      --k: 1; width: 360px; height: calc(360px * 19.5 / 9); flex: none; transform-origin: 0 0; scale: var(--k);
+      position: relative; display: flex; flex-direction: column; background: var(--background); font-size: var(--text-body);
+    }
+    .phone-app[hidden] { display: none }
+    /* El cliente: los datos que llegaron, en filas de rótulo y valor. */
+    .client-head { display: flex; align-items: baseline; justify-content: space-between; gap: var(--space-2); padding: 28px var(--space-3) var(--space-2); border-bottom: 1px solid var(--border) }
+    .client-head span { color: var(--fg-3); font-size: var(--text-sm) }
+    .client-title { padding: var(--space-3) var(--space-3) var(--space-2); font-weight: 600 }
+    .client-data { margin: 0; padding: 0 var(--space-3); display: grid; grid-template-columns: auto 1fr; gap: 6px var(--space-3); overflow: auto }
+    .client-data dt { color: var(--fg-2) }
+    .client-data dd { margin: 0; text-align: right; overflow-wrap: anywhere }
+    .client-data dd.missing { color: var(--fg-3) }
+    .lender-pick { margin-top: auto; display: flex; flex-direction: column; gap: var(--space-2); padding: var(--space-3) var(--space-3) var(--space-6); border-top: 1px solid var(--border) }
+    .lender-pick .btn { width: 100% }
+    .device-screen:has(> .phone-app:not([hidden])) > .device-wait { display: none }
+    .device.waiting:has(.phone-app:not([hidden])) .device-screen { margin: 0; border: 0 }
+    .shop-head { display: flex; align-items: center; gap: var(--space-2); padding: 28px var(--space-3) var(--space-2); border-bottom: 1px solid var(--border) }
+    .shop-head strong { flex: 1 1 auto }
+    .shop-user {
+      position: absolute; top: 64px; right: var(--space-3); left: var(--space-3); z-index: 2;
+      display: flex; flex-direction: column; gap: var(--space-2); padding: var(--space-3);
+      background: var(--popover); color: var(--popover-foreground); border: 1px solid var(--border); border-radius: var(--radius);
+      box-shadow: 0 10px 30px #0008;
+    }
+    .shop-user[hidden] { display: none }
+    .shop-cart, .shop-order { display: flex; flex-direction: column; gap: var(--space-2); padding: var(--space-3); border-bottom: 1px solid var(--border) }
+    .shop-order { flex: 1 1 auto; overflow: auto }
+    .shop-title { font-weight: 600 }
+    .shop-item { display: flex; align-items: center; gap: var(--space-3) }
+    .shop-thumb { width: 48px; height: 48px; border-radius: var(--radius); background: var(--muted) }
+    .shop-item-name { font-weight: 600 }
+    .shop-item-sub { color: var(--fg-3) }
+    .shop-field { display: flex; flex-direction: column; gap: 4px; min-width: 0 }
+    .shop-field > span:first-child { color: var(--fg-2) }
+    .shop-row { display: flex; gap: var(--space-2) }
+    .shop-row > .shop-field:first-child { flex: 0 0 96px }
+    .shop-grow { flex: 1 1 auto }
+    .shop-foot { display: flex; flex-direction: column; gap: var(--space-2); padding: var(--space-3) var(--space-3) var(--space-6) }
+    .shop-total { display: flex; justify-content: space-between; align-items: baseline }
+    .shop-total strong { font-size: var(--text-title) }
+    .shop-pay { width: 100% }
+    .device-empty { margin: 0; padding: var(--space-3); font-size: var(--text-sm); color: var(--fg-3); text-align: center }
     #routeMapCanvas { position: relative; flex: 1 1 auto; min-height: 0; overflow: hidden }
     #routeMapSvg { display: block; width: 100%; height: 100%; cursor: grab; touch-action: none }
     #routeMapSvg.drag { cursor: grabbing }
@@ -479,18 +553,110 @@
           <!-- Los VALORES A TIPEAR (el OTP, el documento) que el runner va pasando durante la corrida.
                Sólo aparece cuando tiene algo. -->
           <div id="typing" class="typing"></div>
-          <details class="route-map" id="routeMap" open hidden>
-            <summary><span id="routeMapWarn"></span></summary>
-            <div id="routeMapCanvas">
-              <svg id="routeMapSvg" aria-label="Mapa del recorrido"><g id="routeMapCamera"></g></svg>
-            </div>
-          </details>
-          <div class="empty" id="stageEmpty">
-            <div class="empty-head">
-              <div class="empty-media"><span class="ui-icon" data-icon="channel" aria-hidden="true"></span></div>
-              <div class="empty-title">El recorrido aparece acá</div>
-              <div class="empty-desc">Elegí un comercio en la columna de la izquierda y el mapa dibuja sus carriles.</div>
-            </div>
+          <!-- LOS DOS CELULARES: el del asesor y el del cliente, lado a lado. Por ahora son el marco; el mapa
+               del recorrido se mudó a la pestaña «Mapa» de la consola para dejarles el centro. -->
+          <div class="devices" id="devices" data-count="3">
+            <!-- La tienda, sólo con los canales que entran por ella (ecommerce y auto): ahí el comprador
+                 empieza en el checkout del comercio antes de llegar al wizard. -->
+            <figure class="device" id="deviceStore" hidden>
+              <figcaption class="device-label"><span class="ui-icon" data-icon="merchant" aria-hidden="true"></span>Tienda</figcaption>
+              <div class="device-frame"><div class="device-notch"></div>
+                <div class="device-screen" id="screenStore">
+                  <!-- LA TIENDA: se dibuja a 360 px, como un teléfono de verdad, y se ESCALA al marco
+                       (`--k`, lo pone `fitStore`). Así se lee igual con el marco grande o chico. -->
+                  <div class="shop phone-app" id="shop">
+                    <header class="shop-head">
+                      <span class="ui-icon" data-icon="merchant" aria-hidden="true"></span>
+                      <strong id="shopName">Tienda demo</strong>
+                      <button type="button" class="region-action shop-user-btn" id="shopUserBtn" title="Datos del comprador" aria-label="Datos del comprador" aria-expanded="false"><span class="ui-icon" data-icon="more" aria-hidden="true"></span></button>
+                    </header>
+                    <!-- El comprador: lo que la tienda sabe de su cuenta. Se abre con los tres puntos. -->
+                    <section class="shop-user" id="shopUser" hidden aria-label="Datos del comprador">
+                      <div class="shop-title">Tu cuenta</div>
+                      <label class="shop-field"><span>Nombre</span><input class="input input-sm" id="shopFirstName" /></label>
+                      <label class="shop-field"><span>Apellido</span><input class="input input-sm" id="shopLastName" /></label>
+                      <label class="shop-field"><span>Fecha de nacimiento</span><input class="input input-sm" id="shopBirth" type="date" /></label>
+                      <label class="shop-field"><span>País</span>
+                        <span class="select"><select class="input input-sm" id="shopCountry">
+                          <option value="CO">Colombia</option><option value="DO">República Dominicana</option><option value="PE">Perú</option>
+                        </select></span></label>
+                      <button type="button" class="btn btn-secondary btn-sm" id="shopUserDone">Listo</button>
+                    </section>
+                    <section class="shop-cart" aria-label="Carrito">
+                      <div class="shop-item"><div class="shop-thumb" aria-hidden="true"></div><div><div class="shop-item-name">Smartphone Demo X</div><div class="shop-item-sub">1 unidad</div></div></div>
+                      <label class="shop-field shop-amount"><span>Monto a financiar</span>
+                        <span class="input-group input-group-sm"><span class="ico-txt">$</span><input class="input input-sm" id="shopAmount" type="text" inputmode="numeric" oninput="onMoney(this)" /></span></label>
+                    </section>
+                    <section class="shop-order" aria-label="Datos de la orden">
+                      <div class="shop-title">Datos para la orden</div>
+                      <div class="shop-row">
+                        <label class="shop-field"><span>Tipo</span>
+                          <span class="select"><select class="input input-sm" id="shopDocType"></select></span></label>
+                        <label class="shop-field shop-grow"><span>Número de documento</span><input class="input input-sm" id="shopDoc" inputmode="numeric" /></label>
+                      </div>
+                      <label class="shop-field"><span>Fecha de expedición</span><input class="input input-sm" id="shopExpedition" type="date" /></label>
+                      <label class="shop-field"><span>Celular</span><input class="input input-sm" id="shopPhone" inputmode="tel" /></label>
+                      <label class="shop-field"><span>Email</span><input class="input input-sm" id="shopEmail" type="email" /></label>
+                    </section>
+                    <footer class="shop-foot">
+                      <div class="shop-total"><span>Total</span><strong id="shopTotal">$0</strong></div>
+                      <button type="button" class="btn shop-pay" id="shopPay">Pagar con Creditop</button>
+                    </footer>
+                  </div>
+                </div>
+              </div>
+            </figure>
+            <figure class="device" id="deviceAdvisor">
+              <figcaption class="device-label"><span class="ui-icon" data-icon="server" aria-hidden="true"></span>Asesor</figcaption>
+              <div class="device-frame"><div class="device-notch"></div>
+                <div class="device-screen" id="screenAdvisor">
+                  <!-- El asesor: los datos del caso (el panel derecho) y la elección de la entidad. -->
+                  <div class="phone-app client-app" id="advisorApp">
+                    <header class="client-head"><strong>Asesor</strong><span id="advisorFrom"></span></header>
+                    <div class="client-title">Datos del cliente</div>
+                    <dl class="client-data" id="advisorData"></dl>
+                    <div class="lender-pick">
+                      <span class="select"><select class="input input-sm" id="advisorLenderSel" aria-label="Entidad"></select></span>
+                      <button type="button" class="btn btn-sm" id="advisorLenderGo">Elegir entidad</button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </figure>
+            <figure class="device" id="deviceClient">
+              <figcaption class="device-label"><span class="ui-icon" data-icon="channel" aria-hidden="true"></span>Cliente</figcaption>
+              <div class="device-frame"><div class="device-notch"></div>
+                <div class="device-screen" id="screenClient">
+                  <p class="device-empty" id="clientEmpty">El celular del cliente</p>
+                  <!-- Lo que le llegó al cliente desde la tienda al «Pagar con Creditop». Por ahora sólo los
+                       datos, tal como los mandó el pedido. -->
+                  <div class="phone-app client-app" id="clientApp" hidden>
+                    <header class="client-head"><strong>Creditop</strong><span id="clientFrom"></span></header>
+                    <div class="client-title">Llegaron estos datos</div>
+                    <dl class="client-data" id="clientData"></dl>
+                    <div class="lender-pick">
+                      <span class="select"><select class="input input-sm" id="clientLenderSel" aria-label="Entidad"></select></span>
+                      <button type="button" class="btn btn-sm" id="clientLenderGo">Elegir entidad</button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </figure>
+            <!-- La entidad: queda EN ESPERA hasta que la corrida elige una en el listado. -->
+            <figure class="device waiting" id="deviceLender">
+              <figcaption class="device-label"><span class="ui-icon" data-icon="clock" aria-hidden="true"></span>Entidad</figcaption>
+              <div class="device-frame"><div class="device-notch"></div>
+                <div class="device-screen" id="screenLender">
+                  <div class="device-wait" id="lenderWait"><span class="spinner" aria-hidden="true"></span><p class="device-empty">Esperando la entidad que se elija</p></div>
+                  <!-- La entidad elegida: lo que le llegó, y desde dónde (asesor o cliente). -->
+                  <div class="phone-app client-app" id="lenderApp" hidden>
+                    <header class="client-head"><strong id="lenderName"></strong><span id="lenderFrom"></span></header>
+                    <div class="client-title">Recibimos la solicitud</div>
+                    <dl class="client-data" id="lenderData"></dl>
+                  </div>
+                </div>
+              </div>
+            </figure>
           </div>
           <section class="last-result" id="lastResult" hidden aria-label="Última evidencia guardada"></section>
           <section class="alert alert-warn" id="webhookZone" style="display:none" role="status"></section>
@@ -684,6 +850,7 @@
         <button type="button" class="tab on" id="tabRun" role="tab" aria-selected="true" title="Lo que imprime el launcher de la corrida">Corrida</button>
         <button type="button" class="tab" id="tabSsr" role="tab" aria-selected="false" title="El stdout del wizard (SSR): sus llamadas salientes y sus errores">SSR</button>
         <button type="button" class="tab" id="tabMocks" role="tab" aria-selected="false" title="Los mocks locales que vigila el panel: si responden, quién los levantó y su salida">Mocks</button>
+        <button type="button" class="tab" id="tabMap" role="tab" aria-selected="false" title="El mapa del recorrido del comercio: sus carriles y dónde va la corrida">Mapa</button>
         <div class="region-actions" role="group" aria-label="Acciones de consola">
           <span id="consoleFilterState" class="count filtered" hidden>Filtrada</span>
           <button type="button" class="region-action" id="copyLog" title="Copiar ambas consolas completas" aria-label="Copiar ambas consolas completas"><span class="ui-icon" data-icon="copy" aria-hidden="true"></span></button>
@@ -709,6 +876,22 @@
             <tbody id="mockRows"></tbody>
           </table>
           <div id="mockLog" class="log-lines mock-log" role="log" hidden></div>
+        </div>
+        <!-- El mapa del recorrido (antes ocupaba el centro). Se encuadra solo al mostrarse. -->
+        <div id="mapScroll" class="region-body map-view" style="display:none">
+            <details class="route-map" id="routeMap" open hidden>
+              <summary><span id="routeMapWarn"></span></summary>
+              <div id="routeMapCanvas">
+                <svg id="routeMapSvg" aria-label="Mapa del recorrido"><g id="routeMapCamera"></g></svg>
+              </div>
+            </details>
+            <div class="empty" id="stageEmpty">
+              <div class="empty-head">
+                <div class="empty-media"><span class="ui-icon" data-icon="channel" aria-hidden="true"></span></div>
+                <div class="empty-title">El recorrido aparece acá</div>
+                <div class="empty-desc">Elegí un comercio en la columna de la izquierda y el mapa dibuja sus carriles.</div>
+              </div>
+            </div>
         </div>
       </div>
     </section>
@@ -1333,6 +1516,7 @@
         mockPA = r.mockPA !== false;   // lo decide E2E_REAL_PREAPPROVALS por target, no el panel
         applyMockPAGate();             // con MS real "Espera pre-aprobados" no aplica → se oculta (como los estados por lender)
         merchantLenders = ls;   // el mapa de tren dibuja los ramales según el rt de estos
+        fillLenderPickers(); renderAdvisor();   // los celulares eligen entre estas
         loadChannels();             // qué canales de entrada aplican a ESTA sucursal (no bloquea el render)
         renderTrain();
         loadStatus();
@@ -2281,7 +2465,126 @@
     }
     let isCorbeta = false;
 
+    // ── La tienda del celular «Tienda» ─────────────────────────────────────────────────────────────
+    // Por ahora es el DISEÑO: se prellena con el caso del sidebar al mostrarse y se edita ahí mismo;
+    // todavía no arma el pedido ni lanza nada.
+    const SHOP_DOC_TYPES = { CO: ['CC', 'CE', 'PEP'], DO: ['Cédula', 'Pasaporte'], PE: ['DNI', 'CE'] };
+    function fillShopDocTypes(keep) {
+      const sel = $('shopDocType'), types = SHOP_DOC_TYPES[$('shopCountry').value] || SHOP_DOC_TYPES.CO;
+      sel.replaceChildren(...types.map((t) => new Option(t, t)));
+      if (keep && types.includes(keep)) sel.value = keep;
+    }
+    function updateShopTotal() { $('shopTotal').textContent = '$' + ($('shopAmount').value || '0'); }
+    let shopFilled = false;
+    function fillShopFromCase() {
+      if (shopFilled) return;
+      shopFilled = true;
+      const full = ($('name')?.value || $('name')?.placeholder || '').trim().split(/\s+/).filter(Boolean);
+      $('shopFirstName').value = full[0] || '';
+      $('shopLastName').value = full.slice(1).join(' ');
+      $('shopBirth').value = $('dob')?.value || '';
+      $('shopAmount').value = $('amount')?.value || '';
+      fillShopDocTypes(document.querySelector('#doctype .on')?.textContent?.trim());
+      $('shopDoc').value = $('document')?.value || '';
+      $('shopExpedition').value = $('expedition')?.value || '';
+      $('shopPhone').value = $('phone')?.textContent?.trim() || '';
+      $('shopEmail').value = $('email')?.value || '';
+      $('shopName').textContent = (sel && sel.name) || 'Tienda demo';
+      updateShopTotal();
+    }
+    // Cada pantalla de 360 px se escala al ancho de su marco.
+    function fitShop() {
+      for (const app of document.querySelectorAll('.phone-app')) {
+        const box = app.parentElement;
+        if (box && box.clientWidth) app.style.setProperty('--k', String(box.clientWidth / 360));
+      }
+    }
+    // Una lista de rótulo → valor en un <dl>; el vacío se marca «no llegó».
+    function renderData(dl, rows) {
+      dl.replaceChildren(...rows.flatMap(([k, val]) => {
+        const dt = document.createElement('dt'); dt.textContent = k;
+        const dd = document.createElement('dd'); dd.textContent = val || 'no llegó';
+        if (!val) dd.classList.add('missing');
+        return [dt, dd];
+      }));
+    }
+    // Lo que sabe el asesor: el caso del panel derecho.
+    function advisorRows() {
+      const full = ($('name')?.value || $('name')?.placeholder || '').trim();
+      return [
+        ['Monto', '$' + ($('amount')?.value || '0')], ['Nombre', full],
+        ['Nacimiento', $('dob')?.value || ''],
+        ['Documento', [document.querySelector('#doctype .on')?.textContent?.trim(), $('document')?.value].filter(Boolean).join(' ')],
+        ['Expedición', $('expedition')?.value || ''], ['Celular', $('phone')?.textContent?.trim() || ''],
+        ['Email', $('email')?.value || ''],
+      ];
+    }
+    function renderAdvisor() {
+      $('advisorFrom').textContent = sel ? (sel.alias || sel.name || '') : '';
+      renderData($('advisorData'), advisorRows());
+    }
+    // Las entidades del comercio en los dos selectores; sin comercio, una de ejemplo.
+    function fillLenderPickers() {
+      const ls = (typeof merchantLenders !== 'undefined' && merchantLenders.length) ? merchantLenders : [{ id: 0, name: 'Entidad demo' }];
+      for (const id of ['advisorLenderSel', 'clientLenderSel']) {
+        $(id).replaceChildren(...ls.map((l) => new Option(`${l.name}${l.id ? ' #' + l.id : ''}`, String(l.id))));
+      }
+    }
+    // Elegir la entidad: sale de la espera y recibe los datos de quien la eligió.
+    let clientRows = [];
+    function sendToLender(who) {
+      const pick = $(who + 'LenderSel').selectedOptions[0];
+      $('lenderName').textContent = pick ? pick.textContent : 'Entidad';
+      $('lenderFrom').textContent = 'desde ' + (who === 'advisor' ? 'el asesor' : 'el cliente');
+      renderData($('lenderData'), who === 'advisor' ? advisorRows() : clientRows);
+      $('lenderApp').hidden = false;
+      requestAnimationFrame(fitShop);
+    }
+    $('advisorLenderGo').addEventListener('click', () => sendToLender('advisor'));
+    $('clientLenderGo').addEventListener('click', () => sendToLender('client'));
+    // El celular del asesor sigue al caso: cualquier cambio en el panel derecho lo repinta.
+    for (const ev of ['input', 'click']) $('sideRight').addEventListener(ev, () => requestAnimationFrame(renderAdvisor));
+    renderAdvisor(); fillLenderPickers();
+
+    // «Pagar con Creditop»: la tienda le pasa el pedido al celular del cliente, que por ahora sólo
+    // muestra lo que le llegó.
+    function payWithCreditop() {
+      const v = (id) => $(id).value.trim();
+      const countryName = $('shopCountry').selectedOptions[0]?.textContent || '';
+      const rows = [
+        ['Monto', '$' + (v('shopAmount') || '0')],
+        ['Nombre', v('shopFirstName')], ['Apellido', v('shopLastName')],
+        ['Nacimiento', v('shopBirth')], ['País', countryName],
+        ['Documento', [v('shopDocType'), v('shopDoc')].filter(Boolean).join(' ')],
+        ['Expedición', v('shopExpedition')], ['Celular', v('shopPhone')], ['Email', v('shopEmail')],
+      ];
+      clientRows = rows;
+      renderData($('clientData'), rows);
+      fillLenderPickers();
+      $('clientFrom').textContent = 'desde ' + $('shopName').textContent;
+      $('clientApp').hidden = false;
+      requestAnimationFrame(fitShop);
+    }
+    $('shopPay').addEventListener('click', payWithCreditop);
+    $('shopCountry').addEventListener('change', () => fillShopDocTypes($('shopDocType').value));
+    $('shopAmount').addEventListener('input', updateShopTotal);
+    const toggleShopUser = (open) => { $('shopUser').hidden = !open; $('shopUserBtn').setAttribute('aria-expanded', String(open)); };
+    $('shopUserBtn').addEventListener('click', () => toggleShopUser($('shopUser').hidden));
+    $('shopUserDone').addEventListener('click', () => toggleShopUser(false));
+    if ('ResizeObserver' in window) {
+      const ro = new ResizeObserver(fitShop);
+      for (const id of ['screenStore', 'screenClient', 'screenAdvisor', 'screenLender']) ro.observe($(id));
+    }
+
     function applyChannel() {
+      // El celular de la tienda sólo existe en los canales que entran por ella.
+      // Y el del asesor, sólo donde hay asesor: por la tienda y en la autogestión el cliente va solo.
+      const viaStore = channel === 'ecommerce' || channel === 'auto';
+      const noAdvisor = viaStore || channel === 'autogestion';
+      $('deviceStore').hidden = !viaStore;
+      $('deviceAdvisor').hidden = noAdvisor;
+      $('devices').dataset.count = String(document.querySelectorAll('.device:not([hidden])').length);
+      if (viaStore) { fillShopFromCase(); requestAnimationFrame(fitShop); }
       document.querySelectorAll('#channelOptions button').forEach(b => {
         b.classList.toggle('on', b.dataset.c === channel);
         // Un canal que no aplica se deshabilita, no se esconde: verlo apagado dice que existe y que acá
@@ -2675,6 +2978,7 @@
       $('logScroll').style.display = on && tab === 'corrida' ? '' : 'none';
       $('logSsrScroll').style.display = on && tab === 'ssr' ? '' : 'none';
       $('mocksScroll').style.display = on && tab === 'mocks' ? '' : 'none';
+      $('mapScroll').style.display = on && tab === 'mapa' ? '' : 'none';
       // (el botón de plegar se quitó: la consola es una ZONA fija del layout, no una tarjeta que
       //  compita por alto con lo de arriba. `showLog` se queda: lo llaman el arranque y las corridas.)
     }
@@ -2824,7 +3128,7 @@
       } catch { /* el panel sigue andando sin esto */ }
     }
 
-    const CONSOLE_TABS = [['tabRun', 'corrida'], ['tabSsr', 'ssr'], ['tabMocks', 'mocks']];
+    const CONSOLE_TABS = [['tabRun', 'corrida'], ['tabSsr', 'ssr'], ['tabMocks', 'mocks'], ['tabMap', 'mapa']];
     function consoleTab() {
       return (CONSOLE_TABS.find(([id]) => $(id).classList.contains('on')) || CONSOLE_TABS[0])[1];
     }
@@ -2842,12 +3146,15 @@
       // Los mocks se consultan sólo mientras la pestaña está a la vista: cada consulta prueba 19 puertos.
       if (mocksPoll) { clearInterval(mocksPoll); mocksPoll = null; }
       if (tab === 'mocks') { tickMocks(); mocksPoll = setInterval(tickMocks, 3000); }
+      // Oculto, el mapa no tiene caja: se encuadra recién cuando se lo mira.
+      if (tab === 'mapa') requestAnimationFrame(() => { try { frame(); } catch { } });
       routeChanged();
     }
 
     $('tabRun').onclick = () => showTab('corrida');
     $('tabSsr').onclick = () => showTab('ssr');
     $('tabMocks').onclick = () => showTab('mocks');
+    $('tabMap').onclick = () => showTab('mapa');
 
     // ── Mocks: la vista del supervisor (`panel/mocks.ts`) ─────────────────────────────────────────
     // El panel es el DUEÑO de los mocks locales: al arrancar levanta los que falten y adopta los que ya
@@ -4089,7 +4396,7 @@ export function bindMenu(trigger, { getItems, onSelect, label = 'Más opciones' 
       document.getElementById('consoleMenu').classList.toggle('has-options', filtered);
       consoleOptions.refresh();
     }
-    for (const id of ['tabRun', 'tabSsr', 'tabMocks']) document.getElementById(id).addEventListener('click', reflectConsoleFilter);
+    for (const id of ['tabRun', 'tabSsr', 'tabMocks', 'tabMap']) document.getElementById(id).addEventListener('click', reflectConsoleFilter);
     reflectConsoleFilter();
 
     // ══ RUTA Y PREFERENCIAS ═══════════════════════════════════════════════════════════════════════
@@ -4173,8 +4480,8 @@ export function bindMenu(trigger, { getItems, onSelect, label = 'Más opciones' 
           if (currentView() !== wantedView) showAuxView(wantedView);
 
           // La consola por su pestaña real: el rótulo «Filtrada» escucha ese click.
-          const wantedConsole = ['ssr', 'mocks'].includes(params.get('consola')) ? params.get('consola') : 'corrida';
-          if (currentConsole() !== wantedConsole) byId({ ssr: 'tabSsr', mocks: 'tabMocks' }[wantedConsole] || 'tabRun').click();
+          const wantedConsole = ['ssr', 'mocks', 'mapa'].includes(params.get('consola')) ? params.get('consola') : 'corrida';
+          if (currentConsole() !== wantedConsole) byId({ ssr: 'tabSsr', mocks: 'tabMocks', mapa: 'tabMap' }[wantedConsole] || 'tabRun').click();
         } finally {
           if (seq === routeSeq) { restoring = false; syncRoute({ replace: true }); }
         }
