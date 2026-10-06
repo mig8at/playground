@@ -217,7 +217,7 @@
       border: 10px solid var(--muted); border-radius: 36px; background: var(--card);
       box-shadow: 0 0 0 1px var(--border); overflow: hidden;
     }
-    .device-notch { position: absolute; top: 0; left: 50%; translate: -50% 0; width: 34%; height: 18px; background: var(--muted); border-radius: 0 0 12px 12px; z-index: 1 }
+    .device-notch { position: absolute; top: 0; left: 50%; translate: -50% 0; width: 34%; height: 18px; background: var(--muted); border-radius: 0 0 12px 12px; z-index: 4 }
     .device-screen { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; overflow: auto }
     /* En espera: la pantalla con un borde punteado por dentro y el `.spinner` compartido; deja de esperar cuando haya entidad elegida. */
     /* ═══ LA TIENDA ═══ Un teléfono de 360 px escalado al marco: el diseño no depende del tamaño. */
@@ -622,14 +622,9 @@
                 <button type="button" class="region-action" id="advisorClose" hidden title="Cerrar el navegador del asesor" aria-label="Cerrar el navegador del asesor"><span class="ui-icon" data-icon="close" aria-hidden="true"></span></button></figcaption>
               <div class="device-frame"><div class="device-notch"></div>
                 <div class="device-screen" id="screenAdvisor">
-                  <!-- El asesor: los datos del caso (el panel derecho) y, al abrirlo, su navegador REAL con el wizard
-                       del comercio (`panel/devices.ts`), con la sesión de Cognito del conector si la hay. -->
-                  <div class="phone-app client-app" id="advisorApp">
-                    <header class="client-head"><strong>Asesor</strong><span id="advisorFrom"></span></header>
-                    <div class="client-title">Datos del cliente</div>
-                    <dl class="client-data" id="advisorData"></dl>
-                    <div class="device-open"><button type="button" class="btn btn-sm" id="advisorOpen">Abrir el wizard del asesor</button></div>
-                  </div>
+                  <!-- El asesor: su navegador REAL con el wizard del comercio (`panel/devices.ts`), entrando como el
+                       asesor de prueba del comercio. Se abre con el ▶ de un comercio en la barra izquierda. -->
+                  <p class="device-empty" id="advisorIdle">Dale ▶ a un comercio para entrar como su asesor</p>
                   <iframe class="device-live device-vnc" id="advisorVnc" title="Celular del asesor" hidden></iframe>
                   <div class="device-status" id="advisorStatus" hidden role="status">
                     <span class="spinner" id="advisorSpinner" aria-hidden="true"></span>
@@ -1212,6 +1207,7 @@
         const acc = document.createElement('div');
         acc.className = 'row-actions';
         const label = e.alias || e.name;
+        acc.appendChild(rowAction('play', `Entrar a «${label}» como su asesor`, () => playMerchant(e)));
         acc.appendChild(rowAction('edit', `Renombrar «${label}»`, () => renameFav(e)));
         if (e.fav) acc.appendChild(rowAction('close', `Quitar «${label}» de tu espacio`, () => removeFav(e)));
         rowEl.appendChild(acc);
@@ -1527,7 +1523,6 @@
         mockPA = r.mockPA !== false;   // lo decide E2E_REAL_PREAPPROVALS por target, no el panel
         applyMockPAGate();             // con MS real "Espera pre-aprobados" no aplica → se oculta (como los estados por lender)
         merchantLenders = ls;   // el mapa de tren dibuja los ramales según el rt de estos
-        renderAdvisor();
         loadChannels();             // qué canales de entrada aplican a ESTA sucursal (no bloquea el render)
         renderTrain();
         loadStatus();
@@ -2462,6 +2457,7 @@
         // Respuesta tardía de otro comercio: aplicarla le pondría a éste la sugerencia y los canales del anterior.
         if (!sel || sel.slug !== askedSlug || target !== askedTarget) return;
         channelsOk = Array.isArray(r.canales) ? r.canales : null;
+        channelsFor = askedSlug;
         autoMotivo = r.autoMotivo || '';
         // El servidor sugiere el canal según el comercio (autogestión si tiene el flag). Se aplica UNA
         // vez por comercio: si ya tocaste los botones, tu elección manda — un default que te pisa la
@@ -2542,7 +2538,7 @@
       $('shopTotal').textContent = '$' + (c.amount || '0');
       $('shopName').textContent = (sel && (sel.alias || sel.name)) || 'Tienda demo';
     }
-    function renderCaseViews() { renderShop(); renderAdvisor(); }
+    function renderCaseViews() { renderShop(); }
     // Cada pantalla de 360 px se escala al ancho de su marco.
     function fitShop() {
       for (const app of document.querySelectorAll('.phone-app')) {
@@ -2559,23 +2555,8 @@
         return [dt, dd];
       }));
     }
-    // Lo que sabe el asesor: el caso del panel derecho.
-    // Lo que sabe el asesor: el caso, igual que la tienda.
-    function advisorRows() {
-      const c = caseStore.read();
-      return [
-        ['Monto', '$' + (c.amount || '0')], ['Nombre', [c.firstName, c.lastName].filter(Boolean).join(' ')],
-        ['Nacimiento', c.birth], ['Documento', [c.docType, c.doc].filter(Boolean).join(' ')],
-        ['Expedición', c.expedition], ['Celular', c.phone], ['Email', c.email],
-      ];
-    }
-    function renderAdvisor() {
-      $('advisorFrom').textContent = sel ? (sel.alias || sel.name || '') : '';
-      renderData($('advisorData'), advisorRows());
-    }
-    // El celular del asesor sigue al caso: cualquier cambio en el panel derecho lo repinta.
+    // La tienda sigue al caso: cualquier cambio en el panel derecho la repinta.
     for (const ev of ['input', 'change', 'click']) $('sideRight').addEventListener(ev, () => requestAnimationFrame(renderCaseViews));
-    renderAdvisor();
 
     // «Pagar con Creditop»: la tienda le pasa el pedido al celular del cliente, que por ahora sólo
     // muestra lo que le llegó.
@@ -2645,9 +2626,11 @@
       }
     }
     // ── El navegador real del asesor ──────────────────────────────────────────────────────────────
-    // `idle` = la vista de los datos del caso con el botón; `loading` = abriendo; `live` = su noVNC.
+    // `idle` = la invitación a darle ▶ a un comercio; `loading` = abriendo; `live` = su noVNC.
+    let advisorTicker = null;
     function setAdvisorMode(mode, text = '', view = '') {
-      $('advisorApp').hidden = mode !== 'idle';
+      $('advisorIdle').hidden = mode !== 'idle';
+      if (advisorTicker) { clearInterval(advisorTicker); advisorTicker = null; }
       $('advisorVnc').hidden = mode !== 'live';
       if (mode !== 'live') $('advisorVnc').removeAttribute('src');
       else if ($('advisorVnc').getAttribute('src') !== view) $('advisorVnc').src = view;
@@ -2655,12 +2638,18 @@
       $('advisorSpinner').hidden = mode !== 'loading';
       $('advisorStatusText').textContent = text;
       $('advisorClose').hidden = mode === 'idle';
-      $('advisorOpen').disabled = mode === 'loading';
       requestAnimationFrame(fitShop);
     }
     async function openAdvisorBrowser() {
       if (!sel) return;
-      setAdvisorMode('loading', 'Abriendo el wizard del asesor… (la primera vez levanta su contenedor)');
+      setAdvisorMode('loading', ADVISOR_STEPS[0]);
+      // La espera tiene pasos que el panel no ve (levantar el contenedor, entrar, asignar): se cuentan en orden
+      // para que se lea que avanza; el último se queda hasta que llega la pantalla.
+      let stepAt = 0;
+      advisorTicker = setInterval(() => {
+        stepAt = Math.min(stepAt + 1, ADVISOR_STEPS.length - 1);
+        $('advisorStatusText').textContent = ADVISOR_STEPS[stepAt];
+      }, 4000);
       try {
         const r = await (await fetch('/api/device/advisor/open', {
           method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ slug: sel.slug, target }),
@@ -2672,7 +2661,30 @@
         setAdvisorMode('status', 'El panel no respondió: ' + e.message);
       }
     }
-    $('advisorOpen').addEventListener('click', openAdvisorBrowser);
+    const ADVISOR_STEPS = [
+      'Levantando el celular del asesor…',
+      'Entrando como el asesor de prueba del comercio…',
+      'Asignándolo a la sucursal…',
+      'Abriendo la pantalla de monto…',
+    ];
+
+    // ── ▶ de un comercio: elegirlo y entrar como su asesor ──────────────────────────────────────────
+    // Elige el comercio (si no era el elegido), pasa al canal Asesor y abre el celular del asesor ya en la
+    // pantalla de monto. Si el comercio no admite el canal Asesor (Corbeta = QR), lo dice en el celular.
+    let channelsFor = null;   // el comercio cuyos canales ya respondió el servidor
+    async function playMerchant(e) {
+      if (runRunning) return;
+      const same = sel && (sel.slug === e.slug || (e.hash && sel.slug === e.hash));
+      if (!same) chooseEntry(e);
+      setAdvisorMode('loading', ADVISOR_STEPS[0]);
+      for (let i = 0; i < 40 && channelsFor !== sel?.slug; i++) await new Promise((r) => setTimeout(r, 250));
+      if (channelsOk && !channelsOk.includes('asesor')) {
+        return setAdvisorMode('status', 'Este comercio no tiene canal Asesor (en Corbeta se entra por el QR de la caja).');
+      }
+      const asesor = document.querySelector('#channelOptions button[data-c="asesor"]');
+      if (channel !== 'asesor' && asesor && !asesor.disabled) asesor.click();
+      openAdvisorBrowser();
+    }
     $('advisorClose').addEventListener('click', () => { fetch('/api/device/advisor/close', { method: 'POST' }).catch(() => { }); setAdvisorMode('idle'); });
     $('advisorVnc').addEventListener('mouseenter', () => { try { $('advisorVnc').contentWindow?.focus(); } catch { } });
 
