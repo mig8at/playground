@@ -1,7 +1,7 @@
 ---
 id: 98
 title: "Sucursal y asesor de prueba al crear un comercio"
-ramas: feat/usuario-y-sucursal-de-prueba-al-crear-comercio, feat/asesor-de-prueba-marca-is-test, fix/timeout-validacion-correo, feat/permiso-pool-merchants-dev
+ramas: feat/usuario-y-sucursal-de-prueba-al-crear-comercio, feat/asesor-de-prueba-marca-is-test, fix/timeout-validacion-correo, feat/permiso-pool-merchants-dev, fix/timeout-validacion-correo-main, fix/region-cognito-comercios-por-defecto
 stage: work
 created: "2026-10-01T10:48:29-05:00"
 knowledge: [merchant-onboarding]
@@ -26,10 +26,20 @@ jira_title: "Sucursal y asesor de prueba al crear un comercio"
   vuelta deja el secret en su versión anterior, con el servicio estable.
 - [x] Pasar qa y el wizard desplegado de dev a Merchants Dev y dejarlos así (2026-10-05, decisión de Miguel tras la prueba con
   Duncan en qa): el login de los dos ya no es el del pool de producción.
+- [ ] Pasar el login de asesor del harness en local al asesor de prueba: el wizard local (:5174) ya va a Merchants
+  Dev y el conector sigue entrando con `a.arismendy`, que vive en el pool viejo (el login abre el formulario y no
+  entra). Son cuatro piezas: `ADVISOR_USER/PASS` de `connectors/.env.local` y `.env.dev` al asesor de prueba del
+  comercio 94, con la clave compartida que hoy está en `harness/.env.local` y `.env.dev`; la fila de ese asesor en
+  la base local con su `cognito_id` (hoy no está, y los `c…-fake@` locales lo tienen vacío); el `sub` que usa
+  `bin/advisor` para asignar la sucursal (`.flows.json` → `asesor.sub`); y el aviso del panel, que todavía manda a
+  revisar `.env.local`. Termina cuando `bin/pg advisor status --target local` dice que la sesión sirve y una
+  corrida del canal asesor en local entra a `/merchant`. Depende de: VPN de dev — leer el asesor del comercio 94.
 - [ ] Esperar la respuesta de infra en [CORE-682](jira:CORE-682) (tarea en el sprint activo del board de CORE, asignada a Daniel, creada el 2026-10-05; antes se le mandó el resumen por mensaje directo):
   el `terraform apply` de los secrets de dev y qa, staging, y en prod el permiso de IAM y las claves nuevas. La clave
   `MERCHANT_AWS_COGNITO_USER_POOL_ID` de prod se agrega solo el día de la prueba, porque es el interruptor.
   Depende de: Daniel Sánchez (infra) — responder; Miguel — pasarle por privado la clave propia de prod.
+- [ ] Conseguir la revisión y el merge de los dos PRs de prod: [#258](https://github.com/Creditop-SAS/legacy-application/pull/258) (la región del pool cae a la de AWS) a develop y [#5](https://github.com/Creditop-SAS/cognito-pre-sign-up/pull/5) (margen de espera del lambda) a main; el del lambda llega a prod solo con un tag. Termina cuando están mergeados y infra confirma el despliegue del lambda.
+  Depende de: Daniel Sánchez (infra) — confirmar que `AWS_DEFAULT_REGION` en prod vale us-east-2 y decidir el despliegue del lambda.
 - [ ] Decidir si staging también pasa a Merchants Dev; termina cuando hay respuesta y, si es que sí, el cambio hecho con los mismos
   scripts (los scripts de staging ya están escritos, falta correr `create-client`, `switch` y la marca).
   Depende de: Miguel — la pregunta que está haciendo.
