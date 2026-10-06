@@ -34,7 +34,7 @@ case "${1:-start}" in
     for _ in $(seq 1 25); do up && { echo "✓ mock-financial-health :$PORT"; exit 0; }; sleep 0.3; done
     echo "✗ no levantó"; tail -8 "$LOG" 2>/dev/null; exit 1;;
   stop)
-    if up && is_ours; then lsof -ti:"$PORT" 2>/dev/null | xargs kill -9 2>/dev/null && echo "⏹ detenido (:$PORT)"; else echo "no estaba corriendo (o :$PORT es de otro proceso — no lo mato)"; fi;;
+    if up && is_ours; then lsof -sTCP:LISTEN -ti:"$PORT" 2>/dev/null | xargs kill -9 2>/dev/null && echo "⏹ detenido (:$PORT)"; else echo "no estaba corriendo (o :$PORT es de otro proceso — no lo mato)"; fi;;
   status)
     if up; then if is_ours; then curl -s --max-time 2 "http://localhost:$PORT" 2>/dev/null; echo ""; else echo "⚠ :$PORT ocupado por OTRO proceso"; fi; else echo "○ off (:$PORT)"; fi;;
   logs)

@@ -450,7 +450,7 @@ esac
 WANT="${WIZ_API}|${PREAPPROVALS}|${FRONT}"
 MARKER=/tmp/asesor-wizard.api
 if [ "$UP" = 1 ] && [ "$FRESH" = 0 ]; then
-  LISTEN_PID="$(lsof -ti:5174 2>/dev/null | head -1)"
+  LISTEN_PID="$(lsof -sTCP:LISTEN -ti:5174 2>/dev/null | head -1)"
   # (1) ¿ES EL MISMO PROCESO que lanzó bin/advisor? El marker guarda dos líneas: el PID que quedó
   #     escuchando y el WANT con el que se lanzó. Sólo vale si el PID coincide con el que escucha HOY:
   #     el formato viejo (una línea) describía el proceso lanzado, no el que corre, y por eso mintió.
@@ -538,7 +538,7 @@ if [ "$UP" = 1 ] && [ "$FRESH" = 0 ]; then
 else
   if [ "$UP" = 1 ]; then
     log "reinicio el wizard en :5174 (limpio contra ${TARGET})…"
-    lsof -ti:5174 2>/dev/null | xargs kill -9 2>/dev/null || true
+    lsof -sTCP:LISTEN -ti:5174 2>/dev/null | xargs kill -9 2>/dev/null || true
     for _ in $(seq 1 10); do curl -s -o /dev/null --max-time 1 http://localhost:5174 2>/dev/null || break; done
   fi
   MOVED=0
@@ -589,13 +589,13 @@ else
   BOOT_CWD="$(lsof -a -p "${BOOT_PID:-0}" -d cwd -Fn 2>/dev/null | sed -n 's/^n//p' | head -1)"
   if [ -n "$BOOT_CWD" ] && [ "$BOOT_CWD" != "$WIZARD" ]; then
     ok "frontend" "✗ :5174 lo tomó otro wizard (pid ${BOOT_PID} · ${BOOT_CWD}), no ${WIZARD}"
-    echo "    otro arranque ganó el puerto mientras éste compilaba. Volvé a lanzar; si se repite: lsof -ti:5174"
+    echo "    otro arranque ganó el puerto mientras éste compilaba. Volvé a lanzar; si se repite: lsof -sTCP:LISTEN -ti:5174"
     restore_envlocal; exit 1
   fi
   # NO restaurar el .env.local acá (Vite hot-reloadearía sus valores fake y rompe el flujo). El trap EXIT lo restaura al final.
   # El marker queda atado al PID que escucha: así la próxima corrida sabe si el proceso sigue siendo éste
   # o alguien lo reinició a mano (ver las cuatro comprobaciones de arriba).
-  printf '%s\n%s' "$(lsof -ti:5174 2>/dev/null | head -1)" "$WANT" > "$MARKER" 2>/dev/null || true
+  printf '%s\n%s' "$(lsof -sTCP:LISTEN -ti:5174 2>/dev/null | head -1)" "$WANT" > "$MARKER" 2>/dev/null || true
   ok "frontend" "arriba (:5174 → ${TARGET} · ${WIZ_API} · forms ${FORMS##*//} · boot ~${boot}s)"
 fi
 fi

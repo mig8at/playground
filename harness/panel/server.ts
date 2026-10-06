@@ -14,7 +14,7 @@ import { readFileSync, existsSync, writeFileSync, readdirSync, statSync, mkdirSy
 import { fileURLToPath } from 'node:url';
 import { dirname, resolve, join } from 'node:path';
 import { MockSupervisor, MOCKS as MOCK_REGISTRY } from './mocks.ts';
-import { openDevice, deviceState, deviceShot, closeDevice, closeAllDevices, type DeviceId } from './devices.ts';
+import { openDevice, openDevices, deviceState, deviceShot, deviceInput, closeDevice, closeAllDevices, type DeviceId, type DeviceInput } from './devices.ts';
 import { homedir } from 'node:os';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
@@ -696,6 +696,8 @@ async function launch(slug: string, profile: Profile, target: string, inject: bo
     // la corrida bajaba el :5174, el precalentado lo volvía a tomar con OTRA carpeta, y Vite mandaba el
     // de la corrida a :5176 sin fallar (2026-10-06: el auto-onboarding corrió sobre el front de main).
     for (let i = 0; prebooting && i < 600; i++) await new Promise((r) => setTimeout(r, 500));
+    // La corrida puede reiniciar el wizard de :5174: un celular abierto quedaría con la página cortada.
+    for (const id of openDevices()) await closeDevice(id);
     const amt = amount > 0 ? Math.round(amount) : 2_000_000; // monto solicitado (default 2M)
     const mode = inject ? 'manual + inyección de buró' : 'manual REAL (consulta buró real, sin inyección)';
     const jump = step === 'monto' ? '' : ` · salto → ${step}`;
@@ -1486,11 +1488,37 @@ const server = createServer(async (req, res) => {
     // Existe porque el cold-boot se pagaba DENTRO de la corrida (304s medidos el 2026-08-19 contra ~11s
     // con el wizard tibio). NO escribe en RUN_LOG: no es una corrida, y ensuciaría la consola de la
     // última. Uno a la vez, y nunca durante una corrida (reiniciaría el :5174 que la corrida usa).
+    // ── El visor de un celular con motor Selenium ─────────────────────────────────────────────────────
+    // La librería de noVNC sale del contenedor (`/novnc/*` → :7900) para servirla desde ESTE origen: así
+    // el panel arma su propio visor mínimo —sólo la pantalla, escalada al marco— sin las barras de noVNC.
+    if (path.startsWith('/novnc/') && req.method === 'GET') {
+        const upstream = 'http://127.0.0.1:7900/' + path.slice('/novnc/'.length).replace(/\.\.+/g, '');
+        return get(upstream, (up) => {
+            res.writeHead(up.statusCode || 502, { 'content-type': up.headers['content-type'] || 'application/octet-stream', 'cache-control': 'no-store' });
+            up.pipe(res);
+        }).on('error', () => { res.writeHead(502); res.end(); });
+    }
+    if (path === '/device-view' && req.method === 'GET') {
+        res.writeHead(200, { 'content-type': 'text/html; charset=utf-8', 'cache-control': 'no-store' });
+        return res.end(`<!doctype html><html lang="es"><head><meta charset="utf-8"><title>Celular</title>
+<style>html,body{margin:0;height:100%;overflow:hidden;background:#000}#screen{width:100%;height:100%}</style></head>
+<body><div id="screen"></div><script type="module">
+import RFB from '/novnc/core/rfb.js';
+const ws = new URLSearchParams(location.search).get('ws');
+const connect = () => {
+  const rfb = new RFB(document.getElementById('screen'), ws);
+  rfb.scaleViewport = true; rfb.resizeSession = false; rfb.background = '#000';
+  rfb.addEventListener('disconnect', () => setTimeout(connect, 1500));
+};
+connect();
+</script></body></html>`);
+    }
+
     // ── Los celulares como navegadores aislados (`panel/devices.ts`) ────────────────────────────────
     // `POST /api/device/client/open` arma el pedido de la tienda del panel —la misma URL base64 que usa
     // la corrida (`dbops ecommerce-url`)— y abre el checkout en el contexto del cliente. Por ahora sólo
     // navega: el bypass del OTP y la siembra del buró vienen después.
-    const deviceRoute = /^\/api\/device\/(client|advisor|lender)(?:\/(open|state|shot|close))?$/.exec(path);
+    const deviceRoute = /^\/api\/device\/(client|advisor|lender)(?:\/(open|state|shot|close|input))?$/.exec(path);
     if (deviceRoute) {
         const id = deviceRoute[1] as DeviceId, action = deviceRoute[2] || 'state';
         if (action === 'state') return json(res, 200, deviceState(id));
@@ -1501,8 +1529,18 @@ const server = createServer(async (req, res) => {
             return res.end(png);
         }
         if (action === 'close' && req.method === 'POST') { await closeDevice(id); return json(res, 200, { ok: true }); }
+        // Lo que tocás en el celular del panel llega acá: un clic, una tecla, texto o la rueda.
+        if (action === 'input' && req.method === 'POST') {
+            const ev = await readBody(req) as DeviceInput;
+            const okType = ['click', 'key', 'text', 'wheel'].includes(String(ev?.type));
+            if (!okType) return json(res, 400, { ok: false, detail: 'evento desconocido' });
+            const done = await deviceInput(id, ev).catch((e) => { console.error('device input:', (e as Error).message); return false; });
+            return json(res, 200, { ok: done, ...deviceState(id) });
+        }
         if (action === 'open' && req.method === 'POST' && id === 'client') {
             const b = await readBody(req);
+            // Un precalentado en curso puede estar por reiniciar el wizard: se espera a que termine.
+            for (let i = 0; prebooting && i < 600; i++) await new Promise((r) => setTimeout(r, 500));
             const t = TARGETS.has(String(b.target)) ? String(b.target) : 'local';
             const o = b.order || {};
             const str = (v: unknown) => String(v ?? '').trim();
@@ -1524,6 +1562,7 @@ const server = createServer(async (req, res) => {
             // canal auto, igual que la corrida (mide la carpeta y reinicia si no es la suya).
             if (auto && t === 'local') {
                 if (current && !current.done) return json(res, 200, { ok: false, detail: 'hay una corrida activa usando el wizard de :5174' });
+                await closeDevice('client');   // el precalentado puede reiniciar el wizard que este celular muestra
                 for (let i = 0; prebooting && i < 600; i++) await new Promise((r) => setTimeout(r, 500));
                 prebooting = true;
                 const boot = await new Promise<{ code: number; out: string }>((ok) => {
@@ -1553,6 +1592,9 @@ const server = createServer(async (req, res) => {
         const t = TARGETS.has(String(b.target)) ? String(b.target) : 'local';
         if (current && !current.done) return json(res, 200, { ok: false, detail: 'hay una corrida activa' });
         if (prebooting) return json(res, 200, { ok: false, detail: 'ya se está precalentando' });
+        // Precalentar puede REINICIAR el wizard de :5174, y un celular abierto lo está mostrando: se le
+        // cortaría la página en pleno flujo (2026-10-06).
+        if (openDevices().length) return json(res, 200, { ok: false, detail: 'hay un celular abierto usando el wizard' });
         prebooting = true;
         const slug = String(b.slug || 'pullman');
         // El auto-onboarding sirve el wizard desde otra carpeta (CFE_AUTO_FRONT_PATH): precalentar la de

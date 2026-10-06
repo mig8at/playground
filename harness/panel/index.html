@@ -230,6 +230,7 @@
     .phone-app[hidden] { display: none }
     .device-live { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: top; background: var(--background) }
     .device-live[hidden], .device-status[hidden] { display: none }
+    .device-vnc { border: 0 }
     .device-label .region-action[hidden] { display: none }
     .device-label { height: 20px }
     .device-label .region-action { width: 20px; height: 20px; margin: 0; padding: 0 }
@@ -640,6 +641,9 @@
                        REDIRIGE acá, al checkout. Por ahora es una foto que se refresca; los clics llegan con el
                        screencast. -->
                   <img class="device-live" id="clientLive" alt="Pantalla del celular del cliente" hidden />
+                  <!-- Con el motor de Selenium, el celular ES su ventana: el noVNC del contenedor, donde se
+                       clickea y se tipea de verdad. -->
+                  <iframe class="device-live device-vnc" id="clientVnc" title="Celular del cliente" hidden></iframe>
                   <div class="device-status" id="clientStatus" hidden role="status">
                     <span class="spinner" id="clientSpinner" aria-hidden="true"></span>
                     <p class="device-empty" id="clientStatusText"></p>
@@ -2625,8 +2629,11 @@
     // checkout en un contexto de Chromium aislado (`/api/device/client/open`).
     let liveTimer = null;
     // `loading` es la espera con el loader; `status` un mensaje sin él (un error).
-    function setClientMode(mode, text = '') {
-      $('clientLive').hidden = mode !== 'live';
+    function setClientMode(mode, text = '', view = '') {
+      $('clientLive').hidden = mode !== 'live' || !!view;
+      $('clientVnc').hidden = mode !== 'live' || !view;
+      if (mode !== 'live' || !view) $('clientVnc').removeAttribute('src');
+      else if ($('clientVnc').getAttribute('src') !== view) $('clientVnc').src = view;
       $('clientStatus').hidden = mode !== 'status' && mode !== 'loading';
       $('clientSpinner').hidden = mode !== 'loading';
       $('clientStatusText').textContent = text;
@@ -2634,7 +2641,7 @@
       $('clientClose').hidden = mode === 'idle';
       if (mode !== 'idle') $('clientApp').hidden = true;
       if (liveTimer) { clearInterval(liveTimer); liveTimer = null; }
-      if (mode === 'live') {
+      if (mode === 'live' && !view) {
         const tick = () => { $('clientLive').src = '/api/device/client/shot?t=' + Date.now(); };
         tick(); liveTimer = setInterval(tick, 1500);
       }
@@ -2644,7 +2651,7 @@
       if (!(channel === 'ecommerce' || channel === 'auto') || !sel) return;
       setClientMode('loading', channel === 'auto' && target === 'local'
         ? 'Levantando el wizard del auto-onboarding y abriendo el checkout… (si hay que compilarlo, tarda unos minutos)'
-        : 'Abriendo el checkout…');
+        : 'Abriendo el checkout en el celular del cliente… (la primera vez levanta su contenedor)');
       try {
         const r = await (await fetch('/api/device/client/open', {
           method: 'POST', headers: { 'content-type': 'application/json' },
@@ -2654,11 +2661,13 @@
         })).json();
         if (!r.ok) return setClientMode('status', r.detail || 'No se pudo abrir el checkout.');
         $('clientLive').title = r.url || '';
-        setClientMode('live');
+        setClientMode('live', '', r.view || '');
       } catch (e) {
         setClientMode('status', 'El panel no respondió: ' + e.message);
       }
     }
+    // El visor toma el foco al pasar el mouse: si no, el primer clic se gasta en dárselo y no llega al celular.
+    $('clientVnc').addEventListener('mouseenter', () => { try { $('clientVnc').contentWindow?.focus(); } catch { } });
     $('clientClose').addEventListener('click', () => { fetch('/api/device/client/close', { method: 'POST' }).catch(() => { }); setClientMode('idle'); });
     $('shopPay').addEventListener('click', () => { payWithCreditop(); openClientBrowser(); });
     const toggleShopUser = (open) => { $('shopUser').hidden = !open; $('shopUserBtn').setAttribute('aria-expanded', String(open)); };
