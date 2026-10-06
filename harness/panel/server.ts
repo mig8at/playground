@@ -14,7 +14,8 @@ import { readFileSync, existsSync, writeFileSync, readdirSync, statSync, mkdirSy
 import { fileURLToPath } from 'node:url';
 import { dirname, resolve, join } from 'node:path';
 import { MockSupervisor, MOCKS as MOCK_REGISTRY } from './mocks.ts';
-import { openDevice, openDevices, deviceState, deviceShot, deviceInput, closeDevice, closeAllDevices, type DeviceId, type DeviceInput } from './devices.ts';
+import { advisorSession } from '../../connectors/advisor/session.ts';
+import { openDevice, openDevices, deviceState, deviceShot, deviceInput, closeDevice, closeAllDevices, SELENIUM_BOXES, type DeviceId, type DeviceInput, type DeviceSession } from './devices.ts';
 import { homedir } from 'node:os';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
@@ -285,6 +286,9 @@ function dbopsJson(args: string[], target: string, extraEnv: NodeJS.ProcessEnv =
 // El bypass del OTP que puso cada celular al abrirse, para sacarlo al cerrarlo: lo mismo que hace una
 // corrida con su teléfono, y sólo lo suyo (`pkg/otp-bypass.ts` no le borra los teléfonos a otra corrida).
 const deviceBypass = new Map<DeviceId, { target: string; puesto: unknown }>();
+// Celulares ABRIÉNDOSE: entre cerrar el anterior y abrir el nuevo no hay ninguno «abierto», y un precalentado
+// que entrara justo ahí reiniciaría el wizard que el celular está por mostrar (pasó el 2026-10-06).
+let devicesOpening = 0;
 async function releaseDevice(id: DeviceId): Promise<void> {
     await closeDevice(id);
     const b = deviceBypass.get(id);
@@ -1501,8 +1505,13 @@ const server = createServer(async (req, res) => {
     // ── El visor de un celular con motor Selenium ─────────────────────────────────────────────────────
     // La librería de noVNC sale del contenedor (`/novnc/*` → :7900) para servirla desde ESTE origen: así
     // el panel arma su propio visor mínimo —sólo la pantalla, escalada al marco— sin las barras de noVNC.
-    if (path.startsWith('/novnc/') && req.method === 'GET') {
-        const upstream = 'http://127.0.0.1:7900/' + path.slice('/novnc/'.length).replace(/\.\.+/g, '');
+    // `/novnc/<puerto>/…`: el puerto es el noVNC de UN celular (sólo los de `SELENIUM_BOXES`), así el visor
+    // de cada uno no depende de que el otro contenedor esté arriba.
+    const novnc = /^\/novnc\/(\d+)\/(.*)$/.exec(path);
+    if (novnc && req.method === 'GET') {
+        const port = Number(novnc[1]);
+        if (!Object.values(SELENIUM_BOXES).some((b) => b.vncPort === port)) { res.writeHead(404); return res.end(); }
+        const upstream = `http://127.0.0.1:${port}/` + novnc[2].replace(/\.\.+/g, '');
         return get(upstream, (up) => {
             res.writeHead(up.statusCode || 502, { 'content-type': up.headers['content-type'] || 'application/octet-stream', 'cache-control': 'no-store' });
             up.pipe(res);
@@ -1513,8 +1522,9 @@ const server = createServer(async (req, res) => {
         return res.end(`<!doctype html><html lang="es"><head><meta charset="utf-8"><title>Celular</title>
 <style>html,body{margin:0;height:100%;overflow:hidden;background:transparent}#screen{width:100%;height:100%}</style></head>
 <body><div id="screen"></div><script type="module">
-import RFB from '/novnc/core/rfb.js';
-const ws = new URLSearchParams(location.search).get('ws');
+const port = Number(new URLSearchParams(location.search).get('vnc')) || 7900;
+const { default: RFB } = await import('/novnc/' + port + '/core/rfb.js');
+const ws = 'ws://127.0.0.1:' + port + '/websockify';
 const connect = () => {
   const rfb = new RFB(document.getElementById('screen'), ws);
   rfb.scaleViewport = true; rfb.resizeSession = false; rfb.background = 'transparent';
@@ -1531,6 +1541,10 @@ connect();
     const deviceRoute = /^\/api\/device\/(client|advisor)(?:\/(open|state|shot|close|input))?$/.exec(path);
     if (deviceRoute) {
         const id = deviceRoute[1] as DeviceId, action = deviceRoute[2] || 'state';
+        if (action === 'open' && req.method === 'POST') {
+            devicesOpening++;
+            res.once('close', () => { devicesOpening--; });
+        }
         if (action === 'state') return json(res, 200, deviceState(id));
         if (action === 'shot') {
             const png = await deviceShot(id).catch(() => null);
@@ -1604,6 +1618,40 @@ connect();
                 return json(res, 200, { ok: false, detail: `el celular no pudo abrir ${front}: ${(e as Error).message.split('\n')[0]}` });
             }
         }
+        // El celular del ASESOR: el wizard del comercio (`/merchant/{hash}/solicitar`) con la sesión de Cognito
+        // del conector puesta, si la hay. Como la corrida (`bin/advisor`, «load-permiso»), si ese asesor no está
+        // asignado a esta sucursal se lo asigna; sin sesión guardada el celular abre el login y se entra a mano.
+        if (action === 'open' && req.method === 'POST' && id === 'advisor') {
+            const b = await readBody(req);
+            for (let i = 0; prebooting && i < 600; i++) await new Promise((r) => setTimeout(r, 500));
+            const t = TARGETS.has(String(b.target)) ? String(b.target) : 'local';
+            const slug = String(b.slug || '');
+            const hash = branchHashForSlug(slug, t);
+            if (!hash) return json(res, 200, { ok: false, detail: `no conozco la sucursal de ${slug} en ${t}` });
+            const front = await new Promise<string>((ok) => execFile('node', ['bin/env-get.ts', 'E2E_BASE_URL', 'http://localhost:5174'],
+                { cwd: ROOT, env: envFor(t), timeout: 10000 }, (err, out) => ok(err ? 'http://localhost:5174' : String(out || '').trim())));
+            let stored: (DeviceSession & { user?: string }) | null = null;
+            try {
+                const saved = advisorSession(t, front).storageState();
+                if (saved) stored = JSON.parse(readFileSync(saved, 'utf8'));
+            } catch { /* sin sesión: el celular abre el login */ }
+            let assigned: string | null = null;
+            if (stored?.user) {
+                const who = await dbopsJson(['whois', stored.user], t);
+                const current = who?.matches?.[0]?.allied_branch_hash;
+                if (current !== hash) {
+                    const a = await dbopsJson(['assign', stored.user, slug, hash], t);
+                    assigned = a ? `asignado a ${hash} (antes: ${current || 'ninguna'})` : 'no se pudo asignar a esta sucursal';
+                }
+            }
+            await releaseDevice('advisor');
+            try {
+                const r = await openDevice('advisor', front.replace(/\/$/, '') + `/merchant/${hash}/solicitar`, stored ?? undefined);
+                return json(res, 200, { ok: true, hash, user: stored?.user ?? null, assigned, ...r });
+            } catch (e) {
+                return json(res, 200, { ok: false, detail: `el celular del asesor no pudo abrir ${front}: ${(e as Error).message.split('\n')[0]}` });
+            }
+        }
         return json(res, 405, { ok: false, detail: 'acción no soportada' });
     }
 
@@ -1614,7 +1662,7 @@ connect();
         if (prebooting) return json(res, 200, { ok: false, detail: 'ya se está precalentando' });
         // Precalentar puede REINICIAR el wizard de :5174, y un celular abierto lo está mostrando: se le
         // cortaría la página en pleno flujo (2026-10-06).
-        if (openDevices().length) return json(res, 200, { ok: false, detail: 'hay un celular abierto usando el wizard' });
+        if (openDevices().length || devicesOpening) return json(res, 200, { ok: false, detail: 'hay un celular abierto usando el wizard' });
         prebooting = true;
         const slug = String(b.slug || 'pullman');
         // El auto-onboarding sirve el wizard desde otra carpeta (CFE_AUTO_FRONT_PATH): precalentar la de
