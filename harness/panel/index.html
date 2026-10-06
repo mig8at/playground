@@ -202,7 +202,6 @@
     .devices { --phone-share: 50cqw }
     .devices[data-count="2"] { --phone-share: 50cqw }
     .devices[data-count="3"] { --phone-share: 33.3cqw }
-    .devices[data-count="4"] { --phone-share: 25cqw }
     .device[hidden] { display: none }
     .device { margin: 0; flex: none; display: flex; flex-direction: column; align-items: center; gap: var(--space-2) }
     .device-label { display: flex; align-items: center; gap: 6px; font-size: var(--text-sm); font-weight: 600; color: var(--fg-2) }
@@ -221,8 +220,6 @@
     .device-notch { position: absolute; top: 0; left: 50%; translate: -50% 0; width: 34%; height: 18px; background: var(--muted); border-radius: 0 0 12px 12px; z-index: 1 }
     .device-screen { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; overflow: auto }
     /* En espera: la pantalla con un borde punteado por dentro y el `.spinner` compartido; deja de esperar cuando haya entidad elegida. */
-    .device.waiting .device-screen { margin: var(--space-3); border: 1px dashed var(--border); border-radius: 20px }
-    .device-wait { display: flex; flex-direction: column; align-items: center; gap: var(--space-2) }
     /* ═══ LA TIENDA ═══ Un teléfono de 360 px escalado al marco: el diseño no depende del tamaño. */
     .device-screen:has(> .phone-app:not([hidden])) { align-items: flex-start; justify-content: flex-start; overflow: hidden }
     .device-screen:has(> .phone-app:not([hidden])) > .device-empty { display: none }
@@ -252,10 +249,6 @@
     .client-data dt { color: var(--fg-2) }
     .client-data dd { margin: 0; text-align: right; overflow-wrap: anywhere }
     .client-data dd.missing { color: var(--fg-3) }
-    .lender-pick { margin-top: auto; display: flex; flex-direction: column; gap: var(--space-2); padding: var(--space-3) var(--space-3) var(--space-6); border-top: 1px solid var(--border) }
-    .lender-pick .btn { width: 100% }
-    .device-screen:has(> .phone-app:not([hidden])) > .device-wait { display: none }
-    .device.waiting:has(.phone-app:not([hidden])) .device-screen { margin: 0; border: 0 }
     .shop-head { display: flex; align-items: center; gap: var(--space-2); padding: 28px var(--space-3) var(--space-2); border-bottom: 1px solid var(--border) }
     .shop-head strong { flex: 1 1 auto }
     .shop-user {
@@ -571,7 +564,7 @@
           <div id="typing" class="typing"></div>
           <!-- LOS DOS CELULARES: el del asesor y el del cliente, lado a lado. Por ahora son el marco; el mapa
                del recorrido se mudó a la pestaña «Mapa» de la consola para dejarles el centro. -->
-          <div class="devices" id="devices" data-count="3">
+          <div class="devices" id="devices" data-count="2">
             <!-- La tienda, sólo con los canales que entran por ella (ecommerce y auto): ahí el comprador
                  empieza en el checkout del comercio antes de llegar al wizard. -->
             <figure class="device" id="deviceStore" hidden>
@@ -631,10 +624,6 @@
                     <header class="client-head"><strong>Asesor</strong><span id="advisorFrom"></span></header>
                     <div class="client-title">Datos del cliente</div>
                     <dl class="client-data" id="advisorData"></dl>
-                    <div class="lender-pick">
-                      <span class="select"><select class="input input-sm" id="advisorLenderSel" aria-label="Entidad"></select></span>
-                      <button type="button" class="btn btn-sm" id="advisorLenderGo">Elegir entidad</button>
-                    </div>
                   </div>
                 </div>
               </div>
@@ -663,25 +652,6 @@
                     <header class="client-head"><strong>Creditop</strong><span id="clientFrom"></span></header>
                     <div class="client-title">Llegaron estos datos</div>
                     <dl class="client-data" id="clientData"></dl>
-                    <div class="lender-pick">
-                      <span class="select"><select class="input input-sm" id="clientLenderSel" aria-label="Entidad"></select></span>
-                      <button type="button" class="btn btn-sm" id="clientLenderGo">Elegir entidad</button>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </figure>
-            <!-- La entidad: queda EN ESPERA hasta que la corrida elige una en el listado. -->
-            <figure class="device waiting" id="deviceLender">
-              <figcaption class="device-label"><span class="ui-icon" data-icon="clock" aria-hidden="true"></span>Entidad</figcaption>
-              <div class="device-frame"><div class="device-notch"></div>
-                <div class="device-screen" id="screenLender">
-                  <div class="device-wait" id="lenderWait"><span class="spinner" aria-hidden="true"></span><p class="device-empty">Esperando la entidad que se elija</p></div>
-                  <!-- La entidad elegida: lo que le llegó, y desde dónde (asesor o cliente). -->
-                  <div class="phone-app client-app" id="lenderApp" hidden>
-                    <header class="client-head"><strong id="lenderName"></strong><span id="lenderFrom"></span></header>
-                    <div class="client-title">Recibimos la solicitud</div>
-                    <dl class="client-data" id="lenderData"></dl>
                   </div>
                 </div>
               </div>
@@ -1545,7 +1515,7 @@
         mockPA = r.mockPA !== false;   // lo decide E2E_REAL_PREAPPROVALS por target, no el panel
         applyMockPAGate();             // con MS real "Espera pre-aprobados" no aplica → se oculta (como los estados por lender)
         merchantLenders = ls;   // el mapa de tren dibuja los ramales según el rt de estos
-        fillLenderPickers(); renderAdvisor();   // los celulares eligen entre estas
+        renderAdvisor();
         loadChannels();             // qué canales de entrada aplican a ESTA sucursal (no bloquea el render)
         renderTrain();
         loadStatus();
@@ -2591,28 +2561,9 @@
       $('advisorFrom').textContent = sel ? (sel.alias || sel.name || '') : '';
       renderData($('advisorData'), advisorRows());
     }
-    // Las entidades del comercio en los dos selectores; sin comercio, una de ejemplo.
-    function fillLenderPickers() {
-      const ls = (typeof merchantLenders !== 'undefined' && merchantLenders.length) ? merchantLenders : [{ id: 0, name: 'Entidad demo' }];
-      for (const id of ['advisorLenderSel', 'clientLenderSel']) {
-        $(id).replaceChildren(...ls.map((l) => new Option(`${l.name}${l.id ? ' #' + l.id : ''}`, String(l.id))));
-      }
-    }
-    // Elegir la entidad: sale de la espera y recibe los datos de quien la eligió.
-    let clientRows = [];
-    function sendToLender(who) {
-      const pick = $(who + 'LenderSel').selectedOptions[0];
-      $('lenderName').textContent = pick ? pick.textContent : 'Entidad';
-      $('lenderFrom').textContent = 'desde ' + (who === 'advisor' ? 'el asesor' : 'el cliente');
-      renderData($('lenderData'), who === 'advisor' ? advisorRows() : clientRows);
-      $('lenderApp').hidden = false;
-      requestAnimationFrame(fitShop);
-    }
-    $('advisorLenderGo').addEventListener('click', () => sendToLender('advisor'));
-    $('clientLenderGo').addEventListener('click', () => sendToLender('client'));
     // El celular del asesor sigue al caso: cualquier cambio en el panel derecho lo repinta.
     for (const ev of ['input', 'change', 'click']) $('sideRight').addEventListener(ev, () => requestAnimationFrame(renderCaseViews));
-    renderAdvisor(); fillLenderPickers();
+    renderAdvisor();
 
     // «Pagar con Creditop»: la tienda le pasa el pedido al celular del cliente, que por ahora sólo
     // muestra lo que le llegó.
@@ -2626,9 +2577,7 @@
         ['Documento', [c.docType, c.doc].filter(Boolean).join(' ')],
         ['Expedición', c.expedition], ['Celular', c.phone], ['Email', c.email],
       ];
-      clientRows = rows;
       renderData($('clientData'), rows);
-      fillLenderPickers();
       $('clientFrom').textContent = 'desde ' + $('shopName').textContent;
       $('clientApp').hidden = false;
       requestAnimationFrame(fitShop);
@@ -2693,7 +2642,7 @@
     $('shopUserDone').addEventListener('click', () => toggleShopUser(false));
     if ('ResizeObserver' in window) {
       const ro = new ResizeObserver(fitShop);
-      for (const id of ['screenStore', 'screenClient', 'screenAdvisor', 'screenLender']) ro.observe($(id));
+      for (const id of ['screenStore', 'screenClient', 'screenAdvisor']) ro.observe($(id));
     }
 
     function applyChannel() {

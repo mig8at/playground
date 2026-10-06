@@ -1,6 +1,6 @@
 // devices.ts — los celulares del panel como navegadores DE VERDAD, cada uno aislado.
 //
-// Cada celular es su propio navegador, con sus cookies, `localStorage`, sesión y caché: dos celulares no
+// Cada celular (el del cliente y, más adelante, el del asesor) es su propio navegador, con sus cookies, `localStorage`, sesión y caché: dos celulares no
 // se pisan la cookie de propiedad de la solicitud ni la sesión de Cognito, que es lo que no se puede
 // lograr con iframes dentro del panel (comparten el almacenamiento del navegador; además el wizard
 // prohíbe que lo embeban: `X-Frame-Options: DENY`).
@@ -18,7 +18,7 @@ import { execFile } from 'node:child_process';
 import { chromium, devices, type Browser, type BrowserContext, type Page } from '@playwright/test';
 import { blockDevOverlays } from '../pkg/dev-overlays.ts';
 
-export type DeviceId = 'client' | 'advisor' | 'lender';
+export type DeviceId = 'client' | 'advisor';
 
 interface Device {
     context: BrowserContext;
@@ -139,7 +139,7 @@ async function openSelenium(): Promise<Omit<Device, 'openedAt'>> {
 
 // ── La API del panel ─────────────────────────────────────────────────────────────────────────────
 const ENGINE: Record<DeviceId, () => Promise<Omit<Device, 'openedAt'>>> = {
-    client: openSelenium, advisor: openHeadless, lender: openHeadless,
+    client: openSelenium, advisor: openHeadless,
 };
 
 /** Abre (o reabre limpio) el celular en `url`. Un navegador nuevo cada vez: nada de la corrida anterior. */
