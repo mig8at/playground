@@ -460,6 +460,7 @@
     .merchant-group { margin-top: var(--space-2) }
     .merchant-group:first-child { margin-top: 0 }
     .merchant-group .count { margin-left: var(--space-1) }
+    .row-rename { width: 100%; height: 20px }
     .console-body { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column }
     /* ⚠ LA SALIDA SIGUE AL FINAL SIN QUE NADIE LA MUEVA. El cuerpo es una columna INVERTIDA con un solo
        hijo (las líneas): así su origen de scroll es el final, las líneas nuevas quedan a la vista solas
@@ -1360,12 +1361,18 @@
           + (e.missing ? ` · ${e.meta || 'no está en este ambiente'}` : '');
         rowEl.setAttribute('aria-selected', String(chosenOne));
         rowEl.tabIndex = runRunning ? -1 : 0;
+        // Elegir un comercio sólo lo SELECCIONA (su configuración, sus entidades, su categoría): entrar como su
+        // asesor es el ▶ de la fila. Antes elegir abría el celular solo, y con eso borraba el cliente sintético.
         rowEl.onclick = () => {
           if (runRunning || chosenOne) return;
           chooseEntry(e);
-          openAdvisorOnChoose();
         };
-        rowEl.onkeydown = (ev) => { if (ev.key === 'Enter' || ev.key === ' ') { ev.preventDefault(); rowEl.click(); } };
+        rowEl.onkeydown = (ev) => {
+          if (ev.key === 'F2') { ev.preventDefault(); renameInline(e, rowEl); return; }
+          if (ev.key === 'Enter' || ev.key === ' ') { ev.preventDefault(); rowEl.click(); }
+        };
+        // Renombrar: doble clic sobre el nombre (o F2), en el lugar.
+        rowEl.querySelector('.row-name').ondblclick = (ev) => { ev.stopPropagation(); renameInline(e, rowEl); };
 
         // Renombrar: TODAS, porque el mismo comercio puede estar varias veces y el rótulo es lo único
         // que las distingue. Borrar: sólo las tuyas — los curados viven en el código y desde acá no
@@ -1376,7 +1383,6 @@
         acc.className = 'row-actions';
         const label = e.alias || e.name;
         acc.appendChild(rowAction('play', `Entrar a «${label}» como su asesor`, () => playMerchant(e)));
-        acc.appendChild(rowAction('edit', `Renombrar «${label}»`, () => renameFav(e)));
         if (e.fav) acc.appendChild(rowAction('close', `Quitar «${label}» de tu espacio`, () => removeFav(e)));
         rowEl.appendChild(acc);
         g.appendChild(rowEl);
@@ -1400,18 +1406,37 @@
       } catch { alert('error de red'); return { ok: false }; }
     }
 
-    async function renameFav(m) {
+    /** Renombrar EN LA FILA: el nombre se vuelve un campo; Enter (o salir) guarda, Escape cancela. */
+    function renameInline(m, rowEl) {
+      if (runRunning) return;
+      const nameEl = rowEl.querySelector('.row-name');
+      if (!nameEl || nameEl.querySelector('input')) return;
       const actual = m.alias || m.name;
-      const n = prompt('Nombre para esta entrada (el mismo comercio puede estar varias veces):', actual);
-      if (n == null || !n.trim() || n.trim() === actual) return;
-      // El SLUG no cambia al renombrar (`bin/advisor <slug>` sigue funcionando igual); esto es la etiqueta.
-      const r = await favApi({ accion: 'rename', slug: m.slug, name: n.trim() });
-      if (r.ok) {
-        if (sel && sel.slug === m.slug) sel = { ...sel, name: r.name };
-        const cur = MERCHANTS.find((x) => x.slug === m.slug);
-        if (cur) cur.alias = r.name;            // los curados no se recargan por `/api/favs`
-        await loadFavs(); refresh();
-      }
+      const input = document.createElement('input');
+      input.className = 'input input-xs row-rename'; input.value = actual; input.setAttribute('aria-label', `Nuevo nombre para «${actual}»`);
+      nameEl.replaceChildren(input);
+      input.focus(); input.select();
+      let done = false;
+      const finish = async (save) => {
+        if (done) return; done = true;
+        const n = input.value.trim();
+        if (!save || !n || n === actual) { renderMerchants(); return; }
+        // El SLUG no cambia al renombrar (`bin/advisor <slug>` sigue funcionando igual); esto es la etiqueta.
+        const r = await favApi({ accion: 'rename', slug: m.slug, name: n });
+        if (r.ok) {
+          if (sel && sel.slug === m.slug) sel = { ...sel, name: r.name };
+          const cur = MERCHANTS.find((x) => x.slug === m.slug);
+          if (cur) cur.alias = r.name;            // los curados no se recargan por `/api/favs`
+          await loadFavs(); refresh();
+        } else renderMerchants();
+      };
+      input.onkeydown = (ev) => {
+        ev.stopPropagation();
+        if (ev.key === 'Enter') { ev.preventDefault(); finish(true); }
+        if (ev.key === 'Escape') { ev.preventDefault(); finish(false); }
+      };
+      input.onclick = (ev) => ev.stopPropagation();
+      input.onblur = () => finish(true);
     }
 
     async function removeFav(m) {
@@ -3007,15 +3032,7 @@
     // Elige el comercio (si no era el elegido), pasa al canal Asesor y abre el celular del asesor ya en la
     // pantalla de monto. Si el comercio no admite el canal Asesor (Corbeta = QR), lo dice en el celular.
     let channelsFor = null;   // el comercio cuyos canales ya respondió el servidor
-    /** Al elegir un comercio en la barra, el celular del asesor carga solo si el canal es Asesor (en los
-     *  demás canales ese celular ni se muestra). Se esperan los canales de ESTE comercio: con los del anterior,
-     *  un Corbeta abriría el asesor. */
-    async function openAdvisorOnChoose() {
-      const slug = sel?.slug;
-      for (let i = 0; i < 40 && channelsFor !== slug; i++) await new Promise((r) => setTimeout(r, 250));
-      if (!sel || sel.slug !== slug || channel !== 'asesor') return;
-      openAdvisorBrowser();
-    }
+    /** Se esperan los canales de ESTE comercio: con los del anterior, un Corbeta abriría el asesor. */
     async function playMerchant(e) {
       if (runRunning) return;
       const same = sel && (sel.slug === e.slug || (e.hash && sel.slug === e.hash));
