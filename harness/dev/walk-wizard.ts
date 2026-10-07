@@ -574,19 +574,22 @@ async function correr(c: Case, i: number): Promise<Result> {
             }
             form = { paymentSchedule: chosen.fee_number };
         } else if (sheet === 'otp-validation') {
-            // `E2E_CHANGE_PHONE=<celular>`: antes de validar, el cliente corrige su celular («¿No te llegó el código?»,
+            // `E2E_CHANGE_PHONE=<celular>[,<celular>…]`: antes de validar, el cliente corrige su celular («¿No te llegó el código?»,
             // sólo auto-onboarding con pedido firmado). El código llega al número nuevo; en local el bypass de OTP tiene
             // comodín, así que son sus últimos 6 dígitos.
             let code = tel.slice(-6);
-            const corrected = (process.env.E2E_CHANGE_PHONE || '').trim();
-            if (corrected && !phoneChanged) {
+            // Varios separados por coma: el cliente lo reescribe (se equivocó otra vez) y vale el último.
+            const corrections = (process.env.E2E_CHANGE_PHONE || '').split(',').map((x) => x.trim()).filter(Boolean);
+            if (corrections.length && !phoneChanged) {
                 phoneChanged = true;
-                const ch = await s.enviar(routePath, { _action: 'change-phone', cell_phone: corrected });
-                // Lo que devuelve un `action` viene en el cuerpo (single fetch: `{data}` o pelado), no en `datos`.
-                const d = (ch.cuerpo?.data ?? ch.cuerpo) as { success?: boolean; message?: string } | undefined;
-                log(`celular corregido en la firma → ${corrected}: ${d?.success ? 'aceptado' : 'rechazado'} · ${d?.message ?? `HTTP ${ch.status}`}`);
-                if (!d?.success) return finish('trabado', `no se pudo corregir el celular: ${d?.message ?? `HTTP ${ch.status}`}`);
-                code = corrected.slice(-6);
+                for (const corrected of corrections) {
+                    const ch = await s.enviar(routePath, { _action: 'change-phone', cell_phone: corrected });
+                    // Lo que devuelve un `action` viene en el cuerpo (single fetch: `{data}` o pelado), no en `datos`.
+                    const d = (ch.cuerpo?.data ?? ch.cuerpo) as { success?: boolean; message?: string } | undefined;
+                    log(`celular corregido en la firma → ${corrected}: ${d?.success ? 'aceptado' : 'rechazado'} · ${d?.message ?? `HTTP ${ch.status}`}`);
+                    if (!d?.success) return finish('trabado', `no se pudo corregir el celular: ${d?.message ?? `HTTP ${ch.status}`}`);
+                    code = corrected.slice(-6);
+                }
             }
             form = { _action: 'verify', otp: code };
         } else if (sheet === 'loan-approved') {
