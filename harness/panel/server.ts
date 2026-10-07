@@ -19,7 +19,6 @@ import { credentialsFor } from '../../connectors/auth/env.ts';
 import { envData, type AutofillData } from '../pkg/autofill.ts';
 import { identityWithoutProviderNotice } from '../pkg/config.ts';
 import { openDevice, openDevices, setDeviceLogger, prewarmDevices, warmDevice, watchNavigation, watchRequests, deviceGoto, deviceReload, deviceText, deviceEval, deviceOpenedAt, deviceState, deviceShot, deviceInput, closeDevice, closeAllDevices, SELENIUM_BOXES, type DeviceId, type DeviceInput, type DeviceSession } from './devices.ts';
-import { vpnDev, type VpnStatus } from '../pkg/vpn.ts';
 import { homedir } from 'node:os';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
