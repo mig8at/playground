@@ -254,6 +254,15 @@
     .device-live { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: top; background: var(--background) }
     .device-live[hidden], .device-status[hidden] { display: none }
     .device-vnc { border: 0; background: transparent }
+    /* RECARGAR, al pararse sobre el celular: arriba a la derecha, debajo de la muesca, y sólo si hay una página abierta
+       (la pantalla en vivo a la vista). Con el teclado aparece al enfocarlo. */
+    .device-reload { position: absolute; top: 24px; right: 8px; z-index: 5; display: inline-flex; align-items: center; gap: var(--space-1);
+      height: 24px; padding: 0 var(--space-2); border: 1px solid var(--border); border-radius: var(--radius-control);
+      background: var(--popover); color: var(--popover-foreground); font: inherit; font-size: var(--text-xs); cursor: pointer;
+      opacity: 0; pointer-events: none; transition: opacity .12s }
+    .device:has(.device-live:not([hidden])):hover .device-reload, .device-reload:focus-visible { opacity: 1; pointer-events: auto }
+    .device-reload:hover { background: var(--hover) }
+    .device-reload[aria-busy="true"] { opacity: 1; cursor: progress }
     .device-open { margin-top: auto; padding: var(--space-3) var(--space-3) var(--space-6); border-top: 1px solid var(--border) }
     .device-open .btn { width: 100% }
     /* El código del OTP del celular de prueba, al lado de su rótulo: se copia con un clic. */
@@ -413,8 +422,24 @@
     .category-head { display: flex; align-items: baseline; gap: var(--space-2); min-width: 0 }
     .category-head .row-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap }
     .category-name { flex: none; font-weight: 600 }
-    .category-select { flex: none; width: auto; max-width: 60%; font-weight: 600 }
-    .category-select.bad { color: var(--danger) }
+    /* Las categorías de una entidad como tarjetas elegibles: la que cae hoy con el borde del foco; las demás se tocan
+       para que los burós la alcancen. El estado dice por qué no cae en cada una. */
+    .category-cards { display: grid; grid-template-columns: 1fr; gap: var(--space-1); margin-top: var(--space-1) }
+    /* Una por fila: el nombre y el estado arriba, las condiciones abajo. A tres por fila no entraban en el sidebar. */
+    .category-card { display: grid; grid-template-columns: minmax(0, 1fr) auto; column-gap: var(--space-2); row-gap: 2px; min-width: 0; padding: var(--space-1) var(--space-2);
+      border: 1px solid var(--border); border-radius: var(--radius-control); background: none; color: inherit; font: inherit; text-align: left; cursor: pointer }
+    .category-card:hover { background: var(--hover) }
+    .category-card[aria-checked="true"] { border-color: var(--ring); cursor: default }
+    .category-card[aria-checked="true"]:hover { background: none }
+    .category-card[data-busy="true"] { opacity: .6; cursor: progress }
+    .category-card > span { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap }
+    .category-card-terms { grid-column: 1 / -1; grid-row: 2 }
+    .category-card-state { grid-column: 2; grid-row: 1; text-align: right }
+    .category-card-name { font-size: var(--text-sm); font-weight: 600 }
+    .category-card-terms { font-size: var(--text-xs); color: var(--fg-2) }
+    .category-card-state { font-size: var(--text-xs); color: var(--fg-3) }
+    .category-card-state[data-state="on"] { color: var(--ok) }
+    .category-card-state[data-state="fail"] { color: var(--fg-3) }
     .category-note.ok { color: var(--ok) }
     .category-name.bad { color: var(--danger) }
     .category-row .row-desc.warn { color: var(--warn) }
@@ -430,7 +455,11 @@
     /* ═══ LA CONSOLA ══════════════════════════════════════════════════════════════════════════════
        Pestañas en la banda (`.tabs`), la salida en líneas de log de la base. Cada log es su propio
        cuerpo con scroll: el panel lo sigue al final mientras corre. */
-    #consoleFilterState, #merchantFilterState { margin-right: var(--space-2) }
+    #consoleFilterState { margin-right: var(--space-2) }
+    /* LOS COMERCIOS POR PAÍS: el país es un rótulo de grupo con su cantidad, no un filtro escondido en un menú. */
+    .merchant-group { margin-top: var(--space-2) }
+    .merchant-group:first-child { margin-top: 0 }
+    .merchant-group .count { margin-left: var(--space-1) }
     .console-body { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column }
     /* ⚠ LA SALIDA SIGUE AL FINAL SIN QUE NADIE LA MUEVA. El cuerpo es una columna INVERTIDA con un solo
        hijo (las líneas): así su origen de scroll es el final, las líneas nuevas quedan a la vista solas
@@ -507,9 +536,6 @@
         <div class="region-head">
           <span>Comercios <span class="count" id="merchantCount"></span></span>
           <div class="region-actions" role="group" aria-label="Acciones de comercios">
-            <span id="merchantFilterState" class="count filtered" hidden>Filtrada</span>
-            <button type="button" class="region-action" id="merchantFilter" title="Filtrar por país y canal" aria-label="Filtrar por país y canal"><span class="ui-icon" data-icon="filter" aria-hidden="true"></span></button>
-            <button type="button" class="region-action" id="collapseMerchants" title="Plegar comercios" aria-label="Plegar comercios"><span class="ui-icon" data-icon="collapse" aria-hidden="true"></span></button>
             <button type="button" class="region-action" id="merchantsMenu" title="Opciones de comercios" aria-label="Opciones de comercios"><span class="ui-icon" data-icon="more" aria-hidden="true"></span></button>
           </div>
         </div>
@@ -636,6 +662,8 @@
               <figcaption class="device-label"><span class="ui-icon" data-icon="server" aria-hidden="true"></span>Asesor
                 <span class="device-otp warn" id="advisorNote" hidden>identidad a mano</span></figcaption>
               <div class="device-frame"><div class="device-notch"></div>
+                <!-- Recargar la página: aparece al pararse sobre el celular, sólo con algo abierto (CSS). -->
+                <button type="button" class="device-reload" data-device="advisor" title="Recargar la página del celular del asesor" aria-label="Recargar la página del celular del asesor"><span class="ui-icon" data-icon="refresh" aria-hidden="true"></span><span>Recargar</span></button>
                 <div class="device-screen" id="screenAdvisor">
                   <!-- El asesor: su navegador REAL con el wizard del comercio (`panel/devices.ts`), entrando como el
                        asesor de prueba del comercio. Carga solo al elegir un comercio en la barra izquierda. -->
@@ -654,6 +682,8 @@
                 <span class="device-otp warn" id="clientNote" hidden>identidad a mano</span>
                 <button type="button" class="region-action" id="clientClose" hidden title="Cerrar el navegador del cliente" aria-label="Cerrar el navegador del cliente"><span class="ui-icon" data-icon="close" aria-hidden="true"></span></button></figcaption>
               <div class="device-frame"><div class="device-notch"></div>
+                <!-- Recargar la página: aparece al pararse sobre el celular, sólo con algo abierto (CSS). -->
+                <button type="button" class="device-reload" data-device="client" title="Recargar la página del celular del cliente" aria-label="Recargar la página del celular del cliente"><span class="ui-icon" data-icon="refresh" aria-hidden="true"></span><span>Recargar</span></button>
                 <div class="device-screen" id="screenClient">
                   <p class="device-empty" id="clientEmpty">El celular del cliente</p>
                   <!-- El navegador REAL del cliente (`panel/devices.ts`): «Pagar con Creditop» en la tienda lo
@@ -1190,21 +1220,12 @@
       loadMerchantTags();
     }
 
-    // ── FILTRO DE LA BARRA: país y canal ──────────────────────────────────────────────────────────
-    // Lo que cada comercio TIENE en este ambiente (`/api/merchant-tags`): su país y sus canales —asesor salvo
-    // Corbeta, tienda si alguna sucursal tiene credencial de ecommerce, autogestión, QR de caja y auto—. El
-    // filtro es una preferencia de este navegador; vacío muestra todo.
-    const MERCHANT_CHANNELS = [
-      ['asesor', 'Asesor'], ['ecommerce', 'Tienda online'], ['auto', 'Auto (tienda)'], ['autogestion', 'Autogestión'], ['qr', 'QR en caja'],
-    ];
-    const MERCHANT_FILTER_KEY = 'harness.merchantFilter';
+    // ── LOS COMERCIOS POR PAÍS ────────────────────────────────────────────────────────────────────
+    // LOS COMERCIOS SE AGRUPAN POR PAÍS (2026-10-07): el país, el iso y los canales salen de `/api/merchant-tags`.
+    // Reemplaza al filtro por país y canal del menú: el canal se elige en el panel derecho y el país se ve
+    // mejor como rótulo de grupo que escondido en un menú.
+    const COUNTRY_NAMES = { 'Dominican Republic': 'República Dominicana', Peru: 'Perú', Colombia: 'Colombia' };
     let merchantTags = {};
-    let merchantFilter = (() => { try { return JSON.parse(localStorage.getItem(MERCHANT_FILTER_KEY) || '{}') || {}; } catch { return {}; } })();
-    function setMerchantFilter(next) {
-      merchantFilter = { ...merchantFilter, ...next };
-      try { localStorage.setItem(MERCHANT_FILTER_KEY, JSON.stringify(merchantFilter)); } catch { /* sólo comodidad */ }
-      renderMerchants();
-    }
     // Las cargas se SUMAN: la de los favoritos y la de los curados llegan en cualquier orden, y reemplazar
     // dejaba sólo las de la última. Otro ambiente es otra base, así que ahí se empieza de cero.
     let merchantTagsTarget = null;
@@ -1217,27 +1238,11 @@
         const got = (await (await fetch(`/api/merchant-tags?hashes=${hashes.join(',')}&target=${asked}`)).json()) || {};
         if (asked !== target) return;   // respuesta de otro ambiente
         merchantTags = { ...merchantTags, ...got };
-      } catch { /* sin etiquetas: el filtro puesto no muestra nada, que es lo honesto */ }
+      } catch { /* sin etiquetas: quedan en «sin país», que es lo honesto */ }
       renderMerchants();
     }
-    /** ¿La entrada pasa el filtro? Sin etiquetas (todavía no llegaron, o no está en este ambiente) no pasa
-     *  un filtro puesto: mostrarla diría que cumple algo que no se sabe. */
-    function passesMerchantFilter(e) {
-      const { pais, canal } = merchantFilter;
-      if (!pais && !canal) return true;
-      const t = merchantTags[e.hash];
-      if (!t) return false;
-      return (!pais || t.pais === pais) && (!canal || t.canales.includes(canal));
-    }
-    function reflectMerchantFilter(shown, total) {
-      const on = !!(merchantFilter.pais || merchantFilter.canal);
-      const state = $('merchantFilterState');
-      state.hidden = !on;
-      state.title = [merchantFilter.pais, MERCHANT_CHANNELS.find(([v]) => v === merchantFilter.canal)?.[1]].filter(Boolean).join(' · ');
-      $('merchantFilter').classList.toggle('has-options', on);
-      const count = $('merchantCount');
-      if (count) count.textContent = on ? `${shown}/${total}` : String(total);
-    }
+    /** El país de una entrada, en español; sin etiqueta todavía (o fuera de este ambiente), un grupo propio. */
+    const countryOf = (e) => { const p = merchantTags[e.hash]?.pais; return p ? (COUNTRY_NAMES[p] || p) : ''; };
 
     // ══ ÁRBOL DE COMERCIOS ════════════════════════════════════════════════════════════════════
     // Comercio (carpeta) › sucursal (subcarpeta) › entidades (archivos). Reemplaza la grilla de
@@ -1334,8 +1339,16 @@
       g.innerHTML = '';
 
       const entries = spaceEntries();
-      const visible = entries.filter(passesMerchantFilter);
-      for (const e of visible) {
+      // Por país: Colombia primero (es casi todo), después el resto por nombre, y lo que no tiene país al final.
+      const groups = new Map();
+      for (const e of entries) { const c = countryOf(e); if (!groups.has(c)) groups.set(c, []); groups.get(c).push(e); }
+      const order = [...groups.keys()].sort((a, b) => (a === '') - (b === '') || (b === 'Colombia') - (a === 'Colombia') || a.localeCompare(b));
+      for (const country of order) {
+        const head = document.createElement('div'); head.className = 'region-head group merchant-group';
+        const name = document.createElement('span'); name.textContent = country || 'Sin país en este ambiente';
+        const n = document.createElement('span'); n.className = 'count'; n.textContent = String(groups.get(country).length);
+        name.appendChild(n); head.appendChild(name); g.appendChild(head);
+      for (const e of groups.get(country)) {
         const chosenOne = !!sel && (sel.slug === e.slug || (e.hash && sel.slug === e.hash));
         // La elegida es la `.row` elegida de la base (`aria-selected`: fondo y barra de 2), no una tilde.
         // Sin chevron: la fila ya no se despliega, ABRE el comercio (su mapa al centro y su pestaña
@@ -1368,6 +1381,7 @@
         rowEl.appendChild(acc);
         g.appendChild(rowEl);
       }
+      }
 
       const newC = treeRow('add-row', 0, 'plus', 'Agregar comercio…', '');
       newC.title = 'Buscar un comercio, elegir su sucursal y agregarlo a tu espacio';
@@ -1375,7 +1389,7 @@
       newC.onclick = () => { if (!runRunning) $('merchantSearch').focus(); };
       newC.onkeydown = (ev) => { if (ev.key === 'Enter' || ev.key === ' ') { ev.preventDefault(); newC.click(); } };
       g.appendChild(newC);
-      reflectMerchantFilter(visible.length, entries.length);
+      if ($('merchantCount')) $('merchantCount').textContent = String(entries.length);
     }
 
     async function favApi(body) {
@@ -1516,6 +1530,15 @@
         $(viewId).hidden = !on;
       }
       routeChanged();
+    }
+    // Recargar la página de un celular (`/api/device/<id>/reload`): el visor en vivo muestra el resultado solo.
+    for (const b of document.querySelectorAll('.device-reload')) {
+      b.onclick = async () => {
+        if (b.getAttribute('aria-busy') === 'true') return;
+        b.setAttribute('aria-busy', 'true'); b.lastElementChild.textContent = 'Recargando…';
+        try { await fetch(`/api/device/${b.dataset.device}/reload`, { method: 'POST' }); } catch { }
+        b.removeAttribute('aria-busy'); b.lastElementChild.textContent = 'Recargar';
+      };
     }
     $('tabClient').onclick = () => showAuxView('client');
     $('tabMerchant').onclick = () => showAuxView('merchant');
@@ -3276,8 +3299,13 @@
      * score, los negativos, las moras y las consultas en Experian; los meses y la ocupación en Agildata; la edad y el
      * género en el caso. Después la predicción se recalcula sola y confirma (o no) que cayó ahí.
      */
+    let solvingCategory = null;
     async function solveCategory(lender, category) {
       const note = (text, cls = '') => { categorySolveNote = { text, cls }; renderCategories(''); };
+      solvingCategory = `${lender.id}|${category}`;
+      try { return await solveCategoryNow(lender, category, note); } finally { solvingCategory = null; renderCategories(''); }
+    }
+    async function solveCategoryNow(lender, category, note) {
       note(`Buscando valores para «${category}» en ${lender.name}…`);
       let r;
       try {
@@ -3357,31 +3385,45 @@
         const row = document.createElement('div'); row.className = 'row stacked category-row';
         const head = document.createElement('span'); head.className = 'category-head';
         const name = document.createElement('span'); name.className = 'row-name'; name.textContent = l.name;
-        let cat;
-        if (l.categories?.length && (l.verdict === 'approved' || l.verdict === 'no_profile')) {
-          // Un SELECTOR: la que cae hoy está elegida; elegir otra busca valores de los burós que la alcancen.
-          cat = document.createElement('select'); cat.className = 'input input-xs category-select';
-          cat.title = 'Elegí la categoría y el panel busca los valores de los burós que la alcanzan';
-          if (l.verdict !== 'approved') cat.append(new Option('sin categoría', '', true, true));
-          for (const n of l.categories) cat.append(new Option(n, n, false, n === l.category));
-          if (l.verdict !== 'approved') cat.classList.add('bad');
-          cat.onchange = () => { if (cat.value) solveCategory(l, cat.value); };
-        } else {
-          cat = document.createElement('span'); cat.className = 'category-name';
-          cat.textContent = l.verdict === 'approved' ? l.category : l.verdict === 'rejected' ? 'no aparece'
-            : l.verdict === 'no_profile' ? 'sin categoría' : l.verdict === 'no_rules' ? 'por puntaje' : 'error';
-          if (l.verdict === 'rejected' || l.verdict === 'no_profile' || l.verdict === 'error') cat.classList.add('bad');
-        }
+        const cat = document.createElement('span'); cat.className = 'category-name';
+        cat.textContent = l.verdict === 'approved' ? l.category : l.verdict === 'rejected' ? 'no aparece'
+          : l.verdict === 'no_profile' ? 'sin categoría' : l.verdict === 'no_rules' ? 'por puntaje' : 'error';
+        if (l.verdict === 'rejected' || l.verdict === 'no_profile' || l.verdict === 'error') cat.classList.add('bad');
         head.append(name, cat); row.appendChild(head);
         const line = (text, cls = '') => { if (!text) return; const d = document.createElement('span'); d.className = 'row-desc' + (cls ? ' ' + cls : ''); d.textContent = text; d.title = text; row.appendChild(d); };
         const c = l.conditions;
-        if (l.verdict === 'approved' && c)
+        const withCards = l.categoryDetail?.length && (l.verdict === 'approved' || l.verdict === 'no_profile');
+        if (l.verdict === 'approved' && c && !withCards)
           line(`${c.minInitialFee ?? 0} % de cuota inicial · hasta ${c.maxFeeNumber ?? '–'} cuotas · hasta $${fmt(c.maxAmount ?? 0)}${l.requiresCosigner ? ' · con codeudor' : ''}`);
         if (l.verdict === 'rejected') line(`política dura: ${l.policyFailed.join(' · ')}`);
         if (l.verdict === 'error') line(l.error);
         if (l.verdict === 'no_rules') line('sin categorías por reglas: la decide el puntaje, que el simulador no evalúa');
-        if (l.above?.length) line(`${l.verdict === 'approved' ? 'no llegó a' : 'no cumple'} ${l.above.map((a) => `${a.name} (${a.failed.join(', ') || 'sin dato'})`).join(' · ')}`);
+        if (l.above?.length && !withCards) line(`${l.verdict === 'approved' ? 'no llegó a' : 'no cumple'} ${l.above.map((a) => `${a.name} (${a.failed.join(', ') || 'sin dato'})`).join(' · ')}`);
         if (!l.complete && l.notSimulated?.length) line(`sin simular: ${l.notSimulated.join(', ')}`, 'warn');
+        // LAS CATEGORÍAS COMO TARJETAS: todas a la vista, en orden, con sus condiciones y por qué no cae en cada una.
+        // Tocar una busca los valores de los burós que la alcanzan (`solveCategory`). La que cae hoy va marcada.
+        if (withCards) {
+          const cards = document.createElement('div'); cards.className = 'category-cards'; cards.setAttribute('role', 'radiogroup');
+          cards.setAttribute('aria-label', `Categoría de ${l.name}`);
+          for (const c of l.categoryDetail) {
+            const on = c.name === l.category;
+            const b = document.createElement('button'); b.type = 'button'; b.className = 'category-card';
+            b.setAttribute('role', 'radio'); b.setAttribute('aria-checked', String(on));
+            if (solvingCategory === `${l.id}|${c.name}`) b.dataset.busy = 'true';
+            const n = document.createElement('span'); n.className = 'category-card-name'; n.textContent = c.name;
+            const k = c.conditions || {};
+            const terms = document.createElement('span'); terms.className = 'category-card-terms';
+            terms.textContent = `${k.minInitialFee ?? 0} % inicial · hasta $${fmt(k.maxAmount ?? 0)}${k.maxFeeNumber ? ` · ${k.maxFeeNumber} cuotas` : ''}`;
+            const st = document.createElement('span'); st.className = 'category-card-state';
+            st.textContent = on ? 'cae acá' : c.eligible ? 'también cumple' : 'no cumple: ' + (c.failed.join(', ') || 'sin dato');
+            st.dataset.state = on ? 'on' : c.eligible ? 'eligible' : 'fail';
+            b.append(n, terms, st);
+            b.title = on ? `Hoy cae en ${c.name}` : `Buscar valores de los burós para que caiga en ${c.name}`;
+            b.onclick = () => { if (!on && !solvingCategory) solveCategory(l, c.name); };
+            cards.appendChild(b);
+          }
+          row.appendChild(cards);
+        }
         // La corrida: lo que registró el motor, al lado de lo que se predijo AL LANZAR.
         if (categoryActual) {
           const got = actual.has(l.id) ? actual.get(l.id) : undefined;
@@ -4875,28 +4917,6 @@ export function bindMenu(trigger, { getItems, onSelect, label = 'Más opciones' 
     });
     addEventListener('resize', layout);
 
-    document.getElementById('collapseMerchants').onclick = () => { openOnes.clear(); renderMerchants(); };
-    // El filtro de comercios: país (los que hay en el espacio) y canal. Opciones únicas: elegir cierra.
-    bindMenu(document.getElementById('merchantFilter'), {
-      label: 'Filtrar comercios',
-      getItems: () => {
-        const countries = [...new Set(Object.values(merchantTags).map((t) => t.pais).filter(Boolean))].sort();
-        return [
-          { id: 'h-pais', label: 'País', icon: 'filter', disabled: true },
-          { id: 'pais:', label: 'Todos los países', selected: !merchantFilter.pais },
-          ...countries.map((c) => ({ id: 'pais:' + c, label: c, selected: merchantFilter.pais === c })),
-          { separator: true },
-          { id: 'h-canal', label: 'Canal', icon: 'channel', disabled: true },
-          { id: 'canal:', label: 'Todos los canales', selected: !merchantFilter.canal },
-          ...MERCHANT_CHANNELS.map(([v, l]) => ({ id: 'canal:' + v, label: l, selected: merchantFilter.canal === v })),
-        ];
-      },
-      onSelect: (id) => {
-        const [kind, value] = id.split(/:(.*)/s);
-        if (kind === 'pais') setMerchantFilter({ pais: value || '' });
-        if (kind === 'canal') setMerchantFilter({ canal: value || '' });
-      },
-    });
     bindMenu(document.getElementById('merchantsMenu'), {
       label: 'Opciones de comercios',
       getItems: () => [

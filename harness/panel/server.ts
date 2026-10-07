@@ -18,7 +18,7 @@ import { advisorSession } from '../../connectors/advisor/session.ts';
 import { credentialsFor } from '../../connectors/auth/env.ts';
 import { envData, type AutofillData } from '../pkg/autofill.ts';
 import { identityWithoutProviderNotice } from '../pkg/config.ts';
-import { openDevice, openDevices, setDeviceLogger, prewarmDevices, warmDevice, watchNavigation, deviceGoto, deviceText, deviceEval, deviceOpenedAt, deviceState, deviceShot, deviceInput, closeDevice, closeAllDevices, SELENIUM_BOXES, type DeviceId, type DeviceInput, type DeviceSession } from './devices.ts';
+import { openDevice, openDevices, setDeviceLogger, prewarmDevices, warmDevice, watchNavigation, deviceGoto, deviceReload, deviceText, deviceEval, deviceOpenedAt, deviceState, deviceShot, deviceInput, closeDevice, closeAllDevices, SELENIUM_BOXES, type DeviceId, type DeviceInput, type DeviceSession } from './devices.ts';
 import { homedir } from 'node:os';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
@@ -1743,7 +1743,7 @@ connect();
     // `POST /api/device/client/open` arma el pedido de la tienda del panel —la misma URL base64 que usa
     // la corrida (`dbops ecommerce-url`)— y abre el checkout en el contexto del cliente. Por ahora sólo
     // navega: el bypass del OTP y la siembra del buró vienen después.
-    const deviceRoute = /^\/api\/device\/(client|advisor)(?:\/(open|state|shot|close|input))?$/.exec(path);
+    const deviceRoute = /^\/api\/device\/(client|advisor)(?:\/(open|state|shot|close|input|reload))?$/.exec(path);
     if (deviceRoute) {
         const id = deviceRoute[1] as DeviceId, action = deviceRoute[2] || 'state';
         if (action === 'open' && req.method === 'POST') {
@@ -1751,6 +1751,13 @@ connect();
             res.once('close', () => { devicesOpening--; });
         }
         if (action === 'state') return json(res, 200, { ...deviceState(id), note: deviceNotes.get(id) ?? null });
+        // Recargar la página del celular (el botón que aparece al pararse sobre él). Queda en la consola.
+        if (action === 'reload' && req.method === 'POST') {
+            if (!deviceState(id).open) return json(res, 200, { ok: false, open: false });
+            deviceLog(id, '↻ página recargada a mano');
+            const ok = await deviceReload(id).catch((e) => { deviceLog(id, '✗ no recargó: ' + (e as Error).message.split('\n')[0]); return false; });
+            return json(res, 200, { ok, ...deviceState(id) });
+        }
         if (action === 'shot') {
             const png = await deviceShot(id).catch(() => null);
             if (!png) { res.writeHead(404); return res.end(); }

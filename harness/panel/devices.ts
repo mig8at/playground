@@ -321,6 +321,14 @@ export function watchNavigation(id: DeviceId, onUrl: (url: string) => void): voi
     d.page.on('framenavigated', (frame) => { if (frame === d.page.mainFrame()) onUrl(frame.url()); });
 }
 
+/** Recarga la página del celular (el botón que aparece al pararse sobre él). `false` si no hay nada abierto. */
+export async function deviceReload(id: DeviceId): Promise<boolean> {
+    const d = open.get(id);
+    if (!d) return false;
+    await d.page.reload({ waitUntil: 'domcontentloaded', timeout: 60_000 });
+    return true;
+}
+
 /** Lleva un celular a otra URL (para el rescate de F-220: seguir por el `callback` de la validación de identidad). */
 export async function deviceGoto(id: DeviceId, url: string): Promise<void> {
     await open.get(id)?.page.goto(url, { waitUntil: 'domcontentloaded', timeout: 60_000 });

@@ -159,6 +159,11 @@ function summarize(lender: { id: number; name: string }, r: any) {
         category: r.matchedProfile?.name ?? null,
         // Todas sus categorías, en orden: el selector del panel elige entre éstas (las no evaluadas no se ofrecen).
         categories: (r.profiles || []).filter((p: any) => p.evaluated !== false).map((p: any) => p.name),
+        // El detalle de CADA categoría, para las tarjetas del panel: si la cumple, qué criterios no, y sus condiciones.
+        categoryDetail: (r.profiles || []).filter((p: any) => p.evaluated !== false).map((p: any) => ({
+            name: p.name, eligible: !!p.eligible, conditions: p.conditions ?? null,
+            failed: Object.entries(p.criteria || {}).filter(([, v]) => v === false).map(([k]) => label(k)),
+        })),
         position: r.matchedProfile?.position ?? null,
         conditions: r.conditions ?? null,
         requiresCosigner: !!r.requiresCosigner,
