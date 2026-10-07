@@ -11,7 +11,9 @@
 // Claves: `<buró>=ok|empty|fail` (responde · sin información · falla HTTP 500) y `<buró>.<campo>=valor`:
 //   agildata.income · agildata.occupation (Empleado|Independiente) · agildata.months
 //   mareigua.income · mareigua.months
-//   experian.score · experian.negatives · experian.consulted · experian.delinquencies · experian.creditCards
+//   experian.score · experian.negatives · experian.consulted · experian.delinquencies · experian.creditCards (Acierta)
+//   experian.quantoIncome — el ingreso estimado de QUANTO (0 = no estima). En el backend PISA el ingreso de la
+//   cascada si el comercio dispara Experian (setting `experian_trigger_allieds`).
 // Ej.: node bin/bureaus.ts set 1032456789 agildata=fail mareigua.income=3800000 experian.score=580
 //
 // ⚠ SÓLO EL MOCK LOCAL (:8105, `make harness-bureaus`): el lambda de la empresa no conoce estos estados y
@@ -29,7 +31,7 @@ const fail = (msg: string): never => { console.error(json ? JSON.stringify({ ok:
 const MODES = new Set(['ok', 'empty', 'fail']);
 const FIELDS: Record<string, string[]> = {
     agildata: ['income', 'occupation', 'months'], mareigua: ['income', 'months'], tusdatos: [],
-    experian: ['score', 'negatives', 'consulted', 'delinquencies', 'creditCards'],
+    experian: ['score', 'negatives', 'consulted', 'delinquencies', 'creditCards', 'quantoIncome'],
 };
 
 function help(): void {
@@ -39,9 +41,11 @@ function help(): void {
         `  agildata  ${d.agildata.mode} · income ${d.agildata.income} · occupation ${d.agildata.occupation} · months ${d.agildata.months}`,
         `  mareigua  ${d.mareigua.mode} · income ${d.mareigua.income} · months ${d.mareigua.months}`,
         `  tusdatos  ${d.tusdatos.mode}`,
-        `  experian  ${d.experian.mode} · score ${d.experian.score} · negatives ${d.experian.negatives} · consulted ${d.experian.consulted} · delinquencies ${d.experian.delinquencies} · creditCards ${d.experian.creditCards}`,
+        `  experian  ${d.experian.mode} · Acierta: score ${d.experian.score} · negatives ${d.experian.negatives} · consulted ${d.experian.consulted} · delinquencies ${d.experian.delinquencies} · creditCards ${d.experian.creditCards} · Quanto: quantoIncome ${d.experian.quantoIncome} (0 = no estima)`,
         '',
-        'La cascada de empleo pregunta agildata → mareigua → tusdatos y se queda con la primera que responde.',
+        'Identidad: agildata → mareigua → tusdatos, la primera que responde. Ingreso y ocupación: agildata → mareigua',
+        '(TusDatos no los trae); sin ninguna de las dos, el wizard le pide al cliente su información laboral.',
+        'Después, si el comercio dispara Experian, Quanto (quantoIncome > 0) PISA el ingreso y deja la ocupación en Empleado.',
         'Estados: ok (responde) · empty (sin información, sólo agildata y mareigua) · fail (HTTP 500).',
         '',
         '  node bin/bureaus.ts show  <cédula>',
@@ -83,9 +87,18 @@ if (cmd === 'show') {
     out({ ok: true, doc: cedula, bureaus: now }, [`Burós para ${cedula}:`, ...BUREAUS.map((c) => `  ${c.padEnd(9)} ${now[c]}`)].join('\n'));
 } else {
     const r = await applyBureauConfig(cedula, cmd === 'reset' ? {} : parsePairs(pairs));
-    const first = (['agildata', 'mareigua', 'tusdatos'] as const).find((c) => r.config[c].mode === 'ok');
-    out({ ok: r.ok, doc: cedula, config: r.config, resolves: first ?? null, lines: r.lines },
+    // Dos cascadas distintas (verificado en `main`): la IDENTIDAD la resuelve la primera de agildata → mareigua →
+    // tusdatos; el INGRESO y la ocupación sólo agildata o mareigua (TusDatos no los trae). Sin ninguna de las dos,
+    // el wizard le pide al cliente su información laboral (lo DECLARADO).
+    const identity = (['agildata', 'mareigua', 'tusdatos'] as const).find((c) => r.config[c].mode === 'ok');
+    const income = (['agildata', 'mareigua'] as const).find((c) => r.config[c].mode === 'ok');
+    out({ ok: r.ok, doc: cedula, config: r.config, identity: identity ?? null, income: income ?? 'declared',
+          quantoOverrides: r.config.experian.mode === 'ok' && r.config.experian.quantoIncome > 0, lines: r.lines },
         [`${r.ok ? '✓' : '✗'} Burós para ${cedula}:`, ...r.lines.map((l) => '  ' + l),
-         `  → la cascada de empleo la resuelve ${first ?? 'ninguna (sin datos de empleo)'}`].join('\n'));
+         `  → identidad: ${identity ?? 'ninguna central la resuelve'}`,
+         `  → ingreso y ocupación: ${income ?? 'ninguna central — el wizard le pide al cliente su información laboral (lo declarado)'}`,
+         ...(r.config.experian.mode === 'ok' && r.config.experian.quantoIncome > 0
+             ? [`  → y Quanto PISA el ingreso con $${Math.round(r.config.experian.quantoIncome).toLocaleString('es-CO')} (ocupación Empleado) si el comercio dispara Experian`] : []),
+        ].join('\n'));
     if (!r.ok) process.exit(1);
 }

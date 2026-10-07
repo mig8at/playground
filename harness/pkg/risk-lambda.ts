@@ -133,6 +133,8 @@ export interface BureauProfile {
     currentNegativeCredits?: number;
     /** Desde cuándo está en el sector financiero, `YYYY-MM-DD`. */
     maturationSince?: string;
+    /** QUANTO: el ingreso mensual estimado (en pesos). 0 = Quanto no estima, y el backend no pisa el ingreso. */
+    quantoIncome?: number;
 }
 
 /**
@@ -262,13 +264,15 @@ export interface BureauConfig {
     agildata?: { mode?: BureauMode; income?: number; occupation?: string; months?: number };
     mareigua?: { mode?: BureauMode; income?: number; months?: number };
     tusdatos?: { mode?: BureauMode };
-    experian?: { mode?: BureauMode; score?: number; negatives?: number; consulted?: number; delinquencies?: number; creditCards?: number };
+    experian?: { mode?: BureauMode; score?: number; negatives?: number; consulted?: number; delinquencies?: number; creditCards?: number; quantoIncome?: number };
 }
 export const BUREAU_DEFAULTS = {
     agildata: { mode: 'ok' as BureauMode, income: 2_500_000, occupation: 'Empleado', months: 13 },
     mareigua: { mode: 'ok' as BureauMode, income: 2_500_000, months: 13 },
     tusdatos: { mode: 'ok' as BureauMode },
-    experian: { mode: 'ok' as BureauMode, score: 700, negatives: 0, consulted: 1, delinquencies: 0, creditCards: 1 },
+    // Quanto en 0 por defecto: así el ingreso del cliente lo deciden Agildata y Mareigua, y Quanto sólo pisa cuando la
+    // prueba lo pide (en el backend pisa el ingreso si el comercio dispara Experian: `experian_trigger_allieds`).
+    experian: { mode: 'ok' as BureauMode, score: 700, negatives: 0, consulted: 1, delinquencies: 0, creditCards: 1, quantoIncome: 0 },
 };
 export type FullBureauConfig = typeof BUREAU_DEFAULTS;
 
@@ -290,8 +294,9 @@ export async function applyBureauConfig(doc: string, cfg: BureauConfig = {}): Pr
         if (c !== 'experian' || full.experian.mode !== 'ok') return r;
         const e = full.experian;
         const ok = await dictateBureauProfile(doc, { score: e.score, consultedLast6Months: e.consulted, negativeHistoricalLast12Months: e.negatives,
-            currentNegativeCredits: e.delinquencies, creditCards: e.creditCards });
-        return { ok: r.ok && ok, detalle: `experian: responde score ${e.score} · ${e.negatives} negativos · ${e.consulted} consultas · ${e.delinquencies} moras` };
+            currentNegativeCredits: e.delinquencies, creditCards: e.creditCards, quantoIncome: e.quantoIncome });
+        const quanto = e.quantoIncome > 0 ? `Quanto $${Math.round(e.quantoIncome).toLocaleString('es-CO')}` : 'Quanto sin estimación';
+        return { ok: r.ok && ok, detalle: `experian: responde Acierta score ${e.score} · ${e.negatives} negativos · ${e.consulted} consultas · ${e.delinquencies} moras · ${quanto}` };
     }));
     return { ok: results.every((r) => r.ok), config: full, lines: results.map((r) => r.detalle) };
 }
@@ -315,6 +320,7 @@ export async function readBureauConfig(doc: string): Promise<Record<string, stri
         else out[c] = 'dictado a mano';
     }
     const p = parse(`experian_profile_${doc}`);
-    if (p && !out.experian.startsWith('falla')) out.experian = `responde score ${p.score ?? '654 (fijo)'} · ${p.negativeHistoricalLast12Months ?? '?'} negativos · ${p.consultedLast6Months ?? '?'} consultas · ${p.currentNegativeCredits ?? '?'} moras`;
+    if (p && !out.experian.startsWith('falla')) out.experian = `responde Acierta score ${p.score ?? '654 (fijo)'} · ${p.negativeHistoricalLast12Months ?? '?'} negativos · ${p.consultedLast6Months ?? '?'} consultas · ${p.currentNegativeCredits ?? '?'} moras · `
+        + (p.quantoIncome == null ? 'Quanto del mock ($2.320.000)' : Number(p.quantoIncome) > 0 ? `Quanto $${Math.round(Number(p.quantoIncome)).toLocaleString('es-CO')}` : 'Quanto sin estimación');
     return out;
 }

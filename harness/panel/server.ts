@@ -347,7 +347,8 @@ async function applyBureauModes(order: any, target: string): Promise<{ ok: boole
         agildata: { mode: modes.agildata, income: num(data.agildata?.income), occupation: data.agildata?.occupation || undefined, months: num(data.agildata?.months) },
         mareigua: { mode: modes.mareigua, income: num(data.mareigua?.income), months: num(data.mareigua?.months) },
         tusdatos: { mode: modes.tusdatos },
-        experian: { mode: modes.experian, score: num(exp.score), negatives: num(exp.negatives), consulted: num(exp.consulted), delinquencies: num(exp.delinquencies) },
+        experian: { mode: modes.experian, score: num(exp.score), negatives: num(exp.negatives), consulted: num(exp.consulted), delinquencies: num(exp.delinquencies),
+            quantoIncome: num(data.experian?.quantoIncome) },
     });
     return { ok: r.ok, detalle: `cédula ${doc}`, burós: r.lines };
 }

@@ -176,6 +176,15 @@ const experianDefault = (doc, variant = 'hdcplus') => {
         if (profile.negativeHistoricalLast12Months != null && principals) principals.negativeHistoricalLast12Months = Number(profile.negativeHistoricalLast12Months);
         if (profile.currentNegativeCredits != null && principals) principals.currentNegativeCredits = Number(profile.currentNegativeCredits);
         if (profile.maturationSince && principals) principals.maturationSince = String(profile.maturationSince);
+        // QUANTO: el ingreso estimado. El backend lee los ítems `productCode 62` de `productValueList[0]` POR POSICIÓN
+        // —promedio, mínimo, máximo— y multiplica `value` por 1000 (legacy-backend `Experian.php:688-700`). Con el
+        // promedio en 0 no pisa el ingreso (sólo escribe si es > 0). El reporte `hdcplus` (sólo Acierta) no lo trae.
+        const quanto = base?.ReportHDCplus?.productValueList?.[0];
+        if (profile.quantoIncome != null && Array.isArray(quanto)) {
+            const avg = Math.round(Number(profile.quantoIncome) / 1000);
+            const items = quanto.filter((it) => Number(it.productCode) === 62);
+            [avg, Math.round(avg * 0.7), Math.round(avg * 1.3)].forEach((v, i) => { if (items[i]) items[i].value = v; });
+        }
         if (profile.creditCards != null) {
             report.creditCard = Array.from({ length: Number(profile.creditCards) }, (_, i) => activeCreditCard(i));
         }

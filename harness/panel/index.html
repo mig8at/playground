@@ -164,6 +164,8 @@
     .bureau-row[data-skipped="true"] .toggle { opacity: .55 }
     .bureau-row[data-skipped="true"]:hover .toggle { opacity: 1 }
     .bureau-gate { color: var(--warn) }
+    .inherited-hint { color: var(--fg-2) }
+    .inherited-hint b { color: var(--foreground); font-weight: 600 }
     /* Lo que contesta la central cuando responde: sangrado bajo su fila, y sólo con «Responde» (`renderBureaus`). */
     .bureau-data { padding-left: var(--space-4) }
     .bureau-data > .prop > .label { color: var(--fg-2) }
@@ -772,6 +774,10 @@
                 <option>Pensionado</option>
               </select></span>
             </div>
+            <!-- De dónde sale el ingreso y la ocupación según los BURÓS (`inheritFromBureaus`): si responde Agildata o
+                 Mareigua, el valor es el de esa central y no se edita acá; si no responde ninguna, es lo que el cliente
+                 DECLARA en el wizard. -->
+            <p class="prop-hint inherited-hint" id="incomeSource"></p>
           </fieldset>
 
 
@@ -822,8 +828,8 @@
           <!-- LA CASCADA, como se lee: una fila por central en el orden en que el backend pregunta, y las que NO se
                llegan a consultar (porque una anterior ya respondió) quedan atenuadas. Sin acordeón: son tres
                perillas, y abrir cada una costaba más que leerlas juntas. -->
-          <div class="region-head group"><span>Empleo e ingresos</span><span class="count" id="bureauResolver"></span></div>
-          <p class="bureau-lead">El backend pregunta en este orden y se queda con la primera que responde.</p>
+          <div class="region-head group"><span>Identidad y empleo</span><span class="count" id="bureauResolver"></span></div>
+          <p class="bureau-lead" title="Verificado en main: la identidad (nombre, género) la da la primera que responde de las tres; el ingreso y la ocupación, sólo Agildata o Mareigua — TusDatos no los trae. Sin ninguna de esas dos, el wizard le pide al cliente su información laboral.">El backend pregunta en orden y se queda con la primera que responde. TusDatos sólo da identidad.</p>
           <div class="prop bureau-row" data-central="agildata">
             <span class="label" title="Con «Responde» contesta el ingreso y la ocupación del caso (pestaña Cliente → Ingreso y empleo)."><span class="bureau-step">1</span>Agildata</span>
             <div class="toggle-group toggle-xs bureau-modes" data-bureau="agildata" role="group" aria-label="Qué contesta Agildata">
@@ -850,7 +856,7 @@
             <div class="prop"><label class="label" for="bd-mareigua-months">Meses con pagos</label><input id="bd-mareigua-months" class="input input-xs" type="number" min="1" max="24" step="1" placeholder="8" data-bd="mareigua" data-k="months" /></div>
           </div>
           <div class="prop bureau-row" data-central="tusdatos">
-            <span class="label" title="La última de la cascada; también valida identidad y AML al cerrar un CreditopX. Sin una respuesta «sin información» verificada."><span class="bureau-step">3</span>TusDatos</span>
+            <span class="label" title="La última de la cascada de IDENTIDAD: da el nombre, no el ingreso ni la ocupación. También valida identidad y AML al cerrar un CreditopX. Sin una respuesta «sin información» verificada."><span class="bureau-step">3</span>TusDatos</span>
             <div class="toggle-group toggle-xs bureau-modes" data-bureau="tusdatos" role="group" aria-label="Qué contesta TusDatos">
               <button type="button" class="toggle on" data-m="ok" title="Contesta con datos">Responde</button>
               <button type="button" class="toggle" data-m="fail" title="Se cae con HTTP 500: un fallo técnico, otra rama del backend">Falla</button>
@@ -858,7 +864,11 @@
           </div>
           <p class="prop-hint bureau-outcome" id="bureauCascade"></p>
 
+          <!-- EXPERIAN es UNA consulta (un solo endpoint real; el producto lo elige la credencial) con dos partes: ACIERTA,
+               el historial y el score, y QUANTO, el ingreso estimado, que PISA el ingreso de la cascada si el comercio
+               dispara Experian (legacy-backend `Experian.php:688-728`, setting `experian_trigger_allieds`). -->
           <div class="region-head group"><span>Experian · Datacrédito</span></div>
+          <p class="bureau-lead">Una sola consulta: Acierta (historial y score) y Quanto (ingreso estimado).</p>
           <div class="prop bureau-row" data-central="experian">
             <span class="label" title="Historial crediticio y score: lo que deciden las categorías de cada entidad. Sin una respuesta «sin información» verificada.">Contesta</span>
             <div class="toggle-group toggle-xs bureau-modes" data-bureau="experian" role="group" aria-label="Qué contesta Experian">
@@ -876,6 +886,10 @@
               <div class="prop"><label class="label" for="delinquencies">Moras actuales</label><input id="delinquencies" class="input input-xs" type="number" step="1" min="0" placeholder="igual a negativos" /></div>
             </fieldset>
           </fieldset>
+
+          <div class="bureau-data" data-data-of="experian">
+            <div class="prop"><label class="label" for="bd-experian-quantoIncome" title="Quanto: el ingreso mensual que estima Experian. Si es mayor que 0 y el comercio dispara Experian, PISA el ingreso de Agildata o Mareigua (o el declarado) y deja la ocupación en Empleado. 0 = no estima.">Quanto (ingreso)</label><div class="input-group input-group-xs"><span class="ico-txt">$</span><input id="bd-experian-quantoIncome" class="input input-xs" type="text" inputmode="numeric" data-bd="experian" data-k="quantoIncome" oninput="onMoney(this)" /></div></div>
+          </div>
 
           <div class="region-head group"><span>Modo de la corrida</span></div>
           <div class="prop">
@@ -1511,18 +1525,56 @@
     const BUREAU_NAMES = { agildata: 'Agildata', mareigua: 'Mareigua', tusdatos: 'TusDatos', experian: 'Experian' };
     let bureauModes = { agildata: 'ok', mareigua: 'ok', tusdatos: 'ok', experian: 'ok' };
     // Lo que contesta cada central cuando RESPONDE (vacío = lo del caso): salario, empleo y meses.
-    let bureauData = { agildata: {}, mareigua: {} };
+    let bureauData = { agildata: {}, mareigua: {}, experian: {} };
     try { bureauData = { ...bureauData, ...JSON.parse(localStorage.getItem('harness.bureauData') || '{}') }; } catch { }
     try { bureauModes = { ...bureauModes, ...JSON.parse(localStorage.getItem('harness.bureaus') || '{}') }; } catch { }
-    /** La primera central que responde (la que resuelve la cascada), o null si ninguna. */
+    /** La primera central que responde: la que da la IDENTIDAD (y no se consultan las de después), o null. */
     const bureauResolver = () => BUREAU_ORDER.find((c) => bureauModes[c] === 'ok') || null;
+    /** La que da el INGRESO y la ocupación: sólo Agildata o Mareigua (TusDatos no los trae). null = lo declara el cliente. */
+    const incomeResolver = () => ['agildata', 'mareigua'].find((c) => bureauModes[c] === 'ok') || null;
+    const bureauValue = (c, k) => { const v = bureauData[c]?.[k]; return v !== undefined && v !== '' ? v : bureauDefaults[c]?.[k]; };
+    const moneyText = (v) => '$' + Number(String(v ?? 0).replace(/\D/g, '') || 0).toLocaleString('es-CO');
+    /**
+     * LA PESTAÑA CLIENTE HEREDA LO QUE DAN LOS BURÓS, con la lógica de `main` (verificado en legacy-backend):
+     *   · ingreso y ocupación = Agildata, o si no Mareigua; los escriben al enviar personal-info;
+     *   · sin ninguna de las dos, el wizard le pide al cliente su información laboral: lo DECLARADO (lo que se
+     *     escribe acá, que guarda el panel aparte para no perderlo);
+     *   · Quanto (> 0) lo PISA después —y deja la ocupación en Empleado— si el comercio dispara Experian.
+     */
+    let declaredIncome = null, declaredOccupation = null;
+    function inheritFromBureaus() {
+      const income = $('income'), occ = $('occupation'), hint = $('incomeSource');
+      if (!income || !occ || !hint) return;
+      const src = typeof target !== 'undefined' && target !== 'local' ? null : incomeResolver();
+      const quanto = bureauModes.experian === 'ok' ? Number(String(bureauValue('experian', 'quantoIncome') ?? 0).replace(/\D/g, '')) : 0;
+      if (src) {
+        if (declaredIncome === null) { declaredIncome = income.value; declaredOccupation = occ.value; }
+        income.value = Number(String(bureauValue(src, 'income')).replace(/\D/g, '')).toLocaleString('es-CO');
+        // Agildata da la ocupación; Mareigua la deduce ella (no se configura): se deja la del caso, no la de Agildata.
+        occ.value = src === 'agildata' ? (bureauValue('agildata', 'occupation') || 'Empleado') : declaredOccupation;
+        income.disabled = true; occ.disabled = src === 'agildata';
+        hint.innerHTML = '';
+        hint.append('Heredado de ', Object.assign(document.createElement('b'), { textContent: BUREAU_NAMES[src] }),
+          src === 'agildata' ? ' (ingreso y ocupación)' : ' (ingreso; la ocupación la deduce Mareigua)', ' · se cambia en Burós');
+      } else {
+        if (declaredIncome !== null) { income.value = declaredIncome; occ.value = declaredOccupation; declaredIncome = declaredOccupation = null; }
+        income.disabled = false; occ.disabled = false;
+        hint.textContent = typeof target !== 'undefined' && target !== 'local'
+          ? `En ${target} los burós son los del lambda: el ingreso lo da su respuesta.`
+          : 'Ninguna central da el ingreso: es lo que el cliente declara en el wizard.';
+      }
+      if (quanto > 0) hint.append(` Quanto lo pisa con ${moneyText(quanto)} (y Empleado) si el comercio dispara Experian.`);
+      hint.title = hint.textContent;
+    }
     /** Cómo se resuelve la cascada con estos estados, en una frase. */
     function bureauCascadeText() {
-      const r = bureauResolver();
-      if (r === 'agildata') return 'Resuelve Agildata: Mareigua y TusDatos no se consultan.';
+      const r = bureauResolver(), ir = incomeResolver();
+      if (r === 'agildata') return 'Agildata da identidad, ingreso y ocupación; Mareigua y TusDatos no se consultan.';
       const before = BUREAU_ORDER.slice(0, r ? BUREAU_ORDER.indexOf(r) : BUREAU_ORDER.length)
         .map((c) => `${BUREAU_NAMES[c]} ${bureauModes[c] === 'fail' ? 'falla' : 'no tiene datos'}`).join(', ');
-      return r ? `${before}: resuelve ${BUREAU_NAMES[r]}.` : `${before}: ninguna responde y el backend se queda sin datos de empleo.`;
+      if (!r) return `${before}: ninguna da identidad, y el cliente declara su información laboral.`;
+      return ir ? `${before}: ${BUREAU_NAMES[r]} da identidad, ingreso y ocupación.`
+        : `${before}: TusDatos da la identidad; el ingreso lo declara el cliente en el wizard.`;
     }
     function renderBureaus() {
       for (const g of document.querySelectorAll('.bureau-modes')) {
@@ -1530,6 +1582,7 @@
         for (const b of g.querySelectorAll('button')) b.classList.toggle('on', b.dataset.m === bureauModes[c]);
       }
       for (const box of document.querySelectorAll('.bureau-data')) box.hidden = bureauModes[box.dataset.dataOf] !== 'ok';
+      // Quanto vacío = el valor por defecto (0, no estima).
       // Lo vacío muestra lo que va a usar: el valor POR DEFECTO del buró (el mismo de `bin/bureaus.ts`).
       for (const el of document.querySelectorAll('[data-bd]')) {
         const d = bureauDefaults[el.dataset.bd]?.[el.dataset.k];
@@ -1544,8 +1597,10 @@
         row.dataset.skipped = String(i > ri);
         row.title = i > ri ? `No se consulta: ya resolvió ${BUREAU_NAMES[r]}` : '';
       }
-      $('bureauResolver').textContent = r ? 'resuelve ' + BUREAU_NAMES[r] : 'ninguna responde';
+      const ir = incomeResolver();
+      $('bureauResolver').textContent = ir ? 'ingreso: ' + BUREAU_NAMES[ir] : 'ingreso: declarado';
       $('bureauResolver').dataset.none = String(!r);
+      inheritFromBureaus();
       $('bureauCascade').textContent = $('bureauCascade').title = bureauCascadeText();
       // Fuera de local no se ofrece: el que contesta es el lambda de la empresa, que no conoce estos estados.
       const remote = typeof target !== 'undefined' && target !== 'local';
@@ -1569,7 +1624,7 @@
       } catch { /* el panel no respondió: se vuelve a aplicar al abrir un celular */ }
     }
     // Los valores por defecto los da el servidor (`BUREAU_DEFAULTS` de `pkg/risk-lambda.ts`); éstos son el respaldo.
-    let bureauDefaults = { agildata: { income: 2500000, occupation: 'Empleado', months: 13 }, mareigua: { income: 2500000, months: 13 } };
+    let bureauDefaults = { agildata: { income: 2500000, occupation: 'Empleado', months: 13 }, mareigua: { income: 2500000, months: 13 }, experian: { quantoIncome: 0 } };
     fetch('/api/bureau-defaults').then((r) => r.ok ? r.json() : null).then((d) => { if (d) { bureauDefaults = d; renderBureaus(); } }).catch(() => { });
     // Los valores de Experian también viajan con los burós: al cambiarlos se vuelve a dictar.
     for (const id of ['score', 'negatives', 'consulted', 'delinquencies']) {
