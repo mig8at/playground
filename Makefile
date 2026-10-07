@@ -436,8 +436,8 @@ harness-qr: ## @har el canal QR por API, sin browser: ¿cierra en estado 25 con 
 harness-bureaus: ## @har levanta el mock LOCAL de centrales de riesgo (:8105) — reemplaza el lambda de la empresa
 	@cd harness && node mock-bureaus/server.mjs
 
-harness-bureaus-set: ## @har ⚠ qué contesta cada BURÓ para la cédula de una prueba (mock local :8105). Lo no dicho queda POR DEFECTO. DOC=<cédula> SET='agildata=fail mareigua.income=3800000 experian.score=580' (estados ok|empty|fail) · JSON=1. Sin DOC: la ayuda y los valores por defecto
-	@cd harness && node bin/bureaus.ts $(if $(DOC),set "$(DOC)" $(SET),) $(if $(JSON),--json,)
+harness-bureaus-set: ## @har ⚠ qué contesta cada BURÓ para la cédula de una prueba (mock local :8105). Lo no dicho queda POR DEFECTO. DOC=<cédula> SET='agildata=fail mareigua.income=3800000 experian.score=580' (estados ok|empty|fail) · CATEGORY='CrediPullman:Segunda oportunidad' (busca con el simulador del backend los valores que caen en esa categoría) · JSON=1. Sin DOC: la ayuda y los valores por defecto
+	@cd harness && node bin/bureaus.ts $(if $(DOC),set "$(DOC)" $(SET) $(if $(CATEGORY),"category=$(CATEGORY)",),) $(if $(JSON),--json,)
 
 harness-bureaus-show: ## @har qué contesta HOY cada buró del mock local para una cédula, leído del mock. DOC=<cédula> · JSON=1
 	@cd harness && node bin/bureaus.ts show "$(DOC)" $(if $(JSON),--json,)

@@ -348,7 +348,7 @@ async function applyBureauModes(order: any, target: string): Promise<{ ok: boole
         mareigua: { mode: modes.mareigua, income: num(data.mareigua?.income), months: num(data.mareigua?.months) },
         tusdatos: { mode: modes.tusdatos },
         experian: { mode: modes.experian, score: num(exp.score), negatives: num(exp.negatives), consulted: num(exp.consulted), delinquencies: num(exp.delinquencies),
-            quantoIncome: num(data.experian?.quantoIncome) },
+            quantoIncome: num(data.experian?.quantoIncome), creditCards: num(data.experian?.creditCards) },
     });
     return { ok: r.ok, detalle: `cédula ${doc}`, burós: r.lines };
 }
@@ -1467,6 +1467,15 @@ const server = createServer(async (req, res) => {
      * pantalla de reglas del backoffice), no una copia nuestra de las reglas: `bin/category.ts`.
      * ⚠ SÓLO LOCAL: el simulador corre adentro del contenedor; en dev y staging su endpoint pide un token del
      * pool staff de Cognito, que el harness no tiene. */
+    // ¿Qué valores ponen el caso en ESTA categoría de esta entidad? (`bin/category.ts solve`, con el simulador del
+    // backend de oráculo). Sólo local, como la predicción.
+    if (path === '/api/category-solve' && req.method === 'POST') {
+        const b = await readBody(req);
+        if (String(b.target || 'local') !== 'local') return json(res, 200, { ok: false, reason: 'sólo en local: el simulador corre en el contenedor del backend' });
+        const out = await runCategory(['solve'], JSON.stringify({ lender: Number(b.lenderId), target: b.category, occupations: b.occupations || [], case: b.case || {} }));
+        return json(res, 200, out.error ? { ok: false, reason: out.error } : out);
+    }
+
     if (path === '/api/category-preview' && req.method === 'POST') {
         const b = await readBody(req);
         if (String(b.target || 'local') !== 'local')
@@ -1987,6 +1996,8 @@ connect();
 
     if (path === '/api/preboot' && req.method === 'POST') {
         const b = await readBody(req);
+        // `HARNESS_PREBOOT=0`: un panel de PRUEBA no toca el wizard de :5174, que es el del panel de verdad.
+        if (process.env.HARNESS_PREBOOT === '0') return json(res, 200, { ok: false, detail: 'precalentado apagado (HARNESS_PREBOOT=0)' });
         const t = TARGETS.has(String(b.target)) ? String(b.target) : 'local';
         if (current && !current.done) return json(res, 200, { ok: false, detail: 'hay una corrida activa' });
         if (prebooting) return json(res, 200, { ok: false, detail: 'ya se está precalentando' });

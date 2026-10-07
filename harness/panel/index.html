@@ -413,6 +413,9 @@
     .category-head { display: flex; align-items: baseline; gap: var(--space-2); min-width: 0 }
     .category-head .row-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap }
     .category-name { flex: none; font-weight: 600 }
+    .category-select { flex: none; width: auto; max-width: 60%; font-weight: 600 }
+    .category-select.bad { color: var(--danger) }
+    .category-note.ok { color: var(--ok) }
     .category-name.bad { color: var(--danger) }
     .category-row .row-desc.warn { color: var(--warn) }
     .category-row .row-desc.ok { color: var(--ok) }
@@ -3256,8 +3259,55 @@
         age: +$('age').value || undefined, gender, occupation: $('occupation').value, income: moneyNum('income'),
         score: +$('score').value, negatives: +$('negatives').value, consulted: +$('consulted').value,
         delinquencies: $('delinquencies').value === '' ? undefined : +$('delinquencies').value, documentType: doctype,
+        // La continuidad sale de los meses del buró que da el empleo (12, 6, 3 o 0, como el motor) y las tarjetas de
+        // Experian: así la predicción mira lo mismo que los burós van a contestar.
+        continuity: bureauContinuity(), creditCards: Number(bureauValue('experian', 'creditCards') ?? 1),
       };
     }
+    function bureauContinuity() {
+      const src = incomeResolver();
+      if (!src) return 0;
+      const m = Number(bureauValue(src, 'months') ?? 13);
+      return m >= 12 ? 12 : m >= 6 ? 6 : m >= 3 ? 3 : 0;
+    }
+    /**
+     * ELEGIR UNA CATEGORÍA: el servidor busca con el simulador del backend qué valores la alcanzan (moviendo primero
+     * los burós, después la ocupación, y la edad o el género sólo si no queda otra) y acá se ESCRIBEN donde viven: el
+     * score, los negativos, las moras y las consultas en Experian; los meses y la ocupación en Agildata; la edad y el
+     * género en el caso. Después la predicción se recalcula sola y confirma (o no) que cayó ahí.
+     */
+    async function solveCategory(lender, category) {
+      const note = (text, cls = '') => { categorySolveNote = { text, cls }; renderCategories(''); };
+      note(`Buscando valores para «${category}» en ${lender.name}…`);
+      let r;
+      try {
+        r = await (await fetch('/api/category-solve', { method: 'POST', headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({ target, lenderId: lender.id, category, case: categoryCase(),
+            occupations: incomeResolver() === 'agildata' ? ['Empleado', 'Independiente'] : [] }) })).json();
+      } catch { return note('No se pudo hablar con el panel para buscar la categoría.', 'warn'); }
+      if (!r.ok) return note(`«${category}» en ${lender.name}: ${r.reason}`, 'warn');
+      const v = r.values, changes = [];
+      const setNum = (id, value, label) => { if (value == null || String($(id).value) === String(value)) return; $(id).value = value; changes.push(`${label} ${value}`); };
+      setNum('score', v.score, 'score'); setNum('negatives', v.negatives, 'negativos'); setNum('consulted', v.consulted, 'consultas');
+      setNum('delinquencies', v.delinquencies, 'moras');
+      // Los burós que dan esos datos tienen que responder: Experian (score) y el de empleo (continuidad, ocupación).
+      for (const c of ['experian', incomeResolver() || 'agildata']) if (bureauModes[c] !== 'ok') { bureauModes[c] = 'ok'; changes.push(`${BUREAU_NAMES[c]} responde`); }
+      const src = incomeResolver();
+      if (Number(bureauContinuity()) !== Number(v.continuity)) { bureauData[src] = { ...bureauData[src], months: String(v.months) }; changes.push(`${v.months} meses en ${BUREAU_NAMES[src]} (continuidad ${v.continuity})`); }
+      if (v.occupation && v.occupation !== $('occupation').value) {
+        if (src === 'agildata') bureauData.agildata = { ...bureauData.agildata, occupation: v.occupation }; else $('occupation').value = v.occupation;
+        changes.push(`ocupación ${v.occupation}`);
+      }
+      if (Number(v.creditCards) !== Number(bureauValue('experian', 'creditCards') ?? 1)) { bureauData.experian = { ...bureauData.experian, creditCards: String(v.creditCards) }; changes.push(`${v.creditCards} tarjeta(s)`); }
+      setNum('age', v.age, 'edad');
+      if (v.gender && v.gender !== gender) { document.querySelector(`#gender button[data-v="${v.gender}"]`)?.click(); changes.push(`género ${v.gender}`); }
+      try { localStorage.setItem('harness.bureaus', JSON.stringify(bureauModes)); localStorage.setItem('harness.bureauData', JSON.stringify(bureauData)); } catch { }
+      for (const el of document.querySelectorAll('[data-bd]')) { const x = bureauData[el.dataset.bd]?.[el.dataset.k]; el.value = x ?? ''; }
+      renderBureaus(); applyBureaus();
+      note(changes.length ? `Para «${category}» en ${lender.name}: ${changes.join(' · ')}.` : `Con los valores actuales ya cae en «${category}».`, 'ok');
+      refresh();
+    }
+    let categorySolveNote = null;
     function scheduleCategories() {
       clearTimeout(categoryTimer);
       categoryTimer = setTimeout(refreshCategories, 350);
@@ -3286,6 +3336,8 @@
       const lenders = categoryPrediction?.lenders || [];
       $('categoryCount').textContent = lenders.length ? String(lenders.length) : '';
       if (note) { const p = document.createElement('p'); p.className = 'category-note'; p.textContent = note; box.appendChild(p); }
+      // Lo que hizo el selector la última vez: qué valores cambió para alcanzar la categoría, o por qué no pudo.
+      if (categorySolveNote) { const p = document.createElement('p'); p.className = 'category-note ' + categorySolveNote.cls; p.textContent = categorySolveNote.text; p.title = categorySolveNote.text; box.appendChild(p); }
       // Si el motor leyó otros datos que los del caso, eso explica una predicción que no acertó: casi siempre
       // el buró que contestó el mock de centrales pisó el inyectado, o Agildata devolvió otra ocupación.
       const sent = categoriesAtLaunch?.applicant;
@@ -3305,10 +3357,21 @@
         const row = document.createElement('div'); row.className = 'row stacked category-row';
         const head = document.createElement('span'); head.className = 'category-head';
         const name = document.createElement('span'); name.className = 'row-name'; name.textContent = l.name;
-        const cat = document.createElement('span'); cat.className = 'category-name';
-        cat.textContent = l.verdict === 'approved' ? l.category : l.verdict === 'rejected' ? 'no aparece'
-          : l.verdict === 'no_profile' ? 'sin categoría' : l.verdict === 'no_rules' ? 'por puntaje' : 'error';
-        if (l.verdict === 'rejected' || l.verdict === 'no_profile' || l.verdict === 'error') cat.classList.add('bad');
+        let cat;
+        if (l.categories?.length && (l.verdict === 'approved' || l.verdict === 'no_profile')) {
+          // Un SELECTOR: la que cae hoy está elegida; elegir otra busca valores de los burós que la alcancen.
+          cat = document.createElement('select'); cat.className = 'input input-xs category-select';
+          cat.title = 'Elegí la categoría y el panel busca los valores de los burós que la alcanzan';
+          if (l.verdict !== 'approved') cat.append(new Option('sin categoría', '', true, true));
+          for (const n of l.categories) cat.append(new Option(n, n, false, n === l.category));
+          if (l.verdict !== 'approved') cat.classList.add('bad');
+          cat.onchange = () => { if (cat.value) solveCategory(l, cat.value); };
+        } else {
+          cat = document.createElement('span'); cat.className = 'category-name';
+          cat.textContent = l.verdict === 'approved' ? l.category : l.verdict === 'rejected' ? 'no aparece'
+            : l.verdict === 'no_profile' ? 'sin categoría' : l.verdict === 'no_rules' ? 'por puntaje' : 'error';
+          if (l.verdict === 'rejected' || l.verdict === 'no_profile' || l.verdict === 'error') cat.classList.add('bad');
+        }
         head.append(name, cat); row.appendChild(head);
         const line = (text, cls = '') => { if (!text) return; const d = document.createElement('span'); d.className = 'row-desc' + (cls ? ' ' + cls : ''); d.textContent = text; d.title = text; row.appendChild(d); };
         const c = l.conditions;

@@ -54,6 +54,77 @@ $r = app(\\Modules\\Backoffice\\App\\Services\\LenderRulesSimulatorService::clas
 echo '${MARK}' . json_encode($r['applicant'] ?? null, JSON_UNESCAPED_UNICODE);
 `;
 
+/**
+ * EL BUSCADOR DE CATEGORÍA (`solve`): qué valores del caso hacen que esta entidad lo ponga en ESA categoría.
+ *
+ * Las categorías se evalúan EN ORDEN y gana la primera que se cumple, así que no alcanza con cumplir la elegida:
+ * hay que NO cumplir ninguna de las de arriba. Para cada perilla se toman como candidatos el valor actual y el más
+ * flojo que la categoría todavía acepta (su score mínimo, el máximo de negativos, de moras y de consultas, el
+ * mínimo de tarjetas y de continuidad, los bordes de edad, las ocupaciones y géneros que admite): el más flojo es
+ * el que más chances tiene de romper una categoría de arriba, que suele ser más estricta. Se prueban las
+ * combinaciones de MENOS cambios a más, y el ORÁCULO es el simulador del backend: la primera que cae en la
+ * elegida, gana. Si ninguna, se dice qué categoría de arriba la tapa o qué criterio no se alcanza.
+ */
+const PHP_SOLVE = `
+$in = json_decode(getenv('SIM_INPUT'), true);
+$sim = app(\\Modules\\Backoffice\\App\\Services\\LenderRulesSimulatorService::class);
+$state = app(\\Modules\\Backoffice\\App\\Services\\LenderRulesService::class)->getState((int) $in['lender']);
+$profiles = $state['profiles'] ?? [];
+$k = null; foreach ($profiles as $p) { if ((string) ($p['id'] ?? '') === (string) $in['target'] || mb_strtolower((string) $p['name']) === mb_strtolower((string) $in['target'])) { $k = $p; break; } }
+if (!$k) { echo '${MARK}' . json_encode(['error' => 'la entidad no tiene esa categoría', 'categories' => array_map(fn ($p) => $p['name'], $profiles)], JSON_UNESCAPED_UNICODE); return; }
+$ro = (array) ($k['readOnly'] ?? []);
+$g = fn ($key) => $k[$key] ?? $ro[$key] ?? null;
+$base = $in['applicant'];
+$opts = [];
+$uniq = fn (array $xs) => array_values(array_unique(array_filter($xs, fn ($x) => $x !== null), SORT_REGULAR));
+$opts['score'] = $uniq([$base['score'] ?? null, $g('scoreMin')]);
+if ($g('scoreMin') !== null) $opts['score'] = array_values(array_filter($opts['score'], fn ($v) => (int) $v >= (int) $g('scoreMin')));
+foreach (['negativeReports12m', 'currentDelinquencies'] as $key) {
+  $opts[$key] = $uniq([$base[$key] ?? 0, $g($key)]);
+  if ($g($key) !== null) $opts[$key] = array_values(array_filter($opts[$key], fn ($v) => (int) $v <= (int) $g($key)));
+}
+$inq = $g('inquiries6m');
+$opts['inquiries6m'] = ($inq !== null && (int) $inq < 100) ? array_values(array_filter($uniq([$base['inquiries6m'] ?? 1, (int) $inq]), fn ($v) => (int) $v <= (int) $inq)) : [$base['inquiries6m'] ?? 1];
+$cards = (int) ($g('minCreditCards') ?? 0);
+$opts['cards'] = array_values(array_filter($uniq([$base['activeCreditCards'] ?? 1, $cards]), fn ($v) => (int) $v >= $cards));
+$cont = (int) ($g('employmentContinuity') ?? 0);
+$level = 0; foreach ([0, 3, 6, 12] as $l) { if ($l >= $cont) { $level = $l; break; } }
+$opts['employmentContinuity'] = array_values(array_filter($uniq([$base['employmentContinuity'] ?? 12, $level]), fn ($v) => (int) $v >= $cont));
+$occs = (array) ($k['occupations'] ?? []);
+// Si la ocupación la da un buró, sólo las que ese buró puede dar (Agildata: empleado o independiente).
+if (!empty($in['occupations'])) $occs = array_values(array_intersect($occs, (array) $in['occupations']));
+$opts['occupation'] = $uniq(array_merge(in_array($base['occupation'] ?? null, $occs, true) ? [$base['occupation']] : [], $occs));
+$gens = (array) ($k['genders'] ?? []);
+$opts['gender'] = $uniq(array_merge(in_array($base['gender'] ?? null, $gens, true) ? [$base['gender']] : [], $gens));
+$amin = $g('ageMin'); $amax = $g('ageMax');
+$ages = $uniq([$base['age'] ?? null, $amin !== null ? max(18, (int) $amin) : null, $amax !== null ? (int) $amax : null]);
+$opts['age'] = array_values(array_filter($ages, fn ($v) => ($amin === null || (int) $v >= (int) $amin) && ($amax === null || (int) $v <= (int) $amax)));
+foreach ($opts as $key => $vals) if (!$vals) $opts[$key] = [$base[$key] ?? null];
+$keys = array_keys($opts);
+$combos = [[]];
+foreach ($keys as $key) { $next = []; foreach ($combos as $c) foreach ($opts[$key] as $i => $v) $next[] = $c + [$key => $i]; $combos = $next; }
+// Se prefiere mover los BURÓS (score, negativos, moras, consultas, tarjetas, meses) antes que la ocupación, y ésta
+// antes que la edad y el género, que son de la persona: «caer en Segunda oportunidad» es un score, no un cumpleaños.
+$w = ['occupation' => 3, 'age' => 5, 'gender' => 5];
+$cost = function ($c) use ($w) { $t = 0; foreach ($c as $key => $i) if ($i) $t += $w[$key] ?? 1; return $t; };
+usort($combos, fn ($a, $b) => $cost($a) <=> $cost($b));
+$tries = 0; $first = null; $found = null;
+foreach ($combos as $c) {
+  if (++$tries > 600) break;
+  $a = $base;
+  foreach ($c as $key => $i) {
+    $v = $opts[$key][$i];
+    if ($key === 'cards') { $a['activeCreditCards'] = (int) $v; $a['activeCreditCardsWithVector'] = (int) $v; } else { $a[$key] = $v; }
+  }
+  $r = $sim->simulate((int) $in['lender'], $a, $state);
+  $m = $r['matchedProfile']['id'] ?? null;
+  if ($first === null) $first = ['matched' => $r['matchedProfile']['name'] ?? null, 'policy' => array_values(array_map(fn ($x) => $x['label'] ?? '', array_filter($r['policy']['checks'] ?? [], fn ($x) => ($x['on'] ?? false) && ($x['passed'] ?? null) === false))),
+    'targetFailed' => array_keys(array_filter((collect($r['profiles'] ?? [])->firstWhere('id', $k['id'])['criteria'] ?? []), fn ($v) => $v === false))];
+  if ((string) $m === (string) $k['id']) { $found = $a; break; }
+}
+echo '${MARK}' . json_encode(['target' => ['id' => $k['id'], 'name' => $k['name']], 'found' => $found, 'tries' => $tries, 'first' => $first], JSON_UNESCAPED_UNICODE);
+`;
+
 function simulate(lenderIds: number[], applicant: Record<string, unknown>): Promise<Record<string, any>> {
     return runPhp(PHP, { SIM_INPUT: JSON.stringify({ lenders: lenderIds, applicant }) });
 }
@@ -86,6 +157,8 @@ function summarize(lender: { id: number; name: string }, r: any) {
         id: lender.id, name: lender.name,
         verdict: (noRules ? 'no_rules' : r.verdict) as 'approved' | 'rejected' | 'no_profile' | 'no_rules',
         category: r.matchedProfile?.name ?? null,
+        // Todas sus categorías, en orden: el selector del panel elige entre éstas (las no evaluadas no se ofrecen).
+        categories: (r.profiles || []).filter((p: any) => p.evaluated !== false).map((p: any) => p.name),
         position: r.matchedProfile?.position ?? null,
         conditions: r.conditions ?? null,
         requiresCosigner: !!r.requiresCosigner,
@@ -112,6 +185,29 @@ try {
         const applicant = categoryApplicant(input.case || {});
         const raw = lenders.length ? await simulate(lenders.map((l) => l.id), applicant) : {};
         console.log(JSON.stringify({ applicant, lenders: lenders.map((l) => summarize(l, raw[String(l.id)])) }));
+    } else if (cmd === 'solve') {
+        // echo '{"lender":77,"target":"Segunda oportunidad","case":{…}}' | node bin/category.ts solve
+        const input = JSON.parse(await readStdin() || '{}') as { lender: number; target: string | number; occupations?: string[]; case: CategoryCase & { continuity?: number; creditCards?: number } };
+        const c = input.case || {};
+        const applicant = { ...categoryApplicant(c), ...(c.continuity != null ? { employmentContinuity: c.continuity } : {}),
+            ...(c.creditCards != null ? { activeCreditCards: c.creditCards, activeCreditCardsWithVector: c.creditCards } : {}) };
+        const r = await runPhp(PHP_SOLVE, { SIM_INPUT: JSON.stringify({ lender: Number(input.lender), target: input.target, occupations: input.occupations || [], applicant }) });
+        if (r.error) throw new Error(`${r.error}${r.categories ? ': ' + r.categories.join(', ') : ''}`);
+        if (!r.found) {
+            const why = r.first?.matched && r.first.matched !== r.target.name ? `con los valores más flojos de «${r.target.name}» igual cae antes en «${r.first.matched}»`
+                : r.first?.policy?.length ? `no pasa la política de la entidad (${r.first.policy.join(', ')})`
+                : r.first?.targetFailed?.length ? `no se alcanza con las perillas del caso: ${r.first.targetFailed.map(label).join(', ')}`
+                : 'ninguna combinación de las perillas la alcanza';
+            console.log(JSON.stringify({ ok: false, target: r.target, tries: r.tries, reason: why }));
+        } else {
+            const f = r.found;
+            // Lo que hay que poner en cada lugar: Experian (Acierta), Agildata (ocupación y meses) y el caso.
+            const months = Number(f.employmentContinuity) >= 12 ? 13 : Number(f.employmentContinuity) >= 6 ? 7 : Number(f.employmentContinuity) >= 3 ? 4 : 2;
+            const values = { score: f.score, negatives: f.negativeReports12m, delinquencies: f.currentDelinquencies, consulted: f.inquiries6m,
+                creditCards: f.activeCreditCards, occupation: f.occupation, continuity: f.employmentContinuity, months, age: f.age, gender: f.gender };
+            const changed = Object.entries(values).filter(([k, v]) => k !== 'months' && String(v) !== String((applicant as any)[{ negatives: 'negativeReports12m', delinquencies: 'currentDelinquencies', consulted: 'inquiries6m', creditCards: 'activeCreditCards', continuity: 'employmentContinuity' }[k] || k])).map(([k]) => k);
+            console.log(JSON.stringify({ ok: true, target: r.target, tries: r.tries, values, changed }));
+        }
     } else if (cmd === 'actual') {
         const [userId] = args;
         if (!userId) throw new Error('uso: node bin/category.ts actual <user_id>');
@@ -133,7 +229,7 @@ try {
         const read = doc ? await runPhp(PHP_READ, { SIM_DOC: String(doc) }).catch(() => null) : null;
         console.log(JSON.stringify({ lenders: [...last.values()], read }));
     } else {
-        throw new Error('uso: node bin/category.ts predict | actual <user_id>');
+        throw new Error('uso: node bin/category.ts predict | solve | actual <user_id>');
     }
 } catch (e) {
     console.log(JSON.stringify({ error: e instanceof Error ? e.message : String(e) }));
