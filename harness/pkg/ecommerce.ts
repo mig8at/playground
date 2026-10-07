@@ -76,7 +76,8 @@ export function merchantVerification(now = new Date()): Record<string, unknown> 
         terms_accepted_at: new Date(now.getTime() - 60_000).toISOString().replace(/\.\d{3}Z$/, 'Z'),
         terms_version: process.env.E2E_TERMS_VERSION || 'V20260206',
         privacy_policy_version: process.env.E2E_PRIVACY_POLICY_VERSION || 'V20260206',
-        phone_verified: true,
+        // `E2E_MERCHANT_PHONE_VERIFIED=0`: la tienda no verificó el celular (opcional en el prototipo).
+        phone_verified: process.env.E2E_MERCHANT_PHONE_VERIFIED !== '0',
     };
 }
 
@@ -87,6 +88,25 @@ export function merchantVerification(now = new Date()): Record<string, unknown> 
 export function signOrderParam(orderParam: string, secret: string, now = new Date()): { sig: string; ts: string } {
     const ts = String(Math.floor(now.getTime() / 1000));
     return { ts, sig: 'v1=' + createHmac('sha256', secret).update(`v1\n${ts}\n${orderParam}`).digest('hex') };
+}
+
+/**
+ * El secreto con que firma la tienda según `E2E_MERCHANT_SIGNATURE` (auto-onboarding sin OTP): vacío = sin firma;
+ * `invalid` firma con un secreto que no es el de la credencial (el backend debe caer al OTP).
+ */
+export async function merchantSigningSecret(hash: string, name = hash): Promise<string> {
+    const mode = merchantSignatureMode();
+    if (mode === 'none') return '';
+    const secret = await branchSigningSecret(hash);
+    if (!secret) throw new Error(`la credencial de ${name} (${hash}) no tiene secreto de firma en local: `
+        + `docker exec legacy-backend-laravel.test-1 php artisan ecommerce:signing-secret ${hash}`);
+    return mode === 'invalid' ? 'no-es-el-secreto-' + secret : secret;
+}
+
+/** La query del checkout de la tienda, con la firma (`sig`/`ts`) cuando la hay. */
+export function checkoutQuery(c: Record<string, string>): URLSearchParams {
+    return new URLSearchParams({ o: c.order, p: c.products, t: c.token, u: c.returnUrl, ps: c.processUrl, config: c.config,
+        ...(c.sig ? { sig: c.sig, ts: c.ts } : {}) });
 }
 
 /** Valores base64 del contrato (order/products/token/returnUrl/processUrl/config). `o` lleva orden+monto+moneda+facturación (spec). */
@@ -194,19 +214,8 @@ export async function buildEcommerceUrl(merchantQ: string, phone = '', amount = 
     const processURL = rawHook.endsWith('/') ? rawHook : rawHook + '/';
     // return_url = destino del botón "volver al comercio" en loan-approved (configurable con E2E_RETURN_URL).
     const returnURL = env('E2E_RETURN_URL', 'https://tienda-mcp.test/return');
-    // La firma de la tienda (auto-onboarding sin OTP). `invalid` firma con un secreto que no es el de la credencial.
-    const mode = merchantSignatureMode();
-    let secret = '';
-    if (mode !== 'none') {
-        secret = await branchSigningSecret(b.hash);
-        if (!secret) throw new Error(`la credencial de ${b.name} (${b.hash}) no tiene secreto de firma en local: `
-            + `docker exec legacy-backend-laravel.test-1 php artisan ecommerce:signing-secret ${b.hash}`);
-        if (mode === 'invalid') secret = 'no-es-el-secreto-' + secret;
-    }
-    const c = ecommerceContract(b.hash, token, ph, processURL, returnURL, p, amt, secret);
-
-    const v = new URLSearchParams({ o: c.order, p: c.products, t: c.token, u: c.returnUrl, ps: c.processUrl, config: c.config,
-        ...(c.sig ? { sig: c.sig, ts: c.ts } : {}) });
+    const c = ecommerceContract(b.hash, token, ph, processURL, returnURL, p, amt, await merchantSigningSecret(b.hash, b.name));
+    const v = checkoutQuery(c);
     return { merchant: b.name, hash: b.hash, amount: amt, phone: ph, checkout_path: `/ecommerce/${b.hash}/checkout?${v.toString()}` };
 }
 

@@ -133,7 +133,7 @@
           <tr><td><code>terms_accepted_at</code></td><td>ISO-8601 con zona</td><td>Cuándo el comprador aceptó en la tienda los términos y la autorización de tratamiento de datos.</td></tr>
           <tr><td><code>terms_version</code></td><td>texto</td><td>Versión de los Términos y Condiciones que vio. Hoy: <code>V20260206</code>.</td></tr>
           <tr><td><code>privacy_policy_version</code></td><td>texto</td><td>Versión de la Política de Tratamiento de Datos que vio. Hoy: <code>V20260206</code>.</td></tr>
-          <tr><td><code>phone_verified</code></td><td><code>true</code></td><td>Que verificó con un código que el comprador controla <code>billing.phone</code>.</td></tr>
+          <tr><td><code>phone_verified</code></td><td><code>true</code> / <code>false</code></td><td>Opcional. Si verificó con un código que el comprador controla <code>billing.phone</code>. Queda como constancia: el celular se verifica igual al firmar el pagaré.</td></tr>
         </tbody>
       </table>
     </div>
@@ -199,7 +199,6 @@ const sig = 'v1=' + createHmac('sha256', process.env.CREDITOP_SIGNING_SECRET)
           <tr><td>La credencial de la sucursal tiene secreto de firma</td><td>Se ignora la firma.</td></tr>
           <tr><td>La firma coincide con <code>ts</code> y el <code>o</code> recibidos</td><td>Se ignora. Es lo que pasa si alguien cambia el celular, el documento, el monto o la fecha de firma.</td></tr>
           <tr><td><code>ts</code> tiene menos de 15 minutos (se toleran 2 minutos de reloj adelantado)</td><td>Se ignora.</td></tr>
-          <tr><td><code>phone_verified</code> es <code>true</code></td><td>Se ignora.</td></tr>
           <tr><td><code>terms_accepted_at</code> es una fecha válida</td><td>Se ignora.</td></tr>
           <tr><td>Vienen <code>terms_version</code> y <code>privacy_policy_version</code></td><td>Se ignora.</td></tr>
           <tr><td>El pedido todavía no tiene una solicitud de crédito</td><td>Se ignora: un pedido firmado sirve para entrar una vez.</td></tr>
@@ -230,7 +229,7 @@ const sig = 'v1=' + createHmac('sha256', process.env.CREDITOP_SIGNING_SECRET)
     </ul>
     <div class="note">
       <strong>Responsabilidad de la tienda</strong>
-      <p>Al firmar, la tienda declara que verificó el celular con un código y que el comprador aceptó las versiones indicadas de los Términos y Condiciones y de la Política de Tratamiento de Datos de CreditOp, incluida la autorización de consulta a centrales de riesgo. CreditOp confía en esa declaración para no pedir un segundo código.</p>
+      <p>Al firmar, la tienda declara que el comprador aceptó las versiones indicadas de los Términos y Condiciones y de la Política de Tratamiento de Datos de CreditOp, incluida la autorización de consulta a centrales de riesgo. CreditOp confía en esa declaración para no pedir código al inicio. Antes de firmar el pagaré, CreditOp envía un código al celular del comprador.</p>
     </div>
   </section>
 

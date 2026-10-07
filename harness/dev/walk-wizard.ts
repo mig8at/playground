@@ -48,6 +48,7 @@
 // Sin `--close` se detiene al LISTAR (rápido, para barrer comercios); con `--close` sigue hasta
 // `loan-approved` y comprueba el estado 11 en la BD.
 import '../pkg/cli-aliases.ts';   // los flags viejos (en español) siguen andando: ver ese archivo
+import { synthIdImageUrl } from '../pkg/synth-id-images.ts';
 process.env.E2E_TARGET ||= 'local';
 export {};
 
@@ -58,7 +59,8 @@ const { dictateEmployment, dictateBureauProfile, LAMBDA: RISK_LAMBDA } = await i
 const { payDownPayment } = await import('../pkg/wompi-down-payment.ts');
 const { config, docGenNotice, backendLogsNotice, wireLocal } = await import('../pkg/config.ts');
 const { env } = await import('../pkg/env.ts');
-const { branchDocument, branchPhone, syntheticPhone } = await import('../pkg/phones.ts');
+const { branchDocument, branchPhone, syntheticPhone, coSignerPhone } = await import('../pkg/phones.ts');
+const { joinAsCosigner, coSignerSignature, cosignerApi } = await import('../pkg/cosigner.ts');
 const { findBranch: findBranchIn, merchantDocumentType: documentType } = await import('../pkg/merchants.ts');
 const { postHogForensic } = await import('../pkg/posthog.ts');
 const { createTrace, EXPECTED_STATUS } = await import('../pkg/trace.ts');
@@ -66,8 +68,8 @@ const { openBrowser, openContext, evidenceNotice, closeContext, advance, chooseE
     await import('../pkg/wizard-browser.ts');
 const { validationErrors: screenErrors } = await import('../pkg/autofill-qr.ts');
 const { mkdirSync, readFileSync, statSync } = await import('node:fs');
-const { cognitoStorageState, COGNITO_STATE_PATH, sessionHealth, howToRenewSession, renewSession } = await import('../pkg/cognito.ts');
-const { branchToken, ecommerceContract } = await import('../pkg/ecommerce.ts');
+const { cognitoStorageState, COGNITO_STATE_PATH, sessionHealth, howToRenewSession, renewSession, refreshSession } = await import('../pkg/cognito.ts');
+const { branchToken, ecommerceContract, merchantSigningSecret, checkoutQuery } = await import('../pkg/ecommerce.ts');
 const { registerBypass, restoreBypass } = await import('../pkg/otp-bypass.ts');
 
 type Form = Record<string, string | number | null | undefined>;
@@ -207,8 +209,7 @@ async function seed(ur: number, doc: string, log: (s: string) => void, lender?: 
         : await synthFill(ur, { income: INCOME, score: SCORE, skipIdentity: true } as any);
     const u = await one<{ user_id: number }>('SELECT user_id FROM user_requests WHERE id=?', [ur]).catch(() => null);
     if (u?.user_id) await exec('UPDATE users SET front_url=?, back_url=?, updated_at=NOW() WHERE id=?',
-        [`https://mock-s3.local/front-web/users/documents/synth/${doc}/frontal.jpg`,
-         `https://mock-s3.local/front-web/users/documents/synth/${doc}/reverso.jpg`, u.user_id]).catch(() => null);
+        [synthIdImageUrl('frontal', doc), synthIdImageUrl('reverso', doc), u.user_id]).catch(() => null);
     if (flag('manual') && u?.user_id) await manualValidation(u.user_id);
     log(`buró inyectado para uReq ${ur} (Experian ${injected.datacredito_forged})${flag('manual') ? ' · identidad aprobada a mano' : ''}`);
 }
@@ -298,12 +299,26 @@ async function correr(c: Case, i: number): Promise<Result> {
 
     const br = await findBranch(c.ref);
     if (!br) return finish('trabado', `no encontré la sucursal «${c.ref}»`);
+
+    // ── EL CODEUDOR ──
+    // Cuando la política de la entidad lo exige, el front lleva al titular por `cosigner/phone` →
+    // `validating` → `approved`. El titular hace SU parte por las pantallas (registrar el celular); lo que
+    // en la vida real hace OTRA persona desde SU celular —aceptar la invitación, dar sus datos, quedar
+    // elegible y, al final, firmar— se hace por API con el token de invitación (`pkg/cosigner.ts`).
+    let cosignerToken: string | null = null;
+    const cosignerBackend = cosignerApi(config.mockUrl, 'harness-caminador');
+    const cosignerSigns = async (): Promise<string | null> => {
+        if (!cosignerToken) return null;
+        const f = await coSignerSignature(cosignerToken, cosignerBackend);
+        log(`codeudor firma: ${f.ok ? f.motivo : `✗ ${f.motivo}`}`);
+        return f.ok ? null : f.motivo;
+    };
     // El teléfono y el documento salen del PAÍS del comercio: ver `merchantPhone`.
     tel = await merchantPhone(br.hash, i).catch(() => tel);
     r.tel = tel;
     // ⚠ El documento también sale del PAÍS, no sólo el teléfono: contra un comercio dominicano un
     // documento de 10 dígitos muere en `request-personal-info` con «la cédula debe tener exactamente 11».
-    doc = await merchantDocument(br.hash, i).catch(() => doc);
+    doc = arg('doc') || await merchantDocument(br.hash, i).catch(() => doc);   // `--doc` fija la cédula del caso (p. ej. una fuera de rango, para ver qué le pasa a la persona)
     r.doc = doc;
     await employmentFor(doc, log);
     const docType = await merchantDocumentType(br.hash);
@@ -452,6 +467,13 @@ async function correr(c: Case, i: number): Promise<Result> {
             form = { phoneNumber: tel, amount, ...(res.datos?.showQuotaConfirmation ? { confirmQuota: 'no' } : {}) };
         } else if (sheet === 'otp' && seg.at(-2) === tel) {
             form = { otp: tel.slice(-4), amount, original_amount: amount };
+        } else if (sheet === 'validando' && seg.includes('auto')) {
+            // Auto-onboarding: los datos personales salen del pedido y `validando` corre la cascada de centrales al
+            // enviarse, sin formulario (como `dev/auto-onboarding.ts`). La siembra va ANTES, igual que en personal-info.
+            // ⚠ `urOf` sólo reconoce `/{FLOW}/…`: la ruta del auto es `/auto/{hash}/{ur}/validando`.
+            const ur = Number(seg.at(-2));
+            if (!bureauInjected) { await seed(ur, doc, log); bureauInjected = true; }
+            form = {};
         } else if (sheet === 'personal-info' || sheet === 'employment-info') {
             const ur = urOf(routePath)!;
             if (!bureauInjected) { await seed(ur, doc, log); bureauInjected = true; }
@@ -553,12 +575,43 @@ async function correr(c: Case, i: number): Promise<Result> {
         } else if (sheet === 'otp-validation') {
             form = { _action: 'verify', otp: tel.slice(-6) };
         } else if (sheet === 'loan-approved') {
+            // Si hay codeudor y el crédito todavía no cerró, la firma del titular lo dejó esperando la
+            // suya: el front puede haber mostrado esta pantalla igual. Firma ahora y se mira la BD.
+            if (cosignerToken && r.ur) {
+                const now = await one<{ st: number }>('SELECT user_request_status_id st FROM user_requests WHERE id=?', [r.ur]).catch(() => null);
+                if (now?.st !== 11) {
+                    const bad = await cosignerSigns();
+                    if (bad) return finish('trabado', `la firma del codeudor: ${bad}`);
+                }
+            }
             // El veredicto lo da `pkg/trace.ts`, el mismo que usan el visual y el rápido: incluye el
             // patrón F-50 (pantalla de éxito con la BD sin sellar) que la traza ya venía marcando.
             const v = r.ur ? await t.veredicto(r.ur, 'success') : null;
             r.estado = v?.st ?? null;
             return finish(v?.ok ? 'cerro' : 'malo',
                 v?.ok ? `loan-approved con la BD en ${v.st}` : `loan-approved pero la BD dice ${v?.st ?? '—'} (F-50)`);
+        } else if (seg.at(-2) === 'cosigner' && sheet === 'phone') {
+            // El titular registra a su codeudor: lo hace él, en su pantalla.
+            form = { intent: 'register', cellPhone: coSignerPhone(tel) };
+        } else if (seg.at(-2) === 'cosigner' && sheet === 'validating') {
+            // La pantalla sólo espera (el navegador la pollea). Mientras tanto, el codeudor hace lo suyo
+            // desde su celular; cuando queda elegible y en etapa de firma, el titular pasa a `approved`.
+            const j = await joinAsCosigner(r.ur!, br.hash, tel, Number(amount), cosignerBackend, { manual: flag('manual') });
+            if (!j.ok) return finish('trabado', `el codeudor no llegó a la etapa de firma: ${j.motivo}`);
+            cosignerToken = j.token ?? null;
+            log(`codeudor (${j.tel}): ${j.motivo}`);
+            routePath = `${path.replace(/\/validating$/, '')}/approved`;
+            continue;
+        } else if (seg.at(-2) === 'cosigner' && sheet === 'approved') {
+            // «Continuar» de esa pantalla es un navigate del cliente, sin action: se va a donde lleva.
+            routePath = `${path.replace(/\/cosigner\/approved$/, '')}/first-payment-date`;
+            continue;
+        } else if (seg.at(-2) === 'cosigner' && sheet === 'waiting-signature') {
+            // El titular ya firmó y falta la firma del codeudor, que es OTRA persona: firma ahora.
+            const bad = await cosignerSigns();
+            if (bad) return finish('trabado', `la firma del codeudor: ${bad}`);
+            routePath = `${path.replace(/\/cosigner\/waiting-signature$/, '')}/loan-approved`;
+            continue;
         } else if (/^identity-validation/.test(sheet)) {
             return finish('trabado', `pide validar identidad (${sheet})${flag('manual') ? ' A PESAR de la validación manual — eso es un hallazgo' : ' — corré con --manual para saltarla como lo haría el admin'}`);
         } else {
@@ -658,9 +711,14 @@ async function ecommerceEntry(br: { hash: string; com: string }, ref: string, te
     if (!token) return { error: `la sucursal ${br.hash} (${br.com}) no tiene credencial de ecommerce: sin ella no hay checkout. Probá el hash de una sucursal «Ecommerce» de ese comercio (node bin/dbops.ts ecommerce-url ${ref.replace(/^#/, '')} te la da)` };
     const webhook = env('E2E_WEBHOOK_URL') || 'http://localhost:9/notificacion/';
     const returnValue = env('E2E_RETURN_URL') || 'http://localhost:9/volver-al-comercio';
+    // Con `E2E_AUTO_ONBOARDING=1` el pedido trae las fechas que pide el auto-onboarding, y con `E2E_MERCHANT_SIGNATURE`
+    // la tienda lo firma (sin OTP): las mismas perillas que `dev/auto-onboarding.ts` y el panel.
+    const auto = process.env.E2E_AUTO_ONBOARDING === '1';
     const c64 = ecommerceContract(br.hash, token, tel, webhook, returnValue,
-        { docType, doc, name: 'CARLOS', surname: 'RUIZ', email: `qa${doc}@gmail.com` }, AMOUNT);
-    return { path: `/ecommerce/${br.hash}/checkout?${new URLSearchParams({ o: c64.order, p: c64.products, t: c64.token, u: c64.returnUrl, ps: c64.processUrl, config: c64.config })}` };
+        { docType, doc, name: 'CARLOS', surname: 'RUIZ', email: `qa${doc}@gmail.com`,
+            ...(auto ? { expeditionDate: process.env.E2E_SYNTH_EXP || '2010-01-01', birthDate: process.env.E2E_SYNTH_DOB || '1990-01-01' } : {}) },
+        AMOUNT, await merchantSigningSecret(br.hash, br.com));
+    return { path: `/ecommerce/${br.hash}/checkout?${checkoutQuery(c64)}` };
 }
 
 // ─── el motor NAVEGADOR ──────────────────────────────────────────────────────────────────────────
@@ -695,7 +753,7 @@ async function runBrowser(c: Case, i: number, browser: any): Promise<Result> {
     r.tel = tel;
     // ⚠ El documento también sale del PAÍS, no sólo el teléfono: contra un comercio dominicano un
     // documento de 10 dígitos muere en `request-personal-info` con «la cédula debe tener exactamente 11».
-    doc = await merchantDocument(br.hash, i).catch(() => doc);
+    doc = arg('doc') || await merchantDocument(br.hash, i).catch(() => doc);   // `--doc` fija la cédula del caso (p. ej. una fuera de rango, para ver qué le pasa a la persona)
     r.doc = doc;
     await employmentFor(doc, log);
     // EL CANAL DE ASESOR pide sesión de Cognito. No se loguea acá: se REUSA el storageState que dejó el
@@ -956,6 +1014,18 @@ const cases = parseCases();
 console.log(`\n  CAMINAR · ${cases.length} caso(s) · motor ${ENGINE === 'browser' ? 'NAVEGADOR (Chromium sin ventana)' : 'HTTP'} · ${flag('parallel') ? 'en paralelo' : 'en serie'} · front ${config.feBaseUrl} · target ${TARGET}`
     + ` · ${flag('close') ? 'hasta loan-approved' : 'hasta el listado'}${flag('manual') ? ' · identidad manual' : ''}\n`);
 
+// ⚠ SIN LA VPN DE DEV, NINGÚN AMBIENTE QUE NO SEA LOCAL RESPONDE, y el síntoma no se parece a la causa:
+// la corrida muere en su primer paso y la comprobación de BD dice «no llegó a crear ninguna solicitud».
+// Se pregunta ANTES de hacer nada, porque es una resolución de nombres y cuesta milisegundos.
+if (TARGET !== 'local') {
+    const { vpnDev } = await import('../pkg/vpn.ts');
+    const vpn = await vpnDev();
+    if (!vpn.arriba) {
+        console.log(`  ✗ ${vpn.detalle}\n     Prendé la VPN de dev y volvé a correr (o usá E2E_TARGET=local).\n`);
+        process.exit(2);
+    }
+}
+
 // Una perilla que cambia QUÉ prueba la corrida no puede estar invisible en el `.env` de otro repo.
 const notice = docGenNotice(TARGET);
 if (notice) console.log(`  ${notice}\n`);
@@ -985,6 +1055,17 @@ if (FLOW === 'merchant') {
     // sin explicación se lee como que algo se rompió.
     //
     // `--no-warm` lo apaga, para quien no quiera una ventana en el medio.
+    // ⚠ PRIMERO SIN CLAVE. Con el `_rt` vivo, la app renueva sola el `_at` en la primera petición
+    // (`refreshSession`): sin ventana, sin credenciales y en un segundo. Sólo si eso no alcanza —el
+    // refresh token revocado, o la sucursal de la sesión no es la pedida— se cae al login con ventana.
+    // `repin` SIEMPRE: la sucursal viaja fijada en la sesión y el caso puede haber movido al asesor
+    // (otro comercio, otra corrida). Acuñar un `_at` nuevo hace que la app la lea de nuevo, sin clave.
+    if (session.renovable) {
+        const rf = await refreshSession({ repin: true });
+        console.log(rf.ok ? `  ✓ sesión de asesor ${rf.motivo}\n` : `  ⚠ no pude renovarla sin clave: ${rf.motivo}\n`);
+        session = sessionHealth();
+    }
+
     if (!session.sirve && !flag('no-warm')) {
         console.log(`  ⟳ la sesión de asesor no sirve (${session.motivo.split(' —')[0]}).`);
         console.log('     Renovándola: se va a abrir una ventana — el login de Cognito no se puede automatizar sin ella (F-66).\n');
