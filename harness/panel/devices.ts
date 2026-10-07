@@ -27,6 +27,8 @@ interface Device {
     /** URL del visor mínimo del panel (`/device-view`) para embeber el noVNC del celular. */
     view?: string;
     close: () => Promise<void>;
+    /** ¿La sesión sigue viva para Selenium? (un comando de WebDriver, con plazo corto). */
+    alive?: () => Promise<boolean>;
 }
 
 // Un Android de gama media: la mayoría de los compradores entra desde uno.
@@ -145,14 +147,23 @@ async function openSelenium(b: SeleniumBox): Promise<Omit<Device, 'openedAt'>> {
     // Vista de teléfono: el wizard decide su diseño por el viewport y el táctil, no sólo por el user-agent.
     const cdpSession = await context.newCDPSession(page);
     await cdpSession.send('Emulation.setTouchEmulationEnabled', { enabled: true, maxTouchPoints: 5 }).catch(() => { });
+    // ⚠ EL LATIDO. Selenium mata una sesión que pasa `SE_NODE_SESSION_TIMEOUT` (1 h) sin un comando de WEBDRIVER, y lo
+    // que hace el panel va por CDP, y los toques por el visor, por VNC: ninguno cuenta. Así murió el 2026-10-06 la
+    // reserva del cliente (creada 16:07, «timed out» 17:07) y al otro día el traspaso la tomó y se colgó sin avisar.
+    // Un GET de la URL cada 5 min la mantiene viva, tanto de reserva como abierta.
+    const webdriver = (ms: number) => fetch(`${b.grid}/session/${sessionId}/url`, { signal: AbortSignal.timeout(ms) });
+    const heartbeat = setInterval(() => { void webdriver(10_000).catch(() => { }); }, 5 * 60_000);
+    heartbeat.unref?.();
     return {
         context, page,
         // El visor mínimo del panel (`/device-view`): sólo la pantalla, sin las barras de noVNC.
         view: `/device-view?vnc=${b.vncPort}`,
         close: async () => {
+            clearInterval(heartbeat);
             await remote.close().catch(() => { });
             await fetch(`${b.grid}/session/${sessionId}`, { method: 'DELETE' }).catch(() => { });
         },
+        alive: async () => (await webdriver(2_000).catch(() => null))?.ok === true && remote.isConnected(),
     };
 }
 
@@ -175,9 +186,11 @@ function refillSpare(id: DeviceId): void {
 async function takeSpare(id: DeviceId): Promise<{ d: Omit<Device, 'openedAt'>; reused: boolean }> {
     const pending = spare.get(id);
     spare.delete(id);
-    const d = pending ? await pending : null;
+    // Una reserva que tarda más de 20 s en estar lista se da por perdida: mejor un navegador nuevo que colgarse.
+    const d = pending ? await Promise.race([pending, new Promise<null>((r) => setTimeout(() => r(null), 20_000))]) : null;
     // Una reserva que se murió mientras esperaba (sesión vencida, contenedor reiniciado) no sirve: se abre otra.
-    if (d && d.context.browser()?.isConnected() !== false && !d.page.isClosed()) return { d, reused: true };
+    // Se le PREGUNTA a Selenium (`alive`): la conexión CDP puede seguir abierta con la sesión ya muerta.
+    if (d && !d.page.isClosed() && (await d.alive?.().catch(() => false) ?? true)) return { d, reused: true };
     if (d) await d.close().catch(() => { });
     return { d: await ENGINE[id](), reused: false };
 }
