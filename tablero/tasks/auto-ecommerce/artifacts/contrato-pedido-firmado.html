@@ -75,14 +75,14 @@
     <div class="eyebrow">CreditOp · integración ecommerce · v1</div>
     <h1>Pedido firmado por la tienda</h1>
     <p class="lede">Si la tienda ya validó el celular del comprador con su propio código y registró que aceptó los términos, puede firmar el pedido. Con el pedido firmado, el comprador entra a CreditOp sin un segundo código y sigue directo a la validación de identidad y a las entidades.</p>
-    <div class="meta"><span>Para: equipo técnico de Refurbi</span><span>Versión del contrato: 1</span><span>7 de octubre de 2026</span></div>
+    <div class="meta"><span>Para: equipo técnico de Refurbi</span><span>Versión del contrato: 1</span><span>Actualizado el 7 de octubre de 2026</span></div>
   </header>
 
   <section>
     <h2>Cómo cambia el recorrido</h2>
     <div class="flow">
       <div class="step"><b>1 · Tienda</b><span>El comprador verifica su celular y acepta términos en la tienda.</span></div>
-      <div class="step"><b>2 · Tienda</b><span>El servidor de la tienda firma el pedido y redirige al checkout de CreditOp.</span></div>
+      <div class="step"><b>2 · Tienda</b><span>El servidor de la tienda firma el pedido y redirige al checkout de CreditOp con la firma.</span></div>
       <div class="step"><b>3 · CreditOp</b><span>Verifica la firma. Si es válida, no pide código.</span></div>
       <div class="step"><b>4 · CreditOp</b><span>Valida identidad con centrales y muestra las entidades.</span></div>
     </div>
@@ -90,10 +90,19 @@
   </section>
 
   <section>
-    <h2>Qué no cambia</h2>
-    <p>La URL de checkout, sus parámetros y su codificación son los de la integración actual:</p>
-    <pre><code>https://&lt;wizard&gt;/ecommerce/{hash_sucursal}/checkout?o=…&amp;p=…&amp;t=…&amp;u=…&amp;ps=…&amp;config=…</code></pre>
-    <p>La firma viaja <b>dentro del pedido</b> (<code>o</code>), en un bloque nuevo <code>verification</code>. El pedido se sigue enviando como hoy: <code>serialize()</code> de PHP en base64.</p>
+    <h2>Qué cambia en la URL</h2>
+    <p>La URL de checkout, sus parámetros y su codificación son los de la integración actual. Se agregan dos parámetros:</p>
+    <pre><code>https://&lt;wizard&gt;/ecommerce/{hash_sucursal}/checkout?o=…&amp;p=…&amp;t=…&amp;u=…&amp;ps=…&amp;config=…&amp;ts=…&amp;sig=…</code></pre>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Parámetro</th><th>Formato</th><th>Qué es</th></tr></thead>
+        <tbody>
+          <tr><td><code>ts</code> <span class="tag new">nuevo</span></td><td>entero</td><td>Segundos desde 1970 (timestamp unix, UTC) del momento en que se firmó.</td></tr>
+          <tr><td><code>sig</code> <span class="tag new">nuevo</span></td><td><code>v1=</code> + hex</td><td>La firma del pedido. Ver «Cómo se calcula la firma».</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p>El pedido (<code>o</code>) se sigue enviando como hoy: <code>serialize()</code> de PHP en base64. Lo nuevo dentro del pedido es el bloque <code>verification</code>.</p>
   </section>
 
   <section>
@@ -104,7 +113,7 @@
         <tbody>
           <tr><td><code>id</code></td><td>entero</td><td>Id del pedido en la tienda.</td></tr>
           <tr><td><code>order_key</code></td><td>texto</td><td>Único por pedido. CreditOp lo usa con <code>id</code> para reconocer el pedido.</td></tr>
-          <tr><td><code>total</code></td><td>texto</td><td>Monto en pesos, sin separadores, p. ej. <code>"2000000"</code>. Se firma tal como se envía.</td></tr>
+          <tr><td><code>total</code></td><td>texto</td><td>Monto en pesos, sin separadores, p. ej. <code>"2000000"</code>.</td></tr>
           <tr><td><code>currency</code></td><td>texto</td><td><code>"COP"</code>.</td></tr>
           <tr><td><code>billing.first_name</code>, <code>last_name</code>, <code>email</code></td><td>texto</td><td>Como hoy.</td></tr>
           <tr><td><code>billing.phone</code></td><td>texto</td><td>El celular que la tienda verificó, 10 dígitos.</td></tr>
@@ -112,7 +121,7 @@
           <tr><td><code>billing.document_number</code></td><td>texto</td><td>Sin puntos.</td></tr>
           <tr><td><code>billing.document_expedition_date</code></td><td><code>YYYY-MM-DD</code></td><td>La exige el auto-onboarding para validar identidad sin formulario.</td></tr>
           <tr><td><code>billing.birth_date</code></td><td><code>YYYY-MM-DD</code></td><td>Opcional, recomendada: algunas entidades la piden.</td></tr>
-          <tr><td><code>verification</code> <span class="tag new">nuevo</span></td><td>objeto</td><td>Ver abajo. Si no viene, el pedido no está firmado.</td></tr>
+          <tr><td><code>verification</code> <span class="tag new">nuevo</span></td><td>objeto</td><td>Lo que declara la tienda. Ver abajo.</td></tr>
         </tbody>
       </table>
     </div>
@@ -121,60 +130,62 @@
       <table>
         <thead><tr><th>Campo</th><th>Formato</th><th>Qué declara la tienda</th></tr></thead>
         <tbody>
-          <tr><td><code>terms_accepted_at</code></td><td>ISO-8601 con zona</td><td>Cuándo el comprador aceptó los términos y la autorización de consulta en la tienda.</td></tr>
-          <tr><td><code>phone_verified</code></td><td><code>true</code></td><td>Que la tienda verificó con un código que el comprador controla <code>billing.phone</code>.</td></tr>
-          <tr><td><code>signed_at</code></td><td>ISO-8601 con zona</td><td>Cuándo se firmó. Vale 15 minutos.</td></tr>
-          <tr><td><code>signature</code></td><td>hex, 64 caracteres</td><td>HMAC-SHA256 de la cadena canónica, con el secreto de firma.</td></tr>
+          <tr><td><code>terms_accepted_at</code></td><td>ISO-8601 con zona</td><td>Cuándo el comprador aceptó en la tienda los términos y la autorización de tratamiento de datos.</td></tr>
+          <tr><td><code>terms_version</code></td><td>texto</td><td>Versión de los Términos y Condiciones que vio. Hoy: <code>V20260206</code>.</td></tr>
+          <tr><td><code>privacy_policy_version</code></td><td>texto</td><td>Versión de la Política de Tratamiento de Datos que vio. Hoy: <code>V20260206</code>.</td></tr>
+          <tr><td><code>phone_verified</code></td><td><code>true</code></td><td>Que verificó con un código que el comprador controla <code>billing.phone</code>.</td></tr>
         </tbody>
       </table>
     </div>
-    <p>Recomendamos las fechas en UTC con sufijo <code>Z</code>, p. ej. <code>2026-10-07T14:59:00Z</code>.</p>
+    <p>Las versiones son las de los documentos acordados con Refurbi: <i>TERMINOS_Y_CONDICIONES_CREDITOP_COLOMBIA_SAS_V20260206</i> y <i>POLITICA_DE_TRATAMIENTO_DE_DATOS_CREDITOP_COLOMBIA_SAS_V20260206</i>. Si CreditOp publica una versión nueva, la tienda la muestra y manda su versión. Recomendamos las fechas en UTC con sufijo <code>Z</code>, p. ej. <code>2026-10-07T14:58:00Z</code>.</p>
   </section>
 
   <section>
     <h2>Cómo se calcula la firma</h2>
-    <p>La cadena canónica son estos ocho valores, en este orden, unidos por <code>|</code>. Cada valor va como texto, exactamente como viaja en el pedido, sin espacios a los lados. Un valor ausente va vacío.</p>
-    <div class="canon">
-      <span>order_key</span><i>|</i><span>total</span><i>|</i><span>billing.phone</span><i>|</i><span>billing.document_type</span><i>|</i><span>billing.document_number</span><i>|</i><span>billing.document_expedition_date</span><i>|</i><span>verification.terms_accepted_at</span><i>|</i><span>verification.signed_at</span>
-    </div>
-    <p>La firma es <code>HMAC-SHA256(secreto, cadena)</code> en hexadecimal en minúsculas. Se calcula <b>en el servidor de la tienda</b>: el secreto nunca llega al navegador ni a la URL.</p>
+    <p>Es el mismo esquema con que CreditOp firma sus propios eventos: HMAC-SHA256 en hexadecimal, en minúsculas, sobre tres líneas separadas por un salto de línea (<code>\n</code>):</p>
+    <div class="canon"><span>v1</span><i>\n</i><span>ts</span><i>\n</i><span>o</span></div>
+    <ul>
+      <li><code>ts</code> es el mismo valor que va en el parámetro <code>ts</code>.</li>
+      <li><code>o</code> es el pedido <b>ya serializado y en base64</b>, exactamente el texto que se pone en el parámetro <code>o</code>, antes de codificarlo para la URL.</li>
+    </ul>
+    <p>El parámetro <code>sig</code> es <code>v1=</code> seguido de la firma. Se firma el pedido completo: cualquier cambio en cualquier campo, incluido el bloque <code>verification</code>, invalida la firma. La firma se calcula <b>en el servidor de la tienda</b>: el secreto nunca llega al navegador ni a la URL.</p>
 
     <h3>Ejemplo para probar la implementación</h3>
-    <p>Con el secreto de ejemplo <code>secreto-de-ejemplo-no-usar-en-produccion</code>:</p>
-    <div class="codehead"><span>cadena canónica</span><button class="copy" type="button" data-copy="ex-canon">Copiar</button></div>
-    <pre><code id="ex-canon">wc_order_8F2kQ1|2000000|3001234567|CC|1032456789|2010-01-01|2026-10-07T14:58:00Z|2026-10-07T14:59:00Z</code></pre>
-    <div class="codehead"><span>firma esperada</span><button class="copy" type="button" data-copy="ex-sig">Copiar</button></div>
-    <pre><code id="ex-sig">4a3ab7f013efe61186defcf4944dee9b7234483e5fd47ed5bac296fdc291eb27</code></pre>
+    <p>Con el secreto de ejemplo <code>secreto-de-ejemplo-no-usar-en-produccion</code>, un pedido mínimo y <code>ts</code> = <code>1791385140</code> (2026-10-07 14:59:00 UTC):</p>
+    <div class="codehead"><span>o</span><button class="copy" type="button" data-copy="ex-o">Copiar</button></div>
+    <pre><code id="ex-o">YToxOntzOjI6ImlkIjtpOjUwMDI7fQ==</code></pre>
+    <div class="codehead"><span>mensaje firmado</span><button class="copy" type="button" data-copy="ex-msg">Copiar</button></div>
+    <pre><code id="ex-msg">v1
+1791385140
+YToxOntzOjI6ImlkIjtpOjUwMDI7fQ==</code></pre>
+    <div class="codehead"><span>sig esperado</span><button class="copy" type="button" data-copy="ex-sig">Copiar</button></div>
+    <pre><code id="ex-sig">v1=38d4819edd74843ff34a727754e7ac125dd2752eb62d9819232aa9fdaf86bd3c</code></pre>
 
     <h3>PHP (WooCommerce)</h3>
-    <div class="codehead"><span>firmar el pedido antes de serializarlo</span><button class="copy" type="button" data-copy="php">Copiar</button></div>
-<pre><code id="php">$now = gmdate('Y-m-d\TH:i:s\Z');
-$order['verification'] = [
-    'terms_accepted_at' =&gt; $termsAcceptedAtUtc, // cuando el comprador aceptó en la tienda
-    'phone_verified'    =&gt; true,
-    'signed_at'         =&gt; $now,
+    <div class="codehead"><span>firmar el pedido y armar la URL</span><button class="copy" type="button" data-copy="php">Copiar</button></div>
+<pre><code id="php">$order['verification'] = [
+    'terms_accepted_at'      =&gt; $termsAcceptedAtUtc, // cuando el comprador aceptó en la tienda
+    'terms_version'          =&gt; 'V20260206',
+    'privacy_policy_version' =&gt; 'V20260206',
+    'phone_verified'         =&gt; true,
 ];
-$b = $order['billing'];
-$canonical = implode('|', array_map(fn ($v) =&gt; trim((string) ($v ?? '')), [
-    $order['order_key'], $order['total'],
-    $b['phone'] ?? null, $b['document_type'] ?? null, $b['document_number'] ?? null,
-    $b['document_expedition_date'] ?? null,
-    $order['verification']['terms_accepted_at'], $order['verification']['signed_at'],
-]));
-$order['verification']['signature'] = hash_hmac('sha256', $canonical, CREDITOP_SIGNING_SECRET);
+$o   = base64_encode(serialize($order));
+$ts  = (string) time();
+$sig = 'v1=' . hash_hmac('sha256', "v1\n{$ts}\n{$o}", CREDITOP_SIGNING_SECRET);
 
-$o = base64_encode(serialize($order));</code></pre>
+$query = http_build_query([
+    'o' =&gt; $o, 'p' =&gt; $p, 't' =&gt; $t, 'u' =&gt; $u, 'ps' =&gt; $ps, 'config' =&gt; $config,
+    'ts' =&gt; $ts, 'sig' =&gt; $sig,
+]);</code></pre>
 
     <h3>Node.js</h3>
     <div class="codehead"><span>la misma firma</span><button class="copy" type="button" data-copy="node">Copiar</button></div>
 <pre><code id="node">import { createHmac } from 'node:crypto';
 
-const v = order.verification;
-const b = order.billing;
-const canonical = [order.order_key, order.total, b.phone, b.document_type, b.document_number,
-  b.document_expedition_date, v.terms_accepted_at, v.signed_at]
-  .map((x) =&gt; String(x ?? '').trim()).join('|');
-v.signature = createHmac('sha256', process.env.CREDITOP_SIGNING_SECRET).update(canonical).digest('hex');</code></pre>
+// o: el pedido ya serializado y en base64, el mismo texto que va en el parámetro o
+const ts = String(Math.floor(Date.now() / 1000));
+const sig = 'v1=' + createHmac('sha256', process.env.CREDITOP_SIGNING_SECRET)
+  .update(`v1\n${ts}\n${o}`).digest('hex');</code></pre>
   </section>
 
   <section>
@@ -184,26 +195,28 @@ v.signature = createHmac('sha256', process.env.CREDITOP_SIGNING_SECRET).update(c
       <table>
         <thead><tr><th>Condición</th><th>Si no se cumple</th></tr></thead>
         <tbody>
+          <tr><td>Llegan <code>sig</code> y <code>ts</code></td><td>El pedido no está firmado.</td></tr>
           <tr><td>La credencial de la sucursal tiene secreto de firma</td><td>Se ignora la firma.</td></tr>
-          <tr><td>La firma coincide con la cadena canónica</td><td>Se ignora. Es lo que pasa si alguien cambia el celular, el documento o el monto del pedido.</td></tr>
+          <tr><td>La firma coincide con <code>ts</code> y el <code>o</code> recibidos</td><td>Se ignora. Es lo que pasa si alguien cambia el celular, el documento, el monto o la fecha de firma.</td></tr>
+          <tr><td><code>ts</code> tiene menos de 15 minutos (se toleran 2 minutos de reloj adelantado)</td><td>Se ignora.</td></tr>
           <tr><td><code>phone_verified</code> es <code>true</code></td><td>Se ignora.</td></tr>
           <tr><td><code>terms_accepted_at</code> es una fecha válida</td><td>Se ignora.</td></tr>
-          <tr><td><code>signed_at</code> tiene menos de 15 minutos (se toleran 2 minutos de reloj adelantado)</td><td>Se ignora.</td></tr>
+          <tr><td>Vienen <code>terms_version</code> y <code>privacy_policy_version</code></td><td>Se ignora.</td></tr>
           <tr><td>El pedido todavía no tiene una solicitud de crédito</td><td>Se ignora: un pedido firmado sirve para entrar una vez.</td></tr>
         </tbody>
       </table>
     </div>
     <p>Con la firma aceptada, CreditOp usa el celular <b>del pedido firmado</b>, no uno que llegue después desde el navegador. Si llega el mismo pedido sin firma, no reemplaza al firmado.</p>
-    <p>CreditOp guarda como constancia <code>terms_accepted_at</code>, <code>phone_verified</code> y <code>signed_at</code> junto al pedido.</p>
+    <p>CreditOp guarda como constancia junto al pedido: <code>terms_accepted_at</code>, <code>terms_version</code>, <code>privacy_policy_version</code>, <code>phone_verified</code> y el momento de la firma.</p>
   </section>
 
   <section>
     <h2>Requisitos y detalles</h2>
     <ul>
       <li>La sucursal tiene que estar habilitada por CreditOp para el auto-onboarding.</li>
-      <li>Los campos firmados van en <code>billing</code> con estos nombres exactos. El remapeo de nombres de <code>config</code> no aplica a la firma.</li>
-      <li>Firmen el <code>total</code> con el mismo texto que envían. <code>"2000000"</code> y <code>"2000000.00"</code> dan firmas distintas.</li>
-      <li>Firmen justo antes de redirigir al checkout. Si el comprador vuelve más de 15 minutos después, firmen de nuevo con un <code>signed_at</code> nuevo.</li>
+      <li>La aceptación en la tienda tiene que ser previa y expresa: una casilla sin marcar, con enlace a los dos documentos, antes de redirigir al checkout.</li>
+      <li>Firmen el <code>o</code> definitivo: si cambian algo del pedido después de firmar, firmen de nuevo.</li>
+      <li>Firmen justo antes de redirigir. Si el comprador vuelve más de 15 minutos después, firmen de nuevo con un <code>ts</code> nuevo.</li>
     </ul>
   </section>
 
@@ -217,7 +230,7 @@ v.signature = createHmac('sha256', process.env.CREDITOP_SIGNING_SECRET).update(c
     </ul>
     <div class="note">
       <strong>Responsabilidad de la tienda</strong>
-      <p>Al firmar, la tienda declara que verificó el celular con un código y que el comprador aceptó los términos y la autorización de consulta a centrales de riesgo. CreditOp confía en esa declaración para no pedir un segundo código.</p>
+      <p>Al firmar, la tienda declara que verificó el celular con un código y que el comprador aceptó las versiones indicadas de los Términos y Condiciones y de la Política de Tratamiento de Datos de CreditOp, incluida la autorización de consulta a centrales de riesgo. CreditOp confía en esa declaración para no pedir un segundo código.</p>
     </div>
   </section>
 
@@ -228,17 +241,18 @@ v.signature = createHmac('sha256', process.env.CREDITOP_SIGNING_SECRET).update(c
         <thead><tr><th>Caso</th><th>Resultado esperado</th></tr></thead>
         <tbody>
           <tr><td>Pedido firmado correctamente</td><td>No pide código: pasa a la validación de datos y luego a las entidades.</td></tr>
-          <tr><td>Pedido sin <code>verification</code></td><td>Pide el código al celular del pedido, como hoy.</td></tr>
+          <tr><td>Sin <code>sig</code> ni <code>ts</code></td><td>Pide el código al celular del pedido, como hoy.</td></tr>
           <tr><td>Firma hecha con otro secreto</td><td>Pide el código.</td></tr>
-          <tr><td>Celular cambiado después de firmar</td><td>Pide el código.</td></tr>
-          <tr><td><code>signed_at</code> de hace más de 15 minutos</td><td>Pide el código.</td></tr>
+          <tr><td>Pedido cambiado después de firmar (p. ej. el celular)</td><td>Pide el código.</td></tr>
+          <tr><td><code>ts</code> de hace más de 15 minutos</td><td>Pide el código.</td></tr>
+          <tr><td>Sin <code>terms_version</code> o sin <code>privacy_policy_version</code></td><td>Pide el código.</td></tr>
           <tr><td>El mismo pedido, otra vez, después de crear la solicitud</td><td>Pide el código.</td></tr>
         </tbody>
       </table>
     </div>
   </section>
 
-  <footer>Contacto técnico en CreditOp: el equipo de Loan Origination. Este documento describe la versión 1 del contrato; cualquier cambio en la cadena canónica será una versión nueva.</footer>
+  <footer>Contacto técnico en CreditOp: el equipo de Loan Origination. Este documento describe la versión 1 del contrato; un cambio en la forma de firmar será una versión nueva (<code>v2=</code>).</footer>
 </div>
 
 <script>

@@ -68,21 +68,25 @@ export async function branchSigningSecret(hash: string): Promise<string> {
 }
 
 /**
- * `order.verification` como la arma una tienda que ya validó al cliente de su lado (su OTP y los términos).
- * La cadena firmada es la del backend, campo por campo y en el mismo orden:
- *   order_key|total|phone|document_type|document_number|document_expedition_date|terms_accepted_at|signed_at
+ * Lo que declara una tienda que ya validó al cliente de su lado (su OTP y los términos), en `order.verification`.
+ * Las versiones son las de los documentos acordados con Refurbi (`E2E_TERMS_VERSION`, `E2E_PRIVACY_POLICY_VERSION`).
  */
-export function signOrder(order: { order_key: string; total: string; billing: Record<string, string | undefined> }, secret: string, now = new Date()): Record<string, unknown> {
-    const iso = (d: Date) => d.toISOString().replace(/\.\d{3}Z$/, 'Z');
-    const termsAcceptedAt = iso(new Date(now.getTime() - 60_000));
-    const signedAt = iso(now);
-    const b = order.billing;
-    const canonical = [order.order_key, order.total, b.phone, b.document_type, b.document_number, b.document_expedition_date, termsAcceptedAt, signedAt]
-        .map((x) => String(x ?? '').trim()).join('|');
+export function merchantVerification(now = new Date()): Record<string, unknown> {
     return {
-        terms_accepted_at: termsAcceptedAt, phone_verified: true, signed_at: signedAt,
-        signature: createHmac('sha256', secret).update(canonical).digest('hex'),
+        terms_accepted_at: new Date(now.getTime() - 60_000).toISOString().replace(/\.\d{3}Z$/, 'Z'),
+        terms_version: process.env.E2E_TERMS_VERSION || 'V20260206',
+        privacy_policy_version: process.env.E2E_PRIVACY_POLICY_VERSION || 'V20260206',
+        phone_verified: true,
     };
+}
+
+/**
+ * La firma de la tienda, el esquema de los eventos CreditopX que verifica el backend (`MerchantOrderSignatureService`):
+ * `v1=` + HMAC-SHA256 de `v1\n{ts}\n{o}`, con el `o` (base64) tal cual viaja en la URL.
+ */
+export function signOrderParam(orderParam: string, secret: string, now = new Date()): { sig: string; ts: string } {
+    const ts = String(Math.floor(now.getTime() / 1000));
+    return { ts, sig: 'v1=' + createHmac('sha256', secret).update(`v1\n${ts}\n${orderParam}`).digest('hex') };
 }
 
 /** Valores base64 del contrato (order/products/token/returnUrl/processUrl/config). `o` lleva orden+monto+moneda+facturación (spec). */
@@ -99,8 +103,8 @@ export function ecommerceContract(hash: string, token: string, phone: string, pr
             ...(p.birthDate ? { birth_date: p.birthDate } : {}),
         },
     };
-    // La firma va sobre el pedido YA armado: cualquier campo que se toque después la rompe.
-    if (signingSecret) order.verification = signOrder(order, signingSecret);
+    // Lo que la tienda declara va DENTRO del pedido; la firma, afuera (`sig`/`ts`), sobre el `o` ya armado.
+    if (signingSecret) order.verification = merchantVerification();
     // productos de mentiras (solo para el ejercicio): 2 ítems que suman el total.
     const big = Math.round(total * 0.7);
     const products = JSON.stringify([
@@ -108,8 +112,10 @@ export function ecommerceContract(hash: string, token: string, phone: string, pr
         { product_id: 102, name: 'Funda + protector de pantalla', sku: 'SKU-ACC-01', price: String(total - big), quantity: 1 },
     ]);
     const configJSON = JSON.stringify([]);
+    const orderParam = b64(phpSerialize(order));
     return {
-        order: b64(phpSerialize(order)),
+        order: orderParam,
+        ...(signingSecret ? signOrderParam(orderParam, signingSecret) : {}),
         products: b64(products),
         token: b64(token),
         returnUrl: b64(phpSerialize(returnURL)),
@@ -199,7 +205,8 @@ export async function buildEcommerceUrl(merchantQ: string, phone = '', amount = 
     }
     const c = ecommerceContract(b.hash, token, ph, processURL, returnURL, p, amt, secret);
 
-    const v = new URLSearchParams({ o: c.order, p: c.products, t: c.token, u: c.returnUrl, ps: c.processUrl, config: c.config });
+    const v = new URLSearchParams({ o: c.order, p: c.products, t: c.token, u: c.returnUrl, ps: c.processUrl, config: c.config,
+        ...(c.sig ? { sig: c.sig, ts: c.ts } : {}) });
     return { merchant: b.name, hash: b.hash, amount: amt, phone: ph, checkout_path: `/ecommerce/${b.hash}/checkout?${v.toString()}` };
 }
 

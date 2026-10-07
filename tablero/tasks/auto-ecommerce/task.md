@@ -18,7 +18,8 @@ ramas: feat/auto-onboarding, feat/auto-onboarding-risk-check, feat/auto-onboardi
       frontend-monorepo, misma rama (`9410ac4d`). Termina con los dos PRs abiertos. Depende de: Miguel — que lo pida.
 - [ ] **Entregar a Refurbi el contrato** ([Pedido firmado por la tienda](https://claude.ai/artifact/CGuFPWWV4euyUpwAKwybwu))
       y, por canal privado, el secreto de su credencial (`php artisan ecommerce:signing-secret c390eed9` en el ambiente
-      donde pruebe). Termina cuando Refurbi firma un pedido en `qa` y entra sin código. Depende de: Refurbi.
+      donde pruebe). Las versiones que declara son las de los PDFs acordados (V20260206); prod registra hoy
+      T&C V20260209 y política V20260310: que legal confirme cuáles mostrar. Termina cuando Refurbi firma un pedido en `qa` y entra sin código. Depende de: Refurbi.
 - [ ] **Preguntarle a legal si la aceptación tomada por la tienda vale como autorización de consulta a centrales**
       (habeas data: previa, expresa y verificable). El contrato le hace declarar a la tienda que la tomó; falta el sí de
       legal antes de producción. Depende de: legal.
@@ -35,8 +36,10 @@ TusDatos) y a las entidades.
 ## Dónde se toca
 
 **legacy-backend**
-- `MerchantOrderSignatureService`: la cadena canónica y la verificación (secreto, coincidencia, `phone_verified`,
-  términos, vigencia 15 min con 2 de tolerancia).
+- `MerchantOrderSignatureService`: el esquema de los eventos CreditopX (`v1=` + HMAC-SHA256 de `v1\n{ts}\n{o}`, con el
+  `o` tal como viaja) y lo que declara la tienda en `order.verification`: `phone_verified`, `terms_accepted_at`,
+  `terms_version` y `privacy_policy_version` (V20260206, los PDFs acordados con Refurbi). Vigencia 15 min, 2 de tolerancia.
+- `CreateEcommerceRequest`: `signature` y `signatureTimestamp`, opcionales.
 - `EcommerceRequestService::createEcommerceRequestOrchestrator`: verifica la firma al crear el pedido, devuelve
   `merchantVerified` y un `verificationToken` de un solo uso (se guarda sólo su sha256); un pedido firmado no se pisa
   con uno sin firma, y uno que ya tiene solicitud no se vuelve a firmar.
@@ -47,7 +50,7 @@ TusDatos) y a las entidades.
   `merchant_verification`, `verification_token_hash`. Comando `ecommerce:signing-secret {hash} {--rotate}`.
 
 **frontend-monorepo**
-- `routes/ecommerce/checkout.tsx`: con `merchantVerified`, guarda el token en la sesión del servidor (cookie firmada,
+- `routes/ecommerce/checkout.tsx`: pasa `sig` y `ts` de la URL al backend; con `merchantVerified`, guarda el token en la sesión del servidor (cookie firmada,
   httpOnly), nunca en la URL.
 - `routes/auto-onboarding/start.tsx`: si hay token lo canjea (`StartMerchantVerifiedSessionUc`) y sigue a `validando`;
   si el backend lo rechaza, sigue por el código como hoy.
@@ -62,13 +65,15 @@ permite confiar en el teléfono del pedido. Todo lo que falla cae al recorrido c
 
 - **Saltar el OTP sólo por estar la sucursal en `auto_onboarding_allied_branches`**: el pedido es editable por el
   comprador; sería entrar con el celular de cualquiera.
+- **Una cadena canónica de 8 campos del pedido** (la primera versión): obligaba a la tienda a firmar el `total` con el
+  mismo texto y no admitía el remapeo de `config`. Se cambió por el esquema de los eventos CreditopX, que firma el `o`
+  entero (decisión de Miguel, 2026-10-07).
 - **Mandar el token del pedido firmado en la URL de `inicio`**: queda en el historial y en logs; va en la sesión.
 - **Correr las centrales ANTES del OTP con la aceptación de la tienda**: espera el sí de legal (pendiente).
 
 ## Lo que NO entra
 
 - Corbeta (QR) y el canal asesor: no cambian.
-- El remapeo de nombres de `config`: los campos firmados van con su nombre estándar en `billing`.
 
 ## Cómo se comprueba
 
