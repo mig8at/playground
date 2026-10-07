@@ -650,6 +650,12 @@
                       <label class="shop-field"><span>Fecha de expedición</span><input class="input input-sm" id="shopExpedition" type="date" /></label>
                       <label class="shop-field"><span>Celular</span><input class="input input-sm" id="shopPhone" inputmode="tel" /></label>
                       <label class="shop-field"><span>Email</span><input class="input input-sm" id="shopEmail" type="email" /></label>
+                      <label class="shop-field" id="shopSignatureRow" hidden title="La tienda que ya validó al cliente de su lado (su OTP y los términos) firma el pedido con el secreto de su credencial, y el cliente entra sin el código de Creditop. Inválida firma con otro secreto: el backend debe caer al OTP."><span>Firma de la tienda</span>
+                        <span class="select"><select class="input input-sm" id="shopSignature">
+                          <option value="none">Sin firma (pide el código)</option>
+                          <option value="valid">Firmado: sin OTP</option>
+                          <option value="invalid">Firma inválida</option>
+                        </select></span></label>
                     </section>
                     <footer class="shop-foot">
                       <div class="shop-total"><span>Total</span><strong id="shopTotal">$0</strong></div>
@@ -2846,6 +2852,9 @@
     for (const [id, key] of Object.entries(SHOP_BINDINGS)) {
       $(id).addEventListener(id === 'shopCountry' || id === 'shopDocType' ? 'change' : 'input', () => caseStore.write(key, $(id).value));
     }
+    // La firma es de la TIENDA, no del caso: se recuerda por navegador.
+    try { $('shopSignature').value = localStorage.getItem('harness.shopSignature') || 'none'; } catch { /* sin storage */ }
+    $('shopSignature').addEventListener('change', () => { try { localStorage.setItem('harness.shopSignature', $('shopSignature').value); } catch { /* sin storage */ } });
     $('shopPhone').readOnly = true;
     $('shopPhone').title = 'El celular del bypass del OTP: es el del caso y no se edita';
     // Repinta la tienda desde el caso. El campo que tiene el foco no se toca: le movería el cursor.
@@ -2935,6 +2944,7 @@
           method: 'POST', headers: { 'content-type': 'application/json' },
           body: JSON.stringify({
             slug: sel.slug, target, channel, order: caseStore.read(),
+            signature: channel === 'auto' ? $('shopSignature').value : 'none',
           }),
         })).json();
         if (!r.ok) return setClientMode('status', r.detail || 'No se pudo abrir el checkout.');
@@ -3065,6 +3075,7 @@
       // El celular de la tienda sólo existe en los canales que entran por ella.
       // Y el del asesor, sólo donde hay asesor: por la tienda y en la autogestión el cliente va solo.
       const viaStore = channel === 'ecommerce' || channel === 'auto';
+      $('shopSignatureRow').hidden = channel !== 'auto';
       const noAdvisor = viaStore || channel === 'autogestion';
       $('deviceStore').hidden = !viaStore;
       $('deviceAdvisor').hidden = noAdvisor;

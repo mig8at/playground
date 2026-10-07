@@ -1,7 +1,9 @@
 // ecommerce.ts — arma la URL del checkout ecommerce (contrato base64 + phpSerialize + token).
 // Port de ecommerce.go (b64/phpSerialize/branchToken/ecommerceContract/opEcommerceURL).
+import { createHmac } from 'node:crypto';
 import { config } from './config.ts';
-import { scalar, env } from './db.ts';
+import { scalar, env, appKey, isLocalDb } from './db.ts';
+import { decryptLaravelString } from './laravel-crypt.ts';
 import { resolveMerchant, listEcommerce } from './merchants.ts';
 
 export interface PersonalInfo {
@@ -18,6 +20,7 @@ export const b64 = (s: string): string => Buffer.from(s, 'utf8').toString('base6
 export function phpSerialize(v: unknown): string {
     if (typeof v === 'string') return `s:${Buffer.byteLength(v, 'utf8')}:"${v}";`; // longitud en BYTES
     if (typeof v === 'number' && Number.isInteger(v)) return `i:${v};`;
+    if (typeof v === 'boolean') return `b:${v ? 1 : 0};`;
     if (v && typeof v === 'object' && !Array.isArray(v)) {
         const obj = v as Record<string, unknown>;
         const keys = Object.keys(obj).sort();
@@ -37,9 +40,54 @@ export async function branchToken(hash: string): Promise<string> {
     )) ?? '';
 }
 
+/**
+ * Cómo firma la tienda el pedido (auto-onboarding SIN OTP, `MerchantOrderSignatureService` del backend):
+ * `valid` firma con el secreto de la credencial · `invalid` firma con otro (el backend debe caer al OTP) ·
+ * `none` no manda `verification` (el OTP de siempre).
+ */
+export type MerchantSignature = 'valid' | 'invalid' | 'none';
+
+export function merchantSignatureMode(): MerchantSignature {
+    const v = (process.env.E2E_MERCHANT_SIGNATURE || '').trim();
+    return v === 'valid' || v === 'invalid' ? v : 'none';
+}
+
+/**
+ * El secreto de firma de la sucursal (`allied_ecommerce_credentials.signing_secret`, cifrado con el APP_KEY).
+ * SÓLO en local: en un ambiente compartido el secreto es del comercio y no se lee. Vacío = la credencial no
+ * tiene (se genera con `php artisan ecommerce:signing-secret <hash>`) o la columna no existe en esa rama.
+ */
+export async function branchSigningSecret(hash: string): Promise<string> {
+    if (!isLocalDb()) return '';
+    const encrypted = await scalar<string>(
+        `SELECT aec.signing_secret FROM allied_ecommerce_credentials aec
+         JOIN allied_branches ab ON ab.id = aec.allied_branch_id WHERE ab.hash = ? LIMIT 1`,
+        [hash],
+    ).catch(() => null);
+    return encrypted ? decryptLaravelString(encrypted, appKey()) : '';
+}
+
+/**
+ * `order.verification` como la arma una tienda que ya validó al cliente de su lado (su OTP y los términos).
+ * La cadena firmada es la del backend, campo por campo y en el mismo orden:
+ *   order_key|total|phone|document_type|document_number|document_expedition_date|terms_accepted_at|signed_at
+ */
+export function signOrder(order: { order_key: string; total: string; billing: Record<string, string | undefined> }, secret: string, now = new Date()): Record<string, unknown> {
+    const iso = (d: Date) => d.toISOString().replace(/\.\d{3}Z$/, 'Z');
+    const termsAcceptedAt = iso(new Date(now.getTime() - 60_000));
+    const signedAt = iso(now);
+    const b = order.billing;
+    const canonical = [order.order_key, order.total, b.phone, b.document_type, b.document_number, b.document_expedition_date, termsAcceptedAt, signedAt]
+        .map((x) => String(x ?? '').trim()).join('|');
+    return {
+        terms_accepted_at: termsAcceptedAt, phone_verified: true, signed_at: signedAt,
+        signature: createHmac('sha256', secret).update(canonical).digest('hex'),
+    };
+}
+
 /** Valores base64 del contrato (order/products/token/returnUrl/processUrl/config). `o` lleva orden+monto+moneda+facturación (spec). */
-export function ecommerceContract(hash: string, token: string, phone: string, processURL: string, returnURL: string, p: PersonalInfo, total: number): Record<string, string> {
-    const order = {
+export function ecommerceContract(hash: string, token: string, phone: string, processURL: string, returnURL: string, p: PersonalInfo, total: number, signingSecret = ''): Record<string, string> {
+    const order: { order_key: string; total: string; billing: Record<string, string | undefined>; [k: string]: unknown } = {
         // order_key ÚNICO por corrida → cada run crea un ecommerce_request FRESCO (processed=0) y el
         // observer re-notifica al cerrar. Con el determinista 'wc_mcp_'+hash el ER se reusaba entre runs
         // y, una vez processed=1, la idempotencia del observer saltaba la notificación.
@@ -51,6 +99,8 @@ export function ecommerceContract(hash: string, token: string, phone: string, pr
             ...(p.birthDate ? { birth_date: p.birthDate } : {}),
         },
     };
+    // La firma va sobre el pedido YA armado: cualquier campo que se toque después la rompe.
+    if (signingSecret) order.verification = signOrder(order, signingSecret);
     // productos de mentiras (solo para el ejercicio): 2 ítems que suman el total.
     const big = Math.round(total * 0.7);
     const products = JSON.stringify([
@@ -138,7 +188,16 @@ export async function buildEcommerceUrl(merchantQ: string, phone = '', amount = 
     const processURL = rawHook.endsWith('/') ? rawHook : rawHook + '/';
     // return_url = destino del botón "volver al comercio" en loan-approved (configurable con E2E_RETURN_URL).
     const returnURL = env('E2E_RETURN_URL', 'https://tienda-mcp.test/return');
-    const c = ecommerceContract(b.hash, token, ph, processURL, returnURL, p, amt);
+    // La firma de la tienda (auto-onboarding sin OTP). `invalid` firma con un secreto que no es el de la credencial.
+    const mode = merchantSignatureMode();
+    let secret = '';
+    if (mode !== 'none') {
+        secret = await branchSigningSecret(b.hash);
+        if (!secret) throw new Error(`la credencial de ${b.name} (${b.hash}) no tiene secreto de firma en local: `
+            + `docker exec legacy-backend-laravel.test-1 php artisan ecommerce:signing-secret ${b.hash}`);
+        if (mode === 'invalid') secret = 'no-es-el-secreto-' + secret;
+    }
+    const c = ecommerceContract(b.hash, token, ph, processURL, returnURL, p, amt, secret);
 
     const v = new URLSearchParams({ o: c.order, p: c.products, t: c.token, u: c.returnUrl, ps: c.processUrl, config: c.config });
     return { merchant: b.name, hash: b.hash, amount: amt, phone: ph, checkout_path: `/ecommerce/${b.hash}/checkout?${v.toString()}` };

@@ -1794,6 +1794,8 @@ connect();
                 // habilitada para el auto se sigue pudiendo probar por la puerta normal.
                 E2E_AUTO_ONBOARDING: auto ? '1' : '', E2E_SYNTH_EXP: auto ? str(o.expedition) : '',
                 E2E_SYNTH_DOB: auto ? str(o.birth) : '', E2E_AUTO_NO_BIRTH: auto && !str(o.birth) ? '1' : '',
+                // La firma de la tienda (auto-onboarding sin OTP): sólo en local, donde se puede leer el secreto.
+                E2E_MERCHANT_SIGNATURE: auto && t === 'local' && ['valid', 'invalid'].includes(String(b.signature)) ? String(b.signature) : '',
             };
             const amount = String(Number(str(o.amount).replace(/\D/g, '')) || '');
             // LAS CONSULTAS VAN A LA VEZ, no una tras otra (eran ~1,2 s en fila, medido el 2026-10-06). Armar el
@@ -1807,13 +1809,14 @@ connect();
             // el código son sus últimos 4 dígitos y no sale ningún SMS.
             const scrubP = str(o.phone) ? dbopsJson(['scrubphone', str(o.phone)], t) : null;
             const built = await builtP;
-            if (!built?.checkout_path) { await releasing; return json(res, 200, { ok: false, detail: `no pude armar el pedido de ${b.slug} en ${t} (¿sucursal con credencial de ecommerce?)` }); }
+            if (!built?.checkout_path) { await releasing; return json(res, 200, { ok: false, detail: `no pude armar el pedido de ${b.slug} en ${t} (¿sucursal con credencial de ecommerce?${orderEnv.E2E_MERCHANT_SIGNATURE ? ' ¿con secreto de firma? php artisan ecommerce:signing-secret <hash>' : ''})` }); }
             const phone = str(o.phone) || String(built.phone || '');
             const bypassP = releasing.then(() => dbopsJson(['otp-bypass-add', phone], t));
             const [scrub, bypass, bz] = await Promise.all([scrubP ?? dbopsJson(['scrubphone', phone], t), bypassP,
                 t === 'local' ? applyBureauModes(o, t) : Promise.resolve(null)]);
             phase('pedido, limpieza y OTP');
-            startDeviceLog(`${b.slug} (${t}) · tienda → cliente · ${auto ? 'auto-onboarding' : 'ecommerce'} · cel ${phone}`);
+            const signature = orderEnv.E2E_MERCHANT_SIGNATURE ? ` · firma ${orderEnv.E2E_MERCHANT_SIGNATURE === 'valid' ? 'válida (sin OTP)' : 'inválida'}` : '';
+            startDeviceLog(`${b.slug} (${t}) · tienda → cliente · ${auto ? 'auto-onboarding' : 'ecommerce'}${signature} · cel ${phone}`);
             if (bypass?.ok) deviceBypass.set('client', { target: t, puesto: bypass.puesto });
             const otp = bypass?.ok ? { otp: phone.slice(-4), otpBypass: bypass.puesto?.comodin ? 'comodín' : 'agregado' }
                 : { otpBypassError: bypass?.motivo || 'no se pudo registrar el bypass del OTP' };
