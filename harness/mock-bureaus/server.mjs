@@ -45,7 +45,11 @@ const idNumberOf = (url, body) => {
     if (m) return m[1];
     try {
         const b = JSON.parse(body || '{}');
-        return String(b.numero_documento ?? b.documentNumber ?? b.document_number
+        // Mareigua la manda en `NumeroEmpleado_id` y TusDatos en `document_data.document_number` (validaciones)
+        // o en `ce` (cédula de extranjería): sin estas ramas un dictado por cédula para esas dos NUNCA se
+        // aplicaba y servían el default (visto el 2026-10-07 al armar la pestaña «Burós» del panel).
+        return String(b.NumeroEmpleado_id ?? b?.document_data?.document_number ?? b.ce
+            ?? b.numero_documento ?? b.documentNumber ?? b.document_number
             ?? b?.consumers?.[0]?.identityId ?? b.identification
             // Experian la manda ACÁ, anidada. Sin esta rama, un dictado por cédula para Experian
             // nunca se aplicaba: el mock servía el default y el flujo terminaba bien con un score
@@ -233,6 +237,15 @@ const server = http.createServer((req, res) => {
                 log(`dictado ${p.key}`);
                 return json(res, 200, { message: `Global variable '${p.key}' has been set` });
             }
+        }
+        // Olvidar UN dictado (`DELETE /mockoon-admin/global-vars/<clave>`): la central vuelve a su default para
+        // esa cédula. Lo usa el panel para «Responde» en las centrales que no se dictan con el caso.
+        const forget = /^\/mockoon-admin\/global-vars\/(.+)$/.exec(url.pathname);
+        if (req.method === 'DELETE' && forget) {
+            const k = decodeURIComponent(forget[1]);
+            const had = dictated.delete(k);
+            log(`olvidado ${k}${had ? '' : ' (no estaba)'}`);
+            return json(res, 200, { deleted: had });
         }
         if (req.method === 'POST' && url.pathname === '/mockoon-admin/state/purge') {
             dictated.clear(); log('purgado');

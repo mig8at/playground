@@ -175,3 +175,146 @@ export async function dictateCase(doc: string, c: DictatedCase): Promise<{ emplo
     });
     return { employment, bureau };
 }
+
+
+/* ── LOS TRES ESTADOS DE UNA CENTRAL (la pestaña «Burós» del panel) ─────────────────────────────────────
+ * Para probar la CASCADA de identidad y empleo —Agildata → Mareigua → TusDatos, que corta en la primera que
+ * resuelve (legacy-backend `Modules/Backoffice/App/Services/UsersService.php:313`)— cada central puede:
+ *   · `ok`    responder: Agildata con el ingreso y la ocupación del caso; las demás con su default del mock;
+ *   · `empty` contestar 200 «sin información»: la cascada pasa a la siguiente;
+ *   · `fail`  caerse (HTTP 500): un fallo técnico, que es OTRA rama del backend.
+ * «Sin información» usa las respuestas REALES del lambda de mocks, copiadas por el backend en
+ * `Modules/Identity/tests/Fixtures/lambda-riskservices.json`: Agildata `codRespuesta: "02"` (el backend sólo
+ * acepta 01 y 21) y Mareigua `respuesta_id: 2` (sólo acepta 4). TusDatos y Experian no tienen una forma
+ * verificada de «sin información», así que para ellas ese estado no se ofrece. Todo es POR CÉDULA. */
+export type BureauMode = 'ok' | 'empty' | 'fail';
+export const BUREAUS = ['agildata', 'mareigua', 'tusdatos', 'experian'] as const;
+export type Bureau = typeof BUREAUS[number];
+
+const NO_INFO: Partial<Record<Bureau, (doc: string) => unknown>> = {
+    agildata: () => ({ usuario: null, respuesta: null, codConsulta: '10000000000000000', codRespuesta: '02',
+        observaciones: 'No se encontró información del afiliado.' }),
+    mareigua: (doc) => ({ fecha: new Date().toISOString().slice(0, 19), genero: '', aportantes: [], consulta_id: 1000000000,
+        respuesta_id: 2, primer_nombre_persona_natural: '', segundo_nombre_persona_natural: '',
+        primer_apellido_persona_natural: '', segundo_apellido_persona_natural: '',
+        numero_identificacion_persona_natural: doc, tipo_identificacion_persona_natural_id: 1 }),
+};
+export const bureauSupports = (central: Bureau, mode: BureauMode): boolean => mode !== 'empty' || !!NO_INFO[central];
+
+/** Mareigua con un ingreso y una cantidad de meses: la misma forma que el default del mock de burós, que es la
+ *  del lambda (`respuesta_id: 4`, que es la única que el backend acepta). El ingreso va como media, mínimo y
+ *  máximo del aportante y en cada pago. */
+export function mareiguaAnswer(doc: string, income: number, months = 8) {
+    const ibc = Math.round(income);
+    return {
+        respuesta_id: 4, consulta_id: 1916660000, genero: 'M',
+        primer_nombre_persona_natural: 'CARLOS', segundo_nombre_persona_natural: '',
+        primer_apellido_persona_natural: 'RUIZ', segundo_apellido_persona_natural: 'MENDOZA',
+        numero_identificacion_persona_natural: doc, tipo_identificacion_persona_natural_id: 1,
+        AFP: 'COLPENSIONES', EPS: 'COMPENSAR', servidor_publico: false,
+        aportantes: [{
+            nivel_riesgo: 'Bajo', media_ingresos: ibc, minimo: ibc, maximo: ibc, CIIU_aportante: '8412',
+            regimen: '', tipo_contrato: '', fecha_ingreso: '',
+            resultado_pagos: Array.from({ length: months }, () => ({
+                ingresos: ibc, total_ingreso: ibc, ingreso_neto: ibc, realizo_pago: true, retefuente: 0,
+                indemnizacion: 0, bonificaciones: 0, deducciones_ley: Math.round(ibc * 0.115), otras_deducciones: 0,
+            })),
+        }],
+    };
+}
+
+/** Olvida lo dictado para esa central y esa cédula: vuelve a su default. */
+export async function forgetDictation(doc: string, central: string): Promise<boolean> {
+    const r = await fetch(`${LAMBDA}/mockoon-admin/global-vars/${encodeURIComponent(`${central}_${doc}`)}`,
+        { method: 'DELETE', signal: AbortSignal.timeout(10_000) }).catch(() => null);
+    return !!r?.ok;
+}
+
+/** Lo que contesta una central cuando RESPONDE: Agildata y Mareigua traen la información laboral (el backend
+ *  guarda de ellas el ingreso y la ocupación de la solicitud, campos 87 y 29). Vacío = lo del caso. */
+export interface BureauAnswer { income?: number; occupation?: string; months?: number }
+
+export async function dictateBureauMode(doc: string, central: Bureau, mode: BureauMode,
+    c: BureauAnswer = {}): Promise<{ ok: boolean; detalle: string }> {
+    if (!doc) return { ok: false, detalle: 'el caso no tiene cédula' };
+    if (!bureauSupports(central, mode)) return { ok: false, detalle: `${central} no tiene una respuesta «sin información» verificada` };
+    let ok: boolean;
+    if (mode === 'fail') ok = await dictate(doc, central, { __http_status: 500, __body: { error: 'falla simulada por el panel del harness' } });
+    else if (mode === 'empty') ok = await dictate(doc, central, NO_INFO[central]!(doc));
+    else if (central === 'agildata') ok = await dictate(doc, 'agildata', agildataAnswer(doc, c.income || 2_500_000, c.occupation, c.months || 8));
+    else if (central === 'mareigua') ok = await dictate(doc, 'mareigua', mareiguaAnswer(doc, c.income || 2_500_000, c.months || 8));
+    else ok = await forgetDictation(doc, central);
+    const money = (n?: number) => '$' + Math.round(n || 2_500_000).toLocaleString('es-CO');
+    const what = mode === 'fail' ? 'falla (HTTP 500)' : mode === 'empty' ? 'sin información'
+        : central === 'agildata' ? `responde ${money(c.income)} · ${String(c.occupation || 'Empleado').toLowerCase()} · ${c.months || 8} meses`
+        : central === 'mareigua' ? `responde ${money(c.income)} · ${c.months || 8} meses` : 'responde';
+    return { ok, detalle: ok ? `${central}: ${what}` : `${central}: el mock de burós (${LAMBDA}) no tomó el dictado` };
+}
+
+
+/* ── LA CONFIGURACIÓN DE LOS BURÓS PARA UNA CÉDULA (panel y `bin/bureaus.ts`) ─────────────────────────────
+ * Una sola fuente de VALORES POR DEFECTO, para que el panel y un agente que configura su prueba por consola
+ * partan del mismo cliente: lo que no se dice queda como acá. Trece meses y no ocho: la continuidad de 12
+ * meses necesita un año entero de pagos (ver `dictateCase`). Experian con una tarjeta activa, como la que
+ * forja la inyección; su reporte fijo (score 654, 59 consultas, sin tarjetas) no entra en ninguna categoría
+ * de mejores condiciones. */
+export interface BureauConfig {
+    agildata?: { mode?: BureauMode; income?: number; occupation?: string; months?: number };
+    mareigua?: { mode?: BureauMode; income?: number; months?: number };
+    tusdatos?: { mode?: BureauMode };
+    experian?: { mode?: BureauMode; score?: number; negatives?: number; consulted?: number; delinquencies?: number; creditCards?: number };
+}
+export const BUREAU_DEFAULTS = {
+    agildata: { mode: 'ok' as BureauMode, income: 2_500_000, occupation: 'Empleado', months: 13 },
+    mareigua: { mode: 'ok' as BureauMode, income: 2_500_000, months: 13 },
+    tusdatos: { mode: 'ok' as BureauMode },
+    experian: { mode: 'ok' as BureauMode, score: 700, negatives: 0, consulted: 1, delinquencies: 0, creditCards: 1 },
+};
+export type FullBureauConfig = typeof BUREAU_DEFAULTS;
+
+/** La configuración completa: lo dicho encima de los valores por defecto (lo vacío o inválido no pisa). */
+export function withBureauDefaults(cfg: BureauConfig = {}): FullBureauConfig {
+    const out = structuredClone(BUREAU_DEFAULTS) as any;
+    for (const c of BUREAUS) for (const [k, v] of Object.entries((cfg as any)[c] || {})) {
+        if (v === undefined || v === null || v === '' || (typeof v === 'number' && !Number.isFinite(v))) continue;
+        out[c][k] = v;
+    }
+    return out;
+}
+
+/** Aplica la configuración a una cédula: cada central contesta lo suyo. Devuelve una línea por central. */
+export async function applyBureauConfig(doc: string, cfg: BureauConfig = {}): Promise<{ ok: boolean; config: FullBureauConfig; lines: string[] }> {
+    const full = withBureauDefaults(cfg);
+    const results = await Promise.all(BUREAUS.map(async (c) => {
+        const r = await dictateBureauMode(doc, c, full[c].mode, full[c] as BureauAnswer);
+        if (c !== 'experian' || full.experian.mode !== 'ok') return r;
+        const e = full.experian;
+        const ok = await dictateBureauProfile(doc, { score: e.score, consultedLast6Months: e.consulted, negativeHistoricalLast12Months: e.negatives,
+            currentNegativeCredits: e.delinquencies, creditCards: e.creditCards });
+        return { ok: r.ok && ok, detalle: `experian: responde score ${e.score} · ${e.negatives} negativos · ${e.consulted} consultas · ${e.delinquencies} moras` };
+    }));
+    return { ok: results.every((r) => r.ok), config: full, lines: results.map((r) => r.detalle) };
+}
+
+/** Qué contesta HOY cada central para esa cédula, leído del mock (no de lo que alguien cree que dictó). */
+export async function readBureauConfig(doc: string): Promise<Record<string, string>> {
+    const r = await fetch(`${LAMBDA}/mockoon-admin/global-vars`, { signal: AbortSignal.timeout(10_000) }).catch(() => null);
+    if (!r?.ok) throw new Error(`el mock de burós no responde en ${LAMBDA} (make harness-bureaus)`);
+    const all = await r.json() as Record<string, string>;
+    const parse = (k: string) => { try { return k in all ? JSON.parse(all[k]) : undefined; } catch { return undefined; } };
+    const money = (n: unknown) => '$' + Math.round(Number(n) || 0).toLocaleString('es-CO');
+    const out: Record<string, string> = {};
+    for (const c of BUREAUS) {
+        const v = parse(`${c}_${doc}`);
+        if (v === undefined) out[c] = c === 'agildata' || c === 'mareigua' ? 'sin dictar: contesta el default del mock' : 'responde (default del mock)';
+        else if (v.__http_status) out[c] = `falla (HTTP ${v.__http_status})`;
+        else if (c === 'agildata') out[c] = v.codRespuesta !== '01' ? `sin información (codRespuesta ${v.codRespuesta})`
+            : `responde ${money(v.respuesta?.detalladoEmpleos?.[0]?.pagos?.[0]?.ibc)} · ${v.respuesta?.detalladoEmpleos?.[0]?.nombreEmpleador === v.respuesta?.datosBasicos?.nombre ? 'independiente' : 'empleado'} · ${v.respuesta?.detalladoEmpleos?.[0]?.pagos?.length ?? 0} meses`;
+        else if (c === 'mareigua') out[c] = v.respuesta_id !== 4 ? `sin información (respuesta_id ${v.respuesta_id})`
+            : `responde ${money(v.aportantes?.[0]?.media_ingresos)} · ${v.aportantes?.[0]?.resultado_pagos?.length ?? 0} meses`;
+        else out[c] = 'dictado a mano';
+    }
+    const p = parse(`experian_profile_${doc}`);
+    if (p && !out.experian.startsWith('falla')) out.experian = `responde score ${p.score ?? '654 (fijo)'} · ${p.negativeHistoricalLast12Months ?? '?'} negativos · ${p.consultedLast6Months ?? '?'} consultas · ${p.currentNegativeCredits ?? '?'} moras`;
+    return out;
+}

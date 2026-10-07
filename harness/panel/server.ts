@@ -327,6 +327,30 @@ async function fireEntityWebhook(uReq: number, lender: number, stateValue: strin
         : fam === 'rt0' ? await webhookSelfManager(uReq, lender, estado) : await integrationWebhook(uReq, estado);
     return { ...r, familia: fam };
 }
+/**
+ * LOS BURÓS DEL CASO (la pestaña «Burós»): qué contesta cada central para la cédula del caso —responde, sin
+ * información o falla— dictado al mock de burós. ⚠ SÓLO LOCAL: en dev, qa y staging contesta el lambda de
+ * mocks de la empresa, que no conoce estos estados, y dictarle fallas afectaría a cualquiera que use esa
+ * cédula. Se aplica al tocar la pestaña y otra vez al abrir un celular, por si el mock se reinició.
+ */
+async function applyBureauModes(order: any, target: string): Promise<{ ok: boolean; detalle: string; burós?: string[] }> {
+    if (target !== 'local') return { ok: false, detalle: `los estados de los burós sólo se simulan en local (en ${target} contesta el lambda de la empresa)` };
+    const doc = String(order?.doc || '').replace(/\D/g, '');
+    if (!doc) return { ok: false, detalle: 'el caso no tiene cédula' };
+    // La MISMA función y los MISMOS valores por defecto que `bin/bureaus.ts`: lo que el panel no dice queda por defecto.
+    const { applyBureauConfig } = await import('../pkg/risk-lambda.ts');
+    const num = (v: unknown) => { const n = Number(String(v ?? '').replace(/\D/g, '')); return String(v ?? '').trim() === '' || !Number.isFinite(n) ? undefined : n; };
+    const modes = (order?.bureaus || {}) as Record<string, any>;
+    const data = (order?.bureauData || {}) as Record<string, any>;
+    const exp = order?.experian || {};
+    const r = await applyBureauConfig(doc, {
+        agildata: { mode: modes.agildata, income: num(data.agildata?.income), occupation: data.agildata?.occupation || undefined, months: num(data.agildata?.months) },
+        mareigua: { mode: modes.mareigua, income: num(data.mareigua?.income), months: num(data.mareigua?.months) },
+        tusdatos: { mode: modes.tusdatos },
+        experian: { mode: modes.experian, score: num(exp.score), negatives: num(exp.negatives), consulted: num(exp.consulted), delinquencies: num(exp.delinquencies) },
+    });
+    return { ok: r.ok, detalle: `cédula ${doc}`, burós: r.lines };
+}
 const deviceBypass = new Map<DeviceId, { target: string; puesto: unknown }>();
 // Lo que el arnés hizo por su cuenta en un celular y el panel tiene que mostrar (p. ej. aprobar la identidad).
 const deviceNotes = new Map<DeviceId, string>();
@@ -1112,6 +1136,15 @@ const server = createServer(async (req, res) => {
     //
     // ⚠ Es opt-in y por eso vive detrás de un botón: el código que corre NO es el de `legacy-backend`
     // (F-170), y un desenlace automático se leería como si lo fuera.
+    if (path === '/api/bureau-defaults') {
+        const { BUREAU_DEFAULTS } = await import('../pkg/risk-lambda.ts');
+        return json(res, 200, BUREAU_DEFAULTS);
+    }
+    if (path === '/api/bureau-modes' && req.method === 'POST') {
+        const b = await readBody(req);
+        return json(res, 200, await applyBureauModes(b.order, TARGETS.has(String(b.target)) ? String(b.target) : 'local'));
+    }
+
     if (path === '/api/entity-webhook' && req.method === 'POST') {
         const body = await readBody(req);
         const uReq = Number(body.uReq || 0);
@@ -1760,7 +1793,8 @@ connect();
             if (!built?.checkout_path) { await releasing; return json(res, 200, { ok: false, detail: `no pude armar el pedido de ${b.slug} en ${t} (¿sucursal con credencial de ecommerce?)` }); }
             const phone = str(o.phone) || String(built.phone || '');
             const bypassP = releasing.then(() => dbopsJson(['otp-bypass-add', phone], t));
-            const [scrub, bypass] = await Promise.all([scrubP ?? dbopsJson(['scrubphone', phone], t), bypassP]);
+            const [scrub, bypass, bz] = await Promise.all([scrubP ?? dbopsJson(['scrubphone', phone], t), bypassP,
+                t === 'local' ? applyBureauModes(o, t) : Promise.resolve(null)]);
             phase('pedido, limpieza y OTP');
             startDeviceLog(`${b.slug} (${t}) · tienda → cliente · ${auto ? 'auto-onboarding' : 'ecommerce'} · cel ${phone}`);
             if (bypass?.ok) deviceBypass.set('client', { target: t, puesto: bypass.puesto });
@@ -1786,6 +1820,7 @@ connect();
             }
             const front = await frontFor(t);
             try {
+                if (bz) deviceLog('panel', `burós (${bz.detalle}): ${(bz.burós || []).join(' · ')}`);
                 deviceLog('panel', `pedido armado: ${built.checkout_path.split('?')[0]} · ${scrub?.users_deleted ?? 0} cliente(s) previos borrados · OTP ${otp.otp ? 'resuelto (' + otp.otp + ')' : 'SIN bypass'}`);
                 const r = await openDevice('client', front.replace(/\/$/, '') + built.checkout_path, { autofill: caseAutofill(o) });
                 phase('celular');
@@ -1816,6 +1851,7 @@ connect();
             // Sólo en local: fuera de local la base es la del equipo y el panel no borra nada.
             const casePhone = String(b.order?.phone || '').replace(/\D/g, '') || '3131010101';
             const scrubbing = t === 'local' ? dbopsJson(['scrubphone', casePhone], t) : Promise.resolve(null);
+            const bureausApplied = t === 'local' ? applyBureauModes(b.order, t) : Promise.resolve(null);
             const front = await frontFor(t);
             // El asesor de prueba del comercio: su sesión guardada si la hay; si no, entra solo en el propio
             // celular (el login del conector, con la clave compartida) y la guarda para la próxima.
@@ -1850,6 +1886,8 @@ connect();
             const scrubbed = await scrubbing;
             if (t === 'local') deviceLog('panel', scrubbed ? `cliente ${casePhone}: ${scrubbed.users_deleted ?? 0} sintético(s) previos borrados — arranca sin créditos anteriores` : `cliente ${casePhone}: no pude limpiarlo; si tiene un crédito activo, la regla de cupo lo va a rechazar`);
             else deviceLog('panel', `cliente ${casePhone}: fuera de local no se limpia; si ya tiene un crédito activo con la entidad, el cupo lo rechaza`);
+            const bz = await bureausApplied;
+            if (bz) deviceLog('panel', `burós (${bz.detalle}): ${(bz.burós || []).join(' · ')}`);
             try {
                 let signedIn = false;
                 const r = await openDevice('advisor', front.replace(/\/$/, '') + `/merchant/${hash}/solicitar`, {

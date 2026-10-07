@@ -155,6 +155,23 @@
     .statusbar > .run-state:has(#activityTime:empty):not(:has(.run-dot.running)) { display: none }
     .statusbar > .go-item:not(:disabled) { color: var(--foreground) }
     .statusbar > #caseTitle { margin-left: var(--space-2) }
+    /* LOS BURÓS: el disparador del acordeón lleva el margen del panel y el estado de la central a la derecha,
+       en su color (responde = normal, sin información = ámbar, falla = rojo). */
+    .bureau-lead { margin: 0; padding: 0 var(--gutter) var(--space-1); font-size: var(--text-xs); color: var(--fg-2) }
+    .bureau-step { display: inline-block; width: 14px; color: var(--fg-3); font-variant-numeric: tabular-nums }
+    /* Una central que no se llega a consultar (ya resolvió una anterior) se atenúa, pero se puede seguir tocando. */
+    .bureau-row[data-skipped="true"] > .label { color: var(--fg-3) }
+    .bureau-row[data-skipped="true"] .toggle { opacity: .55 }
+    .bureau-row[data-skipped="true"]:hover .toggle { opacity: 1 }
+    .bureau-gate { color: var(--warn) }
+    /* Lo que contesta la central cuando responde: sangrado bajo su fila, y sólo con «Responde» (`renderBureaus`). */
+    .bureau-data { padding-left: var(--space-4) }
+    .bureau-data > .prop > .label { color: var(--fg-2) }
+    .bureau-data[data-skipped="true"] { opacity: .55 }
+    .bureau-data[data-skipped="true"]:focus-within, .bureau-data[data-skipped="true"]:hover { opacity: 1 }
+    #bureauResolver[data-none="true"] { color: var(--warn) }
+    /* Un grupo sin contenido no deja su título solo: la categoría por entidad sin comercio elegido. */
+    .region-head.group:has(+ .category-preview:empty) { display: none }
     /* El canal es una fila del panel de propiedades: el botón del menú ocupa el control y se alinea a la izquierda. */
     .prop-menu { justify-content: flex-start; gap: var(--space-1); padding-inline: var(--space-1) }
     /* La demora con espera puesta se delata: una corrida con 15 s de demora se explica sola. */
@@ -668,6 +685,7 @@
         <nav class="tabs" role="tablist" aria-label="Configuración de la próxima corrida">
           <button type="button" class="tab on" id="tabClient" role="tab" aria-selected="true" aria-controls="viewClient" title="El caso y la persona que pide el crédito">Cliente</button>
           <button type="button" class="tab" id="tabMerchant" role="tab" aria-selected="false" aria-controls="viewMerchant" title="Las entidades y la configuración del comercio elegido">Comercio</button>
+          <button type="button" class="tab" id="tabBureaus" role="tab" aria-selected="false" aria-controls="viewBureaus" title="Las centrales de riesgo que consulta el backend: qué contesta cada una para la cédula del caso">Burós</button>
           <div class="region-actions"><button type="button" class="region-action" id="configMenu" title="Opciones de configuración" aria-label="Opciones de configuración"><span class="ui-icon" data-icon="more" aria-hidden="true"></span></button></div>
         </nav>
         <fieldset class="cfg region-body props" id="viewClient" role="tabpanel" aria-labelledby="tabClient"><legend class="sr-only">El cliente de la próxima corrida</legend>
@@ -756,26 +774,6 @@
             </div>
           </fieldset>
 
-          <div class="region-head group"><span>Buró</span></div>
-          <div class="prop">
-            <span class="label">Modo del buró</span>
-            <div class="toggle-group toggle-xs" id="injectOptions" role="group" aria-label="Modo del buró">
-              <button type="button" class="toggle on" data-i="1">Buró inyectado</button>
-              <button type="button" class="toggle" data-i="0">Sin inyección</button>
-            </div>
-          </div>
-          <p id="injectHint" class="prop-hint"></p>
-          <!-- PEP = sin buró: `togglePep` deshabilita el `.bureau` (score, negativos, consultas). -->
-          <fieldset class="synthetic"><legend class="sr-only">Buró sintético</legend>
-            <fieldset class="bureau"><legend class="sr-only">Datacrédito</legend>
-              <div class="prop"><label class="label" for="score">Score</label><input id="score" class="input input-xs" type="number" value="700" step="10" /></div>
-              <div class="prop"><label class="label" for="negatives">Negativos 12m</label><input id="negatives" class="input input-xs" type="number" value="0" step="1" min="0" /></div>
-              <div class="prop"><label class="label" for="consulted">Consultas 6m</label><input id="consulted" class="input input-xs" type="number" value="1" step="1" min="0" /></div>
-              <!-- La mora ACTUAL (`currentNegativeCredits`), la que mira el criterio de moras vigentes de cada
-                   categoría. Vacía sigue igual a los negativos, que es lo que la inyección hizo siempre. -->
-              <div class="prop"><label class="label" for="delinquencies">Moras actuales</label><input id="delinquencies" class="input input-xs" type="number" step="1" min="0" placeholder="igual a negativos" /></div>
-            </fieldset>
-          </fieldset>
 
           <!-- EN QUÉ CATEGORÍA CAE el caso en cada entidad CreditopX del comercio, con los datos de arriba. La
                categoría es la primera cuyas reglas cumple, en orden (Premium, Recuperar mejores, Segunda
@@ -812,6 +810,84 @@
           </div>
         </fieldset>
 
+
+        <!-- LOS BURÓS: qué contesta cada central de riesgo para la cédula del caso. La CASCADA de identidad y
+             empleo es Agildata → Mareigua → TusDatos y corta en la primera que resuelve (legacy-backend
+             `UsersService.php:313`); cada una puede RESPONDER, contestar «SIN INFORMACIÓN» (la cascada sigue)
+             o FALLAR (HTTP 500, otra rama del backend). Se dicta por cédula al mock de burós (:8105) y SÓLO EN
+             LOCAL: en dev, qa y staging contesta el lambda de la empresa, que no conoce estos estados. Y sólo
+             cuenta cuando el backend consulta de verdad (los celulares, el modo «Sin inyección»). -->
+        <fieldset class="cfg region-body props" id="viewBureaus" role="tabpanel" aria-labelledby="tabBureaus" hidden><legend class="sr-only">Las centrales de riesgo del caso</legend>
+          <p class="prop-hint bureau-gate" id="bureauGate" hidden></p>
+          <!-- LA CASCADA, como se lee: una fila por central en el orden en que el backend pregunta, y las que NO se
+               llegan a consultar (porque una anterior ya respondió) quedan atenuadas. Sin acordeón: son tres
+               perillas, y abrir cada una costaba más que leerlas juntas. -->
+          <div class="region-head group"><span>Empleo e ingresos</span><span class="count" id="bureauResolver"></span></div>
+          <p class="bureau-lead">El backend pregunta en este orden y se queda con la primera que responde.</p>
+          <div class="prop bureau-row" data-central="agildata">
+            <span class="label" title="Con «Responde» contesta el ingreso y la ocupación del caso (pestaña Cliente → Ingreso y empleo)."><span class="bureau-step">1</span>Agildata</span>
+            <div class="toggle-group toggle-xs bureau-modes" data-bureau="agildata" role="group" aria-label="Qué contesta Agildata">
+              <button type="button" class="toggle on" data-m="ok" title="Contesta con datos">Responde</button>
+              <button type="button" class="toggle" data-m="empty" title="Contesta 200 «sin información»: la cascada pasa a la siguiente central">Sin info</button>
+<button type="button" class="toggle" data-m="fail" title="Se cae con HTTP 500: un fallo técnico, otra rama del backend">Falla</button>
+            </div>
+          </div>
+          <div class="bureau-data" data-data-of="agildata">
+            <div class="prop"><label class="label" for="bd-agildata-income">Salario (IBC)</label><div class="input-group input-group-xs"><span class="ico-txt">$</span><input id="bd-agildata-income" class="input input-xs" type="text" inputmode="numeric" data-bd="agildata" data-k="income" oninput="onMoney(this)" /></div></div>
+            <div class="prop"><label class="label" for="bd-agildata-occupation">Empleo</label><span class="select"><select id="bd-agildata-occupation" class="input input-xs" data-bd="agildata" data-k="occupation"><option value="">Por defecto</option><option value="Empleado">Empleado</option><option value="Independiente">Independiente</option></select></span></div>
+            <div class="prop"><label class="label" for="bd-agildata-months">Meses cotizados</label><input id="bd-agildata-months" class="input input-xs" type="number" min="1" max="24" step="1" placeholder="8" data-bd="agildata" data-k="months" /></div>
+          </div>
+          <div class="prop bureau-row" data-central="mareigua">
+            <span class="label" title="Sólo se consulta si Agildata no resolvió. «Responde» es el default del mock."><span class="bureau-step">2</span>Mareigua</span>
+            <div class="toggle-group toggle-xs bureau-modes" data-bureau="mareigua" role="group" aria-label="Qué contesta Mareigua">
+              <button type="button" class="toggle on" data-m="ok" title="Contesta con datos">Responde</button>
+              <button type="button" class="toggle" data-m="empty" title="Contesta 200 «sin información»: la cascada pasa a la siguiente central">Sin info</button>
+<button type="button" class="toggle" data-m="fail" title="Se cae con HTTP 500: un fallo técnico, otra rama del backend">Falla</button>
+            </div>
+          </div>
+          <div class="bureau-data" data-data-of="mareigua">
+            <div class="prop"><label class="label" for="bd-mareigua-income">Ingreso promedio</label><div class="input-group input-group-xs"><span class="ico-txt">$</span><input id="bd-mareigua-income" class="input input-xs" type="text" inputmode="numeric" data-bd="mareigua" data-k="income" oninput="onMoney(this)" /></div></div>
+            <div class="prop"><label class="label" for="bd-mareigua-months">Meses con pagos</label><input id="bd-mareigua-months" class="input input-xs" type="number" min="1" max="24" step="1" placeholder="8" data-bd="mareigua" data-k="months" /></div>
+          </div>
+          <div class="prop bureau-row" data-central="tusdatos">
+            <span class="label" title="La última de la cascada; también valida identidad y AML al cerrar un CreditopX. Sin una respuesta «sin información» verificada."><span class="bureau-step">3</span>TusDatos</span>
+            <div class="toggle-group toggle-xs bureau-modes" data-bureau="tusdatos" role="group" aria-label="Qué contesta TusDatos">
+              <button type="button" class="toggle on" data-m="ok" title="Contesta con datos">Responde</button>
+              <button type="button" class="toggle" data-m="fail" title="Se cae con HTTP 500: un fallo técnico, otra rama del backend">Falla</button>
+            </div>
+          </div>
+          <p class="prop-hint bureau-outcome" id="bureauCascade"></p>
+
+          <div class="region-head group"><span>Experian · Datacrédito</span></div>
+          <div class="prop bureau-row" data-central="experian">
+            <span class="label" title="Historial crediticio y score: lo que deciden las categorías de cada entidad. Sin una respuesta «sin información» verificada.">Contesta</span>
+            <div class="toggle-group toggle-xs bureau-modes" data-bureau="experian" role="group" aria-label="Qué contesta Experian">
+              <button type="button" class="toggle on" data-m="ok" title="Contesta con datos">Responde</button>
+              <button type="button" class="toggle" data-m="fail" title="Se cae con HTTP 500: un fallo técnico, otra rama del backend">Falla</button>
+            </div>
+          </div>
+          <fieldset class="synthetic"><legend class="sr-only">Buró sintético</legend>
+            <fieldset class="bureau"><legend class="sr-only">Datacrédito</legend>
+              <div class="prop"><label class="label" for="score">Score</label><input id="score" class="input input-xs" type="number" value="700" step="10" /></div>
+              <div class="prop"><label class="label" for="negatives">Negativos 12m</label><input id="negatives" class="input input-xs" type="number" value="0" step="1" min="0" /></div>
+              <div class="prop"><label class="label" for="consulted">Consultas 6m</label><input id="consulted" class="input input-xs" type="number" value="1" step="1" min="0" /></div>
+              <!-- La mora ACTUAL (`currentNegativeCredits`), la que mira el criterio de moras vigentes de cada
+                   categoría. Vacía sigue igual a los negativos, que es lo que la inyección hizo siempre. -->
+              <div class="prop"><label class="label" for="delinquencies">Moras actuales</label><input id="delinquencies" class="input input-xs" type="number" step="1" min="0" placeholder="igual a negativos" /></div>
+            </fieldset>
+          </fieldset>
+
+          <div class="region-head group"><span>Modo de la corrida</span></div>
+          <div class="prop">
+            <span class="label">Modo del buró</span>
+            <div class="toggle-group toggle-xs" id="injectOptions" role="group" aria-label="Modo del buró">
+              <button type="button" class="toggle on" data-i="1">Buró inyectado</button>
+              <button type="button" class="toggle" data-i="0">Sin inyección</button>
+            </div>
+          </div>
+          <p id="injectHint" class="prop-hint"></p>
+          <p class="prop-hint" title="Se dicta al mock de burós (:8105) para la cédula del caso, al tocarlo y al abrir un celular. En dev, qa y staging contesta el lambda de la empresa. Ábaco tiene su propio mock (:8102); ADO no existe en local y el harness aprueba la identidad a mano (F-220).">Se aplica a la cédula del caso, sólo en local.</p>
+        </fieldset>
         <!-- EL COMERCIO de la entrada elegida. Sus flags viven en `allieds`: cambiar uno cambia TODAS sus
              sucursales y queda puesto después de la corrida, por eso la vista marca cuándo difiere de como
              estaba al abrirlo y ofrece volver. Sólo se escriben en local (`/api/merchant-flag`). -->
@@ -819,6 +895,9 @@
           <div class="region-head group"><span id="merchantViewTitle">Comercio</span></div>
           <p class="prop-hint merchant-meta" id="merchantViewMeta">Elegí un comercio en la columna de la izquierda.</p>
 
+          <!-- Sin comercio elegido, la configuración y las entidades no tienen de qué hablar: se ocultan enteras en
+               vez de mostrar filas vacías y un «Modificada» que no aplica (`renderMerchantView`). -->
+          <div id="merchantDetails" hidden>
           <div class="region-head group">
             <span>Configuración del comercio</span>
             <span class="count filtered" id="merchantFlagsState" hidden title="Algún flag difiere de como estaba al abrir el comercio">Modificada</span>
@@ -838,6 +917,7 @@
             <span id="lendersbranch" hidden></span>
             <div id="lenderslist"><p class="list-note">Elegí un comercio…</p></div>
           </div>
+          </div>
         </fieldset>
       </aside>
     </div>
@@ -849,8 +929,8 @@
            que explica un 500 o un timeout, y no están en el log de la corrida. -->
       <nav class="tabs" role="tablist" aria-label="Consolas">
         <button type="button" class="tab on" id="tabRun" role="tab" aria-selected="true" title="Lo que imprime el launcher de la corrida">Corrida</button>
-        <button type="button" class="tab" id="tabAdvisor" role="tab" aria-selected="false" title="Lo que pasó en el celular del ASESOR (más lo que hizo el panel): la misma consola, filtrada">Asesor</button>
-        <button type="button" class="tab" id="tabClient" role="tab" aria-selected="false" title="Lo que pasó en el celular del CLIENTE (más lo que hizo el panel): la misma consola, filtrada">Cliente</button>
+        <button type="button" class="tab" id="tabConsoleAdvisor" role="tab" aria-selected="false" title="Lo que pasó en el celular del ASESOR (más lo que hizo el panel): la misma consola, filtrada">Asesor</button>
+        <button type="button" class="tab" id="tabConsoleClient" role="tab" aria-selected="false" title="Lo que pasó en el celular del CLIENTE (más lo que hizo el panel): la misma consola, filtrada">Cliente</button>
         <button type="button" class="tab" id="tabSsr" role="tab" aria-selected="false" title="El stdout del wizard (SSR): sus llamadas salientes y sus errores">SSR</button>
         <button type="button" class="tab" id="tabMocks" role="tab" aria-selected="false" title="Los mocks locales que vigila el panel: si responden, quién los levantó y su salida">Mocks</button>
         <button type="button" class="tab" id="tabMap" role="tab" aria-selected="false" title="El mapa del recorrido del comercio: sus carriles y dónde va la corrida">Mapa</button>
@@ -1410,7 +1490,7 @@
     // ── Las dos vistas del sidebar derecho: Cliente y Comercio ──────────────────────────────────────
     const AUX_VIEW_KEY = 'harness.auxView';
     function showAuxView(name) {
-      const views = { client: ['tabClient', 'viewClient'], merchant: ['tabMerchant', 'viewMerchant'] };
+      const views = { client: ['tabClient', 'viewClient'], merchant: ['tabMerchant', 'viewMerchant'], bureaus: ['tabBureaus', 'viewBureaus'] };
       if (!views[name]) name = 'client';
       for (const [key, [tabId, viewId]] of Object.entries(views)) {
         const on = key === name;
@@ -1422,9 +1502,105 @@
     }
     $('tabClient').onclick = () => showAuxView('client');
     $('tabMerchant').onclick = () => showAuxView('merchant');
+    $('tabBureaus').onclick = () => showAuxView('bureaus');
+
+    // ── LOS BURÓS DEL CASO: responde · sin información · falla, por central ─────────────────────────────
+    // El estado vive acá (y en el navegador, para que sobreviva a recargar) y viaja con el caso
+    // (`caseStore.read().bureaus`): el servidor lo dicta al mock al tocarlo y otra vez al abrir un celular.
+    const BUREAU_ORDER = ['agildata', 'mareigua', 'tusdatos'];
+    const BUREAU_NAMES = { agildata: 'Agildata', mareigua: 'Mareigua', tusdatos: 'TusDatos', experian: 'Experian' };
+    let bureauModes = { agildata: 'ok', mareigua: 'ok', tusdatos: 'ok', experian: 'ok' };
+    // Lo que contesta cada central cuando RESPONDE (vacío = lo del caso): salario, empleo y meses.
+    let bureauData = { agildata: {}, mareigua: {} };
+    try { bureauData = { ...bureauData, ...JSON.parse(localStorage.getItem('harness.bureauData') || '{}') }; } catch { }
+    try { bureauModes = { ...bureauModes, ...JSON.parse(localStorage.getItem('harness.bureaus') || '{}') }; } catch { }
+    /** La primera central que responde (la que resuelve la cascada), o null si ninguna. */
+    const bureauResolver = () => BUREAU_ORDER.find((c) => bureauModes[c] === 'ok') || null;
+    /** Cómo se resuelve la cascada con estos estados, en una frase. */
+    function bureauCascadeText() {
+      const r = bureauResolver();
+      if (r === 'agildata') return 'Resuelve Agildata: Mareigua y TusDatos no se consultan.';
+      const before = BUREAU_ORDER.slice(0, r ? BUREAU_ORDER.indexOf(r) : BUREAU_ORDER.length)
+        .map((c) => `${BUREAU_NAMES[c]} ${bureauModes[c] === 'fail' ? 'falla' : 'no tiene datos'}`).join(', ');
+      return r ? `${before}: resuelve ${BUREAU_NAMES[r]}.` : `${before}: ninguna responde y el backend se queda sin datos de empleo.`;
+    }
+    function renderBureaus() {
+      for (const g of document.querySelectorAll('.bureau-modes')) {
+        const c = g.dataset.bureau;
+        for (const b of g.querySelectorAll('button')) b.classList.toggle('on', b.dataset.m === bureauModes[c]);
+      }
+      for (const box of document.querySelectorAll('.bureau-data')) box.hidden = bureauModes[box.dataset.dataOf] !== 'ok';
+      // Lo vacío muestra lo que va a usar: el valor POR DEFECTO del buró (el mismo de `bin/bureaus.ts`).
+      for (const el of document.querySelectorAll('[data-bd]')) {
+        const d = bureauDefaults[el.dataset.bd]?.[el.dataset.k];
+        if (d == null) continue;
+        if (el.tagName === 'SELECT') el.options[0].textContent = `Por defecto (${d})`;
+        else el.placeholder = el.dataset.k === 'income' ? Number(d).toLocaleString('es-CO') : String(d);
+      }
+      // Las que vienen DESPUÉS de la que resuelve no se llegan a consultar: se atenúan.
+      const r = bureauResolver(), ri = r ? BUREAU_ORDER.indexOf(r) : BUREAU_ORDER.length;
+      for (const row of document.querySelectorAll('.bureau-row, .bureau-data')) {
+        const i = BUREAU_ORDER.indexOf(row.dataset.central || row.dataset.dataOf);
+        row.dataset.skipped = String(i > ri);
+        row.title = i > ri ? `No se consulta: ya resolvió ${BUREAU_NAMES[r]}` : '';
+      }
+      $('bureauResolver').textContent = r ? 'resuelve ' + BUREAU_NAMES[r] : 'ninguna responde';
+      $('bureauResolver').dataset.none = String(!r);
+      $('bureauCascade').textContent = $('bureauCascade').title = bureauCascadeText();
+      // Fuera de local no se ofrece: el que contesta es el lambda de la empresa, que no conoce estos estados.
+      const remote = typeof target !== 'undefined' && target !== 'local';
+      $('bureauGate').hidden = !remote;
+      $('bureauGate').textContent = remote ? `En ${target} contesta el lambda de mocks de la empresa: los estados de los burós sólo se simulan en local.` : '';
+      for (const b of document.querySelectorAll('.bureau-modes button')) {
+        b.disabled = remote || b.hasAttribute('data-unsupported');
+      }
+    }
+    let bureauSeq = 0;
+    async function applyBureaus() {
+      if (typeof target !== 'undefined' && target !== 'local') return;
+      const seq = ++bureauSeq;
+      try {
+        const r = await (await fetch('/api/bureau-modes', { method: 'POST', headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({ target, order: caseStore.read() }) })).json();
+        if (seq !== bureauSeq || r.ok) return;
+        // Un panel arrancado antes de esta pestaña no tiene la ruta: contesta 404 sin `detalle`.
+        const why = (r.burós || []).find((x) => /no tomó|no tiene/.test(x)) || r.detalle || 'el panel no tiene esta función: reinicialo';
+        $('bureauCascade').textContent = $('bureauCascade').title = bureauCascadeText() + ' ⚠ No se aplicó: ' + why;
+      } catch { /* el panel no respondió: se vuelve a aplicar al abrir un celular */ }
+    }
+    // Los valores por defecto los da el servidor (`BUREAU_DEFAULTS` de `pkg/risk-lambda.ts`); éstos son el respaldo.
+    let bureauDefaults = { agildata: { income: 2500000, occupation: 'Empleado', months: 13 }, mareigua: { income: 2500000, months: 13 } };
+    fetch('/api/bureau-defaults').then((r) => r.ok ? r.json() : null).then((d) => { if (d) { bureauDefaults = d; renderBureaus(); } }).catch(() => { });
+    // Los valores de Experian también viajan con los burós: al cambiarlos se vuelve a dictar.
+    for (const id of ['score', 'negatives', 'consulted', 'delinquencies']) {
+      $(id)?.addEventListener('input', () => { clearTimeout(bureauDataTimer); bureauDataTimer = setTimeout(applyBureaus, 500); });
+    }
+    // Los valores: se cargan de lo guardado y, al cambiar, se guardan y se vuelven a dictar (con un respiro).
+    let bureauDataTimer = null;
+    for (const el of document.querySelectorAll('[data-bd]')) {
+      const v = bureauData[el.dataset.bd]?.[el.dataset.k];
+      if (v) el.value = v;
+      el.addEventListener(el.tagName === 'SELECT' ? 'change' : 'input', () => {
+        bureauData[el.dataset.bd] = { ...bureauData[el.dataset.bd], [el.dataset.k]: el.value };
+        try { localStorage.setItem('harness.bureauData', JSON.stringify(bureauData)); } catch { }
+        clearTimeout(bureauDataTimer);
+        bureauDataTimer = setTimeout(applyBureaus, 500);
+      });
+    }
+    for (const g of document.querySelectorAll('.bureau-modes')) {
+      g.addEventListener('click', (e) => {
+        const b = e.target.closest('button[data-m]');
+        if (!b || b.disabled) return;
+        bureauModes[g.dataset.bureau] = b.dataset.m;
+        try { localStorage.setItem('harness.bureaus', JSON.stringify(bureauModes)); } catch { }
+        renderBureaus();
+        applyBureaus();
+      });
+    }
     // La vista va en la RUTA (`vista=comercio`) y, si la ruta no la trae, sale de la preferencia
     // `AUX_VIEW_KEY`: las dos las resuelve el módulo del final. Acá se arranca en Cliente.
     showAuxView('client');
+    renderBureaus();
 
     // ── Los flags del COMERCIO (hoy la cuota inicial) ─────────────────────────────────────────────
     // ⚠ Viven en `allieds`: cambiar uno cambia TODAS las sucursales del comercio y queda puesto después
@@ -1462,6 +1638,7 @@
     function renderMerchantView() {
       const title = $('merchantViewTitle'), meta = $('merchantViewMeta');
       const sw = $('flagInitialFee'), value = $('flagInitialFeeValue'), hint = $('merchantFlagsHint');
+      $('merchantDetails').hidden = !sel;
       if (!sel) {
         title.textContent = 'Comercio';
         meta.textContent = 'Elegí un comercio en la columna de la izquierda.';
@@ -2530,7 +2707,9 @@
           docType: this.docType || document.querySelector('#doctype .on')?.dataset.v || '',
           doc: $('document').value, expedition: $('expedition').value,
           phone: $('phone').textContent.trim(), email: $('email').value,
-          income: $('income')?.value || '',
+          income: $('income')?.value || '', occupation: $('occupation')?.value || '',
+          bureaus: { ...bureauModes }, bureauData: structuredClone(bureauData),
+          experian: { score: $('score')?.value, negatives: $('negatives')?.value, consulted: $('consulted')?.value, delinquencies: $('delinquencies')?.value },
         };
       },
       write(key, value) {
@@ -3348,7 +3527,7 @@
       } catch { /* el panel sigue andando sin esto */ }
     }
 
-    const CONSOLE_TABS = [['tabRun', 'corrida'], ['tabAdvisor', 'asesor'], ['tabClient', 'cliente'], ['tabSsr', 'ssr'], ['tabMocks', 'mocks'], ['tabMap', 'mapa']];
+    const CONSOLE_TABS = [['tabRun', 'corrida'], ['tabConsoleAdvisor', 'asesor'], ['tabConsoleClient', 'cliente'], ['tabSsr', 'ssr'], ['tabMocks', 'mocks'], ['tabMap', 'mapa']];
     function consoleTab() {
       return (CONSOLE_TABS.find(([id]) => $(id).classList.contains('on')) || CONSOLE_TABS[0])[1];
     }
@@ -3373,8 +3552,8 @@
     }
 
     $('tabRun').onclick = () => showTab('corrida');
-    $('tabAdvisor').onclick = () => showTab('asesor');
-    $('tabClient').onclick = () => showTab('cliente');
+    $('tabConsoleAdvisor').onclick = () => showTab('asesor');
+    $('tabConsoleClient').onclick = () => showTab('cliente');
     $('tabSsr').onclick = () => showTab('ssr');
     $('tabMocks').onclick = () => showTab('mocks');
     $('tabMap').onclick = () => showTab('mapa');
@@ -3635,6 +3814,7 @@
       $('warnTarget').textContent = target;
       syncHeader();
       updateInjModeForTarget();   // en local no hay Real (sin OTP/burós)
+      renderBureaus();            // fuera de local los estados de los burós no se ofrecen
       loadFront();                // qué fronts tiene ESTE target (y default: el desplegado si existe)
       enrichMerchants();
       loadLenders();              // los lenders son POR TARGET: la lista cambia
@@ -4644,7 +4824,7 @@ export function bindMenu(trigger, { getItems, onSelect, label = 'Más opciones' 
       document.getElementById('consoleMenu').classList.toggle('has-options', filtered);
       consoleOptions.refresh();
     }
-    for (const id of ['tabRun', 'tabAdvisor', 'tabClient', 'tabSsr', 'tabMocks', 'tabMap']) document.getElementById(id).addEventListener('click', reflectConsoleFilter);
+    for (const id of ['tabRun', 'tabConsoleAdvisor', 'tabConsoleClient', 'tabSsr', 'tabMocks', 'tabMap']) document.getElementById(id).addEventListener('click', reflectConsoleFilter);
     reflectConsoleFilter();
 
     // ══ RUTA Y PREFERENCIAS ═══════════════════════════════════════════════════════════════════════
@@ -4666,15 +4846,15 @@ export function bindMenu(trigger, { getItems, onSelect, label = 'Más opciones' 
     // arranques, el resumen del caso, el permiso del asesor—. Escribir `channel` o `step` a mano los salta.
     {
       const CHANNELS = ['asesor', 'autogestion', 'ecommerce', 'qr'];
-      const VIEW_TO_ROUTE = { client: 'cliente', merchant: 'comercio' };
-      const ROUTE_TO_VIEW = { cliente: 'client', comercio: 'merchant' };
+      const VIEW_TO_ROUTE = { client: 'cliente', merchant: 'comercio', bureaus: 'buros' };
+      const ROUTE_TO_VIEW = { cliente: 'client', comercio: 'merchant', buros: 'bureaus' };
       const START_TO_ROUTE = { monto: 'monto', lenders: 'entidades' };
       const ROUTE_TO_START = { monto: 'monto', entidades: 'lenders', lenders: 'lenders' };
       const ROUTE_DEFAULTS = { canal: 'asesor', inicio: 'monto', vista: 'cliente', consola: 'corrida' };
       const byId = (id) => document.getElementById(id);
       const clickButton = (selector) => document.querySelector(selector)?.click();
 
-      const currentView = () => byId('tabMerchant').classList.contains('on') ? 'merchant' : 'client';
+      const currentView = () => byId('tabMerchant').classList.contains('on') ? 'merchant' : byId('tabBureaus').classList.contains('on') ? 'bureaus' : 'client';
       const currentConsole = () => consoleTab();
       const findEntry = (slug) => spaceEntries().find((e) => e.slug === slug || (e.hash && e.hash === slug));
       const isChosen = (e) => !!sel && (sel.slug === e.slug || (!!e.hash && sel.slug === e.hash));
@@ -4729,7 +4909,7 @@ export function bindMenu(trigger, { getItems, onSelect, label = 'Más opciones' 
 
           // La consola por su pestaña real: el rótulo «Filtrada» escucha ese click.
           const wantedConsole = ['asesor', 'cliente', 'ssr', 'mocks', 'mapa'].includes(params.get('consola')) ? params.get('consola') : 'corrida';
-          if (currentConsole() !== wantedConsole) byId({ asesor: 'tabAdvisor', cliente: 'tabClient', ssr: 'tabSsr', mocks: 'tabMocks', mapa: 'tabMap' }[wantedConsole] || 'tabRun').click();
+          if (currentConsole() !== wantedConsole) byId({ asesor: 'tabConsoleAdvisor', cliente: 'tabConsoleClient', ssr: 'tabSsr', mocks: 'tabMocks', mapa: 'tabMap' }[wantedConsole] || 'tabRun').click();
         } finally {
           if (seq === routeSeq) { restoring = false; syncRoute({ replace: true }); }
         }
@@ -4793,6 +4973,7 @@ export function bindMenu(trigger, { getItems, onSelect, label = 'Más opciones' 
       // La vista del sidebar derecho se recuerda cuando la elige la persona; la de una ruta no pisa la preferencia.
       byId('tabClient').addEventListener('click', () => savePref(AUX_VIEW_KEY, 'client'));
       byId('tabMerchant').addEventListener('click', () => savePref(AUX_VIEW_KEY, 'merchant'));
+      byId('tabBureaus').addEventListener('click', () => savePref(AUX_VIEW_KEY, 'bureaus'));
 
       // «Cupo ya confirmado» sólo aplica con el arranque en Entidades: se restaura después de la ruta, que
       // es la que decide el arranque. Si su gate lo apaga, el click no hace nada y la preferencia queda.

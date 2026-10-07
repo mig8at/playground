@@ -420,7 +420,7 @@ $(1):
 endef
 $(foreach p,$(HARNESS_OLD_TARGETS),$(eval $(call harness_old_target,$(word 1,$(subst :, ,$(p))),$(word 2,$(subst :, ,$(p))))))
 
-.PHONY: harness-wompi harness-restore harness-ecommerce harness-contract harness-sandbox harness-walk harness-qr harness-mocks harness-bureaus harness-rto harness-peru harness-merchant harness-forms-g2 harness-bcp-return tests-codeudor harness-listing harness-case harness-check soporte-qa
+.PHONY: harness-bureaus-set harness-bureaus-show harness-bureaus-reset harness-wompi harness-restore harness-ecommerce harness-contract harness-sandbox harness-walk harness-qr harness-mocks harness-bureaus harness-rto harness-peru harness-merchant harness-forms-g2 harness-bcp-return tests-codeudor harness-listing harness-case harness-check soporte-qa
 harness-contract: ## @har ¿el mock de Bancolombia cumple los esquemas zod del front? (sin browser ni BD)
 	@cd harness && npm run --silent contrato:bancolombia
 
@@ -435,6 +435,15 @@ harness-qr: ## @har el canal QR por API, sin browser: ¿cierra en estado 25 con 
 
 harness-bureaus: ## @har levanta el mock LOCAL de centrales de riesgo (:8105) — reemplaza el lambda de la empresa
 	@cd harness && node mock-bureaus/server.mjs
+
+harness-bureaus-set: ## @har ⚠ qué contesta cada BURÓ para la cédula de una prueba (mock local :8105). Lo no dicho queda POR DEFECTO. DOC=<cédula> SET='agildata=fail mareigua.income=3800000 experian.score=580' (estados ok|empty|fail) · JSON=1. Sin DOC: la ayuda y los valores por defecto
+	@cd harness && node bin/bureaus.ts $(if $(DOC),set "$(DOC)" $(SET),) $(if $(JSON),--json,)
+
+harness-bureaus-show: ## @har qué contesta HOY cada buró del mock local para una cédula, leído del mock. DOC=<cédula> · JSON=1
+	@cd harness && node bin/bureaus.ts show "$(DOC)" $(if $(JSON),--json,)
+
+harness-bureaus-reset: ## @har ⚠ todos los burós responden con los valores por defecto para esa cédula. DOC=<cédula>
+	@cd harness && node bin/bureaus.ts reset "$(DOC)" $(if $(JSON),--json,)
 
 harness-mocks: ## @har levanta los mocks del canal QR (Bancolombia :8104 + Corbeta :8103)
 	@cd harness && bin/mock-bancolombia start && bin/mock-corbeta start
