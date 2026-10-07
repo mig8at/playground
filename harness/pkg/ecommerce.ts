@@ -68,7 +68,8 @@ export async function branchSigningSecret(hash: string): Promise<string> {
 }
 
 /**
- * Lo que declara una tienda que ya validó al cliente de su lado (su OTP y los términos), en `order.verification`.
+ * Lo que declara la tienda de la aceptación de los documentos, en `order.verification` (constancia; el salto del OTP
+ * lo decide sólo la firma).
  * Las versiones son las de los documentos acordados con Refurbi (`E2E_TERMS_VERSION`, `E2E_PRIVACY_POLICY_VERSION`).
  */
 export function merchantVerification(now = new Date()): Record<string, unknown> {
@@ -76,8 +77,6 @@ export function merchantVerification(now = new Date()): Record<string, unknown> 
         terms_accepted_at: new Date(now.getTime() - 60_000).toISOString().replace(/\.\d{3}Z$/, 'Z'),
         terms_version: process.env.E2E_TERMS_VERSION || 'V20260206',
         privacy_policy_version: process.env.E2E_PRIVACY_POLICY_VERSION || 'V20260206',
-        // `E2E_MERCHANT_PHONE_VERIFIED=0`: la tienda no verificó el celular (opcional en el prototipo).
-        phone_verified: process.env.E2E_MERCHANT_PHONE_VERIFIED !== '0',
     };
 }
 

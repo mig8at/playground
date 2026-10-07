@@ -36,13 +36,13 @@ TusDatos) y a las entidades.
 ## Dónde se toca
 
 **legacy-backend**
-- `MerchantOrderSignatureService`: el esquema de los eventos CreditopX (`v1=` + HMAC-SHA256 de `v1\n{ts}\n{o}`, con el
-  `o` tal como viaja) y lo que declara la tienda en `order.verification`: `phone_verified`, `terms_accepted_at`,
-  `terms_version` y `privacy_policy_version` (V20260206, los PDFs acordados con Refurbi). Vigencia 15 min, 2 de tolerancia.
+- `MerchantOrderSignatureService`: la firma es lo único que decide el salto del OTP del inicio. Esquema de los eventos
+  CreditopX (`v1=` + HMAC-SHA256 de `v1\n{ts}\n{o}`, con el `o` tal como viaja). Lo que el pedido declara de la
+  aceptación (`terms_accepted_at`, `terms_version`, `privacy_policy_version`, de los PDFs V20260206) se guarda como
+  constancia y no decide nada.
 - `CreateEcommerceRequest`: `signature` y `signatureTimestamp`, opcionales.
-- `EcommerceRequestService::createEcommerceRequestOrchestrator`: verifica la firma al crear el pedido, devuelve
-  `merchantVerified` y un `verificationToken` de un solo uso (se guarda sólo su sha256); un pedido firmado no se pisa
-  con uno sin firma, y uno que ya tiene solicitud no se vuelve a firmar.
+- `EcommerceRequestService::createEcommerceRequestOrchestrator`: con firma válida devuelve `merchantVerified` y un
+  `verificationToken` de un solo uso (se guarda sólo su sha256), que el front canjea al entrar.
 - `OnboardingController::startMerchantVerifiedSession` (`POST loan-application/merchant-verified/{hash}`): canjea el
   token y corre la validación del OTP de siempre con el teléfono DEL PEDIDO GUARDADO, sin chequear el código. ONB060
   (403) si no corresponde.
@@ -65,6 +65,9 @@ permite confiar en el teléfono del pedido. Todo lo que falla cae al recorrido c
 
 - **Saltar el OTP sólo por estar la sucursal en `auto_onboarding_allied_branches`**: el pedido es editable por el
   comprador; sería entrar con el celular de cualquiera.
+- **Vigencia de la firma, `phone_verified`, exigir los campos de aceptación, no pisar un pedido firmado y no volver a
+  firmar uno con solicitud** (se probaron el 2026-10-07): se sacaron porque no salen de los PDFs y hay que socializarlos
+  con Refurbi. Queda sólo que la firma decide el salto del OTP.
 - **Una cadena canónica de 8 campos del pedido** (la primera versión): obligaba a la tienda a firmar el `total` con el
   mismo texto y no admitía el remapeo de `config`. Se cambió por el esquema de los eventos CreditopX, que firma el `o`
   entero (decisión de Miguel, 2026-10-07).
