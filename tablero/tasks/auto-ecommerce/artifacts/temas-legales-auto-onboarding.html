@@ -1,0 +1,145 @@
+<title>Temas legales del auto-onboarding</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Source+Serif+4:opsz,wght@8..60,600;8..60,700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+  /* Layout: una columna de lectura (especificación técnica), con tablas y bloques de código que scrollean solos. */
+  :root {
+    --bg: #f6f7f8;
+    --surface: #ffffff;
+    --fg: #1b2228;
+    --muted: #5a6670;
+    --line: #dde2e6;
+    --accent: #0f6b62;
+    --accent-soft: #e3f1ef;
+    --warn: #8a5a00;
+    --warn-soft: #fbf1dc;
+    --code-bg: #eef1f3;
+    --font-display: "Source Serif 4", Georgia, "Times New Roman", serif;
+    --font-body: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+    --font-mono: "IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #12171b; --surface: #182026; --fg: #e3e8ec; --muted: #9aa7b1; --line: #2a343c;
+      --accent: #5cc4b6; --accent-soft: #163330; --warn: #e5b45a; --warn-soft: #33290f; --code-bg: #1f282f;
+      color-scheme: dark;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #12171b; --surface: #182026; --fg: #e3e8ec; --muted: #9aa7b1; --line: #2a343c;
+    --accent: #5cc4b6; --accent-soft: #163330; --warn: #e5b45a; --warn-soft: #33290f; --code-bg: #1f282f;
+    color-scheme: dark;
+  }
+  body { background: var(--bg); color: var(--fg); font-family: var(--font-body); font-size: 15.5px; line-height: 1.6; }
+  .page { max-width: 760px; margin: 0 auto; padding-inline: 20px; padding-block: 48px 72px; display: grid; gap: 40px; }
+  header { display: grid; gap: 12px; border-bottom: 1px solid var(--line); padding-bottom: 28px; }
+  .eyebrow { font-size: 12px; letter-spacing: .08em; text-transform: uppercase; color: var(--accent); font-weight: 600; }
+  h1, h2, h3 { font-family: var(--font-display); text-wrap: balance; line-height: 1.2; margin: 0; }
+  h1 { font-size: 2.2rem; }
+  h2 { font-size: 1.45rem; }
+  h3 { font-size: 1.08rem; font-family: var(--font-body); font-weight: 600; }
+  p { margin: 0; max-width: 68ch; }
+  .lede { font-size: 1.08rem; color: var(--fg); }
+  .meta { display: flex; flex-wrap: wrap; gap: 6px 18px; color: var(--muted); font-size: 13px; }
+  section { display: grid; gap: 14px; min-width: 0; }
+  ol, ul { margin: 0; padding-left: 1.3em; display: grid; gap: 6px; max-width: 68ch; }
+  code { font-family: var(--font-mono); font-size: .88em; background: var(--code-bg); padding: 1px 5px; border-radius: 4px; overflow-wrap: anywhere; }
+  pre { margin: 0; background: var(--code-bg); border: 1px solid var(--line); border-radius: 8px; padding: 14px 16px; overflow-x: auto; font-family: var(--font-mono); font-size: 13px; line-height: 1.55; }
+  pre code { background: none; padding: 0; font-size: inherit; overflow-wrap: normal; }
+  .codehead { display: flex; justify-content: space-between; align-items: center; gap: 12px; font-size: 12px; color: var(--muted); margin-bottom: -8px; }
+  .copy { font: inherit; font-size: 12px; color: var(--accent); background: none; border: 1px solid var(--line); border-radius: 6px; padding: 2px 10px; cursor: pointer; }
+  .copy:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  .table-wrap { overflow-x: auto; border: 1px solid var(--line); border-radius: 8px; background: var(--surface); }
+  table { border-collapse: collapse; width: 100%; font-size: 14px; }
+  th, td { text-align: left; vertical-align: top; padding: 9px 12px; border-bottom: 1px solid var(--line); }
+  tr:last-child td { border-bottom: 0; }
+  th { font-size: 12px; letter-spacing: .05em; text-transform: uppercase; color: var(--muted); font-weight: 600; background: var(--code-bg); }
+  td:first-child { white-space: nowrap; }
+  .tag { display: inline-block; font-size: 11.5px; font-weight: 600; padding: 1px 7px; border-radius: 999px; background: var(--accent-soft); color: var(--accent); }
+  .tag.new { background: var(--warn-soft); color: var(--warn); }
+  .flow { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; }
+  .step { background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 12px 14px; display: grid; gap: 4px; align-content: start; }
+  .step b { font-size: 13px; color: var(--accent); }
+  .step span { font-size: 13.5px; color: var(--muted); }
+  .note { background: var(--warn-soft); border-radius: 8px; padding: 12px 16px; display: grid; gap: 6px; }
+  .note strong { color: var(--warn); }
+  .canon { font-family: var(--font-mono); font-size: 13px; display: flex; flex-wrap: wrap; gap: 4px; align-items: center; }
+  .canon span { background: var(--surface); border: 1px solid var(--line); border-radius: 5px; padding: 2px 7px; }
+  .canon i { color: var(--muted); font-style: normal; }
+  footer { color: var(--muted); font-size: 13px; border-top: 1px solid var(--line); padding-top: 20px; }
+</style>
+<div class="page">
+  <header>
+    <div class="eyebrow">CreditOp · auto-onboarding con Refurbi · para revisión legal</div>
+    <h1>Temas legales del auto-onboarding</h1>
+    <p class="lede">Qué asume el prototipo con Refurbi a partir de los dos documentos que nos entregaron, y qué tiene que confirmar legal antes de llevarlo a producción. El prototipo funciona con estos supuestos; ninguno está validado todavía.</p>
+    <div class="meta"><span>Documentos base: Términos y Condiciones V20260206 · Política de Tratamiento de Datos V20260206</span><span>7 de octubre de 2026</span></div>
+  </header>
+
+  <section>
+    <h2>El flujo que se quiere validar</h2>
+    <div class="flow">
+      <div class="step"><b>1 · Tienda</b><span>El comprador acepta en Refurbi los Términos y la Política de CreditOp (V20260206).</span></div>
+      <div class="step"><b>2 · Tienda</b><span>Refurbi firma el pedido y declara la aceptación y las versiones.</span></div>
+      <div class="step"><b>3 · CreditOp</b><span>Sin código: valida identidad con centrales y muestra entidades.</span></div>
+      <div class="step"><b>4 · CreditOp</b><span>Al firmar el pagaré, código al celular del comprador, como hoy.</span></div>
+    </div>
+    <p>La firma de Refurbi reemplaza el código de verificación del inicio. El código al celular se mantiene en la firma de documentos, antes de que exista el crédito.</p>
+  </section>
+
+  <section>
+    <h2>Lo que los documentos ya cubren</h2>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Necesidad del flujo</th><th>Dónde está</th></tr></thead>
+        <tbody>
+          <tr><td>Consultar y reportar en centrales de riesgo (Ley 1266)</td><td>T&amp;C punto 5 · Política 2.3.1, finalidad 14</td></tr>
+          <tr><td>Consultar pensiones y salud (PILA, Ley 1527 art. 8): lo que usan AgilData y Mareigua</td><td>Política 2.3.1, finalidades 16 y 17</td></tr>
+          <tr><td>Validar identidad con bases públicas (Registraduría): lo que usa TusDatos</td><td>Política 2.3.1, finalidades 1 y 17</td></tr>
+          <tr><td>Solicitud hecha a través de un comercio aliado</td><td>T&amp;C punto 12</td></tr>
+          <tr><td>Transferir datos al comercio y a las entidades</td><td>T&amp;C punto 12 · Política 2.2.3</td></tr>
+          <tr><td>CreditOp conserva la evidencia de la autorización</td><td>Política 2.2.3</td></tr>
+          <tr><td>Sólo mayores de edad</td><td>T&amp;C punto 30</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section>
+    <h2>Lo que tiene que confirmar legal</h2>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Tema</th><th>Qué asume el prototipo</th><th>La pregunta</th></tr></thead>
+        <tbody>
+          <tr><td>1. Aceptación tomada por la tienda</td><td>La casilla en Refurbi vale como autorización previa, expresa e informada para CreditOp.</td><td>La Política define al usuario como quien acepta en el QR o en la URL de CreditOp (1.2, 2.6.1), no en el sitio de un comercio. ¿Basta con el convenio con Refurbi (como encargado que recoge la autorización y guarda la prueba), o hay que ajustar la Política?</td></tr>
+          <tr><td>2. Prueba de la autorización</td><td>CreditOp guarda lo que declara la tienda: cuándo aceptó, las dos versiones y el momento de la firma. Refurbi guarda el registro del clic.</td><td>¿Esa constancia, más la obligación de Refurbi de entregarnos su registro si lo pedimos, alcanza como prueba ante la SIC?</td></tr>
+          <tr><td>3. Consulta sin celular verificado</td><td>Si Refurbi no verifica el celular, la consulta a centrales se hace igual con su firma. La identidad se cruza con la cédula y la fecha de expedición, y el celular se verifica recién al firmar el pagaré.</td><td>Si alguien usa la cédula de otra persona en la tienda, se consultan las centrales de esa persona sin que haya autorizado. ¿Es aceptable ese riesgo, o hay que exigir que Refurbi verifique el celular?</td></tr>
+          <tr><td>4. Versiones de los documentos</td><td>Refurbi muestra V20260206 de los dos documentos.</td><td>Al aceptar en CreditOp hoy se registran Términos V20260209 y Política V20260310. ¿Cuáles debe mostrar Refurbi?</td></tr>
+          <tr><td>5. Contacto por WhatsApp</td><td>La aceptación en la tienda incluye el contacto por WhatsApp.</td><td>El punto 13 de los T&amp;C dice que el usuario «deberá aceptar expresamente» ese contacto. ¿Hace falta una casilla aparte en la tienda?</td></tr>
+          <tr><td>6. Firma del pagaré</td><td>No cambia: código al celular antes de firmar.</td><td>¿Se confirma que con eso basta para la firma electrónica del pagaré, aunque el inicio no haya pedido código?</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section>
+    <h2>Lo que Refurbi tiene que mostrar en su tienda</h2>
+    <ul>
+      <li>Una casilla sin marcar, antes de pagar con CreditOp, con enlace a los Términos y Condiciones y a la Política de Tratamiento de Datos de CreditOp.</li>
+      <li>Un texto que diga que, al aceptar, autoriza a CreditOp a consultar centrales de riesgo y las bases de pensiones y salud para evaluar la financiación.</li>
+      <li>Guardar el registro de la aceptación: fecha y hora, versión de cada documento, y el celular y documento del comprador.</li>
+    </ul>
+  </section>
+
+  <section>
+    <h2>Detalles de redacción encontrados</h2>
+    <ul>
+      <li>T&amp;C punto 32: doble negación, «no desear que el sitio web no instale».</li>
+      <li>Política: dos secciones numeradas 2.6.</li>
+      <li>Política, sección 3 (Vigencia): no registra la versión de 2026.</li>
+    </ul>
+  </section>
+
+  <footer>Documento de trabajo del equipo de Loan Origination para la reunión con legal. No es una opinión legal.</footer>
+</div>
