@@ -321,6 +321,13 @@ export function watchNavigation(id: DeviceId, onUrl: (url: string) => void): voi
     d.page.on('framenavigated', (frame) => { if (frame === d.page.mainFrame()) onUrl(frame.url()); });
 }
 
+/** Cada petición que hace el navegador del celular (incluidas las de iframes, como el widget de Wompi). */
+export function watchRequests(id: DeviceId, onUrl: (url: string) => void): void {
+    const d = open.get(id);
+    if (!d) return;
+    d.page.on('request', (r) => onUrl(r.url()));
+}
+
 /** Recarga la página del celular (el botón que aparece al pararse sobre él). `false` si no hay nada abierto. */
 export async function deviceReload(id: DeviceId): Promise<boolean> {
     const d = open.get(id);

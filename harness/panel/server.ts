@@ -18,7 +18,8 @@ import { advisorSession } from '../../connectors/advisor/session.ts';
 import { credentialsFor } from '../../connectors/auth/env.ts';
 import { envData, type AutofillData } from '../pkg/autofill.ts';
 import { identityWithoutProviderNotice } from '../pkg/config.ts';
-import { openDevice, openDevices, setDeviceLogger, prewarmDevices, warmDevice, watchNavigation, deviceGoto, deviceReload, deviceText, deviceEval, deviceOpenedAt, deviceState, deviceShot, deviceInput, closeDevice, closeAllDevices, SELENIUM_BOXES, type DeviceId, type DeviceInput, type DeviceSession } from './devices.ts';
+import { openDevice, openDevices, setDeviceLogger, prewarmDevices, warmDevice, watchNavigation, watchRequests, deviceGoto, deviceReload, deviceText, deviceEval, deviceOpenedAt, deviceState, deviceShot, deviceInput, closeDevice, closeAllDevices, SELENIUM_BOXES, type DeviceId, type DeviceInput, type DeviceSession } from './devices.ts';
+import { vpnDev, type VpnStatus } from '../pkg/vpn.ts';
 import { homedir } from 'node:os';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
@@ -413,23 +414,41 @@ function rescueIdentity(id: DeviceId, target: string): void {
     });
 }
 /**
- * LA CUOTA INICIAL EN LOS CELULARES. En local Wompi es un mock (`make harness-wompi`, :8112): el widget no carga con
- * las llaves de prueba, la pantalla igual sigue a `…/down-payment/{referencia}/processing` y consulta el estado. Ahí
- * se hace lo que haría el comprador en el widget: se le avisa al mock que pagó (`dbops wompi-pay`), y el backend lo ve
- * en ~20 s. Sólo en local; se ANOTA: es un rodeo del arnés, no prueba la pasarela real.
+ * LA CUOTA INICIAL EN LOS CELULARES. En local Wompi es un mock (`make harness-wompi`, :8112) y la credencial del
+ * comercio es de prueba, así que el widget real (`checkout.wompi.co`) contesta 403 y se queda cargando: la pantalla
+ * nunca sigue sola a `…/down-payment/{referencia}/processing`. Se hace lo que haría el comprador: al ver que el
+ * celular pide el widget, se toma la referencia de esa URL, se le avisa al mock que pagó (`dbops wompi-pay`) y se
+ * lleva el celular a `processing`, que consulta el estado (el backend lo ve en ~20 s). Si la pantalla llega sola a
+ * `processing` (el widget se cerró), se paga igual. Sólo en local; se ANOTA: es un rodeo del arnés, no prueba la
+ * pasarela real.
  */
 function rescueDownPayment(id: DeviceId, target: string): void {
     if (target !== 'local') return;
     const paid = new Set<string>();
+    let downPaymentPage = '';   // `{origen}/{flujo}/{hash}/{solicitud}/down-payment`, de la última navegación
+    const pay = (reference: string, goToProcessing: boolean) => {
+        if (paid.has(reference)) return;
+        paid.add(reference);
+        void dbopsJson(['wompi-pay', reference], target).then(async (r) => {
+            setNote(id, r?.ok
+                ? `cuota inicial pagada en el mock de Wompi ($${(Number(r.amount_in_cents) / 100).toLocaleString('es-CO')}) · el backend la ve en ~20 s`
+                : `no pude pagar la cuota inicial en el mock: ${r?.motivo ?? 'sin respuesta'}`);
+            if (r?.ok && goToProcessing && downPaymentPage) await deviceGoto(id, `${downPaymentPage}/${reference}/processing`).catch(() => { });
+        });
+    };
     watchNavigation(id, (u) => {
         let url: URL;
         try { url = new URL(u); } catch { return; }
-        const m = /\/down-payment\/([0-9a-f-]{36})\/processing\/?$/.exec(url.pathname);
-        if (!m || paid.has(m[1])) return;
-        paid.add(m[1]);
-        void dbopsJson(['wompi-pay', m[1]], target).then((r) => setNote(id, r?.ok
-            ? `cuota inicial pagada en el mock de Wompi ($${(Number(r.amount_in_cents) / 100).toLocaleString('es-CO')}) · el backend la ve en ~20 s`
-            : `no pude pagar la cuota inicial en el mock: ${r?.motivo ?? 'sin respuesta'}`));
+        const page = /^(\/[^/]+\/[^/]+\/\d+\/down-payment)\/?$/.exec(url.pathname);
+        if (page) downPaymentPage = url.origin + page[1];
+        const processing = /\/down-payment\/([0-9a-f-]{36})\/processing\/?$/.exec(url.pathname);
+        if (processing) pay(processing[1], false);
+    });
+    watchRequests(id, (u) => {
+        if (!u.startsWith('https://checkout.wompi.co/')) return;
+        let reference: string | null = null;
+        try { reference = new URL(u).searchParams.get('reference'); } catch { return; }
+        if (reference && /^[0-9a-f-]{36}$/.test(reference)) pay(reference, true);
     });
 }
 // Celulares ABRIÉNDOSE: entre cerrar el anterior y abrir el nuevo no hay ninguno «abierto», y un precalentado
