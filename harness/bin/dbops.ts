@@ -89,6 +89,19 @@ try {
         // F-220 en los celulares del panel: sin `ADO_HOST` en el backend local la validación de identidad queda en
         // una ruta muerta. Se aprueba A MANO como el admin —con las dos fotos sintéticas del documento—, igual que la
         // corrida guiada. SÓLO LOCAL: en un ambiente desplegado la pantalla funciona y aprobar por detrás mentiría.
+        case 'wompi-pay': { // el comprador «paga» la cuota inicial en el mock LOCAL de Wompi (:8112): el monto sale del intento
+            if (TARGET !== 'local') throw new Error('wompi-pay es sólo para local: le habla al mock de Wompi');
+            const reference = String(a[0] ?? '');
+            const amount = await scalar<number>(
+                "SELECT JSON_EXTRACT(request, '$.amount_in_cents') FROM payment_gateway_transactions WHERE order_id = ? ORDER BY id DESC LIMIT 1", [reference]);
+            if (!amount) { r = { ok: false, motivo: `no encontré el intento de pago ${reference}` }; break; }
+            const { WOMPI_MOCK } = await import('../pkg/wompi-down-payment.ts');
+            const res = await fetch(`${WOMPI_MOCK}/__mock/pay`, { method: 'POST', headers: { 'content-type': 'application/json' },
+                body: JSON.stringify({ reference, amount_in_cents: Number(amount), status: a[1] || 'APPROVED' }) }).catch((e) => ({ ok: false, status: 0, statusText: String(e) }));
+            r = res.ok ? { ok: true, reference, amount_in_cents: Number(amount) }
+                : { ok: false, motivo: `el mock de Wompi no contestó (${res.status}): ¿está arriba? make harness-wompi` };
+            break;
+        }
         case 'identity-approve': {
             if (TARGET !== 'local') throw new Error('identity-approve es sólo para local (F-220)');
             const ur = num(a[0]);

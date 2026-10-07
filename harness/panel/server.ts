@@ -412,6 +412,26 @@ function rescueIdentity(id: DeviceId, target: string): void {
         void (async () => { if (await approve(m[2])) await deviceGoto(id, `${m[1]}/confirmation`).catch(() => { }); })();
     });
 }
+/**
+ * LA CUOTA INICIAL EN LOS CELULARES. En local Wompi es un mock (`make harness-wompi`, :8112): el widget no carga con
+ * las llaves de prueba, la pantalla igual sigue a `…/down-payment/{referencia}/processing` y consulta el estado. Ahí
+ * se hace lo que haría el comprador en el widget: se le avisa al mock que pagó (`dbops wompi-pay`), y el backend lo ve
+ * en ~20 s. Sólo en local; se ANOTA: es un rodeo del arnés, no prueba la pasarela real.
+ */
+function rescueDownPayment(id: DeviceId, target: string): void {
+    if (target !== 'local') return;
+    const paid = new Set<string>();
+    watchNavigation(id, (u) => {
+        let url: URL;
+        try { url = new URL(u); } catch { return; }
+        const m = /\/down-payment\/([0-9a-f-]{36})\/processing\/?$/.exec(url.pathname);
+        if (!m || paid.has(m[1])) return;
+        paid.add(m[1]);
+        void dbopsJson(['wompi-pay', m[1]], target).then((r) => setNote(id, r?.ok
+            ? `cuota inicial pagada en el mock de Wompi ($${(Number(r.amount_in_cents) / 100).toLocaleString('es-CO')}) · el backend la ve en ~20 s`
+            : `no pude pagar la cuota inicial en el mock: ${r?.motivo ?? 'sin respuesta'}`));
+    });
+}
 // Celulares ABRIÉNDOSE: entre cerrar el anterior y abrir el nuevo no hay ninguno «abierto», y un precalentado
 // que entrara justo ahí reiniciaría el wizard que el celular está por mostrar (pasó el 2026-10-06).
 let devicesOpening = 0;
@@ -1845,7 +1865,7 @@ connect();
                 const r = await openDevice('client', front.replace(/\/$/, '') + built.checkout_path, { autofill: caseAutofill(o) });
                 phase('celular');
                 deviceLog('panel', `tienda → cliente: ${phases.join(' · ')} (s)`);
-                rescueIdentity('client', t);
+                rescueIdentity('client', t); rescueDownPayment('client', t);
                 return json(res, 200, { ok: true, hash: built.hash, merchant: built.merchant, scrubbed: scrub, ...otp, ...r });
             } catch (e) {
                 return json(res, 200, { ok: false, detail: `el celular no pudo abrir ${front}: ${(e as Error).message.split('\n')[0]}` });
@@ -1919,7 +1939,7 @@ connect();
                 // el CLIENTE sigue en su teléfono por `/self-service/{hash}/{ur}/confirmation`. Ese link se abre en
                 // el celular del cliente, como hace la ventana B de la corrida guiada. Sin scrub: es la MISMA
                 // solicitud; sí el bypass del OTP, porque la firma le pide código al cliente.
-                rescueIdentity('advisor', t);
+                rescueIdentity('advisor', t); rescueDownPayment('advisor', t);
                 let handedOff = '';
                 watchNavigation('advisor', (u) => {
                     const m = /^(https?:\/\/[^/]+)\/merchant\/([^/]+)\/(\d+)\/(?:continue|confirmation)(?:[?#]|$)/.exec(u);
@@ -1935,7 +1955,7 @@ connect();
                             if (bp?.ok) deviceBypass.set('client', { target: t, puesto: bp.puesto });
                         }
                         await openDevice('client', link, { autofill: caseAutofill(b.order) })
-                            .then(() => rescueIdentity('client', t))
+                            .then(() => { rescueIdentity('client', t); rescueDownPayment('client', t); })
                             .catch((e) => deviceLog('client', '✗ el traspaso no abrió: ' + (e as Error).message.split('\n')[0]));
                     })();
                 });
