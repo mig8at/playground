@@ -2808,9 +2808,13 @@
     // una vista más. Lo que el panel derecho no tiene vive acá: el PAÍS. El celular es el del bypass del
     // OTP: se muestra, no se edita.
     const SHOP_DOC_TYPES = { CO: ['CC', 'CE', 'PEP'], DO: ['Cédula', 'Pasaporte'], PE: ['DNI', 'CE'] };
+    // El país y el tipo de documento de la tienda (RD, Perú) se recuerdan por navegador, como las perillas del caso.
+    const SHOP_COUNTRY_KEY = 'harness.shopCountry', SHOP_DOCTYPE_KEY = 'harness.shopDocType';
+    const readShopPref = (key, fallback) => { try { return localStorage.getItem(key) ?? fallback; } catch { return fallback; } };
+    const saveShopPref = (key, value) => { try { localStorage.setItem(key, value); } catch { /* sin storage: vale esta visita */ } };
     const caseStore = {
-      country: 'CO',
-      docType: '',   // el tipo que no es un chip del panel (los de RD y Perú)
+      country: readShopPref(SHOP_COUNTRY_KEY, 'CO'),
+      docType: readShopPref(SHOP_DOCTYPE_KEY, ''),   // el tipo que no es un chip del panel (los de RD y Perú)
       read() {
         const full = ($('name').value || $('name').placeholder || '').trim().split(/\s+/).filter(Boolean);
         return {
@@ -2835,10 +2839,11 @@
         else if (key === 'doc') set('document', value);
         else if (key === 'expedition') set('expedition', value);
         else if (key === 'email') set('email', value);
-        else if (key === 'country') { this.country = value; this.docType = ''; }
+        else if (key === 'country') { this.country = value; this.docType = ''; saveShopPref(SHOP_COUNTRY_KEY, value); saveShopPref(SHOP_DOCTYPE_KEY, ''); }
         else if (key === 'docType') {
           const chip = document.querySelector(`#doctype button[data-v="${value}"]`);
           this.docType = chip ? '' : value;
+          saveShopPref(SHOP_DOCTYPE_KEY, this.docType);
           if (chip && !chip.classList.contains('on')) chip.click();
         }
         renderCaseViews();
@@ -5011,7 +5016,7 @@ export function bindMenu(trigger, { getItems, onSelect, label = 'Más opciones' 
     // UI (el botón real, o la función que ya aplica el cambio), porque ahí viven los efectos —el gate de
     // arranques, el resumen del caso, el permiso del asesor—. Escribir `channel` o `step` a mano los salta.
     {
-      const CHANNELS = ['asesor', 'autogestion', 'ecommerce', 'qr'];
+      const CHANNELS = ['asesor', 'autogestion', 'ecommerce', 'auto', 'qr'];
       const VIEW_TO_ROUTE = { client: 'cliente', merchant: 'comercio', bureaus: 'buros' };
       const ROUTE_TO_VIEW = { cliente: 'client', comercio: 'merchant', buros: 'bureaus' };
       const START_TO_ROUTE = { monto: 'monto', lenders: 'entidades' };
@@ -5019,6 +5024,15 @@ export function bindMenu(trigger, { getItems, onSelect, label = 'Más opciones' 
       const ROUTE_DEFAULTS = { canal: 'asesor', inicio: 'monto', vista: 'cliente', consola: 'corrida' };
       const byId = (id) => document.getElementById(id);
       const clickButton = (selector) => document.querySelector(selector)?.click();
+      // Abrir el panel SIN ruta vuelve al último comercio, canal, arranque, vista y consola: los que dice la URL y
+      // se perdían al abrir `localhost:5195` a secas. El AMBIENTE no viaja en la ruta, así que sigue en local.
+      const LAST_ROUTE_KEY = 'harness.lastRoute';
+      {
+        const last = readPref(LAST_ROUTE_KEY, null);
+        if ((!location.hash || location.hash === '#' || location.hash === '#/') && typeof last === 'string' && last.startsWith('#/')) {
+          history.replaceState(null, '', location.pathname + location.search + last);
+        }
+      }
 
       const currentView = () => byId('tabMerchant').classList.contains('on') ? 'merchant' : byId('tabBureaus').classList.contains('on') ? 'bureaus' : 'client';
       const currentConsole = () => consoleTab();
@@ -5041,6 +5055,8 @@ export function bindMenu(trigger, { getItems, onSelect, label = 'Más opciones' 
         const push = !replace && !!shown && shown !== (sel && sel.slug);
         setRoute(routeUrl(), { push });
         lastHash = location.hash;
+        // La última ruta, para volver a ella al abrir el panel sin ruta (`localhost:5195` a secas).
+        if (sel) savePref(LAST_ROUTE_KEY, location.hash);
       }
 
       async function applyRoute() {
