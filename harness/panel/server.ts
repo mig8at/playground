@@ -1810,6 +1810,12 @@ connect();
             // consultas de abajo (asesor de prueba, sesión, asignación), en vez de después.
             await releaseDevice('advisor');
             warmDevice('advisor');
+            // EL CLIENTE ARRANCA LIMPIO, como en la tienda y en la corrida («scrub-cliente»): sin esto cada prueba por el
+            // asesor reusaba la misma persona sintética con sus créditos anteriores, y la regla de cupo la rechazaba
+            // por «crédito activo» (2026-10-07: la 467210 cayó en request-canceled por la 467205 de CrediPullman).
+            // Sólo en local: fuera de local la base es la del equipo y el panel no borra nada.
+            const casePhone = String(b.order?.phone || '').replace(/\D/g, '') || '3131010101';
+            const scrubbing = t === 'local' ? dbopsJson(['scrubphone', casePhone], t) : Promise.resolve(null);
             const front = await frontFor(t);
             // El asesor de prueba del comercio: su sesión guardada si la hay; si no, entra solo en el propio
             // celular (el login del conector, con la clave compartida) y la guarda para la próxima.
@@ -1841,6 +1847,9 @@ connect();
             }
             startDeviceLog(`${slug} (${t}) · celular del asesor · ${account} · sucursal ${hash}`);
             deviceLog('panel', `asesor de prueba ${account}: ${stored ? 'sesión guardada' : 'entra con el login del conector'}${assigned ? ' · ' + assigned : ''}`);
+            const scrubbed = await scrubbing;
+            if (t === 'local') deviceLog('panel', scrubbed ? `cliente ${casePhone}: ${scrubbed.users_deleted ?? 0} sintético(s) previos borrados — arranca sin créditos anteriores` : `cliente ${casePhone}: no pude limpiarlo; si tiene un crédito activo, la regla de cupo lo va a rechazar`);
+            else deviceLog('panel', `cliente ${casePhone}: fuera de local no se limpia; si ya tiene un crédito activo con la entidad, el cupo lo rechaza`);
             try {
                 let signedIn = false;
                 const r = await openDevice('advisor', front.replace(/\/$/, '') + `/merchant/${hash}/solicitar`, {
