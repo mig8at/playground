@@ -1,8 +1,8 @@
 // ¿El ambiente remoto está al día con su rama? (`make harness-env-drift TARGET=qa`). Sólo lectura.
 // Migraciones de la rama desplegada que la base compartida no tiene, y rutas que el backend le pide al lambda de
 // centrales y el lambda no conoce. La lógica: `pkg/environment-drift.ts`. Sale 1 si hay desfase, 2 si no pudo medir.
-const { TARGET, query, close } = await import('../pkg/db.ts');
-const { environmentDrift } = await import('../pkg/environment-drift.ts');
+import { TARGET, query, close } from '../pkg/db.ts';
+import { environmentDrift } from '../pkg/environment-drift.ts';
 
 if (TARGET === 'local' || TARGET === 'prod') {
     console.error(`env-drift es para dev, qa o staging (TARGET=${TARGET}): local corre tu working tree y prod se migra aparte`);
