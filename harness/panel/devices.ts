@@ -305,7 +305,11 @@ export type DeviceInput =
 export async function deviceInput(id: DeviceId, ev: DeviceInput): Promise<boolean> {
     const d = open.get(id);
     if (!d) return false;
-    const vp = d.page.viewportSize() ?? { width: PHONE.viewport.width, height: PHONE.viewport.height };
+    // ⚠ EL TAMAÑO REAL, NO EL DE FÁBRICA. Conectado por CDP a un navegador que ya existe, `viewportSize()` es null y caía
+    // al Pixel 7 (412×839), pero la ventana del contenedor mide 412×892: cada clic quedaba ~6% más arriba y erraba los
+    // botones (medido el 2026-10-08: «Validar pre aprobado» en 700–746 px, el clic en 680). Se mide en la página.
+    const vp = await d.page.evaluate(() => ({ width: window.innerWidth, height: window.innerHeight })).catch(() => null)
+        ?? d.page.viewportSize() ?? { width: PHONE.viewport.width, height: PHONE.viewport.height };
     const at = (x: number, y: number) => [Math.round(Math.min(1, Math.max(0, x)) * vp.width), Math.round(Math.min(1, Math.max(0, y)) * vp.height)] as const;
     if (ev.type === 'click') { const [x, y] = at(ev.x, ev.y); await d.page.mouse.click(x, y); }
     else if (ev.type === 'key') await d.page.keyboard.press(ev.key);
