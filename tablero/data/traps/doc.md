@@ -2365,10 +2365,16 @@ en producción — el webhook no deja registro cuando `firstOrFail()` lanza, as�
 - **⚠ Lo que hace visible el problema:** confirmar el dictado LEYENDO después de escribir. Sin esa
   comprobación el runner seguía adelante con datos que nadie pidió y el resultado se leía como un
   hecho de negocio. Con ella dice «la respuesta del buró no quedó dictada» y no corre.
-- **Arreglo:** no es nuestro — hay que preguntarle al dueño del lambda si el redespliegue fue
-  intencional y si las global-vars siguen soportadas en esa ruta. Mientras tanto, `--lambda` no sirve
-  para dictar y hay que volver a inyectar (`synthFill`) si se necesita variar el buró.
-- **Estado:** vivo. La regla general: **un mock compartido es infraestructura de otro** — puede cambiar
+- **Causa encontrada (2026-10-07):** no fue un cambio de comportamiento a propósito. El dictado entró
+  con el PR #27 del lambda (2026-08-15) en una línea paralela, y el merge `1ed4911` del 2026-08-19 la
+  juntó con `main` quedándose con la plantilla nueva («Change mock data») **sin** los
+  `{{#if (getGlobalVar …)}}`: conservó el admin API (`index.js`) y perdió la lectura en las rutas. Desde
+  el 2026-09-07 el admin API además exige `ADMIN_API_TOKEN` (#48).
+- **Arreglo:** [risk-services-mockery-lambda#55](https://github.com/Creditop-SAS/risk-services-mockery-lambda/pull/55)
+  restaura el dictado en Agil Data, Mareigua, TusDatos CC y las dos rutas de Experian (probado en local).
+  Falta mergearlo, desplegarlo y que el lambda del ambiente tenga `ADMIN_API_TOKEN`. Hasta entonces,
+  `--lambda` no sirve para dictar y hay que volver a inyectar (`synthFill`) si se necesita variar el buró.
+- **Estado:** vivo hasta que se despliegue #55. La regla general: **un mock compartido es infraestructura de otro** — puede cambiar
   bajo los pies en mitad de una sesión, y sin read-after-write eso se convierte en resultados
   plausibles y falsos en vez de un error.
 
