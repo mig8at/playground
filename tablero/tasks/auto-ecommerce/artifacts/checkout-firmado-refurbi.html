@@ -67,13 +67,6 @@
   button:focus-visible { outline:2px solid var(--accent); outline-offset:2px; }
   .note { border-left:3px solid var(--data); background:var(--data-bg); padding:11px 13px; border-radius:0 7px 7px 0; font-size:.83rem; }
   .note strong { font-weight:600; }
-  .modes { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:8px; }
-  @media (max-width:520px) { .modes { grid-template-columns:1fr; } }
-  .mode { border:1px solid var(--line); border-radius:8px; padding:9px 10px; background:var(--sunken); cursor:pointer; display:flex; gap:8px; align-items:flex-start; }
-  .mode input { width:auto; margin-top:3px; }
-  .mode b { display:block; font-size:.82rem; }
-  .mode span { font-size:.74rem; color:var(--ink-soft); line-height:1.35; }
-  .mode:has(input:checked) { border-color:var(--accent); background:color-mix(in oklab, var(--accent) 8%, var(--surface)); }
   .urlbox { background:var(--sunken); border:1px solid var(--line); border-radius:9px; padding:13px; }
   .urlbox code { font-family:var(--mono); font-size:.79rem; word-break:break-all; color:var(--data); display:block; max-height:132px; overflow-y:auto; line-height:1.5; }
   .expect { margin-top:10px; font-size:.82rem; display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
@@ -130,7 +123,7 @@
   <section class="card how">
     <h2>Cómo se prueba</h2>
     <ol>
-      <li><b>Elegí la firma.</b> «Firmado» es el caso de Refurbi: el comprador entra sin código. Pegá el secreto de la sucursal.</li>
+      <li><b>Pegá el secreto de la sucursal.</b> La página firma el pedido como lo acordado con Refurbi, y el comprador entra sin código.</li>
       <li><b>Revisá el comprador.</b> Ya viene uno inventado; «Comprador nuevo» cambia documento, correo y celular para no chocar con pruebas anteriores.</li>
       <li><b>Decidí qué dicen las centrales</b> de ese comprador (empleo e historial de crédito). Los valores que vienen son los de un buen cliente.</li>
       <li><b>«Armar la URL».</b> Se abre una pestaña que dice <b>✓ Centrales dictadas</b>: es la confirmación. Cerrala y volvé acá.</li>
@@ -142,18 +135,10 @@
     <section class="card">
       <h2>La prueba</h2>
 
-      <div class="field">
-        <label>Firma de la tienda</label>
-        <div class="modes" role="radiogroup" aria-label="Firma de la tienda">
-          <label class="mode"><input type="radio" name="mode" value="valid" checked><div><b>Firmado</b><span>Entra sin código.</span></div></label>
-          <label class="mode"><input type="radio" name="mode" value="none"><div><b>Sin firma</b><span>Pide el código.</span></div></label>
-          <label class="mode"><input type="radio" name="mode" value="invalid"><div><b>Firma inválida</b><span>Pide el código.</span></div></label>
-        </div>
-      </div>
       <div class="field" id="secretField">
         <label for="secret">Secreto de firma de la sucursal</label>
         <input id="secret" type="password" autocomplete="off" spellcheck="false" placeholder="pegalo acá: 64 caracteres">
-        <span class="hint">Se usa sólo en este navegador para firmar; no se guarda ni se envía.</span>
+        <span class="hint">Con él la página firma el pedido como lo hace la tienda de Refurbi. Se usa sólo en este navegador; no se guarda ni se envía.</span>
       </div>
 
       <div class="subhead"><span>El comprador</span><button class="ghost" id="reset" type="button">Comprador nuevo</button></div>
@@ -272,7 +257,7 @@
     <details>
       <summary>Si algo no sale como se espera</summary>
       <ul>
-        <li><strong>Firmado pero pide el código</strong>: el secreto no es el de esta sucursal en QA, o se cambió el pedido después de armar la URL.</li>
+        <li><strong>Pide un código en vez de entrar directo</strong>: la firma no pasó. Revisá que el secreto sea el de esta sucursal en QA y volvé a armar la URL sin cambiar el pedido después.</li>
         <li><strong>Pide el ingreso en vez de ir a entidades</strong>: Ágil Data no contestó lo dictado. Revisá que «dictarlas al armar la URL» esté marcado y que la pestaña de las centrales haya dicho ✓; si lo dijo, el mock es serverless y la consulta pudo caer en otra instancia: volvé a armar la URL (con «Comprador nuevo») y probá de nuevo. También se puede completar el ingreso a mano y el flujo sigue.</li>
         <li><strong>Conflicto de usuario</strong>: el documento o el celular ya existen con otra identidad. Usá «Comprador nuevo».</li>
       </ul>
@@ -311,7 +296,6 @@
     return [...new Uint8Array(sig)].map((b) => b.toString(16).padStart(2, "0")).join("");
   }
 
-  const mode = () => document.querySelector('input[name="mode"]:checked').value;
   const pad = (n) => String(n).padStart(2, "0");
   const localNow = (offsetMin) => { const d = new Date(Date.now() + offsetMin * 60000); return d.getFullYear() + "-" + pad(d.getMonth() + 1) + "-" + pad(d.getDate()) + "T" + pad(d.getHours()) + ":" + pad(d.getMinutes()); };
   const toUtcZ = (local) => { const d = new Date(local); return isNaN(d) ? "" : d.toISOString().replace(/\.\d{3}Z$/, "Z"); };
@@ -319,8 +303,6 @@
   function decir(msg, tipo) { const el = $("status"); el.textContent = msg; el.className = "status show " + tipo; }
   function callar() { $("status").className = "status"; }
 
-  function pintarModo() { $("secretField").hidden = mode() === "none"; }
-  document.querySelectorAll('input[name="mode"]').forEach((r) => r.addEventListener("change", () => { pintarModo(); if (urlActual) armar(); }));
 
   let urlActual = "";
 
@@ -347,9 +329,8 @@
 
   async function armar() {
     callar();
-    const m = mode();
     const secret = $("secret").value.trim();
-    if (m !== "none" && !secret) return decir("Pegá el secreto de firma de la sucursal, o elegí «Sin firma».", "err");
+    if (!secret) return decir("Pegá el secreto de firma de la sucursal.", "err");
     const total = $("total").value.trim();
     if (!/^\d+$/.test(total)) return decir("El monto va en números y sin puntos.", "err");
     const acceptedAt = toUtcZ($("aceptado").value);
@@ -382,19 +363,17 @@
       config: b64(phpSerialize(JSON.stringify([])))
     };
 
-    let message = "", signature = "";
-    if (m !== "none") {
-      const ts = String(Math.floor(Date.now() / 1000));
-      message = "v1\n" + ts + "\n" + params.o;
-      try {
-        // «Firma inválida» firma con un secreto que no es el de la sucursal.
-        signature = "v1=" + await hmacHex(m === "invalid" ? "no-es-el-secreto-" + secret : secret, message);
-      } catch (e) {
-        return decir("Este navegador no pudo calcular la firma: " + e.message, "err");
-      }
-      params.ts = ts;
-      params.sig = signature;
+    // El pedido va SIEMPRE firmado: es lo acordado con Refurbi.
+    const ts = String(Math.floor(Date.now() / 1000));
+    const message = "v1\n" + ts + "\n" + params.o;
+    let signature;
+    try {
+      signature = "v1=" + await hmacHex(secret, message);
+    } catch (e) {
+      return decir("Este navegador no pudo calcular la firma: " + e.message, "err");
     }
+    params.ts = ts;
+    params.sig = signature;
 
     urlActual = ORIGINACIONES + "/ecommerce/" + HASH + "/checkout?" + new URLSearchParams(params).toString();
     $("url").textContent = urlActual;
@@ -404,7 +383,7 @@
       tr.querySelector(".val").textContent = v ? (v.length > 90 ? v.slice(0, 90) + "… (" + v.length + ")" : v) : "— no va —";
     });
 
-    $("sigbox").hidden = m === "none";
+    $("sigbox").hidden = false;
     $("message").textContent = message;
     $("signature").textContent = signature;
 
@@ -412,10 +391,10 @@
     ex.hidden = false;
     ex.innerHTML = "";
     const chip = document.createElement("span");
-    chip.className = "chip " + (m === "valid" ? "skip" : "otp");
-    chip.textContent = m === "valid" ? "Debería entrar sin código" : "Debería pedir el código";
+    chip.className = "chip skip";
+    chip.textContent = "Debería entrar sin código";
     ex.appendChild(chip);
-    decir("Listo · " + (m === "valid" ? "pedido firmado" : m === "invalid" ? "firma inválida a propósito" : "sin firma") + " · referencia " + pedido.order_key
+    decir("Listo · pedido firmado · referencia " + pedido.order_key
       + (dictadas ? " · centrales dictadas en otra pestaña: revisá que diga ✓ y volvé para abrir el checkout" : ""), "ok");
   }
 
@@ -449,6 +428,5 @@
   });
 
   compradorNuevo();
-  pintarModo();
 })();
 </script>
