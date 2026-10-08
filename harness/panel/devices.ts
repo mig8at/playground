@@ -318,6 +318,110 @@ export async function deviceInput(id: DeviceId, ev: DeviceInput): Promise<boolea
     return true;
 }
 
+/* ── MANEJAR EL CELULAR POR TEXTO, NO POR COORDENADAS ─────────────────────────────────────────────────────────────
+ * Para avanzar una corrida había que sacar una captura, ubicar el botón y calcular la fracción de la pantalla; cada
+ * reacomodo (un aviso que desaparece) movía el botón y el clic caía al lado (2026-10-08). Acá se busca el control
+ * como lo buscaría una persona: por lo que DICE. */
+
+/** El primer control VISIBLE que dice `text`: botón, enlace o, si no hay, cualquier elemento con ese texto. */
+async function visibleControl(page: Page, text: string) {
+    for (const loc of [page.getByRole('button', { name: text }), page.getByRole('link', { name: text }), page.getByText(text, { exact: true })]) {
+        for (const el of await loc.all()) if (await el.isVisible().catch(() => false)) return el;
+    }
+    return null;
+}
+
+/** Toca el control que dice `text`. */
+export async function deviceTap(id: DeviceId, text: string): Promise<{ ok: boolean; detail: string }> {
+    const d = open.get(id);
+    if (!d) return { ok: false, detail: 'el celular no está abierto' };
+    const el = await visibleControl(d.page, text);
+    if (!el) return { ok: false, detail: `no hay nada visible que diga «${text}»` };
+    if (await el.isDisabled().catch(() => false)) return { ok: false, detail: `«${text}» está deshabilitado` };
+    await el.click({ timeout: 10_000 });
+    return { ok: true, detail: `tocó «${text}»` };
+}
+
+/** Los botones que hacen AVANZAR el recorrido, en orden: si hay varios, gana el primero de la lista. Nunca se tocan
+ *  «Cancelar», «No corresponde» ni «Regresar al comercio»: no están acá. */
+const ADVANCE = ['Validar Pre aprobado', 'Confirmar', 'Continuar', 'Elegir fecha de pago', 'Firmar', 'Siguiente', 'Aceptar'];
+
+/**
+ * Un MONTO vacío (la cuota inicial) se llena con el mínimo, que la pantalla trae de placeholder. Va SIEMPRE, no sólo con
+ * el botón deshabilitado: en la cuota inicial «Continuar» está habilitado y la validación salta recién al tocarlo
+ * (medido el 2026-10-08: quince toques seguidos sin salir de la pantalla).
+ */
+async function fillAmounts(page: Page): Promise<string[]> {
+    const did: string[] = [];
+    for (const input of await page.locator('input:visible').all()) {
+        const [value, placeholder] = [await input.inputValue().catch(() => ''), await input.getAttribute('placeholder').catch(() => '')];
+        const digits = String(placeholder ?? '').replace(/\D/g, '');
+        if (!value && /\$/.test(String(placeholder ?? '')) && digits) { await input.fill(digits); did.push(`escribió ${placeholder}`); }
+    }
+    return did;
+}
+
+/** Un OTP vacío (el de entrada o el de la firma) se llena con el código del bypass, si quien llama lo sabe. El
+ *  componente compartido (`input-otp`) es UN input con `autocomplete="one-time-code"` debajo de las casillas. */
+async function fillOtp(page: Page, otp?: string): Promise<string[]> {
+    if (!otp) return [];
+    for (const input of await page.locator('input[autocomplete="one-time-code"], input[data-input-otp]').all()) {
+        if (!(await input.inputValue().catch(() => 'x'))) { await input.fill(otp); return [`escribió el código ${otp}`]; }
+    }
+    return [];
+}
+
+/**
+ * Lo que traba al botón principal cuando está DESHABILITADO, destrabado como lo haría quien prueba:
+ *  · un DOCUMENTO (la firma) se baja hasta el final, que es lo que habilita «Firmar»;
+ *  · una CASILLA de confirmación sin marcar (la fecha de expedición: «¿Confirmas que eres…?») se marca.
+ * Devuelve qué hizo, para decirlo en la consola.
+ */
+async function unlock(page: Page): Promise<string[]> {
+    const did: string[] = [];
+    const scrolled = await page.evaluate(() => {
+        let n = 0;
+        for (const el of Array.from(document.querySelectorAll<HTMLElement>('*'))) {
+            if (el.scrollHeight > el.clientHeight + 20 && /(auto|scroll)/.test(getComputedStyle(el).overflowY)) {
+                el.scrollTop = el.scrollHeight; el.dispatchEvent(new Event('scroll', { bubbles: true })); n++;
+            }
+        }
+        return n;
+    }).catch(() => 0);
+    if (scrolled) did.push('bajó hasta el final del documento');
+    for (const box of await page.getByRole('checkbox').all()) {
+        if (await box.isVisible().catch(() => false) && !(await box.isChecked().catch(() => true))) {
+            await box.check({ timeout: 5_000 }).catch(() => box.click().catch(() => { }));
+            did.push('marcó la casilla de confirmación');
+        }
+    }
+    if (did.length) await page.waitForTimeout(400);
+    return did;
+}
+
+/** Toca el botón principal de la pantalla (ver `ADVANCE`), destrabándolo si hace falta. `otp`: el código del bypass. */
+export async function deviceAdvance(id: DeviceId, otp?: string): Promise<{ ok: boolean; detail: string }> {
+    const d = open.get(id);
+    if (!d) return { ok: false, detail: 'el celular no está abierto' };
+    for (const label of ADVANCE) {
+        const el = await visibleControl(d.page, label);
+        if (!el) continue;
+        const did = [...await fillAmounts(d.page), ...await fillOtp(d.page, otp)];
+        if (await el.isDisabled().catch(() => false)) did.push(...await unlock(d.page));
+        if (await el.isDisabled().catch(() => false)) {
+            return { ok: false, detail: `«${label}» sigue deshabilitado${did.length ? ` (${did.join(', ')})` : ''}: falta algo que el panel no sabe llenar` };
+        }
+        const before = d.page.url();
+        await el.click({ timeout: 10_000 });
+        // Tocar no es avanzar: si la ruta no cambió, puede ser una validación (o una pantalla que avanza sola por dentro).
+        await d.page.waitForURL((u) => u.toString() !== before, { timeout: 4_000 }).catch(() => { });
+        const moved = d.page.url() !== before;
+        const tail = moved ? '' : ' · la pantalla no cambió de ruta';
+        return { ok: true, detail: [...did, `tocó «${label}»`].join(' · ') + tail };
+    }
+    return { ok: false, detail: `no hay un botón para avanzar (${ADVANCE.join(', ')})` };
+}
+
 /** Avisa cada navegación de la página principal de un celular (para seguir el flujo desde el panel). */
 export function watchNavigation(id: DeviceId, onUrl: (url: string) => void): void {
     const d = open.get(id);

@@ -265,6 +265,9 @@
     .device:has(.device-live:not([hidden])):hover .device-reload, .device-reload:focus-visible { opacity: 1; pointer-events: auto }
     .device-reload:hover { background: var(--hover) }
     .device-reload[aria-busy="true"] { opacity: 1; cursor: progress }
+    /* AVANZAR, del otro lado: toca el botón principal de la pantalla por su TEXTO (`/api/device/<id>/advance`), y lo
+       destraba si hace falta (monto mínimo, documento leído, casilla de confirmación). Qué tocó queda en la consola. */
+    .device-reload.device-advance { right: auto; left: 8px }
     .device-open { margin-top: auto; padding: var(--space-3) var(--space-3) var(--space-6); border-top: 1px solid var(--border) }
     .device-open .btn { width: 100% }
     /* El código del OTP del celular de prueba, al lado de su rótulo: se copia con un clic. */
@@ -666,6 +669,7 @@
                 <span class="device-otp warn" id="advisorNote" hidden>identidad a mano</span></figcaption>
               <div class="device-frame"><div class="device-notch"></div>
                 <!-- Recargar la página: aparece al pararse sobre el celular, sólo con algo abierto (CSS). -->
+                <button type="button" class="device-reload device-advance" data-device="advisor" title="Tocar el botón principal de la pantalla del asesor (Continuar, Confirmar, Firmar…)" aria-label="Avanzar en el celular del asesor"><span class="ui-icon" data-icon="play" aria-hidden="true"></span><span>Avanzar</span></button>
                 <button type="button" class="device-reload" data-device="advisor" title="Recargar la página del celular del asesor" aria-label="Recargar la página del celular del asesor"><span class="ui-icon" data-icon="refresh" aria-hidden="true"></span><span>Recargar</span></button>
                 <div class="device-screen" id="screenAdvisor">
                   <!-- El asesor: su navegador REAL con el wizard del comercio (`panel/devices.ts`), entrando como el
@@ -686,6 +690,7 @@
                 <button type="button" class="region-action" id="clientClose" hidden title="Cerrar el navegador del cliente" aria-label="Cerrar el navegador del cliente"><span class="ui-icon" data-icon="close" aria-hidden="true"></span></button></figcaption>
               <div class="device-frame"><div class="device-notch"></div>
                 <!-- Recargar la página: aparece al pararse sobre el celular, sólo con algo abierto (CSS). -->
+                <button type="button" class="device-reload device-advance" data-device="client" title="Tocar el botón principal de la pantalla del cliente (Continuar, Confirmar, Firmar…)" aria-label="Avanzar en el celular del cliente"><span class="ui-icon" data-icon="play" aria-hidden="true"></span><span>Avanzar</span></button>
                 <button type="button" class="device-reload" data-device="client" title="Recargar la página del celular del cliente" aria-label="Recargar la página del celular del cliente"><span class="ui-icon" data-icon="refresh" aria-hidden="true"></span><span>Recargar</span></button>
                 <div class="device-screen" id="screenClient">
                   <p class="device-empty" id="clientEmpty">El celular del cliente</p>
@@ -1565,12 +1570,23 @@
       routeChanged();
     }
     // Recargar la página de un celular (`/api/device/<id>/reload`): el visor en vivo muestra el resultado solo.
-    for (const b of document.querySelectorAll('.device-reload')) {
+    for (const b of document.querySelectorAll('.device-reload:not(.device-advance)')) {
       b.onclick = async () => {
         if (b.getAttribute('aria-busy') === 'true') return;
         b.setAttribute('aria-busy', 'true'); b.lastElementChild.textContent = 'Recargando…';
         try { await fetch(`/api/device/${b.dataset.device}/reload`, { method: 'POST' }); } catch { }
         b.removeAttribute('aria-busy'); b.lastElementChild.textContent = 'Recargar';
+      };
+    }
+    // Avanzar (`/api/device/<id>/advance`): el servidor deja en la consola qué tocó, o por qué no pudo.
+    for (const b of document.querySelectorAll('.device-advance')) {
+      b.onclick = async () => {
+        if (b.getAttribute('aria-busy') === 'true') return;
+        b.setAttribute('aria-busy', 'true'); b.lastElementChild.textContent = 'Avanzando…';
+        let r = null;
+        try { r = await (await fetch(`/api/device/${b.dataset.device}/advance`, { method: 'POST' })).json(); } catch { }
+        b.removeAttribute('aria-busy'); b.lastElementChild.textContent = 'Avanzar';
+        b.title = r ? r.detail : 'el panel no contestó';
       };
     }
     $('tabClient').onclick = () => showAuxView('client');

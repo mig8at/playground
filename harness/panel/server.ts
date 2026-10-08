@@ -18,7 +18,7 @@ import { advisorSession } from '../../connectors/advisor/session.ts';
 import { credentialsFor } from '../../connectors/auth/env.ts';
 import { envData, type AutofillData } from '../pkg/autofill.ts';
 import { identityWithoutProviderNotice } from '../pkg/config.ts';
-import { openDevice, openDevices, setDeviceLogger, prewarmDevices, warmDevice, watchNavigation, watchRequests, deviceGoto, deviceReload, deviceText, deviceEval, deviceOpenedAt, deviceState, deviceShot, deviceInput, closeDevice, closeAllDevices, SELENIUM_BOXES, type DeviceId, type DeviceInput, type DeviceSession } from './devices.ts';
+import { openDevice, openDevices, setDeviceLogger, prewarmDevices, warmDevice, watchNavigation, watchRequests, deviceGoto, deviceReload, deviceText, deviceEval, deviceOpenedAt, deviceState, deviceShot, deviceInput, deviceTap, deviceAdvance, closeDevice, closeAllDevices, SELENIUM_BOXES, type DeviceId, type DeviceInput, type DeviceSession } from './devices.ts';
 import { homedir } from 'node:os';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
@@ -405,6 +405,8 @@ async function dictateCompanyCase(order: any, target: string): Promise<{ ok: boo
     return { ok: r.ok, detalle: `cédula ${doc} · lambda de ${target}`, burós: r.lines };
 }
 const deviceBypass = new Map<DeviceId, { target: string; puesto: unknown }>();
+/** El código del OTP de cada celular (los últimos 4 del teléfono en el bypass), para que «Avanzar» lo escriba. */
+const deviceOtp = new Map<DeviceId, string>();
 // Lo que el arnés hizo por su cuenta en un celular y el panel tiene que mostrar (p. ej. aprobar la identidad).
 const deviceNotes = new Map<DeviceId, string>();
 
@@ -1866,7 +1868,7 @@ connect();
     // `POST /api/device/client/open` arma el pedido de la tienda del panel —la misma URL base64 que usa
     // la corrida (`dbops ecommerce-url`)— y abre el checkout en el contexto del cliente. Por ahora sólo
     // navega: el bypass del OTP y la siembra del buró vienen después.
-    const deviceRoute = /^\/api\/device\/(client|advisor)(?:\/(open|state|shot|close|input|reload))?$/.exec(path);
+    const deviceRoute = /^\/api\/device\/(client|advisor)(?:\/(open|state|shot|close|input|reload|tap|advance))?$/.exec(path);
     if (deviceRoute) {
         const id = deviceRoute[1] as DeviceId, action = deviceRoute[2] || 'state';
         if (action === 'open' && req.method === 'POST') {
@@ -1895,6 +1897,16 @@ connect();
             if (!okType) return json(res, 400, { ok: false, detail: 'evento desconocido' });
             const done = await deviceInput(id, ev).catch((e) => { console.error('device input:', (e as Error).message); return false; });
             return json(res, 200, { ok: done, ...deviceState(id) });
+        }
+        // Tocar por lo que DICE la pantalla, no por coordenadas: `tap` un texto, `advance` el botón principal.
+        if ((action === 'tap' || action === 'advance') && req.method === 'POST') {
+            const b = action === 'tap' ? await readBody(req) : {};
+            const text = String(b?.text ?? '').trim();
+            if (action === 'tap' && !text) return json(res, 400, { ok: false, detail: 'falta el texto a tocar' });
+            const r = await (action === 'tap' ? deviceTap(id, text) : deviceAdvance(id, deviceOtp.get(id)))
+                .catch((e) => ({ ok: false, detail: (e as Error).message.split('\n')[0] }));
+            deviceLog(id, (r.ok ? '▸ ' : '✗ ') + r.detail);
+            return json(res, 200, { ...r, ...deviceState(id) });
         }
         if (action === 'open' && req.method === 'POST' && id === 'client') {
             const b = await readBody(req);
@@ -1942,6 +1954,7 @@ connect();
             const signature = orderEnv.E2E_MERCHANT_SIGNATURE ? ` · firma ${orderEnv.E2E_MERCHANT_SIGNATURE === 'valid' ? 'válida (sin OTP)' : 'inválida'}` : '';
             startDeviceLog(`${b.slug} (${t}) · tienda → cliente · ${auto ? 'auto-onboarding' : 'ecommerce'}${signature} · cel ${phone}`);
             if (bypass?.ok) deviceBypass.set('client', { target: t, puesto: bypass.puesto });
+            if (bypass?.ok) deviceOtp.set('client', phone.slice(-4)); else deviceOtp.delete('client');
             const otp = bypass?.ok ? { otp: phone.slice(-4), otpBypass: bypass.puesto?.comodin ? 'comodín' : 'agregado' }
                 : { otpBypassError: bypass?.motivo || 'no se pudo registrar el bypass del OTP' };
             // El auto-onboarding vive en OTRO worktree del front: en local hay que servir ése en :5174, o el
