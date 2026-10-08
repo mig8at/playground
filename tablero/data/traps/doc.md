@@ -2370,13 +2370,22 @@ en producción — el webhook no deja registro cuando `firstOrFail()` lanza, as�
   juntó con `main` quedándose con la plantilla nueva («Change mock data») **sin** los
   `{{#if (getGlobalVar …)}}`: conservó el admin API (`index.js`) y perdió la lectura en las rutas. Desde
   el 2026-09-07 el admin API además exige `ADMIN_API_TOKEN` (#48).
-- **Arreglo:** [risk-services-mockery-lambda#55](https://github.com/Creditop-SAS/risk-services-mockery-lambda/pull/55)
-  restaura el dictado en Agil Data, Mareigua, TusDatos CC y las dos rutas de Experian (probado en local).
-  Falta mergearlo, desplegarlo y que el lambda del ambiente tenga `ADMIN_API_TOKEN`. Hasta entonces,
-  `--lambda` no sirve para dictar y hay que volver a inyectar (`synthFill`) si se necesita variar el buró.
-- **Estado:** vivo hasta que se despliegue #55. La regla general: **un mock compartido es infraestructura de otro** — puede cambiar
-  bajo los pies en mitad de una sesión, y sin read-after-write eso se convierte en resultados
-  plausibles y falsos en vez de un error.
+- **Arreglo en el repo (mergeado y desplegado el 2026-10-07):**
+  [#55](https://github.com/Creditop-SAS/risk-services-mockery-lambda/pull/55) restaura el dictado en Agil
+  Data, Mareigua, TusDatos CC y las dos rutas de Experian, y
+  [#56](https://github.com/Creditop-SAS/risk-services-mockery-lambda/pull/56) deja el admin API siempre
+  encendido con un token fijo y público, `Bearer mock-admin` (Mockoon 9 no arranca el admin API sin
+  token). Medido en `9b6r8ticg0…/development`: dictar, leer lo dictado y limpiar funcionan.
+- **⚠ Pero qa NO le pregunta a ese lambda.** El workflow del repo despliega en la cuenta
+  `697767917359` (`9b6r8ticg0`), y el backend de qa consulta **otro**, `ub79ck0htd…/development`
+  (uReq 503352, 2026-10-08: la llamada saliente a Agil Data fue a ese host). Ese lambda sigue con el
+  código viejo: admin API 404 y la default de `JUAN CARLOS PEREZ GOMEZ` con períodos `202510`. Lo
+  dictado en `9b6r8ticg0` no llega al flujo de qa, y el cliente cae en `employment-info`.
+  Se ve en una consulta: `{service_name=~".+"} |= "Llamada saliente" |= "agildata"` dice el host.
+- **Estado:** vivo en qa (y en todo backend que apunte a `ub79ck0htd`) hasta que ese lambda se
+  despliegue desde `main` o el backend apunte a `9b6r8ticg0`. Lo decide infra. La regla general: **un
+  mock compartido es infraestructura de otro** — puede cambiar bajo los pies en mitad de una sesión, y
+  sin read-after-write eso se convierte en resultados plausibles y falsos en vez de un error.
 
 ### F-150 · El builder de documentos del Rent to Own se elige por id QUEMADO, así que sólo funciona donde el clon quedó con ese id
 

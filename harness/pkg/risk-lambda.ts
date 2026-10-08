@@ -44,7 +44,9 @@ export async function dictate(doc: string, central: string, value: unknown): Pro
     const v = typeof value === 'string' ? value : JSON.stringify(value);
     try { JSON.parse(v); } catch { return false; }
     const r = await fetch(`${LAMBDA}/mockoon-admin/global-vars`, {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        // El lambda de la empresa exige este token (fijo y público, no es un secreto: Mockoon 9 no arranca
+        // el admin API sin uno). Al mock local le sobra y lo ignora.
+        method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: 'Bearer mock-admin' },
         body: JSON.stringify({ key: `${central}_${doc}`, value: v }),
         signal: AbortSignal.timeout(25_000),
     }).catch(() => null);
