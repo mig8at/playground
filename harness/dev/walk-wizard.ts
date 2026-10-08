@@ -224,16 +224,21 @@ async function seed(ur: number, doc: string, log: (s: string) => void, lender?: 
  * rechazaba sólo por `occupation` y el cliente caía en «Segunda oportunidad», que exige cuota inicial.
  * Esa rama también cierra —`/down-payment` se paga contra el mock de Wompi—, pero es otro caso.
  *
- * Sólo contra el mock local, salvo que `RISK_LAMBDA_URL` diga otro: en dev/qa el backend le pregunta a
- * la lambda de la empresa, y dictarle al mock de esta máquina no cambiaría nada.
+ * En local se le dicta al mock de esta máquina; en otro ambiente, al lambda de la empresa que consulta su backend
+ * (`dictateCompanyLambda`; hoy sólo qa tiene uno con dictado, F-149).
  */
 async function employmentFor(doc: string, log: (s: string) => void): Promise<void> {
     if (!flag('lambda')) return;
-    if (TARGET !== 'local' && !process.env.RISK_LAMBDA_URL) {
-        log(`--lambda ignorado: contra ${TARGET} el backend no le pregunta al mock local (${RISK_LAMBDA}); pasá RISK_LAMBDA_URL`);
+    const occupation = arg('occupation', 'Empleado');
+    // Fuera de local, el backend le pregunta al lambda DE LA EMPRESA: se le dicta igual que lo hace el panel —Ágil Data
+    // y el reporte de Experian ENTERO—, porque ese lambda no conoce la clave `experian_profile` del mock local.
+    if (TARGET !== 'local') {
+        const { dictateCompanyLambda } = await import('../pkg/risk-lambda.ts');
+        const r = await dictateCompanyLambda(TARGET, doc, { name: 'CARLOS RUIZ MENDOZA', income: INCOME, occupation, months: 13,
+            score: SCORE, consulted: 1, creditCards: 1, delinquencies: 0, negatives: 0, maturationSince: '2015-03-26' });
+        for (const line of r.lines) log(`centrales de ${TARGET} para ${doc}: ${line}`);
         return;
     }
-    const occupation = arg('occupation', 'Empleado');
     const ok = await dictateEmployment(doc, INCOME, occupation);
     log(ok
         ? `empleo dictado al mock de centrales para ${doc}: ${occupation} · ${INCOME}`
