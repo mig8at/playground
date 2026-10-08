@@ -2382,10 +2382,15 @@ en producción — el webhook no deja registro cuando `firstOrFail()` lanza, as�
   código viejo: admin API 404 y la default de `JUAN CARLOS PEREZ GOMEZ` con períodos `202510`. Lo
   dictado en `9b6r8ticg0` no llega al flujo de qa, y el cliente cae en `employment-info`.
   Se ve en una consulta: `{service_name=~".+"} |= "Llamada saliente" |= "agildata"` dice el host.
-- **Estado:** vivo en qa (y en todo backend que apunte a `ub79ck0htd`) hasta que ese lambda se
-  despliegue desde `main` o el backend apunte a `9b6r8ticg0`. Lo decide infra. La regla general: **un
-  mock compartido es infraestructura de otro** — puede cambiar bajo los pies en mitad de una sesión, y
-  sin read-after-write eso se convierte en resultados plausibles y falsos en vez de un error.
+- **Arreglado en qa (2026-10-08):** en el secreto `dev/legacy-backend-qa` las 8 claves de host de las
+  centrales (`AGILDATA_HOST`, `MAREIGUA_HOST`, `EXPERIAN_HOST`, los `*_MOCK_HOST` y
+  `EXPERIAN_OPEN_CUSTOMER_INFO_HOST`) pasaron de `ub79ck0htd` a `9b6r8ticg0`, y se redesplegó
+  `legacy-backend-qa`. uReq 503353: la llamada a Agil Data fue a `9b6r8ticg0` y el flujo llegó a
+  entidades sin `employment-info`. **dev y staging siguen en `ub79ck0htd`** (sus secretos son
+  `dev/legacy-backend` y `dev/legacy-backend-stg`). Volver atrás: invertir el reemplazo y redesplegar.
+- **Estado:** vivo en dev y staging. La regla general: **un mock compartido es infraestructura de
+  otro** — puede cambiar bajo los pies en mitad de una sesión, y sin read-after-write eso se convierte
+  en resultados plausibles y falsos en vez de un error.
 
 ### F-150 · El builder de documentos del Rent to Own se elige por id QUEMADO, así que sólo funciona donde el clon quedó con ese id
 
