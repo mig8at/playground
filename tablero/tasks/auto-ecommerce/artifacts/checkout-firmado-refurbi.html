@@ -1,0 +1,389 @@
+<title>Checkout firmado de Refurbi</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:ital,wght@0,400;0,500;0,600;1,400&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+  /* Layout: dos columnas (el pedido · la URL y sus parámetros) sobre un fondo neutro; una columna en el celular. */
+  :root {
+    --ground:#F1F3F5; --surface:#FFFFFF; --sunken:#F7F8FA;
+    --ink:#14181D; --ink-soft:#5A646E; --ink-faint:#8A939C;
+    --line:#DCE1E6; --line-soft:#E9EDF1;
+    --accent:#0E5A62; --accent-ink:#0B474D;
+    --data:#A45B0B; --data-bg:#FDF6EC;
+    --ok:#15803D; --bad:#B42318; --bad-bg:#FEF3F2;
+    --sans:"IBM Plex Sans",ui-sans-serif,system-ui,sans-serif;
+    --mono:"IBM Plex Mono",ui-monospace,"SF Mono",Menlo,monospace;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --ground:#111417; --surface:#181C20; --sunken:#1E2328;
+      --ink:#E8ECEF; --ink-soft:#9AA5AE; --ink-faint:#6E7982;
+      --line:#2A3138; --line-soft:#232930;
+      --accent:#4FB3BC; --accent-ink:#7FD0D7;
+      --data:#E0A458; --data-bg:#2A2118;
+      --ok:#4ADE80; --bad:#F87171; --bad-bg:#2A1A1A;
+      color-scheme: dark;
+    }
+  }
+  :root[data-theme="dark"] {
+    --ground:#111417; --surface:#181C20; --sunken:#1E2328;
+    --ink:#E8ECEF; --ink-soft:#9AA5AE; --ink-faint:#6E7982;
+    --line:#2A3138; --line-soft:#232930;
+    --accent:#4FB3BC; --accent-ink:#7FD0D7;
+    --data:#E0A458; --data-bg:#2A2118;
+    --ok:#4ADE80; --bad:#F87171; --bad-bg:#2A1A1A;
+    color-scheme: dark;
+  }
+  * { box-sizing:border-box; }
+  body { background:var(--ground); color:var(--ink); font-family:var(--sans); line-height:1.55;
+         padding-block:28px; padding-left:16px; padding-right:16px; margin:0; }
+  .wrap { max-width:1140px; margin:0 auto; display:flex; flex-direction:column; gap:22px; }
+  header h1 { font-size:1.55rem; font-weight:600; margin:0 0 4px; letter-spacing:-.015em; text-wrap:balance; }
+  header p { margin:0; color:var(--ink-soft); max-width:68ch; font-size:.94rem; }
+  .eyebrow { font-size:.7rem; letter-spacing:.11em; text-transform:uppercase; color:var(--accent); font-weight:600; margin:0 0 7px; }
+  .cols { display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1.05fr); gap:18px; align-items:start; }
+  @media (max-width:900px) { .cols { grid-template-columns:minmax(0,1fr); } }
+  .card { background:var(--surface); border:1px solid var(--line); border-radius:12px; padding:18px; min-width:0; }
+  .card > h2 { font-size:.78rem; letter-spacing:.08em; text-transform:uppercase; color:var(--ink-soft); margin:0 0 14px; font-weight:600; }
+  .field { display:flex; flex-direction:column; gap:5px; margin-bottom:13px; }
+  label { font-size:.82rem; font-weight:500; }
+  .hint { font-size:.76rem; color:var(--ink-faint); line-height:1.4; }
+  .hint code, .note code, p code { font-family:var(--mono); font-size:.92em; }
+  input, select { font-family:var(--mono); font-size:.84rem; color:var(--ink); background:var(--sunken);
+    border:1px solid var(--line); border-radius:7px; padding:8px 10px; width:100%; }
+  input:focus-visible, select:focus-visible { outline:2px solid var(--accent); outline-offset:1px; border-color:var(--accent); }
+  select { font-family:var(--sans); }
+  .subhead { display:flex; align-items:baseline; justify-content:space-between; gap:10px; font-size:.78rem; font-weight:600;
+    letter-spacing:.05em; text-transform:uppercase; color:var(--ink-soft); border-bottom:1px solid var(--line-soft);
+    padding-bottom:7px; margin:20px 0 13px; }
+  .subhead .hint { text-transform:none; letter-spacing:0; font-weight:400; }
+  .row2 { display:grid; grid-template-columns:1fr 1fr; gap:11px; }
+  @media (max-width:520px) { .row2 { grid-template-columns:1fr; } }
+  button { font-family:var(--sans); font-size:.86rem; font-weight:500; cursor:pointer; border-radius:7px; border:1px solid transparent; padding:9px 15px; }
+  .primary { background:var(--accent); color:#fff; width:100%; font-size:.92rem; padding:11px; }
+  .primary:hover { background:var(--accent-ink); }
+  .ghost { background:transparent; border-color:var(--line); color:var(--ink-soft); padding:5px 10px; font-size:.78rem; }
+  .ghost:hover { border-color:var(--accent); color:var(--accent); }
+  button:focus-visible { outline:2px solid var(--accent); outline-offset:2px; }
+  .note { border-left:3px solid var(--data); background:var(--data-bg); padding:11px 13px; border-radius:0 7px 7px 0; font-size:.83rem; }
+  .note strong { font-weight:600; }
+  .modes { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:8px; }
+  @media (max-width:520px) { .modes { grid-template-columns:1fr; } }
+  .mode { border:1px solid var(--line); border-radius:8px; padding:9px 10px; background:var(--sunken); cursor:pointer; display:flex; gap:8px; align-items:flex-start; }
+  .mode input { width:auto; margin-top:3px; }
+  .mode b { display:block; font-size:.82rem; }
+  .mode span { font-size:.74rem; color:var(--ink-soft); line-height:1.35; }
+  .mode:has(input:checked) { border-color:var(--accent); background:color-mix(in oklab, var(--accent) 8%, var(--surface)); }
+  .urlbox { background:var(--sunken); border:1px solid var(--line); border-radius:9px; padding:13px; }
+  .urlbox code { font-family:var(--mono); font-size:.79rem; word-break:break-all; color:var(--data); display:block; max-height:132px; overflow-y:auto; line-height:1.5; }
+  .expect { margin-top:10px; font-size:.82rem; display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
+  .chip { display:inline-flex; align-items:center; gap:6px; border-radius:999px; padding:3px 10px; font-size:.76rem; font-weight:600; }
+  .chip::before { content:""; width:7px; height:7px; border-radius:50%; background:currentColor; }
+  .chip.skip { background:color-mix(in oklab, var(--ok) 14%, var(--surface)); color:var(--ok); }
+  .chip.otp { background:var(--sunken); color:var(--ink-soft); }
+  .actions { display:flex; gap:8px; flex-wrap:wrap; margin-top:11px; }
+  table { width:100%; border-collapse:collapse; font-size:.8rem; }
+  th { text-align:left; font-size:.68rem; letter-spacing:.07em; text-transform:uppercase; color:var(--ink-faint); font-weight:600; padding:0 8px 7px 0; border-bottom:1px solid var(--line); }
+  td { padding:9px 8px 9px 0; border-bottom:1px solid var(--line-soft); vertical-align:top; }
+  tr:last-child td { border-bottom:none; }
+  td.k { font-family:var(--mono); font-weight:500; color:var(--data); white-space:nowrap; }
+  td.enc { font-size:.75rem; color:var(--ink-soft); }
+  td.val { font-family:var(--mono); font-size:.72rem; color:var(--ink-faint); word-break:break-all; max-width:230px; }
+  tr.new td.k::after { content:" nuevo"; font-family:var(--sans); font-size:.62rem; font-weight:600; color:var(--accent); text-transform:uppercase; letter-spacing:.06em; }
+  .tablewrap { overflow-x:auto; }
+  .sigbox { margin-top:18px; border-top:1px solid var(--line); padding-top:14px; display:grid; gap:9px; }
+  .sigbox pre { font-family:var(--mono); font-size:.74rem; white-space:pre-wrap; word-break:break-all; margin:0; background:var(--sunken); border:1px solid var(--line); border-radius:7px; padding:9px 10px; color:var(--ink); max-height:140px; overflow:auto; }
+  .status { font-size:.83rem; padding:9px 12px; border-radius:7px; margin-top:11px; display:none; }
+  .status.show { display:block; }
+  .status.err { background:var(--bad-bg); color:var(--bad); border:1px solid var(--bad); }
+  .status.ok { color:var(--ok); border:1px solid var(--ok); }
+  details { border-top:1px solid var(--line); padding-top:14px; margin-top:16px; }
+  details:first-child { border-top:none; padding-top:0; margin-top:0; }
+  summary { cursor:pointer; font-size:.83rem; font-weight:500; color:var(--accent); }
+  details p, details li { font-size:.83rem; color:var(--ink-soft); max-width:80ch; }
+  details ul { padding-left:19px; margin:9px 0; }
+  details code { font-family:var(--mono); font-size:.78rem; color:var(--data); }
+  footer { color:var(--ink-faint); font-size:.76rem; border-top:1px solid var(--line); padding-top:14px; }
+</style>
+
+<div class="wrap">
+  <header>
+    <p class="eyebrow">Canal ecommerce · auto-onboarding · Refurbi · QA</p>
+    <h1>Checkout firmado de Refurbi</h1>
+    <p>Arma la URL con la que la tienda de Refurbi manda a su comprador al auto-onboarding de CreditOp en QA: el pedido
+       con las fechas del comprador y su aceptación de los documentos, y la firma de la tienda. Con la firma válida el
+       comprador entra sin código; sin firma o con una firma inválida, se le pide el código como siempre.</p>
+  </header>
+
+  <div class="note">
+    <strong>Sólo QA.</strong> La sucursal y su token de QA ya están puestos. El <strong>secreto de firma</strong> no está
+    en la página: lo pegás vos, se usa sólo para calcular la firma en este navegador y no se guarda ni se envía a
+    ningún lado. El de producción nunca va acá. Actualizado el 8 de octubre de 2026.
+  </div>
+
+  <div class="cols">
+    <section class="card">
+      <h2>El pedido</h2>
+
+      <div class="field">
+        <label>Firma de la tienda</label>
+        <div class="modes" role="radiogroup" aria-label="Firma de la tienda">
+          <label class="mode"><input type="radio" name="mode" value="valid" checked><div><b>Firmado</b><span>Entra sin código.</span></div></label>
+          <label class="mode"><input type="radio" name="mode" value="none"><div><b>Sin firma</b><span>Pide el código, como hoy.</span></div></label>
+          <label class="mode"><input type="radio" name="mode" value="invalid"><div><b>Firma inválida</b><span>Firma con otro secreto: pide el código.</span></div></label>
+        </div>
+      </div>
+
+      <div class="field" id="secretField">
+        <label for="secret">Secreto de firma de la sucursal</label>
+        <input id="secret" type="password" autocomplete="off" spellcheck="false" placeholder="pegalo acá: 64 caracteres">
+        <span class="hint">El que CreditOp generó para la credencial de esta sucursal en QA. No se guarda: al recargar la página hay que volver a pegarlo.</span>
+      </div>
+
+      <div class="subhead"><span>Datos del comprador</span><span class="hint">lo que la tienda ya sabe de él</span></div>
+      <div class="row2">
+        <div class="field"><label for="nombres">Nombres</label><input id="nombres" value="LAURA" spellcheck="false" autocomplete="off"></div>
+        <div class="field"><label for="apellidos">Apellidos</label><input id="apellidos" value="AUTO PRUEBA" spellcheck="false" autocomplete="off"></div>
+      </div>
+      <div class="row2">
+        <div class="field"><label for="tipodoc">Tipo de documento</label>
+          <select id="tipodoc"><option value="CC" selected>C.C. · cédula de ciudadanía</option><option value="CE">C.E. · cédula de extranjería</option></select></div>
+        <div class="field"><label for="documento">Número de documento</label><input id="documento" spellcheck="false" autocomplete="off" inputmode="numeric"></div>
+      </div>
+      <div class="row2">
+        <div class="field"><label for="expedicion">Fecha de expedición</label><input id="expedicion" type="date" value="2012-09-10"><span class="hint">Con ella se valida la identidad sin formulario.</span></div>
+        <div class="field"><label for="nacimiento">Fecha de nacimiento</label><input id="nacimiento" type="date" value="1990-05-14"><span class="hint">Algunas entidades la piden.</span></div>
+      </div>
+      <div class="row2">
+        <div class="field"><label for="email">Correo</label><input id="email" spellcheck="false" autocomplete="off" inputmode="email"></div>
+        <div class="field"><label for="celular">Celular</label><input id="celular" spellcheck="false" autocomplete="off" inputmode="numeric">
+          <span class="hint">Sin firma, el código se envía a este número: usá uno tuyo o uno del bypass de QA.</span></div>
+      </div>
+
+      <div class="subhead"><span>Aceptación de los documentos</span><span class="hint">la que tomó la tienda</span></div>
+      <div class="field"><label for="aceptado">Cuándo aceptó</label><input id="aceptado" type="datetime-local"><span class="hint">Se envía en UTC, con sufijo Z.</span></div>
+      <div class="row2">
+        <div class="field"><label for="tyc">Versión de los Términos y Condiciones</label><input id="tyc" value="V20260206" spellcheck="false"></div>
+        <div class="field"><label for="politica">Versión de la Política de Datos</label><input id="politica" value="V20260206" spellcheck="false"></div>
+      </div>
+
+      <div class="subhead"><span>La compra</span></div>
+      <div class="row2">
+        <div class="field"><label for="total">Monto total</label><input id="total" value="2000000" spellcheck="false" inputmode="numeric"><span class="hint">En pesos, sin puntos.</span></div>
+        <div class="field"><label for="orderkey">Referencia del pedido</label><input id="orderkey" spellcheck="false" autocomplete="off"><span class="hint">Única por prueba.</span></div>
+      </div>
+      <div class="field"><label for="ret">Volver a la tienda</label><input id="ret" value="https://tienda-de-prueba.test/gracias" spellcheck="false"></div>
+      <div class="field"><label for="proc">Webhook del veredicto</label><input id="proc" value="https://webhook.site/76e550fc-99ee-4c31-be5e-ec246a8808b4/" spellcheck="false"></div>
+
+      <button class="primary" id="go" type="button">Armar la URL</button>
+      <div class="status" id="status" role="status"></div>
+    </section>
+
+    <section class="card">
+      <h2>La URL</h2>
+      <div class="urlbox"><code id="url">Llená el pedido y dale a «Armar la URL».</code></div>
+      <div class="expect" id="expect" hidden></div>
+      <div class="actions">
+        <button class="ghost" id="copy" type="button">Copiar</button>
+        <button class="ghost" id="open" type="button">Abrir en una pestaña</button>
+        <button class="ghost" id="reset" type="button">Comprador nuevo</button>
+      </div>
+
+      <h2 style="margin-top:22px">Los parámetros</h2>
+      <div class="tablewrap">
+        <table>
+          <thead><tr><th style="width:56px">clave</th><th style="width:36%">qué lleva · cómo se codifica</th><th>valor</th></tr></thead>
+          <tbody id="params">
+            <tr data-k="o"><td class="k">o</td><td class="enc">el pedido, con <code>verification</code><br><b>serialize de PHP</b> → base64</td><td class="val">—</td></tr>
+            <tr data-k="p"><td class="k">p</td><td class="enc">los productos<br><b>JSON</b> → base64</td><td class="val">—</td></tr>
+            <tr data-k="t"><td class="k">t</td><td class="enc">el token de la sucursal<br><b>crudo</b> → base64</td><td class="val">—</td></tr>
+            <tr data-k="u"><td class="k">u</td><td class="enc">volver a la tienda<br><b>serialize de PHP</b> → base64</td><td class="val">—</td></tr>
+            <tr data-k="ps"><td class="k">ps</td><td class="enc">webhook del veredicto<br><b>crudo</b> → base64</td><td class="val">—</td></tr>
+            <tr data-k="config"><td class="k">config</td><td class="enc">extras<br><b>JSON y después serialize</b> → base64</td><td class="val">—</td></tr>
+            <tr data-k="ts" class="new"><td class="k">ts</td><td class="enc">cuándo se firmó<br>segundos desde 1970 (UTC)</td><td class="val">—</td></tr>
+            <tr data-k="sig" class="new"><td class="k">sig</td><td class="enc">la firma<br><code>v1=</code> + HMAC-SHA256 en hex</td><td class="val">—</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="sigbox" id="sigbox" hidden>
+        <div><label>Mensaje firmado</label><span class="hint"> · <code>v1</code>, el <code>ts</code> y el <code>o</code>, separados por un salto de línea</span></div>
+        <pre id="message"></pre>
+        <div><label>Firma</label><span class="hint"> · la que tiene que calcular la tienda con el mismo secreto</span></div>
+        <pre id="signature"></pre>
+      </div>
+    </section>
+  </div>
+
+  <section class="card">
+    <details open>
+      <summary>Qué pasa con cada firma</summary>
+      <ul>
+        <li><strong>Firmado</strong> → checkout → <code>/auto/c390eed9/inicio</code> → validación con centrales → entidades, sin la pantalla del código. En la firma del pagaré se le envía un código al celular, y ahí puede usar «Cambiar número».</li>
+        <li><strong>Sin firma</strong> o <strong>firma inválida</strong> → <code>inicio</code> → pantalla del código al celular del pedido, como hoy.</li>
+        <li>Cuando viene firmado, el pedido guarda la aceptación (fecha y versiones) como constancia.</li>
+      </ul>
+    </details>
+    <details>
+      <summary>Cómo calcula la firma la tienda</summary>
+      <p>Es el mismo esquema que usa CreditOp para sus eventos: <code>sig = "v1=" + HMAC-SHA256(secreto, "v1\n" + ts + "\n" + o)</code>,
+         en hexadecimal y en minúsculas, donde <code>o</code> es el pedido ya serializado y en base64, el mismo texto que va en la URL.
+         La tienda lo calcula en su servidor; el secreto nunca llega al navegador del comprador.</p>
+      <p>Con el mismo secreto y el mismo <code>o</code> y <code>ts</code>, la firma que muestra esta página tiene que ser idéntica a la de la tienda: sirve para comprobar su implementación.</p>
+    </details>
+    <details>
+      <summary>Si algo no sale como se espera</summary>
+      <ul>
+        <li><strong>Firmado pero pide el código</strong>: el secreto no es el de esta sucursal en QA, o se cambió algo del pedido después de firmar (la página firma lo último que armó).</li>
+        <li><strong>Conflicto de usuario</strong>: el documento o el celular ya existen con otra identidad. Usá «Comprador nuevo».</li>
+        <li><strong>Va a «employment-info»</strong>: las centrales de QA no tienen datos de empleo para ese documento. No es la firma.</li>
+      </ul>
+    </details>
+  </section>
+
+  <footer>Cada URL abierta crea una solicitud en QA: para volver a probar, armá una nueva. La referencia del pedido cambia sola con «Comprador nuevo».</footer>
+</div>
+
+<script>
+(function () {
+  const $ = (id) => document.getElementById(id);
+  const ORIGINACIONES = "https://originaciones-qa.dev.creditop.com";
+  // La tienda online de Refurbi en QA: sucursal 1748 «Ecommerce-EcommerceRefurbi», habilitada para el auto-onboarding.
+  const HASH = "c390eed9";
+  const TOKEN = "38316333393065656439323032362d30342d3137";
+
+  const productos = [
+    { product_id: 101, name: "iPhone 13 reacondicionado", sku: "REF-IP13", price: "1700000", quantity: 1 },
+    { product_id: 102, name: "Garantía extendida", sku: "REF-GAR", price: "300000", quantity: 1 }
+  ];
+
+  const utf8 = (s) => new TextEncoder().encode(s);
+  function b64(s) { const bytes = utf8(s); let bin = ""; for (let i = 0; i < bytes.length; i++) bin += String.fromCharCode(bytes[i]); return btoa(bin); }
+  function phpSerialize(v) {
+    if (typeof v === "string") return "s:" + utf8(v).length + ':"' + v + '";';
+    if (typeof v === "number" && Number.isInteger(v)) return "i:" + v + ";";
+    if (typeof v === "boolean") return "b:" + (v ? 1 : 0) + ";";
+    if (v === null) return "N;";
+    if (Array.isArray(v)) { let out = "a:" + v.length + ":{"; v.forEach((x, i) => { out += phpSerialize(i) + phpSerialize(x); }); return out + "}"; }
+    if (v && typeof v === "object") { const keys = Object.keys(v).sort(); let out = "a:" + keys.length + ":{"; for (const k of keys) out += phpSerialize(k) + phpSerialize(v[k]); return out + "}"; }
+    throw new Error("no sé serializar " + typeof v);
+  }
+  async function hmacHex(secret, message) {
+    const key = await crypto.subtle.importKey("raw", utf8(secret), { name: "HMAC", hash: "SHA-256" }, false, ["sign"]);
+    const sig = await crypto.subtle.sign("HMAC", key, utf8(message));
+    return [...new Uint8Array(sig)].map((b) => b.toString(16).padStart(2, "0")).join("");
+  }
+
+  const mode = () => document.querySelector('input[name="mode"]:checked').value;
+  const pad = (n) => String(n).padStart(2, "0");
+  const localNow = (offsetMin) => { const d = new Date(Date.now() + offsetMin * 60000); return d.getFullYear() + "-" + pad(d.getMonth() + 1) + "-" + pad(d.getDate()) + "T" + pad(d.getHours()) + ":" + pad(d.getMinutes()); };
+  const toUtcZ = (local) => { const d = new Date(local); return isNaN(d) ? "" : d.toISOString().replace(/\.\d{3}Z$/, "Z"); };
+
+  function decir(msg, tipo) { const el = $("status"); el.textContent = msg; el.className = "status show " + tipo; }
+  function callar() { $("status").className = "status"; }
+
+  function pintarModo() { $("secretField").hidden = mode() === "none"; }
+  document.querySelectorAll('input[name="mode"]').forEach((r) => r.addEventListener("change", () => { pintarModo(); if (urlActual) armar(); }));
+
+  let urlActual = "";
+
+  async function armar() {
+    callar();
+    const m = mode();
+    const secret = $("secret").value.trim();
+    if (m !== "none" && !secret) return decir("Pegá el secreto de firma de la sucursal, o elegí «Sin firma».", "err");
+    const total = $("total").value.trim();
+    if (!/^\d+$/.test(total)) return decir("El monto va en números y sin puntos.", "err");
+    const acceptedAt = toUtcZ($("aceptado").value);
+    if (!acceptedAt) return decir("Falta cuándo aceptó los documentos.", "err");
+
+    const billing = {};
+    const poner = (k, v) => { const x = (v || "").trim(); if (x !== "") billing[k] = x; };
+    poner("first_name", $("nombres").value); poner("last_name", $("apellidos").value);
+    poner("document_type", $("tipodoc").value); poner("document_number", $("documento").value);
+    poner("document_expedition_date", $("expedicion").value); poner("birth_date", $("nacimiento").value);
+    poner("email", $("email").value); poner("phone", $("celular").value);
+
+    const pedido = {
+      id: 5002,
+      order_key: ($("orderkey").value || "").trim() || ("wc_refurbi_" + Date.now().toString(36)),
+      total, currency: "COP", billing,
+      verification: { terms_accepted_at: acceptedAt, terms_version: $("tyc").value.trim(), privacy_policy_version: $("politica").value.trim() }
+    };
+    $("orderkey").value = pedido.order_key;
+
+    const params = {
+      o: b64(phpSerialize(pedido)),
+      p: b64(JSON.stringify(productos)),
+      t: b64(TOKEN),
+      u: b64(phpSerialize($("ret").value.trim())),
+      ps: b64($("proc").value.trim()),
+      config: b64(phpSerialize(JSON.stringify([])))
+    };
+
+    let message = "", signature = "";
+    if (m !== "none") {
+      const ts = String(Math.floor(Date.now() / 1000));
+      message = "v1\n" + ts + "\n" + params.o;
+      try {
+        // «Firma inválida» firma con un secreto que no es el de la sucursal.
+        signature = "v1=" + await hmacHex(m === "invalid" ? "no-es-el-secreto-" + secret : secret, message);
+      } catch (e) {
+        return decir("Este navegador no pudo calcular la firma: " + e.message, "err");
+      }
+      params.ts = ts;
+      params.sig = signature;
+    }
+
+    urlActual = ORIGINACIONES + "/ecommerce/" + HASH + "/checkout?" + new URLSearchParams(params).toString();
+    $("url").textContent = urlActual;
+
+    document.querySelectorAll("#params tr").forEach((tr) => {
+      const v = params[tr.dataset.k];
+      tr.querySelector(".val").textContent = v ? (v.length > 90 ? v.slice(0, 90) + "… (" + v.length + ")" : v) : "— no va —";
+    });
+
+    $("sigbox").hidden = m === "none";
+    $("message").textContent = message;
+    $("signature").textContent = signature;
+
+    const ex = $("expect");
+    ex.hidden = false;
+    ex.innerHTML = "";
+    const chip = document.createElement("span");
+    chip.className = "chip " + (m === "valid" ? "skip" : "otp");
+    chip.textContent = m === "valid" ? "Debería entrar sin código" : "Debería pedir el código";
+    ex.appendChild(chip);
+    decir("Listo · " + (m === "valid" ? "pedido firmado" : m === "invalid" ? "firma inválida a propósito" : "sin firma") + " · referencia " + pedido.order_key, "ok");
+  }
+
+  $("go").addEventListener("click", armar);
+  $("copy").addEventListener("click", async () => {
+    if (!urlActual) return decir("Primero armá la URL.", "err");
+    try { await navigator.clipboard.writeText(urlActual); decir("URL copiada.", "ok"); }
+    catch { decir("No pude copiar: seleccioná la URL y copiala a mano.", "err"); }
+  });
+  $("open").addEventListener("click", () => {
+    if (!urlActual) return decir("Primero armá la URL.", "err");
+    const a = document.createElement("a"); a.href = urlActual; a.target = "_blank"; a.rel = "noopener"; a.click();
+  });
+
+  function compradorNuevo() {
+    const doc = String(1000000000 + Math.floor(Math.random() * 899999999));
+    $("documento").value = doc;
+    $("email").value = "qa" + doc.slice(-6) + "@creditop.com";
+    $("celular").value = "31" + String(Math.floor(10000000 + Math.random() * 89999999));
+    $("orderkey").value = "wc_refurbi_" + Date.now().toString(36);
+    $("aceptado").value = localNow(-1);
+  }
+  $("reset").addEventListener("click", () => {
+    compradorNuevo();
+    urlActual = "";
+    $("url").textContent = "Llená el pedido y dale a «Armar la URL».";
+    $("expect").hidden = true; $("sigbox").hidden = true;
+    document.querySelectorAll("#params .val").forEach((td) => { td.textContent = "—"; });
+    decir("Comprador nuevo: documento, correo, celular y referencia sin usar.", "ok");
+  });
+
+  compradorNuevo();
+  pintarModo();
+})();
+</script>
