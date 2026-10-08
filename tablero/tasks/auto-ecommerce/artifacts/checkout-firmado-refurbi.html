@@ -117,8 +117,9 @@
   <header>
     <p class="eyebrow">Canal ecommerce · auto-onboarding · Refurbi · QA · 8 de octubre de 2026</p>
     <h1>Checkout firmado de Refurbi</h1>
-    <p>Arma la URL firmada con la que la tienda de Refurbi manda a su comprador al auto-onboarding de CreditOp en QA. Con la
-       firma válida entra sin código; sin firma o con una firma inválida, se le pide el código como siempre.</p>
+    <p>Arma la URL firmada con la que la tienda de Refurbi manda a su comprador al auto-onboarding de CreditOp en QA, y le
+       dicta a las centrales de QA lo que tienen que contestar para ese comprador. Con los valores por defecto, firmado, va
+       directo a entidades sin código.</p>
   </header>
 
   <div class="cols">
@@ -159,6 +160,26 @@
       </div>
       <div class="field"><label for="total">Monto de la compra</label><input id="total" value="2000000" spellcheck="false" inputmode="numeric"></div>
 
+      <div class="subhead"><span>Centrales de QA</span><label class="hint" style="display:flex;gap:6px;align-items:center"><input type="checkbox" id="dictarOn" checked style="width:auto"> dictarlas al armar la URL</label></div>
+      <div class="subhead" style="margin-top:6px"><span>Ágil Data · empleo</span></div>
+      <div class="row3">
+        <div class="field"><label for="ingreso">Ingreso mensual</label><input id="ingreso" value="2500000" spellcheck="false" inputmode="numeric"></div>
+        <div class="field"><label for="ocupacion">Ocupación</label>
+          <select id="ocupacion"><option value="Empleado" selected>Empleado</option><option value="Independiente">Independiente</option></select></div>
+        <div class="field"><label for="meses">Meses de aportes</label><input id="meses" value="13" spellcheck="false" inputmode="numeric"></div>
+      </div>
+
+      <div class="subhead"><span>Experian · buró</span></div>
+      <div class="row3">
+        <div class="field"><label for="score">Score</label><input id="score" value="700" spellcheck="false" inputmode="numeric"></div>
+        <div class="field"><label for="consultas">Consultas 6 meses</label><input id="consultas" value="1" spellcheck="false" inputmode="numeric"></div>
+        <div class="field"><label for="tarjetas">Tarjetas activas</label><input id="tarjetas" value="1" spellcheck="false" inputmode="numeric"></div>
+      </div>
+      <div class="row3">
+        <div class="field"><label for="mora">Moras actuales</label><input id="mora" value="0" spellcheck="false" inputmode="numeric"></div>
+        <div class="field"><label for="negativos">Negativos 12 meses</label><input id="negativos" value="0" spellcheck="false" inputmode="numeric"></div>
+      </div>
+
       <details class="more">
         <summary>Más del pedido</summary>
         <div class="field" style="margin-top:12px"><label for="aceptado">Cuándo aceptó los documentos</label><input id="aceptado" type="datetime-local"></div>
@@ -183,6 +204,7 @@
       <div class="actions">
         <button class="ghost" id="copy" type="button">Copiar</button>
         <button class="ghost" id="open" type="button">Abrir en una pestaña</button>
+        <button class="ghost" id="limpiar" type="button" title="Las centrales vuelven a contestar lo de siempre para este documento">Limpiar centrales</button>
       </div>
 
 
@@ -220,7 +242,7 @@
       <summary>Si algo no sale como se espera</summary>
       <ul>
         <li><strong>Firmado pero pide el código</strong>: el secreto no es el de esta sucursal en QA, o se cambió el pedido después de armar la URL.</li>
-        <li><strong>Pide el ingreso en vez de ir a entidades</strong>: es lo esperado desde esta página. Las centrales de QA son un mock que, sin que nadie le dicte nada, contesta otra persona con aportes viejos. Se completa el ingreso a mano y el flujo sigue. Para que vaya directo a entidades, la prueba se hace desde el panel del harness, que le dicta las centrales al mock antes de abrir el checkout.</li>
+        <li><strong>Pide el ingreso en vez de ir a entidades</strong>: Ágil Data no contestó lo dictado. Revisá que «dictarlas al armar la URL» esté marcado y que la pestaña de las centrales haya dicho ✓; si lo dijo, el mock es serverless y la consulta pudo caer en otra instancia: volvé a armar la URL (con «Comprador nuevo») y probá de nuevo. También se puede completar el ingreso a mano y el flujo sigue.</li>
         <li><strong>Conflicto de usuario</strong>: el documento o el celular ya existen con otra identidad. Usá «Comprador nuevo».</li>
       </ul>
       <p>Cada URL abierta crea una solicitud en QA: los datos del comprador van siempre de prueba.</p>
@@ -271,6 +293,27 @@
 
   let urlActual = "";
 
+
+  // ── Centrales de QA: el mock de la empresa tiene `GET /dictar`. La página no puede llamarlo con fetch (el navegador
+  // bloquea otro dominio), pero sí abrirlo en una pestaña: ahí queda dictado y muestra lo que guardó. ──
+  const MOCK = "https://9b6r8ticg0.execute-api.us-east-2.amazonaws.com/development";
+  const docActual = () => $("documento").value.replace(/\D/g, "");
+  function abrir(url) { const a = document.createElement("a"); a.href = url; a.target = "_blank"; a.rel = "noopener"; a.click(); }
+  function dictarCentrales() {
+    const q = new URLSearchParams({
+      doc: docActual(), nombre: ($("nombres").value.trim() + " " + $("apellidos").value.trim()).trim().toUpperCase(),
+      ingreso: $("ingreso").value.replace(/\D/g, ""), meses: $("meses").value.replace(/\D/g, ""), ocupacion: $("ocupacion").value,
+      score: $("score").value.replace(/\D/g, ""), consultas: $("consultas").value.replace(/\D/g, ""), tarjetas: $("tarjetas").value.replace(/\D/g, ""),
+      moras: $("mora").value.replace(/\D/g, ""), negativos: $("negativos").value.replace(/\D/g, "")
+    });
+    abrir(MOCK + "/dictar?" + q.toString());
+  }
+  $("limpiar").addEventListener("click", () => {
+    if (!docActual()) return decir("Falta el documento del comprador.", "err");
+    abrir(MOCK + "/dictar?" + new URLSearchParams({ doc: docActual(), limpiar: "1" }).toString());
+    decir("Centrales limpias para " + docActual() + ": vuelven a contestar lo de siempre.", "ok");
+  });
+
   async function armar() {
     callar();
     const m = mode();
@@ -280,6 +323,9 @@
     if (!/^\d+$/.test(total)) return decir("El monto va en números y sin puntos.", "err");
     const acceptedAt = toUtcZ($("aceptado").value);
     if (!acceptedAt) return decir("Falta cuándo aceptó los documentos.", "err");
+    // Antes de cualquier await: abrir la pestaña tiene que ir pegado al clic, o el navegador la toma por popup.
+    const dictadas = $("dictarOn").checked && !!docActual();
+    if (dictadas) dictarCentrales();
 
     const billing = {};
     const poner = (k, v) => { const x = (v || "").trim(); if (x !== "") billing[k] = x; };
@@ -338,7 +384,8 @@
     chip.className = "chip " + (m === "valid" ? "skip" : "otp");
     chip.textContent = m === "valid" ? "Debería entrar sin código" : "Debería pedir el código";
     ex.appendChild(chip);
-    decir("Listo · " + (m === "valid" ? "pedido firmado" : m === "invalid" ? "firma inválida a propósito" : "sin firma") + " · referencia " + pedido.order_key, "ok");
+    decir("Listo · " + (m === "valid" ? "pedido firmado" : m === "invalid" ? "firma inválida a propósito" : "sin firma") + " · referencia " + pedido.order_key
+      + (dictadas ? " · centrales dictadas en otra pestaña: revisá que diga ✓ y volvé para abrir el checkout" : ""), "ok");
   }
 
   $("go").addEventListener("click", armar);
