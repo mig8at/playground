@@ -5,18 +5,24 @@ stage: work
 created: "2026-10-05T12:00:00-05:00"
 knowledge: [ecommerce-context, lender-listing]
 canon: []
-jira: []
+jira: [CORE-731]
 jira_title: "Ecommerce: la tienda puede enviar los datos del comprador y firmar el pedido para que llegue a las entidades sin repetir pasos"
 ramas: feat/auto-onboarding, feat/auto-onboarding-risk-check, feat/auto-onboarding-personal-info-fallback, feat/auto-onboarding-birth-date, feat/auto-onboarding-merchant-signature, feat/dictado-centrales-restaurado, feat/admin-api-sin-token, feat/dictado-por-parametros, feat/experian-acierta-quanto, fix/auto-onboarding-validation-errors
 ---
 
 ## Pendientes
 
+- [ ] **Alinear el nombre de la fecha de expedición con el documento de integración.** El PDF adjunto en CORE-731
+      la pide como `documentIssueDate` (opcional, en `data`), pero el backend la lee de
+      `billing.document_expedition_date`; una tienda que siga el PDF no entra al auto-onboarding. Termina cuando el
+      backend acepta los dos nombres o el documento usa el del código. Depende de: Miguel — cuál de los dos cambia.
+- [ ] **Sumar al documento de integración lo que agrega el auto-onboarding.** El PDF no menciona la firma (`sig`,
+      `ts` y el bloque `verification`), la fecha de nacimiento (`birth_date`) ni qué datos de facturación hacen
+      falta para que el comprador no llene nada. Termina cuando el documento que reciben los comercios lo trae.
 - [ ] **Definir con producto qué pasa si el pedido llega sin firma o con firma inválida.** Hoy el código cae al
       código por SMS (OTP) del inicio; la propuesta es mostrar un error y no dejar continuar. Termina cuando producto
       decide y, si cambia, el comportamiento queda implementado. Depende de: producto — la decisión.
-- [ ] **Crear el issue en Jira** con `jira_title` y la publicable, en el sprint activo. Termina cuando `jira:` tiene la
-      clave y el lint deja de avisar «tarea local». Depende de: Miguel — que lo apruebe.
+- [x] ~~Crear el issue en Jira~~ — [CORE-731](https://creditop.atlassian.net/browse/CORE-731), en «CORE Sprint 19», con el PDF de integración adjunto.
 - [x] ~~Abrir los PRs a `qa`~~ — [legacy-backend#1617](https://github.com/Creditop-SAS/legacy-backend/pull/1617) y [frontend-monorepo#1153](https://github.com/Creditop-SAS/frontend-monorepo/pull/1153), mergeados el 2026-10-07: la firma de la tienda reemplaza el código del inicio y «Cambiar número» en la firma. Una corrección que los sacaba (#1618, #1154) se cerró sin mergear: todo lo de #1617 tiene uso.
 - [ ] **Probar en `qa` con Refurbi**: correr las migraciones `2026_10_07_120000` y `2026_10_07_140000`, la sucursal ecommerce de Refurbi en `auto_onboarding_allied_branches` y su secreto (`ecommerce:signing-secret`). Termina con un pedido firmado que entra sin código en `qa`.
 - [ ] **Entregar a Refurbi el contrato** ([Pedido firmado por la tienda](https://claude.ai/artifact/CGuFPWWV4euyUpwAKwybwu))
@@ -110,24 +116,28 @@ La tienda puede enviar los datos del comprador y firmar el pedido para que llegu
 Hoy el comprador repite en CreditOp datos que la tienda ya tiene y valida dos veces su celular, y la mayoría se queda en el formulario de perfil antes de ver entidades.
 
 ## Qué cambia
-- El pedido de la tienda puede traer la fecha de expedición y la de nacimiento del comprador.
-- Si la tienda ya verificó el celular y la aceptación de términos, firma el pedido y el comprador no recibe un segundo código.
-- Si la firma no llega o no es válida, el comprador sigue el recorrido de hoy, con código.
+- El pedido de la tienda puede traer, además de los datos de siempre, la fecha de expedición y la de nacimiento del comprador; con ellos CreditOp valida sus datos sin formulario.
+- Si la tienda firma el pedido (ya verificó al comprador de su lado), el comprador entra sin el código del inicio.
+- Si la validación automática rechaza un dato del pedido (por ejemplo, un correo que ya es de otro cliente), el comprador lo ve marcado en el formulario y lo corrige.
+- En la firma del pagaré, quien entró con un pedido firmado puede corregir su celular antes de validar el código.
 
 ## Alcance
 - No cambia Corbeta ni el canal del asesor.
+- Qué ve el comprador si el pedido llega sin firma o con una firma inválida queda por definir con producto; hoy se le pide el código como siempre.
 
 ## Dónde probar
-QA, con la tienda de Refurbi.
+QA, con la tienda de Refurbi (su sucursal ecommerce está habilitada para este recorrido).
 
 ## Cómo validar
 - Pedido firmado: el comprador pasa directo a la validación de datos y a las entidades, sin pantalla de código.
-- Pedido sin firma, con firma de otro secreto, con el celular cambiado o firmado hace más de 15 minutos: aparece la pantalla del código.
+- Pedido firmado con un correo que ya es de otro cliente: el formulario de datos personales muestra el correo marcado con el motivo.
+- En la firma del pagaré, «Cambiar número» envía el código al número nuevo, y el cliente queda con ese número sólo después de validarlo.
 
 ## Criterios de aceptación
-- Un pedido firmado entra una sola vez sin código.
-- Un pedido alterado nunca entra sin código.
+- Un pedido firmado entra sin código; uno sin una firma válida no.
+- Ningún dato que el sistema rechace queda sin mostrarse al comprador.
 
 ## Dependencias / contraparte
 - Refurbi implementa la firma con el contrato entregado.
+- Producto define qué ve el comprador si el pedido llega sin firma o con una firma inválida.
 - Legal confirma que la aceptación tomada por la tienda vale como autorización de consulta.
