@@ -12,6 +12,9 @@ ramas: feat/auto-onboarding, feat/auto-onboarding-risk-check, feat/auto-onboardi
 
 ## Pendientes
 
+- [ ] **Definir con producto qué pasa si el pedido llega sin firma o con firma inválida.** Hoy el código cae al
+      código por SMS (OTP) del inicio; la propuesta es mostrar un error y no dejar continuar. Termina cuando producto
+      decide y, si cambia, el comportamiento queda implementado. Depende de: producto — la decisión.
 - [ ] **Crear el issue en Jira** con `jira_title` y la publicable, en el sprint activo. Termina cuando `jira:` tiene la
       clave y el lint deja de avisar «tarea local». Depende de: Miguel — que lo apruebe.
 - [x] ~~Abrir los PRs a `qa`~~ — [legacy-backend#1617](https://github.com/Creditop-SAS/legacy-backend/pull/1617) y [frontend-monorepo#1153](https://github.com/Creditop-SAS/frontend-monorepo/pull/1153), mergeados el 2026-10-07: la firma de la tienda reemplaza el código del inicio y «Cambiar número» en la firma. Una corrección que los sacaba (#1618, #1154) se cerró sin mergear: todo lo de #1617 tiene uso.
