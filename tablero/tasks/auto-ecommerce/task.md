@@ -12,28 +12,17 @@ ramas: feat/auto-onboarding, feat/auto-onboarding-risk-check, feat/auto-onboardi
 
 ## Pendientes
 
-- [ ] **Alinear el nombre de la fecha de expedición con el documento de integración.** El PDF adjunto en CORE-731
-      la pide como `documentIssueDate` (opcional, en `data`), pero el backend la lee de
-      `billing.document_expedition_date`; una tienda que siga el PDF no entra al auto-onboarding. Termina cuando el
-      backend acepta los dos nombres o el documento usa el del código. Depende de: Miguel — cuál de los dos cambia.
-- [ ] **Sumar al documento de integración lo que agrega el auto-onboarding.** El PDF no menciona la firma (`sig`,
-      `ts` y el bloque `verification`), la fecha de nacimiento (`birth_date`) ni qué datos de facturación hacen
-      falta para que el comprador no llene nada. Termina cuando el documento que reciben los comercios lo trae.
-- [ ] **Definir con producto qué pasa si el pedido llega sin firma o con firma inválida.** Hoy el código cae al
-      código por SMS (OTP) del inicio; la propuesta es mostrar un error y no dejar continuar. Termina cuando producto
-      decide y, si cambia, el comportamiento queda implementado. Depende de: producto — la decisión.
-- [x] ~~Crear el issue en Jira~~ — [CORE-731](https://creditop.atlassian.net/browse/CORE-731), en «CORE Sprint 19», con el PDF de integración adjunto.
-- [x] ~~Abrir los PRs a `qa`~~ — [legacy-backend#1617](https://github.com/Creditop-SAS/legacy-backend/pull/1617) y [frontend-monorepo#1153](https://github.com/Creditop-SAS/frontend-monorepo/pull/1153), mergeados el 2026-10-07: la firma de la tienda reemplaza el código del inicio y «Cambiar número» en la firma. Una corrección que los sacaba (#1618, #1154) se cerró sin mergear: todo lo de #1617 tiene uso.
-- [x] ~~Probar en `qa` con Refurbi~~ — pedido firmado cerrado en 11: 503385 (caminador) y 503388 (panel), con la identidad y la cuota inicial insertadas para la solicitud de prueba.
-- [ ] **Entregar a Refurbi el contrato** ([Pedido firmado por la tienda](https://claude.ai/artifact/CGuFPWWV4euyUpwAKwybwu))
-      y, por canal privado, el secreto de su credencial (`php artisan ecommerce:signing-secret c390eed9` en el ambiente
-      donde pruebe). Las versiones que declara son las de los PDFs acordados (V20260206); prod registra hoy
-      T&C V20260209 y política V20260310: que legal confirme cuáles mostrar. Termina cuando Refurbi firma un pedido en `qa` y entra sin código. Depende de: Refurbi.
-- [ ] **Preguntarle a legal si la aceptación tomada por la tienda vale como autorización de consulta a centrales**
-      (habeas data: previa, expresa y verificable). El contrato le hace declarar a la tienda que la tomó; falta el sí de
-      legal antes de producción. Depende de: legal.
-- [ ] **Correr el canal asesor contra la rama** (no regresión). Termina con `walk-wizard FLOW=merchant` cerrando en 11.
-      Depende de: Miguel — renovar la sesión del asesor de prueba de Pullman (`c036610aa-fake@`), vencida el 2026-10-07.
+- [x] ~~Firma de la tienda con lo acordado con Refurbi~~ — HMAC del pedido (`v1=` + HMAC-SHA256) con la aceptación
+      de los documentos acordados: Términos y Condiciones y Política de Tratamiento de Datos V20260206, adjuntos en
+      CORE-731. La firma reemplaza el código del inicio.
+- [x] ~~Abrir los PRs a `qa`~~ — [legacy-backend#1617](https://github.com/Creditop-SAS/legacy-backend/pull/1617) y
+      [frontend-monorepo#1153](https://github.com/Creditop-SAS/frontend-monorepo/pull/1153) (firma y «Cambiar número»),
+      y [frontend-monorepo#1161](https://github.com/Creditop-SAS/frontend-monorepo/pull/1161) (el motivo del rechazo
+      automático en `personal-info`), mergeados.
+- [x] ~~Crear el issue en Jira~~ — [CORE-731](https://creditop.atlassian.net/browse/CORE-731), en «CORE Sprint 19»,
+      con los PDFs de términos y política adjuntos.
+- [x] ~~Probar en `qa` con Refurbi~~ — pedido firmado cerrado en 11: 503385 (caminador) y 503388 (panel); correo y
+      documento de otro cliente marcados en `personal-info` (503372, 503373).
 
 ## Objetivo
 
