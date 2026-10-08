@@ -449,15 +449,23 @@ function rescueIdentity(id: DeviceId, target: string, phone = ''): void {
  * `processing` (el widget se cerró), se paga igual. Sólo en local; se ANOTA: es un rodeo del arnés, no prueba la
  * pasarela real.
  */
-function rescueDownPayment(id: DeviceId, target: string): void {
-    if (target !== 'local') return;
+function rescueDownPayment(id: DeviceId, target: string, phone = ''): void {
+    // Fuera de local (dev/qa/staging) la pasarela es Wompi SANDBOX y el celular del panel no puede pagar: se INSERTA el
+    // pago de ESTA solicitud —sólo si es del celular que abrió el panel— y se lleva el celular a `processing`. No se
+    // toca la configuración del ambiente. Nunca en prod.
+    const remote = target !== 'local' && target !== 'prod' && !!phone;
+    if (target !== 'local' && !remote) return;
     const paid = new Set<string>();
     let downPaymentPage = '';   // `{origen}/{flujo}/{hash}/{solicitud}/down-payment`, de la última navegación
     const pay = (reference: string, goToProcessing: boolean) => {
         if (paid.has(reference)) return;
         paid.add(reference);
-        void dbopsJson(['wompi-pay', reference], target).then(async (r) => {
-            setNote(id, r?.ok
+        const run = remote ? dbopsJson(['initial-fee-approve', reference, phone], target) : dbopsJson(['wompi-pay', reference], target);
+        void run.then(async (r) => {
+            setNote(id, remote
+                ? (r?.ok ? `cuota inicial insertada como pagada ($${Number(r.paid ?? 0).toLocaleString('es-CO')}) en la solicitud ${r.userRequestId} · sin pasar por Wompi`
+                         : `no pude insertar la cuota inicial: ${r?.motivo ?? 'sin respuesta'}`)
+                : r?.ok
                 ? `cuota inicial pagada en el mock de Wompi ($${(Number(r.amount_in_cents) / 100).toLocaleString('es-CO')}) · el backend la ve en ~20 s`
                 : `no pude pagar la cuota inicial en el mock: ${r?.motivo ?? 'sin respuesta'}`);
             if (r?.ok && goToProcessing && downPaymentPage) await deviceGoto(id, `${downPaymentPage}/${reference}/processing`).catch(() => { });
@@ -472,9 +480,9 @@ function rescueDownPayment(id: DeviceId, target: string): void {
         if (processing) pay(processing[1], false);
     });
     watchRequests(id, (u) => {
-        if (!u.startsWith('https://checkout.wompi.co/')) return;
+        // El widget de Wompi (el de producción o el de sandbox): el host cambia, la referencia viaja igual en la URL.
         let reference: string | null = null;
-        try { reference = new URL(u).searchParams.get('reference'); } catch { return; }
+        try { const w = new URL(u); if (!/(^|\.)wompi\.co$/.test(w.hostname)) return; reference = w.searchParams.get('reference'); } catch { return; }
         if (reference && /^[0-9a-f-]{36}$/.test(reference)) pay(reference, true);
     });
 }
@@ -1912,7 +1920,7 @@ connect();
                 const r = await openDevice('client', front.replace(/\/$/, '') + built.checkout_path, { autofill: caseAutofill(o) });
                 phase('celular');
                 deviceLog('panel', `tienda → cliente: ${phases.join(' · ')} (s)`);
-                rescueIdentity('client', t, phone); rescueDownPayment('client', t);
+                rescueIdentity('client', t, phone); rescueDownPayment('client', t, phone);
                 return json(res, 200, { ok: true, hash: built.hash, merchant: built.merchant, scrubbed: scrub, ...otp, ...r });
             } catch (e) {
                 return json(res, 200, { ok: false, detail: `el celular no pudo abrir ${front}: ${(e as Error).message.split('\n')[0]}` });

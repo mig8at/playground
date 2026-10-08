@@ -89,6 +89,13 @@ try {
         // F-220 en los celulares del panel: sin `ADO_HOST` en el backend local la validación de identidad queda en
         // una ruta muerta. Se aprueba A MANO como el admin —con las dos fotos sintéticas del documento—, igual que la
         // corrida guiada. SÓLO LOCAL: en un ambiente desplegado la pantalla funciona y aprobar por detrás mentiría.
+        // La cuota inicial insertada para ESA solicitud fuera de local (dev/qa/staging), sin pasar por Wompi: `approveInitialFee`.
+        case 'initial-fee-approve': {
+            const { approveInitialFee } = await import('../pkg/wompi-down-payment.ts');
+            if (!a[0] || !a[1]) throw new Error('uso: initial-fee-approve <referencia> <celular>');
+            r = await approveInitialFee(String(a[0]), String(a[1]));
+            break;
+        }
         case 'wompi-pay': { // el comprador «paga» la cuota inicial en el mock LOCAL de Wompi (:8112): el monto sale del intento
             if (TARGET !== 'local') throw new Error('wompi-pay es sólo para local: le habla al mock de Wompi');
             const reference = String(a[0] ?? '');

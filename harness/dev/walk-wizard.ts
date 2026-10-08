@@ -558,6 +558,8 @@ async function correr(c: Case, i: number): Promise<Result> {
             const paid = await payDownPayment({
                 feBase: config.feBaseUrl, loanRequestId: r.ur!,
                 amountPesos: DOWN_PAYMENT || undefined, status: arg('payment', 'APPROVED'), log,
+                // Fuera de local la pasarela es Wompi sandbox: se inserta el pago de ESTA solicitud (su celular).
+                ...(TARGET !== 'local' ? { insertForPhone: String(r.tel ?? '') } : {}),
             });
             if (!paid.ok) return finish('trabado', `down-payment: ${paid.reason}`);
             routePath = `${path.replace(/\/down-payment$/, '')}/first-payment-date`;

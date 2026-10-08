@@ -90,6 +90,17 @@ const NARROW_PERMISSIONS: Record<string, NarrowPermission> = {
             /^DELETE\s+FROM\s+users\s+WHERE\s+id\s*=\s*\?\s+AND\s+allied_id\s*=\s*\?\s+AND\s+email\s+LIKE\s+'c%-fake@%'\s*$/i,
         ],
     },
+    // La CUOTA INICIAL de una solicitud de prueba en dev/qa/staging — `pkg/wompi-down-payment.ts` (`approveInitialFee`).
+    // Hace lo que hace el backend cuando Wompi contesta APPROVED (`Wompi::updateStatus`, cuota inicial): la transacción
+    // a APPROVED y la solicitud recalculada. Son tablas de PERSONAS, así que va con ámbito por usuario, y la transacción
+    // sólo pasa de PENDING (el estado actual va en la sentencia).
+    'cuota-inicial': {
+        porUsuario: true,
+        patrones: [
+            /^UPDATE\s+payment_gateway_transactions\s+t\s+JOIN\s+user_requests\s+ur\s+ON\s+ur\.id\s*=\s*t\.user_request_id\s+SET\s+t\.status_id\s*=\s*\?,\s*t\.response\s*=\s*\?,\s*t\.updated_at\s*=\s*NOW\(\)\s+WHERE\s+t\.id\s*=\s*\?\s+AND\s+t\.status_id\s*=\s*\?\s+AND\s+ur\.user_id\s*=\s*\?\s*$/i,
+            /^UPDATE\s+user_requests\s+SET\s+final_amount\s*=\s*\?,\s*amount\s*=\s*\?,\s*initial_fee\s*=\s*\?,\s*updated_at\s*=\s*NOW\(\)\s+WHERE\s+id\s*=\s*\?\s+AND\s+user_id\s*=\s*\?\s*$/i,
+        ],
+    },
     // La siembra del cliente sintético — `pkg/inject.ts`. Ver el bloque de arriba: acá la angostura NO
     // la da sólo la sentencia (estas tablas son de personas), la da el ÁMBITO por usuario.
     siembra: {
