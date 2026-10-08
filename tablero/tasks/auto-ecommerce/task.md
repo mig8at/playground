@@ -24,7 +24,7 @@ ramas: feat/auto-onboarding, feat/auto-onboarding-risk-check, feat/auto-onboardi
       decide y, si cambia, el comportamiento queda implementado. Depende de: producto — la decisión.
 - [x] ~~Crear el issue en Jira~~ — [CORE-731](https://creditop.atlassian.net/browse/CORE-731), en «CORE Sprint 19», con el PDF de integración adjunto.
 - [x] ~~Abrir los PRs a `qa`~~ — [legacy-backend#1617](https://github.com/Creditop-SAS/legacy-backend/pull/1617) y [frontend-monorepo#1153](https://github.com/Creditop-SAS/frontend-monorepo/pull/1153), mergeados el 2026-10-07: la firma de la tienda reemplaza el código del inicio y «Cambiar número» en la firma. Una corrección que los sacaba (#1618, #1154) se cerró sin mergear: todo lo de #1617 tiene uso.
-- [ ] **Probar en `qa` con Refurbi**: correr las migraciones `2026_10_07_120000` y `2026_10_07_140000`, la sucursal ecommerce de Refurbi en `auto_onboarding_allied_branches` y su secreto (`ecommerce:signing-secret`). Termina con un pedido firmado que entra sin código en `qa`.
+- [x] ~~Probar en `qa` con Refurbi~~ — pedido firmado cerrado en 11: 503385 (caminador) y 503388 (panel), con la identidad y la cuota inicial insertadas para la solicitud de prueba.
 - [ ] **Entregar a Refurbi el contrato** ([Pedido firmado por la tienda](https://claude.ai/artifact/CGuFPWWV4euyUpwAKwybwu))
       y, por canal privado, el secreto de su credencial (`php artisan ecommerce:signing-secret c390eed9` en el ambiente
       donde pruebe). Las versiones que declara son las de los PDFs acordados (V20260206); prod registra hoy
