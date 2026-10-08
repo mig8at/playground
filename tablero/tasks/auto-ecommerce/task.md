@@ -14,8 +14,8 @@ ramas: feat/auto-onboarding, feat/auto-onboarding-risk-check, feat/auto-onboardi
 
 - [ ] **Crear el issue en Jira** con `jira_title` y la publicable, en el sprint activo. Termina cuando `jira:` tiene la
       clave y el lint deja de avisar «tarea local». Depende de: Miguel — que lo apruebe.
-- [ ] **Mergear la corrección a `qa`**: [legacy-backend#1618](https://github.com/Creditop-SAS/legacy-backend/pull/1618) y [frontend-monorepo#1154](https://github.com/Creditop-SAS/frontend-monorepo/pull/1154). Dejan sólo lo acordado (constancia de la aceptación en `ecommerce_requests.terms_acceptance`) y sacan la firma y la corrección del celular, que habían entrado con #1617/#1153. Termina con los dos mergeados y la migración `2026_10_08_120000` corrida en `qa`.
-- [ ] **Socializar con Refurbi las mejoras** (la firma que reemplaza el código del inicio, corregir el celular en la firma). Viven en la rama `feat/auto-onboarding-merchant-signature` de los dos repos; si se aprueban, se reabren en un PR. Depende de: Refurbi.
+- [x] ~~Abrir los PRs a `qa`~~ — [legacy-backend#1617](https://github.com/Creditop-SAS/legacy-backend/pull/1617) y [frontend-monorepo#1153](https://github.com/Creditop-SAS/frontend-monorepo/pull/1153), mergeados el 2026-10-07: la firma de la tienda reemplaza el código del inicio y «Cambiar número» en la firma. Una corrección que los sacaba (#1618, #1154) se cerró sin mergear: todo lo de #1617 tiene uso.
+- [ ] **Probar en `qa` con Refurbi**: correr las migraciones `2026_10_07_120000` y `2026_10_07_140000`, la sucursal ecommerce de Refurbi en `auto_onboarding_allied_branches` y su secreto (`ecommerce:signing-secret`). Termina con un pedido firmado que entra sin código en `qa`.
 - [ ] **Entregar a Refurbi el contrato** ([Pedido firmado por la tienda](https://claude.ai/artifact/CGuFPWWV4euyUpwAKwybwu))
       y, por canal privado, el secreto de su credencial (`php artisan ecommerce:signing-secret c390eed9` en el ambiente
       donde pruebe). Las versiones que declara son las de los PDFs acordados (V20260206); prod registra hoy
