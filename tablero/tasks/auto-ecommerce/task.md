@@ -14,8 +14,8 @@ ramas: feat/auto-onboarding, feat/auto-onboarding-risk-check, feat/auto-onboardi
 
 - [ ] **Crear el issue en Jira** con `jira_title` y la publicable, en el sprint activo. Termina cuando `jira:` tiene la
       clave y el lint deja de avisar «tarea local». Depende de: Miguel — que lo apruebe.
-- [ ] **Abrir los dos PRs a `qa`** de la firma: legacy-backend `feat/auto-onboarding-merchant-signature` (`df16c70b`) y
-      frontend-monorepo, misma rama (`9410ac4d`). Termina con los dos PRs abiertos. Depende de: Miguel — que lo pida.
+- [x] ~~Abrir los dos PRs a `qa`~~ — [legacy-backend#1617](https://github.com/Creditop-SAS/legacy-backend/pull/1617) y [frontend-monorepo#1153](https://github.com/Creditop-SAS/frontend-monorepo/pull/1153), abiertos el 2026-10-07.
+- [ ] **Probar en `qa` con Refurbi**: correr las dos migraciones, la sucursal ecommerce de Refurbi en `auto_onboarding_allied_branches` y su secreto (`ecommerce:signing-secret`). Termina con un pedido firmado que entra sin código en `qa`. Depende de: el merge de los dos PRs.
 - [ ] **Entregar a Refurbi el contrato** ([Pedido firmado por la tienda](https://claude.ai/artifact/CGuFPWWV4euyUpwAKwybwu))
       y, por canal privado, el secreto de su credencial (`php artisan ecommerce:signing-secret c390eed9` en el ambiente
       donde pruebe). Las versiones que declara son las de los PDFs acordados (V20260206); prod registra hoy
