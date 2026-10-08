@@ -2,7 +2,7 @@
 // Port de ecommerce.go (b64/phpSerialize/branchToken/ecommerceContract/opEcommerceURL).
 import { createHmac } from 'node:crypto';
 import { config } from './config.ts';
-import { scalar, env, appKey, isLocalDb } from './db.ts';
+import { scalar, env, appKey, TARGET } from './db.ts';
 import { decryptLaravelString } from './laravel-crypt.ts';
 import { resolveMerchant, listEcommerce } from './merchants.ts';
 
@@ -53,12 +53,13 @@ export function merchantSignatureMode(): MerchantSignature {
 }
 
 /**
- * El secreto de firma de la sucursal (`allied_ecommerce_credentials.signing_secret`, cifrado con el APP_KEY).
- * SÓLO en local: en un ambiente compartido el secreto es del comercio y no se lee. Vacío = la credencial no
+ * El secreto de firma de la sucursal (`allied_ecommerce_credentials.signing_secret`, cifrado con el APP_KEY del
+ * ambiente). Se lee para que la tienda de prueba firme como lo haría la tienda real, y NUNCA se imprime. En local y en
+ * los ambientes de prueba (dev, qa, staging: comparten la base); en prod no se lee jamás. Vacío = la credencial no
  * tiene (se genera con `php artisan ecommerce:signing-secret <hash>`) o la columna no existe en esa rama.
  */
 export async function branchSigningSecret(hash: string): Promise<string> {
-    if (!isLocalDb()) return '';
+    if (!['local', 'dev', 'qa', 'staging'].includes(TARGET)) return '';
     const encrypted = await scalar<string>(
         `SELECT aec.signing_secret FROM allied_ecommerce_credentials aec
          JOIN allied_branches ab ON ab.id = aec.allied_branch_id WHERE ab.hash = ? LIMIT 1`,
