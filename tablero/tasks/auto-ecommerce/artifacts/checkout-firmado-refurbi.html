@@ -101,6 +101,11 @@
   details p, details li { font-size:.83rem; color:var(--ink-soft); max-width:80ch; }
   details ul { padding-left:19px; margin:9px 0; }
   details code { font-family:var(--mono); font-size:.78rem; color:var(--data); }
+  .dictbox pre { font-family:var(--mono); font-size:.72rem; white-space:pre-wrap; word-break:break-all; margin:0; background:var(--sunken); border:1px solid var(--line); border-radius:7px; padding:9px 10px; color:var(--ink); max-height:160px; overflow:auto; }
+  .dictbox .step { display:flex; align-items:baseline; justify-content:space-between; gap:10px; margin:13px 0 6px; }
+  .dictbox .step label { font-size:.82rem; }
+  .row3 { display:grid; grid-template-columns:1fr 1fr 1fr; gap:11px; }
+  @media (max-width:520px) { .row3 { grid-template-columns:1fr; } }
   footer { color:var(--ink-faint); font-size:.76rem; border-top:1px solid var(--line); padding-top:14px; }
 </style>
 
@@ -116,8 +121,8 @@
   <div class="note">
     <strong>Sólo QA.</strong> La sucursal y su token de QA ya están puestos. El <strong>secreto de firma</strong> no está
     en la página: lo pegás vos, se usa sólo para calcular la firma en este navegador y no se guarda ni se envía a
-    ningún lado. El de producción nunca va acá. En QA el comprador va a tener que escribir su ingreso: las centrales de QA
-    no reconocen ningún documento (ver abajo). Actualizado el 8 de octubre de 2026.
+    ningún lado. El de producción nunca va acá. Para que el comprador vaya directo a entidades, <strong>dictale su empleo a
+    las centrales de QA</strong> antes de abrir la URL (tarjeta «Centrales de QA»). Actualizado el 8 de octubre de 2026.
   </div>
 
   <div class="cols">
@@ -214,6 +219,31 @@
     </section>
   </div>
 
+
+  <section class="card dictbox">
+    <h2>Centrales de QA · dictar el empleo del comprador</h2>
+    <p class="hint" style="margin:0 0 13px;max-width:80ch">Las centrales de QA son un mock: si no se le dice nada, Ágil Data devuelve otra
+       persona con aportes viejos y el comprador termina en la pantalla del ingreso. Con esto se le dicta, <strong>para el documento de
+       este comprador</strong>, su nombre y un empleo vigente. La página no puede llamar al mock (el navegador lo bloquea): copiá cada
+       comando y correlo en una terminal, <strong>antes</strong> de abrir la URL. No lleva datos reales: usá compradores de prueba.</p>
+    <div class="row3">
+      <div class="field"><label for="ingreso">Ingreso mensual</label><input id="ingreso" value="2500000" spellcheck="false" inputmode="numeric"><span class="hint">Va como IBC de cada aporte.</span></div>
+      <div class="field"><label for="ocupacion">Ocupación</label>
+        <select id="ocupacion"><option value="Empleado" selected>Empleado</option><option value="Independiente">Independiente</option></select>
+        <span class="hint">Independiente = se cotiza a sí mismo.</span></div>
+      <div class="field"><label for="meses">Meses de aportes</label><input id="meses" value="8" spellcheck="false" inputmode="numeric"><span class="hint">Hasta el mes actual.</span></div>
+    </div>
+    <div class="step"><label>1 · Dictar</label><button class="ghost" type="button" data-copy="cmdDictar">Copiar</button></div>
+    <pre id="cmdDictar"></pre>
+    <div class="step"><label>2 · Confirmar</label><button class="ghost" type="button" data-copy="cmdConfirmar">Copiar</button></div>
+    <pre id="cmdConfirmar"></pre>
+    <span class="hint">Tiene que mostrar el nombre del comprador y el período del mes actual. Si muestra otro nombre, el dictado cayó en
+      otra instancia del mock: volvé a correr el 1.</span>
+    <div class="step"><label>3 · Limpiar, al terminar</label><button class="ghost" type="button" data-copy="cmdLimpiar">Copiar</button></div>
+    <pre id="cmdLimpiar"></pre>
+    <span class="hint">Deja ese documento con la respuesta de siempre. Sólo toca este documento: no borra lo que dictaron otros.</span>
+  </section>
+
   <section class="card">
     <details open>
       <summary>Qué pasa con cada firma</summary>
@@ -235,10 +265,9 @@
       <ul>
         <li><strong>Firmado pero pide el código</strong>: el secreto no es el de esta sucursal en QA, o se cambió algo del pedido después de firmar (la página firma lo último que armó).</li>
         <li><strong>Conflicto de usuario</strong>: el documento o el celular ya existen con otra identidad. Usá «Comprador nuevo».</li>
-        <li><strong>Pide el ingreso («employment-info») en vez de ir a entidades</strong>: es lo esperado en QA. Las centrales de QA son un
-            mock que, para cualquier documento, devuelve datos aleatorios de <em>otra</em> persona y con aportes viejos, así que la
-            identidad no coincide y el cliente queda sin empleo. Se completa el ingreso a mano y el flujo sigue. No es la firma: en
-            local, con centrales dictadas, el mismo pedido va directo a entidades.</li>
+        <li><strong>Pide el ingreso («employment-info») en vez de ir a entidades</strong>: Ágil Data no contestó lo dictado. O no
+            se corrió el dictado para <em>este</em> documento (cambia con «Comprador nuevo»), o el paso 2 no lo confirmó. No es la
+            firma: también se puede completar el ingreso a mano y el flujo sigue.</li>
       </ul>
     </details>
   </section>
@@ -370,6 +399,53 @@
     const a = document.createElement("a"); a.href = urlActual; a.target = "_blank"; a.rel = "noopener"; a.click();
   });
 
+
+  // ── Centrales de QA: el mock de la empresa, con el admin API y su token FIJO Y PÚBLICO (no es un secreto). ──
+  const MOCK = "https://9b6r8ticg0.execute-api.us-east-2.amazonaws.com/development";
+  const AUTH = "Authorization: Bearer mock-admin";
+  // Comillas simples del shell: lo que escribe el usuario no puede cerrarlas.
+  const shq = (x) => String(x).replace(/'/g, "");
+
+  // La misma respuesta que dicta el harness (`agildataAnswer`): períodos YYYYMM hasta el mes actual, porque el backend
+  // calcula si está empleado comparando el último período con la fecha de la solicitud.
+  function agildata(doc, nombre, ibc, ocupacion, meses) {
+    const hoy = new Date();
+    const pagos = Array.from({ length: meses }, (_, k) => {
+      const m = hoy.getFullYear() * 12 + hoy.getMonth() - k;
+      const y = Math.floor(m / 12), mm = pad((m % 12) + 1);
+      return { id: k + 1, ibc, periodo: Number(y + mm), fechaPago: y + "-" + mm + "-15 00:00:00", diasCotizados: 30, valorCotizacionObligatoria: Math.round(ibc * 0.115) };
+    });
+    return {
+      usuario: null, codRespuesta: "01", observaciones: "Consulta Exitosa.", codConsulta: 14744568681490196,
+      respuesta: {
+        type: "aorg.asofondos.agildata.domain.AfiliadoDetalladoa", fechaVinculacion: null,
+        datosBasicos: { edad: 35, type: "org.asofondos.agildata.domain.AfiliadoDatosBasicos", genero: "M", nombre, tipoId: "CC", numeroId: doc, viabilidad: null },
+        detalladoEmpleos: [{ id: 1, pagos,
+          // Empleador = la persona → Independiente; otro → Empleado. Así lo deduce el backend.
+          nombreEmpleador: ocupacion === "Independiente" ? nombre : "STANGERSON SAS",
+          telefonoEmpleador: null, direccionEmpleador: null, identifiacionEmpleador: "900101010", tipoIdentifiacionEmpleador: "NI" }]
+      }
+    };
+  }
+
+  function pintarDictado() {
+    const doc = shq($("documento").value.trim()) || "<documento>";
+    const nombre = shq(($("nombres").value.trim() + " " + $("apellidos").value.trim()).trim().toUpperCase());
+    const ibc = parseInt($("ingreso").value, 10) || 0;
+    const meses = Math.min(Math.max(parseInt($("meses").value, 10) || 8, 1), 24);
+    const key = "agildata_" + doc;
+    const body = (value) => JSON.stringify({ key, value });
+    $("cmdDictar").textContent = "curl -s -X POST '" + MOCK + "/mockoon-admin/global-vars' -H '" + AUTH + "' -H 'Content-Type: application/json' \\\n  -d '" + body(JSON.stringify(agildata(doc, nombre, ibc, $("ocupacion").value, meses))) + "'";
+    $("cmdConfirmar").textContent = "curl -s '" + MOCK + "/agildata/agildata-services/rest/afiliado/historicoDetalladoEmpleo/CC/" + doc + "' | grep -oE '\"(nombre|periodo)\": ?\"?[^,\"]*' | head -2";
+    $("cmdLimpiar").textContent = "curl -s -X POST '" + MOCK + "/mockoon-admin/global-vars' -H '" + AUTH + "' -H 'Content-Type: application/json' \\\n  -d '" + body("") + "'";
+  }
+  ["documento", "nombres", "apellidos", "ingreso", "ocupacion", "meses"].forEach((id) => $(id).addEventListener("input", pintarDictado));
+  $("ocupacion").addEventListener("change", pintarDictado);
+  document.querySelectorAll("[data-copy]").forEach((b) => b.addEventListener("click", async () => {
+    try { await navigator.clipboard.writeText($(b.dataset.copy).textContent); b.textContent = "Copiado"; setTimeout(() => { b.textContent = "Copiar"; }, 1500); }
+    catch { b.textContent = "Copialo a mano"; }
+  }));
+
   function compradorNuevo() {
     const doc = String(1000000000 + Math.floor(Math.random() * 899999999));
     $("documento").value = doc;
@@ -377,6 +453,7 @@
     $("celular").value = "31" + String(Math.floor(10000000 + Math.random() * 89999999));
     $("orderkey").value = "wc_refurbi_" + Date.now().toString(36);
     $("aceptado").value = localNow(-1);
+    pintarDictado();
   }
   $("reset").addEventListener("click", () => {
     compradorNuevo();
