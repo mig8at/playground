@@ -391,6 +391,11 @@ export async function dictateCompanyLambda(target: string, doc: string, c: Compa
             negativeHistoricalLast12Months: c.negatives, maturationSince: c.maturationSince,
         });
         r.creditCard = Array.from({ length: c.creditCards }, (_, k) => activeCard(k));
+        // Quanto (el ingreso estimado): este mismo reporte también lo sirve Acierta+Quanto, y el backend pisa el ingreso
+        // con el promedio de los productCode 62 (por posición, en miles). Va del ingreso del caso, o lo pisa con otro.
+        const quanto = (r.productValueList?.[0] ?? []).filter((p: any) => Number(p.productCode) === 62);
+        const avg = Math.round(c.income / 1000);
+        [avg, Math.round(avg * 0.7), Math.round(avg * 1.3)].forEach((v, k) => { if (quanto[k]) quanto[k].value = v; });
         await dictate(doc, 'experian', report, base);
         const back = await hdcplusFor(base, doc);
         exp = back?.ReportHDCplus?.models?.[0]?.scoreValue === c.score
