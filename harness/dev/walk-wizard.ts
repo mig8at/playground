@@ -204,14 +204,18 @@ async function seed(ur: number, doc: string, log: (s: string) => void, lender?: 
     // ⚠ Con `lender`, `synthFill` deriva el perfil que CUMPLE las reglas de esa entidad
     // (`deriveSynthReq`); sin él usa uno genérico. Y entonces NO se le pasan `income`/`score`: pisarían
     // justo lo que la derivación acaba de calcular.
-    const injected = lender
+    // `--centrales`: NO se siembra el buró, para que el backend consulte de verdad las centrales (el lambda dictado) y la
+    // corrida mida lo que contestan. Con la siembra, Experian sale de caché (`performRequest early-return (cache hit)`) y
+    // el lambda nunca se consulta: así una ruta del lambda que devolvía 404 pasó inadvertida (503353 a 503356).
+    const injected = flag('centrales') ? { datacredito_forged: 'sin sembrar: consulta las centrales' }
+        : lender
         ? await synthFill(ur, { lender, skipIdentity: true } as any)
         : await synthFill(ur, { income: INCOME, score: SCORE, skipIdentity: true } as any);
     const u = await one<{ user_id: number }>('SELECT user_id FROM user_requests WHERE id=?', [ur]).catch(() => null);
     if (u?.user_id) await exec('UPDATE users SET front_url=?, back_url=?, updated_at=NOW() WHERE id=?',
         [synthIdImageUrl('frontal', doc), synthIdImageUrl('reverso', doc), u.user_id]).catch(() => null);
     if (flag('manual') && u?.user_id) await manualValidation(u.user_id);
-    log(`buró inyectado para uReq ${ur} (Experian ${injected.datacredito_forged})${flag('manual') ? ' · identidad aprobada a mano' : ''}`);
+    log(`buró ${flag('centrales') ? 'sin inyectar' : 'inyectado'} para uReq ${ur} (Experian ${injected.datacredito_forged})${flag('manual') ? ' · identidad aprobada a mano' : ''}`);
 }
 
 /**
