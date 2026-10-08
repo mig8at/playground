@@ -504,6 +504,9 @@ harness-ecommerce: ## @har EL CANAL ECOMMERCE de punta a punta: ¿el carrito de 
 harness-environment: ## @har ¿la config del target es coherente? [TARGET=qa] [JSON=1] [LIVE=1 consulta API, wizard, MySQL y puertos de mocks; sólo lectura] [MOCKS=bureaus,pdf-mapper exige esos mocks, sólo local] [TIMEOUT_MS=5000 por sonda; máximo 60000]
 	@cd harness && node bin/preflight.ts $(if $(TARGET),$(TARGET)) $(if $(JSON),--json) $(if $(LIVE),--live) $(if $(MOCKS),--mocks '$(MOCKS)') $(if $(TIMEOUT_MS),--timeout-ms '$(TIMEOUT_MS)')
 
+harness-env-drift: ## @har ¿el ambiente remoto está al día con su rama? migraciones de la rama desplegada sin correr en la base compartida y rutas que el backend le pide al lambda de centrales y el lambda no tiene (404). Sólo lectura. TARGET=qa|dev|staging [JSON=1]. Sale 1 si hay desfase
+	@cd harness && E2E_TARGET=$(or $(TARGET),qa) node bin/env-drift.ts $(if $(JSON),--json)
+
 harness-restore: ## @har ¿la base de dev/QA sigue teniendo lo que NUESTRAS TAREAS necesitan (ecommerce, Alta, códigos)? solo lectura. SNAPSHOT=1 la guarda en harness/.runs/ ANTES de una restauración · COMPARE=.runs/qa-restore-….json dice qué se PERDIÓ después
 	@cd harness && node dev/restore-check.ts $(if $(SNAPSHOT),--snapshot) $(if $(COMPARE),--compare $(COMPARE)) $(if $(TARGET),--target $(TARGET))
 

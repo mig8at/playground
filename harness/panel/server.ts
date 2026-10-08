@@ -9,7 +9,7 @@
 // I_KNOW_THIS_TOUCHES_SHARED_DEV=1 en el entorno del hijo — OJO: dev toca data COMPARTIDA
 // (ver pkg/db.ts::assertWriteAllowed). Elegí `local` salvo que sepas exactamente qué vas a escribir.
 import { createServer, get, IncomingMessage, ServerResponse } from 'node:http';
-import { spawn, execFile } from 'node:child_process';
+import { spawn, execFile, execFileSync } from 'node:child_process';
 import { readFileSync, existsSync, writeFileSync, readdirSync, statSync, mkdirSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, resolve, join } from 'node:path';
@@ -51,6 +51,35 @@ const TARGETS = new Set(['local', 'dev', 'staging', 'qa']);
 // el 2026-08-19, antes el target staging apuntaba a qa), así que los tres son DATA COMPARTIDA y todos
 // necesitan el guard de escritura de pkg/db. La condición va por "no es local", no por enumeración:
 // listar targets a mano fue lo que dejó a staging afuera cuando se agregó.
+// ── El código con el que arrancó el panel, para avisar cuando quedó viejo (`/api/panel-version`) ──────────────────────────
+// Lo que el proceso tiene cargado: `panel/*.ts` y `pkg/*.ts`. `bin/` y `dev/` no cuentan: se lanzan de nuevo en cada uso.
+const codeFiles = (): string[] => ['panel', 'pkg'].flatMap((d) => {
+    try { return readdirSync(join(ROOT, d)).filter((f) => f.endsWith('.ts') && !f.endsWith('.spec.ts')).map((f) => join(ROOT, d, f)); }
+    catch { return []; }
+});
+const mtimeOf = (f: string): number => { try { return statSync(f).mtimeMs; } catch { return 0; } };
+const BOOT = {
+    at: Date.now(),
+    commit: (() => { try { return String(execFileSync('git', ['-C', ROOT, 'rev-parse', '--short', 'HEAD'])).trim(); } catch { return null; } })(),
+    mtimes: new Map<string, number>(),
+};
+for (const f of codeFiles()) BOOT.mtimes.set(f, mtimeOf(f));
+const envDriftCache = new Map<string, { at: number; data: any }>();
+
+/** Qué sirve el wizard local (:5174): la carpeta, su rama y si trae el auto-onboarding. Sin wizard arriba, null. */
+async function frontLocal(): Promise<{ dir: string; branch: string; sha: string; autoOnboarding: boolean } | null> {
+    const sh = (cmd: string, args: string[]) => new Promise<string>((ok) =>
+        execFile(cmd, args, { timeout: 5000 }, (_e, out) => ok(String(out ?? '').trim())));
+    const pid = (await sh('lsof', ['-nP', '-iTCP:5174', '-sTCP:LISTEN', '-t'])).split('\n')[0];
+    if (!pid) return null;
+    const cwd = (await sh('lsof', ['-a', '-p', pid, '-d', 'cwd', '-Fn'])).split('\n').find((l) => l.startsWith('n'))?.slice(1);
+    if (!cwd) return null;
+    const branch = await sh('git', ['-C', cwd, 'rev-parse', '--abbrev-ref', 'HEAD']);
+    const sha = await sh('git', ['-C', cwd, 'rev-parse', '--short', 'HEAD']);
+    return { dir: cwd.replace(/\/apps\/loan-request-wizard$/, ''), branch: branch === 'HEAD' ? '(sin rama)' : branch, sha,
+        autoOnboarding: existsSync(join(cwd, 'app/routes/auto-onboarding/start.tsx')) };
+}
+
 function envFor(target: string): NodeJS.ProcessEnv {
     const t = TARGETS.has(target) ? target : 'local';
     const shared = t !== 'local';
@@ -1250,6 +1279,26 @@ const server = createServer(async (req, res) => {
                 return json(res, 200, { ok: true, mocks: await mockSupervisor.list() });
             } catch (e) { return json(res, 500, { error: e instanceof Error ? e.message : String(e) }); }
         }
+    }
+
+    // ¿El AMBIENTE remoto está al día con su rama? Migraciones sin correr y rutas del mock de centrales que faltan
+    // (`bin/env-drift.ts`). Es un fetch de git más una consulta a la base: se guarda 5 min por ambiente; `force=1` lo salta.
+    if (path === '/api/env-drift') {
+        const t = String(url.searchParams.get('target') || '');
+        if (!['dev', 'qa', 'staging'].includes(t)) return json(res, 200, { skipped: 'sólo dev, qa y staging' });
+        const hit = envDriftCache.get(t);
+        if (hit && Date.now() - hit.at < 5 * 60_000 && url.searchParams.get('force') !== '1') return json(res, 200, { ...hit.data, cachedAt: hit.at });
+        const data = await new Promise<any>((ok) => execFile('node', ['bin/env-drift.ts', '--json'], { cwd: ROOT, env: envFor(t), timeout: 90_000 },
+            (_err, stdout) => { try { ok(JSON.parse(stdout)); } catch { ok({ error: 'no se pudo medir (¿VPN?)' }); } }));
+        if (!data.error) envDriftCache.set(t, { at: Date.now(), data });
+        return json(res, 200, { ...data, cachedAt: Date.now() });
+    }
+
+    // ¿El panel corre el código de hoy? Si sus archivos cambiaron después de arrancar, lo que se ve NO es lo último
+    // (pasó el 2026-10-08: el proceso era de las 14:43 y los bypasses de las 15:03 no estaban). Y qué sirve :5174.
+    if (path === '/api/panel-version') {
+        const changed = codeFiles().filter((f) => (BOOT.mtimes.get(f) ?? 0) < mtimeOf(f)).map((f) => f.replace(ROOT + '/', ''));
+        return json(res, 200, { startedAt: BOOT.at, commit: BOOT.commit, changed, frontLocal: await frontLocal() });
     }
 
     if (path === '/api/estado') {

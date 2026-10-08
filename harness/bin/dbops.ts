@@ -89,6 +89,14 @@ try {
         // F-220 en los celulares del panel: sin `ADO_HOST` en el backend local la validación de identidad queda en
         // una ruta muerta. Se aprueba A MANO como el admin —con las dos fotos sintéticas del documento—, igual que la
         // corrida guiada. SÓLO LOCAL: en un ambiente desplegado la pantalla funciona y aprobar por detrás mentiría.
+        // ¿El ambiente remoto está al día con su rama? Migraciones sin correr y rutas del mock de centrales que faltan
+        // (`pkg/environment-drift.ts`). Sólo lectura.
+        case 'env-drift': {
+            const { environmentDrift } = await import('../pkg/environment-drift.ts');
+            r = await environmentDrift(TARGET, async () =>
+                (await query<{ migration: string }>('SELECT migration FROM migrations')).map((m) => m.migration));
+            break;
+        }
         // La cuota inicial insertada para ESA solicitud fuera de local (dev/qa/staging), sin pasar por Wompi: `approveInitialFee`.
         case 'initial-fee-approve': {
             const { approveInitialFee } = await import('../pkg/wompi-down-payment.ts');

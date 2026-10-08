@@ -181,6 +181,8 @@
     .status-dot, .run-dot { width: 8px; height: 8px; flex: none; border-radius: 50%; background: var(--fg-3) }
     .status-dot.ok { background: var(--ok) }
     .status-dot.bad { background: var(--warn) }
+    .drift-item { color: var(--warn) }
+    .drift-detail { margin: 0 0 var(--space-2); padding: 0 var(--space-2); font-size: var(--text-xs); color: var(--fg-2); white-space: pre-wrap; max-width: 520px }
     .run-dot.running { background: var(--ok); animation: pulse 1.2s ease-in-out infinite }
     @keyframes pulse { 50% { opacity: .3 } }
     .run-time { font-size: var(--text-xs); font-weight: 400; color: var(--fg-2); white-space: nowrap }
@@ -1044,6 +1046,12 @@
            0 → 3 → 5 → 10 → 15 s con un clic (viaja como `MOCK_PA_DELAY_MS`), no es de la sucursal ni de la entidad. -->
       <button type="button" class="statusbar-item run-start" id="btnStart" aria-haspopup="menu"><span class="ui-icon" data-icon="start" aria-hidden="true"></span><span id="valStart">Inicio</span></button>
       <button type="button" class="statusbar-item delay-knob" id="btnDelay"><span class="ui-icon" data-icon="clock" aria-hidden="true"></span><span id="valDelay">0 s</span></button>
+      <!-- Lo que hace que una corrida falle por algo que NO es el flujo: el panel con código viejo, el front local en otra
+           rama, o el ambiente remoto desfasado de su rama (migraciones sin correr, rutas del mock que faltan). Sólo
+           aparece cuando hay algo; el detalle se abre con un clic. -->
+      <button type="button" class="statusbar-item drift-item" id="btnDrift" aria-haspopup="dialog" hidden>
+        <span class="status-dot bad" aria-hidden="true"></span><span id="driftText"></span>
+      </button>
       <button type="button" class="statusbar-item health-item" id="btnHealth" aria-haspopup="dialog" title="Estado de los servicios">
         <span class="ui-icon" data-icon="server" aria-hidden="true"></span><span class="status-dot" id="healthDot"></span><span id="healthText"></span>
       </button>
@@ -3994,6 +4002,64 @@
         : 'Este target usa el microservicio real de pre-aprobados: el mock no corre y su demora no aplica.';
     }
 
+    // ── DESFASES: lo que hace fallar una corrida sin ser del flujo ──────────────────────────────────────────────
+    // Tres, y los tres ya costaron una tarde el 2026-10-08: el panel corriendo código de antes de un cambio, el front
+    // local sirviendo una rama sin el auto-onboarding (cae al ecommerce normal sin decir nada), y el ambiente remoto
+    // con una migración sin correr o una ruta que el mock de centrales no tiene (el backend cae a su respaldo).
+    const drift = { panel: null, env: null };
+    function driftIssues() {
+      const out = [];
+      if (drift.panel?.changed?.length) out.push({ title: 'Panel desactualizado: reinicialo',
+        detail: `Arrancó con ${drift.panel.commit || '?'} y desde entonces cambiaron:\n${drift.panel.changed.map((f) => '  ' + f).join('\n')}\n\nLo que ves no es lo último: Ctrl+C y npm run dev en harness.` });
+      const fl = drift.panel?.frontLocal;
+      if (target === 'local' && channel === 'auto' && fl && !fl.autoOnboarding) out.push({ title: 'El front local no trae el auto-onboarding',
+        detail: `:5174 sirve ${fl.dir} en ${fl.branch} (${fl.sha}), sin app/routes/auto-onboarding/: la tienda cae al ecommerce normal.\nPoné ese worktree en una rama con el auto-onboarding (p. ej. qa).` });
+      const m = drift.env?.migrations;
+      if (m?.missing?.length) out.push({ title: `${m.missing.length} migración${m.missing.length === 1 ? '' : 'es'} sin correr en ${target}`,
+        detail: `La rama ${drift.env.branch} (${drift.env.sha}) las trae y la base compartida no:\n${m.missing.map((x) => '  ' + x).join('\n')}\n\nSe corren con --path, de a una (nunca migrate pelado).` });
+      const k = drift.env?.mock;
+      if (k?.missing?.length) out.push({ title: `${k.missing.length} ruta${k.missing.length === 1 ? '' : 's'} del mock de centrales en 404`,
+        detail: `El backend de ${target} las pide y el lambda no las tiene; cae a su respaldo sin avisar:\n${k.missing.map((r) => `  ${r.method} ${r.path}`).join('\n')}` });
+      return out;
+    }
+    function renderDrift() {
+      const issues = driftIssues();
+      const b = $('btnDrift');
+      b.hidden = !issues.length;
+      $('driftText').textContent = issues.length === 1 ? issues[0].title : `${issues.length} avisos`;
+      b.title = issues.map((i) => i.title).join(' · ') + (issues.length ? ' — clic para ver el detalle' : '');
+      b.setAttribute('aria-label', b.title);
+    }
+    async function checkPanelVersion() {
+      try { drift.panel = await (await fetch('/api/panel-version')).json(); } catch { /* el panel no responde: se deja lo último */ }
+      renderDrift();
+    }
+    async function checkEnvDrift(force = false) {
+      const t = target;
+      if (t === 'local') { drift.env = null; renderDrift(); return; }
+      try {
+        const d = await (await fetch(`/api/env-drift?target=${t}${force ? '&force=1' : ''}`)).json();
+        if (t === target) drift.env = d.error || d.skipped ? null : d;
+      } catch { /* sin respuesta: no se avisa nada inventado */ }
+      renderDrift();
+    }
+    $('btnDrift').onclick = () => {
+      const m = menuBase('contextMenu');
+      m.setAttribute('role', 'dialog');
+      for (const i of driftIssues()) {
+        caption(m, i.title);
+        const pre = document.createElement('div'); pre.className = 'drift-detail'; pre.textContent = i.detail; m.appendChild(pre);
+      }
+      if (drift.env) itemMenu(m, { plain: true, icon: 'refresh', txt: 'Volver a medir el ambiente', accion: () => checkEnvDrift(true) });
+      const r = $('btnDrift').getBoundingClientRect();
+      mountMenu(m, r.right, r.bottom + 4, true);
+      placeAbove(m, $('btnDrift'));
+    };
+    checkPanelVersion();
+    setInterval(checkPanelVersion, 30_000);
+    setInterval(() => checkEnvDrift(), 5 * 60_000);
+      checkEnvDrift();            // el desfase es de ESTE ambiente: migraciones y rutas del mock
+
     document.querySelectorAll('#targets .toggle').forEach(b => b.onclick = () => {
       target = b.dataset.t;
       document.querySelectorAll('#targets .toggle').forEach(p => p.classList.toggle('on', p.dataset.t === target));
@@ -4151,7 +4217,7 @@
     document.querySelectorAll('#injectOptions button').forEach(b => b.onclick = () => { if (b.disabled) return; inject = b.dataset.i === '1'; applyInjMode(); });
     // `canalTocado` fija que el canal de ESTE comercio ya lo decidiste vos: la sugerencia del servidor
     // no vuelve a pisarlo en los refrescos siguientes.
-    document.querySelectorAll('#channelOptions button').forEach(b => b.onclick = () => { channel = b.dataset.c; channelTouched = (sel && sel.slug) || channelTouched; applyChannel(); ensureAssignUI(); loadLenders(); });
+    document.querySelectorAll('#channelOptions button').forEach(b => b.onclick = () => { channel = b.dataset.c; channelTouched = (sel && sel.slug) || channelTouched; applyChannel(); ensureAssignUI(); loadLenders(); renderDrift(); });
 
     // Real (buró + OTP reales) NO existe en local → solo dev/staging. En local se fuerza Sintético.
     // ── Front del ambiente vs front local ────────────────────────────────────────────────────────────
