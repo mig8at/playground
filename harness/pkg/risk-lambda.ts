@@ -38,12 +38,12 @@ export async function confirmDictation(doc: string, central: string, expected: s
     return (await r.text()).includes(expected);
 }
 
-export async function dictate(doc: string, central: string, value: unknown): Promise<boolean> {
+export async function dictate(doc: string, central: string, value: unknown, base = LAMBDA): Promise<boolean> {
     // ⚠ Mockoon NO valida el JSON que se le dicta: lo emite tal cual con 200, y un JSON roto se lee
     // después como «respuesta inválida del proveedor». Se serializa acá y se falla acá si no es válido.
     const v = typeof value === 'string' ? value : JSON.stringify(value);
     try { JSON.parse(v); } catch { return false; }
-    const r = await fetch(`${LAMBDA}/mockoon-admin/global-vars`, {
+    const r = await fetch(`${base}/mockoon-admin/global-vars`, {
         // El lambda de la empresa exige este token (fijo y público, no es un secreto: Mockoon 9 no arranca
         // el admin API sin uno). Al mock local le sobra y lo ignora.
         method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: 'Bearer mock-admin' },
@@ -66,7 +66,7 @@ export async function dictate(doc: string, central: string, value: unknown): Pro
  *  Y esto NO es un detalle de laboratorio: la regla de Credifamilia exige `ocupación = Independiente`,
  *  así que con el empleador por defecto esa entidad **nunca sale en el listado** — y el síntoma es una
  *  ausencia silenciosa, no un rechazo visible. */
-export function agildataAnswer(doc: string, ibc: number, occupation?: string, periods = 8) {
+export function agildataAnswer(doc: string, ibc: number, occupation?: string, periods = 8, name = 'CARLOS RUIZ MENDOZA') {
     // ⚠ EL PERÍODO ES `YYYYMM` Y NO SE PUEDE RESTAR COMO ENTERO. `202603 - k` parece razonable y a
     // partir del cuarto pago da 202599, 202598… meses que no existen. El backend calcula la
     // continuidad (3/6/12 meses) contando períodos, así que con basura ahí devuelve `employed: false`,
@@ -94,13 +94,13 @@ export function agildataAnswer(doc: string, ibc: number, occupation?: string, pe
         respuesta: {
             type: 'aorg.asofondos.agildata.domain.AfiliadoDetalladoa', fechaVinculacion: null,
             datosBasicos: { edad: 25, type: 'org.asofondos.agildata.domain.AfiliadoDatosBasicos',
-                            genero: 'M', nombre: 'CARLOS RUIZ MENDOZA', tipoId: 'CC',
+                            genero: 'M', nombre: name, tipoId: 'CC',
                             numeroId: doc, viabilidad: null },
             detalladoEmpleos: [{
                 id: 1, pagos: payments,
                 // Empleador = la persona → Independiente. Distinto → Empleado. Ver la cabecera.
                 nombreEmpleador: String(occupation ?? '').toLowerCase() === 'independiente'
-                    ? 'CARLOS RUIZ MENDOZA'
+                    ? name
                     : 'STANGERSON SAS',
                 telefonoEmpleador: null,
                 direccionEmpleador: null, identifiacionEmpleador: '900101010',
@@ -325,4 +325,78 @@ export async function readBureauConfig(doc: string): Promise<Record<string, stri
     if (p && !out.experian.startsWith('falla')) out.experian = `responde Acierta score ${p.score ?? '654 (fijo)'} · ${p.negativeHistoricalLast12Months ?? '?'} negativos · ${p.consultedLast6Months ?? '?'} consultas · ${p.currentNegativeCredits ?? '?'} moras · `
         + (p.quantoIncome == null ? 'Quanto del mock ($2.320.000)' : Number(p.quantoIncome) > 0 ? `Quanto $${Math.round(Number(p.quantoIncome)).toLocaleString('es-CO')}` : 'Quanto sin estimación');
     return out;
+}
+
+
+/* ── EL LAMBDA DE LA EMPRESA, el que consulta el backend de cada ambiente remoto ──────────────────────────
+ * Sólo qa le pregunta a uno con dictado (F-149): el 2026-10-08 se apuntó el secreto de `legacy-backend-qa`
+ * a `9b6r8ticg0`, el que despliega risk-services-mockery-lambda. dev y staging siguen en `ub79ck0htd`, sin
+ * admin API: dictarles no cambia nada, y se dice en vez de fingir que se dictó. */
+export const COMPANY_LAMBDA: Record<string, string> = {
+    qa: 'https://9b6r8ticg0.execute-api.us-east-2.amazonaws.com/development',
+};
+
+/** El caso que se le dicta al lambda de la empresa: lo que miran la identidad, el empleo y las categorías. */
+export interface CompanyCase {
+    name: string; income: number; occupation: string; months: number;
+    score: number; consulted: number; creditCards: number; delinquencies: number; negatives: number; maturationSince: string;
+}
+
+const HDCPLUS = '/experian/cs/credit-history/v1/hdcplus';
+const hdcplusFor = (base: string, doc: string) => fetch(`${base}${HDCPLUS}`, {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ identifyingUser: { person: { personId: { personIdNumber: doc } } } }),
+    signal: AbortSignal.timeout(25_000),
+}).then((r) => r.ok ? r.json() : null).catch(() => null) as Promise<any>;
+
+/** Las tarjetas activas con la forma que lee `LenderUserCategoryService::validateCreditCards` (la misma del mock local). */
+const activeCard = (i: number) => ({
+    idNumber: `CC-SYNTH-${i + 1}`,
+    status: { account: { businessAccountStatus: '01' }, payment: { businessBureauEvent: '01' } },
+    creditCardAccount: { businessBehaviourVectorProduct: 'NNNNNNNNNNNN' },
+    values: [{ availableBalance: 1000, debtBalance: 0, valueMonthlyPayment: 0 }],
+});
+
+/**
+ * Le dicta al lambda de la empresa el empleo (Ágil Data) y el buró (Experian HDCplus) de ESA cédula, y confirma
+ * leyendo — hasta 4 intentos cada uno, porque el lambda es serverless y lo dictado vive en la memoria de UN
+ * contenedor (F-139).
+ *
+ * ⚠ Experian no tiene la clave `experian_profile` del mock local: el lambda sólo sirve un reporte ENTERO
+ * (~250 KB). Así que se le pide su propio reporte para esa cédula, se le cambia lo que miran las categorías y
+ * se le dicta de vuelta.
+ */
+export async function dictateCompanyLambda(target: string, doc: string, c: CompanyCase): Promise<{ ok: boolean; lines: string[] }> {
+    const base = COMPANY_LAMBDA[target];
+    if (!base) return { ok: false, lines: [`en ${target} el backend consulta un lambda sin dictado (F-149): las centrales contestan su default`] };
+    const lines: string[] = [];
+
+    let agil = false;
+    for (let i = 0; i < 4 && !agil; i++) {
+        await dictate(doc, 'agildata', agildataAnswer(doc, c.income, c.occupation, c.months, c.name), base);
+        const r = await fetch(`${base}/agildata/agildata-services/rest/afiliado/historicoDetalladoEmpleo/CC/${doc}`, { signal: AbortSignal.timeout(15_000) })
+            .then((x) => x.ok ? x.text() : '').catch(() => '');
+        agil = r.includes(c.name) && r.includes(String(c.income));
+    }
+    lines.push(agil ? `Ágil Data ✓ ${c.name} · ${c.occupation} · ${c.income} · ${c.months} meses` : 'Ágil Data ✗ no quedó dictado: contesta su default');
+
+    let exp = false;
+    for (let i = 0; i < 4 && !exp; i++) {
+        const report = await hdcplusFor(base, doc);
+        const r = report?.ReportHDCplus;
+        if (!r?.models?.[0] || !r.agregatedInfo?.overview?.principals) continue;
+        r.models[0].scoreValue = c.score;
+        Object.assign(r.agregatedInfo.overview.principals, {
+            consultedLast6Months: c.consulted, currentNegativeCredits: c.delinquencies,
+            negativeHistoricalLast12Months: c.negatives, maturationSince: c.maturationSince,
+        });
+        r.creditCard = Array.from({ length: c.creditCards }, (_, k) => activeCard(k));
+        await dictate(doc, 'experian', report, base);
+        const back = await hdcplusFor(base, doc);
+        exp = back?.ReportHDCplus?.models?.[0]?.scoreValue === c.score
+            && back?.ReportHDCplus?.agregatedInfo?.overview?.principals?.consultedLast6Months === c.consulted;
+    }
+    lines.push(exp ? `Experian ✓ score ${c.score} · ${c.consulted} consulta(s) · ${c.creditCards} tarjeta(s) · mora ${c.delinquencies} · negativos ${c.negatives}`
+        : 'Experian ✗ no quedó dictado: contesta su reporte de siempre');
+    return { ok: agil && exp, lines };
 }

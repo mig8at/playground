@@ -352,6 +352,29 @@ async function applyBureauModes(order: any, target: string): Promise<{ ok: boole
     });
     return { ok: r.ok, detalle: `cédula ${doc}`, burós: r.lines };
 }
+/**
+ * Fuera de local, el backend le pregunta al lambda de mocks DE LA EMPRESA: se le dicta el caso del panel —el nombre del
+ * pedido, el empleo de Ágil Data y el buró de Experian— antes de abrir el checkout, para que la prueba llegue a
+ * entidades sin pedir el ingreso. Lo que el panel no dice va con los mismos valores por defecto que la vista.
+ * Sólo «responde»: los estados vacío/caído son del mock local.
+ */
+async function dictateCompanyCase(order: any, target: string): Promise<{ ok: boolean; detalle: string; burós?: string[] }> {
+    if (target === 'prod') return { ok: false, detalle: 'en prod no se dicta nada' };
+    const doc = String(order?.doc || '').replace(/\D/g, '');
+    if (!doc) return { ok: false, detalle: 'el caso no tiene cédula' };
+    const { dictateCompanyLambda } = await import('../pkg/risk-lambda.ts');
+    const num = (v: unknown, def: number) => { const n = Number(String(v ?? '').replace(/\D/g, '')); return String(v ?? '').trim() === '' || !Number.isFinite(n) ? def : n; };
+    const data = (order?.bureauData || {}) as Record<string, any>;
+    const exp = order?.experian || {};
+    const name = [order?.firstName, order?.lastName].map((x) => String(x ?? '').trim()).filter(Boolean).join(' ').toUpperCase() || 'CLIENTE PRUEBA';
+    const r = await dictateCompanyLambda(target, doc, {
+        name, income: num(data.agildata?.income, 2_500_000), occupation: data.agildata?.occupation || 'Empleado',
+        months: Math.min(num(data.agildata?.months, 13), 24),
+        score: num(exp.score, 700), consulted: num(exp.consulted, 1), creditCards: Math.min(num(data.experian?.creditCards, 1), 10),
+        delinquencies: num(exp.delinquencies, 0), negatives: num(exp.negatives, 0), maturationSince: '2015-03-26',
+    });
+    return { ok: r.ok, detalle: `cédula ${doc} · lambda de ${target}`, burós: r.lines };
+}
 const deviceBypass = new Map<DeviceId, { target: string; puesto: unknown }>();
 // Lo que el arnés hizo por su cuenta en un celular y el panel tiene que mostrar (p. ej. aprobar la identidad).
 const deviceNotes = new Map<DeviceId, string>();
@@ -1832,8 +1855,9 @@ connect();
                 // habilitada para el auto se sigue pudiendo probar por la puerta normal.
                 E2E_AUTO_ONBOARDING: auto ? '1' : '', E2E_SYNTH_EXP: auto ? str(o.expedition) : '',
                 E2E_SYNTH_DOB: auto ? str(o.birth) : '', E2E_AUTO_NO_BIRTH: auto && !str(o.birth) ? '1' : '',
-                // La firma de la tienda (auto-onboarding sin OTP): sólo en local, donde se puede leer el secreto.
-                E2E_MERCHANT_SIGNATURE: auto && t === 'local' && ['valid', 'invalid'].includes(String(b.signature)) ? String(b.signature) : '',
+                // La firma de la tienda (auto-onboarding sin OTP): en todo ambiente menos prod, que es donde se puede
+                // leer el secreto de la sucursal (`branchSigningSecret`).
+                E2E_MERCHANT_SIGNATURE: auto && t !== 'prod' && ['valid', 'invalid'].includes(String(b.signature)) ? String(b.signature) : '',
             };
             const amount = String(Number(str(o.amount).replace(/\D/g, '')) || '');
             // LAS CONSULTAS VAN A LA VEZ, no una tras otra (eran ~1,2 s en fila, medido el 2026-10-06). Armar el
@@ -1851,8 +1875,8 @@ connect();
             const phone = str(o.phone) || String(built.phone || '');
             const bypassP = releasing.then(() => dbopsJson(['otp-bypass-add', phone], t));
             const [scrub, bypass, bz] = await Promise.all([scrubP ?? dbopsJson(['scrubphone', phone], t), bypassP,
-                t === 'local' ? applyBureauModes(o, t) : Promise.resolve(null)]);
-            phase('pedido, limpieza y OTP');
+                t === 'local' ? applyBureauModes(o, t) : dictateCompanyCase(o, t)]);
+            phase('pedido, limpieza, OTP y centrales');
             const signature = orderEnv.E2E_MERCHANT_SIGNATURE ? ` · firma ${orderEnv.E2E_MERCHANT_SIGNATURE === 'valid' ? 'válida (sin OTP)' : 'inválida'}` : '';
             startDeviceLog(`${b.slug} (${t}) · tienda → cliente · ${auto ? 'auto-onboarding' : 'ecommerce'}${signature} · cel ${phone}`);
             if (bypass?.ok) deviceBypass.set('client', { target: t, puesto: bypass.puesto });
