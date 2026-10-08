@@ -595,12 +595,6 @@
             </div>
             <p id="frontHint"></p>
           </fieldset>
-        <div class="alert alert-warn" id="devwarn" style="display:none" role="alert">
-          <div class="alert-title"><span id="warnTarget">dev</span> = data COMPARTIDA</div>
-          <div class="alert-desc">El flujo escribe datos sintéticos (assign · scrub · buró) en la DB de dev. El login es
-            Cognito real y podés tardar más (RDS remoto). <b>Dev, staging y qa comparten la base</b>, aunque sus
-            servicios son distintos.</div>
-        </div>
 
         <main class="editor" id="stage">
           <!-- Los VALORES A TIPEAR (el OTP, el documento) que el runner va pasando durante la corrida.
@@ -4003,8 +3997,6 @@
     document.querySelectorAll('#targets .toggle').forEach(b => b.onclick = () => {
       target = b.dataset.t;
       document.querySelectorAll('#targets .toggle').forEach(p => p.classList.toggle('on', p.dataset.t === target));
-      $('devwarn').style.display = target === 'local' ? 'none' : '';   // dev y staging comparten BD
-      $('warnTarget').textContent = target;
       syncHeader();
       updateInjModeForTarget();   // en local no hay Real (sin OTP/burós)
       renderBureaus();            // fuera de local los estados de los burós no se ofrecen
