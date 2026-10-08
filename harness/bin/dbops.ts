@@ -15,7 +15,7 @@
 //   node bin/dbops.ts otp-bypass-restore '<puesto>' (saca SÓLO lo que puso ese `add`)
 //   node bin/dbops.ts synth-fill <uReqID> [lender] [income] [score]
 //   node bin/dbops.ts sucursal-check <merchant|hash> <sub>   (SÓLO LECTURA: ¿la sucursal que vamos a anunciar es la que el backend le da a ese asesor?)
-import { close, one, query, scalar, exec, assertWriteAllowed, TARGET } from '../pkg/db.ts';
+import { close, one, query, scalar, exec, assertWriteAllowed, TARGET, withSeedScope } from '../pkg/db.ts';
 import { whois, assign, revoke, scrubphone, scrubHarnessUsers, ensureLocalTestAdvisor } from '../pkg/advisor.ts';
 import { listMerchants, listEcommerce } from '../pkg/merchants.ts';
 import { buildEcommerceUrl } from '../pkg/ecommerce.ts';
@@ -102,15 +102,24 @@ try {
                 : { ok: false, motivo: `el mock de Wompi no contestó (${res.status}): ¿está arriba? make harness-wompi` };
             break;
         }
+        // La identidad aprobada a mano (sin la selfie): en local porque falta ADO (F-220); en dev/qa/staging porque
+        // el celular del panel no puede hacer la selfie (sin ubicación ni cámara). NUNCA en prod.
+        // ⚠ Fuera de local la base es compartida: sólo se aprueba si el cliente de la solicitud tiene el celular que
+        // abrió el panel (`<solicitud> <celular>`), para no marcar a una persona real que no es la de la prueba.
         case 'identity-approve': {
-            if (TARGET !== 'local') throw new Error('identity-approve es sólo para local (F-220)');
+            if (TARGET === 'prod') throw new Error('identity-approve nunca corre en prod');
             const ur = num(a[0]);
-            const u = await one<{ user_id: number; doc: string | null }>(
-                'SELECT ur.user_id, u.document_number AS doc FROM user_requests ur JOIN users u ON u.id = ur.user_id WHERE ur.id = ? LIMIT 1', [ur]);
+            const phone = String(a[1] ?? '').replace(/\D/g, '');
+            if (TARGET !== 'local' && !phone) throw new Error('fuera de local identity-approve pide el celular de la prueba: <solicitud> <celular>');
+            const u = await one<{ user_id: number; doc: string | null; phone: string | null }>(
+                'SELECT ur.user_id, u.document_number AS doc, u.cell_phone AS phone FROM user_requests ur JOIN users u ON u.id = ur.user_id WHERE ur.id = ? LIMIT 1', [ur]);
             if (!u?.user_id) { r = { ok: false, motivo: `no encontré la solicitud ${ur}` }; break; }
+            if (phone && String(u.phone ?? '').replace(/\D/g, '') !== phone) {
+                r = { ok: false, motivo: `la solicitud ${ur} no es del celular ${phone}: no se aprueba` }; break;
+            }
             const doc = u.doc || String(ur);
-            await exec('UPDATE users SET front_url=?, back_url=?, updated_at=NOW() WHERE id=?',
-                [synthIdImageUrl('frontal', doc), synthIdImageUrl('reverso', doc), u.user_id]).catch(() => null);
+            await withSeedScope([u.user_id], () => exec('UPDATE users SET front_url=?, back_url=?, updated_at=NOW() WHERE id=?',
+                [synthIdImageUrl('frontal', doc), synthIdImageUrl('reverso', doc), u.user_id], { permiso: 'siembra', usuario: u.user_id })).catch(() => null);
             r = { ok: (await manualValidation(u.user_id)) > 0, userId: u.user_id };
             break;
         }

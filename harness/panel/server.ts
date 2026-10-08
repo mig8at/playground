@@ -411,16 +411,21 @@ function setNote(id: DeviceId, text: string): void {
  * llega). Sólo en local y sólo si falta el proveedor; y se ANOTA para el panel: es un rodeo del arnés, no prueba
  * que la validación real funcione.
  */
-function rescueIdentity(id: DeviceId, target: string): void {
-    if (!identityWithoutProviderNotice(target).length) return;
+function rescueIdentity(id: DeviceId, target: string, phone = ''): void {
+    // En local, porque falta ADO (F-220). En dev/qa/staging, porque el celular del panel no puede hacer la selfie de
+    // ADO (no tiene ubicación ni cámara: «Location information is unavailable»), y sólo para el celular que abrió el
+    // panel —la base es compartida—. Nunca en prod.
+    const remote = target !== 'local' && target !== 'prod' && !!phone;
+    if (!identityWithoutProviderNotice(target).length && !remote) return;
+    const why = remote ? 'el celular del panel no puede hacer la selfie' : 'F-220: falta ADO_HOST en local';
     const approved = new Set<string>();
     const approve = async (ur: string): Promise<boolean> => {
         if (approved.has(ur)) return true;
-        const r = await dbopsJson(['identity-approve', ur], target);
+        const r = await dbopsJson(['identity-approve', ur, ...(remote ? [phone] : [])], target);
         if (r?.ok) approved.add(ur);
         setNote(id, r?.ok
-            ? `identidad aprobada a mano (F-220: falta ADO_HOST en local) · solicitud ${ur}`
-            : `no pude aprobar la identidad de ${ur}: la validación va a quedar muerta (F-220)`);
+            ? `identidad aprobada a mano (${why}) · solicitud ${ur}`
+            : `no pude aprobar la identidad de ${ur}: ${r?.motivo ?? 'sin respuesta'} (${why})`);
         return !!r?.ok;
     };
     watchNavigation(id, (u) => {
@@ -1907,7 +1912,7 @@ connect();
                 const r = await openDevice('client', front.replace(/\/$/, '') + built.checkout_path, { autofill: caseAutofill(o) });
                 phase('celular');
                 deviceLog('panel', `tienda → cliente: ${phases.join(' · ')} (s)`);
-                rescueIdentity('client', t); rescueDownPayment('client', t);
+                rescueIdentity('client', t, phone); rescueDownPayment('client', t);
                 return json(res, 200, { ok: true, hash: built.hash, merchant: built.merchant, scrubbed: scrub, ...otp, ...r });
             } catch (e) {
                 return json(res, 200, { ok: false, detail: `el celular no pudo abrir ${front}: ${(e as Error).message.split('\n')[0]}` });
