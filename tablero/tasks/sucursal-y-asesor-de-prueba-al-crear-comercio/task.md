@@ -1,7 +1,7 @@
 ---
 id: 98
 title: "Sucursal y asesor de prueba al crear un comercio"
-ramas: feat/usuario-y-sucursal-de-prueba-al-crear-comercio, feat/asesor-de-prueba-marca-is-test, fix/timeout-validacion-correo, feat/permiso-pool-merchants-dev, fix/timeout-validacion-correo-main, fix/region-cognito-comercios-por-defecto
+ramas: feat/usuario-y-sucursal-de-prueba-al-crear-comercio, feat/asesor-de-prueba-marca-is-test, fix/timeout-validacion-correo, feat/permiso-pool-merchants-dev, fix/timeout-validacion-correo-main, fix/region-cognito-comercios-por-defecto, fix/region-cognito-comercios-main
 stage: work
 created: "2026-10-01T10:48:29-05:00"
 knowledge: [merchant-onboarding]
@@ -40,6 +40,8 @@ jira_title: "Sucursal y asesor de prueba al crear un comercio"
   Depende de: Daniel Sánchez (infra) — responder; Miguel — pasarle por privado la clave propia de prod.
 - [ ] Conseguir la revisión y el merge de los dos PRs de prod: [#258](https://github.com/Creditop-SAS/legacy-application/pull/258) (la región del pool cae a la de AWS) a develop y [#5](https://github.com/Creditop-SAS/cognito-pre-sign-up/pull/5) (margen de espera del lambda) a main; el del lambda llega a prod solo con un tag. Termina cuando están mergeados y infra confirma el despliegue del lambda.
   Depende de: Daniel Sánchez (infra) — confirmar que `AWS_DEFAULT_REGION` en prod vale us-east-2 y decidir el despliegue del lambda.
+- [ ] Llevar a producción el arreglo de la región: mergear el [hotfix a main](https://github.com/Creditop-SAS/legacy-application/pull/276) y sacar un tag nuevo; el lambda de pre-registro de producción necesita además un tag propio para subir su límite de 3 s a 5 s. Termina cuando la definición de la tarea de producción en uso funciona sin la variable de región, el límite del lambda está en 5 s y los asesores de los comercios 26 y 94 tienen su cuenta en el pool (con «Reintentar cuenta de Cognito»).
+  Depende de: revisión del PR; Daniel Sánchez (infra) — los dos tags.
 - [ ] Decidir si staging también pasa a Merchants Dev; termina cuando hay respuesta y, si es que sí, el cambio hecho con los mismos
   scripts (los scripts de staging ya están escritos, falta correr `create-client`, `switch` y la marca).
   Depende de: Miguel — la pregunta que está haciendo.
