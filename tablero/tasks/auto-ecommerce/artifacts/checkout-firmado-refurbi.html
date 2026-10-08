@@ -110,6 +110,11 @@
   @media (max-width:520px) { .row3 { grid-template-columns:1fr; } }
   details.more { border-top:1px dashed var(--line); margin-top:16px; padding-top:12px; }
   .dictbox .hint { display:block; margin-bottom:7px; }
+  .how ol { margin:0; padding-left:20px; display:grid; gap:6px; font-size:.86rem; color:var(--ink-soft); }
+  .how ol b { color:var(--ink); font-weight:600; }
+  .explain { margin:0 0 12px; max-width:70ch; }
+  .recipes { margin:9px 0; padding-left:19px; font-size:.82rem; color:var(--ink-soft); display:grid; gap:4px; }
+  .recipes b { color:var(--ink); font-weight:600; }
   footer { color:var(--ink-faint); font-size:.76rem; border-top:1px solid var(--line); padding-top:14px; }
 </style>
 
@@ -121,6 +126,17 @@
        dicta a las centrales de QA lo que tienen que contestar para ese comprador. Con los valores por defecto, firmado, va
        directo a entidades sin código.</p>
   </header>
+
+  <section class="card how">
+    <h2>Cómo se prueba</h2>
+    <ol>
+      <li><b>Elegí la firma.</b> «Firmado» es el caso de Refurbi: el comprador entra sin código. Pegá el secreto de la sucursal.</li>
+      <li><b>Revisá el comprador.</b> Ya viene uno inventado; «Comprador nuevo» cambia documento, correo y celular para no chocar con pruebas anteriores.</li>
+      <li><b>Decidí qué dicen las centrales</b> de ese comprador (empleo e historial de crédito). Los valores que vienen son los de un buen cliente.</li>
+      <li><b>«Armar la URL».</b> Se abre una pestaña que dice <b>✓ Centrales dictadas</b>: es la confirmación. Cerrala y volvé acá.</li>
+      <li><b>«Abrir en una pestaña»</b> y seguí el recorrido como el comprador. Al terminar, «Limpiar centrales».</li>
+    </ol>
+  </section>
 
   <div class="cols">
     <section class="card">
@@ -160,25 +176,40 @@
       </div>
       <div class="field"><label for="total">Monto de la compra</label><input id="total" value="2000000" spellcheck="false" inputmode="numeric"></div>
 
-      <div class="subhead"><span>Centrales de QA</span><label class="hint" style="display:flex;gap:6px;align-items:center"><input type="checkbox" id="dictarOn" checked style="width:auto"> dictarlas al armar la URL</label></div>
+      <div class="subhead"><span>Lo que dicen las centrales</span><label class="hint" style="display:flex;gap:6px;align-items:center"><input type="checkbox" id="dictarOn" checked style="width:auto"> dictarlas al armar la URL</label></div>
+      <p class="hint explain">Las centrales son las bases que consulta CreditOp para saber si el comprador trabaja, cuánto gana y cómo
+        paga sus créditos. En QA son simuladas: lo que pongas acá es lo que van a contestar <b>para este documento</b>, y con eso
+        CreditOp decide qué entidades le ofrece. Si desmarcás la casilla, contestan otra persona y el comprador tiene que escribir su ingreso.</p>
       <div class="subhead" style="margin-top:6px"><span>Ágil Data · empleo</span></div>
       <div class="row3">
-        <div class="field"><label for="ingreso">Ingreso mensual</label><input id="ingreso" value="6000000" spellcheck="false" inputmode="numeric"></div>
+        <div class="field"><label for="ingreso">Ingreso mensual</label><input id="ingreso" value="6000000" spellcheck="false" inputmode="numeric"><span class="hint">Lo que gana al mes, en pesos.</span></div>
         <div class="field"><label for="ocupacion">Ocupación</label>
-          <select id="ocupacion"><option value="Empleado" selected>Empleado</option><option value="Independiente">Independiente</option></select></div>
-        <div class="field"><label for="meses">Meses de aportes</label><input id="meses" value="24" spellcheck="false" inputmode="numeric"></div>
+          <select id="ocupacion"><option value="Empleado" selected>Empleado</option><option value="Independiente">Independiente</option></select><span class="hint">Algunas entidades sólo aceptan una.</span></div>
+        <div class="field"><label for="meses">Meses de aportes</label><input id="meses" value="24" spellcheck="false" inputmode="numeric"><span class="hint">Cuánto lleva cotizando, hasta este mes.</span></div>
       </div>
 
       <div class="subhead"><span>Experian · buró</span></div>
       <div class="row3">
-        <div class="field"><label for="score">Score</label><input id="score" value="850" spellcheck="false" inputmode="numeric"></div>
-        <div class="field"><label for="consultas">Consultas 6 meses</label><input id="consultas" value="0" spellcheck="false" inputmode="numeric"></div>
-        <div class="field"><label for="tarjetas">Tarjetas activas</label><input id="tarjetas" value="2" spellcheck="false" inputmode="numeric"></div>
+        <div class="field"><label for="score">Score</label><input id="score" value="850" spellcheck="false" inputmode="numeric"><span class="hint">Puntaje de crédito: más alto, mejor.</span></div>
+        <div class="field"><label for="consultas">Consultas 6 meses</label><input id="consultas" value="0" spellcheck="false" inputmode="numeric"><span class="hint">Cuántas veces lo consultaron otras entidades.</span></div>
+        <div class="field"><label for="tarjetas">Tarjetas activas</label><input id="tarjetas" value="2" spellcheck="false" inputmode="numeric"><span class="hint">Tarjetas de crédito al día.</span></div>
       </div>
       <div class="row3">
-        <div class="field"><label for="mora">Moras actuales</label><input id="mora" value="0" spellcheck="false" inputmode="numeric"></div>
-        <div class="field"><label for="negativos">Negativos 12 meses</label><input id="negativos" value="0" spellcheck="false" inputmode="numeric"></div>
+        <div class="field"><label for="mora">Moras actuales</label><input id="mora" value="0" spellcheck="false" inputmode="numeric"><span class="hint">Créditos atrasados hoy.</span></div>
+        <div class="field"><label for="negativos">Negativos 12 meses</label><input id="negativos" value="0" spellcheck="false" inputmode="numeric"><span class="hint">Reportes negativos del último año.</span></div>
       </div>
+      <details class="more">
+        <summary>Ideas de perfiles para probar</summary>
+        <ul class="recipes">
+          <li><b>Buen cliente</b> (lo que viene): ingreso 6.000.000, 24 meses, score 850, 0 consultas, 2 tarjetas, sin moras.</li>
+          <li><b>Ingreso bajo</b>: ingreso 1.300.000 — para ver qué entidades dejan de salir.</li>
+          <li><b>Recién empieza a cotizar</b>: 2 meses de aportes.</li>
+          <li><b>Independiente</b>: cambiá la ocupación; hay entidades que sólo atienden a uno u otro.</li>
+          <li><b>Historial flojo</b>: score 500, 8 consultas, 0 tarjetas.</li>
+          <li><b>Con moras</b>: 1 mora actual y 2 negativos.</li>
+        </ul>
+        <p class="hint">Cada cambio vale para el documento de arriba. Para comparar dos perfiles, usá «Comprador nuevo» entre uno y otro.</p>
+      </details>
 
       <details class="more">
         <summary>Más del pedido</summary>
