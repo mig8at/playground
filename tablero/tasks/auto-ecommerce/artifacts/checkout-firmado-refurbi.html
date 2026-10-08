@@ -194,15 +194,13 @@
     <section class="card dictbox">
       <h2>Los pasos</h2>
 
-      <div class="step"><label>1 · Dictar las centrales</label><button class="ghost" type="button" data-copy="cmdDictar">Copiar</button></div>
-      <span class="hint">En una terminal, antes de abrir la URL. Ágil Data y Experian van a contestar esto para el documento del comprador.</span>
-      <pre id="cmdDictar"></pre>
+      <div class="step"><label>1 · Dictar las centrales</label></div>
+      <button class="primary" type="button" data-copy="cmdDictar">Copiar comando para dictar</button>
+      <span class="hint" style="margin-top:7px">Pegalo en una terminal y dale Enter, antes de abrir la URL. Al final tiene que decir
+        <b>✓ Ágil Data</b> con el nombre del comprador y <b>✓ Experian</b> con el score de arriba; si dice ✗, pegalo de nuevo.</span>
+      <details class="more"><summary>Ver el comando</summary><pre id="cmdDictar" style="margin-top:9px"></pre></details>
 
-      <div class="step"><label>2 · Confirmar</label><button class="ghost" type="button" data-copy="cmdConfirmar">Copiar</button></div>
-      <span class="hint">Tiene que mostrar el nombre del comprador, el mes actual y el score. Si no, repetí el 1.</span>
-      <pre id="cmdConfirmar"></pre>
-
-      <div class="step"><label>3 · Abrir el checkout</label></div>
+      <div class="step"><label>2 · Abrir el checkout</label></div>
       <button class="primary" id="go" type="button">Armar la URL</button>
       <div class="status" id="status" role="status"></div>
       <div class="urlbox" style="margin-top:11px"><code id="url">Todavía no se armó.</code></div>
@@ -212,9 +210,9 @@
         <button class="ghost" id="open" type="button">Abrir en una pestaña</button>
       </div>
 
-      <div class="step"><label>4 · Limpiar, al terminar</label><button class="ghost" type="button" data-copy="cmdLimpiar">Copiar</button></div>
+      <div class="step"><label>3 · Limpiar, al terminar</label><button class="ghost" type="button" data-copy="cmdLimpiar">Copiar comando para limpiar</button></div>
       <span class="hint">Devuelve ese documento a la respuesta de siempre. No toca lo que dictaron otros.</span>
-      <pre id="cmdLimpiar"></pre>
+      <details class="more"><summary>Ver el comando</summary><pre id="cmdLimpiar" style="margin-top:9px"></pre></details>
 
       <details class="more">
         <summary>Detalle técnico de la URL</summary>
@@ -428,7 +426,7 @@
       + "\"creditCardAccount\":{\"businessBehaviourVectorProduct\":\"NNNNNNNNNNNN\"},\"values\":[{\"availableBalance\":1000,\"debtBalance\":0,\"valueMonthlyPayment\":0}]} for i in range(P[\"cards\"])]; "
       + "print(json.dumps({\"key\":\"experian_" + doc + "\",\"value\":json.dumps(d)}))";
     return "curl -s -X POST '" + HDC + "' -H 'Content-Type: application/json' -d '{\"identifyingUser\":{\"person\":{\"personId\":{\"personIdNumber\":\"" + doc + "\"}}}}' \\\n"
-      + "  | python3 -c '" + py + "' \\\n  | " + admin("-d @-");
+      + "  | python3 -c '" + py + "' \\\n  | " + admin("-o /dev/null -d @-");
   }
 
   function pintarDictado() {
@@ -441,17 +439,23 @@
       principals: { consultedLast6Months: num("consultas", 1), currentNegativeCredits: num("mora", 0),
                     negativeHistoricalLast12Months: num("negativos", 0), maturationSince: $("sector").value || "2015-03-26" }
     };
-    $("cmdDictar").textContent = admin("\\\n  -d '" + agil + "'") + "\n\n" + experianCmd(doc, perfil);
-    $("cmdConfirmar").textContent =
-      "curl -s '" + MOCK + "/agildata/agildata-services/rest/afiliado/historicoDetalladoEmpleo/CC/" + doc + "' | grep -oE '\"(nombre|periodo)\": ?\"?[^,\"]*' | head -2\n"
-      + "curl -s -X POST '" + HDC + "' -H 'Content-Type: application/json' -d '{\"identifyingUser\":{\"person\":{\"personId\":{\"personIdNumber\":\"" + doc + "\"}}}}' | grep -oE '\"scoreValue\": ?[0-9]+' | head -1";
-    $("cmdLimpiar").textContent = admin("-d '" + JSON.stringify({ key: "agildata_" + doc, value: "" }) + "'") + "\n"
-      + admin("-d '" + JSON.stringify({ key: "experian_" + doc, value: "" }) + "'");
+    const q = (o) => "'" + JSON.stringify(o) + "'";
+    const hdcBody = q({ identifyingUser: { person: { personId: { personIdNumber: doc } } } });
+    const score = perfil.score;
+    // Lo que se pega en la terminal: dicta, y después LEE lo que el mock va a contestar y lo dice en una línea.
+    $("cmdDictar").textContent = [
+      admin("-o /dev/null \\\n  -d '" + agil + "'"),
+      experianCmd(doc, perfil),
+      "curl -s '" + MOCK + "/agildata/agildata-services/rest/afiliado/historicoDetalladoEmpleo/CC/" + doc + "' \\\n  | python3 -c 'import json,sys; a=json.load(sys.stdin)[\"respuesta\"]; n=a[\"datosBasicos\"][\"nombre\"]; p=a[\"detalladoEmpleos\"][0][\"pagos\"][0][\"periodo\"]; print((\"✓\" if n==\"" + nombre + "\" else \"✗\"), \"Ágil Data:\", n, \"· aportes hasta\", p)'",
+      "curl -s -X POST '" + HDC + "' -H 'Content-Type: application/json' -d " + hdcBody + " \\\n  | python3 -c 'import json,sys; v=json.load(sys.stdin)[\"ReportHDCplus\"][\"models\"][0][\"scoreValue\"]; print((\"✓\" if v==" + score + " else \"✗\"), \"Experian: score\", v)'"
+    ].join("\n");
+    $("cmdLimpiar").textContent = admin("-o /dev/null -d '" + JSON.stringify({ key: "agildata_" + doc, value: "" }) + "'") + "\n"
+      + admin("-o /dev/null -d '" + JSON.stringify({ key: "experian_" + doc, value: "" }) + "'") + "\necho '✓ Limpio: " + doc + " vuelve a la respuesta de siempre'";
   }
   ["documento", "nombres", "apellidos", "ingreso", "ocupacion", "meses", "score", "consultas", "tarjetas", "mora", "negativos", "sector"]
     .forEach((id) => { $(id).addEventListener("input", pintarDictado); $(id).addEventListener("change", pintarDictado); });
   document.querySelectorAll("[data-copy]").forEach((b) => b.addEventListener("click", async () => {
-    try { await navigator.clipboard.writeText($(b.dataset.copy).textContent); b.textContent = "Copiado"; setTimeout(() => { b.textContent = "Copiar"; }, 1500); }
+    try { await navigator.clipboard.writeText($(b.dataset.copy).textContent); const t = b.dataset.label || (b.dataset.label = b.textContent); b.textContent = "Copiado ✓"; setTimeout(() => { b.textContent = t; }, 1500); }
     catch { b.textContent = "Copialo a mano"; }
   }));
 
