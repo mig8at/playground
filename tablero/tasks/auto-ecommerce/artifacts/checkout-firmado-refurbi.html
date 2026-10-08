@@ -116,7 +116,8 @@
   <div class="note">
     <strong>Sólo QA.</strong> La sucursal y su token de QA ya están puestos. El <strong>secreto de firma</strong> no está
     en la página: lo pegás vos, se usa sólo para calcular la firma en este navegador y no se guarda ni se envía a
-    ningún lado. El de producción nunca va acá. Actualizado el 8 de octubre de 2026.
+    ningún lado. El de producción nunca va acá. En QA el comprador va a tener que escribir su ingreso: las centrales de QA
+    no reconocen ningún documento (ver abajo). Actualizado el 8 de octubre de 2026.
   </div>
 
   <div class="cols">
@@ -234,7 +235,10 @@
       <ul>
         <li><strong>Firmado pero pide el código</strong>: el secreto no es el de esta sucursal en QA, o se cambió algo del pedido después de firmar (la página firma lo último que armó).</li>
         <li><strong>Conflicto de usuario</strong>: el documento o el celular ya existen con otra identidad. Usá «Comprador nuevo».</li>
-        <li><strong>Va a «employment-info»</strong>: las centrales de QA no tienen datos de empleo para ese documento. No es la firma.</li>
+        <li><strong>Pide el ingreso («employment-info») en vez de ir a entidades</strong>: es lo esperado en QA. Las centrales de QA son un
+            mock que, para cualquier documento, devuelve datos aleatorios de <em>otra</em> persona y con aportes viejos, así que la
+            identidad no coincide y el cliente queda sin empleo. Se completa el ingreso a mano y el flujo sigue. No es la firma: en
+            local, con centrales dictadas, el mismo pedido va directo a entidades.</li>
       </ul>
     </details>
   </section>
