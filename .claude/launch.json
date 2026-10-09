@@ -58,6 +58,16 @@
       "url": "http://admin.localhost:8000"
     },
     {
+      "name": "admin-test-advisor",
+      "runtimeExecutable": "sh",
+      "runtimeArgs": [
+        "-c",
+        "cd /Users/miguelochoa/Desktop/CREDITOP/github/legacy-application-wt-test-user/public && MERCHANT_AWS_COGNITO_REGION=us-east-2 MERCHANT_AWS_COGNITO_USER_POOL_ID=us-east-2_jz3MVy2me MERCHANT_AWS_COGNITO_ENDPOINT=http://localhost:4566 AWS_ACCESS_KEY_ID=test AWS_SECRET_ACCESS_KEY=test PHP_CLI_SERVER_WORKERS=4 exec php -S 127.0.0.1:8001 ../vendor/laravel/framework/src/Illuminate/Foundation/resources/server.php"
+      ],
+      "port": 8001,
+      "url": "http://admin.localhost:8001"
+    },
+    {
       "name": "wizard",
       "runtimeExecutable": "npm",
       "runtimeArgs": [
@@ -114,6 +124,34 @@
       }
     },
     {
+      "name": "canon-workbench-api",
+      "runtimeExecutable": "sh",
+      "runtimeArgs": [
+        "-c",
+        "cd /Users/miguelochoa/Desktop/CREDITOP/github/playground/tools/canon && exec go run ."
+      ],
+      "port": 8383,
+      "autoPort": false,
+      "env": {
+        "PORT": "8383",
+        "CANON_LOCAL": "1",
+        "CANON_REPOS": "/Users/miguelochoa/Desktop/CREDITOP/github"
+      }
+    },
+    {
+      "name": "canon-workbench",
+      "runtimeExecutable": "sh",
+      "runtimeArgs": [
+        "-c",
+        "cd /Users/miguelochoa/Desktop/CREDITOP/github/playground/tools/canon && exec npx vite --port 5190 --strictPort"
+      ],
+      "port": 5190,
+      "autoPort": false,
+      "env": {
+        "CANON_API": "http://127.0.0.1:18080"
+      }
+    },
+    {
       "name": "wizard-local",
       "runtimeExecutable": "npm",
       "runtimeArgs": [
@@ -158,6 +196,28 @@
         "PORT": "5186",
         "VISOR_API_PORT": "5187"
       }
+    },
+    {
+      "name": "keyring",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": [
+        "run",
+        "dev"
+      ],
+      "cwd": "keyring",
+      "port": 5182,
+      "autoPort": false
+    },
+    {
+      "name": "radar",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": [
+        "run",
+        "dev"
+      ],
+      "cwd": "radar",
+      "port": 5188,
+      "autoPort": false
     }
   ]
 }

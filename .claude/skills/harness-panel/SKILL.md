@@ -431,7 +431,7 @@ su propia config de Cognito en el `.env` del monorepo (`login.creditop.com` + su
 `bin/advisor` solo le pisa las URLs de API. Consecuencias, las dos ya cableadas:
 
 - la corrida se loguea con la cuenta de **`.cognito.json`** (`a.arismendy`, pool de dev), no con la de
-  `.env.staging` (`oscar+dentix`, otro pool) — `bin/advisor` vacía `E2E_COGNITO_USER/PASS` para que caiga
+  `.env.staging` (`miguel8a`, otro pool) — `bin/advisor` vacía `E2E_COGNITO_USER/PASS` para que caiga
   ahí sola, y lo canta en el log (`● cognito  front local → pool de dev`);
 - el cache de sesión se llama por **front**, no por target (`pkg/cognito.ts`): `staging + front local` usa
   `cognito-state.dev.json`. Cachearlo como 'staging' hacía replayar cookies de OTRO origen y re-loguear
