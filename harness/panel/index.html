@@ -197,12 +197,6 @@
     /* Los valores a TIPEAR durante la corrida (el OTP, el documento). Nace de un fallo real: se tipeó
        un teléfono que no era el del bypass y el OTP no llegaba nunca. Cada valor es un OBJETO que se
        copia, así que lleva su contorno; el grupo no. */
-    .typing { display: none; flex: none; flex-wrap: wrap; align-items: center; gap: var(--space-2) }
-    .typing.on { display: flex }
-    .typing-label { font-size: var(--text-xs); color: var(--fg-2) }
-    .typing-key { color: var(--fg-2); font-weight: 400 }
-    .typing-value { font-family: var(--font-mono) }
-    .typing-chip.copied { color: var(--ok) }
 
     /* ═══ EL MAPA ═════════════════════════════════════════════════════════════════════════════════
        Es el centro: ocupa lo que sobre, sin marco ni cabecera. ⚠ PERO LA CABECERA GUARDA EL AVISO:
@@ -618,9 +612,6 @@
           </fieldset>
 
         <main class="editor" id="stage">
-          <!-- Los VALORES A TIPEAR (el OTP, el documento) que el runner va pasando durante la corrida.
-               Sólo aparece cuando tiene algo. -->
-          <div id="typing" class="typing"></div>
           <!-- LOS DOS CELULARES: el del asesor y el del cliente, lado a lado. Por ahora son el marco; el mapa
                del recorrido se mudó a la pestaña «Mapa» de la consola para dejarles el centro. -->
           <div class="devices" id="devices" data-count="2">
@@ -1479,7 +1470,8 @@
         // «Comercio» a la derecha). El icono es el de comercio (`store`): cada fila es una sucursal.
         const absent = !!e.missing;
         const rowEl = treeRow([absent ? 'missing' : '', e.unreachable ? 'unreachable' : ''].filter(Boolean).join(' '), 0, 'merchant',
-          escTxt(e.alias || e.name), absent || e.meta === '…' ? (e.meta || '') : (e.hash || '…'));
+          // Sin hash a la vista (va en el tooltip): ruido para elegir. El meta sólo dice «midiendo» o, más abajo, ⚠.
+          escTxt(e.alias || e.name), e.meta === '…' ? '…' : '');
         rowEl.title = `${e.alias || e.name}${e.hash ? ` · sucursal ${e.hash}` : ''}`
           + (e.fav ? ' · agregado por vos' : ' · curado, vive en el código')
           + (absent ? ` · no se puede elegir: ${e.meta || `no está en ${target}`}` : '')
@@ -1513,8 +1505,9 @@
         const ready = absent ? { block: [], note: [] } : readinessOf(e);
         if (ready.block.length || ready.note.length) {
           rowEl.classList.add(ready.block.length ? 'not-ready' : 'ready-note');
-          const meta = rowEl.querySelector('.row-meta');
-          if (meta) meta.textContent = '⚠ ' + meta.textContent;
+          let meta = rowEl.querySelector('.row-meta');
+          if (!meta) { meta = document.createElement('span'); meta.className = 'row-meta'; rowEl.appendChild(meta); }
+          meta.textContent = '⚠';
           rowEl.title += `\n\n${ready.block.length ? `No se puede probar por ${channel} en ${target}` : 'Ojo'}:\n` + [...ready.block, ...ready.note].map((x) => '· ' + x).join('\n');
         }
         rowEl.setAttribute('aria-selected', String(chosenOne));
@@ -3763,7 +3756,6 @@
         return;
       }
       $('activityTime').textContent = '';
-      $('typing').replaceChildren();
       markStepOnMap(null);   // el mapa arranca sin marca: todavía no navegó a ningún lado
       $('webhookZone').style.display = 'none';
       // ⚠ ABRIR, no cerrar: `showLog(false)` venía de cuando la consola era una tarjeta plegable y
@@ -3811,36 +3803,8 @@
     const IMPORTANT = /▲|⚠|✗|📸 ✗|BD  ✗|DESENLACE MALO|ÉXITO SIN RESPALDO|passed|failed|corrida terminada|Comprobación de BD|✅|▶|●|traza:|uReq/;
     const isImportant = (l) => IMPORTANT.test(l);
 
-    // `⌨ DATOS telefono=… otp=…` lo emite bin/advisor (contrato: si cambia el prefijo allá, cambiá acá).
-    // El panel NO recalcula nada — ni el teléfono ni el OTP: los toma de quien los resolvió, que es el
-    // launcher. Duplicar ese cálculo en la UI es como las dos definiciones empiezan a derivar.
-    const LBL = { telefono: 'teléfono', otp: 'OTP', otpfirma: 'OTP firma', cedula: 'cédula', email: 'email', codigoapp: 'código app' };
-    function renderTyping(txt) {
-      const m = txt.match(/⌨ DATOS\s+(.+)/);
-      const box = $('typing');
-      if (!m) { box.classList.remove('on'); box.replaceChildren(); return; }
-      const pairs = [...m[1].matchAll(/(\w+)=(\S+)/g)].filter(([, k]) => LBL[k]);
-      const frag = document.createDocumentFragment();
-      const lbl = document.createElement('span'); lbl.className = 'typing-label'; lbl.textContent = 'Para tipear';
-      frag.appendChild(lbl);
-      for (const [, k, v] of pairs) {
-        if (v.startsWith('(')) continue;                 // (auto): el valor lo pone el flujo, no hay nada que copiar
-        // Cada valor es un OBJETO que se copia: un botón de 24 con contorno. El grupo no lleva caja.
-        const b = document.createElement('button');
-        b.type = 'button'; b.className = 'btn btn-outline btn-xs typing-chip';
-        b.title = `copiar ${LBL[k]}`;
-        const ks = document.createElement('span'); ks.className = 'typing-key'; ks.textContent = LBL[k];
-        const vs = document.createElement('span'); vs.className = 'typing-value'; vs.textContent = v;
-        b.append(ks, vs);
-        b.onclick = async () => {
-          try { await navigator.clipboard.writeText(v); b.classList.add('copied'); setTimeout(() => b.classList.remove('copied'), 1200); }
-          catch { /* sin permiso de portapapeles: el valor igual está a la vista */ }
-        };
-        frag.appendChild(b);
-      }
-      box.replaceChildren(frag);
-      box.classList.add('on');
-    }
+    // (La franja «Para tipear» —teléfono, OTP, cédula… de la línea `⌨ DATOS` del runner— se quitó el 2026-10-09: le
+    // quitaba alto a los celulares y repetía lo que ya está en la consola y en el chip del OTP del celular.)
     /** Una línea de la salida: la `.log-line` de la base (mono de 12 sobre 20). Nodos de TEXTO, nunca
      *  innerHTML: es salida de procesos. Una línea vacía conserva su renglón. */
     function logLine(line, cls = '') {
@@ -3898,7 +3862,6 @@
         if (showsLine(l)) frag.appendChild(lineNodes(l));
       }
       $('log').appendChild(frag);
-      renderTyping(logLines.join('\n'));
     }
 
     /* ── LA CONSOLA DEL SSR ──────────────────────────────────────────────────────────────────────
