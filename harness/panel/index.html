@@ -794,7 +794,7 @@
                deshabilita entero. El interruptor de modo queda AFUERA a propósito: deshabilitarlo lo
                volvería inclickeable y no habría forma de volver. -->
           <fieldset class="synthetic"><legend class="sr-only">Usuario sintético</legend>
-            <div class="region-head group"><span>Identidad</span></div>
+            <div class="region-head group"><span>Identidad</span><button type="button" class="region-action" id="newClient" title="Cliente nuevo: otra cédula y su correo (el resto del caso se queda)" aria-label="Cliente nuevo"><span class="ui-icon" data-icon="refresh" aria-hidden="true"></span></button></div>
             <div class="prop">
               <span class="label">Tipo de documento</span>
               <div class="toggle-group toggle-xs" id="doctype" role="group" aria-label="Tipo de documento">
@@ -984,7 +984,7 @@
           <div class="region-head group"><span>Entidades</span></div>
           <div class="entity-group" id="environmentSettings">
             <p class="entity-note" id="entitySummary">Entidades y respuestas simuladas</p>
-            <p class="entity-note" title="A/P/R cicla la respuesta del mock de pre-aprobación (aprobado · pendiente · rechazado) y es una preferencia del panel: no toca la base. El switch enciende y apaga la entidad y SÍ escribe el estado GLOBAL del lender — afecta todas las sucursales de este ambiente y se conserva después de la corrida; en dev, staging y qa pide confirmación. El click derecho ofrece lo mismo con sus nombres completos.">A/P/R cicla la pre-aprobación · el switch escribe <span class="scope-warn">global</span></p>
+            <p class="entity-note" title="A/P/R cicla la respuesta del mock de pre-aprobación (aprobado · pendiente · rechazado) y es una preferencia del panel: no toca la base. El switch enciende y apaga la entidad y SÍ escribe el estado GLOBAL del lender — afecta todas las sucursales de este ambiente y se conserva después de la corrida. Por eso, como reordenar, sólo se puede en local: en dev, staging y qa la base es del equipo. El click derecho ofrece lo mismo con sus nombres completos.">A/P/R cicla la pre-aprobación · el switch escribe <span class="scope-warn">global</span></p>
             <span id="lendersbranch" hidden></span>
             <div id="lenderslist"><p class="list-note">Elegí un comercio…</p></div>
           </div>
@@ -2046,7 +2046,8 @@
         for (const l of ls) {
           const on = Number(l.lender_status) === 1;   // status GLOBAL del lender = lo que filtra el listado (lab.status no aplica)
           const row = document.createElement('div');
-          row.draggable = true;
+          // Reordenar escribe `lenders_by_allieds.sort`, del comercio ENTERO: sólo en local (ver `/api/lender-sort`).
+          row.draggable = target === 'local';
           row.dataset.id = l.id;
           row.ondragstart = onLenderDragStart;
           row.ondragover = onLenderDragOver;
@@ -2126,6 +2127,9 @@
           sw.setAttribute('aria-checked', String(on));
           sw.draggable = false;
           sw.title = switchTitle(on);
+          // ⚠ FUERA DE LOCAL NO SE TOCA. Escribe `lenders.status`, el estado GLOBAL: en dev/qa/staging apagaba la entidad
+          // para todo el equipo. Antes pedía confirmación; un «¿seguro?» se acepta de memoria (2026-10-09).
+          sw.disabled = target !== 'local';
           sw.onclick = (ev) => {
             ev.stopPropagation();
             // ⚠ EL ESTADO SE LEE AL CLICKEAR, NO SE CAPTURA AL RENDERIZAR. Con el repintado en el lugar
@@ -2133,11 +2137,8 @@
             // click mandaba el mismo valor que el primero y el switch se veía trabado. Medido el
             // 2026-09-18 — apagar y volver a encender dejaba la entidad apagada. Es el costo de repintar
             // en vez de re-renderizar, y se paga acá: la verdad vive en `lendersDelComercio`.
+            if (target !== 'local') return;
             const actual = Number((merchantLenders.find((x) => Number(x.id) === Number(l.id)) || {}).lender_status) === 1;
-            if (SHARED_TARGET.has(target)
-              && !confirm(`${actual ? 'Apagar' : 'Encender'} «${l.name}» en ${target.toUpperCase()}.\n\n`
-                + 'Es el estado GLOBAL del lender: afecta todas las sucursales de ese ambiente, lo ve el '
-                + 'resto del equipo y se conserva después de la corrida.')) return;
             toggleLender(l.id, !actual);
           };
           row.appendChild(sw);
@@ -2170,7 +2171,7 @@
       : (Number(rt) === 0 ? 'rt=0 no consulta pre-aprobación: no hay nada que dictar'
                           : 'este target usa el microservicio real: el mock no decide');
     const switchTitle = (on) => (on ? 'Encendida' : 'Apagada') + ' — estado GLOBAL del lender en ' + target
-      + (SHARED_TARGET.has(target) ? ' (ambiente COMPARTIDO: va a pedir confirmación)' : '');
+      + (target === 'local' ? '' : '. Sólo se cambia en local: acá la base es del equipo y apagarla la apaga para todos');
 
     /** El resumen de la sección, recalculado sin volver a pedir nada al servidor. */
     function entitiesSummary() {
@@ -2213,9 +2214,6 @@
       }
       entitiesSummary();
     }
-    /** Los ambientes donde apagar una entidad lo ve el resto del equipo: dev, staging y qa
-     *  comparten la MISMA base (`inertia-dev`), así que el toggle ahí no es un experimento tuyo. */
-    const SHARED_TARGET = new Set(['dev', 'staging', 'qa']);
 
     // ══ MENÚS DEL HEADER ══════════════════════════════════════════════════════════════════════
     // Entorno y Canal dejaron de ser dos tiras de pastillas al lado del título. El header tenía cuatro
@@ -2426,8 +2424,9 @@
 
       separator(m);
       caption(m, 'Estado de la entidad · GLOBAL del ambiente');
-      itemMenu(m, { txt: on ? 'Apagar entidad' : 'Encender entidad', plain: true, icon: 'eye',
+      if (target === 'local') itemMenu(m, { txt: on ? 'Apagar entidad' : 'Encender entidad', plain: true, icon: 'eye',
         accion: () => toggleLender(l.id, !on) }, on ? 'menu-danger' : '');
+      else caption(m, `${on ? 'Encendida' : 'Apagada'} · sólo se cambia en local`);
 
       // Se ubica DESPUÉS de medirlo: cerca del borde derecho o de abajo, un menú que se sale de la
       // pantalla queda con la mitad de las opciones inalcanzables. `mountMenu` también registra el
@@ -4531,9 +4530,47 @@
       icon.dataset.icon = 'check'; setTimeout(() => { icon.dataset.icon = 'copy'; }, 1000);
     }).catch(() => { /* sin permiso de portapapeles: el valor igual está a la vista */ }));
 
+    // ── EL CASO SOBREVIVE A UNA RECARGA ─────────────────────────────────────────────────────────────
+    // Antes cada recarga sorteaba otra cédula y armaba el correo con ella: lo editado a mano (un correo ya registrado
+    // para probar ese error, un score) se perdía y había que volver a escribirlo (2026-10-09). Ahora el caso se guarda
+    // en este navegador al tocarlo y se restaura al abrir; otra persona se pide con «Cliente nuevo». Es una comodidad
+    // del navegador: sin storage, el panel arranca con un cliente nuevo como siempre.
+    const CASE_KEY = 'harness.case';
+    const CASE_FIELDS = ['amount', 'name', 'document', 'age', 'dob', 'expedition', 'email', 'income', 'occupation', 'score', 'negatives', 'consulted', 'delinquencies'];
+    const CASE_CHIPS = ['doctype', 'gender'];
+    function saveCase() {
+      try {
+        const c = {};
+        for (const id of CASE_FIELDS) if ($(id)) c[id] = $(id).value;
+        for (const g of CASE_CHIPS) c[g] = document.querySelector(`#${g} .on`)?.dataset.v || '';
+        localStorage.setItem(CASE_KEY, JSON.stringify(c));
+      } catch { /* sin storage: vale esta visita */ }
+    }
+    /** Pone los valores guardados SIN disparar eventos: la lógica que deriva un campo de otro (el correo de la cédula)
+     *  ya corrió cuando se guardaron. `false` si no había un caso guardado. */
+    function restoreCase() {
+      let c = null;
+      try { c = JSON.parse(localStorage.getItem(CASE_KEY) || 'null'); } catch { /* sin storage */ }
+      if (!c?.document) return false;
+      for (const id of CASE_FIELDS) if ($(id) && c[id] != null && c[id] !== '') $(id).value = c[id];
+      for (const g of CASE_CHIPS) if (c[g]) document.querySelectorAll(`#${g} button`).forEach((b) => b.classList.toggle('on', b.dataset.v === c[g]));
+      return true;
+    }
     // cédula + email generados VISIBLES (rango sintético 2.9B, como synthFill) — editables; se mandan tal cual.
-    $('document').value = String(2_900_000_000 + Math.floor(Math.random() * 89_999_999));
-    $('email').value = 'synth-' + $('document').value + '@creditop.com';
+    function newClientIdentity() {
+      $('document').value = String(2_900_000_000 + Math.floor(Math.random() * 89_999_999));
+      $('email').value = 'synth-' + $('document').value + '@creditop.com';
+    }
+    if (!restoreCase()) { newClientIdentity(); saveCase(); }
+    renderCaseViews();
+    for (const ev of ['input', 'change']) document.addEventListener(ev, (e) => { if (CASE_FIELDS.includes(e.target?.id)) saveCase(); });
+    for (const g of CASE_CHIPS) $(g).addEventListener('click', () => setTimeout(saveCase, 0));
+    $('newClient').onclick = () => {
+      if (runRunning) return;
+      newClientIdentity();
+      for (const id of ['document', 'email']) $(id).dispatchEvent(new Event('change', { bubbles: true }));
+      saveCase(); renderCaseViews(); updateGo();
+    };
     $('document').addEventListener('input', () => {   // el email sigue a la cédula mientras no lo edites a mano
       if (/^synth-\d*@creditop\.com$/.test($('email').value))
         $('email').value = 'synth-' + ($('document').value.replace(/\D/g, '')) + '@creditop.com';

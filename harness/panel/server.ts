@@ -1741,6 +1741,8 @@ const server = createServer(async (req, res) => {
     // prende/apaga un lender en la sucursal (lenders_by_allied_branches.status)
     if (path === '/api/lender-toggle' && req.method === 'POST') {
         const b = await readBody(req);
+        // ⚠ SÓLO EN LOCAL, como los flags del comercio: escribe el lender (o el comercio) para TODO el equipo en dev/qa/staging.
+        if (String(b.target || 'local') !== 'local') return json(res, 403, { ok: false, msg: `las entidades se encienden sólo en local (target ${b.target})` });
         const hash = branchHashForSlug(String(b.slug || ''), String(b.target || 'local'));
         if (!hash || !b.lenderId) return json(res, 400, { ok: false, msg: 'falta slug/lenderId' });
         const r = await dbopsJson(['lender-set', hash, String(b.lenderId), b.status ? '1' : '0'], String(b.target || 'local'));
@@ -1771,6 +1773,8 @@ const server = createServer(async (req, res) => {
     // fija el orden de los lenders del comercio (lenders_by_allieds.sort) desde una lista de ids
     if (path === '/api/lender-sort' && req.method === 'POST') {
         const b = await readBody(req);
+        // ⚠ SÓLO EN LOCAL, como los flags del comercio: escribe el lender (o el comercio) para TODO el equipo en dev/qa/staging.
+        if (String(b.target || 'local') !== 'local') return json(res, 403, { ok: false, msg: `las entidades se reordenan sólo en local (target ${b.target})` });
         const hash = branchHashForSlug(String(b.slug || ''), String(b.target || 'local'));
         const order = Array.isArray(b.order) ? b.order.map((x: any) => Number(x)).filter((n: number) => n > 0) : [];
         if (!hash || !order.length) return json(res, 400, { ok: false, msg: 'falta slug/order' });
