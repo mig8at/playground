@@ -375,6 +375,9 @@
     .row.not-ready .row-meta { color: var(--warn) }
     .row.ready-note .row-meta { color: var(--fg-2) }
     .row-actions .region-action[disabled] { opacity: .35; cursor: not-allowed }
+    .row-sub { margin: -2px var(--space-1) var(--space-1); padding: 0 var(--space-2) 0 calc(var(--space-2) + var(--indent));
+      font-size: var(--text-xs); color: var(--fg-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis }
+    .row-sub.warn { color: var(--warn) }
     .add-row { margin-top: var(--space-2) }
 
     /* Las entidades cuelgan de la sucursal elegida, un nivel adentro. Sin caja propia: las separa la
@@ -1395,6 +1398,37 @@
       return { block: [], note: [] };
     }
 
+    /**
+     * LA LÍNEA BAJO EL COMERCIO ELEGIDO. Dos cosas que la fila no puede decir:
+     *  · POR DÓNDE ENTRA EL ASESOR. Fuera de local no entra por la sucursal de la fila sino por la suya de prueba
+     *    (`c<sucursal>-fake@`), que tiene sus PROPIAS entidades: con Refurbi en qa la fila decía 3 y el asesor veía 0.
+     *  · QUÉ FALTA, si falta algo: la fila elegida esconde su meta (ahí van sus botones), y con él el ⚠.
+     * El motivo corto va en la línea; entero, con el comando que lo arregla, en el tooltip.
+     */
+    function chosenSubline(e, ready) {
+      const parts = [], tips = [];
+      let warn = false;
+      const adv = e.readiness?.advisor;
+      if (channel === 'asesor' && target !== 'local' && adv) {
+        const n = adv.branchLenders ?? 0;
+        parts.push(`el asesor entra por ${adv.branch} · ${n} entidad${n === 1 ? '' : 'es'}`);
+        tips.push(`Fuera de local el asesor de prueba (${adv.email}) entra por SU sucursal, ${adv.branch}, no por ${e.hash}: el listado sale de las entidades de ésa.`);
+        if (!n) warn = true;
+      }
+      const issues = [...ready.block, ...ready.note];
+      if (issues.length) {
+        warn = warn || ready.block.length > 0;
+        if (!parts.length || ready.block.length) parts.push('⚠ ' + issues[0].split(' → ')[0]);
+        tips.push(...issues.map((x) => '· ' + x));
+      }
+      if (!parts.length) return null;
+      const d = document.createElement('div');
+      d.className = 'row-sub' + (warn ? ' warn' : '');
+      d.textContent = [...new Set(parts)].join(' · ');
+      d.title = tips.join('\n');
+      return d;
+    }
+
     function renderMerchants() {
       const g = $('results');
       g.innerHTML = '';
@@ -1466,6 +1500,7 @@
         if (e.fav) acc.appendChild(rowAction('close', `Quitar «${label}» de tu espacio`, () => removeFav(e)));
         rowEl.appendChild(acc);
         g.appendChild(rowEl);
+        if (chosenOne && !absent) { const sub = chosenSubline(e, ready); if (sub) g.appendChild(sub); }
       }
       }
 
