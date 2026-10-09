@@ -80,6 +80,9 @@
 // `await` de nivel superior dejó de ser válido (lo delató `node --check`). Un `export {}` vacío
 // alcanza y no cambia nada más.
 import { canonicalFlag } from '../pkg/cli-aliases.ts';   // los flags viejos (en español) siguen andando: ver ese archivo
+import { synthIdImageUrl } from '../pkg/synth-id-images.ts';
+import { credifamiliaFormFields, isCredifamilia } from '../pkg/credifamilia-form.ts';
+import { credifamiliaTestUser, dateParts, type CredifamiliaTestUser } from '../pkg/credifamilia-test-users.ts';
 export {};
 
 process.env.E2E_TARGET ||= 'local';
@@ -89,15 +92,14 @@ process.env.CFE_TARGET ||= 'local';
 // definiciones de «cómo contesta una entidad» derivarían hacia estados distintos.
 const { integrationWebhook, webhookSelfManager, WELLI_IDS, OLD_APP } =
     await import('../pkg/entity-webhook.ts');
-const { scalar, one, exec, close } = await import('../pkg/db.ts');
-const { synthFill, manualValidation } = await import('../pkg/inject.ts');
+const { scalar, one, exec, close, withSeedScope } = await import('../pkg/db.ts');
+const { synthFill, manualValidation, injectIncomeFields } = await import('../pkg/inject.ts');
 const e2eConfigMod = await import('../pkg/config.ts');
 const { config: e2eConfig } = e2eConfigMod;
-const { appKey } = await import('../pkg/db.ts');
-const { encryptLaravelString } = await import('../pkg/laravel-crypt.ts');
 const { forensicOnClose } = await import('../pkg/loki.ts');
 const { registerBypass, restoreBypass } = await import('../pkg/otp-bypass.ts');
 const { syntheticPhone, coSignerPhone } = await import('../pkg/phones.ts');
+const { resolveCoSigner, coSignerSignature } = await import('../pkg/cosigner.ts');
 const { findBranch, merchantDocumentType: documentType } = await import('../pkg/merchants.ts');
 
 const API = e2eConfig.mockUrl;
@@ -206,7 +208,7 @@ async function closeCreditopX(arr: any[], ur: number, tel: string, amount: numbe
 
     let coSignerToken: string | undefined;
     if (pol?.rc) {
-        const codeValue = await resolveCoSigner(ur, pol.hash, tel, amount, post, get);
+        const codeValue = await resolveCoSigner(ur, pol.hash, tel, amount, { get, post }, { manual: flag('manual') });
         if (!codeValue.ok) return { cerro: false, motivo: `${ctopx.name}: ${codeValue.motivo}`, estado: null };
         coSignerToken = codeValue.token;
     }
@@ -300,7 +302,7 @@ async function closeCreditopX(arr: any[], ur: number, tel: string, amount: numbe
     const differed = aut.json?.data?.user_request?.deferred_for_cosigner
         ?? aut.json?.data?.deferred_for_cosigner;
     if (coSignerToken && differed) {
-        const f = await coSignerSignature(coSignerToken, post, get);
+        const f = await coSignerSignature(coSignerToken, { get, post });
         if (!f.ok) {
             const e = await one<{ e: number }>('SELECT user_request_status_id e FROM user_requests WHERE id=?', [ur])
                 .catch(() => null);
@@ -422,6 +424,9 @@ type Case = {
     ocupacion?: string;
     /** Cuántas cuotas pedir. ⚠ NO todas las entidades aceptan cualquier número — ver `closeCreditopX`. */
     cuotas?: number;
+    /** `cliente=79799966` — usa a una persona de la lista de pruebas de Credifamilia (cédula, nombre, nacimiento,
+     *  celular y correo reales de su QA) en vez del cliente sintético de la corrida, que su análisis rechaza. */
+    cliente?: CredifamiliaTestUser;
     /** `@webhook=fulfilled` — dispara el webhook REAL de la entidad en `legacy-application` para darle
      *  desenlace a un rt=1. Es OPT-IN a propósito: nunca debe pasar solo, porque el código que corre no
      *  es el de `legacy-backend` (F-170) y un desenlace automático se leería como si lo fuera. */
@@ -450,6 +455,7 @@ function parseCase(spec: string, dflt: { amount: number; income: number; score: 
         if (k === 'amount' || k === 'income' || k === 'score') { c[k] = Number(v); continue; }
         if (k === 'ocupacion') { c.ocupacion = v; continue; }
         if (k === 'cuotas') { c.cuotas = Number(v); continue; }
+        if (k === 'cliente') { c.cliente = credifamiliaTestUser(v); c.ocupacion ??= c.cliente.ocupacion; continue; }
         if (k === 'webhook') { c.webhook = v; continue; }
         // cualquier otra clave es el ESCENARIO de una entidad: `pullman@meddipay=rechaza`.
         // Se dicta al mock de integraciones POR CÉDULA, así que dos casos en paralelo pueden pedir
@@ -734,7 +740,7 @@ const dictatedOnes = new Set<string>();
 async function dictateAll(cases: Case[]): Promise<string[]> {
     const failures: string[] = [];
     for (let i = 0; i < cases.length; i++) {
-        const doc = idNumberOf(i);
+        const doc = cases[i].cliente?.documento ?? idNumberOf(i);
         // el escenario de cada integración va acá también: es preparación del caso, y se dicta
         // POR CÉDULA para que dos casos en paralelo puedan pedir cosas opuestas de la misma entidad
         for (const [lender, mode] of Object.entries(cases[i].escenarios ?? {})) {
@@ -802,8 +808,11 @@ async function correr(c: Case, i: number): Promise<Res> {
 }
 
 async function traverse(c: Case, i: number): Promise<Res> {
-    const doc = idNumberOf(i);
+    const doc = c.cliente?.documento ?? idNumberOf(i);
     const base: Res = { caso: c, ok: false, phone: '' };
+    // Un cliente de la lista que YA existe en la base (otra prueba lo registró) no se puede dar de alta de nuevo:
+    // el backend contesta ONB005 «document number already in use». Se corre como cliente que vuelve.
+    if (c.cliente && !c.recurrente && await scalar<number>('SELECT id FROM users WHERE document_number=? LIMIT 1', [doc]).catch(() => null)) c.recurrente = true;
 
     // ⚠ El teléfono ya no se puede armar antes de conocer el comercio: su forma sale del país. Por eso
     // la sucursal se resuelve PRIMERO y el teléfono después — al revés de como estaba.
@@ -812,7 +821,7 @@ async function traverse(c: Case, i: number): Promise<Res> {
 
     const iso = await merchantCountry(br.hash);
     if (iso === null) return { ...base, detalle: NO_COUNTRY };
-    const tel = phoneOf(i, iso);   // el mismo para listar y para cerrar
+    const tel = c.cliente?.celular ?? phoneOf(i, iso);   // el mismo para listar y para cerrar
     base.phone = tel;
 
     // ⚠ `x.id AS allied` NO es cosmético: `preApprove` lo manda como `merchant_id` y este lookup no
@@ -914,10 +923,13 @@ async function traverse(c: Case, i: number): Promise<Res> {
         // que había.
         const docKind = await merchantDocumentType(br.hash);
         const pi = await post(`/api/onboarding/loan-application/personal-info/${br.hash}/${ur}`, {
-            document_type: docKind, document_number: doc, name: 'CARLOS', surname: 'RUIZ',
-            email: `qa${doc}@gmail.com`,
+            document_type: docKind, document_number: doc,
+            name: c.cliente?.nombres ?? 'CARLOS', surname: c.cliente?.apellidos ?? 'RUIZ',
+            email: c.cliente?.correo ?? `qa${doc}@gmail.com`,
             expedition_day: 10, expedition_month: 5, expedition_year: 2019,
-            birth_day: 10, birth_month: 5, birth_year: 2001,
+            ...(c.cliente
+                ? { birth_day: dateParts(c.cliente.nacimiento).day, birth_month: dateParts(c.cliente.nacimiento).month, birth_year: dateParts(c.cliente.nacimiento).year }
+                : { birth_day: 10, birth_month: 5, birth_year: 2001 }),
             // ⚠ El ESTRATO no lo pide todo comercio, pero cuando lo pide corta el flujo con
             // `STRATUM_REQUIRED` en el tercer paso — y sin él quedaban fuera del barrido comercios
             // enteros, entre ellos los de Credifamilia. Va siempre: los que no lo piden lo ignoran.
@@ -960,9 +972,16 @@ async function traverse(c: Case, i: number): Promise<Res> {
     // sintéticas al mirar la base.
     await exec(
         'UPDATE users SET front_url=?, back_url=?, updated_at=NOW() WHERE id=?',
-        [`https://mock-s3.local/front-web/users/documents/synth/${doc}/frontal.jpg`,
-         `https://mock-s3.local/front-web/users/documents/synth/${doc}/reverso.jpg`, uid],
+        [synthIdImageUrl('frontal', doc), synthIdImageUrl('reverso', doc), uid],
     ).catch(() => null);
+
+    // LOS CAMPOS DEL FORMULARIO QUE EXIGE EL SOAP DE CREDIFAMILIA (ciudades, dirección, activos, pasivos).
+    // El wizard no los pide por este camino y el servicio de pruebas real de Credifamilia rechaza la
+    // radicación con 400 si faltan; el mock local no los valida, por eso en local nunca se notó.
+    const lenderName = c.lender ? await scalar<string>('SELECT name FROM lenders WHERE id=?', [c.lender]).catch(() => '') : '';
+    if (uid && isCredifamilia(String(lenderName ?? ''))) {
+        await withSeedScope([uid], () => injectIncomeFields(uid, ur, credifamiliaFormFields(c.income ?? 2_500_000)));
+    }
 
     // LA IDENTIDAD, cuando el caso la pide aprobada. Sin `--manual` el paso queda como lo dicte la
     // entidad (hoy, para las rt=2 con AWS, `aws_validation`) y este runner igual cierra porque el
@@ -1271,125 +1290,7 @@ async function mirrorBureauForProfiling(ur: number): Promise<boolean> {
     return false;
 }
 
-/** EL SUB-FLOW DEL CODEUDOR, de punta a punta.
- *
- *  POR QUÉ ESTÁ ACÁ Y NO SE HACE A MANO. Es el camino más frágil de rt=2 —de acá salieron F-150, F-151
- *  y F-153— y hasta hoy era el único que pedía manos: ocho endpoints, dos actores y un token que no
- *  viaja por la respuesta. Un camino que sólo se prueba a mano se prueba una vez.
- *
- *  EL ORDEN NO ES NEGOCIABLE: el codeudor tiene que quedar `approved` y en etapa de firma ANTES de que
- *  el titular firme, porque el juego de documentos que se genera depende de la política. Firmar primero
- *  y registrar después produce documentos de la rama equivocada.
- *
- *  DOS COSAS QUE SÓLO PASAN EN LOCAL, y por eso están acá y no en el producto:
- *   · **El token de invitación no vuelve en la respuesta** — viaja por WhatsApp, que en local no sale
- *     (`invitationSent: false`). Se lee de `cosigners.invitation_token`.
- *   · **El AML no corre para nadie en local** (cero filas de `TusDatos - AML` en toda la base), y sin
- *     esa fila `evaluate-eligibility` devuelve `evaluated: false` para siempre. Se forja igual que en
- *     `dev/inject-aml.ts`; el `data` va CIFRADO como el cast de Laravel o el backend no lo lee.
- *
- *  ⚠ Y el buró del codeudor se inyecta con `userId`, no derivándolo de la solicitud: **comparte la
- *  `user_request` del titular**, así que sin eso los datos irían al titular y el codeudor quedaría sin
- *  buró — con su elegibilidad fallando al LEER en vez de al decidir (F-153). */
-async function resolveCoSigner(
-    ur: number, hash: string, holderPhone: string, amount: number, post: any, get: any,
-): Promise<{ ok: boolean; motivo: string; token?: string; tel?: string }> {
-
-    const tel = coSignerPhone(holderPhone);
-    const doc = String(2_900_000_000 + ur);
-
-    const ini = await post(`/api/v1/user-request/${ur}/cosigner-flow/start`, {});
-    if (ini.status !== 200) return { ok: false, motivo: `cosigner-flow/start HTTP ${ini.status}` };
-
-    const reg = await post(`/api/v1/user-request/${ur}/cosigner`, { cellPhone: tel });
-    if (reg.status !== 200) return { ok: false, motivo: `registrar codeudor HTTP ${reg.status}` };
-
-    const rowItem = await one<{ t: string }>(
-        'SELECT invitation_token t FROM cosigners WHERE user_request_id=? AND is_active=1 ORDER BY id DESC LIMIT 1',
-        [ur]).catch(() => null);
-    if (!rowItem?.t) return { ok: false, motivo: 'el codeudor no quedó con token de invitación' };
-    const token = rowItem.t;
-
-    // A partir de acá TODO va con el token: es la credencial del codeudor, no hay sesión.
-    const withToken = (extra: Record<string, string> = {}) => ({ 'X-Cosigner-Token': token, ...extra });
-
-    const inv = await get(`/api/v1/user-request/cosigner/invitation/${token}`, withToken());
-    if (inv.status !== 200) return { ok: false, motivo: `el token de invitación no resolvió (HTTP ${inv.status})` };
-
-    await post('/api/onboarding/phone/register', {
-        phone_number: tel, phoneNumber: tel, terms: true, policies: true,
-        otp_length: 4, otpLength: 4, partner_branch_hash: hash, partnerBranchHash: hash }, withToken());
-
-    // ⚠ Esto NO crea una solicitud nueva: con el token, el backend devuelve la del TITULAR. Es la
-    // señal de que el codeudor se está uniendo y no abriendo su propio crédito.
-    const otp = await post(`/api/onboarding/loan-application/otp-validate/${hash}`, {
-        cell_phone: tel, otp_code: tel.slice(-4), original_amount: amount, amount }, withToken());
-    const urCode = otp.json?.errors?.payload?.user_request_id ?? otp.json?.data?.payload?.user_request_id;
-    if (Number(urCode) !== ur) {
-        return { ok: false, motivo: `el codeudor abrió otra solicitud (${urCode ?? '—'}) en vez de unirse a ${ur}` };
-    }
-
-    const pi = await post(`/api/onboarding/loan-application/personal-info/${hash}/${ur}`, {
-        document_type: 'CC', document_number: doc, name: 'ANA', surname: 'GOMEZ',
-        email: `qa${doc}@gmail.com`,
-        expedition_day: 10, expedition_month: 5, expedition_year: 2019,
-        birth_day: 10, birth_month: 5, birth_year: 2001 }, withToken());
-    if (pi.json?.success !== true) {
-        return { ok: false, motivo: `personal-info del codeudor: ${String(pi.json?.message ?? '').slice(0, 60)}` };
-    }
-
-    const uid = await one<{ u: number }>(
-        'SELECT cosigner_user_id u FROM cosigners WHERE user_request_id=? AND is_active=1', [ur]).catch(() => null);
-    if (!uid?.u) return { ok: false, motivo: 'el codeudor no quedó linkeado a un usuario' };
-
-    // Las dos inyecciones que local exige (ver la cabecera).
-    const rc = await one<{ id: number }>("SELECT id FROM risk_centrals WHERE name='TusDatos - AML' LIMIT 1").catch(() => null);
-    if (rc) {
-        await exec('DELETE FROM risk_central_user_data WHERE user_id=? AND risk_central_id=?', [uid.u, rc.id]);
-        await exec('INSERT INTO risk_central_user_data (uuid, user_id, risk_central_id, score, data, created_at, updated_at) '
-            + 'VALUES (UUID(), ?, ?, 0, ?, NOW(), NOW())',
-            [uid.u, rc.id, encryptLaravelString(JSON.stringify({ estado: 'finalizado', hallazgos: [] }), appKey())]);
-    }
-    await synthFill(ur, { userId: uid.u, income: 4_000_000, score: 780 });
-
-    // El codeudor tiene su PROPIA identidad que resolver: la elegibilidad la evalúa por él, no por el
-    // titular. Con `--manual` se le aprueba igual que al titular — si no, `evaluate-eligibility` puede
-    // devolverlo sin evaluar y el motivo que imprime este runner ya sospecha de esto.
-    if (flag('manual')) await manualValidation(uid.u);
-
-    const ele = await post(`/api/v1/user-request/${ur}/cosigner/evaluate-eligibility`, {}, withToken());
-    const est = ele.json?.data ?? {};
-    if (est.cosignerStatus !== 'approved') {
-        return { ok: false, motivo: `el codeudor quedó ${est.cosignerStatus ?? '—'}`
-            + (est.evaluated === false ? ' y NO se evaluó (¿le falta AML o identidad?)' : '') };
-    }
-
-    const stage = await post(`/api/v1/user-request/${ur}/cosigner/enter-signature-stage`, {}, withToken());
-    if (stage.status !== 200) return { ok: false, motivo: `enter-signature-stage HTTP ${stage.status}` };
-
-    return { ok: true, motivo: 'codeudor aprobado y en etapa de firma', token, tel };
-}
-
-/** La firma del codeudor, DESPUÉS de la del titular. Cierra el crédito de verdad. */
-async function coSignerSignature(token: string, post: any, get: any): Promise<{ ok: boolean; motivo: string }> {
-    const withToken = { 'X-Cosigner-Token': token };
-    const V = '/api/v1/user-request/cosigner/signature';
-
-    await get(`${V}/context`, withToken);
-    await get(`${V}/documents`, withToken);
-
-    const env = await post(`${V}/otp`, {}, withToken);
-    if (env.status !== 200) {
-        return { ok: false, motivo: `el OTP de firma del codeudor falló (${env.json?.code ?? env.status})`
-            + ' — si es URV25003, mirá `OTP_SERVICE_HOST` (F-151)' };
-    }
-    // ⚠ El campo se llama `otp`, no `code`: con `code` responde URV27002 «datos de entrada».
-    const see = await post(`${V}/otp/verify`, { otp: '123456' }, withToken);
-    if (see.json?.code !== 'URV27000') {
-        return { ok: false, motivo: `verify del codeudor: ${see.json?.code ?? see.status} ${String(see.json?.message ?? '').slice(0, 50)}` };
-    }
-    return { ok: true, motivo: `firmado · ${see.json?.data?.cosignerStatus ?? ''}` };
-}
+// El sub-flow del codeudor (resolveCoSigner / coSignerSignature) vive en `pkg/cosigner.ts`, compartido con el caminador.
 
 /** PASOS: varias solicitudes SUCESIVAS del MISMO cliente.
  *
@@ -1566,7 +1467,7 @@ async function main(): Promise<number> {
             if (!br) return phoneOf(i, 'COL');            // el caso va a fallar solo con «no encontré»
             const iso = await merchantCountry(br.hash);
             if (iso === null) throw new Error(`${c.comercio}: ${NO_COUNTRY}`);
-            return phoneOf(i, iso);
+            return c.cliente?.celular ?? phoneOf(i, iso);
         }))).flatMap((t) => [t, coSignerPhone(t)]);
         // ⚠ El aviso NOMBRA la causa. Sin eso, la corrida no muere acá: muere en la firma, con 422 y la
         // solicitud en estado 10 — un síntoma que no se parece en nada a «faltó un permiso de escritura».
