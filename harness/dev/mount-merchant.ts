@@ -44,6 +44,7 @@
 //                          selector — el país es el CEILING, no el piso (`DocumentTypesService`).
 //     molde_operativo      de dónde salen identidad, requirements y reglas de datacrédito.
 //     molde_documentos     de dónde sale el catálogo `lender_signing_documents`.
+//     generador_documentos `blade` | `microservice`: por dónde se renderizan (pisa el del molde). Alta: `microservice`.
 //     requiere_codeudor    fuerza `requires_cosigner` en los perfiles. Tiene que coincidir con las
 //                          ramas que EXISTEN en el catálogo de documentos, o no se genera ninguno.
 //     abaco                el underwriting por ingresos gig. Se apaga salvo que se pida.
@@ -103,6 +104,7 @@ type Entity = {
     id: number; nombre: string; slug: string; response_type?: number; product?: string;
     document_types?: string[]; molde_operativo: number; molde_documentos?: number;
     form_dinamico?: number | null;
+    generador_documentos?: 'blade' | 'microservice';
     requiere_codeudor?: boolean; abaco?: boolean; user_self_management?: boolean;
     bienvenida?: Welcome; calculadora?: unknown;
 };
@@ -121,7 +123,7 @@ try {
     process.exit(2);
 }
 
-const HOLDER_TYPE = 1, COSIGNER_TYPE = 3;
+const HOLDER_TYPE = 1, EXTENDED_TYPE = 2, COSIGNER_TYPE = 3;
 const step = (t: string, d = '') => console.log(`  ${t}${d ? ` · ${d}` : ''}`);
 
 /** El hash de entrada, con la misma forma que el admin: crc32 (`AlliedController::store`). */
@@ -376,14 +378,22 @@ for (const e of spec.entidades) {
             for (const g of await query<any>('SELECT * FROM lender_users_category_rules WHERE lender_users_category_id=?', [c.id])) {
                 /* Una copia por TIPO: la política del codeudor es de otro tipo que la del titular, y sin
                    la de tipo 3 el endpoint de cupo del codeudor no responde `has_quota`. */
-                for (const kind of [HOLDER_TYPE, COSIGNER_TYPE])
+                /* Y la de TITULAR AMPLIADO (tipo 2) cuando la entidad exige codeudor: es la política que el
+                   front consulta (`available-quota/extended`) al salir de la identidad, y la que decide
+                   mandar al titular a registrar a su codeudor (`next_step: cosigner`). Sin ella el
+                   endpoint contesta «la entidad no define política para esta etapa», el titular sigue a
+                   la fecha de pago y ahí el backend lo corta con 409 — sin ninguna pantalla que le pida
+                   el codeudor. Medido en prod: Motai Renting (158) y Rent to Own (193) tienen las tres
+                   (1, 2 y 3); el AltaX sembrado sólo tenía 1 y 3. */
+                for (const kind of e.requiere_codeudor ? [HOLDER_TYPE, EXTENDED_TYPE, COSIGNER_TYPE] : [HOLDER_TYPE, COSIGNER_TYPE])
                     await clone('lender_users_category_rules', g, {
                         lender_id: idLender, lender_users_category_id: newOne, lender_users_category_type_id: kind,
                     });
             }
         }
         step('  perfiles', `${cats.length} con criterios de titular Y codeudor`
-            + (e.requiere_codeudor === undefined ? '' : ` · requires_cosigner=${e.requiere_codeudor ? 1 : 0}`));
+            + (e.requiere_codeudor === undefined ? '' : ` · requires_cosigner=${e.requiere_codeudor ? 1 : 0}`)
+            + (e.requiere_codeudor ? ' · con política de titular ampliado (tipo 2)' : ''));
     }
 
     // ── lo que hace que el flujo no se caiga ──
@@ -433,8 +443,17 @@ for (const e of spec.entidades) {
     const docs = await query<any>('SELECT * FROM lender_signing_documents WHERE lender_id=? ORDER BY sort', [docsTemplate]);
     if (!docs.length) step('  ⚠ documentos', `el molde ${docsTemplate} no tiene catálogo: la entidad no firma nada`);
     else {
-        for (const d of docs) await clone('lender_signing_documents', d, { lender_id: idLender });
-        step('  documentos', `${docs.length} del ${docsTemplate}: ${docs.map((d: any) => d.document_type).join(', ')}`);
+        /* `generador_documentos`: por dónde se RENDERIZAN esas plantillas. Un comercio cuyas plantillas
+           son propias —Alta: viven en el pdf-mapper y no en Blade— no puede heredar el `blade` del molde:
+           el molde es de Motai, sus vistas piden el vocabulario de Motai (`nombre_cliente`, `placa`…) y el
+           builder de Alta no lo produce, así que la firma muere con «Undefined variable» en pleno render.
+           Con `microservice` los PDF salen del pdf-mapper (el mock, en local), que es por donde salen en
+           la vida real. */
+        for (const d of docs) await clone('lender_signing_documents', d, {
+            lender_id: idLender, ...(e.generador_documentos ? { generator: e.generador_documentos } : {}),
+        });
+        step('  documentos', `${docs.length} del ${docsTemplate}: ${docs.map((d: any) => d.document_type).join(', ')}`
+            + (e.generador_documentos ? ` · generador ${e.generador_documentos}` : ''));
     }
 }
 

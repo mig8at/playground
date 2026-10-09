@@ -44,6 +44,7 @@
       ],
       "molde_operativo": 170,
       "molde_documentos": 173,
+      "generador_documentos": "microservice",
       "requiere_codeudor": true,
       "abaco": false,
       "user_self_management": 0,
