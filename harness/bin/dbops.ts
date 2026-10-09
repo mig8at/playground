@@ -72,7 +72,7 @@ try {
                     r = { ok: false, alliedId, motivo: `tampoco en la base compartida: ${shared.motivo || 'sin asesor de prueba'}` }; break;
                 }
             }
-            if (!adv) { r = { ok: false, alliedId, motivo: 'el comercio no tiene asesor de prueba (c<hash>-fake@); se crea desde el admin' }; break; }
+            if (!adv) { r = { ok: false, alliedId, motivo: `el comercio no tiene asesor de prueba (c<hash>-fake@): bin/pg admin test-advisor --target ${TARGET === 'qa' ? 'dev' : TARGET} --allied ${alliedId} (sin --apply muestra qué haría)` }; break; }
             const row = await one<{ cognito_id: string | null; fake: string | null }>(
                 `SELECT u.cognito_id, (SELECT b.hash FROM allied_branches b WHERE b.allied_id = u.allied_id AND b.name LIKE 'b%-fake' ORDER BY b.id DESC LIMIT 1) AS fake
                    FROM users u WHERE u.id = ?`, [adv.id]);
