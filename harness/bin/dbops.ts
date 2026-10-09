@@ -296,6 +296,39 @@ try {
                   WHERE ab.hash IN (?)`,
                 [a.length ? a : ['']],
             );
+            // ¿LISTO PARA PROBAR? Lo que hoy se descubría recién al lanzar (Refurbi en qa, 2026-10-09: sin asesor de prueba
+            // y, ya creado, con su sucursal sin entidades). Por comercio, en UNA consulta más por cosa, no una por fila:
+            //   · advisor: el asesor de prueba (`c<sucursal>-fake@`), si tiene cuenta de Cognito, y cuántas entidades
+            //     tiene SU sucursal —fuera de local el asesor entra por ésa, no por la de la fila—;
+            //   · ecommerce: cuántas credenciales de tienda tiene el comercio y cuántas con secreto de firma.
+            {
+                const rows = r as { hash: string; allied_id: number }[];
+                const ids = [...new Set(rows.map((x) => x.allied_id))];
+                if (ids.length) {
+                    const advisors = await query<{ allied_id: number; email: string; cognito: number }>(
+                        `SELECT u.allied_id, u.email, (u.cognito_id IS NOT NULL AND u.cognito_id <> '') AS cognito FROM users u
+                          WHERE u.allied_id IN (?) AND u.email REGEXP '^c[0-9a-f]{8}-fake@' ORDER BY u.id DESC`, [ids]);
+                    const byAllied = new Map<number, { email: string; cognito: boolean; branch: string }>();
+                    for (const x of advisors) if (!byAllied.has(x.allied_id))
+                        byAllied.set(x.allied_id, { email: x.email, cognito: !!Number(x.cognito), branch: x.email.slice(1, 9) });
+                    const fakeHashes = [...new Set([...byAllied.values()].map((v) => v.branch))];
+                    const lenders = new Map<string, number>((fakeHashes.length ? await query<{ hash: string; n: number }>(
+                        `SELECT ab.hash, COUNT(l.id) AS n FROM allied_branches ab
+                           LEFT JOIN lenders_by_allied_branches x ON x.allied_branch_id = ab.id
+                           LEFT JOIN lenders l ON l.id = x.lender_id AND l.status = 1
+                          WHERE ab.hash IN (?) GROUP BY ab.hash`, [fakeHashes]) : []).map((x) => [x.hash, Number(x.n)]));
+                    const ecommerce = new Map<number, { credentials: number; signing: number }>((await query<{ allied_id: number; credentials: number; signing: number }>(
+                        `SELECT ab.allied_id, COUNT(*) AS credentials, SUM(aec.signing_secret IS NOT NULL AND aec.signing_secret <> '') AS signing
+                           FROM allied_ecommerce_credentials aec JOIN allied_branches ab ON ab.id = aec.allied_branch_id
+                          WHERE ab.allied_id IN (?) GROUP BY ab.allied_id`, [ids])).map((x) => [x.allied_id, { credentials: Number(x.credentials), signing: Number(x.signing) }]));
+                    r = rows.map((x) => {
+                        const adv = byAllied.get(x.allied_id);
+                        return { ...x,
+                            advisor: adv ? { email: adv.email, cognito: adv.cognito, branch: adv.branch, branchLenders: lenders.get(adv.branch) ?? null } : null,
+                            ecommerce: ecommerce.get(x.allied_id) ?? { credentials: 0, signing: 0 } };
+                    });
+                }
+            }
             break;
         // La RADICACIÓN de una solicitud: el paso POSTERIOR al estado 11 que no lo mueve. Existe como
         // subcomando propio porque el panel lo pide por uReq —no por usuario— y porque sin él una corrida

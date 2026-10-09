@@ -370,6 +370,11 @@
     .row.missing[aria-disabled="true"] { opacity: .45; cursor: not-allowed }
     .row.missing[aria-disabled="true"]:hover { background: transparent }
     .row.unreachable .row-meta { color: var(--warn) }
+    /* No se puede probar por el canal elegido (falta asesor, entidades, credencial): el meta en ámbar, el motivo en el
+       tooltip con el comando que lo arregla. La fila se sigue eligiendo, para verla; la corrida no arranca. */
+    .row.not-ready .row-meta { color: var(--warn) }
+    .row.ready-note .row-meta { color: var(--fg-2) }
+    .row-actions .region-action[disabled] { opacity: .35; cursor: not-allowed }
     .add-row { margin-top: var(--space-2) }
 
     /* Las entidades cuelgan de la sucursal elegida, un nivel adentro. Sin caja propia: las separa la
@@ -1352,6 +1357,44 @@
       if (e && !openOnes.has(e.slug)) { openOnes.add(e.slug); renderMerchants(); }
     }
 
+    /**
+     * ¿SE PUEDE PROBAR ESTE COMERCIO, EN ESTE AMBIENTE, POR ESTE CANAL? Lo que antes se descubría al lanzar (Refurbi en qa,
+     * 2026-10-09: sin asesor de prueba, y ya creado, con su sucursal sin entidades). `block` frena la corrida y apaga el ▶;
+     * `note` sólo avisa. Cada motivo trae el comando que lo arregla. Sin datos (`readiness` null: midiendo, sin conexión o no
+     * está) no se afirma nada.
+     */
+    function advisorIssues(e) {
+      const r = e.readiness;
+      if (!r) return { block: [], note: [] };
+      const adminT = target === 'qa' ? 'dev' : target;   // qa no tiene admin: comparte base y pool con dev
+      if (target === 'local') {
+        if (r.lenders === 0) return { block: ['la sucursal no tiene entidades'], note: [] };
+        return { block: [], note: r.advisor ? [] : ['sin asesor de prueba en local: se trae de la base compartida al entrar'] };
+      }
+      if (!r.advisor) return { block: [`sin asesor de prueba en ${target} → bin/pg admin test-advisor --target ${adminT} --allied ${e.allied_id}`], note: [] };
+      if (!r.advisor.cognito) return { block: ['el asesor de prueba no tiene cuenta de Cognito: no puede entrar'], note: [] };
+      if (!r.advisor.branchLenders) return { block: [`la sucursal del asesor (${r.advisor.branch}) no tiene entidades → bin/pg admin branch-lenders --target ${adminT} --allied ${e.allied_id} --branch ${r.advisor.branch} --copy-from ${e.hash}`], note: [] };
+      return { block: [], note: [] };
+    }
+    function storeIssues(e, auto) {
+      const r = e.readiness;
+      if (!r) return { block: [], note: [] };
+      if (!r.ecommerce?.credentials) return { block: ['sin credencial de tienda (ecommerce): se crea desde el admin'], note: [] };
+      if (auto && !r.ecommerce.signing) return { block: [], note: [target === 'local'
+        ? `sin secreto de firma: el pedido no podrá ir firmado → docker exec legacy-backend-laravel.test-1 php artisan ecommerce:signing-secret ${e.hash}`
+        : 'sin secreto de firma: el pedido no podrá ir firmado'] };
+      return { block: [], note: [] };
+    }
+    function readinessOf(e) {
+      // Sólo si el comercio USA este canal: que Motai no tenga credencial de tienda no es algo que falte, es que no vende
+      // por tienda. Sin etiquetas todavía, se mide igual.
+      const channels = merchantTags[e.hash]?.canales;
+      if (channels && !channels.includes(channel)) return { block: [], note: [] };
+      if (channel === 'asesor') return advisorIssues(e);
+      if (channel === 'auto' || channel === 'ecommerce') return storeIssues(e, channel === 'auto');
+      return { block: [], note: [] };
+    }
+
     function renderMerchants() {
       const g = $('results');
       g.innerHTML = '';
@@ -1382,6 +1425,13 @@
           + (e.fav ? ' · agregado por vos' : ' · curado, vive en el código')
           + (absent ? ` · no se puede elegir: ${e.meta || `no está en ${target}`}` : '')
           + (e.unreachable ? ` · no se pudo comprobar si está en ${target} (¿VPN?)` : '');
+        const ready = absent ? { block: [], note: [] } : readinessOf(e);
+        if (ready.block.length || ready.note.length) {
+          rowEl.classList.add(ready.block.length ? 'not-ready' : 'ready-note');
+          const meta = rowEl.querySelector('.row-meta');
+          if (meta) meta.textContent = '⚠ ' + meta.textContent;
+          rowEl.title += `\n\n${ready.block.length ? `No se puede probar por ${channel} en ${target}` : 'Ojo'}:\n` + [...ready.block, ...ready.note].map((x) => '· ' + x).join('\n');
+        }
         rowEl.setAttribute('aria-selected', String(chosenOne));
         if (absent) rowEl.setAttribute('aria-disabled', 'true');
         rowEl.tabIndex = runRunning || absent ? -1 : 0;
@@ -1406,7 +1456,13 @@
         const acc = document.createElement('div');
         acc.className = 'row-actions';
         const label = e.alias || e.name;
-        if (!absent) acc.appendChild(rowAction('play', `Entrar a «${label}» como su asesor`, () => playMerchant(e)));
+        if (!absent) {
+          // El ▶ entra SIEMPRE como asesor, sea cual sea el canal elegido: se apaga si el asesor no puede entrar.
+          const advBlock = advisorIssues(e).block;
+          const play = rowAction('play', advBlock.length ? `No se puede entrar como asesor: ${advBlock[0]}` : `Entrar a «${label}» como su asesor`, () => playMerchant(e));
+          if (advBlock.length) { play.disabled = true; play.setAttribute('aria-disabled', 'true'); }
+          acc.appendChild(play);
+        }
         if (e.fav) acc.appendChild(rowAction('close', `Quitar «${label}» de tu espacio`, () => removeFav(e)));
         rowEl.appendChild(acc);
         g.appendChild(rowEl);
@@ -2797,6 +2853,7 @@
           // El árbol pide las sucursales con el `allied_id`, y compara el `hash` para saber cuál es la
           // DECLARADA —la única que se elige por slug, para no perder la resolución `por_target`—.
           if (b && !b.unreachable) { m.allied_id = b.allied_id; m.hash = b.hash; m.alias = b.alias || ''; }
+          m.readiness = b && !b.unreachable && !m.missing && 'advisor' in b ? { advisor: b.advisor, ecommerce: b.ecommerce, lenders: b.lenders } : null;
         }
       } catch {
         if (seq !== enrichSeq) return;
@@ -3091,7 +3148,7 @@
     let channelsFor = null;   // el comercio cuyos canales ya respondió el servidor
     /** Se esperan los canales de ESTE comercio: con los del anterior, un Corbeta abriría el asesor. */
     async function playMerchant(e) {
-      if (runRunning) return;
+      if (runRunning || advisorIssues(e).block.length) return;
       const same = sel && (sel.slug === e.slug || (e.hash && sel.slug === e.hash));
       if (!same) chooseEntry(e);
       setAdvisorMode('loading', ADVISOR_STEPS[0]);
@@ -3119,6 +3176,7 @@
     }
 
     function applyChannel() {
+      queueMicrotask(renderMerchants);   // lo que falta para probar depende del canal
       // El celular de la tienda sólo existe en los canales que entran por ella.
       // Y el del asesor, sólo donde hay asesor: por la tienda y en la autogestión el cliente va solo.
       const viaStore = channel === 'ecommerce' || channel === 'auto';
@@ -3302,6 +3360,12 @@
       if (runRunning) return;   // el botón es de startPoll mientras corre
       updateCaseSummary();
       const chosen = sel && spaceEntries().find((x) => x.slug === sel.slug || (x.hash && x.hash === sel.slug));
+      const blocked = chosen && !chosen.missing ? readinessOf(chosen).block : [];
+      if (blocked.length) {
+        $('go').disabled = true; setGoLabel('Falta algo');
+        $('runSummary').innerHTML = `<b>${escTxt(chosen.alias || chosen.name)}</b> no se puede probar por <b>${channel}</b> en <b>${target}</b>: ${escTxt(blocked[0])}`;
+        return;
+      }
       if (chosen?.missing) {
         $('go').disabled = true; setGoLabel('No está en ' + target);
         $('runSummary').innerHTML = `<b>${escTxt(chosen.alias || chosen.name)}</b> no está en <b>${target}</b>: elegí otro comercio o volvé a un ambiente donde exista`;
