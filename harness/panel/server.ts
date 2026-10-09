@@ -558,6 +558,32 @@ function watchFrontExceptions(id: DeviceId, target: string): void {
     };
     const timer = setInterval(poll, 60_000);
 }
+/**
+ * LA CATEGORÍA REAL POR ENTIDAD, DESDE LOS CELULARES. La predicción sólo corre en local, así que fuera de local la sección
+ * «Categoría por entidad» quedaba vacía aunque el motor ya hubiera decidido. Cuando el celular pasa el listado (cualquier
+ * pantalla de la solicitud que no sea la entrada), se lee lo que el motor registró (`dbops ureq-categories`, sólo
+ * lectura) y queda para `/api/status`; cada cambio va también a la consola. Sirve en todos los ambientes.
+ */
+let deviceCategories: { target: string; ureq: number; lenders: { lenderId: number; lender: string; category: string | null }[]; at: number } | null = null;
+function watchCategories(id: DeviceId, target: string): void {
+    const openedAt = deviceOpenedAt(id);
+    let lastKey = '';
+    watchNavigation(id, (u) => {
+        let path = '';
+        try { path = new URL(u).pathname; } catch { return; }
+        const m = /^\/[^/]+\/[^/]+\/(\d+)\/([^?]*)/.exec(path);
+        if (!m || /^(validando|inicio|personal-info|phone|otp|monto)?$/.test(m[2].split('/')[0])) return;   // antes del listado
+        const ureq = Number(m[1]);
+        void dbopsJson(['ureq-categories', String(ureq)], target).then((r) => {
+            if (deviceOpenedAt(id) !== openedAt || !Array.isArray(r?.lenders) || !r.lenders.length) return;
+            const key = `${ureq}|` + r.lenders.map((l: any) => `${l.lenderId}:${l.category}`).join(',');
+            if (key === lastKey) return;
+            lastKey = key;
+            deviceCategories = { target, ureq, lenders: r.lenders, at: Date.now() };
+            for (const l of r.lenders) deviceLog(id, `categoría registrada · ${l.lender}: ${l.category ?? 'ninguna'}`);
+        });
+    });
+}
 // Celulares ABRIÉNDOSE: entre cerrar el anterior y abrir el nuevo no hay ninguno «abierto», y un precalentado
 // que entrara justo ahí reiniciaría el wizard que el celular está por mostrar (pasó el 2026-10-06).
 let devicesOpening = 0;
@@ -2050,7 +2076,7 @@ connect();
                 const r = await openDevice('client', front.replace(/\/$/, '') + built.checkout_path, { autofill: caseAutofill(o) });
                 phase('celular');
                 deviceLog('panel', `tienda → cliente: ${phases.join(' · ')} (s)`);
-                rescueIdentity('client', t, phone); rescueDownPayment('client', t, phone); watchFrontExceptions('client', t);
+                rescueIdentity('client', t, phone); rescueDownPayment('client', t, phone); watchFrontExceptions('client', t); watchCategories('client', t);
                 return json(res, 200, { ok: true, hash: built.hash, merchant: built.merchant, scrubbed: scrub, ...otp, ...r });
             } catch (e) {
                 return json(res, 200, { ok: false, detail: `el celular no pudo abrir ${front}: ${(e as Error).message.split('\n')[0]}` });
@@ -2124,7 +2150,7 @@ connect();
                 // el CLIENTE sigue en su teléfono por `/self-service/{hash}/{ur}/confirmation`. Ese link se abre en
                 // el celular del cliente, como hace la ventana B de la corrida guiada. Sin scrub: es la MISMA
                 // solicitud; sí el bypass del OTP, porque la firma le pide código al cliente.
-                rescueIdentity('advisor', t); rescueDownPayment('advisor', t); watchFrontExceptions('advisor', t);
+                rescueIdentity('advisor', t); rescueDownPayment('advisor', t); watchFrontExceptions('advisor', t); watchCategories('advisor', t);
                 let handedOff = '';
                 watchNavigation('advisor', (u) => {
                     const m = /^(https?:\/\/[^/]+)\/merchant\/([^/]+)\/(\d+)\/(?:continue|confirmation)(?:[?#]|$)/.exec(u);
@@ -2140,7 +2166,7 @@ connect();
                             if (bp?.ok) deviceBypass.set('client', { target: t, puesto: bp.puesto });
                         }
                         await openDevice('client', link, { autofill: caseAutofill(b.order) })
-                            .then(() => { rescueIdentity('client', t); rescueDownPayment('client', t); watchFrontExceptions('client', t); })
+                            .then(() => { rescueIdentity('client', t); rescueDownPayment('client', t); watchFrontExceptions('client', t); watchCategories('client', t); })
                             .catch((e) => deviceLog('client', '✗ el traspaso no abrió: ' + (e as Error).message.split('\n')[0]));
                     })();
                 });
@@ -2256,6 +2282,7 @@ connect();
             code: current?.done ? current?.code : null,
             categories: current?.done ? (current?.categories ?? null) : null,
             categoryRead: current?.done ? (current?.categoryRead ?? null) : null,
+            deviceCategories,   // la categoría que registró el motor en la solicitud de un celular (ver `watchCategories`)
         };
         // Con `?from=N` va incremental (el cliente appendea). Sin él, el log recortado de siempre —
         // así cualquier consumidor viejo sigue funcionando igual.

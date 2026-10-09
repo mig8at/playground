@@ -1197,11 +1197,14 @@
     //
     // Si agregás un target, agregalo ACÁ. El default de `cap()` es el más restrictivo a propósito:
     // enumerar targets a mano fue lo que dejó a staging afuera del guard de escrituras cuando se sumó.
+    // `lambdaDictado`: el backend de ese ambiente le pregunta al lambda de centrales de la empresa y el panel se lo DICTA
+    // al abrir un celular (`dictateCompanyCase`). Es la lista de `COMPANY_LAMBDA` (pkg/risk-lambda.ts): si se suma un
+    // ambiente allá, se suma acá. Con él, el ingreso y la ocupación del caso son los de Agildata en Burós (F-149).
     const CAPS = {
-      local:   { flotaLocal: true  },
-      dev:     { flotaLocal: false },
-      staging: { flotaLocal: false },
-      qa:      { flotaLocal: false },
+      local:   { flotaLocal: true,  lambdaDictado: false },
+      dev:     { flotaLocal: false, lambdaDictado: false },
+      staging: { flotaLocal: false, lambdaDictado: false },
+      qa:      { flotaLocal: false, lambdaDictado: true  },
     };
     const cap = (k) => (CAPS[target] || CAPS.staging)[k];
 
@@ -1770,8 +1773,17 @@
     function inheritFromBureaus() {
       const income = $('income'), occ = $('occupation'), hint = $('incomeSource');
       if (!income || !occ || !hint) return;
-      const src = typeof target !== 'undefined' && target !== 'local' ? null : incomeResolver();
-      const quanto = bureauModes.experian === 'ok' ? Number(String(bureauValue('experian', 'quantoIncome') ?? 0).replace(/\D/g, '')) : 0;
+      // En un ambiente con lambda dictado el ingreso del caso ES el de Agildata: es lo único que se le dicta (y Quanto sale
+      // de ese mismo ingreso). Antes el campo quedaba editable en qa y no cambiaba nada (2026-10-09).
+      const remote = typeof target !== 'undefined' && target !== 'local';
+      const dictated = remote && cap('lambdaDictado');
+      const src = !remote ? incomeResolver() : dictated ? 'agildata' : null;
+      const quantoInput = $('bd-experian-quantoIncome');
+      if (quantoInput) {
+        quantoInput.disabled = dictated;
+        quantoInput.title = dictated ? `En ${target} Quanto sale del salario de Agildata: el lambda lo deriva de ese ingreso` : '';
+      }
+      const quanto = !dictated && bureauModes.experian === 'ok' ? Number(String(bureauValue('experian', 'quantoIncome') ?? 0).replace(/\D/g, '')) : 0;
       if (src) {
         if (declaredIncome === null) { declaredIncome = income.value; declaredOccupation = occ.value; }
         income.value = Number(String(bureauValue(src, 'income')).replace(/\D/g, '')).toLocaleString('es-CO');
@@ -1780,12 +1792,13 @@
         income.disabled = true; occ.disabled = src === 'agildata';
         hint.innerHTML = '';
         hint.append('Heredado de ', Object.assign(document.createElement('b'), { textContent: BUREAU_NAMES[src] }),
-          src === 'agildata' ? ' (ingreso y ocupación)' : ' (ingreso; la ocupación la deduce Mareigua)', ' · se cambia en Burós');
+          src === 'agildata' ? ' (ingreso y ocupación)' : ' (ingreso; la ocupación la deduce Mareigua)',
+          dictated ? `: es lo que se le dicta al lambda de ${target} · se cambia en Burós` : ' · se cambia en Burós');
       } else {
         if (declaredIncome !== null) { income.value = declaredIncome; occ.value = declaredOccupation; declaredIncome = declaredOccupation = null; }
         income.disabled = false; occ.disabled = false;
-        hint.textContent = typeof target !== 'undefined' && target !== 'local'
-          ? `En ${target} los burós son los del lambda: el ingreso lo da su respuesta.`
+        hint.textContent = remote
+          ? `En ${target} el panel no le dicta nada al lambda: el ingreso es el que conteste por defecto.`
           : 'Ninguna central da el ingreso: es lo que el cliente declara en el wizard.';
       }
       if (quanto > 0) hint.append(` Quanto lo pisa con ${moneyText(quanto)} (y Empleado) si el comercio dispara Experian.`);
@@ -3499,6 +3512,9 @@
     let categoryPrediction = null;     // la última respuesta del servidor
     let categoriesAtLaunch = null;     // la que había al lanzar
     let categoryActual = null;         // lo que registró el motor en la última corrida
+    let categoryActualFrom = null;     // de qué solicitud y ambiente salió, cuando vino de un celular (`deviceCategories`)
+    let categoryLastNote = '';          // la nota de la sección, para repintarla igual cuando llega la categoría real
+    let deviceCategoriesKey = '';
     let categoryRead = null;           // lo que el motor LEYÓ del usuario en esa corrida
     // Los datos que mueven la categoría, con el nombre de su perilla (o de lo que fija la inyección).
     const CATEGORY_INPUTS = { score: 'score', negativeReports12m: 'negativos 12m', currentDelinquencies: 'moras actuales',
@@ -3571,7 +3587,7 @@
     async function refreshCategories() {
       const box = $('categoryPreview'); if (!box || !sel) return;
       const seq = ++categorySeq;
-      if (target !== 'local') { categoryPrediction = null; return renderCategories('La predicción de categoría es sólo local: en dev y staging el simulador del backend pide un token de staff.'); }
+      if (target !== 'local') { categoryPrediction = null; return renderCategories(`La predicción es sólo local (en ${target} el simulador del backend pide un token de staff). Lo que registre el motor aparece acá cuando el celular pase el listado.`); }
       if (!inject) { categoryPrediction = null; return renderCategories('Sin inyección el buró lo contesta el mock de centrales, no estas perillas: la predicción no aplica.'); }
       box.setAttribute('aria-busy', 'true');
       try {
@@ -3588,6 +3604,7 @@
     // corrida— dónde cayó de verdad. Se escribe con textContent: los nombres vienen de la base.
     function renderCategories(note) {
       const box = $('categoryPreview'); if (!box) return;
+      if (typeof note === 'string') categoryLastNote = note; else note = categoryLastNote;
       box.replaceChildren();
       const lenders = categoryPrediction?.lenders || [];
       $('categoryCount').textContent = lenders.length ? String(lenders.length) : '';
@@ -3606,6 +3623,25 @@
           p.textContent = `En la corrida el motor leyó otros datos: ${diffs.join(' · ')}.`;
           box.appendChild(p);
         }
+      }
+      // SIN PREDICCIÓN (fuera de local) pero con lo que registró el motor: se muestra eso, que es lo que importa — qué
+      // categoría le dio cada entidad a esta solicitud en este ambiente.
+      if (!lenders.length && categoryActual?.length) {
+        $('categoryCount').textContent = String(categoryActual.length);
+        if (categoryActualFrom) {
+          const p = document.createElement('p'); p.className = 'category-note';
+          p.textContent = `Lo que registró el motor en la solicitud ${categoryActualFrom.ureq} (${categoryActualFrom.target}).`;
+          box.appendChild(p);
+        }
+        for (const c of categoryActual) {
+          const row = document.createElement('div'); row.className = 'row stacked category-row';
+          const head = document.createElement('span'); head.className = 'category-head';
+          const name = document.createElement('span'); name.className = 'row-name'; name.textContent = c.lender;
+          const cat = document.createElement('span'); cat.className = 'category-name' + (c.category ? '' : ' bad');
+          cat.textContent = c.category ?? 'sin categoría';
+          head.append(name, cat); row.appendChild(head); box.appendChild(row);
+        }
+        return;
       }
       const launched = new Map((categoriesAtLaunch?.lenders || []).map((l) => [l.id, l.category ?? null]));
       const actual = new Map((categoryActual || []).map((c) => [c.lenderId, c.category ?? null]));
@@ -4065,6 +4101,13 @@
         }
         renderActivity(j);
         followRunOnMap();
+        // La categoría que registró el motor en la solicitud de un celular: llega sola, sin corrida.
+        const dc = j.deviceCategories;
+        if (dc && dc.target === target && `${dc.ureq}|${dc.at}` !== deviceCategoriesKey) {
+          deviceCategoriesKey = `${dc.ureq}|${dc.at}`;
+          categoryActual = dc.lenders; categoryActualFrom = dc; categoryRead = null;
+          renderCategories();
+        }
         } catch {
           // Una desconexión no significa que terminó el proceso: conservá Detener y reintentá.
           $('runSummary').textContent = 'Sin conexión con el panel. Reintentando consultar la corrida…';

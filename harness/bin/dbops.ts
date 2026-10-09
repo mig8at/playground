@@ -468,6 +468,24 @@ try {
             r = { ok: true, lender_id: lenderId, status, affected: res.affectedRows, scope: 'global (lenders.status)' };
             break;
         }
+        case 'ureq-categories': { // SÓLO LECTURA: la categoría que el motor registró en cada entidad para una solicitud.
+            // La misma lectura que `bin/category.ts actual`, por solicitud y sin el simulador (que sólo corre en local): así
+            // el panel la muestra también en qa, donde no hay predicción. La ÚLTIMA evaluación de cada entidad es la que vale
+            // (confirmar el cupo la vuelve a evaluar). → {ureq, lenders: [{lenderId, lender, category}]}
+            const ureq = num(a[0]);
+            const rows = await query<{ lender_id: number; lender: string; category: string | null }>(
+                `SELECT g.lender_id, l.name AS lender, c.name AS category
+                   FROM user_requests ur
+                   JOIN users_category_log g ON g.user_id = ur.user_id
+                   JOIN lenders l ON l.id = g.lender_id
+                   LEFT JOIN lender_users_categories c ON c.id = g.lender_users_category_id
+                  WHERE ur.id = ?
+                  ORDER BY g.id`, [ureq]);   // por usuario y no por hora: el sintético es nuevo en cada corrida (ver category.ts)
+            const last = new Map<number, { lenderId: number; lender: string; category: string | null }>();
+            for (const x of rows) last.set(Number(x.lender_id), { lenderId: Number(x.lender_id), lender: x.lender, category: x.category ?? null });
+            r = { ureq, lenders: [...last.values()] };
+            break;
+        }
         case 'flow-id': // flow_id + status de un user_request (para asserts del flujo pre-aprobado/omit-experian)
             r = await one(
                 'SELECT id, flow_id AS flowId, user_request_status_id AS status FROM user_requests WHERE id = ?',
