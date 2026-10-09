@@ -17,8 +17,8 @@ jira_title: ""
 - [ ] Migrar un llamador a la vez a las funciones de escritura seguras cuando se modifique.
 - [ ] Migrar los specs de burós al lambda y conservar `source=lambda` como evidencia de participación.
 - [ ] Mantener asserts, transiciones y veredicto como reglas determinísticas.
-- [ ] Comprobar en qa el sidebar del panel: con Refurbi elegido y canal Asesor, la línea bajo la fila dice «el asesor entra por 6e377fa6 · 3 entidades»; Celucambio, DENTIX, Smart y BCP (Perú) salen con ⚠ y ▶ apagado, con el comando `bin/pg admin test-advisor` en el tooltip. Termina cuando las dos cosas se ven así. Depende de: Miguel — la VPN de dev.
-- [ ] Comprobar en qa que el panel trae las excepciones del front de PostHog a la consola del celular (`✗ PostHog …`) en una corrida que falle. Termina con una excepción real en la consola. Depende de: Miguel — la VPN de dev.
+- [x] Comprobar en qa el sidebar del panel: con Refurbi elegido y canal Asesor, la línea bajo la fila dice «el asesor entra por 6e377fa6 · 3 entidades»; Celucambio, DENTIX, Smart y BCP (Perú) salen con ⚠ y ▶ apagado, con el comando `bin/pg admin test-advisor` en el tooltip. Termina cuando las dos cosas se ven así. Depende de: Miguel — la VPN de dev.
+- [x] Comprobar en qa que el panel trae las excepciones del front de PostHog a la consola del celular (`✗ PostHog …`) en una corrida que falle. Termina con una excepción real en la consola. Depende de: Miguel — la VPN de dev.
 
 ## Sesiones compartidas
 
