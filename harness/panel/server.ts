@@ -19,9 +19,11 @@ import { credentialsFor } from '../../connectors/auth/env.ts';
 import { envData, type AutofillData } from '../pkg/autofill.ts';
 import { identityWithoutProviderNotice } from '../pkg/config.ts';
 import { openDevice, openDevices, setDeviceLogger, prewarmDevices, warmDevice, watchNavigation, watchRequests, deviceGoto, deviceReload, deviceText, deviceEval, deviceOpenedAt, deviceState, deviceShot, deviceInput, deviceTap, deviceAdvance, closeDevice, closeAllDevices, SELENIUM_BOXES, type DeviceId, type DeviceInput, type DeviceSession } from './devices.ts';
+import { vpnDev, type VpnStatus } from '../pkg/vpn.ts';
 import { homedir } from 'node:os';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
+let vpnCache: { at: number; data: VpnStatus } | null = null;
 const ROOT = resolve(HERE, '..');              // raíz de harness
 // El dueño de los mocks locales (`panel/mocks.ts`): los levanta al arrancar, los vigila y los expone por /api/mocks.
 const mockSupervisor = new MockSupervisor(ROOT);
@@ -889,10 +891,10 @@ async function runHeader(slug: string, p: Profile, t: string, inject: boolean, s
         `▶ CORRIDA · ${slug} (${t})`,
         row('canal', channel === 'ecommerce'
             ? 'ECOMMERCE — entra por URL base64 de la tienda (sin asesor)'
-            : channel === 'qr'
-            ? 'QR — caja de un comercio Corbeta, autogestión pura (sin asesor y SIN marketplace)'
             : channel === 'auto'
             ? 'AUTO — tienda con fecha de expedición: sólo el código, la cascada corre sola (/auto/…)'
+            : channel === 'qr'
+            ? 'QR — caja de un comercio Corbeta, autogestión pura (sin asesor y SIN marketplace)'
             : channel === 'autogestion'
             ? 'AUTOGESTIÓN — el cliente entra solo por /self-service (sin login, un solo dispositivo)'
             : 'ASESOR — login Cognito + wizard en /merchant'),
@@ -1025,14 +1027,14 @@ async function runHeader(slug: string, p: Profile, t: string, inject: boolean, s
 
 async function launch(slug: string, profile: Profile, target: string, inject: boolean, stepTarget: string, amount: number, paDelay: number, channel = 'asesor', skipExperian = false, front = 'auto'): Promise<{ ok: boolean; msg: string }> {
     if (current && !current.done) return { ok: false, msg: `ya hay una corrida activa (${current.slug}). Parala primero.` };
-    const t = TARGETS.has(target) ? target : 'local';
-    const step = ['monto', 'phone', 'personal-info', 'lenders'].includes(stepTarget) ? stepTarget : 'monto';
     // Un precalentado en curso está levantando SU wizard en :5174. Lanzar encima corría las dos a la vez:
     // la corrida bajaba el :5174, el precalentado lo volvía a tomar con OTRA carpeta, y Vite mandaba el
     // de la corrida a :5176 sin fallar (2026-10-06: el auto-onboarding corrió sobre el front de main).
     for (let i = 0; prebooting && i < 600; i++) await new Promise((r) => setTimeout(r, 500));
     // La corrida puede reiniciar el wizard de :5174: un celular abierto quedaría con la página cortada.
     for (const id of openDevices()) await releaseDevice(id);
+    const t = TARGETS.has(target) ? target : 'local';
+    const step = ['monto', 'phone', 'personal-info', 'lenders'].includes(stepTarget) ? stepTarget : 'monto';
     const amt = amount > 0 ? Math.round(amount) : 2_000_000; // monto solicitado (default 2M)
     const mode = inject ? 'manual + inyección de buró' : 'manual REAL (consulta buró real, sin inyección)';
     const jump = step === 'monto' ? '' : ` · salto → ${step}`;
@@ -1234,6 +1236,14 @@ const server = createServer(async (req, res) => {
         if (!existsSync(f)) return json(res, 500, { error: `falta panel${path}` });
         res.writeHead(200, { 'content-type': 'text/css; charset=utf-8', 'cache-control': 'no-store' });
         return res.end(readFileSync(f, 'utf8'));
+    }
+
+    // ¿Está prendida la VPN de dev? Los ambientes que no son local no se alcanzan sin ella, y el panel
+    // deshabilita esos botones con el motivo (ver `applyVpn` en index.html). Cacheado unos segundos: es una
+    // resolución de nombres y el panel lo consulta en un intervalo.
+    if (path === '/api/vpn') {
+        if (!vpnCache || Date.now() - vpnCache.at > 5000) vpnCache = { at: Date.now(), data: await vpnDev() };
+        return json(res, 200, vpnCache.data);
     }
 
     // Estado de la sesión Cognito precargada (dot verde/gris en los botones de ambiente). Chequeo REAL

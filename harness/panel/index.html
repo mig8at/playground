@@ -4048,6 +4048,33 @@
         : 'Este target usa el microservicio real de pre-aprobados: el mock no corre y su demora no aplica.';
     }
 
+    // ── VPN de dev: sin ella sólo `local` alcanza ─────────────────────────────────────────────────────
+    // dev, qa y staging comparten una base y unos servicios internos que sólo se ven por esa VPN. Con ella
+    // apagada la corrida muere en su primer paso y el síntoma no dice por qué (2026-09-29), así que esos
+    // botones se APAGAN —con su motivo, no se esconden— hasta que el servidor vuelva a resolver el nombre.
+    // Si estabas parado en uno cuando cayó, volvés a local (salvo en plena corrida: ahí no se toca).
+    const TARGET_TITLES = {};
+    document.querySelectorAll('#targets .toggle').forEach((b) => { TARGET_TITLES[b.dataset.t] = b.title; });
+    let vpnUp = null;   // null = todavía no se sabe: no se bloquea nada hasta tener respuesta
+    function applyVpn(v) {
+      const down = v && v.arriba === false;
+      vpnUp = v ? v.arriba : null;
+      document.querySelectorAll('#targets .toggle').forEach((b) => {
+        if (b.dataset.t === 'local') return;
+        b.disabled = !!down;
+        b.title = down ? 'Sin la VPN de dev: ' + b.dataset.t + ' comparte la base y los servicios de dev, y no se alcanzan. Prendé la VPN. (' + v.detalle + ')' : (TARGET_TITLES[b.dataset.t] || '');
+      });
+      if (down && target !== 'local' && !runRunning) {
+        const loc = document.querySelector('#targets .toggle[data-t="local"]');
+        if (loc) loc.click();
+      }
+    }
+    async function checkVpn() {
+      try { applyVpn(await (await fetch('/api/vpn')).json()); } catch { /* el panel mismo no responde: no se toca nada */ }
+    }
+    checkVpn();
+    setInterval(checkVpn, 10000);
+
     // ── DESFASES: lo que hace fallar una corrida sin ser del flujo ──────────────────────────────────────────────
     // Tres, y los tres ya costaron una tarde el 2026-10-08: el panel corriendo código de antes de un cambio, el front
     // local sirviendo una rama sin el auto-onboarding (cae al ecommerce normal sin decir nada), y el ambiente remoto
@@ -4104,12 +4131,12 @@
     checkPanelVersion();
     setInterval(checkPanelVersion, 30_000);
     setInterval(() => checkEnvDrift(), 5 * 60_000);
-      checkEnvDrift();            // el desfase es de ESTE ambiente: migraciones y rutas del mock
 
     document.querySelectorAll('#targets .toggle').forEach(b => b.onclick = () => {
       target = b.dataset.t;
       document.querySelectorAll('#targets .toggle').forEach(p => p.classList.toggle('on', p.dataset.t === target));
       syncHeader();
+      checkEnvDrift();            // el desfase es de ESTE ambiente: migraciones y rutas del mock
       updateInjModeForTarget();   // en local no hay Real (sin OTP/burós)
       renderBureaus();            // fuera de local los estados de los burós no se ofrecen
       loadFront();                // qué fronts tiene ESTE target (y default: el desplegado si existe)
