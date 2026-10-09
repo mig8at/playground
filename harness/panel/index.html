@@ -369,7 +369,7 @@
     /* No está en este ambiente: se ve, no se elige. Sin conexión: el aviso en el meta, la fila sigue elegible. */
     .row.missing[aria-disabled="true"] { opacity: .45; cursor: not-allowed }
     .row.missing[aria-disabled="true"]:hover { background: transparent }
-    .row.unreachable .row-meta { color: var(--warn) }
+    .list-note.warn { color: var(--warn) }
     /* No se puede probar por el canal elegido (falta asesor, entidades, credencial): el meta en ámbar, el motivo en el
        tooltip con el comando que lo arregla. La fila se sigue eligiendo, para verla; la corrida no arranca. */
     .row.not-ready .row-meta { color: var(--warn) }
@@ -1434,6 +1434,18 @@
       g.innerHTML = '';
 
       const entries = spaceEntries();
+      // SIN CONEXIÓN, UNA VEZ: si la base del ambiente no contesta, se dice arriba y no en cada fila. Las filas siguen
+      // elegibles y con su hash: no se sabe si están, y decir que no estarían sería mentir (ver `enrichMerchants`).
+      const lost = entries.filter((e) => e.unreachable).length;
+      if (lost) {
+        const note = document.createElement('p');
+        note.className = 'list-note warn';
+        note.id = 'merchantsOffline';
+        const where = target === 'local' ? 'la base local: ¿está arriba Docker?' : `${target}: ¿está prendida la VPN de dev?`;
+        note.textContent = `Sin conexión a ${where} No se pudo comprobar qué comercios están ni si se pueden probar.`;
+        note.title = `${lost} de ${entries.length} comercios sin comprobar. Al volver la conexión, cambiá de ambiente o recargá para medir de nuevo.`;
+        g.appendChild(note);
+      }
       // Por país: Colombia primero (es casi todo), después el resto por nombre, y lo que no tiene país al final.
       // Los que NO están en este ambiente van juntos al final, deshabilitados: se ven (para saber que existen en otro)
       // pero no se eligen. Su clave de grupo no choca con un país.
@@ -1454,7 +1466,7 @@
         // «Comercio» a la derecha). El icono es el de comercio (`store`): cada fila es una sucursal.
         const absent = !!e.missing;
         const rowEl = treeRow([absent ? 'missing' : '', e.unreachable ? 'unreachable' : ''].filter(Boolean).join(' '), 0, 'merchant',
-          escTxt(e.alias || e.name), absent || e.unreachable || e.meta === '…' ? (e.meta || '') : (e.hash || '…'));
+          escTxt(e.alias || e.name), absent || e.meta === '…' ? (e.meta || '') : (e.hash || '…'));
         rowEl.title = `${e.alias || e.name}${e.hash ? ` · sucursal ${e.hash}` : ''}`
           + (e.fav ? ' · agregado por vos' : ' · curado, vive en el código')
           + (absent ? ` · no se puede elegir: ${e.meta || `no está en ${target}`}` : '')
@@ -2877,7 +2889,8 @@
         for (const m of all) {
           const b = info[m.slug];
           if (b && b.alias) m.alias = b.alias;
-          if (b && b.unreachable) { m.meta = `${b.hash || ''} · sin conexión a ${target}`.trim(); m.unreachable = true; }
+          // Sin conexión: el hash que se DECLARA para este ambiente (`.flows.json`) sí se sabe; si existe en la base, no.
+          if (b && b.unreachable) { if (b.hash) m.hash = b.hash; m.meta = ''; m.unreachable = true; }
           else if (!b || b.sinFlows) { m.meta = '— sin branch_hash en .flows.json'; m.missing = true; }
           else if (!b.allied_name) { m.meta = `${b.hash} — no está en ${target}`; m.missing = true; }
           // Resuelto por NOMBRE porque el hash declarado no existe en este ambiente. Se avisa: la
