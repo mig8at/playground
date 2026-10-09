@@ -1853,7 +1853,14 @@ const server = createServer(async (req, res) => {
     if (path === '/api/launch' && req.method === 'POST') {
         const b = await readBody(req);
         if (!b.slug) return json(res, 400, { ok: false, msg: 'falta slug del comercio' });
-        return json(res, 200, await launch(String(b.slug), {
+        // ⚠ CON LAMBDA DICTADO (qa) la corrida hace lo que el caminador: le DICTA el caso al lambda y NO siembra el buró.
+        // Sembrar hacía que Experian saliera de caché y el lambda no se consultara (así se tapó un 404 durante cuatro
+        // corridas), y sin sembrar nadie le dictaba nada: Agildata contestaba «sin empleo» y Burós no se usaba (2026-10-09).
+        const launchTarget = String(b.target || 'local');
+        const { COMPANY_LAMBDA } = await import('../pkg/risk-lambda.ts');
+        const dictated = !!COMPANY_LAMBDA[launchTarget];
+        const dictation = dictated && b.order ? await dictateCompanyCase(b.order, launchTarget) : null;
+        const launched = await launch(String(b.slug), {
             income: Number(b.income) || undefined,
             score: Number(b.score) || undefined,
             name: b.name ? String(b.name) : undefined,
@@ -1869,7 +1876,9 @@ const server = createServer(async (req, res) => {
             dob: b.dob ? String(b.dob) : undefined,
             expeditionDate: b.expeditionDate ? String(b.expeditionDate) : undefined,
             email: b.email ? String(b.email) : undefined,
-        }, String(b.target || 'local'), b.inject !== false, String(b.stepTarget || 'monto'), Number(b.amount) || 0, Number(b.paDelay) || 0, String(b.canal || 'asesor'), !!b.omitExperian, String(b.front || 'auto')));
+        }, launchTarget, dictated ? false : b.inject !== false, String(b.stepTarget || 'monto'), Number(b.amount) || 0, Number(b.paDelay) || 0, String(b.canal || 'asesor'), dictated ? false : !!b.omitExperian, String(b.front || 'auto'));
+        if (launched.ok && dictation) deviceLog('panel', `burós dictados al lambda (${dictation.detalle}): ${(dictation.burós || []).join(' · ')}`);
+        return json(res, 200, launched);
     }
 
     // Qué frontend puede usar este target: `ambiente` vacío = no tiene deploy configurado (su E2E_BASE_URL

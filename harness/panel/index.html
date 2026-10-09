@@ -3717,6 +3717,7 @@
         }
       }
       const body = {
+        order: caseStore.read(),   // el caso entero: con lambda dictado, el servidor se lo dicta antes de lanzar
         slug: sel.slug, target, inject, canal: channel, front: frontMode, stepTarget: step, amount: moneyNum('amount'), paDelay: paDelay, documentType: doctype, gender,
         omitExperian: inject && step === 'lenders' && $('quota').checked,   // "Cupo ya confirmado": firma el flujo en el seed (solo salto a Lenders sintético)
         name: $('name').value.trim(), document: $('document').value.trim(),
@@ -4523,10 +4524,17 @@
 
     function updateInjModeForTarget() {
       const realBtn = document.querySelector('#injectOptions button[data-i="0"]');
+      const injBtn = document.querySelector('#injectOptions button[data-i="1"]');
       const realOk = target !== 'local';
       realBtn.disabled = !realOk;
       realBtn.title = realOk ? '' : 'Sin inyección no está disponible en local: requiere los servicios configurados en otro ambiente.';
       if (!realOk) inject = true;   // local → Sintético obligado
+      // Con lambda dictado (qa) no se siembra: el servidor le dicta el caso al lambda (lo de Burós) y la corrida lo consulta.
+      // Sembrar dejaba a Experian en caché y el lambda sin consultar, sin avisar (ver `/api/launch`).
+      const dictated = cap('lambdaDictado');
+      injBtn.disabled = dictated;
+      injBtn.title = dictated ? `En ${target} no se siembra: al lanzar se le dicta el caso (Burós) al lambda y la corrida lo consulta de verdad` : '';
+      if (dictated) inject = false;
       applyInjMode();
       applyChannel();
     }
