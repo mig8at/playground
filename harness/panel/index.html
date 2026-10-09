@@ -370,6 +370,10 @@
     .row.missing[aria-disabled="true"] { opacity: .45; cursor: not-allowed }
     .row.missing[aria-disabled="true"]:hover { background: transparent }
     .list-note.warn { color: var(--warn) }
+    .row-chips { display: flex; flex: none; gap: 2px }
+    .row-chips .badge { cursor: pointer; padding: 0 4px }
+    .row-chips .badge-ghost:hover { color: var(--foreground) }
+    .row[aria-disabled="true"] .row-chips { display: none }
     /* No se puede probar por el canal elegido (falta asesor, entidades, credencial): el meta en ámbar, el motivo en el
        tooltip con el comando que lo arregla. La fila se sigue eligiendo, para verla; la corrida no arranca. */
     .row.not-ready .row-meta { color: var(--warn) }
@@ -1398,6 +1402,12 @@
       return { block: [], note: [] };
     }
 
+    /** El orden y el rótulo de los canales en las filas del sidebar: el corto en el chip, el largo en el tooltip. Van acá y
+     *  no junto a `CHANNEL_LABELS` porque el sidebar se dibuja antes de que el script llegue allá. */
+    const CHANNEL_ORDER = ['asesor', 'autogestion', 'ecommerce', 'auto', 'qr'];
+    const CHANNEL_SHORT = { asesor: 'A', autogestion: 'AG', ecommerce: 'T', auto: 'Au', qr: 'QR' };
+    const CHANNEL_LONG = { asesor: 'Asesor', autogestion: 'Autogestión', ecommerce: 'Tienda online', auto: 'Auto (tienda)', qr: 'QR en caja' };
+
     /**
      * LA LÍNEA BAJO EL COMERCIO ELEGIDO. Dos cosas que la fila no puede decir:
      *  · POR DÓNDE ENTRA EL ASESOR. Fuera de local no entra por la sucursal de la fila sino por la suya de prueba
@@ -1471,6 +1481,27 @@
           + (e.fav ? ' · agregado por vos' : ' · curado, vive en el código')
           + (absent ? ` · no se puede elegir: ${e.meta || `no está en ${target}`}` : '')
           + (e.unreachable ? ` · no se pudo comprobar si está en ${target} (¿VPN?)` : '');
+        // LOS CANALES DEL COMERCIO, a la vista: cuál sirve para lo que querés probar sin elegirlo primero. El elegido arriba
+        // va resaltado; un clic en otro elige el comercio Y ese canal. Sin etiquetas todavía, no se dibuja nada.
+        const chs = absent ? null : merchantTags[e.hash]?.canales;
+        if (chs?.length) {
+          const box = document.createElement('div');
+          box.className = 'row-chips';
+          for (const c of CHANNEL_ORDER.filter((x) => chs.includes(x))) {
+            const chip = document.createElement('span');
+            chip.className = 'badge badge-xs ' + (c === channel ? 'badge-outline' : 'badge-ghost');
+            chip.textContent = CHANNEL_SHORT[c];
+            chip.title = `${CHANNEL_LONG[c]}${c === channel ? ' · el canal elegido' : ' · clic: elegir este comercio con este canal'}`;
+            chip.onclick = (ev) => {
+              ev.stopPropagation();
+              if (runRunning) return;
+              if (!chosenOne) chooseEntry(e);
+              document.querySelector(`#channelOptions button[data-c="${c}"]`)?.click();
+            };
+            box.appendChild(chip);
+          }
+          rowEl.querySelector('.row-name').after(box);
+        }
         const ready = absent ? { block: [], note: [] } : readinessOf(e);
         if (ready.block.length || ready.note.length) {
           rowEl.classList.add(ready.block.length ? 'not-ready' : 'ready-note');
