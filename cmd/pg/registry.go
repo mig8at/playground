@@ -63,6 +63,8 @@ func init() {
 		{Name: "canon tables", Summary: "las tablas de la base de canon: esquema, nombre y filas estimadas (incluye los esquemas de las galaxias)",
 			Usage: "pg canon tables --target local|prod [--json]", run: runCanonTables,
 			Params: []param{canonTarget(), boolean("json", "las tablas en JSON")}},
+		{Name: "canon yo", Summary: "con qué identidad te ve canon de prod: la sesión del playground (PLAYGROUND_SESION), no la cookie de Google; sin ella no abren las rutas de dueño",
+			Usage: "pg canon yo [--json]", run: runCanonWhoami, Params: []param{boolean("json", "la identidad en JSON")}},
 		{Name: "canon config", Summary: "qué base de canon atiende el ambiente y qué credenciales faltan, sin la contraseña ni abrir conexión",
 			Usage: "pg canon config --target local|prod", run: runCanonConfig, Params: []param{canonTarget()}},
 		{Name: "logs", Summary: "líneas de Loki del ambiente, legibles o en JSON",

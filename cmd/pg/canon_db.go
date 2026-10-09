@@ -151,3 +151,27 @@ func runCanonConfig(args []string) int {
 		"hasCredentials": len(cfg.Missing()) == 0, "missing": cfg.Missing(), "file": file, "readOnly": true,
 	})
 }
+
+// runCanonWhoami: quién ve canon detrás de la sesión del playground. No es la base: es la API, por eso no lleva --target.
+func runCanonWhoami(args []string) int {
+	fs := flag.NewFlagSet("canon yo", flag.ContinueOnError)
+	asJSON := fs.Bool("json", false, "")
+	if err := fs.Parse(args); err != nil {
+		return 2
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
+	defer cancel()
+	who, err := canon.New(canon.URL()).Whoami(ctx)
+	if err != nil {
+		return fail(1, "%v", err)
+	}
+	if *asJSON {
+		return writeJSON(who)
+	}
+	if !who.Authenticated {
+		fmt.Println("canon no sabe quién sos: falta PLAYGROUND_SESION en connectors/.env.prod, o no es la cookie playground_sesion vigente")
+		return 1
+	}
+	fmt.Printf("%s · %s · puede corregir: %v\n", who.Email, who.Name, who.CanCorrect)
+	return 0
+}

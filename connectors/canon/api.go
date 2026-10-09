@@ -482,3 +482,19 @@ func (c *Client) callOn(ctx context.Context, client *http.Client, method, path s
 		return nil
 	}
 }
+
+// Identity es quién ve canon detrás de la sesión del playground (`/api/yo`). Sin sesión válida, Authenticated
+// es false: la cookie de Google sola no identifica.
+type Identity struct {
+	Authenticated bool   `json:"autenticado"`
+	Email         string `json:"correo"`
+	Name          string `json:"nombre"`
+	CanCorrect    bool   `json:"puede_corregir"`
+}
+
+// Whoami le pregunta a canon con qué identidad lo ve este cliente.
+func (c *Client) Whoami(ctx context.Context) (Identity, error) {
+	var out Identity
+	err := c.call(ctx, http.MethodGet, "/api/yo", nil, "", &out)
+	return out, err
+}
