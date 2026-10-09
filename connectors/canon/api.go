@@ -303,12 +303,21 @@ type CloneState struct {
 
 // Clones dice, por repo, a qué commit de main está el clon del servidor. Si main avanzó después, la ronda del
 // servidor no ve el cambio hasta que el clon se refresque (`SyncClones`).
+// Es de nivel admin: sin la llave canon contesta un error, y leerlo como lista vacía decía «no hay clones».
 func (c *Client) Clones(ctx context.Context) ([]CloneState, error) {
-	var raw map[string]any
-	if err := c.call(ctx, http.MethodGet, "/api/clones", nil, "", &raw); err != nil {
+	key, err := WriteKey()
+	if err != nil {
 		return nil, err
 	}
-	list, _ := raw["repos"].([]any)
+	var raw map[string]any
+	if err := c.call(ctx, http.MethodGet, "/api/clones", nil, key, &raw); err != nil {
+		return nil, err
+	}
+	list, ok := raw["repos"].([]any)
+	if !ok {
+		detail, _ := json.Marshal(raw)
+		return nil, fmt.Errorf("canon no devolvió los clones: %s", detail)
+	}
 	out := make([]CloneState, 0, len(list))
 	for _, entry := range list {
 		item, ok := entry.(map[string]any)

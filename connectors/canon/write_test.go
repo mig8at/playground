@@ -155,9 +155,10 @@ func TestPatchExplainsARefusal(t *testing.T) {
 }
 
 func TestClonesReadsTheCommitOfEachRepo(t *testing.T) {
+	t.Setenv("CANON_WRITE_KEY", "llave-de-prueba")
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path != "/api/clones" {
-			t.Errorf("ruta = %s", r.URL.Path)
+		if r.URL.Path != "/api/clones" || r.Header.Get("Authorization") != "Bearer llave-de-prueba" {
+			t.Errorf("pedido inesperado: %s sin la llave de admin", r.URL.Path)
 		}
 		_, _ = w.Write([]byte(`{"repos":[{"repo":"Creditop-SAS/legacy-backend","commit":"29226e81764b","estado":"al_dia"},{"repo":"Creditop-SAS/infrastructure","commit":"3cbeaab21fd7","estado":"al_dia"}]}`))
 	}))
@@ -169,6 +170,20 @@ func TestClonesReadsTheCommitOfEachRepo(t *testing.T) {
 	}
 	if len(clones) != 2 || clones[0].Repo != "Creditop-SAS/legacy-backend" || clones[0].Commit != "29226e81764b" || clones[0].State != "al_dia" {
 		t.Fatalf("clones = %+v", clones)
+	}
+}
+
+func TestClonesSaysWhyInsteadOfAnEmptyList(t *testing.T) {
+	t.Setenv("CANON_WRITE_KEY", "llave-de-prueba")
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusForbidden)
+		_, _ = w.Write([]byte(`{"error":"hace falta nivel admin"}`))
+	}))
+	defer server.Close()
+
+	clones, err := New(server.URL).Clones(context.Background())
+	if err == nil || !strings.Contains(err.Error(), "hace falta nivel admin") {
+		t.Fatalf("un rechazo no puede leerse como «sin clones»: %+v, %v", clones, err)
 	}
 }
 
