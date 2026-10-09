@@ -497,5 +497,55 @@
         "nota": "⚠⚠ SU LOADER CANCELA: no es una pantalla que informe una cancelación ya ocurrida, la PRODUCE (`CancelLoanRequestUc` en el loader). Es el mecanismo de F-50 — el front cancelaba con el backend haciendo todo bien. ⚠ Y no siempre dispara: si quien llega es el CODEUDOR no cancela, porque el servicio cancela la solicitud del TITULAR. ⚠ Vive en `terminales` y no en el tronco ni en un ramal a propósito: se llega desde varios puntos distintos, así que dibujarla en una secuencia diría que todo el mundo pasa por acá."
       }
     ]
+  },
+  "entradas": {
+    "_comentario": "Entradas por CANAL: reemplazan el principio del tronco (monto → teléfono → OTP → identidad) y se unen a él en `hasta`. El mapa dibuja sólo la del canal elegido. Un paso con `rama` existe en esa rama de su repo y no (todavía) en main: `steps-check` lo valida contra origin/<rama>.",
+    "auto": {
+      "label": "Auto-onboarding (tienda)",
+      "canal": "auto",
+      "cuando": "La tienda manda el pedido firmado (MerchantOrderSignatureService): la sesión entra sin OTP y validando corre las centrales con los datos del pedido. Si no validan, cae a personal-info con ?validacion=fallida.",
+      "hasta": "lenders",
+      "pasos": [
+        {
+          "id": "checkout",
+          "label": "Checkout",
+          "ruta": "/ecommerce/{hash}/checkout",
+          "rama": "qa",
+          "front": [
+            "apps/loan-request-wizard/app/routes/ecommerce/checkout.tsx"
+          ],
+          "detalle": "La tienda abre el wizard con el pedido (base64) y, si viene firmado, lo deriva a /auto"
+        },
+        {
+          "id": "auto-inicio",
+          "label": "Inicio",
+          "ruta": "/auto/{hash}/inicio",
+          "rama": "qa",
+          "front": [
+            "apps/loan-request-wizard/app/routes/auto-onboarding/start.tsx",
+            "apps/loan-request-wizard/app/server/services/auto-onboarding-session.server.ts"
+          ],
+          "back": [
+            "Modules/Onboarding/App/Http/Controllers/OnboardingController.php",
+            "Modules/Onboarding/App/Services/MerchantOrderSignatureService.php"
+          ],
+          "detalle": "Entra con el pedido firmado (merchant-verified) y crea la solicitud sin pedir el código"
+        },
+        {
+          "id": "auto-validando",
+          "label": "Validando",
+          "ruta": "/auto/{hash}/{ur}/validando",
+          "rama": "qa",
+          "front": [
+            "apps/loan-request-wizard/app/routes/auto-onboarding/verifying.tsx",
+            "apps/loan-request-wizard/app/server/services/ecommerce-context.server.ts"
+          ],
+          "back": [
+            "Modules/Onboarding/App/Http/Controllers/OnboardingController.php"
+          ],
+          "detalle": "Guarda los datos del pedido y corre las centrales; si validan va al listado, si no a personal-info"
+        }
+      ]
+    }
   }
 }

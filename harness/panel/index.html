@@ -2786,6 +2786,22 @@
         nodes.appendChild(el('text', { class: 'lane-sub', x: (X(a) + X(z)) / 2, y: yb + 16, 'text-anchor': 'middle' }, b.label));
       }
 
+      // ── LA ENTRADA DEL CANAL (`steps.json` → entradas): reemplaza el principio del tronco y se une a él en `hasta`. Va
+      // ARRIBA del tronco y sólo la del canal elegido: el auto-onboarding entra por checkout → inicio → validando y llega
+      // al listado sin pasar por monto, teléfono, OTP ni identidad. Sin esto el mapa no tenía dónde marcar ese tramo.
+      const entry = Object.entries(STEPS.entradas || {}).find(([k, e]) => !k.startsWith('_') && e && (e.canal === channel || k === channel))?.[1];
+      let topY = Y0 - 40;   // el borde de arriba del encuadre: sube si hay entrada
+      if (entry && idxT[entry.hasta] != null && entry.pasos?.length) {
+        const YE = Y0 - 90, last = entry.pasos.length - 1;
+        topY = YE - 40;
+        rails.appendChild(rail(`M ${X(0)} ${YE} L ${X(last)} ${YE}`, COLOR.tronco));
+        rails.appendChild(rail(curve(X(last), YE, X(idxT[entry.hasta]), Y0), COLOR.tronco));
+        entry.pasos.forEach((p, i) => nodes.appendChild(nodeSVG(p, X(i), YE, COLOR.tronco)));
+        const tag = el('text', { class: 'lane-sub', x: X(0) - 10, y: YE - 22 }, entry.label);
+        tag.appendChild(el('title', {}, entry.cuando || ''));
+        nodes.appendChild(tag);
+      }
+
       // ── UN CARRIL POR CAMINO REAL ────────────────────────────────────────────────────────────────
       // UN CARRIL POR RECORRIDO, no por entidad. Dos entidades del mismo producto recorren exactamente
       // las mismas pantallas — es la misma razón por la que el COLOR va por producto y no por lender.
@@ -2850,7 +2866,7 @@
         maxX = Math.max(maxX, xs[xs.length - 1]); maxY = Math.max(maxY, y + 46);
       });
 
-      frame(maxX + 110, Y0 - 40, maxY);
+      frame(maxX + 110, topY, maxY);
     }
 
     // ── cámara: arrastrar · rueda = zoom · doble clic = encuadrar ────────────────────────────────
@@ -3266,6 +3282,7 @@
 
     function applyChannel() {
       queueMicrotask(renderMerchants);   // lo que falta para probar depende del canal
+      queueMicrotask(() => { renderTrain(); followRunOnMap(); });   // y la entrada del mapa también
       // El celular de la tienda sólo existe en los canales que entran por ella.
       // Y el del asesor, sólo donde hay asesor: por la tienda y en la autogestión el cliente va solo.
       const viaStore = channel === 'ecommerce' || channel === 'auto';
@@ -3388,6 +3405,7 @@
       // pero sí entra al índice: sirve para RECONOCER dónde está la corrida aunque no haya nodo que
       // marcar. Sin esto, `request-canceled` volvía a leerse como «ruta desconocida».
       join(STEPS.terminales && STEPS.terminales.pasos);
+      for (const [k, e] of Object.entries(STEPS.entradas || {})) if (!k.startsWith('_')) join(e && e.pasos);
       FLAT_STEPS = out;
       return out;
     }
@@ -3418,7 +3436,10 @@
         // y el separador queda PEGADO —`…/abaco/platform-otp-validation│`—, así que `\S+` se lo tragaba y
         // esa ruta no matcheaba ninguna plantilla. Lo destapó la primera corrida real: las rutas cortas
         // andaban y las largas no, que es el peor modo de falla porque parece funcionar.
-        const m = /^[\s▸]*(\d{2})\s+(?:[AB]\s+)?([^\s│]+)/.exec(logLines[i]);
+        // Y las de los CELULARES, que escriben otro formato: `  15:00:55 [cliente] → /auto/<hash>/<ureq>/validando`. Sin
+        // esto el mapa no se movía en ningún recorrido de la tienda ni del asesor por el panel (2026-10-09).
+        const m = /^[\s▸]*(\d{2})\s+(?:[AB]\s+)?([^\s│]+)/.exec(logLines[i])
+          || /^\s*\d{1,2}:\d{2}:\d{2} \[(?:cliente|asesor )\] (→) (\/\S+)/.exec(logLines[i]);
         if (!m) continue;
         const id = routeStep(m[2]);
         if (id) { markStepOnMap(id); return id; }

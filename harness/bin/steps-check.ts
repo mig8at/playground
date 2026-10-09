@@ -12,6 +12,7 @@
 // Sale 1 si alguna ruta no resuelve, así se puede encadenar.
 
 import { readFileSync, existsSync } from 'node:fs';
+import { execFileSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { dirname, resolve, join } from 'node:path';
 import { homedir } from 'node:os';
@@ -22,7 +23,7 @@ const REPOS: Record<string, string> = {
     back: join(homedir(), 'Desktop/CREDITOP/github/legacy-backend'),
 };
 
-type Step = { id: string; label: string; ruta?: string; front?: string[]; back?: string[]; nota?: string };
+type Step = { id: string; label: string; ruta?: string; front?: string[]; back?: string[]; nota?: string; rama?: string };
 type Segment = { label: string; cuando?: string; pasos: Step[] };
 type StepMap = {
     tronco: Step[];
@@ -33,7 +34,17 @@ type StepMap = {
     bypass?: Array<{ label: string; cuando?: string; desde: string; hasta: string }>;
     /** ni desvío ni ramal: CONTINÚAN después de un terminal (ej. la radicación SOAP de Credifamilia) */
     extensiones?: Record<string, Segment & { desde: string }>;
+    /** entradas por CANAL: reemplazan el principio del tronco y se unen a él en `hasta` (ej. el auto-onboarding) */
+    entradas?: Record<string, Segment & { canal: string; hasta: string }>;
 };
+
+/** ¿Existe el archivo? En el working tree del repo o, si el paso declara `rama` (existe ahí y todavía no en main), en
+ *  `origin/<rama>`: sacado en main, el working tree no lo tiene y el paso se leería roto. */
+function exists(repo: string, path: string, branch?: string): boolean {
+    if (!branch) return existsSync(join(REPOS[repo], path));
+    try { execFileSync('git', ['-C', REPOS[repo], 'cat-file', '-e', `origin/${branch}:${path}`], { stdio: 'ignore' }); return true; }
+    catch { return false; }
+}
 
 const stepMap: StepMap = JSON.parse(readFileSync(join(ROOT, 'panel', 'steps.json'), 'utf8'));
 const jsonOut = process.argv.includes('--json');
@@ -46,7 +57,7 @@ function review(segment: string, steps: Step[]) {
         for (const [repo, list] of [['front', p.front ?? []], ['back', p.back ?? []]] as const) {
             for (const r of list) {
                 total++;
-                if (!existsSync(join(REPOS[repo], r))) broken.push({ tramo: segment, paso: p.id, repo, ruta: r });
+                if (!exists(repo, r, p.rama)) broken.push({ tramo: segment, paso: p.id, repo, ruta: p.rama ? `${r} (en origin/${p.rama})` : r });
             }
         }
     }
@@ -59,6 +70,7 @@ for (const [id, e] of Object.entries(stepMap.extensiones ?? {})) review(`extensi
 // `terminales` son pantallas reales que el mapa NO dibuja (se llega desde varios puntos), pero sus
 // archivos rotan igual que los demás: si no se validan acá, se pudren en silencio.
 review('terminales', (stepMap as any).terminales?.pasos ?? []);
+for (const [id, e] of Object.entries(stepMap.entradas ?? {})) if (!id.startsWith('_')) review(`entrada:${id}`, e.pasos);
 
 // Un desvío que sale o entra en un paso inexistente dibujaría una curva a la nada: se valida igual
 // que las rutas de archivo, porque es el mismo tipo de mentira.
@@ -67,6 +79,7 @@ const anchors: Array<[string, string, string]> = [
     ...Object.entries(stepMap.desvios ?? {}).flatMap(([id, d]) => [[`desvío:${id}`, 'desde', d.desde], [`desvío:${id}`, 'hasta', d.hasta]] as Array<[string, string, string]>),
     ...(stepMap.bypass ?? []).flatMap((b, i) => [[`bypass:${i}`, 'desde', b.desde], [`bypass:${i}`, 'hasta', b.hasta]] as Array<[string, string, string]>),
     ...Object.entries(stepMap.extensiones ?? {}).map(([id, e]) => [`extensión:${id}`, 'desde', e.desde] as [string, string, string]),
+    ...Object.entries(stepMap.entradas ?? {}).filter(([id]) => !id.startsWith('_')).map(([id, e]) => [`entrada:${id}`, 'hasta', e.hasta] as [string, string, string]),
 ];
 for (const [segment, field, val] of anchors) {
     if (!trunkIds.has(val)) broken.push({ tramo: segment, paso: field, repo: 'ancla', ruta: `${val} (no existe como paso)` });
@@ -76,6 +89,7 @@ const steps = stepMap.tronco.length
     + Object.values(stepMap.ramales).reduce((n, r) => n + r.pasos.length, 0)
     + Object.values(stepMap.desvios ?? {}).reduce((n, d) => n + d.pasos.length, 0)
     + Object.values(stepMap.extensiones ?? {}).reduce((n, e) => n + e.pasos.length, 0)
+    + Object.entries(stepMap.entradas ?? {}).filter(([id]) => !id.startsWith('_')).reduce((n, [, e]) => n + e.pasos.length, 0)
     // `terminales` cuenta como paso aunque el mapa no lo dibuje: si el total dijera menos pasos de los
     // que el archivo tiene, el número dejaría de servir para notar que se agregó o se perdió uno.
     + ((stepMap as any).terminales?.pasos?.length ?? 0);
