@@ -241,3 +241,72 @@ func (c *Client) CreateAllied(ctx context.Context, p *AlliedPlan) (*Created, err
 	}
 	return out, nil
 }
+
+// AdvisorPlan es lo que se sabe del asesor de prueba de un comercio YA existente antes de tocar nada: la tarjeta «Usuario de
+// prueba» del admin (`alliedTestAdvisor`), que sólo se le muestra a un perfil Administrador.
+type AdvisorPlan struct {
+	AlliedID int            `json:"allied_id"`
+	ActingAs string         `json:"acting_as"`
+	Summary  map[string]any `json:"summary"`
+}
+
+// PlanTestAdvisor lee (sólo lee) el estado del asesor de prueba de un comercio, desde una página del admin que lleva el comercio
+// en la ruta. Un `alliedTestAdvisor` nulo quiere decir que la sesión no es de un Administrador: el alta se rechazaría igual.
+func (c *Client) PlanTestAdvisor(ctx context.Context, alliedID int) (*AdvisorPlan, error) {
+	// Primero la sesión: con una vencida el admin no contesta la página del comercio y el error culparía al comercio.
+	if who, err := c.Probe(ctx); err != nil || who == "" {
+		return nil, fmt.Errorf("la sesión guardada del admin no sirve (%v): entrá con `pg admin login --target <ambiente>`", errOr(err, "el admin manda al login"))
+	}
+	r, err := c.Get(ctx, fmt.Sprintf("/aliados/%d/usuarios", alliedID))
+	if err != nil {
+		return nil, err
+	}
+	if r.Page == nil {
+		return nil, fmt.Errorf("el admin no devolvió la página del comercio %d (HTTP %d): ¿existe en este ambiente?", alliedID, r.Status)
+	}
+	summary, _ := r.Page.Props["alliedTestAdvisor"].(map[string]any)
+	if summary == nil {
+		return nil, fmt.Errorf("el admin no muestra el usuario de prueba a %s: hace falta una sesión con perfil Administrador", c.ActingAs())
+	}
+	return &AdvisorPlan{AlliedID: alliedID, ActingAs: c.ActingAs(), Summary: summary}, nil
+}
+
+// CreateTestAdvisor aprieta «crear usuario de prueba» en la ficha del comercio: el admin crea la sucursal de prueba
+// (`b<hash>-fake`) y el asesor (`c<hash>-fake@`) si faltan, y su cuenta de Cognito. Es idempotente. ESCRIBE: en dev, en la base
+// compartida con qa y staging, y en el pool de comercios. Lo llama quien ya mostró el plan y recibió `--apply`.
+func (c *Client) CreateTestAdvisor(ctx context.Context, alliedID int) (*Flash, error) {
+	page := fmt.Sprintf("/aliados/%d/usuarios", alliedID)
+	r, err := c.PostForm(ctx, fmt.Sprintf("/aliados/%d/usuario-de-prueba", alliedID), page, url.Values{})
+	if err != nil {
+		return nil, err
+	}
+	if r.Status == 419 {
+		return nil, errors.New("el admin rechazó el token CSRF (HTTP 419): la sesión caducó o la cookie XSRF no viajó")
+	}
+	if r.Status == 403 {
+		return nil, errors.New("el admin no lo permite (HTTP 403): hace falta una sesión con perfil Administrador")
+	}
+	if r.Location == "" {
+		return nil, fmt.Errorf("el admin no redirigió (HTTP %d): no aceptó el pedido", r.Status)
+	}
+	// El resultado (con la clave, una sola vez) viaja en el flash de la página a la que vuelve.
+	back, err := c.Follow(ctx, r.Location)
+	if err != nil {
+		return nil, err
+	}
+	if back.Page == nil {
+		return nil, fmt.Errorf("después de crear, el admin no devolvió una página (HTTP %d)", back.Status)
+	}
+	f := FlashOf(back.Page.Props)
+	if f == nil {
+		return nil, errors.New("el admin no mostró el resultado del usuario de prueba (¿versión sin la función?)")
+	}
+	return f, nil
+}
+
+func errOr(err error, fallback string) string {
+	if err != nil {
+		return err.Error()
+	}
+	return fallback
+}

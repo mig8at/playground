@@ -269,3 +269,68 @@ func runAdminAlliedCreate(args []string) int {
 	}
 	return 0
 }
+
+func runAdminTestAdvisor(args []string) int {
+	fs := flag.NewFlagSet("admin test-advisor", flag.ContinueOnError)
+	target := fs.String("target", "", "dev | staging | local")
+	allied := fs.Int("allied", 0, "el id del comercio (allieds.id)")
+	asJSON := fs.Bool("json", false, "el resultado en JSON")
+	apply := applyFlag(fs)
+	if fs.Parse(args) != nil {
+		return 2
+	}
+	if _, err := admin.BaseFor(*target); err != nil {
+		return fail(2, "%v", err)
+	}
+	if *allied <= 0 {
+		return fail(2, "falta --allied <id del comercio>")
+	}
+	t := strings.ToLower(*target)
+	ctx := context.Background()
+	c, err := admin.Open(ctx, t)
+	if err != nil {
+		return fail(2, "%v", err)
+	}
+	plan, err := c.PlanTestAdvisor(ctx, *allied)
+	if err != nil {
+		return fail(1, "%v", err)
+	}
+	out := os.Stdout
+	if *asJSON {
+		out = os.Stderr
+	}
+	if exists, _ := plan.Summary["exists"].(bool); exists {
+		fmt.Fprintf(out, "  El comercio %d ya tiene asesor de prueba en %s: %v · sucursal %v · cognito %v\n", *allied, t,
+			plan.Summary["email"], plan.Summary["branchName"], plan.Summary["cognito"])
+		fmt.Fprintln(out, "  No hay nada que crear.")
+		if *asJSON {
+			return printJSON(plan)
+		}
+		return 0
+	}
+	fmt.Fprintf(out, "  Va a CREARSE en el admin de %s el asesor de prueba del comercio %d (sucursal b<hash>-fake y asesor c<hash>-fake@)\n", t, *allied)
+	fmt.Fprintf(out, "    actúa como %s\n", plan.ActingAs)
+	if t != "local" {
+		fmt.Fprintln(out, "    ⚠ escribe en la base COMPARTIDA (dev, qa y staging) y crea su cuenta en el pool de comercios de Cognito")
+	}
+	if !*apply {
+		if *asJSON {
+			fmt.Fprintln(os.Stderr, "\n  (vista previa: no se escribió nada — repetí con --apply para hacerlo)")
+			return 0
+		}
+		return dryRun()
+	}
+	f, err := c.CreateTestAdvisor(ctx, *allied)
+	if err != nil {
+		return fail(1, "no se pudo crear el asesor de prueba: %v", err)
+	}
+	if *asJSON {
+		return printJSON(f)
+	}
+	fmt.Printf("\n  asesor     %s · sucursal %s\n  cognito    %s%s\n", f.Email, f.BranchName, f.Cognito,
+		map[bool]string{true: " · clave compartida del ambiente", false: ""}[f.PasswordFixed])
+	for _, n := range f.Notes {
+		fmt.Printf("  · %s\n", n)
+	}
+	return 0
+}
