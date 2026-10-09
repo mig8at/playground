@@ -16,10 +16,11 @@ operativo: bitácora, pulso, cachés y las trampas del sistema. **Dónde vive ca
 lugar: el paquete `server/internal/layout`**; no armes `../data/<algo>` a mano en un comando.
 
 - ⚠ **Antes de crear cualquier archivo, corré `make tareas TODAS=1`.** Una tarea de producto o del equipo
-  es un archivo ligado a Jira; para trabajo local casi siempre hay que editar uno de los **ocho
+  es un archivo ligado a Jira; para trabajo local casi siempre hay que editar uno de los **nueve
   contenedores permanentes**: `canon`, `context`, `harness`, `tablero`, `trazador`, `workers`,
-  `playground` y `playground-local` (#96: lo transversal a las herramientas). `context` y `workers` quedan
-  por su historia. El lint y `make tareas` validan esta lista.
+  `playground`, `playground-local` (#96: lo transversal a las herramientas) e `incidencias` (los defectos
+  de los sistemas de CreditOp hallados al verificar `main`, hasta que cada uno tenga su tarea con Jira).
+  `context` y `workers` quedan por su historia. El lint y `make tareas` validan esta lista.
 - **Los contenedores son `clase: proyecto`**: sin Jira ni sección publicable. Dentro, cada frente conserva
   objetivo y condición de cierre; al terminar, lo que pasó queda en un bloque y el frente sale de los
   pendientes. No apiles una tarea nueva por cada mejora de la misma herramienta.
