@@ -517,6 +517,45 @@ function rescueDownPayment(id: DeviceId, target: string, phone = ''): void {
         if (reference && /^[0-9a-f-]{36}$/.test(reference)) pay(reference, true);
     });
 }
+/**
+ * LOS ERRORES DEL FRONT, SIN BUSCARLOS. En qa y staging el servidor del wizard no escribe en Loki: lo que explota en
+ * un loader o un action queda como `$exception` en PostHog, con la solicitud en `loanRequestId`. La firma que fallaba
+ * en qa («Failed to authorize promissory note OTP», 2026-10-08) sólo se vio con una consulta a mano. Mientras el
+ * celular esté abierto contra esos ambientes, cada minuto se pregunta por las excepciones de la solicitud que muestra
+ * y las nuevas van a su consola. La ingesta tarda: una excepción aparece uno o dos minutos después de la pantalla.
+ * Cada minuto y no menos: la API de consultas de PostHog tiene cupo por hora.
+ */
+const PG_BIN = fileURLToPath(new URL('../../bin/pg', import.meta.url));
+function watchFrontExceptions(id: DeviceId, target: string): void {
+    if (target !== 'qa' && target !== 'staging') return;   // local y dev sirven un front que no escribe en PostHog
+    const openedAt = deviceOpenedAt(id);
+    const since = Math.floor(Date.now() / 1000) - 60;
+    const seen = new Set<string>();
+    let ureq = '';
+    watchNavigation(id, (u) => {
+        try { ureq = /^\/[^/]+\/[^/]+\/(\d+)(\/|$)/.exec(new URL(u).pathname)?.[1] ?? ureq; } catch { }
+    });
+    const poll = () => {
+        if (deviceOpenedAt(id) !== openedAt) { clearInterval(timer); return; }   // se cerró o es otro celular
+        if (!ureq) return;
+        const q = `SELECT timestamp, properties.source, properties.$exception_types, properties.$exception_values, uuid FROM events
+                    WHERE event = '$exception' AND toString(properties.loanRequestId) = '${ureq}'
+                      AND timestamp >= fromUnixTimestamp(${since}) ORDER BY timestamp ASC LIMIT 20`;
+        execFile(PG_BIN, ['events', 'hogql', '--target', target, '--query', q], { encoding: 'utf8', timeout: 60_000 }, (err, stdout) => {
+            if (err) return;   // sin PostHog no se ensucia la consola cada minuto
+            let rows: unknown[][] = [];
+            try { rows = JSON.parse(stdout).results ?? []; } catch { return; }
+            const first = (v: unknown) => { try { const a = typeof v === 'string' ? JSON.parse(v) : v; return String((Array.isArray(a) ? a[0] : a) ?? ''); } catch { return String(v ?? ''); } };
+            for (const [ts, source, types, values, uuid] of rows) {
+                if (seen.has(String(uuid))) continue;
+                seen.add(String(uuid));
+                const time = String(ts).replace(/^\d{4}-\d{2}-\d{2}T/, '').replace(/\..*$/, '');
+                deviceLog(id, `✗ PostHog ${time} · ${source ? `${source} · ` : ''}${first(types) ? `${first(types)}: ` : ''}${first(values) || '(sin mensaje)'} (solicitud ${ureq})`);
+            }
+        });
+    };
+    const timer = setInterval(poll, 60_000);
+}
 // Celulares ABRIÉNDOSE: entre cerrar el anterior y abrir el nuevo no hay ninguno «abierto», y un precalentado
 // que entrara justo ahí reiniciaría el wizard que el celular está por mostrar (pasó el 2026-10-06).
 let devicesOpening = 0;
@@ -1982,7 +2021,7 @@ connect();
                 const r = await openDevice('client', front.replace(/\/$/, '') + built.checkout_path, { autofill: caseAutofill(o) });
                 phase('celular');
                 deviceLog('panel', `tienda → cliente: ${phases.join(' · ')} (s)`);
-                rescueIdentity('client', t, phone); rescueDownPayment('client', t, phone);
+                rescueIdentity('client', t, phone); rescueDownPayment('client', t, phone); watchFrontExceptions('client', t);
                 return json(res, 200, { ok: true, hash: built.hash, merchant: built.merchant, scrubbed: scrub, ...otp, ...r });
             } catch (e) {
                 return json(res, 200, { ok: false, detail: `el celular no pudo abrir ${front}: ${(e as Error).message.split('\n')[0]}` });
@@ -2056,7 +2095,7 @@ connect();
                 // el CLIENTE sigue en su teléfono por `/self-service/{hash}/{ur}/confirmation`. Ese link se abre en
                 // el celular del cliente, como hace la ventana B de la corrida guiada. Sin scrub: es la MISMA
                 // solicitud; sí el bypass del OTP, porque la firma le pide código al cliente.
-                rescueIdentity('advisor', t); rescueDownPayment('advisor', t);
+                rescueIdentity('advisor', t); rescueDownPayment('advisor', t); watchFrontExceptions('advisor', t);
                 let handedOff = '';
                 watchNavigation('advisor', (u) => {
                     const m = /^(https?:\/\/[^/]+)\/merchant\/([^/]+)\/(\d+)\/(?:continue|confirmation)(?:[?#]|$)/.exec(u);
@@ -2072,7 +2111,7 @@ connect();
                             if (bp?.ok) deviceBypass.set('client', { target: t, puesto: bp.puesto });
                         }
                         await openDevice('client', link, { autofill: caseAutofill(b.order) })
-                            .then(() => { rescueIdentity('client', t); rescueDownPayment('client', t); })
+                            .then(() => { rescueIdentity('client', t); rescueDownPayment('client', t); watchFrontExceptions('client', t); })
                             .catch((e) => deviceLog('client', '✗ el traspaso no abrió: ' + (e as Error).message.split('\n')[0]));
                     })();
                 });

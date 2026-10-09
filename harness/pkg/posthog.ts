@@ -94,6 +94,12 @@ const esc = (s: string) => s.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
  *  (ver la cabecera: el id solo trae a la homónima de prod). Los `$identify` no llevan `environment`,
  *  así que se aceptan sin él —el `distinct_id` más la hora ya los fijan.
  *
+ *  ⚠ LAS EXCEPCIONES DEL SERVIDOR DEL WIZARD (`$exception`) llegan DISTINTO: `distinct_id='server'`, sin
+ *  `environment` y con la solicitud en `loanRequestId` (camelCase), no en `loan_request_id`. Sin ese tercer
+ *  filtro no salían nunca: la de la firma de qa («Failed to authorize promissory note OTP», uReq 503383,
+ *  2026-10-08) hubo que sacarla a mano. Como no traen ambiente, lo único que las separa de una homónima de
+ *  prod es la hora: pasá un `since` ajustado a la corrida.
+ *
  *  ⚠ LA HORA VA EN EPOCH, NO EN TEXTO. `toDateTime('2026-09-03 01:00:00')` lo interpreta HogQL en la
  *  zona del proyecto (America/Bogota, -05:00), o sea cinco horas DESPUÉS de la hora UTC que uno creyó
  *  mandar: el filtro excluía la corrida entera y devolvía «0 eventos» (medido 2026-09-02, uReq 502058).
@@ -102,7 +108,8 @@ export async function eventsOf(c: PostHogConfig, ureq: number | string, since: D
     const id = String(ureq);
     const q = `SELECT timestamp, event, properties.$lib, properties.channel, properties.$current_url, properties
                  FROM events
-                WHERE (distinct_id = 'loan_request_${esc(id)}' OR toString(properties.loan_request_id) = '${esc(id)}')
+                WHERE (distinct_id = 'loan_request_${esc(id)}' OR toString(properties.loan_request_id) = '${esc(id)}'
+                       OR toString(properties.loanRequestId) = '${esc(id)}')
                   AND (properties.environment = '${esc(c.env)}' OR properties.environment IS NULL)
                   AND timestamp >= fromUnixTimestamp(${Math.floor(since.getTime() / 1000)})
                 ORDER BY timestamp ASC LIMIT 500`;
@@ -223,6 +230,13 @@ export function cross(paths: string[], events: Event[], branchName = FRONT_BRANC
 let sink: (linea: string) => void = (l) => console.log(l);
 const log = (s = '') => sink(s ? `  ▸ ${s}` : '');
 
+/** El tipo y el mensaje de un `$exception`: vienen ya resueltos en `$exception_types`/`$exception_values`
+ *  (listas, una por excepción encadenada; la primera es la que se lanzó). */
+export function exceptionOf(e: Event): [string, string] {
+    const first = (v: unknown) => String((Array.isArray(v) ? v[0] : v) ?? '');
+    return [first(e.props.$exception_types), first(e.props.$exception_values) || '(sin mensaje)'];
+}
+
 /** Una línea por evento: hora · nombre · quién lo emitió (servidor / navegador) · dónde estaba el cliente. */
 export function printEvents(ev: Event[]): void {
     for (const e of ev) {
@@ -230,6 +244,10 @@ export function printEvents(ev: Event[]): void {
         const who = /posthog-node/.test(e.lib) ? 'servidor' : 'navegador';
         const where = e.url ? new URL(e.url, 'http://x').pathname : '';
         log(`  ${time}  ${e.evento.padEnd(34)} ${who.padEnd(9)} ${where}`);
+        if (e.evento === '$exception') {
+            const [type, value] = exceptionOf(e);
+            log(`            ✗ ${e.props.source ? `${e.props.source} · ` : ''}${type ? `${type}: ` : ''}${value}`);
+        }
     }
 }
 
