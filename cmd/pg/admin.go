@@ -334,3 +334,129 @@ func runAdminTestAdvisor(args []string) int {
 	}
 	return 0
 }
+
+func runAdminBranchLenders(args []string) int {
+	fs := flag.NewFlagSet("admin branch-lenders", flag.ContinueOnError)
+	target := fs.String("target", "", "dev | staging | local")
+	allied := fs.Int("allied", 0, "el id del comercio (allieds.id)")
+	branch := fs.String("branch", "", "el hash de la sucursal a la que se le asignan")
+	copyFrom := fs.String("copy-from", "", "el hash de otra sucursal del comercio: se le copian sus entidades")
+	lenders := fs.String("lenders", "", "o los ids de las entidades, separados por coma")
+	asJSON := fs.Bool("json", false, "el resultado en JSON")
+	apply := applyFlag(fs)
+	if fs.Parse(args) != nil {
+		return 2
+	}
+	if _, err := admin.BaseFor(*target); err != nil {
+		return fail(2, "%v", err)
+	}
+	if *allied <= 0 || *branch == "" || (*copyFrom == "") == (*lenders == "") {
+		return fail(2, "uso: --allied N --branch <hash> y UNO de --copy-from <hash> o --lenders 1,2,3")
+	}
+	t := strings.ToLower(*target)
+	ctx := context.Background()
+	c, err := admin.Open(ctx, t)
+	if err != nil {
+		return fail(2, "%v", err)
+	}
+	branchID, err := c.BranchIDByHash(ctx, *allied, *branch)
+	if err != nil {
+		return fail(1, "%v", err)
+	}
+	dest, err := c.ReadBranch(ctx, *allied, branchID)
+	if err != nil {
+		return fail(1, "%v", err)
+	}
+	var want []int
+	source := ""
+	if *copyFrom != "" {
+		srcID, err := c.BranchIDByHash(ctx, *allied, *copyFrom)
+		if err != nil {
+			return fail(1, "%v", err)
+		}
+		src, err := c.ReadBranch(ctx, *allied, srcID)
+		if err != nil {
+			return fail(1, "%v", err)
+		}
+		want, source = src.Active(), fmt.Sprintf("las de %s (%s)", src.Hash, src.Name)
+	} else {
+		for _, s := range strings.Split(*lenders, ",") {
+			var n int
+			if _, err := fmt.Sscan(strings.TrimSpace(s), &n); err != nil || n <= 0 {
+				return fail(2, "--lenders: %q no es un id", s)
+			}
+			want = append(want, n)
+		}
+		source = "las pedidas"
+	}
+	names := map[int]string{}
+	for _, l := range dest.Lenders {
+		names[l.LenderID] = l.Name
+	}
+	for _, id := range want {
+		if names[id] == "" {
+			return fail(1, "la entidad %d no está asignada al comercio %d: primero se asigna al comercio", id, *allied)
+		}
+	}
+	has := map[int]bool{}
+	for _, id := range dest.Active() {
+		has[id] = true
+	}
+	wanted := map[int]bool{}
+	for _, id := range want {
+		wanted[id] = true
+	}
+	var add, remove []string
+	for _, id := range want {
+		if !has[id] {
+			add = append(add, fmt.Sprintf("%d %s", id, names[id]))
+		}
+	}
+	for _, id := range dest.Active() {
+		if !wanted[id] {
+			remove = append(remove, fmt.Sprintf("%d %s", id, names[id]))
+		}
+	}
+	out := os.Stdout
+	if *asJSON {
+		out = os.Stderr
+	}
+	fmt.Fprintf(out, "  Sucursal %s (%s) del comercio %d en %s · actúa como %s\n", dest.Hash, dest.Name, *allied, t, c.ActingAs())
+	fmt.Fprintf(out, "    quedan activas %s: %v\n", source, want)
+	if len(add) == 0 && len(remove) == 0 {
+		fmt.Fprintln(out, "    ya las tiene: no hay nada que cambiar")
+		if *asJSON {
+			return printJSON(dest)
+		}
+		return 0
+	}
+	for _, a := range add {
+		fmt.Fprintf(out, "    + %s\n", a)
+	}
+	for _, r := range remove {
+		fmt.Fprintf(out, "    − %s\n", r)
+	}
+	fmt.Fprintln(out, "    el admin le copia a la sucursal las reglas duras y las de Datacrédito de cada entidad; el resto de la sucursal se reenvía igual")
+	if t != "local" {
+		fmt.Fprintln(out, "    ⚠ escribe en la base COMPARTIDA (dev, qa y staging)")
+	}
+	if !*apply {
+		if *asJSON {
+			fmt.Fprintln(os.Stderr, "\n  (vista previa: no se escribió nada — repetí con --apply para hacerlo)")
+			return 0
+		}
+		return dryRun()
+	}
+	if err := c.SetBranchLenders(ctx, *allied, dest, want); err != nil {
+		return fail(1, "no se pudo guardar la sucursal: %v", err)
+	}
+	after, err := c.ReadBranch(ctx, *allied, branchID)
+	if err != nil {
+		return fail(1, "se guardó, pero no pude volver a leerla: %v", err)
+	}
+	if *asJSON {
+		return printJSON(after)
+	}
+	fmt.Printf("\n  ✔ la sucursal %s quedó con %v\n", after.Hash, after.Active())
+	return 0
+}

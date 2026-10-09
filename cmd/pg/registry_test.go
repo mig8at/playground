@@ -124,7 +124,7 @@ func TestTheSchemaOffersApplyOnlyToWritesAndTheTargetEnum(t *testing.T) {
 	restricted := map[string]string{
 		"canon sql": "local,prod", "canon tables": "local,prod", "canon config": "local,prod",
 		"advisor status": "local,dev,qa,staging",
-		"admin status":   "local,dev,staging", "admin allied-create": "local,dev,staging", "admin test-advisor": "local,dev,staging",
+		"admin status":   "local,dev,staging", "admin allied-create": "local,dev,staging", "admin test-advisor": "local,dev,staging", "admin branch-lenders": "local,dev,staging",
 	}
 	for _, c := range tools() {
 		if want, ok := restricted[c.Name]; ok {
