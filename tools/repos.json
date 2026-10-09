@@ -8,9 +8,9 @@
     "form-service": "~/Desktop/CREDITOP/github/form-service",
     "customer-profiling-service": "~/Desktop/CREDITOP/github/customer-profiling-service",
     "onboarding-forms-service": "~/Desktop/CREDITOP/github/onboarding-forms-service",
-    "customer-service": "~/Desktop/CREDITOP/github/microservices/customer-service",
-    "financial-health-service": "~/Desktop/CREDITOP/github/microservices/financial-health-service",
-    "pdf-mapper-service": "~/Desktop/CREDITOP/github/microservices/pdf-mapper-service",
+    "customer-service": "~/Desktop/CREDITOP/github/customer-service",
+    "financial-health-service": "~/Desktop/CREDITOP/github/financial-health-service",
+    "pdf-mapper-service": "~/Desktop/CREDITOP/github/pdf-mapper-service",
     "harness": "harness",
     "trazador": "trazador"
   },
