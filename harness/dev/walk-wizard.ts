@@ -55,7 +55,7 @@ export {};
 const { FrontSession } = await import('../pkg/front.ts');
 const { one, exec, close, TARGET, writeLines, dumpWrites } = await import('../pkg/db.ts');
 const { synthFill, manualValidation } = await import('../pkg/inject.ts');
-const { dictateEmployment, dictateBureauProfile, LAMBDA: RISK_LAMBDA } = await import('../pkg/risk-lambda.ts');
+const { dictateEmployment, dictateBureauProfile, LAMBDA: RISK_LAMBDA, COMPANY_LAMBDA } = await import('../pkg/risk-lambda.ts');
 const { payDownPayment } = await import('../pkg/wompi-down-payment.ts');
 const { config, docGenNotice, backendLogsNotice, wireLocal } = await import('../pkg/config.ts');
 const { env } = await import('../pkg/env.ts');
@@ -80,6 +80,16 @@ const arg = (n: string, d = ''): string => {
     return i > 0 && process.argv[i + 1] && !process.argv[i + 1].startsWith('--') ? process.argv[i + 1] : d;
 };
 const flag = (n: string) => process.argv.includes(`--${n}`);
+
+/**
+ * ¿El buró sale de las CENTRALES (el lambda dictado) o se SIEMBRA en la base? Fuera de local, donde haya un lambda con
+ * dictado (`COMPANY_LAMBDA`, hoy qa), por defecto se consulta de verdad: sembrar hace que Experian salga de caché y el
+ * lambda no se toque nunca, y así una ruta que devolvía 404 pasó inadvertida en cuatro corridas (503353 a 503356,
+ * 2026-10-08). Para dictar hace falta el lambda, así que esto implica `--lambda`. `--centrales` lo fuerza;
+ * `--sembrado` vuelve a sembrar. En dev y staging no hay a quién dictarle (F-149) y se siembra como antes.
+ */
+const REAL_BUREAUS = flag('centrales') ? true : flag('sembrado') ? false : TARGET !== 'local' && !!COMPANY_LAMBDA[TARGET];
+const DICTATES = flag('lambda') || REAL_BUREAUS;
 
 const FLOW = arg('flow', 'self-service');
 /**
@@ -207,7 +217,7 @@ async function seed(ur: number, doc: string, log: (s: string) => void, lender?: 
     // `--centrales`: NO se siembra el buró, para que el backend consulte de verdad las centrales (el lambda dictado) y la
     // corrida mida lo que contestan. Con la siembra, Experian sale de caché (`performRequest early-return (cache hit)`) y
     // el lambda nunca se consulta: así una ruta del lambda que devolvía 404 pasó inadvertida (503353 a 503356).
-    const injected = flag('centrales') ? { datacredito_forged: 'sin sembrar: consulta las centrales' }
+    const injected = REAL_BUREAUS ? { datacredito_forged: 'sin sembrar: consulta las centrales' }
         : lender
         ? await synthFill(ur, { lender, skipIdentity: true } as any)
         : await synthFill(ur, { income: INCOME, score: SCORE, skipIdentity: true } as any);
@@ -215,7 +225,7 @@ async function seed(ur: number, doc: string, log: (s: string) => void, lender?: 
     if (u?.user_id) await exec('UPDATE users SET front_url=?, back_url=?, updated_at=NOW() WHERE id=?',
         [synthIdImageUrl('frontal', doc), synthIdImageUrl('reverso', doc), u.user_id]).catch(() => null);
     if (flag('manual') && u?.user_id) await manualValidation(u.user_id);
-    log(`buró ${flag('centrales') ? 'sin inyectar' : 'inyectado'} para uReq ${ur} (Experian ${injected.datacredito_forged})${flag('manual') ? ' · identidad aprobada a mano' : ''}`);
+    log(`buró ${REAL_BUREAUS ? 'sin inyectar' : 'inyectado'} para uReq ${ur} (Experian ${injected.datacredito_forged})${flag('manual') ? ' · identidad aprobada a mano' : ''}`);
 }
 
 /**
@@ -232,7 +242,7 @@ async function seed(ur: number, doc: string, log: (s: string) => void, lender?: 
  * (`dictateCompanyLambda`; hoy sólo qa tiene uno con dictado, F-149).
  */
 async function employmentFor(doc: string, log: (s: string) => void): Promise<void> {
-    if (!flag('lambda')) return;
+    if (!DICTATES) return;
     const occupation = arg('occupation', 'Empleado');
     // Fuera de local, el backend le pregunta al lambda DE LA EMPRESA: se le dicta igual que lo hace el panel —Ágil Data
     // y el reporte de Experian ENTERO—, porque ese lambda no conoce la clave `experian_profile` del mock local.
