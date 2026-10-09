@@ -781,7 +781,10 @@ async function testAdvisorFor(slug: string, target: string): Promise<TestAdvisor
     const c = testAdvisorCache.get(key);
     if (c && Date.now() - c.at < 5 * 60_000) return c.data;
     const r = await dbopsJson(['test-advisor', hash], target);
-    const data: TestAdvisorInfo = r ? { ok: !!r.ok, email: r.email, sub: r.sub || undefined, motivo: r.motivo } : { ok: false, motivo: `no pude leer el asesor de prueba en ${target}` };
+    // ⚠ Un fallo de LECTURA (sin VPN, base caída) no se guarda: quedaba 5 minutos aunque la VPN ya hubiera vuelto
+    // (2026-10-09). Sólo se guarda lo que la base contestó, sea «hay asesor» o «no hay».
+    if (!r) return { ok: false, motivo: `no pude leer el asesor de prueba en ${target} (¿VPN de dev?)` };
+    const data: TestAdvisorInfo = { ok: !!r.ok, email: r.email, sub: r.sub || undefined, motivo: r.motivo };
     testAdvisorCache.set(key, { at: Date.now(), data });
     return data;
 }
