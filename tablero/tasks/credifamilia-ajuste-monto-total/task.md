@@ -18,14 +18,19 @@ ramas: fix/CORE-653-credifamilia-monto-total
 - [x] Cuotas y comprobante alineados al 4x1000 sobre el IVA (decisión de Miguel, 2026-09-29), en el mismo PR [#1521](pr:legacy-backend#1521), commit 7f294290.
 - [ ] Confirmar con Credifamilia sobre qué base calcula el 4x1000 en su plan de pagos; si no es el IVA, se revierte el commit 7f294290 y el resto del PR queda igual. Pesa más de lo previsto: con fianza Mensual (el 96 % de las radicaciones) la cuota baja unos $60 (2.000.000, 18 %, 24 cuotas: 17.921,40 a 17.861,40).
   Depende de: producto / Credifamilia
+- [ ] Confirmar si el total se redondea al entero superior o a dos decimales. El alcance pide las dos cosas en sus criterios de aceptación («dos decimales» y «aproximación al número entero superior») y su propio ejemplo trae centavos; hoy se informa con dos decimales ($6.343.651,73 en el ejemplo, $6.343.652 si fuera el entero superior). Termina cuando haya una respuesta por escrito y lo que se radica haga lo que ella diga.
+  Depende de: producto / Credifamilia — la regla de redondeo del total
+- [ ] Confirmar cuál es el valor correcto del ejemplo del alcance, $6.343.651,72 (el PDF, que trunca el 4x1000 a 714,63) o $6.343.651,73 (lo que calcula el código, que redondea sólo al final), y si cada término se redondea por separado. Termina cuando se sepa la regla y la prueba unitaria del ejemplo la use.
+  Depende de: Credifamilia — cómo redondea cada término
 - [x] Fianza Mensual: el alcance sólo suma la fianza cuando es Anticipada, así que con Mensual el total es el monto solicitado.
-- [x] Decimales en `montoTotalCredito`: el WSDL lo declara `xs:double` y el servicio de pruebas de Credifamilia guardó una transacción con `2428673.60` (200, 2026-09-29). Falta sólo verlo en una radicación real de producción.
+- [x] Decimales en `montoTotalCredito`: el WSDL lo declara `xs:double` y el servicio de pruebas de Credifamilia guardó una transacción con `2428673.60` (200, 2026-09-29). Visto en producción: la solicitud 577129 (2026-10-02) radicó `5315152.17` y Credifamilia contestó 200.
 - [x] Implementar `montoTotalCredito` en la radicación con la fórmula del alcance y dos decimales — [#1521](pr:legacy-backend#1521), 6 pruebas nuevas, ejemplo del alcance en 6343651.73.
 - [x] Correr en local una solicitud con fianza Anticipada hasta la radicación — 3/3 en 11 con CREDIT_COMPLETED y `montoTotalCredito` 2428673.60 para 2.000.000.
 - [x] Documentar en `knowledge/credifamilia-financing` la fianza y el total de radicación verificados en `main`, con sus fuentes y los límites de entradas, formatos y respaldos. La publicación en Canon queda independiente y sólo se hace si Miguel la solicita.
 - [ ] Conseguir que el QA de Credifamilia apruebe a un cliente (tasa y tipo de fianza), para ver la fórmula nueva de punta a punta en dev; termina cuando la pre-aprobación devuelva `approved`. La lista de clientes de prueba no bastó: ver el artefacto de clientes de prueba.
   Depende de: Credifamilia
-- [ ] Escribir la publicable (Dónde probar, Cómo validar) antes de que Miguel la vea.
+- [x] Dictar a canon las piezas de `artifacts/canon-credifamilia-propuesta.md` (4 nuevas y 3 reescrituras): las 7 están en `credifamilia/context` y salen en `make canon-search` (comprobado el 2026-10-02). Las referencias de Canon quedan como contexto opcional; el mecanismo local se revisa en `knowledge/credifamilia-financing`.
+- [x] Escribir la publicable (Dónde probar, Cómo validar) antes de que Miguel la vea: escrita el 2026-10-02 y pasa el guard; falta que Miguel la vea antes de publicarla.
 
 ## Objetivo
 
@@ -141,33 +146,46 @@ obligatorios, no la fórmula.** Cada 200 deja una transacción de prueba en el Q
 - CORE-127 (`datos-erroneos-voucher-credifamilia`): cuando el voucher pasó a salir del motor y se agregó el 4x1000.
 - Conocimiento local: `knowledge/credifamilia-financing/rules.md` y sus fuentes verificadas. Canon queda opcional para el contexto de negocio/producto; no se exige sincronizarlo al cerrar.
 
-
-
 ## Tarea (publicable)
 
 ## En una línea
 El monto total del crédito que CreditOp informa a Credifamilia al radicar incluye la fianza cuando es anticipada.
 
 ## Por qué
-Hoy, al radicar, el monto total informado es igual al monto solicitado, aun cuando la fianza es anticipada y por lo tanto se financia dentro del capital. El comprobante que ve el cliente sí muestra el total con fianza, así que la orden de desembolso y el comprobante no coinciden.
+Antes, al radicar, el monto total informado era igual al monto solicitado, aun cuando la fianza es anticipada y por lo tanto se financia dentro del capital. El comprobante que ve el cliente sí mostraba el total con fianza, así que la orden de desembolso y el comprobante no coincidían.
 
 ## Qué cambia
-Al radicar un crédito con fianza anticipada, el monto total informado pasa a ser: monto solicitado + fianza + IVA de la fianza + 4x1000. Con fianza mensual no cambia.
+- Con fianza anticipada, el monto total informado pasa a ser: monto solicitado + fianza + IVA de la fianza + 4x1000 calculado sobre ese IVA, con dos decimales.
+- Con fianza mensual, el monto total informado sigue siendo el monto solicitado.
+- Las cuotas y el comprobante usan ahora esa misma fórmula del 4x1000, para que los tres digan lo mismo. Con fianza mensual, la parte de la fianza que va en cada cuota baja unos $60 según la fórmula (por ejemplo, un crédito de $2.000.000 con fianza del 18 % a 24 cuotas pasa de $17.921,40 a $17.861,40 de fianza por cuota).
 
 ## Alcance
-No cambia el formulario, ni las pantallas del cliente, ni el monto solicitado. No cambia cómo se calculan las cuotas, salvo que la definición oficial del 4x1000 obligue a ajustarlo (pendiente de confirmar).
+No cambia el formulario, ni las pantallas del cliente, ni el monto solicitado. Sí cambia el cálculo de las cuotas con fianza mensual, que es la gran mayoría de las radicaciones. La base del 4x1000 (el IVA de la fianza) sigue pendiente de confirmar con Credifamilia: si resulta ser otra, se vuelve al cálculo anterior de las cuotas y el resto del cambio queda igual.
 
 ## Dónde probar
-Pendiente: se define al terminar el desarrollo.
+- **Producción:** el cambio está activo desde la noche del 1 de octubre de 2026. La primera radicación real con fianza anticipada ya salió con el total correcto y Credifamilia la aceptó.
+- **Desarrollo y QA:** tienen el cambio, pero hoy no sirven para probar de punta a punta. El ambiente de pruebas de Credifamilia rechaza a todos los clientes de prueba, y en QA además falta configurar el servicio de pagarés (Deceval), así que la solicitud no llega a radicar.
+- **Staging:** todavía no tiene el cambio.
 
 ## Cómo validar
-Pendiente.
+1. Con un cliente aprobado por Credifamilia con fianza anticipada, por ejemplo $2.000.000 con fianza del 18 %: el monto total informado en la radicación debe ser $2.428.673,60 (2.000.000 + 360.000 de fianza + 68.400 de IVA + 273,60 de 4x1000).
+2. Con otro monto, comprobar que el total sea monto + fianza + IVA de la fianza + 4x1000 sobre ese IVA, con dos decimales.
+3. Con fianza mensual, comprobar que el monto total informado sea igual al monto solicitado.
+4. Comprobar que Credifamilia responda que guardó la transacción.
+5. Comparar con el «Total a financiar» del comprobante del cliente: el comprobante lo muestra sin centavos (para el ejemplo, $2.428.673).
+6. Con fianza mensual, comprobar que la fianza de cada cuota coincida con la nueva fórmula.
+
+## Cambios en datos
+Ninguno: no hay migraciones ni cambios en la base de datos.
 
 ## Criterios de aceptación
-- En una solicitud con fianza anticipada, el monto total informado a Credifamilia es monto solicitado + total fianza, con la regla de redondeo acordada.
-- Con el ejemplo del alcance (monto $5.223.964, fianza 18 %) el total coincide con el valor acordado.
+- En una solicitud con fianza anticipada, el monto total informado a Credifamilia es el monto solicitado más el total de la fianza, con dos decimales.
+- Con el ejemplo del alcance (monto $5.223.964, fianza 18 %) el total es $6.343.651,73. El documento de alcance muestra $6.343.651,72 porque redondea el 4x1000 hacia abajo; es un centavo de diferencia, pendiente de confirmar con Credifamilia.
 - En una solicitud con fianza mensual, el monto total informado es igual al monto solicitado.
-- El total informado coincide con el «Total a financiar» del comprobante del cliente.
+- El total informado coincide con el «Total a financiar» del comprobante del cliente, que lo muestra sin centavos.
+- Credifamilia acepta la radicación con el total con decimales.
 
 ## Dependencias / contraparte
-Confirmación de producto / Credifamilia sobre la base del 4x1000 y la regla de redondeo.
+- Credifamilia: confirmar sobre qué base calcula el 4x1000 en su plan de pagos y el centavo del ejemplo del alcance.
+- Credifamilia: aprobar a un cliente de prueba en su ambiente de pruebas, para poder validar de punta a punta fuera de producción.
+- Infraestructura: configurar el servicio de pagarés (Deceval) en QA.

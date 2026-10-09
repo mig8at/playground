@@ -1,6 +1,6 @@
 # Qué podría entrar a canon de Credifamilia, en el formato que canon espera
 
-Propuesta para tener a mano cuando se dicte. **Nada de esto está escrito en canon todavía.** Cada pieza pasó el ensayo de canon (`/api/propose`: lista, sin rechazos del lint) y cada afirmación se verificó contra `main` de `pre-approvals-service`, `legacy-backend` y `legacy-application`.
+Propuesta que se usó para dictar. **Las 7 piezas ya están en canon** (comprobado el 2026-10-02 con `make canon-search`); queda como registro de lo que se propuso, y la sección de la radicación que hereda de la pre-aprobación necesita corrección tras #1521 (ver los pendientes de la tarea). Cada pieza pasó el ensayo de canon (`/api/propose`: lista, sin rechazos del lint) y cada afirmación se verificó contra `main` de `pre-approvals-service`, `legacy-backend` y `legacy-application`.
 
 ## Cómo lo espera canon
 
