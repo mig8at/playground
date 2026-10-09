@@ -1194,7 +1194,12 @@ function tailLog(): string {
 // `total` es el conteo absoluto: si baja, el RUN_LOG se reescribió (corrida nueva) → el cliente resetea.
 function linesSince(file: string, from: number): { total: number; from: number; lines: string[] } {
     if (!existsSync(file)) return { total: 0, from: 0, lines: [] };
-    const all = readFileSync(file, 'utf8').replace(/\x1b\[[0-9;]*[A-Za-z]/g, '').split('\n');
+    // Sólo líneas COMPLETAS. El archivo termina en '\n', así que partirlo deja un '' al final que antes contaba en el
+    // total: el cliente pedía «desde el total» y la PRIMERA línea de cada tanda nueva se perdía y en su lugar llegaba un
+    // renglón vacío. En una corrida casi no se notaba (las líneas llegan de a muchas); los celulares escriben de a UNA y
+    // se perdían todas: la excepción de PostHog quedó en el archivo y la consola mostraba un blanco (2026-10-09). Una
+    // línea a medio escribir (sin su '\n') tampoco se manda: llega entera en la consulta siguiente.
+    const all = readFileSync(file, 'utf8').replace(/\x1b\[[0-9;]*[A-Za-z]/g, '').split('\n').slice(0, -1);
     const since = from > 0 && from <= all.length ? from : 0;
     return { total: all.length, from: since, lines: all.slice(since) };
 }

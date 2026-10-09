@@ -1492,10 +1492,15 @@
             chip.className = 'badge badge-xs ' + (c === channel ? 'badge-outline' : 'badge-ghost');
             chip.textContent = CHANNEL_SHORT[c];
             chip.title = `${CHANNEL_LONG[c]}${c === channel ? ' · el canal elegido' : ' · clic: elegir este comercio con este canal'}`;
-            chip.onclick = (ev) => {
+            chip.onclick = async (ev) => {
               ev.stopPropagation();
               if (runRunning) return;
-              if (!chosenOne) chooseEntry(e);
+              // Elegir otro comercio carga SUS canales y, al llegar, pone el sugerido: si el chip eligiera el canal antes,
+              // esa respuesta lo pisaba (pasó con «Au» de Refurbi). Se espera como espera el ▶.
+              if (!chosenOne) {
+                chooseEntry(e);
+                for (let i = 0; i < 40 && channelsFor !== sel?.slug; i++) await new Promise((r) => setTimeout(r, 250));
+              }
               document.querySelector(`#channelOptions button[data-c="${c}"]`)?.click();
             };
             box.appendChild(chip);
