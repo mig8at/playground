@@ -366,6 +366,10 @@
     .signup-hint { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: var(--text-xs); color: var(--fg-2) }
     .tree { padding-bottom: var(--space-2); user-select: none }
     .missing .row-name, .missing .row-meta { font-style: italic }
+    /* No está en este ambiente: se ve, no se elige. Sin conexión: el aviso en el meta, la fila sigue elegible. */
+    .row.missing[aria-disabled="true"] { opacity: .45; cursor: not-allowed }
+    .row.missing[aria-disabled="true"]:hover { background: transparent }
+    .row.unreachable .row-meta { color: var(--warn) }
     .add-row { margin-top: var(--space-2) }
 
     /* Las entidades cuelgan de la sucursal elegida, un nivel adentro. Sin caja propia: las separa la
@@ -1231,7 +1235,7 @@
       try { FAVS = await (await fetch('/api/favs')).json(); } catch { FAVS = []; }
       if (!Array.isArray(FAVS)) FAVS = [];
       renderMerchants();
-      loadMerchantTags();
+      enrichMerchants();   // los tuyos también se miden contra el ambiente (y de paso trae sus etiquetas)
     }
 
     // ── LOS COMERCIOS POR PAÍS ────────────────────────────────────────────────────────────────────
@@ -1291,7 +1295,7 @@
      * abrir. Lo que sí se muestra es cuántas hay (`1 de 23`), para saber que se puede agregar más.
      */
     function spaceEntries() {
-      const ownOnes = FAVS.filter((f) => !MERCHANTS.some((m) => m.slug === f.slug)).map((f) => ({ ...f, fav: true }));
+      const ownOnes = FAVS.filter((f) => !MERCHANTS.some((m) => m.slug === f.slug)).map((f) => Object.assign(f, { fav: true }));
       return [...MERCHANTS, ...ownOnes];
     }
 
@@ -1354,12 +1358,16 @@
 
       const entries = spaceEntries();
       // Por país: Colombia primero (es casi todo), después el resto por nombre, y lo que no tiene país al final.
+      // Los que NO están en este ambiente van juntos al final, deshabilitados: se ven (para saber que existen en otro)
+      // pero no se eligen. Su clave de grupo no choca con un país.
+      const ABSENT = '\u0000absent';
       const groups = new Map();
-      for (const e of entries) { const c = countryOf(e); if (!groups.has(c)) groups.set(c, []); groups.get(c).push(e); }
-      const order = [...groups.keys()].sort((a, b) => (a === '') - (b === '') || (b === 'Colombia') - (a === 'Colombia') || a.localeCompare(b));
+      for (const e of entries) { const c = e.missing ? ABSENT : countryOf(e); if (!groups.has(c)) groups.set(c, []); groups.get(c).push(e); }
+      const order = [...groups.keys()].sort((a, b) => (a === ABSENT) - (b === ABSENT) || (a === '') - (b === '') || (b === 'Colombia') - (a === 'Colombia') || a.localeCompare(b));
       for (const country of order) {
         const head = document.createElement('div'); head.className = 'region-head group merchant-group';
-        const name = document.createElement('span'); name.textContent = country || 'Sin país en este ambiente';
+        const name = document.createElement('span');
+        name.textContent = country === ABSENT ? `No están en ${target}` : (country || 'Sin país en este ambiente');
         const n = document.createElement('span'); n.className = 'count'; n.textContent = String(groups.get(country).length);
         name.appendChild(n); head.appendChild(name); g.appendChild(head);
       for (const e of groups.get(country)) {
@@ -1367,17 +1375,20 @@
         // La elegida es la `.row` elegida de la base (`aria-selected`: fondo y barra de 2), no una tilde.
         // Sin chevron: la fila ya no se despliega, ABRE el comercio (su mapa al centro y su pestaña
         // «Comercio» a la derecha). El icono es el de comercio (`store`): cada fila es una sucursal.
-        const rowEl = treeRow(e.missing ? 'missing' : '', 0, 'merchant', escTxt(e.alias || e.name),
-          e.missing ? (e.meta || '') : (e.hash || '…'));
+        const absent = !!e.missing;
+        const rowEl = treeRow([absent ? 'missing' : '', e.unreachable ? 'unreachable' : ''].filter(Boolean).join(' '), 0, 'merchant',
+          escTxt(e.alias || e.name), absent || e.unreachable || e.meta === '…' ? (e.meta || '') : (e.hash || '…'));
         rowEl.title = `${e.alias || e.name}${e.hash ? ` · sucursal ${e.hash}` : ''}`
           + (e.fav ? ' · agregado por vos' : ' · curado, vive en el código')
-          + (e.missing ? ` · ${e.meta || 'no está en este ambiente'}` : '');
+          + (absent ? ` · no se puede elegir: ${e.meta || `no está en ${target}`}` : '')
+          + (e.unreachable ? ` · no se pudo comprobar si está en ${target} (¿VPN?)` : '');
         rowEl.setAttribute('aria-selected', String(chosenOne));
-        rowEl.tabIndex = runRunning ? -1 : 0;
+        if (absent) rowEl.setAttribute('aria-disabled', 'true');
+        rowEl.tabIndex = runRunning || absent ? -1 : 0;
         // Elegir un comercio sólo lo SELECCIONA (su configuración, sus entidades, su categoría): entrar como su
         // asesor es el ▶ de la fila. Antes elegir abría el celular solo, y con eso borraba el cliente sintético.
         rowEl.onclick = () => {
-          if (runRunning || chosenOne) return;
+          if (runRunning || chosenOne || absent) return;
           chooseEntry(e);
         };
         rowEl.onkeydown = (ev) => {
@@ -1395,7 +1406,7 @@
         const acc = document.createElement('div');
         acc.className = 'row-actions';
         const label = e.alias || e.name;
-        acc.appendChild(rowAction('play', `Entrar a «${label}» como su asesor`, () => playMerchant(e)));
+        if (!absent) acc.appendChild(rowAction('play', `Entrar a «${label}» como su asesor`, () => playMerchant(e)));
         if (e.fav) acc.appendChild(rowAction('close', `Quitar «${label}» de tu espacio`, () => removeFav(e)));
         rowEl.appendChild(acc);
         g.appendChild(rowEl);
@@ -2758,14 +2769,25 @@
     // La card muestra el hash de la sucursal que REALMENTE se lanza (.flows.json), no el de una búsqueda
     // por slug: eran distintos y la card mostraba una sucursal mientras el flujo corría contra otra, con
     // otra lista de lenders. Una sola llamada para todos, y marca los que no existen en este target.
+    // ⚠ TAMBIÉN LOS TUYOS: antes sólo se medían los curados, y un comercio agregado a mano salía elegible en un ambiente
+    // donde no existía. Y TRES estados, no dos: está · no está · no se pudo leer (sin VPN). El tercero NO deshabilita:
+    // apagar todo cada vez que se cae la VPN sería mentir que los comercios no existen (2026-10-09).
+    let enrichSeq = 0;
     async function enrichMerchants() {
+      const seq = ++enrichSeq;
+      const all = [...MERCHANTS, ...FAVS];
+      // Mientras se mide el ambiente nuevo, lo del anterior no vale: ni elegible ni deshabilitado, «…».
+      for (const m of all) { m.missing = false; m.unreachable = false; m.meta = '…'; }
+      renderMerchants();
       try {
-        const slugs = MERCHANTS.map(m => m.slug).join(',');
+        const slugs = all.map(m => m.slug).join(',');
         const info = await (await fetch('/api/branches?slugs=' + encodeURIComponent(slugs) + '&target=' + target)).json();
-        for (const m of MERCHANTS) {
+        if (seq !== enrichSeq) return;   // cambiaste de ambiente mientras medía: manda la última
+        for (const m of all) {
           const b = info[m.slug];
           if (b && b.alias) m.alias = b.alias;
-          if (!b || b.sinFlows) { m.meta = '— sin branch_hash en .flows.json'; m.missing = true; }
+          if (b && b.unreachable) { m.meta = `${b.hash || ''} · sin conexión a ${target}`.trim(); m.unreachable = true; }
+          else if (!b || b.sinFlows) { m.meta = '— sin branch_hash en .flows.json'; m.missing = true; }
           else if (!b.allied_name) { m.meta = `${b.hash} — no está en ${target}`; m.missing = true; }
           // Resuelto por NOMBRE porque el hash declarado no existe en este ambiente. Se avisa: la
           // búsqueda devuelve una sucursal cualquiera de las que tenga, y cuál toca importa cuando el
@@ -2774,11 +2796,13 @@
           else { m.meta = `${b.hash} · ${b.lenders} entidad${b.lenders === 1 ? '' : 'es'}`; m.missing = false; }
           // El árbol pide las sucursales con el `allied_id`, y compara el `hash` para saber cuál es la
           // DECLARADA —la única que se elige por slug, para no perder la resolución `por_target`—.
-          if (b) { m.allied_id = b.allied_id; m.hash = b.hash; m.alias = b.alias || ''; }
+          if (b && !b.unreachable) { m.allied_id = b.allied_id; m.hash = b.hash; m.alias = b.alias || ''; }
         }
       } catch {
-        for (const m of MERCHANTS) m.meta = '';
+        if (seq !== enrichSeq) return;
+        for (const m of all) m.meta = '';
       }
+      updateGo();   // el comercio elegido puede haber quedado fuera de este ambiente
       renderMerchants();
       revealSelection();   // recién acá se conocen `allied_id` y `hash`, que es lo que hace falta
       loadMerchantTags();  // y con los hashes, el país y los canales de cada uno para el filtro
@@ -3277,6 +3301,12 @@
     function updateGo() {
       if (runRunning) return;   // el botón es de startPoll mientras corre
       updateCaseSummary();
+      const chosen = sel && spaceEntries().find((x) => x.slug === sel.slug || (x.hash && x.hash === sel.slug));
+      if (chosen?.missing) {
+        $('go').disabled = true; setGoLabel('No está en ' + target);
+        $('runSummary').innerHTML = `<b>${escTxt(chosen.alias || chosen.name)}</b> no está en <b>${target}</b>: elegí otro comercio o volvé a un ambiente donde exista`;
+        return;
+      }
       // GATING POR SESIÓN (solo canal asesor: ecommerce entra por URL base64, sin Cognito). El objetivo es
       // que NINGUNA corrida pase por el login de Cognito: mientras el token del target se obtiene, el botón
       // espera; sin token, apunta al dot. 'unreachable' NO bloquea (ver el comentario de sessionState).

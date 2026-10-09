@@ -1484,7 +1484,13 @@ const server = createServer(async (req, res) => {
         const bySlug: Record<string, string> = {};
         for (const s of slugs) { const h = branchHashForSlug(s, target); if (h) bySlug[s] = h; }
         const hashes = [...new Set(Object.values(bySlug))];
-        const rowList: any[] = hashes.length ? ((await dbopsJson(['branches', ...hashes], target)) ?? []) : [];
+        const read = hashes.length ? await dbopsJson(['branches', ...hashes], target) : [];
+        // ⚠ «NO PUDE LEER» NO ES «NO ESTÁ». Sin la VPN de dev la consulta falla y antes eso se leía como una lista
+        // vacía: cada comercio salía «no está en qa» y el panel los habría deshabilitado todos (2026-10-09).
+        if (read === null) {
+            return json(res, 200, Object.fromEntries(slugs.map((s) => [s, { hash: bySlug[s] ?? '', unreachable: true }])));
+        }
+        const rowList: any[] = read ?? [];
         const info = Object.fromEntries(rowList.map((f: any) => [f.hash, f]));
 
         /* ── SI EL HASH DECLARADO NO ESTÁ EN ESTE AMBIENTE, SE BUSCA EL COMERCIO POR SU SLUG ──
@@ -1506,7 +1512,8 @@ const server = createServer(async (req, res) => {
         for (const s of slugs) {
             const h = bySlug[s];
             if (h && info[h]?.allied_name) continue;
-            const found = (await dbopsList(s, target)).find((m: any) => m.slug === s || m.hash);
+            // Sólo el MISMO slug: `list` busca por parecido, y tomar el primero con hash adoptaba otro comercio.
+            const found = (await dbopsList(s, target)).find((m: any) => m.slug === s && m.hash);
             if (found?.hash) rescued[s] = { hash: found.hash, allied_name: found.name, porSlug: true };
         }
 
