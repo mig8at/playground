@@ -528,7 +528,10 @@ function rescueDownPayment(id: DeviceId, target: string, phone = ''): void {
  * Cada minuto y no menos: la API de consultas de PostHog tiene cupo por hora.
  */
 const PG_BIN = fileURLToPath(new URL('../../bin/pg', import.meta.url));
+/** El ambiente contra el que se abrió cada celular (lo fija `watchFrontExceptions`, que corre en cada apertura). */
+const deviceTarget = new Map<DeviceId, string>();
 function watchFrontExceptions(id: DeviceId, target: string): void {
+    deviceTarget.set(id, target);
     if (target !== 'qa' && target !== 'staging') return;   // local y dev sirven un front que no escribe en PostHog
     const openedAt = deviceOpenedAt(id);
     const since = Math.floor(Date.now() / 1000) - 60;
@@ -583,6 +586,65 @@ function watchCategories(id: DeviceId, target: string): void {
             for (const l of r.lenders) deviceLog(id, `categoría registrada · ${l.lender}: ${l.category ?? 'ninguna'}`);
         });
     });
+}
+/**
+ * AVANZAR HASTA… — «Avanzar» en ciclo, en el servidor, hasta el final del recorrido o hasta una pantalla del mapa. Antes
+ * se recorría qa llamando a `/advance` en un loop desde la consola (2026-10-09). Se detiene sola:
+ *   · al llegar: `loan-approved`, una cancelación, o la pantalla pedida (`until`, un id de `steps.json`);
+ *   · si no hay botón para avanzar y la pantalla no se mueve sola (las de procesamiento sí se mueven: se les da tiempo);
+ *   · si se toca y no se sale de la pantalla tres veces seguidas (una validación que el panel no sabe llenar);
+ *   · a pedido (`/advance-stop`), si se cierra el celular, o a los 40 toques.
+ * Cada toque y el motivo del final van a la consola del celular.
+ */
+const advancing = new Map<DeviceId, { stop: boolean }>();
+const TERMINAL_PATH = /\/(loan-approved|request-canceled)(\/|$)/;
+function stepPattern(id: string): RegExp | null {
+    try {
+        const st = JSON.parse(readFileSync(join(HERE, 'steps.json'), 'utf8'));
+        const all: any[] = [...(st.tronco || []), ...(st.terminales?.pasos || [])];
+        for (const g of ['ramales', 'desvios', 'extensiones', 'entradas']) for (const [k, v] of Object.entries(st[g] || {})) if (!k.startsWith('_')) all.push(...((v as any)?.pasos || []));
+        const p = all.find((x) => x?.id === id && x.ruta);
+        if (!p) return null;
+        return new RegExp('^' + String(p.ruta).split('?')[0].replace(/[.*+?^$()|[\]\\]/g, '\\$&').replace(/\{[^}]*\}/g, '[^/]+') + '/?$');
+    } catch { return null; }
+}
+async function advanceAll(id: DeviceId, until: string | null): Promise<void> {
+    if (advancing.has(id)) return;
+    const run = { stop: false };
+    advancing.set(id, run);
+    const remote = (deviceTarget.get(id) || 'local') !== 'local';
+    const target = until ? stepPattern(until) : null;
+    const pathOf = (u?: string) => { try { return new URL(u || '').pathname; } catch { return ''; } };
+    const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+    deviceLog(id, `⏩ avanzando ${until ? `hasta «${until}»` : 'hasta el final'}${remote ? ' (espera de ambiente remoto)' : ''}`);
+    let why = 'llegó a 40 toques';
+    let stuck = 0, idle = 0;
+    try {
+        for (let i = 0; i < 40; i++) {
+            if (run.stop) { why = 'detenido a pedido'; break; }
+            const state = deviceState(id);
+            if (!state.open) { why = 'se cerró el celular'; break; }
+            const here = pathOf(state.url);
+            if (target && target.test(here)) { why = `llegó a «${until}»`; break; }
+            if (TERMINAL_PATH.test(here)) { why = `llegó al final (${here.split('/').pop()})`; break; }
+            const r = await deviceAdvance(id, deviceOtp.get(id), remote ? 12_000 : 4_000);
+            if (!r.ok) {
+                // Sin botón: puede ser una pantalla que avanza sola (procesando el pago, validando). Se le da tiempo.
+                if (++idle > 8) { why = `se quedó en ${here}: ${r.detail}`; break; }
+                await sleep(5_000); continue;
+            }
+            idle = 0;
+            deviceLog(id, '▸ ' + r.detail);
+            stuck = r.moved ? 0 : stuck + 1;
+            if (stuck >= 3) { why = `toca y no sale de ${pathOf(r.url)}: algo que el panel no sabe llenar`; break; }
+            await sleep(remote ? 2_000 : 800);
+        }
+    } catch (e) {
+        why = 'falló: ' + (e as Error).message.split('\n')[0];
+    } finally {
+        advancing.delete(id);
+        deviceLog(id, `⏹ ${why}`);
+    }
 }
 // Celulares ABRIÉNDOSE: entre cerrar el anterior y abrir el nuevo no hay ninguno «abierto», y un precalentado
 // que entrara justo ahí reiniciaría el wizard que el celular está por mostrar (pasó el 2026-10-06).
@@ -1971,14 +2033,14 @@ connect();
     // `POST /api/device/client/open` arma el pedido de la tienda del panel —la misma URL base64 que usa
     // la corrida (`dbops ecommerce-url`)— y abre el checkout en el contexto del cliente. Por ahora sólo
     // navega: el bypass del OTP y la siembra del buró vienen después.
-    const deviceRoute = /^\/api\/device\/(client|advisor)(?:\/(open|state|shot|close|input|reload|tap|advance))?$/.exec(path);
+    const deviceRoute = /^\/api\/device\/(client|advisor)(?:\/(open|state|shot|close|input|reload|tap|advance|advance-all|advance-stop))?$/.exec(path);
     if (deviceRoute) {
         const id = deviceRoute[1] as DeviceId, action = deviceRoute[2] || 'state';
         if (action === 'open' && req.method === 'POST') {
             devicesOpening++;
             res.once('close', () => { devicesOpening--; });
         }
-        if (action === 'state') return json(res, 200, { ...deviceState(id), note: deviceNotes.get(id) ?? null });
+        if (action === 'state') return json(res, 200, { ...deviceState(id), note: deviceNotes.get(id) ?? null, advancing: advancing.has(id) });
         // Recargar la página del celular (el botón que aparece al pararse sobre él). Queda en la consola.
         if (action === 'reload' && req.method === 'POST') {
             if (!deviceState(id).open) return json(res, 200, { ok: false, open: false });
@@ -2001,12 +2063,25 @@ connect();
             const done = await deviceInput(id, ev).catch((e) => { console.error('device input:', (e as Error).message); return false; });
             return json(res, 200, { ok: done, ...deviceState(id) });
         }
+        if (action === 'advance-all' && req.method === 'POST') {
+            if (!deviceState(id).open) return json(res, 200, { ok: false, detail: 'el celular no está abierto' });
+            const b = await readBody(req);
+            const until = b?.until ? String(b.until) : null;
+            if (until && !stepPattern(until)) return json(res, 400, { ok: false, detail: `no conozco la pantalla «${until}»` });
+            void advanceAll(id, until);   // corre solo; lo que hace va a la consola
+            return json(res, 200, { ok: true, advancing: true });
+        }
+        if (action === 'advance-stop' && req.method === 'POST') {
+            const run = advancing.get(id);
+            if (run) run.stop = true;
+            return json(res, 200, { ok: true, advancing: !!run });
+        }
         // Tocar por lo que DICE la pantalla, no por coordenadas: `tap` un texto, `advance` el botón principal.
         if ((action === 'tap' || action === 'advance') && req.method === 'POST') {
             const b = action === 'tap' ? await readBody(req) : {};
             const text = String(b?.text ?? '').trim();
             if (action === 'tap' && !text) return json(res, 400, { ok: false, detail: 'falta el texto a tocar' });
-            const r = await (action === 'tap' ? deviceTap(id, text) : deviceAdvance(id, deviceOtp.get(id)))
+            const r = await (action === 'tap' ? deviceTap(id, text) : deviceAdvance(id, deviceOtp.get(id), (deviceTarget.get(id) || 'local') !== 'local' ? 12_000 : 4_000))
                 .catch((e) => ({ ok: false, detail: (e as Error).message.split('\n')[0] }));
             deviceLog(id, (r.ok ? '▸ ' : '✗ ') + r.detail);
             return json(res, 200, { ...r, ...deviceState(id) });

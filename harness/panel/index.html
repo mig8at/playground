@@ -262,6 +262,8 @@
     /* AVANZAR, del otro lado: toca el botón principal de la pantalla por su TEXTO (`/api/device/<id>/advance`), y lo
        destraba si hace falta (monto mínimo, documento leído, casilla de confirmación). Qué tocó queda en la consola. */
     .device-reload.device-advance { right: auto; left: 8px }
+    .device-reload.device-advance-all { top: 52px }
+    .device-reload.device-advance-all[data-running="true"] { opacity: 1; pointer-events: auto; color: var(--warn) }
     .device-open { margin-top: auto; padding: var(--space-3) var(--space-3) var(--space-6); border-top: 1px solid var(--border) }
     .device-open .btn { width: 100% }
     /* El código del OTP del celular de prueba, al lado de su rótulo: se copia con un clic. */
@@ -677,6 +679,7 @@
               <div class="device-frame"><div class="device-notch"></div>
                 <!-- Recargar la página: aparece al pararse sobre el celular, sólo con algo abierto (CSS). -->
                 <button type="button" class="device-reload device-advance" data-device="advisor" title="Tocar el botón principal de la pantalla del asesor (Continuar, Confirmar, Firmar…)" aria-label="Avanzar en el celular del asesor"><span class="ui-icon" data-icon="play" aria-hidden="true"></span><span>Avanzar</span></button>
+                <button type="button" class="device-reload device-advance device-advance-all" data-device="advisor" title="Avanzar solo hasta el final; se detiene si una pantalla no avanza. Un clic en un nodo del mapa avanza hasta esa pantalla." aria-label="Avanzar hasta el final en el celular del asesor"><span class="ui-icon" data-icon="play" aria-hidden="true"></span><span>Hasta el final</span></button>
                 <button type="button" class="device-reload" data-device="advisor" title="Recargar la página del celular del asesor" aria-label="Recargar la página del celular del asesor"><span class="ui-icon" data-icon="refresh" aria-hidden="true"></span><span>Recargar</span></button>
                 <div class="device-screen" id="screenAdvisor">
                   <!-- El asesor: su navegador REAL con el wizard del comercio (`panel/devices.ts`), entrando como el
@@ -698,6 +701,7 @@
               <div class="device-frame"><div class="device-notch"></div>
                 <!-- Recargar la página: aparece al pararse sobre el celular, sólo con algo abierto (CSS). -->
                 <button type="button" class="device-reload device-advance" data-device="client" title="Tocar el botón principal de la pantalla del cliente (Continuar, Confirmar, Firmar…)" aria-label="Avanzar en el celular del cliente"><span class="ui-icon" data-icon="play" aria-hidden="true"></span><span>Avanzar</span></button>
+                <button type="button" class="device-reload device-advance device-advance-all" data-device="client" title="Avanzar solo hasta el final; se detiene si una pantalla no avanza. Un clic en un nodo del mapa avanza hasta esa pantalla." aria-label="Avanzar hasta el final en el celular del cliente"><span class="ui-icon" data-icon="play" aria-hidden="true"></span><span>Hasta el final</span></button>
                 <button type="button" class="device-reload" data-device="client" title="Recargar la página del celular del cliente" aria-label="Recargar la página del celular del cliente"><span class="ui-icon" data-icon="refresh" aria-hidden="true"></span><span>Recargar</span></button>
                 <div class="device-screen" id="screenClient">
                   <p class="device-empty" id="clientEmpty">El celular del cliente</p>
@@ -1725,7 +1729,7 @@
       };
     }
     // Avanzar (`/api/device/<id>/advance`): el servidor deja en la consola qué tocó, o por qué no pudo.
-    for (const b of document.querySelectorAll('.device-advance')) {
+    for (const b of document.querySelectorAll('.device-advance:not(.device-advance-all)')) {
       b.onclick = async () => {
         if (b.getAttribute('aria-busy') === 'true') return;
         b.setAttribute('aria-busy', 'true'); b.lastElementChild.textContent = 'Avanzando…';
@@ -1733,6 +1737,37 @@
         try { r = await (await fetch(`/api/device/${b.dataset.device}/advance`, { method: 'POST' })).json(); } catch { }
         b.removeAttribute('aria-busy'); b.lastElementChild.textContent = 'Avanzar';
         b.title = r ? r.detail : 'el panel no contestó';
+      };
+    }
+    // «Hasta el final» (`/api/device/<id>/advance-all`): el ciclo corre en el servidor y escribe en la consola. Mientras
+    // corre, el botón es «Detener». Un clic en un nodo del mapa hace lo mismo hasta esa pantalla (`advanceDeviceTo`).
+    const advanceAllBtn = (dev) => document.querySelector(`.device-advance-all[data-device="${dev}"]`);
+    function paintAdvanceAll(dev, running) {
+      const b = advanceAllBtn(dev); if (!b) return;
+      b.dataset.running = String(running);
+      b.lastElementChild.textContent = running ? 'Detener' : 'Hasta el final';
+      b.querySelector('.ui-icon').dataset.icon = running ? 'close' : 'play';
+    }
+    async function watchAdvanceAll(dev) {
+      for (let i = 0; i < 600; i++) {
+        await new Promise((r) => setTimeout(r, 2000));
+        let st = null; try { st = await (await fetch(`/api/device/${dev}/state`)).json(); } catch { }
+        if (!st?.advancing) break;
+      }
+      paintAdvanceAll(dev, false);
+    }
+    async function advanceDeviceTo(dev, until) {
+      let r = null;
+      try { r = await (await fetch(`/api/device/${dev}/advance-all`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(until ? { until } : {}) })).json(); } catch { }
+      if (!r?.ok) { const b = advanceAllBtn(dev); if (b) b.title = r?.detail || 'el panel no contestó'; return; }
+      paintAdvanceAll(dev, true);
+      if (!logOpen) showLog(true);
+      watchAdvanceAll(dev);
+    }
+    for (const b of document.querySelectorAll('.device-advance-all')) {
+      b.onclick = async () => {
+        if (b.dataset.running === 'true') { try { await fetch(`/api/device/${b.dataset.device}/advance-stop`, { method: 'POST' }); } catch { } return; }
+        advanceDeviceTo(b.dataset.device, null);
       };
     }
     $('tabClient').onclick = () => showAuxView('client');
@@ -2722,6 +2757,11 @@
 
     function nodeSVG(p, x, y, color) {
       const g = el('g', { class: 'node', 'data-paso': p.id || '', transform: `translate(${x},${y})` });
+      // Con un celular abierto, un clic en el nodo lo avanza hasta esa pantalla (el del cliente si están los dos).
+      g.addEventListener('node-pick', () => {
+        if (!p.id || !openDevicesNow.length) return;
+        advanceDeviceTo(openDevicesNow.includes('client') ? 'client' : 'advisor', p.id);
+      });
       const nf = (p.front || []).length, nb = (p.back || []).length;
       const files = [...(p.front || []).map(f => 'front  ' + f), ...(p.back || []).map(f => 'back   ' + f)];
       // el label del nodo es CORTO a propósito (legibilidad del grafo); el nombre descriptivo y el
@@ -2903,11 +2943,18 @@
     }
     (function cameraInit() {
       const svg = $('routeMapSvg'); if (!svg) return;
-      let dragging = false, px = 0, py = 0;
-      svg.addEventListener('pointerdown', (e) => { dragging = true; px = e.clientX; py = e.clientY; svg.classList.add('drag'); svg.setPointerCapture(e.pointerId); });
+      let dragging = false, px = 0, py = 0, sx = 0, sy = 0;
+      svg.addEventListener('pointerdown', (e) => { dragging = true; px = sx = e.clientX; py = sy = e.clientY; svg.classList.add('drag'); svg.setPointerCapture(e.pointerId); });
       svg.addEventListener('pointermove', (e) => { if (!dragging) return; camValue.x += e.clientX - px; camValue.y += e.clientY - py; px = e.clientX; py = e.clientY; applyCam(); });
       const release = (e) => { dragging = false; svg.classList.remove('drag'); try { svg.releasePointerCapture(e.pointerId); } catch {} };
-      svg.addEventListener('pointerup', release); svg.addEventListener('pointercancel', release);
+      svg.addEventListener('pointerup', (e) => {
+        release(e);
+        // Un CLIC sobre un nodo: la captura del arrastre se lo traga (el `click` cae en el SVG), así que si el puntero casi
+        // no se movió se le avisa al nodo de abajo con `node-pick`.
+        if (Math.hypot(e.clientX - sx, e.clientY - sy) > 4) return;
+        document.elementFromPoint(e.clientX, e.clientY)?.closest('#routeMapCamera .node')?.dispatchEvent(new CustomEvent('node-pick'));
+      });
+      svg.addEventListener('pointercancel', release);
       // Zoom con rueda SOLO con ⌘/ctrl. La rueda pelada era del canvas, así que pasar el mouse por
       // encima mientras scrolleabas la página secuestraba el gesto y te dejaba clavado ahí. Convención
       // de Figma / Maps embebido: la rueda sola es de la PÁGINA; el zoom es explícito (modificador o
@@ -3529,6 +3576,7 @@
     let categoryActualFrom = null;     // de qué solicitud y ambiente salió, cuando vino de un celular (`deviceCategories`)
     let categoryLastNote = '';          // la nota de la sección, para repintarla igual cuando llega la categoría real
     let deviceCategoriesKey = '';
+    let openDevicesNow = [];   // los celulares abiertos según el último /api/status (el clic en un nodo avanza uno de ésos)
     let categoryRead = null;           // lo que el motor LEYÓ del usuario en esa corrida
     // Los datos que mueven la categoría, con el nombre de su perilla (o de lo que fija la inyección).
     const CATEGORY_INPUTS = { score: 'score', negativeReports12m: 'negativos 12m', currentDelinquencies: 'moras actuales',
@@ -4084,6 +4132,7 @@
           checkSession(target, true);   // la corrida pudo renovar (o quemar) la sesión → re-verificar el dot
           clearInterval(poll); poll = null;
         }
+        openDevicesNow = Array.isArray(j.devices) ? j.devices : [];
         renderActivity(j);
         followRunOnMap();
         // La categoría que registró el motor en la solicitud de un celular: llega sola, sin corrida.

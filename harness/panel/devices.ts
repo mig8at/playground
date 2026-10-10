@@ -400,7 +400,7 @@ async function unlock(page: Page): Promise<string[]> {
 }
 
 /** Toca el botón principal de la pantalla (ver `ADVANCE`), destrabándolo si hace falta. `otp`: el código del bypass. */
-export async function deviceAdvance(id: DeviceId, otp?: string): Promise<{ ok: boolean; detail: string }> {
+export async function deviceAdvance(id: DeviceId, otp?: string, waitMs = 4_000): Promise<{ ok: boolean; detail: string; moved?: boolean; url?: string }> {
     const d = open.get(id);
     if (!d) return { ok: false, detail: 'el celular no está abierto' };
     for (const label of ADVANCE) {
@@ -414,12 +414,13 @@ export async function deviceAdvance(id: DeviceId, otp?: string): Promise<{ ok: b
         const before = d.page.url();
         await el.click({ timeout: 10_000 });
         // Tocar no es avanzar: si la ruta no cambió, puede ser una validación (o una pantalla que avanza sola por dentro).
-        await d.page.waitForURL((u) => u.toString() !== before, { timeout: 4_000 }).catch(() => { });
+        // `waitMs`: qa navega más lento que local (la respuesta del backend viaja por la VPN); con 4 s se leía «no cambió».
+        await d.page.waitForURL((u) => u.toString() !== before, { timeout: waitMs }).catch(() => { });
         const moved = d.page.url() !== before;
         const tail = moved ? '' : ' · la pantalla no cambió de ruta';
-        return { ok: true, detail: [...did, `tocó «${label}»`].join(' · ') + tail };
+        return { ok: true, detail: [...did, `tocó «${label}»`].join(' · ') + tail, moved, url: d.page.url() };
     }
-    return { ok: false, detail: `no hay un botón para avanzar (${ADVANCE.join(', ')})` };
+    return { ok: false, detail: `no hay un botón para avanzar (${ADVANCE.join(', ')})`, url: d.page.url() };
 }
 
 /** Avisa cada navegación de la página principal de un celular (para seguir el flujo desde el panel). */
