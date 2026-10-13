@@ -383,7 +383,11 @@ export async function deviceTap(id: DeviceId, text: string): Promise<{ ok: boole
 
 /** Los botones que hacen AVANZAR el recorrido, en orden: si hay varios, gana el primero de la lista. Nunca se tocan
  *  «Cancelar», «No corresponde» ni «Regresar al comercio»: no están acá. */
-const ADVANCE = ['Validar Pre aprobado', 'Confirmar', 'Continuar', 'Elegir fecha de pago', 'Firmar', 'Siguiente', 'Aceptar'];
+// Los primeros del ASESOR (monto, código, validación) salen de los botones del wizard (`<Loader /> : "…"`, medido el
+// 2026-10-13): sin ellos «Siguiente» se quedaba en el monto. Afuera, a propósito: «Iniciar otra solicitud» (empieza de
+// nuevo) y «Reintentar validación» (podría girar en falso).
+const ADVANCE = ['Validar Pre aprobado', 'Iniciar solicitud', 'Confirmar código', 'Confirmar', 'Continuar', 'Elegir fecha de pago', 'Firmar',
+    'Validar ahora', 'Enviar solicitud', 'Enviar', 'Siguiente', 'Aceptar'];
 
 /**
  * Un MONTO vacío (la cuota inicial) se llena con el mínimo, que la pantalla trae de placeholder. Va SIEMPRE, no sólo con
