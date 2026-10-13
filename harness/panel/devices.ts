@@ -33,6 +33,7 @@ interface Device {
 
 // Un Android de gama media: la mayoría de los compradores entra desde uno.
 const PHONE = devices['Pixel 7'];
+const DEVICE_SCALE = Math.min(3, Math.max(1, Number(process.env.HARNESS_DEVICE_SCALE) || 2));
 const open = new Map<DeviceId, Device>();
 
 /** A dónde va lo que pasa en cada celular (el panel lo escribe en la consola de la corrida). */
@@ -178,7 +179,12 @@ const ENGINE_NAME = (process.env.HARNESS_DEVICE_ENGINE || 'chromium').toLowerCas
 let sharedBrowser: Promise<import('@playwright/test').Browser> | null = null;
 function browserForDevices(): Promise<import('@playwright/test').Browser> {
     if (!sharedBrowser) {
-        sharedBrowser = chromium.launch({ headless: true, args: ['--lang=es-CO'] });
+        // ⚠ LA NITIDEZ SE PIDE AL LANZAR, NO AL TRANSMITIR. El screencast manda el cuadro al tamaño de la página (412 px de
+        // ancho) aunque el celular emule 2,625× y aunque se pida un `maxWidth` mayor: en una pantalla retina se veía
+        // blando. Con `--force-device-scale-factor` Chromium dibuja la página a esa escala y el cuadro sale a 824 px
+        // (2×) o 1236 (3×), con el diseño intacto en 412 (medido el 2026-10-13: `innerWidth` sigue en 412).
+        // `HARNESS_DEVICE_SCALE=3` lo sube; cada cuadro pesa ~2× más por cada paso.
+        sharedBrowser = chromium.launch({ headless: true, args: ['--lang=es-CO', `--force-device-scale-factor=${DEVICE_SCALE}`] });
         // Si se cae, el próximo celular lanza otro.
         void sharedBrowser.then((b) => b.on('disconnected', () => { sharedBrowser = null; })).catch(() => { sharedBrowser = null; });
     }
@@ -395,8 +401,8 @@ export async function deviceStream(id: DeviceId, frame: Frame, end: () => void):
             c.last = Buffer.from(f.data, 'base64');
             for (const v of c.viewers) v.frame(c.last);
         });
-        // El doble del tamaño de la pantalla: nítido en una pantalla retina sin mandar más de lo que se ve.
-        await cdp.send('Page.startScreencast', { format: 'jpeg', quality: 70, maxWidth: SCREEN.width * 2, maxHeight: SCREEN.height * 2 });
+        // A la escala con que se lanzó Chromium (`DEVICE_SCALE`): nítido en una pantalla retina sin mandar más de lo que se ve.
+        await cdp.send('Page.startScreencast', { format: 'jpeg', quality: 80, maxWidth: SCREEN.width * DEVICE_SCALE, maxHeight: SCREEN.height * DEVICE_SCALE });
         d.context.on('close', () => { void c.stop(); });
         // Después de navegar —también dentro de la app, que no dispara `load`—, Chromium no siempre repinta (una página que
         // se dibuja igual o que termina de cargar sin cambios no manda cuadro): se fuerza una foto para que el panel no quede en la pantalla anterior.
