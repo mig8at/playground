@@ -714,7 +714,7 @@
                    (2026-10-13): el celular ya se toca y se escribe directo. Avanzar hasta una pantalla sigue en el mapa. -->
               <div class="device-actions" id="advisorActions" hidden>
                 <button type="button" class="device-reload" data-device="advisor" title="Recargar la página del celular del asesor" aria-label="Recargar la página del celular del asesor"><span class="ui-icon" data-icon="refresh" aria-hidden="true"></span><span>Recargar</span></button>
-                <button type="button" class="device-reload device-shot" data-device="advisor" title="Capturar la pantalla del celular del asesor (descarga un JPG)" aria-label="Capturar la pantalla del celular del asesor"><span class="ui-icon" data-icon="camera" aria-hidden="true"></span><span>Capturar</span></button>
+                <button type="button" class="device-reload device-shot" data-device="advisor" title="Copiar la pantalla del celular del asesor al portapapeles" aria-label="Capturar la pantalla del celular del asesor"><span class="ui-icon" data-icon="camera" aria-hidden="true"></span><span>Capturar</span></button>
               </div>
             </figure>
             <figure class="device" id="deviceClient">
@@ -749,7 +749,7 @@
                    (2026-10-13): el celular ya se toca y se escribe directo. Avanzar hasta una pantalla sigue en el mapa. -->
               <div class="device-actions" id="clientActions" hidden>
                 <button type="button" class="device-reload" data-device="client" title="Recargar la página del celular del cliente" aria-label="Recargar la página del celular del cliente"><span class="ui-icon" data-icon="refresh" aria-hidden="true"></span><span>Recargar</span></button>
-                <button type="button" class="device-reload device-shot" data-device="client" title="Capturar la pantalla del celular del cliente (descarga un JPG)" aria-label="Capturar la pantalla del celular del cliente"><span class="ui-icon" data-icon="camera" aria-hidden="true"></span><span>Capturar</span></button>
+                <button type="button" class="device-reload device-shot" data-device="client" title="Copiar la pantalla del celular del cliente al portapapeles" aria-label="Capturar la pantalla del celular del cliente"><span class="ui-icon" data-icon="camera" aria-hidden="true"></span><span>Capturar</span></button>
               </div>
             </figure>
           </div>
@@ -1757,24 +1757,34 @@
         b.removeAttribute('aria-busy'); b.lastElementChild.textContent = 'Recargar';
       };
     }
-    // Capturar (`/api/device/<id>/shot`): la pantalla del celular a resolución completa, como un JPG que se descarga con
-    // el celular, la hora y la pantalla en el nombre (`celular-cliente-15-32-07-down-payment.jpg`).
+    // Capturar (`/api/device/<id>/shot`): la pantalla del celular a resolución completa, COPIADA al portapapeles para
+    // pegarla directo en Slack, Jira o un chat. El portapapeles de Chrome sólo acepta PNG, así que el JPG del servidor se
+    // convierte antes. Si el navegador no deja copiar (sin foco, sin permiso), se descarga como antes.
     for (const b of document.querySelectorAll('.device-shot')) {
       b.onclick = async () => {
         if (b.getAttribute('aria-busy') === 'true') return;
         b.setAttribute('aria-busy', 'true');
+        const label = b.lastElementChild, done = (text) => { label.textContent = text; setTimeout(() => { label.textContent = 'Capturar'; }, 1500); };
         try {
           const dev = b.dataset.device;
-          const [shot, st] = await Promise.all([fetch(`/api/device/${dev}/shot`), fetch(`/api/device/${dev}/state`).then((r) => r.json()).catch(() => ({}))]);
-          if (shot.ok) {
-            const url = URL.createObjectURL(await shot.blob());
-            const screen = (() => { try { return new URL(st.url).pathname.split('/').filter((s) => s && !/^\d+$/.test(s)).slice(-1)[0] || 'pantalla'; } catch { return 'pantalla'; } })();
-            const a = document.createElement('a');
-            a.href = url; a.download = `celular-${dev === 'client' ? 'cliente' : 'asesor'}-${new Date().toTimeString().slice(0, 8).replaceAll(':', '-')}-${screen}.jpg`;
+          const shot = await fetch(`/api/device/${dev}/shot`);
+          if (!shot.ok) { done('Sin pantalla'); return; }
+          const jpg = await shot.blob();
+          try {
+            const bmp = await createImageBitmap(jpg);
+            const cv = document.createElement('canvas'); cv.width = bmp.width; cv.height = bmp.height;
+            cv.getContext('2d').drawImage(bmp, 0, 0);
+            const png = await new Promise((ok) => cv.toBlob(ok, 'image/png'));
+            await navigator.clipboard.write([new ClipboardItem({ 'image/png': png })]);
+            done('Copiada');
+          } catch {
+            const url = URL.createObjectURL(jpg), a = document.createElement('a');
+            a.href = url; a.download = `celular-${dev === 'client' ? 'cliente' : 'asesor'}-${new Date().toTimeString().slice(0, 8).replaceAll(':', '-')}.jpg`;
             document.body.appendChild(a); a.click(); a.remove();
             setTimeout(() => URL.revokeObjectURL(url), 5000);
+            done('Descargada');
           }
-        } catch { }
+        } catch { done('Falló'); }
         b.removeAttribute('aria-busy');
       };
     }
