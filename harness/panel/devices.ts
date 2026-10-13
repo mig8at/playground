@@ -617,6 +617,19 @@ async function unlock(page: Page): Promise<string[]> {
         return n;
     }).catch(() => 0);
     if (scrolled) did.push('bajó hasta el final del documento');
+    // «Confirmación de cupo» SIN contestar: «No», el flujo entero, como la corrida guiada (`preferirRadio`). El
+    // autorrelleno no la toca porque «Sí» firma otro flujo (F-214); acá ya se pidió avanzar, y si alguien eligió
+    // antes, se respeta.
+    if (await page.getByText('Confirmación de cupo').first().isVisible().catch(() => false)) {
+        const radios = page.getByRole('radio');
+        const chosen = await radios.evaluateAll((els) => els.some((e) => e.getAttribute('aria-checked') === 'true')).catch(() => true);
+        let no = page.getByRole('radio', { name: 'No', exact: true }).first();
+        if (!(await no.isVisible().catch(() => false))) no = page.getByText('No', { exact: true }).first();
+        if (!chosen && await no.isVisible().catch(() => false)) {
+            await no.click({ timeout: 5_000 }).catch(() => { });
+            did.push('contestó «No» en «Confirmación de cupo» (el flujo entero)');
+        }
+    }
     for (const box of await page.getByRole('checkbox').all()) {
         if (await box.isVisible().catch(() => false) && !(await box.isChecked().catch(() => true))) {
             await box.check({ timeout: 5_000 }).catch(() => box.click().catch(() => { }));
