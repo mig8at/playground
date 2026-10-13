@@ -96,7 +96,7 @@ regla del repo para `pkg/`.
   que suena a corrida mal armada. Se fija a `local` a mano, y va fijo porque el receptor es el monolito
   viejo en localhost.
 - el token de Sanctum se leía **sólo** del entorno; un panel que se usa a botones no puede pedir un
-  `export`. Ahora cae a `harness/.selfmanager-token` (gitignoreado, mismo trato que `.cognito.json`).
+  `export`. Ahora cae a `harness/.selfmanager-token` (gitignoreado, mismo trato que las sesiones de `connectors/.auth/`).
 
 ---
 

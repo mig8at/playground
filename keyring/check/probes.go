@@ -9,6 +9,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"sort"
 	"strings"
 	"time"
 
@@ -421,26 +422,49 @@ func probeCanon(ctx context.Context) []Check {
 
 // ── sesiones ────────────────────────────────────────────────────────────────────────────────────────
 
-// probeSessions lee las sesiones de asesor que guarda el harness (storageState de Playwright) y dice
-// cuándo vence cada una. `_at` es el acceso, que dura poco; `_rt` es el refresco, y es el que decide si
-// la sesión todavía sirve sin volver a loguearse.
+// probeSessions lee las sesiones de asesor que guarda el conector (`connectors/.auth/sessions/advisor-*.json`, una por
+// asesor de prueba de comercio `c<hash>-fake@` y origen del wizard) y dice, por ambiente, cuántas hay y hasta cuándo
+// sirve la mejor. `_at` es el acceso, que dura poco; `_rt` es el refresco, y es el que decide si la sesión todavía sirve
+// sin volver a loguearse. Una sesión sin cuenta de prueba es de la cuenta de persona retirada y no cuenta.
 func probeSessions(ctx context.Context) []Check {
 	dir, err := env.Dir()
 	if err != nil {
-		return []Check{{Name: "harness", State: Fail, Detail: firstLine(err.Error())}}
+		return []Check{{Name: "asesor", State: Fail, Detail: firstLine(err.Error())}}
 	}
-	files, _ := filepath.Glob(filepath.Join(filepath.Dir(dir), "harness", ".auth", "cognito-state*.json"))
-	if len(files) == 0 {
-		return []Check{{Name: "harness", State: Off, Detail: "no hay sesiones guardadas: make harness-session"}}
-	}
-	var out []Check
+	files, _ := filepath.Glob(filepath.Join(dir, ".auth", "sessions", "advisor-*.json"))
+	byTarget := map[string][]Check{}
 	for _, f := range files {
-		name := strings.TrimSuffix(strings.TrimPrefix(filepath.Base(f), "cognito-state"), ".json")
-		name = "asesor " + strings.TrimPrefix(name, ".")
-		if name == "asesor " {
-			name = "asesor (sin ambiente)"
+		raw, err := os.ReadFile(f)
+		if err != nil {
+			continue
 		}
-		out = append(out, sessionCheck(name, f))
+		var meta struct {
+			Target string `json:"target"`
+			User   string `json:"user"`
+		}
+		if json.Unmarshal(raw, &meta) != nil || meta.Target == "" || !strings.HasSuffix(meta.User, "-fake@creditop.com") {
+			continue
+		}
+		byTarget[meta.Target] = append(byTarget[meta.Target], sessionCheck("asesor "+meta.Target, f))
+	}
+	if len(byTarget) == 0 {
+		return []Check{{Name: "asesor", State: Off, Detail: "no hay sesiones de asesores de prueba: make harness-login MERCHANT=<comercio> TARGET=<ambiente>"}}
+	}
+	envs := make([]string, 0, len(byTarget))
+	for t := range byTarget {
+		envs = append(envs, t)
+	}
+	sort.Strings(envs)
+	var out []Check
+	for _, t := range envs {
+		best := byTarget[t][0]
+		for _, c := range byTarget[t][1:] {
+			if c.State == OK && (best.State != OK || c.Expires.After(*best.Expires)) {
+				best = c
+			}
+		}
+		best.Detail = fmt.Sprintf("%d asesor(es) de prueba · %s", len(byTarget[t]), best.Detail)
+		out = append(out, best)
 	}
 	return out
 }
@@ -478,7 +502,7 @@ func sessionCheck(name, path string) Check {
 		}
 	}
 	if refresh == nil {
-		c.State, c.Detail = Fail, "no tiene refresco (_rt): make harness-session"
+		c.State, c.Detail = Fail, "no tiene refresco (_rt): make harness-login MERCHANT=<comercio>"
 		if info, err := os.Stat(path); err == nil && time.Since(info.ModTime()) > 30*24*time.Hour {
 			c.State, c.Detail = Off, "archivo sin usar desde el "+info.ModTime().Format("02/01/2006")+", sin refresco"
 		}

@@ -12,7 +12,8 @@ import { fileURLToPath } from 'node:url';
  *
  * Las claves de login, por ambiente (una cuenta por PERSONA: cada quien pone la suya en su máquina):
  *   ADMIN_USER / ADMIN_PASS      el admin de legacy-application (Laravel, Fortify)
- *   ADVISOR_USER / ADVISOR_PASS  el asesor del wizard (Cognito)
+ * El asesor del wizard NO tiene cuenta de persona: es el asesor de prueba de cada comercio (`c<hash>-fake@`, lo crea
+ * el admin) con la clave compartida del ambiente, `ALLIED_TEST_ADVISOR_PASSWORD` (ver `advisor/session.ts`).
  */
 
 const PLAYGROUND = resolve(dirname(fileURLToPath(import.meta.url)), '../..');
@@ -70,20 +71,19 @@ export function loadSources(target: string): EnvSources {
     };
 }
 
-export type CredentialKind = 'admin' | 'advisor';
+export type CredentialKind = 'admin';
 
 export interface Credentials {
     user: string;
     pass: string;
     /** De dónde salió, para decirlo en voz alta: una credencial de un archivo viejo no debe pasar desapercibida. */
     source: string;
-    /** `true` si vino de un lugar que ya no es el canónico (`.admin.json`, `.cognito.json`, `E2E_*`). */
+    /** `true` si vino de un lugar que ya no es el canónico (`.admin.json`, `E2E_ADMIN_*`). */
     legacy: boolean;
 }
 
 const KEYS: Record<CredentialKind, { user: string; pass: string }> = {
     admin: { user: 'ADMIN_USER', pass: 'ADMIN_PASS' },
-    advisor: { user: 'ADVISOR_USER', pass: 'ADVISOR_PASS' },
 };
 
 /** Los nombres de las claves de un tipo de login, para los mensajes. */
@@ -93,27 +93,15 @@ export const credentialKeys = (kind: CredentialKind) => KEYS[kind];
 function legacyCredentials(kind: CredentialKind, target: string, sources: EnvSources): Credentials | null {
     const T = target.toUpperCase();
     const pick = (user?: string, pass?: string, source = ''): Credentials | null => (user && pass ? { user, pass, source, legacy: true } : null);
-    if (kind === 'admin') {
-        const byEnv = pick(sources.proc[`E2E_ADMIN_USER_${T}`] || sources.proc.E2E_ADMIN_USER, sources.proc[`E2E_ADMIN_PASS_${T}`] || sources.proc.E2E_ADMIN_PASS, 'variables E2E_ADMIN_*');
-        if (byEnv) return byEnv;
-        const file = join(dirname(CONNECTORS_DIR), 'harness', '.admin.json');
-        if (existsSync(file)) {
-            try {
-                const raw = JSON.parse(readFileSync(file, 'utf8'));
-                const c = raw?.[target] ?? raw ?? {};
-                return pick(c.user, c.pass, 'harness/.admin.json');
-            } catch { /* archivo roto = como si no existiera */ }
-        }
-        return null;
-    }
-    const byEnv = pick(sources.proc.E2E_COGNITO_USER, sources.proc.E2E_COGNITO_PASS, 'variables E2E_COGNITO_*');
+    const byEnv = pick(sources.proc[`E2E_ADMIN_USER_${T}`] || sources.proc.E2E_ADMIN_USER, sources.proc[`E2E_ADMIN_PASS_${T}`] || sources.proc.E2E_ADMIN_PASS, 'variables E2E_ADMIN_*');
     if (byEnv) return byEnv;
-    const file = join(dirname(CONNECTORS_DIR), 'harness', '.cognito.json');
+    const file = join(dirname(CONNECTORS_DIR), 'harness', '.admin.json');
     if (existsSync(file)) {
         try {
             const raw = JSON.parse(readFileSync(file, 'utf8'));
-            return pick(raw.user, raw.pass, 'harness/.cognito.json');
-        } catch { /* idem */ }
+            const c = raw?.[target] ?? raw ?? {};
+            return pick(c.user, c.pass, 'harness/.admin.json');
+        } catch { /* archivo roto = como si no existiera */ }
     }
     return null;
 }
@@ -121,7 +109,7 @@ function legacyCredentials(kind: CredentialKind, target: string, sources: EnvSou
 /**
  * La credencial de ese tipo de login para ese ambiente, o `null`. SÓLO sale del lugar canónico (`connectors/`).
  *
- * ⚠ Lo viejo (`.admin.json`, `.cognito.json`, `E2E_*`) NO se usa nunca por su cuenta. Se probó el 2026-10-02 y es
+ * ⚠ Lo viejo (`.admin.json`, `E2E_ADMIN_*`) NO se usa nunca por su cuenta. Se probó el 2026-10-02 y es
  * peligroso: el `.admin.json` de esta máquina guarda la cuenta de OTRA persona (Duncan), y un `signin` que cae a
  * ella entra a un ambiente compartido con una identidad que nadie eligió. Se lo detecta (`legacyCredentials`) sólo
  * para avisar que hay que mudarlo.

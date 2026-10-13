@@ -22,7 +22,7 @@ import {
  * auténtico → /api/partners/user-request-product (real) → /merchant/{hash}/{id}/lenders.
  *
  * PRERREQUISITOS:
- *  - Credenciales Cognito (.cognito.json). Las rutas /merchant/* exigen sesión (default-layout requireUser).
+ *  - El asesor de prueba del comercio (E2E_ADVISOR_ACCOUNT). Las rutas /merchant/* exigen sesión (default-layout requireUser).
  *  - El usuario solo accede a SU propio merchant (default-layout redirige si el hash de la URL ≠ el del
  *    usuario). Por eso beforeAll RE-APUNTA la cuenta de prueba (1827080) al branch SmartPay bb534d6a
  *    (allied 24, con productos). afterAll la restaura a Motai (158/682) para no romper motai-ui.spec.ts.
@@ -37,7 +37,7 @@ const HASH = 'bb534d6a';
 const TS = String(Date.now()).slice(-8);
 
 test.describe.configure({ mode: 'serial' });
-// storageState: reusa la sesión Cognito cacheada (.auth/cognito-state.json) → cognitoLogin queda no-op
+// storageState: reusa la sesión guardada del asesor (connectors/.auth/sessions/) → cognitoLogin queda no-op
 // mientras la sesión viva; si murió, re-loguea y re-guarda. Ahorra el Hosted UI en cada corrida.
 test.use({ launchOptions: { slowMo: 120 }, storageState: cognitoStorageState() });
 
@@ -63,7 +63,7 @@ async function pickSelect(page: import('@playwright/test').Page, placeholder: Re
 }
 
 test('SmartPay dinámico por UI: amount → phone → otp → personal → financial → /lenders', async ({ page }) => {
-    test.skip(!cognitoCreds.user, 'Requiere .cognito.json (cuenta Cognito merchant)');
+    test.skip(!cognitoCreds.user, 'Requiere el asesor de prueba del comercio (E2E_ADVISOR_ACCOUNT)');
     test.setTimeout(200_000);
 
     const dateCombo = (re: RegExp) => page.locator('[role="combobox"]').filter({ hasText: re });

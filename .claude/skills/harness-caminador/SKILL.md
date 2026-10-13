@@ -158,7 +158,7 @@ entrar por el panel para tenerla:**
 - La cuenta es el **asesor de prueba del comercio** (`c<hash>-fake@creditop.com`, lo crea el admin con cada comercio;
   si falta, `bin/pg admin test-advisor`), con la clave compartida del ambiente (`ALLIED_TEST_ADVISOR_PASSWORD`). El
   caminador lo resuelve solo desde el comercio de los casos —un asesor por comercio, así que casos de comercios
-  distintos van en corridas separadas—. La cuenta de persona `ADVISOR_USER/PASS` se retiró el 2026-10-06. La sesión
+  distintos van en corridas separadas—. No hay cuenta de persona para el asesor. La sesión
   queda en `connectors/.auth/sessions/`, una por cuenta. Los N contextos de una tanda **reusan esa misma** (un solo
   login para todos: no se golpea el pool). O sea que «diez asesores en paralelo» son diez sesiones del
   MISMO asesor.

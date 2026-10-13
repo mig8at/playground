@@ -316,7 +316,7 @@ GRAFANA_TEMPO_ENDPOINT=http://host.docker.internal:4318/v1/traces
 | `E2E_BASE_URL` | `http://localhost:5174` | dónde corre el wizard |
 | `E2E_MOCK_URL` | `http://localhost` | baseURL del backend local |
 | `E2E_PARTNER_HASH` | `3e67eade` | hash del aliado para entrar al flujo |
-| `E2E_COGNITO_USER` / `_PASS` | de `.cognito.json` | el env **gana** sobre el archivo; sin ninguno los specs gated **skipean** |
+| `E2E_ADVISOR_ACCOUNT` | lo setea `bin/advisor` | el asesor de prueba del comercio (`c<hash>-fake@creditop.com`); entra con `ALLIED_TEST_ADVISOR_PASSWORD` de `connectors/.env.<ambiente>`. Sin él los specs gated **skipean** |
 | `I_KNOW_THIS_TOUCHES_SHARED_DEV` | `1` en `.env.dev` | guard de `assertWriteAllowed()` para escrituras a DB compartida |
 | `E2E_GUIDED` · `E2E_ENTRY` · `E2E_RESULT` | los setea `bin/advisor` | guiado/manual · cognito/ecommerce · success\|rejected\|pending |
 | `E2E_INJECT` · `E2E_STEP_TARGET` · `E2E_AMOUNT` | los setea el panel | inyectar buró sí/no · saltar a monto\|phone\|personal-info\|lenders · monto |

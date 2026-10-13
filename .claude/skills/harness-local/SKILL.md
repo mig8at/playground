@@ -14,8 +14,7 @@ harness están en `harness/CLAUDE.md`; esto es la receta de cada pieza. Vivía a
   API legacy `http://127.0.0.1:80/api` (vhost por header `Host`). Mocks → `harness/CLAUDE.md`.
 - **Cognito** (`/merchant/*` = Motai/SmartPay exigen sesión): se entra con el **asesor de prueba del comercio**
   (`c<hash>-fake@`, lo crea el admin) y la clave compartida `ALLIED_TEST_ADVISOR_PASSWORD` de `connectors/.env.<ambiente>`
-  (la cuenta de persona `ADVISOR_USER/PASS` se retiró el 2026-10-06)
-  (gitignored; el proceso gana). Sin credenciales los specs gated **skipean**, no
+  (gitignored; el proceso gana); no hay cuenta de persona para el asesor. Sin credenciales los specs gated **skipean**, no
   fallan. **Caché de sesión**: los specs reusan `storageState` (`connectors/.auth/sessions/`) →
   `cognitoLogin` es no-op si la página ya está autenticada; el servidor comprueba la vigencia; tras un login real re-guarda el estado.
   Cubre también el camino del panel (`E2E_ENTRY=cognito`): «Preparar + Lanzar ▶» no re-abre el Hosted UI

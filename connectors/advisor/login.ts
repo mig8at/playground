@@ -20,7 +20,7 @@ export async function loginOnPage(page: Page, user: string, pass: string, return
         if (new URL(page.url()).host !== returnHost) throw new Error('el login no mostró el formulario de usuario');
         return false; // ya estaba autenticada; no atribuir esa sesión a otra cuenta
     }
-    if (!user || !pass) throw new Error('faltan ADVISOR_USER y ADVISOR_PASS en connectors/.env.<ambiente>');
+    if (!user || !pass) throw new Error('falta la cuenta del asesor de prueba o ALLIED_TEST_ADVISOR_PASSWORD en connectors/.env.<ambiente>');
     const classic = await page.locator('input[name=password]:visible').count() > 0;
     await fillChecked(username, user);
     if (classic) {

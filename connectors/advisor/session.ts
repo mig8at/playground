@@ -1,6 +1,6 @@
 import { writeFileSync, mkdirSync, chmodSync } from 'node:fs';
 import { dirname } from 'node:path';
-import { credentialsFor, connectorValue } from '../auth/env.ts';
+import { connectorValue } from '../auth/env.ts';
 import { launchChrome, type Page } from '../auth/browser.ts';
 import { advisorTarget, sessionPath, readSession, writeSession, cookieHeaderFor, probeSession, isLoginRedirect, MissingCredentials, type StoredCookie, type StoredSession, type SignInOptions } from '../auth/sessions.ts';
 import { loginOnPage } from './login.ts';
@@ -15,9 +15,9 @@ export const TEST_ADVISOR_ACCOUNT = /^c[0-9a-f]+-fake@creditop\.com$/i;
 /**
  * Una instancia por ambiente de autenticación y origen del front, independiente del backend de la corrida.
  *
- * Con `account` (el asesor de prueba de un comercio) entra con ESA cuenta y la clave compartida de los asesores
- * de prueba del pool (`ALLIED_TEST_ADVISOR_PASSWORD`), y guarda una sesión propia de esa cuenta. Sin `account`, la
- * cuenta de la persona (`ADVISOR_USER/PASS`), como siempre.
+ * Entra con `account` —el asesor de prueba de un comercio (`c<hash>-fake@`, lo crea el admin)— y la clave compartida
+ * de los asesores de prueba del pool (`ALLIED_TEST_ADVISOR_PASSWORD`), y guarda una sesión propia de esa cuenta. Sin
+ * `account` no hay con quién entrar: el asesor no tiene cuenta de persona.
  */
 export function advisorSession(target: string, origin: string, account?: string) {
     const config = { feBaseUrl: new URL(origin).origin };
@@ -26,12 +26,10 @@ export function advisorSession(target: string, origin: string, account?: string)
     const COGNITO_STATE_PATH = sessionPath('advisor', authTarget, config.feBaseUrl, account);
     const read = () => readSession('advisor', authTarget, config.feBaseUrl, account);
     // La clave del asesor de prueba es la del POOL al que manda el front (el wizard local usa el de dev).
-    const creds = () => account
-        ? { user: account, pass: connectorValue('ALLIED_TEST_ADVISOR_PASSWORD', authTarget) }
-        : credentialsFor('advisor', authTarget);
+    const creds = () => account ? { user: account, pass: connectorValue('ALLIED_TEST_ADVISOR_PASSWORD', authTarget) } : null;
     const missing = () => account
         ? `falta ALLIED_TEST_ADVISOR_PASSWORD en connectors/.env.${authTarget}`
-        : `faltan ADVISOR_USER y ADVISOR_PASS en connectors/.env.${authTarget}`;
+        : 'falta la cuenta: el asesor de prueba del comercio (c<hash>-fake@creditop.com; bin/pg admin test-advisor lo crea)';
     function storageState(): string | undefined {
         const s = read();
         if (!s) return undefined;

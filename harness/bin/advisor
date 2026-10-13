@@ -122,9 +122,8 @@ fi
 export E2E_TARGET="$TARGET" E2E_BASE_URL="$WIZ_BASE" E2E_ENTRY="$ENTRY" E2E_GUIDED="$GUIDED" E2E_RESULT="$RESULT" E2E_PREVIEW=1
 
 # El POOL de Cognito lo trae el FRONT, no el target: el wizard local usa su propio `.env` del monorepo
-# (login.creditop.com = pool de dev) y acá solo le pisamos las URLs de API. Así que con front LOCAL hay que
-# loguear con la cuenta de ESE pool; la de `.env.staging` (otro pool) se queda dando vueltas en el login.
-# El conector decide el ambiente de autenticación a partir del origen del front. No se mezclan credenciales E2E antiguas.
+# (login.creditop.com = pool de dev) y acá solo le pisamos las URLs de API. Así que con front LOCAL el asesor de
+# prueba entra contra ESE pool: el conector decide el ambiente de autenticación a partir del origen del front.
 
 log() { printf '▶ %s\n' "$*"; }
 step() { printf '  ○ %-13s …\n' "$1"; }

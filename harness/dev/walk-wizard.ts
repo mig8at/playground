@@ -54,8 +54,7 @@ export {};
 
 /* ── EL ASESOR DE PRUEBA DEL COMERCIO ─────────────────────────────────────────────────────────────────────────────
  * Por el canal de asesor se entra como el asesor de prueba que el admin crea con cada comercio (`c<hash>-fake@`), con
- * la clave compartida del ambiente: lo mismo que `bin/advisor` y el panel. Antes el caminador entraba con una cuenta de
- * persona (`ADVISOR_USER`), retirada de los `.env` el 2026-10-06: la corrida moría con «la sesión no sirve».
+ * la clave compartida del ambiente: lo mismo que `bin/advisor` y el panel.
  * Va ANTES de cargar `pkg/config.ts` y `pkg/cognito.ts`, que leen la cuenta una sola vez al importarse. Un asesor =
  * un comercio: casos de comercios distintos en una sola corrida no pueden compartir sesión. */
 {

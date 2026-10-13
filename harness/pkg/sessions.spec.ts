@@ -34,7 +34,6 @@ test.describe('las credenciales de login', () => {
       test('salen de connectors con la clave del tipo de login', () => {
             const admin = credentialsFor('admin', 'dev', src({ target: { ADMIN_USER: 'miguel@x', ADMIN_PASS: 'a' } }));
             expect(admin).toMatchObject({ user: 'miguel@x', pass: 'a', legacy: false });
-            expect(credentialsFor('advisor', 'dev', src({ target: { ADMIN_USER: 'miguel@x', ADMIN_PASS: 'a' } }))).toBeNull();
       });
 
       test('hace falta el usuario Y la clave', () => {
@@ -46,14 +45,13 @@ test.describe('las credenciales de login', () => {
       // `credentialsFor` NO puede devolver nada: lo viejo se avisa, no se usa. Si este test falla, un `signin` vuelve a
       // poder entrar a un ambiente compartido con una identidad que nadie eligió.
       test('las variables viejas sólo producen un aviso sin contraseña, nunca una credencial de login', () => {
-            const sources = src({ proc: { E2E_COGNITO_USER: 'old@example.test', E2E_COGNITO_PASS: 'old-secret' } });
-            expect(legacyCredentialHint('advisor', 'qa', sources)).toEqual({ user: 'old@example.test', source: 'variables E2E_COGNITO_*' });
-            expect(credentialsFor('advisor', 'qa', sources)).toBeNull();
+            const sources = src({ proc: { E2E_ADMIN_USER: 'old@example.test', E2E_ADMIN_PASS: 'old-secret' } });
+            expect(legacyCredentialHint('admin', 'qa', sources)).toEqual({ user: 'old@example.test', source: 'variables E2E_ADMIN_*' });
+            expect(credentialsFor('admin', 'qa', sources)).toBeNull();
       });
 
       test('una credencial de un archivo viejo NO se devuelve para entrar', () => {
             expect(credentialsFor('admin', 'dev', src())).toBeNull();
-            expect(credentialsFor('advisor', 'qa', src())).toBeNull();
       });
 });
 

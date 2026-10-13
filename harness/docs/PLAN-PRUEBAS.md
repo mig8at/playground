@@ -29,7 +29,7 @@ espejo Go en `backend-e2e` *(borrado 2026-07-19 — lo rescatado está en findin
 
 **Acceso a `/merchant/*`** (Motai, SmartPay): se resuelve con **login Cognito real + mutex de cuenta**, NO con el
 obsoleto `DEV_SESSION`/`X-Dev-Session`. Ver detalle en [`VALIDATION.md`](VALIDATION.md) (§`/merchant/*` y §Mutex):
-`.cognito.json` (gitignored) + [`pkg/account-lock.ts`](../pkg/account-lock.ts) re-apunta la cuenta de prueba
+el asesor de prueba del comercio + [`pkg/account-lock.ts`](../pkg/account-lock.ts) re-apunta la cuenta de prueba
 (1827080) al comercio bajo prueba y la restaura. El viejo `mock-server :4000`/`validation-driven` fue **eliminado**.
 
 **Estado por flujo (qué está verde / fixme / por qué): ver [`VALIDATION.md`](VALIDATION.md).** Lo de abajo es el

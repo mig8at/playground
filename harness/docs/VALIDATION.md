@@ -10,7 +10,7 @@
 > fake del forms-service para SmartPay, mutex de la cuenta de prueba, login Cognito y re-apuntado del comercio.
 >
 > Lo que **no** vive aquí (solo se enlaza):
-> - **Setup / quickstart** (arrancar backend mock + wizard, `.env.local`, stashes, `.cognito.json`) → [`README.md`](../README.md).
+> - **Setup / quickstart** (arrancar backend mock + wizard, `.env.local`, stashes, el asesor de prueba) → [`README.md`](../README.md).
 > - **Backlog de `data-testid` por grupo + orden de implementación** → [`PLAN-PRUEBAS.md`](PLAN-PRUEBAS.md).
 > - **Taxonomía `response_type` 0-4 y ciclo de `user_request_statuses`** → `docs/NEGOCIO.md` *(histórico)*.
 > - **Hardcodes (IDs, hashes, montos, status, branches)** → `docs/LOGICA-QUEMADA.md` *(histórico)*.
@@ -41,7 +41,7 @@ no contra el `legacy-backend` real. Síntomas encontrados al correr el baseline:
 
 ## Resumen (tally del suite)
 
-Sin specs `dev-*`: **14 ✅ / 66 ⏸️ `fixme` / 0 ❌** con `.cognito.json` presente (incluye Motai UI y
+Sin specs `dev-*`: **14 ✅ / 66 ⏸️ `fixme` / 0 ❌** con el asesor de prueba configurado (incluye Motai UI y
 **SmartPay dinámico completo** + ecommerce handshake/notificación); **12 ✅** sin credenciales (Motai y SmartPay
 se skipean). Verde donde la validación es real contra el stack real; `fixme` (con motivo) donde la spec dependía
 del mock-server `:4000` eliminado, o falta seed / contrato del backend / credenciales.
@@ -50,8 +50,8 @@ del mock-server `:4000` eliminado, o falta seed / contrato del backend / credenc
 |------------|--------|------|------|
 | **Happy path** (amount→phone→OTP→personal→[laboral]→lenders) | ✅ VALIDADO | `e2e/happy-path.spec.ts` | corre verde contra el stack real (Pullman `3e67eade` salta employment vía Quanto). El `POST /__mock/state` residual fue removido. |
 | **Corbeta UI** (no-temporal → lenders) | ✅ VALIDADO | `merchant/corbeta.spec.ts` | comercio **Alkosto** (allied 209), hash real `a1c0b15d`; "Corbeta" es el flujo (`settings.corbeta_allieds=[24,209,210,211]`), no el nombre del comercio. `otp-validate success:true` (no-temporal) → el wizard salta directo a /lenders. 3 tests de contrato-mock quedan `fixme`. |
-| **Motai (`/merchant/*`)** | ✅ entrada por UI | `merchant/motai-ui.spec.ts` | login Cognito → solicitar → monto → teléfono → OTP → personal-info → fecha → **marketplace Motai**. Requiere `.cognito.json` + cuenta ligada a Motai (ver §`/merchant/*`). Cierre #158/IMEI/Abaco pendiente (Grupo E/F). |
-| **SmartPay dinámico (`/merchant/*`)** | ✅ VALIDADO completo | `merchant/smartpay-dynamic.spec.ts` | login Cognito → **amount+producto → teléfono → OTP → personal → financial → /lenders** (5 pasos de `@creditop/dynamic-form`). El wizard llama al forms-service directo → **legacy-backend lo FAKEA** (`/api/forms-fake/dynamic/*`, en stash); el `submit` delega al origination real → `userRequestId` auténtico. Requiere `.cognito.json` + `VITE_ONBOARDING_FORM_SERVICE=http://localhost/api/forms-fake`. El spec re-apunta la cuenta a `bb534d6a` (allied 24) y la restaura a Motai (mutex `pkg/account-lock`). Ver §SmartPay. |
+| **Motai (`/merchant/*`)** | ✅ entrada por UI | `merchant/motai-ui.spec.ts` | login Cognito → solicitar → monto → teléfono → OTP → personal-info → fecha → **marketplace Motai**. Requiere el asesor de prueba de Motai (ver §`/merchant/*`). Cierre #158/IMEI/Abaco pendiente (Grupo E/F). |
+| **SmartPay dinámico (`/merchant/*`)** | ✅ VALIDADO completo | `merchant/smartpay-dynamic.spec.ts` | login Cognito → **amount+producto → teléfono → OTP → personal → financial → /lenders** (5 pasos de `@creditop/dynamic-form`). El wizard llama al forms-service directo → **legacy-backend lo FAKEA** (`/api/forms-fake/dynamic/*`, en stash); el `submit` delega al origination real → `userRequestId` auténtico. Requiere el asesor de prueba + `VITE_ONBOARDING_FORM_SERVICE=http://localhost/api/forms-fake`. El spec re-apunta la cuenta a `bb534d6a` (allied 24) y la restaura a Motai (mutex `pkg/account-lock`). Ver §SmartPay. |
 | **Pullman → CrediPullman** | ✅ Pullman / ⏸️ #77 | `merchant/pullman-credipullman.spec.ts` | Pullman por UI ✅ (Quanto auto-inyecta → salta employment → /lenders, ofrece Meddipay). **CrediPullman #77 (rt=2) NO lo ofrece el marketplace** para este branch (mismo "marketplace restrictivo" del backend: `offer 3e67eade` = solo #39/#6). El cierre #77 está validado en backend forzando el lender (`asesor 3e67eade 77` → Estado 11) → oferta+cierre por UI en `fixme`. |
 | **Cupo Rotativo UI** | ✅ flujo / ⏸️ rt=3 | `merchant/revolving-quota.spec.ts` | flujo del partner (Pullman) llega a /lenders ✅. La oferta rt=3 + RevolvingCreditIntro requiere seed de marketplace → `fixme` (el cierre rt=3 ya está en backend-e2e: `asesor 3e67eade 71`). |
 | **Ecommerce (E2E completo)** | ✅ VALIDADO | `channel/ecommerce-local-real.spec.ts`, `channel/ecommerce-notify.spec.ts`, `channel/ecommerce-ui.spec.ts` | **handshake** con contrato base64 REAL (`generate_checkout_url.php`, PHP-serializado) → checkout → /lenders ✅; **notificación a la tienda** ✅ (`notify-store` → POST al `process_url` con `{status:'completed'}`, capturado por listener local vía `host.docker.internal`, + `return_url` propagado). `ecommerce-ui.spec.ts` **NO está obsoleto**: conserva 1 test verde de **contrato** (ver §Ecommerce). |
@@ -218,9 +218,9 @@ se driva por id/name/placeholder/rol; `OtpForm` ya traía `otp-input`/`otp-submi
 OTP → personal-info → fecha → **marketplace Motai (`/lenders` con Productos)**. Spec: `merchant/motai-ui.spec.ts`
 (skip sin credenciales). Mismo patrón que SmartPay: login Cognito + cuenta ligada al comercio + mutex.
 
-**Credenciales (asesor / `/merchant/*`)**: en **`.cognito.json`** (raíz de `harness`, gitignored, nunca
-commitear), leídas por `pkg/config.ts::cognitoCreds`; los env `E2E_COGNITO_USER`/`E2E_COGNITO_PASS` tienen
-prioridad. El driver del Hosted UI (`login.creditop.com`) es `pkg/cognito.ts`.
+**Credenciales (asesor / `/merchant/*`)**: el **asesor de prueba del comercio** (`c<hash>-fake@creditop.com`, lo crea
+el admin) que `bin/advisor` exporta en `E2E_ADVISOR_ACCOUNT`, con la clave compartida `ALLIED_TEST_ADVISOR_PASSWORD` de
+`connectors/.env.<ambiente>`; las lee `pkg/config.ts::cognitoCreds`. No hay cuenta de persona para el asesor. El driver del Hosted UI (`login.creditop.com`) es `pkg/cognito.ts`.
 
 ### Estado de la cuenta de prueba (1827080) y re-apuntado
 La cuenta de prueba (`a.arismendy`, user 1827080) está asociada en BD local a **Motai** (allied 158, branch 682,
@@ -286,7 +286,7 @@ handshake y la notificación a la tienda viven en `docs/MAPA-FLUJOS.md` *(histó
 
 → **[`README.md`](../README.md)** (dueño): arrancar backend mock + wizard (:5174), `.env.local`
 (`VITE_API_URL`, `VITE_ONBOARDING_FORM_SERVICE`), aplicar los stashes (`legacy-backend stash@{0}` con bypasses +
-SmartPay forms-fake; `frontend-monorepo stash@{0}` con los testids), `.cognito.json`, y los comandos
+SmartPay forms-fake; `frontend-monorepo stash@{0}` con los testids), el asesor de prueba, y los comandos
 `npx playwright test`.
 
 → **Backlog de `data-testid` por grupo + orden de implementación**: [`PLAN-PRUEBAS.md`](PLAN-PRUEBAS.md).

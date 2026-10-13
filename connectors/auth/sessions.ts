@@ -1,7 +1,7 @@
 import { chmodSync, existsSync, mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { credentialsFor, type CredentialKind } from './env.ts';
+import { credentialsFor } from './env.ts';
 import { createHash, randomUUID } from 'node:crypto';
 import { renameSync } from 'node:fs';
 
@@ -20,7 +20,7 @@ export function advisorTarget(target: string, origin: string): string {
     return target === 'local' ? 'dev' : target;
 }
 
-export type SessionKind = CredentialKind;
+export type SessionKind = 'admin' | 'advisor';
 
 export interface StoredCookie {
     name: string; value: string; domain: string; path: string;
@@ -88,7 +88,7 @@ export const sessionPath = (kind: SessionKind, target: string, origin = defaultO
 
 export function matchesSession(s: StoredSession, kind: SessionKind, target: string, origin: string, account?: string): boolean {
     const t = kind === 'advisor' ? advisorTarget(target, origin) : target;
-    const user = account ?? credentialsFor(kind, t)?.user;
+    const user = account ?? (kind === 'admin' ? credentialsFor('admin', t)?.user : undefined);
     return s?.version === 1 && s.kind === kind && s.target === t && s.origin === new URL(origin).origin
         && typeof s.user === 'string' && !!s.user && Array.isArray(s.cookies)
         && (!user || kind === 'admin' && target === 'local' || s.user.toLowerCase() === user.toLowerCase());
@@ -204,8 +204,3 @@ export function isLoginRedirect(location: string): boolean {
 }
 export class MissingCredentials extends Error {}
 export interface SignInOptions { headless?: boolean; origin?: string }
-export async function signIn(kind: SessionKind, target: string, opts: SignInOptions = {}) {
-    if (kind === 'admin') throw new Error(`el admin lo maneja bin/pg admin login --target ${target}`);
-    const { advisorSession } = await import('../advisor/session.ts');
-    return advisorSession(target, opts.origin ?? defaultOrigin(kind, target)).signIn(opts);
-}

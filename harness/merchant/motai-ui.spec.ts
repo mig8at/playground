@@ -8,7 +8,7 @@ import { cognitoStorageState } from '../pkg/cognito';
  * Motai (lender 158, branch f0548728) POR UI — flujo `/merchant/*` (requiere sesión Cognito).
  *
  * PRERREQUISITOS (entorno):
- *  - Credenciales Cognito en env: E2E_COGNITO_USER / E2E_COGNITO_PASS (de una cuenta MERCHANT).
+ *  - El asesor de prueba del comercio en E2E_ADVISOR_ACCOUNT, con ALLIED_TEST_ADVISOR_PASSWORD en connectors.
  *  - Esa cuenta debe estar ligada a Motai en la BD local: la fila `users` cuyo `cognito_id` = el SUB real
  *    de la sesión debe tener allied_id=158, allied_branch_id=682, user_profile_id=4. (El sub real se captura
  *    backend-side: log temporal de `x-cognito-identity-id` en UserController@userData. Ver VALIDATION.md.)
@@ -36,7 +36,7 @@ test.afterAll(() => {
 });
 
 test('Motai por UI: login Cognito → entrada → marketplace Motai (/lenders)', async ({ page }) => {
-    test.skip(!cognitoCreds.user, 'Requiere credenciales Cognito (.cognito.json o env) + cuenta ligada a Motai (ver doc)');
+    test.skip(!cognitoCreds.user, 'Requiere el asesor de prueba de Motai (E2E_ADVISOR_ACCOUNT + ALLIED_TEST_ADVISOR_PASSWORD)');
     test.setTimeout(180_000);
 
     // Composer: 'motai' está mapeado a {channel: 'merchant-cognito', wizard: 'standard'}.

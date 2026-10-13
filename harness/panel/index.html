@@ -4567,7 +4567,7 @@
       const otherPool = frontMode === 'local' && target !== 'local' && target !== 'dev';
       $('frontHint').textContent = frontMode === 'local'
         ? `Abre tu :5174 (Vite sobre el monorepo local) contra el backend de ${target}: ves tus cambios del front sin esperar el deploy.`
-          + (otherPool ? ' Ojo: el pool de Cognito lo trae el wizard local (dev), así que loguea con la cuenta de .cognito.json y usa la sesión de dev.' : '')
+          + (otherPool ? ' Ojo: el pool de Cognito lo trae el wizard local (dev), así que el asesor de prueba entra con la clave de dev y usa la sesión de dev.' : '')
         : `Abre ${frontEnvironmentUrl} — el build desplegado. Tus cambios locales del front NO se ven acá.`;
       updateGo();
     }

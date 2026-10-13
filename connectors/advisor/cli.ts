@@ -1,7 +1,7 @@
 import { parseArgs } from 'node:util';
 import { advisorSession, TEST_ADVISOR_ACCOUNT } from './session.ts';
-import { advisorTarget, defaultOrigin, readSession, sessionStatus, probeSession, removeSession, MissingCredentials } from '../auth/sessions.ts';
-import { credentialKeys, credentialsFor, legacyCredentialHint, connectorValue } from '../auth/env.ts';
+import { advisorTarget, defaultOrigin, listSessions, readSession, sessionStatus, probeSession, removeSession, MissingCredentials } from '../auth/sessions.ts';
+import { connectorValue } from '../auth/env.ts';
 
 class UsageError extends Error {}
 
@@ -18,14 +18,22 @@ async function main(): Promise<void> {
     const command = positionals[0] ?? 'status';
     if (!['status', 'check', 'login', 'logout'].includes(command) || positionals.length > 1) throw new UsageError('usa advisor status|check|login|logout');
     if (command !== 'status' && !args.target) throw new UsageError('falta --target local|dev|qa|staging');
+    // El asesor es el de prueba de cada comercio: sin la cuenta no hay sesión que mirar, abrir ni cerrar.
+    if (command !== 'status' && !account) throw new UsageError('falta --account c<hash>-fake@creditop.com: el asesor de prueba del comercio (bin/pg admin test-advisor lo crea)');
     const targets = args.target ? [args.target] : ['local', 'dev', 'qa', 'staging'];
     try { for (const target of targets) defaultOrigin('advisor', target); }
     catch (e) { throw new UsageError((e as Error).message); }
     if (command === 'status') {
         const rows = [];
         for (const target of targets) {
-            const s = await sessionStatus('advisor', target, args.origin, account);
-            rows.push({ ...s, authTarget: advisorTarget(target, s.origin) });
+            // Sin `--account`, las de todos los asesores de prueba guardados para ese origen: una por comercio.
+            const origin = args.origin ?? defaultOrigin('advisor', target);
+            const accounts = account ? [account] : [...new Set(listSessions()
+                .filter(x => x.kind === 'advisor' && x.origin === origin && TEST_ADVISOR_ACCOUNT.test(x.user)).map(x => x.user))];
+            for (const acc of accounts.length ? accounts : [undefined]) {
+                const s = await sessionStatus('advisor', target, args.origin, acc);
+                rows.push({ ...s, authTarget: advisorTarget(target, s.origin) });
+            }
         }
         if (args.json) console.log(JSON.stringify(rows));
         else for (const s of rows) console.log(`  ${s.target}: ${!s.exists ? 'no hay' : s.valid === true ? 'sirve' : s.valid === false ? 'vencida' : 'sin saber'} · ${s.user ?? '—'} · ${s.motivo}`);
@@ -46,22 +54,9 @@ async function main(): Promise<void> {
         console.log(removeSession('advisor', target, origin, account) ? 'sesión de asesor borrada' : 'no había sesión de asesor');
         return;
     }
-    if (account) {
-        if (!connectorValue('ALLIED_TEST_ADVISOR_PASSWORD', authTarget)) throw new MissingCredentials(`falta ALLIED_TEST_ADVISOR_PASSWORD en connectors/.env.${authTarget}`);
-        console.log(`credencial: ${account} · asesor de prueba (clave compartida del ambiente) · pool ${authTarget}`);
-        const { session, path } = await advisorSession(target, origin, account).signIn({ headless: !!args.headless && !args.headed });
-        console.log(`entró ${session.user} → ${path} (contenido privado)`);
-        return;
-    }
-    const creds = credentialsFor('advisor', authTarget);
-    if (!creds) {
-        const old = legacyCredentialHint('advisor', authTarget);
-        if (old) console.error(`hay una credencial antigua en ${old.source}; no se usa para entrar`);
-        const keys = credentialKeys('advisor');
-        throw new MissingCredentials(`faltan ${keys.user} y ${keys.pass} en connectors/.env.${authTarget}`);
-    }
-    console.log(`credencial: ${creds.user} · ${creds.source} · pool ${authTarget}`);
-    const { session, path } = await advisorSession(target, origin).signIn({ headless: !!args.headless && !args.headed });
+    if (!connectorValue('ALLIED_TEST_ADVISOR_PASSWORD', authTarget)) throw new MissingCredentials(`falta ALLIED_TEST_ADVISOR_PASSWORD en connectors/.env.${authTarget}`);
+    console.log(`credencial: ${account} · asesor de prueba (clave compartida del ambiente) · pool ${authTarget}`);
+    const { session, path } = await advisorSession(target, origin, account).signIn({ headless: !!args.headless && !args.headed });
     console.log(`entró ${session.user} → ${path} (contenido privado)`);
 }
 main().catch(e => { console.error((e as Error).message); process.exitCode = e instanceof MissingCredentials || e instanceof UsageError || String(e.code).startsWith('ERR_PARSE_ARGS') ? 2 : 1; });

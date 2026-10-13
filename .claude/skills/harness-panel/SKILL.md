@@ -430,12 +430,12 @@ targets en el panel, que se desincronizaría.
 su propia config de Cognito en el `.env` del monorepo (`login.creditop.com` + su `client_id`) y
 `bin/advisor` solo le pisa las URLs de API. Consecuencias, las dos ya cableadas:
 
-- la corrida se loguea con la cuenta de **`.cognito.json`** (`a.arismendy`, pool de dev), no con la de
-  `.env.staging` (`miguel8a`, otro pool) — `bin/advisor` vacía `E2E_COGNITO_USER/PASS` para que caiga
-  ahí sola, y lo canta en el log (`● cognito  front local → pool de dev`);
-- el cache de sesión se llama por **front**, no por target (`pkg/cognito.ts`): `staging + front local` usa
-  `cognito-state.dev.json`. Cachearlo como 'staging' hacía replayar cookies de OTRO origen y re-loguear
-  con la cuenta del pool equivocado — se ve como un login que se queda en `verifyPassword` hasta el
+- la corrida entra con el **asesor de prueba del comercio** (`c<hash>-fake@creditop.com`) y la clave compartida
+  `ALLIED_TEST_ADVISOR_PASSWORD` del pool de **dev** (`connectors/.env.dev`), no del target: el conector decide el
+  ambiente de autenticación por el origen del front;
+- la sesión se guarda por **front y cuenta**, no por target (`connectors/.auth/sessions/advisor-<t>-<host>-…-<cuenta>.json`):
+  `staging + front local` usa la de dev. Guardarla como 'staging' hacía replayar cookies de OTRO origen y
+  re-loguear contra el pool equivocado — se ve como un login que se queda en `verifyPassword` hasta el
   timeout, que es lo que pasó la primera vez que se probó el switch.
 
 Funciona porque **dev y staging comparten la BD**: el `sub` del asesor es el mismo para los dos backends,

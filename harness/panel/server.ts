@@ -15,7 +15,6 @@ import { fileURLToPath } from 'node:url';
 import { dirname, resolve, join } from 'node:path';
 import { MockSupervisor, MOCKS as MOCK_REGISTRY } from './mocks.ts';
 import { advisorSession } from '../../connectors/advisor/session.ts';
-import { credentialsFor } from '../../connectors/auth/env.ts';
 import { envData, type AutofillData } from '../pkg/autofill.ts';
 import { identityWithoutProviderNotice } from '../pkg/config.ts';
 import { openDevice, openDevices, setDeviceLogger, prewarmDevices, warmDevice, watchNavigation, watchRequests, deviceGoto, deviceReload, deviceText, deviceEval, deviceOpenedAt, deviceState, deviceShot, deviceInput, deviceTap, deviceAdvance, deviceStream, closeDevice, closeAllDevices, SELENIUM_BOXES, type DeviceId, type DeviceInput, type DeviceSession } from './devices.ts';
@@ -799,7 +798,7 @@ function runWarm(target: string, account?: string): Promise<{ ok: boolean; detai
             const okWarm = code === 0 && /WARM_OK/.test(out);
             let detail = 'sesión guardada';
             if (!okWarm) {
-                if (/requiere credenciales|\bskipped\b/i.test(out)) detail = account ? 'falta ALLIED_TEST_ADVISOR_PASSWORD en connectors/.env.<ambiente>' : 'faltan credenciales del asesor en connectors';
+                if (/requiere credenciales|\bskipped\b/i.test(out)) detail = account ? 'falta ALLIED_TEST_ADVISOR_PASSWORD en connectors/.env.<ambiente>' : 'falta el asesor de prueba del comercio';
                 else if (/MFA|captcha|no volvió al wizard|Cognito/i.test(out)) detail = 'el login no volvió al wizard (¿credenciales o MFA/captcha?)';
                 else detail = `el pre-login terminó con código ${code}`;
             }
@@ -817,28 +816,9 @@ function runWarm(target: string, account?: string): Promise<{ ok: boolean; detai
 // Reemplaza el hack `make login & node panel/server.ts`: make login (sin arg) es SOLO lectura (no warmea),
 // y encadenar por shell no respeta el single-flight `warming` ni sabe qué targets son warmeable-s.
 async function bootPrewarm(): Promise<void> {
-    // Desde el 2026-10-06 el asesor es el de PRUEBA DE CADA COMERCIO (`c<hash>-fake@`): no hay una cuenta de
-    // persona que precalentar al arrancar. La sesión se mira al elegir el comercio y el login lo hace la corrida
-    // (o el celular del asesor). Si alguien todavía tiene `ADVISOR_USER/PASS` en connectors, se precalienta esa.
-    if (!['staging', 'dev'].some((t) => credentialsFor('advisor', t))) {
-        console.log('  🔐 asesor: el de prueba de cada comercio — la sesión se resuelve al elegirlo');
-        return;
-    }
-    const targets = ['staging', 'dev', 'local'];
-    const checks = await Promise.all(targets.map((t) => sessionCheck(t)));
-    console.log('  🔐 sesiones Cognito (pre-login):');
-    const warmSet: string[] = [];
-    checks.forEach((c: any, i: number) => {
-        const t = targets[i];
-        if (c?.status === 'valid') console.log(`     ✅ ${t} — sesión OK`);
-        else if (c?.status === 'unreachable') console.log(`     ⚪ ${t} — front abajo (se warmea al levantar el wizard :5174)`);
-        else { console.log(`     ⏳ ${t} — sin sesión${c?.detail ? ` (${c.detail})` : ''}`); if (t !== 'local') warmSet.push(t); }
-    });
-    for (const t of warmSet) {
-        const r = await runWarm(t);
-        console.log(`     ${r.ok ? '✅' : '⛔'} ${t} — ${r.detail}`);
-    }
-    console.log('');
+    // El asesor es el de PRUEBA DE CADA COMERCIO (`c<hash>-fake@`): no hay una cuenta que precalentar al arrancar. La
+    // sesión se mira al elegir el comercio y el login lo hace la corrida (o el celular del asesor).
+    console.log('  🔐 asesor: el de prueba de cada comercio — la sesión se resuelve al elegirlo');
 }
 
 // ── Permiso del asesor al COMERCIO (el paso "comercio" del funnel) ─────────────────────────────────

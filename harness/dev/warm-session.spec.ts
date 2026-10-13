@@ -25,7 +25,7 @@ const HASH = process.env.E2E_ADVISOR_HASH ?? config.partnerHash;
 
 test.skip(
     !cognitoCreds.user || !cognitoCreds.pass,
-    'warm-session: requiere credenciales ADVISOR_USER/PASS en connectors/.env.<ambiente>',
+    'warm-session: requiere el asesor de prueba del comercio (E2E_ADVISOR_ACCOUNT) y ALLIED_TEST_ADVISOR_PASSWORD en connectors/.env.<ambiente>',
 );
 
 test('warm-session (pre-login)', async ({ browser }) => {

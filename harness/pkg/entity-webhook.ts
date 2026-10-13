@@ -38,7 +38,7 @@ export const WELLI_TOKEN = process.env.WELLI_WEBHOOK_TOKEN || 'token-de-pruebas-
  *  reusar el que ya está en la base porque Sanctum guarda el hash, no el texto. */
 /** ⚠ TAMBIÉN SE LEE DE UN ARCHIVO, no sólo del entorno. El runner de consola puede pedir un `export`;
  *  el panel no —se usa a botones, y exigir una variable de shell para apretar uno es la clase de
- *  fricción que hace que la función no se use—. Mismo trato que `.cognito.json`: local y gitignoreado.
+ *  fricción que hace que la función no se use—. Mismo trato que las sesiones de `connectors/.auth/`: local y gitignoreado.
  *  Se emite una vez en `legacy-application`:
  *      php artisan tinker --execute="echo \App\Models\User::find(<id>)
  *          ->createToken('harness-local', ['selfManager'])->plainTextToken;" > harness/.selfmanager-token */

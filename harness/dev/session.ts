@@ -12,7 +12,7 @@ if (args.kind && !['admin', 'advisor'].includes(args.kind)) fail('KIND=admin|adv
 if (command !== 'status' && (!args.kind || !args.target)) fail('faltan KIND y TARGET');
 const kinds = args.kind ? [args.kind] : ['admin', 'advisor'];
 // El asesor es el de PRUEBA del comercio (`c<hash>-fake@`, lo crea el admin con cada comercio), con la clave compartida
-// del ambiente: la cuenta de persona (`ADVISOR_USER`) se retiró el 2026-10-06. `--merchant` (slug o hash) lo resuelve.
+// del ambiente. `--merchant` (slug o hash) lo resuelve.
 let account = '';
 if (args.merchant) {
     const { execFileSync } = await import('node:child_process');
