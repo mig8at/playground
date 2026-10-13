@@ -604,6 +604,13 @@ async function correr(c: Case, i: number): Promise<Result> {
             // el comprador paga, se consulta el estado— contra el mock de Wompi, y después se sigue a donde
             // lleva el «Continuar» de la pantalla de resultado: la fecha de pago, que ahora sí avanza.
             // `--payment DECLINED` prueba el rechazo; `--down-payment` paga más que el mínimo.
+            // `--payment SKIP` NO paga: salta a la pantalla siguiente como quien escribe la URL. Es la prueba de la
+            // compuerta de la firma (`ValidateInitialFeePaid`), que fuera de la tienda deja pasar sin pago aprobado.
+            if (arg('payment', 'APPROVED') === 'SKIP') {
+                log('down-payment: SIN PAGAR (--payment SKIP) → se salta a la fecha de pago, como quien escribe la URL');
+                routePath = `${path.replace(/\/down-payment$/, '')}/first-payment-date`;
+                continue;
+            }
             const paid = await payDownPayment({
                 feBase: config.feBaseUrl, loanRequestId: r.ur!,
                 amountPesos: DOWN_PAYMENT || undefined, status: arg('payment', 'APPROVED'), log,

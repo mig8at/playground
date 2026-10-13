@@ -28,10 +28,13 @@ Salvo donde se dice «corrido», salen de LEER el código: falta reproducirlos.
   falso, persona en listas de control) terminan en error de servidor en vez de en un rechazo. Termina
   cuando un caso con ADO dictado a cada estado muestra qué responde la consulta de estado y qué pantalla
   ve el cliente. Origen: `match` sin `default` y `catch (\Exception)` que no atrapa `UnhandledMatchError`.
-- [ ] Reproducir que fuera de la tienda se firma el pagaré sin la cuota inicial pagada: el recorrido manda
-  al comprador a la pasarela, pero la compuerta de la firma sólo existe con orden de tienda. Termina con
-  un caso de asesor o autogestión con cuota inicial mayor que cero que llega a firmar sin pago aprobado,
-  y con la decisión de producto: ¿la compuerta debe aplicar a todos los canales?
+- [x] ~~Reproducir que fuera de la tienda se firma el pagaré sin la cuota inicial pagada~~ — descartado corriendo
+  (2026-10-13): fuera de la tienda el asistente NUNCA manda a la pasarela, porque sólo va a la cuota inicial cuando el
+  backend contesta «cuota inicial pendiente», y eso sólo pasa con orden de tienda. No hay pago que saltarse.
+- [ ] Decidir con producto quién registra la cuota inicial fuera de la tienda. Corrido en local (asesor y autogestión,
+  CrediPullman «Segunda oportunidad», 25 %): el crédito sale por el 75 % (`final_amount` 1.500.000 de 2.000.000) pero
+  `initial_fee` queda en 0 y nada pide ni anota el cobro de esos 500.000. Termina con la decisión: ¿lo cobra el
+  comercio por fuera (y alguien lo registra), o la compuerta de pago debe aplicar a todos los canales?
 - [ ] Reproducir que, al pasarse del tope de ADO (5 validaciones por persona en 24 horas), el asistente
   manda a «solicitud cancelada» y cancela la solicitud del titular sin decir por qué ni dejar un código
   que distinga el tope. Termina con el caso corrido y la decisión de cómo mostrarlo.
