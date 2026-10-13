@@ -1565,11 +1565,25 @@ const server = createServer(async (req, res) => {
             mock: MOCK_REGISTRY.find((m) => m.port === p)?.id ?? null,
         })));
 
-        // última corrida: el volcado que hace el scrub ANTES de borrar (F-52)
+        // LA SOLICITUD DEL CELULAR ABIERTO va primero: la tarjeta de «esperando a la entidad» tiene que hablar de lo
+        // que estás probando. Antes leía sólo el volcado del scrub, que es de la corrida ANTERIOR: mostraba una solicitud
+        // vieja y «aprueba» la aprobaba a ella (2026-10-13). El volcado queda para las corridas por consola.
         let lastOne: any = null;
-        try {
+        for (const dev of ['client', 'advisor'] as DeviceId[]) {
+            const st = deviceState(dev);
+            const ur = st.open ? /\/(\d{5,})(?:\/|\?|$)/.exec(new URL(st.url || 'http://x/').pathname)?.[1] : undefined;
+            if (!ur || (deviceTarget.get(dev) ?? 'local') !== 'local') continue;
+            const l = await dbopsJson(['lender-de', ur], 'local');
+            if (l && (l as any).estadoId != null) {
+                lastOne = { uReq: Number(ur), estado: (l as any).estado, estadoId: (l as any).estadoId, lender: (l as any).name, lenderId: (l as any).id, lenderRt: (l as any).rt, celular: dev };
+                break;
+            }
+        }
+        // última corrida: el volcado que hace el scrub ANTES de borrar (F-52)
+        if (!lastOne) try {
             const dir = join(ROOT, '.runs');
-            const f = readdirSync(dir).filter((x) => x.endsWith('.json'))
+            // Sólo los volcados de solicitudes: en `.runs/` también viven el estado de los celulares y la última corrida.
+            const f = readdirSync(dir).filter((x) => /^ureq-.*\.json$/.test(x))
                 .map((x) => ({ x, t: statSync(join(dir, x)).mtimeMs })).sort((a, b) => b.t - a.t)[0];
             if (f) {
                 const j = JSON.parse(readFileSync(join(dir, f.x), 'utf8'));

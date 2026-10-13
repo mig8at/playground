@@ -338,9 +338,11 @@ try {
         case 'lender-de': {
             const ur = Number(a[0] || 0);
             if (!ur) { r = { id: null, rt: null }; break; }
-            const f = await one<{ id: number; rt: number; name: string }>(
-                `SELECT l.id, l.response_type rt, l.name
-                   FROM user_requests u JOIN lenders l ON l.id = u.lender_id WHERE u.id = ?`, [ur])
+            // Con el estado de la solicitud: la tarjeta de «esperando a la entidad» lo pide para la del celular abierto.
+            const f = await one<{ id: number; rt: number; name: string; estadoId: number; estado: string }>(
+                `SELECT l.id, l.response_type rt, l.name, u.user_request_status_id estadoId, s.name estado
+                   FROM user_requests u LEFT JOIN lenders l ON l.id = u.lender_id
+                   LEFT JOIN user_request_statuses s ON s.id = u.user_request_status_id WHERE u.id = ?`, [ur])
                 .catch(() => null);
             r = f ?? { id: null, rt: null };
             break;

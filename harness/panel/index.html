@@ -2700,7 +2700,10 @@
       // por webhook, a `legacy-application`. Sin este control el panel corre media familia y deja
       // una solicitud colgada que parece un fallo — y son el 46 % y el 34 % del volumen de prod.
       // El receptor es REAL; lo único simulado es la entidad que llama (F-170/F-171).
-      const waiting = !runRunning && e?.ultima && Number(e.ultima.estadoId) === 3 && e.ultima.lenderId;
+      // Sólo rt=0 y rt=1 esperan un webhook: para CreditopX (rt=2) el estado 3 es un paso del recorrido, no una espera
+      // (la tarjeta le ofrecía «aprueba» a una solicitud de Refurbicredit a mitad de camino, 2026-10-13).
+      const waiting = !runRunning && e?.ultima && Number(e.ultima.estadoId) === 3 && e.ultima.lenderId
+        && [0, 1].includes(Number(e.ultima.lenderRt));
       const zone = $('webhookZone');
       if (zone) {
         if (!waiting) { zone.style.display = 'none'; zone.innerHTML = ''; }
