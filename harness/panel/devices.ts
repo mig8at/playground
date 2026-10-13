@@ -33,7 +33,7 @@ interface Device {
 
 // Un Android de gama media: la mayoría de los compradores entra desde uno.
 const PHONE = devices['Pixel 7'];
-const DEVICE_SCALE = Math.min(3, Math.max(1, Number(process.env.HARNESS_DEVICE_SCALE) || 2));
+const DEVICE_SCALE = Math.min(3, Math.max(1, Number(process.env.HARNESS_DEVICE_SCALE) || 3));
 const open = new Map<DeviceId, Device>();
 
 /** A dónde va lo que pasa en cada celular (el panel lo escribe en la consola de la corrida). */
@@ -183,7 +183,7 @@ function browserForDevices(): Promise<import('@playwright/test').Browser> {
         // ancho) aunque el celular emule 2,625× y aunque se pida un `maxWidth` mayor: en una pantalla retina se veía
         // blando. Con `--force-device-scale-factor` Chromium dibuja la página a esa escala y el cuadro sale a 824 px
         // (2×) o 1236 (3×), con el diseño intacto en 412 (medido el 2026-10-13: `innerWidth` sigue en 412).
-        // `HARNESS_DEVICE_SCALE=3` lo sube; cada cuadro pesa ~2× más por cada paso.
+        // Por defecto 3× (lo eligió Miguel: se ve nítido y corre fluido en local); `HARNESS_DEVICE_SCALE=2` lo baja.
         sharedBrowser = chromium.launch({ headless: true, args: ['--lang=es-CO', `--force-device-scale-factor=${DEVICE_SCALE}`] });
         // Si se cae, el próximo celular lanza otro.
         void sharedBrowser.then((b) => b.on('disconnected', () => { sharedBrowser = null; })).catch(() => { sharedBrowser = null; });
