@@ -19,11 +19,11 @@ Salvo donde se dice «corrido», salen de LEER el código: falta reproducirlos.
 
 ### Alta — el cliente o el dinero se ven afectados
 
-- [ ] Abrir los PRs del tope de la cuota inicial (rama `fix/cuota-inicial-no-supera-el-total` en legacy-backend y
-  frontend-monorepo, hoy sólo local): la pantalla dejaba pagar una cuota inicial mayor que la compra —su tope era
-  el monto con el fondo de garantía más el mínimo— y el backend la cobraba; la solicitud recién se frenaba al
-  firmar, con el monto a financiar negativo y el dinero ya cobrado. Corrido en local. Termina con los dos PRs
-  abiertos contra `qa`, rebasados sobre `origin/qa`. Depende de: Miguel — el OK para pushear.
+- [x] ~~Abrir los PRs del tope de la cuota inicial~~ — [legacy-backend#1643](https://github.com/Creditop-SAS/legacy-backend/pull/1643)
+  y [frontend-monorepo#1169](https://github.com/Creditop-SAS/frontend-monorepo/pull/1169), contra `qa`: la pantalla dejaba
+  pagar una cuota inicial mayor que la compra y el backend la cobraba; la solicitud recién se frenaba al firmar.
+- [ ] Probar en `qa` el tope de la cuota inicial cuando se mergeen #1643 y #1169. Termina con una compra donde una
+  cuota inicial mayor que el total se rechaza en la pantalla y, por API, con `AMOUNT_ABOVE_TOTAL`.
 - [ ] Reproducir que, en el sistema nuevo, los estados 8, 9 y 16 de ADO (documento alterado, documento
   falso, persona en listas de control) terminan en error de servidor en vez de en un rechazo. Termina
   cuando un caso con ADO dictado a cada estado muestra qué responde la consulta de estado y qué pantalla
