@@ -23,6 +23,16 @@ ramas: feat/auto-onboarding, feat/auto-onboarding-risk-check, feat/auto-onboardi
       con los PDFs de términos y política adjuntos.
 - [x] ~~Probar en `qa` con Refurbi~~ — pedido firmado cerrado en 11: 503385 (caminador) y 503388 (panel); correo y
       documento de otro cliente marcados en `personal-info` (503372, 503373).
+- [ ] Volver a llevar el auto a `main` cuando Refurbi salga — se sacó de `main` A PROPÓSITO para subir otros cambios
+      sin Refurbi (legacy-backend #1621, frontend-monorepo 54704c48); vive sólo en `qa`. Para prod además: la sucursal
+      en `auto_onboarding_allied_branches`, el secreto de firma de su credencial y las migraciones.
+- [ ] Refurbi acepta implementar la firma (no está en los PDFs: es la mejora propuesta del contrato).
+- [ ] Legal: ¿la aceptación tomada por la tienda vale como autorización de consulta a centrales?
+- [ ] Producto: qué ve el comprador con un pedido sin firma o con firma inválida; y qué hacer cuando el celular ya es
+      de un cliente con OTRA cédula (hoy entra como el dueño del celular e ignora la del pedido, también en el
+      ecommerce normal) o cuando la cédula ya es de otro celular (queda atascado en `personal-info`).
+- [ ] Si Refurbi entra a `kyc_pipeline_allieds`, el auto debe guardar por el v2 y pasar por el pipeline: hoy guarda
+      por el v1 y correría la cascada vieja.
 
 ## Objetivo
 
