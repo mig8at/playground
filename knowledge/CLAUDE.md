@@ -24,7 +24,7 @@ si la tarea exige verificar el remoto, actualizá el clon por el procedimiento n
 
 Las hipótesis, los PR sin mergear y las decisiones de una tarea viven en su documento o pila, con ese
 estado explícito. Datos personales, secretos y volcados de producción no entran a esta biblioteca.
-Los resultados del harness y las mediciones del trazador siguen siendo evidencia del ambiente medido.
+Los resultados del harness y las mediciones de los conectores siguen siendo evidencia del ambiente medido.
 
 Para políticas o conocimiento de negocio/producto sin comprobación local, Canon o documentos del equipo
 son fuentes opcionales: citá cuál usaste y qué no verificaste. No conviertas una explicación de Canon

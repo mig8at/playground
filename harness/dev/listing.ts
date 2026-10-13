@@ -223,7 +223,7 @@ async function main(): Promise<number> {
     }
     console.log(`\n    ● salió en el listado   ○ no salió\n`);
     console.log(`  la solicitud queda viva: uReq ${ur}  ·  seguila con`);
-    console.log(`      make trazador-ureq UREQ=${ur} TARGET=local\n`);
+    console.log(`      make harness-loki UREQ=${ur} TARGET=local\n`);
 
     /* LA CORRIDA COMO ANOTACIÓN, con `MD=1`. El porqué en `pkg/annotation.ts`.
      *

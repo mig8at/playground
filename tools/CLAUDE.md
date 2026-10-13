@@ -1,14 +1,14 @@
 # tools — cómo se complementan las herramientas del playground
 
-Lo que sigue vale para DISEÑAR o CAMBIAR una herramienta (harness, trazador, tablero, visor, los
-conectores), no para usarla: cuál usar para cada pregunta está en el `CLAUDE.md` raíz. Vivió ahí hasta
+Lo que sigue vale para DISEÑAR o CAMBIAR una herramienta (harness, tablero, visor, los conectores), no para usarla: cuál usar para cada pregunta está en el `CLAUDE.md` raíz. Vivió ahí hasta
 el 2026-09-27.
 
 ## Cinco formas en que se complementan, las cinco medidas
 
 La tabla del `CLAUDE.md` raíz dice cuál usar. Esto dice algo que no estaba escrito en ningún lado: **estas
 herramientas se validan y se prestan cosas entre ellas**, y casi todo lo que sigue salió de una sola
-sesión (2026-09-18) en la que nadie fue a buscarlo.
+sesión (2026-09-18) en la que nadie fue a buscarlo. *(Varios ejemplos son del trazador personal, retirado el
+2026-10-13: las lecciones siguen valiendo, sus comandos ya no existen.)*
 
 **1 · UNA LE PRESTA UN PATRÓN A OTRA.** Cuando una herramienta resolvió bien un problema, la otra lo
 copia en vez de inventar. `bin/steps-check.ts` del harness —valida el mapa **sin insumos** y sale ≠0—

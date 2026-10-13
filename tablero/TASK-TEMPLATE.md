@@ -71,7 +71,7 @@ jira_title: ""
 <!-- Repos, módulos y archivos con ruta y línea — acá SÍ se puede, el cuerpo es privado.
      Es lo que ahorra el primer grep a ciegas. Si son muchos, agrupá por repo.
      CON QUÉ SE LLENA: el código de `main` (`git grep` contra la rama, no contra el working tree) y,
-     para un mensaje de log, `trazador/logs.json`, que lo lleva al archivo que lo emite. Es la sección que más rinde al retomar y la que menos se escribe (11 de 68): al terminar
+     para un mensaje de log, `git grep -F` del texto fijo del mensaje en los dos monolitos. Es la sección que más rinde al retomar y la que menos se escribe (11 de 68): al terminar
      de indagar uno ya lo tiene todo en la cabeza y no parece que haga falta. -->
 
 ## Cómo se ataca
@@ -101,8 +101,7 @@ jira_title: ""
      abajo, en la publicable, y en otro idioma.
 
      CON QUÉ SE LLENA: el harness (`make harness-case` · `harness-listing` · `harness-walk-wizard`) y, si
-     la pregunta es de datos, `make tablero-db`. Trazador queda para seguir UNA solicitud y su
-     comportamiento, no para SQL. La cita de base contiene sólo el ambiente y la query, sin el nombre
+     la pregunta es de datos, `make tablero-db`; lo que vio el cliente, `make harness-posthog`. La cita de base contiene sólo el ambiente y la query, sin el nombre
      de la herramienta. Medido:
      el arnés aparece en 33 tareas y sólo 8 lo nombran acá; las otras 25, sueltas en la prosa.
 
@@ -111,7 +110,7 @@ jira_title: ""
      volver ilegible el archivo. Si la receta cambió, se corrige acá; el bloque que explica el cambio va
      a la pila. Llevá la fecha de la última vez que se comprobó, no una fecha por versión.
      Una MEDICIÓN no va acá: va a la pila como bloque, con el comando y su «Resultado:». Con
-     `BLOQUE=<id|slug>`, `harness-case` · `-listing` · `-walk-wizard` · `-suite`, `trazador-*` y
+     `BLOQUE=<id|slug>`, `harness-case` · `-listing` · `-walk-wizard` · `-suite` y
      `tablero-db` lo agregan solos. -->
 
 ## Referencias

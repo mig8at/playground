@@ -86,7 +86,7 @@ func New(tools string) *Client {
 }
 
 // Find arma el cliente buscando `tools/repos.json` hacia arriba desde donde se corre: es lo que usa una
-// herramienta que no es el tablero (el trazador corre desde `trazador/server`).
+// herramienta que no es el tablero (el visor corre desde `visor/server`).
 func Find() *Client {
 	wd, _ := os.Getwd()
 	for d := wd; ; d = filepath.Dir(d) {
@@ -137,7 +137,7 @@ func (c *Client) expand(path string) string {
 	return filepath.Clean(filepath.Join(c.Playground, path))
 }
 
-// Indexed: alias → carpeta, de lo que se indexa (el índice de logs del trazador, la huella).
+// Indexed: alias → carpeta, de lo que se indexa (el lado Python de tools/repos.py).
 func (c *Client) Indexed() map[string]string { return c.indexed }
 
 // Citable: alias → carpeta, de todo lo que un bloque del tablero puede citar.

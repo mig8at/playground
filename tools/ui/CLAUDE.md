@@ -1,6 +1,6 @@
 # tools/ui — el sistema de diseño de las herramientas
 
-Cómo se ven y cómo se dividen las UIs del playground (`harness/panel`, `tablero` y `trazador`),
+Cómo se ven y cómo se dividen las UIs del playground (`harness/panel`, `tablero`, `visor`, `radar` y `keyring`; el trazador se retiró el 2026-10-13),
 y por qué. El contrato de uso —regiones, medidas, componentes— es [`README.md`](README.md); acá van las
 reglas y las trampas medidas que lo sostienen. Vivió en el `CLAUDE.md` raíz hasta el 2026-09-27: se mudó
 para que se lea al tocar estilos, no en cada sesión.
@@ -33,7 +33,7 @@ paletas escritas a mano, con **cuatro nombres para el mismo concepto** —el tex
 `--danger`—, así que no había forma de cambiarles el aspecto sin tocar las cuatro. Hoy:
 
 - **`theme.css` es el archivo que se cambia, y es el MISMO en las tres** (`harness/panel` ·
-  `tablero/src` · `trazador/src`). La fuente vigente es el tema Darkmatter de
+  `tablero/src` · `visor/src` · `radar/src` · `keyring/src`). La fuente vigente es el tema Darkmatter de
   [ShadcnThemer](https://shadcnthemer.com/themes/278e858e-7c4c-4407-a4bc-2d48faadc5c8): al cambiar
   de tema se reemplaza el bloque de tokens y luego se ejecuta `make estilo-sync`. No lleva reglas
   propias de ninguna herramienta.

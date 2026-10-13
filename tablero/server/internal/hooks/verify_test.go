@@ -146,8 +146,8 @@ func TestTheGoZoneTestsOnlyTheTouchedPackages(t *testing.T) {
 		if z.name != "go" {
 			continue
 		}
-		got := z.commands([]string{"trazador/server/"})
-		want := [][]string{{"go", "vet", "./trazador/server/..."}, {"go", "test", "./trazador/server/..."}}
+		got := z.commands([]string{"visor/server/"})
+		want := [][]string{{"go", "vet", "./visor/server/..."}, {"go", "test", "./visor/server/..."}}
 		if len(got) != 2 || strings.Join(got[0], " ") != strings.Join(want[0], " ") || strings.Join(got[1], " ") != strings.Join(want[1], " ") {
 			t.Errorf("comandos: %v", got)
 		}

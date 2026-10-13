@@ -113,7 +113,7 @@ decide uno, entra como bloque o como pendiente. Una pregunta a alguien es ademá
 | otro bloque | `[el de ayer](bloque:<id>)`: así se corrige uno sin editarlo | que esté en la pila |
 | una pantalla del diseño | `[Completa tu solicitud](visor:<clave>/<nodo>@<huella>)`, como lo da el visor | la forma (`make visor-enlaces` dice si cambió) |
 | una página | `[texto](https://…)` | nada |
-| una prueba | ` ```harness ` o ` ```trazador ` con el comando, y debajo `Resultado: …` | que el comando diga su `TARGET=` |
+| una prueba | ` ```harness ` con el comando (los bloques viejos traen ` ```trazador `), y debajo `Resultado: …` | que el comando diga su `TARGET=` |
 | una consulta | ` ```sql prod ` con el `SELECT`, y debajo `Resultado: …` | ambiente presente y sólo lectura |
 | otro comando | ` ```sh `, y debajo `Resultado: …` | que lleve su resultado |
 
@@ -124,8 +124,8 @@ y títulos de más de una línea. Los repos citables salen de `tools/repos.json`
 
 Se escribe en un Markdown (`# título` y la descripción) y se agrega con `make tarea-bloque N=<id|slug>
 ARCHIVO=<bloque.md>` (`SECO=1` previsualiza; `ARCHIVO=-` lee stdin). **Las herramientas lo hacen solas
-con `BLOQUE=<id|slug>`**: `harness-case` · `-listing` · `-walk-wizard` · `-suite`, `trazador-ureq` ·
-`-buscar` · `-sql` y `tablero-db`. `MD=1` da la anotación para un documento que no es una tarea. Se lee
+con `BLOQUE=<id|slug>`**: `harness-case` · `-listing` · `-walk-wizard` · `-suite`, `tablero-db` y
+`bin/pg sql --bloque`. `MD=1` da la anotación para un documento que no es una tarea. Se lee
 con `make tarea-context N=…` o `make retomar`. El contrato de la línea: `docs/task-context.schema.json`.
 
 ⚠ **El server valida la pila también al LEERLA, con su propio código**: después de agregar un tipo de
@@ -180,7 +180,7 @@ fuentes sin red; avisa si falta una referencia o queda fuera del presupuesto, si
 No consultar Canon es el comportamiento por defecto. Para una consulta de negocio/producto que no
 se puede comprobar en local, Canon es opcional. Las tareas históricas conservan `canon:`:
 `BRIEF=1` consulta su API; `CANON=1` lee su copia local. Se eligen sólo cuando hacen falta.
-Una pregunta sobre un caso o sobre el estado de un ambiente va al trazador, harness o consultas de datos.
+Una pregunta sobre un caso o sobre el estado de un ambiente va al harness, a los conectores (`bin/pg`) o al tracer del equipo si es de prod.
 
 ## Cuando aparece conocimiento reutilizable
 
@@ -201,7 +201,7 @@ Una pregunta sobre un caso o sobre el estado de un ambiente va al trazador, harn
 | el código de `main` | lo que nadie escribió | **«Dónde se toca»**: archivos con el porqué |
 | [`harness/`](../harness/CLAUDE.md) | ¿funciona, corriéndolo? | **«Cómo se comprueba»**: el comando, no la conclusión |
 | `tablero-db` | ¿qué dicen los datos en un ambiente? | la consulta SQL de sólo lectura, con su ambiente |
-| [`trazador/`](../trazador/CLAUDE.md) | ¿cómo se comportó una solicitud concreta? | la traza o la medición de esa solicitud |
+| `bin/pg` (logs · events) | ¿cómo se comportó una solicitud concreta? | la consulta y lo que dio, con su ambiente |
 
 ## El tablero por consola, sin levantar nada
 

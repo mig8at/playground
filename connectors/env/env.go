@@ -18,7 +18,7 @@ import (
 )
 
 // Dir es la carpeta `connectors/`. Se busca hacia arriba desde donde se corre, porque los comandos corren
-// desde la carpeta de cada herramienta (`tablero/server`, `trazador/server`); si no aparece, desde el
+// desde la carpeta de cada herramienta (`tablero/server`, `visor/server`); si no aparece, desde el
 // binario —un servidor MCP lo lanza Claude desde un directorio que no elegimos—, y por último en
 // `PLAYGROUND_ROOT`.
 func Dir() (string, error) {

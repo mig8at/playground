@@ -65,7 +65,7 @@ func main() {
 	}
 	var findings []naming.Finding
 	var seen []string
-	boards := []naming.Board{naming.Default(board), naming.Shared(filepath.Dir(board)), naming.Tracer(filepath.Dir(board)), naming.Harness(filepath.Dir(board)), naming.Visor(filepath.Dir(board))}
+	boards := []naming.Board{naming.Default(board), naming.Shared(filepath.Dir(board)), naming.Harness(filepath.Dir(board)), naming.Visor(filepath.Dir(board))}
 	if *canon != "" {
 		boards = []naming.Board{naming.Canon(*canon, filepath.Dir(board))}
 	}

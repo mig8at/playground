@@ -341,7 +341,7 @@ async function correr(c: Case, i: number): Promise<Result> {
     //     embudo; el diagnóstico ya lo dio la traza contra la BD.
     //   · LLEGA A MEDIAS justo cuando serviría: al cerrar, la ingesta todavía no trajo el final y sale
     //     marcado PARCIAL. Por eso, cuando el caso falla, esto imprime lo que HAY y deja el comando para
-    //     volver a mirarlo completo unos minutos después (`make trazador-posthog`).
+    //     volver a mirarlo completo unos minutos después (`make harness-posthog`).
     // `FORENSE=1` lo fuerza igual, para cuando lo que se está probando es el forense mismo.
     const finish = async (end: Result['fin'], reason: string) => {
         r.fin = end; r.motivo = reason; r.ms = Date.now() - t0;
@@ -350,7 +350,7 @@ async function correr(c: Case, i: number): Promise<Result> {
         if (r.ur && walkedPaths.length && (wentWrong || process.env.FORENSE === '1')) {
             await postHogForensic(r.ur, new Date(t0), walkedPaths, (l) => lines.push(l), new Date()).catch(() => {});
         } else if (r.ur && !wentWrong) {
-            lines.push(`  ▸ PostHog: no se consulta porque el caso cerró como se pedía · si lo querés: make trazador-posthog UREQ=${r.ur} TARGET=${TARGET} VENTANA=1d`);
+            lines.push(`  ▸ PostHog: no se consulta porque el caso cerró como se pedía · si lo querés: make harness-posthog UREQ=${r.ur} TARGET=${TARGET} VENTANA=1d`);
         }
         return r;
     };
@@ -898,7 +898,7 @@ async function runBrowser(c: Case, i: number, browser: any): Promise<Result> {
         if (r.ur && walkedPaths.length && (wentWrong || process.env.FORENSE === '1')) {
             await postHogForensic(r.ur, new Date(t0), walkedPaths, (l) => lines.push(l), new Date()).catch(() => {});
         } else if (r.ur && !wentWrong) {
-            lines.push(`  ▸ PostHog: no se consulta porque el caso cerró como se pedía · si lo querés: make trazador-posthog UREQ=${r.ur} TARGET=${TARGET} VENTANA=1d`);
+            lines.push(`  ▸ PostHog: no se consulta porque el caso cerró como se pedía · si lo querés: make harness-posthog UREQ=${r.ur} TARGET=${TARGET} VENTANA=1d`);
         }
         return r;
     };
@@ -1265,7 +1265,7 @@ if (process.env.MD === '1' || process.env.BLOQUE) {
             + ` en \`${TARGET}\` · motor ${ENGINE} · ${cases.length} caso(s)`
             + (flag('close') ? '' : ' (sin `CERRAR`: llega al listado, no al desenlace)') + '.';
       // Una línea por caso: qué se pidió y dónde terminó. El `uReq` va porque es la llave con la que
-      // se sigue investigando (el trazador entra por ahí), y el motivo porque «no cerró» sin el motivo
+      // se sigue investigando (`harness-loki`, `harness-posthog` y la base entran por ahí), y el motivo porque «no cerró» sin el motivo
       // manda a repetir la corrida para volver a leerlo.
       const evidence = results.map((r) => {
             const where = cerró(r)

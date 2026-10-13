@@ -25,7 +25,6 @@ nodos, qué valida, qué derivó) los imprimen las herramientas, no la prosa.
 | [`connectors/`](connectors/) | El cliente ÚNICO de cada servicio externo (base, Loki, PostHog, Gemini, repos), por ambiente y con la fuente que contestó. Se usa con `bin/pg` (`make pg ARGS=help`). También posee los logins y sesiones de admin/asesor: [contrato](connectors/CLAUDE.md). |
 | [`harness/`](harness/README.md) | Playwright + TypeScript manejando el wizard real punta a punta con KYC/buró sintético: panel visual, flota de mocks y barrido headless por API. |
 | [`tablero/`](tablero/README.md) | Las **tareas** (una = una carpeta en `tasks/`), el dashboard del sprint y el pulso. |
-| [`trazador/`](trazador/) | Herramienta de soporte (Go) sobre Loki + BD: «¿qué le pasó a ESTA solicitud y por qué?». `make trazador-acceso` prueba el acceso. |
 
 ## Por dónde empezar
 
@@ -35,7 +34,7 @@ nodos, qué valida, qué derivó) los imprimen las herramientas, no la prosa.
 | Consultar conocimiento de negocio/producto que no se puede comprobar en local | Canon, opcional: `make canon-search Q=…` y `make canon-read IDS=…` |
 | «¿Ya nos pasó esto?» | [las trampas del sistema](tablero/data/traps/doc.md): entrá por el índice de síntomas |
 | Probar un flujo corriendo | `cd harness && npm run dev` → el panel maneja el wizard real |
-| Investigar una solicitud rota | `make trazador-acceso`, y después `make trazador-ureq UREQ=…` |
+| Investigar una solicitud rota | en prod, el tracer del equipo (`tools/tracer` del playground compartido); fuera de prod, `make harness-loki UREQ=… TARGET=…` y `make harness-posthog UREQ=… TARGET=…` |
 
 **El trabajo diario arranca en local:** `make retomar N=…` reúne la tarea y sus referencias
 `knowledge:` sin consultar Canon. `make knowledge-check` detecta cambios en los archivos fuente;
@@ -65,4 +64,5 @@ Cosas que vas a encontrar escritas por ahí y **ya no son ciertas**:
   `context/server/data/flows/<nodo>/` es histórica. No reconstruyas ese servicio: `knowledge/` son archivos del taller, sin sincronización ni copia
   automática del corpus productivo.
 - Referencias a **`soporte/`, `examples/`, `backend-e2e` o `backend-mcp`**: todo eso se borró. El <!-- lint:ok -->
-  trazador vigente es `playground/trazador` y el harness absorbió lo que hacían las herramientas Go.
+  harness absorbió lo que hacían las herramientas Go. El trazador personal (`trazador/`) también se retiró, el
+  2026-10-13: la base, Loki y PostHog van por `bin/pg`, y la traza de prod la da el tracer del equipo.

@@ -11,8 +11,7 @@
     "customer-service": "~/Desktop/CREDITOP/github/customer-service",
     "financial-health-service": "~/Desktop/CREDITOP/github/financial-health-service",
     "pdf-mapper-service": "~/Desktop/CREDITOP/github/pdf-mapper-service",
-    "harness": "harness",
-    "trazador": "trazador"
+    "harness": "harness"
   },
   "citable_only": {
     "playground": ".",

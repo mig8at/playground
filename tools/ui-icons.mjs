@@ -61,7 +61,7 @@ if (check) {
 }
 
 // Nada define un icono fuera del bloque, y nadie pide uno que no existe.
-const tracked = execFileSync('git', ['ls-files', 'tools/ui', 'tablero/src', 'trazador/src', 'visor/src', 'harness/panel'], { cwd: root, encoding: 'utf8' })
+const tracked = execFileSync('git', ['ls-files', 'tools/ui', 'tablero/src', 'visor/src', 'harness/panel'], { cwd: root, encoding: 'utf8' })
   .split('\n').filter((f) => /\.(css|vue|js|html)$/.test(f) && !f.endsWith('workbench.css'));
 const known = new Set(Object.keys(cfg.icons));
 const unknown = new Map();

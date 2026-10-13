@@ -30,7 +30,6 @@ const require = createRequire(join(ROOT, 'harness', 'package.json'));
 const UIS = [
   { tool: 'harness',  url: 'http://localhost:5195' },
   { tool: 'tablero',  url: 'http://localhost:5191' },
-  { tool: 'trazador', url: 'http://localhost:5192' },
   { tool: 'visor', url: 'http://localhost:5186' },
   { tool: 'radar', url: 'http://localhost:5188' },
   { tool: 'keyring', url: 'http://localhost:5182' },
@@ -141,7 +140,7 @@ if (belowThreshold.length) {
 }
 if (unverified) {
   console.log(`  ▲ ${unverified} herramienta(s) SIN VERIFICAR. Levantalas y volvé a correr —`);
-  console.log('     callarlo sería inventar un verde.   make tablero · panel · trazador');
+  console.log('     callarlo sería inventar un verde.   make tablero · panel');
   process.exit(2);
 }
 console.log(`  ✓ ${onlyTool ? onlyTool : 'las tres'}, sin texto activo abajo de AA.`);

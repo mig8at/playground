@@ -47,7 +47,7 @@ solicita compartir conocimiento; tener un tema en `knowledge/` no autoriza su pu
 curso agregó y todavía no está en `main`.
 
 **Antes de escribir, verificala** (el subagente `main-verifier` lo hace y devuelve archivo:línea con su commit): `git show origin/main:<ruta>` en **los dos monolitos**
-(`legacy-backend` y `legacy-application`). Medir en producción (`make trazador-sql TARGET=prod`) sirve
+(`legacy-backend` y `legacy-application`). Medir en producción (`bin/pg sql --target prod`) sirve
 para entender qué camino pesa, pero **la medición no va a la prosa**: ni cifras del ambiente ni fechas de
 cuándo se midió o descubrió algo. Caducan, no ahorran leer el código y el agente las repite como regla;
 el lint las rechaza. Entra lo que el código no dice o lo que ahorra leerlo.
@@ -145,6 +145,6 @@ dos funcionalidades invisibles:**
 
 ## Y lo que NO es canon
 
-Las herramientas de este repo (harness, trazador, tablero, connectors) se documentan en su `CLAUDE.md`,
+Las herramientas de este repo (harness, tablero, connectors) se documentan en su `CLAUDE.md`,
 no en canon: el corpus describe CreditOp. Lo de una tarea va a su pila; una trampa del sistema, a
 `tablero/data/traps/doc.md`.

@@ -3,7 +3,7 @@
 ⚠ ESTO YA NO TIENE LÓGICA: la lista vive en `tools/repos.json` y todo lo que toca git lo resuelve
 `tablero/server/cmd/repos` (Go, sobre `connectors/repos`), que es la fuente única. Este archivo lee la
 lista y le pregunta al comando, con los mismos nombres que tenía cuando la lógica vivía acá, para que
-su consumidor (la huella del trazador) no cambie mientras se migra. Por qué la lista es UNA sola, y el criterio para agregar un repo: `connectors/repos`.
+sus consumidores no cambien mientras se migra. Por qué la lista es UNA sola, y el criterio para agregar un repo: `connectors/repos`.
 
     sys.path.insert(0, str(Path(__file__).resolve().parents[N] / "tools"))
     from repos import ROOTS, del_ref, ref_a_indexar

@@ -13,7 +13,7 @@
     "              Se genera del Makefile: un target nuevo aparece solo.",
     "              Suma el catálogo LOCAL de knowledge/: no consulta ni sincroniza Canon al iniciar.",
     "",
-    "PreToolUse  · generated (Write|Edit): bloquea (exit 2) escribir a mano un archivo GENERADO (el índice de logs del trazador).",
+    "PreToolUse  · generated (Write|Edit): bloquea (exit 2) escribir a mano un archivo GENERADO (hoy no hay ninguno declarado).",
     "              Corre ANTES, así que de verdad lo impide.",
     "",
     "PreToolUse  · destructive-tests (Bash): frena `artisan test`/phpunit/pest SIN ruta, `migrate:fresh`,",
@@ -129,13 +129,11 @@
   },
   "permissions": {
     "allow": [
-      "Bash(make trazador-sql *)",
       "Bash(go vet *)",
       "Bash(gofmt -l *)",
       "Bash(make tareas *)",
       "Bash(make tareas-ramas *)",
       "Bash(make cierre *)",
-      "Bash(make trazador-acceso *)",
       "Bash(make estilo-check *)",
       "Bash(make pulso *)",
       "Bash(make tareas-guard *)",

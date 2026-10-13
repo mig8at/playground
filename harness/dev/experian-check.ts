@@ -164,7 +164,7 @@ if (newOnes.length) {
         + `    así que la ausencia de filas no prueba nada (cubre hasta ${coverage?.hasta ?? 'nunca: está vacía'}).\n`
         + '    Esa tabla NO la escribe el producto: se pobló de un backfill y no se mantiene (F-107).\n'
         + '    Para afirmar algo sobre esta solicitud hace falta otra vía — los logs (`dev/loki-trace.ts`)\n'
-        + '    o el trazador, que lee las centrales por `user_id` y avisa de la contaminación.';
+        + '    o las tablas de las centrales leídas por `user_id` (`bin/pg sql`), cuidando que sean de esta solicitud.';
 } else if (!signedOne) {
     text = '— NO CONCLUYENTE: la solicitud no está firmada, así que no había nada que omitir.\n'
         + '    Ver el selector no alcanza: hay que elegirlo y que el backend selle el flujo (pasa al verificar el OTP).';

@@ -65,19 +65,6 @@ json: server/internal/store/store.go:index clase ramas             # claves del 
 json: server/internal/pulse/ del                                   # «deletions», pareja de `ins`; persistido en data/pulse
 json: server/cmd/branches/main.go:map *                            # palabras vacías para sugerir patrones de rama: dato, no clave
 json: server/internal/store/sources.go:map develop                 # nombres de ambiente: dato, no clave
-json: trazador/server/sources.go perfilador                     # la clave la escribe el backend en el JSON de profiling_reviews
-json: trazador/server/check.go ramales                          # la lee de harness/panel/steps.json: el contrato es del harness
-json: trazador/server/stages.go:map *                           # VALORES usados como clave: desenlaces, ramales, etapas, estados, métodos de Deceval
-json: trazador/server/stages.go:index formulario origen         # ids de etapa (valores), no campos
-json: trazador/server/reproduce.go:map abandonado aprobado en-curso roto   # ids de desenlace (valores)
-json: trazador/server/slack.go directa fuera parcial            # categorías de cobertura (valores)
-json: trazador/server/serve.go:map dev local prod qa staging    # nombres de ambiente (valores)
-json: trazador/server/main.go:map prod-us-east-0                # la región de Grafana Cloud
-path: trazador/server/mapa                                      # datos: el mapa del trazador, citado por el harness (vocabulario de ramales) y por tools/CLAUDE.md
-path: trazador/server/mapa/etapas.json                          # dato, ídem
-path: trazador/server/mapa/negocio.json                         # dato, ídem
-path: trazador/server/mapa/ramales.json                         # dato, ídem
-path: trazador/server/mapa/substeps.json                        # dato, ídem
 
 # Contrato de /api/globalmap de Canon; no son claves del tablero.
 json: connectors/canon/routes.go mapa desde hasta titulo rutas estaciones cuando pasos estacion_global referencia nota

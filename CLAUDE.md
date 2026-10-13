@@ -42,10 +42,10 @@ tener la herramienta: es suponer que no está y contestar de memoria.
 | **¿ya nos pasó?** | `tablero/data/traps/doc.md`, entrando por su índice de síntomas |
 | **¿por qué existe esta regla?** (política, contrato, qué se le ofreció al comercio) | `make confluence`: el porqué del negocio no está en el código |
 | **¿qué archivos toco o cómo verifico una afirmación técnica?** | el código de `main` con `git grep` contra la rama, nunca el working tree. La ref de cada repo: `go run ./cmd/repos ref <alias>` desde `tablero/server`. **En los dos monolitos**, o la afirmación sale falsa con evidencia real. Para verificar una afirmación, delegala al subagente **`main-verifier`**: mira los dos, sin tocar nada, y devuelve veredicto con archivo:línea |
-| **¿esto pasa de verdad, y cuánto?** | `make trazador-sql` contra **prod** |
-| **¿qué le pasó a ESTA solicitud?** | `make trazador-ureq UREQ=…` ancla en la BD y es la única que llega a **prod**; `make harness-loki UREQ=…` ancla en los logs, trae la regla de cada entidad y el `timeline.ndjson`, y **no mira prod**. ⚠ Sus defaults son opuestos (`local` vs `prod`): escribí `TARGET=` siempre (F-234). Con sólo la cédula o el celular, `make trazador-buscar Q=…` primero |
-| **leí un error, ¿de qué archivo salió?** | `trazador/logs.json` (mensaje → archivo:línea); para una corrida entera, la sección «archivos» de `make trazador-ureq` |
-| **¿qué VIO el cliente en pantalla?** | `make trazador-posthog UREQ=… TEL=…`. ⚠ Sin `TEL` ves la mitad: la fase de AUTH se identifica por teléfono |
+| **¿esto pasa de verdad, y cuánto?** | `bin/pg sql --target prod --query 'SELECT …'` (o `make tablero-db TARGET=prod SQL=…`) |
+| **¿qué le pasó a ESTA solicitud?** | en **prod**, el tracer del equipo (`tools/tracer` del playground compartido): etapas, regla de la entidad y PostHog, buscando por cédula, celular o solicitud. Fuera de prod: `make harness-loki UREQ=… TARGET=…` ancla en los logs (la regla de cada entidad y el `timeline.ndjson`) y la base, `bin/pg sql`, dice hasta dónde llegó. Escribí `TARGET=` siempre (F-234) |
+| **leí un error, ¿de qué archivo salió?** | `git grep -n -F '<mensaje>' <ref de main>` en **los dos monolitos**: el texto fijo del mensaje lleva al archivo que lo emite |
+| **¿qué VIO el cliente en pantalla?** | `make harness-posthog UREQ=… TARGET=… TEL=…` (`bin/pg events request`): eventos, bitácora del front y replay. ⚠ Sin `TEL` ves la mitad: la fase de AUTH se identifica por teléfono. Qué pantallas fallan en el ambiente: `make harness-posthog-errors` |
 | **Miguel pegó una URL de una pantalla o capa** · pasar un diseño a código | `make visor-url U='<lo que pegó>'`. ⚠ Lo que pega es el ANCLA: no salgas a buscar pantallas. `visor-buscar` sólo si nadie pegó nada |
 | **¿qué entidades le salen a ESTE comercio?** | `make harness-listing MERCHANT=…` (3 s, por API). El código y el conocimiento local explican el mecanismo; esto contesta el caso |
 | **¿qué pasa si el cliente es así?** | `make harness-case CASES='…'`, en paralelo; `CLOSE=1` llega al desenlace |
@@ -66,7 +66,7 @@ las afirmaciones técnicas en el código de `main`; el comportamiento de un ambi
 falla: devuelve menos. Ante un resultado tranquilizador, preguntá de qué está leyendo.
 
 **Una afirmación verificable se verifica antes de escribirla**, y la medición no se escribe a mano: con
-`BLOQUE=<tarea>` el trazador, el harness y `tablero-db` la agregan solos a la pila de la tarea, con el
+`BLOQUE=<tarea>` el harness y `tablero-db` (o `bin/pg sql --bloque`) la agregan solos a la pila de la tarea, con el
 comando y lo que dio. La salida de un agente también se verifica, contra `git show main:<ruta>`.
 
 ### Contra qué ambiente
@@ -127,7 +127,7 @@ arrastraban el trait y la guarda: `tablero/tasks/tests-pueden-borrar-la-bd-compa
 ## EL CICLO — acá siempre pasa lo mismo
 
 Se resuelven **tareas** con **tablero** (historia y plan), **knowledge/** (conocimiento local con
-fuentes), **harness** (pruebas) y **trazador** (evidencia de los ambientes). El código de `main`
+fuentes), **harness** (pruebas) y los **conectores** (`bin/pg`: evidencia de los ambientes). El código de `main`
 respalda las afirmaciones técnicas. Canon queda como consulta opcional de negocio/producto.
 
 Canon vive en otro repo (`~/Desktop/CREDITOP/github/playground/tools/canon`, `Creditop-SAS/playground`)
@@ -194,8 +194,7 @@ de una tarea; `canon:` conserva las referencias opcionales del corpus del equipo
 - **El estado 11 «Autorizada» ES terminal**: de 10.182 solicitudes que lo tocaron en 90 días, 3
   avanzaron. **No cuentes desembolsos con esa columna**; usá `user_requests.disbursed_at` (desde el
   2026-09-18, con histórico reconstruido: ~23% salió de `updated_at`).
-- ⚠ **`make trazador-acceso` es la SONDA de acceso a Loki, no la búsqueda.** Para buscar o contar, `bin/pg logs`:
-  dice la ventana que buscó, avisa si llegó al tope y un conteo
+- ⚠ **Para buscar o contar en Loki, `bin/pg logs`**: dice la ventana que buscó, avisa si llegó al tope y un conteo
   (`--query 'sum(count_over_time({service_name="x", level="error"} [24h]))'`) da su número, también 0.
 - `playground/docs/` fue borrada de `main`. Una ruta `docs/X.md` citada es histórica:
   `git show 159906a:docs/<archivo>`.

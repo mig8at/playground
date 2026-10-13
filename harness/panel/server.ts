@@ -483,7 +483,7 @@ function rescueIdentity(id: DeviceId, target: string, phone = ''): void {
  * pasarela real.
  */
 /** Qué pasó con el cliente anterior del celular de prueba: en local se ARCHIVA con sus solicitudes (se puede seguir
- *  mirando con `make trazador-ureq UREQ=…`), en la base compartida se borra. */
+ *  mirando con `make harness-loki UREQ=… TARGET=local`), en la base compartida se borra. */
 function scrubSummary(scrub: any): string {
     const archived = Number(scrub?.users_archived ?? 0), kept: number[] = scrub?.requests_kept ?? [];
     if (archived) return `cliente anterior archivado${kept.length ? ` (solicitud${kept.length > 1 ? 'es' : ''} ${kept.join(', ')} guardada${kept.length > 1 ? 's' : ''})` : ''}`;
@@ -743,7 +743,7 @@ function postHogHint(ureq: number | string, target: string, since: Date): string
     if (target === 'local') return '  ▸ PostHog: no hay nada que mirar — el front local no escribe (APP_ENV=local apaga getServerPostHog)';
     if (target === 'dev') return '  ▸ PostHog: no hay nada que mirar — el target dev sirve el front LOCAL, que tampoco escribe';
     return `  ▸ PostHog: disponible, pero su ingesta tarda minutos y bloquearía este cierre.\n`
-        + `  ▸   make trazador-posthog UREQ=${ureq} TARGET=${target} VENTANA=1d`;
+        + `  ▸   make harness-posthog UREQ=${ureq} TARGET=${target} VENTANA=1d`;
 }
 
 // hash de la SUCURSAL que usa el LAUNCH para un slug (de .flows.json, igual que bin/advisor). Es ese branch

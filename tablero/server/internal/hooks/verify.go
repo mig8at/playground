@@ -53,7 +53,7 @@ var verifyZones = []zone{
 	},
 	{
 		name:     "go",
-		prefixes: []string{"tablero/server/", "trazador/server/", "visor/", "cmd/", "connectors/", "lib/", "knowledge/"},
+		prefixes: []string{"tablero/server/", "visor/", "cmd/", "connectors/", "lib/", "knowledge/"},
 		exts:     []string{".go"},
 		commands: func(touched []string) [][]string {
 			pkgs := make([]string, 0, len(touched))
@@ -65,7 +65,7 @@ var verifyZones = []zone{
 	},
 	{
 		name:     "estilo-check",
-		prefixes: []string{"tools/ui/", "tablero/src/", "trazador/src/", "harness/panel/", "visor/"},
+		prefixes: []string{"tools/ui/", "tablero/src/", "harness/panel/", "visor/"},
 		exts:     []string{".css", ".vue"},
 		commands: func([]string) [][]string { return [][]string{{"make", "--no-print-directory", "estilo-check"}} },
 	},

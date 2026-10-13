@@ -310,11 +310,10 @@ func connectorCatalog(root string) string {
 // generatedFiles: archivo generado → con qué se regenera. Un archivo generado suele decir «no lo edites
 // a mano», y eso es una regla escrita: se puede violar sin que nada falle, y la próxima regeneración
 // borra el cambio en silencio. Un PreToolUse con exit 2 IMPIDE la escritura y devuelve el motivo.
-var generatedFiles = []struct{ path, command string }{
-	// El índice de mensajes de log → archivo: se deriva del código de los repos, así que una corrección a
-	// mano se pierde en la próxima corrida y, mientras tanto, resuelve trazas contra un código que no existe.
-	{"trazador/logs.json", "make trazador-indexar-logs"},
-}
+//
+// Hoy no hay ninguno: el único era el índice de logs del trazador, que se retiró el 2026-10-13. El hook queda
+// para el próximo archivo generado que se versione.
+var generatedFiles = []struct{ path, command string }{}
 
 // asPosix es `pathlib.Path(p).as_posix()`: sin barras repetidas, sin `.` sueltos y sin barra final.
 func asPosix(p string) string {

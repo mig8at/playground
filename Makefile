@@ -7,9 +7,9 @@
 # carpetas reales, traducirlas agregaría una capa de traducción mental) y los VERBOS van en inglés
 # (`align`, `refs`, `seal`, `check`). Un comando de proyecto se nombra `proyecto-verbo`.
 #
-# ⚠ Por qué `trazador-ureq` y no `trazador ureq`: para make, dos palabras son dos objetivos distintos
-# (correría `trazador` y después `ureq`). Se puede simular con un catch-all, pero entonces un typo
-# como `trazdor-ureq` no da error: no hace nada en silencio. Con guion, make avisa y además el guion
+# ⚠ Por qué `harness-case` y no `harness case`: para make, dos palabras son dos objetivos distintos
+# (correría `harness` y después `case`). Se puede simular con un catch-all, pero entonces un typo
+# como `harnes-case` no da error: no hace nada en silencio. Con guion, make avisa y además el guion
 # autocompleta con TAB.
 
 SHELL := /bin/bash
@@ -41,8 +41,7 @@ define listar
 endef
 
 # ── DÍA A DÍA ────────────────────────────────────────────────────────────────────────────────────
-.PHONY: keyring keyring-ui status tablero tareas tareas-guard cuadrilla-publicar sprint bitacora tarea-bloque tarea-context-add tarea-context tablero-db panel trazador trazador-buscar trazador-ureq \
-	trazador-diag trazador-chequeo trazador-indexar-logs trazador-validar trazador-slack trazador-hilos
+.PHONY: keyring keyring-ui status tablero tareas tareas-guard cuadrilla-publicar sprint bitacora tarea-bloque tarea-context-add tarea-context tablero-db panel
 status: ## @dia ¿está el contexto al día? (resumen, no escribe nada)
 	@$(MAKE) --no-print-directory trampas
 	@echo ""
@@ -107,7 +106,7 @@ bitacora-add: ## @dia ⚠ ESCRIBE la bitácora con minutos MEDIDOS por el comand
 	@cd tablero/server && go run ./cmd/worklog -tarea "$(TAREA)" -titulo "$(TITULO)" $(if $(NOTA),-nota "$(NOTA)") $(if $(NOTA_F),-nota-archivo ../../$(NOTA_F)) \
 	  $(if $(LAPSO),-lapso $(LAPSO)) $(if $(PULSO),-pulso $(PULSO)) $(if $(MIN),-min $(MIN)) $(if $(FUENTE),-fuente "$(FUENTE)") $(if $(DIA),-dia $(DIA)) $(if $(SINCE),-desde $(SINCE)) $(if $(KIND),-kind $(KIND)) $(if $(SECO),-n)
 
-tarea-bloque: ## @dia ⚠ ESCRIBE un bloque en la pila de una tarea: `# título` y la descripción, en un Markdown. N=<id|slug> ARCHIVO=<bloque.md> (o `-`: por stdin, como lo usan las herramientas con BLOQUE=) · [VIA=harness|trazador|db] · [SECO=1]
+tarea-bloque: ## @dia ⚠ ESCRIBE un bloque en la pila de una tarea: `# título` y la descripción, en un Markdown. N=<id|slug> ARCHIVO=<bloque.md> (o `-`: por stdin, como lo usan las herramientas con BLOQUE=) · [VIA=harness|db] · [SECO=1]
 	@test -n "$(N)" -a -n "$(ARCHIVO)" || { echo "faltan N= y ARCHIVO=  ·  ej: make tarea-bloque N=84 ARCHIVO=tablero/docs/task-context-block.example.md SECO=1"; exit 2; }
 	@cd tablero/server && go run ./cmd/task-context -tarea "$(N)" -bloque $(if $(filter -,$(ARCHIVO)),-,$(if $(filter /%,$(ARCHIVO)),$(ARCHIVO),../../$(ARCHIVO))) $(if $(VIA),-via $(VIA)) $(if $(SECO),-n)
 
@@ -123,12 +122,11 @@ tarea-context: ## @dia la pila de una tarea: sus últimos bloques. N=<id|slug>
 pg: ## @dia la puerta a los CONECTORES: base y logs de un ambiente, con la fuente que contestó. ARGS='sql --target prod --query "SELECT …"' · ARGS='logs --target qa --query "{…}" --since 1h' · ARGS=help
 	@bin/pg $(or $(ARGS),help)
 
-tablero-db: ## @dia SQL de SOLO LECTURA (atajo de trazador-sql, con TARGET obligatorio). TARGET=local|dev|qa|staging|prod SQL='SELECT …' [CSV=1] [MD=1 anotación + tabla, para pegar en la tarea] [BLOQUE=<id|slug> la consulta y lo que dio, como bloque de la pila de esa tarea]
+tablero-db: ## @dia SQL de SOLO LECTURA (atajo de `bin/pg sql`, con TARGET obligatorio). TARGET=local|dev|qa|staging|prod SQL='SELECT …' [CSV=1] [MD=1 anotación + tabla, para pegar en la tarea] [BLOQUE=<id|slug> la consulta y lo que dio, como bloque de la pila de esa tarea]
 	@test -n "$(TARGET)" || { echo "falta TARGET=local|dev|qa|staging|prod"; exit 2; }
 	@test -n $$'$(subst ','\'',$(SQL))' || { echo "falta SQL='SELECT …'"; exit 2; }
-	@# (atajo desde el 2026-10-13) la consulta la hace el trazador, que es el que investiga: una sola implementación
-	@# del formato, la anotación y el bloque. Acá sigue exigiendo TARGET, como siempre.
-	@cd trazador/server && go run . -target "$(TARGET)" -sql $$'$(subst ','\'',$(SQL))' $(if $(CSV),-csv) $(if $(MD),-md) $(if $(BLOQUE),-bloque $(BLOQUE))
+	@# La consulta la hace el conector (`bin/pg sql`): una sola implementación del formato, la anotación y el bloque.
+	@bin/pg sql --target "$(TARGET)" --query $$'$(subst ','\'',$(SQL))' $(if $(CSV),--csv) $(if $(MD),--md) $(if $(BLOQUE),--bloque $(BLOQUE))
 
 cierre: ## @dia el cierre del día: qué tareas tocaste (git, la pila y el pulso) y a cuál le falta el bloque del día, la bitácora o ramas. Sale 1 si falta algo. DIA=YYYY-MM-DD · JSON=1
 	@cd tablero/server && go run ./cmd/closeout $(if $(DIA),-dia $(DIA)) $(if $(JSON),-json)
@@ -146,8 +144,8 @@ tareas-guard: ## @dia ¿este texto puede salir a Jira? (el cuerpo de una tarea N
 
 # ── JIRA, por consola ────────────────────────────────────────────────────────────────────────────
 # Existían desde hace rato en `tablero/server/cmd/` y NO figuraban acá: el único target del tablero
-# abría la UI. Es exactamente lo que ya pasó con el trazador —capacidad real, invisible en el
-# catálogo, y por lo tanto inexistente para quien no la conociera de memoria—. Corren SIN el server.
+# abría la UI: capacidad real, invisible en el catálogo, y por lo tanto inexistente para quien no la
+# conociera de memoria. Corren SIN el server.
 #
 # `jira` y no `tablero-issue-…` por la misma razón que `pulso` y `panel`: es un nombre propio más, y
 # los nombres largos desalinean la ayuda.
@@ -172,12 +170,6 @@ jira-edit: ## @dia ⚠ ESCRIBE: edita título y/o descripción de un issue. JSON
 panel: ## @dia abre el panel del harness para probar flujos (:5195)
 	@cd harness && npm run dev
 
-# ⚠ El trazador estuvo meses con SÓLO su plomería en este catálogo —la sonda de acceso, el SQL crudo—
-# mientras su modo principal, el que contesta «¿qué le pasó a esta persona?», no figuraba en ninguna
-# parte. Es la herramienta más parecida a Redash que hay acá y no se usaba porque no se veía. El
-# catálogo existe para que eso no pase: si un comando no está, la herramienta no existe.
-trazador: ## @dia ¿QUÉ LE PASÓ a esta solicitud? el flujo por etapas, del sistema real (:5192)
-	@cd trazador && npm run dev
 
 # El VISOR de Figma: el recorrido de un diseño, pantalla por pantalla y con el prototipo navegable.
 # Lee por connectors/figma (el mismo `figma map` de bin/pg) y guarda las imágenes en visor/.cache/.
@@ -235,31 +227,12 @@ visor-componentes: ## @dia los componentes del sistema de diseño que usa un flu
 visor-enlaces: ## @dia ¿siguen vivas las pantallas que enlazan las tareas? recorre el tablero y dice, por cada enlace del visor, si la pantalla sigue igual, CAMBIÓ o la BORRARON (por su huella). Sale ≠0 si hay alguno roto. DIR=<carpeta> (default: las tareas)
 	@cd visor/server && go run . -links "$(abspath $(or $(DIR),tablero/tasks))"
 
-trazador-buscar: ## @dia la HISTORIA de una persona por cédula, teléfono o solicitud. Q=1012345678 [TARGET=prod] [JSON=1] [MD=1 anotación para pegar en la tarea] [BLOQUE=<id|slug> la agrega como bloque a la pila de esa tarea]
-	@test -n "$(Q)" || { echo "falta Q=<cédula|teléfono|uReq>  ·  ej: make trazador-buscar Q=1012345678"; exit 2; }
-	@cd trazador/server && go run . -target $(or $(TARGET),prod) -buscar $(Q) $(if $(JSON),-json) $(if $(MD),-md) $(if $(BLOQUE),-bloque $(BLOQUE))
 
-trazador-ureq: ## @dia la traza por etapas de UNA solicitud. UREQ=519245 [TARGET=prod] [TEL=3001234567 suma la fase de AUTH, que es la MITAD de los eventos del navegador] [HTML=f.html] [JSON=1] [MD=1] [BLOQUE=<id|slug> la agrega como bloque a la pila de esa tarea]
-	@test -n "$(UREQ)" || { echo "falta UREQ=<n>  ·  ej: make trazador-ureq UREQ=519245"; exit 2; }
-	@cd trazador/server && go run . -target $(or $(TARGET),prod) -ureq $(UREQ) $(if $(TEL),-tel $(TEL)) $(if $(HTML),-html $(HTML)) $(if $(JSON),-json) $(if $(MD),-md) $(if $(BLOQUE),-bloque $(BLOQUE))
 
-# Los modos que el binario ya tenía y el catálogo no mostraba. Que existan en el código no alcanza: si
-# no están acá no están en la ayuda, y lo que no está en la ayuda no existe para quien (o lo que) lee
-# el catálogo al arrancar — que es justo la regla que este repo tiene escrita en su CLAUDE.md.
-trazador-diag: ## @dia el diagnóstico FINO de una traza: qué se puede AFIRMAR de cada línea. UREQ=519245 MODO=campos|anclas|spans [TARGET=prod]
-	@test -n "$(UREQ)" || { echo "falta UREQ=<n>  ·  ej: make trazador-diag UREQ=519245 MODO=anclas"; exit 2; }
-	@case "$(MODO)" in campos|anclas|spans) ;; *) echo "falta MODO=campos|anclas|spans  (campos: qué llaves trae el contexto · anclas: cuánto se puede afirmar de cada línea · spans: si el span_id alcanza para ubicarlas)"; exit 2;; esac
-	@cd trazador/server && go run . -target $(or $(TARGET),prod) -ureq $(UREQ) -$(MODO)
 
-trazador-chequeo: ## @dia ¿el mapa del trazador sigue siendo cierto? sin corpus y sin tocar nada: coherencia interna, el vocabulario de ramales que comparte con el harness y, con TARGET, las tablas declaradas. [TARGET=local|dev]
-	@cd trazador/server && go run . -chequeo $(if $(TARGET),-target $(TARGET))
 
-# El índice de mensajes de log → archivo que resuelve las trazas y que `trazador-chequeo` cruza contra el
-# mapa. Se deriva de los repos y no se versiona: se reconstruye cuando el código de los repos cambió.
-trazador-indexar-logs: ## @dia reconstruye el índice de LOGS del trazador (mensaje → archivo que lo emite) desde los repos, con las refs remotas al día. [SIN_FETCH=1]
-	@cd trazador/server && go run . -indexar-logs $(if $(SIN_FETCH),-sin-fetch)
 
-estilo-ui: ## @dia verifica teclado, arrastre y persistencia de las UIs encendidas (harness, tablero, trazador, radar); con datos de prueba. SOLO=<herramienta,…>
+estilo-ui: ## @dia verifica teclado, arrastre y persistencia de las UIs encendidas (harness, tablero, radar); con datos de prueba. SOLO=<herramienta,…>
 	@SOLO="$(SOLO)" node tools/ui-check.mjs
 
 estilo-minimo: ## @dia «mínimo o nada» en las cuatro UIs encendidas: ninguna región mide entre 0 y su mínimo, en cuatro anchos de ventana ni con el teclado. SOLO=<herramienta,…>
@@ -290,17 +263,8 @@ estilo-contraste: ## @dia mide el contraste de lo que SE PINTA en las cuatro UIs
 estilo-tema: ## @dia cambia el tema de LAS CUATRO UIs de un saque: pegás un export de tweakcn en un archivo y esto lo reparte. DE=<archivo.css> (sin DE, sólo dice cuál está puesto)
 	@python3 tools/style.py --tema $(if $(DE),$(DE))
 
-trazador-validar: ## @dia audita el MAPA de etapas contra líneas crudas: solapes, patrones mudos, decisiones que no resuelven. CORPUS=<tsv|ndjson>
-	@test -n "$(CORPUS)" || { echo "falta CORPUS=<ruta al TSV del censo o a un timeline.ndjson>"; exit 2; }
-	@cd trazador/server && go run . -validar $(CORPUS)
 
-trazador-slack: ## @dia lee #tech-ops de los últimos N días y CLASIFICA los reportes (solo lectura). DIAS=7 · SIN=1 lista los que ninguna regex reconoció (texto real del canal) — el veredicto los cuenta aparte, no como «fuera de alcance»
-	@test -n "$(DIAS)" || { echo "falta DIAS=<n>  ·  ej: make trazador-slack DIAS=7"; exit 2; }
-	@cd trazador/server && go run . -slack $(DIAS) $(if $(SIN),-slack-sin)
 
-trazador-hilos: ## @dia los reportes de #tech-ops CON SU HILO de respuestas: contrasta lo reportado con lo que pasó (solo lectura). DIAS=7
-	@test -n "$(DIAS)" || { echo "falta DIAS=<n>  ·  ej: make trazador-hilos DIAS=7"; exit 2; }
-	@cd trazador/server && go run . -incidencias $(DIAS)
 
 # ── PULSO ────────────────────────────────────────────────────────────────────────────────────────
 # Cuándo toqué los repos de la compañía, en tramos de 5'. Alimenta «Mi jornada» del tablero y se
@@ -326,8 +290,7 @@ pulso-uninstall: ## @dia saca el agente del pulso (lo ya registrado se queda)
 # ⚠ Acá vivían los 14 comandos del árbol `context/` (align, refs, seal, lint, diff, triar, jev…). Ese
 # árbol se apagó el 2026-09-21: el contexto curado es CANON y vive en otro repo (`github/playground/
 # tools/canon`), con sus propios comandos —`go run . -ronda`, `-peso`, `-lint`, `-pregunta`—. Lo que
-# quedó acá de aquel conjunto son las piezas que no eran del árbol: `trazador-huella` y `confluence`, cada
-# una en el grupo de la herramienta a la que pertenece. (`repos` también quedó, y se retiró el 2026-09-23:
+# quedó acá de aquel conjunto es `confluence`. (`repos` también quedó, y se retiró el 2026-09-23:
 # generaba el snapshot de la consola de ramas que sólo leía la vista del árbol. Y `entidades`, con
 # workers, el 2026-09-24.)
 .PHONY: jev-test
@@ -348,12 +311,7 @@ tablero-naming-test: ## @dia pruebas del chequeo de nombres: la vara, las formas
 tablero-ui-offline: ## @dia prueba la interfaz del tablero SIN servidores: compila, sirve el dist/ desde disco y simula la API en Chromium. No toca datos
 	@cd tablero && npx vite build --logLevel error && node tools/ui-offline.mjs
 
-trazador-huella: ## @dia la huella MEDIDA LOCAL de un flujo (tablas/eventos/código), sin Canon por defecto. UREQ=x [MYSQL=/tmp/huella-mysql.log] [CANON=1: cruce explícito con el corpus del equipo]
-	@test -n "$(UREQ)" || { python3 trazador/tools/footprint.py; exit 2; }
-	@python3 trazador/tools/footprint.py $(UREQ) $(if $(NOMBRE),--nombre "$(NOMBRE)",) $(if $(MYSQL),--mysql $(MYSQL),) $(if $(CANON),--canon,)
 
-trazador-footprint-test: ## @dia prueba que la huella mide sin consultar Canon y distingue una cobertura sin comprobar
-	@python3 -m unittest discover -s trazador/tools -p footprint_test.py
 
 # radar: cómo se usan DE VERDAD las herramientas, leído de las transcripciones de Claude Code de este
 # playground. Sin modelo y sin copias: todo sale de las transcripciones, este Makefile (con sus alias) y
@@ -548,12 +506,14 @@ harness-prod-advisor: ## @har ¿el ASESOR DE PRUEBA de un comercio de PRODUCCIÓ
 harness-login-check: ## @har ¿el ASESOR DE PRUEBA de un comercio ENTRA al wizard de cada ambiente? Por ambiente: 1) a qué login alojado manda el front (sin clave ni navegador), 2) el asesor `c…-fake@` del comercio en la base, 3) con clave, entra de verdad en una ventana limpia —acomodada como la del panel—, sin tocar el cache de sesión del harness. La clave compartida sale de ALLIED_TEST_ADVISOR_PASSWORD de connectors/.env.<target>, nunca de la línea de comandos. Sin ALLIED/ACCOUNT sólo descubre el login. Con ventana por defecto (HEADLESS=1 la quita, salvo en qa y staging, F-66); prod no se prueba. Exit 0 todos entraron · 1 alguno no · 2 alguno sin probar. TARGETS=dev,qa,staging [ALLIED=346|last last = el asesor de prueba más reciente del ambiente] [ACCOUNT=correo] [HEADLESS=1] [NORESTART=1 no reinicia el wizard local aunque esté viejo] [JSON=1] [BLOQUE=<id|slug> agrega la corrida a la pila de esa tarea, sólo si hubo un intento real de login]
 	@cd harness && MD=$(MD) BLOQUE=$(BLOQUE) node dev/login-check.ts --targets '$(or $(TARGETS),dev)' $(if $(ALLIED),--allied $(ALLIED)) $(if $(ACCOUNT),--user '$(ACCOUNT)') $(if $(HEADLESS),--headless) $(if $(NORESTART),--no-restart) $(if $(JSON),--json)
 
-harness-posthog: ## @har (atajo) lo que vio el cliente en una solicitud: ahora lo contesta el trazador. UREQ=n [TARGET=qa] [VENTANA=1d] [TEL=…]
-	@test -n "$(UREQ)" || { echo "falta UREQ=<n>  ·  ej: make trazador-posthog UREQ=502060 TARGET=qa"; exit 2; }
-	@$(MAKE) --no-print-directory trazador-posthog TARGET=$(or $(TARGET),qa) UREQ=$(UREQ) VENTANA=$(or $(VENTANA),1d) $(if $(TEL),TEL=$(TEL))
+# ⚠ TEL no es un lujo: la fase de AUTH ocurre ANTES de que exista la solicitud, así que PostHog la identifica por
+# `phone_<e164>` y no por `loan_request_<n>`: sin TEL se ve la mitad.
+harness-posthog: ## @har ¿qué VIO el cliente y en qué PANTALLA se rompió? eventos del front, su bitácora y el replay (`bin/pg events request`). UREQ=n [TARGET=qa|staging|prod] [VENTANA=1d] [TEL=3001234567 ⚠ sin esto se ve la MITAD] [LIMIT=n]
+	@test -n "$(UREQ)" || { echo "falta UREQ=<n>  ·  ej: make harness-posthog UREQ=502060 TARGET=qa"; exit 2; }
+	@bin/pg events request --target $(or $(TARGET),qa) --ureq $(UREQ) --since $(or $(VENTANA),1d) $(if $(TEL),--tel $(TEL)) $(if $(LIMIT),--limit $(LIMIT))
 
-harness-posthog-errors: ## @har (atajo) qué pantallas del front fallan en el ambiente: ahora lo contesta el trazador. [TARGET=qa] [DAYS=7]
-	@$(MAKE) --no-print-directory trazador-posthog TARGET=$(or $(TARGET),qa) ERRORES=1 DIAS=$(or $(DAYS),$(DIAS),7)
+harness-posthog-errors: ## @har qué pantallas del front fallan en el ambiente y con qué mensaje (`bin/pg events errors`). [TARGET=qa|staging|prod] [DAYS=7]
+	@bin/pg events errors --target $(or $(TARGET),qa) --days $(or $(DAYS),$(DIAS),7)
 
 harness-suite: ## @har corre una SUITE de casos declarada en JSON y falla si alguno no cumple lo que declara. SUITE=harness/suites/x.json [PARALLEL=1] [CLOSE=1] [LAMBDA=1] [MANUAL=1] [MD=1 la corrida como anotación fechada, con su comando adentro, para pegar en la tarea] [BLOQUE=<id|slug> la agrega sola, como bloque, a la pila de esa tarea]
 	@cd harness && MD=$(MD) BLOQUE=$(BLOQUE) node dev/case.ts --suite '$(patsubst harness/%,%,$(SUITE))' $(if $(PARALLEL),--parallel) $(if $(CLOSE),--close) $(if $(LAMBDA),--lambda) $(if $(PRE),--preapprovals) $(if $(MANUAL),--manual)
@@ -592,7 +552,7 @@ harness-check: ## @har typecheck del harness
 # ⚠ NO llega a producción: el harness no tiene `.env.prod` (solo local/dev/staging) y este comando no
 # acepta TARGET — va por `E2E_TARGET`, que por defecto es **dev**. Pedirle una solicitud de prod
 # devuelve CERO anclas sin decir por qué, y eso se lee como «no hay logs» en vez de «buscaste en otro
-# lado». Para producción: `make trazador-acceso TARGET=prod`.
+# lado». Para producción: `bin/pg logs --target prod --query '{…}' --since 1h`.
 harness-ssr: ## @har la consola del SSR del wizard: a qué servicio llamó, con qué código y cuánto tardó (`[outbound]`). ERRORS=1 filtra a lo saliente y los errores · N=120 líneas de cola · FOLLOW=1 se queda mirando. ⚠ lo escribe `bin/advisor` al levantar el wizard: si lo arrancaste a mano con `pnpm dev`, su salida se fue a esa terminal
 	@f=/tmp/asesor-wizard.log; \
 	if [ ! -f "$$f" ]; then \
@@ -606,7 +566,7 @@ harness-ssr: ## @har la consola del SSR del wizard: a qué servicio llamó, con 
 	else tail -n $(or $(N),120) "$$f" | grep -E "$$filtro"; fi
 
 harness-loki: ## @har ¿por qué terminó así esta solicitud? forense en los logs. ⚠ dev/staging/local, NO prod. UREQ=519245 [TARGET=local|dev|staging|qa — por defecto LOCAL: sin esto caía al default `dev` y consultaba el Loki COMPARTIDO buscando un uReq local, que en el mejor caso da «cero anclas» y en el peor te muestra la corrida de OTRO con el mismo id] [SINCE=12h]
-	@test -n "$(TARGET)" || { echo "falta TARGET=local|dev|qa|staging: el forense de logs no adivina el ambiente (trazador-ureq cae en prod y éste caía en local, F-234)"; exit 2; }
+	@test -n "$(TARGET)" || { echo "falta TARGET=local|dev|qa|staging: el forense de logs no adivina el ambiente (antes caía en local y consultaba otro ambiente, F-234)"; exit 2; }
 	@cd harness && E2E_TARGET=$(TARGET) node dev/loki-trace.ts $(UREQ) $(if $(SINCE),--since $(SINCE))
 
 harness-countries: ## @har ¿de qué país es cada entidad? inferencia DRY-RUN desde el cableado. No escribe. [SQL=1]
@@ -622,27 +582,18 @@ harness-obs-up: ## @har levanta Loki (:3100) + Tempo (:4318) locales para observ
 harness-obs-down: ## @har baja Loki y Tempo locales (se llevan sus datos)
 	@cd harness && bin/loki-local stop; bin/tempo-local stop
 
-# ── TRAZADOR ─────────────────────────────────────────────────────────────────────────────────────
-# La herramienta de SOPORTE: hasta dónde llegó una solicitud y por qué se rompió. Hoy cubre el primer
-# paso —probar que los logs se pueden leer— y es el único lugar del playground que habla con PRODUCCIÓN.
-# Solo GET: no escribe nada en ningún ambiente.
-# ⚠ El módulo Go vive en `trazador/server/`, no en `trazador/` (se mudó al pasar a Vue + server Go).
-# Desde `trazador/` el go run falla con «cannot find main module».
-# ⚠ Los TARGET son cinco —`prod` · `staging` · `qa` · `dev` · `local`— y están los cinco `.env.<target>`
-# (`targetsPermitidos` en `trazador/server/serve.go` es la lista autoritativa). El help decía `prod|dev` y
-# `prod|local`: subestimaba la herramienta, y a un help se le cree — el que lo leía concluía que no podía
-# consultar staging. Si agregás un target: serve.go, el store y el selector de la Vue (una prueba exige que
-# coincidan), el `.env.<target>` con su `.example`, y estas líneas.
-.PHONY: trazador-acceso trazador-sql trazador-posthog confluence
-trazador-acceso: ## @har SONDA Loki: ¿puedo leer? ⚠ MUESTRA líneas, no las cuentes. Para CONTAR: QUERY='sum(count_over_time({...}[24h]))'. [TARGET=…] QUERY='{...}' SINCE=1h
-	@cd trazador/server && go run . $(if $(TARGET),-target $(TARGET)) $(if $(QUERY),-query '$(QUERY)') $(if $(SINCE),-since $(SINCE))
-
-# ⚠ TEL no es un lujo: la fase de AUTH ocurre ANTES de que exista la solicitud, así que PostHog la
-# identifica por `phone_<e164>` y no por `loan_request_<n>`. Medido sobre 7 días, el teléfono identifica
-# 47.792 eventos y la solicitud 24.006 — sin TEL se ve la mitad, y un recorrido que arranca en «monto»
-# se lee como que el cliente entró por ahí. El binario siempre tuvo `-tel`; acá faltaba.
-trazador-posthog: ## @har ¿qué VIO el cliente y en qué PANTALLA se rompió? eventos del front + su bitácora (pantalla · loader/action · error). Sin UREQ = sonda + censo; ERRORES=1 = qué pantallas fallan en el ambiente. [TARGET=prod|qa|staging] [UREQ=n] [TEL=3001234567 ⚠ sin esto se ve la MITAD: la fase de AUTH se identifica por teléfono] [VENTANA=6h|1d|7d prod y dev comparten ids: sin ventana se mezclan] [ERRORES=1 [DIAS=7]] [LIMIT=n]
-	@cd trazador/server && go run . -posthog $(if $(TARGET),-target $(TARGET)) $(if $(UREQ),-ureq $(UREQ)) $(if $(TEL),-tel $(TEL)) $(if $(LIMIT),-limit $(LIMIT)) $(if $(VENTANA),-ventana $(VENTANA)) $(if $(ERRORES),-errores $(if $(DIAS),-dias $(DIAS)))
+.PHONY: confluence
+# El trazador personal se retiró el 2026-10-13: la base, Loki y PostHog se consultan por los conectores
+# (`bin/pg sql` · `bin/pg logs` · `bin/pg events`), y la traza por etapas de una solicitud de PRODUCCIÓN
+# la da el tracer del equipo (`tools/tracer` en el playground compartido). Este atajo lo dice en vez de
+# fallar con «no rule to make target» cuando alguien corre un comando viejo de una nota.
+trazador trazador-%:
+	@echo "  el trazador se retiró (2026-10-13). En su lugar:"
+	@echo "    SQL           bin/pg sql --target T --query 'SELECT …' [--md] [--bloque TAREA]   (o make tablero-db)"
+	@echo "    logs (Loki)   bin/pg logs --target T --query '{…}' --since 1h"
+	@echo "    PostHog       bin/pg events request --target T --ureq N [--tel CEL]  ·  bin/pg events errors --target T"
+	@echo "    una solicitud de prod, por etapas: el tracer del equipo (tools/tracer del playground compartido)"
+	@exit 2
 
 # El «por qué» del negocio (política de riesgo, contratos con lenders, PRDs) no está en el código:
 # está en Confluence. Solo lectura: no hay verbo que escriba.
@@ -717,13 +668,6 @@ canon-local-sync: ## @can el canon LOCAL igual al de producción: baja el corpus
 	  if [ -n "$$r" ]; then echo "  releída: $$(echo "$$r" | python3 -c 'import json,sys;d=json.load(sys.stdin);print(d.get("temas"),"temas · diccionario",(d.get("diccionario") or {}).get("generado"))')"; \
 	  else echo "  ⚠ la instancia local no respondió: al levantarla lee el corpus nuevo"; fi
 
-trazador-sql: ## @har UNA consulta de SOLO LECTURA a la BD del ambiente. SQL='SELECT …' [TARGET=prod|staging|qa|dev|local] [CSV=1] [MD=1 anotación + tabla markdown, para pegar en la tarea] [BLOQUE=<id|slug> la agrega como bloque a la pila de esa tarea]
-	@# ⚠ el mismo escapado que la línea de abajo, y por la misma razón: `test -n "$(SQL)"` se rompía
-	@# con cualquier consulta que llevara comillas DOBLES (`WHERE x = "y"`), porque make expande antes
-	@# que el shell y las dobles del dato cerraban las del test. Fallaba con «binary operator expected»
-	@# y el mensaje de ayuda hacía creer que faltaba SQL, cuando SQL estaba y era válido.
-	@test -n $$'$(subst ','\'',$(SQL))' || { echo "falta SQL='SELECT …'  ·  ej: make trazador-sql TARGET=local SQL='SELECT id,name FROM countries LIMIT 3'"; exit 2; }
-	@cd trazador/server && go run . -target $(if $(TARGET),$(TARGET),prod) -sql $$'$(subst ','\'',$(SQL))' $(if $(CSV),-csv) $(if $(MD),-md) $(if $(BLOQUE),-bloque $(BLOQUE))
 
 # ── EXPLORACIONES ────────────────────────────────────────────────────────────────────────────────
 # Están acá para poder abrirlas, NO porque sean fuente. No se citan para decidir (ver CLAUDE.md).

@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """¿las tres herramientas comparten de VERDAD un solo tema?
 
-Existe porque la afirmación «`harness/panel`, `tablero` y `trazador` usan el mismo
+Existe porque la afirmación «`harness/panel`, `tablero` y las demás UIs usan el mismo
 `theme.css`» es exactamente el tipo de cosa que se escribe una vez en un comentario y deja de ser
 cierta sin que nadie se entere. Acá se CABLEA: si los archivos se separan, esto lo dice.
 
@@ -29,19 +29,18 @@ mirarse.
 import hashlib, math, pathlib, re, sys
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
-THEMES = ['harness/panel/theme.css', 'tablero/src/theme.css', 'trazador/src/theme.css', 'visor/src/theme.css', 'radar/src/theme.css', 'keyring/src/theme.css']
-WORKSHOPS = ['harness/panel/workbench.css', 'tablero/src/workbench.css', 'trazador/src/workbench.css', 'visor/src/workbench.css', 'radar/src/workbench.css', 'keyring/src/workbench.css']
+THEMES = ['harness/panel/theme.css', 'tablero/src/theme.css', 'visor/src/theme.css', 'radar/src/theme.css', 'keyring/src/theme.css']
+WORKSHOPS = ['harness/panel/workbench.css', 'tablero/src/workbench.css', 'visor/src/workbench.css', 'radar/src/workbench.css', 'keyring/src/workbench.css']
 REGIONS = ['workbench', 'titlebar', 'banner', 'activitybar', 'sidebar', 'editor',
             'panel', 'auxiliarybar', 'statusbar', 'region-head', 'region-body']
 SHEETS = {
     'harness':  ['harness/panel/index.html'],
     'tablero':  ['tablero/src/styles.css'],
-    'trazador': ['trazador/src/style.css'],
     'visor':    ['visor/src/style.css'],
     'radar':    ['radar/src/style.css'],
     'keyring':  ['keyring/src/style.css'],
 }
-TREES = {'tablero': 'tablero/src', 'trazador': 'trazador/src', 'visor': 'visor/src', 'radar': 'radar/src', 'keyring': 'keyring/src'}
+TREES = {'tablero': 'tablero/src', 'visor': 'visor/src', 'radar': 'radar/src', 'keyring': 'keyring/src'}
 
 # ── color ────────────────────────────────────────────────────────────────────────────────────────
 def _lin(c): return c / 12.92 if c <= 0.04045 else ((c + 0.055) / 1.055) ** 2.4

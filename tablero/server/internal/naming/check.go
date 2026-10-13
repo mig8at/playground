@@ -169,21 +169,6 @@ func Shared(root string) Board {
 	}
 }
 
-// Tracer es el Go del trazador. Sus claves JSON son el contrato con su UI en Vue y se pasan a inglés
-// junto con ella, así que por ahora las acepta una regla de la lista; lo que se revisa es el código.
-func Tracer(root string) Board {
-	return Board{
-		Name:        "trazador",
-		Root:        root,
-		GoRoots:     []string{"trazador/server"},
-		JSONRoots:   []string{"trazador/server"},
-		JSGlobs:     []string{"trazador/src/*.vue", "trazador/src/*.js", "trazador/src/components/*.vue", "trazador/src/stores/*.js"},
-		PyGlobs:     []string{"trazador/tools/*.py"},
-		DeclsScript: filepath.Join(root, "tablero", "tools", "rename", "js", "decls.mjs"),
-		PathRoots:   []string{"trazador/server/", "trazador/tools/", "trazador/src/"},
-	}
-}
-
 // Visor es el visor de pantallas de Figma: su API en Go y su Vue. Nació el 2026-09-24 con esta pasada,
 // para no tener que renombrarlo después como a los otros.
 func Visor(root string) Board {
