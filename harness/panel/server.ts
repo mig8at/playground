@@ -18,7 +18,7 @@ import { MockSupervisor, MOCKS as MOCK_REGISTRY } from './mocks.ts';
 import { advisorSession } from '../../connectors/advisor/session.ts';
 import { envData, type AutofillData } from '../pkg/autofill.ts';
 import { identityWithoutProviderNotice } from '../pkg/config.ts';
-import { openDevice, openDevices, setDeviceLogger, prewarmDevices, warmDevice, watchNavigation, watchRequests, deviceGoto, deviceReload, deviceText, deviceEval, deviceOpenedAt, deviceState, deviceShot, deviceInput, deviceTap, deviceAdvance, deviceStream, deviceBusyWatch, closeDevice, closeAllDevices, SELENIUM_BOXES, type DeviceId, type DeviceInput, type DeviceSession } from './devices.ts';
+import { openDevice, openDevices, setDeviceLogger, prewarmDevices, warmDevice, watchNavigation, watchRequests, deviceGoto, deviceReload, deviceText, deviceEval, deviceOpenedAt, deviceState, deviceShot, deviceInput, deviceTap, deviceAdvance, deviceStream, deviceBusyWatch, deviceStorage, closeDevice, closeAllDevices, SELENIUM_BOXES, type DeviceId, type DeviceInput, type DeviceSession } from './devices.ts';
 import { vpnDev, type VpnStatus } from '../pkg/vpn.ts';
 import { homedir } from 'node:os';
 
@@ -657,7 +657,48 @@ async function advanceAll(id: DeviceId, until: string | null): Promise<void> {
 // Celulares ABRIÉNDOSE: entre cerrar el anterior y abrir el nuevo no hay ninguno «abierto», y un precalentado
 // que entrara justo ahí reiniciaría el wizard que el celular está por mostrar (pasó el 2026-10-06).
 let devicesOpening = 0;
+/* ── RETOMAR UN CELULAR DESPUÉS DE REINICIAR EL PANEL ──────────────────────────────────────────────────────────
+ * Los celulares viven en el proceso del panel: al reiniciarlo se cerraban y se perdía dónde iba la corrida. Ahora cada
+ * celular deja escrito en `.runs/devices-state.json` (fuera de git, sólo para el dueño de la máquina: lleva la sesión)
+ * con qué se abrió —ambiente, comercio, caso, celular— y, en cada cambio de pantalla, la URL y su sesión. «Retomar» lo
+ * abre ahí con esa sesión y le vuelve a poner lo que el panel le pone al abrirlo. Cerrar el celular o abrir otra
+ * corrida borra lo guardado; reiniciar el panel no. */
+const DEVICES_STATE = join(ROOT, '.runs', 'devices-state.json');
+interface DeviceMeta { target: string; slug: string; channel: string; phone: string; order: any }
+interface SavedDevice { meta: DeviceMeta; url: string; storage: DeviceSession | null; savedAt: string }
+const deviceMeta = new Map<DeviceId, DeviceMeta>();
+function readSaved(): Partial<Record<DeviceId, SavedDevice>> {
+    try { return JSON.parse(readFileSync(DEVICES_STATE, 'utf8')); } catch { return {}; }
+}
+function writeSaved(all: Partial<Record<DeviceId, SavedDevice>>): void {
+    try { mkdirSync(dirname(DEVICES_STATE), { recursive: true }); writeFileSync(DEVICES_STATE, JSON.stringify(all), { mode: 0o600 }); } catch { /* sin disco: no se retoma */ }
+}
+const saveTimers = new Map<DeviceId, NodeJS.Timeout>();
+/** Anota con qué se abrió el celular y, desde ahí, dónde está en cada cambio de pantalla (con un respiro de 1 s). */
+function rememberDevice(id: DeviceId, meta: DeviceMeta): void {
+    deviceMeta.set(id, meta);
+    const save = () => {
+        clearTimeout(saveTimers.get(id));
+        saveTimers.set(id, setTimeout(async () => {
+            const st = deviceState(id);
+            if (!st.open || deviceMeta.get(id) !== meta || !st.url || st.url === 'about:blank') return;
+            const all = readSaved();
+            all[id] = { meta, url: st.url, storage: await deviceStorage(id), savedAt: new Date().toISOString() };
+            writeSaved(all);
+        }, 1000));
+    };
+    watchNavigation(id, save);
+    save();
+}
+function forgetDevice(id: DeviceId): void {
+    deviceMeta.delete(id);
+    clearTimeout(saveTimers.get(id));
+    const all = readSaved();
+    if (all[id]) { delete all[id]; writeSaved(all); }
+}
+
 async function releaseDevice(id: DeviceId): Promise<void> {
+    forgetDevice(id);
     await closeDevice(id);
     deviceNotes.delete(id);
     const b = deviceBypass.get(id);
@@ -2044,7 +2085,7 @@ connect();
     // `POST /api/device/client/open` arma el pedido de la tienda del panel —la misma URL base64 que usa
     // la corrida (`dbops ecommerce-url`)— y abre el checkout en el contexto del cliente. Por ahora sólo
     // navega: el bypass del OTP y la siembra del buró vienen después.
-    const deviceRoute = /^\/api\/device\/(client|advisor)(?:\/(open|state|shot|stream|close|input|reload|tap|advance|advance-all|advance-stop))?$/.exec(path);
+    const deviceRoute = /^\/api\/device\/(client|advisor)(?:\/(open|state|shot|stream|close|input|reload|tap|advance|advance-all|advance-stop|saved|resume))?$/.exec(path);
     if (deviceRoute) {
         const id = deviceRoute[1] as DeviceId, action = deviceRoute[2] || 'state';
         if (action === 'open' && req.method === 'POST') {
@@ -2083,6 +2124,31 @@ connect();
             return res.end(png);
         }
         if (action === 'close' && req.method === 'POST') { await releaseDevice(id); return json(res, 200, { ok: true }); }
+        // Lo que quedó guardado de este celular (después de reiniciar el panel), y «Retomar»: abrirlo ahí con su sesión.
+        if (action === 'saved') {
+            const s = readSaved()[id];
+            if (!s || deviceState(id).open) return json(res, 200, { saved: false });
+            return json(res, 200, { saved: true, url: s.url, savedAt: s.savedAt, target: s.meta.target, slug: s.meta.slug, channel: s.meta.channel });
+        }
+        if (action === 'resume' && req.method === 'POST') {
+            const s = readSaved()[id];
+            if (!s) return json(res, 200, { ok: false, detail: 'no hay nada guardado de este celular' });
+            const t = s.meta.target, phone = s.meta.phone;
+            if (t === 'prod') return json(res, 200, { ok: false, detail: 'en prod no se retoma un celular' });
+            if (phone) {
+                const bp = await dbopsJson(['otp-bypass-add', phone], t);
+                if (bp?.ok) { deviceBypass.set(id, { target: t, puesto: bp.puesto }); deviceOtp.set(id, phone.slice(-4)); }
+            }
+            try {
+                const r = await openDevice(id, s.url, { session: s.storage ?? undefined, autofill: caseAutofill(s.meta.order) });
+                rescueIdentity(id, t, id === 'client' ? phone : undefined); rescueDownPayment(id, t, id === 'client' ? phone : ''); watchFrontExceptions(id, t); watchCategories(id, t);
+                rememberDevice(id, s.meta);
+                deviceLog(id, `↺ retomado donde quedó (${new URL(s.url).pathname}) · ${s.meta.slug} en ${t}`);
+                return json(res, 200, { ok: true, ...r, otp: phone ? phone.slice(-4) : '' });
+            } catch (e) {
+                return json(res, 200, { ok: false, detail: `no pude retomarlo: ${(e as Error).message.split('\n')[0]}` });
+            }
+        }
         // Lo que tocás en el celular del panel llega acá: un clic, una tecla, texto o la rueda.
         if (action === 'input' && req.method === 'POST') {
             const ev = await readBody(req) as DeviceInput;
@@ -2189,6 +2255,7 @@ connect();
                 phase('celular');
                 deviceLog('panel', `tienda → cliente: ${phases.join(' · ')} (s)`);
                 rescueIdentity('client', t, phone); rescueDownPayment('client', t, phone); watchFrontExceptions('client', t); watchCategories('client', t);
+                rememberDevice('client', { target: t, slug: String(b.slug || ''), channel: auto ? 'auto' : 'ecommerce', phone, order: o });
                 return json(res, 200, { ok: true, hash: built.hash, merchant: built.merchant, scrubbed: scrub, ...otp, ...r });
             } catch (e) {
                 return json(res, 200, { ok: false, detail: `el celular no pudo abrir ${front}: ${(e as Error).message.split('\n')[0]}` });
@@ -2269,6 +2336,7 @@ connect();
                 // el celular del cliente, como hace la ventana B de la corrida guiada. Sin scrub: es la MISMA
                 // solicitud; sí el bypass del OTP, porque la firma le pide código al cliente.
                 rescueIdentity('advisor', t); rescueDownPayment('advisor', t); watchFrontExceptions('advisor', t); watchCategories('advisor', t);
+                rememberDevice('advisor', { target: t, slug, channel: 'asesor', phone: casePhone, order: b.order });
                 let handedOff = '';
                 watchNavigation('advisor', (u) => {
                     const m = /^(https?:\/\/[^/]+)\/merchant\/([^/]+)\/(\d+)\/(?:continue|confirmation)(?:[?#]|$)/.exec(u);

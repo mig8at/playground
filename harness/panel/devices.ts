@@ -392,6 +392,14 @@ export function deviceState(id: DeviceId): { open: boolean; url?: string; since?
     return d ? { open: true, url: d.page.url(), since: d.openedAt, view: d.view } : { open: false };
 }
 
+/** La sesión del celular (cookies y `localStorage`), para retomarlo después de reiniciar el panel. */
+export async function deviceStorage(id: DeviceId): Promise<DeviceSession | null> {
+    const d = open.get(id);
+    if (!d) return null;
+    const s = await d.context.storageState().catch(() => null);
+    return s ? { cookies: s.cookies, origins: s.origins } : null;
+}
+
 /** Una foto de la pantalla del celular (PNG). */
 export async function deviceShot(id: DeviceId): Promise<Buffer | null> {
     const d = open.get(id);

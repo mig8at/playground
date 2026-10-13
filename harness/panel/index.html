@@ -3479,7 +3479,8 @@
       for (const id of ['client', 'advisor']) {
         try {
           const st = await (await fetch(`/api/device/${id}/state`)).json();
-          if (!st.open || deviceShown(id)) continue;
+          if (!st.open) { await offerResume(id); continue; }
+          if (deviceShown(id)) continue;
           if (id === 'client') {
             setClientMode('live', '', st.view || '');
             const code = String(caseStore.read().phone || '').replace(/\D/g, '').slice(-4);
@@ -3495,6 +3496,36 @@
       }
     }
     setTimeout(resumeOpenDevices, 300);
+    // DESPUÉS DE REINICIAR EL PANEL: si un celular quedó a mitad (`.runs/devices-state.json`), se ofrece retomarlo ahí
+    // con su sesión. Abrir otra corrida o cerrarlo lo olvida.
+    async function offerResume(id) {
+      let s = null;
+      try { s = await (await fetch(`/api/device/${id}/saved`)).json(); } catch { }
+      if (!s?.saved) return;
+      const setMode = id === 'client' ? setClientMode : setAdvisorMode;
+      const screen = (() => { try { return new URL(s.url).pathname.split('/').filter((x) => x && !/^\d+$/.test(x)).slice(-1)[0] || 'inicio'; } catch { return 'inicio'; } })();
+      const ur = (/\/(\d{4,})\//.exec(s.url) || [])[1];
+      setMode('status', `Quedó en «${screen}»${ur ? ' · solicitud ' + ur : ''} · ${s.slug} en ${s.target} · ${new Date(s.savedAt).toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit' })}`);
+      const box = $(id + 'Status');
+      box.querySelector('.device-resume')?.remove();
+      const btn = document.createElement('button');
+      btn.type = 'button'; btn.className = 'btn btn-sm device-resume'; btn.textContent = 'Retomar';
+      btn.onclick = async () => {
+        btn.disabled = true; btn.textContent = 'Retomando…';
+        let r = null;
+        try { r = await (await fetch(`/api/device/${id}/resume`, { method: 'POST' })).json(); } catch { }
+        btn.remove();
+        if (!r?.ok) return setMode('status', r?.detail || 'No se pudo retomar.');
+        setMode('live', '', r.view || '');
+        if (id === 'client' && r.otp) {
+          const chip = $('clientOtp');
+          chip.hidden = false; chip.classList.remove('warn');
+          chip.textContent = 'código ' + r.otp; chip.dataset.code = r.otp;
+        }
+        if (!runRunning) startPoll();
+      };
+      box.appendChild(btn);
+    }
     const ADVISOR_STEPS = [
       'Levantando el celular del asesor…',
       'Entrando como el asesor de prueba del comercio…',
