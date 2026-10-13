@@ -41,17 +41,41 @@ type DeviceLogger = (id: DeviceId, line: string) => void;
 let deviceLogger: DeviceLogger = () => { };
 export function setDeviceLogger(fn: DeviceLogger): void { deviceLogger = fn; }
 
+/* ── EL RUIDO DE LA CONSOLA ────────────────────────────────────────────────────────────────────────────────────
+ * Avisos que salen en CADA corrida local y no dicen nada del caso: tapaban lo que sí importaba (el 422 de la firma
+ * quedó entre una docena de WebSocket fallidos, 2026-10-13). Se muestran UNA vez, marcados, y no se repiten.
+ *  - el tiempo real del wizard intenta `wss://ws.credito…`, que fuera de la nube no resuelve (cada ~15 s);
+ *  - React avisa que el HTML del servidor y el del navegador no coinciden en algún atributo (hidratación).
+ * Cualquier otro aviso repetido se muestra la primera vez y después sólo como cuenta (5, 25, 100…), para que lo
+ * nuevo no quede enterrado bajo lo que ya se vio. */
+const KNOWN_NOISE: { re: RegExp; why: string }[] = [
+    { re: /WebSocket connection to 'wss:\/\/ws\.credito/, why: 'el tiempo real del wizard no resuelve fuera de la nube' },
+    { re: /A tree hydrated but some attributes/, why: 'aviso de hidratación de React' },
+];
+const REPEAT_MARKS = new Set([5, 25, 100, 500]);
+
 /** Lo que el NAVEGADOR de un celular hace solo y conviene ver en orden: adónde navega, los errores de JS y de
  *  consola, y las respuestas ≥ 400 de documentos y llamadas (no de imágenes ni fuentes: son ruido). */
 function narrate(id: DeviceId, d: Omit<Device, 'openedAt'>, isCurrent: () => boolean): void {
-    const log = (line: string) => { if (isCurrent()) deviceLogger(id, line); };
+    const emit = (line: string) => { if (isCurrent()) deviceLogger(id, line); };
+    const seen = new Map<string, number>();
+    // Los avisos (no las navegaciones) pasan por acá: el ruido conocido sale una vez y lo repetido, como cuenta.
+    const log = (line: string) => {
+        const key = line.replace(/\d{3,}/g, '#');   // ids y referencias distintos no lo vuelven «otro» aviso
+        const n = (seen.get(key) ?? 0) + 1;
+        seen.set(key, n);
+        const noise = KNOWN_NOISE.find((k) => k.re.test(line));
+        if (noise) { if (n === 1) emit(`${line} · ruido conocido (${noise.why}): no se vuelve a mostrar`); return; }
+        if (n === 1) emit(line);
+        else if (REPEAT_MARKS.has(n)) emit(`${line.slice(0, 120)}… · se repitió ${n} veces`);
+    };
     let lastUrl = '';
     d.page.on('framenavigated', (frame) => {
         if (frame !== d.page.mainFrame()) return;
         const u = frame.url();
         if (u === lastUrl || u === 'about:blank') return;
         lastUrl = u;
-        log(`→ ${u.replace(/^https?:\/\/[^/]+/, '')}`);
+        emit(`→ ${u.replace(/^https?:\/\/[^/]+/, '')}`);
     });
     d.page.on('pageerror', (e) => log(`✗ error de JS: ${e.message.split('\n')[0].slice(0, 220)}`));
     d.page.on('console', (m) => { if (m.type() === 'error') log(`⚠ consola: ${m.text().split('\n')[0].slice(0, 220)}`); });
