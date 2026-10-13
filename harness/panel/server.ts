@@ -2193,9 +2193,11 @@ connect();
             // EL CLIENTE ARRANCA LIMPIO, como en la tienda y en la corrida («scrub-cliente»): sin esto cada prueba por el
             // asesor reusaba la misma persona sintética con sus créditos anteriores, y la regla de cupo la rechazaba
             // por «crédito activo» (2026-10-07: la 467210 cayó en request-canceled por la 467205 de CrediPullman).
-            // Sólo en local: fuera de local la base es la del equipo y el panel no borra nada.
+            // También fuera de local (nunca en prod), como ya hacía la tienda: sin limpiar, en qa el wizard reconocía al
+            // cliente del teléfono del arnés, saltaba directo al listado sin volver a consultar las centrales y quedaba
+            // rechazado con lo de la primera vez (503477, 2026-10-13). Sólo borra usuarios CLIENTE de ese teléfono.
             const casePhone = String(b.order?.phone || '').replace(/\D/g, '') || '3131010101';
-            const scrubbing = t === 'local' ? dbopsJson(['scrubphone', casePhone], t) : Promise.resolve(null);
+            const scrubbing = t !== 'prod' ? dbopsJson(['scrubphone', casePhone], t) : Promise.resolve(null);
             // Fuera de local, donde hay lambda con dictado (qa), se le dicta el caso igual que al abrir la tienda: sin esto
             // Agildata contestaba «sin empleo» y Refurbicredit rechazaba por ocupación (2026-10-13, solicitud 503477).
             const { COMPANY_LAMBDA } = await import('../pkg/risk-lambda.ts');
@@ -2233,8 +2235,8 @@ connect();
             startDeviceLog(`${slug} (${t}) · celular del asesor · ${account} · sucursal ${hash}`);
             deviceLog('panel', `asesor de prueba ${account}: ${stored ? 'sesión guardada' : 'entra con el login del conector'}${assigned ? ' · ' + assigned : ''}`);
             const scrubbed = await scrubbing;
-            if (t === 'local') deviceLog('panel', scrubbed ? `cliente ${casePhone}: ${scrubbed.users_deleted ?? 0} sintético(s) previos borrados — arranca sin créditos anteriores` : `cliente ${casePhone}: no pude limpiarlo; si tiene un crédito activo, la regla de cupo lo va a rechazar`);
-            else deviceLog('panel', `cliente ${casePhone}: fuera de local no se limpia; si ya tiene un crédito activo con la entidad, el cupo lo rechaza`);
+            if (t !== 'prod') deviceLog('panel', scrubbed ? `cliente ${casePhone}: ${scrubbed.users_deleted ?? 0} sintético(s) previos borrados — arranca sin créditos anteriores` : `cliente ${casePhone}: no pude limpiarlo; si tiene un crédito activo, la regla de cupo lo va a rechazar`);
+            else deviceLog('panel', `cliente ${casePhone}: en prod no se limpia nada`);
             const bz = await bureausApplied;
             if (bz) deviceLog('panel', `burós (${bz.detalle}): ${(bz.burós || []).join(' · ')}`);
             try {
