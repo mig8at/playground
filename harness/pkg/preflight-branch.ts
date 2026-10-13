@@ -7,7 +7,7 @@
 //
 //   1. `.flows.json` — un catálogo estático, mantenido a mano, que mapea `slug → branch_hash`. Es lo
 //      que usa el panel para anunciar (`branchHashForSlug`) y lo que `bin/advisor` le pasa al wizard.
-//   2. `E2E_ADVISOR_SUB` de `.env.<target>` — el asesor con el que se va a loguear. Su sucursal REAL la
+//   2. el sub del asesor de prueba del comercio — el asesor con el que se va a loguear. Su sucursal REAL la
 //      decide la base (`users.allied_branch_id`), y el wizard la lee por el backend.
 //   3. La sesión de Cognito cacheada en `.auth/` — si quedó de otra corrida, el que loguea puede ser
 //      OTRO asesor, con OTRA sucursal.
@@ -31,6 +31,7 @@
 // invalida sesiones. Contesta una pregunta y devuelve el desajuste para que quien llama lo imprima y
 // decida. La decisión de arreglarlo (reasignar, borrar la sesión) sigue siendo de quien corre.
 import { readFileSync } from 'node:fs';
+import { spawnSync } from 'node:child_process';
 import { dirname, join } from 'node:path';
 import { env } from './env.ts';
 
@@ -53,23 +54,19 @@ export function catalogHash(slug: string, target = 'local'): string {
 }
 
 /**
- * EL SUB DEL ASESOR, por la MISMA cadena que usa todo el harness: `E2E_ADVISOR_SUB` del
- * `.env.<target>` y, si no está, `asesor.sub` de `.flows.json`.
+ * EL SUB DEL ASESOR DE PRUEBA de la sucursal (`c<hash>-fake@`, el que el admin crea con cada comercio).
  *
- * ⚠ Vive acá porque los tres que preguntan lo resolvían cada uno a su manera: `bin/advisor` con
- * `envget` + `fget`, el panel con `advisorSub()`, y el caminador leía sólo la variable de entorno — que
- * en `local` no está, así que su chequeo se saltaba sin decir nada y parecía que no había desajuste.
- * Tres implementaciones de la misma pregunta es como una se queda atrás.
+ * Primero lo que exportó la corrida (`E2E_ADVISOR_SUB` en el PROCESO: `bin/advisor` y el caminador lo ponen al
+ * resolver el comercio). Si no está, se pregunta a la base con `dbops test-advisor <hash>`. No hay sub fijo en los
+ * `.env` ni en `.flows.json`: era el de una cuenta de persona y apuntaba a la sucursal que ESA persona tuviera.
+ * Devuelve '' si el comercio no tiene asesor de prueba.
  */
-export function advisorSubject(): string {
-      const fromEnv = env('E2E_ADVISOR_SUB').trim();
-      if (fromEnv) return fromEnv;
-      try {
-            const j = JSON.parse(readFileSync(join(ROOT, '.flows.json'), 'utf8'));
-            return String(j?.asesor?.sub ?? '').trim();
-      } catch {
-            return '';
-      }
+export function advisorSubjectFor(hash: string): string {
+      const fromRun = process.env.E2E_ADVISOR_SUB?.trim();
+      if (fromRun) return fromRun;
+      if (!hash) return '';
+      const r = spawnSync(process.execPath, [join(ROOT, 'bin', 'dbops.ts'), 'test-advisor', hash], { cwd: ROOT, encoding: 'utf8', timeout: 60_000 });
+      try { return String(JSON.parse(r.stdout || 'null')?.sub ?? '').trim(); } catch { return ''; }
 }
 
 /** La base del backend para un target, la misma cadena que usa el resto del harness. */
@@ -144,7 +141,7 @@ export async function preflightBranch(slug: string, target: string, sub: string)
             coincide: false, comprobado: false, slug, target, esperada: expectedOne, asesor: null, sub, motivo: '',
       };
       if (!expectedOne) return { ...base, motivo: `no sé el hash de la sucursal de '${slug}'` };
-      if (!sub.trim()) return { ...base, motivo: `sin E2E_ADVISOR_SUB para ${target}: no hay a quién preguntarle` };
+      if (!sub.trim()) return { ...base, motivo: `sin asesor de prueba del comercio en ${target}: no hay a quién preguntarle` };
 
       const advisor = await advisorBranch(sub);
       if (!advisor) {

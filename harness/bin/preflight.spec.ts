@@ -25,7 +25,7 @@ test('nadie resuelve el ambiente por fuera de la cadena', () => {
             + '`env()` mira process.env PRIMERO, así que `env(\'X\')` nunca es peor que `process.env.X` —\n'
             + 'pero sí al revés: `env()` NO escribe en process.env, así que lo que declara .env.<target> es\n'
             + 'invisible ahí y ese valor NO cambia con el target. Usá `env(\'<clave>\')`, o `config.mockUrl`\n'
-            + 'si es el backend, o `advisorSubject()` si es el asesor.\n').toEqual([]);
+            + 'si es el backend, o `advisorSubjectFor(hash)` si es el asesor.\n').toEqual([]);
 });
 
 // 🔴 Un chequeo que marca de más se aprende a ignorar, y entonces el día que marca de verdad tampoco se

@@ -170,7 +170,7 @@ donde se dice otra cosa:
 Desde el 2026-09-25 targets, variables y flags están en inglés (`harness-case`, `CASES=`, `--engine
 browser`…). ⚠ **Los nombres viejos NO se borran**: las tareas guardan el comando exacto de cada medición,
 y sin el nombre viejo no se podría repetir. Los traducen `HARNESS_OLD_TARGETS` y `HARNESS_OLD_VARS` en el
-`Makefile`, `pkg/cli-aliases.ts` (flags) y `pkg/env.ts` (variables de entorno, como `E2E_ASESOR_SUB`). Las carpetas `mock-centrales/` y
+`Makefile`, `pkg/cli-aliases.ts` (flags) y `pkg/env.ts` (variables de entorno, como `E2E_ASESOR_HASH`). Las carpetas `mock-centrales/` y
 `comercios/` pasaron a `mock-bureaus/` y `merchant-specs/`.
 
 ## Dos caminos, y cada uno tiene su dueño

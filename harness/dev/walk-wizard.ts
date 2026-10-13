@@ -406,8 +406,8 @@ async function correr(c: Case, i: number): Promise<Result> {
          * había reasignado al asesor por afuera. No corta la corrida: avisa, porque correr contra la
          * sucursal que el asesor ya tiene es un caso legítimo. Sólo lectura. */
         try {
-            const { preflightBranch, mismatchNotice, advisorSubject } = await import('../pkg/preflight-branch.ts');
-            const sub = advisorSubject();
+            const { preflightBranch, mismatchNotice, advisorSubjectFor } = await import('../pkg/preflight-branch.ts');
+            const sub = advisorSubjectFor(br.hash);
             if (sub) {
                 const d = await preflightBranch(br.hash, TARGET, sub);
                 for (const l of mismatchNotice(d)) log(l);

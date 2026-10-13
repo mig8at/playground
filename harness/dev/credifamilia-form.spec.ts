@@ -1,30 +1,32 @@
 // Captura VISUAL del formulario dinámico G2 de Credifamilia (form_type 6) — la pantalla `additional-info`.
 //
 // No pasa por el flujo real (KYC Evidente/CrossCore está antes y es externo): siembra un user_request de
-// Mediarte a nombre del asesor (estado 9) y salta DIRECTO a `/merchant/{hash}/{ur}/additional-info/6` con la
-// sesión Cognito cacheada. El loader (SSR) fetchea el schema del form-service real de dev + el country-tree,
+// Mediarte a nombre del asesor de prueba (estado 9) y salta DIRECTO a `/self-service/{hash}/{ur}/additional-info/6`,
+// que es público. El loader (SSR) fetchea el schema del form-service real de dev + el country-tree,
 // así que renderiza la cascada Departamento→Ciudad de nacimiento (incluye el field 233 que agregamos).
 //
 // Requiere: wizard :5174 arriba y apuntado a dev con VITE_FORM_SERVICE_BASE_URL=form-service.inertia-develop.
 // Correr: I_KNOW_THIS_TOUCHES_SHARED_DEV=1 E2E_TARGET=dev npx playwright test dev/credifamilia-form.spec.ts --reporter=line
 import { test } from '@playwright/test';
 import { config } from '../pkg/config';
-import { exec, close } from '../pkg/db';
+import { exec, one, close } from '../pkg/db';
+import { advisorSubjectFor } from '../pkg/preflight-branch';
 import { IPHONE_UA } from '../pkg/windows';
 
-// Sonría (allied 26, sucursal 3, hash 76db47f5): es el comercio al que está asociada la sesión cacheada de
-// a.arismendy. El form 6 se sirve por URL, así que NO importa que Sonría no tenga Credifamilia — importa que
-// el ur pertenezca al comercio+asesor de la sesión, si no el layout rebota a /solicitar del comercio propio.
+// Sonría (allied 26, sucursal 3, hash 76db47f5). El form 6 se sirve por URL, así que NO importa que Sonría no tenga
+// Credifamilia. El asesor de la solicitud es el de PRUEBA de Sonría (`c<hash>-fake@`), resuelto de la base.
 const HASH = '76db47f5';
 const ALLIED_ID = 26;
 const BRANCH_ID = 3;
-const ADVISOR_ID = 1827080;    // a.arismendy@uniandes.edu.co (corporate_user_id de la sesión)
 const CLIENT_ID = 1827671;    // usuario cliente existente en dev (dueño del user_request)
 const AMOUNT = 600000;
 
 test.afterAll(async () => { await close(); });
 
 test('captura additional-info Credifamilia (form 6)', async ({ browser }) => {
+    const sub = advisorSubjectFor(HASH);
+    const ADVISOR_ID = sub ? (await one<{ id: number }>('SELECT id FROM users WHERE cognito_id=? LIMIT 1', [sub]))?.id : undefined;
+    test.skip(!ADVISOR_ID, `Sonría (${HASH}) no tiene asesor de prueba: bin/pg admin test-advisor --allied ${ALLIED_ID}`);
     // 1) Sembrar el user_request (Mediarte + asesor, estado 9 «perfil»). lender_id NULL: el form route
     //    trae el schema 6 por URL, no depende de la resolución de form-type por lender.
     const ins = await exec(
@@ -34,7 +36,7 @@ test('captura additional-info Credifamilia (form 6)', async ({ browser }) => {
     const ur = ins.insertId;
     console.log(`\n>>> user_request sembrado: ${ur}  (para limpiar: DELETE FROM user_requests WHERE id=${ur})\n`);
 
-    // 2) Contexto autenticado (sesión Cognito cacheada de dev) + mobile UA (el wizard es mobile-first).
+    // 2) Contexto sin sesión (la ruta es pública) + mobile UA (el wizard es mobile-first).
     const ctx = await browser.newContext({ baseURL: config.feBaseUrl, userAgent: IPHONE_UA, viewport: { width: 390, height: 844 }, deviceScaleFactor: 2 });
     const page = await ctx.newPage();
     page.on('console', (m) => { if (/error|form|schema/i.test(m.text())) console.log('  [browser]', m.text().slice(0, 160)); });

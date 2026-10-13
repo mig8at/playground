@@ -827,8 +827,6 @@ async function bootPrewarm(): Promise<void> {
 // launch (load-permiso de bin/advisor) y era parte de la espera; bin/advisor lo sigue verificando al
 // lanzar (whois), pero como el panel ya asignó, le da "ya en <comercio> — sin write" y no re-escribe.
 
-// SUB del asesor por target — la MISMA cadena que usa bin/advisor (envget E2E_ADVISOR_SUB), con fallback
-// a `.flows.json` (asesor.sub). Si se leyera del shell del panel, ponerlo en .env.<target> no haría nada.
 /**
  * El asesor de prueba del COMERCIO (`c<hash>-fake@`, tarea #98): con él entran el panel y sus corridas, no con
  * una cuenta de persona. Lo lee `dbops test-advisor` de la base del ambiente; se cachea unos minutos por

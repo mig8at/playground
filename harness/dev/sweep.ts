@@ -72,18 +72,19 @@ const UA = 'Mozilla/5.0 (iPhone; CPU iPhone OS 16_5 like Mac OS X) AppleWebKit/6
 // middleware ResolveCognitoUser lo convierte en el usuario autenticado. Sin él, `update-user-request`
 // hace `auth()->check() ? auth()->user()->id : $request->corporate_user_id` → NULL, y BORRA el asesor que
 // venía en la solicitud. Eso rompe Ábaco después (su log exige corporate_user_id NOT NULL). Ver F-46.
-// El sub del asesor por la MISMA cadena que el resto del harness (`E2E_ADVISOR_SUB` de
-// `.env.<target>` y, si no, `.flows.json`). ⚠ Antes era `process.env.E2E_ADVISOR_SUB`, y eso NO ve el
-// `.env`: la clave sólo existe en `.env.qa` y `.env.staging`, así que contra esos targets este runner
-// mandaba el asesor del catálogo LOCAL —o ninguno— con el aplomo de haberlo leído. Import dinámico
-// porque este archivo fuerza `E2E_TARGET` arriba y un import estático corre antes (F-187).
-const { advisorSubject } = await import('../pkg/preflight-branch.ts');
+// El sub del asesor: el de PRUEBA del comercio de la sucursal (`advisorSubjectFor`), que se conoce al elegirla, así
+// que la cabecera viaja en `ADVISOR` (por llamada) y no fija en el cliente. Import dinámico porque este archivo
+// fuerza `E2E_TARGET` arriba y un import estático corre antes (F-187).
+const { advisorSubjectFor } = await import('../pkg/preflight-branch.ts');
 const { createCustomer } = await import('../pkg/http.ts');
-const ADVISOR_SUB = advisorSubject();
-const HDRS: Record<string, string> = {
-    'content-type': 'application/json', accept: 'application/json', 'user-agent': UA,
-    ...(ADVISOR_SUB ? { 'x-cognito-identity-id': ADVISOR_SUB } : {}),
-};
+const HDRS: Record<string, string> = { 'content-type': 'application/json', accept: 'application/json', 'user-agent': UA };
+const ADVISOR: Record<string, string> = {};
+/** Fija el asesor de prueba del comercio de `hash` para las llamadas que siguen; devuelve su sub ('' si no tiene). */
+function useAdvisorOf(hash: string): string {
+    const sub = advisorSubjectFor(hash);
+    if (sub) ADVISOR['x-cognito-identity-id'] = sub; else delete ADVISOR['x-cognito-identity-id'];
+    return sub;
+}
 
 const flows = flowsRaw;
 
@@ -94,13 +95,14 @@ function scrub(): void {
 // El cliente vive en `pkg/http.ts`: había CINCO copias de esto, y las cinco confundían un
 // timeout con una caída y no anotaban nada. `http` queda como el verbo de siempre.
 const customer = createCustomer({ base: API, headers: HDRS, timeoutMs: 60_000, recorte: 160 });
-const http = (method: string, path: string, body?: unknown): Promise<{ status: number; json: any }> => customer.llamar(method, path, body);
+const http = (method: string, path: string, body?: unknown): Promise<{ status: number; json: any }> => customer.llamar(method, path, body, ADVISOR);
 
 /** register + INSERT del uReq + buró sintético. Devuelve el id, o '' si falló. */
 async function seed(hash: string, amount: number): Promise<string> {
     /* El largo del móvil lo valida el país del COMERCIO: contra uno de fuera de Colombia el registro
        se cae con un 422 y el sweep reporta «seed falló» sin decir por qué. */
     PHONE = await branchPhone(hash, Number(PHONE));
+    const advisorSub = useAdvisorOf(hash);
     scrub();
     const reg = await http('POST', '/api/onboarding/phone/register', {
         phone_number: PHONE, phoneNumber: PHONE, terms: true, policies: true,
@@ -110,9 +112,8 @@ async function seed(hash: string, amount: number): Promise<string> {
     if (!uid) return '';
     const br = await one<{ b: number; a: number }>('SELECT id AS b, allied_id AS a FROM allied_branches WHERE hash=?', [hash]);
     if (!br) return '';
-    // El asesor sale del sub de Cognito que exporta bin/advisor (mismo criterio que guided.spec.ts);
-    // si no está en el entorno, se cae al primer asesor del comercio para no dejarlo NULL.
-    const advisorSub = ADVISOR_SUB;
+    // El asesor es el de prueba del comercio (mismo criterio que guided.spec.ts); si no tiene, se cae al primer
+    // asesor de la sucursal para no dejarlo NULL.
     const advisorId = (advisorSub
         ? (await one<{ id: number }>('SELECT id FROM users WHERE cognito_id=? LIMIT 1', [advisorSub]).catch(() => null))?.id
         : null)

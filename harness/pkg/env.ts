@@ -36,7 +36,6 @@ const fileEnv: Record<string, string> = parseEnv(resolve(ROOT, `.env.${TARGET}`)
  *  el viejo —en un `.env.<target>` que nadie tocó, o exportado en la shell—, se copia al nuevo en
  *  `process.env`, así lo ven también los que lo leen directo y los procesos hijos. */
 const OLD_ENV: Readonly<Record<string, string>> = {
-    E2E_ADVISOR_SUB: 'E2E_ASESOR_SUB',
     E2E_ADVISOR_HASH: 'E2E_ASESOR_HASH',
     E2E_ALLIED_URL: 'E2E_ALIADOS_URL',
     E2E_LENDER_NAME: 'E2E_LENDER_NOMBRE',

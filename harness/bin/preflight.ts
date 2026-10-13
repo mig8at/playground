@@ -113,7 +113,7 @@ const informative = [
     { clave: 'front (E2E_BASE_URL)', valor: env('E2E_BASE_URL', 'http://localhost:5174') + (TARGET !== 'local' && isLocal(env('E2E_BASE_URL', 'http://localhost:5174')) ? '  (wizard local contra backend remoto: es lo esperado)' : '') },
     { clave: 'pre-aprobaciones', valor: env('E2E_REAL_PREAPPROVALS', '0') === '1' ? 'MS REAL' : 'mock local :8095' },
     { clave: 'cuenta Cognito', valor: (await import('../pkg/config.ts')).cognitoCreds.user || '(sin asesor de prueba: lo resuelve la corrida desde el comercio)' },
-    { clave: 'sub del asesor', valor: env('E2E_ADVISOR_SUB') || '(de .flows.json)' },
+    { clave: 'sub del asesor', valor: process.env.E2E_ADVISOR_SUB || '(el de prueba del comercio, al elegirlo)' },
     { clave: 'APP_KEY', valor: env('APP_KEY') ? 'presente' : '⚠ AUSENTE (la inyección de buró escribiría un blob ilegible)' },
     { clave: 'escrituras', valor: TARGET === 'local' ? 'base local, sin riesgo' : 'DATA COMPARTIDA con el equipo' },
     { clave: 'forense Loki', valor: lokiStatus() },

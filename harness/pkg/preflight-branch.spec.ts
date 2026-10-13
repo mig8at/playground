@@ -9,7 +9,7 @@
 // ⚠ NO se pega a ningún backend acá: `advisorBranch` sale por red y eso haría la prueba depender
 // del ambiente. Lo que se fija es la DECISIÓN —comparar y redactar— que es donde estaba el hueco.
 import { expect, test } from '@playwright/test';
-import { redirectNotice, mismatchNotice, catalogHash, advisorSubject, type Mismatch } from './preflight-branch.ts';
+import { redirectNotice, mismatchNotice, catalogHash, advisorSubjectFor, type Mismatch } from './preflight-branch.ts';
 
 const base = (over: Partial<Mismatch> = {}): Mismatch => ({
       coincide: false, comprobado: true, slug: 'pullman', target: 'qa',
@@ -78,29 +78,26 @@ test.describe('el hash del catálogo', () => {
 });
 
 test.describe('el sub del asesor', () => {
-      // 🔴 Ésta es la que falló en silencio: el caminador leía SÓLO la variable de entorno, y en `local`
-      // no está — así que el chequeo se saltaba y parecía que no había desajuste. Un chequeo que se
-      // saltea se lee igual que uno que pasó.
-      test('cae a .flows.json cuando la variable de entorno no está', () => {
+      // El asesor es el de prueba del comercio: lo que exportó la corrida manda, y sin sucursal no hay a quién
+      // preguntarle. Ya no hay sub fijo en los `.env` ni en `.flows.json` (era el de una cuenta de persona).
+      test('el sub que exportó la corrida manda sobre la base', () => {
             const prior = process.env.E2E_ADVISOR_SUB;
-            delete process.env.E2E_ADVISOR_SUB;
+            process.env.E2E_ADVISOR_SUB = 'sub-de-la-corrida';
             try {
-                  // El `.flows.json` de esta máquina declara un asesor; lo que se fija es que NO devuelva
-                  // vacío por no haber mirado ahí.
-                  expect(advisorSubject()).not.toBe('');
-            } finally {
-                  if (prior !== undefined) process.env.E2E_ADVISOR_SUB = prior;
-            }
-      });
-
-      test('la variable de entorno manda sobre el catálogo', () => {
-            const prior = process.env.E2E_ADVISOR_SUB;
-            process.env.E2E_ADVISOR_SUB = 'sub-de-la-variable';
-            try {
-                  expect(advisorSubject()).toBe('sub-de-la-variable');
+                  expect(advisorSubjectFor('e9409aff')).toBe('sub-de-la-corrida');
             } finally {
                   if (prior === undefined) delete process.env.E2E_ADVISOR_SUB;
                   else process.env.E2E_ADVISOR_SUB = prior;
+            }
+      });
+
+      test('sin corrida ni sucursal no inventa un asesor', () => {
+            const prior = process.env.E2E_ADVISOR_SUB;
+            delete process.env.E2E_ADVISOR_SUB;
+            try {
+                  expect(advisorSubjectFor('')).toBe('');
+            } finally {
+                  if (prior !== undefined) process.env.E2E_ADVISOR_SUB = prior;
             }
       });
 });

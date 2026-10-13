@@ -57,18 +57,19 @@ const API = e2eConfig.mockUrl;
 let PHONE = String(3_130_000_000 + ((Date.now() + Math.floor(Math.random() * 1_000_000)) % 9_000_000));
 const UA = 'Mozilla/5.0 (iPhone; CPU iPhone OS 16_5 like Mac OS X) AppleWebKit/605.1.15 '
     + '(KHTML, like Gecko) Version/16.5 Mobile/15E148 Safari/604.1';
-// El sub del asesor por la MISMA cadena que el resto del harness (`E2E_ADVISOR_SUB` de
-// `.env.<target>` y, si no, `.flows.json`). ⚠ Antes era `process.env.E2E_ADVISOR_SUB`, y eso NO ve el
-// `.env`: la clave sólo existe en `.env.qa` y `.env.staging`, así que contra esos targets este runner
-// mandaba el asesor del catálogo LOCAL —o ninguno— con el aplomo de haberlo leído. Import dinámico
-// porque este archivo fuerza `E2E_TARGET` arriba y un import estático corre antes (F-187).
-const { advisorSubject } = await import('../pkg/preflight-branch.ts');
+// El sub del asesor: el de PRUEBA del comercio de la sucursal (`advisorSubjectFor`), que se conoce al elegirla, así
+// que la cabecera viaja en `ADVISOR` (por llamada) y no fija en el cliente. Import dinámico porque este archivo
+// fuerza `E2E_TARGET` arriba y un import estático corre antes (F-187).
+const { advisorSubjectFor } = await import('../pkg/preflight-branch.ts');
 const { createCustomer } = await import('../pkg/http.ts');
-const ADVISOR_SUB = advisorSubject();
-const HDRS: Record<string, string> = {
-    'content-type': 'application/json', accept: 'application/json', 'user-agent': UA,
-    ...(ADVISOR_SUB ? { 'x-cognito-identity-id': ADVISOR_SUB } : {}),
-};
+const HDRS: Record<string, string> = { 'content-type': 'application/json', accept: 'application/json', 'user-agent': UA };
+const ADVISOR: Record<string, string> = {};
+/** Fija el asesor de prueba del comercio de `hash` para las llamadas que siguen; devuelve su sub ('' si no tiene). */
+function useAdvisorOf(hash: string): string {
+    const sub = advisorSubjectFor(hash);
+    if (sub) ADVISOR['x-cognito-identity-id'] = sub; else delete ADVISOR['x-cognito-identity-id'];
+    return sub;
+}
 
 const arg = (n: string, d = ''): string => {
     const i = process.argv.indexOf(`--${n}`);
@@ -84,7 +85,7 @@ const V2 = flag('v2');
 // El cliente vive en `pkg/http.ts`: había CINCO copias de esto, y las cinco confundían un
 // timeout con una caída y no anotaban nada. `http` queda como el verbo de siempre.
 const customer = createCustomer({ base: API, headers: HDRS, timeoutMs: 60_000, recorte: 200 });
-const http = (method: string, path: string, body?: unknown) => customer.llamar(method, path, body);
+const http = (method: string, path: string, body?: unknown) => customer.llamar(method, path, body, ADVISOR);
 
 let step = 0;
 const ok = (t: string, d = '') => console.log(`  ${String(++step).padStart(2)}. ✓ ${t}${d ? ` · ${d}` : ''}`);
@@ -131,6 +132,7 @@ async function main(): Promise<number> {
     /* El largo del móvil lo valida el país del COMERCIO, no el nuestro: contra el comercio de Perú un
        número colombiano se cae con un 422 antes de llegar al listado, que es lo que se venía a medir. */
     PHONE = await branchPhone(hash, Number(PHONE));
+    const advisorSub = useAdvisorOf(hash);
     spawnSync('node', ['bin/dbops.ts', 'scrubphone', PHONE], { cwd: new URL('..', import.meta.url).pathname });
     const reg = await http('POST', '/api/onboarding/phone/register', {
         phone_number: PHONE, phoneNumber: PHONE, terms: true, policies: true,
@@ -140,7 +142,11 @@ async function main(): Promise<number> {
     if (!uid) { bad('register', `HTTP ${reg.status} · ${JSON.stringify(reg.json).slice(0, 120)}`); return 1; }
     ok('register', `user ${uid}`);
 
-    const advisor = (await one<{ id: number }>(
+    // El asesor de prueba del comercio; si no tiene, el primero de la sucursal para no dejarlo NULL.
+    const advisor = (advisorSub
+        ? (await one<{ id: number }>('SELECT id FROM users WHERE cognito_id=? LIMIT 1', [advisorSub]).catch(() => null))?.id
+        : null)
+        ?? (await one<{ id: number }>(
         'SELECT id FROM users WHERE allied_branch_id=? AND cognito_id IS NOT NULL LIMIT 1', [br.b])
         .catch(() => null))?.id ?? null;
     const ins = await exec(

@@ -72,18 +72,19 @@ const API = e2eConfig.mockUrl;
 const MOCK_CORBETA = `http://localhost:${process.env.MOCK_CORBETA_PORT || 8103}`;
 const PHONE = '3131010101';
 const UA = 'Mozilla/5.0 (iPhone; CPU iPhone OS 16_5 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.5 Mobile/15E148 Safari/604.1';
-// El sub del asesor por la MISMA cadena que el resto del harness (`E2E_ADVISOR_SUB` de
-// `.env.<target>` y, si no, `.flows.json`). ⚠ Antes era `process.env.E2E_ADVISOR_SUB`, y eso NO ve el
-// `.env`: la clave sólo existe en `.env.qa` y `.env.staging`, así que contra esos targets este runner
-// mandaba el asesor del catálogo LOCAL —o ninguno— con el aplomo de haberlo leído. Import dinámico
-// porque este archivo fuerza `E2E_TARGET` arriba y un import estático corre antes (F-187).
-const { advisorSubject } = await import('../pkg/preflight-branch.ts');
+// El sub del asesor: el de PRUEBA del comercio de la sucursal (`advisorSubjectFor`), que se conoce al elegirla, así
+// que la cabecera viaja en `ADVISOR` (por llamada) y no fija en el cliente. Import dinámico porque este archivo
+// fuerza `E2E_TARGET` arriba y un import estático corre antes (F-187).
+const { advisorSubjectFor } = await import('../pkg/preflight-branch.ts');
 const { createCustomer } = await import('../pkg/http.ts');
-const ADVISOR_SUB = advisorSubject();
-const HDRS: Record<string, string> = {
-    'content-type': 'application/json', accept: 'application/json', 'user-agent': UA,
-    ...(ADVISOR_SUB ? { 'x-cognito-identity-id': ADVISOR_SUB } : {}),
-};
+const HDRS: Record<string, string> = { 'content-type': 'application/json', accept: 'application/json', 'user-agent': UA };
+const ADVISOR: Record<string, string> = {};
+/** Fija el asesor de prueba del comercio de `hash` para las llamadas que siguen; devuelve su sub ('' si no tiene). */
+function useAdvisorOf(hash: string): string {
+    const sub = advisorSubjectFor(hash);
+    if (sub) ADVISOR['x-cognito-identity-id'] = sub; else delete ADVISOR['x-cognito-identity-id'];
+    return sub;
+}
 
 // ── argumentos ────────────────────────────────────────────────────────────────────────────────────
 const argv = process.argv.slice(2);
@@ -130,7 +131,7 @@ const trim = (j: any, n = 150) => JSON.stringify(j?.data ?? j ?? {}).slice(0, n)
 // El cliente vive en `pkg/http.ts`: había CINCO copias de esto, y las cinco confundían un
 // timeout con una caída y no anotaban nada. `http` queda como el verbo de siempre.
 const customer = createCustomer({ base: API, headers: HDRS, timeoutMs: 60_000, recorte: 200 });
-const http = (method: string, path: string, body?: unknown): Promise<{ status: number; json: any }> => customer.llamar(method, path, body);
+const http = (method: string, path: string, body?: unknown): Promise<{ status: number; json: any }> => customer.llamar(method, path, body, ADVISOR);
 
 /** POST al control del mock de Corbeta (no al backend). */
 async function mock(path: string, body?: unknown): Promise<any> {
@@ -160,6 +161,7 @@ if (!br) {
     await close(); process.exit(2);
 }
 P('sucursal Corbeta', true, `#${br.id} (allied ${br.alliedId}) hash=${br.hash}`);
+const ADVISOR_SUB = useAdvisorOf(br.hash);
 
 // "Vivo" = contesta HTTP, aunque sea 404/405: la ruta de health puede no existir. Sólo status 0 (no
 // resolvió / no conectó) o 5xx significan que el backend está caído. Marcarlo ok con un 500 en la mano
@@ -218,7 +220,7 @@ if (uid) {
 if (!uid) { await close(); process.exit(2); }
 
 // El asesor NO existe en este canal (es autogestión), pero `corporate_user_id` es NOT NULL para los logs
-// de pasos, así que se resuelve igual que en sweep.ts: sub del entorno, o el primer asesor de la sucursal.
+// de pasos, así que se resuelve igual que en sweep.ts: el asesor de prueba del comercio, o el primero de la sucursal.
 const advisorId = (ADVISOR_SUB
     ? (await one<{ id: number }>('SELECT id FROM users WHERE cognito_id=? LIMIT 1', [ADVISOR_SUB]).catch(() => null))?.id
     : null)

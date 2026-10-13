@@ -4,7 +4,7 @@
 #   bin/advisor <merchant> auto      → GUIADO: siembra cada pantalla, vos das "Continuar"; en /lenders elegís
 #                                     el lender y el demo sigue (CreditopX abre 2ª ventana B; aggregator/redirect, 1).
 #   bin/ecommerce <merchant> [auto] → idem, pero ENTRA POR EL CHECKOUT de la tienda mock (no login de asesor).
-# Lee .flows.json (asesor.email/sub + merchants.<m>.branch_hash) y la identidad de connectors (login del asesor). El wizard
+# Lee .flows.json (merchants.<m>.branch_hash) y la identidad de connectors (login del asesor). El wizard
 # local (Vite) apunta a DEV; se reusa si está arriba (se reinicia solo si apuntaba a otro backend).
 set -euo pipefail
 
@@ -129,7 +129,7 @@ log() { printf '▶ %s\n' "$*"; }
 step() { printf '  ○ %-13s …\n' "$1"; }
 ok()   { printf '  ● %-13s %s\n' "$1" "${2:-ok}"; }
 cd "$E2E"
-[ -f "$FLOWS" ] || { echo "✗ falta $FLOWS (asesor.email/sub + merchants.<m>.branch_hash)"; exit 1; }
+[ -f "$FLOWS" ] || { echo "✗ falta $FLOWS (merchants.<m>.branch_hash)"; exit 1; }
 
 # lee una ruta dot-path del .flows.json (sin jq; node siempre está)
 fget() { node -e 'const fs=require("fs");let j={};try{j=JSON.parse(fs.readFileSync(process.argv[1]))}catch(e){};let v=j;for(const k of process.argv[2].split(".")){v=(v==null?undefined:v[k])};process.stdout.write(v==null?"":String(v))' "$FLOWS" "$1"; }
