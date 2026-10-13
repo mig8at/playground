@@ -260,7 +260,8 @@
     .device-live[hidden], .device-status[hidden] { display: none }
     /* La pantalla en vivo se TOCA: clic, teclado y rueda viajan al navegador del celular (`/api/device/<id>/input`). */
     canvas.device-live { cursor: pointer; touch-action: none; user-select: none; -webkit-user-drag: none }
-    canvas.device-live:focus-visible { outline: 2px solid var(--ring); outline-offset: -2px }
+    /* Sin borde de foco: se toca con el mouse y queda enfocado todo el rato, así que el borde era ruido permanente. */
+    canvas.device-live:focus, canvas.device-live:focus-visible { outline: none }
     /* CARGANDO: una barra fina arriba de la pantalla mientras el celular cambia de pantalla (aviso `busy` del canal). */
     .device-busy { position: absolute; top: 0; left: 0; right: 0; height: 3px; z-index: 4; overflow: hidden; pointer-events: none }
     .device-busy::after { content: ''; position: absolute; inset: 0; width: 40%; background: var(--ring); animation: device-busy 1s ease-in-out infinite }
