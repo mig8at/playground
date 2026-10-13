@@ -482,6 +482,14 @@ function rescueIdentity(id: DeviceId, target: string, phone = ''): void {
  * `processing` (el widget se cerró), se paga igual. Sólo en local; se ANOTA: es un rodeo del arnés, no prueba la
  * pasarela real.
  */
+/** Qué pasó con el cliente anterior del celular de prueba: en local se ARCHIVA con sus solicitudes (se puede seguir
+ *  mirando con `make trazador-ureq UREQ=…`), en la base compartida se borra. */
+function scrubSummary(scrub: any): string {
+    const archived = Number(scrub?.users_archived ?? 0), kept: number[] = scrub?.requests_kept ?? [];
+    if (archived) return `cliente anterior archivado${kept.length ? ` (solicitud${kept.length > 1 ? 'es' : ''} ${kept.join(', ')} guardada${kept.length > 1 ? 's' : ''})` : ''}`;
+    return `${scrub?.users_deleted ?? 0} cliente(s) previos borrados`;
+}
+
 function rescueDownPayment(id: DeviceId, target: string, phone = ''): void {
     // Fuera de local (dev/qa/staging) la pasarela es Wompi SANDBOX y el celular del panel no puede pagar: se INSERTA el
     // pago de ESTA solicitud —sólo si es del celular que abrió el panel— y se lleva el celular a `processing`. No se
@@ -2176,7 +2184,7 @@ connect();
             const front = await frontFor(t);
             try {
                 if (bz) deviceLog('panel', `burós (${bz.detalle}): ${(bz.burós || []).join(' · ')}`);
-                deviceLog('panel', `pedido armado: ${built.checkout_path.split('?')[0]} · ${scrub?.users_deleted ?? 0} cliente(s) previos borrados · OTP ${otp.otp ? 'resuelto (' + otp.otp + ')' : 'SIN bypass'}`);
+                deviceLog('panel', `pedido armado: ${built.checkout_path.split('?')[0]} · ${scrubSummary(scrub)} · OTP ${otp.otp ? 'resuelto (' + otp.otp + ')' : 'SIN bypass'}`);
                 const r = await openDevice('client', front.replace(/\/$/, '') + built.checkout_path, { autofill: caseAutofill(o) });
                 phase('celular');
                 deviceLog('panel', `tienda → cliente: ${phases.join(' · ')} (s)`);
@@ -2245,7 +2253,7 @@ connect();
             startDeviceLog(`${slug} (${t}) · celular del asesor · ${account} · sucursal ${hash}`);
             deviceLog('panel', `asesor de prueba ${account}: ${stored ? 'sesión guardada' : 'entra con el login del conector'}${assigned ? ' · ' + assigned : ''}`);
             const scrubbed = await scrubbing;
-            if (t !== 'prod') deviceLog('panel', scrubbed ? `cliente ${casePhone}: ${scrubbed.users_deleted ?? 0} sintético(s) previos borrados — arranca sin créditos anteriores` : `cliente ${casePhone}: no pude limpiarlo; si tiene un crédito activo, la regla de cupo lo va a rechazar`);
+            if (t !== 'prod') deviceLog('panel', scrubbed ? `cliente ${casePhone}: ${scrubSummary(scrubbed)} — arranca sin créditos anteriores` : `cliente ${casePhone}: no pude limpiarlo; si tiene un crédito activo, la regla de cupo lo va a rechazar`);
             else deviceLog('panel', `cliente ${casePhone}: en prod no se limpia nada`);
             const bz = await bureausApplied;
             if (bz) deviceLog('panel', `burós (${bz.detalle}): ${(bz.burós || []).join(' · ')}`);

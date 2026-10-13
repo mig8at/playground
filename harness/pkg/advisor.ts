@@ -307,7 +307,8 @@ export async function scrubHarnessUsers(): Promise<Record<string, unknown>> {
             + `RIGHT(REPLACE(REPLACE(REPLACE(cell_phone,'+',''),' ',''),'-',''), 10) IN (${list}))`,
         );
     }
-    const where = `(${markers.join(' OR ')}) AND (cognito_id IS NULL OR cognito_id = '')`;
+    // Los ARCHIVADOS por `scrubphone` se respetan: son corridas que se guardaron a propósito para investigarlas.
+    const where = `(${markers.join(' OR ')}) AND (cognito_id IS NULL OR cognito_id = '') AND (test_reason IS NULL OR test_reason <> '${ARCHIVED}')`;
     const rows = await query<{ id: number }>(`SELECT id FROM users WHERE ${where}`);
     const ids = rows.map((r) => r.id);
     if (ids.length === 0) return { users_deleted: 0, note: 'no había usuarios sintéticos del arnés que borrar' };
@@ -327,7 +328,30 @@ export async function scrubHarnessUsers(): Promise<Record<string, unknown>> {
     };
 }
 
-/** scrubphone (WRITE): borra los users CUSTOMER (cognito_id NULL) de un teléfono → próximo register = TEMPORAL USER.
+/** La marca (`users.test_reason`) de un cliente de prueba que se ARCHIVÓ en vez de borrarse. */
+const ARCHIVED = 'archivado';
+
+/**
+ * EN LOCAL LA CORRIDA ANTERIOR SE ARCHIVA, NO SE BORRA. Cada corrida usa el mismo celular de prueba, así que el cliente
+ * anterior tiene que salir del camino; borrándolo se perdía justo lo que había que mirar (la 467327, con la cuota
+ * inicial mayor que la compra, se borró al abrir la corrida siguiente: 2026-10-13). Archivar libera lo que choca —el
+ * celular, el correo y la cédula, los tres únicos en `users`— con valores hechos del propio id, y deja la solicitud, su
+ * historia y sus pagos en la base. `scrubHarnessUsers` no los toca. Fuera de local se sigue borrando: la base es del
+ * equipo. `HARNESS_SCRUB=delete` vuelve a borrar también en local.
+ */
+async function archiveUsers(userIDs: number[]): Promise<number> {
+    if (userIDs.length === 0) return 0;
+    const r = await exec(
+        `UPDATE users SET cell_phone = CONCAT('arch-', id), email = CONCAT('archivado-', id, '@harness.local'),
+                document_number = CONCAT('ARCH', id), is_test = 1, test_reason = ?, updated_at = NOW()
+          WHERE id IN (?)`,
+        [ARCHIVED, userIDs],
+    );
+    return r.affectedRows ?? userIDs.length;
+}
+
+/** scrubphone (WRITE): saca del camino a los users CUSTOMER (cognito_id NULL) de un teléfono → próximo register =
+ * TEMPORAL USER. En local los ARCHIVA (ver `archiveUsers`); en la base compartida los borra.
  *
  * ⚠ COMPARA POR LOS ÚLTIMOS 10 DÍGITOS, no por igualdad, y eso es un ARREGLO — no una comodidad.
  * El mismo teléfono se guarda en formatos distintos según por dónde entró: medido el 2026-09-10 en la
@@ -362,6 +386,15 @@ export async function scrubphone(phone: string): Promise<Record<string, unknown>
     // esta vuelta), tiene que verse en el rastro de la corrida y no descubrirse depurando.
     const formats = [...new Set(rows.map((r) => r.cell_phone))];
     const dump = await dumpBeforeDelete(p, ids);
+    if (TARGET === 'local' && process.env.HARNESS_SCRUB !== 'delete') {
+        const requests = ids.length ? (await query<{ id: number }>('SELECT id FROM user_requests WHERE user_id IN (?) ORDER BY id', [ids])).map((r) => r.id) : [];
+        const n = await archiveUsers(ids);
+        return {
+            phone: p, users_deleted: 0, users_archived: n, user_ids: ids, requests_kept: requests, formatos_encontrados: formats,
+            forense: dump ?? '(sin solicitudes previas que volcar)',
+            note: 'el cliente anterior quedó ARCHIVADO (celular, correo y cédula liberados) con sus solicitudes; el próximo register crea un TEMPORAL USER',
+        };
+    }
     const n = await deleteUsers(ids);
     return {
         phone: p, users_deleted: n, user_ids: ids, formatos_encontrados: formats,
