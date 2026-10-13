@@ -31,6 +31,7 @@ import (
 	"time"
 
 	"creditop/playground/connectors/env"
+	"strconv"
 )
 
 // Targets son los ambientes que existen.
@@ -195,28 +196,90 @@ type Stream struct {
 	Values [][2]string       `json:"values"`
 }
 
-// Range corre un `query_range` de líneas. `direction` es `forward` o `backward`.
-func (cl *Client) Range(logql string, start, end time.Time, limit int, direction string) ([]Stream, error) {
+// Series es una serie de una consulta de CONTEO (`count_over_time`, `sum by (…)`…): sus etiquetas y su número.
+type Series struct {
+	Labels map[string]string `json:"metric"`
+	Value  float64           `json:"value"`
+}
+
+// Result es lo que contestó Loki: líneas (`Streams`) o, si la consulta es de conteo, un número por serie (`Series`).
+// `Metric` dice cuál de las dos, así que un conteo sin series es «0», no «0 líneas».
+type Result struct {
+	Metric  bool
+	Streams []Stream
+	Series  []Series
+}
+
+// Query corre la consulta y entiende las dos formas de LogQL. Una de LÍNEAS va por `query_range`; una de CONTEO
+// (`sum(count_over_time(… [16d]))`) se resuelve como consulta instantánea al final de la ventana, que es lo que
+// significa su propio rango. Antes un conteo con resultados rompía al leer la respuesta (los valores son números) y
+// uno sin resultados salía como «0 líneas», que se lee como «busqué y no hay nada» (2026-10-13).
+func (cl *Client) Query(logql string, start, end time.Time, limit int, direction string) (Result, error) {
 	status, body, err := cl.API("query_range", url.Values{
 		"query": {logql}, "start": {fmt.Sprint(start.UnixNano())}, "end": {fmt.Sprint(end.UnixNano())},
 		"limit": {fmt.Sprint(limit)}, "direction": {direction},
 	})
 	if err != nil {
-		return nil, err
+		return Result{}, err
 	}
 	if status != http.StatusOK {
-		return nil, fmt.Errorf("%s", Explain(status, body))
+		return Result{}, fmt.Errorf("%s", Explain(status, body))
 	}
 	var r struct {
 		Data struct {
-			ResultType string   `json:"resultType"`
-			Result     []Stream `json:"result"`
+			ResultType string          `json:"resultType"`
+			Result     json.RawMessage `json:"result"`
 		} `json:"data"`
 	}
 	if err := json.Unmarshal(body, &r); err != nil {
-		return nil, fmt.Errorf("la respuesta de query_range no se pudo leer: %w", err)
+		return Result{}, fmt.Errorf("la respuesta de query_range no se pudo leer: %w", err)
 	}
-	return r.Data.Result, nil
+	if r.Data.ResultType == "streams" || r.Data.ResultType == "" {
+		var streams []Stream
+		if len(r.Data.Result) > 0 {
+			if err := json.Unmarshal(r.Data.Result, &streams); err != nil {
+				return Result{}, fmt.Errorf("las líneas de query_range no se pudieron leer: %w", err)
+			}
+		}
+		return Result{Streams: streams}, nil
+	}
+	status, body, err = cl.API("query", url.Values{"query": {logql}, "time": {fmt.Sprint(end.UnixNano())}})
+	if err != nil {
+		return Result{}, err
+	}
+	if status != http.StatusOK {
+		return Result{}, fmt.Errorf("%s", Explain(status, body))
+	}
+	var v struct {
+		Data struct {
+			Result []struct {
+				Metric map[string]string `json:"metric"`
+				Value  [2]any            `json:"value"`
+			} `json:"result"`
+		} `json:"data"`
+	}
+	if err := json.Unmarshal(body, &v); err != nil {
+		return Result{}, fmt.Errorf("el conteo no se pudo leer: %w", err)
+	}
+	out := Result{Metric: true}
+	for _, s := range v.Data.Result {
+		n, _ := strconv.ParseFloat(fmt.Sprint(s.Value[1]), 64)
+		out.Series = append(out.Series, Series{Labels: s.Metric, Value: n})
+	}
+	return out, nil
+}
+
+// Range corre un `query_range` de líneas. `direction` es `forward` o `backward`. Una consulta de conteo no
+// tiene líneas: para eso está `Query`.
+func (cl *Client) Range(logql string, start, end time.Time, limit int, direction string) ([]Stream, error) {
+	res, err := cl.Query(logql, start, end, limit, direction)
+	if err != nil {
+		return nil, err
+	}
+	if res.Metric {
+		return nil, fmt.Errorf("la consulta es de conteo, no de líneas: usá Query")
+	}
+	return res.Streams, nil
 }
 
 // LabelValues trae los valores de una etiqueta en la ventana, o nada si no se pudo pedir. Nada NO

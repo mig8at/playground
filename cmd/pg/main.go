@@ -199,11 +199,26 @@ func window(since, start, end string) (time.Time, time.Time, error) {
 		}
 		return from, to, nil
 	}
-	d, err := time.ParseDuration(since)
+	d, err := parseSince(since)
 	if err != nil {
 		return time.Time{}, time.Time{}, fmt.Errorf("--since %q: %w", since, err)
 	}
 	return to.Add(-d), to, nil
+}
+
+// parseSince entiende lo de Go (`30m`, `6h`) y además días y semanas (`16d`, `2w`), que es la unidad natural para
+// buscar en logs y la que Go no tiene: `--since 16d` fallaba y era fácil leerlo como «no hay nada».
+func parseSince(s string) (time.Duration, error) {
+	if n := len(s); n > 1 && (s[n-1] == 'd' || s[n-1] == 'w') {
+		if v, err := strconv.ParseFloat(s[:n-1], 64); err == nil && v >= 0 {
+			day := 24 * time.Hour
+			if s[n-1] == 'w' {
+				day *= 7
+			}
+			return time.Duration(v * float64(day)), nil
+		}
+	}
+	return time.ParseDuration(s)
 }
 
 // client arma el cliente del ambiente, o dice por qué no se puede.
@@ -245,10 +260,33 @@ func runLogs(args []string) int {
 	if cl == nil {
 		return code
 	}
-	streams, err := cl.Range(*query, from, to, *limit, *direction)
+	res, err := cl.Query(*query, from, to, *limit, *direction)
 	if err != nil {
 		return fail(1, "Loki en %s: %v", *target, err)
 	}
+	span := fmt.Sprintf("%s → %s", from.UTC().Format("2006-01-02 15:04"), to.UTC().Format("2006-01-02 15:04 UTC"))
+	// UN CONTEO DICE SU NÚMERO, aunque sea cero: «0 líneas» se leía como «busqué líneas y no hay» cuando en realidad
+	// era otra pregunta.
+	if res.Metric {
+		if *asJSON {
+			series := res.Series
+			if series == nil {
+				series = []logs.Series{}
+			}
+			return writeJSON(map[string]any{"target": *target, "url": cl.Base, "query": *query, "kind": "count",
+				"start": from.UTC().Format(time.RFC3339), "end": to.UTC().Format(time.RFC3339), "series": series})
+		}
+		total := 0.0
+		for _, s := range res.Series {
+			total += s.Value
+			if len(s.Labels) > 0 {
+				fmt.Printf("%v = %v\n", s.Labels, s.Value)
+			}
+		}
+		fmt.Printf("-- conteo: %v (%d serie(s)) · %s · %s · el rango lo fija la consulta; se evaluó a las %s\n", total, len(res.Series), *target, cl.Base, to.UTC().Format("2006-01-02 15:04 UTC"))
+		return 0
+	}
+	streams := res.Streams
 	if *asJSON {
 		if streams == nil {
 			streams = []logs.Stream{}
@@ -281,9 +319,17 @@ func runLogs(args []string) int {
 				msg += "  " + clip(string(obj.Context), 220)
 			}
 		}
-		fmt.Println(time.Unix(0, ns).UTC().Format("15:04:05"), "·", clip(msg, 300))
+		stamp := "15:04:05"
+		if to.Sub(from) > 24*time.Hour {
+			stamp = "2006-01-02 15:04:05" // en una ventana de días, la hora sola no dice cuándo
+		}
+		fmt.Println(time.Unix(0, ns).UTC().Format(stamp), "·", clip(msg, 300))
 	}
-	fmt.Printf("-- %d líneas · %s · %s\n", len(lines), *target, cl.Base)
+	// La ventana va SIEMPRE, y el tope también si se alcanzó: «500 líneas» con el tope en 500 no es «todas».
+	fmt.Printf("-- %d líneas · %s · %s · ventana %s\n", len(lines), *target, cl.Base, span)
+	if *limit > 0 && len(lines) >= *limit {
+		fmt.Printf("-- ⚠ llegó al tope de %d líneas: hay más. Subí --limit o achicá la ventana; para contar, una consulta de conteo (sum(count_over_time(…)))\n", *limit)
+	}
 	return 0
 }
 

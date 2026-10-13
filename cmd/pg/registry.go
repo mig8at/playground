@@ -68,7 +68,7 @@ func init() {
 		{Name: "canon config", Summary: "qué base de canon atiende el ambiente y qué credenciales faltan, sin la contraseña ni abrir conexión",
 			Usage: "pg canon config --target local|prod", run: runCanonConfig, Params: []param{canonTarget()}},
 		{Name: "logs", Summary: "líneas de Loki del ambiente, legibles o en JSON",
-			Usage: "pg logs --target T --query '{…}' [--since 1h | --start … --end …] [--limit N] [--direction forward|backward] [--json]", run: runLogs,
+			Usage: "pg logs --target T --query '{…}' [--since 1h|16d|2w | --start … --end …] [--limit N] [--direction forward|backward] [--json]", run: runLogs,
 			Params: append(append([]param{target(), req("query", "LogQL de líneas, ej. {service_name=\"legacy-backend\"} |= \"466897\"")}, windowParams...),
 				num("limit", "tope de líneas (default 500)"), str("direction", "forward o backward"), boolean("json", "los streams en JSON"))},
 		{Name: "logs labels", Summary: "los valores de una etiqueta de Loki en la ventana",
