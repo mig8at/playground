@@ -3,8 +3,8 @@ id: 99
 title: "Auto ecommerce: la tienda manda los datos del comprador y firma el pedido, y el cliente llega pre-perfilado"
 stage: work
 created: "2026-10-05T12:00:00-05:00"
-knowledge: [ecommerce-context, lender-listing]
-canon: []
+knowledge: [ecommerce-context, lender-listing, kyc-pipeline]
+canon: [onboarding/context]
 jira: [CORE-731]
 jira_title: "Ecommerce: la tienda puede enviar los datos del comprador y firmar el pedido para que llegue a las entidades sin repetir pasos"
 ramas: feat/auto-onboarding, feat/auto-onboarding-risk-check, feat/auto-onboarding-personal-info-fallback, feat/auto-onboarding-birth-date, feat/auto-onboarding-merchant-signature, feat/dictado-centrales-restaurado, feat/admin-api-sin-token, feat/dictado-por-parametros, feat/experian-acierta-quanto, fix/auto-onboarding-validation-errors
