@@ -3473,6 +3473,28 @@
         chip.title = 'El cliente sigue en su celular: bypass del OTP, el código son los últimos 4. Clic para copiar.';
       } catch { /* el panel no respondió: se reintenta */ }
     }
+    // AL RECARGAR LA PÁGINA, los celulares que siguen abiertos en el servidor se vuelven a ver donde quedaron. Antes
+    // aparecían apagados aunque seguían vivos atrás (y había que abrir otra corrida, que archiva la que estaba).
+    async function resumeOpenDevices() {
+      for (const id of ['client', 'advisor']) {
+        try {
+          const st = await (await fetch(`/api/device/${id}/state`)).json();
+          if (!st.open || deviceShown(id)) continue;
+          if (id === 'client') {
+            setClientMode('live', '', st.view || '');
+            const code = String(caseStore.read().phone || '').replace(/\D/g, '').slice(-4);
+            const chip = $('clientOtp');
+            chip.hidden = !code; chip.classList.remove('warn');
+            chip.textContent = 'código ' + code; chip.dataset.code = code;
+            chip.title = 'Bypass del OTP: el código son los últimos 4 del celular. Clic para copiar.';
+          } else {
+            setAdvisorMode('live', '', st.view || '');
+          }
+          if (!runRunning) startPoll();
+        } catch { /* el panel no respondió: quedan apagados, como antes */ }
+      }
+    }
+    setTimeout(resumeOpenDevices, 300);
     const ADVISOR_STEPS = [
       'Levantando el celular del asesor…',
       'Entrando como el asesor de prueba del comercio…',
