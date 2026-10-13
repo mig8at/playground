@@ -184,11 +184,62 @@ function browserForDevices(): Promise<import('@playwright/test').Browser> {
     }
     return sharedBrowser;
 }
+/* ── EL `<select>` NATIVO SE DIBUJA EN LA PÁGINA ─────────────────────────────────────────────────────────────────
+ * Chromium abre la lista de un `<select>` nativo como una ventana del sistema, fuera de la página: el screencast y la
+ * foto no la ven, así que al tocarlo en el panel «no pasa nada» aunque la lista esté abierta (medido el 2026-10-13: el
+ * valor sí cambia con las flechas). Los de Radix (las fechas) no tienen el problema: su lista es parte de la página.
+ * Este script, inyectado en cada celular, intercepta el toque sobre un `<select>` nativo y muestra sus opciones como
+ * una lista DENTRO de la página, que el video sí ve y se toca. Elegir fija el valor con el setter nativo y dispara
+ * `input` y `change`, que es lo que escucha React. Escape o tocar afuera la cierra. */
+function nativeSelectInPage(): void {
+    const ID = '__harness_select';
+    const close = () => document.getElementById(ID)?.remove();
+    document.addEventListener('mousedown', (e) => {
+        const target = e.target as Element | null;
+        if (target?.closest?.(`#${ID}`)) return;
+        close();
+        const sel = target?.closest?.('select') as HTMLSelectElement | null;
+        if (!sel || sel.multiple || sel.size > 1 || sel.disabled) return;
+        e.preventDefault();
+        sel.focus();
+        const r = sel.getBoundingClientRect();
+        const list = document.createElement('div');
+        list.id = ID;
+        const below = window.innerHeight - r.bottom, maxH = Math.max(160, Math.min(320, Math.max(below, r.top) - 12));
+        Object.assign(list.style, {
+            position: 'fixed', left: `${Math.max(8, r.left)}px`, width: `${Math.max(r.width, 180)}px`, maxHeight: `${maxH}px`,
+            overflowY: 'auto', zIndex: '2147483647', background: '#fff', color: '#1f1f3a', borderRadius: '12px',
+            boxShadow: '0 8px 24px rgba(0,0,0,.18)', font: '15px system-ui, sans-serif', padding: '4px 0',
+            ...(below >= maxH || below >= r.top ? { top: `${r.bottom + 4}px` } : { bottom: `${window.innerHeight - r.top + 4}px` }),
+        });
+        for (const opt of Array.from(sel.options)) {
+            const row = document.createElement('div');
+            row.textContent = opt.text;
+            Object.assign(row.style, { padding: '10px 14px', cursor: 'pointer', opacity: opt.disabled ? '.4' : '1',
+                background: opt.selected ? '#ece9ff' : 'transparent', fontWeight: opt.selected ? '600' : '400' });
+            if (!opt.disabled) row.addEventListener('mousedown', (ev) => {
+                ev.preventDefault();
+                const setter = Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype, 'value')?.set;
+                setter ? setter.call(sel, opt.value) : (sel.value = opt.value);
+                sel.dispatchEvent(new Event('input', { bubbles: true }));
+                sel.dispatchEvent(new Event('change', { bubbles: true }));
+                close();
+            });
+            list.appendChild(row);
+        }
+        document.body.appendChild(list);
+        list.querySelector<HTMLElement>('div[style*="font-weight: 600"]')?.scrollIntoView({ block: 'nearest' });
+    }, true);
+    document.addEventListener('keydown', (e) => { if (e.key === 'Escape') close(); }, true);
+    window.addEventListener('scroll', (e) => { if (!(e.target as Element)?.closest?.(`#${ID}`)) close(); }, true);
+}
+
 async function openChromium(): Promise<Omit<Device, 'openedAt'>> {
     const browser = await browserForDevices();
     // La pantalla del marco del panel (la misma proporción que tenía el noVNC) con lo demás del Pixel 7: user-agent,
     // táctil y móvil, que es como el wizard decide su diseño.
     const context = await browser.newContext({ ...PHONE, viewport: SCREEN, screen: SCREEN, locale: 'es-CO' });
+    await context.addInitScript(nativeSelectInPage);
     const page = await context.newPage();
     return {
         context, page,
