@@ -675,6 +675,94 @@ function writeSaved(all: Partial<Record<DeviceId, SavedDevice>>): void {
 }
 const saveTimers = new Map<DeviceId, NodeJS.Timeout>();
 /** Anota con qué se abrió el celular y, desde ahí, dónde está en cada cambio de pantalla (con un respiro de 1 s). */
+/** LOS TRASPASOS DEL ASESOR: al pasar a «continuá en tu celular» el cliente sigue en su teléfono, y con un agregador
+ *  sigue en el portal de la entidad. Se arma al abrir el celular del asesor y otra vez al RETOMARLO después de
+ *  reiniciar el panel: sin esto, «Retomar» lo dejaba donde estaba pero el cliente nunca se abría. */
+function watchAdvisorHandoffs(t: string, slug: string, order: any): void {
+    let handedOff = '';
+    const handOff = (u: string) => {
+        const m = /^(https?:\/\/[^/]+)\/merchant\/([^/]+)\/(\d+)\/(?:continue|confirmation)(?:[?#]|$)/.exec(u);
+        if (!m || handedOff === m[3]) return;
+        handedOff = m[3];
+        const link = `${m[1]}/self-service/${m[2]}/${m[3]}/confirmation`;
+        deviceLog('panel', `traspaso asesor → cliente: la solicitud ${m[3]} sigue en el celular del cliente`);
+        void (async () => {
+            await releaseDevice('client');
+            const phone = String(order?.phone || '').replace(/\D/g, '');
+            if (phone) {
+                const bp = await dbopsJson(['otp-bypass-add', phone], t);
+                if (bp?.ok) deviceBypass.set('client', { target: t, puesto: bp.puesto });
+            }
+            await openDevice('client', link, { autofill: caseAutofill(order) })
+                .then(() => { rescueIdentity('client', t); rescueDownPayment('client', t); watchFrontExceptions('client', t); watchCategories('client', t); })
+                .catch((e) => deviceLog('client', '✗ el traspaso no abrió: ' + (e as Error).message.split('\n')[0]));
+        })();
+    };
+    watchNavigation('advisor', handOff);
+    // Al retomar, el asesor puede haber quedado YA en «continuá en tu celular»: esa navegación pasó antes de mirar.
+    // Si el celular del cliente está abierto (se retomó por su lado), no se lo pisa.
+    const now = deviceState('advisor').url ?? '';
+    if (!deviceState('client').open) handOff(now);
+    else if (/\/merchant\/[^/]+\/\d+\/(?:continue|confirmation)/.test(now)) handedOff = /\/merchant\/[^/]+\/(\d+)\//.exec(now)?.[1] ?? '';
+    // EL TRASPASO DE UN AGREGADOR (Meddipay, Sistecrédito…): no navega. Sobre el listado aparece un modal
+    // («el cliente debe continuar en su celular… <Entidad> ha enviado al cliente un enlace») y el cliente
+    // sigue en el portal de la entidad por el link de WhatsApp. Se mira el texto del asesor mientras está
+    // en `/lenders` y, al verlo, el celular del cliente abre el portal SIMULADO de esa entidad.
+    const openedAt = deviceOpenedAt('advisor');
+    let aggregatorDone = false;
+    const aggregatorPoll = setInterval(async () => {
+        if (deviceOpenedAt('advisor') !== openedAt) { clearInterval(aggregatorPoll); return; }
+        if (aggregatorDone || handedOff) return;
+        const st = deviceState('advisor');
+        if (!/\/lenders(?:[?#]|$)/.test(st.url ?? '')) return;
+        const text = await deviceText('advisor');
+        // El nombre: las palabras con MAYÚSCULA pegadas a «ha enviado» («Meddipay», «Sistecrédito»).
+        const m = /([A-ZÁÉÍÓÚÑ][\wÁÉÍÓÚáéíóúÑñ-]*(?: [A-ZÁÉÍÓÚÑ][\wÁÉÍÓÚáéíóúÑñ-]*)*) ha enviado al cliente un enlace/.exec(text)
+            || (/el cliente debe continuar el proceso en su celular/i.test(text) ? [text, ''] : null);
+        if (!m) return;
+        aggregatorDone = true;
+        const lender = (m[1] || '').trim();
+        const amount = String(order?.amount || '').replace(/\D/g, '') || '2000000';
+        const link = `http://localhost:${PORT}/mock-bank?lender=${encodeURIComponent(lender || 'la entidad')}&monto=${amount}&comercio=${encodeURIComponent(slug)}`;
+        const ur = Number(/\/merchant\/[^/]+\/(\d+)\/lenders/.exec(st.url ?? '')?.[1] || 0);
+        await releaseDevice('client');
+        deviceLog('panel', `traspaso del agregador ${lender || ''}: el cliente sigue en el portal de la entidad (simulado)`);
+        await openDevice('client', link).catch((e) => deviceLog('client', '✗ el portal no abrió: ' + (e as Error).message.split('\n')[0]));
+        setNote('client', `portal SIMULADO de ${lender || 'la entidad'}: el link que le llega al cliente por WhatsApp (en local no hay entidad real)`);
+        // AL TERMINAR EN EL PORTAL, LA ENTIDAD LE AVISA AL BACKEND: el webhook simulado de esa entidad, con
+        // «aprueba». Es lo que saca al asesor de «Estamos esperando la confirmación de la entidad». Sólo
+        // en local (el receptor es el monolito de esta máquina); se anota en los dos celulares.
+        if (t !== 'local' || !ur) return;
+        const clientAt = deviceOpenedAt('client');
+        const approvedPoll = setInterval(async () => {
+            if (deviceOpenedAt('client') !== clientAt) { clearInterval(approvedPoll); return; }
+            if (!/tu financiaci[óo]n fue aprobada/i.test(await deviceText('client'))) return;
+            clearInterval(approvedPoll);
+            const chosen = await dbopsJson(['lender-de', String(ur)], t);
+            const r = chosen?.id ? await fireEntityWebhook(ur, Number(chosen.id), 'aprueba')
+                : { ok: false, detalle: `la solicitud ${ur} no tiene entidad elegida` };
+            const note = r.ok
+                ? `portal SIMULADO de ${lender || 'la entidad'} · webhook SIMULADO enviado: ${chosen?.name || 'la entidad'} aprobó la solicitud ${ur}`
+                : `portal SIMULADO de ${lender || 'la entidad'} · el webhook no salió: ${r.detalle}`;
+            deviceNotes.set('client', note);
+            setNote('advisor', note.replace(/^portal SIMULADO de [^·]+· /, ''));
+            // El AVISO AL ASESOR: la entidad le confirma por socket (`LenderConfirmed`) y recién ahí sale de
+            // «Estamos esperando la confirmación de la entidad». En local ese socket no llega (el monolito
+            // viejo emite al log), así que se lo entrega el gancho que el wizard expone en desarrollo.
+            if (r.ok) {
+                const delivered = await deviceEval('advisor', (p: unknown) => {
+                    const w = window as unknown as { __triggerLenderConfirmation?: (p: unknown) => void };
+                    if (!w.__triggerLenderConfirmation) return false;
+                    w.__triggerLenderConfirmation(p);
+                    return true;
+                }, (r as any).confirmation ?? {});
+                if (delivered) deviceLog('advisor', `◆ aviso de la entidad entregado («${(r as any).confirmation?.title ?? 'confirmación'}»): sale de «Estamos esperando la confirmación»`);
+                if (!delivered) setNote('advisor', note.replace(/^portal SIMULADO de [^·]+· /, '') + ' · el aviso al asesor no se pudo entregar: el wizard no expone `__triggerLenderConfirmation` (sólo en desarrollo)');
+            }
+        }, 2000);
+    }, 2000);
+}
+
 function rememberDevice(id: DeviceId, meta: DeviceMeta): void {
     deviceMeta.set(id, meta);
     const save = () => {
@@ -2157,6 +2245,7 @@ connect();
                 const r = await openDevice(id, s.url, { session: s.storage ?? undefined, autofill: caseAutofill(s.meta.order) });
                 rescueIdentity(id, t, id === 'client' ? phone : undefined); rescueDownPayment(id, t, id === 'client' ? phone : ''); watchFrontExceptions(id, t); watchCategories(id, t);
                 rememberDevice(id, s.meta);
+                if (id === 'advisor') watchAdvisorHandoffs(t, s.meta.slug, s.meta.order);
                 deviceLog(id, `↺ retomado donde quedó (${new URL(s.url).pathname}) · ${s.meta.slug} en ${t}`);
                 return json(res, 200, { ok: true, ...r, otp: phone ? phone.slice(-4) : '' });
             } catch (e) {
@@ -2351,82 +2440,7 @@ connect();
                 // solicitud; sí el bypass del OTP, porque la firma le pide código al cliente.
                 rescueIdentity('advisor', t); rescueDownPayment('advisor', t); watchFrontExceptions('advisor', t); watchCategories('advisor', t);
                 rememberDevice('advisor', { target: t, slug, channel: 'asesor', phone: casePhone, order: b.order });
-                let handedOff = '';
-                watchNavigation('advisor', (u) => {
-                    const m = /^(https?:\/\/[^/]+)\/merchant\/([^/]+)\/(\d+)\/(?:continue|confirmation)(?:[?#]|$)/.exec(u);
-                    if (!m || handedOff === m[3]) return;
-                    handedOff = m[3];
-                    const link = `${m[1]}/self-service/${m[2]}/${m[3]}/confirmation`;
-                    deviceLog('panel', `traspaso asesor → cliente: la solicitud ${m[3]} sigue en el celular del cliente`);
-                    void (async () => {
-                        await releaseDevice('client');
-                        const phone = String(b.order?.phone || '').replace(/\D/g, '');
-                        if (phone) {
-                            const bp = await dbopsJson(['otp-bypass-add', phone], t);
-                            if (bp?.ok) deviceBypass.set('client', { target: t, puesto: bp.puesto });
-                        }
-                        await openDevice('client', link, { autofill: caseAutofill(b.order) })
-                            .then(() => { rescueIdentity('client', t); rescueDownPayment('client', t); watchFrontExceptions('client', t); watchCategories('client', t); })
-                            .catch((e) => deviceLog('client', '✗ el traspaso no abrió: ' + (e as Error).message.split('\n')[0]));
-                    })();
-                });
-                // EL TRASPASO DE UN AGREGADOR (Meddipay, Sistecrédito…): no navega. Sobre el listado aparece un modal
-                // («el cliente debe continuar en su celular… <Entidad> ha enviado al cliente un enlace») y el cliente
-                // sigue en el portal de la entidad por el link de WhatsApp. Se mira el texto del asesor mientras está
-                // en `/lenders` y, al verlo, el celular del cliente abre el portal SIMULADO de esa entidad.
-                const openedAt = deviceOpenedAt('advisor');
-                let aggregatorDone = false;
-                const aggregatorPoll = setInterval(async () => {
-                    if (deviceOpenedAt('advisor') !== openedAt) { clearInterval(aggregatorPoll); return; }
-                    if (aggregatorDone || handedOff) return;
-                    const st = deviceState('advisor');
-                    if (!/\/lenders(?:[?#]|$)/.test(st.url ?? '')) return;
-                    const text = await deviceText('advisor');
-                    // El nombre: las palabras con MAYÚSCULA pegadas a «ha enviado» («Meddipay», «Sistecrédito»).
-                    const m = /([A-ZÁÉÍÓÚÑ][\wÁÉÍÓÚáéíóúÑñ-]*(?: [A-ZÁÉÍÓÚÑ][\wÁÉÍÓÚáéíóúÑñ-]*)*) ha enviado al cliente un enlace/.exec(text)
-                        || (/el cliente debe continuar el proceso en su celular/i.test(text) ? [text, ''] : null);
-                    if (!m) return;
-                    aggregatorDone = true;
-                    const lender = (m[1] || '').trim();
-                    const amount = String(b.order?.amount || '').replace(/\D/g, '') || '2000000';
-                    const link = `http://localhost:${PORT}/mock-bank?lender=${encodeURIComponent(lender || 'la entidad')}&monto=${amount}&comercio=${encodeURIComponent(slug)}`;
-                    const ur = Number(/\/merchant\/[^/]+\/(\d+)\/lenders/.exec(st.url ?? '')?.[1] || 0);
-                    await releaseDevice('client');
-                    deviceLog('panel', `traspaso del agregador ${lender || ''}: el cliente sigue en el portal de la entidad (simulado)`);
-                    await openDevice('client', link).catch((e) => deviceLog('client', '✗ el portal no abrió: ' + (e as Error).message.split('\n')[0]));
-                    setNote('client', `portal SIMULADO de ${lender || 'la entidad'}: el link que le llega al cliente por WhatsApp (en local no hay entidad real)`);
-                    // AL TERMINAR EN EL PORTAL, LA ENTIDAD LE AVISA AL BACKEND: el webhook simulado de esa entidad, con
-                    // «aprueba». Es lo que saca al asesor de «Estamos esperando la confirmación de la entidad». Sólo
-                    // en local (el receptor es el monolito de esta máquina); se anota en los dos celulares.
-                    if (t !== 'local' || !ur) return;
-                    const clientAt = deviceOpenedAt('client');
-                    const approvedPoll = setInterval(async () => {
-                        if (deviceOpenedAt('client') !== clientAt) { clearInterval(approvedPoll); return; }
-                        if (!/tu financiaci[óo]n fue aprobada/i.test(await deviceText('client'))) return;
-                        clearInterval(approvedPoll);
-                        const chosen = await dbopsJson(['lender-de', String(ur)], t);
-                        const r = chosen?.id ? await fireEntityWebhook(ur, Number(chosen.id), 'aprueba')
-                            : { ok: false, detalle: `la solicitud ${ur} no tiene entidad elegida` };
-                        const note = r.ok
-                            ? `portal SIMULADO de ${lender || 'la entidad'} · webhook SIMULADO enviado: ${chosen?.name || 'la entidad'} aprobó la solicitud ${ur}`
-                            : `portal SIMULADO de ${lender || 'la entidad'} · el webhook no salió: ${r.detalle}`;
-                        deviceNotes.set('client', note);
-                        setNote('advisor', note.replace(/^portal SIMULADO de [^·]+· /, ''));
-                        // El AVISO AL ASESOR: la entidad le confirma por socket (`LenderConfirmed`) y recién ahí sale de
-                        // «Estamos esperando la confirmación de la entidad». En local ese socket no llega (el monolito
-                        // viejo emite al log), así que se lo entrega el gancho que el wizard expone en desarrollo.
-                        if (r.ok) {
-                            const delivered = await deviceEval('advisor', (p: unknown) => {
-                                const w = window as unknown as { __triggerLenderConfirmation?: (p: unknown) => void };
-                                if (!w.__triggerLenderConfirmation) return false;
-                                w.__triggerLenderConfirmation(p);
-                                return true;
-                            }, (r as any).confirmation ?? {});
-                            if (delivered) deviceLog('advisor', `◆ aviso de la entidad entregado («${(r as any).confirmation?.title ?? 'confirmación'}»): sale de «Estamos esperando la confirmación»`);
-                            if (!delivered) setNote('advisor', note.replace(/^portal SIMULADO de [^·]+· /, '') + ' · el aviso al asesor no se pudo entregar: el wizard no expone `__triggerLenderConfirmation` (sólo en desarrollo)');
-                        }
-                    }, 2000);
-                }, 2000);
+                watchAdvisorHandoffs(t, slug, b.order);
                 return json(res, 200, { ok: true, hash, user: account, session: stored ? 'guardada' : signedIn ? 'entró y la guardó' : 'sin entrar', assigned, ...r });
             } catch (e) {
                 return json(res, 200, { ok: false, detail: `el celular del asesor no pudo abrir ${front}: ${(e as Error).message.split('\n')[0]}` });
