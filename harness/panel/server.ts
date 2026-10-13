@@ -2186,7 +2186,11 @@ connect();
             // Sólo en local: fuera de local la base es la del equipo y el panel no borra nada.
             const casePhone = String(b.order?.phone || '').replace(/\D/g, '') || '3131010101';
             const scrubbing = t === 'local' ? dbopsJson(['scrubphone', casePhone], t) : Promise.resolve(null);
-            const bureausApplied = t === 'local' ? applyBureauModes(b.order, t) : Promise.resolve(null);
+            // Fuera de local, donde hay lambda con dictado (qa), se le dicta el caso igual que al abrir la tienda: sin esto
+            // Agildata contestaba «sin empleo» y Refurbicredit rechazaba por ocupación (2026-10-13, solicitud 503477).
+            const { COMPANY_LAMBDA } = await import('../pkg/risk-lambda.ts');
+            const bureausApplied = t === 'local' ? applyBureauModes(b.order, t)
+                : COMPANY_LAMBDA[t] && b.order ? dictateCompanyCase(b.order, t) : Promise.resolve(null);
             const front = await frontFor(t);
             // El asesor de prueba del comercio: su sesión guardada si la hay; si no, entra solo en el propio
             // celular (el login del conector, con la clave compartida) y la guarda para la próxima.
