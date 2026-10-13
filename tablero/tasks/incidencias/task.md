@@ -38,9 +38,13 @@ Salvo donde se dice «corrido», salen de LEER el código: falta reproducirlos.
 - [ ] Reproducir que, al pasarse del tope de ADO (5 validaciones por persona en 24 horas), el asistente
   manda a «solicitud cancelada» y cancela la solicitud del titular sin decir por qué ni dejar un código
   que distinga el tope. Termina con el caso corrido y la decisión de cómo mostrarlo.
-- [ ] Confirmar que, si al autorizar ningún perfil aplica, el sistema viejo autoriza el crédito CreditopX
-  sin cargarle cupo mensual (el nuevo rechaza con 422). Termina con un caso que lo muestre o el código que
-  lo descarte.
+- [x] ~~Confirmar que, si al autorizar ningún perfil aplica, el sistema viejo autoriza el crédito CreditopX sin cargarle
+  cupo mensual~~ — confirmado en el código de los dos monolitos y medido en prod (2026-10-13): el viejo lo deja pasar a
+  propósito con un aviso en el log; el nuevo rechaza con 422. El camino viejo está vivo (338 créditos en 60 días, 31 en
+  octubre), pero el aviso no apareció en los logs de prod en 16 días.
+- [ ] Decidir si el sistema viejo debe rechazar como el nuevo cuando ningún perfil aplica al autorizar, o si el nuevo
+  debe dejar pasar como el viejo: hoy el mismo caso da resultados distintos según por cuál firma el cliente. Baja
+  frecuencia (el listado ya filtra por categoría; sólo pasa si la política cambia entre el listado y la firma).
 
 ### Media — comportamiento distinto al esperado
 
