@@ -41,6 +41,7 @@
     "compare": "columns-2",
     "local": "laptop",
     "merchant": "store",
-    "stop": "square"
+    "stop": "square",
+    "camera": "camera"
   }
 }
