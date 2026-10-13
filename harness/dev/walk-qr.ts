@@ -278,7 +278,7 @@ if (noPostHog) {
     console.log(`\nPostHog: nada que mirar — ${noPostHog}`);
 } else if (runUReq) {
     console.log(`\nPostHog · qué registró el FRONT de esta corrida (eventos del embudo + logs con pantalla y error):`
-        + `\n   make harness-posthog UREQ=${runUReq} SINCE=${new Date(T0.getTime() - 60_000).toISOString()}`);
+        + `\n   make trazador-posthog UREQ=${runUReq} TARGET=${process.env.E2E_TARGET ?? 'dev'} VENTANA=1d`);
 } else {
     console.log('\nPostHog: el canal no creó una solicitud nueva en esta sucursal, así que no hay por dónde preguntar.');
 }

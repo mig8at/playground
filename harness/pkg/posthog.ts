@@ -418,7 +418,7 @@ export async function postHogForensic(ureq: number | string, since: Date, paths:
     log(`── POSTHOG · uReq ${ureq} · environment=${c.env} · desde el inicio de la corrida · ${attempts} lectura(s) en ${wait} s${partial ? ' · PARCIAL' : ''} ──`);
     if (partial && ev.length) {
         log(`   ⚠ la ingesta todavía no trajo el final de la corrida: lo que sigue es lo que HABÍA a los ${wait} s.`);
-        log(`     Para el cruce completo, en unos minutos: node dev/posthog-ureq.ts ${ureq} --desde ${new Date(since.getTime() - 60_000).toISOString()}`);
+        log(`     Para mirarlo entero, en unos minutos: make trazador-posthog UREQ=${ureq} TARGET=${process.env.E2E_TARGET ?? 'qa'} VENTANA=1d`);
     }
     log(`   ${ev.length} evento(s) · ${srv} del servidor · ${ev.length - srv} del navegador`
         + (ev.length - srv === 0 ? '   (sin navegador no hay $pageview ni replay: es lo esperado por HTTP)' : ''));

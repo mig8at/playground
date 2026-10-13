@@ -27,6 +27,7 @@ import (
 	"creditop/playground/connectors/events"
 	"encoding/json"
 	"fmt"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -49,7 +50,7 @@ func newPH(c config, timeout time.Duration) *phClient {
 // arreglan distinto: token mal emitido (se pide de nuevo), proyecto equivocado (se cambia un número),
 // filtro de ambiente que no matchea (se borra una línea) o la solicitud es del flujo clásico (no hay nada
 // que arreglar: esta fuente no la cubre).
-func postHogMode(c config, target string, ureq int64, tel string, limitValue int) int {
+func postHogMode(c config, target string, ureq int64, tel string, limitValue int, window time.Duration, errorDays int) int {
 	step("Configuración · PostHog (%s)", target)
 	if c.posthog.Token == "" {
 		bad("no hay token de PostHog para el target «%s»", target)
@@ -113,6 +114,10 @@ func postHogMode(c config, target string, ureq int64, tel string, limitValue int
 	//
 	// El censo es el chequeo de la conexión, no parte de la respuesta: cuando se pregunta por UNA
 	// solicitud, cuarenta líneas de agregados antes del timeline entierran lo que se vino a ver.
+	// El ranking de errores del FRONT en el ambiente (antes `make harness-posthog-errors`): dónde y qué se rompe.
+	if errorDays > 0 {
+		return p.frontErrors(errorDays)
+	}
 	if ureq == 0 {
 		step("3 · ¿qué hay adentro? (últimos 7 días)")
 		p.census()
@@ -121,7 +126,17 @@ func postHogMode(c config, target string, ureq int64, tel string, limitValue int
 		detail("Un ureq del wizard de los últimos días — el flujo clásico no emite estos eventos.")
 		return 0
 	}
-	return p.timeline(ureq, tel, limitValue)
+	events := p.timeline(ureq, tel, limitValue, window)
+	logs := p.frontLogs(ureq, window)
+	// SIN NADA en las dos tablas la respuesta no es «todo bien»: sale con 1, como hacía el harness, para que un
+	// script (o quien lee el exit) no lo confunda con una solicitud que el front recorrió sin errores.
+	if events < 0 || logs < 0 {
+		return 1
+	}
+	if events == 0 && logs == 0 {
+		return 1
+	}
+	return 0
 }
 
 // discoverProject intenta el paso que nadie hace: sacar el id del propio token. Con `project:read`
@@ -300,7 +315,7 @@ func telE164(tel string) string {
 
 // timeline es el entregable: qué vio y qué tocó esta persona, en orden. Sale plano y en texto porque el
 // primer uso es pegarlo en un ticket al lado de la traza de etapas.
-func (p *phClient) timeline(ureq int64, tel string, limitValue int) int {
+func (p *phClient) timeline(ureq int64, tel string, limitValue int, window time.Duration) int {
 	if limitValue <= 0 {
 		limitValue = 200
 	}
@@ -313,7 +328,9 @@ func (p *phClient) timeline(ureq int64, tel string, limitValue int) int {
 	// solos: la persona dueña de `loan_request_<n>` no arrastra los eventos del teléfono.
 	keySet := []string{"distinct_id = '" + events.Escape(distinct) + "'"}
 	keySet = append(keySet, fmt.Sprintf("toString(properties.loan_request_id) = '%d'", ureq))
-	detail("distinct_id = %s   ·   o properties.loan_request_id = '%d'", distinct, ureq)
+	// El `$exception` del servidor del wizard la nombra en camelCase: sin esta llave no aparece (2026-10-09).
+	keySet = append(keySet, fmt.Sprintf("toString(properties.loanRequestId) = '%d'", ureq))
+	detail("distinct_id = %s   ·   o properties.loan_request_id / loanRequestId = '%d'", distinct, ureq)
 	if e164 := telE164(tel); e164 != "" {
 		keySet = append(keySet, "distinct_id = '"+events.Escape("phone_"+e164)+"'")
 		detail("+ la fase de auth por teléfono: distinct_id = phone_%s", e164)
@@ -329,16 +346,25 @@ func (p *phClient) timeline(ureq int64, tel string, limitValue int) int {
 	    properties.known_exception_reason AS motivo,
 	    properties.success AS exito,
 	    properties.$session_id AS sesion,
-	    properties.service_runtime AS runtime
+	    properties.service_runtime AS runtime,
+	    properties.$lib AS lib,
+	    properties.source AS fuente,
+	    toString(properties.$exception_types) AS tipos,
+	    toString(properties.$exception_values) AS valores
 	  FROM events
-	  WHERE (%s)%s
+	  WHERE (%s)%s%s
 	  ORDER BY timestamp ASC
-	  LIMIT %d`, strings.Join(keySet, " OR "), p.Config.EnvFilterTolerant(), limitValue)
+	  LIMIT %d`, strings.Join(keySet, " OR "), p.Config.EnvFilterTolerant(), windowFilter(window), limitValue)
+	if window > 0 {
+		detail("ventana: las últimas %s (prod y dev comparten ids: sin ventana se mezclan solicitudes homónimas)", window)
+	} else {
+		detail("(sin -ventana: prod y dev comparten ids, así que puede mezclar solicitudes homónimas de otro día)")
+	}
 
 	_, rows, err := p.HogQL(query)
 	if err != nil {
 		bad("la consulta falló: %v", err)
-		return 1
+		return -1
 	}
 	if len(rows) == 0 {
 		warn("sin eventos para la solicitud %d", ureq)
@@ -373,10 +399,15 @@ func (p *phClient) timeline(ureq int64, tel string, limitValue int) int {
 		} else if u := asText(f[2]); u != "" {
 			line += dim("  " + pathOf(u))
 		}
-		if asText(f[7]) == "server" {
+		if asText(f[7]) == "server" || asText(f[8]) == "posthog-node" {
 			line += dim(" ·srv")
 		}
 		fmt.Println(line)
+		// Una excepción dice DE DÓNDE vino y QUÉ fue, en la línea siguiente.
+		if ev == "$exception" && len(f) >= 12 {
+			what := strings.Trim(asText(f[10])+": "+asText(f[11]), ": []\"")
+			fmt.Println(dim(fmt.Sprintf("      %s %s", asText(f[9]), clipText(what, 160))))
+		}
 		if s := asText(f[6]); s != "" && !vistas[s] {
 			vistas[s] = true
 			sessions = append(sessions, s)
@@ -392,7 +423,137 @@ func (p *phClient) timeline(ureq int64, tel string, limitValue int) int {
 			fmt.Printf("  %s/project/%s/replay/%s\n", p.Config.API, p.Config.Project, s)
 		}
 	}
+	return len(rows)
+}
+
+// windowFilter acota por hora. Sin ventana no filtra (como antes): la recomendada para una corrida es 6h–1d.
+func windowFilter(window time.Duration) string {
+	if window <= 0 {
+		return ""
+	}
+	return fmt.Sprintf(" AND timestamp >= now() - INTERVAL %d SECOND", int64(window.Seconds()))
+}
+
+// logsEnvFilter: en la tabla `logs` el ambiente vive en `resource_attributes`, no en `properties`.
+func (p *phClient) logsEnvFilter() string {
+	if p.Config.Env == "" {
+		return ""
+	}
+	return fmt.Sprintf(" AND resource_attributes['deployment.environment'] = '%s'", events.Escape(p.Config.Env))
+}
+
+// frontLogs es el SEGUNDO canal del front (OpenTelemetry del wizard): cada línea trae la PANTALLA (`routeId`), si
+// fue el loader o el action, el error y el estado HTTP. Es lo que contesta «en qué pantalla se rompió», que los
+// eventos no dicen. Venía de `make harness-posthog`. Devuelve cuántas líneas trajo (-1 si la consulta falló).
+func (p *phClient) frontLogs(ureq int64, window time.Duration) int {
+	step("5 · la bitácora del front (logs): en qué pantalla y qué falló")
+	query := fmt.Sprintf(`SELECT toTimeZone(timestamp,'UTC') AS ts, level, event_name,
+	       attributes['routeId'], attributes['routeLifecycle'], message,
+	       attributes['errorName'], attributes['reason'], attributes['url_path'],
+	       attributes['response_status']
+	  FROM logs
+	 WHERE attributes['loan_request_id'] = '%d'%s%s
+	 ORDER BY timestamp ASC LIMIT 300`, ureq, p.logsEnvFilter(), windowFilter(window))
+	_, rows, err := p.HogQL(query)
+	if err != nil {
+		bad("la consulta a logs falló: %v", err)
+		return -1
+	}
+	if len(rows) == 0 {
+		warn("sin líneas de log del front para la solicitud %d", ureq)
+		detail("warn y error NUNCA se muestrean: sin líneas, el front no reportó problemas de esta solicitud (o es de local/dev, que no escriben).")
+		return 0
+	}
+	problems := 0
+	icon := map[string]string{"error": "✗", "warn": "⚠"}
+	for _, r := range rows {
+		if len(r) < 10 {
+			continue
+		}
+		level := asText(r[1])
+		if level == "error" || level == "warn" {
+			problems++
+		}
+		ts := asText(r[0])
+		if i := strings.Index(ts, "T"); i >= 0 {
+			ts = ts[i+1:]
+		}
+		if len(ts) > 8 {
+			ts = ts[:8]
+		}
+		where := strings.TrimPrefix(asText(r[3]), "routes/")
+		if lc := asText(r[4]); where != "" && lc != "" {
+			where += " " + lc
+		}
+		if where == "" {
+			where = asText(r[8])
+		}
+		what := asText(r[5])
+		if what == "" {
+			what = asText(r[6])
+		}
+		if st := asText(r[9]); st != "" {
+			what += " [" + st + "]"
+		}
+		mark := icon[level]
+		if mark == "" {
+			mark = "·"
+		}
+		fmt.Printf("  %s %s  %-42s %s\n", mark, ts, clipText(where, 42), clipText(strings.Join(strings.Fields(what), " "), 110))
+	}
+	ok("%d líneas de log · %d error/warn", len(rows), problems)
+	return len(rows)
+}
+
+// frontErrors es el ranking del ambiente (antes `make harness-posthog-errors`): qué PANTALLAS fallan y con qué
+// error en los últimos N días (DÓNDE), y los mensajes por el patrón de PostHog (QUÉ). Sin errores sale 0 y lo dice:
+// warn/error no se muestrean, así que el silencio vale.
+func (p *phClient) frontErrors(days int) int {
+	step("errores del front · últimos %d días", days)
+	_, where, err := p.HogQL(fmt.Sprintf(`SELECT attributes['routeId'] AS pantalla, attributes['routeLifecycle'] AS etapa,
+	       attributes['errorName'] AS err, event_name AS tipo, count() AS n, toTimeZone(max(timestamp),'UTC') AS ultimo
+	  FROM logs
+	 WHERE level = 'error'%s AND timestamp > now() - INTERVAL %d DAY
+	 GROUP BY pantalla, etapa, err, tipo ORDER BY n DESC LIMIT 20`, p.logsEnvFilter(), days))
+	if err != nil {
+		bad("la consulta falló: %v", err)
+		return 1
+	}
+	if len(where) == 0 {
+		ok("sin errores del front en %d días (warn/error no se muestrean: el silencio vale)", days)
+		return 0
+	}
+	fmt.Println(bold("  DÓNDE (pantalla · etapa · error)"))
+	for _, r := range where {
+		if len(r) < 6 {
+			continue
+		}
+		screen := strings.TrimPrefix(asText(r[0]), "routes/")
+		if screen == "" {
+			screen = "(sin pantalla)"
+		}
+		fmt.Printf("  %6s  %-40s %-8s %-22s %s\n", asText(r[4]), clipText(screen, 40), asText(r[1]), clipText(asText(r[2]), 22), dim(clipText(asText(r[5]), 16)))
+	}
+	_, what, err := p.HogQL(fmt.Sprintf(`SELECT pattern, count() AS n FROM logs
+	 WHERE level = 'error'%s AND timestamp > now() - INTERVAL %d DAY
+	 GROUP BY pattern ORDER BY n DESC LIMIT 15`, p.logsEnvFilter(), days))
+	if err == nil && len(what) > 0 {
+		fmt.Println(bold("\n  QUÉ (mensaje por patrón)"))
+		for _, r := range what {
+			if len(r) < 2 {
+				continue
+			}
+			fmt.Printf("  %6s  %s\n", asText(r[1]), clipText(strings.Join(strings.Fields(asText(r[0])), " "), 140))
+		}
+	}
 	return 0
+}
+
+func clipText(s string, n int) string {
+	if r := []rune(s); len(r) > n {
+		return string(r[:n-1]) + "…"
+	}
+	return s
 }
 
 // ─── ayudas ─────────────────────────────────────────────────────────────────────────────────────────
@@ -495,4 +656,21 @@ func requestScreens(c config, ureq int64, tel string) ([]SeenScreen, string) {
 		outside = append(outside, v)
 	}
 	return outside, notice
+}
+
+// parseWindow entiende lo de Go (30m, 6h) y además días y semanas (1d, 7d, 2w). Vacío = sin ventana.
+func parseWindow(s string) (time.Duration, error) {
+	if s == "" {
+		return 0, nil
+	}
+	if n := len(s); n > 1 && (s[n-1] == 'd' || s[n-1] == 'w') {
+		if v, err := strconv.ParseFloat(s[:n-1], 64); err == nil && v >= 0 {
+			day := 24 * time.Hour
+			if s[n-1] == 'w' {
+				day *= 7
+			}
+			return time.Duration(v * float64(day)), nil
+		}
+	}
+	return time.ParseDuration(s)
 }

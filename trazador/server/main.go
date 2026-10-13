@@ -423,6 +423,9 @@ func main() {
 	sqlCSV := flag.Bool("csv", false, "con -sql: salida en CSV en vez de tabla")
 	posthog := flag.Bool("posthog", false, "sonda de acceso a PostHog (qué VIO el cliente); con -ureq, los eventos de esa solicitud")
 	tel := flag.String("tel", "", "con -posthog -ureq: el celular del cliente, para ver además la fase de AUTH (distinct_id phone_<e164>)")
+	phWindow := flag.String("ventana", "", "con -posthog -ureq: sólo las últimas N (6h, 1d, 7d); prod y dev comparten ids y sin ventana se mezclan")
+	phErrors := flag.Bool("errores", false, "con -posthog: el ranking de errores del FRONT en el ambiente (qué pantallas fallan y con qué)")
+	phDays := flag.Int("dias", 7, "con -posthog -errores: cuántos días mirar")
 	mdOut := flag.Bool("md", false, "con -ureq, -buscar o -sql: la salida como ANOTACIÓN fechada para pegar en una tarea del tablero (ver reproduce.go)")
 	block := flag.String("bloque", "", "con -ureq, -buscar o -sql: agrega la salida como BLOQUE a la pila de esa tarea del tablero (id o slug)")
 	flag.Parse()
@@ -459,7 +462,16 @@ func main() {
 	// Va ANTES del despacho de `-ureq`: `-posthog -ureq N` pregunta por los eventos del NAVEGADOR de esa
 	// solicitud, no por la traza de etapas.
 	if *posthog {
-		code := postHogMode(c, *target, *ureq, *tel, *limit)
+		window, werr := parseWindow(*phWindow)
+		if werr != nil {
+			fmt.Fprintf(os.Stderr, "-ventana %q: %v\n", *phWindow, werr)
+			os.Exit(2)
+		}
+		errorDays := 0
+		if *phErrors {
+			errorDays = *phDays
+		}
+		code := postHogMode(c, *target, *ureq, *tel, *limit, window, errorDays)
 		// El pie va aunque el modo haya fallado, y a propósito: casi todas sus salidas de error son
 		// «falta un dato de configuración», y lo que uno quiere después de arreglarlo es volver a correr
 		// exactamente lo mismo. La anotación, en cambio, sale de la traza: `-md` con -ureq la trae con

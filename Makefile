@@ -546,12 +546,12 @@ harness-prod-advisor: ## @har ¿el ASESOR DE PRUEBA de un comercio de PRODUCCIÓ
 harness-login-check: ## @har ¿el ASESOR DE PRUEBA de un comercio ENTRA al wizard de cada ambiente? Por ambiente: 1) a qué login alojado manda el front (sin clave ni navegador), 2) el asesor `c…-fake@` del comercio en la base, 3) con clave, entra de verdad en una ventana limpia —acomodada como la del panel—, sin tocar el cache de sesión del harness. La clave compartida sale de ALLIED_TEST_ADVISOR_PASSWORD de connectors/.env.<target>, nunca de la línea de comandos. Sin ALLIED/ACCOUNT sólo descubre el login. Con ventana por defecto (HEADLESS=1 la quita, salvo en qa y staging, F-66); prod no se prueba. Exit 0 todos entraron · 1 alguno no · 2 alguno sin probar. TARGETS=dev,qa,staging [ALLIED=346|last last = el asesor de prueba más reciente del ambiente] [ACCOUNT=correo] [HEADLESS=1] [NORESTART=1 no reinicia el wizard local aunque esté viejo] [JSON=1] [BLOQUE=<id|slug> agrega la corrida a la pila de esa tarea, sólo si hubo un intento real de login]
 	@cd harness && MD=$(MD) BLOQUE=$(BLOQUE) node dev/login-check.ts --targets '$(or $(TARGETS),dev)' $(if $(ALLIED),--allied $(ALLIED)) $(if $(ACCOUNT),--user '$(ACCOUNT)') $(if $(HEADLESS),--headless) $(if $(NORESTART),--no-restart) $(if $(JSON),--json)
 
-harness-posthog: ## @har ¿qué VIO el cliente en ESTA solicitud, y en qué PANTALLA se rompió? la tercera fuente (BD=desenlace · Loki=causa en el backend · PostHog=recorrido y errores DEL FRONT): sus eventos del embudo y sus logs con pantalla, etapa y error. ⚠ sólo qa/staging y prod: dev y local sirven el front LOCAL, que no escribe. UREQ=502060 [SINCE=2026-09-03T01:40:00Z] [SCREENS=otp,lenders,confirmation]
-	@test -n "$(UREQ)" || { echo "falta UREQ=<n>  ·  ej: make harness-posthog UREQ=502060"; exit 2; }
-	@cd harness && node dev/posthog-ureq.ts $(UREQ) $(if $(SINCE),--since $(SINCE)) $(if $(SCREENS),--screens $(SCREENS))
+harness-posthog: ## @har (atajo) lo que vio el cliente en una solicitud: ahora lo contesta el trazador. UREQ=n [TARGET=qa] [VENTANA=1d] [TEL=…]
+	@test -n "$(UREQ)" || { echo "falta UREQ=<n>  ·  ej: make trazador-posthog UREQ=502060 TARGET=qa"; exit 2; }
+	@$(MAKE) --no-print-directory trazador-posthog TARGET=$(or $(TARGET),qa) UREQ=$(UREQ) VENTANA=$(or $(VENTANA),1d) $(if $(TEL),TEL=$(TEL))
 
-harness-posthog-errors: ## @har ¿qué PANTALLAS del front se están rompiendo, y con qué error? el canal de LOGS agregado (pantalla · etapa · error, y los mensajes por patrón). ⚠ sólo qa/staging y prod: dev y local no tienen front desplegado. [DAYS=7]
-	@cd harness && node dev/posthog-errors.ts $(if $(or $(DAYS),$(DIAS)),--days $(or $(DAYS),$(DIAS)))
+harness-posthog-errors: ## @har (atajo) qué pantallas del front fallan en el ambiente: ahora lo contesta el trazador. [TARGET=qa] [DAYS=7]
+	@$(MAKE) --no-print-directory trazador-posthog TARGET=$(or $(TARGET),qa) ERRORES=1 DIAS=$(or $(DAYS),$(DIAS),7)
 
 harness-suite: ## @har corre una SUITE de casos declarada en JSON y falla si alguno no cumple lo que declara. SUITE=harness/suites/x.json [PARALLEL=1] [CLOSE=1] [LAMBDA=1] [MANUAL=1] [MD=1 la corrida como anotación fechada, con su comando adentro, para pegar en la tarea] [BLOQUE=<id|slug> la agrega sola, como bloque, a la pila de esa tarea]
 	@cd harness && MD=$(MD) BLOQUE=$(BLOQUE) node dev/case.ts --suite '$(patsubst harness/%,%,$(SUITE))' $(if $(PARALLEL),--parallel) $(if $(CLOSE),--close) $(if $(LAMBDA),--lambda) $(if $(PRE),--preapprovals) $(if $(MANUAL),--manual)
@@ -604,7 +604,8 @@ harness-ssr: ## @har la consola del SSR del wizard: a qué servicio llamó, con 
 	else tail -n $(or $(N),120) "$$f" | grep -E "$$filtro"; fi
 
 harness-loki: ## @har ¿por qué terminó así esta solicitud? forense en los logs. ⚠ dev/staging/local, NO prod. UREQ=519245 [TARGET=local|dev|staging|qa — por defecto LOCAL: sin esto caía al default `dev` y consultaba el Loki COMPARTIDO buscando un uReq local, que en el mejor caso da «cero anclas» y en el peor te muestra la corrida de OTRO con el mismo id] [SINCE=12h]
-	@cd harness && E2E_TARGET=$(or $(TARGET),local) node dev/loki-trace.ts $(UREQ) $(if $(SINCE),--since $(SINCE))
+	@test -n "$(TARGET)" || { echo "falta TARGET=local|dev|qa|staging: el forense de logs no adivina el ambiente (trazador-ureq cae en prod y éste caía en local, F-234)"; exit 2; }
+	@cd harness && E2E_TARGET=$(TARGET) node dev/loki-trace.ts $(UREQ) $(if $(SINCE),--since $(SINCE))
 
 harness-countries: ## @har ¿de qué país es cada entidad? inferencia DRY-RUN desde el cableado. No escribe. [SQL=1]
 	@cd harness && node dev/countries.ts $(if $(SQL),--sql,)
@@ -638,8 +639,8 @@ trazador-acceso: ## @har SONDA Loki: ¿puedo leer? ⚠ MUESTRA líneas, no las c
 # identifica por `phone_<e164>` y no por `loan_request_<n>`. Medido sobre 7 días, el teléfono identifica
 # 47.792 eventos y la solicitud 24.006 — sin TEL se ve la mitad, y un recorrido que arranca en «monto»
 # se lee como que el cliente entró por ahí. El binario siempre tuvo `-tel`; acá faltaba.
-trazador-posthog: ## @har ¿qué VIO el cliente en el navegador? Sin UREQ = sonda de acceso + censo. [TARGET=prod] [UREQ=n] [TEL=3001234567 ⚠ sin esto se ve la MITAD: la fase de AUTH se identifica por teléfono] [LIMIT=n]
-	@cd trazador/server && go run . -posthog $(if $(TARGET),-target $(TARGET)) $(if $(UREQ),-ureq $(UREQ)) $(if $(TEL),-tel $(TEL)) $(if $(LIMIT),-limit $(LIMIT))
+trazador-posthog: ## @har ¿qué VIO el cliente y en qué PANTALLA se rompió? eventos del front + su bitácora (pantalla · loader/action · error). Sin UREQ = sonda + censo; ERRORES=1 = qué pantallas fallan en el ambiente. [TARGET=prod|qa|staging] [UREQ=n] [TEL=3001234567 ⚠ sin esto se ve la MITAD: la fase de AUTH se identifica por teléfono] [VENTANA=6h|1d|7d prod y dev comparten ids: sin ventana se mezclan] [ERRORES=1 [DIAS=7]] [LIMIT=n]
+	@cd trazador/server && go run . -posthog $(if $(TARGET),-target $(TARGET)) $(if $(UREQ),-ureq $(UREQ)) $(if $(TEL),-tel $(TEL)) $(if $(LIMIT),-limit $(LIMIT)) $(if $(VENTANA),-ventana $(VENTANA)) $(if $(ERRORES),-errores $(if $(DIAS),-dias $(DIAS)))
 
 # El «por qué» del negocio (política de riesgo, contratos con lenders, PRDs) no está en el código:
 # está en Confluence. Solo lectura: no hay verbo que escriba.
