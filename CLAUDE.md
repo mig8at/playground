@@ -194,8 +194,9 @@ de una tarea; `canon:` conserva las referencias opcionales del corpus del equipo
 - **El estado 11 «Autorizada» ES terminal**: de 10.182 solicitudes que lo tocaron en 90 días, 3
   avanzaron. **No cuentes desembolsos con esa columna**; usá `user_requests.disbursed_at` (desde el
   2026-09-18, con histórico reconstruido: ~23% salió de `updated_at`).
-- ⚠ **`make trazador-acceso` es una SONDA: muestra una MUESTRA.** No cuentes sus líneas; para contar,
-  `QUERY='sum(count_over_time({service_name="x", level="error"} [24h]))'`.
+- ⚠ **`make trazador-acceso` es la SONDA de acceso a Loki, no la búsqueda.** Para buscar o contar, `bin/pg logs`:
+  dice la ventana que buscó, avisa si llegó al tope y un conteo
+  (`--query 'sum(count_over_time({service_name="x", level="error"} [24h]))'`) da su número, también 0.
 - `playground/docs/` fue borrada de `main`. Una ruta `docs/X.md` citada es histórica:
   `git show 159906a:docs/<archivo>`.
 

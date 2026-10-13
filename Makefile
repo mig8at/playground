@@ -123,10 +123,12 @@ tarea-context: ## @dia la pila de una tarea: sus últimos bloques. N=<id|slug>
 pg: ## @dia la puerta a los CONECTORES: base y logs de un ambiente, con la fuente que contestó. ARGS='sql --target prod --query "SELECT …"' · ARGS='logs --target qa --query "{…}" --since 1h' · ARGS=help
 	@bin/pg $(or $(ARGS),help)
 
-tablero-db: ## @dia SQL de SOLO LECTURA. TARGET=local|dev|qa|staging|prod SQL='SELECT …' [MD=1 cita sólo DB + ambiente + query] [BLOQUE=<id|slug> la consulta y lo que dio, como bloque de la pila de esa tarea]
+tablero-db: ## @dia SQL de SOLO LECTURA (atajo de trazador-sql, con TARGET obligatorio). TARGET=local|dev|qa|staging|prod SQL='SELECT …' [CSV=1] [MD=1 anotación + tabla, para pegar en la tarea] [BLOQUE=<id|slug> la consulta y lo que dio, como bloque de la pila de esa tarea]
 	@test -n "$(TARGET)" || { echo "falta TARGET=local|dev|qa|staging|prod"; exit 2; }
 	@test -n $$'$(subst ','\'',$(SQL))' || { echo "falta SQL='SELECT …'"; exit 2; }
-	@cd tablero/server && go run ./cmd/db-query -target "$(TARGET)" -sql $$'$(subst ','\'',$(SQL))' $(if $(MD),-md) $(if $(BLOQUE),-bloque $(BLOQUE))
+	@# (atajo desde el 2026-10-13) la consulta la hace el trazador, que es el que investiga: una sola implementación
+	@# del formato, la anotación y el bloque. Acá sigue exigiendo TARGET, como siempre.
+	@cd trazador/server && go run . -target "$(TARGET)" -sql $$'$(subst ','\'',$(SQL))' $(if $(CSV),-csv) $(if $(MD),-md) $(if $(BLOQUE),-bloque $(BLOQUE))
 
 cierre: ## @dia el cierre del día: qué tareas tocaste (git, la pila y el pulso) y a cuál le falta el bloque del día, la bitácora o ramas. Sale 1 si falta algo. DIA=YYYY-MM-DD · JSON=1
 	@cd tablero/server && go run ./cmd/closeout $(if $(DIA),-dia $(DIA)) $(if $(JSON),-json)
