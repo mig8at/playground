@@ -52,6 +52,43 @@ import { synthIdImageUrl } from '../pkg/synth-id-images.ts';
 process.env.E2E_TARGET ||= 'local';
 export {};
 
+/* ── EL ASESOR DE PRUEBA DEL COMERCIO ─────────────────────────────────────────────────────────────────────────────
+ * Por el canal de asesor se entra como el asesor de prueba que el admin crea con cada comercio (`c<hash>-fake@`), con
+ * la clave compartida del ambiente: lo mismo que `bin/advisor` y el panel. Antes el caminador entraba con una cuenta de
+ * persona (`ADVISOR_USER`), retirada de los `.env` el 2026-10-06: la corrida moría con «la sesión no sirve».
+ * Va ANTES de cargar `pkg/config.ts` y `pkg/cognito.ts`, que leen la cuenta una sola vez al importarse. Un asesor =
+ * un comercio: casos de comercios distintos en una sola corrida no pueden compartir sesión. */
+{
+    const argOf = (n: string) => { const i = process.argv.indexOf(`--${n}`); return i > 0 ? (process.argv[i + 1] ?? '') : ''; };
+    if ((argOf('flow') || 'self-service') === 'merchant' && !process.env.E2E_ADVISOR_ACCOUNT) {
+        const { execFileSync } = await import('node:child_process');
+        const merchants = [...new Set([argOf('merchant'), ...argOf('cases').split(/[;,]/).map((c) => c.trim().split(':')[0].replace(/^#/, ''))]
+            .filter(Boolean))];
+        const found = new Map<string, { email: string; sub: string }>();
+        for (const m of merchants) {
+            let r: any = null;
+            try { r = JSON.parse(execFileSync(process.execPath, ['bin/dbops.ts', 'test-advisor', m], { encoding: 'utf8', timeout: 60_000 })); } catch { }
+            if (!r?.ok || !r.email || !r.sub) {
+                const adminT = process.env.E2E_TARGET === 'qa' ? 'dev' : process.env.E2E_TARGET;
+                console.error(`  ✗ sin asesor de prueba para «${m}» en ${process.env.E2E_TARGET}: ${r?.motivo ?? 'no pude consultarlo'}`);
+                console.error(`    se crea con: bin/pg admin test-advisor --target ${adminT} --allied ${r?.alliedId ?? '<id>'} (sin --apply muestra qué haría)`);
+                process.exit(2);
+            }
+            found.set(r.email, { email: r.email, sub: r.sub });
+        }
+        if (found.size > 1) {
+            console.error(`  ✗ los casos son de comercios distintos (${merchants.join(', ')}) y cada uno entra con su propio asesor de prueba: corré uno por comercio`);
+            process.exit(2);
+        }
+        const [adv] = found.values();
+        if (adv) {
+            process.env.E2E_ADVISOR_ACCOUNT = adv.email;
+            process.env.E2E_ADVISOR_SUB = adv.sub;   // el wizard lo usa como corporate_user_id
+            console.log(`  ● asesor de prueba del comercio: ${adv.email}`);
+        }
+    }
+}
+
 const { FrontSession } = await import('../pkg/front.ts');
 const { one, exec, close, TARGET, writeLines, dumpWrites } = await import('../pkg/db.ts');
 const { synthFill, manualValidation } = await import('../pkg/inject.ts');

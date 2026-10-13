@@ -17,5 +17,5 @@ export const renewSession = session.renewSession;
 export { cookiesHealth, type SessionHealth } from '../../connectors/advisor/health.ts';
 import type { SessionHealth } from '../../connectors/advisor/health.ts';
 export function howToRenewSession(s: SessionHealth): string {
-    return `${s.motivo}\n     entra con: make harness-login TARGET=${TARGET} (abre una ventana)`;
+    return `${s.motivo}\n     entra con: make harness-login TARGET=${TARGET} MERCHANT=<el comercio> (abre una ventana; usa su asesor de prueba)`;
 }

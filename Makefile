@@ -522,8 +522,8 @@ harness-walk-wizard: ## @har el WIZARD entero por HTTP, sin navegador: pasa por 
 harness-session: ## @har ¿sirve la sesión de ASESOR cacheada para este ambiente? Un fetch contra /merchant, sin navegador ni login: valid · invalid · missing · unreachable. TARGET=local|dev|qa|staging (default local; local y dev comparten la misma sesión)
 	@cd harness && E2E_TARGET=$(or $(TARGET),local) node bin/session-check.ts
 
-harness-login: ## @har ⚠ abre una ventana y guarda la sesión del ASESOR en connectors/.auth/sessions. Credenciales ADVISOR_USER/PASS en connectors/.env.<ambiente de autenticación>. TARGET=local|dev|qa|staging (default local; front local :5174 usa dev) [ORIGIN=https://…]
-	@cd harness && E2E_TARGET=$(or $(TARGET),local) node dev/session.ts signin --kind advisor --target '$(or $(TARGET),local)' $(if $(ORIGIN),--origin '$(ORIGIN)')
+harness-login: ## @har ⚠ abre una ventana y guarda la sesión del ASESOR DE PRUEBA de un comercio (c<hash>-fake@, el que crea el admin) en connectors/.auth/sessions, con la clave compartida del ambiente. MERCHANT=<slug|hash> TARGET=local|dev|qa|staging (default local; front local :5174 usa dev) [ORIGIN=https://…]
+	@cd harness && E2E_TARGET=$(or $(TARGET),local) node dev/session.ts signin --kind advisor --target '$(or $(TARGET),local)' $(if $(MERCHANT),--merchant '$(MERCHANT)') $(if $(ORIGIN),--origin '$(ORIGIN)')
 
 harness-wizard: ## @har ¿el WIZARD local (:5174) está al día con SU configuración? Mide tres cosas —que conteste, que su `.env` no se haya editado después de arrancar (Vite lo lee una sola vez) y que el login que sirve sea el que dice su `.env`— y, si algo falla, lo baja y lo vuelve a levantar con `bin/advisor <comercio> preboot`, el mismo arranque del panel. [CHECK=1 sólo diagnostica] [MERCHANT=pullman el comercio con que arranca] [TARGET=dev|local con qué backend arranca, default dev]
 	@cd harness && E2E_TARGET=$(or $(TARGET),dev) node dev/wizard-ensure.ts $(if $(CHECK),--check) $(if $(MERCHANT),--merchant $(MERCHANT))
