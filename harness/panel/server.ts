@@ -2051,7 +2051,7 @@ connect();
         if (action === 'shot') {
             const png = await deviceShot(id).catch(() => null);
             if (!png) { res.writeHead(404); return res.end(); }
-            res.writeHead(200, { 'content-type': 'image/png', 'cache-control': 'no-store' });
+            res.writeHead(200, { 'content-type': 'image/jpeg', 'cache-control': 'no-store' });
             return res.end(png);
         }
         if (action === 'close' && req.method === 'POST') { await releaseDevice(id); return json(res, 200, { ok: true }); }

@@ -262,6 +262,13 @@
     /* AVANZAR, del otro lado: toca el botón principal de la pantalla por su TEXTO (`/api/device/<id>/advance`), y lo
        destraba si hace falta (monto mínimo, documento leído, casilla de confirmación). Qué tocó queda en la consola. */
     .device-reload.device-advance { right: auto; left: 8px }
+    /* La barra de abajo: los mismos botones, quietos y siempre visibles. */
+    .device-actions { display: flex; justify-content: center; gap: var(--space-1); margin-top: var(--space-2) }
+    .device-actions[hidden] { display: none }
+    .device-actions .device-reload { position: static; opacity: 1; pointer-events: auto }
+    /* No más ancha que el celular: si no, empuja al de al lado. «Recargar» va sólo con su icono (el nombre, en el tooltip). */
+    .device-actions { width: 0; min-width: 100%; flex-wrap: wrap }   /* sin ancho propio: toma el del celular y, si no entra, baja a otra fila */
+    .device-actions .device-reload:not(.device-advance) > span:last-child { display: none }
     .device-reload.device-advance-all { top: 52px }
     .device-reload.device-advance-all[data-running="true"] { opacity: 1; pointer-events: auto; color: var(--warn) }
     .device-open { margin-top: auto; padding: var(--space-3) var(--space-3) var(--space-6); border-top: 1px solid var(--border) }
@@ -677,20 +684,24 @@
               <figcaption class="device-label"><span class="ui-icon" data-icon="server" aria-hidden="true"></span>Asesor
                 <span class="device-otp warn" id="advisorNote" hidden>identidad a mano</span></figcaption>
               <div class="device-frame"><div class="device-notch"></div>
-                <!-- Recargar la página: aparece al pararse sobre el celular, sólo con algo abierto (CSS). -->
-                <button type="button" class="device-reload device-advance" data-device="advisor" title="Tocar el botón principal de la pantalla del asesor (Continuar, Confirmar, Firmar…)" aria-label="Avanzar en el celular del asesor"><span class="ui-icon" data-icon="play" aria-hidden="true"></span><span>Avanzar</span></button>
-                <button type="button" class="device-reload device-advance device-advance-all" data-device="advisor" title="Avanzar solo hasta el final; se detiene si una pantalla no avanza. Un clic en un nodo del mapa avanza hasta esa pantalla." aria-label="Avanzar hasta el final en el celular del asesor"><span class="ui-icon" data-icon="play" aria-hidden="true"></span><span>Hasta el final</span></button>
-                <button type="button" class="device-reload" data-device="advisor" title="Recargar la página del celular del asesor" aria-label="Recargar la página del celular del asesor"><span class="ui-icon" data-icon="refresh" aria-hidden="true"></span><span>Recargar</span></button>
                 <div class="device-screen" id="screenAdvisor">
                   <!-- El asesor: su navegador REAL con el wizard del comercio (`panel/devices.ts`), entrando como el
                        asesor de prueba del comercio. Carga solo al elegir un comercio en la barra izquierda. -->
                   <p class="device-empty" id="advisorIdle">El celular del asesor</p>
+                  <img class="device-live" id="advisorLive" alt="Pantalla del celular del asesor" hidden />
                   <iframe class="device-live device-vnc" id="advisorVnc" title="Celular del asesor" hidden></iframe>
                   <div class="device-status" id="advisorStatus" hidden role="status">
                     <span class="spinner" id="advisorSpinner" aria-hidden="true"></span>
                     <p class="device-empty" id="advisorStatusText"></p>
                   </div>
                 </div>
+              </div>
+              <!-- Debajo del celular, siempre a la vista con algo abierto: «Siguiente» toca el botón principal de la
+                   pantalla; «Hasta el final» lo repite solo; «Recargar». (Antes flotaban sobre la pantalla al pasar el mouse.) -->
+              <div class="device-actions" id="advisorActions" hidden>
+                <button type="button" class="device-reload device-advance" data-device="advisor" title="Tocar el botón principal de la pantalla del asesor (Continuar, Confirmar, Firmar…)" aria-label="Avanzar en el celular del asesor"><span class="ui-icon" data-icon="play" aria-hidden="true"></span><span>Siguiente</span></button>
+                <button type="button" class="device-reload device-advance device-advance-all" data-device="advisor" title="Avanzar solo hasta el final; se detiene si una pantalla no avanza. Un clic en un nodo del mapa avanza hasta esa pantalla." aria-label="Avanzar hasta el final en el celular del asesor"><span class="ui-icon" data-icon="play" aria-hidden="true"></span><span>Al final</span></button>
+                <button type="button" class="device-reload" data-device="advisor" title="Recargar la página del celular del asesor" aria-label="Recargar la página del celular del asesor"><span class="ui-icon" data-icon="refresh" aria-hidden="true"></span><span>Recargar</span></button>
               </div>
             </figure>
             <figure class="device" id="deviceClient">
@@ -699,10 +710,6 @@
                 <span class="device-otp warn" id="clientNote" hidden>identidad a mano</span>
                 <button type="button" class="region-action" id="clientClose" hidden title="Cerrar el navegador del cliente" aria-label="Cerrar el navegador del cliente"><span class="ui-icon" data-icon="close" aria-hidden="true"></span></button></figcaption>
               <div class="device-frame"><div class="device-notch"></div>
-                <!-- Recargar la página: aparece al pararse sobre el celular, sólo con algo abierto (CSS). -->
-                <button type="button" class="device-reload device-advance" data-device="client" title="Tocar el botón principal de la pantalla del cliente (Continuar, Confirmar, Firmar…)" aria-label="Avanzar en el celular del cliente"><span class="ui-icon" data-icon="play" aria-hidden="true"></span><span>Avanzar</span></button>
-                <button type="button" class="device-reload device-advance device-advance-all" data-device="client" title="Avanzar solo hasta el final; se detiene si una pantalla no avanza. Un clic en un nodo del mapa avanza hasta esa pantalla." aria-label="Avanzar hasta el final en el celular del cliente"><span class="ui-icon" data-icon="play" aria-hidden="true"></span><span>Hasta el final</span></button>
-                <button type="button" class="device-reload" data-device="client" title="Recargar la página del celular del cliente" aria-label="Recargar la página del celular del cliente"><span class="ui-icon" data-icon="refresh" aria-hidden="true"></span><span>Recargar</span></button>
                 <div class="device-screen" id="screenClient">
                   <p class="device-empty" id="clientEmpty">El celular del cliente</p>
                   <!-- El navegador REAL del cliente (`panel/devices.ts`): «Pagar con Creditop» en la tienda lo
@@ -724,6 +731,13 @@
                     <dl class="client-data" id="clientData"></dl>
                   </div>
                 </div>
+              </div>
+              <!-- Debajo del celular, siempre a la vista con algo abierto: «Siguiente» toca el botón principal de la
+                   pantalla; «Hasta el final» lo repite solo; «Recargar». (Antes flotaban sobre la pantalla al pasar el mouse.) -->
+              <div class="device-actions" id="clientActions" hidden>
+                <button type="button" class="device-reload device-advance" data-device="client" title="Tocar el botón principal de la pantalla del cliente (Continuar, Confirmar, Firmar…)" aria-label="Avanzar en el celular del cliente"><span class="ui-icon" data-icon="play" aria-hidden="true"></span><span>Siguiente</span></button>
+                <button type="button" class="device-reload device-advance device-advance-all" data-device="client" title="Avanzar solo hasta el final; se detiene si una pantalla no avanza. Un clic en un nodo del mapa avanza hasta esa pantalla." aria-label="Avanzar hasta el final en el celular del cliente"><span class="ui-icon" data-icon="play" aria-hidden="true"></span><span>Al final</span></button>
+                <button type="button" class="device-reload" data-device="client" title="Recargar la página del celular del cliente" aria-label="Recargar la página del celular del cliente"><span class="ui-icon" data-icon="refresh" aria-hidden="true"></span><span>Recargar</span></button>
               </div>
             </figure>
           </div>
@@ -1735,7 +1749,7 @@
         b.setAttribute('aria-busy', 'true'); b.lastElementChild.textContent = 'Avanzando…';
         let r = null;
         try { r = await (await fetch(`/api/device/${b.dataset.device}/advance`, { method: 'POST' })).json(); } catch { }
-        b.removeAttribute('aria-busy'); b.lastElementChild.textContent = 'Avanzar';
+        b.removeAttribute('aria-busy'); b.lastElementChild.textContent = 'Siguiente';
         b.title = r ? r.detail : 'el panel no contestó';
       };
     }
@@ -1745,7 +1759,7 @@
     function paintAdvanceAll(dev, running) {
       const b = advanceAllBtn(dev); if (!b) return;
       b.dataset.running = String(running);
-      b.lastElementChild.textContent = running ? 'Detener' : 'Hasta el final';
+      b.lastElementChild.textContent = running ? 'Detener' : 'Al final';
       b.querySelector('.ui-icon').dataset.icon = running ? 'close' : 'play';
     }
     async function watchAdvanceAll(dev) {
@@ -3184,9 +3198,11 @@
       if (mode === 'idle' || mode === 'loading') $('clientOtp').hidden = true;
       if (mode !== 'idle') $('clientApp').hidden = true;
       if (liveTimer) { clearInterval(liveTimer); liveTimer = null; }
+      $('clientActions').hidden = mode !== 'live';
       if (mode === 'live' && !view) {
+        // La pantalla en vivo: una imagen nueva apenas carga la anterior (sin pedidos encimados), al menos cada 0,6 s.
         const tick = () => { $('clientLive').src = '/api/device/client/shot?t=' + Date.now(); };
-        tick(); liveTimer = setInterval(tick, 1500);
+        tick(); liveTimer = setInterval(tick, 600);
       }
       requestAnimationFrame(fitShop);
     }
@@ -3220,7 +3236,7 @@
     }
     // ── El navegador real del asesor ──────────────────────────────────────────────────────────────
     // `idle` = la invitación a darle ▶ a un comercio; `loading` = abriendo; `live` = su noVNC.
-    let advisorTicker = null, handoffPoll = null;
+    let advisorTicker = null, handoffPoll = null, advisorLiveTimer = null;
     function setAdvisorMode(mode, text = '', view = '') {
       $('advisorIdle').hidden = mode !== 'idle';
       if (advisorTicker) { clearInterval(advisorTicker); advisorTicker = null; }
@@ -3228,9 +3244,17 @@
       // traspaso de «continuá en tu celular»): cuando pasa, el celular del cliente lo muestra.
       if (handoffPoll) { clearInterval(handoffPoll); handoffPoll = null; }
       if (mode === 'live') handoffPoll = setInterval(watchHandoff, 2000);
-      $('advisorVnc').hidden = mode !== 'live';
-      if (mode !== 'live') $('advisorVnc').removeAttribute('src');
+      // Con el motor de Selenium el celular es su noVNC (`view`); con el de Chromium, una imagen que se refresca.
+      $('advisorVnc').hidden = mode !== 'live' || !view;
+      $('advisorLive').hidden = mode !== 'live' || !!view;
+      $('advisorActions').hidden = mode !== 'live';
+      if (mode !== 'live' || !view) $('advisorVnc').removeAttribute('src');
       else if ($('advisorVnc').getAttribute('src') !== view) $('advisorVnc').src = view;
+      if (advisorLiveTimer) { clearInterval(advisorLiveTimer); advisorLiveTimer = null; }
+      if (mode === 'live' && !view) {
+        const tick = () => { $('advisorLive').src = '/api/device/advisor/shot?t=' + Date.now(); };
+        tick(); advisorLiveTimer = setInterval(tick, 600);
+      }
       $('advisorStatus').hidden = mode !== 'loading' && mode !== 'status';
       $('advisorSpinner').hidden = mode !== 'loading';
       $('advisorStatusText').textContent = text;
@@ -3273,13 +3297,14 @@
         } catch { /* el panel no respondió */ }
       }
     }
-    setInterval(() => { if (!$('clientVnc').hidden || !$('advisorVnc').hidden) refreshDeviceNotes(); }, 3000);
+    const deviceShown = (id) => !$(id + 'Vnc').hidden || !$(id + 'Live').hidden;
+    setInterval(() => { if (deviceShown('client') || deviceShown('advisor')) refreshDeviceNotes(); }, 3000);
     async function watchHandoff() {
-      if (!$('clientVnc').hidden) return;
+      if (deviceShown('client')) return;
       try {
         const st = await (await fetch('/api/device/client/state')).json();
-        if (!st.open || !st.view) return;
-        setClientMode('live', '', st.view);
+        if (!st.open) return;
+        setClientMode('live', '', st.view || '');
         const code = String(caseStore.read().phone || '').replace(/\D/g, '').slice(-4);
         const chip = $('clientOtp');
         chip.hidden = !code; chip.classList.remove('warn');

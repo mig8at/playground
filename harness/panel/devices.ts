@@ -167,10 +167,42 @@ async function openSelenium(b: SeleniumBox): Promise<Omit<Device, 'openedAt'>> {
     };
 }
 
+// ── Motor chromium (el de siempre desde 2026-10-13) ────────────────────────────────────────────────
+// UN Chromium sin ventana dentro del propio panel, y cada celular es un CONTEXTO suyo: cookies, sesión de Cognito
+// y almacenamiento propios, igual de aislados que dos navegadores. La pantalla se ve como imagen (`deviceShot`) y
+// se avanza con los botones de abajo («Siguiente», «Hasta el final»): ya no se tipea en el celular, lo llena el
+// autorrelleno. Sin contenedores, no queda una sesión ocupada al reiniciar el panel (se trabó tres veces el
+// 2026-10-09), corre con la VPN de la Mac y abrir uno cuesta un contexto, no un navegador.
+// `HARNESS_DEVICE_ENGINE=selenium` vuelve al motor de antes (ventana real por noVNC, para manejarlo a mano).
+const ENGINE_NAME = (process.env.HARNESS_DEVICE_ENGINE || 'chromium').toLowerCase() === 'selenium' ? 'selenium' : 'chromium';
+let sharedBrowser: Promise<import('@playwright/test').Browser> | null = null;
+function browserForDevices(): Promise<import('@playwright/test').Browser> {
+    if (!sharedBrowser) {
+        sharedBrowser = chromium.launch({ headless: true, args: ['--lang=es-CO'] });
+        // Si se cae, el próximo celular lanza otro.
+        void sharedBrowser.then((b) => b.on('disconnected', () => { sharedBrowser = null; })).catch(() => { sharedBrowser = null; });
+    }
+    return sharedBrowser;
+}
+async function openChromium(): Promise<Omit<Device, 'openedAt'>> {
+    const browser = await browserForDevices();
+    // La pantalla del marco del panel (la misma proporción que tenía el noVNC) con lo demás del Pixel 7: user-agent,
+    // táctil y móvil, que es como el wizard decide su diseño.
+    const context = await browser.newContext({ ...PHONE, viewport: SCREEN, screen: SCREEN, locale: 'es-CO' });
+    const page = await context.newPage();
+    return {
+        context, page,
+        close: async () => { await context.close().catch(() => { }); },
+        alive: async () => browser.isConnected() && !page.isClosed(),
+    };
+}
+
 // ── La API del panel ─────────────────────────────────────────────────────────────────────────────
-const ENGINE: Record<DeviceId, () => Promise<Omit<Device, 'openedAt'>>> = {
-    client: () => openSelenium(SELENIUM_BOXES.client), advisor: () => openSelenium(SELENIUM_BOXES.advisor),
-};
+const ENGINE: Record<DeviceId, () => Promise<Omit<Device, 'openedAt'>>> = ENGINE_NAME === 'selenium'
+    ? { client: () => openSelenium(SELENIUM_BOXES.client), advisor: () => openSelenium(SELENIUM_BOXES.advisor) }
+    : { client: openChromium, advisor: openChromium };
+/** Con qué motor corren los celulares (lo muestra el panel). */
+export const DEVICE_ENGINE = ENGINE_NAME;
 
 /* ── EL NAVEGADOR DE RESERVA ─────────────────────────────────────────────────────────────────────────
  * Abrir un celular era: contenedor (frío, ~3 s) + sesión de Chromium (0,3–0,8 s) + CDP + la página. Medido el
@@ -251,6 +283,11 @@ export async function openDevice(id: DeviceId, url: string, opts: {
     // Si el navegador muere por fuera (el contenedor se borró o se reinició, Selenium venció la sesión), el
     // celular deja de figurar como abierto. Sin esto el panel seguía mostrando la sesión vieja como viva y el
     // traspaso al cliente no volvía a abrir nada: el visor quedaba en «El celular del cliente» (2026-10-06).
+    d.context.on('close', () => {
+        if (open.get(id)?.openedAt !== openedAt) return;
+        open.delete(id);
+        deviceLogger(id, '✗ el navegador del celular se cerró');
+    });
     d.context.browser()?.on('disconnected', () => {
         if (open.get(id)?.openedAt !== openedAt) return;
         open.delete(id);
@@ -277,7 +314,8 @@ export function deviceState(id: DeviceId): { open: boolean; url?: string; since?
 /** Una foto de la pantalla del celular (PNG). */
 export async function deviceShot(id: DeviceId): Promise<Buffer | null> {
     const d = open.get(id);
-    return d ? d.page.screenshot({ type: 'png' }) : null;
+    // JPEG: la pantalla se refresca cada medio segundo y un PNG del celular pesa ~5 veces más.
+    return d ? d.page.screenshot({ type: 'jpeg', quality: 70 }) : null;
 }
 
 export async function closeDevice(id: DeviceId): Promise<void> {
@@ -292,6 +330,7 @@ export async function closeAllDevices(): Promise<void> {
     for (const id of [...open.keys()]) { const d = open.get(id); open.delete(id); await d?.close().catch(() => { }); }
     for (const [id, p] of [...spare]) { spare.delete(id); await (await p)?.close().catch(() => { }); }
     for (const b of usedBoxes) await docker(['stop', b.container]).catch(() => '');
+    if (sharedBrowser) { const b = await sharedBrowser.catch(() => null); sharedBrowser = null; await b?.close().catch(() => { }); }
 }
 
 /** Lo que el panel le reenvía a un celular SIN visor: un toque, una tecla, texto o la rueda. Las
