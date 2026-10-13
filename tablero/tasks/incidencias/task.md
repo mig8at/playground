@@ -50,8 +50,10 @@ Salvo donde se dice «corrido», salen de LEER el código: falta reproducirlos.
 
 - [ ] Corregir el `redirect-url` del cobro de cuota inicial, quemado a la ruta de ecommerce aunque la
   solicitud sea del asesor. Termina cuando la vuelta de la pasarela de un cobro del asesor cae en su flujo.
-- [ ] Decidir qué pasa cuando la sucursal no tiene credencial de pasarela: hoy el inicio del cobro de cuota
-  inicial contesta 500 y el front muestra un error genérico.
+- [ ] Decidir qué ve el comprador cuando la sucursal no tiene credencial de pasarela. Corrido en local (2026-10-13): el
+  backend ya NO contesta 500 —desde el 2026-09-09 rechaza con 422 `LENDER_CONFIGURATION_NOT_FOUND` antes de crear nada,
+  y el preview manda `payment_enabled`—, pero la pantalla de cuota inicial no usa ese dato y muestra el error genérico
+  «No pudimos iniciar tu pago. Intenta de nuevo.», que invita a reintentar algo que nunca va a funcionar.
 - [ ] Revisar la elección de credencial de Deceval: crear y firmar el pagaré eligen la credencial cada uno
   por su cuenta y al azar (`inRandomOrder`) cuando califican varias, así que la firma puede usar otra que la
   que creó el pagaré. Termina sabiendo si Deceval lo rechaza y cuántos comercios tienen más de una.
