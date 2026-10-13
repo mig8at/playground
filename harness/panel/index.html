@@ -258,6 +258,12 @@
     .phone-app[hidden] { display: none }
     .device-live { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: top; background: var(--background) }
     .device-live[hidden], .device-status[hidden] { display: none }
+    /* La pantalla en vivo se TOCA: clic, teclado y rueda viajan al navegador del celular (`/api/device/<id>/input`). */
+    img.device-live { cursor: pointer; touch-action: none; user-select: none; -webkit-user-drag: none }
+    img.device-live:focus-visible { outline: 2px solid var(--ring); outline-offset: -2px }
+    .device-tap { position: absolute; z-index: 4; width: 22px; height: 22px; margin: -11px 0 0 -11px; border-radius: 50%;
+      background: color-mix(in oklab, var(--foreground) 25%, transparent); pointer-events: none; animation: device-tap .35s ease-out forwards }
+    @keyframes device-tap { to { transform: scale(1.8); opacity: 0 } }
     .device-vnc { border: 0; background: transparent }
     /* RECARGAR, al pararse sobre el celular: arriba a la derecha, debajo de la muesca, y sólo si hay una página abierta
        (la pantalla en vivo a la vista). Con el teclado aparece al enfocarlo. */
@@ -3185,6 +3191,60 @@
       $('clientApp').hidden = false;
       requestAnimationFrame(fitShop);
     }
+    // ── La pantalla en vivo se TOCA ───────────────────────────────────────────────────────────────
+    // Como un navegador incrustado: el clic, lo que se escribe (también pegar) y la rueda sobre la imagen viajan al
+    // navegador del celular por `/api/device/<id>/input`, que los aplica con Playwright. Las coordenadas van en
+    // fracción de la PÁGINA, no del recuadro: la imagen se recorta con `object-fit: cover` arriba y centrada, así
+    // que hay que deshacer ese recorte o cada toque cae corrido.
+    function makeDeviceTouchable(imgId, device) {
+      const img = $(imgId);
+      img.tabIndex = 0;
+      const send = (ev) => fetch(`/api/device/${device}/input`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(ev) }).catch(() => {});
+      const pointOf = (e) => {
+        const r = img.getBoundingClientRect(), nw = img.naturalWidth, nh = img.naturalHeight;
+        if (!nw || !nh) return null;
+        const s = Math.max(r.width / nw, r.height / nh), offX = (r.width - nw * s) / 2;
+        return { x: (e.clientX - r.left - offX) / (nw * s), y: (e.clientY - r.top) / (nh * s) };
+      };
+      img.addEventListener('pointerdown', (e) => {
+        if (e.button !== 0) return;
+        e.preventDefault();
+        img.focus({ preventScroll: true });
+        const p = pointOf(e);
+        if (!p || p.x < 0 || p.x > 1 || p.y < 0 || p.y > 1) return;
+        const dot = document.createElement('span');
+        dot.className = 'device-tap';
+        dot.style.left = `${e.clientX - img.parentElement.getBoundingClientRect().left}px`;
+        dot.style.top = `${e.clientY - img.parentElement.getBoundingClientRect().top}px`;
+        img.parentElement.appendChild(dot);
+        dot.addEventListener('animationend', () => dot.remove());
+        send({ type: 'click', ...p });
+      });
+      // La rueda se junta unos milisegundos: cada evento como su propio POST llegaría tarde y en desorden.
+      let wheel = 0, wheelAt = null, wheelTimer = null;
+      img.addEventListener('wheel', (e) => {
+        e.preventDefault();
+        wheel += e.deltaY; wheelAt = pointOf(e) ?? wheelAt;
+        if (wheelTimer) return;
+        wheelTimer = setTimeout(() => { if (wheelAt) send({ type: 'wheel', ...wheelAt, dy: Math.round(wheel) }); wheel = 0; wheelTimer = null; }, 80);
+      }, { passive: false });
+      // El texto se manda de a tandas; las teclas especiales, sueltas y en orden (vacían la tanda antes).
+      let typed = '', typedTimer = null;
+      const flush = () => { clearTimeout(typedTimer); typedTimer = null; if (typed) { send({ type: 'text', text: typed }); typed = ''; } };
+      const KEYS = new Set(['Enter', 'Backspace', 'Delete', 'Tab', 'Escape', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Home', 'End']);
+      img.addEventListener('keydown', (e) => {
+        if (e.metaKey || e.ctrlKey || e.altKey) return;   // ⌘V llega como `paste`; los atajos del panel siguen siendo del panel
+        if (e.key.length === 1) { e.preventDefault(); typed += e.key; clearTimeout(typedTimer); typedTimer = setTimeout(flush, 120); return; }
+        if (KEYS.has(e.key)) { e.preventDefault(); flush(); send({ type: 'key', key: e.key }); }
+      });
+      img.addEventListener('paste', (e) => {
+        const text = e.clipboardData?.getData('text') ?? '';
+        if (text) { e.preventDefault(); flush(); send({ type: 'text', text }); }
+      });
+    }
+    makeDeviceTouchable('clientLive', 'client');
+    makeDeviceTouchable('advisorLive', 'advisor');
+
     // ── El navegador real del cliente ─────────────────────────────────────────────────────────────
     // La tienda queda a la vista; «Pagar con Creditop» REDIRIGE al celular del cliente, que abre el
     // checkout en un contexto de Chromium aislado (`/api/device/client/open`).
