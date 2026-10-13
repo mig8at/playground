@@ -222,13 +222,22 @@
     .devices[data-count="2"] { --phone-share: 50cqw }
     .devices[data-count="3"] { --phone-share: 33.3cqw }
     .device[hidden] { display: none }
-    .device { margin: 0; flex: none; display: flex; flex-direction: column; align-items: center; gap: var(--space-2) }
+    /* Cada celular: el rótulo arriba, el teléfono y, a su DERECHA, una columna de iconos (siguiente · al final ·
+       recargar). La columna guarda su lugar aunque esté vacía, así el teléfono no salta cuando aparecen. */
+    .device { margin: 0; flex: none; display: grid; grid-template-columns: auto var(--device-rail); grid-template-areas: "label label" "frame rail";
+      justify-items: center; column-gap: var(--space-1); row-gap: var(--space-2); --device-rail: 28px }
+    .device > .device-label { grid-area: label }
+    .device > .device-frame { grid-area: frame }
+    .device-actions { grid-area: rail; align-self: start; display: flex; flex-direction: column; gap: var(--space-1); margin-top: 24px }
+    .device-actions[hidden] { display: flex; visibility: hidden }
+    .device-actions .device-reload { position: static; opacity: 1; pointer-events: auto; width: 28px; height: 28px; padding: 0; justify-content: center }
+    .device-actions .device-reload > span:last-child { display: none }   /* sólo el icono: el nombre va en el tooltip */
     .device-label { display: flex; align-items: center; gap: 6px; font-size: var(--text-sm); font-weight: 600; color: var(--fg-2) }
     .device-frame {
       /* El alto es el MENOR entre lo que deja el centro (menos el rótulo) y lo que permite el ancho
          para dos teléfonos con su separación, y el ancho sale de la proporción. Va EXPLÍCITO y no con
          `aspect-ratio`: el `<figure>` no contaba ese ancho, medía 63 px y los dos se pisaban. */
-      --phone-h: min(100cqh - 28px, (var(--phone-share) - var(--space-6)) * 19.5 / 9, 760px);
+      --phone-h: min(100cqh - 28px, (var(--phone-share) - var(--space-6) - 32px) * 19.5 / 9, 760px);   /* 32 px: la columna de iconos */
       /* El HUECO de la pantalla (sin los 10 px de borde) va en 412:892, la pantalla del celular real del
          cliente (`panel/devices.ts`): con otra proporción el visor la escala sin deformarla y rellena lo
          que sobra con bandas. */
@@ -262,13 +271,6 @@
     /* AVANZAR, del otro lado: toca el botón principal de la pantalla por su TEXTO (`/api/device/<id>/advance`), y lo
        destraba si hace falta (monto mínimo, documento leído, casilla de confirmación). Qué tocó queda en la consola. */
     .device-reload.device-advance { right: auto; left: 8px }
-    /* La barra de abajo: los mismos botones, quietos y siempre visibles. */
-    .device-actions { display: flex; justify-content: center; gap: var(--space-1); margin-top: var(--space-2) }
-    .device-actions[hidden] { display: none }
-    .device-actions .device-reload { position: static; opacity: 1; pointer-events: auto }
-    /* No más ancha que el celular: si no, empuja al de al lado. «Recargar» va sólo con su icono (el nombre, en el tooltip). */
-    .device-actions { width: 0; min-width: 100%; flex-wrap: wrap }   /* sin ancho propio: toma el del celular y, si no entra, baja a otra fila */
-    .device-actions .device-reload:not(.device-advance) > span:last-child { display: none }
     .device-reload.device-advance-all { top: 52px }
     .device-reload.device-advance-all[data-running="true"] { opacity: 1; pointer-events: auto; color: var(--warn) }
     .device-open { margin-top: auto; padding: var(--space-3) var(--space-3) var(--space-6); border-top: 1px solid var(--border) }
@@ -699,8 +701,8 @@
               <!-- Debajo del celular, siempre a la vista con algo abierto: «Siguiente» toca el botón principal de la
                    pantalla; «Hasta el final» lo repite solo; «Recargar». (Antes flotaban sobre la pantalla al pasar el mouse.) -->
               <div class="device-actions" id="advisorActions" hidden>
-                <button type="button" class="device-reload device-advance" data-device="advisor" title="Tocar el botón principal de la pantalla del asesor (Continuar, Confirmar, Firmar…)" aria-label="Avanzar en el celular del asesor"><span class="ui-icon" data-icon="play" aria-hidden="true"></span><span>Siguiente</span></button>
-                <button type="button" class="device-reload device-advance device-advance-all" data-device="advisor" title="Avanzar solo hasta el final; se detiene si una pantalla no avanza. Un clic en un nodo del mapa avanza hasta esa pantalla." aria-label="Avanzar hasta el final en el celular del asesor"><span class="ui-icon" data-icon="play" aria-hidden="true"></span><span>Al final</span></button>
+                <button type="button" class="device-reload device-advance" data-device="advisor" title="Tocar el botón principal de la pantalla del asesor (Continuar, Confirmar, Firmar…)" aria-label="Avanzar en el celular del asesor"><span class="ui-icon" data-icon="chevron" aria-hidden="true"></span><span>Siguiente</span></button>
+                <button type="button" class="device-reload device-advance device-advance-all" data-device="advisor" title="Al final: avanza solo hasta el final y se detiene si una pantalla no avanza. (Un clic en un nodo del mapa avanza hasta esa pantalla.)" aria-label="Avanzar hasta el final en el celular del asesor"><span class="ui-icon" data-icon="play" aria-hidden="true"></span><span>Al final</span></button>
                 <button type="button" class="device-reload" data-device="advisor" title="Recargar la página del celular del asesor" aria-label="Recargar la página del celular del asesor"><span class="ui-icon" data-icon="refresh" aria-hidden="true"></span><span>Recargar</span></button>
               </div>
             </figure>
@@ -735,8 +737,8 @@
               <!-- Debajo del celular, siempre a la vista con algo abierto: «Siguiente» toca el botón principal de la
                    pantalla; «Hasta el final» lo repite solo; «Recargar». (Antes flotaban sobre la pantalla al pasar el mouse.) -->
               <div class="device-actions" id="clientActions" hidden>
-                <button type="button" class="device-reload device-advance" data-device="client" title="Tocar el botón principal de la pantalla del cliente (Continuar, Confirmar, Firmar…)" aria-label="Avanzar en el celular del cliente"><span class="ui-icon" data-icon="play" aria-hidden="true"></span><span>Siguiente</span></button>
-                <button type="button" class="device-reload device-advance device-advance-all" data-device="client" title="Avanzar solo hasta el final; se detiene si una pantalla no avanza. Un clic en un nodo del mapa avanza hasta esa pantalla." aria-label="Avanzar hasta el final en el celular del cliente"><span class="ui-icon" data-icon="play" aria-hidden="true"></span><span>Al final</span></button>
+                <button type="button" class="device-reload device-advance" data-device="client" title="Tocar el botón principal de la pantalla del cliente (Continuar, Confirmar, Firmar…)" aria-label="Avanzar en el celular del cliente"><span class="ui-icon" data-icon="chevron" aria-hidden="true"></span><span>Siguiente</span></button>
+                <button type="button" class="device-reload device-advance device-advance-all" data-device="client" title="Al final: avanza solo hasta el final y se detiene si una pantalla no avanza. (Un clic en un nodo del mapa avanza hasta esa pantalla.)" aria-label="Avanzar hasta el final en el celular del cliente"><span class="ui-icon" data-icon="play" aria-hidden="true"></span><span>Al final</span></button>
                 <button type="button" class="device-reload" data-device="client" title="Recargar la página del celular del cliente" aria-label="Recargar la página del celular del cliente"><span class="ui-icon" data-icon="refresh" aria-hidden="true"></span><span>Recargar</span></button>
               </div>
             </figure>
@@ -1760,7 +1762,7 @@
       const b = advanceAllBtn(dev); if (!b) return;
       b.dataset.running = String(running);
       b.lastElementChild.textContent = running ? 'Detener' : 'Al final';
-      b.querySelector('.ui-icon').dataset.icon = running ? 'close' : 'play';
+      b.querySelector('.ui-icon').dataset.icon = running ? 'stop' : 'play';
     }
     async function watchAdvanceAll(dev) {
       for (let i = 0; i < 600; i++) {
