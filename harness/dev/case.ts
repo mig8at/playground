@@ -551,7 +551,10 @@ type Res = {
  *  sus últimos 4 dígitos. Se saltea el de `mock_rules`, que iría al fixture. */
 // La raíz única de la corrida: de acá salen la cédula y el teléfono de cada caso, así ninguna
 // corrida pisa a la anterior.
-const BASE_DOC = 1090000000 + ((Date.now() / 100) % 9_000_000 | 0);
+// La persona de la corrida (cédula y teléfono) sale de la hora de arranque, en décimas de segundo, MÁS el número de
+// proceso: dos corridas lanzadas en el mismo instante caían en la misma persona —el backend reconoce al cliente por el
+// teléfono— y terminaban compartiendo solicitud (2026-10-13: la de ecommerce y la de auto, las dos en 467293).
+const BASE_DOC = 1_090_000_000 + ((Math.floor(Date.now() / 100) + process.pid * 7919) % 9_000_000);
 
 /** La sucursal de un caso. Acepta `#hash` —la sucursal EXACTA— o un nombre.
  *

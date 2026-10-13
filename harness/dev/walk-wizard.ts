@@ -206,7 +206,10 @@ function parseCases(): Case[] {
 }
 
 // ─── derivados por caso (mismo criterio que case.ts: nunca dos casos con el mismo usuario) ──────
-const BASE_DOC = 1_090_000_000 + ((Date.now() / 100) % 9_000_000 | 0);
+// La persona de la corrida (cédula y teléfono) sale de la hora de arranque, en décimas de segundo, MÁS el número de
+// proceso: dos corridas lanzadas en el mismo instante caían en la misma persona —el backend reconoce al cliente por el
+// teléfono— y terminaban compartiendo solicitud (2026-10-13: la de ecommerce y la de auto, las dos en 467293).
+const BASE_DOC = 1_090_000_000 + ((Math.floor(Date.now() / 100) + process.pid * 7919) % 9_000_000);
 const idNumberOf = (i: number) => String(BASE_DOC + i);
 /** El de respaldo, para cuando el comercio NO resuelve y no se le puede preguntar el país.
  *
