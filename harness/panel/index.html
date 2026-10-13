@@ -259,8 +259,8 @@
     .device-live { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: top; background: var(--background) }
     .device-live[hidden], .device-status[hidden] { display: none }
     /* La pantalla en vivo se TOCA: clic, teclado y rueda viajan al navegador del celular (`/api/device/<id>/input`). */
-    img.device-live { cursor: pointer; touch-action: none; user-select: none; -webkit-user-drag: none }
-    img.device-live:focus-visible { outline: 2px solid var(--ring); outline-offset: -2px }
+    canvas.device-live { cursor: pointer; touch-action: none; user-select: none; -webkit-user-drag: none }
+    canvas.device-live:focus-visible { outline: 2px solid var(--ring); outline-offset: -2px }
     .device-tap { position: absolute; z-index: 4; width: 22px; height: 22px; margin: -11px 0 0 -11px; border-radius: 50%;
       background: color-mix(in oklab, var(--foreground) 25%, transparent); pointer-events: none; animation: device-tap .35s ease-out forwards }
     @keyframes device-tap { to { transform: scale(1.8); opacity: 0 } }
@@ -696,7 +696,7 @@
                   <!-- El asesor: su navegador REAL con el wizard del comercio (`panel/devices.ts`), entrando como el
                        asesor de prueba del comercio. Carga solo al elegir un comercio en la barra izquierda. -->
                   <p class="device-empty" id="advisorIdle">El celular del asesor</p>
-                  <img class="device-live" id="advisorLive" alt="Pantalla del celular del asesor" hidden />
+                  <canvas class="device-live" id="advisorLive" role="img" aria-label="Pantalla del celular del asesor" hidden></canvas>
                   <iframe class="device-live device-vnc" id="advisorVnc" title="Celular del asesor" hidden></iframe>
                   <div class="device-status" id="advisorStatus" hidden role="status">
                     <span class="spinner" id="advisorSpinner" aria-hidden="true"></span>
@@ -723,7 +723,7 @@
                   <!-- El navegador REAL del cliente (`panel/devices.ts`): «Pagar con Creditop» en la tienda lo
                        REDIRIGE acá, al checkout. Por ahora es una foto que se refresca; los clics llegan con el
                        screencast. -->
-                  <img class="device-live" id="clientLive" alt="Pantalla del celular del cliente" hidden />
+                  <canvas class="device-live" id="clientLive" role="img" aria-label="Pantalla del celular del cliente" hidden></canvas>
                   <!-- Con el motor de Selenium, el celular ES su ventana: el noVNC del contenedor, donde se
                        clickea y se tipea de verdad. -->
                   <iframe class="device-live device-vnc" id="clientVnc" title="Celular del cliente" hidden></iframe>
@@ -3191,55 +3191,89 @@
       $('clientApp').hidden = false;
       requestAnimationFrame(fitShop);
     }
-    // ── La pantalla en vivo se TOCA ───────────────────────────────────────────────────────────────
-    // Como un navegador incrustado: el clic, lo que se escribe (también pegar) y la rueda sobre la imagen viajan al
-    // navegador del celular por `/api/device/<id>/input`, que los aplica con Playwright. Las coordenadas van en
-    // fracción de la PÁGINA, no del recuadro: la imagen se recorta con `object-fit: cover` arriba y centrada, así
-    // que hay que deshacer ese recorte o cada toque cae corrido.
-    function makeDeviceTouchable(imgId, device) {
-      const img = $(imgId);
-      img.tabIndex = 0;
-      const send = (ev) => fetch(`/api/device/${device}/input`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(ev) }).catch(() => {});
+    // ── La pantalla en vivo: un CANAL ABIERTO por celular ─────────────────────────────────────────
+    // `/api/device/<id>/live` (WebSocket) trae los cuadros como binario y lleva de vuelta los toques y las teclas. Cada
+    // cuadro se pinta en el lienzo apenas llega —el `<img>` con MJPEG iba uno atrasado— y, si llegan más rápido de lo
+    // que se decodifican, se pinta el último y se saltan los de en medio. Sin canal (se cayó, o un panel viejo) los
+    // toques vuelven a `/input` por HTTP.
+    const live = {};   // device → { ws, canvas }
+    function liveConnect(device, canvasId) {
+      liveDisconnect(device);
+      const canvas = $(canvasId), ctx = canvas.getContext('2d');
+      const ws = new WebSocket(`${location.protocol === 'https:' ? 'wss' : 'ws'}://${location.host}/api/device/${device}/live`);
+      ws.binaryType = 'blob';
+      let decoding = false, next = null;
+      const paint = async (blob) => {
+        decoding = true;
+        try {
+          const bmp = await createImageBitmap(blob);
+          if (canvas.width !== bmp.width || canvas.height !== bmp.height) { canvas.width = bmp.width; canvas.height = bmp.height; }
+          ctx.drawImage(bmp, 0, 0);
+          bmp.close?.();
+        } catch { /* un cuadro roto no corta la transmisión */ }
+        decoding = false;
+        if (next) { const b = next; next = null; paint(b); }
+      };
+      ws.onmessage = (e) => { if (typeof e.data === 'string') return; if (decoding) next = e.data; else paint(e.data); };
+      // Si el canal se cae con el celular a la vista, se reconecta solo.
+      ws.onclose = () => { if (live[device]?.ws === ws) { delete live[device]; if (!canvas.hidden) setTimeout(() => { if (!canvas.hidden && !live[device]) liveConnect(device, canvasId); }, 1000); } };
+      live[device] = { ws, canvas };
+    }
+    function liveDisconnect(device) {
+      const l = live[device];
+      if (!l) return;
+      delete live[device];
+      try { l.ws.close(); } catch { }
+    }
+    // Se TOCA como un navegador incrustado: clic, teclas (también pegar) y rueda. Las coordenadas van en fracción de
+    // la PÁGINA, no del recuadro: el lienzo se recorta con `object-fit: cover` arriba y centrado, así que se deshace
+    // ese recorte o cada toque cae corrido.
+    function makeDeviceTouchable(canvasId, device) {
+      const el = $(canvasId);
+      el.tabIndex = 0;
+      const send = (ev) => {
+        const ws = live[device]?.ws;
+        if (ws && ws.readyState === WebSocket.OPEN) { ws.send(JSON.stringify(ev)); return; }
+        fetch(`/api/device/${device}/input`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(ev) }).catch(() => {});
+      };
       const pointOf = (e) => {
-        const r = img.getBoundingClientRect(), nw = img.naturalWidth, nh = img.naturalHeight;
+        const r = el.getBoundingClientRect(), nw = el.naturalWidth || el.width, nh = el.naturalHeight || el.height;
         if (!nw || !nh) return null;
         const s = Math.max(r.width / nw, r.height / nh), offX = (r.width - nw * s) / 2;
         return { x: (e.clientX - r.left - offX) / (nw * s), y: (e.clientY - r.top) / (nh * s) };
       };
-      img.addEventListener('pointerdown', (e) => {
+      el.addEventListener('pointerdown', (e) => {
         if (e.button !== 0) return;
         e.preventDefault();
-        img.focus({ preventScroll: true });
+        el.focus({ preventScroll: true });
         const p = pointOf(e);
         if (!p || p.x < 0 || p.x > 1 || p.y < 0 || p.y > 1) return;
-        const dot = document.createElement('span');
+        const box = el.parentElement.getBoundingClientRect(), dot = document.createElement('span');
         dot.className = 'device-tap';
-        dot.style.left = `${e.clientX - img.parentElement.getBoundingClientRect().left}px`;
-        dot.style.top = `${e.clientY - img.parentElement.getBoundingClientRect().top}px`;
-        img.parentElement.appendChild(dot);
+        dot.style.left = `${e.clientX - box.left}px`;
+        dot.style.top = `${e.clientY - box.top}px`;
+        el.parentElement.appendChild(dot);
         dot.addEventListener('animationend', () => dot.remove());
         send({ type: 'click', ...p });
       });
-      // La rueda se junta unos milisegundos: cada evento como su propio POST llegaría tarde y en desorden.
+      // La rueda se junta unos milisegundos: un evento por cada pasito del trackpad sería ruido.
       let wheel = 0, wheelAt = null, wheelTimer = null;
-      img.addEventListener('wheel', (e) => {
+      el.addEventListener('wheel', (e) => {
         e.preventDefault();
         wheel += e.deltaY; wheelAt = pointOf(e) ?? wheelAt;
         if (wheelTimer) return;
-        wheelTimer = setTimeout(() => { if (wheelAt) send({ type: 'wheel', ...wheelAt, dy: Math.round(wheel) }); wheel = 0; wheelTimer = null; }, 80);
+        wheelTimer = setTimeout(() => { if (wheelAt) send({ type: 'wheel', ...wheelAt, dy: Math.round(wheel) }); wheel = 0; wheelTimer = null; }, 40);
       }, { passive: false });
-      // El texto se manda de a tandas; las teclas especiales, sueltas y en orden (vacían la tanda antes).
-      let typed = '', typedTimer = null;
-      const flush = () => { clearTimeout(typedTimer); typedTimer = null; if (typed) { send({ type: 'text', text: typed }); typed = ''; } };
+      // Cada letra sale apenas se escribe: por el canal llegan en orden, así que no hace falta juntarlas.
       const KEYS = new Set(['Enter', 'Backspace', 'Delete', 'Tab', 'Escape', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Home', 'End']);
-      img.addEventListener('keydown', (e) => {
+      el.addEventListener('keydown', (e) => {
         if (e.metaKey || e.ctrlKey || e.altKey) return;   // ⌘V llega como `paste`; los atajos del panel siguen siendo del panel
-        if (e.key.length === 1) { e.preventDefault(); typed += e.key; clearTimeout(typedTimer); typedTimer = setTimeout(flush, 120); return; }
-        if (KEYS.has(e.key)) { e.preventDefault(); flush(); send({ type: 'key', key: e.key }); }
+        if (e.key.length === 1) { e.preventDefault(); send({ type: 'text', text: e.key }); return; }
+        if (KEYS.has(e.key)) { e.preventDefault(); send({ type: 'key', key: e.key }); }
       });
-      img.addEventListener('paste', (e) => {
+      el.addEventListener('paste', (e) => {
         const text = e.clipboardData?.getData('text') ?? '';
-        if (text) { e.preventDefault(); flush(); send({ type: 'text', text }); }
+        if (text) { e.preventDefault(); send({ type: 'text', text }); }
       });
     }
     makeDeviceTouchable('clientLive', 'client');
@@ -3264,8 +3298,8 @@
       $('clientActions').hidden = mode !== 'live';
       // La pantalla en vivo: un video MJPEG (`/stream`) que manda un cuadro cada vez que la pantalla cambia. Fuera de
       // `live` se suelta, y con eso el servidor corta la transmisión.
-      if (mode === 'live' && !view) $('clientLive').src = '/api/device/client/stream?t=' + Date.now();   // cada apertura, su transmisión
-      else $('clientLive').removeAttribute('src');
+      if (mode === 'live' && !view) liveConnect('client', 'clientLive');   // cada apertura, su transmisión
+      else liveDisconnect('client');
       requestAnimationFrame(fitShop);
     }
     async function openClientBrowser() {
@@ -3312,8 +3346,8 @@
       $('advisorActions').hidden = mode !== 'live';
       if (mode !== 'live' || !view) $('advisorVnc').removeAttribute('src');
       else if ($('advisorVnc').getAttribute('src') !== view) $('advisorVnc').src = view;
-      if (mode === 'live' && !view) $('advisorLive').src = '/api/device/advisor/stream?t=' + Date.now();
-      else $('advisorLive').removeAttribute('src');
+      if (mode === 'live' && !view) liveConnect('advisor', 'advisorLive');
+      else liveDisconnect('advisor');
       $('advisorStatus').hidden = mode !== 'loading' && mode !== 'status';
       $('advisorSpinner').hidden = mode !== 'loading';
       $('advisorStatusText').textContent = text;

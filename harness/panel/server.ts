@@ -9,6 +9,7 @@
 // I_KNOW_THIS_TOUCHES_SHARED_DEV=1 en el entorno del hijo — OJO: dev toca data COMPARTIDA
 // (ver pkg/db.ts::assertWriteAllowed). Elegí `local` salvo que sepas exactamente qué vas a escribir.
 import { createServer, get, IncomingMessage, ServerResponse } from 'node:http';
+import { accept as acceptSocket } from './ws.ts';
 import { spawn, execFile, execFileSync } from 'node:child_process';
 import { readFileSync, existsSync, writeFileSync, readdirSync, statSync, mkdirSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
@@ -2439,6 +2440,40 @@ server.on('error', (err: NodeJS.ErrnoException) => {
         console.error(`\n  ✗ Error del panel: ${err.message}\n`);
     }
     process.exit(1);
+});
+
+/* ── EL CELULAR EN VIVO POR UN CANAL ABIERTO (WebSocket `/api/device/<id>/live`) ────────────────────────────────────
+ * Lo que vuelve fluido al celular: los cuadros llegan como binario y el panel los pinta en un lienzo apenas llegan (el
+ * MJPEG de `<img>` iba un cuadro atrasado), y los toques y teclas vuelven por el MISMO canal, sin una petición HTTP por
+ * evento. Se aplican EN ORDEN, uno detrás del otro: dos letras que llegan juntas no se cruzan. Si la red no da abasto
+ * se saltan cuadros de en medio, nunca el último: se guarda y sale apenas se vacía la cola. */
+const inputQueue = new Map<DeviceId, Promise<unknown>>();
+server.on('upgrade', (req, socket) => {
+    const m = /^\/api\/device\/(client|advisor)\/live(?:\?|$)/.exec(req.url || '');
+    if (!m) { socket.destroy(); return; }
+    const id = m[1] as DeviceId;
+    const ws = acceptSocket(req, socket);
+    if (!ws) return;
+    let held: Buffer | null = null, flushTimer: NodeJS.Timeout | null = null;
+    const send = (jpeg: Buffer) => {
+        if (ws.buffered() > 512 * 1024) {   // la red va atrás: se queda el último y sale cuando haya lugar
+            held = jpeg;
+            if (!flushTimer) flushTimer = setInterval(() => { if (held && ws.buffered() < 128 * 1024) { ws.sendBinary(held); held = null; } if (!held && flushTimer) { clearInterval(flushTimer); flushTimer = null; } }, 30);
+            return;
+        }
+        ws.sendBinary(jpeg);
+    };
+    let stop: (() => void) | null = null, gone = false;
+    void deviceStream(id, send, () => ws.close()).then((s) => { if (!s) ws.close(); else if (gone) s(); else stop = s; }).catch(() => ws.close());
+    ws.onText((text) => {
+        let ev: DeviceInput;
+        try { ev = JSON.parse(text); } catch { return; }
+        if (!['click', 'key', 'text', 'wheel'].includes(String(ev?.type))) return;
+        const prev = inputQueue.get(id) ?? Promise.resolve();
+        const next = prev.then(() => deviceInput(id, ev)).catch((e) => console.error('device input:', (e as Error).message));
+        inputQueue.set(id, next);
+    });
+    ws.onClose(() => { gone = true; stop?.(); if (flushTimer) clearInterval(flushTimer); });
 });
 
 server.listen(PORT, HOST, () => {
