@@ -48,8 +48,11 @@ Salvo donde se dice «corrido», salen de LEER el código: falta reproducirlos.
 
 ### Media — comportamiento distinto al esperado
 
-- [ ] Corregir el `redirect-url` del cobro de cuota inicial, quemado a la ruta de ecommerce aunque la
-  solicitud sea del asesor. Termina cuando la vuelta de la pasarela de un cobro del asesor cae en su flujo.
+- [ ] Corregir el `redirect-url` del cobro de cuota inicial, quemado a la ruta de ecommerce aunque la solicitud sea
+  del asesor. CONFIRMADO (2026-10-13): en local el canal del asesor llega al cobro viejo (`initial-fee-payment`) con
+  una entidad que no es CreditopX y cuota inicial tecleada en el listado (Pullman + Sistecrédito, 467337), y
+  `InitialFeePaymentService` arma la vuelta como `ecommerce/<hash>/<solicitud>/down-payment-validation/<tx>` sin
+  mirar el canal. Termina cuando la vuelta de la pasarela de un cobro del asesor cae en su flujo.
 - [ ] Decidir qué ve el comprador cuando la sucursal no tiene credencial de pasarela. Corrido en local (2026-10-13): el
   backend ya NO contesta 500 —desde el 2026-09-09 rechaza con 422 `LENDER_CONFIGURATION_NOT_FOUND` antes de crear nada,
   y el preview manda `payment_enabled`—, pero la pantalla de cuota inicial no usa ese dato y muestra el error genérico
