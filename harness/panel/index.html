@@ -1385,6 +1385,9 @@
      * está) no se afirma nada.
      */
     function advisorIssues(e) {
+      // Un comercio que no se vende por asesor (sus canales no lo traen: Refurbi es sólo tienda) no tiene a quién abrir.
+      const chs = merchantTags[e.hash]?.canales;
+      if (chs && !chs.includes('asesor')) return { block: ['este comercio no se vende por asesor'], note: [] };
       const r = e.readiness;
       if (!r) return { block: [], note: [] };
       const adminT = target === 'qa' ? 'dev' : target;   // qa no tiene admin: comparte base y pool con dev

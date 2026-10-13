@@ -945,6 +945,20 @@ async function frontLabel(target: string, front: string): Promise<string> {
         : `DEL AMBIENTE ${envName || '(sin URL configurada)'} — build desplegado: tus cambios locales NO se ven`;
 }
 
+/**
+ * LOS CANALES QUE UN COMERCIO DECLARA (`canales` en su entrada de `.flows.json`). La base no sabe decir que un comercio
+ * se vende SÓLO por tienda —Refurbi es ecommerce y su tipo es «Pequeño» como cualquiera—, y sin esto el panel le
+ * ofrecía el canal Asesor: se probó y el wizard no tiene camino para eso (2026-10-13). Si el comercio declara, el panel
+ * se queda con la intersección; si no declara, con lo que mide de la base.
+ */
+function declaredChannels(slug: string): string[] | null {
+    const c = readFlows()?.merchants?.[slug]?.canales;
+    return Array.isArray(c) && c.length ? c.map(String) : null;
+}
+function declaredChannelsByHash(hash: string, target: string): string[] | null {
+    for (const slug of Object.keys(readFlows()?.merchants ?? {})) if (branchHashForSlug(slug, target) === hash) { const d = declaredChannels(slug); if (d) return d; }
+    return null;
+}
 function readFlows(): any {
     try { return JSON.parse(readFileSync(join(ROOT, '.flows.json'), 'utf8')); } catch { return {}; }
 }
@@ -1582,7 +1596,12 @@ const server = createServer(async (req, res) => {
     if (path === '/api/merchant-tags') {
         const hashes = (url.searchParams.get('hashes') || '').split(',').map((s) => s.trim()).filter((h) => /^[0-9a-f]{8}$/i.test(h));
         const target = (url.searchParams.get('target') || 'local').trim();
-        return json(res, 200, hashes.length ? ((await dbopsJson(['merchant-tags', ...hashes], target)) ?? {}) : {});
+        const tags: Record<string, any> = hashes.length ? ((await dbopsJson(['merchant-tags', ...hashes], target)) ?? {}) : {};
+        for (const [h, t] of Object.entries(tags)) {
+            const d = declaredChannelsByHash(h, target);
+            if (d && Array.isArray(t?.canales)) t.canales = t.canales.filter((c: string) => d.includes(c));
+        }
+        return json(res, 200, tags);
     }
     if (path === '/api/branches') {
         const slugs = (url.searchParams.get('slugs') || '').split(',').map((s) => s.trim()).filter(Boolean);
@@ -1812,9 +1831,14 @@ const server = createServer(async (req, res) => {
         const autoMotivo = !autoTargets.includes(target) ? 'el auto-onboarding corre contra local o qa'
             : corbeta ? 'en un comercio Corbeta la entrada es el QR de la caja'
             : autoCheck?.motivo || (autoCheck ? '' : 'no se pudo comprobar la tienda del comercio');
+        const measured = corbeta ? ['qr'] : ['asesor', 'autogestion', 'ecommerce', ...auto];
+        const declared = declaredChannels(slug);
+        // En el ORDEN de la declaración: el primero es el que se preselecciona si el sugerido no está.
+        const offered = declared ? declared.filter((c) => measured.includes(c)) : measured;
         return json(res, 200, {
             hash, corbeta, alliedId: (r as any).alliedId ?? null,
-            canales: corbeta ? ['qr'] : ['asesor', 'autogestion', 'ecommerce', ...auto],
+            canales: offered,
+            ...(declared ? { declarados: declared } : {}),
             autoMotivo,
             // Qué canal viene PRESELECCIONADO. No es cosmético: asesor y autogestión se ven idénticos en
             // pantalla y el default equivocado hace que la corrida pruebe el otro camino sin avisar —
@@ -1822,7 +1846,7 @@ const server = createServer(async (req, res) => {
             // gestión» prendido abre en su canal; el resto sigue abriendo en asesor.
             // ⚠ Es un DEFAULT, no un candado: los otros canales siguen ofrecidos y clickeables, porque
             // correr un comercio autogestionado por el canal del asesor es una comparación legítima.
-            sugerido: corbeta ? 'qr' : (r as any).selfManaged === true ? 'autogestion' : 'asesor',
+            sugerido: ((p: string) => offered.includes(p) ? p : offered[0] ?? p)(corbeta ? 'qr' : (r as any).selfManaged === true ? 'autogestion' : 'asesor'),
         });
     }
 
