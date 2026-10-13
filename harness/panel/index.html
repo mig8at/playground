@@ -266,6 +266,8 @@
     .device-busy::after { content: ''; position: absolute; inset: 0; width: 40%; background: var(--ring); animation: device-busy 1s ease-in-out infinite }
     .device-busy[hidden] { display: none }
     @keyframes device-busy { from { transform: translateX(-100%) } to { transform: translateX(250%) } }
+    /* El ícono de la captura (lucide «camera»): el resto sale de workbench.css, que es copia del estándar y no se edita acá. */
+    .ui-icon[data-icon="camera"] { --ui-icon: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22black%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Cpath%20d%3D%22M13.997%204a2%202%200%200%201%201.76%201.05l.486.9A2%202%200%200%200%2018.003%207H20a2%202%200%200%201%202%202v9a2%202%200%200%201-2%202H4a2%202%200%200%201-2-2V9a2%202%200%200%201%202-2h1.997a2%202%200%200%200%201.759-1.048l.489-.904A2%202%200%200%201%2010.004%204z%22%2F%3E%3Ccircle%20cx%3D%2212%22%20cy%3D%2213%22%20r%3D%223%22%2F%3E%3C%2Fsvg%3E") }
     .device-tap { position: absolute; z-index: 4; width: 22px; height: 22px; margin: -11px 0 0 -11px; border-radius: 50%;
       background: color-mix(in oklab, var(--foreground) 25%, transparent); pointer-events: none; animation: device-tap .35s ease-out forwards }
     @keyframes device-tap { to { transform: scale(1.8); opacity: 0 } }
@@ -713,6 +715,7 @@
                    (2026-10-13): el celular ya se toca y se escribe directo. Avanzar hasta una pantalla sigue en el mapa. -->
               <div class="device-actions" id="advisorActions" hidden>
                 <button type="button" class="device-reload" data-device="advisor" title="Recargar la página del celular del asesor" aria-label="Recargar la página del celular del asesor"><span class="ui-icon" data-icon="refresh" aria-hidden="true"></span><span>Recargar</span></button>
+                <button type="button" class="device-reload device-shot" data-device="advisor" title="Capturar la pantalla del celular del asesor (descarga un JPG)" aria-label="Capturar la pantalla del celular del asesor"><span class="ui-icon" data-icon="camera" aria-hidden="true"></span><span>Capturar</span></button>
               </div>
             </figure>
             <figure class="device" id="deviceClient">
@@ -747,6 +750,7 @@
                    (2026-10-13): el celular ya se toca y se escribe directo. Avanzar hasta una pantalla sigue en el mapa. -->
               <div class="device-actions" id="clientActions" hidden>
                 <button type="button" class="device-reload" data-device="client" title="Recargar la página del celular del cliente" aria-label="Recargar la página del celular del cliente"><span class="ui-icon" data-icon="refresh" aria-hidden="true"></span><span>Recargar</span></button>
+                <button type="button" class="device-reload device-shot" data-device="client" title="Capturar la pantalla del celular del cliente (descarga un JPG)" aria-label="Capturar la pantalla del celular del cliente"><span class="ui-icon" data-icon="camera" aria-hidden="true"></span><span>Capturar</span></button>
               </div>
             </figure>
           </div>
@@ -1746,12 +1750,33 @@
       routeChanged();
     }
     // Recargar la página de un celular (`/api/device/<id>/reload`): el visor en vivo muestra el resultado solo.
-    for (const b of document.querySelectorAll('.device-reload:not(.device-advance)')) {
+    for (const b of document.querySelectorAll('.device-reload:not(.device-advance):not(.device-shot)')) {
       b.onclick = async () => {
         if (b.getAttribute('aria-busy') === 'true') return;
         b.setAttribute('aria-busy', 'true'); b.lastElementChild.textContent = 'Recargando…';
         try { await fetch(`/api/device/${b.dataset.device}/reload`, { method: 'POST' }); } catch { }
         b.removeAttribute('aria-busy'); b.lastElementChild.textContent = 'Recargar';
+      };
+    }
+    // Capturar (`/api/device/<id>/shot`): la pantalla del celular a resolución completa, como un JPG que se descarga con
+    // el celular, la hora y la pantalla en el nombre (`celular-cliente-15-32-07-down-payment.jpg`).
+    for (const b of document.querySelectorAll('.device-shot')) {
+      b.onclick = async () => {
+        if (b.getAttribute('aria-busy') === 'true') return;
+        b.setAttribute('aria-busy', 'true');
+        try {
+          const dev = b.dataset.device;
+          const [shot, st] = await Promise.all([fetch(`/api/device/${dev}/shot`), fetch(`/api/device/${dev}/state`).then((r) => r.json()).catch(() => ({}))]);
+          if (shot.ok) {
+            const url = URL.createObjectURL(await shot.blob());
+            const screen = (() => { try { return new URL(st.url).pathname.split('/').filter((s) => s && !/^\d+$/.test(s)).slice(-1)[0] || 'pantalla'; } catch { return 'pantalla'; } })();
+            const a = document.createElement('a');
+            a.href = url; a.download = `celular-${dev === 'client' ? 'cliente' : 'asesor'}-${new Date().toTimeString().slice(0, 8).replaceAll(':', '-')}-${screen}.jpg`;
+            document.body.appendChild(a); a.click(); a.remove();
+            setTimeout(() => URL.revokeObjectURL(url), 5000);
+          }
+        } catch { }
+        b.removeAttribute('aria-busy');
       };
     }
     // Avanzar (`/api/device/<id>/advance`): el servidor deja en la consola qué tocó, o por qué no pudo.
