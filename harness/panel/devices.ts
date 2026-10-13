@@ -422,6 +422,37 @@ export async function deviceStream(id: DeviceId, frame: Frame, end: () => void):
     };
 }
 
+/* ── ¿EL CELULAR ESTÁ CARGANDO? ─────────────────────────────────────────────────────────────────────────────────
+ * Avisa cuando hay una navegación o un `.data` del wizard en vuelo (el cambio de pantalla de React Router pide el
+ * `.data` de la ruta nueva antes de pintarla): sin aviso, el celular parece congelado justo cuando más espera. Sólo
+ * avisa si la espera pasa de 250 ms, para que un cambio rápido no parpadee. Devuelve cómo dejar de mirar. */
+export function deviceBusyWatch(id: DeviceId, cb: (busy: boolean) => void): (() => void) | null {
+    const d = open.get(id);
+    if (!d) return null;
+    const pending = new Set<unknown>();
+    let shown = false, timer: NodeJS.Timeout | null = null;
+    const counts = (req: { isNavigationRequest(): boolean; frame(): unknown; url(): string; resourceType(): string }) =>
+        (req.isNavigationRequest() && req.frame() === d.page.mainFrame()) || (req.resourceType() === 'fetch' && /\.data(\?|$)/.test(req.url()));
+    const update = () => {
+        if (pending.size && !shown && !timer) timer = setTimeout(() => { timer = null; if (pending.size) { shown = true; cb(true); } }, 250);
+        if (!pending.size) { if (timer) { clearTimeout(timer); timer = null; } if (shown) { shown = false; cb(false); } }
+    };
+    const onRequest = (req: Parameters<typeof counts>[0]) => { if (counts(req)) { pending.add(req); update(); } };
+    const onDone = (req: unknown) => { if (pending.delete(req)) update(); };
+    const onNav = () => { pending.clear(); update(); };   // una navegación nueva deja huérfanas las de la página anterior
+    d.page.on('request', onRequest);
+    d.page.on('requestfinished', onDone);
+    d.page.on('requestfailed', onDone);
+    d.page.on('load', onNav);
+    return () => {
+        if (timer) clearTimeout(timer);
+        d.page.off('request', onRequest);
+        d.page.off('requestfinished', onDone);
+        d.page.off('requestfailed', onDone);
+        d.page.off('load', onNav);
+    };
+}
+
 export async function closeDevice(id: DeviceId): Promise<void> {
     const d = open.get(id);
     open.delete(id);
@@ -443,7 +474,13 @@ export type DeviceInput =
     | { type: 'click'; x: number; y: number }
     | { type: 'key'; key: string }
     | { type: 'text'; text: string }
-    | { type: 'wheel'; x: number; y: number; dy: number };
+    | { type: 'wheel'; x: number; y: number; dy: number }
+    // Arrastrar y mantener presionado: el dedo baja, se mueve y sube. Un toque corto es down + up en el mismo lugar.
+    | { type: 'down' | 'move' | 'up'; x: number; y: number };
+
+// El tamaño de la página se pregunta una vez por segundo como mucho: un arrastre manda decenas de `move` y preguntarlo
+// en cada uno agregaba una vuelta a la página por evento.
+const viewportCache = new Map<DeviceId, { at: number; vp: { width: number; height: number } }>();
 
 export async function deviceInput(id: DeviceId, ev: DeviceInput): Promise<boolean> {
     const d = open.get(id);
@@ -451,13 +488,19 @@ export async function deviceInput(id: DeviceId, ev: DeviceInput): Promise<boolea
     // ⚠ EL TAMAÑO REAL, NO EL DE FÁBRICA. Conectado por CDP a un navegador que ya existe, `viewportSize()` es null y caía
     // al Pixel 7 (412×839), pero la ventana del contenedor mide 412×892: cada clic quedaba ~6% más arriba y erraba los
     // botones (medido el 2026-10-08: «Validar pre aprobado» en 700–746 px, el clic en 680). Se mide en la página.
-    const vp = await d.page.evaluate(() => ({ width: window.innerWidth, height: window.innerHeight })).catch(() => null)
-        ?? d.page.viewportSize() ?? { width: PHONE.viewport.width, height: PHONE.viewport.height };
+    const cached = viewportCache.get(id);
+    const vp = cached && Date.now() - cached.at < 1000 ? cached.vp
+        : (await d.page.evaluate(() => ({ width: window.innerWidth, height: window.innerHeight })).catch(() => null)
+            ?? d.page.viewportSize() ?? { width: PHONE.viewport.width, height: PHONE.viewport.height });
+    viewportCache.set(id, { at: cached && cached.vp === vp ? cached.at : Date.now(), vp });
     const at = (x: number, y: number) => [Math.round(Math.min(1, Math.max(0, x)) * vp.width), Math.round(Math.min(1, Math.max(0, y)) * vp.height)] as const;
     if (ev.type === 'click') { const [x, y] = at(ev.x, ev.y); await d.page.mouse.click(x, y); }
     else if (ev.type === 'key') await d.page.keyboard.press(ev.key);
     else if (ev.type === 'text') await d.page.keyboard.type(ev.text);
     else if (ev.type === 'wheel') { const [x, y] = at(ev.x, ev.y); await d.page.mouse.move(x, y); await d.page.mouse.wheel(0, ev.dy); }
+    else if (ev.type === 'down') { const [x, y] = at(ev.x, ev.y); await d.page.mouse.move(x, y); await d.page.mouse.down(); }
+    else if (ev.type === 'move') { const [x, y] = at(ev.x, ev.y); await d.page.mouse.move(x, y); }
+    else if (ev.type === 'up') { const [x, y] = at(ev.x, ev.y); await d.page.mouse.move(x, y); await d.page.mouse.up(); }
     return true;
 }
 

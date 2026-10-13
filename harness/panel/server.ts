@@ -18,7 +18,7 @@ import { MockSupervisor, MOCKS as MOCK_REGISTRY } from './mocks.ts';
 import { advisorSession } from '../../connectors/advisor/session.ts';
 import { envData, type AutofillData } from '../pkg/autofill.ts';
 import { identityWithoutProviderNotice } from '../pkg/config.ts';
-import { openDevice, openDevices, setDeviceLogger, prewarmDevices, warmDevice, watchNavigation, watchRequests, deviceGoto, deviceReload, deviceText, deviceEval, deviceOpenedAt, deviceState, deviceShot, deviceInput, deviceTap, deviceAdvance, deviceStream, closeDevice, closeAllDevices, SELENIUM_BOXES, type DeviceId, type DeviceInput, type DeviceSession } from './devices.ts';
+import { openDevice, openDevices, setDeviceLogger, prewarmDevices, warmDevice, watchNavigation, watchRequests, deviceGoto, deviceReload, deviceText, deviceEval, deviceOpenedAt, deviceState, deviceShot, deviceInput, deviceTap, deviceAdvance, deviceStream, deviceBusyWatch, closeDevice, closeAllDevices, SELENIUM_BOXES, type DeviceId, type DeviceInput, type DeviceSession } from './devices.ts';
 import { vpnDev, type VpnStatus } from '../pkg/vpn.ts';
 import { homedir } from 'node:os';
 
@@ -2078,7 +2078,7 @@ connect();
         // Lo que tocás en el celular del panel llega acá: un clic, una tecla, texto o la rueda.
         if (action === 'input' && req.method === 'POST') {
             const ev = await readBody(req) as DeviceInput;
-            const okType = ['click', 'key', 'text', 'wheel'].includes(String(ev?.type));
+            const okType = ['click', 'key', 'text', 'wheel', 'down', 'move', 'up'].includes(String(ev?.type));
             if (!okType) return json(res, 400, { ok: false, detail: 'evento desconocido' });
             const done = await deviceInput(id, ev).catch((e) => { console.error('device input:', (e as Error).message); return false; });
             return json(res, 200, { ok: done, ...deviceState(id) });
@@ -2463,17 +2463,18 @@ server.on('upgrade', (req, socket) => {
         }
         ws.sendBinary(jpeg);
     };
+    const unwatchBusy = deviceBusyWatch(id, (busy) => ws.sendText(JSON.stringify({ type: 'busy', busy })));
     let stop: (() => void) | null = null, gone = false;
     void deviceStream(id, send, () => ws.close()).then((s) => { if (!s) ws.close(); else if (gone) s(); else stop = s; }).catch(() => ws.close());
     ws.onText((text) => {
         let ev: DeviceInput;
         try { ev = JSON.parse(text); } catch { return; }
-        if (!['click', 'key', 'text', 'wheel'].includes(String(ev?.type))) return;
+        if (!['click', 'key', 'text', 'wheel', 'down', 'move', 'up'].includes(String(ev?.type))) return;
         const prev = inputQueue.get(id) ?? Promise.resolve();
         const next = prev.then(() => deviceInput(id, ev)).catch((e) => console.error('device input:', (e as Error).message));
         inputQueue.set(id, next);
     });
-    ws.onClose(() => { gone = true; stop?.(); if (flushTimer) clearInterval(flushTimer); });
+    ws.onClose(() => { gone = true; stop?.(); unwatchBusy?.(); if (flushTimer) clearInterval(flushTimer); });
 });
 
 server.listen(PORT, HOST, () => {
