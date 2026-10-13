@@ -2053,11 +2053,18 @@ connect();
         // La pantalla en vivo como video MJPEG: un `<img>` la muestra sola. Cada cuadro llega cuando la pantalla cambia.
         if (action === 'stream') {
             res.writeHead(200, { 'content-type': 'multipart/x-mixed-replace; boundary=frame', 'cache-control': 'no-store', connection: 'keep-alive' });
+            // ⚠ CHROME PINTA EL MJPEG UN CUADRO ATRASADO: una parte se muestra recién cuando empieza la SIGUIENTE. Con la
+            // pantalla quieta, el último cuadro no se veía nunca y el panel quedaba en el anterior (el esqueleto de la
+            // cuota inicial con el formulario ya cargado, 2026-10-13). Medido en Chromium sin ventana con dos cuadros y
+            // silencio: separador antes o después, se ve el primero; repitiendo el último, se ve el último. Así que cada
+            // cuadro se repite una vez, salvo que ya haya llegado otro.
+            let pending: NodeJS.Timeout | null = null;
+            const part = (jpeg: Buffer) => { if (res.writableEnded) return; res.write(`--frame\r\nContent-Type: image/jpeg\r\nContent-Length: ${jpeg.length}\r\n\r\n`); res.write(jpeg); res.write('\r\n'); };
             const stop = await deviceStream(id,
-                (jpeg) => { if (res.writableEnded) return; res.write(`--frame\r\nContent-Type: image/jpeg\r\nContent-Length: ${jpeg.length}\r\n\r\n`); res.write(jpeg); res.write('\r\n'); },
+                (jpeg) => { part(jpeg); if (pending) clearTimeout(pending); pending = setTimeout(() => { pending = null; part(jpeg); }, 150); },
                 () => { if (!res.writableEnded) res.end(); }).catch(() => null);
             if (!stop) { res.end(); return; }
-            req.on('close', stop);
+            req.on('close', () => { if (pending) clearTimeout(pending); stop(); });
             return;
         }
         if (action === 'shot') {

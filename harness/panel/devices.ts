@@ -398,6 +398,15 @@ export async function deviceStream(id: DeviceId, frame: Frame, end: () => void):
         // El doble del tamaño de la pantalla: nítido en una pantalla retina sin mandar más de lo que se ve.
         await cdp.send('Page.startScreencast', { format: 'jpeg', quality: 70, maxWidth: SCREEN.width * 2, maxHeight: SCREEN.height * 2 });
         d.context.on('close', () => { void c.stop(); });
+        // Después de navegar —también dentro de la app, que no dispara `load`—, Chromium no siempre repinta (una página que
+        // se dibuja igual o que termina de cargar sin cambios no manda cuadro): se fuerza una foto para que el panel no quede en la pantalla anterior.
+        d.page.on('framenavigated', (fr) => {
+            if (fr !== d.page.mainFrame()) return;
+            setTimeout(() => {
+                if (casts.get(id) !== c) return;
+                void d.page.screenshot({ type: 'jpeg', quality: 70 }).then((shot) => { c.last = shot; for (const v of c.viewers) v.frame(shot); }).catch(() => { });
+            }, 800);
+        });
         casts.set(id, c);
         cast = c;
     }
