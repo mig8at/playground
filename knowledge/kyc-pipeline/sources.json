@@ -1,0 +1,184 @@
+{
+  "version": 1,
+  "title": "Pipeline de KYC por comercio",
+  "summary": "Cómo kyc_pipeline_allieds elige por comercio entre la cascada dentro de legacy-backend y el pipeline de customer-profiling-service sobre Temporal, y qué cambia en OTP, datos personales y kyc-processing.",
+  "reviewedAt": "2026-10-13T17:00:00-05:00",
+  "sources": [
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/OnboardingV2/App/Services/ResolveKycFlowService.php",
+      "commit": "1dc937f31999aa1ff37f68f1d9ec2b780e4a8dbc",
+      "blob": "fe289ca39ed4f3d69549fc2aa654a26a73275d13",
+      "sections": [
+        "un-setting-elige-el-camino-comercio-por-comercio"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/CommonsV1/App/Services/SettingsService.php",
+      "commit": "1dc937f31999aa1ff37f68f1d9ec2b780e4a8dbc",
+      "blob": "d0a66897f8d99b10af852495e0c8a1024f15b83c",
+      "sections": [
+        "un-setting-elige-el-camino-comercio-por-comercio"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/OnboardingV2/routes/api.php",
+      "commit": "1dc937f31999aa1ff37f68f1d9ec2b780e4a8dbc",
+      "blob": "9fb8e5fd7c8918a4c18f556363bbd9cd4b582207",
+      "sections": [
+        "un-setting-elige-el-camino-comercio-por-comercio",
+        "que-cambia-en-el-wizard-segun-el-camino",
+        "el-servicio-recorre-un-grafo-por-tipo-y-pais"
+      ]
+    },
+    {
+      "repo": "frontend-monorepo",
+      "path": "apps/loan-request-wizard/app/server/services/reference-data.server.ts",
+      "commit": "3394193660a2ab7d2d923dda12421a5bdd867414",
+      "blob": "d552e2bc84c2c268f2020d89c5bca6c504067c75",
+      "sections": [
+        "un-setting-elige-el-camino-comercio-por-comercio"
+      ]
+    },
+    {
+      "repo": "frontend-monorepo",
+      "path": "modules/loan-request-wizard/loan-application-form/src/lib/infrastructure/kyc-flow.repository.ts",
+      "commit": "3394193660a2ab7d2d923dda12421a5bdd867414",
+      "blob": "fc7038ab181ae841a706fb91f2499f900837d0be",
+      "sections": [
+        "un-setting-elige-el-camino-comercio-por-comercio"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/OnboardingV2/App/Services/ValidateOtpAuthService.php",
+      "commit": "1dc937f31999aa1ff37f68f1d9ec2b780e4a8dbc",
+      "blob": "b77e59c66334fa463ed381dae1fc3cfadcace40f",
+      "sections": [
+        "que-cambia-en-el-wizard-segun-el-camino"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/OnboardingV2/App/Services/StorePersonalInfoService.php",
+      "commit": "1dc937f31999aa1ff37f68f1d9ec2b780e4a8dbc",
+      "blob": "097aa46123d46ebc7a07a3da36d7850b1596ee00",
+      "sections": [
+        "que-cambia-en-el-wizard-segun-el-camino"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/Onboarding/App/Services/OnboardingService.php",
+      "commit": "1dc937f31999aa1ff37f68f1d9ec2b780e4a8dbc",
+      "blob": "749156f36d0e71fa2aec34290234c548a1eb2cc4",
+      "sections": [
+        "que-cambia-en-el-wizard-segun-el-camino",
+        "antes-de-validar-algo-de-identidad-o-centrales"
+      ]
+    },
+    {
+      "repo": "frontend-monorepo",
+      "path": "apps/loan-request-wizard/app/routes/loan-application-form/otp-verification.tsx",
+      "commit": "3394193660a2ab7d2d923dda12421a5bdd867414",
+      "blob": "d13077832d91b508264c411a9dc78cc0504e66e2",
+      "sections": [
+        "que-cambia-en-el-wizard-segun-el-camino"
+      ]
+    },
+    {
+      "repo": "frontend-monorepo",
+      "path": "apps/loan-request-wizard/app/routes/loan-application-form/loan-request-form.tsx",
+      "commit": "3394193660a2ab7d2d923dda12421a5bdd867414",
+      "blob": "2c0efeea3b6a9b25dce53fca1b25b7d1abb3cca6",
+      "sections": [
+        "que-cambia-en-el-wizard-segun-el-camino"
+      ]
+    },
+    {
+      "repo": "frontend-monorepo",
+      "path": "apps/loan-request-wizard/app/routes/loan-application-form/kyc-processing.tsx",
+      "commit": "3394193660a2ab7d2d923dda12421a5bdd867414",
+      "blob": "310912ecce6f98a21e4a173cf26619658023dcc3",
+      "sections": [
+        "que-cambia-en-el-wizard-segun-el-camino"
+      ]
+    },
+    {
+      "repo": "frontend-monorepo",
+      "path": "apps/loan-request-wizard/app/server/services/kyc-pipeline.server.ts",
+      "commit": "3394193660a2ab7d2d923dda12421a5bdd867414",
+      "blob": "f58848ce800f51acc9350ba8846afb3d80d084e9",
+      "sections": [
+        "que-cambia-en-el-wizard-segun-el-camino"
+      ]
+    },
+    {
+      "repo": "frontend-monorepo",
+      "path": "modules/loan-request-wizard/loan-application-form/src/lib/infrastructure/personal-info.repository.ts",
+      "commit": "3394193660a2ab7d2d923dda12421a5bdd867414",
+      "blob": "f9211cd36673925be48bb15e642c41c068e2ba05",
+      "sections": [
+        "que-cambia-en-el-wizard-segun-el-camino",
+        "antes-de-validar-algo-de-identidad-o-centrales"
+      ]
+    },
+    {
+      "repo": "customer-profiling-service",
+      "path": "internal/core/workflows/legacykycpipeline/workflow.go",
+      "commit": "b17bd10260f339df256b14693788dac2293a7cb2",
+      "blob": "d46785163313d8edcbca8e3866a53719a0eca78d",
+      "sections": [
+        "el-servicio-recorre-un-grafo-por-tipo-y-pais",
+        "antes-de-validar-algo-de-identidad-o-centrales"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/OnboardingV2/App/Services/ResolveKycRequirementsService.php",
+      "commit": "1dc937f31999aa1ff37f68f1d9ec2b780e4a8dbc",
+      "blob": "a97b4f134c8d6e9e8ea2e8cfe5a8c5ba512ad70a",
+      "sections": [
+        "el-servicio-recorre-un-grafo-por-tipo-y-pais"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/OnboardingV2/App/Services/CompleteKycService.php",
+      "commit": "1dc937f31999aa1ff37f68f1d9ec2b780e4a8dbc",
+      "blob": "2a665ba1028fd89c96b253348da48aa71f9899e7",
+      "sections": [
+        "el-servicio-recorre-un-grafo-por-tipo-y-pais"
+      ]
+    },
+    {
+      "repo": "customer-profiling-service",
+      "path": "internal/infra/storage/postgres/pipeline_repository.go",
+      "commit": "b17bd10260f339df256b14693788dac2293a7cb2",
+      "blob": "8ba0e004dbaaf3a28417df664f114831f3d14db6",
+      "sections": [
+        "el-servicio-recorre-un-grafo-por-tipo-y-pais"
+      ]
+    },
+    {
+      "repo": "customer-profiling-service",
+      "path": "internal/infra/storage/postgres/migrations/000002_default_pipeline_cascade.up.sql",
+      "commit": "b17bd10260f339df256b14693788dac2293a7cb2",
+      "blob": "90c288ac3d18a6a4718368593eaf91c60c2bfd59",
+      "sections": [
+        "el-servicio-recorre-un-grafo-por-tipo-y-pais"
+      ]
+    },
+    {
+      "repo": "customer-profiling-service",
+      "path": "internal/infra/storage/postgres/migrations/000005_pipeline_type_by_partner.up.sql",
+      "commit": "b17bd10260f339df256b14693788dac2293a7cb2",
+      "blob": "185ab82281dad5ce00deee86236d69d530ced659",
+      "sections": [
+        "el-servicio-recorre-un-grafo-por-tipo-y-pais"
+      ]
+    }
+  ]
+}
