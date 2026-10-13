@@ -109,6 +109,9 @@ func runSQL(args []string) int {
 	query := fs.String("query", "", "SELECT o WITH, una sola sentencia")
 	asJSON := fs.Bool("json", false, "filas en JSON, con el ambiente y la fuente")
 	asCSV := fs.Bool("csv", false, "filas en CSV")
+	asMD := fs.Bool("md", false, "la consulta y lo que dio, listos para pegar en una tarea (más la tabla en Markdown)")
+	block := fs.String("bloque", "", "id o slug de una tarea del tablero: agrega la consulta y lo que dio como bloque de su pila")
+	title := fs.String("titulo", "", "con --bloque: el título del bloque (la conclusión en una línea); sin él, se arma de la consulta")
 	if fs.Parse(args) != nil {
 		return 2
 	}
@@ -127,7 +130,24 @@ func runSQL(args []string) int {
 		return fail(1, "consulta en %s: %v", *target, err)
 	}
 	columns := dbsql.Columns(rows)
+	if *block != "" {
+		t := *title
+		if t == "" {
+			t = fmt.Sprintf("Consulta en %s: %s", *target, strings.TrimSuffix(sqlResult(columns, rows), "."))
+		}
+		if err := addTaskBlock(*block, t, sqlEvidence(*target, *query, columns, rows)); err != nil {
+			fmt.Fprintf(os.Stderr, "✘ el bloque NO se agregó a la tarea %s: %v\n", *block, err)
+			return 1
+		}
+		fmt.Fprintf(os.Stderr, "▸ bloque agregado a la pila de la tarea %s\n", *block)
+	}
 	switch {
+	case *asMD:
+		fmt.Print(sqlEvidence(*target, *query, columns, rows))
+		if t := sqlTableMD(columns, rows); t != "" {
+			fmt.Print("\n" + t)
+		}
+		return 0
 	case *asJSON:
 		if rows == nil {
 			rows = []dbsql.Row{}
