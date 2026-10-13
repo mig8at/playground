@@ -18,7 +18,7 @@ import { advisorSession } from '../../connectors/advisor/session.ts';
 import { credentialsFor } from '../../connectors/auth/env.ts';
 import { envData, type AutofillData } from '../pkg/autofill.ts';
 import { identityWithoutProviderNotice } from '../pkg/config.ts';
-import { openDevice, openDevices, setDeviceLogger, prewarmDevices, warmDevice, watchNavigation, watchRequests, deviceGoto, deviceReload, deviceText, deviceEval, deviceOpenedAt, deviceState, deviceShot, deviceInput, deviceTap, deviceAdvance, closeDevice, closeAllDevices, SELENIUM_BOXES, type DeviceId, type DeviceInput, type DeviceSession } from './devices.ts';
+import { openDevice, openDevices, setDeviceLogger, prewarmDevices, warmDevice, watchNavigation, watchRequests, deviceGoto, deviceReload, deviceText, deviceEval, deviceOpenedAt, deviceState, deviceShot, deviceInput, deviceTap, deviceAdvance, deviceStream, closeDevice, closeAllDevices, SELENIUM_BOXES, type DeviceId, type DeviceInput, type DeviceSession } from './devices.ts';
 import { vpnDev, type VpnStatus } from '../pkg/vpn.ts';
 import { homedir } from 'node:os';
 
@@ -2033,7 +2033,7 @@ connect();
     // `POST /api/device/client/open` arma el pedido de la tienda del panel —la misma URL base64 que usa
     // la corrida (`dbops ecommerce-url`)— y abre el checkout en el contexto del cliente. Por ahora sólo
     // navega: el bypass del OTP y la siembra del buró vienen después.
-    const deviceRoute = /^\/api\/device\/(client|advisor)(?:\/(open|state|shot|close|input|reload|tap|advance|advance-all|advance-stop))?$/.exec(path);
+    const deviceRoute = /^\/api\/device\/(client|advisor)(?:\/(open|state|shot|stream|close|input|reload|tap|advance|advance-all|advance-stop))?$/.exec(path);
     if (deviceRoute) {
         const id = deviceRoute[1] as DeviceId, action = deviceRoute[2] || 'state';
         if (action === 'open' && req.method === 'POST') {
@@ -2047,6 +2047,16 @@ connect();
             deviceLog(id, '↻ página recargada a mano');
             const ok = await deviceReload(id).catch((e) => { deviceLog(id, '✗ no recargó: ' + (e as Error).message.split('\n')[0]); return false; });
             return json(res, 200, { ok, ...deviceState(id) });
+        }
+        // La pantalla en vivo como video MJPEG: un `<img>` la muestra sola. Cada cuadro llega cuando la pantalla cambia.
+        if (action === 'stream') {
+            res.writeHead(200, { 'content-type': 'multipart/x-mixed-replace; boundary=frame', 'cache-control': 'no-store', connection: 'keep-alive' });
+            const stop = await deviceStream(id,
+                (jpeg) => { if (res.writableEnded) return; res.write(`--frame\r\nContent-Type: image/jpeg\r\nContent-Length: ${jpeg.length}\r\n\r\n`); res.write(jpeg); res.write('\r\n'); },
+                () => { if (!res.writableEnded) res.end(); }).catch(() => null);
+            if (!stop) { res.end(); return; }
+            req.on('close', stop);
+            return;
         }
         if (action === 'shot') {
             const png = await deviceShot(id).catch(() => null);

@@ -318,6 +318,50 @@ export async function deviceShot(id: DeviceId): Promise<Buffer | null> {
     return d ? d.page.screenshot({ type: 'jpeg', quality: 70 }) : null;
 }
 
+/* ── LA PANTALLA EN VIVO (CDP screencast) ──────────────────────────────────────────────────────────────────────
+ * Chromium manda un cuadro cada vez que la pantalla CAMBIA (no cada X segundos), así que se ve fluido y no se paga
+ * nada con la pantalla quieta. Reemplaza a la foto cada 0,6 s (2026-10-13). Un iframe no sirve: el wizard no se deja
+ * embeber (`X-Frame-Options: DENY`) y abriría otra sesión en el navegador de quien mira, fuera del aislamiento y del
+ * control del harness. La transmisión arranca con el primero que mira y para con el último que se va. */
+type Frame = (jpeg: Buffer) => void;
+const casts = new Map<DeviceId, { openedAt: number; viewers: Set<{ frame: Frame; end: () => void }>; last?: Buffer; stop: () => Promise<void> }>();
+export async function deviceStream(id: DeviceId, frame: Frame, end: () => void): Promise<(() => void) | null> {
+    const d = open.get(id);
+    if (!d) return null;
+    let cast = casts.get(id);
+    if (cast && cast.openedAt !== d.openedAt) { await cast.stop(); cast = undefined; }   // es otro celular: se reinicia
+    if (!cast) {
+        const cdp = await d.context.newCDPSession(d.page);
+        const c = { openedAt: d.openedAt, viewers: new Set<{ frame: Frame; end: () => void }>(), last: undefined as Buffer | undefined,
+            stop: async () => {
+                casts.delete(id);
+                for (const v of c.viewers) v.end();
+                await cdp.send('Page.stopScreencast').catch(() => { });
+                await cdp.detach().catch(() => { });
+            } };
+        cdp.on('Page.screencastFrame', (f: { data: string; sessionId: number }) => {
+            void cdp.send('Page.screencastFrameAck', { sessionId: f.sessionId }).catch(() => { });
+            c.last = Buffer.from(f.data, 'base64');
+            for (const v of c.viewers) v.frame(c.last);
+        });
+        // El doble del tamaño de la pantalla: nítido en una pantalla retina sin mandar más de lo que se ve.
+        await cdp.send('Page.startScreencast', { format: 'jpeg', quality: 70, maxWidth: SCREEN.width * 2, maxHeight: SCREEN.height * 2 });
+        d.context.on('close', () => { void c.stop(); });
+        casts.set(id, c);
+        cast = c;
+    }
+    const viewer = { frame, end };
+    cast.viewers.add(viewer);
+    // Quien llega ve ya la pantalla de ahora: con la pantalla quieta Chromium no manda nada nuevo.
+    if (cast.last) frame(cast.last);
+    else { const shot = await d.page.screenshot({ type: 'jpeg', quality: 70 }).catch(() => null); if (shot) frame(shot); }
+    const mine = cast;
+    return () => {
+        mine.viewers.delete(viewer);
+        if (!mine.viewers.size && casts.get(id) === mine) void mine.stop();
+    };
+}
+
 export async function closeDevice(id: DeviceId): Promise<void> {
     const d = open.get(id);
     open.delete(id);

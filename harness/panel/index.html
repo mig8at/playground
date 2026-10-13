@@ -3185,7 +3185,6 @@
     // ── El navegador real del cliente ─────────────────────────────────────────────────────────────
     // La tienda queda a la vista; «Pagar con Creditop» REDIRIGE al celular del cliente, que abre el
     // checkout en un contexto de Chromium aislado (`/api/device/client/open`).
-    let liveTimer = null;
     // `loading` es la espera con el loader; `status` un mensaje sin él (un error).
     function setClientMode(mode, text = '', view = '') {
       $('clientLive').hidden = mode !== 'live' || !!view;
@@ -3199,13 +3198,11 @@
       $('clientClose').hidden = mode === 'idle';
       if (mode === 'idle' || mode === 'loading') $('clientOtp').hidden = true;
       if (mode !== 'idle') $('clientApp').hidden = true;
-      if (liveTimer) { clearInterval(liveTimer); liveTimer = null; }
       $('clientActions').hidden = mode !== 'live';
-      if (mode === 'live' && !view) {
-        // La pantalla en vivo: una imagen nueva apenas carga la anterior (sin pedidos encimados), al menos cada 0,6 s.
-        const tick = () => { $('clientLive').src = '/api/device/client/shot?t=' + Date.now(); };
-        tick(); liveTimer = setInterval(tick, 600);
-      }
+      // La pantalla en vivo: un video MJPEG (`/stream`) que manda un cuadro cada vez que la pantalla cambia. Fuera de
+      // `live` se suelta, y con eso el servidor corta la transmisión.
+      if (mode === 'live' && !view) $('clientLive').src = '/api/device/client/stream?t=' + Date.now();   // cada apertura, su transmisión
+      else $('clientLive').removeAttribute('src');
       requestAnimationFrame(fitShop);
     }
     async function openClientBrowser() {
@@ -3238,7 +3235,7 @@
     }
     // ── El navegador real del asesor ──────────────────────────────────────────────────────────────
     // `idle` = la invitación a darle ▶ a un comercio; `loading` = abriendo; `live` = su noVNC.
-    let advisorTicker = null, handoffPoll = null, advisorLiveTimer = null;
+    let advisorTicker = null, handoffPoll = null;
     function setAdvisorMode(mode, text = '', view = '') {
       $('advisorIdle').hidden = mode !== 'idle';
       if (advisorTicker) { clearInterval(advisorTicker); advisorTicker = null; }
@@ -3252,11 +3249,8 @@
       $('advisorActions').hidden = mode !== 'live';
       if (mode !== 'live' || !view) $('advisorVnc').removeAttribute('src');
       else if ($('advisorVnc').getAttribute('src') !== view) $('advisorVnc').src = view;
-      if (advisorLiveTimer) { clearInterval(advisorLiveTimer); advisorLiveTimer = null; }
-      if (mode === 'live' && !view) {
-        const tick = () => { $('advisorLive').src = '/api/device/advisor/shot?t=' + Date.now(); };
-        tick(); advisorLiveTimer = setInterval(tick, 600);
-      }
+      if (mode === 'live' && !view) $('advisorLive').src = '/api/device/advisor/stream?t=' + Date.now();
+      else $('advisorLive').removeAttribute('src');
       $('advisorStatus').hidden = mode !== 'loading' && mode !== 'status';
       $('advisorSpinner').hidden = mode !== 'loading';
       $('advisorStatusText').textContent = text;
