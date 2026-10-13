@@ -109,6 +109,18 @@ máquina, no en Docker, así que su `AWS_ENDPOINT` va a `http://localhost:4566` 
 `host.docker.internal`). Sus `AWS_*` estaban VACÍOS, o sea que las subidas del admin —el logo del
 comercio, el banner, las imágenes de la pantalla de bienvenida— no podían funcionar.
 
+## La cola del backend local es `sync`, y el cobro viejo de la cuota inicial necesita una real
+
+`initial-fee-payment` despacha `StatusCheck` (`app/Jobs/Lenders/Wompi/StatusCheck.php`), que mientras Wompi diga
+PENDING se vuelve a despachar «en 5 s». Con `QUEUE_CONNECTION=sync` la espera no existe: se llama a sí mismo dentro
+del mismo pedido hasta agotar la pila (500 «Maximum call stack size»). `bin/queue-local on` (o `make harness-queue
+A=on`) pasa la cola a Redis —ya corre en Docker— y levanta un `queue:work` en el contenedor; `off` vuelve a `sync`.
+El panel lo hace solo: lo prende al abrir un celular de un comercio con `initial_fee` y lo apaga con el siguiente
+que no lo tiene o al cerrarse. ⚠ Con la cola en redis y sin worker, los trabajos se encolan y nadie los corre:
+`make harness-queue` lo dice. Lo que corrió el worker: `docker exec legacy-backend-laravel.test-1 tail
+/tmp/harness-queue-worker.log`. ⚠ El worker tiene que escribir a un archivo: lanzado con `docker exec -d` sin
+redirigir, moría al imprimir su primera línea.
+
 ## Local monohilo: una línea y las corridas en paralelo dejan de hacer fila
 
 Sail sirve el backend con `artisan serve`, que es el servidor embebido de PHP: **una petición a la vez**.

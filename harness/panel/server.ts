@@ -850,6 +850,26 @@ function postHogHint(ureq: number | string, target: string, since: Date): string
  *
  *     "peru": { "branch_hash": "50e007e4", "por_target": { "qa": "a8221e67" } }
  */
+/* LA COLA REAL DEL BACKEND LOCAL, sólo para la cuota inicial vieja (`bin/queue-local`). Con la cola en `sync`, el cobro
+ * viejo (`initial-fee-payment`) se consulta a sí mismo sin fin y da 500; con Redis y un worker anda como en producción.
+ * Se prende al abrir un celular de un comercio con `initial_fee` y se apaga con el siguiente que no lo tiene, o al
+ * cerrar el panel. Devuelve qué hizo, para la consola (vacío si no cambió nada). */
+let queueOnByPanel = false;
+function queueLocal(action: 'on' | 'off'): Promise<string> {
+    return new Promise((ok) => execFile(join(ROOT, 'bin', 'queue-local'), [action], { timeout: 20_000 },
+        (_e, out, err) => ok(String(out || err || '').trim().split('\n')[0])));
+}
+async function queueForMerchant(slug: string, t: string): Promise<string> {
+    if (t !== 'local') return '';
+    const hash = branchHashForSlug(slug, t);
+    const flags = hash ? await dbopsJson(['merchant-flags', hash], t) : null;
+    const want = !!flags?.flags?.initial_fee;
+    if (want === queueOnByPanel) return '';
+    const out = await queueLocal(want ? 'on' : 'off');
+    queueOnByPanel = want && out.startsWith('✓');
+    return want ? `cuota inicial vieja prendida en el comercio → ${out}` : `cola del backend local de vuelta a sync → ${out}`;
+}
+
 function branchHashForSlug(slug: string, target = 'local'): string {
     try {
         const j = JSON.parse(readFileSync(join(ROOT, '.flows.json'), 'utf8'));
@@ -2328,6 +2348,8 @@ connect();
             phase('pedido, limpieza, OTP y centrales');
             const signature = orderEnv.E2E_MERCHANT_SIGNATURE ? ` · firma ${orderEnv.E2E_MERCHANT_SIGNATURE === 'valid' ? 'válida (sin OTP)' : 'inválida'}` : '';
             startDeviceLog(`${b.slug} (${t}) · tienda → cliente · ${auto ? 'auto-onboarding' : 'ecommerce'}${signature} · cel ${phone}`);
+            const queueNote = await queueForMerchant(String(b.slug || ''), t);
+            if (queueNote) deviceLog('panel', queueNote);
             if (bypass?.ok) deviceBypass.set('client', { target: t, puesto: bypass.puesto });
             if (bypass?.ok) deviceOtp.set('client', phone.slice(-4)); else deviceOtp.delete('client');
             const otp = bypass?.ok ? { otp: phone.slice(-4), otpBypass: bypass.puesto?.comodin ? 'comodín' : 'agregado' }
@@ -2421,6 +2443,8 @@ connect();
                 stored = null;   // la sesión vieja trae fijada la sucursal anterior: se entra de nuevo
             }
             startDeviceLog(`${slug} (${t}) · celular del asesor · ${account} · sucursal ${hash}`);
+            const queueNote = await queueForMerchant(slug, t);
+            if (queueNote) deviceLog('panel', queueNote);
             deviceLog('panel', `asesor de prueba ${account}: ${stored ? 'sesión guardada' : 'entra con el login del conector'}${assigned ? ' · ' + assigned : ''}`);
             const scrubbed = await scrubbing;
             if (t !== 'prod') deviceLog('panel', scrubbed ? `cliente ${casePhone}: ${scrubSummary(scrubbed)} — arranca sin créditos anteriores` : `cliente ${casePhone}: no pude limpiarlo; si tiene un crédito activo, la regla de cupo lo va a rechazar`);
@@ -2599,4 +2623,17 @@ server.listen(PORT, HOST, () => {
     }
 });
 // Al cerrar el panel se apagan SÓLO los mocks que levantó él; los que estaban arriba siguen.
-for (const sig of ['SIGINT', 'SIGTERM'] as const) process.on(sig, () => { mockSupervisor.shutdown(); void closeAllDevices(); setTimeout(() => process.exit(0), 300); });
+// Al arrancar se adopta lo que haya quedado de un panel anterior que se cerró de golpe: si la cola local está en redis,
+// el próximo comercio sin cuota inicial vieja la devuelve a sync (y si quedó sin worker, se devuelve ya).
+try {
+    const st = execFileSync(join(ROOT, 'bin', 'queue-local'), ['status'], { timeout: 20_000, encoding: 'utf8' });
+    queueOnByPanel = /QUEUE_CONNECTION=redis/.test(st);
+} catch (e) {
+    if (/QUEUE_CONNECTION=redis/.test(String((e as { stdout?: string }).stdout ?? ''))) void queueLocal('off');
+}
+for (const sig of ['SIGINT', 'SIGTERM'] as const) process.on(sig, () => {
+    mockSupervisor.shutdown(); void closeAllDevices();
+    // La cola real se apaga con el panel: si quedara en redis sin worker, los trabajos del local se encolarían y nadie los correría.
+    if (queueOnByPanel) { try { execFileSync(join(ROOT, 'bin', 'queue-local'), ['off'], { timeout: 20_000 }); } catch { /* el worker igual se va solo a las 4 h */ } }
+    setTimeout(() => process.exit(0), 300);
+});

@@ -408,6 +408,9 @@ harness-bureaus-reset: ## @har ⚠ todos los burós responden con los valores po
 harness-mocks: ## @har levanta los mocks del canal QR (Bancolombia :8104 + Corbeta :8103)
 	@cd harness && bin/mock-bancolombia start && bin/mock-corbeta start
 
+harness-queue: ## @har la COLA REAL del backend local (Redis + worker) para el cobro viejo de la cuota inicial: con `sync` se consulta a sí mismo sin fin y da 500. El panel la prende sola con un comercio con `initial_fee` y la apaga al cerrarse. A=on|off|status (por defecto status)
+	@cd harness && bin/queue-local $(or $(A),status)
+
 harness-wompi: ## @har levanta el mock LOCAL de Wompi (:8112) — la pasarela de la cuota inicial: el backend le pregunta el estado del pago y el caminador «paga» ahí. Pide WOMPI_HOST=http://host.docker.internal:8112/v1 en el .env del backend (y `php artisan config:clear`)
 	@cd harness && node mock-wompi/server.mjs
 

@@ -11,7 +11,7 @@ jira_title: ""
 
 ## Pendientes
 
-- [ ] Poder correr en local el cobro viejo de la cuota inicial (`initial-fee-payment`): con la cola de Laravel en
+- [x] Poder correr en local el cobro viejo de la cuota inicial (`initial-fee-payment`): con la cola de Laravel en
   `sync` (local), el trabajo que consulta el estado en Wompi (`app/Jobs/Lenders/Wompi/StatusCheck.php:75`) se vuelve a
   despachar «en 5 s», pero `sync` ignora la espera y se llama sin fin hasta agotar la pila (HTTP 500 «Maximum call stack
   size»). Termina cuando ese camino corre en local sin tocar los demás (p. ej. ese trabajo en una cola asíncrona con su

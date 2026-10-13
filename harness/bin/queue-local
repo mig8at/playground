@@ -1,0 +1,63 @@
+#!/usr/bin/env bash
+# queue-local — la COLA REAL del backend local (Redis + un worker), sólo mientras hace falta.
+#
+# POR QUÉ: el local corre con `QUEUE_CONNECTION=sync`, y el cobro viejo de la cuota inicial
+# (`initial-fee-payment`) despacha un trabajo que le pregunta a Wompi y, si sigue PENDING, se vuelve a despachar
+# «en 5 s» (`app/Jobs/Lenders/Wompi/StatusCheck.php`). En `sync` la espera no existe: se llama a sí mismo dentro
+# del mismo pedido hasta agotar la pila (HTTP 500 «Maximum call stack size»), y el comprador nunca llega a pagar.
+# En producción la cola es asíncrona. Esto la deja igual en local, pero SÓLO mientras se prueba un comercio con
+# la cuota inicial vieja prendida (lo decide el panel): el resto del local sigue en `sync`, como siempre.
+#
+# Cómo: `QUEUE_CONNECTION=redis` en legacy-backend/.env (el backend lo relee en cada pedido: no hay config
+# cacheada) y un `queue:work` dentro del contenedor, con su PID en un archivo para bajarlo sin buscar por patrón.
+# `off` deja todo como estaba: `sync` y sin worker.
+#
+# USO:  bin/queue-local on | off | status
+#   env: LEGACY_BACKEND_DIR (~/Desktop/CREDITOP/github/legacy-backend) · E2E_BACKEND_CONTAINER (legacy-backend-laravel.test-1)
+set -euo pipefail
+
+DIR="${LEGACY_BACKEND_DIR:-$HOME/Desktop/CREDITOP/github/legacy-backend}"
+ENV_FILE="$DIR/.env"
+C="${E2E_BACKEND_CONTAINER:-legacy-backend-laravel.test-1}"
+PIDFILE=/tmp/harness-queue-worker.pid   # dentro del contenedor
+LOGFILE=/tmp/harness-queue-worker.log   # ídem: qué corrió el worker (`docker exec <contenedor> tail <archivo>`)
+
+current() { grep -E '^QUEUE_CONNECTION=' "$ENV_FILE" | tail -1 | cut -d= -f2- || true; }
+set_conn() {
+  if grep -qE '^QUEUE_CONNECTION=' "$ENV_FILE"; then
+    sed -i '' -E "s/^QUEUE_CONNECTION=.*/QUEUE_CONNECTION=$1/" "$ENV_FILE"
+  else
+    printf '\nQUEUE_CONNECTION=%s\n' "$1" >> "$ENV_FILE"
+  fi
+}
+worker_pid() { docker exec "$C" sh -c "p=\$(cat $PIDFILE 2>/dev/null) && kill -0 \"\$p\" 2>/dev/null && echo \"\$p\"" 2>/dev/null || true; }
+
+[ -f "$ENV_FILE" ] || { echo "✗ no existe $ENV_FILE (LEGACY_BACKEND_DIR)"; exit 2; }
+docker inspect -f '{{.State.Running}}' "$C" 2>/dev/null | grep -q true || { echo "✗ el contenedor $C no está corriendo"; exit 2; }
+
+case "${1:-status}" in
+  on)
+    pid=$(worker_pid)
+    if [ -z "$pid" ]; then
+      # --max-time: si nadie lo baja (el panel se cerró de golpe), el worker se va solo a las 4 h.
+      docker exec -d "$C" sh -c "echo \$\$ > $PIDFILE; exec php artisan queue:work redis --sleep=1 --tries=1 --max-time=14400 -v >> $LOGFILE 2>&1"
+      sleep 1
+      pid=$(worker_pid)
+      [ -n "$pid" ] || { echo "✗ el worker no arrancó (mirá: docker exec $C php artisan queue:work redis)"; exit 1; }
+    fi
+    set_conn redis
+    echo "✓ cola real: QUEUE_CONNECTION=redis · worker pid $pid en $C"
+    ;;
+  off)
+    set_conn sync
+    pid=$(worker_pid)
+    if [ -n "$pid" ]; then docker exec "$C" kill "$pid"; fi
+    echo "✓ cola sync (como siempre en local)${pid:+ · worker $pid bajado}"
+    ;;
+  status)
+    pid=$(worker_pid)
+    echo "QUEUE_CONNECTION=$(current) · worker: ${pid:-ninguno}"
+    if [ "$(current)" = redis ] && [ -z "$pid" ]; then echo "⚠ la cola es redis pero NO hay worker: los trabajos se encolan y nadie los corre. bin/queue-local off"; exit 1; fi
+    ;;
+  *) echo "uso: bin/queue-local on | off | status"; exit 2 ;;
+esac
