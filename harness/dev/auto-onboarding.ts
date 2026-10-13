@@ -62,7 +62,7 @@ const agilOldJobs = (doc: string) => {
     };
 };
 
-type Case = { id: string; what: string; name?: string; noBirth?: boolean; dictate: (doc: string) => Promise<unknown> };
+type Case = { id: string; what: string; name?: string; noBirth?: boolean; takenDoc?: boolean; dictate: (doc: string) => Promise<unknown> };
 
 const employed = (doc: string) => dictateEmployment(doc, 2_500_000, 'Empleado');
 const CASES: Case[] = [
@@ -75,6 +75,7 @@ const CASES: Case[] = [
     { id: 'tusdatos-no-coincide', what: 'sin empleo en Agil/Mareigua y TusDatos: el apellido no coincide', dictate: async (d) => { await dictate(d, 'agildata', AGIL_SIN_DATOS); await dictate(d, 'mareigua', MAREIGUA_SIN_DATOS); await dictate(d, 'tusdatos', tusdatos({ first_surname: 0 })); } },
     { id: 'fecha-no-coincide', what: 'sin empleo en Agil/Mareigua y TusDatos: la fecha de expedición no coincide', dictate: async (d) => { await dictate(d, 'agildata', AGIL_SIN_DATOS); await dictate(d, 'mareigua', MAREIGUA_SIN_DATOS); await dictate(d, 'tusdatos', tusdatos({ issue_date: 0 })); } },
     { id: 'sin-nacimiento', what: 'la tienda no manda la fecha de nacimiento (la exige la sucursal si tiene Welli, Credifamilia…)', noBirth: true, dictate: employed },
+    { id: 'cedula-de-otro', what: 'el pedido trae un celular nuevo con la cédula de un cliente que ya existe con otro celular', takenDoc: true, dictate: employed },
     { id: 'nombre-corto', what: 'el pedido trae un nombre de 2 letras (el backend exige 3)', name: 'QA PRUEBA AUTO', dictate: employed },
 ];
 
@@ -95,8 +96,17 @@ const describe = (path: string | null): string => {
 console.log(`\n  AUTO-ONBOARDING · ${cases.length} caso(s) · front ${FRONT} · comercio ${MERCHANT} · target local\n`);
 const rows: string[] = [];
 for (const [i, c] of cases.entries()) {
-    const doc = String(1_236_000_000 + stamp * 100 + i);
+    let doc = String(1_236_000_000 + stamp * 100 + i);
     const phone = `310${String(5_000_000 + stamp * 10 + i).slice(-7)}`;
+    if (c.takenDoc) {
+        // La cédula de un comprador que dejó una corrida anterior de este mismo runner (con SU celular): así el
+        // caso no depende de una persona real de la copia de la base.
+        const taken = await one<{ document_number: string; phone: string }>(
+            "SELECT document_number, cell_phone AS phone FROM users WHERE document_number LIKE '1236%' AND cell_phone IS NOT NULL AND cell_phone <> ? ORDER BY id DESC LIMIT 1", [phone]);
+        if (!taken) { console.log(`  ● ${c.id} — sin un comprador previo de este runner: corré antes CASES=aprobado\n`); rows.push(`  ${c.id.padEnd(22)} sin comprador previo`); continue; }
+        doc = taken.document_number;
+        console.log(`  · ${c.id}: cédula ${doc}, ya registrada con el celular …${String(taken.phone).slice(-4)}; el pedido trae …${phone.slice(-4)}`);
+    }
     await dictateBureauProfile(doc, { score: 700, consultedLast6Months: 1, creditCards: 1, negativeHistoricalLast12Months: 0, currentNegativeCredits: 0 });
     await c.dictate(doc);
 
@@ -106,6 +116,8 @@ for (const [i, c] of cases.entries()) {
     process.env.E2E_SYNTH_EXP = '2012-09-10';
     process.env.E2E_SYNTH_DOB = '1990-05-14';
     process.env.E2E_AUTO_NO_BIRTH = c.noBirth ? '1' : '';
+    // Con la cédula de otro, el correo sale nuevo: si no, el correo repetido se rechaza antes que la cédula.
+    process.env.E2E_SYNTH_EMAIL = c.takenDoc ? `synth-${doc}-${phone.slice(-4)}@creditop.com` : '';
     const url = await buildEcommerceUrl(MERCHANT, phone, 2_000_000);
 
     const s = new FrontSession(FRONT);
@@ -129,9 +141,19 @@ for (const [i, c] of cases.entries()) {
     const centrals = ur ? (await query<{ name: string }>(
         'SELECT rc.name FROM risk_central_user_data r JOIN risk_centrals rc ON rc.id = r.risk_central_id JOIN user_requests ur ON ur.user_id = r.user_id WHERE ur.id = ? ORDER BY r.id', [ur])).map((x) => x.name.split(' ')[0]) : [];
 
+    // Lo que `personal-info` le muestra al comprador cuando la validación automática no pasó: la URL entera y los
+    // avisos que el loader trae para los campos.
+    let shown = '';
+    if (at && /validacion=fallida/.test(at)) {
+        const page = await s.cargar(at);
+        // `autoCheckFeedback`: el motivo que `validando` dejó en la cookie (errores por campo y mensaje del backend).
+        const fb = (page.datos as any)?.autoCheckFeedback ?? null;
+        shown = `      URL: ${at}\n      aviso en personal-info: ${fb ? JSON.stringify(fb) : '(sólo «no pudimos validar», sin motivo)'}`;
+    }
     console.log(`  ● ${c.id} — ${c.what}`);
     for (const t of trail) console.log(`      ${t}`);
     console.log(`      → ${describe(at)}${ur ? ` · uReq ${ur}` : ''} · usuario ${user ? `${user.first_name}${user.expedition_date ? ' (con fecha)' : ' (sin fecha: datos no guardados)'}` : '—'} · centrales: ${centrals.join(', ') || 'ninguna'}\n`);
+    if (shown) console.log(shown + '\n');
     rows.push(`  ${c.id.padEnd(22)} ${describe(at)}`);
 }
 console.log('  ── RESUMEN ──');
