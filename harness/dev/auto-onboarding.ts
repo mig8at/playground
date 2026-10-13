@@ -62,7 +62,7 @@ const agilOldJobs = (doc: string) => {
     };
 };
 
-type Case = { id: string; what: string; name?: string; noBirth?: boolean; takenDoc?: boolean; dictate: (doc: string) => Promise<unknown> };
+type Case = { id: string; what: string; name?: string; noBirth?: boolean; takenDoc?: boolean; takenEmail?: boolean; dictate: (doc: string) => Promise<unknown> };
 
 const employed = (doc: string) => dictateEmployment(doc, 2_500_000, 'Empleado');
 const CASES: Case[] = [
@@ -76,6 +76,7 @@ const CASES: Case[] = [
     { id: 'fecha-no-coincide', what: 'sin empleo en Agil/Mareigua y TusDatos: la fecha de expedición no coincide', dictate: async (d) => { await dictate(d, 'agildata', AGIL_SIN_DATOS); await dictate(d, 'mareigua', MAREIGUA_SIN_DATOS); await dictate(d, 'tusdatos', tusdatos({ issue_date: 0 })); } },
     { id: 'sin-nacimiento', what: 'la tienda no manda la fecha de nacimiento (la exige la sucursal si tiene Welli, Credifamilia…)', noBirth: true, dictate: employed },
     { id: 'cedula-de-otro', what: 'el pedido trae un celular nuevo con la cédula de un cliente que ya existe con otro celular', takenDoc: true, dictate: employed },
+    { id: 'correo-de-otro', what: 'cédula y celular nuevos, con el correo de un cliente que ya existe', takenEmail: true, dictate: employed },
     { id: 'nombre-corto', what: 'el pedido trae un nombre de 2 letras (el backend exige 3)', name: 'QA PRUEBA AUTO', dictate: employed },
 ];
 
@@ -118,6 +119,13 @@ for (const [i, c] of cases.entries()) {
     process.env.E2E_AUTO_NO_BIRTH = c.noBirth ? '1' : '';
     // Con la cédula de otro, el correo sale nuevo: si no, el correo repetido se rechaza antes que la cédula.
     process.env.E2E_SYNTH_EMAIL = c.takenDoc ? `synth-${doc}-${phone.slice(-4)}@creditop.com` : '';
+    if (c.takenEmail) {
+        // El correo de un comprador que dejó una corrida anterior de este runner, no el de una persona real.
+        const taken = await one<{ email: string }>("SELECT email FROM users WHERE document_number LIKE '1236%' AND email LIKE 'synth-%' ORDER BY id DESC LIMIT 1");
+        if (!taken) { console.log(`  ● ${c.id} — sin un comprador previo de este runner: corré antes CASES=aprobado\n`); rows.push(`  ${c.id.padEnd(22)} sin comprador previo`); continue; }
+        process.env.E2E_SYNTH_EMAIL = taken.email;
+        console.log(`  · ${c.id}: cédula ${doc} nueva, con el correo ${taken.email}, que ya es de otro cliente`);
+    }
     const url = await buildEcommerceUrl(MERCHANT, phone, 2_000_000);
 
     const s = new FrontSession(FRONT);
