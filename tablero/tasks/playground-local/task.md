@@ -12,6 +12,10 @@ jira_title: ""
 
 ## Pendientes
 
+- [ ] Arreglar el conector de logs (`bin/pg logs`) para que no devuelva «0 líneas» cuando no corrió: hoy `--since 16d`
+  falla por la unidad («d» no es una duración de Go) y una consulta de conteo (`sum(count_over_time(…))`) falla al leer
+  la respuesta; en los dos casos el error se pierde fácil y se lee como «no hay nada». Termina cuando acepta días y los
+  conteos, o los rechaza con un error claro y salida distinta de cero. Visto el 2026-10-13 midiendo una incidencia.
 - [x] Adaptar la primera tanda de conocimiento desde el tablero: Credifamilia, alta y baja de
   comercios, canje de códigos, contexto ecommerce e identidad. Termina cuando sus fuentes pasan
   `make knowledge-check`, las tareas relacionadas los cargan con `make retomar` y las hipótesis

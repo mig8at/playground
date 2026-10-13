@@ -11,6 +11,14 @@ jira_title: ""
 
 ## Pendientes
 
+- [ ] Que la medición de ramas por tarea (`make tareas-ramas`) detecte un revert: hoy marca «ya está en main» un
+  cambio que entró y se revirtió (el auto de Refurbi, legacy-backend #1621). Termina con el caso real marcado como
+  revertido. Ya hay una propuesta de sesión con el detalle.
+- [ ] Que el auto-onboarding guarde los datos personales por el guardado nuevo (v2) cuando el comercio va por el
+  pipeline de KYC: hoy usa el viejo y se saltaría el pipeline. Termina con el auto respetando `kyc_pipeline_allieds`,
+  probado con un comercio encendido en local. Ver `knowledge/kyc-pipeline`.
+- [ ] Al retomar el celular del asesor después de reiniciar el panel, volver a armar el traspaso automático al
+  celular del cliente («continuá en tu celular»). Hoy «Retomar» deja al asesor donde estaba pero sin ese paso.
 - [ ] Confirmar con una corrida del panel en local que «Buró inyectado» gobierna la categoría: ya se le dicta el caso al mock de centrales antes de personal-info (`dictateCase`). Termina cuando «Categoría por entidad» muestra la categoría de la corrida igual a la predicha, sin la nota «el motor leyó otros datos». Depende de: Miguel — la corrida, con el mock de centrales arriba (`make harness-centrales`).
 
 - [ ] Validar preparación, ejecución, progreso y resultado durante una corrida real.
