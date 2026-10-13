@@ -62,7 +62,7 @@ const agilOldJobs = (doc: string) => {
     };
 };
 
-type Case = { id: string; what: string; name?: string; noBirth?: boolean; takenDoc?: boolean; takenEmail?: boolean; dictate: (doc: string) => Promise<unknown> };
+type Case = { id: string; what: string; name?: string; noBirth?: boolean; takenDoc?: boolean; takenEmail?: boolean; takenPhone?: 'same-doc' | 'other-doc'; dictate: (doc: string) => Promise<unknown> };
 
 const employed = (doc: string) => dictateEmployment(doc, 2_500_000, 'Empleado');
 const CASES: Case[] = [
@@ -77,6 +77,8 @@ const CASES: Case[] = [
     { id: 'sin-nacimiento', what: 'la tienda no manda la fecha de nacimiento (la exige la sucursal si tiene Welli, Credifamilia…)', noBirth: true, dictate: employed },
     { id: 'cedula-de-otro', what: 'el pedido trae un celular nuevo con la cédula de un cliente que ya existe con otro celular', takenDoc: true, dictate: employed },
     { id: 'correo-de-otro', what: 'cédula y celular nuevos, con el correo de un cliente que ya existe', takenEmail: true, dictate: employed },
+    { id: 'cliente-que-vuelve', what: 'celular y cédula de un cliente que ya existe (los dos suyos), con su correo', takenPhone: 'same-doc', dictate: employed },
+    { id: 'celular-de-otro', what: 'el celular de un cliente que ya existe, con una cédula y un correo nuevos', takenPhone: 'other-doc', dictate: employed },
     { id: 'nombre-corto', what: 'el pedido trae un nombre de 2 letras (el backend exige 3)', name: 'QA PRUEBA AUTO', dictate: employed },
 ];
 
@@ -98,7 +100,17 @@ console.log(`\n  AUTO-ONBOARDING · ${cases.length} caso(s) · front ${FRONT} ·
 const rows: string[] = [];
 for (const [i, c] of cases.entries()) {
     let doc = String(1_236_000_000 + stamp * 100 + i);
-    const phone = `310${String(5_000_000 + stamp * 10 + i).slice(-7)}`;
+    let phone = `310${String(5_000_000 + stamp * 10 + i).slice(-7)}`;
+    let keepEmail = '';
+    if (c.takenPhone) {
+        // Un comprador que dejó una corrida anterior de este runner, con sus datos guardados (fecha de expedición).
+        const prev = await one<{ document_number: string; cell_phone: string; email: string }>(
+            "SELECT document_number, cell_phone, email FROM users WHERE document_number LIKE '123%' AND email LIKE 'synth-%' AND expedition_date IS NOT NULL AND cell_phone IS NOT NULL ORDER BY id DESC LIMIT 1");
+        if (!prev) { console.log(`  ● ${c.id} — sin un comprador previo de este runner: corré antes CASES=aprobado\n`); rows.push(`  ${c.id.padEnd(22)} sin comprador previo`); continue; }
+        phone = prev.cell_phone;
+        if (c.takenPhone === 'same-doc') { doc = prev.document_number; keepEmail = prev.email; }
+        console.log(`  · ${c.id}: celular …${phone.slice(-4)} de la cédula ${prev.document_number}; el pedido trae la cédula ${doc}`);
+    }
     if (c.takenDoc) {
         // La cédula de un comprador que dejó una corrida anterior de este mismo runner (con SU celular): así el
         // caso no depende de una persona real de la copia de la base.
@@ -118,7 +130,7 @@ for (const [i, c] of cases.entries()) {
     process.env.E2E_SYNTH_DOB = '1990-05-14';
     process.env.E2E_AUTO_NO_BIRTH = c.noBirth ? '1' : '';
     // Con la cédula de otro, el correo sale nuevo: si no, el correo repetido se rechaza antes que la cédula.
-    process.env.E2E_SYNTH_EMAIL = c.takenDoc ? `synth-${doc}-${phone.slice(-4)}@creditop.com` : '';
+    process.env.E2E_SYNTH_EMAIL = keepEmail || (c.takenDoc ? `synth-${doc}-${phone.slice(-4)}@creditop.com` : '');
     if (c.takenEmail) {
         // El correo de un comprador que dejó una corrida anterior de este runner, no el de una persona real.
         const taken = await one<{ email: string }>("SELECT email FROM users WHERE document_number LIKE '1236%' AND email LIKE 'synth-%' ORDER BY id DESC LIMIT 1");
