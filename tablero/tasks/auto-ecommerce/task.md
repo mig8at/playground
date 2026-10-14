@@ -7,7 +7,7 @@ knowledge: [ecommerce-context, lender-listing, kyc-pipeline]
 canon: [onboarding/context]
 jira: [CORE-731]
 jira_title: "Ecommerce: la tienda puede enviar los datos del comprador y firmar el pedido para que llegue a las entidades sin repetir pasos"
-ramas: feat/auto-onboarding, feat/auto-onboarding-risk-check, feat/auto-onboarding-personal-info-fallback, feat/auto-onboarding-birth-date, feat/auto-onboarding-merchant-signature, feat/dictado-centrales-restaurado, feat/admin-api-sin-token, feat/dictado-por-parametros, feat/experian-acierta-quanto, fix/auto-onboarding-validation-errors
+ramas: feat/refurbi-payment-link-ref, feat/auto-onboarding, feat/auto-onboarding-risk-check, feat/auto-onboarding-personal-info-fallback, feat/auto-onboarding-birth-date, feat/auto-onboarding-merchant-signature, feat/dictado-centrales-restaurado, feat/admin-api-sin-token, feat/dictado-por-parametros, feat/experian-acierta-quanto, fix/auto-onboarding-validation-errors
 ---
 
 ## Pendientes
