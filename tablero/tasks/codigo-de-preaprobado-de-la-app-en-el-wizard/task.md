@@ -1,7 +1,7 @@
 ---
 id: 94
 title: "Código de preaprobado de la app en la plataforma nueva"
-ramas: feat/CORE-614-codigo-preaprobado-app, feat/CORE-614-codigo-app-solo-colombia, feat/codigo-alfanumerico-en-main, feat/CORE-614-conmutador-usuario-app-estilo, fix/CORE-614-borrar-codigo-erroneo, feat/CORE-614-codigo-estilo-figma
+ramas: feat/CORE-614-codigo-preaprobado-app, feat/CORE-614-codigo-app-solo-colombia, feat/codigo-alfanumerico-en-main, feat/CORE-614-conmutador-usuario-app-estilo, fix/CORE-614-borrar-codigo-erroneo, feat/CORE-614-codigo-estilo-figma, feat/CORE-614-codigo-estilo-figma-main
 stage: work
 created: "2026-09-21T16:40:00-05:00"
 knowledge: [client-code-redemption, lender-listing]
