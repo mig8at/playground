@@ -285,6 +285,7 @@
     .device-reload.device-advance { right: auto; left: 8px }
     .device-reload.device-advance-all { top: 52px }
     .device-reload.device-advance-all[data-running="true"] { opacity: 1; pointer-events: auto; color: var(--warn) }
+    .device-reload.device-tab { color: inherit; text-decoration: none }   /* es un enlace: que se vea como los botones de al lado */
     .device-open { margin-top: auto; padding: var(--space-3) var(--space-3) var(--space-6); border-top: 1px solid var(--border) }
     .device-open .btn { width: 100% }
     /* El código del OTP del celular de prueba, al lado de su rótulo: se copia con un clic. */
@@ -710,11 +711,13 @@
                   </div>
                 </div>
               </div>
-              <!-- Al costado del celular, con algo abierto: sólo «Recargar». «Siguiente» y «Al final» se sacaron
-                   (2026-10-13): el celular ya se toca y se escribe directo. Avanzar hasta una pantalla sigue en el mapa. -->
+              <!-- Al costado del celular, con algo abierto: «Recargar», «Capturar» y «Abrir en pestaña». «Siguiente» y «Al final»
+                   se sacaron (2026-10-13): el celular ya se toca y se escribe directo. Avanzar hasta una pantalla sigue en el mapa.
+                   «Abrir en pestaña» es un enlace y no un botón: lo abre el navegador, sin script (`/api/device/<id>/tab`). -->
               <div class="device-actions" id="advisorActions" hidden>
                 <button type="button" class="device-reload" data-device="advisor" title="Recargar la página del celular del asesor" aria-label="Recargar la página del celular del asesor"><span class="ui-icon" data-icon="refresh" aria-hidden="true"></span><span>Recargar</span></button>
                 <button type="button" class="device-reload device-shot" data-device="advisor" title="Copiar la pantalla del celular del asesor al portapapeles" aria-label="Capturar la pantalla del celular del asesor"><span class="ui-icon" data-icon="camera" aria-hidden="true"></span><span>Capturar</span></button>
+                <a class="device-reload device-tab" data-device="advisor" href="/api/device/advisor/tab" target="_blank" rel="noopener" title="Abrir en una pestaña nueva lo que muestra el celular del asesor, con su sesión, para verlo en escritorio" aria-label="Abrir en una pestaña nueva lo que muestra el celular del asesor"><span class="ui-icon" data-icon="external" aria-hidden="true"></span><span>Abrir en pestaña</span></a>
               </div>
             </figure>
             <figure class="device" id="deviceClient">
@@ -745,11 +748,13 @@
                   </div>
                 </div>
               </div>
-              <!-- Al costado del celular, con algo abierto: sólo «Recargar». «Siguiente» y «Al final» se sacaron
-                   (2026-10-13): el celular ya se toca y se escribe directo. Avanzar hasta una pantalla sigue en el mapa. -->
+              <!-- Al costado del celular, con algo abierto: «Recargar», «Capturar» y «Abrir en pestaña». «Siguiente» y «Al final»
+                   se sacaron (2026-10-13): el celular ya se toca y se escribe directo. Avanzar hasta una pantalla sigue en el mapa.
+                   «Abrir en pestaña» es un enlace y no un botón: lo abre el navegador, sin script (`/api/device/<id>/tab`). -->
               <div class="device-actions" id="clientActions" hidden>
                 <button type="button" class="device-reload" data-device="client" title="Recargar la página del celular del cliente" aria-label="Recargar la página del celular del cliente"><span class="ui-icon" data-icon="refresh" aria-hidden="true"></span><span>Recargar</span></button>
                 <button type="button" class="device-reload device-shot" data-device="client" title="Copiar la pantalla del celular del cliente al portapapeles" aria-label="Capturar la pantalla del celular del cliente"><span class="ui-icon" data-icon="camera" aria-hidden="true"></span><span>Capturar</span></button>
+                <a class="device-reload device-tab" data-device="client" href="/api/device/client/tab" target="_blank" rel="noopener" title="Abrir en una pestaña nueva lo que muestra el celular del cliente, con su sesión, para verlo en escritorio" aria-label="Abrir en una pestaña nueva lo que muestra el celular del cliente"><span class="ui-icon" data-icon="external" aria-hidden="true"></span><span>Abrir en pestaña</span></a>
               </div>
             </figure>
           </div>
@@ -1749,7 +1754,7 @@
       routeChanged();
     }
     // Recargar la página de un celular (`/api/device/<id>/reload`): el visor en vivo muestra el resultado solo.
-    for (const b of document.querySelectorAll('.device-reload:not(.device-advance):not(.device-shot)')) {
+    for (const b of document.querySelectorAll('.device-reload:not(.device-advance):not(.device-shot):not(.device-tab)')) {
       b.onclick = async () => {
         if (b.getAttribute('aria-busy') === 'true') return;
         b.setAttribute('aria-busy', 'true'); b.lastElementChild.textContent = 'Recargando…';

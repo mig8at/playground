@@ -2207,7 +2207,7 @@ connect();
     // `POST /api/device/client/open` arma el pedido de la tienda del panel —la misma URL base64 que usa
     // la corrida (`dbops ecommerce-url`)— y abre el checkout en el contexto del cliente. Por ahora sólo
     // navega: el bypass del OTP y la siembra del buró vienen después.
-    const deviceRoute = /^\/api\/device\/(client|advisor)(?:\/(open|state|shot|stream|close|input|reload|tap|advance|advance-all|advance-stop|saved|resume))?$/.exec(path);
+    const deviceRoute = /^\/api\/device\/(client|advisor)(?:\/(open|state|shot|stream|close|input|reload|tab|tap|advance|advance-all|advance-stop|saved|resume))?$/.exec(path);
     if (deviceRoute) {
         const id = deviceRoute[1] as DeviceId, action = deviceRoute[2] || 'state';
         if (action === 'open' && req.method === 'POST') {
@@ -2221,6 +2221,26 @@ connect();
             deviceLog(id, '↻ página recargada a mano');
             const ok = await deviceReload(id).catch((e) => { deviceLog(id, '✗ no recargó: ' + (e as Error).message.split('\n')[0]); return false; });
             return json(res, 200, { ok, ...deviceState(id) });
+        }
+        // «Abrir en pestaña»: lo que muestra el celular, en una pestaña del navegador de quien usa el panel, para verlo en
+        // ESCRITORIO. El celular es otro navegador y su sesión de asesor no está en el tuyo: abrir la URL a secas cae en el
+        // login. Pero las cookies de `localhost` no distinguen puerto, así que el panel (:5195) le pone las del celular
+        // (`_session`, `_at`, `_rt`) a tu navegador y redirige al wizard (:5174), que las recibe. Sólo con el front LOCAL:
+        // a un front desplegado no se le pueden poner cookies desde acá, y ahí la pestaña pide entrar.
+        // ⚠ Pisa en tu navegador las cookies de `localhost` con esos nombres, también para otra app local que los use.
+        if (action === 'tab') {
+            const st = deviceState(id);
+            if (!st.open || !st.url) { res.writeHead(404, { 'content-type': 'text/plain; charset=utf-8' }); return res.end('El celular no tiene nada abierto.'); }
+            const target = new URL(st.url), panelHost = (req.headers.host ?? '').replace(/:\d+$/, '');
+            const local = ['localhost', '127.0.0.1'].includes(target.hostname) && target.hostname === panelHost;
+            const cookies = local ? ((await deviceStorage(id).catch(() => null))?.cookies ?? []).filter((c) => (c.domain ?? '').replace(/^\./, '') === target.hostname) : [];
+            const setCookie = cookies.map((c) => [`${c.name}=${c.value}`, `Path=${c.path || '/'}`,
+                ...(c.expires && c.expires > 0 ? [`Expires=${new Date(c.expires * 1000).toUTCString()}`] : []),
+                ...(c.httpOnly ? ['HttpOnly'] : []), ...(c.secure ? ['Secure'] : []), `SameSite=${c.sameSite || 'Lax'}`].join('; '));
+            deviceLog(id, `↗ abierto en una pestaña del navegador${setCookie.length ? ` con la sesión del celular (${setCookie.length} cookies)`
+                : local ? ' (el celular no tiene sesión que pasar)' : ` sin su sesión: ${target.hostname} no es el host del panel (${panelHost || '¿?'}), puede pedir entrar`}`);
+            res.writeHead(302, { location: st.url, 'cache-control': 'no-store', ...(setCookie.length ? { 'set-cookie': setCookie } : {}) });
+            return res.end();
         }
         // La pantalla en vivo como video MJPEG: un `<img>` la muestra sola. Cada cuadro llega cuando la pantalla cambia.
         if (action === 'stream') {
