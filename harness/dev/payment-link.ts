@@ -12,7 +12,7 @@
  * I_KNOW_THIS_TOUCHES_SHARED_DEV=1 a mano.
  *
  * USO: E2E_TARGET=local node dev/payment-link.ts [--hash c390eed9] [--sin-aceptacion] [--sin-expedicion]
- *        [--vencida] [--json]
+ *        [--vencida] [--phone 3108000015] [--json]
  */
 import { randomInt, randomUUID } from 'node:crypto';
 import { close, exec, one, TARGET } from '../pkg/db.ts';
@@ -39,7 +39,8 @@ try {
 
     // Un comprador nuevo en cada corrida (como el resto del harness): documento, correo y celular sin usar.
     const doc = String(1_000_000_000 + randomInt(0, 899_999_999));
-    const phone = '31' + String(randomInt(10_000_000, 99_999_999));
+    // Fuera de local conviene uno de la lista de bypass del ambiente: si algo cae al OTP, no le llega un SMS a un desconocido.
+    const phone = value('phone') || '31' + String(randomInt(10_000_000, 99_999_999));
     const reference = randomUUID();
     const orderKey = randomUUID();
     const acceptedAt = new Date(Date.now() - 60_000).toISOString().replace(/\.\d{3}Z$/, 'Z');
