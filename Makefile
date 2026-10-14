@@ -411,6 +411,10 @@ harness-mocks: ## @har levanta los mocks del canal QR (Bancolombia :8104 + Corbe
 harness-queue: ## @har la COLA REAL del backend local (Redis + worker) para el cobro viejo de la cuota inicial: con `sync` se consulta a sí mismo sin fin y da 500. El panel la prende sola con un comercio con `initial_fee` y la apaga al cerrarse. A=on|off|status (por defecto status)
 	@cd harness && bin/queue-local $(or $(A),status)
 
+harness-payment-link: ## @har ⚠ ESCRIBE: crea un pedido como lo hará la API payment-link (la tienda pide la URL; Creditop guarda el pedido) y devuelve la URL con ?ref=. TARGET=local (obligatorio) [HASH=c390eed9] [SIN_ACEPTACION=1 → pide el código] [SIN_EXPEDICION=1 → formulario] [VENCIDA=1 → pide el código] [JSON=1]
+	@test -n "$(TARGET)" || { echo "falta TARGET=local: escribe en la base"; exit 2; }
+	@cd harness && E2E_TARGET=$(TARGET) node dev/payment-link.ts $(if $(HASH),--hash $(HASH)) $(if $(SIN_ACEPTACION),--sin-aceptacion) $(if $(SIN_EXPEDICION),--sin-expedicion) $(if $(VENCIDA),--vencida) $(if $(JSON),--json)
+
 harness-wompi: ## @har levanta el mock LOCAL de Wompi (:8112) — la pasarela de la cuota inicial: el backend le pregunta el estado del pago y el caminador «paga» ahí. Pide WOMPI_HOST=http://host.docker.internal:8112/v1 en el .env del backend (y `php artisan config:clear`)
 	@cd harness && node mock-wompi/server.mjs
 
