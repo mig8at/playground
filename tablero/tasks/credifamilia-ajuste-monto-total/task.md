@@ -7,7 +7,7 @@ knowledge: [credifamilia-financing]
 canon: [credifamilia/context#autorizada-no-es-radicada-el-estado-no-prueba-que-llego-al-proveedor, credifamilia/context#es-un-hibrido-y-esa-palabra-evita-dos-errores, credifamilia/context#el-codigo-de-respuesta-decide-el-estado-de-la-transaccion-de-radicacion-y-un-409-no-es-un-fallo]
 jira: [CORE-653]
 jira_title: "Credifamilia alcance desarrollo: ajuste monto total"
-ramas: fix/CORE-653-credifamilia-monto-total, fix/CORE-653-credifamilia-4x1000-base, fix/CORE-653-credifamilia-4x1000-base-main
+ramas: fix/CORE-653-credifamilia-monto-total, fix/CORE-653-credifamilia-4x1000-base, fix/CORE-653-credifamilia-4x1000-base-main, feat/CORE-653-escenarios-fianza
 ---
 
 # Credifamilia alcance desarrollo: ajuste monto total
@@ -17,6 +17,8 @@ ramas: fix/CORE-653-credifamilia-monto-total, fix/CORE-653-credifamilia-4x1000-b
 - [x] Redondeo de `montoTotalCredito`: dos decimales redondeados ($6.343.651,73 en el ejemplo), decidido por Miguel; es lo que ya hace el PR, sin cambios.
 - [x] Cuotas y comprobante alineados al 4x1000 sobre el IVA (decisión de Miguel, 2026-09-29), en el mismo PR [#1521](pr:legacy-backend#1521), commit 7f294290.
 - [x] Confirmar con Credifamilia sobre qué base calcula el 4x1000: **sobre fianza + IVA** (su reclamo de la solicitud 577129, 13-oct, y lo que indicaron después de hablar con Oscar). Contradice el ejemplo del alcance, que lo calcula sobre el IVA solo. Cambio en [#1668](pr:legacy-backend#1668), directo a `qa`.
+- [ ] Mock de Credifamilia para qa: [credifamilia-mockery-lamba#11](https://github.com/Creditop-SAS/credifamilia-mockery-lamba/pull/11) agrega escenarios aprobados con la fianza en el formato de producción (documento 7100… Anticipada, 7200… Mensual) y arregla las dependencias que frenaban el despliegue. Después falta que infra apunte el servicio de pre-aprobaciones de qa al mock y que se recree `netco_signing_documents` en la base compartida. Termina cuando una solicitud de Credifamilia en qa llegue al plan de pagos con la fianza del mock.
+  Depende de: infra
 - [ ] Mergear [#1670](pr:legacy-backend#1670) a `main`, el mismo cambio de #1668. Validado en local con el código de `qa` (Anticipada y Mensual hasta estado 11); el ambiente qa no llega al cálculo porque el sandbox de Credifamilia rechaza la pre-aprobación. Termina cuando `main` calcule el 4x1000 sobre fianza + IVA.
 - [ ] Confirmar si el total se redondea al entero superior o a dos decimales. El alcance pide las dos cosas en sus criterios de aceptación («dos decimales» y «aproximación al número entero superior») y su propio ejemplo trae centavos; hoy se informa con dos decimales ($6.343.651,73 en el ejemplo, $6.343.652 si fuera el entero superior). Termina cuando haya una respuesta por escrito y lo que se radica haga lo que ella diga.
   Depende de: producto / Credifamilia — la regla de redondeo del total
