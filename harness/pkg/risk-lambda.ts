@@ -116,9 +116,9 @@ export function agildataAnswer(doc: string, ibc: number, occupation?: string, pe
  * y escribe ocupación, ingreso y continuidad con lo que conteste. Reponer esos campos después no
  * alcanza, porque el perfilamiento ya evaluó las categorías con la respuesta del mock.
  */
-export async function dictateEmployment(doc: string, income: number, occupation?: string, periods = 8): Promise<boolean> {
+export async function dictateEmployment(doc: string, income: number, occupation?: string, periods = 8, name?: string): Promise<boolean> {
     for (let attempt = 0; attempt < 4; attempt++) {
-        await dictate(doc, 'agildata', agildataAnswer(doc, income, occupation, periods));
+        await dictate(doc, 'agildata', agildataAnswer(doc, income, occupation, periods, name));
         if (await confirmDictation(doc, 'agildata', String(income))) return true;
     }
     return false;

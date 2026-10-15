@@ -427,6 +427,10 @@ type Case = {
     /** `cliente=79799966` — usa a una persona de la lista de pruebas de Credifamilia (cédula, nombre, nacimiento,
      *  celular y correo reales de su QA) en vez del cliente sintético de la corrida, que su análisis rechaza. */
     cliente?: CredifamiliaTestUser;
+    /** `name=FREDY ALEXANDER,surname=MUÑOZ` — lo que ESCRIBE el asesor en datos personales (default CARLOS / RUIZ).
+     *  `agilname=FREDY ALEXANDER MUNOZ` — el nombre completo que DEVUELVE Agildata (default CARLOS RUIZ MENDOZA).
+     *  Juntos prueban la adopción del nombre de la central: qué queda guardado cuando no coinciden. */
+    name?: string; surname?: string; agilname?: string;
     /** `@webhook=fulfilled` — dispara el webhook REAL de la entidad en `legacy-application` para darle
      *  desenlace a un rt=1. Es OPT-IN a propósito: nunca debe pasar solo, porque el código que corre no
      *  es el de `legacy-backend` (F-170) y un desenlace automático se leería como si lo fuera. */
@@ -457,6 +461,7 @@ function parseCase(spec: string, dflt: { amount: number; income: number; score: 
         if (k === 'cuotas') { c.cuotas = Number(v); continue; }
         if (k === 'cliente') { c.cliente = credifamiliaTestUser(v); c.ocupacion ??= c.cliente.ocupacion; continue; }
         if (k === 'webhook') { c.webhook = v; continue; }
+        if (k === 'name' || k === 'surname' || k === 'agilname') { c[k] = v; continue; }
         // cualquier otra clave es el ESCENARIO de una entidad: `pullman@meddipay=rechaza`.
         // Se dicta al mock de integraciones POR CÉDULA, así que dos casos en paralelo pueden pedir
         // cosas distintas de la misma entidad sin pisarse.
@@ -772,7 +777,7 @@ async function dictateAll(cases: Case[]): Promise<string[]> {
 
         // hasta 4 intentos: cada POST puede caer en un contenedor distinto, así que reintentar
         // NO es supersticioso — es lo que hace que alguno pegue en el que después atiende la lectura
-        const ok = await dictateEmployment(doc, cases[i].income!, cases[i].ocupacion);
+        const ok = await dictateEmployment(doc, cases[i].income!, cases[i].ocupacion, 8, cases[i].agilname);
         if (ok) dictatedOnes.add(doc); else failures.push(doc);
     }
     return failures;
@@ -927,7 +932,7 @@ async function traverse(c: Case, i: number): Promise<Res> {
         const docKind = await merchantDocumentType(br.hash);
         const pi = await post(`/api/onboarding/loan-application/personal-info/${br.hash}/${ur}`, {
             document_type: docKind, document_number: doc,
-            name: c.cliente?.nombres ?? 'CARLOS', surname: c.cliente?.apellidos ?? 'RUIZ',
+            name: c.name ?? c.cliente?.nombres ?? 'CARLOS', surname: c.surname ?? c.cliente?.apellidos ?? 'RUIZ',
             email: c.cliente?.correo ?? `qa${doc}@gmail.com`,
             expedition_day: 10, expedition_month: 5, expedition_year: 2019,
             ...(c.cliente
