@@ -130,7 +130,7 @@ function credifamiliaApproval(doc: string, spec: string) {
         montoMaximo: 12000000, montoMinimo: 1000000, plazoMaximo: 60,
         tipoFianza: type, porcentajeFianza: Number(pct),
         // tasas de una aprobada real de octubre: la mensual en decimal, la efectiva anual en porcentaje
-        tasaMensual: 0.019176, tasaEfectivoAnual: 25.6, porcentajeSeguroVida: 0.14,
+        tasaMensual: 0.019176, tasaEfectivoAnual: 25.6, porcentajeSeguroDeVida: 0.1307,  // el nombre que lee el servicio; 0.1307 en las aprobadas de producción
     };
 }
 /** Los dos externos de Credifamilia (rt=4). El backend los ve por `host.docker.internal`; este runner
