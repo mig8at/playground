@@ -1,0 +1,155 @@
+{
+ "nombre": "cascada de identidad y cliente que vuelve (qa)",
+ "casos": [
+  {
+   "nombre": "1 Ágil completa",
+   "comercio": "pullman",
+   "lender": null,
+   "name": "JUAN",
+   "surname": "PEREZ",
+   "agilname": "JUAN CARLOS PEREZ GOMEZ",
+   "pasos": [
+    {
+     "nombre": "registro"
+    },
+    {
+     "nombre": "vuelve"
+    }
+   ]
+  },
+  {
+   "nombre": "2 tildes",
+   "comercio": "pullman",
+   "lender": null,
+   "name": "JUAN CARLOS",
+   "surname": "PÉREZ GÓMEZ",
+   "agilname": "JUAN CARLOS PEREZ GOMEZ",
+   "pasos": [
+    {
+     "nombre": "registro"
+    },
+    {
+     "nombre": "vuelve"
+    }
+   ]
+  },
+  {
+   "nombre": "3 Ágil vacía, Mareigua",
+   "comercio": "pullman",
+   "lender": null,
+   "name": "JUAN CARLOS",
+   "surname": "PEREZ",
+   "agilname": "JUAN CARLOS PEREZ GOMEZ",
+   "pasos": [
+    {
+     "nombre": "registro"
+    },
+    {
+     "nombre": "vuelve"
+    }
+   ],
+   "agildata": "empty"
+  },
+  {
+   "nombre": "4 Ágil caída, Mareigua",
+   "comercio": "pullman",
+   "lender": null,
+   "name": "JUAN",
+   "surname": "PEREZ GOMEZ",
+   "agilname": "JUAN CARLOS PEREZ GOMEZ",
+   "pasos": [
+    {
+     "nombre": "registro"
+    },
+    {
+     "nombre": "vuelve"
+    }
+   ],
+   "agildata": "fail"
+  },
+  {
+   "nombre": "5 sólo TusDatos, completo",
+   "comercio": "pullman",
+   "lender": null,
+   "name": "JUAN CARLOS",
+   "surname": "PEREZ GOMEZ",
+   "agilname": "JUAN CARLOS PEREZ GOMEZ",
+   "pasos": [
+    {
+     "nombre": "registro"
+    },
+    {
+     "nombre": "vuelve"
+    }
+   ],
+   "agildata": "empty",
+   "mareigua": "empty"
+  },
+  {
+   "nombre": "6 sólo TusDatos, incompleto",
+   "comercio": "pullman",
+   "lender": null,
+   "name": "JUAN CARLOS",
+   "surname": "PEREZ",
+   "agilname": "JUAN CARLOS PEREZ GOMEZ",
+   "pasos": [
+    {
+     "nombre": "registro"
+    },
+    {
+     "nombre": "vuelve"
+    }
+   ],
+   "agildata": "empty",
+   "mareigua": "empty"
+  },
+  {
+   "nombre": "7 otra persona",
+   "comercio": "pullman",
+   "lender": null,
+   "name": "PEDRO",
+   "surname": "RAMIREZ",
+   "agilname": "JUAN CARLOS PEREZ GOMEZ",
+   "pasos": [
+    {
+     "nombre": "registro"
+    },
+    {
+     "nombre": "vuelve"
+    }
+   ]
+  },
+  {
+   "nombre": "8 testigo Ñ",
+   "comercio": "pullman",
+   "lender": null,
+   "name": "LUIS ALBERTO",
+   "surname": "MUÑOZ",
+   "agilname": "LUIS ALBERTO MUNOZ",
+   "pasos": [
+    {
+     "nombre": "registro"
+    },
+    {
+     "nombre": "vuelve"
+    }
+   ]
+  },
+  {
+   "nombre": "9 testigo completa",
+   "comercio": "pullman",
+   "lender": null,
+   "name": "ANA",
+   "surname": "PEREZ",
+   "agilname": "ANA MARIA PEREZ GOMEZ",
+   "pasos": [
+    {
+     "nombre": "registro"
+    },
+    {
+     "nombre": "vuelve"
+    }
+   ]
+  }
+ ]
+}

@@ -14,7 +14,20 @@
 // devolver datos aleatorios con períodos viejos (F-149). Y además es serverless, así que dictar en
 // paralelo pierde escrituras (F-139). El local es un proceso, responde en milisegundos y el estado es
 // compartido. Mismo contrato: para volver al lambda alcanza con `RISK_LAMBDA_URL=<su url>`.
-export const LAMBDA = process.env.RISK_LAMBDA_URL ?? 'http://localhost:8105';
+/* ── EL LAMBDA DE LA EMPRESA, el que consulta el backend de cada ambiente remoto ──────────────────────────
+ * Sólo qa le pregunta a uno con dictado (F-149): el 2026-10-08 se apuntó el secreto de `legacy-backend-qa`
+ * a `9b6r8ticg0`, el que despliega risk-services-mockery-lambda. dev y staging siguen en `ub79ck0htd`, sin
+ * admin API: dictarles no cambia nada, y se dice en vez de fingir que se dictó. */
+export const COMPANY_LAMBDA: Record<string, string> = {
+    qa: 'https://9b6r8ticg0.execute-api.us-east-2.amazonaws.com/development',
+};
+
+// ⚠ FUERA DE LOCAL SE DICTA AL LAMBDA DEL AMBIENTE, no al mock local. Hasta el 2026-10-15 el default era
+// siempre `localhost:8105`: en qa el dictado se confirmaba contra el mock local («7/7 dictados») y al
+// backend de qa nunca le llegaba —ni el nombre, ni una central caída—. Mismo síntoma que F-139.
+export const LAMBDA = process.env.RISK_LAMBDA_URL
+    ?? COMPANY_LAMBDA[(process.env.E2E_TARGET || 'local').toLowerCase()]
+    ?? 'http://localhost:8105';
 
 /** Le dicta a la lambda qué contesta cada central PARA ESA CÉDULA. Es el paso que vuelve el caso
  *  hipotético: se pide de antemano la respuesta que se quiere recibir. */
@@ -328,13 +341,6 @@ export async function readBureauConfig(doc: string): Promise<Record<string, stri
 }
 
 
-/* ── EL LAMBDA DE LA EMPRESA, el que consulta el backend de cada ambiente remoto ──────────────────────────
- * Sólo qa le pregunta a uno con dictado (F-149): el 2026-10-08 se apuntó el secreto de `legacy-backend-qa`
- * a `9b6r8ticg0`, el que despliega risk-services-mockery-lambda. dev y staging siguen en `ub79ck0htd`, sin
- * admin API: dictarles no cambia nada, y se dice en vez de fingir que se dictó. */
-export const COMPANY_LAMBDA: Record<string, string> = {
-    qa: 'https://9b6r8ticg0.execute-api.us-east-2.amazonaws.com/development',
-};
 
 /** El caso que se le dicta al lambda de la empresa: lo que miran la identidad, el empleo y las categorías. */
 export interface CompanyCase {

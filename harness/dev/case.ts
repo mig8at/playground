@@ -105,7 +105,7 @@ const { findBranch, merchantDocumentType: documentType } = await import('../pkg/
 const API = e2eConfig.mockUrl;
 const UA = 'Mozilla/5.0 (iPhone; CPU iPhone OS 16_5 like Mac OS X) AppleWebKit/605.1.15 '
     + '(KHTML, like Gecko) Version/16.5 Mobile/15E148 Safari/604.1';
-const { LAMBDA, dictate, dictateEmployment } = await import('../pkg/risk-lambda.ts');
+const { LAMBDA, dictate, dictateEmployment, dictateBureauMode } = await import('../pkg/risk-lambda.ts');
 
 
 // El mock de integraciones de entidades (`mock-lenders`), donde se dicta qué contesta cada proveedor.
@@ -431,6 +431,9 @@ type Case = {
      *  `agilname=FREDY ALEXANDER MUNOZ` — el nombre completo que DEVUELVE Agildata (default CARLOS RUIZ MENDOZA).
      *  Juntos prueban la adopción del nombre de la central: qué queda guardado cuando no coinciden. */
     name?: string; surname?: string; agilname?: string;
+    /** `agildata=empty|fail`, `mareigua=empty|fail` — que esa central NO resuelva para la cédula del caso, para
+     *  ver la cascada (Ágil → Mareigua → TusDatos). `empty` es la respuesta real de «sin información». */
+    agildataMode?: 'ok' | 'empty' | 'fail'; mareiguaMode?: 'ok' | 'empty' | 'fail';
     /** `@webhook=fulfilled` — dispara el webhook REAL de la entidad en `legacy-application` para darle
      *  desenlace a un rt=1. Es OPT-IN a propósito: nunca debe pasar solo, porque el código que corre no
      *  es el de `legacy-backend` (F-170) y un desenlace automático se leería como si lo fuera. */
@@ -462,6 +465,9 @@ function parseCase(spec: string, dflt: { amount: number; income: number; score: 
         if (k === 'cliente') { c.cliente = credifamiliaTestUser(v); c.ocupacion ??= c.cliente.ocupacion; continue; }
         if (k === 'webhook') { c.webhook = v; continue; }
         if (k === 'name' || k === 'surname' || k === 'agilname') { c[k] = v; continue; }
+        if ((k === 'agildata' || k === 'mareigua') && ['ok', 'empty', 'fail'].includes(v)) {
+            c[k === 'agildata' ? 'agildataMode' : 'mareiguaMode'] = v as 'ok' | 'empty' | 'fail'; continue;
+        }
         // cualquier otra clave es el ESCENARIO de una entidad: `pullman@meddipay=rechaza`.
         // Se dicta al mock de integraciones POR CÉDULA, así que dos casos en paralelo pueden pedir
         // cosas distintas de la misma entidad sin pisarse.
@@ -532,6 +538,7 @@ async function loadSuite(path: string, dflt: { amount: number; income: number; s
             name: c.name ? String(c.name) : undefined,
             surname: c.surname ? String(c.surname) : undefined,
             agilname: c.agilname ? String(c.agilname) : undefined,
+            agildataMode: c.agildata, mareiguaMode: c.mareigua,
             pasos: Array.isArray(c.pasos) ? c.pasos : undefined,
             escenarios: c.escenarios,
             amount: Number(c.amount ?? base.amount),
@@ -782,6 +789,16 @@ async function dictateAll(cases: Case[]): Promise<string[]> {
         // NO es supersticioso — es lo que hace que alguno pegue en el que después atiende la lectura
         const ok = await dictateEmployment(doc, cases[i].income!, cases[i].ocupacion, 8, cases[i].agilname);
         if (ok) dictatedOnes.add(doc); else failures.push(doc);
+
+        // Que una central NO resuelva, para ver la cascada. Va DESPUÉS del empleo, que dicta Ágil «ok»
+        // y lo pisaría. Se dicta varias veces: en el lambda serverless cada POST puede caer en otro
+        // contenedor, y repetir cubre más de los que después atienden al backend (F-139).
+        for (const [central, mode] of [['agildata', cases[i].agildataMode], ['mareigua', cases[i].mareiguaMode]] as const) {
+            if (!mode || mode === 'ok') continue;
+            let took = false;
+            for (let k = 0; k < 4; k++) took = (await dictateBureauMode(doc, central, mode)).ok || took;
+            if (!took) failures.push(`${doc}:${central}=${mode}`);
+        }
     }
     return failures;
 }
