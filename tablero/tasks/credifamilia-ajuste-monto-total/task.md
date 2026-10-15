@@ -7,7 +7,7 @@ knowledge: [credifamilia-financing]
 canon: [credifamilia/context#autorizada-no-es-radicada-el-estado-no-prueba-que-llego-al-proveedor, credifamilia/context#es-un-hibrido-y-esa-palabra-evita-dos-errores, credifamilia/context#el-codigo-de-respuesta-decide-el-estado-de-la-transaccion-de-radicacion-y-un-409-no-es-un-fallo]
 jira: [CORE-653]
 jira_title: "Credifamilia alcance desarrollo: ajuste monto total"
-ramas: fix/CORE-653-credifamilia-monto-total, fix/CORE-653-credifamilia-4x1000-base
+ramas: fix/CORE-653-credifamilia-monto-total, fix/CORE-653-credifamilia-4x1000-base, fix/CORE-653-credifamilia-4x1000-base-main
 ---
 
 # Credifamilia alcance desarrollo: ajuste monto total
@@ -17,7 +17,7 @@ ramas: fix/CORE-653-credifamilia-monto-total, fix/CORE-653-credifamilia-4x1000-b
 - [x] Redondeo de `montoTotalCredito`: dos decimales redondeados ($6.343.651,73 en el ejemplo), decidido por Miguel; es lo que ya hace el PR, sin cambios.
 - [x] Cuotas y comprobante alineados al 4x1000 sobre el IVA (decisión de Miguel, 2026-09-29), en el mismo PR [#1521](pr:legacy-backend#1521), commit 7f294290.
 - [x] Confirmar con Credifamilia sobre qué base calcula el 4x1000: **sobre fianza + IVA** (su reclamo de la solicitud 577129, 13-oct, y lo que indicaron después de hablar con Oscar). Contradice el ejemplo del alcance, que lo calcula sobre el IVA solo. Cambio en [#1668](pr:legacy-backend#1668), directo a `qa`.
-- [ ] Validar #1668 en qa y, si sale bien, abrir el PR a `main` con el mismo cambio. Termina cuando `main` calcule el 4x1000 sobre fianza + IVA.
+- [ ] Mergear [#1670](pr:legacy-backend#1670) a `main`, el mismo cambio de #1668. Validado en local con el código de `qa` (Anticipada y Mensual hasta estado 11); el ambiente qa no llega al cálculo porque el sandbox de Credifamilia rechaza la pre-aprobación. Termina cuando `main` calcule el 4x1000 sobre fianza + IVA.
 - [ ] Confirmar si el total se redondea al entero superior o a dos decimales. El alcance pide las dos cosas en sus criterios de aceptación («dos decimales» y «aproximación al número entero superior») y su propio ejemplo trae centavos; hoy se informa con dos decimales ($6.343.651,73 en el ejemplo, $6.343.652 si fuera el entero superior). Termina cuando haya una respuesta por escrito y lo que se radica haga lo que ella diga.
   Depende de: producto / Credifamilia — la regla de redondeo del total
 - [ ] Confirmar cuál es el valor correcto del ejemplo del alcance, $6.343.651,72 (el PDF, que trunca el 4x1000 a 714,63) o $6.343.651,73 (lo que calcula el código, que redondea sólo al final), y si cada término se redondea por separado. Termina cuando se sepa la regla y la prueba unitaria del ejemplo la use.
