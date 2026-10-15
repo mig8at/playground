@@ -471,6 +471,9 @@ harness-ecommerce: ## @har EL CANAL ECOMMERCE de punta a punta: ¿el carrito de 
 harness-environment: ## @har ¿la config del target es coherente? [TARGET=qa] [JSON=1] [LIVE=1 consulta API, wizard, MySQL y puertos de mocks; sólo lectura] [MOCKS=bureaus,pdf-mapper exige esos mocks, sólo local] [TIMEOUT_MS=5000 por sonda; máximo 60000]
 	@cd harness && node bin/preflight.ts $(if $(TARGET),$(TARGET)) $(if $(JSON),--json) $(if $(LIVE),--live) $(if $(MOCKS),--mocks '$(MOCKS)') $(if $(TIMEOUT_MS),--timeout-ms '$(TIMEOUT_MS)')
 
+harness-table-restore: ## @har ⚠ RECREA en la base compartida una tabla que sus migraciones dan por creada y no existe (p. ej. netco_signing_documents en dev/qa, 2026-10-15), con el DDL de la base local y sólo si es idéntico al de producción (VPN de prod). Sin APPLY=1 sólo muestra; con APPLY=1 pide I_KNOW_THIS_TOUCHES_SHARED_DEV exportado a mano. TABLE=<tabla> TARGET=qa|dev|staging [APPLY=1]
+	@cd harness && E2E_TARGET=$(or $(TARGET),qa) node dev/table-restore.ts --table '$(TABLE)' $(if $(APPLY),--apply)
+
 harness-env-drift: ## @har ¿el ambiente remoto está al día con su rama? migraciones de la rama desplegada sin correr en la base compartida y rutas que el backend le pide al lambda de centrales y el lambda no tiene (404). Sólo lectura. TARGET=qa|dev|staging [JSON=1]. Sale 1 si hay desfase
 	@cd harness && E2E_TARGET=$(or $(TARGET),qa) node bin/env-drift.ts $(if $(JSON),--json)
 
