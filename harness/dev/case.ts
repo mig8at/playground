@@ -767,11 +767,12 @@ const merchantDocumentType = (hash: string) => documentType(API, hash);
  *  electrónico ya se encuentra registrado» — un error que no se parece a su causa. Peor: la caché de
  *  un mes de `risk_central_user_data` habría servido la consulta anterior en vez de llamar a la
  *  central, que es justo lo que se quiere ejercitar. */
-/** Con `--cf-fianza anticipada|mensual` la cédula empieza en 7100 / 7200: el mock de Credifamilia tiene
+/** Con `--cf-fianza anticipada|mensual` la cédula empieza en 2997 / 2998: el mock de Credifamilia tiene
  *  reglas FIJAS para esos documentos (aprobado, fianza 0.18 en el formato de producción). Es el camino sin
  *  estado: el dictado vive en la memoria de UN contenedor de la Lambda, y el 2026-10-15 la radicación cayó
  *  en el que lo tenía y la consulta de estado en otro, que contestó la respuesta por defecto. */
-const CF_DOC_PREFIX: Record<string, string> = { anticipada: '7100', mensual: '7200' };
+// 2997/2998 y no 7100/7200: el backend exige el documento entre 10.000 y 3.000.000.000 (503612 en qa).
+const CF_DOC_PREFIX: Record<string, string> = { anticipada: '2997', mensual: '2998' };
 const idNumberOf = (i: number) => {
     const prefix = CF_DOC_PREFIX[arg('cf-fianza')];
     return prefix ? prefix + String((BASE_DOC + i) % 1_000_000).padStart(6, '0') : String(BASE_DOC + i);
