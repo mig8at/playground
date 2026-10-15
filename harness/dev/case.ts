@@ -1457,9 +1457,11 @@ async function main(): Promise<number> {
             + (failures.length ? `  ⚠ fallaron ${failures.join(', ')}` : '') + '\n');
     }
     // Los teléfonos de esta tanda entran a la lista de bypass ANTES de arrancar, de una y en serie
-    // (ver `registerBypass`). Sólo si se va a cerrar: para el listado el driver fake no mira el
-    // teléfono, así que ampliar la lista sería tocar la BD sin necesidad.
-    if (flag('close')) {
+    // (ver `registerBypass`). En local, sólo si se va a cerrar: para el listado el driver fake no mira
+    // el teléfono, así que ampliar la lista sería tocar la BD sin necesidad.
+    // ⚠ FUERA DE LOCAL EL OTP ES REAL, y sin la lista ningún caso pasa de `otp-validate`: responde
+    // ONB001 con HTTP 200 y el caso muere como «otp-validate sin uReq» (visto en qa, 2026-10-15).
+    if (flag('close') || (process.env.E2E_TARGET || 'local').toLowerCase() !== 'local') {
         // ⚠ Tiene que resolver el país ANTES, igual que el motor: si acá se arma el teléfono con la
         // forma colombiana y allá con la del comercio, la lista de bypass queda con números que nadie
         // usa — y la firma del pagaré falla con 422 en un país que sí estaba bien configurado.
