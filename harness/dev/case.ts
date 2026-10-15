@@ -110,6 +110,28 @@ const { LAMBDA, dictate, dictateEmployment, dictateBureauMode } = await import('
 
 // El mock de integraciones de entidades (`mock-lenders`), donde se dicta qué contesta cada proveedor.
 const MOCK_LENDERS = process.env.MOCK_LENDERS_URL ?? 'http://localhost:8099';
+
+// La lambda mock de Credifamilia (`credifamilia-mockery-lamba`). Desde el 2026-10-15 el servicio de
+// pre-aprobados de dev/qa/staging apunta a ella y no al sandbox de Credifamilia, que rechazaba a todos.
+const CREDIFAMILIA_MOCK = process.env.CREDIFAMILIA_MOCK_URL ?? 'https://3l4paj5che.execute-api.us-east-2.amazonaws.com/development';
+
+/** `--cf-fianza 1:0.035` → lo que la lambda de Credifamilia contesta para la cédula del caso: aprobado,
+ *  con ese tipo de fianza (`1` vencida/mensual, `2` anticipada) y ese porcentaje EN DECIMAL, como llega
+ *  en producción. Sin dictado, la lambda contesta su respuesta por defecto, con `porcentajeFianza: 10.72`:
+ *  el plan de pagos calcularía una fianza del 1.072 % y no probaría nada. */
+function credifamiliaApproval(doc: string, spec: string) {
+    const [type, pct] = spec.split(':');
+    if (!['1', '2'].includes(type) || !(Number(pct) > 0 && Number(pct) < 1)) {
+        throw new Error(`--cf-fianza «${spec}»: va tipo:porcentaje, con tipo 1 (mensual) o 2 (anticipada) y el porcentaje en decimal (0.18)`);
+    }
+    return {
+        message: 'Validación aprobada', transactionId: Number(doc), status: 3, status_detail: 'Aprobado',
+        montoMaximo: 12000000, montoMinimo: 1000000, plazoMaximo: 60,
+        tipoFianza: type, porcentajeFianza: Number(pct),
+        // tasas de una aprobada real de octubre: la mensual en decimal, la efectiva anual en porcentaje
+        tasaMensual: 0.019176, tasaEfectivoAnual: 25.6, porcentajeSeguroVida: 0.14,
+    };
+}
 /** Los dos externos de Credifamilia (rt=4). El backend los ve por `host.docker.internal`; este runner
  *  corre fuera de Docker, así que acá van por `localhost` — misma caja, otra puerta. */
 const DECEVAL = process.env.MOCK_DECEVAL_URL || 'http://localhost:8106/';
@@ -783,6 +805,15 @@ async function dictateAll(cases: Case[]): Promise<string[]> {
             // dice — y nada avisaba. Ahora cuenta como dictado fallido, igual que Agildata.
             const okScore = await dictate(doc, 'experian_score', String(cases[i].score)).catch(() => false);
             if (!okScore) failures.push(`${doc}:experian_score`);
+        }
+
+        // La pre-aprobación de Credifamilia, dictada a su lambda con la misma cédula. Varias veces, por
+        // la misma razón que el empleo de abajo: cada POST puede caer en otro contenedor.
+        if (arg('cf-fianza')) {
+            const answer = credifamiliaApproval(doc, arg('cf-fianza'));
+            let took = false;
+            for (let k = 0; k < 4; k++) took = (await dictate(doc, 'credifamilia', answer, CREDIFAMILIA_MOCK).catch(() => false)) || took;
+            if (!took) failures.push(`${doc}:credifamilia`);
         }
 
         // hasta 4 intentos: cada POST puede caer en un contenedor distinto, así que reintentar
