@@ -115,7 +115,8 @@ const MOCK_LENDERS = process.env.MOCK_LENDERS_URL ?? 'http://localhost:8099';
 // pre-aprobados de dev/qa/staging apunta a ella y no al sandbox de Credifamilia, que rechazaba a todos.
 const CREDIFAMILIA_MOCK = process.env.CREDIFAMILIA_MOCK_URL ?? 'https://3l4paj5che.execute-api.us-east-2.amazonaws.com/development';
 
-/** `--cf-fianza 1:0.035` → lo que la lambda de Credifamilia contesta para la cédula del caso: aprobado,
+/** `--cf-fianza anticipada|mensual` NO dicta: elige la cédula (ver `CF_DOC_PREFIX`) y es el camino confiable.
+ *  `--cf-fianza 1:0.035` → lo que la lambda de Credifamilia contesta para la cédula del caso: aprobado,
  *  con ese tipo de fianza (`1` vencida/mensual, `2` anticipada) y ese porcentaje EN DECIMAL, como llega
  *  en producción. Sin dictado, la lambda contesta su respuesta por defecto, con `porcentajeFianza: 10.72`:
  *  el plan de pagos calcularía una fianza del 1.072 % y no probaría nada. */
@@ -766,7 +767,15 @@ const merchantDocumentType = (hash: string) => documentType(API, hash);
  *  electrónico ya se encuentra registrado» — un error que no se parece a su causa. Peor: la caché de
  *  un mes de `risk_central_user_data` habría servido la consulta anterior en vez de llamar a la
  *  central, que es justo lo que se quiere ejercitar. */
-const idNumberOf = (i: number) => String(BASE_DOC + i);
+/** Con `--cf-fianza anticipada|mensual` la cédula empieza en 7100 / 7200: el mock de Credifamilia tiene
+ *  reglas FIJAS para esos documentos (aprobado, fianza 0.18 en el formato de producción). Es el camino sin
+ *  estado: el dictado vive en la memoria de UN contenedor de la Lambda, y el 2026-10-15 la radicación cayó
+ *  en el que lo tenía y la consulta de estado en otro, que contestó la respuesta por defecto. */
+const CF_DOC_PREFIX: Record<string, string> = { anticipada: '7100', mensual: '7200' };
+const idNumberOf = (i: number) => {
+    const prefix = CF_DOC_PREFIX[arg('cf-fianza')];
+    return prefix ? prefix + String((BASE_DOC + i) % 1_000_000).padStart(6, '0') : String(BASE_DOC + i);
+};
 
 
 const dictatedOnes = new Set<string>();
@@ -809,7 +818,7 @@ async function dictateAll(cases: Case[]): Promise<string[]> {
 
         // La pre-aprobación de Credifamilia, dictada a su lambda con la misma cédula. Varias veces, por
         // la misma razón que el empleo de abajo: cada POST puede caer en otro contenedor.
-        if (arg('cf-fianza')) {
+        if (arg('cf-fianza') && !CF_DOC_PREFIX[arg('cf-fianza')]) {
             const answer = credifamiliaApproval(doc, arg('cf-fianza'));
             let took = false;
             for (let k = 0; k < 4; k++) took = (await dictate(doc, 'credifamilia', answer, CREDIFAMILIA_MOCK).catch(() => false)) || took;
