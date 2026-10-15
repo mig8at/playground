@@ -34,6 +34,8 @@ const PORT = Number(process.env.MOCK_PA_PORT || 8095);
 const FORCE = (process.env.MOCK_PA_STATUS || "approved").toLowerCase();
 const QUOTA = Number(process.env.MOCK_PA_CUPO || 25_000_000);
 const RATE = Number(process.env.MOCK_PA_RATE || 0.0188); // 1.88% M.V — lo que muestran las cards
+// Tipo de fianza de Credifamilia: "2" Anticipada (la medida en prod) · "1" Vencida, que se radica como «Mensual».
+const CF_GUARANTEE = process.env.MOCK_PA_CF_GUARANTEE_TYPE === "1" ? "1" : "2";
 const DELAY = Number(process.env.MOCK_PA_DELAY_MS || 0); // ms antes de responder → ver el loader de pre-aprobado en las cards rt≠0
 const TERMS = [12, 24, 36, 48];
 
@@ -68,7 +70,7 @@ function txData(key, amount) {
             return {
                   annual_effective_rate: 24.18,      // medido (derivado del 1,82 % mensual)
                   max_amount: 12000000,              // medido (tope de la línea de crédito)
-                  guarantee_type: "2",               // medido — '2' = FIANZA_ANTICIPADA (22 radicaciones en prod, 2026-09-28)
+                  guarantee_type: CF_GUARANTEE,      // medido — '2' = FIANZA_ANTICIPADA (22 radicaciones en prod, 2026-09-28)
                   guarantee_percentage: 0.18,        // medido — DECIMAL (0.18 = 18 %) en logs credifamilia.pre-approval.check de prod
                   life_insurance_percentage: 0.1,    // NO medido
             };
@@ -170,7 +172,7 @@ function norm(s) {
 const server = http.createServer((r, res) => {
       if (r.method === "GET") {
             res.writeHead(200, { "content-type": "application/json" });
-            res.end(JSON.stringify({ ok: true, service: "mock-preapprovals", force: FORCE, cupo: QUOTA, delay: DELAY }));
+            res.end(JSON.stringify({ ok: true, service: "mock-preapprovals", force: FORCE, cupo: QUOTA, delay: DELAY, cfGuarantee: CF_GUARANTEE }));
             return;
       }
       if (r.method === "POST" && r.url.startsWith("/v1/preapprovals/check")) {
@@ -224,6 +226,6 @@ const server = http.createServer((r, res) => {
 
 server.listen(PORT, () => {
       console.log(
-            `mock-preapprovals → http://localhost:${PORT}/v1/preapprovals/check  (force=${FORCE} · cupo=${QUOTA} · rate=${RATE} · delay=${DELAY}ms)`,
+            `mock-preapprovals → http://localhost:${PORT}/v1/preapprovals/check  (force=${FORCE} · cupo=${QUOTA} · rate=${RATE} · delay=${DELAY}ms · fianza CF=${CF_GUARANTEE})`,
       );
 });
