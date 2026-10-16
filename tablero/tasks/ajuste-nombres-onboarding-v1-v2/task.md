@@ -66,7 +66,7 @@ apellido?); se sigue pidiendo corregir.
 ## Cómo se comprueba — y el MATERIAL para volver a hacerlo
 
 - v1 en local o qa: `make harness-case LAMBDA=1 CASES='pullman@name=…,surname=…,agilname=…'` y leer `users`.
-- v2 en local: `make harness-pipeline` y `make harness-pipeline-run` (7 casos; `A=stop` para bajarlo).
+- v2 en local: `make harness-pipeline` y `make harness-pipeline-run` (14 casos: Ñ, tildes, ortografía, nombres incompletos, ambiguos y la cascada; `A=stop` para bajarlo).
 - v2 en qa, sólo el backend: `POST /api/v2/risk/identity-check/agildata/{userId}` contra `legacy-backend-qa`.
 
 ## Referencias

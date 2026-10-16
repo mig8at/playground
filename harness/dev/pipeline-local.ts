@@ -95,13 +95,25 @@ const FAIL = { __http_status: 500, __body: { error: 'falla simulada' } };
 
 interface Case { label: string; name: string; surname: string; agil?: Answer; mareigua?: Answer; expect: string }
 const CASES: Record<string, Case> = {
+    // Ñ y tildes
     1: { label: 'Ñ que la central omite', name: 'LUIS', surname: 'MUÑOZ', agil: (d) => agildata(d, 'LUIS MUNOZ'), expect: 'LUIS / MUÑOZ' },
-    2: { label: 'Ñ que la central trae', name: 'LUIS', surname: 'MUÑOZ', agil: (d) => agildata(d, 'LUIS MUÑOZ'), expect: 'LUIS / MUÑOZ' },
-    3: { label: 'completa el 2º apellido', name: 'JUAN CARLOS', surname: 'PEREZ', agil: (d) => agildata(d, 'JUAN CARLOS PEREZ GOMEZ'), expect: 'JUAN CARLOS / PEREZ GOMEZ' },
-    4: { label: 'completa 1+1 contra 4', name: 'ANA', surname: 'PEREZ', agil: (d) => agildata(d, 'ANA MARIA PEREZ GOMEZ'), expect: 'ANA MARIA / PEREZ GOMEZ' },
-    5: { label: 'ambiguo: pide corregir', name: 'ANA', surname: 'PEREZ GOMEZ', agil: (d) => agildata(d, 'ANA MARIA PEREZ GOMEZ'), expect: 'pide corregir' },
-    6: { label: 'Ágil vacía → Mareigua sin Ñ', name: 'LUIS', surname: 'MUÑOZ', agil: AGIL_EMPTY as any, mareigua: (d) => mareigua(d, 'LUIS', '', 'MUNOZ', 'PEREZ'), expect: 'LUIS / MUÑOZ PEREZ' },
-    7: { label: 'Ágil caída → Mareigua', name: 'JUAN', surname: 'PEREZ', agil: FAIL as any, mareigua: (d) => mareigua(d, 'JUAN', 'CARLOS', 'PEREZ', 'GOMEZ'), expect: 'JUAN CARLOS / PEREZ GOMEZ' },
+    2: { label: 'Ñ que trae la central', name: 'LUIS', surname: 'MUNOZ', agil: (d) => agildata(d, 'LUIS MUÑOZ'), expect: 'LUIS / MUÑOZ' },
+    3: { label: 'tildes que trae la central', name: 'JOSE', surname: 'PENA RAMIREZ', agil: (d) => agildata(d, 'JOSÉ PEÑA RAMÍREZ'), expect: 'JOSÉ / PEÑA RAMÍREZ' },
+    4: { label: 'tildes que la central omite', name: 'JOSÉ', surname: 'PÉREZ', agil: (d) => agildata(d, 'JOSE PEREZ'), expect: 'JOSÉ / PÉREZ' },
+    // ortografía
+    5: { label: 'ortografía del apellido', name: 'CARLOS', surname: 'RUIS', agil: (d) => agildata(d, 'CARLOS RUIZ'), expect: 'CARLOS / RUIZ' },
+    6: { label: 'ortografía del nombre', name: 'YULIETH', surname: 'GOMEZ', agil: (d) => agildata(d, 'YULIET GOMEZ'), expect: 'YULIET / GOMEZ' },
+    // nombre incompleto
+    7: { label: 'falta el 2º apellido', name: 'PEDRO ANTONIO', surname: 'CARDENAS', agil: (d) => agildata(d, 'PEDRO ANTONIO CARDENAS SILVA'), expect: 'PEDRO ANTONIO / CARDENAS SILVA' },
+    8: { label: 'faltan 2º nombre y 2º apellido', name: 'ANA', surname: 'PEREZ', agil: (d) => agildata(d, 'ANA MARIA PEREZ GOMEZ'), expect: 'ANA MARIA / PEREZ GOMEZ' },
+    9: { label: 'Ñ y falta el 2º apellido', name: 'LUIS ALBERTO', surname: 'MUÑOZ', agil: (d) => agildata(d, 'LUIS ALBERTO MUNOZ PEREZ'), expect: 'LUIS ALBERTO / MUÑOZ PEREZ' },
+    // sin cambio
+    10: { label: 'idéntico', name: 'MARIA', surname: 'LOPEZ', agil: (d) => agildata(d, 'MARIA LOPEZ'), expect: 'MARIA / LOPEZ' },
+    11: { label: 'ambiguo: pide corregir', name: 'ANA', surname: 'PEREZ GOMEZ', agil: (d) => agildata(d, 'ANA MARIA PEREZ GOMEZ'), expect: 'pide corregir' },
+    12: { label: 'otra persona: pide corregir', name: 'ANA', surname: 'PEREZ', agil: (d) => agildata(d, 'LUISA FERNANDA TORRES VARGAS'), expect: 'pide corregir' },
+    // la cascada
+    13: { label: 'Ágil vacía → Mareigua sin Ñ', name: 'LUIS', surname: 'MUÑOZ', agil: AGIL_EMPTY as any, mareigua: (d) => mareigua(d, 'LUIS', '', 'MUNOZ', 'PEREZ'), expect: 'LUIS / MUÑOZ PEREZ' },
+    14: { label: 'Ágil caída → Mareigua', name: 'JUAN', surname: 'PEREZ', agil: FAIL as any, mareigua: (d) => mareigua(d, 'JUAN', 'CARLOS', 'PEREZ', 'GOMEZ'), expect: 'JUAN CARLOS / PEREZ GOMEZ' },
 };
 
 async function dictate(central: string, doc: string, answer: Answer | undefined): Promise<void> {
