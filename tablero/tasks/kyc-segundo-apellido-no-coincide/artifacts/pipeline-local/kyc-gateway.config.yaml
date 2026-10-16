@@ -1,0 +1,85 @@
+# KYC Gateway Configuration Template
+# Copy this file to config.yaml and fill in your values:
+#   cp config/config.example.yaml config/config.yaml
+#
+# IMPORTANT: config.yaml is gitignored and should contain your real values.
+# This file is just a template and should NOT contain sensitive data.
+app:
+  name: kyc-service
+  description: kyc-service
+  version: 1.0.0
+  env: local  # development, staging, production, local
+  debug: true
+
+server:
+  host: localhost
+  port: 50051
+  reflection_enabled: true
+  max_recv_msg_size: 4194304  # 4MB
+  max_send_msg_size: 4194304  # 4MB
+
+providers:
+  experian:
+    token_url: "http://localhost:8105/experian/oauth2/v1/token"
+    service_url: "http://localhost:8105/experian/cs/credit-history/v1"
+    client_id: "YOUR_CLIENT_ID"
+    client_secret: "YOUR_SECRET"
+    # Public address Experian expects in the serverIpAddress header: the NAT egress of the tasks,
+    # not the container IP. Same value the monolith reads from SERVER_PUBLIC_IP.
+    server_ip_address: "3.18.209.160"
+    products:
+      quanto:
+        oauth_username: "2-999999999.1@datacredito.com.co"
+        oauth_password: "SECRET"
+        service_user: "999999999"
+        service_password: "SECRET"
+      acierta:
+        oauth_username: "2-999999999@datacredito.com.co"
+        oauth_password: "SECRET"
+        service_user: "999999999"
+        service_password: "SECRET"
+      quanto_acierta:
+        oauth_username: "2-999999999.3@datacredito.com.co"
+        oauth_password: "SECRET"
+        service_user: "999999999"
+        service_password: "SECRET"
+
+  agildata:
+    base_url: "http://localhost:8105/agildata/agildata-services/rest/afiliado"
+    username: "USERNAME"
+    password: "YOUR_PASSWORD"
+
+  mareigua:
+    token_url: "http://localhost:8105/mareigua/oauth2/v1/token"
+    service_url: "http://localhost:8105/mareigua/consultas"
+    username: "YOUR_USERNAME"
+    password: "YOUR_PASSWORD"
+
+  tusdatos:
+    base_url: "http://localhost:8105/tusdatos/api"
+    username: "email@creditop.com"
+    password: "YOUR_PASSWORD"
+
+observability:
+  tracer:
+    endpoint: ""  # e.g., otlp-gateway.example.com
+    url_path: /v1/traces
+    protocol: http/protobuf
+    insecure: false
+    compression: true
+    timeout: 10
+    sampler: parentbased_always_on
+    batch:
+      max_queue_size: 2048
+      max_export_size: 512
+      timeout: 5
+  metrics:
+    # Endpoint and protocol are inherited from the tracer when empty; the path is NOT — it defaults
+    # to /v1/metrics on its own. Keep it aligned with the tracer path above, because an OTLP export
+    # that 404s fails quietly: the service runs, nothing errors, and the panels are just empty.
+    url_path: /v1/metrics
+  log:
+    level: debug  # debug, info, warn, error
+    url_path: /v1/traces
+    format: console  # json or text
+    add_source: true

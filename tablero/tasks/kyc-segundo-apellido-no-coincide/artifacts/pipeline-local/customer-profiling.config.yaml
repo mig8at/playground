@@ -1,0 +1,101 @@
+# Application Configuration Template
+# Copy this file to config.yaml and fill in your values:
+#   cp config/config.example.yaml config/config.yaml
+#
+# IMPORTANT: config.yaml is gitignored and should contain your real values.
+# This file is just a template and should NOT contain sensitive data.
+
+app:
+  name: customer-profiling-service
+  description: Customer KYC profiling service
+  version: 1.0.0
+  env: local  # development, staging, production
+  debug: true
+
+http_server:
+  host: localhost
+  port: 8082
+  swagger:
+    enabled: true
+    spec_path: ./openapi.yaml
+    spec_endpoint: /openapi.yaml
+
+postgres:
+  host: localhost
+  port: 5435
+  user: postgres
+  password: postgres  # Change in production!
+  database: customer_profiling
+  sslmode: disable  # Use 'require' or 'verify-full' in production
+
+redis:
+  host: localhost
+  port: 6382
+  username: ""
+  password: ""
+  # Logical database (the SELECT command). Ignored when cluster is true — cluster mode only has db 0.
+  db: 0
+  # Encryption in transit. Must be true against an ElastiCache/Valkey group with
+  # "transit encryption mode: required"; false for the local docker-compose redis.
+  tls: false
+  # true when host is a cluster configuration endpoint (ElastiCache "clustercfg.*"), so the client
+  # discovers the topology and follows MOVED redirects instead of talking to a single node.
+  cluster: false
+
+# Per-customer rate limit for legacy-kyc-pipeline start attempts (two tiers, fixed hourly window).
+rate_limit:
+  # Tier 1: first 8 attempts, each >= 30s apart.
+  tier1_attempts: 8
+  tier1_interval_seconds: 30
+  # Tier 2: next 5 attempts, each >= 90s apart. After 13 total, blocked until the window resets.
+  tier2_attempts: 5
+  tier2_interval_seconds: 90
+  # Whole allowance resets every hour.
+  window_seconds: 3600
+
+temporal:
+  host_port: localhost:7233
+  namespace: default
+  task_queue: customer-profiling-service
+  api_key: ""
+
+grpc:
+  kyc_gateway:
+    addr: localhost:50051
+
+services:
+  customer_service:
+    url: http://localhost:8080
+  risk_service:
+    url: http://localhost:8081
+  legacy_customer:
+    url: http://localhost/api/v1/users
+    api_key: ""
+  legacy_risk:
+    url: http://localhost/api/v2/risk
+  # Resolves a user request (user_requests.id) to its user (users.id).
+  legacy_onboarding:
+    url: http://localhost/api/onboarding
+  # OnboardingV2: the three operations that reproduce what v1 does around the identity cascade
+  # (kyc-requirements, employment-requirement, kyc-completion).
+  legacy_onboarding_v2:
+    url: http://localhost/api/v2/onboarding
+
+observability:
+  tracer:
+    endpoint: ""
+    url_path: /otlp/v1/traces
+    protocol: http/protobuf
+    insecure: false
+    compression: true
+    timeout: 10
+    sampler: parentbased_always_on
+    batch:
+      max_queue_size: 2048
+      max_export_size: 512
+      timeout: 5
+  log:
+    level: info  # debug, info, warn, error
+    url_path: /otlp/v1/traces
+    format: console  # json or text
+    add_source: true
