@@ -25,6 +25,8 @@ ramas: "fix/kyc-name-adoption, fix/kyc-v2-name-adoption, fix/kyc-remove-name-rev
 - [ ] Actualizar «Reglas generales → Correcciones» en Confluence (completar el nombre donde no hay que adivinar); termina cuando la página lo diga.
 - [ ] Decidir con producto qué hacer cuando sólo resuelve TusDatos y el nombre llega incompleto.
   Depende de: producto — decisión.
+- [ ] Reportar que en v2, con las tres centrales caídas, el cliente queda temporal y el formulario laboral se rechaza (ONB002); termina cuando exista un issue con el caso reproducible.
+  Depende de: equipo de onboarding — decisión sobre qué hacer sin ninguna central.
 
 ## Objetivo
 
@@ -66,7 +68,7 @@ apellido?); se sigue pidiendo corregir.
 ## Cómo se comprueba — y el MATERIAL para volver a hacerlo
 
 - v1 en local o qa: `make harness-case LAMBDA=1 CASES='pullman@name=…,surname=…,agilname=…'` y leer `users`.
-- v2 en local: `make harness-pipeline` y `make harness-pipeline-run` (14 casos: Ñ, tildes, ortografía, nombres incompletos, ambiguos y la cascada; `A=stop` para bajarlo).
+- v2 en local: `make harness-pipeline` y `make harness-pipeline-run` (19 casos: Ñ, tildes, ortografía, nombres incompletos, ambiguos y la cascada con una, dos y tres centrales caídas; `A=stop` para bajarlo).
 - v2 en qa, sólo el backend: `POST /api/v2/risk/identity-check/agildata/{userId}` contra `legacy-backend-qa`.
 
 ## Referencias

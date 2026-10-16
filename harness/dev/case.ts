@@ -454,9 +454,13 @@ type Case = {
      *  `agilname=FREDY ALEXANDER MUNOZ` — el nombre completo que DEVUELVE Agildata (default CARLOS RUIZ MENDOZA).
      *  Juntos prueban la adopción del nombre de la central: qué queda guardado cuando no coinciden. */
     name?: string; surname?: string; agilname?: string;
-    /** `agildata=empty|fail`, `mareigua=empty|fail` — que esa central NO resuelva para la cédula del caso, para
-     *  ver la cascada (Ágil → Mareigua → TusDatos). `empty` es la respuesta real de «sin información». */
-    agildataMode?: 'ok' | 'empty' | 'fail'; mareiguaMode?: 'ok' | 'empty' | 'fail';
+    /** `agildata=empty|fail`, `mareigua=empty|fail`, `tusdatos=fail` — que esa central NO resuelva para la cédula
+     *  del caso, para ver la cascada (Ágil → Mareigua → TusDatos). `empty` es la respuesta real de «sin
+     *  información»; TusDatos no tiene una verificada, así que sólo se cae.
+     *  ⚠ `fail` en este camino (v1) NO prueba una central caída: fuera de producción, si el mock falla el backend
+     *  sirve su fixture (`app/Actions/RiskCentrals/*Fixture.php`), que es OTRA persona — Ágil «caída» se ve como
+     *  `wrong_document`. Para la cascada de v1 sirve `empty`; las caídas se prueban en v2 (`dev/pipeline-local.ts`). */
+    agildataMode?: 'ok' | 'empty' | 'fail'; mareiguaMode?: 'ok' | 'empty' | 'fail'; tusdatosMode?: 'ok' | 'fail';
     /** `@webhook=fulfilled` — dispara el webhook REAL de la entidad en `legacy-application` para darle
      *  desenlace a un rt=1. Es OPT-IN a propósito: nunca debe pasar solo, porque el código que corre no
      *  es el de `legacy-backend` (F-170) y un desenlace automático se leería como si lo fuera. */
@@ -491,6 +495,7 @@ function parseCase(spec: string, dflt: { amount: number; income: number; score: 
         if ((k === 'agildata' || k === 'mareigua') && ['ok', 'empty', 'fail'].includes(v)) {
             c[k === 'agildata' ? 'agildataMode' : 'mareiguaMode'] = v as 'ok' | 'empty' | 'fail'; continue;
         }
+        if (k === 'tusdatos' && ['ok', 'fail'].includes(v)) { c.tusdatosMode = v as 'ok' | 'fail'; continue; }
         // cualquier otra clave es el ESCENARIO de una entidad: `pullman@meddipay=rechaza`.
         // Se dicta al mock de integraciones POR CÉDULA, así que dos casos en paralelo pueden pedir
         // cosas distintas de la misma entidad sin pisarse.
@@ -561,7 +566,7 @@ async function loadSuite(path: string, dflt: { amount: number; income: number; s
             name: c.name ? String(c.name) : undefined,
             surname: c.surname ? String(c.surname) : undefined,
             agilname: c.agilname ? String(c.agilname) : undefined,
-            agildataMode: c.agildata, mareiguaMode: c.mareigua,
+            agildataMode: c.agildata, mareiguaMode: c.mareigua, tusdatosMode: c.tusdatos,
             pasos: Array.isArray(c.pasos) ? c.pasos : undefined,
             escenarios: c.escenarios,
             amount: Number(c.amount ?? base.amount),
@@ -834,7 +839,8 @@ async function dictateAll(cases: Case[]): Promise<string[]> {
         // Que una central NO resuelva, para ver la cascada. Va DESPUÉS del empleo, que dicta Ágil «ok»
         // y lo pisaría. Se dicta varias veces: en el lambda serverless cada POST puede caer en otro
         // contenedor, y repetir cubre más de los que después atienden al backend (F-139).
-        for (const [central, mode] of [['agildata', cases[i].agildataMode], ['mareigua', cases[i].mareiguaMode]] as const) {
+        for (const [central, mode] of [['agildata', cases[i].agildataMode], ['mareigua', cases[i].mareiguaMode],
+                                       ['tusdatos', cases[i].tusdatosMode]] as const) {
             if (!mode || mode === 'ok') continue;
             let took = false;
             for (let k = 0; k < 4; k++) took = (await dictateBureauMode(doc, central, mode)).ok || took;

@@ -102,8 +102,11 @@ const agildataDefault = (doc) => ({
     },
 });
 
+// `fecha` es la de la consulta y el backend la lee para clasificar la ocupación (`validateContractType`): sin
+// ella, en una petición web el aviso de PHP se vuelve excepción, Mareigua cuenta como caída y la cascada salta
+// a TusDatos sin mirar el nombre (visto el 2026-10-16). El fixture del propio backend la trae.
 const mareiguaDefault = (doc) => ({
-    respuesta_id: 4, consulta_id: 1916660000, genero: 'M',
+    fecha: new Date().toISOString().slice(0, 19), respuesta_id: 4, consulta_id: 1916660000, genero: 'M',
     primer_nombre_persona_natural: 'CARLOS', segundo_nombre_persona_natural: '',
     primer_apellido_persona_natural: 'RUIZ', segundo_apellido_persona_natural: 'MENDOZA',
     numero_identificacion_persona_natural: doc ?? '1001202010',

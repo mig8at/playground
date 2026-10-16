@@ -224,7 +224,8 @@ export const bureauSupports = (central: Bureau, mode: BureauMode): boolean => mo
 export function mareiguaAnswer(doc: string, income: number, months = 8) {
     const ibc = Math.round(income);
     return {
-        respuesta_id: 4, consulta_id: 1916660000, genero: 'M',
+        // `fecha`: sin ella el backend tira la respuesta entera (ver `mareiguaDefault` del mock de burós).
+        fecha: new Date().toISOString().slice(0, 19), respuesta_id: 4, consulta_id: 1916660000, genero: 'M',
         primer_nombre_persona_natural: 'CARLOS', segundo_nombre_persona_natural: '',
         primer_apellido_persona_natural: 'RUIZ', segundo_apellido_persona_natural: 'MENDOZA',
         numero_identificacion_persona_natural: doc, tipo_identificacion_persona_natural_id: 1,

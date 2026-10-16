@@ -92,8 +92,12 @@ async function mareigua(doc: string, n1: string, n2: string, a1: string, a2: str
 // La respuesta REAL de «sin información» de Ágil Data (codRespuesta 02), y una caída (HTTP 500 del mock).
 const AGIL_EMPTY = { usuario: null, respuesta: null, codConsulta: '10000000000000000', codRespuesta: '02', observaciones: 'No se encontró información del afiliado.' };
 const FAIL = { __http_status: 500, __body: { error: 'falla simulada' } };
+// La de Mareigua (respuesta_id 2: el backend sólo acepta 4), copiada de `NO_INFO` en `pkg/risk-lambda.ts`.
+const MG_EMPTY: Answer = (d) => ({ fecha: new Date().toISOString().slice(0, 19), genero: '', aportantes: [], consulta_id: 1000000000,
+    respuesta_id: 2, primer_nombre_persona_natural: '', segundo_nombre_persona_natural: '', primer_apellido_persona_natural: '',
+    segundo_apellido_persona_natural: '', numero_identificacion_persona_natural: d, tipo_identificacion_persona_natural_id: 1 });
 
-interface Case { label: string; name: string; surname: string; agil?: Answer; mareigua?: Answer; expect: string }
+interface Case { label: string; name: string; surname: string; agil?: Answer; mareigua?: Answer; tusdatos?: Answer; expect: string }
 const CASES: Record<string, Case> = {
     // Ñ y tildes
     1: { label: 'Ñ que la central omite', name: 'LUIS', surname: 'MUÑOZ', agil: (d) => agildata(d, 'LUIS MUNOZ'), expect: 'LUIS / MUÑOZ' },
@@ -114,6 +118,15 @@ const CASES: Record<string, Case> = {
     // la cascada
     13: { label: 'Ágil vacía → Mareigua sin Ñ', name: 'LUIS', surname: 'MUÑOZ', agil: AGIL_EMPTY as any, mareigua: (d) => mareigua(d, 'LUIS', '', 'MUNOZ', 'PEREZ'), expect: 'LUIS / MUÑOZ PEREZ' },
     14: { label: 'Ágil caída → Mareigua', name: 'JUAN', surname: 'PEREZ', agil: FAIL as any, mareigua: (d) => mareigua(d, 'JUAN', 'CARLOS', 'PEREZ', 'GOMEZ'), expect: 'JUAN CARLOS / PEREZ GOMEZ' },
+    15: { label: 'Ágil caída → Mareigua corrige ortografía', name: 'CARLOS', surname: 'RUIS', agil: FAIL as any, mareigua: (d) => mareigua(d, 'CARLOS', '', 'RUIZ', 'MENDOZA'), expect: 'CARLOS / RUIZ MENDOZA' },
+    // Ágil y Mareigua sin resolver: el pipeline pide el formulario laboral, después TusDatos (que no devuelve nombres y
+    // nunca frena) y Experian. El nombre queda el escrito. `runCase` entrega el formulario y despierta la corrida.
+    16: { label: 'Ágil y Mareigua vacías → TusDatos', name: 'LUIS', surname: 'MUÑOZ', agil: AGIL_EMPTY as any, mareigua: MG_EMPTY, expect: 'LUIS / MUÑOZ' },
+    17: { label: 'Ágil y Mareigua caídas → TusDatos', name: 'LUIS', surname: 'MUÑOZ', agil: FAIL as any, mareigua: FAIL as any, expect: 'LUIS / MUÑOZ' },
+    18: { label: 'Ágil caída, Mareigua vacía → TusDatos', name: 'LUIS', surname: 'MUÑOZ', agil: FAIL as any, mareigua: MG_EMPTY, expect: 'LUIS / MUÑOZ' },
+    // Ninguna central confirma: el cliente sigue TEMPORAL, el pipeline pide el formulario laboral y el backend lo
+    // rechaza (ONB002, `storeLaboralInfoOrchestrator` no acepta temporales). La corrida queda esperando hasta vencer.
+    19: { label: 'las tres caídas', name: 'LUIS', surname: 'MUÑOZ', agil: FAIL as any, mareigua: FAIL as any, tusdatos: FAIL as any, expect: 'rechaza el formulario laboral' },
 };
 
 async function dictate(central: string, doc: string, answer: Answer | undefined): Promise<void> {
@@ -135,6 +148,7 @@ async function runCase(key: string, c: Case, branch: string): Promise<Record<str
     const tel = '31' + String(rnd(10_000_000, 99_999_999));
     await dictate('agildata', doc, c.agil);
     await dictate('mareigua', doc, c.mareigua);
+    await dictate('tusdatos', doc, c.tusdatos);
 
     await http('POST', `${API}/api/onboarding/phone/register`, { phone_number: tel, phoneNumber: tel, terms: true, policies: true,
         otp_length: 4, otpLength: 4, partner_branch_hash: branch, partnerBranchHash: branch });
@@ -153,12 +167,34 @@ async function runCase(key: string, c: Case, branch: string): Promise<Record<str
     const wf = start.json?.workflow_id ?? start.json?.workflowId;
     if (!wf) return { caso: key, ur, error: `arranque del pipeline HTTP ${start.status} ${JSON.stringify(start.json).slice(0, 160)}` };
 
-    let st: any = {};
-    for (let i = 0; i < 90; i++) {
-        st = (await http('GET', `${CPS}/api/v1/loan-requests/${ur}/legacy-kyc-pipeline/${wf}`)).json ?? {};
-        const pending = Object.entries(st).some(([k, v]) => k.toLowerCase().includes('pending') && v);
-        if (st.status !== 'RUNNING' || pending) break;
-        await new Promise((r) => setTimeout(r, 1000));
+    const poll = async (skipForm?: string) => {
+        let st: any = {};
+        for (let i = 0; i < 90; i++) {
+            st = (await http('GET', `${CPS}/api/v1/loan-requests/${ur}/legacy-kyc-pipeline/${wf}`)).json ?? {};
+            const pending = Object.entries(st).some(([k, v]) => k.toLowerCase().includes('pending') && v);
+            // Esperando el formulario el estado es PENDING_USER_DATA, no RUNNING: recién entregado, la primera
+            // lectura todavía lo muestra pidiéndolo, así que ese pedido no corta la espera.
+            if (pending && st.pending_form === skipForm) { await new Promise((r) => setTimeout(r, 1000)); continue; }
+            if (st.status !== 'RUNNING' || pending) break;
+            await new Promise((r) => setTimeout(r, 1000));
+        }
+        return st;
+    };
+    let st: any = await poll();
+    // El formulario laboral, como lo manda el front (el mismo endpoint en v1 y v2), y el aviso de «ya está».
+    let laboral = false;
+    if (st.pending_form === 'employment') {
+        const lab = await http('POST', `${API}/api/onboarding/loan-application/laboral-info/${branch}/${ur}`,
+            { income_amount: 2_500_000, employment_situation: 'Empleado', original_amount: 2_000_000, amount: 2_000_000 });
+        if (lab.status >= 300 || lab.json?.success !== true) {
+            const code = lab.json?.errors?.error_code ?? `HTTP ${lab.status}`;
+            return { caso: `${key} ${c.label}`, ok: c.expect === 'rechaza el formulario laboral', escrito: `${c.name} / ${c.surname}`, ur, workflow: wf,
+                estado: st.status, centrales: (st.provider_outcomes ?? []).map((o: any) => `${o.provider}=${o.result}`),
+                laboral: `el formulario laboral se rechazó: ${code} ${lab.json?.message ?? ''}`.trim(), esperado: c.expect };
+        }
+        await http('POST', `${CPS}/api/v1/loan-requests/${ur}/legacy-kyc-pipeline/${wf}/user-data`);
+        laboral = true;
+        st = await poll('employment');
     }
     const u = await one<{ first_name: string; surname: string; full_name: string }>(
         'SELECT u.first_name, u.surname, u.full_name FROM users u JOIN user_requests r ON r.user_id=u.id WHERE r.id=?', [ur]);
@@ -167,6 +203,7 @@ async function runCase(key: string, c: Case, branch: string): Promise<Record<str
     const ok = c.expect === 'pide corregir' ? st.pending_reason === 'identity_mismatch' : (st.status === 'COMPLETED' && saved === c.expect);
     return {
         caso: `${key} ${c.label}`, ok, escrito: `${c.name} / ${c.surname}`, ur, workflow: wf, estado: st.status,
+        ...(laboral ? { laboral: 'pidió el formulario laboral y se entregó' } : {}),
         centrales: (st.provider_outcomes ?? []).map((o: any) => `${o.provider}=${o.result}`), ...(asks ? { pide: asks } : {}),
         guardado: saved, full_name: u?.full_name, esperado: c.expect,
     };
