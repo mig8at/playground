@@ -5,7 +5,7 @@ stage: evaluation
 created: "2026-09-28T12:00:00-05:00"
 knowledge: [credifamilia-financing]
 canon: [credifamilia/context#autorizada-no-es-radicada-el-estado-no-prueba-que-llego-al-proveedor, credifamilia/context#es-un-hibrido-y-esa-palabra-evita-dos-errores, credifamilia/context#el-codigo-de-respuesta-decide-el-estado-de-la-transaccion-de-radicacion-y-un-409-no-es-un-fallo]
-jira: [CORE-653]
+jira: [CORE-653, CORE-758]
 jira_title: "Credifamilia alcance desarrollo: ajuste monto total"
 ramas: fix/CORE-653-credifamilia-monto-total, fix/CORE-653-credifamilia-4x1000-base, fix/CORE-653-credifamilia-4x1000-base-main, feat/CORE-653-escenarios-fianza, fix/trivy-braces-node-options
 ---
