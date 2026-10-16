@@ -1,7 +1,7 @@
 ---
 id: 47
 title: "KYC: el «no coincide» del segundo apellido se traga — `0 == null` en TusDatosService"
-ramas: kyc-name-match, kyc-second-surname, fix/kyc-name-match-onto-main, fix/kyc-name-adoption-keeps-accents, fix/kyc-remove-name-revalidation, fix/kyc-name-adoption
+ramas: kyc-name-match, kyc-second-surname, fix/kyc-name-match-onto-main, fix/kyc-name-adoption-keeps-accents, fix/kyc-remove-name-revalidation, fix/kyc-name-adoption, fix/kyc-v2-name-adoption
 stage: work
 created: "2026-08-13T09:16:27-05:00"
 knowledge: [identity-name-validation, kyc-pipeline]
