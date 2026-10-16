@@ -1,0 +1,133 @@
+#!/usr/bin/env bash
+# El pipeline de KYC v2 en LOCAL: Temporal + customer-profiling-service + kyc-gateway, con las centrales en el mock.
+#
+# QUÉ LEVANTA, y por qué así:
+#   · Temporal en Docker (`temporal server start-dev`, en memoria) con la imagen `temporalio/admin-tools`, que trae
+#     la CLI. Se pierde todo al bajarlo: es lo que se quiere para una prueba.
+#   · customer-profiling-service: su Postgres y su Redis (docker compose del repo) + migraciones + el binario, que
+#     se compila acá (los tipos de su API se generan con `go generate`: están en .gitignore del repo).
+#   · kyc-gateway: el binario, con una configuración GENERADA que apunta SÓLO al mock de centrales (:8105).
+#     ⚠ El `config/config.yaml` que vive en el repo de kyc-gateway en esta máquina apunta a las centrales REALES
+#     (consultas cobradas). Por eso cada binario corre desde su propio directorio en `.runs/pipeline-local/`, donde
+#     está su config, y el arranque se NIEGA si la config generada nombra un host real.
+#   · la base local: los settings sin los que el pipeline revienta y el comercio en `kyc_pipeline_allieds`
+#     (`dev/pipeline-local.ts seed`).
+#
+# uso: bin/pipeline-local [start|stop|status|logs]
+#   env: PIPELINE_ALLIED (26, Sonría) · CPS_REPO · KGW_REPO · TEMPORAL_IMAGE (temporalio/admin-tools:latest)
+#   los casos: node dev/pipeline-local.ts run [1,3,…]   (make harness-pipeline-run CASES=…)
+set -euo pipefail
+DIR="$(cd "$(dirname "$0")/.." && pwd)"
+RUN="$DIR/.runs/pipeline-local"
+CPS_REPO="${CPS_REPO:-$HOME/Desktop/CREDITOP/github/customer-profiling-service}"
+KGW_REPO="${KGW_REPO:-$HOME/Desktop/CREDITOP/github/kyc-gateway}"
+IMAGE="${TEMPORAL_IMAGE:-temporalio/admin-tools:latest}"
+ALLIED="${PIPELINE_ALLIED:-26}"
+MOCK="${RISK_LAMBDA_URL:-http://localhost:8105}"
+TEMPORAL=harness-temporal
+export PATH="$HOME/go/bin:$PATH"
+
+# Lanza un proceso en segundo plano desde su directorio, con `exec` para que `$!` sea EL proceso (y no una
+# subshell que lo espera) y con entrada y salida redirigidas: sin eso la subshell hereda el pipe de quien
+# llamó (`make … | tail`) y la llamada no termina nunca.
+lanzar() { # dir, nombre, comando…
+  local dir=$1 name=$2; shift 2
+  ( cd "$dir" && exec nohup "$@" > "$RUN/$name.log" 2>&1 < /dev/null ) &
+  echo $! > "$RUN/$name.pid"
+}
+escucha() { lsof -nP -iTCP:"$1" -sTCP:LISTEN >/dev/null 2>&1; }
+vivo() { [[ -f "$1" ]] && kill -0 "$(cat "$1")" 2>/dev/null; }
+esperar() { # puerto, nombre, segundos
+  for _ in $(seq 1 "$3"); do escucha "$1" && { echo "  ✓ $2 (:$1)"; return 0; }; sleep 1; done
+  echo "  ✗ $2 no abrió :$1 — mirá: bin/pipeline-local logs"; return 1
+}
+
+configs() {
+  mkdir -p "$RUN/kgw" "$RUN/cps"
+  python3 - "$KGW_REPO/config/config.example.yaml" "$RUN/kgw/config.yaml" "$MOCK" <<'PY'
+import re, sys
+src, dst, M = sys.argv[1:]
+s = open(src).read()
+rep = {
+    r'(experian:\n\s+token_url:\s*).*':                       r'\g<1>"' + M + '/experian/oauth2/v1/token"',
+    r'(service_url:\s*)"https://api\.datacredito[^"]*"':       r'\g<1>"' + M + '/experian/cs/credit-history/v1"',
+    r'(base_url:\s*)"https://www\.agildata[^"]*"':             r'\g<1>"' + M + '/agildata/agildata-services/rest/afiliado"',
+    r'(mareigua:\n\s+token_url:\s*).*':                       r'\g<1>"' + M + '/mareigua/oauth2/v1/token"',
+    r'(service_url:\s*)"https://macia[^"]*"':                  r'\g<1>"' + M + '/mareigua/consultas"',
+    r'(base_url:\s*)"https://dash-board\.tusdatos[^"]*"':      r'\g<1>"' + M + '/tusdatos/api"',
+}
+for a, b in rep.items():
+    s, n = re.subn(a, b, s)
+    if n < 1: sys.exit(f"la plantilla de kyc-gateway cambió: no encontré {a!r}")
+open(dst, 'w').write(s)
+PY
+  # Fail-closed: ninguna URL de la config puede salir de la máquina.
+  if grep -E '^\s*(token_url|service_url|base_url):' "$RUN/kgw/config.yaml" | grep -v -E 'localhost|127\.0\.0\.1' | grep -q .; then
+    echo "  ✗ la config de kyc-gateway nombra un host que no es local — no arranco"; exit 1
+  fi
+  sed -e 's#http://localhost:8000/#http://localhost/#g' "$CPS_REPO/config/config.example.yaml" > "$RUN/cps/config.yaml"
+}
+
+compilar() {
+  (cd "$CPS_REPO" && go generate ./internal/openapi >/dev/null && go build -o "$RUN/cps/customer-profiling" ./cmd/http-server)
+  (cd "$KGW_REPO" && go build -o "$RUN/kgw/kyc-gateway" ./cmd/server)
+  echo "  ✓ compilados: customer-profiling-service $(git -C "$CPS_REPO" rev-parse --short HEAD) · kyc-gateway $(git -C "$KGW_REPO" rev-parse --short HEAD)"
+}
+
+start() {
+  [[ "$(curl -s -o /dev/null -w '%{http_code}' --max-time 5 http://localhost/api/v2/onboarding/kyc-flow/x)" != "000" ]] \
+    || { echo "  ✗ el backend local no responde en http://localhost"; exit 1; }
+  if ! escucha 8105; then
+    lanzar "$DIR" mock-bureaus node "$DIR/mock-bureaus/server.mjs"
+    esperar 8105 "mock de centrales (lo levanté yo)" 15
+  else echo "  ✓ mock de centrales (:8105, ya estaba)"; fi
+
+  if ! escucha 7233; then
+    docker rm -f "$TEMPORAL" >/dev/null 2>&1 || true
+    docker run -d --name "$TEMPORAL" -p 7233:7233 -p 8233:8233 --entrypoint temporal "$IMAGE" \
+      server start-dev --ip 0.0.0.0 --ui-port 8233 >/dev/null
+  fi
+  esperar 7233 "Temporal (UI :8233)" 60
+
+  (cd "$CPS_REPO" && docker compose up -d >/dev/null 2>&1)
+  for _ in $(seq 1 60); do docker exec customer-profiling-service pg_isready -U postgres -d customer_profiling >/dev/null 2>&1 && break; sleep 1; done
+  migrate -path "$CPS_REPO/internal/infra/storage/postgres/migrations" \
+    -database "postgres://postgres:postgres@localhost:5435/customer_profiling?sslmode=disable" up >/dev/null 2>&1 \
+    && echo "  ✓ base del servicio migrada"
+
+  configs
+  compilar
+  vivo "$RUN/kgw.pid" || lanzar "$RUN/kgw" kgw ./kyc-gateway
+  esperar 50051 "kyc-gateway → mock" 30
+  vivo "$RUN/cps.pid" || lanzar "$RUN/cps" cps ./customer-profiling
+  esperar 8082 "customer-profiling-service + worker" 30
+
+  (cd "$DIR" && E2E_TARGET=local PIPELINE_ALLIED="$ALLIED" node dev/pipeline-local.ts seed "$ALLIED")
+  echo "  listo · casos: make harness-pipeline-run CASES=1,3 · UI de Temporal: http://localhost:8233"
+}
+
+stop() {
+  # Por pid exacto, nunca por patrón (un `pkill -f` ya tiró Docker entero).
+  for p in cps kgw mock-bureaus; do
+    if vivo "$RUN/$p.pid"; then kill "$(cat "$RUN/$p.pid")" && echo "  ✓ bajado $p"; fi
+    rm -f "$RUN/$p.pid"
+  done
+  if [[ -n "$(docker ps -aq -f "name=^${TEMPORAL}$" 2>/dev/null)" ]]; then docker rm -f "$TEMPORAL" >/dev/null && echo "  ✓ bajado Temporal"; fi
+  (cd "$CPS_REPO" && docker compose stop >/dev/null 2>&1) && echo "  ✓ Postgres y Redis del servicio detenidos"
+}
+
+status() {
+  for x in "7233 Temporal" "8233 UI de Temporal" "5435 Postgres del servicio" "6382 Redis del servicio" \
+           "50051 kyc-gateway" "8082 customer-profiling-service" "8105 mock de centrales"; do
+    set -- $x; p=$1; shift
+    escucha "$p" && echo "  ✓ $* (:$p)" || echo "  ✗ $* (:$p)"
+  done
+}
+
+case "${1:-start}" in
+  start)  start ;;
+  stop)   stop ;;
+  status) status ;;
+  logs)   tail -n 40 "$RUN"/cps.log "$RUN"/kgw.log 2>/dev/null; docker logs --tail 15 "$TEMPORAL" 2>&1 ;;
+  *) echo "uso: bin/pipeline-local [start|stop|status|logs]"; exit 2 ;;
+esac

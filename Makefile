@@ -541,6 +541,12 @@ harness-rto: ## @har deja el lender Rent to Own usable en LOCAL (categorías, re
 harness-kyc-flow: ## @har deja el resolvedor de KYC usable en LOCAL: siembra la setting `kyc_pipeline_allieds` vacía (= todos por el flujo legacy, como en qa). Sin ella `kyc-flow/{hash}` da 500 y el front cae al v1 sin avisar. Sólo local, idempotente
 	@cd harness && E2E_TARGET=local node dev/mount-kyc-flow.ts
 
+harness-pipeline: ## @har el pipeline de KYC v2 en LOCAL: Temporal (Docker) + customer-profiling-service + kyc-gateway apuntando SÓLO al mock de centrales, y la base local lista. A=start|stop|status|logs (default start) · [PIPELINE_ALLIED=26]. Sólo local
+	@cd harness && PIPELINE_ALLIED=$(or $(PIPELINE_ALLIED),26) bin/pipeline-local $(or $(A),start)
+
+harness-pipeline-run: ## @har corre casos por el pipeline de KYC v2 en LOCAL (OTP v2 → datos personales v2 → workflow) y dice qué nombre quedó y dónde frenó. [CASES=1,3] (todos si no) · CASES=list los lista. Pide `make harness-pipeline` arriba. Sale 1 si alguno no dio lo esperado
+	@cd harness && E2E_TARGET=local PIPELINE_ALLIED=$(or $(PIPELINE_ALLIED),26) node dev/pipeline-local.ts $(if $(filter list,$(CASES)),cases,run $(CASES))
+
 harness-peru: ## @har deja un COMERCIO PERUANO usable en LOCAL para mirar el wizard con su país (S/, +51, 9 dígitos). Sólo local, idempotente
 	@cd harness && E2E_TARGET=local node dev/mount-peru.ts
 
