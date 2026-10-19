@@ -1,0 +1,213 @@
+{
+  "version": 1,
+  "title": "Admin de legacy-application: secciones, roles y escrituras",
+  "summary": "Qué hace cada sección del admin por el negocio, quién entra con qué perfil, qué escribe, las bajas lógicas con -t<n> y las acciones que no piden permiso.",
+  "reviewedAt": "2026-10-19T14:59:18+00:00",
+  "sources": [
+    {
+      "repo": "application",
+      "path": "app/Providers/FortifyServiceProvider.php",
+      "commit": "05e6ad4d86c9e15cc7f6fa88527cef94ff508caf",
+      "blob": "2c663e1e889b996e9c2ae7013dc21a8bdb391d09",
+      "sections": [
+        "quien-entra-y-que-es-cada-perfil"
+      ]
+    },
+    {
+      "repo": "application",
+      "path": "app/Models/UserProfile.php",
+      "commit": "05e6ad4d86c9e15cc7f6fa88527cef94ff508caf",
+      "blob": "0bd2b056cc41f9c13210e1dd3cd1c794db35ef7a",
+      "sections": [
+        "quien-entra-y-que-es-cada-perfil"
+      ]
+    },
+    {
+      "repo": "application",
+      "path": "database/seeders/RolesTableSeeder.php",
+      "commit": "05e6ad4d86c9e15cc7f6fa88527cef94ff508caf",
+      "blob": "8075ea81d3641ada079670258913c30db78d41e3",
+      "sections": [
+        "quien-entra-y-que-es-cada-perfil"
+      ]
+    },
+    {
+      "repo": "application",
+      "path": "resources/js/navigation/vertical/index.js",
+      "commit": "05e6ad4d86c9e15cc7f6fa88527cef94ff508caf",
+      "blob": "1d1245be982d8c7c68dd9cc8c154cb0dd6ca518e",
+      "sections": [
+        "el-menu-y-el-backend-piden-permisos-distintos"
+      ]
+    },
+    {
+      "repo": "application",
+      "path": "resources/js/navigation/vertical/management.js",
+      "commit": "05e6ad4d86c9e15cc7f6fa88527cef94ff508caf",
+      "blob": "47957e8b0ced81b2eaa64468691ceeb7744f74b3",
+      "sections": [
+        "el-menu-y-el-backend-piden-permisos-distintos"
+      ]
+    },
+    {
+      "repo": "application",
+      "path": "app/Http/Requests/Admin/User/ListRequests.php",
+      "commit": "05e6ad4d86c9e15cc7f6fa88527cef94ff508caf",
+      "blob": "d6d83613d1861e9c423078b2870e2b7f88b74fb3",
+      "sections": [
+        "el-menu-y-el-backend-piden-permisos-distintos"
+      ]
+    },
+    {
+      "repo": "application",
+      "path": "app/Http/Kernel.php",
+      "commit": "05e6ad4d86c9e15cc7f6fa88527cef94ff508caf",
+      "blob": "071d6571bc023f91113c75c579d4993c571f95d9",
+      "sections": [
+        "el-menu-y-el-backend-piden-permisos-distintos"
+      ]
+    },
+    {
+      "repo": "application",
+      "path": "app/Http/Controllers/Admin/UserController.php",
+      "commit": "05e6ad4d86c9e15cc7f6fa88527cef94ff508caf",
+      "blob": "da774a7af1244aeb9137b98e50fc1ce32e796cb1",
+      "sections": [
+        "gestion-usuarios-solicitudes-y-autorizaciones",
+        "las-bajas-son-logicas"
+      ]
+    },
+    {
+      "repo": "application",
+      "path": "app/Http/Controllers/Admin/UserRequestController.php",
+      "commit": "05e6ad4d86c9e15cc7f6fa88527cef94ff508caf",
+      "blob": "652482b28864bd365f7fb6f5f14cbd4b155a298a",
+      "sections": [
+        "gestion-usuarios-solicitudes-y-autorizaciones",
+        "escrituras-que-no-piden-permiso"
+      ]
+    },
+    {
+      "repo": "application",
+      "path": "routes/admin.php",
+      "commit": "05e6ad4d86c9e15cc7f6fa88527cef94ff508caf",
+      "blob": "78612c26eea8a3deb00442266013891a9e0bc972",
+      "sections": [
+        "gestion-usuarios-solicitudes-y-autorizaciones",
+        "configuracion-comercios-entidades-y-reglas",
+        "las-bajas-son-logicas",
+        "escrituras-que-no-piden-permiso"
+      ]
+    },
+    {
+      "repo": "application",
+      "path": "app/Http/Controllers/Admin/CreditopXRequestHistoryController.php",
+      "commit": "05e6ad4d86c9e15cc7f6fa88527cef94ff508caf",
+      "blob": "1818177984c9cd38a314e0adae1814a76d90aac0",
+      "sections": [
+        "creditos-creditopx"
+      ]
+    },
+    {
+      "repo": "application",
+      "path": "resources/js/navigation/vertical/creditopX.js",
+      "commit": "05e6ad4d86c9e15cc7f6fa88527cef94ff508caf",
+      "blob": "1d84e2411011e4640d495052137061d6632f77e3",
+      "sections": [
+        "creditos-creditopx"
+      ]
+    },
+    {
+      "repo": "application",
+      "path": "app/Http/Controllers/Admin/AlliedController.php",
+      "commit": "05e6ad4d86c9e15cc7f6fa88527cef94ff508caf",
+      "blob": "ce2c8b8031cae3c33bee6606d20a627623e21e1d",
+      "sections": [
+        "configuracion-comercios-entidades-y-reglas"
+      ]
+    },
+    {
+      "repo": "application",
+      "path": "app/Http/Controllers/Admin/AlliedAlliedBranchController.php",
+      "commit": "05e6ad4d86c9e15cc7f6fa88527cef94ff508caf",
+      "blob": "19c834fb1143725cf6bcc5f9cd6c73387467ec73",
+      "sections": [
+        "configuracion-comercios-entidades-y-reglas",
+        "escrituras-que-no-piden-permiso"
+      ]
+    },
+    {
+      "repo": "application",
+      "path": "app/Http/Controllers/Admin/LenderController.php",
+      "commit": "05e6ad4d86c9e15cc7f6fa88527cef94ff508caf",
+      "blob": "9e954010be4a26e182a3cbb4781ff5eddcc5236c",
+      "sections": [
+        "configuracion-comercios-entidades-y-reglas",
+        "escrituras-que-no-piden-permiso"
+      ]
+    },
+    {
+      "repo": "application",
+      "path": "app/Http/Controllers/Admin/DatacreditoFrecuenciesController.php",
+      "commit": "05e6ad4d86c9e15cc7f6fa88527cef94ff508caf",
+      "blob": "a857b988128036a2e37dfd6b31ade96ec8c0bfb0",
+      "sections": [
+        "configuracion-comercios-entidades-y-reglas"
+      ]
+    },
+    {
+      "repo": "application",
+      "path": "resources/js/navigation/vertical/configuration.js",
+      "commit": "05e6ad4d86c9e15cc7f6fa88527cef94ff508caf",
+      "blob": "14c2ef90b5888117faa80fb257cfb44ec00d6a0d",
+      "sections": [
+        "configuracion-comercios-entidades-y-reglas"
+      ]
+    },
+    {
+      "repo": "application",
+      "path": "app/Http/Controllers/Admin/ExperianController.php",
+      "commit": "05e6ad4d86c9e15cc7f6fa88527cef94ff508caf",
+      "blob": "64e9ec2609888c220faf297d0f19ea6675d4daa0",
+      "sections": [
+        "centrales-de-riesgo-y-validacion-de-usuarios"
+      ]
+    },
+    {
+      "repo": "application",
+      "path": "app/Http/Controllers/Admin/ProfilingReviewController.php",
+      "commit": "05e6ad4d86c9e15cc7f6fa88527cef94ff508caf",
+      "blob": "5ce329bb69e613a58f184dec9beda0156ef3c3a0",
+      "sections": [
+        "centrales-de-riesgo-y-validacion-de-usuarios"
+      ]
+    },
+    {
+      "repo": "application",
+      "path": "app/Http/Controllers/Admin/AlliedCorporateUserController.php",
+      "commit": "05e6ad4d86c9e15cc7f6fa88527cef94ff508caf",
+      "blob": "0882ec2ff10910ab3900f67132e53f0d1b739f0e",
+      "sections": [
+        "las-bajas-son-logicas"
+      ]
+    },
+    {
+      "repo": "application",
+      "path": "app/Http/Controllers/Admin/CredentialsController.php",
+      "commit": "05e6ad4d86c9e15cc7f6fa88527cef94ff508caf",
+      "blob": "ae32751332a2a75f6a9568f9c677020f72e9d89c",
+      "sections": [
+        "escrituras-que-no-piden-permiso"
+      ]
+    },
+    {
+      "repo": "application",
+      "path": "app/Http/Requests/Admin/MarketingMessages/MarketingMessagesRequest.php",
+      "commit": "05e6ad4d86c9e15cc7f6fa88527cef94ff508caf",
+      "blob": "912381f799b769541f797a03a77be8e20e1966a8",
+      "sections": [
+        "escrituras-que-no-piden-permiso"
+      ]
+    }
+  ]
+}

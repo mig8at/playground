@@ -3,7 +3,7 @@ id: 101
 title: "Ajuste de nombres en el onboarding v1 y v2"
 stage: work
 created: "2026-10-16T11:00:00-05:00"
-knowledge: [identity-name-validation, kyc-pipeline]
+knowledge: [identity-name-validation, kyc-pipeline, admin-panel]
 canon: []
 jira: []
 jira_title: "Ajuste de nombres en el onboarding v1 y v2"
