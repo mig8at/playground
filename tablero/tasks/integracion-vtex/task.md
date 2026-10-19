@@ -1,6 +1,6 @@
 ---
 id: 102
-title: "VTEX: la tienda pide la URL de checkout y el pedido queda atado a su sucursal"
+title: "Integración VTEX: generar la URL de checkout y saber de qué sucursal viene el pedido"
 stage: evaluation
 created: "2026-10-19T12:00:00-05:00"
 knowledge: [ecommerce-context]
