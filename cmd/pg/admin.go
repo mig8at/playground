@@ -460,3 +460,65 @@ func runAdminBranchLenders(args []string) int {
 	fmt.Printf("\n  ✔ la sucursal %s quedó con %v\n", after.Hash, after.Active())
 	return 0
 }
+
+func runAdminClientDisable(args []string) int {
+	fs := flag.NewFlagSet("admin client-disable", flag.ContinueOnError)
+	target := fs.String("target", "", "dev | staging | local")
+	document := fs.String("document", "", "la cédula del cliente, sólo dígitos")
+	asJSON := fs.Bool("json", false, "el resultado en JSON")
+	apply := applyFlag(fs)
+	if fs.Parse(args) != nil {
+		return 2
+	}
+	if _, err := admin.BaseFor(*target); err != nil {
+		return fail(2, "%v", err)
+	}
+	t := strings.ToLower(*target)
+	ctx := context.Background()
+	c, err := admin.Open(ctx, t)
+	if err != nil {
+		return fail(2, "%v", err)
+	}
+	plan, err := c.PlanClientDisable(ctx, *document)
+	if err != nil {
+		return fail(1, "%v", err)
+	}
+	out := os.Stdout
+	if *asJSON {
+		out = os.Stderr
+	}
+	if len(plan.Disabled) > 0 {
+		fmt.Fprintf(out, "  bajas anteriores de %s en %s: %d (la última, %s)\n", plan.Document, t, len(plan.Disabled), plan.Disabled[0].Document)
+	}
+	if plan.Target == nil {
+		fmt.Fprintf(out, "  No hay un cliente ACTIVO con la cédula %s en %s: el próximo registro ya crea uno nuevo.\n", plan.Document, t)
+		if *asJSON {
+			return printJSON(plan)
+		}
+		return 0
+	}
+	p := plan.Target
+	fmt.Fprintf(out, "  Va a DARSE DE BAJA en el admin de %s el cliente %d · %s · cédula %s%s\n", t, p.ID, p.Name, p.Document,
+		map[bool]string{true: " · con celular", false: ""}[p.HasPhone])
+	fmt.Fprintf(out, "    actúa como %s\n", plan.ActingAs)
+	fmt.Fprintln(out, "    queda con status 0, la cédula con sufijo -t<n> y sin correo, celular ni cognito; sus solicitudes no se tocan")
+	if t != "local" {
+		fmt.Fprintln(out, "    ⚠ escribe en la base COMPARTIDA (dev, qa y staging)")
+	}
+	if !*apply {
+		if *asJSON {
+			fmt.Fprintln(os.Stderr, "\n  (vista previa: no se escribió nada — repetí con --apply para hacerlo)")
+			return printJSON(plan)
+		}
+		return dryRun()
+	}
+	row, err := c.DisableClient(ctx, plan)
+	if err != nil {
+		return fail(1, "%v", err)
+	}
+	if *asJSON {
+		return printJSON(row)
+	}
+	fmt.Printf("\n  ✓ cliente %d dado de baja: cédula %s · status %d. La cédula %s quedó libre.\n", row.ID, row.Document, row.Status, plan.Document)
+	return 0
+}

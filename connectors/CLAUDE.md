@@ -22,6 +22,15 @@ bin/pg advisor logout --target local --account c<hash>-fake@creditop.com
 
 El ambiente de autenticación lo decide el front, independientemente del backend. El front conocido `localhost:5174`/`127.0.0.1:5174` usa dev; si se configura otro pool allí se declara `ADVISOR_AUTH_TARGET=qa|staging|dev`. Los demás orígenes usan el target. La ruta de asesor incluye esquema, host y puerto; no compartir sesiones sólo por hostname. Cada cuenta tiene su archivo: la sesión de un comercio no sirve para otro. Cambiar el pool del front exige cerrar su sesión y entrar de nuevo.
 
+## Dar de baja un cliente de prueba
+
+`pg admin client-disable --target local|dev|staging --document <cédula> [--apply]` hace lo mismo que la papelera de
+**Usuarios** del admin (`UserController::disableUser`): `status 0`, la cédula con `-t<n>` y sin correo, celular ni
+`cognito_id`. Sirve para repetir un registro con la misma cédula y que las centrales se consulten otra vez. ⚠ La lista
+de Usuarios NO filtra por rol y su búsqueda es una regexp: `1031138508` también trae al Administrador `2-1031138508`.
+Por eso sólo actúa sobre la cuenta ACTIVA con la cédula EXACTA y `user_profile_id = 1`. Sin `--apply` muestra con
+quién actuaría. Producción la rechaza `BaseFor`, como todo el conector; qa se corre contra dev.
+
 ## Migración y runtime
 
 Admin importa una vez su archivo anterior con identidad y metadatos válidos, sin borrar el respaldo. Un marcador impide resucitarlo después de logout. El asesor no tiene archivo anterior: su sesión nace con el primer login del asesor de prueba. A partir de ahí, consola, casos, caminador y panel leen el mismo archivo.
