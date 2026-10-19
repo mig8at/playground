@@ -129,7 +129,7 @@ const pi = await post(`/api/onboarding/loan-application/personal-info/${branch}/
     expedition_day: expedition.day, expedition_month: expedition.month, expedition_year: expedition.year,
     birth_day: birth.day, birth_month: birth.month, birth_year: birth.year, stratum: 3 });
 const code2 = pi.json?.errors?.error_code ?? pi.json?.error_code;
-console.log(`  ${pi.json?.success === true || code2 === 'ONB004' ? '✓' : '✗'} datos personales: HTTP ${pi.status}${code2 ? ` · ${code2}${code2 === 'ONB004' ? ' (pide datos laborales: la identidad ya pasó)' : ''}` : ''}`);
+console.log(`  ${pi.json?.success === true || code2 === 'ONB004' ? '✓' : '✗'} datos personales: HTTP ${pi.status}${code2 ? ` · ${code2}${code2 === 'ONB004' ? ' (pide datos laborales: la identidad ya pasó)' : code2 === 'ONB040' ? ' (límite de intentos por hora para esta cédula: esperá y volvé a correr)' : ''}` : ''}`);
 
 // ── Lo que quedó, leído (sólo lectura) ───────────────────────────────────────────────────────────
 const after = clientState('prod', doc);
