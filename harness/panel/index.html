@@ -301,7 +301,19 @@
        así el lienzo no se recorta y cada clic cae donde se ve) con su base de laptop. El ancho sale del MENOR entre
        lo que deja el centro y lo que permite el alto. */
     .stage-views { align-self: center; flex: none }
-    .devices[hidden], .admin-view[hidden] { display: none }
+    .devices[hidden], .admin-view[hidden], .prod-view[hidden] { display: none }
+    .prod-view { flex: 1 1 auto; min-height: 0; display: flex; justify-content: center; align-items: flex-start; overflow: auto }
+    .prod-card { width: min(760px, 100%); display: flex; flex-direction: column; gap: var(--space-2); padding: var(--space-3);
+      border: 1px solid var(--border); border-radius: var(--radius); background: var(--card) }
+    .prod-head { display: flex; align-items: center; gap: var(--space-2) }
+    .prod-hint { margin: 0; color: var(--fg-2); font-size: var(--text-sm) }
+    .prod-actions, .prod-otp { display: flex; align-items: center; gap: var(--space-2) }
+    .prod-otp[hidden], #prodStop[hidden] { display: none }
+    .prod-otp input { width: 9ch }
+    .prod-go:not(:disabled) { color: var(--warn); border-color: var(--warn) }
+    .prod-status { font-size: var(--text-sm); color: var(--fg-2) }
+    .prod-out { margin: 0; min-height: 120px; max-height: 50vh; overflow: auto; padding: var(--space-2); border-radius: var(--radius);
+      background: var(--background); border: 1px solid var(--border); font-size: var(--text-xs); white-space: pre-wrap }
     .admin-view { flex: 1 1 auto; min-height: 0; container-type: size; display: flex; justify-content: center; align-items: flex-start }
     .device.pc > .pc-body { grid-area: frame; display: flex; flex-direction: column; align-items: center;
       width: min(100cqw - 48px, (100cqh - 64px) * 1366 / 768 + 20px) }
@@ -657,6 +669,7 @@
           <div class="toggle-group stage-views" id="stageViews" role="tablist" aria-label="Vista del centro">
             <button type="button" class="toggle on" id="viewOrig" role="tab" aria-selected="true" aria-controls="devices">Originación</button>
             <button type="button" class="toggle" id="viewAdmin" role="tab" aria-selected="false" aria-controls="adminView">Admin</button>
+            <button type="button" class="toggle" id="viewProd" role="tab" aria-selected="false" aria-controls="prodView">Prod</button>
           </div>
           <div class="devices" id="devices" data-count="2">
             <!-- La tienda, sólo con los canales que entran por ella (ecommerce y auto): ahí el comprador
@@ -803,6 +816,28 @@
                 <button type="button" class="device-reload device-shot" data-device="admin" title="Copiar la pantalla del admin al portapapeles" aria-label="Capturar la pantalla del admin"><span class="ui-icon" data-icon="camera" aria-hidden="true"></span><span>Capturar</span></button>
               </div>
             </figure>
+          </div>
+          <!-- LA CORRIDA DE PRODUCCIÓN: el panel lanza `dev/prod-run.ts` (el mismo de la consola, con sus comprobaciones) y le
+               pasa el OTP que llega por SMS. Crea una solicitud REAL en prod por el camino público y para antes del listado. -->
+          <div class="prod-view" id="prodView" hidden>
+            <section class="prod-card">
+              <header class="prod-head"><strong>Corrida en producción</strong><span class="device-otp warn">PROD real</span></header>
+              <p class="prod-hint">Registra tu celular, valida el código del SMS y manda tus datos personales en la sucursal de prueba de
+                Creditop (sin entidades ni Experian), y muestra qué guardó prod. Para antes del listado. Los datos salen de
+                <code>harness/.env.prod</code>; hace falta la VPN de prod y que no haya un cliente activo con la cédula.</p>
+              <div class="prod-actions">
+                <button type="button" class="btn btn-outline btn-sm" id="prodCheck">Comprobar</button>
+                <button type="button" class="btn btn-sm prod-go" id="prodGo" disabled title="Primero «Comprobar» tiene que pasar">Correr en prod</button>
+                <button type="button" class="btn btn-outline btn-sm" id="prodStop" hidden>Detener</button>
+                <span class="prod-status" id="prodStatus"></span>
+              </div>
+              <form class="prod-otp" id="prodOtpForm" hidden>
+                <label for="prodOtp">Código del SMS</label>
+                <input class="input input-sm" id="prodOtp" inputmode="numeric" autocomplete="one-time-code" maxlength="6" />
+                <button type="submit" class="btn btn-sm">Enviar</button>
+              </form>
+              <pre class="prod-out" id="prodOut"></pre>
+            </section>
           </div>
           <section class="alert alert-warn" id="webhookZone" style="display:none" role="status"></section>
         </main>
@@ -3450,11 +3485,13 @@
       setAdminMode('idle');
     };
     function showStageView(view) {
-      const admin = view === 'admin';
-      $('devices').hidden = admin;
+      const admin = view === 'admin', prod = view === 'prod';
+      $('devices').hidden = admin || prod;
       $('adminView').hidden = !admin;
-      for (const [id, on] of [['viewOrig', !admin], ['viewAdmin', admin]]) { $(id).classList.toggle('on', on); $(id).setAttribute('aria-selected', String(on)); }
-      try { localStorage.setItem('harness.stageView', admin ? 'admin' : 'orig'); } catch { }
+      $('prodView').hidden = !prod;
+      for (const [id, on] of [['viewOrig', !admin && !prod], ['viewAdmin', admin], ['viewProd', prod]]) { $(id).classList.toggle('on', on); $(id).setAttribute('aria-selected', String(on)); }
+      try { localStorage.setItem('harness.stageView', view); } catch { }
+      if (prod) { refreshProdRun(); }
       if (!admin) { liveDisconnect('admin'); return; }
       // Al volver a la vista: si la PC sigue abierta en el servidor se retoma; si no, se abre con el ambiente elegido.
       void (async () => {
@@ -3467,7 +3504,51 @@
     }
     $('viewOrig').onclick = () => showStageView('orig');
     $('viewAdmin').onclick = () => showStageView('admin');
-    try { if (localStorage.getItem('harness.stageView') === 'admin') setTimeout(() => showStageView('admin'), 400); } catch { }
+    $('viewProd').onclick = () => showStageView('prod');
+    try { const v = localStorage.getItem('harness.stageView'); if (v === 'admin' || v === 'prod') setTimeout(() => showStageView(v), 400); } catch { }
+
+    // ── La corrida de producción (vista «Prod») ───────────────────────────────────────────────────
+    // «Correr en prod» se habilita sólo después de una comprobación que pasó en esta sesión del panel: la vista previa es
+    // la que dice que la cédula está permitida, la sucursal no tiene entidades, no hay cliente activo y la VPN está.
+    let prodChecked = false, prodPoll = null;
+    function renderProdRun(st) {
+      $('prodOut').textContent = (st.lines || []).join('\n');
+      $('prodOut').scrollTop = $('prodOut').scrollHeight;
+      $('prodOtpForm').hidden = !st.waitingOtp;
+      $('prodStop').hidden = !st.running;
+      $('prodCheck').disabled = !!st.running;
+      $('prodGo').disabled = !!st.running || !prodChecked;
+      $('prodStatus').textContent = st.running ? (st.waitingOtp ? 'esperando el código del SMS…' : (st.apply ? 'corriendo en prod…' : 'comprobando…'))
+        : st.code == null ? '' : st.code === 0 ? (st.apply ? '✓ terminó' : '✓ comprobaciones pasaron') : '✗ se detuvo (ver la salida)';
+      if (st.waitingOtp && document.activeElement !== $('prodOtp')) $('prodOtp').focus();
+    }
+    async function refreshProdRun() {
+      try {
+        const st = await (await fetch('/api/prod-run')).json();
+        if (!st.running && st.code === 0 && st.apply === false) prodChecked = true;
+        renderProdRun(st);
+        if (st.running && !prodPoll) prodPoll = setInterval(refreshProdRun, 700);
+        if (!st.running && prodPoll) { clearInterval(prodPoll); prodPoll = null; }
+      } catch { /* el panel no respondió */ }
+    }
+    async function startProdRun(apply) {
+      if (apply && !confirm('Esto crea una solicitud REAL en producción con tus datos y consulta las centrales (se cobran). ¿Seguir?')) return;
+      if (!apply) prodChecked = false;
+      const r = await (await fetch('/api/prod-run', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ apply }) })).json();
+      if (!r.ok) { $('prodStatus').textContent = '✗ ' + (r.detail || 'no se pudo lanzar'); return; }
+      refreshProdRun();
+    }
+    $('prodCheck').onclick = () => startProdRun(false);
+    $('prodGo').onclick = () => startProdRun(true);
+    $('prodStop').onclick = async () => { await fetch('/api/prod-run/stop', { method: 'POST' }); refreshProdRun(); };
+    $('prodOtpForm').onsubmit = async (e) => {
+      e.preventDefault();
+      const code = $('prodOtp').value.trim();
+      const r = await (await fetch('/api/prod-run/otp', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ code }) })).json();
+      if (!r.ok) { $('prodStatus').textContent = '✗ ' + (r.detail || 'no se pudo enviar el código'); return; }
+      $('prodOtp').value = '';
+      refreshProdRun();
+    };
 
     // ── El navegador real del cliente ─────────────────────────────────────────────────────────────
     // La tienda queda a la vista; «Pagar con Creditop» REDIRIGE al celular del cliente, que abre el

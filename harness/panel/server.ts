@@ -35,6 +35,8 @@ const PORT = Number(process.env.PANEL_PORT || 5195);
 const HOST = process.env.PANEL_HOST || '127.0.0.1';
 // Uno por PUERTO: un panel de prueba (`PANEL_PORT=5196`) escribía en la consola del de verdad, y abrir un
 // celular ahí (`startDeviceLog`) la vaciaba (2026-10-06).
+/** La corrida de producción que lanzó la vista «Prod» (ver `/api/prod-run`): una a la vez. */
+let prodRun: { child: import('node:child_process').ChildProcessWithoutNullStreams; lines: string[]; waitingOtp: boolean; done: boolean; code: number | null; apply: boolean; startedAt: number } | null = null;
 const RUN_LOG = PORT === 5195 ? '/tmp/asesor-panel-run.log' : `/tmp/asesor-panel-run-${PORT}.log`;
 /* El stdout del WIZARD (SSR). No lo inventa el panel: `bin/advisor:500` ya lanza `pnpm dev` con
  * `> /tmp/asesor-wizard.log`, y lo TRUNCA antes de cada arranque — o sea que el archivo es siempre el de
@@ -2517,6 +2519,48 @@ connect();
             }
         }
         return json(res, 405, { ok: false, detail: 'acción no soportada' });
+    }
+
+    /* ── LA CORRIDA DE PRODUCCIÓN (la vista «Prod» del panel) ─────────────────────────────────────────────────────
+     * El panel no es otro motor: lanza `dev/prod-run.ts` —el mismo de la consola, con todas sus comprobaciones— y le pasa
+     * el OTP que la persona tipea en la vista. La salida queda en su propio estado (y en la consola de la corrida, para
+     * copiarla), separada de las corridas del wizard. Sin `apply` sólo comprueba; con `apply` crea la solicitud en prod. */
+    if (path === '/api/prod-run' && req.method === 'GET') {
+        return json(res, 200, prodRun ? { running: !prodRun.done, waitingOtp: prodRun.waitingOtp, apply: prodRun.apply, code: prodRun.code,
+            startedAt: prodRun.startedAt, lines: prodRun.lines } : { running: false });
+    }
+    if (path === '/api/prod-run' && req.method === 'POST') {
+        if (prodRun && !prodRun.done) return json(res, 409, { ok: false, detail: 'ya hay una corrida de prod andando' });
+        const b = await readBody(req);
+        const apply = b?.apply === true;
+        const child = spawn(process.execPath, ['dev/prod-run.ts', ...(apply ? ['--apply'] : [])], { cwd: ROOT, env: { ...process.env, E2E_TARGET: 'prod' }, stdio: ['pipe', 'pipe', 'pipe'] });
+        const run = { child, lines: [] as string[], waitingOtp: false, done: false, code: null as number | null, apply, startedAt: Date.now() };
+        prodRun = run;
+        try { writeFileSync(RUN_LOG, `▶ PRODUCCIÓN · corrida pública${apply ? '' : ' (vista previa)'}\n\n`); } catch { }
+        const take = (chunk: Buffer) => {
+            const text = String(chunk).replace(/\x1b\[[0-9;]*[A-Za-z]/g, '');
+            if (/código del SMS:\s*$/.test(text)) run.waitingOtp = true;
+            for (const line of text.split('\n')) if (line.trim()) run.lines.push(line);
+            try { writeFileSync(RUN_LOG, text, { flag: 'a' }); } catch { }
+        };
+        child.stdout.on('data', take);
+        child.stderr.on('data', take);
+        child.on('close', (code) => { run.done = true; run.waitingOtp = false; run.code = code; });
+        return json(res, 200, { ok: true, apply });
+    }
+    if (path === '/api/prod-run/otp' && req.method === 'POST') {
+        const b = await readBody(req);
+        const code = String(b?.code ?? '').trim();
+        if (!prodRun || prodRun.done || !prodRun.waitingOtp) return json(res, 409, { ok: false, detail: 'la corrida no está esperando un código' });
+        if (!/^\d{4,6}$/.test(code)) return json(res, 400, { ok: false, detail: 'el código son 4 a 6 dígitos' });
+        prodRun.waitingOtp = false;
+        prodRun.child.stdin.write(code + '\n');
+        prodRun.child.stdin.end();
+        return json(res, 200, { ok: true });
+    }
+    if (path === '/api/prod-run/stop' && req.method === 'POST') {
+        if (prodRun && !prodRun.done) prodRun.child.kill('SIGTERM');
+        return json(res, 200, { ok: true });
     }
 
     if (path === '/api/preboot' && req.method === 'POST') {

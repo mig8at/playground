@@ -595,3 +595,17 @@ los celulares. La vista elegida se recuerda (`harness.stageView`).
   no deja navegador de reserva (se abre de vez en cuando).
 - ⚠ **El admin local lee la base local**: con `legacy-backend-mysql-1` apagado la sesión no se emite («no se pudo
   emitir la sesión del admin local»). Levantá la base antes.
+
+## La vista «Prod»: la corrida de producción desde el panel (2026-10-19)
+
+Tercera pestaña del centro (`Originación | Admin | Prod`). El panel NO es otro motor: lanza `dev/prod-run.ts` —el
+mismo de la consola, con todas sus comprobaciones— por `POST /api/prod-run` y le pasa el OTP por su entrada estándar
+(`POST /api/prod-run/otp`); `GET /api/prod-run` da su estado y su salida. La salida va a la tarjeta y también a la
+consola de la corrida (para copiarla), sin mezclarse con el estado de las corridas del wizard.
+
+- **«Correr en prod» sólo se habilita después de un «Comprobar» que pasó** en esa sesión del panel, y pide
+  confirmación: la vista previa es la que dice que la cédula está permitida, la sucursal no tiene entidades ni
+  Experian, no hay cliente activo y la VPN de prod está.
+- **El OTP llega por SMS real**: la tarjeta muestra el campo cuando el proceso imprime `código del SMS:`.
+- Lo que crea en prod y por qué para antes del listado: `harness/CLAUDE.md`, fila de `dev/prod-run.ts`.
+
