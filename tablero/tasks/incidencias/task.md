@@ -46,6 +46,12 @@ Salvo donde se dice «corrido», salen de LEER el código: falta reproducirlos.
   debe dejar pasar como el viejo: hoy el mismo caso da resultados distintos según por cuál firma el cliente. Baja
   frecuencia (el listado ya filtra por categoría; sólo pasa si la política cambia entre el listado y la firma).
 
+- [ ] Decidir qué pasa en el flujo nuevo (pipeline de KYC v2) cuando caen Ágil Data, Mareigua y TusDatos: ninguna
+  confirma la identidad, el cliente queda temporal, el pipeline pide los datos laborales y el endpoint los rechaza con
+  ONB002 («temporal user found»), así que la solicitud espera hasta vencer. CORRIDO en local (2026-10-19, caso 19 de
+  `make harness-pipeline-run`). En el flujo viejo, según el código, se guarda el nombre escrito y sigue. Termina con la
+  decisión y su tarea. Origen: `OnboardingController::storeLaboralInfoOrchestrator` rechaza temporales.
+
 ### Media — comportamiento distinto al esperado
 
 - [ ] Corregir el `redirect-url` del cobro de cuota inicial, quemado a la ruta de ecommerce aunque la solicitud sea
@@ -93,6 +99,36 @@ Salvo donde se dice «corrido», salen de LEER el código: falta reproducirlos.
   Termina con la decisión (captcha, límite por origen detrás del gateway u otro).
 - [ ] Encender el interruptor que exige el identificador firmado en la vista previa del pago: apagado por
   omisión, el número de solicitud (consecutivo) sigue devolviendo el nombre completo del titular.
+
+### Seguridad — el admin de legacy-application (salen de LEER `main` 05e6ad4d; mapa en `knowledge/admin-panel`)
+
+- [ ] Poner chequeo de permiso a las acciones del admin que ESCRIBEN y hoy sólo exigen estar logueado: la baja de
+  Usuarios (`UserController::disableUser`, además por GET) y la de usuarios comerciales, desactivar una entidad
+  (`LenderController::destroy`), borrar credenciales de integración (`CredentialsController::destroy`, borrado real),
+  las reglas y la frecuencia de Datacrédito, el disparador del punto de venta (`updateTrigger`), cambiar el estado de
+  una solicitud al gestionarla (`UserRequestController::update`), la validación manual (`/validacion-manual`, pasa a
+  10 o a 6) y los envíos de mensajes de marketing. Termina cuando cada una tiene su FormRequest o policy con el
+  permiso que ya usa el menú, o se descarta con el motivo.
+- [ ] Cerrar el alcance de las lecturas y acciones por id en la URL: el detalle de un crédito CreditopX y el
+  bloqueo, desbloqueo y PIN del celular financiado (`deviceManagement`, `devicePinUnlock`), los documentos de
+  identidad de un usuario (`getUserDocument`), su formulario y sus solicitudes. Termina cuando un rol de comercio no
+  puede abrirlas para un cliente de otro comercio.
+- [ ] Revisar las listas que no filtran por rol: Usuarios (sólo recorta a Entidad Comercio), Links de pago (sólo al
+  perfil 6) y Revisión de perfilamiento. Termina con la decisión de qué ve cada rol.
+- [ ] Sacar las rutas de desarrollo del admin o protegerlas: `/test-perfilamiento`, `/create-profiling` (termina en
+  `dd()` y sube el límite de memoria) y `/pruebas-modelo`, las tres sin chequeo. Termina cuando no responden en un
+  ambiente desplegado.
+
+### Admin — comportamiento distinto al esperado
+
+- [ ] Alinear los permisos del menú con los del backend: «Usuarios» se muestra con `view list of users` y su listado
+  exige `view users`; Reportes y las vistas de CreditopX tienen el mismo desfase. Termina con una lista de los pares
+  y la decisión de cuál manda.
+- [ ] Corregir el filtro de Autorizaciones para Admin comercio: compara `allied_branch_id` con una colección
+  (`where` en vez de `whereIn`, `AuthorizationController` ~28). Termina reproducido o descartado con un Admin comercio
+  de varias sucursales.
+- [ ] Sacar el `dd($exception)` de `PaymentLinkController::store` (~86): si falla el alta, el admin muestra el volcado
+  de la excepción en vez de un error. Termina cuando un fallo forzado muestra un mensaje.
 
 ## Objetivo
 

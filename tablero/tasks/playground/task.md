@@ -11,6 +11,27 @@ jira_title: ""
 
 ## Con acción vigente
 
+- **Lecturas del admin y de la base, en el conector** (salen del mapa `knowledge/admin-panel`; sólo lectura,
+  también prod; ya están `client state` y `experian check`):
+  - [ ] `pg admin permissions --target T (--role R | --user <correo>)`: qué permisos tiene de verdad un rol o un
+    usuario (`role_has_permissions` + `model_has_permissions`), porque git no lo dice. Termina cuando contesta para
+    un rol y para un usuario en local, dev y prod.
+  - [ ] `pg request history --target T --ureq N`: por qué estados pasó una solicitud, quién la movió y qué estado
+    pone cada perfil de su comercio al gestionarla (`status_per_profiles`). Termina cuando reconstruye una solicitud
+    conocida de qa.
+  - [ ] `pg branch rules --target T --hash H`: las entidades del punto de venta, sus reglas duras, las reglas y la
+    frecuencia de Datacrédito y el disparador. Termina cuando muestra lo mismo que la pantalla de reglas del admin
+    para una sucursal.
+  - [ ] `pg merchant users --target T --allied N`: los usuarios internos de un comercio con su perfil, su estado y
+    sus bajas. Termina cuando lista los de Creditop en prod.
+  - [ ] Chequeo del simulador de centrales contra los fixtures del backend (los campos que el backend lee), en
+    `make harness-environment`. Termina cuando una respuesta sin `fecha` en Mareigua sale como falla.
+  - [ ] Salud del admin local en `make harness-environment`: base local arriba, `artisan serve`, `public/hot`
+    apuntando a un vite vivo y un Administrador en la base. Termina cuando el caso del 2026-10-19 (base apagada y
+    `hot` viejo) sale en rojo con su arreglo.
+  - [ ] Decidir dónde vive `harness/bin/dev-admin-create`: commitearlo como script o pasarlo a un permiso angosto en
+    `pkg/db.ts`. Hoy está escrito y sin commit. Depende de: Miguel — la decisión y el commit.
+
 - **Reglas vigentes en los CLAUDE.md:** decidir el destino de diez correcciones y dejar la regla
   actual sin el relato de cómo cambió.
 - **País fuera del código:** revisar el cambio pendiente, ejecutar la matriz de QA y preparar lo que

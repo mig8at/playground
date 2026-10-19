@@ -25,8 +25,6 @@ ramas: "fix/kyc-name-adoption, fix/kyc-v2-name-adoption, fix/kyc-remove-name-rev
 - [ ] Actualizar «Reglas generales → Correcciones» en Confluence (completar el nombre donde no hay que adivinar); termina cuando la página lo diga.
 - [ ] Decidir con producto qué hacer cuando sólo resuelve TusDatos y el nombre llega incompleto.
   Depende de: producto — decisión.
-- [ ] Reportar que en v2, con las tres centrales caídas, el cliente queda temporal y el formulario laboral se rechaza (ONB002); termina cuando exista un issue con el caso reproducible.
-  Depende de: equipo de onboarding — decisión sobre qué hacer sin ninguna central.
 
 ## Objetivo
 
