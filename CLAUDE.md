@@ -82,7 +82,7 @@ Elegí **el más chico que conteste la pregunta**. Subir de ambiente agrega ries
 | `local` | tuyo, Docker | ⚠ **`E2E_TARGET` por defecto es `dev`, NO `local`**: omitirlo pega contra el dev compartido |
 | `dev` | rama `develop`, **compartido con el equipo** | leer libre; **escribir** pide `I_KNOW_THIS_TOUCHES_SHARED_DEV` a mano (F-53) |
 | `staging` | rama `staging`, backend propio | **comparte la BD con `dev`**. Su `APP_ENV` está en disputa: no des por apagado nada ahí (`harness/CLAUDE.md`) |
-| `prod` | lo real | **SOLO LECTURA, siempre** |
+| `prod` | lo real | **SOLO LECTURA**, con una sola excepción: el flujo PÚBLICO de `harness/dev/prod-run.ts`, que corre una persona (OTP por SMS) con una cédula de `PROD_ALLOWED_DOCS` en una sucursal de prueba sin entidades ni Experian, y no pasa del formulario de perfil. Nada escribe en la base por fuera de la app |
 
 No asumas que el código está en los cuatro: un módulo nuevo puede faltar en `develop` o `staging`, y su
 404 no ser un bug. Antes de depurarlo: `git -C <repo> ls-tree -r --name-only <rama> <ruta>`.
