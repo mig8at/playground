@@ -49,3 +49,6 @@ test-results/
 
 # el índice de radar: derivado de las transcripciones, se reconstruye solo
 radar/.cache/
+
+# las tandas del ensayo: corridas con sus respuestas, locales por máquina
+ensayo/.tandas/

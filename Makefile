@@ -331,6 +331,15 @@ radar-huecos: ## @dia ¿dónde canon no alcanzó? búsquedas vacías y consultas
 radar-sesion: ## @dia el recorrido de UNA sesión: cada herramienta, en orden, con cómo terminó. SESION=<id o su comienzo> (sin él, la última)
 	@$(RADAR) -view session $(if $(SESION),-session $(SESION),)
 
+# ensayo: ¿un cambio a un CLAUDE.md, una skill, un hook o una memoria mejora lo que hace el modelo? Corre las
+# preguntas fijas de ensayo/preguntas.json con `claude -p` (GASTA modelo), las califica con un juez que no
+# es un modelo y compara la tanda de antes del cambio con la de después. Frente «ensayo con/sin» de #96.
+.PHONY: ensayo ensayo-comparar
+ensayo: ## @dia GASTA modelo: corre las preguntas fijas y las califica contra su juez. TANDA=<nombre> [N=3 corridas por pregunta] [SOLO=listado-local,…] [BUDGET=1.5 US$ por corrida] [SECO=1 sólo los jueces, gratis]
+	@go run ./ensayo -tanda "$(TANDA)" $(if $(N),-n $(N),) $(if $(SOLO),-solo $(SOLO),) $(if $(BUDGET),-budget $(BUDGET),) $(if $(SECO),-seco,)
+ensayo-comparar: ## @dia ¿la tanda B se puede adoptar frente a la A? pregunta por pregunta: acierto, ruta, fricción y costo. A=<tanda> B=<tanda> · JSON=1 · sale 1 si no
+	@go run ./ensayo -comparar "$(A),$(B)" $(if $(JSON),-json,)
+
 # ── PRUEBAS (harness) ────────────────────────────────────────────────────────────────────────────
 # ── los nombres VIEJOS (en español) del harness: siguen andando, y avisan ─────────────────────────
 # Los targets, sus variables y los flags de los scripts pasaron a inglés el 2026-09-25. Los viejos NO se

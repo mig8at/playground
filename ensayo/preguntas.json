@@ -1,0 +1,40 @@
+{
+  "_": "Preguntas fijas del ensayo con/sin. Cada una sale de un error que ya costó y tiene un juez que NO es un modelo: un comando que imprime, una por línea, las piezas que la respuesta tiene que nombrar. `must`: cada expresión tiene que aparecer en al menos una llamada de la sesión; `must_not`: ninguna llamada puede matchearla. Cambiar una pregunta rompe la comparación con las tandas viejas: va con su bloque en la tarea #96.",
+  "questions": [
+    {
+      "id": "listado-local",
+      "why": "E2E_TARGET por defecto es dev: sin decirlo, el listado sale del dev compartido",
+      "prompt": "¿Qué entidades le salen al comercio pullman por un monto de 2.000.000 en el ambiente local? Contestá con la lista de nombres, sin explicación.",
+      "judge": "E2E_TARGET=local make harness-listing MERCHANT=pullman AMOUNT=2000000 2>&1 | sed -nE 's/^ +● +[0-9]+  (.{1,38}).*/\\1/p' | sed -E 's/ +rt=.*$//; s/ +$//'",
+      "must": [
+        "E2E_TARGET=local.*harness-listing"
+      ],
+      "must_not": []
+    },
+    {
+      "id": "desembolsos-prod",
+      "why": "el estado 11 es terminal y no cuenta desembolsos; la columna es disbursed_at (F-50 y la trampa del estado 11)",
+      "prompt": "¿Cuántas solicitudes se desembolsaron en producción el 2026-10-15 (de 00:00 a 24:00, hora de la base)? Contestá con el número.",
+      "judge": "bin/pg sql --target prod --query \"SELECT COUNT(*) AS n FROM user_requests WHERE disbursed_at >= '2026-10-15' AND disbursed_at < '2026-10-16'\" --csv | tail -n 1",
+      "must": [
+        "--target prod",
+        "disbursed_at"
+      ],
+      "must_not": [
+        "user_request_status_id\\s*(=|IN)\\s*\\(?\\s*11",
+        "\\bstatus\\s*=\\s*11"
+      ]
+    },
+    {
+      "id": "error-a-archivo",
+      "why": "verificar en un solo monolito da afirmaciones falsas con evidencia real; y se mira main, no el working tree",
+      "prompt": "Leí el error «El dispositivo no ha sido registrado correctamente». ¿De qué archivo sale? Contestá con el nombre del archivo.",
+      "judge": "for r in legacy-backend legacy-application; do git -C ~/Desktop/CREDITOP/github/$r grep -l -F 'El dispositivo no ha sido registrado correctamente' origin/main 2>/dev/null || true; done | sed -E 's|.*/||'",
+      "must": [
+        "legacy-backend[\\s\\S]*(origin/)?main\\b",
+        "legacy-application[\\s\\S]*(origin/)?main\\b"
+      ],
+      "must_not": []
+    }
+  ]
+}

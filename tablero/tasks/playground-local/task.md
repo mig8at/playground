@@ -78,18 +78,17 @@ jira_title: ""
 - [ ] Gemini responde 401 con la llave de `connectors/.env`; termina cuando `make keyring SOLO=services`
   lo da en verde.
   Depende de: Miguel — una llave nueva de Gemini.
-- [ ] ensayo, fase 0 · el banco: dos copias del playground (A = `main` tal cual, B = `main` + el cambio)
-  con los `.env` de `connectors/` y `harness/` enlazados, no copiados. Termina cuando `make keyring` da lo
-  mismo en A y en B, y una corrida `claude -p` en cada una sale en `make radar-sesion` con `human: false`.
-- [ ] ensayo, fase 1 · la línea base: fijar lo que las preguntas 4, 5 y 6 dejan abierto (el mensaje, la
-  regla y la solicitud), y correr las seis tres veces cada una, sólo en A. Termina cuando cada pregunta tiene acierto, ruta, fricción y costo medidos, y está escrito cuánto costó
-  la tanda entera (así se decide si una comparación A/B se paga).
-- [ ] ensayo, fase 2 · la comparación: `radar` agrega una vista que toma dos tandas de sesiones y da, por
-  pregunta, las cuatro medidas lado a lado. Termina cuando una tanda contra sí misma sale «sin diferencia»
-  y una prueba con un transcript fabricado detecta un `TARGET=` faltante.
-- [ ] ensayo, primer uso · las diez correcciones de los CLAUDE.md del frente «Reglas vigentes» de #90:
-  ensayar la raíz recortada contra la actual. Termina cuando cada corrección queda adoptada o descartada
-  con su bloque y el contraste que la sostiene.
+- [x] ensayo · la herramienta: `make ensayo` corre las preguntas fijas con `claude -p` y las califica
+  contra su juez; `make ensayo-comparar` decide pregunta por pregunta y sale 1 si B no se adopta.
+  Hecho: 11 pruebas en `ensayo/score_test.go` (una tanda contra sí misma sale «igual», un `TARGET=`
+  faltante rompe la ruta, un juez caído no califica) y una corrida real de `error-a-archivo` con acierto.
+- [ ] ensayo · la línea base: `make ensayo TANDA=base` con las tres preguntas, tres corridas cada una.
+  Termina cuando las tres tienen juez y está escrito cuánto costó la tanda (así se decide si cada
+  comparación se paga). Depende de: Miguel — levantar MySQL local (`listado-local`) y que el conector de
+  prod vuelva a contestar (`desembolsos-prod` da 500 desde Redash, también con `SELECT 1`).
+- [ ] ensayo · el primer uso: las diez correcciones de los CLAUDE.md del frente «Reglas vigentes» de #90,
+  la raíz recortada contra la actual. Termina cuando cada corrección queda adoptada o descartada con su
+  bloque y la tabla de `make ensayo-comparar`.
 
 ## Alcance
 
@@ -150,42 +149,53 @@ La idea viene de Harness² (Google Research, `google-research/harness2`): correr
 y la candidata sobre la misma tarea y quedarse con la diferencia observada. Se toma el método, no la
 herramienta.
 
-**Las seis preguntas fijas.** Salen de errores que ya costaron; cada una tiene un juez que no es un modelo.
+**Las preguntas fijas** están en `ensayo/preguntas.json`. Cada una sale de un error que ya costó y tiene
+un juez que no es un modelo: un comando que imprime lo que la respuesta tiene que nombrar.
 
-| # | pregunta (el prompt de `claude -p`) | la ruta esperada | el juez |
+| id | el error que mide | la ruta que se exige | el juez |
 |---|---|---|---|
-| 1 | ¿qué entidades le salen a pullman por 2.000.000, en local? | `harness-listing` con `E2E_TARGET=local` | la lista que da `E2E_TARGET=local make harness-listing MERCHANT=pullman AMOUNT=2000000`, corrida aparte |
-| 2 | ¿el caso pullman con ingreso 900.000 cierra, en local? | `harness-case` con `CLOSE=1` y local | el desenlace de esa misma corrida, hecha por el juez |
-| 3 | ¿cuántas solicitudes se desembolsaron ayer, en prod? | `bin/pg sql --target prod` sobre `disbursed_at` | la misma consulta; falla si cuenta por el estado 11 o por `status` |
-| 4 | leí «<un mensaje fijo de error>», ¿de qué archivo sale? | `git grep -F` en los DOS monolitos contra `main` | el archivo:línea que da el `git grep` |
-| 5 | ¿esta regla de un lender excluye o sólo reordena? (una de `lender-listing`) | correr el caso con y sin el dato | el resultado de las dos corridas (F-162) |
-| 6 | ¿qué le pasó a la solicitud N en local? | `harness-loki` y `bin/pg sql`, con `TARGET=` | la etapa a la que llegó, leída de la base |
+| `listado-local` | `E2E_TARGET` por defecto es dev | `E2E_TARGET=local` antes de `harness-listing` | el mismo listado, corrido por el juez |
+| `desembolsos-prod` | el estado 11 no cuenta desembolsos | `--target prod` y `disbursed_at`; prohibido contar por estado 11 | la misma consulta, por el conector |
+| `error-a-archivo` | mirar un solo monolito, o el working tree | `git grep` contra main en los DOS monolitos | el `git grep` de los dos |
 
-Las preguntas cambian sólo con su bloque: si cambian cada vez, A y B dejan de ser comparables.
+Se quedaron afuera, a propósito, «¿cierra este caso?», «¿esta regla excluye?» y «¿qué le pasó a esta
+solicitud?»: sus jueces escriben en la base o dependen de una solicitud viva, y un juez que cambia entre
+tandas rompe la comparación. Cambiar una pregunta cambia su huella, y `ensayo-comparar` se niega a
+comparar tandas con huellas distintas.
 
 **Qué se mide por corrida.** Todo sale de lo que ya existe; nada se anota a mano.
 
-- **acierto**: la respuesta contra el juez (la medida principal; las demás sólo desempatan);
-- **ruta**: de `make radar-sesion SESION=… JSON=1`, si usó la herramienta esperada y si cayó en una
-  prohibida (un `harness-*` sin `TARGET=`, escribir en dev, contestar sin haber corrido nada);
-- **fricción**: las llamadas `denied`, `blocked` o `error` de la misma sesión;
-- **costo**: `total_cost_usd`, `num_turns` y `duration_ms` del `--output-format json` de `claude -p`.
+- **acierto**: la respuesta contra el juez. Es la medida principal; las demás sólo desempatan. Si el juez
+  no contestó, la corrida queda «sin juez»: no cuenta como acierto ni como error.
+- **ruta**: las llamadas enteras de la transcripción (radar las corta a 160 caracteres). Lo que `must`
+  pide cuenta sólo si la llamada salió bien: un `git grep` que el permiso frenó no es haber mirado main.
+  Lo que `must_not` prohíbe cuenta con sólo intentarlo.
+- **fricción**: las llamadas que no salieron bien, con el criterio de radar (`denied`, `blocked`, `error`).
+- **costo**: `total_cost_usd` y `num_turns` del `--output-format json` de `claude -p`.
 
-**Regla de adopción.** Tres corridas por pregunta y por lado, porque una sola corrida es ruido (el propio
-paper lo admite: corridas distintas comparten los mismos sesgos). Se adopta B si ninguna pregunta baja su
-acierto y alguna mejora acierto o, empatando, ruta o fricción sin subir el costo más de un tercio.
-Adoptado o no, queda un bloque con la tabla A/B: es la «experiencia con evidencia» de Harness², en la
-pila en vez de un `EXPERIENCE.md`. Lo descartado pasa a «Lo que se evaluó y NO se eligió» de su contenedor.
+**Regla de adopción.** Tres corridas por pregunta y por lado (`N=3`), porque una sola es ruido. B se adopta
+si ninguna pregunta baja su acierto y alguna mejora, o si, empatando, mejora la ruta o la fricción sin
+costar más de un tercio extra. Ese tercio se fijó a ojo y se ajusta con la línea base. Adoptado o no, queda
+un bloque con la tabla de `ensayo-comparar`: es la «experiencia con evidencia» de Harness², en la pila en
+vez de un `EXPERIENCE.md`.
 
-**Cómo se corre, con cuidado.**
+**Cómo se comprueba.**
 
-- Las corridas son `claude -p` con `--max-budget-usd` y `--allowedTools` acotado a lectura, `make` y
-  `bin/pg`. En `-p` lo no permitido se niega solo, y eso cuenta como fricción.
-- Sólo `local` y lectura de `prod`. Nada de dev compartido, nada con `--apply`. Los hooks del repo
-  (`destructive-tests`, `index-guard`) siguen activos en las dos copias porque `.claude/` se versiona.
+    make ensayo TANDA=base SECO=1                 # sólo los jueces: gratis, dice cuáles contestan
+    make ensayo TANDA=base                        # GASTA: 3 preguntas × 3 corridas, tope US$1.5 cada una
+    # … aplicar el cambio (un CLAUDE.md, una skill) …
+    make ensayo TANDA=recorte
+    make ensayo-comparar A=base B=recorte         # sale 0 si B se puede adoptar, 1 si no
+
+- A y B corren en el MISMO checkout, una después de la otra, y cada tanda guarda el commit que midió
+  (`+cambios` si había cambios sin commitear). Dos copias en worktree fallan en silencio sin los `.env`.
+- Las corridas usan `--allowedTools` acotado a lectura, `make` de consulta y `bin/pg`, y niegan
+  `Edit`, `Write`, `git commit/push` y `--apply`. Llevan `--add-dir ~/Desktop/CREDITOP/github`, como una
+  sesión normal: sin él, todo `git -C` a main queda frenado y el modelo termina leyendo el working tree.
+  Corren sin `E2E_TARGET`, porque decirlo es parte de lo que se mide. Los hooks del repo siguen activos.
 - radar ya separa estas corridas (`human: false`), así que no ensucian `radar-uso`.
-- ⚠ Las copias en worktree fallan en silencio sin los `.env` (ver CLAUDE.md de la raíz): por eso la
-  fase 0 se da por terminada recién cuando `keyring` da igual en las dos, no cuando la copia existe.
+- Las tandas quedan en `ensayo/.tandas/`, fuera de git: guardan las respuestas, que pueden traer datos
+  de prod.
 
 **Lo que se evaluó y NO se eligió.**
 
