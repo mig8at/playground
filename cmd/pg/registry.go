@@ -59,6 +59,8 @@ func init() {
 		{Name: "experian check", Summary: "si una SUCURSAL va a consultar Experian y por qué: los atajos que obligan (comercio o entidad en experian_trigger_bypass_rules, entidad CreditopX) y, si ninguno aplica, la periodicidad del comercio con su contador. Sólo lectura (también prod)",
 			Usage: "pg experian check --target T (--hash <sucursal> | --branch <id>) [--json]", run: runExperianCheck,
 			Params: []param{target(), str("hash", "el hash de la sucursal (hexadecimal)"), num("branch", "o el id de la sucursal (allied_branches.id)"), boolean("json", "el resultado en JSON")}},
+		{Name: "jev ask", Summary: "manda un pedido a Jev (TypeSafe) por el cliente único y devuelve la respuesta: el pedido va en JSON por la entrada estándar. Para herramientas que lo usan como servicio (p. ej. el juego)",
+			Usage: "echo '{\"model\":\"jev-latest\",…}' | pg jev ask", run: runJevAsk, NoTool: true},
 		{Name: "settings diff", Summary: "en qué difieren las settings de legacy-backend entre ambientes (por defecto local, dev y prod). Las credenciales se comparan por huella y nunca se muestran. Sólo lectura",
 			Usage: "pg settings diff [--targets local,dev,prod] [--key texto] [--all] [--json]", run: runSettingsDiff,
 			Params: []param{str("targets", "ambientes separados por coma (default local,dev,prod)"), str("key", "sólo claves que contienen este texto"), boolean("all", "también las iguales"), boolean("json", "el resultado en JSON")}},
