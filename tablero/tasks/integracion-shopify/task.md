@@ -21,8 +21,14 @@ ramas: payment-link
 - [x] ~~Resolver la sesión de pago en Shopify cuando llega el webhook de CreditOp~~ — resolve, reject y pending por
       la Payments Apps API, con el webhook firmado por sesión (HMAC). Aprobada → pedido #1009 «Pagado»; negada →
       vuelve al checkout. Probado con el checkout real y el simulador de resultado del backend local.
-- [ ] Probar el cierre con una solicitud real (el comprador recorre el wizard hasta una entidad), sin atar la solicitud
-      a mano; termina con el pedido pagado en Shopify al autorizarse.
+- [x] ~~Probar el cierre con una solicitud real, sin atarla a mano~~ — en qa, con el `payment-link` de dev: la solicitud
+      503726 se ató sola al pedido 7943 y, autorizada con el simulador de qa, la sesión de Shopify quedó resuelta.
+- [ ] Pedirle a Oscar que revoque el token de ecommerce de `c390eed9` que se pegó en el chat y emita otro; termina
+      cuando el viejo responde 401.
+      Depende de: Oscar.
+- [ ] Antes de publicar la app: sacar de `shopify.app.creditop-ecommerce-payments.toml` los permisos de prueba
+      (`write_products`, `write_publications`, `write_locations`, `write_inventory`, `write_markets`, `write_themes`,
+      `write_shipping`; hoy sólo en la copia local) y declarar `supported_payment_methods` acordes a un BNPL.
 - [ ] Que el webhook de CreditOp a las tiendas traiga autenticación propia (hoy, para «Desarrollo propio», va sin
       nada y la app se protege con la firma en la URL); termina con una decisión escrita acá.
       Depende de: Oscar — el contrato del webhook de la doc v1.0.2.
