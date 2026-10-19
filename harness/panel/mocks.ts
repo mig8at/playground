@@ -38,7 +38,9 @@ type Runtime = {
 };
 
 const LOG_LINES = 300;
-const entryOf = (root: string, id: string) => join(root, `mock-${id}`, id === 'financial-health' ? 'server.ts' : 'server.mjs');
+// Los mocks que leen o escriben la base local están en TypeScript (importan pkg/db.ts).
+const TS_MOCKS = new Set(['financial-health', 'payment-link']);
+const entryOf = (root: string, id: string) => join(root, `mock-${id}`, TS_MOCKS.has(id) ? 'server.ts' : 'server.mjs');
 const logFileOf = (id: string) => `/tmp/mock-${id}.log`;
 
 /** ¿Algo escucha en el puerto? Por TCP y no por HTTP: no todos los mocks contestan `GET /`. */

@@ -1,0 +1,39 @@
+#!/usr/bin/env bash
+# Mock de la API `POST /api/ecommerce/payment-link` (CORE-746) + los plugins de VTEX y Shopify simulados + una tienda
+# demo, todo en :8113. ESCRIBE en la base LOCAL (el pedido con `?ref=`). Abrí http://localhost:8113/ para la tienda.
+#
+# uso: bin/mock-payment-link [start|stop|restart|status|logs]
+#   env: MOCK_PAYMENT_LINK_PORT (8113) · PAYMENT_LINK_URL (por defecto, la API de este mock; para la de verdad,
+#        http://localhost/api/ecommerce/payment-link) · PAYMENT_LINK_TOKEN (el token Sanctum, con la API de verdad)
+set -euo pipefail
+DIR="$(cd "$(dirname "$0")/.." && pwd)"
+PORT="${MOCK_PAYMENT_LINK_PORT:-8113}"
+LOG=/tmp/mock-payment-link.log
+SRC="$DIR/mock-payment-link/server.ts"
+
+up() { curl -s -o /dev/null --max-time 2 "http://localhost:$PORT/health" 2>/dev/null; }
+health() { curl -s --max-time 2 "http://localhost:$PORT/health" 2>/dev/null; }
+is_ours() { health | node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>{try{process.exit(JSON.parse(s).mock==="payment-link"?0:1)}catch{process.exit(1)}})'; }
+# La huella del código que corre (mtime de server.ts): si lo editaste, start reinicia (F-87).
+stale() { local want; want=$(node -e "console.log(String(require('fs').statSync('$SRC').mtimeMs))"); [ "$(health | node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>{try{console.log(JSON.parse(s).codigo)}catch{}})')" != "$want" ]; }
+
+start() {
+  if up; then
+    if ! is_ours; then echo "✗ :$PORT está ocupado por OTRO proceso"; exit 1; fi
+    if stale; then echo "↻ código nuevo: reinicio"; stop; else echo "✓ mock-payment-link ya arriba (:$PORT) · http://localhost:$PORT/"; exit 0; fi
+  fi
+  rm -f "$LOG"
+  nohup env E2E_TARGET=local MOCK_PAYMENT_LINK_PORT="$PORT" node "$SRC" < /dev/null > "$LOG" 2>&1 &
+  for _ in $(seq 1 30); do up && { echo "✓ mock-payment-link :$PORT · tienda http://localhost:$PORT/"; exit 0; }; sleep 0.3; done
+  echo "✗ no levantó"; tail -8 "$LOG" 2>/dev/null; exit 1
+}
+stop() { if up && is_ours; then lsof -sTCP:LISTEN -ti:"$PORT" 2>/dev/null | xargs kill 2>/dev/null; sleep 0.3; echo "⏹ detenido (:$PORT)"; else echo "no estaba corriendo (o :$PORT es de otro proceso — no lo mato)"; fi; }
+
+case "${1:-start}" in
+  start) start;;
+  stop) stop;;
+  restart) stop; start;;
+  status) if up; then health; echo ""; else echo "○ off (:$PORT)"; fi;;
+  logs) tail -n "${2:-40}" "$LOG" 2>/dev/null || echo "(sin log)";;
+  *) echo "uso: bin/mock-payment-link [start|stop|restart|status|logs]";;
+esac

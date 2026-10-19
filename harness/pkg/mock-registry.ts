@@ -27,5 +27,6 @@ export const MOCKS: MockDef[] = [
     { id: 'cuotealo', label: 'cuotealo/simulador', port: 8110, portEnv: 'MOCK_CUOTEALO_PORT', needs: 'bcp' },
     { id: 'codes', label: 'códigos', port: 8111, portEnv: 'MOCK_CODES_PORT', needs: 'código de la app' },
     { id: 'wompi', label: 'wompi/cuota inicial', port: 8112, portEnv: 'MOCK_WOMPI_PORT', needs: 'cuota inicial' },
+    { id: 'payment-link', label: 'payment-link/tienda demo', port: 8113, portEnv: 'MOCK_PAYMENT_LINK_PORT', needs: 'ecommerce' },
     { id: 'financial-health', label: 'fin-health', port: Number(process.env.MOCK_FINHEALTH_PORT) || 4000, portEnv: 'MOCK_FINHEALTH_PORT', needs: 'todos' },
 ];

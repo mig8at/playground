@@ -424,6 +424,9 @@ harness-payment-link: ## @har ⚠ ESCRIBE: crea un pedido como lo hará la API p
 	@test -n "$(TARGET)" || { echo "falta TARGET=local: escribe en la base"; exit 2; }
 	@cd harness && E2E_TARGET=$(TARGET) node dev/payment-link.ts $(if $(HASH),--hash $(HASH)) $(if $(SIN_ACEPTACION),--sin-aceptacion) $(if $(SIN_EXPEDICION),--sin-expedicion) $(if $(VENCIDA),--vencida) $(if $(PHONE),--phone $(PHONE)) $(if $(JSON),--json)
 
+harness-store: ## @har ⚠ ESCRIBE en local: tienda demo que simula el plugin de VTEX o Shopify y le pide la URL a payment-link (mock del contrato de CORE-746 en :8113) → http://localhost:8113/. A=start|stop|restart|status|logs · PAYMENT_LINK_URL=… (la API de verdad, cuando esté en el backend local) PAYMENT_LINK_TOKEN=… (su token Sanctum)
+	@cd harness && $(if $(PAYMENT_LINK_URL),PAYMENT_LINK_URL=$(PAYMENT_LINK_URL)) $(if $(PAYMENT_LINK_TOKEN),PAYMENT_LINK_TOKEN=$(PAYMENT_LINK_TOKEN)) bin/mock-payment-link $(or $(A),start)
+
 harness-wompi: ## @har levanta el mock LOCAL de Wompi (:8112) — la pasarela de la cuota inicial: el backend le pregunta el estado del pago y el caminador «paga» ahí. Pide WOMPI_HOST=http://host.docker.internal:8112/v1 en el .env del backend (y `php artisan config:clear`)
 	@cd harness && node mock-wompi/server.mjs
 

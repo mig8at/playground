@@ -1,0 +1,220 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Tienda demo · payment-link</title>
+<style>
+  :root { --bg:#f5f6f8; --card:#fff; --ink:#1b1d24; --mut:#626877; --line:#e3e6ec; --acc:#3b5bdb; --ok:#1d7a3e; --okbg:#e6f4ea; --bad:#b42318; --badbg:#fdecea; --warn:#8a5a00; --warnbg:#fff4d6; --code:#f1f3f7; }
+  * { box-sizing:border-box }
+  body { margin:0; font:14px/1.45 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif; background:var(--bg); color:var(--ink) }
+  .bar { background:#1b1d24; color:#fff; padding:6px 16px; font-size:12px; display:flex; gap:12px; flex-wrap:wrap; justify-content:space-between }
+  .bar code { color:#cfd6ff }
+  main { max-width:1200px; margin:0 auto; padding:16px; display:grid; grid-template-columns:minmax(0,420px) minmax(0,1fr); gap:16px }
+  @media (max-width:860px) { main { grid-template-columns:1fr } }
+  .card { background:var(--card); border:1px solid var(--line); border-radius:12px; padding:16px }
+  h1 { font-size:18px; margin:0 0 4px } h2 { font-size:14px; margin:0 0 10px } .mut { color:var(--mut); font-size:12px }
+  .seg { display:grid; grid-template-columns:1fr 1fr; border:1px solid var(--line); border-radius:10px; overflow:hidden; margin:12px 0 }
+  .seg button { border:0; background:#fff; padding:10px; font-weight:600; cursor:pointer; color:var(--mut) }
+  .seg button[aria-pressed=true] { background:var(--acc); color:#fff }
+  label { display:block; font-size:12px; color:var(--mut); margin:8px 0 3px }
+  input, select { width:100%; padding:8px 10px; border:1px solid var(--line); border-radius:8px; font:inherit; background:#fff; color:var(--ink) }
+  .row { display:grid; grid-template-columns:1fr 1fr; gap:8px }
+  .cart { border-top:1px solid var(--line); border-bottom:1px solid var(--line); margin:12px 0; padding:8px 0 }
+  .item { display:flex; justify-content:space-between; padding:4px 0 } .total { font-weight:700; font-size:16px }
+  .pay { width:100%; margin-top:14px; padding:12px; border:0; border-radius:10px; background:#0f8a5f; color:#fff; font-weight:700; font-size:15px; cursor:pointer }
+  .pay:disabled { opacity:.6; cursor:wait }
+  .note { padding:8px 10px; border-radius:8px; font-size:12px; margin-top:8px }
+  .note.warn { background:var(--warnbg); color:var(--warn) } .note.ok { background:var(--okbg); color:var(--ok) } .note.bad { background:var(--badbg); color:var(--bad) }
+  .step { border:1px solid var(--line); border-radius:10px; margin-bottom:10px; overflow:hidden }
+  .step > summary { padding:9px 12px; cursor:pointer; display:flex; gap:8px; align-items:center; font-weight:600; list-style:none }
+  .step > summary::-webkit-details-marker { display:none }
+  .n { width:22px; height:22px; border-radius:50%; background:var(--code); display:grid; place-items:center; font-size:12px; flex:none }
+  .st { margin-left:auto; font-size:12px; font-weight:600 } .st.ok { color:var(--ok) } .st.bad { color:var(--bad) }
+  pre { margin:0; padding:10px 12px; background:var(--code); font:12px/1.4 ui-monospace,SFMono-Regular,Menlo,monospace; overflow:auto; max-height:320px; white-space:pre-wrap; word-break:break-all }
+  .go { display:flex; gap:8px; align-items:center; margin:12px 0; flex-wrap:wrap }
+  .go a { background:var(--acc); color:#fff; text-decoration:none; padding:10px 14px; border-radius:8px; font-weight:700 }
+  .go code { font-size:12px; word-break:break-all; color:var(--mut) }
+  .ev { font-size:12px; border-top:1px solid var(--line); padding:6px 0 } .ev b { font-weight:600 }
+  .empty { color:var(--mut); font-size:12px }
+</style>
+</head>
+<body>
+<div class="bar">
+  <span>DEMO LOCAL · tienda que simula el plugin de <b id="barPlatform">VTEX</b> y pide la URL a Creditop</span>
+  <span>API: <code id="barApi">…</code> · wizard: <code id="barWizard">…</code></span>
+</div>
+<main>
+  <section class="card" aria-label="Checkout de la tienda">
+    <h1>Checkout</h1>
+    <div class="mut">Así lo vería el comprador. Elegí la plataforma que corre la tienda.</div>
+    <div class="seg" role="group" aria-label="Plataforma">
+      <button type="button" data-p="vtex" aria-pressed="true">VTEX</button>
+      <button type="button" data-p="shopify" aria-pressed="false">Shopify</button>
+    </div>
+
+    <label for="branch">Sucursal de la tienda (una tienda = una sucursal)</label>
+    <select id="branch"></select>
+    <div id="branchNote"></div>
+
+    <div class="cart" id="cart"></div>
+
+    <div class="row">
+      <div><label for="fn">Nombre</label><input id="fn" value="MARIO"></div>
+      <div><label for="ln">Apellido</label><input id="ln" value="BROS"></div>
+    </div>
+    <div class="row">
+      <div><label for="doc">Cédula</label><input id="doc" inputmode="numeric"></div>
+      <div><label for="phone">Celular</label><input id="phone" inputmode="numeric"></div>
+    </div>
+    <label for="email">Correo</label><input id="email">
+    <div class="mut" id="shopifyDocNote" hidden>Shopify no manda la cédula en la sesión de pago: Creditop se la pide al comprador.</div>
+
+    <button class="pay" id="pay" type="button">Pagar con CreditOp</button>
+    <div id="payNote"></div>
+  </section>
+
+  <section class="card" aria-label="Lo que pasó por detrás">
+    <h2>Lo que pasó por detrás</h2>
+    <div id="returned"></div>
+    <div id="steps"><div class="empty">Tocá «Pagar con CreditOp» para ver el viaje: plataforma → plugin → Creditop → plugin → comprador.</div></div>
+    <h2 style="margin-top:16px">Lo que recibió la tienda</h2>
+    <div class="mut">El webhook que manda el backend al llegar a un estado final, y la vuelta del comprador.</div>
+    <div id="events"><div class="empty">Nada todavía.</div></div>
+  </section>
+</main>
+<script>
+const $ = (id) => document.getElementById(id);
+const items = [
+  { id: 'SKU-1001', name: 'Sofá modular 3 puestos', price: 1350000, quantity: 1 },
+  { id: 'SKU-2040', name: 'Mesa de centro', price: 250000, quantity: 1 },
+];
+const total = items.reduce((s, i) => s + i.price * i.quantity, 0);
+const money = (n) => '$ ' + n.toLocaleString('es-CO');
+let platform = 'vtex', branches = [], cfg = {};
+
+$('cart').innerHTML = items.map(i => `<div class="item"><span>${i.name} × ${i.quantity}</span><span>${money(i.price * i.quantity)}</span></div>`).join('')
+  + `<div class="item total"><span>Total</span><span>${money(total)}</span></div>`;
+
+function freshBuyer() {
+  const r = Math.floor(Math.random() * 1e8);
+  $('doc').value = String(1000000000 + Math.floor(Math.random() * 899999999));
+  $('phone').value = '31' + String(r).padStart(8, '0');
+  $('email').value = `qa${$('doc').value.slice(-6)}@creditop.com`;
+}
+
+function renderBranches() {
+  const want = platform === 'vtex' ? '3' : '4';
+  const sorted = [...branches].sort((a, b) => (b.ecommerce_type_id === want) - (a.ecommerce_type_id === want));
+  $('branch').innerHTML = sorted.map(b => `<option value="${b.hash}">${b.allied} · ${b.name} (${b.hash}) — ${b.platform || 'tipo ' + b.ecommerce_type_id}</option>`).join('');
+  const pref = platform === 'vtex' ? sorted.find(b => b.hash === 'e9409aff') : sorted.find(b => b.hash === 'c390eed9');
+  if (pref) $('branch').value = pref.hash;
+  branchNote();
+}
+function branchNote() {
+  const b = branches.find(x => x.hash === $('branch').value);
+  const want = platform === 'vtex' ? '3' : '4';
+  if (!b) { $('branchNote').innerHTML = ''; return; }
+  $('branchNote').innerHTML = b.ecommerce_type_id === want
+    ? `<div class="note ok">La credencial es ${b.platform}: el pedido queda con esa plataforma y el aviso sale con su formato.</div>`
+    : `<div class="note warn">La credencial de esta sucursal es «${b.platform || b.ecommerce_type_id}», no ${platform === 'vtex' ? 'VTEX (3)' : 'Shopify (4, todavía no existe en el catálogo)'}: el pedido queda con esa plataforma.</div>`;
+}
+
+document.querySelectorAll('.seg button').forEach(btn => btn.addEventListener('click', () => {
+  platform = btn.dataset.p;
+  document.querySelectorAll('.seg button').forEach(b => b.setAttribute('aria-pressed', String(b === btn)));
+  $('barPlatform').textContent = platform === 'vtex' ? 'VTEX' : 'Shopify';
+  $('shopifyDocNote').hidden = platform !== 'shopify';
+  $('doc').disabled = platform === 'shopify';
+  renderBranches();
+}));
+$('branch').addEventListener('change', branchNote);
+
+const pretty = (o) => JSON.stringify(o, null, 2).replace(/[<&]/g, c => c === '<' ? '&lt;' : '&amp;');
+function step(n, title, data, status, open = false) {
+  const st = status == null ? '' : `<span class="st ${status >= 200 && status < 300 ? 'ok' : 'bad'}">HTTP ${status}</span>`;
+  return `<details class="step"${open ? ' open' : ''}><summary><span class="n">${n}</span>${title}${st}</summary><pre>${pretty(data)}</pre></details>`;
+}
+
+async function pay() {
+  const b = branches.find(x => x.hash === $('branch').value);
+  if (!b) return;
+  $('pay').disabled = true; $('payNote').innerHTML = '';
+  try {
+    const ids = await (await fetch('/api/new-ids')).json();
+    let platformReq, headers, endpoint, answer;
+    if (platform === 'vtex') {
+      // Lo que el gateway de VTEX le manda al conector en `authorize` (Payment Provider Protocol).
+      platformReq = {
+        reference: ids.orderId.split('-')[0], orderId: ids.orderId, paymentId: ids.paymentId, transactionId: ids.paymentId,
+        paymentMethod: 'Creditop', value: total, currency: 'COP', installments: 1,
+        miniCart: {
+          buyer: { firstName: $('fn').value, lastName: $('ln').value, document: $('doc').value, documentType: 'CC', email: $('email').value, phone: '+57' + $('phone').value },
+          items: items, shippingValue: 0, taxValue: 0,
+        },
+        callbackUrl: `${cfg.from_backend}/webhook/vtex`,
+        returnUrl: `${cfg.self}/return?platform=vtex&orderId=${ids.orderId}`,
+      };
+      headers = { 'Content-Type': 'application/json', 'X-PROVIDER-API-AppKey': b.hash, 'X-PROVIDER-API-AppToken': b.credential };
+      endpoint = '/plugin/vtex/authorize';
+    } else {
+      // Al instalar la app, el comercio dice a qué sucursal pertenece su tienda.
+      const shop = `demo-${b.hash}.myshopify.com`;
+      await fetch('/plugin/shopify/configure', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ shop, hash: b.hash, token: b.credential }) });
+      // Lo que Shopify le manda a la app en `payment_session_url` (pago offsite).
+      platformReq = {
+        id: ids.session, gid: `gid://shopify/PaymentSession/${ids.session}`, group: `grp_${ids.orderId}`,
+        amount: String(total), currency: 'COP', test: true, kind: 'sale', merchant_locale: 'es-CO',
+        payment_method: { type: 'offsite', data: { cancel_url: `${cfg.self}/?cancel=1` } },
+        proposed_at: new Date().toISOString(),
+        customer: { email: $('email').value, phone_number: '+57' + $('phone').value, locale: 'es-CO',
+          billing_address: { given_name: $('fn').value, family_name: $('ln').value, line1: 'Calle 1 # 2-3', city: 'Bogotá', country_code: 'CO' } },
+      };
+      headers = { 'Content-Type': 'application/json', 'Shopify-Shop-Domain': shop, 'Shopify-Request-Id': crypto.randomUUID() };
+      endpoint = '/plugin/shopify/payment-session';
+    }
+    const r = await fetch(endpoint, { method: 'POST', headers, body: JSON.stringify(platformReq) });
+    answer = await r.json();
+    const trace = answer._trace || {}; delete answer._trace;
+    const redirect = answer.redirectUrl || answer.redirect_url;
+    const shownHeaders = { ...headers }; if (shownHeaders['X-PROVIDER-API-AppToken']) shownHeaders['X-PROVIDER-API-AppToken'] = '(token de la sucursal)';
+    $('steps').innerHTML =
+      step(1, platform === 'vtex' ? 'VTEX → conector: authorize' : 'Shopify → app: payment session', { headers: shownHeaders, body: platformReq }) +
+      step(2, `Plugin → Creditop: POST payment-link`, { url: trace.url, body: trace.request }, null, true) +
+      step(3, 'Creditop → plugin', trace.response, trace.status, true) +
+      step(4, platform === 'vtex' ? 'Conector → VTEX: redirect' : 'App → Shopify: redirect_url', answer, r.status) +
+      (redirect
+        ? `<div class="go"><a href="${redirect}">Ir a CreditOp →</a><code>${redirect}</code></div>`
+          + (trace.response?._mock_warnings ? `<div class="note warn">${trace.response._mock_warnings.join('<br>')}</div>` : '')
+        : `<div class="note bad">No hubo URL: el plugin ${platform === 'vtex' ? 'responde deny a VTEX' : 'rechaza la sesión'}.</div>`);
+  } catch (e) {
+    $('payNote').innerHTML = `<div class="note bad">${e.message}</div>`;
+  } finally {
+    $('pay').disabled = false; freshBuyer();
+  }
+}
+$('pay').addEventListener('click', pay);
+
+async function poll() {
+  try {
+    const ev = await (await fetch('/api/events')).json();
+    const shown = ev.filter(e => e.kind === 'webhook recibido' || e.kind.startsWith('el comprador'));
+    $('events').innerHTML = shown.length ? shown.slice(0, 10).map(e =>
+      `<div class="ev"><b>${new Date(e.at).toLocaleTimeString('es-CO')} · ${e.kind}${e.platform ? ' · ' + e.platform : ''}</b><pre>${pretty(e.detail)}</pre></div>`).join('')
+      : '<div class="empty">Nada todavía.</div>';
+  } catch {}
+}
+
+(async () => {
+  cfg = await (await fetch('/api/config')).json();
+  $('barApi').textContent = cfg.payment_link_url; $('barWizard').textContent = cfg.wizard;
+  branches = await (await fetch('/api/branches')).json();
+  freshBuyer(); renderBranches();
+  const q = new URLSearchParams(location.search);
+  if (q.get('returned')) $('returned').innerHTML = `<div class="note ok">El comprador volvió a la tienda (${q.get('platform') || ''}).</div>`;
+  if (q.get('cancel')) $('returned').innerHTML = `<div class="note warn">El comprador canceló y volvió al checkout.</div>`;
+  poll(); setInterval(poll, 3000);
+})();
+</script>
+</body>
+</html>
