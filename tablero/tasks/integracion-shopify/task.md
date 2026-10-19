@@ -16,9 +16,11 @@ ramas: payment-link
       (23a7845, desde `develop` con `feature/init_project`, local, sin push): `/payments/session`, la configuración
       por tienda (hash + token cifrado, `paymentsAppConfigure`), la vuelta y el webhook. Probado con la app real en
       local contra el mock; la idempotencia está atada a la tienda.
-- [ ] Probar la app en una tienda de desarrollo de Shopify (`shopify app dev`); termina con una sesión de pago real
-      que redirige al wizard de qa.
-      Depende de: Miguel — si hay cuenta Partner de Shopify.
+- [ ] Probar la app en la tienda de desarrollo `creditop-dev-store.myshopify.com` (organización Partner CREDITOP;
+      `tienda-creditop` es de transferencia a clientes y no se usa) con `shopify app dev`; termina con una sesión de
+      pago real que redirige al wizard. Falta confirmar que la app `9bad40b9…` está en esa organización y que admite
+      la extensión de pagos.
+      Depende de: Juan Rodriguez — sumar a Miguel como usuario de la organización.
 - [ ] Revocar el Bearer de Sanctum que estuvo escrito en el repo `shopify`; termina cuando ya no autentica. En la
       rama `payment-link` salió del árbol junto con la PII y los artefactos (`dist/`, logs, `dev.sqlite`,
       `shopify-app-info.json`), pero sigue en 2 commits de la historia.
