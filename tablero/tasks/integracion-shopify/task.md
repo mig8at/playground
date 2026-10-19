@@ -7,74 +7,80 @@ knowledge: [ecommerce-context]
 canon: []
 jira: [CORE-689]
 jira_title: ""
+ramas: payment-link
 ---
 
 ## Pendientes
 
-- [ ] Revocar el Bearer de Sanctum escrito en el repo `shopify` y sacar el token, la PII y los artefactos
-      versionados (`dist/`, `logs/cli-trace.log`, `prisma/dev.sqlite`, `shopify-app-info.json`); termina cuando
-      el token ya no autentica y un escáner de secretos sobre el historial no encuentra nada vigente.
+- [x] ~~La app atiende la sesión de pago y pide la URL a `payment-link`~~ — rama `payment-link` del repo `shopify`
+      (23a7845, desde `develop` con `feature/init_project`, local, sin push): `/payments/session`, la configuración
+      por tienda (hash + token cifrado, `paymentsAppConfigure`), la vuelta y el webhook. Probado con la app real en
+      local contra el mock; la idempotencia está atada a la tienda.
+- [ ] Probar la app en una tienda de desarrollo de Shopify (`shopify app dev`); termina con una sesión de pago real
+      que redirige al wizard de qa.
+      Depende de: Miguel — si hay cuenta Partner de Shopify.
+- [ ] Revocar el Bearer de Sanctum que estuvo escrito en el repo `shopify`; termina cuando ya no autentica. En la
+      rama `payment-link` salió del árbol junto con la PII y los artefactos (`dist/`, logs, `dev.sqlite`,
+      `shopify-app-info.json`), pero sigue en 2 commits de la historia.
       Depende de: Infra — dónde se emitió el token y quién lo revoca.
 - [ ] Confirmar que Shopify admite una Payments App offsite para tiendas en Colombia con COP y que CreditOp es (o
       puede ser) Payments Partner; termina con la respuesta escrita acá.
       Depende de: Merchants — lo que respondió Shopify en MER-2, MER-54 y MER-96.
+- [ ] Probar la tienda demo contra el `payment-link` de verdad cuando legacy-backend#1682 esté rebasado sobre `qa`;
+      termina con la app real recibiendo una URL de la API de verdad en local.
+      Depende de: Oscar — el rebase sobre `qa`.
 - [ ] Agregar Shopify al catálogo `ecommerces` (id 4) y poder marcar una credencial con `ecommerce_type_id=4`;
       termina con la migración de siembra y una credencial de prueba en local.
-- [ ] Crear en legacy-backend `POST /shopify/init` (adaptador como `/vtex/init`): valida `hash` + credencial, guarda el
-      pedido con `origin=payment_link` y `checkout_reference`, y devuelve `redirect_url = …/checkout?ref=`;
-      termina con su prueba unitaria y una URL que abre el pedido en local.
-- [ ] En la app de Shopify, atender `payment_session_url`: leer la sesión de pago, buscar la sucursal de la tienda,
-      llamar a `/shopify/init` y responder a Shopify el `redirect_url`; termina con una sesión de una tienda de
-      desarrollo que redirige al wizard con `?ref=`.
-- [ ] Guardar en la app, por tienda (`myshopify` domain), el `hash` de la sucursal y la credencial (cifrada), que el
-      comercio carga al configurar la app (`paymentsAppConfigure`); termina cuando dos tiendas de desarrollo abren
-      pedidos en sucursales distintas.
 
 ## Objetivo
 
 Que una compra en una tienda Shopify llegue a CreditOp por la misma puerta que VTEX y quede atribuida a su sucursal:
 
-1. **URL**: Shopify llama a la app (payment session); la app pide la URL a CreditOp servidor a servidor y responde
-   un `redirect_url` que sólo lleva `?ref=`. Ni la credencial del comercio ni los datos del comprador pasan por el
-   navegador.
-2. **Origen**: una tienda Shopify = una sucursal. La app guarda, por tienda, el `hash` de la sucursal; el pedido queda
-   con `allied_branch_id` (sucursal), `ecommerce_id=4` (Shopify) y `origin=payment_link`.
+1. **URL**: Shopify llama a la app (sesión de pago offsite); la app le pide la URL a `POST /api/ecommerce/payment-link`
+   (CORE-746) servidor a servidor y responde un `redirect_url` que sólo lleva `?ref=`. Ni el token de la sucursal ni
+   los datos del comprador pasan por el navegador.
+2. **Origen**: una tienda Shopify = una sucursal. La app guarda, por tienda, el `hash` de la sucursal y su token; el
+   pedido queda con `allied_branch_id` (sucursal) y `origin=payment_link`. La plataforma (`ecommerce_id=4`) pide
+   sumar Shopify al catálogo: hoy queda con el tipo de la credencial.
 
 ## Dónde se toca
 
-**shopify** (app React Router, plantilla oficial; sin backend de pagos hoy)
-- `extensions/creditop-ext-offside/shopify.extension.toml`: `payment_session_url` y `refund_session_url` apuntan a
-  `api.2272.canary.creditop.com/shopify/*`, que ningún repo implementa; `supported_countries = ["US"]` y
-  `supported_payment_methods = ["visa"]`. En `origin/feature/init_project` ya hay una `creditop-offsite` con
-  `["CO","US"]` y scopes `write_payment_gateways,write_payment_sessions`, sin mergear.
-- `app/shopify.server.ts`: OAuth y sesiones en Prisma (`prisma/schema.prisma`, sólo el modelo `Session`, en SQLite).
-  Falta un modelo por tienda con `hash` y credencial, y otro para deduplicar las sesiones de pago por su id.
-- `extensions/creditop-checkout/src/Checkout.jsx` y `app/routes/app._index.tsx`: simuladores con un Bearer, PII
-  y un endpoint de ngrok escritos en el código. Se borran.
-- Rutas nuevas: `app/routes/payments.session.tsx` (o equivalente) para `payment_session_url`.
+**shopify** (app React Router; rama `payment-link`, desde `develop` con `feature/init_project`: `main` sólo tiene el
+commit inicial)
+- `app/creditop.server`: el mapeo de la sesión de pago a `payment-link` (`id → order_key`, `group → id`,
+  `amount → total`, `customer → billing`; Shopify no trae documento), el host por ambiente (`CREDITOP_API_URL` lo
+  pisa en local) y el cifrado del token (AES-GCM con `CREDITOP_TOKEN_KEY` o el secreto de la app).
+- `app/routes/payments.session`: el `payment_session_url`. Deduplica por id de sesión y tienda (otra tienda con el
+  mismo id recibe 409), 422 si la tienda no está configurada. La autenticación de Shopify (mTLS) se termina en infra.
+- `app/routes/app._index`: la configuración de la tienda (código de la sucursal, token, ambiente) y
+  `paymentsAppConfigure`. Reemplaza la pantalla que tenía el Bearer y la PII escritos.
+- `app/routes/payments.return.$sessionId` (vuelve al `cancel_url` hasta que exista la resolución) y
+  `app/routes/webhooks.creditop` (guarda el estado que manda Creditop).
+- `app/routes/local.shop-config`: sólo con `CREDITOP_LOCAL=1`, carga una tienda sin el admin de Shopify.
+- `prisma/schema.prisma` + migración: `CreditopShop` y `CreditopPaymentSession`.
+- `extensions/creditop-offsite/shopify.extension.toml`: `payment_session_url` apunta a la app (`/payments/session`).
 
 **legacy-backend**
-- `Modules/Onboarding/routes/webhooks.php`: junto a `vtex/init`, una ruta pública `shopify/init`.
-- Un `ShopifyService` como `Modules/Onboarding/App/Services/VtexService.php`, que reusa
-  `createWithCheckoutReference` de la tarea VTEX si ya existe (si no, lo crea esta tarea).
-- `config/ecommerce.php`: el notificador de Shopify (id 4) queda para la tarea de resolución.
-- Siembra del catálogo, como `database/migrations/2026_06_17_100000_seed_vtex_ecommerce.php`.
+- `POST /api/ecommerce/payment-link` es de Oscar (legacy-backend#1682, borrador). Para la plataforma: sembrar Shopify
+  (4) en `ecommerces` y su notificador en `config/ecommerce.php`, como el de VTEX.
 
 **frontend-monorepo**
-- Sin cambios: el wizard ya abre `?ref=` en `qa` (`apps/loan-request-wizard/app/routes/ecommerce/checkout.tsx`).
+- Sin cambios: el wizard abre `?ref=` en `qa` (`apps/loan-request-wizard/app/routes/ecommerce/checkout.tsx`).
 
 ## Cómo se ataca
 
-1. Limpieza de seguridad del repo (no depende de nada).
-2. Catálogo id 4 y `/shopify/init` en legacy-backend, probado con `curl` en local.
-3. La app: configuración por tienda (hash + credencial) y la ruta de `payment_session_url` que llama a
-   `/shopify/init`. Se prueba con una tienda de desarrollo y `shopify app dev`.
-4. La resolución hacia Shopify (`paymentSessionResolve` / `Reject` por GraphQL, refund, GDPR) va en otra tarea.
+1. Limpieza del repo y la app pidiendo la URL a `payment-link` (hecho en la rama `payment-link`, probado en local
+   contra el mock).
+2. Cuando #1682 esté sobre `qa`, repetir la tienda demo contra la API de verdad.
+3. Con cuenta Partner: `shopify app dev` sobre una tienda de desarrollo.
+4. La resolución hacia Shopify (`paymentSessionResolve` / `Reject`), refund, GDPR y el catálogo id 4, en otra tarea.
 
 ## Lo que se evaluó y NO se eligió
 
 - **Que la app arme la URL base64 del contrato unificado**: pone la credencial del comercio en el navegador y
   duplica en TypeScript la serialización PHP.
+- **Un adaptador `/shopify/init` en legacy-backend**: descartado por decisión de Miguel (2026-10-19): la app llama
+  directo a `payment-link`, la misma API que usan todas las tiendas.
 - **Todo en legacy-backend (sin app)**: habría que replicar en PHP el OAuth de Shopify, el guardado de tokens por
   tienda y la autenticación de cada request de Shopify. El análisis de CORE-689 recomienda la app.
 - **Un checkout UI extension (`purchase.checkout.block.render`) con un botón «Pagar con CreditOp»**: depende del plan
@@ -98,24 +104,13 @@ make harness-store            # http://localhost:8113/ · elegir «Shopify» y l
 
 La página muestra los cuatro saltos (plataforma → plugin → `payment-link` → plugin → comprador) y «Ir a CreditOp»
 abre el wizard con `?ref=`. El webhook del backend llega a `/webhook/shopify` y se ve en la misma página.
+Con la app REAL (repo `shopify`, rama `payment-link`): `npm ci && npx prisma generate && npx prisma migrate deploy`
+y `npm run local` la levanta en :8115 sin Shopify; la tienda carga la sucursal por `POST /local/shop-config` (sólo
+con `CREDITOP_LOCAL=1`) y le manda la sesión a `/payments/session` (la barra dice «plugin: real»).
+
 Con la API de verdad: `make harness-store A=restart PAYMENT_LINK_URL=http://localhost/api/ecommerce/payment-link
 PAYMENT_LINK_TOKEN=<token de ecommerce:issue-token>`.
 
-
-En local, legacy-backend con la siembra del catálogo y una credencial de prueba con `ecommerce_type_id=4`:
-
-```sh
-curl -s -X POST http://localhost:8080/shopify/init -H 'Content-Type: application/json' \
-  -d '{"sessionId":"shp-<único>","orderId":"o-<único>","amount":600000,"currency":"COP","hash":"<hash>","credential":"<credencial>","cancelUrl":"https://tienda.example/cancel"}'
-```
-
-```sql
-SELECT id, allied_branch_id, ecommerce_id, origin, checkout_reference IS NOT NULL AS con_ref
-FROM ecommerce_requests WHERE order_key = 'shp-<único>';
-```
-
-Con la app: `shopify app dev --config shopify.app.creditop-ecommerce-payments.toml` sobre una tienda de desarrollo,
-pagar con CreditOp y comprobar que el navegador termina en `/ecommerce/<hash>/checkout?ref=`.
 
 ## Referencias
 

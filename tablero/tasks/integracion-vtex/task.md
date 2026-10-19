@@ -7,26 +7,33 @@ knowledge: [ecommerce-context]
 canon: []
 jira: [CORE-638]
 jira_title: ""
+ramas: payment-link
 ---
 
 ## Pendientes
 
-- [ ] `VtexService::init` guarda el pedido con `origin=payment_link`, `checkout_reference` aleatoria y vencimiento,
-      con un método propio del repositorio (`createWithCheckoutReference`), y devuelve
-      `redirectUrl = {front}/ecommerce/{hash}/checkout?ref=<referencia>`, sin `o/p/t/u/ps/config`; termina con su
-      prueba unitaria y con el caso VTEX del harness llegando a `/lenders` en local.
-- [ ] Avisarle a Oscar que ese método existe para que CORE-746 lo reuse; no bloquea esta tarea.
-      Depende de: Oscar — si `payment-link` crea el pedido por el mismo método.
+- [x] ~~El conector pide la URL a `payment-link`~~ — rama `payment-link` del repo `vtex` (6eeeb83, local, sin push):
+      `authorize` llama con AppKey = hash y AppToken = Bearer, redirige al `?ref=` y niega si falla; host por
+      configuración de la app (producción o develop). Probado con el conector real en local contra el mock.
+- [ ] Confirmar con infra en qué host atienden `payment-link` y `/vtex/settel` en cada ambiente (el conector usa los de
+      la doc v1.0.2: `v2.api.creditop.com` y `api.dev.creditop.com`); termina con los hosts escritos acá.
+      Depende de: Infra — el ruteo de los dos paths.
+- [ ] Probar el conector en una cuenta VTEX (workspace de prueba y Test Suite); termina con un `authorize` real que
+      redirige al wizard de qa.
+      Depende de: Miguel — si hay cuenta VTEX con permisos de payment provider.
+- [ ] Que `payment-link` (legacy-backend#1682, de Oscar) llegue a `qa` rebasado sobre `qa` y probar la tienda demo
+      contra él en local; termina con el conector real recibiendo una URL de la API de verdad.
+      Depende de: Oscar — el rebase sobre `qa` (sin él, el camino feliz da 500).
 - [ ] Llevar a `main` la apertura por referencia (`by-reference` en legacy-backend y `checkout.tsx` en
       frontend-monorepo), hoy sólo en `qa`; termina cuando `git grep checkout_reference origin/main` la encuentra.
       Depende de: Miguel — si sale separada del auto-onboarding de Refurbi, que se sacó de `main` a propósito.
 - [ ] Decidir el vencimiento de la referencia para VTEX y si una referencia vencida o usada sigue abriendo el
       pedido con OTP (hoy sí, para siempre, si el pedido no trae aceptación); termina con la regla escrita acá.
       Depende de: Producto — cuánto puede tardar el comprador entre la tienda y CreditOp (VTEX cancela a las 6 h).
-- [ ] Dar de alta la sucursal ecommerce de Mario Hernández (comercio 350) con credencial `ecommerce_type_id=3`;
-      termina cuando `/vtex/init` responde 200 con su hash en qa.
+- [ ] Dar de alta la sucursal ecommerce de Mario Hernández (comercio 350) con credencial `ecommerce_type_id=3` y su
+      token de ecommerce (`ecommerce:issue-token`); termina cuando `payment-link` responde 200 con su hash en qa.
       Depende de: Comercial / Operaciones — si la tienda VTEX vende por UNA sucursal y cuál es su cuenta VTEX.
-- [ ] Probar en `qa` el recorrido VTEX completo por referencia: init → `?ref=` → OTP → entidades → notificación
+- [ ] Probar en `qa` el recorrido VTEX completo por referencia: authorize → `?ref=` → OTP → entidades → notificación
       a VTEX; termina con la solicitud en estado final y el pedido con `allied_branch_id` de la sucursal VTEX.
 
 ## Objetivo
@@ -34,9 +41,9 @@ jira_title: ""
 Que el conector VTEX no exponga nada en la URL del comprador y que cada solicitud que entra por VTEX se pueda
 atribuir a su sucursal y a su plataforma sin heurísticas:
 
-1. **URL**: el conector ya no arma nada; `/vtex/init` guarda el pedido y devuelve una URL que sólo lleva `?ref=`.
-   El token del comercio (que en VTEX es además el AppToken de la afiliación) y los datos del comprador dejan de
-   viajar por el navegador.
+1. **URL**: en `authorize`, el conector le pide la URL a `POST /api/ecommerce/payment-link` (CORE-746), que guarda
+   el pedido y devuelve una URL que sólo lleva `?ref=`. El token de la sucursal (el AppToken de la afiliación, que
+   es el Bearer) y los datos del comprador dejan de viajar por el navegador.
 2. **Origen**: una tienda VTEX = una sucursal. La sucursal sale del `hash` (AppKey de la afiliación) y la
    plataforma de la credencial. Tres columnas lo contestan: `ecommerce_requests.allied_branch_id` (sucursal),
    `ecommerce_requests.ecommerce_id` (plataforma: 3 = VTEX) y `ecommerce_requests.origin` (cómo se armó la URL:
@@ -44,43 +51,40 @@ atribuir a su sucursal y a su plataforma sin heurísticas:
 
 ## Dónde se toca
 
+**vtex** (el conector VTEX IO; rama `payment-link`, desde `main`)
+- `node/creditop`: el mapeo `AuthorizationRequest → payment-link` (`paymentId → order_key`, `orderId → id`,
+  `value → total`, `miniCart.buyer → billing`, `returnUrl → return_url`, `callbackUrl → webhook_url`) y el host por
+  ambiente (`production` o `develop`, de la configuración de la app; `CREDITOP_API_URL` fuera de IO).
+- `node/connector` (`authorize`): llama a `payment-link` con `Authorization: Bearer <AppToken>` y responde
+  `Authorizations.redirect` con el `?ref=`; si falla, `deny` (antes quedaba `pending`). `authorizationId` es el
+  `order_key`, porque la API no devuelve un id propio. `settle` sigue en `/vtex/settel`.
+- `manifest.json`: `settingsSchema` con el ambiente y `outbound-access` para los dos hosts de la doc v1.0.2.
+- `local/server`: corre el conector real fuera de IO con un contexto de VTEX falso (`yarn --cwd node local`, :8114).
+
 **legacy-backend**
-- `Modules/Onboarding/App/Services/VtexService.php` (`init`): hoy arma la URL base64 con
-  `EcommerceContractBuilder::buildCheckoutUrl`, con `t` = la credencial. Pasa a guardar referencia y vencimiento y a
-  devolver `?ref=`. El `partnerKey` es el `hash` de la sucursal y el `secretToken` la credencial: siguen llegando
-  servidor a servidor en el body y no cambian.
-- `Modules/Onboarding/App/Repositories/EcommerceRequestRepository.php` (`upsert`): la llave de `updateOrCreate` es
-  `order_key + order_identifier + allied_id + allied_branch_id`. Un reintento de `authorize` de VTEX con el mismo
-  `paymentId` reusa la fila; hay que decidir si renueva la referencia o devuelve la misma.
-- En `qa` (no en `main`): `EcommerceRequestService::openByCheckoutReferenceOrchestrator`,
-  `EcommerceRequestRepository::findByCheckoutReference` (filtra `origin = payment_link`) y
-  `consumeCheckoutReference`, `EcommerceRequest::ORIGIN_PAYMENT_LINK`, la ruta
-  `POST ecommerce-request/by-reference/{partner_id}` y la migración
-  `2026_10_14_120000_add_checkout_reference_to_ecommerce_requests`. Sin aceptación de términos en el pedido, la
-  referencia abre el pedido y el comprador sigue por OTP; no la gasta.
-- `config/ecommerce.php` (`frontend_url`) y `Modules/Onboarding/App/Services/Ecommerce/VtexNotifier.php`: no cambian.
+- `POST /api/ecommerce/payment-link` es de Oscar ([#1682](https://github.com/Creditop-SAS/legacy-backend/pull/1682),
+  borrador). Lo que toca a VTEX: el `ecommerce_id` sale de la credencial (3 → `VtexNotifier`), y
+  `VtexService::settle` busca por `order_key` sin filtrar por sucursal (riesgo marcado en el PR).
+- En `qa` (no en `main`): la apertura por referencia (`by-reference`, `findByCheckoutReference`, la migración de las
+  4 columnas). Sin aceptación de términos en el pedido, la referencia abre el pedido y el comprador sigue por OTP.
+- `/vtex/init` ya no se usa para la URL; queda para el conector viejo hasta que se reemplace.
 
 **frontend-monorepo**
 - `apps/loan-request-wizard/app/routes/ecommerce/checkout.tsx`: en `qa` ya resuelve `?ref=` contra `by-reference`.
-  Sin cambios para VTEX, sólo llevarlo a `main`.
-
-**vtex** (conector)
-- `node/connector.ts` (`authorize`): ya sólo usa `creditopResponse.redirectUrl`; no cambia para la URL. El host
-  `https://api.creditop.com` está fijo: probar en qa exige llamar `/vtex/init` directo o parametrizar el host
-  (brecha del análisis de CORE-689, fuera de esta tarea).
 
 ## Cómo se ataca
 
-1. Un método del repositorio, `createWithCheckoutReference` (sucursal, credencial, pedido, productos, URLs → fila
-   con `origin=payment_link`, `checkout_reference`, `reference_expires_at`). Se escribe acá, sin esperar a
-   CORE-746; `payment-link` lo puede reusar después.
-2. `VtexService::init` lo llama y devuelve `?ref=`. El mapeo del body de VTEX al pedido (`paymentId → order_key`,
-   `orderId → id`, `value → total`, `callbackUrl → process_url`) se queda en el adaptador.
-3. Probar en local con el caso VTEX del harness (`vtexInit` ya llama al `/vtex/init` real) y después en `qa`.
-4. Para producción: la apertura por referencia en `main`, la migración aplicada en prod y la sucursal de Mario.
+1. El conector llama directo a `payment-link` (hecho en la rama `payment-link`, probado en local contra el mock).
+2. Cuando #1682 esté sobre `qa`, repetir la tienda demo contra la API de verdad en el backend local.
+3. Con cuenta VTEX: instalar la versión en un workspace de prueba y correr la Test Suite.
+4. Para producción: la apertura por referencia y `payment-link` en `main`, la migración en prod, el token de la
+   sucursal de Mario y la versión nueva del conector publicada.
 
 ## Lo que se evaluó y NO se eligió
 
+- **Que `/vtex/init` use por dentro el servicio de `payment-link`** (el conector sin cambios): descartado por
+  decisión de Miguel (2026-10-19): todas las tiendas pasan por la misma API, y el AppToken pasa a ser el token de
+  ecommerce de la sucursal.
 - **Que el conector arme la URL base64 en VTEX IO**: mete la credencial del comercio en el navegador del comprador,
   y en VTEX esa credencial es el AppToken de la afiliación. Además duplicaría en TypeScript la serialización PHP.
 - **Una columna nueva para la plataforma**: ya la da `ecommerce_id`, que sale de `ecommerce_type_id` de la
@@ -94,7 +98,7 @@ atribuir a su sucursal y a su plataforma sin heurísticas:
 
 - Shopify (queda para después, sobre el mismo endpoint).
 - El resto de las brechas de CORE-689 para el go-live: confirmación a VTEX (callback o retry), cancel y refund,
-  host por ambiente del conector, autenticación de `/vtex/settel`, Test Suite y homologación.
+  autenticación de `/vtex/settel`, Test Suite y homologación.
 - La entrada sin OTP para VTEX: VTEX no manda aceptación de términos.
 
 ## Cómo se comprueba — y el MATERIAL para volver a hacerlo
@@ -108,17 +112,13 @@ make harness-store            # http://localhost:8113/ · elegir «VTEX» y la s
 
 La página muestra los cuatro saltos (plataforma → plugin → `payment-link` → plugin → comprador) y «Ir a CreditOp»
 abre el wizard con `?ref=`. El webhook del backend llega a `/webhook/vtex` y se ve en la misma página.
+Con el conector REAL (repo `vtex`, rama `payment-link`): `yarn --cwd node local` lo compila y lo levanta en :8114
+con un contexto de VTEX falso; la tienda lo detecta y le manda el `authorize` a `POST /payments` (la barra dice
+«plugin: real»). Sin él, usa el simulado.
+
 Con la API de verdad: `make harness-store A=restart PAYMENT_LINK_URL=http://localhost/api/ecommerce/payment-link
 PAYMENT_LINK_TOKEN=<token de ecommerce:issue-token>`.
 
-
-En local, con legacy-backend y el wizard (:5174) en la rama, y la migración de la referencia aplicada:
-
-```sh
-# la URL que devuelve /vtex/init no lleva o/p/t, sólo ?ref=
-curl -s -X POST http://localhost:8080/vtex/init -H 'Content-Type: application/json' \
-  -d '{"paymentId":"vtx-<único>","orderId":"o-<único>","value":600000,"partnerKey":"<hash>","secretToken":"<credencial>","returnUrl":"https://tienda.example/ok","callbackUrl":"https://webhook.site/<id>"}'
-```
 
 Y en la base, la fila con la sucursal, la plataforma y el origen:
 
