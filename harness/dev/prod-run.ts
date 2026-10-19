@@ -25,6 +25,7 @@ import { createInterface } from 'node:readline/promises';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { clientState, requestTimeline, experianCheck } from '../pkg/backend-reads.ts';
+import { runPg, lastLine } from '../pkg/pg.ts';
 
 const API = process.env.PROD_API_URL || 'http://legacy-backend.inertia-production';
 const UA = 'Mozilla/5.0 (iPhone; CPU iPhone OS 16_5 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.5 Mobile/15E148 Safari/604.1';
@@ -89,6 +90,15 @@ if (!reachable) fail(`el backend de prod (${API}) no responde: prendé la VPN de
 
 const st = clientState('prod', doc);
 if (st.active) fail(`la cédula ${doc} ya tiene un cliente ACTIVO en prod (id ${(st.active as Record<string, unknown>).id}): el registro lo reusaría y no consultaría las centrales. Dalo de baja a mano en el admin de prod (Usuarios → papelera) y volvé a correr`);
+
+// EL CELULAR TAMBIÉN TIENE DUEÑO. Registrar un celular que ya es de un cliente activo devuelve ESE cliente, y la corrida se
+// mezcla con su cuenta (2026-10-19: el celular de Miguel seguía en su cliente de la mañana al correr con la cédula de Duncan).
+// Las cuentas internas lo guardan con prefijo (`2-…`) y no cuentan. `phone` ya pasó por /^3\d{9}$/: va literal sin riesgo.
+const owners = runPg(['sql', '--target', 'prod', '--json', '--query',
+    `SELECT id FROM users WHERE cell_phone IN ('${phone}','+57${phone}','57${phone}') AND status = 1 AND user_profile_id = 1`]);
+const owner = owners.status === 0 ? (JSON.parse(owners.stdout).rows ?? [])[0] : null;
+if (owners.status !== 0) fail(`no pude comprobar de quién es el celular: ${lastLine(owners.stderr || owners.stdout)}`);
+if (owner) fail(`el celular …${phone.slice(-4)} es de un cliente ACTIVO en prod (id ${owner.id}): el registro devolvería esa cuenta. Dalo de baja a mano en el admin de prod (Usuarios → papelera) y volvé a correr`);
 
 console.log(`  PRODUCCIÓN · ${API}
   sucursal  ${b.id} «${b.name}» (${branch}) · comercio ${b.allied_id} «${b.allied}» · sin entidades · Experian ${ex.verdict}
