@@ -18,8 +18,14 @@ ramas: payment-link
       local contra el mock; la idempotencia está atada a la tienda.
 - [x] ~~Probar la app en la tienda de desarrollo con el checkout real~~ — `creditop-dev-store.myshopify.com`, con
       `shopify app dev`: la compra llega a `payment-link` y el comprador cae en el wizard (pedido 7407).
-- [ ] Resolver la sesión de pago en Shopify (`paymentSessionResolve` / `Reject`) cuando llega el webhook de
-      CreditOp; termina con el pedido de la tienda de desarrollo pagado (o rechazado) al cerrar la solicitud.
+- [x] ~~Resolver la sesión de pago en Shopify cuando llega el webhook de CreditOp~~ — resolve, reject y pending por
+      la Payments Apps API, con el webhook firmado por sesión (HMAC). Aprobada → pedido #1009 «Pagado»; negada →
+      vuelve al checkout. Probado con el checkout real y el simulador de resultado del backend local.
+- [ ] Probar el cierre con una solicitud real (el comprador recorre el wizard hasta una entidad), sin atar la solicitud
+      a mano; termina con el pedido pagado en Shopify al autorizarse.
+- [ ] Que el webhook de CreditOp a las tiendas traiga autenticación propia (hoy, para «Desarrollo propio», va sin
+      nada y la app se protege con la firma en la URL); termina con una decisión escrita acá.
+      Depende de: Oscar — el contrato del webhook de la doc v1.0.2.
 - [ ] Sacar de la tienda de desarrollo el método manual «creditop» y pasar la moneda base a COP con un precio
       realista; termina con el checkout cobrando en COP.
       Depende de: Juan Rodriguez — dueño de la tienda.
@@ -58,8 +64,12 @@ commit inicial)
   mismo id recibe 409), 422 si la tienda no está configurada. La autenticación de Shopify (mTLS) se termina en infra.
 - `app/routes/app._index`: la configuración de la tienda (código de la sucursal, token, ambiente) y
   `paymentsAppConfigure`. Reemplaza la pantalla que tenía el Bearer y la PII escritos.
-- `app/routes/payments.return.$sessionId` (vuelve al `cancel_url` hasta que exista la resolución) y
-  `app/routes/webhooks.creditop` (guarda el estado que manda Creditop).
+- `app/payments-apps.server`: el cliente de la Payments Apps API (`paymentsAppConfigure`, `paymentSessionResolve`,
+  `Reject`, `Pending`), con la sesión offline de la tienda.
+- `app/routes/webhooks.creditop`: valida la firma de la URL (`?s=&sig=`), traduce el `status` de CreditOp
+  (`completed` / `failed` / `cancelled` / `pending payment`) y resuelve, rechaza o deja pendiente la sesión.
+- `app/routes/payments.return.$sessionId`: devuelve al comprador a donde dijo Shopify; si el resultado todavía no
+  llegó, deja la sesión pendiente. `app/routes/payments.go.$sessionId`: el salto HTTPS al wizard.
 - `app/routes/local.shop-config`: sólo con `CREDITOP_LOCAL=1`, carga una tienda sin el admin de Shopify.
 - `prisma/schema.prisma` + migración: `CreditopShop` y `CreditopPaymentSession`.
 - `extensions/creditop-offsite/shopify.extension.toml`: `payment_session_url` apunta a la app (`/payments/session`).
