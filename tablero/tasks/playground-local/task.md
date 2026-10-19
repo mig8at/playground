@@ -78,6 +78,18 @@ jira_title: ""
 - [ ] Gemini responde 401 con la llave de `connectors/.env`; termina cuando `make keyring SOLO=services`
   lo da en verde.
   Depende de: Miguel — una llave nueva de Gemini.
+- [ ] ensayo, fase 0 · el banco: dos copias del playground (A = `main` tal cual, B = `main` + el cambio)
+  con los `.env` de `connectors/` y `harness/` enlazados, no copiados. Termina cuando `make keyring` da lo
+  mismo en A y en B, y una corrida `claude -p` en cada una sale en `make radar-sesion` con `human: false`.
+- [ ] ensayo, fase 1 · la línea base: fijar lo que las preguntas 4, 5 y 6 dejan abierto (el mensaje, la
+  regla y la solicitud), y correr las seis tres veces cada una, sólo en A. Termina cuando cada pregunta tiene acierto, ruta, fricción y costo medidos, y está escrito cuánto costó
+  la tanda entera (así se decide si una comparación A/B se paga).
+- [ ] ensayo, fase 2 · la comparación: `radar` agrega una vista que toma dos tandas de sesiones y da, por
+  pregunta, las cuatro medidas lado a lado. Termina cuando una tanda contra sí misma sale «sin diferencia»
+  y una prueba con un transcript fabricado detecta un `TARGET=` faltante.
+- [ ] ensayo, primer uso · las diez correcciones de los CLAUDE.md del frente «Reglas vigentes» de #90:
+  ensayar la raíz recortada contra la actual. Termina cuando cada corrección queda adoptada o descartada
+  con su bloque y el contraste que la sostiene.
 
 ## Alcance
 
@@ -128,6 +140,61 @@ fecha en que salió del Makefile. Para partir comandos se reusa lo de los hooks,
 **Lo que se evaluó y NO se eligió.** Un router con Jev que conteste con JSON qué herramienta usar: sería
 un segundo modelo decidiendo por el primero, y sus «stores» una copia del catálogo que envejece. Medido
 el mismo día, con las skills visibles el ruteo nativo acertó 74 de 84 corridas sin falsos positivos.
+
+## Frente: ensayo con/sin — un cambio al playground se mide antes de quedarse
+
+**Objetivo.** Que un cambio a lo que guía al modelo —un CLAUDE.md, una skill, un hook, una memoria, una
+trampa— se adopte sólo si, corriendo las mismas preguntas con y sin él, el resultado no empeora en
+ninguna y mejora en alguna. Hoy esos cambios entran por criterio y radar mide su uso, no su efecto.
+La idea viene de Harness² (Google Research, `google-research/harness2`): correr la configuración actual
+y la candidata sobre la misma tarea y quedarse con la diferencia observada. Se toma el método, no la
+herramienta.
+
+**Las seis preguntas fijas.** Salen de errores que ya costaron; cada una tiene un juez que no es un modelo.
+
+| # | pregunta (el prompt de `claude -p`) | la ruta esperada | el juez |
+|---|---|---|---|
+| 1 | ¿qué entidades le salen a pullman por 2.000.000, en local? | `harness-listing` con `E2E_TARGET=local` | la lista que da `E2E_TARGET=local make harness-listing MERCHANT=pullman AMOUNT=2000000`, corrida aparte |
+| 2 | ¿el caso pullman con ingreso 900.000 cierra, en local? | `harness-case` con `CLOSE=1` y local | el desenlace de esa misma corrida, hecha por el juez |
+| 3 | ¿cuántas solicitudes se desembolsaron ayer, en prod? | `bin/pg sql --target prod` sobre `disbursed_at` | la misma consulta; falla si cuenta por el estado 11 o por `status` |
+| 4 | leí «<un mensaje fijo de error>», ¿de qué archivo sale? | `git grep -F` en los DOS monolitos contra `main` | el archivo:línea que da el `git grep` |
+| 5 | ¿esta regla de un lender excluye o sólo reordena? (una de `lender-listing`) | correr el caso con y sin el dato | el resultado de las dos corridas (F-162) |
+| 6 | ¿qué le pasó a la solicitud N en local? | `harness-loki` y `bin/pg sql`, con `TARGET=` | la etapa a la que llegó, leída de la base |
+
+Las preguntas cambian sólo con su bloque: si cambian cada vez, A y B dejan de ser comparables.
+
+**Qué se mide por corrida.** Todo sale de lo que ya existe; nada se anota a mano.
+
+- **acierto**: la respuesta contra el juez (la medida principal; las demás sólo desempatan);
+- **ruta**: de `make radar-sesion SESION=… JSON=1`, si usó la herramienta esperada y si cayó en una
+  prohibida (un `harness-*` sin `TARGET=`, escribir en dev, contestar sin haber corrido nada);
+- **fricción**: las llamadas `denied`, `blocked` o `error` de la misma sesión;
+- **costo**: `total_cost_usd`, `num_turns` y `duration_ms` del `--output-format json` de `claude -p`.
+
+**Regla de adopción.** Tres corridas por pregunta y por lado, porque una sola corrida es ruido (el propio
+paper lo admite: corridas distintas comparten los mismos sesgos). Se adopta B si ninguna pregunta baja su
+acierto y alguna mejora acierto o, empatando, ruta o fricción sin subir el costo más de un tercio.
+Adoptado o no, queda un bloque con la tabla A/B: es la «experiencia con evidencia» de Harness², en la
+pila en vez de un `EXPERIENCE.md`. Lo descartado pasa a «Lo que se evaluó y NO se eligió» de su contenedor.
+
+**Cómo se corre, con cuidado.**
+
+- Las corridas son `claude -p` con `--max-budget-usd` y `--allowedTools` acotado a lectura, `make` y
+  `bin/pg`. En `-p` lo no permitido se niega solo, y eso cuenta como fricción.
+- Sólo `local` y lectura de `prod`. Nada de dev compartido, nada con `--apply`. Los hooks del repo
+  (`destructive-tests`, `index-guard`) siguen activos en las dos copias porque `.claude/` se versiona.
+- radar ya separa estas corridas (`human: false`), así que no ensucian `radar-uso`.
+- ⚠ Las copias en worktree fallan en silencio sin los `.env` (ver CLAUDE.md de la raíz): por eso la
+  fase 0 se da por terminada recién cuando `keyring` da igual en las dos, no cuando la copia existe.
+
+**Lo que se evaluó y NO se eligió.**
+
+- **Instalar Harness²**: su red no tiene límite, desactiva el sandbox de Codex y edita sus propias
+  guardas; acá la sesión tiene credenciales de prod y una base de dev compartida que ya se borró una vez.
+- **Que un modelo componga el cambio (el paso «compose»)**: lo propone o lo escribe Miguel; el ensayo
+  sólo mide.
+- **Juzgar con un modelo**: el paper compara comportamiento sin un juez de verdad, y eso adoptaría con
+  gusto una regla que «debería excluir» y no excluye. Acá el juez es el harness, la base o `git grep`.
 
 ## Frente: keyring — a qué hay acceso ahora y cuándo vence
 
