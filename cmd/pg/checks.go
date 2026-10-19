@@ -5,6 +5,7 @@ import (
 	"flag"
 	"fmt"
 	"regexp"
+	"sort"
 	"strings"
 	"time"
 
@@ -331,7 +332,25 @@ func runExperianCheck(args []string) int {
 	}
 	ck.Caveats = []string{
 		"si el cliente ya tiene un Experian guardado que su central todavía da por vigente, se reusa y no se consulta (etapa 1)",
-		"el flujo de pre-aprobado ya confirmado omite Experian (etapa 2)",
+	}
+	// La etapa 2 depende de la solicitud (el flujo de pre-aprobado confirmado), pero que el wizard OFREZCA esa salida depende
+	// del comercio: `allowed_to_omit_experian_allieds` (por variante) habilita la pregunta «Confirmación de cupo».
+	omitRows, _ := rowsOf(src, "SELECT value FROM settings WHERE `key` = 'allowed_to_omit_experian_allieds' LIMIT 1")
+	var omit map[string][]int
+	if len(omitRows) == 1 {
+		_ = json.Unmarshal([]byte(rowCell(omitRows[0], "value")), &omit)
+	}
+	var omitVariants []string
+	for variant, ids := range omit {
+		if contains(ids, allied) {
+			omitVariants = append(omitVariants, variant)
+		}
+	}
+	sort.Strings(omitVariants)
+	if len(omitVariants) > 0 {
+		ck.Caveats = append(ck.Caveats, fmt.Sprintf("el comercio %d puede omitir Experian (%s): el wizard pregunta «Confirmación de cupo» y, si el cliente dice Sí, la solicitud va por el flujo de pre-aprobado confirmado y NO se consulta (etapa 2)", allied, strings.Join(omitVariants, ", ")))
+	} else {
+		ck.Caveats = append(ck.Caveats, "el comercio no está en allowed_to_omit_experian_allieds: el wizard no ofrece la salida de pre-aprobado confirmado (etapa 2)")
 	}
 	if ck.Verdict == "PASA LA PERIODICIDAD" {
 		ck.Caveats = append(ck.Caveats, "pasar la periodicidad no es consultar: después deciden las reglas del comercio, de la entidad y del punto de venta (etapas 5 a 7)")

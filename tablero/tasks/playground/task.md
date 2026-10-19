@@ -16,7 +16,7 @@ jira_title: ""
   - [ ] `pg admin permissions --target T (--role R | --user <correo>)`: qué permisos tiene de verdad un rol o un
     usuario (`role_has_permissions` + `model_has_permissions`), porque git no lo dice. Termina cuando contesta para
     un rol y para un usuario en local, dev y prod.
-  - [ ] `pg request history --target T --ureq N`: por qué estados pasó una solicitud, quién la movió y qué estado
+  - [x] ~~`pg request history --target T --ureq N`~~ — hecho como `pg request timeline` (2026-10-19), junto a `settings diff`, `client fields`, `jobs failed` y `otp last`, y expuestos al harness en `harness/pkg/backend-reads.ts`. Lo que decía: por qué estados pasó una solicitud, quién la movió y qué estado
     pone cada perfil de su comercio al gestionarla (`status_per_profiles`). Termina cuando reconstruye una solicitud
     conocida de qa.
   - [ ] `pg branch rules --target T --hash H`: las entidades del punto de venta, sus reglas duras, las reglas y la

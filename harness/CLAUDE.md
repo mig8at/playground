@@ -87,6 +87,7 @@ aprende una lección distinta y dejan de hacer lo mismo. Las duplicadas se encue
 | `phones.ts` | el LARGO y el PREFIJO salen del país: en RD el área ES el país, y un dígito cualquiera ubica el número en otro lado **sin fallar** |
 | `merchants.ts` (`findBranch`) | el canal de tienda necesita la sucursal **con credencial de ecommerce** |
 | `otp-bypass.ts` | dos corridas a la vez se pisaban la lista de teléfonos |
+| `backend-reads.ts` | las lecturas de la base de legacy-backend que una prueba necesita (estado de una cédula, campos, historial de una solicitud, Experian por sucursal, settings entre ambientes, trabajos fallidos, OTP) van por el conector (`bin/pg … --json`), no con SQL propio: una consulta, un lugar |
 | `cognito.ts` (`sessionHealth`) | la sesión se juzga por el vencimiento de las cookies, no por el `mtime` del archivo |
 
 Los specs de `channel/` corren contra **local** por defecto (`playwright.config.ts` fija
