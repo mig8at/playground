@@ -53,6 +53,12 @@ var commands []command
 
 func init() {
 	commands = []command{
+		{Name: "client state", Summary: "qué hay de una CÉDULA en la base del ambiente: el cliente activo y sus bajas (-t<n>), sus últimas solicitudes, qué centrales se le consultaron y cuándo, y qué central decidió su nombre. Sólo lectura (también prod)",
+			Usage: "pg client state --target T --document 1031138508 [--json]", run: runClientState,
+			Params: []param{target(), req("document", "la cédula, sólo dígitos"), boolean("json", "el resultado en JSON")}},
+		{Name: "experian check", Summary: "si una SUCURSAL va a consultar Experian y por qué: los atajos que obligan (comercio o entidad en experian_trigger_bypass_rules, entidad CreditopX) y, si ninguno aplica, la periodicidad del comercio con su contador. Sólo lectura (también prod)",
+			Usage: "pg experian check --target T (--hash <sucursal> | --branch <id>) [--json]", run: runExperianCheck,
+			Params: []param{target(), str("hash", "el hash de la sucursal (hexadecimal)"), num("branch", "o el id de la sucursal (allied_branches.id)"), boolean("json", "el resultado en JSON")}},
 		{Name: "sql", Summary: "SQL de sólo lectura contra la base del ambiente (MySQL directo; Redash en prod)",
 			Usage: "pg sql --target T --query 'SELECT …' [--json | --csv | --md] [--bloque TAREA [--titulo '…']]", run: runSQL,
 			Params: []param{target(), req("query", "SELECT o WITH, una sola sentencia"), boolean("json", "filas en JSON, con el ambiente y la fuente"),
