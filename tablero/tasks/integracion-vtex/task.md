@@ -99,6 +99,19 @@ atribuir a su sucursal y a su plataforma sin heurísticas:
 
 ## Cómo se comprueba — y el MATERIAL para volver a hacerlo
 
+**La tienda demo (verificado el 2026-10-19).** Mientras `payment-link` no esté en el backend local, un mock de su
+contrato (el de legacy-backend#1682) más el plugin de VTEX simulado, con el wizard en :5174 y legacy-backend local:
+
+```sh
+make harness-store            # http://localhost:8113/ · elegir «VTEX» y la sucursal e9409aff, «Pagar con CreditOp»
+```
+
+La página muestra los cuatro saltos (plataforma → plugin → `payment-link` → plugin → comprador) y «Ir a CreditOp»
+abre el wizard con `?ref=`. El webhook del backend llega a `/webhook/vtex` y se ve en la misma página.
+Con la API de verdad: `make harness-store A=restart PAYMENT_LINK_URL=http://localhost/api/ecommerce/payment-link
+PAYMENT_LINK_TOKEN=<token de ecommerce:issue-token>`.
+
+
 En local, con legacy-backend y el wizard (:5174) en la rama, y la migración de la referencia aplicada:
 
 ```sh
