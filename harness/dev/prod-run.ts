@@ -93,9 +93,10 @@ if (st.active) fail(`la cédula ${doc} ya tiene un cliente ACTIVO en prod (id ${
 
 // EL CELULAR TAMBIÉN TIENE DUEÑO. Registrar un celular que ya es de un cliente activo devuelve ESE cliente, y la corrida se
 // mezcla con su cuenta (2026-10-19: el celular de Miguel seguía en su cliente de la mañana al correr con la cédula de Duncan).
-// Las cuentas internas lo guardan con prefijo (`2-…`) y no cuentan. `phone` ya pasó por /^3\d{9}$/: va literal sin riesgo.
+// Las cuentas internas lo guardan con prefijo (`2-…`) y no cuentan, y un usuario TEMPORAL (`TEMP-…`, el que deja un OTP a
+// medias) tampoco: el registro lo reusa y le pide los datos, que es justo lo que hace la corrida. `phone` ya pasó por /^3\d{9}$/: va literal sin riesgo.
 const owners = runPg(['sql', '--target', 'prod', '--json', '--query',
-    `SELECT id FROM users WHERE cell_phone IN ('${phone}','+57${phone}','57${phone}') AND status = 1 AND user_profile_id = 1`]);
+    `SELECT id FROM users WHERE cell_phone IN ('${phone}','+57${phone}','57${phone}') AND status = 1 AND user_profile_id = 1 AND document_number NOT LIKE 'TEMP-%'`]);
 const owner = owners.status === 0 ? (JSON.parse(owners.stdout).rows ?? [])[0] : null;
 if (owners.status !== 0) fail(`no pude comprobar de quién es el celular: ${lastLine(owners.stderr || owners.stdout)}`);
 if (owner) fail(`el celular …${phone.slice(-4)} es de un cliente ACTIVO en prod (id ${owner.id}): el registro devolvería esa cuenta. Dalo de baja a mano en el admin de prod (Usuarios → papelera) y volvé a correr`);
