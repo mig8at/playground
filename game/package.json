@@ -1,0 +1,23 @@
+{
+  "name": "fuga",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "description": "FUGA, policías y ladrones: laboratorio para jugar y simular, generador de ciudades y calibrador con bots.",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build"
+  },
+  "dependencies": {
+    "@fontsource-variable/rubik": "^5.3.0",
+    "@fontsource/bungee": "^5.3.0",
+    "pinia": "^4.0.3",
+    "three": "^0.186.1",
+    "vue": "^3.5.43",
+    "vue-router": "^5.3.1"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-vue": "^6.0.9",
+    "vite": "^8.3.3"
+  }
+}

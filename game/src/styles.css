@@ -1,0 +1,70 @@
+/* La paleta de FUGA: crema, tinta gris azulada y acentos pastel; con modo oscuro. El plano del juego (canvas) mantiene
+   sus colores claros en los dos modos, como un plano impreso. */
+:root{--bg:#f7f6f2;--paper:#fffefa;--ink:#343c42;--muted:#7d8588;--line:#e3e6df;--hover:#ebeee8;--focus:#81ad94;--accent:#6c947f;--accent-ink:#fffefa;
+ --blue:#a9c9e0;--coral:#edb4a5;--mint:#bfd5bf;--yellow:#eee0a9;--ok:#3f7d55;--okbg:#e3f1e6;--warn:#9a5b14;--warnbg:#f8ead3;--bad:#a5432f;--badbg:#f8e3dc;
+ --mono:ui-monospace,SFMono-Regular,Consolas,monospace;
+ --street:#fbfaf6;--avenue:#f0eee6;--alley:#f5eee1;--plaza:#e2eedd;--courtyard:#ece6d3;--building:#c6ccc3;--building-edge:#9ea69b;--kiosk:#97b596;--border:#7f877f;
+ --site-wall:#d2a94c;--site-floor:#f7ecc3;--loot:#c9952a;--station-wall:#7fa3c2;--station-floor:#e0ecf5;--jail:#a9c3da;--hideout:#d9775f;--thief:#e3907c;--cop:#6f9bc4;--rescue:#4f7fa8;--heat:217,119,95;--room:#e9e3d6;--hall:#f3efe6;--vault:#ead291}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#17191a;--paper:#202325;--ink:#e6e7e2;--muted:#a0a6a8;--line:#34383a;--hover:#2a2e30;--accent:#7fae93;--accent-ink:#13201a;
+ --blue:#4f6f86;--coral:#a0675a;--mint:#4f6b52;--yellow:#6d6338;--ok:#8fd0a3;--okbg:#1e3626;--warn:#f0c38a;--warnbg:#3f2f1a;--bad:#f0a08d;--badbg:#3d241e;
+ --street:#2b2f2d;--avenue:#323633;--alley:#35322b;--plaza:#2c3a2d;--courtyard:#3a362b;--building:#4d544e;--building-edge:#687168;--kiosk:#6d8f6c;--border:#8b938b;
+ --site-wall:#b08a35;--site-floor:#4a4226;--loot:#e3b54d;--station-wall:#5f86a6;--station-floor:#283846;--jail:#3f5b74;--hideout:#e08a72;--thief:#e09a88;--cop:#80a9d0;--rescue:#9cc1e0;--heat:224,138,114;--room:#3b3934;--hall:#45423b;--vault:#6b5a2a}}
+:root[data-theme="dark"]{--bg:#17191a;--paper:#202325;--ink:#e6e7e2;--muted:#a0a6a8;--line:#34383a;--hover:#2a2e30;--accent:#7fae93;--accent-ink:#13201a;
+ --blue:#4f6f86;--coral:#a0675a;--mint:#4f6b52;--yellow:#6d6338;--ok:#8fd0a3;--okbg:#1e3626;--warn:#f0c38a;--warnbg:#3f2f1a;--bad:#f0a08d;--badbg:#3d241e;
+ --street:#2b2f2d;--avenue:#323633;--alley:#35322b;--plaza:#2c3a2d;--courtyard:#3a362b;--building:#4d544e;--building-edge:#687168;--kiosk:#6d8f6c;--border:#8b938b;
+ --site-wall:#b08a35;--site-floor:#4a4226;--loot:#e3b54d;--station-wall:#5f86a6;--station-floor:#283846;--jail:#3f5b74;--hideout:#e08a72;--thief:#e09a88;--cop:#80a9d0;--rescue:#9cc1e0;--heat:224,138,114;--room:#3b3934;--hall:#45423b;--vault:#6b5a2a}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:14px/1.45 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
+a{color:inherit}
+button,input,select,textarea{font:inherit;color:inherit}
+button{cursor:pointer;border:1px solid var(--line);background:var(--paper);border-radius:8px;padding:7px 12px;transition:background .15s}
+button:hover:not(:disabled){background:var(--hover)}
+button:disabled{opacity:.5;cursor:default}
+button.primary{background:var(--accent);border-color:var(--accent);color:var(--accent-ink);font-weight:600}
+button.primary:hover:not(:disabled){filter:brightness(1.05);background:var(--accent)}
+button.danger{color:var(--bad)}
+input,select,textarea{border:1px solid var(--line);border-radius:7px;background:var(--paper);padding:6px 8px;max-width:100%}
+input[type=number]{font-variant-numeric:tabular-nums}
+input[type=checkbox]{accent-color:var(--accent)}
+:focus-visible{outline:3px solid var(--focus);outline-offset:2px}
+.app{max-width:1400px;margin:auto;padding:18px 28px 48px}
+.top{display:flex;align-items:center;gap:22px;padding-bottom:16px;border-bottom:1px solid var(--line);flex-wrap:wrap}
+.brand{display:flex;align-items:center;gap:11px;text-decoration:none}
+.brand .mark{width:38px;height:38px;border-radius:12px;background:var(--coral);display:grid;place-items:center;font-size:22px;font-weight:900;color:#343c42;transform:rotate(-5deg)}
+nav .group{font:10px var(--mono);text-transform:uppercase;letter-spacing:1px;color:var(--muted);padding:0 4px 0 14px;align-self:center}
+.brand b{display:block;font-size:20px;letter-spacing:-.6px;line-height:1}
+.brand small{display:block;font:10px var(--mono);text-transform:uppercase;letter-spacing:1.3px;color:var(--muted);margin-top:3px}
+nav{display:flex;gap:4px;flex-wrap:wrap}
+nav a{text-decoration:none;padding:7px 12px;border-radius:8px;color:var(--muted)}
+nav a:hover{background:var(--hover);color:var(--ink)}
+nav a.router-link-exact-active{background:var(--paper);color:var(--ink);border:1px solid var(--line)}
+.pool{margin-left:auto;font:11px var(--mono);color:var(--muted);border:1px solid var(--line);border-radius:20px;padding:7px 12px;display:flex;align-items:center;gap:8px}
+.pool .dot{width:7px;height:7px;border-radius:50%;background:#b6bcb3}
+.pool.busy .dot{background:var(--accent);animation:pulse 1s infinite alternate}
+@keyframes pulse{to{opacity:.35}}
+main{padding-top:20px}
+h1{font-size:22px;letter-spacing:-.5px;margin:0 0 4px}
+h2{font:11px var(--mono);text-transform:uppercase;letter-spacing:1.2px;color:var(--muted);margin:0 0 10px;font-weight:500}
+.lead{color:var(--muted);margin:0 0 18px;max-width:820px}
+.panel{background:var(--paper);border:1px solid var(--line);border-radius:13px;padding:16px}
+.stack{display:flex;flex-direction:column;gap:14px}
+.row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.spread{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap}
+.muted{color:var(--muted)}
+.small{font-size:12px}
+.mono{font-family:var(--mono)}
+.pill{display:inline-block;font:11px var(--mono);border-radius:20px;padding:3px 9px;white-space:nowrap;border:1px solid var(--line)}
+.pill.ok{background:var(--okbg);color:var(--ok);border-color:transparent}
+.pill.warn{background:var(--warnbg);color:var(--warn);border-color:transparent}
+.pill.bad{background:var(--badbg);color:var(--bad);border-color:transparent}
+table{border-collapse:collapse;width:100%}
+th,td{text-align:left;padding:8px 10px;border-bottom:1px solid var(--line);vertical-align:middle}
+th{font:11px var(--mono);text-transform:uppercase;letter-spacing:.8px;color:var(--muted);font-weight:500;white-space:nowrap}
+td.num,th.num{text-align:right;font-variant-numeric:tabular-nums}
+tbody tr:hover{background:var(--hover)}
+.empty{padding:28px;text-align:center;color:var(--muted)}
+.error{color:var(--bad)}
+.progress{height:6px;background:var(--line);border-radius:6px;overflow:hidden}
+.progress>i{display:block;height:100%;background:var(--accent);transition:width .3s}
+.scroll{overflow-x:auto}
+@media (max-width:760px){.app{padding:14px 16px 40px}.pool{margin-left:0}}

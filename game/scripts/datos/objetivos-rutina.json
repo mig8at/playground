@@ -1,0 +1,243 @@
+{
+ "nota": "Metas de la rutina (2026-10-18). PROVISORIAS: hipótesis de cómo vive una ciudad colombiana, a reemplazar por las tablas de la Encuesta Nacional de Uso del Tiempo del DANE (ENUT 2024-2025) cuando estén. Cada meta: grupo (todos, adultos, trabajan, estudiantes), dias (lv: lunes a viernes; fds: fin de semana), actividad (casa, trabajo, estudio, comer, compras, ejercicio, ocio, calle, bus), horas [desde, hasta] (el promedio de esas horas), rango [mín, máx] y peso; o un indicador con su rango; o una razón (razon: actividades, de: actividades del total) con su rango.",
+ "metas": [
+  {
+   "nombre": "de madrugada, todos en casa",
+   "grupo": "todos",
+   "dias": "lv",
+   "actividad": "casa",
+   "horas": [
+    1,
+    4
+   ],
+   "rango": [
+    0.97,
+    1
+   ],
+   "peso": 3,
+   "fuente": "hipótesis"
+  },
+  {
+   "nombre": "los que trabajan, en el trabajo a media mañana",
+   "grupo": "trabajan",
+   "dias": "lv",
+   "actividad": "trabajo",
+   "horas": [
+    9,
+    11
+   ],
+   "rango": [
+    0.5,
+    0.75
+   ],
+   "peso": 2,
+   "fuente": "hipótesis: hay turnos de tarde y de noche (los locales de 10+ h, el hotel, el hospital) y francos; medido 0,58 con la rutina nueva"
+  },
+  {
+   "nombre": "los estudiantes, en el colegio",
+   "grupo": "estudiantes",
+   "dias": "lv",
+   "actividad": "estudio",
+   "horas": [
+    8,
+    14
+   ],
+   "rango": [
+    0.95,
+    1
+   ],
+   "peso": 3,
+   "fuente": "hipótesis"
+  },
+  {
+   "nombre": "entre semana de noche, en casa",
+   "grupo": "todos",
+   "dias": "lv",
+   "actividad": "casa",
+   "horas": [
+    21,
+    22
+   ],
+   "rango": [
+    0.85,
+    0.97
+   ],
+   "peso": 1,
+   "fuente": "hipótesis"
+  },
+  {
+   "nombre": "almuerzo afuera entre semana",
+   "grupo": "adultos",
+   "dias": "lv",
+   "actividad": "comer",
+   "horas": [
+    12,
+    14
+   ],
+   "rango": [
+    0.02,
+    0.08
+   ],
+   "peso": 1,
+   "fuente": "hipótesis"
+  },
+  {
+   "nombre": "comida afuera el fin de semana",
+   "grupo": "adultos",
+   "dias": "fds",
+   "actividad": "comer",
+   "horas": [
+    18,
+    21
+   ],
+   "rango": [
+    0.04,
+    0.14
+   ],
+   "peso": 1,
+   "fuente": "hipótesis"
+  },
+  {
+   "nombre": "mercado los sábados y domingos en la mañana",
+   "grupo": "adultos",
+   "dias": "fds",
+   "actividad": "compras",
+   "horas": [
+    9,
+    12
+   ],
+   "rango": [
+    0.02,
+    0.08
+   ],
+   "peso": 1,
+   "fuente": "hipótesis"
+  },
+  {
+   "nombre": "gimnasio temprano o después del trabajo",
+   "grupo": "adultos",
+   "dias": "lv",
+   "actividad": "ejercicio",
+   "horas": [
+    18,
+    20
+   ],
+   "rango": [
+    0.01,
+    0.05
+   ],
+   "peso": 1,
+   "fuente": "hipótesis"
+  },
+  {
+   "nombre": "paseo el fin de semana",
+   "grupo": "todos",
+   "dias": "fds",
+   "actividad": "ocio",
+   "horas": [
+    10,
+    17
+   ],
+   "rango": [
+    0.03,
+    0.12
+   ],
+   "peso": 1,
+   "fuente": "hipótesis"
+  },
+  {
+   "nombre": "la hora pico de la mañana en la calle y el bus",
+   "grupo": "todos",
+   "dias": "lv",
+   "actividad": "calle",
+   "horas": [
+    6,
+    7
+   ],
+   "rango": [
+    0.01,
+    0.06
+   ],
+   "peso": 1,
+   "fuente": "hipótesis"
+  },
+  {
+   "nombre": "de madrugada, nadie en la calle",
+   "grupo": "todos",
+   "dias": "lv",
+   "actividad": "calle",
+   "horas": [
+    1,
+    4
+   ],
+   "rango": [
+    0,
+    0.005
+   ],
+   "peso": 2,
+   "fuente": "hipótesis"
+  },
+  {
+   "nombre": "comidas por persona y día",
+   "indicador": "comidasProm",
+   "rango": [
+    2.4,
+    3.4
+   ],
+   "peso": 2,
+   "fuente": "hipótesis (desayuno, almuerzo y comida; a veces algo más)"
+  },
+  {
+   "nombre": "casi nadie come menos de dos veces",
+   "indicador": "comenMenosDe2",
+   "rango": [
+    0,
+    0.05
+   ],
+   "peso": 2,
+   "fuente": "hipótesis"
+  },
+  {
+   "nombre": "el socio va al gimnasio 2 a 4 veces por semana",
+   "indicador": "gymSocioSemana",
+   "rango": [
+    2,
+    4
+   ],
+   "peso": 1,
+   "fuente": "hipótesis"
+  },
+  {
+   "nombre": "sin eventos, nadie se pierde lo obligatorio",
+   "indicador": "perdidasPorDia",
+   "rango": [
+    0,
+    0.002
+   ],
+   "peso": 3,
+   "fuente": "regla"
+  },
+  {
+   "nombre": "en la calle a la salida, parte quieta (descansa en una banca o parada en la esquina)",
+   "grupo": "todos",
+   "dias": "lv",
+   "razon": [
+    "descansa"
+   ],
+   "de": [
+    "descansa",
+    "calle"
+   ],
+   "horas": [
+    15,
+    19
+   ],
+   "rango": [
+    0.15,
+    0.3
+   ],
+   "peso": 2,
+   "fuente": "Miguel, 2026-10-18: «para no ver a todos caminando sin parar; quedarse parado recarga». Hipótesis de rango"
+  }
+ ]
+}

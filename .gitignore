@@ -52,3 +52,8 @@ radar/.cache/
 
 # las tandas del ensayo: corridas con sus respuestas, locales por máquina
 ensayo/.tandas/
+
+# FUGA (game/): lo pesado que no se versiona —las fuentes de los modelos, lo viejo y las capturas— (2026-10-18)
+/game/assets-fuente/
+/game/before/
+/game/capturas/

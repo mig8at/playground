@@ -1,0 +1,28 @@
+{
+ "semilla": 1,
+ "fijado": "2026-10-17",
+ "salida": {
+  "tri": 3087449,
+  "calls": 489
+ },
+ "dron": {
+  "tri": 4533624,
+  "calls": 1053
+ },
+ "monte": {
+  "tri": 5455011,
+  "calls": 1100
+ },
+ "adentro": {
+  "tri": 1917824,
+  "calls": 668
+ },
+ "azotea": {
+  "tri": 1308464,
+  "calls": 433
+ },
+ "playa": {
+  "tri": 5323031,
+  "calls": 962
+ }
+}

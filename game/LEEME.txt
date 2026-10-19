@@ -1,0 +1,30 @@
+FUGA · ladrones y policías en una ciudad que vive sola (Vue 3 + three.js, con Vite)
+
+INICIAR
+  cd ~/Desktop/CREDITOP/playground/game
+  npm install        (sólo la primera vez)
+  npm run dev
+Abre http://127.0.0.1:5180. También: doble clic en iniciar.command.
+
+EL JUEGO
+  /          La entrada: título, entrar (Steam o Google, simulados), perfil (el muñeco de cada bando), las salas,
+             crear un mundo y la sala de espera. Todo el multijugador está simulado (la gente se une sola).
+             Salas de prueba (arriba en la lista): «falta un policía» (ciudad 1) y «falta un ladrón» (ciudad 2). Su
+             mapa se arma una vez en segundo plano y queda guardado en IndexedDB (src/lib/mapasGuardados.js, con la
+             firma del motor: si el motor cambia, se arma de nuevo). Al unirse, entrás en el lugar que falta y arranca.
+             ?paso=titulo|home|crear|sala para ir directo a una pantalla.
+             Diseño (2026-10-18): la ciudad del juego de fondo (public/fondos: capturas del 3D, la noche en el título),
+             paneles de vidrio, ámbar los ladrones y azul la policía, títulos en Bungee y texto en Rubik (paquetes de
+             @fontsource: sin internet). Lo prueba scripts/validar-entrada.mjs (nivel 10).
+  /juego     La partida (?ciudad=1&jugadores=3&papel=policia). /demo es lo mismo (lo usan las pruebas de pantalla).
+             ?lab=1 muestra los botones de prueba (tamaño, papel, otra ciudad, vista, la cámara libre —V—, día/noche).
+
+EL MÉTODO: TODO SE PRUEBA EN EL 2D
+  node scripts/probar.mjs              el probador por niveles (0 medidas … 10 pantalla); --nivel=3-5, --seguir
+  node scripts/calibrar.mjs <exp>      el calibrador (scripts/experimentos: rutina, descanso, botin…)
+  node scripts/ver-fachadas.mjs        fotos de las fachadas para revisar a ojo
+Las medidas y reglas viven en src/engine/medidas.js; el diseño, en REGLAS.md, GENERADOR.md, FACHADAS.md y MEJORAS.md.
+
+before/
+  Lo que ya no se usa (los talleres y el calibrador web viejos, scripts de una sola vez, capturas, el LEEME viejo).
+  No forma parte del juego ni de las pruebas.

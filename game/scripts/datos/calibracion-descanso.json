@@ -1,0 +1,366 @@
+{
+ "experimento": "descanso",
+ "fecha": "2026-10-18T16:38:39.426Z",
+ "semillas": [
+  1,
+  2
+ ],
+ "pruebas": 50,
+ "hoy": {
+  "valores": {
+   "RUTINA.necesidades.energia.sube": 0.113,
+   "RUTINA.necesidades.energia.camina": 1.82,
+   "RUTINA.necesidades.energia.umbral": 0.22,
+   "RUTINA.lugares.banca.horas": 0.2,
+   "RUTINA.lugares.esquina.horas": 0.15,
+   "RUTINA.lugares.esquina.baja": 0.4
+  },
+  "perdida": 0.014636193293885593,
+  "detalle": [
+   {
+    "meta": "de madrugada, todos en casa",
+    "valor": 0.99,
+    "rango": [
+     0.97,
+     1
+    ],
+    "ok": true
+   },
+   {
+    "meta": "los que trabajan, en el trabajo a media mañana",
+    "valor": 0.578,
+    "rango": [
+     0.5,
+     0.75
+    ],
+    "ok": true
+   },
+   {
+    "meta": "los estudiantes, en el colegio",
+    "valor": 0.996,
+    "rango": [
+     0.95,
+     1
+    ],
+    "ok": true
+   },
+   {
+    "meta": "entre semana de noche, en casa",
+    "valor": 0.927,
+    "rango": [
+     0.85,
+     0.97
+    ],
+    "ok": true
+   },
+   {
+    "meta": "almuerzo afuera entre semana",
+    "valor": 0.023,
+    "rango": [
+     0.02,
+     0.08
+    ],
+    "ok": true
+   },
+   {
+    "meta": "comida afuera el fin de semana",
+    "valor": 0.129,
+    "rango": [
+     0.04,
+     0.14
+    ],
+    "ok": true
+   },
+   {
+    "meta": "mercado los sábados y domingos en la mañana",
+    "valor": 0.015,
+    "rango": [
+     0.02,
+     0.08
+    ],
+    "ok": false
+   },
+   {
+    "meta": "gimnasio temprano o después del trabajo",
+    "valor": 0.011,
+    "rango": [
+     0.01,
+     0.05
+    ],
+    "ok": true
+   },
+   {
+    "meta": "paseo el fin de semana",
+    "valor": 0.05,
+    "rango": [
+     0.03,
+     0.12
+    ],
+    "ok": true
+   },
+   {
+    "meta": "la hora pico de la mañana en la calle y el bus",
+    "valor": 0.021,
+    "rango": [
+     0.01,
+     0.06
+    ],
+    "ok": true
+   },
+   {
+    "meta": "de madrugada, nadie en la calle",
+    "valor": 0,
+    "rango": [
+     0,
+     0.005
+    ],
+    "ok": true
+   },
+   {
+    "meta": "comidas por persona y día",
+    "valor": 3.14,
+    "rango": [
+     2.4,
+     3.4
+    ],
+    "ok": true
+   },
+   {
+    "meta": "casi nadie come menos de dos veces",
+    "valor": 0.002,
+    "rango": [
+     0,
+     0.05
+    ],
+    "ok": true
+   },
+   {
+    "meta": "el socio va al gimnasio 2 a 4 veces por semana",
+    "valor": 2.67,
+    "rango": [
+     2,
+     4
+    ],
+    "ok": true
+   },
+   {
+    "meta": "sin eventos, nadie se pierde lo obligatorio",
+    "valor": 0,
+    "rango": [
+     0,
+     0.002
+    ],
+    "ok": true
+   },
+   {
+    "meta": "en la calle a la salida, parte quieta (descansa en una banca o parada en la esquina)",
+    "valor": 0.169,
+    "rango": [
+     0.15,
+     0.3
+    ],
+    "ok": true
+   },
+   {
+    "meta": "vuelve a lo normal el domingo",
+    "valor": 0.897,
+    "rango": [
+     0.9,
+     1
+    ],
+    "ok": false
+   }
+  ]
+ },
+ "calibrado": {
+  "valores": {
+   "RUTINA.necesidades.energia.sube": 0.11114566849764662,
+   "RUTINA.necesidades.energia.camina": 2.1010741360016105,
+   "RUTINA.necesidades.energia.umbral": 0.35621889028771997,
+   "RUTINA.lugares.banca.horas": 0.3850077283647903,
+   "RUTINA.lugares.esquina.horas": 0.3343602795381715,
+   "RUTINA.lugares.esquina.baja": 0.35825546640167066
+  },
+  "perdida": 0.0071,
+  "detalle": [
+   {
+    "meta": "de madrugada, todos en casa",
+    "valor": 0.99,
+    "rango": [
+     0.97,
+     1
+    ],
+    "ok": true
+   },
+   {
+    "meta": "los que trabajan, en el trabajo a media mañana",
+    "valor": 0.578,
+    "rango": [
+     0.5,
+     0.75
+    ],
+    "ok": true
+   },
+   {
+    "meta": "los estudiantes, en el colegio",
+    "valor": 0.996,
+    "rango": [
+     0.95,
+     1
+    ],
+    "ok": true
+   },
+   {
+    "meta": "entre semana de noche, en casa",
+    "valor": 0.926,
+    "rango": [
+     0.85,
+     0.97
+    ],
+    "ok": true
+   },
+   {
+    "meta": "almuerzo afuera entre semana",
+    "valor": 0.023,
+    "rango": [
+     0.02,
+     0.08
+    ],
+    "ok": true
+   },
+   {
+    "meta": "comida afuera el fin de semana",
+    "valor": 0.133,
+    "rango": [
+     0.04,
+     0.14
+    ],
+    "ok": true
+   },
+   {
+    "meta": "mercado los sábados y domingos en la mañana",
+    "valor": 0.015,
+    "rango": [
+     0.02,
+     0.08
+    ],
+    "ok": false
+   },
+   {
+    "meta": "gimnasio temprano o después del trabajo",
+    "valor": 0.011,
+    "rango": [
+     0.01,
+     0.05
+    ],
+    "ok": true
+   },
+   {
+    "meta": "paseo el fin de semana",
+    "valor": 0.054,
+    "rango": [
+     0.03,
+     0.12
+    ],
+    "ok": true
+   },
+   {
+    "meta": "la hora pico de la mañana en la calle y el bus",
+    "valor": 0.02,
+    "rango": [
+     0.01,
+     0.06
+    ],
+    "ok": true
+   },
+   {
+    "meta": "de madrugada, nadie en la calle",
+    "valor": 0,
+    "rango": [
+     0,
+     0.005
+    ],
+    "ok": true
+   },
+   {
+    "meta": "comidas por persona y día",
+    "valor": 3.14,
+    "rango": [
+     2.4,
+     3.4
+    ],
+    "ok": true
+   },
+   {
+    "meta": "casi nadie come menos de dos veces",
+    "valor": 0.002,
+    "rango": [
+     0,
+     0.05
+    ],
+    "ok": true
+   },
+   {
+    "meta": "el socio va al gimnasio 2 a 4 veces por semana",
+    "valor": 2.69,
+    "rango": [
+     2,
+     4
+    ],
+    "ok": true
+   },
+   {
+    "meta": "sin eventos, nadie se pierde lo obligatorio",
+    "valor": 0,
+    "rango": [
+     0,
+     0.002
+    ],
+    "ok": true
+   },
+   {
+    "meta": "en la calle a la salida, parte quieta (descansa en una banca o parada en la esquina)",
+    "valor": 0.242,
+    "rango": [
+     0.15,
+     0.3
+    ],
+    "ok": true
+   },
+   {
+    "meta": "vuelve a lo normal el domingo",
+    "valor": 0.907,
+    "rango": [
+     0.9,
+     1
+    ],
+    "ok": true
+   }
+  ]
+ },
+ "historia": [
+  {
+   "fase": "hoy",
+   "perdida": 0.014636193293885593
+  },
+  {
+   "fase": "exploración",
+   "perdida": 0.007302519169496863
+  },
+  {
+   "fase": "refinar",
+   "perdida": 0.007302519169496863,
+   "sigma": 0.175
+  },
+  {
+   "fase": "refinar",
+   "perdida": 0.0071,
+   "sigma": 0.193
+  },
+  {
+   "fase": "refinar",
+   "perdida": 0.0071,
+   "sigma": 0.135
+  }
+ ]
+}
