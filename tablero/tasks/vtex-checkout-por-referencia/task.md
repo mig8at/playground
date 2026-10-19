@@ -11,12 +11,12 @@ jira_title: ""
 
 ## Pendientes
 
-- [ ] Acordar con Oscar que `/vtex/init` y `POST /api/ecommerce/payment-link` (CORE-746) crean el pedido con el
-      MISMO servicio; termina cuando hay un nombre y una firma de método que los dos usan.
-      Depende de: Oscar — el diseño de CORE-746.
 - [ ] `VtexService::init` guarda el pedido con `origin=payment_link`, `checkout_reference` aleatoria y vencimiento,
-      y devuelve `redirectUrl = {front}/ecommerce/{hash}/checkout?ref=<referencia>`, sin `o/p/t/u/ps/config`;
-      termina con su prueba unitaria y con el caso VTEX del harness llegando a `/lenders` en local.
+      con un método propio del repositorio (`createWithCheckoutReference`), y devuelve
+      `redirectUrl = {front}/ecommerce/{hash}/checkout?ref=<referencia>`, sin `o/p/t/u/ps/config`; termina con su
+      prueba unitaria y con el caso VTEX del harness llegando a `/lenders` en local.
+- [ ] Avisarle a Oscar que ese método existe para que CORE-746 lo reuse; no bloquea esta tarea.
+      Depende de: Oscar — si `payment-link` crea el pedido por el mismo método.
 - [ ] Llevar a `main` la apertura por referencia (`by-reference` en legacy-backend y `checkout.tsx` en
       frontend-monorepo), hoy sólo en `qa`; termina cuando `git grep checkout_reference origin/main` la encuentra.
       Depende de: Miguel — si sale separada del auto-onboarding de Refurbi, que se sacó de `main` a propósito.
@@ -71,9 +71,9 @@ atribuir a su sucursal y a su plataforma sin heurísticas:
 
 ## Cómo se ataca
 
-1. Extraer de lo que hará CORE-746 un servicio común «crear pedido con referencia» (sucursal, credencial, pedido,
-   productos, URLs → fila con `origin=payment_link`, `checkout_reference`, `reference_expires_at`). Si CORE-746 aún
-   no existe, se escribe acá y Oscar lo reusa.
+1. Un método del repositorio, `createWithCheckoutReference` (sucursal, credencial, pedido, productos, URLs → fila
+   con `origin=payment_link`, `checkout_reference`, `reference_expires_at`). Se escribe acá, sin esperar a
+   CORE-746; `payment-link` lo puede reusar después.
 2. `VtexService::init` lo llama y devuelve `?ref=`. El mapeo del body de VTEX al pedido (`paymentId → order_key`,
    `orderId → id`, `value → total`, `callbackUrl → process_url`) se queda en el adaptador.
 3. Probar en local con el caso VTEX del harness (`vtexInit` ya llama al `/vtex/init` real) y después en `qa`.
@@ -160,6 +160,5 @@ QA, con una sucursal ecommerce configurada como VTEX.
 - Todo pedido VTEX tiene sucursal y plataforma VTEX registradas, y la solicitud que genera queda en esa sucursal.
 
 ## Dependencias / contraparte
-- El servicio común con el endpoint de enlace de pago (CORE-746).
 - Comercial / Operaciones: cuenta VTEX y sucursal de la tienda de Mario Hernández.
 - Producto: cuánto dura vigente el enlace.
