@@ -556,6 +556,14 @@ harness-pipeline: ## @har el pipeline de KYC v2 en LOCAL: Temporal (Docker) + cu
 harness-pipeline-run: ## @har corre casos por el pipeline de KYC v2 en LOCAL (OTP v2 → datos personales v2 → workflow) y dice qué nombre quedó y dónde frenó. [CASES=1,3] (todos si no) · CASES=list los lista. Pide `make harness-pipeline` arriba. Sale 1 si alguno no dio lo esperado
 	@cd harness && E2E_TARGET=local PIPELINE_ALLIED=$(or $(PIPELINE_ALLIED),26) node dev/pipeline-local.ts $(if $(filter list,$(CASES)),cases,run $(CASES))
 
+harness-client-reset: ## @har ⚠ deja LIBRE la cédula de un cliente de prueba para repetir el registro: lo da de baja por la papelera del admin (sólo la cuenta activa con la cédula exacta y perfil de cliente) y muestra el antes y el después. TARGET=local|dev|qa|staging (obligatorio; qa usa el admin de dev; nunca prod) · DOC=<cédula> o PHONE=<celular> · [APPLY=1]
+	@test -n "$(TARGET)" || { echo "  ✗ TARGET es obligatorio: escribe"; exit 2; }
+	@cd harness && E2E_TARGET=$(TARGET) node dev/client-reset.ts $(if $(DOC),--document $(DOC)) $(if $(PHONE),--phone $(PHONE)) $(if $(APPLY),--apply)
+
+harness-setting: ## @har ⚠ toca una setting de legacy-backend para una prueba, con foto y vuelta atrás. TARGET obligatorio · A=set KEY=… VALUE='json' (sólo local) · A=add|remove KEY=… LIST=allieds ALLIED=<id> (en dev/qa/staging sólo comercios «PRUEBA AUTO» y settings de comportamiento) · A=undo SNAP=<foto> · [APPLY=1]
+	@test -n "$(TARGET)" || { echo "  ✗ TARGET es obligatorio: escribe"; exit 2; }
+	@cd harness && E2E_TARGET=$(TARGET) node dev/setting.ts $(A) $(if $(filter set,$(A)),$(KEY) '$(VALUE)') $(if $(filter add remove,$(A)),$(KEY) $(or $(LIST),allieds) $(ALLIED)) $(if $(filter undo,$(A)),$(SNAP)) $(if $(APPLY),--apply)
+
 harness-peru: ## @har deja un COMERCIO PERUANO usable en LOCAL para mirar el wizard con su país (S/, +51, 9 dígitos). Sólo local, idempotente
 	@cd harness && E2E_TARGET=local node dev/mount-peru.ts
 

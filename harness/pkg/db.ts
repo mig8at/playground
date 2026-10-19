@@ -60,7 +60,19 @@ interface NarrowPermission {
     porUsuario?: boolean;
 }
 
+/** Las settings de COMPORTAMIENTO que una prueba puede tocar en la base compartida (`pkg/settings-write.ts`): listas de
+ *  comercios o entidades, nunca credenciales. Va LITERAL en el patrón de `setting-de-prueba`, así que la guarda misma
+ *  rechaza cualquier otra clave aunque el código de arriba se equivoque. */
+export const TEST_SETTING_KEYS = ['kyc_pipeline_allieds', 'experian_trigger_bypass_rules', 'experian_trigger_allieds',
+    'allowed_to_omit_experian_allieds', 'kyc_document_not_found_bypass', 'auto_onboarding_allied_branches'] as const;
+
 const NARROW_PERMISSIONS: Record<string, NarrowPermission> = {
+    // Agregar o sacar un comercio de PRUEBA de una setting de comportamiento — `pkg/settings-write.ts`. La clave va literal
+    // (sólo las de TEST_SETTING_KEYS) y la sentencia sólo escribe si el valor sigue siendo el que se leyó (`AND value = ?`):
+    // si alguien del equipo la cambió en el medio, no se pisa. Que el comercio sea de prueba lo comprueba quien llama.
+    'setting-de-prueba': {
+        patrones: [new RegExp(`^UPDATE\\s+settings\\s+SET\\s+value\\s*=\\s*\\?,\\s*updated_at\\s*=\\s*NOW\\(\\)\\s+WHERE\\s+\`key\`\\s*=\\s*'(?:${TEST_SETTING_KEYS.join('|')})'\\s+AND\\s+value\\s*=\\s*\\?\\s*$`, 'i')],
+    },
     // Sumar y sacar teléfonos del bypass de OTP — `pkg/otp-bypass.ts`, el único que lo usa.
     'otp-bypass': {
         patrones: [/^UPDATE\s+settings\s+SET\s+value\s*=\s*JSON_(?:MERGE_PRESERVE|REMOVE)\([\s\S]+WHERE\s+`key`\s*=\s*\?[\s\S]*$/i],
