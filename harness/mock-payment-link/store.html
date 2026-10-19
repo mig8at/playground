@@ -42,7 +42,7 @@
 <body>
 <div class="bar">
   <span>DEMO LOCAL · tienda que simula el plugin de <b id="barPlatform">VTEX</b> y pide la URL a Creditop</span>
-  <span>API: <code id="barApi">…</code> · wizard: <code id="barWizard">…</code></span>
+  <span>plugin: <code id="barPlugin">…</code> · API: <code id="barApi">…</code> · wizard: <code id="barWizard">…</code></span>
 </div>
 <main>
   <section class="card" aria-label="Checkout de la tienda">
@@ -124,6 +124,7 @@ document.querySelectorAll('.seg button').forEach(btn => btn.addEventListener('cl
   platform = btn.dataset.p;
   document.querySelectorAll('.seg button').forEach(b => b.setAttribute('aria-pressed', String(b === btn)));
   $('barPlatform').textContent = platform === 'vtex' ? 'VTEX' : 'Shopify';
+  $('barPlugin').textContent = (cfg.plugins || {})[platform] || '…';
   $('shopifyDocNote').hidden = platform !== 'shopify';
   $('doc').disabled = platform === 'shopify';
   renderBranches();
@@ -176,11 +177,12 @@ async function pay() {
     const r = await fetch(endpoint, { method: 'POST', headers, body: JSON.stringify(platformReq) });
     answer = await r.json();
     const trace = answer._trace || {}; delete answer._trace;
+    const pluginKind = answer._plugin || 'simulado'; delete answer._plugin;
     const redirect = answer.redirectUrl || answer.redirect_url;
     const shownHeaders = { ...headers }; if (shownHeaders['X-PROVIDER-API-AppToken']) shownHeaders['X-PROVIDER-API-AppToken'] = '(token de la sucursal)';
     $('steps').innerHTML =
       step(1, platform === 'vtex' ? 'VTEX → conector: authorize' : 'Shopify → app: payment session', { headers: shownHeaders, body: platformReq }) +
-      step(2, `Plugin → Creditop: POST payment-link`, { url: trace.url, body: trace.request }, null, true) +
+      step(2, `Plugin (${pluginKind}) → Creditop: POST payment-link`, { url: trace.url, body: trace.request }, null, true) +
       step(3, 'Creditop → plugin', trace.response, trace.status, true) +
       step(4, platform === 'vtex' ? 'Conector → VTEX: redirect' : 'App → Shopify: redirect_url', answer, r.status) +
       (redirect
@@ -208,6 +210,7 @@ async function poll() {
 (async () => {
   cfg = await (await fetch('/api/config')).json();
   $('barApi').textContent = cfg.payment_link_url; $('barWizard').textContent = cfg.wizard;
+  $('barPlugin').textContent = cfg.plugins.vtex;
   branches = await (await fetch('/api/branches')).json();
   freshBuyer(); renderBranches();
   const q = new URLSearchParams(location.search);

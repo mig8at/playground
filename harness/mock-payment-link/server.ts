@@ -34,6 +34,10 @@ const FROM_BACKEND = process.env.MOCK_PAYMENT_LINK_PUBLIC || `http://host.docker
 const PAYMENT_LINK_URL = process.env.PAYMENT_LINK_URL || `${SELF}/api/ecommerce/payment-link`;
 const PAYMENT_LINK_TOKEN = process.env.PAYMENT_LINK_TOKEN || '';
 const STORE = new URL('./store.html', import.meta.url);
+// Los plugins REALES corriendo en local (repo vtex: `yarn --cwd node local` · repo shopify: `npm run local`). Si
+// contestan, la tienda les manda a ellos; si no, usa los simulados de abajo.
+const VTEX_CONNECTOR_URL = (process.env.VTEX_CONNECTOR_URL || 'http://localhost:8114').replace(/\/$/, '');
+const SHOPIFY_APP_URL = (process.env.SHOPIFY_APP_LOCAL_URL || 'http://localhost:8115').replace(/\/$/, '');
 const CODE = String(statSync(new URL(import.meta.url)).mtimeMs);
 
 type Event = { at: string; kind: string; platform?: string; detail: unknown };
@@ -43,6 +47,15 @@ const log = (kind: string, platform: string | undefined, detail: unknown) => {
     events.length = Math.min(events.length, 200);
     console.log(`[mock-payment-link] ${kind}${platform ? ' · ' + platform : ''}`);
 };
+
+// Lo último que recibió y contestó la API por order_key: con un plugin real, es la única vista de su llamada.
+const apiCalls = new Map<string, { url: string; status: number; request: unknown; response: unknown }>();
+
+async function alive(url: string): Promise<boolean> {
+    try { return (await fetch(url, { signal: AbortSignal.timeout(600) })).status < 500; } catch { return false; }
+}
+const realVtex = () => alive(`${VTEX_CONNECTOR_URL}/health`);
+const realShopify = async () => { try { return (await fetch(`${SHOPIFY_APP_URL}/payments/session`, { signal: AbortSignal.timeout(1500) })).status === 405; } catch { return false; } };
 
 // Lo que el comercio configuró en la app de Shopify, por tienda (`*.myshopify.com` → sucursal y token).
 const shopifyShops = new Map<string, { hash: string; token: string }>();
@@ -117,7 +130,10 @@ const server = createServer(async (r, res) => {
     try {
         if (r.method === 'GET' && p === '/health') return send(res, 200, { mock: 'payment-link', ok: true, codigo: CODE, payment_link_url: PAYMENT_LINK_URL, wizard: wizardBase() });
         if (r.method === 'GET' && (p === '/' || p === '/index.html')) return send(res, 200, readFileSync(STORE, 'utf8'), 'text/html');
-        if (r.method === 'GET' && p === '/api/config') return send(res, 200, { self: SELF, from_backend: FROM_BACKEND, payment_link_url: PAYMENT_LINK_URL, wizard: wizardBase(), real_token: Boolean(PAYMENT_LINK_TOKEN) });
+        if (r.method === 'GET' && p === '/api/config') {
+            return send(res, 200, { self: SELF, from_backend: FROM_BACKEND, payment_link_url: PAYMENT_LINK_URL, wizard: wizardBase(), real_token: Boolean(PAYMENT_LINK_TOKEN),
+                plugins: { vtex: (await realVtex()) ? `real ${VTEX_CONNECTOR_URL}` : 'simulado', shopify: (await realShopify()) ? `real ${SHOPIFY_APP_URL}` : 'simulado' } });
+        }
         if (r.method === 'GET' && p === '/api/events') return send(res, 200, events);
 
         // Las sucursales con credencial de ecommerce en la base local: de acá sale «AppKey/AppToken» y la config de Shopify.
@@ -135,12 +151,22 @@ const server = createServer(async (r, res) => {
             const bearer = String(r.headers.authorization || '').replace(/^Bearer\s+/i, '');
             const out = await createPaymentLink(input, bearer, { expired: u.searchParams.get('expired') === '1' });
             log(`payment-link ${out.status}`, undefined, { order_key: input?.order_key, hash: input?.hash, row: out.row, warnings: out.warnings });
+            if (input?.order_key) apiCalls.set(String(input.order_key), { url: `${SELF}${p}`, status: out.status, request: input, response: out.body });
             return send(res, out.status, { ...out.body, ...(out.warnings.length ? { _mock_warnings: out.warnings } : {}), ...(out.row ? { _mock_row: out.row } : {}) });
         }
 
         // 2a · el conector VTEX
         if (r.method === 'POST' && p === '/plugin/vtex/authorize') {
             const req = await body(r);
+            if (await realVtex()) {
+                // El conector REAL: se le reenvía lo mismo que manda el gateway de VTEX a `POST /payments`.
+                const fw = await fetch(`${VTEX_CONNECTOR_URL}/payments`, { method: 'POST', body: JSON.stringify(req), headers: {
+                    'Content-Type': 'application/json', 'X-PROVIDER-API-AppKey': String(r.headers['x-provider-api-appkey'] || ''),
+                    'X-PROVIDER-API-AppToken': String(r.headers['x-provider-api-apptoken'] || '') } });
+                const out = await fw.json();
+                log('vtex authorize (conector real)', 'vtex', { paymentId: req.paymentId, status: out.status });
+                return send(res, 200, { ...out, _plugin: `real ${VTEX_CONNECTOR_URL}`, _trace: apiCalls.get(String(req.paymentId)) ?? { url: PAYMENT_LINK_URL, note: 'la llamada no pasó por este mock' } });
+            }
             const hash = String(r.headers['x-provider-api-appkey'] || '');
             const token = String(r.headers['x-provider-api-apptoken'] || '');
             const call = await askCreditop(fromVtex(req, hash), token);
@@ -158,12 +184,24 @@ const server = createServer(async (r, res) => {
         if (r.method === 'POST' && p === '/plugin/shopify/configure') {
             const b = await body(r);
             shopifyShops.set(String(b.shop), { hash: String(b.hash), token: String(b.token) });
+            if (await realShopify()) {
+                await fetch(`${SHOPIFY_APP_URL}/local/shop-config`, { method: 'POST', headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ shop: b.shop, branchHash: b.hash, token: b.token, environment: 'develop' }) });
+            }
             log('shopify configure', 'shopify', { shop: b.shop, hash: b.hash });
             return send(res, 200, { ok: true, shop: b.shop, hash: b.hash });
         }
         if (r.method === 'POST' && p === '/plugin/shopify/payment-session') {
             const session = await body(r);
             const shop = String(r.headers['shopify-shop-domain'] || '');
+            if (await realShopify()) {
+                // La app REAL: se le reenvía la sesión como lo haría Shopify a `payment_session_url`.
+                const fw = await fetch(`${SHOPIFY_APP_URL}/payments/session`, { method: 'POST', body: JSON.stringify(session),
+                    headers: { 'Content-Type': 'application/json', 'Shopify-Shop-Domain': shop, 'Shopify-Request-Id': String(r.headers['shopify-request-id'] || randomUUID()) } });
+                const out = await fw.json().catch(() => ({}));
+                log('shopify payment-session (app real)', 'shopify', { session: session.id, status: fw.status });
+                return send(res, fw.status, { ...out, _plugin: `real ${SHOPIFY_APP_URL}`, _trace: apiCalls.get(String(session.id)) ?? { url: PAYMENT_LINK_URL, note: 'la llamada no pasó por este mock' } });
+            }
             const conf = shopifyShops.get(shop);
             if (!conf) return send(res, 422, { error: `la tienda ${shop || '(sin Shopify-Shop-Domain)'} no configuró su sucursal en la app` });
             const call = await askCreditop(fromShopify(session, conf.hash), conf.token);
@@ -175,6 +213,7 @@ const server = createServer(async (r, res) => {
 
         // 3 · la tienda: la notificación del backend y la vuelta del comprador
         if (r.method === 'POST' && p.startsWith('/webhook/')) {
+            // (con la app de Shopify real, el webhook va a la app, no acá)
             const b = await body(r);
             log('webhook recibido', p.split('/')[2], { path: p, headers: { 'x-vtex-api-appkey': r.headers['x-vtex-api-appkey'] ? '(viene)' : undefined, authorization: r.headers.authorization ? '(viene)' : undefined }, body: b });
             return send(res, 200, { ok: true });
