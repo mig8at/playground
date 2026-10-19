@@ -35,17 +35,6 @@
       "autoPort": false
     },
     {
-      "name": "trazador",
-      "runtimeExecutable": "npm",
-      "runtimeArgs": [
-        "run",
-        "dev",
-        "--prefix",
-        "trazador"
-      ],
-      "port": 5192
-    },
-    {
       "name": "admin",
       "runtimeExecutable": "php",
       "runtimeArgs": [
@@ -209,6 +198,28 @@
       "autoPort": false
     },
     {
+      "name": "forecast",
+      "runtimeExecutable": "sh",
+      "runtimeArgs": [
+        "-c",
+        "cd /Users/miguelochoa/Desktop/CREDITOP/github/playground-forecast/tools/forecast && set -a && . ./.env && set +a && PORT=8390 exec node --watch server.js"
+      ],
+      "port": 8390,
+      "autoPort": false
+    },
+    {
+      "name": "fuga",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": [
+        "run",
+        "dev",
+        "--prefix",
+        "/Users/miguelochoa/Desktop/CREDITOP/playground/game"
+      ],
+      "port": 5180,
+      "autoPort": false
+    },
+    {
       "name": "radar",
       "runtimeExecutable": "npm",
       "runtimeArgs": [
@@ -218,6 +229,30 @@
       "cwd": "radar",
       "port": 5188,
       "autoPort": false
+    },
+    {
+      "name": "wizard-codigo-logo",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": [
+        "run",
+        "dev",
+        "--prefix",
+        "/private/tmp/codigo-logo-frontend-monorepo/apps/loan-request-wizard",
+        "--",
+        "--host",
+        "127.0.0.1",
+        "--strictPort",
+        "--port",
+        "5177"
+      ],
+      "port": 5177,
+      "autoPort": false,
+      "env": {
+        "VITE_API_URL": "http://localhost",
+        "VITE_ONBOARDING_FORM_SERVICE": "http://localhost:8101/v1",
+        "VITE_PREAPPROVALS_ENDPOINT": "http://localhost:8095/v1/preapprovals/check",
+        "VITE_FORM_SERVICE_BASE_URL": "http://localhost:8109"
+      }
     }
   ]
 }
