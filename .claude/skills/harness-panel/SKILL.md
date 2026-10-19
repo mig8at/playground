@@ -565,3 +565,33 @@ se entra por el navegador de siempre.
 
 ⚠ Y **`vite` sólo se levanta en local**: sin él Laravel sirve el bundle COMPILADO, que puede tener meses, y
 verías la pantalla vieja pensando que tu cambio no funcionó.
+
+⚠ **El vite del admin se reconoce por `public/hot`, no por el puerto 5173.** Ese archivo lo escribe el vite DEL ADMIN
+con la URL donde quedó, y Laravel manda al navegador a buscar ahí los assets. Preguntar «¿responde algo en :5173?»
+daba por arriba al wizard de otra sesión que ocupaba el puerto, con un `hot` viejo apuntando a un vite muerto: el
+admin cargaba en BLANCO (2026-10-19). Si el de `hot` no responde se levanta de nuevo, y si no arranca se borra el
+`hot` para caer al bundle compilado.
+
+## La vista «Admin»: el admin en una PC dentro del panel (2026-10-19)
+
+Arriba del centro, **`Originación | Admin`** (`#stageViews`). «Originación» son los dos celulares de siempre; «Admin»
+es una **PC** con el admin de `legacy-application` del ambiente elegido, **ya logueada**, que se ve y se toca como
+los celulares. La vista elegida se recuerda (`harness.stageView`).
+
+- **Es el mismo mecanismo que los celulares**, un tercer dispositivo `admin` en `panel/devices.ts`: un navegador
+  del servidor transmitido al lienzo `#adminLive` por `/api/device/admin/live`, con los toques de vuelta por el
+  mismo canal. Un iframe no sirve: el admin manda `X-Frame-Options: SAMEORIGIN`.
+- **Pantalla de escritorio, 1366×768**, en su PROPIO Chromium (`openDesktop`): el de los celulares se lanza
+  forzando 3× y a esa escala una pantalla de escritorio son cuadros de 4.098 px. La PC va a 1,5×
+  (`HARNESS_DESKTOP_SCALE`). El hueco de la pantalla en el panel tiene exactamente esa proporción: así el lienzo
+  no se recorta y el clic cae donde se ve.
+- **Entra por `pkg/admin-access.ts`, lo mismo que el botón `admin ↗`** (`dev/open-admin.ts`): local emite la
+  sesión sin contraseña; dev y staging usan la guardada por `make harness-signin KIND=admin TARGET=<t>`; **qa abre
+  el de dev** (comparten la base) y **producción no está**. Si la sesión venció, la PC queda en el login y el chip
+  «pide entrar» dice el comando.
+- **El chip del ambiente va en ámbar fuera de local**: en dev, qa y staging la base es COMPARTIDA y lo que se
+  cambie desde la PC lo ve el equipo.
+- **La PC no usa el wizard**: lanzar una corrida o precalentar NO la cierra ni la cuenta como celular abierto, y
+  no deja navegador de reserva (se abre de vez en cuando).
+- ⚠ **El admin local lee la base local**: con `legacy-backend-mysql-1` apagado la sesión no se emite («no se pudo
+  emitir la sesión del admin local»). Levantá la base antes.

@@ -18,6 +18,7 @@ import { MockSupervisor, MOCKS as MOCK_REGISTRY } from './mocks.ts';
 import { advisorSession } from '../../connectors/advisor/session.ts';
 import { envData, type AutofillData } from '../pkg/autofill.ts';
 import { identityWithoutProviderNotice } from '../pkg/config.ts';
+import { adminSession, ensureLocalAdmin, ADMIN_APP } from '../pkg/admin-access.ts';
 import { openDevice, openDevices, setDeviceLogger, prewarmDevices, warmDevice, watchNavigation, watchRequests, deviceGoto, deviceReload, deviceText, deviceEval, deviceOpenedAt, deviceState, deviceShot, deviceInput, deviceTap, deviceAdvance, deviceStream, deviceBusyWatch, deviceStorage, closeDevice, closeAllDevices, SELENIUM_BOXES, type DeviceId, type DeviceInput, type DeviceSession } from './devices.ts';
 import { vpnDev, type VpnStatus } from '../pkg/vpn.ts';
 import { homedir } from 'node:os';
@@ -418,7 +419,7 @@ const deviceNotes = new Map<DeviceId, string>();
  * leer en orden todo lo que pasó (y que «copiar» lo lleve). Abrir un celular sin corrida activa arranca una
  * consola nueva (`startDeviceLog`); con una corrida andando, se suma a la suya.
  */
-const DEVICE_LABEL: Record<DeviceId, string> = { advisor: 'asesor ', client: 'cliente' };
+const DEVICE_LABEL: Record<DeviceId, string> = { advisor: 'asesor ', client: 'cliente', admin: 'admin  ' };
 function deviceLog(id: DeviceId | 'panel', line: string): void {
     const at = new Date().toLocaleTimeString('es-CO', { hour12: false });
     const who = id === 'panel' ? 'panel  ' : DEVICE_LABEL[id];
@@ -1270,7 +1271,8 @@ async function launch(slug: string, profile: Profile, target: string, inject: bo
     // de la corrida a :5176 sin fallar (2026-10-06: el auto-onboarding corrió sobre el front de main).
     for (let i = 0; prebooting && i < 600; i++) await new Promise((r) => setTimeout(r, 500));
     // La corrida puede reiniciar el wizard de :5174: un celular abierto quedaría con la página cortada.
-    for (const id of openDevices()) await releaseDevice(id);
+    // La PC del admin no muestra el wizard: sigue abierta.
+    for (const id of openDevices()) if (id !== 'admin') await releaseDevice(id);
     const t = TARGETS.has(target) ? target : 'local';
     const step = ['monto', 'phone', 'personal-info', 'lenders'].includes(stepTarget) ? stepTarget : 'monto';
     const amt = amount > 0 ? Math.round(amount) : 2_000_000; // monto solicitado (default 2M)
@@ -2207,10 +2209,10 @@ connect();
     // `POST /api/device/client/open` arma el pedido de la tienda del panel —la misma URL base64 que usa
     // la corrida (`dbops ecommerce-url`)— y abre el checkout en el contexto del cliente. Por ahora sólo
     // navega: el bypass del OTP y la siembra del buró vienen después.
-    const deviceRoute = /^\/api\/device\/(client|advisor)(?:\/(open|state|shot|stream|close|input|reload|tab|tap|advance|advance-all|advance-stop|saved|resume))?$/.exec(path);
+    const deviceRoute = /^\/api\/device\/(client|advisor|admin)(?:\/(open|state|shot|stream|close|input|reload|tab|tap|advance|advance-all|advance-stop|saved|resume))?$/.exec(path);
     if (deviceRoute) {
         const id = deviceRoute[1] as DeviceId, action = deviceRoute[2] || 'state';
-        if (action === 'open' && req.method === 'POST') {
+        if (action === 'open' && req.method === 'POST' && id !== 'admin') {
             devicesOpening++;
             res.once('close', () => { devicesOpening--; });
         }
@@ -2490,6 +2492,30 @@ connect();
                 return json(res, 200, { ok: false, detail: `el celular del asesor no pudo abrir ${front}: ${(e as Error).message.split('\n')[0]}` });
             }
         }
+        // LA PC DEL ADMIN (la vista «Admin» del panel): el admin de `legacy-application` del ambiente elegido, ya con la
+        // sesión puesta. Quién entra y por qué producción no está: `pkg/admin-access.ts`. qa abre el de dev (misma base).
+        if (action === 'open' && req.method === 'POST' && id === 'admin') {
+            const b = await readBody(req);
+            const t = TARGETS.has(String(b.target)) ? String(b.target) : 'local';
+            const route = /^\/[\w\-/?=&.%]*$/.test(String(b.path || '')) ? String(b.path) : '/aliados';
+            await releaseDevice('admin');
+            startDeviceLog(`admin · ${t}`);
+            if (t === 'local' && !await ensureLocalAdmin((l) => deviceLog('admin', '· ' + l)))
+                return json(res, 200, { ok: false, detail: `no se pudo levantar el admin local (cd ${ADMIN_APP} && php artisan serve --port=8000)` });
+            const s = await adminSession(t);
+            if (!s.ok) { deviceLog('admin', '✗ ' + s.error); return json(res, 200, { ok: false, detail: s.error }); }
+            deviceLog('admin', `· ${s.base} con la sesión de ${s.who}${s.target !== t ? ` (${t} no tiene admin propio: comparte la base con ${s.target})` : ''}`);
+            try {
+                const r = await openDevice('admin', s.base + route, { session: { cookies: s.cookies } });
+                const login = /\/login(\b|$)/.test(new URL(r.url).pathname);
+                const detail = !login ? '' : s.target === 'local' ? 'el admin mandó al login: la sesión emitida no se aceptó (¿el dump local es de otro ambiente?)'
+                    : `el admin mandó al login: la sesión venció. Volvé a entrar con  make harness-signin KIND=admin TARGET=${s.target}`;
+                if (login) deviceLog('admin', '✗ ' + detail);
+                return json(res, 200, { ok: true, ...r, target: s.target, who: s.who, login, detail });
+            } catch (e) {
+                return json(res, 200, { ok: false, detail: `la PC del admin no pudo abrir ${s.base}: ${(e as Error).message.split('\n')[0]}` });
+            }
+        }
         return json(res, 405, { ok: false, detail: 'acción no soportada' });
     }
 
@@ -2502,7 +2528,7 @@ connect();
         if (prebooting) return json(res, 200, { ok: false, detail: 'ya se está precalentando' });
         // Precalentar puede REINICIAR el wizard de :5174, y un celular abierto lo está mostrando: se le
         // cortaría la página en pleno flujo (2026-10-06).
-        if (openDevices().length || devicesOpening) return json(res, 200, { ok: false, detail: 'hay un celular abierto usando el wizard' });
+        if (openDevices().some((id) => id !== 'admin') || devicesOpening) return json(res, 200, { ok: false, detail: 'hay un celular abierto usando el wizard' });
         prebooting = true;
         const slug = String(b.slug || 'pullman');
         // El auto-onboarding sirve el wizard desde otra carpeta (CFE_AUTO_FRONT_PATH): precalentar la de
@@ -2597,7 +2623,7 @@ server.on('error', (err: NodeJS.ErrnoException) => {
  * se saltan cuadros de en medio, nunca el último: se guarda y sale apenas se vacía la cola. */
 const inputQueue = new Map<DeviceId, Promise<unknown>>();
 server.on('upgrade', (req, socket) => {
-    const m = /^\/api\/device\/(client|advisor)\/live(?:\?|$)/.exec(req.url || '');
+    const m = /^\/api\/device\/(client|advisor|admin)\/live(?:\?|$)/.exec(req.url || '');
     if (!m) { socket.destroy(); return; }
     const id = m[1] as DeviceId;
     const ws = acceptSocket(req, socket);

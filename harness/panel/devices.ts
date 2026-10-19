@@ -18,7 +18,9 @@ import { chromium, devices, type BrowserContext, type Page } from '@playwright/t
 import { blockDevOverlays } from '../pkg/dev-overlays.ts';
 import { installAutofill, type AutofillData } from '../pkg/autofill.ts';
 
-export type DeviceId = 'client' | 'advisor';
+export type DeviceId = 'client' | 'advisor' | 'admin';
+/** Los dos CELULARES; `admin` es la PC de la vista «Admin» (ver `openDesktop`). */
+type PhoneId = Exclude<DeviceId, 'admin'>;
 
 interface Device {
     context: BrowserContext;
@@ -100,7 +102,7 @@ const box = (container: string, gridPort: number, vncPort: number): SeleniumBox 
 // prueba en otro puerto— tiene sus propios celulares en vez de quedarse con los del panel de verdad.
 const SLOT = Number(process.env.HARNESS_DEVICES_SLOT || 0) || 0;
 const slotName = (n: string) => (SLOT ? `${n}-${SLOT}` : n);
-export const SELENIUM_BOXES: Record<DeviceId, SeleniumBox> = {
+export const SELENIUM_BOXES: Record<PhoneId, SeleniumBox> = {
     client: box(slotName('harness-device-client'), 4444 + SLOT * 10, 7900 + SLOT * 10),
     advisor: box(slotName('harness-device-advisor'), 4445 + SLOT * 10, 7901 + SLOT * 10),
 };
@@ -278,10 +280,38 @@ async function openChromium(): Promise<Omit<Device, 'openedAt'>> {
     };
 }
 
+/* ── LA PC DEL ADMIN ─────────────────────────────────────────────────────────────────────────────────────────────
+ * El admin de `legacy-application` es de escritorio: en un viewport de teléfono se ve la versión apretada que nadie usa.
+ * Es su propio Chromium sin ventana y no un contexto del de los celulares, porque aquél se lanza forzando la escala 3×
+ * (`DEVICE_SCALE`) y una pantalla de 1366 px a 3× son cuadros de 4.098 px que no se ven mejor y pesan nueve veces más.
+ * ⚠ La escala se pide al lanzar por la misma razón que en los celulares: el screencast ignora `deviceScaleFactor`.
+ * Siempre este motor, también con `HARNESS_DEVICE_ENGINE=selenium`: la ventana real por noVNC era para tocar menús
+ * nativos de un celular, y el admin no tiene contenedor propio. */
+export const DESKTOP = { width: 1366, height: 768 };
+const DESKTOP_SCALE = Math.min(2, Math.max(1, Number(process.env.HARNESS_DESKTOP_SCALE) || 1.5));
+let desktopBrowser: Promise<import('@playwright/test').Browser> | null = null;
+async function openDesktop(): Promise<Omit<Device, 'openedAt'>> {
+    if (!desktopBrowser) {
+        desktopBrowser = chromium.launch({ headless: true, args: ['--lang=es-CO', `--force-device-scale-factor=${DESKTOP_SCALE}`] });
+        void desktopBrowser.then((b) => b.on('disconnected', () => { desktopBrowser = null; })).catch(() => { desktopBrowser = null; });
+    }
+    const browser = await desktopBrowser;
+    const context = await browser.newContext({ viewport: DESKTOP, screen: DESKTOP, locale: 'es-CO' });
+    await context.addInitScript(nativeSelectInPage);   // los `<select>` nativos del admin tampoco salen en el screencast
+    const page = await context.newPage();
+    return {
+        context, page,
+        close: async () => { await context.close().catch(() => { }); },
+        alive: async () => browser.isConnected() && !page.isClosed(),
+    };
+}
+/** El tamaño de la pantalla de cada dispositivo, para pedir el screencast. */
+const screenOf = (id: DeviceId) => (id === 'admin' ? { ...DESKTOP, scale: DESKTOP_SCALE } : { ...SCREEN, scale: DEVICE_SCALE });
+
 // ── La API del panel ─────────────────────────────────────────────────────────────────────────────
 const ENGINE: Record<DeviceId, () => Promise<Omit<Device, 'openedAt'>>> = ENGINE_NAME === 'selenium'
-    ? { client: () => openSelenium(SELENIUM_BOXES.client), advisor: () => openSelenium(SELENIUM_BOXES.advisor) }
-    : { client: openChromium, advisor: openChromium };
+    ? { client: () => openSelenium(SELENIUM_BOXES.client), advisor: () => openSelenium(SELENIUM_BOXES.advisor), admin: openDesktop }
+    : { client: openChromium, advisor: openChromium, admin: openDesktop };
 /** Con qué motor corren los celulares (lo muestra el panel). */
 export const DEVICE_ENGINE = ENGINE_NAME;
 
@@ -293,7 +323,8 @@ export const DEVICE_ENGINE = ENGINE_NAME;
  * prepara la siguiente. Sólo con el celular cerrado: el contenedor tiene un lugar y la pantalla es una sola. */
 const spare = new Map<DeviceId, Promise<Omit<Device, 'openedAt'> | null>>();
 function refillSpare(id: DeviceId): void {
-    if (open.has(id) || spare.has(id)) return;
+    // La PC no deja reserva: se abre de vez en cuando y un Chromium esperando por ella es memoria que casi nunca se usa.
+    if (id === 'admin' || open.has(id) || spare.has(id)) return;
     spare.set(id, ENGINE[id]().catch(() => null));
 }
 async function takeSpare(id: DeviceId): Promise<{ d: Omit<Device, 'openedAt'>; reused: boolean }> {
@@ -433,8 +464,9 @@ export async function deviceStream(id: DeviceId, frame: Frame, end: () => void):
             c.last = Buffer.from(f.data, 'base64');
             for (const v of c.viewers) v.frame(c.last);
         });
-        // A la escala con que se lanzó Chromium (`DEVICE_SCALE`): nítido en una pantalla retina sin mandar más de lo que se ve.
-        await cdp.send('Page.startScreencast', { format: 'jpeg', quality: 80, maxWidth: SCREEN.width * DEVICE_SCALE, maxHeight: SCREEN.height * DEVICE_SCALE });
+        // A la escala con que se lanzó Chromium (`DEVICE_SCALE`; la PC, `DESKTOP_SCALE`): nítido en una pantalla retina sin mandar más de lo que se ve.
+        const sc = screenOf(id);
+        await cdp.send('Page.startScreencast', { format: 'jpeg', quality: 80, maxWidth: Math.round(sc.width * sc.scale), maxHeight: Math.round(sc.height * sc.scale) });
         d.context.on('close', () => { void c.stop(); });
         // Después de navegar —también dentro de la app, que no dispara `load`—, Chromium no siempre repinta (una página que
         // se dibuja igual o que termina de cargar sin cambios no manda cuadro): se fuerza una foto para que el panel no quede en la pantalla anterior.
@@ -504,6 +536,7 @@ export async function closeAllDevices(): Promise<void> {
     for (const [id, p] of [...spare]) { spare.delete(id); await (await p)?.close().catch(() => { }); }
     for (const b of usedBoxes) await docker(['stop', b.container]).catch(() => '');
     if (sharedBrowser) { const b = await sharedBrowser.catch(() => null); sharedBrowser = null; await b?.close().catch(() => { }); }
+    if (desktopBrowser) { const b = await desktopBrowser.catch(() => null); desktopBrowser = null; await b?.close().catch(() => { }); }
 }
 
 /** Lo que el panel le reenvía a un celular SIN visor: un toque, una tecla, texto o la rueda. Las
@@ -529,7 +562,7 @@ export async function deviceInput(id: DeviceId, ev: DeviceInput): Promise<boolea
     const cached = viewportCache.get(id);
     const vp = cached && Date.now() - cached.at < 1000 ? cached.vp
         : (await d.page.evaluate(() => ({ width: window.innerWidth, height: window.innerHeight })).catch(() => null)
-            ?? d.page.viewportSize() ?? { width: PHONE.viewport.width, height: PHONE.viewport.height });
+            ?? d.page.viewportSize() ?? (id === 'admin' ? DESKTOP : { width: PHONE.viewport.width, height: PHONE.viewport.height }));
     viewportCache.set(id, { at: cached && cached.vp === vp ? cached.at : Date.now(), vp });
     const at = (x: number, y: number) => [Math.round(Math.min(1, Math.max(0, x)) * vp.width), Math.round(Math.min(1, Math.max(0, y)) * vp.height)] as const;
     if (ev.type === 'click') { const [x, y] = at(ev.x, ev.y); await d.page.mouse.click(x, y); }

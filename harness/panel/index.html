@@ -297,6 +297,19 @@
     .device-label .region-action[hidden] { display: none }
     .device-label { height: 20px }
     .device-label .region-action { width: 20px; height: 20px; margin: 0; padding: 0 }
+    /* ═══ LA VISTA «ADMIN» ═══ El selector arriba al centro y una PC: la pantalla en 1366:768 (la de `panel/devices.ts`,
+       así el lienzo no se recorta y cada clic cae donde se ve) con su base de laptop. El ancho sale del MENOR entre
+       lo que deja el centro y lo que permite el alto. */
+    .stage-views { align-self: center; flex: none }
+    .devices[hidden], .admin-view[hidden] { display: none }
+    .admin-view { flex: 1 1 auto; min-height: 0; container-type: size; display: flex; justify-content: center; align-items: flex-start }
+    .device.pc > .pc-body { grid-area: frame; display: flex; flex-direction: column; align-items: center;
+      width: min(100cqw - 48px, (100cqh - 64px) * 1366 / 768 + 20px) }
+    .pc-frame { box-sizing: border-box; width: 100%; border: 10px solid var(--muted); border-bottom-width: 14px; border-radius: 12px 12px 4px 4px;
+      background: var(--card); box-shadow: 0 0 0 1px var(--border); overflow: hidden }
+    .pc-screen { position: relative; inset: auto; width: 100%; aspect-ratio: 1366 / 768 }
+    .pc-base { width: 112%; height: 12px; background: var(--muted); border-radius: 0 0 10px 10px; box-shadow: 0 0 0 1px var(--border) }
+    .device.pc .device-label .btn { height: 20px; padding: 0 8px; font-size: var(--text-xs) }
     .device-status { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: var(--space-2); background: var(--background); z-index: 3 }
     .device-status .spinner[hidden] { display: none }
     /* El cliente: los datos que llegaron, en filas de rótulo y valor. */
@@ -638,6 +651,13 @@
         <main class="editor" id="stage">
           <!-- LOS DOS CELULARES: el del asesor y el del cliente, lado a lado. Por ahora son el marco; el mapa
                del recorrido se mudó a la pestaña «Mapa» de la consola para dejarles el centro. -->
+          <!-- DOS VISTAS DEL CENTRO: «Originación» son los celulares (asesor y cliente) y «Admin» es una PC con el admin de
+               `legacy-application` del ambiente elegido, ya logueada (`/api/device/admin/open`). Es el mismo mecanismo de
+               los celulares —un navegador del servidor que se ve y se toca acá—, con pantalla de escritorio. -->
+          <div class="toggle-group stage-views" id="stageViews" role="tablist" aria-label="Vista del centro">
+            <button type="button" class="toggle on" id="viewOrig" role="tab" aria-selected="true" aria-controls="devices">Originación</button>
+            <button type="button" class="toggle" id="viewAdmin" role="tab" aria-selected="false" aria-controls="adminView">Admin</button>
+          </div>
           <div class="devices" id="devices" data-count="2">
             <!-- La tienda, sólo con los canales que entran por ella (ecommerce y auto): ahí el comprador
                  empieza en el checkout del comercio antes de llegar al wizard. -->
@@ -755,6 +775,32 @@
                 <button type="button" class="device-reload" data-device="client" title="Recargar la página del celular del cliente" aria-label="Recargar la página del celular del cliente"><span class="ui-icon" data-icon="refresh" aria-hidden="true"></span><span>Recargar</span></button>
                 <button type="button" class="device-reload device-shot" data-device="client" title="Copiar la pantalla del celular del cliente al portapapeles" aria-label="Capturar la pantalla del celular del cliente"><span class="ui-icon" data-icon="camera" aria-hidden="true"></span><span>Capturar</span></button>
                 <a class="device-reload device-tab" data-device="client" href="/api/device/client/tab" target="_blank" rel="noopener" title="Abrir en una pestaña nueva lo que muestra el celular del cliente, con su sesión, para verlo en escritorio" aria-label="Abrir en una pestaña nueva lo que muestra el celular del cliente"><span class="ui-icon" data-icon="external" aria-hidden="true"></span><span>Abrir en pestaña</span></a>
+              </div>
+            </figure>
+          </div>
+          <div class="admin-view" id="adminView" hidden>
+            <figure class="device pc" id="deviceAdmin">
+              <figcaption class="device-label"><span class="ui-icon" data-icon="external" aria-hidden="true"></span>Admin
+                <span class="device-otp" id="adminTarget" hidden></span>
+                <span class="device-otp warn" id="adminNote" hidden></span>
+                <button type="button" class="btn btn-outline btn-sm" id="adminOpen" title="Abrir el admin del ambiente elegido, ya logueado">Abrir</button>
+                <button type="button" class="region-action" id="adminClose" hidden title="Cerrar la PC del admin" aria-label="Cerrar la PC del admin"><span class="ui-icon" data-icon="close" aria-hidden="true"></span></button></figcaption>
+              <div class="pc-body">
+                <div class="pc-frame">
+                  <div class="device-screen pc-screen" id="screenAdmin">
+                    <p class="device-empty" id="adminIdle">El admin del ambiente elegido</p>
+                    <canvas class="device-live" id="adminLive" role="img" aria-label="Pantalla del admin" hidden></canvas>
+                    <div class="device-status" id="adminStatus" hidden role="status">
+                      <span class="spinner" id="adminSpinner" aria-hidden="true"></span>
+                      <p class="device-empty" id="adminStatusText"></p>
+                    </div>
+                  </div>
+                </div>
+                <div class="pc-base" aria-hidden="true"></div>
+              </div>
+              <div class="device-actions" id="adminActions" hidden>
+                <button type="button" class="device-reload" data-device="admin" title="Recargar la página del admin" aria-label="Recargar la página del admin"><span class="ui-icon" data-icon="refresh" aria-hidden="true"></span><span>Recargar</span></button>
+                <button type="button" class="device-reload device-shot" data-device="admin" title="Copiar la pantalla del admin al portapapeles" aria-label="Capturar la pantalla del admin"><span class="ui-icon" data-icon="camera" aria-hidden="true"></span><span>Capturar</span></button>
               </div>
             </figure>
           </div>
@@ -1784,7 +1830,7 @@
             done('Copiada');
           } catch {
             const url = URL.createObjectURL(jpg), a = document.createElement('a');
-            a.href = url; a.download = `celular-${dev === 'client' ? 'cliente' : 'asesor'}-${new Date().toTimeString().slice(0, 8).replaceAll(':', '-')}.jpg`;
+            a.href = url; a.download = `${dev === 'admin' ? 'admin' : 'celular-' + (dev === 'client' ? 'cliente' : 'asesor')}-${new Date().toTimeString().slice(0, 8).replaceAll(':', '-')}.jpg`;
             document.body.appendChild(a); a.click(); a.remove();
             setTimeout(() => URL.revokeObjectURL(url), 5000);
             done('Descargada');
@@ -3354,6 +3400,74 @@
     }
     makeDeviceTouchable('clientLive', 'client');
     makeDeviceTouchable('advisorLive', 'advisor');
+    makeDeviceTouchable('adminLive', 'admin');
+
+    // ── La PC del admin (la vista «Admin» del centro) ──────────────────────────────────────────────
+    // Se abre con el ambiente elegido; qa abre el de dev (comparten la base). La vista elegida se recuerda.
+    function setAdminMode(mode, text = '') {
+      $('adminIdle').hidden = mode !== 'idle';
+      $('adminLive').hidden = mode !== 'live';
+      $('adminActions').hidden = mode !== 'live';
+      $('adminClose').hidden = mode !== 'live';
+      $('adminStatus').hidden = mode !== 'loading' && mode !== 'status';
+      $('adminSpinner').hidden = mode !== 'loading';
+      $('adminStatusText').textContent = text;
+      $('adminOpen').disabled = mode === 'loading';
+      if (mode === 'live') liveConnect('admin', 'adminLive'); else liveDisconnect('admin');
+    }
+    function setAdminChips(st) {
+      const chip = $('adminTarget');
+      chip.hidden = !st?.target;
+      chip.textContent = st?.target || '';
+      // dev, qa y staging son la base COMPARTIDA: lo que se cambie ahí lo ve el equipo.
+      chip.classList.toggle('warn', !!st?.target && st.target !== 'local');
+      chip.title = !st?.target ? '' : st.target === 'local' ? 'Admin local: tu base' : `Admin de ${st.target}: base COMPARTIDA con el equipo. Lo que cambies acá lo ven todos.`;
+      const note = $('adminNote');
+      note.hidden = !st?.detail;
+      note.textContent = st?.login ? 'pide entrar' : '';
+      note.title = st?.detail || '';
+    }
+    async function openAdminBrowser() {
+      $('adminOpen').textContent = 'Abrir';
+      setAdminMode('loading', `Abriendo el admin de ${target === 'qa' ? 'dev (qa comparte su base)' : target}…`);
+      try {
+        const r = await (await fetch('/api/device/admin/open', {
+          method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ target }),
+        })).json();
+        if (!r.ok) { setAdminChips(null); return setAdminMode('status', r.detail || 'No se pudo abrir el admin.'); }
+        $('adminLive').title = r.url || '';
+        setAdminChips(r);
+        setAdminMode('live');
+        if (!runRunning) startPoll();   // la consola muestra lo que pasa en la PC
+      } catch (e) {
+        setAdminMode('status', 'El panel no respondió: ' + e.message);
+      }
+    }
+    $('adminOpen').onclick = openAdminBrowser;
+    $('adminClose').onclick = async () => {
+      try { await fetch('/api/device/admin/close', { method: 'POST' }); } catch { }
+      setAdminChips(null);
+      setAdminMode('idle');
+    };
+    function showStageView(view) {
+      const admin = view === 'admin';
+      $('devices').hidden = admin;
+      $('adminView').hidden = !admin;
+      for (const [id, on] of [['viewOrig', !admin], ['viewAdmin', admin]]) { $(id).classList.toggle('on', on); $(id).setAttribute('aria-selected', String(on)); }
+      try { localStorage.setItem('harness.stageView', admin ? 'admin' : 'orig'); } catch { }
+      if (!admin) { liveDisconnect('admin'); return; }
+      // Al volver a la vista: si la PC sigue abierta en el servidor se retoma; si no, se abre con el ambiente elegido.
+      void (async () => {
+        try {
+          const st = await (await fetch('/api/device/admin/state')).json();
+          if (st.open) { if ($('adminLive').hidden || !live.admin) setAdminMode('live'); return; }
+        } catch { }
+        openAdminBrowser();
+      })();
+    }
+    $('viewOrig').onclick = () => showStageView('orig');
+    $('viewAdmin').onclick = () => showStageView('admin');
+    try { if (localStorage.getItem('harness.stageView') === 'admin') setTimeout(() => showStageView('admin'), 400); } catch { }
 
     // ── El navegador real del cliente ─────────────────────────────────────────────────────────────
     // La tienda queda a la vista; «Pagar con Creditop» REDIRIGE al celular del cliente, que abre el
