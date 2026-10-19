@@ -16,11 +16,13 @@ ramas: payment-link
       (23a7845, desde `develop` con `feature/init_project`, local, sin push): `/payments/session`, la configuración
       por tienda (hash + token cifrado, `paymentsAppConfigure`), la vuelta y el webhook. Probado con la app real en
       local contra el mock; la idempotencia está atada a la tienda.
-- [ ] Probar la app en la tienda de desarrollo `creditop-dev-store.myshopify.com` (organización Partner CREDITOP;
-      `tienda-creditop` es de transferencia a clientes y no se usa) con `shopify app dev`; termina con una sesión de
-      pago real que redirige al wizard. Falta confirmar que la app `9bad40b9…` está en esa organización y que admite
-      la extensión de pagos.
-      Depende de: Juan Rodriguez — sumar a Miguel como usuario de la organización.
+- [x] ~~Probar la app en la tienda de desarrollo con el checkout real~~ — `creditop-dev-store.myshopify.com`, con
+      `shopify app dev`: la compra llega a `payment-link` y el comprador cae en el wizard (pedido 7407).
+- [ ] Resolver la sesión de pago en Shopify (`paymentSessionResolve` / `Reject`) cuando llega el webhook de
+      CreditOp; termina con el pedido de la tienda de desarrollo pagado (o rechazado) al cerrar la solicitud.
+- [ ] Sacar de la tienda de desarrollo el método manual «creditop» y pasar la moneda base a COP con un precio
+      realista; termina con el checkout cobrando en COP.
+      Depende de: Juan Rodriguez — dueño de la tienda.
 - [ ] Revocar el Bearer de Sanctum que estuvo escrito en el repo `shopify`; termina cuando ya no autentica. En la
       rama `payment-link` salió del árbol junto con la PII y los artefactos (`dist/`, logs, `dev.sqlite`,
       `shopify-app-info.json`), pero sigue en 2 commits de la historia.
@@ -109,6 +111,14 @@ abre el wizard con `?ref=`. El webhook del backend llega a `/webhook/shopify` y 
 Con la app REAL (repo `shopify`, rama `payment-link`): `npm ci && npx prisma generate && npx prisma migrate deploy`
 y `npm run local` la levanta en :8115 sin Shopify; la tienda carga la sucursal por `POST /local/shop-config` (sólo
 con `CREDITOP_LOCAL=1`) y le manda la sesión a `/payments/session` (la barra dice «plugin: real»).
+
+**Con el checkout real de Shopify (verificado el 2026-10-19).** En el repo `shopify`, rama `payment-link`:
+`CREDITOP_API_URL=http://localhost:8113 CREDITOP_LOCAL=1 npx shopify app dev --config
+shopify.app.creditop-ecommerce-payments.toml --store creditop-dev-store.myshopify.com`. Con el túnel que imprime, poner
+`payment_session_url` y `refund_session_url` de `extensions/creditop-offsite/shopify.extension.toml` en
+`<túnel>/payments/session` y `<túnel>/payments/refund` (no se commitea), cargar la sucursal con
+`POST <túnel>/local/shop-config`, tocar «Guardar» en la app del admin, activar «Creditop - Pago Seguro» en modo de
+prueba (Configuración → Pagos) y comprar en el mercado Colombia eligiendo esa opción (no el método manual «creditop»).
 
 Con la API de verdad: `make harness-store A=restart PAYMENT_LINK_URL=http://localhost/api/ecommerce/payment-link
 PAYMENT_LINK_TOKEN=<token de ecommerce:issue-token>`.
