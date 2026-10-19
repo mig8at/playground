@@ -454,6 +454,9 @@ type Case = {
      *  `agilname=FREDY ALEXANDER MUNOZ` — el nombre completo que DEVUELVE Agildata (default CARLOS RUIZ MENDOZA).
      *  Juntos prueban la adopción del nombre de la central: qué queda guardado cuando no coinciden. */
     name?: string; surname?: string; agilname?: string;
+    /** `doc=1031138508` — la CÉDULA del caso, en vez de la sintética de la corrida: para probar con una persona concreta
+     *  (y repetir con ella después de darla de baja con `pg admin client-disable`). Sólo dígitos. */
+    doc?: string;
     /** `agildata=empty|fail`, `mareigua=empty|fail`, `tusdatos=fail` — que esa central NO resuelva para la cédula
      *  del caso, para ver la cascada (Ágil → Mareigua → TusDatos). `empty` es la respuesta real de «sin
      *  información»; TusDatos no tiene una verificada, así que sólo se cae.
@@ -492,6 +495,7 @@ function parseCase(spec: string, dflt: { amount: number; income: number; score: 
         if (k === 'cliente') { c.cliente = credifamiliaTestUser(v); c.ocupacion ??= c.cliente.ocupacion; continue; }
         if (k === 'webhook') { c.webhook = v; continue; }
         if (k === 'name' || k === 'surname' || k === 'agilname') { c[k] = v; continue; }
+        if (k === 'doc') { if (!/^\d{5,15}$/.test(v)) throw new Error(`doc=${v}: la cédula va sólo con dígitos`); c.doc = v; continue; }
         if ((k === 'agildata' || k === 'mareigua') && ['ok', 'empty', 'fail'].includes(v)) {
             c[k === 'agildata' ? 'agildataMode' : 'mareiguaMode'] = v as 'ok' | 'empty' | 'fail'; continue;
         }
@@ -566,6 +570,7 @@ async function loadSuite(path: string, dflt: { amount: number; income: number; s
             name: c.name ? String(c.name) : undefined,
             surname: c.surname ? String(c.surname) : undefined,
             agilname: c.agilname ? String(c.agilname) : undefined,
+            doc: c.doc ? String(c.doc) : undefined,
             agildataMode: c.agildata, mareiguaMode: c.mareigua, tusdatosMode: c.tusdatos,
             pasos: Array.isArray(c.pasos) ? c.pasos : undefined,
             escenarios: c.escenarios,
@@ -795,7 +800,7 @@ const dictatedOnes = new Set<string>();
 async function dictateAll(cases: Case[]): Promise<string[]> {
     const failures: string[] = [];
     for (let i = 0; i < cases.length; i++) {
-        const doc = cases[i].cliente?.documento ?? idNumberOf(i);
+        const doc = cases[i].doc ?? cases[i].cliente?.documento ?? idNumberOf(i);
         // el escenario de cada integración va acá también: es preparación del caso, y se dicta
         // POR CÉDULA para que dos casos en paralelo puedan pedir cosas opuestas de la misma entidad
         for (const [lender, mode] of Object.entries(cases[i].escenarios ?? {})) {
@@ -883,11 +888,14 @@ async function correr(c: Case, i: number): Promise<Res> {
 }
 
 async function traverse(c: Case, i: number): Promise<Res> {
-    const doc = c.cliente?.documento ?? idNumberOf(i);
+    const doc = c.doc ?? c.cliente?.documento ?? idNumberOf(i);
     const base: Res = { caso: c, ok: false, phone: '' };
     // Un cliente de la lista que YA existe en la base (otra prueba lo registró) no se puede dar de alta de nuevo:
     // el backend contesta ONB005 «document number already in use». Se corre como cliente que vuelve.
     if (c.cliente && !c.recurrente && await scalar<number>('SELECT id FROM users WHERE document_number=? LIMIT 1', [doc]).catch(() => null)) c.recurrente = true;
+    // Con `doc=` y la cédula ya registrada, el alta fallaría igual (ONB005): se avisa en vez de correr algo que no prueba nada.
+    if (c.doc && !c.recurrente && await scalar<number>('SELECT id FROM users WHERE document_number=? AND status=1 LIMIT 1', [doc]).catch(() => null))
+        return { ...base, detalle: `la cédula ${doc} ya tiene un cliente activo: dalo de baja primero (bin/pg admin client-disable --document ${doc})` };
 
     // ⚠ El teléfono ya no se puede armar antes de conocer el comercio: su forma sale del país. Por eso
     // la sucursal se resuelve PRIMERO y el teléfono después — al revés de como estaba.
