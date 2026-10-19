@@ -29,6 +29,11 @@ ramas: payment-link
 - [ ] Antes de publicar la app: sacar de `shopify.app.creditop-ecommerce-payments.toml` los permisos de prueba
       (`write_products`, `write_publications`, `write_locations`, `write_inventory`, `write_markets`, `write_themes`,
       `write_shipping`; hoy sólo en la copia local) y declarar `supported_payment_methods` acordes a un BNPL.
+      Hecho en la rama: la config publicable pide sólo pagos (la de prueba es `…-local.toml`) y la extensión declara
+      `generalfinancing` con «Financia tu compra con Creditop», sólo Colombia.
+- [ ] Pedir el ícono propio de Creditop en la lista de medios de pago de Shopify (repo público
+      `activemerchant/payment_icons`); termina cuando la extensión puede declarar `creditop` en vez de
+      `generalfinancing`.
 - [ ] Que el webhook de CreditOp a las tiendas traiga autenticación propia (hoy, para «Desarrollo propio», va sin
       nada y la app se protege con la firma en la URL); termina con una decisión escrita acá.
       Depende de: Oscar — el contrato del webhook de la doc v1.0.2.
