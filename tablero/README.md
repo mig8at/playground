@@ -135,7 +135,7 @@ de una tarea nunca pasa, y ésa es justamente la frontera.
 ```bash
 cd /Users/miguelochoa/Desktop/CREDITOP/playground/tablero
 npm install
-cp server/.env.example server/.env    # y completá los tokens (ver "Configuración")
+# creá server/.env con las perillas (ver "Configuración"); la plantilla vieja: git show bda2b796:tablero/server/.env.example
 npm run dev
 ```
 
@@ -165,7 +165,7 @@ tools/
 │   ├── main.js  styles.css  theme.css  workbench.css
 │   └── TaskEditor.vue  RegionMenu.vue  ui-state.js  task-document.js
 └── server/
-    ├── .env · .env.example        (el go.mod es el de la raíz del playground: module creditop/playground)
+    ├── .env                       (el go.mod es el de la raíz del playground: module creditop/playground)
     ├── cmd/web/main.go        ← WS :8787, 5 mensajes entrantes + /health
     ├── cmd/issue-update/      ← one-off: edita summary/descripción de un issue
     ├── cmd/issue-transition/  ← one-off: mueve un issue de estado (transición)
@@ -522,8 +522,7 @@ documento —anotaciones, Registro y retoma de las 22 tareas abiertas que los te
 
 `make tablero-db TARGET=<local|dev|qa|staging|prod> SQL='SELECT …'` corre una sola consulta de sólo
 lectura. No asume producción: el ambiente es obligatorio. La conexión y el chequeo de sólo lectura son
-de `connectors/sql`, y las credenciales, de `connectors/.env.<ambiente>` (la plantilla es
-`connectors/.env.example`): el tablero no guarda credenciales de base propias. Con `MD=1` emite sólo el ambiente y el SQL para pegar en el documento:
+de `connectors/sql`, y las credenciales, de `connectors/.env.<ambiente>`: el tablero no guarda credenciales de base propias. Con `MD=1` emite sólo el ambiente y el SQL para pegar en el documento:
 
 ````md
 > **DB · prod**
@@ -619,7 +618,7 @@ jq -r '.signals[]? | select(.why=="commit") | "\(.at[0:16])  \(.repo)  \(.branch
 ## Configuración (`server/.env`)
 
 Las **credenciales** no van acá: Jira, Slack, la base y Loki las resuelven sus conectores desde
-`connectors/.env` y `connectors/.env.<ambiente>` (plantilla: `connectors/.env.example`). Faltando las
+`connectors/.env` y `connectors/.env.<ambiente>`. Faltando las
 de Jira, el server arranca igual y cada ruta de Jira lo dice. En `server/.env` quedan las perillas:
 
 | Variable | Para qué | Default |
@@ -647,10 +646,10 @@ Slack app y scopes: <https://api.slack.com/apps> → OAuth & Permissions → Ins
 
 ## Gotchas
 
-- **`JIRA_PROJECT_KEY`, `JIRA_TASK_TYPE_ID`, `JIRA_BOARD_ID` y `WEB_PORT` no están en `.env.example`.**
-  Existen sólo como default en el código (`cmd/web` y `cmd/issue-create`). Si el board o el tipo de issue
+- **`JIRA_PROJECT_KEY`, `JIRA_TASK_TYPE_ID`, `JIRA_BOARD_ID` y `WEB_PORT` no hace falta ponerlas en `server/.env`.**
+  Existen como default en el código (`cmd/web` y `cmd/issue-create`). Si el board o el tipo de issue
   cambian, el síntoma es una tarea creada en el lugar equivocado, no un error. (`QA_SLACK_EMAIL` y
-  `JIRA_TESTING_STATUS` sí están documentadas en el `.env.example`.)
+  `JIRA_TESTING_STATUS` sí se configuran en `server/.env`.)
 - **`WEB_PORT` solo no alcanza:** el front apunta a `http://localhost:8787` salvo que `VITE_TABLERO_API`
   diga otra cosa (`App.vue`, la constante `SERVER`). Si movés el puerto, mové las dos.
 - **Mover una tarea a otro sprint NO se puede por el Agile API.** `POST /rest/agile/1.0/sprint/{id}/issue`

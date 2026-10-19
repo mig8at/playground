@@ -219,7 +219,7 @@ de una tarea; `canon:` conserva las referencias opcionales del corpus del equipo
 | `connectors/.env` | lo que no: Gemini, Atlassian (Jira y Confluence, un token para los dos), Slack, Jev, Twilio y Figma |
 | `<herramienta>/.env[.<target>]` | sólo las **perillas** de esa herramienta |
 
-La plantilla es `connectors/.env.example`. **El proceso gana** sobre el archivo, y una variable vacía
+Las claves de cada archivo son las de la tabla. **El proceso gana** sobre el archivo, y una variable vacía
 en el proceso no tapa la del archivo. Desde otro lenguaje se llega por **`bin/pg`**.
 
 - La única excepción es la base del **harness** (`E2E_DB_*` en `harness/.env.<target>`): siembra, o sea
@@ -236,5 +236,6 @@ en el proceso no tapa la del archivo. Desde otro lenguaje se llega por **`bin/pg
 **Los permisos no van en archivo.** `I_KNOW_THIS_TOUCHES_SHARED_DEV` se exporta a mano en la shell
 cuando de verdad vas a escribir a la BD compartida; meterlo en un `.env` desarma la guarda (F-53).
 
-`.env.*` está gitignoreado; las plantillas versionadas son `connectors/.env.example` y
-`<herramienta>/.env.<target>.example`.
+`.env.*` está gitignoreado y no hay plantillas versionadas: se borraron el 2026-10-19 porque el repo es local y de
+uso propio. La última versión de cada una sigue en git: `git show bda2b796:connectors/.env.example` (y
+`harness/.env.<target>.example`, `tablero/server/.env.example`).

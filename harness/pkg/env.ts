@@ -4,7 +4,7 @@
 // Cada `harness/.env.<target>` es AUTOSUFICIENTE: trae los HECHOS del entorno (BD, API, APP_KEY)
 // y las perillas (Cognito, mocks, SEED). Ya NO existe la capa compartida `playground/env/` — se
 // eliminó el 2026-07-22 porque solo la usaba harness (backend-e2e/backend-mcp, que la compartían,
-// fueron borrados). La plantilla documentada de cada target es `.env.<target>.example` (versionada).
+// fueron borrados). Sin plantillas versionadas desde el 2026-10-19; la última: `git show bda2b796:harness/.env.<target>.example`.
 //
 // PRIORIDAD (gana el primero):  process.env  >  harness/.env.<target>
 import { readFileSync, existsSync } from 'node:fs';

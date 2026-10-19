@@ -27,6 +27,6 @@ que el registro declara contra las banderas que el comando acepta.
 2. **OAuth & Permissions → Bot Token Scopes**: `channels:manage` (canales públicos), `groups:write`
    (privados), `chat:write` (mensajes) y `channels:history` (leer #tech-ops desde el trazador).
 3. **Install to Workspace** y copiá el **Bot User OAuth Token** (`xoxb-`) a `SLACK_BOT_TOKEN` en
-   `connectors/.env` (plantilla: `connectors/.env.example`).
+   `connectors/.env`.
 
 ⚠ El token de esta máquina no tiene `channels:history` (medido el 2026-09-24: `missing_scope`).
