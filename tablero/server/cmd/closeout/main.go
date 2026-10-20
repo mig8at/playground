@@ -365,7 +365,7 @@ func goneReason(root string, ref branchRef) string {
 			return ""
 		}
 	}
-	return "la rama ya no existe (renombrada o borrada)"
+	return "la rama ya no existe: renombrada o borrada"
 }
 
 // dayBranches es la parte de `branchesOfDay` que no lee disco. La rama base se decide ACÁ, con el repo y

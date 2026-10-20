@@ -266,7 +266,7 @@ func TestGoneReason(t *testing.T) {
 	if got := goneReason(root, branchRef{Folder: "repo", Branch: "main"}); got != "" {
 		t.Fatalf("la rama existe: %q", got)
 	}
-	if got := goneReason(root, branchRef{Folder: "repo", Branch: "payment-link"}); got != "la rama ya no existe (renombrada o borrada)" {
+	if got := goneReason(root, branchRef{Folder: "repo", Branch: "payment-link"}); got != "la rama ya no existe: renombrada o borrada" {
 		t.Fatalf("rama renombrada: %q", got)
 	}
 }
