@@ -7,7 +7,7 @@ knowledge: [ecommerce-context]
 canon: []
 jira: [CORE-800, CORE-638]
 jira_title: "Integración VTEX: enlace de pago con referencia y pedidos atribuidos a la sucursal"
-ramas: payment-link
+ramas: core-800-vtex-payment-link
 ---
 
 ## Pendientes
@@ -44,7 +44,7 @@ ramas: payment-link
       en qa para 7966, `ORDER_NOT_FOUND` para un pedido ajeno y `NOT_READY_TO_SETTLE` para uno sin solicitud. El
       conector ya no depende de application.
 
-- [ ] Revisar y mergear `Creditop-SAS/vtex#20` (el conector, `payment-link` → `main`). Depende de
+- [ ] Revisar y mergear `Creditop-SAS/vtex#21` (el conector, `feat/core-800-vtex-payment-link` → `main`; reemplaza al #20, cerrado al renombrar la rama). Depende de
       `Creditop-SAS/legacy-backend#1693` para dar de alta sucursales VTEX por la Partner API. Termina mergeado.
 
 ## Objetivo

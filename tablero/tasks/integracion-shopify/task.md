@@ -7,7 +7,7 @@ knowledge: [ecommerce-context]
 canon: []
 jira: [CORE-801, CORE-689]
 jira_title: "Integración Shopify: app de pagos con enlace de pago y pedidos atribuidos a la sucursal"
-ramas: payment-link, feat/core-689-shopify-platform, playground-ecommerce/feat/ecommerce
+ramas: core-801-shopify-payment-link, core-689-shopify-platform
 ---
 
 ## Pendientes
@@ -59,7 +59,7 @@ ramas: payment-link, feat/core-689-shopify-platform, playground-ecommerce/feat/e
 - [ ] Publicar `POST /legacy-api/ecommerce/payment-link` (y `/status`) en el gateway de producción
       (`v2.api.creditop.com`): hoy sólo existe en el de dev. La app ya apunta ahí en producción (c69e948). Lo hace
       infra; termina con un 401 sin token contra prod.
-- [ ] Revisar y mergear los PRs abiertos: `Creditop-SAS/shopify#21` (la app, `payment-link` → `develop`) y
+- [ ] Revisar y mergear los PRs abiertos: `Creditop-SAS/shopify#22` (la app, `feat/core-801-shopify-payment-link` → `develop`; reemplaza al #21, cerrado al renombrar la rama) y
       `Creditop-SAS/legacy-backend#1693` (plataforma 4 → `main`; #1689 ya está en `qa`). El arreglo de la siembra
       también está en la rama `-qa` (16ff8890, sin push), para un PR a `qa` cuando haga falta. Termina con los dos
       mergeados.
