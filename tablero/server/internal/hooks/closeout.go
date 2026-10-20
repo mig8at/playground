@@ -324,7 +324,7 @@ func Closeout(env Env) int {
 		return 0
 	}
 
-	_, out, _, err := run(filepath.Join(env.Root, "tablero", "server"), 90*time.Second, "go", "run", "./cmd/closeout", "-json")
+	_, out, _, err := run(filepath.Join(env.Root, "tablero", "server"), 90*time.Second, "go", "run", "./cmd/closeout", "-json", "-sin-jira")
 	if err != nil {
 		return 0
 	}

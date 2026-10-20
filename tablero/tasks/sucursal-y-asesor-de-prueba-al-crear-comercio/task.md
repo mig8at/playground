@@ -6,13 +6,13 @@ stage: work
 created: "2026-10-01T10:48:29-05:00"
 knowledge: [merchant-onboarding]
 canon: [comercio, sucursal, asesor, actores]
-jira: [CORE-0000]
+jira: [CORE-683]
 jira_title: "Sucursal y asesor de prueba al crear un comercio"
 ---
 
 ## Pendientes
 
-- [ ] Reemplazar el marcador `CORE-0000` por el CORE real en `jira:`; termina cuando el issue figura en el
+- [x] Reemplazar el marcador `CORE-0000` por el CORE real en `jira:`; termina cuando el issue figura en el
   frontmatter y `CORE-0000` desaparece. (El tablero exige `CORE-` con dígitos: el marcador no es un issue.)
   Depende de: asignación en Slack — número del issue.
 - [x] Obtener los permisos IAM del rol `inertia-develop-legacy-application-task-role` sobre Merchants Dev

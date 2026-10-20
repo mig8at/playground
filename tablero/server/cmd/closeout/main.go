@@ -27,6 +27,7 @@
 //	cierre -dia 2026-09-10 otro día
 //	cierre -json           para otro programa
 //	cierre -quiet          silencio si no falta nada
+//	cierre -sin-jira       sin consultar Jira (el hook de Stop: no va a la red)
 package main
 
 import (
@@ -57,6 +58,7 @@ type task struct {
 	Class    string
 	Archived bool
 	Branches []string // los patrones de `ramas:`, ya partidos por coma
+	Jira     []string // las claves de `jira:`: el vínculo que pinta su documento en el tablero
 	Body     string
 	Path     string
 }
@@ -90,6 +92,8 @@ type Report struct {
 	// se leería igual que un día sin tocarlas.
 	Swept               []Swept  `json:"swept,omitempty"`
 	BranchesWithoutTask []string `json:"branchesWithoutTask"`
+	// UnlinkedIssues: mis issues de los últimos sprints que el tablero muestra sin documento (jira.go).
+	UnlinkedIssues []UnlinkedIssue `json:"unlinkedIssues,omitempty"`
 	Warnings            []string `json:"warnings"`
 	MissingPieces       int      `json:"missingPieces"`
 	// Friction: lo que se trabó HOY y no se había trabado igual en el último mes, leído por radar de las
@@ -174,6 +178,12 @@ func readTaskFile(path string) (task, error) {
 		case strings.HasPrefix(l, "archived:"):
 			v := value(l)
 			t.Archived = v != "" && v != "false" && v != "null"
+		case strings.HasPrefix(l, "jira:"):
+			for _, k := range strings.Split(strings.Trim(value(l), "[]"), ",") {
+				if k = strings.Trim(strings.TrimSpace(k), `"'`); k != "" {
+					t.Jira = append(t.Jira, k)
+				}
+			}
 		case strings.HasPrefix(l, "ramas:"):
 			for _, p := range strings.Split(value(l), ",") {
 				if p = strings.TrimSpace(p); p != "" {
@@ -386,6 +396,7 @@ func main() {
 		day    = flag.String("dia", time.Now().Format("2006-01-02"), "qué día cerrar (YYYY-MM-DD)")
 		asJSON = flag.Bool("json", false, "salida en JSON")
 		quiet  = flag.Bool("quiet", false, "no imprimir nada si no falta ninguna pieza")
+		noJira = flag.Bool("sin-jira", false, "no cruzar mis issues de Jira con las tareas locales")
 	)
 	flag.Parse()
 	if _, err := time.Parse("2006-01-02", *day); err != nil {
@@ -524,7 +535,19 @@ func main() {
 		inf.Friction = dayFriction(root, filepath.Join(os.Getenv("HOME"), ".claude", "projects"), scan.CachePath(root), dayT)
 	}
 
-	failure := inf.MissingPieces > 0 || len(inf.BranchesWithoutTask) > 0
+	if !*noJira {
+		if issues, err := myRecentIssues(); err != nil {
+			inf.Warnings = append(inf.Warnings, "no se pudo consultar Jira para ver qué issues quedan sin documento: "+err.Error())
+		} else {
+			text := map[string]string{}
+			for _, t := range tasks {
+				text[t.Slug] = taskText(data, t)
+			}
+			inf.UnlinkedIssues = unlinkedIssues(issues, tasks, text)
+		}
+	}
+
+	failure := inf.MissingPieces > 0 || len(inf.BranchesWithoutTask) > 0 || unlinkedFailures(inf.UnlinkedIssues) > 0
 	if *asJSON {
 		_ = json.NewEncoder(os.Stdout).Encode(inf)
 	} else if !(*quiet && !failure) {
@@ -604,6 +627,7 @@ func printReport(inf Report) {
 		}
 		fmt.Println()
 	}
+	printUnlinked(inf.UnlinkedIssues)
 	// ▲ y no ✗: la fricción es para mirar, no una pieza que falte (misma regla que «tocó código y no dice
 	// con qué se comprobó»).
 	if len(inf.Friction) > 0 {
@@ -626,6 +650,9 @@ func printReport(inf Report) {
 	switch {
 	case inf.MissingPieces > 0:
 		fmt.Printf("  faltan %d pieza(s) → salgo 1. El detalle de cada una: tablero/CLAUDE.md §«AL CERRAR UNA SESIÓN»\n\n", inf.MissingPieces)
+	case unlinkedFailures(inf.UnlinkedIssues) > 0:
+		fmt.Println("  hay issues nombrados en una tarea sin estar en su `jira:` → salgo 1")
+		fmt.Println()
 	case len(inf.BranchesWithoutTask) > 0:
 		fmt.Println("  hay ramas sin dueño → salgo 1. Declaralas en `ramas:` de su tarea (o es trabajo que no tiene tarea todavía)")
 		fmt.Println()

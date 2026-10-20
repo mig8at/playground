@@ -190,3 +190,39 @@ func TestTheDaysNewFrictionReachesTheCloseout(t *testing.T) {
 		t.Errorf("la fricción avisa, no hace fallar el cierre:\n%s", out.String())
 	}
 }
+
+// El tablero pinta el documento de un issue sólo si una tarea lo nombra en `jira:`. El caso real
+// (2026-10-20): CORE-757 se citaba en la pila de su tarea con `jira: []`, y el centro salía vacío.
+func TestUnlinkedIssuesSplitsNamedFromAlone(t *testing.T) {
+	tasks := []task{
+		{Slug: "auto-ecommerce", Jira: []string{"CORE-731"}},
+		{Slug: "ajuste-nombres"},
+	}
+	text := map[string]string{
+		"auto-ecommerce": "depende de CORE-7520 y de CORE-746",
+		"ajuste-nombres": `{"body":"[CORE-757](jira:CORE-757)"}`,
+	}
+	issues := []MyIssue{{Key: "CORE-731"}, {Key: "CORE-752"}, {Key: "CORE-757"}}
+	got := unlinkedIssues(issues, tasks, text)
+	if len(got) != 2 {
+		t.Fatalf("CORE-731 está vinculado; quedan dos: %+v", got)
+	}
+	if got[0].Key != "CORE-757" || len(got[0].MentionedIn) != 1 || got[0].MentionedIn[0] != "ajuste-nombres" {
+		t.Errorf("CORE-757 se nombra en ajuste-nombres: %+v", got[0])
+	}
+	if got[1].Key != "CORE-752" || len(got[1].MentionedIn) != 0 {
+		t.Errorf("CORE-7520 no es CORE-752: %+v", got[1])
+	}
+	if unlinkedFailures(got) != 1 {
+		t.Error("sólo el nombrado sin vincular hace salir 1")
+	}
+}
+
+func TestReadFrontmatterJiraList(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "x.md")
+	_ = os.WriteFile(path, []byte("---\nid: 1\njira: [CORE-653, \"CORE-758\"]\n---\n"), 0o644)
+	tr, _ := readTaskFile(path)
+	if len(tr.Jira) != 2 || tr.Jira[1] != "CORE-758" {
+		t.Errorf("jira: %v", tr.Jira)
+	}
+}

@@ -6,7 +6,7 @@ stage: work
 created: "2026-09-21T16:40:00-05:00"
 knowledge: [client-code-redemption, lender-listing]
 canon: [preaprobado, listado, onboarding, creditopx]
-jira: [CORE-614]
+jira: [CORE-614, CORE-616, CORE-661]
 jira_title: "Código de preaprobado de la app en la plataforma nueva"
 ---
 

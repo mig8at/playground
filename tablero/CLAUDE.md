@@ -167,6 +167,11 @@ medio del trabajo, decilo en una línea y seguí.
 
 - Si la tarea declara `ramas:` y no hay un solo comando reconocible en ella, el cierre avisa `▲ tocó
   código y no dice con QUÉ se comprobó`. Avisa, no frena.
+- **El tablero pinta el documento de un issue sólo si una tarea lo nombra en `jira:`.** `make cierre`
+  cruza mis issues de los últimos 4 sprints con esos `jira:`: un issue que una tarea nombra (documento o
+  pila) sin tenerlo en `jira:` es `✗` y sale 1; uno que ninguna nombra es `▲`. Cuando se crea el issue
+  después que la tarea, sumá la clave a su `jira:` (una tarea puede tener varias). El hook de `Stop` no
+  consulta Jira (`-sin-jira`).
 
 **El pulso** (`server/cmd/pulse`, un LaunchAgent cada 5 min) anota solo cuándo se tocó código leyendo git;
 no se escribe a mano. Se lee con `make pulso`. El pulso dice **cuándo**; la bitácora, **en qué**.
