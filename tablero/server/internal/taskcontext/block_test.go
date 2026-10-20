@@ -206,3 +206,48 @@ func TestBashFenceIsShell(t *testing.T) {
 		t.Fatalf("como sh, tiene que seguir pidiendo el resultado: %v", err)
 	}
 }
+
+// listedRepos es la lista de repos con la que el validador puede buscar una ruta en todos.
+type listedRepos struct{ fakeRepos }
+
+func (listedRepos) Citable() map[string]string {
+	return map[string]string{"legacy-backend": "", "playground": ""}
+}
+
+func TestBlockLinksAPathThatLivesInOnlyOneRepo(t *testing.T) {
+	r := listedRepos{fakeRepos{files: map[string]string{
+		"legacy-backend/tests/CreatesApplication.php": "cfc577218f2d",
+		"legacy-backend/config/app.php":               "cfc577218f2d",
+		"playground/config/app.php":                   "aaaaaaaaaaaa",
+	}}}
+	run := func(body string) (Event, []string, error) {
+		return PrepareBlock(context.Background(), "La guarda frena", body, "", BlockDeps{Files: r}, blockNow)
+	}
+
+	e, warnings, err := run("Mirá tests/CreatesApplication.php y `tests/CreatesApplication.php` antes de correr.")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Count(e.Body, "[CreatesApplication.php](repo:legacy-backend@cfc577218f2d/tests/CreatesApplication.php)") != 2 {
+		t.Fatalf("no enlazó las dos menciones: %s", e.Body)
+	}
+	if len(warnings) != 1 || !strings.Contains(warnings[0], "legacy-backend") {
+		t.Fatalf("no avisó lo que arregló: %v", warnings)
+	}
+
+	if _, _, err := run("Se tocó config/app.php."); err == nil || !strings.Contains(err.Error(), "está en legacy-backend y playground") {
+		t.Fatalf("eligió repo en una ruta ambigua: %v", err)
+	}
+	if _, _, err := run("Se tocó app/Nada.php."); err == nil || !strings.Contains(err.Error(), "no está en main de ningún repo") {
+		t.Fatalf("una ruta que no existe: %v", err)
+	}
+	// Dentro de un comando la ruta no se toca: un enlace adentro de código dejaría de ser código.
+	if _, _, err := run("Corrí `cat tests/CreatesApplication.php`."); err == nil || !strings.Contains(err.Error(), "sin su repo") {
+		t.Fatalf("reescribió adentro de un comando: %v", err)
+	}
+	// Lo que ya es enlace y lo que va en un bloque de código quedan como estaban.
+	body := "Ver [la guarda](repo:legacy-backend/tests/CreatesApplication.php).\n\n```sh\ncat tests/CreatesApplication.php\n```\nResultado: la guarda."
+	if e, _, err := run(body); err != nil || strings.Count(e.Body, "repo:") != 1 {
+		t.Fatalf("tocó lo que no era prosa suelta: %v %s", err, e.Body)
+	}
+}

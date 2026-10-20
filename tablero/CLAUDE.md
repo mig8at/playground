@@ -119,7 +119,9 @@ decide uno, entra como bloque o como pendiente. Una pregunta a alguien es ademá
 
 ⚠ **Va el COMANDO, no la conclusión**, y el validador lo exige: sin comando y resultado, un número no se
 puede volver a tomar ni desmentir. Rechaza además rutas locales, archivos sin repo, SQL que escribe, HTML
-y títulos de más de una línea. Los repos citables salen de `tools/repos.json`, más `playground` y
+y títulos de más de una línea. **Un archivo suelto que está en `main` de UN solo repo citable se enlaza
+solo** (con aviso); si está en varios o en ninguno, el error dice dónde está. Dentro de un comando
+(`` `cat x.php` ``) no se toca. Los repos citables salen de `tools/repos.json`, más `playground` y
 `playground-equipo`. El material que no es un comando va en ` ```json ` o ` ```text `.
 
 Se escribe en un Markdown (`# título` y la descripción) y se agrega con `make tarea-bloque N=<id|slug>

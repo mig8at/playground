@@ -302,10 +302,15 @@ func PrepareBlock(ctx context.Context, title, body, via string, deps BlockDeps, 
 	if !vias[via] {
 		return Event{}, nil, fmt.Errorf("via %q no existe: manual · harness · trazador · db · migration", via)
 	}
+	body, fixed, unresolved := autolinkPaths(body, deps.Files)
 	if err := validateBlockText(title, body, false); err != nil {
-		return Event{}, nil, err
+		if len(unresolved) > 0 && strings.Contains(err.Error(), "sin su repo") {
+			err = fmt.Errorf("%w (%s)", err, describeUnresolved(unresolved))
+		}
+		return Event{}, fixed, err
 	}
-	var problems, warnings, canonRefs, routeRefs []string
+	var problems, canonRefs, routeRefs []string
+	warnings := fixed
 	known := make(map[string]bool, len(deps.Existing))
 	for _, e := range deps.Existing {
 		known[e.ID] = true
