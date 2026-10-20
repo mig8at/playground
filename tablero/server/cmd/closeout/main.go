@@ -464,6 +464,7 @@ func main() {
 		asJSON = flag.Bool("json", false, "salida en JSON")
 		quiet  = flag.Bool("quiet", false, "no imprimir nada si no falta ninguna pieza")
 		noJira = flag.Bool("sin-jira", false, "no cruzar mis issues de Jira con las tareas locales")
+		only   = flag.String("tarea", "", "id o slug: propone el bloque y la bitácora de esa tarea, sin escribir nada")
 	)
 	flag.Parse()
 	if _, err := time.Parse("2006-01-02", *day); err != nil {
@@ -481,6 +482,10 @@ func main() {
 			tasks = append(tasks, t)
 			byID[t.ID] = append(byID[t.ID], t.Slug)
 		}
+	}
+
+	if *only != "" {
+		os.Exit(runProposal(data, tasks, *only, *asJSON, isToday))
 	}
 
 	inf := Report{Day: *day}
@@ -573,6 +578,9 @@ func main() {
 		// y sólo 51 dejaban una fuente; lo que se escribe suele ser prosa donde iba el comando.
 		if rv.DeclaredBranches && len(store.SourcesOf(t.Body)) == 0 && !taskcontext.HasCommand(events) {
 			rv.Watch = append(rv.Watch, "tocó código y no dice con QUÉ se comprobó: agregá un bloque con el comando y su «Resultado:»")
+		}
+		if len(rv.Missing) > 0 {
+			rv.Missing = append(rv.Missing, "la propuesta, con el lapso y los commits ya puestos: `make cierre TAREA="+strconv.Itoa(t.ID)+"` (o `bin/pg cierre --tarea "+strconv.Itoa(t.ID)+"`)")
 		}
 		inf.MissingPieces += len(rv.Missing)
 		inf.Tasks = append(inf.Tasks, rv)
@@ -750,4 +758,35 @@ func printReport(inf Report) {
 		fmt.Println("  todo en orden.")
 		fmt.Println()
 	}
+}
+
+// runProposal es `-tarea N`: la propuesta de cierre de una sola tarea.
+func runProposal(data string, tasks []task, which string, asJSON, isToday bool) int {
+	if !isToday {
+		fmt.Fprintln(os.Stderr, "-tarea propone el cierre de HOY: el lapso se mide hasta ahora")
+		return 2
+	}
+	for _, t := range tasks {
+		if strconv.Itoa(t.ID) != which && t.Slug != which {
+			continue
+		}
+		abs, err := filepath.Abs(data)
+		if err != nil {
+			fmt.Fprintln(os.Stderr, err)
+			return 1
+		}
+		p, err := propose(data, t, time.Now(), filepath.Dir(filepath.Dir(abs)), reposRoot())
+		if err != nil {
+			fmt.Fprintln(os.Stderr, err)
+			return 1
+		}
+		if asJSON {
+			_ = json.NewEncoder(os.Stdout).Encode(p)
+		} else {
+			printProposal(p)
+		}
+		return 0
+	}
+	fmt.Fprintf(os.Stderr, "no hay una tarea %q\n", which)
+	return 2
 }

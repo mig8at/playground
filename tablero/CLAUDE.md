@@ -163,6 +163,12 @@ le pasa al sistema) vive en `data/traps/doc.md` y se entra por su síntoma. `mak
    `LAPSO=HH:MM-HH:MM`, `PULSO=HH:MM` o `MIN=N FUENTE='…'`. ⚠ **Los minutos se MIDEN, no se estiman**:
    suben a Jira. Si el pulso no tiene datos, decí de dónde salió el número.
 
+**`make cierre TAREA=N` lo propone** (o `bin/pg cierre --tarea N`, también como herramienta MCP): el lapso
+desde donde terminó la última bitácora del día, los commits de la tarea en ese lapso (en el playground,
+los que empiezan con su slug o nombran `tarea N`; en los repos, los de sus `ramas:` sin lo que ya está en
+la base) y los dos comandos listos. No escribe nada: el título del bloque es la conclusión y la pone quien
+trabajó.
+
 **`make cierre` lo chequea** (sale 1 si a una tarea tocada le falta una pieza) y el hook de `Stop`
 (`closeout`) lo corre solo, una vez por sesión, sobre las tareas que ESA sesión escribió. Si te frena en el
 medio del trabajo, decilo en una línea y seguí.

@@ -100,6 +100,23 @@ func runTareaBloque(args []string) int {
 	return runTablero("# "+strings.TrimSpace(*title)+"\n\n"+strings.TrimSpace(*body)+"\n", cmd...)
 }
 
+func runCierre(args []string) int {
+	fs := flag.NewFlagSet("cierre", flag.ContinueOnError)
+	task := fs.String("tarea", "", "id o slug")
+	asJSON := fs.Bool("json", false, "en JSON")
+	if fs.Parse(args) != nil {
+		return 2
+	}
+	if *task == "" {
+		return fail(2, "falta --tarea")
+	}
+	cmd := []string{"./cmd/closeout", "-tarea", *task}
+	if *asJSON {
+		cmd = append(cmd, "-json")
+	}
+	return runTablero("", cmd...)
+}
+
 func runBitacoraAdd(args []string) int {
 	fs := flag.NewFlagSet("bitacora add", flag.ContinueOnError)
 	task := fs.String("tarea", "", "id o slug")
