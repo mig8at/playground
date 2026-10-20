@@ -15,8 +15,11 @@ ramas: payment-link
 - [x] ~~El conector pide la URL a `payment-link`~~ — rama `payment-link` del repo `vtex` (6eeeb83, local, sin push):
       `authorize` llama con AppKey = hash y AppToken = Bearer, redirige al `?ref=` y niega si falla; host por
       configuración de la app (producción o develop). Probado con el conector real en local contra el mock.
-- [ ] Confirmar con infra en qué host atienden `payment-link` y `/vtex/settel` en cada ambiente (el conector usa los de
-      la doc v1.0.2: `v2.api.creditop.com` y `api.dev.creditop.com`); termina con los hosts escritos acá.
+- [ ] Confirmar con infra la ruta de `payment-link` en el gateway de producción y dónde queda `/vtex/settel`. Los dos
+      gateways publican legacy-backend bajo `/legacy-api` (dev: `leg-qa`; prod: `legacy-backend.production`), y el
+      conector ya usa `https://v2.api.creditop.com/legacy-api` en producción (b8f2750). Pero el gateway de prod no tiene
+      la ruta de `payment-link`, y `/vtex/settel` es de application (`VtexController`): hay que migrarlo a legacy-backend
+      (`VtexService`). Termina con la ruta de prod publicada y el settle en legacy-backend.
       Depende de: Infra — el ruteo de los dos paths.
 - [ ] Probar el conector en una cuenta VTEX (workspace de prueba y Test Suite); termina con un `authorize` real que
       redirige al wizard de qa.

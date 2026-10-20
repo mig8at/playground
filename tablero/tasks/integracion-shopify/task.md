@@ -54,8 +54,11 @@ ramas: payment-link, feat/core-689-shopify-platform
       rama `feat/core-689-shopify-platform` de legacy-backend (desde `main`, local, sin push, worktree
       `legacy-backend-shopify`): siembra, `ShopifyNotifier` y `ecommerce_type` en el alta de la Partner API. Credencial de
       prueba local: sucursal `f1681537`, tipo 4.
-- [ ] Que el admin de `application` (el que usa operaciones para dar de alta credenciales) ofrezca «Shopify»: hoy su
-      selector tiene WooCommerce, Desarrollo propio y Vtex. Termina con una credencial tipo 4 creada desde el admin.
+- [x] ~~Marcar la plataforma de una sucursal sin el admin de application~~ — `php artisan ecommerce:platform <hash>
+      [shopify]` en la misma rama (c5250f71), probado en local. application va a desaparecer: su admin no se toca.
+- [ ] Publicar `POST /legacy-api/ecommerce/payment-link` (y `/status`) en el gateway de producción
+      (`v2.api.creditop.com`): hoy sólo existe en el de dev. La app ya apunta ahí en producción (c69e948). Lo hace
+      infra; termina con un 401 sin token contra prod.
 - [ ] Pasar la credencial de qa de `c390eed9` (id 47, hoy tipo 2) a tipo 4 cuando la rama esté en qa, para que los
       pedidos de la tienda de prueba salgan atribuidos a Shopify. Escribe en la base compartida: pedir el OK.
 
