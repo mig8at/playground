@@ -15,7 +15,8 @@ ramas: payment-link
 - [x] ~~El conector pide la URL a `payment-link`~~ — rama `payment-link` del repo `vtex` (6eeeb83, local, sin push):
       `authorize` llama con AppKey = hash y AppToken = Bearer, redirige al `?ref=` y niega si falla; host por
       configuración de la app (producción o develop). Probado con el conector real en local contra el mock.
-- [ ] Confirmar con infra la ruta de `payment-link` en el gateway de producción y dónde queda `/vtex/settel`. Los dos
+- [ ] Confirmar con infra la ruta de `payment-link` y de `ecommerce/status` en el gateway de producción (`/vtex/settel`
+      ya no hace falta: d24c10e). Los dos
       gateways publican legacy-backend bajo `/legacy-api` (dev: `leg-qa`; prod: `legacy-backend.production`), y el
       conector ya usa `https://v2.api.creditop.com/legacy-api` en producción (b8f2750). Pero el gateway de prod no tiene
       la ruta de `payment-link`, y `/vtex/settel` es de application (`VtexController`): hay que migrarlo a legacy-backend
@@ -39,9 +40,9 @@ ramas: payment-link
 - [x] ~~Probar en `qa` el recorrido VTEX completo por referencia~~ — con el conector real en local y un comercio propio
       (363, sucursal `530aa4f7`, credencial tipo 3): pedido 7966 con `ecommerce_id=3` → solicitud 503800 en 11 → el
       `VtexNotifier` avisó `approved` al `callbackUrl`. Falta el `settle` (ver abajo).
-- [ ] Que el `settle` del conector deje `/vtex/settel` (de application, 404 en el gateway de dev) y use
-      `GET /ecommerce/status/{paymentId}` de legacy-backend, con el mismo token de la sucursal: aprueba con `completed`.
-      Termina con un settle aprobado en qa por el conector local.
+- [x] ~~Que el `settle` del conector deje `/vtex/settel` y use `GET /ecommerce/status/{paymentId}`~~ — d24c10e: aprobado
+      en qa para 7966, `ORDER_NOT_FOUND` para un pedido ajeno y `NOT_READY_TO_SETTLE` para uno sin solicitud. El
+      conector ya no depende de application.
 
 ## Objetivo
 
