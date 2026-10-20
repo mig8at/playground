@@ -22,12 +22,12 @@ ramas: core-800-vtex-payment-link
       la ruta de `payment-link`, y `/vtex/settel` es de application (`VtexController`): hay que migrarlo a legacy-backend
       (`VtexService`). Termina con la ruta de prod publicada y el settle en legacy-backend.
       Depende de: Infra — el ruteo de los dos paths.
-- [ ] Probar el conector en una cuenta VTEX (workspace de prueba y Test Suite); termina con un `authorize` real que
-      redirige al wizard de qa.
-      Depende de: Miguel — si hay cuenta VTEX con permisos de payment provider.
-- [ ] Que `payment-link` (legacy-backend#1682, de Oscar) llegue a `qa` rebasado sobre `qa` y probar la tienda demo
-      contra él en local; termina con el conector real recibiendo una URL de la API de verdad.
-      Depende de: Oscar — el rebase sobre `qa` (sin él, el camino feliz da 500).
+- [x] ~~Probar el conector en una cuenta VTEX (workspace de prueba y Test Suite)~~ — cuenta `creditop`, workspace de
+      desarrollo `migueldev` (`master` sin tocar): compra real en el checkout aprobada (pedido VTEX
+      `1670270500201-01`, transacción `Approved`) y **Test Suite 7 de 7**. Afiliación «Creditop Miguel (dev)» y
+      condición de pago «CREDITOP DEV» activas; la de Oscar («Creditop BNPL» → `oscarrinc`) apagada, sin borrar.
+- [x] ~~Que `payment-link` (legacy-backend#1682, de Oscar) llegue a `qa`~~ — mergeado a `qa` el 2026-10-19; todo el
+      recorrido de hoy corrió contra él.
 - [ ] Llevar a `main` la apertura por referencia (`by-reference` en legacy-backend y `checkout.tsx` en
       frontend-monorepo), hoy sólo en `qa`; termina cuando `git grep checkout_reference origin/main` la encuentra.
       Depende de: Miguel — si sale separada del auto-onboarding de Refurbi, que se sacó de `main` a propósito.
@@ -46,6 +46,19 @@ ramas: core-800-vtex-payment-link
 
 - [ ] Revisar y mergear `Creditop-SAS/vtex#21` (el conector, `feat/core-800-vtex-payment-link` → `main`; reemplaza al #20, cerrado al renombrar la rama). Depende de
       `Creditop-SAS/legacy-backend#1693` para dar de alta sucursales VTEX por la Partner API. Termina mergeado.
+
+- [ ] Confirmar el cobro real del pedido VTEX `1670270500201-01` (VTEX lo hace al facturar o a las 6 h): termina
+      con la transacción en `Finished` y el settle aprobado en el log del conector.
+- [ ] Decidir si se restringe el modo Test Suite antes de producción (hoy cualquier llamada con
+      `X-VTEX-API-Is-TestSuite: true` recibe respuestas de prueba); termina con la regla escrita y probada.
+- [ ] Cancelaciones y reembolsos reales: hoy el conector los niega. Depende de: Producto — qué es cancelar y reembolsar
+      una compra financiada. Termina con la regla escrita y el conector cumpliéndola.
+- [ ] Revocar el token de `payment-link` de la sucursal de prueba `530aa4f7` (quedó visible en capturas y en logs de
+      `vtex link`) y emitir otro; termina cuando el viejo responde 401.
+- [ ] Al terminar las pruebas en la cuenta, devolver la condición de pago: activar la de Oscar y apagar «CREDITOP DEV»
+      (o acordarlo con él). Depende de: Miguel — hablar con Oscar.
+- [ ] Homologar con VTEX y publicar la versión nueva de `creditop.creditop` (llega a todas las tiendas que la tienen):
+      termina con la versión publicada. Sólo después de los PRs y de producción.
 
 ## Objetivo
 
@@ -138,7 +151,26 @@ SELECT id, allied_branch_id, ecommerce_id, origin, checkout_reference IS NOT NUL
 FROM ecommerce_requests WHERE order_key = 'vtx-<único>';
 ```
 
+**En la cuenta VTEX `creditop` (sólo el workspace de desarrollo `migueldev`; nada en `master`):**
+
+```sh
+vtex login creditop          # interactivo; deja en master
+vtex use migueldev           # SIEMPRE antes de linkear
+cd ~/Desktop/CREDITOP/github/vtex && vtex link
+```
+- Ambiente del conector: `{"environment":"develop"}` en la configuración de la app de `migueldev` (sin ella usa
+  producción). `vtex link` reescribe `node/package.json` y `node/yarn.lock`: no se commitean.
+- Test Suite: `https://migueldev--creditop.myvtex.com/admin/test-suite/payment-provider`, Service URL
+  `https://migueldev--creditop.myvtex.com/_v/creditop.creditop/v4`, AppKey `530aa4f7`, AppToken = el token de esa sucursal.
+- Compra real: `https://migueldev--creditop.myvtex.com`, pagar con Creditop → wizard de qa → simulador de qa (estado 11)
+  → la transacción pasa a `Approved`.
+- Sin cuenta VTEX: la tienda demo hace de VTEX completo, en local o contra qa (`make harness-store`, modo qa en
+  harness/CLAUDE.md).
+
 ## Referencias
+
+- Estado para el equipo: `artifacts/creditop-para-vtex.html` (publicado como «Creditop para VTEX»,
+  https://claude.ai/artifact/UQYDZAVGBGgkvMMMEaGKxB, privado hasta compartirlo).
 
 - [CORE-689](https://creditop.atlassian.net/browse/CORE-689): «Análisis técnico de las integraciones VTEX y Shopify
   para producción» (Confluence, página 698580994), con las brechas VTX-xx y el checklist de go-live.

@@ -37,9 +37,8 @@ ramas: core-801-shopify-payment-link, core-689-shopify-platform
 - [ ] Que el webhook de CreditOp a las tiendas traiga autenticación propia (hoy, para «Desarrollo propio», va sin
       nada y la app se protege con la firma en la URL); termina con una decisión escrita acá.
       Depende de: Oscar — el contrato del webhook de la doc v1.0.2.
-- [ ] Sacar de la tienda de desarrollo el método manual «creditop» y pasar la moneda base a COP con un precio
-      realista; termina con el checkout cobrando en COP.
-      Depende de: Juan Rodriguez — dueño de la tienda.
+- [x] ~~Sacar de la tienda de desarrollo el método manual «creditop» y pasar la moneda base a COP~~ — hecho el
+      2026-10-19: la tienda quedó sólo con Colombia, en COP, y con «Creditop» como único medio de pago.
 - [ ] Revocar el Bearer de Sanctum que estuvo escrito en el repo `shopify`; termina cuando ya no autentica. En la
       rama `payment-link` salió del árbol junto con la PII y los artefactos (`dist/`, logs, `dev.sqlite`,
       `shopify-app-info.json`), pero sigue en 2 commits de la historia.
@@ -47,9 +46,8 @@ ramas: core-801-shopify-payment-link, core-689-shopify-platform
 - [ ] Confirmar que Shopify admite una Payments App offsite para tiendas en Colombia con COP y que CreditOp es (o
       puede ser) Payments Partner; termina con la respuesta escrita acá.
       Depende de: Merchants — lo que respondió Shopify en MER-2, MER-54 y MER-96.
-- [ ] Probar la tienda demo contra el `payment-link` de verdad cuando legacy-backend#1682 esté rebasado sobre `qa`;
-      termina con la app real recibiendo una URL de la API de verdad en local.
-      Depende de: Oscar — el rebase sobre `qa`.
+- [x] ~~Probar contra el `payment-link` de verdad~~ — #1682 mergeado a `qa` el 2026-10-19; todo el recorrido en qa
+      (aprobado, pendiente, negado, reembolso rechazado y la plataforma 4) corrió contra él.
 - [x] ~~Agregar Shopify al catálogo `ecommerces` (id 4) y poder marcar una credencial con `ecommerce_type_id=4`~~ —
       rama `feat/core-689-shopify-platform` de legacy-backend (desde `main`, local, sin push, worktree
       `legacy-backend-shopify`): siembra, `ShopifyNotifier` y `ecommerce_type` en el alta de la Partner API. Credencial de
@@ -66,6 +64,13 @@ ramas: core-801-shopify-payment-link, core-689-shopify-platform
 - [x] ~~Que los pedidos de la tienda de prueba salgan atribuidos a Shopify en qa~~ — con un comercio propio (362,
       sucursal ecommerce `8ffe96e2`, credencial tipo 4) en vez de pasar `c390eed9`, que usa también VTEX. Pedido 7963
       con `ecommerce_id=4` → #1012 `PAID`.
+
+- [ ] Reembolsos: Shopify los exige para aprobar la app y hoy la app los rechaza. Depende de: Producto — qué es
+      reembolsar una compra financiada (CreditopX y entidades externas, parciales, plazos). Termina con la regla escrita
+      y la app resolviendo el reembolso.
+- [ ] Alojar la app con URL fija (QA y después producción): en pausa hasta que Shopify apruebe a Creditop como Payments
+      Partner; el plan y las variables están en `artifacts/creditop-para-shopify.html`. Ojo: desde el cambio a Postgres,
+      `shopify app dev` en local necesita `DATABASE_URL`.
 
 ## Objetivo
 
@@ -160,6 +165,9 @@ PAYMENT_LINK_TOKEN=<token de ecommerce:issue-token>`.
 
 
 ## Referencias
+
+- Estado para el equipo: `artifacts/creditop-para-shopify.html` (publicado como «Creditop para Shopify»,
+  https://claude.ai/artifact/EEAZoVAyBTTmxogHyesqbK, privado hasta compartirlo).
 
 - CORE-689: «Análisis técnico de las integraciones VTEX y Shopify para producción» (Confluence, página 698580994),
   secciones 8 a 11 y 15.3 (brechas SHP-xx).
