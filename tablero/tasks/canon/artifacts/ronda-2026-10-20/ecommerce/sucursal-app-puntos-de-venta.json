@@ -1,0 +1,15 @@
+{
+  "node": "sucursal/context",
+  "section": "La App sólo recibe la posición de un punto de venta confirmado y con la caché vigente",
+  "text_file": "app-puntos-de-venta.md",
+  "kind": "correction",
+  "source": "verified",
+  "verified": "2026-10-20",
+  "as_asked": "¿qué puntos de venta ve el cliente en el mapa de la App?",
+  "archivos": {
+    "Creditop-SAS/merchant-api": [
+      "internal/modules/merchant/infra/storage/mysql/queries/storefront.sql",
+      "internal/modules/merchant/core/domain/storefront.go"
+    ]
+  }
+}

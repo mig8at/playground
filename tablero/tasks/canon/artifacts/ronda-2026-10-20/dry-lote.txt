@@ -1,0 +1,162 @@
+  ✓ cartera/context · «La cuota inicial queda en el registro de pagos, en línea o en caja, y no es un abono al crédito»: agregó la sección al final
+    ⚠ ya_vigilados_nota: esos archivos ya los declara un área del tema: al cerrar, la sección queda ENLAZADA a esa área (entra en su `secciones`) y el hash del área NO se toca — subirlo es la afirmación «releí el área entera y sigue siendo ciert…
+  ✓ formalizacion/context · «En el auto-onboarding de tienda, el cliente puede corregir su celular una vez en la pantalla del código de firma»: agregó la sección al final
+    ⚠ ya_vigilados_nota: esos archivos ya los declara un área del tema: al cerrar, la sección queda ENLAZADA a esa área (entra en su `secciones`) y el hash del área NO se toca — subirlo es la afirmación «releí el área entera y sigue siendo ciert…
+  ✓ formalizacion/context · «Una entidad puede firmar por un camino de Netco configurable, que se decide antes que todo»: agregó la sección al final
+    ⚠ ya_vigilados_nota: esos archivos ya los declara un área del tema: al cerrar, la sección queda ENLAZADA a esa área (entra en su `secciones`) y el hash del área NO se toca — subirlo es la afirmación «releí el área entera y sigue siendo ciert…
+  ✓ formalizacion/context · «Un cupo rotativo firma su pagaré una vez, y las compras siguientes reutilizan ese»: agregó la sección al final
+    ⚠ ya_vigilados_nota: esos archivos ya los declara un área del tema: al cerrar, la sección queda ENLAZADA a esa área (entra en su `secciones`) y el hash del área NO se toca — subirlo es la afirmación «releí el área entera y sigue siendo ciert…
+  ✓ comercio/context · «Un comercio deshabilitado no origina en el monolito nuevo, y sólo en algunas puertas»: agregó la sección al final
+  ✓ ecommerce/context · «Una sucursal del auto-onboarding sólo pide el código, y con el pedido firmado ni eso»: agregó la sección al final
+  ✓ backoffice/context · «Al rotativo sólo se le edita la política dura, y confirmarla destraba sus condiciones»: agregó la sección al final
+    ⚠ ya_vigilados_nota: esos archivos ya los declara un área del tema: al cerrar, la sección queda ENLAZADA a esa área (entra en su `secciones`) y el hash del área NO se toca — subirlo es la afirmación «releí el área entera y sigue siendo ciert…
+  ✓ datos/context · «El admin viejo no deja editar a mano una ficha en blanco»: agregó la sección al final
+    ⚠ ya_vigilados_nota: esos archivos ya los declara un área del tema: al cerrar, la sección queda ENLAZADA a esa área (entra en su `secciones`) y el hash del área NO se toca — subirlo es la afirmación «releí el área entera y sigue siendo ciert…
+  ✓ datos/context · «Lo de prueba se excluye de las estadísticas por dos vías que conviven»: agregó la sección al final
+    ⚠ ya_vigilados_nota: esos archivos ya los declara un área del tema: al cerrar, la sección queda ENLAZADA a esa área (entra en su `secciones`) y el hash del área NO se toca — subirlo es la afirmación «releí el área entera y sigue siendo ciert…
+  ✓ listado/context · «Elegir otra entidad puede abrir otra solicitud, y ahí un comercio apagado corta»: agregó la sección al final
+    ⚠ ya_vigilados_nota: esos archivos ya los declara un área del tema: al cerrar, la sección queda ENLAZADA a esa área (entra en su `secciones`) y el hash del área NO se toca — subirlo es la afirmación «releí el área entera y sigue siendo ciert…
+  ✓ imei/context · «El monolito nuevo desbloquea por pago sin predecir, y arranca apagado»: agregó la sección al final
+  ✓ onboarding/context · «Un comercio deshabilitado no origina solicitudes nuevas en el monolito nuevo, pero las que están en curso terminan»: agregó la sección al final
+  ✓ infraestructura/operar · «Un despliegue de ECS que no arranca vuelve solo a la versión anterior»: agregó la sección al final
+    ⚠ ya_vigilados_nota: esos archivos ya los declara un área del tema: al cerrar, la sección queda ENLAZADA a esa área (entra en su `secciones`) y el hash del área NO se toca — subirlo es la afirmación «releí el área entera y sigue siendo ciert…
+  ✓ cartera/context · «Un mínimo ya pagado que quedó en mora se regulariza esa noche»: reemplazó la sección
+    ⚠ ya_vigilados_nota: esos archivos ya los declara un área del tema: al cerrar, la sección queda ENLAZADA a esa área (entra en su `secciones`) y el hash del área NO se toca — subirlo es la afirmación «releí el área entera y sigue siendo ciert…
+  ✓ cartera/context · «El cliente paga solo en la pantalla pública de pago, buscando su crédito por documento»: reemplazó la sección
+    ⚠ ya_vigilados_nota: esos archivos ya los declara un área del tema: al cerrar, la sección queda ENLAZADA a esa área (entra en su `secciones`) y el hash del área NO se toca — subirlo es la afirmación «releí el área entera y sigue siendo ciert…
+  ✓ creditopx/context · «El rechazo desaparece sin mensaje, y no es una falla»: reemplazó la sección
+    ⚠ ya_vigilados_nota: esos archivos ya los declara un área del tema: al cerrar, la sección queda ENLAZADA a esa área (entra en su `secciones`) y el hash del área NO se toca — subirlo es la afirmación «releí el área entera y sigue siendo ciert…
+  ✓ documentos/context · «CrediPullman promete en sus documentos condonar la última cuota, y ningún proceso de cartera la condona»: reemplazó la sección
+    ⚠ ya_vigilados_nota: esos archivos ya los declara un área del tema: al cerrar, la sección queda ENLAZADA a esa área (entra en su `secciones`) y el hash del área NO se toca — subirlo es la afirmación «releí el área entera y sigue siendo ciert…
+  ✓ documentos/context · «El pagaré usa una plantilla de la entidad o la genérica»: reemplazó la sección
+    ⚠ ya_vigilados_nota: esos archivos ya los declara un área del tema: al cerrar, la sección queda ENLAZADA a esa área (entra en su `secciones`) y el hash del área NO se toca — subirlo es la afirmación «releí el área entera y sigue siendo ciert…
+  ✓ documentos/context · «Quién dibuja cada documento se decide por tipo, con canary por entidad»: reemplazó la sección
+    ⚠ ya_vigilados_nota: esos archivos ya los declara un área del tema: al cerrar, la sección queda ENLAZADA a esa área (entra en su `secciones`) y el hash del área NO se toca — subirlo es la afirmación «releí el área entera y sigue siendo ciert…
+  ✓ formalizacion/context · «El cierre es hostil al escritorio, a propósito»: reemplazó la sección
+    ⚠ ya_vigilados_nota: esos archivos ya los declara un área del tema: al cerrar, la sección queda ENLAZADA a esa área (entra en su `secciones`) y el hash del área NO se toca — subirlo es la afirmación «releí el área entera y sigue siendo ciert…
+  ✓ ecommerce/context · «El comprador puede corregir todo lo que mandó la tienda, incluida su identidad»: reemplazó la sección
+    ⚠ ya_vigilados_nota: esos archivos ya los declara un área del tema: al cerrar, la sección queda ENLAZADA a esa área (entra en su `secciones`) y el hash del área NO se toca — subirlo es la afirmación «releí el área entera y sigue siendo ciert…
+  ✓ ecommerce/context · «En tienda la cuota inicial la cobra la pasarela, y la firma espera a que se pague»: reemplazó la sección
+    ⚠ ya_vigilados_nota: esos archivos ya los declara un área del tema: al cerrar, la sección queda ENLAZADA a esa área (entra en su `secciones`) y el hash del área NO se toca — subirlo es la afirmación «releí el área entera y sigue siendo ciert…
+  ✓ ecommerce/context · «En la tienda el comprador entra directo al celular: no hay bienvenida»: reemplazó la sección
+    ⚠ ya_vigilados_nota: esos archivos ya los declara un área del tema: al cerrar, la sección queda ENLAZADA a esa área (entra en su `secciones`) y el hash del área NO se toca — subirlo es la afirmación «releí el área entera y sigue siendo ciert…
+  ✓ ecommerce/context · «El pedido viaja en la dirección y se ancla al validar el código; si se pierde, la tienda nunca se entera»: reemplazó la sección
+    ⚠ ya_vigilados_nota: esos archivos ya los declara un área del tema: al cerrar, la sección queda ENLAZADA a esa área (entra en su `secciones`) y el hash del área NO se toca — subirlo es la afirmación «releí el área entera y sigue siendo ciert…
+  ✓ sucursal/context · «La App sólo recibe la posición de un punto de venta confirmado y con la caché vigente»: reemplazó la sección
+    ⚠ ya_vigilados_nota: esos archivos ya los declara un área del tema: al cerrar, la sección queda ENLAZADA a esa área (entra en su `secciones`) y el hash del área NO se toca — subirlo es la afirmación «releí el área entera y sigue siendo ciert…
+  ✓ datos/context · «Qué cancela una solicitud y dónde queda el motivo»: reemplazó la sección
+    ⚠ ya_vigilados_nota: esos archivos ya los declara un área del tema: al cerrar, la sección queda ENLAZADA a esa área (entra en su `secciones`) y el hash del área NO se toca — subirlo es la afirmación «releí el área entera y sigue siendo ciert…
+  ✓ listado/context · «La probabilidad clasifica; no significa que se pasó la política dura»: reemplazó la sección
+    ⚠ ya_vigilados_nota: esos archivos ya los declara un área del tema: al cerrar, la sección queda ENLAZADA a esa área (entra en su `secciones`) y el hash del área NO se toca — subirlo es la afirmación «releí el área entera y sigue siendo ciert…
+    ⚠ tablas_nota: esas tablas NO se declararon: las tablas viajan en un área nueva, y esta pieza no crea ninguna (sus archivos ya estaban declarados). Súmalas al `tablas` del área que ya declara esos archivos, en el map.json del tema.
+  ✓ credifamilia/context · «La fianza de Credifamilia se financia si es anticipada y se cobra por cuota si es vencida»: reemplazó la sección
+    ⚠ ya_vigilados_nota: esos archivos ya los declara un área del tema: al cerrar, la sección queda ENLAZADA a esa área (entra en su `secciones`) y el hash del área NO se toca — subirlo es la afirmación «releí el área entera y sigue siendo ciert…
+  ✓ imei/context · «Cómo se evalúa el desbloqueo después de un pago»: reemplazó la sección
+    ⚠ ya_vigilados_nota: esos archivos ya los declara un área del tema: al cerrar, la sección queda ENLAZADA a esa área (entra en su `secciones`) y el hash del área NO se toca — subirlo es la afirmación «releí el área entera y sigue siendo ciert…
+  ✓ onboarding/context · «Casi todos los comercios recorren el mismo árbol, y tres se apartan»: reemplazó la sección
+    ⚠ ya_vigilados_nota: esos archivos ya los declara un área del tema: al cerrar, la sección queda ENLAZADA a esa área (entra en su `secciones`) y el hash del área NO se toca — subirlo es la afirmación «releí el área entera y sigue siendo ciert…
+  ✓ onboarding/context · «El código de la app lo emite un servicio aparte y sólo vale en su comercio»: reemplazó la sección
+    ⚠ ya_vigilados_nota: esos archivos ya los declara un área del tema: al cerrar, la sección queda ENLAZADA a esa área (entra en su `secciones`) y el hash del área NO se toca — subirlo es la afirmación «releí el área entera y sigue siendo ciert…
+  ✓ onboarding/context · «Qué cambia cuando un comercio va por el pipeline de KYC»: reemplazó la sección
+    ⚠ ya_vigilados_nota: esos archivos ya los declara un área del tema: al cerrar, la sección queda ENLAZADA a esa área (entra en su `secciones`) y el hash del área NO se toca — subirlo es la afirmación «releí el área entera y sigue siendo ciert…
+  ✓ perfilamiento/context · «El rotativo parece de la familia, pero tiene otro motor»: reemplazó la sección
+    ⚠ ya_vigilados_nota: esos archivos ya los declara un área del tema: al cerrar, la sección queda ENLAZADA a esa área (entra en su `secciones`) y el hash del área NO se toca — subirlo es la afirmación «releí el área entera y sigue siendo ciert…
+  ✓ salud-financiera/context · «La salud financiera se arma al momento con lo del monolito y nunca habla con la central de riesgo»: reemplazó la sección
+    ⚠ ya_vigilados_nota: esos archivos ya los declara un área del tema: al cerrar, la sección queda ENLAZADA a esa área (entra en su `secciones`) y el hash del área NO se toca — subirlo es la afirmación «releí el área entera y sigue siendo ciert…
+  ✓ infraestructura/operar · «Si un servicio de desarrollo no llega a la base, lo primero es a qué host apunta, no el peering»: reemplazó la sección
+    ⚠ ya_vigilados_nota: esos archivos ya los declara un área del tema: al cerrar, la sección queda ENLAZADA a esa área (entra en su `secciones`) y el hash del área NO se toca — subirlo es la afirmación «releí el área entera y sigue siendo ciert…
+  ✓ local/operar · «Antes de correr una carpeta: el chequeo tiene que ver las tres formas»: reemplazó la sección
+    ⚠ ya_vigilados_nota: esos archivos ya los declara un área del tema: al cerrar, la sección queda ENLAZADA a esa área (entra en su `secciones`) y el hash del área NO se toca — subirlo es la afirmación «releí el área entera y sigue siendo ciert…
+  ✓ local/operar · «Levantar el backend: make up, y make setup solo la primera vez»: reemplazó la sección
+    ⚠ ya_vigilados_nota: esos archivos ya los declara un área del tema: al cerrar, la sección queda ENLAZADA a esa área (entra en su `secciones`) y el hash del área NO se toca — subirlo es la afirmación «releí el área entera y sigue siendo ciert…
+  ✓ local/operar · «Lo que borra la base: make test y make fresh no se corren»: reemplazó la sección
+    ⚠ ya_vigilados_nota: esos archivos ya los declara un área del tema: al cerrar, la sección queda ENLAZADA a esa área (entra en su `secciones`) y el hash del área NO se toca — subirlo es la afirmación «releí el área entera y sigue siendo ciert…
+  ✓ observabilidad/operar · «Un código de respuesta del sistema nuevo indica de qué módulo y de qué pregunta salió»: reemplazó la sección
+    ⚠ ya_vigilados_nota: esos archivos ya los declara un área del tema: al cerrar, la sección queda ENLAZADA a esa área (entra en su `secciones`) y el hash del área NO se toca — subirlo es la afirmación «releí el área entera y sigue siendo ciert…
+  ✓ observabilidad/operar · «Los prefijos de módulo en uso hoy»: reemplazó la sección
+    ⚠ ya_vigilados_nota: esos archivos ya los declara un área del tema: al cerrar, la sección queda ENLAZADA a esa área (entra en su `secciones`) y el hash del área NO se toca — subirlo es la afirmación «releí el área entera y sigue siendo ciert…
+  ✓ repos/operar · «La API de comercios lee la base heredada y orquesta el codeudor»: reemplazó la sección
+    ⚠ ya_vigilados_nota: esos archivos ya los declara un área del tema: al cerrar, la sección queda ENLAZADA a esa área (entra en su `secciones`) y el hash del área NO se toca — subirlo es la afirmación «releí el área entera y sigue siendo ciert…
+  ✓ repos/operar · «Cada módulo del sistema nuevo lleva escrito lo que está mal a propósito»: reemplazó la sección
+    ⚠ ya_vigilados_nota: esos archivos ya los declara un área del tema: al cerrar, la sección queda ENLAZADA a esa área (entra en su `secciones`) y el hash del área NO se toca — subirlo es la afirmación «releí el área entera y sigue siendo ciert…
+  ✓ cartera/context · «<nil>»: subió el hash de lo releído
+    releería 17 archivos
+  ✓ codeudor/context · «<nil>»: subió el hash de lo releído
+    releería 1 archivos
+  ✓ creditopx/context · «<nil>»: subió el hash de lo releído
+    releería 4 archivos
+  ✓ documentos/context · «<nil>»: subió el hash de lo releído
+    releería 7 archivos
+  ✓ formalizacion/context · «<nil>»: subió el hash de lo releído
+    releería 10 archivos
+  ✓ asesor/context · «<nil>»: subió el hash de lo releído
+    releería 1 archivos
+  ✓ canales/context · «<nil>»: subió el hash de lo releído
+    releería 3 archivos
+  ✓ comercio/context · «<nil>»: subió el hash de lo releído
+    releería 6 archivos
+  ✓ cuota/context · «<nil>»: subió el hash de lo releído
+    releería 3 archivos
+  ✓ ecommerce/context · «<nil>»: subió el hash de lo releído
+    releería 16 archivos
+  ✓ meddipay/context · «<nil>»: subió el hash de lo releído
+    releería 4 archivos
+  ✓ nequi/context · «<nil>»: subió el hash de lo releído
+    releería 4 archivos
+  ✓ sucursal/context · «<nil>»: subió el hash de lo releído
+    releería 6 archivos
+  ✓ welli/context · «<nil>»: subió el hash de lo releído
+    releería 4 archivos
+  ✓ actores/context · «<nil>»: subió el hash de lo releído
+    releería 1 archivos
+  ✓ arrendamiento/context · «<nil>»: subió el hash de lo releído
+    releería 1 archivos
+  ✓ backoffice/context · «<nil>»: subió el hash de lo releído
+    releería 7 archivos
+  ✓ datos/context · «<nil>»: subió el hash de lo releído
+    releería 8 archivos
+  ✓ formularios/context · «<nil>»: subió el hash de lo releído
+    releería 4 archivos
+  ✓ listado/context · «<nil>»: subió el hash de lo releído
+    releería 11 archivos
+  ✓ bancolombia/context · «<nil>»: subió el hash de lo releído
+    releería 6 archivos
+  ✓ bcp/context · «<nil>»: subió el hash de lo releído
+    releería 2 archivos
+  ✓ credifamilia/context · «<nil>»: subió el hash de lo releído
+    releería 3 archivos
+  ✓ credito365/context · «<nil>»: subió el hash de lo releído
+    releería 2 archivos
+  ✓ imei/context · «<nil>»: subió el hash de lo releído
+    releería 17 archivos
+  ✓ kyc/context · «<nil>»: subió el hash de lo releído
+    releería 3 archivos
+  ✓ onboarding/context · «<nil>»: subió el hash de lo releído
+    releería 15 archivos
+  ✓ perfilamiento/context · «<nil>»: subió el hash de lo releído
+    releería 3 archivos
+  ✓ preaprobado/context · «<nil>»: subió el hash de lo releído
+    releería 4 archivos
+  ✓ salud-financiera/context · «<nil>»: subió el hash de lo releído
+    releería 2 archivos
+  ✓ ambientes/operar · «<nil>»: subió el hash de lo releído
+    releería 3 archivos
+  ✓ arquitectura/context · «<nil>»: subió el hash de lo releído
+    releería 7 archivos
+  ✓ fronteras/context · «<nil>»: subió el hash de lo releído
+    releería 4 archivos
+  ✓ infraestructura/operar · «<nil>»: subió el hash de lo releído
+    releería 7 archivos
+  ✓ internacionalizacion/context · «<nil>»: subió el hash de lo releído
+    releería 1 archivos
+  ✓ local/operar · «<nil>»: subió el hash de lo releído
+    releería 3 archivos
+  ✓ mobile/context · «<nil>»: subió el hash de lo releído
+    releería 1 archivos
+  ✓ observabilidad/operar · «<nil>»: subió el hash de lo releído
+    releería 5 archivos
+  ✓ repos/operar · «<nil>»: subió el hash de lo releído
+    releería 6 archivos
+  ✓ servicios/context · «<nil>»: subió el hash de lo releído
+    releería 1 archivos
+  (ensayo: el borrador se abandonó, no se escribió nada)

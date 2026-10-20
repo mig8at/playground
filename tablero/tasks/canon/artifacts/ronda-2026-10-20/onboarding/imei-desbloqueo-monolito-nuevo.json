@@ -1,0 +1,23 @@
+{
+  "node": "imei/context",
+  "section": "El monolito nuevo desbloquea por pago sin predecir, y arranca apagado",
+  "text_file": "imei-desbloqueo-monolito-nuevo.md",
+  "kind": "addition",
+  "source": "verified",
+  "verified": "2026-10-20",
+  "as_asked": "¿quién desbloquea el equipo cuando el pago entra por la pasarela y no por el panel?",
+  "objetivo": "Desbloquear el equipo financiado después de un pago desde el monolito nuevo, sin depender del histórico, y retomar lo que quedó sin confirmar.",
+  "se_deduce_leyendo": "qué pagos toma la conciliación, cuándo vuelve a mirar cada uno y qué interruptor la enciende",
+  "archivos": {
+    "legacy-backend": [
+      "Modules/DeviceLockingV1/App/Services/UnlockDeviceOnPaymentService.php",
+      "Modules/DeviceLockingV1/App/Services/SelectAndDispatchPaymentUnlocksService.php",
+      "Modules/DeviceLockingV1/App/Repositories/PaymentUnlockCandidateRepository.php",
+      "Modules/DeviceLockingV1/App/Jobs/UnlockDeviceOnPaymentJob.php"
+    ]
+  },
+  "tablas": [
+    "creditop_x_payment_register",
+    "device_locks"
+  ]
+}

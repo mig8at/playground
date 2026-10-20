@@ -1,0 +1,7 @@
+**El rotativo otorga mediante capacidad de pago, multiplicador de riesgo y un tope; no utiliza el motor de categorías.** El cupo y el plazo mínimo resultan de ese cálculo.
+
+Las implementaciones difieren: la histórica deriva el plazo mínimo del cupo calculado antes del tope; la nueva lo deriva del tope de la entidad. También redondean el cupo de manera distinta. Por eso el efecto de cambiar el tope depende del motor que atienda la solicitud.
+
+**En el motor nuevo, un cupo rotativo nuevo pasa antes por la política dura de la entidad**, con los mismos evaluadores, datos y motivos que el consumo: primero las reglas de usuario de su plantilla (edad, ingreso, ocupación, género, reportado en centrales) y, si pasan, las reglas de buró de su fila genérica (score, meses en el sector, consultas y negativos). Corre antes de leer las centrales y del cálculo; una entidad sin filas pasa las dos, y la regla de crédito activo del consumo no aplica. Un cupo ya aprobado se devuelve tal cual, sin evaluarla: la política sólo frena cupos nuevos. El rechazo devuelve todos los montos nulos y el motivo del consumo, que la consulta de cupo informa en lugar de `revolving_no_bureau_data`.
+
+En el listado del motor nuevo, un rotativo que falla las reglas duras se cae como el consumo, salvo que el cliente ya tenga un cupo aprobado con esa entidad: ahí sigue viendo la tarjeta para usarlo. El motor histórico no evalúa la política dura para el rotativo, y su listado sólo retira al consumo; el rotativo queda con probabilidad muy baja.

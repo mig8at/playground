@@ -1,0 +1,16 @@
+{
+  "node": "kyc/context",
+  "operacion": "verificado",
+  "source": "verified",
+  "verified": "2026-10-20",
+  "as_asked": "¿el tope de ADO, CrossCore y la validación manual de identidad siguen iguales?",
+  "archivos": {
+    "legacy-backend": [
+      "app/Services/Lenders/CredifamiliaV2/CrossCore/JumioOnboardingService.php",
+      "Modules/Identity/App/Http/Controllers/Customer/AdoController.php"
+    ],
+    "legacy-application": [
+      "app/Http/Controllers/Admin/UserController.php"
+    ]
+  }
+}

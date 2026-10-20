@@ -1,0 +1,17 @@
+{
+  "node": "ecommerce/context",
+  "section": "En tienda la cuota inicial la cobra la pasarela, y la firma espera a que se pague",
+  "text_file": "cuota-pasarela.md",
+  "kind": "correction",
+  "source": "verified",
+  "verified": "2026-10-20",
+  "as_asked": "¿por qué la pasarela no deja pagar una cuota inicial igual al total de la compra?",
+  "archivos": {
+    "legacy-backend": [
+      "Modules/Loans/App/Services/PaymentIntentService.php"
+    ],
+    "frontend-monorepo": [
+      "apps/loan-request-wizard/app/routes/down-payment/confirm.tsx"
+    ]
+  }
+}

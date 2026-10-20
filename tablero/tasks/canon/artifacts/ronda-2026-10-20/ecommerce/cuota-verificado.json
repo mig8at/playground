@@ -1,0 +1,14 @@
+{
+  "node": "cuota/context",
+  "operacion": "verificado",
+  "source": "verified",
+  "verified": "2026-10-20",
+  "as_asked": "ronda 2026-10-20: ¿el aviso a la tienda y el freno de la cuota inicial siguen igual?",
+  "archivos": {
+    "legacy-backend": [
+      "Modules/Loans/App/Services/PromissoryNoteService.php",
+      "Modules/Onboarding/App/Services/EcommerceRequestService.php",
+      "Modules/Onboarding/App/Services/UserRequestService.php"
+    ]
+  }
+}

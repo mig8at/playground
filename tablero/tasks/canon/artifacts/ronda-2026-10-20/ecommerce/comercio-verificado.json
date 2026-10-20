@@ -1,0 +1,21 @@
+{
+  "node": "comercio/context",
+  "operacion": "verificado",
+  "source": "verified",
+  "verified": "2026-10-20",
+  "as_asked": "ronda 2026-10-20: ¿lo que se cuenta del alta, la baja y el reporte del comercio sigue siendo cierto?",
+  "archivos": {
+    "legacy-application": [
+      "app/Http/Controllers/Admin/AlliedController.php",
+      "app/Http/Controllers/Admin/CreditopXRequestHistoryController.php",
+      "app/Http/Controllers/Admin/UserRequestController.php",
+      "app/Services/CreditopX/OriginatedRequestsQuery.php"
+    ],
+    "legacy-backend": [
+      "Modules/AlliedV1/App/Http/Requests/StoreAlliedPreRegistrationRequest.php"
+    ],
+    "Creditop-SAS/frontend-monorepo": [
+      "apps/landing/src/lib/merchant-signup-questions.ts"
+    ]
+  }
+}

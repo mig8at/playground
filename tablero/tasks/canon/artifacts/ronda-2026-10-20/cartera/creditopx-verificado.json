@@ -1,0 +1,17 @@
+{
+  "node": "creditopx/context",
+  "operacion": "verificado",
+  "as_asked": "ronda: ¿siguen ciertas las secciones de creditopx que se apoyan en los archivos que cambiaron en main?",
+  "archivos": {
+    "legacy-backend": [
+      "Modules/Loans/App/Http/Controllers/Customer/CreditopXQuotaController.php",
+      "Modules/Onboarding/App/Services/lenders/LenderValidationService.php",
+      "Modules/Loans/App/Services/CreditopXRequestHistoryService.php"
+    ],
+    "legacy-application": [
+      "app/Http/Controllers/Admin/CreditopXRequestHistoryController.php"
+    ]
+  },
+  "source": "verified",
+  "verified": "2026-10-20"
+}

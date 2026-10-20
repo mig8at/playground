@@ -1,0 +1,17 @@
+{
+  "node": "fronteras/context",
+  "operacion": "verificado",
+  "source": "verified",
+  "verified": "2026-10-20",
+  "as_asked": "¿qué rutas reenvía el servidor del asistente y qué puertas del sistema nuevo piden credencial?",
+  "archivos": {
+    "legacy-backend": [
+      "NEW_ARCHITECTURE.md",
+      "Modules/Loans/App/Services/PaymentIntentService.php",
+      "Modules/Loans/routes/api.php"
+    ],
+    "frontend-monorepo": [
+      "apps/loan-request-wizard/app/routes.ts"
+    ]
+  }
+}

@@ -1,0 +1,14 @@
+{
+  "node": "listado/context",
+  "section": "La probabilidad clasifica; no significa que se pasó la política dura",
+  "text_file": "listado-politica-dura.md",
+  "kind": "correction",
+  "source": "verified",
+  "verified": "2026-10-20",
+  "as_asked": "¿una entidad de cupo rotativo que no pasa su política dura sigue apareciendo en el listado?",
+  "archivos": {
+    "legacy-backend": ["Modules/Onboarding/App/Services/lenders/LenderValidationService.php"],
+    "legacy-application": ["app/Services/lenders/LenderValidationService.php"]
+  },
+  "tablas": ["creditop_x_revolving_credits", "lender_rules", "lender_datacredito_rules"]
+}

@@ -1,0 +1,19 @@
+{
+  "node": "repos/operar",
+  "operacion": "verificado",
+  "source": "verified",
+  "verified": "2026-10-20",
+  "as_asked": "¿a qué monolito le habla el perfilamiento y de dónde lee la API de comercios?",
+  "archivos": {
+    "legacy-backend": [
+      "NEW_ARCHITECTURE.md",
+      "Modules/Onboarding/routes/api.php",
+      "Modules/RiskV2/routes/api.php",
+      "Modules/UsersV1/App/Services/GetUserService.php"
+    ],
+    "merchant-api": [
+      "README.md",
+      "internal/modules/merchant/infra/storage/mysql/queries/merchant.sql"
+    ]
+  }
+}

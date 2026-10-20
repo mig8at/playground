@@ -1,0 +1,21 @@
+{
+  "node": "bancolombia/context",
+  "operacion": "verificado",
+  "source": "verified",
+  "verified": "2026-10-20",
+  "as_asked": "¿el canal de Bancolombia y el cierre por lotes de la caja siguen iguales?",
+  "archivos": {
+    "legacy-backend": [
+      "app/Actions/Lenders/CredifamiliaConsumo/TransactionRequest.php",
+      "Modules/Onboarding/App/Services/EcommerceRequestService.php",
+      "Modules/Onboarding/routes/api.php"
+    ],
+    "frontend-monorepo": [
+      "apps/loan-request-wizard/app/routes.ts",
+      "apps/loan-request-wizard/app/routes/bancolombia/onboarding/otp.tsx"
+    ],
+    "legacy-application": [
+      "app/Console/Kernel.php"
+    ]
+  }
+}

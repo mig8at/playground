@@ -1,0 +1,14 @@
+{
+  "node": "perfilamiento/context",
+  "operacion": "verificado",
+  "source": "verified",
+  "verified": "2026-10-20",
+  "as_asked": "¿cómo se otorga el cupo de CreditopX y del rotativo, y cuándo se cae del listado?",
+  "archivos": {
+    "legacy-backend": [
+      "Modules/Loans/App/Http/Controllers/Customer/CreditopXQuotaController.php",
+      "Modules/Onboarding/App/Services/lenders/LenderValidationService.php",
+      "Modules/Loans/App/Services/RevolvingCreditsService.php"
+    ]
+  }
+}

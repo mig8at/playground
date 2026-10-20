@@ -1,0 +1,23 @@
+{
+  "node": "formalizacion/context",
+  "operacion": "verificado",
+  "as_asked": "ronda: ¿siguen ciertas las secciones de formalización que se apoyan en los archivos que cambiaron en main?",
+  "archivos": {
+    "legacy-backend": [
+      "Modules/Loans/App/Http/Controllers/Customer/PromissoryNoteController.php",
+      "Modules/Loans/App/Http/Controllers/Customer/ValidateOtpPromissoryNoteController.php",
+      "Modules/Loans/App/Services/DocumentSigningService.php",
+      "Modules/Loans/App/Services/LoanAuthorizationService.php",
+      "Modules/Loans/App/Services/PromissoryNote/DecevalPromissoryNoteService.php",
+      "Modules/Loans/routes/api.php",
+      "app/Http/Middleware/RedirectIdValidationIfDesktop.php",
+      "Modules/Loans/App/Services/CreditopXRequestHistoryService.php",
+      "Modules/Loans/App/Services/PromissoryNote/TraditionalPromissoryNoteService.php"
+    ],
+    "legacy-application": [
+      "app/Http/Controllers/Admin/CreditopXRequestHistoryController.php"
+    ]
+  },
+  "source": "verified",
+  "verified": "2026-10-20"
+}

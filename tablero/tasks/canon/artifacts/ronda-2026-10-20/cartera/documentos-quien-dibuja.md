@@ -1,0 +1,5 @@
+**El motor de generación se decide por catálogo, entidad y tipo, en ese orden.** Una fila del catálogo de firma con motor propio prevalece sobre el ajuste por entidad; éste prevalece sobre el valor por defecto del tipo. Para usar el servicio de PDF se necesita el identificador de proyecto de la entidad.
+
+La mayoría de tipos tienen el generador clásico como opción inicial. La vinculación usa el servicio sin alternativa clásica, y el comprobante del híbrido está fijado al servicio. El pagaré de un cupo rotativo es un tipo aparte del pagaré y está fijado al clásico, sin variable de ambiente que lo cambie. El plan tras un cambio de cuota, el plan de cupo rotativo y el estado de cuenta también permanecen en el clásico, porque requieren capacidades que el servicio no soporta.
+
+Una entidad con el camino de Netco configurable prendido genera sus documentos de firma por ese camino, antes de esta cascada: [[formalizacion/context#una-entidad-puede-firmar-por-un-camino-de-netco-configurable-que-se-decide-antes-que-todo]].

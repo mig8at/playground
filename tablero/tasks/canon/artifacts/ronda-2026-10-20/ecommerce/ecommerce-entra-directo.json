@@ -1,0 +1,14 @@
+{
+  "node": "ecommerce/context",
+  "section": "En la tienda el comprador entra directo al celular: no hay bienvenida",
+  "text_file": "entra-directo.md",
+  "kind": "correction",
+  "source": "verified",
+  "verified": "2026-10-20",
+  "as_asked": "¿por dónde empieza el recorrido cuando el comprador viene de una tienda?",
+  "archivos": {
+    "frontend-monorepo": [
+      "apps/loan-request-wizard/app/routes/ecommerce/checkout.tsx"
+    ]
+  }
+}

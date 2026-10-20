@@ -1,0 +1,30 @@
+{
+  "node": "onboarding/context",
+  "operacion": "verificado",
+  "source": "verified",
+  "verified": "2026-10-20",
+  "as_asked": "¿dónde nace la solicitud, cómo se canjea el código de la app y qué rechaza el formulario personal?",
+  "archivos": {
+    "frontend-monorepo": [
+      "apps/loan-request-wizard/app/routes/loan-application-form/otp-verification.tsx",
+      "apps/loan-request-wizard/app/routes/lenders-marketplace/available-lenders.tsx",
+      "apps/loan-request-wizard/app/routes/loan-application-form/client-code.tsx",
+      "apps/loan-request-wizard/app/routes.ts"
+    ],
+    "legacy-backend": [
+      "Modules/Onboarding/App/Services/UserRequestService.php",
+      "Modules/Onboarding/App/Http/Controllers/OnboardingController.php",
+      "Modules/Onboarding/App/Services/OnboardingService.php",
+      "Modules/Onboarding/App/Services/ClientCodeRedemptionService.php",
+      "Modules/Onboarding/routes/api.php",
+      "Modules/OnboardingV2/App/Services/StorePersonalInfoService.php",
+      "Modules/OnboardingV2/App/Services/CompleteKycService.php",
+      "Modules/Onboarding/App/Repositories/GenerateServiceRepository.php"
+    ],
+    "Creditop-SAS/self-manager-api": [
+      "internal/infra/generate/code-generator.go",
+      "internal/infra/generate/qr-generator.go",
+      "internal/infra/handlers/generate/http_handler.go"
+    ]
+  }
+}

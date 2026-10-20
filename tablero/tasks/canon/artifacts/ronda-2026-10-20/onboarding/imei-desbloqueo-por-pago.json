@@ -1,0 +1,10 @@
+{
+  "node": "imei/context",
+  "section": "Cómo se evalúa el desbloqueo después de un pago",
+  "text_file": "imei-desbloqueo-por-pago.md",
+  "kind": "correction",
+  "source": "verified",
+  "verified": "2026-10-20",
+  "as_asked": "¿por qué el cliente pagó y el equipo sigue bloqueado, o el pago no tiene ninguna decisión de desbloqueo?",
+  "archivos": {"legacy-application": ["app/Jobs/UnlockDeviceIfUpToDate.php", "app/Services/Api/DeviceLockApiClient.php", "app/Http/Controllers/Admin/CreditopXPaymentController.php", "app/Console/Kernel.php"]}
+}

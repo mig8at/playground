@@ -1,0 +1,17 @@
+{
+  "node": "cartera/context",
+  "kind": "correction",
+  "section": "El cliente paga solo en la pantalla pública de pago, buscando su crédito por documento",
+  "text_file": "cartera-pantalla-publica.md",
+  "as_asked": "¿dónde paga el cliente su crédito CreditopX y adónde lleva el enlace de pago que se le envía?",
+  "objetivo": "Llevar al cliente a pagar su crédito a la aplicación de pagos desde cualquier dirección o enlace de pago del sistema viejo.",
+  "se_deduce_leyendo": "qué dirección de la aplicación de pagos arma cada caso —búsqueda, crédito de consumo o cupo rotativo— y de qué configuración sale",
+  "archivos": {
+    "legacy-application": [
+      "app/Http/Controllers/Customer/WompiController.php",
+      "app/Support/PaymentsUrl.php"
+    ]
+  },
+  "source": "verified",
+  "verified": "2026-10-20"
+}

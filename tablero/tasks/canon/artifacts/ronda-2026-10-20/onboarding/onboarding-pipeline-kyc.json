@@ -1,0 +1,10 @@
+{
+  "node": "onboarding/context",
+  "section": "Qué cambia cuando un comercio va por el pipeline de KYC",
+  "text_file": "onboarding-pipeline-kyc.md",
+  "kind": "correction",
+  "source": "verified",
+  "verified": "2026-10-20",
+  "as_asked": "en el pipeline de KYC, ¿qué pasa con el nombre y los términos si ninguna central confirma la identidad?",
+  "archivos": {"legacy-backend": ["Modules/OnboardingV2/App/Services/CompleteKycService.php"]}
+}

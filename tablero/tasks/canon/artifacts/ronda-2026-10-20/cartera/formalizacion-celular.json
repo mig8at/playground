@@ -1,0 +1,22 @@
+{
+  "node": "formalizacion/context",
+  "kind": "addition",
+  "section": "En el auto-onboarding de tienda, el cliente puede corregir su celular una vez en la pantalla del código de firma",
+  "text_file": "formalizacion-celular.md",
+  "as_asked": "el código de firma no le llega al cliente de tienda, ¿puede cambiar el celular?",
+  "objetivo": "Dejar que el cliente de una compra de tienda corrija una vez el celular al que se le envía el código de firma.",
+  "se_deduce_leyendo": "cuándo se ofrece, qué números se rechazan y cuándo cambia de verdad el celular del cliente",
+  "archivos": {
+    "legacy-backend": [
+      "Modules/Loans/App/Services/PromissoryNotePhoneChangeService.php",
+      "Modules/Loans/App/Http/Controllers/Customer/ValidateOtpPromissoryNoteController.php",
+      "Modules/Loans/App/Services/OtpValidationService.php"
+    ]
+  },
+  "tablas": [
+    "ecommerce_requests",
+    "users"
+  ],
+  "source": "verified",
+  "verified": "2026-10-20"
+}

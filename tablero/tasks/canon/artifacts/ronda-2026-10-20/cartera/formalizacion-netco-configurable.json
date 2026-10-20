@@ -1,0 +1,19 @@
+{
+  "node": "formalizacion/context",
+  "kind": "addition",
+  "section": "Una entidad puede firmar por un camino de Netco configurable, que se decide antes que todo",
+  "text_file": "formalizacion-netco-configurable.md",
+  "as_asked": "¿por qué una entidad firma con otros documentos que los del catálogo?",
+  "objetivo": "Firmar a una entidad por el camino de Netco configurable cuando su configuración lo prende, antes que el juego fijo y el catálogo.",
+  "se_deduce_leyendo": "qué tablas prenden a una entidad, en qué dos puntos se consulta y qué pasa si no se puede decidir",
+  "archivos": {
+    "legacy-backend": [
+      "Modules/Loans/App/Services/Signing/ConfigurableNetcoSwitch.php",
+      "Modules/SigningV1/App/Services/IsNetcoEnabledForLenderService.php",
+      "Modules/Loans/App/Http/Controllers/Customer/PromissoryNoteController.php",
+      "Modules/Loans/App/Services/DocumentSigningService.php"
+    ]
+  },
+  "source": "verified",
+  "verified": "2026-10-20"
+}

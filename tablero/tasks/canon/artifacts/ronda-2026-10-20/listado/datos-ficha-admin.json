@@ -1,0 +1,21 @@
+{
+  "node": "datos/context",
+  "section": "El admin viejo no deja editar a mano una ficha en blanco",
+  "text_file": "datos-ficha-admin.md",
+  "kind": "addition",
+  "source": "verified",
+  "verified": "2026-10-20",
+  "as_asked": "¿por qué el admin no me deja editar los datos de este usuario?",
+  "objetivo": "Proteger la ficha en blanco de ediciones manuales en el admin, para que sus datos personales sólo los escriba la validación de identidad.",
+  "se_deduce_leyendo": "con qué señales el admin reconoce una ficha temporal y qué pantallas y pedidos de edición rechaza",
+  "archivos": {
+    "legacy-application": [
+      "app/Models/User.php",
+      "app/Http/Controllers/Admin/UserController.php",
+      "app/Http/Controllers/Admin/UserRequestUserController.php",
+      "app/Http/Requests/Admin/User/UpdateRequest.php",
+      "app/Http/Requests/Admin/UserRequestUser/UpdateRequest.php"
+    ]
+  },
+  "tablas": ["users"]
+}

@@ -1,0 +1,14 @@
+{
+  "node": "local/operar",
+  "operacion": "verificado",
+  "source": "verified",
+  "verified": "2026-10-20",
+  "as_asked": "¿cómo levanto el backend en local y qué pruebas me recrean la base?",
+  "archivos": {
+    "legacy-backend": [
+      ".env.example",
+      "docker-compose.yml",
+      "Modules/Backoffice/tests/Feature/LenderRulesWriterServiceTest.php"
+    ]
+  }
+}

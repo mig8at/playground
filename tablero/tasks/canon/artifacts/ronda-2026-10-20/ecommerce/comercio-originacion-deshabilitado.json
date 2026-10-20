@@ -1,0 +1,22 @@
+{
+  "node": "comercio/context",
+  "section": "Un comercio deshabilitado no origina en el monolito nuevo, y sólo en algunas puertas",
+  "text_file": "originacion-deshabilitado.md",
+  "kind": "addition",
+  "source": "verified",
+  "verified": "2026-10-20",
+  "as_asked": "¿un comercio desactivado puede seguir originando solicitudes?",
+  "objetivo": "Impedir que un comercio o una sucursal dados de baja sigan originando créditos nuevos, sin cortar las solicitudes que ya estaban en curso.",
+  "se_deduce_leyendo": "qué estado se exige, en qué puntos de entrada se llama la regla, qué responde cada uno y qué caminos de creación quedan afuera",
+  "archivos": {
+    "legacy-backend": [
+      "Modules/AlliedBranchV1/App/Services/CheckIfAbleToOriginateService.php",
+      "Modules/Onboarding/App/Services/OriginationGuard.php"
+    ]
+  },
+  "tablas": [
+    "allieds",
+    "allied_branches",
+    "user_requests"
+  ]
+}

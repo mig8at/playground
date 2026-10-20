@@ -1,0 +1,3 @@
+**Con fianza anticipada la fianza entra al capital financiado; con fianza vencida se reparte en cada cuota.** El tipo y el porcentaje llegan de la pre-aprobación del proveedor: el tipo 2 es anticipada y el 1 vencida, y cualquier otro valor lanza una excepción.
+
+En la anticipada, la fianza, su IVA y el 4x1000 se suman al monto solicitado y no hay cuota de fianza. En la vencida el capital es el monto solicitado y el total de la fianza se divide entre el plazo. El IVA es un 19 % fijo y el 4x1000 se calcula sobre la fianza más su IVA, como lo confirmó el proveedor: el ejemplo del alcance lo aplicaba sólo al IVA. El comprobante, las cuotas y el monto total que viaja en la radicación salen del mismo cálculo. El plan de pagos dice «vencida» donde el SOAP dice «Mensual».

@@ -1,0 +1,10 @@
+{
+  "node": "credifamilia/context",
+  "section": "La fianza de Credifamilia se financia si es anticipada y se cobra por cuota si es vencida",
+  "text_file": "credifamilia-fianza.md",
+  "kind": "correction",
+  "source": "verified",
+  "verified": "2026-10-20",
+  "as_asked": "¿sobre qué base se calcula el 4x1000 de la fianza de Credifamilia?",
+  "archivos": {"legacy-backend": ["app/Actions/Lenders/CredifamiliaConsumo/TransactionRequest.php"]}
+}

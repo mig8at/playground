@@ -1,0 +1,17 @@
+{
+  "node": "documentos/context",
+  "kind": "correction",
+  "section": "CrediPullman promete en sus documentos condonar la última cuota, y ningún proceso de cartera la condona",
+  "text_file": "documentos-credipullman.md",
+  "as_asked": "¿los documentos de CrediPullman siguen prometiendo condonar la última cuota?",
+  "archivos": {
+    "legacy-backend": [
+      "resources/views/creditopxpdf/lenders/lender_77.blade.php"
+    ],
+    "legacy-application": [
+      "app/Actions/CreditopX/CondoneCreditBalances.php"
+    ]
+  },
+  "source": "verified",
+  "verified": "2026-10-20"
+}

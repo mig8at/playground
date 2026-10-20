@@ -1,0 +1,12 @@
+{
+  "node": "mobile/context",
+  "operacion": "verificado",
+  "source": "verified",
+  "verified": "2026-10-20",
+  "as_asked": "¿qué pasa con la ficha cuando el proveedor de identidad confirma una cuenta nueva de la app?",
+  "archivos": {
+    "legacy-backend": [
+      "Modules/MobileOnboardingV1/App/Services/ConfirmSignUpService.php"
+    ]
+  }
+}

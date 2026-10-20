@@ -1,0 +1,5 @@
+**El generador clásico busca una plantilla de la entidad y, si no existe, usa la genérica.** Pagaré, aval y plan de pagos hacen esa búsqueda por separado: tener una plantilla propia para uno no la garantiza para los demás.
+
+El reemplazo por la genérica no produce aviso. Una entidad puede emitir un documento válido para el generador pero distinto del formato que esperaba. Agregar una plantilla clásica propia requiere un archivo y un despliegue; no se resuelve con un ajuste del panel.
+
+En el sistema nuevo, el pagaré de un cupo rotativo es otro documento: busca la misma plantilla de la entidad y, si no existe, cae a la plantilla del rotativo en lugar de la genérica. Imprime el número de contrato del cupo —su identificador, completado a seis dígitos— y no se emite si el cliente no tiene un cupo activo con la entidad: sin número quedaría atado a un contrato que no nombra. El histórico usa también para el rotativo la plantilla de la entidad o la genérica. Una compra con un cupo que ya tiene pagaré firmado no genera otro: [[formalizacion/context#un-cupo-rotativo-firma-su-pagare-una-vez-y-las-compras-siguientes-reutilizan-ese]].

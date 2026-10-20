@@ -1,0 +1,18 @@
+{
+  "node": "formalizacion/context",
+  "kind": "correction",
+  "section": "El cierre es hostil al escritorio, a propósito",
+  "text_file": "formalizacion-escritorio.md",
+  "as_asked": "¿qué QR ve el cliente cuando intenta firmar desde un computador, y adónde lo lleva?",
+  "objetivo": "Dibujar el QR que lleva al cliente del escritorio al celular, en la pantalla en la que estaba.",
+  "se_deduce_leyendo": "qué pantallas admite, cómo se arma la dirección y por qué la imagen no pasa por la guarda de móvil",
+  "archivos": {
+    "legacy-backend": [
+      "app/Http/Middleware/RedirectIdValidationIfDesktop.php",
+      "Modules/Loans/routes/api.php",
+      "Modules/Loans/App/Http/Controllers/Customer/ContinueQrController.php"
+    ]
+  },
+  "source": "verified",
+  "verified": "2026-10-20"
+}

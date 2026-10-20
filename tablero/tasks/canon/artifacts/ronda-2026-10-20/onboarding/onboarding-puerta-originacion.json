@@ -1,0 +1,22 @@
+{
+  "node": "onboarding/context",
+  "section": "Un comercio deshabilitado no origina solicitudes nuevas en el monolito nuevo, pero las que están en curso terminan",
+  "text_file": "onboarding-puerta-originacion.md",
+  "kind": "addition",
+  "source": "verified",
+  "verified": "2026-10-20",
+  "as_asked": "desactivamos un comercio y sus asesores siguen creando solicitudes, ¿dónde se frena?",
+  "objetivo": "Impedir que un punto de venta apagado origine solicitudes nuevas sin cortar las que ya están en curso.",
+  "se_deduce_leyendo": "qué puntos de entrada consultan el estado del comercio y la sucursal, con qué código responden y cuáles no lo consultan",
+  "archivos": {
+    "legacy-backend": [
+      "Modules/Onboarding/App/Services/OriginationGuard.php",
+      "Modules/AlliedBranchV1/App/Services/CheckIfAbleToOriginateService.php",
+      "Modules/OnboardingV2/App/Services/ValidateOtpAuthService.php"
+    ]
+  },
+  "tablas": [
+    "allieds",
+    "allied_branches"
+  ]
+}

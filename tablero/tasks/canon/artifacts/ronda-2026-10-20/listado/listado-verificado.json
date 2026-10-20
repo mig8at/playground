@@ -1,0 +1,26 @@
+{
+  "node": "listado/context",
+  "operacion": "verificado",
+  "source": "verified",
+  "verified": "2026-10-20",
+  "as_asked": "¿siguen ciertas las secciones del listado después de los cambios recientes en main?",
+  "archivos": {
+    "legacy-backend": [
+      "Modules/Onboarding/App/Services/lenders/LenderValidationService.php",
+      "Modules/Onboarding/routes/api.php",
+      "Modules/Onboarding/App/Services/UserRequestService.php",
+      "app/Models/EcommerceRequest.php",
+      "Modules/Backoffice/routes/backoffice.php"
+    ],
+    "frontend-monorepo": [
+      "modules/loan-request-wizard/lenders-marketplace/src/components/MobileContinuationPrompt.tsx",
+      "modules/loan-request-wizard/lenders-marketplace/src/lib/utils/index.ts",
+      "apps/loan-request-wizard/app/routes/lenders-marketplace/available-lenders.tsx",
+      "modules/loan-request-wizard/lenders-marketplace/src/lib/infrastructure/repositories/loan-options.repository.ts",
+      "apps/loan-request-wizard/app/routes.ts"
+    ],
+    "legacy-application": [
+      "app/Http/Requests/Admin/Allied/UpdateRequest.php"
+    ]
+  }
+}

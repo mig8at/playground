@@ -1,0 +1,12 @@
+{
+  "node": "asesor/context",
+  "operacion": "verificado",
+  "source": "verified",
+  "verified": "2026-10-20",
+  "as_asked": "ronda 2026-10-20: ¿el celular del asesor con token sigue tratándose igual al validar el código?",
+  "archivos": {
+    "legacy-backend": [
+      "Modules/Loans/App/Services/OtpValidationService.php"
+    ]
+  }
+}

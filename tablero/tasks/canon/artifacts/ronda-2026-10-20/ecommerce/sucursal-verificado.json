@@ -1,0 +1,21 @@
+{
+  "node": "sucursal/context",
+  "operacion": "verificado",
+  "source": "verified",
+  "verified": "2026-10-20",
+  "as_asked": "ronda 2026-10-20: ¿lo que se cuenta de la sucursal sigue siendo cierto tras los cambios de main?",
+  "archivos": {
+    "legacy-backend": [
+      "Modules/Backoffice/App/Services/LenderRulesWriterService.php"
+    ],
+    "Creditop-SAS/merchant-api": [
+      "internal/modules/merchant/core/domain/storefront.go",
+      "internal/modules/merchant/infra/storage/mysql/queries/storefront.sql",
+      "internal/modules/merchant/infra/valkey/storefront_cache.go"
+    ],
+    "Creditop-SAS/frontend-monorepo": [
+      "modules/backoffice/merchants/src/lib/domain/contacto-publico.ts",
+      "modules/backoffice/merchants/src/components/BranchQrDialog.tsx"
+    ]
+  }
+}

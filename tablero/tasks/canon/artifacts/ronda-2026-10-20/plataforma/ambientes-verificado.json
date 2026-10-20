@@ -1,0 +1,14 @@
+{
+  "node": "ambientes/operar",
+  "operacion": "verificado",
+  "source": "verified",
+  "verified": "2026-10-20",
+  "as_asked": "¿siguen comportándose como producción, por el nombre del entorno, el onboarding y los datos personales en dev, qa, staging y lab?",
+  "archivos": {
+    "legacy-backend": [
+      "Modules/Identity/App/Services/AgildataService.php",
+      "Modules/Onboarding/App/Services/OnboardingService.php",
+      "Modules/OnboardingV2/App/Services/StorePersonalInfoService.php"
+    ]
+  }
+}

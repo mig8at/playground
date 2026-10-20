@@ -1,0 +1,13 @@
+{
+  "node": "salud-financiera/context",
+  "operacion": "verificado",
+  "source": "verified",
+  "verified": "2026-10-20",
+  "as_asked": "¿cómo arma el servicio la salud financiera y cuándo se rearma su caché?",
+  "archivos": {
+    "financial-health-service": [
+      "cmd/http-server/main.go",
+      "internal/core/usecases/module.go"
+    ]
+  }
+}

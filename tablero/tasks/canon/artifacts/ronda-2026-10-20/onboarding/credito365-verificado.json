@@ -1,0 +1,13 @@
+{
+  "node": "credito365/context",
+  "operacion": "verificado",
+  "source": "verified",
+  "verified": "2026-10-20",
+  "as_asked": "¿la selección de Crédito365 y su reconciliación siguen funcionando igual?",
+  "archivos": {
+    "legacy-backend": [
+      "Modules/Onboarding/App/Services/UserRequestService.php",
+      "Modules/Onboarding/routes/api.php"
+    ]
+  }
+}

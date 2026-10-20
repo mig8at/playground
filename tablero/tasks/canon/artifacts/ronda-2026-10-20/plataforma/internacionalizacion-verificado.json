@@ -1,0 +1,12 @@
+{
+  "node": "internacionalizacion/context",
+  "operacion": "verificado",
+  "source": "verified",
+  "verified": "2026-10-20",
+  "as_asked": "¿qué centrales se consultan en un país sin centrales habilitadas?",
+  "archivos": {
+    "legacy-backend": [
+      "Modules/Onboarding/App/Services/OnboardingService.php"
+    ]
+  }
+}

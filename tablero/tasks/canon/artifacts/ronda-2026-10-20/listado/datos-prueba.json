@@ -1,0 +1,20 @@
+{
+  "node": "datos/context",
+  "section": "Lo de prueba se excluye de las estadísticas por dos vías que conviven",
+  "text_file": "datos-prueba.md",
+  "kind": "addition",
+  "source": "verified",
+  "verified": "2026-10-20",
+  "as_asked": "¿cómo se excluyen los usuarios y solicitudes de prueba de las estadísticas, y por qué dos reportes no cuentan lo mismo?",
+  "objetivo": "Separar lo de prueba de lo real en métricas y reportes: qué usuarios y solicitudes se excluyen, con qué criterio y quién los marca.",
+  "se_deduce_leyendo": "qué criterios aplica la heurística por documento, cómo se propaga la marca del usuario a la solicitud y qué consultas filtran por cada vía",
+  "archivos": {
+    "legacy-application": ["app/Models/User.php", "app/Models/UserRequest.php", "app/Services/Allied/TestAdvisorProvisioner.php"],
+    "legacy-backend": [
+      "Modules/Loans/App/Services/UserProfilingService.php",
+      "database/migrations/2026_09_17_120000_add_is_test_to_users_table.php",
+      "database/migrations/2026_09_17_120200_add_is_test_trigger_to_user_requests_table.php"
+    ]
+  },
+  "tablas": ["users", "user_requests", "settings"]
+}

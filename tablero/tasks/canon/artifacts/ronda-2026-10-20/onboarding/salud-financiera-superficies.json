@@ -1,0 +1,10 @@
+{
+  "node": "salud-financiera/context",
+  "section": "La salud financiera se arma al momento con lo del monolito y nunca habla con la central de riesgo",
+  "text_file": "salud-financiera-superficies.md",
+  "kind": "correction",
+  "source": "verified",
+  "verified": "2026-10-20",
+  "as_asked": "¿cuánto tarda en verse el informe completo de salud financiera cuando el cliente gana o pierde el beneficio?",
+  "archivos": {"financial-health-service": ["cmd/http-server/main.go", "internal/core/usecases/module.go"]}
+}

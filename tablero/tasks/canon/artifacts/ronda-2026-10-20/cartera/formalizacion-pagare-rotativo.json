@@ -1,0 +1,25 @@
+{
+  "node": "formalizacion/context",
+  "kind": "addition",
+  "section": "Un cupo rotativo firma su pagaré una vez, y las compras siguientes reutilizan ese",
+  "text_file": "formalizacion-pagare-rotativo.md",
+  "as_asked": "¿cada compra de un cupo rotativo firma un pagaré nuevo ante el depósito?",
+  "objetivo": "Reutilizar el pagaré firmado del cupo rotativo activo en cada compra, sin crearlo ni firmarlo otra vez.",
+  "se_deduce_leyendo": "cómo se encuentra el pagaré del cupo, qué copia la fila de la compra y qué hace el monolito viejo",
+  "archivos": {
+    "legacy-backend": [
+      "Modules/Loans/App/Services/PromissoryNote/RevolvingMasterPromissoryNoteFinder.php",
+      "Modules/Loans/App/Services/PromissoryNote/DecevalPromissoryNoteService.php",
+      "Modules/Loans/App/Services/PromissoryNote/TraditionalPromissoryNoteService.php"
+    ],
+    "legacy-application": [
+      "app/Http/Controllers/Customer/PromissoryNoteController.php"
+    ]
+  },
+  "tablas": [
+    "promissory_notes",
+    "creditop_x_revolving_credits"
+  ],
+  "source": "verified",
+  "verified": "2026-10-20"
+}

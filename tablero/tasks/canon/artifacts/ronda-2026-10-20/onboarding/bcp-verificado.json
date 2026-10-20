@@ -1,0 +1,15 @@
+{
+  "node": "bcp/context",
+  "operacion": "verificado",
+  "source": "verified",
+  "verified": "2026-10-20",
+  "as_asked": "¿BCP sigue entregándose por POST y su link sigue venciendo igual?",
+  "archivos": {
+    "frontend-monorepo": [
+      "apps/loan-request-wizard/app/routes/lenders-marketplace/available-lenders.tsx"
+    ],
+    "legacy-backend": [
+      "Modules/Onboarding/App/Services/UserRequestService.php"
+    ]
+  }
+}

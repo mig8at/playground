@@ -1,0 +1,30 @@
+{
+  "node": "cartera/context",
+  "operacion": "verificado",
+  "as_asked": "ronda: ¿siguen ciertas las secciones de cartera que se apoyan en los archivos que cambiaron en main?",
+  "archivos": {
+    "legacy-application": [
+      "app/Http/Controllers/Admin/CreditopXPaymentController.php",
+      "app/Models/CreditopXPaymentRegister.php",
+      "app/Http/Controllers/Admin/CreditopXRequestHistoryController.php",
+      "app/Http/Controllers/Customer/CreditopXRequestHistoryController.php",
+      "app/Console/Kernel.php",
+      "app/Http/Controllers/Admin/RevolvingCreditsController.php",
+      "app/Services/CreditopX/OriginatedRequestsQuery.php",
+      "resources/js/pages/admin/requestsCreditopX/Index.vue",
+      "resources/js/pages/customer/requestsCreditopX/request-detail/RequestDetail.vue",
+      "app/Http/Controllers/Customer/WompiController.php",
+      "app/Exports/CollectionReportExport.php",
+      "resources/js/pages/admin/requestsCreditopX/request-detail/RequestDetail.vue"
+    ],
+    "legacy-backend": [
+      "Modules/Loans/App/Services/PaymentIntentService.php",
+      "Modules/Loans/App/Services/WompiWebhookService.php",
+      "app/Actions/Lenders/Wompi.php",
+      "Modules/Loans/App/Services/CreditopXPaymentService.php",
+      "Modules/Loans/App/Support/PaymentWaterfall.php"
+    ]
+  },
+  "source": "verified",
+  "verified": "2026-10-20"
+}

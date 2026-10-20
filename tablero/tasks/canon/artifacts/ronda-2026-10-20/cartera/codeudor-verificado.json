@@ -1,0 +1,12 @@
+{
+  "node": "codeudor/context",
+  "operacion": "verificado",
+  "as_asked": "ronda: ¿sigue cierta la re-evaluación del codeudor al firmar tras el cambio de DocumentSigningService?",
+  "archivos": {
+    "legacy-backend": [
+      "Modules/Loans/App/Services/DocumentSigningService.php"
+    ]
+  },
+  "source": "verified",
+  "verified": "2026-10-20"
+}

@@ -1,0 +1,25 @@
+{
+  "node": "cartera/context",
+  "kind": "addition",
+  "section": "La cuota inicial queda en el registro de pagos, en línea o en caja, y no es un abono al crédito",
+  "text_file": "cartera-cuota-inicial.md",
+  "as_asked": "¿dónde queda registrada la cuota inicial que el comercio cobra en caja, y por qué no cuadra con el dinero recaudado?",
+  "objetivo": "Dejar la cuota inicial en el registro de pagos, la pagada en línea y la cobrada en caja, sin contarla como recaudo del crédito.",
+  "se_deduce_leyendo": "cuándo nace cada fila, qué la hace única, con qué medio queda y qué lectores la excluyen o la muestran",
+  "archivos": {
+    "legacy-backend": [
+      "Modules/Loans/App/Services/InitialFee/StoreInitialFeeRegisterService.php",
+      "Modules/Loans/App/Services/InitialFee/RecordOnlineInitialFeeService.php"
+    ],
+    "legacy-application": [
+      "app/Models/CreditopXPaymentRegister.php",
+      "app/Exports/CollectionReportExport.php",
+      "app/Http/Controllers/Admin/CreditopXRequestHistoryController.php"
+    ]
+  },
+  "tablas": [
+    "creditop_x_payment_register"
+  ],
+  "source": "verified",
+  "verified": "2026-10-20"
+}

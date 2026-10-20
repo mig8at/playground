@@ -1,0 +1,21 @@
+{
+  "node": "creditopx/context",
+  "kind": "correction",
+  "section": "El rechazo desaparece sin mensaje, y no es una falla",
+  "text_file": "creditopx-rechazo.md",
+  "as_asked": "¿por qué un cupo rotativo de CreditopX no le aparece al cliente en el listado?",
+  "objetivo": "Evaluar la política dura de la entidad antes de otorgar un cupo rotativo nuevo, igual que en consumo.",
+  "se_deduce_leyendo": "qué reglas de usuario y de buró se evalúan, en qué orden y con qué motivo se rechaza",
+  "archivos": {
+    "legacy-backend": [
+      "Modules/Onboarding/App/Services/lenders/LenderValidationService.php",
+      "Modules/Loans/App/Services/RevolvingCredit/RevolvingHardPolicyGate.php",
+      "Modules/Loans/App/Services/RevolvingCreditsService.php"
+    ],
+    "legacy-application": [
+      "app/Services/lenders/LenderValidationService.php"
+    ]
+  },
+  "source": "verified",
+  "verified": "2026-10-20"
+}

@@ -1,0 +1,17 @@
+{
+  "node": "preaprobado/context",
+  "operacion": "verificado",
+  "source": "verified",
+  "verified": "2026-10-20",
+  "as_asked": "¿qué entidades se consultan en el preaprobado y cuándo se omite la consulta?",
+  "archivos": {
+    "legacy-backend": [
+      "Modules/Onboarding/App/Services/OnboardingService.php",
+      "Modules/Onboarding/App/Services/lenders/LenderValidationService.php"
+    ],
+    "frontend-monorepo": [
+      "modules/loan-request-wizard/lenders-marketplace/src/lib/infrastructure/repositories/loan-options.repository.ts",
+      "apps/loan-request-wizard/app/routes/lenders-marketplace/available-lenders.tsx"
+    ]
+  }
+}

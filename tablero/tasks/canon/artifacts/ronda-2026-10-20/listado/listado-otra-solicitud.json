@@ -1,0 +1,16 @@
+{
+  "node": "listado/context",
+  "section": "Elegir otra entidad puede abrir otra solicitud, y ahí un comercio apagado corta",
+  "text_file": "listado-otra-solicitud.md",
+  "kind": "addition",
+  "source": "verified",
+  "verified": "2026-10-20",
+  "as_asked": "¿por qué al elegir una entidad sale «este comercio no está habilitado para crear solicitudes»?",
+  "objetivo": "Impedir que un comercio o una sucursal deshabilitados originen solicitudes nuevas, dejando terminar las que ya están en curso.",
+  "se_deduce_leyendo": "en qué puntos de entrada se consulta el estado de la sucursal y del comercio, qué código y subcódigo devuelve cada uno, y qué pasa cuando el estado no se puede verificar",
+  "archivos": {
+    "legacy-backend": ["Modules/Onboarding/App/Services/UserRequestService.php", "Modules/Onboarding/App/Services/OriginationGuard.php"],
+    "frontend-monorepo": ["apps/loan-request-wizard/app/routes/lenders-marketplace/available-lenders.tsx", "apps/loan-request-wizard/app/utils/allied-disabled.ts"]
+  },
+  "tablas": ["user_requests", "allied_branches", "allieds"]
+}

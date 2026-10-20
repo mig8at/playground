@@ -1,0 +1,10 @@
+{
+  "node": "infraestructura/operar",
+  "section": "Si un servicio de desarrollo no llega a la base, lo primero es a qué host apunta, no el peering",
+  "text_file": "infraestructura-rds-desarrollo.md",
+  "kind": "correction",
+  "source": "verified",
+  "verified": "2026-10-20",
+  "as_asked": "¿por qué un proceso de la VPC legacy no llega a la base microservices-development de desarrollo?",
+  "archivos": {"infrastructure": ["environments/development/rds-microservices/terragrunt.hcl", "environments/development/rds-inertia/terragrunt.hcl", "environments/development/vpc/terragrunt.hcl", "modules/vpc/routes.tf", "modules/rds/main.tf"]}
+}

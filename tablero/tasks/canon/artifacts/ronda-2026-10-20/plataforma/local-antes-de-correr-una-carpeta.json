@@ -1,0 +1,21 @@
+{
+  "node": "local/operar",
+  "section": "Antes de correr una carpeta: el chequeo tiene que ver las tres formas",
+  "text_file": "local-antes-de-correr-una-carpeta.md",
+  "kind": "correction",
+  "source": "verified",
+  "verified": "2026-10-20",
+  "as_asked": "el grep de RefreshDatabase contra main me marca más archivos de los que borran: ¿cuáles son de verdad?",
+  "archivos": {
+    "legacy-backend": [
+      "Modules/UserRequestV1/tests/Pest.php",
+      "docs/cosigner/testing.md",
+      "tests/Feature/Commands/UnrollDevicesPaidCommandTest.php",
+      "tests/Feature/Jobs/DeviceUnrollJobTest.php",
+      "tests/Feature/Jobs/PollDeviceReleaseBatchJobTest.php",
+      "Makefile"
+    ]
+  },
+  "objetivo": "Qué marca de más el chequeo de carpeta contra main y cómo se acota lo que se corre.",
+  "se_deduce_leyendo": "qué archivos nombran el trait sin activarlo, qué guía lo cita y a qué carpetas se limita el objetivo de pruebas del onboarding"
+}

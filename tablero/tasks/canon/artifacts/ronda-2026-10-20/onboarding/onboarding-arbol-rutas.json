@@ -1,0 +1,10 @@
+{
+  "node": "onboarding/context",
+  "section": "Casi todos los comercios recorren el mismo árbol, y tres se apartan",
+  "text_file": "onboarding-arbol-rutas.md",
+  "kind": "correction",
+  "source": "verified",
+  "verified": "2026-10-20",
+  "as_asked": "¿por qué una compra de tienda entra por /auto y no por /ecommerce?",
+  "archivos": {"frontend-monorepo": ["apps/loan-request-wizard/app/routes.ts"]}
+}

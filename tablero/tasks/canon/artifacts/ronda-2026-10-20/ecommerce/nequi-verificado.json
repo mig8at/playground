@@ -1,0 +1,17 @@
+{
+  "node": "nequi/context",
+  "operacion": "verificado",
+  "source": "verified",
+  "verified": "2026-10-20",
+  "as_asked": "ronda 2026-10-20: ¿lo que se cuenta del cobro de Nequi sigue siendo cierto?",
+  "archivos": {
+    "frontend-monorepo": [
+      "apps/loan-request-wizard/app/routes.ts",
+      "apps/loan-request-wizard/app/routes/lenders-marketplace/available-lenders.tsx"
+    ],
+    "legacy-backend": [
+      "Modules/Onboarding/routes/api.php",
+      "Modules/Onboarding/App/Services/UserRequestService.php"
+    ]
+  }
+}

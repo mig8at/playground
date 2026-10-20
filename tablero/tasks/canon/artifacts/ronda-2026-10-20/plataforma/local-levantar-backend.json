@@ -1,0 +1,12 @@
+{
+  "node": "local/operar",
+  "section": "Levantar el backend: make up, y make setup solo la primera vez",
+  "text_file": "local-levantar-backend.md",
+  "kind": "correction",
+  "source": "verified",
+  "verified": "2026-10-20",
+  "as_asked": "levanté el backend en local y los documentos no se ven: ¿dónde guarda los PDF en mi máquina?",
+  "objetivo": "Emular S3 en la máquina propia: el bucket que crea el contenedor al arrancar y lo que la aplicación necesita para usarlo.",
+  "se_deduce_leyendo": "qué bucket crea el arranque de localstack con qué permisos y CORS, y qué variables lee el disco s3 de la aplicación",
+  "archivos": {"legacy-backend": ["docker-compose.yml", ".env.example", "docker/localstack/init-s3.sh", "config/filesystems.php"]}
+}

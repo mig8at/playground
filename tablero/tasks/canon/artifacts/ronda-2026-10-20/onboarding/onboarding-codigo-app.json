@@ -1,0 +1,10 @@
+{
+  "node": "onboarding/context",
+  "section": "El código de la app lo emite un servicio aparte y sólo vale en su comercio",
+  "text_file": "onboarding-codigo-app.md",
+  "kind": "correction",
+  "source": "verified",
+  "verified": "2026-10-20",
+  "as_asked": "¿puede salir el mismo código de la app para dos clientes, o canjearse dos veces?",
+  "archivos": {"Creditop-SAS/self-manager-api": ["internal/infra/generate/code-generator.go", "internal/infra/generate/qr-generator.go", "internal/infra/handlers/generate/http_handler.go"], "legacy-backend": ["Modules/Onboarding/App/Repositories/GenerateServiceRepository.php"]}
+}

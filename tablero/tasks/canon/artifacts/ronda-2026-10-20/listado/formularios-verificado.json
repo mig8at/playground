@@ -1,0 +1,17 @@
+{
+  "node": "formularios/context",
+  "operacion": "verificado",
+  "source": "verified",
+  "verified": "2026-10-20",
+  "as_asked": "¿siguen ciertas las secciones de formularios después de los cambios recientes en main?",
+  "archivos": {
+    "frontend-monorepo": [
+      "apps/loan-request-wizard/app/routes/loan-application-form/employment-info.tsx",
+      "apps/loan-request-wizard/app/routes/loan-application-form/loan-request-form.tsx"
+    ],
+    "legacy-backend": [
+      "Modules/Onboarding/App/Http/Controllers/OnboardingController.php",
+      "Modules/Onboarding/App/Services/OnboardingService.php"
+    ]
+  }
+}

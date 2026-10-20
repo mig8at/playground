@@ -1,0 +1,12 @@
+{
+  "node": "actores/context",
+  "operacion": "verificado",
+  "source": "verified",
+  "verified": "2026-10-20",
+  "as_asked": "¿sigue cierta la jerarquía de actores después de los cambios recientes en main?",
+  "archivos": {
+    "legacy-application": [
+      "app/Http/Controllers/Admin/AlliedController.php"
+    ]
+  }
+}

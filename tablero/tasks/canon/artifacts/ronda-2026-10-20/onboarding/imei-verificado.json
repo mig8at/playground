@@ -1,0 +1,30 @@
+{
+  "node": "imei/context",
+  "operacion": "verificado",
+  "source": "verified",
+  "verified": "2026-10-20",
+  "as_asked": "¿el recorrido IMEI, su desembolso y los crons de bloqueo siguen iguales?",
+  "archivos": {
+    "legacy-backend": [
+      "resources/views/creditopxpdf/paymentschedule.blade.php",
+      "Modules/Identity/App/Http/Controllers/Customer/AdoController.php",
+      "Modules/Loans/App/Http/Controllers/Customer/PromissoryNoteController.php",
+      "Modules/Loans/App/Http/Controllers/Customer/ValidateOtpPromissoryNoteController.php",
+      "Modules/Loans/App/Services/DocumentSigningService.php",
+      "Modules/Loans/App/Services/LoanAuthorizationService.php",
+      "Modules/Loans/routes/api.php",
+      "Modules/DeviceLockingV1/App/Providers/DeviceLockingV1ScheduleServiceProvider.php",
+      "app/Console/Commands/LockDevicesPastDueCommand.php",
+      "app/Console/Commands/SyncDeviceLocksCommand.php",
+      "app/Services/DeviceStateReader.php",
+      "config/device_locking.php"
+    ],
+    "legacy-application": [
+      "app/Http/Controllers/Admin/CreditopXRequestHistoryController.php",
+      "app/Jobs/UnlockDeviceIfUpToDate.php",
+      "app/Services/Api/DeviceLockApiClient.php",
+      "app/Http/Controllers/Admin/CreditopXPaymentController.php",
+      "app/Console/Kernel.php"
+    ]
+  }
+}

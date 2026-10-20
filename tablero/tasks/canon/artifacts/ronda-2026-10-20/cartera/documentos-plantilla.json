@@ -1,0 +1,18 @@
+{
+  "node": "documentos/context",
+  "kind": "correction",
+  "section": "El pagaré usa una plantilla de la entidad o la genérica",
+  "text_file": "documentos-plantilla.md",
+  "as_asked": "¿qué plantilla y qué número de contrato lleva el pagaré de un cupo rotativo?",
+  "archivos": {
+    "legacy-backend": [
+      "Modules/Loans/App/Services/DocumentGeneration/BladePdfGenerator.php",
+      "Modules/Loans/App/Services/PromissoryNoteService.php"
+    ],
+    "legacy-application": [
+      "app/Http/Controllers/Customer/PromissoryNoteController.php"
+    ]
+  },
+  "source": "verified",
+  "verified": "2026-10-20"
+}

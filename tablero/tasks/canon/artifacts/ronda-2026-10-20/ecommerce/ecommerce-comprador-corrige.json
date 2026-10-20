@@ -1,0 +1,17 @@
+{
+  "node": "ecommerce/context",
+  "section": "El comprador puede corregir todo lo que mandó la tienda, incluida su identidad",
+  "text_file": "comprador-corrige.md",
+  "kind": "correction",
+  "source": "verified",
+  "verified": "2026-10-20",
+  "as_asked": "¿qué datos del comprador prellena el pedido de la tienda y cuáles se pueden cambiar?",
+  "archivos": {
+    "frontend-monorepo": [
+      "apps/loan-request-wizard/app/routes/loan-application-form/loan-request-form.tsx"
+    ],
+    "legacy-backend": [
+      "Modules/Onboarding/App/Services/EcommerceRequestService.php"
+    ]
+  }
+}

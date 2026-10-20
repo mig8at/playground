@@ -1,0 +1,25 @@
+{
+  "node": "datos/context",
+  "section": "Qué cancela una solicitud y dónde queda el motivo",
+  "text_file": "datos-cancelacion.md",
+  "kind": "correction",
+  "source": "verified",
+  "verified": "2026-10-20",
+  "as_asked": "¿por qué no se puede cancelar una solicitud que todavía no está autorizada?",
+  "archivos": {
+    "legacy-backend": [
+      "Modules/Loans/App/Repositories/UserRequestRepository.php",
+      "Modules/Loans/App/Services/CancelRequestService.php",
+      "Modules/Loans/App/Repositories/InitialFeePaymentStatusRepository.php",
+      "Modules/Loans/App/Exceptions/InitialFeePaidCancellationException.php"
+    ]
+  },
+  "tablas": [
+    "user_requests",
+    "user_request_records",
+    "creditop_x_user_requests_records",
+    "payment_gateway_transactions"
+  ],
+  "objetivo": "Impedir que se cancele una solicitud cuyo cliente ya pagó la cuota inicial, y decirle al que la pide por qué.",
+  "se_deduce_leyendo": "cómo se reconoce un pago de cuota inicial aprobado y qué respuesta recibe quien intenta cancelar"
+}

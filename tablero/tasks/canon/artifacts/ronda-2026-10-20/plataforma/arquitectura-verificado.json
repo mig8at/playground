@@ -1,0 +1,20 @@
+{
+  "node": "arquitectura/context",
+  "operacion": "verificado",
+  "source": "verified",
+  "verified": "2026-10-20",
+  "as_asked": "¿qué atiende cada monolito hoy y quién le avisa a la tienda?",
+  "archivos": {
+    "legacy-application": [
+      "app/Console/Kernel.php",
+      "app/Http/Controllers/Admin/UserController.php"
+    ],
+    "legacy-backend": [
+      "Modules/Loans/App/Http/Controllers/Customer/ValidateOtpPromissoryNoteController.php",
+      "Modules/Onboarding/App/Services/EcommerceRequestService.php",
+      "Modules/Loans/App/Services/WompiWebhookService.php",
+      "Modules/Loans/routes/api.php",
+      "Modules/Onboarding/routes/api.php"
+    ]
+  }
+}

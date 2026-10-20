@@ -1,0 +1,18 @@
+{
+  "node": "observabilidad/operar",
+  "operacion": "verificado",
+  "source": "verified",
+  "verified": "2026-10-20",
+  "as_asked": "¿cómo se lee un código de respuesta del sistema nuevo y cómo se cuenta el bloqueo por ráfaga?",
+  "archivos": {
+    "legacy-backend": [
+      "Modules/Onboarding/App/Http/Controllers/OnboardingController.php",
+      "Modules/Onboarding/App/Services/OnboardingService.php",
+      "Modules/OnboardingV2/App/Services/ValidateOtpAuthService.php",
+      "NEW_ARCHITECTURE.md"
+    ],
+    "frontend-monorepo": [
+      "apps/loan-request-wizard/app/routes/loan-application-form/otp-verification.tsx"
+    ]
+  }
+}

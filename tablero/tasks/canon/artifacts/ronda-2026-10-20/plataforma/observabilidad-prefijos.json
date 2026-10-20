@@ -1,0 +1,10 @@
+{
+  "node": "observabilidad/operar",
+  "section": "Los prefijos de módulo en uso hoy",
+  "text_file": "observabilidad-prefijos.md",
+  "kind": "correction",
+  "source": "verified",
+  "verified": "2026-10-20",
+  "as_asked": "¿de qué módulo es un código que empieza con SGV1?",
+  "archivos": {"legacy-backend": ["NEW_ARCHITECTURE.md"]}
+}

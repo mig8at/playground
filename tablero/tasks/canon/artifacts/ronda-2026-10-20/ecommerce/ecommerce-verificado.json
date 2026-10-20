@@ -1,0 +1,31 @@
+{
+  "node": "ecommerce/context",
+  "operacion": "verificado",
+  "source": "verified",
+  "verified": "2026-10-20",
+  "as_asked": "ronda 2026-10-20: ¿lo que el canal de tienda cuenta sigue siendo cierto tras los cambios de main?",
+  "archivos": {
+    "legacy-application": [
+      "app/Http/Controllers/Admin/UserController.php",
+      "app/Console/Kernel.php"
+    ],
+    "frontend-monorepo": [
+      "apps/loan-request-wizard/app/routes/ecommerce/checkout.tsx",
+      "apps/loan-request-wizard/app/routes/loan-application-form/otp-verification.tsx",
+      "apps/loan-request-wizard/app/server/services/ecommerce-context.server.ts",
+      "apps/loan-request-wizard/app/routes/loan-application-form/loan-request-form.tsx",
+      "apps/loan-request-wizard/app/routes/lenders-marketplace/available-lenders.tsx",
+      "apps/loan-request-wizard/app/routes/down-payment/confirm.tsx"
+    ],
+    "legacy-backend": [
+      "Modules/Onboarding/App/Services/EcommerceRequestService.php",
+      "Modules/Onboarding/App/Services/UserRequestService.php",
+      "app/Http/Middleware/RedirectIdValidationIfDesktop.php",
+      "Modules/Onboarding/routes/api.php",
+      "Modules/Loans/App/Services/PaymentIntentService.php",
+      "Modules/Loans/App/Services/WompiWebhookService.php",
+      "Modules/Loans/routes/api.php",
+      "app/Models/EcommerceRequest.php"
+    ]
+  }
+}

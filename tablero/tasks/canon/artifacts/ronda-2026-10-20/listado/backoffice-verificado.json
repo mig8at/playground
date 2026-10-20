@@ -1,0 +1,20 @@
+{
+  "node": "backoffice/context",
+  "operacion": "verificado",
+  "source": "verified",
+  "verified": "2026-10-20",
+  "as_asked": "¿siguen ciertas las secciones del backoffice después de los cambios recientes en main?",
+  "archivos": {
+    "legacy-backend": [
+      "Modules/Backoffice/App/Services/LenderRulesService.php",
+      "Modules/Backoffice/App/Services/LenderRulesWriterService.php",
+      "Modules/Backoffice/App/Support/LenderRulesMap.php",
+      "Modules/Backoffice/routes/backoffice.php"
+    ],
+    "frontend-monorepo": [
+      "modules/backoffice/lender-rules/src/components/DiffDialog.tsx",
+      "modules/backoffice/lender-rules/src/components/LenderRulesView.tsx",
+      "modules/backoffice/merchants/src/components/MerchantsListView.tsx"
+    ]
+  }
+}

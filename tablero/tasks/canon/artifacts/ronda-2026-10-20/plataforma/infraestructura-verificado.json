@@ -1,0 +1,18 @@
+{
+  "node": "infraestructura/operar",
+  "operacion": "verificado",
+  "source": "verified",
+  "verified": "2026-10-20",
+  "as_asked": "¿qué servicios corren con sistema de archivos de sólo lectura y cómo llegan las bases de desarrollo?",
+  "archivos": {
+    "infrastructure": [
+      "environments/development/rds-microservices/terragrunt.hcl",
+      "modules/rds/main.tf",
+      "modules/vpc/routes.tf",
+      "environments/development/ecs-application/terragrunt.hcl",
+      "environments/prod/ecs-application/terragrunt.hcl",
+      "modules/ecs-application/variables.tf",
+      "environments/prod/internal-tools/terragrunt.hcl"
+    ]
+  }
+}

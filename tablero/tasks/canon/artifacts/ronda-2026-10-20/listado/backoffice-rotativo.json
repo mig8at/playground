@@ -1,0 +1,22 @@
+{
+  "node": "backoffice/context",
+  "section": "Al rotativo sólo se le edita la política dura, y confirmarla destraba sus condiciones",
+  "text_file": "backoffice-rotativo.md",
+  "kind": "addition",
+  "source": "verified",
+  "verified": "2026-10-20",
+  "as_asked": "¿por qué no puedo guardar las condiciones del cupo rotativo de una entidad en el backoffice?",
+  "objetivo": "Configurar desde el backoffice lo que ofrece una entidad de cupo rotativo: el tope del cupo y la cuota inicial y FGA de cada banda, después de confirmar su política dura.",
+  "se_deduce_leyendo": "qué guarda cada pestaña de la pantalla del rotativo, qué la bloquea hasta confirmar la política, cómo se versiona y qué repite el simulador",
+  "archivos": {
+    "legacy-backend": [
+      "Modules/Backoffice/App/Services/LenderRulesService.php",
+      "Modules/Backoffice/App/Services/LenderRulesWriterService.php",
+      "Modules/Backoffice/App/Support/LenderRulesMap.php",
+      "Modules/Backoffice/App/Services/RevolvingConditionsWriterService.php",
+      "Modules/Backoffice/App/Support/RevolvingConditionsMap.php",
+      "Modules/Backoffice/App/Http/Controllers/RevolvingConditionsController.php"
+    ]
+  },
+  "tablas": ["lender_rules", "lender_datacredito_rules", "lender_rules_snapshots", "lender_rules_changesets", "lenders"]
+}

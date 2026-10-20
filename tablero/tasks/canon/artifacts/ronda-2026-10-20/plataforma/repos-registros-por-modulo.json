@@ -1,0 +1,12 @@
+{
+  "node": "repos/operar",
+  "section": "Cada módulo del sistema nuevo lleva escrito lo que está mal a propósito",
+  "text_file": "repos-registros-por-modulo.md",
+  "kind": "correction",
+  "source": "verified",
+  "verified": "2026-10-20",
+  "as_asked": "¿cuántos módulos de la arquitectura nueva hay y cuáles llevan registro de desviaciones?",
+  "objetivo": "El registro de deuda y de desviaciones del módulo de firma electrónica por entidad.",
+  "se_deduce_leyendo": "qué deuda propia declara el módulo de firma, si está marcada en el código y qué desviaciones acepta",
+  "archivos": {"legacy-backend": ["NEW_ARCHITECTURE.md", "Modules/SigningV1/TECHNICAL_DEBT.md", "Modules/SigningV1/ARCHITECTURE_EXCEPTIONS.md"]}
+}

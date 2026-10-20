@@ -1,0 +1,5 @@
+**El recorrido común reúne monto, celular, código, datos, estudio y listado; después se divide según la entidad elegida.** El canal se incorpora como parámetro.
+
+El asesor tiene una entrada autenticada y continúa por el recorrido común después del listado. Bancolombia cuenta con pantallas propias, BCP con retornos y cancelación propios, y el hub del consumidor con su propio árbol. Una diferencia en esas entradas no cambia por sí sola el funcionamiento del recorrido compartido.
+
+La compra de tienda tiene además un árbol de entrada propio, `/auto/<sucursal>/…`, para las sucursales del setting `auto_onboarding_allied_branches`: el celular y los datos personales salen del pedido —si las centrales no los validan, el comprador los revisa en el formulario de siempre— y el comprador sólo escribe el código, o ni eso cuando el comercio firmó el pedido. Ese árbol cubre inicio, código y la espera mientras se guardan los datos; del listado en adelante sigue por el árbol de ecommerce. Va aparte porque el árbol con el canal como parámetro devuelve al inicio cualquier canal que no conoce.

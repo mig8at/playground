@@ -1,0 +1,17 @@
+{
+  "node": "ecommerce/context",
+  "section": "El pedido viaja en la dirección y se ancla al validar el código; si se pierde, la tienda nunca se entera",
+  "text_file": "pedido-viaja.md",
+  "kind": "correction",
+  "source": "verified",
+  "verified": "2026-10-20",
+  "as_asked": "¿cuándo se vincula la solicitud con el pedido de la tienda, también si el pedido llegó firmado?",
+  "archivos": {
+    "frontend-monorepo": [
+      "apps/loan-request-wizard/app/routes/ecommerce/checkout.tsx"
+    ],
+    "legacy-backend": [
+      "Modules/Onboarding/App/Services/EcommerceRequestService.php"
+    ]
+  }
+}

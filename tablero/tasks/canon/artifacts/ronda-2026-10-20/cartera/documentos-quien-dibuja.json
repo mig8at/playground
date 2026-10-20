@@ -1,0 +1,15 @@
+{
+  "node": "documentos/context",
+  "kind": "correction",
+  "section": "Quién dibuja cada documento se decide por tipo, con canary por entidad",
+  "text_file": "documentos-quien-dibuja.md",
+  "as_asked": "¿con qué motor se genera el pagaré de un cupo rotativo?",
+  "archivos": {
+    "legacy-backend": [
+      "config/documents.php",
+      "Modules/Loans/App/Services/PromissoryNoteService.php"
+    ]
+  },
+  "source": "verified",
+  "verified": "2026-10-20"
+}

@@ -1,0 +1,22 @@
+{
+  "node": "cartera/context",
+  "kind": "correction",
+  "section": "Un mínimo ya pagado que quedó en mora se regulariza esa noche",
+  "text_file": "cartera-minimo-exacto.md",
+  "as_asked": "¿por qué un crédito que pagó el mínimo exacto quedaba en mora, y sigue pasando?",
+  "objetivo": "Comparar contra cero lo que queda del mínimo con la misma escala que guarda la base, para que pagar el mínimo exacto deje el crédito al día.",
+  "se_deduce_leyendo": "a cuántos decimales se redondea, en qué pasos de la aplicación del pago, y cómo se espeja entre los dos monolitos",
+  "archivos": {
+    "legacy-application": [
+      "app/Http/Controllers/Admin/CreditopXPaymentController.php",
+      "app/Helpers/MoneyScale.php"
+    ],
+    "legacy-backend": [
+      "Modules/Loans/App/Services/CreditopXPaymentService.php",
+      "Modules/Loans/App/Support/PaymentWaterfall.php",
+      "Modules/Loans/App/Support/Money.php"
+    ]
+  },
+  "source": "verified",
+  "verified": "2026-10-20"
+}

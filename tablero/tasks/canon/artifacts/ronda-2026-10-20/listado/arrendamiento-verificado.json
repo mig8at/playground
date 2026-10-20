@@ -1,0 +1,12 @@
+{
+  "node": "arrendamiento/context",
+  "operacion": "verificado",
+  "source": "verified",
+  "verified": "2026-10-20",
+  "as_asked": "¿sigue cierto el recorrido de arrendamiento después de los cambios recientes en main?",
+  "archivos": {
+    "frontend-monorepo": [
+      "apps/loan-request-wizard/app/routes/lenders-marketplace/available-lenders.tsx"
+    ]
+  }
+}

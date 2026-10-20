@@ -1,0 +1,12 @@
+{
+  "node": "local/operar",
+  "section": "Lo que borra la base: make test y make fresh no se corren",
+  "text_file": "local-lo-que-borra-la-base.md",
+  "kind": "correction",
+  "source": "verified",
+  "verified": "2026-10-20",
+  "as_asked": "¿qué pruebas de legacy-backend me pueden recrear la base local si corro su carpeta?",
+  "objetivo": "Las pruebas de reglas y de bloqueo de equipos que se sumaron a las que recrean la base al correr.",
+  "se_deduce_leyendo": "qué pruebas nuevas usan el trait de Laravel que recrea la base, y si lo importan de verdad o sólo lo nombran",
+  "archivos": {"legacy-backend": ["Modules/Backoffice/tests/Feature/LenderRulesWriterServiceTest.php", "Modules/Backoffice/tests/Feature/RevolvingConditionsWriterServiceTest.php", "Modules/Backoffice/tests/Feature/RevolvingSimulationServiceTest.php", "Modules/Partner/tests/Feature/BranchRuleCopyTest.php", "tests/Feature/Commands/SyncDeviceLocksCommandTest.php", "tests/Feature/Console/SyncDeviceLocksCommandTest.php", "tests/Feature/Jobs/DeviceLockStatusJobTest.php", "tests/Feature/Commands/UnrollDevicesPaidCommandTest.php", "tests/Feature/Jobs/DeviceUnrollJobTest.php", "tests/Feature/Jobs/PollDeviceReleaseBatchJobTest.php", "Modules/UserRequestV1/tests/Pest.php", "tests/Pest.php", "Modules/Identity/tests/Pest.php"]}
+}

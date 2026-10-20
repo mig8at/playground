@@ -1,0 +1,12 @@
+{
+  "node": "observabilidad/operar",
+  "section": "Un código de respuesta del sistema nuevo indica de qué módulo y de qué pregunta salió",
+  "text_file": "observabilidad-codigo-de-respuesta.md",
+  "kind": "correction",
+  "source": "verified",
+  "verified": "2026-10-20",
+  "as_asked": "me llegó un código URV32000 o USV29000 y la guía de arquitectura no lo lista: ¿de qué módulo es?",
+  "objetivo": "Las operaciones de los módulos de personas y de solicitudes que ya pasaron los rangos de códigos que anota la guía.",
+  "se_deduce_leyendo": "qué servicios emiten los códigos de contador más alto de personas y solicitudes",
+  "archivos": {"legacy-backend": ["NEW_ARCHITECTURE.md", "Modules/UserRequestV1/App/Services/CreateUserRequestService.php", "Modules/UsersV1/App/Services/UpdateUserDataService.php"]}
+}

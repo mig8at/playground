@@ -1,0 +1,9 @@
+**El código lo emite un servicio aparte, no la app ni el monolito.** La app pide el código para un comercio y una entidad de un preaprobado del cliente; el servicio lo guarda con el cliente, el comercio y la entidad, y lo devuelve. `legacy-backend` sólo lo consulta y lo consume a través de ese servicio, con la dirección que le da su configuración: sin ella, cualquier canje responde error de configuración, válido o no el código. Sus rutas para generar QR, código de barras y código siguen el contrato viejo del servicio y fallan siempre; nadie las llama.
+
+**Un código vale sólo en su comercio.** La consulta y el consumo buscan por comercio y código, así que el mismo código escrito en otro comercio no existe. El comercio es el aliado, no la sucursal: vale en cualquier sucursal de ese aliado. El servicio no comprueba que el comercio exista ni que tenga la entidad habilitada; eso lo decide el canje, al armar el listado.
+
+**Mientras esté activo, se reusa.** Pedir otra vez el código para el mismo cliente, comercio y entidad devuelve el mismo, incluso uno emitido en el formato viejo de cuatro dígitos. Los códigos nuevos son dos letras y cuatro dígitos; se comparan en mayúsculas.
+
+**Un código emitido queda reservado hasta su vencimiento, en todos los comercios**, aunque ya se haya usado: al emitir, si el código que sale lo tiene otro registro vigente, se sortea otro, hasta cinco intentos; después la emisión falla.
+
+**Vence el último día del mes en que se emitió.** Al consultarlo después de esa fecha, el servicio lo marca vencido y responde que expiró. Un código consumido no se puede volver a canjear, y el consumo sólo pasa si el código sigue activo en ese instante: de dos canjes simultáneos, el segundo responde código inválido. Usado, inactivo o inexistente responden igual al canje; el motivo queda sólo en el registro del servicio.

@@ -1,0 +1,12 @@
+{
+  "node": "infraestructura/operar",
+  "section": "Un despliegue de ECS que no arranca vuelve solo a la versión anterior",
+  "text_file": "infraestructura-despliegue-revierte.md",
+  "kind": "addition",
+  "source": "verified",
+  "verified": "2026-10-20",
+  "as_asked": "desplegué una versión nueva del servicio, el workflow terminó bien y sigue corriendo la anterior: ¿qué pasó?",
+  "objetivo": "Qué hace ECS cuando una versión nueva no arranca, y quién decide cuántas tareas corre cada servicio en producción.",
+  "se_deduce_leyendo": "el valor por defecto del interruptor de despliegue y su vuelta atrás, cómo se arma el autoescalado de cada servicio y de dónde sale la retención de sus logs",
+  "archivos": {"infrastructure": ["modules/ecs-application/service.tf", "modules/ecs-application/autoscaling.tf", "modules/ecs-application/logs.tf", "modules/ecs-application/variables.tf", "environments/prod/ecs-application/terragrunt.hcl"]}
+}

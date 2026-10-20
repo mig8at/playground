@@ -1,0 +1,16 @@
+{
+  "node": "credifamilia/context",
+  "operacion": "verificado",
+  "source": "verified",
+  "verified": "2026-10-20",
+  "as_asked": "¿la radicación de Credifamilia al autorizar y su compuerta de consulta siguen iguales?",
+  "archivos": {
+    "legacy-backend": [
+      "Modules/Loans/App/Services/LoanAuthorizationService.php",
+      "app/Actions/Lenders/CredifamiliaConsumo/TransactionRequest.php"
+    ],
+    "frontend-monorepo": [
+      "apps/loan-request-wizard/app/routes/lenders-marketplace/available-lenders.tsx"
+    ]
+  }
+}

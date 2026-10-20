@@ -1,0 +1,10 @@
+{
+  "node": "repos/operar",
+  "section": "La API de comercios lee la base heredada y orquesta el codeudor",
+  "text_file": "repos-api-de-comercios.md",
+  "kind": "correction",
+  "source": "verified",
+  "verified": "2026-10-20",
+  "as_asked": "¿por qué un cliente ve en la app un comercio donde ya tiene una solicitud abierta?",
+  "archivos": {"merchant-api": ["README.md", "internal/modules/merchant/infra/storage/mysql/queries/merchant.sql"]}
+}

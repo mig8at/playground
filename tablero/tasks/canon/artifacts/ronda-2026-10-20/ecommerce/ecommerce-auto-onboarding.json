@@ -1,0 +1,29 @@
+{
+  "node": "ecommerce/context",
+  "section": "Una sucursal del auto-onboarding sólo pide el código, y con el pedido firmado ni eso",
+  "text_file": "auto-onboarding.md",
+  "kind": "addition",
+  "source": "verified",
+  "verified": "2026-10-20",
+  "as_asked": "¿por qué un comprador de tienda entra sin escribir sus datos, o sin código, y de qué depende?",
+  "objetivo": "Dejar que el comprador de una tienda entre al crédito sin llenar formularios —y sin código cuando la tienda firmó el pedido— con los datos que la tienda ya tiene.",
+  "se_deduce_leyendo": "qué sucursales entran, qué datos tiene que traer el pedido, cómo se verifica la firma y se consume el token de un solo uso, a dónde cae el comprador cuando algo falta o la validación no pasa, y la corrección del celular en la firma",
+  "archivos": {
+    "legacy-backend": [
+      "Modules/Onboarding/App/Services/MerchantOrderSignatureService.php",
+      "Modules/Onboarding/App/Repositories/EcommerceRequestRepository.php",
+      "Modules/Loans/App/Services/PromissoryNotePhoneChangeService.php"
+    ],
+    "frontend-monorepo": [
+      "apps/loan-request-wizard/app/server/services/auto-onboarding.server.ts",
+      "apps/loan-request-wizard/app/server/services/auto-onboarding-session.server.ts",
+      "apps/loan-request-wizard/app/routes/auto-onboarding/start.tsx",
+      "apps/loan-request-wizard/app/routes/auto-onboarding/verifying.tsx"
+    ]
+  },
+  "tablas": [
+    "ecommerce_requests",
+    "allied_ecommerce_credentials",
+    "settings"
+  ]
+}

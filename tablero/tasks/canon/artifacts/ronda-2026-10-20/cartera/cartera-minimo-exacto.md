@@ -1,0 +1,10 @@
+**Pagar el mínimo exacto deja el crédito al día en el acto; la regularización nocturna queda para el crédito que ya quedó en mora con el mínimo en cero.** Al aplicar un pago, los dos sistemas redondean cada componente que queda del mínimo, y el sobrante del pago, a los cuatro decimales que guarda la base antes de compararlos contra cero. Sin ese redondeo, una resta con decimales dejaba un residuo que la comparación de [[#reglas-contables-para-actualizar-el-estado]] leía como deuda: la fecha de pago no avanzaba y, con mora previa, el crédito quedaba en mora con el mínimo guardado en cero. El mismo residuo en el sobrante creaba un retenido de cero pesos con su aviso de pago retenido.
+
+Un crédito que quedó en mora con el mínimo en cero lo corrige el proceso nocturno del monolito viejo, y la corrida que lo hace depende del calendario:
+
+- **Noche de corte:** la condonación previa al corte, a las 00:10, toma además de las colillas los créditos activos en mora con el mínimo en cero y la fecha de pago vencida. Los deja al día, sin días de atraso, y corre la fecha de pago un ciclo; la fecha de corte, el día de facturación y el capital excluido no cambian. Tiene que ir antes que el cierre: el de las 00:30 factura primero la cuota nueva y recién después mira la colilla, así que sin este paso el cliente amanecería en mora por una cuota que ya pagó.
+- **Cualquier otra noche:** el cierre de las 00:30 encuentra un mínimo en cero, por debajo del umbral de la entidad, y lo regulariza como colilla ([[#la-colilla-puede-condonar-el-minimo-de-cualquier-ciclo]]).
+
+Un mínimo en cero con el crédito al día es lo normal entre ciclos y no se toca: correrle la fecha le saltaría una cuota. Por eso la regla exige el estado en mora. Los cupos rotativos quedan fuera.
+
+En el libro del crédito queda como condonación de colillas con monto condonado cero. La proyección que usa el desbloqueo por pago simula esta misma regla, y el desbloqueo no espera a que corra: [[imei/context#como-se-evalua-el-desbloqueo-despues-de-un-pago]].

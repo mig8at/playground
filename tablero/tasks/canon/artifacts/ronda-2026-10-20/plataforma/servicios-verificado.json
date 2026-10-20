@@ -1,0 +1,12 @@
+{
+  "node": "servicios/context",
+  "operacion": "verificado",
+  "source": "verified",
+  "verified": "2026-10-20",
+  "as_asked": "¿qué documentos se generan como efecto de otro paso?",
+  "archivos": {
+    "legacy-backend": [
+      "Modules/LegalV1/App/Services/SignAndSendTermsAndConditionsService.php"
+    ]
+  }
+}

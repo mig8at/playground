@@ -1,0 +1,10 @@
+{
+  "node": "perfilamiento/context",
+  "section": "El rotativo parece de la familia, pero tiene otro motor",
+  "text_file": "perfilamiento-rotativo-motor.md",
+  "kind": "correction",
+  "source": "verified",
+  "verified": "2026-10-20",
+  "as_asked": "¿por qué un rotativo desaparece del listado o la consulta de cupo dice lender_rule_failed?",
+  "archivos": {"legacy-backend": ["Modules/Loans/App/Services/RevolvingCreditsService.php", "Modules/Loans/App/Http/Controllers/Customer/CreditopXQuotaController.php", "Modules/Onboarding/App/Services/lenders/LenderValidationService.php"]}
+}

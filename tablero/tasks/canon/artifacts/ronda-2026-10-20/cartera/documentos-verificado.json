@@ -1,0 +1,18 @@
+{
+  "node": "documentos/context",
+  "operacion": "verificado",
+  "as_asked": "ronda: ¿siguen ciertas las secciones de documentos que se apoyan en los archivos que cambiaron en main?",
+  "archivos": {
+    "legacy-backend": [
+      "Modules/Loans/App/Http/Controllers/Customer/PromissoryNoteController.php",
+      "config/documents.php",
+      "Modules/Loans/App/Services/DocumentGeneration/BladePdfGenerator.php",
+      "resources/views/creditopxpdf/lenders/lender_77.blade.php",
+      "Modules/Loans/App/Services/CreditopXRequestHistoryService.php",
+      "Modules/Loans/App/Services/PromissoryNoteService.php",
+      "Modules/Loans/App/Services/LoanAuthorizationService.php"
+    ]
+  },
+  "source": "verified",
+  "verified": "2026-10-20"
+}

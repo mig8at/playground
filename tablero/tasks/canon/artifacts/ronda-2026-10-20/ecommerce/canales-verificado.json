@@ -1,0 +1,16 @@
+{
+  "node": "canales/context",
+  "operacion": "verificado",
+  "source": "verified",
+  "verified": "2026-10-20",
+  "as_asked": "ronda 2026-10-20: ¿el canal del usuario y el origen de la solicitud se deciden igual?",
+  "archivos": {
+    "legacy-application": [
+      "app/Models/User.php"
+    ],
+    "legacy-backend": [
+      "Modules/Onboarding/App/Services/UserRequestService.php",
+      "app/Models/EcommerceRequest.php"
+    ]
+  }
+}
