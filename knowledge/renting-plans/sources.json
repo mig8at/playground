@@ -2,7 +2,7 @@
   "version": 1,
   "title": "Planes de renting y RTO",
   "summary": "Calculadora por entidad, planes y conteo de pagos, tarjeta y recálculo; límites entre listado, simulación y firma.",
-  "reviewedAt": "2026-10-03T19:56:03Z",
+  "reviewedAt": "2026-10-20T22:04:32+00:00",
   "sources": [
     {
       "repo": "legacy-backend",
@@ -84,8 +84,8 @@
     {
       "repo": "legacy-backend",
       "path": "Modules/Loans/App/Services/DocumentGeneration/CatalogDocumentPayloadResolver.php",
-      "commit": "63123374a5d0875c908a83e3145f334b2ff913ee",
-      "blob": "3cc6c7091f946d630beefadc028202b8d89dcb23",
+      "commit": "406bf8a28404f31524280acea1c0bb6b1cd29c05",
+      "blob": "53eff617408e64f2425037835de677e2d0ce33bd",
       "sections": [
         "simulacion-y-documentos"
       ]
@@ -93,8 +93,8 @@
     {
       "repo": "frontend-monorepo",
       "path": "modules/loan-request-wizard/lenders-marketplace/src/lib/domain/constants/lender.constants.ts",
-      "commit": "68ce7349c4e2a52c83fe4ee174a23ac71fe667cc",
-      "blob": "96ee579b31f5e50bb473bcf7fb4b9452cce701d9",
+      "commit": "3492b9059de25e6e9b809fda10dac30cfd306b53",
+      "blob": "82864a60198430563f546a2261a18f28dfa0404d",
       "sections": [
         "tarjeta-y-seleccion-del-plan"
       ]

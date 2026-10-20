@@ -2,13 +2,13 @@
   "version": 1,
   "title": "Listado de entidades",
   "summary": "Puertas del listado en ambos monolitos y resolución del monto en lenders-v2.",
-  "reviewedAt": "2026-10-03T17:30:26.255619+00:00",
+  "reviewedAt": "2026-10-20T22:04:13+00:00",
   "sources": [
     {
       "repo": "legacy-backend",
       "path": "Modules/Onboarding/routes/api.php",
-      "commit": "63123374a5d0875c908a83e3145f334b2ff913ee",
-      "blob": "caaae90492dbc44142a359fa687488e31e266119",
+      "commit": "406bf8a28404f31524280acea1c0bb6b1cd29c05",
+      "blob": "d621686ee85a8b0c96d74eac832194e640a42650",
       "sections": [
         "dos-puertas-en-el-backend-modular"
       ]
@@ -53,8 +53,8 @@
     {
       "repo": "application",
       "path": "app/Services/lenders/LenderRetrievalService.php",
-      "commit": "fc74ac8bc1b364191f859bb6830e8d47c15bb882",
-      "blob": "38b005b601df3b012316b49abe604b4de48b016a",
+      "commit": "0c86754d79f825dc55556a5af7bbbd304e23d3c9",
+      "blob": "b7a567c9c07f8f4a4552d623baf8a4856589187c",
       "sections": [
         "el-monolito-anterior-tiene-su-propia-entrada"
       ]

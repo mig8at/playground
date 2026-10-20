@@ -2,7 +2,7 @@
   "version": 1,
   "title": "Ecommerce: entrada, contexto y monto",
   "summary": "Rehidratación del pedido sin cookie de contexto, tres vínculos con la solicitud y prioridad del canal sobre la sesión.",
-  "reviewedAt": "2026-10-03T19:10:48+00:00",
+  "reviewedAt": "2026-10-20T22:04:48+00:00",
   "sources": [
     {
       "repo": "application",
@@ -25,8 +25,8 @@
     {
       "repo": "frontend-monorepo",
       "path": "apps/loan-request-wizard/app/routes/ecommerce/checkout.tsx",
-      "commit": "68ce7349c4e2a52c83fe4ee174a23ac71fe667cc",
-      "blob": "7a51deeeadf5c670ccdec12a54073ece35387444",
+      "commit": "3492b9059de25e6e9b809fda10dac30cfd306b53",
+      "blob": "9f71686a4723b4973a90542c399482c30950a8a7",
       "sections": [
         "el-pedido-se-relee-por-id-antes-y-despues-del-otp"
       ]
@@ -34,8 +34,8 @@
     {
       "repo": "frontend-monorepo",
       "path": "apps/loan-request-wizard/app/server/services/ecommerce-context.server.ts",
-      "commit": "68ce7349c4e2a52c83fe4ee174a23ac71fe667cc",
-      "blob": "9ec360c071ca44d7e668db2d0ba71d00d503f811",
+      "commit": "3492b9059de25e6e9b809fda10dac30cfd306b53",
+      "blob": "0f72f3fca3ac93807ece243212564bf6669f7d1a",
       "sections": [
         "el-pedido-se-relee-por-id-antes-y-despues-del-otp"
       ]
@@ -43,8 +43,8 @@
     {
       "repo": "legacy-backend",
       "path": "Modules/Onboarding/App/Services/EcommerceRequestService.php",
-      "commit": "63123374a5d0875c908a83e3145f334b2ff913ee",
-      "blob": "6badf6d8be8d5dd5e8608b22c538ccc70e64c126",
+      "commit": "406bf8a28404f31524280acea1c0bb6b1cd29c05",
+      "blob": "2eca9c5747ccf52e5bef7051920e0907e60e7a2a",
       "sections": [
         "el-pedido-se-relee-por-id-antes-y-despues-del-otp",
         "el-vinculo-con-la-solicitud-vive-en-tres-lugares"
@@ -53,8 +53,8 @@
     {
       "repo": "legacy-backend",
       "path": "app/Models/EcommerceRequest.php",
-      "commit": "63123374a5d0875c908a83e3145f334b2ff913ee",
-      "blob": "189d08fd697bb32714b50de3e290046592de251a",
+      "commit": "406bf8a28404f31524280acea1c0bb6b1cd29c05",
+      "blob": "c290d7fe42fb404aac6f41cb9825fe26040e4166",
       "sections": [
         "el-vinculo-con-la-solicitud-vive-en-tres-lugares"
       ]
@@ -71,8 +71,8 @@
     {
       "repo": "frontend-monorepo",
       "path": "apps/loan-request-wizard/app/routes/lenders-marketplace/available-lenders.tsx",
-      "commit": "68ce7349c4e2a52c83fe4ee174a23ac71fe667cc",
-      "blob": "a249ab2853f9fb97f0271aaa0acbf3a15b9f312b",
+      "commit": "3492b9059de25e6e9b809fda10dac30cfd306b53",
+      "blob": "1a22afbc184919c4e634e2fa7c30b4c54729692a",
       "sections": [
         "el-canal-de-tienda-tiene-precedencia-y-gobierna-el-monto"
       ]

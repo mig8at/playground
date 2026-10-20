@@ -2,7 +2,7 @@
   "version": 1,
   "title": "Admin de legacy-application: secciones, roles y escrituras",
   "summary": "Qué hace cada sección del admin por el negocio, quién entra con qué perfil, qué escribe, las bajas lógicas con -t<n> y las acciones que no piden permiso.",
-  "reviewedAt": "2026-10-19T14:59:18+00:00",
+  "reviewedAt": "2026-10-20T22:04:08+00:00",
   "sources": [
     {
       "repo": "application",
@@ -102,8 +102,8 @@
     {
       "repo": "application",
       "path": "app/Http/Controllers/Admin/CreditopXRequestHistoryController.php",
-      "commit": "05e6ad4d86c9e15cc7f6fa88527cef94ff508caf",
-      "blob": "1818177984c9cd38a314e0adae1814a76d90aac0",
+      "commit": "0c86754d79f825dc55556a5af7bbbd304e23d3c9",
+      "blob": "a69dcdfa7297712e0022f1e5e685686e0fa509cb",
       "sections": [
         "creditos-creditopx"
       ]

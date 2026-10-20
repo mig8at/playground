@@ -34,7 +34,10 @@ comercio (casi siempre `lenders`).
 **Pipeline.** Ninguna de esas dos llamadas consulta centrales:
 - el OTP va por `/api/v2/onboarding/otp-auth/validate/{hash}`, que valida el código, crea o retoma la
   solicitud, guarda el empleo por defecto y firma términos; «usuario temporal» (`OBV22005`) y «sin datos
-  laborales» (`OBV22006`) son éxitos. El wizard salta a `kyc-processing?start=1`;
+  laborales» (`OBV22006`) son éxitos. Si la sucursal o su comercio están deshabilitados responde
+  `OBV22012` (HTTP 403, subcódigo `ALLIED_DISABLED`) antes de crear o retomar la solicitud
+  (`ValidateOtpAuthService.php:324`), y el wizard lo muestra como rechazo conocido. El wizard salta a
+  `kyc-processing?start=1`;
 - `personal-info` guarda por `/api/v2/onboarding/personal-info/{hash}/{ur}`, que sólo persiste;
 - `kyc-processing` arranca el workflow llamando al servicio directo desde el servidor del wizard
   (`CUSTOMER_PROFILING_API_URL`, `POST /api/v1/loan-requests/{ur}/legacy-kyc-pipeline`, id
@@ -61,7 +64,14 @@ arista que «sin datos». Lo vigente es la fila de cada base, no la migración.
 
 Al resolver el recorrido llama `POST /api/v2/onboarding/kyc-completion/{ur}`, que aplica lo que v1
 hacía dentro del guardado de datos personales: la firma de términos (si la persona ya no es temporal)
-y el registro del funnel CreditopX (si la sucursal tiene una entidad CreditopX).
+y el registro del funnel CreditopX (si la sucursal tiene una entidad CreditopX). Antes de decidir la
+firma, si ninguna central consolidó a la persona, la consolida con el nombre que ella tecleó
+(`users.full_name` = nombre + apellido, `CompleteKycService.php:158`), como hacía v1 cuando el buró no
+concluía; si `first_name` o `surname` siguen siendo el marcador `TEMPORAL USER`, no consolida.
+
+Si aun así la cuenta sigue temporal, la corrida no termina `COMPLETED`: queda `PENDING_USER_DATA` con
+el formulario personal y la razón `IDENTITY_MISMATCH` (`workflow.go:178`, `resolvedForTheApplicant`).
+Si la completación falla o la corrida es anterior a esa versión, se reporta `COMPLETED` igual.
 
 ## Antes de validar algo de identidad o centrales
 

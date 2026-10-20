@@ -2,7 +2,7 @@
   "version": 1,
   "title": "Credifamilia: fianza y monto de radicación",
   "summary": "Origen de la fianza, fórmula compartida y diferencias de entradas, formatos y respaldo entre SOAP, cuotas y comprobante.",
-  "reviewedAt": "2026-10-03T19:10:48+00:00",
+  "reviewedAt": "2026-10-20T22:04:08+00:00",
   "sources": [
     {
       "repo": "legacy-backend",
@@ -27,8 +27,8 @@
     {
       "repo": "legacy-backend",
       "path": "app/Actions/Lenders/CredifamiliaConsumo/TransactionRequest.php",
-      "commit": "63123374a5d0875c908a83e3145f334b2ff913ee",
-      "blob": "425a6d999da9fd9cf2fde7a7fe44acdd0a39a87e",
+      "commit": "406bf8a28404f31524280acea1c0bb6b1cd29c05",
+      "blob": "1b3236ca0fa553cd605cd9184f61f19cb0917720",
       "sections": [
         "la-fianza-viene-de-la-preaprobacion",
         "una-formula-compartida-con-dos-tratamientos-de-fianza",
@@ -39,8 +39,8 @@
     {
       "repo": "legacy-backend",
       "path": "app/Services/PaymentPlan/Credifamilia/ValueObjects/BondBreakdown.php",
-      "commit": "63123374a5d0875c908a83e3145f334b2ff913ee",
-      "blob": "72aebd46e1ce158763d8f50b9754b9efddf250b8",
+      "commit": "406bf8a28404f31524280acea1c0bb6b1cd29c05",
+      "blob": "def763fc6cf42771326208d0ee74238b1d08c71b",
       "sections": [
         "una-formula-compartida-con-dos-tratamientos-de-fianza",
         "los-respaldos-tambien-son-distintos"

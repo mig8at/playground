@@ -1,17 +1,27 @@
 # Alta y baja de comercios
 
 Punto de entrada para #98 y para configurar comercios. Describe los métodos de las refs
-locales de `main`, no los pools, permisos ni secretos de un ambiente. El asesor automático
-de #98 está documentado en esa tarea mientras su servicio no forme parte de `main`.
+locales de `main`, no los pools, permisos ni secretos de un ambiente. El asesor de prueba
+automático existe sólo en el alta del admin anterior (`application`), no en la API modular.
 No dar por creado un acceso al wizard sólo porque exista el comercio.
 
 ## El admin anterior tiene su propia alta
 
-En `application`, `Admin/AlliedController::store` abre una transacción, genera slug y hash,
-sube la imagen a S3 y crea el comercio con los campos validados, incluido `country_id`.
-Confirma la transacción y redirige al índice. El método revisado no llama a un provisionador
-de sucursal, asesor o cuenta de Cognito. El alta automática de prueba de #98 no debe describirse
-como comportamiento de este `main` por haber sido probada en desarrollo.
+En `application`, `Admin/AlliedController::store` (`AlliedController.php:100`) abre una transacción,
+genera slug y hash, sube la imagen a S3 y crea el comercio con los campos validados, incluidos `nit`
+y `country_id`, y confirma la transacción. Después, ya fuera de ella, llama a
+`TestAdvisorProvisioner::provision` (`AlliedController.php:133`): crea una sucursal `b<hash>-fake`
+con la ciudad comodín del país (si existe) y un asesor de perfil Comercial (4) con correo
+`c<hash>-fake@<dominio>`, marcado como de prueba si la base ya tiene `users.is_test`; luego intenta
+su cuenta en el pool de Cognito de comercios (`TestAdvisorProvisioner.php:258` y `:316`).
+
+Ese paso nunca rompe el alta: atrapa toda excepción y devuelve qué quedó. Si el ambiente no tiene el
+pool configurado o Cognito falla, el asesor queda en la base sin poder entrar al wizard; si el correo
+ya existía en el pool se deja con su clave anterior. Es idempotente por comercio: si ya hay un
+Comercial `c%-fake@` no crea otro. El resultado, con la clave, sólo viaja en el flash a quien tenga
+rol «Administrador» y permiso `create allied` (`AlliedController.php:140`); para los demás perfiles
+el asesor se crea igual sin mostrarse. Comprobar en la sucursal y en el pool qué quedó; no inferir
+un acceso funcionando sólo porque el alta respondió.
 
 ## La API modular es otra entrada
 

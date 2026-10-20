@@ -2,16 +2,25 @@
   "version": 1,
   "title": "Alta y baja de comercios",
   "summary": "Las dos entradas de alta, sus efectos explícitos y el alcance de la baja en la base.",
-  "reviewedAt": "2026-10-03T19:10:48+00:00",
+  "reviewedAt": "2026-10-20T22:04:08+00:00",
   "sources": [
     {
       "repo": "application",
       "path": "app/Http/Controllers/Admin/AlliedController.php",
-      "commit": "fc74ac8bc1b364191f859bb6830e8d47c15bb882",
-      "blob": "743b42621c102ce18c289a42d0b385d9f005c340",
+      "commit": "0c86754d79f825dc55556a5af7bbbd304e23d3c9",
+      "blob": "ce2c8b8031cae3c33bee6606d20a627623e21e1d",
       "sections": [
         "el-admin-anterior-tiene-su-propia-alta",
         "la-baja-modifica-usuarios-en-la-base-bajo-condiciones-concretas"
+      ]
+    },
+    {
+      "repo": "application",
+      "path": "app/Services/Allied/TestAdvisorProvisioner.php",
+      "commit": "0c86754d79f825dc55556a5af7bbbd304e23d3c9",
+      "blob": "d22abe1eae938cec9489286bea83cfd9fdc44df4",
+      "sections": [
+        "el-admin-anterior-tiene-su-propia-alta"
       ]
     },
     {

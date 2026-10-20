@@ -2,7 +2,7 @@
   "version": 1,
   "title": "Pipeline de KYC por comercio",
   "summary": "Cómo kyc_pipeline_allieds elige por comercio entre la cascada dentro de legacy-backend y el pipeline de customer-profiling-service sobre Temporal, y qué cambia en OTP, datos personales y kyc-processing.",
-  "reviewedAt": "2026-10-13T17:00:00-05:00",
+  "reviewedAt": "2026-10-20T22:03:54+00:00",
   "sources": [
     {
       "repo": "legacy-backend",
@@ -54,8 +54,8 @@
     {
       "repo": "legacy-backend",
       "path": "Modules/OnboardingV2/App/Services/ValidateOtpAuthService.php",
-      "commit": "1dc937f31999aa1ff37f68f1d9ec2b780e4a8dbc",
-      "blob": "b77e59c66334fa463ed381dae1fc3cfadcace40f",
+      "commit": "406bf8a28404f31524280acea1c0bb6b1cd29c05",
+      "blob": "3bc3579d02b18312ec341a1d5470b93e26a97b57",
       "sections": [
         "que-cambia-en-el-wizard-segun-el-camino"
       ]
@@ -63,8 +63,8 @@
     {
       "repo": "legacy-backend",
       "path": "Modules/OnboardingV2/App/Services/StorePersonalInfoService.php",
-      "commit": "1dc937f31999aa1ff37f68f1d9ec2b780e4a8dbc",
-      "blob": "097aa46123d46ebc7a07a3da36d7850b1596ee00",
+      "commit": "406bf8a28404f31524280acea1c0bb6b1cd29c05",
+      "blob": "66f492e2ac8be8f42e3f422da06701a7e60127aa",
       "sections": [
         "que-cambia-en-el-wizard-segun-el-camino"
       ]
@@ -72,8 +72,8 @@
     {
       "repo": "legacy-backend",
       "path": "Modules/Onboarding/App/Services/OnboardingService.php",
-      "commit": "1dc937f31999aa1ff37f68f1d9ec2b780e4a8dbc",
-      "blob": "749156f36d0e71fa2aec34290234c548a1eb2cc4",
+      "commit": "406bf8a28404f31524280acea1c0bb6b1cd29c05",
+      "blob": "2b8146b5aa65d80b144d70c774b1d12cce4c9fa3",
       "sections": [
         "que-cambia-en-el-wizard-segun-el-camino",
         "antes-de-validar-algo-de-identidad-o-centrales"
@@ -82,8 +82,8 @@
     {
       "repo": "frontend-monorepo",
       "path": "apps/loan-request-wizard/app/routes/loan-application-form/otp-verification.tsx",
-      "commit": "3394193660a2ab7d2d923dda12421a5bdd867414",
-      "blob": "d13077832d91b508264c411a9dc78cc0504e66e2",
+      "commit": "3492b9059de25e6e9b809fda10dac30cfd306b53",
+      "blob": "52a3d57e39db091542c8605e75981716b60db38c",
       "sections": [
         "que-cambia-en-el-wizard-segun-el-camino"
       ]
@@ -91,8 +91,8 @@
     {
       "repo": "frontend-monorepo",
       "path": "apps/loan-request-wizard/app/routes/loan-application-form/loan-request-form.tsx",
-      "commit": "3394193660a2ab7d2d923dda12421a5bdd867414",
-      "blob": "2c0efeea3b6a9b25dce53fca1b25b7d1abb3cca6",
+      "commit": "3492b9059de25e6e9b809fda10dac30cfd306b53",
+      "blob": "f173e5d63379afecf977f0ed703886cea68821f9",
       "sections": [
         "que-cambia-en-el-wizard-segun-el-camino"
       ]
@@ -128,8 +128,8 @@
     {
       "repo": "customer-profiling-service",
       "path": "internal/core/workflows/legacykycpipeline/workflow.go",
-      "commit": "b17bd10260f339df256b14693788dac2293a7cb2",
-      "blob": "d46785163313d8edcbca8e3866a53719a0eca78d",
+      "commit": "09c0703ffe6e662bac6d4fc58fa715c1f808a914",
+      "blob": "2a4480b83390337edf45a44bd3c0db59714ca750",
       "sections": [
         "el-servicio-recorre-un-grafo-por-tipo-y-pais",
         "antes-de-validar-algo-de-identidad-o-centrales"
@@ -147,8 +147,8 @@
     {
       "repo": "legacy-backend",
       "path": "Modules/OnboardingV2/App/Services/CompleteKycService.php",
-      "commit": "1dc937f31999aa1ff37f68f1d9ec2b780e4a8dbc",
-      "blob": "2a665ba1028fd89c96b253348da48aa71f9899e7",
+      "commit": "406bf8a28404f31524280acea1c0bb6b1cd29c05",
+      "blob": "6fd8bc9c9aef5bf06c2bfc19a4b059c9a1a6c7ba",
       "sections": [
         "el-servicio-recorre-un-grafo-por-tipo-y-pais"
       ]

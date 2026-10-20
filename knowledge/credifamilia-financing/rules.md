@@ -24,14 +24,16 @@ El tipo interno `Vencida` se traduce a `Mensual`; `Anticipada` conserva su nombr
 
 - fianza = monto solicitado × porcentaje de fianza;
 - IVA = fianza × tasa de IVA;
-- 4x1000 = IVA × `0.004`;
+- 4x1000 = (fianza + IVA) × `0.004`;
 - total fianza = fianza + IVA + 4x1000.
 
-`totalDisbursement()` suma ese total al monto sólo cuando el tipo es exactamente `Anticipada`.
-Con `Vencida` el capital permanece en el monto solicitado. `CalculationContext` utiliza este
-desglose para el motor del plan; `TransactionRequest` lo utiliza para `montoTotalCredito`.
-Ésta es la fórmula implementada. La confirmación de su base y del redondeo con el proveedor
-permanece en #97; verla en código no resuelve esas preguntas.
+El 4x1000 se cobra sobre la fianza más su IVA, no sólo sobre el IVA como en el ejemplo del alcance
+(`BondBreakdown.php:43`); el comentario de la clase atribuye esa base a una confirmación de
+Credifamilia. `totalDisbursement()` suma el total de fianza al monto sólo cuando el tipo es
+exactamente `Anticipada`. Con `Vencida` el capital permanece en el monto solicitado.
+`CalculationContext` utiliza este desglose para el motor del plan; `TransactionRequest` lo utiliza
+para `montoTotalCredito`. Ésta es la fórmula implementada; el redondeo que espera el proveedor no
+se resuelve leyendo el código y sigue en #97.
 
 ## Compartir fórmula no garantiza montos ni formatos idénticos
 
