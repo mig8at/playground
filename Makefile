@@ -153,9 +153,9 @@ tareas-guard: ## @dia ¿este texto puede salir a Jira? (el cuerpo de una tarea N
 # ⚠ ESTOS ESCRIBEN EN JIRA, que es hacia afuera y lo ve el equipo. Pedí confirmación antes de correr
 # cualquiera de los tres. Y necesitan `ATLASSIAN_*` en `tablero/.env` — hoy ese archivo NO existe.
 .PHONY: jira-create jira-move jira-edit
-jira-create: ## @dia ⚠ ESCRIBE: crea una tarea en Jira y la mete al SPRINT ACTIVO. JSON={summary,description,points?,status?,sprint?}
+jira-create: ## @dia ⚠ ESCRIBE: crea una tarea en Jira y la mete al SPRINT ACTIVO. JSON={summary,description,points?,status?,sprint?} [Y=1 publica sin preguntar: sin terminal es obligatorio]
 	@test -n "$(JSON)" || { echo "falta JSON=<archivo.json>  ·  {summary, description, points?, status?, sprint?}"; exit 2; }
-	@cd tablero/server && go run ./cmd/issue-create $(JSON)
+	@cd tablero/server && go run ./cmd/issue-create $(if $(Y),-y) $(JSON)
 
 # ⚠ `status` es una lista ORDENADA de subcadenas, no un destino suelto: el workflow de CORE no deja
 # saltar estados — para «pruebas» hay que pasar por «progreso» primero.

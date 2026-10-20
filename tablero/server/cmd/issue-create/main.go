@@ -174,6 +174,11 @@ func main() {
 	fmt.Fprintf(os.Stderr, "    descripción %d caracteres\n\n", len(in.Description))
 
 	if !*yes {
+		// Sin una terminal nadie puede contestar: corrido en segundo plano (o por un agente) esperaba el «si»
+		// para siempre. Medido el 2026-10-20: quedó colgado 15 minutos sin crear nada. Mejor fallar ya.
+		if info, err := os.Stdin.Stat(); err != nil || info.Mode()&os.ModeCharDevice == 0 {
+			log.Fatal("no hay una terminal para confirmar: revisá lo de arriba y volvé a correr con -y (make jira-create … Y=1); no se creó nada")
+		}
 		fmt.Fprint(os.Stderr, "  ¿Publico? [escribí \"si\"]: ")
 		line, _ := bufio.NewReader(os.Stdin).ReadString('\n')
 		if r := strings.ToLower(strings.TrimSpace(line)); r != "si" && r != "sí" {
