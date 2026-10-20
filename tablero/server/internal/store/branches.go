@@ -401,9 +401,14 @@ func AllBranches(ctx context.Context, root string) []LooseBranch {
 }
 
 // reposIn lista los repos git bajo root, bajando un nivel extra (en `github/` conviven repos sueltos y
-// una carpeta paraguas con un repo por servicio adentro). Mismo criterio que el pulso.
+// una carpeta paraguas con un repo por servicio adentro).
+//
+// A diferencia del pulso, un WORKTREE no cuenta como repo aparte: comparte las ramas con su repo original, así
+// que listarlo repetía cada rama una vez por carpeta (medido el 2026-10-20: `feat/core-689-shopify-platform`
+// salía cuatro veces, una por cada worktree de legacy-backend). Se salta si su repo original ya está en la
+// lista; si el original vive fuera de root, el worktree se queda para no perder sus ramas.
 func reposIn(root string) []string {
-	var out []string
+	var found []string
 	var watch func(dir string, depth int)
 	watch = func(dir string, depth int) {
 		entries, err := os.ReadDir(dir)
@@ -416,7 +421,7 @@ func reposIn(root string) []string {
 			}
 			child := filepath.Join(dir, e.Name())
 			if _, err := os.Stat(filepath.Join(child, ".git")); err == nil {
-				out = append(out, child)
+				found = append(found, child)
 			}
 			if depth > 0 {
 				watch(child, depth-1)
@@ -424,7 +429,37 @@ func reposIn(root string) []string {
 		}
 	}
 	watch(root, 1)
+
+	listed := map[string]bool{}
+	for _, repo := range found {
+		listed[filepath.Clean(repo)] = true
+	}
+	var out []string
+	for _, repo := range found {
+		if main := worktreeOrigin(repo); main != "" && listed[main] {
+			continue
+		}
+		out = append(out, repo)
+	}
 	return out
+}
+
+// worktreeOrigin devuelve el repo original de un worktree, o "" si repo no es un worktree. Un worktree tiene
+// `.git` como ARCHIVO con `gitdir: <original>/.git/worktrees/<nombre>`.
+func worktreeOrigin(repo string) string {
+	info, err := os.Stat(filepath.Join(repo, ".git"))
+	if err != nil || info.IsDir() {
+		return ""
+	}
+	raw, err := os.ReadFile(filepath.Join(repo, ".git"))
+	if err != nil {
+		return ""
+	}
+	gitdir := strings.TrimSpace(strings.TrimPrefix(strings.TrimSpace(string(raw)), "gitdir:"))
+	if i := strings.Index(gitdir, string(filepath.Separator)+".git"+string(filepath.Separator)+"worktrees"+string(filepath.Separator)); i > 0 {
+		return filepath.Clean(gitdir[:i])
+	}
+	return ""
 }
 
 // matchingBranches devuelve las ramas cuyo nombre contiene el patrón: primero las REMOTAS (sin el
