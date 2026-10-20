@@ -2,4 +2,4 @@
 
 El número nuevo queda pendiente en el pedido y el código de firma se envía a ése; el reenvío también va al pendiente. El celular del cliente cambia sólo cuando valida el código enviado al número nuevo: ahí queda la constancia del anterior, el nuevo y cuándo, y ya no se ofrece otro cambio. Mientras no lo valide, puede reescribir el pendiente.
 
-Se rechaza un número con formato inválido, el mismo al que ya se envió el código o uno registrado con otro cliente, porque el celular es único por usuario. Una solicitud ya autorizada no admite el cambio. El código de firma lo envía el servicio de identidad: [[formalizacion/context#el-servicio-de-identidad-envia-el-codigo-de-firma]].
+Se rechaza un número con formato inválido, el mismo que el cliente ya tiene registrado o uno registrado con otro cliente, porque el celular es único por usuario. Una solicitud ya autorizada no admite el cambio. El código de firma lo envía el servicio de identidad: [[formalizacion/context#el-servicio-de-identidad-envia-el-codigo-de-firma]].

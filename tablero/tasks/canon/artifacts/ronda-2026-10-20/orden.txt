@@ -14,7 +14,6 @@ tablero/tasks/canon/artifacts/ronda-2026-10-20/plataforma/infraestructura-despli
 tablero/tasks/canon/artifacts/ronda-2026-10-20/cartera/cartera-minimo-exacto.json
 tablero/tasks/canon/artifacts/ronda-2026-10-20/cartera/cartera-pantalla-publica.json
 tablero/tasks/canon/artifacts/ronda-2026-10-20/cartera/creditopx-rechazo.json
-tablero/tasks/canon/artifacts/ronda-2026-10-20/cartera/documentos-credipullman.json
 tablero/tasks/canon/artifacts/ronda-2026-10-20/cartera/documentos-plantilla.json
 tablero/tasks/canon/artifacts/ronda-2026-10-20/cartera/documentos-quien-dibuja.json
 tablero/tasks/canon/artifacts/ronda-2026-10-20/cartera/formalizacion-escritorio.json

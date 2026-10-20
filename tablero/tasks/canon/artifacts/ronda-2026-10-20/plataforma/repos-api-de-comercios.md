@@ -11,8 +11,10 @@ Hay dos dependencias distintas:
   encontrar un almacén de catálogo separado es lo esperado. **Las solicitudes del cliente no filtran
   el catálogo**: la lista de comercios de CreditopX es la misma para todos los clientes, sin importar su
   historial, y entra todo comercio activo, visible en la app y con una entidad de la familia de la casa
-  en alguna sucursal —crédito por compra o rotativo, tipos de respuesta 2 y 3—. Las vitrinas usan ese mismo catálogo, y el orden del arreglo no está
-  garantizado: se ordena por el campo de orden. La excepción a la base heredada es la ubicación de los
+  en alguna sucursal —crédito por compra o rotativo, tipos de respuesta 2 y 3—. Las vitrinas parten de ese mismo catálogo y además exigen sucursal
+  activa, en una ciudad conocida y con un vínculo activo a una entidad activa de esa familia. El arreglo
+  del catálogo sale ordenado por el campo de orden del comercio y, a igual orden, por id; la consulta SQL
+  en sí no ordena. La excepción a la base heredada es la ubicación de los
   puntos de venta: esta API la resuelve contra el proveedor de mapas, la escribe en esa misma base y
   guarda coordenadas en una caché propia, que al vencer deja la tienda sin coordenadas.
 - **La coordinación del crédito corre en Temporal, en otro proceso.** El servidor HTTP inicia y

@@ -7,7 +7,7 @@ poblada no se usa. Después: `make logs` sigue los logs de la aplicación, `make
 
 `localstack` emula S3 en el puerto 4566. Al arrancar corre `docker/localstack/init-s3.sh`, que crea el
 bucket de `AWS_BUCKET` (`local` si no se fija), le da lectura pública a sus objetos y le abre CORS para
-`GET`: sin eso, el front pide los PDF desde otro puerto y el visor falla con «Error al cargar el documento».
+`GET` y `HEAD`: sin eso, el front pide los PDF desde otro puerto y el visor falla con «Error al cargar el documento».
 ⚠ **Que el contenedor esté arriba no hace que la aplicación lo use.** El disco `s3` lee `AWS_ENDPOINT` y
 `AWS_URL`, y `.env.example` no trae ninguno de los dos: lo que la aplicación guarde en `s3` va al S3 de AWS
 que digan sus credenciales, no al contenedor, hasta que esas dos variables apunten a `localstack`.

@@ -5,4 +5,4 @@ El pedido trae los datos del comprador —nombre, apellido, documento, tipo de d
 
 La consecuencia para negocio y riesgo: **la persona que se valida y firma puede no ser la que figura como compradora en el pedido de la tienda**. Cambiar el documento a mano convierte la solicitud en la de otra persona, y el vínculo con la orden se escribe sin comparar el documento de la solicitud con el del pedido. Si una tienda reclama que el crédito salió a nombre de alguien distinto de su cliente, esto lo explica sin que haya un error.
 
-En el auto-onboarding el comprador no ve el formulario: sus datos se guardan tal como vinieron, y sólo llega al formulario, prellenado y editable, si la validación con las centrales no pasa ([[#una-sucursal-del-auto-onboarding-solo-pide-el-codigo-y-con-el-pedido-firmado-ni-eso]]).
+En el auto-onboarding el comprador no ve el formulario: sus datos se guardan tal como vinieron, y sólo llega al formulario, prellenado y editable, si el guardado de esos datos o la validación con las centrales no pasa ([[#una-sucursal-del-auto-onboarding-solo-pide-el-codigo-y-con-el-pedido-firmado-ni-eso]]).
