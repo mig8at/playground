@@ -14,7 +14,10 @@ consultar el código, pregunta a `OriginationGuard` si la sucursal y su comercio
 (`ClientCodeRedemptionService.php:124`). Si no, responde 403 con `CCO008` y
 `error_subcode: ALLIED_DISABLED`, sin tocar el servicio de códigos; el wizard normaliza ese
 rechazo a `ALLIED_DISABLED` (`client-code.repository.ts` con `toAlliedDisabledError`) y muestra
-su mensaje propio. Habilitado, consulta el código mediante `GenerateServiceProxyService`.
+su mensaje propio. Si la consulta de habilitación no da un veredicto conocido, `blockReason` lanza
+una excepción en vez del 403 (`OriginationGuard.php:77-78`). En `application`,
+`Customer/ClientCodeController::confirmCode` consulta el código sin esa guarda
+(`ClientCodeController.php:50-90`). Habilitado, consulta el código mediante `GenerateServiceProxyService`.
 Exige ids positivos de usuario y entidad.
 No obtiene la identidad del cliente de la sesión del asesor: proviene de la consulta del código.
 

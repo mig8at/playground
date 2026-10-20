@@ -36,7 +36,8 @@ comercio (casi siempre `lenders`).
   solicitud, guarda el empleo por defecto y firma términos; «usuario temporal» (`OBV22005`) y «sin datos
   laborales» (`OBV22006`) son éxitos. Si la sucursal o su comercio están deshabilitados responde
   `OBV22012` (HTTP 403, subcódigo `ALLIED_DISABLED`) antes de crear o retomar la solicitud
-  (`ValidateOtpAuthService.php:324`), y el wizard lo muestra como rechazo conocido. El wizard salta a
+  (`ValidateOtpAuthService.php:324`), y el wizard lo muestra como rechazo conocido. Esa guarda corre
+  con el OTP ya consumido (`:297`) y no alcanza al OTP del codeudor, que retorna antes (`:314-317`). El wizard salta a
   `kyc-processing?start=1`;
 - `personal-info` guarda por `/api/v2/onboarding/personal-info/{hash}/{ur}`, que sólo persiste;
 - `kyc-processing` arranca el workflow llamando al servicio directo desde el servidor del wizard
