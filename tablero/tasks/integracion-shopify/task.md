@@ -7,7 +7,7 @@ knowledge: [ecommerce-context]
 canon: []
 jira: [CORE-689]
 jira_title: ""
-ramas: payment-link, feat/core-689-shopify-platform, feat/ecommerce
+ramas: payment-link, feat/core-689-shopify-platform
 ---
 
 ## Pendientes
