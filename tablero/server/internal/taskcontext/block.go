@@ -36,7 +36,10 @@ var vias = map[string]bool{"manual": true, "harness": true, "trazador": true, "d
 
 // Los bloques de código de COMANDO llevan su `Resultado:` debajo; los de material, no.
 var (
-	commandFences  = map[string]bool{"harness": true, "trazador": true, "sql": true, "sh": true}
+	commandFences = map[string]bool{"harness": true, "trazador": true, "sql": true, "sh": true}
+	// fenceAliases: los nombres que se escriben de costumbre para un bloque de shell y que significan `sh`. Rechazar
+	// ```bash obligaba a reescribir el bloque sin que cambiara nada (2026-10-20).
+	fenceAliases   = map[string]string{"bash": "sh", "zsh": "sh", "shell": "sh"}
 	materialFences = map[string]bool{"json": true, "text": true}
 )
 
@@ -109,6 +112,9 @@ func scanBody(body string) (prose []string, fences []fence, err error) {
 			return nil, nil, fmt.Errorf("línea %d: el bloque de código no se cierra", i+1)
 		}
 		f := fence{lang: m[1], arg: m[2], code: strings.TrimSpace(strings.Join(lines[i+1:end], "\n")), line: i + 1}
+		if alias, ok := fenceAliases[f.lang]; ok {
+			f.lang = alias
+		}
 		if err := checkFence(f); err != nil {
 			return nil, nil, fmt.Errorf("línea %d: %w", f.line, err)
 		}

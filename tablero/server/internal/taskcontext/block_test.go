@@ -96,7 +96,7 @@ func TestBlockRejectsWhatCannotBeCheckedLater(t *testing.T) {
 		{"comando al final sin resultado", "```sh\nmake cierre\n```", "Resultado"},
 		{"sql sin ambiente", "```sql\nSELECT 1\n```\nResultado: 1.", "ambiente"},
 		{"sql que escribe", "```sql prod\nDELETE FROM user_requests\n```\nResultado: nada.", "sólo lectura"},
-		{"tipo de bloque inexistente", "```bash\nls\n```\nResultado: nada.", "no existe"},
+		{"tipo de bloque inexistente", "```python\nprint(1)\n```\nResultado: nada.", "no existe"},
 		{"bloque sin tipo", "```\nls\n```", "falta el tipo"},
 		{"bloque sin cerrar", "```sh\nmake cierre\n", "no se cierra"},
 		{"descripción vacía", "", "falta la descripción"},
@@ -194,5 +194,15 @@ func TestHasCommandSeesOnlyCommandsNotMaterial(t *testing.T) {
 	}
 	if !HasCommand([]Event{material, command}) {
 		t.Fatal("no vio el comando")
+	}
+}
+
+// ```bash (y zsh, shell) es un bloque de shell: se acepta como `sh` y sigue pidiendo su «Resultado: …».
+func TestBashFenceIsShell(t *testing.T) {
+	if _, _, err := prepare(t, "```bash\nmake cierre\n```\nResultado: salió 0."); err != nil {
+		t.Fatalf("```bash tenía que aceptarse como sh: %v", err)
+	}
+	if _, _, err := prepare(t, "```bash\nmake cierre\n```"); err == nil || !strings.Contains(err.Error(), "Resultado") {
+		t.Fatalf("como sh, tiene que seguir pidiendo el resultado: %v", err)
 	}
 }

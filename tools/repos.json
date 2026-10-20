@@ -1,5 +1,5 @@
 {
-  "_note": "La lista ÚNICA de repos del playground. La leen connectors/repos (Go) y tools/repos.py (Python); por qué es una sola y el criterio para agregar un repo están en internal/repos. Las rutas con ~ salen del HOME; las relativas, de la raíz del playground. merchant-api se registra sólo como citable para revisar el saga local; no se comprobó su actividad en producción y no se incorpora al barrido de repos indexados.",
+  "_note": "La lista ÚNICA de repos del playground. La leen connectors/repos (Go) y tools/repos.py (Python); por qué es una sola y el criterio para agregar un repo están en internal/repos. Las rutas con ~ salen del HOME; las relativas, de la raíz del playground. merchant-api se registra sólo como citable para revisar el saga local; no se comprobó su actividad en producción y no se incorpora al barrido de repos indexados. vtex, shopify e infrastructure se registran sólo como citables (los plugins de ecommerce y el gateway de la API), para que los bloques de las tareas puedan citarlos.",
   "indexed": {
     "application": "~/Desktop/CREDITOP/github/legacy-application",
     "frontend-monorepo": "~/Desktop/CREDITOP/github/frontend-monorepo",
@@ -16,7 +16,10 @@
   "citable_only": {
     "playground": ".",
     "playground-equipo": "~/Desktop/CREDITOP/github/playground",
-    "merchant-api": "~/Desktop/CREDITOP/github/merchant-api"
+    "merchant-api": "~/Desktop/CREDITOP/github/merchant-api",
+    "vtex": "~/Desktop/CREDITOP/github/vtex",
+    "shopify": "~/Desktop/CREDITOP/github/shopify",
+    "infrastructure": "~/Desktop/CREDITOP/github/infrastructure"
   },
   "extensions": [".php", ".go", ".ts", ".tsx", ".js", ".jsx", ".mjs", ".cjs", ".vue"]
 }
