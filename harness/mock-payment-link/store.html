@@ -35,13 +35,15 @@
   .go { display:flex; gap:8px; align-items:center; margin:12px 0; flex-wrap:wrap }
   .go a { background:var(--acc); color:#fff; text-decoration:none; padding:10px 14px; border-radius:8px; font-weight:700 }
   .go code { font-size:12px; word-break:break-all; color:var(--mut) }
+  .go button { background:#0f8a5f; color:#fff; border:0; padding:10px 14px; border-radius:8px; font-weight:700; cursor:pointer; font:inherit }
+  .go button:disabled { opacity:.6; cursor:wait }
   .ev { font-size:12px; border-top:1px solid var(--line); padding:6px 0 } .ev b { font-weight:600 }
   .empty { color:var(--mut); font-size:12px }
 </style>
 </head>
 <body>
 <div class="bar">
-  <span>DEMO LOCAL · tienda que simula el plugin de <b id="barPlatform">VTEX</b> y pide la URL a Creditop</span>
+  <span>DEMO <b id="barMode">LOCAL</b> · tienda que simula el plugin de <b id="barPlatform">VTEX</b> y pide la URL a Creditop</span>
   <span>plugin: <code id="barPlugin">…</code> · API: <code id="barApi">…</code> · wizard: <code id="barWizard">…</code></span>
 </div>
 <main>
@@ -92,11 +94,16 @@ const items = [
 const total = items.reduce((s, i) => s + i.price * i.quantity, 0);
 const money = (n) => '$ ' + n.toLocaleString('es-CO');
 let platform = 'vtex', branches = [], cfg = {};
+// El último pago de VTEX: con él, «Cobrar» hace el settle que haría el gateway después del aviso de aprobado.
+let lastVtex = null;
 
 $('cart').innerHTML = items.map(i => `<div class="item"><span>${i.name} × ${i.quantity}</span><span>${money(i.price * i.quantity)}</span></div>`).join('')
   + `<div class="item total"><span>Total</span><span>${money(total)}</span></div>`;
 
 function freshBuyer() {
+  // En qa, el celular de bypass (su OTP son los últimos 4 dígitos) y sin cédula: uno inventado podría recibir un SMS
+  // real o ser de una persona.
+  if (cfg.mode === 'qa') { $('doc').value = ''; $('phone').value = '3131010101'; $('email').value = 'qa-vtex@creditop.com'; return; }
   const r = Math.floor(Math.random() * 1e8);
   $('doc').value = String(1000000000 + Math.floor(Math.random() * 899999999));
   $('phone').value = '31' + String(r).padStart(8, '0');
@@ -131,7 +138,7 @@ document.querySelectorAll('.seg button').forEach(btn => btn.addEventListener('cl
 }));
 $('branch').addEventListener('change', branchNote);
 
-const pretty = (o) => JSON.stringify(o, null, 2).replace(/[<&]/g, c => c === '<' ? '&lt;' : '&amp;');
+const pretty = (o) => String(JSON.stringify(o ?? null, null, 2)).replace(/[<&]/g, c => c === '<' ? '&lt;' : '&amp;');
 function step(n, title, data, status, open = false) {
   const st = status == null ? '' : `<span class="st ${status >= 200 && status < 300 ? 'ok' : 'bad'}">HTTP ${status}</span>`;
   return `<details class="step"${open ? ' open' : ''}><summary><span class="n">${n}</span>${title}${st}</summary><pre>${pretty(data)}</pre></details>`;
@@ -154,7 +161,8 @@ async function pay() {
           items: items, shippingValue: 0, taxValue: 0,
         },
         callbackUrl: `${cfg.from_backend}/webhook/vtex`,
-        returnUrl: `${cfg.self}/return?platform=vtex&orderId=${ids.orderId}`,
+        // La API real exige https: en qa, la vuelta del comprador entra por el túnel a esta misma tienda.
+        returnUrl: `${cfg.mode === 'qa' ? cfg.from_backend : cfg.self}/return?platform=vtex&orderId=${ids.orderId}`,
       };
       headers = { 'Content-Type': 'application/json', 'X-PROVIDER-API-AppKey': b.hash, 'X-PROVIDER-API-AppToken': b.credential };
       endpoint = '/plugin/vtex/authorize';
@@ -183,12 +191,20 @@ async function pay() {
     $('steps').innerHTML =
       step(1, platform === 'vtex' ? 'VTEX → conector: authorize' : 'Shopify → app: payment session', { headers: shownHeaders, body: platformReq }) +
       step(2, `Plugin (${pluginKind}) → Creditop: POST payment-link`, { url: trace.url, body: trace.request }, null, true) +
-      step(3, 'Creditop → plugin', trace.response, trace.status, true) +
+      step(3, 'Creditop → plugin', trace.response ?? { nota: trace.note || 'el plugin real llamó a Creditop directo; esta tienda no ve esa llamada' }, trace.status, true) +
       step(4, platform === 'vtex' ? 'Conector → VTEX: redirect' : 'App → Shopify: redirect_url', answer, r.status) +
       (redirect
-        ? `<div class="go"><a href="${redirect}">Ir a CreditOp →</a><code>${redirect}</code></div>`
+        ? `<div class="go"><a href="${redirect}" target="_blank" rel="noopener">Ir a CreditOp →</a><code>${redirect}</code></div>`
+          + (platform === 'vtex' ? `<div class="mut">Cuando la solicitud quede aprobada y llegue el aviso (abajo), VTEX cobra el pago:</div>
+             <div class="go"><button type="button" id="settle">Cobrar (settle de VTEX)</button></div><div id="settleOut"></div>` : '')
           + (trace.response?._mock_warnings ? `<div class="note warn">${trace.response._mock_warnings.join('<br>')}</div>` : '')
         : `<div class="note bad">No hubo URL: el plugin ${platform === 'vtex' ? 'responde deny a VTEX' : 'rechaza la sesión'}.</div>`);
+    if (platform === 'vtex' && redirect) {
+      lastVtex = { paymentId: platformReq.paymentId, value: platformReq.value, hash: b.hash, token: b.credential };
+      // Sobrevive a que el comprador se vaya a Creditop y vuelva: «Cobrar» sigue disponible al volver a la tienda.
+      try { sessionStorage.setItem('lastVtex', JSON.stringify(lastVtex)); } catch {}
+      $('settle').addEventListener('click', settle);
+    }
   } catch (e) {
     $('payNote').innerHTML = `<div class="note bad">${e.message}</div>`;
   } finally {
@@ -196,6 +212,25 @@ async function pay() {
   }
 }
 $('pay').addEventListener('click', pay);
+
+async function settle() {
+  if (!lastVtex) return;
+  $('settle').disabled = true;
+  try {
+    const r = await fetch('/plugin/vtex/settle', { method: 'POST', body: JSON.stringify({ paymentId: lastVtex.paymentId, value: lastVtex.value }),
+      headers: { 'Content-Type': 'application/json', 'X-PROVIDER-API-AppKey': lastVtex.hash, 'X-PROVIDER-API-AppToken': lastVtex.token } });
+    const out = await r.json();
+    const res = out.response || {};
+    const verdict = res.settleId
+      ? `<div class="note ok">Cobrado: el conector aprobó el settle (${res.settleId}) por ${money(Number(res.value || 0))}.</div>`
+      : `<div class="note bad">No se cobró: ${res.code || out.error || r.status} · ${res.message || ''}</div>`;
+    $('settleOut').innerHTML = step(5, 'VTEX → conector: settle', { body: out.request }) + step(6, 'Conector → VTEX', res, r.status, true) + verdict;
+  } catch (e) {
+    $('settleOut').innerHTML = `<div class="note bad">${e.message}</div>`;
+  } finally {
+    $('settle').disabled = false;
+  }
+}
 
 async function poll() {
   try {
@@ -210,10 +245,17 @@ async function poll() {
 (async () => {
   cfg = await (await fetch('/api/config')).json();
   $('barApi').textContent = cfg.payment_link_url; $('barWizard').textContent = cfg.wizard;
+  $('barMode').textContent = cfg.mode === 'qa' ? 'QA' : 'LOCAL';
   $('barPlugin').textContent = cfg.plugins.vtex;
   branches = await (await fetch('/api/branches')).json();
   freshBuyer(); renderBranches();
   const q = new URLSearchParams(location.search);
+  try { lastVtex = JSON.parse(sessionStorage.getItem('lastVtex') || 'null'); } catch {}
+  if (lastVtex && !$('settle')) {
+    $('steps').innerHTML = `<div class="mut">Último pago con VTEX: <code>${lastVtex.paymentId}</code> (${money(Number(lastVtex.value))}, sucursal ${lastVtex.hash}).</div>
+      <div class="go"><button type="button" id="settle">Cobrar (settle de VTEX)</button></div><div id="settleOut"></div>`;
+    $('settle').addEventListener('click', settle);
+  }
   if (q.get('returned')) $('returned').innerHTML = `<div class="note ok">El comprador volvió a la tienda (${q.get('platform') || ''}).</div>`;
   if (q.get('cancel')) $('returned').innerHTML = `<div class="note warn">El comprador canceló y volvió al checkout.</div>`;
   poll(); setInterval(poll, 3000);

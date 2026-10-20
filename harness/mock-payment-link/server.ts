@@ -13,8 +13,20 @@
 //      local, PAYMENT_LINK_URL=http://localhost/api/ecommerce/payment-link y PAYMENT_LINK_TOKEN=<token Sanctum>).
 //   3. LA TIENDA DEMO · GET /  un checkout con selector de plataforma; GET /return (vuelta) y
 //      POST /webhook/<plataforma> (la notificación que manda el backend al terminar), visibles en GET /api/events.
+//      Con VTEX, después del aviso, «Cobrar» hace lo que hace el gateway: el settle (POST /plugin/vtex/settle).
+//   4. EL ESTADO · GET /api/ecommerce/status/{orderId}   la consulta de estado de legacy-backend, que el settle del
+//      conector usa para confirmar el cobro.
 //
-// ESCRIBE en la base LOCAL y sólo en ella.   uso: bin/mock-payment-link start   ·   env: MOCK_PAYMENT_LINK_PORT (8113)
+// DOS MODOS:
+//   · local (por defecto): las sucursales salen de la base LOCAL y la API es este mock (o el backend local).
+//     ESCRIBE en la base LOCAL y sólo en ella.
+//   · qa (STORE_BRANCHES=<archivo.json>): las sucursales y sus tokens salen de ese archivo, privado y fuera de git
+//     ([{hash, name, allied, ecommerce_type_id, platform, credential}]), y la API es PAYMENT_LINK_URL (la de qa:
+//     https://api.dev.creditop.com/legacy-api/ecommerce/payment-link). El aviso de qa llega por un túnel:
+//     MOCK_PAYMENT_LINK_PUBLIC=https://<túnel>. Este proceso no escribe en ninguna base: escribe qa por su API.
+//     El conector VTEX real tiene que apuntar a la misma API (CREDITOP_API_URL).
+//
+// uso: bin/mock-payment-link start   ·   env: MOCK_PAYMENT_LINK_PORT (8113)
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http';
 import { readFileSync, statSync } from 'node:fs';
 import { randomUUID } from 'node:crypto';
@@ -34,6 +46,9 @@ const FROM_BACKEND = process.env.MOCK_PAYMENT_LINK_PUBLIC || `http://host.docker
 const PAYMENT_LINK_URL = process.env.PAYMENT_LINK_URL || `${SELF}/api/ecommerce/payment-link`;
 const PAYMENT_LINK_TOKEN = process.env.PAYMENT_LINK_TOKEN || '';
 const STORE = new URL('./store.html', import.meta.url);
+// Modo qa: las sucursales (con su token) vienen de un archivo, no de la base local.
+const STORE_BRANCHES = process.env.STORE_BRANCHES || '';
+const MODE = STORE_BRANCHES ? 'qa' : 'local';
 // Los plugins REALES corriendo en local (repo vtex: `yarn --cwd node local` · repo shopify: `npm run local`). Si
 // contestan, la tienda les manda a ellos; si no, usa los simulados de abajo.
 const VTEX_CONNECTOR_URL = (process.env.VTEX_CONNECTOR_URL || 'http://localhost:8114').replace(/\/$/, '');
@@ -131,13 +146,14 @@ const server = createServer(async (r, res) => {
         if (r.method === 'GET' && p === '/health') return send(res, 200, { mock: 'payment-link', ok: true, codigo: CODE, payment_link_url: PAYMENT_LINK_URL, wizard: wizardBase() });
         if (r.method === 'GET' && (p === '/' || p === '/index.html')) return send(res, 200, readFileSync(STORE, 'utf8'), 'text/html');
         if (r.method === 'GET' && p === '/api/config') {
-            return send(res, 200, { self: SELF, from_backend: FROM_BACKEND, payment_link_url: PAYMENT_LINK_URL, wizard: wizardBase(), real_token: Boolean(PAYMENT_LINK_TOKEN),
+            return send(res, 200, { mode: MODE, self: SELF, from_backend: FROM_BACKEND, payment_link_url: PAYMENT_LINK_URL, wizard: MODE === 'qa' ? 'el de qa' : wizardBase(), real_token: Boolean(PAYMENT_LINK_TOKEN),
                 plugins: { vtex: (await realVtex()) ? `real ${VTEX_CONNECTOR_URL}` : 'simulado', shopify: (await realShopify()) ? `real ${SHOPIFY_APP_URL}` : 'simulado' } });
         }
         if (r.method === 'GET' && p === '/api/events') return send(res, 200, events);
 
         // Las sucursales con credencial de ecommerce en la base local: de acá sale «AppKey/AppToken» y la config de Shopify.
         if (r.method === 'GET' && p === '/api/branches') {
+            if (MODE === 'qa') return send(res, 200, JSON.parse(readFileSync(STORE_BRANCHES, 'utf8')));
             const rows = await query(`SELECT ab.hash, ab.name, a.name AS allied, aec.ecommerce_type_id, e.name AS platform, aec.credential
                 FROM allied_ecommerce_credentials aec JOIN allied_branches ab ON ab.id = aec.allied_branch_id
                 JOIN allieds a ON a.id = ab.allied_id LEFT JOIN ecommerces e ON e.id = aec.ecommerce_type_id
@@ -178,6 +194,39 @@ const server = createServer(async (r, res) => {
                 : { paymentId: req.paymentId, status: 'denied', tid: req.paymentId, code: `CREDITOP_${call.status}`, message: call.response?.message ?? 'payment-link failed' };
             log('vtex authorize', 'vtex', { paymentId: req.paymentId, creditop: call.status });
             return send(res, 200, { ...vtex, _trace: call });
+        }
+
+        // 1b · el estado del pedido (la consulta de legacy-backend), contra la base local. Mismas reglas: el pedido de
+        // OTRA sucursal da 404, y sólo los estados finales salen como tales (11 completed, 6 failed, 7 y 8 cancelled).
+        const status = p.match(/^\/api\/ecommerce\/status\/([^/]+)$/);
+        if (r.method === 'GET' && status) {
+            if (MODE === 'qa') return send(res, 404, { message: 'en modo qa el estado lo da la API de qa' });
+            const bearer = String(r.headers.authorization || '').replace(/^Bearer\s+/i, '');
+            const [order] = await query(`SELECT er.id, er.order_key, ur.user_request_status_id AS st, ur.final_amount, ur.amount, ur.initial_fee
+                FROM ecommerce_requests er JOIN allied_ecommerce_credentials aec ON aec.allied_branch_id = er.allied_branch_id
+                LEFT JOIN user_requests_by_ecommerce_request ub ON ub.id = (SELECT MAX(id) FROM user_requests_by_ecommerce_request WHERE ecommerce_request_id = er.id)
+                LEFT JOIN user_requests ur ON ur.id = ub.user_request_id
+                WHERE er.order_key = ? AND aec.credential = ? ORDER BY er.id DESC LIMIT 1`, [decodeURIComponent(status[1]), bearer]);
+            if (!order) return send(res, 404, { message: 'Order not found.' });
+            const st = Number(order.st);
+            const merchant = st === 11 ? 'completed' : st === 6 ? 'failed' : st === 7 || st === 8 ? 'cancelled' : 'pending';
+            log(`status ${merchant}`, undefined, { order_key: order.order_key, user_request_status_id: order.st ?? null });
+            return send(res, 200, { orderId: order.order_key, approvedAmount: Number(order.final_amount ?? order.amount ?? 0) + Number(order.initial_fee ?? 0),
+                currency: 'COP', status: merchant, _mock: true });
+        }
+
+        // 2a' · el cobro de VTEX (settle): lo que el gateway le manda al conector después del aviso de aprobado.
+        if (r.method === 'POST' && p === '/plugin/vtex/settle') {
+            const req = await body(r);
+            if (!(await realVtex())) return send(res, 409, { error: 'el settle se prueba con el conector real (repo vtex: yarn --cwd node local)' });
+            const settlement = { paymentId: req.paymentId, authorizationId: req.paymentId, transactionId: req.paymentId,
+                requestId: `settle-${Date.now()}`, settleId: `settle-${Date.now()}`, value: req.value };
+            const fw = await fetch(`${VTEX_CONNECTOR_URL}/payments/${encodeURIComponent(req.paymentId)}/settlements`, { method: 'POST', body: JSON.stringify(settlement), headers: {
+                'Content-Type': 'application/json', 'X-PROVIDER-API-AppKey': String(r.headers['x-provider-api-appkey'] || ''),
+                'X-PROVIDER-API-AppToken': String(r.headers['x-provider-api-apptoken'] || '') } });
+            const out = await fw.json();
+            log(`vtex settle ${out.settleId ? 'aprobado' : (out.code || 'negado')}`, 'vtex', { paymentId: req.paymentId, settleId: out.settleId, code: out.code, message: out.message });
+            return send(res, 200, { request: settlement, response: out });
         }
 
         // 2b · la app de Shopify
