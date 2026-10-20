@@ -18,10 +18,16 @@ package hooks
  *   - `git commit` SIN rutas, salvo que el MISMO comando haya stageado antes rutas explícitas
  *     (`git add x && git commit …`): ése es el patrón seguro, porque no deja ventana entre los dos.
  * Si de verdad el índice es tuyo, se mira con `git diff --cached --name-only` y se agrega
- * I_CHECKED_THE_INDEX=1 al comando. */
+ * I_CHECKED_THE_INDEX=1 al comando.
+ *
+ * SÓLO DENTRO DEL PLAYGROUND: el índice compartido es el de este worktree. En otro repo (vtex, shopify,
+ * legacy-backend) cada sesión tiene el suyo, y frenar ahí sólo estorbaba: el 2026-10-20 bloqueó el squash de
+ * un PR (`reset --soft` + `commit`). La carpeta se sigue por el `cwd` del hook, los `cd <carpeta>` del comando
+ * y `git -C <carpeta>`; si no se puede saber (un `cd $repo`), se frena igual. */
 
 import (
 	"fmt"
+	"path/filepath"
 	"strings"
 
 	"creditop/playground/lib/shell"
@@ -95,6 +101,8 @@ func commitPaths(args []string) (paths bool, all bool) {
 					break
 				}
 			}
+		case isRedirect(a):
+			// `>/dev/null`, `2>&1`: no son rutas. Contarlas dejaba pasar un commit sin rutas (2026-10-20).
 		default:
 			paths = true
 		}
@@ -102,15 +110,47 @@ func commitPaths(args []string) (paths bool, all bool) {
 	return paths, all
 }
 
-// IndexGuard es la decisión sobre un comando: los motivos para frenarlo (ninguno = pasa).
-func IndexGuard(cmd string) []string {
+// isRedirect: si el token es una redirección del shell (`>x`, `2>&1`, `<x`, `&>x`).
+func isRedirect(tok string) bool {
+	t := strings.TrimLeft(tok, "0123456789&")
+	return strings.HasPrefix(t, ">") || strings.HasPrefix(t, "<")
+}
+
+// IndexGuard es la decisión sobre un comando sin saber en qué carpeta corre: frena como si fuera el playground.
+func IndexGuard(cmd string) []string { return IndexGuardIn(cmd, "", "", "") }
+
+// IndexGuardIn es la decisión sabiendo la carpeta donde arranca el comando (`cwd`), la raíz del playground
+// (`root`) y el HOME (para `cd ~/…`): un git que corre fuera del playground no se frena.
+func IndexGuardIn(cmd, cwd, root, home string) []string {
 	if cmd == "" || !strings.Contains(cmd, "git") || strings.Contains(cmd, IndexOverride) {
 		return nil
 	}
 	var reasons []string
 	stagedExplicitly := false
+	dir, known := cwd, cwd != "" && root != ""
 	for _, seg := range shell.Segments(cmd) {
+		if toks := shell.Program(seg); len(toks) > 0 && toks[0] == "cd" {
+			if len(toks) < 2 {
+				dir, known = home, home != ""
+			} else if next, ok := resolveDir(dir, toks[1], home); ok && (known || anchored(toks[1])) {
+				dir, known = next, true
+			} else {
+				known = false
+			}
+			continue
+		}
 		sub, args := gitCall(seg)
+		if sub == "" {
+			continue
+		}
+		at, atKnown := dir, known
+		if target, ok := gitDirFlag(seg); ok {
+			at, atKnown = resolveDir(dir, target, home)
+			atKnown = atKnown && (known || anchored(target))
+		}
+		if atKnown && !inside(at, root) {
+			continue
+		}
 		switch sub {
 		case "add":
 			broad, named := false, false
@@ -118,7 +158,7 @@ func IndexGuard(cmd string) []string {
 				switch {
 				case broadAdd[a]:
 					broad = true
-				case a == "--" || strings.HasPrefix(a, "-"):
+				case a == "--" || strings.HasPrefix(a, "-") || isRedirect(a):
 				default:
 					named = true
 				}
@@ -160,7 +200,7 @@ func IndexGuardHook(env Env) int {
 	if tool, present := payload["tool_name"]; present && tool != nil && tool != "Bash" {
 		return 0
 	}
-	reasons := IndexGuard(str(toolInput(payload), "command"))
+	reasons := IndexGuardIn(str(toolInput(payload), "command"), str(payload, "cwd"), env.Root, env.Home)
 	if len(reasons) == 0 {
 		return 0
 	}
@@ -171,3 +211,45 @@ func IndexGuardHook(env Env) int {
 	}
 	return 2
 }
+
+// gitDirFlag: el valor de `git -C <carpeta>` en el segmento, si lo tiene.
+func gitDirFlag(seg string) (string, bool) {
+	toks := shell.Program(seg)
+	for i := 1; i < len(toks)-1 && strings.HasPrefix(toks[i], "-"); i++ {
+		if toks[i] == "-C" {
+			return toks[i+1], true
+		}
+		if gitGlobalWithValue[toks[i]] {
+			i++
+		}
+	}
+	return "", false
+}
+
+// resolveDir: la carpeta a la que lleva `target` desde `from`. No se sabe si usa variables o sustituciones.
+func resolveDir(from, target, home string) (string, bool) {
+	if strings.ContainsAny(target, "$`*?") {
+		return "", false
+	}
+	switch {
+	case target == "~" || strings.HasPrefix(target, "~/"):
+		if home == "" {
+			return "", false
+		}
+		return filepath.Clean(filepath.Join(home, strings.TrimPrefix(target, "~"))), true
+	case filepath.IsAbs(target):
+		return filepath.Clean(target), true
+	case from == "":
+		return "", false
+	}
+	return filepath.Clean(filepath.Join(from, target)), true
+}
+
+// inside: si dir es root o está adentro.
+func inside(dir, root string) bool {
+	rel, err := filepath.Rel(root, dir)
+	return err == nil && rel != ".." && !strings.HasPrefix(rel, ".."+string(filepath.Separator))
+}
+
+// anchored: si la ruta no depende de la carpeta actual (absoluta o desde el HOME).
+func anchored(p string) bool { return filepath.IsAbs(p) || p == "~" || strings.HasPrefix(p, "~/") }
