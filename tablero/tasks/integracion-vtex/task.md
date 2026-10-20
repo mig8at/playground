@@ -5,8 +5,8 @@ stage: evaluation
 created: "2026-10-19T12:00:00-05:00"
 knowledge: [ecommerce-context]
 canon: []
-jira: [CORE-638]
-jira_title: ""
+jira: [CORE-800, CORE-638]
+jira_title: "Integración VTEX: enlace de pago con referencia y pedidos atribuidos a la sucursal"
 ramas: payment-link
 ---
 
@@ -160,6 +160,8 @@ ventas tienen que poder reportarse por sucursal.
 - Al elegir CreditOp en el checkout de VTEX, el comprador llega a CreditOp con un enlace que sólo lleva una
   referencia; los datos del pedido los guarda CreditOp.
 - Cada pedido de VTEX queda registrado con la sucursal de la tienda y con VTEX como plataforma.
+- El cobro que hace VTEX después de aprobado se confirma contra el estado del pedido en CreditOp: sólo se cobra una
+  solicitud autorizada.
 
 ## Alcance
 - Una tienda VTEX corresponde a una sola sucursal del comercio.
@@ -173,6 +175,7 @@ QA, con una sucursal ecommerce configurada como VTEX.
   ni la credencial, sólo la referencia.
 - Abrir el enlace: el monto y los datos del comprador aparecen precargados y el comprador valida su celular.
 - Llegar a un estado final: la solicitud y el pedido quedan con la sucursal VTEX y la tienda recibe la notificación.
+- Cobrar el pago aprobado: se aprueba; uno sin solicitud autorizada se rechaza.
 
 ## Cambios en datos
 - Las columnas de la referencia en los pedidos de ecommerce (ya aplicadas en la base de dev, qa y staging; falta

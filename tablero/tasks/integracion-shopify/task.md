@@ -5,8 +5,8 @@ stage: evaluation
 created: "2026-10-19T12:00:00-05:00"
 knowledge: [ecommerce-context]
 canon: []
-jira: [CORE-689]
-jira_title: ""
+jira: [CORE-801, CORE-689]
+jira_title: "Integración Shopify: app de pagos con enlace de pago y pedidos atribuidos a la sucursal"
 ramas: payment-link, feat/core-689-shopify-platform, playground-ecommerce/feat/ecommerce
 ---
 
@@ -181,10 +181,13 @@ contiene credenciales y datos personales que no deberían estar ahí.
   referencia; los datos del pedido los guarda CreditOp.
 - El comercio configura en la app la sucursal a la que pertenece su tienda, y cada pedido queda registrado con esa
   sucursal y con Shopify como plataforma.
+- Cuando la solicitud termina, el pago se cierra solo en Shopify: aprobada queda pagada, negada o cancelada vuelve
+  el comprador al checkout, y si el comprador vuelve antes, el pedido queda pendiente hasta el resultado.
 
 ## Alcance
 - Una tienda Shopify corresponde a una sola sucursal del comercio.
-- No incluye devolver el resultado del crédito a Shopify, reembolsos ni la publicación de la app.
+- No incluye reembolsos (hoy se rechazan con un mensaje para el comercio), el alojamiento con URL fija ni la
+  publicación de la app.
 
 ## Dónde probar
 QA, con una tienda de desarrollo de Shopify y una sucursal ecommerce configurada como Shopify.
@@ -193,6 +196,7 @@ QA, con una tienda de desarrollo de Shopify y una sucursal ecommerce configurada
 - Pagar con CreditOp en la tienda de desarrollo: el comprador llega a CreditOp con el monto precargado.
 - El enlace no trae datos del pedido ni la credencial del comercio.
 - Dos tiendas configuradas con sucursales distintas generan pedidos en sus sucursales.
+- Aprobar la solicitud: el pedido en Shopify queda pagado. Negarla: el pago queda fallido.
 
 ## Cambios en datos
 - Shopify como plataforma en el catálogo de ecommerce.
