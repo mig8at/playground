@@ -61,8 +61,9 @@ ramas: payment-link, feat/core-689-shopify-platform
       infra; termina con un 401 sin token contra prod.
 - [ ] Que `Creditop-SAS/legacy-backend#1689` (rama `feat/core-689-shopify-platform-qa`, contra `qa`) se mergee y
       despliegue; después, el PR a `main` con `feat/core-689-shopify-platform`. Termina con los dos mergeados.
-- [ ] Pasar la credencial de qa de `c390eed9` (id 47, hoy tipo 2) a tipo 4 cuando la rama esté en qa, para que los
-      pedidos de la tienda de prueba salgan atribuidos a Shopify. Escribe en la base compartida: pedir el OK.
+- [x] ~~Que los pedidos de la tienda de prueba salgan atribuidos a Shopify en qa~~ — con un comercio propio (362,
+      sucursal ecommerce `8ffe96e2`, credencial tipo 4) en vez de pasar `c390eed9`, que usa también VTEX. Pedido 7963
+      con `ecommerce_id=4` → #1012 `PAID`.
 
 ## Objetivo
 
