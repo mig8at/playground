@@ -59,6 +59,8 @@ ramas: payment-link, feat/core-689-shopify-platform
 - [ ] Publicar `POST /legacy-api/ecommerce/payment-link` (y `/status`) en el gateway de producción
       (`v2.api.creditop.com`): hoy sólo existe en el de dev. La app ya apunta ahí en producción (c69e948). Lo hace
       infra; termina con un 401 sin token contra prod.
+- [ ] Que `Creditop-SAS/legacy-backend#1689` (rama `feat/core-689-shopify-platform-qa`, contra `qa`) se mergee y
+      despliegue; después, el PR a `main` con `feat/core-689-shopify-platform`. Termina con los dos mergeados.
 - [ ] Pasar la credencial de qa de `c390eed9` (id 47, hoy tipo 2) a tipo 4 cuando la rama esté en qa, para que los
       pedidos de la tienda de prueba salgan atribuidos a Shopify. Escribe en la base compartida: pedir el OK.
 
