@@ -116,8 +116,8 @@ type repoCommits struct {
 // declara `ramas:`.
 func taskCommits(playground, reposDir string, t task, since time.Time) []repoCommits {
 	stamp := since.Format("2006-01-02 15:04")
-	var out []repoCommits
-	own := regexp.MustCompile(`^(?:` + regexp.QuoteMeta(t.Slug) + `:|.*\btarea ` + strconv.Itoa(t.ID) + `\b)`)
+	out := []repoCommits{}
+	own := regexp.MustCompile(`^(?:` + regexp.QuoteMeta(t.Slug) + `:|.*\btarea (?:` + strconv.Itoa(t.ID) + `|` + regexp.QuoteMeta(t.Slug) + `)\b)`)
 	pg := repoCommits{Repo: "playground", Cmd: "git log --since=\"" + stamp + "\" --oneline main"}
 	for _, l := range strings.Split(gitOut(playground, "log", "--since="+stamp, "--format=%h %s", "main"), "\n") {
 		if _, subject, ok := strings.Cut(l, " "); ok && own.MatchString(subject) {
