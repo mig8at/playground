@@ -143,7 +143,40 @@ func git(ctx context.Context, dir string, args ...string) (string, error) {
 
 // reBranchPattern valida CADA patrón del frontmatter. Se acota a propósito: es una subcadena de nombre de
 // rama, no una expresión — un patrón libre acabaría matcheando ramas ajenas y la card mentiría al revés.
-var reBranchPattern = regexp.MustCompile(`^[\w][\w./-]{2,}$`)
+// Puede llevar delante `repo:` para buscar sólo en ese repo (ver BranchPattern).
+var reBranchPattern = regexp.MustCompile(`^(?:[\w][\w.-]*:)?[\w][\w./-]{2,}$`)
+
+// BranchPattern es un patrón de `ramas:` ya leído: una subcadena del nombre de la rama y, si se escribió
+// `repo:subcadena`, el repo donde buscarla. Sin repo busca en todos, como siempre.
+//
+// El repo existe porque una subcadena sola no alcanza cuando dos repos usan el mismo nombre de rama: medido el
+// 2026-10-20, `payment-link` (las ramas de los plugins de VTEX y Shopify) traía también
+// `feat/refurbi-payment-link-ref` de Refurbi y `feat/core-746-ecommerce-payment-link-endpoint` de otra persona.
+// Con `vtex:payment-link` el patrón sigue siendo corto y deja de pescar en los otros repos.
+type BranchPattern struct {
+	Repo     string
+	Fragment string
+}
+
+// ParseBranchPattern lee un patrón ya validado por reBranchPattern.
+func ParseBranchPattern(p string) BranchPattern {
+	if repo, fragment, ok := strings.Cut(p, ":"); ok {
+		return BranchPattern{Repo: repo, Fragment: fragment}
+	}
+	return BranchPattern{Fragment: p}
+}
+
+// AppliesTo dice si el patrón busca en el repo con ese nombre (ver RepoName).
+func (bp BranchPattern) AppliesTo(repo string) bool { return bp.Repo == "" || bp.Repo == repo }
+
+// RepoName es el nombre con que un patrón `repo:` nombra la carpeta: el de la carpeta, salvo en un worktree,
+// que se nombra por su repo original (`legacy-backend-shopify` es `legacy-backend`).
+func RepoName(dir string) string {
+	if origin := worktreeOrigin(dir); origin != "" {
+		return filepath.Base(origin)
+	}
+	return filepath.Base(dir)
+}
 
 // patternsOf parte el valor del frontmatter en la LISTA de subcadenas a buscar, separadas por coma.
 //
@@ -230,8 +263,13 @@ func measureTask(ctx context.Context, repos []string, pattern string, pats, envi
 			// card mostraría la rama repetida y el conteo del botón diría más de las que hay.
 			seen := map[string]bool{}
 			var branches []branch
+			name := RepoName(repo)
 			for _, pat := range pats {
-				for _, rm := range matchingBranches(ctx, repo, pat) {
+				bp := ParseBranchPattern(pat)
+				if !bp.AppliesTo(name) {
+					continue
+				}
+				for _, rm := range matchingBranches(ctx, repo, bp.Fragment) {
 					if !seen[rm.Name] {
 						seen[rm.Name] = true
 						branches = append(branches, rm)

@@ -60,3 +60,35 @@ func TestReposInSkipsWorktreesOfListedRepos(t *testing.T) {
 		t.Fatalf("repos = %v, quería %v (el worktree de backend no se lista aparte)", got, want)
 	}
 }
+
+// `repo:subcadena` busca sólo en ese repo; sin repo, en todos. Un worktree se nombra por su repo original.
+func TestBranchPatternWithRepo(t *testing.T) {
+	bp := ParseBranchPattern("vtex:payment-link")
+	if bp.Repo != "vtex" || bp.Fragment != "payment-link" || !bp.AppliesTo("vtex") || bp.AppliesTo("legacy-backend") {
+		t.Fatalf("vtex:payment-link mal leído: %+v", bp)
+	}
+	if any := ParseBranchPattern("payment-link"); any.Repo != "" || !any.AppliesTo("legacy-backend") {
+		t.Fatalf("sin repo tiene que valer para todos: %+v", any)
+	}
+	if got := patternsOf("vtex:payment-link, shopify:feat/x, payment-link"); len(got) != 3 {
+		t.Fatalf("los tres patrones son válidos, quedaron %v", got)
+	}
+
+	root := t.TempDir()
+	if err := os.MkdirAll(filepath.Join(root, "legacy-backend", ".git", "worktrees", "lb-feature"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	wt := filepath.Join(root, "lb-feature")
+	if err := os.MkdirAll(wt, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(wt, ".git"), []byte("gitdir: "+filepath.Join(root, "legacy-backend", ".git", "worktrees", "lb-feature")+"\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if got := RepoName(wt); got != "legacy-backend" {
+		t.Fatalf("el worktree se nombra por su original, quedó %q", got)
+	}
+	if got := RepoName(filepath.Join(root, "legacy-backend")); got != "legacy-backend" {
+		t.Fatalf("un repo normal se nombra por su carpeta, quedó %q", got)
+	}
+}

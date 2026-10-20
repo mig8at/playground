@@ -35,6 +35,7 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"regexp"
 	"slices"
@@ -92,10 +93,13 @@ type Report struct {
 	// se leería igual que un día sin tocarlas.
 	Swept               []Swept  `json:"swept,omitempty"`
 	BranchesWithoutTask []string `json:"branchesWithoutTask"`
+	// GoneBranches: ramas con actividad ese día cuya carpeta o cuya rama ya no existen (un worktree borrado, una
+	// rama renombrada). Se informan y no cuentan como «sin tarea»: no hay nada que declarar.
+	GoneBranches []string `json:"goneBranches,omitempty"`
 	// UnlinkedIssues: mis issues de los últimos sprints que el tablero muestra sin documento (jira.go).
 	UnlinkedIssues []UnlinkedIssue `json:"unlinkedIssues,omitempty"`
-	Warnings            []string `json:"warnings"`
-	MissingPieces       int      `json:"missingPieces"`
+	Warnings       []string        `json:"warnings"`
+	MissingPieces  int             `json:"missingPieces"`
 	// Friction: lo que se trabó HOY y no se había trabado igual en el último mes, leído por radar de las
 	// transcripciones. Avisa, no frena: no suma a MissingPieces ni cambia el código de salida.
 	Friction       []FrictionNote `json:"friction,omitempty"`
@@ -302,15 +306,66 @@ func worklog(data, day string) (byTask map[int]int, withoutTask, total, n int) {
 // branchesOfDay: las ramas con actividad ese día según el pulso, como "repo/rama", cuáles de ellas son
 // ramas BASE, y los minutos totales (tramos de 5' con cambios). `ok` es false si no hay ningún tick de ese
 // día: pulso apagado ≠ no trabajé.
-func branchesOfDay(data, day string) (branches []string, base map[string]bool, minutes int, ok bool) {
+func branchesOfDay(data, day string) (branches []string, base map[string]bool, refs map[string]branchRef, minutes int, ok bool) {
 	today := time.Now()
 	d, _ := time.Parse("2006-01-02", day)
 	days := int(today.Sub(d).Hours()/24) + 2
 	ticks, err := pulse.Read(data, days)
 	if err != nil {
-		return nil, nil, 0, false
+		return nil, nil, nil, 0, false
 	}
-	return dayBranches(pulse.Aggregate(ticks, 0), day)
+	hours := pulse.Aggregate(ticks, 0)
+	branches, base, minutes, ok = dayBranches(hours, day)
+	return branches, base, dayRefs(hours, day), minutes, ok
+}
+
+// branchRef: la carpeta (como la nombra el pulso, relativa a la raíz de los repos) y la rama de una entrada
+// "repo/rama". Hace falta separada porque el texto es ambiguo (ver dayBranches).
+type branchRef struct{ Folder, Branch string }
+
+func dayRefs(hours []pulse.Hour, day string) map[string]branchRef {
+	refs := map[string]branchRef{}
+	for _, h := range hours {
+		if h.Day != day {
+			continue
+		}
+		for _, r := range h.Repos {
+			if r.Branch != "" {
+				refs[r.Repo+"/"+r.Branch] = branchRef{Folder: r.Repo, Branch: r.Branch}
+			}
+		}
+	}
+	return refs
+}
+
+// reposRoot: donde viven los repos que mira el pulso (la misma raíz que `make tareas-ramas`).
+func reposRoot() string {
+	for _, k := range []string{"TABLERO_RAMAS_ROOT", "PULSO_ROOT"} {
+		if v := os.Getenv(k); v != "" {
+			return v
+		}
+	}
+	return filepath.Join(os.Getenv("HOME"), "Desktop", "CREDITOP", "github")
+}
+
+// goneReason dice por qué una rama con actividad ya no está: la carpeta no existe (un worktree borrado), o la
+// rama no existe ni local ni en origin (renombrada o borrada). "" si sigue ahí. Medido el 2026-10-20: borrar
+// el worktree `legacy-backend-core653` volvió «tocada» a la tarea de Credifamilia, y renombrar las ramas de
+// los plugins dejó `vtex/payment-link` y `shopify/payment-link` como ramas «que ninguna tarea declara».
+func goneReason(root string, ref branchRef) string {
+	if ref.Folder == "" {
+		return ""
+	}
+	dir := filepath.Join(root, ref.Folder)
+	if _, err := os.Stat(dir); err != nil {
+		return "la carpeta ya no existe"
+	}
+	for _, r := range []string{"refs/heads/" + ref.Branch, "refs/remotes/origin/" + ref.Branch} {
+		if exec.Command("git", "-C", dir, "show-ref", "--verify", "--quiet", r).Run() == nil {
+			return ""
+		}
+	}
+	return "la rama ya no existe (renombrada o borrada)"
 }
 
 // dayBranches es la parte de `branchesOfDay` que no lee disco. La rama base se decide ACÁ, con el repo y
@@ -369,6 +424,13 @@ atribuir: por qué tarea hay que pasar hoy —por su archivo o por una rama— y
 	algo se está haciendo ahí y el cierre lo pregunta igual.
 */
 func attribute(tasks []task, touched map[string]bool, branches []string) (map[string][]string, map[string]bool) {
+	return attributeWith(tasks, touched, branches, nil)
+}
+
+// attributeWith es attribute sabiendo el repo de cada rama (`repos`: "repo/rama" → nombre del repo, con un
+// worktree nombrado por su repo original). Un patrón `repo:subcadena` sólo reclama ramas de ese repo; sin el
+// repo de la rama, no reclama ninguna.
+func attributeWith(tasks []task, touched map[string]bool, branches []string, repos map[string]branchRef) (map[string][]string, map[string]bool) {
 	reasons := map[string][]string{}
 	branchWithTask := map[string]bool{}
 	for _, t := range tasks {
@@ -380,7 +442,12 @@ func attribute(tasks []task, touched map[string]bool, branches []string) (map[st
 		}
 		for _, r := range branches {
 			for _, p := range t.Branches {
-				if strings.Contains(r, p) {
+				bp := store.ParseBranchPattern(p)
+				matches := bp.Repo == "" && strings.Contains(r, p)
+				if ref, ok := repos[r]; ok && bp.Repo != "" {
+					matches = bp.AppliesTo(ref.Folder) && strings.Contains(ref.Branch, bp.Fragment)
+				}
+				if matches {
 					branchWithTask[r] = true
 					reasons[t.Slug] = append(reasons[t.Slug], "rama "+r)
 					break
@@ -424,12 +491,28 @@ func main() {
 			swept[slug] = legacySweepReason
 		}
 	}
-	branches, base, pulseMin, pulseOK := branchesOfDay(data, *day)
+	branches, base, refs, pulseMin, pulseOK := branchesOfDay(data, *day)
+	reposDir := reposRoot()
+	gone := map[string]string{}
+	named := map[string]branchRef{} // "repo/rama" → el nombre del repo (un worktree, por su original) y la rama
+	var live []string               // las ramas cuya carpeta todavía existe: sólo esas vuelven «tocada» a una tarea
+	for _, r := range branches {
+		ref := refs[r]
+		if why := goneReason(reposDir, ref); why != "" {
+			gone[r] = why
+			inf.GoneBranches = append(inf.GoneBranches, r+" ("+why+")")
+			if why == "la carpeta ya no existe" {
+				continue
+			}
+		}
+		named[r] = branchRef{Folder: store.RepoName(filepath.Join(reposDir, ref.Folder)), Branch: ref.Branch}
+		live = append(live, r)
+	}
 	inf.PulseMinutes, inf.PulseAvailable = pulseMin, pulseOK
 	minutesByTask, withoutTask, totalWorklog, nBit := worklog(data, *day)
 	inf.WorklogMin, inf.WorklogN, inf.WithoutTaskMin = totalWorklog, nBit, withoutTask
 
-	reasons, branchWithTask := attribute(tasks, touched, branches)
+	reasons, branchWithTask := attributeWith(tasks, touched, live, named)
 	// Un bloque fechado ese día también es trabajo en la tarea, aunque su documento no cambie: la pila es
 	// donde se documenta ahora. Cuenta la FECHA del bloque y no el archivo tocado, así que la migración que
 	// reescribió los 37 hitos viejos con sus fechas no volvió «tocadas» a sus 22 tareas. Y un bloque
@@ -444,7 +527,7 @@ func main() {
 		}
 	}
 	for _, r := range branches {
-		if !branchWithTask[r] && !base[r] {
+		if !branchWithTask[r] && !base[r] && gone[r] == "" {
 			inf.BranchesWithoutTask = append(inf.BranchesWithoutTask, r)
 		}
 	}
@@ -617,6 +700,13 @@ func printReport(inf Report) {
 		fmt.Println("  — barridas, sin avance (lo declara su commit; no se les pide bloque ni bitácora):")
 		for _, t := range inf.Swept {
 			fmt.Printf("    #%-3d %s — %s\n", t.ID, t.Slug, t.Reason)
+		}
+		fmt.Println()
+	}
+	if len(inf.GoneBranches) > 0 {
+		fmt.Println("  ramas del día que ya no están (no cuentan como sin tarea):")
+		for _, r := range inf.GoneBranches {
+			fmt.Println("    · " + r)
 		}
 		fmt.Println()
 	}

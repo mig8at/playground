@@ -144,6 +144,8 @@ le pasa al sistema) vive en `data/traps/doc.md` y se entra por su síntoma. `mak
   propuesto y muere con la tarea.
 - **`ramas:`** en el frontmatter declara sólo los PATRONES; dónde vive cada rama lo mide `make
   tareas-ramas` (skill `tablero-delivery`). Si el trabajo no tiene rama propia, no inventes un patrón.
+  Un patrón es una subcadena del nombre de la rama en TODOS los repos; con `repo:subcadena`
+  (`vtex:payment-link`) busca sólo en ese repo, y un worktree cuenta como su repo original.
 
 ## AL CERRAR UNA SESIÓN: tres cosas
 

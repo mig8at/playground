@@ -3,6 +3,7 @@ package main
 import (
 	"encoding/json"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -224,5 +225,48 @@ func TestReadFrontmatterJiraList(t *testing.T) {
 	tr, _ := readTaskFile(path)
 	if len(tr.Jira) != 2 || tr.Jira[1] != "CORE-758" {
 		t.Errorf("jira: %v", tr.Jira)
+	}
+}
+
+// El caso del 2026-10-20: `payment-link` (los plugins) reclamaba la rama de Refurbi en legacy-backend. Con
+// `vtex:payment-link` sólo reclama la de vtex; y un patrón sin repo sigue igual que antes.
+func TestRepoQualifiedPatternOnlyClaimsItsRepo(t *testing.T) {
+	vtex := task{ID: 102, Slug: "integracion-vtex", Branches: []string{"vtex:payment-link"}}
+	branches := []string{"vtex/payment-link", "legacy-backend/feat/refurbi-payment-link-ref"}
+	repos := map[string]branchRef{
+		"vtex/payment-link":                            {Folder: "vtex", Branch: "payment-link"},
+		"legacy-backend/feat/refurbi-payment-link-ref": {Folder: "legacy-backend", Branch: "feat/refurbi-payment-link-ref"},
+	}
+	reasons, withTask := attributeWith([]task{vtex}, map[string]bool{}, branches, repos)
+	if len(reasons["integracion-vtex"]) != 1 || !withTask["vtex/payment-link"] {
+		t.Fatalf("tenía que reclamar sólo la rama de vtex: %v", reasons["integracion-vtex"])
+	}
+	if withTask["legacy-backend/feat/refurbi-payment-link-ref"] {
+		t.Fatal("la rama de Refurbi en legacy-backend no es de la tarea de VTEX")
+	}
+	old := task{ID: 1, Slug: "vieja", Branches: []string{"payment-link"}}
+	_, both := attributeWith([]task{old}, map[string]bool{}, branches, repos)
+	if !both["vtex/payment-link"] || !both["legacy-backend/feat/refurbi-payment-link-ref"] {
+		t.Fatal("un patrón sin repo sigue buscando en todos")
+	}
+}
+
+// Una carpeta borrada (un worktree) o una rama que ya no existe no son trabajo por declarar.
+func TestGoneReason(t *testing.T) {
+	root := t.TempDir()
+	if got := goneReason(root, branchRef{Folder: "no-existe", Branch: "x"}); got != "la carpeta ya no existe" {
+		t.Fatalf("carpeta borrada: %q", got)
+	}
+	repo := filepath.Join(root, "repo")
+	for _, args := range [][]string{{"init", "-q", "-b", "main", repo}, {"-C", repo, "-c", "user.email=t@t", "-c", "user.name=t", "commit", "-q", "--allow-empty", "-m", "x"}} {
+		if out, err := exec.Command("git", args...).CombinedOutput(); err != nil {
+			t.Fatalf("git %v: %v %s", args, err, out)
+		}
+	}
+	if got := goneReason(root, branchRef{Folder: "repo", Branch: "main"}); got != "" {
+		t.Fatalf("la rama existe: %q", got)
+	}
+	if got := goneReason(root, branchRef{Folder: "repo", Branch: "payment-link"}); got != "la rama ya no existe (renombrada o borrada)" {
+		t.Fatalf("rama renombrada: %q", got)
 	}
 }

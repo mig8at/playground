@@ -37,6 +37,10 @@ el 2026-09-27.
      Medido: CORE-268 vive en `monto-actualizando-sin-banner` **y** en `motai-v2`, que no comparten
      ninguna subcadena. Y **no ensanches el patrón** para cubrir dos: `kyc` trae también
      `obs-kyc-03-codes`, que es observabilidad. Un patrón ancho no falla, miente.
+     **Y si el nombre se repite en otro repo, atá el patrón al repo** con `repo:subcadena`. Medido el
+     2026-10-20: `payment-link` (los plugins de VTEX y Shopify) traía la rama de Refurbi y la de otra
+     persona en legacy-backend; `vtex:payment-link` busca sólo en `vtex`. Un worktree cuenta como su repo
+     original, y no se lista aparte.
   4. **Incluye las ramas LOCALES, marcadas.** Antes sólo miraba remotas y eso tenía un agujero
      sistemático: al aprobar un PR la remota se borra, así que dejaba de encontrar nada justo para las
      tareas TERMINADAS. `local` **no** quiere decir «sin pushear» — los ambientes dicen cuál de las dos es
