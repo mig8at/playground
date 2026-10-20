@@ -1,7 +1,7 @@
 ---
 id: 48
 title: "playground: el lugar donde viven las herramientas internas"
-ramas: sesion-unica
+ramas: sesion-unica, forecast/, feat/cli
 stage: work
 created: "2026-08-13T16:00:18-05:00"
 canon: []
