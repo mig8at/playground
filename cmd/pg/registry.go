@@ -53,6 +53,22 @@ var commands []command
 
 func init() {
 	commands = []command{
+		{Name: "tareas", Summary: "las tareas del tablero: las abiertas con su etapa, Jira y ramas; o UNA, por id o slug. Sólo lectura",
+			Usage: "pg tareas [--n <id|slug>] [--todas] [--json]", run: runTareas,
+			Params: []param{str("n", "una tarea, por id o slug"), boolean("todas", "también las archivadas"), boolean("json", "en JSON")}},
+		{Name: "tarea pila", Summary: "la pila de una tarea: sus últimos bloques (qué se hizo y con qué se sostiene). Sólo lectura",
+			Usage: "pg tarea pila --tarea <id|slug>", run: runTareaPila,
+			Params: []param{req("tarea", "id o slug de la tarea")}},
+		{Name: "tarea bloque", Summary: "agrega un bloque a la pila de una tarea: el título es la conclusión y el cuerpo lo que la sostiene (cada comando, en su caja, seguido de «Resultado: …»; los archivos como [nombre](repo:<repo>/<ruta>)). Con seco=true valida y muestra sin escribir. Escribe en el tablero local",
+			Usage: "pg tarea bloque --tarea <id|slug> --titulo '…' --cuerpo '…' [--seco]", run: runTareaBloque,
+			Params: []param{req("tarea", "id o slug de la tarea"), req("titulo", "la conclusión, en una línea"),
+				req("cuerpo", "lo que la sostiene, en Markdown"), boolean("seco", "valida y muestra el bloque sin escribirlo")}},
+		{Name: "bitacora add", Summary: "registra tiempo en la bitácora de una tarea, con los minutos MEDIDOS: --lapso HH:MM-HH:MM, --pulso HH:MM o --min N con --fuente. La nota sube a Jira como worklog: sin repos, rutas ni herramientas internas. Con seco=true valida sin escribir. Escribe en el tablero local",
+			Usage: "pg bitacora add --tarea <id|slug> --titulo '…' [--nota '…'] (--lapso HH:MM-HH:MM | --pulso HH:MM | --min N --fuente '…') [--dia AAAA-MM-DD] [--desde HH:MM] [--seco]", run: runBitacoraAdd,
+			Params: []param{req("tarea", "id o slug de la tarea"), req("titulo", "qué se hizo, corto"), str("nota", "realizada → resultado → validación"),
+				str("lapso", "HH:MM-HH:MM"), str("pulso", "HH:MM: desde esa hora, medido por el pulso"), str("min", "minutos, con fuente"),
+				str("fuente", "de dónde salen los minutos de min"), str("dia", "AAAA-MM-DD, para un día anterior"),
+				str("desde", "HH:MM, con min en un día anterior"), boolean("seco", "valida y muestra sin escribir")}},
 		{Name: "client state", Summary: "qué hay de una CÉDULA en la base del ambiente: el cliente activo y sus bajas (-t<n>), sus últimas solicitudes, qué centrales se le consultaron y cuándo, y qué central decidió su nombre. Sólo lectura (también prod)",
 			Usage: "pg client state --target T --document 1031138508 [--json]", run: runClientState,
 			Params: []param{target(), req("document", "la cédula, sólo dígitos"), boolean("json", "el resultado en JSON")}},

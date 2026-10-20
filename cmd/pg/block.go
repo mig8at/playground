@@ -98,14 +98,18 @@ func addTaskBlock(task, title, body string) error {
 	return nil
 }
 
-// playgroundRoot: la raíz del playground, buscando hacia arriba el directorio del tablero.
+// playgroundRoot: la raíz del playground, buscando hacia arriba el módulo de Go con el tablero adentro. Buscaba
+// `tablero/server/go.mod`, que dejó de existir cuando el playground pasó a un solo módulo en la raíz (ddfb05db): desde
+// ahí `pg sql --bloque` fallaba siempre con «no encontré la raíz del playground» (visto el 2026-10-20).
 func playgroundRoot() (string, error) {
 	dir, err := os.Getwd()
 	if err != nil {
 		return "", err
 	}
 	for d := dir; ; d = filepath.Dir(d) {
-		if _, err := os.Stat(filepath.Join(d, "tablero", "server", "go.mod")); err == nil {
+		_, mod := os.Stat(filepath.Join(d, "go.mod"))
+		_, board := os.Stat(filepath.Join(d, "tablero", "server"))
+		if mod == nil && board == nil {
 			return d, nil
 		}
 		if filepath.Dir(d) == d {

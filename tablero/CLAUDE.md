@@ -128,6 +128,11 @@ con `BLOQUE=<id|slug>`**: `harness-case` · `-listing` · `-walk-wizard` · `-su
 `bin/pg sql --bloque`. `MD=1` da la anotación para un documento que no es una tarea. Se lee
 con `make tarea-context N=…` o `make retomar`. El contrato de la línea: `docs/task-context.schema.json`.
 
+**Un agente escribe y lee sin archivos ni make** con las herramientas MCP del playground (`bin/pg mcp`):
+`tarea_bloque` (tarea, título, cuerpo; `seco` valida sin escribir), `bitacora_add` (con `lapso`, `pulso` o
+`min`+`fuente`), `tarea_pila` y `tareas`. En la consola son `bin/pg tarea bloque|pila`, `bin/pg bitacora add`
+y `bin/pg tareas`. Corren el mismo código del tablero: misma validación y mismas guardas.
+
 ⚠ **El server valida la pila también al LEERLA, con su propio código**: después de agregar un tipo de
 enlace, reiniciá el tablero, o la pila entera de esa tarea se ve vacía.
 

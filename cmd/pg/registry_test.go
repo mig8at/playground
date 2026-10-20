@@ -98,6 +98,10 @@ func TestArgvBuildsTheCommandLineAndRejectsWhatDoesNotFit(t *testing.T) {
 		{"jira create", `{"summary":"t","type_id":"10005"}`, "jira create --summary t --type-id 10005"},
 		{"jira create", `{"summary":"t","apply":true}`, "jira create --summary t --apply"},
 		{"jira delete", `{"key":"CORE-1"}`, "jira delete --key CORE-1"},
+		{"tarea bloque", `{"tarea":"84","titulo":"t","cuerpo":"c","seco":true}`, "tarea bloque --tarea 84 --titulo t --cuerpo c --seco"},
+		{"tarea bloque", `{"tarea":"84","titulo":"t"}`, "ERR:falta cuerpo"},
+		{"bitacora add", `{"tarea":"84","titulo":"t","lapso":"10:00-10:30"}`, "bitacora add --tarea 84 --titulo t --lapso 10:00-10:30"},
+		{"tarea pila", `{"tarea":"integracion-vtex"}`, "tarea pila --tarea integracion-vtex"},
 		{"jira search", `{"jql":"key = X","apply":true}`, "ERR:desconocido: apply"},
 	}
 	for _, tc := range cases {
