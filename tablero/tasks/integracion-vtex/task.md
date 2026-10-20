@@ -36,8 +36,12 @@ ramas: payment-link
 - [ ] Dar de alta la sucursal ecommerce de Mario Hernández (comercio 350) con credencial `ecommerce_type_id=3` y su
       token de ecommerce (`ecommerce:issue-token`); termina cuando `payment-link` responde 200 con su hash en qa.
       Depende de: Comercial / Operaciones — si la tienda VTEX vende por UNA sucursal y cuál es su cuenta VTEX.
-- [ ] Probar en `qa` el recorrido VTEX completo por referencia: authorize → `?ref=` → OTP → entidades → notificación
-      a VTEX; termina con la solicitud en estado final y el pedido con `allied_branch_id` de la sucursal VTEX.
+- [x] ~~Probar en `qa` el recorrido VTEX completo por referencia~~ — con el conector real en local y un comercio propio
+      (363, sucursal `530aa4f7`, credencial tipo 3): pedido 7966 con `ecommerce_id=3` → solicitud 503800 en 11 → el
+      `VtexNotifier` avisó `approved` al `callbackUrl`. Falta el `settle` (ver abajo).
+- [ ] Que el `settle` del conector deje `/vtex/settel` (de application, 404 en el gateway de dev) y use
+      `GET /ecommerce/status/{paymentId}` de legacy-backend, con el mismo token de la sucursal: aprueba con `completed`.
+      Termina con un settle aprobado en qa por el conector local.
 
 ## Objetivo
 
