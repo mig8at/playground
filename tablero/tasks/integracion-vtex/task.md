@@ -44,6 +44,9 @@ ramas: payment-link
       en qa para 7966, `ORDER_NOT_FOUND` para un pedido ajeno y `NOT_READY_TO_SETTLE` para uno sin solicitud. El
       conector ya no depende de application.
 
+- [ ] Revisar y mergear `Creditop-SAS/vtex#20` (el conector, `payment-link` → `main`). Depende de
+      `Creditop-SAS/legacy-backend#1693` para dar de alta sucursales VTEX por la Partner API. Termina mergeado.
+
 ## Objetivo
 
 Que el conector VTEX no exponga nada en la URL del comprador y que cada solicitud que entra por VTEX se pueda
