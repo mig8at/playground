@@ -24,9 +24,13 @@ import (
 	"strings"
 	"time"
 
+	"creditop/playground/tablero/server/internal/ansi"
 	"creditop/playground/tablero/server/internal/env"
 	"creditop/playground/tablero/server/internal/pulse"
 )
+
+// stdout lleva los colores sólo a una terminal: por un pipe, un agente los tenía que limpiar con sed.
+var stdout = ansi.Out(os.Stdout)
 
 const (
 	label      = "com.creditop.tablero.pulso"
@@ -109,7 +113,7 @@ func tick() error {
 	if err := pulse.Append(dir, t); err != nil {
 		return err
 	}
-	fmt.Println(tickSummary(t, since, now))
+	fmt.Fprintln(stdout, tickSummary(t, since, now))
 	return nil
 }
 
@@ -168,8 +172,8 @@ func seed() error {
 			seededDays[s.At[:10]] = true
 		}
 	}
-	fmt.Printf("sembrado: %d señales en %d días (desde %s)\n", len(t.Signals), len(seededDays), since.Format("2006-01-02"))
-	fmt.Println("el pulso ya tiene historia; el muestreo en vivo lo empieza a llenar con `pulso install`")
+	fmt.Fprintf(stdout, "sembrado: %d señales en %d días (desde %s)\n", len(t.Signals), len(seededDays), since.Format("2006-01-02"))
+	fmt.Fprintln(stdout, "el pulso ya tiene historia; el muestreo en vivo lo empieza a llenar con `pulso install`")
 	return nil
 }
 
@@ -210,7 +214,7 @@ func report() error {
 	}
 	cells := pulse.Aggregate(ticks, *days)
 	if len(cells) == 0 {
-		fmt.Println("todavía no hay pulso. Sembrá el pasado con `pulso seed` y dejalo corriendo con `pulso install`.")
+		fmt.Fprintln(stdout, "todavía no hay pulso. Sembrá el pasado con `pulso seed` y dejalo corriendo con `pulso install`.")
 		return nil
 	}
 
@@ -230,54 +234,54 @@ func report() error {
 
 	// El canal izquierdo mide 7 y cada columna de día mide 7: la grilla se desalinea en cuanto uno de
 	// los dos se toca por separado, y con 14 columnas el corrimiento se acumula hasta ser ilegible.
-	fmt.Printf("\n  \033[1mMi jornada\033[0m · repos de la compañía · últimos %d días\n\n", *days)
-	fmt.Print("       ")
+	fmt.Fprintf(stdout, "\n  \033[1mMi jornada\033[0m · repos de la compañía · últimos %d días\n\n", *days)
+	fmt.Fprint(stdout, "       ")
 	for _, d := range dayList {
 		t, _ := time.Parse("2006-01-02", d)
-		fmt.Printf(" %s %02d ", dayName[t.Weekday()], t.Day())
+		fmt.Fprintf(stdout, " %s %02d ", dayName[t.Weekday()], t.Day())
 	}
-	fmt.Println()
+	fmt.Fprintln(stdout)
 
 	for h := hIni; h < endHour; h++ {
-		fmt.Printf("  %4s ", hourLabel(h))
+		fmt.Fprintf(stdout, "  %4s ", hourLabel(h))
 		for _, d := range dayList {
 			c, found := byDay[d][h]
 			switch {
 			case !found || (c.Slots == 0 && c.Covered == 0):
-				fmt.Print("       ") // sin registro: ni el agente miró
+				fmt.Fprint(stdout, "       ") // sin registro: ni el agente miró
 			case c.Slots == 0:
-				fmt.Print("   \033[2m·\033[0m   ") // miró y no había nada
+				fmt.Fprint(stdout, "   \033[2m·\033[0m   ") // miró y no había nada
 			default:
-				fmt.Printf("   \033[32m%s\033[0m   ", blocks[level(c.Slots)])
+				fmt.Fprintf(stdout, "   \033[32m%s\033[0m   ", blocks[level(c.Slots)])
 			}
 		}
-		fmt.Println()
+		fmt.Fprintln(stdout)
 	}
 
-	fmt.Print("       ")
+	fmt.Fprint(stdout, "       ")
 	for range dayList {
-		fmt.Print("───────")
+		fmt.Fprint(stdout, "───────")
 	}
-	fmt.Println()
-	fmt.Print("  \033[2mtot\033[0m  ")
+	fmt.Fprintln(stdout)
+	fmt.Fprint(stdout, "  \033[2mtot\033[0m  ")
 	for _, d := range dayList {
 		total := 0
 		for _, c := range byDay[d] {
 			total += c.Slots
 		}
 		if total == 0 {
-			fmt.Print("   \033[2m—\033[0m   ")
+			fmt.Fprint(stdout, "   \033[2m—\033[0m   ")
 			continue
 		}
-		fmt.Printf(" %5s ", hhmm(total*int(pulse.Slot/time.Minute)))
+		fmt.Fprintf(stdout, " %5s ", hhmm(total*int(pulse.Slot/time.Minute)))
 	}
-	fmt.Println()
+	fmt.Fprintln(stdout)
 
-	fmt.Printf("\n  \033[2m·\033[0m sin cambios   \033[32m▂▄▆█\033[0m 1→12 tramos de 5'   ␣ sin registro (equipo apagado o agente detenido)\n")
+	fmt.Fprintf(stdout, "\n  \033[2m·\033[0m sin cambios   \033[32m▂▄▆█\033[0m 1→12 tramos de 5'   ␣ sin registro (equipo apagado o agente detenido)\n")
 	// Sin esta línea, un día reconstruido se lee como "trabajé 20 minutos". Un commit marca el INSTANTE en
 	// que pasó, no el rato que costó: sin muestreo en vivo, el número es un piso, no una medición.
 	if seeded := daysWithoutCoverage(byDay, dayList); len(seeded) > 0 {
-		fmt.Printf("  \033[2m%d de esos días no tienen muestreo (␣): están reconstruidos desde git, así que el total es un PISO —\n"+
+		fmt.Fprintf(stdout, "  \033[2m%d de esos días no tienen muestreo (␣): están reconstruidos desde git, así que el total es un PISO —\n"+
 			"  marca el instante del commit, no el rato que costó. El muestreo en vivo llena el resto.\033[0m\n", len(seeded))
 	}
 
@@ -296,15 +300,15 @@ func report() error {
 			names = append(names, r)
 		}
 		sort.Slice(names, func(i, j int) bool { return tot[names[i]] > tot[names[j]] })
-		fmt.Println("\n  \033[1men qué\033[0m")
+		fmt.Fprintln(stdout, "\n  \033[1men qué\033[0m")
 		for _, r := range names {
-			fmt.Printf("    %-34s %6s   \033[2m%d %s\033[0m\n", r, hhmm(tot[r]*int(pulse.Slot/time.Minute)),
+			fmt.Fprintf(stdout, "    %-34s %6s   \033[2m%d %s\033[0m\n", r, hhmm(tot[r]*int(pulse.Slot/time.Minute)),
 				commits[r], plural(commits[r], "commit", "commits"))
 		}
 		// Sin esta línea, la suma no cierra contra los totales de arriba y parece un error de cuentas.
-		fmt.Println("    \033[2mestos suman más que el total: dos repos pueden caer en el mismo tramo de 5'\033[0m")
+		fmt.Fprintln(stdout, "    \033[2mestos suman más que el total: dos repos pueden caer en el mismo tramo de 5'\033[0m")
 	}
-	fmt.Println()
+	fmt.Fprintln(stdout)
 	return nil
 }
 
@@ -353,18 +357,18 @@ func repos() error {
 	flag.Parse()
 	cfg := pulse.Load()
 	rs := pulse.Repos(cfg.Root)
-	fmt.Printf("\n  raíz: %s\n  yo:   %s\n  datos: %s\n\n", cfg.Root, strings.Join(cfg.Emails, ", "), pulse.DataDir())
+	fmt.Fprintf(stdout, "\n  raíz: %s\n  yo:   %s\n  datos: %s\n\n", cfg.Root, strings.Join(cfg.Emails, ", "), pulse.DataDir())
 	if len(rs) == 0 {
-		fmt.Println("  ⚠ no se encontró ningún repo git ahí. Revisá PULSO_ROOT.")
+		fmt.Fprintln(stdout, "  ⚠ no se encontró ningún repo git ahí. Revisá PULSO_ROOT.")
 		return nil
 	}
 	for _, r := range rs {
-		fmt.Printf("    %s\n", r)
+		fmt.Fprintf(stdout, "    %s\n", r)
 	}
 	for _, x := range cfg.Extra {
-		fmt.Printf("    %s  (extra, registrado como «%s»)\n", x.Path, x.Name)
+		fmt.Fprintf(stdout, "    %s  (extra, registrado como «%s»)\n", x.Path, x.Name)
 	}
-	fmt.Printf("\n  %d repos\n\n", len(rs)+len(cfg.Extra))
+	fmt.Fprintf(stdout, "\n  %d repos\n\n", len(rs)+len(cfg.Extra))
 	return nil
 }
 
@@ -417,14 +421,14 @@ func install() error {
 	}
 	_ = exec.Command("launchctl", "kickstart", "-k", domain+"/"+label).Run()
 
-	fmt.Printf("\n  ✓ pulso instalado\n\n")
-	fmt.Printf("    agente   %s\n", plist)
-	fmt.Printf("    binario  %s\n", exe)
-	fmt.Printf("    cada     %d segundos, y al iniciar sesión\n", interval)
-	fmt.Printf("    datos    %s/pulse/\n", dir)
-	fmt.Printf("    log      %s\n\n", logPath)
-	fmt.Printf("  Si es la primera vez, sembrá el pasado:  %s seed\n", exe)
-	fmt.Printf("  Para ver la jornada:                     %s report\n\n", exe)
+	fmt.Fprintf(stdout, "\n  ✓ pulso instalado\n\n")
+	fmt.Fprintf(stdout, "    agente   %s\n", plist)
+	fmt.Fprintf(stdout, "    binario  %s\n", exe)
+	fmt.Fprintf(stdout, "    cada     %d segundos, y al iniciar sesión\n", interval)
+	fmt.Fprintf(stdout, "    datos    %s/pulse/\n", dir)
+	fmt.Fprintf(stdout, "    log      %s\n\n", logPath)
+	fmt.Fprintf(stdout, "  Si es la primera vez, sembrá el pasado:  %s seed\n", exe)
+	fmt.Fprintf(stdout, "  Para ver la jornada:                     %s report\n\n", exe)
 	return nil
 }
 
@@ -436,7 +440,7 @@ func uninstall() error {
 	if err := os.Remove(plist); err != nil && !os.IsNotExist(err) {
 		return err
 	}
-	fmt.Println("  ✓ pulso desinstalado (los datos ya registrados quedan en data/pulse/)")
+	fmt.Fprintln(stdout, "  ✓ pulso desinstalado (los datos ya registrados quedan en data/pulse/)")
 	return nil
 }
 
@@ -444,9 +448,9 @@ func status() error {
 	flag.Parse()
 	domain := "gui/" + uid()
 	out, err := exec.Command("launchctl", "print", domain+"/"+label).CombinedOutput()
-	fmt.Println()
+	fmt.Fprintln(stdout)
 	if err != nil {
-		fmt.Println("  agente: NO instalado   (instalalo con `pulso install`)")
+		fmt.Fprintln(stdout, "  agente: NO instalado   (instalalo con `pulso install`)")
 	} else {
 		state := "cargado"
 		for _, l := range strings.Split(string(out), "\n") {
@@ -454,14 +458,14 @@ func status() error {
 				state = strings.TrimPrefix(s, "state = ")
 			}
 		}
-		fmt.Printf("  agente: instalado · %s · cada %ds\n", state, interval)
+		fmt.Fprintf(stdout, "  agente: instalado · %s · cada %ds\n", state, interval)
 	}
 
 	dir := pulse.DataDir()
 	if ult, ok := pulse.LastTick(dir); ok {
-		fmt.Printf("  último tick: %s (hace %s)\n", ult.Format("2006-01-02 15:04"), time.Since(ult).Round(time.Minute))
+		fmt.Fprintf(stdout, "  último tick: %s (hace %s)\n", ult.Format("2006-01-02 15:04"), time.Since(ult).Round(time.Minute))
 	} else {
-		fmt.Println("  último tick: nunca — corré `pulso seed` para sembrar el pasado")
+		fmt.Fprintln(stdout, "  último tick: nunca — corré `pulso seed` para sembrar el pasado")
 	}
 
 	ticks, err := pulse.Read(dir, 1)
@@ -477,7 +481,7 @@ func status() error {
 		}
 	}
 	m := int(pulse.Slot / time.Minute)
-	fmt.Printf("  hoy: %s con cambios · %s registrados\n\n", hhmm(slots*m), hhmm(covered*m))
+	fmt.Fprintf(stdout, "  hoy: %s con cambios · %s registrados\n\n", hhmm(slots*m), hhmm(covered*m))
 	return nil
 }
 

@@ -103,6 +103,7 @@ func TestArgvBuildsTheCommandLineAndRejectsWhatDoesNotFit(t *testing.T) {
 		{"bitacora add", `{"tarea":"84","titulo":"t","lapso":"10:00-10:30"}`, "bitacora add --tarea 84 --titulo t --lapso 10:00-10:30"},
 		{"tarea pila", `{"tarea":"integracion-vtex"}`, "tarea pila --tarea integracion-vtex"},
 		{"cierre", `{"tarea":"84"}`, "cierre --tarea 84"},
+		{"tarea ramas", `{"tarea":"integracion-vtex"}`, "tarea ramas --tarea integracion-vtex"},
 		{"jira search", `{"jql":"key = X","apply":true}`, "ERR:desconocido: apply"},
 	}
 	for _, tc := range cases {

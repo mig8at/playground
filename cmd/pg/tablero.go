@@ -78,6 +78,23 @@ func runTareaPila(args []string) int {
 	return runTablero("", "./cmd/task-context", "-tarea", *task, "-ver")
 }
 
+func runTareaRamas(args []string) int {
+	fs := flag.NewFlagSet("tarea ramas", flag.ContinueOnError)
+	task := fs.String("tarea", "", "id o slug")
+	asJSON := fs.Bool("json", false, "en JSON")
+	if fs.Parse(args) != nil {
+		return 2
+	}
+	if *task == "" {
+		return fail(2, "falta --tarea")
+	}
+	cmd := []string{"./cmd/branches", "-n", *task}
+	if *asJSON {
+		cmd = append(cmd, "-json")
+	}
+	return runTablero("", cmd...)
+}
+
 func runTareaBloque(args []string) int {
 	fs := flag.NewFlagSet("tarea bloque", flag.ContinueOnError)
 	task := fs.String("tarea", "", "id o slug")

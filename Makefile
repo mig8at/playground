@@ -32,12 +32,14 @@ help: ## esta lista
 # listar <etiqueta> <título> — imprime los targets de una categoría, alineados.
 # El separador es un TABULADOR y no `|`: con pipe, una descripción que contenga `|` (y hay varias,
 # tipo `PRODUCT=bnpl|consumo`) se corta en la mitad. Elegir de separador un carácter que puede
-# aparecer en el dato es el clásico bug de parseo casero.
+# aparecer en el dato es el clásico bug de parseo casero. El color va sólo a una terminal y sin NO_COLOR:
+# por un pipe, un agente lo limpiaba con sed en cada llamada.
 define listar
 	echo ""; echo "  $(2)"; \
+	if [ -t 1 ] && [ -z "$$NO_COLOR" ]; then on=$$(printf '\033[36m'); off=$$(printf '\033[0m'); else on=; off=; fi; \
 	grep -hE "^[a-z][a-zA-Z0-9_-]*:.*## $(1) " $(MAKEFILE_LIST) \
 	  | sed -E 's/^([a-z][a-zA-Z0-9_-]*):.*## $(1) /\1\t/' \
-	  | awk -F'\t' '{printf "    \033[36m%-18s\033[0m %s\n", $$1, $$2}'
+	  | awk -F'\t' -v on="$$on" -v off="$$off" '{printf "    %s%-18s%s %s\n", on, $$1, off, $$2}'
 endef
 
 # ── DÍA A DÍA ────────────────────────────────────────────────────────────────────────────────────
@@ -73,7 +75,7 @@ bitacora: ## @dia el tiempo registrado, agrupado por día. DAYS=7 · JSON=1 (la 
 # Mide contra los repos LOCALES lo que el último `fetch` dejó: no habla con la red a propósito (un
 # comando de lectura que sale a internet sorprende, y en 13 repos nadie lo correría). Por patch-id, así
 # que detecta un cambio que llegó por SQUASH — donde el nombre de la rama ya no existe.
-tareas-ramas: ## @dia ¿en qué ramas vive cada tarea y hasta dónde llegó (y si ya está en main)? mide git + PRs. N=<id|título> · SUGERIR=1 propone patrón a las que no declaran ramas · JSON=1
+tareas-ramas: ## @dia ¿en qué ramas vive cada tarea y hasta dónde llegó (y si ya está en main)? mide git + PRs. N=<id|slug|trozo del título> mide y muestra sólo esa, en segundos · SUGERIR=1 propone patrón a las que no declaran ramas · JSON=1
 	@cd tablero/server && go run ./cmd/branches $(if $(N),-n "$(N)") $(if $(SUGERIR),-sugerir) $(if $(JSON),-json)
 
 # Publica en CUADRILLA (el tablero del EQUIPO) las ramas de una tarea de acá. Viaja lo que se MIDE
@@ -274,8 +276,7 @@ estilo-tema: ## @dia cambia el tema de LAS CUATRO UIs de un saque: pegás un exp
 # una carpeta), y los nombres de 23 caracteres desalinean la ayuda de `make`.
 .PHONY: pulso pulso-install pulso-status pulso-uninstall
 pulso: ## @dia mi jornada REAL: cuándo toqué los repos de la compañía, en tramos de 5'. DAYS=7
-	@cd tablero && { test -x server/bin/pulse || npm run --silent server:build; } \
-	  && server/bin/pulse report -days $(or $(DAYS),7)
+	@cd tablero/server && go run ./cmd/pulse report -days $(or $(DAYS),7)
 
 pulso-install: ## @dia deja el pulso registrando solo (cada 5 min, arranca con la sesión) + siembra el pasado
 	@cd tablero && npm run --silent server:build && server/bin/pulse seed && server/bin/pulse install

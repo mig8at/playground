@@ -20,6 +20,7 @@
 package hooks
 
 import (
+	"creditop/playground/tablero/server/internal/ansi"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -183,21 +184,7 @@ func wrapNames(names []string) string {
 }
 
 // withoutColors saca las secuencias ANSI del help de `make`: en la terminal son color, en contexto ruido.
-// Una secuencia rara que no cierra en 12 caracteres no se come el texto.
-func withoutColors(s string) string {
-	var out strings.Builder
-	for i := 0; i < len(s); {
-		if s[i] == '\033' {
-			if end := strings.IndexByte(s[i:], 'm'); end != -1 && end < 12 {
-				i += end + 1
-				continue
-			}
-		}
-		out.WriteByte(s[i])
-		i++
-	}
-	return out.String()
-}
+func withoutColors(s string) string { return ansi.Strip(s) }
 
 /* SessionStart le dice al modelo qué herramientas tiene, sin que nadie se acuerde de correr `make`.
  *

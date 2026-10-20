@@ -36,7 +36,7 @@ import (
 func main() {
 	var (
 		onlyJSON = flag.Bool("json", false, "imprimir el snapshot además de guardarlo")
-		onlyOne  = flag.String("n", "", "medir sólo esta tarea (slug)")
+		onlyOne  = flag.String("n", "", "medir sólo esta tarea: id, slug o un trozo del título")
 		root     = flag.String("root", "", "dónde viven los repos (default: ~/Desktop/CREDITOP/github)")
 		suggest  = flag.Bool("sugerir", false, "las tareas que NO declaran `ramas:`: qué patrón las cubriría, y qué ramas traería")
 		wait     = flag.Duration("timeout", 5*time.Minute, "cuánto esperar la medición entera antes de devolver lo que haya")
@@ -69,6 +69,16 @@ func main() {
 	// La clave es el ID (no el slug): el nombre del archivo se puede renombrar a mano.
 	patterns := map[string]string{}
 	titles := map[string]string{}
+	// Un número o un slug nombran UNA tarea: con el trozo de título, `-n 10` traía toda tarea con «10» en
+	// el nombre. El trozo de título queda para lo demás.
+	exactID := ""
+	if *onlyOne != "" {
+		if _, err := strconv.Atoi(*onlyOne); err == nil {
+			exactID = *onlyOne
+		} else if id := idOfSlug(dataDir, *onlyOne); id != "" {
+			exactID = id
+		}
+	}
 	for _, e := range efforts {
 		id := strconv.FormatInt(e.ID, 10)
 		// `-n` acepta el id o un trozo del título: pedir el slug obligaría a exponerlo, y el título
@@ -76,7 +86,10 @@ func main() {
 		if e.BranchPatterns == "" {
 			continue
 		}
-		if *onlyOne != "" && *onlyOne != id && !strings.Contains(strings.ToLower(e.Title), strings.ToLower(*onlyOne)) {
+		if exactID != "" && id != exactID {
+			continue
+		}
+		if exactID == "" && *onlyOne != "" && !strings.Contains(strings.ToLower(e.Title), strings.ToLower(*onlyOne)) {
 			continue
 		}
 		patterns[id] = e.BranchPatterns
@@ -119,13 +132,24 @@ func main() {
 		os.Exit(1)
 	}
 
+	// Se GUARDA la foto entera, pero se MUESTRA lo que se pidió: con `-n` salía la de todas las tareas, y la
+	// medida quedaba perdida entre treinta.
+	shown := snap
+	if *onlyOne != "" {
+		shown.Tasks = map[string]store.TaskBranches{}
+		for id := range patterns {
+			if t, ok := snap.Tasks[id]; ok {
+				shown.Tasks[id] = t
+			}
+		}
+	}
 	if *onlyJSON {
-		b, _ := json.MarshalIndent(snap, "", "  ")
+		b, _ := json.MarshalIndent(shown, "", "  ")
 		fmt.Println(string(b))
 		return
 	}
 
-	printReport(snap, titles)
+	printReport(shown, titles)
 	fmt.Printf("\n  snapshot → %s\n", filepath.Join(cacheDir, "ramas.json"))
 }
 
@@ -372,4 +396,22 @@ func printReport(snap store.BranchSnapshot, titles map[string]string) {
 			}
 		}
 	}
+}
+
+// idOfSlug devuelve el id de la tarea cuya carpeta se llama slug, o "" si no hay.
+func idOfSlug(dataDir, slug string) string {
+	b, err := os.ReadFile(layout.At(dataDir).TaskPath(slug))
+	if err != nil {
+		return ""
+	}
+	parts := strings.SplitN(string(b), "---", 3)
+	if len(parts) < 3 {
+		return ""
+	}
+	for _, l := range strings.Split(parts[1], "\n") {
+		if v, ok := strings.CutPrefix(strings.TrimSpace(l), "id:"); ok {
+			return strings.TrimSpace(v)
+		}
+	}
+	return ""
 }
