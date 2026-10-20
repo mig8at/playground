@@ -7,7 +7,7 @@ knowledge: [ecommerce-context]
 canon: []
 jira: [CORE-689]
 jira_title: ""
-ramas: payment-link
+ramas: payment-link, feat/core-689-shopify-platform
 ---
 
 ## Pendientes
@@ -50,8 +50,14 @@ ramas: payment-link
 - [ ] Probar la tienda demo contra el `payment-link` de verdad cuando legacy-backend#1682 esté rebasado sobre `qa`;
       termina con la app real recibiendo una URL de la API de verdad en local.
       Depende de: Oscar — el rebase sobre `qa`.
-- [ ] Agregar Shopify al catálogo `ecommerces` (id 4) y poder marcar una credencial con `ecommerce_type_id=4`;
-      termina con la migración de siembra y una credencial de prueba en local.
+- [x] ~~Agregar Shopify al catálogo `ecommerces` (id 4) y poder marcar una credencial con `ecommerce_type_id=4`~~ —
+      rama `feat/core-689-shopify-platform` de legacy-backend (desde `main`, local, sin push, worktree
+      `legacy-backend-shopify`): siembra, `ShopifyNotifier` y `ecommerce_type` en el alta de la Partner API. Credencial de
+      prueba local: sucursal `f1681537`, tipo 4.
+- [ ] Que el admin de `application` (el que usa operaciones para dar de alta credenciales) ofrezca «Shopify»: hoy su
+      selector tiene WooCommerce, Desarrollo propio y Vtex. Termina con una credencial tipo 4 creada desde el admin.
+- [ ] Pasar la credencial de qa de `c390eed9` (id 47, hoy tipo 2) a tipo 4 cuando la rama esté en qa, para que los
+      pedidos de la tienda de prueba salgan atribuidos a Shopify. Escribe en la base compartida: pedir el OK.
 
 ## Objetivo
 
