@@ -12,9 +12,9 @@ ramas: "fix/kyc-name-adoption, fix/kyc-v2-name-adoption, fix/kyc-remove-name-rev
 
 ## Pendientes
 
-- [ ] Mergear el arreglo del camino v1 a main; termina cuando legacy-backend#1666 esté mergeado y desplegado a producción.
+- [x] Mergear el arreglo del camino v1 a main; termina cuando legacy-backend#1666 esté mergeado y desplegado a producción.
   Depende de: revisión del equipo — aprobación del PR.
-- [ ] Mergear el arreglo del pipeline v2 a main; termina cuando legacy-backend#1671 esté mergeado y desplegado a producción.
+- [x] Mergear el arreglo del pipeline v2 a main; termina cuando legacy-backend#1671 esté mergeado y desplegado a producción.
   Depende de: revisión del equipo — aprobación del PR.
 - [ ] Probar el pipeline v2 completo en qa; termina cuando un cliente de prueba de Mediarte quede con el nombre completado y con Ñ por el recorrido entero.
   Depende de: infra (Yamid) — que el servicio de perfilamiento de qa llame al backend de qa (hoy llama al de develop).
