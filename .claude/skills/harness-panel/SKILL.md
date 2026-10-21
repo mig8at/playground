@@ -1029,3 +1029,8 @@ decide con `phoneModes` (lo anotan `setAdvisorMode` y `setClientMode`) y se llam
 `applyChannel`. ⚠ La columna ya no se oculta entera (`hidden`): marca `data-live`, y sin algo abierto sólo se ve el ▶.
 Verificado en local: Pullman · Asesor abrió en 2 s y pasó a «Reiniciar»; reiniciar volvió a abrir (otra sesión, `since`
 nuevo) y apagó el botón mientras cargaba; Pullman · Tienda online mostró el ▶ en el cliente y abrió el checkout en 3 s.
+
+**La fila del comercio, sin chips de canal, sin ▶ y sin ⚠ (2026-10-21).** Eran ruido: la pestaña pregunta el canal al
+abrirla (con los que aplican) y el celular tiene su ▶. El motivo de un ⚠ sigue en el tooltip de la fila y en la línea
+de abajo de la elegida (`chosenSubline`). Se fueron `CHANNEL_SHORT`, los estilos `.row-chips` y la opción `play` de
+`openTab`. Las etiquetas del comercio (`loadMerchantTags`) se siguen pidiendo: agrupan por país.

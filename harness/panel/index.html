@@ -451,10 +451,6 @@
     .row.missing[aria-disabled="true"] { opacity: .45; cursor: not-allowed }
     .row.missing[aria-disabled="true"]:hover { background: transparent }
     .list-note.warn { color: var(--warn) }
-    .row-chips { display: flex; flex: none; gap: 2px }
-    .row-chips .badge { cursor: pointer; padding: 0 4px }
-    .row-chips .badge-ghost:hover { color: var(--foreground) }
-    .row[aria-disabled="true"] .row-chips { display: none }
     /* No se puede probar por el canal elegido (falta asesor, entidades, credencial): el meta en ámbar, el motivo en el
        tooltip con el comando que lo arregla. La fila se sigue eligiendo, para verla; la corrida no arranca. */
     .row.not-ready .row-meta { color: var(--warn) }
@@ -1648,10 +1644,9 @@
       return { block: [], note: [] };
     }
 
-    /** El orden y el rótulo de los canales en las filas del sidebar: el corto en el chip, el largo en el tooltip. Van acá y
-     *  no junto a `CHANNEL_LABELS` porque el sidebar se dibuja antes de que el script llegue allá. */
+    /** El orden y el rótulo de los canales (la pregunta de la pestaña, su nombre en el tooltip). Van acá y no junto a
+     *  `CHANNEL_LABELS` porque el sidebar se dibuja antes de que el script llegue allá. */
     const CHANNEL_ORDER = ['asesor', 'autogestion', 'ecommerce', 'auto', 'qr'];
-    const CHANNEL_SHORT = { asesor: 'A', autogestion: 'AG', ecommerce: 'T', auto: 'Au', qr: 'QR' };
     const CHANNEL_LONG = { asesor: 'Asesor', autogestion: 'Autogestión', ecommerce: 'Tienda online', auto: 'Auto (tienda)', qr: 'QR en caja' };
 
     /**
@@ -1728,41 +1723,18 @@
           + (e.fav ? ' · agregado por vos' : ' · curado, vive en el código')
           + (absent ? ` · no se puede elegir: ${e.meta || `no está en ${target}`}` : '')
           + (e.unreachable ? ` · no se pudo comprobar si está en ${target} (¿VPN?)` : '');
-        // LOS CANALES DEL COMERCIO, a la vista: cuál sirve para lo que querés probar sin elegirlo primero. El elegido arriba
-        // va resaltado; un clic en otro elige el comercio Y ese canal. Sin etiquetas todavía, no se dibuja nada.
-        const chs = absent ? null : merchantTags[e.hash]?.canales;
-        if (chs?.length) {
-          const box = document.createElement('div');
-          box.className = 'row-chips';
-          for (const c of CHANNEL_ORDER.filter((x) => chs.includes(x))) {
-            const chip = document.createElement('span');
-            chip.className = 'badge badge-xs ' + (c === channel ? 'badge-outline' : 'badge-ghost');
-            chip.textContent = CHANNEL_SHORT[c];
-            chip.title = `${CHANNEL_LONG[c]}${c === channel ? ' · el canal elegido' : ' · clic: elegir este comercio con este canal'}`;
-            chip.onclick = async (ev) => {
-              ev.stopPropagation();
-              if (runRunning) return;
-              // La pestaña de este comercio con ESTE canal. `activateTab` espera los canales del comercio antes de clickear
-              // el botón real: si el chip eligiera el canal antes, la sugerencia del servidor lo pisaba (pasó con «Au» de Refurbi).
-              openTab(e, c);
-            };
-            box.appendChild(chip);
-          }
-          rowEl.querySelector('.row-name').after(box);
-        }
+        // Sin chips de canal ni ▶ en la fila (2026-10-21): la pestaña pregunta el canal al abrirla y el celular tiene su ▶.
         const ready = absent ? { block: [], note: [] } : readinessOf(e);
         if (ready.block.length || ready.note.length) {
           rowEl.classList.add(ready.block.length ? 'not-ready' : 'ready-note');
-          let meta = rowEl.querySelector('.row-meta');
-          if (!meta) { meta = document.createElement('span'); meta.className = 'row-meta'; rowEl.appendChild(meta); }
-          meta.textContent = '⚠';
+          // El motivo va en el tooltip y en la línea de abajo de la fila elegida; el ⚠ en cada fila era ruido.
           rowEl.title += `\n\n${ready.block.length ? `No se puede probar por ${channel} en ${target}` : 'Ojo'}:\n` + [...ready.block, ...ready.note].map((x) => '· ' + x).join('\n');
         }
         rowEl.setAttribute('aria-selected', String(chosenOne));
         if (absent) rowEl.setAttribute('aria-disabled', 'true');
         rowEl.tabIndex = runRunning || absent ? -1 : 0;
-        // Elegir un comercio sólo lo SELECCIONA (su configuración, sus entidades, su categoría): entrar como su
-        // asesor es el ▶ de la fila. Antes elegir abría el celular solo, y con eso borraba el cliente sintético.
+        // Elegir un comercio sólo lo SELECCIONA (su configuración, sus entidades, su categoría) y abre su pestaña: entrar es
+        // el ▶ del celular. Antes elegir abría el celular solo, y con eso borraba el cliente sintético.
         rowEl.onclick = () => {
           if (runRunning || absent) return;
           openTab(e);   // su pestaña: en vista previa, preguntando el canal
@@ -1782,13 +1754,6 @@
         const acc = document.createElement('div');
         acc.className = 'row-actions';
         const label = e.alias || e.name;
-        if (!absent) {
-          // El ▶ entra SIEMPRE como asesor, sea cual sea el canal elegido: se apaga si el asesor no puede entrar.
-          const advBlock = advisorIssues(e).block;
-          const play = rowAction('play', advBlock.length ? `No se puede entrar como asesor: ${advBlock[0]}` : `Entrar a «${label}» como su asesor`, () => openTab(e, 'asesor', { play: true }));
-          if (advBlock.length) { play.disabled = true; play.setAttribute('aria-disabled', 'true'); }
-          acc.appendChild(play);
-        }
         if (e.fav) acc.appendChild(rowAction('close', `Quitar «${label}» de tu espacio`, () => removeFav(e)));
         rowEl.appendChild(acc);
         g.appendChild(rowEl);
@@ -4328,7 +4293,7 @@
 
     /** Elegir un comercio a la izquierda: su pestaña. Sin canal, en vista previa (la reemplaza el próximo) y pregunta.
      *  Una pestaña nueva arranca con la configuración por defecto, no con la de la pestaña que estaba abierta. */
-    async function openTab(e, canal = null, { play = false } = {}) {
+    async function openTab(e, canal = null) {
       if (runRunning) return;
       const cur = currentTab();
       let t = canal ? runTabs.find((x) => x.slug === e.slug && x.canal === canal) : null;
@@ -4345,7 +4310,6 @@
         }
       }
       await activateTab(t.id);
-      if (play && t.canal === 'asesor') playMerchant(e);
     }
     /** El apartado «Admin» del sidebar izquierdo: su pestaña (una por ambiente). */
     function openAdminTab() {
