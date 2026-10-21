@@ -761,3 +761,17 @@ y al buscar aparece «Agregar desde prod» con los que coinciden y todavía no e
   `por_target {local, prod}` (la compartida no contestaba: sin VPN de dev); un agregado con un hash inexistente y su
   `allied_slug` se encontró en local y dejó `por_target.local`, y la lectura siguiente ya lo trajo como declarado
   (4 entidades). La compartida NO se probó.
+
+### Sin selector de vistas en el editor; la corrida pública es una pestaña del modo prod (2026-10-20)
+
+`Originación · Prod` ya no se ve arriba del editor: con las pestañas, el centro lo decide la pestaña activa (una
+corrida → celulares, Admin → la PC, una ficha de prod → la ficha). `#stageViews` sigue en el DOM, oculto, porque
+`showStageView` lo usa. **La corrida pública de prod es un apartado de la barra en modo prod** («Corrida pública de
+prod», arriba de los comercios) y abre su pestaña (`kind: 'prodrun'`, una por juego) con la tarjeta de siempre
+(`#prodView`). Fuera del modo prod esa vista no se abre (ni por la preferencia guardada); al salir del modo, el centro
+vuelve a la pestaña del ambiente.
+
+⛔ **En prod NO se abren celulares ni se entra como el asesor de prueba**, aunque la clave compartida sea la misma que
+en la base compartida: entrar al wizard como asesor crea solicitudes reales, el primer ingreso de un asesor puede
+completar su `cognito_id`, y el repo fija prod como sólo lectura con una sola excepción (la corrida pública). Por eso
+una ficha de prod no pregunta canal: sin celular no hay canal que elegir. Se pidió el 2026-10-20 y se dejó afuera.

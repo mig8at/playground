@@ -336,6 +336,7 @@
     .plan-status.warn { color: var(--warn) }
     .plan-bar .region-action { flex: none }
     .devices[hidden], .admin-view[hidden], .prod-view[hidden] { display: none }
+    .stage-views[hidden] { display: none }
     .prod-view { flex: 1 1 auto; min-height: 0; display: flex; justify-content: center; align-items: flex-start; overflow: auto }
     .prod-card { width: min(760px, 100%); display: flex; flex-direction: column; gap: var(--space-2); padding: var(--space-3);
       border: 1px solid var(--border); border-radius: var(--radius); background: var(--card) }
@@ -713,7 +714,7 @@
         <nav class="tabs run-tabs" id="runTabs" aria-label="Corridas abiertas">
           <div class="run-tab-list" id="runTabList" role="tablist"></div>
           <div class="region-actions">
-            <div class="toggle-group stage-views" id="stageViews" role="tablist" aria-label="Vista del centro">
+            <div class="toggle-group stage-views" id="stageViews" hidden role="tablist" aria-label="Vista del centro">
               <button type="button" class="toggle on" id="viewOrig" role="tab" aria-selected="true" aria-controls="devices">Originación</button>
               <button type="button" class="toggle" id="viewAdmin" hidden role="tab" aria-selected="false" aria-controls="adminView">Admin</button>
               <button type="button" class="toggle" id="viewProd" role="tab" aria-selected="false" aria-controls="prodView">Prod</button>
@@ -4007,7 +4008,7 @@
     } catch { /* sin storage: arranca sin pestañas */ }
     function loadTabSet(t) {
       const set = tabSets[t] || { tabs: [], active: null };
-      runTabs = (set.tabs || []).filter((x) => x && x.id && (x.kind === 'admin' || (x.kind === 'prod' && x.allied) || x.slug));
+      runTabs = (set.tabs || []).filter((x) => x && x.id && (x.kind === 'admin' || x.kind === 'prodrun' || (x.kind === 'prod' && x.allied) || x.slug));
       activeTab = set.active ?? null;
       tabsTarget = t;
     }
@@ -4031,6 +4032,7 @@
     function tabLabel(t) {
       if (t.kind === 'admin') return { name: 'Admin', chan: tabsTarget === 'qa' ? 'dev (qa comparte su base)' : tabsTarget };
       if (t.kind === 'prod') return { name: t.name || '#' + t.allied, chan: 'prod' };
+      if (t.kind === 'prodrun') return { name: 'Corrida pública', chan: 'prod' };
       const e = entryOf(t.slug);
       return { name: e ? (e.alias || e.name) : (t.name || t.slug), chan: t.canal ? CHANNEL_LONG[t.canal] || t.canal : 'elegí el canal' };
     }
@@ -4131,6 +4133,7 @@
       if (prev && prev.id !== id && !tabSwitching) snapshotTab(prev);
       activeTab = id;
       const t = currentTab();
+      if (t?.kind === 'prodrun') { baseShowStageView('prod'); renderTabs(); renderStage(); saveTabs(); renderProdList($('merchantSearch').value); return; }
       if (t?.kind === 'prod') { if (!inOriginacion()) baseShowStageView('orig'); renderTabs(); renderStage(); saveTabs(); renderProdList($('merchantSearch').value); return; }
       if (t?.kind === 'admin') { if (sel) followKey = sel.slug + '|' + channel; baseShowStageView('admin'); renderTabs(); renderStage(); saveTabs(); return; }
       if (!inOriginacion()) baseShowStageView('orig');
@@ -4288,6 +4291,7 @@
       if (!prodMode) return;
       prodMode = false;
       document.body.classList.remove('prod-mode');
+      if (!$('prodView').hidden) baseShowStageView('orig');   // la corrida pública es del modo prod
       for (const [f, was] of prodFieldsets) f.disabled = was;
       prodFieldsets = [];
       $('prodRightNote').hidden = true;
@@ -4339,6 +4343,15 @@
         r.onkeydown = (ev) => { if (ev.key === 'Enter' || ev.key === ' ') { ev.preventDefault(); r.click(); } };
         return r;
       };
+      // LA CORRIDA PÚBLICA de prod (`dev/prod-run.ts`): la única que se permite ahí. Era la vista «Prod» del centro.
+      group('Corrida pública');
+      const run = treeRow('', 0, 'play', 'Corrida pública de prod', '');
+      run.title = 'Registro → OTP por SMS → datos personales, con una cédula permitida en la sucursal de prueba sin entidades ni Experian. Para antes del listado.';
+      run.tabIndex = 0;
+      run.setAttribute('aria-selected', String(currentTab()?.kind === 'prodrun'));
+      run.onclick = () => openProdRunTab();
+      run.onkeydown = (ev) => { if (ev.key === 'Enter' || ev.key === ' ') { ev.preventDefault(); openProdRunTab(); } };
+      box.appendChild(run);
       group('En prod · sólo lectura', here.length);
       for (const { e, p } of here) box.appendChild(rowFor(e.alias || e.name, p));
       if (absent.length) {
@@ -4361,6 +4374,12 @@
           }
         }
       }
+    }
+    /** La pestaña de la corrida pública de prod (una por juego): muestra la tarjeta de siempre (`#prodView`). */
+    function openProdRunTab() {
+      let t = runTabs.find((x) => x.kind === 'prodrun');
+      if (!t) { t = { id: newTabId(), kind: 'prodrun', preview: false }; runTabs.unshift(t); }
+      activateTab(t.id);
     }
     /** Agregar desde prod: se guarda con la sucursal de prod (la del asesor de prueba si hay) y el slug del comercio, y el
      *  servidor lo ubica en local y en la compartida (`branchesAcrossBases`). Donde no exista, saldrá apagado. */
@@ -4464,6 +4483,7 @@
     const baseShowStageView = showStageView;
     showStageView = (view) => {
       if (view === 'admin') { openAdminTab(); return; }
+      if (view === 'prod' && !prodMode) view = 'orig';   // la corrida pública vive en el modo prod, en su pestaña
       baseShowStageView(view);
       if (view === 'orig' && currentTab()?.kind === 'admin') {
         const back = [...runTabs].reverse().find((x) => x.kind !== 'admin');
