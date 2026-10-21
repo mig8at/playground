@@ -21,6 +21,7 @@ import { identityWithoutProviderNotice } from '../pkg/config.ts';
 import { adminSession, ensureLocalAdmin, ADMIN_APP } from '../pkg/admin-access.ts';
 import { openDevice, openDevices, setDeviceLogger, prewarmDevices, warmDevice, watchNavigation, watchRequests, deviceGoto, deviceReload, deviceText, deviceEval, deviceOpenedAt, deviceState, deviceShot, deviceInput, deviceTap, deviceAdvance, deviceStream, deviceBusyWatch, deviceStorage, closeDevice, closeAllDevices, SELENIUM_BOXES, type DeviceId, type DeviceInput, type DeviceSession } from './devices.ts';
 import { vpnDev, type VpnStatus } from '../pkg/vpn.ts';
+import { validatePlan, readPlan, writePlan, clearPlan } from '../pkg/run-plan.ts';
 import { homedir } from 'node:os';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
@@ -1508,6 +1509,19 @@ const server = createServer(async (req, res) => {
         const data = { ...(await sessionCheck(t, advisor?.email)), account: advisor?.email ?? null };
         sessionStatusCache.set(key, { at: Date.now(), data });
         return json(res, 200, data);
+    }
+
+    // EL PLAN DE CORRIDA (`pkg/run-plan.ts`): una corrida armada de antemano —por un agente con `bin/plan.ts`, o por acá—
+    // que el panel muestra arriba de los celulares para darle play. Uno por máquina, en `.runs/plan.json`.
+    if (path === '/api/plan') {
+        if (req.method === 'GET') return json(res, 200, { plan: readPlan() });
+        if (req.method === 'DELETE') { clearPlan(); return json(res, 200, { ok: true }); }
+        if (req.method === 'POST') {
+            const r = validatePlan(await readBody(req));
+            if (!r.ok || !r.plan) return json(res, 400, { ok: false, errors: r.errors });
+            writePlan(r.plan);
+            return json(res, 200, { ok: true, plan: r.plan });
+        }
     }
 
     // Permiso del asesor al comercio — lo dispara la SELECCIÓN de comercio en el panel (funnel), no el

@@ -609,3 +609,30 @@ consola de la corrida (para copiarla), sin mezclarse con el estado de las corrid
 - **El OTP llega por SMS real**: la tarjeta muestra el campo cuando el proceso imprime `código del SMS:`.
 - Lo que crea en prod y por qué para antes del listado: `harness/CLAUDE.md`, fila de `dev/prod-run.ts`.
 
+
+## El plan de corrida: una corrida armada que espera su play (2026-10-20)
+
+Un agente (o vos) deja la corrida ARMADA y Miguel sólo entra al panel y le da play. El formato, la validación y el
+archivo viven en `pkg/run-plan.ts`; se escribe con `make harness-plan FILE=plan.json` (`FILE=-` por la entrada
+estándar, sin `FILE` muestra el que espera, `CLEAR=1` lo descarta) o por `POST /api/plan`, y los dos validan con la
+misma función. Uno por máquina, en `.runs/plan.json` (fuera de git).
+
+    {"nombre": "Pullman · CrediPullman por asesor", "target": "local", "comercio": "pullman", "canal": "asesor",
+     "lender": "CrediPullman", "caso": {"amount": 3000000, "income": 2800000, "score": 720}, "play": "manual"}
+
+- **Es un caso de suite sin `espera`**: mismas claves del caso (los ids de los campos del panel) y `lender`. Una suite
+  corre por consola con veredicto; el plan prepara el panel para MIRARLO. Si sirvió, pasarlo a suite es agregarle lo
+  que se espera. No inventes un tercer formato.
+- **La franja `#planBar` vive DENTRO del centro** (sólo con plan; nada de banners globales) y se vuelve a leer al
+  volver a la pestaña: el agente puede dejarlo con el panel ya abierto.
+- **«Paso a paso» aplica el plan por los MISMOS caminos que la persona**: el botón real del ambiente, la ruta
+  (`applyRoute`, que respeta el gate de canales) y cada campo con su `input`/`change`. Si el canal no aplica al
+  comercio, el botón queda apagado como siempre y el plan lo DICE en vez de saltearlo. Después abre el celular:
+  asesor → `playMerchant`, ecommerce → «Pagar con Creditop» de la tienda.
+- **`lender` todavía no se elige solo**: la franja lo recuerda («en el listado elegí CrediPullman»). Elegirlo, cruzar
+  el traspaso al cliente y seguir hasta el final es el ⏩ «Corrida completa», que falta; un plan con `play: "auto"`
+  se acepta y la franja avisa que por ahora va paso a paso. La base es `advanceAll` (`server.ts`), que hoy toca el
+  botón principal de UN celular.
+- Verificado el 2026-10-20 en un panel de prueba (`PANEL_PORT=5196 HARNESS_MOCKS=0 HARNESS_DEVICES_SLOT=1`), local:
+  el plan de arriba dejó ambiente, Pullman, canal y caso, y el celular del asesor abrió en `/merchant/13874eb6/solicitar`
+  con $3.000.000. El camino de ecommerce NO se probó todavía.

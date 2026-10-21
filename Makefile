@@ -493,6 +493,9 @@ harness-env-drift: ## @har ¿el ambiente remoto está al día con su rama? migra
 harness-restore: ## @har ¿la base de dev/QA sigue teniendo lo que NUESTRAS TAREAS necesitan (ecommerce, Alta, códigos)? solo lectura. SNAPSHOT=1 la guarda en harness/.runs/ ANTES de una restauración · COMPARE=.runs/qa-restore-….json dice qué se PERDIÓ después
 	@cd harness && node dev/restore-check.ts $(if $(SNAPSHOT),--snapshot) $(if $(COMPARE),--compare $(COMPARE)) $(if $(TARGET),--target $(TARGET))
 
+harness-plan: ## @har deja una corrida ARMADA en el panel: aparece arriba de los celulares y se le da play. FILE=plan.json (o - por la entrada estándar) · sin FILE muestra el que espera · CLEAR=1 lo descarta. Formato: harness/pkg/run-plan.ts
+	@cd harness && $(if $(CLEAR),node bin/plan.ts clear,$(if $(FILE),node bin/plan.ts set '$(if $(filter -,$(FILE)),-,$(abspath $(FILE)))',node bin/plan.ts show))
+
 harness-listing: ## @har del COMERCIO al listado de entidades, por API y sin browser: ¿cuáles le salen a un cliente y por qué NO las otras? [MERCHANT=pullman] [AMOUNT=2000000] [MD=1 la corrida como anotación fechada, con su comando adentro, para pegar en la tarea] [BLOQUE=<id|slug> la agrega sola, como bloque, a la pila de esa tarea]
 	@cd harness && MD=$(MD) BLOQUE=$(BLOQUE) node dev/listing.ts $(if $(MERCHANT),--merchant $(MERCHANT)) $(if $(AMOUNT),--amount $(AMOUNT)) $(if $(BRANCH),--branch $(BRANCH)) $(if $(V2),--v2)
 

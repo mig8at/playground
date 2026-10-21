@@ -301,6 +301,15 @@
        así el lienzo no se recorta y cada clic cae donde se ve) con su base de laptop. El ancho sale del MENOR entre
        lo que deja el centro y lo que permite el alto. */
     .stage-views { align-self: center; flex: none }
+    /* El plan de corrida: una fila dentro del centro, arriba de los celulares, sólo mientras haya plan. */
+    .plan-bar { flex: none; display: flex; align-items: center; gap: var(--space-2); padding: var(--space-1) var(--space-2);
+      border: 1px solid var(--border); border-radius: var(--radius); background: var(--card); color: var(--foreground); font-size: var(--text-sm) }
+    .plan-bar[hidden] { display: none }
+    .plan-text { display: flex; align-items: baseline; gap: var(--space-2); min-width: 0; flex: 1 1 auto; overflow: hidden }
+    .plan-text strong { white-space: nowrap }
+    .plan-detail, .plan-status { color: var(--fg-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis }
+    .plan-status.warn { color: var(--warn) }
+    .plan-bar .region-action { flex: none }
     .devices[hidden], .admin-view[hidden], .prod-view[hidden] { display: none }
     .prod-view { flex: 1 1 auto; min-height: 0; display: flex; justify-content: center; align-items: flex-start; overflow: auto }
     .prod-card { width: min(760px, 100%); display: flex; flex-direction: column; gap: var(--space-2); padding: var(--space-3);
@@ -670,6 +679,16 @@
             <button type="button" class="toggle on" id="viewOrig" role="tab" aria-selected="true" aria-controls="devices">Originación</button>
             <button type="button" class="toggle" id="viewAdmin" role="tab" aria-selected="false" aria-controls="adminView">Admin</button>
             <button type="button" class="toggle" id="viewProd" role="tab" aria-selected="false" aria-controls="prodView">Prod</button>
+          </div>
+          <!-- EL PLAN DE CORRIDA (`pkg/run-plan.ts`): una corrida armada de antemano —por un agente con `bin/plan.ts`— que
+               espera acá su play. Sólo aparece si hay plan. «Paso a paso» deja el panel como lo dice el plan (ambiente,
+               comercio, canal y caso) y abre el celular, que se maneja a mano como siempre. -->
+          <div class="plan-bar" id="planBar" hidden role="region" aria-label="Plan de corrida">
+            <span class="ui-icon" data-icon="play" aria-hidden="true"></span>
+            <span class="plan-text"><strong id="planName"></strong><span class="plan-detail" id="planDetail"></span></span>
+            <span class="plan-status" id="planStatus" role="status"></span>
+            <button type="button" class="btn btn-sm" id="planPlay" title="Pone el ambiente, el comercio, el canal y el caso del plan, y abre el celular para avanzarlo a mano">Paso a paso</button>
+            <button type="button" class="region-action" id="planDiscard" title="Descartar el plan" aria-label="Descartar el plan"><span class="ui-icon" data-icon="close" aria-hidden="true"></span></button>
           </div>
           <div class="devices" id="devices" data-count="2">
             <!-- La tienda, sólo con los canales que entran por ella (ecommerce y auto): ahí el comprador
@@ -6003,6 +6022,78 @@ export function bindMenu(trigger, { getItems, onSelect, label = 'Más opciones' 
       // es la que decide el arranque. Si su gate lo apaga, el click no hace nada y la preferencia queda.
       const QUOTA_KEY = 'harness.quotaConfirmed';
       byId('quota').addEventListener('change', () => savePref(QUOTA_KEY, byId('quota').checked));
+
+      // ── El plan de corrida (`pkg/run-plan.ts`, `GET /api/plan`) ─────────────────────────────────────────────
+      // Lo deja armado un agente (`bin/plan.ts set`) y espera acá su play. Aplicarlo pasa por los MISMOS caminos que la
+      // persona: el botón real del ambiente, la ruta (comercio y canal, con su gate) y los campos con su `input`. Así
+      // un canal que el comercio no admite queda apagado igual que si lo clickearas, y el plan no lo puede saltear.
+      const PLAN_CASE_FIELDS = ['amount', 'income', 'occupation', 'age', 'dob', 'expedition', 'name', 'document', 'email',
+        'score', 'negatives', 'consulted', 'delinquencies'];
+      let plan = null;
+      const planStatus = (text, warn = false) => { byId('planStatus').textContent = text; byId('planStatus').classList.toggle('warn', warn); byId('planStatus').title = text; };
+      function renderPlan() {
+        byId('planBar').hidden = !plan;
+        if (!plan) return;
+        const caso = plan.caso || {};
+        const money = (v) => '$' + Number(String(v).replace(/\D/g, '')).toLocaleString('es-CO');
+        const bits = [plan.target, plan.canal, caso.amount !== undefined && money(caso.amount), caso.score !== undefined && `score ${caso.score}`,
+          plan.lender !== null && plan.lender !== undefined && `entidad ${plan.lender}`].filter(Boolean);
+        byId('planName').textContent = plan.nombre;
+        byId('planDetail').textContent = bits.join(' · ');
+        byId('planDetail').title = JSON.stringify(plan, null, 2);
+        // ⏩ «Corrida completa» todavía no existe: un plan `auto` se corre paso a paso, y se dice.
+        if (!byId('planStatus').textContent && plan.play === 'auto') planStatus('pide corrida completa: por ahora va paso a paso');
+      }
+      async function loadPlan() {
+        try { plan = (await (await fetch('/api/plan')).json()).plan || null; } catch { return; }
+        renderPlan();
+      }
+      async function applyPlan() {
+        // El ambiente, por su botón real: si está apagado (sin sesión, sin front), el click no hace nada y se avisa.
+        const targetBtn = document.querySelector(`#targets .toggle[data-t="${plan.target}"]`);
+        if (target !== plan.target) targetBtn?.click();
+        if (target !== plan.target) throw new Error(`el ambiente ${plan.target} no se pudo elegir`);
+        const entry = findEntry(plan.comercio);
+        if (!entry) throw new Error(`no conozco el comercio «${plan.comercio}» (ni curado ni agregado)`);
+        setRoute(location.pathname + location.search + hashRoute([entry.slug], { canal: plan.canal, vista: VIEW_TO_ROUTE[currentView()], consola: currentConsole() }, ROUTE_DEFAULTS), { push: true });
+        await applyRoute();
+        if (channel !== plan.canal) throw new Error(`el comercio no admite el canal ${plan.canal} acá`);
+        for (const [key, value] of Object.entries(plan.caso || {})) {
+          if (!PLAN_CASE_FIELDS.includes(key)) continue;
+          const field = byId(key);
+          if (!field) continue;
+          field.value = String(value);
+          field.dispatchEvent(new Event('input', { bubbles: true }));
+          field.dispatchEvent(new Event('change', { bubbles: true }));
+        }
+        return entry;
+      }
+      byId('planPlay').addEventListener('click', async () => {
+        if (!plan || runRunning) return;
+        byId('planPlay').disabled = true;
+        planStatus('aplicando el plan…');
+        // Los celulares viven en «Originación»: con la vista Admin o Prod el play abriría algo que no se ve.
+        if (byId('devices').hidden) byId('viewOrig').click();
+        try {
+          if (findEntry(plan.comercio) === undefined) await loadFavs();
+          const entry = await applyPlan();
+          const lender = plan.lender !== null && plan.lender !== undefined ? ` · en el listado elegí ${plan.lender}` : '';
+          if (plan.canal === 'asesor') { planStatus('abriendo el celular del asesor' + lender); await playMerchant(entry); }
+          else { planStatus('abriendo el checkout desde la tienda' + lender); byId('shopPay').click(); }
+        } catch (e) {
+          planStatus('✗ ' + (e.message || e), true);
+        } finally {
+          byId('planPlay').disabled = false;
+        }
+      });
+      byId('planDiscard').addEventListener('click', async () => {
+        await fetch('/api/plan', { method: 'DELETE' }).catch(() => { });
+        plan = null; planStatus(''); renderPlan();
+      });
+      // Un agente puede dejar el plan con el panel ya abierto: se vuelve a mirar al volver a la pestaña.
+      addEventListener('focus', loadPlan);
+      document.addEventListener('visibilitychange', () => { if (!document.hidden) loadPlan(); });
+      loadPlan();
 
       routeChanged = () => syncRoute();
       applyRoute().then(() => {
