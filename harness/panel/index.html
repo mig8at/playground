@@ -754,7 +754,7 @@
             <div class="empty-head">
               <div class="empty-media"><span class="ui-icon" data-icon="channel" aria-hidden="true"></span></div>
               <div class="empty-title" id="tabStartTitle"></div>
-              <div class="empty-desc">¿Por qué canal entra esta corrida?</div>
+              <div class="empty-desc" id="tabStartDesc">¿Por qué canal entra esta corrida?</div>
             </div>
             <div class="tab-start-channels" id="tabStartChannels" role="group" aria-label="Canal de la corrida"></div>
           </div>
@@ -1951,14 +1951,15 @@
       try { pre = await post(false); } catch { alert('El panel no respondió.'); return false; }
       if (!pre.ok) { alert(`No se puede crear el asesor de prueba de ${name}:\n\n${pre.text}`); return false; }
       // El conector ya mira si existe: entonces no hay nada que confirmar, sólo refrescar lo que el panel tenía.
-      if (/no hay nada que crear/i.test(pre.text)) { alert(pre.text); await loadCatalog(true); enrichMerchants(); return true; }
+      if (/no hay nada que crear/i.test(pre.text)) { alert(pre.text); await loadCatalog(true); await enrichMerchants(); return true; }
       const shared = pre.target !== 'local';
       const preview = pre.text.split('\n').filter((l) => !/--apply/.test(l)).join('\n').trim();
       if (!confirm(`${preview}\n\n${shared ? `⚠ Es la base COMPARTIDA (${pre.target}): lo ve el equipo.\n\n` : ''}¿Lo creo?`)) return false;
       let r;
       try { r = await post(true); } catch { alert('El panel no respondió.'); return false; }
       alert(`${r.ok ? '✓' : '✗'} ${r.text}`);
-      if (r.ok) { await loadCatalog(true); enrichMerchants(); }
+      // Se espera la medición del ambiente: quien llama vuelve a dibujar con el asesor ya visto (la pregunta del canal).
+      if (r.ok) { await loadCatalog(true); await enrichMerchants(); }
       return !!r.ok;
     }
 
@@ -4212,14 +4213,23 @@
         renderChannelChoice.retry = setTimeout(() => { if (!$('tabStart').hidden) renderStage(); }, 500);
         return;
       }
-      // Sin asesor de prueba en este ambiente, el canal Asesor no entra: se ofrece crearlo acá mismo.
+      // SIN ASESOR DE PRUEBA EN ESTE AMBIENTE, PRIMERO SE CREA: los canales no se muestran hasta que exista. Se ofrece
+      // crearlo acá mismo y, creado y medido de nuevo el ambiente, la pregunta vuelve con los canales.
       const e = entryOf(t.slug);
-      if (e?.readiness && !e.readiness.advisor && target !== 'local' && e.allied_id) {
+      const noAdvisor = e?.readiness && !e.readiness.advisor && target !== 'local' && e.allied_id;
+      $('tabStartDesc').textContent = noAdvisor ? `No tiene asesor de prueba en ${target}. Creálo para elegir el canal.` : '¿Por qué canal entra esta corrida?';
+      if (noAdvisor) {
         const mk = document.createElement('button');
         mk.type = 'button'; mk.className = 'btn btn-sm'; mk.textContent = 'Crear asesor de prueba';
-        mk.title = `${name} no tiene asesor de prueba en ${target}: el canal Asesor no puede entrar`;
-        mk.onclick = async () => { if (await createTestAdvisor(e.allied_id, name)) setTimeout(renderStage, 2500); };
+        mk.title = `Crea c<hash>-fake@ y su sucursal b<hash>-fake por el admin de ${target === 'qa' ? 'dev (qa comparte su base)' : target}. Primero muestra qué va a hacer y con quién.`;
+        mk.onclick = async () => {
+          mk.disabled = true; mk.textContent = 'Creando…';
+          const ok = await createTestAdvisor(e.allied_id, name);
+          if (!ok) { mk.disabled = false; mk.textContent = 'Crear asesor de prueba'; return; }
+          renderStage();
+        };
         box.appendChild(mk);
+        return;
       }
       for (const c of CHANNEL_ORDER) {
         const real = document.querySelector(`#channelOptions button[data-c="${c}"]`);

@@ -707,6 +707,9 @@ mismos `id`.
 - **La sucursal por defecto es la del asesor de prueba** (`test_branch`: la de `c<hash>-fake@`, que el alta deja en
   `b<hash>-fake`), marcada «la del asesor de prueba» en el selector. ⚠ Esa sucursal puede no tener entidades (la de
   Alta Fleet en local: 0): el ⚠ de la fila y el comando `bin/pg admin branch-lenders` siguen siendo el aviso.
+- **Sin asesor de prueba (fuera de local), la pregunta del canal NO muestra los canales** (2026-10-21): sólo «Crear
+  asesor de prueba» y el motivo en `#tabStartDesc`. `createTestAdvisor` espera la nueva medición del ambiente
+  (`await enrichMerchants()`) y la pregunta vuelve a dibujarse ya con los canales.
 - **«Crear asesor de prueba»** (en el alta, si el comercio no lo tiene, y en la pregunta del canal fuera de local) va
   por `POST /api/test-advisor` → `bin/pg admin test-advisor`: primero la vista previa del conector (dice CON QUIÉN
   actúa), después, confirmado, `--apply`. Fuera de local el aviso dice que es la base COMPARTIDA. qa usa el admin de
