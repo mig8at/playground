@@ -103,9 +103,14 @@ export async function merchantSigningSecret(hash: string, name = hash): Promise<
     return mode === 'invalid' ? 'no-es-el-secreto-' + secret : secret;
 }
 
-/** La query del checkout de la tienda, con la firma (`sig`/`ts`) cuando la hay. */
+/**
+ * La query del checkout de la tienda, con la firma (`sig`/`ts`) cuando la hay. Con `E2E_BACK_URL` lleva
+ * además `b` (back_url, texto plano en base64): a dónde vuelve el comprador si sale a pagar con otro medio.
+ */
 export function checkoutQuery(c: Record<string, string>): URLSearchParams {
+    const back = process.env.E2E_BACK_URL;
     return new URLSearchParams({ o: c.order, p: c.products, t: c.token, u: c.returnUrl, ps: c.processUrl, config: c.config,
+        ...(back ? { b: Buffer.from(back).toString('base64') } : {}),
         ...(c.sig ? { sig: c.sig, ts: c.ts } : {}) });
 }
 

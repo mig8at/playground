@@ -12,24 +12,25 @@ ramas: "fix/ecommerce-volver-a-la-tienda"
 
 ## Pendientes
 
-- [x] ~~Pasar la URL de retorno del pedido del loader del listado al componente~~ — `storeReturnUrl`, por
-      `storeReturnUrlOf` (sólo `http`/`https`), en `32d8e57b`.
-- [x] ~~Pintar «Volver a la tienda» al pie de los dos avisos «No encontramos una opción para ti»~~ — build
-      verde y visto en Storybook en los dos vacíos; fuera de tienda no sale.
-- [ ] Probar con un pedido real de tienda sin entidades (local o qa): el link sale y lleva a la tienda; y una
-      del canal de asesor sin entidades: no sale. Hasta hoy sólo se vio en Storybook.
-- [x] ~~Abrir el PR a `main` de `frontend-monorepo`~~ — [#1188](https://github.com/Creditop-SAS/frontend-monorepo/pull/1188).
-- [ ] Mergear `frontend-monorepo#1188` y taguear; termina cuando el link sale en producción en una compra de
-      tienda sin opciones.
-      Depende de: revisión del equipo.
+- [x] ~~Pintar «Volver a la tienda» al final del listado en los dos vacíos~~ — en `frontend-monorepo#1188`.
+- [x] ~~Llevar el link al `back_url` (respaldo: `return_url`), como pidió Oscar~~ — backend
+      [#1707](https://github.com/Creditop-SAS/legacy-backend/pull/1707) acepta `b` y devuelve `backUrl`; #1188
+      lo usa (`cc04ba21`). Probado en local de punta a punta.
+- [ ] Responder la revisión de Oscar en #1188 y pedirle una nueva revisión de los dos PRs.
+      Depende de: Miguel — revisar los PRs antes.
+- [ ] Contraprueba por el canal de asesor sin entidades: el link no sale. Hasta hoy sólo Storybook y la prueba de
+      `showsBackToStore`.
+- [ ] Mergear `legacy-backend#1707` y `frontend-monorepo#1188` y taguear; termina cuando el link sale en producción
+      en una compra de tienda sin opciones. Depende de: revisión del equipo.
 - [ ] Crear el issue en Jira con la publicable.
       Depende de: Miguel — revisar la publicable.
 
 ## Objetivo
 
 Un comprador que llega desde la tienda al listado y no tiene ninguna opción de financiamiento ve, debajo del
-aviso, un link «Volver a la tienda» que lo devuelve a la URL de retorno de su pedido. En los otros canales, y
-cuando el pedido no trae URL de retorno, la pantalla queda como está.
+aviso, un link «Volver a la tienda» que lo devuelve al `back_url` de su pedido (o a su `return_url` si la tienda no
+mandó `back_url`, como dice el contrato v1.0.2). En los otros canales, y cuando el pedido no trae ninguna, la
+pantalla queda como está.
 
 ## Dónde se toca
 
@@ -56,7 +57,6 @@ cuando el pedido no trae URL de retorno, la pantalla queda como está.
 
 ## Lo que NO entra
 
-- Cambios en el backend: la URL de retorno ya viaja en el contexto del pedido.
 - Los canales de asesor, autogestión y QR.
 
 ## Cómo se comprueba
@@ -83,8 +83,8 @@ atrás a mano para terminar su compra con otro medio de pago.
 
 ## Qué cambia
 
-Debajo del aviso aparece el link «Volver a la tienda», que lleva a la dirección de retorno que la tienda
-mandó con el pedido.
+Debajo del aviso aparece el link «Volver a la tienda», que lleva a la dirección de «otros medios de pago»
+que la tienda mandó con el pedido o, si no la mandó, a su dirección de retorno.
 
 ## Alcance
 
