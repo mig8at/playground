@@ -7,9 +7,15 @@ created: "2026-09-15T17:00:00-05:00"
 canon: [creditopx, arrendamiento, ecommerce, listado]
 jira: []
 jira_title: ""
+ramas: ["risk-services-mockery-lambda:dictado-compartido"]
 ---
 
 ## Pendientes
+
+- [ ] Decidir si se publica el dictado compartido de la lambda de centrales (rama `feat/dictado-compartido` de
+  `risk-services-mockery-lambda`, probada en local, sin push). Hace falta sólo para probar en la compartida lo que
+  depende de lo que contestan las centrales, como el pipeline de KYC. Termina con la rama publicada en un PR contra
+  `main` o descartada, y la decisión en un bloque. Depende de: Miguel — si vale la pena.
 
 - [x] Poder correr en local el cobro viejo de la cuota inicial (`initial-fee-payment`): con la cola de Laravel en
   `sync` (local), el trabajo que consulta el estado en Wompi (`app/Jobs/Lenders/Wompi/StatusCheck.php:75`) se vuelve a
