@@ -246,7 +246,7 @@ distinto según con qué pregunta llegues.
 | F-240 | Una ruta del recorrido apunta a un método borrado, armada tras cuatro ids quemados | TRAMPA |
 | F-241 | Desde el 2026-09-23 la BD compartida de dev/qa guarda la hora en Bogotá, no en UTC | TRAMPA |
 | F-242 | El comando que siembra las credenciales del SOAP de consumo de Credifamilia escribe claves `credifamilia_consumo_*` que **ningún código en ejecución lee**: rotar el certificado por ahí no cambia la radicación | TRAMPA |
-| F-243 | En la base compartida, un comercio del pipeline de KYC (`kyc_pipeline_allieds`, hoy sólo Mediarte) **no pasa el OTP con un teléfono de `qa_otp_bypass_phones`**: el envío respeta el bypass y no le avisa al proveedor, y la validación v2 sacó el bypass y le pregunta SIEMPRE al proveedor, que en qa es el servicio real (no la lambda que dice el comentario) | ABIERTO · en `main` |
+| F-243 | En la base compartida, un comercio del pipeline de KYC (`kyc_pipeline_allieds`, hoy sólo Mediarte) **no pasa el OTP con un teléfono de `qa_otp_bypass_phones`**: el bypass viejo desvía el envío y el código nunca llega al servicio de OTP ni a **#qa-messages**, que es el mecanismo de hoy; la validación v2 le pregunta al servicio. Con un teléfono FUERA de la lista, el código sale en #qa-messages y valida | ABIERTO · en `main` |
 | F-01 | El loader SSR esconde los 5xx del backend | TRAMPA |
 | F-02 | "Firmar" rebota a los documentos sin ningún mensaje | TRAMPA |
 | F-03 | Un `.catch(() => {})` convirtió una corrida rota en "1 passed" | cerrado |
@@ -6326,6 +6326,12 @@ dos. **No se sabe cuántos diagnósticos viejos eran esto.**
 - **Síntoma:** en qa, Mediarte (comercio 91) por el asesor: con un teléfono de `qa_otp_bypass_phones` y su código de
   bypass (los últimos 4), la pantalla del OTP dice «La validación del código falló. Por favor, verifica el código e
   inténtalo de nuevo.», una y otra vez. El mismo bypass, en Pullman, pasa.
+- **Contexto, que es lo que hay que saber primero:** en la base compartida el OTP **no se bypassea: se publica en
+  Slack**. El servicio de OTP genera el código, `messaging-service` lo recibe y, en modo QA, en vez de entregarlo al
+  operador lo manda con las credenciales de prueba de Twilio y lo publica en **#qa-messages** (`C0BT3HERYGN`, bot
+  `mensajeria-qa`), en un hilo por teléfono («Tu código de verificación es: NNNN»). El código queda en el servicio de OTP
+  y se valida normal (`messaging-service`, `internal/core/usecases/messaging/qa_flow.go`, `deliverForQA`, en
+  `c46bb12`; el canal es configuración: `qa.slack_channel_id`). El bypass por teléfono es el mecanismo VIEJO.
 - **Causa raíz:** los dos lados del OTP no hacen lo mismo con el bypass.
   - **El envío** es el de siempre para los dos flujos (`POST /api/onboarding/phone/register` → `OtpController::sendOtpCode`
     → `Onboarding\OtpService::sendOtpCode`, `Modules/Onboarding/App/Services/OtpService.php:343`). Con el teléfono en la
@@ -6347,12 +6353,17 @@ dos. **No se sabe cuántos diagnósticos viejos eran esto.**
   `3108000012`, `3108000013`, `3512220000`) validaron por la v2 sin problema: su envío sí pasó por el proveedor. Código
   verificado por `main-verifier` contra `legacy-backend@78b7a5cf`, `frontend-monorepo@3ef95498`, `otp-service@9f343a2`
   y `risk-services-mockery-lambda@5b0e706`; igual en las ramas `qa` y `develop`. `legacy-application` no participa.
-- **Arreglo:** sin hacer, y es del backend: o la validación v2 vuelve a respetar el bypass (`OtpBypassService`, como el
-  envío), o el envío por bypass también le avisa al proveedor, o el `OTP_SERVICE_HOST` de los ambientes de prueba pasa a
-  la lambda, como dice el comentario. Los docblocks de `ValidateOtpService.php:25` y de `ValidateOtpAuthService.php`
-  (~:566) todavía describen un bypass que el código no tiene.
-- **Para el harness:** en la compartida, un comercio del pipeline no pasa el OTP con los teléfonos del arnés (los dos
-  están en la lista). No se probó un teléfono fuera de la lista: iría al servicio real y no se sabe si manda un SMS de
-  verdad. No se comprobaron los valores de `OTP_SERVICE_HOST` ni `QA_MODE_ENABLED` del backend de qa (son secretos): la
-  conclusión sobre el proveedor sale de la corrida.
+- **Evidencia de #qa-messages:** los códigos que el bot publicó el 2026-10-21 entre las 8:30 y las 8:38 (`4031`,
+  `9447`, `8632`, `8855`) son exactamente los que esos cuatro teléfonos validaron por la v2 en los logs de qa. Del
+  `3131010102` no hay mensaje: su envío no llegó al servicio.
+- **Arreglo:** sin hacer, y no es la validación v2, que hace lo correcto para el mecanismo de hoy: lo que sobra es el
+  bypass viejo en la compartida. O el envío deja de consultar `qa_otp_bypass_phones` donde está el modo QA de
+  mensajería, o la lista se vacía de los teléfonos que se usan con comercios del pipeline. Los docblocks de
+  `ValidateOtpService.php:25` y de `ValidateOtpAuthService.php` (~:566) describen un bypass que el código no tiene, y
+  el comentario de `:146-152` dice que el proveedor de prueba es la lambda: en qa es el servicio de OTP real, con su
+  aviso en Slack.
+- **Para el harness:** en la compartida, con un teléfono FUERA de la lista, el código se lee del hilo de ese teléfono
+  en #qa-messages; los dos del arnés están en la lista, así que con un comercio del pipeline no pasan. No se comprobaron
+  los valores de `OTP_SERVICE_HOST` ni `QA_MODE_ENABLED` del backend de qa (son secretos): la conclusión sale de la
+  corrida y de los mensajes de Slack.
 - **Estado:** vivo en `main` (78b7a5cf), `qa` y `develop`.
