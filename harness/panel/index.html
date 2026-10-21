@@ -2855,7 +2855,10 @@
         8000: 'cd ~/Desktop/CREDITOP/github/legacy-application && php artisan serve --port=8000',
         4000: 'bin/mock-financial-health start',
       };
-      try { e = await (await fetch('/api/estado')).json(); } catch { /* el panel sigue sin esto */ }
+      // La solicitud de la tarjeta «esperando a la entidad» es la del carril de ESTA pestaña (vacío: no tiene, y no sale).
+      let myLane = '';
+      try { myLane = laneOfTab(currentTab()) || ''; } catch { /* todavía no hay pestañas */ }
+      try { e = await (await fetch('/api/estado?lane=' + myLane)).json(); } catch { /* el panel sigue sin esto */ }
       if (requestedTarget !== target || requestedSlug !== sel?.slug) return;
       $('healthSummary').textContent = e ? 'Ver servicios, entidades y mapa' : 'No se pudo consultar el estado';
       $('missingServices').replaceChildren();
@@ -4271,6 +4274,7 @@
       if (t?.kind === 'admin') { if (sel) followKey = sel.slug + '|' + channel; baseShowStageView('admin'); renderTabs(); renderStage(); saveTabs(); return; }
       if (!inOriginacion()) baseShowStageView('orig');
       renderTabs(); renderStage(); saveTabs();
+      loadStatus();   // la tarjeta «esperando a la entidad» es la de ESTA pestaña (su carril)
       if (!t) return;
       const e = entryOf(t.slug) || (/^[0-9a-f]{8}$/i.test(t.slug) ? { slug: t.slug, name: t.name || t.slug, hash: t.slug, adhoc: true } : null);
       if (!e) return;

@@ -1996,8 +1996,13 @@ const server = createServer(async (req, res) => {
         // LA SOLICITUD DEL CELULAR ABIERTO va primero: la tarjeta de «esperando a la entidad» tiene que hablar de lo
         // que estás probando. Antes leía sólo el volcado del scrub, que es de la corrida ANTERIOR: mostraba una solicitud
         // vieja y «aprueba» la aprobaba a ella (2026-10-13). El volcado queda para las corridas por consola.
+        // ⚠ Y LA DEL CARRIL DE LA PESTAÑA QUE PREGUNTA (`?lane=`), no la de cualquiera: con varios carriles, la de otra corrida
+        // salía en todas las pestañas (2026-10-21, la 467499 del carril D en la pestaña de otro comercio). `?lane=` vacío
+        // (la pestaña no tiene carril) no muestra ninguna. Sin `lane`, como antes: los de todos y el volcado del scrub.
+        const laneQ = url.searchParams.get('lane');
+        const askedLanes = laneQ === null ? LANES : LANES.includes(laneQ) ? [laneQ] : [];
         let lastOne: any = null;
-        for (const dev of LANES.flatMap((l) => [inLane('client', l), inLane('advisor', l)])) {
+        for (const dev of askedLanes.flatMap((l) => [inLane('client', l), inLane('advisor', l)])) {
             const st = deviceState(dev);
             const ur = st.open ? /\/(\d{5,})(?:\/|\?|$)/.exec(new URL(st.url || 'http://x/').pathname)?.[1] : undefined;
             if (!ur || (deviceTarget.get(dev) ?? 'local') !== 'local') continue;
@@ -2008,7 +2013,8 @@ const server = createServer(async (req, res) => {
             }
         }
         // última corrida: el volcado que hace el scrub ANTES de borrar (F-52)
-        if (!lastOne) try {
+        // El volcado es de las corridas por consola y es UNO para todos los paneles de la máquina: sólo si no se pidió carril.
+        if (!lastOne && laneQ === null) try {
             const dir = join(ROOT, '.runs');
             // Sólo los volcados de solicitudes: en `.runs/` también viven el estado de los celulares y la última corrida.
             const f = readdirSync(dir).filter((x) => /^ureq-.*\.json$/.test(x))

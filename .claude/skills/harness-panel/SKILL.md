@@ -1063,3 +1063,8 @@ local (6 workers de PHP) y la memoria.
   entidad elegida (Credifamilia: «No pudimos consultar esta entidad»), no por el carril. En la interfaz, con los cuatro
   ocupados, la pestaña nueva mostró el aviso con las cuatro filas; «Cerrar» en la D liberó el carril y el ▶ de Sonría lo
   tomó (celular `…0104`, abierto en 1 s). Al cerrar todo, el bypass local volvió a tener sólo `3131010101`.
+- ⚠ **La tarjeta «esperando a la entidad» es del carril de la pestaña** (`/api/estado?lane=<el suyo>`; vacío si no tiene).
+  Antes `/api/estado` tomaba el primer celular abierto de CUALQUIER carril y, sin ninguno, el volcado más nuevo de
+  `.runs/ureq-*.json`, que es UNO para todos los paneles de la máquina: la 467499 del carril D salía en la pestaña de otro
+  comercio, y en el panel de :5195. El volcado queda sólo para cuando no se pide carril (las corridas por consola), y
+  `activateTab` refresca la tarjeta al cambiar de pestaña.
