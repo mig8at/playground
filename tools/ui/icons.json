@@ -42,6 +42,7 @@
     "local": "laptop",
     "merchant": "store",
     "stop": "square",
-    "camera": "camera"
+    "camera": "camera",
+    "restart": "rotate-ccw"
   }
 }

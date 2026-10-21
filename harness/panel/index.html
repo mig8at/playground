@@ -230,6 +230,9 @@
     .device > .device-frame { grid-area: frame }
     .device-actions { grid-area: rail; align-self: start; display: flex; flex-direction: column; gap: var(--space-1); margin-top: 24px }
     .device-actions[hidden] { display: flex; visibility: hidden }
+    /* El ▶ de la pestaña está siempre; Recargar, Capturar y Abrir en pestaña sólo con algo abierto en el celular. */
+    .device-actions:not([data-live="true"]) > :not(.device-play) { visibility: hidden }
+    .device-actions > .device-play[hidden] { display: none }
     .device-actions .device-reload { position: static; opacity: 1; pointer-events: auto; width: 28px; height: 28px; padding: 0; justify-content: center }
     .device-actions .device-reload > span:last-child { display: none }   /* sólo el icono: el nombre va en el tooltip */
     .device-label { display: flex; align-items: center; gap: 6px; font-size: var(--text-sm); font-weight: 600; color: var(--fg-2) }
@@ -844,7 +847,8 @@
               <!-- Al costado del celular, con algo abierto: «Recargar», «Capturar» y «Abrir en pestaña». «Siguiente» y «Al final»
                    se sacaron (2026-10-13): el celular ya se toca y se escribe directo. Avanzar hasta una pantalla sigue en el mapa.
                    «Abrir en pestaña» es un enlace y no un botón: lo abre el navegador, sin script (`/api/device/<id>/tab`). -->
-              <div class="device-actions" id="advisorActions" hidden>
+              <div class="device-actions" id="advisorActions">
+                <button type="button" class="device-reload device-play" data-device="advisor" hidden><span class="ui-icon" data-icon="play" aria-hidden="true"></span><span>Iniciar</span></button>
                 <button type="button" class="device-reload" data-device="advisor" title="Recargar la página del celular del asesor" aria-label="Recargar la página del celular del asesor"><span class="ui-icon" data-icon="refresh" aria-hidden="true"></span><span>Recargar</span></button>
                 <button type="button" class="device-reload device-shot" data-device="advisor" title="Copiar la pantalla del celular del asesor al portapapeles" aria-label="Capturar la pantalla del celular del asesor"><span class="ui-icon" data-icon="camera" aria-hidden="true"></span><span>Capturar</span></button>
                 <a class="device-reload device-tab" data-device="advisor" href="/api/device/advisor/tab" target="_blank" rel="noopener" title="Abrir en una pestaña nueva lo que muestra el celular del asesor, con su sesión, para verlo en escritorio" aria-label="Abrir en una pestaña nueva lo que muestra el celular del asesor"><span class="ui-icon" data-icon="external" aria-hidden="true"></span><span>Abrir en pestaña</span></a>
@@ -881,7 +885,8 @@
               <!-- Al costado del celular, con algo abierto: «Recargar», «Capturar» y «Abrir en pestaña». «Siguiente» y «Al final»
                    se sacaron (2026-10-13): el celular ya se toca y se escribe directo. Avanzar hasta una pantalla sigue en el mapa.
                    «Abrir en pestaña» es un enlace y no un botón: lo abre el navegador, sin script (`/api/device/<id>/tab`). -->
-              <div class="device-actions" id="clientActions" hidden>
+              <div class="device-actions" id="clientActions">
+                <button type="button" class="device-reload device-play" data-device="client" hidden><span class="ui-icon" data-icon="play" aria-hidden="true"></span><span>Iniciar</span></button>
                 <button type="button" class="device-reload" data-device="client" title="Recargar la página del celular del cliente" aria-label="Recargar la página del celular del cliente"><span class="ui-icon" data-icon="refresh" aria-hidden="true"></span><span>Recargar</span></button>
                 <button type="button" class="device-reload device-shot" data-device="client" title="Copiar la pantalla del celular del cliente al portapapeles" aria-label="Capturar la pantalla del celular del cliente"><span class="ui-icon" data-icon="camera" aria-hidden="true"></span><span>Capturar</span></button>
                 <a class="device-reload device-tab" data-device="client" href="/api/device/client/tab" target="_blank" rel="noopener" title="Abrir en una pestaña nueva lo que muestra el celular del cliente, con su sesión, para verlo en escritorio" aria-label="Abrir en una pestaña nueva lo que muestra el celular del cliente"><span class="ui-icon" data-icon="external" aria-hidden="true"></span><span>Abrir en pestaña</span></a>
@@ -3796,6 +3801,44 @@
       refreshProdRun();
     };
 
+    // ── ▶ EN EL CELULAR: INICIAR LA CORRIDA DE LA PESTAÑA, O REINICIARLA ──────────────────────────────────────────────
+    // Va en el celular por el que ENTRA el canal de la pestaña: el del asesor por asesor, el del cliente por la tienda
+    // (ecommerce y auto, lo mismo que «Pagar con Creditop»). Autogestión y QR no se abren desde los celulares (van por
+    // «Corrida» del pie), así que ahí no hay ▶. Con el celular apagado dice «Iniciar»; si ya corrió, «Reiniciar», que
+    // vuelve a abrir desde el principio con el mismo caso. Mientras carga, apagado.
+    const phoneModes = { advisor: 'idle', client: 'idle' };
+    const entryPhone = () => channel === 'asesor' ? 'advisor' : (channel === 'ecommerce' || channel === 'auto') ? 'client' : null;
+    function syncPlay() {
+      // Se llama al arrancar, antes de que existan las pestañas (`currentTab` es un `const` más abajo).
+      let t = null;
+      try { t = currentTab(); } catch { return; }
+      const runTab = !!(t && !t.kind && t.canal && sel && !prodMode);
+      for (const dev of ['advisor', 'client']) {
+        const b = document.querySelector(`.device-play[data-device="${dev}"]`);
+        if (!b) continue;
+        b.hidden = !runTab || entryPhone() !== dev;
+        if (b.hidden) continue;
+        // Reiniciar si ya corrió algo en la corrida: por asesor cuenta también el cliente del traspaso.
+        const ran = phoneModes[dev] !== 'idle' || (dev === 'advisor' && phoneModes.client !== 'idle');
+        b.disabled = phoneModes[dev] === 'loading' || runRunning;
+        b.querySelector('.ui-icon').dataset.icon = ran ? 'restart' : 'play';
+        b.querySelector('span:last-child').textContent = ran ? 'Reiniciar' : 'Iniciar';
+        const label = ran ? 'Reiniciar la corrida desde el principio, con el mismo caso' : 'Iniciar la corrida de esta pestaña';
+        b.title = label; b.setAttribute('aria-label', label);
+      }
+    }
+    async function playPhone(dev) {
+      if (!sel || runRunning) return;
+      if (dev === 'advisor') {
+        // Reiniciar por asesor cierra también el cliente de la corrida anterior: si no, queda al lado del nuevo asesor.
+        if (phoneModes.client !== 'idle') { fetch(`/api/device/${D('client')}/close`, { method: 'POST' }).catch(() => { }); setClientMode('idle'); }
+        const e = entryOf(sel.slug) || { slug: sel.slug, name: sel.name, hash: sel.slug };
+        return playMerchant(e);
+      }
+      $('shopPay').click();
+    }
+    for (const b of document.querySelectorAll('.device-play')) b.addEventListener('click', () => playPhone(b.dataset.device));
+
     // ── El navegador real del cliente ─────────────────────────────────────────────────────────────
     // La tienda queda a la vista; «Pagar con Creditop» REDIRIGE al celular del cliente, que abre el
     // checkout en un contexto de Chromium aislado (`/api/device/client/open`).
@@ -3812,7 +3855,8 @@
       $('clientClose').hidden = mode === 'idle';
       if (mode === 'idle' || mode === 'loading') $('clientOtp').hidden = true;
       if (mode !== 'idle') $('clientApp').hidden = true;
-      $('clientActions').hidden = mode !== 'live';
+      $('clientActions').dataset.live = String(mode === 'live');
+      phoneModes.client = mode; syncPlay();
       // La pantalla en vivo: un video MJPEG (`/stream`) que manda un cuadro cada vez que la pantalla cambia. Fuera de
       // `live` se suelta, y con eso el servidor corta la transmisión.
       if (mode === 'live' && !view) liveConnect(D('client'), 'clientLive');   // cada apertura, su transmisión
@@ -3856,7 +3900,8 @@
       // Con el motor de Selenium el celular es su noVNC (`view`); con el de Chromium, una imagen que se refresca.
       $('advisorVnc').hidden = mode !== 'live' || !view;
       $('advisorLive').hidden = mode !== 'live' || !!view;
-      $('advisorActions').hidden = mode !== 'live';
+      $('advisorActions').dataset.live = String(mode === 'live');
+      phoneModes.advisor = mode; syncPlay();
       if (mode !== 'live' || !view) $('advisorVnc').removeAttribute('src');
       else if ($('advisorVnc').getAttribute('src') !== view) $('advisorVnc').src = view;
       if (mode === 'live' && !view) liveConnect(D('advisor'), 'advisorLive');
@@ -4201,6 +4246,7 @@
       if (busy) $('tabBusyTitle').textContent = `Los dos carriles están ocupados: ${ownerLabel('a')} y ${ownerLabel('b')}`;
       // «Ir a esa pestaña» sólo si es de este ambiente: la de otro se ve cambiando de ambiente.
       $('tabBusyGo').hidden = !laneOwners.a || laneOwners.a.target !== tabsTarget;
+      syncPlay();
     }
     function renderChannelChoice(t) {
       const { name } = tabLabel(t);
@@ -4801,6 +4847,7 @@
           + 'El spec sólo cae ahí como respaldo, y únicamente si la sucursal ES Corbeta.';
       applyStepGate();   // el canal decide qué arranques aplican
       updateGo();
+      syncPlay();   // el ▶ va en el celular por el que entra ESTE canal
     }
 
     function togglePep() {                                       // PEP = sin buró → atenúa score/negativos/consultas

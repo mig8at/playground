@@ -1016,3 +1016,16 @@ llama a `forgetLenders(slug)`, y una consulta que falló no se guarda. Medido: e
 (antes ~300) y en 13–25 ms en qa, sin pedir nada a `/api/lenders` al elegir; la precarga de qa (12 comercios, 24
 consultas de entidades) termina en unos 20 s en segundo plano. ⚠ Lo que cambie en la base por FUERA del panel (otra
 persona, el admin) no se ve hasta recargar la página.
+
+### ▶ en el celular: Iniciar, y Reiniciar si ya corrió (2026-10-21)
+
+La columna de botones de cada celular lleva arriba un `.device-play`. Va en el celular por el que ENTRA el canal de la
+pestaña (`entryPhone`): el del asesor por asesor (`playMerchant`) y el del cliente por la tienda (ecommerce y auto, lo
+mismo que «Pagar con Creditop»). Autogestión y QR no se abren desde los celulares, así que ahí no aparece. Con el celular
+apagado dice ▶ «Iniciar»; si ya corrió algo (también el cliente del traspaso, por asesor) dice ↺ «Reiniciar» (icono
+`restart` = `rotate-ccw` de Lucide, agregado a `tools/ui/icons.json`), que vuelve a abrir desde el principio con el
+mismo caso; por asesor cierra también el cliente de la corrida anterior. Mientras carga, apagado. `syncPlay()` lo
+decide con `phoneModes` (lo anotan `setAdvisorMode` y `setClientMode`) y se llama también desde `renderStage` y
+`applyChannel`. ⚠ La columna ya no se oculta entera (`hidden`): marca `data-live`, y sin algo abierto sólo se ve el ▶.
+Verificado en local: Pullman · Asesor abrió en 2 s y pasó a «Reiniciar»; reiniciar volvió a abrir (otra sesión, `since`
+nuevo) y apagó el botón mientras cargaba; Pullman · Tienda online mostró el ▶ en el cliente y abrió el checkout en 3 s.
