@@ -229,6 +229,7 @@ orden de archivo — el ancla `### F-xx` es la única dirección.)
 | **«creé la solicitud en qa y el forense no encuentra sus logs»** / `service_name` que no existe en Loki | **F-179** |
 | **«la solicitud de HOY en dev/qa sale sin una sola línea de log»** / la hora de la BD y la de Loki no coinciden por 5 h | **F-241** |
 | **«rotamos el certificado del SOAP de consumo de Credifamilia y la radicación sigue firmando con el anterior»** | **F-242** |
+| **«en qa el OTP de Mediarte dice que la validación del código falló con un teléfono del bypass, y en Pullman el mismo bypass anda»** | **F-243** |
 | **«el backend se cayó bajo carga»** / muchos 504 a los 60 s exactos que igual terminaron escribiendo | **F-180** |
 | **«el código serializa»** / medir concurrencia en local y ver las peticiones de a una | **F-181** |
 | **«genera el documento en prod y en local tira 500»** / `Undefined variable` en una plantilla de Rent to Own | **F-182** · F-150 |
@@ -245,6 +246,7 @@ distinto según con qué pregunta llegues.
 | F-240 | Una ruta del recorrido apunta a un método borrado, armada tras cuatro ids quemados | TRAMPA |
 | F-241 | Desde el 2026-09-23 la BD compartida de dev/qa guarda la hora en Bogotá, no en UTC | TRAMPA |
 | F-242 | El comando que siembra las credenciales del SOAP de consumo de Credifamilia escribe claves `credifamilia_consumo_*` que **ningún código en ejecución lee**: rotar el certificado por ahí no cambia la radicación | TRAMPA |
+| F-243 | En la base compartida, un comercio del pipeline de KYC (`kyc_pipeline_allieds`, hoy sólo Mediarte) **no pasa el OTP con un teléfono de `qa_otp_bypass_phones`**: el envío respeta el bypass y no le avisa al proveedor, y la validación v2 sacó el bypass y le pregunta SIEMPRE al proveedor, que en qa es el servicio real (no la lambda que dice el comentario) | ABIERTO · en `main` |
 | F-01 | El loader SSR esconde los 5xx del backend | TRAMPA |
 | F-02 | "Firmar" rebota a los documentos sin ningún mensaje | TRAMPA |
 | F-03 | Un `.catch(() => {})` convirtió una corrida rota en "1 passed" | cerrado |
@@ -6318,3 +6320,39 @@ dos. **No se sabe cuántos diagnósticos viejos eran esto.**
   comando escriba las que se leen. Mientras tanto, para cambiar el certificado del consumo se cambian las
   `credifamilia_cert/key/password`, que también mueven el REST.
 - **Estado:** vivo en `main` (b801c145). No se comprobó qué claves tiene cada fila en la BD de los ambientes.
+
+### F-243 · El OTP de un comercio del pipeline de KYC no pasa con un teléfono del bypass de QA
+
+- **Síntoma:** en qa, Mediarte (comercio 91) por el asesor: con un teléfono de `qa_otp_bypass_phones` y su código de
+  bypass (los últimos 4), la pantalla del OTP dice «La validación del código falló. Por favor, verifica el código e
+  inténtalo de nuevo.», una y otra vez. El mismo bypass, en Pullman, pasa.
+- **Causa raíz:** los dos lados del OTP no hacen lo mismo con el bypass.
+  - **El envío** es el de siempre para los dos flujos (`POST /api/onboarding/phone/register` → `OtpController::sendOtpCode`
+    → `Onboarding\OtpService::sendOtpCode`, `Modules/Onboarding/App/Services/OtpService.php:343`). Con el teléfono en la
+    lista y el modo QA prendido, delega en `sendOtpCodeBypassed` (`:410-416`, `:1233`), que **no llama al proveedor**:
+    sólo guarda la fila `Otp`.
+  - **La validación** depende del comercio. Si está en `kyc_pipeline_allieds` (`ResolveKycFlowService.php:162`), el
+    wizard valida por `POST /api/v2/onboarding/otp-auth/validate/{hash}` (`otp-verification.tsx:183-184` →
+    `phone-otp.repository.ts:37`), que termina en `Modules/AuthV1/App/Services/ValidateOtpService.php`: carga la fila y le
+    pregunta **siempre** al proveedor (`OtpClient::validateOtp`, `POST /api/otp/validate`), aceptando sólo un HTTP 200
+    (`:202-223`). El bypass se sacó de ahí en `bda0c209` (2026-08-25) con el argumento de que en los ambientes de prueba
+    el proveedor es la lambda de mocks, que acepta cualquier código (`:146-152`). Los demás comercios validan por el flujo
+    viejo (`OtpService::validateOtpCode`, `:173-179`), que sí respeta el bypass.
+  - En qa **el proveedor es el servicio de OTP real**, no la lambda: sin un `generate` previo contesta 401
+    (`otp-service`, `validate_otp.go:46-57`, `http_handler.go:140-147`) y el backend lo lee como `CODE_INVALID`.
+    La lambda contestaría 200 a todo (`risk-services-mockery-lambda`, `riskservices.json:817-823`).
+- **Evidencia:** corrida del panel en qa el 2026-10-21, teléfono `3131010102` (en la lista) en Mediarte: el envío logueó
+  «QA bypass active, delegating to sendOtpCodeBypassed» y la validación v2 «OTP invalid … CODE_INVALID» tres veces
+  (otp 300467). En la misma ventana de dos horas, cuatro teléfonos que **no** están en la lista (`3109000001`,
+  `3108000012`, `3108000013`, `3512220000`) validaron por la v2 sin problema: su envío sí pasó por el proveedor. Código
+  verificado por `main-verifier` contra `legacy-backend@78b7a5cf`, `frontend-monorepo@3ef95498`, `otp-service@9f343a2`
+  y `risk-services-mockery-lambda@5b0e706`; igual en las ramas `qa` y `develop`. `legacy-application` no participa.
+- **Arreglo:** sin hacer, y es del backend: o la validación v2 vuelve a respetar el bypass (`OtpBypassService`, como el
+  envío), o el envío por bypass también le avisa al proveedor, o el `OTP_SERVICE_HOST` de los ambientes de prueba pasa a
+  la lambda, como dice el comentario. Los docblocks de `ValidateOtpService.php:25` y de `ValidateOtpAuthService.php`
+  (~:566) todavía describen un bypass que el código no tiene.
+- **Para el harness:** en la compartida, un comercio del pipeline no pasa el OTP con los teléfonos del arnés (los dos
+  están en la lista). No se probó un teléfono fuera de la lista: iría al servicio real y no se sabe si manda un SMS de
+  verdad. No se comprobaron los valores de `OTP_SERVICE_HOST` ni `QA_MODE_ENABLED` del backend de qa (son secretos): la
+  conclusión sobre el proveedor sale de la corrida.
+- **Estado:** vivo en `main` (78b7a5cf), `qa` y `develop`.
