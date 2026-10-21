@@ -119,6 +119,26 @@ footer ul{margin:6px 0 0;padding-left:18px}
   </section>
 
   <section>
+    <h2>Camino a producción, paso a paso</h2>
+    <div class="flow">
+      <ol class="steps">
+        <li><div><h3>Pruebas de VTEX: hechas <span class="pill done">7 de 7</span></h3>
+          <p>VTEX exige que un medio de pago pase su <strong>Payment Provider Test Suite</strong>: simula pagos aprobados, negados, cancelados, pendientes, boleto y redirect, y revisa cada respuesta. La corrimos el 20 de octubre desde el admin de la cuenta <code>creditop</code>, contra la app nueva instalada en el workspace de desarrollo <code>migueldev</code>, y pasaron los siete casos. Ese mismo día una compra real en ese workspace quedó aprobada en VTEX. La app ya está lista ahí; lo que falta es subirla como versión oficial.</p></div></li>
+        <li><div><h3>Dejarla lista para VTEX <span class="pill next">Antes de pedir</span></h3>
+          <p>Cerrar dos cosas que VTEX puede revisar: que el modo de prueba sólo responda a la Test Suite (hoy responde a cualquiera que diga serlo) y qué hacer con cancelaciones y reembolsos (hoy se niegan). Después, revisar y aprobar el código (<a href="https://github.com/Creditop-SAS/vtex/pull/21">vtex#21</a>).</p></div></li>
+        <li><div><h3>Subirla como versión 5.0.0</h3>
+          <p>Desde la cuenta <code>creditop</code>, dueña de la app: subir el número a 5.0.0 y publicarla con las herramientas de VTEX IO (<code>vtex publish</code>, y <code>vtex deploy</code> para dejarla estable). Publicar no instala nada: las tiendas con la 4 siguen con la 4.</p></div></li>
+        <li><div><h3>Pedirle a VTEX la homologación</h3>
+          <p>Abrir una solicitud de homologación con el soporte de VTEX, con el nombre de la app (<code>creditop.creditop</code>), sus medios de pago y la evidencia de la Test Suite. VTEX la revisa, puede pedir ajustes y, al aprobarla, Creditop queda habilitado como proveedor para que las tiendas lo configuren. Qué datos piden y cuánto tarda está en su <a href="https://developers.vtex.com/docs/guides/payments-integration-payment-provider-homologation">guía de homologación</a>.</p></div></li>
+        <li><div><h3>Probar con la tienda piloto</h3>
+          <p>Con la tienda de Mario Hernández: (a) en Creditop, darle de alta su sucursal VTEX y su clave; (b) instalar la versión 5 en su cuenta VTEX; (c) que la tienda cree la afiliación de Creditop con <code>AppKey</code> = el código de su sucursal y <code>AppToken</code> = su clave, y active la condición de pago «Creditop»; (d) hacer una compra real, ver que VTEX la aprueba y que el cobro se confirma al facturar.</p></div></li>
+        <li><div><h3>Abrirla a más tiendas</h3>
+          <p>Con el piloto bien, repetir los pasos (a) a (c) en cada tienda nueva. Para las que hoy tienen la 4: avisarles y reconfigurar su clave al pasar a la 5.</p></div></li>
+      </ol>
+    </div>
+  </section>
+
+  <section>
     <h2>Cómo se conecta Creditop a VTEX</h2>
     <div class="table-wrap">
       <table>
