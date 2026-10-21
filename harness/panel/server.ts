@@ -357,6 +357,19 @@ function dbopsJson(args: string[], target: string, extraEnv: NodeJS.ProcessEnv =
 // corrida con su teléfono, y sólo lo suyo (`pkg/otp-bypass.ts` no le borra los teléfonos a otra corrida).
 /** El autorrelleno de los celulares con el CASO del panel (el panel derecho = `caseStore`): la persona que se
  *  escribe en cada pantalla es la misma de la tienda y de la siembra. Lo que el caso no trae, del default. */
+/** EL CASO DEL CARRIL B, con identidad propia: si no trae cédula ni correo, va con los suyos y no con los por defecto del
+ *  autorrelleno (`1096734490` · `qa.harness@`). Con la misma cédula en dos celulares, en la base compartida la segunda corrida
+ *  se trababa en la confirmación de identidad: la cédula ya quedaba registrada con el celular del carril A (qa, 2026-10-21).
+ *  En local no se veía porque cada corrida limpia su cliente. */
+function laneCase(order: any, id: DeviceId, target = 'local'): any {
+    const o = { ...(order || {}) };
+    // Fuera de local, el carril A también lleva su cédula explícita (la misma que escribe el autorrelleno): así se le
+    // DICTA a la lambda de mocks y no contesta la identidad por defecto, con la que el listado de qa salía vacío.
+    if (laneOf(id) !== 'b') { if (target !== 'local' && !String(o.doc || '').replace(/\D/g, '')) o.doc = '1096734490'; return o; }
+    if (!String(o.doc || '').replace(/\D/g, '')) o.doc = '1096734491';
+    if (!String(o.email || '').trim()) o.email = 'qa.harness+b@creditop.com';
+    return o;
+}
 function caseAutofill(o: any = {}): AutofillData {
     const base = envData();
     const str = (v: unknown) => String(v ?? '').trim();
@@ -678,7 +691,7 @@ const lastAdvanceWhy: Record<Lane, string> = { a: '', b: '' };
  *  trabada diga lo que se ve y no «locator.click: Timeout». '' si no hay. */
 async function screenError(id: DeviceId): Promise<string> {
     const txt = await deviceText(id).catch(() => '');
-    return txt.split('\n').map((l) => l.trim()).find((l) => l.length < 160 && /error|no se pudo|no pudimos|fall[oó]|intenta(lo)? de nuevo|inténtalo/i.test(l)) ?? '';
+    return txt.split('\n').map((l) => l.trim()).find((l) => l.length < 160 && /error|no se pudo|no pudimos|fall[oó]|intenta(lo)? de nuevo|inténtalo|no encontramos una opci[oó]n/i.test(l)) ?? '';
 }
 async function advanceAll(id: DeviceId, until: string | null, opts: { lender?: string; follow?: boolean } = {}): Promise<void> {
     if (advancing.has(id)) return;
@@ -709,7 +722,8 @@ async function advanceAll(id: DeviceId, until: string | null, opts: { lender?: s
                 chosen = true;
                 deviceLog(id, `▸ en el listado, buscando «${opts.lender}»…`);
                 const c = await deviceChooseEntity(id, opts.lender);
-                if (!c.ok) { why = `${c.detail}. Se veía: ${c.visibles.slice(0, 12).join(' · ') || 'nada'}`; break; }
+                // Un listado VACÍO no es «no está»: la pantalla lo dice («No encontramos una opción para ti») y eso va primero.
+                if (!c.ok) { const shown = await screenError(id); why = `${c.detail}${shown ? `: la pantalla dice «${shown}»` : ''}. Se veía: ${c.visibles.slice(0, 12).join(' · ') || 'nada'}`; break; }
                 deviceLog(id, '▸ ' + c.detail);
                 await sleep(remote ? 4_000 : 2_000);
                 continue;
@@ -794,7 +808,9 @@ function watchAdvisorHandoffs(t: string, slug: string, order: any, advisor: Devi
                 if (bp?.ok) deviceBypass.set(client, { target: t, puesto: bp.puesto });
             }
             await openDevice(client, link, { autofill: caseAutofill(order) })
-                .then(() => { rescueIdentity(client, t); rescueDownPayment(client, t); watchFrontExceptions(client, t); watchCategories(client, t); })
+                // ⚠ CON EL CELULAR: fuera de local, `rescueIdentity` sólo aprueba la identidad si lo recibe (es el del bypass), y sin
+                // él el cliente se quedaba en la selfie de `identity-validation`, que el celular del panel no puede hacer (qa, 2026-10-21).
+                .then(() => { rescueIdentity(client, t, phone); rescueDownPayment(client, t, phone); watchFrontExceptions(client, t); watchCategories(client, t); })
                 .catch((e) => deviceLog(client, '✗ el traspaso no abrió: ' + (e as Error).message.split('\n')[0]));
         })();
     };
@@ -2610,7 +2626,7 @@ connect();
             // Un precalentado en curso puede estar por reiniciar el wizard: se espera a que termine.
             for (let i = 0; prebooting && i < 600; i++) await new Promise((r) => setTimeout(r, 500));
             const t = TARGETS.has(String(b.target)) ? String(b.target) : 'local';
-            const o = b.order || {};
+            const o = laneCase(b.order, id, String(b.target || 'local'));   // el carril B, con su identidad
             const str = (v: unknown) => String(v ?? '').trim();
             const auto = b.channel === 'auto';
             // La identidad del pedido viaja por las mismas variables que lee `caseIdentity()`.
@@ -2688,6 +2704,7 @@ connect();
         // asignado a esta sucursal se lo asigna; sin sesión guardada el celular abre el login y se entra a mano.
         if (action === 'open' && req.method === 'POST' && roleOf(id) === 'advisor') {
             const b = await readBody(req);
+            b.order = laneCase(b.order, id, String(b.target || 'local'));   // el carril B, con su identidad (el traspaso la lleva al cliente)
             for (let i = 0; prebooting && i < 600; i++) await new Promise((r) => setTimeout(r, 500));
             const t = TARGETS.has(String(b.target)) ? String(b.target) : 'local';
             const slug = String(b.slug || '');

@@ -900,9 +900,25 @@ Dos pestañas pueden correr al mismo tiempo, cada una con su par de celulares. E
 - ⛔ **El mismo comercio en OTRA sucursal, en local, no puede ir al otro carril**: su asesor de prueba es uno y está en
   una sola sucursal; abrir la segunda lo movería y la primera seguiría contra la sucursal equivocada. `claimDevices` lo
   frena con un aviso. Con la misma sucursal sí se puede.
+- ⚠ **Y cada carril tiene su IDENTIDAD sintética** (`laneCase`): sin cédula en el caso, el B va con `1096734491` y
+  `qa.harness+b@creditop.com`, no con las del autorrelleno (`1096734490`, `qa.harness@`). En la base compartida la misma
+  cédula con dos celulares trababa al segundo en la confirmación de identidad (qa, 2026-10-21); en local no se veía porque
+  cada corrida limpia su cliente. Fuera de local el A también lleva su cédula explícita, para que se le DICTE a la lambda
+  y no conteste la identidad por defecto (con ella el listado de qa salía vacío).
+- ⚠ **El carril se elige con el estado del servidor de AHORA** (`claimDevices` llama a `pollLanes`): con el de la
+  última consulta, Mediarte abrió en el carril A y cerró la corrida de Pullman (qa, 2026-10-21).
+- ⚠ **El traspaso le pasa el celular a `rescueIdentity`**: fuera de local sólo aprueba la identidad con él, y sin él el
+  cliente se quedaba en la selfie. Pasaba también antes de los carriles.
 - Verificado el 2026-10-21 en local, a la vez: Pullman · Asesor (carril A, CrediPullman) y Mediarte · Asesor (carril
   B, Mediarte X, con su asesor entrando por el login del conector) llegaron solos a `loan-approved`; en la base, 467492
   (Pullman, `…0101`) y 467493 (Mediarte, `…0102`), las dos en estado 11 con desembolso; ninguna consola menciona el
   comercio de la otra. Al cambiar de pestaña cada una muestra su carril, su celular del caso y su consola; una tercera
   pestaña ve «Los dos carriles están ocupados»; el freno de la misma sucursal se probó simulando el estado de los
-  carriles. NO se probó: dos carriles en la compartida ni el carril B por la tienda.
+  carriles. NO se probó el carril B por la tienda.
+- **En la compartida (qa), el 2026-10-21**: los dos carriles corrieron a la vez, cada uno con su asesor de prueba en la
+  sucursal falsa (`036610aa`), su celular, su cédula y su consola, y los dos pasaron el OTP. Ninguno cerró, por cosas de
+  qa y no de los carriles: (1) el listado de CrediPullman salió vacío o no según la corrida, con la misma cédula
+  («No encontramos una opción para ti»); (2) con la identidad aprobada a mano, el wizard igual mandó al cliente a la
+  selfie (`identity-validation`); (3) Mediarte valida el OTP por onboarding v2 (`ValidateOtpAuthController` →
+  `/api/otp/validate`), que no respeta el bypass que sí usa el envío: con un número del bypass el OTP sale
+  `CODE_INVALID` (le pasaría igual en el carril A).

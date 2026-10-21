@@ -4211,7 +4211,7 @@
       activeTab = id;
       const t = currentTab();
       // Las pantallas muestran el carril de ESTA pestaña (el suyo, o uno libre).
-      if (t && t.kind !== 'admin' && t.kind !== 'prodrun') await setPhoneLane(laneToShow(t));
+      if (t && t.kind !== 'admin' && t.kind !== 'prodrun') { if (!laneOfTab(t)) await pollLanes(); await setPhoneLane(laneToShow(t)); }
       if (t?.kind === 'prodrun') { baseShowStageView('prod'); renderTabs(); renderStage(); saveTabs(); renderProdList($('merchantSearch').value); return; }
       if (t?.kind === 'prod') { if (!inOriginacion()) baseShowStageView('orig'); renderTabs(); renderStage(); saveTabs(); renderProdList($('merchantSearch').value); return; }
       if (t?.kind === 'admin') { if (sel) followKey = sel.slug + '|' + channel; baseShowStageView('admin'); renderTabs(); renderStage(); saveTabs(); return; }
@@ -4316,6 +4316,10 @@
     async function claimDevices() {
       const t = currentTab();
       if (!t) return true;
+      // ⚠ El estado de los carriles se pregunta AHORA: el de la última consulta (cada 3 s) puede no saber todavía que el
+      // otro acaba de abrir, y entonces esta corrida le pisaba el carril. Pasó en qa el 2026-10-21: Mediarte abrió en el A
+      // y cerró la de Pullman.
+      await pollLanes();
       let lane = laneOfTab(t);
       if (!lane) {
         lane = t.kind === 'prod' ? (laneBusy('a') ? null : 'a') : !laneBusy('a') ? 'a' : !laneBusy('b') ? 'b' : null;
