@@ -974,3 +974,13 @@ completa → listado → Mediarte X → traspaso → firma → `loan-approved`, 
   HTTP 422 al guardar personal-info, y el panel sólo ve que «Continuar» no avanza). La razón está en
   `/tmp/asesor-wizard.log` (`[PostHog log] error POST …/personal-info…`), porque sin Loki local el backend no deja
   nada. Se evita con cédula y correo propios en el caso.
+
+### Los celulares miden el ALTO del editor, y la carcasa escala (2026-10-21)
+
+`--phone-h` es todo el alto que deja `.devices` (menos el rótulo y 20 px abajo, que cubren la barra de scroll), sin
+tope por ancho ni los 760 px de antes: si los teléfonos no entran a lo ancho, `.devices` scrollea de costado
+(`overflow-x: auto`). ⚠ Va con `justify-content: safe center`: con `center` a secas el desborde se reparte a los dos
+lados y el celular de la izquierda queda cortado sin forma de llegar a él. La carcasa es proporción del alto (`--bezel`
+= 1,35 %, mínimo 4 px; esquinas 4,9 %; muesca 2,4 %): a 740 px son los 10 · 36 · 18 px de antes. Medido: con 358 px
+de alto, teléfono de 310 y borde de 4; con 912, teléfono de 864 y borde de 11,5; a 760 px de ancho no se achica y
+scrollea (935 de contenido en 428).

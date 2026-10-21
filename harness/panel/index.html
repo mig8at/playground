@@ -215,12 +215,12 @@
     .map-view > .empty { flex: 1 1 auto; display: flex; align-items: center; justify-content: center }
 
     /* ═══ LOS DOS CELULARES ═══════════════════════════════════════════════════════════════════════
-       Asesor a la izquierda, cliente a la derecha: el alto lo pone el centro y el ancho sale de la
-       proporción de un teléfono, así que se achican juntos al mover las manijas. */
-    .devices { flex: 1 1 auto; min-height: 0; container-type: size; display: flex; justify-content: center; align-items: flex-start; gap: var(--space-6) }
-    .devices { --phone-share: 50cqw }
-    .devices[data-count="2"] { --phone-share: 50cqw }
-    .devices[data-count="3"] { --phone-share: 33.3cqw }
+       Asesor a la izquierda, cliente a la derecha. El tamaño lo pone el ALTO del editor, no el ancho: si los
+       teléfonos no entran a lo ancho, la zona scrollea de costado en vez de achicarlos. `safe center` los
+       centra cuando sobran y, cuando no entran, los alinea al principio: con `center` a secas el desborde se
+       repartía a los dos lados y el de la izquierda quedaba cortado sin forma de scrollear hasta él. */
+    .devices { flex: 1 1 auto; min-height: 0; container-type: size; display: flex; justify-content: safe center; align-items: flex-start; gap: var(--space-6);
+      overflow-x: auto; overflow-y: hidden; padding: 0 var(--space-3) }
     .device[hidden] { display: none }
     /* Cada celular: el rótulo arriba, el teléfono y, a su DERECHA, una columna de iconos (siguiente · al final ·
        recargar). La columna guarda su lugar aunque esté vacía, así el teléfono no salta cuando aparecen. */
@@ -234,18 +234,21 @@
     .device-actions .device-reload > span:last-child { display: none }   /* sólo el icono: el nombre va en el tooltip */
     .device-label { display: flex; align-items: center; gap: 6px; font-size: var(--text-sm); font-weight: 600; color: var(--fg-2) }
     .device-frame {
-      /* El alto es el MENOR entre lo que deja el centro (menos el rótulo) y lo que permite el ancho
-         para dos teléfonos con su separación, y el ancho sale de la proporción. Va EXPLÍCITO y no con
-         `aspect-ratio`: el `<figure>` no contaba ese ancho, medía 63 px y los dos se pisaban. */
-      --phone-h: min(100cqh - 28px, (var(--phone-share) - var(--space-6) - 32px) * 19.5 / 9, 760px);   /* 32 px: la columna de iconos */
-      /* El HUECO de la pantalla (sin los 10 px de borde) va en 412:892, la pantalla del celular real del
-         cliente (`panel/devices.ts`): con otra proporción el visor la escala sin deformarla y rellena lo
-         que sobra con bandas. */
-      position: relative; box-sizing: border-box; height: var(--phone-h); width: calc((var(--phone-h) - 20px) * 412 / 892 + 20px);
-      border: 10px solid var(--muted); border-radius: 36px; background: var(--card);
+      /* El alto es TODO lo que deja el editor (menos el rótulo de arriba y un respiro abajo, que cubre la barra de
+         scroll horizontal), y el ancho sale de la proporción. Va EXPLÍCITO y no con `aspect-ratio`: el `<figure>`
+         no contaba ese ancho, medía 63 px y los dos se pisaban. */
+      --phone-h: max(240px, 100cqh - 28px - var(--space-2) - 12px);
+      /* LA CARCASA ESCALA CON EL TELÉFONO: borde, esquinas y muesca son proporciones del alto (a 740 px, los 10 · 36
+         · 18 px de antes). Con medidas fijas, un celular chico quedaba con un marco grueso y esquinas casi redondas. */
+      --bezel: max(4px, var(--phone-h) * .0135);
+      /* El HUECO de la pantalla (sin el borde) va en 412:892, la pantalla del celular real del cliente
+         (`panel/devices.ts`): con otra proporción el visor la escala sin deformarla y rellena lo que sobra con bandas. */
+      position: relative; box-sizing: border-box; height: var(--phone-h); width: calc((var(--phone-h) - 2 * var(--bezel)) * 412 / 892 + 2 * var(--bezel));
+      border: var(--bezel) solid var(--muted); border-radius: calc(var(--phone-h) * .049); background: var(--card);
       box-shadow: 0 0 0 1px var(--border); overflow: hidden;
     }
-    .device-notch { position: absolute; top: 0; left: 50%; translate: -50% 0; width: 34%; height: 18px; background: var(--muted); border-radius: 0 0 12px 12px; z-index: 4 }
+    .device-notch { position: absolute; top: 0; left: 50%; translate: -50% 0; width: 34%; height: calc(var(--phone-h) * .024);
+      background: var(--muted); border-radius: 0 0 calc(var(--phone-h) * .016) calc(var(--phone-h) * .016); z-index: 4 }
     .device-screen { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; overflow: auto }
     /* En espera: la pantalla con un borde punteado por dentro y el `.spinner` compartido; deja de esperar cuando haya entidad elegida. */
     /* ═══ LA TIENDA ═══ Un teléfono de 360 px escalado al marco: el diseño no depende del tamaño. */
