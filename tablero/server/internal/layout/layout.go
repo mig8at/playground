@@ -37,16 +37,6 @@ type Layout struct {
 	Tasks string
 }
 
-// Canon es la copia local de canon (`tablero/canon/`): el export entero, para leerlo como archivos. Está
-// fuera de git porque se actualiza a pedido; vive al lado de `data/` para conservar las referencias históricas.
-func (l Layout) Canon() string {
-	data, err := filepath.Abs(l.Data)
-	if err != nil {
-		data = l.Data
-	}
-	return filepath.Join(filepath.Dir(data), "canon")
-}
-
 // Knowledge es la biblioteca editable y versionada del taller, al lado de tools/.
 func (l Layout) Knowledge() string { return filepath.Join(filepath.Dir(l.Tools()), "knowledge") }
 

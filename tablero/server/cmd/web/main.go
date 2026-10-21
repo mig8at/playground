@@ -161,8 +161,6 @@ type app struct {
 	// direcciones distintas. El server los entrega desde server/.env.
 	canonURL    string
 	canonClient *canon.Client
-	// canonKeeper actualiza la copia local de Canon sólo por pedido explícito.
-	canonKeeper *canonKeeper
 	// repos dice dónde se ve en la web cada repo que un bloque puede citar. Sale de tools/repos.json,
 	// la lista única: la UI arma el enlace a GitHub de un archivo fijado a su commit.
 	repos *repos.Client
@@ -212,7 +210,6 @@ func main() {
 	a.branchesRoot = envDefault("TABLERO_RAMAS_ROOT", filepath.Join(os.Getenv("HOME"), "Desktop", "CREDITOP", "github"))
 
 	integrations := a.connectIntegrations()
-	a.canonKeeper = newCanonKeeper(a.canonClient, a.canonURL, layout.At(dataDir).Canon())
 
 	port := envDefault("WEB_PORT", "8787")
 
@@ -220,8 +217,6 @@ func main() {
 	mux.HandleFunc("/health", func(w http.ResponseWriter, _ *http.Request) { w.Write([]byte("ok")) })
 	mux.HandleFunc("/api/config", a.config)
 	mux.HandleFunc("/api/canon/route", a.canonRoute)
-	mux.HandleFunc("/api/canon/status", a.canonStatusHandler)
-	mux.HandleFunc("/api/canon/topic", a.canonTopic)
 
 	// ARTIFACTS de las tareas: `/artifacts/<slug>/<archivo>` sirve `tasks/<slug>/artifacts/<archivo>`,
 	// tal cual, para que el tablero los abra en una pestaña. Los sirve este server y no uno aparte a

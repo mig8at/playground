@@ -1,9 +1,8 @@
 // canon lee y dicta canon, el corpus compartido de CreditOp, en un comando (`make canon-*`).
 //
 //	search "<palabras del negocio>"      qué sección y qué área lo cubren (gratis, sin modelo)
-//	map                                  los temas por etapa del crédito, con título y resumen (refresca la copia local)
+//	map                                  los temas por etapa del crédito, con título y resumen
 //	read <id>[,<id>…]                    secciones completas: `cuota/context#<ancla>` o el tema entero
-//	code <tema/capa> [n]                 los archivos que declara el área n del tema
 //	propose <pieza.json>                 dónde iría y qué le rechaza el lint. NO escribe
 //	write <pieza.json>… [-title T]       borrador → piezas → cierre: UNA revisión. ESCRIBE
 //	write -dry <pieza.json>…             el mismo recorrido SIN el cierre: dice qué haría canon con cada pieza y abandona el borrador
@@ -28,13 +27,10 @@ import (
 	"os"
 	"path/filepath"
 	"sort"
-	"strconv"
 	"strings"
 	"time"
 
 	"creditop/playground/connectors/canon"
-	"creditop/playground/tablero/server/internal/canoncache"
-	"creditop/playground/tablero/server/internal/layout"
 )
 
 func main() {
@@ -62,8 +58,6 @@ func main() {
 		if err == nil {
 			err = json.NewEncoder(os.Stdout).Encode(view)
 		}
-	case "code":
-		err = code(ctx, client, args)
 	case "propose":
 		err = propose(ctx, client, args)
 	case "write":
@@ -90,7 +84,7 @@ func main() {
 }
 
 func usage() {
-	fmt.Fprintln(os.Stderr, "uso: canon search|read|route|code|propose|write|export|patch|clones|round …  (ver `make canon-search` y sus vecinos)")
+	fmt.Fprintln(os.Stderr, "uso: canon search|read|route|map|propose|write|export|patch|clones|round …  (ver `make canon-search` y sus vecinos)")
 	os.Exit(2)
 }
 
@@ -137,46 +131,6 @@ func read(ctx context.Context, client *canon.Client, args []string) error {
 		return err
 	}
 	fmt.Print(text)
-	return nil
-}
-
-/* code: los archivos que declara un área, leídos del map.json de la COPIA LOCAL. Canon retiró `/api/code`
- * el 2026-09-27: el código se lee en los repos de esta máquina, y el mapa dice cuáles y contra qué hash. */
-func code(_ context.Context, _ *canon.Client, args []string) error {
-	if len(args) == 0 {
-		return fmt.Errorf("falta el área: `cuota/context` y, si hace falta, su número")
-	}
-	n := 0
-	if len(args) > 1 {
-		n, _ = strconv.Atoi(args[1])
-	}
-	area, total, err := canoncache.Area(layout.Find().Canon(), args[0], n)
-	if err != nil {
-		return err
-	}
-	fmt.Printf("  %s · área %d de %d: %s\n", args[0], n, total, area.Goal)
-	if area.Deduce != "" {
-		fmt.Printf("  se deduce leyendo: %s\n", area.Deduce)
-	}
-	repos := make([]string, 0, len(area.Files))
-	for repo := range area.Files {
-		repos = append(repos, repo)
-	}
-	sort.Strings(repos)
-	for _, repo := range repos {
-		paths := make([]string, 0, len(area.Files[repo]))
-		for p := range area.Files[repo] {
-			paths = append(paths, p)
-		}
-		sort.Strings(paths)
-		for _, p := range paths {
-			fmt.Printf("    %s:%s  (%s)\n", repo, p, area.Files[repo][p])
-		}
-	}
-	if len(area.Tables) > 0 {
-		fmt.Printf("  tablas: %s\n", strings.Join(area.Tables, ", "))
-	}
-	fmt.Println("  el código se lee en main de cada repo: git show origin/main:<ruta> desde ~/Desktop/CREDITOP/github/<repo>")
 	return nil
 }
 
@@ -328,9 +282,8 @@ func digest(text string) string {
 }
 
 /* exportCorpus baja el corpus de ESTE momento a una carpeta nueva y anota de qué revisión parte. Es el primer
- * paso para cambiar un archivo entero —un map.json con fuentes que ya no existen en main— con `patch`. No usa la
- * copia de `tablero/canon`: esa se revalida por ETag y puede ir atrás, y editar sobre ella es pisar lo que otra
- * persona acaba de dictar. */
+ * paso para cambiar un archivo entero —un map.json con fuentes que ya no existen en main— con `patch`: editar
+ * sobre un export viejo es pisar lo que otra persona acaba de dictar. */
 func exportCorpus(ctx context.Context, client *canon.Client, args []string) error {
 	flags := flag.NewFlagSet("export", flag.ExitOnError)
 	out := flags.String("out", "", "carpeta nueva (o vacía) donde dejar el corpus")
@@ -487,34 +440,73 @@ func clip(text string, n int) string {
 	return string(runes[:n]) + "…"
 }
 
-/* topicMap: el mapa de canon que usa el tablero —los temas por etapa del crédito, con su título y resumen—,
- * refrescando la copia local (gratis: la del corpus entero se revalida con el ETag del export). Es lo que el hook de
- * inicio resume en una línea por etapa. */
+/* topicMap: el mapa de canon —los temas por etapa del crédito, con su título y resumen—, leído de la API en
+ * el momento (gratis: `/api/topics` y `/api/globalmap`). No guarda copia: lo que se lee es lo vigente. */
 func topicMap(ctx context.Context, client *canon.Client) error {
-	dir := filepath.Join(layout.Find().Data, "cache")
-	c, err := canoncache.Refresh(ctx, client, canon.URL(), dir, time.Now())
-	if len(c.Topics) == 0 {
-		if err != nil {
-			return fmt.Errorf("canon no respondió y no hay copia local (¿VPN de prod?): %w", err)
-		}
+	topics, _, _, err := client.Topics(ctx, "")
+	if err != nil {
+		return fmt.Errorf("canon no respondió (¿VPN de prod?): %w", err)
+	}
+	if len(topics) == 0 {
 		return fmt.Errorf("canon no devolvió temas")
 	}
-	state := "al día"
+	gm, err := client.GlobalMap(ctx)
 	if err != nil {
-		state = "copia del " + c.CheckedAt.Local().Format("2006-01-02 15:04") + " — canon no respondió: " + err.Error()
+		return err
 	}
-	fmt.Printf("\n  mapa de canon · %d temas · %s · %s\n\n%s\n\n", len(c.Topics), c.Source, state, c.Compact())
-	for _, t := range c.Topics {
+	stages, err := canon.Stages(gm)
+	if err != nil {
+		return err
+	}
+	fmt.Printf("\n  mapa de canon · %d temas · %s\n\n%s\n\n", len(topics), canon.URL(), compactStages(topics, stages))
+	for _, t := range topics {
 		fmt.Printf("  %-22s %s\n  %-22s %s\n", t.Topic, t.Title, "", t.Summary)
 	}
 	fmt.Println("\n  leer un tema entero: make canon-read IDS='<tema>' · buscar: make canon-search Q='…'")
-	var syncErr error
-	if err == nil {
-		syncCtx, cancel := context.WithTimeout(context.Background(), canoncache.MirrorWait)
-		defer cancel()
-		_, _, syncErr = canoncache.SyncMirror(syncCtx, client, canon.URL(), layout.Find().Canon(), time.Now())
-	}
-	m, ok := canoncache.LoadMirror(layout.Find().Canon())
-	fmt.Println(canoncache.MirrorLine(m, ok, syncErr, "tablero/canon"))
 	return nil
+}
+
+// compactWidth es el ancho de la lista por etapas; lo que no entra sigue abajo, con sangría.
+const compactWidth = 100
+
+// compactStages: los temas por etapa, sólo nombres; los que no tienen estación van como transversales.
+func compactStages(topics []canon.TopicSummary, stages []canon.Stage) string {
+	var b strings.Builder
+	line := func(label string, names []string) {
+		prefix := fmt.Sprintf("    %-20s ", label)
+		indent := strings.Repeat(" ", len([]rune(prefix))) // en caracteres: «evaluación» tiene una ó de dos bytes
+		row := prefix
+		for i, t := range names {
+			piece := t
+			if i > 0 {
+				piece = " · " + t
+			}
+			if i > 0 && len([]rune(row+piece)) > compactWidth {
+				b.WriteString(row + " ·\n")
+				row = indent + t
+				continue
+			}
+			row += piece
+		}
+		b.WriteString(row + "\n")
+	}
+	inStage := map[string]bool{}
+	for _, s := range stages {
+		for _, t := range s.Topics {
+			inStage[t] = true
+		}
+		if len(s.Topics) > 0 {
+			line(strings.ToLower(s.Title), s.Topics)
+		}
+	}
+	var cross []string
+	for _, t := range topics {
+		if !inStage[t.Topic] {
+			cross = append(cross, t.Topic)
+		}
+	}
+	if len(cross) > 0 {
+		line("transversales", cross)
+	}
+	return strings.TrimRight(b.String(), "\n")
 }

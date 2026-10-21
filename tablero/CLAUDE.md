@@ -199,7 +199,7 @@ fuentes sin red; avisa si falta una referencia o queda fuera del presupuesto, si
 
 No consultar Canon es el comportamiento por defecto. Para una consulta de negocio/producto que no
 se puede comprobar en local, Canon es opcional. Las tareas históricas conservan `canon:`:
-`BRIEF=1` consulta su API; `CANON=1` lee su copia local. Se eligen sólo cuando hacen falta.
+`BRIEF=1` consulta su API, sólo cuando hace falta. No hay copia local de Canon.
 Una pregunta sobre un caso o sobre el estado de un ambiente va al harness, a los conectores (`bin/pg`) o al tracer del equipo si es de prod.
 
 ## Cuando aparece conocimiento reutilizable

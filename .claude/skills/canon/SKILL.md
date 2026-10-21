@@ -18,13 +18,10 @@ propia base**: sirve para ensayar, y lo que se escribe ahí no lo ve nadie.
 
     make canon-search Q='monto avisado al comercio'     # qué sección (prosa) y qué área (mapa) lo cubren
     make canon-read IDS='cuota/context#<ancla>'         # la sección completa; varias por coma, o el tema
-    make canon-code AREA=cuota/context N=2              # los archivos que declara esa área (de la copia local)
+    make canon-mapa                                     # los temas por etapa del crédito, con título y resumen
 
-**Y está copiado en disco**: `tablero/canon/content/<tema>/context.md` (la prosa) y `map.json`
-(las áreas con sus archivos y hashes), más `globalmap.json`, `tablas.json` y `diccionario.json`. Se lee con
-rg y Read, sin VPN. Es una copia histórica: el arranque de sesión y el servidor del tablero no la
-revalidan. El botón «Canon · opcional» solicita una actualización explícita (`VERSION.json` dice de cuál es).
-**No se edita** (es de sólo lectura): lo que haya que cambiar se dicta abajo.
+**No hay copia en disco**: Canon se lee sólo por su API, así que lo que se lee es lo vigente. Para
+trabajar archivos enteros (un `map.json`), `make canon-export` baja el corpus de ese momento (abajo).
 
 1. **Buscá con palabras del negocio, en español y cortas.** La búsqueda es léxica: una consulta en
    inglés o un relato largo no encuentran nada. Probá dos o tres formulaciones antes de concluir.
@@ -65,7 +62,7 @@ el lint las rechaza. Entra lo que el código no dice o lo que ahorra leerlo.
 reescribe el archivo entero: `make canon-export DIR=<carpeta nueva>` baja el corpus de HOY, se edita el
 `content/<tema>/map.json`, y `make canon-patch DIR=… REASON='…'` ensaya (valida el corpus resultante y muestra
 el diff); con `APPLY=1` publica. Sólo viajan los archivos que cambiaron, y canon lo rechaza si el corpus
-cambió desde el export. ⚠ No se edita sobre `tablero/canon`: esa copia puede ir atrás.
+cambió desde el export. ⚠ Un export viejo va atrás: se exporta de nuevo antes de cada cambio.
 
 **Para saber qué falta ponerse al día:** `make canon-round` es la ronda del SERVIDOR (qué archivos que el corpus declara
 cambiaron en main; sale 1 si alguno). Compara contra los clones del servidor, así que si main avanzó hace un rato,

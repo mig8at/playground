@@ -19,7 +19,6 @@ import RegionMenu from './RegionMenu.vue';
 import RepoBranches from './RepoBranches.vue';
 import { readPreference, savePreference, groupTasks, TASK_GROUPS } from './ui-state.js';
 import { organizeDocument } from './task-document.js';
-import { renderCanon, canonTopic, sectionID } from './canon-local.js';
 import { highlightSQL } from './sql-highlight.js';
 import { parseBlockBody, blockRouteLinks } from './block-body.js';
 import { jiraPreview } from './jira-preview.js';
@@ -46,85 +45,6 @@ const error = ref('');
 const jiraSyncing = ref(false);
 const syncError = ref('');
 
-// Canon es opcional: el pie actualiza su copia sólo cuando se pulsa el botón.
-const canonState = ref(null);
-const canonChecking = ref(false);
-async function loadCanonStatus(force = false) {
-  if (canonChecking.value) return;
-  canonChecking.value = true;
-  try {
-    const res = await fetch(`${SERVER}/api/canon/status`, { method: force ? 'POST' : 'GET' });
-    if (res.ok) canonState.value = await res.json();
-  } catch { /* sin server: el pie no muestra nada de canon */ }
-  finally { canonChecking.value = false; }
-}
-const canonLabel = computed(() => {
-  const c = canonState.value;
-  if (canonChecking.value && !c) return 'revisando canon…';
-  if (!c) return 'Canon · opcional';
-  if (c.state === 'current') return c.updated ? 'canon actualizado' : 'canon al día';
-  if (c.state === 'stale') return `canon: copia del ${new Date(c.syncedAt).toLocaleDateString('es-CO', { day: 'numeric', month: 'numeric' })}`;
-  return 'canon sin copia local';
-});
-const canonTitle = computed(() => {
-  const c = canonState.value;
-  if (!c) return 'Consultar contexto de negocio o producto: clic para actualizar la copia de Canon';
-  const parts = [];
-  if (c.syncedAt) parts.push(`copia local del ${new Date(c.syncedAt).toLocaleString('es-CO')} (${c.files} archivos)`);
-  if (c.checkedAt && c.state === 'current') parts.push(`confirmada contra canon ${new Date(c.checkedAt).toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit' })}`);
-  if (c.error) parts.push(`canon no contestó: ${c.error}`);
-  parts.push('opcional para negocio o producto · clic: actualizar ahora');
-  return parts.join(' · ');
-});
-// ── canon: la pestaña de la tarea ───────────────────────────────────────────────────────────────
-// Los temas que declara la tarea (`canon:`), leídos de la copia local por el server, y la sección
-// abierta. Un enlace de canon —en un bloque o en la prosa de canon— abre acá en vez de ir a producción.
-const canonDocs = ref({}); // tema → { loading, error, doc }
-const canonSection = ref(''); // `tema/context#ancla`, o `tema/context` para la intro
-async function loadCanonTopic(topic) {
-  if (!topic || canonDocs.value[topic]?.doc || canonDocs.value[topic]?.loading) return;
-  canonDocs.value = { ...canonDocs.value, [topic]: { loading: true } };
-  try {
-    const res = await fetch(`${SERVER}/api/canon/topic?id=${encodeURIComponent(topic)}`);
-    const body = await res.json();
-    canonDocs.value = { ...canonDocs.value, [topic]: res.ok ? { doc: body } : { error: body.error || `HTTP ${res.status}` } };
-  } catch (e) {
-    canonDocs.value = { ...canonDocs.value, [topic]: { error: 'el server del tablero no contestó' } };
-  }
-}
-const declaredCanon = computed(() => {
-  const e = active.value ? efforts.value.find(x => x.id === effortFor(active.value.Key)) : null;
-  return [...new Set((e?.canon || '').split(',').map(t => canonTopic(t.trim())).filter(Boolean))];
-});
-// Los temas de la pestaña: los declarados, y el de la sección abierta si vino de un enlace a otro tema.
-const canonTopicList = computed(() => {
-  const list = [...declaredCanon.value];
-  const opened = canonTopic(canonSection.value);
-  if (opened && !list.includes(opened)) list.push(opened);
-  return list;
-});
-const canonOpen = computed(() => {
-  if (!canonSection.value) return null;
-  const entry = canonDocs.value[canonTopic(canonSection.value)];
-  if (!entry?.doc) return entry?.error ? { missing: true, id: canonSection.value } : null;
-  const doc = entry.doc;
-  if (!canonSection.value.includes('#')) return { id: doc.id, title: doc.title, text: doc.intro };
-  return doc.sections.find(sec => sec.id === canonSection.value) || { missing: true, id: canonSection.value };
-});
-function openCanon(ref) {
-  const id = sectionID(ref);
-  canonSection.value = id;
-  loadCanonTopic(canonTopic(id));
-  if (!(showAux.value && auxShown.value)) toggleDetail(); // la pestaña vive en el sidebar derecho: se abre si estaba cerrado
-  openAux('canon');
-}
-// Un enlace de canon dentro de la prosa de canon (`data-canon`) abre en la misma pestaña.
-function onCanonClick(event) {
-  const link = event.target.closest('[data-canon]');
-  if (!link) return;
-  event.preventDefault();
-  openCanon(link.dataset.canon);
-}
 const sprint = ref(bootstrapCache?.sprint || null);
 const sprints = ref(bootstrapCache?.sprints || []); // los más recientes, del actual hacia atrás — los usan las bandas de la jornada
 const SPRINT_TABS = 4;        // cuántos ofrece el selector del header (los demás sólo pintan banda)
@@ -734,7 +654,7 @@ async function toggleDay(day, event) {
   scroller.scrollTop += section.getBoundingClientRect().top - scroller.getBoundingClientRect().top;
 }
 const routeURLs = ref({});
-const blockLinks = computed(() => ({ repos: repos.value, canonLink, jiraLink, canonRouteLink: reference => routeURLs.value[reference] || '', onCanon: openCanon }));
+const blockLinks = computed(() => ({ repos: repos.value, canonLink, jiraLink, canonRouteLink: reference => routeURLs.value[reference] || '' }));
 // Citar un bloque lleva a él; si su día está plegado, primero lo despliega.
 async function goToBlock(id) {
   const group = contextGroups.value.find(g => g.items.some(event => event.id === id));
@@ -1176,7 +1096,6 @@ function openTask(task, pin = false) {
   active.value = task;
   if (taskChange) {
     activeAuxView.value = 'jira';
-    canonSection.value = '';
   }
 }
 function closeTab(k) {
@@ -1219,7 +1138,6 @@ const tasksForRoute = () => {
  *   (sin hash)                          el sprint, la bienvenida
  *   #/tareas/core-543                   la tarea, con Jira (el default no se escribe)
  *   #/tareas/context?vista=pendientes   la tarea, con Pendientes (o `artifacts`)
- *   #/tareas/harness?vista=canon&seccion=kyc/context%23ancla   con Canon y esa sección abierta
  *   #/importar                          sin tarea, «Traer de Jira» en el editor
  * Otra tarea u otra vista del editor entra al historial (push); otra pestaña lo reemplaza, porque
  * recorrer las tres caras de una tarea no es navegar. Los enlaces viejos `#/tareas/<slug>` son la
@@ -1228,9 +1146,7 @@ const AUX_DEFAULT = 'jira';
 const IMPORT_ROUTE = 'importar';
 const currentRoute = computed(() => {
   if (active.value) {
-    const params = { vista: activeAuxView.value };
-    if (activeAuxView.value === 'canon' && canonSection.value) params.seccion = canonSection.value;
-    return hashRoute(['tareas', taskSlug(active.value)], params, { vista: AUX_DEFAULT });
+    return hashRoute(['tareas', taskSlug(active.value)], { vista: activeAuxView.value }, { vista: AUX_DEFAULT });
   }
   return isOpen('jira') ? hashRoute([IMPORT_ROUTE]) : '';
 });
@@ -1287,8 +1203,6 @@ function restoreRoute({ settle = false } = {}) {
       if (task._local) showLocals.value = true;
       openTask(task, true);
       const vista = params.get('vista');
-      const section = params.get('seccion');
-      if (vista === 'canon' && section) { canonSection.value = sectionID(section); loadCanonTopic(canonTopic(section)); }
       activeAuxView.value = taskTabs.value.some((tab) => tab.id === vista) ? vista : AUX_DEFAULT;
       fulfilled = true;
     }
@@ -1359,13 +1273,7 @@ const taskTabs = computed(() => {
     // desaparecer y hacer parecer que Tablero no tiene lugar para sus artifacts.
     { id: 'artifacts', label: 'Artifacts', count: key ? taskArtifacts(key).length : 0 },
   ];
-  // Canon sólo aparece cuando la tarea declara temas o se abrió una sección: sin eso no tiene nada que
-  // mostrar, y una pestaña vacía empuja a llenarla.
-  if (declaredCanon.value.length || canonSection.value) tabs.push({ id: 'canon', label: 'Canon', count: declaredCanon.value.length || undefined });
   return tabs;
-});
-watch([activeAuxView, declaredCanon], ([view, topics]) => {
-  if (view === 'canon') topics.forEach(loadCanonTopic);
 });
 watch(auxViews, (views) => {
   if (!views.some((view) => view.id === activeAuxView.value)) activeAuxView.value = 'jira';
@@ -2389,39 +2297,6 @@ function documentAction(id) {
             </template>
 
           </template>
-          <template v-if="v.id === 'canon'">
-            <p class="nota">De la copia local histórica de Canon, disponible para consultas opcionales<template v-if="canonLabel"> · {{ canonLabel }}</template>. Un enlace entre temas se abre acá.</p>
-            <section v-if="canonOpen" class="canon-open" aria-live="polite">
-              <div class="canon-open-head">
-                <h3>{{ canonOpen.missing ? 'Sección que canon no tiene' : canonOpen.title }}</h3>
-                <a v-if="!canonOpen.missing" class="link canon-web" :href="canonLink(canonOpen.id)" target="_blank" rel="noopener"
-                   title="Abrir en canon de producción (pide la VPN): para compartir el enlace con el equipo">canon ↗</a>
-                <button type="button" class="region-action" aria-label="Cerrar la sección" title="Cerrar la sección" @click="canonSection = ''">
-                  <span class="ui-icon" data-icon="close" aria-hidden="true"></span>
-                </button>
-              </div>
-              <p class="canon-open-id">{{ canonOpen.id }}</p>
-              <p v-if="canonOpen.missing" class="nota">La copia local no tiene esa sección: puede haberse renombrado en canon. Buscala con grep en <code>tablero/canon</code>.</p>
-              <div v-else class="desc md-body canon-text" v-html="renderCanon(canonOpen.text)" @click="onCanonClick"></div>
-            </section>
-            <details v-for="topic in canonTopicList" :key="topic" class="canon-topic"
-                     :open="canonTopic(canonSection) === topic || (!canonSection && canonTopicList.length === 1)">
-              <summary>
-                <span class="canon-topic-title">{{ canonDocs[topic]?.doc?.title || topic }}</span>
-                <span class="canon-topic-id">{{ topic }}</span>
-                <span v-if="canonDocs[topic]?.doc" class="count">{{ canonDocs[topic].doc.sections.length }}</span>
-              </summary>
-              <p v-if="canonDocs[topic]?.loading" class="nota">leyendo…</p>
-              <p v-else-if="canonDocs[topic]?.error" class="nota canon-missing">Canon no tiene «{{ topic }}»: corregí <code>canon:</code> en la tarea.</p>
-              <template v-else-if="canonDocs[topic]?.doc">
-                <button type="button" class="row canon-row" :class="{ on: canonSection === canonDocs[topic].doc.id }"
-                        @click="openCanon(canonDocs[topic].doc.id)">Qué es este tema</button>
-                <button v-for="sec in canonDocs[topic].doc.sections" :key="sec.id" type="button" class="row canon-row"
-                        :class="{ on: canonSection === sec.id }" :aria-current="canonSection === sec.id ? 'true' : undefined"
-                        @click="openCanon(sec.id)">{{ sec.title }}</button>
-              </template>
-            </details>
-          </template>
           <template v-if="v.id === 'artifacts'">
             <p class="nota">Lo que produjo esta tarea: prototipos, consultas y notas. Cada uno se abre en una pestaña nueva.</p>
             <button v-for="artifact in taskArtifacts(active.Key)" :key="artifact.file" class="artifact-row" @click="openArtifact(artifact)">
@@ -2443,9 +2318,6 @@ function documentAction(id) {
       <span v-if="!loadingWide">{{ visible }} tarea{{ visible === 1 ? '' : 's' }} a la vista</span>
       <span v-if="jiraSyncing" class="sync-state" role="status">actualizando Jira…</span>
       <span v-else-if="syncError" class="sync-state sync-error" :title="syncError">Jira sin actualizar</span>
-      <button v-if="canonLabel" type="button" class="sync-state canon-state"
-              :class="{ 'sync-error': canonState && !!canonState.error }"
-              :aria-busy="canonChecking" :title="canonTitle" @click="loadCanonStatus(true)">{{ canonChecking && canonState ? 'revisando canon…' : canonLabel }}</button>
       <span v-if="active && !active._local" class="sb-act">{{ active.Key }}</span>
       <div class="layout-controls" role="group" aria-label="Regiones visibles">
         <!-- El tema, antes de los botones de disposición y separado 8: los de disposición van al final
@@ -2585,21 +2457,6 @@ function documentAction(id) {
 .sb-act { margin-left: auto; font: var(--text-xs) var(--font-mono); color: var(--txt) }
 .sync-state { color: var(--mut); font-size: var(--text-xs) }
 .sync-error { color: var(--warn) }
-/* La pestaña «Canon»: la sección abierta arriba y, debajo, un tema por grupo plegable con sus secciones. */
-.canon-open { padding: 0 0 var(--space-3); border-bottom: 1px solid var(--border) }
-.canon-open-head { display: flex; align-items: center; gap: var(--space-2) }
-.canon-open-head h3 { flex: 1; min-width: 0; margin: 0; font-size: var(--text-sm); font-weight: 600 }
-.canon-web { font-size: var(--text-xs); white-space: nowrap }
-.canon-open-id, .canon-topic-id { color: var(--fg-3); font: var(--text-xs) var(--mono, ui-monospace, monospace); overflow-wrap: anywhere }
-.canon-open-id { margin: 2px 0 var(--space-2) }
-.canon-topic { border-bottom: 1px solid var(--border) }
-.canon-topic summary { display: flex; align-items: baseline; gap: var(--space-2); padding: var(--space-2) 0; cursor: pointer }
-.canon-topic-title { font-weight: 600; min-width: 0 }
-.canon-row { display: block; width: 100%; text-align: left; white-space: normal }
-.canon-missing { color: var(--warn) }
-/* El estado de canon es un botón (un clic revalida), pero se lee como el texto del pie. */
-.canon-state { background: none; border: 0; padding: 0; font: inherit; cursor: pointer }
-.canon-state:hover { text-decoration: underline }
 .sync-state + .sb-act { margin-left: 0 }
 .theme-toggle { margin-right: 6px }
 

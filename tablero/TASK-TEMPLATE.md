@@ -45,8 +45,8 @@ jira_title: ""
     stage         evaluation → work → tasks
     created       ISO-8601 con offset, ej "2026-08-20T09:00:00-05:00"
     knowledge     temas locales, ej [lender-listing] o [lender-listing#ancla]. Retomar los lee sin red
-    canon         referencias opcionales o históricas del equipo. BRIEF=1 consulta su API y CANON=1
-                  lee la copia local, sólo cuando se eligen. No bloquea la edición de la tarea
+    canon         referencias opcionales o históricas del equipo. BRIEF=1 consulta su API, sólo
+                  cuando se elige. No bloquea la edición de la tarea
     jira          [CORE-123]. Se omite hasta que el issue exista
     jira_title    se llena al publicar; con varios issues se deja en ""
 -->

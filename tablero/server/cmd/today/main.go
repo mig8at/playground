@@ -262,14 +262,11 @@ func truncate(s string, n int) string {
 
 func main() {
 	var (
-		single     = flag.String("n", "", "retomar UNA tarea, por id o slug (acepta subcadena del slug)")
-		stage      = flag.String("stage", "", "sólo esta etapa (work · evaluation · tasks)")
-		anatomy    = flag.Bool("anatomia", false, "cómo está repartido el archivo de cada tarea, y qué sección parece estar en el lugar equivocado")
-		asJSON     = flag.Bool("json", false, "salida en JSON")
-		brief      = flag.String("brief", "", "al final, la ficha de las referencias de Canon declaradas: 1 = las declaradas (hasta 4) · a,b = sólo esas")
-		withCanon  = flag.Bool("canon", false, "opcional: secciones de la copia histórica de Canon; sólo con -canon")
-		canonBytes = flag.Int("canon-bytes", canonContextBytes, "presupuesto de -canon, en bytes")
-		canonQuery = flag.String("canon-q", "", "con -canon: buscar esto en vez del título y el resumen de la tarea")
+		single  = flag.String("n", "", "retomar UNA tarea, por id o slug (acepta subcadena del slug)")
+		stage   = flag.String("stage", "", "sólo esta etapa (work · evaluation · tasks)")
+		anatomy = flag.Bool("anatomia", false, "cómo está repartido el archivo de cada tarea, y qué sección parece estar en el lugar equivocado")
+		asJSON  = flag.Bool("json", false, "salida en JSON")
+		brief   = flag.String("brief", "", "al final, la ficha de las referencias de Canon declaradas: 1 = las declaradas (hasta 4) · a,b = sólo esas")
 	)
 	flag.Parse()
 	env.LoadDefaults()
@@ -288,7 +285,7 @@ func main() {
 		os.Exit(showAnatomy(data, tasks, *single))
 	}
 	if *single != "" {
-		os.Exit(resume(data, tasks, snap, *single, *asJSON, *brief, *withCanon, *canonBytes, *canonQuery))
+		os.Exit(resume(data, tasks, snap, *single, *asJSON, *brief))
 	}
 	os.Exit(agenda(data, tasks, snap, *stage, *asJSON))
 }
@@ -622,7 +619,7 @@ func briefFromCanon(client *canon.Client) func(string) (canonBrief, error) {
 	}
 }
 
-func resume(data string, tasks []task, snap branchesSnap, ref string, asJSON bool, brief string, withCanon bool, canonBytes int, canonQuery string) int {
+func resume(data string, tasks []task, snap branchesSnap, ref string, asJSON bool, brief string) int {
 	var t *task
 	for i := range tasks {
 		if tasks[i].Slug == ref || strconv.Itoa(tasks[i].ID) == ref {
@@ -666,14 +663,6 @@ func resume(data string, tasks []task, snap branchesSnap, ref string, asJSON boo
 	if brief != "" {
 		briefs, briefsNotice = canonBriefs(t.Nodes, brief, briefFromCanon(canon.FromEnv()))
 	}
-	var canonCtx taskCanonContext
-	if withCanon {
-		query := taskQuery(*t)
-		if canonQuery != "" {
-			query = canonQuery
-		}
-		canonCtx = buildCanonContext(t.Nodes, query, canonQuery != "", layout.At(data).Canon(), canonBytes)
-	}
 
 	if asJSON {
 		output := map[string]any{
@@ -684,9 +673,6 @@ func resume(data string, tasks []task, snap branchesSnap, ref string, asJSON boo
 		}
 		if brief != "" {
 			output["canon"], output["canonNotice"] = briefs, briefsNotice
-		}
-		if withCanon {
-			output["canonContext"] = canonCtx
 		}
 		_ = json.NewEncoder(os.Stdout).Encode(output)
 		return 0
@@ -831,9 +817,6 @@ func resume(data string, tasks []task, snap branchesSnap, ref string, asJSON boo
 		fmt.Println("  la ficha decide qué referencia se abre; si ninguna contesta, la pregunta va al código de main — no a otra referencia")
 	}
 	printKnowledgeContext(localContext)
-	if withCanon {
-		printCanonContext(canonCtx)
-	}
 	fmt.Println()
 	return 0
 }

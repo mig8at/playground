@@ -26,7 +26,7 @@ slug frontmatter jsonl upsert shortstat squash changelog pathspec
 broad reedit
 # `friction` (lo que trabó una sesión, en radar y el cierre) y `lookback` (la ventana hacia atrás): inglés común
 friction lookback
-dbquery taskcontext repocheck canoncache
+dbquery taskcontext repocheck
 hotspot hotspots inflight clickable asset assets radii opacity flexbox hug cropped crop crops fidelity thumbnail
 # `deafult` no es un nombre nuestro: es el VALOR que trae Figma en la variante de la casilla del sistema
 # de diseño de producto («Check Box», `tipe=deafult`, con la errata del diseñador). El visor lo compara tal cual.
@@ -69,7 +69,6 @@ json: server/internal/store/sources.go:map develop                 # nombres de 
 # Contrato de /api/globalmap de Canon; no son claves del tablero.
 json: connectors/canon/routes.go mapa desde hasta titulo rutas estaciones cuando pasos estacion_global referencia nota
 json: connectors/canon/snapshot.go exportado     # el export de canon
-json: server/internal/canoncache/local.go objetivo se_deduce_leyendo secciones tablas fuentes     # las áreas del map.json de canon, leídas de la copia local
 
 # ── canon (`tools/canon`, repo compartido): inglés que la stdlib casi no usa, y nombres de su dominio ────────────────────────────
 # `rig` es el banco de prueba (test rig); `atlas` es el mapa de recorridos; `globalmap` es el mapa completo (una sola pieza);

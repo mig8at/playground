@@ -152,7 +152,6 @@
       "mcp__ccd_pr__get_status",
       "Bash(make canon-search *)",
       "Bash(make canon-read *)",
-      "Bash(make canon-code *)",
       "Bash(make canon-route *)",
       "Bash(make deploys *)",
       "Bash(make canon-mapa *)",

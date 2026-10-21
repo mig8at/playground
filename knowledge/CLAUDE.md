@@ -39,8 +39,8 @@ Un tema ausente o que excede el presupuesto se avisa; no se reemplaza por una b�
 Los contratos de una herramienta se mantienen junto a ella, en su CLAUDE.md.
 
 Canon conserva el conocimiento compartido del equipo. Consultarlo es opcional; publicar allí requiere
-una solicitud de Miguel, y no condiciona el cierre. La copia tablero/canon/ es histórica y no se edita
-ni se sincroniza hacia knowledge/. Esta biblioteca depende de archivos locales y fuentes comprobables.
+una solicitud de Miguel, y no condiciona el cierre. Se lee sólo por su API (no hay copia local) y no
+se sincroniza hacia knowledge/. Esta biblioteca depende de archivos locales y fuentes comprobables.
 
 ## Adaptar lo que aparece en el tablero
 

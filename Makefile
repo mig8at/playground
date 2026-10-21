@@ -87,9 +87,9 @@ cuadrilla-publicar: ## @dia publica en cuadrilla las ramas de una tarea (a tu pa
 hoy: ## @dia la agenda derivada de las tareas: en movimiento (último bloque, lo que espera a alguien, entrega) y dormidas (≥14 d sin tocar). STAGE=work · JSON=1
 	@cd tablero/server && go run ./cmd/today $(if $(STAGE),-stage $(STAGE)) $(if $(JSON),-json)
 
-retomar: ## @dia retomar UNA tarea: pila, documento, pendientes, ramas y conocimiento LOCAL declarado en knowledge:. N=<id|slug> [BRIEF=1 o CANON=1 sólo si se necesita el contexto opcional de negocio/producto]
+retomar: ## @dia retomar UNA tarea: pila, documento, pendientes, ramas y conocimiento LOCAL declarado en knowledge:. N=<id|slug> [BRIEF=1 la ficha de las referencias canon: declaradas, por la API, sólo si se necesita el contexto opcional de negocio/producto]
 	@test -n "$(N)" || { echo "falta N=<id|slug>  ·  ej: make retomar N=84"; exit 2; }
-	@cd tablero/server && go run ./cmd/today -n "$(N)" $(if $(JSON),-json) $(if $(BRIEF),-brief "$(BRIEF)") $(if $(CANON),-canon) $(if $(CANON_Q),-canon -canon-q "$(CANON_Q)")
+	@cd tablero/server && go run ./cmd/today -n "$(N)" $(if $(JSON),-json) $(if $(BRIEF),-brief "$(BRIEF)")
 
 deploys: ## @dia ¿qué se desplegó y a qué ambiente? FALLAS=1 deja SÓLO lo que falló, con el error del log. DIAS=7 · REPO=legacy-backend · JSON=1
 	@cd tablero/server && go run ./cmd/deploys $(if $(DIAS),-dias $(DIAS)) $(if $(REPO),-repo $(REPO)) $(if $(FALLAS),-fallas) $(if $(JSON),-json)
@@ -657,11 +657,11 @@ knowledge-test: ## @dia comprobar lectura, fuentes, retoma local y ausencia de c
 # ── CANON ─────────────────────────────────────────────────────────────────────────────────────────
 # Lectura gratis y escritura por la API, contra CANON_URL (producción por defecto: pide la VPN de
 # prod). Cuándo y qué se escribe: `.claude/skills/canon/SKILL.md`. La llave no se imprime nunca.
-.PHONY: canon-search canon-read canon-route canon-code canon-propose canon-write canon-round canon-clones canon-export canon-patch canon-local-sync
+.PHONY: canon-search canon-read canon-route canon-mapa canon-propose canon-write canon-round canon-clones canon-export canon-patch
 canon-route: ## @can el tramo de una variante publicada. REF='codeudor/renting#renting-codeudor'; sin #paso trae la variante entera
 	@cd tablero/server && go run ./cmd/canon route '$(REF)'
 
-canon-mapa: ## @can el mapa de canon: sus temas por etapa del crédito, con título y resumen. Refresca la copia local del tablero (gratis: si nada cambió, 304). Es lo que el inicio de sesión resume
+canon-mapa: ## @can el mapa de canon: sus temas por etapa del crédito, con título y resumen, leído de la API en el momento (gratis)
 	@cd tablero/server && go run ./cmd/canon map
 
 canon-search: ## @can ¿canon ya lo tiene? qué sección y qué área lo cubren, gratis. Q='monto avisado al comercio'
@@ -670,9 +670,6 @@ canon-search: ## @can ¿canon ya lo tiene? qué sección y qué área lo cubren,
 canon-read: ## @can las secciones completas. IDS='cuota/context#<ancla>' (varias por coma) o el tema entero
 	@test -n "$(IDS)" || { echo "falta IDS='<tema/capa#ancla>'"; exit 2; }
 	@cd tablero/server && go run ./cmd/canon read '$(IDS)'
-canon-code: ## @can los archivos que declara un área, del map.json de la copia local (sin red). AREA=cuota/context [N=0]
-	@test -n "$(AREA)" || { echo "falta AREA='<tema/capa>'"; exit 2; }
-	@cd tablero/server && go run ./cmd/canon code '$(AREA)' $(or $(N),0)
 canon-propose: ## @can ensaya una pieza sin escribir: dónde iría y qué rechaza el lint. PIECE=<pieza.json>
 	@test -n "$(PIECE)" || { echo "falta PIECE=<pieza.json> (formato: .claude/skills/canon/SKILL.md)"; exit 2; }
 	@cd tablero/server && go run ./cmd/canon propose '$(abspath $(PIECE))'
@@ -689,21 +686,6 @@ canon-export: ## @can baja el corpus de canon, tal como está HOY, a una carpeta
 canon-patch: ## @can ⚠ ESCRIBE con APPLY=1 (sin él ensaya: canon valida el corpus resultante y muestra el diff): publica los archivos que cambiaste en DIR (la de canon-export), en una revisión parcial. DIR=… REASON='…'. Canon lo rechaza si el corpus cambió desde el export
 	@test -n "$(DIR)" -a -n "$(REASON)" || { echo "falta DIR=<carpeta de canon-export> y REASON='<por qué>'"; exit 2; }
 	@cd tablero/server && go run ./cmd/canon patch $(if $(APPLY),-apply) -dir '$(abspath $(DIR))' -reason '$(REASON)'
-# El canon LOCAL al día con el de producción: baja el corpus (`GET /api/export`, lectura) y lo escribe
-# como UNA revisión en la base de esta máquina (`canon -pg importar`, que se niega a una base remota sin
-# conectarse), y le pide a la instancia local que relea. Nada de esto escribe en producción.
-# CANON_DIR es el checkout desde el que corre el canon local (su `.env` apunta a la base local);
-# LOCAL, la instancia que relee.
-CANON_DIR ?= $(HOME)/Desktop/CREDITOP/github/playground/tools/canon
-canon-local-sync: ## @can el canon LOCAL igual al de producción: baja el corpus y lo carga en la base local (no escribe en prod). [LOCAL=http://localhost:8383] [CANON_DIR=…]
-	@# ⚠ prod está detrás de Google: sin la cookie `AUTH_GOOGLE` el export llega como la página de login («no es JSON»).
-	@# Vive en el conector de prod, no en el `.env` de canon.
-	@cd '$(CANON_DIR)' && set -a && . ./.env && set +a && \
-	  export AUTH_GOOGLE="$${AUTH_GOOGLE:-$$(grep '^AUTH_GOOGLE=' '$(CURDIR)/connectors/.env.prod' 2>/dev/null | cut -d= -f2-)}" && \
-	  go run . -pg importar https://canon.playground.creditop.com 2>&1 | grep -v '^20[0-9][0-9]/' ; \
-	  r=$$(curl -s -m 20 -X POST '$(or $(LOCAL),http://localhost:8383)/api/reload' -H "x-canon-key: $$CANON_WRITE_KEY") ; \
-	  if [ -n "$$r" ]; then echo "  releída: $$(echo "$$r" | python3 -c 'import json,sys;d=json.load(sys.stdin);print(d.get("temas"),"temas · diccionario",(d.get("diccionario") or {}).get("generado"))')"; \
-	  else echo "  ⚠ la instancia local no respondió: al levantarla lee el corpus nuevo"; fi
 
 
 # ── EXPLORACIONES ────────────────────────────────────────────────────────────────────────────────

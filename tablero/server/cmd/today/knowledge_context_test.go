@@ -50,7 +50,7 @@ func TestTaskReadsLocalReferencesAndKeepsHistoricalCanonOptional(t *testing.T) {
 		t.Fatal(err)
 	}
 	os.Stdout = writer
-	code := resume(filepath.Join(dir, "tablero", "data"), []task{entry}, branchesSnap{}, "1", true, "", false, 12000, "")
+	code := resume(filepath.Join(dir, "tablero", "data"), []task{entry}, branchesSnap{}, "1", true, "")
 	writer.Close()
 	os.Stdout = stdout
 	raw, _ = io.ReadAll(reader)
