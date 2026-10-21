@@ -858,10 +858,12 @@ manda la página). La persona entra (correo y «Copiar contraseña» en la ficha
   prueba contra la copia migrada: barra, `/api/branches` (Perú: `50e007e4` en local, `a8221e67` en qa), canales
   declarados de Refurbi, y agregar · renombrar · quitar (los curados siguen sin poder quitarse).
 
-### ⏩ «Corrida completa» del plan (2026-10-21)
+### ⏩ La corrida completa: en el SERVIDOR, no en la interfaz (2026-10-21)
 
-La franja del plan suma «Corrida completa» al lado de «Paso a paso»: aplica el plan, abre el celular igual y le pide al
-servidor que avance solo (`/api/device/<id>/advance-all` con `{lender, follow}`). Mientras corre el botón dice «Detener».
+⚠ **El botón «Corrida completa» de la franja del plan se quitó el mismo día** (pedido de Miguel): el panel es para mirar
+paso a paso, y de punta a punta ya se corre de varias formas por consola. Queda el servidor, que es lo que usan los
+agentes para manejar los celulares del panel: `/api/device/<id>/advance-all` con `{lender, follow}` y `GET /api/autorun`.
+Un plan con `play: "auto"` en el panel va paso a paso, y la franja lo dice.
 
 - **`advanceAll` sabe dos cosas más, y son de la CORRIDA**: con `lender`, en `/lenders` elige ESA entidad con
   `chooseEntity` (`pkg/wizard-browser.ts`, vía `deviceChooseEntity`), que abre las tarjetas que se despliegan; con
@@ -871,7 +873,7 @@ servidor que avance solo (`/api/device/<id>/advance-all` con `{lender, follow}`)
   que saltar a la vista (F-162). Medido: «NoExisteEnElListado» en Pullman paró con «Se veía: Creditop isotype · Validar
   Pre aprobado · Bancolombia - Compra y paga después · … · Sistecrédito … Activar mi crédito» (CrediPullman sale con el
   `alt` de su logo).
-- **El servidor dice si sigue** (`GET /api/autorun`: activa, en qué celular va, por qué terminó); la franja lo lee. No se
+- **El servidor dice si sigue** (`GET /api/autorun`: activa, en qué celular va, por qué terminó). No se
   infiere por silencio: durante el traspaso ningún celular avanza hasta ~90 s. «Detener» corta también esa espera
   (`followCancelledAt`).
 - ⚠ **El motivo de una corrida trabada es lo que MUESTRA la pantalla** (`screenError`), no «locator.click: Timeout»: un

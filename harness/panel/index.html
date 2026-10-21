@@ -739,13 +739,13 @@
                los celulares —un navegador del servidor que se ve y se toca acá—, con pantalla de escritorio. -->
           <!-- EL PLAN DE CORRIDA (`pkg/run-plan.ts`): una corrida armada de antemano —por un agente con `bin/plan.ts`— que
                espera acá su play. Sólo aparece si hay plan. «Paso a paso» deja el panel como lo dice el plan (ambiente,
-               comercio, canal y caso) y abre el celular, que se maneja a mano como siempre. -->
+               comercio, canal y caso) y abre el celular, que se maneja a mano como siempre. La corrida completa NO está
+               acá, a propósito: el panel es para mirar paso a paso, y correr de punta a punta se hace por consola. -->
           <div class="plan-bar" id="planBar" hidden role="region" aria-label="Plan de corrida">
             <span class="ui-icon" data-icon="play" aria-hidden="true"></span>
             <span class="plan-text"><strong id="planName"></strong><span class="plan-detail" id="planDetail"></span></span>
             <span class="plan-status" id="planStatus" role="status"></span>
             <button type="button" class="btn btn-sm" id="planPlay" title="Pone el ambiente, el comercio, el canal y el caso del plan, y abre el celular para avanzarlo a mano">Paso a paso</button>
-            <button type="button" class="btn btn-outline btn-sm" id="planAuto" title="Lo mismo, y después avanza solo: elige la entidad del plan en el listado, sigue al cliente después del traspaso y para al final o donde se trabe">Corrida completa</button>
             <button type="button" class="region-action" id="planDiscard" title="Descartar el plan" aria-label="Descartar el plan"><span class="ui-icon" data-icon="close" aria-hidden="true"></span></button>
           </div>
           <!-- LA PESTAÑA NUEVA PREGUNTA EL CANAL. Los botones son una VISTA de los reales (`#channelOptions`): copian su
@@ -7024,8 +7024,8 @@ export function bindMenu(trigger, { getItems, onSelect, label = 'Más opciones' 
         byId('planName').textContent = plan.nombre;
         byId('planDetail').textContent = bits.join(' · ');
         byId('planDetail').title = JSON.stringify(plan, null, 2);
-        // ⏩ «Corrida completa» todavía no existe: un plan `auto` se corre paso a paso, y se dice.
-        if (!byId('planStatus').textContent && plan.play === 'auto') planStatus('pide corrida completa: por ahora va paso a paso');
+        // Un plan `auto` se corre de punta a punta por consola; acá va paso a paso, y se dice.
+        if (!byId('planStatus').textContent && plan.play === 'auto') planStatus('pide corrida completa: en el panel va paso a paso');
       }
       async function loadPlan() {
         try { plan = (await (await fetch('/api/plan')).json()).plan || null; } catch { return; }
@@ -7067,57 +7067,6 @@ export function bindMenu(trigger, { getItems, onSelect, label = 'Más opciones' 
           planStatus('✗ ' + (e.message || e), true);
         } finally {
           byId('planPlay').disabled = false;
-        }
-      });
-      // ⏩ LA CORRIDA COMPLETA: aplica el plan y abre el celular como «Paso a paso», y le pide al servidor que avance solo
-      // (`/api/device/<id>/advance-all` con la entidad del plan y, por asesor, siguiendo al cliente). El servidor hace el
-      // trabajo y lo cuenta en la consola; acá sólo se mira si sigue avanzando, y «Detener» lo para.
-      let autoWatch = null;
-      const devState = async (id) => { try { return await (await fetch(`/api/device/${D(id)}/state`)).json(); } catch { return {}; } };
-      async function stopAuto() {
-        await Promise.all(['advisor', 'client'].map((id) => fetch(`/api/device/${D(id)}/advance-stop`, { method: 'POST' }).catch(() => { })));
-      }
-      function setAutoRunning(on) {
-        byId('planAuto').textContent = on ? 'Detener' : 'Corrida completa';
-        byId('planAuto').dataset.running = String(on);
-        byId('planPlay').disabled = on;
-      }
-      byId('planAuto').addEventListener('click', async () => {
-        if (byId('planAuto').dataset.running === 'true') { await stopAuto(); planStatus('deteniendo…'); return; }
-        if (!plan || runRunning || prodMode) return;
-        if (byId('devices').hidden) byId('viewOrig').click();
-        setAutoRunning(true);
-        planStatus('aplicando el plan…');
-        try {
-          if (findEntry(plan.comercio) === undefined) await loadFavs();
-          const entry = await applyPlan();
-          const dev = plan.canal === 'asesor' ? 'advisor' : 'client';
-          planStatus(dev === 'advisor' ? 'abriendo el celular del asesor…' : 'abriendo el checkout desde la tienda…');
-          if (dev === 'advisor') await playMerchant(entry); else byId('shopPay').click();
-          // Por la tienda, «Pagar con Creditop» toma el carril por su lado: se espera a que lo haya tomado.
-          for (let i = 0; i < 25 && !laneOfTab(currentTab()); i++) await new Promise((r) => setTimeout(r, 200));
-          const myLane = laneOfTab(currentTab()) || phoneLane;   // el carril que tomó esta corrida (`claimDevices`): se mira ése aunque cambies de pestaña
-          let st = {};
-          for (let i = 0; i < 90 && !(st = await (await fetch(`/api/device/${laneId(dev, myLane)}/state`)).json().catch(() => ({}))).open; i++) await new Promise((r) => setTimeout(r, 2000));
-          if (!st.open) throw new Error('el celular no se abrió');
-          await new Promise((r) => setTimeout(r, 2500));   // que la primera pantalla termine de cargar
-          const r = await (await fetch(`/api/device/${laneId(dev, myLane)}/advance-all`, { method: 'POST', headers: { 'content-type': 'application/json' },
-            body: JSON.stringify({ lender: plan.lender ?? null, follow: dev === 'advisor' }) })).json();
-          if (!r.ok) throw new Error(r.detail || 'el servidor no quiso avanzar');
-          planStatus(`avanzando solo${plan.lender ? ` · entidad ${plan.lender}` : ''} · la consola cuenta cada paso`);
-          // El servidor dice si sigue (`/api/autorun`), en qué celular va y, al terminar, por qué.
-          clearInterval(autoWatch);
-          autoWatch = setInterval(async () => {
-            let a = null;
-            try { a = (await (await fetch(`/api/autorun?lane=${myLane}`)).json()).autoRun; } catch { return; }
-            if (!a) return;
-            if (a.active) { planStatus(`avanzando solo en el celular del ${a.device === 'client' ? 'cliente' : 'asesor'}${plan?.lender ? ` · entidad ${plan.lender}` : ''}`); return; }
-            clearInterval(autoWatch); autoWatch = null; setAutoRunning(false);
-            planStatus('terminó: ' + (a.why || 'ver la consola'), !/llegó al final|llegó a «/.test(a.why || ''));
-          }, 2000);
-        } catch (e) {
-          setAutoRunning(false);
-          planStatus('✗ ' + (e.message || e), true);
         }
       });
       byId('planDiscard').addEventListener('click', async () => {
