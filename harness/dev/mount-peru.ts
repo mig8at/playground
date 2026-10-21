@@ -323,6 +323,7 @@ await seedForm(merchant.id, branch.id);
    (`sweep.ts matrix peru`). Sin esta entrada el comercio existe en la base y el harness no lo sabe
    nombrar, que es la mitad más frustrante de montar un ambiente. */
 try {
+    const [{ hash }]: any[] = await query('SELECT hash FROM allied_branches WHERE id=?', [branch.id]);
     setBranch('peru', TARGET, hash);   // `pkg/flows.ts`: en la base de este target (sólo corre en local)
     console.log(`✓ .flows.json: slug «peru» → sucursal ${branch.id} (hash ${hash})`);
 } catch (e: any) {
