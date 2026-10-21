@@ -230,6 +230,8 @@ orden de archivo — el ancla `### F-xx` es la única dirección.)
 | **«la solicitud de HOY en dev/qa sale sin una sola línea de log»** / la hora de la BD y la de Loki no coinciden por 5 h | **F-241** |
 | **«rotamos el certificado del SOAP de consumo de Credifamilia y la radicación sigue firmando con el anterior»** | **F-242** |
 | **«en qa el OTP de Mediarte dice que la validación del código falló con un teléfono del bypass, y en Pullman el mismo bypass anda»** | **F-243** |
+| **«en qa el pipeline de KYC gira y termina en "No pudimos verificar tu información"»** / `run_open: false` pidiendo un dato que ya se guardó | **F-244** |
+| **«dicté el caso a la lambda de qa, salió ✓, y la central contestó otra persona»** / `JUAN CARLOS PEREZ GOMEZ` | **F-245** · F-139 |
 | **«el backend se cayó bajo carga»** / muchos 504 a los 60 s exactos que igual terminaron escribiendo | **F-180** |
 | **«el código serializa»** / medir concurrencia en local y ver las peticiones de a una | **F-181** |
 | **«genera el documento en prod y en local tira 500»** / `Undefined variable` en una plantilla de Rent to Own | **F-182** · F-150 |
@@ -247,6 +249,8 @@ distinto según con qué pregunta llegues.
 | F-241 | Desde el 2026-09-23 la BD compartida de dev/qa guarda la hora en Bogotá, no en UTC | TRAMPA |
 | F-242 | El comando que siembra las credenciales del SOAP de consumo de Credifamilia escribe claves `credifamilia_consumo_*` que **ningún código en ejecución lee**: rotar el certificado por ahí no cambia la radicación | TRAMPA |
 | F-243 | En la base compartida, un comercio del pipeline de KYC (`kyc_pipeline_allieds`, hoy sólo Mediarte) **no pasa el OTP con un teléfono de `qa_otp_bypass_phones`**: el bypass viejo desvía el envío y el código nunca llega al servicio de OTP ni a **#qa-messages**, que es el mecanismo de hoy; la validación v2 le pregunta al servicio. Con un teléfono FUERA de la lista, el código sale en #qa-messages y valida | ABIERTO · en `main` |
+| F-244 | El pipeline de KYC **termina** cuando falta un dato personal, y el arranque que sigue al formulario, si llega antes de 30 s, da **429**: el wizard no reintenta y a los 120 s muestra «No pudimos verificar tu información». Además, el guardado v2 de datos personales acepta 4 por cédula y por hora | ABIERTO · en `develop` y `main` |
+| F-245 | Lo dictado a la lambda de centrales de qa vive en UN contenedor: la confirmación sale verde y la consulta del pipeline cae en otro y contesta la persona por defecto | TRAMPA |
 | F-01 | El loader SSR esconde los 5xx del backend | TRAMPA |
 | F-02 | "Firmar" rebota a los documentos sin ningún mensaje | TRAMPA |
 | F-03 | Un `.catch(() => {})` convirtió una corrida rota en "1 passed" | cerrado |
@@ -6367,3 +6371,54 @@ dos. **No se sabe cuántos diagnósticos viejos eran esto.**
   los valores de `OTP_SERVICE_HOST` ni `QA_MODE_ENABLED` del backend de qa (son secretos): la conclusión sale de la
   corrida y de los mensajes de Slack.
 - **Estado:** vivo en `main` (78b7a5cf), `qa` y `develop`.
+
+### F-244 · El pipeline de KYC termina en «No pudimos verificar tu información» si los datos personales se guardan antes de 30 s
+
+- **Síntoma:** en qa, Mediarte (pipeline de KYC) por el asesor: después del OTP v2 y de los datos personales, la
+  pantalla «Estamos verificando tu información…» gira dos minutos y termina en «No pudimos verificar tu información».
+  La solicitud queda en estado 9 y el perfilamiento contesta `PENDING_USER_DATA`, `pending_form: personal`,
+  `missing_fields: [expedition_date]`, `run_open: false`, aunque el backend YA guardó la fecha de expedición.
+- **Causa raíz:** tres piezas que por separado tienen sentido.
+  - La primera corrida arranca al salir del OTP, encuentra que falta un dato personal y **termina** (`return nil`) en
+    vez de esperar el formulario (`customer-profiling-service`, `workflow.go:108`, en `develop@9a7949f` y
+    `main@09c0703`).
+  - Guardar los datos personales lleva a `kyc-processing?start=1`, que pide OTRA corrida. El servicio limita los
+    arranques por solicitud: el primer tramo, de a uno cada 30 s (`start_pipeline.go:91`, `rate_limiter.go:21`). Si
+    el guardado llega antes, contesta 429 («pipeline start rate limited») y no crea nada.
+  - Con el 429 el wizard no reintenta: sondea la corrida vieja, que ya atendió, hasta agotar su ventana de 120 s y
+    muestra el error (`kyc-processing.tsx:325` y `:453`, en `frontend-monorepo@f00f667b`, rama `qa`). «Intentar
+    nuevamente» sí arranca una corrida nueva, porque para entonces ya pasaron los 30 s.
+- **Quién lo ve:** cualquiera que llene los datos personales en menos de 30 s desde que salió del OTP. Una persona
+  rara vez; un asesor que copia los datos, o el arnés, siempre.
+- **Evidencia:** qa, 2026-10-21. Las solicitudes 503873, 503875 y 503878 tienen cada una su «pipeline start rate
+  limited» con `retry_after` de 14, 7 y 3 s, entre 23 y 27 s después de «LegacyKycPipelineWorkflow started». En la
+  503897, esperando 32 s antes de guardar, la segunda corrida arrancó sin 429.
+- **De paso, del backend:** el guardado v2 de datos personales acepta **4 por cédula y por hora**
+  (`StorePersonalInfoService.php:109`, `OBV21009`, «Límite de intentos alcanzado», `legacy-backend@b31c5c2a`, rama
+  `qa`). Las correcciones de nombre cuentan: tres correcciones y un intento más agotan la cédula por una hora.
+- **Arreglo:** sin hacer. O la corrida espera el formulario personal como ya espera el laboral (la misma señal
+  `user-data` que usa la corrección de identidad), o el wizard, ante el 429 de un arranque, espera `retry_after` y
+  arranca de nuevo.
+- **Para el harness:** el panel espera los 30 s antes de guardar y, si igual aparece el error, reintenta una vez
+  (`advanceAll`, `panel/server.ts`).
+- **Estado:** vivo en `develop`, `main` y la rama `qa` del wizard.
+
+### F-245 · Lo dictado a la lambda de centrales de qa lo ve UN contenedor, y la confirmación sale verde igual
+
+- **Síntoma:** en qa, el panel dicta el caso a la lambda de mocks (`9b6r8ticg0…/development`) y lo confirma leyendo
+  («Ágil Data ✓ CARLOS RAMIREZ»), pero la central que consulta el pipeline de KYC contesta la persona por defecto
+  (`JUAN CARLOS PEREZ GOMEZ`, con un `numeroId` al azar) y la identidad no coincide («No pudimos confirmar tu
+  identidad»).
+- **Causa raíz:** el dictado es una variable global de Mockoon y vive en la memoria del contenedor que recibió el `POST`
+  (`risk-services-mockery-lambda`, README, «Las variables viven en la memoria del contenedor del Lambda»). La
+  confirmación lee en serie y cae siempre en ese mismo contenedor caliente; con más de un contenedor vivo, la consulta
+  de `kyc-gateway` puede caer en otro.
+- **Evidencia:** qa, 2026-10-21, cédula `1026013773`: diez lecturas seguidas devolvieron lo dictado (2261 bytes) y doce
+  lecturas a la vez devolvieron lo dictado en 2, la respuesta por defecto en 9 (~4920 bytes) y un error en 1. En la
+  solicitud 503897 el dictado se confirmó a las 16:50:58 UTC y `kyc-gateway` registró «AgilData request completed»
+  con 4930 bytes a las 16:51:19: la respuesta por defecto, guardada en `risk_central_user_data` 844237.
+- **Arreglo:** del lado de la lambda, que lo dictado no viva en un contenedor (un almacén compartido, o reglas por
+  cédula en `riskservices.json`). Del lado del arnés no hay arreglo: dictar justo antes de consultar achica la ventana
+  pero no elige el contenedor.
+- **Para el harness:** el «✓» del dictado en qa dice que UN contenedor lo tiene, no que lo vaya a contestar.
+- **Estado:** vivo.

@@ -945,3 +945,15 @@ los comercios del pipeline de KYC (onboarding v2) no pasan el OTP (F-243). En ca
   pipeline pidió `expedition_date` y quedó CERRADA (`run_open:false`, `PENDING_USER_DATA`); al guardar personal-info el
   wizard pidió arrancar otra y el backend no recibió ningún `kyc-requirements` nuevo. Es del pipeline de qa, no del
   panel ni del OTP: no está diagnosticado.
+
+**Mediarte en qa: lo que se arregló del lado del panel, y lo que no (2026-10-21).** En `advanceAll` y `laneCase`:
+- **Espera de 30 s antes de guardar personal-info** (sin `resume=1`), contados desde que el celular llegó a
+  `kyc-processing`. Si igual aparece «No pudimos verificar tu información», espera la ventana del wizard (hasta 30
+  esperas en esa pantalla) y toca «Intentar nuevamente» UNA vez. Ver F-244. El tope de pasos pasó de 40 a 80.
+- **Una cédula nueva por corrida en la compartida** (`10` + 7 dígitos de la hora + carril), porque el guardado v2 de
+  datos personales acepta 4 por cédula y por hora (`OBV21009`).
+- **El nombre dictado es el que teclea el autorrelleno** (`envData`: CARLOS RAMIREZ), no «CLIENTE PRUEBA».
+- **Se dicta de nuevo** antes de guardar personal-info y antes de reintentar.
+- Lo que sigue sin cerrar: la central que consulta el pipeline puede caer en otro contenedor de la lambda y contestar
+  la persona por defecto (F-245). Corrida 503897: OTP, espera, dictado y arranque bien; Ágil Data contestó
+  `JUAN CARLOS PEREZ GOMEZ` y la identidad no coincidió tras tres correcciones.

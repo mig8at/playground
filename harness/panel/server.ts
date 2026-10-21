@@ -370,11 +370,16 @@ function laneCase(order: any, id: DeviceId, target = 'local'): any {
     if (sharedOtp(target) && ['', '3131010101', '3131010102'].includes(String(o.phone || '').replace(/\D/g, ''))) {
         o.phone = laneOf(id) === 'b' ? '3131010104' : '3131010103';
         // ⚠ Y LA IDENTIDAD VA CON EL TELÉFONO: en la compartida la cédula queda atada al celular con que se registró, así que
-        // un teléfono nuevo con la cédula de otro se traba en la confirmación de identidad. Las de los teléfonos de antes
-        // (`1096734490` con `…0101`, `1096734491` con `…0102`) ya quedaron así el 2026-10-21; éstos van con las suyas.
+        // un teléfono nuevo con la cédula de otro se traba en la confirmación de identidad (las de antes, `1096734490` con
+        // `…0101` y `1096734491` con `…0102`, quedaron así el 2026-10-21).
         // SIEMPRE, no sólo si viene vacía: la pestaña guarda la cédula de corridas anteriores (de local, o de otro teléfono),
         // y con ella el teléfono nuevo chocaba igual (qa, 2026-10-21: `1096734491` seguía atada al `…0102`).
-        o.doc = laneOf(id) === 'b' ? '1096734494' : '1096734493';
+        // ⚠ Y UNA NUEVA POR CORRIDA: el backend acepta 4 guardados de datos personales por cédula y por hora
+        // (`OBV21009`, «Límite de intentos alcanzado»), así que con una cédula fija la quinta corrida de la hora no pasaba
+        // (qa, 2026-10-21, 503884). Se arma con la hora (en segundos) y termina en el carril; se llama una vez por celular
+        // abierto, así que la corrida entera —también el traspaso al cliente— lleva la misma. Al abrir, el scrub del
+        // teléfono borra al cliente de la corrida anterior.
+        o.doc = '10' + String(Math.floor(Date.now() / 1000)).slice(-7) + (laneOf(id) === 'b' ? '4' : '3');
         o.email = `qa.harness+${o.phone.slice(-4)}@creditop.com`;
         return o;
     }
@@ -492,7 +497,12 @@ async function dictateCompanyCase(order: any, target: string): Promise<{ ok: boo
     const num = (v: unknown, def: number) => { const n = Number(String(v ?? '').replace(/\D/g, '')); return String(v ?? '').trim() === '' || !Number.isFinite(n) ? def : n; };
     const data = (order?.bureauData || {}) as Record<string, any>;
     const exp = order?.experian || {};
-    const name = [order?.firstName, order?.lastName].map((x) => String(x ?? '').trim()).filter(Boolean).join(' ').toUpperCase() || 'CLIENTE PRUEBA';
+    // Sin nombre en el caso, el de la persona que TECLEA el autorrelleno (`envData`): con otro («CLIENTE PRUEBA», el de
+    // antes) el pipeline de KYC dice que la central contestó por otra persona y pide corregir el nombre tres veces hasta
+    // agotar los intentos (qa, 2026-10-21, 503882). Por el flujo viejo no se veía: ahí la identidad la aprueba el panel.
+    const typed = envData();
+    const name = [order?.firstName, order?.lastName].map((x) => String(x ?? '').trim()).filter(Boolean).join(' ').toUpperCase()
+        || `${typed.nombre} ${typed.apellido}`;
     const r = await dictateCompanyLambda(target, doc, {
         name, income: num(data.agildata?.income, 2_500_000), occupation: data.agildata?.occupation || 'Empleado',
         months: Math.min(num(data.agildata?.months, 13), 24),
@@ -751,10 +761,23 @@ async function advanceAll(id: DeviceId, until: string | null, opts: { lender?: s
     const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
     const whatFor = [until ? `hasta «${until}»` : 'hasta el final', opts.lender && `eligiendo «${opts.lender}»`, opts.follow && 'siguiendo al cliente'].filter(Boolean).join(', ');
     deviceLog(id, `⏩ avanzando ${whatFor}${remote ? ' (espera de ambiente remoto)' : ''}`);
-    let why = 'llegó a 40 toques';
-    let stuck = 0, idle = 0, chosen = false, handoff = false;
+    let why = 'llegó a 80 pasos';
+    let stuck = 0, idle = 0, chosen = false, handoff = false, kycRetried = false, redictatedAt = '', kycSeenAt = 0;
+    // EL DICTADO A LA LAMBDA SE RENUEVA JUSTO ANTES DE QUE SE CONSULTE. Vive en la memoria de un contenedor (F-139) y se
+    // pierde en minutos: se dictó y se confirmó al abrir (16:32:50 UTC) y cuando el pipeline de KYC consultó Ágil Data,
+    // tres minutos después, contestó su persona por defecto (JUAN CARLOS PEREZ GOMEZ) y la identidad no coincidió (qa,
+    // 2026-10-21, 503886 y 503893). Lo que hace consultar es guardar los datos personales, o reintentar el pipeline.
+    const redictate = async (when: string) => {
+        const meta = deviceMeta.get(id);
+        if (!remote || !meta?.order) return;
+        const { COMPANY_LAMBDA } = await import('../pkg/risk-lambda.ts');
+        if (!COMPANY_LAMBDA[meta.target]) return;
+        const d = await dictateCompanyCase(meta.order, meta.target).catch((e) => ({ ok: false, detalle: (e as Error).message, burós: [] as string[] }));
+        deviceLog(id, `${d.ok ? '◆' : '✗'} burós dictados otra vez ${when} (${d.detalle}): ${(d.burós ?? []).join(' · ')}`);
+    };
     try {
-        for (let i = 0; i < 40; i++) {
+        // 80 y no 40: cada espera sin botón también cuenta, y la del pipeline de KYC son hasta 30.
+        for (let i = 0; i < 80; i++) {
             if (run.stop) { why = 'detenido a pedido'; break; }
             const state = deviceState(id);
             if (!state.open) { why = 'se cerró el celular'; break; }
@@ -776,10 +799,36 @@ async function advanceAll(id: DeviceId, until: string | null, opts: { lender?: s
                 await sleep(remote ? 4_000 : 2_000);
                 continue;
             }
+            if (/\/kyc-processing(?:\/|$)/.test(here) && !kycSeenAt) kycSeenAt = Date.now();
+            if (remote && /\/personal-info(?:\/|$)/.test(here) && here + (state.url ?? '') !== redictatedAt) {
+                redictatedAt = here + (state.url ?? '');
+                // Y ANTES, LOS 30 S DEL PIPELINE: guardar arranca otra corrida, y si llega antes de 30 s de la primera el
+                // servicio la rechaza (429), el wizard no reintenta y la consulta a la central se corre al reintento,
+                // minutos después, con el dictado ya perdido. Con la espera, la central se consulta segundos después de
+                // dictarla. No aplica al volver de una corrección (`resume=1`): ahí no se arranca otra, se la despierta.
+                const wait = kycSeenAt && !/[?&]resume=1/.test(state.url ?? '') ? kycSeenAt + 32_000 - Date.now() : 0;
+                if (wait > 0) { deviceLog(id, `⏳ ${Math.ceil(wait / 1000)} s antes de guardar: el pipeline de KYC no acepta otro arranque antes de 30 s del primero`); await sleep(wait); }
+                await redictate('antes de guardar');
+            }
             const r = await deviceAdvance(id, deviceOtp.get(id), remote ? 12_000 : 4_000);
             if (!r.ok) {
+                // EL PIPELINE DE KYC (`kyc-processing`) puede quedar en «No pudimos verificar tu información» sin que nada esté
+                // mal: la primera corrida pide los datos personales y TERMINA, y el arranque que sigue al formulario llega antes
+                // de los 30 s que el servicio de perfilamiento exige entre arranques de la misma solicitud (429, «pipeline start
+                // rate limited»). El wizard no reintenta: sondea la corrida vieja hasta agotar su ventana (120 s) y muestra el
+                // error. Una persona que tarda más de 30 s en el formulario no lo ve; el panel, que lo llena en segundos, sí
+                // (qa, 2026-10-21: 503873, 503875 y 503878). Se espera la ventana entera y se reintenta UNA vez, diciéndolo.
+                const kyc = /\/kyc-processing(?:\/|$)/.test(here);
+                if (kyc && !kycRetried && /no pudimos verificar/i.test(await deviceText(id).catch(() => ''))) {
+                    kycRetried = true;
+                    await redictate('antes de reintentar');
+                    deviceLog(id, '⚠ el pipeline de KYC mostró «No pudimos verificar tu información»: el arranque después de los datos personales llegó antes de 30 s del primero y el servicio lo rechazó (429). Se reintenta una vez, como lo haría la persona');
+                    const t = await deviceTap(id, 'Intentar nuevamente');
+                    deviceLog(id, '▸ ' + t.detail);
+                    idle = 0; await sleep(5_000); continue;
+                }
                 // Sin botón: puede ser una pantalla que avanza sola (procesando el pago, validando). Se le da tiempo.
-                if (++idle > 8) { const shown = await screenError(id); why = `se quedó en ${here}: ${shown ? `la pantalla dice «${shown}»` : r.detail}`; break; }
+                if (++idle > (kyc ? 30 : 8)) { const shown = await screenError(id); why = `se quedó en ${here}: ${shown ? `la pantalla dice «${shown}»` : r.detail}`; break; }
                 await sleep(5_000); continue;
             }
             idle = 0;
