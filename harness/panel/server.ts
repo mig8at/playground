@@ -20,10 +20,11 @@ import { envData, type AutofillData } from '../pkg/autofill.ts';
 import { identityWithoutProviderNotice } from '../pkg/config.ts';
 import { adminSession, ensureLocalAdmin, ADMIN_APP } from '../pkg/admin-access.ts';
 import { laneOf, roleOf, inLane, type Lane } from './devices.ts';
-import { deviceChooseEntity, openDevice, openDevices, setDeviceLogger, prewarmDevices, warmDevice, watchNavigation, watchRequests, deviceGoto, deviceReload, deviceText, deviceEval, deviceOpenedAt, deviceState, deviceShot, deviceInput, deviceTap, deviceAdvance, deviceStream, deviceBusyWatch, deviceStorage, closeDevice, closeAllDevices, SELENIUM_BOXES, type DeviceId, type DeviceInput, type DeviceSession } from './devices.ts';
+import { deviceFillOtp, deviceChooseEntity, openDevice, openDevices, setDeviceLogger, prewarmDevices, warmDevice, watchNavigation, watchRequests, deviceGoto, deviceReload, deviceText, deviceEval, deviceOpenedAt, deviceState, deviceShot, deviceInput, deviceTap, deviceAdvance, deviceStream, deviceBusyWatch, deviceStorage, closeDevice, closeAllDevices, SELENIUM_BOXES, type DeviceId, type DeviceInput, type DeviceSession } from './devices.ts';
 import { vpnDev, type VpnStatus } from '../pkg/vpn.ts';
 import { validatePlan, readPlan, writePlan, clearPlan } from '../pkg/run-plan.ts';
 import { prodCatalog, prodMerchant } from '../pkg/prod-catalog.ts';
+import { waitForOtp } from '../pkg/otp-service.ts';
 import { readFlows, writeFlows, branchFor, branchesOf, baseOf, type MerchantEntry } from '../pkg/flows.ts';
 import { homedir } from 'node:os';
 
@@ -363,6 +364,20 @@ function dbopsJson(args: string[], target: string, extraEnv: NodeJS.ProcessEnv =
  *  En local no se veía porque cada corrida limpia su cliente. */
 function laneCase(order: any, id: DeviceId, target = 'local'): any {
     const o = { ...(order || {}) };
+    // EN LA COMPARTIDA, TELÉFONOS FUERA DEL BYPASS. Ahí el OTP sale por el servicio de OTP (y a Slack, #qa-messages) y el
+    // panel lo lee de ese servicio (`otpFromService`); con un teléfono de `qa_otp_bypass_phones` el código no llega al
+    // servicio y un comercio del pipeline de KYC no pasa el OTP (F-243). Sólo se cambian los del arnés: uno puesto a mano manda.
+    if (sharedOtp(target) && ['', '3131010101', '3131010102'].includes(String(o.phone || '').replace(/\D/g, ''))) {
+        o.phone = laneOf(id) === 'b' ? '3131010104' : '3131010103';
+        // ⚠ Y LA IDENTIDAD VA CON EL TELÉFONO: en la compartida la cédula queda atada al celular con que se registró, así que
+        // un teléfono nuevo con la cédula de otro se traba en la confirmación de identidad. Las de los teléfonos de antes
+        // (`1096734490` con `…0101`, `1096734491` con `…0102`) ya quedaron así el 2026-10-21; éstos van con las suyas.
+        // SIEMPRE, no sólo si viene vacía: la pestaña guarda la cédula de corridas anteriores (de local, o de otro teléfono),
+        // y con ella el teléfono nuevo chocaba igual (qa, 2026-10-21: `1096734491` seguía atada al `…0102`).
+        o.doc = laneOf(id) === 'b' ? '1096734494' : '1096734493';
+        o.email = `qa.harness+${o.phone.slice(-4)}@creditop.com`;
+        return o;
+    }
     // Fuera de local, el carril A también lleva su cédula explícita (la misma que escribe el autorrelleno): así se le
     // DICTA a la lambda de mocks y no contesta la identidad por defecto, con la que el listado de qa salía vacío.
     if (laneOf(id) !== 'b') { if (target !== 'local' && !String(o.doc || '').replace(/\D/g, '')) o.doc = '1096734490'; return o; }
@@ -370,7 +385,39 @@ function laneCase(order: any, id: DeviceId, target = 'local'): any {
     if (!String(o.email || '').trim()) o.email = 'qa.harness+b@creditop.com';
     return o;
 }
-function caseAutofill(o: any = {}): AutofillData {
+/** ¿El OTP de este ambiente sale por el servicio (la compartida) y no por el bypass? Local no tiene servicio de OTP. */
+const sharedOtp = (target: string) => target !== 'local' && target !== 'prod';
+/**
+ * EL OTP DEL SERVICIO, escrito en el celular. En la compartida, cuando el celular llega a una pantalla de OTP (el de
+ * ingreso o el de la firma), se le pide al servicio de OTP el último código de ESE teléfono generado después de abrirlo
+ * (`pkg/otp-service.ts`), y se escribe; queda también para «Avanzar» (`deviceOtp`). Es el mismo código que sale en Slack.
+ */
+function otpFromService(id: DeviceId, target: string, phone: string): void {
+    if (!sharedOtp(target) || !phone) return;
+    const openedAt = deviceOpenedAt(id);
+    let since = Date.now() - 5_000, busy = false;
+    const onUrl = async (u: string) => {
+        if (busy || deviceOpenedAt(id) !== openedAt) return;
+        let path = '';
+        try { path = new URL(u).pathname; } catch { return; }
+        if (!/\/(?:otp|otp-validation)(?:\/|$)/.test(path)) return;
+        busy = true;
+        try {
+            const r = await waitForOtp(phone, since);
+            if (deviceOpenedAt(id) !== openedAt) return;
+            if (!r) { deviceLog(id, `✗ el servicio de OTP no tiene un código nuevo para ${phone} (¿VPN de dev?)`); return; }
+            since = r.record.createdMs;
+            deviceOtp.set(id, r.code);
+            const typed = await deviceFillOtp(id, r.code).catch(() => false);
+            deviceLog(id, `◆ OTP del servicio de OTP (el mismo de #qa-messages) · ${r.record.template} · ${typed ? 'escrito' : 'listo para «Avanzar»'}`);
+        } catch (e) {
+            deviceLog(id, '✗ no pude leer el OTP del servicio: ' + (e as Error).message.split('\n')[0]);
+        } finally { busy = false; }
+    };
+    watchNavigation(id, (u) => { void onUrl(u); });
+    void onUrl(deviceState(id).url ?? '');
+}
+function caseAutofill(o: any = {}, target = 'local'): AutofillData {
     const base = envData();
     const str = (v: unknown) => String(v ?? '').trim();
     const digits = (v: unknown) => str(v).replace(/\D/g, '');
@@ -378,7 +425,8 @@ function caseAutofill(o: any = {}): AutofillData {
     const last = str(o.lastName).split(/\s+/).filter(Boolean);
     const tel = digits(o.phone) || base.telefono;
     return {
-        ...base, telefono: tel, otp: tel.slice(-4), otpFirma: tel.slice(-6),
+        // En la compartida el código no son los últimos dígitos (eso es el bypass): lo escribe `otpFromService`.
+        ...base, telefono: tel, otp: sharedOtp(target) ? '' : tel.slice(-4), otpFirma: sharedOtp(target) ? '' : tel.slice(-6),
         documento: digits(o.doc) || base.documento, email: str(o.email) || base.email,
         nombre: names[0] || base.nombre, segundoNombre: names.slice(1).join(' '),
         apellido: last[0] || base.apellido, segundoApellido: last.slice(1).join(' '),
@@ -803,14 +851,14 @@ function watchAdvisorHandoffs(t: string, slug: string, order: any, advisor: Devi
         void (async () => {
             await releaseDevice(client);
             const phone = String(order?.phone || '').replace(/\D/g, '');
-            if (phone) {
+            if (phone && !sharedOtp(t)) {   // en la compartida el OTP sale por el servicio (`otpFromService`)
                 const bp = await dbopsJson(['otp-bypass-add', phone], t);
                 if (bp?.ok) deviceBypass.set(client, { target: t, puesto: bp.puesto });
             }
-            await openDevice(client, link, { autofill: caseAutofill(order) })
+            await openDevice(client, link, { autofill: caseAutofill(order, t) })
                 // ⚠ CON EL CELULAR: fuera de local, `rescueIdentity` sólo aprueba la identidad si lo recibe (es el del bypass), y sin
                 // él el cliente se quedaba en la selfie de `identity-validation`, que el celular del panel no puede hacer (qa, 2026-10-21).
-                .then(() => { rescueIdentity(client, t, phone); rescueDownPayment(client, t, phone); watchFrontExceptions(client, t); watchCategories(client, t); })
+                .then(() => { rescueIdentity(client, t, phone); rescueDownPayment(client, t, phone); watchFrontExceptions(client, t); watchCategories(client, t); otpFromService(client, t, phone); })
                 .catch((e) => deviceLog(client, '✗ el traspaso no abrió: ' + (e as Error).message.split('\n')[0]));
         })();
     };
@@ -2554,12 +2602,13 @@ connect();
             if (!s) return json(res, 200, { ok: false, detail: 'no hay nada guardado de este celular' });
             const t = s.meta.target, phone = s.meta.phone;
             if (t === 'prod') return json(res, 200, { ok: false, detail: 'en prod no se retoma un celular' });
-            if (phone) {
+            if (phone && !sharedOtp(t)) {
                 const bp = await dbopsJson(['otp-bypass-add', phone], t);
                 if (bp?.ok) { deviceBypass.set(id, { target: t, puesto: bp.puesto }); deviceOtp.set(id, phone.slice(-4)); }
             }
             try {
-                const r = await openDevice(id, s.url, { session: s.storage ?? undefined, autofill: caseAutofill(s.meta.order) });
+                const r = await openDevice(id, s.url, { session: s.storage ?? undefined, autofill: caseAutofill(s.meta.order, t) });
+                otpFromService(id, t, phone);
                 rescueIdentity(id, t, roleOf(id) === 'client' ? phone : undefined); rescueDownPayment(id, t, roleOf(id) === 'client' ? phone : ''); watchFrontExceptions(id, t); watchCategories(id, t);
                 rememberDevice(id, s.meta);
                 if (roleOf(id) === 'advisor') watchAdvisorHandoffs(t, s.meta.slug, s.meta.order, id);
@@ -2655,7 +2704,7 @@ connect();
             const built = await builtP;
             if (!built?.checkout_path) { await releasing; return json(res, 200, { ok: false, detail: `no pude armar el pedido de ${b.slug} en ${t} (¿sucursal con credencial de ecommerce?${orderEnv.E2E_MERCHANT_SIGNATURE ? ' ¿con secreto de firma? php artisan ecommerce:signing-secret <hash>' : ''})` }); }
             const phone = str(o.phone) || String(built.phone || '');
-            const bypassP = releasing.then(() => dbopsJson(['otp-bypass-add', phone], t));
+            const bypassP = sharedOtp(t) ? releasing.then(() => null) : releasing.then(() => dbopsJson(['otp-bypass-add', phone], t));
             const [scrub, bypass, bz] = await Promise.all([scrubP ?? dbopsJson(['scrubphone', phone], t), bypassP,
                 t === 'local' ? applyBureauModes(o, t) : dictateCompanyCase(o, t)]);
             phase('pedido, limpieza, OTP y centrales');
@@ -2689,7 +2738,8 @@ connect();
             try {
                 if (bz) deviceLog(panelOf(id), `burós (${bz.detalle}): ${(bz.burós || []).join(' · ')}`);
                 deviceLog(panelOf(id), `pedido armado: ${built.checkout_path.split('?')[0]} · ${scrubSummary(scrub)} · OTP ${otp.otp ? 'resuelto (' + otp.otp + ')' : 'SIN bypass'}`);
-                const r = await openDevice(id, front.replace(/\/$/, '') + built.checkout_path, { autofill: caseAutofill(o) });
+                const r = await openDevice(id, front.replace(/\/$/, '') + built.checkout_path, { autofill: caseAutofill(o, t) });
+                otpFromService(id, t, phone);
                 phase('celular');
                 deviceLog(panelOf(id), `tienda → cliente: ${phases.join(' · ')} (s)`);
                 rescueIdentity(id, t, phone); rescueDownPayment(id, t, phone); watchFrontExceptions(id, t); watchCategories(id, t);
@@ -2725,7 +2775,8 @@ connect();
             // EL BYPASS DEL OTP DE ESE CELULAR. El del carril A (3131010101) ya vive en `qa_otp_bypass_phones`; el del B no, y sin
             // esto el OTP de registro del asesor no pasa. Se suma con la misma función de las corridas y se saca al cerrar el
             // celular (`releaseDevice`), sólo lo que se agregó.
-            if (t !== 'prod') {
+            // En la compartida no: ahí el OTP sale por el servicio de OTP y lo escribe `otpFromService` (F-243).
+            if (t === 'local') {
                 const bp = await dbopsJson(['otp-bypass-add', casePhone], t);
                 if (bp?.ok) deviceBypass.set(id, { target: t, puesto: bp.puesto });
             }
@@ -2775,7 +2826,7 @@ connect();
             try {
                 let signedIn = false;
                 const r = await openDevice(id, front.replace(/\/$/, '') + `/merchant/${hash}/solicitar`, {
-                    session: stored ?? undefined, autofill: caseAutofill(b.order),
+                    session: stored ?? undefined, autofill: caseAutofill(b.order, t),
                     then: stored ? undefined : async (page) => { await connector.login(page); signedIn = true; await page.goto(front.replace(/\/$/, '') + `/merchant/${hash}/solicitar`, { waitUntil: 'domcontentloaded' }).catch(() => { }); },
                 });
                 // EL TRASPASO AL CLIENTE. En el canal asesor, al elegir una entidad en plataforma (CreditopX) el
@@ -2784,6 +2835,7 @@ connect();
                 // el celular del cliente, como hace la ventana B de la corrida guiada. Sin scrub: es la MISMA
                 // solicitud; sí el bypass del OTP, porque la firma le pide código al cliente.
                 rescueIdentity(id, t); rescueDownPayment(id, t); watchFrontExceptions(id, t); watchCategories(id, t);
+                otpFromService(id, t, casePhone);
                 rememberDevice(id, { target: t, slug, channel: 'asesor', phone: casePhone, order: b.order });
                 watchAdvisorHandoffs(t, slug, b.order, id);
                 return json(res, 200, { ok: true, hash, user: account, session: stored ? 'guardada' : signedIn ? 'entró y la guardó' : 'sin entrar', assigned, ...r });

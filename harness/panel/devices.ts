@@ -708,6 +708,14 @@ export async function deviceAdvance(id: DeviceId, otp?: string, waitMs = 4_000):
     return { ok: false, detail: `no hay un botón para avanzar (${ADVANCE.join(', ')})`, url: d.page.url() };
 }
 
+/** Escribe un OTP en la pantalla del celular (el campo del componente compartido, `input-otp`), si está vacío. Es lo que
+ *  hace «Avanzar» con el código del bypass; acá lo usa el código leído del servicio de OTP en la base compartida. */
+export async function deviceFillOtp(id: DeviceId, code: string): Promise<boolean> {
+    const d = open.get(id);
+    if (!d) return false;
+    return (await fillOtp(d.page, code)).length > 0;
+}
+
 /** Elige una ENTIDAD en el listado por su nombre, con el mismo `chooseEntity` de los runners (`pkg/wizard-browser.ts`): sabe
  *  abrir las tarjetas que se despliegan y tocar el botón de adentro. Si no la encuentra, devuelve los botones que se veían. */
 export async function deviceChooseEntity(id: DeviceId, name: string): Promise<{ ok: boolean; detail: string; visibles: string[] }> {

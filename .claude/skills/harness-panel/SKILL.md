@@ -922,3 +922,26 @@ Dos pestañas pueden correr al mismo tiempo, cada una con su par de celulares. E
   selfie (`identity-validation`); (3) Mediarte valida el OTP por onboarding v2 (`ValidateOtpAuthController` →
   `/api/otp/validate`), que no respeta el bypass que sí usa el envío: con un número del bypass el OTP sale
   `CODE_INVALID` (le pasaría igual en el carril A).
+
+### El OTP en la compartida: el panel lo lee del SERVICIO DE OTP (2026-10-21)
+
+En dev, qa y staging el panel ya no usa el bypass (`qa_otp_bypass_phones`): con él el código no llega al proveedor y
+los comercios del pipeline de KYC (onboarding v2) no pasan el OTP (F-243). En cambio:
+
+- **Los celulares del caso fuera de local son otros, FUERA del bypass**: A `3131010103`, B `3131010104` (`laneCase` en
+  el servidor; `lanePhone` en la interfaz). Si la pestaña trae uno de los de local o ninguno, se reemplaza, y con él
+  **la cédula y el correo, siempre** (A `1096734493`, B `1096734494`, `qa.harness+<últimos 4>@`): en la compartida la
+  cédula queda atada al celular con que se registró, y la que guardaba la pestaña (`1096734491`, atada al `…0102`) dejó
+  al B en un usuario `TEMP-…` trabado en personal-info.
+- **`otpFromService`** (servidor) mira la pantalla del celular después de abrirlo, del traspaso y de retomarlo; cuando
+  hay un campo de OTP, espera un código GENERADO DESPUÉS de esa pantalla (`waitForOtp` en `pkg/otp-service.ts`: `POST
+  /api/otp/latest` y `/api/otp/decrypt` del servicio, `otp-service.inertia-develop:8083`, con la VPN de dev y sin
+  autenticación) y lo escribe con `deviceFillOtp`. La consola dice «◆ OTP del servicio de OTP (el mismo de
+  #qa-messages)». Es el mismo código que una persona copia de Slack. ⚠ Sólo de los teléfonos del panel.
+- El chip del cliente dice «código del servicio» fuera de local; en local sigue siendo el del bypass.
+- **Medido en qa el 2026-10-21, los dos carriles a la vez**: Pullman (B, `…0104`, CrediPullman) llegó solo a
+  `loan-approved` (503879), con los dos OTP —registro y firma— leídos del servicio. Mediarte (A, `…0103`, Mediarte X)
+  pasó el OTP v2 y se quedó en `kyc-processing` → «No pudimos verificar tu información» (503878): la corrida del
+  pipeline pidió `expedition_date` y quedó CERRADA (`run_open:false`, `PENDING_USER_DATA`); al guardar personal-info el
+  wizard pidió arrancar otra y el backend no recibió ningún `kyc-requirements` nuevo. Es del pipeline de qa, no del
+  panel ni del OTP: no está diagnosticado.

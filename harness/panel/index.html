@@ -1391,6 +1391,23 @@
     // dos (asesor y cliente); lo que cambia es de qué carril son. `D(rol)` es el celular del servidor de ese rol en ese carril.
     let phoneLane = 'a';
     const D = (role) => (role === 'admin' || phoneLane !== 'b' ? role : role + '-b');
+    // EL CELULAR DEL CASO por carril y ambiente: en local los del bypass; en la compartida otros, FUERA del bypass, porque
+    // ahí el OTP sale por el servicio de OTP y el panel lo lee de él (`otpFromService` en `panel/server.ts`, F-243).
+    const lanePhone = (lane = phoneLane) => (target === 'local' ? (lane === 'b' ? '3131010102' : '3131010101') : (lane === 'b' ? '3131010104' : '3131010103'));
+    /** El chip del código del cliente: en local, el del bypass (los últimos 4); en la compartida lo escribe el panel. */
+    function setOtpChip(code, title) {
+      const chip = $('clientOtp');
+      chip.hidden = false;
+      if (target !== 'local') {
+        chip.classList.remove('warn'); chip.textContent = 'código del servicio'; chip.dataset.code = '';
+        chip.title = 'En la compartida el OTP sale por el servicio de OTP (y a Slack, #qa-messages): el panel lo lee de ahí y lo escribe solo.';
+        return;
+      }
+      chip.classList.toggle('warn', !code);
+      chip.textContent = code ? 'código ' + code : 'sin bypass del OTP';
+      chip.dataset.code = code || '';
+      chip.title = title;
+    }
     let consoleShown = null, archivedLines = [];   // qué consola se pinta (ver «LA CONSOLA DE CADA PESTAÑA»)
     // La RUTA (`#/<comercio>?canal=…`) la escribe el módulo del final, que es el que tiene `setRoute` y
     // `hashRoute` de la base. Acá sólo se avisa que cambió algo de lo que la ruta dice; hasta que el módulo
@@ -3797,12 +3814,7 @@
         setClientMode('live', '', r.view || '');
         if (!runRunning) startPoll();   // la consola sigue la secuencia de los celulares
         // El código: el teléfono quedó en el bypass del OTP (sus últimos 4). Si no se pudo, se avisa el motivo.
-        const otpChip = $('clientOtp');
-        otpChip.hidden = false;
-        otpChip.classList.toggle('warn', !r.otp);
-        otpChip.textContent = r.otp ? 'código ' + r.otp : 'sin bypass del OTP';
-        otpChip.title = r.otp ? 'Bypass del OTP: el código son los últimos 4 del celular. Clic para copiar.' : (r.otpBypassError || '');
-        otpChip.dataset.code = r.otp || '';
+        setOtpChip(r.otp, r.otp ? 'Bypass del OTP: el código son los últimos 4 del celular. Clic para copiar.' : (r.otpBypassError || ''));
       } catch (e) {
         setClientMode('status', 'El panel no respondió: ' + e.message);
       }
@@ -3876,10 +3888,7 @@
         if (!st.open) return;
         setClientMode('live', '', st.view || '');
         const code = String(caseStore.read().phone || '').replace(/\D/g, '').slice(-4);
-        const chip = $('clientOtp');
-        chip.hidden = !code; chip.classList.remove('warn');
-        chip.textContent = 'código ' + code; chip.dataset.code = code;
-        chip.title = 'El cliente sigue en su celular: bypass del OTP, el código son los últimos 4. Clic para copiar.';
+        setOtpChip(code, 'El cliente sigue en su celular: bypass del OTP, el código son los últimos 4. Clic para copiar.');
       } catch { /* el panel no respondió: se reintenta */ }
     }
     // AL RECARGAR LA PÁGINA, los celulares que siguen abiertos en el servidor se vuelven a ver donde quedaron. Antes
@@ -3893,10 +3902,7 @@
           if (id === 'client') {
             setClientMode('live', '', st.view || '');
             const code = String(caseStore.read().phone || '').replace(/\D/g, '').slice(-4);
-            const chip = $('clientOtp');
-            chip.hidden = !code; chip.classList.remove('warn');
-            chip.textContent = 'código ' + code; chip.dataset.code = code;
-            chip.title = 'Bypass del OTP: el código son los últimos 4 del celular. Clic para copiar.';
+            setOtpChip(code, 'Bypass del OTP: el código son los últimos 4 del celular. Clic para copiar.');
           } else {
             setAdvisorMode('live', '', st.view || '');
           }
@@ -4080,7 +4086,7 @@
       for (const r of ['advisor', 'client']) liveDisconnect(laneId(r, phoneLane));
       phoneLane = lane;
       // El celular del caso: el del carril B es otro, para que abrir una corrida no limpie (scrub) al cliente de la otra.
-      $('phone').textContent = lane === 'b' ? '3131010102' : '3131010101';
+      $('phone').textContent = lanePhone(lane);
       for (const a of document.querySelectorAll('.device-tab[data-device]')) a.href = `/api/device/${D(a.dataset.device)}/tab`;
       setAdvisorMode('idle'); setClientMode('idle');
       // La consola viva es la de ESTE carril: se empieza a leer de cero.
@@ -4401,6 +4407,7 @@
      *  (que es el que cambia `target`); con un botón apagado `target` no cambia y no pasa nada. */
     function switchTabSet() {
       if (prodMode || target === tabsTarget) return;
+      $('phone').textContent = lanePhone();   // el celular del caso cambia con el ambiente (fuera del bypass en la compartida)
       snapshotTab(currentTab());
       saveTabs();
       loadTabSet(target);
