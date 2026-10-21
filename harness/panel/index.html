@@ -309,6 +309,9 @@
     .tab.on .run-tab-chan { color: var(--fg-2) }
     .run-tab-live { width: 6px; height: 6px; border-radius: 50%; background: var(--ok); flex: none }
     .tab-start[hidden], .tab-busy[hidden] { display: none }
+    /* Con la pestaña Admin activa, el comercio elegido deja de verse elegido: la selección es la del Admin. */
+    #results[data-admin-on] .row[aria-selected="true"] { background: none; color: inherit; box-shadow: none }
+    #results[data-admin-on] .row[aria-selected="true"] .row-meta { color: var(--fg-3) }
     .tab-start-channels { display: flex; flex-wrap: wrap; justify-content: center; gap: var(--space-2) }
     /* El plan de corrida: una fila dentro del centro, arriba de los celulares, sólo mientras haya plan. */
     .plan-bar { flex: none; display: flex; align-items: center; gap: var(--space-2); padding: var(--space-1) var(--space-2);
@@ -650,6 +653,14 @@
           <!-- El árbol es sólo el CATÁLOGO: elegir una entrada la abre. Sus entidades y la configuración del
                comercio viven en la pestaña «Comercio» del sidebar derecho, no colgadas de la fila. -->
           <div class="tree" id="results" role="tree" aria-label="Comercios y sucursales"></div>
+          <!-- EL ADMIN, como apartado de la barra: abre su pestaña en el editor (una por ambiente), con la PC del admin de
+               `legacy-application` ya logueada. Es lo que era la vista «Admin» del centro. -->
+          <div class="tree admin-tree" role="tree" aria-label="Admin">
+            <div class="region-head group merchant-group"><span>Admin</span></div>
+            <div class="row" id="adminRow" role="treeitem" tabindex="0" aria-selected="false" title="El admin de legacy-application del ambiente elegido, ya logueado, en una pestaña del editor">
+              <span class="ui-icon" data-icon="external" aria-hidden="true"></span><span class="row-name">Admin de legacy-application</span><span class="row-meta" id="adminRowEnv"></span>
+            </div>
+          </div>
         </fieldset>
       </aside>
       <div class="rsz rsz-l" id="rszL"></div>
@@ -687,7 +698,7 @@
           <div class="region-actions">
             <div class="toggle-group stage-views" id="stageViews" role="tablist" aria-label="Vista del centro">
               <button type="button" class="toggle on" id="viewOrig" role="tab" aria-selected="true" aria-controls="devices">Originación</button>
-              <button type="button" class="toggle" id="viewAdmin" role="tab" aria-selected="false" aria-controls="adminView">Admin</button>
+              <button type="button" class="toggle" id="viewAdmin" hidden role="tab" aria-selected="false" aria-controls="adminView">Admin</button>
               <button type="button" class="toggle" id="viewProd" role="tab" aria-selected="false" aria-controls="prodView">Prod</button>
             </div>
           </div>
@@ -3812,20 +3823,86 @@
       openAdvisorBrowser();
     }
 
-    // ── LAS PESTAÑAS DEL EDITOR: una por corrida (comercio + canal + caso) ─────────────────────────────────
-    // La pestaña NO es otro estado: aplica el que ya existe (`sel`, `channel` y los campos del caso) por los mismos
-    // caminos que la persona —`chooseEntry`, el botón real del canal, el `input` de cada campo—. Al salir de una se
-    // fotografía su caso y al volver se repone. Así el gate de canales, las rutas y las preferencias siguen siendo los de
-    // siempre y la pestaña no los puede saltear. Se recuerdan en el navegador (`harness.tabs`): son una comodidad, no un dato.
-    const TABS_KEY = 'harness.tabs';
+    // ── LAS PESTAÑAS DEL EDITOR: una por corrida (comercio + canal + configuración), y un juego POR AMBIENTE ──────────
+    // La pestaña NO es otro estado: aplica el que ya existe (`sel`, `channel`, los campos y las perillas del sidebar
+    // derecho) por los mismos caminos que la persona —`chooseEntry`, el botón real, el `input` de cada campo—. Al salir de
+    // una se fotografía su configuración y al volver se repone; una NUEVA arranca con la configuración por defecto. Así el
+    // gate de canales, las rutas y las preferencias siguen siendo los de siempre y la pestaña no los puede saltear.
+    // Cada ambiente tiene SU juego (3 en local, 2 en qa…): cambiar de ambiente guarda uno y trae el otro. Producción no
+    // tiene pestañas: el panel no abre celulares ahí, su única corrida es la vista «Prod».
+    // ⚠ La vista «Comercio» del sidebar derecho NO es de la pestaña: escribe `allieds` y vale para el comercio entero.
+    // Se recuerdan en el navegador (`harness.tabs.v2`): son una comodidad de esta máquina, no un dato.
+    const TABS_KEY = 'harness.tabs.v2';
     const TAB_CASE_FIELDS = ['amount', 'income', 'occupation', 'age', 'dob', 'expedition', 'name', 'document', 'email',
       'score', 'negatives', 'consulted', 'delinquencies'];
-    let runTabs = [], activeTab = null, liveTab = null, tabSwitching = false;
+    /** La configuración POR DEFECTO de una pestaña nueva: la del HTML (los `value` del marcado, no lo que se tipeó) y
+     *  los burós respondiendo con sus valores por defecto. La identidad queda vacía: se genera en cada corrida. */
+    function defaultTabConfig() {
+      const caso = {};
+      for (const id of TAB_CASE_FIELDS) {
+        const f = $(id);
+        if (!f) continue;
+        caso[id] = f.tagName === 'SELECT' ? ([...f.options].find((o) => o.defaultSelected) || f.options[0])?.value ?? '' : f.defaultValue;
+      }
+      return { caso, doctype: 'CC', gender: 'M', step: 'monto', inject: true, quota: false,
+        bureauModes: { agildata: 'ok', mareigua: 'ok', tusdatos: 'ok', experian: 'ok' }, bureauData: { agildata: {}, mareigua: {}, experian: {} } };
+    }
+    /** Lo que la pestaña guarda de la configuración: el caso y las perillas del sidebar derecho. */
+    function captureTabConfig() {
+      const caso = {};
+      for (const id of TAB_CASE_FIELDS) if ($(id)) caso[id] = $(id).value;
+      return { caso, doctype, gender, step, inject, quota: $('quota').checked,
+        bureauModes: structuredClone(bureauModes), bureauData: structuredClone(bureauData) };
+    }
+    /** La repone por los caminos de la persona: el `input` de cada campo y el click del botón real (apagado = no-op,
+     *  así una perilla que el ambiente no admite queda como el ambiente dice). */
+    function applyTabConfig(cfg) {
+      for (const [id, v] of Object.entries(cfg.caso || {})) {
+        const f = $(id);
+        if (!f || f.value === v) continue;
+        f.value = v;
+        f.dispatchEvent(new Event('input', { bubbles: true }));
+        f.dispatchEvent(new Event('change', { bubbles: true }));
+      }
+      const press = (sel, on) => { const b = document.querySelector(sel); if (b && !b.disabled && !on) b.click(); };
+      if (cfg.doctype) press(`#doctype button[data-v="${cfg.doctype}"]`, doctype === cfg.doctype);
+      if (cfg.gender) press(`#gender button[data-v="${cfg.gender}"]`, gender === cfg.gender);
+      if (cfg.inject !== undefined) press(`#injectOptions button[data-i="${cfg.inject ? 1 : 0}"]`, inject === cfg.inject);
+      if (cfg.step) press(`#stepOptions button[data-v="${cfg.step}"]`, step === cfg.step);
+      if (cfg.quota !== undefined && $('quota').checked !== cfg.quota && !$('quota').disabled) $('quota').click();
+      if (cfg.bureauModes && cfg.bureauData) {
+        bureauModes = structuredClone(cfg.bureauModes);
+        bureauData = structuredClone(cfg.bureauData);
+        for (const el of document.querySelectorAll('[data-bd]')) el.value = bureauData[el.dataset.bd]?.[el.dataset.k] ?? '';
+        try { localStorage.setItem('harness.bureaus', JSON.stringify(bureauModes)); localStorage.setItem('harness.bureauData', JSON.stringify(bureauData)); } catch { }
+        renderBureaus();
+        applyBureaus();
+      }
+    }
+
+    // Los juegos de pestañas, por ambiente. `tabsTarget` es el ambiente del juego cargado en `runTabs`: el `target` del
+    // panel cambia ANTES de que el juego se cambie, y mientras tanto nada debe escribir en el juego equivocado.
+    let tabSets = {}, tabsTarget = target, runTabs = [], activeTab = null, liveOwner = null, tabSwitching = false;
     try {
       const saved = JSON.parse(localStorage.getItem(TABS_KEY) || 'null');
-      if (saved && Array.isArray(saved.tabs)) { runTabs = saved.tabs.filter((t) => t && t.id && t.slug); activeTab = saved.active ?? null; liveTab = saved.live ?? null; }
+      if (saved && typeof saved === 'object') { tabSets = saved.sets || {}; liveOwner = saved.live || null; }
+      else {
+        // La versión anterior guardaba un solo juego, siempre de local.
+        const old = JSON.parse(localStorage.getItem('harness.tabs') || 'null');
+        if (old && Array.isArray(old.tabs)) tabSets.local = { tabs: old.tabs.map((t) => ({ ...t, config: t.caso ? { caso: t.caso } : null })), active: old.active ?? null };
+      }
     } catch { /* sin storage: arranca sin pestañas */ }
-    const saveTabs = () => { try { localStorage.setItem(TABS_KEY, JSON.stringify({ tabs: runTabs, active: activeTab, live: liveTab })); } catch { } };
+    function loadTabSet(t) {
+      const set = tabSets[t] || { tabs: [], active: null };
+      runTabs = (set.tabs || []).filter((x) => x && x.id && (x.kind === 'admin' || x.slug));
+      activeTab = set.active ?? null;
+      tabsTarget = t;
+    }
+    loadTabSet(target);
+    const saveTabs = () => {
+      tabSets[tabsTarget] = { tabs: runTabs, active: activeTab };
+      try { localStorage.setItem(TABS_KEY, JSON.stringify({ sets: tabSets, live: liveOwner })); } catch { }
+    };
     const currentTab = () => runTabs.find((t) => t.id === activeTab) || null;
     const entryOf = (slug) => spaceEntries().find((x) => x.slug === slug || (x.hash && x.hash === slug)) || null;
     const isSelected = (slug) => !!sel && (sel.slug === slug || entryOf(slug)?.hash === sel.slug || entryOf(sel.slug)?.slug === slug);
@@ -3833,22 +3910,13 @@
     /** ¿Los celulares están mostrando algo? (abiertos o abriéndose) */
     const devicesBusy = () => deviceShown('advisor') || deviceShown('client') || !$('advisorStatus').hidden || !$('clientStatus').hidden;
     const inOriginacion = () => $('viewOrig').classList.contains('on');
+    /** La pestaña dueña de los celulares, si es de ESTE ambiente. */
+    const isOwner = (t) => !!t && !!liveOwner && liveOwner.target === tabsTarget && liveOwner.id === t.id;
+    const ownerLabel = () => liveOwner ? `«${liveOwner.label}»${liveOwner.target !== tabsTarget ? ` (en ${liveOwner.target})` : ''}` : '';
 
-    function snapshotTabCase(t) {
-      if (!t) return;
-      t.caso = {};
-      for (const id of TAB_CASE_FIELDS) if ($(id)) t.caso[id] = $(id).value;
-    }
-    function restoreTabCase(t) {
-      for (const [id, v] of Object.entries(t.caso || {})) {
-        const f = $(id);
-        if (!f || f.value === v) continue;
-        f.value = v;
-        f.dispatchEvent(new Event('input', { bubbles: true }));
-        f.dispatchEvent(new Event('change', { bubbles: true }));
-      }
-    }
+    function snapshotTab(t) { if (t && t.kind !== 'admin') t.config = captureTabConfig(); }
     function tabLabel(t) {
+      if (t.kind === 'admin') return { name: 'Admin', chan: tabsTarget === 'qa' ? 'dev (qa comparte su base)' : tabsTarget };
       const e = entryOf(t.slug);
       return { name: e ? (e.alias || e.name) : t.slug, chan: t.canal ? CHANNEL_LONG[t.canal] || t.canal : 'elegí el canal' };
     }
@@ -3864,7 +3932,7 @@
         const label = document.createElement('button');
         label.type = 'button'; label.className = 'tab-label'; label.setAttribute('role', 'tab'); label.setAttribute('aria-selected', String(on));
         label.title = `${name} · ${chan}${t.preview ? ' · vista previa: la reemplaza el próximo comercio que elijas' : ''}`;
-        if (t.id === liveTab && devicesBusy()) {
+        if (isOwner(t) && devicesBusy()) {
           const dot = document.createElement('span'); dot.className = 'run-tab-live'; dot.title = 'los celulares son de esta corrida';
           label.appendChild(dot);
         }
@@ -3881,19 +3949,25 @@
         list.appendChild(tab);
       }
       list.querySelector('.tab.on')?.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+      // El apartado «Admin» del sidebar izquierdo: elegido mientras su pestaña es la activa.
+      $('adminRow').setAttribute('aria-selected', String(currentTab()?.kind === 'admin'));
+      $('adminRowEnv').textContent = tabsTarget === 'qa' ? 'dev' : tabsTarget;
+      $('results').toggleAttribute('data-admin-on', currentTab()?.kind === 'admin');
     }
 
     /** El centro según la pestaña: la pregunta del canal, el aviso de «los celulares son de otra», o los celulares. */
     function renderStage() {
       const t = currentTab(), orig = inOriginacion();
-      const asking = orig && !!t && !t.canal;
-      const owner = runTabs.find((x) => x.id === liveTab);
-      const busy = orig && !!t && !!t.canal && !!owner && owner.id !== t.id && devicesBusy();
+      const run = !!t && t.kind !== 'admin';
+      const asking = orig && run && !t.canal;
+      const busy = orig && run && !!t.canal && !!liveOwner && !isOwner(t) && devicesBusy();
       $('tabStart').hidden = !asking;
       $('tabBusy').hidden = !busy;
       $('devices').hidden = !orig || asking || busy;
       if (asking) renderChannelChoice(t);
-      if (busy) { const l = tabLabel(owner); $('tabBusyTitle').textContent = `Los celulares están con «${l.name} · ${l.chan}»`; }
+      if (busy) $('tabBusyTitle').textContent = `Los celulares están con ${ownerLabel()}`;
+      // «Ir a esa pestaña» sólo si es de este ambiente: la de otro se ve cambiando de ambiente.
+      $('tabBusyGo').hidden = !liveOwner || liveOwner.target !== tabsTarget;
     }
     function renderChannelChoice(t) {
       const { name } = tabLabel(t);
@@ -3919,10 +3993,11 @@
     async function activateTab(id) {
       if (runRunning) return;
       const prev = currentTab();
-      if (prev && prev.id !== id && !tabSwitching) snapshotTabCase(prev);
+      if (prev && prev.id !== id && !tabSwitching) snapshotTab(prev);
       activeTab = id;
       const t = currentTab();
-      if (!inOriginacion()) showStageView('orig');
+      if (t?.kind === 'admin') { if (sel) followKey = sel.slug + '|' + channel; baseShowStageView('admin'); renderTabs(); renderStage(); saveTabs(); return; }
+      if (!inOriginacion()) baseShowStageView('orig');
       renderTabs(); renderStage(); saveTabs();
       if (!t) return;
       const e = entryOf(t.slug);
@@ -3939,32 +4014,40 @@
           const b = document.querySelector(`#channelOptions button[data-c="${t.canal}"]`);
           if (b && !b.disabled) b.click();
         }
-        if (t.caso) restoreTabCase(t);
+        if (t.config) applyTabConfig(t.config);
       } finally {
         tabSwitching = false;
       }
       renderTabs(); renderStage();
     }
 
-    /** Elegir un comercio a la izquierda: su pestaña. Sin canal, en vista previa (la reemplaza el próximo) y pregunta. */
+    /** Elegir un comercio a la izquierda: su pestaña. Sin canal, en vista previa (la reemplaza el próximo) y pregunta.
+     *  Una pestaña nueva arranca con la configuración por defecto, no con la de la pestaña que estaba abierta. */
     async function openTab(e, canal = null, { play = false } = {}) {
       if (runRunning) return;
       const cur = currentTab();
       let t = canal ? runTabs.find((x) => x.slug === e.slug && x.canal === canal) : null;
       if (!t && !canal && cur && cur.slug === e.slug && !cur.canal) t = cur;   // ya está preguntando por éste
       if (!t) {
-        const preview = runTabs.find((x) => x.preview && x.id !== liveTab);
+        const preview = runTabs.find((x) => x.preview && !isOwner(x));
         if (preview) {
-          if (preview.id === activeTab) snapshotTabCase(preview);
-          Object.assign(preview, { slug: e.slug, canal, preview: !canal });
+          if (preview.id === activeTab) snapshotTab(preview);
+          Object.assign(preview, { slug: e.slug, canal, preview: !canal, config: defaultTabConfig() });
           t = preview;
         } else {
-          t = { id: newTabId(), slug: e.slug, canal, preview: !canal, caso: null };
+          t = { id: newTabId(), slug: e.slug, canal, preview: !canal, config: defaultTabConfig() };
           runTabs.splice(cur ? runTabs.indexOf(cur) + 1 : runTabs.length, 0, t);
         }
       }
       await activateTab(t.id);
       if (play && t.canal === 'asesor') playMerchant(e);
+    }
+    /** El apartado «Admin» del sidebar izquierdo: su pestaña (una por ambiente). */
+    function openAdminTab() {
+      if (runRunning) return;
+      let t = runTabs.find((x) => x.kind === 'admin');
+      if (!t) { t = { id: newTabId(), kind: 'admin', preview: false }; runTabs.push(t); }
+      return activateTab(t.id);
     }
 
     function pickChannel(t, c) {
@@ -3984,65 +4067,103 @@
       if (runRunning) return;
       const t = runTabs.find((x) => x.id === id);
       if (!t) return;
-      if (id === liveTab && devicesBusy()) {
+      if (isOwner(t) && devicesBusy()) {
         const l = tabLabel(t);
         if (!confirm(`«${l.name} · ${l.chan}» tiene los celulares abiertos. ¿Los cierro?`)) return;
         await closeDevices();
       }
+      if (t.kind === 'admin' && !$('adminLive').hidden) $('adminClose').click();
       const i = runTabs.indexOf(t);
       runTabs.splice(i, 1);
-      if (liveTab === id) liveTab = null;
+      if (isOwner(t)) liveOwner = null;
       if (activeTab === id) {
         const next = runTabs[i] || runTabs[i - 1];
-        if (next) { activeTab = null; return activateTab(next.id); }
         activeTab = null;
+        if (next) return activateTab(next.id);
+        if (t.kind === 'admin') baseShowStageView('orig');
       }
       renderTabs(); renderStage(); saveTabs();
     }
 
-    /** Antes de abrir un celular: si son de otra pestaña, se pregunta si se cierra esa corrida. */
+    /** Antes de abrir un celular: si son de otra pestaña (de este u otro ambiente), se pregunta si se cierra esa corrida. */
     async function claimDevices() {
-      const owner = runTabs.find((x) => x.id === liveTab);
-      if (owner && owner.id !== activeTab && devicesBusy()) {
-        const l = tabLabel(owner);
-        if (!confirm(`Los celulares están con «${l.name} · ${l.chan}». ¿Cierro esa corrida para abrir esta?`)) return false;
+      const t = currentTab();
+      if (liveOwner && !isOwner(t) && devicesBusy()) {
+        if (!confirm(`Los celulares están con ${ownerLabel()}. ¿Cierro esa corrida para abrir esta?`)) return false;
         await closeDevices();
       }
-      liveTab = activeTab;
+      if (t) { const l = tabLabel(t); liveOwner = { target: tabsTarget, id: t.id, label: `${l.name} · ${l.chan}` }; }
       saveTabs();
       setTimeout(renderTabs, 1500);   // el punto de «corre acá» aparece cuando el celular ya está abriéndose
       return true;
     }
-    $('tabBusyGo').onclick = () => { if (liveTab) activateTab(liveTab); };
-    $('tabBusyClose').onclick = async () => { await closeDevices(); renderTabs(); renderStage(); };
+    $('tabBusyGo').onclick = () => { if (liveOwner?.target === tabsTarget) activateTab(liveOwner.id); };
+    $('tabBusyClose').onclick = async () => { await closeDevices(); liveOwner = null; saveTabs(); renderTabs(); renderStage(); };
+    $('adminRow').onclick = () => openAdminTab();
+    $('adminRow').onkeydown = (ev) => { if (ev.key === 'Enter' || ev.key === ' ') { ev.preventDefault(); openAdminTab(); } };
+
+    /** CAMBIO DE AMBIENTE: se guarda el juego del anterior y se trae el de éste. Escucha DESPUÉS del `onclick` del botón
+     *  (que es el que cambia `target`); con un botón apagado `target` no cambia y no pasa nada. */
+    function switchTabSet() {
+      if (target === tabsTarget) return;
+      snapshotTab(currentTab());
+      saveTabs();
+      loadTabSet(target);
+      if (currentTab()) activateTab(activeTab);
+      else { if (!inOriginacion()) baseShowStageView('orig'); renderTabs(); renderStage(); }
+      saveTabs();
+    }
+    document.querySelectorAll('#targets .toggle').forEach((b) => b.addEventListener('click', () => setTimeout(switchTabSet, 0)));
 
     /** El comercio o el canal cambiaron por OTRO camino (la ruta, el plan, el buscador, el menú de canal): la pestaña
-     *  activa lo sigue si es del mismo comercio; si no, se busca la suya o se abre una fija con el canal de ahora. */
+     *  activa lo sigue si es del mismo comercio; si no, se busca la suya o se abre una fija con el canal de ahora (y la
+     *  configuración que hay, que es la que ese camino acaba de poner). */
+    // Hasta `tabsBoot` no se sigue nada: la ruta que se restaura al abrir el panel no es una elección, y le ganaba a la
+    // pestaña que había quedado activa (se abría en Pullman aunque se había cerrado en Admin).
+    let tabsBooted = false, followKey = '';
     function tabsFollow() {
-      if (tabSwitching || !sel) return;
+      if (!tabsBooted || tabSwitching || !sel || target !== tabsTarget) return;
       const t = currentTab();
-      if (t && isSelected(t.slug)) {
+      // Con la pestaña Admin, una ruta que se reescribe sin que cambie el comercio ni el canal (los canales que llegan, la
+      // sugerencia) no es elegir un comercio: no se la saca de Admin.
+      const key = sel.slug + '|' + channel;
+      if (t?.kind === 'admin' && key === followKey) return;
+      followKey = key;
+      if (t && t.kind !== 'admin' && isSelected(t.slug)) {
         if (t.canal && t.canal !== channel) { t.canal = channel; saveTabs(); }
         renderTabs(); return;
       }
       const slug = entryOf(sel.slug)?.slug || sel.slug;
       let m = runTabs.find((x) => x.slug === slug && x.canal === channel);
-      if (!m) { m = { id: newTabId(), slug, canal: channel, preview: false, caso: null }; runTabs.push(m); }
-      if (t) snapshotTabCase(t);
+      if (!m) { m = { id: newTabId(), slug, canal: channel, preview: false, config: null }; runTabs.push(m); }
+      snapshotTab(t);
       activeTab = m.id;
+      if (!inOriginacion() && $('prodView').hidden) baseShowStageView('orig');
       renderTabs(); renderStage(); saveTabs();
     }
-    /** Al arrancar, después de la ruta: la pestaña del comercio que quedó elegido, o la que estaba activa. */
+    /** Al arrancar, después de la ruta: la pestaña activa del ambiente si es Admin o del comercio elegido; si no, la
+     *  del comercio que dejó la ruta. */
     function tabsBoot() {
-      if (sel) tabsFollow();
-      else if (currentTab()) activateTab(activeTab);
+      tabsBooted = true;
+      if (sel) followKey = sel.slug + '|' + channel;
+      const t = currentTab();
+      if (t?.kind === 'admin') activateTab(t.id);
+      else if (sel) tabsFollow();
+      else if (t) activateTab(t.id);
       renderTabs(); renderStage();
     }
-    // La vista del centro (Originación · Admin · Prod) también decide si se ve la pregunta del canal.
-    {
-      const baseShowStageView = showStageView;
-      showStageView = (view) => { baseShowStageView(view); renderStage(); };
-    }
+    // La vista del centro: «Admin» ES la pestaña Admin (la abre o la elige), y cualquier vista redibuja el centro.
+    const baseShowStageView = showStageView;
+    showStageView = (view) => {
+      if (view === 'admin') { openAdminTab(); return; }
+      baseShowStageView(view);
+      if (view === 'orig' && currentTab()?.kind === 'admin') {
+        const back = [...runTabs].reverse().find((x) => x.kind !== 'admin');
+        activeTab = null;
+        if (back) { activateTab(back.id); return; }
+      }
+      renderTabs(); renderStage(); saveTabs();
+    };
     $('advisorVnc').addEventListener('mouseenter', () => { try { $('advisorVnc').contentWindow?.focus(); } catch { } });
 
     // El visor toma el foco al pasar el mouse: si no, el primer clic se gasta en dárselo y no llega al celular.

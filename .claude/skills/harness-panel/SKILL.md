@@ -666,3 +666,29 @@ mismos `id`.
   sintética propia de cada una). Verificado el 2026-10-20 en un panel de prueba en local: pestaña nueva con la
   pregunta (Sonría: Auto y QR apagados), cambio de pestañas con canal y monto propios, chip «T» → Pullman · Tienda,
   el celular del asesor atado a su pestaña y el aviso en otra, «Cerrar esa corrida», cerrar una pestaña.
+
+### Un juego de pestañas por AMBIENTE, la configuración por pestaña y el Admin en la barra (2026-10-20)
+
+- **Cada ambiente tiene su juego** (`harness.tabs.v2` = `{sets: {local, qa…}, live}`): cambiar de ambiente fotografía
+  la pestaña activa, guarda ese juego y trae el del otro (`switchTabSet`, escuchando DESPUÉS del `onclick` del botón
+  real; un botón apagado no cambia `target` y no pasa nada). ⚠ `tabsTarget` es el ambiente del juego cargado: mientras
+  difiere de `target`, `tabsFollow` no escribe. **Producción no tiene pestañas**: el panel no abre celulares ahí.
+  ⚠ Si el ambiente no está disponible (sin VPN de dev), el panel vuelve a local solo y el juego vuelve con él.
+- **La pestaña guarda el caso Y las perillas del sidebar derecho** (`captureTabConfig`: documento, género, arranque,
+  modo del buró, «cupo ya confirmado», los estados y valores de cada buró). Una pestaña NUEVA arranca con la
+  configuración por defecto (`defaultTabConfig`: los `value` del marcado vía `defaultValue`, no lo tipeado, y los
+  burós respondiendo); la identidad queda vacía y se genera en la corrida. ⚠ La vista «Comercio» NO es de la
+  pestaña: escribe `allieds` y vale para el comercio entero.
+- **El Admin dejó el selector del centro y es un apartado del sidebar izquierdo** (`#adminRow`, debajo de los
+  comercios): abre la pestaña Admin del ambiente (una por juego), que muestra la PC de siempre. `#viewAdmin` sigue en
+  el DOM, oculto, porque `showStageView` lo usa; `showStageView('admin')` (también el que restaura la vista al
+  arrancar) ahora abre esa pestaña. Con Admin activa, el comercio elegido deja de verse elegido (`data-admin-on`).
+- ⚠ **Dos cosas que le ganaban a la pestaña elegida, medidas en la corrida**: la ruta que se restaura al abrir el panel
+  (`tabsFollow` no corre hasta `tabsBoot`), y las reescrituras de ruta que llegan solas después (los canales, la
+  sugerencia), que sacaban de Admin aunque nadie eligiera un comercio (`followKey`: con Admin activa sólo se sigue
+  si cambió el comercio o el canal).
+- Verificado el 2026-10-20 en un panel de prueba en local: el juego viejo migró a local; pestaña nueva con valores por
+  defecto (2.000.000 · score 700 · M) mientras la de Pullman volvía con los suyos (1.500.000 · 450 · F); juegos
+  separados local/qa (qa simulado: sin VPN de dev el botón está apagado); la pestaña Admin desde la barra, una sola
+  por juego, y de vuelta a una corrida. ⚠ No se probó recargar con Admin activa de punta a punta: recargar abre la PC
+  del admin local de verdad, y eso levanta `artisan serve`; el camino se probó sin recargar.
