@@ -1285,9 +1285,9 @@
       <button type="button" class="statusbar-item stop" id="stopBtn">Detener</button>
       <button type="button" class="statusbar-item go-item" id="go" disabled title="Preparar + Lanzar" aria-label="Preparar + Lanzar"><span class="ui-icon" data-icon="play" aria-hidden="true"></span><span>Corrida</span></button>
       <strong id="caseTitle">Elegí un comercio</strong>
-      <!-- El CANAL de la pestaña activa, al lado de su comercio: es de la corrida, como el ambiente y el arranque. Vivía
-           también en el nombre de la pestaña y en el sidebar derecho, y tres lugares para lo mismo era ruido. -->
-      <button type="button" class="statusbar-item channel-item" id="btnChannel" aria-haspopup="menu"><span class="ui-icon" data-icon="channel" aria-hidden="true"></span><span id="valChannel">Asesor</span><span class="ui-icon" data-icon="down" aria-hidden="true"></span></button>
+      <!-- El CANAL de la pestaña activa, al lado de su comercio. Sólo se MUESTRA: se elige al crear la pestaña y queda
+           con ella. Vivía también en el nombre de la pestaña y en el sidebar derecho; tres lugares para lo mismo era ruido. -->
+      <span class="statusbar-item channel-item" id="btnChannel"><span class="ui-icon" data-icon="channel" aria-hidden="true"></span><span id="valChannel">Asesor</span></span>
       <span id="caseDetails"></span>
       <span id="runSummary" role="status">Elegí un comercio primero.</span>
       <!-- El estado de los servicios, siempre a la vista en el pie: es lo que decide si una corrida puede
@@ -2718,17 +2718,6 @@
         motivo: $('btn-admin')?.title || '', accion: () => $('btn-admin').click() });
       const r = anchor.getBoundingClientRect();
       mountMenu(m, r.left, r.bottom + 4);
-    }
-
-    function openChannelMenu(anchor) {
-      const m = menuBase('contextMenu');
-      caption(m, 'Canal de entrada');
-      for (const it of buttonItems('#channelOptions button')) itemMenu(m, it);
-      const hint = $('channelHint');
-      if (hint) { hint.className = 'region-menu-note'; m.appendChild(hint); }
-      const r = anchor.getBoundingClientRect();
-      mountMenu(m, r.left, r.bottom + 4);
-      placeAbove(m, anchor);
     }
 
     /** Lanzar es un botón de icono: lo que hace lo dicen su título y su nombre accesible. */
@@ -5621,7 +5610,6 @@
     // switcher de target (local | dev | staging). dev y staging escriben data COMPARTIDA (la misma BD:
     // en legacy-backend staging no es un entorno aparte, solo lo es el frontend) → aviso + re-enrich.
     $('btnEnvironment').onclick = () => openEnvironmentMenu($('btnEnvironment'));
-    $('btnChannel').onclick = () => openChannelMenu($('btnChannel'));
     $('btnHealth').onclick = () => openHealth($('btnHealth'));
     $('btnStart').onclick = () => {
       const m = menuBase('contextMenu');
