@@ -56,8 +56,15 @@ ramas: core-800-vtex-payment-link
       `vtex link`) y emitir otro; termina cuando el viejo responde 401.
 - [ ] Al terminar las pruebas en la cuenta, devolver la condición de pago: activar la de Oscar y apagar «CREDITOP DEV»
       (o acordarlo con él). Depende de: Miguel — hablar con Oscar.
-- [ ] Homologar con VTEX y publicar la versión nueva de `creditop.creditop` (llega a todas las tiendas que la tienen):
-      termina con la versión publicada. Sólo después de los PRs y de producción.
+- [ ] Saber qué cuentas VTEX tienen instalada hoy `creditop.creditop` (la 4.x, con `/vtex/init`). En la base de prod
+      el único `ecommerce_id=3` es la sucursal de prueba 1440, con el último pedido en marzo; termina con la lista de
+      cuentas. Depende de: Oscar / Comercial — quién la instaló.
+- [ ] Publicar el conector como versión MAYOR nueva (5.0.0, hoy el manifiesto dice 4.0.0) e instalarla sólo en la
+      cuenta del comercio piloto: en VTEX IO las cuentas se actualizan solas dentro de la misma mayor, y en la 5 el
+      AppToken pasa a ser el token de ecommerce de la sucursal, así que una 4.0.x nueva rompería las afiliaciones de
+      las tiendas que ya la tienen. Termina con la 5 instalada en una sola cuenta y las demás en la 4.
+- [ ] Homologar con VTEX la versión nueva de `creditop.creditop` (el modo Test Suite y cancelaciones/reembolsos
+      resueltos antes): termina con VTEX aprobándola.
 
 ## Objetivo
 
@@ -100,8 +107,9 @@ atribuir a su sucursal y a su plataforma sin heurísticas:
 1. El conector llama directo a `payment-link` (hecho en la rama `payment-link`, probado en local contra el mock).
 2. Cuando #1682 esté sobre `qa`, repetir la tienda demo contra la API de verdad en el backend local.
 3. Con cuenta VTEX: instalar la versión en un workspace de prueba y correr la Test Suite.
-4. Para producción: la apertura por referencia y `payment-link` en `main`, la migración en prod, el token de la
-   sucursal de Mario y la versión nueva del conector publicada.
+4. Para producción: el backend ya está (`payment-link`, `ecommerce/status`, `by-reference` y la migración, desde el
+   2026-10-20). Falta el conector: mergear #21, homologar, publicarlo como mayor nueva y probarlo con UN comercio
+   piloto (la sucursal de Mario, su token) antes de ofrecerlo a otras tiendas.
 
 ## Lo que se evaluó y NO se eligió
 
