@@ -17,7 +17,7 @@
 //   node bin/dbops.ts sucursal-check <merchant|hash> <sub>   (SÓLO LECTURA: ¿la sucursal que vamos a anunciar es la que el backend le da a ese asesor?)
 import { close, one, query, scalar, exec, assertWriteAllowed, TARGET, withSeedScope } from '../pkg/db.ts';
 import { whois, assign, revoke, scrubphone, scrubHarnessUsers, ensureLocalTestAdvisor } from '../pkg/advisor.ts';
-import { listMerchants, listEcommerce } from '../pkg/merchants.ts';
+import { listMerchants, listEcommerce, listCatalog } from '../pkg/merchants.ts';
 import { buildEcommerceUrl } from '../pkg/ecommerce.ts';
 import { execFile } from 'node:child_process';
 import { registerBypass, restoreBypass } from '../pkg/otp-bypass.ts';
@@ -48,6 +48,7 @@ try {
         case 'revoke': r = await revoke(); break;
         case 'scrubphone': r = await scrubphone(a[0] ?? ''); break;
         case 'list': r = await listMerchants(a[0] ?? ''); break;
+        case 'catalog': r = await listCatalog(); break;
         case 'ecommerce-url': r = await buildEcommerceUrl(a[0] ?? '', a[1] ?? '', num(a[2])); break;
         // El bypass del OTP para los celulares del panel: la misma suma y la misma limpieza que las corridas.
         case 'otp-bypass-add': r = await registerBypass(a); break;

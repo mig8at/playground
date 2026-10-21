@@ -996,6 +996,7 @@ async function bootPrewarm(): Promise<void> {
  */
 interface TestAdvisorInfo { ok: boolean; email?: string; sub?: string; motivo?: string }
 const testAdvisorCache = new Map<string, { at: number; data: TestAdvisorInfo }>();
+const catalogCache = new Map<string, { at: number; rows: any[] }>();
 /** La URL del front de un ambiente (`E2E_BASE_URL` por la cadena de `.env`). Se lee una vez por ambiente y queda:
  *  era un `node` por apertura de celular (~0,2 s) para un valor que no cambia mientras el panel corre. */
 const frontCache = new Map<string, Promise<string>>();
@@ -1826,6 +1827,38 @@ const server = createServer(async (req, res) => {
     // (Se quitó el endpoint /api/activity: la actividad de BD ya NO se pollea durante la corrida —cargaba
     // la BD compartida arrancando un proceso+conexión cada 2s—. La comprobación se hace UNA vez al cerrar
     // la corrida, en child.on('close'), y se vuelca a la consola + .runs.)
+
+    // EL CATÁLOGO DEL AMBIENTE (`dbops catalog`): todos los comercios con sucursal activa, para «Agregar comercio». dev, qa
+    // y staging comparten la base, así que se cachea por BASE y no por ambiente; un fallo de lectura no se guarda.
+    if (path === '/api/catalog') {
+        const t = TARGETS.has(String(url.searchParams.get('target'))) ? String(url.searchParams.get('target')) : 'local';
+        const db = t === 'local' ? 'local' : 'compartida';
+        const c = catalogCache.get(db);
+        if (c && Date.now() - c.at < 5 * 60_000 && url.searchParams.get('force') !== '1') return json(res, 200, { db, rows: c.rows });
+        const rows = await dbopsJson(['catalog'], t);
+        if (!Array.isArray(rows)) return json(res, 200, { db, rows: null, detail: `no pude leer los comercios de ${t}${t === 'local' ? '' : ' (¿VPN de dev?)'}` });
+        catalogCache.set(db, { at: Date.now(), rows });
+        return json(res, 200, { db, rows });
+    }
+    // CREAR EL ASESOR DE PRUEBA de un comercio (y su sucursal `b<hash>-fake`) por el conector del admin, el mismo de
+    // `bin/pg admin test-advisor`. Sin `apply` sólo devuelve la vista previa. qa usa el admin de dev (comparten base) y
+    // producción no está: el conector no la acepta y acá tampoco se ofrece.
+    if (path === '/api/test-advisor' && req.method === 'POST') {
+        const b = await readBody(req);
+        const t = TARGETS.has(String(b?.target)) ? String(b.target) : 'local';
+        const adminT = t === 'qa' ? 'dev' : t;
+        const allied = Number(b?.allied);
+        if (!Number.isInteger(allied) || allied <= 0) return json(res, 400, { ok: false, detail: 'falta el id del comercio' });
+        const args = ['admin', 'test-advisor', '--target', adminT, '--allied', String(allied), ...(b?.apply ? ['--apply'] : [])];
+        const out = await new Promise<{ ok: boolean; text: string }>((ok) => execFile(PG_BIN, args, { encoding: 'utf8', timeout: 180_000 },
+            (err, stdout, stderr) => ok({ ok: !err, text: (String(stdout || '') + String(stderr || '')).trim() || (err ? err.message.split('\n')[0] : '') })));
+        if (b?.apply) {
+            catalogCache.clear();
+            for (const k of [...testAdvisorCache.keys()]) if (k.startsWith(t + '|') || k.startsWith(adminT + '|')) testAdvisorCache.delete(k);
+            deviceLog('panel', `${out.ok ? '✓' : '✗'} asesor de prueba del comercio ${allied} en ${adminT}: ${out.text.split('\n').filter(Boolean).slice(-1)[0] || ''}`);
+        }
+        return json(res, 200, { ok: out.ok, target: adminT, apply: !!b?.apply, text: out.text, command: `bin/pg ${args.join(' ')}` });
+    }
 
     if (path === '/api/merchants') {
         const q = (url.searchParams.get('q') || '').trim();

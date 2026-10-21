@@ -692,3 +692,26 @@ mismos `id`.
   separados local/qa (qa simulado: sin VPN de dev el botón está apagado); la pestaña Admin desde la barra, una sola
   por juego, y de vuelta a una corrida. ⚠ No se probó recargar con Admin activa de punta a punta: recargar abre la PC
   del admin local de verdad, y eso levanta `artisan serve`; el camino se probó sin recargar.
+
+### «Agregar comercio» con el catálogo del ambiente, y el asesor de prueba (2026-10-20)
+
+- **La barra sigue siendo tuya** (curados + agregados): el catálogo entero NO se vuelca ahí. Al enfocar el buscador
+  (o «Agregar comercio…») aparece el **catálogo del ambiente** (`/api/catalog` → `dbops catalog` →
+  `listCatalog` en `pkg/merchants.ts`): todos los comercios con sucursal activa, filtrados mientras escribís, sin
+  una consulta por tecla. Medido en local: **244 comercios, 11 con asesor de prueba**, que van primero y dicen
+  «prueba». dev, qa y staging comparten base: se cachea por BASE (5 min; un fallo de lectura no se guarda). Sin
+  catálogo (sin VPN) se cae a la búsqueda de siempre.
+- **La sucursal por defecto es la del asesor de prueba** (`test_branch`: la de `c<hash>-fake@`, que el alta deja en
+  `b<hash>-fake`), marcada «la del asesor de prueba» en el selector. ⚠ Esa sucursal puede no tener entidades (la de
+  Alta Fleet en local: 0): el ⚠ de la fila y el comando `bin/pg admin branch-lenders` siguen siendo el aviso.
+- **«Crear asesor de prueba»** (en el alta, si el comercio no lo tiene, y en la pregunta del canal fuera de local) va
+  por `POST /api/test-advisor` → `bin/pg admin test-advisor`: primero la vista previa del conector (dice CON QUIÉN
+  actúa), después, confirmado, `--apply`. Fuera de local el aviso dice que es la base COMPARTIDA. qa usa el admin de
+  dev; producción no está. Si el conector contesta «no hay nada que crear», sólo se refresca.
+- **Elegir una sucursal del catálogo abre una pestaña en vista previa que pregunta el canal** (`sel.adhoc` en
+  `tabsFollow`): el canal que trae la ruta en ese momento es la SUGERENCIA del servidor, no una elección. Si después
+  la agregás, la pestaña pasa del hash al slug nuevo.
+- Verificado el 2026-10-20 en un panel de prueba en local: el catálogo (244 · 11), «+vida» sin asesor → el botón y
+  la vista previa del conector (se canceló: no se creó nada), Alta Fleet con su sucursal de prueba preseleccionada,
+  su pestaña preguntando el canal y, elegido Asesor, de ida y vuelta entre pestañas. «Agregar» no se probó para no
+  escribir en tu `.flows.json`.

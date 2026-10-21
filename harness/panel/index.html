@@ -420,7 +420,7 @@
        acá entran veintitantas en el mismo alto (Sonría tiene 79 sucursales, medido). */
     .merchant-search { margin: var(--space-1) var(--gutter) var(--space-2) }
     .search-results:empty { display: none }
-    .search-results { padding-bottom: var(--space-2) }
+    .search-results { padding-bottom: var(--space-2); max-height: 45vh; overflow-y: auto }
     .list-note { margin: 0; padding: var(--space-1) var(--gutter); font-size: var(--text-sm); color: var(--fg-2) }
     .list-note.error { color: var(--danger) }
     /* ALTA: sucursal → nombre → agregar. Aparece recién al elegir comercio. */
@@ -645,6 +645,7 @@
               <label class="label" for="signupName">Nombre de la entrada</label>
               <input id="signupName" class="input" type="text" autocomplete="off" placeholder="Como querés verla" />
             </div>
+            <button type="button" class="btn btn-outline btn-sm" id="signupTest" hidden title="Crea el asesor de prueba del comercio (c&lt;hash&gt;-fake@) y su sucursal b&lt;hash&gt;-fake por el admin del ambiente. Primero muestra qué va a hacer y con quién.">Crear asesor de prueba</button>
             <div class="signup-foot">
               <span class="signup-hint" id="signupHint"></span>
               <button type="button" class="btn btn-sm" id="signupAdd">Agregar</button>
@@ -1811,9 +1812,45 @@
       $('signup').hidden = true; signupM = null; signupBs = []; nameTouched = false; $('signupHint').textContent = '';
     }
 
+    // EL CATÁLOGO DEL AMBIENTE (`/api/catalog`): todos los comercios de la base elegida, para AGREGAR uno a la barra —la
+    // barra sigue siendo tuya: los curados y los que agregaste, no los 244—. Se carga al enfocar el buscador y filtra
+    // mientras escribís, sin una consulta por tecla. dev, qa y staging comparten base: el servidor lo cachea por base.
+    // Sin catálogo (sin VPN, base caída) se cae a la búsqueda de siempre, de a 12.
+    let catalog = { target: null, rows: null, detail: '' };
+    async function loadCatalog(force = false) {
+      if (!force && catalog.target === target && catalog.rows) return catalog;
+      const asked = target;
+      try {
+        const r = await (await fetch('/api/catalog?target=' + asked + (force ? '&force=1' : ''))).json();
+        if (asked === target) catalog = { target: asked, rows: Array.isArray(r.rows) ? r.rows : null, detail: r.detail || '' };
+      } catch { if (asked === target) catalog = { target: asked, rows: null, detail: 'el panel no respondió' }; }
+      return catalog;
+    }
+    const norm = (x) => String(x || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
     async function searchMerchants(q) {
       closeSignup();
-      if (!q.trim()) { $('searchResults').innerHTML = ''; return; }
+      const focused = document.activeElement === $('merchantSearch');
+      if (!q.trim() && !focused) { $('searchResults').innerHTML = ''; return; }
+      const cat = await loadCatalog();
+      if (cat.rows) {
+        const n = norm(q.trim());
+        const rows = !n ? cat.rows : cat.rows.filter((m) => norm(m.name).includes(n) || norm(m.slug).includes(n) || String(m.allied_id) === n);
+        const box = $('searchResults'); box.innerHTML = '';
+        const ready = cat.rows.filter((m) => m.test_branch).length;
+        const head = document.createElement('p'); head.className = 'list-note';
+        head.textContent = n ? `${rows.length} de ${cat.rows.length} en ${target}` : `${cat.rows.length} comercios en ${target} · ${ready} con asesor de prueba`;
+        box.appendChild(head);
+        // Los que ya tienen asesor de prueba primero: son los que se pueden probar sin crear nada.
+        for (const m of [...rows].sort((a, b) => (!a.test_branch) - (!b.test_branch))) {
+          const r = rowEl(m.name, `#${m.allied_id}${m.test_branch ? ' · prueba' : ''}`, () => chooseMerchant(m));
+          r.title = `${m.name} · ${m.branches} sucursal${m.branches === 1 ? '' : 'es'}`
+            + (m.test_branch ? ` · asesor de prueba en la sucursal ${m.test_branch}` : ' · sin asesor de prueba: se puede crear al elegirlo');
+          box.appendChild(r);
+        }
+        if (!rows.length) busStatus(`sin comercios que matcheen “${q}” en ${target}`);
+        return;
+      }
+      if (!q.trim()) return busStatus(cat.detail || `no pude leer los comercios de ${target}`);
       busStatus('Buscando…');
       let rows;
       try { rows = await (await fetch('/api/merchants?q=' + encodeURIComponent(q) + '&target=' + target)).json(); }
@@ -1823,6 +1860,27 @@
       for (const m of rows.slice(0, 12)) {
         box.appendChild(rowEl(m.name, `#${m.allied_id}`, () => chooseMerchant(m)));
       }
+    }
+
+    /** CREAR EL ASESOR DE PRUEBA de un comercio (y su sucursal `b<hash>-fake`), por el conector del admin. Primero la vista
+     *  previa del conector, que dice con QUIÉN va a actuar; después, confirmado, lo hace. Fuera de local la base es la
+     *  COMPARTIDA y se dice. Devuelve true si quedó creado. */
+    async function createTestAdvisor(alliedId, name) {
+      const post = async (apply) => (await fetch('/api/test-advisor', { method: 'POST', headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ target, allied: alliedId, apply }) })).json();
+      let pre;
+      try { pre = await post(false); } catch { alert('El panel no respondió.'); return false; }
+      if (!pre.ok) { alert(`No se puede crear el asesor de prueba de ${name}:\n\n${pre.text}`); return false; }
+      // El conector ya mira si existe: entonces no hay nada que confirmar, sólo refrescar lo que el panel tenía.
+      if (/no hay nada que crear/i.test(pre.text)) { alert(pre.text); await loadCatalog(true); enrichMerchants(); return true; }
+      const shared = pre.target !== 'local';
+      const preview = pre.text.split('\n').filter((l) => !/--apply/.test(l)).join('\n').trim();
+      if (!confirm(`${preview}\n\n${shared ? `⚠ Es la base COMPARTIDA (${pre.target}): lo ve el equipo.\n\n` : ''}¿Lo creo?`)) return false;
+      let r;
+      try { r = await post(true); } catch { alert('El panel no respondió.'); return false; }
+      alert(`${r.ok ? '✓' : '✗'} ${r.text}`);
+      if (r.ok) { await loadCatalog(true); enrichMerchants(); }
+      return !!r.ok;
     }
 
     // El segundo paso es un SELECT y no otra lista: las sucursales pueden ser 20+ (Sonría tiene 21) y una
@@ -1842,10 +1900,19 @@
       for (const b of bs) {
         const o = document.createElement('option');
         o.value = b.hash;
-        o.textContent = `${b.name || '(sin nombre)'} · ${b.hash} · ${b.lenders} ent.${Number(b.status) !== 1 ? ' · apagada' : ''}`;
+        o.textContent = `${b.name || '(sin nombre)'} · ${b.hash} · ${b.lenders} ent.${Number(b.status) !== 1 ? ' · apagada' : ''}${b.hash === m.test_branch ? ' · la del asesor de prueba' : ''}`;
         s.appendChild(o);
       }
+      // La sucursal por defecto es la del ASESOR DE PRUEBA: es la única a la que ese asesor entra sin asignarlo a otra.
+      if (m.test_branch && bs.some((b) => b.hash === m.test_branch)) s.value = m.test_branch;
       $('signup').hidden = false;
+      $('signupTest').hidden = !!m.test_branch || !('test_branch' in m);
+      $('signupTest').onclick = async () => {
+        if (await createTestAdvisor(m.allied_id, m.name)) {
+          const fresh = (await loadCatalog()).rows?.find((x) => x.allied_id === m.allied_id);
+          chooseMerchant(fresh || m);
+        }
+      };
       useBranch();
     }
 
@@ -1885,6 +1952,11 @@
       busTimer = setTimeout(() => searchMerchants(v), 350);   // con debounce: sin esto, una consulta por tecla
     };
     $('clearSearch').onclick = () => { $('merchantSearch').value = ''; $('searchResults').innerHTML = ''; closeSignup(); };
+    $('merchantSearch').addEventListener('focus', () => { if (!$('merchantSearch').value.trim() && $('signup').hidden) searchMerchants(''); });
+    // El catálogo es del ambiente: al cambiar de ambiente, el que estaba a la vista deja de valer.
+    document.querySelectorAll('#targets .toggle').forEach((b) => b.addEventListener('click', () => setTimeout(() => {
+      if (catalog.target !== target && $('searchResults').childElementCount && $('signup').hidden) searchMerchants($('merchantSearch').value);
+    }, 0)));
     loadFavs();
 
     // ── Las dos vistas del sidebar derecho: Cliente y Comercio ──────────────────────────────────────
@@ -3905,7 +3977,7 @@
     };
     const currentTab = () => runTabs.find((t) => t.id === activeTab) || null;
     const entryOf = (slug) => spaceEntries().find((x) => x.slug === slug || (x.hash && x.hash === slug)) || null;
-    const isSelected = (slug) => !!sel && (sel.slug === slug || entryOf(slug)?.hash === sel.slug || entryOf(sel.slug)?.slug === slug);
+    const isSelected = (slug) => !!sel && (sel.slug === slug || entryOf(slug)?.hash === sel.slug || entryOf(sel.slug)?.slug === slug || entryOf(sel.slug)?.hash === slug);
     const newTabId = () => 't' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
     /** ¿Los celulares están mostrando algo? (abiertos o abriéndose) */
     const devicesBusy = () => deviceShown('advisor') || deviceShown('client') || !$('advisorStatus').hidden || !$('clientStatus').hidden;
@@ -3918,7 +3990,7 @@
     function tabLabel(t) {
       if (t.kind === 'admin') return { name: 'Admin', chan: tabsTarget === 'qa' ? 'dev (qa comparte su base)' : tabsTarget };
       const e = entryOf(t.slug);
-      return { name: e ? (e.alias || e.name) : t.slug, chan: t.canal ? CHANNEL_LONG[t.canal] || t.canal : 'elegí el canal' };
+      return { name: e ? (e.alias || e.name) : (t.name || t.slug), chan: t.canal ? CHANNEL_LONG[t.canal] || t.canal : 'elegí el canal' };
     }
 
     function renderTabs() {
@@ -3977,7 +4049,20 @@
       // Los canales de ESTE comercio todavía no llegaron: los botones reales dirían los del anterior.
       if (!isSelected(t.slug) || channelsFor !== sel?.slug) {
         const p = document.createElement('span'); p.className = 'empty-desc'; p.textContent = 'midiendo sus canales…';
-        box.appendChild(p); return;
+        box.appendChild(p);
+        // Los canales llegan por su lado (`loadChannels`): se vuelve a mirar hasta que estén, sin enganchar cada camino.
+        clearTimeout(renderChannelChoice.retry);
+        renderChannelChoice.retry = setTimeout(() => { if (!$('tabStart').hidden) renderStage(); }, 500);
+        return;
+      }
+      // Sin asesor de prueba en este ambiente, el canal Asesor no entra: se ofrece crearlo acá mismo.
+      const e = entryOf(t.slug);
+      if (e?.readiness && !e.readiness.advisor && target !== 'local' && e.allied_id) {
+        const mk = document.createElement('button');
+        mk.type = 'button'; mk.className = 'btn btn-sm'; mk.textContent = 'Crear asesor de prueba';
+        mk.title = `${name} no tiene asesor de prueba en ${target}: el canal Asesor no puede entrar`;
+        mk.onclick = async () => { if (await createTestAdvisor(e.allied_id, name)) setTimeout(renderStage, 2500); };
+        box.appendChild(mk);
       }
       for (const c of CHANNEL_ORDER) {
         const real = document.querySelector(`#channelOptions button[data-c="${c}"]`);
@@ -4000,7 +4085,7 @@
       if (!inOriginacion()) baseShowStageView('orig');
       renderTabs(); renderStage(); saveTabs();
       if (!t) return;
-      const e = entryOf(t.slug);
+      const e = entryOf(t.slug) || (/^[0-9a-f]{8}$/i.test(t.slug) ? { slug: t.slug, name: t.name || t.slug, hash: t.slug, adhoc: true } : null);
       if (!e) return;
       tabSwitching = true;
       try {
@@ -4130,12 +4215,22 @@
       if (t?.kind === 'admin' && key === followKey) return;
       followKey = key;
       if (t && t.kind !== 'admin' && isSelected(t.slug)) {
-        if (t.canal && t.canal !== channel) { t.canal = channel; saveTabs(); }
-        renderTabs(); return;
+        // La sucursal recién agregada (`addFav`) pasa del hash a su slug: la pestaña la sigue con el nombre nuevo.
+        const fav = entryOf(sel.slug);
+        if (fav && fav.slug !== t.slug && fav.hash === t.slug) { t.slug = fav.slug; delete t.name; }
+        if (t.canal && t.canal !== channel) { t.canal = channel; }
+        saveTabs(); renderTabs(); return;
       }
       const slug = entryOf(sel.slug)?.slug || sel.slug;
-      let m = runTabs.find((x) => x.slug === slug && x.canal === channel);
-      if (!m) { m = { id: newTabId(), slug, canal: channel, preview: false, config: null }; runTabs.push(m); }
+      // Una sucursal del CATÁLOGO todavía sin agregar (`sel.adhoc`): su pestaña pregunta el canal, como al elegir un
+      // comercio de la barra. El canal que hay es la sugerencia del servidor, no una elección.
+      const adhoc = !!sel.adhoc;
+      let m = adhoc ? runTabs.find((x) => x.slug === slug && !x.canal) : runTabs.find((x) => x.slug === slug && x.canal === channel);
+      if (!m) {
+        m = { id: newTabId(), slug, canal: adhoc ? null : channel, preview: adhoc, config: adhoc ? defaultTabConfig() : null, ...(adhoc ? { name: sel.name } : {}) };
+        const old = adhoc ? runTabs.find((x) => x.preview && !isOwner(x)) : null;
+        if (old) runTabs.splice(runTabs.indexOf(old), 1, m); else runTabs.push(m);
+      }
       snapshotTab(t);
       activeTab = m.id;
       if (!inOriginacion() && $('prodView').hidden) baseShowStageView('orig');

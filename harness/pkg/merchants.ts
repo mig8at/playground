@@ -50,6 +50,22 @@ export async function listMerchants(q = '', limit = 20): Promise<MerchantRow[]> 
     );
 }
 
+export interface CatalogRow { allied_id: number; name: string; slug: string; branches: number; test_branch: string | null; }
+
+/** EL CATÁLOGO DEL AMBIENTE: todos los comercios con alguna sucursal activa, para elegir cuál agregar al panel.
+ *  `test_branch` es la sucursal del ASESOR DE PRUEBA del comercio (`c<hash>-fake@`, que el alta deja en su sucursal
+ *  `b<hash>-fake`): con él entra el harness, así que dice de un vistazo cuáles se pueden probar ya. El patrón del
+ *  correo es el de `findTestAdvisor` (`pkg/login-probe.ts`), que es quien decide de verdad al abrir el comercio. */
+export async function listCatalog(): Promise<CatalogRow[]> {
+    return query<CatalogRow>(
+        `SELECT a.id AS allied_id, a.name, COALESCE(a.slug,'') AS slug, COUNT(DISTINCT ab.id) AS branches,
+                (SELECT b.hash FROM users u JOIN allied_branches b ON b.id = u.allied_branch_id
+                  WHERE u.allied_id = a.id AND u.email LIKE 'c%-fake@%' ORDER BY u.id DESC LIMIT 1) AS test_branch
+         FROM allieds a JOIN allied_branches ab ON ab.allied_id = a.id AND ab.status = 1
+         GROUP BY a.id ORDER BY a.name`,
+    );
+}
+
 /** Sucursales con credencial ecommerce (las únicas que pueden hacer el handshake base64). */
 export async function listEcommerce(q = ''): Promise<EcommerceBranch[]> {
     const like = '%' + q + '%';
