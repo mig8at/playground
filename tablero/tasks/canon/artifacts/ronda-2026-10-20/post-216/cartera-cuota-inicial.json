@@ -1,0 +1,23 @@
+{
+  "node": "cartera/context",
+  "section": "La cuota inicial queda en el registro de pagos, en línea o en caja, y no es un abono al crédito",
+  "text_file": "cartera-cuota-inicial.md",
+  "kind": "correction",
+  "source": "verified",
+  "verified": "2026-10-20",
+  "as_asked": "¿la tarjeta de dinero recaudado del panel cuenta la cuota inicial por su registro de pago o por la solicitud?",
+  "objetivo": "Contar la cuota inicial por su registro de pago en el dinero recaudado del panel de consumo y completar las que nunca tuvieron registro.",
+  "se_deduce_leyendo": "qué registros suma la tarjeta y cuáles las cuotas recaudadas, qué mide su gráfico, y con qué regla el relleno crea las cuotas iniciales faltantes de caja y de línea",
+  "archivos": {
+    "legacy-application": [
+      "app/Http/Controllers/Admin/CreditopXRequestHistoryController.php"
+    ],
+    "legacy-backend": [
+      "app/Console/Commands/BackfillInitialFeeRegistersCommand.php"
+    ]
+  },
+  "tablas": [
+    "creditop_x_payment_register",
+    "user_requests"
+  ]
+}

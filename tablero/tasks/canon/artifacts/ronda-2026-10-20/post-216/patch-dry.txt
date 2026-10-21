@@ -1,0 +1,132 @@
+  ✓ content/backoffice/map.json: modificado
+  ✓ content/documentos/context.md: modificado
+  ✓ content/documentos/map.json: modificado
+  ✓ content/observabilidad/map.json: modificado
+  ✓ content/observabilidad/operar.md: modificado
+  ✓ content/repos/map.json: modificado
+
+content/backoffice/map.json
+@@ desde la línea 92
+            "modules/backoffice/lender-rules/src/components/SpecialConditionsNotice.tsx": "84d0f6d9ce02",
+            "modules/backoffice/lender-rules/src/components/StickyBars.tsx": "681220816047",
+-           "modules/backoffice/lender-rules/src/components/activity/ActivityTab.tsx": "78d5820357ec"
++           "modules/backoffice/shared/src/components/audit/ActivityTab.tsx": "09f077c2e4dd"
+          }
+        },
+
+
+content/documentos/context.md
+@@ desde la línea 83
+  En el sistema nuevo, el pagaré de un cupo rotativo es otro documento: busca la misma plantilla de la entidad y, si no existe, cae a la plantilla del rotativo en lugar de la genérica. Imprime el número de contrato del cupo —su identificador, completado a seis dígitos— y no se emite si el cliente no tiene un cupo activo con la entidad: sin número quedaría atado a un contrato que no nombra. El histórico usa también para el rotativo la plantilla de la entidad o la genérica. Una compra con un cupo que ya tiene pagaré firmado no genera otro: [[formalizacion/context#un-cupo-rotativo-firma-su-pagare-una-vez-y-las-compras-siguientes-reutilizan-ese]].
+  
+- ## CrediPullman promete en sus documentos condonar la última cuota, y ningún proceso de cartera la condona
++ ## Los documentos de CrediPullman ya no prometen condonar la última cuota, y ningún proceso de cartera la condona
+  
+- **La promesa impresa de CrediPullman no ejecuta la condonación en cartera.** En el sistema nuevo, el pagaré y el plan incluyen ese beneficio para créditos originados desde el 25 de septiembre de 2026, hasta nuevo aviso, a diez cuotas o más, siempre que las anteriores se paguen a tiempo. Cuenta el plazo pactado al originar; ampliarlo después no incorpora el crédito al beneficio.
++ **Los documentos de CrediPullman ya no imprimen la promesa de condonar la última cuota, y ningún proceso de cartera la condona.** El pagaré de la entidad y el plan de pagos del sistema nuevo la incluyeron durante una promoción, para créditos a diez cuotas o más con todas las anteriores pagadas a tiempo, contando el plazo pactado al originar. Retirada la promoción, el pagaré de la entidad y el plan de pagos genérico volvieron a su texto anterior. El histórico nunca imprimió la cláusula.
+  
+- Ninguno de los dos monolitos aplica automáticamente esa condonación: se realiza manualmente desde el panel. El histórico tampoco imprime la cláusula. Por eso el documento firmado y las condiciones de originación determinan si se prometió el beneficio, mientras cartera requiere una operación adicional para hacerlo efectivo.
++ El retiro no cambia lo firmado: un crédito cuyos documentos la incluyen conserva la promesa, y el documento firmado es lo que dice si se le prometió. Ninguno de los dos monolitos aplica esa condonación automáticamente: se hace a mano desde el panel, con la condonación de saldos de cartera.
+  
+  ## El plan de pagos de un cupo rotativo imprime la cuota de todo el cupo, no la de la compra
+
+
+content/documentos/map.json
+@@ desde la línea 83
+      {
+        "id": "area-2ccd2a6a85f8",
+-       "objetivo": "Qué promete el documento de una entidad que la cartera no ejecuta: el beneficio de última cuota de CrediPullman.",
+-       "se_deduce_leyendo": "la condición del beneficio en el pagaré y el plan de pagos del sistema nuevo, que el viejo no la imprime, y que la cartera no tiene regla que la aplique",
++       "objetivo": "Qué beneficio de última cuota de CrediPullman se retiró de los documentos y por qué la cartera no lo ejecuta en los créditos que lo firmaron.",
++       "se_deduce_leyendo": "que el pagaré de la entidad ya no imprime la cláusula y que la condonación de saldos de cartera es manual, sin regla que la aplique sola",
+        "secciones": [
+-         "credipullman-promete-en-sus-documentos-condonar-la-ultima-cuota-y-ningun-proceso-de-cartera-la-condona"
++         "los-documentos-de-credipullman-ya-no-prometen-condonar-la-ultima-cuota-y-ningun-proceso-de-cartera-la-condona"
+        ],
+        "tablas": [
+  …
+          },
+          "legacy-backend": {
+-           "resources/views/creditopxpdf/lenders/lender_77.blade.php": "2cb7fb5e413f",
+-           "resources/views/creditopxpdf/lenders/payment_schedule_notes/lender_77.blade.php": "bb8839cf30f1"
++           "resources/views/creditopxpdf/lenders/lender_77.blade.php": "2cb7fb5e413f"
+          }
+        }
+  …
+            ]
+          },
+-         "credipullman-promete-en-sus-documentos-condonar-la-ultima-cuota-y-ningun-proceso-de-cartera-la-condona": {
+-           "id": "credipullman-promete-en-sus-documentos-condonar-la-ultima-cuota-y-ningun-proceso-de-cartera-la-condona"
+-         },
+          "el-plan-de-pagos-de-un-cupo-rotativo-imprime-la-cuota-de-todo-el-cupo-no-la-de-la-compra": {
+            "id": "el-plan-de-pagos-de-un-cupo-rotativo-imprime-la-cuota-de-todo-el-cupo-no-la-de-la-compra"
++         },
++         "los-documentos-de-credipullman-ya-no-prometen-condonar-la-ultima-cuota-y-ningun-proceso-de-cartera-la-condona": {
++           "id": "credipullman-promete-en-sus-documentos-condonar-la-ultima-cuota-y-ningun-proceso-de-cartera-la-condona",
++           "aliases": [
++             "credipullman-promete-en-sus-documentos-condonar-la-ultima-cuota-y-ningun-proceso-de-cartera-la-condona"
++           ]
+          }
+        }
+
+
+content/observabilidad/map.json
+@@ desde la línea 50
+          "el-bloqueo-por-rafaga-viaja-con-el-codigo-generico-de-quien-llama-y-asi-no-se-cuenta",
+          "el-mismo-bloqueo-por-dos-caminos-dos-codigos-dos-estados-un-solo-contador",
+-         "los-prefijos-de-modulo-en-uso-hoy"
++         "los-prefijos-de-modulo-en-uso"
+        ],
+        "fuentes": {
+  …
+            "id": "un-codigo-de-respuesta-del-sistema-nuevo-indica-de-que-modulo-y-de-que-pregunta-salio"
+          },
+-         "los-prefijos-de-modulo-en-uso-hoy": {
+-           "id": "los-prefijos-de-modulo-en-uso-hoy"
+-         },
+          "el-bloqueo-por-rafaga-viaja-con-el-codigo-generico-de-quien-llama-y-asi-no-se-cuenta": {
+            "id": "el-bloqueo-por-rafaga-viaja-con-el-codigo-generico-de-quien-llama-y-asi-no-se-cuenta"
+  …
+          "las-cabeceras-de-credencial-se-tachan-al-guardarse-en-el-registro-de-llamadas-solo-en-el-sistema-nuevo": {
+            "id": "las-cabeceras-de-credencial-se-tachan-al-guardarse-en-el-registro-de-llamadas-solo-en-el-sistema-nuevo"
++         },
++         "los-prefijos-de-modulo-en-uso": {
++           "id": "los-prefijos-de-modulo-en-uso-hoy",
++           "aliases": [
++             "los-prefijos-de-modulo-en-uso-hoy"
++           ]
+          }
+        }
+
+
+content/observabilidad/operar.md
+@@ desde la línea 68
+  El caso `000` es el éxito **por convención, y la convención tiene excepciones vivas**: en la escritura de datos personales del onboarding nuevo el éxito es el caso **`001`**, y su `000` quedó mapeado a «no implementado» con estado 501 —conservado a propósito y sin que nadie lo emita, para poder volver a apagar ese paso con una sola línea—. Por eso el propio subsistema tiene la regla de que quien consume a otro compara contra el **código de éxito exacto de esa operación**, nunca contra el sufijo `000` ni contra el estado HTTP. Al diagnosticar, lo mismo: confirmá cuál es el código de éxito de esa operación antes de leerlo como veredicto.
+  
+- ## Los prefijos de módulo en uso hoy
++ ## Los prefijos de módulo en uso
+  
+  Los prefijos: `USV1` personas, `RKV2` riesgo, `OBV2` onboarding, `AUV1` autenticación, `ABV1` sedes y `ALV1` comercios, `URV1` solicitudes, `ECV1` comercio electrónico, `LGV1` legal, `LNV1` entidades, `BCV1` difusión, **`DLV1` bloqueo de dispositivos**, `MOV1` onboarding de la app móvil, `MBV1` la app móvil ya registrada —el refresco de sus centrales— `COV1` país y `SGV1` firma electrónica por entidad, un módulo sin rutas propias: lo llama la firma del monolito, así que sus códigos se ven en los errores y registros de esa firma y en la salida de sus comandos de consola (`signing:netco-check-lender`, `signing:netco-set-credentials`), no en una respuesta HTTP. El módulo transversal no tiene prefijo: no expone operaciones ni define códigos. El de bloqueo tiene además un código propio para cuando su llave interna falta o no coincide —`DLV10401`, el rechazo del guardián de su API de configuración—, que **no sigue** el patrón de contador más caso: es la excepción, no la regla.
+
+
+content/repos/map.json
+@@ desde la línea 61
+      },
+      {
+-       "objetivo": "Leer el catálogo de comercios e industrias y las solicitudes desde la base MySQL heredada.",
+-       "se_deduce_leyendo": "Qué tablas del monolito consulta merchant-api para industrias, comercios, sucursales, entidades por sucursal y solicitudes; su configuración separa esta conexión de Temporal.",
++       "objetivo": "Leer el catálogo de comercios e industrias desde la base MySQL heredada.",
++       "se_deduce_leyendo": "Qué tablas del monolito consulta merchant-api para industrias, comercios, sucursales y entidades por sucursal; su configuración separa esta conexión de Temporal.",
+        "secciones": [
+          "la-api-de-comercios-lee-la-base-heredada-y-orquesta-el-codeudor"
+  …
+            "config/config.example.yaml": "bc6ee469f43c",
+            "internal/modules/industry/infra/storage/mysql/queries/industry.sql": "ecf1341fa9d2",
+-           "internal/modules/merchant/infra/storage/mysql/queries/merchant.sql": "af7e02c94d11",
+-           "internal/modules/merchant/infra/storage/mysql/queries/user_request.sql": "b62844f50d1a"
++           "internal/modules/merchant/infra/storage/mysql/queries/merchant.sql": "af7e02c94d11"
+          }
+        },
+
+
+  (ensayo: canon validó el corpus resultante y no guardó nada; para publicar, APPLY=1)
