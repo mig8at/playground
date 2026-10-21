@@ -2413,7 +2413,7 @@
       loadMerchantFlags();
       const box = $('lenderslist');
       box.innerHTML = '<p class="list-note">Cargando…</p>';
-      // LOS CANALES PRIMERO: vienen de la precarga (`preloadChannels`), así que es inmediato, y la pestaña nueva deja de
+      // LOS CANALES PRIMERO: vienen de la precarga (`preloadMerchantData`), así que es inmediato, y la pestaña nueva deja de
       // decir «midiendo» sin esperar a las entidades (antes esperaba las dos consultas, ~300 ms en local). Y van ANTES
       // porque pueden cambiar el canal (el sugerido del comercio), que es con el que se piden las entidades.
       await loadChannels();
@@ -2423,7 +2423,8 @@
       // con la carga del default todavía en vuelo.
       const askedSlug = sel.slug, askedTarget = target, askedChannel = channel;
       try {
-        const r = await (await fetch('/api/lenders?slug=' + encodeURIComponent(sel.slug) + '&target=' + target + '&channel=' + channel)).json();
+        // Una COPIA: la lista se modifica en el lugar (prender una entidad) y no tiene que tocar lo precargado.
+        const r = structuredClone(await fetchLenders(askedSlug, askedTarget, askedChannel));
         if (!sel || sel.slug !== askedSlug || target !== askedTarget || channel !== askedChannel) return;
         $('lendersbranch').textContent = r.hash ? '· ' + r.hash : (r.msg || '');
         paStatus = (await (await fetch('/api/pa-statuses')).json().catch(() => ({}))) || {};
@@ -2845,6 +2846,7 @@
       try {
         const r = await (await fetch('/api/lender-toggle', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ slug: sel.slug, target, lenderId: id, status }) })).json();
         if (r && r.ok) {
+          forgetLenders(sel.slug);   // lo precargado de este comercio ya no vale
           // el mapa de arriba dibuja solo los carriles con entidades prendidas → hay que redibujarlo
           const l = merchantLenders.find(x => Number(x.id) === Number(id));
           if (l) { l.lender_status = status ? 1 : 0; renderTrain(); }
@@ -2869,6 +2871,7 @@
       if (!sel) return;
       const order = [...$('lenderslist').querySelectorAll('.lender-row')].map(r => Number(r.dataset.id));
       try { await fetch('/api/lender-sort', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ slug: sel.slug, target, order }) }); } catch {}
+      forgetLenders(sel.slug);
     }
     // status por lender que devolverá el mock de pre-aprobados (el mock lee el archivo por request).
     async function savePaStatuses() {
@@ -3381,7 +3384,7 @@
       renderMerchants();
       revealSelection();   // recién acá se conocen `allied_id` y `hash`, que es lo que hace falta
       loadMerchantTags();  // y con los hashes, el país y los canales de cada uno para el filtro
-      preloadChannels();   // y los canales que se ofrecen al elegirlo, para que la pestaña no espere
+      preloadMerchantData();   // y sus canales y entidades, para que elegirlo no espere
     }
 
     function setSeg(groupId, val) {
@@ -3396,7 +3399,7 @@
     let channelsOk = null;
     let autoMotivo = '';   // por qué «Auto (tienda)» no aplica a este comercio (lo dice el servidor)
 
-    // LOS CANALES DE CADA COMERCIO SE PRECARGAN: al medir el ambiente se piden los de toda la barra (`preloadChannels`), y
+    // LOS CANALES DE CADA COMERCIO SE PRECARGAN: al medir el ambiente se piden los de toda la barra (`preloadMerchantData`), y
     // elegir uno los lee de acá en vez de esperar la consulta. Por ambiente y comercio; lo que no se pudo medir (sin
     // conexión, o sin saber si es Corbeta) no se guarda, y la próxima vez se pregunta de nuevo.
     const channelCache = new Map();
@@ -3409,12 +3412,33 @@
       }
       return channelCache.get(key);
     }
-    /** Pide los canales de todos los comercios de la barra que están en este ambiente, de a tres. */
-    async function preloadChannels() {
+    // LAS ENTIDADES TAMBIÉN: la sucursal de la que salen depende sólo de si el canal es asesor (fuera de local, la falsa
+    // del comercio) o no (la declarada); en local es la misma. Prender, apagar o reordenar una entidad desde el panel
+    // olvida las del comercio (`forgetLenders`). Una consulta que falló no se guarda.
+    const lenderCache = new Map();
+    const lenderKey = (slug, t, ch) => `${t}|${slug}|${t === 'local' ? '' : ch === 'asesor' ? 'asesor' : 'otro'}`;
+    function fetchLenders(slug, t = target, ch = channel) {
+      const key = lenderKey(slug, t, ch);
+      if (!lenderCache.has(key)) {
+        const p = fetch('/api/lenders?slug=' + encodeURIComponent(slug) + '&target=' + t + '&channel=' + ch).then((x) => x.json());
+        p.then((r) => { if (!r || !Array.isArray(r.lenders) || /^✗/.test(r.msg || '')) lenderCache.delete(key); }, () => lenderCache.delete(key));
+        lenderCache.set(key, p);
+      }
+      return lenderCache.get(key);
+    }
+    const forgetLenders = (slug) => { for (const k of [...lenderCache.keys()]) if (k.split('|')[1] === slug) lenderCache.delete(k); };
+
+    /** Pide los canales y las entidades de todos los comercios de la barra que están en este ambiente, de a tres. */
+    async function preloadMerchantData() {
       const asked = target;
       const queue = spaceEntries().filter((e) => !e.missing && !e.unreachable).map((e) => e.slug);
       const worker = async () => {
-        while (queue.length && asked === target) await fetchChannels(queue.shift(), asked).catch(() => null);
+        while (queue.length && asked === target) {
+          const slug = queue.shift();
+          await fetchChannels(slug, asked).catch(() => null);
+          // Fuera de local, las dos sucursales posibles: la del asesor y la del resto de los canales.
+          for (const ch of asked === 'local' ? ['asesor'] : ['asesor', 'ecommerce']) if (asked === target) await fetchLenders(slug, asked, ch).catch(() => null);
+        }
       };
       await Promise.all([worker(), worker(), worker()]);
     }

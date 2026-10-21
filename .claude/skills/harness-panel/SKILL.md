@@ -988,7 +988,7 @@ lados y el celular de la izquierda queda cortado sin forma de llegar a él. La c
 de alto, teléfono de 310 y borde de 4; con 912, teléfono de 864 y borde de 11,5; a 760 px de ancho no se achica y
 scrollea (935 de contenido en 428).
 
-### Los canales de la barra se PRECARGAN (2026-10-21)
+### Los canales y las ENTIDADES de la barra se PRECARGAN (2026-10-21)
 
 Al medir el ambiente (`enrichMerchants`), `preloadChannels` pide `/api/canales` de todos los comercios de la barra que
 están en ese ambiente, de a tres, y los guarda en `channelCache` (por ambiente y comercio). `loadChannels` lee de ahí, y
@@ -1000,3 +1000,13 @@ declarado en `.flows.json` se lee en cada pedido. Lo que no se pudo medir no se 
 Medido: elegir un comercio deja sus canales en 7 ms en local y en 11–14 ms en qa (antes ~300 ms y segundos); la
 precarga de qa, 12 comercios, tarda 8,6 s en segundo plano. ⚠ Un cambio de Corbeta o de auto-onboarding en la base
 tarda hasta 5 min en verse (o reiniciar el panel).
+
+**Las entidades van en la misma precarga** (`preloadMerchantData`, que reemplazó a `preloadChannels`): después de los
+canales de cada comercio, `fetchLenders` pide sus entidades y las guarda en `lenderCache`. La clave es ambiente ·
+comercio · si el canal es asesor o no, porque fuera de local el asesor mira la sucursal FALSA del comercio y el resto la
+declarada (en local son la misma: una sola consulta; fuera, las dos). `loadLenders` lee de ahí y se queda con una COPIA
+(`structuredClone`): la lista se modifica en el lugar al prender una entidad. Prender, apagar o reordenar desde el panel
+llama a `forgetLenders(slug)`, y una consulta que falló no se guarda. Medido: entidades listas en 12 ms en local
+(antes ~300) y en 13–25 ms en qa, sin pedir nada a `/api/lenders` al elegir; la precarga de qa (12 comercios, 24
+consultas de entidades) termina en unos 20 s en segundo plano. ⚠ Lo que cambie en la base por FUERA del panel (otra
+persona, el admin) no se ve hasta recargar la página.
