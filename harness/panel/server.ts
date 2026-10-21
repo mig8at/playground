@@ -1728,8 +1728,9 @@ const server = createServer(async (req, res) => {
                 const env = readFileSync(join(homedir(), 'Desktop/CREDITOP/github/legacy-backend/.env'), 'utf8');
                 const m = /^AWS_ENDPOINT=.*?:(\d+)/m.exec(env);
                 const port = m ? Number(m[1]) : 9000;
-                return { puerto: port, etiqueta: port === 4566 ? 'ministack' : port === 9000 ? 'minio' : String(port) };
-            } catch { return { puerto: 9000, etiqueta: 'minio' }; }
+                const bucket = /^AWS_BUCKET=(\S+)/m.exec(env)?.[1] || 'local-mock';
+                return { puerto: port, etiqueta: port === 4566 ? 'ministack' : port === 9000 ? 'minio' : String(port), bucket };
+            } catch { return { puerto: 9000, etiqueta: 'minio', bucket: 'local-mock' }; }
         };
 
         // ⚠ QUÉ GENERA LOS DOCUMENTOS, que es una perilla del `.env` de OTRO repo y por eso es
@@ -1783,10 +1784,25 @@ const server = createServer(async (req, res) => {
 
         // `mock` es el id del supervisor: con él, el aviso de «falta» ofrece levantarlo ahí mismo en vez
         // de mandar a copiar un comando. S3 y la app vieja no lo llevan: no son del panel.
-        const statuses = await Promise.all(MOCKS.map(async ([n, p, forValue]) => ({
-            nombre: n, puerto: p, para: forValue, arriba: await alive(p),
-            mock: MOCK_REGISTRY.find((m) => m.port === p)?.id ?? null,
-        })));
+        // ⚠ EL S3 «ARRIBA» SIN SU BUCKET NO SIRVE. Medido el 2026-10-21: ministack contestaba en :4566 pero sin el bucket
+        // `local-mock` (se había recreado el contenedor), el aviso decía que todo estaba bien y la corrida moría en la firma
+        // con «Error al cargar los documentos». Se pregunta por el BUCKET, no por el puerto.
+        const bucketThere = (p: number, bucket: string) => new Promise<boolean>((ok) => {
+            const req = get({ host: '127.0.0.1', port: p, path: `/${encodeURIComponent(bucket)}?list-type=2&max-keys=1`, timeout: 800 }, (r) => { r.resume(); ok((r.statusCode ?? 500) < 400); });
+            req.on('error', () => ok(false));
+            req.on('timeout', () => { req.destroy(); ok(false); });
+        });
+        const s3 = s3Port();
+        const statuses = await Promise.all(MOCKS.map(async ([n, p, forValue]) => {
+            const up = await alive(p);
+            const isS3 = forValue === 'documentos' && p === s3.puerto;
+            const noBucket = isS3 && up && !(await bucketThere(p, s3.bucket));
+            return {
+                nombre: noBucket ? `${n} sin el bucket ${s3.bucket}` : n, puerto: p, para: forValue, arriba: up && !noBucket,
+                mock: MOCK_REGISTRY.find((m) => m.port === p)?.id ?? null,
+                ...(noBucket ? { arreglo: `AWS_ACCESS_KEY_ID=test AWS_SECRET_ACCESS_KEY=test AWS_DEFAULT_REGION=us-east-1 aws --endpoint-url http://localhost:${p} s3 mb s3://${s3.bucket}` } : {}),
+            };
+        }));
 
         // LA SOLICITUD DEL CELULAR ABIERTO va primero: la tarjeta de «esperando a la entidad» tiene que hablar de lo
         // que estás probando. Antes leía sólo el volcado del scrub, que es de la corrida ANTERIOR: mostraba una solicitud

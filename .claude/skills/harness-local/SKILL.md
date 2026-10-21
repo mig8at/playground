@@ -101,6 +101,13 @@ bucket**, así que toda subida fallaba. Se crea una vez:
     AWS_ACCESS_KEY_ID=test AWS_SECRET_ACCESS_KEY=test AWS_DEFAULT_REGION=us-east-1 \
       aws --endpoint-url http://localhost:4566 s3 mb s3://local-mock
 
+⚠⚠ **Y SE VUELVE A PERDER cuando se recrea el contenedor** (2026-10-21). El ministack de esta máquina es el del
+proyecto `pdf-mapper` (`docker inspect ministack`: sus datos van a `~/Desktop/CREDITOP/pdf-mapper/data`, con
+`S3_PERSIST=1`). Recreado el 2026-10-19, arrancó **sin ningún bucket**: todo «arriba», y la corrida moría en la firma
+con «Error al cargar los documentos» (los `preview_*.pdf` daban 404 desde `localhost:4566`). Con el `s3 mb` de arriba el
+bucket queda en ese directorio y sobrevive a reiniciarlo, no a recrearlo con los datos borrados. **El panel ahora lo
+dice**: el aviso de servicios pregunta por el BUCKET (`AWS_BUCKET` del `.env`), no por el puerto, y da el comando.
+
 Comprobado de punta a punta el 2026-09-10: un caso cerrado en estado 11 dejó sus cuatro documentos
 como PDF de verdad, todos con HTTP 200 desde el host (14 KB · 145 KB · 158 KB · 10 KB).
 

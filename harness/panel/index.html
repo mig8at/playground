@@ -2965,7 +2965,7 @@
           e.mocks.map(m => `${m.arriba ? '●' : '○'} ${m.nombre} :${m.puerto}`
             + (needs(m.para) ? '  ← esta corrida lo usa' : '')).join('\n')
           + (critical.length ? '\n\nLevantalos:\n'
-              + critical.map(m => '  ' + (COMMAND[m.puerto] || `(puerto ${m.puerto})`)).join('\n') : '')));
+              + critical.map(m => '  ' + (m.arreglo || COMMAND[m.puerto] || `(puerto ${m.puerto})`)).join('\n') : '')));
       }
 
       // 3 · entidades del comercio elegido: cuántas van a listar de verdad
