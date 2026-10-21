@@ -493,6 +493,9 @@ harness-env-drift: ## @har ¿el ambiente remoto está al día con su rama? migra
 harness-restore: ## @har ¿la base de dev/QA sigue teniendo lo que NUESTRAS TAREAS necesitan (ecommerce, Alta, códigos)? solo lectura. SNAPSHOT=1 la guarda en harness/.runs/ ANTES de una restauración · COMPARE=.runs/qa-restore-….json dice qué se PERDIÓ después
 	@cd harness && node dev/restore-check.ts $(if $(SNAPSHOT),--snapshot) $(if $(COMPARE),--compare $(COMPARE)) $(if $(TARGET),--target $(TARGET))
 
+harness-flows: ## @har el registro de comercios (.flows.json) por base: A=show (default) · A=migrate lo pasa al formato nuevo y deja .flows.json.v1.bak · A=branch M=<comercio> TARGET=<ambiente> dice contra qué sucursal se corre. Formato: harness/pkg/flows.ts
+	@cd harness && node bin/flows.ts $(or $(A),show) $(if $(filter branch,$(A)),$(M) $(or $(TARGET),local))
+
 harness-plan: ## @har deja una corrida ARMADA en el panel: aparece arriba de los celulares y se le da play. FILE=plan.json (o - por la entrada estándar) · sin FILE muestra el que espera · CLEAR=1 lo descarta. Formato: harness/pkg/run-plan.ts
 	@cd harness && $(if $(CLEAR),node bin/plan.ts clear,$(if $(FILE),node bin/plan.ts set '$(if $(filter -,$(FILE)),-,$(abspath $(FILE)))',node bin/plan.ts show))
 

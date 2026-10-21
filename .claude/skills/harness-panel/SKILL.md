@@ -824,3 +824,30 @@ manda la página). La persona entra (correo y «Copiar contraseña» en la ficha
 - ⚠ El traspaso al celular del cliente no corre en prod: si el flujo pasa al cliente, ese link se abre a mano.
 - Verificado en un panel de prueba: el celular abrió en `login.creditop.com` (el login de prod) y no se escribió nada
   en él; `advance` contestó «es un celular de prod: lo manejás vos…».
+
+### El registro de comercios por BASE (`.flows.json` versión 2, 2026-10-21)
+
+`.flows.json` pasó a tener el COMERCIO arriba y las BASES adentro, con las claves en inglés. Todo lo lee y lo escribe
+`pkg/flows.ts` (en bash, `bin/flows.ts`; `make harness-flows`):
+
+    { "version": 2, "otp_bypass_phone": "3131010101",
+      "merchants": { "sonria": { "name": "Sonría", "allied_slug": "sonria", "channels": ["asesor"], "favorite": true,
+                                 "bases": { "local": { "branch": "f581714b" }, "shared": { "branch": "44ed36af" },
+                                            "prod": { "branch": "d6b88e5e" } } } } }
+
+- **Por base y no por ambiente**: dev, qa y staging comparten base (`shared`); repetir su sucursal tres veces era
+  invitar a que diverjan. Lo que sí es por AMBIENTE son las pestañas (estado de la interfaz, en `localStorage`).
+- ⚠ **El formato viejo se sigue leyendo** (`branch_hash` + `por_target`, `fav`, `canales`): hay comandos guardados en
+  las tareas y otras sesiones con archivos viejos. `branch_hash` valía para todas las bases salvo `por_target`, así que
+  pasa a `local` y `shared`. La primera ESCRITURA de un archivo viejo deja `.flows.json.v1.bak`.
+- **Lo usan**: el panel, `bin/advisor` (la sucursal y el teléfono de bypass, y el cacheo de un comercio resuelto, ahora
+  en la base de ESE ambiente), `bin/seed-code`, `pkg/autofill.ts`, `pkg/preflight-branch.ts`, `dev/sweep.ts`,
+  `dev/mount-merchant.ts`, `dev/mount-peru.ts` y `dev/autofill-probe.spec.ts`. Si agregás un lector, va por el módulo.
+- ⚠ **Un panel arrancado con el código de antes NO entiende el formato nuevo**: migrar el archivo con ese panel vivo le
+  deja la barra sin sucursales. Primero se reinicia el panel; después `make harness-flows A=migrate` (o se convierte
+  solo con el primer «Agregar»).
+- `HARNESS_FLOWS_FILE` apunta a otro registro: así se probó sin tocar el de la máquina.
+- Verificado el 2026-10-21: las 124 combinaciones (31 comercios × local/dev/qa/staging) dan la misma sucursal antes y
+  después de migrar una copia, sin claves viejas y con su `.v1.bak`; `preflight-branch.spec.ts` 11/11; el panel de
+  prueba contra la copia migrada: barra, `/api/branches` (Perú: `50e007e4` en local, `a8221e67` en qa), canales
+  declarados de Refurbi, y agregar · renombrar · quitar (los curados siguen sin poder quitarse).

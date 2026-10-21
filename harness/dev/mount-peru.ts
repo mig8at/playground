@@ -19,6 +19,7 @@
 //
 // Limpieza total:  E2E_TARGET=local node dev/mount-peru.ts --clean
 import { query, exec, assertWriteAllowed, TARGET } from '../pkg/db.ts';
+import { setBranch } from '../pkg/flows.ts';
 import { cloneRow } from '../pkg/db-safe.ts';
 import { execFileSync } from 'node:child_process';
 import { readFileSync, writeFileSync, existsSync } from 'node:fs';
@@ -321,13 +322,8 @@ await seedForm(merchant.id, branch.id);
 /* Y el comercio se registra en `.flows.json`, que es por donde los runners lo direccionan POR SLUG
    (`sweep.ts matrix peru`). Sin esta entrada el comercio existe en la base y el harness no lo sabe
    nombrar, que es la mitad más frustrante de montar un ambiente. */
-const FLOWS_PATH = new URL('../.flows.json', import.meta.url);
 try {
-    const flows = JSON.parse(readFileSync(FLOWS_PATH, 'utf8'));
-    const [{ hash }]: any[] = await query('SELECT hash FROM allied_branches WHERE id=?', [branch.id]);
-    flows.merchants ??= {};
-    flows.merchants.peru = { branch_hash: hash };
-    writeFileSync(FLOWS_PATH, JSON.stringify(flows, null, 2) + '\n');
+    setBranch('peru', TARGET, hash);   // `pkg/flows.ts`: en la base de este target (sólo corre en local)
     console.log(`✓ .flows.json: slug «peru» → sucursal ${branch.id} (hash ${hash})`);
 } catch (e: any) {
     console.log(`✗ no pude escribir .flows.json: ${e.message}`);

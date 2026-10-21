@@ -23,6 +23,7 @@ import { openDevice, openDevices, setDeviceLogger, prewarmDevices, warmDevice, w
 import { vpnDev, type VpnStatus } from '../pkg/vpn.ts';
 import { validatePlan, readPlan, writePlan, clearPlan } from '../pkg/run-plan.ts';
 import { prodCatalog, prodMerchant } from '../pkg/prod-catalog.ts';
+import { readFlows, writeFlows, branchFor, branchesOf, baseOf, type MerchantEntry } from '../pkg/flows.ts';
 import { homedir } from 'node:os';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
@@ -876,10 +877,9 @@ function postHogHint(ureq: number | string, target: string, since: Date): string
  * comercio sí está, sólo que con otro hash. Y el que se equivoca no es sólo la card: el launch usa
  * este mismo valor.
  *
- * `por_target` es opcional y sólo hace falta para esos casos; un comercio del volcado tiene el mismo
- * hash en todas las bases y no necesita declarar nada.
+ * Por eso el registro guarda la sucursal POR BASE (`pkg/flows.ts`): local, la compartida (dev, qa y staging) y prod.
  *
- *     "peru": { "branch_hash": "50e007e4", "por_target": { "qa": "a8221e67" } }
+ *     "comercio-pruebas-peru": { "bases": { "local": { "branch": "50e007e4" }, "shared": { "branch": "a8221e67" } } }
  */
 /* LA COLA REAL DEL BACKEND LOCAL, sólo para la cuota inicial vieja (`bin/queue-local`). Con la cola en `sync`, el cobro
  * viejo (`initial-fee-payment`) se consulta a sí mismo sin fin y da 500; con Redis y un worker anda como en producción.
@@ -902,12 +902,9 @@ async function queueForMerchant(slug: string, t: string): Promise<string> {
 }
 
 function branchHashForSlug(slug: string, target = 'local'): string {
-    try {
-        const j = JSON.parse(readFileSync(join(ROOT, '.flows.json'), 'utf8'));
-        const m = j?.merchants?.[slug];
-        const h = m?.por_target?.[target] ?? m?.branch_hash;
-        if (h) return h;
-    } catch { /* sin .flows.json legible → cae al fallback */ }
+    // Por `pkg/flows.ts`: la sucursal de la BASE de este ambiente (formato nuevo, por base, o el viejo, `por_target`).
+    const h = branchFor(slug, target);
+    if (h) return h;
     // El buscador deja elegir una sucursal que NO está en `.flows.json`: en ese caso el "slug" ES el
     // hash. Así el panel corre contra cualquier comercio de la base sin tener que quemarlo antes.
     const s = slug.trim().toLowerCase();
@@ -1114,25 +1111,20 @@ async function frontLabel(target: string, front: string): Promise<string> {
 }
 
 /**
- * LOS CANALES QUE UN COMERCIO DECLARA (`canales` en su entrada de `.flows.json`). La base no sabe decir que un comercio
+ * LOS CANALES QUE UN COMERCIO DECLARA (`channels` en su entrada de `.flows.json`; el formato viejo decía `canales`). La base no sabe decir que un comercio
  * se vende SÓLO por tienda —Refurbi es ecommerce y su tipo es «Pequeño» como cualquiera—, y sin esto el panel le
  * ofrecía el canal Asesor: se probó y el wizard no tiene camino para eso (2026-10-13). Si el comercio declara, el panel
  * se queda con la intersección; si no declara, con lo que mide de la base.
  */
 function declaredChannels(slug: string): string[] | null {
-    const c = readFlows()?.merchants?.[slug]?.canales;
+    const c = readFlows().merchants[slug]?.channels;
     return Array.isArray(c) && c.length ? c.map(String) : null;
 }
 function declaredChannelsByHash(hash: string, target: string): string[] | null {
-    for (const slug of Object.keys(readFlows()?.merchants ?? {})) if (branchHashForSlug(slug, target) === hash) { const d = declaredChannels(slug); if (d) return d; }
+    for (const slug of Object.keys(readFlows().merchants)) if (branchHashForSlug(slug, target) === hash) { const d = declaredChannels(slug); if (d) return d; }
     return null;
 }
-function readFlows(): any {
-    try { return JSON.parse(readFileSync(join(ROOT, '.flows.json'), 'utf8')); } catch { return {}; }
-}
-function writeFlows(j: any): void {
-    writeFileSync(join(ROOT, '.flows.json'), JSON.stringify(j, null, 2) + '\n');
-}
+// `readFlows` y `writeFlows` vienen de `pkg/flows.ts`: el registro en el formato nuevo (por base), que entiende el viejo.
 /**
  * Slug legible y ÚNICO a partir del nombre que puso el usuario. Si el nombre ya está tomado por OTRA
  * sucursal, se sufija con el hash (que sí es único) en vez de pisar: dos "Dentix" de sucursales
@@ -1140,8 +1132,8 @@ function writeFlows(j: any): void {
  * contra la sucursal equivocada sin avisar.
  */
 /** La sucursal de un comercio (por su `allieds.slug`) en cada base: la del ASESOR DE PRUEBA si la tiene (es la que el
- *  harness usa fuera de local), si no una activa. → `{local, dev, staging, qa, prod}` con lo que se encontró. */
-async function branchesAcrossBases(alliedSlug: string): Promise<Record<string, string>> {
+ *  harness usa fuera de local), si no una activa. → `{local, shared, prod}` con lo que se encontró. */
+async function branchesAcrossBases(alliedSlug: string): Promise<MerchantEntry['bases']> {
     const inBase = async (t: string): Promise<string> => {
         const rows = await dbopsJson(['catalog'], t);
         const row = Array.isArray(rows) ? rows.find((r: any) => r.slug === alliedSlug) : null;
@@ -1158,17 +1150,17 @@ async function branchesAcrossBases(alliedSlug: string): Promise<Record<string, s
         } catch { return ''; }
     };
     const [local, shared, prod] = await Promise.all([inBase('local'), inBase('dev'), prodRow()]);
-    const out: Record<string, string> = {};
-    if (/^[0-9a-f]{8}$/.test(local)) out.local = local;
-    if (/^[0-9a-f]{8}$/.test(shared)) { out.dev = shared; out.staging = shared; out.qa = shared; }
-    if (/^[0-9a-f]{8}$/.test(prod)) out.prod = prod;
+    const out: MerchantEntry['bases'] = {};
+    if (/^[0-9a-f]{8}$/.test(local)) out.local = { branch: local };
+    if (/^[0-9a-f]{8}$/.test(shared)) out.shared = { branch: shared };
+    if (/^[0-9a-f]{8}$/.test(prod)) out.prod = { branch: prod };
     return out;
 }
 function slugFor(nameValue: string, hash: string, flows: any): string {
     const base = nameValue.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '')
         .replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 40) || 'comercio';
     const m = flows?.merchants ?? {};
-    if (!m[base] || m[base].branch_hash === hash) return base;
+    if (!m[base] || branchesOf(m[base]).includes(hash)) return base;
     return `${base}-${hash.slice(0, 4)}`;
 }
 
@@ -1845,7 +1837,7 @@ const server = createServer(async (req, res) => {
          * qué existir en qa. La card decía «no está en qa» cuando el comercio SÍ estaba, sólo que con
          * otro hash — y el mensaje mandaba a sembrar algo que ya existía.
          *
-         * ⚠ DOS COSAS QUE ESTE RESCATE NO HACE, y por eso `por_target` sigue existiendo:
+         * ⚠ DOS COSAS QUE ESTE RESCATE NO HACE, y por eso la sucursal POR BASE (`bases`) sigue existiendo:
          *   · **No elige sucursal.** Devuelve una de las que tenga (`MIN(hash)`), y cuál toca es
          *     alfabético. Cuando importa cuál —el comercio de Perú en qa tiene una para consumo y otra
          *     para el vehicular, con flujos distintos— hay que declararla.
@@ -1863,26 +1855,25 @@ const server = createServer(async (req, res) => {
             // sale del nombre que le pusiste («smart») y no matchea con nada en otra base. Así el que agregaste en un
             // ambiente aparece en todos los que lo tienen.
             const flowsNow = readFlows();
-            const own = flowsNow?.merchants?.[s];
+            const own = flowsNow.merchants[s];
             const want = String(own?.allied_slug || s);
             const found = (await dbopsList(want, target)).find((m: any) => m.slug === want && m.hash);
             if (found?.hash) {
                 // Un AGREGADO que se encuentra por primera vez en esta base (al agregarlo no contestaba: sin VPN) deja su
-                // sucursal en `por_target`, como hace `bin/advisor` al resolver un comercio: si no, la corrida iría contra el
+                // sucursal en `bases`, como hace `bin/advisor` al resolver un comercio: si no, la corrida iría contra el
                 // hash de la otra base. Los curados no se tocan: su sucursal por ambiente se declara a mano.
-                if (own?.fav && own.allied_slug && TARGETS.has(target)) {
-                    const shared = target === 'local' ? ['local'] : ['dev', 'staging', 'qa'];
-                    own.por_target = { ...(own.por_target || {}), ...Object.fromEntries(shared.map((t) => [t, found.hash])) };
+                if (own?.favorite && own.allied_slug && TARGETS.has(target)) {
+                    own.bases = { ...own.bases, [baseOf(target)]: { branch: found.hash } };
                     writeFlows(flowsNow);
+                    rescued[s] = { hash: found.hash, allied_name: found.name };
                 } else rescued[s] = { hash: found.hash, allied_name: found.name, porSlug: true };
-                if (own?.fav && own.allied_slug) rescued[s] = { hash: found.hash, allied_name: found.name };
             }
         }
 
         // ⚠ EL NOMBRE QUE LE PUSISTE VIAJA ACÁ. Los diez curados tienen su rótulo en el CÓDIGO, así que
         // renombrarlos sólo se ve si el override de `.flows.json` llega al cliente por este endpoint —
         // el de favoritos no los incluye (filtra por `fav`).
-        const setOnes = readFlows()?.merchants ?? {};
+        const setOnes = readFlows().merchants;
         return json(res, 200, Object.fromEntries(slugs.map((s) => {
             const h = bySlug[s];
             const alias = setOnes[s]?.name ? { alias: String(setOnes[s].name) } : {};
@@ -1993,17 +1984,17 @@ const server = createServer(async (req, res) => {
     // ── FAVORITOS ────────────────────────────────────────────────────────────────────────────────
     // Se guardan en `.flows.json` (gitignored), que YA es el registro de comercios del harness: así el
     // favorito queda disponible también para `bin/advisor <slug>` desde la terminal, no solo en el panel.
-    // Se marcan con `fav: true` para distinguirlos de los que vienen de fábrica y permitir renombrar o
+    // Se marcan con `favorite: true` para distinguirlos de los que vienen de fábrica y permitir renombrar o
     // borrar SOLO los tuyos — los curados describen lo que ejercita cada uno y no son tuyos para tocar.
     if (path === '/api/favs') {
-        const m = readFlows()?.merchants ?? {};
+        const m = readFlows().merchants;
         // ⚠ `allied_id` y `allied_name` VIAJAN: el árbol agrupa las entradas por comercio, y sin el id
         // cada sucursal agregada abriría su propia carpeta — dos sucursales del mismo comercio se verían
         // como dos comercios. Se guardaban desde siempre; lo que faltaba era devolverlos.
         return json(res, 200, Object.entries(m)
-            .filter(([, v]: [string, any]) => v && v.fav)
-            .map(([slug, v]: [string, any]) => ({
-                slug, name: v.name || slug, hash: v.branch_hash || '',
+            .filter(([, v]) => v.favorite)
+            .map(([slug, v]) => ({
+                slug, name: v.name || slug, hash: v.bases.local?.branch || v.bases.shared?.branch || v.bases.prod?.branch || '',
                 allied_id: v.allied_id || 0, allied_name: v.allied_name || '', allied_slug: v.allied_slug || '',
             })));
     }
@@ -2012,7 +2003,6 @@ const server = createServer(async (req, res) => {
         const b = await readBody(req);
         const action = String(b.accion || 'add');
         const flows = readFlows();
-        flows.merchants = flows.merchants || {};
         if (action === 'add') {
             const hash = String(b.hash || '').trim().toLowerCase();
             const nameValue = String(b.name || '').trim();
@@ -2020,18 +2010,15 @@ const server = createServer(async (req, res) => {
             const slug = slugFor(nameValue, hash, flows);
             // EL MISMO COMERCIO EN CADA BASE: lo que agregás en un ambiente aparece en todos. Se resuelve ACÁ, una vez, su
             // sucursal en cada base —local, la compartida (dev, qa y staging) y prod— por el slug del comercio, y queda en
-            // `por_target`, que es lo que leen el panel y `bin/advisor` para CORRER (el rescate por slug de `/api/branches`
+            // `bases`, que es lo que leen el panel y `bin/advisor` para CORRER (el rescate por slug de `/api/branches`
             // sólo arregla lo que se muestra). Si una base no contesta (sin VPN) se saltea: ahí queda el rescate.
             const alliedSlug = /^[a-z0-9-]{1,80}$/.test(String(b.allied_slug || '')) ? String(b.allied_slug) : '';
-            const porTarget = alliedSlug ? await branchesAcrossBases(alliedSlug) : {};
+            const bases = alliedSlug ? await branchesAcrossBases(alliedSlug) : {};
             // En la base donde lo agregaste manda la sucursal que ELEGISTE (en local se corre contra la elegida, no la falsa).
-            const from = String(b.target || '');
-            if (from === 'local') porTarget.local = hash;
-            else if (TARGETS.has(from)) { porTarget.dev = hash; porTarget.staging = hash; porTarget.qa = hash; }
-            else if (from === 'prod') porTarget.prod = hash;
+            const from = String(b.target || 'local');
+            bases[baseOf(TARGETS.has(from) || from === 'prod' ? from : 'local')] = { branch: hash };
             flows.merchants[slug] = {
-                branch_hash: hash,
-                ...(Object.keys(porTarget).length ? { por_target: porTarget } : {}),
+                bases,
                 ...(b.allied_id ? { allied_id: Number(b.allied_id) } : {}),
                 ...(b.branch_id ? { branch_id: Number(b.branch_id) } : {}),
                 // El nombre del COMERCIO, aparte del que le pusiste a la sucursal: es el rótulo de la
@@ -2039,7 +2026,7 @@ const server = createServer(async (req, res) => {
                 ...(b.allied_name ? { allied_name: String(b.allied_name) } : {}),
                 // Y su SLUG (`allieds.slug`): con él se lo encuentra en las OTRAS bases, donde el hash es otro.
                 ...(/^[a-z0-9-]{1,80}$/.test(String(b.allied_slug || '')) ? { allied_slug: String(b.allied_slug) } : {}),
-                name: nameValue, fav: true,
+                name: nameValue, favorite: true,
             };
             writeFlows(flows);
             return json(res, 200, { ok: true, slug, name: nameValue });
@@ -2062,7 +2049,7 @@ const server = createServer(async (req, res) => {
             return json(res, 200, { ok: true, slug, name: nameValue });
         }
         if (action === 'remove') {
-            if (!cur.fav) return json(res, 400, { ok: false, msg: 'los comercios curados no se borran: viven en el código' });
+            if (!cur.favorite) return json(res, 400, { ok: false, msg: 'los comercios curados no se borran: viven en el código' });
             delete flows.merchants[slug]; writeFlows(flows); return json(res, 200, { ok: true }); }
         return json(res, 400, { ok: false, msg: `acción desconocida: ${action}` });
     }

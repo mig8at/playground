@@ -30,7 +30,7 @@
 // QUÉ HACE ESTO, Y QUÉ NO. Es SÓLO LECTURA: no escribe en ninguna base, no reasigna a nadie, no
 // invalida sesiones. Contesta una pregunta y devuelve el desajuste para que quien llama lo imprima y
 // decida. La decisión de arreglarlo (reasignar, borrar la sesión) sigue siendo de quien corre.
-import { readFileSync } from 'node:fs';
+import { readFlows, branchFor } from './flows.ts';
 import { spawnSync } from 'node:child_process';
 import { dirname, join } from 'node:path';
 import { env } from './env.ts';
@@ -40,10 +40,9 @@ const ROOT = join(dirname(new URL(import.meta.url).pathname), '..');
 /** El hash que declara `.flows.json` para un slug, por target. Espeja `branchHashForSlug` del panel. */
 export function catalogHash(slug: string, target = 'local'): string {
       try {
-            const j = JSON.parse(readFileSync(join(ROOT, '.flows.json'), 'utf8'));
-            const m = j?.merchants?.[slug];
-            const h = m?.por_target?.[target] ?? m?.branch_hash;
-            if (h) return String(h);
+            // Por `pkg/flows.ts` (el formato nuevo, por base, y el viejo): la misma respuesta que el panel y `bin/advisor`.
+            const h = branchFor(slug, target, readFlows(join(ROOT, '.flows.json')));
+            if (h) return h;
       } catch {
             /* sin catálogo legible → cae al fallback */
       }

@@ -59,6 +59,7 @@
 // Uso:   E2E_TARGET=local node dev/mount-merchant.ts alta
 //        E2E_TARGET=local node dev/mount-merchant.ts alta --clean
 import { query, one, exec, assertWriteAllowed, TARGET, env } from '../pkg/db.ts';
+import { readFlows, setBranch, baseOf } from '../pkg/flows.ts';
 import { cloneRow } from '../pkg/db-safe.ts';
 import { readFileSync, writeFileSync, readdirSync } from 'node:fs';
 
@@ -460,44 +461,20 @@ for (const e of spec.entidades) {
 // ── 4 · QUE EL HARNESS SEPA NOMBRARLO ───────────────────────────────────────────────────────────
 // Sin esta entrada el comercio existe en la base y los runners no lo saben direccionar por slug, que
 // es la mitad más frustrante de montar un ambiente.
-const FLOWS_PATH = new URL('../.flows.json', import.meta.url);
 try {
-    const flows = JSON.parse(readFileSync(FLOWS_PATH, 'utf8'));
-    flows.merchants ??= {};
     const hash = branches[0]?.hash;
+    /* ⚠ SE FUNDE, NO SE REEMPLAZA, y VA A LA BASE DE ESTE TARGET (`setBranch`, `pkg/flows.ts`). Antes un `=` borraba lo
+       que un humano hubiera agregado a mano y el hash de qa terminaba como el de local: el front contestaba «Error al
+       cargar la información», que no dice nada sobre la causa. Con el formato por base cada base tiene su sucursal. */
+    setBranch(ORDER, TARGET, hash, { allied_id: merchantId, branch_id: branches[0]?.id, name: spec.nombre });
+    step('.flows.json', `slug «${ORDER}» → base ${baseOf(TARGET)} = ${hash} (sucursal ${branches[0]?.id})`);
 
-    /* ⚠ SE FUNDE, NO SE REEMPLAZA. Antes esto era `flows.merchants[ORDER] = {…}`, y ese `=` borraba
-       lo que un humano hubiera agregado a mano — en particular `por_target`, que es justo lo que hay
-       que poner cuando el mismo comercio vive con hashes distintos en cada base. O sea que re-sembrar
-       local te desarmaba el panel para qa, en silencio. */
-    const previous = flows.merchants[ORDER] ?? {};
-
-    /* ⚠ Y EL HASH VA DONDE CORRESPONDE SEGÚN EL TARGET. `branch_hash` es, por convención de
-       `bin/advisor:143` y de `branchHashForSlug`, el de LOCAL: es el fallback cuando no hay override.
-       Escribir ahí el hash de qa hacía que el panel mandara el hash de un ambiente contra el otro —
-       el front contesta «Error al cargar la información», que no dice nada sobre la causa. */
-    const location = TARGET === 'local'
-        ? { branch_hash: hash }
-        : { por_target: { ...(previous.por_target ?? {}), [TARGET]: hash } };
-
-    flows.merchants[ORDER] = {
-        ...previous, ...location,
-        allied_id: merchantId, branch_id: branches[0]?.id, name: spec.nombre,
-    };
-    writeFileSync(FLOWS_PATH, JSON.stringify(flows, null, 2) + '\n');
-    step('.flows.json', TARGET === 'local'
-        ? `slug «${ORDER}» → sucursal ${branches[0]?.id} (hash ${hash})`
-        : `slug «${ORDER}» → por_target.${TARGET} = ${hash} (sucursal ${branches[0]?.id})`);
-
-    /* El aviso que evita la vuelta entera: otra entrada con el MISMO nombre y sin override para este
-       target es un slug que el panel va a resolver al hash equivocado. */
-    if (TARGET !== 'local') {
-        for (const [slug, m] of Object.entries<any>(flows.merchants)) {
-            if (slug !== ORDER && m?.name === spec.nombre && !m?.por_target?.[TARGET]) {
-                step('  ⚠ otro slug', `«${slug}» se llama igual y NO tiene por_target.${TARGET}: `
-                    + `si lo elegís en el panel con target ${TARGET} va a usar ${m.branch_hash}, que no `
-                    + `existe en esa base. Agregale "por_target": { "${TARGET}": "${hash}" }`);
-            }
+    /* El aviso que evita la vuelta entera: otra entrada con el MISMO nombre y sin sucursal en esta base es un slug que el
+       panel no va a poder correr acá. */
+    for (const [slug, m] of Object.entries(readFlows().merchants)) {
+        if (slug !== ORDER && m.name === spec.nombre && !m.bases[baseOf(TARGET)]) {
+            step('  ⚠ otro slug', `«${slug}» se llama igual y NO tiene sucursal en la base ${baseOf(TARGET)}: `
+                + `node bin/flows.ts set ${slug} ${TARGET} ${hash}`);
         }
     }
 } catch (e: any) {

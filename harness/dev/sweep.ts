@@ -54,7 +54,8 @@ const trace = await import('../pkg/trace.ts');
 // explica. Mezclarlos sería el primer paso para que una ausencia de log empiece a fallar corridas.
 const loki = await import('../pkg/loki.ts');
 
-const flowsRaw = JSON.parse(readFileSync(new URL('../.flows.json', import.meta.url), 'utf8'));
+// El registro de comercios por `pkg/flows.ts` (formato nuevo, por base, y el viejo).
+const { branchFor } = await import('../pkg/flows.ts');
 // El backend contra el que corre esta prueba, POR TARGET (misma resolución que usa el resto del harness:
 // `E2E_MOCK_URL` como override explícito, si no la cadena `.env.<target>`).
 //
@@ -86,7 +87,6 @@ function useAdvisorOf(hash: string): string {
     return sub;
 }
 
-const flows = flowsRaw;
 
 function scrub(): void {
     spawnSync('node', ['bin/dbops.ts', 'scrubphone', PHONE], { cwd: new URL('..', import.meta.url).pathname });
@@ -168,7 +168,7 @@ async function select(ur: string, lenderId: number): Promise<string> {
 // ───────────────────────────── matrix ─────────────────────────────
 async function matrix(slugs: string[]): Promise<void> {
     for (const slug of slugs) {
-        const hash = flows.merchants[slug]?.branch_hash;
+        const hash = branchFor(slug, process.env.E2E_TARGET || 'local');
         if (!hash) { console.log(`\n■ ${slug}: sin branch_hash en .flows.json`); continue; }
         const lenders = await query<{ id: number; name: string; rt: number }>(
             'SELECT l.id, l.name, l.response_type rt FROM lenders_by_allied_branches lab JOIN allied_branches ab ON ab.id=lab.allied_branch_id JOIN lenders l ON l.id=lab.lender_id WHERE ab.hash=? AND l.status=1 ORDER BY l.response_type, l.id', [hash]);
@@ -193,7 +193,7 @@ async function matrix(slugs: string[]): Promise<void> {
 const trim = (j: any) => JSON.stringify(j?.data ?? j).slice(0, 150);
 
 async function closeRt2(slug: string, lenderId: number, amount: number): Promise<void> {
-    const hash = flows.merchants[slug]?.branch_hash;
+    const hash = branchFor(slug, process.env.E2E_TARGET || 'local');
     if (!hash) { console.log(`✗ ${slug} sin branch_hash`); return; }
     const ur = await seed(hash, amount);
     if (!ur) { console.log('✗ seed falló'); return; }
@@ -283,7 +283,7 @@ async function closeAndJudge(ur: number | string): Promise<void> {
 
 // ───────────────────────────── abaco (renting) ─────────────────────────────
 async function abacoFlow(slug: string, lenderId: number): Promise<void> {
-    const hash = flows.merchants[slug]?.branch_hash;
+    const hash = branchFor(slug, process.env.E2E_TARGET || 'local');
     if (!hash) { console.log(`✗ ${slug} sin branch_hash`); return; }
     const ur = await seed(hash, 2_000_000);
     if (!ur) { console.log('✗ seed falló'); return; }

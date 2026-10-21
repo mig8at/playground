@@ -20,14 +20,9 @@ WHO="${1:-}"; CODE="${2:-}"; LENDER="${3:-}"
 
 # Un slug de .flows.json se traduce a hash; un hash se usa tal cual.
 HASH="$WHO"
-if [ -f "$E2E/.flows.json" ]; then
-  FROM_SLUG="$(node -e "
-    const f=require('$E2E/.flows.json');
-    const m=(f.merchants||{})['$WHO'];
-    process.stdout.write(m?.branch_hash || '');
-  " 2>/dev/null || true)"
-  [ -n "$FROM_SLUG" ] && HASH="$FROM_SLUG"
-fi
+# Siempre contra local (ver abajo), así que se pide la sucursal de la base local (`pkg/flows.ts`, los dos formatos).
+FROM_SLUG="$(cd "$E2E" && node bin/flows.ts branch "$WHO" local 2>/dev/null || true)"
+[ -n "$FROM_SLUG" ] && HASH="$FROM_SLUG"
 
 cd "$E2E"
 OUT="$(E2E_TARGET=local node bin/client-code.ts "$HASH" "$LENDER" "$CODE")"

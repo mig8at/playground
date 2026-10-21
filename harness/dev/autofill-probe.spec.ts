@@ -11,6 +11,7 @@
 //
 //   E2E_TARGET=local npx playwright test dev/autofill-probe.spec.ts --project=chromium --headed
 import { test, expect } from '@playwright/test';
+import { branchFor } from '../pkg/flows.ts';
 import { readFileSync } from 'node:fs';
 import { openA } from '../pkg/windows.ts';
 import { config } from '../pkg/config.ts';
@@ -20,8 +21,7 @@ const MERCHANT = process.env.E2E_PROBE_MERCHANT || process.env.E2E_COMERCIO || '
 test('el autorelleno se instala y llena el monto', async ({ browser }) => {
     test.setTimeout(120_000);
 
-    const flows = JSON.parse(readFileSync(new URL('../.flows.json', import.meta.url), 'utf8'));
-    const hash = flows?.merchants?.[MERCHANT]?.branch_hash;
+    const hash = branchFor(MERCHANT, process.env.E2E_TARGET || 'local');   // `pkg/flows.ts`
     test.skip(!hash, `«${MERCHANT}» no está en .flows.json — corré \`make harness-merchant MERCHANT=${MERCHANT}\``);
 
     const { page } = await openA(browser, { baseURL: config.feBaseUrl });

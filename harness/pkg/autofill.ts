@@ -42,7 +42,7 @@
 // marketplace, y esto te ahorra el tipeo en todo lo que el guiado no cubre.
 //
 // Se apaga con `E2E_AUTORELLENO=0`.
-import { readFileSync } from 'node:fs';
+import { readFlows, branchesOf } from './flows.ts';
 import type { BrowserContext } from '@playwright/test';
 import { syntheticDates, injectableSource } from './date-trio.ts';
 
@@ -70,13 +70,9 @@ export interface AutofillData {
  */
 function flowMerchants(): Record<string, string> {
     try {
-        const flows = JSON.parse(readFileSync(new URL('../.flows.json', import.meta.url), 'utf8'));
+        // Por `pkg/flows.ts`, que entiende el formato nuevo (por base) y el viejo.
         const stepMap: Record<string, string> = {};
-        for (const [slug, m] of Object.entries<any>(flows?.merchants ?? {})) {
-            for (const h of [m?.branch_hash, ...Object.values<any>(m?.por_target ?? {})]) {
-                if (typeof h === 'string' && h) stepMap[h] = m?.name || slug;
-            }
-        }
+        for (const [slug, m] of Object.entries(readFlows().merchants)) for (const h of branchesOf(m)) stepMap[h] = m.name || slug;
         return stepMap;
     } catch { return {}; }
 }
