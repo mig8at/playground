@@ -22,6 +22,7 @@ import { adminSession, ensureLocalAdmin, ADMIN_APP } from '../pkg/admin-access.t
 import { openDevice, openDevices, setDeviceLogger, prewarmDevices, warmDevice, watchNavigation, watchRequests, deviceGoto, deviceReload, deviceText, deviceEval, deviceOpenedAt, deviceState, deviceShot, deviceInput, deviceTap, deviceAdvance, deviceStream, deviceBusyWatch, deviceStorage, closeDevice, closeAllDevices, SELENIUM_BOXES, type DeviceId, type DeviceInput, type DeviceSession } from './devices.ts';
 import { vpnDev, type VpnStatus } from '../pkg/vpn.ts';
 import { validatePlan, readPlan, writePlan, clearPlan } from '../pkg/run-plan.ts';
+import { prodCatalog, prodMerchant } from '../pkg/prod-catalog.ts';
 import { homedir } from 'node:os';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
@@ -1827,6 +1828,23 @@ const server = createServer(async (req, res) => {
     // (Se quitó el endpoint /api/activity: la actividad de BD ya NO se pollea durante la corrida —cargaba
     // la BD compartida arrancando un proceso+conexión cada 2s—. La comprobación se hace UNA vez al cerrar
     // la corrida, en child.on('close'), y se vuelca a la consola + .runs.)
+
+    // PRODUCCIÓN, SÓLO PARA MIRAR (`pkg/prod-catalog.ts`, por el conector y Redash): el catálogo con los asesores de prueba
+    // y la ficha de un comercio. No hay otra ruta del panel que toque prod: ni celulares, ni siembra, ni asignar.
+    if (path === '/api/prod/catalog') {
+        const c = catalogCache.get('prod');
+        if (c && Date.now() - c.at < 10 * 60_000 && url.searchParams.get('force') !== '1') return json(res, 200, { rows: c.rows, at: c.at });
+        try {
+            const rows = await prodCatalog();
+            catalogCache.set('prod', { at: Date.now(), rows });
+            return json(res, 200, { rows, at: Date.now() });
+        } catch (e) { return json(res, 200, { rows: null, detail: `no pude leer prod: ${(e as Error).message} (¿VPN de prod?)` }); }
+    }
+    if (path === '/api/prod/merchant') {
+        const allied = Number(url.searchParams.get('allied'));
+        try { return json(res, 200, { ok: true, ...(await prodMerchant(allied)) }); }
+        catch (e) { return json(res, 200, { ok: false, detail: `no pude leer prod: ${(e as Error).message} (¿VPN de prod?)` }); }
+    }
 
     // EL CATÁLOGO DEL AMBIENTE (`dbops catalog`): todos los comercios con sucursal activa, para «Agregar comercio». dev, qa
     // y staging comparten la base, así que se cachea por BASE y no por ambiente; un fallo de lectura no se guarda.

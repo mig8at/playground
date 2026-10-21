@@ -715,3 +715,27 @@ mismos `id`.
   la vista previa del conector (se canceló: no se creó nada), Alta Fleet con su sucursal de prueba preseleccionada,
   su pestaña preguntando el canal y, elegido Asesor, de ida y vuelta entre pestañas. «Agregar» no se probó para no
   escribir en tu `.flows.json`.
+
+### El modo «prod · sólo mirar» (2026-10-20)
+
+El menú de ambiente lleva `prod · sólo mirar`. **No es un `target`, a propósito**: si lo fuera, cualquier camino que
+escribe por ambiente (asignar el asesor, sembrar, el bypass del OTP, los flags del comercio) lo tomaría como uno más, y
+el servidor además cae a `local` con un target que no conoce. Es un MODO (`prodMode`): `target` se queda en el
+ambiente de antes y lo único que el panel le pide a prod son `/api/prod/catalog` y `/api/prod/merchant`
+(`pkg/prod-catalog.ts`), que leen por el conector (`bin/pg sql --target prod`, Redash con usuario de sólo lectura).
+
+- **La barra lista el catálogo de prod** (`#prodList`) en vez de tus comercios, filtrado por el mismo buscador; los
+  que tienen asesor de prueba van primero. **Elegir uno abre su FICHA** en una pestaña del juego `prod` (vista previa,
+  como en los otros): sucursales, asesor de prueba y si su cuenta de Cognito está enlazada, su sucursal falsa y las
+  entidades de esa sucursal, con los avisos (sin asesor, sin `cognito_id`, sucursal apagada o sin entidades).
+- **Apagado mientras dura**: el sidebar derecho (sus fieldsets, guardando cómo estaba cada uno: los flags del
+  comercio ya vienen apagados fuera de local), «Corrida» del pie (`updateGo`), la franja del plan y su play, y los
+  celulares (el centro muestra fichas). La corrida que sí se permite en prod sigue en la vista «Prod».
+- **Se sale eligiendo otro ambiente** con su botón real: `exitProdMode` corre antes que `switchTabSet` (que no corre
+  en modo prod) y éste trae el juego del ambiente. No se recuerda al recargar: el panel arranca en su ambiente.
+- ⚠ **Medido el 2026-10-20**: la consulta del catálogo de local no termina en 60 s en prod (una subconsulta por
+  comercio sobre `users`). Partida en dos son ~2 s cada una, pero por la cola de Redash el catálogo tardó ~15 s la
+  primera vez: se cachea 10 min. Prod: **339 comercios con sucursal activa, 27 con asesor de prueba**. Sonría (#26):
+  `cd6b88e5e-fake@`, sucursal `d6b88e5e`, 12 de 12 entidades encendidas. Alkosto (#209): sin asesor de prueba.
+- Verificado en un panel de prueba: entrar por el menú real, filtrar, abrir fichas, salir con el botón de local
+  (las 7 pestañas de local de vuelta y los fieldsets como estaban), y en la red sólo `/api/prod/*` mientras duró.

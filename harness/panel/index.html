@@ -309,6 +309,19 @@
     .tab.on .run-tab-chan { color: var(--fg-2) }
     .run-tab-live { width: 6px; height: 6px; border-radius: 50%; background: var(--ok); flex: none }
     .tab-start[hidden], .tab-busy[hidden] { display: none }
+    /* El modo prod: la barra lista prod, el centro muestra fichas y el sidebar derecho se ve apagado. */
+    .prod-tree, .prod-ficha[hidden], .prod-right-note[hidden] { display: none }
+    .prod-mode .prod-tree { display: block }
+    .prod-mode #results, .prod-mode .admin-tree, .prod-mode #signup, .prod-mode #searchResults { display: none }
+    .prod-mode #sideRight fieldset { opacity: .55 }
+    .prod-mode #planBar { display: none }
+    .prod-ficha-body .prop { --prop-label-w: 140px }
+    .prod-ficha-body .prop-value { justify-content: flex-start; gap: var(--space-1); flex-wrap: wrap }
+    .prod-right-note { margin: var(--space-2); font-size: var(--text-sm) }
+    .prod-ficha { flex: 1 1 auto; min-height: 0; display: flex; justify-content: center; align-items: flex-start; overflow: auto }
+    .prod-ficha-body { display: flex; flex-direction: column; gap: var(--space-2); font-size: var(--text-sm) }
+    .prod-ficha-body .warn { color: var(--warn) }
+    .prod-ficha-body .mono { font-family: var(--font-mono, monospace) }
     /* Con la pestaña Admin activa, el comercio elegido deja de verse elegido: la selección es la del Admin. */
     #results[data-admin-on] .row[aria-selected="true"] { background: none; color: inherit; box-shadow: none }
     #results[data-admin-on] .row[aria-selected="true"] .row-meta { color: var(--fg-3) }
@@ -656,6 +669,9 @@
           <div class="tree" id="results" role="tree" aria-label="Comercios y sucursales"></div>
           <!-- EL ADMIN, como apartado de la barra: abre su pestaña en el editor (una por ambiente), con la PC del admin de
                `legacy-application` ya logueada. Es lo que era la vista «Admin» del centro. -->
+          <!-- PRODUCCIÓN, SÓLO PARA MIRAR: en el modo prod la barra lista el catálogo de prod (por Redash) en vez de tus
+               comercios. Elegir uno abre su FICHA en una pestaña: su asesor de prueba, su sucursal falsa y sus entidades. -->
+          <div class="tree prod-tree" id="prodList" role="tree" aria-label="Comercios de producción"></div>
           <div class="tree admin-tree" role="tree" aria-label="Admin">
             <div class="region-head group merchant-group"><span>Admin</span></div>
             <div class="row" id="adminRow" role="treeitem" tabindex="0" aria-selected="false" title="El admin de legacy-application del ambiente elegido, ya logueado, en una pestaña del editor">
@@ -729,6 +745,23 @@
               <div class="empty-desc">¿Por qué canal entra esta corrida?</div>
             </div>
             <div class="tab-start-channels" id="tabStartChannels" role="group" aria-label="Canal de la corrida"></div>
+          </div>
+          <!-- LA FICHA DE UN COMERCIO DE PROD (modo prod): lo que hay, sin entrar. Prod no abre celulares: la única corrida que se
+               permite ahí es la pública, en la vista «Prod». -->
+          <div class="prod-ficha" id="prodTabView" hidden>
+            <div class="prod-card">
+              <div class="prod-head"><strong id="prodFichaName"></strong><span class="device-otp warn">prod · sólo lectura</span>
+                <button type="button" class="region-action" id="prodFichaReload" title="Volver a leer de prod" aria-label="Volver a leer de prod"><span class="ui-icon" data-icon="refresh" aria-hidden="true"></span></button></div>
+              <div id="prodFichaBody" class="prod-ficha-body"></div>
+              <p class="prod-hint" id="prodFichaHint"></p>
+            </div>
+          </div>
+          <div class="empty" id="prodEmpty" hidden>
+            <div class="empty-head">
+              <div class="empty-media"><span class="ui-icon" data-icon="merchant" aria-hidden="true"></span></div>
+              <div class="empty-title">Producción, sólo para mirar</div>
+              <div class="empty-desc">Elegí un comercio a la izquierda para ver su asesor de prueba, su sucursal falsa y sus entidades. Acá no se abren celulares: la única corrida de prod es la de la vista «Prod».</div>
+            </div>
           </div>
           <!-- Los celulares son de UNA pestaña a la vez: mirando otra, se tapan y se dice de quién son. -->
           <div class="empty tab-busy" id="tabBusy" hidden>
@@ -925,6 +958,7 @@
           <button type="button" class="tab" id="tabBureaus" role="tab" aria-selected="false" aria-controls="viewBureaus" title="Las centrales de riesgo que consulta el backend: qué contesta cada una para la cédula del caso">Burós</button>
           <div class="region-actions"><button type="button" class="region-action" id="configMenu" title="Opciones de configuración" aria-label="Opciones de configuración"><span class="ui-icon" data-icon="more" aria-hidden="true"></span></button></div>
         </nav>
+        <p class="alert prod-right-note" id="prodRightNote" hidden>Producción: sólo lectura. Acá no se inyecta ni se siembra nada, así que la configuración del caso no aplica.</p>
         <fieldset class="cfg region-body props" id="viewClient" role="tabpanel" aria-labelledby="tabClient"><legend class="sr-only">El cliente de la próxima corrida</legend>
           <!-- UN SOLO PANEL, con cuatro grupos a la vista: Caso · Identidad · Ingreso y empleo · Buró. Con
                las filas de 28 entra todo sin plegables. «Arranque», «Canal» y la demora son de la CORRIDA
@@ -1333,6 +1367,7 @@
     // es justo lo que la regla de la base evita (tools/ui/README.md §«Qué se guarda y dónde»). Se vuelve a
     // elegir a mano cada vez, y eso es a propósito.
     let target = 'local';        // local | dev | staging | qa (staging y qa: front y backend propios, BD compartida con dev)
+    let prodMode = false;         // el modo «prod · sólo mirar» (ver «EL MODO PROD»): NO es un `target`, a propósito
     // La RUTA (`#/<comercio>?canal=…`) la escribe el módulo del final, que es el que tiene `setRoute` y
     // `hashRoute` de la base. Acá sólo se avisa que cambió algo de lo que la ruta dice; hasta que el módulo
     // lo engancha es un no-op, así que el arranque de este script no escribe nada.
@@ -1828,6 +1863,7 @@
     }
     const norm = (x) => String(x || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
     async function searchMerchants(q) {
+      if (prodMode) { renderProdList(q); return; }
       closeSignup();
       const focused = document.activeElement === $('merchantSearch');
       if (!q.trim() && !focused) { $('searchResults').innerHTML = ''; return; }
@@ -2626,6 +2662,9 @@
       const m = menuBase('contextMenu');
       caption(m, 'Ambiente');
       for (const it of buttonItems('#targets .toggle')) itemMenu(m, it);
+      itemMenu(m, { txt: 'prod · sólo mirar', activo: prodMode, off: runRunning,
+        motivo: 'Producción, sólo para mirar: el catálogo y la ficha de cada comercio (su asesor de prueba, su sucursal falsa, sus entidades). No abre celulares ni escribe.',
+        accion: () => enterProdMode() });
       separator(m);
       caption(m, 'Frontend');
       for (const it of buttonItems('#frontOptions button')) itemMenu(m, it);
@@ -2674,7 +2713,8 @@
     function syncHeader() {
       const act = (sel2) => [...document.querySelectorAll(sel2)].find((b) => b.classList.contains('on'));
       const t = act('#targets .toggle');
-      if (t) $('valEnvironment').textContent = (t.textContent || '').trim();
+      if (prodMode) $('valEnvironment').textContent = 'prod';
+      else if (t) $('valEnvironment').textContent = (t.textContent || '').trim();
       const c = act('#channelOptions button');
       if (c) $('valChannel').textContent = (c.textContent || '').trim();
       const p2 = act('#stepOptions button');
@@ -3966,7 +4006,7 @@
     } catch { /* sin storage: arranca sin pestañas */ }
     function loadTabSet(t) {
       const set = tabSets[t] || { tabs: [], active: null };
-      runTabs = (set.tabs || []).filter((x) => x && x.id && (x.kind === 'admin' || x.slug));
+      runTabs = (set.tabs || []).filter((x) => x && x.id && (x.kind === 'admin' || (x.kind === 'prod' && x.allied) || x.slug));
       activeTab = set.active ?? null;
       tabsTarget = t;
     }
@@ -3986,9 +4026,10 @@
     const isOwner = (t) => !!t && !!liveOwner && liveOwner.target === tabsTarget && liveOwner.id === t.id;
     const ownerLabel = () => liveOwner ? `«${liveOwner.label}»${liveOwner.target !== tabsTarget ? ` (en ${liveOwner.target})` : ''}` : '';
 
-    function snapshotTab(t) { if (t && t.kind !== 'admin') t.config = captureTabConfig(); }
+    function snapshotTab(t) { if (t && !t.kind) t.config = captureTabConfig(); }
     function tabLabel(t) {
       if (t.kind === 'admin') return { name: 'Admin', chan: tabsTarget === 'qa' ? 'dev (qa comparte su base)' : tabsTarget };
+      if (t.kind === 'prod') return { name: t.name || '#' + t.allied, chan: 'prod' };
       const e = entryOf(t.slug);
       return { name: e ? (e.alias || e.name) : (t.name || t.slug), chan: t.canal ? CHANNEL_LONG[t.canal] || t.canal : 'elegí el canal' };
     }
@@ -4012,7 +4053,7 @@
         const c = document.createElement('span'); c.className = 'run-tab-chan'; c.textContent = chan;
         label.append(n, c);
         label.onclick = () => activateTab(t.id);
-        label.ondblclick = () => { if (t.preview && t.canal) { t.preview = false; renderTabs(); saveTabs(); } };
+        label.ondblclick = () => { if (t.preview && (t.canal || t.kind === 'prod')) { t.preview = false; renderTabs(); saveTabs(); } };
         const close = document.createElement('button');
         close.type = 'button'; close.className = 'tab-close'; close.title = `Cerrar «${name} · ${chan}»`; close.setAttribute('aria-label', close.title);
         close.innerHTML = '<span class="ui-icon" data-icon="close" aria-hidden="true"></span>';
@@ -4030,6 +4071,14 @@
     /** El centro según la pestaña: la pregunta del canal, el aviso de «los celulares son de otra», o los celulares. */
     function renderStage() {
       const t = currentTab(), orig = inOriginacion();
+      const ficha = prodMode && orig && t?.kind === 'prod';
+      $('prodTabView').hidden = !ficha;
+      $('prodEmpty').hidden = !(prodMode && orig && !ficha);
+      if (prodMode) {
+        $('tabStart').hidden = true; $('tabBusy').hidden = true; $('devices').hidden = true;
+        if (ficha) renderProdFicha(t);
+        return;
+      }
       const run = !!t && t.kind !== 'admin';
       const asking = orig && run && !t.canal;
       const busy = orig && run && !!t.canal && !!liveOwner && !isOwner(t) && devicesBusy();
@@ -4081,6 +4130,7 @@
       if (prev && prev.id !== id && !tabSwitching) snapshotTab(prev);
       activeTab = id;
       const t = currentTab();
+      if (t?.kind === 'prod') { if (!inOriginacion()) baseShowStageView('orig'); renderTabs(); renderStage(); saveTabs(); renderProdList($('merchantSearch').value); return; }
       if (t?.kind === 'admin') { if (sel) followKey = sel.slug + '|' + channel; baseShowStageView('admin'); renderTabs(); renderStage(); saveTabs(); return; }
       if (!inOriginacion()) baseShowStageView('orig');
       renderTabs(); renderStage(); saveTabs();
@@ -4190,7 +4240,7 @@
     /** CAMBIO DE AMBIENTE: se guarda el juego del anterior y se trae el de éste. Escucha DESPUÉS del `onclick` del botón
      *  (que es el que cambia `target`); con un botón apagado `target` no cambia y no pasa nada. */
     function switchTabSet() {
-      if (target === tabsTarget) return;
+      if (prodMode || target === tabsTarget) return;
       snapshotTab(currentTab());
       saveTabs();
       loadTabSet(target);
@@ -4199,6 +4249,116 @@
       saveTabs();
     }
     document.querySelectorAll('#targets .toggle').forEach((b) => b.addEventListener('click', () => setTimeout(switchTabSet, 0)));
+
+    // ── EL MODO PROD: sólo para mirar ──────────────────────────────────────────────────────────────────────────────
+    // ⛔ Prod NO es un `target`: si lo fuera, cualquier camino que escribe por ambiente (asignar el asesor, sembrar, el
+    // bypass del OTP, los flags del comercio) lo tomaría como uno más. Es un modo aparte: `target` sigue en el ambiente de
+    // antes y el panel sólo pide a prod por `/api/prod/*`, que lee por el conector (Redash, usuario de sólo lectura). Su
+    // juego de pestañas es `prod`, con FICHAS en vez de celulares, y el sidebar derecho queda apagado: no se inyecta nada.
+    let prodRows = null, prodDetail = '', prodFieldsets = [];
+    const prodFichas = new Map();   // allied → la ficha leída (se vuelve a leer con ↻)
+    async function enterProdMode() {
+      if (runRunning || prodMode) return;
+      snapshotTab(currentTab());
+      saveTabs();
+      prodMode = true;
+      loadTabSet('prod');
+      document.querySelectorAll('#targets .toggle').forEach((b) => b.classList.remove('on'));
+      document.body.classList.add('prod-mode');
+      // Cómo estaba cada uno: algunos ya vienen apagados por su cuenta (los flags del comercio fuera de local).
+      prodFieldsets = [...document.querySelectorAll('#sideRight fieldset')].map((f) => [f, f.disabled]);
+      for (const [f] of prodFieldsets) f.disabled = true;
+      $('prodRightNote').hidden = false;
+      $('valEnvironment').textContent = 'prod';
+      updateGo();
+      if (!inOriginacion()) baseShowStageView('orig');
+      renderTabs(); renderStage(); saveTabs();
+      if (currentTab()) activateTab(activeTab);
+      renderProdList($('merchantSearch').value);
+      if (!prodRows) {
+        try { const r = await (await fetch('/api/prod/catalog')).json(); prodRows = r.rows; prodDetail = r.detail || ''; }
+        catch { prodDetail = 'el panel no respondió'; }
+        renderProdList($('merchantSearch').value);
+      }
+    }
+    /** Al elegir otro ambiente (su botón real): el modo prod se apaga ANTES de que `switchTabSet` traiga su juego. */
+    function exitProdMode() {
+      if (!prodMode) return;
+      prodMode = false;
+      document.body.classList.remove('prod-mode');
+      for (const [f, was] of prodFieldsets) f.disabled = was;
+      prodFieldsets = [];
+      $('prodRightNote').hidden = true;
+      $('prodTabView').hidden = true; $('prodEmpty').hidden = true;
+      updateGo();
+    }
+    document.querySelectorAll('#targets .toggle').forEach((b) => b.addEventListener('click', exitProdMode));
+    function renderProdList(q = '') {
+      const box = $('prodList');
+      box.replaceChildren();
+      const head = document.createElement('div'); head.className = 'region-head group merchant-group';
+      const title = document.createElement('span'); title.textContent = 'Producción · sólo lectura';
+      head.appendChild(title); box.appendChild(head);
+      if (!prodRows) {
+        const p = document.createElement('p'); p.className = 'list-note';
+        p.textContent = prodDetail || 'leyendo los comercios de prod (Redash, ~15 s la primera vez)…';
+        box.appendChild(p); return;
+      }
+      const n = norm(q.trim());
+      const rows = (!n ? prodRows : prodRows.filter((m) => norm(m.name).includes(n) || norm(m.slug).includes(n) || String(m.allied_id) === n))
+        .slice().sort((a, b) => (!a.test_branch) - (!b.test_branch) || a.name.localeCompare(b.name));
+      const cnt = document.createElement('span'); cnt.className = 'count';
+      cnt.textContent = n ? `${rows.length}/${prodRows.length}` : `${prodRows.length} · ${prodRows.filter((m) => m.test_branch).length} con asesor de prueba`;
+      title.appendChild(cnt);
+      for (const m of rows) {
+        const r = treeRow('', 0, 'merchant', escTxt(m.name), m.test_branch ? 'prueba' : '');
+        r.title = `${m.name} · #${m.allied_id} · ${m.branches} sucursal${m.branches === 1 ? '' : 'es'} activa${m.branches === 1 ? '' : 's'}`
+          + (m.test_branch ? ` · asesor de prueba en ${m.test_branch}${m.has_sub ? '' : ' (sin cognito_id)'}` : ' · sin asesor de prueba');
+        r.tabIndex = 0;
+        r.setAttribute('aria-selected', String(currentTab()?.kind === 'prod' && currentTab()?.allied === m.allied_id));
+        r.onclick = () => openProdTab(m);
+        r.onkeydown = (ev) => { if (ev.key === 'Enter' || ev.key === ' ') { ev.preventDefault(); openProdTab(m); } };
+        box.appendChild(r);
+      }
+    }
+    /** La ficha de un comercio de prod en su pestaña: en vista previa, como los comercios de la barra. */
+    function openProdTab(m) {
+      let t = runTabs.find((x) => x.kind === 'prod' && x.allied === m.allied_id);
+      if (!t) {
+        const preview = runTabs.find((x) => x.kind === 'prod' && x.preview);
+        if (preview) { Object.assign(preview, { allied: m.allied_id, name: m.name }); t = preview; }
+        else { t = { id: newTabId(), kind: 'prod', allied: m.allied_id, name: m.name, preview: true }; runTabs.push(t); }
+      }
+      activateTab(t.id);
+    }
+    async function renderProdFicha(t, force = false) {
+      $('prodFichaName').textContent = `${t.name} · #${t.allied}`;
+      const body = $('prodFichaBody');
+      let f = force ? null : prodFichas.get(t.allied);
+      if (!f) {
+        body.innerHTML = '<p class="list-note">leyendo de prod…</p>';
+        try { f = await (await fetch('/api/prod/merchant?allied=' + t.allied)).json(); } catch { f = { ok: false, detail: 'el panel no respondió' }; }
+        if (f.ok) prodFichas.set(t.allied, f);
+        if (currentTab()?.id !== t.id) return;   // mientras leía se eligió otra pestaña
+      }
+      if (!f.ok) { body.innerHTML = `<p class="warn">${escTxt(f.detail || 'no se pudo leer')}</p>`; return; }
+      const a = f.advisor;
+      const on = f.lenders.filter((l) => Number(l.status) === 1).length;
+      // El valor va en UN span: los hijos sueltos de `.prop-value` heredan reglas de las filas del caso y se separan.
+      const line = (k, v) => `<div class="prop"><span class="label">${k}</span><span class="prop-value"><span>${v}</span></span></div>`;
+      body.innerHTML = [
+        line('Sucursales', `${f.branches.active} activas de ${f.branches.total}`),
+        line('Asesor de prueba', a ? `<span class="mono">${escTxt(a.email)}</span> · ${a.hasSub ? 'cuenta de Cognito enlazada' : '<span class="warn">sin cognito_id</span>'}` : '<span class="warn">no tiene</span>'),
+        a ? line('Su sucursal', a.branchHash ? `<span class="mono">${escTxt(a.branchHash)}</span> · ${escTxt(a.branchName || '(sin nombre)')}${a.branchStatus === 1 ? '' : ' · <span class="warn">apagada</span>'}` : '<span class="warn">ninguna</span>') : '',
+        a?.branchHash ? line('Sus entidades', `${on} encendida${on === 1 ? '' : 's'} de ${f.lenders.length}`) : '',
+        ...(f.lenders.length ? [`<table class="table"><thead><tr><th>Entidad</th><th class="num">rt</th><th>Estado</th></tr></thead><tbody>${
+          f.lenders.map((l) => `<tr><td>${escTxt(l.name)} <span class="mono">#${l.id}</span></td><td class="num">${escTxt(l.response_type)}</td><td>${Number(l.status) === 1 ? 'encendida' : 'apagada'}</td></tr>`).join('')
+        }</tbody></table>`] : []),
+        ...f.notes.map((n) => `<p class="warn">⚠ ${escTxt(n)}</p>`),
+      ].filter(Boolean).join('');
+      $('prodFichaHint').textContent = `Para comprobar que su asesor de prueba podría entrar, sin entrar: make harness-prod-advisor ALLIED=${t.allied} (VPN de prod y aws sso login --profile prod). La corrida que sí se puede hacer en prod es la pública, en la vista «Prod».`;
+    }
+    $('prodFichaReload').onclick = () => { const t = currentTab(); if (t?.kind === 'prod') renderProdFicha(t, true); };
 
     /** El comercio o el canal cambiaron por OTRO camino (la ruta, el plan, el buscador, el menú de canal): la pestaña
      *  activa lo sigue si es del mismo comercio; si no, se busca la suya o se abre una fija con el canal de ahora (y la
@@ -4462,6 +4622,8 @@
 
     function updateGo() {
       if (runRunning) return;   // el botón es de startPoll mientras corre
+      // En el modo prod no se corre nada desde acá: `target` sigue siendo el ambiente de antes y lanzar correría ahí.
+      if (prodMode) { $('go').disabled = true; $('go').title = 'Producción, sólo para mirar: la corrida de prod es la pública, en la vista «Prod»'; return; }
       updateCaseSummary();
       const chosen = sel && spaceEntries().find((x) => x.slug === sel.slug || (x.hash && x.hash === sel.slug));
       const blocked = chosen && !chosen.missing ? readinessOf(chosen).block : [];
@@ -6555,7 +6717,7 @@ export function bindMenu(trigger, { getItems, onSelect, label = 'Más opciones' 
         return entry;
       }
       byId('planPlay').addEventListener('click', async () => {
-        if (!plan || runRunning) return;
+        if (!plan || runRunning || prodMode) return;
         byId('planPlay').disabled = true;
         planStatus('aplicando el plan…');
         // Los celulares viven en «Originación»: con la vista Admin o Prod el play abriría algo que no se ve.
