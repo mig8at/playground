@@ -15,22 +15,21 @@ ramas: core-800-vtex-payment-link
 - [x] ~~El conector pide la URL a `payment-link`~~ — rama `payment-link` del repo `vtex` (6eeeb83, local, sin push):
       `authorize` llama con AppKey = hash y AppToken = Bearer, redirige al `?ref=` y niega si falla; host por
       configuración de la app (producción o develop). Probado con el conector real en local contra el mock.
-- [ ] Confirmar con infra la ruta de `payment-link` y de `ecommerce/status` en el gateway de producción (`/vtex/settel`
-      ya no hace falta: d24c10e). Los dos
-      gateways publican legacy-backend bajo `/legacy-api` (dev: `leg-qa`; prod: `legacy-backend.production`), y el
-      conector ya usa `https://v2.api.creditop.com/legacy-api` en producción (b8f2750). Pero el gateway de prod no tiene
-      la ruta de `payment-link`, y `/vtex/settel` es de application (`VtexController`): hay que migrarlo a legacy-backend
-      (`VtexService`). Termina con la ruta de prod publicada y el settle en legacy-backend.
-      Depende de: Infra — el ruteo de los dos paths.
+- [x] ~~`payment-link` y `ecommerce/status` publicados en el gateway de producción~~ — medido el 2026-10-21:
+      `https://v2.api.creditop.com/legacy-api/ecommerce/payment-link` y `…/ecommerce/status/{id}` responden 401 sin
+      token (una ruta inexistente da 404). `/vtex/settel` ya no hace falta (d24c10e).
+- [x] ~~Llevar `payment-link` a `main` y a producción~~ — legacy-backend#1682 entró a `main` el 2026-10-20 (c566e444)
+      y va en los tags v0.6.21 y v0.6.22. En la base de prod hay 101 pedidos `origin=payment_link` (sucursal 2017,
+      `ecommerce_id=2`) desde el 2026-10-20 21:32: la migración de la referencia está aplicada.
 - [x] ~~Probar el conector en una cuenta VTEX (workspace de prueba y Test Suite)~~ — cuenta `creditop`, workspace de
       desarrollo `migueldev` (`master` sin tocar): compra real en el checkout aprobada (pedido VTEX
       `1670270500201-01`, transacción `Approved`) y **Test Suite 7 de 7**. Afiliación «Creditop Miguel (dev)» y
       condición de pago «CREDITOP DEV» activas; la de Oscar («Creditop BNPL» → `oscarrinc`) apagada, sin borrar.
 - [x] ~~Que `payment-link` (legacy-backend#1682, de Oscar) llegue a `qa`~~ — mergeado a `qa` el 2026-10-19; todo el
       recorrido de hoy corrió contra él.
-- [ ] Llevar a `main` la apertura por referencia (`by-reference` en legacy-backend y `checkout.tsx` en
-      frontend-monorepo), hoy sólo en `qa`; termina cuando `git grep checkout_reference origin/main` la encuentra.
-      Depende de: Miguel — si sale separada del auto-onboarding de Refurbi, que se sacó de `main` a propósito.
+- [x] ~~Llevar a `main` la apertura por referencia~~ — en `main` de legacy-backend (`by-reference`,
+      `findByCheckoutReference`) y de frontend-monorepo (`checkout.tsx` lee `?ref=`, ee24bbe8, frontend-monorepo#1178,
+      tag v1.10.36).
 - [ ] Decidir el vencimiento de la referencia para VTEX y si una referencia vencida o usada sigue abriendo el
       pedido con OTP (hoy sí, para siempre, si el pedido no trae aceptación); termina con la regla escrita acá.
       Depende de: Producto — cuánto puede tardar el comprador entre la tienda y CreditOp (VTEX cancela a las 6 h).
@@ -210,7 +209,7 @@ QA, con una sucursal ecommerce configurada como VTEX.
 - Cobrar el pago aprobado: se aprueba; uno sin solicitud autorizada se rechaza.
 
 ## Cambios en datos
-- Las columnas de la referencia en los pedidos de ecommerce (ya aplicadas en la base de dev, qa y staging; falta
+- Las columnas de la referencia en los pedidos de ecommerce (ya aplicadas en dev, qa, staging y
   producción).
 - Alta de la sucursal ecommerce de la tienda con su credencial marcada como VTEX.
 
