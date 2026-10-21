@@ -646,6 +646,9 @@ mismos `id`.
 - **Click en un comercio de la izquierda abre su pestaña en VISTA PREVIA** (itálica): la reemplaza el próximo
   comercio que elijas, y pregunta el canal (`#tabStart`). Elegido, queda fija. El chip de canal de la fila abre
   directo la pestaña con ese canal, y el ▶ la de Asesor y entra. El mismo comercio puede estar dos veces.
+- **El canal de la pestaña activa vive en el PIE** (`#btnChannel`, al lado de `#caseTitle`, que ya no lo repite), y el
+  menú abre hacia arriba (`placeAbove`). Desde el 2026-10-21 no va en el nombre de la pestaña (queda en el tooltip; Admin y
+  prod siguen mostrando su ambiente) ni como fila del sidebar derecho: tres lugares para lo mismo era ruido.
 - **La pregunta del canal es una VISTA de los botones reales** (`#channelOptions`): copia su `disabled` y su `title`,
   así el gate de canales sigue siendo uno. Hasta que llegan los canales de ESE comercio (`channelsFor`) dice
   «midiendo»: los botones reales todavía tendrían los del anterior.

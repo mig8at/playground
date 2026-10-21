@@ -980,12 +980,8 @@
         <fieldset class="cfg region-body props" id="viewClient" role="tabpanel" aria-labelledby="tabClient"><legend class="sr-only">El cliente de la próxima corrida</legend>
           <!-- UN SOLO PANEL, con cuatro grupos a la vista: Caso · Identidad · Ingreso y empleo · Buró. Con
                las filas de 28 entra todo sin plegables. «Arranque», «Canal» y la demora son de la CORRIDA
-               y viven en la banda del recorrido; sus controles reales quedan acá abajo, ocultos. -->
+               y viven en el pie; sus controles reales quedan acá abajo, ocultos. -->
           <div class="region-head group"><span>Caso</span></div>
-          <div class="prop">
-            <span class="label">Canal</span>
-            <div class="prop-value"><button type="button" class="btn btn-ghost btn-xs prop-menu" id="btnChannel" aria-haspopup="menu"><span class="ui-icon" data-icon="channel" aria-hidden="true"></span><span id="valChannel">Asesor</span><span class="ui-icon" data-icon="down" aria-hidden="true"></span></button></div>
-          </div>
           <div class="prop">
             <label class="label" for="amount">Monto solicitado</label>
             <div class="input-group input-group-xs"><span class="ico-txt">$</span><input id="amount" class="input input-xs" type="text" inputmode="numeric" value="2.000.000" oninput="onMoney(this)" /></div>
@@ -1289,6 +1285,9 @@
       <button type="button" class="statusbar-item stop" id="stopBtn">Detener</button>
       <button type="button" class="statusbar-item go-item" id="go" disabled title="Preparar + Lanzar" aria-label="Preparar + Lanzar"><span class="ui-icon" data-icon="play" aria-hidden="true"></span><span>Corrida</span></button>
       <strong id="caseTitle">Elegí un comercio</strong>
+      <!-- El CANAL de la pestaña activa, al lado de su comercio: es de la corrida, como el ambiente y el arranque. Vivía
+           también en el nombre de la pestaña y en el sidebar derecho, y tres lugares para lo mismo era ruido. -->
+      <button type="button" class="statusbar-item channel-item" id="btnChannel" aria-haspopup="menu"><span class="ui-icon" data-icon="channel" aria-hidden="true"></span><span id="valChannel">Asesor</span><span class="ui-icon" data-icon="down" aria-hidden="true"></span></button>
       <span id="caseDetails"></span>
       <span id="runSummary" role="status">Elegí un comercio primero.</span>
       <!-- El estado de los servicios, siempre a la vista en el pie: es lo que decide si una corrida puede
@@ -2729,6 +2728,7 @@
       if (hint) { hint.className = 'region-menu-note'; m.appendChild(hint); }
       const r = anchor.getBoundingClientRect();
       mountMenu(m, r.left, r.bottom + 4);
+      placeAbove(m, anchor);
     }
 
     /** Lanzar es un botón de icono: lo que hace lo dicen su título y su nombre accesible. */
@@ -4120,8 +4120,10 @@
           label.appendChild(dot);
         }
         const n = document.createElement('span'); n.textContent = name;
-        const c = document.createElement('span'); c.className = 'run-tab-chan'; c.textContent = chan;
-        label.append(n, c);
+        label.append(n);
+        // El canal de una corrida lo dice el pie (al lado del comercio), no la pestaña; Admin y prod siguen diciendo su
+        // ambiente, que es lo único que las distingue.
+        if (t.kind) { const c = document.createElement('span'); c.className = 'run-tab-chan'; c.textContent = chan; label.append(c); }
         label.onclick = () => activateTab(t.id);
         label.ondblclick = () => { if (t.preview && (t.canal || t.kind === 'prod')) { t.preview = false; renderTabs(); saveTabs(); } };
         const close = document.createElement('button');
@@ -4777,7 +4779,8 @@
     let activeCaseSummary = '';
 
     function updateCaseSummary() {
-      $('caseTitle').textContent = sel ? `${sel.name} · ${CHANNEL_LABELS[channel]} · ${target}` : 'Elegí un comercio';
+      $('caseTitle').textContent = sel ? `${sel.name} · ${target}` : 'Elegí un comercio';
+      $('btnChannel').hidden = !sel;
       // El arranque no va acá: está a la vista en el pie, en su propio botón.
       const data = [`Monto $${fmt(moneyNum('amount'))}`, `Front ${frontMode === 'local' ? 'local' : 'del ambiente'}`];
       if (inject) {
