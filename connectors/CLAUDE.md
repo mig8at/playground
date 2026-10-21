@@ -27,8 +27,14 @@ El ambiente de autenticación lo decide el front, independientemente del backend
 `playground` (en `~/.local/bin`, del repo `Creditop-SAS/playground`, `cli/playground.js`) es el cliente del equipo: su
 propio login por navegador (Google + GitHub) y su sesión en `~/.config/creditop-playground/`, no en `.auth/`. Se llama
 directo —`playground whoami`, `playground canon search …`, `playground online`, `playground send @persona "…"`— y no
-se envuelve en `bin/pg`: sería un segundo cliente del mismo servicio, y para canon chocaría con `canon/` (que entra con
-llave). Todo pasa por el home (`/api/t/<herramienta>/api/…`), que llega a cada herramienta por la red interna.
+se envuelve en `bin/pg`: sería un segundo cliente del mismo servicio. Todo pasa por el home (`/api/t/<herramienta>/api/…`),
+que llega a cada herramienta por la red interna.
+
+**`canon/` usa la misma sesión.** Desde el 2026-10-21 llama a canon de producción por ese gateway
+(`https://playground.creditop.com/api/t/canon`) con el token que deja `playground login` en
+`~/.config/creditop-playground/token.json`, en `Authorization: Bearer`; la llave de escritura va en `x-canon-key`. Ya no
+hay cookies del navegador que copiar: `AUTH_GOOGLE` y `PLAYGROUND_SESION` se sacaron de `.env.prod`. Sin sesión vigente,
+`make canon-*` y `pg canon yo` dicen «corré `playground login`».
 
 ## Dar de baja un cliente de prueba
 

@@ -451,7 +451,8 @@ func (c *Client) callOn(ctx context.Context, client *http.Client, method, path s
 		client = c.http
 	}
 	if key != "" {
-		req.Header.Set("Authorization", "Bearer "+key)
+		// La llave va en su cabecera: `Authorization` lleva la sesión del playground (session.go).
+		req.Header.Set("x-canon-key", key)
 		client = patientClient()
 	}
 	res, err := client.Do(req)

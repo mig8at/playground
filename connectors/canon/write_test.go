@@ -28,7 +28,7 @@ func newCanonDouble(t *testing.T) *canonDouble {
 		double.mu.Lock()
 		defer double.mu.Unlock()
 		double.requests = append(double.requests, r.Method+" "+r.URL.Path)
-		if r.Header.Get("Authorization") != "Bearer llave-de-prueba" {
+		if r.Header.Get("x-canon-key") != "llave-de-prueba" {
 			t.Errorf("%s %s sin la llave de escritura", r.Method, r.URL.Path)
 		}
 		switch {
@@ -157,7 +157,7 @@ func TestPatchExplainsARefusal(t *testing.T) {
 func TestClonesReadsTheCommitOfEachRepo(t *testing.T) {
 	t.Setenv("CANON_WRITE_KEY", "llave-de-prueba")
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path != "/api/clones" || r.Header.Get("Authorization") != "Bearer llave-de-prueba" {
+		if r.URL.Path != "/api/clones" || r.Header.Get("x-canon-key") != "llave-de-prueba" {
 			t.Errorf("pedido inesperado: %s sin la llave de admin", r.URL.Path)
 		}
 		_, _ = w.Write([]byte(`{"repos":[{"repo":"Creditop-SAS/legacy-backend","commit":"29226e81764b","estado":"al_dia"},{"repo":"Creditop-SAS/infrastructure","commit":"3cbeaab21fd7","estado":"al_dia"}]}`))
@@ -191,7 +191,7 @@ func TestSyncClonesAsksForOneRepoWithTheWriteKey(t *testing.T) {
 	t.Setenv("CANON_WRITE_KEY", "llave-de-prueba")
 	var asked map[string]any
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.Method != http.MethodPost || r.URL.Path != "/api/clones/sync" || r.Header.Get("Authorization") != "Bearer llave-de-prueba" {
+		if r.Method != http.MethodPost || r.URL.Path != "/api/clones/sync" || r.Header.Get("x-canon-key") != "llave-de-prueba" {
 			t.Errorf("pedido inesperado: %s %s", r.Method, r.URL.Path)
 		}
 		payload, _ := io.ReadAll(r.Body)

@@ -169,7 +169,7 @@ func runCanonWhoami(args []string) int {
 		return writeJSON(who)
 	}
 	if !who.Authenticated {
-		fmt.Println("canon no sabe quién sos: falta PLAYGROUND_SESION en connectors/.env.prod, o no es la cookie playground_sesion vigente")
+		fmt.Println("canon no sabe quién sos: corré `playground login` (el CLI del playground compartido)")
 		return 1
 	}
 	fmt.Printf("%s · %s · puede corregir: %v\n", who.Email, who.Name, who.CanCorrect)

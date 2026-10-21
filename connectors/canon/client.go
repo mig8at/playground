@@ -18,7 +18,9 @@ import (
 	"time"
 )
 
-const DefaultURL = "https://canon.playground.creditop.com"
+// DefaultURL es canon de producción por el gateway del home: lo llama por la red interna con la sesión del CLI del
+// playground (session.go), sin pasar por la puerta de Google del balanceador.
+const DefaultURL = "https://playground.creditop.com/api/t/canon"
 
 // URL devuelve el origen de Canon configurado para esta herramienta. Mantener
 // un default hace que una instalación nueva pueda leer referencias sin tener
