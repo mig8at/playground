@@ -612,6 +612,10 @@ consola de la corrida (para copiarla), sin mezclarse con el estado de las corrid
 
 ## El plan de corrida: una corrida armada que espera su play (2026-10-20)
 
+⚠ **Desde el 2026-10-21 el plan NO está en la interfaz** (pedido de Miguel): se quitaron la franja `#planBar`, «Paso a
+paso» y su lógica de `index.html`. Siguen `pkg/run-plan.ts`, `bin/plan.ts` (`make harness-plan`) y `/api/plan` en el
+servidor, pero nadie los lee desde el panel. Lo de abajo describe cómo era.
+
 Un agente (o vos) deja la corrida ARMADA y Miguel sólo entra al panel y le da play. El formato, la validación y el
 archivo viven en `pkg/run-plan.ts`; se escribe con `make harness-plan FILE=plan.json` (`FILE=-` por la entrada
 estándar, sin `FILE` muestra el que espera, `CLEAR=1` lo descarta) o por `POST /api/plan`, y los dos validan con la
