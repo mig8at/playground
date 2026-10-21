@@ -3,7 +3,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Manrope:wght@500;700;800&family=Source+Sans+3:wght@400;600&family=JetBrains+Mono:wght@500&display=swap">
 <style>
-/* Documento de estado: una columna de lectura, gemelo del de Shopify; la marca sólo en la cabecera y en los acentos. */
+/* Documento de estado: una columna de lectura; la marca sólo en la cabecera y en los acentos. */
 :root{
   --bg:#fbfaff; --surface:#ffffff; --ink:#17142e; --muted:#5d5a78; --line:#e3e0f2;
   --brand:#4c39ff; --brand-soft:#efedff; --green:#03a86c; --green-soft:#e3f7ef;
@@ -119,16 +119,15 @@ footer ul{margin:6px 0 0;padding-left:18px}
   </section>
 
   <section>
-    <h2>Shopify y VTEX: el mismo objetivo, dos formas de conectarse</h2>
+    <h2>Cómo se conecta Creditop a VTEX</h2>
     <div class="table-wrap">
       <table>
-        <thead><tr><th></th><th>Shopify</th><th>VTEX</th></tr></thead>
         <tbody>
-          <tr><td><strong>Dónde corre la integración</strong></td><td>En un servidor nuestro (la app de pagos).</td><td><strong>Dentro de VTEX</strong> (VTEX IO hospeda el conector). No hace falta servidor ni base de datos propios.</td></tr>
-          <tr><td><strong>Cómo se prueba</strong></td><td>Tiendas de desarrollo gratis.</td><td>Un <strong>workspace de desarrollo</strong> en la cuenta <code>creditop</code>: el código de prueba vive ahí y no toca la tienda principal.</td></tr>
-          <tr><td><strong>Cómo se conecta un comercio</strong></td><td>Instala la app por enlace y carga su sucursal y token.</td><td>Crea una <strong>afiliación</strong> del gateway con <code>AppKey</code> = código de su sucursal y <code>AppToken</code> = su token, y una condición de pago «Creditop».</td></tr>
-          <tr><td><strong>Aprobación de la plataforma</strong></td><td>Ser Payments Partner de Shopify y pasar la revisión de la app.</td><td><strong>Homologación</strong> del conector con VTEX, que exige pasar la Payment Provider Test Suite.</td></tr>
-          <tr><td><strong>Estado</strong></td><td>De punta a punta en QA con túnel; en pausa hasta que Shopify apruebe.</td><td>De punta a punta en QA dentro de VTEX y Test Suite 7 de 7; falta la homologación.</td></tr>
+          <tr><td><strong>Dónde corre la integración</strong></td><td><strong>Dentro de VTEX</strong> (VTEX IO hospeda la app de Creditop). No hace falta servidor ni base de datos propios.</td></tr>
+          <tr><td><strong>Cómo se prueba</strong></td><td>Un <strong>workspace de desarrollo</strong> en la cuenta <code>creditop</code>: el código de prueba vive ahí y no toca la tienda principal.</td></tr>
+          <tr><td><strong>Cómo se conecta un comercio</strong></td><td>Instala la app y crea una <strong>afiliación</strong> con <code>AppKey</code> = código de su sucursal y <code>AppToken</code> = su token, y una condición de pago «Creditop».</td></tr>
+          <tr><td><strong>Aprobación de VTEX</strong></td><td><strong>Homologación</strong> de la app, que exige pasar la Payment Provider Test Suite.</td></tr>
+          <tr><td><strong>Estado</strong></td><td>De punta a punta en QA dentro de VTEX y Test Suite 7 de 7; falta la homologación.</td></tr>
         </tbody>
       </table>
     </div>
