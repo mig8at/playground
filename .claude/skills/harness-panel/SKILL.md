@@ -771,7 +771,7 @@ prod», arriba de los comercios) y abre su pestaña (`kind: 'prodrun'`, una por 
 (`#prodView`). Fuera del modo prod esa vista no se abre (ni por la preferencia guardada); al salir del modo, el centro
 vuelve a la pestaña del ambiente.
 
-**En prod todavía NO se abren celulares** (2026-10-20). La regla del `CLAUDE.md` raíz cambió ese día: la base de prod es
-de sólo lectura para las HERRAMIENTAS, y las pruebas automatizadas que usan la app ahí se permiten. Lo que falta para
-abrir el celular en prod es el login automatizado del asesor de prueba, y ese paso no lo arma ni lo corre un agente:
-es entrar con contraseña a producción, y lo hace una persona. Por eso una ficha de prod sigue sin preguntar canal.
+⛔ **En prod NO se abren celulares ni se entra como el asesor de prueba**, aunque la clave compartida sea la misma que
+en la base compartida: entrar al wizard como asesor crea solicitudes reales, el primer ingreso de un asesor puede
+completar su `cognito_id`, y el repo fija prod como sólo lectura con una sola excepción (la corrida pública). Por eso
+una ficha de prod no pregunta canal: sin celular no hay canal que elegir. Se pidió el 2026-10-20 y se dejó afuera.
