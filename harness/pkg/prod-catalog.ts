@@ -27,12 +27,14 @@ function prodSql(query: string): Promise<Row[]> {
 /** El asesor de prueba: el patrón de `findTestAdvisor` (`pkg/login-probe.ts`). */
 const TEST_ADVISOR = "u.email LIKE 'c%-fake@creditop.com'";
 
-export interface ProdCatalogRow { allied_id: number; name: string; slug: string; branches: number; test_branch: string | null; has_sub: boolean }
+/** `branch`: una sucursal activa (la de menor hash), para poder AGREGAR el comercio desde prod: en las otras bases se lo
+ *  encuentra por su `slug`. */
+export interface ProdCatalogRow { allied_id: number; name: string; slug: string; branches: number; branch: string; test_branch: string | null; has_sub: boolean }
 
 /** Todos los comercios de prod con alguna sucursal activa, y cuál tiene asesor de prueba (con su sucursal). */
 export async function prodCatalog(): Promise<ProdCatalogRow[]> {
     const [merchants, advisors] = await Promise.all([
-        prodSql(`SELECT a.id AS allied_id, a.name, COALESCE(a.slug,'') AS slug, COUNT(*) AS branches
+        prodSql(`SELECT a.id AS allied_id, a.name, COALESCE(a.slug,'') AS slug, COUNT(*) AS branches, MIN(ab.hash) AS branch
                    FROM allieds a JOIN allied_branches ab ON ab.allied_id = a.id AND ab.status = 1
                   GROUP BY a.id, a.name, a.slug ORDER BY a.name`),
         prodSql(`SELECT u.allied_id, u.id, b.hash AS test_branch, (u.cognito_id IS NOT NULL) AS has_sub
@@ -43,7 +45,7 @@ export async function prodCatalog(): Promise<ProdCatalogRow[]> {
     for (const a of advisors) if (!byAllied.has(Number(a.allied_id))) byAllied.set(Number(a.allied_id), a);   // el más reciente
     return merchants.map((m) => {
         const a = byAllied.get(Number(m.allied_id));
-        return { allied_id: Number(m.allied_id), name: String(m.name), slug: String(m.slug || ''), branches: Number(m.branches),
+        return { allied_id: Number(m.allied_id), name: String(m.name), slug: String(m.slug || ''), branches: Number(m.branches), branch: String(m.branch || ''),
             test_branch: a ? String(a.test_branch) : null, has_sub: !!a && Number(a.has_sub) === 1 };
     });
 }

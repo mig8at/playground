@@ -1970,8 +1970,9 @@
       const name = $('signupName').value.trim();
       if (!signupM || !b) return;
       if (!name) { $('signupName').focus(); return; }
+      // `allied_slug` y `target`: con ellos el servidor lo ubica en las OTRAS bases (ver `branchesAcrossBases`).
       const r = await favApi({ accion: 'add', hash: b.hash, name: name, allied_id: signupM.allied_id,
-        branch_id: b.id, allied_name: signupM.name });
+        branch_id: b.id, allied_name: signupM.name, allied_slug: signupM.slug || '', target });
       if (!r.ok) return;
       sel = { slug: r.slug, name: r.name };
       closeSignup();
@@ -4275,6 +4276,7 @@
       renderTabs(); renderStage(); saveTabs();
       if (currentTab()) activateTab(activeTab);
       renderProdList($('merchantSearch').value);
+      loadCatalog().then(() => { if (prodMode) renderProdList($('merchantSearch').value); });
       if (!prodRows) {
         try { const r = await (await fetch('/api/prod/catalog')).json(); prodRows = r.rows; prodDetail = r.detail || ''; }
         catch { prodDetail = 'el panel no respondió'; }
@@ -4293,33 +4295,84 @@
       updateGo();
     }
     document.querySelectorAll('#targets .toggle').forEach((b) => b.addEventListener('click', exitProdMode));
+    /** El slug del COMERCIO (`allieds.slug`) de una entrada de la barra: con él se la encuentra en prod, donde el hash es
+     *  otro. El del agregado viene guardado; el de un curado sale del catálogo del ambiente (por su `allied_id`); si no, la
+     *  clave misma. Medido el 2026-10-20: 27 de las 30 entradas de la barra están en prod con el mismo slug. */
+    function prodSlugOf(e) {
+      if (e.allied_slug) return e.allied_slug;
+      const c = catalog.rows?.find((r) => Number(r.allied_id) === Number(e.allied_id));
+      return c?.slug || e.slug;
+    }
+    /** En prod la barra es LA MISMA de siempre (curados y agregados), contra prod: la que no está, apagada. Al buscar,
+     *  además, los comercios de prod que coinciden y todavía no están, para agregarlos (quedan en todos los ambientes). */
     function renderProdList(q = '') {
       const box = $('prodList');
       box.replaceChildren();
-      const head = document.createElement('div'); head.className = 'region-head group merchant-group';
-      const title = document.createElement('span'); title.textContent = 'Producción · sólo lectura';
-      head.appendChild(title); box.appendChild(head);
+      const group = (txt, n) => {
+        const head = document.createElement('div'); head.className = 'region-head group merchant-group';
+        const t = document.createElement('span'); t.textContent = txt;
+        if (n !== undefined) { const c = document.createElement('span'); c.className = 'count'; c.textContent = String(n); t.appendChild(c); }
+        head.appendChild(t); box.appendChild(head);
+      };
       if (!prodRows) {
+        group('Producción · sólo lectura');
         const p = document.createElement('p'); p.className = 'list-note';
         p.textContent = prodDetail || 'leyendo los comercios de prod (Redash, ~15 s la primera vez)…';
         box.appendChild(p); return;
       }
+      const bySlug = new Map(prodRows.map((m) => [m.slug, m]));
       const n = norm(q.trim());
-      const rows = (!n ? prodRows : prodRows.filter((m) => norm(m.name).includes(n) || norm(m.slug).includes(n) || String(m.allied_id) === n))
-        .slice().sort((a, b) => (!a.test_branch) - (!b.test_branch) || a.name.localeCompare(b.name));
-      const cnt = document.createElement('span'); cnt.className = 'count';
-      cnt.textContent = n ? `${rows.length}/${prodRows.length}` : `${prodRows.length} · ${prodRows.filter((m) => m.test_branch).length} con asesor de prueba`;
-      title.appendChild(cnt);
-      for (const m of rows) {
-        const r = treeRow('', 0, 'merchant', escTxt(m.name), m.test_branch ? 'prueba' : '');
-        r.title = `${m.name} · #${m.allied_id} · ${m.branches} sucursal${m.branches === 1 ? '' : 'es'} activa${m.branches === 1 ? '' : 's'}`
-          + (m.test_branch ? ` · asesor de prueba en ${m.test_branch}${m.has_sub ? '' : ' (sin cognito_id)'}` : ' · sin asesor de prueba');
+      const match = (txt) => !n || norm(txt).includes(n);
+      const mine = spaceEntries().map((e) => ({ e, p: bySlug.get(prodSlugOf(e)) || null })).filter(({ e }) => match(e.alias || e.name));
+      const here = mine.filter((x) => x.p), absent = mine.filter((x) => !x.p);
+      const rowFor = (label, p, absentWhy) => {
+        const r = treeRow(absentWhy ? 'missing' : '', 0, 'merchant', escTxt(label), absentWhy ? '' : (p.test_branch ? 'prueba' : ''));
+        if (absentWhy) {
+          r.title = absentWhy; r.setAttribute('aria-disabled', 'true'); r.tabIndex = -1;
+          return r;
+        }
+        r.title = `${p.name} · #${p.allied_id} en prod · ${p.branches} sucursal${p.branches === 1 ? '' : 'es'} activa${p.branches === 1 ? '' : 's'}`
+          + (p.test_branch ? ` · asesor de prueba en ${p.test_branch}${p.has_sub ? '' : ' (sin cognito_id)'}` : ' · sin asesor de prueba');
         r.tabIndex = 0;
-        r.setAttribute('aria-selected', String(currentTab()?.kind === 'prod' && currentTab()?.allied === m.allied_id));
-        r.onclick = () => openProdTab(m);
-        r.onkeydown = (ev) => { if (ev.key === 'Enter' || ev.key === ' ') { ev.preventDefault(); openProdTab(m); } };
-        box.appendChild(r);
+        r.setAttribute('aria-selected', String(currentTab()?.kind === 'prod' && currentTab()?.allied === p.allied_id));
+        r.onclick = () => openProdTab({ ...p, name: label });
+        r.onkeydown = (ev) => { if (ev.key === 'Enter' || ev.key === ' ') { ev.preventDefault(); r.click(); } };
+        return r;
+      };
+      group('En prod · sólo lectura', here.length);
+      for (const { e, p } of here) box.appendChild(rowFor(e.alias || e.name, p));
+      if (absent.length) {
+        group('No están en prod', absent.length);
+        for (const { e } of absent) box.appendChild(rowFor(e.alias || e.name, null, `«${e.alias || e.name}» no está en prod (se buscó el comercio «${prodSlugOf(e)}»)`));
       }
+      // Al buscar: los de prod que coinciden y no están en la barra, para agregarlos.
+      if (n) {
+        const taken = new Set(here.map((x) => x.p.allied_id));
+        const more = prodRows.filter((m) => !taken.has(m.allied_id) && (norm(m.name).includes(n) || norm(m.slug).includes(n))).slice(0, 30);
+        if (more.length) {
+          group('Agregar desde prod', more.length);
+          for (const m of more) {
+            const r = treeRow('', 0, 'plus', escTxt(m.name), m.test_branch ? 'prueba' : '');
+            r.title = `Agregar «${m.name}» a tu barra (en todos los ambientes). Elegido, se abre su ficha.`;
+            r.tabIndex = 0;
+            r.onclick = () => addFromProd(m);
+            r.onkeydown = (ev) => { if (ev.key === 'Enter' || ev.key === ' ') { ev.preventDefault(); addFromProd(m); } };
+            box.appendChild(r);
+          }
+        }
+      }
+    }
+    /** Agregar desde prod: se guarda con la sucursal de prod (la del asesor de prueba si hay) y el slug del comercio, y el
+     *  servidor lo ubica en local y en la compartida (`branchesAcrossBases`). Donde no exista, saldrá apagado. */
+    async function addFromProd(m) {
+      const hash = m.test_branch || m.branch;
+      if (!hash) return alert(`No sé una sucursal de «${m.name}» en prod.`);
+      const r = await favApi({ accion: 'add', hash, name: m.name, allied_id: m.allied_id, allied_name: m.name, allied_slug: m.slug, target: 'prod' });
+      if (!r.ok) return;
+      $('merchantSearch').value = '';
+      await loadFavs();
+      renderProdList('');
+      openProdTab(m);
     }
     /** La ficha de un comercio de prod en su pestaña: en vista previa, como los comercios de la barra. */
     function openProdTab(m) {

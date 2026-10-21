@@ -1113,6 +1113,31 @@ function writeFlows(j: any): void {
  * distintas son comercios de prueba distintos, y pisar uno haría que `bin/advisor dentix` corriera
  * contra la sucursal equivocada sin avisar.
  */
+/** La sucursal de un comercio (por su `allieds.slug`) en cada base: la del ASESOR DE PRUEBA si la tiene (es la que el
+ *  harness usa fuera de local), si no una activa. → `{local, dev, staging, qa, prod}` con lo que se encontró. */
+async function branchesAcrossBases(alliedSlug: string): Promise<Record<string, string>> {
+    const inBase = async (t: string): Promise<string> => {
+        const rows = await dbopsJson(['catalog'], t);
+        const row = Array.isArray(rows) ? rows.find((r: any) => r.slug === alliedSlug) : null;
+        if (!row) return '';
+        if (row.test_branch) return String(row.test_branch);
+        return String((await dbopsList(alliedSlug, t)).find((m: any) => m.slug === alliedSlug)?.hash || '');
+    };
+    const prodRow = async (): Promise<string> => {
+        try {
+            const c = catalogCache.get('prod');
+            const rows = c && Date.now() - c.at < 10 * 60_000 ? c.rows : await prodCatalog();
+            const r = rows.find((x: any) => x.slug === alliedSlug);
+            return r ? String(r.test_branch || r.branch || '') : '';
+        } catch { return ''; }
+    };
+    const [local, shared, prod] = await Promise.all([inBase('local'), inBase('dev'), prodRow()]);
+    const out: Record<string, string> = {};
+    if (/^[0-9a-f]{8}$/.test(local)) out.local = local;
+    if (/^[0-9a-f]{8}$/.test(shared)) { out.dev = shared; out.staging = shared; out.qa = shared; }
+    if (/^[0-9a-f]{8}$/.test(prod)) out.prod = prod;
+    return out;
+}
 function slugFor(nameValue: string, hash: string, flows: any): string {
     const base = nameValue.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '')
         .replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 40) || 'comercio';
@@ -1808,8 +1833,24 @@ const server = createServer(async (req, res) => {
             const h = bySlug[s];
             if (h && info[h]?.allied_name) continue;
             // Sólo el MISMO slug: `list` busca por parecido, y tomar el primero con hash adoptaba otro comercio.
-            const found = (await dbopsList(s, target)).find((m: any) => m.slug === s && m.hash);
-            if (found?.hash) rescued[s] = { hash: found.hash, allied_name: found.name, porSlug: true };
+            // El de un AGREGADO es el slug de su COMERCIO (`allied_slug`, el de `allieds.slug`), no su clave: la clave
+            // sale del nombre que le pusiste («smart») y no matchea con nada en otra base. Así el que agregaste en un
+            // ambiente aparece en todos los que lo tienen.
+            const flowsNow = readFlows();
+            const own = flowsNow?.merchants?.[s];
+            const want = String(own?.allied_slug || s);
+            const found = (await dbopsList(want, target)).find((m: any) => m.slug === want && m.hash);
+            if (found?.hash) {
+                // Un AGREGADO que se encuentra por primera vez en esta base (al agregarlo no contestaba: sin VPN) deja su
+                // sucursal en `por_target`, como hace `bin/advisor` al resolver un comercio: si no, la corrida iría contra el
+                // hash de la otra base. Los curados no se tocan: su sucursal por ambiente se declara a mano.
+                if (own?.fav && own.allied_slug && TARGETS.has(target)) {
+                    const shared = target === 'local' ? ['local'] : ['dev', 'staging', 'qa'];
+                    own.por_target = { ...(own.por_target || {}), ...Object.fromEntries(shared.map((t) => [t, found.hash])) };
+                    writeFlows(flowsNow);
+                } else rescued[s] = { hash: found.hash, allied_name: found.name, porSlug: true };
+                if (own?.fav && own.allied_slug) rescued[s] = { hash: found.hash, allied_name: found.name };
+            }
         }
 
         // ⚠ EL NOMBRE QUE LE PUSISTE VIAJA ACÁ. Los diez curados tienen su rótulo en el CÓDIGO, así que
@@ -1899,7 +1940,7 @@ const server = createServer(async (req, res) => {
             .filter(([, v]: [string, any]) => v && v.fav)
             .map(([slug, v]: [string, any]) => ({
                 slug, name: v.name || slug, hash: v.branch_hash || '',
-                allied_id: v.allied_id || 0, allied_name: v.allied_name || '',
+                allied_id: v.allied_id || 0, allied_name: v.allied_name || '', allied_slug: v.allied_slug || '',
             })));
     }
 
@@ -1913,13 +1954,27 @@ const server = createServer(async (req, res) => {
             const nameValue = String(b.name || '').trim();
             if (!/^[0-9a-f]{8}$/.test(hash) || !nameValue) return json(res, 400, { ok: false, msg: 'falta hash válido o nombre' });
             const slug = slugFor(nameValue, hash, flows);
+            // EL MISMO COMERCIO EN CADA BASE: lo que agregás en un ambiente aparece en todos. Se resuelve ACÁ, una vez, su
+            // sucursal en cada base —local, la compartida (dev, qa y staging) y prod— por el slug del comercio, y queda en
+            // `por_target`, que es lo que leen el panel y `bin/advisor` para CORRER (el rescate por slug de `/api/branches`
+            // sólo arregla lo que se muestra). Si una base no contesta (sin VPN) se saltea: ahí queda el rescate.
+            const alliedSlug = /^[a-z0-9-]{1,80}$/.test(String(b.allied_slug || '')) ? String(b.allied_slug) : '';
+            const porTarget = alliedSlug ? await branchesAcrossBases(alliedSlug) : {};
+            // En la base donde lo agregaste manda la sucursal que ELEGISTE (en local se corre contra la elegida, no la falsa).
+            const from = String(b.target || '');
+            if (from === 'local') porTarget.local = hash;
+            else if (TARGETS.has(from)) { porTarget.dev = hash; porTarget.staging = hash; porTarget.qa = hash; }
+            else if (from === 'prod') porTarget.prod = hash;
             flows.merchants[slug] = {
                 branch_hash: hash,
+                ...(Object.keys(porTarget).length ? { por_target: porTarget } : {}),
                 ...(b.allied_id ? { allied_id: Number(b.allied_id) } : {}),
                 ...(b.branch_id ? { branch_id: Number(b.branch_id) } : {}),
                 // El nombre del COMERCIO, aparte del que le pusiste a la sucursal: es el rótulo de la
                 // carpeta en el árbol, y deducirlo del nombre libre no funciona (lo podés renombrar).
                 ...(b.allied_name ? { allied_name: String(b.allied_name) } : {}),
+                // Y su SLUG (`allieds.slug`): con él se lo encuentra en las OTRAS bases, donde el hash es otro.
+                ...(/^[a-z0-9-]{1,80}$/.test(String(b.allied_slug || '')) ? { allied_slug: String(b.allied_slug) } : {}),
                 name: nameValue, fav: true,
             };
             writeFlows(flows);

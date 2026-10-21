@@ -739,3 +739,25 @@ ambiente de antes y lo único que el panel le pide a prod son `/api/prod/catalog
   `cd6b88e5e-fake@`, sucursal `d6b88e5e`, 12 de 12 entidades encendidas. Alkosto (#209): sin asesor de prueba.
 - Verificado en un panel de prueba: entrar por el menú real, filtrar, abrir fichas, salir con el botón de local
   (las 7 pestañas de local de vuelta y los fieldsets como estaban), y en la red sólo `/api/prod/*` mientras duró.
+
+### La barra es LA MISMA en todos los ambientes, también en prod (2026-10-20)
+
+Los curados y los que agregaste salen en local, en la compartida y en prod; donde un comercio no existe, sale apagado
+(«No están en qa», «No están en prod»). En prod la barra dejó de ser el catálogo entero: son tus comercios contra prod,
+y al buscar aparece «Agregar desde prod» con los que coinciden y todavía no están.
+
+- **El mismo comercio en otra base se reconoce por `allieds.slug`**, porque el hash de la sucursal es otro en cada base.
+  ⚠ La clave de un AGREGADO sale del nombre que le pusiste («smart») y no matchea con nada: por eso al agregar se guarda
+  `allied_slug` y el rescate de `/api/branches` busca por él. Medido el 2026-10-20: 27 de las 30 entradas de
+  `.flows.json` están en prod con el mismo slug (y el mismo id); las 3 que no, son comercios de prueba de las bases de
+  desarrollo (CeluRD Test, Comercio pruebas Perú, Alta Fleet).
+- ⚠ **Mostrarlo no alcanza: hay que CORRER contra la sucursal de esa base.** El panel y `bin/advisor` corren contra
+  `por_target[target] ?? branch_hash`, y el rescate sólo arreglaba lo que se veía. Por eso al agregar,
+  `branchesAcrossBases` resuelve su sucursal en local, en la compartida y en prod (la del asesor de prueba si la hay) y
+  la deja en `por_target`; en la base donde lo agregaste manda la sucursal que ELEGISTE (en local se corre contra la
+  elegida). Si una base no contesta (sin VPN), la primera vez que `/api/branches` lo encuentra ahí por su slug guarda esa
+  sucursal en `por_target` (sólo para agregados: los curados se declaran a mano), como hace `bin/advisor` al resolver.
+- Verificado con copia y restauración de `.flows.json`: agregar «Refrigeración Wonder» desde prod lo dejó con
+  `por_target {local, prod}` (la compartida no contestaba: sin VPN de dev); un agregado con un hash inexistente y su
+  `allied_slug` se encontró en local y dejó `por_target.local`, y la lectura siguiente ya lo trajo como declarado
+  (4 entidades). La compartida NO se probó.
