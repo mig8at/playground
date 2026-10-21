@@ -18,8 +18,10 @@ ramas: "fix/ecommerce-volver-a-la-tienda"
       verde y visto en Storybook en los dos vacíos; fuera de tienda no sale.
 - [ ] Probar con un pedido real de tienda sin entidades (local o qa): el link sale y lleva a la tienda; y una
       del canal de asesor sin entidades: no sale. Hasta hoy sólo se vio en Storybook.
-- [ ] Abrir el PR a `main` de `frontend-monorepo`.
-      Depende de: Miguel — el visto bueno para abrirlo.
+- [x] ~~Abrir el PR a `main` de `frontend-monorepo`~~ — [#1188](https://github.com/Creditop-SAS/frontend-monorepo/pull/1188).
+- [ ] Mergear `frontend-monorepo#1188` y taguear; termina cuando el link sale en producción en una compra de
+      tienda sin opciones.
+      Depende de: revisión del equipo.
 - [ ] Crear el issue en Jira con la publicable.
       Depende de: Miguel — revisar la publicable.
 
