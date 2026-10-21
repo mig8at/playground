@@ -250,7 +250,9 @@ export async function forgetDictation(doc: string, central: string): Promise<boo
 
 /** Lo que contesta una central cuando RESPONDE: Agildata y Mareigua traen la información laboral (el backend
  *  guarda de ellas el ingreso y la ocupación de la solicitud, campos 87 y 29). Vacío = lo del caso. */
-export interface BureauAnswer { income?: number; occupation?: string; months?: number }
+/** `name`: el nombre que contesta Ágil Data. Sin él, el de `agildataAnswer` (CARLOS RUIZ MENDOZA), que no es el que teclea
+ *  el autorrelleno: el pipeline de KYC compara los dos y frena la identidad. */
+export interface BureauAnswer { income?: number; occupation?: string; months?: number; name?: string }
 
 export async function dictateBureauMode(doc: string, central: Bureau, mode: BureauMode,
     c: BureauAnswer = {}): Promise<{ ok: boolean; detalle: string }> {
@@ -259,7 +261,7 @@ export async function dictateBureauMode(doc: string, central: Bureau, mode: Bure
     let ok: boolean;
     if (mode === 'fail') ok = await dictate(doc, central, { __http_status: 500, __body: { error: 'falla simulada por el panel del harness' } });
     else if (mode === 'empty') ok = await dictate(doc, central, NO_INFO[central]!(doc));
-    else if (central === 'agildata') ok = await dictate(doc, 'agildata', agildataAnswer(doc, c.income || 2_500_000, c.occupation, c.months || 8));
+    else if (central === 'agildata') ok = await dictate(doc, 'agildata', agildataAnswer(doc, c.income || 2_500_000, c.occupation, c.months || 8, c.name));
     else if (central === 'mareigua') ok = await dictate(doc, 'mareigua', mareiguaAnswer(doc, c.income || 2_500_000, c.months || 8));
     else ok = await forgetDictation(doc, central);
     const money = (n?: number) => '$' + Math.round(n || 2_500_000).toLocaleString('es-CO');
@@ -277,7 +279,7 @@ export async function dictateBureauMode(doc: string, central: Bureau, mode: Bure
  * forja la inyección; su reporte fijo (score 654, 59 consultas, sin tarjetas) no entra en ninguna categoría
  * de mejores condiciones. */
 export interface BureauConfig {
-    agildata?: { mode?: BureauMode; income?: number; occupation?: string; months?: number };
+    agildata?: { mode?: BureauMode; income?: number; occupation?: string; months?: number; name?: string };
     mareigua?: { mode?: BureauMode; income?: number; months?: number };
     tusdatos?: { mode?: BureauMode };
     experian?: { mode?: BureauMode; score?: number; negatives?: number; consulted?: number; delinquencies?: number; creditCards?: number; quantoIncome?: number };

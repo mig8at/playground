@@ -383,9 +383,11 @@ function laneCase(order: any, id: DeviceId, target = 'local'): any {
         o.email = `qa.harness+${o.phone.slice(-4)}@creditop.com`;
         return o;
     }
-    // Fuera de local, el carril A también lleva su cédula explícita (la misma que escribe el autorrelleno): así se le
-    // DICTA a la lambda de mocks y no contesta la identidad por defecto, con la que el listado de qa salía vacío.
-    if (laneOf(id) !== 'b') { if (target !== 'local' && !String(o.doc || '').replace(/\D/g, '')) o.doc = '1096734490'; return o; }
+    // El carril A también lleva su cédula explícita (la misma que escribe el autorrelleno): así se le DICTA a la lambda de
+    // mocks y no contesta la identidad por defecto, con la que el listado de qa salía vacío. En local también: un comercio
+    // del pipeline de KYC CONSULTA la central (al mock), y sin cédula no se le dicta nada y contesta su persona por
+    // defecto, que no es la que se teclea (2026-10-21, Mediarte).
+    if (laneOf(id) !== 'b') { if (!String(o.doc || '').replace(/\D/g, '')) o.doc = '1096734490'; return o; }
     if (!String(o.doc || '').replace(/\D/g, '')) o.doc = '1096734491';
     if (!String(o.email || '').trim()) o.email = 'qa.harness+b@creditop.com';
     return o;
@@ -475,7 +477,9 @@ async function applyBureauModes(order: any, target: string): Promise<{ ok: boole
     const data = (order?.bureauData || {}) as Record<string, any>;
     const exp = order?.experian || {};
     const r = await applyBureauConfig(doc, {
-        agildata: { mode: modes.agildata, income: num(data.agildata?.income), occupation: data.agildata?.occupation || undefined, months: num(data.agildata?.months) },
+        // El nombre, el que teclea el autorrelleno (o el del caso): por el pipeline de KYC la central se CONSULTA y se compara.
+        agildata: { mode: modes.agildata, income: num(data.agildata?.income), occupation: data.agildata?.occupation || undefined, months: num(data.agildata?.months),
+            name: [order?.firstName, order?.lastName].map((x: unknown) => String(x ?? '').trim()).filter(Boolean).join(' ').toUpperCase() || `${envData().nombre} ${envData().apellido}` },
         mareigua: { mode: modes.mareigua, income: num(data.mareigua?.income), months: num(data.mareigua?.months) },
         tusdatos: { mode: modes.tusdatos },
         experian: { mode: modes.experian, score: num(exp.score), negatives: num(exp.negatives), consulted: num(exp.consulted), delinquencies: num(exp.delinquencies),
@@ -800,7 +804,8 @@ async function advanceAll(id: DeviceId, until: string | null, opts: { lender?: s
                 continue;
             }
             if (/\/kyc-processing(?:\/|$)/.test(here) && !kycSeenAt) kycSeenAt = Date.now();
-            if (remote && /\/personal-info(?:\/|$)/.test(here) && here + (state.url ?? '') !== redictatedAt) {
+            // También en local: el servicio de perfilamiento local tiene el mismo límite (2026-10-21, 467495: 429 y reintento).
+            if (/\/personal-info(?:\/|$)/.test(here) && here + (state.url ?? '') !== redictatedAt) {
                 redictatedAt = here + (state.url ?? '');
                 // Y ANTES, LOS 30 S DEL PIPELINE: guardar arranca otra corrida, y si llega antes de 30 s de la primera el
                 // servicio la rechaza (429), el wizard no reintenta y la consulta a la central se corre al reintento,

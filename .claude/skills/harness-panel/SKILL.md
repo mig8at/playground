@@ -957,3 +957,17 @@ los comercios del pipeline de KYC (onboarding v2) no pasan el OTP (F-243). En ca
 - Lo que sigue sin cerrar: la central que consulta el pipeline puede caer en otro contenedor de la lambda y contestar
   la persona por defecto (F-245). Corrida 503897: OTP, espera, dictado y arranque bien; Ágil Data contestó
   `JUAN CARLOS PEREZ GOMEZ` y la identidad no coincidió tras tres correcciones.
+
+**Mediarte por el pipeline de KYC en LOCAL cierra solo (2026-10-21, 467496 en estado 11).** Con `make harness-pipeline
+PIPELINE_ALLIED=91` arriba (Temporal, el servicio de perfilamiento y kyc-gateway contra el mock `:8105`; agrega el
+comercio a `kyc_pipeline_allieds`), el panel corre OTP v2 → kyc-processing → personal-info (espera los 30 s) → la corrida
+completa → listado → Mediarte X → traspaso → firma → `loan-approved`, en 87 s. Lo que hizo falta:
+- **En local el carril A también lleva cédula** (`1096734490`, la del autorrelleno), y el dictado al mock lleva el
+  NOMBRE que se teclea (`BureauAnswer.name` en `pkg/risk-lambda.ts`). Sin eso el mock contestaba CARLOS RUIZ MENDOZA.
+- **La espera de 30 s vale también en local**: el servicio de perfilamiento local tiene el mismo límite.
+- ⚠ **Los mocks los levanta el panel de :5195.** Si la app lo detiene, se caen pdf-mapper (`:8100`) y los formularios
+  (`:8101`, `:8109`), y la firma falla con «Ha ocurrido un error inesperado» (`pdf-mapper-service connection failure`).
+- ⚠ **El correo del autorrelleno puede estar tomado por otra corrida** (`OBV21003`, «The email is already in use»,
+  HTTP 422 al guardar personal-info, y el panel sólo ve que «Continuar» no avanza). La razón está en
+  `/tmp/asesor-wizard.log` (`[PostHog log] error POST …/personal-info…`), porque sin Loki local el backend no deja
+  nada. Se evita con cédula y correo propios en el caso.
