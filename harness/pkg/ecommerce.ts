@@ -190,8 +190,9 @@ export async function buildEcommerceUrl(merchantQ: string, phone = '', amount = 
     const branches = await listEcommerce(merchantQ);
     if (branches.length === 0) throw new Error(`no hay sucursal con credencial ecommerce para ${JSON.stringify(merchantQ)}`);
     let b = branches[0];
+    // Si se pidió la sucursal por su hash, es ésa: `listEcommerce` la pone primera. Si no,
     // preferir una branch ecommerce del MISMO allied que el comercio principal
-    try {
+    if (b.hash !== merchantQ.replace(/^#/, '')) try {
         const m = await resolveMerchant(merchantQ);
         const same = branches.find((c) => c.allied_id === m.alliedId);
         if (same) b = same;
@@ -245,7 +246,8 @@ export async function vtexInit(
     const branches = await listEcommerce(merchantQ);
     if (branches.length === 0) throw new Error(`no hay sucursal con credencial ecommerce para ${JSON.stringify(merchantQ)}`);
     let b = branches[0];
-    try {
+    // Si se pidió la sucursal por su hash, es ésa: `listEcommerce` la pone primera.
+    if (b.hash !== merchantQ.replace(/^#/, '')) try {
         const m = await resolveMerchant(merchantQ);
         const same = branches.find((c) => c.allied_id === m.alliedId);
         if (same) b = same;

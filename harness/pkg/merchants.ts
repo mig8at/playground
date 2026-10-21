@@ -66,17 +66,23 @@ export async function listCatalog(): Promise<CatalogRow[]> {
     );
 }
 
-/** Sucursales con credencial ecommerce (las únicas que pueden hacer el handshake base64). */
+/** Sucursales con credencial ecommerce (las únicas que pueden hacer el handshake base64).
+ *
+ * `q` es un nombre, un slug o el HASH de la sucursal (con o sin `#`). El hash hace falta: un comercio que
+ * se busca en el panel, fuera de su lista curada, viaja con el hash de la sucursal como «slug», y sin
+ * esto la tienda decía «no hay sucursal con credencial» de una sucursal que sí la tenía. La que coincide
+ * por hash va primero, así gana sobre las del mismo comercio. */
 export async function listEcommerce(q = ''): Promise<EcommerceBranch[]> {
+    const hash = q.replace(/^#/, '');
     const like = '%' + q + '%';
     return query<EcommerceBranch>(
         `SELECT a.id AS allied_id, a.name, COALESCE(ab.hash,'') AS hash
          FROM allied_ecommerce_credentials aec
          JOIN allied_branches ab ON ab.id = aec.allied_branch_id
          JOIN allieds a ON a.id = ab.allied_id
-         WHERE (? = '' OR a.name LIKE ? OR a.slug LIKE ?)
-         ORDER BY a.id DESC LIMIT 40`,
-        [q, like, like],
+         WHERE (? = '' OR a.name LIKE ? OR a.slug LIKE ? OR ab.hash = ?)
+         ORDER BY ab.hash = ? DESC, a.id DESC LIMIT 40`,
+        [q, like, like, hash, hash],
     );
 }
 
