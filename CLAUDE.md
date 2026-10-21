@@ -37,7 +37,7 @@ tener la herramienta: es suponer que no está y contestar de memoria.
 | Tu pregunta | Con qué se contesta |
 |---|---|
 | **¿cómo funciona X técnicamente?** | `make knowledge-search Q='…'` → `make knowledge-read ID=…`, si hay un tema local. Verificá su alcance en el código de `main`; si falta el tema, investigá el código directamente. La biblioteca es una ayuda, no un paso obligatorio |
-| **me falta conocimiento de negocio o producto que no puedo comprobar en local** | Canon es una consulta opcional: `make canon-search Q='…'` → `make canon-read IDS=…`. Contrastá con documentación del equipo si necesitás política o contrato. Citá la fuente y señalá lo que queda sin verificar |
+| **me falta conocimiento de negocio o producto que no puedo comprobar en local** | Canon es una consulta opcional: `make canon-search Q='…'` → `make canon-read IDS=…` (o, con la sesión de Miguel y sin llave, `playground canon search|read|topics|ask`). Contrastá con documentación del equipo si necesitás política o contrato. Citá la fuente y señalá lo que queda sin verificar |
 | **retomo una tarea del tablero** | `make retomar N=…`: pila, documento y temas locales declarados en `knowledge:`. No pide Canon ni VPN. Las referencias históricas `canon:` se conservan; `BRIEF=1` consulta su API sólo cuando se elige explícitamente; Canon no tiene copia local |
 | **¿ya nos pasó?** | `tablero/data/traps/doc.md`, entrando por su índice de síntomas |
 | **¿por qué existe esta regla?** (política, contrato, qué se le ofreció al comercio) | `make confluence`: el porqué del negocio no está en el código |
@@ -57,6 +57,7 @@ tener la herramienta: es suponer que no está y contestar de memoria.
 | **¿funciona, corriéndolo?** | por consola: `harness-case` (segundos) · `harness-walk-wizard` (HTTP, ~20 s) · `harness-walk-wizard ENGINE=browser` (Chromium, ~3 min). `make panel` es el camino visual de Miguel. El canal de asesor pide sesión: `make harness-session` / `make harness-login` |
 | **¿qué hay en la base de canon?** (revisiones, galaxias, mantenedores, quién cambió qué) | `bin/pg canon sql --target local\|prod --query 'SELECT …'` (solo lectura, impuesta por la base) · `canon tables` las lista · `canon config` dice qué falta. `local` es el laboratorio de canon; `prod` va por la VPN con un usuario de solo lectura. ⚠ Tiene las preguntas y conversaciones de la gente: se consulta para diagnosticar, no se pega en tareas ni PRs |
 | **¿en qué anda el equipo?** | Slack (MCP) · `make cuadrilla` · `make tablero` |
+| **hablarle a alguien del equipo por la terminal** · ¿quién está conectado? | `playground online` · `playground send @jose.guzman "…"` (el CLI del playground compartido, con tu sesión; sin guardar nada). Mandar un mensaje sale a nombre de Miguel: se confirma el texto antes |
 | **Jira o Slack** | `bin/pg jira …` · `bin/pg slack …`, o sus herramientas MCP. Leer es libre; lo que escribe **sin `--apply` sólo muestra** |
 
 ⚠ **Hay preguntas que no se contestan leyendo: se contestan corriendo.** El conocimiento local y el código describen el mecanismo;

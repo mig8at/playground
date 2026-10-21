@@ -22,6 +22,14 @@ bin/pg advisor logout --target local --account c<hash>-fake@creditop.com
 
 El ambiente de autenticación lo decide el front, independientemente del backend. El front conocido `localhost:5174`/`127.0.0.1:5174` usa dev; si se configura otro pool allí se declara `ADVISOR_AUTH_TARGET=qa|staging|dev`. Los demás orígenes usan el target. La ruta de asesor incluye esquema, host y puerto; no compartir sesiones sólo por hostname. Cada cuenta tiene su archivo: la sesión de un comercio no sirve para otro. Cambiar el pool del front exige cerrar su sesión y entrar de nuevo.
 
+## El CLI del playground compartido NO es un conector
+
+`playground` (en `~/.local/bin`, del repo `Creditop-SAS/playground`, `cli/playground.js`) es el cliente del equipo: su
+propio login por navegador (Google + GitHub) y su sesión en `~/.config/creditop-playground/`, no en `.auth/`. Se llama
+directo —`playground whoami`, `playground canon search …`, `playground online`, `playground send @persona "…"`— y no
+se envuelve en `bin/pg`: sería un segundo cliente del mismo servicio, y para canon chocaría con `canon/` (que entra con
+llave). Todo pasa por el home (`/api/t/<herramienta>/api/…`), que llega a cada herramienta por la red interna.
+
 ## Dar de baja un cliente de prueba
 
 `pg admin client-disable --target local|dev|staging --document <cédula> [--apply]` hace lo mismo que la papelera de
