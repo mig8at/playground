@@ -19,16 +19,26 @@ import { blockDevOverlays } from '../pkg/dev-overlays.ts';
 import { installAutofill, type AutofillData } from '../pkg/autofill.ts';
 import { chooseEntity } from '../pkg/wizard-browser.ts';
 
-/* LOS CARRILES (2026-10-21): dos pestañas pueden correr A LA VEZ, cada una con su par de celulares. El carril A son los
- * de siempre (`advisor`, `client`) y el B los mismos con `-b` (`advisor-b`, `client-b`). El resto del panel no cambia: cada
- * mapa por celular ya iba por id, así que un carril nuevo es un id nuevo. `admin` es uno solo (la PC). */
-export type Lane = 'a' | 'b';
-export type DeviceId = 'client' | 'advisor' | 'admin' | 'client-b' | 'advisor-b';
+/* LOS CARRILES: varias pestañas pueden correr A LA VEZ, cada una con su par de celulares. El carril A son los de siempre
+ * (`advisor`, `client`) y los demás los mismos con su letra (`advisor-b`, `client-c`…). El resto del panel no cambia: cada
+ * mapa por celular ya iba por id, así que un carril nuevo es un id nuevo. `admin` es uno solo (la PC).
+ * CUÁNTOS: `HARNESS_LANES` (4 por defecto, de 1 a 8). Eran dos fijos hasta el 2026-10-21; el techo de verdad no es
+ * Chromium —cada celular es un contexto del MISMO navegador— sino el backend local (6 workers de PHP: con más corridas
+ * a la vez que workers, hacen fila) y la memoria (~100-200 MB por celular abierto). */
+const LANE_NAMES = 'abcdefgh';
+export type Lane = string;   // 'a' … 'h'
+export const LANES: Lane[] = LANE_NAMES.slice(0, Math.max(1, Math.min(LANE_NAMES.length, Number(process.env.HARNESS_LANES) || 4))).split('');
 export type Role = 'client' | 'advisor' | 'admin';
-export const laneOf = (id: string): Lane => (id.endsWith('-b') ? 'b' : 'a');
-export const roleOf = (id: string): Role => id.replace(/-b$/, '') as Role;
+export type DeviceId = 'admin' | 'client' | 'advisor' | `client-${string}` | `advisor-${string}`;
+const LANE_SUFFIX = /-([b-h])$/;
+export const laneOf = (id: string): Lane => LANE_SUFFIX.exec(id)?.[1] ?? 'a';
+export const roleOf = (id: string): Role => id.replace(LANE_SUFFIX, '') as Role;
 /** El celular de ese ROL en ese CARRIL (`inLane('client', 'b')` → `client-b`). */
-export const inLane = (role: Role, lane: Lane): DeviceId => (lane === 'b' && role !== 'admin' ? `${role}-b` : role) as DeviceId;
+export const inLane = (role: Role, lane: Lane): DeviceId => (lane === 'a' || role === 'admin' ? role : `${role}-${lane}`) as DeviceId;
+/** El número del carril (A = 0): de ahí salen su celular y su cédula sintéticos. */
+export const laneIndex = (lane: Lane): number => Math.max(0, LANE_NAMES.indexOf(lane));
+/** ¿Es un celular que este panel atiende? (`admin`, o un rol en un carril que existe). */
+export const isDeviceId = (s: string): s is DeviceId => s === 'admin' || (/^(client|advisor)(-[b-h])?$/.test(s) && LANES.includes(laneOf(s)));
 /** Los CELULARES del carril A con su contenedor de Selenium; `admin` es la PC de la vista «Admin» (ver `openDesktop`). */
 type PhoneId = 'client' | 'advisor';
 
@@ -319,10 +329,12 @@ async function openDesktop(): Promise<Omit<Device, 'openedAt'>> {
 const screenOf = (id: DeviceId) => (id === 'admin' ? { ...DESKTOP, scale: DESKTOP_SCALE } : { ...SCREEN, scale: DEVICE_SCALE });
 
 // ── La API del panel ─────────────────────────────────────────────────────────────────────────────
-const ENGINE: Record<DeviceId, () => Promise<Omit<Device, 'openedAt'>>> = ENGINE_NAME === 'selenium'
-    // El carril B va siempre con Chromium: el motor de Selenium tiene UN par de contenedores por panel.
-    ? { client: () => openSelenium(SELENIUM_BOXES.client), advisor: () => openSelenium(SELENIUM_BOXES.advisor), admin: openDesktop, 'client-b': openChromium, 'advisor-b': openChromium }
-    : { client: openChromium, advisor: openChromium, admin: openDesktop, 'client-b': openChromium, 'advisor-b': openChromium };
+/** Con qué se abre cada celular. Los de los carriles que no son el A van siempre con Chromium: el motor de Selenium tiene
+ *  UN par de contenedores por panel. */
+const engineFor = (id: DeviceId): (() => Promise<Omit<Device, 'openedAt'>>) =>
+    id === 'admin' ? openDesktop
+        : ENGINE_NAME === 'selenium' && laneOf(id) === 'a' ? () => openSelenium(SELENIUM_BOXES[roleOf(id) as PhoneId])
+            : openChromium;
 /** Con qué motor corren los celulares (lo muestra el panel). */
 export const DEVICE_ENGINE = ENGINE_NAME;
 
@@ -336,7 +348,7 @@ const spare = new Map<DeviceId, Promise<Omit<Device, 'openedAt'> | null>>();
 function refillSpare(id: DeviceId): void {
     // La PC no deja reserva: se abre de vez en cuando y un Chromium esperando por ella es memoria que casi nunca se usa.
     if (id === 'admin' || open.has(id) || spare.has(id)) return;
-    spare.set(id, ENGINE[id]().catch(() => null));
+    spare.set(id, engineFor(id)().catch(() => null));
 }
 async function takeSpare(id: DeviceId): Promise<{ d: Omit<Device, 'openedAt'>; reused: boolean }> {
     const pending = spare.get(id);
@@ -347,7 +359,7 @@ async function takeSpare(id: DeviceId): Promise<{ d: Omit<Device, 'openedAt'>; r
     // Se le PREGUNTA a Selenium (`alive`): la conexión CDP puede seguir abierta con la sesión ya muerta.
     if (d && !d.page.isClosed() && (await d.alive?.().catch(() => false) ?? true)) return { d, reused: true };
     if (d) await d.close().catch(() => { });
-    return { d: await ENGINE[id](), reused: false };
+    return { d: await engineFor(id)(), reused: false };
 }
 /** Prepara los dos celulares en segundo plano (el contenedor y su navegador de reserva). Lo llama el panel al
  *  arrancar; y `warmDevice`, antes de las consultas que preceden a abrir uno, para que corran en paralelo. */
@@ -538,7 +550,9 @@ export async function closeDevice(id: DeviceId): Promise<void> {
     const d = open.get(id);
     open.delete(id);
     await d?.close().catch(() => { });
-    if (d) refillSpare(id);   // el lugar quedó libre: la próxima apertura ya tiene navegador
+    // El lugar quedó libre: la próxima apertura ya tiene navegador. Sólo en el carril A: con N carriles, una reserva por
+    // celular de cada uno serían hasta 16 Chromium esperando; los otros lo preparan al abrir (`warmDevice`).
+    if (d && laneOf(id) === 'a') refillSpare(id);
 }
 
 /** Cierra todo, contenedores incluidos. Lo llama el panel al salir. */

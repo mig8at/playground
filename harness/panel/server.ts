@@ -19,7 +19,7 @@ import { advisorSession } from '../../connectors/advisor/session.ts';
 import { envData, type AutofillData } from '../pkg/autofill.ts';
 import { identityWithoutProviderNotice } from '../pkg/config.ts';
 import { adminSession, ensureLocalAdmin, ADMIN_APP } from '../pkg/admin-access.ts';
-import { laneOf, roleOf, inLane, type Lane } from './devices.ts';
+import { laneOf, roleOf, inLane, laneIndex, isDeviceId, LANES, type Lane, type Role } from './devices.ts';
 import { deviceFillOtp, deviceChooseEntity, openDevice, openDevices, setDeviceLogger, prewarmDevices, warmDevice, watchNavigation, watchRequests, deviceGoto, deviceReload, deviceText, deviceEval, deviceOpenedAt, deviceState, deviceShot, deviceInput, deviceTap, deviceAdvance, deviceStream, deviceBusyWatch, deviceStorage, closeDevice, closeAllDevices, SELENIUM_BOXES, type DeviceId, type DeviceInput, type DeviceSession } from './devices.ts';
 import { vpnDev, type VpnStatus } from '../pkg/vpn.ts';
 import { validatePlan, readPlan, writePlan, clearPlan } from '../pkg/run-plan.ts';
@@ -48,12 +48,16 @@ const RUN_LOG = PORT === 5195 ? '/tmp/asesor-panel-run.log' : `/tmp/asesor-panel
  * recibe uno nuevo. La pestaña del panel anota los ids de sus corridas y, al volver a ella, pide la suya
  * (`/api/console?id=`) en vez de mirar la de otra. El id vive en un archivo al lado del log para sobrevivir a reiniciar
  * el panel. Se guardan las últimas 200. */
-// UNA CONSOLA VIVA POR CARRIL (ver `Lane` en `panel/devices.ts`): la del B es otro archivo, así dos corridas a la vez no se
-// mezclan línea por línea. Las corridas por `bin/advisor` y la de prod son del carril A.
-const RUN_LOGS: Record<Lane, string> = { a: RUN_LOG, b: RUN_LOG.replace(/\.log$/, '-b.log') };
+// UNA CONSOLA VIVA POR CARRIL (ver `LANES` en `panel/devices.ts`): la de cada carril que no es el A es otro archivo, así
+// varias corridas a la vez no se mezclan línea por línea. Las corridas por `bin/advisor` y la de prod son del carril A.
+const RUN_LOGS: Record<Lane, string> = Object.fromEntries(LANES.map((l) => [l, l === 'a' ? RUN_LOG : RUN_LOG.replace(/\.log$/, `-${l}.log`)]));
+/** Un carril que viene en la URL (`?lane=`): uno que existe, o el A. */
+const laneParam = (v: string | null): Lane => (v && LANES.includes(v) ? v : 'a');
+/** Un registro con un valor por carril. */
+const perLane = <T>(make: (lane: Lane) => T): Record<Lane, T> => Object.fromEntries(LANES.map((l) => [l, make(l)]));
 const newConsoleId = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
 const loadConsoleId = (lane: Lane) => { try { const v = readFileSync(RUN_LOGS[lane] + '.id', 'utf8').trim(); return /^[a-z0-9]{8,20}$/.test(v) ? v : newConsoleId(); } catch { return newConsoleId(); } };
-const consoleIds: Record<Lane, string> = { a: loadConsoleId('a'), b: loadConsoleId('b') };
+const consoleIds: Record<Lane, string> = perLane(loadConsoleId);
 const consolesDir = () => join(dirname(fileURLToPath(import.meta.url)), '..', '.runs', 'consoles');
 /** Arranca una consola NUEVA en un carril: guarda la que había (si tenía algo) y escribe el encabezado de la nueva. */
 function freshConsole(header: string, lane: Lane = 'a'): void {
@@ -401,8 +405,9 @@ function laneCase(order: any, id: DeviceId, target = 'local'): any {
     // EN LA COMPARTIDA, TELÉFONOS FUERA DEL BYPASS. Ahí el OTP sale por el servicio de OTP (y a Slack, #qa-messages) y el
     // panel lo lee de ese servicio (`otpFromService`); con un teléfono de `qa_otp_bypass_phones` el código no llega al
     // servicio y un comercio del pipeline de KYC no pasa el OTP (F-243). Sólo se cambian los del arnés: uno puesto a mano manda.
-    if (sharedOtp(target) && ['', '3131010101', '3131010102'].includes(String(o.phone || '').replace(/\D/g, ''))) {
-        o.phone = laneOf(id) === 'b' ? '3131010104' : '3131010103';
+    const i = laneIndex(laneOf(id));
+    if (sharedOtp(target) && (!String(o.phone || '').replace(/\D/g, '') || isLocalLanePhone(o.phone))) {
+        o.phone = sharedLanePhone(i);
         // ⚠ Y LA IDENTIDAD VA CON EL TELÉFONO: en la compartida la cédula queda atada al celular con que se registró, así que
         // un teléfono nuevo con la cédula de otro se traba en la confirmación de identidad (las de antes, `1096734490` con
         // `…0101` y `1096734491` con `…0102`, quedaron así el 2026-10-21).
@@ -413,7 +418,7 @@ function laneCase(order: any, id: DeviceId, target = 'local'): any {
         // (qa, 2026-10-21, 503884). Se arma con la hora (en segundos) y termina en el carril; se llama una vez por celular
         // abierto, así que la corrida entera —también el traspaso al cliente— lleva la misma. Al abrir, el scrub del
         // teléfono borra al cliente de la corrida anterior.
-        o.doc = '10' + String(Math.floor(Date.now() / 1000)).slice(-7) + (laneOf(id) === 'b' ? '4' : '3');
+        o.doc = '10' + String(Math.floor(Date.now() / 1000)).slice(-7) + String((3 + i) % 10);
         o.email = `qa.harness+${o.phone.slice(-4)}@creditop.com`;
         return o;
     }
@@ -421,11 +426,19 @@ function laneCase(order: any, id: DeviceId, target = 'local'): any {
     // mocks y no contesta la identidad por defecto, con la que el listado de qa salía vacío. En local también: un comercio
     // del pipeline de KYC CONSULTA la central (al mock), y sin cédula no se le dicta nada y contesta su persona por
     // defecto, que no es la que se teclea (2026-10-21, Mediarte).
-    if (laneOf(id) !== 'b') { if (!String(o.doc || '').replace(/\D/g, '')) o.doc = '1096734490'; return o; }
-    if (!String(o.doc || '').replace(/\D/g, '')) o.doc = '1096734491';
-    if (!String(o.email || '').trim()) o.email = 'qa.harness+b@creditop.com';
+    // Cada carril, su cédula y su correo: A los del autorrelleno (`1096734490`, `qa.harness@`), B `…491` y `+b@`, C `…492`…
+    if (!String(o.doc || '').replace(/\D/g, '')) o.doc = String(1096734490 + i);
+    if (i > 0 && !String(o.email || '').trim()) o.email = `qa.harness+${laneOf(id)}@creditop.com`;
     return o;
 }
+/* EL CELULAR SINTÉTICO DE CADA CARRIL (A = 0): en local, los del bypass del OTP (`3131010101`, `…0102`, `…0103`…); en la
+ * compartida, otros, fuera del bypass (`…0103`, `…0104`, `…0105`…), porque ahí el OTP sale por el servicio. Cada carril el
+ * suyo: con el mismo número, abrir una corrida limpiaba (scrub) al cliente de la otra. Local y la compartida son bases
+ * distintas, así que el `…0103` del carril C de local no choca con el del A de la compartida. La interfaz lo calcula igual
+ * (`lanePhone` en `index.html`). */
+const localLanePhone = (i: number) => '31310101' + String(1 + i).padStart(2, '0');
+const sharedLanePhone = (i: number) => String(3131010103 + i);
+const isLocalLanePhone = (phone: unknown) => LANES.some((_, k) => localLanePhone(k) === String(phone ?? '').replace(/\D/g, ''));
 /** ¿El OTP de este ambiente sale por el servicio (la compartida) y no por el bypass? Local no tiene servicio de OTP. */
 const sharedOtp = (target: string) => target !== 'local' && target !== 'prod';
 /**
@@ -563,23 +576,23 @@ const prodPhones = new Set<DeviceId>();
  * leer en orden todo lo que pasó (y que «copiar» lo lleve). Abrir un celular sin corrida activa arranca una
  * consola nueva (`startDeviceLog`); con una corrida andando, se suma a la suya.
  */
-// Los rótulos del carril B son los mismos: su consola es otra, así que no hace falta distinguirlos ahí (y las consolas
-// filtradas por celular del panel siguen leyendo `[asesor ]` y `[cliente]`).
-const DEVICE_LABEL: Record<DeviceId, string> = { advisor: 'asesor ', client: 'cliente', admin: 'admin  ', 'advisor-b': 'asesor ', 'client-b': 'cliente' };
-type Logger = DeviceId | 'panel' | 'panel-b';
+// Los rótulos de los otros carriles son los mismos: su consola es otra, así que no hace falta distinguirlos ahí (y las
+// consolas filtradas por celular del panel siguen leyendo `[asesor ]` y `[cliente]`).
+const ROLE_LABEL: Record<Role, string> = { advisor: 'asesor ', client: 'cliente', admin: 'admin  ' };
+type Logger = DeviceId | 'panel' | `panel-${string}`;
 /** Lo que el PANEL anota en la consola del carril de ese celular. */
-const panelOf = (id: DeviceId): Logger => (laneOf(id) === 'b' ? 'panel-b' : 'panel');
+const panelOf = (id: DeviceId): Logger => (laneOf(id) === 'a' ? 'panel' : `panel-${laneOf(id)}`);
 function deviceLog(id: Logger, line: string): void {
     const at = new Date().toLocaleTimeString('es-CO', { hour12: false });
-    const panel = id === 'panel' || id === 'panel-b';
-    const who = panel ? 'panel  ' : DEVICE_LABEL[id as DeviceId];
-    const lane: Lane = id === 'panel-b' || (!panel && laneOf(id)) === 'b' ? 'b' : 'a';
+    const panel = id === 'panel' || id.startsWith('panel-');
+    const who = panel ? 'panel  ' : ROLE_LABEL[roleOf(id)];
+    const lane: Lane = laneParam(panel ? id.slice('panel-'.length) : laneOf(id));
     try { writeFileSync(RUN_LOGS[lane], `  ${at} [${who}] ${line}\n`, { flag: 'a' }); } catch { }
 }
 setDeviceLogger(deviceLog);
 function startDeviceLog(title: string, lane: Lane = 'a'): void {
     if (lane === 'a' && current && !current.done) { deviceLog('panel', title); return; }
-    try { freshConsole(`▶ CELULARES${lane === 'b' ? ' · carril B' : ''} · ${title}\n\n`, lane); } catch { }
+    try { freshConsole(`▶ CELULARES${lane === 'a' ? '' : ` · carril ${lane.toUpperCase()}`} · ${title}\n\n`, lane); } catch { }
 }
 /** La nota del chip de un celular, y la misma línea en la consola. */
 function setNote(id: DeviceId, text: string): void {
@@ -778,11 +791,11 @@ function stepPattern(id: string): RegExp | null {
  *     (`watchAdvisorHandoffs`) y sigue ahí. Sin esto la corrida se quedaba en el asesor, que ya no tiene nada que hacer.
  */
 /** «Detener» mientras la corrida completa espera el traspaso (ahí ningún celular está avanzando). */
-const followCancelledAt: Record<Lane, number> = { a: 0, b: 0 };
+const followCancelledAt: Record<Lane, number> = perLane(() => 0);
 /** La CORRIDA COMPLETA en curso o la última: si sigue, en qué celular va y por qué terminó (lo mira la franja del plan). */
 type AutoRun = { active: boolean; device: DeviceId; why: string; startedAt: number; endedAt?: number };
-const autoRuns: Record<Lane, AutoRun | null> = { a: null, b: null };
-const lastAdvanceWhy: Record<Lane, string> = { a: '', b: '' };
+const autoRuns: Record<Lane, AutoRun | null> = perLane(() => null);
+const lastAdvanceWhy: Record<Lane, string> = perLane(() => '');
 /** El error que la pantalla de un celular MUESTRA (la primera línea que lo parezca), para que el motivo de una corrida
  *  trabada diga lo que se ve y no «locator.click: Timeout». '' si no hay. */
 async function screenError(id: DeviceId): Promise<string> {
@@ -1779,7 +1792,13 @@ const server = createServer(async (req, res) => {
 
     // EL PLAN DE CORRIDA (`pkg/run-plan.ts`): una corrida armada de antemano —por un agente con `bin/plan.ts`, o por acá—
     // que el panel muestra arriba de los celulares para darle play. Uno por máquina, en `.runs/plan.json`.
-    if (path === '/api/autorun') return json(res, 200, { autoRun: autoRuns[url.searchParams.get('lane') === 'b' ? 'b' : 'a'] });
+    if (path === '/api/autorun') return json(res, 200, { autoRun: autoRuns[laneParam(url.searchParams.get('lane'))] });
+    // LOS CARRILES de este panel (`HARNESS_LANES`) y cuáles tienen algún celular abierto: la interfaz los pide en UNA
+    // consulta en vez de preguntar celular por celular.
+    if (path === '/api/lanes') {
+        const opened = openDevices();
+        return json(res, 200, { lanes: LANES, open: perLane((l) => opened.some((d) => d !== 'admin' && laneOf(d) === l)) });
+    }
     if (path === '/api/plan') {
         if (req.method === 'GET') return json(res, 200, { plan: readPlan() });
         if (req.method === 'DELETE') { clearPlan(); return json(res, 200, { ok: true }); }
@@ -1978,7 +1997,7 @@ const server = createServer(async (req, res) => {
         // que estás probando. Antes leía sólo el volcado del scrub, que es de la corrida ANTERIOR: mostraba una solicitud
         // vieja y «aprueba» la aprobaba a ella (2026-10-13). El volcado queda para las corridas por consola.
         let lastOne: any = null;
-        for (const dev of ['client', 'advisor', 'client-b', 'advisor-b'] as DeviceId[]) {
+        for (const dev of LANES.flatMap((l) => [inLane('client', l), inLane('advisor', l)])) {
             const st = deviceState(dev);
             const ur = st.open ? /\/(\d{5,})(?:\/|\?|$)/.exec(new URL(st.url || 'http://x/').pathname)?.[1] : undefined;
             if (!ur || (deviceTarget.get(dev) ?? 'local') !== 'local') continue;
@@ -2609,8 +2628,9 @@ connect();
     // `POST /api/device/client/open` arma el pedido de la tienda del panel —la misma URL base64 que usa
     // la corrida (`dbops ecommerce-url`)— y abre el checkout en el contexto del cliente. Por ahora sólo
     // navega: el bypass del OTP y la siembra del buró vienen después.
-    const deviceRoute = /^\/api\/device\/(client-b|advisor-b|client|advisor|admin)(?:\/(open|state|shot|stream|close|input|reload|tab|tap|advance|advance-all|advance-stop|saved|resume))?$/.exec(path);
-    if (deviceRoute) {
+    // El celular: `admin`, o un rol con su carril (`advisor`, `client-c`…). Uno de un carril que este panel no tiene, 404.
+    const deviceRoute = /^\/api\/device\/((?:client|advisor)(?:-[b-h])?|admin)(?:\/(open|state|shot|stream|close|input|reload|tab|tap|advance|advance-all|advance-stop|saved|resume))?$/.exec(path);
+    if (deviceRoute && isDeviceId(deviceRoute[1])) {
         const id = deviceRoute[1] as DeviceId, action = deviceRoute[2] || 'state';
         if (action === 'open' && req.method === 'POST' && id !== 'admin') {
             devicesOpening++;
@@ -2847,10 +2867,10 @@ connect();
             // También fuera de local (nunca en prod), como ya hacía la tienda: sin limpiar, en qa el wizard reconocía al
             // cliente del teléfono del arnés, saltaba directo al listado sin volver a consultar las centrales y quedaba
             // rechazado con lo de la primera vez (503477, 2026-10-13). Sólo borra usuarios CLIENTE de ese teléfono.
-            const casePhone = String(b.order?.phone || '').replace(/\D/g, '') || '3131010101';
+            const casePhone = String(b.order?.phone || '').replace(/\D/g, '') || localLanePhone(laneIndex(laneOf(id)));
             const scrubbing = t !== 'prod' ? dbopsJson(['scrubphone', casePhone], t) : Promise.resolve(null);
-            // EL BYPASS DEL OTP DE ESE CELULAR. El del carril A (3131010101) ya vive en `qa_otp_bypass_phones`; el del B no, y sin
-            // esto el OTP de registro del asesor no pasa. Se suma con la misma función de las corridas y se saca al cerrar el
+            // EL BYPASS DEL OTP DE ESE CELULAR. El del carril A (3131010101) ya vive en `qa_otp_bypass_phones`; los de los otros
+            // carriles no, y sin esto el OTP de registro del asesor no pasa. Se suma con la misma función de las corridas y se saca al cerrar el
             // celular (`releaseDevice`), sólo lo que se agregó.
             // En la compartida no: ahí el OTP sale por el servicio de OTP y lo escribe `otpFromService` (F-243).
             if (t === 'local') {
@@ -3024,7 +3044,7 @@ connect();
 
     if (path === '/api/status') {
         const from = url.searchParams.get('from');
-        const statusLane: Lane = url.searchParams.get('lane') === 'b' ? 'b' : 'a';
+        const statusLane: Lane = laneParam(url.searchParams.get('lane'));
         const base = {
             running: !!(current && !current.done),
             consoleId: consoleIds[statusLane],   // la consola viva DEL CARRIL: la pestaña que la arrancó la anota (ver `freshConsole`)
@@ -3066,7 +3086,7 @@ connect();
     if (path === '/api/console') {
         const id = String(url.searchParams.get('id') || '');
         if (!/^[a-z0-9]{8,20}$/.test(id)) return json(res, 400, { ok: false, detail: 'id inválido' });
-        const liveLane = (['a', 'b'] as Lane[]).find((l) => consoleIds[l] === id);
+        const liveLane = LANES.find((l) => consoleIds[l] === id);
         const file = liveLane ? RUN_LOGS[liveLane] : join(consolesDir(), id + '.log');
         if (!existsSync(file)) return json(res, 200, { ok: false, id, detail: 'esa consola ya no está (se guardan las últimas 200)' });
         const text = readFileSync(file, 'utf8').replace(/\x1b\[[0-9;]*[A-Za-z]/g, '');
@@ -3074,7 +3094,7 @@ connect();
     }
     if (path === '/api/log') {
         res.writeHead(200, { 'content-type': 'text/plain; charset=utf-8', 'cache-control': 'no-store' });
-        return res.end(fullLog(url.searchParams.get('lane') === 'b' ? 'b' : 'a'));
+        return res.end(fullLog(laneParam(url.searchParams.get('lane'))));
     }
 
     if (path === '/api/stop' && req.method === 'POST') {
@@ -3106,8 +3126,8 @@ server.on('error', (err: NodeJS.ErrnoException) => {
  * se saltan cuadros de en medio, nunca el último: se guarda y sale apenas se vacía la cola. */
 const inputQueue = new Map<DeviceId, Promise<unknown>>();
 server.on('upgrade', (req, socket) => {
-    const m = /^\/api\/device\/(client-b|advisor-b|client|advisor|admin)\/live(?:\?|$)/.exec(req.url || '');
-    if (!m) { socket.destroy(); return; }
+    const m = /^\/api\/device\/((?:client|advisor)(?:-[b-h])?|admin)\/live(?:\?|$)/.exec(req.url || '');
+    if (!m || !isDeviceId(m[1])) { socket.destroy(); return; }
     const id = m[1] as DeviceId;
     const ws = acceptSocket(req, socket);
     if (!ws) return;

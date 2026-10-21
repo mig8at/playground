@@ -890,6 +890,8 @@ Un plan con `play: "auto"` en el panel va paso a paso, y la franja lo dice.
 
 ### Dos pestañas a la vez: los CARRILES (2026-10-21)
 
+⚠ **Desde el mismo día son N, no dos** (ver «N carriles» más abajo). Lo que sigue describe el mecanismo, que es el mismo.
+
 Dos pestañas pueden correr al mismo tiempo, cada una con su par de celulares. El carril A son los de siempre
 (`advisor`, `client`) y el B los mismos con `-b` (`advisor-b`, `client-b`, `Lane`/`laneOf`/`roleOf`/`inLane` en
 `panel/devices.ts`). Casi todo el servidor ya iba por id de celular, así que un carril es un id más; lo que no:
@@ -1034,3 +1036,30 @@ nuevo) y apagó el botón mientras cargaba; Pullman · Tienda online mostró el 
 abrirla (con los que aplican) y el celular tiene su ▶. El motivo de un ⚠ sigue en el tooltip de la fila y en la línea
 de abajo de la elegida (`chosenSubline`). Se fueron `CHANNEL_SHORT`, los estilos `.row-chips` y la opción `play` de
 `openTab`. Las etiquetas del comercio (`loadMerchantTags`) se siguen pidiendo: agrupan por país.
+
+### N carriles, a demanda (2026-10-21)
+
+Los carriles dejaron de ser A y B fijos: `LANES` en `panel/devices.ts` sale de `HARNESS_LANES` (4 por defecto, de 1 a 8)
+y cada pestaña que arranca toma el primero libre. Los ids son el rol con su letra (`advisor`, `advisor-b`, `client-c`…;
+`laneOf`/`roleOf`/`inLane`/`laneIndex`/`isDeviceId`), y las rutas `/api/device/…` aceptan los de los carriles que existen
+(uno de afuera da 404). El techo no es Chromium —todos los celulares son contextos del mismo navegador— sino el backend
+local (6 workers de PHP) y la memoria.
+
+- **Todo lo del carril sale de su número** (A = 0): el celular sintético (`localLanePhone`: `…0101`, `…0102`, `…0103`…;
+  `sharedLanePhone` en la compartida: `…0103`, `…0104`, `…0105`…), la cédula de local (`1096734490 + i`), el correo
+  (`qa.harness+<letra>@`) y la cédula nueva de la compartida (termina en `3 + i`). La interfaz calcula el mismo celular
+  (`lanePhone`). En local, el de cada carril que no es el A se suma al bypass al abrir y se saca al cerrar.
+- **Una consola por carril** (`RUN_LOGS`, `.runs/…-<letra>.log`), y `autoRuns`, `lastAdvanceWhy` y `followCancelledAt`
+  por carril (`perLane`). `?lane=` acepta cualquiera que exista (`laneParam`).
+- **`/api/lanes`**: los carriles del panel y cuáles tienen un celular abierto, en UNA consulta. `pollLanes` la pide cada 3 s
+  (antes eran dos consultas por carril) y de ahí la interfaz toma `LANES`.
+- **«Los N carriles están ocupados»** sale sólo con todos llenos, con una fila por carril: su corrida, «Ir» si es de este
+  ambiente y «Cerrar». El freno del mismo comercio en otra sucursal (en local) se mira contra TODOS los carriles ocupados.
+- **El navegador de reserva sólo en el carril A**: con N carriles, una reserva por celular serían hasta 16 Chromium
+  esperando; los demás lo preparan al abrir (`warmDevice`).
+- Verificado en local con `HARNESS_LANES=4`: cuatro asesores abiertos a la vez en 7 s (Pullman, Mediarte, Motai y Sonría,
+  cada uno con su celular `…0101`–`…0104`, su cédula `…490`–`…493` y su consola, que sólo nombra a su comercio). Tres
+  cerraron solos a la vez en 91 s en estado 11 con desembolso (467500, 467498, 467501); Sonría paró en el listado por la
+  entidad elegida (Credifamilia: «No pudimos consultar esta entidad»), no por el carril. En la interfaz, con los cuatro
+  ocupados, la pestaña nueva mostró el aviso con las cuatro filas; «Cerrar» en la D liberó el carril y el ▶ de Sonría lo
+  tomó (celular `…0104`, abierto en 1 s). Al cerrar todo, el bypass local volvió a tener sólo `3131010101`.

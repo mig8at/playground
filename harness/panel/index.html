@@ -338,6 +338,9 @@
     #results[data-admin-on] .row[aria-selected="true"] { background: none; color: inherit; box-shadow: none }
     #results[data-admin-on] .row[aria-selected="true"] .row-meta { color: var(--fg-3) }
     .tab-start-channels { display: flex; flex-wrap: wrap; justify-content: center; gap: var(--space-2) }
+    .tab-busy-list { display: flex; flex-direction: column; gap: var(--space-1); width: min(100%, 420px) }
+    .tab-busy-row { display: flex; align-items: center; gap: var(--space-2); font-size: var(--text-sm) }
+    .tab-busy-name { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--fg-2) }
     .devices[hidden], .admin-view[hidden], .prod-view[hidden] { display: none }
     .stage-views[hidden] { display: none }
     .prod-view { flex: 1 1 auto; min-height: 0; display: flex; justify-content: center; align-items: flex-start; overflow: auto }
@@ -760,12 +763,9 @@
             <div class="empty-head">
               <div class="empty-media"><span class="ui-icon" data-icon="play" aria-hidden="true"></span></div>
               <div class="empty-title" id="tabBusyTitle"></div>
-              <div class="empty-desc">Por ahora hay un solo juego de celulares. Para correr esta pestaña, cerrá la otra corrida.</div>
+              <div class="empty-desc">Para correr esta pestaña, cerrá una de las otras corridas. Cuántos carriles hay lo fija <code>HARNESS_LANES</code> al arrancar el panel.</div>
             </div>
-            <div class="tab-start-channels">
-              <button type="button" class="btn btn-outline btn-sm" id="tabBusyGo">Ir a esa pestaña</button>
-              <button type="button" class="btn btn-sm" id="tabBusyClose">Cerrar esa corrida</button>
-            </div>
+            <div class="tab-busy-list" id="tabBusyList"></div>
           </div>
           <div class="devices" id="devices" data-count="2">
             <!-- La tienda, sólo con los canales que entran por ella (ecommerce y auto): ahí el comprador
@@ -1372,10 +1372,15 @@
     // EL CARRIL DE LOS CELULARES QUE SE VEN (ver «LOS CARRILES» en `panel/devices.ts`): las pantallas son siempre las mismas
     // dos (asesor y cliente); lo que cambia es de qué carril son. `D(rol)` es el celular del servidor de ese rol en ese carril.
     let phoneLane = 'a';
-    const D = (role) => (role === 'admin' || phoneLane !== 'b' ? role : role + '-b');
-    // EL CELULAR DEL CASO por carril y ambiente: en local los del bypass; en la compartida otros, FUERA del bypass, porque
-    // ahí el OTP sale por el servicio de OTP y el panel lo lee de él (`otpFromService` en `panel/server.ts`, F-243).
-    const lanePhone = (lane = phoneLane) => (target === 'local' ? (lane === 'b' ? '3131010102' : '3131010101') : (lane === 'b' ? '3131010104' : '3131010103'));
+    // Los carriles que tiene el servidor (`HARNESS_LANES`): los dice `/api/lanes`, que `pollLanes` pide cada 3 s.
+    let LANES = ['a', 'b', 'c', 'd'];
+    const laneId = (role, lane) => (role === 'admin' || lane === 'a' ? role : `${role}-${lane}`);
+    const D = (role) => laneId(role, phoneLane);
+    // EL CELULAR DEL CASO por carril y ambiente: en local los del bypass (`…0101`, `…0102`…); en la compartida otros, FUERA
+    // del bypass (`…0103`, `…0104`…), porque ahí el OTP sale por el servicio de OTP y el panel lo lee de él
+    // (`otpFromService`, F-243). La misma cuenta que `localLanePhone`/`sharedLanePhone` en `panel/server.ts`.
+    const laneNumber = (lane) => Math.max(0, 'abcdefgh'.indexOf(lane));
+    const lanePhone = (lane = phoneLane) => (target === 'local' ? '31310101' + String(1 + laneNumber(lane)).padStart(2, '0') : String(3131010103 + laneNumber(lane)));
     /** El chip del código del cliente: en local, el del bypass (los últimos 4); en la compartida lo escribe el panel. */
     function setOtpChip(code, title) {
       const chip = $('clientOtp');
@@ -4063,11 +4068,11 @@
     // panel cambia ANTES de que el juego se cambie, y mientras tanto nada debe escribir en el juego equivocado.
     // `laneOwners`: la pestaña dueña de cada CARRIL de celulares (ver «LOS CARRILES» en `panel/devices.ts`); `laneBusyNow`,
     // si el servidor tiene abierto algún celular de ese carril (lo mira `pollLanes`).
-    let tabSets = {}, tabsTarget = target, runTabs = [], activeTab = null, laneOwners = { a: null, b: null }, tabSwitching = false;
-    const laneBusyNow = { a: false, b: false };
+    let tabSets = {}, tabsTarget = target, runTabs = [], activeTab = null, laneOwners = {}, tabSwitching = false;
+    const laneBusyNow = {};
     try {
       const saved = JSON.parse(localStorage.getItem(TABS_KEY) || 'null');
-      if (saved && typeof saved === 'object') { tabSets = saved.sets || {}; laneOwners = saved.lanes || { a: saved.live || null, b: null }; }
+      if (saved && typeof saved === 'object') { tabSets = saved.sets || {}; laneOwners = saved.lanes || { a: saved.live || null }; }
       else {
         // La versión anterior guardaba un solo juego, siempre de local.
         const old = JSON.parse(localStorage.getItem('harness.tabs') || 'null');
@@ -4093,23 +4098,22 @@
     const devicesBusy = () => deviceShown('advisor') || deviceShown('client') || !$('advisorStatus').hidden || !$('clientStatus').hidden;
     const inOriginacion = () => $('viewOrig').classList.contains('on');
     /** La pestaña dueña de los celulares, si es de ESTE ambiente. */
-    const laneId = (role, lane) => (lane === 'b' ? role + '-b' : role);
     /** El carril del que es dueña esta pestaña, o null. */
-    const laneOfTab = (t) => (t ? ['a', 'b'].find((l) => laneOwners[l] && laneOwners[l].target === tabsTarget && laneOwners[l].id === t.id) : null) || null;
+    const laneOfTab = (t) => (t ? LANES.find((l) => laneOwners[l] && laneOwners[l].target === tabsTarget && laneOwners[l].id === t.id) : null) || null;
     const isOwner = (t) => !!laneOfTab(t);
     /** ¿Ese carril tiene celulares abiertos? (el servidor, y lo que se ve si es el carril a la vista y todavía está abriendo) */
     const laneBusy = (lane) => laneBusyNow[lane] || (lane === phoneLane && devicesBusy());
     const ownerLabel = (lane = 'a') => { const o = laneOwners[lane]; return o ? `«${o.label}»${o.target !== tabsTarget ? ` (en ${o.target})` : ''}` : 'otra corrida'; };
     /** El carril que muestra una pestaña: el suyo; si no tiene, uno libre (prod va siempre por el A: su celular es ése). */
-    const laneToShow = (t) => laneOfTab(t) || (t?.kind === 'prod' ? 'a' : !laneBusy('a') ? 'a' : !laneBusy('b') ? 'b' : 'a');
-    /** Qué celulares tiene abiertos el servidor en cada carril. Cada 3 s, y al abrir o cerrar. */
+    const freeLane = () => LANES.find((l) => !laneBusy(l)) || null;
+    const laneToShow = (t) => laneOfTab(t) || (t?.kind === 'prod' ? 'a' : freeLane() || 'a');
+    /** Qué carriles tiene el servidor y cuáles tienen algún celular abierto (`/api/lanes`). Cada 3 s, y al abrir o cerrar. */
     async function pollLanes() {
-      for (const lane of ['a', 'b']) {
-        try {
-          const sts = await Promise.all(['advisor', 'client'].map(async (r) => (await fetch(`/api/device/${laneId(r, lane)}/state`)).json()));
-          laneBusyNow[lane] = sts.some((x) => x.open);
-        } catch { /* el panel no respondió: queda como estaba */ }
-      }
+      try {
+        const r = await (await fetch('/api/lanes')).json();
+        if (Array.isArray(r.lanes) && r.lanes.length) LANES = r.lanes;
+        for (const l of LANES) laneBusyNow[l] = !!r.open?.[l];
+      } catch { /* el panel no respondió: queda como estaba */ }
       renderTabs();
       if (!$('tabBusy').hidden || (currentTab() && !isOwner(currentTab()))) renderStage();
     }
@@ -4203,14 +4207,12 @@
       const run = !!t && t.kind !== 'admin';
       const asking = orig && run && !t.canal;
       // Ocupado = los DOS carriles con otras corridas: con uno libre, esta pestaña lo usa.
-      const busy = orig && run && !!t.canal && !isOwner(t) && laneBusy('a') && laneBusy('b');
+      const busy = orig && run && !!t.canal && !isOwner(t) && LANES.every(laneBusy);
       $('tabStart').hidden = !asking;
       $('tabBusy').hidden = !busy;
       $('devices').hidden = !orig || asking || busy;
       if (asking) renderChannelChoice(t);
-      if (busy) $('tabBusyTitle').textContent = `Los dos carriles están ocupados: ${ownerLabel('a')} y ${ownerLabel('b')}`;
-      // «Ir a esa pestaña» sólo si es de este ambiente: la de otro se ve cambiando de ambiente.
-      $('tabBusyGo').hidden = !laneOwners.a || laneOwners.a.target !== tabsTarget;
+      if (busy) renderBusyLanes();
       syncPlay();
     }
     function renderChannelChoice(t) {
@@ -4373,17 +4375,19 @@
       await pollLanes();
       let lane = laneOfTab(t);
       if (!lane) {
-        lane = t.kind === 'prod' ? (laneBusy('a') ? null : 'a') : !laneBusy('a') ? 'a' : !laneBusy('b') ? 'b' : null;
+        lane = t.kind === 'prod' ? (laneBusy('a') ? null : 'a') : freeLane();
         if (!lane) {
           const msg = t.kind === 'prod' ? `El carril A está con ${ownerLabel('a')}. ¿Cierro esa corrida para abrir esta?`
-            : `Los dos carriles están ocupados (${ownerLabel('a')} y ${ownerLabel('b')}). ¿Cierro la de ${ownerLabel('a')} para abrir esta?`;
+            : `Los ${LANES.length} carriles están ocupados (${LANES.map(ownerLabel).join(', ')}). ¿Cierro la de ${ownerLabel('a')} para abrir esta?`;
           if (!confirm(msg)) return false;
           await closeLane('a');
           lane = 'a';
         }
       }
-      const other = lane === 'a' ? 'b' : 'a', o = laneOwners[other];
-      if (!t.kind && target === 'local' && o && o.target === tabsTarget && laneBusy(other)) {
+      // El mismo comercio en otra sucursal, en local, contra CUALQUIER otro carril ocupado.
+      for (const other of LANES.filter((l) => l !== lane)) {
+        const o = laneOwners[other];
+        if (t.kind || target !== 'local' || !o || o.target !== tabsTarget || !laneBusy(other)) continue;
         const ot = runTabs.find((x) => x.id === o.id);
         const e1 = entryOf(t.slug), e2 = ot && entryOf(ot.slug);
         if (e1 && e2 && e1.allied_id && e1.allied_id === e2.allied_id && e1.hash && e2.hash && e1.hash !== e2.hash) {
@@ -4443,8 +4447,28 @@
     }
     // Al arrancar: qué consola es la viva (sin anotarla a nadie).
     fetch('/api/status').then((r) => r.json()).then((j) => { if (j.consoleId) { seenConsoleId = j.consoleId; syncConsoleView(); } }).catch(() => { });
-    $('tabBusyGo').onclick = () => { if (laneOwners.a?.target === tabsTarget) activateTab(laneOwners.a.id); };
-    $('tabBusyClose').onclick = async () => { await closeLane('a'); renderTabs(); renderStage(); };
+    /** «Todos los carriles ocupados»: una fila por carril, con su corrida, «Ir» (si es de este ambiente) y «Cerrar». */
+    function renderBusyLanes() {
+      $('tabBusyTitle').textContent = `Los ${LANES.length} carriles están ocupados`;
+      const box = $('tabBusyList');
+      box.replaceChildren();
+      for (const l of LANES) {
+        const o = laneOwners[l];
+        const row = document.createElement('div'); row.className = 'tab-busy-row';
+        const name = document.createElement('span'); name.className = 'tab-busy-name';
+        name.textContent = `${l.toUpperCase()} · ${ownerLabel(l)}`;
+        row.appendChild(name);
+        if (o && o.target === tabsTarget) {
+          const go = document.createElement('button'); go.type = 'button'; go.className = 'btn btn-outline btn-xs'; go.textContent = 'Ir';
+          go.onclick = () => activateTab(o.id);
+          row.appendChild(go);
+        }
+        const close = document.createElement('button'); close.type = 'button'; close.className = 'btn btn-xs'; close.textContent = 'Cerrar';
+        close.onclick = async () => { await closeLane(l); renderTabs(); renderStage(); };
+        row.appendChild(close);
+        box.appendChild(row);
+      }
+    }
     $('adminRow').onclick = () => openAdminTab();
     $('adminRow').onkeydown = (ev) => { if (ev.key === 'Enter' || ev.key === ' ') { ev.preventDefault(); openAdminTab(); } };
 
