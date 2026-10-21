@@ -251,3 +251,35 @@ func TestBlockLinksAPathThatLivesInOnlyOneRepo(t *testing.T) {
 		t.Fatalf("tocó lo que no era prosa suelta: %v %s", err, e.Body)
 	}
 }
+
+func TestBlockLinksAKnowledgeTopicOrSectionThatExists(t *testing.T) {
+	asked := []string{}
+	deps := BlockDeps{Files: repos, Knowledge: func(ref string) error {
+		asked = append(asked, ref)
+		if ref == "lender-listing" || ref == "lender-listing#el-monto-se-resuelve-antes" {
+			return nil
+		}
+		return errors.New("no existe el tema local")
+	}}
+	run := func(body string) error {
+		_, _, err := PrepareBlock(context.Background(), "La regla sí excluye", body, "", deps, blockNow)
+		return err
+	}
+	if err := run("Ver [el listado](knowledge:lender-listing) y [su monto](knowledge:lender-listing#el-monto-se-resuelve-antes)."); err != nil {
+		t.Fatalf("rechazó enlaces que existen: %v", err)
+	}
+	if len(asked) != 2 {
+		t.Fatalf("no preguntó por cada enlace: %v", asked)
+	}
+	if err := run("Ver [otro](knowledge:no-existe)."); err == nil || !strings.Contains(err.Error(), "knowledge:no-existe") {
+		t.Fatalf("aceptó un tema que no existe: %v", err)
+	}
+	if err := run("Ver [mal](knowledge:Lender_Listing)."); err == nil || !strings.Contains(err.Error(), "tipo válido") {
+		t.Fatalf("aceptó una referencia con otra forma: %v", err)
+	}
+	e := Event{Schema: BlockSchema, ID: "blk_x", At: "2026-09-23T15:00:00-05:00", Via: "manual", Title: "Un título",
+		Body: "Ver [el listado](knowledge:lender-listing#el-monto-se-resuelve-antes)."}
+	if err := ValidateBlock(e); err != nil {
+		t.Fatalf("la pila no lo puede volver a leer: %v", err)
+	}
+}

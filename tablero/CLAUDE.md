@@ -106,6 +106,7 @@ decide uno, entra como bloque o como pendiente. Una pregunta a alguien es ademá
 
 | Qué se nombra | Cómo se escribe | Qué comprueba el validador |
 |---|---|---|
+| un tema del conocimiento local | `[texto](knowledge:tema#ancla)`; sin `#ancla`, el tema entero | que exista en `knowledge/` el tema, y la sección si trae ancla |
 | un tema de canon | `[texto](canon:tema#ancla)` | que canon lo conozca (sin red, entra con aviso) |
 | un paso de un recorrido de canon | `[Firma](canon-ruta:codeudor/renting#renting-codeudor)`; sin `#paso`, la variante | que existan tema, variante y paso (`make canon-route REF=…`) |
 | un archivo | `[texto](repo:<repo>/<ruta>#L12)`, nunca una ruta local | que el repo se pueda citar y la ruta exista; **lo fija al commit** |

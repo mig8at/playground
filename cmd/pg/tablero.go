@@ -45,7 +45,7 @@ func runTablero(stdin string, args ...string) int {
 	return 0
 }
 
-func runTareas(args []string) int {
+func runTasks(args []string) int {
 	fs := flag.NewFlagSet("tareas", flag.ContinueOnError)
 	n := fs.String("n", "", "una tarea, por id o slug")
 	all := fs.Bool("todas", false, "también las archivadas")
@@ -66,7 +66,7 @@ func runTareas(args []string) int {
 	return runTablero("", cmd...)
 }
 
-func runTareaPila(args []string) int {
+func runTaskStack(args []string) int {
 	fs := flag.NewFlagSet("tarea pila", flag.ContinueOnError)
 	task := fs.String("tarea", "", "id o slug")
 	if fs.Parse(args) != nil {
@@ -78,7 +78,7 @@ func runTareaPila(args []string) int {
 	return runTablero("", "./cmd/task-context", "-tarea", *task, "-ver")
 }
 
-func runTareaRamas(args []string) int {
+func runTaskBranches(args []string) int {
 	fs := flag.NewFlagSet("tarea ramas", flag.ContinueOnError)
 	task := fs.String("tarea", "", "id o slug")
 	asJSON := fs.Bool("json", false, "en JSON")
@@ -95,7 +95,7 @@ func runTareaRamas(args []string) int {
 	return runTablero("", cmd...)
 }
 
-func runTareaBloque(args []string) int {
+func runTaskBlock(args []string) int {
 	fs := flag.NewFlagSet("tarea bloque", flag.ContinueOnError)
 	task := fs.String("tarea", "", "id o slug")
 	title := fs.String("titulo", "", "la conclusión, en una línea")
@@ -117,7 +117,7 @@ func runTareaBloque(args []string) int {
 	return runTablero("# "+strings.TrimSpace(*title)+"\n\n"+strings.TrimSpace(*body)+"\n", cmd...)
 }
 
-func runCierre(args []string) int {
+func runCloseout(args []string) int {
 	fs := flag.NewFlagSet("cierre", flag.ContinueOnError)
 	task := fs.String("tarea", "", "id o slug")
 	asJSON := fs.Bool("json", false, "en JSON")
@@ -134,7 +134,7 @@ func runCierre(args []string) int {
 	return runTablero("", cmd...)
 }
 
-func runBitacoraAdd(args []string) int {
+func runWorklogAdd(args []string) int {
 	fs := flag.NewFlagSet("bitacora add", flag.ContinueOnError)
 	task := fs.String("tarea", "", "id o slug")
 	title := fs.String("titulo", "", "qué se hizo, corto")

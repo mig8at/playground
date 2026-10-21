@@ -20,7 +20,7 @@ import RepoBranches from './RepoBranches.vue';
 import { readPreference, savePreference, groupTasks, TASK_GROUPS } from './ui-state.js';
 import { organizeDocument } from './task-document.js';
 import { highlightSQL } from './sql-highlight.js';
-import { parseBlockBody, blockRouteLinks } from './block-body.js';
+import { parseBlockBody, blockRouteLinks, knowledgeCommand, knowledgeHref } from './block-body.js';
 import { jiraPreview } from './jira-preview.js';
 import { readBootstrapCache, writeBootstrapCache } from './bootstrap-cache.js';
 
@@ -654,6 +654,17 @@ async function toggleDay(day, event) {
   scroller.scrollTop += section.getBoundingClientRect().top - scroller.getBoundingClientRect().top;
 }
 const routeURLs = ref({});
+// Los temas de knowledge/ que la tarea declara en `knowledge:` —con qué se retoma—, bajo el título junto a
+// los demás datos: el mismo enlace que en un bloque, y el comando que lo lee en la consola.
+const activeKnowledge = computed(() => {
+  const key = active.value?.Key;
+  const effort = key ? efforts.value.find(e => e.id === effortFor(key)) : null;
+  return (effort?.knowledge || '').split(',').map(s => s.trim()).filter(Boolean).map(ref => {
+    const [topic, anchor = ''] = ref.split('#');
+    const part = { topic, anchor };
+    return { ref, href: knowledgeHref(part, repos.value), command: knowledgeCommand(part) };
+  });
+});
 const blockLinks = computed(() => ({ repos: repos.value, canonLink, jiraLink, canonRouteLink: reference => routeURLs.value[reference] || '' }));
 // Citar un bloque lleva a él; si su día está plegado, primero lo despliega.
 async function goToBlock(id) {
@@ -1958,6 +1969,11 @@ function documentAction(id) {
               <span v-if="minutesOf(active.Key)" class="mine">{{ minHhmm(minutesOf(active.Key)) }} sin subir</span>
               <i v-if="active._local && stageOf(active._effortId)" class="stg loose"
                  :class="'s-' + stageOf(active._effortId)?.id">{{ stageOf(active._effortId)?.label }}</i>
+              <span v-if="activeKnowledge.length" class="task-knowledge">conocimiento:
+                <template v-for="(item, index) in activeKnowledge" :key="item.ref"><component :is="item.href ? 'a' : 'span'"
+                  :href="item.href || undefined" :title="item.command" :target="item.href ? '_blank' : undefined"
+                  :rel="item.href ? 'noopener' : undefined">{{ item.ref }}</component><template v-if="index < activeKnowledge.length - 1"> · </template></template>
+              </span>
               <a v-if="site && !active._local" class="task-jira-link" :href="jiraLink(active.Key)"
                  target="_blank" rel="noopener">Abrir en Jira ↗</a>
             </div>
@@ -2772,6 +2788,8 @@ function documentAction(id) {
 .task-head-facts { display: flex; align-items: center; flex-wrap: wrap; gap: 5px 10px;
   min-width: 0; color: var(--mut); font-size: var(--text-sm) }
 .task-head-facts .mine { color: var(--acc) }
+.task-knowledge a { color: var(--acc); text-decoration: none }
+.task-knowledge a:hover { text-decoration: underline }
 .task-jira-link { margin-left: auto; color: var(--acc); font-size: var(--text-sm); text-decoration: none }
 .task-jira-link:hover { text-decoration: underline }
 .task-completion { display: flex; align-items: center; gap: 9px; width: min(360px, 100%); padding: 0;

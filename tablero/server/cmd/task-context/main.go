@@ -18,6 +18,7 @@ import (
 
 	"creditop/playground/connectors/canon"
 	"creditop/playground/connectors/repos"
+	"creditop/playground/knowledge"
 	"creditop/playground/tablero/server/internal/layout"
 	"creditop/playground/tablero/server/internal/store"
 	"creditop/playground/tablero/server/internal/taskcontext"
@@ -124,7 +125,8 @@ func main() {
 	if err != nil {
 		fail("bloque inválido: %v", err)
 	}
-	deps := taskcontext.BlockDeps{Files: repos.New(layout.Find().Tools()), Canon: canonMissing, CanonRoutes: canonRoutesMissing, Existing: events}
+	deps := taskcontext.BlockDeps{Files: repos.New(layout.Find().Tools()), Canon: canonMissing, CanonRoutes: canonRoutesMissing,
+		Knowledge: knowledgeExists, Existing: events}
 	block, warnings, err := taskcontext.PrepareBlock(context.Background(), title, body, *via, deps, time.Now())
 	for _, w := range warnings {
 		fmt.Fprintf(os.Stderr, "  ⚠ %s\n", w)
@@ -146,4 +148,14 @@ func main() {
 		fail("escribiendo la pila: %v", err)
 	}
 	fmt.Printf("  apilado en tasks/%s/%s\n\n", slug, layout.ContextFile)
+}
+
+// knowledgeExists comprueba un enlace `knowledge:` contra la biblioteca local: el tema, y la sección si trae ancla.
+func knowledgeExists(ref string) error {
+	library, err := knowledge.Open(layout.Find().Knowledge())
+	if err != nil {
+		return fmt.Errorf("no se pudo abrir knowledge/: %w", err)
+	}
+	_, err = library.Read(ref)
+	return err
 }

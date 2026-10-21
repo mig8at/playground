@@ -50,7 +50,10 @@ var (
 	prTargetRe    = regexp.MustCompile(`^pr:([a-z0-9][a-z0-9-]*)#\d+$`)
 	jiraTargetRe  = regexp.MustCompile(`^jira:[A-Z][A-Z0-9]+-\d+$`)
 	blockTargetRe = regexp.MustCompile(`^bloque:(blk_[A-Za-z0-9._-]+)$`)
-	httpsTargetRe = regexp.MustCompile(`^https://\S+$`)
+	// Un tema de knowledge/ —el conocimiento local, verificado contra main— o una de sus secciones:
+	// `knowledge:<tema>[#<ancla>]`. La forma es la del id de la biblioteca (`knowledge/library.go`).
+	knowledgeTargetRe = regexp.MustCompile(`^knowledge:([a-z][a-z0-9]*(?:-[a-z0-9]+)*(?:#[a-z0-9]+(?:-[a-z0-9]+)*)?)$`)
+	httpsTargetRe     = regexp.MustCompile(`^https://\S+$`)
 	// Una pantalla de un diseño, en el visor: `visor:<clave del archivo>/<pantalla>[@<huella>]` —ids de
 	// Figma; el nombre del proyecto en lugar de la clave también vale—. La huella es la del
 	// contenido de la pantalla cuando se enlazó (`?huella=` en el enlace que copia el visor); con ella,
@@ -173,13 +176,14 @@ func checkLinks(prose string, pinned bool) error {
 				return err
 			}
 		case canonTargetRe.MatchString(target), prTargetRe.MatchString(target), jiraTargetRe.MatchString(target),
-			blockTargetRe.MatchString(target), httpsTargetRe.MatchString(target), visorTargetRe.MatchString(target):
+			blockTargetRe.MatchString(target), httpsTargetRe.MatchString(target), visorTargetRe.MatchString(target),
+			knowledgeTargetRe.MatchString(target):
 		case repoTargetRe.MatchString(target):
 			if pinned && repoTargetRe.FindStringSubmatch(target)[2] == "" {
 				return fmt.Errorf("el enlace %s no está fijado a un commit", target)
 			}
 		default:
-			return fmt.Errorf("el enlace %q no tiene un tipo válido: canon:<tema> · repo:<repo>/<ruta> · pr:<repo>#N · jira:CLAVE-N · bloque:<id> · visor:<proyecto>/<pantalla>@<huella> · https://", target)
+			return fmt.Errorf("el enlace %q no tiene un tipo válido: knowledge:<tema>[#ancla] · canon:<tema> · repo:<repo>/<ruta> · pr:<repo>#N · jira:CLAVE-N · bloque:<id> · visor:<proyecto>/<pantalla>@<huella> · https://", target)
 		}
 	}
 	return nil
@@ -268,7 +272,9 @@ type BlockDeps struct {
 	Files       FileResolver
 	Canon       CanonCheck
 	CanonRoutes CanonCheck
-	Existing    []Event
+	// Knowledge dice si un tema o sección de knowledge/ existe. Nil no comprueba (la lectura no lo usa).
+	Knowledge func(ref string) error
+	Existing  []Event
 }
 
 // mapProse aplica fn a cada línea de prosa, sin tocar lo que va adentro de un bloque de código.
@@ -334,6 +340,12 @@ func PrepareBlock(ctx context.Context, title, body, via string, deps BlockDeps, 
 			case prTargetRe.MatchString(target):
 				if alias := prTargetRe.FindStringSubmatch(target)[1]; !deps.Files.Knows(alias) {
 					problems = append(problems, fmt.Sprintf("%s: el repo %q no se puede citar", target, alias))
+				}
+			case knowledgeTargetRe.MatchString(target):
+				if deps.Knowledge != nil {
+					if err := deps.Knowledge(strings.TrimPrefix(target, "knowledge:")); err != nil {
+						problems = append(problems, target+": "+err.Error())
+					}
 				}
 			case canonTargetRe.MatchString(target):
 				canonRefs = append(canonRefs, strings.TrimPrefix(target, "canon:"))

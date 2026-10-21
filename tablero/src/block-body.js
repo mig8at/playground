@@ -107,6 +107,8 @@ const INLINE = /\[([^[\]\n]+)\]\(([^()\s]+)\)|`([^`\n]+)`|\*\*([^*\n]+)\*\*/g;
 const REPO = /^repo:([a-z0-9][a-z0-9-]*)(?:@([0-9a-f]{7,40}))?\/([^#\s]+?)(#L\d+(?:-L\d+)?)?$/;
 // Una pantalla de un diseño en el visor (`make visor`): `visor:<proyecto>/<pantalla>[@<huella>]`.
 const VISOR = /^visor:([A-Za-z0-9][A-Za-z0-9-]*)\/([0-9]+-[0-9]+)(?:@([0-9a-f]{12}))?$/;
+// Un tema del conocimiento local (`knowledge/`), o una de sus secciones: `knowledge:<tema>[#<ancla>]`.
+const KNOWLEDGE = /^knowledge:([a-z][a-z0-9]*(?:-[a-z0-9]+)*)(?:#([a-z0-9]+(?:-[a-z0-9]+)*))?$/;
 // Dónde corre el visor. Es local, como el tablero: el enlace lo abre la misma máquina.
 export const VISOR_ORIGIN = 'http://localhost:5193';
 
@@ -118,6 +120,7 @@ export function parseTarget(target) {
   if ((m = target.match(/^pr:([a-z0-9][a-z0-9-]*)#(\d+)$/))) return { kind: 'pr', repo: m[1], number: m[2] };
   if ((m = target.match(/^jira:([A-Z][A-Z0-9]+-\d+)$/))) return { kind: 'jira', key: m[1] };
   if ((m = target.match(/^bloque:(blk_[\w.-]+)$/))) return { kind: 'block', id: m[1] };
+  if ((m = target.match(KNOWLEDGE))) return { kind: 'knowledge', topic: m[1], anchor: m[2] || '' };
   if ((m = target.match(VISOR))) return { kind: 'visor', project: m[1], screen: m[2], print: m[3] || '' };
   if (/^https:\/\/\S+$/.test(target)) return { kind: 'web', url: target };
   return { kind: 'text' };
@@ -162,6 +165,17 @@ export function visorHref(part) {
 export function visorURL(target) {
   const p = parseTarget(target);
   return p.kind === 'visor' ? visorHref(p) : '';
+}
+
+// Un tema de knowledge/ vive en el repo del playground: el enlace abre su `rules.md`. El ancla no viaja,
+// porque GitHub arma las suyas distinto que la biblioteca; la sección se lee en el título del enlace.
+export function knowledgeHref(part, repos) {
+  return repoHref({ kind: 'repo', repo: 'playground', path: `knowledge/${part.topic}/rules.md` }, repos);
+}
+
+// El comando que lee el tema o la sección sin salir de la consola.
+export function knowledgeCommand(part) {
+  return `make knowledge-read ID=${part.topic}${part.anchor ? `#${part.anchor}` : ''}`;
 }
 
 // El enlace a GitHub de un archivo —en el commit que el bloque dejó fijado— o de un PR. Sin la URL del

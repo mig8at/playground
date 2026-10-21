@@ -21,7 +21,7 @@ vue vite babel mcp pinia lucide wget bun deno
 skill skills
 
 # ── términos técnicos que la stdlib casi no usa ───────────────────────────────────────────────────
-slug frontmatter jsonl upsert shortstat squash changelog pathspec
+slug frontmatter jsonl upsert shortstat squash changelog pathspec zsh
 # `broad` es inglés común; `reedit` es la opción `--reedit-message` de `git commit`
 broad reedit
 # `friction` (lo que trabó una sesión, en radar y el cierre) y `lookback` (la ventana hacia atrás): inglés común

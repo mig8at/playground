@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { parseBlockBody, inlineParts, repoHref, visorHref, blockRouteLinks } from '../src/block-body.js';
+import { parseBlockBody, inlineParts, repoHref, visorHref, blockRouteLinks, knowledgeHref, knowledgeCommand } from '../src/block-body.js';
 import { routeReference } from '../src/canon-routes.js';
 
 test('las rutas guardan variante y paso, conviven con las citas y se deduplican fuera del código', () => {
@@ -89,4 +89,17 @@ test('una pantalla del diseño (visor:) abre el visor en esa pantalla, con la hu
   assert.equal(inlineParts('[x](visor:credifamilia/381-1052@nohuella)')[0].kind, 'text', 'una huella mal escrita no es un enlace');
   assert.equal(visorHref(inlineParts('[x](visor:7M01d0CZPzzJs0iZeKhwvf/381-1052@52065d0ce692)')[0]),
     'http://localhost:5193/7M01d0CZPzzJs0iZeKhwvf/381-1052?huella=52065d0ce692', 'por ids: la clave del archivo, con mayúsculas');
+});
+
+test('un tema de knowledge/ enlaza a su rules.md en el playground y dice cómo leerlo', () => {
+  const [part] = inlineParts('[el monto](knowledge:lender-listing#dos-puertas-en-el-backend-modular)');
+  assert.equal(part.kind, 'knowledge');
+  assert.equal(part.topic, 'lender-listing');
+  assert.equal(part.anchor, 'dos-puertas-en-el-backend-modular');
+  const repos = { playground: { web: 'https://github.com/x/playground', prefix: '' } };
+  assert.equal(knowledgeHref(part, repos), 'https://github.com/x/playground/blob/main/knowledge/lender-listing/rules.md');
+  assert.equal(knowledgeCommand(part), 'make knowledge-read ID=lender-listing#dos-puertas-en-el-backend-modular');
+  // Sin la lista de repos no hay dirección: el enlace queda como texto, con su comando.
+  assert.equal(knowledgeHref(part, {}), '');
+  assert.equal(inlineParts('[mal](knowledge:Lender_Listing)')[0].kind, 'text');
 });
