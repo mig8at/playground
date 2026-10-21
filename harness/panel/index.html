@@ -310,14 +310,19 @@
     .run-tab-live { width: 6px; height: 6px; border-radius: 50%; background: var(--ok); flex: none }
     .tab-start[hidden], .tab-busy[hidden] { display: none }
     /* El modo prod: la barra lista prod, el centro muestra fichas y el sidebar derecho se ve apagado. */
-    .prod-tree, .prod-ficha[hidden], .prod-right-note[hidden] { display: none }
+    .prod-tree, .prod-ficha[hidden] { display: none }
     .prod-mode .prod-tree { display: block }
     .prod-mode #results, .prod-mode .admin-tree, .prod-mode #signup, .prod-mode #searchResults { display: none }
-    .prod-mode #sideRight fieldset { opacity: .55 }
+    .prod-mode #sideRight > fieldset, .prod-mode #sideRight > nav { display: none }
+    .prod-side { display: flex; flex-direction: column; gap: var(--space-2); padding: var(--space-2) var(--gutter); overflow: auto }
+    .prod-side[hidden] { display: none }
+    /* En el ancho del sidebar, cada dato va con su rótulo ARRIBA: en dos columnas el valor quedaba en 8 caracteres. */
+    .prod-side .prop { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; min-height: 0; padding: var(--space-1) 0 }
+    .prod-side .prop > .label { color: var(--fg-3) }
+    .prod-mode .device-advance { display: none }
     .prod-mode #planBar { display: none }
     .prod-ficha-body .prop { --prop-label-w: 140px }
     .prod-ficha-body .prop-value { justify-content: flex-start; gap: var(--space-1); flex-wrap: wrap }
-    .prod-right-note { margin: var(--space-2); font-size: var(--text-sm) }
     .prod-ficha { flex: 1 1 auto; min-height: 0; display: flex; justify-content: center; align-items: flex-start; overflow: auto }
     .prod-ficha-body { display: flex; flex-direction: column; gap: var(--space-2); font-size: var(--text-sm) }
     .prod-ficha-body .warn { color: var(--warn) }
@@ -751,19 +756,21 @@
           </div>
           <!-- LA FICHA DE UN COMERCIO DE PROD (modo prod): lo que hay, sin entrar. Prod no abre celulares: la única corrida que se
                permite ahí es la pública, en la vista «Prod». -->
+          <!-- LA PESTAÑA DE UN COMERCIO DE PROD: el celular del asesor, A MANO. Hasta abrirlo, esta tarjeta; abierto, los
+               celulares de siempre (sin autorrelleno ni nada que avance solo). La ficha va en el sidebar derecho. -->
           <div class="prod-ficha" id="prodTabView" hidden>
             <div class="prod-card">
-              <div class="prod-head"><strong id="prodFichaName"></strong><span class="device-otp warn">prod · sólo lectura</span>
-                <button type="button" class="region-action" id="prodFichaReload" title="Volver a leer de prod" aria-label="Volver a leer de prod"><span class="ui-icon" data-icon="refresh" aria-hidden="true"></span></button></div>
-              <div id="prodFichaBody" class="prod-ficha-body"></div>
-              <p class="prod-hint" id="prodFichaHint"></p>
+              <div class="prod-head"><strong id="prodPhoneName"></strong><span class="device-otp warn">prod · a mano</span></div>
+              <p class="prod-hint">Abre el celular del panel en la entrada del canal asesor de su sucursal de prueba. Entrás y manejás vos: el panel no completa, no avanza y no aprueba nada. El correo y la contraseña están a la derecha para copiar y pegar.</p>
+              <p class="prod-hint warn">⚠ En prod todo es real: las centrales se consultan de verdad y la entidad que elijas en el listado recibe la solicitud.</p>
+              <div class="prod-actions"><button type="button" class="btn btn-sm" id="prodOpenPhone">Abrir el celular</button><span class="prod-hint" id="prodPhoneStatus" role="status"></span></div>
             </div>
           </div>
           <div class="empty" id="prodEmpty" hidden>
             <div class="empty-head">
               <div class="empty-media"><span class="ui-icon" data-icon="merchant" aria-hidden="true"></span></div>
-              <div class="empty-title">Producción, sólo para mirar</div>
-              <div class="empty-desc">Elegí un comercio a la izquierda para ver su asesor de prueba, su sucursal falsa y sus entidades. Acá no se abren celulares: la única corrida de prod es la de la vista «Prod».</div>
+              <div class="empty-title">Producción, a mano</div>
+              <div class="empty-desc">Elegí un comercio a la izquierda: su ficha va a la derecha (asesor de prueba, sucursal falsa, entidades) y acá podés abrir su celular para entrar a mano. El panel no completa ni avanza nada en prod.</div>
             </div>
           </div>
           <!-- Los celulares son de UNA pestaña a la vez: mirando otra, se tapan y se dice de quién son. -->
@@ -961,7 +968,14 @@
           <button type="button" class="tab" id="tabBureaus" role="tab" aria-selected="false" aria-controls="viewBureaus" title="Las centrales de riesgo que consulta el backend: qué contesta cada una para la cédula del caso">Burós</button>
           <div class="region-actions"><button type="button" class="region-action" id="configMenu" title="Opciones de configuración" aria-label="Opciones de configuración"><span class="ui-icon" data-icon="more" aria-hidden="true"></span></button></div>
         </nav>
-        <p class="alert prod-right-note" id="prodRightNote" hidden>Producción: sólo lectura. Acá no se inyecta ni se siembra nada, así que la configuración del caso no aplica.</p>
+        <!-- EN PROD, EL SIDEBAR DERECHO ES LA FICHA del comercio de la pestaña: sólo para mirar (asesor de prueba, cómo entrar,
+             sus entidades). La configuración del caso no aplica ahí: no se inyecta ni se siembra nada. -->
+        <div class="region-body prod-side" id="prodRightNote" hidden>
+          <div class="prod-head"><strong id="prodFichaName">Producción · sólo lectura</strong>
+            <button type="button" class="region-action" id="prodFichaReload" title="Volver a leer de prod" aria-label="Volver a leer de prod"><span class="ui-icon" data-icon="refresh" aria-hidden="true"></span></button></div>
+          <div id="prodFichaBody" class="prod-ficha-body"><p class="list-note">Elegí un comercio a la izquierda.</p></div>
+          <p class="prod-hint" id="prodFichaHint"></p>
+        </div>
         <fieldset class="cfg region-body props" id="viewClient" role="tabpanel" aria-labelledby="tabClient"><legend class="sr-only">El cliente de la próxima corrida</legend>
           <!-- UN SOLO PANEL, con cuatro grupos a la vista: Caso · Identidad · Ingreso y empleo · Buró. Con
                las filas de 28 entra todo sin plegables. «Arranque», «Canal» y la demora son de la CORRIDA
@@ -2668,8 +2682,8 @@
       const m = menuBase('contextMenu');
       caption(m, 'Ambiente');
       for (const it of buttonItems('#targets .toggle')) itemMenu(m, it);
-      itemMenu(m, { txt: 'prod · sólo mirar', activo: prodMode, off: runRunning,
-        motivo: 'Producción, sólo para mirar: el catálogo y la ficha de cada comercio (su asesor de prueba, su sucursal falsa, sus entidades). No abre celulares ni escribe.',
+      itemMenu(m, { txt: 'prod · a mano', activo: prodMode, off: runRunning,
+        motivo: 'Producción: el catálogo y la ficha de cada comercio (asesor de prueba, sucursal falsa, entidades), y su celular para entrar A MANO. El panel no completa, no avanza ni escribe nada.',
         accion: () => enterProdMode() });
       separator(m);
       caption(m, 'Frontend');
@@ -4083,8 +4097,22 @@
       $('prodTabView').hidden = !ficha;
       $('prodEmpty').hidden = !(prodMode && orig && !ficha);
       if (prodMode) {
-        $('tabStart').hidden = true; $('tabBusy').hidden = true; $('devices').hidden = true;
-        if (ficha) renderProdFicha(t);
+        // La pestaña de un comercio de prod: su celular si ella lo abrió; si no, la tarjeta para abrirlo. La ficha, a la derecha.
+        const phone = ficha && isOwner(t) && devicesBusy();
+        $('tabStart').hidden = true; $('tabBusy').hidden = true;
+        $('devices').hidden = !phone;
+        $('prodTabView').hidden = !ficha || phone;
+        if (ficha) {
+          $('prodPhoneName').textContent = `${t.name} · #${t.allied}`;
+          const other = liveOwner && !isOwner(t) && devicesBusy();
+          $('prodOpenPhone').textContent = other ? 'Abrir acá (cierra el otro)' : 'Abrir el celular';
+          $('prodOpenPhone').title = other ? `Los celulares están con ${ownerLabel()}: abrirlo acá cierra esa corrida` : '';
+          renderProdFicha(t);
+        } else {
+          $('prodFichaName').textContent = 'Producción · sólo lectura';
+          $('prodFichaBody').innerHTML = '<p class="list-note">Elegí un comercio a la izquierda.</p>';
+          $('prodFichaHint').textContent = '';
+        }
         return;
       }
       const run = !!t && t.kind !== 'admin';
@@ -4473,7 +4501,7 @@
         a ? line('Su sucursal', a.branchHash ? `<span class="mono">${escTxt(a.branchHash)}</span> · ${escTxt(a.branchName || '(sin nombre)')}${a.branchStatus === 1 ? '' : ' · <span class="warn">apagada</span>'}` : '<span class="warn">ninguna</span>') : '',
         // PARA ENTRAR A MANO, desde tu navegador: el panel no entra en prod. La contraseña no se escribe acá: el botón la
         // pide al servidor al hacer clic y la deja en el portapapeles.
-        a && f.entryUrl ? `<div class="prod-manual"><strong>Para iniciarla desde tu navegador</strong>
+        a && f.entryUrl ? `<div class="prod-manual"><strong>Para entrar: en el celular del panel o en tu navegador</strong>
           ${line('URL', `<span class="mono">${escTxt(f.entryUrl)}</span> <button type="button" class="btn btn-outline btn-xs" data-copy-text="${escTxt(f.entryUrl)}">Copiar</button> <a class="btn btn-outline btn-xs" href="${escTxt(f.entryUrl)}" target="_blank" rel="noopener noreferrer">Abrir</a>`)}
           ${line('Correo', `<span class="mono">${escTxt(a.email)}</span> <button type="button" class="btn btn-outline btn-xs" data-copy-text="${escTxt(a.email)}">Copiar</button>`)}
           ${line('Contraseña', `<button type="button" class="btn btn-outline btn-xs" id="prodCopyPass">Copiar contraseña</button>`)}
@@ -4500,6 +4528,22 @@
       $('prodFichaHint').textContent = `Para comprobar que su asesor de prueba podría entrar, sin entrar: make harness-prod-advisor ALLIED=${t.allied} (VPN de prod y aws sso login --profile prod). La corrida que sí se puede hacer en prod es la pública, en la vista «Prod».`;
     }
     $('prodFichaReload').onclick = () => { const t = currentTab(); if (t?.kind === 'prod') renderProdFicha(t, true); };
+    // Abrir el celular del asesor EN PROD, para entrar a mano (`/api/prod/phone`: sin autorrelleno ni nada que avance solo).
+    $('prodOpenPhone').onclick = async () => {
+      const t = currentTab();
+      if (t?.kind !== 'prod' || runRunning) return;
+      if (!(await claimDevices())) return;
+      $('prodPhoneStatus').textContent = '';
+      setAdvisorMode('loading', 'Abriendo el celular en prod…');
+      renderStage();
+      let r;
+      try { r = await (await fetch('/api/prod/phone', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ allied: t.allied }) })).json(); }
+      catch { r = { ok: false, detail: 'el panel no respondió' }; }
+      if (!r.ok) { setAdvisorMode('idle'); $('prodPhoneStatus').textContent = '✗ ' + (r.detail || 'no se pudo abrir'); renderStage(); return; }
+      setAdvisorMode('live', '', r.view || '');
+      if (!runRunning) startPoll();
+      renderTabs(); renderStage();
+    };
 
     /** El comercio o el canal cambiaron por OTRO camino (la ruta, el plan, el buscador, el menú de canal): la pestaña
      *  activa lo sigue si es del mismo comercio; si no, se busca la suya o se abre una fija con el canal de ahora (y la

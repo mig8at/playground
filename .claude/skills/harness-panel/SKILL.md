@@ -771,10 +771,10 @@ prod», arriba de los comercios) y abre su pestaña (`kind: 'prodrun'`, una por 
 (`#prodView`). Fuera del modo prod esa vista no se abre (ni por la preferencia guardada); al salir del modo, el centro
 vuelve a la pestaña del ambiente.
 
-⛔ **En prod NO se abren celulares ni se entra como el asesor de prueba**, aunque la clave compartida sea la misma que
-en la base compartida: entrar al wizard como asesor crea solicitudes reales, el primer ingreso de un asesor puede
-completar su `cognito_id`, y el repo fija prod como sólo lectura con una sola excepción (la corrida pública). Por eso
-una ficha de prod no pregunta canal: sin celular no hay canal que elegir. Se pidió el 2026-10-20 y se dejó afuera.
+⛔ **En prod el panel NO entra ni maneja: abre el celular y la persona entra A MANO** (ver «El celular en prod, a
+mano»). Automatizar el login del asesor de prueba en prod —aunque la clave sea la compartida— se pidió el 2026-10-20 y
+se dejó afuera: es entrar con contraseña a producción, el primer ingreso puede completar el `cognito_id`, y desde ahí
+las centrales y las entidades son reales.
 
 ### La ficha de prod deja lo necesario para entrar A MANO (2026-10-20)
 
@@ -805,3 +805,22 @@ la nueva un id nuevo, que vive en `RUN_LOG.id` para sobrevivir a reiniciar el pa
 - Verificado en un panel de prueba en local, con celulares de verdad: Pullman · Asesor y después Sonría · Asesor
   quedaron con su consola cada una; volver a Pullman mostró la suya guardada (11 líneas, «▶ CELULARES · pullman…»), a
   Sonría la viva (12), y Motai «esta pestaña todavía no corrió».
+
+### El celular en prod, a mano, y la ficha en el sidebar derecho (2026-10-20)
+
+En modo prod, la pestaña de un comercio muestra «Abrir el celular» y, abierto, el celular del asesor en la entrada del
+canal asesor de su sucursal falsa (`POST /api/prod/phone`; la URL la resuelve el servidor con `prodMerchant`, no la
+manda la página). La persona entra (correo y «Copiar contraseña» en la ficha) y maneja.
+
+- ⛔ **A ese celular no se le engancha NADA** de lo que tienen los otros: ni sesión guardada, ni autorrelleno, ni bypass
+  del OTP, ni aprobar identidad, ni cuota inicial, ni traspaso al cliente, ni `rememberDevice` (su sesión sería la de
+  prod; verificado: `.runs/devices-state.json` no la tiene). `prodPhones` marca el celular y el servidor NIEGA
+  `advance`, `advance-all`, `tap`, `saved` y `resume` mientras lo sea; los botones de avanzar se ocultan. Abrir otra
+  cosa en ese celular (`releaseDevice`) lo desmarca.
+- **La ficha pasó al sidebar derecho** (`#prodRightNote` → `.prod-side`): en prod el sidebar derecho ya no muestra la
+  configuración del caso apagada, muestra la ficha (sucursales, asesor de prueba, cómo entrar, sus entidades) con cada
+  rótulo arriba de su valor, porque en dos columnas el valor quedaba en 8 caracteres.
+- El celular es de UNA pestaña a la vez, también entre ambientes: abrirlo en prod con otro abierto pide cerrar el otro.
+- ⚠ El traspaso al celular del cliente no corre en prod: si el flujo pasa al cliente, ese link se abre a mano.
+- Verificado en un panel de prueba: el celular abrió en `login.creditop.com` (el login de prod) y no se escribió nada
+  en él; `advance` contestó «es un celular de prod: lo manejás vos…».

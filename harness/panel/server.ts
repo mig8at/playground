@@ -439,6 +439,8 @@ const deviceBypass = new Map<DeviceId, { target: string; puesto: unknown }>();
 const deviceOtp = new Map<DeviceId, string>();
 // Lo que el arnés hizo por su cuenta en un celular y el panel tiene que mostrar (p. ej. aprobar la identidad).
 const deviceNotes = new Map<DeviceId, string>();
+/** Los celulares abiertos en PROD, a mano (`/api/prod/phone`): ahí el panel no avanza ni toca nada. */
+const prodPhones = new Set<DeviceId>();
 
 /**
  * LA SECUENCIA DE LOS CELULARES EN LA CONSOLA DE LA CORRIDA. Lo que pasa en cada celular —navegaciones, errores
@@ -814,6 +816,7 @@ function forgetDevice(id: DeviceId): void {
 }
 
 async function releaseDevice(id: DeviceId): Promise<void> {
+    prodPhones.delete(id);
     forgetDevice(id);
     await closeDevice(id);
     deviceNotes.delete(id);
@@ -1919,6 +1922,29 @@ const server = createServer(async (req, res) => {
         if (!value) return json(res, 200, { ok: false, detail: 'falta ALLIED_TEST_ADVISOR_PASSWORD en harness/.env.prod' });
         return json(res, 200, { ok: true, password: value });
     }
+    // EL CELULAR DEL ASESOR EN PROD, A MANO. El panel sólo ABRE el navegador en la entrada del canal asesor de la sucursal
+    // falsa (la URL la resuelve el servidor, no la manda la página) y la persona entra y maneja. ⛔ No se le engancha NADA
+    // de lo que tienen los otros celulares: ni sesión guardada, ni autorrelleno, ni bypass del OTP, ni aprobar la identidad,
+    // ni la cuota inicial, ni el traspaso al cliente, ni recordarlo para «Retomar» (su sesión sería la de prod). Y
+    // «avanzar», «tocar» y «hasta el final» se niegan mientras el celular sea de prod (`prodPhones`).
+    if (path === '/api/prod/phone' && req.method === 'POST') {
+        const b = await readBody(req);
+        let f;
+        try { f = await prodMerchant(Number(b?.allied)); }
+        catch (e) { return json(res, 200, { ok: false, detail: `no pude leer prod: ${(e as Error).message} (¿VPN de prod?)` }); }
+        if (!f.entryUrl || !f.advisor) return json(res, 200, { ok: false, detail: 'el comercio no tiene asesor de prueba en prod' });
+        await releaseDevice('advisor');
+        prodPhones.add('advisor');
+        startDeviceLog(`PRODUCCIÓN · celular del asesor, A MANO · ${f.merchant?.name ?? ''} · sucursal ${f.advisor.branchHash}`);
+        deviceLog('panel', '⚠ prod: el panel no completa, no avanza y no aprueba nada; entrás y manejás vos. Todo lo que hagas es real');
+        try {
+            const r = await openDevice('advisor', f.entryUrl);
+            return json(res, 200, { ok: true, ...r });
+        } catch (e) {
+            prodPhones.delete('advisor');
+            return json(res, 200, { ok: false, detail: `el celular no pudo abrir ${f.entryUrl}: ${(e as Error).message.split('\n')[0]}` });
+        }
+    }
     if (path === '/api/prod/merchant') {
         const allied = Number(url.searchParams.get('allied'));
         try { return json(res, 200, { ok: true, ...(await prodMerchant(allied)) }); }
@@ -2462,6 +2488,8 @@ connect();
             const done = await deviceInput(id, ev).catch((e) => { console.error('device input:', (e as Error).message); return false; });
             return json(res, 200, { ok: done, ...deviceState(id) });
         }
+        if (prodPhones.has(id) && ['advance-all', 'advance', 'tap', 'saved', 'resume'].includes(action))
+            return json(res, 200, { ok: false, detail: 'es un celular de prod: lo manejás vos, el panel no avanza ni toca nada' });
         if (action === 'advance-all' && req.method === 'POST') {
             if (!deviceState(id).open) return json(res, 200, { ok: false, detail: 'el celular no está abierto' });
             const b = await readBody(req);
