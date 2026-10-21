@@ -19,6 +19,7 @@ import { advisorSession } from '../../connectors/advisor/session.ts';
 import { envData, type AutofillData } from '../pkg/autofill.ts';
 import { identityWithoutProviderNotice } from '../pkg/config.ts';
 import { adminSession, ensureLocalAdmin, ADMIN_APP } from '../pkg/admin-access.ts';
+import { laneOf, roleOf, inLane, type Lane } from './devices.ts';
 import { deviceChooseEntity, openDevice, openDevices, setDeviceLogger, prewarmDevices, warmDevice, watchNavigation, watchRequests, deviceGoto, deviceReload, deviceText, deviceEval, deviceOpenedAt, deviceState, deviceShot, deviceInput, deviceTap, deviceAdvance, deviceStream, deviceBusyWatch, deviceStorage, closeDevice, closeAllDevices, SELENIUM_BOXES, type DeviceId, type DeviceInput, type DeviceSession } from './devices.ts';
 import { vpnDev, type VpnStatus } from '../pkg/vpn.ts';
 import { validatePlan, readPlan, writePlan, clearPlan } from '../pkg/run-plan.ts';
@@ -46,23 +47,27 @@ const RUN_LOG = PORT === 5195 ? '/tmp/asesor-panel-run.log' : `/tmp/asesor-panel
  * recibe uno nuevo. La pestaña del panel anota los ids de sus corridas y, al volver a ella, pide la suya
  * (`/api/console?id=`) en vez de mirar la de otra. El id vive en un archivo al lado del log para sobrevivir a reiniciar
  * el panel. Se guardan las últimas 200. */
-const CONSOLE_ID_FILE = RUN_LOG + '.id';
+// UNA CONSOLA VIVA POR CARRIL (ver `Lane` en `panel/devices.ts`): la del B es otro archivo, así dos corridas a la vez no se
+// mezclan línea por línea. Las corridas por `bin/advisor` y la de prod son del carril A.
+const RUN_LOGS: Record<Lane, string> = { a: RUN_LOG, b: RUN_LOG.replace(/\.log$/, '-b.log') };
 const newConsoleId = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
-let consoleId = (() => { try { const v = readFileSync(CONSOLE_ID_FILE, 'utf8').trim(); return /^[a-z0-9]{8,20}$/.test(v) ? v : newConsoleId(); } catch { return newConsoleId(); } })();
+const loadConsoleId = (lane: Lane) => { try { const v = readFileSync(RUN_LOGS[lane] + '.id', 'utf8').trim(); return /^[a-z0-9]{8,20}$/.test(v) ? v : newConsoleId(); } catch { return newConsoleId(); } };
+const consoleIds: Record<Lane, string> = { a: loadConsoleId('a'), b: loadConsoleId('b') };
 const consolesDir = () => join(dirname(fileURLToPath(import.meta.url)), '..', '.runs', 'consoles');
-/** Arranca una consola NUEVA: guarda la que había (si tenía algo) y escribe el encabezado de la nueva. */
-function freshConsole(header: string): void {
+/** Arranca una consola NUEVA en un carril: guarda la que había (si tenía algo) y escribe el encabezado de la nueva. */
+function freshConsole(header: string, lane: Lane = 'a'): void {
+    const file = RUN_LOGS[lane];
     try {
-        if (existsSync(RUN_LOG) && statSync(RUN_LOG).size > 0) {
+        if (existsSync(file) && statSync(file).size > 0) {
             mkdirSync(consolesDir(), { recursive: true });
-            writeFileSync(join(consolesDir(), consoleId + '.log'), readFileSync(RUN_LOG));
+            writeFileSync(join(consolesDir(), consoleIds[lane] + '.log'), readFileSync(file));
             const old = readdirSync(consolesDir()).filter((f) => f.endsWith('.log')).sort();
             for (const f of old.slice(0, Math.max(0, old.length - 200))) { try { rmSync(join(consolesDir(), f)); } catch { } }
         }
     } catch { /* sin disco: la anterior no se guarda, la nueva arranca igual */ }
-    consoleId = newConsoleId();
-    try { writeFileSync(CONSOLE_ID_FILE, consoleId); } catch { }
-    writeFileSync(RUN_LOG, header);
+    consoleIds[lane] = newConsoleId();
+    try { writeFileSync(file + '.id', consoleIds[lane]); } catch { }
+    writeFileSync(file, header);
 }
 /* El stdout del WIZARD (SSR). No lo inventa el panel: `bin/advisor:500` ya lanza `pnpm dev` con
  * `> /tmp/asesor-wizard.log`, y lo TRUNCA antes de cada arranque — o sea que el archivo es siempre el de
@@ -449,16 +454,23 @@ const prodPhones = new Set<DeviceId>();
  * leer en orden todo lo que pasó (y que «copiar» lo lleve). Abrir un celular sin corrida activa arranca una
  * consola nueva (`startDeviceLog`); con una corrida andando, se suma a la suya.
  */
-const DEVICE_LABEL: Record<DeviceId, string> = { advisor: 'asesor ', client: 'cliente', admin: 'admin  ' };
-function deviceLog(id: DeviceId | 'panel', line: string): void {
+// Los rótulos del carril B son los mismos: su consola es otra, así que no hace falta distinguirlos ahí (y las consolas
+// filtradas por celular del panel siguen leyendo `[asesor ]` y `[cliente]`).
+const DEVICE_LABEL: Record<DeviceId, string> = { advisor: 'asesor ', client: 'cliente', admin: 'admin  ', 'advisor-b': 'asesor ', 'client-b': 'cliente' };
+type Logger = DeviceId | 'panel' | 'panel-b';
+/** Lo que el PANEL anota en la consola del carril de ese celular. */
+const panelOf = (id: DeviceId): Logger => (laneOf(id) === 'b' ? 'panel-b' : 'panel');
+function deviceLog(id: Logger, line: string): void {
     const at = new Date().toLocaleTimeString('es-CO', { hour12: false });
-    const who = id === 'panel' ? 'panel  ' : DEVICE_LABEL[id];
-    try { writeFileSync(RUN_LOG, `  ${at} [${who}] ${line}\n`, { flag: 'a' }); } catch { }
+    const panel = id === 'panel' || id === 'panel-b';
+    const who = panel ? 'panel  ' : DEVICE_LABEL[id as DeviceId];
+    const lane: Lane = id === 'panel-b' || (!panel && laneOf(id)) === 'b' ? 'b' : 'a';
+    try { writeFileSync(RUN_LOGS[lane], `  ${at} [${who}] ${line}\n`, { flag: 'a' }); } catch { }
 }
 setDeviceLogger(deviceLog);
-function startDeviceLog(title: string): void {
-    if (current && !current.done) { deviceLog('panel', title); return; }
-    try { freshConsole(`▶ CELULARES · ${title}\n\n`); } catch { }
+function startDeviceLog(title: string, lane: Lane = 'a'): void {
+    if (lane === 'a' && current && !current.done) { deviceLog('panel', title); return; }
+    try { freshConsole(`▶ CELULARES${lane === 'b' ? ' · carril B' : ''} · ${title}\n\n`, lane); } catch { }
 }
 /** La nota del chip de un celular, y la misma línea en la consola. */
 function setNote(id: DeviceId, text: string): void {
@@ -657,10 +669,11 @@ function stepPattern(id: string): RegExp | null {
  *     (`watchAdvisorHandoffs`) y sigue ahí. Sin esto la corrida se quedaba en el asesor, que ya no tiene nada que hacer.
  */
 /** «Detener» mientras la corrida completa espera el traspaso (ahí ningún celular está avanzando). */
-let followCancelledAt = 0;
+const followCancelledAt: Record<Lane, number> = { a: 0, b: 0 };
 /** La CORRIDA COMPLETA en curso o la última: si sigue, en qué celular va y por qué terminó (lo mira la franja del plan). */
-let autoRun: { active: boolean; device: DeviceId; why: string; startedAt: number; endedAt?: number } | null = null;
-let lastAdvanceWhy = '';
+type AutoRun = { active: boolean; device: DeviceId; why: string; startedAt: number; endedAt?: number };
+const autoRuns: Record<Lane, AutoRun | null> = { a: null, b: null };
+const lastAdvanceWhy: Record<Lane, string> = { a: '', b: '' };
 /** El error que la pantalla de un celular MUESTRA (la primera línea que lo parezca), para que el motivo de una corrida
  *  trabada diga lo que se ve y no «locator.click: Timeout». '' si no hay. */
 async function screenError(id: DeviceId): Promise<string> {
@@ -688,7 +701,7 @@ async function advanceAll(id: DeviceId, until: string | null, opts: { lender?: s
             if (target && target.test(here)) { why = `llegó a «${until}»`; break; }
             if (TERMINAL_PATH.test(here)) { why = `llegó al final (${here.split('/').pop()})`; break; }
             // El traspaso: el asesor terminó su parte y el cliente sigue en su celular.
-            if (opts.follow && id === 'advisor' && /\/merchant\/[^/]+\/\d+\/(?:continue|confirmation)(?:\/|$)/.test(here)) {
+            if (opts.follow && roleOf(id) === 'advisor' && /\/merchant\/[^/]+\/\d+\/(?:continue|confirmation)(?:\/|$)/.test(here)) {
                 handoff = true; why = 'el asesor terminó: la solicitud sigue en el celular del cliente'; break;
             }
             // El listado: la entidad del plan, una sola vez.
@@ -720,21 +733,24 @@ async function advanceAll(id: DeviceId, until: string | null, opts: { lender?: s
         why = `se trabó en ${at}${shown ? `: la pantalla dice «${shown}»` : ''} (${(e as Error).message.split('\n')[0]})`;
     } finally {
         advancing.delete(id);
-        lastAdvanceWhy = why;
-        if (autoRun?.active) autoRun.device = id;
+        lastAdvanceWhy[laneOf(id)] = why;
+        const ar = autoRuns[laneOf(id)];
+        if (ar?.active) ar.device = id;
         deviceLog(id, `⏹ ${why}`);
     }
     if (!handoff || run.stop) return;
+    const client = inLane('client', laneOf(id));   // el de SU carril
     // Espera a que el traspaso abra el cliente (lo abre `watchAdvisorHandoffs`, que además le pone el bypass del OTP).
     const waitFrom = Date.now();
-    for (let i = 0; i < 45 && !(deviceState('client').open && /\/self-service\//.test(deviceState('client').url ?? '')); i++) {
-        if (followCancelledAt > waitFrom) { deviceLog('panel', '⏹ detenido a pedido (esperando el traspaso)'); return; }
+    for (let i = 0; i < 45 && !(deviceState(client).open && /\/self-service\//.test(deviceState(client).url ?? '')); i++) {
+        if (followCancelledAt[laneOf(id)] > waitFrom) { deviceLog(panelOf(id), '⏹ detenido a pedido (esperando el traspaso)'); return; }
         await sleep(2_000);
     }
-    if (!deviceState('client').open) { deviceLog('panel', '⏹ el celular del cliente no se abrió después del traspaso: la corrida para acá'); return; }
-    deviceLog('panel', '⏩ la corrida sigue en el celular del cliente');
-    if (autoRun?.active) autoRun.device = 'client';
-    await advanceAll('client', until, { lender: chosen ? undefined : opts.lender });
+    if (!deviceState(client).open) { deviceLog(panelOf(id), '⏹ el celular del cliente no se abrió después del traspaso: la corrida para acá'); return; }
+    deviceLog(panelOf(id), '⏩ la corrida sigue en el celular del cliente');
+    const arc = autoRuns[laneOf(id)];
+    if (arc?.active) arc.device = client;
+    await advanceAll(client, until, { lender: chosen ? undefined : opts.lender });
 }
 // Celulares ABRIÉNDOSE: entre cerrar el anterior y abrir el nuevo no hay ninguno «abierto», y un precalentado
 // que entrara justo ahí reiniciaría el wizard que el celular está por mostrar (pasó el 2026-10-06).
@@ -760,44 +776,46 @@ const saveTimers = new Map<DeviceId, NodeJS.Timeout>();
 /** LOS TRASPASOS DEL ASESOR: al pasar a «continuá en tu celular» el cliente sigue en su teléfono, y con un agregador
  *  sigue en el portal de la entidad. Se arma al abrir el celular del asesor y otra vez al RETOMARLO después de
  *  reiniciar el panel: sin esto, «Retomar» lo dejaba donde estaba pero el cliente nunca se abría. */
-function watchAdvisorHandoffs(t: string, slug: string, order: any): void {
+function watchAdvisorHandoffs(t: string, slug: string, order: any, advisor: DeviceId = 'advisor'): void {
+    // El cliente es el de SU carril: con dos corridas a la vez, el traspaso de una no abre el celular de la otra.
+    const client = inLane('client', laneOf(advisor));
     let handedOff = '';
     const handOff = (u: string) => {
         const m = /^(https?:\/\/[^/]+)\/merchant\/([^/]+)\/(\d+)\/(?:continue|confirmation)(?:[?#]|$)/.exec(u);
         if (!m || handedOff === m[3]) return;
         handedOff = m[3];
         const link = `${m[1]}/self-service/${m[2]}/${m[3]}/confirmation`;
-        deviceLog('panel', `traspaso asesor → cliente: la solicitud ${m[3]} sigue en el celular del cliente`);
+        deviceLog(panelOf(advisor), `traspaso asesor → cliente: la solicitud ${m[3]} sigue en el celular del cliente`);
         void (async () => {
-            await releaseDevice('client');
+            await releaseDevice(client);
             const phone = String(order?.phone || '').replace(/\D/g, '');
             if (phone) {
                 const bp = await dbopsJson(['otp-bypass-add', phone], t);
-                if (bp?.ok) deviceBypass.set('client', { target: t, puesto: bp.puesto });
+                if (bp?.ok) deviceBypass.set(client, { target: t, puesto: bp.puesto });
             }
-            await openDevice('client', link, { autofill: caseAutofill(order) })
-                .then(() => { rescueIdentity('client', t); rescueDownPayment('client', t); watchFrontExceptions('client', t); watchCategories('client', t); })
-                .catch((e) => deviceLog('client', '✗ el traspaso no abrió: ' + (e as Error).message.split('\n')[0]));
+            await openDevice(client, link, { autofill: caseAutofill(order) })
+                .then(() => { rescueIdentity(client, t); rescueDownPayment(client, t); watchFrontExceptions(client, t); watchCategories(client, t); })
+                .catch((e) => deviceLog(client, '✗ el traspaso no abrió: ' + (e as Error).message.split('\n')[0]));
         })();
     };
-    watchNavigation('advisor', handOff);
+    watchNavigation(advisor, handOff);
     // Al retomar, el asesor puede haber quedado YA en «continuá en tu celular»: esa navegación pasó antes de mirar.
     // Si el celular del cliente está abierto (se retomó por su lado), no se lo pisa.
-    const now = deviceState('advisor').url ?? '';
-    if (!deviceState('client').open) handOff(now);
+    const now = deviceState(advisor).url ?? '';
+    if (!deviceState(client).open) handOff(now);
     else if (/\/merchant\/[^/]+\/\d+\/(?:continue|confirmation)/.test(now)) handedOff = /\/merchant\/[^/]+\/(\d+)\//.exec(now)?.[1] ?? '';
     // EL TRASPASO DE UN AGREGADOR (Meddipay, Sistecrédito…): no navega. Sobre el listado aparece un modal
     // («el cliente debe continuar en su celular… <Entidad> ha enviado al cliente un enlace») y el cliente
     // sigue en el portal de la entidad por el link de WhatsApp. Se mira el texto del asesor mientras está
     // en `/lenders` y, al verlo, el celular del cliente abre el portal SIMULADO de esa entidad.
-    const openedAt = deviceOpenedAt('advisor');
+    const openedAt = deviceOpenedAt(advisor);
     let aggregatorDone = false;
     const aggregatorPoll = setInterval(async () => {
-        if (deviceOpenedAt('advisor') !== openedAt) { clearInterval(aggregatorPoll); return; }
+        if (deviceOpenedAt(advisor) !== openedAt) { clearInterval(aggregatorPoll); return; }
         if (aggregatorDone || handedOff) return;
-        const st = deviceState('advisor');
+        const st = deviceState(advisor);
         if (!/\/lenders(?:[?#]|$)/.test(st.url ?? '')) return;
-        const text = await deviceText('advisor');
+        const text = await deviceText(advisor);
         // El nombre: las palabras con MAYÚSCULA pegadas a «ha enviado» («Meddipay», «Sistecrédito»).
         const m = /([A-ZÁÉÍÓÚÑ][\wÁÉÍÓÚáéíóúÑñ-]*(?: [A-ZÁÉÍÓÚÑ][\wÁÉÍÓÚáéíóúÑñ-]*)*) ha enviado al cliente un enlace/.exec(text)
             || (/el cliente debe continuar el proceso en su celular/i.test(text) ? [text, ''] : null);
@@ -807,18 +825,18 @@ function watchAdvisorHandoffs(t: string, slug: string, order: any): void {
         const amount = String(order?.amount || '').replace(/\D/g, '') || '2000000';
         const link = `http://localhost:${PORT}/mock-bank?lender=${encodeURIComponent(lender || 'la entidad')}&monto=${amount}&comercio=${encodeURIComponent(slug)}`;
         const ur = Number(/\/merchant\/[^/]+\/(\d+)\/lenders/.exec(st.url ?? '')?.[1] || 0);
-        await releaseDevice('client');
-        deviceLog('panel', `traspaso del agregador ${lender || ''}: el cliente sigue en el portal de la entidad (simulado)`);
-        await openDevice('client', link).catch((e) => deviceLog('client', '✗ el portal no abrió: ' + (e as Error).message.split('\n')[0]));
-        setNote('client', `portal SIMULADO de ${lender || 'la entidad'}: el link que le llega al cliente por WhatsApp (en local no hay entidad real)`);
+        await releaseDevice(client);
+        deviceLog(panelOf(advisor), `traspaso del agregador ${lender || ''}: el cliente sigue en el portal de la entidad (simulado)`);
+        await openDevice(client, link).catch((e) => deviceLog(client, '✗ el portal no abrió: ' + (e as Error).message.split('\n')[0]));
+        setNote(client, `portal SIMULADO de ${lender || 'la entidad'}: el link que le llega al cliente por WhatsApp (en local no hay entidad real)`);
         // AL TERMINAR EN EL PORTAL, LA ENTIDAD LE AVISA AL BACKEND: el webhook simulado de esa entidad, con
         // «aprueba». Es lo que saca al asesor de «Estamos esperando la confirmación de la entidad». Sólo
         // en local (el receptor es el monolito de esta máquina); se anota en los dos celulares.
         if (t !== 'local' || !ur) return;
-        const clientAt = deviceOpenedAt('client');
+        const clientAt = deviceOpenedAt(client);
         const approvedPoll = setInterval(async () => {
-            if (deviceOpenedAt('client') !== clientAt) { clearInterval(approvedPoll); return; }
-            if (!/tu financiaci[óo]n fue aprobada/i.test(await deviceText('client'))) return;
+            if (deviceOpenedAt(client) !== clientAt) { clearInterval(approvedPoll); return; }
+            if (!/tu financiaci[óo]n fue aprobada/i.test(await deviceText(client))) return;
             clearInterval(approvedPoll);
             const chosen = await dbopsJson(['lender-de', String(ur)], t);
             const r = chosen?.id ? await fireEntityWebhook(ur, Number(chosen.id), 'aprueba')
@@ -826,20 +844,20 @@ function watchAdvisorHandoffs(t: string, slug: string, order: any): void {
             const note = r.ok
                 ? `portal SIMULADO de ${lender || 'la entidad'} · webhook SIMULADO enviado: ${chosen?.name || 'la entidad'} aprobó la solicitud ${ur}`
                 : `portal SIMULADO de ${lender || 'la entidad'} · el webhook no salió: ${r.detalle}`;
-            deviceNotes.set('client', note);
-            setNote('advisor', note.replace(/^portal SIMULADO de [^·]+· /, ''));
+            deviceNotes.set(client, note);
+            setNote(advisor, note.replace(/^portal SIMULADO de [^·]+· /, ''));
             // El AVISO AL ASESOR: la entidad le confirma por socket (`LenderConfirmed`) y recién ahí sale de
             // «Estamos esperando la confirmación de la entidad». En local ese socket no llega (el monolito
             // viejo emite al log), así que se lo entrega el gancho que el wizard expone en desarrollo.
             if (r.ok) {
-                const delivered = await deviceEval('advisor', (p: unknown) => {
+                const delivered = await deviceEval(advisor, (p: unknown) => {
                     const w = window as unknown as { __triggerLenderConfirmation?: (p: unknown) => void };
                     if (!w.__triggerLenderConfirmation) return false;
                     w.__triggerLenderConfirmation(p);
                     return true;
                 }, (r as any).confirmation ?? {});
-                if (delivered) deviceLog('advisor', `◆ aviso de la entidad entregado («${(r as any).confirmation?.title ?? 'confirmación'}»): sale de «Estamos esperando la confirmación»`);
-                if (!delivered) setNote('advisor', note.replace(/^portal SIMULADO de [^·]+· /, '') + ' · el aviso al asesor no se pudo entregar: el wizard no expone `__triggerLenderConfirmation` (sólo en desarrollo)');
+                if (delivered) deviceLog(advisor, `◆ aviso de la entidad entregado («${(r as any).confirmation?.title ?? 'confirmación'}»): sale de «Estamos esperando la confirmación»`);
+                if (!delivered) setNote(advisor, note.replace(/^portal SIMULADO de [^·]+· /, '') + ' · el aviso al asesor no se pudo entregar: el wizard no expone `__triggerLenderConfirmation` (sólo en desarrollo)');
             }
         }, 2000);
     }, 2000);
@@ -1543,13 +1561,13 @@ function linesSince(file: string, from: number): { total: number; from: number; 
     return { total: all.length, from: since, lines: all.slice(since) };
 }
 
-const logSince = (from: number) => linesSince(RUN_LOG, from);
+const logSince = (from: number, lane: Lane = 'a') => linesSince(RUN_LOGS[lane], from);
 
 // log COMPLETO (sin recorte) para el botón "copiar consola". Incluye los errores del navegador: el spec los
 // vuelca al stdout del hijo (page.on('console')/pageerror → líneas "⚠ …" / "⚠ FALLO EN PANTALLA …"), que va al RUN_LOG.
-function fullLog(): string {
-    if (!existsSync(RUN_LOG)) return '';
-    return readFileSync(RUN_LOG, 'utf8').replace(/\x1b\[[0-9;]*[A-Za-z]/g, '');
+function fullLog(lane: Lane = 'a'): string {
+    if (!existsSync(RUN_LOGS[lane])) return '';
+    return readFileSync(RUN_LOGS[lane], 'utf8').replace(/\x1b\[[0-9;]*[A-Za-z]/g, '');
 }
 
 // mata el ÁRBOL de procesos de la corrida (grupo entero, gracias a detached). SIGTERM y luego SIGKILL.
@@ -1609,7 +1627,7 @@ const server = createServer(async (req, res) => {
 
     // EL PLAN DE CORRIDA (`pkg/run-plan.ts`): una corrida armada de antemano —por un agente con `bin/plan.ts`, o por acá—
     // que el panel muestra arriba de los celulares para darle play. Uno por máquina, en `.runs/plan.json`.
-    if (path === '/api/autorun') return json(res, 200, { autoRun });
+    if (path === '/api/autorun') return json(res, 200, { autoRun: autoRuns[url.searchParams.get('lane') === 'b' ? 'b' : 'a'] });
     if (path === '/api/plan') {
         if (req.method === 'GET') return json(res, 200, { plan: readPlan() });
         if (req.method === 'DELETE') { clearPlan(); return json(res, 200, { ok: true }); }
@@ -1808,7 +1826,7 @@ const server = createServer(async (req, res) => {
         // que estás probando. Antes leía sólo el volcado del scrub, que es de la corrida ANTERIOR: mostraba una solicitud
         // vieja y «aprueba» la aprobaba a ella (2026-10-13). El volcado queda para las corridas por consola.
         let lastOne: any = null;
-        for (const dev of ['client', 'advisor'] as DeviceId[]) {
+        for (const dev of ['client', 'advisor', 'client-b', 'advisor-b'] as DeviceId[]) {
             const st = deviceState(dev);
             const ur = st.open ? /\/(\d{5,})(?:\/|\?|$)/.exec(new URL(st.url || 'http://x/').pathname)?.[1] : undefined;
             if (!ur || (deviceTarget.get(dev) ?? 'local') !== 'local') continue;
@@ -2450,7 +2468,7 @@ connect();
     // `POST /api/device/client/open` arma el pedido de la tienda del panel —la misma URL base64 que usa
     // la corrida (`dbops ecommerce-url`)— y abre el checkout en el contexto del cliente. Por ahora sólo
     // navega: el bypass del OTP y la siembra del buró vienen después.
-    const deviceRoute = /^\/api\/device\/(client|advisor|admin)(?:\/(open|state|shot|stream|close|input|reload|tab|tap|advance|advance-all|advance-stop|saved|resume))?$/.exec(path);
+    const deviceRoute = /^\/api\/device\/(client-b|advisor-b|client|advisor|admin)(?:\/(open|state|shot|stream|close|input|reload|tab|tap|advance|advance-all|advance-stop|saved|resume))?$/.exec(path);
     if (deviceRoute) {
         const id = deviceRoute[1] as DeviceId, action = deviceRoute[2] || 'state';
         if (action === 'open' && req.method === 'POST' && id !== 'admin') {
@@ -2526,9 +2544,9 @@ connect();
             }
             try {
                 const r = await openDevice(id, s.url, { session: s.storage ?? undefined, autofill: caseAutofill(s.meta.order) });
-                rescueIdentity(id, t, id === 'client' ? phone : undefined); rescueDownPayment(id, t, id === 'client' ? phone : ''); watchFrontExceptions(id, t); watchCategories(id, t);
+                rescueIdentity(id, t, roleOf(id) === 'client' ? phone : undefined); rescueDownPayment(id, t, roleOf(id) === 'client' ? phone : ''); watchFrontExceptions(id, t); watchCategories(id, t);
                 rememberDevice(id, s.meta);
-                if (id === 'advisor') watchAdvisorHandoffs(t, s.meta.slug, s.meta.order);
+                if (roleOf(id) === 'advisor') watchAdvisorHandoffs(t, s.meta.slug, s.meta.order, id);
                 deviceLog(id, `↺ retomado donde quedó (${new URL(s.url).pathname}) · ${s.meta.slug} en ${t}`);
                 return json(res, 200, { ok: true, ...r, otp: phone ? phone.slice(-4) : '' });
             } catch (e) {
@@ -2558,14 +2576,16 @@ connect();
                 else if (/^\d+$/.test(lender)) return json(res, 200, { ok: false, detail: `no conozco la entidad ${lender} en ${deviceTarget.get(id) || 'local'}` });
             }
             const follow = !!b?.follow;
-            if (lender || follow) autoRun = { active: true, device: id, why: '', startedAt: Date.now() };
+            const runLane = laneOf(id);
+            if (lender || follow) autoRuns[runLane] = { active: true, device: id, why: '', startedAt: Date.now() };
             void advanceAll(id, until, { lender: lender || undefined, follow }).finally(() => {   // corre solo; lo que hace va a la consola
-                if (autoRun?.active) Object.assign(autoRun, { active: false, why: lastAdvanceWhy, endedAt: Date.now() });
+                const ar = autoRuns[runLane];
+                if (ar?.active) Object.assign(ar, { active: false, why: lastAdvanceWhy[runLane], endedAt: Date.now() });
             });
             return json(res, 200, { ok: true, advancing: true });
         }
         if (action === 'advance-stop' && req.method === 'POST') {
-            followCancelledAt = Date.now();
+            followCancelledAt[laneOf(id)] = Date.now();
             const run = advancing.get(id);
             if (run) run.stop = true;
             return json(res, 200, { ok: true, advancing: !!run });
@@ -2580,9 +2600,9 @@ connect();
             deviceLog(id, (r.ok ? '▸ ' : '✗ ') + r.detail);
             return json(res, 200, { ...r, ...deviceState(id) });
         }
-        if (action === 'open' && req.method === 'POST' && id === 'client') {
+        if (action === 'open' && req.method === 'POST' && roleOf(id) === 'client') {
             const b = await readBody(req);
-            warmDevice('client');   // su navegador se prepara mientras se arma el pedido
+            warmDevice(id);   // su navegador se prepara mientras se arma el pedido
             // Cuánto tarda cada fase, para la consola: abrir desde la tienda es lo que más se repite.
             const phases: string[] = [];
             let phaseAt = performance.now();
@@ -2610,7 +2630,7 @@ connect();
             // pedido sólo arma la URL (no escribe), así que no choca con la limpieza. El único orden que importa:
             // devolver el bypass del celular anterior ANTES de sumar el nuevo, que puede ser el mismo teléfono.
             // Se cierra ANTES el celular anterior: además, el precalentado del auto puede reiniciar el wizard que mostraba.
-            const releasing = releaseDevice('client');
+            const releasing = releaseDevice(id);
             const builtP = dbopsJson(['ecommerce-url', String(b.slug || ''), str(o.phone), amount], t, orderEnv);
             // El celular de prueba arranca LIMPIO y con el OTP resuelto, como en una corrida (`bin/advisor`): se
             // borra el cliente sintético que haya dejado otra corrida con ese teléfono y se lo suma al bypass, así
@@ -2624,11 +2644,11 @@ connect();
                 t === 'local' ? applyBureauModes(o, t) : dictateCompanyCase(o, t)]);
             phase('pedido, limpieza, OTP y centrales');
             const signature = orderEnv.E2E_MERCHANT_SIGNATURE ? ` · firma ${orderEnv.E2E_MERCHANT_SIGNATURE === 'valid' ? 'válida (sin OTP)' : 'inválida'}` : '';
-            startDeviceLog(`${b.slug} (${t}) · tienda → cliente · ${auto ? 'auto-onboarding' : 'ecommerce'}${signature} · cel ${phone}`);
+            startDeviceLog(`${b.slug} (${t}) · tienda → cliente · ${auto ? 'auto-onboarding' : 'ecommerce'}${signature} · cel ${phone}`, laneOf(id));
             const queueNote = await queueForMerchant(String(b.slug || ''), t);
-            if (queueNote) deviceLog('panel', queueNote);
-            if (bypass?.ok) deviceBypass.set('client', { target: t, puesto: bypass.puesto });
-            if (bypass?.ok) deviceOtp.set('client', phone.slice(-4)); else deviceOtp.delete('client');
+            if (queueNote) deviceLog(panelOf(id), queueNote);
+            if (bypass?.ok) deviceBypass.set(id, { target: t, puesto: bypass.puesto });
+            if (bypass?.ok) deviceOtp.set(id, phone.slice(-4)); else deviceOtp.delete(id);
             const otp = bypass?.ok ? { otp: phone.slice(-4), otpBypass: bypass.puesto?.comodin ? 'comodín' : 'agregado' }
                 : { otpBypassError: bypass?.motivo || 'no se pudo registrar el bypass del OTP' };
             // El auto-onboarding vive en OTRO worktree del front: en local hay que servir ése en :5174, o el
@@ -2651,13 +2671,13 @@ connect();
             }
             const front = await frontFor(t);
             try {
-                if (bz) deviceLog('panel', `burós (${bz.detalle}): ${(bz.burós || []).join(' · ')}`);
-                deviceLog('panel', `pedido armado: ${built.checkout_path.split('?')[0]} · ${scrubSummary(scrub)} · OTP ${otp.otp ? 'resuelto (' + otp.otp + ')' : 'SIN bypass'}`);
-                const r = await openDevice('client', front.replace(/\/$/, '') + built.checkout_path, { autofill: caseAutofill(o) });
+                if (bz) deviceLog(panelOf(id), `burós (${bz.detalle}): ${(bz.burós || []).join(' · ')}`);
+                deviceLog(panelOf(id), `pedido armado: ${built.checkout_path.split('?')[0]} · ${scrubSummary(scrub)} · OTP ${otp.otp ? 'resuelto (' + otp.otp + ')' : 'SIN bypass'}`);
+                const r = await openDevice(id, front.replace(/\/$/, '') + built.checkout_path, { autofill: caseAutofill(o) });
                 phase('celular');
-                deviceLog('panel', `tienda → cliente: ${phases.join(' · ')} (s)`);
-                rescueIdentity('client', t, phone); rescueDownPayment('client', t, phone); watchFrontExceptions('client', t); watchCategories('client', t);
-                rememberDevice('client', { target: t, slug: String(b.slug || ''), channel: auto ? 'auto' : 'ecommerce', phone, order: o });
+                deviceLog(panelOf(id), `tienda → cliente: ${phases.join(' · ')} (s)`);
+                rescueIdentity(id, t, phone); rescueDownPayment(id, t, phone); watchFrontExceptions(id, t); watchCategories(id, t);
+                rememberDevice(id, { target: t, slug: String(b.slug || ''), channel: auto ? 'auto' : 'ecommerce', phone, order: o });
                 return json(res, 200, { ok: true, hash: built.hash, merchant: built.merchant, scrubbed: scrub, ...otp, ...r });
             } catch (e) {
                 return json(res, 200, { ok: false, detail: `el celular no pudo abrir ${front}: ${(e as Error).message.split('\n')[0]}` });
@@ -2666,7 +2686,7 @@ connect();
         // El celular del ASESOR: el wizard del comercio (`/merchant/{hash}/solicitar`) con la sesión de Cognito
         // del conector puesta, si la hay. Como la corrida (`bin/advisor`, «load-permiso»), si ese asesor no está
         // asignado a esta sucursal se lo asigna; sin sesión guardada el celular abre el login y se entra a mano.
-        if (action === 'open' && req.method === 'POST' && id === 'advisor') {
+        if (action === 'open' && req.method === 'POST' && roleOf(id) === 'advisor') {
             const b = await readBody(req);
             for (let i = 0; prebooting && i < 600; i++) await new Promise((r) => setTimeout(r, 500));
             const t = TARGETS.has(String(b.target)) ? String(b.target) : 'local';
@@ -2675,8 +2695,8 @@ connect();
             if (!hash) return json(res, 200, { ok: false, detail: `no conozco la sucursal de ${slug} en ${t}` });
             // El celular anterior se cierra YA y no al final: así su navegador nuevo se prepara mientras corren las
             // consultas de abajo (asesor de prueba, sesión, asignación), en vez de después.
-            await releaseDevice('advisor');
-            warmDevice('advisor');
+            await releaseDevice(id);
+            warmDevice(id);
             // EL CLIENTE ARRANCA LIMPIO, como en la tienda y en la corrida («scrub-cliente»): sin esto cada prueba por el
             // asesor reusaba la misma persona sintética con sus créditos anteriores, y la regla de cupo la rechazaba
             // por «crédito activo» (2026-10-07: la 467210 cayó en request-canceled por la 467205 de CrediPullman).
@@ -2685,6 +2705,13 @@ connect();
             // rechazado con lo de la primera vez (503477, 2026-10-13). Sólo borra usuarios CLIENTE de ese teléfono.
             const casePhone = String(b.order?.phone || '').replace(/\D/g, '') || '3131010101';
             const scrubbing = t !== 'prod' ? dbopsJson(['scrubphone', casePhone], t) : Promise.resolve(null);
+            // EL BYPASS DEL OTP DE ESE CELULAR. El del carril A (3131010101) ya vive en `qa_otp_bypass_phones`; el del B no, y sin
+            // esto el OTP de registro del asesor no pasa. Se suma con la misma función de las corridas y se saca al cerrar el
+            // celular (`releaseDevice`), sólo lo que se agregó.
+            if (t !== 'prod') {
+                const bp = await dbopsJson(['otp-bypass-add', casePhone], t);
+                if (bp?.ok) deviceBypass.set(id, { target: t, puesto: bp.puesto });
+            }
             // Fuera de local, donde hay lambda con dictado (qa), se le dicta el caso igual que al abrir la tienda: sin esto
             // Agildata contestaba «sin empleo» y Refurbicredit rechazaba por ocupación (2026-10-13, solicitud 503477).
             const { COMPANY_LAMBDA } = await import('../pkg/risk-lambda.ts');
@@ -2719,18 +2746,18 @@ connect();
                 assigned = a && !a.error ? `asignado a ${hash} (antes: ${current || 'ninguna'})` : 'no se pudo asignar a esta sucursal';
                 stored = null;   // la sesión vieja trae fijada la sucursal anterior: se entra de nuevo
             }
-            startDeviceLog(`${slug} (${t}) · celular del asesor · ${account} · sucursal ${hash}`);
+            startDeviceLog(`${slug} (${t}) · celular del asesor · ${account} · sucursal ${hash}`, laneOf(id));
             const queueNote = await queueForMerchant(slug, t);
-            if (queueNote) deviceLog('panel', queueNote);
-            deviceLog('panel', `asesor de prueba ${account}: ${stored ? 'sesión guardada' : 'entra con el login del conector'}${assigned ? ' · ' + assigned : ''}`);
+            if (queueNote) deviceLog(panelOf(id), queueNote);
+            deviceLog(panelOf(id), `asesor de prueba ${account}: ${stored ? 'sesión guardada' : 'entra con el login del conector'}${assigned ? ' · ' + assigned : ''}`);
             const scrubbed = await scrubbing;
-            if (t !== 'prod') deviceLog('panel', scrubbed ? `cliente ${casePhone}: ${scrubSummary(scrubbed)} — arranca sin créditos anteriores` : `cliente ${casePhone}: no pude limpiarlo; si tiene un crédito activo, la regla de cupo lo va a rechazar`);
-            else deviceLog('panel', `cliente ${casePhone}: en prod no se limpia nada`);
+            if (t !== 'prod') deviceLog(panelOf(id), scrubbed ? `cliente ${casePhone}: ${scrubSummary(scrubbed)} — arranca sin créditos anteriores` : `cliente ${casePhone}: no pude limpiarlo; si tiene un crédito activo, la regla de cupo lo va a rechazar`);
+            else deviceLog(panelOf(id), `cliente ${casePhone}: en prod no se limpia nada`);
             const bz = await bureausApplied;
-            if (bz) deviceLog('panel', `burós (${bz.detalle}): ${(bz.burós || []).join(' · ')}`);
+            if (bz) deviceLog(panelOf(id), `burós (${bz.detalle}): ${(bz.burós || []).join(' · ')}`);
             try {
                 let signedIn = false;
-                const r = await openDevice('advisor', front.replace(/\/$/, '') + `/merchant/${hash}/solicitar`, {
+                const r = await openDevice(id, front.replace(/\/$/, '') + `/merchant/${hash}/solicitar`, {
                     session: stored ?? undefined, autofill: caseAutofill(b.order),
                     then: stored ? undefined : async (page) => { await connector.login(page); signedIn = true; await page.goto(front.replace(/\/$/, '') + `/merchant/${hash}/solicitar`, { waitUntil: 'domcontentloaded' }).catch(() => { }); },
                 });
@@ -2739,9 +2766,9 @@ connect();
                 // el CLIENTE sigue en su teléfono por `/self-service/{hash}/{ur}/confirmation`. Ese link se abre en
                 // el celular del cliente, como hace la ventana B de la corrida guiada. Sin scrub: es la MISMA
                 // solicitud; sí el bypass del OTP, porque la firma le pide código al cliente.
-                rescueIdentity('advisor', t); rescueDownPayment('advisor', t); watchFrontExceptions('advisor', t); watchCategories('advisor', t);
-                rememberDevice('advisor', { target: t, slug, channel: 'asesor', phone: casePhone, order: b.order });
-                watchAdvisorHandoffs(t, slug, b.order);
+                rescueIdentity(id, t); rescueDownPayment(id, t); watchFrontExceptions(id, t); watchCategories(id, t);
+                rememberDevice(id, { target: t, slug, channel: 'asesor', phone: casePhone, order: b.order });
+                watchAdvisorHandoffs(t, slug, b.order, id);
                 return json(res, 200, { ok: true, hash, user: account, session: stored ? 'guardada' : signedIn ? 'entró y la guardó' : 'sin entrar', assigned, ...r });
             } catch (e) {
                 return json(res, 200, { ok: false, detail: `el celular del asesor no pudo abrir ${front}: ${(e as Error).message.split('\n')[0]}` });
@@ -2851,10 +2878,12 @@ connect();
 
     if (path === '/api/status') {
         const from = url.searchParams.get('from');
+        const statusLane: Lane = url.searchParams.get('lane') === 'b' ? 'b' : 'a';
         const base = {
             running: !!(current && !current.done),
-            consoleId,   // la consola viva: la pestaña que la arrancó la anota (ver `freshConsole`)
-            devices: openDevices(),   // con un celular abierto la consola sigue viva aunque no haya corrida
+            consoleId: consoleIds[statusLane],   // la consola viva DEL CARRIL: la pestaña que la arrancó la anota (ver `freshConsole`)
+            lane: statusLane,
+            devices: openDevices().filter((d) => d === 'admin' || laneOf(d) === statusLane),   // con un celular abierto la consola sigue viva aunque no haya corrida
             slug: current?.slug ?? null,
             target: current?.target ?? null,
             canal: current?.canal ?? null,
@@ -2868,7 +2897,7 @@ connect();
         };
         // Con `?from=N` va incremental (el cliente appendea). Sin él, el log recortado de siempre —
         // así cualquier consumidor viejo sigue funcionando igual.
-        return json(res, 200, from === null ? { ...base, log: tailLog() } : { ...base, ...logSince(Number(from) || 0) });
+        return json(res, 200, from === null ? { ...base, log: tailLog() } : { ...base, ...logSince(Number(from) || 0, statusLane) });
     }
 
     /* La consola del SSR. Misma forma que `/api/status` a propósito: sin `from` devuelve la COLA (para
@@ -2891,14 +2920,15 @@ connect();
     if (path === '/api/console') {
         const id = String(url.searchParams.get('id') || '');
         if (!/^[a-z0-9]{8,20}$/.test(id)) return json(res, 400, { ok: false, detail: 'id inválido' });
-        const file = id === consoleId ? RUN_LOG : join(consolesDir(), id + '.log');
+        const liveLane = (['a', 'b'] as Lane[]).find((l) => consoleIds[l] === id);
+        const file = liveLane ? RUN_LOGS[liveLane] : join(consolesDir(), id + '.log');
         if (!existsSync(file)) return json(res, 200, { ok: false, id, detail: 'esa consola ya no está (se guardan las últimas 200)' });
         const text = readFileSync(file, 'utf8').replace(/\x1b\[[0-9;]*[A-Za-z]/g, '');
-        return json(res, 200, { ok: true, id, live: id === consoleId, at: statSync(file).mtimeMs, lines: text.split('\n').slice(0, -1) });
+        return json(res, 200, { ok: true, id, live: !!liveLane, at: statSync(file).mtimeMs, lines: text.split('\n').slice(0, -1) });
     }
     if (path === '/api/log') {
         res.writeHead(200, { 'content-type': 'text/plain; charset=utf-8', 'cache-control': 'no-store' });
-        return res.end(fullLog());
+        return res.end(fullLog(url.searchParams.get('lane') === 'b' ? 'b' : 'a'));
     }
 
     if (path === '/api/stop' && req.method === 'POST') {
@@ -2930,7 +2960,7 @@ server.on('error', (err: NodeJS.ErrnoException) => {
  * se saltan cuadros de en medio, nunca el último: se guarda y sale apenas se vacía la cola. */
 const inputQueue = new Map<DeviceId, Promise<unknown>>();
 server.on('upgrade', (req, socket) => {
-    const m = /^\/api\/device\/(client|advisor|admin)\/live(?:\?|$)/.exec(req.url || '');
+    const m = /^\/api\/device\/(client-b|advisor-b|client|advisor|admin)\/live(?:\?|$)/.exec(req.url || '');
     if (!m) { socket.destroy(); return; }
     const id = m[1] as DeviceId;
     const ws = acceptSocket(req, socket);

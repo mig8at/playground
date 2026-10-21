@@ -19,9 +19,18 @@ import { blockDevOverlays } from '../pkg/dev-overlays.ts';
 import { installAutofill, type AutofillData } from '../pkg/autofill.ts';
 import { chooseEntity } from '../pkg/wizard-browser.ts';
 
-export type DeviceId = 'client' | 'advisor' | 'admin';
-/** Los dos CELULARES; `admin` es la PC de la vista «Admin» (ver `openDesktop`). */
-type PhoneId = Exclude<DeviceId, 'admin'>;
+/* LOS CARRILES (2026-10-21): dos pestañas pueden correr A LA VEZ, cada una con su par de celulares. El carril A son los
+ * de siempre (`advisor`, `client`) y el B los mismos con `-b` (`advisor-b`, `client-b`). El resto del panel no cambia: cada
+ * mapa por celular ya iba por id, así que un carril nuevo es un id nuevo. `admin` es uno solo (la PC). */
+export type Lane = 'a' | 'b';
+export type DeviceId = 'client' | 'advisor' | 'admin' | 'client-b' | 'advisor-b';
+export type Role = 'client' | 'advisor' | 'admin';
+export const laneOf = (id: string): Lane => (id.endsWith('-b') ? 'b' : 'a');
+export const roleOf = (id: string): Role => id.replace(/-b$/, '') as Role;
+/** El celular de ese ROL en ese CARRIL (`inLane('client', 'b')` → `client-b`). */
+export const inLane = (role: Role, lane: Lane): DeviceId => (lane === 'b' && role !== 'admin' ? `${role}-b` : role) as DeviceId;
+/** Los CELULARES del carril A con su contenedor de Selenium; `admin` es la PC de la vista «Admin» (ver `openDesktop`). */
+type PhoneId = 'client' | 'advisor';
 
 interface Device {
     context: BrowserContext;
@@ -311,8 +320,9 @@ const screenOf = (id: DeviceId) => (id === 'admin' ? { ...DESKTOP, scale: DESKTO
 
 // ── La API del panel ─────────────────────────────────────────────────────────────────────────────
 const ENGINE: Record<DeviceId, () => Promise<Omit<Device, 'openedAt'>>> = ENGINE_NAME === 'selenium'
-    ? { client: () => openSelenium(SELENIUM_BOXES.client), advisor: () => openSelenium(SELENIUM_BOXES.advisor), admin: openDesktop }
-    : { client: openChromium, advisor: openChromium, admin: openDesktop };
+    // El carril B va siempre con Chromium: el motor de Selenium tiene UN par de contenedores por panel.
+    ? { client: () => openSelenium(SELENIUM_BOXES.client), advisor: () => openSelenium(SELENIUM_BOXES.advisor), admin: openDesktop, 'client-b': openChromium, 'advisor-b': openChromium }
+    : { client: openChromium, advisor: openChromium, admin: openDesktop, 'client-b': openChromium, 'advisor-b': openChromium };
 /** Con qué motor corren los celulares (lo muestra el panel). */
 export const DEVICE_ENGINE = ENGINE_NAME;
 

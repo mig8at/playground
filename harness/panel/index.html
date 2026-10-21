@@ -1387,6 +1387,10 @@
     // elegir a mano cada vez, y eso es a propósito.
     let target = 'local';        // local | dev | staging | qa (staging y qa: front y backend propios, BD compartida con dev)
     let prodMode = false;         // el modo «prod · sólo mirar» (ver «EL MODO PROD»): NO es un `target`, a propósito
+    // EL CARRIL DE LOS CELULARES QUE SE VEN (ver «LOS CARRILES» en `panel/devices.ts`): las pantallas son siempre las mismas
+    // dos (asesor y cliente); lo que cambia es de qué carril son. `D(rol)` es el celular del servidor de ese rol en ese carril.
+    let phoneLane = 'a';
+    const D = (role) => (role === 'admin' || phoneLane !== 'b' ? role : role + '-b');
     let consoleShown = null, archivedLines = [];   // qué consola se pinta (ver «LA CONSOLA DE CADA PESTAÑA»)
     // La RUTA (`#/<comercio>?canal=…`) la escribe el módulo del final, que es el que tiene `setRoute` y
     // `hashRoute` de la base. Acá sólo se avisa que cambió algo de lo que la ruta dice; hasta que el módulo
@@ -2034,7 +2038,7 @@
       b.onclick = async () => {
         if (b.getAttribute('aria-busy') === 'true') return;
         b.setAttribute('aria-busy', 'true'); b.lastElementChild.textContent = 'Recargando…';
-        try { await fetch(`/api/device/${b.dataset.device}/reload`, { method: 'POST' }); } catch { }
+        try { await fetch(`/api/device/${D(b.dataset.device)}/reload`, { method: 'POST' }); } catch { }
         b.removeAttribute('aria-busy'); b.lastElementChild.textContent = 'Recargar';
       };
     }
@@ -2048,7 +2052,7 @@
         const label = b.lastElementChild, done = (text) => { label.textContent = text; setTimeout(() => { label.textContent = 'Capturar'; }, 1500); };
         try {
           const dev = b.dataset.device;
-          const shot = await fetch(`/api/device/${dev}/shot`);
+          const shot = await fetch(`/api/device/${D(dev)}/shot`);
           if (!shot.ok) { done('Sin pantalla'); return; }
           const jpg = await shot.blob();
           try {
@@ -2075,7 +2079,7 @@
         if (b.getAttribute('aria-busy') === 'true') return;
         b.setAttribute('aria-busy', 'true'); b.lastElementChild.textContent = 'Avanzando…';
         let r = null;
-        try { r = await (await fetch(`/api/device/${b.dataset.device}/advance`, { method: 'POST' })).json(); } catch { }
+        try { r = await (await fetch(`/api/device/${D(b.dataset.device)}/advance`, { method: 'POST' })).json(); } catch { }
         b.removeAttribute('aria-busy'); b.lastElementChild.textContent = 'Siguiente';
         b.title = r ? r.detail : 'el panel no contestó';
       };
@@ -2092,14 +2096,14 @@
     async function watchAdvanceAll(dev) {
       for (let i = 0; i < 600; i++) {
         await new Promise((r) => setTimeout(r, 2000));
-        let st = null; try { st = await (await fetch(`/api/device/${dev}/state`)).json(); } catch { }
+        let st = null; try { st = await (await fetch(`/api/device/${D(dev)}/state`)).json(); } catch { }
         if (!st?.advancing) break;
       }
       paintAdvanceAll(dev, false);
     }
     async function advanceDeviceTo(dev, until) {
       let r = null;
-      try { r = await (await fetch(`/api/device/${dev}/advance-all`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(until ? { until } : {}) })).json(); } catch { }
+      try { r = await (await fetch(`/api/device/${D(dev)}/advance-all`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(until ? { until } : {}) })).json(); } catch { }
       if (!r?.ok) { const b = advanceAllBtn(dev); if (b) b.title = r?.detail || 'el panel no contestó'; return; }
       paintAdvanceAll(dev, true);
       if (!logOpen) showLog(true);
@@ -2107,7 +2111,7 @@
     }
     for (const b of document.querySelectorAll('.device-advance-all')) {
       b.onclick = async () => {
-        if (b.dataset.running === 'true') { try { await fetch(`/api/device/${b.dataset.device}/advance-stop`, { method: 'POST' }); } catch { } return; }
+        if (b.dataset.running === 'true') { try { await fetch(`/api/device/${D(b.dataset.device)}/advance-stop`, { method: 'POST' }); } catch { } return; }
         advanceDeviceTo(b.dataset.device, null);
       };
     }
@@ -3563,10 +3567,12 @@
     function makeDeviceTouchable(canvasId, device) {
       const el = $(canvasId);
       el.tabIndex = 0;
+      // `device` es el ROL de la pantalla: el celular que recibe el toque es el de ese rol en el carril que se ve.
       const send = (ev) => {
-        const ws = live[device]?.ws;
+        const id = D(device);
+        const ws = live[id]?.ws;
         if (ws && ws.readyState === WebSocket.OPEN) { ws.send(JSON.stringify(ev)); return; }
-        fetch(`/api/device/${device}/input`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(ev) }).catch(() => {});
+        fetch(`/api/device/${id}/input`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(ev) }).catch(() => {});
       };
       const pointOf = (e) => {
         const r = el.getBoundingClientRect(), nw = el.naturalWidth || el.width, nh = el.naturalHeight || el.height;
@@ -3768,8 +3774,8 @@
       $('clientActions').hidden = mode !== 'live';
       // La pantalla en vivo: un video MJPEG (`/stream`) que manda un cuadro cada vez que la pantalla cambia. Fuera de
       // `live` se suelta, y con eso el servidor corta la transmisión.
-      if (mode === 'live' && !view) liveConnect('client', 'clientLive');   // cada apertura, su transmisión
-      else liveDisconnect('client');
+      if (mode === 'live' && !view) liveConnect(D('client'), 'clientLive');   // cada apertura, su transmisión
+      else liveDisconnect(D('client'));
       requestAnimationFrame(fitShop);
     }
     async function openClientBrowser() {
@@ -3779,7 +3785,7 @@
         ? 'Levantando el wizard del auto-onboarding y abriendo el checkout… (si hay que compilarlo, tarda unos minutos)'
         : 'Abriendo el checkout en el celular del cliente… (la primera vez levanta su contenedor)');
       try {
-        const r = await (await fetch('/api/device/client/open', {
+        const r = await (await fetch(`/api/device/${D('client')}/open`, {
           method: 'POST', headers: { 'content-type': 'application/json' },
           body: JSON.stringify({
             slug: sel.slug, target, channel, order: caseStore.read(),
@@ -3817,8 +3823,8 @@
       $('advisorActions').hidden = mode !== 'live';
       if (mode !== 'live' || !view) $('advisorVnc').removeAttribute('src');
       else if ($('advisorVnc').getAttribute('src') !== view) $('advisorVnc').src = view;
-      if (mode === 'live' && !view) liveConnect('advisor', 'advisorLive');
-      else liveDisconnect('advisor');
+      if (mode === 'live' && !view) liveConnect(D('advisor'), 'advisorLive');
+      else liveDisconnect(D('advisor'));
       $('advisorStatus').hidden = mode !== 'loading' && mode !== 'status';
       $('advisorSpinner').hidden = mode !== 'loading';
       $('advisorStatusText').textContent = text;
@@ -3835,7 +3841,7 @@
         $('advisorStatusText').textContent = ADVISOR_STEPS[stepAt];
       }, 4000);
       try {
-        const r = await (await fetch('/api/device/advisor/open', {
+        const r = await (await fetch(`/api/device/${D('advisor')}/open`, {
           method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ slug: sel.slug, target, order: caseStore.read() }),
         })).json();
         if (!r.ok) return setAdvisorMode('status', r.detail || 'No se pudo abrir el wizard del asesor.');
@@ -3851,7 +3857,7 @@
     async function refreshDeviceNotes() {
       for (const [id, chip] of [['client', 'clientNote'], ['advisor', 'advisorNote']]) {
         try {
-          const st = await (await fetch(`/api/device/${id}/state`)).json();
+          const st = await (await fetch(`/api/device/${D(id)}/state`)).json();
           $(chip).hidden = !(st.open && st.note);
           $(chip).title = st.note || '';
           const n = st.note || '';
@@ -3866,7 +3872,7 @@
     async function watchHandoff() {
       if (deviceShown('client')) return;
       try {
-        const st = await (await fetch('/api/device/client/state')).json();
+        const st = await (await fetch(`/api/device/${D('client')}/state`)).json();
         if (!st.open) return;
         setClientMode('live', '', st.view || '');
         const code = String(caseStore.read().phone || '').replace(/\D/g, '').slice(-4);
@@ -3881,7 +3887,7 @@
     async function resumeOpenDevices() {
       for (const id of ['client', 'advisor']) {
         try {
-          const st = await (await fetch(`/api/device/${id}/state`)).json();
+          const st = await (await fetch(`/api/device/${D(id)}/state`)).json();
           if (!st.open) { await offerResume(id); continue; }
           if (deviceShown(id)) continue;
           if (id === 'client') {
@@ -3903,7 +3909,7 @@
     // con su sesión. Abrir otra corrida o cerrarlo lo olvida.
     async function offerResume(id) {
       let s = null;
-      try { s = await (await fetch(`/api/device/${id}/saved`)).json(); } catch { }
+      try { s = await (await fetch(`/api/device/${D(id)}/saved`)).json(); } catch { }
       if (!s?.saved) return;
       const setMode = id === 'client' ? setClientMode : setAdvisorMode;
       const screen = (() => { try { return new URL(s.url).pathname.split('/').filter((x) => x && !/^\d+$/.test(x)).slice(-1)[0] || 'inicio'; } catch { return 'inicio'; } })();
@@ -3916,7 +3922,7 @@
       btn.onclick = async () => {
         btn.disabled = true; btn.textContent = 'Retomando…';
         let r = null;
-        try { r = await (await fetch(`/api/device/${id}/resume`, { method: 'POST' })).json(); } catch { }
+        try { r = await (await fetch(`/api/device/${D(id)}/resume`, { method: 'POST' })).json(); } catch { }
         btn.remove();
         if (!r?.ok) return setMode('status', r?.detail || 'No se pudo retomar.');
         setMode('live', '', r.view || '');
@@ -4015,10 +4021,13 @@
 
     // Los juegos de pestañas, por ambiente. `tabsTarget` es el ambiente del juego cargado en `runTabs`: el `target` del
     // panel cambia ANTES de que el juego se cambie, y mientras tanto nada debe escribir en el juego equivocado.
-    let tabSets = {}, tabsTarget = target, runTabs = [], activeTab = null, liveOwner = null, tabSwitching = false;
+    // `laneOwners`: la pestaña dueña de cada CARRIL de celulares (ver «LOS CARRILES» en `panel/devices.ts`); `laneBusyNow`,
+    // si el servidor tiene abierto algún celular de ese carril (lo mira `pollLanes`).
+    let tabSets = {}, tabsTarget = target, runTabs = [], activeTab = null, laneOwners = { a: null, b: null }, tabSwitching = false;
+    const laneBusyNow = { a: false, b: false };
     try {
       const saved = JSON.parse(localStorage.getItem(TABS_KEY) || 'null');
-      if (saved && typeof saved === 'object') { tabSets = saved.sets || {}; liveOwner = saved.live || null; }
+      if (saved && typeof saved === 'object') { tabSets = saved.sets || {}; laneOwners = saved.lanes || { a: saved.live || null, b: null }; }
       else {
         // La versión anterior guardaba un solo juego, siempre de local.
         const old = JSON.parse(localStorage.getItem('harness.tabs') || 'null');
@@ -4034,7 +4043,7 @@
     loadTabSet(target);
     const saveTabs = () => {
       tabSets[tabsTarget] = { tabs: runTabs, active: activeTab };
-      try { localStorage.setItem(TABS_KEY, JSON.stringify({ sets: tabSets, live: liveOwner })); } catch { }
+      try { localStorage.setItem(TABS_KEY, JSON.stringify({ sets: tabSets, lanes: laneOwners })); } catch { }
     };
     const currentTab = () => runTabs.find((t) => t.id === activeTab) || null;
     const entryOf = (slug) => spaceEntries().find((x) => x.slug === slug || (x.hash && x.hash === slug)) || null;
@@ -4044,8 +4053,41 @@
     const devicesBusy = () => deviceShown('advisor') || deviceShown('client') || !$('advisorStatus').hidden || !$('clientStatus').hidden;
     const inOriginacion = () => $('viewOrig').classList.contains('on');
     /** La pestaña dueña de los celulares, si es de ESTE ambiente. */
-    const isOwner = (t) => !!t && !!liveOwner && liveOwner.target === tabsTarget && liveOwner.id === t.id;
-    const ownerLabel = () => liveOwner ? `«${liveOwner.label}»${liveOwner.target !== tabsTarget ? ` (en ${liveOwner.target})` : ''}` : '';
+    const laneId = (role, lane) => (lane === 'b' ? role + '-b' : role);
+    /** El carril del que es dueña esta pestaña, o null. */
+    const laneOfTab = (t) => (t ? ['a', 'b'].find((l) => laneOwners[l] && laneOwners[l].target === tabsTarget && laneOwners[l].id === t.id) : null) || null;
+    const isOwner = (t) => !!laneOfTab(t);
+    /** ¿Ese carril tiene celulares abiertos? (el servidor, y lo que se ve si es el carril a la vista y todavía está abriendo) */
+    const laneBusy = (lane) => laneBusyNow[lane] || (lane === phoneLane && devicesBusy());
+    const ownerLabel = (lane = 'a') => { const o = laneOwners[lane]; return o ? `«${o.label}»${o.target !== tabsTarget ? ` (en ${o.target})` : ''}` : 'otra corrida'; };
+    /** El carril que muestra una pestaña: el suyo; si no tiene, uno libre (prod va siempre por el A: su celular es ése). */
+    const laneToShow = (t) => laneOfTab(t) || (t?.kind === 'prod' ? 'a' : !laneBusy('a') ? 'a' : !laneBusy('b') ? 'b' : 'a');
+    /** Qué celulares tiene abiertos el servidor en cada carril. Cada 3 s, y al abrir o cerrar. */
+    async function pollLanes() {
+      for (const lane of ['a', 'b']) {
+        try {
+          const sts = await Promise.all(['advisor', 'client'].map(async (r) => (await fetch(`/api/device/${laneId(r, lane)}/state`)).json()));
+          laneBusyNow[lane] = sts.some((x) => x.open);
+        } catch { /* el panel no respondió: queda como estaba */ }
+      }
+      renderTabs();
+      if (!$('tabBusy').hidden || (currentTab() && !isOwner(currentTab()))) renderStage();
+    }
+    setInterval(pollLanes, 3000);
+    /** Cambia el carril de las pantallas: corta la transmisión del anterior y muestra lo que tenga el nuevo. */
+    async function setPhoneLane(lane) {
+      if (lane === phoneLane) return;
+      for (const r of ['advisor', 'client']) liveDisconnect(laneId(r, phoneLane));
+      phoneLane = lane;
+      // El celular del caso: el del carril B es otro, para que abrir una corrida no limpie (scrub) al cliente de la otra.
+      $('phone').textContent = lane === 'b' ? '3131010102' : '3131010101';
+      for (const a of document.querySelectorAll('.device-tab[data-device]')) a.href = `/api/device/${D(a.dataset.device)}/tab`;
+      setAdvisorMode('idle'); setClientMode('idle');
+      // La consola viva es la de ESTE carril: se empieza a leer de cero.
+      logLines = []; logCursor = 0; repaintLog();
+      try { const j = await (await fetch(`/api/status?lane=${lane}`)).json(); if (j.consoleId) { seenConsoleId = j.consoleId; consoleShown = undefined; syncConsoleView(); } } catch { }
+      await resumeOpenDevices();
+    }
 
     function snapshotTab(t) { if (t && !t.kind) t.config = captureTabConfig(); }
     function tabLabel(t) {
@@ -4067,8 +4109,8 @@
         const label = document.createElement('button');
         label.type = 'button'; label.className = 'tab-label'; label.setAttribute('role', 'tab'); label.setAttribute('aria-selected', String(on));
         label.title = `${name} · ${chan}${t.preview ? ' · vista previa: la reemplaza el próximo comercio que elijas' : ''}`;
-        if (isOwner(t) && devicesBusy()) {
-          const dot = document.createElement('span'); dot.className = 'run-tab-live'; dot.title = 'los celulares son de esta corrida';
+        if (isOwner(t) && laneBusy(laneOfTab(t))) {
+          const dot = document.createElement('span'); dot.className = 'run-tab-live'; dot.title = `los celulares del carril ${laneOfTab(t).toUpperCase()} son de esta corrida`;
           label.appendChild(dot);
         }
         const n = document.createElement('span'); n.textContent = name;
@@ -4105,9 +4147,9 @@
         $('prodTabView').hidden = !ficha || phone;
         if (ficha) {
           $('prodPhoneName').textContent = `${t.name} · #${t.allied}`;
-          const other = liveOwner && !isOwner(t) && devicesBusy();
+          const other = !isOwner(t) && laneBusy('a');
           $('prodOpenPhone').textContent = other ? 'Abrir acá (cierra el otro)' : 'Abrir el celular';
-          $('prodOpenPhone').title = other ? `Los celulares están con ${ownerLabel()}: abrirlo acá cierra esa corrida` : '';
+          $('prodOpenPhone').title = other ? `El carril A está con ${ownerLabel('a')}: abrirlo acá cierra esa corrida` : '';
           renderProdFicha(t);
         } else {
           $('prodFichaName').textContent = 'Producción · sólo lectura';
@@ -4118,14 +4160,15 @@
       }
       const run = !!t && t.kind !== 'admin';
       const asking = orig && run && !t.canal;
-      const busy = orig && run && !!t.canal && !!liveOwner && !isOwner(t) && devicesBusy();
+      // Ocupado = los DOS carriles con otras corridas: con uno libre, esta pestaña lo usa.
+      const busy = orig && run && !!t.canal && !isOwner(t) && laneBusy('a') && laneBusy('b');
       $('tabStart').hidden = !asking;
       $('tabBusy').hidden = !busy;
       $('devices').hidden = !orig || asking || busy;
       if (asking) renderChannelChoice(t);
-      if (busy) $('tabBusyTitle').textContent = `Los celulares están con ${ownerLabel()}`;
+      if (busy) $('tabBusyTitle').textContent = `Los dos carriles están ocupados: ${ownerLabel('a')} y ${ownerLabel('b')}`;
       // «Ir a esa pestaña» sólo si es de este ambiente: la de otro se ve cambiando de ambiente.
-      $('tabBusyGo').hidden = !liveOwner || liveOwner.target !== tabsTarget;
+      $('tabBusyGo').hidden = !laneOwners.a || laneOwners.a.target !== tabsTarget;
     }
     function renderChannelChoice(t) {
       const { name } = tabLabel(t);
@@ -4167,6 +4210,8 @@
       if (prev && prev.id !== id && !tabSwitching) snapshotTab(prev);
       activeTab = id;
       const t = currentTab();
+      // Las pantallas muestran el carril de ESTA pestaña (el suyo, o uno libre).
+      if (t && t.kind !== 'admin' && t.kind !== 'prodrun') await setPhoneLane(laneToShow(t));
       if (t?.kind === 'prodrun') { baseShowStageView('prod'); renderTabs(); renderStage(); saveTabs(); renderProdList($('merchantSearch').value); return; }
       if (t?.kind === 'prod') { if (!inOriginacion()) baseShowStageView('orig'); renderTabs(); renderStage(); saveTabs(); renderProdList($('merchantSearch').value); return; }
       if (t?.kind === 'admin') { if (sel) followKey = sel.slug + '|' + channel; baseShowStageView('admin'); renderTabs(); renderStage(); saveTabs(); return; }
@@ -4232,23 +4277,28 @@
       renderTabs(); renderStage(); saveTabs();
     }
 
-    async function closeDevices() {
-      await Promise.all(['advisor', 'client'].map((id) => fetch(`/api/device/${id}/close`, { method: 'POST' }).catch(() => { })));
-      setAdvisorMode('idle'); setClientMode('idle');
+    /** Cierra los celulares de un carril en el servidor (por defecto, el que se ve). */
+    async function closeLane(lane = phoneLane) {
+      await Promise.all(['advisor', 'client'].map((r) => fetch(`/api/device/${laneId(r, lane)}/close`, { method: 'POST' }).catch(() => { })));
+      if (lane === phoneLane) { setAdvisorMode('idle'); setClientMode('idle'); }
+      laneOwners[lane] = null; laneBusyNow[lane] = false;
+      saveTabs();
     }
+    const closeDevices = () => closeLane(phoneLane);
     async function closeTab(id) {
       if (runRunning) return;
       const t = runTabs.find((x) => x.id === id);
       if (!t) return;
-      if (isOwner(t) && devicesBusy()) {
+      const own = laneOfTab(t);
+      if (own && laneBusy(own)) {
         const l = tabLabel(t);
-        if (!confirm(`«${l.name} · ${l.chan}» tiene los celulares abiertos. ¿Los cierro?`)) return;
-        await closeDevices();
+        if (!confirm(`«${l.name} · ${l.chan}» tiene los celulares del carril ${own.toUpperCase()} abiertos. ¿Los cierro?`)) return;
+        await closeLane(own);
       }
       if (t.kind === 'admin' && !$('adminLive').hidden) $('adminClose').click();
       const i = runTabs.indexOf(t);
       runTabs.splice(i, 1);
-      if (isOwner(t)) liveOwner = null;
+      if (own) laneOwners[own] = null;
       if (activeTab === id) {
         const next = runTabs[i] || runTabs[i - 1];
         activeTab = null;
@@ -4259,16 +4309,40 @@
     }
 
     /** Antes de abrir un celular: si son de otra pestaña (de este u otro ambiente), se pregunta si se cierra esa corrida. */
+    /** Antes de abrir un celular: el carril de esta pestaña. El suyo si ya tiene; si no, uno libre (el A primero); con los
+     *  dos ocupados, se pregunta si se cierra la corrida del A. Prod va siempre por el A (su celular es ése).
+     *  ⚠ EL MISMO COMERCIO EN OTRA SUCURSAL, en local, no puede ir al otro carril: su asesor de prueba es UNO y está en una
+     *  sola sucursal, así que abrir la segunda lo mueve y la primera queda corriendo contra otra (ver `ensureAssign`). */
     async function claimDevices() {
       const t = currentTab();
-      if (liveOwner && !isOwner(t) && devicesBusy()) {
-        if (!confirm(`Los celulares están con ${ownerLabel()}. ¿Cierro esa corrida para abrir esta?`)) return false;
-        await closeDevices();
+      if (!t) return true;
+      let lane = laneOfTab(t);
+      if (!lane) {
+        lane = t.kind === 'prod' ? (laneBusy('a') ? null : 'a') : !laneBusy('a') ? 'a' : !laneBusy('b') ? 'b' : null;
+        if (!lane) {
+          const msg = t.kind === 'prod' ? `El carril A está con ${ownerLabel('a')}. ¿Cierro esa corrida para abrir esta?`
+            : `Los dos carriles están ocupados (${ownerLabel('a')} y ${ownerLabel('b')}). ¿Cierro la de ${ownerLabel('a')} para abrir esta?`;
+          if (!confirm(msg)) return false;
+          await closeLane('a');
+          lane = 'a';
+        }
       }
-      if (t) { const l = tabLabel(t); liveOwner = { target: tabsTarget, id: t.id, label: `${l.name} · ${l.chan}` }; }
+      const other = lane === 'a' ? 'b' : 'a', o = laneOwners[other];
+      if (!t.kind && target === 'local' && o && o.target === tabsTarget && laneBusy(other)) {
+        const ot = runTabs.find((x) => x.id === o.id);
+        const e1 = entryOf(t.slug), e2 = ot && entryOf(ot.slug);
+        if (e1 && e2 && e1.allied_id && e1.allied_id === e2.allied_id && e1.hash && e2.hash && e1.hash !== e2.hash) {
+          alert(`${ownerLabel(other)} ya corre este comercio en otra sucursal. Su asesor de prueba es uno solo y está en UNA sucursal: abrir ésta lo movería y la otra corrida seguiría contra la sucursal equivocada. Cerrá esa corrida o usá la misma sucursal.`);
+          return false;
+        }
+      }
+      const l = tabLabel(t);
+      laneOwners[lane] = { target: tabsTarget, id: t.id, label: `${l.name} · ${l.chan}` };
+      t.lane = lane;
+      await setPhoneLane(lane);
       claimConsole();
       saveTabs();
-      setTimeout(renderTabs, 1500);   // el punto de «corre acá» aparece cuando el celular ya está abriéndose
+      setTimeout(pollLanes, 1500);   // el punto de «corre acá» aparece cuando el celular ya está abriéndose
       return true;
     }
     // ── LA CONSOLA DE CADA PESTAÑA ──────────────────────────────────────────────────────────────────────────────
@@ -4314,8 +4388,8 @@
     }
     // Al arrancar: qué consola es la viva (sin anotarla a nadie).
     fetch('/api/status').then((r) => r.json()).then((j) => { if (j.consoleId) { seenConsoleId = j.consoleId; syncConsoleView(); } }).catch(() => { });
-    $('tabBusyGo').onclick = () => { if (liveOwner?.target === tabsTarget) activateTab(liveOwner.id); };
-    $('tabBusyClose').onclick = async () => { await closeDevices(); liveOwner = null; saveTabs(); renderTabs(); renderStage(); };
+    $('tabBusyGo').onclick = () => { if (laneOwners.a?.target === tabsTarget) activateTab(laneOwners.a.id); };
+    $('tabBusyClose').onclick = async () => { await closeLane('a'); renderTabs(); renderStage(); };
     $('adminRow').onclick = () => openAdminTab();
     $('adminRow').onkeydown = (ev) => { if (ev.key === 'Enter' || ev.key === ' ') { ev.preventDefault(); openAdminTab(); } };
 
@@ -4611,7 +4685,7 @@
     // El visor toma el foco al pasar el mouse: si no, el primer clic se gasta en dárselo y no llega al celular.
     $('clientVnc').addEventListener('mouseenter', () => { try { $('clientVnc').contentWindow?.focus(); } catch { } });
     $('clientOtp').addEventListener('click', () => { const c = $('clientOtp').dataset.code; if (c) navigator.clipboard?.writeText(c).catch(() => { }); });
-    $('clientClose').addEventListener('click', () => { fetch('/api/device/client/close', { method: 'POST' }).catch(() => { }); setClientMode('idle'); });
+    $('clientClose').addEventListener('click', () => { fetch(`/api/device/${D('client')}/close`, { method: 'POST' }).catch(() => { }); setClientMode('idle'); });
     $('shopPay').addEventListener('click', () => { payWithCreditop(); openClientBrowser(); });
     const toggleShopUser = (open) => { $('shopUser').hidden = !open; $('shopUserBtn').setAttribute('aria-expanded', String(open)); };
     $('shopUserBtn').addEventListener('click', () => toggleShopUser($('shopUser').hidden));
@@ -5411,7 +5485,7 @@
         if (pollBusy) return;
         pollBusy = true;
         try {
-        const j = await (await fetch(`/api/status?from=${logCursor}`)).json();
+        const j = await (await fetch(`/api/status?from=${logCursor}&lane=${phoneLane}`)).json();
         noteConsole(j.consoleId);
         // `total` baja ⇒ el RUN_LOG se reescribió (corrida nueva): reset y pedimos todo de nuevo.
         if (typeof j.total === 'number' && j.total < logCursor) { logLines = []; logCursor = 0; repaintLog(); }
@@ -5899,7 +5973,7 @@
       let text = '';
       // Mirando la consola guardada de una pestaña, se copia ESA (la viva es de otra corrida).
       if (consoleShown && consoleShown !== 'none') text = archivedLines.join('\n');
-      else { try { text = await (await fetch('/api/log')).text(); } catch {} }
+      else { try { text = await (await fetch(`/api/log?lane=${phoneLane}`)).text(); } catch {} }
       if (!text) text = logLines.join('\n');
       try {
         const r = await (await fetch('/api/ssr')).json();
@@ -6932,9 +7006,9 @@ export function bindMenu(trigger, { getItems, onSelect, label = 'Más opciones' 
       // (`/api/device/<id>/advance-all` con la entidad del plan y, por asesor, siguiendo al cliente). El servidor hace el
       // trabajo y lo cuenta en la consola; acá sólo se mira si sigue avanzando, y «Detener» lo para.
       let autoWatch = null;
-      const devState = async (id) => { try { return await (await fetch(`/api/device/${id}/state`)).json(); } catch { return {}; } };
+      const devState = async (id) => { try { return await (await fetch(`/api/device/${D(id)}/state`)).json(); } catch { return {}; } };
       async function stopAuto() {
-        await Promise.all(['advisor', 'client'].map((id) => fetch(`/api/device/${id}/advance-stop`, { method: 'POST' }).catch(() => { })));
+        await Promise.all(['advisor', 'client'].map((id) => fetch(`/api/device/${D(id)}/advance-stop`, { method: 'POST' }).catch(() => { })));
       }
       function setAutoRunning(on) {
         byId('planAuto').textContent = on ? 'Detener' : 'Corrida completa';
@@ -6953,11 +7027,14 @@ export function bindMenu(trigger, { getItems, onSelect, label = 'Más opciones' 
           const dev = plan.canal === 'asesor' ? 'advisor' : 'client';
           planStatus(dev === 'advisor' ? 'abriendo el celular del asesor…' : 'abriendo el checkout desde la tienda…');
           if (dev === 'advisor') await playMerchant(entry); else byId('shopPay').click();
+          // Por la tienda, «Pagar con Creditop» toma el carril por su lado: se espera a que lo haya tomado.
+          for (let i = 0; i < 25 && !laneOfTab(currentTab()); i++) await new Promise((r) => setTimeout(r, 200));
+          const myLane = laneOfTab(currentTab()) || phoneLane;   // el carril que tomó esta corrida (`claimDevices`): se mira ése aunque cambies de pestaña
           let st = {};
-          for (let i = 0; i < 90 && !(st = await devState(dev)).open; i++) await new Promise((r) => setTimeout(r, 2000));
+          for (let i = 0; i < 90 && !(st = await (await fetch(`/api/device/${laneId(dev, myLane)}/state`)).json().catch(() => ({}))).open; i++) await new Promise((r) => setTimeout(r, 2000));
           if (!st.open) throw new Error('el celular no se abrió');
           await new Promise((r) => setTimeout(r, 2500));   // que la primera pantalla termine de cargar
-          const r = await (await fetch(`/api/device/${dev}/advance-all`, { method: 'POST', headers: { 'content-type': 'application/json' },
+          const r = await (await fetch(`/api/device/${laneId(dev, myLane)}/advance-all`, { method: 'POST', headers: { 'content-type': 'application/json' },
             body: JSON.stringify({ lender: plan.lender ?? null, follow: dev === 'advisor' }) })).json();
           if (!r.ok) throw new Error(r.detail || 'el servidor no quiso avanzar');
           planStatus(`avanzando solo${plan.lender ? ` · entidad ${plan.lender}` : ''} · la consola cuenta cada paso`);
@@ -6965,7 +7042,7 @@ export function bindMenu(trigger, { getItems, onSelect, label = 'Más opciones' 
           clearInterval(autoWatch);
           autoWatch = setInterval(async () => {
             let a = null;
-            try { a = (await (await fetch('/api/autorun')).json()).autoRun; } catch { return; }
+            try { a = (await (await fetch(`/api/autorun?lane=${myLane}`)).json()).autoRun; } catch { return; }
             if (!a) return;
             if (a.active) { planStatus(`avanzando solo en el celular del ${a.device === 'client' ? 'cliente' : 'asesor'}${plan?.lender ? ` · entidad ${plan.lender}` : ''}`); return; }
             clearInterval(autoWatch); autoWatch = null; setAutoRunning(false);

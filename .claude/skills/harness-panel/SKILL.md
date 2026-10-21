@@ -875,3 +875,34 @@ servidor que avance solo (`/api/device/<id>/advance-all` con `{lender, follow}`)
   «Error al cargar los documentos»» (los PDF del pagaré, consentimiento y garantía no están en el S3 local: es del
   ambiente, ver skill `harness-local`). En la base, las solicitudes 467488 y 467489 quedaron en estado 10 con la
   entidad 77. El canal ecommerce NO se probó con la corrida completa.
+
+### Dos pestañas a la vez: los CARRILES (2026-10-21)
+
+Dos pestañas pueden correr al mismo tiempo, cada una con su par de celulares. El carril A son los de siempre
+(`advisor`, `client`) y el B los mismos con `-b` (`advisor-b`, `client-b`, `Lane`/`laneOf`/`roleOf`/`inLane` en
+`panel/devices.ts`). Casi todo el servidor ya iba por id de celular, así que un carril es un id más; lo que no:
+
+- **Una consola viva por carril** (`RUN_LOGS.b` = el log con `-b`, `consoleIds[lane]`, `?lane=b` en `/api/status`,
+  `/api/log` y `/api/autorun`). Lo que el panel anota va a la del carril del celular (`panelOf(id)`). Las corridas por
+  `bin/advisor` y la de prod son del A.
+- **El traspaso y la corrida completa siguen al cliente DE SU carril** (`watchAdvisorHandoffs(…, advisor)`, el `follow`
+  de `advanceAll`); `autoRuns`, `lastAdvanceWhy` y `followCancelledAt` son por carril.
+- ⚠ **Cada carril tiene su celular sintético**: A `3131010101`, B `3131010102`. Con el mismo número, abrir una corrida
+  limpiaba (scrub) al cliente de la otra con sus solicitudes. El del B no está en `qa_otp_bypass_phones`: el servidor lo
+  suma al abrir el asesor (`otp-bypass-add`) y lo saca al cerrarlo.
+- **En la interfaz las pantallas son las mismas dos**; cambia de qué carril son (`phoneLane`). `D(rol)` es el celular
+  del servidor de ese rol en el carril que se ve, y toda llamada a `/api/device/…` pasa por ahí (la PC del admin no).
+  `setPhoneLane` corta la transmisión del carril anterior, cambia el celular del caso, retoma los celulares del nuevo y
+  empieza a leer su consola.
+- **Quién usa qué carril** (`laneOwners`, `claimDevices`): el que ya tiene la pestaña; si no, uno libre (el A primero);
+  con los dos ocupados, el aviso «Los dos carriles están ocupados» y abrir pide cerrar la del A. `pollLanes` pregunta al
+  servidor cada 3 s qué hay abierto en cada uno. Prod va siempre por el A.
+- ⛔ **El mismo comercio en OTRA sucursal, en local, no puede ir al otro carril**: su asesor de prueba es uno y está en
+  una sola sucursal; abrir la segunda lo movería y la primera seguiría contra la sucursal equivocada. `claimDevices` lo
+  frena con un aviso. Con la misma sucursal sí se puede.
+- Verificado el 2026-10-21 en local, a la vez: Pullman · Asesor (carril A, CrediPullman) y Mediarte · Asesor (carril
+  B, Mediarte X, con su asesor entrando por el login del conector) llegaron solos a `loan-approved`; en la base, 467492
+  (Pullman, `…0101`) y 467493 (Mediarte, `…0102`), las dos en estado 11 con desembolso; ninguna consola menciona el
+  comercio de la otra. Al cambiar de pestaña cada una muestra su carril, su celular del caso y su consola; una tercera
+  pestaña ve «Los dos carriles están ocupados»; el freno de la misma sucursal se probó simulando el estado de los
+  carriles. NO se probó: dos carriles en la compartida ni el carril B por la tienda.
