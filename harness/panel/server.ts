@@ -2382,7 +2382,7 @@ const server = createServer(async (req, res) => {
         // Si la consulta falla no se adivina: se deja el set completo y se dice por qué. Inferir "no es
         // Corbeta" ante un error escondería el canal QR justo cuando sí corresponde.
         if (!m.ok) return json(res, 200, { hash, corbeta: null, canales: ['asesor', 'autogestion', 'ecommerce', 'qr'], msg: `no pude determinar si es Corbeta (${m.msg})` });
-        const { r, corbeta, auto, autoMotivo } = m;
+        const { r, corbeta, auto = [], autoMotivo } = m;
         const measured = corbeta ? ['qr'] : ['asesor', 'autogestion', 'ecommerce', ...auto];
         const declared = declaredChannels(slug);
         // En el ORDEN de la declaración: el primero es el que se preselecciona si el sugerido no está.
