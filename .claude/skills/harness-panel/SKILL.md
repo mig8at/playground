@@ -851,3 +851,27 @@ manda la página). La persona entra (correo y «Copiar contraseña» en la ficha
   después de migrar una copia, sin claves viejas y con su `.v1.bak`; `preflight-branch.spec.ts` 11/11; el panel de
   prueba contra la copia migrada: barra, `/api/branches` (Perú: `50e007e4` en local, `a8221e67` en qa), canales
   declarados de Refurbi, y agregar · renombrar · quitar (los curados siguen sin poder quitarse).
+
+### ⏩ «Corrida completa» del plan (2026-10-21)
+
+La franja del plan suma «Corrida completa» al lado de «Paso a paso»: aplica el plan, abre el celular igual y le pide al
+servidor que avance solo (`/api/device/<id>/advance-all` con `{lender, follow}`). Mientras corre el botón dice «Detener».
+
+- **`advanceAll` sabe dos cosas más, y son de la CORRIDA**: con `lender`, en `/lenders` elige ESA entidad con
+  `chooseEntity` (`pkg/wizard-browser.ts`, vía `deviceChooseEntity`), que abre las tarjetas que se despliegan; con
+  `follow`, cuando el asesor llega a `…/{ur}/continue|confirmation` espera a que `watchAdvisorHandoffs` abra el cliente y
+  sigue ahí. La entidad del plan puede ser id o nombre: el servidor la pasa a nombre (`dbops lender-rt`).
+- ⚠ **Si la entidad no está en el listado, PARA y dice cuáles había**: elegir otra en silencio es justo lo que tiene
+  que saltar a la vista (F-162). Medido: «NoExisteEnElListado» en Pullman paró con «Se veía: Creditop isotype · Validar
+  Pre aprobado · Bancolombia - Compra y paga después · … · Sistecrédito … Activar mi crédito» (CrediPullman sale con el
+  `alt` de su logo).
+- **El servidor dice si sigue** (`GET /api/autorun`: activa, en qué celular va, por qué terminó); la franja lo lee. No se
+  infiere por silencio: durante el traspaso ningún celular avanza hasta ~90 s. «Detener» corta también esa espera
+  (`followCancelledAt`).
+- ⚠ **El motivo de una corrida trabada es lo que MUESTRA la pantalla** (`screenError`), no «locator.click: Timeout»: un
+  modal de error tapa el botón y el toque tira.
+- Verificado en local (panel de prueba, plan Pullman · CrediPullman): el asesor avanzó solo, eligió CrediPullman, el
+  traspaso abrió el cliente y éste siguió hasta la firma; paró con «se trabó en …/sign-documents: la pantalla dice
+  «Error al cargar los documentos»» (los PDF del pagaré, consentimiento y garantía no están en el S3 local: es del
+  ambiente, ver skill `harness-local`). En la base, las solicitudes 467488 y 467489 quedaron en estado 10 con la
+  entidad 77. El canal ecommerce NO se probó con la corrida completa.

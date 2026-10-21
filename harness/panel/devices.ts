@@ -17,6 +17,7 @@ import { execFile } from 'node:child_process';
 import { chromium, devices, type BrowserContext, type Page } from '@playwright/test';
 import { blockDevOverlays } from '../pkg/dev-overlays.ts';
 import { installAutofill, type AutofillData } from '../pkg/autofill.ts';
+import { chooseEntity } from '../pkg/wizard-browser.ts';
 
 export type DeviceId = 'client' | 'advisor' | 'admin';
 /** Los dos CELULARES; `admin` es la PC de la vista «Admin» (ver `openDesktop`). */
@@ -695,6 +696,16 @@ export async function deviceAdvance(id: DeviceId, otp?: string, waitMs = 4_000):
         return { ok: true, detail: [...did, `tocó «${label}»`].join(' · ') + tail, moved, url: d.page.url() };
     }
     return { ok: false, detail: `no hay un botón para avanzar (${ADVANCE.join(', ')})`, url: d.page.url() };
+}
+
+/** Elige una ENTIDAD en el listado por su nombre, con el mismo `chooseEntity` de los runners (`pkg/wizard-browser.ts`): sabe
+ *  abrir las tarjetas que se despliegan y tocar el botón de adentro. Si no la encuentra, devuelve los botones que se veían. */
+export async function deviceChooseEntity(id: DeviceId, name: string): Promise<{ ok: boolean; detail: string; visibles: string[] }> {
+    const d = open.get(id);
+    if (!d) return { ok: false, detail: 'el celular no está abierto', visibles: [] };
+    const r = await chooseEntity(d.page, name);
+    if (!r.ok) return { ok: false, detail: `«${name}» no está en el listado`, visibles: r.visibles };
+    return { ok: true, detail: `eligió «${name}»${r.motivo ? ` (⚠ ${r.motivo})` : ''}`, visibles: r.visibles };
 }
 
 /** Avisa cada navegación de la página principal de un celular (para seguir el flujo desde el panel). */

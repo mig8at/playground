@@ -19,7 +19,7 @@ import { advisorSession } from '../../connectors/advisor/session.ts';
 import { envData, type AutofillData } from '../pkg/autofill.ts';
 import { identityWithoutProviderNotice } from '../pkg/config.ts';
 import { adminSession, ensureLocalAdmin, ADMIN_APP } from '../pkg/admin-access.ts';
-import { openDevice, openDevices, setDeviceLogger, prewarmDevices, warmDevice, watchNavigation, watchRequests, deviceGoto, deviceReload, deviceText, deviceEval, deviceOpenedAt, deviceState, deviceShot, deviceInput, deviceTap, deviceAdvance, deviceStream, deviceBusyWatch, deviceStorage, closeDevice, closeAllDevices, SELENIUM_BOXES, type DeviceId, type DeviceInput, type DeviceSession } from './devices.ts';
+import { deviceChooseEntity, openDevice, openDevices, setDeviceLogger, prewarmDevices, warmDevice, watchNavigation, watchRequests, deviceGoto, deviceReload, deviceText, deviceEval, deviceOpenedAt, deviceState, deviceShot, deviceInput, deviceTap, deviceAdvance, deviceStream, deviceBusyWatch, deviceStorage, closeDevice, closeAllDevices, SELENIUM_BOXES, type DeviceId, type DeviceInput, type DeviceSession } from './devices.ts';
 import { vpnDev, type VpnStatus } from '../pkg/vpn.ts';
 import { validatePlan, readPlan, writePlan, clearPlan } from '../pkg/run-plan.ts';
 import { prodCatalog, prodMerchant } from '../pkg/prod-catalog.ts';
@@ -647,7 +647,27 @@ function stepPattern(id: string): RegExp | null {
         return new RegExp('^' + String(p.ruta).split('?')[0].replace(/[.*+?^$()|[\]\\]/g, '\\$&').replace(/\{[^}]*\}/g, '[^/]+') + '/?$');
     } catch { return null; }
 }
-async function advanceAll(id: DeviceId, until: string | null): Promise<void> {
+/**
+ * AVANZAR SOLO un celular, pantalla por pantalla, hasta una pantalla (`until`), el final o donde se trabe.
+ *
+ * LA CORRIDA COMPLETA del plan (`opts`) le suma dos cosas, y las dos son de la CORRIDA, no de una pantalla:
+ *   · `lender`: en el listado elige ESA entidad (por su nombre, con `chooseEntity`) en vez de tocar el botón principal. Si
+ *     no está, PARA y dice cuáles había: elegir otra en silencio es justo el caso que tiene que saltar a la vista (F-162).
+ *   · `follow`: cuando el asesor pasa a «continuá en tu celular», espera a que el traspaso abra el celular del cliente
+ *     (`watchAdvisorHandoffs`) y sigue ahí. Sin esto la corrida se quedaba en el asesor, que ya no tiene nada que hacer.
+ */
+/** «Detener» mientras la corrida completa espera el traspaso (ahí ningún celular está avanzando). */
+let followCancelledAt = 0;
+/** La CORRIDA COMPLETA en curso o la última: si sigue, en qué celular va y por qué terminó (lo mira la franja del plan). */
+let autoRun: { active: boolean; device: DeviceId; why: string; startedAt: number; endedAt?: number } | null = null;
+let lastAdvanceWhy = '';
+/** El error que la pantalla de un celular MUESTRA (la primera línea que lo parezca), para que el motivo de una corrida
+ *  trabada diga lo que se ve y no «locator.click: Timeout». '' si no hay. */
+async function screenError(id: DeviceId): Promise<string> {
+    const txt = await deviceText(id).catch(() => '');
+    return txt.split('\n').map((l) => l.trim()).find((l) => l.length < 160 && /error|no se pudo|no pudimos|fall[oó]|intenta(lo)? de nuevo|inténtalo/i.test(l)) ?? '';
+}
+async function advanceAll(id: DeviceId, until: string | null, opts: { lender?: string; follow?: boolean } = {}): Promise<void> {
     if (advancing.has(id)) return;
     const run = { stop: false };
     advancing.set(id, run);
@@ -655,9 +675,10 @@ async function advanceAll(id: DeviceId, until: string | null): Promise<void> {
     const target = until ? stepPattern(until) : null;
     const pathOf = (u?: string) => { try { return new URL(u || '').pathname; } catch { return ''; } };
     const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
-    deviceLog(id, `⏩ avanzando ${until ? `hasta «${until}»` : 'hasta el final'}${remote ? ' (espera de ambiente remoto)' : ''}`);
+    const whatFor = [until ? `hasta «${until}»` : 'hasta el final', opts.lender && `eligiendo «${opts.lender}»`, opts.follow && 'siguiendo al cliente'].filter(Boolean).join(', ');
+    deviceLog(id, `⏩ avanzando ${whatFor}${remote ? ' (espera de ambiente remoto)' : ''}`);
     let why = 'llegó a 40 toques';
-    let stuck = 0, idle = 0;
+    let stuck = 0, idle = 0, chosen = false, handoff = false;
     try {
         for (let i = 0; i < 40; i++) {
             if (run.stop) { why = 'detenido a pedido'; break; }
@@ -666,24 +687,54 @@ async function advanceAll(id: DeviceId, until: string | null): Promise<void> {
             const here = pathOf(state.url);
             if (target && target.test(here)) { why = `llegó a «${until}»`; break; }
             if (TERMINAL_PATH.test(here)) { why = `llegó al final (${here.split('/').pop()})`; break; }
+            // El traspaso: el asesor terminó su parte y el cliente sigue en su celular.
+            if (opts.follow && id === 'advisor' && /\/merchant\/[^/]+\/\d+\/(?:continue|confirmation)(?:\/|$)/.test(here)) {
+                handoff = true; why = 'el asesor terminó: la solicitud sigue en el celular del cliente'; break;
+            }
+            // El listado: la entidad del plan, una sola vez.
+            if (opts.lender && !chosen && /\/lenders(?:\/|$)/.test(here)) {
+                chosen = true;
+                deviceLog(id, `▸ en el listado, buscando «${opts.lender}»…`);
+                const c = await deviceChooseEntity(id, opts.lender);
+                if (!c.ok) { why = `${c.detail}. Se veía: ${c.visibles.slice(0, 12).join(' · ') || 'nada'}`; break; }
+                deviceLog(id, '▸ ' + c.detail);
+                await sleep(remote ? 4_000 : 2_000);
+                continue;
+            }
             const r = await deviceAdvance(id, deviceOtp.get(id), remote ? 12_000 : 4_000);
             if (!r.ok) {
                 // Sin botón: puede ser una pantalla que avanza sola (procesando el pago, validando). Se le da tiempo.
-                if (++idle > 8) { why = `se quedó en ${here}: ${r.detail}`; break; }
+                if (++idle > 8) { const shown = await screenError(id); why = `se quedó en ${here}: ${shown ? `la pantalla dice «${shown}»` : r.detail}`; break; }
                 await sleep(5_000); continue;
             }
             idle = 0;
             deviceLog(id, '▸ ' + r.detail);
             stuck = r.moved ? 0 : stuck + 1;
-            if (stuck >= 3) { why = `toca y no sale de ${pathOf(r.url)}: algo que el panel no sabe llenar`; break; }
+            if (stuck >= 3) { const shown = await screenError(id); why = `toca y no sale de ${pathOf(r.url)}: ${shown ? `la pantalla dice «${shown}»` : 'algo que el panel no sabe llenar'}`; break; }
             await sleep(remote ? 2_000 : 800);
         }
     } catch (e) {
-        why = 'falló: ' + (e as Error).message.split('\n')[0];
+        // Un toque que no llega (algo tapa el botón: un modal de error) tira acá; el motivo es lo que se ve.
+        const shown = await screenError(id);
+        const at = pathOf(deviceState(id).url);
+        why = `se trabó en ${at}${shown ? `: la pantalla dice «${shown}»` : ''} (${(e as Error).message.split('\n')[0]})`;
     } finally {
         advancing.delete(id);
+        lastAdvanceWhy = why;
+        if (autoRun?.active) autoRun.device = id;
         deviceLog(id, `⏹ ${why}`);
     }
+    if (!handoff || run.stop) return;
+    // Espera a que el traspaso abra el cliente (lo abre `watchAdvisorHandoffs`, que además le pone el bypass del OTP).
+    const waitFrom = Date.now();
+    for (let i = 0; i < 45 && !(deviceState('client').open && /\/self-service\//.test(deviceState('client').url ?? '')); i++) {
+        if (followCancelledAt > waitFrom) { deviceLog('panel', '⏹ detenido a pedido (esperando el traspaso)'); return; }
+        await sleep(2_000);
+    }
+    if (!deviceState('client').open) { deviceLog('panel', '⏹ el celular del cliente no se abrió después del traspaso: la corrida para acá'); return; }
+    deviceLog('panel', '⏩ la corrida sigue en el celular del cliente');
+    if (autoRun?.active) autoRun.device = 'client';
+    await advanceAll('client', until, { lender: chosen ? undefined : opts.lender });
 }
 // Celulares ABRIÉNDOSE: entre cerrar el anterior y abrir el nuevo no hay ninguno «abierto», y un precalentado
 // que entrara justo ahí reiniciaría el wizard que el celular está por mostrar (pasó el 2026-10-06).
@@ -1558,6 +1609,7 @@ const server = createServer(async (req, res) => {
 
     // EL PLAN DE CORRIDA (`pkg/run-plan.ts`): una corrida armada de antemano —por un agente con `bin/plan.ts`, o por acá—
     // que el panel muestra arriba de los celulares para darle play. Uno por máquina, en `.runs/plan.json`.
+    if (path === '/api/autorun') return json(res, 200, { autoRun });
     if (path === '/api/plan') {
         if (req.method === 'GET') return json(res, 200, { plan: readPlan() });
         if (req.method === 'DELETE') { clearPlan(); return json(res, 200, { ok: true }); }
@@ -2482,10 +2534,22 @@ connect();
             const b = await readBody(req);
             const until = b?.until ? String(b.until) : null;
             if (until && !stepPattern(until)) return json(res, 400, { ok: false, detail: `no conozco la pantalla «${until}»` });
-            void advanceAll(id, until);   // corre solo; lo que hace va a la consola
+            // La entidad del plan, por id o por nombre: el listado la muestra por su NOMBRE.
+            let lender = b?.lender !== undefined && b?.lender !== null && String(b.lender).trim() ? String(b.lender).trim() : '';
+            if (lender) {
+                const l = await dbopsJson(['lender-rt', lender], deviceTarget.get(id) || 'local');
+                if (l?.name) lender = String(l.name);
+                else if (/^\d+$/.test(lender)) return json(res, 200, { ok: false, detail: `no conozco la entidad ${lender} en ${deviceTarget.get(id) || 'local'}` });
+            }
+            const follow = !!b?.follow;
+            if (lender || follow) autoRun = { active: true, device: id, why: '', startedAt: Date.now() };
+            void advanceAll(id, until, { lender: lender || undefined, follow }).finally(() => {   // corre solo; lo que hace va a la consola
+                if (autoRun?.active) Object.assign(autoRun, { active: false, why: lastAdvanceWhy, endedAt: Date.now() });
+            });
             return json(res, 200, { ok: true, advancing: true });
         }
         if (action === 'advance-stop' && req.method === 'POST') {
+            followCancelledAt = Date.now();
             const run = advancing.get(id);
             if (run) run.stop = true;
             return json(res, 200, { ok: true, advancing: !!run });
