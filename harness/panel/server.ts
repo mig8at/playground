@@ -1881,6 +1881,21 @@ const server = createServer(async (req, res) => {
             return json(res, 200, { rows, at: Date.now() });
         } catch (e) { return json(res, 200, { rows: null, detail: `no pude leer prod: ${(e as Error).message} (¿VPN de prod?)` }); }
     }
+    // LA CLAVE COMPARTIDA DE LOS ASESORES DE PRUEBA EN PROD, para que la PERSONA la pegue al entrar a mano desde su navegador
+    // (la ficha la pide al hacer clic en «Copiar contraseña» y va directo al portapapeles: nunca se escribe en la página ni en
+    // la consola). El panel no la usa para entrar. Sólo por POST con JSON: un sitio de otro origen no puede mandar eso sin
+    // pasar por CORS, que el panel no habilita; y el panel escucha sólo en la interfaz local.
+    if (path === '/api/prod/advisor-password' && req.method === 'POST') {
+        if (!String(req.headers['content-type'] || '').includes('application/json')) return json(res, 415, { ok: false, detail: 'sólo JSON' });
+        const file = join(ROOT, '.env.prod');
+        let value = '';
+        try {
+            const line = readFileSync(file, 'utf8').split('\n').find((l) => /^\s*ALLIED_TEST_ADVISOR_PASSWORD\s*=/.test(l));
+            value = line ? line.replace(/^\s*ALLIED_TEST_ADVISOR_PASSWORD\s*=\s*/, '').trim().replace(/^(['"])(.*)\1$/, '$2') : '';
+        } catch { /* sin archivo */ }
+        if (!value) return json(res, 200, { ok: false, detail: 'falta ALLIED_TEST_ADVISOR_PASSWORD en harness/.env.prod' });
+        return json(res, 200, { ok: true, password: value });
+    }
     if (path === '/api/prod/merchant') {
         const allied = Number(url.searchParams.get('allied'));
         try { return json(res, 200, { ok: true, ...(await prodMerchant(allied)) }); }

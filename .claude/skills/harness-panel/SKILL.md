@@ -775,3 +775,15 @@ vuelve a la pestaña del ambiente.
 en la base compartida: entrar al wizard como asesor crea solicitudes reales, el primer ingreso de un asesor puede
 completar su `cognito_id`, y el repo fija prod como sólo lectura con una sola excepción (la corrida pública). Por eso
 una ficha de prod no pregunta canal: sin celular no hay canal que elegir. Se pidió el 2026-10-20 y se dejó afuera.
+
+### La ficha de prod deja lo necesario para entrar A MANO (2026-10-20)
+
+Con asesor de prueba, la ficha muestra «Para iniciarla desde tu navegador»: la URL de entrada del canal asesor en la
+sucursal falsa (`https://originaciones.creditop.com/merchant/<hash>/solicitar`, de `PROD_FRONT`), el correo del asesor
+y «Copiar contraseña». El panel NO entra: es para que la persona lo abra en su navegador.
+
+- ⚠ **La contraseña nunca se escribe en la página.** El botón la pide a `POST /api/prod/advisor-password`, que lee
+  `ALLIED_TEST_ADVISOR_PASSWORD` de `harness/.env.prod`, y va directo al portapapeles. La ruta exige JSON (un sitio de
+  otro origen no puede mandarlo sin CORS, que el panel no habilita) y el panel escucha sólo en la interfaz local.
+- Verificado en un panel de prueba: Sonría muestra la URL de `d6b88e5e` y `cd6b88e5e-fake@`; la ruta contesta (se
+  comprobó sólo que llega y su largo) y sin JSON da 415; el valor no aparece en el DOM.

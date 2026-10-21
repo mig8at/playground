@@ -321,6 +321,8 @@
     .prod-ficha { flex: 1 1 auto; min-height: 0; display: flex; justify-content: center; align-items: flex-start; overflow: auto }
     .prod-ficha-body { display: flex; flex-direction: column; gap: var(--space-2); font-size: var(--text-sm) }
     .prod-ficha-body .warn { color: var(--warn) }
+    .prod-manual { display: flex; flex-direction: column; gap: var(--space-1); padding-top: var(--space-2); border-top: 1px solid var(--border) }
+    .prod-manual .mono { overflow-wrap: anywhere }
     .prod-ficha-body .mono { font-family: var(--font-mono, monospace) }
     /* Con la pestaña Admin activa, el comercio elegido deja de verse elegido: la selección es la del Admin. */
     #results[data-admin-on] .row[aria-selected="true"] { background: none; color: inherit; box-shadow: none }
@@ -4422,12 +4424,32 @@
         line('Sucursales', `${f.branches.active} activas de ${f.branches.total}`),
         line('Asesor de prueba', a ? `<span class="mono">${escTxt(a.email)}</span> · ${a.hasSub ? 'cuenta de Cognito enlazada' : '<span class="warn">sin cognito_id</span>'}` : '<span class="warn">no tiene</span>'),
         a ? line('Su sucursal', a.branchHash ? `<span class="mono">${escTxt(a.branchHash)}</span> · ${escTxt(a.branchName || '(sin nombre)')}${a.branchStatus === 1 ? '' : ' · <span class="warn">apagada</span>'}` : '<span class="warn">ninguna</span>') : '',
+        // PARA ENTRAR A MANO, desde tu navegador: el panel no entra en prod. La contraseña no se escribe acá: el botón la
+        // pide al servidor al hacer clic y la deja en el portapapeles.
+        a && f.entryUrl ? `<div class="prod-manual"><strong>Para iniciarla desde tu navegador</strong>
+          ${line('URL', `<span class="mono">${escTxt(f.entryUrl)}</span> <button type="button" class="btn btn-outline btn-xs" data-copy-text="${escTxt(f.entryUrl)}">Copiar</button> <a class="btn btn-outline btn-xs" href="${escTxt(f.entryUrl)}" target="_blank" rel="noopener noreferrer">Abrir</a>`)}
+          ${line('Correo', `<span class="mono">${escTxt(a.email)}</span> <button type="button" class="btn btn-outline btn-xs" data-copy-text="${escTxt(a.email)}">Copiar</button>`)}
+          ${line('Contraseña', `<button type="button" class="btn btn-outline btn-xs" id="prodCopyPass">Copiar contraseña</button>`)}
+          <p class="warn">⚠ Entrás vos, y en prod todo es real: las centrales se consultan de verdad y la entidad que elijas en el listado recibe la solicitud.</p></div>` : '',
         a?.branchHash ? line('Sus entidades', `${on} encendida${on === 1 ? '' : 's'} de ${f.lenders.length}`) : '',
         ...(f.lenders.length ? [`<table class="table"><thead><tr><th>Entidad</th><th class="num">rt</th><th>Estado</th></tr></thead><tbody>${
           f.lenders.map((l) => `<tr><td>${escTxt(l.name)} <span class="mono">#${l.id}</span></td><td class="num">${escTxt(l.response_type)}</td><td>${Number(l.status) === 1 ? 'encendida' : 'apagada'}</td></tr>`).join('')
         }</tbody></table>`] : []),
         ...f.notes.map((n) => `<p class="warn">⚠ ${escTxt(n)}</p>`),
       ].filter(Boolean).join('');
+      for (const b of body.querySelectorAll('[data-copy-text]')) {
+        b.onclick = async () => { try { await navigator.clipboard.writeText(b.dataset.copyText); b.textContent = 'Copiado ✓'; } catch { b.textContent = 'No se pudo copiar'; } setTimeout(() => { b.textContent = 'Copiar'; }, 1500); };
+      }
+      if ($('prodCopyPass')) $('prodCopyPass').onclick = async () => {
+        const b = $('prodCopyPass');
+        try {
+          const r = await (await fetch('/api/prod/advisor-password', { method: 'POST', headers: { 'content-type': 'application/json' }, body: '{}' })).json();
+          if (!r.ok) { b.textContent = r.detail || 'no está'; return; }
+          await navigator.clipboard.writeText(r.password);
+          b.textContent = 'Copiada ✓';
+        } catch { b.textContent = 'No se pudo copiar'; }
+        setTimeout(() => { b.textContent = 'Copiar contraseña'; }, 2000);
+      };
       $('prodFichaHint').textContent = `Para comprobar que su asesor de prueba podría entrar, sin entrar: make harness-prod-advisor ALLIED=${t.allied} (VPN de prod y aws sso login --profile prod). La corrida que sí se puede hacer en prod es la pública, en la vista «Prod».`;
     }
     $('prodFichaReload').onclick = () => { const t = currentTab(); if (t?.kind === 'prod') renderProdFicha(t, true); };

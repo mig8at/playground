@@ -10,6 +10,7 @@
 // ⚠ Los ids y los hashes se validan antes de entrar al SQL: el conector no acepta parámetros, recibe el texto.
 import { execFile } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
+import { PROD_FRONT } from './prod-advisor.ts';
 
 const PLAYGROUND = fileURLToPath(new URL('../../', import.meta.url));
 const PG = `${PLAYGROUND}bin/pg`;
@@ -56,6 +57,9 @@ export interface ProdMerchant {
     advisor: { email: string; hasSub: boolean; branchHash: string | null; branchName: string | null; branchStatus: number | null } | null;
     lenders: Row[];
     notes: string[];
+    /** Dónde arranca una solicitud como ese asesor, para abrirla A MANO en un navegador: la entrada del canal asesor en
+     *  el wizard de prod, en la sucursal del asesor de prueba. El panel no entra: la muestra para copiar. */
+    entryUrl: string | null;
 }
 
 /** La ficha de un comercio de prod: su asesor de prueba, la sucursal falsa y las entidades de esa sucursal. */
@@ -85,5 +89,6 @@ export async function prodMerchant(alliedId: number): Promise<ProdMerchant> {
         else if (advisor.branchStatus !== 1) notes.push('la sucursal del asesor de prueba está apagada');
         else if (!lenders.some((l) => Number(l.status) === 1)) notes.push('la sucursal del asesor de prueba no tiene entidades encendidas: su listado saldría vacío');
     }
-    return { merchant: m[0] ?? null, branches: { total: Number(br[0]?.total ?? 0), active: Number(br[0]?.active ?? 0) }, advisor, lenders, notes };
+    return { merchant: m[0] ?? null, branches: { total: Number(br[0]?.total ?? 0), active: Number(br[0]?.active ?? 0) }, advisor, lenders, notes,
+        entryUrl: hash ? `${PROD_FRONT.replace(/\/$/, '')}/merchant/${hash}/solicitar` : null };
 }
