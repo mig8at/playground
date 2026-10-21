@@ -1221,6 +1221,7 @@
         <button type="button" class="tab" id="tabMocks" role="tab" aria-selected="false" title="Los mocks locales que vigila el panel: si responden, quién los levantó y su salida">Mocks</button>
         <button type="button" class="tab" id="tabMap" role="tab" aria-selected="false" title="El mapa del recorrido del comercio: sus carriles y dónde va la corrida">Mapa</button>
         <div class="region-actions" role="group" aria-label="Acciones de consola">
+          <span id="consoleTabNote" class="count" hidden></span>
           <span id="consoleFilterState" class="count filtered" hidden>Filtrada</span>
           <button type="button" class="region-action" id="copyLog" title="Copiar ambas consolas completas" aria-label="Copiar ambas consolas completas"><span class="ui-icon" data-icon="copy" aria-hidden="true"></span></button>
           <button type="button" class="region-action" id="consoleMenu" title="Opciones de consola" aria-label="Opciones de consola"><span class="ui-icon" data-icon="more" aria-hidden="true"></span></button>
@@ -1371,6 +1372,7 @@
     // elegir a mano cada vez, y eso es a propósito.
     let target = 'local';        // local | dev | staging | qa (staging y qa: front y backend propios, BD compartida con dev)
     let prodMode = false;         // el modo «prod · sólo mirar» (ver «EL MODO PROD»): NO es un `target`, a propósito
+    let consoleShown = null, archivedLines = [];   // qué consola se pinta (ver «LA CONSOLA DE CADA PESTAÑA»)
     // La RUTA (`#/<comercio>?canal=…`) la escribe el módulo del final, que es el que tiene `setRoute` y
     // `hashRoute` de la base. Acá sólo se avisa que cambió algo de lo que la ruta dice; hasta que el módulo
     // lo engancha es un no-op, así que el arranque de este script no escribe nada.
@@ -4067,6 +4069,7 @@
         list.appendChild(tab);
       }
       list.querySelector('.tab.on')?.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+      syncConsoleView();
       // El apartado «Admin» del sidebar izquierdo: elegido mientras su pestaña es la activa.
       $('adminRow').setAttribute('aria-selected', String(currentTab()?.kind === 'admin'));
       $('adminRowEnv').textContent = tabsTarget === 'qa' ? 'dev' : tabsTarget;
@@ -4234,10 +4237,54 @@
         await closeDevices();
       }
       if (t) { const l = tabLabel(t); liveOwner = { target: tabsTarget, id: t.id, label: `${l.name} · ${l.chan}` }; }
+      claimConsole();
       saveTabs();
       setTimeout(renderTabs, 1500);   // el punto de «corre acá» aparece cuando el celular ya está abriéndose
       return true;
     }
+    // ── LA CONSOLA DE CADA PESTAÑA ──────────────────────────────────────────────────────────────────────────────
+    // El servidor da un id a cada consola y guarda las anteriores (`freshConsole` en `panel/server.ts`). La pestaña que
+    // abrió la corrida (`consoleOwner`) anota los ids de las consolas que nacen DESPUÉS de reclamarla; al mirar otra
+    // pestaña se pinta la suya (`/api/console?id=`), o nada si todavía no corrió. Admin y prod muestran la viva.
+    let seenConsoleId = null, consoleOwner = null;
+    function claimConsole() {
+      const t = currentTab();
+      if (t) consoleOwner = { target: tabsTarget, id: t.id, since: Date.now() };
+    }
+    function noteConsole(id) {
+      if (!id || id === seenConsoleId) return;
+      seenConsoleId = id;
+      const born = parseInt(id.slice(0, 8), 36);
+      if (consoleOwner && born >= consoleOwner.since - 3000) {
+        const set = consoleOwner.target === tabsTarget ? runTabs : (tabSets[consoleOwner.target]?.tabs || []);
+        const t = set.find((x) => x.id === consoleOwner.id);
+        if (t) { t.consoles = [...(t.consoles || []).filter((x) => x !== id), id].slice(-10); saveTabs(); }
+      }
+      syncConsoleView();
+    }
+    async function syncConsoleView() {
+      const t = currentTab();
+      let want = null;
+      if (t && !t.kind) {
+        const last = t.consoles?.[t.consoles.length - 1];
+        want = !last ? 'none' : last === seenConsoleId ? null : last;
+      }
+      if (want === consoleShown) return;
+      consoleShown = want;
+      const note = $('consoleTabNote');
+      if (want === null) { archivedLines = []; note.hidden = true; repaintLog(); return; }
+      if (want === 'none') { archivedLines = []; note.hidden = false; note.textContent = 'esta pestaña todavía no corrió'; repaintLog(); return; }
+      note.hidden = false; note.textContent = 'leyendo la consola de esta pestaña…';
+      let r;
+      try { r = await (await fetch('/api/console?id=' + want)).json(); } catch { r = { ok: false, detail: 'el panel no respondió' }; }
+      if (consoleShown !== want) return;
+      archivedLines = r.ok ? r.lines : [];
+      note.textContent = r.ok ? `la de esta pestaña · ${new Date(r.at).toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit' })}` : r.detail;
+      note.title = 'La consola de la última corrida de esta pestaña. La viva es de otra pestaña: volvé a ella para verla.';
+      repaintLog();
+    }
+    // Al arrancar: qué consola es la viva (sin anotarla a nadie).
+    fetch('/api/status').then((r) => r.json()).then((j) => { if (j.consoleId) { seenConsoleId = j.consoleId; syncConsoleView(); } }).catch(() => { });
     $('tabBusyGo').onclick = () => { if (liveOwner?.target === tabsTarget) activateTab(liveOwner.id); };
     $('tabBusyClose').onclick = async () => { await closeDevices(); liveOwner = null; saveTabs(); renderTabs(); renderStage(); };
     $('adminRow').onclick = () => openAdminTab();
@@ -4970,6 +5017,7 @@
 
     async function launch() {
       if (!sel) return;
+      claimConsole();   // la consola que arranca esta corrida es de la pestaña activa
       // LOGIN EN LA CORRIDA: si no hay sesión (canal asesor), autenticá ACÁ —headless, antes de abrir el
       // wizard— así la corrida arranca YA logueada y NO pasa por /solicitar (F-66). 'unreachable' no se
       // warmea (front caído: la corrida levanta el front y loguea sola); 'checking'/'warming' no llega
@@ -5120,15 +5168,18 @@
     const showsLine = (l) => inLogView(l) && (!importantOnly || isImportant(l));
 
     // Re-pinta TODO desde el array (para el toggle del filtro o cuando arranca una corrida nueva).
+    // `consoleShown`: qué consola se pinta. null = la viva (`logLines`); un id = la guardada de la pestaña que se está mirando
+    // (`archivedLines`); 'none' = la pestaña todavía no corrió nada. La viva se sigue juntando igual mientras tanto.
     function repaintLog() {
       const frag = document.createDocumentFragment();
-      for (const l of logLines) if (showsLine(l)) frag.appendChild(lineNodes(l));
+      for (const l of (consoleShown ? archivedLines : logLines)) if (showsLine(l)) frag.appendChild(lineNodes(l));
       $('log').replaceChildren(frag);
     }
 
     // Agrega sólo las líneas nuevas. El caso normal de una corrida en curso.
     function appendLog(newOnes) {
       if (!newOnes.length) return;
+      if (consoleShown) { logLines.push(...newOnes); return; }   // se está mirando la consola de otra pestaña
       const frag = document.createDocumentFragment();
       for (const l of newOnes) {
         logLines.push(l);
@@ -5316,6 +5367,7 @@
         pollBusy = true;
         try {
         const j = await (await fetch(`/api/status?from=${logCursor}`)).json();
+        noteConsole(j.consoleId);
         // `total` baja ⇒ el RUN_LOG se reescribió (corrida nueva): reset y pedimos todo de nuevo.
         if (typeof j.total === 'number' && j.total < logCursor) { logLines = []; logCursor = 0; repaintLog(); }
         else if (j.lines && j.lines.length) { appendLog(j.lines); logCursor = j.total; }
@@ -5800,7 +5852,9 @@
     // Van separadas por un encabezado para que se entienda de dónde salió cada bloque.
     $('copyLog').onclick = async () => {
       let text = '';
-      try { text = await (await fetch('/api/log')).text(); } catch {}
+      // Mirando la consola guardada de una pestaña, se copia ESA (la viva es de otra corrida).
+      if (consoleShown && consoleShown !== 'none') text = archivedLines.join('\n');
+      else { try { text = await (await fetch('/api/log')).text(); } catch {} }
       if (!text) text = logLines.join('\n');
       try {
         const r = await (await fetch('/api/ssr')).json();

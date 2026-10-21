@@ -11,7 +11,7 @@
 import { createServer, get, IncomingMessage, ServerResponse } from 'node:http';
 import { accept as acceptSocket } from './ws.ts';
 import { spawn, execFile, execFileSync } from 'node:child_process';
-import { readFileSync, existsSync, writeFileSync, readdirSync, statSync, mkdirSync } from 'node:fs';
+import { readFileSync, existsSync, writeFileSync, readdirSync, statSync, mkdirSync, rmSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, resolve, join } from 'node:path';
 import { MockSupervisor, MOCKS as MOCK_REGISTRY } from './mocks.ts';
@@ -40,6 +40,29 @@ const HOST = process.env.PANEL_HOST || '127.0.0.1';
 /** La corrida de producción que lanzó la vista «Prod» (ver `/api/prod-run`): una a la vez. */
 let prodRun: { child: import('node:child_process').ChildProcessWithoutNullStreams; lines: string[]; waitingOtp: boolean; done: boolean; code: number | null; apply: boolean; startedAt: number } | null = null;
 const RUN_LOG = PORT === 5195 ? '/tmp/asesor-panel-run.log' : `/tmp/asesor-panel-run-${PORT}.log`;
+/* LAS CONSOLAS DE CADA PESTAÑA. `RUN_LOG` es UNA consola y se pisa cada vez que arranca otra (una corrida, abrir un
+ * celular, la corrida de prod): antes de pisarla se guarda en `.runs/consoles/<id>.log`, con el id que tenía, y la nueva
+ * recibe uno nuevo. La pestaña del panel anota los ids de sus corridas y, al volver a ella, pide la suya
+ * (`/api/console?id=`) en vez de mirar la de otra. El id vive en un archivo al lado del log para sobrevivir a reiniciar
+ * el panel. Se guardan las últimas 200. */
+const CONSOLE_ID_FILE = RUN_LOG + '.id';
+const newConsoleId = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+let consoleId = (() => { try { const v = readFileSync(CONSOLE_ID_FILE, 'utf8').trim(); return /^[a-z0-9]{8,20}$/.test(v) ? v : newConsoleId(); } catch { return newConsoleId(); } })();
+const consolesDir = () => join(dirname(fileURLToPath(import.meta.url)), '..', '.runs', 'consoles');
+/** Arranca una consola NUEVA: guarda la que había (si tenía algo) y escribe el encabezado de la nueva. */
+function freshConsole(header: string): void {
+    try {
+        if (existsSync(RUN_LOG) && statSync(RUN_LOG).size > 0) {
+            mkdirSync(consolesDir(), { recursive: true });
+            writeFileSync(join(consolesDir(), consoleId + '.log'), readFileSync(RUN_LOG));
+            const old = readdirSync(consolesDir()).filter((f) => f.endsWith('.log')).sort();
+            for (const f of old.slice(0, Math.max(0, old.length - 200))) { try { rmSync(join(consolesDir(), f)); } catch { } }
+        }
+    } catch { /* sin disco: la anterior no se guarda, la nueva arranca igual */ }
+    consoleId = newConsoleId();
+    try { writeFileSync(CONSOLE_ID_FILE, consoleId); } catch { }
+    writeFileSync(RUN_LOG, header);
+}
 /* El stdout del WIZARD (SSR). No lo inventa el panel: `bin/advisor:500` ya lanza `pnpm dev` con
  * `> /tmp/asesor-wizard.log`, y lo TRUNCA antes de cada arranque — o sea que el archivo es siempre el de
  * la sesión actual del wizard, y que `total` baje significa «arrancó otro», el mismo contrato que el log
@@ -432,7 +455,7 @@ function deviceLog(id: DeviceId | 'panel', line: string): void {
 setDeviceLogger(deviceLog);
 function startDeviceLog(title: string): void {
     if (current && !current.done) { deviceLog('panel', title); return; }
-    try { writeFileSync(RUN_LOG, `▶ CELULARES · ${title}\n\n`); } catch { }
+    try { freshConsole(`▶ CELULARES · ${title}\n\n`); } catch { }
 }
 /** La nota del chip de un celular, y la misma línea en la consola. */
 function setNote(id: DeviceId, text: string): void {
@@ -1308,7 +1331,7 @@ async function launch(slug: string, profile: Profile, target: string, inject: bo
     const amt = amount > 0 ? Math.round(amount) : 2_000_000; // monto solicitado (default 2M)
     const mode = inject ? 'manual + inyección de buró' : 'manual REAL (consulta buró real, sin inyección)';
     const jump = step === 'monto' ? '' : ` · salto → ${step}`;
-    writeFileSync(RUN_LOG, await runHeader(slug, profile, t, inject, step, amt, paDelay, channel, front));
+    freshConsole(await runHeader(slug, profile, t, inject, step, amt, paDelay, channel, front));
     const env = {
         ...envFor(t),
         // switch del front: 'local' abre tu :5174 (working copy) contra el backend del target — así ves un
@@ -2671,7 +2694,7 @@ connect();
         const child = spawn(process.execPath, ['dev/prod-run.ts', ...(apply ? ['--apply'] : [])], { cwd: ROOT, env: { ...process.env, E2E_TARGET: 'prod' }, stdio: ['pipe', 'pipe', 'pipe'] });
         const run = { child, lines: [] as string[], waitingOtp: false, done: false, code: null as number | null, apply, startedAt: Date.now() };
         prodRun = run;
-        try { writeFileSync(RUN_LOG, `▶ PRODUCCIÓN · corrida pública${apply ? '' : ' (vista previa)'}\n\n`); } catch { }
+        try { freshConsole(`▶ PRODUCCIÓN · corrida pública${apply ? '' : ' (vista previa)'}\n\n`); } catch { }
         const take = (chunk: Buffer) => {
             const text = String(chunk).replace(/\x1b\[[0-9;]*[A-Za-z]/g, '');
             if (/código del SMS:\s*$/.test(text)) run.waitingOtp = true;
@@ -2735,6 +2758,7 @@ connect();
         const from = url.searchParams.get('from');
         const base = {
             running: !!(current && !current.done),
+            consoleId,   // la consola viva: la pestaña que la arrancó la anota (ver `freshConsole`)
             devices: openDevices(),   // con un celular abierto la consola sigue viva aunque no haya corrida
             slug: current?.slug ?? null,
             target: current?.target ?? null,
@@ -2768,6 +2792,15 @@ connect();
         return json(res, 200, { hay: existsSync(SSR_LOG), ...linesSince(SSR_LOG, Number(since) || 0) });
     }
 
+    // UNA consola por su id: la viva (`RUN_LOG`) o una guardada. Para mostrar la de la pestaña que se está mirando.
+    if (path === '/api/console') {
+        const id = String(url.searchParams.get('id') || '');
+        if (!/^[a-z0-9]{8,20}$/.test(id)) return json(res, 400, { ok: false, detail: 'id inválido' });
+        const file = id === consoleId ? RUN_LOG : join(consolesDir(), id + '.log');
+        if (!existsSync(file)) return json(res, 200, { ok: false, id, detail: 'esa consola ya no está (se guardan las últimas 200)' });
+        const text = readFileSync(file, 'utf8').replace(/\x1b\[[0-9;]*[A-Za-z]/g, '');
+        return json(res, 200, { ok: true, id, live: id === consoleId, at: statSync(file).mtimeMs, lines: text.split('\n').slice(0, -1) });
+    }
     if (path === '/api/log') {
         res.writeHead(200, { 'content-type': 'text/plain; charset=utf-8', 'cache-control': 'no-store' });
         return res.end(fullLog());

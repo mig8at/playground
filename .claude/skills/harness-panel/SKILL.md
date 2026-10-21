@@ -787,3 +787,21 @@ y «Copiar contraseña». El panel NO entra: es para que la persona lo abra en s
   otro origen no puede mandarlo sin CORS, que el panel no habilita) y el panel escucha sólo en la interfaz local.
 - Verificado en un panel de prueba: Sonría muestra la URL de `d6b88e5e` y `cd6b88e5e-fake@`; la ruta contesta (se
   comprobó sólo que llega y su largo) y sin JSON da 415; el valor no aparece en el DOM.
+
+### Una consola por pestaña (2026-10-20)
+
+`RUN_LOG` sigue siendo UNA consola, pero ya no se pierde al pisarla: `freshConsole` (los tres lugares que arrancan una
+consola nueva: abrir un celular, lanzar, la corrida de prod) guarda la anterior en `.runs/consoles/<id>.log` y le da a
+la nueva un id nuevo, que vive en `RUN_LOG.id` para sobrevivir a reiniciar el panel. Se guardan las últimas 200.
+`/api/status` dice cuál es la viva (`consoleId`) y `/api/console?id=` sirve cualquiera.
+
+- **La pestaña que arranca la corrida la anota** (`claimConsole`, desde `claimDevices` y `launch`): `noteConsole`
+  guarda en `t.consoles` los ids que nacen DESPUÉS de reclamarla (el id lleva la hora: una consola vieja que el poll
+  todavía reporta no se le atribuye a nadie).
+- **Al mirar otra pestaña se pinta la suya** (`syncConsoleView`): su última consola guardada, con «la de esta pestaña
+  · hora» en la banda; nada y «esta pestaña todavía no corrió» si no tiene; la viva si es la dueña. Mientras tanto la
+  viva se sigue juntando en `logLines` y vuelve entera al volver. Admin y prod muestran la viva.
+- ⚠ **`copiar` copia la que estás mirando** (más el SSR, que es uno solo).
+- Verificado en un panel de prueba en local, con celulares de verdad: Pullman · Asesor y después Sonría · Asesor
+  quedaron con su consola cada una; volver a Pullman mostró la suya guardada (11 líneas, «▶ CELULARES · pullman…»), a
+  Sonría la viva (12), y Motai «esta pestaña todavía no corrió».
