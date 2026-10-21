@@ -301,6 +301,15 @@
        así el lienzo no se recorta y cada clic cae donde se ve) con su base de laptop. El ancho sale del MENOR entre
        lo que deja el centro y lo que permite el alto. */
     .stage-views { align-self: center; flex: none }
+    /* Las pestañas del editor (`.tabs` de la base): la banda pegada arriba del centro, fuera de su padding. */
+    .run-tabs { padding-right: 0 }
+    .run-tab-list { display: flex; flex: 1 1 auto; align-items: flex-end; gap: 2px; min-width: 0; height: 100%; overflow-x: auto; overflow-y: hidden; scrollbar-width: thin }
+    .run-tabs .region-actions { flex: none }
+    .run-tab-chan { color: var(--fg-3) }
+    .tab.on .run-tab-chan { color: var(--fg-2) }
+    .run-tab-live { width: 6px; height: 6px; border-radius: 50%; background: var(--ok); flex: none }
+    .tab-start[hidden], .tab-busy[hidden] { display: none }
+    .tab-start-channels { display: flex; flex-wrap: wrap; justify-content: center; gap: var(--space-2) }
     /* El plan de corrida: una fila dentro del centro, arriba de los celulares, sólo mientras haya plan. */
     .plan-bar { flex: none; display: flex; align-items: center; gap: var(--space-2); padding: var(--space-1) var(--space-2);
       border: 1px solid var(--border); border-radius: var(--radius); background: var(--card); color: var(--foreground); font-size: var(--text-sm) }
@@ -669,17 +678,26 @@
             <p id="frontHint"></p>
           </fieldset>
 
+        <!-- LAS PESTAÑAS DEL EDITOR: una por CORRIDA (un comercio con su canal y su caso). Al elegir un comercio a la izquierda
+             se abre una pestaña en vista previa (itálica, la reemplaza la próxima) que pregunta el canal; elegido, queda fija.
+             El mismo comercio puede estar dos veces («Pullman · Asesor» y «Pullman · Tienda online»). Los celulares son UNO
+             por ahora: una sola pestaña corre a la vez, y la que no es dueña del celular lo dice. -->
+        <nav class="tabs run-tabs" id="runTabs" aria-label="Corridas abiertas">
+          <div class="run-tab-list" id="runTabList" role="tablist"></div>
+          <div class="region-actions">
+            <div class="toggle-group stage-views" id="stageViews" role="tablist" aria-label="Vista del centro">
+              <button type="button" class="toggle on" id="viewOrig" role="tab" aria-selected="true" aria-controls="devices">Originación</button>
+              <button type="button" class="toggle" id="viewAdmin" role="tab" aria-selected="false" aria-controls="adminView">Admin</button>
+              <button type="button" class="toggle" id="viewProd" role="tab" aria-selected="false" aria-controls="prodView">Prod</button>
+            </div>
+          </div>
+        </nav>
         <main class="editor" id="stage">
           <!-- LOS DOS CELULARES: el del asesor y el del cliente, lado a lado. Por ahora son el marco; el mapa
                del recorrido se mudó a la pestaña «Mapa» de la consola para dejarles el centro. -->
           <!-- DOS VISTAS DEL CENTRO: «Originación» son los celulares (asesor y cliente) y «Admin» es una PC con el admin de
                `legacy-application` del ambiente elegido, ya logueada (`/api/device/admin/open`). Es el mismo mecanismo de
                los celulares —un navegador del servidor que se ve y se toca acá—, con pantalla de escritorio. -->
-          <div class="toggle-group stage-views" id="stageViews" role="tablist" aria-label="Vista del centro">
-            <button type="button" class="toggle on" id="viewOrig" role="tab" aria-selected="true" aria-controls="devices">Originación</button>
-            <button type="button" class="toggle" id="viewAdmin" role="tab" aria-selected="false" aria-controls="adminView">Admin</button>
-            <button type="button" class="toggle" id="viewProd" role="tab" aria-selected="false" aria-controls="prodView">Prod</button>
-          </div>
           <!-- EL PLAN DE CORRIDA (`pkg/run-plan.ts`): una corrida armada de antemano —por un agente con `bin/plan.ts`— que
                espera acá su play. Sólo aparece si hay plan. «Paso a paso» deja el panel como lo dice el plan (ambiente,
                comercio, canal y caso) y abre el celular, que se maneja a mano como siempre. -->
@@ -689,6 +707,28 @@
             <span class="plan-status" id="planStatus" role="status"></span>
             <button type="button" class="btn btn-sm" id="planPlay" title="Pone el ambiente, el comercio, el canal y el caso del plan, y abre el celular para avanzarlo a mano">Paso a paso</button>
             <button type="button" class="region-action" id="planDiscard" title="Descartar el plan" aria-label="Descartar el plan"><span class="ui-icon" data-icon="close" aria-hidden="true"></span></button>
+          </div>
+          <!-- LA PESTAÑA NUEVA PREGUNTA EL CANAL. Los botones son una VISTA de los reales (`#channelOptions`): copian su
+               `disabled` y su `title`, que es donde el gate de canales explica por qué uno no aplica a este comercio. -->
+          <div class="empty tab-start" id="tabStart" hidden>
+            <div class="empty-head">
+              <div class="empty-media"><span class="ui-icon" data-icon="channel" aria-hidden="true"></span></div>
+              <div class="empty-title" id="tabStartTitle"></div>
+              <div class="empty-desc">¿Por qué canal entra esta corrida?</div>
+            </div>
+            <div class="tab-start-channels" id="tabStartChannels" role="group" aria-label="Canal de la corrida"></div>
+          </div>
+          <!-- Los celulares son de UNA pestaña a la vez: mirando otra, se tapan y se dice de quién son. -->
+          <div class="empty tab-busy" id="tabBusy" hidden>
+            <div class="empty-head">
+              <div class="empty-media"><span class="ui-icon" data-icon="play" aria-hidden="true"></span></div>
+              <div class="empty-title" id="tabBusyTitle"></div>
+              <div class="empty-desc">Por ahora hay un solo juego de celulares. Para correr esta pestaña, cerrá la otra corrida.</div>
+            </div>
+            <div class="tab-start-channels">
+              <button type="button" class="btn btn-outline btn-sm" id="tabBusyGo">Ir a esa pestaña</button>
+              <button type="button" class="btn btn-sm" id="tabBusyClose">Cerrar esa corrida</button>
+            </div>
           </div>
           <div class="devices" id="devices" data-count="2">
             <!-- La tienda, sólo con los canales que entran por ella (ecommerce y auto): ahí el comprador
@@ -1628,13 +1668,9 @@
             chip.onclick = async (ev) => {
               ev.stopPropagation();
               if (runRunning) return;
-              // Elegir otro comercio carga SUS canales y, al llegar, pone el sugerido: si el chip eligiera el canal antes,
-              // esa respuesta lo pisaba (pasó con «Au» de Refurbi). Se espera como espera el ▶.
-              if (!chosenOne) {
-                chooseEntry(e);
-                for (let i = 0; i < 40 && channelsFor !== sel?.slug; i++) await new Promise((r) => setTimeout(r, 250));
-              }
-              document.querySelector(`#channelOptions button[data-c="${c}"]`)?.click();
+              // La pestaña de este comercio con ESTE canal. `activateTab` espera los canales del comercio antes de clickear
+              // el botón real: si el chip eligiera el canal antes, la sugerencia del servidor lo pisaba (pasó con «Au» de Refurbi).
+              openTab(e, c);
             };
             box.appendChild(chip);
           }
@@ -1654,8 +1690,8 @@
         // Elegir un comercio sólo lo SELECCIONA (su configuración, sus entidades, su categoría): entrar como su
         // asesor es el ▶ de la fila. Antes elegir abría el celular solo, y con eso borraba el cliente sintético.
         rowEl.onclick = () => {
-          if (runRunning || chosenOne || absent) return;
-          chooseEntry(e);
+          if (runRunning || absent) return;
+          openTab(e);   // su pestaña: en vista previa, preguntando el canal
         };
         rowEl.onkeydown = (ev) => {
           if (ev.key === 'F2') { ev.preventDefault(); renameInline(e, rowEl); return; }
@@ -1675,7 +1711,7 @@
         if (!absent) {
           // El ▶ entra SIEMPRE como asesor, sea cual sea el canal elegido: se apaga si el asesor no puede entrar.
           const advBlock = advisorIssues(e).block;
-          const play = rowAction('play', advBlock.length ? `No se puede entrar como asesor: ${advBlock[0]}` : `Entrar a «${label}» como su asesor`, () => playMerchant(e));
+          const play = rowAction('play', advBlock.length ? `No se puede entrar como asesor: ${advBlock[0]}` : `Entrar a «${label}» como su asesor`, () => openTab(e, 'asesor', { play: true }));
           if (advBlock.length) { play.disabled = true; play.setAttribute('aria-disabled', 'true'); }
           acc.appendChild(play);
         }
@@ -3594,6 +3630,7 @@
     }
     async function openClientBrowser() {
       if (!(channel === 'ecommerce' || channel === 'auto') || !sel) return;
+      if (!(await claimDevices())) return;
       setClientMode('loading', channel === 'auto' && target === 'local'
         ? 'Levantando el wizard del auto-onboarding y abriendo el checkout… (si hay que compilarlo, tarda unos minutos)'
         : 'Abriendo el checkout en el celular del cliente… (la primera vez levanta su contenedor)');
@@ -3762,6 +3799,7 @@
     /** Se esperan los canales de ESTE comercio: con los del anterior, un Corbeta abriría el asesor. */
     async function playMerchant(e) {
       if (runRunning || advisorIssues(e).block.length) return;
+      if (!(await claimDevices())) return;
       const same = sel && (sel.slug === e.slug || (e.hash && sel.slug === e.hash));
       if (!same) chooseEntry(e);
       setAdvisorMode('loading', ADVISOR_STEPS[0]);
@@ -3772,6 +3810,238 @@
       const asesor = document.querySelector('#channelOptions button[data-c="asesor"]');
       if (channel !== 'asesor' && asesor && !asesor.disabled) asesor.click();
       openAdvisorBrowser();
+    }
+
+    // ── LAS PESTAÑAS DEL EDITOR: una por corrida (comercio + canal + caso) ─────────────────────────────────
+    // La pestaña NO es otro estado: aplica el que ya existe (`sel`, `channel` y los campos del caso) por los mismos
+    // caminos que la persona —`chooseEntry`, el botón real del canal, el `input` de cada campo—. Al salir de una se
+    // fotografía su caso y al volver se repone. Así el gate de canales, las rutas y las preferencias siguen siendo los de
+    // siempre y la pestaña no los puede saltear. Se recuerdan en el navegador (`harness.tabs`): son una comodidad, no un dato.
+    const TABS_KEY = 'harness.tabs';
+    const TAB_CASE_FIELDS = ['amount', 'income', 'occupation', 'age', 'dob', 'expedition', 'name', 'document', 'email',
+      'score', 'negatives', 'consulted', 'delinquencies'];
+    let runTabs = [], activeTab = null, liveTab = null, tabSwitching = false;
+    try {
+      const saved = JSON.parse(localStorage.getItem(TABS_KEY) || 'null');
+      if (saved && Array.isArray(saved.tabs)) { runTabs = saved.tabs.filter((t) => t && t.id && t.slug); activeTab = saved.active ?? null; liveTab = saved.live ?? null; }
+    } catch { /* sin storage: arranca sin pestañas */ }
+    const saveTabs = () => { try { localStorage.setItem(TABS_KEY, JSON.stringify({ tabs: runTabs, active: activeTab, live: liveTab })); } catch { } };
+    const currentTab = () => runTabs.find((t) => t.id === activeTab) || null;
+    const entryOf = (slug) => spaceEntries().find((x) => x.slug === slug || (x.hash && x.hash === slug)) || null;
+    const isSelected = (slug) => !!sel && (sel.slug === slug || entryOf(slug)?.hash === sel.slug || entryOf(sel.slug)?.slug === slug);
+    const newTabId = () => 't' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+    /** ¿Los celulares están mostrando algo? (abiertos o abriéndose) */
+    const devicesBusy = () => deviceShown('advisor') || deviceShown('client') || !$('advisorStatus').hidden || !$('clientStatus').hidden;
+    const inOriginacion = () => $('viewOrig').classList.contains('on');
+
+    function snapshotTabCase(t) {
+      if (!t) return;
+      t.caso = {};
+      for (const id of TAB_CASE_FIELDS) if ($(id)) t.caso[id] = $(id).value;
+    }
+    function restoreTabCase(t) {
+      for (const [id, v] of Object.entries(t.caso || {})) {
+        const f = $(id);
+        if (!f || f.value === v) continue;
+        f.value = v;
+        f.dispatchEvent(new Event('input', { bubbles: true }));
+        f.dispatchEvent(new Event('change', { bubbles: true }));
+      }
+    }
+    function tabLabel(t) {
+      const e = entryOf(t.slug);
+      return { name: e ? (e.alias || e.name) : t.slug, chan: t.canal ? CHANNEL_LONG[t.canal] || t.canal : 'elegí el canal' };
+    }
+
+    function renderTabs() {
+      const list = $('runTabList');
+      list.replaceChildren();
+      for (const t of runTabs) {
+        const { name, chan } = tabLabel(t);
+        const on = t.id === activeTab;
+        const tab = document.createElement('div');
+        tab.className = 'tab' + (on ? ' on' : '') + (t.preview ? ' preview' : '');
+        const label = document.createElement('button');
+        label.type = 'button'; label.className = 'tab-label'; label.setAttribute('role', 'tab'); label.setAttribute('aria-selected', String(on));
+        label.title = `${name} · ${chan}${t.preview ? ' · vista previa: la reemplaza el próximo comercio que elijas' : ''}`;
+        if (t.id === liveTab && devicesBusy()) {
+          const dot = document.createElement('span'); dot.className = 'run-tab-live'; dot.title = 'los celulares son de esta corrida';
+          label.appendChild(dot);
+        }
+        const n = document.createElement('span'); n.textContent = name;
+        const c = document.createElement('span'); c.className = 'run-tab-chan'; c.textContent = chan;
+        label.append(n, c);
+        label.onclick = () => activateTab(t.id);
+        label.ondblclick = () => { if (t.preview && t.canal) { t.preview = false; renderTabs(); saveTabs(); } };
+        const close = document.createElement('button');
+        close.type = 'button'; close.className = 'tab-close'; close.title = `Cerrar «${name} · ${chan}»`; close.setAttribute('aria-label', close.title);
+        close.innerHTML = '<span class="ui-icon" data-icon="close" aria-hidden="true"></span>';
+        close.onclick = (ev) => { ev.stopPropagation(); closeTab(t.id); };
+        tab.append(label, close);
+        list.appendChild(tab);
+      }
+      list.querySelector('.tab.on')?.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+    }
+
+    /** El centro según la pestaña: la pregunta del canal, el aviso de «los celulares son de otra», o los celulares. */
+    function renderStage() {
+      const t = currentTab(), orig = inOriginacion();
+      const asking = orig && !!t && !t.canal;
+      const owner = runTabs.find((x) => x.id === liveTab);
+      const busy = orig && !!t && !!t.canal && !!owner && owner.id !== t.id && devicesBusy();
+      $('tabStart').hidden = !asking;
+      $('tabBusy').hidden = !busy;
+      $('devices').hidden = !orig || asking || busy;
+      if (asking) renderChannelChoice(t);
+      if (busy) { const l = tabLabel(owner); $('tabBusyTitle').textContent = `Los celulares están con «${l.name} · ${l.chan}»`; }
+    }
+    function renderChannelChoice(t) {
+      const { name } = tabLabel(t);
+      $('tabStartTitle').textContent = name;
+      const box = $('tabStartChannels');
+      box.replaceChildren();
+      // Los canales de ESTE comercio todavía no llegaron: los botones reales dirían los del anterior.
+      if (!isSelected(t.slug) || channelsFor !== sel?.slug) {
+        const p = document.createElement('span'); p.className = 'empty-desc'; p.textContent = 'midiendo sus canales…';
+        box.appendChild(p); return;
+      }
+      for (const c of CHANNEL_ORDER) {
+        const real = document.querySelector(`#channelOptions button[data-c="${c}"]`);
+        if (!real || real.hidden) continue;
+        const b = document.createElement('button');
+        b.type = 'button'; b.className = 'btn btn-outline btn-sm'; b.textContent = CHANNEL_LONG[c] || c;
+        b.disabled = real.disabled; b.title = real.title || '';
+        b.onclick = () => pickChannel(t, c);
+        box.appendChild(b);
+      }
+    }
+
+    async function activateTab(id) {
+      if (runRunning) return;
+      const prev = currentTab();
+      if (prev && prev.id !== id && !tabSwitching) snapshotTabCase(prev);
+      activeTab = id;
+      const t = currentTab();
+      if (!inOriginacion()) showStageView('orig');
+      renderTabs(); renderStage(); saveTabs();
+      if (!t) return;
+      const e = entryOf(t.slug);
+      if (!e) return;
+      tabSwitching = true;
+      try {
+        if (!isSelected(t.slug)) chooseEntry(e);
+        // Con canal ya elegido, la SUGERENCIA del servidor no aplica: si no, al volver a la pestaña la respuesta de
+        // `/api/canales` le pisaba el canal (Sonría volvía en autogestión). Es la misma marca que deja un click.
+        if (t.canal && sel) channelTouched = sel.slug;
+        for (let i = 0; i < 40 && channelsFor !== sel?.slug; i++) await new Promise((r) => setTimeout(r, 250));
+        if (activeTab !== id) return;   // mientras esperaba se eligió otra
+        if (t.canal && channel !== t.canal) {
+          const b = document.querySelector(`#channelOptions button[data-c="${t.canal}"]`);
+          if (b && !b.disabled) b.click();
+        }
+        if (t.caso) restoreTabCase(t);
+      } finally {
+        tabSwitching = false;
+      }
+      renderTabs(); renderStage();
+    }
+
+    /** Elegir un comercio a la izquierda: su pestaña. Sin canal, en vista previa (la reemplaza el próximo) y pregunta. */
+    async function openTab(e, canal = null, { play = false } = {}) {
+      if (runRunning) return;
+      const cur = currentTab();
+      let t = canal ? runTabs.find((x) => x.slug === e.slug && x.canal === canal) : null;
+      if (!t && !canal && cur && cur.slug === e.slug && !cur.canal) t = cur;   // ya está preguntando por éste
+      if (!t) {
+        const preview = runTabs.find((x) => x.preview && x.id !== liveTab);
+        if (preview) {
+          if (preview.id === activeTab) snapshotTabCase(preview);
+          Object.assign(preview, { slug: e.slug, canal, preview: !canal });
+          t = preview;
+        } else {
+          t = { id: newTabId(), slug: e.slug, canal, preview: !canal, caso: null };
+          runTabs.splice(cur ? runTabs.indexOf(cur) + 1 : runTabs.length, 0, t);
+        }
+      }
+      await activateTab(t.id);
+      if (play && t.canal === 'asesor') playMerchant(e);
+    }
+
+    function pickChannel(t, c) {
+      const twin = runTabs.find((x) => x !== t && x.slug === t.slug && x.canal === c);
+      if (twin) { runTabs = runTabs.filter((x) => x !== t); activateTab(twin.id); return; }
+      t.canal = c; t.preview = false;
+      const b = document.querySelector(`#channelOptions button[data-c="${c}"]`);
+      if (b && !b.disabled && channel !== c) b.click();
+      renderTabs(); renderStage(); saveTabs();
+    }
+
+    async function closeDevices() {
+      await Promise.all(['advisor', 'client'].map((id) => fetch(`/api/device/${id}/close`, { method: 'POST' }).catch(() => { })));
+      setAdvisorMode('idle'); setClientMode('idle');
+    }
+    async function closeTab(id) {
+      if (runRunning) return;
+      const t = runTabs.find((x) => x.id === id);
+      if (!t) return;
+      if (id === liveTab && devicesBusy()) {
+        const l = tabLabel(t);
+        if (!confirm(`«${l.name} · ${l.chan}» tiene los celulares abiertos. ¿Los cierro?`)) return;
+        await closeDevices();
+      }
+      const i = runTabs.indexOf(t);
+      runTabs.splice(i, 1);
+      if (liveTab === id) liveTab = null;
+      if (activeTab === id) {
+        const next = runTabs[i] || runTabs[i - 1];
+        if (next) { activeTab = null; return activateTab(next.id); }
+        activeTab = null;
+      }
+      renderTabs(); renderStage(); saveTabs();
+    }
+
+    /** Antes de abrir un celular: si son de otra pestaña, se pregunta si se cierra esa corrida. */
+    async function claimDevices() {
+      const owner = runTabs.find((x) => x.id === liveTab);
+      if (owner && owner.id !== activeTab && devicesBusy()) {
+        const l = tabLabel(owner);
+        if (!confirm(`Los celulares están con «${l.name} · ${l.chan}». ¿Cierro esa corrida para abrir esta?`)) return false;
+        await closeDevices();
+      }
+      liveTab = activeTab;
+      saveTabs();
+      setTimeout(renderTabs, 1500);   // el punto de «corre acá» aparece cuando el celular ya está abriéndose
+      return true;
+    }
+    $('tabBusyGo').onclick = () => { if (liveTab) activateTab(liveTab); };
+    $('tabBusyClose').onclick = async () => { await closeDevices(); renderTabs(); renderStage(); };
+
+    /** El comercio o el canal cambiaron por OTRO camino (la ruta, el plan, el buscador, el menú de canal): la pestaña
+     *  activa lo sigue si es del mismo comercio; si no, se busca la suya o se abre una fija con el canal de ahora. */
+    function tabsFollow() {
+      if (tabSwitching || !sel) return;
+      const t = currentTab();
+      if (t && isSelected(t.slug)) {
+        if (t.canal && t.canal !== channel) { t.canal = channel; saveTabs(); }
+        renderTabs(); return;
+      }
+      const slug = entryOf(sel.slug)?.slug || sel.slug;
+      let m = runTabs.find((x) => x.slug === slug && x.canal === channel);
+      if (!m) { m = { id: newTabId(), slug, canal: channel, preview: false, caso: null }; runTabs.push(m); }
+      if (t) snapshotTabCase(t);
+      activeTab = m.id;
+      renderTabs(); renderStage(); saveTabs();
+    }
+    /** Al arrancar, después de la ruta: la pestaña del comercio que quedó elegido, o la que estaba activa. */
+    function tabsBoot() {
+      if (sel) tabsFollow();
+      else if (currentTab()) activateTab(activeTab);
+      renderTabs(); renderStage();
+    }
+    // La vista del centro (Originación · Admin · Prod) también decide si se ve la pregunta del canal.
+    {
+      const baseShowStageView = showStageView;
+      showStageView = (view) => { baseShowStageView(view); renderStage(); };
     }
     $('advisorVnc').addEventListener('mouseenter', () => { try { $('advisorVnc').contentWindow?.focus(); } catch { } });
 
@@ -6095,8 +6365,9 @@ export function bindMenu(trigger, { getItems, onSelect, label = 'Más opciones' 
       document.addEventListener('visibilitychange', () => { if (!document.hidden) loadPlan(); });
       loadPlan();
 
-      routeChanged = () => syncRoute();
+      routeChanged = () => { syncRoute(); tabsFollow(); };
       applyRoute().then(() => {
+        tabsBoot();
         if (readPref(QUOTA_KEY, false) === true && !byId('quota').checked) byId('quota').click();
       });
     }

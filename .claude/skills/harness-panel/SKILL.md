@@ -636,3 +636,33 @@ misma función. Uno por máquina, en `.runs/plan.json` (fuera de git).
 - Verificado el 2026-10-20 en un panel de prueba (`PANEL_PORT=5196 HARNESS_MOCKS=0 HARNESS_DEVICES_SLOT=1`), local:
   el plan de arriba dejó ambiente, Pullman, canal y caso, y el celular del asesor abrió en `/merchant/13874eb6/solicitar`
   con $3.000.000. El camino de ecommerce NO se probó todavía.
+
+## Las pestañas del editor: una por corrida (2026-10-20)
+
+La banda de arriba del centro (`#runTabs`, el `.tabs` de la base) lleva una pestaña por CORRIDA: un comercio con su
+canal y su caso. El selector `Originación | Admin | Prod` se mudó a su borde derecho (`.region-actions`), con los
+mismos `id`.
+
+- **Click en un comercio de la izquierda abre su pestaña en VISTA PREVIA** (itálica): la reemplaza el próximo
+  comercio que elijas, y pregunta el canal (`#tabStart`). Elegido, queda fija. El chip de canal de la fila abre
+  directo la pestaña con ese canal, y el ▶ la de Asesor y entra. El mismo comercio puede estar dos veces.
+- **La pregunta del canal es una VISTA de los botones reales** (`#channelOptions`): copia su `disabled` y su `title`,
+  así el gate de canales sigue siendo uno. Hasta que llegan los canales de ESE comercio (`channelsFor`) dice
+  «midiendo»: los botones reales todavía tendrían los del anterior.
+- **La pestaña no es otro estado**: al activarla aplica el que ya existe (`chooseEntry`, el botón del canal, cada
+  campo con su `input`). Al salir se fotografía su caso (`snapshotTabCase`) y al volver se repone. Se recuerdan en
+  `localStorage` (`harness.tabs`).
+- ⚠ **Con canal elegido, la SUGERENCIA del servidor no aplica**: `activateTab` deja `channelTouched` en el comercio
+  antes de que conteste `/api/canales`. Sin eso, al volver a Sonría su respuesta la ponía en autogestión y
+  `tabsFollow` se lo copiaba a la pestaña (medido el 2026-10-20).
+- ⚠ **Ya había un `restoreCase()` global** (el caso guardado al arrancar): las funciones de las pestañas llevan
+  nombres propios. En el script clásico, una función declarada después PISA a la anterior sin avisar.
+- **Los celulares son UNO todavía**: la pestaña que los abrió es su dueña (`liveTab`, el punto verde). Mirando otra,
+  el centro dice «Los celulares están con…» (`#tabBusy`) con «Ir a esa pestaña» y «Cerrar esa corrida»; abrir en otra
+  pide confirmar y cierra la anterior (`claimDevices`, que llaman `playMerchant` y `openClientBrowser`).
+- **El comercio que cambia por OTRO camino** (la ruta, el plan, el buscador, el menú de canal) lo sigue
+  `tabsFollow`, enganchado en `routeChanged`: la pestaña activa si es del mismo comercio; si no, la suya o una nueva.
+- Lo que falta: carriles en el servidor para que dos pestañas corran A LA VEZ (ids por carril e identidad
+  sintética propia de cada una). Verificado el 2026-10-20 en un panel de prueba en local: pestaña nueva con la
+  pregunta (Sonría: Auto y QR apagados), cambio de pestañas con canal y monto propios, chip «T» → Pullman · Tienda,
+  el celular del asesor atado a su pestaña y el aviso en otra, «Cerrar esa corrida», cerrar una pestaña.
