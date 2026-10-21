@@ -362,6 +362,40 @@ function dbopsJson(args: string[], target: string, extraEnv: NodeJS.ProcessEnv =
  *  autorrelleno (`1096734490` · `qa.harness@`). Con la misma cédula en dos celulares, en la base compartida la segunda corrida
  *  se trababa en la confirmación de identidad: la cédula ya quedaba registrada con el celular del carril A (qa, 2026-10-21).
  *  En local no se veía porque cada corrida limpia su cliente. */
+/** LO QUE SE MIDE DE LOS CANALES DE UNA SUCURSAL (si es Corbeta, si tiene auto-onboarding, si es autogestionada), con
+ *  memoria de 5 min por ambiente y sucursal. Cada medición son uno o dos `dbops` —un proceso y una conexión a la base,
+ *  segundos contra la compartida—, y el panel pide los de TODOS los comercios de la barra al cargarla, para que elegir
+ *  uno no espere (2026-10-21). Dos pedidos a la vez de la misma sucursal comparten la medición. Lo que no se pudo
+ *  medir no se guarda: la próxima vez se vuelve a preguntar. Lo declarado en `.flows.json` NO entra acá: se lee en
+ *  cada pedido, así un comercio recién agregado no queda con lo de antes. */
+const CHANNELS_TTL_MS = 5 * 60_000;
+const channelMeasures = new Map<string, { at: number; value: Promise<any> }>();
+function measureChannels(hash: string, target: string): Promise<{ ok: boolean; msg?: string; r?: any; corbeta?: boolean; auto?: string[]; autoMotivo?: string }> {
+    const key = target + '|' + hash;
+    const hit = channelMeasures.get(key);
+    if (hit && Date.now() - hit.at < CHANNELS_TTL_MS) return hit.value;
+    const value = (async () => {
+        const r = await dbopsJson(['is-corbeta', hash], target);
+        if (!r || typeof r !== 'object' || !('corbeta' in r)) {
+            channelMeasures.delete(key);
+            return { ok: false, msg: r && typeof r === 'object' && 'error' in r ? String((r as any).error) : 'no se pudo resolver' };
+        }
+        const corbeta = !!(r as any).corbeta;
+        // `auto` (auto-onboarding) corre en local y en qa, donde está desplegado, y sólo si el comercio
+        // tiene una tienda en `auto_onboarding_allied_branches`. Sin eso sería una puerta que cae al ecommerce normal.
+        const autoTargets = ['local', 'qa'];
+        const autoCheck = autoTargets.includes(target) && !corbeta ? await dbopsJson(['auto-onboarding-ok', hash], target).catch(() => null) : null;
+        const autoMotivo = !autoTargets.includes(target) ? 'el auto-onboarding corre contra local o qa'
+            : corbeta ? 'en un comercio Corbeta la entrada es el QR de la caja'
+            : autoCheck?.motivo || (autoCheck ? '' : 'no se pudo comprobar la tienda del comercio');
+        // Sin la comprobación de la tienda la respuesta está incompleta: sirve para esta vez, no se guarda.
+        if (autoTargets.includes(target) && !corbeta && !autoCheck) channelMeasures.delete(key);
+        return { ok: true, r, corbeta, auto: autoCheck?.ok === true ? ['auto'] : [], autoMotivo };
+    })();
+    channelMeasures.set(key, { at: Date.now(), value });
+    return value;
+}
+
 function laneCase(order: any, id: DeviceId, target = 'local'): any {
     const o = { ...(order || {}) };
     // EN LA COMPARTIDA, TELÉFONOS FUERA DEL BYPASS. Ahí el OTP sale por el servicio de OTP (y a Slack, #qa-messages) y el
@@ -2344,22 +2378,11 @@ const server = createServer(async (req, res) => {
         const target = (url.searchParams.get('target') || 'local').trim();
         const hash = branchHashForSlug(slug, target);
         if (!hash) return json(res, 200, { hash: '', corbeta: false, canales: ['asesor', 'autogestion', 'ecommerce'], msg: `sin branch_hash para '${slug}'` });
-        const r = await dbopsJson(['is-corbeta', hash], target);
+        const m = await measureChannels(hash, target);
         // Si la consulta falla no se adivina: se deja el set completo y se dice por qué. Inferir "no es
         // Corbeta" ante un error escondería el canal QR justo cuando sí corresponde.
-        if (!r || typeof r !== 'object' || !('corbeta' in r)) {
-            const msg = r && typeof r === 'object' && 'error' in r ? String((r as any).error) : 'no se pudo resolver';
-            return json(res, 200, { hash, corbeta: null, canales: ['asesor', 'autogestion', 'ecommerce', 'qr'], msg: `no pude determinar si es Corbeta (${msg})` });
-        }
-        const corbeta = !!(r as any).corbeta;
-        // `auto` (auto-onboarding) corre en local y en qa, donde está desplegado, y sólo si el comercio
-        // tiene una tienda en `auto_onboarding_allied_branches`. Sin eso sería una puerta que cae al ecommerce normal.
-        const autoTargets = ['local', 'qa'];
-        const autoCheck = autoTargets.includes(target) && !corbeta ? await dbopsJson(['auto-onboarding-ok', hash], target).catch(() => null) : null;
-        const auto = autoCheck?.ok === true ? ['auto'] : [];
-        const autoMotivo = !autoTargets.includes(target) ? 'el auto-onboarding corre contra local o qa'
-            : corbeta ? 'en un comercio Corbeta la entrada es el QR de la caja'
-            : autoCheck?.motivo || (autoCheck ? '' : 'no se pudo comprobar la tienda del comercio');
+        if (!m.ok) return json(res, 200, { hash, corbeta: null, canales: ['asesor', 'autogestion', 'ecommerce', 'qr'], msg: `no pude determinar si es Corbeta (${m.msg})` });
+        const { r, corbeta, auto, autoMotivo } = m;
         const measured = corbeta ? ['qr'] : ['asesor', 'autogestion', 'ecommerce', ...auto];
         const declared = declaredChannels(slug);
         // En el ORDEN de la declaración: el primero es el que se preselecciona si el sugerido no está.

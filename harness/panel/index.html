@@ -2412,6 +2412,11 @@
       loadMerchantFlags();
       const box = $('lenderslist');
       box.innerHTML = '<p class="list-note">Cargando…</p>';
+      // LOS CANALES PRIMERO: vienen de la precarga (`preloadChannels`), así que es inmediato, y la pestaña nueva deja de
+      // decir «midiendo» sin esperar a las entidades (antes esperaba las dos consultas, ~300 ms en local). Y van ANTES
+      // porque pueden cambiar el canal (el sugerido del comercio), que es con el que se piden las entidades.
+      await loadChannels();
+      if (!sel) return;
       // Una respuesta que vuelve cuando ya se eligió otro comercio (u otro ambiente) se descarta: si no,
       // pinta las entidades del anterior. Pasa al abrir el panel desde una ruta, que cambia el comercio
       // con la carga del default todavía en vuelo.
@@ -2442,7 +2447,6 @@
         mockPA = r.mockPA !== false;   // lo decide E2E_REAL_PREAPPROVALS por target, no el panel
         applyMockPAGate();             // con MS real "Espera pre-aprobados" no aplica → se oculta (como los estados por lender)
         merchantLenders = ls;   // el mapa de tren dibuja los ramales según el rt de estos
-        loadChannels();             // qué canales de entrada aplican a ESTA sucursal (no bloquea el render)
         renderTrain();
         loadStatus();
       setTimeout(followRunOnMap, 0);   // el mapa se redibujó: volver a marcar dónde va
@@ -3376,6 +3380,7 @@
       renderMerchants();
       revealSelection();   // recién acá se conocen `allied_id` y `hash`, que es lo que hace falta
       loadMerchantTags();  // y con los hashes, el país y los canales de cada uno para el filtro
+      preloadChannels();   // y los canales que se ofrecen al elegirlo, para que la pestaña no espere
     }
 
     function setSeg(groupId, val) {
@@ -3390,11 +3395,34 @@
     let channelsOk = null;
     let autoMotivo = '';   // por qué «Auto (tienda)» no aplica a este comercio (lo dice el servidor)
 
+    // LOS CANALES DE CADA COMERCIO SE PRECARGAN: al medir el ambiente se piden los de toda la barra (`preloadChannels`), y
+    // elegir uno los lee de acá en vez de esperar la consulta. Por ambiente y comercio; lo que no se pudo medir (sin
+    // conexión, o sin saber si es Corbeta) no se guarda, y la próxima vez se pregunta de nuevo.
+    const channelCache = new Map();
+    function fetchChannels(slug, t = target) {
+      const key = t + '|' + slug;
+      if (!channelCache.has(key)) {
+        const p = fetch('/api/canales?slug=' + encodeURIComponent(slug) + '&target=' + t).then((x) => x.json());
+        p.then((r) => { if (!r || r.corbeta == null || !Array.isArray(r.canales)) channelCache.delete(key); }, () => channelCache.delete(key));
+        channelCache.set(key, p);
+      }
+      return channelCache.get(key);
+    }
+    /** Pide los canales de todos los comercios de la barra que están en este ambiente, de a tres. */
+    async function preloadChannels() {
+      const asked = target;
+      const queue = spaceEntries().filter((e) => !e.missing && !e.unreachable).map((e) => e.slug);
+      const worker = async () => {
+        while (queue.length && asked === target) await fetchChannels(queue.shift(), asked).catch(() => null);
+      };
+      await Promise.all([worker(), worker(), worker()]);
+    }
+
     async function loadChannels() {
       if (!sel) return;
       const askedSlug = sel.slug, askedTarget = target;
       try {
-        const r = await (await fetch('/api/canales?slug=' + encodeURIComponent(sel.slug) + '&target=' + target)).json();
+        const r = await fetchChannels(askedSlug, askedTarget);
         // Respuesta tardía de otro comercio: aplicarla le pondría a éste la sugerencia y los canales del anterior.
         if (!sel || sel.slug !== askedSlug || target !== askedTarget) return;
         channelsOk = Array.isArray(r.canales) ? r.canales : null;

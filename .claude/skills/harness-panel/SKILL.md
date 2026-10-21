@@ -984,3 +984,16 @@ lados y el celular de la izquierda queda cortado sin forma de llegar a él. La c
 = 1,35 %, mínimo 4 px; esquinas 4,9 %; muesca 2,4 %): a 740 px son los 10 · 36 · 18 px de antes. Medido: con 358 px
 de alto, teléfono de 310 y borde de 4; con 912, teléfono de 864 y borde de 11,5; a 760 px de ancho no se achica y
 scrollea (935 de contenido en 428).
+
+### Los canales de la barra se PRECARGAN (2026-10-21)
+
+Al medir el ambiente (`enrichMerchants`), `preloadChannels` pide `/api/canales` de todos los comercios de la barra que
+están en ese ambiente, de a tres, y los guarda en `channelCache` (por ambiente y comercio). `loadChannels` lee de ahí, y
+`loadLenders` lo llama PRIMERO (`await`): antes corría después de `/api/lenders` y `/api/pa-statuses`, y la pestaña
+nueva decía «midiendo» ~300 ms en local aunque los canales ya estuvieran. Va antes y no en paralelo porque puede cambiar
+el canal (el sugerido), que es con el que se piden las entidades. En el servidor, `measureChannels` guarda 5 min la
+medición (Corbeta, auto-onboarding, autogestión) por ambiente y sucursal y comparte los pedidos simultáneos; lo
+declarado en `.flows.json` se lee en cada pedido. Lo que no se pudo medir no se guarda en ninguno de los dos lados.
+Medido: elegir un comercio deja sus canales en 7 ms en local y en 11–14 ms en qa (antes ~300 ms y segundos); la
+precarga de qa, 12 comercios, tarda 8,6 s en segundo plano. ⚠ Un cambio de Corbeta o de auto-onboarding en la base
+tarda hasta 5 min en verse (o reiniciar el panel).
