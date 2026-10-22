@@ -312,6 +312,10 @@ func main() {
 	})
 	mux.HandleFunc("/api/ramas/refresh", a.refreshBranches)
 
+	// Los mensajes del chat del playground compartido, leídos del CLI (chat.go).
+	mux.HandleFunc("/api/chat", a.chat)
+	mux.HandleFunc("/api/chat/listen", a.chatListen)
+
 	// Las tareas, para la UI. Es de SOLO LECTURA desde el 2026-07-21: las tareas las escribe el asistente
 	// en su `task.md` y el tablero las muestra, así que el alta y el borrador de Jira ya no pasan por acá.
 	mux.HandleFunc("/api/efforts", func(w http.ResponseWriter, r *http.Request) {

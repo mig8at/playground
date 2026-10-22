@@ -17,6 +17,7 @@ import BlockText from './BlockText.vue';
 import CanonRoute from './CanonRoute.vue';
 import RegionMenu from './RegionMenu.vue';
 import RepoBranches from './RepoBranches.vue';
+import ChatMessages from './ChatMessages.vue';
 import { readPreference, savePreference, groupTasks, TASK_GROUPS } from './ui-state.js';
 import { organizeDocument } from './task-document.js';
 import { highlightSQL } from './sql-highlight.js';
@@ -66,14 +67,70 @@ const savedGroups = readPreference('open-groups', null);
 const sections = ref(new Set(Array.isArray(savedGroups) ? savedGroups.filter(id => GROUP_IDS.has(id)) : ['iniciada']));
 watch(sections, (open) => savePreference('open-groups', [...open].filter(id => GROUP_IDS.has(id))));
 const isOpen = (id) => sections.value.has(id);
+// Las vistas que se leen EN EL EDITOR (no son grupos de tareas): «traer de Jira» y los mensajes. Sólo
+// una a la vez, porque el editor muestra una sola.
+const EDITOR_VIEWS = ['jira', 'chat'];
 function toggleSection(id) {
   const n = new Set(sections.value);
   n.has(id) ? n.delete(id) : n.add(id);
+  if (EDITOR_VIEWS.includes(id) && n.has(id)) for (const other of EDITOR_VIEWS) if (other !== id) n.delete(other);
   sections.value = n;
-  // ⚠ Abrir «traer de Jira» SUELTA la tarea. Sus filas viven en el editor —no entran en 300px—, así
-  // que sin esto abrís la vista y el editor sigue mostrando la tarea: las filas no se ven nunca.
-  if (id === 'jira' && n.has('jira')) active.value = null;
+  // ⚠ Abrir «traer de Jira» o los mensajes SUELTA la tarea. Sus filas viven en el editor —no entran
+  // en 300px—, así que sin esto abrís la vista y el editor sigue mostrando la tarea: no se ven nunca.
+  if (EDITOR_VIEWS.includes(id) && n.has(id)) active.value = null;
 }
+
+// ── los mensajes del equipo ──────────────────────────────────────────────────────────────────────────
+// Los lee el server del CLI del playground compartido (`playground messages`), que los tiene mientras
+// `playground listen` corre. Se pregunta seguido con la vista abierta y de a ratos con ella cerrada,
+// para que el conteo de nuevos del acordeón se mueva solo. Cada pregunta corre el CLI dos veces
+// (estado y mensajes), por eso no más seguido, y nada con la pestaña del navegador oculta.
+// «Nuevo» es lo que llegó después de la última vez que abriste la vista (`tablero:chat-seen`); la
+// marca dura mientras la mirás y se apaga en la siguiente visita.
+const chat = ref(null);
+const chatError = ref('');
+const chatListenBusy = ref(false);
+const chatListenError = ref('');
+const chatSeen = ref(readPreference('chat-seen', ''));
+const chatVisitSeen = ref(chatSeen.value);
+const chatLatest = computed(() => (chat.value?.messages || []).reduce((t, m) => (m.time > t ? m.time : t), ''));
+const chatUnread = computed(() => (chat.value?.messages || []).filter(m => m.time && m.time > chatSeen.value).length);
+async function loadChat() {
+  try {
+    chat.value = await (await fetch(`${SERVER}/api/chat`)).json();
+    chatError.value = '';
+  } catch { chatError.value = 'no se pudo hablar con el server del tablero'; }
+  if (isOpen('chat') && chatLatest.value > chatSeen.value) {
+    chatSeen.value = chatLatest.value;
+    savePreference('chat-seen', chatSeen.value);
+  }
+}
+async function startListening() {
+  chatListenBusy.value = true; chatListenError.value = '';
+  try {
+    const j = await (await fetch(`${SERVER}/api/chat/listen`, { method: 'POST' })).json();
+    if (j.error) chatListenError.value = j.error;
+    await loadChat();
+  } catch { chatListenError.value = 'no se pudo hablar con el server del tablero'; }
+  finally { chatListenBusy.value = false; }
+}
+// Abrir o cerrar la vista cambia el ritmo: el temporizador pendiente se rearma con el nuevo.
+watch(() => isOpen('chat'), (open) => {
+  scheduleChat();
+  if (!open) return;
+  chatVisitSeen.value = chatSeen.value;
+  loadChat();
+});
+let chatTimer = null;
+function scheduleChat() {
+  clearTimeout(chatTimer);
+  chatTimer = setTimeout(async () => {
+    if (document.visibilityState === 'visible') await loadChat();
+    scheduleChat();
+  }, isOpen('chat') ? 4000 : 30000);
+}
+onMounted(() => { loadChat(); scheduleChat(); });
+onUnmounted(() => clearTimeout(chatTimer));
 const journeyOpen = ref(readPreference('journey-open', true) === true);
 watch(journeyOpen, value => savePreference('journey-open', value));
 /* ⚠ Acá vivían `collapsedGroups` y `toggleGroup`. Se fueron: cada grupo es ahora una VISTA del
@@ -281,7 +338,7 @@ function fromMenu(id) {
 // lo usaste una vez. ⚠ No toca la vista de Jira: es de otro eje y se pliega sola.
 function collapseAll() {
   const ids = groupedIssues.value.map(g => g.id);
-  const jira = sections.value.has('jira') ? ['jira'] : [];
+  const jira = EDITOR_VIEWS.filter(id => sections.value.has(id));
   sections.value = new Set(ids.every(id => sections.value.has(id)) ? jira : [...ids, ...jira]);
 }
 
@@ -1150,25 +1207,31 @@ const tasksForRoute = () => {
  *   #/tareas/core-543                   la tarea, con Jira (el default no se escribe)
  *   #/tareas/context?vista=pendientes   la tarea, con Pendientes (o `artifacts`)
  *   #/importar                          sin tarea, «Traer de Jira» en el editor
+ *   #/mensajes                          sin tarea, los mensajes del equipo en el editor
  * Otra tarea u otra vista del editor entra al historial (push); otra pestaña lo reemplaza, porque
  * recorrer las tres caras de una tarea no es navegar. Los enlaces viejos `#/tareas/<slug>` son la
  * misma ruta sin parámetros, así que siguen abriendo. */
 const AUX_DEFAULT = 'jira';
 const IMPORT_ROUTE = 'importar';
+const CHAT_ROUTE = 'mensajes';
+// ruta ↔ vista del editor sin tarea
+const EDITOR_VIEW_ROUTES = { [IMPORT_ROUTE]: 'jira', [CHAT_ROUTE]: 'chat' };
 const currentRoute = computed(() => {
   if (active.value) {
     return hashRoute(['tareas', taskSlug(active.value)], { vista: activeAuxView.value }, { vista: AUX_DEFAULT });
   }
-  return isOpen('jira') ? hashRoute([IMPORT_ROUTE]) : '';
+  const route = Object.keys(EDITOR_VIEW_ROUTES).find(r => isOpen(EDITOR_VIEW_ROUTES[r]));
+  return route ? hashRoute([route]) : '';
 });
 const routePath = (hash) => readHashRoute(hash).parts.join('/');
 function writeRoute(hash, push) {
   setRoute(`${window.location.pathname}${window.location.search}${hash}`, { push });
 }
-function setImportOpen(open) {
-  if (isOpen('jira') === open) return;
+// Deja abierta sólo la vista del editor `view` (o ninguna, con null).
+function setEditorView(view) {
+  if (EDITOR_VIEWS.every(id => isOpen(id) === (id === view))) return;
   const n = new Set(sections.value);
-  open ? n.add('jira') : n.delete('jira');
+  for (const id of EDITOR_VIEWS) id === view ? n.add(id) : n.delete(id);
   sections.value = n;
 }
 
@@ -1204,10 +1267,10 @@ function restoreRoute({ settle = false } = {}) {
   restoreTabs(settle);
   const { parts, params } = readHashRoute(window.location.hash);
   const [view, slug] = parts;
-  let fulfilled = !parts.length || (view === IMPORT_ROUTE && parts.length === 1);
+  let fulfilled = !parts.length || (Object.hasOwn(EDITOR_VIEW_ROUTES, view ?? '') && parts.length === 1);
   if (fulfilled) {
     active.value = null;
-    setImportOpen(view === IMPORT_ROUTE);
+    setEditorView(EDITOR_VIEW_ROUTES[view] ?? null);
   } else if (view === 'tareas' && parts.length === 2) {
     const task = tasksForRoute().find(item => taskSlug(item) === slug.toLowerCase());
     if (task) {
@@ -1221,7 +1284,7 @@ function restoreRoute({ settle = false } = {}) {
   if (!fulfilled) {
     if (!settle) return;
     active.value = null;
-    setImportOpen(false);
+    setEditorView(null);
   }
   // La URL queda en su forma canónica (sin lo que no se pudo cumplir) SIN sumar una entrada.
   writeRoute(currentRoute.value, false);
@@ -1885,6 +1948,24 @@ function documentAction(id) {
           <p class="mut">Mira por <b>asignación</b>, no por sprint: es lo único que crea una tarea local.</p>
           </div>
       </section>
+
+      <!-- VISTA · mensajes del equipo (el chat de la terminal). Como «traer de Jira»: cerrada cuesta una
+           fila, con el conteo de lo nuevo, y abierta los muestra en el editor. -->
+      <section class="view" :class="{ open: isOpen('chat') }">
+        <div class="region-head">
+          <button type="button" class="view-tog" :aria-expanded="isOpen('chat')"
+                  @click="toggleSection('chat')">
+            <span class="ui-icon" data-icon="chevron" aria-hidden="true"></span>
+            <span>Mensajes</span>
+          </button>
+          <span v-if="chatUnread" class="count filtered" :title="`${chatUnread} sin leer`">{{ chatUnread }}</span>
+        </div>
+        <div v-if="isOpen('chat')" class="region-body sidebar-jira">
+          <p class="mut" v-if="chat && !chat.installed">Falta el CLI <code>playground</code>.</p>
+          <p class="mut" v-else-if="chat && !chat.listening">No estás escuchando: los mensajes no llegan.</p>
+          <p class="mut" v-else-if="chat">{{ chat.messages.length }} recibido{{ chat.messages.length === 1 ? '' : 's' }} desde que prendiste <code>listen</code>. No se guardan.</p>
+        </div>
+      </section>
     </aside>
 
     <!-- El menú vive en `body`: el scroll del árbol recortaría cualquier elemento posicionado dentro
@@ -2071,6 +2152,12 @@ function documentAction(id) {
       <!-- LA PESTAÑA DE BIENVENIDA: el sprint. Es lo que se ve al entrar y al soltar una tarea. -->
       <!-- ⚠ Sin tarea elegida manda LA VISTA ABIERTA: con «traer de Jira» abierta el editor lleva
            sus filas (que en el sidebar no entran), y si no, el sprint. -->
+      <div v-else-if="isOpen('chat')" class="region-body editor-view">
+        <ChatMessages :chat="chat" :error="chatError" :seen-at="chatVisitSeen"
+                      :listen-busy="chatListenBusy" :listen-error="chatListenError"
+                      @refresh="loadChat" @listen="startListening" />
+      </div>
+
       <div v-else-if="!isOpen('jira')" class="region-body editor-view">
         <div class="stats">
           <div class="stat">
