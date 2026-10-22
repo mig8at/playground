@@ -281,15 +281,16 @@ function buildZones(scene) {
   scene.add(put(sofa({ w: 2.4, color: PALETTE.linen, pillows: [PALETTE.slate, PALETTE.mustard] }), 13.9, 11.6, -Math.PI / 2, FIT.sofa))
   scene.add(put(plant({ size: 1 }), 14.2, 14.3))
 
-  // ── Lounge: el centro ──
-  scene.add(place(rug(6.4, 6.4), 0, 0))
-  scene.add(put(sofa({ w: 2.6 }), -2.4, 0, Math.PI / 2, FIT.sofa))
-  scene.add(put(sofa({ w: 2.6, color: PALETTE.linen, pillows: [PALETTE.clay, PALETTE.sage] }), 0.3, 2.6, Math.PI, FIT.sofa))
-  scene.add(put(armchair(), 2.5, 0, -Math.PI / 2, FIT.armchair))
-  scene.add(put(coffeeTable(), 0, 0, 0, FIT.table))
-  scene.add(put(floorLamp(), -3.2, 3.2))
-  scene.add(put(plant({ size: 1.2 }), 3.2, -3.2))
-  scene.add(put(plant({ size: 1 }), -3.2, -3.2))
+  // ── Lounge: el centro, corrido al oeste ──
+  // Está en el cruce de los dos pasillos: por el lado este queda libre un carril de norte a sur (x de 1,8 a 3,4)
+  // que une la puerta con el café. Sin ese carril el café quedaba aislado de la entrada.
+  scene.add(place(rug(5.6, 5.6), -1.6, 0))
+  scene.add(put(sofa({ w: 2.6 }), -3.6, 0, Math.PI / 2, FIT.sofa))
+  scene.add(put(sofa({ w: 2.6, color: PALETTE.linen, pillows: [PALETTE.clay, PALETTE.sage] }), -1.4, 2.4, Math.PI, FIT.sofa))
+  scene.add(put(armchair(), 0.5, 0, -Math.PI / 2, FIT.armchair))
+  scene.add(put(coffeeTable(), -1.4, 0, 0, FIT.table))
+  scene.add(put(floorLamp(), -3.6, 2.7))
+  scene.add(put(plant({ size: 1.2 }), -3.6, -2.8))
 }
 
 // El piso de cada zona se ilumina al pasar el mouse: una lámina apenas sobre el piso, invisible en reposo.

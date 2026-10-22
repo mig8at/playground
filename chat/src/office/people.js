@@ -14,7 +14,8 @@
  * busca otro camino tratando como bloqueado el lugar donde están los demás. Además, dos que quedan muy juntos se
  * separan un poco, para no encimarse nunca.
  *
- * El gato del kit anda igual que la gente, sin sentarse, y cede el paso a todos.
+ * El gato del kit anda igual que la gente, sin sentarse, y cede el paso a todos. Cada tanto llega un mensajero
+ * de la calle con una caja, la deja en el café y se va.
  *
  * Sentarse: el kit no trae esa animación. Se arma sobre `Idle`, doblando muslos y rodillas después de que el
  * mezclador aplica la animación, y bajando el cuerpo hasta la altura del asiento.
@@ -29,6 +30,27 @@ const PERSONAL = 0.8         // la mitad de la distancia mínima entre dos perso
 const WALK_SPEED = 1.7
 const TURN_SPEED = 8
 // El gato del kit mide 1,87 de alto a su escala: al 40 % queda en ~0,75, de gato al lado de un personaje de 2,7.
+// EL MENSAJERO: cada tanto llega por la acera del sur con una caja, sube los escalones, entra, cruza hasta la
+// cafetería, deja la caja en el mostrador y se va por donde vino. Coordenadas del mundo (la calle está 0,45 abajo).
+const COURIER = {
+  name: 'Mensajero', base: 'Character_Male_2',
+  colors: { hair: '#1f1b18', skin: '#b98a6a', eyes: '#343434', shirt: '#e8a33d', pants: '#2b2b30' },
+}
+const COURIER_START = new THREE.Vector2(-17.5, 17)    // por dónde aparece, en la acera
+const COURIER_EXIT = new THREE.Vector2(15.8, 17)      // por dónde se va (antes del semáforo de la esquina)
+const DOOR_OUT = [new THREE.Vector2(0, 17), new THREE.Vector2(0, 15.3)]  // del frente de la puerta al umbral
+const DOOR_IN = new THREE.Vector2(0, 14.2)            // ya adentro
+const CAFE = new THREE.Vector2(0.9, -12.4)            // frente al mostrador del café
+const PARCEL_SPOT = new THREE.Vector3(0.6, 1.53, -14.15) // sobre el mostrador
+const COURIER_BREAK = [25, 55]                        // segundos entre una visita y la siguiente
+
+// La altura del piso donde está alguien: la oficina en 0; los dos escalones de la entrada; la calle 0,45 abajo.
+function floorY(x, z) {
+  if (z <= 15) return 0
+  if (Math.abs(x) <= 1.6 && z < 17.3) return z < 16.1 ? 0 : z < 16.7 ? -0.15 : -0.3
+  return z < 16.1 && Math.abs(x) < 16.1 ? 0 : -0.45
+}
+
 const PETS = [{ name: 'Cat', url: '/animals/Cat.gltf', scale: 0.4, radius: 0.45, speed: 1.2, gestures: ['Idle_Eating', 'Idle'] }]
 
 // ── la grilla ──────────────────────────────────────────────────────────────────────────────────────────
@@ -160,7 +182,7 @@ function applySitPose(rig, weight) {
 
 const lerpAngle = (a, b, t) => a + Math.atan2(Math.sin(b - a), Math.cos(b - a)) * t
 
-export function createPeople(scene, { half, obstacles, seats: allSeats, characters = [] }) {
+export function createPeople(scene, { half, obstacles, seats: allSeats, characters = [], courier = true }) {
   const grid = makeGrid(half, obstacles)
   // El punto desde donde se llega a cada asiento va a la celda libre más cercana; si queda lejos del asiento
   // (el mueble está encerrado), ese asiento no se usa.
@@ -204,6 +226,7 @@ export function createPeople(scene, { half, obstacles, seats: allSeats, characte
 
   // Qué hacer ahora: casi siempre sentarse si hay un asiento libre; si no, pararse en algún lado.
   function decide(person) {
+    if (person.courier) return courierNext(person)
     const free = person.pet ? [] : seats.filter((s) => !s.takenBy)
     if (free.length && Math.random() < 0.7) {
       const seat = free[Math.floor(Math.random() * free.length)]
@@ -230,7 +253,7 @@ export function createPeople(scene, { half, obstacles, seats: allSeats, characte
   // Una persona o una mascota: las dos caminan igual por la grilla. La mascota no se sienta, es más chica y
   // más lenta, y cede el paso a todos (prioridad -1).
   // Un personaje se arma con su forma y sus colores (appearance.js); una mascota se baja tal cual.
-  function spawn({ name, url, base, colors, scale = 1, radius = PERSONAL, speed = WALK_SPEED, pet = false, gestures = null }, index) {
+  function spawn({ name, url, base, colors, scale = 1, radius = PERSONAL, speed = WALK_SPEED, pet = false, gestures = null, courier = false }, index) {
     const ready = base ? makeCharacter(base, colors) : loader.loadAsync(url).then((g) => ({ model: g.scene, animations: g.animations }))
     ready.then(({ model, animations }) => {
       if (disposed) return
@@ -240,12 +263,13 @@ export function createPeople(scene, { half, obstacles, seats: allSeats, characte
       const actions = Object.fromEntries(animations.map((clip) => [clip.name, mixer.clipAction(clip)]))
       const person = {
         name, model, mixer, actions, current: null, rig: setupSitPose(model), priority: pet ? -1 : index,
-        pet, radius, speed, gestures,
+        pet, radius, speed, gestures, courier, leg: 'offstage', carrying: false,
         position: new THREE.Vector2(), heading: Math.random() * Math.PI * 2, y: 0,
         state: 'waiting', timer: 0.5 + index * 0.7, path: [], goal: null, seat: null, sit: 0, blockedFor: 0,
       }
-      const start = randomSpot(person) || new THREE.Vector2(index * 1.5 - 2, 0)
+      const start = courier ? new THREE.Vector2(999, 999) : randomSpot(person) || new THREE.Vector2(index * 1.5 - 2, 0)
       person.position.copy(start)
+      if (courier) { model.visible = false; person.timer = 6 }
       scene.add(model)
       people.push(person)
       play(person, 'Idle', 0)
@@ -253,9 +277,11 @@ export function createPeople(scene, { half, obstacles, seats: allSeats, characte
   }
   characters.forEach((c, i) => spawn({ name: c.name, base: c.base, colors: c.colors }, i))
   PETS.forEach((pet, i) => spawn({ ...pet, pet: true }, characters.length + i))
+  if (courier) spawn({ ...COURIER, courier: true }, characters.length + PETS.length)
 
   const tmp = new THREE.Vector2()
   function update(dt) {
+    updateParcels(dt)
     for (const p of people) {
       switch (p.state) {
         case 'waiting':
@@ -281,8 +307,10 @@ export function createPeople(scene, { half, obstacles, seats: allSeats, characte
             return toO.dot(tmp) / (dist || 1) > d * 0.35
           })
           if (ahead) {
-            play(p, 'Idle')
+            play(p, p.carrying ? 'Idle_Hold' : 'Idle')
             p.blockedFor += dt
+            // El mensajero, afuera o en el umbral, sólo espera: la grilla es la de adentro.
+            if (p.courier && p.leg.endsWith('outside')) { p.blockedFor = 0; break }
             if (p.blockedFor > 1.2) {
               p.blockedFor = 0
               const goal = p.seat ? p.seat.approach : p.goal
@@ -291,7 +319,7 @@ export function createPeople(scene, { half, obstacles, seats: allSeats, characte
             break
           }
           p.blockedFor = 0
-          play(p, 'Walk')
+          play(p, p.carrying ? 'Walk_Hold' : 'Walk')
           const step = Math.min(dist, p.speed * dt)
           if (dist > 1e-4) {
             p.position.addScaledVector(tmp, step / dist)
@@ -345,17 +373,90 @@ export function createPeople(scene, { half, obstacles, seats: allSeats, characte
       p.mixer.update(dt)
       applySitPose(p.rig, p.sit)
       const seatY = p.seat ? p.seat.height + 0.12 - p.rig.hips : 0
-      p.model.position.set(p.position.x, seatY * p.sit, p.position.y)
+      p.model.position.set(p.position.x, (p.courier ? floorY(p.position.x, p.position.y) : 0) + seatY * p.sit, p.position.y)
       p.model.rotation.y = p.heading
     }
   }
 
   function arrive(p) {
+    if (p.courier) return courierArrived(p)
     if (p.seat) { p.state = 'sitting-down'; p.timer = 0; return }
     p.state = 'waiting'
     p.timer = 3 + Math.random() * 4
     const gestures = p.gestures || ['Wave', 'Yes', 'Idle_Hold']
     p.gesture = Math.random() < (p.pet ? 0.6 : 0.35) ? gestures[Math.floor(Math.random() * gestures.length)] : null
+  }
+
+  // ── el mensajero ──
+  const parcels = [] // las cajas que dejó: { mesh, ttl }
+  function makeParcel() {
+    const g = new THREE.Group()
+    const boxMesh = new THREE.Mesh(new THREE.BoxGeometry(0.62, 0.46, 0.5), new THREE.MeshStandardMaterial({ color: '#c49a63', roughness: 0.9 }))
+    boxMesh.castShadow = true
+    const tape = new THREE.Mesh(new THREE.BoxGeometry(0.64, 0.08, 0.52), new THREE.MeshStandardMaterial({ color: '#4c39ff', roughness: 0.6 }))
+    g.add(boxMesh, tape)
+    return g
+  }
+  function courierNext(p) {
+    if (p.leg === 'offstage') {
+      // Llega: aparece en la acera con la caja y camina hasta la puerta.
+      p.position.copy(COURIER_START)
+      p.model.visible = true
+      p.carrying = true
+      p.parcel = makeParcel()
+      p.parcel.position.set(0, 1.25, 0.55)
+      p.model.add(p.parcel)
+      p.path = [...DOOR_OUT, DOOR_IN].map((v) => v.clone())
+      p.goal = DOOR_IN.clone()
+      p.leg = 'in-outside'
+      p.state = 'walking'
+    } else if (p.leg === 'delivering') {
+      // Deja la caja sobre el mostrador y vuelve a la puerta.
+      if (p.parcel) {
+        p.model.remove(p.parcel)
+        p.parcel.position.copy(PARCEL_SPOT)
+        p.parcel.rotation.y = 0.3
+        scene.add(p.parcel)
+        parcels.push({ mesh: p.parcel, ttl: 40 })
+        p.parcel = null
+      }
+      p.carrying = false
+      p.leg = 'out-inside'
+      if (planTo(p, DOOR_IN)) p.state = 'walking'
+      else { p.state = 'waiting'; p.timer = 1; p.leg = 'delivering' }
+    } else {
+      p.state = 'waiting'; p.timer = 1
+    }
+  }
+  function courierArrived(p) {
+    if (p.leg === 'in-outside') {
+      p.leg = 'in-inside'
+      if (planTo(p, CAFE)) { p.state = 'walking'; return }
+      p.leg = 'in-outside'; p.path = [DOOR_IN.clone()]; p.state = 'waiting'; p.timer = 1
+    } else if (p.leg === 'in-inside') {
+      // En el café: un momento con la caja en brazos, mirando al mostrador.
+      p.leg = 'delivering'
+      p.heading = Math.PI
+      p.state = 'waiting'; p.gesture = 'Idle_Hold'; p.timer = 2.5
+    } else if (p.leg === 'out-inside') {
+      p.leg = 'out-outside'
+      p.path = [...[...DOOR_OUT].reverse(), COURIER_EXIT].map((v) => v.clone())
+      p.goal = COURIER_EXIT.clone()
+      p.state = 'walking'
+    } else if (p.leg === 'out-outside') {
+      // Se fue: desaparece al llegar a la esquina y vuelve en un rato.
+      p.model.visible = false
+      p.position.set(999, 999)
+      p.leg = 'offstage'
+      p.state = 'waiting'; p.gesture = null
+      p.timer = COURIER_BREAK[0] + Math.random() * (COURIER_BREAK[1] - COURIER_BREAK[0])
+    }
+  }
+  function updateParcels(dt) {
+    for (let i = parcels.length - 1; i >= 0; i--) {
+      parcels[i].ttl -= dt
+      if (parcels[i].ttl <= 0) { scene.remove(parcels[i].mesh); parcels.splice(i, 1) }
+    }
   }
 
   function dispose() {
