@@ -12,6 +12,12 @@ ramas: ["risk-services-mockery-lambda:dictado-compartido"]
 
 ## Pendientes
 
+- [ ] Que dev y staging le dicten el caso al lambda de centrales como qa: sus backends consultan el lambda viejo
+  (`ub79ck0htd`, sin dictado, F-149). Termina con la llamada a Agil Data de una solicitud nueva de dev y de staging yendo a
+  `9b6r8ticg0`, y `dev` y `staging` sumados a `COMPANY_LAMBDA` y a `CAPS.lambdaDictado` del panel. Depende de: infra —
+  cambiar los secretos `dev/legacy-backend` y `dev/legacy-backend-stg` (borrador del pedido en
+  `artifacts/pedido-infra-centrales-dev-staging.md`, sin mandar).
+
 - [ ] Decidir si se publica el dictado compartido de la lambda de centrales (rama `feat/dictado-compartido` de
   `risk-services-mockery-lambda`, probada en local, sin push). Hace falta sólo para probar en la compartida lo que
   depende de lo que contestan las centrales, como el pipeline de KYC. Termina con la rama publicada en un PR contra
