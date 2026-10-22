@@ -324,7 +324,7 @@
     #sideLeft > fieldset.region-body { display: flex; flex-direction: column; overflow: hidden }
     #sideLeft > fieldset.region-body > * { flex: none }
     #sideLeft > fieldset.region-body > #results, #sideLeft > fieldset.region-body > #prodList { flex: 1 1 auto; min-height: 0; flex-direction: column; padding-bottom: 0 }
-    #sideLeft > fieldset.region-body > #results { display: flex }
+    body:not(.prod-mode) #sideLeft > fieldset.region-body > #results { display: flex }   /* en prod se ve `#prodList` */
     #sideLeft .view:not(.open) { order: 1 }
     #sideLeft .view > .region-body[hidden] { display: none }
     #sideLeft .view > .region-head { flex: none }
@@ -748,13 +748,6 @@
           </div>
           <!-- LA PESTAÑA DE UN COMERCIO DE PROD es el celular del asesor, A MANO (sin tarjeta desde el 2026-10-21): al activarla
                abre la entrada del canal asesor de su sucursal de prueba, y la persona entra y maneja. La ficha, a la derecha. -->
-          <div class="empty" id="prodEmpty" hidden>
-            <div class="empty-head">
-              <div class="empty-media"><span class="ui-icon" data-icon="merchant" aria-hidden="true"></span></div>
-              <div class="empty-title">Producción, a mano</div>
-              <div class="empty-desc">Elegí un comercio a la izquierda: su ficha va a la derecha (asesor de prueba, sucursal falsa, entidades) y acá podés abrir su celular para entrar a mano. El panel no completa ni avanza nada en prod.</div>
-            </div>
-          </div>
           <!-- Los celulares son de UNA pestaña a la vez: mirando otra, se tapan y se dice de quién son. -->
           <div class="empty tab-busy" id="tabBusy" hidden>
             <div class="empty-head">
@@ -954,7 +947,7 @@
         <!-- EN PROD, EL SIDEBAR DERECHO ES LA FICHA del comercio de la pestaña: sólo para mirar (asesor de prueba, cómo entrar,
              sus entidades). La configuración del caso no aplica ahí: no se inyecta ni se siembra nada. -->
         <div class="region-body prod-side" id="prodRightNote" hidden>
-          <div class="prod-head"><strong id="prodFichaName">Producción · sólo lectura</strong>
+          <div class="prod-head"><strong id="prodFichaName">Comercio</strong>
             <button type="button" class="region-action" id="prodFichaReload" title="Volver a leer de prod" aria-label="Volver a leer de prod"><span class="ui-icon" data-icon="refresh" aria-hidden="true"></span></button></div>
           <div id="prodFichaBody" class="prod-ficha-body"><p class="list-note">Elegí un comercio a la izquierda.</p></div>
           <p class="prod-hint" id="prodFichaHint"></p>
@@ -1364,7 +1357,7 @@
     // es justo lo que la regla de la base evita (tools/ui/README.md §«Qué se guarda y dónde»). Se vuelve a
     // elegir a mano cada vez, y eso es a propósito.
     let target = 'local';        // local | dev | staging | qa (staging y qa: front y backend propios, BD compartida con dev)
-    let prodMode = false;         // el modo «prod · sólo mirar» (ver «EL MODO PROD»): NO es un `target`, a propósito
+    let prodMode = false;         // el modo prod (ver «EL MODO PROD»): NO es un `target`, a propósito
     // EL CARRIL DE LOS CELULARES QUE SE VEN (ver «LOS CARRILES» en `panel/devices.ts`): las pantallas son siempre las mismas
     // dos (asesor y cliente); lo que cambia es de qué carril son. `D(rol)` es el celular del servidor de ese rol en ese carril.
     let phoneLane = 'a';
@@ -1818,6 +1811,10 @@
       (firstBody || g).appendChild(newC);
       if (adminView) g.appendChild(adminView);
       if ($('merchantCount')) $('merchantCount').textContent = String(entries.length);
+      // En prod la barra es `#prodList`, que se arma con estos MISMOS datos (las entradas, sus países, el catálogo que dice
+      // cómo se llama cada una en prod): se vuelve a dibujar con ellos. Si no, abrir `/prod` dejaba la de antes de que
+      // llegaran (Pullman en «No están en prod» y todo en «Sin país»).
+      if (prodMode && prodRows) renderProdList($('merchantSearch').value);
     }
 
     async function favApi(body) {
@@ -4064,7 +4061,7 @@
     // una se fotografía su configuración y al volver se repone; una NUEVA arranca con la configuración por defecto. Así el
     // gate de canales, las rutas y las preferencias siguen siendo los de siempre y la pestaña no los puede saltear.
     // Cada ambiente tiene SU juego (3 en local, 2 en qa…): cambiar de ambiente guarda uno y trae el otro. Producción no
-    // tiene pestañas: el panel no abre celulares ahí, su única corrida es la vista «Prod».
+    // tiene su juego, con los celulares a mano (sin autorrelleno ni nada que avance solo) y la corrida pública en Admin.
     // ⚠ La vista «Comercio» del sidebar derecho NO es de la pestaña: escribe `allieds` y vale para el comercio entero.
     // Se recuerdan en el navegador (`harness.tabs.v2`): son una comodidad de esta máquina, no un dato.
     const TABS_KEY = 'harness.tabs.v2';
@@ -4219,7 +4216,7 @@
         label.append(n);
         // El canal de una corrida lo dice el pie (al lado del comercio), no la pestaña; Admin y prod siguen diciendo su
         // ambiente, que es lo único que las distingue.
-        if (t.kind) { const c = document.createElement('span'); c.className = 'run-tab-chan'; c.textContent = chan; label.append(c); }
+        // Todas las pestañas dicen sólo su nombre, también Admin y las de prod: el ambiente y el canal van en el tooltip.
         label.onclick = () => activateTab(t.id);
         label.ondblclick = () => { if (t.preview && (t.canal || t.kind === 'prod')) { t.preview = false; renderTabs(); saveTabs(); } };
         const close = document.createElement('button');
@@ -4242,7 +4239,6 @@
     function renderStage() {
       const t = currentTab(), orig = inOriginacion();
       const ficha = prodMode && orig && t?.kind === 'prod';
-      $('prodEmpty').hidden = !(prodMode && orig && !ficha);
       // En prod sólo el celular del asesor: no hay traspaso al cliente ni tienda (ver «El celular en prod, a mano»).
       // En prod, el celular del CANAL de la pestaña: el del asesor por asesor, el del cliente por autogestión (no hay traspaso).
       const prodSelf = ficha && t.canal === 'autogestion';
@@ -4255,7 +4251,8 @@
         const asking = ficha && !t.canal;
         const full = ficha && !!t.canal && !isOwner(t) && !freeLane();
         $('tabStart').hidden = !asking; $('tabBusy').hidden = !full;
-        $('devices').hidden = !ficha || asking || full;
+        // Sin pestaña, los celulares vacíos, como en los otros ambientes.
+        $('devices').hidden = !orig || asking || full;
         if (asking) renderProdChannelChoice(t);
         if (full) renderBusyLanes(t);
         if (ficha) {
@@ -4264,9 +4261,11 @@
           syncPlay();
           renderProdFicha(t);
         } else {
-          $('prodFichaName').textContent = 'Producción · sólo lectura';
+          $('prodFichaName').textContent = 'Comercio';
           $('prodFichaBody').innerHTML = '<p class="list-note">Elegí un comercio a la izquierda.</p>';
           $('prodFichaHint').textContent = '';
+          $('advisorIdle').textContent = 'El celular del asesor'; $('clientEmpty').textContent = 'El celular del cliente';
+          syncPlay();
         }
         return;
       }
@@ -4605,7 +4604,6 @@
       for (const [f, was] of prodFieldsets) f.disabled = was;
       prodFieldsets = [];
       $('prodRightNote').hidden = true;
-      $('prodEmpty').hidden = true;
       $('advisorProd').hidden = true; $('clientProd').hidden = true; $('deviceClient').hidden = false;
       $('advisorIdle').textContent = 'El celular del asesor'; $('clientEmpty').textContent = 'El celular del cliente';
       applyChannel();   // los celulares que van con el canal (la tienda, el asesor), como estaban antes de prod
@@ -4628,7 +4626,7 @@
       if (!prodRows) {
         const p = document.createElement('p'); p.className = 'list-note';
         p.textContent = prodDetail || 'leyendo los comercios de prod (Redash, ~15 s la primera vez)…';
-        sideView(box, 'prod:lista', 'Producción', undefined, true).appendChild(p); return;
+        box.appendChild(p); return;
       }
       const bySlug = new Map(prodRows.map((m) => [m.slug, m]));
       const n = norm(q.trim());
@@ -4636,7 +4634,7 @@
       const mine = spaceEntries().map((e) => ({ e, p: bySlug.get(prodSlugOf(e)) || null })).filter(({ e }) => match(e.alias || e.name));
       const here = mine.filter((x) => x.p), absent = mine.filter((x) => !x.p);
       const rowFor = (label, p, absentWhy, entrySlug) => {
-        const r = treeRow(absentWhy ? 'missing' : '', 0, 'merchant', escTxt(label), absentWhy ? '' : (p.test_branch ? 'prueba' : ''));
+        const r = treeRow(absentWhy ? 'missing' : '', 0, 'merchant', escTxt(label), '');
         if (absentWhy) {
           r.title = absentWhy; r.setAttribute('aria-disabled', 'true'); r.tabIndex = -1;
           return r;
@@ -4649,29 +4647,50 @@
         r.onkeydown = (ev) => { if (ev.key === 'Enter' || ev.key === ' ') { ev.preventDefault(); r.click(); } };
         return r;
       };
-      // LA CORRIDA PÚBLICA de prod (`dev/prod-run.ts`): la única que se permite ahí. Era la vista «Prod» del centro.
-      const runBody = sideView(box, 'prod:corrida', 'Corrida pública', undefined, false);
+      // LA MISMA FORMA QUE EN LOS OTROS AMBIENTES: una vista por país (con las mismas claves, así abiertas y cerradas se
+      // recuerdan igual), «No están en prod», «Agregar comercio…» al final de la primera y el Admin abajo.
+      const byCountry = new Map();
+      for (const x of here) { const c = countryOf(x.e); if (!byCountry.has(c)) byCountry.set(c, []); byCountry.get(c).push(x); }
+      const countries = [...byCountry.keys()].sort((a, b) => (a === '') - (b === '') || (b === 'Colombia') - (a === 'Colombia') || a.localeCompare(b));
+      let firstBody = null;
+      for (const c of countries) {
+        const body = sideView(box, 'pais:' + c, c || 'Sin país en este ambiente', byCountry.get(c).length, !firstBody);
+        firstBody ||= body;
+        for (const { e, p } of byCountry.get(c)) body.appendChild(rowFor(e.alias || e.name, p, undefined, e.slug));
+      }
+      if (absent.length) {
+        const absentBody = sideView(box, 'pais:ausentes', 'No están en prod', absent.length, false);
+        for (const { e } of absent) absentBody.appendChild(rowFor(e.alias || e.name, null, `«${e.alias || e.name}» no está en prod (se buscó el comercio «${prodSlugOf(e)}»)`));
+      }
+      const add = treeRow('add-row', 0, 'plus', 'Agregar comercio…', '');
+      add.title = 'Buscar un comercio de prod y agregarlo a tu barra (en todos los ambientes)';
+      add.tabIndex = 0;
+      add.onclick = () => $('merchantSearch').focus();
+      add.onkeydown = (ev) => { if (ev.key === 'Enter' || ev.key === ' ') { ev.preventDefault(); add.click(); } };
+      (firstBody || box).appendChild(add);
+      // EL ADMIN, como en los otros ambientes. En prod su admin no se abre desde el panel (a propósito: un clic al admin de
+      // producción al lado de correr un caso es un accidente esperando), así que va apagado con su motivo. Y la CORRIDA
+      // PÚBLICA (`dev/prod-run.ts`), lo único propio de prod, va ahí: es una herramienta del ambiente, no un comercio.
+      const adminBody = sideView(box, 'admin', 'Admin', undefined, false);
+      const adm = treeRow('missing', 0, 'external', 'Admin de legacy-application', 'prod');
+      adm.title = 'En prod no: el admin de producción no se abre desde el panel. Se entra por el navegador de siempre.';
+      adm.setAttribute('aria-disabled', 'true'); adm.tabIndex = -1;
+      adminBody.appendChild(adm);
       const run = treeRow('', 0, 'play', 'Corrida pública de prod', '');
       run.title = 'Registro → OTP por SMS → datos personales, con una cédula permitida en la sucursal de prueba sin entidades ni Experian. Para antes del listado.';
       run.tabIndex = 0;
       run.setAttribute('aria-selected', String(currentTab()?.kind === 'prodrun'));
       run.onclick = () => openProdRunTab();
       run.onkeydown = (ev) => { if (ev.key === 'Enter' || ev.key === ' ') { ev.preventDefault(); openProdRunTab(); } };
-      runBody.appendChild(run);
-      const hereBody = sideView(box, 'prod:lista', 'En prod', here.length, true);
-      for (const { e, p } of here) hereBody.appendChild(rowFor(e.alias || e.name, p, undefined, e.slug));
-      if (absent.length) {
-        const absentBody = sideView(box, 'prod:ausentes', 'No están en prod', absent.length, false);
-        for (const { e } of absent) absentBody.appendChild(rowFor(e.alias || e.name, null, `«${e.alias || e.name}» no está en prod (se buscó el comercio «${prodSlugOf(e)}»)`));
-      }
+      adminBody.appendChild(run);
       // Al buscar: los de prod que coinciden y no están en la barra, para agregarlos.
       if (n) {
         const taken = new Set(here.map((x) => x.p.allied_id));
         const more = prodRows.filter((m) => !taken.has(m.allied_id) && (norm(m.name).includes(n) || norm(m.slug).includes(n))).slice(0, 30);
         if (more.length) {
-          const moreBody = sideView(box, 'prod:agregar', 'Agregar desde prod', more.length, true);
+          const moreBody = sideView(box, 'prod:agregar', 'Agregar comercio', more.length, true);
           for (const m of more) {
-            const r = treeRow('', 0, 'plus', escTxt(m.name), m.test_branch ? 'prueba' : '');
+            const r = treeRow('', 0, 'plus', escTxt(m.name), '');
             r.title = `Agregar «${m.name}» a tu barra (en todos los ambientes). Elegido, se abre su ficha.`;
             r.tabIndex = 0;
             r.onclick = () => addFromProd(m);
@@ -4758,7 +4777,7 @@
         } catch { b.textContent = 'No se pudo copiar'; }
         setTimeout(() => { b.textContent = 'Copiar contraseña'; }, 2000);
       };
-      $('prodFichaHint').textContent = `Para comprobar que su asesor de prueba podría entrar, sin entrar: make harness-prod-advisor ALLIED=${t.allied} (VPN de prod y aws sso login --profile prod). La corrida que sí se puede hacer en prod es la pública, en la vista «Prod».`;
+      $('prodFichaHint').textContent = `Para comprobar que su asesor de prueba podría entrar, sin entrar: make harness-prod-advisor ALLIED=${t.allied} (VPN de prod y aws sso login --profile prod). La corrida pública de prod está en Admin, a la izquierda.`;
     }
     $('prodFichaReload').onclick = () => { const t = currentTab(); if (t?.kind === 'prod') renderProdFicha(t, true); };
     // Abrir el celular del asesor EN PROD, para entrar a mano (`/api/prod/phone`: sin autorrelleno ni nada que avance solo).
@@ -4771,7 +4790,7 @@
     };
     function renderProdChannelChoice(t) {
       $('tabStartTitle').textContent = t.name;
-      $('tabStartDesc').textContent = '¿Por qué canal entra esta corrida? En prod la manejás vos.';
+      $('tabStartDesc').textContent = '¿Por qué canal entra esta corrida?';
       const box = $('tabStartChannels');
       box.replaceChildren();
       for (const c of CHANNEL_ORDER) {
@@ -5052,7 +5071,7 @@
     function updateGo() {
       if (runRunning) return;   // el botón es de startPoll mientras corre
       // En el modo prod no se corre nada desde acá: `target` sigue siendo el ambiente de antes y lanzar correría ahí.
-      if (prodMode) { $('go').disabled = true; $('go').title = 'Producción, sólo para mirar: la corrida de prod es la pública, en la vista «Prod»'; return; }
+      if (prodMode) { $('go').disabled = true; $('go').title = 'En prod no se lanza: cada pestaña abre su celular a mano, y la corrida pública está en Admin'; $('runSummary').textContent = ''; return; }
       updateCaseSummary();
       const chosen = sel && spaceEntries().find((x) => x.slug === sel.slug || (x.hash && x.hash === sel.slug));
       const blocked = chosen && !chosen.missing ? readinessOf(chosen).block : [];
@@ -7007,7 +7026,7 @@ export function bindMenu(trigger, { getItems, onSelect, label = 'Más opciones' 
           parts.push(t.slug || e?.slug || pr?.slug || t.allied, t.canal);
         }
         else if (t) parts.push(t.slug, t.canal);
-        else if (sel) parts.push(sel.slug, channel);
+        else if (sel && !prodMode) parts.push(sel.slug, channel);   // en prod sin pestaña, `/prod` a secas
         const query = hashRoute([], { inicio: START_TO_ROUTE[step], vista: VIEW_TO_ROUTE[currentView()], consola: currentConsole() }, ROUTE_DEFAULTS).replace(/^#\//, '');
         return '/' + parts.filter((x) => x !== undefined && x !== null && x !== '').map(enc).join('/') + query;
       }

@@ -1148,3 +1148,20 @@ no es la de por defecto (`?vista=buros`, `?consola=mocks`, `?inicio=entidades`).
 - Verificado en un panel de prueba: las cinco formas, el enlace viejo con su vista, atrás entre dos pestañas, y el cambio
   de ambiente (local → qa) y a prod (con el celular de prod abierto solo en su login). Una vez, cargando
   `/prod/corrida-publica`, la pestaña del navegador de prueba se cerró sola; repetido, cargó bien y sin errores.
+
+### Prod con la misma forma que los demás ambientes (2026-10-21)
+
+- **La barra de prod** ya no tiene sus secciones propias («Producción», «En prod», «Corrida pública»): es una vista por
+  país con las MISMAS claves (`pais:Colombia`…, así abierta o cerrada vale en todos los ambientes), «No están en prod»,
+  «Agregar comercio…» al final de la primera y **Admin** abajo. En prod su fila del admin va apagada con el motivo (el
+  admin de producción no se abre desde el panel), y la **corrida pública** es una fila de ese Admin: es una herramienta
+  del ambiente, no un comercio. Sin la marca «prueba» en las filas (el detalle sigue en el tooltip).
+- ⚠ **`#prodList` se redibuja cada vez que `renderMerchants` corre en prod**: se arma con las entradas, sus países y el
+  catálogo que dice cómo se llama cada una en prod (`prodSlugOf`), que llegan DESPUÉS. Abrir `/prod` directo dejaba la
+  de antes: Pullman en «No están en prod» (sin catálogo, su clave `pullman` no es su slug de prod, `amoblando-pullman`) y
+  todo en «Sin país».
+- ⚠ La regla que muestra `#results` va con `body:not(.prod-mode)`: más específica que `.prod-mode #results`, la pisaba y
+  en prod se veían las dos barras.
+- **Las pestañas dicen sólo su nombre**, también Admin y las de prod (el ambiente y el canal, en el tooltip). **Prod sin
+  pestaña** muestra los celulares vacíos, como los demás (se fue la tarjeta «Producción, a mano»). La ficha de la
+  derecha se titula «Comercio». En prod sin pestaña la URL es `/prod` a secas, y el pie no arrastra el mensaje de local.
