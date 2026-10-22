@@ -10,7 +10,8 @@
  *   sureste   Contexto · tablero  la biblioteca del conocimiento local y un rincón de lectura
  *   centro    Lounge              sillones y mesa; el café, contra el muro norte
  * Afuera, la calle (street.js): dos calles que se cruzan con semáforos, carros, árboles y la entrada.
- * Todavía sin personas: los agentes llegan después.
+ * Adentro caminan los cuatro personajes del kit (people.js): van a un asiento o a un lugar libre, se sientan y
+ * no chocan entre ellos.
  *
  * La información de cada zona aparece al pasar el mouse por encima de su piso, que se ilumina; un clic (sin
  * arrastrar) lleva la cámara ahí. La cámara es de perspectiva con lente larga: aire de maqueta sin la ilusión
@@ -25,6 +26,7 @@ import {
   floorLamp, windowWithCurtains, coffeeBar, partition,
 } from './furniture.js'
 import { buildStreet } from './street.js'
+import { createPeople } from './people.js'
 
 const SIZE = 22
 const HALF = SIZE / 2
@@ -50,9 +52,35 @@ export const ZONES = [
 // Los muebles se arman a una escala chica y se agrandan al ubicarlos: los personajes son anchos (1,3 de torso)
 // y a 1:1 no cabían en un sillón. Alfombras, tabiques y muros no se agrandan: son la arquitectura.
 const FURNITURE = 1.4
+// Lo que se arma en las zonas queda anotado como obstáculo para la gente (people.js): un mueble se infla por el
+// radio de una persona; una silla casi nada, porque a una silla se llega hasta pegado.
+let obstacles = []
 function put(object, x, z, rotation = 0) {
   object.scale.setScalar(FURNITURE)
+  obstacles.push({ object, inflate: object.userData.seats && object.userData.seats.length === 1 && object.userData.seats[0].facing === Math.PI ? 0.15 : undefined })
   return place(object, x, z, rotation)
+}
+// Un tabique: obstáculo, pero no un mueble (no se agranda).
+function wallPart(object, x, z, rotation = 0) {
+  obstacles.push({ object })
+  return place(object, x, z, rotation)
+}
+
+// Los asientos del mundo, a partir de los que declara cada mueble en sus coordenadas.
+function collectSeats() {
+  const seats = []
+  const v = new THREE.Vector3()
+  for (const { object } of obstacles) {
+    if (!object.userData.seats) continue
+    object.updateMatrixWorld(true)
+    for (const seat of object.userData.seats) {
+      v.set(seat.x, seat.height, seat.z); object.localToWorld(v)
+      const at = new THREE.Vector2(v.x, v.z), height = v.y
+      v.set(seat.approach[0], 0, seat.approach[1]); object.localToWorld(v)
+      seats.push({ at, height, approach: new THREE.Vector2(v.x, v.z), facing: object.rotation.y + seat.facing, takenBy: null })
+    }
+  }
+  return seats
 }
 
 function place(object, x, z, rotation = 0, y = 0) {
@@ -187,8 +215,8 @@ function buildRoom(scene) {
 
 function buildZones(scene) {
   // ── Mi oficina: noroeste, con tabiques de vidrio y una puerta hacia el pasillo ──
-  scene.add(place(partition(8, { glassTop: true, glassH: 2.3 }), -3, -7, Math.PI / 2))
-  scene.add(place(partition(6, { glassTop: true, glassH: 2.3 }), -8, -3))
+  scene.add(wallPart(partition(8, { glassTop: true, glassH: 2.3 }), -3, -7, Math.PI / 2))
+  scene.add(wallPart(partition(6, { glassTop: true, glassH: 2.3 }), -8, -3))
   scene.add(place(rug(6.2, 4.4, { base: PALETTE.ink, accent: PALETTE.sand, mid: PALETTE.graphite }), -7, -7.2))
   scene.add(put(desk({ w: 3.4, d: 1.3, screens: 3, screenKind: 'chart', color: PALETTE.wood, legs: PALETTE.woodDark }), -7, -8))
   scene.add(put(chair({ color: PALETTE.cognac, executive: true }), -7, -6.3))
@@ -198,7 +226,7 @@ function buildZones(scene) {
   scene.add(put(bookshelf({ w: 1.6, h: 2 }), -10.4, -7.4, Math.PI / 2))
 
   // ── Tareas · Jira: noreste, frente al kanban ──
-  scene.add(place(partition(8), 3, -7, Math.PI / 2))
+  scene.add(wallPart(partition(8), 3, -7, Math.PI / 2))
   scene.add(place(rug(7.6, 4.2, { base: PALETTE.oat, accent: PALETTE.stone, mid: PALETTE.linen }), 7, -7))
   ;[4.9, 9.1].forEach((x, i) => {
     scene.add(put(desk({ screens: 2, screenKind: i ? 'code' : 'board', accent: PALETTE.sand }), x, -7.2))
@@ -213,8 +241,8 @@ function buildZones(scene) {
   scene.add(put(plant({ size: 0.8 }), 2.4, -10.3))
 
   // ── Arquitecto: suroeste ──
-  scene.add(place(partition(6), -8, 3))
-  scene.add(place(partition(8), -3, 7, Math.PI / 2))
+  scene.add(wallPart(partition(6), -8, 3))
+  scene.add(wallPart(partition(8), -3, 7, Math.PI / 2))
   scene.add(place(rug(6.4, 4.6, { base: PALETTE.sage, accent: PALETTE.linen, mid: PALETTE.oat }), -7, 7))
   scene.add(put(whiteboard({ w: 3, h: 1.6 }), -7, 4.2))
   scene.add(put(desk({ w: 2.8, screens: 2, screenKind: 'code', accent: PALETTE.sage, color: PALETTE.white }), -7, 7.2))
@@ -223,8 +251,8 @@ function buildZones(scene) {
   scene.add(put(floorLamp({ shade: PALETTE.sand }), -4, 10.2))
 
   // ── Contexto · tablero: sureste, la biblioteca ──
-  scene.add(place(partition(6), 8, 3))
-  scene.add(place(partition(8), 3, 7, Math.PI / 2))
+  scene.add(wallPart(partition(6), 8, 3))
+  scene.add(wallPart(partition(8), 3, 7, Math.PI / 2))
   scene.add(place(rug(6.4, 4.6, { base: PALETTE.slate, accent: PALETTE.sand, mid: PALETTE.oat }), 7, 7.3))
   scene.add(put(bookshelf({ w: 2, h: 2.4 }), 5.3, 3.65))
   scene.add(put(bookshelf({ w: 2, h: 2.4 }), 8.3, 3.65))
@@ -347,7 +375,10 @@ export function createOffice(container, { onFocus, onHover } = {}) {
   streetLevel.position.y = -0.45
   scene.add(streetLevel)
   const street = buildStreet(streetLevel)
+  obstacles = []
   buildZones(scene)
+  // La gente camina por la oficina esquivando lo de arriba (y a los demás), y se sienta donde puede.
+  const people = createPeople(scene, { half: HALF, obstacles, seats: collectSeats() })
   const highlights = buildHighlights(scene)
   const labels = buildLabels(scene)
 
@@ -448,6 +479,7 @@ export function createOffice(container, { onFocus, onHover } = {}) {
       mesh.material.opacity += (goal - mesh.material.opacity) * Math.min(1, dt * 10)
     }
     street.update(dt)
+    people.update(dt)
     controls.update()
     updateWalls()
     renderer.render(scene, camera)
@@ -461,6 +493,7 @@ export function createOffice(container, { onFocus, onHover } = {}) {
 
   function dispose() {
     cancelAnimationFrame(frame)
+    people.dispose()
     observer.disconnect()
     controls.dispose()
     renderer.domElement.removeEventListener('pointermove', onPointerMove)

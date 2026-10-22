@@ -175,6 +175,8 @@ export function chair({ color = PALETTE.ink, executive = false } = {}) {
   g.add(box(0.62, 0.12, 0.6, color, { y: 0.48, r: 0.06 }))
   g.add(box(0.62, executive ? 0.95 : 0.6, 0.12, color, { y: 0.58, z: 0.26, r: 0.06 }))
   if (executive) for (const sx of [-1, 1]) g.add(box(0.08, 0.06, 0.42, PALETTE.charcoal, { x: sx * 0.34, y: 0.72, r: 0.02 }))
+  // Dónde se sienta alguien (coordenadas del mueble): mirando hacia -z, el escritorio; se llega por detrás.
+  g.userData.seats = [{ x: 0, z: 0, height: 0.6, facing: Math.PI, approach: [0, 0.95] }]
   return g
 }
 
@@ -205,6 +207,8 @@ export function sofa({ w = 2.6, color = PALETTE.oat, frame = PALETTE.woodDark, p
   for (let i = 0; i < seats; i++) g.add(box(seatW - 0.04, 0.28, 0.85, color, { x: -w / 2 + 0.2 + seatW * (i + 0.5), y: 0.3, z: 0.06, r: 0.1 }))
   g.add(box(w, 0.7, 0.28, color, { y: 0.3, z: -0.4, r: 0.12 }))
   for (const sx of [-1, 1]) g.add(box(0.24, 0.55, 1.0, color, { x: sx * (w / 2 - 0.1), y: 0.3, r: 0.1 }))
+  // Un asiento por almohadón, mirando hacia +z; se llega por delante.
+  g.userData.seats = Array.from({ length: seats }, (_, i) => ({ x: -w / 2 + 0.2 + seatW * (i + 0.5), z: 0.1, height: 0.58, facing: 0, approach: [-w / 2 + 0.2 + seatW * (i + 0.5), 1.15] }))
   pillows.forEach((c, i) => {
     const p = box(0.55, 0.5, 0.16, c, { x: -w / 2 + 0.55 + i * ((w - 1.1) / Math.max(1, pillows.length - 1)), y: 0.55, z: -0.18, r: 0.08 })
     p.rotation.z = (i - 1) * 0.12
@@ -227,6 +231,7 @@ export function armchair({ color = PALETTE.cognac, pillow = PALETTE.linen } = {}
   const p = box(0.5, 0.42, 0.14, pillow, { y: 0.75, z: -0.15, r: 0.08 })
   p.rotation.x = -0.25
   g.add(p)
+  g.userData.seats = [{ x: 0, z: 0.08, height: 0.73, facing: 0, approach: [0, 1.1] }]
   return g
 }
 
