@@ -154,7 +154,6 @@
     .statusbar > .stop { color: var(--destructive-ink, var(--danger)) }
     .statusbar > .run-state:has(#activityTime:empty):not(:has(.run-dot.running)) { display: none }
     .statusbar > .go-item:not(:disabled) { color: var(--foreground) }
-    .statusbar > #caseTitle { margin-left: var(--space-2) }
     /* LOS BURÓS: el disparador del acordeón lleva el margen del panel y el estado de la central a la derecha,
        en su color (responde = normal, sin información = ámbar, falla = rojo). */
     .bureau-lead { margin: 0; padding: 0 var(--gutter) var(--space-1); font-size: var(--text-xs); color: var(--fg-2) }
@@ -319,7 +318,16 @@
     .tab-start[hidden], .tab-busy[hidden] { display: none }
     /* El modo prod: la barra lista prod, el centro muestra fichas y el sidebar derecho se ve apagado. */
     .prod-tree, .prod-ficha[hidden] { display: none }
-    .prod-mode .prod-tree { display: block }
+    .prod-mode .prod-tree { display: flex }
+    /* LA BARRA COMO EL EXPLORER DE VS CODE: el buscador fijo arriba y abajo las vistas (`sideView`), que se reparten el
+       alto. Cada vista scrollea sola, y las CERRADAS van al final, como una fila cada una. */
+    #sideLeft > fieldset.region-body { display: flex; flex-direction: column; overflow: hidden }
+    #sideLeft > fieldset.region-body > * { flex: none }
+    #sideLeft > fieldset.region-body > #results, #sideLeft > fieldset.region-body > #prodList { flex: 1 1 auto; min-height: 0; flex-direction: column; padding-bottom: 0 }
+    #sideLeft > fieldset.region-body > #results { display: flex }
+    #sideLeft .view:not(.open) { order: 1 }
+    #sideLeft .view > .region-body[hidden] { display: none }
+    #sideLeft .view > .region-head { flex: none }
     .prod-mode #results, .prod-mode .admin-tree, .prod-mode #signup, .prod-mode #searchResults { display: none }
     .prod-mode #sideRight > fieldset, .prod-mode #sideRight > nav { display: none }
     .prod-side { display: flex; flex-direction: column; gap: var(--space-2); padding: var(--space-2) var(--gutter); overflow: auto }
@@ -558,9 +566,6 @@
        cuerpo con scroll: el panel lo sigue al final mientras corre. */
     #consoleFilterState { margin-right: var(--space-2) }
     /* LOS COMERCIOS POR PAÍS: el país es un rótulo de grupo con su cantidad, no un filtro escondido en un menú. */
-    .merchant-group { margin-top: var(--space-2) }
-    .merchant-group:first-child { margin-top: 0 }
-    .merchant-group .count { margin-left: var(--space-1) }
     .row-rename { width: 100%; height: 20px }
     .console-body { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column }
     /* ⚠ LA SALIDA SIGUE AL FINAL SIN QUE NADIE LA MUEVA. El cuerpo es una columna INVERTIDA con un solo
@@ -675,12 +680,14 @@
           <!-- PRODUCCIÓN, SÓLO PARA MIRAR: en el modo prod la barra lista el catálogo de prod (por Redash) en vez de tus
                comercios. Elegir uno abre su FICHA en una pestaña: su asesor de prueba, su sucursal falsa y sus entidades. -->
           <div class="tree prod-tree" id="prodList" role="tree" aria-label="Comercios de producción"></div>
-          <div class="tree admin-tree" role="tree" aria-label="Admin">
-            <div class="region-head group merchant-group"><span>Admin</span></div>
+          <section class="view admin-tree" id="adminView" aria-label="Admin">
+            <div class="region-head"><button type="button" class="view-tog" id="adminViewTog" aria-expanded="false"><span class="ui-icon" data-icon="chevron" aria-hidden="true"></span><span>Admin</span></button></div>
+            <div class="region-body tree" id="adminViewBody" role="group" hidden>
             <div class="row" id="adminRow" role="treeitem" tabindex="0" aria-selected="false" title="El admin de legacy-application del ambiente elegido, ya logueado, en una pestaña del editor">
               <span class="ui-icon" data-icon="external" aria-hidden="true"></span><span class="row-name">Admin de legacy-application</span><span class="row-meta" id="adminRowEnv"></span>
             </div>
-          </div>
+            </div>
+          </section>
         </fieldset>
       </aside>
       <div class="rsz rsz-l" id="rszL"></div>
@@ -1259,11 +1266,8 @@
       <span class="statusbar-item run-state"><span class="run-dot" id="runDot"></span><span class="run-time" id="activityTime"></span></span>
       <button type="button" class="statusbar-item stop" id="stopBtn">Detener</button>
       <button type="button" class="statusbar-item go-item" id="go" disabled title="Preparar + Lanzar" aria-label="Preparar + Lanzar"><span class="ui-icon" data-icon="play" aria-hidden="true"></span><span>Corrida</span></button>
-      <strong id="caseTitle">Elegí un comercio</strong>
-      <!-- El CANAL de la pestaña activa, al lado de su comercio. Sólo se MUESTRA: se elige al crear la pestaña y queda
-           con ella. Vivía también en el nombre de la pestaña y en el sidebar derecho; tres lugares para lo mismo era ruido. -->
-      <span class="statusbar-item channel-item" id="btnChannel"><span class="ui-icon" data-icon="channel" aria-hidden="true"></span><span id="valChannel">Asesor</span></span>
-      <span id="caseDetails"></span>
+      <!-- Sin el comercio, el canal ni el resumen del caso (2026-10-21): los dicen la pestaña y el sidebar derecho, y en el
+           pie eran ruido. -->
       <span id="runSummary" role="status">Elegí un comercio primero.</span>
       <!-- El estado de los servicios, siempre a la vista en el pie: es lo que decide si una corrida puede
            cerrar. El detalle, con los comandos para levantar lo que falte, se abre desde acá hacia arriba. -->
@@ -1641,8 +1645,8 @@
       return { block: [], note: [] };
     }
 
-    /** El orden y el rótulo de los canales (la pregunta de la pestaña, su nombre en el tooltip). Van acá y no junto a
-     *  `CHANNEL_LABELS` porque el sidebar se dibuja antes de que el script llegue allá. */
+    /** El orden y el rótulo de los canales (la pregunta de la pestaña, su nombre en el tooltip). Van arriba porque el
+     *  sidebar se dibuja antes de que el script llegue más abajo. */
     const CHANNEL_ORDER = ['asesor', 'autogestion', 'ecommerce', 'auto', 'qr'];
     const CHANNEL_LONG = { asesor: 'Asesor', autogestion: 'Autogestión', ecommerce: 'Tienda online', auto: 'Auto (tienda)', qr: 'QR en caja' };
 
@@ -1677,8 +1681,54 @@
       return d;
     }
 
+    // ── LA BARRA COMO EL EXPLORER DE VS CODE: una VISTA por grupo (cada país, «No están en…», Admin; en prod, los suyos).
+    // Es el `.view` de la base: su encabezado con chevron, su cuerpo con su propio scroll, y las abiertas se reparten el
+    // alto. Las CERRADAS van al final (`order`, en el CSS del panel): quedan como una fila abajo y se abren con un clic.
+    // Abierta o cerrada se recuerda por navegador. (El buscador no filtra la barra: muestra el catálogo para agregar, aparte.)
+    const SIDE_VIEWS_KEY = 'harness.sideViews';
+    const sideViewPrefs = () => { try { return JSON.parse(localStorage.getItem(SIDE_VIEWS_KEY) || '{}') || {}; } catch { return {}; } };
+    function sideView(container, key, title, count, defOpen) {
+      const saved = sideViewPrefs()[key];
+      const open = saved === undefined ? defOpen : !!saved;
+      const sec = document.createElement('section'); sec.className = 'view' + (open ? ' open' : ''); sec.dataset.view = key;
+      const head = document.createElement('div'); head.className = 'region-head';
+      const tog = document.createElement('button'); tog.type = 'button'; tog.className = 'view-tog'; tog.setAttribute('aria-expanded', String(open));
+      tog.innerHTML = '<span class="ui-icon" data-icon="chevron" aria-hidden="true"></span>';
+      const name = document.createElement('span'); name.textContent = title; tog.appendChild(name);
+      head.appendChild(tog);
+      if (count !== undefined) { const c = document.createElement('span'); c.className = 'count'; c.textContent = String(count); head.appendChild(c); }
+      const body = document.createElement('div'); body.className = 'region-body tree'; body.setAttribute('role', 'group'); body.hidden = !open;
+      tog.onclick = () => {
+        const now = !sec.classList.contains('open');
+        sec.classList.toggle('open', now); tog.setAttribute('aria-expanded', String(now)); body.hidden = !now;
+        const all = sideViewPrefs(); all[key] = now;
+        try { localStorage.setItem(SIDE_VIEWS_KEY, JSON.stringify(all)); } catch { /* sin storage: vale esta visita */ }
+      };
+      sec.append(head, body);
+      container.appendChild(sec);
+      return body;
+    }
+
+    /** El Admin es una vista FIJA del marcado: su chevron se engancha una vez, con la misma preferencia que las demás. */
+    function wireAdminView() {
+      const sec = $('adminView'), tog = $('adminViewTog'), body = $('adminViewBody');
+      if (!sec || sec.dataset.wired) return;
+      sec.dataset.wired = '1';
+      const apply = (open) => { sec.classList.toggle('open', open); tog.setAttribute('aria-expanded', String(open)); body.hidden = !open; };
+      apply(!!sideViewPrefs().admin);
+      tog.onclick = () => {
+        const now = !sec.classList.contains('open'); apply(now);
+        const all = sideViewPrefs(); all.admin = now;
+        try { localStorage.setItem(SIDE_VIEWS_KEY, JSON.stringify(all)); } catch { /* sin storage: vale esta visita */ }
+      };
+    }
+
     function renderMerchants() {
+      wireAdminView();
       const g = $('results');
+      // El Admin es una vista FIJA (su fila tiene sus manejadores): se saca antes de limpiar y vuelve al final.
+      const adminView = $('adminView');
+      adminView?.remove();
       g.innerHTML = '';
 
       const entries = spaceEntries();
@@ -1701,12 +1751,12 @@
       const groups = new Map();
       for (const e of entries) { const c = e.missing ? ABSENT : countryOf(e); if (!groups.has(c)) groups.set(c, []); groups.get(c).push(e); }
       const order = [...groups.keys()].sort((a, b) => (a === ABSENT) - (b === ABSENT) || (a === '') - (b === '') || (b === 'Colombia') - (a === 'Colombia') || a.localeCompare(b));
+      let firstBody = null;
       for (const country of order) {
-        const head = document.createElement('div'); head.className = 'region-head group merchant-group';
-        const name = document.createElement('span');
-        name.textContent = country === ABSENT ? `No están en ${target}` : (country || 'Sin país en este ambiente');
-        const n = document.createElement('span'); n.className = 'count'; n.textContent = String(groups.get(country).length);
-        name.appendChild(n); head.appendChild(name); g.appendChild(head);
+        const title = country === ABSENT ? `No están en ${target}` : (country || 'Sin país en este ambiente');
+        // Abierta por defecto sólo la primera (Colombia): los demás países y lo que no está, cerrados abajo.
+        const body = sideView(g, 'pais:' + (country === ABSENT ? 'ausentes' : country), title, groups.get(country).length, !firstBody);
+        firstBody ||= body;
       for (const e of groups.get(country)) {
         const chosenOne = !!sel && (sel.slug === e.slug || (e.hash && sel.slug === e.hash));
         // La elegida es la `.row` elegida de la base (`aria-selected`: fondo y barra de 2), no una tilde.
@@ -1753,8 +1803,8 @@
         const label = e.alias || e.name;
         if (e.fav) acc.appendChild(rowAction('close', `Quitar «${label}» de tu espacio`, () => removeFav(e)));
         rowEl.appendChild(acc);
-        g.appendChild(rowEl);
-        if (chosenOne && !absent) { const sub = chosenSubline(e, ready); if (sub) g.appendChild(sub); }
+        body.appendChild(rowEl);
+        if (chosenOne && !absent) { const sub = chosenSubline(e, ready); if (sub) body.appendChild(sub); }
       }
       }
 
@@ -1763,7 +1813,9 @@
       newC.tabIndex = runRunning ? -1 : 0;
       newC.onclick = () => { if (!runRunning) $('merchantSearch').focus(); };
       newC.onkeydown = (ev) => { if (ev.key === 'Enter' || ev.key === ' ') { ev.preventDefault(); newC.click(); } };
-      g.appendChild(newC);
+      // «Agregar» va al final de la primera vista (la que está abierta); sin comercios, suelto.
+      (firstBody || g).appendChild(newC);
+      if (adminView) g.appendChild(adminView);
       if ($('merchantCount')) $('merchantCount').textContent = String(entries.length);
     }
 
@@ -2701,11 +2753,9 @@
       const t = act('#targets .toggle');
       if (prodMode) $('valEnvironment').textContent = 'prod';
       else if (t) $('valEnvironment').textContent = (t.textContent || '').trim();
-      const c = act('#channelOptions button');
-      if (c) $('valChannel').textContent = (c.textContent || '').trim();
       const p2 = act('#stepOptions button');
       if (p2) $('valStart').textContent = (p2.textContent || '').trim();
-      for (const [button, value, label] of [['btnEnvironment', 'valEnvironment', 'Entorno'], ['btnChannel', 'valChannel', 'Canal'], ['btnStart', 'valStart', 'Arranque']]) {
+      for (const [button, value, label] of [['btnEnvironment', 'valEnvironment', 'Entorno'], ['btnStart', 'valStart', 'Arranque']]) {
         const text = label + ': ' + $(value).textContent;
         $(button).title = text; $(button).setAttribute('aria-label', text);
       }
@@ -4206,7 +4256,6 @@
         $('devices').hidden = !ficha || asking || full;
         if (asking) renderProdChannelChoice(t);
         if (full) renderBusyLanes(t);
-        if (ficha) { $('btnChannel').hidden = !t.canal; if (t.canal) $('valChannel').textContent = CHANNEL_LONG[t.canal] || t.canal; }
         if (ficha) {
           const idle = t.evicted ? `${t.evicted}. ▶ para volver a abrirla` : 'Abriendo la entrada de prod…';
           if (!isOwner(t)) { $('advisorIdle').textContent = idle; $('clientEmpty').textContent = idle; }
@@ -4574,17 +4623,10 @@
     function renderProdList(q = '') {
       const box = $('prodList');
       box.replaceChildren();
-      const group = (txt, n) => {
-        const head = document.createElement('div'); head.className = 'region-head group merchant-group';
-        const t = document.createElement('span'); t.textContent = txt;
-        if (n !== undefined) { const c = document.createElement('span'); c.className = 'count'; c.textContent = String(n); t.appendChild(c); }
-        head.appendChild(t); box.appendChild(head);
-      };
       if (!prodRows) {
-        group('Producción · sólo lectura');
         const p = document.createElement('p'); p.className = 'list-note';
         p.textContent = prodDetail || 'leyendo los comercios de prod (Redash, ~15 s la primera vez)…';
-        box.appendChild(p); return;
+        sideView(box, 'prod:lista', 'Producción', undefined, true).appendChild(p); return;
       }
       const bySlug = new Map(prodRows.map((m) => [m.slug, m]));
       const n = norm(q.trim());
@@ -4606,33 +4648,33 @@
         return r;
       };
       // LA CORRIDA PÚBLICA de prod (`dev/prod-run.ts`): la única que se permite ahí. Era la vista «Prod» del centro.
-      group('Corrida pública');
+      const runBody = sideView(box, 'prod:corrida', 'Corrida pública', undefined, false);
       const run = treeRow('', 0, 'play', 'Corrida pública de prod', '');
       run.title = 'Registro → OTP por SMS → datos personales, con una cédula permitida en la sucursal de prueba sin entidades ni Experian. Para antes del listado.';
       run.tabIndex = 0;
       run.setAttribute('aria-selected', String(currentTab()?.kind === 'prodrun'));
       run.onclick = () => openProdRunTab();
       run.onkeydown = (ev) => { if (ev.key === 'Enter' || ev.key === ' ') { ev.preventDefault(); openProdRunTab(); } };
-      box.appendChild(run);
-      group('En prod · sólo lectura', here.length);
-      for (const { e, p } of here) box.appendChild(rowFor(e.alias || e.name, p));
+      runBody.appendChild(run);
+      const hereBody = sideView(box, 'prod:lista', 'En prod', here.length, true);
+      for (const { e, p } of here) hereBody.appendChild(rowFor(e.alias || e.name, p));
       if (absent.length) {
-        group('No están en prod', absent.length);
-        for (const { e } of absent) box.appendChild(rowFor(e.alias || e.name, null, `«${e.alias || e.name}» no está en prod (se buscó el comercio «${prodSlugOf(e)}»)`));
+        const absentBody = sideView(box, 'prod:ausentes', 'No están en prod', absent.length, false);
+        for (const { e } of absent) absentBody.appendChild(rowFor(e.alias || e.name, null, `«${e.alias || e.name}» no está en prod (se buscó el comercio «${prodSlugOf(e)}»)`));
       }
       // Al buscar: los de prod que coinciden y no están en la barra, para agregarlos.
       if (n) {
         const taken = new Set(here.map((x) => x.p.allied_id));
         const more = prodRows.filter((m) => !taken.has(m.allied_id) && (norm(m.name).includes(n) || norm(m.slug).includes(n))).slice(0, 30);
         if (more.length) {
-          group('Agregar desde prod', more.length);
+          const moreBody = sideView(box, 'prod:agregar', 'Agregar desde prod', more.length, true);
           for (const m of more) {
             const r = treeRow('', 0, 'plus', escTxt(m.name), m.test_branch ? 'prueba' : '');
             r.title = `Agregar «${m.name}» a tu barra (en todos los ambientes). Elegido, se abre su ficha.`;
             r.tabIndex = 0;
             r.onclick = () => addFromProd(m);
             r.onkeydown = (ev) => { if (ev.key === 'Enter' || ev.key === ' ') { ev.preventDefault(); addFromProd(m); } };
-            box.appendChild(r);
+            moreBody.appendChild(r);
           }
         }
       }
@@ -4896,18 +4938,7 @@
       document.querySelectorAll('.bureau').forEach(el => { el.disabled = pep; el.title = pep ? 'PEP no pasa por el buró: score, negativos y consultas no aplican' : ''; });
     }
 
-    const CHANNEL_LABELS = { asesor: 'Asesor', autogestion: 'Autogestión', ecommerce: 'Tienda online', auto: 'Auto (tienda)', qr: 'QR en caja' };
-    let activeCaseSummary = '';
-
     function updateCaseSummary() {
-      $('caseTitle').textContent = sel ? `${sel.name} · ${target}` : 'Elegí un comercio';
-      $('btnChannel').hidden = !sel;
-      // El arranque no va acá: está a la vista en el pie, en su propio botón.
-      const data = [`Monto $${fmt(moneyNum('amount'))}`, `Front ${frontMode === 'local' ? 'local' : 'del ambiente'}`];
-      if (inject) {
-        data.push(`Ingreso $${fmt(moneyNum('income'))}`, doctype === 'PEP' ? 'Sin buró · PEP' : `Score ${$('score').value} · buró inyectado`);
-      } else data.push('Sin inyección');
-      $('caseDetails').textContent = sel ? data.join(' · ') : '';
       $('advancedSummary').textContent = paDelay ? `Preaprobación con ${paDelay / 1000} s de demora` : 'Sin demora de preaprobación';
     }
 
@@ -5003,16 +5034,12 @@
     function renderActivity(status) {
       if (!status.slug) return;
       $('stopBtn').disabled = !!(status.running && status.finishedAt);
-      const context = activeCaseSummary || [status.slug, CHANNEL_LABELS[status.canal], status.target,
-        status.inject === false ? 'Sin inyección' : status.inject === true ? 'Buró inyectado' : ''].filter(Boolean).join(' · ');
       if (status.startedAt) {
         const seconds = Math.max(0, Math.floor(((status.finishedAt || Date.now()) - status.startedAt) / 1000));
         $('activityTime').textContent = `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, '0')}`;
       }
       if (status.running) {
         $('runSummary').textContent = status.finishedAt ? 'Recopilando evidencia de la corrida…' : 'Corrida en curso · seguí las instrucciones del wizard.';
-        $('caseTitle').textContent = context;
-        $('caseDetails').textContent = '';
       }
     }
 
@@ -5317,7 +5344,6 @@
           setGoLabel('Preparar + Lanzar'); updateGo(); return;
         }
       }
-      activeCaseSummary = `${$('caseTitle').textContent} · ${step === 'lenders' ? 'Desde entidades' : 'Desde el inicio'} · ${$('caseDetails').textContent}`;
       setRunningUI(true);
       $('go').disabled = true; setGoLabel('Lanzando…');
       try {
@@ -5327,7 +5353,6 @@
       } catch (err) {
         setRunningUI(false); updateGo();
         $('runSummary').textContent = err.message || 'No se pudo conectar con el panel.';
-        activeCaseSummary = '';
         return;
       }
       $('activityTime').textContent = '';

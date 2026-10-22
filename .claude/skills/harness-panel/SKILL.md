@@ -1115,3 +1115,17 @@ Ya no se pregunta ni se cierra a mano: los carriles son de la MÁQUINA (todos lo
 - Verificado con `HARNESS_LANES=2` en local: Pullman (A) y Mediarte (B) abiertos, Mediarte tocado; Motai mostró «Al iniciar
   se cierra … «Pullman · Asesor»», «Iniciar» lo abrió en A sin preguntar, Pullman quedó con su nota (también después de
   recargar) y Mediarte siguió en B. El celular de prod abrió en `advisor-b` y `advance` siguió negado.
+
+### La barra izquierda como el Explorer de VS Code, y el pie sin el caso (2026-10-21)
+
+- **Una vista por grupo** (`sideView`): cada país, «No están en <ambiente>» y Admin (en prod: «Corrida pública», «En prod»,
+  «No están en prod», «Agregar desde prod»). Es el `.view` de la base: encabezado con chevron (`.view-tog`) y su cuenta,
+  cuerpo con su propio scroll, y las abiertas se reparten el alto. **Las cerradas van al final** (`order: 1`, sólo en el
+  CSS del panel: la base no las mueve). Por defecto abiertas sólo la primera (Colombia) y «En prod»; lo demás, cerrado
+  abajo. Se recuerda en `harness.sideViews`. El Admin es una vista FIJA del marcado (`#adminView`): `renderMerchants` la
+  saca antes de limpiar y la vuelve a poner al final, y su chevron se engancha una vez (`wireAdminView`).
+- **El pie ya no lleva el comercio (`#caseTitle`), el canal (`#btnChannel`) ni el resumen del caso (`#caseDetails`)**:
+  eran ruido, lo dicen la pestaña y el sidebar derecho. Se fueron con ellos `activeCaseSummary` y `CHANNEL_LABELS`.
+- Verificado en el panel de :5195: Colombia abierta arriba y Perú, República Dominicana y Admin como filas al final;
+  abrir Perú le dio la mitad del alto; Admin abierto mostró su fila; todo quedó igual después de recargar; en prod, las
+  tres vistas con sus cuentas.
