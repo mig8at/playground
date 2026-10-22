@@ -41,22 +41,18 @@ jira_title: "Sucursal y asesor de prueba al crear un comercio"
   367 (`ce54b0fed-fake@`) y 282 (`ccf8f6f52-fake@`), con «Reintentar cuenta de Cognito» en la edición del comercio;
   termina cuando los tres tienen `cognito_id` y `make harness-prod-advisor ALLIED=<id>` da exit 0.
   Depende de: un Administrador del admin de prod; Miguel — VPN y sesión de AWS de prod para comprobar.
-- [ ] Decidir si staging también pasa a Merchants Dev; termina cuando hay respuesta y, si es que sí, el cambio hecho con los
-  mismos scripts. Al 2026-10-22 staging sigue en el pool de prod (`auth.merchant.creditop.com`, cliente `il7p9ueb…`) y
-  su carpeta `stg/` sólo tiene `config.env`: falta correr `create-client.sh stg`, `switch.sh stg` y `branding.sh apply`.
-  Depende de: Miguel — la decisión.
-- [ ] Avisar a infra de que los secrets de los wizards de dev y qa se editaron a mano y llevan la etiqueta de Terraform; termina
+- [x] Pasar staging a Merchants Dev (2026-10-22, decisión de Miguel): cliente `wizard-stg`, secret cambiado y marca
+  aplicada con los scripts; el asesor de prueba entra a staging. Los tres wizards compartidos ya no usan el pool de prod.
+- [ ] Avisar a infra de que los secrets de los wizards de dev, qa y staging se editaron a mano y llevan la etiqueta de Terraform; termina
   cuando infra confirma que un apply no los pisa o los deja en su código.
   Depende de: Daniel Sánchez (infra).
 - [x] Comprobar el login con clave contra la pantalla nueva de Merchants Dev: el asesor de prueba entra al wizard de qa
   (2026-10-05) y al de dev (2026-10-22) con la marca de prod.
 - [ ] Dar a QA sus propios asesores de prueba: sus cuentas de siempre (del pool de producción) ya no entran a qa ni a dev; termina
   cuando cada quien que prueba en qa tiene uno creado desde el admin.
-- [ ] Reubicar los asesores que ya entran a staging: su `cognito_id` es del pool de prod y dejarán de entrar al
-  cambiar. Las cuentas de `comercial+bcp@` y `comercial+bcpvehicular@` ya existen en Merchants Dev (`advisors.sh`,
+- [ ] Reubicar los asesores que entraban a staging: su `cognito_id` es del pool de prod y desde el 2026-10-22 no entran. Las cuentas de `comercial+bcp@` y `comercial+bcpvehicular@` ya existen en Merchants Dev (`advisors.sh`,
   2026-10-05, sub en `estado/asesores.txt` de la carpeta `cognito`); falta el UPDATE de su `cognito_id` en la base el
-  día que staging pase. Termina cuando cada uno entra a staging con el pool nuevo.
-  Depende de: la decisión de staging (pendiente de arriba).
+  día que staging pase (sin hacer: escribe en la base compartida). Termina cuando cada uno entra a staging con el pool nuevo.
 - [x] Confirmar a qué pool apuntan dev, qa y staging (2026-10-02): al de PRODUCCIÓN. El id `us-east-1_XnF2zz3Ou` es el
   pool Merchants de la consola de producción. Falta, sólo para cerrar del todo, ver en esa consola que el dominio
   `auth.merchant.creditop.com` y el cliente `il7p9ueb…` son los de ese pool. Cerrado del todo el 2026-10-05 con la consola de prod.
