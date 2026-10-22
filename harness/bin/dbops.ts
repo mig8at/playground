@@ -11,6 +11,7 @@
 //   node bin/dbops.ts list [merchant]
 //   node bin/dbops.ts ecommerce-url <merchant> [phone] [amount]
 //   node bin/dbops.ts test-advisor <hash|comercio>   (SÓLO LECTURA: el asesor de prueba c<hash>-fake@ del comercio → {ok, email, sub, …})
+//   node bin/dbops.ts branch-facts <hash…>           (SÓLO LECTURA: id, comercio y asesor de prueba de cada sucursal, para harness.json)
 //   node bin/dbops.ts otp-bypass-add <tel…>        (suma los teléfonos al bypass del OTP → {ok, puesto})
 //   node bin/dbops.ts otp-bypass-restore '<puesto>' (saca SÓLO lo que puso ese `add`)
 //   node bin/dbops.ts synth-fill <uReqID> [lender] [income] [score]
@@ -252,6 +253,18 @@ try {
                     ? 'el APP_KEY es el de este target: el MAC de una fila real valida'
                     : '⚠ APP_KEY EQUIVOCADO — la inyección de buró va a escribir un blob ilegible y /lenders no va a ofrecer nada, SIN error visible',
             };
+            break;
+        }
+        case 'branch-facts': { // SÓLO LECTURA: lo que el registro (`harness.json`) guarda de cada sucursal, para
+            // `bin/merchants.ts`: su id, su comercio (id, slug, nombre) y el correo del asesor de prueba del comercio (el de
+            // `findTestAdvisor`, la misma regla que usa una corrida). → [{hash, branch_id, status, allied_id, allied_slug, allied_name, advisor}]
+            const hashes = a.filter((h) => /^[0-9a-f]{8}$/i.test(h));
+            const rows = hashes.length ? await query<{ hash: string; branch_id: number; status: number; allied_id: number; allied_slug: string; allied_name: string }>(
+                `SELECT ab.hash, ab.id AS branch_id, ab.status, al.id AS allied_id, COALESCE(al.slug,'') AS allied_slug, COALESCE(al.name,'') AS allied_name
+                   FROM allied_branches ab JOIN allieds al ON al.id = ab.allied_id WHERE ab.hash IN (?)`, [hashes]) : [];
+            const advisors = new Map<number, string>();
+            for (const id of new Set(rows.map((x) => x.allied_id))) advisors.set(id, (await findTestAdvisor(id))?.email ?? '');
+            r = rows.map((x) => ({ ...x, advisor: advisors.get(x.allied_id) || '' }));
             break;
         }
         case 'merchant-tags': { // SÓLO LECTURA: país y canales de VARIAS sucursales, para filtrar la barra del panel.

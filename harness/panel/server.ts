@@ -2187,7 +2187,9 @@ const server = createServer(async (req, res) => {
             .filter(([, v]) => v.panel)
             .map(([slug, v]) => ({
                 slug, name: v.name || slug, country: v.country || '', note: v.note || '', channels: v.channels || null,
-                allied_id: v.allied_id || 0, allied_name: v.allied_name || '', allied_slug: v.allied_slug || '',
+                allied_name: v.allied_name || '',
+                // Lo de cada base (sucursal, ids, slug, asesor de prueba): el panel lo muestra antes de medir el ambiente.
+                bases: v.bases,
                 // La de prod: con ella se encuentra el comercio en el catálogo de prod (ahí el id y el slug pueden ser otros).
                 prod_branch: v.bases.prod?.branch || '',
             })));

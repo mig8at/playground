@@ -181,16 +181,22 @@ la barra del panel, en el orden del archivo, con su país y una nota de lo que e
   "version": 2,
   "otp_bypass_phone": "3131010101",                                 // OTP = 0101
   "merchants": { "sonria": { "name": "Sonría", "panel": true, "country": "Colombia", "note": "…",
-                             "bases": { "local": { "branch": "76db47f5" }, "shared": { … }, "prod": { … } } } }
+                             "bases": { "local": { "branch": "76db47f5", "branch_id": 3, "allied_id": 26, "allied_slug": "sonria",
+                                                   "advisor": "c44ed36af-fake@creditop.com" },
+                                        "shared": { … }, "prod": { … } } } }
 }
 ```
+
+Cada base guarda lo que identifica al comercio AHÍ —los ids y el slug no coinciden entre bases—. Lo que cambia (las
+entidades, la cuenta de Cognito del asesor) no se guarda: lo mide el panel al abrir. Ni claves ni `sub`.
 
 Se agregan y se asocian **por consola**, no desde el panel:
 
     make harness-merchants                                   # los de la barra, con su sucursal en cada base
     make harness-merchants A='add sonria'                    # lo busca en las tres bases (la sucursal del asesor de prueba)
     make harness-merchants A='associate alta prod <hash|comercio>'   # cuando en esa base se llama distinto
-    make harness-merchants A='check dev'                     # ¿existe cada sucursal en su base?
+    make harness-merchants A='check dev'                     # ¿lo guardado sigue siendo cierto en su base?
+    make harness-merchants A='refresh'                       # lo vuelve a leer de cada base (sin cambiar la sucursal)
 
 Si el comercio no está, `bin/advisor` lo resuelve con `dbops list` y lo anota solo (fuera de la barra).
 

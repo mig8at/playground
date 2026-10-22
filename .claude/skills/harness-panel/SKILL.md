@@ -1205,3 +1205,17 @@ no es la de por defecto (`?vista=buros`, `?consola=mocks`, `?inicio=entidades`).
   prueba y la menor por comercio; una asociada a mano se busca aparte con `prodBranches`). Al armarlo, las 9 que ya se
   veían en prod resolvieron con `add` y quedaron igual; Alta Fleet, BCP y CeluRD siguen sin sucursal de prod.
 - Se fue el recuerdo del país por navegador (`harness.merchantCountry`): el país viene del registro.
+- **Cada base guarda lo que identifica al comercio ahí** (`bases.<base>`: `branch`, `branch_id`, `allied_id`,
+  `allied_slug`, `advisor`), porque no coincide entre bases: Alta Fleet es el 527 en local y el 339 en la compartida, Perú
+  es `comercio-pruebas-peru` y `comercio-pruebas-bcp`. Arriba quedan `name`, `country`, `note` y `allied_name`; los
+  `allied_id`/`branch_id`/`allied_slug` de arriba de antes se ignoran al leer. Lo leen `dbops branch-facts` (local y la
+  compartida) y `prodBranches` (prod), con la misma regla del asesor que una corrida (`findTestAdvisor`). `check` separa
+  lo que CAMBIÓ (≠) de lo que falta guardar; `refresh [clave] [--all]` lo vuelve a leer sin tocar la sucursal.
+- ⚠ **Lo que cambia NO se guarda** (entidades, si el asesor tiene Cognito, si está listo para un canal): el panel lo mide
+  al abrir, y guardado diría «listo» sobre un dato viejo. Tampoco claves ni `sub`: `bin/advisor` sigue leyendo el `sub` de
+  la base (`dbops test-advisor`) y, si el asesor guardado no coincide con el de la base, lo avisa y corre con el de la base.
+- El correo del asesor NO tiene por qué ser `c<sucursal-guardada>-fake@`: es el del COMERCIO (Sonría corre en `76db47f5`
+  y su asesor es `c44ed36af-fake@`, la falsa). La barra lo muestra en el tooltip desde el registro, sin medir.
+- La primera pasada (2026-10-21) llenó 70 bases sin cambiar ninguna sucursal. Quedó una entrada vieja fuera de la barra,
+  `peru`, con una sucursal de la compartida (`50e007e4`) que no existe ahí: `refresh` la deja y lo dice.
+

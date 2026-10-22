@@ -1677,7 +1677,9 @@
         const rowEl = treeRow([absent ? 'missing copy-cmd' : '', e.unreachable ? 'unreachable' : ''].filter(Boolean).join(' '), 0, 'merchant',
           // Sin hash a la vista (va en el tooltip): ruido para elegir. El meta sólo dice «midiendo» o, más abajo, ⚠.
           escTxt(e.alias || e.name), e.meta === '…' ? '…' : '');
+        const saved = e.bases?.[target === 'local' ? 'local' : 'shared'];
         rowEl.title = `${e.alias || e.name}${e.hash ? ` · sucursal ${e.hash}` : ''}`
+          + (saved?.advisor ? ` · asesor de prueba ${saved.advisor}` : '')
           + (e.note ? `\n${e.note}` : '')
           + (absent ? `\n\nNo está en ${target}: ${e.meta || 'sin sucursal en el registro'}. Para asociarlo (clic copia el comando):\n${associateCommand(e, target)}` : '')
           + (e.unreachable ? ` · no se pudo comprobar si está en ${target} (¿VPN?)` : '');
@@ -1794,7 +1796,7 @@
     }
 
     async function removeFav(m) {
-      if (!confirm(`¿Quitar «${m.alias || m.name}» de la barra?\n\nSigue en harness/harness.json (con sus sucursales, para correr por consola) y la base no se toca. Para volver a ponerla: make harness-merchants A="add ${m.allied_slug || m.slug}"`)) return;
+      if (!confirm(`¿Quitar «${m.alias || m.name}» de la barra?\n\nSigue en harness/harness.json (con sus sucursales, para correr por consola) y la base no se toca. Para volver a ponerla: make harness-merchants A="add ${m.bases?.local?.allied_slug || m.bases?.shared?.allied_slug || m.slug}"`)) return;
       const r = await favApi({ accion: 'remove', slug: m.slug });
       if (r.ok) { if (sel && sel.slug === m.slug) { sel = null; ensureAssignUI(); } await loadRegistry(); refresh(); loadLenders(); routeChanged(); }
     }

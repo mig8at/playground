@@ -466,8 +466,8 @@ try {
     /* ⚠ SE FUNDE, NO SE REEMPLAZA, y VA A LA BASE DE ESTE TARGET (`setBranch`, `pkg/flows.ts`). Antes un `=` borraba lo
        que un humano hubiera agregado a mano y el hash de qa terminaba como el de local: el front contestaba «Error al
        cargar la información», que no dice nada sobre la causa. Con el formato por base cada base tiene su sucursal. */
-    setBranch(ORDER, TARGET, hash, { allied_id: merchantId, branch_id: branches[0]?.id, name: spec.nombre });
-    step('.flows.json', `slug «${ORDER}» → base ${baseOf(TARGET)} = ${hash} (sucursal ${branches[0]?.id})`);
+    setBranch(ORDER, TARGET, hash, { name: spec.nombre }, { allied_id: merchantId, branch_id: branches[0]?.id });
+    step('harness.json', `slug «${ORDER}» → base ${baseOf(TARGET)} = ${hash} (sucursal ${branches[0]?.id})`);
 
     /* El aviso que evita la vuelta entera: otra entrada con el MISMO nombre y sin sucursal en esta base es un slug que el
        panel no va a poder correr acá. */
@@ -478,7 +478,7 @@ try {
         }
     }
 } catch (e: any) {
-    step('.flows.json', `✗ no pude escribirlo: ${e.message}`);
+    step('harness.json', `✗ no pude escribirlo: ${e.message}`);
 }
 
 const selfService = spec.entidades.some((e) => !e.user_self_management);

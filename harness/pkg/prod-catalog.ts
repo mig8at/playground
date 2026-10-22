@@ -97,12 +97,19 @@ export async function prodMerchant(alliedId: number): Promise<ProdMerchant> {
         selfServiceUrl: hash ? `${PROD_FRONT.replace(/\/$/, '')}/self-service/${hash}/solicitar` : null };
 }
 
-/** Qué hashes de sucursal EXISTEN en prod, con su comercio (para `bin/merchants.ts check` y `associate`). Los hashes se
- *  validan antes de entrar al SQL. */
+/** Qué hashes de sucursal EXISTEN en prod, con lo que el registro guarda de cada una (`bin/merchants.ts`): su id, su
+ *  comercio y el correo del asesor de prueba del comercio. Los hashes se validan antes de entrar al SQL.
+ *  → [{hash, branch_id, status, allied_id, allied_slug, allied_name, advisor}] */
 export async function prodBranches(hashes: string[]): Promise<Row[]> {
     const ok = [...new Set(hashes.filter((h) => /^[0-9a-f]{8}$/i.test(h)).map((h) => h.toLowerCase()))];
     if (!ok.length) return [];
-    return prodSql(`SELECT ab.hash, ab.status, a.id AS allied_id, a.name AS allied_name, COALESCE(a.slug,'') AS allied_slug
-                      FROM allied_branches ab JOIN allieds a ON a.id = ab.allied_id
-                     WHERE ab.hash IN (${ok.map((h) => `'${h}'`).join(',')})`);
+    const rows = await prodSql(`SELECT ab.hash, ab.id AS branch_id, ab.status, a.id AS allied_id, a.name AS allied_name, COALESCE(a.slug,'') AS allied_slug
+                                  FROM allied_branches ab JOIN allieds a ON a.id = ab.allied_id
+                                 WHERE ab.hash IN (${ok.map((h) => `'${h}'`).join(',')})`);
+    const ids = [...new Set(rows.map((r) => Number(r.allied_id)).filter((n) => Number.isInteger(n) && n > 0))];
+    const adv = ids.length ? await prodSql(`SELECT u.allied_id, u.email FROM users u
+                                             WHERE u.allied_id IN (${ids.join(',')}) AND ${TEST_ADVISOR} ORDER BY u.id DESC`) : [];
+    const byAllied = new Map<number, string>();
+    for (const a of adv) if (!byAllied.has(Number(a.allied_id))) byAllied.set(Number(a.allied_id), String(a.email));   // el más reciente
+    return rows.map((r) => ({ ...r, branch_id: Number(r.branch_id), status: Number(r.status), allied_id: Number(r.allied_id), advisor: byAllied.get(Number(r.allied_id)) || '' }));
 }

@@ -496,7 +496,7 @@ harness-restore: ## @har ¿la base de dev/QA sigue teniendo lo que NUESTRAS TARE
 harness-flows: ## @har el registro de comercios (harness/harness.json) en crudo: A=show (default) · A=branch M=<comercio> TARGET=<ambiente> dice contra qué sucursal se corre. Formato: harness/pkg/flows.ts
 	@cd harness && node bin/flows.ts $(or $(A),show) $(if $(filter branch,$(A)),$(M) $(or $(TARGET),local))
 
-harness-merchants: ## @har los comercios del panel (harness/harness.json): el ÚNICO camino para agregarlos. A=list (default) · A='check [ambiente]' · A='add <slug|id|nombre> [--name N] [--note T]' (lo busca en las tres bases y toma la sucursal del asesor de prueba) · A='associate <clave> <ambiente> <hash|comercio>' · A='remove <clave> [--purge]'. Lee las bases; sólo escribe el registro
+harness-merchants: ## @har los comercios del panel (harness/harness.json): el ÚNICO camino para agregarlos. A=list (default) · A='check [ambiente]' (¿lo guardado sigue siendo cierto?) · A='refresh [clave] [--all]' · A='add <slug|id|nombre> [--name N] [--note T]' (lo busca en las tres bases y toma la sucursal del asesor de prueba) · A='associate <clave> <ambiente> <hash|comercio>' · A='remove <clave> [--purge]'. Lee las bases; sólo escribe el registro
 	@cd harness && node bin/merchants.ts $(or $(A),list)
 
 harness-plan: ## @har deja una corrida ARMADA en el panel: aparece arriba de los celulares y se le da play. FILE=plan.json (o - por la entrada estándar) · sin FILE muestra el que espera · CLEAR=1 lo descarta. Formato: harness/pkg/run-plan.ts

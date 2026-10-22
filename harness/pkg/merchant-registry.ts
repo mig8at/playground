@@ -7,7 +7,7 @@
 import { execFile } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { prodCatalog, prodBranches } from './prod-catalog.ts';
-import { baseOf, type Base } from './flows.ts';
+import { baseOf, type Base, type BaseEntry } from './flows.ts';
 
 const ROOT = fileURLToPath(new URL('..', import.meta.url));
 /** El ambiente con el que se lee cada base (dev, qa y staging comparten la suya). */
@@ -62,16 +62,24 @@ export async function suggest(base: Base, q: string, max = 8): Promise<any[]> {
     return rows.filter((r) => String(r.name).toLowerCase().includes(n) || String(r.slug).toLowerCase().includes(n)).slice(0, max);
 }
 
-/** Qué hashes existen en una base → {hash: {allied_id, allied_name}}. `null` si la base no contestó. */
-export async function branchesIn(base: Base, hashes: string[]): Promise<Record<string, { allied_id: number; allied_name: string }> | null> {
-    const hs = hashes.filter((h) => /^[0-9a-f]{8}$/i.test(h));
+/** Lo que el registro guarda de cada sucursal, leído de su base → {hash: hechos}. Sólo trae las que EXISTEN; `null` si
+ *  la base no contestó (no es lo mismo que «no está»). */
+export interface BranchFacts extends BaseEntry { status: number; allied_name: string }
+export async function factsIn(base: Base, hashes: string[]): Promise<Record<string, BranchFacts> | null> {
+    const hs = [...new Set(hashes.filter((h) => /^[0-9a-f]{8}$/i.test(h)).map((h) => h.toLowerCase()))];
     if (!hs.length) return {};
     let rows: any[] | null;
     if (base === 'prod') { try { rows = await prodBranches(hs); } catch { rows = null; } }
-    else { const r = await dbops(['branches', ...hs], BASE_TARGET[base]); rows = Array.isArray(r) ? r : null; }
+    else { const r = await dbops(['branch-facts', ...hs], BASE_TARGET[base]); rows = Array.isArray(r) ? r : null; }
     if (!rows) return null;
-    return Object.fromEntries(rows.map((r) => [String(r.hash), { allied_id: Number(r.allied_id), allied_name: String(r.allied_name || '') }]));
+    return Object.fromEntries(rows.map((r) => [String(r.hash), {
+        branch: String(r.hash), branch_id: Number(r.branch_id), allied_id: Number(r.allied_id), allied_slug: String(r.allied_slug || ''),
+        advisor: String(r.advisor || ''), status: Number(r.status), allied_name: String(r.allied_name || ''),
+    }]));
 }
+/** Lo que se ESCRIBE de una base (sin lo que cambia: el estado de la sucursal, el nombre). */
+export const baseEntryFrom = (f: BranchFacts): BaseEntry =>
+    ({ branch: f.branch, branch_id: f.branch_id, allied_id: f.allied_id, ...(f.allied_slug ? { allied_slug: f.allied_slug } : {}), ...(f.advisor ? { advisor: f.advisor } : {}) });
 
 /** El país del comercio de una sucursal, como lo dice la base (`countries.name`). '' si no se supo. */
 export async function countryOf(base: Base, hash: string): Promise<string> {

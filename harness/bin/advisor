@@ -227,6 +227,12 @@ else
   fi
   export E2E_ADVISOR_ACCOUNT="$EMAIL" E2E_ADVISOR_SUB="$SUB"   # el spec entra con esta cuenta y la usa como corporate_user_id
   echo "  ● asesor      $EMAIL (asesor de prueba del comercio)"
+  # El registro guarda el asesor de cada base (`harness.json`); el `sub` se lee siempre de la base. Si no coinciden, alguien
+  # recreó el asesor o el registro quedó viejo: se avisa y se corre con el de la base, que es el que entra.
+  SAVED_ADVISOR="$(node bin/flows.ts advisor "$MERCHANT" "$TARGET")"
+  if [ -n "$SAVED_ADVISOR" ] && [ "$SAVED_ADVISOR" != "$EMAIL" ]; then
+    echo "  ⚠ el registro dice $SAVED_ADVISOR y la base $EMAIL: make harness-merchants A='check $TARGET' (refresh lo actualiza)"
+  fi
   CUR="$(node bin/dbops.ts whois "$SUB" 2>/dev/null | json_pick '.matches[0].allied_branch_hash')"
   # ⛔ FUERA DE LOCAL NO SE MUEVE AL ASESOR (2026-10-06). La base es la del equipo y la cuenta `c<hash>-fake@` la
   # usan otros: la corrida entra COMO CUALQUIERA que abre originaciones con ella, en la sucursal falsa del comercio
