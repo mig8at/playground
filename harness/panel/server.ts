@@ -1746,7 +1746,9 @@ const server = createServer(async (req, res) => {
     const url = new URL(req.url || '/', `http://localhost:${PORT}`);
     const path = url.pathname;
 
-    if (path === '/' || path === '/index.html') {
+    // LA PÁGINA, también para las rutas de la interfaz (`/local/pullman/asesor`, `/prod/corrida-publica`…): la URL dice la
+    // pestaña y la página la lee. Sólo los caminos que empiezan con un ambiente: una ruta mal escrita de `/api` sigue dando 404.
+    if (path === '/' || path === '/index.html' || /^\/(local|dev|qa|staging|prod)(\/|$)/.test(path)) {
         const f = join(HERE, 'index.html');
         if (!existsSync(f)) return json(res, 500, { error: 'falta panel/index.html' });
         res.writeHead(200, { 'content-type': 'text/html; charset=utf-8', 'cache-control': 'no-store' });

@@ -1129,3 +1129,22 @@ Ya no se pregunta ni se cierra a mano: los carriles son de la MÁQUINA (todos lo
 - Verificado en el panel de :5195: Colombia abierta arriba y Perú, República Dominicana y Admin como filas al final;
   abrir Perú le dio la mitad del alto; Admin abierto mostró su fila; todo quedó igual después de recargar; en prod, las
   tres vistas con sus cuentas.
+
+### La URL es la pestaña: `/<ambiente>/<comercio>/<canal>`, sin `#` (2026-10-21)
+
+`/local/pullman/asesor` · `/qa/sonria` (pestaña que todavía pregunta el canal) · `/local/admin` · `/prod/pullman/asesor` ·
+`/prod/corrida-publica`. El comercio es la clave de la BARRA, la misma en todos los ambientes: en prod se traduce al
+comercio por su `allieds.slug` (`prodSlugOf`), porque el de prod puede llamarse distinto. La vista va de query y sólo si
+no es la de por defecto (`?vista=buros`, `?consola=mocks`, `?inicio=entidades`).
+- **La escribe la pestaña activa** (`routeUrl` desde `currentTab()`, no desde el comercio elegido), y `renderTabs` la
+  sincroniza (`syncRouteNow`). `push` cuando cambia la pestaña, `replace` cuando sólo cambia la vista: atrás vuelve a la
+  pestaña anterior.
+- **Abrir una URL lleva a esa pestaña o la crea**: el ambiente por su botón (o el modo prod), después la pestaña
+  (`activateTab`, o `openTab` si no existía; en prod espera el catálogo de Redash). `tabsBoot` corre ANTES que la primera
+  `applyRoute`, para que la URL gane, y `restoring` arranca en `true`: si no, el `renderTabs` de `tabsBoot` escribía la
+  URL de la pestaña guardada encima de la que se abrió.
+- **Los enlaces viejos** (`#/pullman?canal=asesor&vista=buros`) se traducen al cargar a `/local/pullman/asesor?vista=buros`.
+- **El servidor** devuelve la página para todo camino que empiece con un ambiente; `/api/…` mal escrito sigue en 404.
+- Verificado en un panel de prueba: las cinco formas, el enlace viejo con su vista, atrás entre dos pestañas, y el cambio
+  de ambiente (local → qa) y a prod (con el celular de prod abierto solo en su login). Una vez, cargando
+  `/prod/corrida-publica`, la pestaña del navegador de prueba se cerró sola; repetido, cargó bien y sin errores.

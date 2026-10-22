@@ -234,7 +234,7 @@ el mismo «para quién» que usa `/api/estado`). Al arrancar, `npm run dev` leva
 proceso». Mientras el panel viva, el que levantó él y se cae se reinicia (tres veces por minuto, después
 queda en «se cae al arrancar») y el que tiene el código editado se reinicia solo — el F-87 de abajo deja
 de pasar **para esos**. Uno ajeno con código nuevo no se toca: se marca «código nuevo». Al cerrar el panel
-se cortan sólo los suyos. Se ve y se maneja en la pestaña **Mocks** de la consola (`#…?consola=mocks`),
+se cortan sólo los suyos. Se ve y se maneja en la pestaña **Mocks** de la consola (`?consola=mocks` en la URL del panel),
 por `GET /api/mocks` y `POST /api/mocks/<id>/(start|stop|restart)`, y el aviso de «falta» del pie ofrece
 **Iniciar** en el lugar. `HARNESS_MOCKS=0` arranca el panel sin tocar ninguno. Lo de abajo sigue valiendo
 cuando el panel no está corriendo (los runners por consola).

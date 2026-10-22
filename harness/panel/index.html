@@ -1396,6 +1396,7 @@
     // `hashRoute` de la base. Acá sólo se avisa que cambió algo de lo que la ruta dice; hasta que el módulo
     // lo engancha es un no-op, así que el arranque de este script no escribe nada.
     let routeChanged = () => {};
+    let syncRouteNow = () => {};   // escribe la URL de la pestaña activa (la asigna el ruteo, más abajo)
     // Sesión Cognito por ambiente (dot + gating del launch): checking | warming | valid | invalid | missing |
     // unreachable | unknown. El launch se BLOQUEA sin token listo (valid) — salvo 'unreachable' (front caído:
     // no se puede ni verificar ni warmear; la corrida levanta el front y loguea en el flujo). F-66.
@@ -4234,6 +4235,7 @@
       $('adminRow').setAttribute('aria-selected', String(currentTab()?.kind === 'admin'));
       $('adminRowEnv').textContent = tabsTarget === 'qa' ? 'dev' : tabsTarget;
       $('results').toggleAttribute('data-admin-on', currentTab()?.kind === 'admin');
+      syncRouteNow();   // la URL es la de la pestaña activa (sólo escribe si cambió)
     }
 
     /** El centro según la pestaña: la pregunta del canal, el aviso de «los celulares son de otra», o los celulares. */
@@ -4633,7 +4635,7 @@
       const match = (txt) => !n || norm(txt).includes(n);
       const mine = spaceEntries().map((e) => ({ e, p: bySlug.get(prodSlugOf(e)) || null })).filter(({ e }) => match(e.alias || e.name));
       const here = mine.filter((x) => x.p), absent = mine.filter((x) => !x.p);
-      const rowFor = (label, p, absentWhy) => {
+      const rowFor = (label, p, absentWhy, entrySlug) => {
         const r = treeRow(absentWhy ? 'missing' : '', 0, 'merchant', escTxt(label), absentWhy ? '' : (p.test_branch ? 'prueba' : ''));
         if (absentWhy) {
           r.title = absentWhy; r.setAttribute('aria-disabled', 'true'); r.tabIndex = -1;
@@ -4643,7 +4645,7 @@
           + (p.test_branch ? ` · asesor de prueba en ${p.test_branch}${p.has_sub ? '' : ' (sin cognito_id)'}` : ' · sin asesor de prueba');
         r.tabIndex = 0;
         r.setAttribute('aria-selected', String(currentTab()?.kind === 'prod' && currentTab()?.allied === p.allied_id));
-        r.onclick = () => openProdTab({ ...p, name: label });
+        r.onclick = () => openProdTab({ ...p, name: label, entrySlug });
         r.onkeydown = (ev) => { if (ev.key === 'Enter' || ev.key === ' ') { ev.preventDefault(); r.click(); } };
         return r;
       };
@@ -4657,7 +4659,7 @@
       run.onkeydown = (ev) => { if (ev.key === 'Enter' || ev.key === ' ') { ev.preventDefault(); openProdRunTab(); } };
       runBody.appendChild(run);
       const hereBody = sideView(box, 'prod:lista', 'En prod', here.length, true);
-      for (const { e, p } of here) hereBody.appendChild(rowFor(e.alias || e.name, p));
+      for (const { e, p } of here) hereBody.appendChild(rowFor(e.alias || e.name, p, undefined, e.slug));
       if (absent.length) {
         const absentBody = sideView(box, 'prod:ausentes', 'No están en prod', absent.length, false);
         for (const { e } of absent) absentBody.appendChild(rowFor(e.alias || e.name, null, `«${e.alias || e.name}» no está en prod (se buscó el comercio «${prodSlugOf(e)}»)`));
@@ -4700,10 +4702,14 @@
     /** La ficha de un comercio de prod en su pestaña: en vista previa, como los comercios de la barra. */
     function openProdTab(m) {
       let t = runTabs.find((x) => x.kind === 'prod' && x.allied === m.allied_id);
+      if (t && !t.slug) t.slug = m.entrySlug || m.slug;
       if (!t) {
         const preview = runTabs.find((x) => x.kind === 'prod' && x.preview);
-        if (preview) { Object.assign(preview, { allied: m.allied_id, name: m.name }); t = preview; }
-        else { t = { id: newTabId(), kind: 'prod', allied: m.allied_id, name: m.name, preview: true }; runTabs.push(t); }
+        // `slug` es el que va en la URL (`/prod/<slug>/<canal>`): la clave de la BARRA, la misma de local y la compartida
+        // (`/local/pullman` ↔ `/prod/pullman`); el de `allieds` sólo para uno que no está en la barra («Agregar desde prod»).
+        const slug = m.entrySlug || m.slug;
+        if (preview) { Object.assign(preview, { allied: m.allied_id, name: m.name, slug, canal: undefined }); t = preview; }
+        else { t = { id: newTabId(), kind: 'prod', allied: m.allied_id, name: m.name, slug, preview: true }; runTabs.push(t); }
       }
       activateTab(t.id);
     }
@@ -6957,66 +6963,112 @@ export function bindMenu(trigger, { getItems, onSelect, label = 'Más opciones' 
       const ROUTE_TO_VIEW = { cliente: 'client', comercio: 'merchant', buros: 'bureaus' };
       const START_TO_ROUTE = { monto: 'monto', lenders: 'entidades' };
       const ROUTE_TO_START = { monto: 'monto', entidades: 'lenders', lenders: 'lenders' };
-      const ROUTE_DEFAULTS = { canal: 'asesor', inicio: 'monto', vista: 'cliente', consola: 'corrida' };
+      const ROUTE_DEFAULTS = { inicio: 'monto', vista: 'cliente', consola: 'corrida' };
       const byId = (id) => document.getElementById(id);
       const clickButton = (selector) => document.querySelector(selector)?.click();
-      // Abrir el panel SIN ruta vuelve al último comercio, canal, arranque, vista y consola: los que dice la URL y
-      // se perdían al abrir `localhost:5195` a secas. El AMBIENTE no viaja en la ruta, así que sigue en local.
+      // ── LA URL ES LA PESTAÑA: `/<ambiente>/<comercio>/<canal>` (2026-10-21) ──────────────────────────────────────
+      // El orden es el de la interfaz: el ambiente (el juego de pestañas) › el comercio › el canal. Más `/<ambiente>/admin`
+      // y `/prod/corrida-publica`; en prod el comercio va por su `allieds.slug`. Lo que es VISTA y no corrida va de query y
+      // sólo si no es el valor por defecto: el arranque (`inicio`), la pestaña del sidebar derecho (`vista`) y la consola.
+      // Sin `#`: el servidor devuelve la página para todo camino que empiece con un ambiente. Abrir una URL lleva a esa
+      // pestaña, o la crea. Los enlaces viejos (`#/pullman?canal=asesor`) se traducen al cargar.
+      const ENVS = ['local', 'dev', 'qa', 'staging', 'prod'];
       const LAST_ROUTE_KEY = 'harness.lastRoute';
+      const enc = (x) => encodeURIComponent(String(x));
+      const legacyToPath = (hash) => {
+        const { parts, params } = readHashRoute(hash);
+        const canal = params.get('canal'); params.delete('canal');
+        const qs = params.toString();
+        return `/${target}${parts[0] ? '/' + enc(parts[0]) : ''}${parts[0] && canal ? '/' + enc(canal) : ''}${qs ? '?' + qs : ''}`;
+      };
       {
+        if (location.hash.startsWith('#/')) history.replaceState(null, '', legacyToPath(location.hash));
+        // Abrir el panel SIN ruta (`localhost:5195` a secas) vuelve a la última pestaña que se miró.
         const last = readPref(LAST_ROUTE_KEY, null);
-        if ((!location.hash || location.hash === '#' || location.hash === '#/') && typeof last === 'string' && last.startsWith('#/')) {
-          history.replaceState(null, '', location.pathname + location.search + last);
+        if (location.pathname === '/' && typeof last === 'string') {
+          history.replaceState(null, '', last.startsWith('#/') ? legacyToPath(last) : last.startsWith('/') ? last : location.pathname);
         }
       }
 
       const currentView = () => byId('tabMerchant').classList.contains('on') ? 'merchant' : byId('tabBureaus').classList.contains('on') ? 'bureaus' : 'client';
       const currentConsole = () => consoleTab();
       const findEntry = (slug) => spaceEntries().find((e) => e.slug === slug || (e.hash && e.hash === slug));
-      const isChosen = (e) => !!sel && (sel.slug === e.slug || (!!e.hash && sel.slug === e.hash));
+      const readPath = () => location.pathname.split('/').filter(Boolean).map((x) => { try { return decodeURIComponent(x); } catch { return ''; } });
 
+      /** La URL de lo que se está mirando: la pestaña activa (o, sin pestaña, el comercio elegido). */
       function routeUrl() {
-        return location.pathname + location.search + hashRoute([sel && sel.slug], {
-          canal: channel, inicio: START_TO_ROUTE[step], vista: VIEW_TO_ROUTE[currentView()], consola: currentConsole(),
-        }, ROUTE_DEFAULTS);
+        const t = currentTab();
+        const parts = [prodMode ? 'prod' : target];
+        if (t?.kind === 'admin') parts.push('admin');
+        else if (t?.kind === 'prodrun') parts.push('corrida-publica');
+        else if (t?.kind === 'prod') {
+          const pr = (prodRows || []).find((r) => r.allied_id === t.allied);
+          const e = pr && spaceEntries().find((x) => prodSlugOf(x) === pr.slug);
+          parts.push(t.slug || e?.slug || pr?.slug || t.allied, t.canal);
+        }
+        else if (t) parts.push(t.slug, t.canal);
+        else if (sel) parts.push(sel.slug, channel);
+        const query = hashRoute([], { inicio: START_TO_ROUTE[step], vista: VIEW_TO_ROUTE[currentView()], consola: currentConsole() }, ROUTE_DEFAULTS).replace(/^#\//, '');
+        return '/' + parts.filter((x) => x !== undefined && x !== null && x !== '').map(enc).join('/') + query;
       }
 
-      // Mientras se restaura una ruta no se escribe nada: los pasos intermedios (el comercio ya cambió, el
-      // canal todavía no) no son estados que alguien eligió. `lastHash` evita reaplicar la ruta propia.
-      let restoring = false, lastHash = null, routeSeq = 0;
+      // Mientras se restaura una ruta no se escribe nada: los pasos intermedios (el ambiente ya cambió, la pestaña
+      // todavía no) no son estados que alguien eligió. `lastRoute` evita reaplicar la ruta propia.
+      // ⚠ ARRANCA en `true`: `tabsBoot` corre antes que la primera `applyRoute` y su `renderTabs` escribía la URL de la
+      // pestaña guardada encima de la que se abrió (un enlace a `/local/admin` terminaba en la de Pullman).
+      let restoring = true, lastRoute = null, routeSeq = 0;
       function syncRoute({ replace = false } = {}) {
         if (restoring) return;
-        const shown = readHashRoute().parts[0];
-        // push sólo cuando cambia QUÉ se mira: el comercio. Una URL sin comercio (la primera carga) se completa.
-        const push = !replace && !!shown && shown !== (sel && sel.slug);
-        setRoute(routeUrl(), { push });
-        lastHash = location.hash;
-        // La última ruta, para volver a ella al abrir el panel sin ruta (`localhost:5195` a secas).
-        if (sel) savePref(LAST_ROUTE_KEY, location.hash);
+        const url = routeUrl();
+        // push sólo cuando cambia QUÉ se mira (la pestaña: ambiente, comercio, canal); la vista o la consola reemplazan.
+        const push = !replace && location.pathname !== '/' && url.split('?')[0] !== location.pathname;
+        setRoute(url, { push });
+        lastRoute = location.pathname + location.search;
+        savePref(LAST_ROUTE_KEY, lastRoute);
       }
+      syncRouteNow = () => syncRoute();
 
       async function applyRoute() {
         const seq = ++routeSeq;
-        lastHash = location.hash;
-        const { parts, params } = readHashRoute();
+        lastRoute = location.pathname + location.search;
+        const [env, slug, canal] = readPath();
+        const params = new URLSearchParams(location.search);
         restoring = true;
         try {
-          let entry = parts[0] ? findEntry(parts[0]) : null;
-          // Los agregados por vos llegan por `/api/favs`: puede que todavía no estén.
-          if (parts[0] && !entry) { await loadFavs(); if (seq !== routeSeq) return; entry = findEntry(parts[0]); }
-          // Sin comercio en la ruta (o uno que ya no está) el panel abre SIN comercio: se elige en la barra
-          // izquierda, con su ▶. Antes caía en Motai, y lo que arrancaba solo era un comercio que nadie eligió.
-          if (entry && !isChosen(entry)) chooseEntry(entry);
-
-          // Un `canal` explícito GANA sobre la sugerencia del servidor: el click del botón real marca el
-          // canal como elegido (`channelTouched`). Antes se piden los canales de ESTE comercio, porque con
-          // los del anterior el botón puede estar apagado. Sin `canal`, la sugerencia manda como siempre.
-          const wantedChannel = params.get('canal');
-          if (CHANNELS.includes(wantedChannel)) {
-            await loadChannels();
-            if (seq !== routeSeq) return;
-            clickButton(`#channelOptions button[data-c="${wantedChannel}"]`);
+          // EL AMBIENTE, por su botón real (o el modo prod): cambia el juego de pestañas (`switchTabSet`).
+          if (env === 'prod') { if (!prodMode) await enterProdMode(); }
+          else if (ENVS.includes(env) && (prodMode || target !== env)) {
+            clickButton(`#targets .toggle[data-t="${env}"]`);
+            await new Promise((r) => setTimeout(r, 60));
           }
+          if (seq !== routeSeq) return;
+          if (slug === 'admin') openAdminTab();
+          else if (slug === 'corrida-publica' && prodMode) openProdRunTab();
+          else if (slug && prodMode) {
+            // El catálogo de prod llega por Redash (~15 s la primera vez): se lo espera.
+            for (let i = 0; !prodRows && i < 60 && seq === routeSeq; i++) await new Promise((r) => setTimeout(r, 500));
+            // La clave de la barra (`pullman`) se traduce al comercio de prod por su `allieds.slug`; si no está en la barra,
+            // la URL trae el de prod directo (o el id).
+            const e = findEntry(slug);
+            const prodSlug = e ? prodSlugOf(e) : slug;
+            const m = (prodRows || []).find((x) => x.slug === prodSlug || String(x.allied_id) === slug);
+            if (m) {
+              openProdTab({ ...m, name: e ? (e.alias || e.name) : m.name, entrySlug: e?.slug });
+              const t = currentTab();
+              if (t?.kind === 'prod' && CHANNELS.includes(canal) && t.canal !== canal) { t.canal = canal; t.preview = false; renderTabs(); renderStage(); saveTabs(); openProdPhone(); }
+            }
+          } else if (slug) {
+            let entry = findEntry(slug);
+            // Los agregados por vos llegan por `/api/favs`: puede que todavía no estén.
+            if (!entry) { await loadFavs(); if (seq !== routeSeq) return; entry = findEntry(slug); }
+            // Sin ese comercio el panel no inventa uno: queda en la pestaña que había.
+            if (entry) {
+              const c = CHANNELS.includes(canal) ? canal : null;
+              const own = runTabs.find((x) => !x.kind && x.slug === entry.slug && (c ? x.canal === c : !x.canal));
+              if (own) await activateTab(own.id); else await openTab(entry, c);
+            }
+          }
+          if (seq !== routeSeq) return;
           // Un botón apagado no cambia nada al clickearlo: un arranque que el canal no admite se queda en Inicio.
           const wantedStart = ROUTE_TO_START[params.get('inicio')] || 'monto';
           if (step !== wantedStart) clickButton(`#stepOptions button[data-v="${wantedStart}"]`);
@@ -7033,9 +7085,8 @@ export function bindMenu(trigger, { getItems, onSelect, label = 'Más opciones' 
         }
       }
 
-      const onNavigate = () => { if (location.hash !== lastHash) applyRoute(); };
+      const onNavigate = () => { if (location.pathname + location.search !== lastRoute) applyRoute(); };
       addEventListener('popstate', onNavigate);
-      addEventListener('hashchange', onNavigate);
 
       // ── Preferencias: las perillas del caso ────────────────────────────────────────────────────────
       // Los campos se restauran asignando el valor y disparando `input`/`change`, que es lo que hace la
@@ -7099,8 +7150,10 @@ export function bindMenu(trigger, { getItems, onSelect, label = 'Más opciones' 
       byId('quota').addEventListener('change', () => savePref(QUOTA_KEY, byId('quota').checked));
 
       routeChanged = () => { syncRoute(); tabsFollow(); };
+      // PRIMERO las pestañas que había y DESPUÉS la URL: la URL dice qué pestaña mirar, así que gana (un enlace lleva justo
+      // ahí). Al revés, `tabsBoot` reactivaba la pestaña guardada (p. ej. Admin) por encima de lo que pedía el enlace.
+      tabsBoot();
       applyRoute().then(() => {
-        tabsBoot();
         if (readPref(QUOTA_KEY, false) === true && !byId('quota').checked) byId('quota').click();
       });
     }
