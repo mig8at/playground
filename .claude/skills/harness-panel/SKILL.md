@@ -1120,9 +1120,9 @@ Ya no se pregunta ni se cierra a mano: los carriles son de la MÁQUINA (todos lo
 
 - **Una vista por grupo** (`sideView`): cada país, «No están en <ambiente>» y Admin (en prod: «Corrida pública», «En prod»,
   «No están en prod», «Agregar desde prod»). Es el `.view` de la base: encabezado con chevron (`.view-tog`) y su cuenta,
-  cuerpo con su propio scroll, y las abiertas se reparten el alto. **Las cerradas van al final** (`order: 1`, sólo en el
-  CSS del panel: la base no las mueve). Por defecto abiertas sólo la primera (Colombia) y «En prod»; lo demás, cerrado
-  abajo. Se recuerda en `harness.sideViews`. El Admin es una vista FIJA del marcado (`#adminView`): `renderMerchants` la
+  cuerpo con su propio scroll, y las abiertas se reparten el alto. **Ninguna cambia de lugar al plegarse**, como en VS Code:
+  la cerrada queda como su fila donde estaba y las abiertas ocupan el resto (hasta el 2026-10-21 las cerradas se iban al
+  final con `order: 1`; Miguel lo pidió fijo). Por defecto abierta sólo la primera (Colombia); lo demás, cerrado. Se recuerda en `harness.sideViews`. El Admin es una vista FIJA del marcado (`#adminView`): `renderMerchants` la
   saca antes de limpiar y la vuelve a poner al final, y su chevron se engancha una vez (`wireAdminView`).
 - **El pie ya no lleva el comercio (`#caseTitle`), el canal (`#btnChannel`) ni el resumen del caso (`#caseDetails`)**:
   eran ruido, lo dicen la pestaña y el sidebar derecho. Se fueron con ellos `activeCaseSummary` y `CHANNEL_LABELS`.

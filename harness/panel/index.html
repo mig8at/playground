@@ -320,12 +320,11 @@
     .prod-tree, .prod-ficha[hidden] { display: none }
     .prod-mode .prod-tree { display: flex }
     /* LA BARRA COMO EL EXPLORER DE VS CODE: el buscador fijo arriba y abajo las vistas (`sideView`), que se reparten el
-       alto. Cada vista scrollea sola, y las CERRADAS van al final, como una fila cada una. */
+       alto. Cada vista scrollea sola y NO cambia de lugar: una cerrada queda como su fila, donde estaba. */
     #sideLeft > fieldset.region-body { display: flex; flex-direction: column; overflow: hidden }
     #sideLeft > fieldset.region-body > * { flex: none }
     #sideLeft > fieldset.region-body > #results, #sideLeft > fieldset.region-body > #prodList { flex: 1 1 auto; min-height: 0; flex-direction: column; padding-bottom: 0 }
     body:not(.prod-mode) #sideLeft > fieldset.region-body > #results { display: flex }   /* en prod se ve `#prodList` */
-    #sideLeft .view:not(.open) { order: 1 }
     #sideLeft .view > .region-body[hidden] { display: none }
     #sideLeft .view > .region-head { flex: none }
     .prod-mode #results, .prod-mode .admin-tree, .prod-mode #signup, .prod-mode #searchResults { display: none }
@@ -1677,7 +1676,7 @@
 
     // ── LA BARRA COMO EL EXPLORER DE VS CODE: una VISTA por grupo (cada país, «No están en…», Admin; en prod, los suyos).
     // Es el `.view` de la base: su encabezado con chevron, su cuerpo con su propio scroll, y las abiertas se reparten el
-    // alto. Las CERRADAS van al final (`order`, en el CSS del panel): quedan como una fila abajo y se abren con un clic.
+    // alto. Ninguna cambia de lugar al plegarse: la cerrada queda como su fila donde estaba, y las abiertas ocupan el resto.
     // Abierta o cerrada se recuerda por navegador. (El buscador no filtra la barra: muestra el catálogo para agregar, aparte.)
     const SIDE_VIEWS_KEY = 'harness.sideViews';
     const sideViewPrefs = () => { try { return JSON.parse(localStorage.getItem(SIDE_VIEWS_KEY) || '{}') || {}; } catch { return {}; } };
