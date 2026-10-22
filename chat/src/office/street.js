@@ -99,8 +99,8 @@ function buildEntrance(scene) {
   const plate = new THREE.Mesh(new THREE.PlaneGeometry(3.4, 0.45), new THREE.MeshStandardMaterial({ map: sign, roughness: 0.6 }))
   plate.position.set(0, -0.13, 0.78)
   awning.add(plate)
-  for (const sx of [-1, 1]) awning.add(cylinder(0.05, 0.05, 3.6, PALETTE.ink, { x: sx * 1.7, y: -3.6, z: 0.65 }))
-  awning.position.set(0, 3.65, HALF_OFFICE + 1.4)
+  for (const sx of [-1, 1]) awning.add(cylinder(0.05, 0.05, 4.15, PALETTE.ink, { x: sx * 1.7, y: -4.15, z: 0.65 }))
+  awning.position.set(0, 4.15, HALF_OFFICE + 1.4)
   scene.add(awning)
   for (const sx of [-1, 1]) {
     scene.add(cylinder(0.35, 0.28, 0.6, PALETTE.white, { x: sx * 2.4, y: 0, z: 12.9 }))
@@ -133,7 +133,7 @@ function buildTrees(scene) {
   for (let x = -15.5; x <= 12; x += 4) spots.push([x, 24.4])             // enfrente, al sur
   spots.push([24.2, 24.2], [25.6, 22.6], [22.6, 25.6])                   // la esquina de enfrente
   spots.forEach(([x, z], i) => {
-    const t = tree(0.85 + ((i * 7) % 5) * 0.08, i)
+    const t = tree((0.85 + ((i * 7) % 5) * 0.08) * 1.45, i)
     t.position.set(x, 0, z)
     t.rotation.y = i * 0.9
     scene.add(t)
@@ -145,7 +145,7 @@ function buildTrees(scene) {
 const LIGHT_COLORS = { red: '#ff4d4d', yellow: '#ffc93c', green: '#2fe08a' }
 function trafficLight(scene, x, z) {
   const g = new THREE.Group()
-  g.add(cylinder(0.08, 0.1, 3.2, PALETTE.ink))
+  g.add(cylinder(0.09, 0.11, 4.4, PALETTE.ink))
   const heads = []
   // axis 'x': mira a los carros que van por la calle del sur (a lo largo de x); 'z': los de la calle del este.
   for (const [axis, rotation] of [['x', Math.PI / 2], ['z', 0]]) {
@@ -159,7 +159,7 @@ function trafficLight(scene, x, z) {
       head.add(lamp)
       lamps[name] = material
     })
-    head.position.set(0, 2.4, 0)
+    head.position.set(0, 3.5, 0)
     head.rotation.y = rotation
     g.add(head)
     heads.push({ axis, lamps })
@@ -209,7 +209,9 @@ const LANES = [
   { axis: 'z', dir: -1, at: ROAD_A + 4.5 },
 ]
 const SPEED = 4.2
-const CAR_HALF = 1.15
+// Los carros, a la escala de los personajes (~2,7 de alto): 1,5 veces el modelo.
+const CAR_SCALE = 1.5
+const CAR_HALF = 1.15 * CAR_SCALE
 const GAP = 1.4
 
 export function buildStreet(scene) {
@@ -225,6 +227,7 @@ export function buildStreet(scene) {
   LANES.forEach((lane, l) => {
     for (let i = 0; i < 3; i++) {
       const mesh = car(CAR_COLORS[(l * 3 + i) % CAR_COLORS.length])
+      mesh.scale.setScalar(CAR_SCALE)
       const s = MIN + 2 + ((i * 15 + l * 6) % (MAX - MIN - 4))
       mesh.rotation.y = lane.axis === 'x' ? (lane.dir > 0 ? 0 : Math.PI) : (lane.dir > 0 ? -Math.PI / 2 : Math.PI / 2)
       scene.add(mesh)

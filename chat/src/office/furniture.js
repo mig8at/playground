@@ -404,15 +404,15 @@ export function coffeeBar() {
 }
 
 // Un tabique bajo: separa zonas sin tapar la vista desde arriba.
-export function partition(length, { h = 1.2, color = PALETTE.wallHigh, glassTop = false } = {}) {
+export function partition(length, { h = 1.2, color = PALETTE.wallHigh, glassTop = false, glassH = 1.6 } = {}) {
   const g = new THREE.Group()
   g.add(box(length, h, 0.18, color, { r: 0.05 }))
   g.add(box(length + 0.04, 0.08, 0.22, PALETTE.ink, { y: h - 0.02, r: 0.03 }))
   if (glassTop) {
-    const glass = new THREE.Mesh(new THREE.BoxGeometry(length, 1.6, 0.05), mat(PALETTE.glass, { rough: 0.1, opacity: 0.28 }))
-    glass.position.y = h + 0.8
+    const glass = new THREE.Mesh(new THREE.BoxGeometry(length, glassH, 0.05), mat(PALETTE.glass, { rough: 0.1, opacity: 0.28 }))
+    glass.position.y = h + glassH / 2
     g.add(glass)
-    g.add(box(length, 0.06, 0.1, PALETTE.ink, { y: h + 1.6, r: 0.02 }))
+    g.add(box(length, 0.06, 0.1, PALETTE.ink, { y: h + glassH, r: 0.02 }))
   }
   return g
 }
