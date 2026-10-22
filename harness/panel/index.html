@@ -4325,6 +4325,9 @@
     // SÓLO ESTAS CUATRO (Miguel, 2026-10-21): las que se usan para preparar y revisar una prueba. Van por RUTA y en este
     // orden; el nombre sale del menú leído del admin si está (es el de ese ambiente), si no, el de acá. Así están también
     // antes de abrir el admin por primera vez.
+    /** El admin de producción (comprobado el 2026-10-21: `/login` responde 200). Sólo se ABRE en el navegador de quien usa
+     *  el panel; no está en `pkg/admin-access.ts` porque el panel no entra ahí. */
+    const PROD_ADMIN = 'https://admin.creditop.com';
     const ADMIN_SECTIONS = [
       { path: '/usuarios', title: 'Usuarios' },
       { path: '/solicitudes', title: 'Solicitudes' },
@@ -4609,14 +4612,22 @@
         for (const { e, p } of byCountry.get(c)) body.appendChild(p ? rowFor(e.alias || e.name, p, undefined, e.slug)
           : rowFor(e.alias || e.name, null, `«${e.alias || e.name}» no está en prod: ${e.prod_branch ? `su sucursal de prod (${e.prod_branch}) no aparece` : 'sin sucursal de prod en el registro'}. Para asociarlo (clic copia el comando):\n${associateCommand(e, 'prod')}`, e.slug, e));
       }
-      // EL ADMIN, como en los otros ambientes. En prod su admin no se abre desde el panel (a propósito: un clic al admin de
-      // producción al lado de correr un caso es un accidente esperando), así que va apagado con su motivo. (La corrida
-      // pública de prod se sacó de acá el 2026-10-21, a pedido de Miguel: sigue por consola, `dev/prod-run.ts`.)
+      // EL ADMIN, como en los otros ambientes, pero EN TU NAVEGADOR: la fila y las mismas cuatro secciones abren
+      // `admin.creditop.com` en una pestaña nueva, con tu sesión. El panel no entra a prod ni guarda nada (el conector del
+      // admin no acepta una sesión de prod, a propósito). (La corrida pública de prod se sacó de acá el 2026-10-21, a pedido
+      // de Miguel: sigue por consola, `dev/prod-run.ts`.)
       const adminBody = sideView(box, 'admin', 'Admin', undefined, false);
-      const adm = treeRow('missing', 0, 'external', 'Admin de legacy-application', 'prod');
-      adm.title = 'En prod no: el admin de producción no se abre desde el panel. Se entra por el navegador de siempre.';
-      adm.setAttribute('aria-disabled', 'true'); adm.tabIndex = -1;
-      adminBody.appendChild(adm);
+      const outLink = (label, path, level, meta) => {
+        const r = treeRow('', level, 'external', escTxt(label), meta || '');
+        const url = PROD_ADMIN + path;
+        r.title = `Abre ${url} en una pestaña nueva de tu navegador, con tu sesión: el panel no entra a prod. ⚠ Es el admin de producción.`;
+        r.tabIndex = 0;
+        r.onclick = () => window.open(url, '_blank', 'noopener,noreferrer');
+        r.onkeydown = (ev) => { if (ev.key === 'Enter' || ev.key === ' ') { ev.preventDefault(); r.click(); } };
+        return r;
+      };
+      adminBody.appendChild(outLink('Admin de legacy-application', '/', 0, 'prod ↗'));
+      for (const sec of ADMIN_SECTIONS) adminBody.appendChild(outLink(sec.title, sec.path, 1));
     }
     /** La pestaña de la corrida pública de prod (una por juego): muestra la tarjeta de siempre (`#prodView`). */
     function openProdRunTab() {

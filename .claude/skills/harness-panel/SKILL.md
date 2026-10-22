@@ -1286,4 +1286,10 @@ no es la de por defecto (`?vista=buros`, `?consola=mocks`, `?inicio=entidades`).
 - **Se sacó la «Corrida pública de prod» de la barra** (Miguel, 2026-10-21): la vista Admin de prod tiene sólo la fila del
   admin, apagada. Una pestaña `prodrun` guardada se descarta al cargar y `/prod/corrida-publica` ya no abre nada. La
   corrida sigue por consola: `dev/prod-run.ts`.
+- **El admin de prod se abre EN TU NAVEGADOR** (opción A, 2026-10-21): en prod la vista Admin tiene la fila del admin y las
+  mismas cuatro secciones, y cada una abre `https://admin.creditop.com/<sección>` en una pestaña nueva
+  (`window.open(…, 'noopener,noreferrer')`), con la sesión de quien usa el panel. El panel no entra a prod ni guarda nada:
+  el conector del admin rechaza una sesión de prod (`connectors/admin/admin.go`), y por eso `PROD_ADMIN` vive en la página
+  y no en `pkg/admin-access.ts`. Se descartó abrirlo en la PC del panel: la contraseña pasaría tecla por tecla por el
+  panel y un clic sobre la imagen escalada puede caer donde no se quería, en un admin que cambia estados.
 
