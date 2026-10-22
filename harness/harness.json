@@ -653,21 +653,6 @@
           "allied_slug": "alpeluche"
         }
       }
-    },
-    "peru": {
-      "country": "Peru",
-      "bases": {
-        "local": {
-          "branch": "50e007e4",
-          "branch_id": 2020,
-          "allied_id": 279,
-          "allied_slug": "comercio-pruebas-peru",
-          "advisor": "c991ee268-fake@creditop.com"
-        },
-        "shared": {
-          "branch": "50e007e4"
-        }
-      }
     }
   }
 }
