@@ -2,10 +2,11 @@ package main
 
 /* LOS AGENTES DEL CHAT — conversaciones con algo que no es una persona del equipo.
  *
- * Por ahora uno: el agente de Jira, que registra las tareas. Se le escribe como a cualquiera y contesta con
- * las tareas activas (sin las terminadas) asignadas a quien usa el chat en el sprint actual, su estado y su
- * avance, en JSON, con un resumen del sprint.
- * Es un prototipo: el avance se estima por el estado, porque Jira no lo trae en un campo propio.
+ * Por ahora uno: el agente de Jira. Se le escribe en lenguaje natural y contesta igual:
+ *   - si la pregunta nombra un día («¿cómo te fue ayer?»), qué se trabajó ese día en tareas del equipo
+ *     (workday.go: sin el trabajo propio ni cómo se hizo);
+ *   - si no, cómo va el sprint actual: las tareas activas, su estado y su avance (estimado por el estado,
+ *     porque Jira no lo trae en un campo propio).
  *
  * Jira se lee con el conector de siempre (connectors/atlassian, credenciales en connectors/.env): este server no
  * guarda ni copia nada. Sólo lee.
@@ -15,12 +16,15 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"net/http"
 	"os"
 	"strconv"
 	"strings"
 	"time"
+	"unicode"
 
+	"creditop/playground/chat/cli"
 	"creditop/playground/connectors/atlassian"
 )
 
@@ -32,7 +36,7 @@ type Agent struct {
 }
 
 var agents = []Agent{
-	{ID: "jira", Name: "Agente de Jira", Detail: "tus tareas del sprint, su estado y su avance"},
+	{ID: "jira", Name: "Agente de Jira", Detail: "cómo va el sprint y qué se trabajó cada día"},
 }
 
 // El board de CORE: su sprint activo es «el sprint actual» (el mismo que usa el tablero). JIRA_BOARD_ID lo cambia.
@@ -41,33 +45,6 @@ func boardID() int {
 		return n
 	}
 	return 384
-}
-
-type taskReport struct {
-	Key      string   `json:"clave"`
-	Summary  string   `json:"titulo"`
-	Status   string   `json:"estado"`
-	Progress int      `json:"avance"`
-	Points   *float64 `json:"puntos,omitempty"`
-	URL      string   `json:"url"`
-}
-
-type sprintReport struct {
-	Name     string `json:"nombre"`
-	Start    string `json:"inicio,omitempty"`
-	End      string `json:"fin,omitempty"`
-	Assigned int    `json:"asignadas_a_vos"`
-	Done     int    `json:"terminadas"`
-	Active   int    `json:"activas"`
-}
-
-type jiraReply struct {
-	Agent     string       `json:"agente"`
-	Greeting  string       `json:"saludo"`
-	Generated string       `json:"generado"`
-	Sprint    sprintReport `json:"sprint"`
-	Progress  string       `json:"como_se_mide_el_avance"`
-	Tasks     []taskReport `json:"tareas"`
 }
 
 // progressOf estima el avance por el estado: la categoría de Jira (por hacer, en curso, hecho) y, dentro de
@@ -86,9 +63,9 @@ func progressOf(category, status string) int {
 	return 50
 }
 
-// jiraAgentReply: las tareas ACTIVAS (sin las terminadas) asignadas a la cuenta del conector en el sprint
-// activo del board, con un resumen del sprint.
-func jiraAgentReply(ctx context.Context) (string, error) {
+// sprintReply: las tareas ACTIVAS (sin las terminadas) asignadas a la cuenta del conector en el sprint activo del
+// board, contadas en una frase cada una. Datos de Jira, sin redactar con un modelo: alcanza con una plantilla.
+func sprintReply(ctx context.Context, who string) (string, error) {
 	cfg, err := atlassian.LoadConfig()
 	if err != nil {
 		return "", err
@@ -102,29 +79,38 @@ func jiraAgentReply(ctx context.Context) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	reply := jiraReply{
-		Agent: "Agente de Jira", Greeting: "Hola. Estas son tus tareas activas en el sprint actual.",
-		Generated: time.Now().Format(time.RFC3339),
-		Sprint:    sprintReport{Name: sprint.Name, Start: dateOnly(sprint.StartDate), End: dateOnly(sprint.EndDate), Assigned: len(issues)},
-		Progress:  "estimado por estado: por hacer 0 · en curso 50 · en pruebas o revisión 80 · hecho 100",
-		Tasks:     []taskReport{},
-	}
+	done, active := 0, []string{}
 	for _, it := range issues {
 		if it.StatusCategory == "done" {
-			reply.Sprint.Done++
+			done++
 			continue
 		}
-		t := taskReport{Key: it.Key, Summary: it.Summary, Status: it.Status, Progress: progressOf(it.StatusCategory, it.Status),
-			URL: cfg.Site + "/browse/" + it.Key}
-		if it.HasPoints {
-			points := it.Points
-			t.Points = &points
-		}
-		reply.Tasks = append(reply.Tasks, t)
+		active = append(active, fmt.Sprintf("%s (%s) está %s, avance estimado %d %%", it.Key, it.Summary,
+			strings.ToLower(plainStatus(it.Status)), progressOf(it.StatusCategory, it.Status)))
 	}
-	reply.Sprint.Active = len(reply.Tasks)
-	out, err := json.MarshalIndent(reply, "", "  ")
-	return string(out), err
+	head := fmt.Sprintf("En el %s (del %s al %s) %s tiene %d tareas: %d terminadas y %d activas.", sprint.Name,
+		dateOnly(sprint.StartDate), dateOnly(sprint.EndDate), who, len(issues), done, len(active))
+	if len(active) == 0 {
+		return head, nil
+	}
+	return head + " " + strings.Join(active, ". ") + ". (El avance se estima por el estado.)", nil
+}
+
+// El estado sin el emoji con que lo adorna Jira («🧪 En pruebas» → «En pruebas»).
+func plainStatus(s string) string {
+	return strings.TrimLeftFunc(s, func(r rune) bool { return !unicode.IsLetter(r) })
+}
+
+// Cómo nombrar al dueño del agente: el nombre con que lo conoce el chat del playground, o la parte del correo.
+func ownerName(ctx context.Context) string {
+	if s, _ := cli.ListenStatus(ctx); s != nil && s.Me != nil && s.Me.Name != "" {
+		return strings.Fields(s.Me.Name)[0]
+	}
+	if cfg, err := atlassian.LoadConfig(); err == nil && cfg.Email != "" {
+		name := strings.Split(cfg.Email, "@")[0]
+		return strings.ToUpper(name[:1]) + name[1:]
+	}
+	return "la persona"
 }
 
 func dateOnly(s string) string {
@@ -148,14 +134,22 @@ func agentHandlers(mux *http.ServeMux) {
 		_ = json.NewDecoder(http.MaxBytesReader(w, r.Body, 16<<10)).Decode(&in)
 		switch r.PathValue("id") {
 		case "jira":
-			ctx, cancel := context.WithTimeout(r.Context(), 20*time.Second)
+			ctx, cancel := context.WithTimeout(r.Context(), 90*time.Second)
 			defer cancel()
-			reply, err := jiraAgentReply(ctx)
+			who := ownerName(ctx)
+			var reply string
+			var err error
+			// ¿Pregunta por un día? Lo que trabajó ese día (para el equipo); si no, cómo va el sprint.
+			if day, label, ok := askedDay(in.Text, time.Now()); ok {
+				reply, err = workdayReply(ctx, who, in.Text, day, label)
+			} else {
+				reply, err = sprintReply(ctx, who)
+			}
 			if err != nil {
-				fail(w, http.StatusBadGateway, errors.New("no pude leer Jira: "+err.Error()))
+				fail(w, http.StatusBadGateway, errors.New("no pude armar la respuesta: "+err.Error()))
 				return
 			}
-			writeJSON(w, http.StatusOK, map[string]string{"reply": reply, "format": "json"})
+			writeJSON(w, http.StatusOK, map[string]string{"reply": reply, "format": "text"})
 		default:
 			fail(w, http.StatusNotFound, errors.New("no existe ese agente"))
 		}
