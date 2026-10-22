@@ -140,8 +140,8 @@ func agentHandlers(mux *http.ServeMux) {
 			var reply string
 			var err error
 			// ¿Pregunta por un día? Lo que trabajó ese día (para el equipo); si no, cómo va el sprint.
-			if day, label, ok := askedDay(in.Text, time.Now()); ok {
-				reply, err = workdayReply(ctx, who, in.Text, day, label)
+			if days, label, ok := askedDays(in.Text, time.Now()); ok {
+				reply, err = workdayReply(ctx, who, in.Text, days, label)
 			} else {
 				reply, err = sprintReply(ctx, who)
 			}

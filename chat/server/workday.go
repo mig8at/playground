@@ -157,12 +157,16 @@ type dayTask struct {
 	Progress []string `json:"avances"`
 }
 
-func teamWork(day string) ([]dayTask, int) {
+func teamWork(days []string) ([]dayTask, int) {
 	tasks := readTasks()
 	byKey := map[string]*dayTask{}
 	var order []string
 	total := 0
-	for _, e := range readDay(day) {
+	var entries []logEntry
+	for _, day := range days {
+		entries = append(entries, readDay(day)...)
+	}
+	for _, e := range entries {
 		t, ok := tasks[e.EffortID]
 		if !ok || t.Project || len(t.Jira) == 0 {
 			continue // trabajo propio, o sin tarea del equipo
@@ -194,23 +198,124 @@ func teamWork(day string) ([]dayTask, int) {
 	return out, total
 }
 
-// ── qué día pregunta ──
-var isoDate = regexp.MustCompile(`\b(20\d\d-\d\d-\d\d)\b`)
+// ── qué días pregunta ──
+//
+// Lo que se entiende, en lenguaje natural: «hoy», «ayer», «anteayer», «hace 3 días», «hace una semana», un día de
+// la semana («el lunes», «el martes de la semana pasada»), «esta semana», «la semana pasada» y una fecha
+// («2026-10-21», «21/10», «21 de octubre»). Lo que no nombra un día va al sprint.
 
-func askedDay(text string, now time.Time) (string, string, bool) {
-	t := strings.ToLower(text)
+var (
+	isoDate     = regexp.MustCompile(`\b(20\d\d)-(\d\d)-(\d\d)\b`)
+	slashDate   = regexp.MustCompile(`\b(\d{1,2})/(\d{1,2})(?:/(20\d\d))?\b`)
+	writtenDate = regexp.MustCompile(`\b(\d{1,2}) de (enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|setiembre|octubre|noviembre|diciembre)\b`)
+	daysAgo     = regexp.MustCompile(`\bhace (\d+|un|una|dos|tres|cuatro|cinco|seis|siete|ocho|nueve|diez) (dia|dias|semana|semanas)\b`)
+	weekdayName = regexp.MustCompile(`\b(lunes|martes|miercoles|jueves|viernes|sabado|domingo)\b`)
+)
+
+var monthNumber = map[string]time.Month{"enero": 1, "febrero": 2, "marzo": 3, "abril": 4, "mayo": 5, "junio": 6, "julio": 7,
+	"agosto": 8, "septiembre": 9, "setiembre": 9, "octubre": 10, "noviembre": 11, "diciembre": 12}
+var smallNumber = map[string]int{"un": 1, "una": 1, "dos": 2, "tres": 3, "cuatro": 4, "cinco": 5, "seis": 6, "siete": 7,
+	"ocho": 8, "nueve": 9, "diez": 10}
+var weekdayNumber = map[string]time.Weekday{"domingo": time.Sunday, "lunes": time.Monday, "martes": time.Tuesday,
+	"miercoles": time.Wednesday, "jueves": time.Thursday, "viernes": time.Friday, "sabado": time.Saturday}
+var weekdaySpanish = []string{"domingo", "lunes", "martes", "miércoles", "jueves", "viernes", "sábado"}
+var monthSpanish = []string{"", "enero", "febrero", "marzo", "abril", "mayo", "junio", "julio", "agosto", "septiembre",
+	"octubre", "noviembre", "diciembre"}
+
+var accents = strings.NewReplacer("á", "a", "é", "e", "í", "i", "ó", "o", "ú", "u")
+
+// «el lunes 19 de octubre»
+func spokenDay(d time.Time) string {
+	return fmt.Sprintf("el %s %d de %s", weekdaySpanish[d.Weekday()], d.Day(), monthSpanish[d.Month()])
+}
+
+// El lunes de la semana de d.
+func mondayOf(d time.Time) time.Time {
+	return d.AddDate(0, 0, -((int(d.Weekday()) + 6) % 7))
+}
+
+func daysBetween(from, to time.Time) []string {
+	var out []string
+	for d := from; !d.After(to); d = d.AddDate(0, 0, 1) {
+		out = append(out, d.Format("2006-01-02"))
+	}
+	return out
+}
+
+// askedDays: los días por los que pregunta el texto, cómo nombrarlos en la respuesta, y si nombra alguno.
+func askedDays(text string, now time.Time) ([]string, string, bool) {
+	t := accents.Replace(strings.ToLower(text))
+	today := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, now.Location())
+	one := func(d time.Time, label string) ([]string, string, bool) {
+		if label == "" {
+			label = spokenDay(d)
+		}
+		return []string{d.Format("2006-01-02")}, label, true
+	}
+	lastWeek := strings.Contains(t, "semana pasada") || strings.Contains(t, "semana anterior")
 	switch {
 	case isoDate.MatchString(t):
-		d := isoDate.FindString(t)
-		return d, "el " + d, true
-	case strings.Contains(t, "anteayer"), strings.Contains(t, "antier"):
-		return now.AddDate(0, 0, -2).Format("2006-01-02"), "anteayer", true
+		m := isoDate.FindStringSubmatch(t)
+		if d, err := time.ParseInLocation("2006-01-02", m[0], now.Location()); err == nil {
+			return one(d, "")
+		}
+	case writtenDate.MatchString(t):
+		m := writtenDate.FindStringSubmatch(t)
+		day, _ := strconv.Atoi(m[1])
+		d := time.Date(today.Year(), monthNumber[m[2]], day, 0, 0, 0, 0, now.Location())
+		if d.After(today) { // «21 de diciembre» en octubre es el del año pasado
+			d = d.AddDate(-1, 0, 0)
+		}
+		return one(d, "")
+	case slashDate.MatchString(t):
+		m := slashDate.FindStringSubmatch(t)
+		day, _ := strconv.Atoi(m[1])
+		month, _ := strconv.Atoi(m[2])
+		year := today.Year()
+		if m[3] != "" {
+			year, _ = strconv.Atoi(m[3])
+		}
+		if month >= 1 && month <= 12 && day >= 1 && day <= 31 {
+			d := time.Date(year, time.Month(month), day, 0, 0, 0, 0, now.Location())
+			if m[3] == "" && d.After(today) {
+				d = d.AddDate(-1, 0, 0)
+			}
+			return one(d, "")
+		}
+	case strings.Contains(t, "anteayer"), strings.Contains(t, "antier"), strings.Contains(t, "antes de ayer"):
+		return one(today.AddDate(0, 0, -2), "anteayer")
 	case strings.Contains(t, "ayer"):
-		return now.AddDate(0, 0, -1).Format("2006-01-02"), "ayer", true
+		return one(today.AddDate(0, 0, -1), "ayer")
 	case strings.Contains(t, "hoy"):
-		return now.Format("2006-01-02"), "hoy", true
+		return one(today, "hoy")
+	case daysAgo.MatchString(t):
+		m := daysAgo.FindStringSubmatch(t)
+		n, err := strconv.Atoi(m[1])
+		if err != nil {
+			n = smallNumber[m[1]]
+		}
+		if strings.HasPrefix(m[2], "semana") {
+			n *= 7
+		}
+		return one(today.AddDate(0, 0, -n), "")
+	case weekdayName.MatchString(t):
+		// El más reciente que ya pasó (hoy, si es hoy); con «semana pasada», el de la semana anterior.
+		want := weekdayNumber[weekdayName.FindString(t)]
+		d := today.AddDate(0, 0, -((int(today.Weekday()) - int(want) + 7) % 7))
+		if lastWeek {
+			d = mondayOf(today).AddDate(0, 0, -7+(int(want)+6)%7)
+		}
+		return one(d, "")
+	case lastWeek:
+		from := mondayOf(today).AddDate(0, 0, -7)
+		to := from.AddDate(0, 0, 6)
+		return daysBetween(from, to), fmt.Sprintf("la semana pasada (del %d de %s al %d de %s)", from.Day(),
+			monthSpanish[from.Month()], to.Day(), monthSpanish[to.Month()]), true
+	case strings.Contains(t, "esta semana"), strings.Contains(t, "en la semana"):
+		from := mondayOf(today)
+		return daysBetween(from, today), fmt.Sprintf("esta semana (del %d de %s a hoy)", from.Day(), monthSpanish[from.Month()]), true
 	}
-	return "", "", false
+	return nil, "", false
 }
 
 func humanMinutes(m int) string {
@@ -274,13 +379,13 @@ func claudeWrite(ctx context.Context, prompt string) string {
 	return strings.TrimSpace(out.String())
 }
 
-// workdayReply contesta «¿cómo te fue <día>?».
-func workdayReply(ctx context.Context, who, question, day, label string) (string, error) {
-	work, total := teamWork(day)
+// workdayReply contesta «¿cómo te fue <día>?» (o una semana).
+func workdayReply(ctx context.Context, who, question string, days []string, label string) (string, error) {
+	work, total := teamWork(days)
 	if len(work) == 0 {
 		return plainDaySummary(who, label, nil, 0), nil
 	}
-	data, _ := json.Marshal(map[string]any{"dia": day, "minutos_totales": total, "tareas": work})
+	data, _ := json.Marshal(map[string]any{"dias": days, "minutos_totales": total, "tareas": work})
 	if text := claudeWrite(ctx, fmt.Sprintf(dayPrompt, who, question, label, data)); publishable(text) {
 		return text, nil
 	}
