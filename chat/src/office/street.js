@@ -3,13 +3,14 @@
  *
  * La oficina ocupa [-11, 11] en x y z, con su acera hasta 14. La calle del sur corre a lo largo de x
  * (z de 14 a 20) y la del este a lo largo de z (x de 14 a 20); se cruzan en la esquina sureste. Más allá,
- * otra acera y pasto con árboles. Todo el suelo va de -17 a 27 en los dos ejes.
+ * otra acera y pasto con los árboles del kit. Todo el suelo va de -17 a 27 en los dos ejes.
  *
  * Los semáforos alternan las dos calles (verde, amarillo, todo rojo, y le toca a la otra). Cada carro anda por
  * su carril, frena antes de la línea de pare si el suyo no está en verde y guarda distancia con el de adelante;
  * al llegar al borde de la maqueta vuelve a entrar por el otro lado.
  */
 import * as THREE from 'three'
+import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js'
 import { PALETTE, box, cylinder, mat, canvasTexture } from './furniture.js'
 
 const MIN = -17
@@ -24,7 +25,6 @@ const COLORS = {
   line: '#f7f6ff',
   sidewalk: '#dcdae8',
   curb: '#c6c3d9',
-  trunk: '#8a5a3c',
   leaves: ['#4fbf5a', '#3aa64c', '#6fd16a'],
 }
 
@@ -112,32 +112,30 @@ function buildEntrance(scene) {
 }
 const HALF_OFFICE = 11
 
-// ── los árboles: un tronco y cubos de copa, como los del kit de cubos ──
-function tree(size = 1, seed = 0) {
-  const g = new THREE.Group()
-  g.add(box(0.35 * size, 1.4 * size, 0.35 * size, COLORS.trunk, { r: 0.04 }))
-  const cubes = [[0, 1.5, 0, 1.4], [0.45, 1.9, 0.2, 0.9], [-0.4, 1.8, -0.25, 1], [0.1, 2.35, -0.1, 0.9]]
-  cubes.forEach(([x, y, z, s], i) => {
-    const c = box(s * size, s * size, s * size, COLORS.leaves[(i + seed) % 3], { x: x * size, y: y * size, z: z * size, r: 0.08 })
-    c.rotation.y = (seed * 0.7 + i) % 1.2
-    g.add(c)
-  })
-  return g
-}
+// ── los árboles: los del kit de cubos (chat/public/environment, CC0) ──
+// Miden de 6 a 7,7 de alto a la escala de los personajes (~2,5 veces una persona) y son anchos (5 a 9): van
+// algo achicados y espaciados de a 6, para que las copas no se encimen. Se carga cada modelo una vez y se clona.
+const TREE_MODELS = ['Tree_1', 'Tree_2', 'Tree_3']
+const TREE_SCALE = 0.72
 
 function buildTrees(scene) {
   const spots = []
-  for (let x = -15.5; x <= 12; x += 4.2) spots.push([x, -15.6])          // detrás, al norte
-  for (let z = -11.5; z <= 12; z += 4.2) spots.push([-15.6, z])          // al oeste
-  for (let z = -15.5; z <= 12; z += 4) spots.push([24.4, z])             // enfrente, al este
-  for (let x = -15.5; x <= 12; x += 4) spots.push([x, 24.4])             // enfrente, al sur
-  spots.push([24.2, 24.2], [25.6, 22.6], [22.6, 25.6])                   // la esquina de enfrente
-  spots.forEach(([x, z], i) => {
-    const t = tree((0.85 + ((i * 7) % 5) * 0.08) * 1.45, i)
-    t.position.set(x, 0, z)
-    t.rotation.y = i * 0.9
-    scene.add(t)
-  })
+  for (let x = -14.5; x <= 12; x += 6) spots.push([x, -15.4])            // detrás, al norte
+  for (let z = -8.5; z <= 12; z += 6) spots.push([-15.4, z])             // al oeste
+  for (let z = -14.5; z <= 12; z += 6) spots.push([24.6, z])             // enfrente, al este
+  for (let x = -14.5; x <= 12; x += 6) spots.push([x, 24.6])             // enfrente, al sur
+  spots.push([24.8, 24.8])                                               // la esquina de enfrente
+  const loader = new GLTFLoader()
+  Promise.all(TREE_MODELS.map((name) => loader.loadAsync(`/environment/${name}.gltf`).then((g) => g.scene))).then((models) => {
+    for (const model of models) model.traverse((o) => { if (o.isMesh) { o.castShadow = true; o.receiveShadow = true } })
+    spots.forEach(([x, z], i) => {
+      const t = models[(i * 7) % models.length].clone()
+      t.scale.setScalar(TREE_SCALE * (0.9 + ((i * 5) % 4) * 0.06))
+      t.position.set(x, 0, z)
+      t.rotation.y = i * 1.3
+      scene.add(t)
+    })
+  }).catch(() => { /* sin árboles: el resto de la maqueta sigue igual */ })
 }
 
 // ── los semáforos ──
