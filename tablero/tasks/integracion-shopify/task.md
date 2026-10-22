@@ -54,9 +54,13 @@ ramas: core-801-shopify-payment-link, core-689-shopify-platform
       prueba local: sucursal `f1681537`, tipo 4.
 - [x] ~~Marcar la plataforma de una sucursal sin el admin de application~~ — `php artisan ecommerce:platform <hash>
       [shopify]` en la misma rama (c5250f71), probado en local. application va a desaparecer: su admin no se toca.
-- [ ] Publicar `POST /legacy-api/ecommerce/payment-link` (y `/status`) en el gateway de producción
-      (`v2.api.creditop.com`): hoy sólo existe en el de dev. La app ya apunta ahí en producción (c69e948). Lo hace
-      infra; termina con un 401 sin token contra prod.
+- [x] ~~Publicar `POST /legacy-api/ecommerce/payment-link` (y `/status`) en el gateway de producción~~ — medido el
+      2026-10-21 (tarea #102): las dos rutas responden 401 sin token en `v2.api.creditop.com/legacy-api`.
+- [ ] Que la app tome el celular y el nombre de las direcciones cuando la sesión no los trae en `customer`: en qa
+      los cuatro pedidos de Shopify (7943, 7947, 7963, 7965) llegaron sin celular. Shopify manda
+      `customer.phone_number` sólo si el comprador eligió contacto por celular; las direcciones (`billing_address`,
+      `shipping_address`) traen su propio `phone_number`, opcional. Termina con `paymentLinkBody` cayendo a esos
+      campos y un pedido de qa con `billing.phone`.
 - [ ] Revisar y mergear los PRs abiertos: `Creditop-SAS/shopify#22` (la app, `feat/core-801-shopify-payment-link` → `develop`; reemplaza al #21, cerrado al renombrar la rama) y
       `Creditop-SAS/legacy-backend#1693` (plataforma 4 → `main`; #1689 ya está en `qa`). El arreglo de la siembra
       también está en la rama `-qa` (16ff8890, sin push), para un PR a `qa` cuando haga falta. Termina con los dos
