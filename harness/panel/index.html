@@ -739,18 +739,8 @@
             </div>
             <div class="tab-start-channels" id="tabStartChannels" role="group" aria-label="Canal de la corrida"></div>
           </div>
-          <!-- LA FICHA DE UN COMERCIO DE PROD (modo prod): lo que hay, sin entrar. Prod no abre celulares: la única corrida que se
-               permite ahí es la pública, en la vista «Prod». -->
-          <!-- LA PESTAÑA DE UN COMERCIO DE PROD: el celular del asesor, A MANO. Hasta abrirlo, esta tarjeta; abierto, los
-               celulares de siempre (sin autorrelleno ni nada que avance solo). La ficha va en el sidebar derecho. -->
-          <div class="prod-ficha" id="prodTabView" hidden>
-            <div class="prod-card">
-              <div class="prod-head"><strong id="prodPhoneName"></strong><span class="device-otp warn">prod · a mano</span></div>
-              <p class="prod-hint">Abre el celular del panel en la entrada del canal asesor de su sucursal de prueba. Entrás y manejás vos: el panel no completa, no avanza y no aprueba nada. El correo y la contraseña están a la derecha para copiar y pegar.</p>
-              <p class="prod-hint warn">⚠ En prod todo es real: las centrales se consultan de verdad y la entidad que elijas en el listado recibe la solicitud.</p>
-              <div class="prod-actions"><button type="button" class="btn btn-sm" id="prodOpenPhone">Abrir el celular</button><span class="prod-hint" id="prodPhoneStatus" role="status"></span></div>
-            </div>
-          </div>
+          <!-- LA PESTAÑA DE UN COMERCIO DE PROD es el celular del asesor, A MANO (sin tarjeta desde el 2026-10-21): al activarla
+               abre la entrada del canal asesor de su sucursal de prueba, y la persona entra y maneja. La ficha, a la derecha. -->
           <div class="empty" id="prodEmpty" hidden>
             <div class="empty-head">
               <div class="empty-media"><span class="ui-icon" data-icon="merchant" aria-hidden="true"></span></div>
@@ -826,7 +816,8 @@
             </figure>
             <figure class="device" id="deviceAdvisor">
               <figcaption class="device-label"><span class="ui-icon" data-icon="server" aria-hidden="true"></span>Asesor
-                <span class="device-otp warn" id="advisorNote" hidden>identidad a mano</span></figcaption>
+                <span class="device-otp warn" id="advisorNote" hidden>identidad a mano</span>
+                <span class="device-otp warn" id="advisorProd" hidden title="En prod el panel no completa, no avanza y no aprueba nada: entrás y manejás vos">prod · a mano</span></figcaption>
               <div class="device-frame"><div class="device-notch"></div>
                 <div class="device-screen" id="screenAdvisor">
                   <!-- El asesor: su navegador REAL con el wizard del comercio (`panel/devices.ts`), entrando como el
@@ -3785,11 +3776,12 @@
       // Se llama al arrancar, antes de que existan las pestañas (`currentTab` es un `const` más abajo).
       let t = null;
       try { t = currentTab(); } catch { return; }
-      const runTab = !!(t && !t.kind && t.canal && sel && !prodMode);
+      const prodTab = prodMode && t?.kind === 'prod';
+      const runTab = !!(t && !t.kind && t.canal && sel && !prodMode) || prodTab;
       for (const dev of ['advisor', 'client']) {
         const b = document.querySelector(`.device-play[data-device="${dev}"]`);
         if (!b) continue;
-        b.hidden = !runTab || entryPhone() !== dev;
+        b.hidden = !runTab || (prodTab ? 'advisor' : entryPhone()) !== dev;
         if (b.hidden) continue;
         // Reiniciar si ya corrió algo en la corrida: por asesor cuenta también el cliente del traspaso.
         const ran = phoneModes[dev] !== 'idle' || (dev === 'advisor' && phoneModes.client !== 'idle');
@@ -3801,6 +3793,7 @@
       }
     }
     async function playPhone(dev) {
+      if (prodMode) return openProdPhone();
       if (!sel || runRunning) return;
       if (dev === 'advisor') {
         // Reiniciar por asesor cierra también el cliente de la corrida anterior: si no, queda al lado del nuevo asesor.
@@ -4186,19 +4179,19 @@
     function renderStage() {
       const t = currentTab(), orig = inOriginacion();
       const ficha = prodMode && orig && t?.kind === 'prod';
-      $('prodTabView').hidden = !ficha;
       $('prodEmpty').hidden = !(prodMode && orig && !ficha);
+      // En prod sólo el celular del asesor: no hay traspaso al cliente ni tienda (ver «El celular en prod, a mano»).
+      $('advisorProd').hidden = !ficha;
+      $('deviceClient').hidden = !!ficha;
+      if (ficha) { $('deviceAdvisor').hidden = false; $('deviceStore').hidden = true; }
+      $('devices').dataset.count = String(document.querySelectorAll('.device:not([hidden])').length);
       if (prodMode) {
-        // La pestaña de un comercio de prod: su celular si ella lo abrió; si no, la tarjeta para abrirlo. La ficha, a la derecha.
-        const phone = ficha && isOwner(t) && devicesBusy();
+        // La pestaña de un comercio de prod ES su celular: se abre solo al activarla (`openProdPhone`) o con su ▶.
         $('tabStart').hidden = true; $('tabBusy').hidden = true;
-        $('devices').hidden = !phone;
-        $('prodTabView').hidden = !ficha || phone;
+        $('devices').hidden = !ficha;
         if (ficha) {
-          $('prodPhoneName').textContent = `${t.name} · #${t.allied}`;
-          const other = !isOwner(t) && laneBusy('a');
-          $('prodOpenPhone').textContent = other ? 'Abrir acá (cierra el otro)' : 'Abrir el celular';
-          $('prodOpenPhone').title = other ? `El carril A está con ${ownerLabel('a')}: abrirlo acá cierra esa corrida` : '';
+          if (!isOwner(t)) $('advisorIdle').textContent = laneBusy('a') ? `El carril A está con ${ownerLabel('a')}: ▶ para abrir acá` : 'Abriendo la entrada de prod…';
+          syncPlay();
           renderProdFicha(t);
         } else {
           $('prodFichaName').textContent = 'Producción · sólo lectura';
@@ -4270,7 +4263,13 @@
       // Las pantallas muestran el carril de ESTA pestaña (el suyo, o uno libre).
       if (t && t.kind !== 'admin' && t.kind !== 'prodrun') { if (!laneOfTab(t)) await pollLanes(); await setPhoneLane(laneToShow(t)); }
       if (t?.kind === 'prodrun') { baseShowStageView('prod'); renderTabs(); renderStage(); saveTabs(); renderProdList($('merchantSearch').value); return; }
-      if (t?.kind === 'prod') { if (!inOriginacion()) baseShowStageView('orig'); renderTabs(); renderStage(); saveTabs(); renderProdList($('merchantSearch').value); return; }
+      if (t?.kind === 'prod') {
+        if (!inOriginacion()) baseShowStageView('orig');
+        renderTabs(); renderStage(); saveTabs(); renderProdList($('merchantSearch').value);
+        // Su celular se abre solo en la entrada de prod, si el carril A está libre; si no, queda con su ▶ (que pregunta).
+        if (!isOwner(t) && !laneBusy('a')) openProdPhone();
+        return;
+      }
       if (t?.kind === 'admin') { if (sel) followKey = sel.slug + '|' + channel; baseShowStageView('admin'); renderTabs(); renderStage(); saveTabs(); return; }
       if (!inOriginacion()) baseShowStageView('orig');
       renderTabs(); renderStage(); saveTabs();
@@ -4531,7 +4530,9 @@
       for (const [f, was] of prodFieldsets) f.disabled = was;
       prodFieldsets = [];
       $('prodRightNote').hidden = true;
-      $('prodTabView').hidden = true; $('prodEmpty').hidden = true;
+      $('prodEmpty').hidden = true;
+      $('advisorProd').hidden = true; $('deviceClient').hidden = false; $('advisorIdle').textContent = 'El celular del asesor';
+      applyChannel();   // los celulares que van con el canal (la tienda, el asesor), como estaban antes de prod
       updateGo();
     }
     document.querySelectorAll('#targets .toggle').forEach((b) => b.addEventListener('click', exitProdMode));
@@ -4688,21 +4689,20 @@
     }
     $('prodFichaReload').onclick = () => { const t = currentTab(); if (t?.kind === 'prod') renderProdFicha(t, true); };
     // Abrir el celular del asesor EN PROD, para entrar a mano (`/api/prod/phone`: sin autorrelleno ni nada que avance solo).
-    $('prodOpenPhone').onclick = async () => {
+    async function openProdPhone() {
       const t = currentTab();
       if (t?.kind !== 'prod' || runRunning) return;
       if (!(await claimDevices())) return;
-      $('prodPhoneStatus').textContent = '';
-      setAdvisorMode('loading', 'Abriendo el celular en prod…');
+      setAdvisorMode('loading', 'Abriendo la entrada de prod…');
       renderStage();
       let r;
       try { r = await (await fetch('/api/prod/phone', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ allied: t.allied }) })).json(); }
       catch { r = { ok: false, detail: 'el panel no respondió' }; }
-      if (!r.ok) { setAdvisorMode('idle'); $('prodPhoneStatus').textContent = '✗ ' + (r.detail || 'no se pudo abrir'); renderStage(); return; }
+      if (!r.ok) { setAdvisorMode('status', '✗ ' + (r.detail || 'no se pudo abrir')); renderStage(); return; }
       setAdvisorMode('live', '', r.view || '');
       if (!runRunning) startPoll();
       renderTabs(); renderStage();
-    };
+    }
 
     /** El comercio o el canal cambiaron por OTRO camino (la ruta, el plan, el buscador, el menú de canal): la pestaña
      *  activa lo sigue si es del mismo comercio; si no, se busca la suya o se abre una fija con el canal de ahora (y la
