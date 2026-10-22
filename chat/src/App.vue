@@ -1,8 +1,9 @@
 <script setup>
 /* chat · la interfaz. Un mini WhatsApp sobre el chat de la terminal del playground compartido.
  *
- * El sidebar lista las conversaciones (la más reciente arriba, con lo no leído), quién está conectado ahora
- * y los agentes del equipo: con un clic se abre una conversación. El editor es la conversación —burbujas, la
+ * El sidebar lista las conversaciones (la más reciente arriba, con lo no leído; el punto verde dice quién está
+ * conectado), debajo quien está conectado y todavía no tiene una, y los agentes del equipo: con un clic se abre
+ * una conversación. El editor es la conversación —burbujas, la
  * cita del mensaje al que contesta cada una y el campo para escribir— y el pie dice si `playground listen`
  * está prendido, que es lo que hace que los mensajes lleguen.
  *
@@ -237,10 +238,13 @@ const statusText = computed(() => {
         </div>
       </div>
       <div class="region-body">
-        <p v-if="!chat.list.length" class="side-note">
-          Todavía no hay conversaciones. Abrí una con alguien de «Conectados», o esperá a que te escriban.
+        <p v-if="!chat.list.length && !onlineWithoutChat.length" class="side-note">
+          Todavía no hay conversaciones ni nadie más conectado. Cuando alguien abra <code>playground listen</code>, aparece acá.
         </p>
-        <ul v-else class="conversations">
+        <p v-if="chat.onlineError" class="side-note bad">{{ chat.onlineError }}</p>
+        <!-- Una sola lista: las conversaciones y, abajo, quien está conectado y todavía no tiene una (el punto verde
+             dice quién está). -->
+        <ul v-if="chat.list.length || onlineWithoutChat.length" class="conversations">
           <li v-for="c in chat.list" :key="c.person.email">
             <button type="button" class="conversation" :class="{ on: c.person.email === chat.activeKey }" @click="chat.open(c.person)">
               <span class="avatar" aria-hidden="true">{{ initials(c.person) }}<i v-if="c.online" class="presence"></i></span>
@@ -250,27 +254,18 @@ const statusText = computed(() => {
                   <span class="when">{{ shortWhen(c.last?.time) }}</span>
                 </span>
                 <span class="conversation-bottom">
-                  <span class="snippet" :class="{ asked: c.last?.kind === 'asked' }">{{ snippetOf(c.last) || 'sin mensajes' }}</span>
+                  <span class="snippet" :class="{ 'is-asked': c.last?.kind === 'asked' }">{{ snippetOf(c.last) || 'sin mensajes' }}</span>
                   <span v-if="c.unread" class="unread">{{ c.unread }}</span>
                 </span>
               </span>
             </button>
           </li>
-        </ul>
-
-        <div class="region-head group">
-          <span>Conectados</span>
-          <span class="count">{{ onlineWithoutChat.length }}</span>
-        </div>
-        <p v-if="chat.onlineError" class="side-note bad">{{ chat.onlineError }}</p>
-        <p v-else-if="!onlineWithoutChat.length" class="side-note">Nadie más, o ya tenés conversación con todos los conectados.</p>
-        <ul v-else class="conversations">
           <li v-for="p in onlineWithoutChat" :key="p.email">
             <button type="button" class="conversation" @click="chat.open(p)">
               <span class="avatar" aria-hidden="true">{{ initials(p) }}<i class="presence"></i></span>
               <span class="conversation-main">
                 <span class="conversation-top"><b class="name">{{ p.name || p.email }}</b></span>
-                <span class="conversation-bottom"><span class="snippet">{{ handle(p) }}</span></span>
+                <span class="conversation-bottom"><span class="snippet">{{ handle(p) }} · escribile</span></span>
               </span>
             </button>
           </li>
@@ -347,7 +342,7 @@ const statusText = computed(() => {
             <div class="empty-title">Elegí una conversación</div>
             <div class="empty-desc">
               Los mensajes llegan por <code>playground listen</code> y se guardan en este navegador.
-              A quien está conectado le podés escribir desde «Conectados», y a los agentes del equipo, preguntarles desde «Agentes».
+              El punto verde dice quién está conectado, y a los agentes del equipo les preguntás desde «Agentes».
             </div>
           </div>
         </div>
@@ -466,7 +461,7 @@ code { font-family: var(--font-mono); font-size: .92em }
 .owner { flex: none; color: var(--fg-2); font-size: var(--text-xs) }
 .when { flex: none; color: var(--fg-2); font-size: var(--text-xs); font-variant-numeric: tabular-nums }
 .snippet { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--fg-2); font-size: var(--text-sm) }
-.snippet.asked { font-style: italic }
+.snippet.is-asked { font-style: italic }
 .unread { flex: none; min-width: 18px; height: 18px; padding: 0 5px; border-radius: 9px; display: grid; place-items: center;
   background: var(--primary); color: var(--primary-foreground); font-size: var(--text-xs); font-weight: 600 }
 
