@@ -11,7 +11,7 @@
  *   centro    Lounge              sillones y mesa; el café, contra el muro norte
  * Afuera, la calle (street.js): dos calles que se cruzan con semáforos, carros, árboles y la entrada.
  * Adentro caminan los cuatro personajes del kit (people.js): van a un asiento o a un lugar libre, se sientan y
- * no chocan entre ellos.
+ * no chocan entre ellos; también un gato. Afuera, un perro da la vuelta por la acera (dog.js).
  *
  * La información de cada zona aparece al pasar el mouse por encima de su piso, que se ilumina; un clic (sin
  * arrastrar) lleva la cámara ahí. La cámara es de perspectiva con lente larga: aire de maqueta sin la ilusión
@@ -27,6 +27,7 @@ import {
 } from './furniture.js'
 import { buildStreet } from './street.js'
 import { createPeople } from './people.js'
+import { createDog } from './dog.js'
 
 // La planta: salas de 11 × 11 en las esquinas y pasillos de 8 alrededor del lounge. Con muebles y personajes a
 // su escala, en una planta de 22 las salas quedaban para seis personas en fila y todo se veía apretado.
@@ -396,6 +397,8 @@ export function createOffice(container, { onFocus, onHover } = {}) {
   streetLevel.position.y = -0.45
   scene.add(streetLevel)
   const street = buildStreet(streetLevel)
+  // El perro pasea por la acera que rodea el edificio, a media acera entre la losa y el bordillo.
+  const dog = createDog(streetLevel, { radius: HALF + 2 })
   obstacles = []
   buildZones(scene)
   // La gente camina por la oficina esquivando lo de arriba (y a los demás), y se sienta donde puede.
@@ -501,6 +504,7 @@ export function createOffice(container, { onFocus, onHover } = {}) {
     }
     street.update(dt)
     people.update(dt)
+    dog.update(dt)
     controls.update()
     updateWalls()
     renderer.render(scene, camera)
@@ -515,6 +519,7 @@ export function createOffice(container, { onFocus, onHover } = {}) {
   function dispose() {
     cancelAnimationFrame(frame)
     people.dispose()
+    dog.dispose()
     observer.disconnect()
     controls.dispose()
     renderer.domElement.removeEventListener('pointermove', onPointerMove)

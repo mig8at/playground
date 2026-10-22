@@ -107,9 +107,9 @@ function buildEntrance(scene) {
   awning.position.set(0, 4.15, HALF_OFFICE + 1.4)
   scene.add(awning)
   for (const sx of [-1, 1]) {
-    scene.add(cylinder(0.35, 0.28, 0.6, PALETTE.white, { x: sx * 2.4, y: 0, z: HALF_OFFICE + 1.9 }))
+    scene.add(cylinder(0.35, 0.28, 0.6, PALETTE.white, { x: sx * 2.1, y: 0, z: HALF_OFFICE + 1.35 }))
     const shrub = new THREE.Mesh(new THREE.SphereGeometry(0.45, 12, 10), mat(COLORS.leaves[1]))
-    shrub.position.set(sx * 2.4, 0.85, HALF_OFFICE + 1.9)
+    shrub.position.set(sx * 2.1, 0.85, HALF_OFFICE + 1.35)
     shrub.castShadow = true
     scene.add(shrub)
   }

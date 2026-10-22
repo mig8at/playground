@@ -13,6 +13,8 @@
  * busca otro camino tratando como bloqueado el lugar donde están los demás. Además, dos que quedan muy juntos se
  * separan un poco, para no encimarse nunca.
  *
+ * El gato del kit anda igual que la gente, sin sentarse, y cede el paso a todos.
+ *
  * Sentarse: el kit no trae esa animación. Se arma sobre `Idle`, doblando muslos y rodillas después de que el
  * mezclador aplica la animación, y bajando el cuerpo hasta la altura del asiento.
  */
@@ -25,6 +27,8 @@ const PERSONAL = 0.8         // la mitad de la distancia mínima entre dos perso
 const WALK_SPEED = 1.7
 const TURN_SPEED = 8
 const MODELS = ['Character_Male_1', 'Character_Female_1', 'Character_Male_2', 'Character_Female_2']
+// El gato del kit mide 1,87 de alto a su escala: al 40 % queda en ~0,75, de gato al lado de un personaje de 2,7.
+const PETS = [{ name: 'Cat', url: '/animals/Cat.gltf', scale: 0.4, radius: 0.45, speed: 1.2, gestures: ['Idle_Eating', 'Idle'] }]
 
 // ── la grilla ──────────────────────────────────────────────────────────────────────────────────────────
 function makeGrid(half, obstacles) {
@@ -199,7 +203,7 @@ export function createPeople(scene, { half, obstacles, seats: allSeats }) {
 
   // Qué hacer ahora: casi siempre sentarse si hay un asiento libre; si no, pararse en algún lado.
   function decide(person) {
-    const free = seats.filter((s) => !s.takenBy)
+    const free = person.pet ? [] : seats.filter((s) => !s.takenBy)
     if (free.length && Math.random() < 0.7) {
       const seat = free[Math.floor(Math.random() * free.length)]
       seat.takenBy = person
@@ -222,15 +226,19 @@ export function createPeople(scene, { half, obstacles, seats: allSeats }) {
     person.current = next
   }
 
-  function spawn(name, index) {
-    loader.load(`/characters/${name}.gltf`, (gltf) => {
+  // Una persona o una mascota: las dos caminan igual por la grilla. La mascota no se sienta, es más chica y
+  // más lenta, y cede el paso a todos (prioridad -1).
+  function spawn({ name, url, scale = 1, radius = PERSONAL, speed = WALK_SPEED, pet = false, gestures = null }, index) {
+    loader.load(url, (gltf) => {
       if (disposed) return
       const model = gltf.scene
+      model.scale.setScalar(scale)
       model.traverse((o) => { if (o.isMesh) { o.castShadow = true; o.receiveShadow = true } })
       const mixer = new THREE.AnimationMixer(model)
       const actions = Object.fromEntries(gltf.animations.map((clip) => [clip.name, mixer.clipAction(clip)]))
       const person = {
-        name, model, mixer, actions, current: null, rig: setupSitPose(model), priority: index,
+        name, model, mixer, actions, current: null, rig: setupSitPose(model), priority: pet ? -1 : index,
+        pet, radius, speed, gestures,
         position: new THREE.Vector2(), heading: Math.random() * Math.PI * 2, y: 0,
         state: 'waiting', timer: 0.5 + index * 0.7, path: [], goal: null, seat: null, sit: 0, blockedFor: 0,
       }
@@ -241,7 +249,8 @@ export function createPeople(scene, { half, obstacles, seats: allSeats }) {
       play(person, 'Idle', 0)
     })
   }
-  MODELS.forEach(spawn)
+  MODELS.forEach((name, i) => spawn({ name, url: `/characters/${name}.gltf` }, i))
+  PETS.forEach((pet, i) => spawn({ ...pet, pet: true }, MODELS.length + i))
 
   const tmp = new THREE.Vector2()
   function update(dt) {
@@ -265,7 +274,7 @@ export function createPeople(scene, { half, obstacles, seats: allSeats }) {
             if (o === p) return false
             if (o.state === 'walking' && o.priority < p.priority) return false
             const d = o.position.distanceTo(p.position)
-            if (d > PERSONAL * 2 + 0.7) return false
+            if (d > p.radius + o.radius + 0.7) return false
             const toO = new THREE.Vector2().subVectors(o.position, p.position)
             return toO.dot(tmp) / (dist || 1) > d * 0.35
           })
@@ -281,7 +290,7 @@ export function createPeople(scene, { half, obstacles, seats: allSeats }) {
           }
           p.blockedFor = 0
           play(p, 'Walk')
-          const step = Math.min(dist, WALK_SPEED * dt)
+          const step = Math.min(dist, p.speed * dt)
           if (dist > 1e-4) {
             p.position.addScaledVector(tmp, step / dist)
             p.heading = lerpAngle(p.heading, Math.atan2(tmp.x, tmp.y), Math.min(1, dt * TURN_SPEED))
@@ -322,8 +331,9 @@ export function createPeople(scene, { half, obstacles, seats: allSeats }) {
       for (const o of people) {
         if (o === p || p.state.startsWith('sit') || p.state === 'standing-up') continue
         const d = p.position.distanceTo(o.position)
-        if (d > 0 && d < PERSONAL * 2) {
-          tmp.subVectors(p.position, o.position).multiplyScalar(((PERSONAL * 2 - d) / d) * 0.5)
+        const min = p.radius + o.radius
+        if (d > 0 && d < min) {
+          tmp.subVectors(p.position, o.position).multiplyScalar(((min - d) / d) * 0.5)
           const next = p.position.clone().add(tmp)
           const [i, j] = grid.cellOf(next.x, next.y)
           if (grid.free(i, j)) p.position.copy(next)
@@ -342,7 +352,8 @@ export function createPeople(scene, { half, obstacles, seats: allSeats }) {
     if (p.seat) { p.state = 'sitting-down'; p.timer = 0; return }
     p.state = 'waiting'
     p.timer = 3 + Math.random() * 4
-    p.gesture = Math.random() < 0.35 ? ['Wave', 'Yes', 'Idle_Hold'][Math.floor(Math.random() * 3)] : null
+    const gestures = p.gestures || ['Wave', 'Yes', 'Idle_Hold']
+    p.gesture = Math.random() < (p.pet ? 0.6 : 0.35) ? gestures[Math.floor(Math.random() * gestures.length)] : null
   }
 
   function dispose() {
