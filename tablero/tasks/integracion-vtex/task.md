@@ -162,21 +162,49 @@ SELECT id, allied_branch_id, ecommerce_id, origin, checkout_reference IS NOT NUL
 FROM ecommerce_requests WHERE order_key = 'vtx-<único>';
 ```
 
-**En la cuenta VTEX `creditop` (sólo el workspace de desarrollo `migueldev`; nada en `master`):**
+**En la cuenta VTEX `creditop`, de punta a punta contra qa (verificado el 2026-10-22: compra, aprobación y cobro).**
+Sólo en el workspace de desarrollo `migueldev`; nada en `master`. Pide la VPN de dev (simulador y base de qa).
 
-```sh
-vtex login creditop          # interactivo; deja en master
-vtex use migueldev           # SIEMPRE antes de linkear
-cd ~/Desktop/CREDITOP/github/vtex && vtex link
-```
-- Ambiente del conector: `{"environment":"develop"}` en la configuración de la app de `migueldev` (sin ella usa
-  producción). `vtex link` reescribe `node/package.json` y `node/yarn.lock`: no se commitean.
-- Test Suite: `https://migueldev--creditop.myvtex.com/admin/test-suite/payment-provider`, Service URL
-  `https://migueldev--creditop.myvtex.com/_v/creditop.creditop/v4`, AppKey `530aa4f7`, AppToken = el token de esa sucursal.
-- Compra real: `https://migueldev--creditop.myvtex.com`, pagar con Creditop → wizard de qa → simulador de qa (estado 11)
-  → la transacción pasa a `Approved`. El simulador no está en el gateway público (da `Not Found`): va por la dirección
-  interna de qa, con la VPN de dev:
-  `curl -X POST http://legacy-backend-qa.inertia-develop/simulator/aggregator-result -H 'Content-Type: application/json' -d '{"user_request_id":<solicitud>,"status":11}'`.
+| para qué | dirección |
+|---|---|
+| la tienda donde se compra | https://migueldev--creditop.myvtex.com |
+| ver pedidos y pagos (admin) | https://creditop.myvtex.com/admin/orders · https://creditop.myvtex.com/admin/pci-gateway/#/transactions |
+| Test Suite de VTEX | https://migueldev--creditop.myvtex.com/admin/test-suite/payment-provider |
+| el conector (Service URL; `/manifest` responde si está linkeado) | https://migueldev--creditop.myvtex.com/_v/creditop.creditop/v4 |
+| el wizard al que llega el comprador | `https://originaciones-qa.dev.creditop.com/ecommerce/530aa4f7/<solicitud>/lenders` |
+| payment-link de qa (lo llama el conector) | https://api.dev.creditop.com/legacy-api/ecommerce/payment-link |
+| aprobar la solicitud (simulador; sólo por la dirección interna) | `POST http://legacy-backend-qa.inertia-develop/simulator/aggregator-result` |
+| qué recibe el wizard para prellenar | `GET http://legacy-backend-qa.inertia-develop/api/onboarding/ecommerce-request/by-user-request/<solicitud>` |
+| la transacción en VTEX (estado e historial) | `https://creditop.vtexpayments.com.br/api/pvt/transactions/<transacción>` y `…/interactions` |
+| el pedido en VTEX (estado, pasar a manejo, facturar) | `https://creditop.vtexcommercestable.com.br/api/oms/pvt/orders/<pedido>` · `…/start-handling` · `…/invoice` |
+
+Las dos APIs de VTEX se llaman con `-H "VtexIdclientAutCookie: $(vtex local token | tail -1)"`.
+
+1. **Subir el conector** (la rama de #21) a `migueldev`:
+   ```sh
+   vtex login creditop          # interactivo; deja en master
+   vtex use migueldev           # SIEMPRE antes de linkear
+   cd ~/Desktop/CREDITOP/github/vtex && vtex link
+   ```
+   `/manifest` responde 200 cuando quedó. La app de `migueldev` tiene `{"environment":"develop"}` (sin eso usa
+   producción). `vtex link` reescribe `node/package.json` y `node/yarn.lock`: no se commitean. La afiliación
+   «Creditop Miguel (dev)» apunta a `migueldev` con la sucursal `530aa4f7` y la condición de pago «CREDITOP DEV» está
+   activa (es de toda la cuenta).
+2. **Comprar** en la tienda con Creditop. El conector pide el enlace a payment-link y el comprador cae en el wizard de qa
+   (`?ref=`); con OTP llega al listado. El número de solicitud está en la URL del wizard.
+3. **Revisar qué llegó** (sucursal, plataforma VTEX = 3 y datos del comprador):
+   ```sql qa
+   SELECT er.id, er.ecommerce_id, er.allied_branch_id, er.origin, er.data FROM ecommerce_requests er JOIN user_requests_by_ecommerce_request l ON l.ecommerce_request_id=er.id WHERE l.user_request_id=<solicitud>
+   ```
+4. **Aprobar** con el simulador (por la dirección interna; el gateway público da `Not Found`):
+   `curl -X POST http://legacy-backend-qa.inertia-develop/simulator/aggregator-result -H 'Content-Type: application/json' -d '{"user_request_id":<solicitud>,"status":11}'`.
+   En segundos la transacción de VTEX pasa a `Approved` y el pedido a `window-to-cancel`.
+5. **Cobrar:** el pedido queda 30 minutos en `window-to-cancel`; después, `POST …/start-handling` y `POST …/invoice`
+   con `{"type":"Output","invoiceNumber":"PRUEBA-…","invoiceValue":<valor en centavos>,"issuanceDate":"<ISO>","items":[{"id":"<sku>","quantity":<n>,"price":<precio en centavos>}]}`.
+   VTEX manda el settle al conector y la transacción queda `Finished`. Sin factura no cobra nunca.
+
+- La Test Suite se corre desde el admin con Service URL de arriba, AppKey `530aa4f7` y AppToken = el token de esa
+  sucursal (está cargado en la afiliación de VTEX; en el playground no hay copia).
 - Sin cuenta VTEX: la tienda demo hace de VTEX completo, en local o contra qa (`make harness-store`, modo qa en
   harness/CLAUDE.md).
 

@@ -166,12 +166,46 @@ shopify.app.creditop-ecommerce-payments.toml --store creditop-dev-store.myshopif
 `POST <túnel>/local/shop-config`, tocar «Guardar» en la app del admin, activar «Creditop - Pago Seguro» en modo de
 prueba (Configuración → Pagos) y comprar en el mercado Colombia eligiendo esa opción (no el método manual «creditop»).
 
-**Contra qa** (sin `CREDITOP_API_URL` y con `CREDITOP_ENVIRONMENT=develop`): la sucursal de prueba es `8ffe96e2`
-(«Ecommerce-PRUEBA AUTO Shopify», id 2219, comercio propio de estas pruebas) y su token de ecommerce está en
-`harness/.env.qa` como `ECOMMERCE_TOKEN_8ffe96e2` (fuera de git; id 17 en `personal_access_tokens`). Se copia con
-`grep '^ECOMMERCE_TOKEN_8ffe96e2=' harness/.env.qa | cut -d= -f2- | pbcopy` y se pega en la pantalla de la app. Para que
-Shopify mande el celular en la dirección: Configuración → Pantalla de pago → teléfono de la dirección de envío. Un
-token se ve una sola vez al emitirlo: la base sólo guarda su sha256, y no hay forma de recuperarlo después.
+**Contra qa, con la tienda de desarrollo (verificado el 2026-10-22: el pedido llega a qa con los datos del contacto).**
+Pide la VPN de dev para el simulador y la base de qa.
+
+| para qué | dirección |
+|---|---|
+| la tienda donde se compra | https://creditop-dev-store.myshopify.com |
+| el admin de la tienda (la app, pagos, pedidos, pantalla de pago) | https://admin.shopify.com/store/creditop-dev-store |
+| la app en tu máquina (cambia en cada arranque) | `https://<túnel>.trycloudflare.com`, el que imprime `shopify app dev` |
+| el wizard al que llega el comprador | `https://originaciones-qa.dev.creditop.com/ecommerce/8ffe96e2/<solicitud>/lenders` |
+| payment-link de qa (lo llama la app) | https://api.dev.creditop.com/legacy-api/ecommerce/payment-link |
+| aprobar la solicitud (simulador; sólo por la dirección interna) | `POST http://legacy-backend-qa.inertia-develop/simulator/aggregator-result` |
+| qué recibe el wizard para prellenar | `GET http://legacy-backend-qa.inertia-develop/api/onboarding/ecommerce-request/by-user-request/<solicitud>` |
+
+La sucursal de prueba es `8ffe96e2` («Ecommerce-PRUEBA AUTO Shopify», id 2219, comercio propio de estas pruebas). Su
+token de ecommerce está en `harness/.env.qa` como `ECOMMERCE_TOKEN_8ffe96e2` (fuera de git; id 17 en
+`personal_access_tokens`). Un token se ve una sola vez al emitirlo: la base guarda sólo su sha256 y no se recupera.
+
+1. **Levantar la app** (la rama de #22), en una terminal propia porque es interactiva:
+   ```sh
+   cd ~/Desktop/CREDITOP/github/shopify && CREDITOP_ENVIRONMENT=develop npx shopify app dev --config shopify.app.creditop-ecommerce-payments.toml --store creditop-dev-store.myshopify.com
+   ```
+   Imprime `Using URL: https://<túnel>.trycloudflare.com`. Si el pago falla con «There was an issue processing your
+   payment», casi siempre es esto: la app no corre o la extensión apunta a un túnel viejo.
+2. **Apuntar la extensión al túnel:** `payment_session_url` y `refund_session_url` de
+   `extensions/creditop-offsite/shopify.extension.toml` → `<túnel>/payments/session` y `<túnel>/payments/refund`. No se
+   commitea; `shopify app dev` lo toma solo (`creditop-offsite │ Configuration accepted`).
+3. **Cargar la sucursal en la app** (admin → Apps → CREDITOP-ECOMMERCE-PAYMENTS, o la tecla `p` en la terminal):
+   sucursal `8ffe96e2` y el token, copiado con
+   `grep '^ECOMMERCE_TOKEN_8ffe96e2=' ~/Desktop/CREDITOP/playground/harness/.env.qa | cut -d= -f2- | pbcopy`; «Guardar».
+   La app guarda la tienda en su Postgres local (`creditop-shopify-pg`, tabla `CreditopShop`).
+4. **Comprar** en la tienda, mercado Colombia, eligiendo «Creditop» (no el método manual «creditop»). El contacto es
+   «correo o celular»: llega a Creditop sólo el que se dé. Para que llegue el celular con contacto por correo, la tienda
+   tiene que pedir el teléfono en la dirección (Configuración → Pantalla de pago).
+5. **Revisar qué llegó** (sucursal, plataforma Shopify = 4 y datos del comprador):
+   ```sql qa
+   SELECT er.id, er.ecommerce_id, er.allied_branch_id, er.origin, er.data FROM ecommerce_requests er JOIN user_requests_by_ecommerce_request l ON l.ecommerce_request_id=er.id WHERE l.user_request_id=<solicitud>
+   ```
+6. **Aprobar** con el simulador, como en VTEX:
+   `curl -X POST http://legacy-backend-qa.inertia-develop/simulator/aggregator-result -H 'Content-Type: application/json' -d '{"user_request_id":<solicitud>,"status":11}'`.
+   qa avisa a la app por el webhook firmado y la sesión de Shopify queda resuelta (pagada).
 
 Con la API de verdad: `make harness-store A=restart PAYMENT_LINK_URL=http://localhost/api/ecommerce/payment-link
 PAYMENT_LINK_TOKEN=<token de ecommerce:issue-token>`.
