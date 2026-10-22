@@ -1292,4 +1292,13 @@ no es la de por defecto (`?vista=buros`, `?consola=mocks`, `?inicio=entidades`).
   el conector del admin rechaza una sesión de prod (`connectors/admin/admin.go`), y por eso `PROD_ADMIN` vive en la página
   y no en `pkg/admin-access.ts`. Se descartó abrirlo en la PC del panel: la contraseña pasaría tecla por tecla por el
   panel y un clic sobre la imagen escalada puede caer donde no se quería, en un admin que cambia estados.
+- **Ficha de prod sin asesor de prueba**: en prod no se crea por consola (el conector no escribe en prod: `bin/pg admin
+  test-advisor --target prod` contesta «producción es sólo lectura»). La ficha da el enlace a la edición del comercio en
+  el admin de prod (`/aliados/<id>/edit`, donde está la tarjeta del asesor de prueba, `AlliedEdit.vue`), en el navegador, y
+  el comando de SÓLO LECTURA para comprobarlo después: `make harness-prod-advisor ALLIED=<id>`, con «Copiar».
+- ⚠ **El título de la ficha se repone al terminar de leer**: mientras se leía, otra pasada del centro ponía «Comercio» y
+  quedaba la ficha de Motai bajo el título genérico.
+- ⚠ **La vista «prod» del centro ya no se elige** (era la de la corrida pública): una `harness.stageView = prod` guardada
+  dejaba la tarjeta de la corrida en el centro aunque la pestaña fuera la de un comercio. `showStageView('prod')` cae en
+  `orig`.
 

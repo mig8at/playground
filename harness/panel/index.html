@@ -3621,6 +3621,9 @@
       setAdminMode('idle');
     };
     function showStageView(view) {
+      // La vista «prod» del centro era la de la corrida pública, que ya no se abre desde el panel (2026-10-21): una guardada
+      // de antes dejaba esa tarjeta en el centro aunque la pestaña fuera la de un comercio.
+      if (view === 'prod') view = 'orig';
       const admin = view === 'admin', prod = view === 'prod';
       $('devices').hidden = admin || prod;
       $('adminView').hidden = !admin;
@@ -3641,7 +3644,7 @@
     $('viewOrig').onclick = () => showStageView('orig');
     $('viewAdmin').onclick = () => showStageView('admin');
     $('viewProd').onclick = () => showStageView('prod');
-    try { const v = localStorage.getItem('harness.stageView'); if (v === 'admin' || v === 'prod') setTimeout(() => showStageView(v), 400); } catch { }
+    try { const v = localStorage.getItem('harness.stageView'); if (v === 'admin') setTimeout(() => showStageView(v), 400); } catch { }
 
     // ── La corrida de producción (vista «Prod») ───────────────────────────────────────────────────
     // «Correr en prod» se habilita sólo después de una comprobación que pasó en esta sesión del panel: la vista previa es
@@ -4659,6 +4662,9 @@
         if (f.ok) prodFichas.set(t.allied, f);
         if (currentTab()?.id !== t.id) return;   // mientras leía se eligió otra pestaña
       }
+      // El título otra vez, al terminar de leer: mientras se leía, otra pasada del centro pudo reponer «Comercio» (con la
+      // pestaña todavía sin canal) y quedaba la ficha de Motai bajo un título genérico.
+      $('prodFichaName').textContent = `${t.name} · #${t.allied}`;
       if (!f.ok) { body.innerHTML = `<p class="warn">${escTxt(f.detail || 'no se pudo leer')}</p>`; return; }
       const a = f.advisor;
       // LO JUSTO PARA ENTRAR A MANO (2026-10-21): el correo del asesor de prueba y la contraseña, para copiar. La contraseña no
@@ -4667,7 +4673,12 @@
       const line = (k, v) => `<div class="prop"><span class="label">${k}</span><span class="prop-value"><span>${v}</span></span></div>`;
       body.innerHTML = [
         a ? line('Correo', `<span class="mono">${escTxt(a.email)}</span> <button type="button" class="btn btn-outline btn-xs" data-copy-text="${escTxt(a.email)}">Copiar</button>`)
-          : '<p class="warn">⚠ Este comercio no tiene asesor de prueba en prod: se crea desde la edición del comercio en el admin de prod.</p>',
+          // SIN ASESOR DE PRUEBA: en prod no se crea por consola (el conector no escribe en prod, a propósito); se crea en la
+          // edición del comercio del admin de prod (`AlliedEdit.vue`, la tarjeta del asesor de prueba). Acá, el enlace directo
+          // a esa página, en el navegador de quien usa el panel, y el comando de SÓLO LECTURA que comprueba que quedó bien.
+          : `<p class="warn">⚠ Este comercio no tiene asesor de prueba en prod. Se crea en la edición del comercio del admin de prod (la tarjeta «Usuario de prueba»): en prod no se crea por consola.</p>
+             ${line('Crearlo', `<a class="btn btn-outline btn-xs" href="${PROD_ADMIN}/aliados/${Number(t.allied)}/edit" target="_blank" rel="noopener noreferrer">Abrir la edición en el admin de prod ↗</a>`)}
+             ${line('Comprobarlo', `<span class="mono">make harness-prod-advisor ALLIED=${Number(t.allied)}</span> <button type="button" class="btn btn-outline btn-xs" data-copy-text="make harness-prod-advisor ALLIED=${Number(t.allied)}">Copiar</button>`)}`,
         a ? line('Contraseña', `<button type="button" class="btn btn-outline btn-xs" id="prodCopyPass">Copiar contraseña</button>`) : '',
         ...f.notes.filter((n) => !/no tiene asesor de prueba/.test(n)).map((n) => `<p class="warn">⚠ ${escTxt(n)}</p>`),
         a ? '<p class="prod-hint">⚠ Entrás vos, y en prod todo es real: las centrales se consultan de verdad y la entidad que elijas recibe la solicitud.</p>' : '',
