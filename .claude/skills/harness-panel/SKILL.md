@@ -1259,3 +1259,22 @@ no es la de por defecto (`?vista=buros`, `?consola=mocks`, `?inicio=entidades`).
 - Las guardadas de antes (el mismo comercio una vez por canal) se JUNTAN al cargar el juego (`loadTabSet`): se queda la
   dueña de un carril, si no la activa, si no la primera.
 
+### El sidebar derecho igual en todos los ambientes (2026-10-21)
+
+- **Las mismas tres pestañas en todos lados (Cliente · Comercio · Burós), también en prod.** En prod, Comercio es la
+  ficha (`#prodRightNote`, la muestra `showAuxView`) y Cliente y Burós sólo dicen por qué no aplican.
+- **Un aviso arriba de cada vista** (`renderViewNotes`, `.view-note`) dice una vez lo que vale en ESE ambiente; antes
+  estaba en el tooltip de cada control apagado (siete en Comercio) y dev y qa decían lo mismo sin comportarse igual. Sale de
+  `CAPS`: Comercio, «sólo lectura» fuera de local; Burós, en qa «se le dicta el caso al lambda» y en dev y staging, en
+  ámbar, «el lambda no acepta dictado, contesta lo de por defecto» (F-149); Cliente, en dev y staging, que el nombre y el
+  ingreso pueden no ser los del caso. Reemplaza al viejo `#bureauGate`.
+- **Sin pestaña de comercio** (Admin, la corrida pública, ninguna) las tres vistas dicen «Elegí un comercio»
+  (`body.aux-empty`): antes, con el Admin, el sidebar mostraba el caso de la última pestaña de comercio.
+- ⚠ `.view-note` lleva `display: block`: el `.alert` de la base es una grilla con la columna del icono en 0 y el texto
+  suelto caía ahí, una palabra por renglón.
+- ⚠ `renderViewNotes` lee `currentTab()` con `try`: el render de Burós corre antes de que esa `const` exista, y `typeof`
+  de una `const` sin inicializar también tira.
+- Para que dev y staging dicten como qa falta un cambio de infra (sus backends consultan el lambda viejo): el borrador del
+  pedido está en `tablero/tasks/harness/artifacts/pedido-infra-centrales-dev-staging.md`. Hecho eso, se suman a
+  `COMPANY_LAMBDA` (`pkg/risk-lambda.ts`) y a `CAPS.lambdaDictado`.
+

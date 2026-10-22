@@ -162,7 +162,17 @@
     .bureau-row[data-skipped="true"] > .label { color: var(--fg-3) }
     .bureau-row[data-skipped="true"] .toggle { opacity: .55 }
     .bureau-row[data-skipped="true"]:hover .toggle { opacity: 1 }
-    .bureau-gate { color: var(--warn) }
+    /* EL AVISO DE CADA VISTA DEL SIDEBAR DERECHO (`renderViewNotes`): lo que vale en ESTE ambiente, dicho una vez arriba
+       en vez de en el tooltip de cada control apagado. Es el `.alert` de la base, compacto; en ámbar si algo no se aplica. */
+    /* `display: block`: el `.alert` es una grilla con la primera columna de 0 (la del icono) y el texto suelto caía ahí,
+       una palabra por renglón. */
+    .view-note { display: block; flex: none; padding: var(--space-2) var(--gutter); font-size: var(--text-xs); line-height: 1.5; color: var(--fg-2) }
+    .view-note[hidden] { display: none }
+    .view-note.alert-warn { color: var(--foreground) }
+    /* Sin pestaña de comercio (Admin, la corrida pública, ninguna) y en prod para Cliente y Burós: sólo el aviso. */
+    body.aux-empty #viewClient > :not(legend, .view-note), body.aux-empty #viewMerchant > :not(legend, .view-note),
+    body.aux-empty #viewBureaus > :not(legend, .view-note),
+    .prod-mode #viewClient > :not(legend, .view-note), .prod-mode #viewBureaus > :not(legend, .view-note) { display: none }
     .inherited-hint { color: var(--fg-2) }
     .inherited-hint b { color: var(--foreground); font-weight: 600 }
     /* Lo que contesta la central cuando responde: sangrado bajo su fila, y sólo con «Responde» (`renderBureaus`). */
@@ -327,7 +337,7 @@
     #sideLeft .view > .region-body[hidden] { display: none }
     #sideLeft .view > .region-head { flex: none }
     .prod-mode #results, .prod-mode .admin-tree { display: none }
-    .prod-mode #sideRight > fieldset, .prod-mode #sideRight > nav { display: none }
+    .prod-mode #viewMerchant { display: none }   /* en prod, «Comercio» es la ficha (`#prodRightNote`) */
     .prod-side { display: flex; flex-direction: column; gap: var(--space-2); padding: var(--space-2) var(--gutter); overflow: auto }
     .prod-side[hidden] { display: none }
     /* En el ancho del sidebar, cada dato va con su rótulo ARRIBA: en dos columnas el valor quedaba en 8 caracteres. */
@@ -928,6 +938,7 @@
           <p class="prod-hint" id="prodFichaHint"></p>
         </div>
         <fieldset class="cfg region-body props" id="viewClient" role="tabpanel" aria-labelledby="tabClient"><legend class="sr-only">El cliente de la próxima corrida</legend>
+          <section class="alert view-note" id="noteClient" role="note" hidden></section>
           <!-- UN SOLO PANEL, con cuatro grupos a la vista: Caso · Identidad · Ingreso y empleo · Buró. Con
                las filas de 28 entra todo sin plegables. «Arranque», «Canal» y la demora son de la CORRIDA
                y viven en el pie; sus controles reales quedan acá abajo, ocultos. -->
@@ -1057,7 +1068,7 @@
              LOCAL: en dev, qa y staging contesta el lambda de la empresa, que no conoce estos estados. Y sólo
              cuenta cuando el backend consulta de verdad (los celulares, el modo «Sin inyección»). -->
         <fieldset class="cfg region-body props" id="viewBureaus" role="tabpanel" aria-labelledby="tabBureaus" hidden><legend class="sr-only">Las centrales de riesgo del caso</legend>
-          <p class="prop-hint bureau-gate" id="bureauGate" hidden></p>
+          <section class="alert view-note" id="noteBureaus" role="note" hidden></section>
           <!-- LA CASCADA, como se lee: una fila por central en el orden en que el backend pregunta, y las que NO se
                llegan a consultar (porque una anterior ya respondió) quedan atenuadas. Sin acordeón: son tres
                perillas, y abrir cada una costaba más que leerlas juntas. -->
@@ -1139,6 +1150,7 @@
              sucursales y queda puesto después de la corrida, por eso la vista marca cuándo difiere de como
              estaba al abrirlo y ofrece volver. Sólo se escriben en local (`/api/merchant-flag`). -->
         <fieldset class="cfg region-body props" id="viewMerchant" role="tabpanel" aria-labelledby="tabMerchant" hidden><legend class="sr-only">El comercio de la próxima corrida</legend>
+          <section class="alert view-note" id="noteMerchant" role="note" hidden></section>
           <div class="region-head group"><span id="merchantViewTitle">Comercio</span></div>
           <p class="prop-hint merchant-meta" id="merchantViewMeta">Elegí un comercio en la columna de la izquierda.</p>
 
@@ -1842,7 +1854,45 @@
         $(tabId).setAttribute('aria-selected', String(on));
         $(viewId).hidden = !on;
       }
+      // En prod, «Comercio» es la FICHA del comercio de la pestaña (sólo para mirar): las mismas tres pestañas que en los
+      // demás ambientes.
+      $('prodRightNote').hidden = !(prodMode && name === 'merchant');
       routeChanged();
+    }
+
+    /* ── LO QUE VALE EN ESTE AMBIENTE, arriba de cada vista ────────────────────────────────────────────────────────────
+     * Antes estaba repartido en el tooltip de cada control apagado (siete veces en Comercio) o en una línea chica, y dev y
+     * qa decían lo mismo aunque no se comportan igual: qa le dicta el caso al lambda y dev y staging no pueden (su backend
+     * consulta otro lambda, F-149). Lo que cada ambiente PUEDE sale de `CAPS`. */
+    function renderViewNotes() {
+      const set = (id, text, warn = false) => {
+        const n = $(id); if (!n) return;
+        n.hidden = !text; n.textContent = text || ''; n.classList.toggle('alert-warn', !!text && warn);
+      };
+      // ⚠ Con `try`, no `typeof`: el render de Burós corre antes de que exista `currentTab` (una `const` más abajo), y
+      // `typeof` de una `const` sin inicializar también tira.
+      let t = null;
+      try { t = currentTab(); } catch { return; }
+      const merchantTab = prodMode ? t?.kind === 'prod' : !!t && !t.kind;
+      document.body.classList.toggle('aux-empty', !prodMode && !merchantTab);
+      if (prodMode) {
+        set('noteClient', 'En prod no se inyecta ni se dicta nada: la corrida pública usa los datos de harness/.env.prod, y la ficha del comercio está en Comercio.');
+        set('noteBureaus', 'En prod contestan las centrales de verdad: no se les dicta nada desde el panel.');
+        set('noteMerchant', '');
+        return;
+      }
+      if (!merchantTab) {
+        const msg = 'Elegí un comercio a la izquierda: el caso, el comercio y los burós son de cada pestaña.';
+        set('noteClient', msg); set('noteMerchant', msg); set('noteBureaus', msg);
+        return;
+      }
+      const shared = target !== 'local', dictated = shared && cap('lambdaDictado');
+      set('noteClient', shared && !dictated
+        ? `En ${target} los burós contestan lo de por defecto (no se les dicta): el nombre y el ingreso que lleguen al backend pueden no ser los del caso.` : '', true);
+      set('noteMerchant', shared ? `Sólo lectura en ${target}: la base es compartida con el equipo. La configuración y las entidades se cambian en local.` : '');
+      set('noteBureaus', !shared ? ''
+        : dictated ? `En ${target} se le dicta este caso al lambda de centrales al abrir el celular. Los estados (sin información, caída) sólo se simulan en local.`
+          : `En ${target} el backend consulta un lambda que no acepta dictado: las centrales contestan lo de por defecto y lo de acá no se aplica (F-149).`, !dictated);
     }
     // Recargar la página de un celular (`/api/device/<id>/reload`): el visor en vivo muestra el resultado solo.
     for (const b of document.querySelectorAll('.device-reload:not(.device-advance):not(.device-shot):not(.device-tab)')) {
@@ -2024,10 +2074,10 @@
       $('bureauResolver').dataset.none = String(!r);
       inheritFromBureaus();
       $('bureauCascade').textContent = $('bureauCascade').title = bureauCascadeText();
-      // Fuera de local no se ofrece: el que contesta es el lambda de la empresa, que no conoce estos estados.
+      // Fuera de local no se ofrece: el que contesta es el lambda de la empresa, que no conoce estos estados (el aviso de
+      // la vista lo dice: `renderViewNotes`).
       const remote = typeof target !== 'undefined' && target !== 'local';
-      $('bureauGate').hidden = !remote;
-      $('bureauGate').textContent = remote ? `En ${target} contesta el lambda de mocks de la empresa: los estados de los burós sólo se simulan en local.` : '';
+      renderViewNotes();
       for (const b of document.querySelectorAll('.bureau-modes button')) {
         b.disabled = remote || b.hasAttribute('data-unsupported');
       }
@@ -4040,6 +4090,7 @@
       $('adminRow').setAttribute('aria-selected', String(currentTab()?.kind === 'admin' && !currentTab().path));   // con una sección, la marcada es ésa
       $('adminRowEnv').textContent = tabsTarget === 'qa' ? 'dev' : tabsTarget;
       renderAdminMenu();
+      renderViewNotes();
       $('results').toggleAttribute('data-admin-on', currentTab()?.kind === 'admin');
       syncRouteNow();   // la URL es la de la pestaña activa (sólo escribe si cambió)
     }
@@ -4452,7 +4503,8 @@
       // Cómo estaba cada uno: algunos ya vienen apagados por su cuenta (los flags del comercio fuera de local).
       prodFieldsets = [...document.querySelectorAll('#sideRight fieldset')].map((f) => [f, f.disabled]);
       for (const [f] of prodFieldsets) f.disabled = true;
-      $('prodRightNote').hidden = false;
+      showAuxView('merchant');   // en prod, la vista que importa es la ficha (Comercio); las otras dos dicen por qué no aplican
+      renderViewNotes();
       $('valEnvironment').textContent = 'prod';
       updateGo();
       if (!inOriginacion()) baseShowStageView('orig');
@@ -4474,6 +4526,7 @@
       for (const [f, was] of prodFieldsets) f.disabled = was;
       prodFieldsets = [];
       $('prodRightNote').hidden = true;
+      renderViewNotes();
       $('advisorProd').hidden = true; $('clientProd').hidden = true; $('deviceClient').hidden = false;
       $('advisorIdle').textContent = 'El celular del asesor'; $('clientEmpty').textContent = 'El celular del cliente';
       applyChannel();   // los celulares que van con el canal (la tienda, el asesor), como estaban antes de prod
