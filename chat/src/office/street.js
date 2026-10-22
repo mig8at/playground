@@ -1,9 +1,9 @@
 /* LA CALLE — lo que rodea la oficina: la base de la maqueta, dos calles que se cruzan, aceras, semáforos,
  * carros que circulan, árboles y la entrada con su toldo.
  *
- * La oficina ocupa [-11, 11] en x y z, con su acera hasta 14. La calle del sur corre a lo largo de x
- * (z de 14 a 20) y la del este a lo largo de z (x de 14 a 20); se cruzan en la esquina sureste. Más allá,
- * otra acera y pasto con los árboles del kit. Todo el suelo va de -17 a 27 en los dos ejes.
+ * La oficina ocupa [-15, 15] en x y z, con su acera hasta 18. La calle del sur corre a lo largo de x
+ * (z de 18 a 24) y la del este a lo largo de z (x de 18 a 24); se cruzan en la esquina sureste. Más allá,
+ * otra acera y pasto con los árboles del kit. Todo el suelo va de -22 a 32 en los dos ejes.
  *
  * Los semáforos alternan las dos calles (verde, amarillo, todo rojo, y le toca a la otra). Cada carro anda por
  * su carril, frena antes de la línea de pare si el suyo no está en verde y guarda distancia con el de adelante;
@@ -13,10 +13,14 @@ import * as THREE from 'three'
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js'
 import { PALETTE, box, cylinder, mat, canvasTexture } from './furniture.js'
 
-const MIN = -17
-const MAX = 27
-const ROAD_A = 14   // donde empieza la calzada (desde la oficina)
-const ROAD_B = 20   // donde termina
+// Todo sale de la mitad de la oficina: su acera llega 3 más allá, ahí empieza la calzada (6 de ancho) y después
+// otra acera y pasto.
+const HALF_OFFICE = 15
+const RING = HALF_OFFICE + 3
+const ROAD_A = RING        // donde empieza la calzada (desde la oficina)
+const ROAD_B = RING + 6    // donde termina
+const MIN = -(RING + 4)
+const MAX = ROAD_B + 8
 const MID = (ROAD_A + ROAD_B) / 2
 
 const COLORS = {
@@ -63,11 +67,11 @@ function buildGround(scene) {
     [ROAD_B, MIN, ROAD_B + 2, ROAD_A], [ROAD_B, ROAD_B + 2, ROAD_B + 2, MAX], // enfrente, al este
   ]
   // La manzana de la oficina no es toda acera: un anillo de 3 alrededor del edificio y el resto pasto.
-  scene.add(rect([-14, -14, ROAD_A, ROAD_A], COLORS.sidewalk, 0, 0.2))
+  scene.add(rect([-RING, -RING, ROAD_A, ROAD_A], COLORS.sidewalk, 0, 0.2))
   for (const r of sidewalks.slice(1)) scene.add(rect(r, COLORS.sidewalk, 0, 0.2))
   // Bordillos de la manzana de la oficina contra las calles.
-  scene.add(rect([-14, ROAD_A - 0.25, ROAD_A, ROAD_A], COLORS.curb, 0.04, 0.25))
-  scene.add(rect([ROAD_A - 0.25, -14, ROAD_A, ROAD_A - 0.25], COLORS.curb, 0.04, 0.25))
+  scene.add(rect([-RING, ROAD_A - 0.25, ROAD_A, ROAD_A], COLORS.curb, 0.04, 0.25))
+  scene.add(rect([ROAD_A - 0.25, -RING, ROAD_A, ROAD_A - 0.25], COLORS.curb, 0.04, 0.25))
 
   // Las marcas: la línea del medio (punteada, sin pisar el cruce), los pasos de cebra y las líneas de pare.
   for (let x = MIN + 1; x < MAX; x += 2.4) if (x + 1.4 < ROAD_A - 1.6 || x > ROAD_B + 1.6) scene.add(flat(1.4, 0.16, COLORS.line, { x: x + 0.7, y: -0.07, z: MID }))
@@ -84,9 +88,9 @@ function buildGround(scene) {
 // ── la entrada: el camino desde la puerta, el toldo con el nombre y dos macetas ──
 function buildEntrance(scene) {
   // Dos escalones: la oficina está sobre una losa, un escalón (0,45) arriba de la acera.
-  scene.add(box(3, 0.3, 0.6, PALETTE.base, { y: 0, z: 12.4, r: 0.04 }))
-  scene.add(box(3, 0.15, 0.6, PALETTE.base, { y: 0, z: 13, r: 0.04 }))
-  scene.add(rect([-1.4, 13.3, 1.4, ROAD_A - 0.25], PALETTE.oat, 0.02, 0.04))
+  scene.add(box(3, 0.3, 0.6, PALETTE.base, { y: 0, z: HALF_OFFICE + 1.4, r: 0.04 }))
+  scene.add(box(3, 0.15, 0.6, PALETTE.base, { y: 0, z: HALF_OFFICE + 2, r: 0.04 }))
+  scene.add(rect([-1.4, HALF_OFFICE + 2.3, 1.4, ROAD_A - 0.25], PALETTE.oat, 0.02, 0.04))
   const sign = canvasTexture(512, 96, (g, W, H) => {
     g.fillStyle = PALETTE.ink; g.fillRect(0, 0, W, H)
     g.fillStyle = '#ffffff'; g.font = 'bold 54px sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle'
@@ -103,14 +107,13 @@ function buildEntrance(scene) {
   awning.position.set(0, 4.15, HALF_OFFICE + 1.4)
   scene.add(awning)
   for (const sx of [-1, 1]) {
-    scene.add(cylinder(0.35, 0.28, 0.6, PALETTE.white, { x: sx * 2.4, y: 0, z: 12.9 }))
+    scene.add(cylinder(0.35, 0.28, 0.6, PALETTE.white, { x: sx * 2.4, y: 0, z: HALF_OFFICE + 1.9 }))
     const shrub = new THREE.Mesh(new THREE.SphereGeometry(0.45, 12, 10), mat(COLORS.leaves[1]))
-    shrub.position.set(sx * 2.4, 0.85, 12.9)
+    shrub.position.set(sx * 2.4, 0.85, HALF_OFFICE + 1.9)
     shrub.castShadow = true
     scene.add(shrub)
   }
 }
-const HALF_OFFICE = 11
 
 // ── los árboles: los del kit de cubos (chat/public/environment, CC0) ──
 // Miden de 6 a 7,7 de alto a la escala de los personajes (~2,5 veces una persona) y son anchos (5 a 9): van
@@ -120,11 +123,12 @@ const TREE_SCALE = 0.72
 
 function buildTrees(scene) {
   const spots = []
-  for (let x = -14.5; x <= 12; x += 6) spots.push([x, -15.4])            // detrás, al norte
-  for (let z = -8.5; z <= 12; z += 6) spots.push([-15.4, z])             // al oeste
-  for (let z = -14.5; z <= 12; z += 6) spots.push([24.6, z])             // enfrente, al este
-  for (let x = -14.5; x <= 12; x += 6) spots.push([x, 24.6])             // enfrente, al sur
-  spots.push([24.8, 24.8])                                               // la esquina de enfrente
+  const back = MIN + 1.8, front = ROAD_B + 4.6
+  for (let x = MIN + 2.5; x <= ROAD_A - 2; x += 6) spots.push([x, back])     // detrás, al norte
+  for (let z = MIN + 8.5; z <= ROAD_A - 2; z += 6) spots.push([back, z])     // al oeste
+  for (let z = MIN + 2.5; z <= ROAD_A - 2; z += 6) spots.push([front, z])    // enfrente, al este
+  for (let x = MIN + 2.5; x <= ROAD_A - 2; x += 6) spots.push([x, front])    // enfrente, al sur
+  spots.push([front + 0.2, front + 0.2])                                     // la esquina de enfrente
   const loader = new GLTFLoader()
   Promise.all(TREE_MODELS.map((name) => loader.loadAsync(`/environment/${name}.gltf`).then((g) => g.scene))).then((models) => {
     for (const model of models) model.traverse((o) => { if (o.isMesh) { o.castShadow = true; o.receiveShadow = true } })

@@ -28,7 +28,9 @@ import {
 import { buildStreet } from './street.js'
 import { createPeople } from './people.js'
 
-const SIZE = 22
+// La planta: salas de 11 × 11 en las esquinas y pasillos de 8 alrededor del lounge. Con muebles y personajes a
+// su escala, en una planta de 22 las salas quedaban para seis personas en fila y todo se veía apretado.
+const SIZE = 30
 const HALF = SIZE / 2
 // LA ESCALA la dan los personajes del kit de cubos (chat/assets/Characters): miden ~2,7 de alto (de 2,64 a
 // 2,81 en sus archivos). Todo lo alto se mide contra ellos: los muros, dos veces su altura; la puerta, 1,25.
@@ -41,12 +43,12 @@ const T = 0.5                // grosor del muro
 
 // `area` es el rectángulo del piso de cada zona [x0, z0, x1, z1]: ahí se detecta el mouse.
 export const ZONES = [
-  { id: 'overview', label: 'Vista general', center: [4, 0, 4], distance: 90 },
-  { id: 'office', label: 'Mi oficina', detail: 'Donde llegan los resultados del día.', center: [-7, 0, -7], area: [-11, -11, -3, -3], distance: 30 },
-  { id: 'jira', label: 'Tareas · Jira', detail: 'El sprint: lo que está en curso y lo que sigue.', center: [7, 0, -7], area: [3, -11, 11, -3], distance: 30 },
-  { id: 'architect', label: 'Arquitecto', detail: 'Diseño y decisiones antes de tocar código.', center: [-7, 0, 7], area: [-11, 3, -3, 11], distance: 30 },
-  { id: 'context', label: 'Contexto · tablero', detail: 'El conocimiento local y la historia de cada tarea.', center: [7, 0, 7], area: [3, 3, 11, 11], distance: 30 },
-  { id: 'lounge', label: 'Lounge', detail: 'Café y charla entre una cosa y otra.', center: [0, 0, 0], area: [-3, -3, 3, 3], distance: 26 },
+  { id: 'overview', label: 'Vista general', center: [5, 0, 5], distance: 118 },
+  { id: 'office', label: 'Mi oficina', detail: 'Donde llegan los resultados del día.', center: [-9.5, 0, -9.5], area: [-15, -15, -4, -4], distance: 36 },
+  { id: 'jira', label: 'Tareas · Jira', detail: 'El sprint: lo que está en curso y lo que sigue.', center: [9.5, 0, -9.5], area: [4, -15, 15, -4], distance: 36 },
+  { id: 'architect', label: 'Arquitecto', detail: 'Diseño y decisiones antes de tocar código.', center: [-9.5, 0, 9.5], area: [-15, 4, -4, 15], distance: 36 },
+  { id: 'context', label: 'Contexto · tablero', detail: 'El conocimiento local y la historia de cada tarea.', center: [9.5, 0, 9.5], area: [4, 4, 15, 15], distance: 36 },
+  { id: 'lounge', label: 'Lounge', detail: 'Café y charla entre una cosa y otra.', center: [0, 0, 0], area: [-4, -4, 4, 4], distance: 32 },
 ]
 
 // Los muebles se arman a una escala chica y se agrandan al ubicarlos: los personajes son anchos (1,3 de torso)
@@ -195,19 +197,19 @@ function buildRoom(scene) {
   const east = wall(SIZE, { x: HALF, z: 0, rotation: -Math.PI / 2, outward: [1, 0, 0] })
   // Lo que cuelga de cada muro va en su parte alta, en coordenadas del muro (x a lo largo, y arriba, +z adentro):
   //   norte: x = x del mundo · oeste: x = -z del mundo · este: x = z del mundo · sur: x = -x del mundo
-  hang(north, place(wallScreen({ w: 3.4, h: 1.9 }), -7, 0.1, 0, 2.1))
-  hang(north, place(kanban({ w: 4.4, h: 2 }), 7, 0.1, 0, 1.9))
+  hang(north, place(wallScreen({ w: 3.4, h: 1.9 }), -9.5, 0.1, 0, 2.1))
+  hang(north, place(kanban({ w: 5.2, h: 2 }), 9.5, 0.1, 0, 1.9))
   hang(north, place(artFrame({ kind: 1, w: 1, h: 1.25 }), 0, 0.05, 0, 2.6))
-  hang(west, place(artFrame({ kind: 0, w: 0.9, h: 1.1 }), 8.2, 0.05, 0, 2.6))
-  hang(west, place(artFrame({ kind: 2, w: 0.9, h: 1.1 }), 6.6, 0.05, 0, 2.6))
-  hang(west, place(windowWithCurtains({ w: 2, h: 2.2 }), -7, 0.05, 0, 1.5))
+  hang(west, place(artFrame({ kind: 0, w: 0.9, h: 1.1 }), 12, 0.05, 0, 2.6))
+  hang(west, place(artFrame({ kind: 2, w: 0.9, h: 1.1 }), 10.4, 0.05, 0, 2.6))
+  hang(west, place(windowWithCurtains({ w: 2, h: 2.2 }), -9.5, 0.05, 0, 1.5))
   hang(west, place(artFrame({ kind: 1, w: 0.9, h: 1.1 }), 0, 0.05, 0, 2.6))
-  hang(east, place(windowWithCurtains({ w: 2, h: 2.2 }), -7, 0.05, 0, 1.5))
-  hang(east, place(artFrame({ kind: 2, w: 0.9, h: 1.1 }), 7, 0.05, 0, 2.6))
+  hang(east, place(windowWithCurtains({ w: 2, h: 2.2 }), -9.5, 0.05, 0, 1.5))
+  hang(east, place(artFrame({ kind: 2, w: 0.9, h: 1.1 }), 9.5, 0.05, 0, 2.6))
   hang(east, place(artFrame({ kind: 0, w: 0.9, h: 1.1 }), 0, 0.05, 0, 2.6))
-  hang(south, place(artFrame({ kind: 1, w: 0.9, h: 1.1 }), 7, 0.05, 0, 2.6))
-  hang(south, place(windowWithCurtains({ w: 2, h: 2.2 }), -7, 0.05, 0, 1.5))
-  hang(south, place(windowWithCurtains({ w: 2, h: 2.2 }), 4, 0.05, 0, 1.5))
+  hang(south, place(artFrame({ kind: 1, w: 0.9, h: 1.1 }), 9.5, 0.05, 0, 2.6))
+  hang(south, place(windowWithCurtains({ w: 2, h: 2.2 }), -9.5, 0.05, 0, 1.5))
+  hang(south, place(windowWithCurtains({ w: 2, h: 2.2 }), 5.5, 0.05, 0, 1.5))
   const walls = [north, south, west, east]
   walls.forEach((w) => scene.add(w))
   return walls
@@ -215,59 +217,65 @@ function buildRoom(scene) {
 
 function buildZones(scene) {
   // ── Mi oficina: noroeste, con tabiques de vidrio y una puerta hacia el pasillo ──
-  scene.add(wallPart(partition(8, { glassTop: true, glassH: 2.3 }), -3, -7, Math.PI / 2))
-  scene.add(wallPart(partition(6, { glassTop: true, glassH: 2.3 }), -8, -3))
-  scene.add(place(rug(6.2, 4.4, { base: PALETTE.ink, accent: PALETTE.sand, mid: PALETTE.graphite }), -7, -7.2))
-  scene.add(put(desk({ w: 3.4, d: 1.3, screens: 3, screenKind: 'chart', color: PALETTE.wood, legs: PALETTE.woodDark }), -7, -8))
-  scene.add(put(chair({ color: PALETTE.cognac, executive: true }), -7, -6.3))
-  scene.add(put(armchair({ color: PALETTE.graphite, pillow: PALETTE.primary }), -9.7, -4.5, Math.PI * 0.75))
-  scene.add(put(plant({ size: 1.3 }), -10.2, -10.2))
-  scene.add(put(floorLamp(), -4, -10.2))
-  scene.add(put(bookshelf({ w: 1.6, h: 2 }), -10.4, -7.4, Math.PI / 2))
+  scene.add(wallPart(partition(11, { glassTop: true, glassH: 2.3 }), -4, -9.5, Math.PI / 2))
+  scene.add(wallPart(partition(8.8, { glassTop: true, glassH: 2.3 }), -10.6, -4))
+  scene.add(place(rug(6.2, 4.4, { base: PALETTE.ink, accent: PALETTE.sand, mid: PALETTE.graphite }), -9.5, -10.4))
+  scene.add(put(desk({ w: 3.4, d: 1.3, screens: 3, screenKind: 'chart', color: PALETTE.wood, legs: PALETTE.woodDark }), -9.5, -11.2))
+  scene.add(put(chair({ color: PALETTE.cognac, executive: true }), -9.5, -9.5))
+  scene.add(put(sofa({ w: 2.4, color: PALETTE.oat, pillows: [PALETTE.primary, PALETTE.sand] }), -13.9, -6.6, Math.PI / 2))
+  scene.add(put(coffeeTable({ r: 0.45 }), -11.6, -6.6))
+  scene.add(put(plant({ size: 1.3 }), -14.2, -14.2))
+  scene.add(put(floorLamp(), -5.2, -14.2))
+  scene.add(put(bookshelf({ w: 1.6, h: 2 }), -14.4, -10.8, Math.PI / 2))
 
   // ── Tareas · Jira: noreste, frente al kanban ──
-  scene.add(wallPart(partition(8), 3, -7, Math.PI / 2))
-  scene.add(place(rug(7.6, 4.2, { base: PALETTE.oat, accent: PALETTE.stone, mid: PALETTE.linen }), 7, -7))
-  ;[4.9, 9.1].forEach((x, i) => {
-    scene.add(put(desk({ screens: 2, screenKind: i ? 'code' : 'board', accent: PALETTE.sand }), x, -7.2))
-    scene.add(put(chair({ color: PALETTE.ink }), x, -5.6))
+  scene.add(wallPart(partition(11), 4, -9.5, Math.PI / 2))
+  scene.add(place(rug(9.6, 4.4, { base: PALETTE.oat, accent: PALETTE.stone, mid: PALETTE.linen }), 9.5, -10.2))
+  ;[6.4, 9.6, 12.8].forEach((x, i) => {
+    scene.add(put(desk({ w: 2.2, screens: 2, screenKind: i === 1 ? 'board' : 'code', accent: PALETTE.sand }), x, -10.4))
+    scene.add(put(chair({ color: PALETTE.ink }), x, -8.8))
   })
-  scene.add(put(plant({ size: 1.1 }), 10.2, -10.2))
-  scene.add(put(plant({ size: 0.8, leaves: PALETTE.greenDark }), 10.3, -3.8))
+  scene.add(put(plant({ size: 1.1 }), 14.2, -14.2))
+  scene.add(put(plant({ size: 0.9, leaves: PALETTE.greenDark }), 14.2, -5))
+  scene.add(put(armchair({ color: PALETTE.cognac }), 7, -5.6, Math.PI))
 
   // ── El café, contra el muro norte, entre la oficina y Jira ──
-  scene.add(put(coffeeBar(), 0, -10.35))
-  scene.add(put(plant({ size: 0.8 }), -2.4, -10.3))
-  scene.add(put(plant({ size: 0.8 }), 2.4, -10.3))
+  scene.add(put(coffeeBar(), 0, -14.35))
+  scene.add(put(plant({ size: 0.8 }), -2.4, -14.3))
+  scene.add(put(plant({ size: 0.8 }), 2.4, -14.3))
 
   // ── Arquitecto: suroeste ──
-  scene.add(wallPart(partition(6), -8, 3))
-  scene.add(wallPart(partition(8), -3, 7, Math.PI / 2))
-  scene.add(place(rug(6.4, 4.6, { base: PALETTE.sage, accent: PALETTE.linen, mid: PALETTE.oat }), -7, 7))
-  scene.add(put(whiteboard({ w: 3, h: 1.6 }), -7, 4.2))
-  scene.add(put(desk({ w: 2.8, screens: 2, screenKind: 'code', accent: PALETTE.sage, color: PALETTE.white }), -7, 7.2))
-  scene.add(put(chair({ color: PALETTE.graphite }), -7, 8.7))
-  scene.add(put(plant({ size: 1.2 }), -10.2, 10.2))
-  scene.add(put(floorLamp({ shade: PALETTE.sand }), -4, 10.2))
+  scene.add(wallPart(partition(8.8), -10.6, 4))
+  scene.add(wallPart(partition(11), -4, 9.5, Math.PI / 2))
+  scene.add(place(rug(6.4, 4.6, { base: PALETTE.sage, accent: PALETTE.linen, mid: PALETTE.oat }), -9.5, 10.3))
+  scene.add(put(whiteboard({ w: 3, h: 1.6 }), -9.5, 6.6))
+  scene.add(put(desk({ w: 2.8, screens: 2, screenKind: 'code', accent: PALETTE.sage, color: PALETTE.white }), -9.5, 10))
+  scene.add(put(chair({ color: PALETTE.graphite }), -9.5, 11.5))
+  scene.add(put(armchair({ color: PALETTE.graphite, pillow: PALETTE.sage }), -13.6, 6.4, Math.PI * 0.6))
+  scene.add(put(plant({ size: 1.2 }), -14.2, 14.2))
+  scene.add(put(floorLamp({ shade: PALETTE.sand }), -5.2, 14.2))
 
   // ── Contexto · tablero: sureste, la biblioteca ──
-  scene.add(wallPart(partition(6), 8, 3))
-  scene.add(wallPart(partition(8), 3, 7, Math.PI / 2))
-  scene.add(place(rug(6.4, 4.6, { base: PALETTE.slate, accent: PALETTE.sand, mid: PALETTE.oat }), 7, 7.3))
-  scene.add(put(bookshelf({ w: 2, h: 2.4 }), 5.3, 3.65))
-  scene.add(put(bookshelf({ w: 2, h: 2.4 }), 8.3, 3.65))
-  scene.add(put(desk({ w: 2.4, screens: 1, screenKind: 'board', accent: PALETTE.slate, color: PALETTE.wood, legs: PALETTE.woodDark }), 6.4, 7.2))
-  scene.add(put(chair({ color: PALETTE.cognac }), 6.4, 8.7))
-  scene.add(put(sofa({ w: 2.4, color: PALETTE.linen, pillows: [PALETTE.slate, PALETTE.mustard] }), 9.9, 7.6, -Math.PI / 2))
-  scene.add(put(plant({ size: 1 }), 10.2, 10.3))
+  scene.add(wallPart(partition(8.8), 10.6, 4))
+  scene.add(wallPart(partition(11), 4, 9.5, Math.PI / 2))
+  scene.add(place(rug(6.4, 4.6, { base: PALETTE.slate, accent: PALETTE.sand, mid: PALETTE.oat }), 9, 10.3))
+  scene.add(put(bookshelf({ w: 2, h: 2.4 }), 8.2, 4.65))
+  scene.add(put(bookshelf({ w: 2, h: 2.4 }), 11.2, 4.65))
+  scene.add(put(bookshelf({ w: 2, h: 2.4 }), 14.35, 7.6, -Math.PI / 2))
+  scene.add(put(desk({ w: 2.4, screens: 1, screenKind: 'board', accent: PALETTE.slate, color: PALETTE.wood, legs: PALETTE.woodDark }), 8.4, 10))
+  scene.add(put(chair({ color: PALETTE.cognac }), 8.4, 11.5))
+  scene.add(put(sofa({ w: 2.4, color: PALETTE.linen, pillows: [PALETTE.slate, PALETTE.mustard] }), 13.9, 11.6, -Math.PI / 2))
+  scene.add(put(plant({ size: 1 }), 14.2, 14.3))
 
   // ── Lounge: el centro ──
-  scene.add(place(rug(5.6, 5.6), 0, 0))
-  scene.add(put(sofa({ w: 2.6 }), -1.9, 0, Math.PI / 2))
-  scene.add(put(armchair(), 2, 0, -Math.PI / 2))
+  scene.add(place(rug(6.4, 6.4), 0, 0))
+  scene.add(put(sofa({ w: 2.6 }), -2.4, 0, Math.PI / 2))
+  scene.add(put(sofa({ w: 2.6, color: PALETTE.linen, pillows: [PALETTE.clay, PALETTE.sage] }), 0.3, 2.6, Math.PI))
+  scene.add(put(armchair(), 2.5, 0, -Math.PI / 2))
   scene.add(put(coffeeTable(), 0, 0))
-  scene.add(put(floorLamp(), -2.4, 2.3))
-  scene.add(put(plant({ size: 1.2 }), 2.4, -2.3))
+  scene.add(put(floorLamp(), -3.2, 3.2))
+  scene.add(put(plant({ size: 1.2 }), 3.2, -3.2))
+  scene.add(put(plant({ size: 1 }), -3.2, -3.2))
 }
 
 // El piso de cada zona se ilumina al pasar el mouse: una lámina apenas sobre el piso, invisible en reposo.
@@ -333,17 +341,17 @@ export function createOffice(container, { onFocus, onHover } = {}) {
   // invertida» de las vistas isométricas): la planta parecía angosta adelante y ancha atrás.
   // La vista arranca en diagonal exacta (45°), que es la que hace ver cuadrada la planta.
   const camera = new THREE.PerspectiveCamera(28, 1, 1, 500)
-  const START = new THREE.Vector3(4, 0, 4)
+  const START = new THREE.Vector3(5, 0, 5)
   const START_DIR = new THREE.Vector3(1, 1.05, 1).normalize()
   // En una ventana angosta la cámara se aleja para que entre lo mismo a lo ancho.
   let fit = 1
-  camera.position.copy(START).addScaledVector(START_DIR, 90)
+  camera.position.copy(START).addScaledVector(START_DIR, 118)
 
   const controls = new OrbitControls(camera, renderer.domElement)
   controls.enableDamping = true
   controls.dampingFactor = 0.08
   controls.minDistance = 14
-  controls.maxDistance = 130
+  controls.maxDistance = 170
   // Entre ~35° y ~60° de la vertical: más arriba la caja se ve plana; más abajo se pierde el interior.
   controls.minPolarAngle = 0.62
   controls.maxPolarAngle = 1.05
@@ -354,13 +362,13 @@ export function createOffice(container, { onFocus, onHover } = {}) {
   scene.add(new THREE.HemisphereLight('#ffffff', '#c9bfd6', 1.6))
   const sun = new THREE.DirectionalLight('#fff4e6', 2.4)
   // La sombra cubre toda la maqueta (la oficina y la calle), centrada en ella.
-  sun.position.set(19, 30, 17)
+  sun.position.set(24, 38, 21)
   sun.target.position.set(5, 0, 5)
   scene.add(sun.target)
   sun.castShadow = true
   sun.shadow.mapSize.set(4096, 4096)
-  sun.shadow.camera.left = -30; sun.shadow.camera.right = 30
-  sun.shadow.camera.top = 30; sun.shadow.camera.bottom = -30
+  sun.shadow.camera.left = -38; sun.shadow.camera.right = 38
+  sun.shadow.camera.top = 38; sun.shadow.camera.bottom = -38
   sun.shadow.bias = -0.0004
   sun.shadow.normalBias = 0.03
   sun.shadow.radius = 4
