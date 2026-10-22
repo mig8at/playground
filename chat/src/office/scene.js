@@ -9,6 +9,7 @@
  *   suroeste  Arquitecto          la pizarra con el diagrama y su mesa
  *   sureste   Contexto · tablero  la biblioteca del conocimiento local y un rincón de lectura
  *   centro    Lounge              sillones y mesa; el café, contra el muro norte
+ * Afuera, la calle (street.js): dos calles que se cruzan con semáforos, carros, árboles y la entrada.
  * Todavía sin personas: los agentes llegan después.
  *
  * La información de cada zona aparece al pasar el mouse por encima de su piso, que se ilumina; un clic (sin
@@ -22,6 +23,7 @@ import {
   desk, chair, plant, sofa, armchair, coffeeTable, rug, bookshelf, kanban, whiteboard, artFrame, wallScreen,
   floorLamp, windowWithCurtains, coffeeBar, partition,
 } from './furniture.js'
+import { buildStreet } from './street.js'
 
 const SIZE = 22
 const HALF = SIZE / 2
@@ -30,7 +32,7 @@ const WAINSCOT = 1.5
 
 // `area` es el rectángulo del piso de cada zona [x0, z0, x1, z1]: ahí se detecta el mouse.
 export const ZONES = [
-  { id: 'overview', label: 'Vista general', center: [0, 0, 0], zoom: 1 },
+  { id: 'overview', label: 'Vista general', center: [4, 0, 4], zoom: 0.6 },
   { id: 'office', label: 'Mi oficina', detail: 'Donde llegan los resultados del día.', center: [-7, 0, -7], area: [-11, -11, -3, -3], zoom: 1.7 },
   { id: 'jira', label: 'Tareas · Jira', detail: 'El sprint: lo que está en curso y lo que sigue.', center: [7, 0, -7], area: [3, -11, 11, -3], zoom: 1.7 },
   { id: 'architect', label: 'Arquitecto', detail: 'Diseño y decisiones antes de tocar código.', center: [-7, 0, 7], area: [-11, 3, -3, 11], zoom: 1.7 },
@@ -44,21 +46,64 @@ function place(object, x, z, rotation = 0, y = 0) {
   return object
 }
 
-// Un muro con su zócalo de color, mirando hacia adentro (+z local). `outward` es su normal hacia afuera:
-// cuando la cámara queda de ese lado, el muro se esconde.
-function wall(length, { x, z, rotation, outward }) {
+// Un muro mirando hacia adentro (+z local), en dos partes: el zócalo, siempre a la vista, y la parte alta
+// (`userData.upper`), que se esconde cuando el muro queda entre la cámara y el interior; lo que cuelga de un
+// muro va en su parte alta. Es el corte de Los Sims: desde la calle se ve adentro y también la puerta.
+// `gaps` son huecos de puerta: [{ at, width }] a lo largo del muro (x local).
+const DOOR_H = 2.7
+function wall(length, { x, z, rotation, outward, gaps = [] }) {
   const g = new THREE.Group()
+  const upper = new THREE.Group()
   const L = length + 0.8
-  g.add(box(L, WAINSCOT, 0.4, PALETTE.wallLow, { z: -0.2, r: 0.04 }))
-  g.add(box(L, 0.12, 0.46, PALETTE.wallTrim, { y: WAINSCOT - 0.06, z: -0.2, r: 0.03 }))
-  g.add(box(L, WALL_H - WAINSCOT, 0.4, PALETTE.wallHigh, { y: WAINSCOT, z: -0.2, r: 0.04 }))
-  g.add(box(L, 0.1, 0.44, PALETTE.white, { y: WALL_H - 0.05, z: -0.2, r: 0.03 }))
-  g.add(box(L, 0.14, 0.46, PALETTE.white, { y: 0, z: -0.2, r: 0.02 }))
+  const cuts = gaps.map(({ at, width }) => [at - width / 2, at + width / 2]).sort((a, b) => a[0] - b[0])
+  const solids = []
+  let cursor = -L / 2
+  for (const [a, b] of cuts) { if (a > cursor) solids.push([cursor, a]); cursor = b }
+  if (cursor < L / 2) solids.push([cursor, L / 2])
+  for (const [a, b] of solids) {
+    const w = b - a, cx = (a + b) / 2
+    g.add(box(w, WAINSCOT, 0.4, PALETTE.wallLow, { x: cx, z: -0.2, r: 0.04 }))
+    g.add(box(w, 0.12, 0.46, PALETTE.wallTrim, { x: cx, y: WAINSCOT - 0.06, z: -0.2, r: 0.03 }))
+    g.add(box(w, 0.14, 0.46, PALETTE.white, { x: cx, z: -0.2, r: 0.02 }))
+    upper.add(box(w, WALL_H - WAINSCOT, 0.4, PALETTE.wallHigh, { x: cx, y: WAINSCOT, z: -0.2, r: 0.04 }))
+  }
+  for (const [a, b] of cuts) {
+    const w = b - a, cx = (a + b) / 2
+    upper.add(box(w, WALL_H - DOOR_H, 0.4, PALETTE.wallHigh, { x: cx, y: DOOR_H, z: -0.2, r: 0.04 }))
+    g.add(doorFrame(w, cx))
+  }
+  upper.add(box(L, 0.1, 0.44, PALETTE.white, { y: WALL_H - 0.05, z: -0.2, r: 0.03 }))
+  g.add(upper)
   g.position.set(x, 0, z)
   g.rotation.y = rotation
   g.userData.outward = new THREE.Vector3(...outward)
+  g.userData.upper = upper
   return g
 }
+
+// La puerta de vidrio: marco morado y dos hojas entreabiertas. Va con el zócalo: se ve aunque el muro esté cortado.
+function doorFrame(width, cx) {
+  const g = new THREE.Group()
+  for (const sx of [-1, 1]) g.add(box(0.16, DOOR_H, 0.56, PALETTE.wallTrim, { x: cx + sx * (width / 2 - 0.08), z: -0.2, r: 0.03 }))
+  g.add(box(width, 0.18, 0.56, PALETTE.wallTrim, { x: cx, y: DOOR_H - 0.18, z: -0.2, r: 0.03 }))
+  const leaf = (width - 0.32) / 2
+  for (const sx of [-1, 1]) {
+    const hinge = new THREE.Group()
+    hinge.position.set(cx + sx * (width / 2 - 0.16), 0, -0.2)
+    const glass = new THREE.Mesh(new THREE.BoxGeometry(leaf, DOOR_H - 0.3, 0.05), new THREE.MeshStandardMaterial({
+      color: PALETTE.glass, roughness: 0.1, transparent: true, opacity: 0.35, depthWrite: false,
+    }))
+    glass.position.set(-sx * leaf / 2, (DOOR_H - 0.3) / 2 + 0.06, 0)
+    hinge.add(glass)
+    hinge.add(box(0.06, DOOR_H - 0.3, 0.07, PALETTE.white, { x: -sx * (leaf - 0.03), y: 0.06, r: 0.02 }))
+    hinge.add(box(0.05, 0.5, 0.12, PALETTE.accent, { x: -sx * (leaf - 0.15), y: 1.0, r: 0.02 }))
+    hinge.rotation.y = sx * 0.55
+    g.add(hinge)
+  }
+  return g
+}
+
+const hang = (w, object) => w.userData.upper.add(object)
 
 function plankTexture() {
   const texture = canvasTexture(512, 512, (g, W, H) => {
@@ -79,35 +124,35 @@ function plankTexture() {
 }
 
 function buildRoom(scene) {
-  // La base de la maqueta y el piso de tablas.
-  scene.add(box(SIZE + 1.6, 0.7, SIZE + 1.6, PALETTE.base, { y: -1.1, r: 0.2 }))
-  scene.add(box(SIZE + 0.8, 0.4, SIZE + 0.8, PALETTE.baseTop, { y: -0.4, r: 0.06 }))
+  // El piso de tablas, a ras de la acera que lo rodea (la base de la maqueta la pone la calle).
+  scene.add(box(SIZE + 0.8, 0.45, SIZE + 0.8, PALETTE.baseTop, { y: -0.45, r: 0.04 }))
   const floor = new THREE.Mesh(new THREE.PlaneGeometry(SIZE + 0.8, SIZE + 0.8),
     new THREE.MeshStandardMaterial({ map: plankTexture(), roughness: 0.9 }))
   floor.rotation.x = -Math.PI / 2
-  floor.position.y = 0.002
+  floor.position.y = 0.012
   floor.receiveShadow = true
   scene.add(floor)
 
   const north = wall(SIZE, { x: 0, z: -HALF, rotation: 0, outward: [0, 0, -1] })
-  const south = wall(SIZE, { x: 0, z: HALF, rotation: Math.PI, outward: [0, 0, 1] })
+  // La puerta da a la calle del sur, en el eje del lounge.
+  const south = wall(SIZE, { x: 0, z: HALF, rotation: Math.PI, outward: [0, 0, 1], gaps: [{ at: 0, width: 2.6 }] })
   const west = wall(SIZE, { x: -HALF, z: 0, rotation: Math.PI / 2, outward: [-1, 0, 0] })
   const east = wall(SIZE, { x: HALF, z: 0, rotation: -Math.PI / 2, outward: [1, 0, 0] })
-  // Lo que cuelga de cada muro va en su grupo, en coordenadas del muro (x a lo largo, y arriba, +z adentro):
+  // Lo que cuelga de cada muro va en su parte alta, en coordenadas del muro (x a lo largo, y arriba, +z adentro):
   //   norte: x = x del mundo · oeste: x = -z del mundo · este: x = z del mundo · sur: x = -x del mundo
-  north.add(place(wallScreen({ w: 3.4, h: 1.9 }), -7, 0.1, 0, 1.7))
-  north.add(place(kanban({ w: 4.4, h: 2 }), 7, 0.1, 0, 1.6))
-  north.add(place(artFrame({ kind: 1 }), 0, 0.05, 0, 2.5))
-  west.add(place(artFrame({ kind: 0 }), 8, 0.05, 0, 2.2))
-  west.add(place(artFrame({ kind: 2 }), 6.4, 0.05, 0, 2.2))
-  west.add(place(windowWithCurtains({ w: 1.8, h: 1.8 }), -7, 0.05, 0, 1.8))
-  west.add(place(artFrame({ kind: 1 }), 0, 0.05, 0, 2.3))
-  east.add(place(windowWithCurtains({ w: 1.8, h: 1.8 }), -7, 0.05, 0, 1.8))
-  east.add(place(artFrame({ kind: 2 }), 7, 0.05, 0, 2.3))
-  east.add(place(artFrame({ kind: 0 }), 0, 0.05, 0, 2.3))
-  south.add(place(artFrame({ kind: 1 }), 7, 0.05, 0, 2.3))
-  south.add(place(windowWithCurtains({ w: 1.8, h: 1.8 }), -7, 0.05, 0, 1.8))
-  south.add(place(windowWithCurtains({ w: 1.8, h: 1.8 }), 0, 0.05, 0, 1.8))
+  hang(north, place(wallScreen({ w: 3.4, h: 1.9 }), -7, 0.1, 0, 1.7))
+  hang(north, place(kanban({ w: 4.4, h: 2 }), 7, 0.1, 0, 1.6))
+  hang(north, place(artFrame({ kind: 1 }), 0, 0.05, 0, 2.5))
+  hang(west, place(artFrame({ kind: 0 }), 8, 0.05, 0, 2.2))
+  hang(west, place(artFrame({ kind: 2 }), 6.4, 0.05, 0, 2.2))
+  hang(west, place(windowWithCurtains({ w: 1.8, h: 1.8 }), -7, 0.05, 0, 1.8))
+  hang(west, place(artFrame({ kind: 1 }), 0, 0.05, 0, 2.3))
+  hang(east, place(windowWithCurtains({ w: 1.8, h: 1.8 }), -7, 0.05, 0, 1.8))
+  hang(east, place(artFrame({ kind: 2 }), 7, 0.05, 0, 2.3))
+  hang(east, place(artFrame({ kind: 0 }), 0, 0.05, 0, 2.3))
+  hang(south, place(artFrame({ kind: 1 }), 7, 0.05, 0, 2.3))
+  hang(south, place(windowWithCurtains({ w: 1.8, h: 1.8 }), -7, 0.05, 0, 1.8))
+  hang(south, place(windowWithCurtains({ w: 1.8, h: 1.8 }), 4, 0.05, 0, 1.8))
   const walls = [north, south, west, east]
   walls.forEach((w) => scene.add(w))
   return walls
@@ -232,26 +277,30 @@ export function createOffice(container, { onFocus, onHover } = {}) {
   // arranca en diagonal exacta (45°), que es la que hace ver cuadrada la planta.
   const FRUSTUM = 24
   const camera = new THREE.OrthographicCamera(-1, 1, 1, -1, -200, 400)
-  camera.position.set(1, 1.05, 1).normalize().multiplyScalar(60)
+  camera.position.set(1, 1.05, 1).normalize().multiplyScalar(60).add(new THREE.Vector3(4, 0, 4))
+  camera.zoom = 0.6
 
   const controls = new OrbitControls(camera, renderer.domElement)
   controls.enableDamping = true
   controls.dampingFactor = 0.08
-  controls.minZoom = 0.7
+  controls.minZoom = 0.4
   controls.maxZoom = 4
   controls.minPolarAngle = 0.25
   controls.maxPolarAngle = 1.2
   controls.screenSpacePanning = true
-  controls.target.set(0, 0, 0)
+  controls.target.set(4, 0, 4)
 
   // Luz: el cielo y el rebote del piso, más un sol tibio que proyecta sombras suaves.
   scene.add(new THREE.HemisphereLight('#ffffff', '#c9bfd6', 1.6))
   const sun = new THREE.DirectionalLight('#fff4e6', 2.4)
-  sun.position.set(14, 26, 12)
+  // La sombra cubre toda la maqueta (la oficina y la calle), centrada en ella.
+  sun.position.set(19, 30, 17)
+  sun.target.position.set(5, 0, 5)
+  scene.add(sun.target)
   sun.castShadow = true
-  sun.shadow.mapSize.set(2048, 2048)
-  sun.shadow.camera.left = -17; sun.shadow.camera.right = 17
-  sun.shadow.camera.top = 17; sun.shadow.camera.bottom = -17
+  sun.shadow.mapSize.set(4096, 4096)
+  sun.shadow.camera.left = -30; sun.shadow.camera.right = 30
+  sun.shadow.camera.top = 30; sun.shadow.camera.bottom = -30
   sun.shadow.bias = -0.0004
   sun.shadow.normalBias = 0.03
   sun.shadow.radius = 4
@@ -261,6 +310,7 @@ export function createOffice(container, { onFocus, onHover } = {}) {
   scene.add(fill)
 
   const walls = buildRoom(scene)
+  const street = buildStreet(scene)
   buildZones(scene)
   const highlights = buildHighlights(scene)
   const labels = buildLabels(scene)
@@ -338,7 +388,7 @@ export function createOffice(container, { onFocus, onHover } = {}) {
   const toCamera = new THREE.Vector3()
   function updateWalls() {
     toCamera.copy(camera.position).sub(controls.target).setY(0).normalize()
-    for (const w of walls) w.visible = w.userData.outward.dot(toCamera) < 0.25
+    for (const w of walls) w.userData.upper.visible = w.userData.outward.dot(toCamera) < 0.25
   }
 
   let frame = 0
@@ -362,6 +412,7 @@ export function createOffice(container, { onFocus, onHover } = {}) {
       const goal = id === hovered ? 0.2 : 0
       mesh.material.opacity += (goal - mesh.material.opacity) * Math.min(1, dt * 10)
     }
+    street.update(dt)
     controls.update()
     updateWalls()
     renderer.render(scene, camera)
