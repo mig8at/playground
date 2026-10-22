@@ -1283,4 +1283,7 @@ no es la de por defecto (`?vista=buros`, `?consola=mocks`, `?inicio=entidades`).
 - **La ficha de prod quedó en lo justo para entrar a mano**: el correo del asesor de prueba y la contraseña, para copiar,
   más los avisos que impiden entrar y el de «en prod todo es real». Se fueron las sucursales, la URL, las entidades y la
   pista del comando.
+- **Se sacó la «Corrida pública de prod» de la barra** (Miguel, 2026-10-21): la vista Admin de prod tiene sólo la fila del
+  admin, apagada. Una pestaña `prodrun` guardada se descarta al cargar y `/prod/corrida-publica` ya no abre nada. La
+  corrida sigue por consola: `dev/prod-run.ts`.
 

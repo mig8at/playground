@@ -173,7 +173,7 @@
     #sideRight nav .tab[aria-disabled="true"] { opacity: .45; cursor: not-allowed }
     #sideRight nav .tab[aria-disabled="true"]:hover { color: var(--fg-3) }
     .view-note.alert-warn { color: var(--foreground) }
-    /* Sin pestaña de comercio (Admin, la corrida pública, ninguna) y en prod para Cliente y Burós: sólo el aviso. */
+    /* Sin pestaña de comercio (Admin, ninguna) y en prod para Cliente y Burós: sólo el aviso. */
     body.aux-empty #viewClient > :not(legend, .view-note), body.aux-empty #viewMerchant > :not(legend, .view-note),
     body.aux-empty #viewBureaus > :not(legend, .view-note),
     .prod-mode #viewClient > :not(legend, .view-note), .prod-mode #viewBureaus > :not(legend, .view-note) { display: none }
@@ -1903,7 +1903,7 @@
       }
       if (selectedOff) showAuxView(prodMode ? 'merchant' : 'client');
       if (prodMode) {
-        set('noteClient', 'En prod no se inyecta ni se dicta nada: la corrida pública usa los datos de harness/.env.prod, y la ficha del comercio está en Comercio.');
+        set('noteClient', 'En prod no se inyecta ni se dicta nada: se entra a mano con el asesor de prueba, que está en Comercio.');
         set('noteBureaus', 'En prod contestan las centrales de verdad: no se les dicta nada desde el panel.');
         set('noteMerchant', '');
         return;
@@ -3933,7 +3933,7 @@
     // una se fotografía su configuración y al volver se repone; una NUEVA arranca con la configuración por defecto. Así el
     // gate de canales, las rutas y las preferencias siguen siendo los de siempre y la pestaña no los puede saltear.
     // Cada ambiente tiene SU juego (3 en local, 2 en qa…): cambiar de ambiente guarda uno y trae el otro. Producción no
-    // tiene su juego, con los celulares a mano (sin autorrelleno ni nada que avance solo) y la corrida pública en Admin.
+    // tiene su juego, con los celulares a mano (sin autorrelleno ni nada que avance solo).
     // ⚠ La vista «Comercio» del sidebar derecho NO es de la pestaña: escribe `allieds` y vale para el comercio entero.
     // Se recuerdan en el navegador (`harness.tabs.v2`): son una comodidad de esta máquina, no un dato.
     const TABS_KEY = 'harness.tabs.v2';
@@ -4006,7 +4006,8 @@
     const tabKey = (x) => (x.kind === 'admin' || x.kind === 'prodrun' ? x.kind : x.kind === 'prod' ? 'prod:' + x.allied : 'm:' + x.slug);
     function loadTabSet(t) {
       const set = tabSets[t] || { tabs: [], active: null };
-      const tabs = (set.tabs || []).filter((x) => x && x.id && (x.kind === 'admin' || x.kind === 'prodrun' || (x.kind === 'prod' && x.allied) || x.slug));
+      // (La pestaña de la corrida pública ya no se abre: una guardada de antes se descarta.)
+      const tabs = (set.tabs || []).filter((x) => x && x.id && (x.kind === 'admin' || (x.kind === 'prod' && x.allied) || x.slug));
       // SIN REPETIDAS (2026-10-21): las guardadas de antes podían tener el mismo comercio una vez por canal. Se queda la que
       // tiene una corrida (dueña de un carril), si no la activa, si no la primera.
       const owns = (x) => LANES.some((l) => laneOwners[l] && laneOwners[l].target === t && laneOwners[l].id === x.id);
@@ -4609,20 +4610,13 @@
           : rowFor(e.alias || e.name, null, `«${e.alias || e.name}» no está en prod: ${e.prod_branch ? `su sucursal de prod (${e.prod_branch}) no aparece` : 'sin sucursal de prod en el registro'}. Para asociarlo (clic copia el comando):\n${associateCommand(e, 'prod')}`, e.slug, e));
       }
       // EL ADMIN, como en los otros ambientes. En prod su admin no se abre desde el panel (a propósito: un clic al admin de
-      // producción al lado de correr un caso es un accidente esperando), así que va apagado con su motivo. Y la CORRIDA
-      // PÚBLICA (`dev/prod-run.ts`), lo único propio de prod, va ahí: es una herramienta del ambiente, no un comercio.
+      // producción al lado de correr un caso es un accidente esperando), así que va apagado con su motivo. (La corrida
+      // pública de prod se sacó de acá el 2026-10-21, a pedido de Miguel: sigue por consola, `dev/prod-run.ts`.)
       const adminBody = sideView(box, 'admin', 'Admin', undefined, false);
       const adm = treeRow('missing', 0, 'external', 'Admin de legacy-application', 'prod');
       adm.title = 'En prod no: el admin de producción no se abre desde el panel. Se entra por el navegador de siempre.';
       adm.setAttribute('aria-disabled', 'true'); adm.tabIndex = -1;
       adminBody.appendChild(adm);
-      const run = treeRow('', 0, 'play', 'Corrida pública de prod', '');
-      run.title = 'Registro → OTP por SMS → datos personales, con una cédula permitida en la sucursal de prueba sin entidades ni Experian. Para antes del listado.';
-      run.tabIndex = 0;
-      run.setAttribute('aria-selected', String(currentTab()?.kind === 'prodrun'));
-      run.onclick = () => openProdRunTab();
-      run.onkeydown = (ev) => { if (ev.key === 'Enter' || ev.key === ' ') { ev.preventDefault(); openProdRunTab(); } };
-      adminBody.appendChild(run);
     }
     /** La pestaña de la corrida pública de prod (una por juego): muestra la tarjeta de siempre (`#prodView`). */
     function openProdRunTab() {
@@ -4974,7 +4968,7 @@
     function updateGo() {
       if (runRunning) return;   // el botón es de startPoll mientras corre
       // En el modo prod no se corre nada desde acá: `target` sigue siendo el ambiente de antes y lanzar correría ahí.
-      if (prodMode) { $('go').disabled = true; $('go').title = 'En prod no se lanza: cada pestaña abre su celular a mano, y la corrida pública está en Admin'; $('runSummary').textContent = ''; return; }
+      if (prodMode) { $('go').disabled = true; $('go').title = 'En prod no se lanza: cada pestaña abre su celular a mano'; $('runSummary').textContent = ''; return; }
       updateCaseSummary();
       const chosen = sel && spaceEntries().find((x) => x.slug === sel.slug || (x.hash && x.hash === sel.slug));
       const blocked = chosen && !chosen.missing ? readinessOf(chosen).block : [];
@@ -6964,7 +6958,6 @@ export function bindMenu(trigger, { getItems, onSelect, label = 'Más opciones' 
           }
           if (seq !== routeSeq) return;
           if (slug === 'admin') openAdminTab(readPath().slice(2).length ? '/' + readPath().slice(2).join('/') : undefined);
-          else if (slug === 'corrida-publica' && prodMode) openProdRunTab();
           else if (slug && prodMode) {
             // El catálogo de prod llega por Redash (~15 s la primera vez): se lo espera.
             for (let i = 0; !prodRows && i < 60 && seq === routeSeq; i++) await new Promise((r) => setTimeout(r, 500));
