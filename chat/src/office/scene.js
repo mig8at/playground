@@ -13,7 +13,8 @@
  * Todavía sin personas: los agentes llegan después.
  *
  * La información de cada zona aparece al pasar el mouse por encima de su piso, que se ilumina; un clic (sin
- * arrastrar) lleva la cámara ahí. La cámara es ortográfica, que es lo que da el aspecto de maqueta.
+ * arrastrar) lleva la cámara ahí. La cámara es de perspectiva con lente larga: aire de maqueta sin la ilusión
+ * de la ortográfica.
  */
 import * as THREE from 'three'
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js'
@@ -35,12 +36,12 @@ const T = 0.6        // grosor del muro
 
 // `area` es el rectángulo del piso de cada zona [x0, z0, x1, z1]: ahí se detecta el mouse.
 export const ZONES = [
-  { id: 'overview', label: 'Vista general', center: [4, 0, 4], zoom: 0.6 },
-  { id: 'office', label: 'Mi oficina', detail: 'Donde llegan los resultados del día.', center: [-7, 0, -7], area: [-11, -11, -3, -3], zoom: 1.7 },
-  { id: 'jira', label: 'Tareas · Jira', detail: 'El sprint: lo que está en curso y lo que sigue.', center: [7, 0, -7], area: [3, -11, 11, -3], zoom: 1.7 },
-  { id: 'architect', label: 'Arquitecto', detail: 'Diseño y decisiones antes de tocar código.', center: [-7, 0, 7], area: [-11, 3, -3, 11], zoom: 1.7 },
-  { id: 'context', label: 'Contexto · tablero', detail: 'El conocimiento local y la historia de cada tarea.', center: [7, 0, 7], area: [3, 3, 11, 11], zoom: 1.7 },
-  { id: 'lounge', label: 'Lounge', detail: 'Café y charla entre una cosa y otra.', center: [0, 0, 0], area: [-3, -3, 3, 3], zoom: 2 },
+  { id: 'overview', label: 'Vista general', center: [4, 0, 4], distance: 90 },
+  { id: 'office', label: 'Mi oficina', detail: 'Donde llegan los resultados del día.', center: [-7, 0, -7], area: [-11, -11, -3, -3], distance: 30 },
+  { id: 'jira', label: 'Tareas · Jira', detail: 'El sprint: lo que está en curso y lo que sigue.', center: [7, 0, -7], area: [3, -11, 11, -3], distance: 30 },
+  { id: 'architect', label: 'Arquitecto', detail: 'Diseño y decisiones antes de tocar código.', center: [-7, 0, 7], area: [-11, 3, -3, 11], distance: 30 },
+  { id: 'context', label: 'Contexto · tablero', detail: 'El conocimiento local y la historia de cada tarea.', center: [7, 0, 7], area: [3, 3, 11, 11], distance: 30 },
+  { id: 'lounge', label: 'Lounge', detail: 'Café y charla entre una cosa y otra.', center: [0, 0, 0], area: [-3, -3, 3, 3], distance: 26 },
 ]
 
 function place(object, x, z, rotation = 0, y = 0) {
@@ -138,7 +139,7 @@ function buildRoom(scene) {
   const floor = new THREE.Mesh(new THREE.PlaneGeometry(SIZE + 0.8, SIZE + 0.8),
     new THREE.MeshStandardMaterial({ map: plankTexture(), roughness: 0.9 }))
   floor.rotation.x = -Math.PI / 2
-  floor.position.y = 0.012
+  floor.position.y = 0.02
   floor.receiveShadow = true
   scene.add(floor)
 
@@ -282,23 +283,27 @@ export function createOffice(container, { onFocus, onHover } = {}) {
   labelRenderer.domElement.className = 'office-labels'
   container.appendChild(labelRenderer.domElement)
 
-  // Ortográfica: el aspecto de maqueta. `FRUSTUM` es cuánto del mundo entra a lo alto con zoom 1. La vista
-  // arranca en diagonal exacta (45°), que es la que hace ver cuadrada la planta.
-  const FRUSTUM = 24
-  const camera = new THREE.OrthographicCamera(-1, 1, 1, -1, -200, 400)
-  camera.position.set(1, 1.05, 1).normalize().multiplyScalar(60).add(new THREE.Vector3(4, 0, 4))
-  camera.zoom = 0.6
+  // Perspectiva de lente larga (28°): conserva el aire de maqueta, y el fondo se achica apenas, como debe. Con
+  // una cámara ortográfica lo lejano mide igual que lo cercano y el ojo lo lee MÁS grande (la «perspectiva
+  // invertida» de las vistas isométricas): la planta parecía angosta adelante y ancha atrás.
+  // La vista arranca en diagonal exacta (45°), que es la que hace ver cuadrada la planta.
+  const camera = new THREE.PerspectiveCamera(28, 1, 1, 500)
+  const START = new THREE.Vector3(4, 0, 4)
+  const START_DIR = new THREE.Vector3(1, 1.05, 1).normalize()
+  // En una ventana angosta la cámara se aleja para que entre lo mismo a lo ancho.
+  let fit = 1
+  camera.position.copy(START).addScaledVector(START_DIR, 90)
 
   const controls = new OrbitControls(camera, renderer.domElement)
   controls.enableDamping = true
   controls.dampingFactor = 0.08
-  controls.minZoom = 0.4
-  controls.maxZoom = 4
+  controls.minDistance = 14
+  controls.maxDistance = 130
   // Entre ~35° y ~60° de la vertical: más arriba la caja se ve plana; más abajo se pierde el interior.
   controls.minPolarAngle = 0.62
   controls.maxPolarAngle = 1.05
   controls.screenSpacePanning = true
-  controls.target.set(4, 0, 4)
+  controls.target.copy(START)
 
   // Luz: el cielo y el rebote del piso, más un sol tibio que proyecta sombras suaves.
   scene.add(new THREE.HemisphereLight('#ffffff', '#c9bfd6', 1.6))
@@ -334,13 +339,12 @@ export function createOffice(container, { onFocus, onHover } = {}) {
     const { clientWidth: w, clientHeight: h } = container
     if (!w || !h) return
     const aspect = w / h
-    // En una ventana angosta manda el ancho: la diagonal de la planta (~31) tiene que entrar a lo ancho.
-    const tall = Math.max(FRUSTUM, 33 / aspect)
-    camera.left = (-tall * aspect) / 2
-    camera.right = (tall * aspect) / 2
-    camera.top = tall / 2
-    camera.bottom = -tall / 2
+    const before = fit
+    fit = Math.max(1, 1.45 / aspect)
+    camera.aspect = aspect
     camera.updateProjectionMatrix()
+    // Si cambió el ajuste, la cámara se aleja o se acerca en la misma proporción, sin cambiar el ángulo.
+    if (before !== fit) camera.position.sub(controls.target).multiplyScalar(fit / before).add(controls.target)
     renderer.setSize(w, h)
     labelRenderer.setSize(w, h)
   }
@@ -354,12 +358,10 @@ export function createOffice(container, { onFocus, onHover } = {}) {
     const zone = ZONES.find((z) => z.id === id) || ZONES[0]
     const target = new THREE.Vector3(...zone.center)
     const direction = camera.position.clone().sub(controls.target).normalize()
-    const distance = camera.position.distanceTo(controls.target)
     flight = {
       t: 0,
       fromTarget: controls.target.clone(), toTarget: target,
-      fromPos: camera.position.clone(), toPos: target.clone().add(direction.multiplyScalar(distance)),
-      fromZoom: camera.zoom, toZoom: zone.zoom,
+      fromPos: camera.position.clone(), toPos: target.clone().addScaledVector(direction, zone.distance * fit),
     }
     onFocus?.(zone.id)
   }
@@ -421,8 +423,6 @@ export function createOffice(container, { onFocus, onHover } = {}) {
       const k = ease(flight.t)
       controls.target.lerpVectors(flight.fromTarget, flight.toTarget, k)
       camera.position.lerpVectors(flight.fromPos, flight.toPos, k)
-      camera.zoom = flight.fromZoom + (flight.toZoom - flight.fromZoom) * k
-      camera.updateProjectionMatrix()
       if (flight.t >= 1) flight = null
     }
     // El piso de la zona bajo el mouse sube a un tinte suave; los demás vuelven a cero.

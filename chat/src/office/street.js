@@ -20,7 +20,6 @@ const MID = (ROAD_A + ROAD_B) / 2
 
 const COLORS = {
   grass: '#8fd17a',
-  grassDark: '#6fbf63',
   asphalt: '#3a3954',
   line: '#f7f6ff',
   sidewalk: '#dcdae8',
@@ -45,24 +44,17 @@ const rect = ([x0, z0, x1, z1], color, y, height = 0) => (height
 function buildGround(scene) {
   const span = MAX - MIN
   const c = (MIN + MAX) / 2
-  // La base blanca de la maqueta y el pasto encima.
-  scene.add(box(span + 1.2, 0.8, span + 1.2, PALETTE.base, { x: c, y: -0.95, z: c, r: 0.25 }))
-  const grass = canvasTexture(256, 256, (g, W, H) => {
-    g.fillStyle = COLORS.grass; g.fillRect(0, 0, W, H)
-    g.fillStyle = COLORS.grassDark
-    for (let i = 0; i < 260; i++) g.fillRect((i * 97) % W, (i * 57) % H, 3, 3)
-  })
-  grass.wrapS = grass.wrapT = THREE.RepeatWrapping
-  grass.repeat.set(span / 4, span / 4)
-  const lawn = new THREE.Mesh(new THREE.PlaneGeometry(span, span), new THREE.MeshStandardMaterial({ map: grass, roughness: 1 }))
-  lawn.rotation.x = -Math.PI / 2
-  lawn.position.set(c, -0.15, c)
-  lawn.receiveShadow = true
-  scene.add(lawn)
+  // Las capas del suelo, de abajo hacia arriba, con al menos 3 centésimas entre una y otra: dos caras casi en el
+  // mismo plano se pelean y parpadean al mover la cámara.
+  //   base -0,20 · pasto -0,15 · calzada -0,10 · marcas -0,07 · acera 0 · bordillo 0,04
+  scene.add(box(span + 1.2, 0.8, span + 1.2, PALETTE.base, { x: c, y: -1.0, z: c, r: 0.25 }))
+  // El pasto es de un color liso: unos puntitos de textura, vistos de lejos, titilan al girar.
+  scene.add(flat(span, span, COLORS.grass, { x: c, y: -0.15, z: c }))
 
-  // Las calzadas.
-  scene.add(rect([MIN, ROAD_A, MAX, ROAD_B], COLORS.asphalt, -0.12))
-  scene.add(rect([ROAD_A, MIN, ROAD_B, MAX], COLORS.asphalt, -0.119))
+  // Las calzadas, sin encimarse: la del sur entera y la del este en dos tramos, sin el cruce.
+  scene.add(rect([MIN, ROAD_A, MAX, ROAD_B], COLORS.asphalt, -0.1))
+  scene.add(rect([ROAD_A, MIN, ROAD_B, ROAD_A], COLORS.asphalt, -0.1))
+  scene.add(rect([ROAD_A, ROAD_B, ROAD_B, MAX], COLORS.asphalt, -0.1))
 
   // Las aceras, un escalón arriba de la calzada: la de la oficina y las de enfrente.
   const sidewalks = [
@@ -74,18 +66,18 @@ function buildGround(scene) {
   scene.add(rect([-14, -14, ROAD_A, ROAD_A], COLORS.sidewalk, 0, 0.2))
   for (const r of sidewalks.slice(1)) scene.add(rect(r, COLORS.sidewalk, 0, 0.2))
   // Bordillos de la manzana de la oficina contra las calles.
-  scene.add(rect([-14, ROAD_A - 0.25, ROAD_A, ROAD_A], COLORS.curb, 0.01, 0.21))
-  scene.add(rect([ROAD_A - 0.25, -14, ROAD_A, ROAD_A], COLORS.curb, 0.011, 0.21))
+  scene.add(rect([-14, ROAD_A - 0.25, ROAD_A, ROAD_A], COLORS.curb, 0.04, 0.25))
+  scene.add(rect([ROAD_A - 0.25, -14, ROAD_A, ROAD_A - 0.25], COLORS.curb, 0.04, 0.25))
 
   // Las marcas: la línea del medio (punteada, sin pisar el cruce), los pasos de cebra y las líneas de pare.
-  for (let x = MIN + 1; x < MAX; x += 2.4) if (x + 1.4 < ROAD_A - 1.6 || x > ROAD_B + 1.6) scene.add(flat(1.4, 0.16, COLORS.line, { x: x + 0.7, y: -0.11, z: MID }))
-  for (let z = MIN + 1; z < MAX; z += 2.4) if (z + 1.4 < ROAD_A - 1.6 || z > ROAD_B + 1.6) scene.add(flat(0.16, 1.4, COLORS.line, { x: MID, y: -0.109, z: z + 0.7 }))
+  for (let x = MIN + 1; x < MAX; x += 2.4) if (x + 1.4 < ROAD_A - 1.6 || x > ROAD_B + 1.6) scene.add(flat(1.4, 0.16, COLORS.line, { x: x + 0.7, y: -0.07, z: MID }))
+  for (let z = MIN + 1; z < MAX; z += 2.4) if (z + 1.4 < ROAD_A - 1.6 || z > ROAD_B + 1.6) scene.add(flat(0.16, 1.4, COLORS.line, { x: MID, y: -0.07, z: z + 0.7 }))
   for (let i = 0; i < 7; i++) {
     const t = ROAD_A + 0.5 + i * 0.84
-    scene.add(flat(1.1, 0.42, COLORS.line, { x: ROAD_A - 0.9, y: -0.108, z: t }))
-    scene.add(flat(1.1, 0.42, COLORS.line, { x: ROAD_B + 0.9, y: -0.108, z: t }))
-    scene.add(flat(0.42, 1.1, COLORS.line, { x: t, y: -0.107, z: ROAD_A - 0.9 }))
-    scene.add(flat(0.42, 1.1, COLORS.line, { x: t, y: -0.107, z: ROAD_B + 0.9 }))
+    scene.add(flat(1.1, 0.42, COLORS.line, { x: ROAD_A - 0.9, y: -0.07, z: t }))
+    scene.add(flat(1.1, 0.42, COLORS.line, { x: ROAD_B + 0.9, y: -0.07, z: t }))
+    scene.add(flat(0.42, 1.1, COLORS.line, { x: t, y: -0.07, z: ROAD_A - 0.9 }))
+    scene.add(flat(0.42, 1.1, COLORS.line, { x: t, y: -0.07, z: ROAD_B + 0.9 }))
   }
 }
 
@@ -269,8 +261,8 @@ export function buildStreet(scene) {
         if (lane.dir < 0 && c.s < MIN - 1) c.s = MAX + 1
         const inside = c.s > MIN + 0.4 && c.s < MAX - 0.4
         c.mesh.visible = inside
-        if (lane.axis === 'x') c.mesh.position.set(c.s, -0.12, lane.at)
-        else c.mesh.position.set(lane.at, -0.12, c.s)
+        if (lane.axis === 'x') c.mesh.position.set(c.s, -0.1, lane.at)
+        else c.mesh.position.set(lane.at, -0.1, c.s)
       })
     }
   }
