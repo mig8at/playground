@@ -68,7 +68,7 @@ function wall(length, { x, z, rotation, outward, gaps = [] }) {
   for (const [a, b] of solids) {
     const w = b - a, cx = (a + b) / 2
     g.add(box(w, WAINSCOT, T, PALETTE.wallLow, { x: cx, z: -T / 2, r: 0.04 }))
-    g.add(box(w, 0.12, T + 0.06, PALETTE.wallTrim, { x: cx, y: WAINSCOT - 0.06, z: -T / 2, r: 0.03 }))
+    g.add(box(w, 0.06, T + 0.04, PALETTE.wallTrim, { x: cx, y: WAINSCOT - 0.03, z: -T / 2, r: 0.02 }))
     g.add(box(w, CUT_H - WAINSCOT, T, PALETTE.wallHigh, { x: cx, y: WAINSCOT, z: -T / 2, r: 0.04 }))
     g.add(box(w, 0.14, T + 0.06, PALETTE.white, { x: cx, z: -T / 2, r: 0.02 }))
   }
@@ -91,11 +91,11 @@ function wall(length, { x, z, rotation, outward, gaps = [] }) {
   return g
 }
 
-// La puerta de vidrio: marco morado y dos hojas entreabiertas. Va con el zócalo: se ve aunque el muro esté cortado.
+// La puerta de vidrio: marco negro y dos hojas entreabiertas. Va con el zócalo: se ve aunque el muro esté cortado.
 function doorFrame(width, cx) {
   const g = new THREE.Group()
-  for (const sx of [-1, 1]) g.add(box(0.16, DOOR_H, T + 0.16, PALETTE.wallTrim, { x: cx + sx * (width / 2 - 0.08), z: -T / 2, r: 0.03 }))
-  g.add(box(width, 0.18, T + 0.16, PALETTE.wallTrim, { x: cx, y: DOOR_H - 0.18, z: -T / 2, r: 0.03 }))
+  for (const sx of [-1, 1]) g.add(box(0.16, DOOR_H, T + 0.16, PALETTE.ink, { x: cx + sx * (width / 2 - 0.08), z: -T / 2, r: 0.03 }))
+  g.add(box(width, 0.18, T + 0.16, PALETTE.ink, { x: cx, y: DOOR_H - 0.18, z: -T / 2, r: 0.03 }))
   const leaf = (width - 0.32) / 2
   for (const sx of [-1, 1]) {
     const hinge = new THREE.Group()
@@ -106,7 +106,7 @@ function doorFrame(width, cx) {
     glass.position.set(-sx * leaf / 2, (DOOR_H - 0.3) / 2 + 0.06, 0)
     hinge.add(glass)
     hinge.add(box(0.06, DOOR_H - 0.3, 0.07, PALETTE.white, { x: -sx * (leaf - 0.03), y: 0.06, r: 0.02 }))
-    hinge.add(box(0.05, 0.5, 0.12, PALETTE.accent, { x: -sx * (leaf - 0.15), y: 1.0, r: 0.02 }))
+    hinge.add(box(0.05, 0.5, 0.12, PALETTE.ink, { x: -sx * (leaf - 0.15), y: 1.0, r: 0.02 }))
     hinge.rotation.y = sx * 0.55
     g.add(hinge)
   }
@@ -172,20 +172,20 @@ function buildZones(scene) {
   // ── Mi oficina: noroeste, con tabiques de vidrio y una puerta hacia el pasillo ──
   scene.add(place(partition(8, { glassTop: true }), -3, -7, Math.PI / 2))
   scene.add(place(partition(6, { glassTop: true }), -8, -3))
-  scene.add(place(rug(5.2, 3.6, { base: PALETTE.primary, accent: PALETTE.accent, mid: PALETTE.primarySoft }), -7, -7.2))
+  scene.add(place(rug(5.2, 3.6, { base: PALETTE.ink, accent: PALETTE.sand, mid: PALETTE.graphite }), -7, -7.2))
   scene.add(place(desk({ w: 3.4, d: 1.3, screens: 3, screenKind: 'chart', color: PALETTE.wood, legs: PALETTE.woodDark }), -7, -8))
-  scene.add(place(chair({ color: PALETTE.accent, executive: true }), -7, -6.8))
-  scene.add(place(armchair({ color: PALETTE.primary, pillow: PALETTE.accent }), -9.7, -4.5, Math.PI * 0.75))
+  scene.add(place(chair({ color: PALETTE.cognac, executive: true }), -7, -6.8))
+  scene.add(place(armchair({ color: PALETTE.graphite, pillow: PALETTE.primary }), -9.7, -4.5, Math.PI * 0.75))
   scene.add(place(plant({ size: 1.3 }), -10.2, -10.2))
   scene.add(place(floorLamp(), -4, -10.2))
   scene.add(place(bookshelf({ w: 1.6, h: 2 }), -10.55, -7.4, Math.PI / 2))
 
   // ── Tareas · Jira: noreste, frente al kanban ──
   scene.add(place(partition(8), 3, -7, Math.PI / 2))
-  scene.add(place(rug(7, 3.4, { base: PALETTE.accent, accent: PALETTE.yellow, mid: PALETTE.cream }), 7, -7))
+  scene.add(place(rug(7, 3.4, { base: PALETTE.oat, accent: PALETTE.stone, mid: PALETTE.linen }), 7, -7))
   ;[5.2, 8.8].forEach((x, i) => {
-    scene.add(place(desk({ screens: 2, screenKind: i ? 'code' : 'board', accent: PALETTE.accent }), x, -7.2))
-    scene.add(place(chair({ color: PALETTE.primary }), x, -6))
+    scene.add(place(desk({ screens: 2, screenKind: i ? 'code' : 'board', accent: PALETTE.sand }), x, -7.2))
+    scene.add(place(chair({ color: PALETTE.ink }), x, -6))
   })
   scene.add(place(plant({ size: 1.1 }), 10.2, -10.2))
   scene.add(place(plant({ size: 0.8, leaves: PALETTE.greenDark }), 10.3, -3.8))
@@ -198,22 +198,22 @@ function buildZones(scene) {
   // ── Arquitecto: suroeste ──
   scene.add(place(partition(6), -8, 3))
   scene.add(place(partition(8), -3, 7, Math.PI / 2))
-  scene.add(place(rug(5.4, 3.8, { base: PALETTE.teal, accent: PALETTE.yellow, mid: PALETTE.cream }), -7, 7))
+  scene.add(place(rug(5.4, 3.8, { base: PALETTE.sage, accent: PALETTE.linen, mid: PALETTE.oat }), -7, 7))
   scene.add(place(whiteboard({ w: 3, h: 1.6 }), -7, 4.2))
-  scene.add(place(desk({ w: 2.8, screens: 2, screenKind: 'code', accent: PALETTE.teal, color: PALETTE.white }), -7, 7.2))
-  scene.add(place(chair({ color: PALETTE.teal }), -7, 8.3))
+  scene.add(place(desk({ w: 2.8, screens: 2, screenKind: 'code', accent: PALETTE.sage, color: PALETTE.white }), -7, 7.2))
+  scene.add(place(chair({ color: PALETTE.graphite }), -7, 8.3))
   scene.add(place(plant({ size: 1.2 }), -10.2, 10.2))
-  scene.add(place(floorLamp({ shade: PALETTE.accentSoft }), -4, 10.2))
+  scene.add(place(floorLamp({ shade: PALETTE.sand }), -4, 10.2))
 
   // ── Contexto · tablero: sureste, la biblioteca ──
   scene.add(place(partition(6), 8, 3))
   scene.add(place(partition(8), 3, 7, Math.PI / 2))
-  scene.add(place(rug(5.4, 3.8, { base: PALETTE.primary, accent: PALETTE.yellow, mid: PALETTE.primarySoft }), 7, 7.3))
+  scene.add(place(rug(5.4, 3.8, { base: PALETTE.slate, accent: PALETTE.sand, mid: PALETTE.oat }), 7, 7.3))
   scene.add(place(bookshelf({ w: 2, h: 2.4 }), 6, 3.5))
   scene.add(place(bookshelf({ w: 2, h: 2.4 }), 8.2, 3.5))
-  scene.add(place(desk({ w: 2.4, screens: 1, screenKind: 'board', accent: PALETTE.primarySoft, color: PALETTE.wood, legs: PALETTE.woodDark }), 6.4, 7.2))
-  scene.add(place(chair({ color: PALETTE.accent }), 6.4, 8.3))
-  scene.add(place(sofa({ w: 2.4, pillows: [PALETTE.primary, PALETTE.accent] }), 10, 7.6, -Math.PI / 2))
+  scene.add(place(desk({ w: 2.4, screens: 1, screenKind: 'board', accent: PALETTE.slate, color: PALETTE.wood, legs: PALETTE.woodDark }), 6.4, 7.2))
+  scene.add(place(chair({ color: PALETTE.cognac }), 6.4, 8.3))
+  scene.add(place(sofa({ w: 2.4, color: PALETTE.linen, pillows: [PALETTE.slate, PALETTE.mustard] }), 10, 7.6, -Math.PI / 2))
   scene.add(place(plant({ size: 1 }), 10.2, 10.3))
 
   // ── Lounge: el centro ──
@@ -231,7 +231,7 @@ function buildHighlights(scene) {
   for (const zone of ZONES) {
     if (!zone.area) continue
     const [x0, z0, x1, z1] = zone.area
-    const material = new THREE.MeshBasicMaterial({ color: PALETTE.accent, transparent: true, opacity: 0, depthWrite: false })
+    const material = new THREE.MeshBasicMaterial({ color: PALETTE.primary, transparent: true, opacity: 0, depthWrite: false })
     const mesh = new THREE.Mesh(new THREE.PlaneGeometry(x1 - x0 - 0.3, z1 - z0 - 0.3), material)
     mesh.rotation.x = -Math.PI / 2
     mesh.position.set((x0 + x1) / 2, 0.06, (z0 + z1) / 2)
@@ -427,7 +427,7 @@ export function createOffice(container, { onFocus, onHover } = {}) {
     }
     // El piso de la zona bajo el mouse sube a un tinte suave; los demás vuelven a cero.
     for (const [id, mesh] of highlights) {
-      const goal = id === hovered ? 0.2 : 0
+      const goal = id === hovered ? 0.12 : 0
       mesh.material.opacity += (goal - mesh.material.opacity) * Math.min(1, dt * 10)
     }
     street.update(dt)

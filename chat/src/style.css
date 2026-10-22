@@ -18,14 +18,14 @@
   --bubble-theirs: var(--muted);
   --presence-on: #15803d;
   --send-fail: #b91c1c;
-  /* La oficina 3D: el azul noche y el morado de CreditOp de fondo, y el verde CreditOp para lo activo. */
-  --office-bg: #252256;
-  --office-glow: #3628b5;
+  /* La oficina 3D: un fondo grafito, sobrio, y el morado de CreditOp sólo para lo activo. */
+  --office-bg: #1c1c21;
+  --office-glow: #34343c;
   --office-chip: rgb(255 255 255 / .86);
   --office-chip-hover: #ffffff;
   --office-chip-ink: #252256;
-  --office-accent: #05d587;
-  --office-accent-ink: #052e1e;
+  --office-accent: #4c39ff;
+  --office-accent-ink: #ffffff;
   --office-hint: rgb(255 255 255 / .75);
   --office-shadow: rgb(0 0 0 / .18);
 }
@@ -33,8 +33,8 @@
   --bubble-mine: color-mix(in oklab, var(--primary) 30%, var(--background));
   --presence-on: #4ade80;
   --send-fail: #f87171;
-  --office-bg: #14122f;
-  --office-glow: #2a2070;
+  --office-bg: #131316;
+  --office-glow: #26262c;
   --office-chip: rgb(24 30 48 / .86);
   --office-chip-hover: #252e48;
   --office-chip-ink: #e8ecf6;

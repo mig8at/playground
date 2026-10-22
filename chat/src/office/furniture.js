@@ -10,39 +10,43 @@
 import * as THREE from 'three'
 import { RoundedBoxGeometry } from 'three/examples/jsm/geometries/RoundedBoxGeometry.js'
 
-// Los colores de CreditOp, tal como los define el front (`packages/ui/src/styles/globals.css` en
-// frontend-monorepo): el morado primario y sus tonos, el verde CreditOp como acento, el azul noche del texto,
-// y el azul y el verde lima de apoyo. Los neutros llevan un tinte morado para no verse grises sueltos.
+// La paleta: blanco y negro con calidez (blancos cálidos, grafito, roble), acentos tierra apagados (coñac,
+// salvia, arcilla, pizarra, arena) y el morado de CreditOp (`packages/ui/src/styles/globals.css` de
+// frontend-monorepo) SÓLO como detalle: una línea, un cojín, un encabezado. Todo morado se veía recargado.
 export const PALETTE = {
-  primary: '#4c39ff',      // purple-500, --primary
-  primaryDeep: '#3628b5',  // purple-700, --brand
-  primarySoft: '#877aff',  // purple-300
-  primaryPale: '#edebff',  // purple-50, --brand-subtle
-  accent: '#05d587',       // creditop-500
-  accentSoft: '#8cecc8',   // creditop-200
-  accentDeep: '#049760',   // creditop-700
-  navy: '#252256',         // violet-500, --foreground
-  teal: '#22baff',         // blue-500
-  yellow: '#c9f684',       // light-green-300
-  pink: '#ada4ff',         // purple-200
-  cream: '#edebff',
-  creamDark: '#d9d6f0',
-  white: '#fbfbff',
-  wood: '#d7b48c',
-  woodDark: '#9a7351',
-  charcoal: '#252256',
-  green: '#37b86b',
-  greenDark: '#1f8a4c',
-  glass: '#c8c2ff',
-  pot: '#e3e1ef',
+  primary: '#4c39ff',      // purple-500, el morado de CreditOp: sólo en detalles
+  primaryDeep: '#3628b5',  // purple-700
+  // neutros
+  ink: '#1e1e22',
+  graphite: '#3a3a40',
+  stone: '#8e8a84',
+  sand: '#d6ccbe',
+  oat: '#e9e3d9',
+  linen: '#f3f0ea',
+  white: '#fbfaf8',
+  // acentos tierra
+  cognac: '#a8673c',
+  sage: '#8ea489',
+  sageDark: '#6f8569',
+  clay: '#c07b60',
+  slate: '#5f6c79',
+  mustard: '#c9a54e',
+  // madera, plantas, vidrio
+  wood: '#c9a77c',
+  woodDark: '#6b4a33',
+  green: '#4f8f4a',
+  greenDark: '#356b38',
+  glass: '#d8dde3',
+  pot: '#26262b',
+  charcoal: '#1e1e22',
   // la sala
-  wallHigh: '#f7f6ff',
-  wallLow: '#4c39ff',
-  wallTrim: '#3628b5',
-  floor: '#eeecf6',
-  floorAlt: '#e6e3f1',
-  base: '#fbfbff',
-  baseTop: '#dedbef',
+  wallHigh: '#f6f4f0',
+  wallLow: '#2b2b30',
+  wallTrim: '#4c39ff',     // la línea fina del zócalo: el morado como detalle
+  floor: '#e8e2d8',
+  floorAlt: '#e0d9cd',
+  base: '#fbfaf8',
+  baseTop: '#dcd6cc',
 }
 
 const materials = new Map()
@@ -105,9 +109,9 @@ function texturedPlane(w, h, texture, { emissive = false } = {}) {
 // Una pantalla: líneas de código, un tablero o un gráfico, según `kind`.
 function screenTexture(kind, accent) {
   return canvasTexture(256, 160, (g, w, h) => {
-    g.fillStyle = '#1d2433'; g.fillRect(0, 0, w, h)
+    g.fillStyle = '#17171b'; g.fillRect(0, 0, w, h)
     if (kind === 'code') {
-      const colors = [accent, '#9ad1ff', '#f6b26b', '#c3e88d', '#ffffff']
+      const colors = [accent, '#c9cdd4', '#d6ccbe', '#a9bfa5', '#ffffff']
       for (let i = 0; i < 11; i++) {
         g.fillStyle = colors[i % colors.length]
         g.globalAlpha = 0.85
@@ -117,10 +121,10 @@ function screenTexture(kind, accent) {
       g.fillStyle = '#ffffff'; g.globalAlpha = 0.9; g.font = 'bold 18px sans-serif'; g.fillText('Resultados', 14, 26)
       g.globalAlpha = 1
       const bars = [0.35, 0.55, 0.45, 0.7, 0.62, 0.85, 0.78]
-      bars.forEach((v, i) => { g.fillStyle = i === bars.length - 1 ? accent : '#7f9be0'; g.fillRect(18 + i * 32, h - 16 - v * 100, 20, v * 100) })
+      bars.forEach((v, i) => { g.fillStyle = i === bars.length - 1 ? PALETTE.primary : '#c9c4bc'; g.fillRect(18 + i * 32, h - 16 - v * 100, 20, v * 100) })
     } else if (kind === 'board') {
-      ['#ffffff', accent, '#9ad1ff'].forEach((c, col) => {
-        g.fillStyle = '#2a3346'; g.fillRect(10 + col * 82, 12, 74, h - 24)
+      ['#ffffff', accent, '#c9cdd4'].forEach((c, col) => {
+        g.fillStyle = '#2a2a30'; g.fillRect(10 + col * 82, 12, 74, h - 24)
         for (let i = 0; i < 4 - col; i++) { g.fillStyle = c; g.globalAlpha = 0.9; g.fillRect(16 + col * 82, 22 + i * 30, 62, 22) }
         g.globalAlpha = 1
       })
@@ -130,7 +134,7 @@ function screenTexture(kind, accent) {
 
 // ── muebles ────────────────────────────────────────────────────────────────────────────────────────────
 
-export function desk({ w = 2.4, d = 1.1, color = PALETTE.white, legs = PALETTE.charcoal, screens = 1, screenKind = 'code', accent = PALETTE.accent } = {}) {
+export function desk({ w = 2.4, d = 1.1, color = PALETTE.white, legs = PALETTE.charcoal, screens = 1, screenKind = 'code', accent = PALETTE.sand } = {}) {
   const g = new THREE.Group()
   const h = 1.05
   g.add(box(w, 0.1, d, color, { y: h - 0.1, r: 0.04 }))
@@ -150,14 +154,14 @@ export function desk({ w = 2.4, d = 1.1, color = PALETTE.white, legs = PALETTE.c
     monitor.position.set(sx * 0.95, h, -d / 2 + 0.3)
     monitor.rotation.y = screens === 3 ? -sx * 0.25 : 0
     g.add(monitor)
-    if (i === 0) g.add(box(0.7, 0.03, 0.22, PALETTE.creamDark, { x: 0, y: h, z: 0.12, r: 0.01 }))
+    if (i === 0) g.add(box(0.7, 0.03, 0.22, PALETTE.graphite, { x: 0, y: h, z: 0.12, r: 0.01 }))
   })
   // Una taza, porque toda oficina tiene una.
   g.add(cylinder(0.07, 0.06, 0.16, accent, { x: w / 2 - 0.35, y: h, z: 0.18 }))
   return g
 }
 
-export function chair({ color = PALETTE.primary, executive = false } = {}) {
+export function chair({ color = PALETTE.ink, executive = false } = {}) {
   const g = new THREE.Group()
   g.add(cylinder(0.05, 0.05, 0.42, PALETTE.charcoal, { y: 0.06 }))
   for (let i = 0; i < 5; i++) {
@@ -192,7 +196,7 @@ export function plant({ size = 1, leaves = PALETTE.green } = {}) {
   return g
 }
 
-export function sofa({ w = 2.6, color = PALETTE.white, frame = PALETTE.accent, pillows = [PALETTE.accent, PALETTE.primary, PALETTE.accent] } = {}) {
+export function sofa({ w = 2.6, color = PALETTE.oat, frame = PALETTE.woodDark, pillows = [PALETTE.sage, PALETTE.primary, PALETTE.clay] } = {}) {
   const g = new THREE.Group()
   g.add(box(w, 0.12, 1.05, frame, { y: 0.18, r: 0.04 }))
   for (const sx of [-1, 1]) g.add(box(0.07, 0.2, 0.07, PALETTE.woodDark, { x: sx * (w / 2 - 0.15), z: 0.38, r: 0.02 }))
@@ -210,7 +214,7 @@ export function sofa({ w = 2.6, color = PALETTE.white, frame = PALETTE.accent, p
   return g
 }
 
-export function armchair({ color = PALETTE.accent, pillow = PALETTE.white } = {}) {
+export function armchair({ color = PALETTE.cognac, pillow = PALETTE.linen } = {}) {
   const g = new THREE.Group()
   for (const sx of [-1, 1]) for (const sz of [-1, 1]) {
     const leg = cylinder(0.04, 0.03, 0.3, PALETTE.charcoal, { x: sx * 0.38, z: sz * 0.32 })
@@ -235,12 +239,12 @@ export function coffeeTable({ r = 0.55, color = PALETTE.white } = {}) {
     leg.rotation.set(Math.sin(a) * 0.18, 0, -Math.cos(a) * 0.18)
     g.add(leg)
   }
-  g.add(cylinder(0.11, 0.11, 0.2, PALETTE.primary, { y: 0.57 }))
+  g.add(cylinder(0.11, 0.11, 0.2, PALETTE.ink, { y: 0.57 }))
   return g
 }
 
 // Una alfombra con dibujo de rombos y triángulos, como la de la referencia.
-export function rug(w, d, { base = PALETTE.accent, accent = PALETTE.yellow, mid = PALETTE.primarySoft } = {}) {
+export function rug(w, d, { base = PALETTE.sand, accent = PALETTE.ink, mid = PALETTE.linen } = {}) {
   const texture = canvasTexture(512, Math.round(512 * d / w), (g, W, H) => {
     g.fillStyle = base; g.fillRect(0, 0, W, H)
     g.fillStyle = mid; g.fillRect(28, 28, W - 56, H - 56)
@@ -272,7 +276,7 @@ export function bookshelf({ w = 1.8, h = 2.4, color = PALETTE.white } = {}) {
   g.add(box(w, h, 0.06, color, { z: -d / 2 + 0.03, r: 0.02 }))
   for (const sx of [-1, 1]) g.add(box(0.07, h, d, color, { x: sx * (w / 2 - 0.035), r: 0.02 }))
   const shelves = 4
-  const colors = [PALETTE.accent, PALETTE.primary, PALETTE.yellow, PALETTE.teal, PALETTE.white, PALETTE.primarySoft, PALETTE.pink]
+  const colors = [PALETTE.linen, PALETTE.sand, PALETTE.slate, PALETTE.sage, PALETTE.ink, PALETTE.clay, PALETTE.stone, PALETTE.mustard, PALETTE.oat]
   for (let s = 0; s <= shelves; s++) {
     const y = (s / shelves) * (h - 0.06)
     g.add(box(w - 0.08, 0.06, d, color, { y, r: 0.01 }))
@@ -298,7 +302,7 @@ export function kanban({ w = 3.2, h = 1.8 } = {}) {
   const g = new THREE.Group()
   g.add(box(w + 0.12, h + 0.12, 0.06, PALETTE.charcoal, { r: 0.03 }))
   g.add(box(w, h, 0.08, PALETTE.white, { y: 0.06, r: 0.02 }))
-  const columns = [['Por hacer', PALETTE.yellow], ['En curso', PALETTE.accentSoft], ['Hecho', '#9fd99b']]
+  const columns = [['Por hacer', '#efe3c4'], ['En curso', '#ead8cc'], ['Hecho', '#d9e3d4']]
   const colW = w / 3
   columns.forEach(([, color], c) => {
     const header = box(colW - 0.2, 0.1, 0.02, PALETTE.primary, { x: -w / 2 + colW * (c + 0.5), y: h - 0.12, z: 0.06, r: 0.01 })
@@ -317,18 +321,18 @@ export function whiteboard({ w = 2.6, h = 1.5, standing = true } = {}) {
   const g = new THREE.Group()
   const texture = canvasTexture(512, Math.round(512 * h / w), (c, W, H) => {
     c.fillStyle = '#fdfdfb'; c.fillRect(0, 0, W, H)
-    const boxes = [[40, 40, PALETTE.primary], [210, 40, PALETTE.accent], [380, 40, PALETTE.teal], [125, 170, PALETTE.primary], [300, 170, PALETTE.accent]]
+    const boxes = [[40, 40, PALETTE.ink], [210, 40, PALETTE.primary], [380, 40, PALETTE.slate], [125, 170, PALETTE.ink], [300, 170, PALETTE.cognac]]
     c.lineWidth = 5
     const link = (a, b) => { c.strokeStyle = '#555c6e'; c.beginPath(); c.moveTo(a[0] + 45, a[1] + 55); c.lineTo(b[0] + 45, b[1]); c.stroke() }
     link(boxes[0], boxes[3]); link(boxes[1], boxes[3]); link(boxes[1], boxes[4]); link(boxes[2], boxes[4])
     boxes.forEach(([x, y, color]) => { c.strokeStyle = color; c.strokeRect(x, y, 90, 55); c.fillStyle = color; c.globalAlpha = 0.15; c.fillRect(x, y, 90, 55); c.globalAlpha = 1 })
   })
   const frameY = standing ? 0.9 : 0
-  g.add(box(w + 0.1, h + 0.1, 0.06, PALETTE.creamDark, { y: frameY, r: 0.03 }))
+  g.add(box(w + 0.1, h + 0.1, 0.06, PALETTE.graphite, { y: frameY, r: 0.03 }))
   const board = texturedPlane(w, h, texture)
   board.position.set(0, frameY + h / 2 + 0.05, 0.035)
   g.add(board)
-  g.add(box(w * 0.6, 0.05, 0.12, PALETTE.creamDark, { y: frameY - 0.02, z: 0.07, r: 0.02 }))
+  g.add(box(w * 0.6, 0.05, 0.12, PALETTE.graphite, { y: frameY - 0.02, z: 0.07, r: 0.02 }))
   if (standing) {
     for (const sx of [-1, 1]) {
       g.add(box(0.07, frameY + h, 0.07, PALETTE.charcoal, { x: sx * (w / 2 + 0.06), r: 0.02 }))
@@ -343,11 +347,11 @@ export function artFrame({ w = 0.9, h = 1.1, kind = 0 } = {}) {
   const g = new THREE.Group()
   const texture = canvasTexture(180, 220, (c, W, H) => {
     c.fillStyle = PALETTE.white; c.fillRect(0, 0, W, H)
-    if (kind === 0) { c.strokeStyle = PALETTE.accent; c.lineWidth = 14; c.beginPath(); c.arc(W / 2, H / 2, 46, 0, Math.PI * 2); c.stroke(); c.fillStyle = PALETTE.primary; c.beginPath(); c.arc(W / 2, H / 2, 24, 0, Math.PI * 2); c.fill() }
-    if (kind === 1) { c.fillStyle = PALETTE.accent; c.beginPath(); c.arc(W / 2, H / 2, 55, 0, Math.PI * 2); c.fill() }
-    if (kind === 2) { c.fillStyle = PALETTE.accent; c.beginPath(); c.arc(W / 2 - 18, H / 2 - 12, 44, 0, Math.PI * 2); c.fill(); c.fillStyle = PALETTE.primary; c.globalAlpha = 0.9; c.beginPath(); c.arc(W / 2 + 18, H / 2 + 14, 44, 0, Math.PI * 2); c.fill() }
+    if (kind === 0) { c.strokeStyle = PALETTE.ink; c.lineWidth = 12; c.beginPath(); c.arc(W / 2, H / 2, 46, 0, Math.PI * 2); c.stroke(); c.fillStyle = PALETTE.clay; c.beginPath(); c.arc(W / 2, H / 2, 20, 0, Math.PI * 2); c.fill() }
+    if (kind === 1) { c.fillStyle = PALETTE.sand; c.beginPath(); c.arc(W / 2, H / 2, 55, 0, Math.PI * 2); c.fill(); c.fillStyle = PALETTE.ink; c.fillRect(W / 2 - 55, H / 2 + 30, 110, 6) }
+    if (kind === 2) { c.fillStyle = PALETTE.sage; c.beginPath(); c.arc(W / 2 - 18, H / 2 - 12, 44, 0, Math.PI * 2); c.fill(); c.fillStyle = PALETTE.primary; c.globalAlpha = 0.85; c.beginPath(); c.arc(W / 2 + 18, H / 2 + 14, 44, 0, Math.PI * 2); c.fill() }
   })
-  g.add(box(w, h, 0.06, PALETTE.primary, { r: 0.02 }))
+  g.add(box(w, h, 0.06, PALETTE.ink, { r: 0.02 }))
   const art = texturedPlane(w - 0.16, h - 0.16, texture)
   art.position.set(0, h / 2, 0.032)
   g.add(art)
@@ -355,7 +359,7 @@ export function artFrame({ w = 0.9, h = 1.1, kind = 0 } = {}) {
 }
 
 // Una pantalla grande de pared: donde se muestran los resultados.
-export function wallScreen({ w = 3, h = 1.7, kind = 'chart', accent = PALETTE.accent } = {}) {
+export function wallScreen({ w = 3, h = 1.7, kind = 'chart', accent = PALETTE.sand } = {}) {
   const g = new THREE.Group()
   g.add(box(w, h, 0.08, PALETTE.charcoal, { r: 0.04 }))
   const screen = texturedPlane(w - 0.14, h - 0.14, screenTexture(kind, accent), { emissive: true })
@@ -364,24 +368,24 @@ export function wallScreen({ w = 3, h = 1.7, kind = 'chart', accent = PALETTE.ac
   return g
 }
 
-export function floorLamp({ shade = PALETTE.white } = {}) {
+export function floorLamp({ shade = PALETTE.linen } = {}) {
   const g = new THREE.Group()
-  g.add(cylinder(0.22, 0.25, 0.05, PALETTE.primaryDeep))
-  g.add(cylinder(0.025, 0.025, 1.3, PALETTE.primaryDeep, { y: 0.05 }))
+  g.add(cylinder(0.22, 0.25, 0.05, PALETTE.ink))
+  g.add(cylinder(0.025, 0.025, 1.3, PALETTE.ink, { y: 0.05 }))
   g.add(cylinder(0.25, 0.3, 0.6, shade, { y: 1.25, material: mat(shade, { emissive: '#fff4dc' }) }))
   return g
 }
 
 // Una ventana de pared con cortinas: el marco va en la pared, que la esconde con ella.
-export function windowWithCurtains({ w = 1.6, h = 1.7, curtain = PALETTE.primary } = {}) {
+export function windowWithCurtains({ w = 1.6, h = 1.7, curtain = PALETTE.oat } = {}) {
   const g = new THREE.Group()
-  g.add(box(w, h, 0.08, PALETTE.white, { r: 0.03 }))
-  const glass = new THREE.Mesh(new THREE.PlaneGeometry(w - 0.2, h - 0.2), mat(PALETTE.glass, { rough: 0.2, emissive: '#cfe3ff' }))
+  g.add(box(w, h, 0.08, PALETTE.ink, { r: 0.03 }))
+  const glass = new THREE.Mesh(new THREE.PlaneGeometry(w - 0.2, h - 0.2), mat(PALETTE.glass, { rough: 0.2, emissive: '#e4ebf2' }))
   glass.position.set(0, h / 2, 0.045)
   g.add(glass)
-  g.add(box(0.06, h - 0.2, 0.04, PALETTE.white, { y: 0.1, z: 0.05, r: 0.01 }))
-  g.add(box(w - 0.2, 0.06, 0.04, PALETTE.white, { y: h / 2, z: 0.05, r: 0.01 }))
-  g.add(box(w + 0.8, 0.05, 0.05, PALETTE.creamDark, { y: h + 0.15, z: 0.15, r: 0.02 }))
+  g.add(box(0.06, h - 0.2, 0.04, PALETTE.ink, { y: 0.1, z: 0.05, r: 0.01 }))
+  g.add(box(w - 0.2, 0.06, 0.04, PALETTE.ink, { y: h / 2, z: 0.05, r: 0.01 }))
+  g.add(box(w + 0.8, 0.05, 0.05, PALETTE.ink, { y: h + 0.15, z: 0.15, r: 0.02 }))
   for (const sx of [-1, 1]) {
     for (let i = 0; i < 3; i++) g.add(box(0.18, h + 0.3, 0.18, curtain, { x: sx * (w / 2 + 0.1 + i * 0.12), y: -0.15, z: 0.18, r: 0.08 }))
   }
@@ -394,21 +398,21 @@ export function coffeeBar() {
   g.add(box(2.2, 1.0, 0.7, PALETTE.wood, { r: 0.05 }))
   g.add(box(2.3, 0.08, 0.78, PALETTE.white, { y: 1.0, r: 0.03 }))
   g.add(box(0.45, 0.6, 0.4, PALETTE.charcoal, { x: -0.6, y: 1.08, r: 0.06 }))
-  g.add(box(0.3, 0.12, 0.12, PALETTE.accent, { x: -0.6, y: 1.45, z: 0.15, r: 0.03 }))
-  for (let i = 0; i < 3; i++) g.add(cylinder(0.07, 0.06, 0.16, [PALETTE.white, PALETTE.primary, PALETTE.accent][i], { x: 0.2 + i * 0.22, y: 1.08 }))
+  g.add(box(0.3, 0.12, 0.12, PALETTE.cognac, { x: -0.6, y: 1.45, z: 0.15, r: 0.03 }))
+  for (let i = 0; i < 3; i++) g.add(cylinder(0.07, 0.06, 0.16, [PALETTE.white, PALETTE.ink, PALETTE.sand][i], { x: 0.2 + i * 0.22, y: 1.08 }))
   return g
 }
 
 // Un tabique bajo: separa zonas sin tapar la vista desde arriba.
-export function partition(length, { h = 1.2, color = PALETTE.cream, glassTop = false } = {}) {
+export function partition(length, { h = 1.2, color = PALETTE.wallHigh, glassTop = false } = {}) {
   const g = new THREE.Group()
   g.add(box(length, h, 0.18, color, { r: 0.05 }))
-  g.add(box(length + 0.04, 0.08, 0.22, PALETTE.primary, { y: h - 0.02, r: 0.03 }))
+  g.add(box(length + 0.04, 0.08, 0.22, PALETTE.ink, { y: h - 0.02, r: 0.03 }))
   if (glassTop) {
     const glass = new THREE.Mesh(new THREE.BoxGeometry(length, 1.6, 0.05), mat(PALETTE.glass, { rough: 0.1, opacity: 0.28 }))
     glass.position.y = h + 0.8
     g.add(glass)
-    g.add(box(length, 0.06, 0.1, PALETTE.white, { y: h + 1.6, r: 0.02 }))
+    g.add(box(length, 0.06, 0.1, PALETTE.ink, { y: h + 1.6, r: 0.02 }))
   }
   return g
 }

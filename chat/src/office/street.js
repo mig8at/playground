@@ -86,20 +86,20 @@ function buildEntrance(scene) {
   // Dos escalones: la oficina está sobre una losa, un escalón (0,45) arriba de la acera.
   scene.add(box(3, 0.3, 0.6, PALETTE.base, { y: 0, z: 12.4, r: 0.04 }))
   scene.add(box(3, 0.15, 0.6, PALETTE.base, { y: 0, z: 13, r: 0.04 }))
-  scene.add(rect([-1.4, 13.3, 1.4, ROAD_A - 0.25], PALETTE.primaryPale, 0.02, 0.04))
+  scene.add(rect([-1.4, 13.3, 1.4, ROAD_A - 0.25], PALETTE.oat, 0.02, 0.04))
   const sign = canvasTexture(512, 96, (g, W, H) => {
-    g.fillStyle = PALETTE.primary; g.fillRect(0, 0, W, H)
+    g.fillStyle = PALETTE.ink; g.fillRect(0, 0, W, H)
     g.fillStyle = '#ffffff'; g.font = 'bold 54px sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle'
     g.fillText('creditop', W / 2 - 40, H / 2 + 2)
-    g.fillStyle = PALETTE.accent; g.beginPath(); g.arc(W / 2 + 125, H / 2 + 14, 9, 0, Math.PI * 2); g.fill()
+    g.fillStyle = PALETTE.primary; g.beginPath(); g.arc(W / 2 + 125, H / 2 + 14, 9, 0, Math.PI * 2); g.fill()
   })
   const awning = new THREE.Group()
-  awning.add(box(3.6, 0.12, 1.5, PALETTE.primary, { y: 0, r: 0.04 }))
-  awning.add(box(3.6, 0.5, 0.1, PALETTE.primary, { y: -0.38, z: 0.72, r: 0.03 }))
+  awning.add(box(3.6, 0.12, 1.5, PALETTE.ink, { y: 0, r: 0.04 }))
+  awning.add(box(3.6, 0.5, 0.1, PALETTE.ink, { y: -0.38, z: 0.72, r: 0.03 }))
   const plate = new THREE.Mesh(new THREE.PlaneGeometry(3.4, 0.45), new THREE.MeshStandardMaterial({ map: sign, roughness: 0.6 }))
   plate.position.set(0, -0.13, 0.78)
   awning.add(plate)
-  for (const sx of [-1, 1]) awning.add(cylinder(0.05, 0.05, 3.6, PALETTE.wallTrim, { x: sx * 1.7, y: -3.6, z: 0.65 }))
+  for (const sx of [-1, 1]) awning.add(cylinder(0.05, 0.05, 3.6, PALETTE.ink, { x: sx * 1.7, y: -3.6, z: 0.65 }))
   awning.position.set(0, 3.65, HALF_OFFICE + 1.4)
   scene.add(awning)
   for (const sx of [-1, 1]) {
@@ -145,12 +145,12 @@ function buildTrees(scene) {
 const LIGHT_COLORS = { red: '#ff4d4d', yellow: '#ffc93c', green: '#2fe08a' }
 function trafficLight(scene, x, z) {
   const g = new THREE.Group()
-  g.add(cylinder(0.08, 0.1, 3.2, PALETTE.navy))
+  g.add(cylinder(0.08, 0.1, 3.2, PALETTE.ink))
   const heads = []
   // axis 'x': mira a los carros que van por la calle del sur (a lo largo de x); 'z': los de la calle del este.
   for (const [axis, rotation] of [['x', Math.PI / 2], ['z', 0]]) {
     const head = new THREE.Group()
-    head.add(box(0.42, 1.15, 0.36, PALETTE.navy, { r: 0.06 }))
+    head.add(box(0.42, 1.15, 0.36, PALETTE.ink, { r: 0.06 }))
     const lamps = {}
     ;['red', 'yellow', 'green'].forEach((name, i) => {
       const material = new THREE.MeshStandardMaterial({ color: '#2b2a40', emissive: LIGHT_COLORS[name], emissiveIntensity: 0, roughness: 0.4 })
@@ -180,7 +180,8 @@ function signalFor(axis, t) {
 }
 
 // ── los carros ──
-const CAR_COLORS = [PALETTE.primary, PALETTE.accent, '#22baff', '#ffffff', '#ff8a5c', PALETTE.primaryDeep, '#ffd23f']
+// Carros en tonos de calle (blanco, negro, gris, arena, pizarra, rojo apagado) y uno morado, de vez en cuando.
+const CAR_COLORS = ['#f4f2ee', PALETTE.ink, '#9a9690', PALETTE.sand, PALETTE.slate, '#b0533f', PALETTE.primary, '#e6e2da', PALETTE.sageDark]
 function car(color) {
   const g = new THREE.Group()
   g.add(box(2.3, 0.55, 1.1, color, { y: 0.28, r: 0.18 }))
