@@ -162,9 +162,16 @@ con `CREDITOP_LOCAL=1`) y le manda la sesión a `/payments/session` (la barra di
 `CREDITOP_API_URL=http://localhost:8113 CREDITOP_LOCAL=1 npx shopify app dev --config
 shopify.app.creditop-ecommerce-payments.toml --store creditop-dev-store.myshopify.com`. Con el túnel que imprime, poner
 `payment_session_url` y `refund_session_url` de `extensions/creditop-offsite/shopify.extension.toml` en
-`<túnel>/payments/session` y `<túnel>/payments/refund` (no se commitea), cargar la sucursal con
+`<túnel>/payments/session` y `<túnel>/payments/refund` (no se commitea; `shopify app dev` lo toma solo), cargar la sucursal con
 `POST <túnel>/local/shop-config`, tocar «Guardar» en la app del admin, activar «Creditop - Pago Seguro» en modo de
 prueba (Configuración → Pagos) y comprar en el mercado Colombia eligiendo esa opción (no el método manual «creditop»).
+
+**Contra qa** (sin `CREDITOP_API_URL` y con `CREDITOP_ENVIRONMENT=develop`): la sucursal de prueba es `8ffe96e2`
+(«Ecommerce-PRUEBA AUTO Shopify», id 2219, comercio propio de estas pruebas) y su token de ecommerce está en
+`harness/.env.qa` como `ECOMMERCE_TOKEN_8ffe96e2` (fuera de git; id 17 en `personal_access_tokens`). Se copia con
+`grep '^ECOMMERCE_TOKEN_8ffe96e2=' harness/.env.qa | cut -d= -f2- | pbcopy` y se pega en la pantalla de la app. Para que
+Shopify mande el celular en la dirección: Configuración → Pantalla de pago → teléfono de la dirección de envío. Un
+token se ve una sola vez al emitirlo: la base sólo guarda su sha256, y no hay forma de recuperarlo después.
 
 Con la API de verdad: `make harness-store A=restart PAYMENT_LINK_URL=http://localhost/api/ecommerce/payment-link
 PAYMENT_LINK_TOKEN=<token de ecommerce:issue-token>`.
