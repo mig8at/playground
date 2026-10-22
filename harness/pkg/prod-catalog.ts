@@ -60,6 +60,9 @@ export interface ProdMerchant {
     /** Dónde arranca una solicitud como ese asesor, para abrirla A MANO en un navegador: la entrada del canal asesor en
      *  el wizard de prod, en la sucursal del asesor de prueba. El panel no entra: la muestra para copiar. */
     entryUrl: string | null;
+    /** La entrada de AUTOGESTIÓN en la misma sucursal (`/self-service/{hash}/solicitar`): sin asesor, la persona se registra
+     *  con su celular y el OTP llega por SMS. Igual que la del asesor, se abre a mano. */
+    selfServiceUrl: string | null;
 }
 
 /** La ficha de un comercio de prod: su asesor de prueba, la sucursal falsa y las entidades de esa sucursal. */
@@ -90,5 +93,6 @@ export async function prodMerchant(alliedId: number): Promise<ProdMerchant> {
         else if (!lenders.some((l) => Number(l.status) === 1)) notes.push('la sucursal del asesor de prueba no tiene entidades encendidas: su listado saldría vacío');
     }
     return { merchant: m[0] ?? null, branches: { total: Number(br[0]?.total ?? 0), active: Number(br[0]?.active ?? 0) }, advisor, lenders, notes,
-        entryUrl: hash ? `${PROD_FRONT.replace(/\/$/, '')}/merchant/${hash}/solicitar` : null };
+        entryUrl: hash ? `${PROD_FRONT.replace(/\/$/, '')}/merchant/${hash}/solicitar` : null,
+        selfServiceUrl: hash ? `${PROD_FRONT.replace(/\/$/, '')}/self-service/${hash}/solicitar` : null };
 }

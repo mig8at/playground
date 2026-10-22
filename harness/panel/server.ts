@@ -2181,22 +2181,30 @@ const server = createServer(async (req, res) => {
     // de lo que tienen los otros celulares: ni sesión guardada, ni autorrelleno, ni bypass del OTP, ni aprobar la identidad,
     // ni la cuota inicial, ni el traspaso al cliente, ni recordarlo para «Retomar» (su sesión sería la de prod). Y
     // «avanzar», «tocar» y «hasta el final» se niegan mientras el celular sea de prod (`prodPhones`).
+    // EL CANAL, como en los otros ambientes, pero sólo los que se abren a mano sin que el panel escriba nada: el ASESOR (su
+    // login, en el celular del asesor) y la AUTOGESTIÓN (el registro público, en el del cliente). La tienda no: su pedido lo
+    // arma el panel escribiendo en la base (`dbops ecommerce-url`), y en prod no se escribe. El QR tampoco: pide un código
+    // de compra que emite la caja de Corbeta.
     if (path === '/api/prod/phone' && req.method === 'POST') {
         const b = await readBody(req);
+        const selfService = b?.channel === 'autogestion';
+        const id: DeviceId = selfService ? 'client' : 'advisor';
         let f;
         try { f = await prodMerchant(Number(b?.allied)); }
         catch (e) { return json(res, 200, { ok: false, detail: `no pude leer prod: ${(e as Error).message} (¿VPN de prod?)` }); }
-        if (!f.entryUrl || !f.advisor) return json(res, 200, { ok: false, detail: 'el comercio no tiene asesor de prueba en prod' });
-        await releaseDevice('advisor');
-        prodPhones.add('advisor');
-        startDeviceLog(`PRODUCCIÓN · celular del asesor, A MANO · ${f.merchant?.name ?? ''} · sucursal ${f.advisor.branchHash}`);
-        deviceLog('panel', '⚠ prod: el panel no completa, no avanza y no aprueba nada; entrás y manejás vos. Todo lo que hagas es real');
+        const entry = selfService ? f.selfServiceUrl : f.entryUrl;
+        if (!entry || !f.advisor) return json(res, 200, { ok: false, detail: 'el comercio no tiene asesor de prueba en prod (ni su sucursal de prueba)' });
+        // Un celular de prod a la vez: abrir uno cierra el otro.
+        await Promise.all([releaseDevice('advisor'), releaseDevice('client')]);
+        prodPhones.add(id);
+        startDeviceLog(`PRODUCCIÓN · ${selfService ? 'autogestión, celular del cliente' : 'celular del asesor'}, A MANO · ${f.merchant?.name ?? ''} · sucursal ${f.advisor.branchHash}`);
+        deviceLog('panel', `⚠ prod: el panel no completa, no avanza y no aprueba nada; ${selfService ? 'te registrás con tu celular y el OTP llega por SMS' : 'entrás y manejás vos'}. Todo lo que hagas es real`);
         try {
-            const r = await openDevice('advisor', f.entryUrl);
-            return json(res, 200, { ok: true, ...r });
+            const r = await openDevice(id, entry);
+            return json(res, 200, { ok: true, device: id, ...r });
         } catch (e) {
-            prodPhones.delete('advisor');
-            return json(res, 200, { ok: false, detail: `el celular no pudo abrir ${f.entryUrl}: ${(e as Error).message.split('\n')[0]}` });
+            prodPhones.delete(id);
+            return json(res, 200, { ok: false, detail: `el celular no pudo abrir ${entry}: ${(e as Error).message.split('\n')[0]}` });
         }
     }
     if (path === '/api/prod/merchant') {

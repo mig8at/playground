@@ -1077,3 +1077,13 @@ en prod no hay traspaso), con el chip ámbar «prod · a mano» en su rótulo; e
 Lo demás no cambia: el servidor sigue negando avanzar y tocar ese celular. Verificado en un panel de prueba: Pullman en
 prod abrió solo en `login.creditop.com` → `originaciones.creditop.com`, el ▶ pasó a «Reiniciar», `advance` contestó «es un
 celular de prod…», y al volver a local reapareció el celular del cliente.
+
+**En prod la pestaña también pregunta el CANAL (2026-10-21)**, con los mismos botones (`renderProdChannelChoice`). Se
+abren a mano el **Asesor** (su login, en el celular del asesor) y la **Autogestión** (`/self-service/<sucursal de
+prueba>/solicitar`, en el del cliente: la persona se registra con su celular y el OTP llega por SMS). **Tienda online y
+Auto quedan apagados**: su pedido lo arma el panel escribiendo en la base (`dbops ecommerce-url`), y en prod no se
+escribe; **QR** también, porque pide el código de compra de la caja de Corbeta. `/api/prod/phone` recibe `channel`, abre
+UN celular de prod (cierra el otro) y le pone el mismo `prodPhones`: no se avanza ni se toca. La pestaña dice
+«prod · <canal>» y el pie su canal. `selfServiceUrl` sale de `prodMerchant` (`pkg/prod-catalog.ts`). Verificado en un
+panel de prueba: Sonría por autogestión abrió `originaciones.creditop.com/self-service/d6b88e5e/solicitar` en el
+celular del cliente (sin completar nada; `advance` negado); Pullman por asesor abrió el login de prod en el del asesor.
