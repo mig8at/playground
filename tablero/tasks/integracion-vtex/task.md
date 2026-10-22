@@ -49,9 +49,9 @@ ramas: core-800-vtex-payment-link
 - [x] ~~Confirmar el cobro real de un pedido VTEX~~ — 2026-10-22: el pedido `1670710500205-01`, facturado a mano por
       la API de OMS, cobró por el conector (`settlements` 200 con `settleId`) y la transacción quedó `Finished`. VTEX
       cobra al FACTURAR, no a las 6 h: el pedido del 2026-10-20 (`1670270500201-01`) sigue aprobado sin cobrar.
-- [ ] Que el conector traduzca el tipo de documento de VTEX: manda `cedulaCOL` y el wizard sólo prellena tipos que
-      la sucursal permite (`CC`), así que el tipo llega vacío y el comprador lo elige a mano. Termina con `cedulaCOL`
-      → `CC` (y los demás tipos de Colombia que VTEX use) en `paymentLinkBody` y el tipo prellenado en qa.
+- [x] ~~Que el conector traduzca el tipo de documento de VTEX~~ — 66084e1 en la rama de #21 (local, sin push):
+      `cedulaCOL` → `CC` en `paymentLinkBody`; en qa el pedido 7983 guardó `CC` y su contexto lo devuelve como `CC`.
+      Otros tipos de Colombia que VTEX pueda mandar (extranjería, pasaporte) no se vieron todavía: pasan tal cual.
 - [ ] Decidir si se restringe el modo Test Suite antes de producción (hoy cualquier llamada con
       `X-VTEX-API-Is-TestSuite: true` recibe respuestas de prueba); termina con la regla escrita y probada.
 - [ ] Cancelaciones y reembolsos reales: hoy el conector los niega. Depende de: Producto — qué es cancelar y reembolsar
