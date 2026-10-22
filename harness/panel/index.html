@@ -1501,11 +1501,18 @@
         const got = (await (await fetch(`/api/merchant-tags?hashes=${hashes.join(',')}&target=${asked}`)).json()) || {};
         if (asked !== target) return;   // respuesta de otro ambiente
         merchantTags = { ...merchantTags, ...got };
+        // El país de cada entrada se RECUERDA (por navegador): en el ambiente donde no está, su base no lo sabe, y la
+        // fila va igual en su país, apagada. Sin esto quedaba en un grupo aparte «No están en…».
+        const memo = countryMemo();
+        for (const e of spaceEntries()) if (got[e.hash]?.pais) memo[e.slug] = got[e.hash].pais;
+        try { localStorage.setItem(COUNTRY_MEMO_KEY, JSON.stringify(memo)); } catch { /* sin storage: vale esta visita */ }
       } catch { /* sin etiquetas: quedan en «sin país», que es lo honesto */ }
       renderMerchants();
     }
     /** El país de una entrada, en español; sin etiqueta todavía (o fuera de este ambiente), un grupo propio. */
-    const countryOf = (e) => { const p = merchantTags[e.hash]?.pais; return p ? (COUNTRY_NAMES[p] || p) : ''; };
+    const COUNTRY_MEMO_KEY = 'harness.merchantCountry';
+    const countryMemo = () => { try { return JSON.parse(localStorage.getItem(COUNTRY_MEMO_KEY) || '{}') || {}; } catch { return {}; } };
+    const countryOf = (e) => { const p = merchantTags[e.hash]?.pais || countryMemo()[e.slug]; return p ? (COUNTRY_NAMES[p] || p) : ''; };
 
     // ══ ÁRBOL DE COMERCIOS ════════════════════════════════════════════════════════════════════
     // Comercio (carpeta) › sucursal (subcarpeta) › entidades (archivos). Reemplaza la grilla de
@@ -1674,7 +1681,7 @@
       return d;
     }
 
-    // ── LA BARRA COMO EL EXPLORER DE VS CODE: una VISTA por grupo (cada país, «No están en…», Admin; en prod, los suyos).
+    // ── LA BARRA COMO EL EXPLORER DE VS CODE: una VISTA por país (lo que no está en el ambiente, apagado en el suyo) y Admin.
     // Es el `.view` de la base: su encabezado con chevron, su cuerpo con su propio scroll, y las abiertas se reparten el
     // alto. Ninguna cambia de lugar al plegarse: la cerrada queda como su fila donde estaba, y las abiertas ocupan el resto.
     // Abierta o cerrada se recuerda por navegador. (El buscador no filtra la barra: muestra el catálogo para agregar, aparte.)
@@ -1738,17 +1745,15 @@
         g.appendChild(note);
       }
       // Por país: Colombia primero (es casi todo), después el resto por nombre, y lo que no tiene país al final.
-      // Los que NO están en este ambiente van juntos al final, deshabilitados: se ven (para saber que existen en otro)
-      // pero no se eligen. Su clave de grupo no choca con un país.
-      const ABSENT = '\u0000absent';
+      // Los que NO están en este ambiente van en SU país (el recordado de otro ambiente), apagados: se ven (para saber
+      // que existen en otro) pero no se eligen. Sin grupo aparte.
       const groups = new Map();
-      for (const e of entries) { const c = e.missing ? ABSENT : countryOf(e); if (!groups.has(c)) groups.set(c, []); groups.get(c).push(e); }
-      const order = [...groups.keys()].sort((a, b) => (a === ABSENT) - (b === ABSENT) || (a === '') - (b === '') || (b === 'Colombia') - (a === 'Colombia') || a.localeCompare(b));
+      for (const e of entries) { const c = countryOf(e); if (!groups.has(c)) groups.set(c, []); groups.get(c).push(e); }
+      const order = [...groups.keys()].sort((a, b) => (a === '') - (b === '') || (b === 'Colombia') - (a === 'Colombia') || a.localeCompare(b));
       let firstBody = null;
       for (const country of order) {
-        const title = country === ABSENT ? `No están en ${target}` : (country || 'Sin país en este ambiente');
-        // Abierta por defecto sólo la primera (Colombia): los demás países y lo que no está, cerrados abajo.
-        const body = sideView(g, 'pais:' + (country === ABSENT ? 'ausentes' : country), title, groups.get(country).length, !firstBody);
+        // Abierta por defecto sólo la primera (Colombia): los demás países, cerrados.
+        const body = sideView(g, 'pais:' + country, country || 'Sin país', groups.get(country).length, !firstBody);
         firstBody ||= body;
       for (const e of groups.get(country)) {
         const chosenOne = !!sel && (sel.slug === e.slug || (e.hash && sel.slug === e.hash));
@@ -4631,7 +4636,7 @@
       const n = norm(q.trim());
       const match = (txt) => !n || norm(txt).includes(n);
       const mine = spaceEntries().map((e) => ({ e, p: bySlug.get(prodSlugOf(e)) || null })).filter(({ e }) => match(e.alias || e.name));
-      const here = mine.filter((x) => x.p), absent = mine.filter((x) => !x.p);
+      const here = mine.filter((x) => x.p);
       const rowFor = (label, p, absentWhy, entrySlug) => {
         const r = treeRow(absentWhy ? 'missing' : '', 0, 'merchant', escTxt(label), '');
         if (absentWhy) {
@@ -4647,19 +4652,17 @@
         return r;
       };
       // LA MISMA FORMA QUE EN LOS OTROS AMBIENTES: una vista por país (con las mismas claves, así abiertas y cerradas se
-      // recuerdan igual), «No están en prod», «Agregar comercio…» al final de la primera y el Admin abajo.
+      // recuerdan igual), las que no están en prod apagadas en su país, «Agregar comercio…» al final de la primera y el
+      // Admin abajo.
       const byCountry = new Map();
-      for (const x of here) { const c = countryOf(x.e); if (!byCountry.has(c)) byCountry.set(c, []); byCountry.get(c).push(x); }
+      for (const x of mine) { const c = countryOf(x.e); if (!byCountry.has(c)) byCountry.set(c, []); byCountry.get(c).push(x); }
       const countries = [...byCountry.keys()].sort((a, b) => (a === '') - (b === '') || (b === 'Colombia') - (a === 'Colombia') || a.localeCompare(b));
       let firstBody = null;
       for (const c of countries) {
-        const body = sideView(box, 'pais:' + c, c || 'Sin país en este ambiente', byCountry.get(c).length, !firstBody);
+        const body = sideView(box, 'pais:' + c, c || 'Sin país', byCountry.get(c).length, !firstBody);
         firstBody ||= body;
-        for (const { e, p } of byCountry.get(c)) body.appendChild(rowFor(e.alias || e.name, p, undefined, e.slug));
-      }
-      if (absent.length) {
-        const absentBody = sideView(box, 'pais:ausentes', 'No están en prod', absent.length, false);
-        for (const { e } of absent) absentBody.appendChild(rowFor(e.alias || e.name, null, `«${e.alias || e.name}» no está en prod (se buscó el comercio «${prodSlugOf(e)}»)`));
+        for (const { e, p } of byCountry.get(c)) body.appendChild(p ? rowFor(e.alias || e.name, p, undefined, e.slug)
+          : rowFor(e.alias || e.name, null, `«${e.alias || e.name}» no está en prod (se buscó el comercio «${prodSlugOf(e)}»)`));
       }
       const add = treeRow('add-row', 0, 'plus', 'Agregar comercio…', '');
       add.title = 'Buscar un comercio de prod y agregarlo a tu barra (en todos los ambientes)';

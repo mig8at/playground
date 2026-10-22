@@ -1165,3 +1165,8 @@ no es la de por defecto (`?vista=buros`, `?consola=mocks`, `?inicio=entidades`).
 - **Las pestañas dicen sólo su nombre**, también Admin y las de prod (el ambiente y el canal, en el tooltip). **Prod sin
   pestaña** muestra los celulares vacíos, como los demás (se fue la tarjeta «Producción, a mano»). La ficha de la
   derecha se titula «Comercio». En prod sin pestaña la URL es `/prod` a secas, y el pie no arrastra el mensaje de local.
+- **Lo que no está en el ambiente va en SU país, apagado** (opacidad de `.row.missing`), no en una vista aparte «No están
+  en…» (se fue el 2026-10-21, en todos los ambientes y en prod). El país sale de la base del ambiente por hash
+  (`merchant-tags`), que no lo sabe para lo que no está: por eso se RECUERDA por navegador (`harness.merchantCountry`,
+  slug → país) cada vez que llega, y `countryOf` cae a ese recuerdo. Una entrada que nunca se vio en ningún ambiente
+  queda en «Sin país».
