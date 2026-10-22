@@ -60,7 +60,7 @@ ramas: core-801-shopify-payment-link, core-689-shopify-platform
       los cuatro pedidos de Shopify (7943, 7947, 7963, 7965) llegaron sin celular. Shopify manda
       `customer.phone_number` sólo si el comprador eligió contacto por celular; las direcciones (`billing_address`,
       `shipping_address`) traen su propio `phone_number`, opcional. Termina con `paymentLinkBody` cayendo a esos
-      campos y un pedido de qa con `billing.phone`. El código está (ea0a81d en la rama de #22, local, sin push, con
+      campos y un pedido de qa con `billing.phone`. El código está (ea0a81d, subido al PR #22 el 2026-10-22, con
       tests); falta el pedido de qa: pide la app corriendo con `npm run dev` y una compra en `creditop-dev-store` con
       contacto por correo y celular en la dirección.
 - [ ] Revisar y mergear los PRs abiertos: `Creditop-SAS/shopify#22` (la app, `feat/core-801-shopify-payment-link` → `develop`; reemplaza al #21, cerrado al renombrar la rama) y
