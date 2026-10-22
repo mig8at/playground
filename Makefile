@@ -43,7 +43,7 @@ define listar
 endef
 
 # ── DÍA A DÍA ────────────────────────────────────────────────────────────────────────────────────
-.PHONY: keyring keyring-ui status tablero tareas tareas-guard cuadrilla-publicar sprint bitacora tarea-bloque tarea-context-add tarea-context tablero-db panel
+.PHONY: keyring keyring-ui chat status tablero tareas tareas-guard cuadrilla-publicar sprint bitacora tarea-bloque tarea-context-add tarea-context tablero-db panel
 status: ## @dia ¿está el contexto al día? (resumen, no escribe nada)
 	@$(MAKE) --no-print-directory trampas
 	@echo ""
@@ -99,6 +99,8 @@ keyring: ## @dia el llavero: ¿a qué tengo acceso AHORA y cuándo vence? Primer
 	@go run ./keyring/server $(if $(SOLO),-only "$(SOLO)") $(if $(JSON),-json)
 keyring-ui: ## @dia abre keyring, el llavero, visual (:5182 · API :5183): las mismas filas que `make keyring`, cada grupo apenas contesta
 	@cd keyring && npm run dev
+chat: ## @dia abre chat (:5184 · API :5185), un mini WhatsApp del chat de la terminal del playground compartido: conversaciones, quién está conectado y contestar. Usa el CLI `playground` (login y listen); el historial queda en el navegador
+	@cd chat && npm run dev
 
 anatomia: ## @dia ¿cuánto pesa el documento de cada tarea, cuántos bloques tiene su pila, y qué sección con fecha parece historia fuera de lugar? N=<id|slug>
 	@cd tablero/server && go run ./cmd/today -anatomia $(if $(N),-n "$(N)")

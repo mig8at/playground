@@ -1,0 +1,145 @@
+// Command server es la API de chat, el mini WhatsApp del chat de la terminal del playground compartido.
+//
+// No es otro cliente del chat: todo pasa por el CLI `playground` (paquete chat/cli). Lo que llegó lo tiene
+// `playground listen`; lo que se manda sale con la sesión de `playground login`. El historial de las
+// conversaciones lo guarda la interfaz, en el navegador: acá no se escribe nada en disco.
+//
+// Sólo escucha en 127.0.0.1: manda mensajes a nombre de quien está logueado en el CLI.
+//
+// CONVENCIÓN: identificadores en inglés, comentarios y texto visible en español.
+package main
+
+import (
+	"context"
+	"encoding/json"
+	"errors"
+	"flag"
+	"fmt"
+	"net"
+	"net/http"
+	"os"
+	"strings"
+	"time"
+
+	"creditop/playground/chat/cli"
+)
+
+// maxText es el mismo tope que pone el home: más largo, lo rechaza igual.
+const maxText = 2000
+
+type stateResponse struct {
+	Installed bool          `json:"installed"`
+	Listening bool          `json:"listening"`
+	Connected bool          `json:"connected"`
+	Since     string        `json:"since,omitempty"`
+	Me        *cli.Person   `json:"me,omitempty"`
+	Messages  []cli.Message `json:"messages"`
+	Error     string        `json:"error,omitempty"`
+}
+
+func writeJSON(w http.ResponseWriter, status int, v any) {
+	w.Header().Set("Content-Type", "application/json; charset=utf-8")
+	w.Header().Set("Cache-Control", "no-store")
+	w.WriteHeader(status)
+	_ = json.NewEncoder(w).Encode(v)
+}
+
+func fail(w http.ResponseWriter, status int, err error) {
+	writeJSON(w, status, map[string]string{"error": err.Error()})
+}
+
+func handler() http.Handler {
+	mux := http.NewServeMux()
+
+	// Si el CLI está, si `listen` está prendido y lo que recibió.
+	mux.HandleFunc("GET /api/state", func(w http.ResponseWriter, r *http.Request) {
+		ctx, cancel := context.WithTimeout(r.Context(), 5*time.Second)
+		defer cancel()
+		body := stateResponse{Installed: cli.Installed(), Messages: []cli.Message{}}
+		if !body.Installed {
+			writeJSON(w, http.StatusOK, body)
+			return
+		}
+		status, _ := cli.ListenStatus(ctx)
+		if status == nil {
+			writeJSON(w, http.StatusOK, body)
+			return
+		}
+		body.Listening, body.Connected, body.Since, body.Me = true, status.Connected, status.Since, status.Me
+		if messages, err := cli.Messages(ctx); err != nil {
+			body.Error = err.Error()
+		} else {
+			body.Messages = messages
+		}
+		writeJSON(w, http.StatusOK, body)
+	})
+
+	mux.HandleFunc("GET /api/online", func(w http.ResponseWriter, r *http.Request) {
+		ctx, cancel := context.WithTimeout(r.Context(), 10*time.Second)
+		defer cancel()
+		online, err := cli.Online(ctx)
+		if err != nil {
+			fail(w, http.StatusBadGateway, err)
+			return
+		}
+		writeJSON(w, http.StatusOK, map[string]any{"online": online})
+	})
+
+	mux.HandleFunc("POST /api/send", func(w http.ResponseWriter, r *http.Request) {
+		var in struct {
+			To   string `json:"to"`
+			Text string `json:"text"`
+		}
+		if err := json.NewDecoder(http.MaxBytesReader(w, r.Body, 64<<10)).Decode(&in); err != nil {
+			fail(w, http.StatusBadRequest, errors.New("el cuerpo va en JSON: {to, text}"))
+			return
+		}
+		in.To, in.Text = strings.TrimSpace(in.To), strings.TrimSpace(in.Text)
+		switch {
+		case in.To == "":
+			fail(w, http.StatusBadRequest, errors.New("falta a quién"))
+			return
+		case in.Text == "":
+			fail(w, http.StatusBadRequest, errors.New("falta el texto"))
+			return
+		case len([]rune(in.Text)) > maxText:
+			fail(w, http.StatusRequestEntityTooLarge, fmt.Errorf("el texto pasa de %d caracteres", maxText))
+			return
+		}
+		ctx, cancel := context.WithTimeout(r.Context(), 20*time.Second)
+		defer cancel()
+		result, err := cli.Send(ctx, in.To, in.Text)
+		if err != nil {
+			fail(w, http.StatusBadGateway, err)
+			return
+		}
+		writeJSON(w, http.StatusOK, result)
+	})
+
+	mux.HandleFunc("POST /api/listen", func(w http.ResponseWriter, r *http.Request) {
+		ctx, cancel := context.WithTimeout(r.Context(), 15*time.Second)
+		defer cancel()
+		if err := cli.Listen(ctx); err != nil {
+			fail(w, http.StatusBadGateway, err)
+			return
+		}
+		writeJSON(w, http.StatusOK, map[string]bool{"ok": true})
+	})
+	return mux
+}
+
+func main() {
+	addr := flag.String("serve", "127.0.0.1:5185", "dirección de la API (sólo 127.0.0.1)")
+	flag.Parse()
+	host, _, err := net.SplitHostPort(*addr)
+	if err != nil || host != "127.0.0.1" {
+		fmt.Fprintln(os.Stderr, "chat: la API escucha sólo en 127.0.0.1 (manda mensajes a tu nombre)")
+		os.Exit(2)
+	}
+	fmt.Printf("chat · API en http://%s\n", *addr)
+	srv := &http.Server{Addr: *addr, Handler: handler(), ReadHeaderTimeout: 5 * time.Second}
+	if err := srv.ListenAndServe(); err != nil {
+		fmt.Fprintln(os.Stderr, "chat:", err)
+		os.Exit(1)
+	}
+}

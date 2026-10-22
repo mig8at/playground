@@ -1,0 +1,31 @@
+/* EL VOCABULARIO VISUAL DE CHAT.
+ *
+ * Las mismas capas que keyring y radar, en el mismo orden: Tailwind (utilidades, sin preflight), el tema
+ * compartido —que se REEMPLAZA entero— y la base (`workbench.css`). Abajo, lo único que significa algo sólo
+ * acá: la burbuja propia y la ajena, y el punto de «conectado».
+ */
+@import "tailwindcss/theme.css" layer(theme);
+@import "tailwindcss/utilities.css" layer(utilities);
+@import "./theme.css";
+@import "./workbench.css";
+
+/* La burbuja propia toma el acento del tema; la ajena, la superficie que se levanta un escalón. El verde de
+ * «conectado» y el rojo de «no salió» son los de keyring, uno por tema.
+ * ⚠ El rojo NO sale de `--destructive`: en el tema Darkmatter es un verde azulado apagado, y un mensaje
+ * que no salió tiene que leerse como error de un vistazo. */
+:root {
+  --bubble-mine: color-mix(in oklab, var(--primary) 22%, var(--background));
+  --bubble-theirs: var(--muted);
+  --presence-on: #15803d;
+  --send-fail: #b91c1c;
+}
+.dark {
+  --bubble-mine: color-mix(in oklab, var(--primary) 30%, var(--background));
+  --presence-on: #4ade80;
+  --send-fail: #f87171;
+}
+
+/* La página no scrollea: scrollea cada región (el contrato de `.workbench`). La letra es la de la base. */
+html, body { margin: 0; height: 100%; overflow: hidden; background: var(--background); color: var(--foreground);
+  font: var(--text-base)/1.4 var(--font-sans) }
+#app { height: 100% }
