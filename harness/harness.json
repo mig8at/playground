@@ -1,0 +1,504 @@
+{
+  "version": 2,
+  "otp_bypass_phone": "3131010101",
+  "merchants": {
+    "motai": {
+      "name": "Motai",
+      "panel": true,
+      "country": "Colombia",
+      "note": "Renting y Rent to Own (RTO) de motos; cierra en local.",
+      "allied_slug": "motai",
+      "allied_id": 158,
+      "allied_name": "Motai",
+      "bases": {
+        "local": {
+          "branch": "f0548728"
+        },
+        "shared": {
+          "branch": "f0548728"
+        },
+        "prod": {
+          "branch": "09aa6b7c"
+        }
+      }
+    },
+    "alkosto": {
+      "name": "Alkosto",
+      "panel": true,
+      "country": "Colombia",
+      "note": "Canal QR de caja (grupo Corbeta): sólo Bancolombia 68 BNPL y 100 Consumo. Código de compra → factura en tienda → conciliación → estado 26. Del mismo grupo están k-tronix, alkomprar y creditop.",
+      "allied_slug": "alkosto",
+      "allied_id": 209,
+      "allied_name": "Alkosto",
+      "bases": {
+        "local": {
+          "branch": "a1c0b15d"
+        },
+        "shared": {
+          "branch": "a1c0b15d"
+        },
+        "prod": {
+          "branch": "0d1a7da5"
+        }
+      }
+    },
+    "pullman": {
+      "name": "Pullman",
+      "panel": true,
+      "country": "Colombia",
+      "note": "CreditopX rt=2 (CrediPullman): cierra en local.",
+      "allied_slug": "amoblando-pullman",
+      "allied_id": 94,
+      "allied_name": "Amoblando Pullman",
+      "bases": {
+        "local": {
+          "branch": "13874eb6"
+        },
+        "shared": {
+          "branch": "13874eb6"
+        },
+        "prod": {
+          "branch": "0878855d"
+        }
+      }
+    },
+    "celurd": {
+      "name": "CeluRD",
+      "panel": true,
+      "country": "Dominican Republic",
+      "note": "SmartPay (República Dominicana): la entidad 152 es CreditopX rt=2 con path=IMEI, el celular financiado es la garantía (IMEI + bloqueo MDM).",
+      "allied_slug": "celurd-test",
+      "allied_id": 270,
+      "allied_name": "CeluRD Test",
+      "bases": {
+        "local": {
+          "branch": "1bfb8cd0"
+        },
+        "shared": {
+          "branch": "1bfb8cd0"
+        }
+      }
+    },
+    "celucambio": {
+      "name": "Celucambio",
+      "panel": true,
+      "country": "Colombia",
+      "note": "Celupresto rt=2: otro CreditopX cerrable, con otra configuración.",
+      "allied_slug": "celucambio",
+      "allied_id": 196,
+      "allied_name": "Celucambio",
+      "branch_id": 890,
+      "bases": {
+        "local": {
+          "branch": "f581714b"
+        },
+        "shared": {
+          "branch": "f581714b"
+        },
+        "prod": {
+          "branch": "44818d8f"
+        }
+      }
+    },
+    "mediarte": {
+      "name": "Mediarte",
+      "panel": true,
+      "country": "Colombia",
+      "note": "rt=2 con 0% de interés y Credifamilia rt=4 al lado.",
+      "allied_slug": "mediarte",
+      "allied_id": 91,
+      "allied_name": "Mediarte",
+      "branch_id": 375,
+      "bases": {
+        "local": {
+          "branch": "5da24bb1"
+        },
+        "shared": {
+          "branch": "5da24bb1"
+        },
+        "prod": {
+          "branch": "ace99f27"
+        }
+      }
+    },
+    "dentix": {
+      "name": "DENTIX",
+      "panel": true,
+      "country": "Colombia",
+      "note": "CreditopX de marca propia.",
+      "allied_slug": "dentix",
+      "allied_id": 189,
+      "allied_name": "DENTIX",
+      "branch_id": 845,
+      "bases": {
+        "local": {
+          "branch": "18d4cd08"
+        },
+        "shared": {
+          "branch": "18d4cd08"
+        },
+        "prod": {
+          "branch": "30ef0d75"
+        }
+      }
+    },
+    "sonria": {
+      "name": "Sonría",
+      "panel": true,
+      "country": "Colombia",
+      "note": "9 entidades (rt 0/1/4): el listado más rico para mirar.",
+      "allied_slug": "sonria",
+      "allied_id": 26,
+      "allied_name": "Sonría",
+      "bases": {
+        "local": {
+          "branch": "76db47f5"
+        },
+        "shared": {
+          "branch": "76db47f5"
+        },
+        "prod": {
+          "branch": "d6b88e5e"
+        }
+      }
+    },
+    "comercio-pruebas-peru": {
+      "name": "BCP (Perú)",
+      "panel": true,
+      "country": "Peru",
+      "note": "El flujo de BCP: país en las dos primeras pantallas (S/ y +51 con 9 dígitos), el formulario del vehículo, el simulador embebido y el registro del resultado. En local lo monta `make harness-peru`; en dev/qa/staging es otro comercio (allied 337) y se corre la sucursal del vehicular (a8221e67; la de consumo es d5700512). Se llama por lo que ejercita: el nombre de la base es distinto en cada ambiente.",
+      "allied_slug": "comercio-pruebas-peru",
+      "allied_id": 279,
+      "allied_name": "Comercio pruebas Perú",
+      "otp_bypass_phone": "912345678",
+      "bases": {
+        "local": {
+          "branch": "50e007e4"
+        },
+        "shared": {
+          "branch": "a8221e67"
+        }
+      }
+    },
+    "alta": {
+      "name": "Alta Fleet",
+      "panel": true,
+      "country": "Colombia",
+      "note": "Motos con línea propia: rt=2 con product=rto, pantalla de bienvenida de la entidad, PEP en el documento y autogestión. Sólo en local (`make harness-merchant MERCHANT=alta`); su catálogo de documentos pide codeudor antes de firmar, y es lo correcto en un RTO.",
+      "allied_slug": "alta-fleet",
+      "allied_id": 527,
+      "allied_name": "Alta Fleet",
+      "branch_id": 2277,
+      "bases": {
+        "local": {
+          "branch": "981da214"
+        },
+        "shared": {
+          "branch": "ea2fe316"
+        }
+      }
+    },
+    "smart": {
+      "name": "Smart",
+      "panel": true,
+      "country": "Colombia",
+      "allied_slug": "smart-academia-de-idiomas",
+      "allied_id": 276,
+      "allied_name": "Smart Academia de Idiomas",
+      "branch_id": 1876,
+      "bases": {
+        "local": {
+          "branch": "a1d9e473"
+        },
+        "shared": {
+          "branch": "a1d9e473"
+        },
+        "prod": {
+          "branch": "06a15270"
+        }
+      }
+    },
+    "refurbi": {
+      "name": "Refurbi · tienda (auto)",
+      "panel": true,
+      "country": "Colombia",
+      "note": "Tienda con auto-onboarding (canales auto y ecommerce).",
+      "allied_slug": "refurbi",
+      "allied_id": 81,
+      "allied_name": "Refurbi",
+      "branch_id": 1748,
+      "channels": [
+        "auto",
+        "ecommerce"
+      ],
+      "bases": {
+        "local": {
+          "branch": "c390eed9"
+        },
+        "shared": {
+          "branch": "c390eed9"
+        },
+        "prod": {
+          "branch": "0d633107"
+        }
+      }
+    },
+    "seven-seven": {
+      "name": "Seven seven",
+      "country": "Colombia",
+      "allied_id": 222,
+      "branch_id": 1342,
+      "bases": {
+        "local": {
+          "branch": "785cb962"
+        },
+        "shared": {
+          "branch": "785cb962"
+        }
+      }
+    },
+    "ostu": {
+      "name": "Ostu",
+      "country": "Colombia",
+      "allied_id": 221,
+      "branch_id": 1282,
+      "bases": {
+        "local": {
+          "branch": "f14033af"
+        },
+        "shared": {
+          "branch": "f14033af"
+        }
+      }
+    },
+    "patprimo": {
+      "name": "Patprimo",
+      "country": "Colombia",
+      "allied_id": 219,
+      "branch_id": 1115,
+      "bases": {
+        "local": {
+          "branch": "d2c9ff6d"
+        },
+        "shared": {
+          "branch": "d2c9ff6d"
+        }
+      }
+    },
+    "alkomprar": {
+      "name": "Alkomprar",
+      "country": "Colombia",
+      "allied_id": 211,
+      "branch_id": 1045,
+      "bases": {
+        "local": {
+          "branch": "9d00f9f9"
+        },
+        "shared": {
+          "branch": "9d00f9f9"
+        }
+      }
+    },
+    "tripleten": {
+      "name": "Tripleten",
+      "country": "Colombia",
+      "allied_id": 191,
+      "branch_id": 846,
+      "bases": {
+        "local": {
+          "branch": "efad69fc"
+        },
+        "shared": {
+          "branch": "efad69fc"
+        }
+      }
+    },
+    "americana-de-colchones": {
+      "name": "Americana de colchones",
+      "country": "Colombia",
+      "allied_id": 41,
+      "branch_id": 169,
+      "bases": {
+        "local": {
+          "branch": "9e86fdc9"
+        },
+        "shared": {
+          "branch": "9e86fdc9"
+        }
+      }
+    },
+    "coexito": {
+      "name": "Energiteca",
+      "country": "Colombia",
+      "allied_id": 153,
+      "branch_id": 830,
+      "bases": {
+        "local": {
+          "branch": "cf326c6f"
+        },
+        "shared": {
+          "branch": "cf326c6f"
+        }
+      }
+    },
+    "compuworking": {
+      "name": "Compuworking",
+      "country": "Colombia",
+      "allied_id": 70,
+      "branch_id": 290,
+      "bases": {
+        "local": {
+          "branch": "23a25b21"
+        },
+        "shared": {
+          "branch": "23a25b21"
+        }
+      }
+    },
+    "amoblar": {
+      "name": "Amoblar",
+      "country": "Colombia",
+      "allied_id": 38,
+      "branch_id": 56,
+      "bases": {
+        "local": {
+          "branch": "bccce1c6"
+        },
+        "shared": {
+          "branch": "bccce1c6"
+        }
+      }
+    },
+    "dormiluna": {
+      "name": "Dormiluna",
+      "country": "Colombia",
+      "allied_id": 43,
+      "branch_id": 195,
+      "bases": {
+        "local": {
+          "branch": "78f0fcec"
+        },
+        "shared": {
+          "branch": "78f0fcec"
+        }
+      }
+    },
+    "colchones-ensueno": {
+      "name": "Colchones ensueño",
+      "country": "Colombia",
+      "allied_id": 118,
+      "branch_id": 569,
+      "bases": {
+        "local": {
+          "branch": "ce2c5404"
+        },
+        "shared": {
+          "branch": "ce2c5404"
+        }
+      }
+    },
+    "godentist": {
+      "name": "godentist",
+      "country": "Colombia",
+      "allied_id": 14,
+      "branch_id": 14,
+      "bases": {
+        "local": {
+          "branch": "7426056a"
+        },
+        "shared": {
+          "branch": "7426056a"
+        }
+      }
+    },
+    "k-tronix": {
+      "name": "K-TRONIX",
+      "country": "Colombia",
+      "allied_id": 210,
+      "branch_id": 987,
+      "bases": {
+        "local": {
+          "branch": "aa09c702"
+        },
+        "shared": {
+          "branch": "aa09c702"
+        }
+      }
+    },
+    "creditop": {
+      "name": "Creditop",
+      "country": "Colombia",
+      "allied_id": 24,
+      "branch_id": 17,
+      "bases": {
+        "local": {
+          "branch": "63c07b84"
+        },
+        "shared": {
+          "branch": "63c07b84"
+        }
+      }
+    },
+    "gaes": {
+      "name": "GAES",
+      "country": "Colombia",
+      "allied_id": 237,
+      "branch_id": 1509,
+      "bases": {
+        "local": {
+          "branch": "0e76bf9c"
+        },
+        "shared": {
+          "branch": "0e76bf9c"
+        }
+      }
+    },
+    "atmos": {
+      "name": "Atmos",
+      "country": "Colombia",
+      "allied_id": 218,
+      "branch_id": 1093,
+      "bases": {
+        "local": {
+          "branch": "ed3bdf43"
+        },
+        "shared": {
+          "branch": "ed3bdf43"
+        }
+      }
+    },
+    "dentalix": {
+      "country": "Colombia",
+      "bases": {
+        "local": {
+          "branch": "51d2b8a2"
+        },
+        "shared": {
+          "branch": "51d2b8a2"
+        }
+      }
+    },
+    "alpeluche": {
+      "country": "Colombia",
+      "bases": {
+        "local": {
+          "branch": "cb6a9f0a"
+        },
+        "shared": {
+          "branch": "cb6a9f0a"
+        }
+      }
+    },
+    "peru": {
+      "country": "Peru",
+      "bases": {
+        "local": {
+          "branch": "50e007e4"
+        },
+        "shared": {
+          "branch": "50e007e4"
+        }
+      }
+    }
+  }
+}

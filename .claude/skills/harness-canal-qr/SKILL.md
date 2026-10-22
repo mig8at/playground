@@ -303,7 +303,7 @@ es falsa, `lenders-v2` da 404 igual en un comercio no-Corbeta.
 propio, y el consumidor del salto matchea URLs `/(merchant|ecommerce)/…` que acá nunca ocurren.
 
 La tarjeta **Alkosto** es la del canal: retail Corbeta con solo 68/100 habilitados, el único que ejercita
-la venta que cierra en CAJA. Los otros tres están en `.flows.json` por nombre (`k-tronix`, `alkomprar`,
+la venta que cierra en CAJA. Los otros tres están en el registro (`harness.json`) por nombre (`k-tronix`, `alkomprar`,
 `creditop` — este último es la cuenta propia de la casa: está en el gate pero **no** es retail Corbeta).
 
 ## Suites de caracterización de este canal

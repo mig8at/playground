@@ -400,6 +400,9 @@ ejercitan, y desde la UI no habría forma de traerlos de vuelta. ⚠ El alias de
 
 ## Elegir comercio: los curados y el buscador
 
+> ⏩ **Histórico.** Desde el 2026-10-21 la barra sale del registro `harness.json` y el buscador sólo la filtra: ver
+> «Un solo registro de comercios, y se agregan por consola» al final.
+
 Conviven dos entradas, y **no son redundantes**:
 
 - **Las tarjetas** (`MERCHANTS` en `panel/index.html`) están curadas por lo que **ejercitan** — Motai =
@@ -702,6 +705,9 @@ mismos `id`.
 
 ### «Agregar comercio» con el catálogo del ambiente, y el asesor de prueba (2026-10-20)
 
+> ⏩ **Reemplazado el 2026-10-21**: agregar es por consola (`make harness-merchants`). Queda «Crear asesor de prueba» al
+> elegir el canal.
+
 - **La barra sigue siendo tuya** (curados + agregados): el catálogo entero NO se vuelca ahí. Al enfocar el buscador
   (o «Agregar comercio…») aparece el **catálogo del ambiente** (`/api/catalog` → `dbops catalog` →
   `listCatalog` en `pkg/merchants.ts`): todos los comercios con sucursal activa, filtrados mientras escribís, sin
@@ -836,6 +842,8 @@ manda la página). La persona entra (correo y «Copiar contraseña» en la ficha
   en él; `advance` contestó «es un celular de prod: lo manejás vos…».
 
 ### El registro de comercios por BASE (`.flows.json` versión 2, 2026-10-21)
+
+> ⏩ El archivo ahora es `harness.json` (versionado), con el mismo formato y tres campos más: ver al final.
 
 `.flows.json` pasó a tener el COMERCIO arriba y las BASES adentro, con las claves en inglés. Todo lo lee y lo escribe
 `pkg/flows.ts` (en bash, `bin/flows.ts`; `make harness-flows`):
@@ -1170,3 +1178,30 @@ no es la de por defecto (`?vista=buros`, `?consola=mocks`, `?inicio=entidades`).
   (`merchant-tags`), que no lo sabe para lo que no está: por eso se RECUERDA por navegador (`harness.merchantCountry`,
   slug → país) cada vez que llega, y `countryOf` cae a ese recuerdo. Una entrada que nunca se vio en ningún ambiente
   queda en «Sin país».
+
+### Un solo registro de comercios, y se agregan por consola (2026-10-21)
+
+- **`harness/harness.json`, versionado, es la ÚNICA fuente.** Lo lee `pkg/flows.ts` (sin él, el `.flows.json` de antes),
+  así que `bin/advisor`, los runners y el panel no cambiaron de camino. Las entradas con `panel: true` son la barra, en el
+  orden del archivo, con `country` (como lo dice la base) y `note` (lo que ejercita: va en el tooltip). La lista curada
+  que estaba escrita en `index.html` (`MERCHANTS`, con sus comentarios) se mudó ahí; `MERCHANTS` ahora se llena de
+  `/api/registry`, que se lee en cada pedido: lo que cambia el CLI se ve al recargar.
+- **Agregar y asociar es `make harness-merchants`** (`bin/merchants.ts`, con `pkg/merchant-registry.ts`):
+  `add <slug|id|nombre>` busca el comercio en las tres bases (local y dev por `dbops`, prod por el conector) y toma la
+  sucursal del asesor de prueba (`c<hash>-fake@`), o una activa con la advertencia. Es idempotente: lo que ya tenía
+  sucursal la conserva. `associate <clave> <ambiente> <hash|comercio>` fija una base; `check [ambiente]` dice qué
+  sucursal no existe; `remove [--purge]`. ⚠ **Un id no es el mismo comercio en prod** (Alta Fleet: 527 local, 346 prod):
+  por id se busca sólo en local o en la compartida, y con el slug de ahí en las otras.
+- **El panel no agrega**: se fueron el formulario (comercio → sucursal → nombre), `/api/catalog`, `/api/merchants`,
+  `/api/branches-of`, `/api/favs`, «Agregar comercio…» y «Agregar desde prod». Escribe el registro sólo para RENOMBRAR
+  la fila y QUITARLA de la barra (`panel` en falso: la entrada sigue para la consola). El buscador **filtra** la barra
+  (también en prod): abre las vistas que coinciden mientras dura, sin guardar esa preferencia.
+- **Sin rescate por slug**: `/api/branches` ya no busca el comercio por nombre cuando su sucursal no está, ni escribe el
+  registro solo. Sin sucursal en la base, o con una que no existe ahí, la fila sale opaca en su país; su tooltip trae el
+  comando `associate` y el clic lo copia (en el navegador del panel, un clic simulado no llega al portapapeles y dice
+  «el comando está en el tooltip»).
+- **Prod busca por la sucursal de prod del registro** (`prod_branch` → `prodRowOf`), no por slug: `/api/prod/catalog`
+  devuelve `branches`, de qué comercio de prod es cada sucursal del registro (el catálogo trae sólo la del asesor de
+  prueba y la menor por comercio; una asociada a mano se busca aparte con `prodBranches`). Al armarlo, las 9 que ya se
+  veían en prod resolvieron con `add` y quedaron igual; Alta Fleet, BCP y CeluRD siguen sin sucursal de prod.
+- Se fue el recuerdo del país por navegador (`harness.merchantCountry`): el país viene del registro.

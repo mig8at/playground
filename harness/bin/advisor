@@ -20,7 +20,7 @@ case "${CFE_FRONT:-}" in
   *)                 FRONT="$CFE_FRONT" ;;
 esac
 WIZARD="$FRONT/apps/loan-request-wizard"
-FLOWS="$E2E/.flows.json"
+FLOWS="$E2E/harness.json"   # el registro de comercios (`pkg/flows.ts`); sin él, `.flows.json` de antes
 TARGET="${CFE_TARGET:-dev}"   # dev por default; CFE_TARGET=local prueba el stack local (sail) sin commitear a dev
 
 # Lee una clave por la CADENA de env del target (process.env > .env.<target> > env/<target>.env > heredado).
@@ -129,7 +129,7 @@ log() { printf '▶ %s\n' "$*"; }
 step() { printf '  ○ %-13s …\n' "$1"; }
 ok()   { printf '  ● %-13s %s\n' "$1" "${2:-ok}"; }
 cd "$E2E"
-[ -f "$FLOWS" ] || { echo "✗ falta $FLOWS (merchants.<m>.branch_hash)"; exit 1; }
+[ -f "$FLOWS" ] || [ -f "$E2E/.flows.json" ] || { echo "✗ falta $FLOWS (el registro de comercios: make harness-merchants)"; exit 1; }
 
 json_pick() { node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>{try{const j=JSON.parse(s);const v=eval("j"+process.argv[1]);process.stdout.write(v==null?"":String(v))}catch(e){}})' "$1"; }
 
@@ -199,13 +199,13 @@ if [ "$ECOMMERCE" = 1 ]; then
   printf '▶ checkout ecommerce: %s/ecommerce/%s/checkout  (payload base64 omitido)\n' "$WIZ_BASE" "$ECHASH"
 fi
 
-# comercio no registrado en .flows.json → resolver en dev y cachear
+# comercio no registrado en harness.json → resolver en el ambiente y anotarlo
 if [ -z "$HASH" ]; then
-  log "comercio '$MERCHANT' no está en .flows.json — lo resuelvo en dev y lo cacheo"
+  log "comercio '$MERCHANT' no está en harness.json — lo resuelvo en $TARGET y lo anoto"
   HASH="$(node bin/dbops.ts list "$MERCHANT" 2>/dev/null | json_pick '[0].hash')"
   [ -n "$HASH" ] || { echo "✗ no pude resolver '$MERCHANT' en dev (probá: node bin/dbops.ts list $MERCHANT)"; exit 1; }
   node bin/flows.ts set "$MERCHANT" "$TARGET" "$HASH" >/dev/null   # en la base de ESTE ambiente
-  echo "  ✓ $MERCHANT → $HASH (cacheado en .flows.json)"
+  echo "  ✓ $MERCHANT → $HASH (anotado en harness.json)"
 fi
 export E2E_ADVISOR_HASH="$HASH"
 

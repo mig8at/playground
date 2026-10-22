@@ -96,3 +96,13 @@ export async function prodMerchant(alliedId: number): Promise<ProdMerchant> {
         entryUrl: hash ? `${PROD_FRONT.replace(/\/$/, '')}/merchant/${hash}/solicitar` : null,
         selfServiceUrl: hash ? `${PROD_FRONT.replace(/\/$/, '')}/self-service/${hash}/solicitar` : null };
 }
+
+/** Qué hashes de sucursal EXISTEN en prod, con su comercio (para `bin/merchants.ts check` y `associate`). Los hashes se
+ *  validan antes de entrar al SQL. */
+export async function prodBranches(hashes: string[]): Promise<Row[]> {
+    const ok = [...new Set(hashes.filter((h) => /^[0-9a-f]{8}$/i.test(h)).map((h) => h.toLowerCase()))];
+    if (!ok.length) return [];
+    return prodSql(`SELECT ab.hash, ab.status, a.id AS allied_id, a.name AS allied_name, COALESCE(a.slug,'') AS allied_slug
+                      FROM allied_branches ab JOIN allieds a ON a.id = ab.allied_id
+                     WHERE ab.hash IN (${ok.map((h) => `'${h}'`).join(',')})`);
+}

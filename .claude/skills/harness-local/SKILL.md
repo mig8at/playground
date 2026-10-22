@@ -22,8 +22,8 @@ harness están en `harness/CLAUDE.md`; esto es la receta de cada pieza. Vivía a
 - **Assign por SUB**: el backend resuelve el comercio por `x-cognito-identity-id` = el **sub real** del
   login web. `bin/advisor` asocia la fila `users` al comercio (`dbops assign`) solo si hace falta — un
   asesor = un comercio; revert con `dbops revoke`.
-- **`.flows.json`** (gitignored): identidad del asesor + `merchants.<m>.branch_hash` + teléfono de
-  bypass. **`.env.<target>`**: `E2E_DB_*`, `APP_KEY` (cifra la fila Experian).
+- **`harness.json`** (versionado; antes `.flows.json`): cada comercio con su sucursal por base y el teléfono de
+  bypass. Se agregan con `make harness-merchants` (ver `README.md` §«El registro de comercios»). **`.env.<target>`**: `E2E_DB_*`, `APP_KEY` (cifra la fila Experian).
 - **El panel** (:5195) elige comercio, define el sintético y lanza `bin/advisor` con `E2E_INJECT=1`
   (buró invisible) o sin él (buró real). Solo local por diseño (fuerza el target).
 

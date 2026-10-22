@@ -23,9 +23,9 @@ import { laneOf, roleOf, inLane, laneIndex, isDeviceId, LANES, type Lane, type R
 import { deviceFillOtp, deviceChooseEntity, openDevice, openDevices, setDeviceLogger, prewarmDevices, warmDevice, watchNavigation, watchRequests, deviceGoto, deviceReload, deviceText, deviceEval, deviceOpenedAt, deviceState, deviceShot, deviceInput, deviceTap, deviceAdvance, deviceStream, deviceBusyWatch, deviceStorage, closeDevice, closeAllDevices, SELENIUM_BOXES, type DeviceId, type DeviceInput, type DeviceSession } from './devices.ts';
 import { vpnDev, type VpnStatus } from '../pkg/vpn.ts';
 import { validatePlan, readPlan, writePlan, clearPlan } from '../pkg/run-plan.ts';
-import { prodCatalog, prodMerchant } from '../pkg/prod-catalog.ts';
+import { prodCatalog, prodMerchant, prodBranches } from '../pkg/prod-catalog.ts';
 import { waitForOtp } from '../pkg/otp-service.ts';
-import { readFlows, writeFlows, branchFor, branchesOf, baseOf, type MerchantEntry } from '../pkg/flows.ts';
+import { readFlows, writeFlows, branchFor } from '../pkg/flows.ts';
 import { homedir } from 'node:os';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
@@ -335,16 +335,6 @@ function readBody(req: IncomingMessage): Promise<any> {
         let d = '';
         req.on('data', (c) => (d += c));
         req.on('end', () => { try { ok(d ? JSON.parse(d) : {}); } catch { ok({}); } });
-    });
-}
-
-// dbops list <q> → JSON (comercios que matchean) contra el target elegido (dev es remoto → timeout más largo).
-function dbopsList(q: string, target: string): Promise<any[]> {
-    return new Promise((ok) => {
-        execFile('node', ['bin/dbops.ts', 'list', q], { cwd: ROOT, env: envFor(target), timeout: 30000 }, (err, stdout) => {
-            if (err) return ok([]);
-            try { ok(JSON.parse(stdout)); } catch { ok([]); }
-        });
     });
 }
 
@@ -1139,8 +1129,7 @@ function branchHashForSlug(slug: string, target = 'local'): string {
     // Por `pkg/flows.ts`: la sucursal de la BASE de este ambiente (formato nuevo, por base, o el viejo, `por_target`).
     const h = branchFor(slug, target);
     if (h) return h;
-    // El buscador deja elegir una sucursal que NO está en `.flows.json`: en ese caso el "slug" ES el
-    // hash. Así el panel corre contra cualquier comercio de la base sin tener que quemarlo antes.
+    // Un hash de sucursal suelto (de la terminal o de un enlace viejo) se corre tal cual, sin estar en el registro.
     const s = slug.trim().toLowerCase();
     return /^[0-9a-f]{8}$/.test(s) ? s : '';
 }
@@ -1359,44 +1348,6 @@ function declaredChannelsByHash(hash: string, target: string): string[] | null {
     return null;
 }
 // `readFlows` y `writeFlows` vienen de `pkg/flows.ts`: el registro en el formato nuevo (por base), que entiende el viejo.
-/**
- * Slug legible y ÚNICO a partir del nombre que puso el usuario. Si el nombre ya está tomado por OTRA
- * sucursal, se sufija con el hash (que sí es único) en vez de pisar: dos "Dentix" de sucursales
- * distintas son comercios de prueba distintos, y pisar uno haría que `bin/advisor dentix` corriera
- * contra la sucursal equivocada sin avisar.
- */
-/** La sucursal de un comercio (por su `allieds.slug`) en cada base: la del ASESOR DE PRUEBA si la tiene (es la que el
- *  harness usa fuera de local), si no una activa. → `{local, shared, prod}` con lo que se encontró. */
-async function branchesAcrossBases(alliedSlug: string): Promise<MerchantEntry['bases']> {
-    const inBase = async (t: string): Promise<string> => {
-        const rows = await dbopsJson(['catalog'], t);
-        const row = Array.isArray(rows) ? rows.find((r: any) => r.slug === alliedSlug) : null;
-        if (!row) return '';
-        if (row.test_branch) return String(row.test_branch);
-        return String((await dbopsList(alliedSlug, t)).find((m: any) => m.slug === alliedSlug)?.hash || '');
-    };
-    const prodRow = async (): Promise<string> => {
-        try {
-            const c = catalogCache.get('prod');
-            const rows = c && Date.now() - c.at < 10 * 60_000 ? c.rows : await prodCatalog();
-            const r = rows.find((x: any) => x.slug === alliedSlug);
-            return r ? String(r.test_branch || r.branch || '') : '';
-        } catch { return ''; }
-    };
-    const [local, shared, prod] = await Promise.all([inBase('local'), inBase('dev'), prodRow()]);
-    const out: MerchantEntry['bases'] = {};
-    if (/^[0-9a-f]{8}$/.test(local)) out.local = { branch: local };
-    if (/^[0-9a-f]{8}$/.test(shared)) out.shared = { branch: shared };
-    if (/^[0-9a-f]{8}$/.test(prod)) out.prod = { branch: prod };
-    return out;
-}
-function slugFor(nameValue: string, hash: string, flows: any): string {
-    const base = nameValue.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '')
-        .replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 40) || 'comercio';
-    const m = flows?.merchants ?? {};
-    if (!m[base] || branchesOf(m[base]).includes(hash)) return base;
-    return `${base}-${hash.slice(0, 4)}`;
-}
 
 // lanza `bin/advisor <slug>` en MODO MANUAL (sin `auto` → no auto-rellena; vos manejás desde monto) con
 // E2E_INJECT=1 (inyecta el buró invisible al llegar a personal-info) + el perfil por env, contra el target.
@@ -2114,54 +2065,15 @@ const server = createServer(async (req, res) => {
         const rowList: any[] = read ?? [];
         const info = Object.fromEntries(rowList.map((f: any) => [f.hash, f]));
 
-        /* ── SI EL HASH DECLARADO NO ESTÁ EN ESTE AMBIENTE, SE BUSCA EL COMERCIO POR SU SLUG ──
-         *
-         * El hash de una sucursal es una fila distinta en cada base, así que el de local no tiene por
-         * qué existir en qa. La card decía «no está en qa» cuando el comercio SÍ estaba, sólo que con
-         * otro hash — y el mensaje mandaba a sembrar algo que ya existía.
-         *
-         * ⚠ DOS COSAS QUE ESTE RESCATE NO HACE, y por eso la sucursal POR BASE (`bases`) sigue existiendo:
-         *   · **No elige sucursal.** Devuelve una de las que tenga (`MIN(hash)`), y cuál toca es
-         *     alfabético. Cuando importa cuál —el comercio de Perú en qa tiene una para consumo y otra
-         *     para el vehicular, con flujos distintos— hay que declararla.
-         *   · **No salva si el SLUG también cambia.** Es justamente el caso de Perú: en local se llama
-         *     `comercio-pruebas-peru` y en qa `comercio-pruebas-bcp`, así que buscar por slug no
-         *     encuentra nada. El rescate cubre lo COMÚN (mismo comercio, otro hash), no lo raro.
-         * Por eso el resultado se marca (`bySlug`) y la card lo dice: un hash adivinado no se presenta
-         * como uno declarado. */
-        const rescued: Record<string, any> = {};
-        for (const s of slugs) {
-            const h = bySlug[s];
-            if (h && info[h]?.allied_name) continue;
-            // Sólo el MISMO slug: `list` busca por parecido, y tomar el primero con hash adoptaba otro comercio.
-            // El de un AGREGADO es el slug de su COMERCIO (`allied_slug`, el de `allieds.slug`), no su clave: la clave
-            // sale del nombre que le pusiste («smart») y no matchea con nada en otra base. Así el que agregaste en un
-            // ambiente aparece en todos los que lo tienen.
-            const flowsNow = readFlows();
-            const own = flowsNow.merchants[s];
-            const want = String(own?.allied_slug || s);
-            const found = (await dbopsList(want, target)).find((m: any) => m.slug === want && m.hash);
-            if (found?.hash) {
-                // Un AGREGADO que se encuentra por primera vez en esta base (al agregarlo no contestaba: sin VPN) deja su
-                // sucursal en `bases`, como hace `bin/advisor` al resolver un comercio: si no, la corrida iría contra el
-                // hash de la otra base. Los curados no se tocan: su sucursal por ambiente se declara a mano.
-                if (own?.favorite && own.allied_slug && TARGETS.has(target)) {
-                    own.bases = { ...own.bases, [baseOf(target)]: { branch: found.hash } };
-                    writeFlows(flowsNow);
-                    rescued[s] = { hash: found.hash, allied_name: found.name };
-                } else rescued[s] = { hash: found.hash, allied_name: found.name, porSlug: true };
-            }
-        }
-
-        // ⚠ EL NOMBRE QUE LE PUSISTE VIAJA ACÁ. Los diez curados tienen su rótulo en el CÓDIGO, así que
-        // renombrarlos sólo se ve si el override de `.flows.json` llega al cliente por este endpoint —
-        // el de favoritos no los incluye (filtra por `fav`).
+        // Sin RESCATE POR SLUG (hasta el 2026-10-21 se buscaba el comercio por nombre cuando su sucursal no estaba): el
+        // registro (`harness.json`) es la verdad. Sin sucursal en esta base, o con una que no existe, la fila sale apagada
+        // con el comando que la asocia (`make harness-merchants A="associate …"`), y la corrida no va contra una adivinada.
+        // El nombre que le pusiste (`name` del registro) viaja acá, para el rótulo de la fila.
         const setOnes = readFlows().merchants;
         return json(res, 200, Object.fromEntries(slugs.map((s) => {
             const h = bySlug[s];
             const alias = setOnes[s]?.name ? { alias: String(setOnes[s].name) } : {};
             if (h && info[h]?.allied_name) return [s, { hash: h, ...info[h], ...alias }];
-            if (rescued[s]) return [s, { ...rescued[s], ...alias }];
             return [s, h ? { hash: h, existe: false, ...alias } : { hash: '', sinFlows: true, ...alias }];
         })));
     }
@@ -2173,12 +2085,22 @@ const server = createServer(async (req, res) => {
     // PRODUCCIÓN, SÓLO PARA MIRAR (`pkg/prod-catalog.ts`, por el conector y Redash): el catálogo con los asesores de prueba
     // y la ficha de un comercio. No hay otra ruta del panel que toque prod: ni celulares, ni siembra, ni asignar.
     if (path === '/api/prod/catalog') {
+        // `branches`: de qué comercio de prod es cada sucursal de prod del REGISTRO. El catálogo trae una sucursal por
+        // comercio (la del asesor de prueba y la menor), y una asociada a mano puede ser otra: sin esto, saldría apagada.
+        const registryBranches = async (rows: any[]) => {
+            const known = new Set(rows.flatMap((r: any) => [r.branch, r.test_branch]).filter(Boolean));
+            const want = Object.values(readFlows().merchants).map((e) => e.bases.prod?.branch).filter((h): h is string => !!h && !known.has(h));
+            const out: Record<string, number> = {};
+            for (const r of rows) for (const h of [r.branch, r.test_branch]) if (h) out[h] = r.allied_id;
+            try { for (const b of await prodBranches(want)) out[String(b.hash)] = Number(b.allied_id); } catch { /* sin prod: quedan apagadas */ }
+            return out;
+        };
         const c = catalogCache.get('prod');
-        if (c && Date.now() - c.at < 10 * 60_000 && url.searchParams.get('force') !== '1') return json(res, 200, { rows: c.rows, at: c.at });
+        if (c && Date.now() - c.at < 10 * 60_000 && url.searchParams.get('force') !== '1') return json(res, 200, { rows: c.rows, at: c.at, branches: await registryBranches(c.rows) });
         try {
             const rows = await prodCatalog();
             catalogCache.set('prod', { at: Date.now(), rows });
-            return json(res, 200, { rows, at: Date.now() });
+            return json(res, 200, { rows, at: Date.now(), branches: await registryBranches(rows) });
         } catch (e) { return json(res, 200, { rows: null, detail: `no pude leer prod: ${(e as Error).message} (¿VPN de prod?)` }); }
     }
     // LA CLAVE COMPARTIDA DE LOS ASESORES DE PRUEBA EN PROD, para que la PERSONA la pegue al entrar a mano desde su navegador
@@ -2235,18 +2157,6 @@ const server = createServer(async (req, res) => {
         catch (e) { return json(res, 200, { ok: false, detail: `no pude leer prod: ${(e as Error).message} (¿VPN de prod?)` }); }
     }
 
-    // EL CATÁLOGO DEL AMBIENTE (`dbops catalog`): todos los comercios con sucursal activa, para «Agregar comercio». dev, qa
-    // y staging comparten la base, así que se cachea por BASE y no por ambiente; un fallo de lectura no se guarda.
-    if (path === '/api/catalog') {
-        const t = TARGETS.has(String(url.searchParams.get('target'))) ? String(url.searchParams.get('target')) : 'local';
-        const db = t === 'local' ? 'local' : 'compartida';
-        const c = catalogCache.get(db);
-        if (c && Date.now() - c.at < 5 * 60_000 && url.searchParams.get('force') !== '1') return json(res, 200, { db, rows: c.rows });
-        const rows = await dbopsJson(['catalog'], t);
-        if (!Array.isArray(rows)) return json(res, 200, { db, rows: null, detail: `no pude leer los comercios de ${t}${t === 'local' ? '' : ' (¿VPN de dev?)'}` });
-        catalogCache.set(db, { at: Date.now(), rows });
-        return json(res, 200, { db, rows });
-    }
     // CREAR EL ASESOR DE PRUEBA de un comercio (y su sucursal `b<hash>-fake`) por el conector del admin, el mismo de
     // `bin/pg admin test-advisor`. Sin `apply` sólo devuelve la vista previa. qa usa el admin de dev (comparten base) y
     // producción no está: el conector no la acepta y acá tampoco se ofrece.
@@ -2267,95 +2177,43 @@ const server = createServer(async (req, res) => {
         return json(res, 200, { ok: out.ok, target: adminT, apply: !!b?.apply, text: out.text, command: `bin/pg ${args.join(' ')}` });
     }
 
-    if (path === '/api/merchants') {
-        const q = (url.searchParams.get('q') || '').trim();
-        const target = (url.searchParams.get('target') || 'local').trim();
-        if (!q) return json(res, 200, []);
-        return json(res, 200, await dbopsList(q, target));
-    }
 
-    // ── FAVORITOS ────────────────────────────────────────────────────────────────────────────────
-    // Se guardan en `.flows.json` (gitignored), que YA es el registro de comercios del harness: así el
-    // favorito queda disponible también para `bin/advisor <slug>` desde la terminal, no solo en el panel.
-    // Se marcan con `favorite: true` para distinguirlos de los que vienen de fábrica y permitir renombrar o
-    // borrar SOLO los tuyos — los curados describen lo que ejercita cada uno y no son tuyos para tocar.
-    if (path === '/api/favs') {
-        const m = readFlows().merchants;
-        // ⚠ `allied_id` y `allied_name` VIAJAN: el árbol agrupa las entradas por comercio, y sin el id
-        // cada sucursal agregada abriría su propia carpeta — dos sucursales del mismo comercio se verían
-        // como dos comercios. Se guardaban desde siempre; lo que faltaba era devolverlos.
-        return json(res, 200, Object.entries(m)
-            .filter(([, v]) => v.favorite)
+    // ── EL REGISTRO DE COMERCIOS (`harness.json`, ver `pkg/flows.ts`) ──────────────────────────────────────────────
+    // La barra son sus entradas con `panel: true`, en el orden del archivo. Se lee en cada pedido: lo que agrega o asocia
+    // `make harness-merchants` se ve al recargar. El panel NO agrega comercios (eso es el CLI); sólo renombra la fila y
+    // la saca de la barra.
+    if (path === '/api/registry') {
+        return json(res, 200, Object.entries(readFlows().merchants)
+            .filter(([, v]) => v.panel)
             .map(([slug, v]) => ({
-                slug, name: v.name || slug, hash: v.bases.local?.branch || v.bases.shared?.branch || v.bases.prod?.branch || '',
+                slug, name: v.name || slug, country: v.country || '', note: v.note || '', channels: v.channels || null,
                 allied_id: v.allied_id || 0, allied_name: v.allied_name || '', allied_slug: v.allied_slug || '',
+                // La de prod: con ella se encuentra el comercio en el catálogo de prod (ahí el id y el slug pueden ser otros).
+                prod_branch: v.bases.prod?.branch || '',
             })));
     }
 
     if (path === '/api/fav' && req.method === 'POST') {
         const b = await readBody(req);
-        const action = String(b.accion || 'add');
+        const action = String(b.accion || '');
         const flows = readFlows();
-        if (action === 'add') {
-            const hash = String(b.hash || '').trim().toLowerCase();
-            const nameValue = String(b.name || '').trim();
-            if (!/^[0-9a-f]{8}$/.test(hash) || !nameValue) return json(res, 400, { ok: false, msg: 'falta hash válido o nombre' });
-            const slug = slugFor(nameValue, hash, flows);
-            // EL MISMO COMERCIO EN CADA BASE: lo que agregás en un ambiente aparece en todos. Se resuelve ACÁ, una vez, su
-            // sucursal en cada base —local, la compartida (dev, qa y staging) y prod— por el slug del comercio, y queda en
-            // `bases`, que es lo que leen el panel y `bin/advisor` para CORRER (el rescate por slug de `/api/branches`
-            // sólo arregla lo que se muestra). Si una base no contesta (sin VPN) se saltea: ahí queda el rescate.
-            const alliedSlug = /^[a-z0-9-]{1,80}$/.test(String(b.allied_slug || '')) ? String(b.allied_slug) : '';
-            const bases = alliedSlug ? await branchesAcrossBases(alliedSlug) : {};
-            // En la base donde lo agregaste manda la sucursal que ELEGISTE (en local se corre contra la elegida, no la falsa).
-            const from = String(b.target || 'local');
-            bases[baseOf(TARGETS.has(from) || from === 'prod' ? from : 'local')] = { branch: hash };
-            flows.merchants[slug] = {
-                bases,
-                ...(b.allied_id ? { allied_id: Number(b.allied_id) } : {}),
-                ...(b.branch_id ? { branch_id: Number(b.branch_id) } : {}),
-                // El nombre del COMERCIO, aparte del que le pusiste a la sucursal: es el rótulo de la
-                // carpeta en el árbol, y deducirlo del nombre libre no funciona (lo podés renombrar).
-                ...(b.allied_name ? { allied_name: String(b.allied_name) } : {}),
-                // Y su SLUG (`allieds.slug`): con él se lo encuentra en las OTRAS bases, donde el hash es otro.
-                ...(/^[a-z0-9-]{1,80}$/.test(String(b.allied_slug || '')) ? { allied_slug: String(b.allied_slug) } : {}),
-                name: nameValue, favorite: true,
-            };
-            writeFlows(flows);
-            return json(res, 200, { ok: true, slug, name: nameValue });
-        }
         const slug = String(b.slug || '').trim();
         const cur = flows.merchants[slug];
         if (!cur) return json(res, 400, { ok: false, msg: `no conozco '${slug}'` });
-        // ⚠ RENOMBRAR SE PERMITE EN TODAS, BORRAR SÓLO EN LAS TUYAS. El nombre es una etiqueta de ESTA
-        // máquina (`.flows.json` está gitignoreado), y hace falta poder cambiarlo porque el mismo
-        // comercio puede estar varias veces con distintas sucursales —«Sonría · Restrepo» y «Sonría ·
-        // Chapinero»— y sin renombrar no se distinguen. Borrar es otra cosa: los diez curados están en
-        // el CÓDIGO por lo que ejercitan, y desde la UI no habría forma de traerlos de vuelta.
+        // El SLUG no cambia al renombrar: es la clave con la que `bin/advisor <slug>` ya funciona y la que puede estar en
+        // un comando guardado. El nombre es la etiqueta de la fila.
         if (action === 'rename') {
             const nameValue = String(b.name || '').trim();
             if (!nameValue) return json(res, 400, { ok: false, msg: 'falta nombre' });
-            // El SLUG no cambia al renombrar: es la clave con la que `bin/advisor <slug>` ya funciona y
-            // la que puede estar en un comando guardado. El nombre es solo la etiqueta de la card.
             cur.name = nameValue;
             writeFlows(flows);
             return json(res, 200, { ok: true, slug, name: nameValue });
         }
-        if (action === 'remove') {
-            if (!cur.favorite) return json(res, 400, { ok: false, msg: 'los comercios curados no se borran: viven en el código' });
-            delete flows.merchants[slug]; writeFlows(flows); return json(res, 200, { ok: true }); }
+        // Quitar de la barra no borra la entrada: sus sucursales siguen sirviendo para correr por consola.
+        if (action === 'remove') { cur.panel = undefined; writeFlows(flows); return json(res, 200, { ok: true }); }
         return json(res, 400, { ok: false, msg: `acción desconocida: ${action}` });
     }
 
-    // sucursales de un comercio → el buscador es en dos pasos (comercio → sucursal) porque el hash que
-    // se lanza es de SUCURSAL, y un comercio grande tiene muchas con configuraciones distintas.
-    if (path === '/api/branches-of') {
-        const allied = (url.searchParams.get('allied') || '').trim();
-        const target = (url.searchParams.get('target') || 'local').trim();
-        if (!allied) return json(res, 200, []);
-        const r = await dbopsJson(['branches-of', allied], target);
-        return json(res, 200, Array.isArray(r) ? r : []);
-    }
 
     // lenders de la sucursal (la que usa el launch) → [{id, name, rt, product, branch_status}]
     if (path === '/api/lenders') {

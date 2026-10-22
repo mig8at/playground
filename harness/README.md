@@ -170,17 +170,29 @@ Tres cosas que no son obvias:
 - **El ADO (captura de identidad) está mockeado** en B: es una foto del documento, no automatizable. Se
   intercepta `**/validation-status`. La firma del pagaré sí es real (OTP con el teléfono de bypass).
 
-### Registro de datos: `.flows.json` (gitignored)
+### El registro de comercios: `harness.json` (versionado)
+
+Cada comercio con su sucursal POR BASE (local, la compartida de dev/qa/staging y prod). Los que llevan `panel: true` son
+la barra del panel, en el orden del archivo, con su país y una nota de lo que ejercitan. El formato y el porqué:
+`pkg/flows.ts`.
 
 ```jsonc
 {
-  "asesor": { "email": "…", "sub": "<sub REAL del token web>" },   // el backend resuelve por x-cognito-identity-id
+  "version": 2,
   "otp_bypass_phone": "3131010101",                                 // OTP = 0101
-  "merchants": { "pullman": { "branch_hash": "…" }, "motai": { … } }  // 26 comercios cacheados
+  "merchants": { "sonria": { "name": "Sonría", "panel": true, "country": "Colombia", "note": "…",
+                             "bases": { "local": { "branch": "76db47f5" }, "shared": { … }, "prod": { … } } } }
 }
 ```
 
-Si el comercio no está, `bin/advisor` lo resuelve con `dbops list` y lo cachea solo.
+Se agregan y se asocian **por consola**, no desde el panel:
+
+    make harness-merchants                                   # los de la barra, con su sucursal en cada base
+    make harness-merchants A='add sonria'                    # lo busca en las tres bases (la sucursal del asesor de prueba)
+    make harness-merchants A='associate alta prod <hash|comercio>'   # cuando en esa base se llama distinto
+    make harness-merchants A='check dev'                     # ¿existe cada sucursal en su base?
+
+Si el comercio no está, `bin/advisor` lo resuelve con `dbops list` y lo anota solo (fuera de la barra).
 
 ---
 
