@@ -26,34 +26,37 @@ jira_title: "Sucursal y asesor de prueba al crear un comercio"
   vuelta deja el secret en su versión anterior, con el servicio estable.
 - [x] Pasar qa y el wizard desplegado de dev a Merchants Dev y dejarlos así (2026-10-05, decisión de Miguel tras la prueba con
   Duncan en qa): el login de los dos ya no es el del pool de producción.
-- [ ] Pasar el login de asesor del harness en local al asesor de prueba: el wizard local (:5174) ya va a Merchants
-  Dev y el conector sigue entrando con `a.arismendy`, que vive en el pool viejo (el login abre el formulario y no
-  entra). Son cuatro piezas: `ADVISOR_USER/PASS` de `connectors/.env.local` y `.env.dev` al asesor de prueba del
-  comercio 94, con la clave compartida que hoy está en `harness/.env.local` y `.env.dev`; la fila de ese asesor en
-  la base local con su `cognito_id` (hoy no está, y los `c…-fake@` locales lo tienen vacío); el `sub` que usa
-  `bin/advisor` para asignar la sucursal (`.flows.json` → `asesor.sub`); y el aviso del panel, que todavía manda a
-  revisar `.env.local`. Termina cuando `bin/pg advisor status --target local` dice que la sesión sirve y una
-  corrida del canal asesor en local entra a `/merchant`. Depende de: VPN de dev — leer el asesor del comercio 94.
-- [ ] Esperar la respuesta de infra en [CORE-682](jira:CORE-682) (tarea en el sprint activo del board de CORE, asignada a Daniel, creada el 2026-10-05; antes se le mandó el resumen por mensaje directo):
-  el `terraform apply` de los secrets de dev y qa, staging, y en prod el permiso de IAM y las claves nuevas. La clave
-  `MERCHANT_AWS_COGNITO_USER_POOL_ID` de prod se agrega solo el día de la prueba, porque es el interruptor.
-  Depende de: Daniel Sánchez (infra) — responder; Miguel — pasarle por privado la clave propia de prod.
-- [ ] Conseguir la revisión y el merge de los dos PRs de prod: [#258](https://github.com/Creditop-SAS/legacy-application/pull/258) (la región del pool cae a la de AWS) a develop y [#5](https://github.com/Creditop-SAS/cognito-pre-sign-up/pull/5) (margen de espera del lambda) a main; el del lambda llega a prod solo con un tag. Termina cuando están mergeados y infra confirma el despliegue del lambda.
-  Depende de: Daniel Sánchez (infra) — confirmar que `AWS_DEFAULT_REGION` en prod vale us-east-2 y decidir el despliegue del lambda.
-- [ ] Llevar a producción el arreglo de la región: mergear el [hotfix a main](https://github.com/Creditop-SAS/legacy-application/pull/276) y sacar un tag nuevo; el lambda de pre-registro de producción necesita además un tag propio para subir su límite de 3 s a 5 s. Termina cuando la definición de la tarea de producción en uso funciona sin la variable de región, el límite del lambda está en 5 s y los asesores de los comercios 26 y 94 tienen su cuenta en el pool (con «Reintentar cuenta de Cognito»).
-  Depende de: revisión del PR; Daniel Sánchez (infra) — los dos tags.
-- [ ] Decidir si staging también pasa a Merchants Dev; termina cuando hay respuesta y, si es que sí, el cambio hecho con los mismos
-  scripts (los scripts de staging ya están escritos, falta correr `create-client`, `switch` y la marca).
-  Depende de: Miguel — la pregunta que está haciendo.
+- [x] Pasar el login de asesor del harness en local al asesor de prueba: hecho el 2026-10-13 (se borraron las cuentas de
+  persona y el `sub` sale de `advisorSubjectFor`); el 2026-10-22 `bin/pg advisor status --target local` da 5 de 6
+  sesiones que sirven.
+- [x] Esperar la respuesta de infra en [CORE-682](jira:CORE-682): el issue figura como Terminada (2026-10-22) y en prod
+  los asesores nuevos ya nacen con cuenta en el pool.
+- [x] Conseguir la revisión y el merge de los dos PRs de prod: [#258](https://github.com/Creditop-SAS/legacy-application/pull/258)
+  mergeado a develop el 2026-10-08 y [#5](https://github.com/Creditop-SAS/cognito-pre-sign-up/pull/5) a main el 2026-10-06;
+  el lambda se desplegó en prod con `v0.0.6` el 2026-10-14 (tras el PR 6 y el permiso de infra).
+- [x] Llevar a producción el arreglo de la región: [hotfix a main](https://github.com/Creditop-SAS/legacy-application/pull/276)
+  desplegado el 2026-10-08 y el lambda de pre-registro de prod en 5 s con `v0.0.6` (2026-10-14). Los asesores de los
+  comercios 26 y 94 tienen `cognito_id` (base de prod, 2026-10-22).
+- [ ] Crear la cuenta de Cognito de los 3 asesores de prod que nacieron sin ella: comercios 363 (`c9aa92333-fake@`),
+  367 (`ce54b0fed-fake@`) y 282 (`ccf8f6f52-fake@`), con «Reintentar cuenta de Cognito» en la edición del comercio;
+  termina cuando los tres tienen `cognito_id` y `make harness-prod-advisor ALLIED=<id>` da exit 0.
+  Depende de: un Administrador del admin de prod; Miguel — VPN y sesión de AWS de prod para comprobar.
+- [ ] Decidir si staging también pasa a Merchants Dev; termina cuando hay respuesta y, si es que sí, el cambio hecho con los
+  mismos scripts. Al 2026-10-22 staging sigue en el pool de prod (`auth.merchant.creditop.com`, cliente `il7p9ueb…`) y
+  su carpeta `stg/` sólo tiene `config.env`: falta correr `create-client.sh stg`, `switch.sh stg` y `branding.sh apply`.
+  Depende de: Miguel — la decisión.
 - [ ] Avisar a infra de que los secrets de los wizards de dev y qa se editaron a mano y llevan la etiqueta de Terraform; termina
   cuando infra confirma que un apply no los pisa o los deja en su código.
   Depende de: Daniel Sánchez (infra).
-- [x] Comprobar el login con clave contra la pantalla nueva de Merchants Dev (2026-10-05): el asesor de prueba entra al wizard de qa
-  con la marca de prod y llega a su sucursal. Falta repetirlo en dev, que usa la misma pantalla (`./login-test.sh dev`).
+- [x] Comprobar el login con clave contra la pantalla nueva de Merchants Dev: el asesor de prueba entra al wizard de qa
+  (2026-10-05) y al de dev (2026-10-22) con la marca de prod.
 - [ ] Dar a QA sus propios asesores de prueba: sus cuentas de siempre (del pool de producción) ya no entran a qa ni a dev; termina
   cuando cada quien que prueba en qa tiene uno creado desde el admin.
-- [ ] Reubicar los asesores que ya entran a qa y staging: su `cognito_id` es del pool actual y dejarán de
-  entrar al cambiar; termina cuando cada uno existe en Merchants Dev con su `sub` en la base.
+- [ ] Reubicar los asesores que ya entran a staging: su `cognito_id` es del pool de prod y dejarán de entrar al
+  cambiar. Las cuentas de `comercial+bcp@` y `comercial+bcpvehicular@` ya existen en Merchants Dev (`advisors.sh`,
+  2026-10-05, sub en `estado/asesores.txt` de la carpeta `cognito`); falta el UPDATE de su `cognito_id` en la base el
+  día que staging pase. Termina cuando cada uno entra a staging con el pool nuevo.
+  Depende de: la decisión de staging (pendiente de arriba).
 - [x] Confirmar a qué pool apuntan dev, qa y staging (2026-10-02): al de PRODUCCIÓN. El id `us-east-1_XnF2zz3Ou` es el
   pool Merchants de la consola de producción. Falta, sólo para cerrar del todo, ver en esa consola que el dominio
   `auth.merchant.creditop.com` y el cliente `il7p9ueb…` son los de ese pool. Cerrado del todo el 2026-10-05 con la consola de prod.
@@ -62,16 +65,16 @@ jira_title: "Sucursal y asesor de prueba al crear un comercio"
 - [x] Borrar las dos cuentas del pool Merchants Dev que dejaron los comercios 353 y 354 (hecho el 2026-10-05, pool en 0) (cuentas `cb5c7fdad-fake` y
   `c5073e8d9-fake`); termina cuando el pool está en 0 usuarios.
   Depende de: Miguel — renovar la sesión de AWS.
-- [ ] Evitar que el revert del 2026-10-01 que sacó el asesor de prueba de `main` ([PR 251](pr:application#251)) lo saque también de
-  `develop` en el próximo merge de `main`; termina cuando el flujo de promoción a `main` lo incluye de nuevo (un revert del revert).
+- [x] Evitar que el revert del 2026-10-01 ([PR 251](pr:application#251)) saque el asesor de prueba de `develop`: el
+  servicio volvió a `main` (`TestAdvisorProvisioner.php` está en `origin/main` el 2026-10-22; no se midió con qué merge entró).
 - [ ] Cambiar la clave compartida de dev (`ALLIED_TEST_ADVISOR_PASSWORD`): quedó escrita en una
   conversación; termina cuando el secret tiene una clave nueva y la anterior ya no abre la cuenta.
 - [ ] Hacer la Fase 1 de «Cómo se ataca» (leer prod, sólo lectura); termina cuando se sabe qué pool usa el
   wizard de prod, qué permisos tiene el rol de la tarea, qué dice la política de claves del pool y cómo se
   reconocen las solicitudes de prueba.
   Depende de: Miguel — renovar la sesión del perfil de producción.
-- [ ] Decidir en prod si la cuenta de Cognito es automática desde el primer día o se pasa antes por la Fase 2 (sin
-  Cognito); se recomienda la Fase 2 primero. Termina cuando está escrita la decisión en un bloque.
+- [x] Decidir en prod si la cuenta de Cognito es automática desde el primer día o se pasa antes por la Fase 2: superado,
+  en prod se crea automática desde el despliegue del hotfix del 2026-10-08 (base de prod, 2026-10-22).
 - [ ] Definir la clave propia de producción y su rotación; termina cuando `prod/legacy-application` la tiene y no es
   la de dev.
   Depende de: Miguel — la clave.
@@ -82,10 +85,9 @@ jira_title: "Sucursal y asesor de prueba al crear un comercio"
   Depende de: quien administra el Workspace.
 - [x] Documentar las dos altas y el alcance de la baja verificados en `main` en
   `knowledge/merchant-onboarding`, con fuentes de ambos monolitos.
-- [ ] Ampliar `knowledge/merchant-onboarding` con el usuario de prueba cuando #243 esté en `main`;
-  termina con el servicio y sus condiciones comprobados contra esa ref. Las pruebas y la
-  configuración de desarrollo siguen en esta tarea; no se convierten en reglas de producción.
-  Depende de: que #243 llegue a `main`.
+- [ ] Ampliar `knowledge/merchant-onboarding` con el usuario de prueba; termina con el servicio y sus condiciones
+  comprobados contra `main`. Las pruebas y la configuración de desarrollo siguen en esta tarea; no se convierten en
+  reglas de producción. (El servicio ya está en `main` de `legacy-application`: comprobado el 2026-10-22.)
 - [ ] Que el motivo de una falla de Cognito sea visible sin logs: mostrar el código de error de AWS en la nota que ve
   el admin (no es un secreto); termina cuando el diálogo y la tarjeta lo muestran y una prueba lo fija.
 - [ ] Que los eventos del servicio lleguen a Loki en dev: activar Loki para `legacy-application` (hoy
