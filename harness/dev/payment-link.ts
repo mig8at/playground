@@ -11,7 +11,7 @@
  * ESCRIBE en la base: el ambiente va explícito (E2E_TARGET) y fuera de local la guarda de siempre pide
  * I_KNOW_THIS_TOUCHES_SHARED_DEV=1 a mano.
  *
- * USO: E2E_TARGET=local node dev/payment-link.ts [--hash c390eed9] [--sin-aceptacion] [--sin-expedicion]
+ * USO: E2E_TARGET=local node dev/payment-link.ts [--hash c390eed9] [--sin-aceptacion] [--sin-expedicion] [--back-url https://…]
  *        [--vencida] [--phone 3108000015] [--json]
  */
 import { randomInt, randomUUID } from 'node:crypto';
@@ -54,6 +54,8 @@ try {
             ...(flag('sin-expedicion') ? {} : { document_expedition_date: '2012-09-10' }),
         },
         ...(flag('sin-aceptacion') ? {} : { termAccepted: acceptedAt, policyAccepted: acceptedAt }),
+        // `--back-url`: a dónde vuelve el comprador si sale a pagar con otro medio; la API lo guarda dentro del pedido.
+        ...(value('back-url') ? { back_url: value('back-url') } : {}),
     };
 
     await exec(
