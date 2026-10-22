@@ -46,8 +46,9 @@ ramas: core-800-vtex-payment-link
 - [ ] Revisar y mergear `Creditop-SAS/vtex#21` (el conector, `feat/core-800-vtex-payment-link` → `main`; reemplaza al #20, cerrado al renombrar la rama). Depende de
       `Creditop-SAS/legacy-backend#1693` para dar de alta sucursales VTEX por la Partner API. Termina mergeado.
 
-- [ ] Confirmar el cobro real del pedido VTEX `1670270500201-01` (VTEX lo hace al facturar o a las 6 h): termina
-      con la transacción en `Finished` y el settle aprobado en el log del conector.
+- [x] ~~Confirmar el cobro real de un pedido VTEX~~ — 2026-10-22: el pedido `1670710500205-01`, facturado a mano por
+      la API de OMS, cobró por el conector (`settlements` 200 con `settleId`) y la transacción quedó `Finished`. VTEX
+      cobra al FACTURAR, no a las 6 h: el pedido del 2026-10-20 (`1670270500201-01`) sigue aprobado sin cobrar.
 - [ ] Decidir si se restringe el modo Test Suite antes de producción (hoy cualquier llamada con
       `X-VTEX-API-Is-TestSuite: true` recibe respuestas de prueba); termina con la regla escrita y probada.
 - [ ] Cancelaciones y reembolsos reales: hoy el conector los niega. Depende de: Producto — qué es cancelar y reembolsar
