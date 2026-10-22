@@ -263,3 +263,34 @@ func Ask(ctx context.Context, to, agent, text string) (AskResult, error) {
 	}
 	return result, nil
 }
+
+// CanonSource es una sección del corpus que cita canon, con su id para leerla (`playground canon read <id>`).
+type CanonSource struct {
+	Title string `json:"titulo"`
+	Read  string `json:"leer"`
+}
+
+// CanonAnswer es lo que contesta canon a una pregunta: la respuesta, el resumen de una línea, de dónde salió,
+// si el corpus la respalda y una pregunta para seguir.
+type CanonAnswer struct {
+	Answer  string        `json:"respuesta"`
+	Summary string        `json:"en_una_linea"`
+	State   string        `json:"estado"`
+	Backed  bool          `json:"respaldada"`
+	Sources []CanonSource `json:"citas"`
+	Next    string        `json:"siguiente_pregunta"`
+}
+
+// CanonAsk le pregunta a canon por su atajo `ask` (`playground canon ask <pregunta>`), el mismo de la terminal.
+// La pregunta va como UN argumento, como en Ask.
+func CanonAsk(ctx context.Context, question string) (CanonAnswer, error) {
+	out, err := run(ctx, nil, "canon", "ask", question, "--json")
+	if err != nil {
+		return CanonAnswer{}, err
+	}
+	var answer CanonAnswer
+	if err := json.Unmarshal(out, &answer); err != nil {
+		return CanonAnswer{}, errors.New("canon devolvió algo que no es una respuesta")
+	}
+	return answer, nil
+}

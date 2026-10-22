@@ -104,11 +104,13 @@ const activeTitle = computed(() => {
 const activeOnline = computed(() => {
   const p = chat.active?.person
   if (!p) return false
+  if (p.tool) return false
   return chat.onlineKeys.has((p.agent ? p.owner?.email : p.email || '').toLowerCase())
 })
 const activeSubtitle = computed(() => {
   const p = chat.active?.person
   if (!p) return ''
+  if (p.tool) return `del equipo · ${p.detail}`
   if (p.agent) {
     const whose = activeOwnerIsMe.value ? 'tu agente' : `agente de ${firstName(p.owner)}`
     return [whose, p.detail].filter(Boolean).join(' · ')
@@ -184,10 +186,17 @@ async function scrollToEnd() {
 }
 watch(() => [chat.activeKey, chat.active?.messages.length], scrollToEnd)
 watch(() => chat.activeKey, async () => { draft.value = ''; replyTo.value = null; await nextTick(); composer.value?.focus() })
+const activeIsCanon = computed(() => chat.active?.person.tool === 'canon')
 const placeholder = computed(() => {
   if (!activeIsAgent.value) return 'Escribí un mensaje'
+  if (activeIsCanon.value) return 'Preguntale a canon cómo funciona algo de CreditOp'
   return activeOwnerIsMe.value ? `Preguntale a tu agente ${activeTitle.value}` : `Preguntale a ${activeTitle.value} de ${firstName(activeOwner.value)}`
 })
+
+// La pregunta que canon sugiere para seguir: un clic la hace.
+async function askNext(text) {
+  await chat.send(text)
+}
 
 function forgetActive() {
   if (chat.active) chat.forget(chat.active.person.email)
@@ -284,11 +293,11 @@ const statusText = computed(() => {
         <ul v-else class="conversations">
           <li v-for="a in chat.agentList" :key="a.key">
             <button type="button" class="conversation" :class="{ on: a.key === chat.activeKey }" @click="chat.openAgent(a)">
-              <span class="avatar agent" :class="{ mine: a.mine }" aria-hidden="true">{{ (a.agentName || '?')[0].toUpperCase() }}</span>
+              <span class="avatar agent" :class="{ mine: a.mine, tool: a.tool }" aria-hidden="true">{{ (a.agentName || '?')[0].toUpperCase() }}</span>
               <span class="conversation-main">
                 <span class="conversation-top">
                   <b class="name">{{ a.agentName }}</b>
-                  <span class="owner">{{ a.mine ? 'tuyo' : firstName(a.owner) }}</span>
+                  <span class="owner">{{ a.tool ? 'del equipo' : a.mine ? 'tuyo' : firstName(a.owner) }}</span>
                   <span class="when">{{ shortWhen(a.last?.time) }}</span>
                 </span>
                 <span class="conversation-bottom">
@@ -307,7 +316,7 @@ const statusText = computed(() => {
         <template v-if="chat.active">
           <!-- Un solo primer hijo: la base le da a ese el ancho que sobra y lo recorta con «…». -->
           <span class="head-who">
-            <span class="avatar small" :class="{ agent: activeIsAgent, mine: activeIsAgent && activeOwnerIsMe }" aria-hidden="true">
+            <span class="avatar small" :class="{ agent: activeIsAgent, mine: activeIsAgent && activeOwnerIsMe, tool: activeIsCanon }" aria-hidden="true">
               {{ activeIsAgent ? (activeTitle || '?')[0].toUpperCase() : initials(chat.active.person) }}<i v-if="activeOnline" class="presence"></i>
             </span>
             <span class="head-title">{{ activeTitle }}</span>
@@ -351,7 +360,8 @@ const statusText = computed(() => {
       <template v-else>
         <div ref="threadEl" class="region-body thread" aria-live="polite">
           <p v-if="!thread.length" class="side-note center">
-            <template v-if="activeIsAgent">Preguntale lo que quieras: contesta {{ activeOwnerIsMe ? 'desde tu máquina' : `desde la máquina de ${firstName(activeOwner)}` }}.</template>
+            <template v-if="activeIsCanon">Preguntale cómo funciona algo de CreditOp: contesta con el corpus del equipo y cita de dónde. Cada pregunta va sola, sin las anteriores.</template>
+            <template v-else-if="activeIsAgent">Preguntale lo que quieras: contesta {{ activeOwnerIsMe ? 'desde tu máquina' : `desde la máquina de ${firstName(activeOwner)}` }}.</template>
             <template v-else>Todavía no hay mensajes con {{ chat.active.person.name || chat.active.person.email }}.</template>
           </p>
           <template v-for="item in thread" :key="item.id">
@@ -370,11 +380,19 @@ const statusText = computed(() => {
                   <span>{{ item.quote.text }}</span>
                 </span>
                 <pre v-if="item.format === 'json'" class="text json">{{ item.text }}</pre>
-                <p v-else class="text">{{ item.text }}</p>
+                <template v-else>
+                  <p v-if="item.summary" class="summary">{{ item.summary }}</p>
+                  <p class="text">{{ item.text }}</p>
+                </template>
+                <p v-if="item.backed === false" class="unbacked">El corpus no la respalda del todo: tomala como pista, no como regla.</p>
+                <ul v-if="item.sources?.length" class="sources" aria-label="Fuentes">
+                  <li v-for="src in item.sources" :key="src.read" :title="`playground canon read ${src.read}`">{{ src.title }}</li>
+                </ul>
+                <button v-if="item.next" type="button" class="next-question" @click="askNext(item.next)">{{ item.next }}</button>
                 <span class="meta">
                   {{ clock(item.time) }}
                   <template v-if="item.dir === 'out'">
-                    <span v-if="item.status === 'sending'">· {{ activeIsAgent ? 'preguntando…' : 'mandando…' }}</span>
+                    <span v-if="item.status === 'sending'">· {{ activeIsCanon ? 'canon está pensando…' : activeIsAgent ? 'preguntando…' : 'mandando…' }}</span>
                     <span v-else-if="item.status === 'pending'" title="El agente tarda: la respuesta llega acá cuando conteste">· esperando respuesta</span>
                     <span v-else-if="item.status === 'sent' || item.status === 'answered'" :title="activeIsAgent ? 'Contestó' : 'Entregado a sus terminales abiertas'">· ✓</span>
                   </template>
@@ -452,6 +470,7 @@ code { font-family: var(--font-mono); font-size: .92em }
 /* Un agente es un cuadrado redondeado (no una persona); el tuyo, con el acento. */
 .avatar.agent { border-radius: 8px; background: var(--agent-bg); color: var(--agent-ink) }
 .avatar.agent.mine { background: var(--agent-mine-bg); color: var(--agent-mine-ink) }
+.avatar.agent.tool { background: var(--canon-bg); color: var(--canon-ink) }
 .presence { position: absolute; right: -1px; bottom: -1px; width: 10px; height: 10px; border-radius: 50%;
   background: var(--presence-on); box-shadow: 0 0 0 2px var(--sidebar) }
 .avatar.small .presence { width: 8px; height: 8px; box-shadow: 0 0 0 2px var(--background) }
@@ -489,6 +508,17 @@ code { font-family: var(--font-mono); font-size: .92em }
 .meta { align-self: flex-end; color: var(--fg-2); font-size: var(--text-xs); font-variant-numeric: tabular-nums }
 .error { margin: 2px 0 0; color: var(--send-fail); font-size: var(--text-sm) }
 .btn-link { border: 0; padding: 0; background: none; color: inherit; text-decoration: underline; cursor: pointer; font: inherit }
+
+/* La respuesta de canon: el resumen arriba, las fuentes abajo y la pregunta para seguir. */
+.summary { margin: 0; font-weight: 600; font-size: 14px; line-height: 1.4 }
+.unbacked { margin: 0; color: var(--fg-2); font-size: var(--text-xs); font-style: italic }
+.sources { list-style: none; margin: 4px 0 0; padding: 6px 0 0; border-top: 1px solid var(--border); display: flex; flex-direction: column; gap: 2px;
+  font-size: var(--text-xs); color: var(--fg-2) }
+.sources li::before { content: "↳ "; color: var(--quote-rule) }
+.next-question { align-self: flex-start; margin-top: 4px; padding: 4px 10px; border: 1px solid var(--border); border-radius: 999px;
+  background: transparent; color: var(--foreground); font: inherit; font-size: var(--text-xs); text-align: left; cursor: pointer }
+.next-question:hover { background: var(--hover) }
+.next-question:focus-visible { outline: 2px solid var(--ring) }
 
 /* La cita del mensaje al que se contesta: en la burbuja y sobre el campo de escribir. */
 .quote { display: flex; flex-direction: column; gap: 1px; padding: 4px 8px; border-left: 3px solid var(--quote-rule);

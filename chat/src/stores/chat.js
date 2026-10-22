@@ -8,8 +8,10 @@
  * Cada mensaje trae el id que le puso el home (`sid`), y una respuesta trae `re`: el id del que contesta.
  * Con eso se cita el mensaje original y se contesta a uno en particular (`--re` del CLI).
  *
- * Hay tres clases de conversación:
+ * Hay cuatro clases de conversación:
  *   - con una persona (su correo es la clave);
+ *   - con canon (`agent:canon`), la herramienta del equipo: siempre está, no depende del listen de nadie, y
+ *     cada pregunta va sola (`playground canon ask`), sin las anteriores;
  *   - con un agente del equipo (`agent:<correo del dueño>/<agente>`): las preguntas salen con `playground ask`
  *     y la respuesta vuelve ahí mismo, o después, como mensaje con `re` = la pregunta;
  *   - y lo que alguien le pregunta a TUS agentes, que se anota en la conversación con esa persona, aparte de
@@ -31,6 +33,8 @@ const legacyId = (m) => `${m.time}|${keyOf(m.from?.email)}|${m.text}`
 export const agentKey = (owner, agent) => `agent:${keyOf(owner)}/${agent}`
 const isAgentKey = (key) => String(key).startsWith('agent:')
 const firstName = (p) => String(p?.name || p?.email || '').split(/\s+/)[0]
+// Canon: el conocimiento del equipo sobre cómo funciona CreditOp. Es una herramienta, no el agente de alguien.
+export const CANON = { key: 'agent:canon', agentName: 'canon', description: 'el conocimiento del equipo sobre cómo funciona CreditOp' }
 
 function readStored() {
   try {
@@ -91,9 +95,13 @@ export const useChatStore = defineStore('chat', () => {
     .map(summarize)
     .sort((a, b) => (b.last?.time || '').localeCompare(a.last?.time || '')))
 
-  // Los agentes del equipo, uno por fila, con su conversación si ya hubo una. Los tuyos primero.
+  // Los agentes del equipo, uno por fila, con su conversación si ya hubo una: canon primero, después los tuyos.
   const agentList = computed(() => {
     const rows = []
+    if (state.value?.installed) {
+      const c = conversations.value[CANON.key]
+      rows.push({ ...CANON, tool: true, owner: null, mine: false, ...(c ? summarize(c) : { last: null, unread: 0 }) })
+    }
     for (const p of teamAgents.value) {
       for (const a of p.agents || []) {
         const key = agentKey(p.email, a.name)
@@ -102,7 +110,8 @@ export const useChatStore = defineStore('chat', () => {
                     ...(c ? summarize(c) : { last: null, unread: 0 }) })
       }
     }
-    return rows.sort((x, y) => Number(y.mine) - Number(x.mine) || firstName(x.owner).localeCompare(firstName(y.owner)))
+    const rank = (r) => (r.tool ? 0 : r.mine ? 1 : 2)
+    return rows.sort((x, y) => rank(x) - rank(y) || firstName(x.owner).localeCompare(firstName(y.owner)))
   })
   const active = computed(() => conversations.value[activeKey.value] || null)
   const unreadTotal = computed(() => list.value.reduce((n, c) => n + c.unread, 0) + agentList.value.reduce((n, a) => n + a.unread, 0))
@@ -194,7 +203,8 @@ export const useChatStore = defineStore('chat', () => {
   }
 
   function openAgent(row) {
-    open({ email: row.key, name: row.agentName, agent: true, owner: row.owner, agentName: row.agentName, detail: row.description })
+    open({ email: row.key, name: row.agentName, agent: true, owner: row.owner, agentName: row.agentName, detail: row.description,
+           ...(row.tool ? { tool: row.agentName } : {}) })
   }
 
   async function loadOnline() {
@@ -240,11 +250,26 @@ export const useChatStore = defineStore('chat', () => {
   /* Una pregunta a un agente del equipo sale con `playground ask`. Si contesta a tiempo, la respuesta entra
      como mensaje recibido; si no, la pregunta queda «esperando» con su id y la respuesta llega después. */
   async function askAgent(c, text, stored) {
+    if (c.person.tool === 'canon') return askCanon(c, text, stored)
     try {
       const r = await post('/api/ask', { to: c.person.owner?.email, agent: c.person.agentName, text })
       if (r.pending) { Object.assign(stored(), { status: 'pending', sid: r.id }); return }
       Object.assign(stored(), { status: 'answered', sid: r.id })
       push(c, { id: `answer|${r.id}`, re: r.id, dir: 'in', text: r.answer, time: new Date().toISOString() })
+      markActiveRead()
+    } catch (e) {
+      Object.assign(stored(), { status: 'error', error: e.message })
+    }
+  }
+
+  // Canon contesta con la respuesta, un resumen, sus fuentes y una pregunta para seguir: se guarda todo.
+  async function askCanon(c, text, stored) {
+    try {
+      const r = await post('/api/canon', { text })
+      Object.assign(stored(), { status: 'answered' })
+      push(c, { id: `canon|${Date.now()}`, dir: 'in', text: r.respuesta || 'canon no contestó nada.', time: new Date().toISOString(),
+                summary: r.en_una_linea || '', backed: r.respaldada !== false,
+                sources: (r.citas || []).map((x) => ({ title: x.titulo, read: x.leer })), next: r.siguiente_pregunta || '' })
       markActiveRead()
     } catch (e) {
       Object.assign(stored(), { status: 'error', error: e.message })

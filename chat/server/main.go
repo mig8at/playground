@@ -168,6 +168,29 @@ func handler() http.Handler {
 		}
 		writeJSON(w, http.StatusOK, result)
 	})
+	// Preguntarle a canon, la herramienta del equipo (no el agente de una persona): siempre está, aunque no haya
+	// nadie conectado. Tarda unos segundos; la red del playground corta a los 60.
+	mux.HandleFunc("POST /api/canon", func(w http.ResponseWriter, r *http.Request) {
+		var in struct {
+			Text string `json:"text"`
+		}
+		if err := json.NewDecoder(http.MaxBytesReader(w, r.Body, 64<<10)).Decode(&in); err != nil || strings.TrimSpace(in.Text) == "" {
+			fail(w, http.StatusBadRequest, errors.New("el cuerpo va en JSON: {text}"))
+			return
+		}
+		if len([]rune(in.Text)) > maxText {
+			fail(w, http.StatusRequestEntityTooLarge, fmt.Errorf("la pregunta pasa de %d caracteres", maxText))
+			return
+		}
+		ctx, cancel := context.WithTimeout(r.Context(), 120*time.Second)
+		defer cancel()
+		answer, err := cli.CanonAsk(ctx, strings.TrimSpace(in.Text))
+		if err != nil {
+			fail(w, http.StatusBadGateway, err)
+			return
+		}
+		writeJSON(w, http.StatusOK, answer)
+	})
 	agentHandlers(mux)
 	return mux
 }

@@ -26,6 +26,9 @@
   --agent-ink: var(--foreground);
   --agent-mine-bg: #4c39ff;
   --agent-mine-ink: #ffffff;
+  /* Canon, la herramienta del equipo: verde azulado, para no confundirse con el agente de una persona. */
+  --canon-bg: #0f766e;
+  --canon-ink: #ffffff;
   /* La oficina 3D (src/office, fuera de la interfaz por ahora). */
   --office-bg: #1c1c21;
   --office-glow: #34343c;
