@@ -338,6 +338,32 @@ function readBody(req: IncomingMessage): Promise<any> {
     });
 }
 
+/** Las idas de la PC del admin a una sección, en fila (ver `/api/device/admin/goto`). */
+let adminGoto: Promise<unknown> = Promise.resolve();
+let adminGotoSeq = 0;
+/** El menú del admin abierto, leído de su DOM (`/api/device/admin/menu`): ver ahí qué es cada pieza. Texto JS a propósito. */
+const ADMIN_MENU_JS = `(() => {
+  const first = document.querySelector('li.nav-link, li.nav-group, li.nav-section-title');
+  const root = first && first.parentElement;
+  if (!root) return null;
+  const text = (el) => ((el && el.textContent) || '').replace(/\\s+/g, ' ').trim();
+  const walk = (ul) => Array.from(ul.children).flatMap((li) => {
+    if (li.matches('.nav-section-title')) { const h = text(li); return h ? [{ heading: h }] : []; }
+    if (li.matches('.nav-group')) {
+      const kids = li.querySelector(':scope > .nav-group-children');
+      return [{ title: text(li.querySelector(':scope > .nav-group-label .nav-item-title')), children: kids ? walk(kids) : [] }];
+    }
+    if (li.matches('.nav-link')) {
+      const a = li.querySelector('a[href]');
+      if (!a || li.classList.contains('disabled')) return [];
+      const u = new URL(a.getAttribute('href') || '', location.href);
+      return u.origin === location.origin ? [{ title: text(li.querySelector('.nav-item-title')), path: u.pathname + u.search }] : [];
+    }
+    return [];
+  });
+  return walk(root);
+})()`;
+
 // corre `node bin/dbops.ts <args...>` y devuelve el JSON parseado (o null si falla). Target-aware (dev → I_KNOW).
 function dbopsJson(args: string[], target: string, extraEnv: NodeJS.ProcessEnv = {}): Promise<any> {
     return new Promise((ok) => {
@@ -2525,7 +2551,7 @@ connect();
     // la corrida (`dbops ecommerce-url`)— y abre el checkout en el contexto del cliente. Por ahora sólo
     // navega: el bypass del OTP y la siembra del buró vienen después.
     // El celular: `admin`, o un rol con su carril (`advisor`, `client-c`…). Uno de un carril que este panel no tiene, 404.
-    const deviceRoute = /^\/api\/device\/((?:client|advisor)(?:-[b-h])?|admin)(?:\/(open|state|shot|stream|close|input|reload|tab|tap|advance|advance-all|advance-stop|saved|resume))?$/.exec(path);
+    const deviceRoute = /^\/api\/device\/((?:client|advisor)(?:-[b-h])?|admin)(?:\/(open|state|shot|stream|close|input|reload|tab|tap|advance|advance-all|advance-stop|saved|resume|menu|goto))?$/.exec(path);
     if (deviceRoute && isDeviceId(deviceRoute[1])) {
         const id = deviceRoute[1] as DeviceId, action = deviceRoute[2] || 'state';
         if (action === 'open' && req.method === 'POST' && id !== 'admin') {
@@ -2889,6 +2915,38 @@ connect();
             } catch (e) {
                 return json(res, 200, { ok: false, detail: `la PC del admin no pudo abrir ${s.base}: ${(e as Error).message.split('\n')[0]}` });
             }
+        }
+        /* EL MENÚ DEL ADMIN, leído de la página abierta (la barra lo lista para abrir cada sección directo). Es lo que ve ESE
+         * usuario en ESE ambiente: cada ítem del menú se muestra según sus permisos (`VerticalNavLink`: `can(item.can)`),
+         * así que una lista escrita a mano mentiría en algún lado. Las tres piezas del menú de `legacy-application`
+         * (`resources/js/@layouts/components/VerticalNav*.vue`): `li.nav-section-title` (el título del grupo),
+         * `li.nav-link` (un enlace) y `li.nav-group` (un submenú, con sus hijos en el DOM aunque esté cerrado: `v-show`).
+         * → {ok, items: [{heading} | {title, path} | {title, children: [...]}]}. Las rutas, relativas al admin. */
+        if (action === 'menu' && id === 'admin') {
+            // ⚠ COMO TEXTO, no como función: `tsx` le agrega a las funciones anidadas un ayudante (`__name`) que en la página
+            // no existe, el `evaluate` tira y `deviceEval` lo traga como «no está abierto».
+            const items = await deviceEval('admin', ADMIN_MENU_JS as any, null) as any[] | null | undefined;
+            if (!items) return json(res, 200, { ok: false, detail: 'el admin no está abierto o todavía no pintó su menú' });
+            return json(res, 200, { ok: true, items });
+        }
+        // Llevar la PC del admin a una sección SIN reabrirla (la sesión y el navegador siguen). Sólo rutas del mismo admin.
+        if (action === 'goto' && req.method === 'POST' && id === 'admin') {
+            const b = await readBody(req);
+            const route = String(b.path || '');
+            if (!/^\/[\w\-/?=&.%]*$/.test(route)) return json(res, 400, { ok: false, detail: 'ruta inválida' });
+            const origin = await deviceEval('admin', () => location.origin, null);
+            if (!origin) return json(res, 200, { ok: false, detail: 'el admin no está abierto' });
+            // ⚠ EN FILA Y MANDA EL ÚLTIMO: dos clics seguidos mandaban dos `goto` a la vez y, con el primero todavía cargando
+            // una página pesada (`/solicitudes`), la PC terminaba en ésa y no en la que se eligió después.
+            const mine = ++adminGotoSeq;
+            const run = adminGoto.then(async () => {
+                if (mine !== adminGotoSeq) return { ok: true, superseded: true };
+                await deviceGoto('admin', origin + route);
+                return { ok: true, url: origin + route };
+            });
+            adminGoto = run.catch(() => undefined);
+            try { return json(res, 200, await run); }
+            catch (e) { return json(res, 200, { ok: false, detail: (e as Error).message.split('\n')[0] }); }
         }
         return json(res, 405, { ok: false, detail: 'acción no soportada' });
     }

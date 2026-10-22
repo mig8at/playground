@@ -452,7 +452,10 @@
     .missing .row-name, .missing .row-meta { font-style: italic }
     /* No está en este ambiente: se ve, no se elige. Sin conexión: el aviso en el meta, la fila sigue elegible. */
     .row.missing[aria-disabled="true"] { opacity: .45; cursor: not-allowed }
-    .row.missing.copy-cmd[aria-disabled="true"] { cursor: copy }   /* el clic copia el comando que la asocia */
+    .row.missing.copy-cmd[aria-disabled="true"] { cursor: copy }
+    /* Los títulos de grupo del menú del admin (Gestión, Configuración…), como en el admin: rótulos, no filas. */
+    .admin-heading { margin: 0; padding: var(--space-2) var(--space-2) 2px calc(var(--space-2) + var(--indent)); font-size: var(--text-xs); color: var(--fg-2);
+      text-transform: uppercase; letter-spacing: .04em; user-select: none }   /* el clic copia el comando que la asocia */
     .row.missing[aria-disabled="true"]:hover { background: transparent }
     .list-note.warn { color: var(--warn) }
     /* No se puede probar por el canal elegido (falta asesor, entidades, credencial): el meta en ámbar, el motivo en el
@@ -3521,13 +3524,16 @@
       $('adminOpen').textContent = 'Abrir';
       setAdminMode('loading', `Abriendo el admin de ${target === 'qa' ? 'dev (qa comparte su base)' : target}…`);
       try {
+        const path = currentTab()?.kind === 'admin' ? currentTab().path : undefined;   // la sección elegida en la barra
         const r = await (await fetch('/api/device/admin/open', {
-          method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ target }),
+          method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ target, ...(path ? { path } : {}) }),
         })).json();
-        if (!r.ok) { setAdminChips(null); return setAdminMode('status', r.detail || 'No se pudo abrir el admin.'); }
+        if (!r.ok) { setAdminChips(null); adminLive = null; return setAdminMode('status', r.detail || 'No se pudo abrir el admin.'); }
         $('adminLive').title = r.url || '';
         setAdminChips(r);
         setAdminMode('live');
+        adminLive = adminMenuKey();
+        if (!r.login) loadAdminMenu(adminLive);   // su menú, para la barra (lo que ve ese usuario en ese ambiente)
         if (!runRunning) startPoll();   // la consola muestra lo que pasa en la PC
       } catch (e) {
         setAdminMode('status', 'El panel no respondió: ' + e.message);
@@ -3536,6 +3542,7 @@
     $('adminOpen').onclick = openAdminBrowser;
     $('adminClose').onclick = async () => {
       try { await fetch('/api/device/admin/close', { method: 'POST' }); } catch { }
+      adminLive = null;
       setAdminChips(null);
       setAdminMode('idle');
     };
@@ -4020,8 +4027,9 @@
       list.querySelector('.tab.on')?.scrollIntoView({ block: 'nearest', inline: 'nearest' });
       syncConsoleView();
       // El apartado «Admin» del sidebar izquierdo: elegido mientras su pestaña es la activa.
-      $('adminRow').setAttribute('aria-selected', String(currentTab()?.kind === 'admin'));
+      $('adminRow').setAttribute('aria-selected', String(currentTab()?.kind === 'admin' && !currentTab().path));   // con una sección, la marcada es ésa
       $('adminRowEnv').textContent = tabsTarget === 'qa' ? 'dev' : tabsTarget;
+      renderAdminMenu();
       $('results').toggleAttribute('data-admin-on', currentTab()?.kind === 'admin');
       syncRouteNow();   // la URL es la de la pestaña activa (sólo escribe si cambió)
     }
@@ -4181,12 +4189,82 @@
       }
       await activateTab(t.id);
     }
-    /** El apartado «Admin» del sidebar izquierdo: su pestaña (una por ambiente). */
-    function openAdminTab() {
+    /** El apartado «Admin» del sidebar izquierdo: su pestaña (una por ambiente). Con `path`, en esa sección del admin. */
+    function openAdminTab(path) {
       if (runRunning) return;
       let t = runTabs.find((x) => x.kind === 'admin');
       if (!t) { t = { id: newTabId(), kind: 'admin', preview: false }; runTabs.push(t); }
+      if (path !== undefined) t.path = path || undefined;
       return activateTab(t.id);
+    }
+
+    // ── LAS SECCIONES DEL ADMIN EN LA BARRA ─────────────────────────────────────────────────────────────────────────
+    // El menú se LEE del admin abierto (`/api/device/admin/menu`): es lo que ve ese usuario en ese ambiente, con sus
+    // permisos. Se guarda por ambiente en el navegador, así está al recargar; antes de la primera apertura en un ambiente,
+    // la vista Admin sólo tiene su fila. Elegir una sección abre la pestaña Admin ahí (la URL la recuerda:
+    // `/local/admin/solicitudes`); con la PC ya abierta en ese ambiente la lleva (`goto`) sin reabrirla.
+    const ADMIN_MENU_KEY = 'harness.adminMenu';
+    const adminMenuKey = () => (tabsTarget === 'qa' ? 'dev' : tabsTarget);   // qa abre el admin de dev (comparten base)
+    const adminMenus = (() => { try { return JSON.parse(localStorage.getItem(ADMIN_MENU_KEY) || '{}') || {}; } catch { return {}; } })();
+    const adminGroupsOpen = new Set();
+    let adminLive = null;   // el ambiente cuya PC del admin está abierta (el que contestó `open`), o null
+    async function loadAdminMenu(env) {
+      for (let i = 0; i < 6; i++) {   // el admin pinta su menú después de cargar: se reintenta un rato
+        try {
+          const r = await (await fetch('/api/device/admin/menu')).json();
+          if (r.ok && r.items?.length) {
+            adminMenus[env] = r.items;
+            try { localStorage.setItem(ADMIN_MENU_KEY, JSON.stringify(adminMenus)); } catch { /* sin storage: vale esta visita */ }
+            renderAdminMenu();
+            return;
+          }
+        } catch { /* el panel no respondió: se reintenta */ }
+        await new Promise((ok) => setTimeout(ok, 1500));
+      }
+    }
+    async function openAdminSection(path) {
+      await openAdminTab(path);
+      if (adminLive && adminLive === adminMenuKey()) {
+        try { await fetch('/api/device/admin/goto', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ path }) }); } catch { }
+      } else openAdminBrowser();
+      renderAdminMenu();
+    }
+    function renderAdminMenu() {
+      const body = $('adminViewBody');
+      body.querySelectorAll('[data-admin-menu]').forEach((n) => n.remove());
+      if (prodMode) return;
+      const items = adminMenus[adminMenuKey()];
+      const t = currentTab();
+      const here = t?.kind === 'admin' ? t.path || '' : null;
+      $('adminRow').title = items ? 'El inicio del admin. Abajo, sus secciones (leídas del menú del admin la última vez que se abrió en este ambiente)'
+        : 'El admin de legacy-application del ambiente elegido, ya logueado. Sus secciones aparecen acá después de abrirlo una vez en este ambiente';
+      if (!items) return;
+      const link = (it, level) => {
+        const r = treeRow('', level, 'detail', escTxt(it.title), '');
+        r.dataset.adminMenu = '1'; r.tabIndex = 0; r.title = it.path;
+        r.setAttribute('aria-selected', String(here === it.path));
+        r.onclick = () => openAdminSection(it.path);
+        r.onkeydown = (ev) => { if (ev.key === 'Enter' || ev.key === ' ') { ev.preventDefault(); r.click(); } };
+        return r;
+      };
+      const walk = (list, level, groupKey) => {
+        for (const it of list) {
+          if (it.heading) { const h = document.createElement('p'); h.className = 'admin-heading'; h.dataset.adminMenu = '1'; h.textContent = it.heading; body.appendChild(h); continue; }
+          if (it.children) {
+            const key = groupKey + '/' + it.title;
+            const open = adminGroupsOpen.has(key) || it.children.some((c) => c.path === here);
+            const g = treeRow('', level, 'chevron', escTxt(it.title), '');
+            g.dataset.adminMenu = '1'; g.tabIndex = 0; g.setAttribute('aria-expanded', String(open));
+            g.onclick = () => { if (adminGroupsOpen.has(key)) adminGroupsOpen.delete(key); else adminGroupsOpen.add(key); renderAdminMenu(); };
+            g.onkeydown = (ev) => { if (ev.key === 'Enter' || ev.key === ' ') { ev.preventDefault(); g.click(); } };
+            body.appendChild(g);
+            if (open) walk(it.children, level + 1, key);
+            continue;
+          }
+          if (it.path) body.appendChild(link(it, level));
+        }
+      };
+      walk(items, 1, '');
     }
 
     function pickChannel(t, c) {
@@ -6770,7 +6848,7 @@ export function bindMenu(trigger, { getItems, onSelect, label = 'Más opciones' 
       function routeUrl() {
         const t = currentTab();
         const parts = [prodMode ? 'prod' : target];
-        if (t?.kind === 'admin') parts.push('admin');
+        if (t?.kind === 'admin') parts.push('admin', ...(t.path || '').split('?')[0].split('/').filter(Boolean));
         else if (t?.kind === 'prodrun') parts.push('corrida-publica');
         else if (t?.kind === 'prod') {
           const e = spaceEntries().find((x) => prodRowOf(x)?.allied_id === t.allied);
@@ -6812,7 +6890,7 @@ export function bindMenu(trigger, { getItems, onSelect, label = 'Más opciones' 
             await new Promise((r) => setTimeout(r, 60));
           }
           if (seq !== routeSeq) return;
-          if (slug === 'admin') openAdminTab();
+          if (slug === 'admin') openAdminTab(readPath().slice(2).length ? '/' + readPath().slice(2).join('/') : undefined);
           else if (slug === 'corrida-publica' && prodMode) openProdRunTab();
           else if (slug && prodMode) {
             // El catálogo de prod llega por Redash (~15 s la primera vez): se lo espera.

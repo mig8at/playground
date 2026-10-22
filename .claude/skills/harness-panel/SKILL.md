@@ -1229,3 +1229,19 @@ no es la de por defecto (`?vista=buros`, `?consola=mocks`, `?inicio=entidades`).
   devolvía la de la barra, así que la pestaña Admin dejaba el editor EN BLANCO (desde que la barra pasó a vistas,
   1510de7f). La de la barra ahora es `#adminSide`.
 
+### Las secciones del admin en la barra, leídas del admin abierto (2026-10-21)
+
+- La vista Admin de la barra lista el MENÚ del admin (Gestión, Configuración… y los submenús, plegables), y elegir una
+  sección abre la pestaña Admin ahí: `/local/admin/solicitudes`. El menú se LEE de la página abierta
+  (`GET /api/device/admin/menu`), no se escribe a mano: cada ítem se muestra según los permisos del usuario
+  (`VerticalNavLink.vue`: `can(item.can)`), así que es lo que ve ESE usuario en ESE ambiente. Se guarda por ambiente en
+  `harness.adminMenu` (qa usa el de dev, como su admin); antes de abrir el admin una vez en un ambiente, sólo está su fila.
+- Las piezas del DOM (`resources/js/@layouts/components/VerticalNav*.vue` de `legacy-application`): `li.nav-section-title`,
+  `li.nav-link` (con su `a[href]`) y `li.nav-group` (hijos en `.nav-group-children`, en el DOM aunque esté cerrado).
+- ⚠ **El lector va como TEXTO** (`ADMIN_MENU_JS`), no como función: `tsx` le agrega a las funciones anidadas un ayudante
+  (`__name`) que en la página no existe, el `evaluate` tira y `deviceEval` lo traga — salía «el admin no está abierto».
+- Con la PC abierta en ese ambiente, la sección se alcanza con `POST /api/device/admin/goto` (sin reabrir); si no,
+  `open` recibe la `path`. ⚠ Los `goto` van EN FILA y manda el último: dos clics seguidos con una página pesada en
+  medio dejaban la PC en la primera.
+- En prod no hay secciones: el admin de producción no se abre desde el panel.
+
