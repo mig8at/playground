@@ -1244,4 +1244,7 @@ no es la de por defecto (`?vista=buros`, `?consola=mocks`, `?inicio=entidades`).
   `open` recibe la `path`. ⚠ Los `goto` van EN FILA y manda el último: dos clics seguidos con una página pesada en
   medio dejaban la PC en la primera.
 - En prod no hay secciones: el admin de producción no se abre desde el panel.
+- **Ajuste el mismo día: sólo CUATRO** (`ADMIN_SECTIONS`, por ruta y en este orden): Usuarios `/usuarios`, Solicitudes
+  `/solicitudes`, Comercios `/aliados`, Entidades `/entidades`. Sin títulos de grupo ni submenús. Están siempre, también
+  antes de abrir el admin; el menú leído sólo les pone el nombre que tienen en ese ambiente.
 
