@@ -47,7 +47,7 @@ onBeforeUnmount(() => office?.dispose())
         {{ spinning ? 'Detener giro' : 'Girar sola' }}
       </button>
     </div>
-    <p class="office-hint">Arrastrá para rotar · rueda para acercar · clic derecho para mover</p>
+    <p class="office-hint">Pasá el mouse por una zona para ver qué es · clic para acercarte · arrastrá para rotar · rueda para acercar</p>
   </div>
 </template>
 
@@ -69,13 +69,14 @@ onBeforeUnmount(() => office?.dispose())
 </style>
 
 <style>
-/* Los carteles los crea Three (CSS2DRenderer) fuera de Vue: van sin `scoped`. */
+/* Las tarjetas las crea Three (CSS2DRenderer) fuera de Vue: van sin `scoped`. Sólo se ve la de la zona bajo el
+   mouse, y no atrapa el puntero: el mouse sigue sobre la escena. */
 .office-labels { position: absolute; inset: 0; pointer-events: none }
-.office-label { pointer-events: auto; display: grid; gap: 1px; text-align: center; cursor: pointer;
-  padding: 6px 12px; border: 0; border-radius: 10px; font: inherit;
-  background: var(--office-chip); color: var(--office-chip-ink); box-shadow: 0 6px 18px var(--office-shadow); backdrop-filter: blur(6px) }
-.office-label b { font-size: 13px; font-weight: 700 }
-.office-label span { font-size: 11px; opacity: .8 }
-.office-label:hover { background: var(--office-accent); color: var(--office-accent-ink) }
-.office-label:focus-visible { outline: 2px solid var(--office-accent); outline-offset: 2px }
+.office-label { pointer-events: none; display: grid; gap: 2px; max-width: 220px; text-align: left;
+  padding: 9px 12px; border-radius: 10px; border-left: 3px solid var(--office-accent);
+  background: var(--office-chip); color: var(--office-chip-ink); box-shadow: 0 8px 22px var(--office-shadow); backdrop-filter: blur(6px);
+  transform: translateY(calc(-50% - 36px)); width: max-content }
+.office-label b { font-size: 14px; font-weight: 700 }
+.office-label span { font-size: 12px; line-height: 1.4 }
+.office-label small { font-size: 11px; opacity: .7 }
 </style>

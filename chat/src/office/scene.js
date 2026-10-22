@@ -1,18 +1,18 @@
-/* LA OFICINA EN 3D — un diorama que se rota con el mouse, al estilo de un cuarto isométrico.
+/* LA OFICINA EN 3D — un diorama cuadrado que se rota con el mouse, al estilo de un cuarto isométrico.
  *
- * Una planta de 26 × 18 sobre una base, con cuatro muros. El muro que queda entre la cámara y el interior se
+ * Una planta de 22 × 22 sobre una base, con cuatro muros. El muro que queda entre la cámara y el interior se
  * esconde solo (con todo lo que cuelga de él), así que desde cualquier ángulo se ve adentro, como un corte.
  *
- * Las zonas son las del trabajo del día a día, y cada una tiene un cartel que, al tocarlo, lleva la cámara:
- *   Mi oficina          donde llegan los resultados (pantalla grande, escritorio de tres monitores)
- *   Tareas · Jira       el tablero kanban y dos puestos
- *   Arquitecto          la pizarra con el diagrama y su mesa
- *   Contexto · tablero  la biblioteca del conocimiento local y un rincón de lectura
- *   Lounge              el centro: sillones, mesa, café
+ * Cuatro salas en las esquinas y el lounge en el centro, con pasillos de 6 entre ellas:
+ *   noroeste  Mi oficina          donde llegan los resultados (pantalla grande, escritorio de tres monitores)
+ *   noreste   Tareas · Jira       el kanban y dos puestos
+ *   suroeste  Arquitecto          la pizarra con el diagrama y su mesa
+ *   sureste   Contexto · tablero  la biblioteca del conocimiento local y un rincón de lectura
+ *   centro    Lounge              sillones y mesa; el café, contra el muro norte
  * Todavía sin personas: los agentes llegan después.
  *
- * La cámara es ortográfica (sin perspectiva), que es lo que da el aspecto de maqueta. OrbitControls rota,
- * acerca y desplaza; los límites impiden mirar desde abajo del piso o alejarse hasta perderla.
+ * La información de cada zona aparece al pasar el mouse por encima de su piso, que se ilumina; un clic (sin
+ * arrastrar) lleva la cámara ahí. La cámara es ortográfica, que es lo que da el aspecto de maqueta.
  */
 import * as THREE from 'three'
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js'
@@ -23,18 +23,19 @@ import {
   floorLamp, windowWithCurtains, coffeeBar, partition,
 } from './furniture.js'
 
-const WIDTH = 26
-const DEPTH = 18
-const WALL_H = 5.2
-const WAINSCOT = 1.6
+const SIZE = 22
+const HALF = SIZE / 2
+const WALL_H = 5
+const WAINSCOT = 1.5
 
+// `area` es el rectángulo del piso de cada zona [x0, z0, x1, z1]: ahí se detecta el mouse.
 export const ZONES = [
   { id: 'overview', label: 'Vista general', center: [0, 0, 0], zoom: 1 },
-  { id: 'office', label: 'Mi oficina', detail: 'donde llegan los resultados', center: [-9, 0, -5.5], zoom: 1.6 },
-  { id: 'jira', label: 'Tareas · Jira', detail: 'el sprint y lo que sigue', center: [6.5, 0, -6], zoom: 1.6 },
-  { id: 'architect', label: 'Arquitecto', detail: 'diseño y decisiones', center: [-8.5, 0, 5.5], zoom: 1.6 },
-  { id: 'context', label: 'Contexto · tablero', detail: 'el conocimiento local', center: [8.5, 0, 5.5], zoom: 1.6 },
-  { id: 'lounge', label: 'Lounge', detail: 'café y charla', center: [0, 0, 3.5], zoom: 1.8 },
+  { id: 'office', label: 'Mi oficina', detail: 'Donde llegan los resultados del día.', center: [-7, 0, -7], area: [-11, -11, -3, -3], zoom: 1.7 },
+  { id: 'jira', label: 'Tareas · Jira', detail: 'El sprint: lo que está en curso y lo que sigue.', center: [7, 0, -7], area: [3, -11, 11, -3], zoom: 1.7 },
+  { id: 'architect', label: 'Arquitecto', detail: 'Diseño y decisiones antes de tocar código.', center: [-7, 0, 7], area: [-11, 3, -3, 11], zoom: 1.7 },
+  { id: 'context', label: 'Contexto · tablero', detail: 'El conocimiento local y la historia de cada tarea.', center: [7, 0, 7], area: [3, 3, 11, 11], zoom: 1.7 },
+  { id: 'lounge', label: 'Lounge', detail: 'Café y charla entre una cosa y otra.', center: [0, 0, 0], area: [-3, -3, 3, 3], zoom: 2 },
 ]
 
 function place(object, x, z, rotation = 0, y = 0) {
@@ -43,14 +44,14 @@ function place(object, x, z, rotation = 0, y = 0) {
   return object
 }
 
-// Un muro con su zócalo azul arriba del piso, mirando hacia adentro (+z local). `outward` es su normal hacia
-// afuera: cuando la cámara queda de ese lado, el muro se esconde.
+// Un muro con su zócalo de color, mirando hacia adentro (+z local). `outward` es su normal hacia afuera:
+// cuando la cámara queda de ese lado, el muro se esconde.
 function wall(length, { x, z, rotation, outward }) {
   const g = new THREE.Group()
   const L = length + 0.8
-  g.add(box(L, WAINSCOT, 0.4, PALETTE.blue, { z: -0.2, r: 0.04 }))
-  g.add(box(L, 0.12, 0.46, PALETTE.blueDeep, { y: WAINSCOT - 0.06, z: -0.2, r: 0.03 }))
-  g.add(box(L, WALL_H - WAINSCOT, 0.4, PALETTE.cream, { y: WAINSCOT, z: -0.2, r: 0.04 }))
+  g.add(box(L, WAINSCOT, 0.4, PALETTE.wallLow, { z: -0.2, r: 0.04 }))
+  g.add(box(L, 0.12, 0.46, PALETTE.wallTrim, { y: WAINSCOT - 0.06, z: -0.2, r: 0.03 }))
+  g.add(box(L, WALL_H - WAINSCOT, 0.4, PALETTE.wallHigh, { y: WAINSCOT, z: -0.2, r: 0.04 }))
   g.add(box(L, 0.1, 0.44, PALETTE.white, { y: WALL_H - 0.05, z: -0.2, r: 0.03 }))
   g.add(box(L, 0.14, 0.46, PALETTE.white, { y: 0, z: -0.2, r: 0.02 }))
   g.position.set(x, 0, z)
@@ -61,130 +62,157 @@ function wall(length, { x, z, rotation, outward }) {
 
 function plankTexture() {
   const texture = canvasTexture(512, 512, (g, W, H) => {
-    g.fillStyle = PALETTE.floor; g.fillRect(0, 0, W, H)
     const rows = 8
     for (let r = 0; r < rows; r++) {
       const y = (r / rows) * H
       const offset = (r % 2) * 128
-      g.fillStyle = r % 3 === 0 ? '#e2d4c2' : r % 3 === 1 ? '#ebe0d2' : '#e6d9c8'
+      g.fillStyle = [PALETTE.floor, PALETTE.floorAlt, PALETTE.floor][r % 3]
       g.fillRect(0, y, W, H / rows)
-      g.fillStyle = 'rgba(120, 90, 60, 0.18)'
+      g.fillStyle = 'rgba(70, 60, 90, 0.12)'
       g.fillRect(0, y, W, 2)
       for (let x = offset; x < W + 256; x += 256) g.fillRect(x % W, y, 2, H / rows)
     }
   })
   texture.wrapS = texture.wrapT = THREE.RepeatWrapping
-  texture.repeat.set(WIDTH / 6, DEPTH / 6)
+  texture.repeat.set(SIZE / 5.5, SIZE / 5.5)
   return texture
 }
 
 function buildRoom(scene) {
   // La base de la maqueta y el piso de tablas.
-  scene.add(box(WIDTH + 1.6, 0.7, DEPTH + 1.6, PALETTE.white, { y: -1.1, r: 0.2 }))
-  scene.add(box(WIDTH + 0.8, 0.4, DEPTH + 0.8, PALETTE.creamDark, { y: -0.4, r: 0.06 }))
-  const floor = new THREE.Mesh(new THREE.PlaneGeometry(WIDTH + 0.8, DEPTH + 0.8),
+  scene.add(box(SIZE + 1.6, 0.7, SIZE + 1.6, PALETTE.base, { y: -1.1, r: 0.2 }))
+  scene.add(box(SIZE + 0.8, 0.4, SIZE + 0.8, PALETTE.baseTop, { y: -0.4, r: 0.06 }))
+  const floor = new THREE.Mesh(new THREE.PlaneGeometry(SIZE + 0.8, SIZE + 0.8),
     new THREE.MeshStandardMaterial({ map: plankTexture(), roughness: 0.9 }))
   floor.rotation.x = -Math.PI / 2
   floor.position.y = 0.002
   floor.receiveShadow = true
   scene.add(floor)
 
-  const north = wall(WIDTH, { x: 0, z: -DEPTH / 2, rotation: 0, outward: [0, 0, -1] })
-  const south = wall(WIDTH, { x: 0, z: DEPTH / 2, rotation: Math.PI, outward: [0, 0, 1] })
-  const west = wall(DEPTH, { x: -WIDTH / 2, z: 0, rotation: Math.PI / 2, outward: [-1, 0, 0] })
-  const east = wall(DEPTH, { x: WIDTH / 2, z: 0, rotation: -Math.PI / 2, outward: [1, 0, 0] })
+  const north = wall(SIZE, { x: 0, z: -HALF, rotation: 0, outward: [0, 0, -1] })
+  const south = wall(SIZE, { x: 0, z: HALF, rotation: Math.PI, outward: [0, 0, 1] })
+  const west = wall(SIZE, { x: -HALF, z: 0, rotation: Math.PI / 2, outward: [-1, 0, 0] })
+  const east = wall(SIZE, { x: HALF, z: 0, rotation: -Math.PI / 2, outward: [1, 0, 0] })
   // Lo que cuelga de cada muro va en su grupo, en coordenadas del muro (x a lo largo, y arriba, +z adentro):
   //   norte: x = x del mundo · oeste: x = -z del mundo · este: x = z del mundo · sur: x = -x del mundo
-  north.add(place(wallScreen({ w: 3.4, h: 1.9 }), -9, 0.1, 0, 1.7))
-  north.add(place(kanban({ w: 4.2, h: 2 }), 5.5, 0.1, 0, 1.6))
-  north.add(place(windowWithCurtains({ w: 1.7, h: 1.8 }), 11, 0.05, 0, 1.9))
-  north.add(place(artFrame({ kind: 1 }), -2.3, 0.05, 0, 2.6))
-  west.add(place(artFrame({ kind: 0 }), 7.2, 0.05, 0, 2.3))
-  west.add(place(artFrame({ kind: 2 }), 5.6, 0.05, 0, 2.3))
-  west.add(place(windowWithCurtains({ w: 1.8, h: 1.8 }), -5.5, 0.05, 0, 1.9))
-  east.add(place(windowWithCurtains({ w: 1.8, h: 1.8 }), -5.5, 0.05, 0, 1.9))
-  east.add(place(artFrame({ kind: 2 }), 5, 0.05, 0, 2.4))
-  south.add(place(artFrame({ kind: 1 }), 0, 0.05, 0, 2.4))
-  south.add(place(windowWithCurtains({ w: 1.8, h: 1.8 }), 6, 0.05, 0, 1.9))
+  north.add(place(wallScreen({ w: 3.4, h: 1.9 }), -7, 0.1, 0, 1.7))
+  north.add(place(kanban({ w: 4.4, h: 2 }), 7, 0.1, 0, 1.6))
+  north.add(place(artFrame({ kind: 1 }), 0, 0.05, 0, 2.5))
+  west.add(place(artFrame({ kind: 0 }), 8, 0.05, 0, 2.2))
+  west.add(place(artFrame({ kind: 2 }), 6.4, 0.05, 0, 2.2))
+  west.add(place(windowWithCurtains({ w: 1.8, h: 1.8 }), -7, 0.05, 0, 1.8))
+  west.add(place(artFrame({ kind: 1 }), 0, 0.05, 0, 2.3))
+  east.add(place(windowWithCurtains({ w: 1.8, h: 1.8 }), -7, 0.05, 0, 1.8))
+  east.add(place(artFrame({ kind: 2 }), 7, 0.05, 0, 2.3))
+  east.add(place(artFrame({ kind: 0 }), 0, 0.05, 0, 2.3))
+  south.add(place(artFrame({ kind: 1 }), 7, 0.05, 0, 2.3))
+  south.add(place(windowWithCurtains({ w: 1.8, h: 1.8 }), -7, 0.05, 0, 1.8))
+  south.add(place(windowWithCurtains({ w: 1.8, h: 1.8 }), 0, 0.05, 0, 1.8))
   const walls = [north, south, west, east]
   walls.forEach((w) => scene.add(w))
   return walls
 }
 
 function buildZones(scene) {
-  // ── Mi oficina: esquina noroeste, con tabiques de vidrio ──
-  scene.add(place(partition(7, { glassTop: true }), -5, -5.5, Math.PI / 2))
-  scene.add(place(partition(5, { glassTop: true }), -10.5, -2))
-  scene.add(place(rug(5.2, 3.6, { base: PALETTE.blue, accent: PALETTE.orange, mid: PALETTE.blueSoft }), -9, -5.6))
-  scene.add(place(desk({ w: 3.4, d: 1.3, screens: 3, screenKind: 'chart', color: PALETTE.wood, legs: PALETTE.woodDark }), -9, -6.4))
-  scene.add(place(chair({ color: PALETTE.orange, executive: true }), -9, -5.2))
-  scene.add(place(armchair({ color: PALETTE.blue, pillow: PALETTE.orange }), -12, -3.3, Math.PI * 0.75))
-  scene.add(place(plant({ size: 1.3 }), -12.2, -8.2))
-  scene.add(place(floorLamp(), -6, -8.3))
-  scene.add(place(bookshelf({ w: 1.6, h: 2 }), -12.55, -6.2, Math.PI / 2))
+  // ── Mi oficina: noroeste, con tabiques de vidrio y una puerta hacia el pasillo ──
+  scene.add(place(partition(8, { glassTop: true }), -3, -7, Math.PI / 2))
+  scene.add(place(partition(6, { glassTop: true }), -8, -3))
+  scene.add(place(rug(5.2, 3.6, { base: PALETTE.primary, accent: PALETTE.accent, mid: PALETTE.primarySoft }), -7, -7.2))
+  scene.add(place(desk({ w: 3.4, d: 1.3, screens: 3, screenKind: 'chart', color: PALETTE.wood, legs: PALETTE.woodDark }), -7, -8))
+  scene.add(place(chair({ color: PALETTE.accent, executive: true }), -7, -6.8))
+  scene.add(place(armchair({ color: PALETTE.primary, pillow: PALETTE.accent }), -9.7, -4.5, Math.PI * 0.75))
+  scene.add(place(plant({ size: 1.3 }), -10.2, -10.2))
+  scene.add(place(floorLamp(), -4, -10.2))
+  scene.add(place(bookshelf({ w: 1.6, h: 2 }), -10.55, -7.4, Math.PI / 2))
 
   // ── Tareas · Jira: noreste, frente al kanban ──
-  scene.add(place(rug(7, 3.4, { base: PALETTE.orange, accent: PALETTE.yellow, mid: PALETTE.cream }), 5.8, -5.6))
-  ;[3.2, 8.2].forEach((x, i) => {
-    scene.add(place(desk({ screens: 2, screenKind: i ? 'code' : 'board', accent: PALETTE.orange }), x, -5.4))
-    scene.add(place(chair({ color: PALETTE.blue }), x, -4.3))
+  scene.add(place(partition(8), 3, -7, Math.PI / 2))
+  scene.add(place(rug(7, 3.4, { base: PALETTE.accent, accent: PALETTE.yellow, mid: PALETTE.cream }), 7, -7))
+  ;[5.2, 8.8].forEach((x, i) => {
+    scene.add(place(desk({ screens: 2, screenKind: i ? 'code' : 'board', accent: PALETTE.accent }), x, -7.2))
+    scene.add(place(chair({ color: PALETTE.primary }), x, -6))
   })
-  scene.add(place(plant({ size: 1.1 }), 12.2, -8.2))
-  scene.add(place(plant({ size: 0.8, leaves: PALETTE.greenDark }), 0.8, -8.3))
+  scene.add(place(plant({ size: 1.1 }), 10.2, -10.2))
+  scene.add(place(plant({ size: 0.8, leaves: PALETTE.greenDark }), 10.3, -3.8))
 
-  // ── El café, entre la oficina y Jira ──
-  scene.add(place(coffeeBar(), -2.4, -8.35))
+  // ── El café, contra el muro norte, entre la oficina y Jira ──
+  scene.add(place(coffeeBar(), 0, -10.35))
+  scene.add(place(plant({ size: 0.8 }), -2.2, -10.3))
+  scene.add(place(plant({ size: 0.8 }), 2.2, -10.3))
 
   // ── Arquitecto: suroeste ──
-  scene.add(place(partition(7), -9.5, 1.4))
-  scene.add(place(rug(5.4, 3.8, { base: PALETTE.teal, accent: PALETTE.yellow, mid: PALETTE.cream }), -8.6, 5.6))
-  scene.add(place(whiteboard({ w: 3, h: 1.6 }), -8.6, 2.6))
-  scene.add(place(desk({ w: 2.8, screens: 2, screenKind: 'code', accent: PALETTE.teal, color: PALETTE.white }), -8.6, 5.4))
-  scene.add(place(chair({ color: PALETTE.teal }), -8.6, 6.5))
-  scene.add(place(plant({ size: 1.2 }), -12.2, 8.2))
-  scene.add(place(floorLamp({ shade: PALETTE.orangeSoft }), -5.4, 8.2))
+  scene.add(place(partition(6), -8, 3))
+  scene.add(place(partition(8), -3, 7, Math.PI / 2))
+  scene.add(place(rug(5.4, 3.8, { base: PALETTE.teal, accent: PALETTE.yellow, mid: PALETTE.cream }), -7, 7))
+  scene.add(place(whiteboard({ w: 3, h: 1.6 }), -7, 4.2))
+  scene.add(place(desk({ w: 2.8, screens: 2, screenKind: 'code', accent: PALETTE.teal, color: PALETTE.white }), -7, 7.2))
+  scene.add(place(chair({ color: PALETTE.teal }), -7, 8.3))
+  scene.add(place(plant({ size: 1.2 }), -10.2, 10.2))
+  scene.add(place(floorLamp({ shade: PALETTE.accentSoft }), -4, 10.2))
 
   // ── Contexto · tablero: sureste, la biblioteca ──
-  scene.add(place(partition(7), 9.5, 1.4))
-  scene.add(place(rug(5.4, 3.8, { base: PALETTE.blue, accent: PALETTE.yellow, mid: PALETTE.blueSoft }), 8.6, 5.8))
-  scene.add(place(bookshelf({ w: 2, h: 2.4 }), 7.1, 2.1))
-  scene.add(place(bookshelf({ w: 2, h: 2.4 }), 9.3, 2.1))
-  scene.add(place(desk({ w: 2.4, screens: 1, screenKind: 'board', accent: PALETTE.blueSoft, color: PALETTE.wood, legs: PALETTE.woodDark }), 7.6, 5.4))
-  scene.add(place(chair({ color: PALETTE.orange }), 7.6, 6.5))
-  scene.add(place(sofa({ w: 2.4, pillows: [PALETTE.blue, PALETTE.orange] }), 11.9, 6.2, -Math.PI / 2))
-  scene.add(place(plant({ size: 1 }), 12.2, 8.3))
+  scene.add(place(partition(6), 8, 3))
+  scene.add(place(partition(8), 3, 7, Math.PI / 2))
+  scene.add(place(rug(5.4, 3.8, { base: PALETTE.primary, accent: PALETTE.yellow, mid: PALETTE.primarySoft }), 7, 7.3))
+  scene.add(place(bookshelf({ w: 2, h: 2.4 }), 6, 3.5))
+  scene.add(place(bookshelf({ w: 2, h: 2.4 }), 8.2, 3.5))
+  scene.add(place(desk({ w: 2.4, screens: 1, screenKind: 'board', accent: PALETTE.primarySoft, color: PALETTE.wood, legs: PALETTE.woodDark }), 6.4, 7.2))
+  scene.add(place(chair({ color: PALETTE.accent }), 6.4, 8.3))
+  scene.add(place(sofa({ w: 2.4, pillows: [PALETTE.primary, PALETTE.accent] }), 10, 7.6, -Math.PI / 2))
+  scene.add(place(plant({ size: 1 }), 10.2, 10.3))
 
   // ── Lounge: el centro ──
-  scene.add(place(rug(5, 3.6), 0, 4.4))
-  scene.add(place(sofa({ w: 2.8 }), -1.7, 4.4, Math.PI / 2))
-  scene.add(place(armchair(), 1.9, 4.4, -Math.PI / 2))
-  scene.add(place(coffeeTable(), 0.1, 4.4))
-  scene.add(place(floorLamp(), -2.6, 6.6))
-  scene.add(place(plant({ size: 1.4 }), 2.6, 1.2))
-  scene.add(place(plant({ size: 0.9 }), -2.8, 1.4))
+  scene.add(place(rug(4.8, 4.8), 0, 0))
+  scene.add(place(sofa({ w: 2.6 }), -1.7, 0, Math.PI / 2))
+  scene.add(place(armchair(), 1.8, 0, -Math.PI / 2))
+  scene.add(place(coffeeTable(), 0, 0))
+  scene.add(place(floorLamp(), -2.4, 2.3))
+  scene.add(place(plant({ size: 1.2 }), 2.4, -2.3))
 }
 
-// El cartel de cada zona: HTML encima de la escena, que sigue a su zona al rotar.
-function buildLabels(scene, onPick) {
-  const labels = []
+// El piso de cada zona se ilumina al pasar el mouse: una lámina apenas sobre el piso, invisible en reposo.
+function buildHighlights(scene) {
+  const highlights = new Map()
   for (const zone of ZONES) {
-    if (zone.id === 'overview') continue
-    const el = document.createElement('button')
-    el.type = 'button'
+    if (!zone.area) continue
+    const [x0, z0, x1, z1] = zone.area
+    const material = new THREE.MeshBasicMaterial({ color: PALETTE.accent, transparent: true, opacity: 0, depthWrite: false })
+    const mesh = new THREE.Mesh(new THREE.PlaneGeometry(x1 - x0 - 0.3, z1 - z0 - 0.3), material)
+    mesh.rotation.x = -Math.PI / 2
+    mesh.position.set((x0 + x1) / 2, 0.06, (z0 + z1) / 2)
+    mesh.renderOrder = 1
+    scene.add(mesh)
+    highlights.set(zone.id, mesh)
+  }
+  return highlights
+}
+
+// La tarjeta de cada zona: HTML encima de la escena que sigue a su zona. Sólo se ve la de la zona bajo el mouse.
+function buildLabels(scene) {
+  const labels = new Map()
+  for (const zone of ZONES) {
+    if (!zone.area) continue
+    // El ancla la mueve Three (le pone su propio transform); la tarjeta adentro se corre hacia arriba para
+    // flotar sobre la zona sin taparla.
+    const anchor = document.createElement('div')
+    const el = document.createElement('div')
     el.className = 'office-label'
-    el.innerHTML = '<b></b><span></span>'
+    el.innerHTML = '<b></b><span></span><small>Clic para acercarte</small>'
     el.querySelector('b').textContent = zone.label
     el.querySelector('span').textContent = zone.detail
-    el.addEventListener('click', () => onPick(zone.id))
-    const label = new CSS2DObject(el)
-    label.position.set(zone.center[0], 4.6, zone.center[2])
+    anchor.appendChild(el)
+    const label = new CSS2DObject(anchor)
+    label.position.set(zone.center[0], 4.2, zone.center[2])
+    label.visible = false
     scene.add(label)
-    labels.push(label)
+    labels.set(zone.id, label)
   }
   return labels
 }
 
-export function createOffice(container, { onFocus } = {}) {
+const zoneAt = (x, z) => ZONES.find((zone) => zone.area && x >= zone.area[0] && x <= zone.area[2] && z >= zone.area[1] && z <= zone.area[3])
+
+export function createOffice(container, { onFocus, onHover } = {}) {
   const scene = new THREE.Scene()
 
   const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true })
@@ -200,11 +228,11 @@ export function createOffice(container, { onFocus } = {}) {
   labelRenderer.domElement.className = 'office-labels'
   container.appendChild(labelRenderer.domElement)
 
-  // Ortográfica: el aspecto de maqueta. `FRUSTUM` es cuánto del mundo entra a lo alto con zoom 1.
-  const FRUSTUM = 21
+  // Ortográfica: el aspecto de maqueta. `FRUSTUM` es cuánto del mundo entra a lo alto con zoom 1. La vista
+  // arranca en diagonal exacta (45°), que es la que hace ver cuadrada la planta.
+  const FRUSTUM = 24
   const camera = new THREE.OrthographicCamera(-1, 1, 1, -1, -200, 400)
-  const VIEW_DIR = new THREE.Vector3(1, 0.95, 1.1).normalize()
-  camera.position.copy(VIEW_DIR).multiplyScalar(60)
+  camera.position.set(1, 1.05, 1).normalize().multiplyScalar(60)
 
   const controls = new OrbitControls(camera, renderer.domElement)
   controls.enableDamping = true
@@ -217,34 +245,37 @@ export function createOffice(container, { onFocus } = {}) {
   controls.target.set(0, 0, 0)
 
   // Luz: el cielo y el rebote del piso, más un sol tibio que proyecta sombras suaves.
-  scene.add(new THREE.HemisphereLight('#ffffff', '#c8b59c', 1.6))
-  const sun = new THREE.DirectionalLight('#fff1dd', 2.4)
+  scene.add(new THREE.HemisphereLight('#ffffff', '#c9bfd6', 1.6))
+  const sun = new THREE.DirectionalLight('#fff4e6', 2.4)
   sun.position.set(14, 26, 12)
   sun.castShadow = true
   sun.shadow.mapSize.set(2048, 2048)
-  sun.shadow.camera.left = -20; sun.shadow.camera.right = 20
-  sun.shadow.camera.top = 16; sun.shadow.camera.bottom = -16
+  sun.shadow.camera.left = -17; sun.shadow.camera.right = 17
+  sun.shadow.camera.top = 17; sun.shadow.camera.bottom = -17
   sun.shadow.bias = -0.0004
   sun.shadow.normalBias = 0.03
   sun.shadow.radius = 4
   scene.add(sun)
-  const fill = new THREE.DirectionalLight('#cfe0ff', 0.6)
+  const fill = new THREE.DirectionalLight('#dcd6ff', 0.6)
   fill.position.set(-16, 12, -6)
   scene.add(fill)
 
   const walls = buildRoom(scene)
   buildZones(scene)
-  const labels = buildLabels(scene, (id) => focus(id))
+  const highlights = buildHighlights(scene)
+  const labels = buildLabels(scene)
 
   // ── el tamaño sigue al contenedor ──
   function resize() {
     const { clientWidth: w, clientHeight: h } = container
     if (!w || !h) return
     const aspect = w / h
-    camera.left = (-FRUSTUM * aspect) / 2
-    camera.right = (FRUSTUM * aspect) / 2
-    camera.top = FRUSTUM / 2
-    camera.bottom = -FRUSTUM / 2
+    // En una ventana angosta manda el ancho: la diagonal de la planta (~31) tiene que entrar a lo ancho.
+    const tall = Math.max(FRUSTUM, 33 / aspect)
+    camera.left = (-tall * aspect) / 2
+    camera.right = (tall * aspect) / 2
+    camera.top = tall / 2
+    camera.bottom = -tall / 2
     camera.updateProjectionMatrix()
     renderer.setSize(w, h)
     labelRenderer.setSize(w, h)
@@ -269,6 +300,40 @@ export function createOffice(container, { onFocus } = {}) {
     onFocus?.(zone.id)
   }
 
+  // ── el mouse: qué zona hay debajo (el piso, y = 0), su tarjeta y su piso iluminado ──
+  const raycaster = new THREE.Raycaster()
+  const pointer = new THREE.Vector2()
+  const ground = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0)
+  const hit = new THREE.Vector3()
+  let hovered = null
+  function setHovered(id) {
+    if (hovered === id) return
+    hovered = id
+    for (const [zoneId, label] of labels) label.visible = zoneId === id
+    renderer.domElement.style.cursor = id ? 'pointer' : ''
+    onHover?.(id)
+  }
+  function onPointerMove(event) {
+    if (event.buttons) return // arrastrando: no cambia la tarjeta mientras rota
+    const rect = renderer.domElement.getBoundingClientRect()
+    pointer.set(((event.clientX - rect.left) / rect.width) * 2 - 1, -((event.clientY - rect.top) / rect.height) * 2 + 1)
+    raycaster.setFromCamera(pointer, camera)
+    const zone = raycaster.ray.intersectPlane(ground, hit) ? zoneAt(hit.x, hit.z) : null
+    setHovered(zone?.id || null)
+  }
+  // Un clic es apretar y soltar casi en el mismo lugar: si se movió, fue un arrastre para rotar.
+  let downAt = null
+  const onPointerDown = (event) => { downAt = [event.clientX, event.clientY] }
+  function onPointerUp(event) {
+    if (downAt && Math.hypot(event.clientX - downAt[0], event.clientY - downAt[1]) < 5 && hovered) focus(hovered)
+    downAt = null
+  }
+  const onPointerLeave = () => setHovered(null)
+  renderer.domElement.addEventListener('pointermove', onPointerMove)
+  renderer.domElement.addEventListener('pointerdown', onPointerDown)
+  renderer.domElement.addEventListener('pointerup', onPointerUp)
+  renderer.domElement.addEventListener('pointerleave', onPointerLeave)
+
   // ── el muro que tapa la vista se esconde ──
   const toCamera = new THREE.Vector3()
   function updateWalls() {
@@ -292,6 +357,11 @@ export function createOffice(container, { onFocus } = {}) {
       camera.updateProjectionMatrix()
       if (flight.t >= 1) flight = null
     }
+    // El piso de la zona bajo el mouse sube a un tinte suave; los demás vuelven a cero.
+    for (const [id, mesh] of highlights) {
+      const goal = id === hovered ? 0.2 : 0
+      mesh.material.opacity += (goal - mesh.material.opacity) * Math.min(1, dt * 10)
+    }
     controls.update()
     updateWalls()
     renderer.render(scene, camera)
@@ -307,13 +377,17 @@ export function createOffice(container, { onFocus } = {}) {
     cancelAnimationFrame(frame)
     observer.disconnect()
     controls.dispose()
+    renderer.domElement.removeEventListener('pointermove', onPointerMove)
+    renderer.domElement.removeEventListener('pointerdown', onPointerDown)
+    renderer.domElement.removeEventListener('pointerup', onPointerUp)
+    renderer.domElement.removeEventListener('pointerleave', onPointerLeave)
     scene.traverse((o) => {
       o.geometry?.dispose()
       const list = Array.isArray(o.material) ? o.material : o.material ? [o.material] : []
       for (const m of list) { m.map?.dispose(); m.dispose() }
     })
     disposeMaterials()
-    labels.forEach((l) => l.element.remove())
+    for (const label of labels.values()) label.element.remove()
     renderer.dispose()
     renderer.domElement.remove()
     labelRenderer.domElement.remove()

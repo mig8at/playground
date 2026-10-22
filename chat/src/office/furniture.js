@@ -10,26 +10,39 @@
 import * as THREE from 'three'
 import { RoundedBoxGeometry } from 'three/examples/jsm/geometries/RoundedBoxGeometry.js'
 
+// Los colores de CreditOp, tal como los define el front (`packages/ui/src/styles/globals.css` en
+// frontend-monorepo): el morado primario y sus tonos, el verde CreditOp como acento, el azul noche del texto,
+// y el azul y el verde lima de apoyo. Los neutros llevan un tinte morado para no verse grises sueltos.
 export const PALETTE = {
-  cream: '#f1e9df',
-  creamDark: '#e2d6c8',
-  blue: '#2f4c9c',
-  blueDeep: '#22397a',
-  blueSoft: '#7f9be0',
-  orange: '#f08a2c',
-  orangeSoft: '#f6b26b',
-  yellow: '#f5cf4a',
-  white: '#fbfaf7',
-  wood: '#c9935e',
-  woodDark: '#8a5a35',
-  floor: '#e8dccd',
-  charcoal: '#2b2f3a',
-  green: '#4f9f45',
-  greenDark: '#2f7a35',
-  glass: '#bcd6f2',
-  pot: '#d9d4cc',
-  teal: '#3aa6a0',
-  pink: '#e86a92',
+  primary: '#4c39ff',      // purple-500, --primary
+  primaryDeep: '#3628b5',  // purple-700, --brand
+  primarySoft: '#877aff',  // purple-300
+  primaryPale: '#edebff',  // purple-50, --brand-subtle
+  accent: '#05d587',       // creditop-500
+  accentSoft: '#8cecc8',   // creditop-200
+  accentDeep: '#049760',   // creditop-700
+  navy: '#252256',         // violet-500, --foreground
+  teal: '#22baff',         // blue-500
+  yellow: '#c9f684',       // light-green-300
+  pink: '#ada4ff',         // purple-200
+  cream: '#edebff',
+  creamDark: '#d9d6f0',
+  white: '#fbfbff',
+  wood: '#d7b48c',
+  woodDark: '#9a7351',
+  charcoal: '#252256',
+  green: '#37b86b',
+  greenDark: '#1f8a4c',
+  glass: '#c8c2ff',
+  pot: '#e3e1ef',
+  // la sala
+  wallHigh: '#f7f6ff',
+  wallLow: '#4c39ff',
+  wallTrim: '#3628b5',
+  floor: '#eeecf6',
+  floorAlt: '#e6e3f1',
+  base: '#fbfbff',
+  baseTop: '#dedbef',
 }
 
 const materials = new Map()
@@ -117,7 +130,7 @@ function screenTexture(kind, accent) {
 
 // ── muebles ────────────────────────────────────────────────────────────────────────────────────────────
 
-export function desk({ w = 2.4, d = 1.1, color = PALETTE.white, legs = PALETTE.charcoal, screens = 1, screenKind = 'code', accent = PALETTE.orange } = {}) {
+export function desk({ w = 2.4, d = 1.1, color = PALETTE.white, legs = PALETTE.charcoal, screens = 1, screenKind = 'code', accent = PALETTE.accent } = {}) {
   const g = new THREE.Group()
   const h = 1.05
   g.add(box(w, 0.1, d, color, { y: h - 0.1, r: 0.04 }))
@@ -144,7 +157,7 @@ export function desk({ w = 2.4, d = 1.1, color = PALETTE.white, legs = PALETTE.c
   return g
 }
 
-export function chair({ color = PALETTE.blue, executive = false } = {}) {
+export function chair({ color = PALETTE.primary, executive = false } = {}) {
   const g = new THREE.Group()
   g.add(cylinder(0.05, 0.05, 0.42, PALETTE.charcoal, { y: 0.06 }))
   for (let i = 0; i < 5; i++) {
@@ -179,7 +192,7 @@ export function plant({ size = 1, leaves = PALETTE.green } = {}) {
   return g
 }
 
-export function sofa({ w = 2.6, color = PALETTE.white, frame = PALETTE.orange, pillows = [PALETTE.orange, PALETTE.blue, PALETTE.orange] } = {}) {
+export function sofa({ w = 2.6, color = PALETTE.white, frame = PALETTE.accent, pillows = [PALETTE.accent, PALETTE.primary, PALETTE.accent] } = {}) {
   const g = new THREE.Group()
   g.add(box(w, 0.12, 1.05, frame, { y: 0.18, r: 0.04 }))
   for (const sx of [-1, 1]) g.add(box(0.07, 0.2, 0.07, PALETTE.woodDark, { x: sx * (w / 2 - 0.15), z: 0.38, r: 0.02 }))
@@ -197,7 +210,7 @@ export function sofa({ w = 2.6, color = PALETTE.white, frame = PALETTE.orange, p
   return g
 }
 
-export function armchair({ color = PALETTE.orange, pillow = PALETTE.white } = {}) {
+export function armchair({ color = PALETTE.accent, pillow = PALETTE.white } = {}) {
   const g = new THREE.Group()
   for (const sx of [-1, 1]) for (const sz of [-1, 1]) {
     const leg = cylinder(0.04, 0.03, 0.3, PALETTE.charcoal, { x: sx * 0.38, z: sz * 0.32 })
@@ -222,12 +235,12 @@ export function coffeeTable({ r = 0.55, color = PALETTE.white } = {}) {
     leg.rotation.set(Math.sin(a) * 0.18, 0, -Math.cos(a) * 0.18)
     g.add(leg)
   }
-  g.add(cylinder(0.11, 0.11, 0.2, PALETTE.blue, { y: 0.57 }))
+  g.add(cylinder(0.11, 0.11, 0.2, PALETTE.primary, { y: 0.57 }))
   return g
 }
 
 // Una alfombra con dibujo de rombos y triángulos, como la de la referencia.
-export function rug(w, d, { base = PALETTE.orange, accent = PALETTE.yellow, mid = PALETTE.blueSoft } = {}) {
+export function rug(w, d, { base = PALETTE.accent, accent = PALETTE.yellow, mid = PALETTE.primarySoft } = {}) {
   const texture = canvasTexture(512, Math.round(512 * d / w), (g, W, H) => {
     g.fillStyle = base; g.fillRect(0, 0, W, H)
     g.fillStyle = mid; g.fillRect(28, 28, W - 56, H - 56)
@@ -259,7 +272,7 @@ export function bookshelf({ w = 1.8, h = 2.4, color = PALETTE.white } = {}) {
   g.add(box(w, h, 0.06, color, { z: -d / 2 + 0.03, r: 0.02 }))
   for (const sx of [-1, 1]) g.add(box(0.07, h, d, color, { x: sx * (w / 2 - 0.035), r: 0.02 }))
   const shelves = 4
-  const colors = [PALETTE.orange, PALETTE.blue, PALETTE.yellow, PALETTE.teal, PALETTE.white, PALETTE.blueSoft, PALETTE.pink]
+  const colors = [PALETTE.accent, PALETTE.primary, PALETTE.yellow, PALETTE.teal, PALETTE.white, PALETTE.primarySoft, PALETTE.pink]
   for (let s = 0; s <= shelves; s++) {
     const y = (s / shelves) * (h - 0.06)
     g.add(box(w - 0.08, 0.06, d, color, { y, r: 0.01 }))
@@ -285,10 +298,10 @@ export function kanban({ w = 3.2, h = 1.8 } = {}) {
   const g = new THREE.Group()
   g.add(box(w + 0.12, h + 0.12, 0.06, PALETTE.charcoal, { r: 0.03 }))
   g.add(box(w, h, 0.08, PALETTE.white, { y: 0.06, r: 0.02 }))
-  const columns = [['Por hacer', PALETTE.yellow], ['En curso', PALETTE.orangeSoft], ['Hecho', '#9fd99b']]
+  const columns = [['Por hacer', PALETTE.yellow], ['En curso', PALETTE.accentSoft], ['Hecho', '#9fd99b']]
   const colW = w / 3
   columns.forEach(([, color], c) => {
-    const header = box(colW - 0.2, 0.1, 0.02, PALETTE.blue, { x: -w / 2 + colW * (c + 0.5), y: h - 0.12, z: 0.06, r: 0.01 })
+    const header = box(colW - 0.2, 0.1, 0.02, PALETTE.primary, { x: -w / 2 + colW * (c + 0.5), y: h - 0.12, z: 0.06, r: 0.01 })
     g.add(header)
     for (let i = 0; i < 4 - c; i++) {
       const note = box(0.42, 0.34, 0.03, color, { x: -w / 2 + colW * (c + 0.5) + (i % 2 ? 0.24 : -0.24), y: h - 0.62 - Math.floor(i / 2) * 0.45, z: 0.07, r: 0.01 })
@@ -304,7 +317,7 @@ export function whiteboard({ w = 2.6, h = 1.5, standing = true } = {}) {
   const g = new THREE.Group()
   const texture = canvasTexture(512, Math.round(512 * h / w), (c, W, H) => {
     c.fillStyle = '#fdfdfb'; c.fillRect(0, 0, W, H)
-    const boxes = [[40, 40, PALETTE.blue], [210, 40, PALETTE.orange], [380, 40, PALETTE.teal], [125, 170, PALETTE.blue], [300, 170, PALETTE.orange]]
+    const boxes = [[40, 40, PALETTE.primary], [210, 40, PALETTE.accent], [380, 40, PALETTE.teal], [125, 170, PALETTE.primary], [300, 170, PALETTE.accent]]
     c.lineWidth = 5
     const link = (a, b) => { c.strokeStyle = '#555c6e'; c.beginPath(); c.moveTo(a[0] + 45, a[1] + 55); c.lineTo(b[0] + 45, b[1]); c.stroke() }
     link(boxes[0], boxes[3]); link(boxes[1], boxes[3]); link(boxes[1], boxes[4]); link(boxes[2], boxes[4])
@@ -330,11 +343,11 @@ export function artFrame({ w = 0.9, h = 1.1, kind = 0 } = {}) {
   const g = new THREE.Group()
   const texture = canvasTexture(180, 220, (c, W, H) => {
     c.fillStyle = PALETTE.white; c.fillRect(0, 0, W, H)
-    if (kind === 0) { c.strokeStyle = PALETTE.orange; c.lineWidth = 14; c.beginPath(); c.arc(W / 2, H / 2, 46, 0, Math.PI * 2); c.stroke(); c.fillStyle = PALETTE.blue; c.beginPath(); c.arc(W / 2, H / 2, 24, 0, Math.PI * 2); c.fill() }
-    if (kind === 1) { c.fillStyle = PALETTE.orange; c.beginPath(); c.arc(W / 2, H / 2, 55, 0, Math.PI * 2); c.fill() }
-    if (kind === 2) { c.fillStyle = PALETTE.orange; c.beginPath(); c.arc(W / 2 - 18, H / 2 - 12, 44, 0, Math.PI * 2); c.fill(); c.fillStyle = PALETTE.blue; c.globalAlpha = 0.9; c.beginPath(); c.arc(W / 2 + 18, H / 2 + 14, 44, 0, Math.PI * 2); c.fill() }
+    if (kind === 0) { c.strokeStyle = PALETTE.accent; c.lineWidth = 14; c.beginPath(); c.arc(W / 2, H / 2, 46, 0, Math.PI * 2); c.stroke(); c.fillStyle = PALETTE.primary; c.beginPath(); c.arc(W / 2, H / 2, 24, 0, Math.PI * 2); c.fill() }
+    if (kind === 1) { c.fillStyle = PALETTE.accent; c.beginPath(); c.arc(W / 2, H / 2, 55, 0, Math.PI * 2); c.fill() }
+    if (kind === 2) { c.fillStyle = PALETTE.accent; c.beginPath(); c.arc(W / 2 - 18, H / 2 - 12, 44, 0, Math.PI * 2); c.fill(); c.fillStyle = PALETTE.primary; c.globalAlpha = 0.9; c.beginPath(); c.arc(W / 2 + 18, H / 2 + 14, 44, 0, Math.PI * 2); c.fill() }
   })
-  g.add(box(w, h, 0.06, PALETTE.blue, { r: 0.02 }))
+  g.add(box(w, h, 0.06, PALETTE.primary, { r: 0.02 }))
   const art = texturedPlane(w - 0.16, h - 0.16, texture)
   art.position.set(0, h / 2, 0.032)
   g.add(art)
@@ -342,7 +355,7 @@ export function artFrame({ w = 0.9, h = 1.1, kind = 0 } = {}) {
 }
 
 // Una pantalla grande de pared: donde se muestran los resultados.
-export function wallScreen({ w = 3, h = 1.7, kind = 'chart', accent = PALETTE.orange } = {}) {
+export function wallScreen({ w = 3, h = 1.7, kind = 'chart', accent = PALETTE.accent } = {}) {
   const g = new THREE.Group()
   g.add(box(w, h, 0.08, PALETTE.charcoal, { r: 0.04 }))
   const screen = texturedPlane(w - 0.14, h - 0.14, screenTexture(kind, accent), { emissive: true })
@@ -353,14 +366,14 @@ export function wallScreen({ w = 3, h = 1.7, kind = 'chart', accent = PALETTE.or
 
 export function floorLamp({ shade = PALETTE.white } = {}) {
   const g = new THREE.Group()
-  g.add(cylinder(0.22, 0.25, 0.05, PALETTE.blueDeep))
-  g.add(cylinder(0.025, 0.025, 1.3, PALETTE.blueDeep, { y: 0.05 }))
+  g.add(cylinder(0.22, 0.25, 0.05, PALETTE.primaryDeep))
+  g.add(cylinder(0.025, 0.025, 1.3, PALETTE.primaryDeep, { y: 0.05 }))
   g.add(cylinder(0.25, 0.3, 0.6, shade, { y: 1.25, material: mat(shade, { emissive: '#fff4dc' }) }))
   return g
 }
 
 // Una ventana de pared con cortinas: el marco va en la pared, que la esconde con ella.
-export function windowWithCurtains({ w = 1.6, h = 1.7, curtain = PALETTE.blue } = {}) {
+export function windowWithCurtains({ w = 1.6, h = 1.7, curtain = PALETTE.primary } = {}) {
   const g = new THREE.Group()
   g.add(box(w, h, 0.08, PALETTE.white, { r: 0.03 }))
   const glass = new THREE.Mesh(new THREE.PlaneGeometry(w - 0.2, h - 0.2), mat(PALETTE.glass, { rough: 0.2, emissive: '#cfe3ff' }))
@@ -381,8 +394,8 @@ export function coffeeBar() {
   g.add(box(2.2, 1.0, 0.7, PALETTE.wood, { r: 0.05 }))
   g.add(box(2.3, 0.08, 0.78, PALETTE.white, { y: 1.0, r: 0.03 }))
   g.add(box(0.45, 0.6, 0.4, PALETTE.charcoal, { x: -0.6, y: 1.08, r: 0.06 }))
-  g.add(box(0.3, 0.12, 0.12, PALETTE.orange, { x: -0.6, y: 1.45, z: 0.15, r: 0.03 }))
-  for (let i = 0; i < 3; i++) g.add(cylinder(0.07, 0.06, 0.16, [PALETTE.white, PALETTE.blue, PALETTE.orange][i], { x: 0.2 + i * 0.22, y: 1.08 }))
+  g.add(box(0.3, 0.12, 0.12, PALETTE.accent, { x: -0.6, y: 1.45, z: 0.15, r: 0.03 }))
+  for (let i = 0; i < 3; i++) g.add(cylinder(0.07, 0.06, 0.16, [PALETTE.white, PALETTE.primary, PALETTE.accent][i], { x: 0.2 + i * 0.22, y: 1.08 }))
   return g
 }
 
@@ -390,7 +403,7 @@ export function coffeeBar() {
 export function partition(length, { h = 1.2, color = PALETTE.cream, glassTop = false } = {}) {
   const g = new THREE.Group()
   g.add(box(length, h, 0.18, color, { r: 0.05 }))
-  g.add(box(length + 0.04, 0.08, 0.22, PALETTE.blue, { y: h - 0.02, r: 0.03 }))
+  g.add(box(length + 0.04, 0.08, 0.22, PALETTE.primary, { y: h - 0.02, r: 0.03 }))
   if (glassTop) {
     const glass = new THREE.Mesh(new THREE.BoxGeometry(length, 1.6, 0.05), mat(PALETTE.glass, { rough: 0.1, opacity: 0.28 }))
     glass.position.y = h + 0.8
