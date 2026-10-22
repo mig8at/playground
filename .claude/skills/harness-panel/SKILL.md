@@ -1130,7 +1130,7 @@ Ya no se pregunta ni se cierra a mano: los carriles son de la MÁQUINA (todos lo
   «No están en prod», «Agregar desde prod»). Es el `.view` de la base: encabezado con chevron (`.view-tog`) y su cuenta,
   cuerpo con su propio scroll, y las abiertas se reparten el alto. **Ninguna cambia de lugar al plegarse**, como en VS Code:
   la cerrada queda como su fila donde estaba y las abiertas ocupan el resto (hasta el 2026-10-21 las cerradas se iban al
-  final con `order: 1`; Miguel lo pidió fijo). Por defecto abierta sólo la primera (Colombia); lo demás, cerrado. Se recuerda en `harness.sideViews`. El Admin es una vista FIJA del marcado (`#adminView`): `renderMerchants` la
+  final con `order: 1`; Miguel lo pidió fijo). Por defecto abierta sólo la primera (Colombia); lo demás, cerrado. Se recuerda en `harness.sideViews`. El Admin es una vista FIJA del marcado (`#adminSide`): `renderMerchants` la
   saca antes de limpiar y la vuelve a poner al final, y su chevron se engancha una vez (`wireAdminView`).
 - **El pie ya no lleva el comercio (`#caseTitle`), el canal (`#btnChannel`) ni el resumen del caso (`#caseDetails`)**:
   eran ruido, lo dicen la pestaña y el sidebar derecho. Se fueron con ellos `activeCaseSummary` y `CHANNEL_LABELS`.
@@ -1218,4 +1218,14 @@ no es la de por defecto (`?vista=buros`, `?consola=mocks`, `?inicio=entidades`).
   y su asesor es `c44ed36af-fake@`, la falsa). La barra lo muestra en el tooltip desde el registro, sin medir.
 - La primera pasada (2026-10-21) llenó 70 bases sin cambiar ninguna sucursal. Quedó una entrada vieja fuera de la barra,
   `peru`, con una sucursal de la compartida (`50e007e4`) que no existe ahí: `refresh` la deja y lo dice.
+
+### La PC del admin a todo el ancho del editor (2026-10-21)
+
+- La PC (el mockup de escritorio) toma el ANCHO del editor, `calc(100cqw - 48px)`; antes era el menor entre el ancho y lo
+  que dejaba el alto. Si queda más alta que el editor, `.admin-view` scrollea. La pantalla sigue siendo la imagen del
+  admin a 1366×768: no se cambia el viewport de la página (sería reiniciar el screencast por cada cambio de tamaño, y es
+  una imagen: más ancho ya es más legible).
+- ⚠ **Había dos `id="adminView"`**: la vista Admin de la barra y la pantalla del admin en el editor. `$('adminView')`
+  devolvía la de la barra, así que la pestaña Admin dejaba el editor EN BLANCO (desde que la barra pasó a vistas,
+  1510de7f). La de la barra ahora es `#adminSide`.
 

@@ -303,8 +303,7 @@
     .device-label { height: 20px }
     .device-label .region-action { width: 20px; height: 20px; margin: 0; padding: 0 }
     /* ═══ LA VISTA «ADMIN» ═══ El selector arriba al centro y una PC: la pantalla en 1366:768 (la de `panel/devices.ts`,
-       así el lienzo no se recorta y cada clic cae donde se ve) con su base de laptop. El ancho sale del MENOR entre
-       lo que deja el centro y lo que permite el alto. */
+       así el lienzo no se recorta y cada clic cae donde se ve) con su base de laptop, a todo el ancho del editor. */
     .stage-views { align-self: center; flex: none }
     /* Las pestañas del editor (`.tabs` de la base): la banda pegada arriba del centro, fuera de su padding. */
     .run-tabs { padding-right: 0 }
@@ -362,9 +361,10 @@
     .prod-status { font-size: var(--text-sm); color: var(--fg-2) }
     .prod-out { margin: 0; min-height: 120px; max-height: 50vh; overflow: auto; padding: var(--space-2); border-radius: var(--radius);
       background: var(--background); border: 1px solid var(--border); font-size: var(--text-xs); white-space: pre-wrap }
-    .admin-view { flex: 1 1 auto; min-height: 0; container-type: size; display: flex; justify-content: center; align-items: flex-start }
-    .device.pc > .pc-body { grid-area: frame; display: flex; flex-direction: column; align-items: center;
-      width: min(100cqw - 48px, (100cqh - 64px) * 1366 / 768 + 20px) }
+    .admin-view { flex: 1 1 auto; min-height: 0; container-type: size; display: flex; justify-content: center; align-items: flex-start; overflow-y: auto }
+    /* La PC toma TODO EL ANCHO del editor (2026-10-21; antes, el menor entre el ancho y lo que dejaba el alto): la pantalla
+       es una imagen del admin a 1366×768, así que más ancho es más legible. Si queda más alta que el editor, scrollea. */
+    .device.pc > .pc-body { grid-area: frame; display: flex; flex-direction: column; align-items: center; width: calc(100cqw - 48px) }
     .pc-frame { box-sizing: border-box; width: 100%; border: 10px solid var(--muted); border-bottom-width: 14px; border-radius: 12px 12px 4px 4px;
       background: var(--card); box-shadow: 0 0 0 1px var(--border); overflow: hidden }
     .pc-screen { position: relative; inset: auto; width: 100%; aspect-ratio: 1366 / 768 }
@@ -655,7 +655,7 @@
           <!-- PRODUCCIÓN, SÓLO PARA MIRAR: en el modo prod la barra lista el catálogo de prod (por Redash) en vez de tus
                comercios. Elegir uno abre su FICHA en una pestaña: su asesor de prueba, su sucursal falsa y sus entidades. -->
           <div class="tree prod-tree" id="prodList" role="tree" aria-label="Comercios de producción"></div>
-          <section class="view admin-tree" id="adminView" aria-label="Admin">
+          <section class="view admin-tree" id="adminSide" aria-label="Admin">
             <div class="region-head"><button type="button" class="view-tog" id="adminViewTog" aria-expanded="false"><span class="ui-icon" data-icon="chevron" aria-hidden="true"></span><span>Admin</span></button></div>
             <div class="region-body tree" id="adminViewBody" role="group" hidden>
             <div class="row" id="adminRow" role="treeitem" tabindex="0" aria-selected="false" title="El admin de legacy-application del ambiente elegido, ya logueado, en una pestaña del editor">
@@ -1620,7 +1620,7 @@
 
     /** El Admin es una vista FIJA del marcado: su chevron se engancha una vez, con la misma preferencia que las demás. */
     function wireAdminView() {
-      const sec = $('adminView'), tog = $('adminViewTog'), body = $('adminViewBody');
+      const sec = $('adminSide'), tog = $('adminViewTog'), body = $('adminViewBody');
       if (!sec || sec.dataset.wired) return;
       sec.dataset.wired = '1';
       const apply = (open) => { sec.classList.toggle('open', open); tog.setAttribute('aria-expanded', String(open)); body.hidden = !open; };
@@ -1636,7 +1636,9 @@
       wireAdminView();
       const g = $('results');
       // El Admin es una vista FIJA (su fila tiene sus manejadores): se saca antes de limpiar y vuelve al final.
-      const adminView = $('adminView');
+      // ⚠ `adminSide`, no `adminView`: ése es la pantalla del admin en el editor. Con los dos con el mismo id, la pestaña
+      // Admin prendía la vista de la barra y el editor quedaba en blanco.
+      const adminView = $('adminSide');
       adminView?.remove();
       g.innerHTML = '';
 
