@@ -4,6 +4,7 @@ title: "Sucursal y asesor de prueba al crear un comercio"
 ramas: feat/usuario-y-sucursal-de-prueba-al-crear-comercio, feat/asesor-de-prueba-marca-is-test, fix/timeout-validacion-correo, feat/permiso-pool-merchants-dev, fix/timeout-validacion-correo-main, fix/region-cognito-comercios-por-defecto, fix/region-cognito-comercios-main
 stage: work
 created: "2026-10-01T10:48:29-05:00"
+archived: "2026-10-22T10:25:25-05:00"
 knowledge: [merchant-onboarding]
 canon: [comercio, sucursal, asesor, actores]
 jira: [CORE-683]
