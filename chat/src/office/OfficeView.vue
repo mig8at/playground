@@ -9,6 +9,9 @@
  */
 import { onBeforeUnmount, onMounted, ref } from 'vue'
 import { createOffice, ZONES } from './scene.js'
+import { useCharactersStore, MAX_IN_OFFICE } from '../stores/characters.js'
+
+const characterStore = useCharactersStore()
 
 const host = ref(null)
 const active = ref('overview')
@@ -24,7 +27,9 @@ function toggleSpin() {
 
 onMounted(() => {
   try {
-    office = createOffice(host.value, { onFocus: (id) => { active.value = id } })
+    // Los personajes que creaste (hasta MAX_IN_OFFICE), como están al abrir la vista.
+    const characters = JSON.parse(JSON.stringify(characterStore.characters.slice(0, MAX_IN_OFFICE)))
+    office = createOffice(host.value, { onFocus: (id) => { active.value = id }, characters })
     // Con movimiento reducido, quieta desde el principio.
     spinning.value = !window.matchMedia('(prefers-reduced-motion: reduce)').matches
     office.setAutoRotate(spinning.value)

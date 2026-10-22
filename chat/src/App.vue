@@ -16,13 +16,15 @@ import { computed, defineAsyncComponent, nextTick, onBeforeUnmount, onMounted, r
 import { useChatStore } from './stores/chat.js'
 // La oficina 3D trae Three.js: se baja recién cuando se abre, no con el chat.
 const OfficeView = defineAsyncComponent(() => import('./office/OfficeView.vue'))
+// El creador de personajes también trae Three.js: se baja cuando se abre.
+const CharacterStudio = defineAsyncComponent(() => import('./office/CharacterStudio.vue'))
 import {
   vResize, readSize, saveSize, fitRegions, cssSize, bindThemeToggle, readHashRoute, hashRoute, setRoute,
 } from './workbench.js'
 
 const chat = useChatStore()
 
-// ── la ruta: #/c/<correo> la conversación · #/oficina la oficina en 3D ──
+// ── la ruta: #/c/<correo> la conversación · #/oficina la oficina en 3D · #/personajes el creador ──
 // En la oficina no queda ninguna conversación abierta (si no, se darían por leídas sin verse); la última se
 // recuerda para volver a ella con «Chat».
 const view = ref('chat')
@@ -31,11 +33,14 @@ function routeKey() {
   const { parts } = readHashRoute()
   return parts[0] === 'c' && parts[1] ? decodeURIComponent(parts[1]).toLowerCase() : ''
 }
+// Las vistas que no son el chat, por su ruta.
+const VIEW_ROUTES = { oficina: 'office', personajes: 'studio' }
 function applyRoute() {
-  if (readHashRoute().parts[0] === 'oficina') {
+  const routed = VIEW_ROUTES[readHashRoute().parts[0]]
+  if (routed) {
     if (chat.activeKey) lastKey = chat.activeKey
     chat.activeKey = ''
-    view.value = 'office'
+    view.value = routed
     return
   }
   view.value = 'chat'
@@ -45,7 +50,8 @@ function applyRoute() {
   else chat.activeKey = ''
 }
 function currentHash() {
-  if (view.value === 'office') return hashRoute(['oficina'])
+  const route = Object.keys(VIEW_ROUTES).find((r) => VIEW_ROUTES[r] === view.value)
+  if (route) return hashRoute([route])
   return chat.activeKey ? hashRoute(['c', chat.activeKey]) : ''
 }
 watch([view, () => chat.activeKey], () => {
@@ -56,15 +62,16 @@ function openChat(person) {
   view.value = 'chat'
   chat.open(person)
 }
-function toggleOffice() {
-  if (view.value === 'office') {
+// Abre una vista (la oficina o el creador) o, si ya está abierta, vuelve al chat donde estaba.
+function toggleView(name) {
+  if (view.value === name) {
     view.value = 'chat'
     if (lastKey && chat.conversations[lastKey]) chat.open(chat.conversations[lastKey].person)
     return
   }
   if (chat.activeKey) lastKey = chat.activeKey
   chat.activeKey = ''
-  view.value = 'office'
+  view.value = name
 }
 
 // ── las regiones: el sidebar a la izquierda, con el contrato de la base ──
@@ -254,6 +261,13 @@ const statusText = computed(() => {
         </div>
         <OfficeView />
       </template>
+      <template v-else-if="view === 'studio'">
+        <div class="region-head">
+          <span>Personajes</span>
+          <span class="count">forma y colores de quienes trabajan en la oficina</span>
+        </div>
+        <CharacterStudio />
+      </template>
       <template v-else>
       <div class="region-head">
         <template v-if="chat.active">
@@ -333,8 +347,11 @@ const statusText = computed(() => {
         {{ statusText }}<template v-if="chat.me"> · {{ chat.me.email }}</template>
       </span>
       <span v-if="chat.state?.since && listening">desde las {{ clock(chat.state.since) }}</span>
-      <button type="button" class="statusbar-item office-toggle" :aria-pressed="view === 'office'" @click="toggleOffice">
+      <button type="button" class="statusbar-item office-toggle" :aria-pressed="view === 'office'" @click="toggleView('office')">
         {{ view === 'office' ? 'Volver al chat' : 'Oficina 3D' }}
+      </button>
+      <button type="button" class="statusbar-item office-toggle" :aria-pressed="view === 'studio'" @click="toggleView('studio')">
+        {{ view === 'studio' ? 'Volver al chat' : 'Personajes' }}
       </button>
       <div class="layout-controls" role="group" aria-label="Tema y regiones visibles">
         <button ref="themeToggle" type="button" class="region-action theme-toggle"><span class="ui-icon" aria-hidden="true"></span></button>

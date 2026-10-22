@@ -1,4 +1,5 @@
-/* LA GENTE DE LA OFICINA — los cuatro personajes del kit de cubos caminando, sentándose y esquivándose.
+/* LA GENTE DE LA OFICINA — los personajes que creaste (forma del kit y colores) caminando, sentándose y
+ * esquivándose.
  *
  * Por dónde se camina: una grilla de 0,5 sobre el piso de la oficina. Una celda está bloqueada si cae dentro de
  * un mueble, un tabique o el borde de los muros (cada obstáculo, inflado por el radio de una persona). Los
@@ -20,13 +21,13 @@
  */
 import * as THREE from 'three'
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js'
+import { makeCharacter } from './appearance.js'
 
 const CELL = 0.5
 const RADIUS = 0.55          // la holgura contra muebles y muros (lo justo para pasar por las puertas)
 const PERSONAL = 0.8         // la mitad de la distancia mínima entre dos personas: miden ~1,3 de ancho con los brazos
 const WALK_SPEED = 1.7
 const TURN_SPEED = 8
-const MODELS = ['Character_Male_1', 'Character_Female_1', 'Character_Male_2', 'Character_Female_2']
 // El gato del kit mide 1,87 de alto a su escala: al 40 % queda en ~0,75, de gato al lado de un personaje de 2,7.
 const PETS = [{ name: 'Cat', url: '/animals/Cat.gltf', scale: 0.4, radius: 0.45, speed: 1.2, gestures: ['Idle_Eating', 'Idle'] }]
 
@@ -159,7 +160,7 @@ function applySitPose(rig, weight) {
 
 const lerpAngle = (a, b, t) => a + Math.atan2(Math.sin(b - a), Math.cos(b - a)) * t
 
-export function createPeople(scene, { half, obstacles, seats: allSeats }) {
+export function createPeople(scene, { half, obstacles, seats: allSeats, characters = [] }) {
   const grid = makeGrid(half, obstacles)
   // El punto desde donde se llega a cada asiento va a la celda libre más cercana; si queda lejos del asiento
   // (el mueble está encerrado), ese asiento no se usa.
@@ -228,14 +229,15 @@ export function createPeople(scene, { half, obstacles, seats: allSeats }) {
 
   // Una persona o una mascota: las dos caminan igual por la grilla. La mascota no se sienta, es más chica y
   // más lenta, y cede el paso a todos (prioridad -1).
-  function spawn({ name, url, scale = 1, radius = PERSONAL, speed = WALK_SPEED, pet = false, gestures = null }, index) {
-    loader.load(url, (gltf) => {
+  // Un personaje se arma con su forma y sus colores (appearance.js); una mascota se baja tal cual.
+  function spawn({ name, url, base, colors, scale = 1, radius = PERSONAL, speed = WALK_SPEED, pet = false, gestures = null }, index) {
+    const ready = base ? makeCharacter(base, colors) : loader.loadAsync(url).then((g) => ({ model: g.scene, animations: g.animations }))
+    ready.then(({ model, animations }) => {
       if (disposed) return
-      const model = gltf.scene
       model.scale.setScalar(scale)
       model.traverse((o) => { if (o.isMesh) { o.castShadow = true; o.receiveShadow = true } })
       const mixer = new THREE.AnimationMixer(model)
-      const actions = Object.fromEntries(gltf.animations.map((clip) => [clip.name, mixer.clipAction(clip)]))
+      const actions = Object.fromEntries(animations.map((clip) => [clip.name, mixer.clipAction(clip)]))
       const person = {
         name, model, mixer, actions, current: null, rig: setupSitPose(model), priority: pet ? -1 : index,
         pet, radius, speed, gestures,
@@ -247,10 +249,10 @@ export function createPeople(scene, { half, obstacles, seats: allSeats }) {
       scene.add(model)
       people.push(person)
       play(person, 'Idle', 0)
-    })
+    }).catch(() => { /* sin ese modelo: la oficina sigue con los demás */ })
   }
-  MODELS.forEach((name, i) => spawn({ name, url: `/characters/${name}.gltf` }, i))
-  PETS.forEach((pet, i) => spawn({ ...pet, pet: true }, MODELS.length + i))
+  characters.forEach((c, i) => spawn({ name: c.name, base: c.base, colors: c.colors }, i))
+  PETS.forEach((pet, i) => spawn({ ...pet, pet: true }, characters.length + i))
 
   const tmp = new THREE.Vector2()
   function update(dt) {

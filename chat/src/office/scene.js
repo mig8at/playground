@@ -334,7 +334,7 @@ function buildLabels(scene) {
 
 const zoneAt = (x, z) => ZONES.find((zone) => zone.area && x >= zone.area[0] && x <= zone.area[2] && z >= zone.area[1] && z <= zone.area[3])
 
-export function createOffice(container, { onFocus, onHover } = {}) {
+export function createOffice(container, { onFocus, onHover, characters = [] } = {}) {
   const scene = new THREE.Scene()
 
   const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true })
@@ -402,7 +402,7 @@ export function createOffice(container, { onFocus, onHover } = {}) {
   obstacles = []
   buildZones(scene)
   // La gente camina por la oficina esquivando lo de arriba (y a los demás), y se sienta donde puede.
-  const people = createPeople(scene, { half: HALF, obstacles, seats: collectSeats() })
+  const people = createPeople(scene, { half: HALF, obstacles, seats: collectSeats(), characters })
   const highlights = buildHighlights(scene)
   const labels = buildLabels(scene)
 
