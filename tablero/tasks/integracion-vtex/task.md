@@ -49,7 +49,7 @@ ramas: core-800-vtex-payment-link
 - [x] ~~Confirmar el cobro real de un pedido VTEX~~ — 2026-10-22: el pedido `1670710500205-01`, facturado a mano por
       la API de OMS, cobró por el conector (`settlements` 200 con `settleId`) y la transacción quedó `Finished`. VTEX
       cobra al FACTURAR, no a las 6 h: el pedido del 2026-10-20 (`1670270500201-01`) sigue aprobado sin cobrar.
-- [x] ~~Que el conector traduzca el tipo de documento de VTEX~~ — 66084e1, subido al PR #21 el 2026-10-22:
+- [x] ~~Que el conector traduzca el tipo de documento de VTEX~~ — hoy en el commit único del PR #21 (182943a, junto con el conector):
       `cedulaCOL` → `CC` en `paymentLinkBody`; en qa el pedido 7983 guardó `CC` y su contexto lo devuelve como `CC`.
       Otros tipos de Colombia que VTEX pueda mandar (extranjería, pasaporte) no se vieron todavía: pasan tal cual.
 - [ ] Decidir si se restringe el modo Test Suite antes de producción (hoy cualquier llamada con
