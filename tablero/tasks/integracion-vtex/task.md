@@ -170,7 +170,9 @@ cd ~/Desktop/CREDITOP/github/vtex && vtex link
 - Test Suite: `https://migueldev--creditop.myvtex.com/admin/test-suite/payment-provider`, Service URL
   `https://migueldev--creditop.myvtex.com/_v/creditop.creditop/v4`, AppKey `530aa4f7`, AppToken = el token de esa sucursal.
 - Compra real: `https://migueldev--creditop.myvtex.com`, pagar con Creditop → wizard de qa → simulador de qa (estado 11)
-  → la transacción pasa a `Approved`.
+  → la transacción pasa a `Approved`. El simulador no está en el gateway público (da `Not Found`): va por la dirección
+  interna de qa, con la VPN de dev:
+  `curl -X POST http://legacy-backend-qa.inertia-develop/simulator/aggregator-result -H 'Content-Type: application/json' -d '{"user_request_id":<solicitud>,"status":11}'`.
 - Sin cuenta VTEX: la tienda demo hace de VTEX completo, en local o contra qa (`make harness-store`, modo qa en
   harness/CLAUDE.md).
 
