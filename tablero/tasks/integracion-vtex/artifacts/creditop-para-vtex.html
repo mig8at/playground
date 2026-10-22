@@ -86,7 +86,7 @@ footer ul{margin:6px 0 0;padding-left:18px}
   <span class="eyebrow">Loan Origination · Integraciones ecommerce</span>
   <h1>Creditop para <em>VTEX</em></h1>
   <p class="lead">Una tienda VTEX ofrece Creditop como medio de pago en su checkout. El comprador solicita su crédito y, si se aprueba, VTEX da el pago por aprobado, lo cobra, y el pedido queda atribuido a la sucursal del comercio.</p>
-  <span class="meta">Estado al 21 de octubre de 2026 · Responsable: Miguel Ochoa</span>
+  <span class="meta">Estado al 22 de octubre de 2026 · Responsable: Miguel Ochoa</span>
 </header>
 
 <main>
@@ -94,7 +94,8 @@ footer ul{margin:6px 0 0;padding-left:18px}
     <div class="status">
       <span class="dot" aria-hidden="true"></span>
       <div>
-        <strong>Funciona de punta a punta en QA, con la cuenta VTEX real</strong>
+        <strong>Funciona de punta a punta en QA, con la cuenta VTEX real: compra, aprobación y cobro</strong>
+        El 22 de octubre se repitió con una segunda compra (pedido VTEX <code>1670710500205-01</code>, $1.211.277,80 COP): aprobada y, al facturar el pedido, VTEX la cobró por la app de Creditop y la transacción quedó <code>Finished</code>.<br><br>
         Compra en la tienda VTEX (workspace de desarrollo) → solicitud en Creditop → aprobada → transacción <code>Approved</code> en VTEX. Último caso: pedido VTEX <code>1670270500201-01</code> por $969.023 COP, pedido de ecommerce 7970, solicitud 503824, comercio de prueba 363, plataforma VTEX. Y la <strong>Payment Provider Test Suite pasa 7 de 7</strong>, el requisito técnico de la homologación.
       </div>
     </div>
@@ -228,7 +229,7 @@ sequenceDiagram
         <thead><tr><th>Pendiente</th><th>Quién</th><th>Estado</th></tr></thead>
         <tbody>
           <tr><td>Pasar la Test Suite completa</td><td>Ingeniería</td><td><span class="pill done">7 de 7</span></td></tr>
-          <tr><td>Confirmar el cobro (settle) real, que VTEX hace al facturar o a las 6 horas</td><td>Ingeniería</td><td><span class="pill next">Siguiente</span></td></tr>
+          <tr><td>Confirmar el cobro (settle) real, que VTEX hace al facturar el pedido</td><td>Ingeniería</td><td><span class="pill done">Probado</span></td></tr>
           <tr><td>Subir los últimos cambios del conector y revisar los PRs (<a href="https://github.com/Creditop-SAS/vtex/pull/21">vtex#21</a>, <a href="https://github.com/Creditop-SAS/legacy-backend/pull/1693">legacy-backend#1693</a>)</td><td>Ingeniería</td><td><span class="pill next">Siguiente</span></td></tr>
           <tr><td>Revisar la seguridad del modo de prueba: hoy cualquier llamada con la marca de Test Suite recibe respuestas de prueba</td><td>Ingeniería</td><td><span class="pill next">Siguiente</span></td></tr>
           <tr><td>Definir qué es cancelar y reembolsar una compra financiada (hoy el conector niega ambas en llamadas reales)</td><td>Producto</td><td><span class="pill block">Espera definición</span></td></tr>
