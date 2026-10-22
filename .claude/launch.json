@@ -16,6 +16,10 @@
       "runtimeExecutable": "env",
       "runtimeArgs": [
         "PANEL_PORT=5196",
+        "HARNESS_DEVICES=0",
+        "HARNESS_MOCKS=0",
+        "HARNESS_PREBOOT=0",
+        "HARNESS_DEVICES_SLOT=1",
         "npm",
         "run",
         "dev"
@@ -32,6 +36,28 @@
       ],
       "cwd": "${workspaceFolder}/tablero",
       "port": 5191,
+      "autoPort": false
+    },
+    {
+      "name": "tablero-alt",
+      "runtimeExecutable": "sh",
+      "runtimeArgs": [
+        "-c",
+        "(cd server && WEB_PORT=8790 exec go run ./cmd/web) & VITE_TABLERO_API=http://localhost:8790 exec npx vite --port 5296 --strictPort"
+      ],
+      "cwd": "${workspaceFolder}/tablero",
+      "port": 5296,
+      "autoPort": false
+    },
+    {
+      "name": "chat",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": [
+        "run",
+        "dev"
+      ],
+      "cwd": "chat",
+      "port": 5184,
       "autoPort": false
     },
     {
