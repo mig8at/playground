@@ -44,6 +44,8 @@ export const useChatStore = defineStore('chat', () => {
   const onlineError = ref('')
   const listenBusy = ref(false)
   const listenError = ref('')
+  // Los agentes (server/agents.go): conversaciones con algo que no es una persona. Su clave es `agent:<id>`.
+  const agents = ref([])
 
   watch(conversations, (value) => {
     try { localStorage.setItem(STORAGE_KEY, JSON.stringify(value)) } catch { /* sin almacenamiento: vive mientras la pestaña */ }
@@ -61,16 +63,26 @@ export const useChatStore = defineStore('chat', () => {
   }
 
   // Las conversaciones, la de actividad más reciente primero.
+  const summarize = (c) => {
+    const last = c.messages.at(-1) || null
+    const unread = c.messages.filter((m) => m.dir === 'in' && m.time > (c.readAt || '')).length
+    return { ...c, last, unread, online: onlineKeys.value.has(c.person.email) }
+  }
+  const isAgentKey = (key) => String(key).startsWith('agent:')
+  // Las conversaciones con personas (los agentes van en su propia sección).
   const list = computed(() => Object.values(conversations.value)
-    .map((c) => {
-      const last = c.messages.at(-1) || null
-      const unread = c.messages.filter((m) => m.dir === 'in' && m.time > (c.readAt || '')).length
-      return { ...c, last, unread, online: onlineKeys.value.has(c.person.email) }
-    })
+    .filter((c) => !isAgentKey(c.person.email))
+    .map(summarize)
     .sort((a, b) => (b.last?.time || '').localeCompare(a.last?.time || '')))
 
+  // Los agentes, con su conversación (si ya hubo una) para mostrar el último mensaje y lo no leído.
+  const agentList = computed(() => agents.value.map((a) => {
+    const key = `agent:${a.id}`
+    const c = conversations.value[key]
+    return { ...a, key, ...(c ? summarize(c) : { last: null, unread: 0 }) }
+  }))
   const active = computed(() => conversations.value[activeKey.value] || null)
-  const unreadTotal = computed(() => list.value.reduce((n, c) => n + c.unread, 0))
+  const unreadTotal = computed(() => list.value.reduce((n, c) => n + c.unread, 0) + agentList.value.reduce((n, a) => n + a.unread, 0))
 
   function absorb(messages) {
     for (const m of messages || []) {
@@ -98,6 +110,14 @@ export const useChatStore = defineStore('chat', () => {
       stateError.value = ''
       absorb(state.value.messages)
     } catch (e) { stateError.value = `no pude hablar con la API de chat: ${e.message}` }
+  }
+
+  async function loadAgents() {
+    try { agents.value = (await api('/api/agents')).agents || [] } catch { agents.value = [] }
+  }
+
+  function openAgent(agent) {
+    open({ email: `agent:${agent.id}`, name: agent.name, agent: true, detail: agent.detail })
   }
 
   async function loadOnline() {
@@ -130,10 +150,26 @@ export const useChatStore = defineStore('chat', () => {
                       time: new Date().toISOString(), status: 'sending' }
     c.messages.push(message)
     const stored = () => c.messages.find((m) => m.id === message.id)
+    if (isAgentKey(c.person.email)) return askAgent(c, body, stored)
     try {
       const r = await api('/api/send', { method: 'POST', headers: { 'content-type': 'application/json' },
                                          body: JSON.stringify({ to: c.person.email, text: body }) })
       Object.assign(stored(), { status: 'sent', delivered: r.delivered })
+    } catch (e) {
+      Object.assign(stored(), { status: 'error', error: e.message })
+    }
+  }
+
+  // Un mensaje a un agente no sale por el chat del playground: va a su endpoint, y su respuesta entra como un
+  // mensaje recibido (con `format`, para mostrar el JSON como código).
+  async function askAgent(c, text, stored) {
+    const id = c.person.email.slice('agent:'.length)
+    try {
+      const r = await api(`/api/agents/${id}`, { method: 'POST', headers: { 'content-type': 'application/json' },
+                                                 body: JSON.stringify({ text }) })
+      Object.assign(stored(), { status: 'sent', delivered: 1 })
+      c.messages.push({ id: `agent|${Date.now()}`, dir: 'in', text: r.reply, format: r.format || 'text', time: new Date().toISOString() })
+      markActiveRead()
     } catch (e) {
       Object.assign(stored(), { status: 'error', error: e.message })
     }
@@ -165,6 +201,7 @@ export const useChatStore = defineStore('chat', () => {
       onlineTimer = setTimeout(tickOnline, POLL_ONLINE_MS)
     }
     loadState().then(loadOnline)
+    loadAgents()
     stateTimer = setTimeout(tickState, POLL_STATE_MS)
     onlineTimer = setTimeout(tickOnline, POLL_ONLINE_MS)
     document.addEventListener('visibilitychange', markActiveRead)
@@ -176,7 +213,7 @@ export const useChatStore = defineStore('chat', () => {
 
   return {
     conversations, activeKey, state, stateError, online, onlineError, listenBusy, listenError,
-    me, meKey, list, active, unreadTotal, onlineKeys,
-    loadState, loadOnline, startListening, open, send, retry, forget, start, stop,
+    me, meKey, list, active, unreadTotal, onlineKeys, agents, agentList,
+    loadState, loadOnline, loadAgents, startListening, open, openAgent, send, retry, forget, start, stop,
   }
 })

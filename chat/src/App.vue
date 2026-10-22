@@ -135,6 +135,11 @@ const onlineWithoutChat = computed(() => chat.online.filter((p) => {
   return key !== chat.meKey && !chat.conversations[key]
 }))
 const activeOnline = computed(() => chat.active && chat.onlineKeys.has(chat.active.person.email))
+const activeIsAgent = computed(() => !!chat.active?.person.agent)
+function openAgentChat(agent) {
+  view.value = 'chat'
+  chat.openAgent(agent)
+}
 
 // ── el campo para contestar: Enter manda, Shift+Enter baja de renglón ──
 const draft = ref('')
@@ -250,6 +255,30 @@ const statusText = computed(() => {
             </button>
           </li>
         </ul>
+
+        <!-- Los agentes: conversaciones con algo que no es una persona. Por ahora, el de Jira. -->
+        <div class="region-head group">
+          <span>Agentes</span>
+          <span class="count">{{ chat.agentList.length }}</span>
+        </div>
+        <p v-if="!chat.agentList.length" class="side-note">No hay agentes disponibles: ¿está corriendo el server de chat?</p>
+        <ul v-else class="conversations">
+          <li v-for="a in chat.agentList" :key="a.key">
+            <button type="button" class="conversation" :class="{ on: a.key === chat.activeKey }" @click="openAgentChat(a)">
+              <span class="avatar agent" aria-hidden="true">{{ a.name.split(' ').at(-1)[0] }}</span>
+              <span class="conversation-main">
+                <span class="conversation-top">
+                  <b class="name">{{ a.name }}</b>
+                  <span class="when">{{ shortWhen(a.last?.time) }}</span>
+                </span>
+                <span class="conversation-bottom">
+                  <span class="snippet">{{ a.last ? (a.last.format === 'json' ? 'respondió con tus tareas' : a.last.text) : a.detail }}</span>
+                  <span v-if="a.unread" class="unread">{{ a.unread }}</span>
+                </span>
+              </span>
+            </button>
+          </li>
+        </ul>
       </div>
     </aside>
 
@@ -272,7 +301,8 @@ const statusText = computed(() => {
       <div class="region-head">
         <template v-if="chat.active">
           <span>{{ chat.active.person.name || chat.active.person.email }}</span>
-          <span class="count">{{ activeOnline ? 'conectado' : 'desconectado' }} · {{ handle(chat.active.person) }}</span>
+          <span v-if="activeIsAgent" class="count">agente · {{ chat.active.person.detail }}</span>
+          <span v-else class="count">{{ activeOnline ? 'conectado' : 'desconectado' }} · {{ handle(chat.active.person) }}</span>
           <div class="region-actions">
             <button type="button" class="region-action" title="Borrar esta conversación de este navegador"
                     aria-label="Borrar esta conversación de este navegador" @click="forgetActive">
@@ -315,7 +345,8 @@ const statusText = computed(() => {
             <div v-if="item.kind === 'day'" class="day"><span>{{ item.label }}</span></div>
             <div v-else class="bubble-row" :class="item.dir">
               <div class="bubble" :class="{ failed: item.status === 'error' }">
-                <p class="text">{{ item.text }}</p>
+                <pre v-if="item.format === 'json'" class="text json">{{ item.text }}</pre>
+                <p v-else class="text">{{ item.text }}</p>
                 <span class="meta">
                   {{ clock(item.time) }}
                   <template v-if="item.dir === 'out'">
@@ -412,6 +443,11 @@ code { font-family: var(--font-mono); font-size: .92em }
   border-top: 1px solid var(--border) }
 .composer-text { height: auto; min-height: var(--control-md); max-height: 160px; padding-block: 7px; resize: none; line-height: 1.4;
   font: inherit; font-size: 14px }
+
+.avatar.agent { background: var(--office-accent); color: var(--office-accent-ink) }
+.json { font-family: var(--font-mono); font-size: 12px; line-height: 1.5; white-space: pre-wrap; overflow-x: auto; margin: 0;
+  max-height: 420px; overflow-y: auto }
+.bubble-row.in .bubble:has(.json) { max-width: min(720px, 92%) }
 
 /* ── el pie ── */
 .office-toggle { border: 0; background: transparent; color: inherit; font: inherit; cursor: pointer }

@@ -125,6 +125,7 @@ func handler() http.Handler {
 		}
 		writeJSON(w, http.StatusOK, map[string]bool{"ok": true})
 	})
+	agentHandlers(mux)
 	return mux
 }
 
