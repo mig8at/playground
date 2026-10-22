@@ -116,6 +116,8 @@ const arg = (n: string, d = ''): string => {
     return i > 0 && process.argv[i + 1] && !process.argv[i + 1].startsWith('--') ? process.argv[i + 1] : d;
 };
 const flag = (n: string) => process.argv.includes(`--${n}`);
+/** La fecha de expedición del formulario (`--expedition AAAA-MM-DD`), en las tres partes que pide la pantalla. */
+const issueOf = (ymd: string) => { const [y, m, d] = ymd.split('-').map(Number); return { issueDay: String(d), issueMonth: String(m), issueYear: String(y) }; };
 
 /**
  * ¿El buró sale de las CENTRALES (el lambda dictado) o se SIEMBRA en la base? Fuera de local, donde haya un lambda con
@@ -555,7 +557,7 @@ async function correr(c: Case, i: number): Promise<Result> {
             form = sheet === 'personal-info'
                 ? { intent: 'save-personal-info', documentType: docType, documentNumber: doc, name: arg('name') || 'CARLOS', surname: arg('surname') || 'RUIZ',   // `--name`/`--surname`: lo que escribe el asesor
                     email: `qa${doc}@gmail.com`, address: 'Calle 1 # 2-3', stratum: '3',
-                    issueDay: '10', issueMonth: '5', issueYear: '2019', birthDay: '10', birthMonth: '5', birthYear: '2001' }
+                    ...issueOf(arg('expedition') || '2019-05-10'), birthDay: '10', birthMonth: '5', birthYear: '2001' }   // `--expedition AAAA-MM-DD`: la fecha que escribe el asesor
                 : { employmentStatus: 'Empleado', monthlyIncome: String(INCOME) };
         } else if (sheet === 'lenders') {
             const lo = res.datos?.loanOptionsPromise;
