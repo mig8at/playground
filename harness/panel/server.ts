@@ -2802,6 +2802,36 @@ connect();
                 E2E_MERCHANT_SIGNATURE: auto && t !== 'prod' && ['valid', 'invalid'].includes(String(b.signature)) ? String(b.signature) : '',
             };
             const amount = String(Number(str(o.amount).replace(/\D/g, '')) || '');
+            // AUTOGESTIÓN: el cliente entra solo por `/self-service/{sucursal}/solicitar`, el tronco normal del wizard sin
+            // asesor. No hay pedido que armar: lo demás es lo mismo que por la tienda (limpieza del celular, OTP, centrales,
+            // autorrelleno, el OTP del servicio en la compartida, la identidad a mano y la cuota inicial).
+            if (b.channel === 'autogestion') {
+                const hash = branchHashForSlug(String(b.slug || ''), t);
+                if (!hash) return json(res, 200, { ok: false, detail: `no conozco la sucursal de ${b.slug} en ${t}` });
+                const phone = str(o.phone) || localLanePhone(laneIndex(laneOf(id)));
+                await releaseDevice(id);
+                const [scrub, bypass, bz] = await Promise.all([dbopsJson(['scrubphone', phone], t),
+                    sharedOtp(t) ? null : dbopsJson(['otp-bypass-add', phone], t),
+                    t === 'local' ? applyBureauModes(o, t) : dictateCompanyCase(o, t)]);
+                startDeviceLog(`${b.slug} (${t}) · autogestión · sucursal ${hash} · cel ${phone}`, laneOf(id));
+                const queueNote = await queueForMerchant(String(b.slug || ''), t);
+                if (queueNote) deviceLog(panelOf(id), queueNote);
+                if (bypass?.ok) { deviceBypass.set(id, { target: t, puesto: bypass.puesto }); deviceOtp.set(id, phone.slice(-4)); } else deviceOtp.delete(id);
+                const otp = bypass?.ok ? { otp: phone.slice(-4), otpBypass: bypass.puesto?.comodin ? 'comodín' : 'agregado' }
+                    : sharedOtp(t) ? {} : { otpBypassError: bypass?.motivo || 'no se pudo registrar el bypass del OTP' };
+                const front = await frontFor(t);
+                try {
+                    if (bz) deviceLog(panelOf(id), `burós (${bz.detalle}): ${(bz.burós || []).join(' · ')}`);
+                    deviceLog(panelOf(id), `autogestión: ${scrubSummary(scrub)} · OTP ${otp.otp ? 'resuelto (' + otp.otp + ')' : sharedOtp(t) ? 'del servicio' : 'SIN bypass'}`);
+                    const r = await openDevice(id, `${front.replace(/\/$/, '')}/self-service/${hash}/solicitar`, { autofill: caseAutofill(o, t) });
+                    otpFromService(id, t, phone);
+                    rescueIdentity(id, t, phone); rescueDownPayment(id, t, phone); watchFrontExceptions(id, t); watchCategories(id, t);
+                    rememberDevice(id, { target: t, slug: String(b.slug || ''), channel: 'autogestion', phone, order: o });
+                    return json(res, 200, { ok: true, hash, scrubbed: scrub, ...otp, ...r });
+                } catch (e) {
+                    return json(res, 200, { ok: false, detail: `el celular no pudo abrir la autogestión: ${(e as Error).message.split('\n')[0]}` });
+                }
+            }
             // LAS CONSULTAS VAN A LA VEZ, no una tras otra (eran ~1,2 s en fila, medido el 2026-10-06). Armar el
             // pedido sólo arma la URL (no escribe), así que no choca con la limpieza. El único orden que importa:
             // devolver el bypass del celular anterior ANTES de sumar el nuevo, que puede ser el mismo teléfono.

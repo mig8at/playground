@@ -1087,3 +1087,9 @@ UN celular de prod (cierra el otro) y le pone el mismo `prodPhones`: no se avanz
 «prod · <canal>» y el pie su canal. `selfServiceUrl` sale de `prodMerchant` (`pkg/prod-catalog.ts`). Verificado en un
 panel de prueba: Sonría por autogestión abrió `originaciones.creditop.com/self-service/d6b88e5e/solicitar` en el
 celular del cliente (sin completar nada; `advance` negado); Pullman por asesor abrió el login de prod en el del asesor.
+
+**Autogestión también tiene su ▶ (2026-10-21)**, en el celular del cliente: la apertura del cliente
+(`/api/device/client*/open` con `channel: 'autogestion'`) entra directo a `/self-service/<sucursal>/solicitar`, sin
+pedido, con lo mismo que por la tienda (limpieza del celular, bypass en local u OTP del servicio en la compartida,
+centrales, autorrelleno, identidad y cuota inicial a mano). Verificado en local: Sonría por autogestión llegó sola al
+listado (467506), pasando el OTP y la espera del pipeline de KYC. Sólo el QR sigue sin ▶.

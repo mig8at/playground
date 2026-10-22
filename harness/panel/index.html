@@ -3768,11 +3768,11 @@
 
     // ── ▶ EN EL CELULAR: INICIAR LA CORRIDA DE LA PESTAÑA, O REINICIARLA ──────────────────────────────────────────────
     // Va en el celular por el que ENTRA el canal de la pestaña: el del asesor por asesor, el del cliente por la tienda
-    // (ecommerce y auto, lo mismo que «Pagar con Creditop»). Autogestión y QR no se abren desde los celulares (van por
-    // «Corrida» del pie), así que ahí no hay ▶. Con el celular apagado dice «Iniciar»; si ya corrió, «Reiniciar», que
+    // (ecommerce y auto, lo mismo que «Pagar con Creditop») y por autogestión (directo a `/self-service/…`). El QR no se
+    // abre desde los celulares (va por «Corrida» del pie), así que ahí no hay ▶. Con el celular apagado dice «Iniciar»; si ya corrió, «Reiniciar», que
     // vuelve a abrir desde el principio con el mismo caso. Mientras carga, apagado.
     const phoneModes = { advisor: 'idle', client: 'idle' };
-    const entryPhone = () => channel === 'asesor' ? 'advisor' : (channel === 'ecommerce' || channel === 'auto') ? 'client' : null;
+    const entryPhone = () => channel === 'asesor' ? 'advisor' : ['ecommerce', 'auto', 'autogestion'].includes(channel) ? 'client' : null;
     function syncPlay() {
       // Se llama al arrancar, antes de que existan las pestañas (`currentTab` es un `const` más abajo).
       let t = null;
@@ -3802,6 +3802,8 @@
         const e = entryOf(sel.slug) || { slug: sel.slug, name: sel.name, hash: sel.slug };
         return playMerchant(e);
       }
+      // Por autogestión no hay tienda: el cliente entra directo. Por la tienda, lo mismo que «Pagar con Creditop».
+      if (channel === 'autogestion') return openClientBrowser();
       $('shopPay').click();
     }
     for (const b of document.querySelectorAll('.device-play')) b.addEventListener('click', () => playPhone(b.dataset.device));
@@ -3831,9 +3833,10 @@
       requestAnimationFrame(fitShop);
     }
     async function openClientBrowser() {
-      if (!(channel === 'ecommerce' || channel === 'auto') || !sel) return;
+      if (!(channel === 'ecommerce' || channel === 'auto' || channel === 'autogestion') || !sel) return;
       if (!(await claimDevices())) return;
-      setClientMode('loading', channel === 'auto' && target === 'local'
+      setClientMode('loading', channel === 'autogestion' ? 'Abriendo la autogestión en el celular del cliente…'
+        : channel === 'auto' && target === 'local'
         ? 'Levantando el wizard del auto-onboarding y abriendo el checkout… (si hay que compilarlo, tarda unos minutos)'
         : 'Abriendo el checkout en el celular del cliente… (la primera vez levanta su contenedor)');
       try {
