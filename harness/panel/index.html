@@ -314,6 +314,8 @@
     .run-tab-chan { color: var(--fg-3) }
     .tab.on .run-tab-chan { color: var(--fg-2) }
     .run-tab-live { width: 6px; height: 6px; border-radius: 50%; background: var(--ok); flex: none }
+    /* Con los celulares abiertos y todavía sin solicitud (en el monto, en el login): el contorno, sin relleno. */
+    .run-tab-live.idle { background: none; box-shadow: inset 0 0 0 1.5px var(--fg-3) }
     .tab-start[hidden], .tab-busy[hidden] { display: none }
     /* El modo prod: la barra lista prod, el centro muestra fichas y el sidebar derecho se ve apagado. */
     .prod-tree, .prod-ficha[hidden] { display: none }
@@ -4070,6 +4072,7 @@
     // si el servidor tiene abierto algún celular de ese carril (lo mira `pollLanes`).
     let tabSets = {}, tabsTarget = target, runTabs = [], activeTab = null, laneOwners = {}, tabSwitching = false;
     const laneBusyNow = {};
+    const laneRequests = {};   // la solicitud en curso de cada carril (`/api/lanes`), para el punto de la pestaña
     try {
       const saved = JSON.parse(localStorage.getItem(TABS_KEY) || 'null');
       if (saved && typeof saved === 'object') { tabSets = saved.sets || {}; laneOwners = saved.lanes || { a: saved.live || null }; }
@@ -4112,7 +4115,7 @@
       try {
         const r = await (await fetch('/api/lanes')).json();
         if (Array.isArray(r.lanes) && r.lanes.length) LANES = r.lanes;
-        for (const l of LANES) laneBusyNow[l] = !!r.open?.[l];
+        for (const l of LANES) { laneBusyNow[l] = !!r.open?.[l]; laneRequests[l] = r.requests?.[l] || null; }
       } catch { /* el panel no respondió: queda como estaba */ }
       renderTabs();
       if (!$('tabBusy').hidden || (currentTab() && !isOwner(currentTab()))) renderStage();
@@ -4154,7 +4157,12 @@
         label.type = 'button'; label.className = 'tab-label'; label.setAttribute('role', 'tab'); label.setAttribute('aria-selected', String(on));
         label.title = `${name} · ${chan}${t.preview ? ' · vista previa: la reemplaza el próximo comercio que elijas' : ''}`;
         if (isOwner(t) && laneBusy(laneOfTab(t))) {
-          const dot = document.createElement('span'); dot.className = 'run-tab-live'; dot.title = `los celulares del carril ${laneOfTab(t).toUpperCase()} son de esta corrida`;
+          // VERDE = hay una solicitud en curso en su carril (la del celular, `/api/lanes`); CONTORNO = los celulares están
+          // abiertos y todavía no hay solicitud.
+          const lane = laneOfTab(t), req = laneRequests[lane];
+          const dot = document.createElement('span'); dot.className = 'run-tab-live' + (req ? '' : ' idle');
+          dot.title = req ? `Solicitud #${req.ureq} en curso${req.screen ? ` · ${req.screen}` : ''} · carril ${lane.toUpperCase()}`
+            : `Los celulares del carril ${lane.toUpperCase()} son de esta corrida, todavía sin solicitud`;
           label.appendChild(dot);
         }
         const n = document.createElement('span'); n.textContent = name;

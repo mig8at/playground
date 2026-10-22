@@ -1093,3 +1093,10 @@ celular del cliente (sin completar nada; `advance` negado); Pullman por asesor a
 pedido, con lo mismo que por la tienda (limpieza del celular, bypass en local u OTP del servicio en la compartida,
 centrales, autorrelleno, identidad y cuota inicial a mano). Verificado en local: Sonría por autogestión llegó sola al
 listado (467506), pasando el OTP y la espera del pipeline de KYC. Sólo el QR sigue sin ▶.
+
+**El punto de la pestaña dice si hay una SOLICITUD en curso (2026-10-21).** Verde: el carril de la pestaña tiene una
+solicitud, y el tooltip dice cuál y en qué pantalla («Solicitud #467507 en curso · personal-info · carril A»). Contorno
+gris: los celulares están abiertos y todavía no hay solicitud (el monto, el login). La solicitud sale de `/api/lanes`
+(`requests`), que la lee de la URL de los celulares del carril, el cliente primero. ⚠ El segmento tiene que ser ENTERO
+y de 5 a 9 cifras: un hash de sucursal puede empezar con cinco cifras (`13874eb6` se leía como la solicitud 13874) y en
+la pantalla del OTP el segmento es el celular, de 10.

@@ -1797,7 +1797,22 @@ const server = createServer(async (req, res) => {
     // consulta en vez de preguntar celular por celular.
     if (path === '/api/lanes') {
         const opened = openDevices();
-        return json(res, 200, { lanes: LANES, open: perLane((l) => opened.some((d) => d !== 'admin' && laneOf(d) === l)) });
+        // LA SOLICITUD EN CURSO de cada carril: la que tiene en la URL alguno de sus celulares (el número de 5 o más cifras
+        // del camino, como `/merchant/<hash>/<solicitud>/lenders`). Va primero el cliente: después del traspaso es el que sigue.
+        const requestOf = (l: Lane) => {
+            for (const d of [inLane('client', l), inLane('advisor', l)]) {
+                const st = deviceState(d);
+                if (!st.open || !st.url) continue;
+                let pathname = '';
+                try { pathname = new URL(st.url).pathname; } catch { continue; }
+                // El segmento ENTERO tiene que ser el número —un hash de sucursal puede empezar con cinco cifras (`13874eb6`)— y
+                // de hasta 9: en la pantalla del OTP el segmento es el CELULAR (`/3131010101/otp`), de 10.
+                const m = /\/(\d{5,9})(?=\/|$)(?:\/([^/?]+))?/.exec(pathname);
+                if (m) return { ureq: Number(m[1]), screen: m[2] || '', device: d };
+            }
+            return null;
+        };
+        return json(res, 200, { lanes: LANES, open: perLane((l) => opened.some((d) => d !== 'admin' && laneOf(d) === l)), requests: perLane(requestOf) });
     }
     if (path === '/api/plan') {
         if (req.method === 'GET') return json(res, 200, { plan: readPlan() });
