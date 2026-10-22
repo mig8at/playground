@@ -66,7 +66,7 @@ func handler() http.Handler {
 			return
 		}
 		body.Listening, body.Connected, body.Since, body.Me = true, status.Connected, status.Since, status.Me
-		if messages, err := cli.Messages(ctx); err != nil {
+		if messages, err := cli.All(ctx); err != nil {
 			body.Error = err.Error()
 		} else {
 			body.Messages = messages
@@ -89,6 +89,7 @@ func handler() http.Handler {
 		var in struct {
 			To   string `json:"to"`
 			Text string `json:"text"`
+			Re   string `json:"re"`
 		}
 		if err := json.NewDecoder(http.MaxBytesReader(w, r.Body, 64<<10)).Decode(&in); err != nil {
 			fail(w, http.StatusBadRequest, errors.New("el cuerpo va en JSON: {to, text}"))
@@ -108,7 +109,7 @@ func handler() http.Handler {
 		}
 		ctx, cancel := context.WithTimeout(r.Context(), 20*time.Second)
 		defer cancel()
-		result, err := cli.Send(ctx, in.To, in.Text)
+		result, err := cli.Send(ctx, in.To, in.Text, strings.TrimSpace(in.Re))
 		if err != nil {
 			fail(w, http.StatusBadGateway, err)
 			return
@@ -124,6 +125,48 @@ func handler() http.Handler {
 			return
 		}
 		writeJSON(w, http.StatusOK, map[string]bool{"ok": true})
+	})
+	// Los agentes del equipo: los de cada persona conectada, que corren en su máquina.
+	mux.HandleFunc("GET /api/team-agents", func(w http.ResponseWriter, r *http.Request) {
+		ctx, cancel := context.WithTimeout(r.Context(), 10*time.Second)
+		defer cancel()
+		people, err := cli.Agents(ctx)
+		if err != nil {
+			fail(w, http.StatusBadGateway, err)
+			return
+		}
+		writeJSON(w, http.StatusOK, map[string]any{"people": people})
+	})
+
+	// Preguntarle a un agente del equipo. El home espera la respuesta hasta 45 s; si no llegó, contesta
+	// `pending` con el id, y la respuesta llega después entre los mensajes (con `re` = ese id).
+	mux.HandleFunc("POST /api/ask", func(w http.ResponseWriter, r *http.Request) {
+		var in struct {
+			To    string `json:"to"`
+			Agent string `json:"agent"`
+			Text  string `json:"text"`
+		}
+		if err := json.NewDecoder(http.MaxBytesReader(w, r.Body, 64<<10)).Decode(&in); err != nil {
+			fail(w, http.StatusBadRequest, errors.New("el cuerpo va en JSON: {to, agent, text}"))
+			return
+		}
+		in.To, in.Agent, in.Text = strings.TrimSpace(in.To), strings.TrimSpace(in.Agent), strings.TrimSpace(in.Text)
+		if in.To == "" || in.Agent == "" || in.Text == "" {
+			fail(w, http.StatusBadRequest, errors.New("falta a quién, qué agente o la pregunta"))
+			return
+		}
+		if len([]rune(in.Text)) > maxText {
+			fail(w, http.StatusRequestEntityTooLarge, fmt.Errorf("la pregunta pasa de %d caracteres", maxText))
+			return
+		}
+		ctx, cancel := context.WithTimeout(r.Context(), 70*time.Second)
+		defer cancel()
+		result, err := cli.Ask(ctx, in.To, in.Agent, in.Text)
+		if err != nil {
+			fail(w, http.StatusBadGateway, err)
+			return
+		}
+		writeJSON(w, http.StatusOK, result)
 	})
 	agentHandlers(mux)
 	return mux

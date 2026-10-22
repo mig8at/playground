@@ -18,7 +18,15 @@
   --bubble-theirs: var(--muted);
   --presence-on: #15803d;
   --send-fail: #b91c1c;
-  /* La oficina 3D: un fondo grafito, sobrio, y el morado de CreditOp sólo para lo activo. */
+  /* La cita de un mensaje: una regla del acento y un fondo que apenas se separa de la burbuja. */
+  --quote-rule: var(--primary);
+  --quote-bg: color-mix(in oklab, var(--foreground) 6%, transparent);
+  /* Los agentes: un cuadrado neutro; el tuyo, con el morado de CreditOp. */
+  --agent-bg: color-mix(in oklab, var(--foreground) 14%, var(--background));
+  --agent-ink: var(--foreground);
+  --agent-mine-bg: #4c39ff;
+  --agent-mine-ink: #ffffff;
+  /* La oficina 3D (src/office, fuera de la interfaz por ahora). */
   --office-bg: #1c1c21;
   --office-glow: #34343c;
   --office-chip: rgb(255 255 255 / .86);
@@ -31,6 +39,7 @@
 }
 .dark {
   --bubble-mine: color-mix(in oklab, var(--primary) 30%, var(--background));
+  --quote-bg: color-mix(in oklab, var(--foreground) 9%, transparent);
   --presence-on: #4ade80;
   --send-fail: #f87171;
   --office-bg: #131316;

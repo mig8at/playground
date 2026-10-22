@@ -32,9 +32,19 @@ type Person struct {
 	Terminals int    `json:"terminals,omitempty"`
 }
 
-// Message es un mensaje recibido, tal como lo guarda `playground listen`.
+// Message es un mensaje como lo guarda `playground listen`: lo que llegó (Dir "in") y lo que se mandó desde
+// esta máquina con el CLI (Dir "out", con To en lugar de From).
+//
+//   - ID es el que pone el home; Re, el id del mensaje que contesta.
+//   - Agent, en uno que llegó: sin Re, alguien le preguntó a uno de TUS agentes; con Re, es la respuesta tardía
+//     del agente de otra persona a una pregunta tuya. En uno mandado: la pregunta que quedó esperando.
 type Message struct {
+	ID      string `json:"id,omitempty"`
+	Re      string `json:"re,omitempty"`
+	Dir     string `json:"dir,omitempty"`
 	From    Person `json:"from"`
+	To      string `json:"to,omitempty"`
+	Agent   string `json:"agent,omitempty"`
 	Text    string `json:"text"`
 	Time    string `json:"time"`
 	Display string `json:"display,omitempty"`
@@ -117,8 +127,8 @@ func ListenStatus(ctx context.Context) (*Status, error) {
 	return &s, nil
 }
 
-// Messages devuelve lo que recibió `playground listen` (los últimos que guarda), del más viejo al más nuevo.
-func Messages(ctx context.Context) ([]Message, error) {
+// All devuelve lo que tiene `playground listen`, lo recibido y lo mandado desde el CLI, del más viejo al más nuevo.
+func All(ctx context.Context) ([]Message, error) {
 	out, err := run(ctx, nil, "messages", "--json")
 	if err != nil {
 		return nil, err
@@ -128,6 +138,21 @@ func Messages(ctx context.Context) ([]Message, error) {
 		return nil, errors.New("el CLI devolvió algo que no es una lista de mensajes")
 	}
 	return messages, nil
+}
+
+// Messages devuelve sólo lo recibido (lo que lee la vista de mensajes del tablero).
+func Messages(ctx context.Context) ([]Message, error) {
+	all, err := All(ctx)
+	if err != nil {
+		return nil, err
+	}
+	received := []Message{}
+	for _, m := range all {
+		if m.Dir != "out" {
+			received = append(received, m)
+		}
+	}
+	return received, nil
 }
 
 // Listen prende `playground listen`, lo mismo que correrlo en la terminal: el CLI lo desprende, así que
@@ -153,10 +178,12 @@ func Online(ctx context.Context) ([]Person, error) {
 	return body.Online, nil
 }
 
-// SendResult es lo que contesta el home al mandar.
+// SendResult es lo que contesta el home al mandar: a cuántas terminales llegó, a quién, y el id del mensaje.
 type SendResult struct {
 	Delivered int    `json:"delivered"`
 	To        string `json:"to"`
+	ID        string `json:"id,omitempty"`
+	Re        string `json:"re,omitempty"`
 }
 
 // Send le manda `text` a `to` (el correo, la parte antes de la @ o el GitHub).
@@ -164,8 +191,10 @@ type SendResult struct {
 // ⚠ No va por `playground send <quién> <texto…>`: ese comando arma el texto con los argumentos, y uno que
 // empiece con `-d`, `-H` o `--json` el CLI lo toma como opción. Va por `playground curl … -d @-`, con el
 // cuerpo en JSON por la entrada estándar, así que el texto viaja tal cual.
-func Send(ctx context.Context, to, text string) (SendResult, error) {
-	body, _ := json.Marshal(map[string]string{"to": to, "text": text})
+//
+// `re` es el id del mensaje que se contesta ("" si no contesta a ninguno).
+func Send(ctx context.Context, to, text, re string) (SendResult, error) {
+	body, _ := json.Marshal(map[string]string{"to": to, "text": text, "re": re})
 	out, err := run(ctx, body, "curl", base()+"/api/chat/send", "-d", "@-", "--json")
 	var result struct {
 		SendResult
@@ -183,4 +212,54 @@ func Send(ctx context.Context, to, text string) (SendResult, error) {
 		return SendResult{}, err
 	}
 	return result.SendResult, nil
+}
+
+// Agent es uno de los agentes que anuncia alguien con `playground listen`.
+type Agent struct {
+	Name        string `json:"name"`
+	Description string `json:"description"`
+}
+
+// AgentOwner es una persona conectada con sus agentes.
+type AgentOwner struct {
+	Person
+	Agents []Agent `json:"agents"`
+}
+
+// Agents devuelve quién tiene agentes conectados ahora y cuáles (`playground agents`).
+func Agents(ctx context.Context) ([]AgentOwner, error) {
+	out, err := run(ctx, nil, "agents", "--json")
+	if err != nil {
+		return nil, err
+	}
+	people := []AgentOwner{}
+	if err := json.Unmarshal(out, &people); err != nil {
+		return nil, errors.New("el CLI devolvió algo que no es la lista de agentes")
+	}
+	return people, nil
+}
+
+// AskResult es lo que contesta el agente: la respuesta, o Pending con el id si tardó más de lo que el home
+// espera (la respuesta llega después como mensaje, con Re = ese id).
+type AskResult struct {
+	Answer  string `json:"answer,omitempty"`
+	Pending bool   `json:"pending,omitempty"`
+	ID      string `json:"id"`
+	Agent   string `json:"agent,omitempty"`
+}
+
+// Ask le pregunta `text` al agente `agent` de `to` (`playground ask`).
+//
+// El texto va como UN argumento: el CLI sólo lo tomaría como opción si fuera, entero, una de ellas
+// (`--json`, `-d`…), y eso no es una pregunta.
+func Ask(ctx context.Context, to, agent, text string) (AskResult, error) {
+	out, err := run(ctx, nil, "ask", "@"+strings.TrimPrefix(to, "@"), agent, text, "--json")
+	if err != nil {
+		return AskResult{}, err
+	}
+	var result AskResult
+	if err := json.Unmarshal(out, &result); err != nil {
+		return AskResult{}, errors.New("el CLI devolvió algo que no es la respuesta del agente")
+	}
+	return result, nil
 }

@@ -1,78 +1,44 @@
 <script setup>
 /* chat · la interfaz. Un mini WhatsApp sobre el chat de la terminal del playground compartido.
  *
- * El sidebar lista las conversaciones (la más reciente arriba, con lo no leído) y, debajo, quién está
- * conectado ahora: con un clic se abre una conversación nueva. El editor es la conversación —burbujas y el
- * campo para contestar— y el pie dice si `playground listen` está prendido, que es lo que hace que los
- * mensajes lleguen.
+ * El sidebar lista las conversaciones (la más reciente arriba, con lo no leído), quién está conectado ahora
+ * y los agentes del equipo: con un clic se abre una conversación. El editor es la conversación —burbujas, la
+ * cita del mensaje al que contesta cada una y el campo para escribir— y el pie dice si `playground listen`
+ * está prendido, que es lo que hace que los mensajes lleguen.
  *
  * Todo lo que se manda y se recibe pasa por el CLI (la API en Go no es otro cliente). El historial lo
- * guarda el store en el navegador. La conversación abierta vive en la URL (`#/c/<correo>`); el ancho del
+ * guarda el store en el navegador. La conversación abierta vive en la URL (`#/c/<clave>`); el ancho del
  * sidebar, en el navegador.
+ *
+ * La oficina 3D y el creador de personajes (`src/office/`) quedaron fuera de la interfaz: el código sigue
+ * ahí, pero no se carga ni tiene ruta.
  *
  * ⚠ Mandar sale a nombre de quien está logueado en el CLI. El texto ajeno se pinta como texto.
  */
-import { computed, defineAsyncComponent, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useChatStore } from './stores/chat.js'
-// La oficina 3D trae Three.js: se baja recién cuando se abre, no con el chat.
-const OfficeView = defineAsyncComponent(() => import('./office/OfficeView.vue'))
-// El creador de personajes también trae Three.js: se baja cuando se abre.
-const CharacterStudio = defineAsyncComponent(() => import('./office/CharacterStudio.vue'))
 import {
   vResize, readSize, saveSize, fitRegions, cssSize, bindThemeToggle, readHashRoute, hashRoute, setRoute,
 } from './workbench.js'
 
 const chat = useChatStore()
 
-// ── la ruta: #/c/<correo> la conversación · #/oficina la oficina en 3D · #/personajes el creador ──
-// En la oficina no queda ninguna conversación abierta (si no, se darían por leídas sin verse); la última se
-// recuerda para volver a ella con «Chat».
-const view = ref('chat')
-let lastKey = ''
+// ── la ruta: #/c/<clave> es la conversación abierta (un correo, o `agent:<dueño>/<agente>`) ──
 function routeKey() {
   const { parts } = readHashRoute()
-  return parts[0] === 'c' && parts[1] ? decodeURIComponent(parts[1]).toLowerCase() : ''
+  return parts[0] === 'c' && parts[1] ? parts[1].toLowerCase() : ''
 }
-// Las vistas que no son el chat, por su ruta.
-const VIEW_ROUTES = { oficina: 'office', personajes: 'studio' }
 function applyRoute() {
-  const routed = VIEW_ROUTES[readHashRoute().parts[0]]
-  if (routed) {
-    if (chat.activeKey) lastKey = chat.activeKey
-    chat.activeKey = ''
-    view.value = routed
-    return
-  }
-  view.value = 'chat'
   const key = routeKey()
   if (key && chat.conversations[key]) chat.open(chat.conversations[key].person)
-  else if (key) chat.open({ email: key, name: key.split('@')[0] })
+  // Una conversación con un agente que este navegador no tiene no se inventa: se abre desde «Agentes».
+  else if (key && !key.startsWith('agent:')) chat.open({ email: key, name: key.split('@')[0] })
   else chat.activeKey = ''
 }
-function currentHash() {
-  const route = Object.keys(VIEW_ROUTES).find((r) => VIEW_ROUTES[r] === view.value)
-  if (route) return hashRoute([route])
-  return chat.activeKey ? hashRoute(['c', chat.activeKey]) : ''
-}
-watch([view, () => chat.activeKey], () => {
-  const target = currentHash()
+watch(() => chat.activeKey, (key) => {
+  const target = key ? hashRoute(['c', key]) : ''
   if (target !== (location.hash || '')) setRoute(`${location.pathname}${location.search}${target}`, { push: true })
 })
-function openChat(person) {
-  view.value = 'chat'
-  chat.open(person)
-}
-// Abre una vista (la oficina o el creador) o, si ya está abierta, vuelve al chat donde estaba.
-function toggleView(name) {
-  if (view.value === name) {
-    view.value = 'chat'
-    if (lastKey && chat.conversations[lastKey]) chat.open(chat.conversations[lastKey].person)
-    return
-  }
-  if (chat.activeKey) lastKey = chat.activeKey
-  chat.activeKey = ''
-  view.value = name
-}
 
 // ── las regiones: el sidebar a la izquierda, con el contrato de la base ──
 const sidebarOpen = ref(readSize('chat.sidebar-open', 1) !== 0)
@@ -116,15 +82,60 @@ function dayLabel(iso) {
 }
 const initials = (p) => (p?.name || p?.email || '?').split(/[^\p{L}]+/u).filter(Boolean).slice(0, 2).map((w) => w[0].toUpperCase()).join('')
 const handle = (p) => `@${(p?.email || '').split('@')[0]}`
+const firstName = (p) => String(p?.name || p?.email || '').split(/[\s@]+/)[0]
+const snippetOf = (m) => {
+  if (!m) return ''
+  if (m.kind === 'asked') return `le preguntó a tu ${m.agent}: ${m.text}`
+  return `${m.dir === 'out' ? 'Vos: ' : ''}${m.text}`
+}
+const quoteText = (t) => { const x = String(t || '').replace(/\s+/g, ' ').trim(); return x.length > 120 ? `${x.slice(0, 119)}…` : x }
 
-// Los mensajes de la conversación abierta, con un separador por día.
+// La conversación abierta: con un agente o con una persona.
+const activeIsAgent = computed(() => !!chat.active?.person.agent)
+const activeOwner = computed(() => chat.active?.person.owner || null)
+const activeOwnerIsMe = computed(() => (activeOwner.value?.email || '').toLowerCase() === chat.meKey)
+const activeTitle = computed(() => {
+  const p = chat.active?.person
+  if (!p) return 'chat'
+  if (p.agent) return p.agentName || p.name
+  return p.name || p.email
+})
+const activeOnline = computed(() => {
+  const p = chat.active?.person
+  if (!p) return false
+  return chat.onlineKeys.has((p.agent ? p.owner?.email : p.email || '').toLowerCase())
+})
+const activeSubtitle = computed(() => {
+  const p = chat.active?.person
+  if (!p) return ''
+  if (p.agent) {
+    const whose = activeOwnerIsMe.value ? 'tu agente' : `agente de ${firstName(p.owner)}`
+    return [whose, p.detail].filter(Boolean).join(' · ')
+  }
+  return `${activeOnline.value ? 'conectado' : 'desconectado'} · ${handle(p)}`
+})
+
+/* Los mensajes de la conversación abierta, con un separador por día. Los seguidos del mismo lado y a pocos
+   minutos se agrupan (`cont`). Cada respuesta trae su cita, salvo la de un agente justo después de su pregunta. */
+const GROUP_MS = 3 * 60_000
 const thread = computed(() => {
   const out = []
   let day = ''
+  let prev = null
   for (const m of chat.active?.messages || []) {
     const d = dayOf(m.time)
-    if (d !== day) { day = d; out.push({ kind: 'day', id: `day-${d}`, label: dayLabel(m.time) }) }
-    out.push({ kind: 'message', ...m })
+    if (d !== day) { day = d; out.push({ kind: 'day', id: `day-${d}`, label: dayLabel(m.time) }); prev = null }
+    const cont = !!prev && prev.dir === m.dir && prev.kind === m.kind && m.kind !== 'asked'
+      && new Date(m.time) - new Date(prev.time) < GROUP_MS
+    let quote = null
+    if (m.re && !(chat.active.person.agent && m.re === prev?.sid)) {
+      const found = chat.findBySid(m.re)
+      quote = found
+        ? { who: found.message.dir === 'out' ? 'Vos' : firstName(found.conversation.person.agent ? { name: found.conversation.person.agentName } : found.conversation.person), text: quoteText(found.message.text) }
+        : { who: '', text: 'un mensaje que ya no está en este navegador' }
+    }
+    out.push({ ...m, kind: m.kind || 'message', cont, quote })
+    prev = m
   }
   return out
 })
@@ -134,26 +145,31 @@ const onlineWithoutChat = computed(() => chat.online.filter((p) => {
   const key = (p.email || '').toLowerCase()
   return key !== chat.meKey && !chat.conversations[key]
 }))
-const activeOnline = computed(() => chat.active && chat.onlineKeys.has(chat.active.person.email))
-const activeIsAgent = computed(() => !!chat.active?.person.agent)
-function openAgentChat(agent) {
-  view.value = 'chat'
-  chat.openAgent(agent)
+
+// ── responder a un mensaje: «Responder» en la burbuja, y el campo muestra a qué se contesta ──
+const replyTo = ref(null)
+const canReply = (item) => !activeIsAgent.value && item.kind === 'message' && !!item.sid
+function startReply(item) {
+  replyTo.value = { sid: item.sid, who: item.dir === 'out' ? 'Vos' : firstName(chat.active.person), text: quoteText(item.text) }
+  composer.value?.focus()
 }
 
-// ── el campo para contestar: Enter manda, Shift+Enter baja de renglón ──
+// ── el campo para escribir: Enter manda, Shift+Enter baja de renglón, Esc deja de responder ──
 const draft = ref('')
 const composer = ref(null)
 const threadEl = ref(null)
 async function submit() {
   const text = draft.value.trim()
   if (!text) return
+  const re = replyTo.value?.sid || ''
   draft.value = ''
+  replyTo.value = null
   await nextTick(); autosize()
-  await chat.send(text)
+  await chat.send(text, re)
 }
 function onKeydown(e) {
   if (e.key === 'Enter' && !e.shiftKey && !e.isComposing) { e.preventDefault(); submit() }
+  if (e.key === 'Escape' && replyTo.value) { e.preventDefault(); replyTo.value = null }
 }
 function autosize() {
   const el = composer.value
@@ -166,7 +182,11 @@ async function scrollToEnd() {
   if (threadEl.value) threadEl.value.scrollTop = threadEl.value.scrollHeight
 }
 watch(() => [chat.activeKey, chat.active?.messages.length], scrollToEnd)
-watch(() => chat.activeKey, async () => { draft.value = ''; await nextTick(); composer.value?.focus() })
+watch(() => chat.activeKey, async () => { draft.value = ''; replyTo.value = null; await nextTick(); composer.value?.focus() })
+const placeholder = computed(() => {
+  if (!activeIsAgent.value) return 'Escribí un mensaje'
+  return activeOwnerIsMe.value ? `Preguntale a tu agente ${activeTitle.value}` : `Preguntale a ${activeTitle.value} de ${firstName(activeOwner.value)}`
+})
 
 function forgetActive() {
   if (chat.active) chat.forget(chat.active.person.email)
@@ -194,7 +214,7 @@ onBeforeUnmount(() => {
 const listening = computed(() => chat.state?.listening)
 const statusText = computed(() => {
   const s = chat.state
-  if (chat.stateError) return 'sin API'
+  if (chat.stateError) return 'sin la API de chat'
   if (!s) return 'preguntando al CLI…'
   if (!s.installed) return 'falta el CLI playground'
   if (!s.listening) return 'no estás escuchando'
@@ -211,7 +231,7 @@ const statusText = computed(() => {
         <span v-if="chat.unreadTotal" class="count filtered" :title="`${chat.unreadTotal} sin leer`">{{ chat.unreadTotal }}</span>
         <div class="region-actions">
           <button type="button" class="region-action" title="Actualizar" aria-label="Actualizar"
-                  @click="chat.loadState(); chat.loadOnline()">
+                  @click="chat.loadState(); chat.loadOnline(); chat.loadTeamAgents()">
             <span class="ui-icon" data-icon="refresh" aria-hidden="true"></span>
           </button>
         </div>
@@ -222,7 +242,7 @@ const statusText = computed(() => {
         </p>
         <ul v-else class="conversations">
           <li v-for="c in chat.list" :key="c.person.email">
-            <button type="button" class="conversation" :class="{ on: c.person.email === chat.activeKey }" @click="openChat(c.person)">
+            <button type="button" class="conversation" :class="{ on: c.person.email === chat.activeKey }" @click="chat.open(c.person)">
               <span class="avatar" aria-hidden="true">{{ initials(c.person) }}<i v-if="c.online" class="presence"></i></span>
               <span class="conversation-main">
                 <span class="conversation-top">
@@ -230,7 +250,7 @@ const statusText = computed(() => {
                   <span class="when">{{ shortWhen(c.last?.time) }}</span>
                 </span>
                 <span class="conversation-bottom">
-                  <span class="snippet"><template v-if="c.last?.dir === 'out'">Vos: </template>{{ c.last?.text || 'sin mensajes' }}</span>
+                  <span class="snippet" :class="{ asked: c.last?.kind === 'asked' }">{{ snippetOf(c.last) || 'sin mensajes' }}</span>
                   <span v-if="c.unread" class="unread">{{ c.unread }}</span>
                 </span>
               </span>
@@ -246,7 +266,7 @@ const statusText = computed(() => {
         <p v-else-if="!onlineWithoutChat.length" class="side-note">Nadie más, o ya tenés conversación con todos los conectados.</p>
         <ul v-else class="conversations">
           <li v-for="p in onlineWithoutChat" :key="p.email">
-            <button type="button" class="conversation" @click="openChat(p)">
+            <button type="button" class="conversation" @click="chat.open(p)">
               <span class="avatar" aria-hidden="true">{{ initials(p) }}<i class="presence"></i></span>
               <span class="conversation-main">
                 <span class="conversation-top"><b class="name">{{ p.name || p.email }}</b></span>
@@ -256,23 +276,28 @@ const statusText = computed(() => {
           </li>
         </ul>
 
-        <!-- Los agentes: conversaciones con algo que no es una persona. Por ahora, el de Jira. -->
+        <!-- Los agentes del equipo: los de cada persona conectada (`playground agents`), los tuyos primero. -->
         <div class="region-head group">
           <span>Agentes</span>
           <span class="count">{{ chat.agentList.length }}</span>
         </div>
-        <p v-if="!chat.agentList.length" class="side-note">No hay agentes disponibles: ¿está corriendo el server de chat?</p>
+        <p v-if="chat.teamAgentsError" class="side-note bad">{{ chat.teamAgentsError }}</p>
+        <p v-else-if="!chat.agentList.length" class="side-note">
+          Nadie tiene agentes conectados ahora. Los tuyos los anuncia <code>playground listen</code>: tu journal y los de
+          <code>~/playground/team/agents.json</code>.
+        </p>
         <ul v-else class="conversations">
           <li v-for="a in chat.agentList" :key="a.key">
-            <button type="button" class="conversation" :class="{ on: a.key === chat.activeKey }" @click="openAgentChat(a)">
-              <span class="avatar agent" aria-hidden="true">{{ a.name.split(' ').at(-1)[0] }}</span>
+            <button type="button" class="conversation" :class="{ on: a.key === chat.activeKey }" @click="chat.openAgent(a)">
+              <span class="avatar agent" :class="{ mine: a.mine }" aria-hidden="true">{{ (a.agentName || '?')[0].toUpperCase() }}</span>
               <span class="conversation-main">
                 <span class="conversation-top">
-                  <b class="name">{{ a.name }}</b>
+                  <b class="name">{{ a.agentName }}</b>
+                  <span class="owner">{{ a.mine ? 'tuyo' : firstName(a.owner) }}</span>
                   <span class="when">{{ shortWhen(a.last?.time) }}</span>
                 </span>
                 <span class="conversation-bottom">
-                  <span class="snippet">{{ a.last ? (a.last.format === 'json' ? 'respondió con tus tareas' : a.last.text) : a.detail }}</span>
+                  <span class="snippet">{{ a.last ? snippetOf(a.last) : a.description }}</span>
                   <span v-if="a.unread" class="unread">{{ a.unread }}</span>
                 </span>
               </span>
@@ -283,26 +308,16 @@ const statusText = computed(() => {
     </aside>
 
     <main class="editor">
-      <template v-if="view === 'office'">
-        <div class="region-head">
-          <span>Oficina</span>
-          <span class="count">vista 3D</span>
-        </div>
-        <OfficeView />
-      </template>
-      <template v-else-if="view === 'studio'">
-        <div class="region-head">
-          <span>Personajes</span>
-          <span class="count">forma y colores de quienes trabajan en la oficina</span>
-        </div>
-        <CharacterStudio />
-      </template>
-      <template v-else>
-      <div class="region-head">
+      <div class="region-head conversation-head">
         <template v-if="chat.active">
-          <span>{{ chat.active.person.name || chat.active.person.email }}</span>
-          <span v-if="activeIsAgent" class="count">agente · {{ chat.active.person.detail }}</span>
-          <span v-else class="count">{{ activeOnline ? 'conectado' : 'desconectado' }} · {{ handle(chat.active.person) }}</span>
+          <!-- Un solo primer hijo: la base le da a ese el ancho que sobra y lo recorta con «…». -->
+          <span class="head-who">
+            <span class="avatar small" :class="{ agent: activeIsAgent, mine: activeIsAgent && activeOwnerIsMe }" aria-hidden="true">
+              {{ activeIsAgent ? (activeTitle || '?')[0].toUpperCase() : initials(chat.active.person) }}<i v-if="activeOnline" class="presence"></i>
+            </span>
+            <span class="head-title">{{ activeTitle }}</span>
+            <span class="count head-sub">{{ activeSubtitle }}</span>
+          </span>
           <div class="region-actions">
             <button type="button" class="region-action" title="Borrar esta conversación de este navegador"
                     aria-label="Borrar esta conversación de este navegador" @click="forgetActive">
@@ -332,7 +347,7 @@ const statusText = computed(() => {
             <div class="empty-title">Elegí una conversación</div>
             <div class="empty-desc">
               Los mensajes llegan por <code>playground listen</code> y se guardan en este navegador.
-              A quien está conectado le podés escribir desde «Conectados».
+              A quien está conectado le podés escribir desde «Conectados», y a los agentes del equipo, preguntarles desde «Agentes».
             </div>
           </div>
         </div>
@@ -340,18 +355,33 @@ const statusText = computed(() => {
 
       <template v-else>
         <div ref="threadEl" class="region-body thread" aria-live="polite">
-          <p v-if="!thread.length" class="side-note center">Todavía no hay mensajes con {{ chat.active.person.name || chat.active.person.email }}.</p>
+          <p v-if="!thread.length" class="side-note center">
+            <template v-if="activeIsAgent">Preguntale lo que quieras: contesta {{ activeOwnerIsMe ? 'desde tu máquina' : `desde la máquina de ${firstName(activeOwner)}` }}.</template>
+            <template v-else>Todavía no hay mensajes con {{ chat.active.person.name || chat.active.person.email }}.</template>
+          </p>
           <template v-for="item in thread" :key="item.id">
             <div v-if="item.kind === 'day'" class="day"><span>{{ item.label }}</span></div>
-            <div v-else class="bubble-row" :class="item.dir">
+
+            <!-- Alguien le preguntó a uno de tus agentes: tu listen ya le contestó. -->
+            <div v-else-if="item.kind === 'asked'" class="asked">
+              <span class="asked-label">Le preguntó a tu agente <b>{{ item.agent }}</b> · {{ clock(item.time) }}</span>
+              <span class="asked-text">{{ item.text }}</span>
+            </div>
+
+            <div v-else class="bubble-row" :class="[item.dir, { cont: item.cont }]">
               <div class="bubble" :class="{ failed: item.status === 'error' }">
+                <span v-if="item.quote" class="quote">
+                  <b v-if="item.quote.who">{{ item.quote.who }}</b>
+                  <span>{{ item.quote.text }}</span>
+                </span>
                 <pre v-if="item.format === 'json'" class="text json">{{ item.text }}</pre>
                 <p v-else class="text">{{ item.text }}</p>
                 <span class="meta">
                   {{ clock(item.time) }}
                   <template v-if="item.dir === 'out'">
-                    <span v-if="item.status === 'sending'" title="Mandando">· mandando…</span>
-                    <span v-else-if="item.status === 'sent'" title="Entregado a sus terminales abiertas">· ✓</span>
+                    <span v-if="item.status === 'sending'">· {{ activeIsAgent ? 'preguntando…' : 'mandando…' }}</span>
+                    <span v-else-if="item.status === 'pending'" title="El agente tarda: la respuesta llega acá cuando conteste">· esperando respuesta</span>
+                    <span v-else-if="item.status === 'sent' || item.status === 'answered'" :title="activeIsAgent ? 'Contestó' : 'Entregado a sus terminales abiertas'">· ✓</span>
                   </template>
                 </span>
                 <p v-if="item.status === 'error'" class="error">
@@ -359,16 +389,31 @@ const statusText = computed(() => {
                   <button type="button" class="btn-link" @click="chat.retry(item.id)">reintentar</button>
                 </p>
               </div>
+              <button v-if="canReply(item)" type="button" class="reply-action" title="Responder a este mensaje"
+                      aria-label="Responder a este mensaje" @click="startReply(item)">
+                <span class="ui-icon" data-icon="comment" aria-hidden="true"></span>
+              </button>
             </div>
           </template>
         </div>
         <form class="composer" @submit.prevent="submit">
-          <label class="sr-only" for="composer-text">Mensaje para {{ chat.active.person.name || chat.active.person.email }}</label>
-          <textarea id="composer-text" ref="composer" v-model="draft" class="input composer-text" rows="1"
-                    maxlength="2000" placeholder="Escribí un mensaje" @keydown="onKeydown" @input="autosize"></textarea>
-          <button type="submit" class="btn" :disabled="!draft.trim()">Mandar</button>
+          <div v-if="replyTo" class="replying">
+            <span class="quote">
+              <b>Respondiendo a {{ replyTo.who === 'Vos' ? 'tu mensaje' : replyTo.who }}</b>
+              <span>{{ replyTo.text }}</span>
+            </span>
+            <button type="button" class="region-action" title="No responder a ese mensaje" aria-label="No responder a ese mensaje"
+                    @click="replyTo = null">
+              <span class="ui-icon" data-icon="close" aria-hidden="true"></span>
+            </button>
+          </div>
+          <div class="composer-row">
+            <label class="sr-only" for="composer-text">{{ placeholder }}</label>
+            <textarea id="composer-text" ref="composer" v-model="draft" class="input composer-text" rows="1"
+                      maxlength="2000" :placeholder="placeholder" @keydown="onKeydown" @input="autosize"></textarea>
+            <button type="submit" class="btn" :disabled="!draft.trim()">{{ activeIsAgent ? 'Preguntar' : 'Mandar' }}</button>
+          </div>
         </form>
-      </template>
       </template>
     </main>
 
@@ -377,13 +422,10 @@ const statusText = computed(() => {
         <i class="status-dot" :class="{ on: listening && chat.state?.connected }" aria-hidden="true"></i>
         {{ statusText }}<template v-if="chat.me"> · {{ chat.me.email }}</template>
       </span>
-      <span v-if="chat.state?.since && listening">desde las {{ clock(chat.state.since) }}</span>
-      <button type="button" class="statusbar-item office-toggle" :aria-pressed="view === 'office'" @click="toggleView('office')">
-        {{ view === 'office' ? 'Volver al chat' : 'Oficina 3D' }}
-      </button>
-      <button type="button" class="statusbar-item office-toggle" :aria-pressed="view === 'studio'" @click="toggleView('studio')">
-        {{ view === 'studio' ? 'Volver al chat' : 'Personajes' }}
-      </button>
+      <span v-if="chat.state?.since && listening" class="statusbar-item">desde las {{ clock(chat.state.since) }}</span>
+      <span v-if="chat.agentList.some((a) => a.mine)" class="statusbar-item">
+        tus agentes: {{ chat.agentList.filter((a) => a.mine).map((a) => a.agentName).join(', ') }}
+      </span>
       <div class="layout-controls" role="group" aria-label="Tema y regiones visibles">
         <button ref="themeToggle" type="button" class="region-action theme-toggle"><span class="ui-icon" aria-hidden="true"></span></button>
         <button type="button" class="region-action" :aria-pressed="!!sidebarShown" title="Mostrar u ocultar las conversaciones"
@@ -411,47 +453,82 @@ code { font-family: var(--font-mono); font-size: .92em }
 .conversation:focus-visible { outline: 2px solid var(--ring); outline-offset: -2px }
 .avatar { position: relative; flex: none; width: 34px; height: 34px; border-radius: 50%; display: grid; place-items: center;
   background: var(--muted); color: var(--foreground); font-size: var(--text-sm); font-weight: 600 }
+.avatar.small { width: 26px; height: 26px; font-size: var(--text-xs) }
+/* Un agente es un cuadrado redondeado (no una persona); el tuyo, con el acento. */
+.avatar.agent { border-radius: 8px; background: var(--agent-bg); color: var(--agent-ink) }
+.avatar.agent.mine { background: var(--agent-mine-bg); color: var(--agent-mine-ink) }
 .presence { position: absolute; right: -1px; bottom: -1px; width: 10px; height: 10px; border-radius: 50%;
   background: var(--presence-on); box-shadow: 0 0 0 2px var(--sidebar) }
+.avatar.small .presence { width: 8px; height: 8px; box-shadow: 0 0 0 2px var(--background) }
 .conversation-main { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px }
 .conversation-top, .conversation-bottom { display: flex; align-items: baseline; gap: 8px; min-width: 0 }
 .name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 600 }
-.when { flex: none; color: var(--fg-2); font-size: var(--text-xs) }
+.owner { flex: none; color: var(--fg-2); font-size: var(--text-xs) }
+.when { flex: none; color: var(--fg-2); font-size: var(--text-xs); font-variant-numeric: tabular-nums }
 .snippet { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--fg-2); font-size: var(--text-sm) }
+.snippet.asked { font-style: italic }
 .unread { flex: none; min-width: 18px; height: 18px; padding: 0 5px; border-radius: 9px; display: grid; place-items: center;
   background: var(--primary); color: var(--primary-foreground); font-size: var(--text-xs); font-weight: 600 }
 
 /* ── el editor: la conversación ── */
 .editor { display: flex; flex-direction: column; min-height: 0 }
+.head-who { display: flex; align-items: center; gap: 10px; padding-block: 4px }
+.head-title { flex: none; font-weight: 600 }
+.head-sub { min-width: 0; overflow: hidden; text-overflow: ellipsis }
 .notice { display: flex; align-items: center; gap: var(--space-3); flex-wrap: wrap; padding: 8px var(--gutter);
   border-bottom: 1px solid var(--border); background: var(--muted); color: var(--fg-2); font-size: var(--text-sm) }
-.thread { display: flex; flex-direction: column; gap: 6px; padding: var(--space-4) var(--space-6) }
-.day { align-self: center; margin: var(--space-2) 0; padding: 2px 10px; border-radius: 999px; background: var(--muted);
+.thread { display: flex; flex-direction: column; gap: 8px; padding: var(--space-4) var(--space-6) }
+.day { align-self: center; margin: var(--space-3) 0 var(--space-1); padding: 2px 10px; border-radius: 999px; background: var(--muted);
   color: var(--fg-2); font-size: var(--text-xs); text-transform: capitalize }
-.bubble-row { display: flex }
-.bubble-row.out { justify-content: flex-end }
-.bubble { max-width: min(560px, 78%); padding: 7px 10px 5px; border-radius: 10px; background: var(--bubble-theirs);
-  color: var(--foreground); display: flex; flex-direction: column; gap: 2px }
-.bubble-row.in .bubble { border-top-left-radius: 3px }
-.bubble-row.out .bubble { background: var(--bubble-mine); border-top-right-radius: 3px }
+
+.bubble-row { display: flex; align-items: center; gap: 6px }
+.bubble-row.out { flex-direction: row-reverse }
+.bubble-row.cont { margin-top: -5px }
+.bubble { max-width: min(560px, 78%); padding: 7px 10px 5px; border-radius: 12px; background: var(--bubble-theirs);
+  color: var(--foreground); display: flex; flex-direction: column; gap: 3px; min-width: 0 }
+.bubble-row.in:not(.cont) .bubble { border-top-left-radius: 4px }
+.bubble-row.out .bubble { background: var(--bubble-mine) }
+.bubble-row.out:not(.cont) .bubble { border-top-right-radius: 4px }
 .bubble.failed { box-shadow: inset 0 0 0 1px var(--send-fail) }
 .text { margin: 0; white-space: pre-wrap; overflow-wrap: anywhere; font-size: 14px; line-height: 1.45 }
 .meta { align-self: flex-end; color: var(--fg-2); font-size: var(--text-xs); font-variant-numeric: tabular-nums }
 .error { margin: 2px 0 0; color: var(--send-fail); font-size: var(--text-sm) }
 .btn-link { border: 0; padding: 0; background: none; color: inherit; text-decoration: underline; cursor: pointer; font: inherit }
-.composer { flex: none; display: flex; align-items: flex-end; gap: var(--space-2); padding: var(--space-3) var(--space-6);
-  border-top: 1px solid var(--border) }
-.composer-text { height: auto; min-height: var(--control-md); max-height: 160px; padding-block: 7px; resize: none; line-height: 1.4;
-  font: inherit; font-size: 14px }
 
-.avatar.agent { background: var(--office-accent); color: var(--office-accent-ink) }
+/* La cita del mensaje al que se contesta: en la burbuja y sobre el campo de escribir. */
+.quote { display: flex; flex-direction: column; gap: 1px; padding: 4px 8px; border-left: 3px solid var(--quote-rule);
+  border-radius: 4px; background: var(--quote-bg); font-size: var(--text-sm); color: var(--fg-2); min-width: 0 }
+.quote b { color: var(--foreground); font-weight: 600; font-size: var(--text-xs) }
+.quote span { overflow: hidden; text-overflow: ellipsis; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical }
+
+/* «Responder»: aparece al pasar por la burbuja o al llegarle con el teclado. */
+.reply-action { flex: none; width: 26px; height: 26px; display: grid; place-items: center; border: 0; border-radius: 50%;
+  background: transparent; color: var(--fg-2); cursor: pointer; opacity: 0 }
+.bubble-row:hover .reply-action, .reply-action:focus-visible { opacity: 1 }
+.reply-action:hover { background: var(--hover); color: var(--foreground) }
+.reply-action:focus-visible { outline: 2px solid var(--ring) }
+@media (hover: none) { .reply-action { opacity: 1 } }
+
+/* Lo que alguien le preguntó a tu agente: una nota en el hilo, no una burbuja. */
+.asked { align-self: center; max-width: min(520px, 90%); display: flex; flex-direction: column; align-items: center; gap: 2px;
+  padding: 6px 12px; border: 1px dashed var(--border); border-radius: 10px; color: var(--fg-2); text-align: center }
+.asked-label { font-size: var(--text-xs) }
+.asked-label b { color: var(--foreground) }
+.asked-text { font-size: var(--text-sm); overflow-wrap: anywhere }
+
+.composer { flex: none; display: flex; flex-direction: column; gap: var(--space-2); padding: var(--space-3) var(--space-6);
+  border-top: 1px solid var(--border) }
+.replying { display: flex; align-items: center; gap: var(--space-2) }
+.replying .quote { flex: 1 }
+.composer-row { display: flex; align-items: flex-end; gap: var(--space-2) }
+.composer-text { height: auto; min-height: var(--control-md); max-height: 160px; padding-block: 7px; resize: none; line-height: 1.4;
+  font: inherit; font-size: 14px; border-radius: 18px; padding-inline: 14px }
+
 .json { font-family: var(--font-mono); font-size: 12px; line-height: 1.5; white-space: pre-wrap; overflow-x: auto; margin: 0;
   max-height: 420px; overflow-y: auto }
 .bubble-row.in .bubble:has(.json) { max-width: min(720px, 92%) }
 
 /* ── el pie ── */
-.office-toggle { border: 0; background: transparent; color: inherit; font: inherit; cursor: pointer }
-.office-toggle[aria-pressed="true"] { color: var(--foreground); font-weight: 600 }
 .status-dot { display: inline-block; width: 7px; height: 7px; border-radius: 50%; background: var(--fg-3); margin-right: 6px }
 .status-dot.on { background: var(--presence-on) }
 </style>
