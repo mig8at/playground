@@ -3924,10 +3924,23 @@
         if (old && Array.isArray(old.tabs)) tabSets.local = { tabs: old.tabs.map((t) => ({ ...t, config: t.caso ? { caso: t.caso } : null })), active: old.active ?? null };
       }
     } catch { /* sin storage: arranca sin pestañas */ }
+    /** Qué hace que dos pestañas sean LA MISMA: un comercio es una sola pestaña por ambiente (el canal es de la pestaña, no
+     *  la identidad), y el Admin, la corrida pública y cada ficha de prod, también una. */
+    const tabKey = (x) => (x.kind === 'admin' || x.kind === 'prodrun' ? x.kind : x.kind === 'prod' ? 'prod:' + x.allied : 'm:' + x.slug);
     function loadTabSet(t) {
       const set = tabSets[t] || { tabs: [], active: null };
-      runTabs = (set.tabs || []).filter((x) => x && x.id && (x.kind === 'admin' || x.kind === 'prodrun' || (x.kind === 'prod' && x.allied) || x.slug));
-      activeTab = set.active ?? null;
+      const tabs = (set.tabs || []).filter((x) => x && x.id && (x.kind === 'admin' || x.kind === 'prodrun' || (x.kind === 'prod' && x.allied) || x.slug));
+      // SIN REPETIDAS (2026-10-21): las guardadas de antes podían tener el mismo comercio una vez por canal. Se queda la que
+      // tiene una corrida (dueña de un carril), si no la activa, si no la primera.
+      const owns = (x) => LANES.some((l) => laneOwners[l] && laneOwners[l].target === t && laneOwners[l].id === x.id);
+      const keep = new Map();
+      for (const x of tabs) {
+        const k = tabKey(x), had = keep.get(k);
+        if (!had || (!owns(had) && (owns(x) || (had.id !== set.active && x.id === set.active)))) keep.set(k, x);
+      }
+      runTabs = tabs.filter((x) => keep.get(tabKey(x)) === x);
+      activeTab = runTabs.some((x) => x.id === set.active) ? set.active
+        : (keep.get(tabKey(tabs.find((x) => x.id === set.active) || {}))?.id ?? null);
       tabsTarget = t;
     }
     loadTabSet(target);
@@ -4171,8 +4184,14 @@
     async function openTab(e, canal = null) {
       if (runRunning) return;
       const cur = currentTab();
-      let t = canal ? runTabs.find((x) => x.slug === e.slug && x.canal === canal) : null;
-      if (!t && !canal && cur && cur.slug === e.slug && !cur.canal) t = cur;   // ya está preguntando por éste
+      // UNA PESTAÑA POR COMERCIO (2026-10-21): si ya tiene, se va a ésa con su canal. Un canal pedido distinto (un enlace
+      // `/local/pullman/autogestion`) se lo cambia, salvo que esté corriendo: ahí sólo se la elige. Para otro canal de un
+      // comercio que corre, se cierra su pestaña y se abre de nuevo.
+      let t = runTabs.find((x) => !x.kind && x.slug === e.slug) || null;
+      if (t && canal && t.canal !== canal && !isOwner(t)) {
+        if (t.id === activeTab) { await activateTab(t.id); pickChannel(t, canal); return; }
+        t.canal = canal; t.preview = false;
+      }
       if (!t) {
         const preview = runTabs.find((x) => x.preview && !isOwner(x));
         if (preview) {
@@ -4253,8 +4272,6 @@
     }
 
     function pickChannel(t, c) {
-      const twin = runTabs.find((x) => x !== t && x.slug === t.slug && x.canal === c);
-      if (twin) { runTabs = runTabs.filter((x) => x !== t); activateTab(twin.id); return; }
       t.canal = c; t.preview = false;
       const b = document.querySelector(`#channelOptions button[data-c="${c}"]`);
       if (b && !b.disabled && channel !== c) b.click();

@@ -1250,3 +1250,12 @@ no es la de por defecto (`?vista=buros`, `?consola=mocks`, `?inicio=entidades`).
 - **Se probó a todo el ALTO, con scroll de costado como los celulares, y se volvió al ancho** (Miguel, el mismo día): con
   el editor angosto la PC quedaba casi toda fuera de vista. Se queda a todo el ancho y, si es más alta, scrollea hacia abajo.
 
+### Sin pestañas repetidas (2026-10-21)
+
+- **Un comercio es UNA pestaña por ambiente**: el canal es de la pestaña, no su identidad (`tabKey`). Elegirlo en la
+  barra va a la que ya tiene, con su canal. Un enlace con otro canal (`/local/pullman/autogestion`) se lo cambia, salvo
+  que la pestaña esté corriendo (dueña de un carril): ahí sólo se la elige; para otro canal se cierra y se abre de nuevo.
+  El Admin, la corrida pública y cada ficha de prod ya eran una.
+- Las guardadas de antes (el mismo comercio una vez por canal) se JUNTAN al cargar el juego (`loadTabSet`): se queda la
+  dueña de un carril, si no la activa, si no la primera.
+
