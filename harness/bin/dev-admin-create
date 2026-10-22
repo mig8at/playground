@@ -1,0 +1,66 @@
+#!/usr/bin/env bash
+# Crea UNA cuenta Administrador en el admin de DEV (la base compartida con qa y staging), con el patrón de las que ya existen
+# ahí: `user_profile_id = 2`, cédula y celular con prefijo `2-`, `status = 1`, `country_id = 1` y el rol Administrador. El admin
+# no tiene pantalla para esto a propósito (`LenderCorporateUser/StoreRequest`: «que un POST a mano no pueda fabricarse un
+# administrador»), así que estas cuentas se crean en la base. Lo pidió Miguel el 2026-10-19 para su propia cuenta de dev.
+#
+# La clave la tecleás vos y no se muestra: se guarda hasheada (bcrypt, como Laravel) y, si querés, en connectors/.env.dev
+# (ADMIN_USER/ADMIN_PASS, fuera de git) para que `bin/pg admin login --target dev` entre con ella.
+#
+# uso:  I_KNOW_THIS_TOUCHES_SHARED_DEV=1 harness/bin/dev-admin-create <correo> <cédula> "<nombres>" "<apellidos>" [celular]
+#   ⚠ ESCRIBE en la base COMPARTIDA de dev. Sólo dev: se niega si harness/.env.dev no apunta a inertia-development.
+#   Si el correo ya existe, no hace nada.
+set -euo pipefail
+ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
+[ "${I_KNOW_THIS_TOUCHES_SHARED_DEV:-}" = "1" ] || { echo "  ✗ escribe en la base COMPARTIDA de dev: exportá I_KNOW_THIS_TOUCHES_SHARED_DEV=1 a mano para confirmarlo"; exit 1; }
+[ $# -ge 4 ] || { sed -n '10,12p' "$0"; exit 2; }
+EMAIL=$1 DOC=$2 NAMES=$3 SURNAMES=$4 PHONE=${5:-}
+[[ "$DOC" =~ ^[0-9]{5,15}$ ]] || { echo "  ✗ la cédula va sólo con dígitos"; exit 2; }
+[[ "$EMAIL" =~ ^[^@[:space:]]+@[^@[:space:]]+$ ]] || { echo "  ✗ el correo no parece un correo"; exit 2; }
+
+read -r -s -p "  Clave nueva para $EMAIL en el admin de dev: " PASS; echo
+read -r -s -p "  Repetila: " PASS2; echo
+{ [ "$PASS" = "$PASS2" ] && [ ${#PASS} -ge 8 ]; } || { echo "  ✗ no coinciden o tiene menos de 8 caracteres"; exit 2; }
+
+# La base de dev con las credenciales de escritura del harness (harness/.env.dev, E2E_DB_*).
+# ⚠ No con `. <(grep …)`: el bash 3.2 de macOS no lee nada de una sustitución de proceso al hacer `source`, las variables
+# quedaban vacías y la guarda de abajo se negaba (2026-10-19). Se exporta línea por línea.
+while IFS='=' read -r k v; do
+  v="${v%$'\r'}"; v="${v#\"}"; v="${v%\"}"; v="${v#\'}"; v="${v%\'}"
+  export "$k=$v"
+done < <(grep -E '^E2E_DB_(HOST|PORT|NAME|USER|PASS)=' "$ROOT/harness/.env.dev")
+
+EMAIL="$EMAIL" DOC="$DOC" NAMES="$NAMES" SURNAMES="$SURNAMES" PHONE="$PHONE" PASS="$PASS" php -r '
+if (!preg_match("/^inertia-development\\./", (string) getenv("E2E_DB_HOST"))) { fwrite(STDERR, "  ✗ harness/.env.dev no apunta a la base de dev (inertia-development): no escribo\n"); exit(1); }
+$pdo = new PDO(sprintf("mysql:host=%s;port=%s;dbname=%s;charset=utf8mb4", getenv("E2E_DB_HOST"), getenv("E2E_DB_PORT") ?: 3306, getenv("E2E_DB_NAME")),
+    getenv("E2E_DB_USER"), getenv("E2E_DB_PASS"), [PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION]);
+$email = getenv("EMAIL");
+$found = $pdo->prepare("SELECT id FROM users WHERE email = ?"); $found->execute([$email]);
+if ($id = $found->fetchColumn()) { echo "  · ya existe una cuenta con $email en dev (id $id): no se crea nada\n"; exit(0); }
+$role = $pdo->query("SELECT id FROM roles WHERE name = \"Administrador\" AND guard_name = \"web\"")->fetchColumn();
+if (!$role) { fwrite(STDERR, "  ✗ no encontré el rol Administrador en dev\n"); exit(1); }
+$pdo->beginTransaction();
+$pdo->prepare("INSERT INTO users (first_name, surname, full_name, email, password, document_type, document_number, cell_phone, user_profile_id, status, country_id, created_at, updated_at)
+               VALUES (?, ?, ?, ?, ?, \"CC\", ?, ?, 2, 1, 1, NOW(), NOW())")
+    ->execute([getenv("NAMES"), getenv("SURNAMES"), trim(getenv("NAMES")." ".getenv("SURNAMES")), $email,
+               password_hash(getenv("PASS"), PASSWORD_BCRYPT), "2-".getenv("DOC"), getenv("PHONE") ? "2-".getenv("PHONE") : null]);
+$id = (int) $pdo->lastInsertId();
+$pdo->prepare("INSERT INTO model_has_roles (role_id, model_type, model_id) VALUES (?, ?, ?)")->execute([$role, "App\\Models\\User", $id]);
+$pdo->commit();
+echo "  ✓ creada la cuenta Administrador $id ($email) en dev\n";
+'
+
+read -r -p "  ¿La guardo en connectors/.env.dev para bin/pg admin login? [s/N] " SAVE
+if [ "$SAVE" = "s" ]; then
+  ENVF="$ROOT/connectors/.env.dev" EMAIL="$EMAIL" PASS="$PASS" python3 -c '
+import os
+p=os.environ["ENVF"]; new={"ADMIN_USER":os.environ["EMAIL"],"ADMIN_PASS":os.environ["PASS"]}
+lines=open(p).read().split("\n"); seen=set(); out=[]
+for l in lines:
+    k=l.split("=",1)[0]
+    if k in new: out.append(k+"="+new[k]); seen.add(k)
+    else: out.append(l)
+out+=[k+"="+v for k,v in new.items() if k not in seen]
+open(p,"w").write("\n".join(out))'
+  echo "  ✓ guardada. Entrá con:  bin/pg admin login --target dev"
+fi
