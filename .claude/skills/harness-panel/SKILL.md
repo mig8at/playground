@@ -1100,3 +1100,18 @@ gris: los celulares están abiertos y todavía no hay solicitud (el monto, el lo
 (`requests`), que la lee de la URL de los celulares del carril, el cliente primero. ⚠ El segmento tiene que ser ENTERO
 y de 5 a 9 cifras: un hash de sucursal puede empezar con cinco cifras (`13874eb6` se leía como la solicitud 13874) y en
 la pantalla del OTP el segmento es el celular, de 10.
+
+### Con todos los carriles ocupados, se cierra el que más tiempo lleva sin usarse (2026-10-21)
+
+Ya no se pregunta ni se cierra a mano: los carriles son de la MÁQUINA (todos los ambientes, prod incluido) y el tope es
+`HARNESS_LANES`. Si una pestaña arranca y no hay carril libre, `claimDevices` toma el que lleva más tiempo sin usarse
+(`/api/lanes` → `lastUsed`, el más reciente de sus dos celulares), lo cierra sin confirmar y le deja a su pestaña la nota
+`evicted` («Se cerró para abrir «X»: llevaba N min sin usarse»), que se ve en su celular o en el aviso hasta que le des ▶.
+- **«Usado»** lo anota `devices.ts` (`touchDevice`): al abrir, al cambiar de pantalla y con cada toque, tecla, «tocar» o
+  «avanzar». Una corrida que avanza sola cambia de pantalla, así que cuenta como en uso.
+- **El aviso de ocupados** dice cuál se va a cerrar y ofrece un solo «Iniciar» (sin filas ni «Cerrar» por carril).
+- **El freno del mismo comercio en otra sucursal** (local) se mira ANTES de cerrar: si frena, no se pierde nada.
+- **Prod ya no exige el carril A**: `/api/prod/phone` recibe `lane` y abre ahí, con el mismo `prodPhones`.
+- Verificado con `HARNESS_LANES=2` en local: Pullman (A) y Mediarte (B) abiertos, Mediarte tocado; Motai mostró «Al iniciar
+  se cierra … «Pullman · Asesor»», «Iniciar» lo abrió en A sin preguntar, Pullman quedó con su nota (también después de
+  recargar) y Mediarte siguió en B. El celular de prod abrió en `advisor-b` y `advance` siguió negado.

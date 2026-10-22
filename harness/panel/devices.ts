@@ -97,6 +97,7 @@ function narrate(id: DeviceId, d: Omit<Device, 'openedAt'>, isCurrent: () => boo
         const u = frame.url();
         if (u === lastUrl || u === 'about:blank') return;
         lastUrl = u;
+        if (isCurrent()) touchDevice(id);
         emit(`→ ${u.replace(/^https?:\/\/[^/]+/, '')}`);
     });
     d.page.on('pageerror', (e) => log(`✗ error de JS: ${e.message.split('\n')[0].slice(0, 220)}`));
@@ -415,6 +416,7 @@ export async function openDevice(id: DeviceId, url: string, opts: {
     }
     const openedAt = Date.now();
     open.set(id, { ...d, openedAt });
+    lastUsed.set(id, openedAt);
     // Si el navegador muere por fuera (el contenedor se borró o se reinició, Selenium venció la sesión), el
     // celular deja de figurar como abierto. Sin esto el panel seguía mostrando la sesión vieja como viva y el
     // traspaso al cliente no volvía a abrir nada: el visor quedaba en «El celular del cliente» (2026-10-06).
@@ -441,10 +443,15 @@ export async function openDevice(id: DeviceId, url: string, opts: {
 export function openDevices(): DeviceId[] { return [...open.keys()]; }
 
 /** Dónde está el celular ahora: la URL después de las redirecciones, y su visor si tiene. */
-export function deviceState(id: DeviceId): { open: boolean; url?: string; since?: number; view?: string } {
+export function deviceState(id: DeviceId): { open: boolean; url?: string; since?: number; view?: string; lastUsed?: number } {
     const d = open.get(id);
-    return d ? { open: true, url: d.page.url(), since: d.openedAt, view: d.view } : { open: false };
+    return d ? { open: true, url: d.page.url(), since: d.openedAt, view: d.view, lastUsed: lastUsed.get(id) ?? d.openedAt } : { open: false };
 }
+/* CUÁNDO SE USÓ POR ÚLTIMA VEZ cada celular: al abrirse, al cambiar de pantalla y con cada toque, tecla, «tocar» o
+ * «avanzar». Con todos los carriles ocupados, el panel cierra el que lleva más tiempo sin usarse para abrir el nuevo:
+ * una corrida que avanza sola cambia de pantalla, así que cuenta como en uso. */
+const lastUsed = new Map<DeviceId, number>();
+function touchDevice(id: DeviceId): void { lastUsed.set(id, Date.now()); }
 
 /** La sesión del celular (cookies y `localStorage`), para retomarlo después de reiniciar el panel. */
 export async function deviceStorage(id: DeviceId): Promise<DeviceSession | null> {
@@ -549,6 +556,7 @@ export function deviceBusyWatch(id: DeviceId, cb: (busy: boolean) => void): (() 
 export async function closeDevice(id: DeviceId): Promise<void> {
     const d = open.get(id);
     open.delete(id);
+    lastUsed.delete(id);
     await d?.close().catch(() => { });
     // El lugar quedó libre: la próxima apertura ya tiene navegador. Sólo en el carril A: con N carriles, una reserva por
     // celular de cada uno serían hasta 16 Chromium esperando; los otros lo preparan al abrir (`warmDevice`).
@@ -581,6 +589,7 @@ const viewportCache = new Map<DeviceId, { at: number; vp: { width: number; heigh
 export async function deviceInput(id: DeviceId, ev: DeviceInput): Promise<boolean> {
     const d = open.get(id);
     if (!d) return false;
+    touchDevice(id);
     // ⚠ EL TAMAÑO REAL, NO EL DE FÁBRICA. Conectado por CDP a un navegador que ya existe, `viewportSize()` es null y caía
     // al Pixel 7 (412×839), pero la ventana del contenedor mide 412×892: cada clic quedaba ~6% más arriba y erraba los
     // botones (medido el 2026-10-08: «Validar pre aprobado» en 700–746 px, el clic en 680). Se mide en la página.
@@ -615,6 +624,7 @@ async function visibleControl(page: Page, text: string) {
 
 /** Toca el control que dice `text`. */
 export async function deviceTap(id: DeviceId, text: string): Promise<{ ok: boolean; detail: string }> {
+    touchDevice(id);
     const d = open.get(id);
     if (!d) return { ok: false, detail: 'el celular no está abierto' };
     const el = await visibleControl(d.page, text);
@@ -700,6 +710,7 @@ async function unlock(page: Page): Promise<string[]> {
 
 /** Toca el botón principal de la pantalla (ver `ADVANCE`), destrabándolo si hace falta. `otp`: el código del bypass. */
 export async function deviceAdvance(id: DeviceId, otp?: string, waitMs = 4_000): Promise<{ ok: boolean; detail: string; moved?: boolean; url?: string }> {
+    touchDevice(id);
     const d = open.get(id);
     if (!d) return { ok: false, detail: 'el celular no está abierto' };
     for (const label of ADVANCE) {

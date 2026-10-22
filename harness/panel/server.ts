@@ -1812,7 +1812,10 @@ const server = createServer(async (req, res) => {
             }
             return null;
         };
-        return json(res, 200, { lanes: LANES, open: perLane((l) => opened.some((d) => d !== 'admin' && laneOf(d) === l)), requests: perLane(requestOf) });
+        // Cuándo se usó por última vez cada carril (el más reciente de sus celulares, ver `deviceState`): con todos
+        // ocupados, la interfaz cierra el que lleva más tiempo sin usarse.
+        const lastUsedOf = (l: Lane) => Math.max(0, ...[inLane('client', l), inLane('advisor', l)].map((d) => deviceState(d).lastUsed ?? 0));
+        return json(res, 200, { lanes: LANES, open: perLane((l) => opened.some((d) => d !== 'admin' && laneOf(d) === l)), requests: perLane(requestOf), lastUsed: perLane(lastUsedOf) });
     }
     if (path === '/api/plan') {
         if (req.method === 'GET') return json(res, 200, { plan: readPlan() });
@@ -2203,17 +2206,19 @@ const server = createServer(async (req, res) => {
     if (path === '/api/prod/phone' && req.method === 'POST') {
         const b = await readBody(req);
         const selfService = b?.channel === 'autogestion';
-        const id: DeviceId = selfService ? 'client' : 'advisor';
+        // En el carril que le tocó a la pestaña, como cualquier otra corrida (antes, siempre el A).
+        const lane = laneParam(typeof b?.lane === 'string' ? b.lane : null);
+        const id: DeviceId = inLane(selfService ? 'client' : 'advisor', lane);
         let f;
         try { f = await prodMerchant(Number(b?.allied)); }
         catch (e) { return json(res, 200, { ok: false, detail: `no pude leer prod: ${(e as Error).message} (¿VPN de prod?)` }); }
         const entry = selfService ? f.selfServiceUrl : f.entryUrl;
         if (!entry || !f.advisor) return json(res, 200, { ok: false, detail: 'el comercio no tiene asesor de prueba en prod (ni su sucursal de prueba)' });
         // Un celular de prod a la vez: abrir uno cierra el otro.
-        await Promise.all([releaseDevice('advisor'), releaseDevice('client')]);
+        await Promise.all([releaseDevice(inLane('advisor', lane)), releaseDevice(inLane('client', lane))]);
         prodPhones.add(id);
-        startDeviceLog(`PRODUCCIÓN · ${selfService ? 'autogestión, celular del cliente' : 'celular del asesor'}, A MANO · ${f.merchant?.name ?? ''} · sucursal ${f.advisor.branchHash}`);
-        deviceLog('panel', `⚠ prod: el panel no completa, no avanza y no aprueba nada; ${selfService ? 'te registrás con tu celular y el OTP llega por SMS' : 'entrás y manejás vos'}. Todo lo que hagas es real`);
+        startDeviceLog(`PRODUCCIÓN · ${selfService ? 'autogestión, celular del cliente' : 'celular del asesor'}, A MANO · ${f.merchant?.name ?? ''} · sucursal ${f.advisor.branchHash}`, lane);
+        deviceLog(panelOf(id), `⚠ prod: el panel no completa, no avanza y no aprueba nada; ${selfService ? 'te registrás con tu celular y el OTP llega por SMS' : 'entrás y manejás vos'}. Todo lo que hagas es real`);
         try {
             const r = await openDevice(id, entry);
             return json(res, 200, { ok: true, device: id, ...r });

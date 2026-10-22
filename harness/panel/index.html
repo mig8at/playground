@@ -340,9 +340,7 @@
     #results[data-admin-on] .row[aria-selected="true"] { background: none; color: inherit; box-shadow: none }
     #results[data-admin-on] .row[aria-selected="true"] .row-meta { color: var(--fg-3) }
     .tab-start-channels { display: flex; flex-wrap: wrap; justify-content: center; gap: var(--space-2) }
-    .tab-busy-list { display: flex; flex-direction: column; gap: var(--space-1); width: min(100%, 420px) }
-    .tab-busy-row { display: flex; align-items: center; gap: var(--space-2); font-size: var(--text-sm) }
-    .tab-busy-name { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--fg-2) }
+    .tab-busy-list { display: flex; justify-content: center }
     .devices[hidden], .admin-view[hidden], .prod-view[hidden] { display: none }
     .stage-views[hidden] { display: none }
     .prod-view { flex: 1 1 auto; min-height: 0; display: flex; justify-content: center; align-items: flex-start; overflow: auto }
@@ -755,7 +753,7 @@
             <div class="empty-head">
               <div class="empty-media"><span class="ui-icon" data-icon="play" aria-hidden="true"></span></div>
               <div class="empty-title" id="tabBusyTitle"></div>
-              <div class="empty-desc">Para correr esta pestaña, cerrá una de las otras corridas. Cuántos carriles hay lo fija <code>HARNESS_LANES</code> al arrancar el panel.</div>
+              <div class="empty-desc" id="tabBusyDesc"></div>
             </div>
             <div class="tab-busy-list" id="tabBusyList"></div>
           </div>
@@ -4073,6 +4071,7 @@
     let tabSets = {}, tabsTarget = target, runTabs = [], activeTab = null, laneOwners = {}, tabSwitching = false;
     const laneBusyNow = {};
     const laneRequests = {};   // la solicitud en curso de cada carril (`/api/lanes`), para el punto de la pestaña
+    const laneLastUsed = {};   // cuándo se usó por última vez cada carril: el que más tiempo lleva sin usarse se cierra
     try {
       const saved = JSON.parse(localStorage.getItem(TABS_KEY) || 'null');
       if (saved && typeof saved === 'object') { tabSets = saved.sets || {}; laneOwners = saved.lanes || { a: saved.live || null }; }
@@ -4109,13 +4108,13 @@
     const ownerLabel = (lane = 'a') => { const o = laneOwners[lane]; return o ? `«${o.label}»${o.target !== tabsTarget ? ` (en ${o.target})` : ''}` : 'otra corrida'; };
     /** El carril que muestra una pestaña: el suyo; si no tiene, uno libre (prod va siempre por el A: su celular es ése). */
     const freeLane = () => LANES.find((l) => !laneBusy(l)) || null;
-    const laneToShow = (t) => laneOfTab(t) || (t?.kind === 'prod' ? 'a' : freeLane() || 'a');
+    const laneToShow = (t) => laneOfTab(t) || freeLane() || 'a';
     /** Qué carriles tiene el servidor y cuáles tienen algún celular abierto (`/api/lanes`). Cada 3 s, y al abrir o cerrar. */
     async function pollLanes() {
       try {
         const r = await (await fetch('/api/lanes')).json();
         if (Array.isArray(r.lanes) && r.lanes.length) LANES = r.lanes;
-        for (const l of LANES) { laneBusyNow[l] = !!r.open?.[l]; laneRequests[l] = r.requests?.[l] || null; }
+        for (const l of LANES) { laneBusyNow[l] = !!r.open?.[l]; laneRequests[l] = r.requests?.[l] || null; laneLastUsed[l] = Number(r.lastUsed?.[l]) || 0; }
       } catch { /* el panel no respondió: queda como estaba */ }
       renderTabs();
       if (!$('tabBusy').hidden || (currentTab() && !isOwner(currentTab()))) renderStage();
@@ -4202,12 +4201,14 @@
       if (prodMode) {
         // La pestaña de un comercio de prod ES su celular: se abre solo al activarla (`openProdPhone`) o con su ▶.
         const asking = ficha && !t.canal;
-        $('tabStart').hidden = !asking; $('tabBusy').hidden = true;
-        $('devices').hidden = !ficha || asking;
+        const full = ficha && !!t.canal && !isOwner(t) && !freeLane();
+        $('tabStart').hidden = !asking; $('tabBusy').hidden = !full;
+        $('devices').hidden = !ficha || asking || full;
         if (asking) renderProdChannelChoice(t);
+        if (full) renderBusyLanes(t);
         if (ficha) { $('btnChannel').hidden = !t.canal; if (t.canal) $('valChannel').textContent = CHANNEL_LONG[t.canal] || t.canal; }
         if (ficha) {
-          const idle = laneBusy('a') && !isOwner(t) ? `El carril A está con ${ownerLabel('a')}: ▶ para abrir acá` : 'Abriendo la entrada de prod…';
+          const idle = t.evicted ? `${t.evicted}. ▶ para volver a abrirla` : 'Abriendo la entrada de prod…';
           if (!isOwner(t)) { $('advisorIdle').textContent = idle; $('clientEmpty').textContent = idle; }
           syncPlay();
           renderProdFicha(t);
@@ -4226,7 +4227,12 @@
       $('tabBusy').hidden = !busy;
       $('devices').hidden = !orig || asking || busy;
       if (asking) renderChannelChoice(t);
-      if (busy) renderBusyLanes();
+      if (busy) renderBusyLanes(t);
+      // La que perdió su carril lo dice en su celular hasta que le des ▶.
+      if (orig && run && t.canal && !isOwner(t) && !busy) {
+        $('advisorIdle').textContent = t.evicted ? `${t.evicted}. ▶ para volver a empezar` : 'El celular del asesor';
+        $('clientEmpty').textContent = t.evicted ? `${t.evicted}. ▶ para volver a empezar` : 'El celular del cliente';
+      }
       syncPlay();
     }
     function renderChannelChoice(t) {
@@ -4285,7 +4291,7 @@
         if (!inOriginacion()) baseShowStageView('orig');
         renderTabs(); renderStage(); saveTabs(); renderProdList($('merchantSearch').value);
         // Su celular se abre solo en la entrada de prod, si el carril A está libre; si no, queda con su ▶ (que pregunta).
-        if (t.canal && !isOwner(t) && !laneBusy('a')) openProdPhone();
+        if (t.canal && !isOwner(t) && freeLane() && !t.evicted) openProdPhone();
         return;
       }
       if (t?.kind === 'admin') { if (sel) followKey = sel.slug + '|' + channel; baseShowStageView('admin'); renderTabs(); renderStage(); saveTabs(); return; }
@@ -4351,6 +4357,14 @@
       renderTabs(); renderStage(); saveTabs();
     }
 
+    /** La pestaña que perdió su carril porque entró otra corrida: su celular lo dice hasta que le des ▶. */
+    function markEvicted(owner, note) {
+      if (!owner) return;
+      const set = owner.target === tabsTarget ? runTabs : (tabSets[owner.target]?.tabs || []);
+      const ot = set.find((x) => x.id === owner.id);
+      if (ot) ot.evicted = note;
+      saveTabs(); renderTabs();
+    }
     /** Cierra los celulares de un carril en el servidor (por defecto, el que se ve). */
     async function closeLane(lane = phoneLane) {
       await Promise.all(['advisor', 'client'].map((r) => fetch(`/api/device/${laneId(r, lane)}/close`, { method: 'POST' }).catch(() => { })));
@@ -4394,18 +4408,13 @@
       // otro acaba de abrir, y entonces esta corrida le pisaba el carril. Pasó en qa el 2026-10-21: Mediarte abrió en el A
       // y cerró la de Pullman.
       await pollLanes();
-      let lane = laneOfTab(t);
-      if (!lane) {
-        lane = t.kind === 'prod' ? (laneBusy('a') ? null : 'a') : freeLane();
-        if (!lane) {
-          const msg = t.kind === 'prod' ? `El carril A está con ${ownerLabel('a')}. ¿Cierro esa corrida para abrir esta?`
-            : `Los ${LANES.length} carriles están ocupados (${LANES.map(ownerLabel).join(', ')}). ¿Cierro la de ${ownerLabel('a')} para abrir esta?`;
-          if (!confirm(msg)) return false;
-          await closeLane('a');
-          lane = 'a';
-        }
-      }
-      // El mismo comercio en otra sucursal, en local, contra CUALQUIER otro carril ocupado.
+      // EL CARRIL: el suyo; si no, uno libre; y con todos ocupados, el que lleva MÁS TIEMPO SIN USARSE, que se cierra sin
+      // preguntar, sea del ambiente que sea (prod incluido). La pestaña que lo tenía queda con su ▶ y lo dice.
+      let lane = laneOfTab(t) || freeLane();
+      const victim = lane ? null : [...LANES].sort((x, y) => (laneLastUsed[x] || 0) - (laneLastUsed[y] || 0))[0];
+      if (victim) lane = victim;
+      // El mismo comercio en otra sucursal, en local, contra CUALQUIER otro carril ocupado. Va ANTES de cerrar el que se
+      // libera: si frena, esa corrida no se perdió de balde.
       for (const other of LANES.filter((l) => l !== lane)) {
         const o = laneOwners[other];
         if (t.kind || target !== 'local' || !o || o.target !== tabsTarget || !laneBusy(other)) continue;
@@ -4416,9 +4425,16 @@
           return false;
         }
       }
+      if (victim) {
+        const owner = laneOwners[victim];
+        const mins = laneLastUsed[victim] ? Math.max(0, Math.round((Date.now() - laneLastUsed[victim]) / 60000)) : null;
+        await closeLane(victim);
+        markEvicted(owner, `Se cerró para abrir «${tabLabel(t).name}»${mins === null ? '' : `: llevaba ${mins} min sin usarse`}`);
+      }
       const l = tabLabel(t);
       laneOwners[lane] = { target: tabsTarget, id: t.id, label: `${l.name} · ${l.chan}` };
       t.lane = lane;
+      delete t.evicted;
       await setPhoneLane(lane);
       claimConsole();
       saveTabs();
@@ -4468,27 +4484,17 @@
     }
     // Al arrancar: qué consola es la viva (sin anotarla a nadie).
     fetch('/api/status').then((r) => r.json()).then((j) => { if (j.consoleId) { seenConsoleId = j.consoleId; syncConsoleView(); } }).catch(() => { });
-    /** «Todos los carriles ocupados»: una fila por carril, con su corrida, «Ir» (si es de este ambiente) y «Cerrar». */
-    function renderBusyLanes() {
+    /** «Todos los carriles ocupados»: cuál se cierra al iniciar esta (la que más tiempo lleva sin usarse) y «Iniciar». */
+    function renderBusyLanes(t) {
       $('tabBusyTitle').textContent = `Los ${LANES.length} carriles están ocupados`;
+      const victim = [...LANES].sort((x, y) => (laneLastUsed[x] || 0) - (laneLastUsed[y] || 0))[0];
+      const mins = laneLastUsed[victim] ? Math.max(0, Math.round((Date.now() - laneLastUsed[victim]) / 60000)) : null;
+      $('tabBusyDesc').textContent = `${t.evicted ? t.evicted + '. ' : ''}Al iniciar se cierra la que más tiempo lleva sin usarse: ${ownerLabel(victim)}${mins === null ? '' : ` (hace ${mins} min)`}.`;
       const box = $('tabBusyList');
       box.replaceChildren();
-      for (const l of LANES) {
-        const o = laneOwners[l];
-        const row = document.createElement('div'); row.className = 'tab-busy-row';
-        const name = document.createElement('span'); name.className = 'tab-busy-name';
-        name.textContent = `${l.toUpperCase()} · ${ownerLabel(l)}`;
-        row.appendChild(name);
-        if (o && o.target === tabsTarget) {
-          const go = document.createElement('button'); go.type = 'button'; go.className = 'btn btn-outline btn-xs'; go.textContent = 'Ir';
-          go.onclick = () => activateTab(o.id);
-          row.appendChild(go);
-        }
-        const close = document.createElement('button'); close.type = 'button'; close.className = 'btn btn-xs'; close.textContent = 'Cerrar';
-        close.onclick = async () => { await closeLane(l); renderTabs(); renderStage(); };
-        row.appendChild(close);
-        box.appendChild(row);
-      }
+      const go = document.createElement('button'); go.type = 'button'; go.className = 'btn btn-sm'; go.textContent = 'Iniciar';
+      go.onclick = () => (t.kind === 'prod' ? openProdPhone() : playPhone(entryPhone() || 'advisor'));
+      box.appendChild(go);
     }
     $('adminRow').onclick = () => openAdminTab();
     $('adminRow').onkeydown = (ev) => { if (ev.key === 'Enter' || ev.key === ' ') { ev.preventDefault(); openAdminTab(); } };
@@ -4739,7 +4745,7 @@
       setMode('loading', 'Abriendo la entrada de prod…');
       renderStage();
       let r;
-      try { r = await (await fetch('/api/prod/phone', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ allied: t.allied, channel: t.canal }) })).json(); }
+      try { r = await (await fetch('/api/prod/phone', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ allied: t.allied, channel: t.canal, lane: phoneLane }) })).json(); }
       catch { r = { ok: false, detail: 'el panel no respondió' }; }
       if (!r.ok) { setMode('status', '✗ ' + (r.detail || 'no se pudo abrir')); renderStage(); return; }
       setMode('live', '', r.view || '');
