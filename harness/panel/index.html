@@ -168,6 +168,10 @@
        una palabra por renglón. */
     .view-note { display: block; flex: none; padding: var(--space-2) var(--gutter); font-size: var(--text-xs); line-height: 1.5; color: var(--fg-2) }
     .view-note[hidden] { display: none }
+    /* Una pestaña del sidebar que en este ambiente no funciona: se ve (la forma es la misma en todos) y no se elige; el
+       motivo, en su tooltip. `aria-disabled` y no `disabled`: un botón apagado no muestra su tooltip. */
+    #sideRight nav .tab[aria-disabled="true"] { opacity: .45; cursor: not-allowed }
+    #sideRight nav .tab[aria-disabled="true"]:hover { color: var(--fg-3) }
     .view-note.alert-warn { color: var(--foreground) }
     /* Sin pestaña de comercio (Admin, la corrida pública, ninguna) y en prod para Cliente y Burós: sólo el aviso. */
     body.aux-empty #viewClient > :not(legend, .view-note), body.aux-empty #viewMerchant > :not(legend, .view-note),
@@ -1848,6 +1852,10 @@
     function showAuxView(name) {
       const views = { client: ['tabClient', 'viewClient'], merchant: ['tabMerchant', 'viewMerchant'], bureaus: ['tabBureaus', 'viewBureaus'] };
       if (!views[name]) name = 'client';
+      // Una apagada en este ambiente (`renderViewNotes`) no se elige: se va a la primera que sí.
+      if ($(views[name][0]).getAttribute('aria-disabled') === 'true') {
+        name = ['merchant', 'client', 'bureaus'].find((k) => $(views[k][0]).getAttribute('aria-disabled') !== 'true') || 'merchant';
+      }
       for (const [key, [tabId, viewId]] of Object.entries(views)) {
         const on = key === name;
         $(tabId).classList.toggle('on', on);
@@ -1875,6 +1883,25 @@
       try { t = currentTab(); } catch { return; }
       const merchantTab = prodMode ? t?.kind === 'prod' : !!t && !t.kind;
       document.body.classList.toggle('aux-empty', !prodMode && !merchantTab);
+      // LAS PESTAÑAS QUE EN ESTE AMBIENTE NO FUNCIONAN se apagan, con el motivo: la forma es la misma en todos lados.
+      // En prod no se inyecta ni se dicta nada (Cliente y Burós); en dev y staging Burós no se aplica (su backend consulta
+      // un lambda que no acepta dictado, F-149). Sin pestaña de comercio no se apaga nada: lo dice el aviso.
+      const sharedNoDictation = !prodMode && target !== 'local' && !cap('lambdaDictado');
+      const off = {
+        tabClient: prodMode ? 'En prod no se inyecta nada: el caso no aplica. Se entra a mano con el asesor de prueba (Comercio).' : '',
+        tabMerchant: '',
+        tabBureaus: prodMode ? 'En prod contestan las centrales de verdad: no se les dicta nada.'
+          : sharedNoDictation && merchantTab ? `En ${target} no se aplica: el backend consulta un lambda que no acepta dictado y las centrales contestan lo de por defecto (F-149).` : '',
+      };
+      let selectedOff = false;
+      for (const [id, why] of Object.entries(off)) {
+        const b = $(id);
+        if (b.dataset.title0 === undefined) b.dataset.title0 = b.title;
+        b.setAttribute('aria-disabled', String(!!why));
+        b.title = why || b.dataset.title0;
+        if (why && b.classList.contains('on')) selectedOff = true;
+      }
+      if (selectedOff) showAuxView(prodMode ? 'merchant' : 'client');
       if (prodMode) {
         set('noteClient', 'En prod no se inyecta ni se dicta nada: la corrida pública usa los datos de harness/.env.prod, y la ficha del comercio está en Comercio.');
         set('noteBureaus', 'En prod contestan las centrales de verdad: no se les dicta nada desde el panel.');
@@ -1976,9 +2003,9 @@
         advanceDeviceTo(b.dataset.device, null);
       };
     }
-    $('tabClient').onclick = () => showAuxView('client');
-    $('tabMerchant').onclick = () => showAuxView('merchant');
-    $('tabBureaus').onclick = () => showAuxView('bureaus');
+    $('tabClient').onclick = () => { if ($('tabClient').getAttribute('aria-disabled') !== 'true') showAuxView('client'); };
+    $('tabMerchant').onclick = () => { if ($('tabMerchant').getAttribute('aria-disabled') !== 'true') showAuxView('merchant'); };
+    $('tabBureaus').onclick = () => { if ($('tabBureaus').getAttribute('aria-disabled') !== 'true') showAuxView('bureaus'); };
 
     // ── LOS BURÓS DEL CASO: responde · sin información · falla, por central ─────────────────────────────
     // El estado vive acá (y en el navegador, para que sobreviva a recargar) y viaja con el caso
@@ -4629,25 +4656,16 @@
       }
       if (!f.ok) { body.innerHTML = `<p class="warn">${escTxt(f.detail || 'no se pudo leer')}</p>`; return; }
       const a = f.advisor;
-      const on = f.lenders.filter((l) => Number(l.status) === 1).length;
-      // El valor va en UN span: los hijos sueltos de `.prop-value` heredan reglas de las filas del caso y se separan.
+      // LO JUSTO PARA ENTRAR A MANO (2026-10-21): el correo del asesor de prueba y la contraseña, para copiar. La contraseña no
+      // se escribe acá: el botón la pide al servidor al hacer clic y la deja en el portapapeles. Lo demás que se leía (las
+      // sucursales, la URL, las entidades) se quitó: no hacía falta para entrar. Quedan los avisos que impiden entrar.
       const line = (k, v) => `<div class="prop"><span class="label">${k}</span><span class="prop-value"><span>${v}</span></span></div>`;
       body.innerHTML = [
-        line('Sucursales', `${f.branches.active} activas de ${f.branches.total}`),
-        line('Asesor de prueba', a ? `<span class="mono">${escTxt(a.email)}</span> · ${a.hasSub ? 'cuenta de Cognito enlazada' : '<span class="warn">sin cognito_id</span>'}` : '<span class="warn">no tiene</span>'),
-        a ? line('Su sucursal', a.branchHash ? `<span class="mono">${escTxt(a.branchHash)}</span> · ${escTxt(a.branchName || '(sin nombre)')}${a.branchStatus === 1 ? '' : ' · <span class="warn">apagada</span>'}` : '<span class="warn">ninguna</span>') : '',
-        // PARA ENTRAR A MANO, desde tu navegador: el panel no entra en prod. La contraseña no se escribe acá: el botón la
-        // pide al servidor al hacer clic y la deja en el portapapeles.
-        a && f.entryUrl ? `<div class="prod-manual"><strong>Para entrar: en el celular del panel o en tu navegador</strong>
-          ${line('URL', `<span class="mono">${escTxt(f.entryUrl)}</span> <button type="button" class="btn btn-outline btn-xs" data-copy-text="${escTxt(f.entryUrl)}">Copiar</button> <a class="btn btn-outline btn-xs" href="${escTxt(f.entryUrl)}" target="_blank" rel="noopener noreferrer">Abrir</a>`)}
-          ${line('Correo', `<span class="mono">${escTxt(a.email)}</span> <button type="button" class="btn btn-outline btn-xs" data-copy-text="${escTxt(a.email)}">Copiar</button>`)}
-          ${line('Contraseña', `<button type="button" class="btn btn-outline btn-xs" id="prodCopyPass">Copiar contraseña</button>`)}
-          <p class="warn">⚠ Entrás vos, y en prod todo es real: las centrales se consultan de verdad y la entidad que elijas en el listado recibe la solicitud.</p></div>` : '',
-        a?.branchHash ? line('Sus entidades', `${on} encendida${on === 1 ? '' : 's'} de ${f.lenders.length}`) : '',
-        ...(f.lenders.length ? [`<table class="table"><thead><tr><th>Entidad</th><th class="num">rt</th><th>Estado</th></tr></thead><tbody>${
-          f.lenders.map((l) => `<tr><td>${escTxt(l.name)} <span class="mono">#${l.id}</span></td><td class="num">${escTxt(l.response_type)}</td><td>${Number(l.status) === 1 ? 'encendida' : 'apagada'}</td></tr>`).join('')
-        }</tbody></table>`] : []),
-        ...f.notes.map((n) => `<p class="warn">⚠ ${escTxt(n)}</p>`),
+        a ? line('Correo', `<span class="mono">${escTxt(a.email)}</span> <button type="button" class="btn btn-outline btn-xs" data-copy-text="${escTxt(a.email)}">Copiar</button>`)
+          : '<p class="warn">⚠ Este comercio no tiene asesor de prueba en prod: se crea desde la edición del comercio en el admin de prod.</p>',
+        a ? line('Contraseña', `<button type="button" class="btn btn-outline btn-xs" id="prodCopyPass">Copiar contraseña</button>`) : '',
+        ...f.notes.filter((n) => !/no tiene asesor de prueba/.test(n)).map((n) => `<p class="warn">⚠ ${escTxt(n)}</p>`),
+        a ? '<p class="prod-hint">⚠ Entrás vos, y en prod todo es real: las centrales se consultan de verdad y la entidad que elijas recibe la solicitud.</p>' : '',
       ].filter(Boolean).join('');
       for (const b of body.querySelectorAll('[data-copy-text]')) {
         b.onclick = async () => { try { await navigator.clipboard.writeText(b.dataset.copyText); b.textContent = 'Copiado ✓'; } catch { b.textContent = 'No se pudo copiar'; } setTimeout(() => { b.textContent = 'Copiar'; }, 1500); };
@@ -4662,7 +4680,7 @@
         } catch { b.textContent = 'No se pudo copiar'; }
         setTimeout(() => { b.textContent = 'Copiar contraseña'; }, 2000);
       };
-      $('prodFichaHint').textContent = `Para comprobar que su asesor de prueba podría entrar, sin entrar: make harness-prod-advisor ALLIED=${t.allied} (VPN de prod y aws sso login --profile prod). La corrida pública de prod está en Admin, a la izquierda.`;
+      $('prodFichaHint').textContent = '';
     }
     $('prodFichaReload').onclick = () => { const t = currentTab(); if (t?.kind === 'prod') renderProdFicha(t, true); };
     // Abrir el celular del asesor EN PROD, para entrar a mano (`/api/prod/phone`: sin autorrelleno ni nada que avance solo).

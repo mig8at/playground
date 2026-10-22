@@ -1277,4 +1277,10 @@ no es la de por defecto (`?vista=buros`, `?consola=mocks`, `?inicio=entidades`).
 - Para que dev y staging dicten como qa falta un cambio de infra (sus backends consultan el lambda viejo): el borrador del
   pedido está en `tablero/tasks/harness/artifacts/pedido-infra-centrales-dev-staging.md`. Hecho eso, se suman a
   `COMPANY_LAMBDA` (`pkg/risk-lambda.ts`) y a `CAPS.lambdaDictado`.
+- **Ajuste: lo que no funciona en un ambiente se APAGA, no se esconde** (`renderViewNotes`, `aria-disabled` con el motivo
+  en el tooltip; `disabled` no mostraría el tooltip). En prod, Cliente y Burós; en dev y staging, Burós (su lambda no
+  acepta dictado). `showAuxView` no elige una apagada: va a la primera que sí (un `?vista=buros` en prod cae en Comercio).
+- **La ficha de prod quedó en lo justo para entrar a mano**: el correo del asesor de prueba y la contraseña, para copiar,
+  más los avisos que impiden entrar y el de «en prod todo es real». Se fueron las sucursales, la URL, las entidades y la
+  pista del comando.
 
