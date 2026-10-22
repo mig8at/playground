@@ -54,11 +54,24 @@ export const ZONES = [
 // Los muebles se arman a una escala chica y se agrandan al ubicarlos: los personajes son anchos (1,3 de torso)
 // y a 1:1 no cabían en un sillón. Alfombras, tabiques y muros no se agrandan: son la arquitectura.
 const FURNITURE = 1.4
+// Lo que se usa con el cuerpo va a la medida del muñeco, no a la escala general: tiene piernas muy cortas (la
+// cadera a 0,61) y el torso ancho (~1,3 con los brazos). Asientos a ~0,55 para que apoye los pies, sillas de
+// ~1,1 de ancho para que entre, mesa ratona más baja que el asiento. [ancho, alto, fondo] sobre el mueble base.
+// El escritorio y las bibliotecas van con la escala general y su altura se elige al armarlos (`h`), para que
+// los monitores y los libros no se deformen.
+const FIT = {
+  chair: [1.75, 0.9, 1.6],      // asiento 0,54 · ancho 1,08
+  sofa: [1.45, 0.92, 1.45],     // asiento 0,53 · 1,6 por persona
+  armchair: [1.5, 0.75, 1.5],   // asiento 0,55
+  table: [1.4, 1.05, 1.4],      // la mesa ratona a 0,6
+}
+const DESK_H = 0.75             // × 1,4 = 1,05: a la altura de las manos, sentado
 // Lo que se arma en las zonas queda anotado como obstáculo para la gente (people.js): un mueble se infla por el
 // radio de una persona; una silla casi nada, porque a una silla se llega hasta pegado.
 let obstacles = []
-function put(object, x, z, rotation = 0) {
-  object.scale.setScalar(FURNITURE)
+function put(object, x, z, rotation = 0, fit = null) {
+  if (fit) object.scale.set(...fit)
+  else object.scale.setScalar(FURNITURE)
   obstacles.push({ object, inflate: object.userData.seats && object.userData.seats.length === 1 && object.userData.seats[0].facing === Math.PI ? 0.15 : undefined })
   return place(object, x, z, rotation)
 }
@@ -220,24 +233,24 @@ function buildZones(scene) {
   scene.add(wallPart(partition(11, { glassTop: true, glassH: 2.3 }), -4, -9.5, Math.PI / 2))
   scene.add(wallPart(partition(8.8, { glassTop: true, glassH: 2.3 }), -10.6, -4))
   scene.add(place(rug(6.2, 4.4, { base: PALETTE.ink, accent: PALETTE.sand, mid: PALETTE.graphite }), -9.5, -10.4))
-  scene.add(put(desk({ w: 3.4, d: 1.3, screens: 3, screenKind: 'chart', color: PALETTE.wood, legs: PALETTE.woodDark }), -9.5, -11.2))
-  scene.add(put(chair({ color: PALETTE.cognac, executive: true }), -9.5, -9.5))
-  scene.add(put(sofa({ w: 2.4, color: PALETTE.oat, pillows: [PALETTE.primary, PALETTE.sand] }), -13.9, -6.6, Math.PI / 2))
-  scene.add(put(coffeeTable({ r: 0.45 }), -11.6, -6.6))
+  scene.add(put(desk({ w: 3.4, d: 1.3, h: DESK_H, screens: 3, screenKind: 'chart', color: PALETTE.wood, legs: PALETTE.woodDark }), -9.5, -11.2))
+  scene.add(put(chair({ color: PALETTE.cognac, executive: true }), -9.5, -9.5, 0, FIT.chair))
+  scene.add(put(sofa({ w: 2.4, color: PALETTE.oat, pillows: [PALETTE.primary, PALETTE.sand] }), -13.9, -6.6, Math.PI / 2, FIT.sofa))
+  scene.add(put(coffeeTable({ r: 0.45 }), -11.6, -6.6, 0, FIT.table))
   scene.add(put(plant({ size: 1.3 }), -14.2, -14.2))
   scene.add(put(floorLamp(), -5.2, -14.2))
-  scene.add(put(bookshelf({ w: 1.6, h: 2 }), -14.4, -10.8, Math.PI / 2))
+  scene.add(put(bookshelf({ w: 1.6, h: 1.7 }), -14.4, -10.8, Math.PI / 2))
 
   // ── Tareas · Jira: noreste, frente al kanban ──
   scene.add(wallPart(partition(11), 4, -9.5, Math.PI / 2))
   scene.add(place(rug(9.6, 4.4, { base: PALETTE.oat, accent: PALETTE.stone, mid: PALETTE.linen }), 9.5, -10.2))
   ;[6.4, 9.6, 12.8].forEach((x, i) => {
-    scene.add(put(desk({ w: 2.2, screens: 2, screenKind: i === 1 ? 'board' : 'code', accent: PALETTE.sand }), x, -10.4))
-    scene.add(put(chair({ color: PALETTE.ink }), x, -8.8))
+    scene.add(put(desk({ w: 2.2, h: DESK_H, screens: 2, screenKind: i === 1 ? 'board' : 'code', accent: PALETTE.sand }), x, -10.4))
+    scene.add(put(chair({ color: PALETTE.ink }), x, -8.8, 0, FIT.chair))
   })
   scene.add(put(plant({ size: 1.1 }), 14.2, -14.2))
   scene.add(put(plant({ size: 0.9, leaves: PALETTE.greenDark }), 14.2, -5))
-  scene.add(put(armchair({ color: PALETTE.cognac }), 7, -5.6, Math.PI))
+  scene.add(put(armchair({ color: PALETTE.cognac }), 7, -5.6, Math.PI, FIT.armchair))
 
   // ── El café, contra el muro norte, entre la oficina y Jira ──
   scene.add(put(coffeeBar(), 0, -14.35))
@@ -249,9 +262,9 @@ function buildZones(scene) {
   scene.add(wallPart(partition(11), -4, 9.5, Math.PI / 2))
   scene.add(place(rug(6.4, 4.6, { base: PALETTE.sage, accent: PALETTE.linen, mid: PALETTE.oat }), -9.5, 10.3))
   scene.add(put(whiteboard({ w: 3, h: 1.6 }), -9.5, 6.6))
-  scene.add(put(desk({ w: 2.8, screens: 2, screenKind: 'code', accent: PALETTE.sage, color: PALETTE.white }), -9.5, 10))
-  scene.add(put(chair({ color: PALETTE.graphite }), -9.5, 11.5))
-  scene.add(put(armchair({ color: PALETTE.graphite, pillow: PALETTE.sage }), -13.6, 6.4, Math.PI * 0.6))
+  scene.add(put(desk({ w: 2.8, h: DESK_H, screens: 2, screenKind: 'code', accent: PALETTE.sage, color: PALETTE.white }), -9.5, 10))
+  scene.add(put(chair({ color: PALETTE.graphite }), -9.5, 11.5, 0, FIT.chair))
+  scene.add(put(armchair({ color: PALETTE.graphite, pillow: PALETTE.sage }), -13.6, 6.4, Math.PI * 0.6, FIT.armchair))
   scene.add(put(plant({ size: 1.2 }), -14.2, 14.2))
   scene.add(put(floorLamp({ shade: PALETTE.sand }), -5.2, 14.2))
 
@@ -259,20 +272,20 @@ function buildZones(scene) {
   scene.add(wallPart(partition(8.8), 10.6, 4))
   scene.add(wallPart(partition(11), 4, 9.5, Math.PI / 2))
   scene.add(place(rug(6.4, 4.6, { base: PALETTE.slate, accent: PALETTE.sand, mid: PALETTE.oat }), 9, 10.3))
-  scene.add(put(bookshelf({ w: 2, h: 2.4 }), 8.2, 4.65))
-  scene.add(put(bookshelf({ w: 2, h: 2.4 }), 11.2, 4.65))
-  scene.add(put(bookshelf({ w: 2, h: 2.4 }), 14.35, 7.6, -Math.PI / 2))
-  scene.add(put(desk({ w: 2.4, screens: 1, screenKind: 'board', accent: PALETTE.slate, color: PALETTE.wood, legs: PALETTE.woodDark }), 8.4, 10))
-  scene.add(put(chair({ color: PALETTE.cognac }), 8.4, 11.5))
-  scene.add(put(sofa({ w: 2.4, color: PALETTE.linen, pillows: [PALETTE.slate, PALETTE.mustard] }), 13.9, 11.6, -Math.PI / 2))
+  scene.add(put(bookshelf({ w: 2, h: 1.9 }), 8.2, 4.65))
+  scene.add(put(bookshelf({ w: 2, h: 1.9 }), 11.2, 4.65))
+  scene.add(put(bookshelf({ w: 2, h: 1.9 }), 14.35, 7.6, -Math.PI / 2))
+  scene.add(put(desk({ w: 2.4, h: DESK_H, screens: 1, screenKind: 'board', accent: PALETTE.slate, color: PALETTE.wood, legs: PALETTE.woodDark }), 8.4, 10))
+  scene.add(put(chair({ color: PALETTE.cognac }), 8.4, 11.5, 0, FIT.chair))
+  scene.add(put(sofa({ w: 2.4, color: PALETTE.linen, pillows: [PALETTE.slate, PALETTE.mustard] }), 13.9, 11.6, -Math.PI / 2, FIT.sofa))
   scene.add(put(plant({ size: 1 }), 14.2, 14.3))
 
   // ── Lounge: el centro ──
   scene.add(place(rug(6.4, 6.4), 0, 0))
-  scene.add(put(sofa({ w: 2.6 }), -2.4, 0, Math.PI / 2))
-  scene.add(put(sofa({ w: 2.6, color: PALETTE.linen, pillows: [PALETTE.clay, PALETTE.sage] }), 0.3, 2.6, Math.PI))
-  scene.add(put(armchair(), 2.5, 0, -Math.PI / 2))
-  scene.add(put(coffeeTable(), 0, 0))
+  scene.add(put(sofa({ w: 2.6 }), -2.4, 0, Math.PI / 2, FIT.sofa))
+  scene.add(put(sofa({ w: 2.6, color: PALETTE.linen, pillows: [PALETTE.clay, PALETTE.sage] }), 0.3, 2.6, Math.PI, FIT.sofa))
+  scene.add(put(armchair(), 2.5, 0, -Math.PI / 2, FIT.armchair))
+  scene.add(put(coffeeTable(), 0, 0, 0, FIT.table))
   scene.add(put(floorLamp(), -3.2, 3.2))
   scene.add(put(plant({ size: 1.2 }), 3.2, -3.2))
   scene.add(put(plant({ size: 1 }), -3.2, -3.2))

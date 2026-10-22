@@ -134,9 +134,8 @@ function screenTexture(kind, accent) {
 
 // ── muebles ────────────────────────────────────────────────────────────────────────────────────────────
 
-export function desk({ w = 2.4, d = 1.1, color = PALETTE.white, legs = PALETTE.charcoal, screens = 1, screenKind = 'code', accent = PALETTE.sand } = {}) {
+export function desk({ w = 2.4, d = 1.1, h = 1.05, color = PALETTE.white, legs = PALETTE.charcoal, screens = 1, screenKind = 'code', accent = PALETTE.sand } = {}) {
   const g = new THREE.Group()
-  const h = 1.05
   g.add(box(w, 0.1, d, color, { y: h - 0.1, r: 0.04 }))
   for (const sx of [-1, 1]) for (const sz of [-1, 1]) {
     g.add(box(0.08, h - 0.1, 0.08, legs, { x: sx * (w / 2 - 0.14), z: sz * (d / 2 - 0.12), r: 0.02 }))
