@@ -1072,7 +1072,7 @@ local (6 workers de PHP) y la memoria.
 **La pestaña de prod ES el celular, sin tarjeta (2026-10-21).** Al activarla (`activateTab`, si el carril A está libre)
 `openProdPhone` abre la entrada del canal asesor de su sucursal de prueba por `/api/prod/phone`, igual que antes el botón
 «Abrir el celular», que se fue con su tarjeta (`#prodTabView`). Se ve sólo el celular del asesor (el del cliente se oculta:
-en prod no hay traspaso), con el chip ámbar «prod · a mano» en su rótulo; el ▶ del celular abre o reinicia (`playPhone` →
+en prod no hay traspaso), con el chip ámbar «prod» en su rótulo; el ▶ del celular abre o reinicia (`playPhone` →
 `openProdPhone`). Con el carril A de otra corrida, el celular queda apagado con su ▶ (que pregunta si cierra la otra).
 Lo demás no cambia: el servidor sigue negando avanzar y tocar ese celular. Verificado en un panel de prueba: Pullman en
 prod abrió solo en `login.creditop.com` → `originaciones.creditop.com`, el ▶ pasó a «Reiniciar», `advance` contestó «es un

@@ -817,7 +817,7 @@
             <figure class="device" id="deviceAdvisor">
               <figcaption class="device-label"><span class="ui-icon" data-icon="server" aria-hidden="true"></span>Asesor
                 <span class="device-otp warn" id="advisorNote" hidden>identidad a mano</span>
-                <span class="device-otp warn" id="advisorProd" hidden title="En prod el panel no completa, no avanza y no aprueba nada: entrás y manejás vos">prod · a mano</span></figcaption>
+                <span class="device-otp warn" id="advisorProd" hidden title="En prod el panel no completa, no avanza y no aprueba nada: entrás y manejás vos">prod</span></figcaption>
               <div class="device-frame"><div class="device-notch"></div>
                 <div class="device-screen" id="screenAdvisor">
                   <!-- El asesor: su navegador REAL con el wizard del comercio (`panel/devices.ts`), entrando como el
@@ -845,7 +845,7 @@
               <figcaption class="device-label"><span class="ui-icon" data-icon="channel" aria-hidden="true"></span>Cliente
                 <button type="button" class="device-otp" id="clientOtp" hidden></button>
                 <span class="device-otp warn" id="clientNote" hidden>identidad a mano</span>
-                <span class="device-otp warn" id="clientProd" hidden title="En prod el panel no completa, no avanza y no aprueba nada: te registrás con tu celular y el OTP llega por SMS">prod · a mano</span>
+                <span class="device-otp warn" id="clientProd" hidden title="En prod el panel no completa, no avanza y no aprueba nada: te registrás con tu celular y el OTP llega por SMS">prod</span>
                 <button type="button" class="region-action" id="clientClose" hidden title="Cerrar el navegador del cliente" aria-label="Cerrar el navegador del cliente"><span class="ui-icon" data-icon="close" aria-hidden="true"></span></button></figcaption>
               <div class="device-frame"><div class="device-notch"></div>
                 <div class="device-screen" id="screenClient">
@@ -2658,7 +2658,7 @@
       const m = menuBase('contextMenu');
       caption(m, 'Ambiente');
       for (const it of buttonItems('#targets .toggle')) itemMenu(m, it);
-      itemMenu(m, { txt: 'prod · a mano', activo: prodMode, off: runRunning,
+      itemMenu(m, { txt: 'prod', activo: prodMode, off: runRunning,
         motivo: 'Producción: el catálogo y la ficha de cada comercio (asesor de prueba, sucursal falsa, entidades), y su celular para entrar A MANO. El panel no completa, no avanza ni escribe nada.',
         accion: () => enterProdMode() });
       separator(m);
