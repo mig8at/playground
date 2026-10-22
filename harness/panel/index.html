@@ -303,7 +303,7 @@
     .device-label { height: 20px }
     .device-label .region-action { width: 20px; height: 20px; margin: 0; padding: 0 }
     /* ═══ LA VISTA «ADMIN» ═══ El selector arriba al centro y una PC: la pantalla en 1366:768 (la de `panel/devices.ts`,
-       así el lienzo no se recorta y cada clic cae donde se ve) con su base de laptop, a todo el alto del editor. */
+       así el lienzo no se recorta y cada clic cae donde se ve) con su base de laptop, a todo el ancho del editor. */
     .stage-views { align-self: center; flex: none }
     /* Las pestañas del editor (`.tabs` de la base): la banda pegada arriba del centro, fuera de su padding. */
     .run-tabs { padding-right: 0 }
@@ -361,12 +361,10 @@
     .prod-status { font-size: var(--text-sm); color: var(--fg-2) }
     .prod-out { margin: 0; min-height: 120px; max-height: 50vh; overflow: auto; padding: var(--space-2); border-radius: var(--radius);
       background: var(--background); border: 1px solid var(--border); font-size: var(--text-xs); white-space: pre-wrap }
-    .admin-view { flex: 1 1 auto; min-height: 0; container-type: size; display: flex; justify-content: safe center; align-items: flex-start;
-      overflow-x: auto; overflow-y: hidden }
-    /* La PC toma TODO EL ALTO del editor, como los celulares (2026-10-21): el ancho sale del alto (la pantalla es 1366×768)
-       y, si no entra, el editor scrollea de costado. `safe center`: centrada si entra, pegada a la izquierda si no (con
-       `center` a secas, lo que desborda por la izquierda no se alcanza con el scroll). */
-    .device.pc > .pc-body { grid-area: frame; display: flex; flex-direction: column; align-items: center; width: calc((100cqh - 64px) * 1366 / 768 + 20px) }
+    .admin-view { flex: 1 1 auto; min-height: 0; container-type: size; display: flex; justify-content: center; align-items: flex-start; overflow-y: auto }
+    /* La PC toma TODO EL ANCHO del editor (2026-10-21; antes, el menor entre el ancho y lo que dejaba el alto): la pantalla
+       es una imagen del admin a 1366×768, así que más ancho es más legible. Si queda más alta que el editor, scrollea. */
+    .device.pc > .pc-body { grid-area: frame; display: flex; flex-direction: column; align-items: center; width: calc(100cqw - 48px) }
     .pc-frame { box-sizing: border-box; width: 100%; border: 10px solid var(--muted); border-bottom-width: 14px; border-radius: 12px 12px 4px 4px;
       background: var(--card); box-shadow: 0 0 0 1px var(--border); overflow: hidden }
     .pc-screen { position: relative; inset: auto; width: 100%; aspect-ratio: 1366 / 768 }

@@ -1247,7 +1247,6 @@ no es la de por defecto (`?vista=buros`, `?consola=mocks`, `?inicio=entidades`).
 - **Ajuste el mismo día: sólo CUATRO** (`ADMIN_SECTIONS`, por ruta y en este orden): Usuarios `/usuarios`, Solicitudes
   `/solicitudes`, Comercios `/aliados`, Entidades `/entidades`. Sin títulos de grupo ni submenús. Están siempre, también
   antes de abrir el admin; el menú leído sólo les pone el nombre que tienen en ese ambiente.
-- **Cambio el mismo día: la PC toma el ALTO del editor**, como los celulares: el ancho sale del alto
-  (`(100cqh - 64px) * 1366 / 768 + 20px`) y el editor scrollea de costado. `justify-content: safe center`: centrada si
-  entra y pegada a la izquierda si no; con `center` a secas lo que desborda por la izquierda no se alcanza.
+- **Se probó a todo el ALTO, con scroll de costado como los celulares, y se volvió al ancho** (Miguel, el mismo día): con
+  el editor angosto la PC quedaba casi toda fuera de vista. Se queda a todo el ancho y, si es más alta, scrollea hacia abajo.
 
