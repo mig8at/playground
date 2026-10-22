@@ -91,7 +91,10 @@ function buildGround(scene) {
 
 // ── la entrada: el camino desde la puerta, el toldo con el nombre y dos macetas ──
 function buildEntrance(scene) {
-  scene.add(rect([-1.4, 11.2, 1.4, ROAD_A - 0.25], PALETTE.primaryPale, 0.02, 0.04))
+  // Dos escalones: la oficina está sobre una losa, un escalón (0,45) arriba de la acera.
+  scene.add(box(3, 0.3, 0.6, PALETTE.base, { y: 0, z: 12.4, r: 0.04 }))
+  scene.add(box(3, 0.15, 0.6, PALETTE.base, { y: 0, z: 13, r: 0.04 }))
+  scene.add(rect([-1.4, 13.3, 1.4, ROAD_A - 0.25], PALETTE.primaryPale, 0.02, 0.04))
   const sign = canvasTexture(512, 96, (g, W, H) => {
     g.fillStyle = PALETTE.primary; g.fillRect(0, 0, W, H)
     g.fillStyle = '#ffffff'; g.font = 'bold 54px sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle'
@@ -104,13 +107,13 @@ function buildEntrance(scene) {
   const plate = new THREE.Mesh(new THREE.PlaneGeometry(3.4, 0.45), new THREE.MeshStandardMaterial({ map: sign, roughness: 0.6 }))
   plate.position.set(0, -0.13, 0.78)
   awning.add(plate)
-  for (const sx of [-1, 1]) awning.add(cylinder(0.05, 0.05, 2.9, PALETTE.wallTrim, { x: sx * 1.7, y: -2.9, z: 0.65 }))
-  awning.position.set(0, 2.95, HALF_OFFICE + 1.15)
+  for (const sx of [-1, 1]) awning.add(cylinder(0.05, 0.05, 3.6, PALETTE.wallTrim, { x: sx * 1.7, y: -3.6, z: 0.65 }))
+  awning.position.set(0, 3.65, HALF_OFFICE + 1.4)
   scene.add(awning)
   for (const sx of [-1, 1]) {
-    scene.add(cylinder(0.35, 0.28, 0.6, PALETTE.white, { x: sx * 2.2, y: 0, z: 12.4 }))
+    scene.add(cylinder(0.35, 0.28, 0.6, PALETTE.white, { x: sx * 2.4, y: 0, z: 12.9 }))
     const shrub = new THREE.Mesh(new THREE.SphereGeometry(0.45, 12, 10), mat(COLORS.leaves[1]))
-    shrub.position.set(sx * 2.2, 0.85, 12.4)
+    shrub.position.set(sx * 2.4, 0.85, 12.9)
     shrub.castShadow = true
     scene.add(shrub)
   }
