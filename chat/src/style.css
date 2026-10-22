@@ -18,11 +18,27 @@
   --bubble-theirs: var(--muted);
   --presence-on: #15803d;
   --send-fail: #b91c1c;
+  /* La oficina 3D: un fondo azul de maqueta, como la referencia, y carteles claros encima. */
+  --office-bg: #2a3f86;
+  --office-glow: #4a66bf;
+  --office-chip: rgb(255 255 255 / .86);
+  --office-chip-hover: #ffffff;
+  --office-chip-ink: #1f2a44;
+  --office-accent: #f08a2c;
+  --office-accent-ink: #2b1503;
+  --office-hint: rgb(255 255 255 / .75);
+  --office-shadow: rgb(0 0 0 / .18);
 }
 .dark {
   --bubble-mine: color-mix(in oklab, var(--primary) 30%, var(--background));
   --presence-on: #4ade80;
   --send-fail: #f87171;
+  --office-bg: #121a33;
+  --office-glow: #26386e;
+  --office-chip: rgb(24 30 48 / .86);
+  --office-chip-hover: #252e48;
+  --office-chip-ink: #e8ecf6;
+  --office-shadow: rgb(0 0 0 / .4);
 }
 
 /* La página no scrollea: scrollea cada región (el contrato de `.workbench`). La letra es la de la base. */

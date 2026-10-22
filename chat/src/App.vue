@@ -12,29 +12,60 @@
  *
  * ⚠ Mandar sale a nombre de quien está logueado en el CLI. El texto ajeno se pinta como texto.
  */
-import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { computed, defineAsyncComponent, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useChatStore } from './stores/chat.js'
+// La oficina 3D trae Three.js: se baja recién cuando se abre, no con el chat.
+const OfficeView = defineAsyncComponent(() => import('./office/OfficeView.vue'))
 import {
   vResize, readSize, saveSize, fitRegions, cssSize, bindThemeToggle, readHashRoute, hashRoute, setRoute,
 } from './workbench.js'
 
 const chat = useChatStore()
 
-// ── la ruta: #/c/<correo> ──
+// ── la ruta: #/c/<correo> la conversación · #/oficina la oficina en 3D ──
+// En la oficina no queda ninguna conversación abierta (si no, se darían por leídas sin verse); la última se
+// recuerda para volver a ella con «Chat».
+const view = ref('chat')
+let lastKey = ''
 function routeKey() {
   const { parts } = readHashRoute()
   return parts[0] === 'c' && parts[1] ? decodeURIComponent(parts[1]).toLowerCase() : ''
 }
 function applyRoute() {
+  if (readHashRoute().parts[0] === 'oficina') {
+    if (chat.activeKey) lastKey = chat.activeKey
+    chat.activeKey = ''
+    view.value = 'office'
+    return
+  }
+  view.value = 'chat'
   const key = routeKey()
   if (key && chat.conversations[key]) chat.open(chat.conversations[key].person)
   else if (key) chat.open({ email: key, name: key.split('@')[0] })
   else chat.activeKey = ''
 }
-watch(() => chat.activeKey, (key) => {
-  const target = key ? hashRoute(['c', key]) : ''
+function currentHash() {
+  if (view.value === 'office') return hashRoute(['oficina'])
+  return chat.activeKey ? hashRoute(['c', chat.activeKey]) : ''
+}
+watch([view, () => chat.activeKey], () => {
+  const target = currentHash()
   if (target !== (location.hash || '')) setRoute(`${location.pathname}${location.search}${target}`, { push: true })
 })
+function openChat(person) {
+  view.value = 'chat'
+  chat.open(person)
+}
+function toggleOffice() {
+  if (view.value === 'office') {
+    view.value = 'chat'
+    if (lastKey && chat.conversations[lastKey]) chat.open(chat.conversations[lastKey].person)
+    return
+  }
+  if (chat.activeKey) lastKey = chat.activeKey
+  chat.activeKey = ''
+  view.value = 'office'
+}
 
 // ── las regiones: el sidebar a la izquierda, con el contrato de la base ──
 const sidebarOpen = ref(readSize('chat.sidebar-open', 1) !== 0)
@@ -179,7 +210,7 @@ const statusText = computed(() => {
         </p>
         <ul v-else class="conversations">
           <li v-for="c in chat.list" :key="c.person.email">
-            <button type="button" class="conversation" :class="{ on: c.person.email === chat.activeKey }" @click="chat.open(c.person)">
+            <button type="button" class="conversation" :class="{ on: c.person.email === chat.activeKey }" @click="openChat(c.person)">
               <span class="avatar" aria-hidden="true">{{ initials(c.person) }}<i v-if="c.online" class="presence"></i></span>
               <span class="conversation-main">
                 <span class="conversation-top">
@@ -203,7 +234,7 @@ const statusText = computed(() => {
         <p v-else-if="!onlineWithoutChat.length" class="side-note">Nadie más, o ya tenés conversación con todos los conectados.</p>
         <ul v-else class="conversations">
           <li v-for="p in onlineWithoutChat" :key="p.email">
-            <button type="button" class="conversation" @click="chat.open(p)">
+            <button type="button" class="conversation" @click="openChat(p)">
               <span class="avatar" aria-hidden="true">{{ initials(p) }}<i class="presence"></i></span>
               <span class="conversation-main">
                 <span class="conversation-top"><b class="name">{{ p.name || p.email }}</b></span>
@@ -216,6 +247,14 @@ const statusText = computed(() => {
     </aside>
 
     <main class="editor">
+      <template v-if="view === 'office'">
+        <div class="region-head">
+          <span>Oficina</span>
+          <span class="count">vista 3D</span>
+        </div>
+        <OfficeView />
+      </template>
+      <template v-else>
       <div class="region-head">
         <template v-if="chat.active">
           <span>{{ chat.active.person.name || chat.active.person.email }}</span>
@@ -285,6 +324,7 @@ const statusText = computed(() => {
           <button type="submit" class="btn" :disabled="!draft.trim()">Mandar</button>
         </form>
       </template>
+      </template>
     </main>
 
     <footer class="statusbar">
@@ -293,6 +333,9 @@ const statusText = computed(() => {
         {{ statusText }}<template v-if="chat.me"> · {{ chat.me.email }}</template>
       </span>
       <span v-if="chat.state?.since && listening">desde las {{ clock(chat.state.since) }}</span>
+      <button type="button" class="statusbar-item office-toggle" :aria-pressed="view === 'office'" @click="toggleOffice">
+        {{ view === 'office' ? 'Volver al chat' : 'Oficina 3D' }}
+      </button>
       <div class="layout-controls" role="group" aria-label="Tema y regiones visibles">
         <button ref="themeToggle" type="button" class="region-action theme-toggle"><span class="ui-icon" aria-hidden="true"></span></button>
         <button type="button" class="region-action" :aria-pressed="!!sidebarShown" title="Mostrar u ocultar las conversaciones"
@@ -354,6 +397,8 @@ code { font-family: var(--font-mono); font-size: .92em }
   font: inherit; font-size: 14px }
 
 /* ── el pie ── */
+.office-toggle { border: 0; background: transparent; color: inherit; font: inherit; cursor: pointer }
+.office-toggle[aria-pressed="true"] { color: var(--foreground); font-weight: 600 }
 .status-dot { display: inline-block; width: 7px; height: 7px; border-radius: 50%; background: var(--fg-3); margin-right: 6px }
 .status-dot.on { background: var(--presence-on) }
 </style>
