@@ -508,6 +508,16 @@ const statusText = computed(() => {
         </ol>
       </div>
 
+      <!-- En tu chat no hay a quién escribirle (serías vos mismo): el campo está, pero apagado. -->
+      <form v-if="!chat.active" class="composer" @submit.prevent>
+        <div class="composer-row">
+          <label class="sr-only" for="composer-mine">Tu chat</label>
+          <textarea id="composer-mine" class="input composer-text" rows="1" disabled
+                    placeholder="En tu chat no te podés escribir a vos mismo: abrí una conversación para escribirle a alguien"></textarea>
+          <button type="submit" class="btn" disabled>Mandar</button>
+        </div>
+      </form>
+
       <template v-else>
         <div ref="threadEl" class="region-body thread" aria-live="polite">
           <!-- TUS TAREAS de cuadrilla, arriba del hilo: cada una con lo que se puede hacer con ella. -->
@@ -646,8 +656,12 @@ const statusText = computed(() => {
     <aside v-show="agentShown" class="auxiliarybar" aria-label="Mi agente">
       <div class="rsz rsz-edge-left" v-resize="agentResize"></div>
       <div class="region-head">
-        <span>Mi agente</span>
+        <span>Mi agente <small class="agent-state">{{ mine.agent.mode === 'agente' ? 'activo' : 'apagado' }}</small></span>
         <div class="region-actions">
+          <!-- Prenderlo o apagarlo: con el agente apagado contestás vos, y el muñeco queda en blanco y negro. -->
+          <button type="button" class="switch" role="switch" :aria-checked="mine.agent.mode === 'agente'" @click="toggleMode"
+                  :title="mine.agent.mode === 'agente' ? `Apagar a ${agentLabel}: contestás vos` : `Prender a ${agentLabel}: contesta por vos`"
+                  :aria-label="mine.agent.mode === 'agente' ? `Apagar a ${agentLabel}` : `Prender a ${agentLabel}`"></button>
           <button type="button" class="region-action" title="Ocultar tu agente" aria-label="Ocultar tu agente" @click="setAgentOpen(false)">
             <span class="ui-icon" data-icon="close" aria-hidden="true"></span>
           </button>
@@ -788,6 +802,9 @@ code { font-family: var(--font-mono); font-size: .92em }
 .mode-toggle { border: 0; background: none; font: inherit; color: inherit; cursor: pointer; display: inline-flex; align-items: center; gap: 6px }
 .mode-toggle.on { color: var(--office-accent); font-weight: 600 }
 .mode-avatar { width: 16px; height: 16px; border-radius: 4px; object-fit: cover; background: var(--office-bg) }
+/* Apagado, tu agente se ve en blanco y negro donde aparezca. */
+.mode-toggle:not(.on) .mode-avatar, .mode-switch button:not(.on) img { filter: grayscale(1) }
+.agent-state { font-weight: 400; color: var(--fg-2); margin-left: 4px }
 
 /* CUADRILLA: tus tareas arriba del hilo, con su estado en un punto y sus acciones; y la etiqueta de cada nota. */
 .tasks { display: flex; flex-direction: column; gap: var(--space-2); padding-bottom: var(--space-3); margin-bottom: var(--space-2);

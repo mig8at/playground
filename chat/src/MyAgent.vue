@@ -107,7 +107,7 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <div class="my-agent">
+  <div class="my-agent" :class="{ off: a.mode !== 'agente' }">
     <div class="stage-wrap">
       <div ref="stage" class="stage" aria-label="Tu agente en 3D: arrastrá para girarlo"></div>
       <span class="badge-proto">prototipo</span>
@@ -158,6 +158,10 @@ onBeforeUnmount(() => {
 </template>
 
 <style scoped>
+/* Apagado, en blanco y negro: el muñeco y su foto. Prendido, a color. */
+.my-agent.off .stage :deep(canvas), .my-agent.off .avatar-img { filter: grayscale(1); transition: filter .3s }
+.stage :deep(canvas), .avatar-img { transition: filter .3s }
+
 /* Una columna, para la región de la derecha: el muñeco arriba y lo que se edita debajo. El scroll es del cuerpo de la
    región (`region-body`), que es esta misma raíz. */
 .my-agent { flex: 1; min-height: 0; display: flex; flex-direction: column; padding: 0 }
