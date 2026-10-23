@@ -42,6 +42,13 @@ const photoOf = (p) => {
   if (email && email === chat.meKey) return myPhoto.value
   return p?.picture || chat.online.find((o) => String(o.email || '').toLowerCase() === email)?.picture || ''
 }
+// Responder desde «Mi chat»: abre la conversación con ese mensaje citado, listo para escribir.
+async function replyFromInbox(item) {
+  chat.open(item.person)
+  await nextTick()
+  if (item.sid) startReply({ ...item, kind: 'message' })
+  composer.value?.focus()
+}
 function toggleMode() { mine.setMode(mine.agent.mode === 'agente' ? 'yo' : 'agente') }
 
 // ── la ruta: #/c/<clave> es la conversación abierta (un correo, o `agent:<dueño>/<agente>`) ──
@@ -328,6 +335,17 @@ const statusText = computed(() => {
         </div>
       </div>
       <div class="region-body">
+        <ul class="conversations">
+          <li>
+            <button type="button" class="conversation" :class="{ on: !chat.activeKey }" @click="chat.activeKey = ''">
+              <span class="avatar" aria-hidden="true"><img v-if="myPhoto" class="avatar-photo" :src="myPhoto" alt="" referrerpolicy="no-referrer"><template v-else>{{ initials(chat.me || chat.state?.session) }}</template></span>
+              <span class="conversation-main">
+                <span class="conversation-top"><b class="name">Mi chat</b></span>
+                <span class="conversation-bottom"><span class="snippet">todo lo que te escriben · {{ mine.agent.mode === 'agente' ? `contesta ${agentLabel}` : 'contestás vos' }}</span></span>
+              </span>
+            </button>
+          </li>
+        </ul>
         <p v-if="!chat.list.length && !onlineWithoutChat.length" class="side-note">
           Todavía no hay conversaciones ni nadie más conectado. Cuando alguien abra <code>playground listen</code>, aparece acá.
         </p>
@@ -428,7 +446,7 @@ const statusText = computed(() => {
             </button>
           </div>
         </template>
-        <span v-else>chat</span>
+        <span v-else>Mi chat</span>
       </div>
 
       <!-- Avisos que cambian lo que se puede hacer: van dentro del editor, no como banner global. -->
@@ -456,16 +474,54 @@ const statusText = computed(() => {
         <span v-if="chat.listenError" class="bad">{{ chat.listenError }}</span>
       </div>
 
-      <div v-if="!chat.active" class="region-body">
-        <div class="empty">
-          <div class="empty-head">
-            <div class="empty-title">Elegí una conversación</div>
-            <div class="empty-desc">
-              Los mensajes llegan por <code>playground listen</code> y se guardan en este navegador.
-              El punto verde dice quién está conectado, y a los agentes del equipo les preguntás desde «Agentes».
+      <!-- MI CHAT: sin conversación abierta, el editor es tu bandeja. Vos y tu agente usan el mismo chat: lo que te
+           escriben llega acá, y con tu agente prendido cada mensaje trae su propuesta de respuesta. -->
+      <div v-if="!chat.active" class="region-body my-chat">
+        <header class="my-chat-head">
+          <img v-if="myPhoto" class="my-chat-photo" :src="myPhoto" alt="" referrerpolicy="no-referrer">
+          <span class="my-chat-who">
+            <b>{{ chat.ownerName() || 'Mi chat' }}</b>
+            <small>{{ mine.agent.mode === 'agente' ? `contesta ${agentLabel}: te deja cada respuesta lista para mandar` : 'contestás vos' }}</small>
+          </span>
+          <span class="mode-switch" role="group" aria-label="Quién contesta">
+            <button type="button" :class="{ on: mine.agent.mode === 'yo' }" @click="mine.setMode('yo')">Contesto yo</button>
+            <button type="button" :class="{ on: mine.agent.mode === 'agente' }" @click="mine.setMode('agente')">
+              <img v-if="mine.agent.avatar" :src="mine.agent.avatar" alt="">Contesta {{ agentLabel }}
+            </button>
+          </span>
+        </header>
+
+        <p v-if="!chat.inbox.length" class="side-note center">
+          Todavía no te escribió nadie. Lo que te escriban llega acá, de cualquier conversación.
+        </p>
+        <ol v-else class="inbox">
+          <li v-for="item in chat.inbox" :key="item.key" class="inbox-item" :class="{ answered: item.answered }">
+            <span class="avatar" aria-hidden="true"><img v-if="photoOf(item.person)" class="avatar-photo" :src="photoOf(item.person)" alt="" referrerpolicy="no-referrer"><template v-else>{{ initials(item.person) }}</template></span>
+            <div class="inbox-body">
+              <span class="inbox-top">
+                <button type="button" class="btn-link inbox-name" @click="chat.open(item.person)">{{ item.person.name || item.person.email }}</button>
+                <span v-if="item.kind === 'asked'" class="inbox-tag">le preguntó a tu agente {{ item.agent }}</span>
+                <span class="when">{{ shortWhen(item.time) === clock(item.time) ? clock(item.time) : `${shortWhen(item.time)} · ${clock(item.time)}` }}</span>
+              </span>
+              <p class="text">{{ item.text }}</p>
+              <div v-if="item.proposal && item.proposal.status !== 'descartada' && !item.answered" class="proposal-inline">
+                <img v-if="mine.agent.avatar" class="proposal-avatar" :src="mine.agent.avatar" alt="">
+                <div class="proposal-body">
+                  <span class="proposal-label"><b>{{ agentLabel }}</b> contestaría · no se mandó</span>
+                  <p class="text">{{ item.proposal.text }}</p>
+                  <span class="proposal-actions">
+                    <button type="button" class="btn btn-sm" @click="chat.sendProposal(item.proposal.id)">Mandar</button>
+                    <button type="button" class="btn btn-ghost btn-sm" @click="chat.discardProposal(item.proposal.id)">Descartar</button>
+                  </span>
+                </div>
+              </div>
+              <span class="inbox-actions">
+                <span v-if="item.answered" class="inbox-done">✓ contestado</span>
+                <button v-else-if="item.kind !== 'asked'" type="button" class="btn btn-outline btn-sm" @click="replyFromInbox(item)">{{ item.proposal && item.proposal.status !== 'descartada' ? 'Responder yo' : 'Responder' }}</button>
+              </span>
             </div>
-          </div>
-        </div>
+          </li>
+        </ol>
       </div>
 
       <template v-else>
@@ -706,6 +762,31 @@ code { font-family: var(--font-mono); font-size: .92em }
 .meta { align-self: flex-end; color: var(--fg-2); font-size: var(--text-xs); font-variant-numeric: tabular-nums }
 .error { margin: 2px 0 0; color: var(--send-fail); font-size: var(--text-sm) }
 .btn-link { border: 0; padding: 0; background: none; color: inherit; text-decoration: underline; cursor: pointer; font: inherit }
+
+/* MI CHAT: tu bandeja. Arriba quién sos y quién contesta; debajo cada mensaje con su respuesta o la de tu agente. */
+.my-chat { padding: var(--space-4) var(--space-6); display: flex; flex-direction: column; gap: var(--space-4) }
+.my-chat-head { display: flex; align-items: center; gap: var(--space-3); flex-wrap: wrap; padding-bottom: var(--space-3); border-bottom: 1px solid var(--border) }
+.my-chat-photo { width: 40px; height: 40px; border-radius: 50%; object-fit: cover }
+.my-chat-who { display: flex; flex-direction: column; min-width: 0; flex: 1 }
+.my-chat-who b { font-size: 15px }
+.my-chat-who small { color: var(--fg-2); font-size: var(--text-xs) }
+.mode-switch { display: inline-flex; border: 1px solid var(--border); border-radius: 999px; padding: 2px; gap: 2px }
+.mode-switch button { display: inline-flex; align-items: center; gap: 6px; border: 0; background: transparent; color: var(--fg-2); font: inherit;
+  font-size: var(--text-xs); padding: 4px 10px; border-radius: 999px; cursor: pointer }
+.mode-switch button.on { background: var(--office-accent); color: var(--office-accent-ink) }
+.mode-switch img { width: 16px; height: 16px; border-radius: 4px; object-fit: cover }
+.inbox { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--space-3) }
+.inbox-item { display: flex; gap: var(--space-3); align-items: flex-start }
+.inbox-item.answered .inbox-body > .text { color: var(--fg-2) }
+.inbox-body { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 4px }
+.inbox-top { display: flex; align-items: baseline; gap: var(--space-2); flex-wrap: wrap }
+.inbox-name { font-weight: 600; text-decoration: none }
+.inbox-name:hover { text-decoration: underline }
+.inbox-tag, .inbox-top .when { font-size: var(--text-xs); color: var(--fg-2) }
+.inbox-body > .text { margin: 0; white-space: pre-wrap }
+.proposal-inline { display: flex; gap: var(--space-2); margin-top: 2px }
+.inbox-actions { display: flex; gap: var(--space-2); align-items: center }
+.inbox-done { font-size: var(--text-xs); color: var(--fg-2) }
 
 /* La foto de Google ocupa el círculo entero del avatar; el punto verde sigue encima. */
 .avatar-photo { width: 100%; height: 100%; border-radius: inherit; object-fit: cover; display: block }

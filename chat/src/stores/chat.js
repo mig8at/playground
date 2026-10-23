@@ -247,18 +247,42 @@ export const useChatStore = defineStore('chat', () => {
       }
     }
   }
+  // Una propuesta se manda o se descarta desde su conversación o desde «Mi chat»: se busca en todas.
+  function findProposal(id) {
+    for (const c of Object.values(conversations.value)) {
+      const p = c.messages.find((m) => m.id === id && m.kind === 'propuesta')
+      if (p) return { c, p }
+    }
+    return null
+  }
   async function sendProposal(id) {
-    const c = active.value
-    const p = c?.messages.find((m) => m.id === id && m.kind === 'propuesta')
-    if (!p) return
-    c.messages.splice(c.messages.indexOf(p), 1)
-    await send(p.text, p.re)
+    const found = findProposal(id)
+    if (!found) return
+    found.c.messages.splice(found.c.messages.indexOf(found.p), 1)
+    await send(found.p.text, found.p.re, found.c)
   }
   function discardProposal(id) {
-    const c = active.value
-    const p = c?.messages.find((m) => m.id === id && m.kind === 'propuesta')
-    if (p) Object.assign(p, { status: 'descartada' })
+    const found = findProposal(id)
+    if (found) Object.assign(found.p, { status: 'descartada' })
   }
+
+  /* «MI CHAT»: todo lo que te escriben, de cualquier persona, en un solo hilo, lo más nuevo abajo. Cada mensaje trae
+     su conversación, si ya le contestaste y la propuesta de tu agente si la hay. Las preguntas a tus agentes también
+     son preguntas a vos. */
+  const inbox = computed(() => {
+    const out = []
+    for (const c of Object.values(conversations.value)) {
+      if (isAgentKey(c.person.email)) continue
+      const msgs = c.messages
+      msgs.forEach((m, i) => {
+        if (m.dir !== 'in' || (m.kind && m.kind !== 'asked')) return
+        const answered = msgs.slice(i + 1).some((x) => x.dir === 'out' && x.kind !== 'propuesta')
+        const proposal = msgs.find((x) => x.kind === 'propuesta' && x.replyTo === m.id) || null
+        out.push({ ...m, key: `${c.person.email}|${m.id}`, person: c.person, answered, proposal })
+      })
+    }
+    return out.sort((a, b) => a.time.localeCompare(b.time)).slice(-80)
+  })
   watch(() => mine.agent.mode, proposeReplies)
 
   // La conversación abierta se da por leída sólo si la pestaña está a la vista.
@@ -325,8 +349,8 @@ export const useChatStore = defineStore('chat', () => {
   }
 
   // `re`: el id del home del mensaje que se contesta (sólo en conversaciones con personas).
-  async function send(text, re = '') {
-    const c = active.value
+  async function send(text, re = '', conversation = null) {
+    const c = conversation || active.value
     const body = String(text || '').trim()
     if (!c || !body) return
     const message = { id: `out|${Date.now()}|${Math.random().toString(36).slice(2, 8)}`, dir: 'out', text: body,
@@ -513,7 +537,7 @@ export const useChatStore = defineStore('chat', () => {
   return {
     conversations, activeKey, state, stateError, online, onlineError, listenBusy, listenError, loginBusy, loginError, login,
     teamAgents, teamAgentsError, cuadrilla, cuadrillaError, myTasks, taskUrl, loadCuadrilla, noteTask, doneTask,
-    proposeReplies, sendProposal, discardProposal, ownerName,
+    proposeReplies, sendProposal, discardProposal, ownerName, inbox,
     me, meKey, list, active, unreadTotal, onlineKeys, agentList,
     loadState, loadOnline, loadTeamAgents, startListening, open, openAgent, send, retry, forget, findBySid, start, stop,
   }
