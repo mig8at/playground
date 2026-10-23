@@ -1,0 +1,437 @@
+diff --git a/README.md b/README.md
+index 59904e2..27f70b4 100644
+--- a/README.md
++++ b/README.md
+@@ -217,11 +217,27 @@ Cada mensaje que llega se avisa con una notificación del sistema (macOS; en Lin
+ se reconecta solo si se corta la conexión, toma un `playground login` nuevo sin reiniciarlo y se apaga cuando vence la
+ sesión. **Lo que llega sólo se muestra, nunca se ejecuta.**
+ 
++**Suscribirse a un agente.** Además de preguntarle, a un agente uno se puede anotar, y lo que su dueño publique te
++llega como un mensaje más; si no estás conectado, por el buzón. El `journal` publica solo cada vez que su dueño anota:
++
++```sh
++playground subscribe @oscar journal       # lo que Oscar anote en su journal te llega
++playground subscriptions                  # a qué estás anotado (~/playground/team/subscriptions.json)
++playground unsubscribe @oscar journal
++playground publish <agente> "texto"       # publicar a los anotados a uno de tus agentes
++```
++
++```
++[09:12] journal de Oscar: CORE-800 · El backend de VTEX quedó en producción.  · id 4f2a1c
++```
++
++Tus suscripciones son tuyas: las guarda tu máquina y tu `listen` las vuelve a declarar al conectarse, así que no se
++pierden aunque el home sí.
++
+ **El buzón** (`tools/home/mailbox.js`) tiene la forma de una tabla de DynamoDB —`pk`, `sk` y `expiresAt` como TTL— sobre
+ archivos JSON: uno por destinatario en `CHAT_MAILBOX_DIR` (en la imagen, `/app/data/mailbox`; en `task up`, el volumen
+-`home-mailbox`). Guarda también el padrón: quién usó el chat, para encontrar a alguien que no está conectado.
+-`CHAT_MAILBOX_TTL_DAYS` cambia el vencimiento. Para pasar a DynamoDB hace falta otro driver con las mismas cuatro
+-funciones; el chat no cambia.
++`home-mailbox`). Guarda también el padrón (quién usó el chat) y quién está anotado a qué. `CHAT_MAILBOX_TTL_DAYS` cambia
++el vencimiento. Para pasar a DynamoDB hace falta otro driver con las mismas cuatro funciones; el chat no cambia.
+ 
+ ⚠ En el disco del contenedor, el buzón se pierde en cada deploy y dos copias del home no lo comparten: para que
+ sobreviva, infra monta un disco (EFS) en `CHAT_MAILBOX_DIR`, o se pasa a DynamoDB. Lo conectado vive en la memoria
+diff --git a/cli/playground.js b/cli/playground.js
+index 4ddf96f..ed8e593 100644
+--- a/cli/playground.js
++++ b/cli/playground.js
+@@ -16,8 +16,8 @@
+  *   playground listen [--stop|--status]   un proceso en segundo plano que recibe los mensajes del chat y los
+  *                                         avisa con una notificación del sistema; la terminal queda libre
+  *   playground messages                   los últimos que recibió ese proceso (en memoria, nada en disco)
+- *   playground send @<who> <text…>        mandarle un mensaje a alguien; si no está, le queda en el buzón del home
+- *                                         (`@jose.guzman`: la parte del correo antes de la @, el correo entero o el GitHub)
++ *   playground send @<who> <text…>        mandarle un mensaje a alguien (si no está, le queda en el buzón del home; `@jose.guzman`: la parte del
++ *                                         correo antes de la @, el correo entero o el GitHub)
+  *   playground online                     quién está conectado al chat
+  *   playground agents [@<who>]            quién tiene agentes y qué hace cada uno
+  *   playground ask @<who> <agent> <text…> preguntarle al agente de alguien (corre en SU máquina) y esperar
+@@ -26,6 +26,8 @@
+  *                                         anotar en tu journal (~/playground/team/journal/, Markdown, uno por mes) lo que
+  *                                         el equipo quiere saber; el agente `journal` de tu listen lo cuenta
+  *   playground journal [hoy|ayer|el lunes|semana|…] · journal edit · journal undo
++ *   playground subscribe @<who> <agent> · unsubscribe · subscriptions   anotarse a lo que publique el agente de alguien
++ *   playground publish <agent> <text…>    publicar a los anotados a uno de tus agentes
+  *
+  *   playground token                   el token, para `curl -H "Authorization: Bearer $(playground token)"`
+  *   playground update                  bajar la última versión (lo instala `curl -fsSL <playground>/cli/install | sh`)
+@@ -625,6 +627,20 @@ function agentProblem(a) {
+   return null
+ }
+ 
++/* A qué agentes te anotaste (`playground subscribe @oscar journal`): [{ to, agent }] en team/subscriptions.json. Es
++   tuyo: tu `listen` lo declara al conectarse, y el home te pasa lo que publiquen (o te lo guarda si no estás). */
++export const subscriptionsFile = () => process.env.PLAYGROUND_SUBSCRIPTIONS_FILE || join(TEAM_DIR, 'subscriptions.json')
++export function readSubscriptions() {
++  try {
++    const list = JSON.parse(readFileSync(subscriptionsFile(), 'utf8'))
++    return Array.isArray(list) ? list.filter(x => x && typeof x.to === 'string' && typeof x.agent === 'string') : []
++  } catch { return [] }
++}
++export function writeSubscriptions(list) {
++  mkdirSync(TEAM_DIR, { recursive: true })
++  writeFileSync(subscriptionsFile(), JSON.stringify(list, null, 2) + '\n')
++}
++
+ export function readAgents() {
+   return (agentEntries() ?? []).filter(a => !agentProblem(a))
+     .map(a => ({ name: a.name, description: String(a.description ?? ''), url: a.url }))
+@@ -713,7 +729,7 @@ async function runListener(base) {
+   // `playground messages` diga a qué contesta cada respuesta. Vive acá, en memoria, como lo que llega.
+   const sent = []
+   let token = null
+-  const state = { since: new Date().toISOString(), connected: false, me: null, agents: [] }
++  const state = { since: new Date().toISOString(), connected: false, me: null, agents: [], subscriptions: [] }
+   let stopping = false
+   let stream = null       // la conexión abierta con el home
+   let reconnectNow = false
+@@ -775,6 +791,9 @@ async function runListener(base) {
+       // Los agentes van en el mismo pedido que abre la conexión: quedan anunciados en la copia del home que la atiende.
+       announced = toAnnounce()
+       const extra = announced.length ? { 'x-playground-agents': Buffer.from(JSON.stringify(announced)).toString('base64url') } : {}
++      // Y tus suscripciones, por lo mismo: el home las renueva en la copia que atiende la conexión.
++      const subscriptions = readSubscriptions()
++      if (subscriptions.length) extra['x-playground-subscriptions'] = Buffer.from(JSON.stringify(subscriptions)).toString('base64url')
+       const res = await open(`${base}/api/chat/listen`, { token: s.token, extra })
+       stream = res
+       if (res.statusCode === 401) { clearTimeout(expiry); return quit('el home no reconoce tu sesión: `playground login` y `playground listen`') }
+@@ -786,6 +805,7 @@ async function runListener(base) {
+         if (event === 'hello') {
+           state.me = data?.me ?? null
+           // `hello` dice qué agentes quedaron; si no dice nada, el home es anterior y se declaran aparte.
++          state.subscriptions = Array.isArray(data?.subscriptions) ? data.subscriptions.map(x => `${x.agent} de ${x.to.split('@')[0]}`) : []
+           if (Array.isArray(data?.agents)) state.agents = data.agents.map(a => a.name)
+           else if (data?.agentsError) state.agents = []
+           else { state.agents = announced.map(a => a.name); declareApart(announced) }
+@@ -800,8 +820,9 @@ async function runListener(base) {
+         // SÓLO SE MUESTRA: el texto nunca se interpreta ni se ejecuta.
+         messages.push(data)
+         if (messages.length > KEPT_MESSAGES) messages.shift()
+-        // Lo que esperaba en el buzón del home llega marcado `queued`.
+-        notify(`playground · ${data.from?.name ?? 'mensaje'}${data.queued ? ' (mientras no estabas)' : ''}`, String(data.text ?? ''))
++        // Lo que esperaba en el buzón llega marcado `queued`; lo publicado por un agente, con su nombre.
++        const title = data.kind === 'publish' ? `${data.agent} de ${data.from?.name ?? 'alguien'}` : (data.from?.name ?? 'mensaje')
++        notify(`playground · ${title}${data.queued ? ' (mientras no estabas)' : ''}`, String(data.text ?? ''))
+       }
+     } catch { /* se reconecta abajo */ }
+     clearTimeout(expiry)
+@@ -823,7 +844,7 @@ async function listen(base, options) {
+   }
+   if (status) {
+     if (options.json) return console.log(JSON.stringify(status))
+-    return console.log(`escuchando como ${status.me?.email ?? '…'} desde ${new Date(status.since).toLocaleTimeString('es-CO')} · ${status.connected ? 'conectado' : 'reconectando'} · ${status.messages} mensaje(s)${status.agents?.length ? ` · agentes: ${status.agents.join(', ')}` : ''} · pid ${status.pid}`)
++    return console.log(`escuchando como ${status.me?.email ?? '…'} desde ${new Date(status.since).toLocaleTimeString('es-CO')} · ${status.connected ? 'conectado' : 'reconectando'} · ${status.messages} mensaje(s)${status.agents?.length ? ` · agentes: ${status.agents.join(', ')}` : ''}${status.subscriptions?.length ? ` · anotado a: ${status.subscriptions.join(', ')}` : ''} · pid ${status.pid}`)
+   }
+   if (options.status) { console.error('No está escuchando: `playground listen` lo prende.'); process.exitCode = 1; return }
+   await sessionFor(base)    // entra antes de desprenderse, si hace falta y hay alguien delante
+@@ -1085,7 +1106,16 @@ async function journalCommand(base, options, args) {
+     const r = addJournalEntry({ text: words.join(' '), jira: options.jira, minutes: options.min, kind })
+     // Si tu `listen` está prendido y todavía no anunciaba el agente `journal`, que lo anuncie ahora.
+     await askListener(base, 'POST', '/agents', {})
+-    return console.error(`✓ ${r.key ? `${r.key} · ` : ''}${r.line.slice(2)}\n  ${r.file}`)
++    console.error(`✓ ${r.key ? `${r.key} · ` : ''}${r.line.slice(2)}\n  ${r.file}`)
++    // Y a quien esté anotado a tu journal se lo cuenta el home. Sin sesión no se publica: queda en tu journal igual.
++    const s = readSession(base)
++    if (expired(s)) return console.error('  · no se publicó a tus suscritos: no hay sesión (`playground login`)')
++    try {
++      const p = await request(`${base}/api/chat/publish`, { method: 'POST', token: s.token,
++        body: { agent: 'journal', text: `${r.key ? `${r.key} · ` : ''}${r.line.slice(2)}` } })
++      if (p.status < 300 && p.json?.subscribers) console.error(`  ${p.json.display}`)
++    } catch { /* el journal ya quedó escrito; publicar es un extra */ }
++    return
+   }
+   if (sub === 'undo') {
+     const r = undoJournal()
+@@ -1152,6 +1182,9 @@ const HELP = `playground — el playground en la terminal
+     playground agents check                  probar los tuyos: si contestan, cuánto tardan y si cumplen el contrato
+     playground ask @miguel jira "¿cómo te fue ayer?"   preguntarle a su agente (corre en su máquina)
+       si tarda, te da el id y la respuesta llega después a \`playground messages\`
++    playground subscribe @oscar journal      anotarte: lo que publique te llega, y si no estás, al conectarte
++    playground unsubscribe @oscar journal · playground subscriptions
++    playground publish <agente> "texto"      publicar a los anotados a uno de tus agentes (journal add lo hace solo)
+     los tuyos van en ~/playground/team/agents.json y los atiende tu \`listen\` (\`listen --stop\` y \`listen\` los vuelve a leer):
+       [{ "name": "jira", "description": "…", "url": "http://127.0.0.1:5185/api/agents/jira" }]
+ 
+@@ -1248,6 +1281,40 @@ async function main() {
+     if (r.id) await askListener(base, 'POST', '/sent', { id: r.id, to: r.to, text, re: r.re })
+     return options.json ? print(r, options) : console.log(r.display)
+   }
++  // Anotarse a un agente de alguien: lo que publique te llega como mensaje (o al conectarte, si no estabas).
++  if (command === 'subscribe' || command === 'unsubscribe') {
++    const [to, agent] = args
++    if (!to || !agent) throw new Failure(`uso: playground ${command} @<quién> <agente>   (playground agents dice quién tiene)`)
++    const s = await sessionFor(base)
++    const who = String(to).replace(/^@/, '').toLowerCase()
++    const same = x => x.agent === String(agent).toLowerCase() && (x.to === who || x.to.split('@')[0] === who)
++    let r
++    try { r = await requestJson(`${base}/api/chat/${command}`, { method: 'POST', token: s.token, body: { to, agent } }) } catch (e) {
++      // Desanotarse de alguien que el home ya no conoce igual lo saca de tu lista.
++      if (command === 'unsubscribe' && readSubscriptions().some(same)) { writeSubscriptions(readSubscriptions().filter(x => !same(x))); return console.log(`✓ ya no estás anotado a ${agent} de ${to}`) }
++      throw e
++    }
++    const list = readSubscriptions().filter(x => !(x.to === r.owner.email && x.agent === r.agent) && !same(x))
++    if (command === 'subscribe') list.push({ to: r.owner.email, agent: r.agent })
++    writeSubscriptions(list)
++    if (options.json) return print(r, options)
++    return console.log(r.display)
++  }
++  if (command === 'subscriptions') {
++    const list = readSubscriptions()
++    if (options.json) return print(list, options)
++    if (!list.length) return console.log('No estás anotado a ningún agente: playground subscribe @<quién> <agente>')
++    table(list.map(x => ({ agent: x.agent, of: `@${x.to.split('@')[0]}` })), ['agent', 'of'])
++    return console.log(`\n${subscriptionsFile()}`)
++  }
++  // Publicar a los anotados a uno de tus agentes (lo usa tu agente, o vos a mano).
++  if (command === 'publish') {
++    const [agent, ...words] = args
++    if (!agent || !words.length) throw new Failure('uso: playground publish <agente> <texto…>')
++    const s = await sessionFor(base)
++    const r = await requestJson(`${base}/api/chat/publish`, { method: 'POST', token: s.token, body: { agent, text: words.join(' ') } })
++    return options.json ? print(r, options) : console.log(r.display)
++  }
+   if (command === 'agents' && args[0] === 'check') {
+     const s = readSession(base)
+     const from = s ? { email: s.claims.email, name: s.claims.name ?? s.claims.email, github: s.claims.github ?? null }
+diff --git a/tools/home/chat.js b/tools/home/chat.js
+index 2dcf0fe..f4f0106 100644
+--- a/tools/home/chat.js
++++ b/tools/home/chat.js
+@@ -19,6 +19,11 @@
+  * si llega después, le llega como un mensaje más (con `re` = la pregunta). La pregunta espera en memoria a lo sumo
+  * unos minutos.
+  *
++ * LAS SUSCRIPCIONES: además de preguntarle, a un agente uno se puede ANOTAR (`playground subscribe @miguel journal`).
++ * Cuando su dueño publica (`playground publish journal "…"`, o solo al anotar en su journal), el home se lo pasa a
++ * cada suscrito como un mensaje más (`kind: 'publish'`): al que está conectado, ya; al que no, por el buzón. Quién
++ * está anotado a qué también lo guarda el buzón, y cada `listen` lo vuelve a declarar al conectarse.
++ *
+  * ⚠ Lo conectado vive en la MEMORIA de este proceso, y el buzón donde diga su driver. Con más de una copia del home
+  * y un buzón de archivos que no comparten, el que manda y el que escucha pueden caer en copias distintas. */
+ 
+@@ -33,6 +38,7 @@ const clock = d => d.toLocaleTimeString('es-CO', { timeZone: 'America/Bogota', h
+ // Un agente se nombra con una palabra corta (lo que va después de la persona en `playground ask @miguel jira …`).
+ const AGENT_NAME = /^[a-z0-9][a-z0-9-]{0,23}$/
+ const MAX_AGENTS = 8
++const MAX_SUBSCRIPTIONS = 32
+ // Un id de mensaje: seis caracteres hexadecimales, lo bastante para no repetirse en una charla y cortos para tipear.
+ const MESSAGE_ID = /^[a-z0-9]{3,16}$/
+ const randomId = () => randomBytes(3).toString('hex')
+@@ -42,12 +48,13 @@ let seq = 0
+ 
+ const personOf = p => ({ email: normal(p.email), name: p.name || normal(p.email).split('@')[0], github: p.github || null })
+ 
+-// Las particiones del buzón: lo pendiente de cada persona y el padrón.
++// Las particiones del buzón: lo pendiente de cada persona, el padrón y los suscritos a cada agente.
+ const INBOX = email => `inbox#${email}`
+ const PEOPLE = 'people'
++const SUBS = (owner, agent) => `subs#${owner}#${agent}`
+ 
+ export function createRoom({ maxText = 2000, maxAnswer = 8000, askWaitMs = 45_000, askTtlMs = 10 * 60_000,
+-                             inboxTtlS = 7 * DAY_S, peopleTtlS = 90 * DAY_S,
++                             inboxTtlS = 7 * DAY_S, peopleTtlS = 90 * DAY_S, subsTtlS = 30 * DAY_S,
+                              mailbox = createMemoryMailbox(), now = () => new Date(), newId = randomId } = {}) {
+   // email → { person, outputs: Set<(event, data) => void>, agents }: una persona puede tener varias terminales abiertas.
+   const connected = new Map()
+@@ -73,7 +80,7 @@ export function createRoom({ maxText = 2000, maxAnswer = 8000, askWaitMs = 45_00
+     return { delivered: 0, queued: true }
+   }
+ 
+-  // El padrón: a quien usó el chat alguna vez (escuchó o mandó) se lo encuentra aunque no esté.
++  // El padrón: a quien usó el chat alguna vez (escuchó, mandó, publicó o se anotó) se lo encuentra aunque no esté.
+   function remember(person) {
+     const p = personOf(person)
+     mailbox.put({ pk: PEOPLE, sk: p.email, expiresAt: nowS() + peopleTtlS, item: p })
+@@ -250,7 +257,67 @@ export function createRoom({ maxText = 2000, maxAnswer = 8000, askWaitMs = 45_00
+     return { ok: true, ...r }
+   }
+ 
++  /* ── LAS SUSCRIPCIONES ──────────────────────────────────────────────────────────────────────────────── */
++
++  function subscribe(person, to, agent) {
++    const name = String(agent ?? '').trim().toLowerCase()
++    if (!AGENT_NAME.test(name)) return { error: `«${agent}» no sirve como nombre de agente`, status: 400 }
++    const r = resolve(to)
++    if (r.error) return r.status === 404 ? { ...r, hint: 'a alguien que nunca abrió `playground listen` no hay a qué anotarse' } : r
++    const owner = r.target?.person ?? r.offline
++    const me = personOf(person)
++    remember(me)
++    mailbox.put({ pk: SUBS(owner.email, name), sk: me.email, expiresAt: nowS() + subsTtlS, item: me })
++    return { owner, agent: name }
++  }
++
++  function unsubscribe(person, to, agent) {
++    const name = String(agent ?? '').trim().toLowerCase()
++    const r = resolve(to)
++    if (r.error) return r
++    const owner = r.target?.person ?? r.offline
++    mailbox.delete({ pk: SUBS(owner.email, name), sk: personOf(person).email })
++    return { owner, agent: name }
++  }
++
++  // Lo que el `listen` declara al conectarse: renueva cada suscripción (vencen si nadie las renueva en un mes).
++  function setSubscriptions(person, list) {
++    if (!Array.isArray(list)) return { error: '`subscriptions` va como lista: [{ to, agent }]', status: 400 }
++    const kept = []
++    for (const s of list.slice(0, MAX_SUBSCRIPTIONS)) {
++      const r = subscribe(person, s?.to, s?.agent)
++      if (!r.error) kept.push({ to: r.owner.email, agent: r.agent })
++    }
++    return { subscriptions: kept }
++  }
++
++  /* Publicar: lo que manda el dueño de un agente a todos los anotados. Al conectado le llega ya; al que no, por el
++     buzón. Nadie más que el dueño publica en nombre de su agente: lo dice la sesión. */
++  function publish(person, agent, text) {
++    const name = String(agent ?? '').trim().toLowerCase()
++    if (!AGENT_NAME.test(name)) return { error: `«${agent}» no sirve como nombre de agente`, status: 400 }
++    const t = String(text ?? '').trim()
++    if (!t) return { error: 'falta el texto', status: 400 }
++    if (t.length > maxText) return { error: `el texto pasa de ${maxText} caracteres`, status: 413 }
++    const owner = connected.get(normal(person.email))?.person ?? personOf(person)
++    remember(owner)
++    let delivered = 0, queued = 0
++    const subscribers = mailbox.query({ pk: SUBS(owner.email, name) })
++    for (const { item: subscriber } of subscribers) {
++      const time = now()
++      const r = deliverOrQueue(subscriber.email, { id: newId(), from: owner, agent: name, kind: 'publish', text: t, time: time.toISOString(),
++                                                  display: `[${clock(time)}] ${name} de ${owner.name}: ${t}` })
++      if (r.queued) queued++; else delivered++
++    }
++    return { subscribers: subscribers.length, delivered, queued }
++  }
++
++  // Quiénes están anotados a un agente tuyo (sin sus mensajes): para que el dueño sepa a quién le llega.
++  const subscribersOf = (person, agent) =>
++    mailbox.query({ pk: SUBS(normal(person.email), String(agent ?? '').trim().toLowerCase()) }).map(r => r.item)
++
+   const sweep = () => mailbox.sweep()
+ 
+-  return { connect, flush, online, send, setAgents, withAgents, ask, answer, sweep }
++  return { connect, flush, online, send, setAgents, withAgents, ask, answer,
++           subscribe, unsubscribe, setSubscriptions, publish, subscribersOf, sweep }
+ }
+diff --git a/tools/home/chat.test.js b/tools/home/chat.test.js
+index 12c3605..e3f56c5 100644
+--- a/tools/home/chat.test.js
++++ b/tools/home/chat.test.js
+@@ -188,7 +188,7 @@ test('la respuesta que llega cuando ya no se espera le llega al que preguntó co
+   assert.equal(room.answer(miguel, first.id, 'otra vez').status, 404)
+ })
+ 
+-/* ── EL BUZÓN ──────────────────────────────────────────────────────────────────── */
++/* ── EL BUZÓN Y LAS SUSCRIPCIONES ──────────────────────────────────────────────────────────────────── */
+ 
+ const messagesOf = t => t.received.filter(x => x.event === 'message').map(x => x.data)
+ 
+@@ -257,10 +257,53 @@ test('una respuesta tardía de un agente, con el que preguntó ya desconectado,
+   assert.deepEqual(messagesOf(t).map(m => [m.text, m.re, m.agent]), [['Va bien.', r.id, 'jira']])
+ })
+ 
++test('lo publicado le llega a cada anotado: al conectado ya, al que no está al conectarse', () => {
++  const room = createRoom()
++  const oscar = { email: 'oscar@creditop.com', name: 'Oscar' }
++  const d = terminal()
++  room.connect(miguel, terminal().output)
++  room.connect(dani, d.output)
++  room.connect(oscar, terminal().output).leave()
++  assert.deepEqual(room.subscribe(dani, 'miguel', 'journal').owner.email, 'miguel@creditop.com')
++  room.subscribe(oscar, 'miguel', 'journal')
++  const r = room.publish(miguel, 'journal', 'CORE-800 · el cobro quedó probado')
++  assert.deepEqual(r, { subscribers: 2, delivered: 1, queued: 1 })
++  const live = messagesOf(d)[0]
++  assert.deepEqual([live.kind, live.agent, live.from.email, live.text], ['publish', 'journal', 'miguel@creditop.com', 'CORE-800 · el cobro quedó probado'])
++  assert.match(live.display, /journal de Miguel: CORE-800/)
++  const o = terminal()
++  room.connect(oscar, o.output)
++  room.flush(oscar, o.output)
++  assert.equal(messagesOf(o)[0].kind, 'publish')
++})
++
++test('al desanotarse deja de llegar, y nadie publica por el agente de otro', () => {
++  const room = createRoom()
++  const d = terminal()
++  room.connect(miguel, terminal().output)
++  room.connect(dani, d.output)
++  room.subscribe(dani, 'miguel', 'journal')
++  room.unsubscribe(dani, 'miguel', 'journal')
++  assert.deepEqual(room.publish(miguel, 'journal', 'nadie lo ve'), { subscribers: 0, delivered: 0, queued: 0 })
++  // Dani publica en SU journal: a los anotados al de Miguel no les llega nada.
++  room.subscribe(dani, 'miguel', 'journal')
++  assert.equal(room.publish(dani, 'journal', 'el mío').subscribers, 0)
++  assert.equal(messagesOf(d).length, 0)
++})
++
++test('el listen declara sus suscripciones al conectarse; las que no se pueden resolver se descartan', () => {
++  const room = createRoom()
++  room.connect(miguel, terminal().output)
++  room.connect(dani, terminal().output)
++  const r = room.setSubscriptions(dani, [{ to: 'miguel', agent: 'journal' }, { to: 'nadie', agent: 'journal' }, { to: 'miguel', agent: 'MAL NOMBRE' }])
++  assert.deepEqual(r.subscriptions, [{ to: 'miguel@creditop.com', agent: 'journal' }])
++  assert.deepEqual(room.subscribersOf(miguel, 'journal').map(p => p.email), ['dani@creditop.com'])
++})
+ 
+-test('a quien sólo mandó (sin escuchar) también se le puede dejar un mensaje', () => {
++test('a quien sólo mandó o publicó (sin escuchar) también se lo encuentra después', () => {
+   const room = createRoom()
+   room.connect(dani, terminal().output)
+   room.send(miguel, 'dani', 'hola')            // Miguel nunca abrió listen, pero mandó
++  assert.equal(room.subscribe(dani, 'miguel', 'journal').owner.email, 'miguel@creditop.com')
+   assert.equal(room.send(dani, 'miguel', 'te contesto').queued, true)
+ })
+diff --git a/tools/home/server.js b/tools/home/server.js
+index 52af168..e6d1a88 100644
+--- a/tools/home/server.js
++++ b/tools/home/server.js
+@@ -479,8 +479,18 @@ const server = createServer(async (req, res) => {
+         const r = room.setAgents(person, list)
+         agents = r.error ? { error: r.error } : r.agents
+       }
++      // Las suscripciones viajan igual (x-playground-subscriptions: [{ to, agent }] en base64url): se renuevan al conectarse.
++      let subscriptions
++      const subscribed = req.headers['x-playground-subscriptions']
++      if (subscribed) {
++        let list
++        try { list = JSON.parse(Buffer.from(String(subscribed).slice(0, 8192), 'base64url').toString('utf8')) } catch { list = null }
++        const r = room.setSubscriptions(person, list)
++        subscriptions = r.error ? undefined : r.subscriptions
++      }
+       const others = room.online().filter(p => p.email !== me.email)
+       output('hello', { me, online: others, ...(agents === undefined ? {} : Array.isArray(agents) ? { agents } : { agentsError: agents.error }),
++        ...(subscriptions ? { subscriptions } : {}),
+         display: `conectado al chat como ${me.name}${others.length ? ` · también: ${others.map(p => p.name).join(', ')}` : ' · no hay nadie más'}` })
+       // Lo que le dejaron mientras no estaba, después del `hello`.
+       room.flush(person, output)
+@@ -526,6 +536,30 @@ const server = createServer(async (req, res) => {
+       if (r.pending) return json({ ...r, display: `✓ preguntado · id ${r.id} · la respuesta te llega a \`playground messages\`` })
+       return json({ ...r, display: r.answer })
+     }
++    /* LAS SUSCRIPCIONES (chat.js): anotarse a un agente de alguien, y que su dueño publique a los anotados. */
++    if (url.pathname === '/api/chat/subscribe' || url.pathname === '/api/chat/unsubscribe') {
++      if (req.method !== 'POST') return json({ error: 'POST con { to, agent }' }, 405)
++      let body
++      try { body = await leerJson(req) } catch (e) { return json({ error: e.message }, 400) }
++      const r = url.pathname.endsWith('/subscribe') ? room.subscribe(person, body.to, body.agent) : room.unsubscribe(person, body.to, body.agent)
++      if (r.error) return json({ error: r.error, ...(r.hint ? { hint: r.hint } : {}) }, r.status)
++      return json({ ...r, display: url.pathname.endsWith('/subscribe')
++        ? `✓ anotado a ${r.agent} de ${r.owner.name}: lo que publique te llega a \`playground messages\``
++        : `✓ ya no te llega ${r.agent} de ${r.owner.name}` })
++    }
++    if (url.pathname === '/api/chat/publish') {
++      if (req.method !== 'POST') return json({ error: 'POST con { agent, text }' }, 405)
++      let body
++      try { body = await leerJson(req) } catch (e) { return json({ error: e.message }, 400) }
++      const r = room.publish(person, body.agent, body.text)
++      if (r.error) return json({ error: r.error }, r.status)
++      return json({ ...r, display: r.subscribers
++        ? `✓ publicado a ${r.subscribers} ${r.subscribers === 1 ? 'persona' : 'personas'}${r.queued ? ` (${r.queued} lo ${r.queued === 1 ? 'recibe' : 'reciben'} al conectarse)` : ''}`
++        : '✓ publicado, pero nadie está anotado todavía' })
++    }
++    if (url.pathname === '/api/chat/subscribers') {
++      return json({ agent: url.searchParams.get('agent'), people: room.subscribersOf(person, url.searchParams.get('agent')) })
++    }
+     if (url.pathname === '/api/chat/answer') {
+       if (req.method !== 'POST') return json({ error: 'POST con { id, text }' }, 405)
+       let body
