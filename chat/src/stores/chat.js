@@ -102,7 +102,8 @@ export const useChatStore = defineStore('chat', () => {
   }, { deep: true })
 
   const me = computed(() => state.value?.me || null)
-  const meKey = computed(() => keyOf(me.value?.email))
+  // Quién sos: del listen si está prendido, si no de la sesión. Tu propia conversación no se lista: «Mi chat» sos vos.
+  const meKey = computed(() => keyOf(me.value?.email || state.value?.session?.email))
   const onlineKeys = computed(() => new Set(online.value.map((p) => keyOf(p.email))))
 
   function ensure(person) {
@@ -123,7 +124,7 @@ export const useChatStore = defineStore('chat', () => {
   }
   // Las conversaciones con personas (los agentes van en su propia sección).
   const list = computed(() => Object.values(conversations.value)
-    .filter((c) => !isAgentKey(c.person.email))
+    .filter((c) => !isAgentKey(c.person.email) && c.person.email !== meKey.value)
     .map(summarize)
     .sort((a, b) => (b.last?.time || '').localeCompare(a.last?.time || '')))
 
@@ -272,7 +273,7 @@ export const useChatStore = defineStore('chat', () => {
   const inbox = computed(() => {
     const out = []
     for (const c of Object.values(conversations.value)) {
-      if (isAgentKey(c.person.email)) continue
+      if (isAgentKey(c.person.email) || c.person.email === meKey.value) continue
       const msgs = c.messages
       msgs.forEach((m, i) => {
         if (m.dir !== 'in' || (m.kind && m.kind !== 'asked')) return
