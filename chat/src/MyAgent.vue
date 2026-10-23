@@ -1,12 +1,12 @@
 <script setup>
 /* MI AGENTE — PROTOTIPO, en la región de la derecha del chat. Tu yo que contesta por vos: arriba su muñeco girando en 3D
- * (el mismo kit del creador de personajes, `office/appearance.js`); debajo su nombre, su forma, sus colores, el modelo
- * que va a usar, sus reglas y cómo contestaría. Cada cambio saca una foto del muñeco, que es su avatar en el chat.
+ * (siempre «Copete», del kit del creador de personajes, `office/appearance.js`); debajo su nombre, sus colores, el
+ * modelo que va a usar, sus reglas y cómo contestaría. Cada cambio saca una foto del muñeco, que es su avatar en el chat.
  */
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import * as THREE from 'three'
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js'
-import { BASES, PARTS, SUGGESTIONS, makeCharacter, recolor } from './office/appearance.js'
+import { PARTS, SUGGESTIONS, makeCharacter, recolor } from './office/appearance.js'
 import { useMyAgentStore, MODELS, RULES } from './stores/myAgent.js'
 import { useChatStore } from './stores/chat.js'
 
@@ -127,14 +127,6 @@ onBeforeUnmount(() => {
         <input id="agent-name" v-model="mine.agent.name" class="input" maxlength="24" autocomplete="off" placeholder="Mini Miguel">
       </label>
 
-      <div class="field">
-        <span>Forma</span>
-        <div class="bases" role="radiogroup" aria-label="Forma">
-          <button v-for="(b, key) in BASES" :key="key" type="button" role="radio" :aria-checked="a.base === key"
-                  class="base" :class="{ on: a.base === key }" @click="mine.setBase(key)">{{ b.label }}</button>
-        </div>
-      </div>
-
       <div v-for="part in PARTS" :key="part.id" class="field">
         <span class="part-head">
           {{ part.label }}
@@ -148,6 +140,8 @@ onBeforeUnmount(() => {
                   :aria-label="`${part.label} ${color}`" :title="color" @click="mine.agent.colors[part.id] = color"></button>
         </div>
       </div>
+
+      <button type="button" class="btn btn-ghost btn-sm reset" @click="mine.resetColors()">Colores de siempre</button>
 
       <div class="field">
         <span>Modelo</span>
@@ -198,9 +192,7 @@ onBeforeUnmount(() => {
 .field > span, .part-head { font-size: var(--text-sm); font-weight: 600; color: var(--fg-2) }
 .part-head { display: flex; align-items: center; justify-content: space-between }
 .custom input { width: 26px; height: 22px; padding: 0; border: 1px solid var(--border); border-radius: 5px; background: transparent; cursor: pointer }
-.bases { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px }
-.base { padding: 7px 8px; border-radius: var(--radius-control); border: 1px solid var(--border); background: transparent; color: inherit; cursor: pointer; font: inherit; font-size: var(--text-sm) }
-.base.on, .model.on { border-color: var(--office-accent); box-shadow: inset 0 0 0 1px var(--office-accent) }
+.model.on { border-color: var(--office-accent); box-shadow: inset 0 0 0 1px var(--office-accent) }
 .swatches { display: flex; flex-wrap: wrap; gap: 6px }
 .swatch { width: 22px; height: 22px; border-radius: 6px; border: 0; cursor: pointer; box-shadow: inset 0 0 0 1px var(--border) }
 .swatch.on { box-shadow: 0 0 0 2px var(--background), 0 0 0 4px var(--office-accent) }
@@ -209,6 +201,7 @@ onBeforeUnmount(() => {
   border-radius: var(--radius-control); background: transparent; color: inherit; font: inherit; text-align: left; cursor: pointer }
 .model b { font-size: var(--text-sm) }
 .model small { color: var(--fg-2); font-size: var(--text-xs) }
+.reset { align-self: flex-start }
 .hint { margin: 0; color: var(--fg-2); font-size: var(--text-xs) }
 .rules { margin: 0; padding-left: 18px; display: flex; flex-direction: column; gap: 3px; font-size: var(--text-sm) }
 .sample { display: flex; flex-direction: column; gap: 8px; padding: 10px; border-radius: var(--radius-control); background: var(--muted) }
