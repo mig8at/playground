@@ -194,7 +194,7 @@ const onlineWithoutChat = computed(() => chat.online.filter((p) => {
 
 // ── responder a un mensaje: «Responder» en la burbuja, y el campo muestra a qué se contesta ──
 const replyTo = ref(null)
-const canReply = (item) => !activeIsAgent.value && item.kind === 'message' && !!item.sid
+const canReply = (item) => !activeIsAgent.value && !agentAnswers.value && item.kind === 'message' && !!item.sid
 function startReply(item) {
   replyTo.value = { sid: item.sid, who: item.dir === 'out' ? 'Vos' : firstName(chat.active.person), text: quoteText(item.text) }
   composer.value?.focus()
@@ -205,6 +205,7 @@ const draft = ref('')
 const composer = ref(null)
 const threadEl = ref(null)
 async function submit() {
+  if (agentAnswers.value) return
   const text = draft.value.trim()
   if (activeIsCuadrilla.value) return submitCuadrilla(text)
   if (!text) return
@@ -232,7 +233,11 @@ function startTask(task, kind) {
   blockOwner.value = ''
   composer.value?.focus()
 }
+/* Con tu agente prendido, en tus conversaciones con personas contesta él: el campo se apaga hasta que lo apagues. Con
+   canon, cuadrilla y los agentes del equipo seguís escribiendo: ahí preguntás vos. */
+const agentAnswers = computed(() => mine.agent.mode === 'agente' && !!chat.active && !chat.active.person.agent)
 const canSubmit = computed(() => {
+  if (agentAnswers.value) return false
   if (!activeIsCuadrilla.value) return !!draft.value.trim()
   const t = taskTarget.value
   if (!t) return false
@@ -269,6 +274,7 @@ watch(() => [chat.activeKey, chat.active?.messages.length], scrollToEnd)
 watch(() => chat.activeKey, async () => { draft.value = ''; replyTo.value = null; await nextTick(); composer.value?.focus() })
 const activeIsCanon = computed(() => chat.active?.person.tool === 'canon')
 const placeholder = computed(() => {
+  if (agentAnswers.value) return `Contesta ${agentLabel.value}: apagalo para escribir vos`
   if (activeIsCuadrilla.value) {
     const t = taskTarget.value
     if (!t) return 'Elegí una tarea de arriba para anotar en ella'
@@ -501,7 +507,7 @@ const statusText = computed(() => {
               </div>
               <span class="inbox-actions">
                 <span v-if="item.answered" class="inbox-done">✓ contestado</span>
-                <button v-else-if="item.kind !== 'asked'" type="button" class="btn btn-outline btn-sm" @click="replyFromInbox(item)">{{ item.proposal && item.proposal.status !== 'descartada' ? 'Responder yo' : 'Responder' }}</button>
+                <button v-else-if="item.kind !== 'asked' && mine.agent.mode !== 'agente'" type="button" class="btn btn-outline btn-sm" @click="replyFromInbox(item)">{{ item.proposal && item.proposal.status !== 'descartada' ? 'Responder yo' : 'Responder' }}</button>
               </span>
             </div>
           </li>
@@ -620,6 +626,11 @@ const statusText = computed(() => {
           </template>
         </div>
         <form class="composer" @submit.prevent="submit">
+          <div v-if="agentAnswers" class="agent-answers">
+            <img v-if="mine.agent.avatar" :src="mine.agent.avatar" alt="">
+            <span>En esta conversación contesta <b>{{ agentLabel }}</b>: sus respuestas te quedan listas para mandar.</span>
+            <button type="button" class="btn btn-outline btn-sm" @click="mine.setMode('yo')">Contesto yo</button>
+          </div>
           <div v-if="activeIsCuadrilla && taskTarget" class="replying">
             <span class="quote">
               <b>{{ KIND_LABEL[taskTarget.kind] }}</b>
@@ -644,7 +655,7 @@ const statusText = computed(() => {
           </div>
           <div class="composer-row">
             <label class="sr-only" for="composer-text">{{ placeholder }}</label>
-            <textarea id="composer-text" ref="composer" v-model="draft" class="input composer-text" rows="1"
+            <textarea id="composer-text" ref="composer" v-model="draft" class="input composer-text" rows="1" :disabled="agentAnswers"
                       maxlength="2000" :placeholder="placeholder" @keydown="onKeydown" @input="autosize"></textarea>
             <button type="submit" class="btn" :disabled="!canSubmit">{{ activeIsCuadrilla ? 'Anotar' : activeIsAgent ? 'Preguntar' : 'Mandar' }}</button>
           </div>
@@ -805,6 +816,9 @@ code { font-family: var(--font-mono); font-size: .92em }
 /* Apagado, tu agente se ve en blanco y negro donde aparezca. */
 .mode-toggle:not(.on) .mode-avatar, .mode-switch button:not(.on) img { filter: grayscale(1) }
 .agent-state { font-weight: 400; color: var(--fg-2); margin-left: 4px }
+.agent-answers { display: flex; align-items: center; gap: var(--space-2); font-size: var(--text-sm); color: var(--fg-2) }
+.agent-answers img { width: 22px; height: 22px; border-radius: 6px; object-fit: cover; flex: none }
+.agent-answers span { flex: 1; min-width: 0 }
 
 /* CUADRILLA: tus tareas arriba del hilo, con su estado en un punto y sus acciones; y la etiqueta de cada nota. */
 .tasks { display: flex; flex-direction: column; gap: var(--space-2); padding-bottom: var(--space-3); margin-bottom: var(--space-2);
