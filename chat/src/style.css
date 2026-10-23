@@ -18,6 +18,9 @@
   --bubble-theirs: var(--muted);
   --presence-on: #15803d;
   --send-fail: #b91c1c;
+  /* El estado de una tarea de cuadrilla: bloqueada en ámbar, hecha en el verde de «conectado». */
+  --task-blocked: #b45309;
+  --task-done: var(--presence-on);
   /* La cita de un mensaje: una regla del acento y un fondo que apenas se separa de la burbuja. */
   --quote-rule: var(--primary);
   --quote-bg: color-mix(in oklab, var(--foreground) 6%, transparent);
@@ -45,6 +48,7 @@
   --quote-bg: color-mix(in oklab, var(--foreground) 9%, transparent);
   --presence-on: #4ade80;
   --send-fail: #f87171;
+  --task-blocked: #fbbf24;
   --office-bg: #131316;
   --office-glow: #26262c;
   --office-chip: rgb(24 30 48 / .86);

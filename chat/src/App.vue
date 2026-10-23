@@ -163,6 +163,7 @@ const composer = ref(null)
 const threadEl = ref(null)
 async function submit() {
   const text = draft.value.trim()
+  if (activeIsCuadrilla.value) return submitCuadrilla(text)
   if (!text) return
   const re = replyTo.value?.sid || ''
   draft.value = ''
@@ -173,7 +174,44 @@ async function submit() {
 function onKeydown(e) {
   if (e.key === 'Enter' && !e.shiftKey && !e.isComposing) { e.preventDefault(); submit() }
   if (e.key === 'Escape' && replyTo.value) { e.preventDefault(); replyTo.value = null }
+  if (e.key === 'Escape' && taskTarget.value) { e.preventDefault(); taskTarget.value = null }
 }
+
+/* ── CUADRILLA: lo que se escribe va a UNA tarea, la que se eligió arriba con «Anotar», «Bloquear» o «Destrabar».
+   Un bloqueo pide además de quién depende. Sin tarea elegida no se escribe: no hay a dónde mandarlo. */
+const activeIsCuadrilla = computed(() => chat.active?.person.tool === 'cuadrilla')
+const taskTarget = ref(null)   // { task, kind: 'avance' | 'bloqueo' | 'desbloqueo' }
+const blockOwner = ref('')
+const KIND_LABEL = { avance: 'Anotando en', bloqueo: 'Bloqueo en', desbloqueo: 'Destrabando' }
+const NOTE_LABEL = { avance: 'avance', bloqueo: 'bloqueo', desbloqueo: 'desbloqueo', hecha: 'hecha' }
+function startTask(task, kind) {
+  taskTarget.value = { task, kind }
+  blockOwner.value = ''
+  composer.value?.focus()
+}
+const canSubmit = computed(() => {
+  if (!activeIsCuadrilla.value) return !!draft.value.trim()
+  const t = taskTarget.value
+  if (!t) return false
+  if (t.kind === 'desbloqueo') return true
+  if (t.kind === 'bloqueo' && !blockOwner.value.trim()) return false
+  return !!draft.value.trim()
+})
+async function submitCuadrilla(text) {
+  if (!canSubmit.value) return
+  const { task, kind } = taskTarget.value
+  const owner = blockOwner.value.trim().replace(/^@/, '')
+  draft.value = ''; taskTarget.value = null; blockOwner.value = ''
+  await nextTick(); autosize()
+  await chat.noteTask(task, kind, text, owner)
+}
+async function markDone(task) {
+  if (!confirm(`¿Marcar hecha «${task.titulo}»?`)) return
+  await chat.doneTask(task)
+}
+const taskState = (t) => (t.bloqueo ? 'bloqueada' : t.hecha ? 'hecha' : 'curso')
+const taskStateLabel = (t) => (t.bloqueo ? `bloqueada · depende de ${t.bloqueo.depende_de}` : t.hecha ? 'hecha' : 'en curso')
+watch(() => chat.activeKey, () => { taskTarget.value = null; if (activeIsCuadrilla.value) chat.loadCuadrilla() })
 function autosize() {
   const el = composer.value
   if (!el) return
@@ -188,6 +226,13 @@ watch(() => [chat.activeKey, chat.active?.messages.length], scrollToEnd)
 watch(() => chat.activeKey, async () => { draft.value = ''; replyTo.value = null; await nextTick(); composer.value?.focus() })
 const activeIsCanon = computed(() => chat.active?.person.tool === 'canon')
 const placeholder = computed(() => {
+  if (activeIsCuadrilla.value) {
+    const t = taskTarget.value
+    if (!t) return 'Elegí una tarea de arriba para anotar en ella'
+    if (t.kind === 'bloqueo') return 'Qué falta'
+    if (t.kind === 'desbloqueo') return 'Qué lo destrabó (opcional)'
+    return 'Qué pasó, en una línea'
+  }
   if (!activeIsAgent.value) return 'Escribí un mensaje'
   if (activeIsCanon.value) return 'Preguntale a canon cómo funciona algo de CreditOp'
   return activeOwnerIsMe.value ? `Preguntale a tu agente ${activeTitle.value}` : `Preguntale a ${activeTitle.value} de ${firstName(activeOwner.value)}`
@@ -372,8 +417,37 @@ const statusText = computed(() => {
 
       <template v-else>
         <div ref="threadEl" class="region-body thread" aria-live="polite">
+          <!-- TUS TAREAS de cuadrilla, arriba del hilo: cada una con lo que se puede hacer con ella. -->
+          <section v-if="activeIsCuadrilla" class="tasks" aria-label="Tus tareas">
+            <div class="tasks-head">
+              <b>Tus tareas</b>
+              <span v-if="chat.cuadrillaError" class="bad">{{ chat.cuadrillaError }}</span>
+              <span v-else-if="!chat.cuadrilla" class="side-note">leyendo cuadrilla…</span>
+            </div>
+            <p v-if="chat.cuadrilla && !chat.myTasks.length" class="side-note">No llevás ninguna tarea en cuadrilla.</p>
+            <ul v-else class="task-list">
+              <li v-for="t in chat.myTasks" :key="t.codigo || t.id" class="task" :class="[taskState(t), { on: taskTarget?.task === t }]">
+                <i class="task-dot" aria-hidden="true"></i>
+                <span class="task-main">
+                  <span class="task-title">{{ t.titulo }}</span>
+                  <span class="task-meta">{{ t.epica.nombre }} · {{ taskStateLabel(t) }}<template v-if="t.ultima"> · {{ t.ultima.autor }}: {{ t.ultima.texto }}</template></span>
+                </span>
+                <span class="task-actions">
+                  <button type="button" class="btn btn-outline btn-sm" @click="startTask(t, 'avance')">Anotar</button>
+                  <template v-if="!t.hecha">
+                    <button v-if="!t.bloqueo" type="button" class="btn btn-outline btn-sm" @click="startTask(t, 'bloqueo')">Bloquear</button>
+                    <button v-else type="button" class="btn btn-outline btn-sm" @click="startTask(t, 'desbloqueo')">Destrabar</button>
+                    <button type="button" class="btn btn-outline btn-sm" @click="markDone(t)">Hecha</button>
+                  </template>
+                  <a v-if="chat.taskUrl(t)" class="region-action" :href="chat.taskUrl(t)" target="_blank" rel="noopener"
+                     title="Abrirla en cuadrilla" aria-label="Abrirla en cuadrilla"><span class="ui-icon" data-icon="external" aria-hidden="true"></span></a>
+                </span>
+              </li>
+            </ul>
+          </section>
           <p v-if="!thread.length" class="side-note center">
-            <template v-if="activeIsCanon">Preguntale cómo funciona algo de CreditOp: contesta con el corpus del equipo y cita de dónde. Cada pregunta va sola, sin las anteriores.</template>
+            <template v-if="activeIsCuadrilla">Acá llega lo que los demás anotan en tus tareas y los bloqueos que dependen de vos.</template>
+            <template v-else-if="activeIsCanon">Preguntale cómo funciona algo de CreditOp: contesta con el corpus del equipo y cita de dónde. Cada pregunta va sola, sin las anteriores.</template>
             <template v-else-if="activeIsAgent">Preguntale lo que quieras: contesta {{ activeOwnerIsMe ? 'desde tu máquina' : `desde la máquina de ${firstName(activeOwner)}` }}.</template>
             <template v-else>Todavía no hay mensajes con {{ chat.active.person.name || chat.active.person.email }}.</template>
           </p>
@@ -389,6 +463,10 @@ const statusText = computed(() => {
             <div v-else class="bubble-row" :class="[item.dir, { cont: item.cont }]">
               <div class="bubble" :class="{ failed: item.status === 'error' }">
                 <span v-if="item.kind === 'publish' && !item.cont" class="published-label">publicó</span>
+                <span v-if="item.cuadrilla" class="task-note-label">
+                  <template v-if="item.dir === 'in'"><b>{{ item.cuadrilla.autor }}</b> · </template>{{ NOTE_LABEL[item.cuadrilla.tipo] || item.cuadrilla.tipo }}
+                  en «{{ item.cuadrilla.tarea }}»<template v-if="item.cuadrilla.dependeDe"> · depende de {{ item.cuadrilla.dependeDe }}</template>
+                </span>
                 <span v-if="item.quote" class="quote">
                   <b v-if="item.quote.who">{{ item.quote.who }}</b>
                   <span>{{ item.quote.text }}</span>
@@ -406,14 +484,14 @@ const statusText = computed(() => {
                 <span class="meta">
                   {{ clock(item.time) }}<template v-if="item.queued"> · llegó mientras no estabas</template>
                   <template v-if="item.dir === 'out'">
-                    <span v-if="item.status === 'sending'">· {{ activeIsCanon ? 'canon está pensando…' : activeIsAgent ? 'preguntando…' : 'mandando…' }}</span>
+                    <span v-if="item.status === 'sending'">· {{ activeIsCuadrilla ? 'anotando…' : activeIsCanon ? 'canon está pensando…' : activeIsAgent ? 'preguntando…' : 'mandando…' }}</span>
                     <span v-else-if="item.status === 'pending'" title="El agente tarda: la respuesta llega acá cuando conteste">· esperando respuesta</span>
                     <span v-else-if="item.status === 'sent' || item.status === 'answered'" :title="activeIsAgent ? 'Contestó' : 'Entregado a sus terminales abiertas'">· ✓</span>
                   </template>
                 </span>
                 <p v-if="item.status === 'error'" class="error">
                   No salió: {{ item.error }}
-                  <button type="button" class="btn-link" @click="chat.retry(item.id)">reintentar</button>
+                  <button v-if="!item.cuadrilla" type="button" class="btn-link" @click="chat.retry(item.id)">reintentar</button>
                 </p>
               </div>
               <button v-if="canReply(item)" type="button" class="reply-action" title="Responder a este mensaje"
@@ -424,6 +502,18 @@ const statusText = computed(() => {
           </template>
         </div>
         <form class="composer" @submit.prevent="submit">
+          <div v-if="activeIsCuadrilla && taskTarget" class="replying">
+            <span class="quote">
+              <b>{{ KIND_LABEL[taskTarget.kind] }}</b>
+              <span>{{ taskTarget.task.titulo }}</span>
+            </span>
+            <input v-if="taskTarget.kind === 'bloqueo'" v-model="blockOwner" class="input input-sm block-owner"
+                   placeholder="de quién depende: @persona" aria-label="De quién depende" />
+            <button type="button" class="region-action" title="No anotar en esa tarea" aria-label="No anotar en esa tarea"
+                    @click="taskTarget = null">
+              <span class="ui-icon" data-icon="close" aria-hidden="true"></span>
+            </button>
+          </div>
           <div v-if="replyTo" class="replying">
             <span class="quote">
               <b>Respondiendo a {{ replyTo.who === 'Vos' ? 'tu mensaje' : replyTo.who }}</b>
@@ -438,7 +528,7 @@ const statusText = computed(() => {
             <label class="sr-only" for="composer-text">{{ placeholder }}</label>
             <textarea id="composer-text" ref="composer" v-model="draft" class="input composer-text" rows="1"
                       maxlength="2000" :placeholder="placeholder" @keydown="onKeydown" @input="autosize"></textarea>
-            <button type="submit" class="btn" :disabled="!draft.trim()">{{ activeIsAgent ? 'Preguntar' : 'Mandar' }}</button>
+            <button type="submit" class="btn" :disabled="!canSubmit">{{ activeIsCuadrilla ? 'Anotar' : activeIsAgent ? 'Preguntar' : 'Mandar' }}</button>
           </div>
         </form>
       </template>
@@ -522,6 +612,25 @@ code { font-family: var(--font-mono); font-size: .92em }
 .meta { align-self: flex-end; color: var(--fg-2); font-size: var(--text-xs); font-variant-numeric: tabular-nums }
 .error { margin: 2px 0 0; color: var(--send-fail); font-size: var(--text-sm) }
 .btn-link { border: 0; padding: 0; background: none; color: inherit; text-decoration: underline; cursor: pointer; font: inherit }
+
+/* CUADRILLA: tus tareas arriba del hilo, con su estado en un punto y sus acciones; y la etiqueta de cada nota. */
+.tasks { display: flex; flex-direction: column; gap: var(--space-2); padding-bottom: var(--space-3); margin-bottom: var(--space-2);
+  border-bottom: 1px solid var(--border) }
+.tasks-head { display: flex; align-items: center; gap: var(--space-2); font-size: var(--text-sm) }
+.task-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 1px }
+.task { display: flex; align-items: center; gap: var(--space-3); padding: var(--space-2); border-radius: var(--radius-control) }
+.task:hover, .task.on { background: var(--hover) }
+.task-dot { flex: none; width: 8px; height: 8px; border-radius: 50%; background: var(--fg-3) }
+.task.bloqueada .task-dot { background: var(--task-blocked) }
+.task.hecha .task-dot { background: var(--task-done) }
+.task.hecha .task-title { color: var(--fg-3) }
+.task-main { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px }
+.task-title { font-size: var(--text-base); font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap }
+.task-meta { font-size: var(--text-xs); color: var(--fg-2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap }
+.task.bloqueada .task-meta { color: var(--task-blocked) }
+.task-actions { flex: none; display: flex; align-items: center; gap: var(--space-1) }
+.task-note-label { font-size: var(--text-xs); color: var(--fg-2) }
+.block-owner { flex: 0 1 220px; min-width: 0 }
 
 /* La respuesta de canon: el resumen arriba, las fuentes abajo y la pregunta para seguir. */
 .summary { margin: 0; font-weight: 600; font-size: 14px; line-height: 1.4 }

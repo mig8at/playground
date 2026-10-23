@@ -252,6 +252,7 @@ func handler() http.Handler {
 		writeJSON(w, http.StatusOK, answer)
 	})
 	agentHandlers(mux)
+	cuadrillaHandlers(mux)
 	return mux
 }
 

@@ -8,8 +8,11 @@
  * Cada mensaje trae el id que le puso el home (`sid`), y una respuesta trae `re`: el id del que contesta.
  * Con eso se cita el mensaje original y se contesta a uno en particular (`--re` del CLI).
  *
- * Hay cuatro clases de conversación:
+ * Hay cinco clases de conversación:
  *   - con una persona (su correo es la clave);
+ *   - con cuadrilla (`agent:cuadrilla`), el tablero del equipo: arriba tus tareas, y en el hilo lo que los demás
+ *     anotan en ellas y los bloqueos que dependen de vos. Lo que escribís va como nota en la tarea que elijas
+ *     (`playground cuadrilla note|block|unblock|edit`);
  *   - con canon (`agent:canon`), la herramienta del equipo: siempre está, no depende del listen de nadie, y
  *     cada pregunta va sola (`playground canon ask`), sin las anteriores;
  *   - con un agente del equipo (`agent:<correo del dueño>/<agente>`): las preguntas salen con `playground ask`
@@ -39,6 +42,19 @@ const isAgentKey = (key) => String(key).startsWith('agent:')
 const firstName = (p) => String(p?.name || p?.email || '').split(/\s+/)[0]
 // Canon: el conocimiento del equipo sobre cómo funciona CreditOp. Es una herramienta, no el agente de alguien.
 export const CANON = { key: 'agent:canon', agentName: 'canon', description: 'el conocimiento del equipo sobre cómo funciona CreditOp' }
+// Cuadrilla: las épicas y tareas del equipo. También es una herramienta.
+export const CUADRILLA = { key: 'agent:cuadrilla', agentName: 'cuadrilla', description: 'tus tareas y lo que anotan en ellas' }
+const CUADRILLA_SEEN_KEY = 'chat:cuadrilla:vistas:v1'
+const POLL_CUADRILLA_MS = 60_000
+// Una nota, por su tarea, su fecha y quién la escribió: con eso se sabe si ya se mostró.
+const noteKey = (task, n) => `${task.codigo || task.id}|${n.fecha}|${n.autor}|${n.tipo}`
+const sameLogin = (a, b) => !!a && !!b && String(a).toLowerCase() === String(b).toLowerCase()
+function readSeen() {
+  try {
+    const v = JSON.parse(localStorage.getItem(CUADRILLA_SEEN_KEY) || 'null')
+    return v && Array.isArray(v.keys) ? v : { baseline: false, keys: [] }
+  } catch { return { baseline: false, keys: [] } }
+}
 
 function readStored() {
   try {
@@ -73,6 +89,10 @@ export const useChatStore = defineStore('chat', () => {
   // Los agentes del equipo (`playground agents`): [{ email, name, github, agents: [{ name, description }] }].
   const teamAgents = ref([])
   const teamAgentsError = ref('')
+  // Cuadrilla: el tablero ({ me, url, epicas }) y qué notas ya se mostraron.
+  const cuadrilla = ref(null)
+  const cuadrillaError = ref('')
+  const cuadrillaSeen = readSeen()
 
   watch(conversations, (value) => {
     try { localStorage.setItem(STORAGE_KEY, JSON.stringify(value)) } catch { /* sin almacenamiento: vive mientras la pestaña */ }
@@ -107,8 +127,10 @@ export const useChatStore = defineStore('chat', () => {
   const agentList = computed(() => {
     const rows = []
     if (state.value?.installed) {
-      const c = conversations.value[CANON.key]
-      rows.push({ ...CANON, tool: true, owner: null, mine: false, ...(c ? summarize(c) : { last: null, unread: 0 }) })
+      for (const tool of [CANON, CUADRILLA]) {
+        const c = conversations.value[tool.key]
+        rows.push({ ...tool, tool: true, owner: null, mine: false, ...(c ? summarize(c) : { last: null, unread: 0 }) })
+      }
     }
     for (const p of teamAgents.value) {
       for (const a of p.agents || []) {
@@ -121,7 +143,7 @@ export const useChatStore = defineStore('chat', () => {
     // Las conversaciones con agentes cuyo dueño no está conectado (lo que publicaron sigue acá), al final.
     for (const c of Object.values(conversations.value)) {
       const key = c.person.email
-      if (!isAgentKey(key) || key === CANON.key || !c.person.owner?.email || rows.some((r) => r.key === key)) continue
+      if (!isAgentKey(key) || key === CANON.key || key === CUADRILLA.key || !c.person.owner?.email || rows.some((r) => r.key === key)) continue
       rows.push({ key, agentName: c.person.agentName || c.person.name, description: c.person.detail || '', owner: c.person.owner,
                   mine: keyOf(c.person.owner.email) === meKey.value, offline: true, ...summarize(c) })
     }
@@ -308,6 +330,103 @@ export const useChatStore = defineStore('chat', () => {
     }
   }
 
+  /* ── CUADRILLA ─────────────────────────────────────────────────────────────────────────────────────
+     Tus tareas son las que llevás, y las que creaste sin responsable. Lo nuevo es lo que anotó otra persona en una
+     tarea tuya, y cualquier bloqueo que depende de vos: entra al hilo de cuadrilla como mensaje recibido. La primera
+     vez no se muestra nada de lo que ya había (sería todo el historial de golpe): se marca como visto. */
+  const cuadrillaConversation = () =>
+    ensure({ email: CUADRILLA.key, name: CUADRILLA.agentName, agent: true, owner: null, agentName: CUADRILLA.agentName,
+             detail: CUADRILLA.description, tool: 'cuadrilla' })
+  const myTasks = computed(() => {
+    const b = cuadrilla.value
+    if (!b?.me) return []
+    const out = []
+    for (const e of b.epicas || []) {
+      for (const t of e.tareas || []) {
+        if (!sameLogin(t.responsable, b.me) && !(sameLogin(t.creada_por, b.me) && !t.responsable)) continue
+        const notes = t.notas || []
+        let block = null
+        for (const n of notes) { if (n.tipo === 'bloqueo') block = n; else if (n.tipo === 'desbloqueo') block = null }
+        out.push({ ...t, epica: { id: e.id, codigo: e.codigo, nombre: e.nombre }, bloqueo: block, ultima: notes.at(-1) || null })
+      }
+    }
+    // Bloqueadas primero, después en curso y al final las hechas.
+    const rank = (t) => (t.bloqueo ? 0 : t.hecha ? 2 : 1)
+    return out.sort((a, b2) => rank(a) - rank(b2) || (b2.ultima?.fecha || b2.creada || '').localeCompare(a.ultima?.fecha || a.creada || ''))
+  })
+  const taskUrl = (t) => (cuadrilla.value?.url && t ? `${cuadrilla.value.url}/e/${t.epica?.codigo || t.epica?.id}/t/${t.codigo || t.id}` : '')
+
+  function absorbCuadrilla(board) {
+    const seen = new Set(cuadrillaSeen.keys)
+    const fresh = []
+    for (const e of board.epicas || []) {
+      for (const t of e.tareas || []) {
+        const mine = sameLogin(t.responsable, board.me) || sameLogin(t.creada_por, board.me)
+        for (const n of t.notas || []) {
+          if (sameLogin(n.autor, board.me)) continue
+          if (!mine && !(n.tipo === 'bloqueo' && sameLogin(n.depende_de, board.me))) continue
+          const key = noteKey(t, n)
+          if (seen.has(key)) continue
+          seen.add(key)
+          fresh.push({ key, n, t, e })
+        }
+      }
+    }
+    if (cuadrillaSeen.baseline && fresh.length) {
+      const c = cuadrillaConversation()
+      for (const { key, n, t, e } of fresh) {
+        push(c, { id: `cuadrilla|${key}`, dir: 'in', text: n.texto || (n.tipo === 'desbloqueo' ? 'lo destrabó' : ''), time: n.fecha,
+                  cuadrilla: { autor: n.autor, tipo: n.tipo, dependeDe: n.depende_de || '', tarea: t.titulo, tareaCodigo: t.codigo || t.id,
+                               epica: e.nombre, epicaCodigo: e.codigo || e.id } })
+      }
+      markActiveRead()
+    }
+    cuadrillaSeen.baseline = true
+    cuadrillaSeen.keys = [...seen].slice(-3000)
+    try { localStorage.setItem(CUADRILLA_SEEN_KEY, JSON.stringify(cuadrillaSeen)) } catch { /* vale mientras la pestaña */ }
+  }
+
+  async function loadCuadrilla() {
+    if (!state.value?.installed || !state.value?.session) return
+    try {
+      const board = await api('/api/cuadrilla')
+      cuadrilla.value = board
+      cuadrillaError.value = ''
+      absorbCuadrilla(board)
+    } catch (e) { cuadrillaError.value = e.message }
+  }
+
+  /* Escribir en una tarea: `kind` es avance, bloqueo (con `owner`, de quién depende) o desbloqueo. Lo escrito queda
+     en el hilo como mensaje mandado, con la tarea a la que fue. */
+  async function noteTask(task, kind, text, owner = '') {
+    const c = cuadrillaConversation()
+    const message = { id: `out|${Date.now()}|${Math.random().toString(36).slice(2, 8)}`, dir: 'out', time: new Date().toISOString(),
+                      text: String(text || '').trim() || (kind === 'desbloqueo' ? 'lo destrabé' : ''), status: 'sending',
+                      cuadrilla: { autor: cuadrilla.value?.me || '', tipo: kind, dependeDe: owner, tarea: task.titulo,
+                                   tareaCodigo: task.codigo || task.id, epica: task.epica?.nombre, epicaCodigo: task.epica?.codigo } }
+    c.messages.push(message)
+    const stored = () => c.messages.find((m) => m.id === message.id)
+    try {
+      await post('/api/cuadrilla/note', { task: task.codigo || task.id, kind, text: String(text || '').trim(), owner })
+      Object.assign(stored(), { status: 'sent' })
+      await loadCuadrilla()
+    } catch (e) { Object.assign(stored(), { status: 'error', error: e.message }) }
+  }
+
+  async function doneTask(task) {
+    const c = cuadrillaConversation()
+    const message = { id: `out|${Date.now()}|done`, dir: 'out', time: new Date().toISOString(), text: 'la marqué hecha', status: 'sending',
+                      cuadrilla: { autor: cuadrilla.value?.me || '', tipo: 'hecha', tarea: task.titulo, tareaCodigo: task.codigo || task.id,
+                                   epica: task.epica?.nombre, epicaCodigo: task.epica?.codigo } }
+    c.messages.push(message)
+    const stored = () => c.messages.find((m) => m.id === message.id)
+    try {
+      await post('/api/cuadrilla/done', { task: task.codigo || task.id })
+      Object.assign(stored(), { status: 'sent' })
+      await loadCuadrilla()
+    } catch (e) { Object.assign(stored(), { status: 'error', error: e.message }) }
+  }
+
   // Reintentar es mandar el mismo texto de nuevo: el que falló se va, para no dejar dos.
   async function retry(id) {
     const c = active.value
@@ -324,7 +443,12 @@ export const useChatStore = defineStore('chat', () => {
 
   let stateTimer = null
   let onlineTimer = null
+  let cuadrillaTimer = null
   function start() {
+    const tickCuadrilla = async () => {
+      if (document.visibilityState === 'visible') await loadCuadrilla()
+      cuadrillaTimer = setTimeout(tickCuadrilla, POLL_CUADRILLA_MS)
+    }
     const tickState = async () => {
       if (document.visibilityState === 'visible') await loadState()
       stateTimer = setTimeout(tickState, POLL_STATE_MS)
@@ -333,19 +457,20 @@ export const useChatStore = defineStore('chat', () => {
       if (document.visibilityState === 'visible') await Promise.all([loadOnline(), loadTeamAgents()])
       onlineTimer = setTimeout(tickOnline, POLL_ONLINE_MS)
     }
-    loadState().then(() => Promise.all([loadOnline(), loadTeamAgents()]))
+    loadState().then(() => Promise.all([loadOnline(), loadTeamAgents(), loadCuadrilla()]))
+    cuadrillaTimer = setTimeout(tickCuadrilla, POLL_CUADRILLA_MS)
     stateTimer = setTimeout(tickState, POLL_STATE_MS)
     onlineTimer = setTimeout(tickOnline, POLL_ONLINE_MS)
     document.addEventListener('visibilitychange', markActiveRead)
   }
   function stop() {
-    clearTimeout(stateTimer); clearTimeout(onlineTimer)
+    clearTimeout(stateTimer); clearTimeout(onlineTimer); clearTimeout(cuadrillaTimer)
     document.removeEventListener('visibilitychange', markActiveRead)
   }
 
   return {
     conversations, activeKey, state, stateError, online, onlineError, listenBusy, listenError, loginBusy, loginError, login,
-    teamAgents, teamAgentsError,
+    teamAgents, teamAgentsError, cuadrilla, cuadrillaError, myTasks, taskUrl, loadCuadrilla, noteTask, doneTask,
     me, meKey, list, active, unreadTotal, onlineKeys, agentList,
     loadState, loadOnline, loadTeamAgents, startListening, open, openAgent, send, retry, forget, findBySid, start, stop,
   }
