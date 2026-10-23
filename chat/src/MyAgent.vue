@@ -1,7 +1,7 @@
 <script setup>
-/* MI AGENTE (`#/mi-agente`) — PROTOTIPO. Tu yo que contesta por vos: a la izquierda su muñeco girando en 3D (el mismo
- * kit del creador de personajes, `office/appearance.js`); a la derecha su nombre, su forma, sus colores, el modelo que
- * va a usar, sus reglas y cómo contestaría. Cada cambio saca una foto del muñeco, que es su avatar en el chat.
+/* MI AGENTE — PROTOTIPO, en la región de la derecha del chat. Tu yo que contesta por vos: arriba su muñeco girando en 3D
+ * (el mismo kit del creador de personajes, `office/appearance.js`); debajo su nombre, su forma, sus colores, el modelo
+ * que va a usar, sus reglas y cómo contestaría. Cada cambio saca una foto del muñeco, que es su avatar en el chat.
  */
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import * as THREE from 'three'
@@ -184,13 +184,14 @@ onBeforeUnmount(() => {
 </template>
 
 <style scoped>
-.my-agent { flex: 1; min-height: 0; display: grid; grid-template-columns: minmax(0, 1fr) 380px; background: var(--background) }
-@media (max-width: 900px) { .my-agent { grid-template-columns: 1fr; grid-template-rows: 320px auto; overflow: auto } }
-.stage-wrap { position: relative; min-height: 320px }
+/* Una columna, para la región de la derecha: el muñeco arriba y lo que se edita debajo. El scroll es del cuerpo de la
+   región (`region-body`), que es esta misma raíz. */
+.my-agent { flex: 1; min-height: 0; display: flex; flex-direction: column; padding: 0 }
+.stage-wrap { position: relative; flex: none; height: 260px; border-bottom: 1px solid var(--border) }
 .stage { position: absolute; inset: 0; background: radial-gradient(90% 80% at 50% 40%, var(--office-glow), var(--office-bg)) }
 .badge-proto { position: absolute; top: var(--space-3); left: var(--space-3); padding: 2px 8px; border-radius: 999px; font-size: var(--text-xs);
   background: var(--office-chip); color: var(--office-chip-ink) }
-.panel { border-left: 1px solid var(--border); overflow: auto; padding: var(--space-4); display: flex; flex-direction: column; gap: var(--space-4) }
+.panel { padding: var(--space-4) var(--gutter); display: flex; flex-direction: column; gap: var(--space-4) }
 .who { display: flex; align-items: center; gap: var(--space-3); flex-wrap: wrap }
 .who .mode { flex-basis: 100% ; justify-content: center }
 .who > span:first-of-type { display: flex; flex-direction: column; min-width: 0; flex: 1 }
