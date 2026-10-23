@@ -41,10 +41,14 @@ type Person struct {
 //   - ID es el que pone el home; Re, el id del mensaje que contesta.
 //   - Agent, en uno que llegó: sin Re, alguien le preguntó a uno de TUS agentes; con Re, es la respuesta tardía
 //     del agente de otra persona a una pregunta tuya. En uno mandado: la pregunta que quedó esperando.
+//   - Kind "publish": lo publicó el agente Agent de From, al que estás anotado (`playground subscribe`).
+//   - Queued: llegó por el buzón del home, porque cuando lo mandaron no estabas conectado.
 type Message struct {
 	ID      string `json:"id,omitempty"`
 	Re      string `json:"re,omitempty"`
 	Dir     string `json:"dir,omitempty"`
+	Kind    string `json:"kind,omitempty"`
+	Queued  bool   `json:"queued,omitempty"`
 	From    Person `json:"from"`
 	To      string `json:"to,omitempty"`
 	Agent   string `json:"agent,omitempty"`

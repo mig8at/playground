@@ -17,6 +17,10 @@
  *   - y lo que alguien le pregunta a TUS agentes, que se anota en la conversación con esa persona, aparte de
  *     sus mensajes (`kind: 'asked'`): tu listen ya le contestó, acá sólo se ve que preguntó.
  *
+ * Lo que publica un agente al que estás anotado (`playground subscribe`, `kind: 'publish'`) entra en la conversación
+ * con ese agente, aunque su dueño ya no esté conectado. Lo que llegó por el buzón del home, porque no estabas cuando lo
+ * mandaron, se marca `queued`.
+ *
  * ⚠ El texto de un mensaje lo escribió otra persona: se guarda y se pinta como texto, nunca se interpreta.
  */
 import { defineStore } from 'pinia'
@@ -114,7 +118,14 @@ export const useChatStore = defineStore('chat', () => {
                     ...(c ? summarize(c) : { last: null, unread: 0 }) })
       }
     }
-    const rank = (r) => (r.tool ? 0 : r.mine ? 1 : 2)
+    // Las conversaciones con agentes cuyo dueño no está conectado (lo que publicaron sigue acá), al final.
+    for (const c of Object.values(conversations.value)) {
+      const key = c.person.email
+      if (!isAgentKey(key) || key === CANON.key || !c.person.owner?.email || rows.some((r) => r.key === key)) continue
+      rows.push({ key, agentName: c.person.agentName || c.person.name, description: c.person.detail || '', owner: c.person.owner,
+                  mine: keyOf(c.person.owner.email) === meKey.value, offline: true, ...summarize(c) })
+    }
+    const rank = (r) => (r.tool ? 0 : r.offline ? 3 : r.mine ? 1 : 2)
     return rows.sort((x, y) => rank(x) - rank(y) || firstName(x.owner).localeCompare(firstName(y.owner)))
   })
   const active = computed(() => conversations.value[activeKey.value] || null)
@@ -160,9 +171,15 @@ export const useChatStore = defineStore('chat', () => {
         continue
       }
       if (!m.from?.email) continue
+      if (m.kind === 'publish' && m.agent) {
+        const c = ensure({ email: agentKey(m.from.email, m.agent), name: m.agent, agent: true, owner: m.from, agentName: m.agent })
+        push(c, { id: sid || legacyId(m), sid, dir: 'in', kind: 'publish', agent: m.agent, text: String(m.text ?? ''), time: m.time,
+                  ...(m.queued ? { queued: true } : {}) })
+        continue
+      }
       if (m.agent && m.re) {
         const c = ensure({ email: agentKey(m.from.email, m.agent), name: m.agent, agent: true, owner: m.from, agentName: m.agent })
-        if (push(c, { id: sid || legacyId(m), sid, re: m.re, dir: 'in', text: String(m.text ?? ''), time: m.time })) {
+        if (push(c, { id: sid || legacyId(m), sid, re: m.re, dir: 'in', text: String(m.text ?? ''), time: m.time, ...(m.queued ? { queued: true } : {}) })) {
           const asked = c.messages.find((x) => x.sid === m.re)
           if (asked) asked.status = 'answered'
         }
@@ -177,7 +194,7 @@ export const useChatStore = defineStore('chat', () => {
         continue
       }
       push(c, { id: sid || legacyId(m), sid, re: m.re || '', dir: 'in', text: String(m.text ?? ''), time: m.time,
-                ...(m.agent ? { kind: 'asked', agent: m.agent } : {}) })
+                ...(m.agent ? { kind: 'asked', agent: m.agent } : {}), ...(m.queued ? { queued: true } : {}) })
     }
     markActiveRead()
   }

@@ -298,7 +298,7 @@ const statusText = computed(() => {
               <span class="conversation-main">
                 <span class="conversation-top">
                   <b class="name">{{ a.agentName }}</b>
-                  <span class="owner">{{ a.tool ? 'del equipo' : a.mine ? 'tuyo' : firstName(a.owner) }}</span>
+                  <span class="owner">{{ a.tool ? 'del equipo' : a.mine ? 'tuyo' : firstName(a.owner) }}{{ a.offline ? ' · sin conexión' : '' }}</span>
                   <span class="when">{{ shortWhen(a.last?.time) }}</span>
                 </span>
                 <span class="conversation-bottom">
@@ -388,6 +388,7 @@ const statusText = computed(() => {
 
             <div v-else class="bubble-row" :class="[item.dir, { cont: item.cont }]">
               <div class="bubble" :class="{ failed: item.status === 'error' }">
+                <span v-if="item.kind === 'publish' && !item.cont" class="published-label">publicó</span>
                 <span v-if="item.quote" class="quote">
                   <b v-if="item.quote.who">{{ item.quote.who }}</b>
                   <span>{{ item.quote.text }}</span>
@@ -403,7 +404,7 @@ const statusText = computed(() => {
                 </ul>
                 <button v-if="item.next" type="button" class="next-question" @click="askNext(item.next)">{{ item.next }}</button>
                 <span class="meta">
-                  {{ clock(item.time) }}
+                  {{ clock(item.time) }}<template v-if="item.queued"> · llegó mientras no estabas</template>
                   <template v-if="item.dir === 'out'">
                     <span v-if="item.status === 'sending'">· {{ activeIsCanon ? 'canon está pensando…' : activeIsAgent ? 'preguntando…' : 'mandando…' }}</span>
                     <span v-else-if="item.status === 'pending'" title="El agente tarda: la respuesta llega acá cuando conteste">· esperando respuesta</span>
@@ -553,6 +554,9 @@ code { font-family: var(--font-mono); font-size: .92em }
 .asked-label { font-size: var(--text-xs) }
 .asked-label b { color: var(--foreground) }
 .asked-text { font-size: var(--text-sm); overflow-wrap: anywhere }
+
+/* Lo que publicó un agente al que estás anotado: una burbuja ajena con su etiqueta arriba. */
+.published-label { font-size: var(--text-xs); font-weight: 600; color: var(--quote-rule) }
 
 .composer { flex: none; display: flex; flex-direction: column; gap: var(--space-2); padding: var(--space-3) var(--space-6);
   border-top: 1px solid var(--border) }
