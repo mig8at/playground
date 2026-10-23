@@ -1,12 +1,12 @@
 <script setup>
 /* MI AGENTE — PROTOTIPO, en la región de la derecha del chat. Tu yo que contesta por vos: arriba su muñeco girando en 3D
- * (siempre «Copete», del kit del creador de personajes, `office/appearance.js`); debajo su nombre, sus colores, el
- * modelo que va a usar, sus reglas y cómo contestaría. Cada cambio saca una foto del muñeco, que es su avatar en el chat.
+ * (siempre «Copete» pelirrojo, del kit del creador de personajes, `office/appearance.js`); debajo su nombre, el modelo
+ * que va a usar, sus reglas y cómo contestaría. Cada cambio saca una foto del muñeco, que es su avatar en el chat.
  */
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import * as THREE from 'three'
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js'
-import { PARTS, SUGGESTIONS, makeCharacter, recolor } from './office/appearance.js'
+import { makeCharacter, recolor } from './office/appearance.js'
 import { useMyAgentStore, MODELS, RULES } from './stores/myAgent.js'
 import { useChatStore } from './stores/chat.js'
 
@@ -127,22 +127,6 @@ onBeforeUnmount(() => {
         <input id="agent-name" v-model="mine.agent.name" class="input" maxlength="24" autocomplete="off" placeholder="Mini Miguel">
       </label>
 
-      <div v-for="part in PARTS" :key="part.id" class="field">
-        <span class="part-head">
-          {{ part.label }}
-          <label class="custom" :for="`agent-color-${part.id}`">
-            <input :id="`agent-color-${part.id}`" v-model="mine.agent.colors[part.id]" type="color">
-          </label>
-        </span>
-        <div class="swatches">
-          <button v-for="color in SUGGESTIONS[part.id]" :key="color" type="button" class="swatch"
-                  :class="{ on: a.colors[part.id] === color }" :style="{ background: color }"
-                  :aria-label="`${part.label} ${color}`" :title="color" @click="mine.agent.colors[part.id] = color"></button>
-        </div>
-      </div>
-
-      <button type="button" class="btn btn-ghost btn-sm reset" @click="mine.resetColors()">Colores de siempre</button>
-
       <div class="field">
         <span>Modelo</span>
         <div class="models" role="radiogroup" aria-label="Modelo">
@@ -189,19 +173,13 @@ onBeforeUnmount(() => {
 .avatar-img { width: 44px; height: 44px; border-radius: 12px; background: var(--office-bg); object-fit: cover; flex: none }
 .avatar-img.small { width: 28px; height: 28px; border-radius: 8px }
 .field { display: flex; flex-direction: column; gap: 6px }
-.field > span, .part-head { font-size: var(--text-sm); font-weight: 600; color: var(--fg-2) }
-.part-head { display: flex; align-items: center; justify-content: space-between }
-.custom input { width: 26px; height: 22px; padding: 0; border: 1px solid var(--border); border-radius: 5px; background: transparent; cursor: pointer }
+.field > span { font-size: var(--text-sm); font-weight: 600; color: var(--fg-2) }
 .model.on { border-color: var(--office-accent); box-shadow: inset 0 0 0 1px var(--office-accent) }
-.swatches { display: flex; flex-wrap: wrap; gap: 6px }
-.swatch { width: 22px; height: 22px; border-radius: 6px; border: 0; cursor: pointer; box-shadow: inset 0 0 0 1px var(--border) }
-.swatch.on { box-shadow: 0 0 0 2px var(--background), 0 0 0 4px var(--office-accent) }
 .models { display: flex; flex-direction: column; gap: 6px }
 .model { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; padding: 8px 10px; border: 1px solid var(--border);
   border-radius: var(--radius-control); background: transparent; color: inherit; font: inherit; text-align: left; cursor: pointer }
 .model b { font-size: var(--text-sm) }
 .model small { color: var(--fg-2); font-size: var(--text-xs) }
-.reset { align-self: flex-start }
 .hint { margin: 0; color: var(--fg-2); font-size: var(--text-xs) }
 .rules { margin: 0; padding-left: 18px; display: flex; flex-direction: column; gap: 3px; font-size: var(--text-sm) }
 .sample { display: flex; flex-direction: column; gap: 8px; padding: 10px; border-radius: var(--radius-control); background: var(--muted) }

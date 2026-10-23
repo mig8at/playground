@@ -17,8 +17,8 @@ import { ref, watch } from 'vue'
 const STORAGE_KEY = 'chat:mi-agente:v2'
 const OLD_KEY = 'chat:mi-agente:v1'
 
-/* Tu agente es SIEMPRE el muñeco «Copete» (`Character_Male_1`): la forma no se elige. Arranca pelirrojo, de ojos
-   negros, chaqueta roja y pantalón azul; los colores sí se cambian. */
+/* Tu agente es SIEMPRE el muñeco «Copete» (`Character_Male_1`), pelirrojo, de ojos negros, chaqueta roja y pantalón
+   azul: ni la forma ni los colores se eligen. */
 export const BASE = 'Character_Male_1'
 export const DEFAULT_COLORS = { hair: '#b7472a', skin: '#cfa78b', eyes: '#1e1e22', shirt: '#c0392b', pants: '#2c5aa0' }
 
@@ -44,7 +44,7 @@ const DEFAULT = () => ({
 function readStored() {
   try {
     const v = JSON.parse(localStorage.getItem(STORAGE_KEY) || 'null')
-    if (v && typeof v === 'object' && v.colors) return { ...DEFAULT(), ...v, base: BASE }
+    if (v && typeof v === 'object') return { ...DEFAULT(), ...v, base: BASE, colors: { ...DEFAULT_COLORS } }
     // El de antes de la forma fija: se queda con su nombre, su modelo y quién contesta, con la apariencia nueva.
     const old = JSON.parse(localStorage.getItem(OLD_KEY) || 'null')
     if (old && typeof old === 'object') {
@@ -69,8 +69,6 @@ export const useMyAgentStore = defineStore('myAgent', () => {
     agent.value.mode = mode
     agent.value.modeSince = mode === 'agente' ? new Date().toISOString() : ''
   }
-  // Volver a los colores de siempre: pelirrojo, ojos negros, chaqueta roja y pantalón azul.
-  function resetColors() { agent.value.colors = { ...DEFAULT_COLORS } }
 
   /* La propuesta de respuesta, con lo que se sabe de verdad. `tasks` son tus tareas de cuadrilla (las del chat).
      Una pregunta («?») o un pedido no se contestan: se toman como recado. */
@@ -89,5 +87,5 @@ export const useMyAgentStore = defineStore('myAgent', () => {
     return parts.join(' ')
   }
 
-  return { agent, setMode, resetColors, draftReply }
+  return { agent, setMode, draftReply }
 })
