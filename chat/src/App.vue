@@ -26,13 +26,14 @@ import {
 
 const chat = useChatStore()
 const mine = useMyAgentStore()
-/* «Mi agente» se arma en la región de la DERECHA (`auxiliarybar`): el editor sigue con la conversación, así se ve cómo
-   contestaría mientras lo cambiás. Se abre desde su fila del sidebar o el botón del pie, y recuerda si quedó abierto y
-   su ancho. */
-const agentOpen = ref(readSize('chat.agente-open', 0) !== 0)
+/* Vos y tu agente son lo mismo: en «Mi chat», la región de la DERECHA (`auxiliarybar`) es tu agente —cómo se ve, qué
+   modelo usa, quién contesta—, al lado de tu bandeja. En otra conversación no está. Se cierra con su ✕ o el botón del
+   pie, y recuerda si quedó cerrada y su ancho. */
+const agentOpen = ref(readSize('chat.agente-open', 1) !== 0)
 const agentW = ref(readSize('chat.agente-w', 380))
 function setAgentOpen(v) { agentOpen.value = v; saveSize('chat.agente-open', v ? 1 : 0) }
-function openMyAgent() { setAgentOpen(!agentShown.value) }
+// «Mi chat»: tu bandeja en el editor y tu agente a la derecha.
+function openMyChat() { chat.activeKey = ''; setAgentOpen(true) }
 const agentLabel = computed(() => mine.agent.name || 'Mi agente')
 /* LAS FOTOS DE GOOGLE: la de cada persona viene con ella (el home la manda en quién está conectado y en cada mensaje);
    la tuya, de tu sesión. Sin foto, las iniciales de siempre. Se piden sin «referer»: así las sirve Google. */
@@ -77,7 +78,7 @@ const viewportW = ref(window.innerWidth)
 const onWindowResize = () => { viewportW.value = window.innerWidth }
 // Si no entra todo, se pliega primero la derecha (tu agente) y después las conversaciones, como en VS Code.
 const fitted = computed(() => fitRegions(viewportW.value - cssSize('--editor-min', 360), [
-  { size: agentOpen.value ? agentW.value : 0, min: 320 },
+  { size: agentOpen.value && !chat.activeKey ? agentW.value : 0, min: 320 },
   { size: sidebarOpen.value ? sidebarW.value : 0, min: cssSize('--sidebar-min', 240) },
 ]))
 const agentShown = computed(() => fitted.value[0])
@@ -337,7 +338,7 @@ const statusText = computed(() => {
       <div class="region-body">
         <ul class="conversations">
           <li>
-            <button type="button" class="conversation" :class="{ on: !chat.activeKey }" @click="chat.activeKey = ''">
+            <button type="button" class="conversation" :class="{ on: !chat.activeKey }" @click="openMyChat">
               <span class="avatar" aria-hidden="true"><img v-if="myPhoto" class="avatar-photo" :src="myPhoto" alt="" referrerpolicy="no-referrer"><template v-else>{{ initials(chat.me || chat.state?.session) }}</template></span>
               <span class="conversation-main">
                 <span class="conversation-top"><b class="name">Mi chat</b></span>
@@ -374,23 +375,6 @@ const statusText = computed(() => {
               <span class="conversation-main">
                 <span class="conversation-top"><b class="name">{{ p.name || p.email }}</b></span>
                 <span class="conversation-bottom"><span class="snippet">{{ handle(p) }} · escribile</span></span>
-              </span>
-            </button>
-          </li>
-        </ul>
-
-        <!-- TU AGENTE: el yo que contesta por vos (prototipo). Abre la pantalla donde se arma. -->
-        <div class="region-head group"><span>Mi agente</span></div>
-        <ul class="conversations">
-          <li>
-            <button type="button" class="conversation" :class="{ on: !!agentShown }" @click="openMyAgent">
-              <img v-if="mine.agent.avatar" class="avatar avatar-img" :src="mine.agent.avatar" alt="">
-              <span v-else class="avatar agent mine" aria-hidden="true">{{ agentLabel[0].toUpperCase() }}</span>
-              <span class="conversation-main">
-                <span class="conversation-top"><b class="name">{{ agentLabel }}</b></span>
-                <span class="conversation-bottom">
-                  <span class="snippet">{{ mine.agent.mode === 'agente' ? 'contesta por vos ahora' : 'apagado: contestás vos' }}</span>
-                </span>
               </span>
             </button>
           </li>
@@ -695,7 +679,7 @@ const statusText = computed(() => {
                 aria-label="Mostrar u ocultar las conversaciones" @click="toggleSidebar">
           <span class="ui-icon" data-icon="sidebar" aria-hidden="true"></span>
         </button>
-        <button type="button" class="region-action" :aria-pressed="!!agentShown" title="Mostrar u ocultar tu agente"
+        <button v-if="!chat.activeKey" type="button" class="region-action" :aria-pressed="!!agentShown" title="Mostrar u ocultar tu agente"
                 aria-label="Mostrar u ocultar tu agente" @click="setAgentOpen(!agentShown)">
           <span class="ui-icon" data-icon="detail" aria-hidden="true"></span>
         </button>

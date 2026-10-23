@@ -120,10 +120,6 @@ onBeforeUnmount(() => {
           <b>{{ a.name || 'Mi agente' }}</b>
           <small>{{ a.mode === 'agente' ? 'contesta por vos ahora' : 'apagado: contestás vos' }}</small>
         </span>
-        <span class="mode" role="group" aria-label="Quién contesta">
-          <button type="button" :class="{ on: a.mode === 'yo' }" @click="mine.setMode('yo')">Contesto yo</button>
-          <button type="button" :class="{ on: a.mode === 'agente' }" @click="mine.setMode('agente')">Contesta mi agente</button>
-        </span>
       </header>
 
       <label class="field" for="agent-name">
@@ -193,15 +189,11 @@ onBeforeUnmount(() => {
   background: var(--office-chip); color: var(--office-chip-ink) }
 .agent-form { padding: var(--space-4) var(--gutter); display: flex; flex-direction: column; gap: var(--space-4) }
 .who { display: flex; align-items: center; gap: var(--space-3); flex-wrap: wrap }
-.who .mode { flex-basis: 100% ; justify-content: center }
 .who > span:first-of-type { display: flex; flex-direction: column; min-width: 0; flex: 1 }
 .who b { font-size: 15px }
 .who small { color: var(--fg-2); font-size: var(--text-xs) }
 .avatar-img { width: 44px; height: 44px; border-radius: 12px; background: var(--office-bg); object-fit: cover; flex: none }
 .avatar-img.small { width: 28px; height: 28px; border-radius: 8px }
-.mode { display: inline-flex; border: 1px solid var(--border); border-radius: 999px; padding: 2px; gap: 2px }
-.mode button { border: 0; background: transparent; color: var(--fg-2); font: inherit; font-size: var(--text-xs); padding: 4px 10px; border-radius: 999px; cursor: pointer }
-.mode button.on { background: var(--office-accent); color: var(--office-accent-ink) }
 .field { display: flex; flex-direction: column; gap: 6px }
 .field > span, .part-head { font-size: var(--text-sm); font-weight: 600; color: var(--fg-2) }
 .part-head { display: flex; align-items: center; justify-content: space-between }
