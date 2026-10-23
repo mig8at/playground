@@ -113,7 +113,7 @@ onBeforeUnmount(() => {
       <span class="badge-proto">prototipo</span>
     </div>
 
-    <section class="panel" aria-label="Tu agente">
+    <section class="agent-form" aria-label="Tu agente">
       <header class="who">
         <img v-if="a.avatar" class="avatar-img" :src="a.avatar" alt="">
         <span>
@@ -191,7 +191,7 @@ onBeforeUnmount(() => {
 .stage { position: absolute; inset: 0; background: radial-gradient(90% 80% at 50% 40%, var(--office-glow), var(--office-bg)) }
 .badge-proto { position: absolute; top: var(--space-3); left: var(--space-3); padding: 2px 8px; border-radius: 999px; font-size: var(--text-xs);
   background: var(--office-chip); color: var(--office-chip-ink) }
-.panel { padding: var(--space-4) var(--gutter); display: flex; flex-direction: column; gap: var(--space-4) }
+.agent-form { padding: var(--space-4) var(--gutter); display: flex; flex-direction: column; gap: var(--space-4) }
 .who { display: flex; align-items: center; gap: var(--space-3); flex-wrap: wrap }
 .who .mode { flex-basis: 100% ; justify-content: center }
 .who > span:first-of-type { display: flex; flex-direction: column; min-width: 0; flex: 1 }
