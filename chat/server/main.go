@@ -19,6 +19,7 @@ import (
 	"net/http"
 	"os"
 	"strings"
+	"sync"
 	"time"
 
 	"creditop/playground/chat/cli"
@@ -27,8 +28,32 @@ import (
 // maxText es el mismo tope que pone el home: más largo, lo rechaza igual.
 const maxText = 2000
 
+// loginState es el `playground login` que lanzó el chat, si hay uno: uno a la vez.
+type loginState struct {
+	mu      sync.Mutex
+	running bool
+	url     string
+	err     string
+}
+
+type loginView struct {
+	Running bool   `json:"running"`
+	URL     string `json:"url,omitempty"`
+	Error   string `json:"error,omitempty"`
+}
+
+func (l *loginState) view() loginView {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	return loginView{Running: l.running, URL: l.url, Error: l.err}
+}
+
+var login loginState
+
 type stateResponse struct {
 	Installed bool          `json:"installed"`
+	Session   *cli.Session  `json:"session,omitempty"`
+	Login     loginView     `json:"login"`
 	Listening bool          `json:"listening"`
 	Connected bool          `json:"connected"`
 	Since     string        `json:"since,omitempty"`
@@ -55,11 +80,12 @@ func handler() http.Handler {
 	mux.HandleFunc("GET /api/state", func(w http.ResponseWriter, r *http.Request) {
 		ctx, cancel := context.WithTimeout(r.Context(), 5*time.Second)
 		defer cancel()
-		body := stateResponse{Installed: cli.Installed(), Messages: []cli.Message{}}
+		body := stateResponse{Installed: cli.Installed(), Messages: []cli.Message{}, Login: login.view()}
 		if !body.Installed {
 			writeJSON(w, http.StatusOK, body)
 			return
 		}
+		body.Session = cli.CurrentSession(ctx)
 		status, _ := cli.ListenStatus(ctx)
 		if status == nil {
 			writeJSON(w, http.StatusOK, body)
@@ -115,6 +141,40 @@ func handler() http.Handler {
 			return
 		}
 		writeJSON(w, http.StatusOK, result)
+	})
+
+	// Entrar al playground: lanza `playground login`, que abre el navegador de esta máquina. Vuelve enseguida con
+	// la URL (por si el navegador no se abrió); el resultado se ve en /api/state.
+	mux.HandleFunc("POST /api/login", func(w http.ResponseWriter, r *http.Request) {
+		login.mu.Lock()
+		if login.running {
+			login.mu.Unlock()
+			writeJSON(w, http.StatusOK, login.view())
+			return
+		}
+		login.running, login.url, login.err = true, "", ""
+		login.mu.Unlock()
+		started, err := cli.StartLogin()
+		if err != nil {
+			login.mu.Lock()
+			login.running, login.err = false, err.Error()
+			login.mu.Unlock()
+			fail(w, http.StatusBadGateway, err)
+			return
+		}
+		login.mu.Lock()
+		login.url = started.URL
+		login.mu.Unlock()
+		go func() {
+			err := <-started.Done
+			login.mu.Lock()
+			defer login.mu.Unlock()
+			login.running, login.url = false, ""
+			if err != nil {
+				login.err = err.Error()
+			}
+		}()
+		writeJSON(w, http.StatusOK, login.view())
 	})
 
 	mux.HandleFunc("POST /api/listen", func(w http.ResponseWriter, r *http.Request) {

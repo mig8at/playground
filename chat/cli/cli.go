@@ -11,14 +11,17 @@
 package cli
 
 import (
+	"bufio"
 	"bytes"
 	"context"
+	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"strings"
+	"time"
 )
 
 // DefaultBase es el playground de producción, el mismo default que el lanzador del CLI.
@@ -293,4 +296,90 @@ func CanonAsk(ctx context.Context, question string) (CanonAnswer, error) {
 		return CanonAnswer{}, errors.New("canon devolvió algo que no es una respuesta")
 	}
 	return answer, nil
+}
+
+// Session es la sesión del playground que tiene el CLI (`playground login`): de quién es y hasta cuándo vale.
+type Session struct {
+	Email   string `json:"email"`
+	Name    string `json:"name,omitempty"`
+	Expires string `json:"expires"`
+}
+
+// CurrentSession devuelve la sesión vigente, o nil si no hay o venció (`playground token` sale 1 en ese caso).
+// Lee el cuerpo del token sin verificarlo: sólo para decir de quién es y cuándo vence; lo verifica el home.
+func CurrentSession(ctx context.Context) *Session {
+	out, err := run(ctx, nil, "token")
+	if err != nil {
+		return nil
+	}
+	parts := strings.Split(strings.TrimSpace(string(out)), ".")
+	if len(parts) != 3 {
+		return nil
+	}
+	raw, err := base64.RawURLEncoding.DecodeString(parts[1])
+	if err != nil {
+		return nil
+	}
+	var claims struct {
+		Email string `json:"email"`
+		Name  string `json:"name"`
+		Exp   int64  `json:"exp"`
+	}
+	if json.Unmarshal(raw, &claims) != nil || claims.Email == "" {
+		return nil
+	}
+	return &Session{Email: claims.Email, Name: claims.Name, Expires: time.Unix(claims.Exp, 0).UTC().Format(time.RFC3339)}
+}
+
+// Login es un `playground login` en curso: el CLI abre el navegador y espera (hasta 5 minutos) a que la
+// persona elija su cuenta. URL es la dirección que imprime, por si el navegador no se abrió solo.
+type Login struct {
+	URL  string
+	Done chan error
+}
+
+// StartLogin lanza `playground login` y vuelve apenas el CLI dice qué URL abrió; el login sigue en segundo plano
+// y Done avisa cómo terminó.
+func StartLogin() (*Login, error) {
+	path, err := Path()
+	if err != nil {
+		return nil, err
+	}
+	cmd := exec.Command(path, "login")
+	stderr, err := cmd.StderrPipe()
+	if err != nil {
+		return nil, err
+	}
+	if err := cmd.Start(); err != nil {
+		return nil, err
+	}
+	login := &Login{Done: make(chan error, 1)}
+	found := make(chan string, 1)
+	var last strings.Builder
+	go func() {
+		scanner := bufio.NewScanner(stderr)
+		for scanner.Scan() {
+			line := strings.TrimSpace(scanner.Text())
+			if strings.HasPrefix(line, "http") {
+				select {
+				case found <- line:
+				default:
+				}
+			}
+			if line != "" {
+				last.Reset()
+				last.WriteString(strings.TrimPrefix(line, "✗ "))
+			}
+		}
+		if err := cmd.Wait(); err != nil {
+			login.Done <- errors.New(last.String())
+			return
+		}
+		login.Done <- nil
+	}()
+	select {
+	case login.URL = <-found:
+	case <-time.After(5 * time.Second):
+	}
+	return login, nil
 }

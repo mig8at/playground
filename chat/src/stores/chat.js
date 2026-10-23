@@ -62,6 +62,10 @@ export const useChatStore = defineStore('chat', () => {
   const onlineError = ref('')
   const listenBusy = ref(false)
   const listenError = ref('')
+  // Entrar desde el chat: `playground login` abre el navegador; al volver con sesión, se prende el listen solo.
+  const loginBusy = ref(false)
+  const loginError = ref('')
+  let listenAfterLogin = false
   // Los agentes del equipo (`playground agents`): [{ email, name, github, agents: [{ name, description }] }].
   const teamAgents = ref([])
   const teamAgentsError = ref('')
@@ -191,7 +195,18 @@ export const useChatStore = defineStore('chat', () => {
       state.value = await api('/api/state')
       stateError.value = ''
       absorb(state.value.messages)
+      if (listenAfterLogin && state.value.session && !state.value.listening) { listenAfterLogin = false; startListening() }
+      if (!state.value.login?.running && loginBusy.value) {
+        loginBusy.value = false
+        if (state.value.login?.error) loginError.value = state.value.login.error
+      }
     } catch (e) { stateError.value = `no pude hablar con la API de chat: ${e.message}` }
+  }
+
+  async function login() {
+    loginBusy.value = true; loginError.value = ''
+    try { await post('/api/login', {}); listenAfterLogin = true; await loadState() }
+    catch (e) { loginError.value = e.message; loginBusy.value = false }
   }
 
   async function loadTeamAgents() {
@@ -312,7 +327,7 @@ export const useChatStore = defineStore('chat', () => {
   }
 
   return {
-    conversations, activeKey, state, stateError, online, onlineError, listenBusy, listenError,
+    conversations, activeKey, state, stateError, online, onlineError, listenBusy, listenError, loginBusy, loginError, login,
     teamAgents, teamAgentsError,
     me, meKey, list, active, unreadTotal, onlineKeys, agentList,
     loadState, loadOnline, loadTeamAgents, startListening, open, openAgent, send, retry, forget, findBySid, start, stop,

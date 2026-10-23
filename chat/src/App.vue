@@ -227,6 +227,7 @@ const statusText = computed(() => {
   if (chat.stateError) return 'sin la API de chat'
   if (!s) return 'preguntando al CLI…'
   if (!s.installed) return 'falta el CLI playground'
+  if (!s.session) return 'sin sesión'
   if (!s.listening) return 'no estás escuchando'
   return s.connected ? 'escuchando' : 'reconectando'
 })
@@ -336,6 +337,18 @@ const statusText = computed(() => {
       <div v-if="chat.stateError" class="notice bad">{{ chat.stateError }}</div>
       <div v-else-if="chat.state && !chat.state.installed" class="notice">
         Falta el CLI <code>playground</code>: <code>curl -fsSL https://playground.creditop.com/cli/install | sh</code> y después <code>playground login</code>.
+      </div>
+      <!-- Sin sesión (dura 12 horas) no se manda ni se escucha: se entra desde acá, con el navegador de esta máquina. -->
+      <div v-else-if="chat.state && !chat.state.session" class="notice">
+        <template v-if="chat.state.login?.running || chat.loginBusy">
+          <span>Elegí tu cuenta de Google de CreditOp en el navegador que se abrió.</span>
+          <a v-if="chat.state.login?.url" :href="chat.state.login.url" target="_blank" rel="noopener">Si no se abrió, abrilo acá</a>
+        </template>
+        <template v-else>
+          <span>{{ chat.state.listening ? 'Tu sesión del playground venció.' : 'No entraste al playground, o tu sesión venció (dura 12 horas).' }}</span>
+          <button type="button" class="btn btn-sm" @click="chat.login()">Entrar</button>
+        </template>
+        <span v-if="chat.loginError" class="bad">{{ chat.loginError }}</span>
       </div>
       <div v-else-if="chat.state && !listening" class="notice">
         <span>No estás escuchando: lo que te escriban no llega. Mandar sí funciona.</span>
