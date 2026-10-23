@@ -34,6 +34,14 @@ function openMyAgent() {
   if (location.hash !== '#/mi-agente') setRoute(`${location.pathname}${location.search}#/mi-agente`, { push: true })
 }
 const agentLabel = computed(() => mine.agent.name || 'Mi agente')
+/* LAS FOTOS DE GOOGLE: la de cada persona viene con ella (el home la manda en quién está conectado y en cada mensaje);
+   la tuya, de tu sesión. Sin foto, las iniciales de siempre. Se piden sin «referer»: así las sirve Google. */
+const myPhoto = computed(() => chat.state?.session?.picture || '')
+const photoOf = (p) => {
+  const email = String(p?.email || '').toLowerCase()
+  if (email && email === chat.meKey) return myPhoto.value
+  return p?.picture || chat.online.find((o) => String(o.email || '').toLowerCase() === email)?.picture || ''
+}
 function toggleMode() { mine.setMode(mine.agent.mode === 'agente' ? 'yo' : 'agente') }
 
 // ── la ruta: #/c/<clave> es la conversación abierta (un correo, o `agent:<dueño>/<agente>`) ──
@@ -318,7 +326,7 @@ const statusText = computed(() => {
         <ul v-if="chat.list.length || onlineWithoutChat.length" class="conversations">
           <li v-for="c in chat.list" :key="c.person.email">
             <button type="button" class="conversation" :class="{ on: c.person.email === chat.activeKey }" @click="chat.open(c.person)">
-              <span class="avatar" aria-hidden="true">{{ initials(c.person) }}<i v-if="c.online" class="presence"></i></span>
+              <span class="avatar" aria-hidden="true"><img v-if="photoOf(c.person)" class="avatar-photo" :src="photoOf(c.person)" alt="" referrerpolicy="no-referrer"><template v-else>{{ initials(c.person) }}</template><i v-if="c.online" class="presence"></i></span>
               <span class="conversation-main">
                 <span class="conversation-top">
                   <b class="name">{{ c.person.name || c.person.email }}</b>
@@ -333,7 +341,7 @@ const statusText = computed(() => {
           </li>
           <li v-for="p in onlineWithoutChat" :key="p.email">
             <button type="button" class="conversation" @click="chat.open(p)">
-              <span class="avatar" aria-hidden="true">{{ initials(p) }}<i class="presence"></i></span>
+              <span class="avatar" aria-hidden="true"><img v-if="photoOf(p)" class="avatar-photo" :src="photoOf(p)" alt="" referrerpolicy="no-referrer"><template v-else>{{ initials(p) }}</template><i class="presence"></i></span>
               <span class="conversation-main">
                 <span class="conversation-top"><b class="name">{{ p.name || p.email }}</b></span>
                 <span class="conversation-bottom"><span class="snippet">{{ handle(p) }} · escribile</span></span>
@@ -396,7 +404,8 @@ const statusText = computed(() => {
           <!-- Un solo primer hijo: la base le da a ese el ancho que sobra y lo recorta con «…». -->
           <span class="head-who">
             <span class="avatar small" :class="{ agent: activeIsAgent, mine: activeIsAgent && activeOwnerIsMe, tool: activeIsCanon }" aria-hidden="true">
-              {{ activeIsAgent ? (activeTitle || '?')[0].toUpperCase() : initials(chat.active.person) }}<i v-if="activeOnline" class="presence"></i>
+              <img v-if="!activeIsAgent && photoOf(chat.active.person)" class="avatar-photo" :src="photoOf(chat.active.person)" alt="" referrerpolicy="no-referrer">
+              <template v-else>{{ activeIsAgent ? (activeTitle || '?')[0].toUpperCase() : initials(chat.active.person) }}</template><i v-if="activeOnline" class="presence"></i>
             </span>
             <span class="head-title">{{ activeTitle }}</span>
             <span class="count head-sub">{{ activeSubtitle }}</span>
@@ -586,7 +595,9 @@ const statusText = computed(() => {
     <footer class="statusbar">
       <span class="statusbar-item">
         <i class="status-dot" :class="{ on: listening && chat.state?.connected }" aria-hidden="true"></i>
-        {{ statusText }}<template v-if="chat.me"> · {{ chat.me.email }}</template>
+        {{ statusText }}<template v-if="chat.me || chat.state?.session"> ·
+          <img v-if="myPhoto" class="me-photo" :src="myPhoto" alt="" referrerpolicy="no-referrer">
+          {{ (chat.me || chat.state.session).email }}</template>
       </span>
       <span v-if="chat.state?.since && listening" class="statusbar-item">desde las {{ clock(chat.state.since) }}</span>
       <span v-if="chat.agentList.some((a) => a.mine)" class="statusbar-item">
@@ -667,6 +678,10 @@ code { font-family: var(--font-mono); font-size: .92em }
 .meta { align-self: flex-end; color: var(--fg-2); font-size: var(--text-xs); font-variant-numeric: tabular-nums }
 .error { margin: 2px 0 0; color: var(--send-fail); font-size: var(--text-sm) }
 .btn-link { border: 0; padding: 0; background: none; color: inherit; text-decoration: underline; cursor: pointer; font: inherit }
+
+/* La foto de Google ocupa el círculo entero del avatar; el punto verde sigue encima. */
+.avatar-photo { width: 100%; height: 100%; border-radius: inherit; object-fit: cover; display: block }
+.me-photo { width: 16px; height: 16px; border-radius: 50%; object-fit: cover; vertical-align: -3px }
 
 /* MI AGENTE: su avatar es la foto del muñeco; sus propuestas, una burbuja punteada con «Mandar» y «Descartar». */
 .avatar-img { object-fit: cover; background: var(--office-bg); border-radius: 8px }

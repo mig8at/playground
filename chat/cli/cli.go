@@ -32,6 +32,7 @@ type Person struct {
 	Email     string `json:"email"`
 	Name      string `json:"name"`
 	GitHub    string `json:"github,omitempty"`
+	Picture   string `json:"picture,omitempty"` // la foto de Google, si el home la manda
 	Terminals int    `json:"terminals,omitempty"`
 }
 
@@ -306,6 +307,7 @@ func CanonAsk(ctx context.Context, question string) (CanonAnswer, error) {
 type Session struct {
 	Email   string `json:"email"`
 	Name    string `json:"name,omitempty"`
+	Picture string `json:"picture,omitempty"` // tu foto de Google, la que trae la sesión
 	Expires string `json:"expires"`
 }
 
@@ -325,14 +327,19 @@ func CurrentSession(ctx context.Context) *Session {
 		return nil
 	}
 	var claims struct {
-		Email string `json:"email"`
-		Name  string `json:"name"`
-		Exp   int64  `json:"exp"`
+		Email   string `json:"email"`
+		Name    string `json:"name"`
+		Picture string `json:"picture"`
+		Exp     int64  `json:"exp"`
 	}
 	if json.Unmarshal(raw, &claims) != nil || claims.Email == "" {
 		return nil
 	}
-	return &Session{Email: claims.Email, Name: claims.Name, Expires: time.Unix(claims.Exp, 0).UTC().Format(time.RFC3339)}
+	picture := ""
+	if strings.HasPrefix(claims.Picture, "https://") {
+		picture = claims.Picture
+	}
+	return &Session{Email: claims.Email, Name: claims.Name, Picture: picture, Expires: time.Unix(claims.Exp, 0).UTC().Format(time.RFC3339)}
 }
 
 // Login es un `playground login` en curso: el CLI abre el navegador y espera (hasta 5 minutos) a que la
