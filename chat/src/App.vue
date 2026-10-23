@@ -18,11 +18,23 @@
  */
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useChatStore } from './stores/chat.js'
+import { useMyAgentStore } from './stores/myAgent.js'
+import MyAgent from './MyAgent.vue'
 import {
   vResize, readSize, saveSize, fitRegions, cssSize, bindThemeToggle, readHashRoute, hashRoute, setRoute,
 } from './workbench.js'
 
 const chat = useChatStore()
+const mine = useMyAgentStore()
+// «Mi agente» (`#/mi-agente`): la pantalla donde se arma tu agente. Ocupa el editor en lugar de una conversación.
+const showMyAgent = ref(false)
+function openMyAgent() {
+  chat.activeKey = ''
+  showMyAgent.value = true
+  if (location.hash !== '#/mi-agente') setRoute(`${location.pathname}${location.search}#/mi-agente`, { push: true })
+}
+const agentLabel = computed(() => mine.agent.name || 'Mi agente')
+function toggleMode() { mine.setMode(mine.agent.mode === 'agente' ? 'yo' : 'agente') }
 
 // ── la ruta: #/c/<clave> es la conversación abierta (un correo, o `agent:<dueño>/<agente>`) ──
 function routeKey() {
@@ -30,6 +42,8 @@ function routeKey() {
   return parts[0] === 'c' && parts[1] ? parts[1].toLowerCase() : ''
 }
 function applyRoute() {
+  showMyAgent.value = readHashRoute().parts[0] === 'mi-agente'
+  if (showMyAgent.value) { chat.activeKey = ''; return }
   const key = routeKey()
   if (key && chat.conversations[key]) chat.open(chat.conversations[key].person)
   // Una conversación con un agente que este navegador no tiene no se inventa: se abre desde «Agentes».
@@ -37,6 +51,8 @@ function applyRoute() {
   else chat.activeKey = ''
 }
 watch(() => chat.activeKey, (key) => {
+  if (key) showMyAgent.value = false
+  if (!key && showMyAgent.value) return
   const target = key ? hashRoute(['c', key]) : ''
   if (target !== (location.hash || '')) setRoute(`${location.pathname}${location.search}${target}`, { push: true })
 })
@@ -326,6 +342,23 @@ const statusText = computed(() => {
           </li>
         </ul>
 
+        <!-- TU AGENTE: el yo que contesta por vos (prototipo). Abre la pantalla donde se arma. -->
+        <div class="region-head group"><span>Mi agente</span></div>
+        <ul class="conversations">
+          <li>
+            <button type="button" class="conversation" :class="{ on: showMyAgent }" @click="openMyAgent">
+              <img v-if="mine.agent.avatar" class="avatar avatar-img" :src="mine.agent.avatar" alt="">
+              <span v-else class="avatar agent mine" aria-hidden="true">{{ agentLabel[0].toUpperCase() }}</span>
+              <span class="conversation-main">
+                <span class="conversation-top"><b class="name">{{ agentLabel }}</b></span>
+                <span class="conversation-bottom">
+                  <span class="snippet">{{ mine.agent.mode === 'agente' ? 'contesta por vos ahora' : 'apagado: contestás vos' }}</span>
+                </span>
+              </span>
+            </button>
+          </li>
+        </ul>
+
         <!-- Los agentes del equipo: los de cada persona conectada (`playground agents`), los tuyos primero. -->
         <div class="region-head group">
           <span>Agentes</span>
@@ -375,7 +408,7 @@ const statusText = computed(() => {
             </button>
           </div>
         </template>
-        <span v-else>chat</span>
+        <span v-else>{{ showMyAgent ? 'Mi agente' : 'chat' }}</span>
       </div>
 
       <!-- Avisos que cambian lo que se puede hacer: van dentro del editor, no como banner global. -->
@@ -403,7 +436,8 @@ const statusText = computed(() => {
         <span v-if="chat.listenError" class="bad">{{ chat.listenError }}</span>
       </div>
 
-      <div v-if="!chat.active" class="region-body">
+      <MyAgent v-if="showMyAgent" />
+      <div v-else-if="!chat.active" class="region-body">
         <div class="empty">
           <div class="empty-head">
             <div class="empty-title">Elegí una conversación</div>
@@ -458,6 +492,21 @@ const statusText = computed(() => {
             <div v-else-if="item.kind === 'asked'" class="asked">
               <span class="asked-label">Le preguntó a tu agente <b>{{ item.agent }}</b> · {{ clock(item.time) }}</span>
               <span class="asked-text">{{ item.text }}</span>
+            </div>
+
+            <!-- Lo que tu agente contestaría: no salió. «Mandar» lo manda a tu nombre; «Descartar» lo tira. -->
+            <div v-else-if="item.kind === 'propuesta'" class="proposal" :class="{ discarded: item.status === 'descartada' }">
+              <img v-if="mine.agent.avatar" class="proposal-avatar" :src="mine.agent.avatar" alt="">
+              <div class="proposal-body">
+                <span class="proposal-label">
+                  <b>{{ agentLabel }}</b> contestaría · {{ item.status === 'descartada' ? 'descartada' : 'no se mandó' }}
+                </span>
+                <p class="text">{{ item.text }}</p>
+                <span v-if="item.status !== 'descartada'" class="proposal-actions">
+                  <button type="button" class="btn btn-sm" @click="chat.sendProposal(item.id)">Mandar</button>
+                  <button type="button" class="btn btn-ghost btn-sm" @click="chat.discardProposal(item.id)">Descartar</button>
+                </span>
+              </div>
             </div>
 
             <div v-else class="bubble-row" :class="[item.dir, { cont: item.cont }]">
@@ -543,6 +592,12 @@ const statusText = computed(() => {
       <span v-if="chat.agentList.some((a) => a.mine)" class="statusbar-item">
         tus agentes: {{ chat.agentList.filter((a) => a.mine).map((a) => a.agentName).join(', ') }}
       </span>
+      <!-- Quién contesta: vos o tu agente. Siempre a la vista, para que no quede prendido sin querer. -->
+      <button type="button" class="statusbar-item mode-toggle" :class="{ on: mine.agent.mode === 'agente' }" @click="toggleMode"
+              :title="mine.agent.mode === 'agente' ? `Contesta ${agentLabel}: tocá para contestar vos` : `Contestás vos: tocá para que conteste ${agentLabel}`">
+        <img v-if="mine.agent.avatar" class="mode-avatar" :src="mine.agent.avatar" alt="">
+        {{ mine.agent.mode === 'agente' ? `contesta ${agentLabel}` : 'contesto yo' }}
+      </button>
       <div class="layout-controls" role="group" aria-label="Tema y regiones visibles">
         <button ref="themeToggle" type="button" class="region-action theme-toggle"><span class="ui-icon" aria-hidden="true"></span></button>
         <button type="button" class="region-action" :aria-pressed="!!sidebarShown" title="Mostrar u ocultar las conversaciones"
@@ -612,6 +667,19 @@ code { font-family: var(--font-mono); font-size: .92em }
 .meta { align-self: flex-end; color: var(--fg-2); font-size: var(--text-xs); font-variant-numeric: tabular-nums }
 .error { margin: 2px 0 0; color: var(--send-fail); font-size: var(--text-sm) }
 .btn-link { border: 0; padding: 0; background: none; color: inherit; text-decoration: underline; cursor: pointer; font: inherit }
+
+/* MI AGENTE: su avatar es la foto del muñeco; sus propuestas, una burbuja punteada con «Mandar» y «Descartar». */
+.avatar-img { object-fit: cover; background: var(--office-bg); border-radius: 8px }
+.proposal { display: flex; gap: var(--space-2); align-self: flex-end; max-width: min(560px, 85%); margin: 2px 0 var(--space-2) }
+.proposal.discarded { opacity: .55 }
+.proposal-avatar { flex: none; width: 28px; height: 28px; border-radius: 8px; object-fit: cover; background: var(--office-bg) }
+.proposal-body { display: flex; flex-direction: column; gap: 4px; padding: 8px 10px; border-radius: 12px;
+  border: 1px dashed var(--office-accent); background: color-mix(in oklab, var(--office-accent) 8%, var(--background)) }
+.proposal-label { font-size: var(--text-xs); color: var(--fg-2) }
+.proposal-actions { display: flex; gap: var(--space-1); margin-top: 2px }
+.mode-toggle { border: 0; background: none; font: inherit; color: inherit; cursor: pointer; display: inline-flex; align-items: center; gap: 6px }
+.mode-toggle.on { color: var(--office-accent); font-weight: 600 }
+.mode-avatar { width: 16px; height: 16px; border-radius: 4px; object-fit: cover; background: var(--office-bg) }
 
 /* CUADRILLA: tus tareas arriba del hilo, con su estado en un punto y sus acciones; y la etiqueta de cada nota. */
 .tasks { display: flex; flex-direction: column; gap: var(--space-2); padding-bottom: var(--space-3); margin-bottom: var(--space-2);

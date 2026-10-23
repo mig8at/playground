@@ -27,6 +27,7 @@
  * ⚠ El texto de un mensaje lo escribió otra persona: se guarda y se pinta como texto, nunca se interpreta.
  */
 import { defineStore } from 'pinia'
+import { useMyAgentStore } from './myAgent.js'
 import { computed, ref, watch } from 'vue'
 
 const STORAGE_KEY = 'chat:conversations:v1'
@@ -93,6 +94,8 @@ export const useChatStore = defineStore('chat', () => {
   const cuadrilla = ref(null)
   const cuadrillaError = ref('')
   const cuadrillaSeen = readSeen()
+  // Tu agente (`myAgent.js`): con él prendido, a lo que te llega le arma una propuesta de respuesta.
+  const mine = useMyAgentStore()
 
   watch(conversations, (value) => {
     try { localStorage.setItem(STORAGE_KEY, JSON.stringify(value)) } catch { /* sin almacenamiento: vive mientras la pestaña */ }
@@ -112,7 +115,8 @@ export const useChatStore = defineStore('chat', () => {
   // Lo no leído: lo que llegó después de la última vez que se miró. Que alguien le pregunte a tu agente no
   // cuenta: tu listen ya le contestó.
   const summarize = (c) => {
-    const visible = c.messages
+    // Una propuesta de tu agente no salió: no es el último mensaje de la conversación.
+    const visible = c.messages.filter((m) => m.kind !== 'propuesta')
     const last = visible.at(-1) || null
     const unread = visible.filter((m) => m.dir === 'in' && m.kind !== 'asked' && m.time > (c.readAt || '')).length
     return { ...c, last, unread, online: onlineKeys.value.has(c.person.email) }
@@ -219,7 +223,43 @@ export const useChatStore = defineStore('chat', () => {
                 ...(m.agent ? { kind: 'asked', agent: m.agent } : {}), ...(m.queued ? { queued: true } : {}) })
     }
     markActiveRead()
+    proposeReplies()
   }
+
+  /* LAS PROPUESTAS DE TU AGENTE. Con el agente prendido, cada mensaje de una persona que llegó DESPUÉS de prenderlo
+     recibe una propuesta de respuesta en su conversación (`kind: 'propuesta'`), justo debajo. No sale sola: «Mandar»
+     la manda a tu nombre, como respuesta a ese mensaje, y «Descartar» la tira. */
+  // Tu nombre, para que el agente diga de quién es: del listen si está prendido, si no de la sesión.
+  const ownerName = () => me.value?.name || state.value?.session?.name || me.value?.email || state.value?.session?.email || ''
+  function proposeReplies() {
+    const a = mine.agent
+    if (a.mode !== 'agente' || !a.modeSince) return
+    // Con tu nombre y tus tareas, o no se arma: una propuesta sin eso diría «mi persona» y nada de lo que hacés.
+    if (!state.value || (!cuadrilla.value && !cuadrillaError.value)) return
+    for (const c of Object.values(conversations.value)) {
+      if (isAgentKey(c.person.email)) continue
+      for (const m of [...c.messages]) {
+        if (m.dir !== 'in' || m.kind || m.time <= a.modeSince) continue
+        if (c.messages.some((x) => x.kind === 'propuesta' && x.replyTo === m.id)) continue
+        const time = new Date(new Date(m.time).getTime() + 1).toISOString()
+        push(c, { id: `propuesta|${m.id}`, dir: 'out', kind: 'propuesta', replyTo: m.id, re: m.sid || '', time, status: 'propuesta',
+                  text: mine.draftReply({ from: c.person.name || c.person.email, text: m.text, tasks: myTasks.value, owner: ownerName() }) })
+      }
+    }
+  }
+  async function sendProposal(id) {
+    const c = active.value
+    const p = c?.messages.find((m) => m.id === id && m.kind === 'propuesta')
+    if (!p) return
+    c.messages.splice(c.messages.indexOf(p), 1)
+    await send(p.text, p.re)
+  }
+  function discardProposal(id) {
+    const c = active.value
+    const p = c?.messages.find((m) => m.id === id && m.kind === 'propuesta')
+    if (p) Object.assign(p, { status: 'descartada' })
+  }
+  watch(() => mine.agent.mode, proposeReplies)
 
   // La conversación abierta se da por leída sólo si la pestaña está a la vista.
   function markActiveRead() {
@@ -281,6 +321,7 @@ export const useChatStore = defineStore('chat', () => {
     const c = ensure(person)
     activeKey.value = c.person.email
     markActiveRead()
+    proposeReplies()
   }
 
   // `re`: el id del home del mensaje que se contesta (sólo en conversaciones con personas).
@@ -394,6 +435,7 @@ export const useChatStore = defineStore('chat', () => {
       cuadrillaError.value = ''
       absorbCuadrilla(board)
     } catch (e) { cuadrillaError.value = e.message }
+    proposeReplies()
   }
 
   /* Escribir en una tarea: `kind` es avance, bloqueo (con `owner`, de quién depende) o desbloqueo. Lo escrito queda
@@ -457,7 +499,7 @@ export const useChatStore = defineStore('chat', () => {
       if (document.visibilityState === 'visible') await Promise.all([loadOnline(), loadTeamAgents()])
       onlineTimer = setTimeout(tickOnline, POLL_ONLINE_MS)
     }
-    loadState().then(() => Promise.all([loadOnline(), loadTeamAgents(), loadCuadrilla()]))
+    loadState().then(() => Promise.all([loadOnline(), loadTeamAgents(), loadCuadrilla()])).then(proposeReplies)
     cuadrillaTimer = setTimeout(tickCuadrilla, POLL_CUADRILLA_MS)
     stateTimer = setTimeout(tickState, POLL_STATE_MS)
     onlineTimer = setTimeout(tickOnline, POLL_ONLINE_MS)
@@ -471,6 +513,7 @@ export const useChatStore = defineStore('chat', () => {
   return {
     conversations, activeKey, state, stateError, online, onlineError, listenBusy, listenError, loginBusy, loginError, login,
     teamAgents, teamAgentsError, cuadrilla, cuadrillaError, myTasks, taskUrl, loadCuadrilla, noteTask, doneTask,
+    proposeReplies, sendProposal, discardProposal, ownerName,
     me, meKey, list, active, unreadTotal, onlineKeys, agentList,
     loadState, loadOnline, loadTeamAgents, startListening, open, openAgent, send, retry, forget, findBySid, start, stop,
   }
