@@ -467,19 +467,6 @@ const statusText = computed(() => {
       <!-- MI CHAT: sin conversación abierta, el editor es tu bandeja. Vos y tu agente usan el mismo chat: lo que te
            escriben llega acá, y con tu agente prendido cada mensaje trae su propuesta de respuesta. -->
       <div v-if="!chat.active" class="region-body my-chat">
-        <header class="my-chat-head">
-          <img v-if="myPhoto" class="my-chat-photo" :src="myPhoto" alt="" referrerpolicy="no-referrer">
-          <span class="my-chat-who">
-            <b>{{ chat.ownerName() || 'Mi chat' }}</b>
-            <small>{{ mine.agent.mode === 'agente' ? `contesta ${agentLabel}: te deja cada respuesta lista para mandar` : 'contestás vos' }}</small>
-          </span>
-          <span class="mode-switch" role="group" aria-label="Quién contesta">
-            <button type="button" :class="{ on: mine.agent.mode === 'yo' }" @click="mine.setMode('yo')">Contesto yo</button>
-            <button type="button" :class="{ on: mine.agent.mode === 'agente' }" @click="mine.setMode('agente')">
-              <img v-if="mine.agent.avatar" :src="mine.agent.avatar" alt="">Contesta {{ agentLabel }}
-            </button>
-          </span>
-        </header>
 
         <p v-if="!chat.inbox.length" class="side-note center">
           Todavía no te escribió nadie. Lo que te escriban llega acá, de cualquier conversación.
@@ -772,18 +759,8 @@ code { font-family: var(--font-mono); font-size: .92em }
 .error { margin: 2px 0 0; color: var(--send-fail); font-size: var(--text-sm) }
 .btn-link { border: 0; padding: 0; background: none; color: inherit; text-decoration: underline; cursor: pointer; font: inherit }
 
-/* MI CHAT: tu bandeja. Arriba quién sos y quién contesta; debajo cada mensaje con su respuesta o la de tu agente. */
+/* MI CHAT: tu bandeja, cada mensaje con su respuesta o la de tu agente. Quién contesta se elige en tu agente (derecha) y en el pie. */
 .my-chat { padding: var(--space-4) var(--space-6); display: flex; flex-direction: column; gap: var(--space-4) }
-.my-chat-head { display: flex; align-items: center; gap: var(--space-3); flex-wrap: wrap; padding-bottom: var(--space-3); border-bottom: 1px solid var(--border) }
-.my-chat-photo { width: 40px; height: 40px; border-radius: 50%; object-fit: cover }
-.my-chat-who { display: flex; flex-direction: column; min-width: 0; flex: 1 }
-.my-chat-who b { font-size: 15px }
-.my-chat-who small { color: var(--fg-2); font-size: var(--text-xs) }
-.mode-switch { display: inline-flex; border: 1px solid var(--border); border-radius: 999px; padding: 2px; gap: 2px }
-.mode-switch button { display: inline-flex; align-items: center; gap: 6px; border: 0; background: transparent; color: var(--fg-2); font: inherit;
-  font-size: var(--text-xs); padding: 4px 10px; border-radius: 999px; cursor: pointer }
-.mode-switch button.on { background: var(--office-accent); color: var(--office-accent-ink) }
-.mode-switch img { width: 16px; height: 16px; border-radius: 4px; object-fit: cover }
 .inbox { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--space-3) }
 .inbox-item { display: flex; gap: var(--space-3); align-items: flex-start }
 .inbox-item.answered .inbox-body > .text { color: var(--fg-2) }
@@ -814,7 +791,7 @@ code { font-family: var(--font-mono); font-size: .92em }
 .mode-toggle.on { color: var(--office-accent); font-weight: 600 }
 .mode-avatar { width: 16px; height: 16px; border-radius: 4px; object-fit: cover; background: var(--office-bg) }
 /* Apagado, tu agente se ve en blanco y negro donde aparezca. */
-.mode-toggle:not(.on) .mode-avatar, .mode-switch button:not(.on) img { filter: grayscale(1) }
+.mode-toggle:not(.on) .mode-avatar { filter: grayscale(1) }
 .agent-state { font-weight: 400; color: var(--fg-2); margin-left: 4px }
 .agent-answers { display: flex; align-items: center; gap: var(--space-2); font-size: var(--text-sm); color: var(--fg-2) }
 .agent-answers img { width: 22px; height: 22px; border-radius: 6px; object-fit: cover; flex: none }
