@@ -380,19 +380,22 @@ export async function dictateCompanyLambda(target: string, doc: string, c: Compa
     if (!base) return { ok: false, lines: [`en ${target} el backend consulta un lambda sin dictado (F-149): las centrales contestan su default`] };
     const lines: string[] = [];
 
-    let agil = false;
-    for (let i = 0; i < 4 && !agil; i++) {
-        await dictate(doc, 'agildata', agildataAnswer(doc, c.income, c.occupation, c.months, c.name), base);
-        const r = await fetch(`${base}/agildata/agildata-services/rest/afiliado/historicoDetalladoEmpleo/CC/${doc}`, { signal: AbortSignal.timeout(15_000) })
-            .then((x) => x.ok ? x.text() : '').catch(() => '');
-        agil = r.includes(c.name) && r.includes(String(c.income));
-    }
-    lines.push(agil ? `Ágil Data ✓ ${c.name} · ${c.occupation} · ${c.income} · ${c.months} meses` : 'Ágil Data ✗ no quedó dictado: contesta su default');
+    const agilPath = `${base}/agildata/agildata-services/rest/afiliado/historicoDetalladoEmpleo/CC/${doc}`;
+    const agil = await spreadDictation(
+        () => dictate(doc, 'agildata', agildataAnswer(doc, c.income, c.occupation, c.months, c.name), base),
+        async () => {
+            const r = await fetch(agilPath, { signal: AbortSignal.timeout(15_000) }).then((x) => x.ok ? x.text() : null).catch(() => null);
+            return r === null ? null : r.includes(c.name) && r.includes(String(c.income));
+        });
+    lines.push(agil.ok ? `Ágil Data ✓ ${c.name} · ${c.occupation} · ${c.income} · ${c.months} meses · ${agil.hits}/${agil.reads} lecturas`
+        : `Ágil Data ✗ sólo ${agil.hits}/${agil.reads} lecturas contestan lo dictado: el resto, su default`);
 
-    let exp = false;
-    for (let i = 0; i < 4 && !exp; i++) {
-        const report = await hdcplusFor(base, doc);
-        const r = report?.ReportHDCplus;
+    // El reporte de Experian se arma UNA vez (se le pide el suyo y se le cambia lo que miran las categorías) y se
+    // reparte igual que Ágil Data. Pesa ~250 KB: se confirma con menos lecturas.
+    let report: any = null;
+    for (let i = 0; i < 4 && !report; i++) {
+        const got = await hdcplusFor(base, doc);
+        const r = got?.ReportHDCplus;
         if (!r?.models?.[0] || !r.agregatedInfo?.overview?.principals) continue;
         r.models[0].scoreValue = c.score;
         Object.assign(r.agregatedInfo.overview.principals, {
@@ -405,12 +408,45 @@ export async function dictateCompanyLambda(target: string, doc: string, c: Compa
         const quanto = (r.productValueList?.[0] ?? []).filter((p: any) => Number(p.productCode) === 62);
         const avg = Math.round(c.income / 1000);
         [avg, Math.round(avg * 0.7), Math.round(avg * 1.3)].forEach((v, k) => { if (quanto[k]) quanto[k].value = v; });
-        await dictate(doc, 'experian', report, base);
-        const back = await hdcplusFor(base, doc);
-        exp = back?.ReportHDCplus?.models?.[0]?.scoreValue === c.score
-            && back?.ReportHDCplus?.agregatedInfo?.overview?.principals?.consultedLast6Months === c.consulted;
+        report = got;
     }
-    lines.push(exp ? `Experian ✓ score ${c.score} · ${c.consulted} consulta(s) · ${c.creditCards} tarjeta(s) · mora ${c.delinquencies} · negativos ${c.negatives}`
-        : 'Experian ✗ no quedó dictado: contesta su reporte de siempre');
-    return { ok: agil && exp, lines };
+    const exp = report
+        ? await spreadDictation(() => dictate(doc, 'experian', report, base), async () => {
+            const back = await hdcplusFor(base, doc);
+            if (!back) return null;
+            return back?.ReportHDCplus?.models?.[0]?.scoreValue === c.score
+                && back?.ReportHDCplus?.agregatedInfo?.overview?.principals?.consultedLast6Months === c.consulted;
+        }, { writes: 4, reads: 4 })
+        : { ok: false, hits: 0, reads: 0, rounds: 0 };
+    lines.push(exp.ok ? `Experian ✓ score ${c.score} · ${c.consulted} consulta(s) · ${c.creditCards} tarjeta(s) · mora ${c.delinquencies} · negativos ${c.negatives} · ${exp.hits}/${exp.reads} lecturas`
+        : report ? `Experian ✗ sólo ${exp.hits}/${exp.reads} lecturas contestan lo dictado: el resto, su reporte de siempre`
+        : 'Experian ✗ no se pudo leer su reporte para dictarlo');
+    return { ok: agil.ok && exp.ok, lines };
+}
+
+/**
+ * Reparte un dictado entre los contenedores del lambda y no lo da por hecho hasta que TODAS las lecturas lo
+ * devuelven (F-245). El lambda corre en varios contenedores y cada uno guarda lo dictado en su memoria: un POST
+ * llega a uno solo, y una lectura en serie cae siempre en el mismo contenedor caliente, así que la confirmación
+ * de a uno salía ✓ con la mitad de los contenedores contestando la persona por defecto. Medido en qa el
+ * 2026-10-26 (solicitud 504067): seis lecturas a la vez, cinco con lo dictado y una con JUAN CARLOS PEREZ GOMEZ.
+ *
+ * Cada ronda dispara `writes` dictados a la vez (llegan a más contenedores) y después `reads` lecturas a la vez.
+ * Una lectura que NO CONTESTA (`read` devuelve null) no cuenta: con 12 a la vez el lambda devuelve algunos 500 de
+ * 36 bytes por su límite de concurrencia, y eso no es «contestó la default». Queda dictado cuando ninguna lectura
+ * contesta otra cosa y al menos la mitad contestó. No es una garantía —un contenedor que el lambda levante
+ * después nace vacío—, pero achica mucho la ventana: con 12 dictados y 12 lecturas, tres tandas de 12 lecturas
+ * a la vez dieron 10 con lo dictado y 2 errores cada una, ninguna con la persona por defecto.
+ */
+export async function spreadDictation(write: () => Promise<unknown>, read: () => Promise<boolean | null>,
+    { writes = 12, reads = 12, rounds = 6 } = {}): Promise<{ ok: boolean; hits: number; reads: number; rounds: number }> {
+    let hits = 0, answered = 0;
+    for (let round = 1; round <= rounds; round++) {
+        await Promise.all(Array.from({ length: writes }, () => write().catch(() => false)));
+        const got = await Promise.all(Array.from({ length: reads }, () => read().catch(() => null)));
+        answered = got.filter((g) => g !== null).length;
+        hits = got.filter((g) => g === true).length;
+        if (hits === answered && answered * 2 >= reads) return { ok: true, hits, reads: answered, rounds: round };
+    }
+    return { ok: false, hits, reads: answered, rounds };
 }
