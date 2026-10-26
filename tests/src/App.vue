@@ -292,6 +292,23 @@ function showCell(table, column, row, i) {
   openCell.value = { table, column, rowKey, rowLabel: row.id !== undefined ? `id ${row.id}` : `fila ${i + 1}`, value: row[column] }
   auxOpen.value = true
 }
+// Sólo se abre la celda que no se ve entera (cortada con «…»): una que entra no tiene nada más que mostrar. Se mide
+// en el momento, porque depende del ancho de la ventana.
+const isTruncated = (el) => el.scrollWidth > el.clientWidth + 1
+// Va en el estado y no a mano en el elemento: Vue rearma la clase de la celda al re-pintar y borraría la marca.
+const truncatedCells = ref(new Set())
+const cellKey = (table, column, row, i) => `${table}|${column}|${row.id ?? row.audit_id ?? i}`
+function markTruncated(e, key) {
+  const cut = isTruncated(e.currentTarget)
+  if (cut === truncatedCells.value.has(key)) return
+  const next = new Set(truncatedCells.value)
+  if (cut) next.add(key); else next.delete(key)
+  truncatedCells.value = next
+}
+function onCellClick(e, table, column, row, i) {
+  if (!isTruncated(e.currentTarget) && !isOpenCell(table, column, row, i)) return
+  showCell(table, column, row, i)
+}
 const isOpenCell = (table, column, row, i) => !!openCell.value && openCell.value.table === table && openCell.value.column === column
   && openCell.value.rowKey === (row.id ?? row.audit_id ?? i)
 // El JSON llega como objeto (el conector ya lo parseó) o como texto que lo es: los dos se muestran con sangría.
@@ -540,8 +557,10 @@ onBeforeUnmount(() => {
                   <thead><tr><th v-for="c in shownColumns(tableRows[t.table].data)" :key="c">{{ c }}</th></tr></thead>
                   <tbody>
                     <tr v-for="(row, i) in tableRows[t.table].data.rows" :key="row.id ?? i">
-                      <td v-for="c in shownColumns(tableRows[t.table].data)" :key="c" class="cell" :class="{ muted: row[c] === null, on: isOpenCell(t.table, c, row, i) }"
-                        :title="`${c}: clic para ver el valor entero`" @click="showCell(t.table, c, row, i)">{{ cellText(row[c]) }}</td>
+                      <td v-for="c in shownColumns(tableRows[t.table].data)" :key="c"
+                        :class="{ muted: row[c] === null, on: isOpenCell(t.table, c, row, i), truncated: truncatedCells.has(cellKey(t.table, c, row, i)) }"
+                        :title="truncatedCells.has(cellKey(t.table, c, row, i)) ? 'Clic para ver el valor entero' : null"
+                        @mouseenter="markTruncated($event, cellKey(t.table, c, row, i))" @click="onCellClick($event, t.table, c, row, i)">{{ cellText(row[c]) }}</td>
                     </tr>
                   </tbody>
                 </table>
@@ -845,7 +864,7 @@ code.wrap { word-break: break-all }
 .table.db th { font-family: var(--font-sans); font-weight: 600; background: var(--muted); color: var(--foreground) }
 .table.db tbody tr:hover td { background: var(--hover) }
 /* Una celda se toca para ver su valor entero a la derecha; la abierta queda marcada. */
-.table.db td.cell { cursor: pointer }
+.table.db td.truncated { cursor: pointer }
 .table.db td.cell.on { background: var(--accent); color: var(--accent-foreground); box-shadow: inset 0 0 0 1px var(--ring) }
 .cell-value.is-null { color: var(--fg-3) }
 /* La consulta, en el sidebar derecho: mono, que se corta en renglones y se puede seleccionar. */
