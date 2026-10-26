@@ -14,11 +14,14 @@
   --tests-ok: #15803d;
   --tests-warn: #b45309;
   --tests-fail: #b91c1c;
+  /* El texto sobre el rojo de borrar: blanco sobre el rojo oscuro, casi negro sobre el claro. */
+  --tests-fail-ink: #ffffff;
 }
 .dark {
   --tests-ok: #4ade80;
   --tests-warn: #fbbf24;
   --tests-fail: #f87171;
+  --tests-fail-ink: #1f0a0a;
 }
 
 /* La página no scrollea: scrollea cada región (el contrato de `.workbench`). La letra es la de la base. */

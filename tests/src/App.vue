@@ -650,7 +650,7 @@ code.wrap { word-break: break-all }
 .confirm-dialog .checkbox-row { align-items: flex-start; margin-bottom: var(--space-2) }
 .confirm-actions { display: flex; justify-content: flex-end; gap: var(--space-2); margin-top: var(--space-3) }
 /* El rojo es el de tests, no `--destructive`: en el tema Darkmatter ése es un verde azulado apagado. */
-.btn-danger { background: var(--tests-fail); color: var(--background) }
+.btn-danger { background: var(--tests-fail); color: var(--tests-fail-ink) }
 .btn-danger:hover { background: color-mix(in oklab, var(--tests-fail) 88%, transparent) }
 /* El aviso de lo borrado, arriba del editor, con su ✕. */
 .alert.done { margin: var(--space-2) var(--gutter) 0; width: auto; grid-template-columns: 1fr auto }
@@ -666,9 +666,16 @@ code.wrap { word-break: break-all }
 .db-table-head code { font-weight: 600 }
 .db-table-head .ui-icon { margin-left: auto; color: var(--fg-3) }
 .table-scroll { overflow-x: auto; margin: 0 var(--gutter); border: 1px solid var(--border); border-radius: var(--radius-control) }
+/* Una grilla: borde en cada celda (el contorno lo pone el contenedor, así no se duplica) y la cabecera con el
+   fondo apagado del tema, como la de una planilla. */
+.table.db { width: auto; min-width: 100%; border-collapse: separate; border-spacing: 0 }
 .table.db th, .table.db td { white-space: nowrap; max-width: 260px; overflow: hidden; text-overflow: ellipsis;
-  font-family: var(--font-mono); font-size: var(--text-sm) }
-.table.db th { font-family: var(--font-sans) }
+  font-family: var(--font-mono); font-size: var(--text-sm);
+  border-bottom: 1px solid var(--border); border-right: 1px solid var(--border) }
+.table.db tr > :last-child { border-right: 0 }
+.table.db tbody tr:last-child td { border-bottom: 0 }
+.table.db th { font-family: var(--font-sans); font-weight: 600; background: var(--muted); color: var(--foreground) }
+.table.db tbody tr:hover td { background: var(--hover) }
 /* La consulta, en el sidebar derecho: mono, que se corta en renglones y se puede seleccionar. */
 .sql { margin: 0; padding: var(--space-3) var(--gutter); white-space: pre-wrap; word-break: break-word;
   font-family: var(--font-mono); font-size: var(--text-sm); line-height: 1.6; user-select: text }
