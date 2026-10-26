@@ -45,7 +45,7 @@ var reDoc = regexp.MustCompile(`^\d{5,15}$`)
 
 func profilePath() string { return filepath.Join(repoRoot(), "tests", ".profile.json") }
 
-// ReadProfile lee el perfil y completa lo que falte con los mismos valores por defecto del harness.
+// ReadProfile lee el perfil por defecto y completa lo que falte con los mismos valores por defecto del harness.
 func ReadProfile() (Profile, error) {
 	data, err := os.ReadFile(profilePath())
 	if err != nil {
@@ -55,15 +55,24 @@ func ReadProfile() (Profile, error) {
 	if err := json.Unmarshal(data, &p); err != nil {
 		return Profile{}, fmt.Errorf("tests/.profile.json no es JSON válido: %w", err)
 	}
-	p.Name = strings.ToUpper(strings.TrimSpace(p.Name))
+	return p.normalized()
+}
+
+// normalized valida un perfil (el del archivo o el que se editó en la interfaz) y completa lo que falte.
+func (p Profile) normalized() (Profile, error) {
+	p.Document = onlyDigits(p.Document)
+	p.Name = strings.ToUpper(strings.Join(strings.Fields(p.Name), " "))
 	if !reDoc.MatchString(p.Document) || p.Name == "" {
-		return Profile{}, fmt.Errorf("tests/.profile.json necesita la cédula (sólo dígitos) y el nombre completo")
+		return Profile{}, fmt.Errorf("falta la cédula (sólo dígitos) o el nombre completo")
 	}
 	if p.Income <= 0 {
 		p.Income = 2_500_000
 	}
-	if p.Occupation == "" {
-		p.Occupation = "Empleado"
+	if p.Occupation != "Independiente" {
+		p.Occupation = "Empleado" // lo único que distingue el harness: Independiente o no
+	}
+	if p.Months > 24 {
+		p.Months = 24
 	}
 	if p.Months <= 0 {
 		p.Months = 13
@@ -74,13 +83,20 @@ func ReadProfile() (Profile, error) {
 	return p, nil
 }
 
-// LoadProfile le dicta el perfil a las centrales del ambiente, por el harness. Escribe en el mock de centrales
-// (el de la empresa en qa), nunca en la base.
-func LoadProfile(target string) (*ProfileLoad, error) {
+// LoadProfile le dicta un perfil a las centrales del ambiente, por el harness: el que llega (editado en la
+// interfaz) o, si no llega ninguno, el del archivo. Escribe en el mock de centrales (el de la empresa en qa),
+// nunca en la base.
+func LoadProfile(target string, given *Profile) (*ProfileLoad, error) {
 	if !validTarget(target) {
 		return nil, fmt.Errorf("ambiente %q: tests mira %s", target, strings.Join(Targets, " o "))
 	}
-	p, err := ReadProfile()
+	var p Profile
+	var err error
+	if given != nil {
+		p, err = given.normalized()
+	} else {
+		p, err = ReadProfile()
+	}
 	if err != nil {
 		return nil, err
 	}

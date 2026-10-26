@@ -198,18 +198,25 @@ const isClient = (p) => String(p.user_profile_id) === '1'
 // esa persona, antes de lanzar la compra. El dictado lo hace el harness ──
 const profile = ref(null)
 const profileLoad = ref(null) // { running, error, result }
+// Lo que se edita en el sidebar derecho; arranca con el perfil del archivo y «Volver a mis datos» lo repone.
+const form = ref({ document: '', name: '', income: 2500000, occupation: 'Empleado', months: 13, score: 700 })
 async function readProfile() {
   try {
     const res = await fetch('/api/profile')
     const body = await res.json().catch(() => ({}))
     profile.value = res.ok ? body : { error: body.error || `HTTP ${res.status}` }
+    if (res.ok) form.value = { ...body }
   } catch { profile.value = null }
 }
+function resetForm() { if (profile.value && !profile.value.error) form.value = { ...profile.value } }
+const formEdited = computed(() => !!profile.value && !profile.value.error
+  && ['document', 'name', 'income', 'occupation', 'months', 'score'].some((k) => String(form.value[k]) !== String(profile.value[k])))
 async function loadProfile() {
   profileLoad.value = { running: true, error: '', result: null }
   try {
     const res = await fetch('/api/profile/load', {
-      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ target: target.value }),
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ target: target.value, profile: { ...form.value, income: Number(form.value.income), months: Number(form.value.months), score: Number(form.value.score) } }),
     })
     const body = await res.json().catch(() => ({}))
     if (!res.ok) throw new Error(body.error || `HTTP ${res.status}`)
@@ -303,6 +310,7 @@ const sidebarW = ref(readSize('tests.sidebar-w', 300))
 const panelOpen = ref(readSize('tests.panel-open', 1) !== 0)
 const panelH = ref(readSize('tests.panel-h', 200))
 const auxW = ref(readSize('tests.aux-w', 380))
+const auxOpen = ref(readSize('tests.aux-open', 1) !== 0)
 const viewportW = ref(window.innerWidth)
 const viewportH = ref(window.innerHeight)
 const onWindowResize = () => { viewportW.value = window.innerWidth; viewportH.value = window.innerHeight }
@@ -310,7 +318,7 @@ const shown = computed(() => {
   // Si no entran, se pliega primero el de las búsquedas: el de la derecha es lo que se acaba de abrir.
   const [sidebar, aux] = fitRegions(viewportW.value - cssSize('--editor-min', 360), [
     { size: sidebarOpen.value ? sidebarW.value : 0, min: cssSize('--sidebar-min', 240) },
-    { size: openTable.value ? auxW.value : 0, min: cssSize('--sidebar-min', 240) },
+    { size: auxOpen.value || openTable.value ? auxW.value : 0, min: cssSize('--sidebar-min', 240) },
   ])
   const [panel] = fitRegions(viewportH.value - 200, [
     { size: panelOpen.value ? panelH.value : 0, min: cssSize('--panel-min', 124) },
@@ -330,13 +338,13 @@ const sidebarResize = {
   commit: (v) => { saveSize('tests.sidebar-open', v ? 1 : 0); if (v) saveSize('tests.sidebar-w', sidebarW.value) },
 }
 const auxResize = {
-  label: 'Ancho de la consulta', sign: -1, defaultValue: 380,
+  label: 'Ancho del panel derecho', sign: -1, defaultValue: 380,
   min: () => cssSize('--sidebar-min', 240),
   max: () => viewportW.value - cssSize('--editor-min', 360) - shown.value.sidebar,
   get: () => shown.value.aux,
-  set: (v) => { if (!v) openTable.value = null; else auxW.value = v },
+  set: (v) => { if (!v) { openTable.value = null; auxOpen.value = false } else { auxOpen.value = true; auxW.value = v } },
   reopen: () => auxW.value,
-  commit: (v) => { if (v) saveSize('tests.aux-w', auxW.value) },
+  commit: (v) => { saveSize('tests.aux-open', v ? 1 : 0); if (v) saveSize('tests.aux-w', auxW.value) },
 }
 const panelResize = {
   label: 'Alto de los estados', axis: 'y', sign: -1, defaultValue: 200,
@@ -348,6 +356,7 @@ const panelResize = {
   commit: (v) => { saveSize('tests.panel-open', v ? 1 : 0); if (v) saveSize('tests.panel-h', panelH.value) },
 }
 function toggleSidebar() { sidebarOpen.value = !shown.value.sidebar; saveSize('tests.sidebar-open', sidebarOpen.value ? 1 : 0) }
+function toggleAux() { auxOpen.value = !shown.value.aux; if (!auxOpen.value) openTable.value = null; saveSize('tests.aux-open', auxOpen.value ? 1 : 0) }
 function togglePanel() { panelOpen.value = !shown.value.panel; saveSize('tests.panel-open', panelOpen.value ? 1 : 0) }
 
 const themeToggle = ref(null)
@@ -393,21 +402,6 @@ onBeforeUnmount(() => {
           </div>
           <button type="submit" class="btn btn-sm" :disabled="!draft.trim() || loading">{{ loading ? 'Leyendo…' : `Buscar en ${target}` }}</button>
         </form>
-        <div class="region-head group"><span>Centrales de prueba</span><span class="count">{{ target }}</span></div>
-        <div class="profile">
-          <p v-if="profile?.error" class="hot small">{{ profile.error }}</p>
-          <p v-else-if="profile" class="muted small" :title="`ingreso $${Number(profile.income).toLocaleString('es-CO')} · ${profile.occupation} · ${profile.months} meses · score ${profile.score}`">
-            {{ profile.name }} · CC {{ profile.document }}
-          </p>
-          <button type="button" class="btn btn-sm btn-outline" :disabled="!profile || profile.error || profileLoad?.running" @click="loadProfile">
-            <span class="ui-icon" data-icon="play" aria-hidden="true"></span>{{ profileLoad?.running ? 'Cargando…' : 'Cargar mis datos en las centrales' }}
-          </button>
-          <p v-if="profileLoad?.error" class="hot small">{{ profileLoad.error }}</p>
-          <template v-if="profileLoad?.result">
-            <p v-for="l in profileLoad.result.lines" :key="l" class="small" :class="lineOk(l) ? 'ok' : 'hot'">{{ l }}</p>
-            <p class="muted small">Cargado a las {{ profileLoad.result.at.slice(11, 16) }}. Lanzá la compra ya: en qa lo dictado vive en un solo contenedor del mock y puede no tomar.</p>
-          </template>
-        </div>
         <template v-if="r?.input?.who">
           <div class="region-head group"><span>Personas con {{ r.input.who }}</span><span class="count">{{ r.people.length }}</span></div>
           <div v-for="p in r.people" :key="p.id" class="row person" :title="`${p.document_number} · ${p.email || 'sin correo'} · ${p.cell_phone || 'sin celular'}`">
@@ -460,7 +454,7 @@ onBeforeUnmount(() => {
         <div v-else-if="!r" class="empty">
           <div class="empty-head">
             <div class="empty-title">Buscá una prueba</div>
-            <div class="empty-desc">Escribí el celular (<code>3016992677</code>), el correo o la cédula de la persona: muestra quiénes coinciden y sus solicitudes, con las tablas de cada una. Antes de lanzar una compra, «Cargar mis datos en las centrales» le dicta al mock de centrales tu perfil. Contra <b>local</b> o <b>qa</b> (la base compartida de dev, qa y staging). También sirve la URL del wizard o el número de solicitud.</div>
+            <div class="empty-desc">Escribí el celular (<code>3016992677</code>), el correo o la cédula de la persona: muestra quiénes coinciden y sus solicitudes, con las tablas de cada una. Antes de lanzar una compra, el panel de la derecha le dicta al mock de centrales tu perfil (editable). Contra <b>local</b> o <b>qa</b> (la base compartida de dev, qa y staging). También sirve la URL del wizard o el número de solicitud.</div>
           </div>
         </div>
         <div v-else-if="!r.request" class="empty">
@@ -522,27 +516,71 @@ onBeforeUnmount(() => {
       </div>
     </main>
 
-    <aside v-if="shown.aux" class="auxiliarybar" :aria-label="`Consulta de ${openTable}`">
+    <aside v-if="shown.aux" class="auxiliarybar" :aria-label="openTable ? `Consulta de ${openTable}` : 'Centrales de prueba'">
       <div class="rsz rsz-edge-left" v-resize="auxResize"></div>
-      <div class="region-head">
-        <code>{{ openTable }}</code>
-        <span class="count">consulta</span>
-        <div class="region-actions">
-          <button type="button" class="region-action" :title="copied ? 'Copiada' : 'Copiar la consulta'" aria-label="Copiar la consulta" :disabled="!openQuery" @click="copyQuery">
-            <span class="ui-icon" data-icon="copy" aria-hidden="true"></span>
-          </button>
-          <button type="button" class="region-action" title="Cerrar" aria-label="Cerrar" @click="openTable = null">
-            <span class="ui-icon" data-icon="close" aria-hidden="true"></span>
-          </button>
+      <template v-if="openTable">
+        <div class="region-head">
+          <code>{{ openTable }}</code>
+          <span class="count">consulta</span>
+          <div class="region-actions">
+            <button type="button" class="region-action" :title="copied ? 'Copiada' : 'Copiar la consulta'" aria-label="Copiar la consulta" :disabled="!openQuery" @click="copyQuery">
+              <span class="ui-icon" data-icon="copy" aria-hidden="true"></span>
+            </button>
+            <button type="button" class="region-action" title="Cerrar la consulta" aria-label="Cerrar la consulta" @click="openTable = null">
+              <span class="ui-icon" data-icon="close" aria-hidden="true"></span>
+            </button>
+          </div>
         </div>
-      </div>
-      <div class="region-body">
-        <p v-if="!openQuery" class="none">Leyendo…</p>
-        <template v-else>
-          <pre class="sql"><code>{{ openQuery }}</code></pre>
-          <p class="none">Sólo lee. Es la misma condición con que tests cuenta y borra las filas de esta tabla. <span v-if="copied" class="ok">Copiada.</span></p>
-        </template>
-      </div>
+        <div class="region-body">
+          <p v-if="!openQuery" class="none">Leyendo…</p>
+          <template v-else>
+            <pre class="sql"><code>{{ openQuery }}</code></pre>
+            <p class="none">Sólo lee. Es la misma condición con que tests cuenta y borra las filas de esta tabla. <span v-if="copied" class="ok">Copiada.</span></p>
+          </template>
+        </div>
+      </template>
+      <template v-else>
+        <div class="region-head">
+          <span>Centrales de prueba</span>
+          <span class="count">{{ target }}</span>
+          <div class="region-actions">
+            <button type="button" class="region-action" title="Volver a mis datos" aria-label="Volver a mis datos" :disabled="!formEdited" @click="resetForm">
+              <span class="ui-icon" data-icon="refresh" aria-hidden="true"></span>
+            </button>
+          </div>
+        </div>
+        <div class="region-body">
+          <p v-if="profile?.error" class="none hot">{{ profile.error }}</p>
+          <form class="profile" @submit.prevent="loadProfile">
+            <p class="muted small">Lo que van a contestar las centrales para esa cédula. Cargalo justo antes de lanzar la compra.</p>
+            <div class="field"><label class="label" for="pf-doc">Cédula</label>
+              <input id="pf-doc" v-model="form.document" class="input input-sm" inputmode="numeric" autocomplete="off" /></div>
+            <div class="field"><label class="label" for="pf-name">Nombre completo, como lo va a escribir</label>
+              <input id="pf-name" v-model="form.name" class="input input-sm" autocomplete="off" spellcheck="false" /></div>
+            <div class="field-row">
+              <div class="field"><label class="label" for="pf-income">Ingreso</label>
+                <input id="pf-income" v-model="form.income" class="input input-sm" inputmode="numeric" /></div>
+              <div class="field"><label class="label" for="pf-months">Meses</label>
+                <input id="pf-months" v-model="form.months" class="input input-sm" inputmode="numeric" /></div>
+            </div>
+            <div class="field-row">
+              <div class="field"><label class="label" for="pf-occ">Ocupación</label>
+                <select id="pf-occ" v-model="form.occupation" class="input input-sm"><option>Empleado</option><option>Independiente</option></select></div>
+              <div class="field"><label class="label" for="pf-score">Score Experian</label>
+                <input id="pf-score" v-model="form.score" class="input input-sm" inputmode="numeric" /></div>
+            </div>
+            <button type="submit" class="btn btn-sm" :disabled="profileLoad?.running || !String(form.document).trim() || !String(form.name).trim()">
+              <span class="ui-icon" data-icon="play" aria-hidden="true"></span>{{ profileLoad?.running ? 'Cargando…' : `Cargar en las centrales de ${target}` }}
+            </button>
+            <p v-if="formEdited" class="muted small">Con datos distintos a los tuyos: «Volver a mis datos» (⟳) los repone.</p>
+            <p v-if="profileLoad?.error" class="hot small">{{ profileLoad.error }}</p>
+            <template v-if="profileLoad?.result">
+              <p v-for="l in profileLoad.result.lines" :key="l" class="small" :class="lineOk(l) ? 'ok' : 'hot'">{{ l }}</p>
+              <p class="muted small">Cargado a las {{ profileLoad.result.at.slice(11, 16) }} para la cédula {{ profileLoad.result.profile.document }}. Lanzá la compra ya: en qa lo dictado vive en un solo contenedor del mock y puede no tomar.</p>
+            </template>
+          </form>
+        </div>
+      </template>
     </aside>
 
     <section v-if="shown.panel" class="panel" aria-label="Estados">
@@ -637,6 +675,9 @@ onBeforeUnmount(() => {
         <button type="button" class="region-action" :aria-pressed="!!shown.sidebar" title="Mostrar u ocultar las búsquedas" aria-label="Mostrar u ocultar las búsquedas" @click="toggleSidebar">
           <span class="ui-icon" data-icon="sidebar" aria-hidden="true"></span>
         </button>
+        <button type="button" class="region-action" :aria-pressed="!!shown.aux" title="Mostrar u ocultar el panel derecho" aria-label="Mostrar u ocultar el panel derecho" @click="toggleAux">
+          <span class="ui-icon" data-icon="detail" aria-hidden="true"></span>
+        </button>
         <button type="button" class="region-action" :aria-pressed="!!shown.panel" title="Mostrar u ocultar los estados" aria-label="Mostrar u ocultar los estados" @click="togglePanel">
           <span class="ui-icon" data-icon="bottom" aria-hidden="true"></span>
         </button>
@@ -730,6 +771,9 @@ code.wrap { word-break: break-all }
 /* El perfil de prueba en la barra: quién, el botón y una línea por central. */
 .profile { display: flex; flex-direction: column; align-items: flex-start; gap: var(--space-1); padding: var(--space-2) var(--gutter) var(--space-3) }
 .profile p { margin: 0 }
+.profile { align-items: stretch }
+.profile .btn { align-self: flex-start }
+.field-row { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-2) }
 .warn { color: var(--tests-warn) }
 .small { font-size: var(--text-sm) }
 .cell-action { width: 32px; text-align: right }

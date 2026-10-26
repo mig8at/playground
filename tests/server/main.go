@@ -36,7 +36,7 @@ func main() {
 	flag.Parse()
 
 	if *loadProfile {
-		out, err := LoadProfile(*target)
+		out, err := LoadProfile(*target, nil)
 		if err != nil {
 			fmt.Fprintln(os.Stderr, "tests:", err)
 			os.Exit(1)
@@ -190,13 +190,14 @@ func handler() http.Handler {
 			return
 		}
 		var body struct {
-			Target string `json:"target"`
+			Target  string   `json:"target"`
+			Profile *Profile `json:"profile"` // lo editado en la interfaz; sin él, el del archivo
 		}
 		if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
 			writeJSON(w, http.StatusBadRequest, map[string]string{"error": err.Error()})
 			return
 		}
-		res, err := LoadProfile(body.Target)
+		res, err := LoadProfile(body.Target, body.Profile)
 		if err != nil {
 			writeJSON(w, http.StatusUnprocessableEntity, map[string]string{"error": err.Error()})
 			return
