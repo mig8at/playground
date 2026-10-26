@@ -194,6 +194,33 @@ async function runBaja() {
 // La basura va en todo cliente; una cuenta del equipo (administrador, asesor, operaciones…) no se toca acá.
 const isClient = (p) => String(p.user_profile_id) === '1'
 
+// ── el perfil de prueba (tests/.profile.json): un botón le dicta a las centrales del ambiente que contesten
+// esa persona, antes de lanzar la compra. El dictado lo hace el harness ──
+const profile = ref(null)
+const profileLoad = ref(null) // { running, error, result }
+async function readProfile() {
+  try {
+    const res = await fetch('/api/profile')
+    const body = await res.json().catch(() => ({}))
+    profile.value = res.ok ? body : { error: body.error || `HTTP ${res.status}` }
+  } catch { profile.value = null }
+}
+async function loadProfile() {
+  profileLoad.value = { running: true, error: '', result: null }
+  try {
+    const res = await fetch('/api/profile/load', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ target: target.value }),
+    })
+    const body = await res.json().catch(() => ({}))
+    if (!res.ok) throw new Error(body.error || `HTTP ${res.status}`)
+    profileLoad.value = { running: false, error: '', result: body }
+  } catch (e) {
+    profileLoad.value = { running: false, error: e.message, result: null }
+  }
+}
+watch(target, () => { profileLoad.value = null })
+const lineOk = (l) => !/✗|no quedó|no tomó|sin dictado/.test(l)
+
 // ── las tablas de la solicitud que se mira: cuántas filas tiene en cada una. Sólo lee ──
 const tables = ref([])
 const tablesError = ref('')
@@ -334,6 +361,7 @@ onMounted(async () => {
     onSelect: (id) => { target.value = id },
   })
   try { targets.value = await (await fetch('/api/targets')).json() } catch { /* se quedan los de siempre */ }
+  readProfile()
   lookup()
 })
 onBeforeUnmount(() => {
@@ -365,6 +393,21 @@ onBeforeUnmount(() => {
           </div>
           <button type="submit" class="btn btn-sm" :disabled="!draft.trim() || loading">{{ loading ? 'Leyendo…' : `Buscar en ${target}` }}</button>
         </form>
+        <div class="region-head group"><span>Centrales de prueba</span><span class="count">{{ target }}</span></div>
+        <div class="profile">
+          <p v-if="profile?.error" class="hot small">{{ profile.error }}</p>
+          <p v-else-if="profile" class="muted small" :title="`ingreso $${Number(profile.income).toLocaleString('es-CO')} · ${profile.occupation} · ${profile.months} meses · score ${profile.score}`">
+            {{ profile.name }} · CC {{ profile.document }}
+          </p>
+          <button type="button" class="btn btn-sm btn-outline" :disabled="!profile || profile.error || profileLoad?.running" @click="loadProfile">
+            <span class="ui-icon" data-icon="play" aria-hidden="true"></span>{{ profileLoad?.running ? 'Cargando…' : 'Cargar mis datos en las centrales' }}
+          </button>
+          <p v-if="profileLoad?.error" class="hot small">{{ profileLoad.error }}</p>
+          <template v-if="profileLoad?.result">
+            <p v-for="l in profileLoad.result.lines" :key="l" class="small" :class="lineOk(l) ? 'ok' : 'hot'">{{ l }}</p>
+            <p class="muted small">Cargado a las {{ profileLoad.result.at.slice(11, 16) }}. Lanzá la compra ya: en qa lo dictado vive en un solo contenedor del mock y puede no tomar.</p>
+          </template>
+        </div>
         <template v-if="r?.input?.who">
           <div class="region-head group"><span>Personas con {{ r.input.who }}</span><span class="count">{{ r.people.length }}</span></div>
           <div v-for="p in r.people" :key="p.id" class="row person" :title="`${p.document_number} · ${p.email || 'sin correo'} · ${p.cell_phone || 'sin celular'}`">
@@ -416,8 +459,8 @@ onBeforeUnmount(() => {
         <p v-else-if="loading && !r" class="none">Leyendo la base de {{ target }}…</p>
         <div v-else-if="!r" class="empty">
           <div class="empty-head">
-            <div class="empty-title">Pegá una solicitud</div>
-            <div class="empty-desc">Escribí el celular con el que hiciste la prueba (<code>3016992677</code>, los 10 dígitos). Muestra su solicitud más nueva —de qué comercio viene, qué mandó la tienda, a qué usuario quedó pegada y por qué estados pasó— y la lista de todas las de ese número. Contra <b>local</b> o <b>qa</b> (la base compartida de dev, qa y staging). También sirve la URL del wizard o el número de solicitud.</div>
+            <div class="empty-title">Buscá una prueba</div>
+            <div class="empty-desc">Escribí el celular (<code>3016992677</code>), el correo o la cédula de la persona: muestra quiénes coinciden y sus solicitudes, con las tablas de cada una. Antes de lanzar una compra, «Cargar mis datos en las centrales» le dicta al mock de centrales tu perfil. Contra <b>local</b> o <b>qa</b> (la base compartida de dev, qa y staging). También sirve la URL del wizard o el número de solicitud.</div>
           </div>
         </div>
         <div v-else-if="!r.request" class="empty">
@@ -684,6 +727,9 @@ code.wrap { word-break: break-all }
 .table-toggle { display: inline-flex; width: 280px; padding: 2px var(--gutter); gap: var(--space-2) }
 .table-toggle code { font-size: var(--text-sm) }
 .hidden-link { margin-left: var(--space-2); font-size: var(--text-xs) }
+/* El perfil de prueba en la barra: quién, el botón y una línea por central. */
+.profile { display: flex; flex-direction: column; align-items: flex-start; gap: var(--space-1); padding: var(--space-2) var(--gutter) var(--space-3) }
+.profile p { margin: 0 }
 .warn { color: var(--tests-warn) }
 .small { font-size: var(--text-sm) }
 .cell-action { width: 32px; text-align: right }

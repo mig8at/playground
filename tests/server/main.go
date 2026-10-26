@@ -29,11 +29,21 @@ func main() {
 	phone := flag.Bool("phone", false, "con -delete: todas las solicitudes del celular de esa solicitud")
 	confirm := flag.String("confirm", "", "con -delete: el número de la solicitud (o el celular, con -phone)")
 	rollback := flag.Bool("rollback", false, "con -delete: hace todo dentro de la transacción y la deshace")
+	loadProfile := flag.Bool("load-profile", false, "le dicta a las centrales del ambiente el perfil de tests/.profile.json")
 	purge := flag.Int("purge-user", 0, "borra del todo a ese usuario (cliente dado de baja, sin solicitudes), con respaldo; con -rollback lo deshace")
 	disable := flag.Int("disable-user", 0, "da de baja a ese usuario (cliente, activo), con respaldo; con -rollback lo deshace")
 	freeUsers := flag.Bool("free-users", false, "con -delete: además da de baja a los usuarios del celular (con -phone) o al de la solicitud si era su última")
 	flag.Parse()
 
+	if *loadProfile {
+		out, err := LoadProfile(*target)
+		if err != nil {
+			fmt.Fprintln(os.Stderr, "tests:", err)
+			os.Exit(1)
+		}
+		_ = json.NewEncoder(os.Stdout).Encode(out)
+		return
+	}
 	if *purge > 0 {
 		out, err := PurgeUser(*target, *purge, strconv.Itoa(*purge), *rollback)
 		if err != nil {
@@ -158,6 +168,35 @@ func handler() http.Handler {
 		}
 		// La ventana de la interfaz es la confirmación: el id viaja solo y DisableUser vuelve a comprobar todo.
 		res, err := DisableUser(body.Target, body.User, strconv.Itoa(body.User), false)
+		if err != nil {
+			writeJSON(w, http.StatusUnprocessableEntity, map[string]string{"error": err.Error()})
+			return
+		}
+		writeJSON(w, http.StatusOK, res)
+	})
+	// GET /api/profile — el perfil de prueba (tests/.profile.json). POST /api/profile/load {target} — se lo dicta a
+	// las centrales del ambiente, por el harness.
+	mux.HandleFunc("/api/profile", func(w http.ResponseWriter, r *http.Request) {
+		p, err := ReadProfile()
+		if err != nil {
+			writeJSON(w, http.StatusUnprocessableEntity, map[string]string{"error": err.Error()})
+			return
+		}
+		writeJSON(w, http.StatusOK, p)
+	})
+	mux.HandleFunc("/api/profile/load", func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost {
+			writeJSON(w, http.StatusMethodNotAllowed, map[string]string{"error": "POST"})
+			return
+		}
+		var body struct {
+			Target string `json:"target"`
+		}
+		if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+			writeJSON(w, http.StatusBadRequest, map[string]string{"error": err.Error()})
+			return
+		}
+		res, err := LoadProfile(body.Target)
 		if err != nil {
 			writeJSON(w, http.StatusUnprocessableEntity, map[string]string{"error": err.Error()})
 			return
