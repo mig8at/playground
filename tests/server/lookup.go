@@ -24,20 +24,34 @@ var Targets = []string{"local", "qa"}
 
 // Input es lo que se pegó, ya separado.
 type Input struct {
-	Request int    `json:"request"`
+	Request int    `json:"request,omitempty"`
 	Hash    string `json:"hash,omitempty"`
+	Phone   string `json:"phone,omitempty"` // los 10 dígitos, sin indicativo
 }
 
 // La URL del wizard: …/ecommerce/<sucursal>/<solicitud>/… (también la del asesor, /<sucursal>/<solicitud>).
 var (
 	reURL    = regexp.MustCompile(`/([0-9a-f]{8})/(\d{3,})(?:/|$|\?|#)`)
 	reNumber = regexp.MustCompile(`^\s*(\d{3,})\s*$`)
+	// Un celular como se copia: con espacios, guiones, paréntesis o el +57 adelante.
+	rePhone = regexp.MustCompile(`^\+?[\d\s().-]{10,18}$`)
 )
 
-// ParseInput acepta la URL completa del wizard o sólo el número de solicitud.
+// ParseInput acepta el celular (lo que se pide), la URL completa del wizard o el número de solicitud.
+// Un celular de Colombia son 10 dígitos que empiezan con 3, con o sin el 57 adelante; una solicitud tiene
+// menos de 10 dígitos. Así no se confunden.
 func ParseInput(raw string) (Input, error) {
 	raw = strings.TrimSpace(raw)
-	if m := reNumber.FindStringSubmatch(raw); m != nil {
+	if rePhone.MatchString(raw) {
+		d := onlyDigits(raw)
+		if len(d) == 12 && strings.HasPrefix(d, "57") {
+			d = d[2:]
+		}
+		if len(d) == 10 && strings.HasPrefix(d, "3") {
+			return Input{Phone: d}, nil
+		}
+	}
+	if m := reNumber.FindStringSubmatch(raw); m != nil && len(m[1]) < 10 {
 		n, _ := strconv.Atoi(m[1])
 		return Input{Request: n}, nil
 	}
@@ -45,7 +59,7 @@ func ParseInput(raw string) (Input, error) {
 		n, _ := strconv.Atoi(m[2])
 		return Input{Request: n, Hash: m[1]}, nil
 	}
-	return Input{}, fmt.Errorf("no reconozco %q: pegá la URL del wizard (…/<sucursal>/<solicitud>/…) o el número de la solicitud", raw)
+	return Input{}, fmt.Errorf("no reconozco %q: escribí el celular (10 dígitos, como 3016992677), o pegá la URL del wizard o el número de la solicitud", raw)
 }
 
 // Warning es algo que no cuadra y que conviene ver primero.
@@ -56,20 +70,23 @@ type Warning struct {
 
 // Result es la respuesta entera de una búsqueda.
 type Result struct {
-	Target    string      `json:"target"`
-	Source    string      `json:"source"`
-	Input     Input       `json:"input"`
-	Request   dbsql.Row   `json:"request"`
-	Branch    dbsql.Row   `json:"branch"`
-	Order     dbsql.Row   `json:"order"`
-	OrderData any         `json:"orderData"`
-	User      dbsql.Row   `json:"user"`
-	SamePhone []dbsql.Row `json:"samePhone"`
-	Records   []dbsql.Row `json:"records"`
-	Requests  []dbsql.Row `json:"requests"`
-	Fields    []dbsql.Row `json:"fields"`
-	Warnings  []Warning   `json:"warnings"`
-	ReadAt    string      `json:"readAt"`
+	Target string `json:"target"`
+	Source string `json:"source"`
+	Input  Input  `json:"input"`
+	// Con búsqueda por celular: todas las solicitudes de los usuarios con ese número, de la más nueva a la
+	// más vieja. La que se muestra es la pedida o, si no se pidió una, la más nueva.
+	PhoneRequests []dbsql.Row `json:"phoneRequests"`
+	Request       dbsql.Row   `json:"request"`
+	Branch        dbsql.Row   `json:"branch"`
+	Order         dbsql.Row   `json:"order"`
+	OrderData     any         `json:"orderData"`
+	User          dbsql.Row   `json:"user"`
+	SamePhone     []dbsql.Row `json:"samePhone"`
+	Records       []dbsql.Row `json:"records"`
+	Requests      []dbsql.Row `json:"requests"`
+	Fields        []dbsql.Row `json:"fields"`
+	Warnings      []Warning   `json:"warnings"`
+	ReadAt        string      `json:"readAt"`
 }
 
 // Una fuente por ambiente, abierta la primera vez y reusada: cada búsqueda son ocho consultas.
@@ -159,9 +176,34 @@ func Lookup(target string, in Input) (*Result, error) {
 
 func lookup(src dbsql.Source, target string, in Input) (*Result, error) {
 	res := &Result{Target: target, Source: src.Name(), Input: in, Warnings: []Warning{}, SamePhone: []dbsql.Row{},
-		Records: []dbsql.Row{}, Requests: []dbsql.Row{}, Fields: []dbsql.Row{},
+		Records: []dbsql.Row{}, Requests: []dbsql.Row{}, Fields: []dbsql.Row{}, PhoneRequests: []dbsql.Row{},
 		ReadAt: time.Now().Format("2006-01-02 15:04:05")}
 	var err error
+
+	if in.Phone != "" {
+		// Por cómo termina: el celular se guarda con y sin indicativo (+573016992677). Activos o dados de baja.
+		res.PhoneRequests, err = rows(src, `SELECT q.id, q.user_id, TRIM(CONCAT(COALESCE(u.first_name, ''), ' ', COALESCE(u.surname, ''))) AS user,
+				u.status AS user_status, q.user_request_status_id AS status_id, s.name AS status, a.name AS allied, b.hash, q.amount, q.created_at
+			FROM user_requests q JOIN users u ON u.id = q.user_id LEFT JOIN user_request_statuses s ON s.id = q.user_request_status_id
+			LEFT JOIN allieds a ON a.id = q.allied_id LEFT JOIN allied_branches b ON b.id = q.allied_branch_id
+			WHERE u.cell_phone LIKE CONCAT('%', ?) ORDER BY q.id DESC LIMIT 50`, in.Phone)
+		if err != nil {
+			return nil, fmt.Errorf("solicitudes del celular: %w", err)
+		}
+		if len(res.PhoneRequests) == 0 {
+			return nil, fmt.Errorf("ningún usuario con el celular %s tiene solicitudes en %s", in.Phone, target)
+		}
+		picked := false
+		for _, q := range res.PhoneRequests {
+			if cell(q, "id") == strconv.Itoa(in.Request) {
+				picked = true
+			}
+		}
+		if !picked {
+			in.Request, _ = strconv.Atoi(cell(res.PhoneRequests[0], "id"))
+			res.Input = in
+		}
+	}
 
 	res.Request, err = first(src, `SELECT q.id, q.user_id, q.allied_id, q.allied_branch_id, q.lender_id, l.name AS lender,
 			q.user_request_status_id AS status_id, s.name AS status, q.flow_id, q.amount, q.purchase_amount, q.final_amount,

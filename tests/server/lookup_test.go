@@ -16,13 +16,20 @@ func TestParseInput(t *testing.T) {
 		{"https://originaciones-qa.dev.creditop.com/ecommerce/8ffe96e2/504059/lenders?x=1", 504059, "8ffe96e2"},
 		{"http://localhost:5174/c390eed9/467513/profile", 467513, "c390eed9"},
 	}
+	// El celular, como se copia de cualquier lado: siempre los 10 dígitos sin indicativo.
+	for _, raw := range []string{"3016992677", "+573016992677", "57 301 699 2677", "301-699-2677", "(301) 699 2677"} {
+		in, err := ParseInput(raw)
+		if err != nil || in.Phone != "3016992677" || in.Request != 0 {
+			t.Errorf("ParseInput(%q) = %+v, %v; quería el celular 3016992677", raw, in, err)
+		}
+	}
 	for _, c := range cases {
 		in, err := ParseInput(c.raw)
 		if err != nil || in.Request != c.request || in.Hash != c.hash {
 			t.Errorf("ParseInput(%q) = %+v, %v; quería %d %q", c.raw, in, err, c.request, c.hash)
 		}
 	}
-	for _, bad := range []string{"", "hola", "https://originaciones-qa.dev.creditop.com/ecommerce/"} {
+	for _, bad := range []string{"", "hola", "https://originaciones-qa.dev.creditop.com/ecommerce/", "6011234567", "1234567890123"} {
 		if _, err := ParseInput(bad); err == nil {
 			t.Errorf("ParseInput(%q) no dio error", bad)
 		}

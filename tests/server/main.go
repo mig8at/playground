@@ -2,7 +2,7 @@
 // usuario quedó pegada y con qué datos, y por qué estados pasó, contra local o qa. Lee siempre; borra una
 // solicitud de prueba sólo con `-delete -confirm` (ver delete.go, que lleva las guardas).
 //
-//	go run ./tests/server -target qa -q 'https://…/ecommerce/8ffe96e2/504059/lenders'   la búsqueda, en JSON
+//	go run ./tests/server -target qa -q 3016992677                                      la búsqueda, en JSON (también la URL del wizard o el número)
 //	go run ./tests/server -serve 127.0.0.1:5179                                         la API de la interfaz
 //	go run ./tests/server -target local -q 467513 -delete [-phone] [-rollback] -confirm 467513
 //	                       sin -confirm sólo muestra el plan; con -rollback borra todo y lo deshace al final
@@ -43,6 +43,15 @@ func main() {
 		fmt.Fprintln(os.Stderr, "tests:", err)
 		os.Exit(2)
 	}
+	// Con celular, -delete actúa sobre su solicitud más nueva (la misma que muestra la búsqueda).
+	if *del && in.Phone != "" {
+		res, err := Lookup(*target, in)
+		if err != nil {
+			fmt.Fprintln(os.Stderr, "tests:", err)
+			os.Exit(1)
+		}
+		in = res.Input
+	}
 	var out any
 	switch {
 	case *del && *confirm == "":
@@ -79,6 +88,10 @@ func handler() http.Handler {
 		if err != nil {
 			writeJSON(w, http.StatusBadRequest, map[string]string{"error": err.Error()})
 			return
+		}
+		// Con celular, `request` elige cuál de sus solicitudes se muestra.
+		if n, _ := strconv.Atoi(r.URL.Query().Get("request")); in.Phone != "" && n > 0 {
+			in.Request = n
 		}
 		res, err := Lookup(r.URL.Query().Get("target"), in)
 		if err != nil {

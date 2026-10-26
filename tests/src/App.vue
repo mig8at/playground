@@ -1,5 +1,5 @@
 <script setup>
-/* tests · la interfaz. Se pega la URL del wizard (…/ecommerce/<sucursal>/<solicitud>/…) o el número de la
+/* tests · la interfaz. Se escribe el celular del cliente de prueba (también sirve la URL del wizard o el número de la
  * solicitud y dice, contra local o qa: de qué comercio y sucursal viene, qué mandó la tienda, a qué usuario
  * quedó pegada y con qué datos, y por qué estados pasó.
  *
@@ -19,19 +19,21 @@ const TARGET_LABEL = { local: 'local · tu Docker', qa: 'qa · la base compartid
 const FINAL = { 11: 'ok', 5: 'ok', 6: 'fail', 7: 'fail', 8: 'fail' }
 const PROFILE = { 1: 'cliente', 2: 'asesor', 3: 'admin' }
 
-// ── la ruta: #/?target=qa&q=504059 ──
+// ── la ruta: #/?target=qa&q=3016992677&req=504059 (con celular, `req` dice cuál de sus solicitudes se mira) ──
 const route = readHashRoute()
 const target = ref(route.params.get('target') || DEFAULT_TARGET)
 const query = ref(route.params.get('q') || '')
+const req = ref(route.params.get('req') || '')
 const draft = ref(query.value)
 function writeRoute(push) {
-  setRoute(hashRoute([], { target: target.value, q: query.value }, { target: DEFAULT_TARGET, q: '' }), { push })
+  setRoute(hashRoute([], { target: target.value, q: query.value, req: req.value }, { target: DEFAULT_TARGET, q: '', req: '' }), { push })
 }
 function onHashChange() {
   const r = readHashRoute()
   target.value = r.params.get('target') || DEFAULT_TARGET
   const q = r.params.get('q') || ''
-  if (q !== query.value) { query.value = q; draft.value = q }
+  const n = r.params.get('req') || ''
+  if (q !== query.value || n !== req.value) { req.value = n; query.value = q; draft.value = q }
 }
 
 // ── la búsqueda ──
@@ -46,7 +48,7 @@ async function lookup() {
   loading.value = true
   error.value = ''
   try {
-    const res = await fetch(`/api/lookup?target=${encodeURIComponent(target.value)}&q=${encodeURIComponent(query.value)}`)
+    const res = await fetch(`/api/lookup?target=${encodeURIComponent(target.value)}&q=${encodeURIComponent(query.value)}&request=${encodeURIComponent(req.value)}`)
     const body = await res.json().catch(() => ({}))
     if (mine !== seq) return
     if (!res.ok) throw new Error(body.error || `HTTP ${res.status}`)
@@ -66,12 +68,22 @@ async function lookup() {
 function submit() {
   const q = draft.value.trim()
   if (!q) return
+  req.value = ''
   if (q === query.value) lookup(); else query.value = q
 }
-function open(q, t) {
-  if (t) target.value = t
-  draft.value = String(q)
-  query.value = String(q)
+// Abrir otra solicitud: si la búsqueda es por celular, se queda en el celular y cambia `req`.
+function open(id) {
+  if (result.value?.input?.phone) { req.value = String(id); return }
+  draft.value = String(id)
+  query.value = String(id)
+}
+function openRecent(x) {
+  target.value = x.target
+  req.value = x.req || ''
+  // Las guardadas antes de buscar por celular no tienen `q`: eran por número.
+  const q = String(x.q ?? x.request)
+  draft.value = q
+  query.value = q
 }
 
 // ── las últimas búsquedas, en el navegador ──
@@ -81,8 +93,10 @@ function readRecent() {
 }
 const recent = ref(readRecent())
 function remember(r) {
+  const phone = r.input?.phone || ''
   const item = {
-    id: `${r.target}:${r.request.id}`, target: r.target, request: r.request.id,
+    id: `${r.target}:${phone || r.request.id}`, target: r.target, request: r.request.id, phone,
+    q: phone || r.request.id, req: phone ? String(r.request.id) : '',
     status: r.request.status, statusId: r.request.status_id, hash: r.branch?.hash || '',
     who: r.user ? (r.user.full_name || `${r.user.first_name || ''} ${r.user.surname || ''}`).trim() : '',
     warn: r.warnings.filter((w) => w.level === 'warn').length,
@@ -94,7 +108,7 @@ function clearRecent() {
   recent.value = []
   try { localStorage.removeItem(RECENT_KEY) } catch { /* nada que borrar */ }
 }
-const currentId = computed(() => (result.value ? `${result.value.target}:${result.value.request.id}` : ''))
+const currentId = computed(() => (result.value ? `${result.value.target}:${result.value.input?.phone || result.value.request.id}` : ''))
 
 // ── lo que se pinta ──
 const r = computed(() => result.value)
@@ -109,6 +123,8 @@ const userName = computed(() => {
   return u ? (u.full_name || `${u.first_name || ''} ${u.surname || ''}`.trim()) : ''
 })
 const warns = computed(() => (r.value?.warnings || []))
+// La tabla de abajo: con celular, todas las de ese número (de todos sus usuarios); si no, las del usuario.
+const listed = computed(() => (r.value?.input?.phone ? r.value.phoneRequests : r.value?.requests) || [])
 const warnCount = computed(() => warns.value.filter((w) => w.level === 'warn').length)
 
 // Una fila del usuario se marca si contradice lo que mandó la tienda (el servidor ya dijo el porqué arriba).
@@ -194,7 +210,9 @@ async function runDelete() {
     const gone = new Set(body.requests.map((x) => `${target.value}:${x}`))
     recent.value = recent.value.filter((x) => !gone.has(x.id))
     try { localStorage.setItem(RECENT_KEY, JSON.stringify(recent.value)) } catch { /* sólo no se recuerda */ }
-    if (result.value && body.requests.includes(result.value.request.id)) { result.value = null; query.value = ''; draft.value = '' }
+    // Con celular, se relee el número (si no le queda ninguna, lo dice); con número, la solicitud ya no existe.
+    if (result.value?.input?.phone) { if (req.value) req.value = ''; else lookup() }
+    else if (result.value && body.requests.includes(result.value.request.id)) { result.value = null; query.value = ''; draft.value = '' }
     else lookup()
   } catch (e) {
     d.error = e.message
@@ -212,7 +230,7 @@ const targetItems = computed(() => targets.value.map((t) => ({ id: t, label: TAR
 watch(targetItems, () => targetMenu?.refresh(), { deep: true, flush: 'post' })
 
 watch(target, () => { if (!del.value?.done) del.value = null; writeRoute(true); lookup() })
-watch(query, () => { writeRoute(true); lookup() })
+watch([query, req], () => { writeRoute(true); lookup() })
 
 // ── las regiones: las búsquedas a la izquierda y los estados abajo, con el contrato de la base ──
 const sidebarOpen = ref(readSize('tests.sidebar-open', 1) !== 0)
@@ -292,17 +310,17 @@ onBeforeUnmount(() => {
       </div>
       <div class="region-body">
         <form class="search" @submit.prevent="submit">
-          <label class="label" for="q">URL del wizard o número de solicitud</label>
+          <label class="label" for="q">Celular</label>
           <div class="input-group">
             <span class="ui-icon" data-icon="search" aria-hidden="true"></span>
-            <input id="q" v-model="draft" class="input" placeholder="…/ecommerce/8ffe96e2/504059/lenders" autocomplete="off" spellcheck="false" />
+            <input id="q" v-model="draft" class="input" placeholder="3016992677" inputmode="tel" autocomplete="off" spellcheck="false" />
           </div>
           <button type="submit" class="btn btn-sm" :disabled="!draft.trim() || loading">{{ loading ? 'Leyendo…' : `Buscar en ${target}` }}</button>
         </form>
         <div v-if="recent.length" class="region-head group"><span>Últimas</span></div>
-        <button v-for="x in recent" :key="x.id" type="button" class="row recent" :class="{ on: x.id === currentId }" @click="open(x.request, x.target)">
+        <button v-for="x in recent" :key="x.id" type="button" class="row recent" :class="{ on: x.id === currentId }" @click="openRecent(x)">
           <i class="dot" :data-state="stateOf(x.statusId)" aria-hidden="true"></i>
-          <span class="label">{{ x.request }} <span class="muted">· {{ x.who || 'sin usuario' }}</span></span>
+          <span class="label">{{ x.phone || x.request }} <span class="muted">· {{ x.who || 'sin usuario' }}</span></span>
           <span class="row-meta">{{ x.target }}<span v-if="x.warn" class="hot"> · {{ x.warn }}⚠</span></span>
         </button>
       </div>
@@ -311,6 +329,7 @@ onBeforeUnmount(() => {
     <main class="editor">
       <div class="region-head">
         <span>{{ r ? `Solicitud ${r.request.id}` : 'tests' }}</span>
+        <span v-if="r?.input?.phone" class="count">celular {{ r.input.phone }}</span>
         <span v-if="r" class="count">{{ r.request.status_id }} · {{ r.request.status }}</span>
         <span v-if="r && warnCount" class="count hot">{{ warnCount }} sin cuadrar</span>
         <div v-if="r" class="region-actions">
@@ -375,7 +394,7 @@ onBeforeUnmount(() => {
         <div v-else-if="!r" class="empty">
           <div class="empty-head">
             <div class="empty-title">Pegá una solicitud</div>
-            <div class="empty-desc">La URL del wizard (<code>…/ecommerce/8ffe96e2/504059/lenders</code>) o sólo el número. Dice de qué comercio viene, qué mandó la tienda, a qué usuario quedó pegada y por qué estados pasó. Sólo lee, contra <b>local</b> o <b>qa</b> (la base compartida de dev, qa y staging).</div>
+            <div class="empty-desc">Escribí el celular con el que hiciste la prueba (<code>3016992677</code>, con o sin +57). Muestra su solicitud más nueva —de qué comercio viene, qué mandó la tienda, a qué usuario quedó pegada y por qué estados pasó— y la lista de todas las de ese número. Contra <b>local</b> o <b>qa</b> (la base compartida de dev, qa y staging). También sirve la URL del wizard o el número de solicitud.</div>
           </div>
         </div>
         <template v-else>
@@ -458,13 +477,14 @@ onBeforeUnmount(() => {
             </dl>
           </section>
 
-          <section v-if="r.requests.length">
-            <div class="region-head group"><span>Solicitudes del usuario</span><span class="count">{{ r.requests.length }}</span></div>
+          <section v-if="listed.length">
+            <div class="region-head group"><span>{{ r.input.phone ? `Solicitudes del celular ${r.input.phone}` : 'Solicitudes del usuario' }}</span><span class="count">{{ listed.length }}</span></div>
             <table class="table">
-              <thead><tr><th>solicitud</th><th>estado</th><th>sucursal</th><th>monto</th><th>creada</th><th></th></tr></thead>
+              <thead><tr><th>solicitud</th><th v-if="r.input.phone">usuario</th><th>estado</th><th>sucursal</th><th>monto</th><th>creada</th><th></th></tr></thead>
               <tbody>
-                <tr v-for="q in r.requests" :key="q.id" :class="{ on: q.id === r.request.id }">
+                <tr v-for="q in listed" :key="q.id" :class="{ on: q.id === r.request.id }">
                   <td><button type="button" class="btn-link" @click="open(q.id)">{{ q.id }}</button></td>
+                  <td v-if="r.input.phone" :class="{ muted: Number(q.user_status) !== 1 }" :title="Number(q.user_status) !== 1 ? 'usuario dado de baja' : ''">{{ q.user }}</td>
                   <td><i class="dot" :data-state="stateOf(q.status_id)" aria-hidden="true"></i>{{ q.status_id }} · {{ q.status }}</td>
                   <td><code>{{ dash(q.hash) }}</code></td><td>{{ money(q.amount) }}</td><td>{{ q.created_at }}</td>
                   <td class="cell-action">
