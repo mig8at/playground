@@ -14,9 +14,10 @@ ramas: frontend-monorepo:pdf-mapper, infrastructure:backoffice-pdf-mapper, authz
 
 - [x] Sumar la sección «Mappers de PDF» al backoffice — PR frontend-monorepo#1235 mergeado a `lab` el 2026-10-26; el despliegue «Deploy Backoffice Develop» de ese merge terminó en success.
 - [x] Publicar en desarrollo las rutas del gateway hacia `pdf-mapper-service` — infrastructure#179 mergeado; el despliegue de development creó el target group y la regla del ALB interno (2 added) y registró el servicio (1 changed); el plan posterior de `api-gateway` da «No changes».
-- [ ] Probar la sección desplegada en el backoffice de desarrollo (listar, abrir, guardar, vista previa); termina cuando un documento real abre y se guarda sin diferencias contra el servicio de desarrollo.
-- [ ] Mergear authz-policies#14 (el recurso `pdf_mapper` y sus 13 rutas en `routes.json`, sólo para Administrador) y que salga al bucket de desarrollo; termina cuando la sección carga en el backoffice de desarrollo con un Administrador y un staff sin el permiso cae en `/no-access`.
-  Depende de: quien revisa authz-policies — aprobar y mergear #14.
+- [x] Registrar el recurso `pdf_mapper` y sus 13 rutas en el autorizador — authz-policies#14 mergeado a `develop` el 2026-10-26 y «Release policies develop» en success.
+- [x] Probar la sección desplegada en el backoffice de desarrollo — Miguel la probó el 2026-10-26 con un Administrador y funciona.
+- [ ] Comprobar que un staff sin `pdf_mapper:view` cae en `/no-access`; termina cuando se ve con un usuario de otro rol en el backoffice de desarrollo.
+- [ ] Pasar authz-policies a `main` (el bucket de producción) junto con el gateway de prod; termina cuando `routes.json` de producción tiene las rutas de pdf-mapper.
 - [ ] Decidir qué roles además de Administrador llevan `pdf_mapper:view|edit|delete`, y si `pdf_mapper:delete` va a `protected_permissions`.
 - [ ] Abrir el PR de infra para producción, armado como #179: sólo dentro de `environments/prod` y sin tocar el módulo `internal-alb`; termina cuando el plan de prod muestra el target group, el registro del servicio en el lugar (no reemplazo) y las 13 rutas.
 - [ ] Llevar la sección de `lab` hacia `develop` y `main`; termina cuando el backoffice de producción la sirve.
