@@ -212,8 +212,8 @@ const links = computed(() => {
   }
 })
 // La tienda acepta UN resultado: con la sesión de pago ya resuelta o rechazada, la app de Shopify ignora el
-// segundo aviso, y la base quedaría distinta del pedido. Así que una solicitud que ya se pasó queda bloqueada,
-// y se recuerda en este navegador para que aguante recargas.
+// segundo aviso, y la base quedaría distinta del pedido. Así que en una solicitud que ya se pasó sólo
+// queda el enlace de vuelta a la tienda, y se recuerda en este navegador para que aguante recargas.
 const MOVED_KEY = 'tests.moved'
 function readMoved() { try { return JSON.parse(localStorage.getItem(MOVED_KEY) || '{}') || {} } catch { return {} } }
 const movedLog = ref(readMoved()) // { 'qa:504068': { status, name, at } }
@@ -585,15 +585,18 @@ onBeforeUnmount(() => {
         <span v-if="r?.request && r.input.who" class="count">{{ r.input.who }}</span>
         <span v-if="r?.request" class="count">{{ r.request.status_id }} · {{ r.request.status }}</span>
         <div v-if="r?.request" class="region-actions">
-          <template v-if="links">
+          <!-- Ya pasada de estado: la tienda no acepta otro resultado, así que sólo queda volver a ella. -->
+          <a v-if="lockedMove && links?.store" class="btn btn-xs btn-ghost" :href="links.store" target="_blank" rel="noopener"
+            :title="`Se pasó a ${lockedMove.status} · ${lockedMove.name} (${lockedMove.at}): ahí se ve en qué quedó la compra`">Volver a la tienda ↗</a>
+          <template v-else-if="links && !lockedMove">
             <a v-if="links.store" class="btn btn-xs btn-ghost" :href="links.store" target="_blank" rel="noopener" title="La página a la que vuelve el comprador: ahí se ve en qué quedó la compra">Tienda ↗</a>
             <a v-if="links.wizard" class="btn btn-xs btn-ghost" :href="links.wizard" target="_blank" rel="noopener" title="La solicitud en el wizard">Wizard ↗</a>
             <span class="bar-sep" aria-hidden="true"></span>
           </template>
-          <template v-if="r.order">
+          <template v-if="r.order && !lockedMove">
             <button v-for="o in OUTCOMES" :key="o.status" type="button" class="btn btn-xs btn-ghost"
-              :disabled="!!lockedMove || Number(r.request.status_id) === o.status"
-              :title="lockedMove ? `Ya se pasó a ${lockedMove.status} · ${lockedMove.name} (${lockedMove.at}): la tienda no acepta un segundo resultado` : `Pasar a ${o.status} · ${o.name}: la tienda recibe ${o.store}`" @click="openMove(o)">{{ o.label }}</button>
+              :disabled="Number(r.request.status_id) === o.status"
+              :title="`Pasar a ${o.status} · ${o.name}: la tienda recibe ${o.store}`" @click="openMove(o)">{{ o.label }}</button>
           </template>
           <button type="button" class="region-action" title="Borrar la solicitud" aria-label="Borrar la solicitud" @click="openDelete(r.request.id)">
             <span class="ui-icon" data-icon="trash" aria-hidden="true"></span>
@@ -601,10 +604,10 @@ onBeforeUnmount(() => {
         </div>
       </div>
       <div ref="editorBody" class="region-body">
-        <div v-if="moved" class="alert done" data-level="ok">
+        <div v-if="moved" class="alert done" :data-level="moved.status === 11 ? 'ok' : 'warn'">
           <div class="alert-desc">
             <p>La solicitud {{ moved.request }} pasó de {{ moved.previous }} a <b>{{ moved.status }} · {{ moved.name }}</b>. {{ moved.platform }} recibe <code>{{ moved.store.split(':')[0] }}</code>{{ moved.store.slice(moved.store.indexOf(':')) }}.</p>
-            <p class="muted">Con «Tienda ↗» de la barra ves en qué quedó la compra.</p>
+            <p class="muted">Con «Volver a la tienda ↗» de la barra ves en qué quedó la compra.</p>
           </div>
           <button type="button" class="region-action" title="Cerrar" aria-label="Cerrar" @click="moved = null"><span class="ui-icon" data-icon="close" aria-hidden="true"></span></button>
         </div>
