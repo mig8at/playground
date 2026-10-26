@@ -101,6 +101,8 @@ function remember(r) {
     status: r.request.status, statusId: r.request.status_id, hash: r.branch?.hash || '',
     who: r.user ? (r.user.full_name || `${r.user.first_name || ''} ${r.user.surname || ''}`).trim() : '',
     warn: r.warnings.filter((w) => w.level === 'warn').length,
+    // Con celular, su lista: es lo que muestra el árbol de «Últimas».
+    requests: phone ? r.phoneRequests.map((q) => ({ id: q.id, statusId: q.status_id, status: q.status, allied: q.allied || '', user: q.user || '' })) : [],
   }
   recent.value = [item, ...recent.value.filter((x) => x.id !== item.id)].slice(0, 30)
   try { localStorage.setItem(RECENT_KEY, JSON.stringify(recent.value)) } catch { /* sin almacenamiento, sólo no se recuerda */ }
@@ -108,6 +110,23 @@ function remember(r) {
 function clearRecent() {
   recent.value = []
   try { localStorage.removeItem(RECENT_KEY) } catch { /* nada que borrar */ }
+}
+// Las carpetas plegadas de «Últimas». Tocar otro celular lo abre (y lo despliega); tocar el que se mira
+// lo pliega o despliega.
+const folded = ref(new Set())
+function folderClick(x) {
+  const next = new Set(folded.value)
+  if (x.id !== currentId.value) { next.delete(x.id); openRecent(x) }
+  else if (next.has(x.id)) next.delete(x.id)
+  else next.add(x.id)
+  folded.value = next
+}
+const isOpen = (x) => !folded.value.has(x.id)
+function openRequest(x, id) {
+  target.value = x.target
+  const q = String(x.q ?? x.request)
+  req.value = String(id)
+  if (q !== query.value) { draft.value = q; query.value = q }
 }
 const currentId = computed(() => (result.value ? `${result.value.target}:${result.value.input?.phone || result.value.request.id}` : ''))
 
@@ -320,11 +339,38 @@ onBeforeUnmount(() => {
           <button type="submit" class="btn btn-sm" :disabled="!draft.trim() || loading">{{ loading ? 'Leyendo…' : `Buscar en ${target}` }}</button>
         </form>
         <div v-if="recent.length" class="region-head group"><span>Últimas</span></div>
-        <button v-for="x in recent" :key="x.id" type="button" class="row recent" :class="{ on: x.id === currentId }" @click="openRecent(x)">
-          <i class="dot" :data-state="stateOf(x.statusId)" aria-hidden="true"></i>
-          <span class="label">{{ x.phone || x.request }} <span class="muted">· {{ x.who || 'sin usuario' }}</span></span>
-          <span class="row-meta">{{ x.target }}<span v-if="x.warn" class="hot"> · {{ x.warn }}⚠</span></span>
-        </button>
+        <ul class="tree" role="tree" aria-label="Últimas búsquedas">
+          <li v-for="x in recent" :key="x.id" role="treeitem" :aria-expanded="x.requests?.length ? isOpen(x) : undefined">
+            <!-- Un celular es una carpeta con sus solicitudes; una búsqueda por número es una fila sola. -->
+            <button v-if="x.requests?.length" type="button" class="row folder" @click="folderClick(x)">
+              <span class="ui-icon chevron" :class="{ open: isOpen(x) }" data-icon="chevron" aria-hidden="true"></span>
+              <span class="label">{{ x.phone }} <span class="muted">· {{ x.who || 'sin usuario' }}</span></span>
+              <span class="row-meta">{{ x.target }} · {{ x.requests.length }}</span>
+            </button>
+            <button v-else type="button" class="row recent" :class="{ on: x.id === currentId }" @click="openRecent(x)">
+              <i class="dot" :data-state="stateOf(x.statusId)" aria-hidden="true"></i>
+              <span class="label">{{ x.phone || x.request }} <span class="muted">· {{ x.who || 'sin usuario' }}</span></span>
+              <span class="row-meta">{{ x.target }}<span v-if="x.warn" class="hot"> · {{ x.warn }}⚠</span></span>
+            </button>
+            <ul v-if="x.requests?.length && isOpen(x)" role="group">
+              <li v-for="q in x.requests" :key="q.id" role="treeitem"
+                :aria-selected="x.id === currentId && r?.request.id === q.id">
+                <div class="row file" role="button" tabindex="0" :class="{ on: x.id === currentId && r?.request.id === q.id }"
+                  :title="`${q.user} · ${q.allied}`" @click="openRequest(x, q.id)" @keydown.enter="openRequest(x, q.id)">
+                  <i class="dot" :data-state="stateOf(q.statusId)" aria-hidden="true"></i>
+                  <span class="label">{{ q.id }} <span class="muted">· {{ q.status }}</span></span>
+                  <span class="row-meta">{{ q.allied }}</span>
+                  <span class="row-actions">
+                    <button type="button" class="region-action" :title="`Borrar la solicitud ${q.id}`" :aria-label="`Borrar la solicitud ${q.id}`"
+                      @click.stop="openRequest(x, q.id); openDelete(q.id)">
+                      <span class="ui-icon" data-icon="trash" aria-hidden="true"></span>
+                    </button>
+                  </span>
+                </div>
+              </li>
+            </ul>
+          </li>
+        </ul>
       </div>
     </aside>
 
@@ -496,7 +542,7 @@ onBeforeUnmount(() => {
             </dl>
           </section>
 
-          <section v-if="listed.length">
+          <section v-if="listed.length && !r.input.phone">
             <div class="region-head group"><span>{{ r.input.phone ? `Solicitudes del celular ${r.input.phone}` : 'Solicitudes del usuario' }}</span><span class="count">{{ listed.length }}</span></div>
             <table class="table">
               <thead><tr><th>solicitud</th><th v-if="r.input.phone">usuario</th><th>estado</th><th>sucursal</th><th>monto</th><th>creada</th><th></th></tr></thead>
@@ -571,6 +617,14 @@ code.wrap { word-break: break-all }
 .search { display: flex; flex-direction: column; gap: var(--space-2); padding: var(--space-3) var(--gutter) }
 .search .btn { align-self: flex-start }
 .recent .label { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap }
+/* «Últimas»: un árbol como el de keyring. El celular es la carpeta; sus solicitudes, los archivos. */
+.tree, .tree ul { list-style: none; margin: 0; padding: 0 }
+.tree .label { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap }
+.tree .folder { font-weight: 600 }
+.tree .file { padding-left: calc(var(--space-2) + 16px); cursor: pointer }
+.tree .file .row-meta { max-width: 45%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap }
+.chevron { transition: transform .12s }
+.chevron.open { transform: rotate(90deg) }
 /* Los avisos: el de la base con la barra en ámbar (no cuadra) o en el color de la marca (para saber). */
 .warnings { display: flex; flex-direction: column; gap: var(--space-1); padding: var(--space-2) var(--gutter) }
 .alert[data-level="warn"] { border-left-color: var(--tests-warn); background: color-mix(in oklab, var(--tests-warn) 10%, transparent) }
