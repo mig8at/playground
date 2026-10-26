@@ -5,6 +5,7 @@
   "select": "chevron-down",
   "icons": {
     "sidebar": "panel-left",
+    "trash": "trash-2",
     "detail": "panel-right",
     "console": "panel-bottom",
     "collapse": "chevrons-down-up",

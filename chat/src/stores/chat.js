@@ -282,7 +282,7 @@ export const useChatStore = defineStore('chat', () => {
     // Con tu nombre y tus tareas, o no se arma: una propuesta sin eso diría «mi persona» y nada de lo que hacés.
     if (!state.value || (!cuadrilla.value && !cuadrillaError.value)) return
     for (const c of Object.values(conversations.value)) {
-      if (isAgentKey(c.person.email)) continue
+      if (isAgentKey(c.person.email) || isMe(c.person)) continue
       for (const m of [...c.messages]) {
         if (m.dir !== 'in' || m.kind || m.time <= a.modeSince) continue
         if (c.messages.some((x) => x.kind === 'propuesta' && x.replyTo === m.id)) continue
@@ -314,16 +314,36 @@ export const useChatStore = defineStore('chat', () => {
   /* «MI CHAT»: todo lo que te escriben, de cualquier persona, en un solo hilo, lo más nuevo abajo. Cada mensaje trae
      su conversación, si ya le contestaste y la propuesta de tu agente si la hay. Las preguntas a tus agentes también
      son preguntas a vos. */
+  // «Vaciar» Mi chat: lo anterior a este momento deja de mostrarse (las conversaciones siguen intactas).
+  const SINCE_KEY = 'chat:mi-chat-desde:v1'
+  const inboxSince = ref((() => { try { return localStorage.getItem(SINCE_KEY) || '' } catch { return '' } })())
+  function clearInbox() {
+    let latest = new Date().toISOString()
+    for (const c of Object.values(conversations.value)) for (const m of c.messages) if (m.time > latest) latest = m.time
+    inboxSince.value = latest
+    try { localStorage.setItem(SINCE_KEY, latest) } catch { /* vale mientras la pestaña */ }
+  }
+  // «Vaciar chat», como en WhatsApp: se van los mensajes y la conversación queda; lo ya recibido no vuelve.
+  function clearMessages(key) {
+    const c = conversations.value[key]
+    if (!c) return
+    const last = c.messages.reduce((t, m) => (m.time > t ? m.time : t), '')
+    if (last) deleted[key] = last
+    try { localStorage.setItem(DELETED_KEY, JSON.stringify(deleted)) } catch { /* vale mientras la pestaña */ }
+    c.messages = []
+    c.readAt = last || c.readAt
+  }
   const inbox = computed(() => {
     const out = []
     for (const c of Object.values(conversations.value)) {
-      if (isAgentKey(c.person.email) || isMe(c.person)) continue
+      if (isAgentKey(c.person.email)) continue
       const msgs = c.messages
       msgs.forEach((m, i) => {
         if (m.dir !== 'in' || (m.kind && m.kind !== 'asked')) return
         const answered = msgs.slice(i + 1).some((x) => x.dir === 'out' && x.kind !== 'propuesta')
         const proposal = msgs.find((x) => x.kind === 'propuesta' && x.replyTo === m.id) || null
-        out.push({ ...m, key: `${c.person.email}|${m.id}`, person: c.person, answered, proposal })
+        if (m.time <= inboxSince.value) return
+        out.push({ ...m, key: `${c.person.email}|${m.id}`, person: c.person, answered, proposal, self: isMe(c.person) })
       })
     }
     return out.sort((a, b) => a.time.localeCompare(b.time)).slice(-80)
@@ -598,7 +618,7 @@ export const useChatStore = defineStore('chat', () => {
   return {
     conversations, activeKey, state, stateError, online, onlineError, listenBusy, listenError, loginBusy, loginError, login,
     teamAgents, teamAgentsError, cuadrilla, cuadrillaError, myTasks, taskUrl, loadCuadrilla, noteTask, doneTask,
-    removeConversation, isMe, claimAsMe, proposeReplies, sendProposal, discardProposal, ownerName, inbox,
+    removeConversation, clearInbox, clearMessages, isMe, claimAsMe, proposeReplies, sendProposal, discardProposal, ownerName, inbox,
     me, meKey, list, active, unreadTotal, onlineKeys, agentList,
     loadState, loadOnline, loadTeamAgents, startListening, open, openAgent, send, retry, forget, findBySid, start, stop,
   }

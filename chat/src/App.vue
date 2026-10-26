@@ -295,6 +295,13 @@ async function askNext(text) {
   await chat.send(text)
 }
 
+function clearActive() {
+  const c = chat.active
+  if (c && window.confirm(`¿Vaciar la conversación con ${c.person.name || c.person.email}? Se borran sus mensajes de este navegador.`)) chat.clearMessages(c.person.email)
+}
+function clearInbox() {
+  if (window.confirm('¿Vaciar Mi chat? Se ocultan los mensajes recibidos hasta ahora; las conversaciones siguen.')) chat.clearInbox()
+}
 function forgetActive() {
   if (chat.active) chat.forget(chat.active.person.email)
 }
@@ -447,13 +454,25 @@ const statusText = computed(() => {
           <div class="region-actions">
             <button v-if="!activeIsAgent" type="button" class="btn btn-ghost btn-sm" title="Esta cuenta eres tú: se une a «Mi chat»"
                     @click="chat.claimAsMe(chat.active.person)">Es mi cuenta</button>
+            <button type="button" class="region-action" title="Vaciar chat: borra los mensajes y deja la conversación"
+                    aria-label="Vaciar chat" @click="clearActive">
+              <span class="ui-icon" data-icon="trash" aria-hidden="true"></span>
+            </button>
             <button type="button" class="region-action" title="Borrar esta conversación de este navegador"
                     aria-label="Borrar esta conversación de este navegador" @click="forgetActive">
               <span class="ui-icon" data-icon="close" aria-hidden="true"></span>
             </button>
           </div>
         </template>
-        <span v-else>Mi chat</span>
+        <template v-else>
+          <span>Mi chat</span>
+          <div class="region-actions">
+            <button type="button" class="region-action" title="Vaciar Mi chat: oculta lo recibido hasta ahora"
+                    aria-label="Vaciar Mi chat" :disabled="!chat.inbox.length" @click="clearInbox">
+              <span class="ui-icon" data-icon="trash" aria-hidden="true"></span>
+            </button>
+          </div>
+        </template>
       </div>
 
       <!-- Avisos que cambian lo que se puede hacer: van dentro del editor, no como banner global. -->
@@ -511,7 +530,7 @@ const statusText = computed(() => {
               </div>
               <span class="inbox-actions">
                 <span v-if="item.answered" class="inbox-done">✓ contestado</span>
-                <button v-else-if="item.kind !== 'asked' && mine.agent.mode !== 'agente'" type="button" class="btn btn-outline btn-sm" @click="replyFromInbox(item)">{{ item.proposal && item.proposal.status !== 'descartada' ? 'Responder yo' : 'Responder' }}</button>
+                <button v-else-if="!item.self && item.kind !== 'asked' && mine.agent.mode !== 'agente'" type="button" class="btn btn-outline btn-sm" @click="replyFromInbox(item)">{{ item.proposal && item.proposal.status !== 'descartada' ? 'Responder yo' : 'Responder' }}</button>
               </span>
             </div>
           </li>
