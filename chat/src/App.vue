@@ -329,8 +329,11 @@ const statusText = computed(() => {
 
 <template>
   <div class="workbench" :style="layoutVars">
-    <aside v-show="sidebarShown" class="sidebar" aria-label="Conversaciones">
+    <aside v-show="sidebarShown" class="sidebar en-bloques" aria-label="Conversaciones">
+      <!-- DOS BLOQUES (`en-bloques` de la base): tus conversaciones y los agentes del equipo. Con «Paneles», cada uno es un
+           panel sobre el lienzo, como en canon. -->
       <div class="rsz rsz-edge-right" v-resize="sidebarResize"></div>
+      <div class="wb-bloque bloque-conversaciones">
       <div class="region-head">
         <span>Conversaciones</span>
         <span v-if="chat.unreadTotal" class="count filtered" :title="`${chat.unreadTotal} sin leer`">{{ chat.unreadTotal }}</span>
@@ -386,11 +389,16 @@ const statusText = computed(() => {
           </li>
         </ul>
 
-        <!-- Los agentes del equipo: los de cada persona conectada (`playground agents`), los tuyos primero. -->
-        <div class="region-head group">
-          <span>Agentes</span>
-          <span class="count">{{ chat.agentList.length }}</span>
-        </div>
+      </div>
+      </div>
+
+      <!-- Los agentes del equipo: los de cada persona conectada (`playground agents`), los tuyos primero. -->
+      <div class="wb-bloque bloque-agentes">
+      <div class="region-head">
+        <span>Agentes</span>
+        <span class="count">{{ chat.agentList.length }}</span>
+      </div>
+      <div class="region-body">
         <p v-if="chat.teamAgentsError" class="side-note bad">{{ chat.teamAgentsError }}</p>
         <p v-else-if="!chat.agentList.length" class="side-note">
           Nadie tiene agentes conectados ahora. Los tuyos los anuncia <code>playground listen</code>: tu journal y los de
@@ -414,6 +422,7 @@ const statusText = computed(() => {
             </button>
           </li>
         </ul>
+      </div>
       </div>
     </aside>
 
@@ -506,7 +515,7 @@ const statusText = computed(() => {
         <div class="composer-row">
           <label class="sr-only" for="composer-mine">Tu chat</label>
           <textarea id="composer-mine" class="input composer-text" rows="1" disabled
-                    placeholder="En tu chat no te podés escribir a vos mismo: abrí una conversación para escribirle a alguien"></textarea>
+                    placeholder="En tu chat no te escribís a vos mismo"></textarea>
           <button type="submit" class="btn" disabled>Mandar</button>
         </div>
       </form>
@@ -787,6 +796,11 @@ code { font-family: var(--font-mono); font-size: .92em }
   border: 1px dashed var(--office-accent); background: color-mix(in oklab, var(--office-accent) 8%, var(--background)) }
 .proposal-label { font-size: var(--text-xs); color: var(--fg-2) }
 .proposal-actions { display: flex; gap: var(--space-1); margin-top: 2px }
+/* Los dos bloques del costado: las conversaciones se llevan el alto que sobra; los agentes, lo suyo y no más de la
+   mitad. Cada uno scrollea su cuerpo. */
+.bloque-conversaciones { flex: 1 1 auto }
+.bloque-agentes { flex: 0 1 auto; max-height: 45% }
+
 .mode-toggle { border: 0; background: none; font: inherit; color: inherit; cursor: pointer; display: inline-flex; align-items: center; gap: 6px }
 .mode-toggle.on { color: var(--office-accent); font-weight: 600 }
 .mode-avatar { width: 16px; height: 16px; border-radius: 4px; object-fit: cover; background: var(--office-bg) }

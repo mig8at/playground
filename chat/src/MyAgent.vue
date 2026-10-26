@@ -20,7 +20,7 @@ const preview = computed(() => mine.draftReply({ from: sample.from, text: sample
 
 // ── el muñeco en 3D, y su foto para el avatar ──
 const stage = ref(null)
-let renderer, scene, camera, controls, observer, frame = 0, current = null, loading = 0, shotTimer = 0
+let renderer, scene, camera, controls, observer, frame = 0, current = null, loading = 0, shotFrames = 0
 
 function setupStage() {
   scene = new THREE.Scene()
@@ -59,22 +59,22 @@ function setupStage() {
     last = now
     controls.update()
     renderer.render(scene, camera)
+    // La foto se saca unos cuadros DESPUÉS de dibujar al muñeco: antes, el lienzo todavía está vacío y sale en negro.
+    if (shotFrames && current && --shotFrames === 0) takeSnapshot()
   }
   frame = requestAnimationFrame(loop)
 }
 
-// La foto: un recorte cuadrado de la cara y el torso, chico, para el avatar del chat.
-function snapshot() {
-  clearTimeout(shotTimer)
-  shotTimer = setTimeout(() => {
-    if (!renderer) return
-    const src = renderer.domElement
-    const side = Math.min(src.width, src.height) * 0.55
-    const out = document.createElement('canvas')
-    out.width = out.height = 96
-    out.getContext('2d').drawImage(src, (src.width - side) / 2, src.height * 0.08, side, side, 0, 0, 96, 96)
-    mine.agent.avatar = out.toDataURL('image/png')
-  }, 700)
+// La foto: un recorte cuadrado de la cara y el torso, chico, para el avatar del chat. `snapshot()` la pide para dentro
+// de unos cuadros; `takeSnapshot()` la saca.
+function snapshot() { shotFrames = 12 }
+function takeSnapshot() {
+  const src = renderer.domElement
+  const side = Math.min(src.width, src.height) * 0.55
+  const out = document.createElement('canvas')
+  out.width = out.height = 96
+  out.getContext('2d').drawImage(src, (src.width - side) / 2, src.height * 0.08, side, side, 0, 0, 96, 96)
+  mine.agent.avatar = out.toDataURL('image/png')
 }
 
 async function showAgent() {
@@ -96,7 +96,6 @@ watch(() => a.value.base, showAgent)
 watch(() => ({ ...a.value.colors }), showAgent, { deep: true })
 onMounted(() => { setupStage(); showAgent() })
 onBeforeUnmount(() => {
-  clearTimeout(shotTimer)
   cancelAnimationFrame(frame)
   observer?.disconnect()
   controls?.dispose()
