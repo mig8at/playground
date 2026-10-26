@@ -69,6 +69,7 @@ const DELETED_KEY = 'chat:borradas:v1'
 function readDeleted() {
   try { const v = JSON.parse(localStorage.getItem(DELETED_KEY) || '{}'); return v && typeof v === 'object' ? v : {} } catch { return {} }
 }
+const handleOf = (email) => { const m = /^([^@]+)@creditop\.com$/.exec(String(email || '')); return m ? m[1] : '' }
 const plain = (s) => String(s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim().toLowerCase().replace(/\s+/g, ' ')
 
 // Quién sos, recordado: la sesión puede estar vencida (sin nombre) y tus conversaciones de otra cuenta tuya
@@ -131,18 +132,13 @@ export const useChatStore = defineStore('chat', () => {
     self.value = next
     try { localStorage.setItem(SELF_KEY, JSON.stringify(next)) } catch { /* vale mientras la pestaña */ }
   }, { immediate: true })
-  // «Es mi cuenta»: vincula a mano una conversación que llegó con otro correo tuyo.
-  function claimAsMe(person) {
-    const next = { emails: [...self.value.emails], names: [...self.value.names], githubs: [...self.value.githubs] }
-    remember(next.emails, person?.email); remember(next.names, person?.name); remember(next.githubs, person?.github)
-    self.value = next
-    try { localStorage.setItem(SELF_KEY, JSON.stringify(next)) } catch { /* vale mientras la pestaña */ }
-    if (activeKey.value === keyOf(person?.email)) activeKey.value = ''
-  }
   const isMe = (person) => {
     const key = keyOf(person?.email)
     if (!key || isAgentKey(key)) return false
     if (key === meKey.value || self.value.emails.includes(key)) return true
+    // Tu @: en @creditop.com, la parte antes de la arroba (@miguel) es tu chat, venga como venga el resto.
+    const at = handleOf(key)
+    if (at && (at === handleOf(meKey.value) || self.value.emails.some((e) => handleOf(e) === at))) return true
     if (person.github && self.value.githubs.includes(plain(person.github))) return true
     return !!person.name && self.value.names.includes(plain(person.name))
   }
@@ -618,7 +614,7 @@ export const useChatStore = defineStore('chat', () => {
   return {
     conversations, activeKey, state, stateError, online, onlineError, listenBusy, listenError, loginBusy, loginError, login,
     teamAgents, teamAgentsError, cuadrilla, cuadrillaError, myTasks, taskUrl, loadCuadrilla, noteTask, doneTask,
-    removeConversation, clearInbox, clearMessages, isMe, claimAsMe, proposeReplies, sendProposal, discardProposal, ownerName, inbox,
+    removeConversation, clearInbox, clearMessages, isMe, proposeReplies, sendProposal, discardProposal, ownerName, inbox,
     me, meKey, list, active, unreadTotal, onlineKeys, agentList,
     loadState, loadOnline, loadTeamAgents, startListening, open, openAgent, send, retry, forget, findBySid, start, stop,
   }
