@@ -199,7 +199,7 @@ const isClient = (p) => String(p.user_profile_id) === '1'
 const profile = ref(null)
 const profileLoad = ref(null) // { running, error, result }
 // Lo que se edita en el sidebar derecho; arranca con el perfil del archivo y «Volver a mis datos» lo repone.
-const form = ref({ document: '', name: '', income: 2500000, occupation: 'Empleado', months: 13, score: 700 })
+const form = ref({ document: '', names: '', surnames: '', income: 2500000, occupation: 'Empleado', months: 13, score: 700 })
 async function readProfile() {
   try {
     const res = await fetch('/api/profile')
@@ -210,7 +210,7 @@ async function readProfile() {
 }
 function resetForm() { if (profile.value && !profile.value.error) form.value = { ...profile.value } }
 const formEdited = computed(() => !!profile.value && !profile.value.error
-  && ['document', 'name', 'income', 'occupation', 'months', 'score'].some((k) => String(form.value[k]) !== String(profile.value[k])))
+  && ['document', 'names', 'surnames', 'income', 'occupation', 'months', 'score'].some((k) => String(form.value[k]) !== String(profile.value[k])))
 async function loadProfile() {
   profileLoad.value = { running: true, error: '', result: null }
   try {
@@ -555,8 +555,13 @@ onBeforeUnmount(() => {
             <p class="muted small">Lo que van a contestar las centrales para esa cédula. Cargalo justo antes de lanzar la compra.</p>
             <div class="field"><label class="label" for="pf-doc">Cédula</label>
               <input id="pf-doc" v-model="form.document" class="input input-sm" inputmode="numeric" autocomplete="off" /></div>
-            <div class="field"><label class="label" for="pf-name">Nombre completo, como lo va a escribir</label>
-              <input id="pf-name" v-model="form.name" class="input input-sm" autocomplete="off" spellcheck="false" /></div>
+            <p class="muted small">Nombres y apellidos tal como los va a escribir el cliente: la identidad compara contra eso.</p>
+            <div class="field-row">
+              <div class="field"><label class="label" for="pf-names">Nombres</label>
+                <input id="pf-names" v-model="form.names" class="input input-sm" autocomplete="off" spellcheck="false" /></div>
+              <div class="field"><label class="label" for="pf-surnames">Apellidos</label>
+                <input id="pf-surnames" v-model="form.surnames" class="input input-sm" autocomplete="off" spellcheck="false" /></div>
+            </div>
             <div class="field-row">
               <div class="field"><label class="label" for="pf-income">Ingreso</label>
                 <input id="pf-income" v-model="form.income" class="input input-sm" inputmode="numeric" /></div>
@@ -569,7 +574,7 @@ onBeforeUnmount(() => {
               <div class="field"><label class="label" for="pf-score">Score Experian</label>
                 <input id="pf-score" v-model="form.score" class="input input-sm" inputmode="numeric" /></div>
             </div>
-            <button type="submit" class="btn btn-sm" :disabled="profileLoad?.running || !String(form.document).trim() || !String(form.name).trim()">
+            <button type="submit" class="btn btn-sm" :disabled="profileLoad?.running || !String(form.document).trim() || !String(form.names).trim() || !String(form.surnames).trim()">
               <span class="ui-icon" data-icon="play" aria-hidden="true"></span>{{ profileLoad?.running ? 'Cargando…' : `Cargar en las centrales de ${target}` }}
             </button>
             <p v-if="formEdited" class="muted small">Con datos distintos a los tuyos: «Volver a mis datos» (⟳) los repone.</p>

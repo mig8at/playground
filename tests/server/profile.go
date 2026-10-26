@@ -24,7 +24,11 @@ import (
 
 // Profile es lo que se le dicta a las centrales para una cédula.
 type Profile struct {
-	Document   string `json:"document"`
+	Document string `json:"document"`
+	Names    string `json:"names"`    // los nombres, como los va a escribir el cliente
+	Surnames string `json:"surnames"` // los apellidos
+	// Name es nombres + apellidos: Ágil Data devuelve el nombre en UN texto y así se le dicta. Un perfil viejo
+	// que sólo trae `name` sigue sirviendo (sin partirlo: no se adivina dónde termina el nombre).
 	Name       string `json:"name"`
 	Income     int    `json:"income"`
 	Occupation string `json:"occupation"`
@@ -60,10 +64,19 @@ func ReadProfile() (Profile, error) {
 
 // normalized valida un perfil (el del archivo o el que se editó en la interfaz) y completa lo que falte.
 func (p Profile) normalized() (Profile, error) {
+	clean := func(v string) string { return strings.ToUpper(strings.Join(strings.Fields(v), " ")) }
 	p.Document = onlyDigits(p.Document)
-	p.Name = strings.ToUpper(strings.Join(strings.Fields(p.Name), " "))
+	p.Names, p.Surnames = clean(p.Names), clean(p.Surnames)
+	if p.Names != "" || p.Surnames != "" {
+		if p.Names == "" || p.Surnames == "" {
+			return Profile{}, fmt.Errorf("faltan los nombres o los apellidos")
+		}
+		p.Name = p.Names + " " + p.Surnames
+	} else {
+		p.Name = clean(p.Name)
+	}
 	if !reDoc.MatchString(p.Document) || p.Name == "" {
-		return Profile{}, fmt.Errorf("falta la cédula (sólo dígitos) o el nombre completo")
+		return Profile{}, fmt.Errorf("falta la cédula (sólo dígitos) o el nombre")
 	}
 	if p.Income <= 0 {
 		p.Income = 2_500_000
