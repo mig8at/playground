@@ -211,10 +211,23 @@ const links = computed(() => {
     wizard: order.branch_hash && WIZARD[target.value] ? `${WIZARD[target.value]}/ecommerce/${order.branch_hash}/${r.value.request.id}/lenders` : '',
   }
 })
+// La tienda acepta UN resultado: con la sesión de pago ya resuelta o rechazada, la app de Shopify ignora el
+// segundo aviso, y la base quedaría distinta del pedido. Así que una solicitud que ya se pasó queda bloqueada,
+// y se recuerda en este navegador para que aguante recargas.
+const MOVED_KEY = 'tests.moved'
+function readMoved() { try { return JSON.parse(localStorage.getItem(MOVED_KEY) || '{}') || {} } catch { return {} } }
+const movedLog = ref(readMoved()) // { 'qa:504068': { status, name, at } }
+const movedKey = (id) => `${target.value}:${id}`
+const lockedMove = computed(() => (r.value?.request ? movedLog.value[movedKey(r.value.request.id)] || null : null))
+function rememberMove(id, status, name) {
+  movedLog.value = { ...movedLog.value, [movedKey(id)]: { status, name, at: new Date().toLocaleString('es-CO') } }
+  try { localStorage.setItem(MOVED_KEY, JSON.stringify(movedLog.value)) } catch { /* sin almacenamiento: vale hasta recargar */ }
+}
 const statusDialog = ref(null)
 const move = ref(null) // { request, outcome, running, error }
 const moved = ref(null) // el último cambio: { request, previous, status, name, store, platform }
 function openMove(outcome) {
+  if (lockedMove.value) return
   move.value = { request: r.value.request.id, outcome, running: false, error: '' }
   statusDialog.value?.showModal()
 }
@@ -230,6 +243,7 @@ async function runMove() {
     })
     const body = await res.json().catch(() => ({}))
     if (!res.ok) throw new Error(body.error || `HTTP ${res.status}`)
+    rememberMove(m.request, body.status, m.outcome.name)
     const order = r.value?.order || {}
     moved.value = {
       request: m.request, previous: body.previous, status: body.status, name: m.outcome.name, store: m.outcome.store,
@@ -578,7 +592,8 @@ onBeforeUnmount(() => {
           </template>
           <template v-if="r.order">
             <button v-for="o in OUTCOMES" :key="o.status" type="button" class="btn btn-xs btn-ghost"
-              :disabled="Number(r.request.status_id) === o.status" :title="`Pasar a ${o.status} · ${o.name}: la tienda recibe ${o.store}`" @click="openMove(o)">{{ o.label }}</button>
+              :disabled="!!lockedMove || Number(r.request.status_id) === o.status"
+              :title="lockedMove ? `Ya se pasó a ${lockedMove.status} · ${lockedMove.name} (${lockedMove.at}): la tienda no acepta un segundo resultado` : `Pasar a ${o.status} · ${o.name}: la tienda recibe ${o.store}`" @click="openMove(o)">{{ o.label }}</button>
           </template>
           <button type="button" class="region-action" title="Borrar la solicitud" aria-label="Borrar la solicitud" @click="openDelete(r.request.id)">
             <span class="ui-icon" data-icon="trash" aria-hidden="true"></span>
