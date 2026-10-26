@@ -6418,7 +6418,12 @@ dos. **No se sabe cuántos diagnósticos viejos eran esto.**
   solicitud 503897 el dictado se confirmó a las 16:50:58 UTC y `kyc-gateway` registró «AgilData request completed»
   con 4930 bytes a las 16:51:19: la respuesta por defecto, guardada en `risk_central_user_data` 844237.
 - **Arreglo:** del lado de la lambda, que lo dictado no viva en un contenedor (un almacén compartido, o reglas por
-  cédula en `riskservices.json`). Del lado del arnés no hay arreglo: dictar justo antes de consultar achica la ventana
-  pero no elige el contenedor.
-- **Para el harness:** el «✓» del dictado en qa dice que UN contenedor lo tiene, no que lo vaya a contestar.
+  cédula en `riskservices.json`). Del lado del arnés no hay arreglo de raíz, pero sí una mitigación medida:
+  `spreadDictation` (`harness/pkg/risk-lambda.ts`, la usa `dictateCompanyLambda`) dicta 12 veces a la vez y confirma
+  con 12 lecturas a la vez, ignorando las que no contestan (con esa concurrencia el lambda devuelve algunos 500 de 36
+  bytes) y repitiendo hasta que ninguna conteste otra cosa. Medido en qa el 2026-10-26, cédula `1031138508`: antes, 6
+  lecturas a la vez daban 5 con lo dictado y 1 con la default (y la solicitud 504067 tomó la default); después, 30
+  lecturas a la vez en tres tandas, las 30 con lo dictado. Un contenedor que el lambda levante después nace vacío.
+- **Para el harness:** un «✓» confirmado de a una lectura dice que UN contenedor lo tiene; el de `spreadDictation`
+  dice cuántas lecturas a la vez lo devolvieron (`11/11 lecturas`).
 - **Estado:** vivo.
