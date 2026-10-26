@@ -201,6 +201,9 @@ async function copyQuery() {
 }
 // Otra solicitud u otro ambiente: la consulta abierta era de la anterior.
 watch([() => result.value?.request?.id, target], () => { openTable.value = null })
+// Las fechas de alta y de cambio de cada fila son ruido para una prueba: no se muestran (la consulta las trae).
+const HIDDEN_COLUMNS = new Set(['created_at', 'updated_at'])
+const shownColumns = (data) => data.columns.filter((c) => !HIDDEN_COLUMNS.has(c))
 const cellText = (v) => (v === null || v === undefined ? 'NULL' : typeof v === 'object' ? JSON.stringify(v) : String(v))
 
 // ── el ambiente: el selector del pie ──
@@ -366,10 +369,10 @@ onBeforeUnmount(() => {
               <p v-else-if="tableRows[t.table]?.error" class="none hot">{{ tableRows[t.table].error }}</p>
               <div v-else-if="tableRows[t.table]?.data" class="table-scroll">
                 <table class="table db">
-                  <thead><tr><th v-for="c in tableRows[t.table].data.columns" :key="c">{{ c }}</th></tr></thead>
+                  <thead><tr><th v-for="c in shownColumns(tableRows[t.table].data)" :key="c">{{ c }}</th></tr></thead>
                   <tbody>
                     <tr v-for="(row, i) in tableRows[t.table].data.rows" :key="row.id ?? i">
-                      <td v-for="c in tableRows[t.table].data.columns" :key="c" :class="{ muted: row[c] === null }" :title="cellText(row[c])">{{ cellText(row[c]) }}</td>
+                      <td v-for="c in shownColumns(tableRows[t.table].data)" :key="c" :class="{ muted: row[c] === null }" :title="cellText(row[c])">{{ cellText(row[c]) }}</td>
                     </tr>
                   </tbody>
                 </table>
