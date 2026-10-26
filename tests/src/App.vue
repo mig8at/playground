@@ -194,6 +194,9 @@ function openDelete(id) {
   dialog.value?.showModal()
   loadPlan()
 }
+// Las filas que caen fuera de la solicitud misma y de la baja del usuario.
+const otherRows = computed(() => (del.value?.plan?.tables || [])
+  .filter((t) => t.table !== 'user_requests' && t.table !== 'users (baja)').reduce((n, t) => n + t.rows, 0))
 function closeDelete() { dialog.value?.close(); del.value = null }
 function toggleUsers() { if (del.value) { del.value.users = !del.value.users; loadPlan() } }
 const canDelete = computed(() => !!(del.value?.plan && !del.value.plan.blocked && !del.value.loading && !del.value.running))
@@ -524,7 +527,7 @@ onBeforeUnmount(() => {
         <h2 id="del-title">¿Borrar la solicitud {{ del.request }}?</h2>
         <p v-if="del.loading && !del.plan" class="muted">Contando lo que cuelga…</p>
         <template v-if="del.plan">
-          <p>Se eliminan la solicitud y sus <b>{{ del.plan.total - 1 - (del.users ? del.plan.users.filter((u) => !u.protected).length : 0) }}</b> filas en otras tablas. No se puede deshacer.</p>
+          <p v-if="!del.plan.requests[0]?.protected">Se eliminan la solicitud y sus <b>{{ otherRows }}</b> filas en otras tablas. No se puede deshacer.</p>
           <p v-if="del.plan.requests[0]?.protected" class="hot">No se puede: {{ del.plan.requests[0].protected }}.</p>
           <label v-if="del.lastOf" class="checkbox-row">
             <input type="checkbox" class="checkbox" :checked="del.users" :disabled="del.loading || del.running" @change="toggleUsers" />
