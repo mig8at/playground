@@ -177,10 +177,14 @@ async function loadPlan() {
   if (!d) return
   d.loading = true; d.error = ''; d.plan = null; d.confirm = ''
   try {
-    const res = await fetch(`/api/delete/plan?target=${encodeURIComponent(target.value)}&request=${d.request}&phone=${d.phone ? 1 : 0}&users=${d.phone && d.users ? 1 : 0}`)
+    const res = await fetch(`/api/delete/plan?target=${encodeURIComponent(target.value)}&request=${d.request}&phone=${d.phone ? 1 : 0}&users=${d.users ? 1 : 0}`)
     const body = await res.json().catch(() => ({}))
     if (!res.ok) throw new Error(body.error || `HTTP ${res.status}`)
-    if (del.value === d) d.plan = body
+    if (del.value === d) {
+      d.plan = body
+      // Se guarda aparte: mientras se relee el plan, la casilla no tiene que desaparecer.
+      d.lastOf = body.lastOf || ''
+    }
   } catch (e) {
     if (del.value === d) d.error = e.message
   } finally {
@@ -188,11 +192,11 @@ async function loadPlan() {
   }
 }
 function openDelete(id) {
-  del.value = { request: Number(id), phone: false, users: false, plan: null, loading: false, error: '', confirm: '', running: false, done: null }
+  del.value = { request: Number(id), phone: false, users: false, lastOf: '', plan: null, loading: false, error: '', confirm: '', running: false, done: null }
   loadPlan()
   nextTick(() => { if (editorBody.value) editorBody.value.scrollTop = 0 })
 }
-function togglePhone() { if (del.value) { del.value.phone = !del.value.phone; if (!del.value.phone) del.value.users = false; loadPlan() } }
+function togglePhone() { if (del.value) { del.value.phone = !del.value.phone; del.value.users = false; loadPlan() } }
 function toggleUsers() { if (del.value) { del.value.users = !del.value.users; loadPlan() } }
 const canDelete = computed(() => {
   const d = del.value
@@ -205,7 +209,7 @@ async function runDelete() {
   try {
     const res = await fetch('/api/delete', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ target: target.value, request: d.request, phone: d.phone, users: d.phone && d.users, confirm: d.confirm.trim() }),
+      body: JSON.stringify({ target: target.value, request: d.request, phone: d.phone, users: d.users, confirm: d.confirm.trim() }),
     })
     const body = await res.json().catch(() => ({}))
     if (!res.ok) throw new Error(body.error || `HTTP ${res.status}`)
@@ -385,6 +389,11 @@ onBeforeUnmount(() => {
               <label v-if="del.phone" class="checkbox-row">
                 <input type="checkbox" class="checkbox" :checked="del.users" :disabled="del.loading || del.running" @change="toggleUsers" />
                 <span>Y dar de baja a sus usuarios, para empezar el flujo de cero <span class="muted">(como la papelera del admin)</span></span>
+              </label>
+              <!-- Una sola solicitud: si es la última de su usuario, se pregunta si darlo de baja también. -->
+              <label v-else-if="del.lastOf" class="checkbox-row">
+                <input type="checkbox" class="checkbox" :checked="del.users" :disabled="del.loading || del.running" @change="toggleUsers" />
+                <span>Es la última solicitud de <b>{{ del.lastOf }}</b>: dar de baja también al usuario, para empezar el flujo de cero <span class="muted">(como la papelera del admin)</span></span>
               </label>
               <p v-if="del.loading" class="muted">Contando lo que cuelga…</p>
               <p v-if="del.error" class="hot">{{ del.error }}</p>
@@ -619,7 +628,7 @@ code.wrap { word-break: break-all }
 .danger { border-bottom: 1px solid var(--border) }
 .danger-body { display: flex; flex-direction: column; gap: var(--space-2); padding: var(--space-2) var(--gutter) var(--space-3) }
 .danger-body p { margin: 0 }
-.danger .table td:not(:last-child) { white-space: nowrap; max-width: 200px; overflow: hidden; text-overflow: ellipsis }
+.danger .table td { white-space: nowrap; max-width: 200px; overflow: hidden; text-overflow: ellipsis }
 .danger .table tr.protected td { color: var(--fg-3) }
 /* El rojo es el de tests, no `--destructive`: en el tema Darkmatter ése es un verde azulado apagado. */
 .alert[data-level="danger"] { border-left-color: var(--tests-fail); background: color-mix(in oklab, var(--tests-fail) 10%, transparent) }

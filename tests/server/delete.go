@@ -97,6 +97,9 @@ type Plan struct {
 	Total    int           `json:"total"`
 	Confirm  string        `json:"confirm"`           // lo que hay que escribir para confirmar
 	Blocked  string        `json:"blocked,omitempty"` // por qué no se puede borrar ahora
+	// LastOf: el usuario al que, con este borrado, no le queda ninguna solicitud. Es cuando tiene sentido
+	// preguntar si darlo de baja también; con el celular, se ofrece siempre.
+	LastOf string `json:"lastOf,omitempty"`
 }
 
 // Deleted es el resultado de un borrado.
@@ -196,9 +199,26 @@ func BuildPlan(target string, request int, byPhone, freeUsers bool) (*Plan, erro
 		plan.Requests = append(plan.Requests, pr)
 	}
 
-	if byPhone && freeUsers {
-		users, err := rows(src, `SELECT id, TRIM(CONCAT(COALESCE(first_name, ''), ' ', COALESCE(surname, ''))) AS name, document_number,
-				email, is_test, user_profile_id FROM users WHERE cell_phone LIKE CONCAT('%', ?) AND status = 1 ORDER BY id`, plan.Phone)
+	// Una sola solicitud: ¿es la última de su usuario? Entonces se ofrece darlo de baja.
+	var lastUser int
+	if !byPhone && len(plan.Requests) == 1 && plan.Requests[0].Protected == "" && plan.Requests[0].UserID > 0 {
+		other, err := first(src, `SELECT COUNT(*) AS n FROM user_requests WHERE user_id = ? AND id <> ?`, plan.Requests[0].UserID, request)
+		if err != nil {
+			return nil, err
+		}
+		if cell(other, "n") == "0" {
+			lastUser, plan.LastOf = plan.Requests[0].UserID, plan.Requests[0].User
+		}
+	}
+
+	if freeUsers && (byPhone || lastUser > 0) {
+		query, arg := `SELECT id, TRIM(CONCAT(COALESCE(first_name, ''), ' ', COALESCE(surname, ''))) AS name, document_number,
+				email, is_test, user_profile_id FROM users WHERE cell_phone LIKE CONCAT('%', ?) AND status = 1 ORDER BY id`, any(plan.Phone)
+		if !byPhone {
+			query, arg = `SELECT id, TRIM(CONCAT(COALESCE(first_name, ''), ' ', COALESCE(surname, ''))) AS name, document_number,
+				email, is_test, user_profile_id FROM users WHERE id = ? AND status = 1`, lastUser
+		}
+		users, err := rows(src, query, arg)
 		if err != nil {
 			return nil, fmt.Errorf("usuarios del celular: %w", err)
 		}
