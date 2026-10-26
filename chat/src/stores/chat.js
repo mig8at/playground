@@ -211,7 +211,7 @@ export const useChatStore = defineStore('chat', () => {
   }
 
   function push(c, message) {
-    if (c.messages.some((x) => x.id === message.id || (message.sid && x.sid === message.sid))) return false
+    if (c.messages.some((x) => x.id === message.id || (message.sid && x.sid === message.sid && x.dir === message.dir))) return false
     c.messages.push(message)
     c.messages.sort((a, b) => a.time.localeCompare(b.time))
     return true
@@ -340,7 +340,7 @@ export const useChatStore = defineStore('chat', () => {
       const msgs = c.messages
       msgs.forEach((m, i) => {
         if (m.dir !== 'in' || (m.kind && m.kind !== 'asked')) return
-        const answered = msgs.slice(i + 1).some((x) => x.dir === 'out' && x.kind !== 'propuesta')
+        const answered = !isMe(c.person) && msgs.slice(i + 1).some((x) => x.dir === 'out' && x.kind !== 'propuesta')
         const proposal = msgs.find((x) => x.kind === 'propuesta' && x.replyTo === m.id) || null
         if (m.time <= inboxSince.value) return
         out.push({ ...m, key: `${c.person.email}|${m.id}`, person: c.person, answered, proposal, self: isMe(c.person) })
