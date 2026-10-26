@@ -291,7 +291,21 @@ async function copyQuery() {
 watch([() => result.value?.request?.id, target], () => { openTable.value = null })
 // Las fechas de alta y de cambio de cada fila son ruido para una prueba: no se muestran (la consulta las trae).
 const HIDDEN_COLUMNS = new Set(['created_at', 'updated_at'])
-const shownColumns = (data) => data.columns.filter((c) => !HIDDEN_COLUMNS.has(c))
+// Las de `users` que son del EQUIPO, no del cliente: a qué comercio, sucursal o entidad pertenece un asesor o un
+// administrador. En un cliente vienen vacías (1 de 224.905 en qa las tiene), y si traen algo no es de la solicitud.
+const STAFF_COLUMNS = { users: new Set(['allied_id', 'allied_branch_id', 'lender_id', 'corporate_user_id', 'multiple_allieds']) }
+// Una columna vacía en TODAS las filas no dice nada de esta solicitud. «Mostrar todas las columnas» la trae de vuelta;
+// la preferencia se recuerda en el navegador.
+const ALL_COLUMNS_KEY = 'tests.all-columns'
+const allColumns = ref((() => { try { return localStorage.getItem(ALL_COLUMNS_KEY) === '1' } catch { return false } })())
+watch(allColumns, (v) => { try { localStorage.setItem(ALL_COLUMNS_KEY, v ? '1' : '0') } catch { /* sólo no se recuerda */ } })
+const isEmptyValue = (v) => v === null || v === undefined || v === '' || v === '[]' || v === '{}'
+function shownColumns(data) {
+  if (allColumns.value) return data.columns
+  const staff = STAFF_COLUMNS[data.table]
+  return data.columns.filter((c) => !HIDDEN_COLUMNS.has(c) && !staff?.has(c) && data.rows.some((r) => !isEmptyValue(r[c])))
+}
+const hiddenColumns = (data) => data.columns.length - shownColumns(data).length
 const cellText = (v) => (v === null || v === undefined ? 'NULL' : typeof v === 'object' ? JSON.stringify(v) : String(v))
 
 // ── el ambiente: el selector del pie ──
@@ -475,6 +489,7 @@ onBeforeUnmount(() => {
               <button type="button" class="db-table-head" :class="{ on: openTable === t.table }" :title="`Ver la consulta de ${t.table}`" @click="showTable(t.table)">
                 <code>{{ t.table }}</code>
                 <span class="count">{{ t.rows }} {{ t.rows === 1 ? 'fila' : 'filas' }}{{ t.table === 'users' ? ' · el usuario de la solicitud: no se borra con ella' : '' }}{{ t.table === 'kyc_name_checks' ? ' · incluye las del usuario sin solicitud (TusDatos): ésas no se borran con ella' : '' }}</span>
+                <span v-if="tableRows[t.table]?.data && hiddenColumns(tableRows[t.table].data)" class="count muted">{{ shownColumns(tableRows[t.table].data).length }} de {{ tableRows[t.table].data.columns.length }} columnas</span>
                 <span class="ui-icon" data-icon="console" aria-hidden="true"></span>
               </button>
               <p v-if="tableRows[t.table]?.loading" class="none">Leyendo…</p>
@@ -605,6 +620,10 @@ onBeforeUnmount(() => {
       </nav>
       <div v-if="panelTab === 'tables'" class="region-body">
         <p v-if="!tables.length" class="none">Las tablas de la solicitud que se mira; las que se apagan acá no se muestran en el editor.</p>
+        <label class="checkbox-row all-columns">
+          <input v-model="allColumns" type="checkbox" class="checkbox" />
+          <span>Mostrar todas las columnas <span class="muted">(si no: sin las vacías, sin fechas de alta y cambio, y sin las de equipo en users)</span></span>
+        </label>
         <label v-for="t in tables" :key="t.table" class="checkbox-row table-toggle">
           <input type="checkbox" class="checkbox" :checked="isShown(t.table)" @change="toggleTable(t.table)" />
           <code>{{ t.table }}</code>
@@ -773,6 +792,7 @@ code.wrap { word-break: break-all }
 .table-toggle { display: inline-flex; width: 280px; padding: 2px var(--gutter); gap: var(--space-2) }
 .table-toggle code { font-size: var(--text-sm) }
 .hidden-link { margin-left: var(--space-2); font-size: var(--text-xs) }
+.all-columns { display: flex; padding: var(--space-1) var(--gutter) var(--space-2) }
 /* El perfil de prueba en la barra: quién, el botón y una línea por central. */
 .profile { display: flex; flex-direction: column; align-items: flex-start; gap: var(--space-1); padding: var(--space-2) var(--gutter) var(--space-3) }
 .profile p { margin: 0 }
