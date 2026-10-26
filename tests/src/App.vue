@@ -192,6 +192,50 @@ async function runBaja() {
     if (baja.value === b) b.running = false
   }
 }
+// ── cambiar el estado de una solicitud que vino de una tienda, como si la entidad hubiera contestado. Va por el
+// simulador del backend (no un UPDATE): así corre el observer y la tienda se entera. Sólo estados finales ──
+const OUTCOMES = [
+  { status: 11, label: 'Aprobar', name: 'Autorizada', store: 'completed: el pedido queda pagado' },
+  { status: 6, label: 'Negar', name: 'Negada', store: 'failed: el comprador vuelve al checkout' },
+  { status: 8, label: 'Cancelar', name: 'Cancelado', store: 'cancelled: el pedido se cancela' },
+]
+// El wizard por ambiente, para volver a abrir la solicitud y ver en qué quedó.
+const WIZARD = { qa: 'https://originaciones-qa.dev.creditop.com', local: 'http://localhost:5174' }
+const statusDialog = ref(null)
+const move = ref(null) // { request, outcome, running, error }
+const moved = ref(null) // el último cambio: { request, previous, status, name, store, returnUrl, wizardUrl }
+function openMove(outcome) {
+  move.value = { request: r.value.request.id, outcome, running: false, error: '' }
+  statusDialog.value?.showModal()
+}
+function closeMove() { statusDialog.value?.close(); move.value = null }
+async function runMove() {
+  const m = move.value
+  if (!m || m.running) return
+  m.running = true; m.error = ''
+  try {
+    const res = await fetch('/api/request/status', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ target: target.value, request: m.request, status: m.outcome.status }),
+    })
+    const body = await res.json().catch(() => ({}))
+    if (!res.ok) throw new Error(body.error || `HTTP ${res.status}`)
+    const order = r.value?.order || {}
+    moved.value = {
+      request: m.request, previous: body.previous, status: body.status, name: m.outcome.name, store: m.outcome.store,
+      platform: order.platform || 'la tienda', returnUrl: order.return_url || '',
+      wizardUrl: order.branch_hash && WIZARD[target.value] ? `${WIZARD[target.value]}/ecommerce/${order.branch_hash}/${m.request}/lenders` : '',
+    }
+    closeMove()
+    lookup()
+  } catch (e) {
+    m.error = e.message
+  } finally {
+    if (move.value === m) m.running = false
+  }
+}
+watch([() => result.value?.request?.id, target], ([id]) => { if (moved.value && moved.value.request !== id) moved.value = null })
+
 // La basura va en todo cliente; una cuenta del equipo (administrador, asesor, operaciones…) no se toca acá.
 const isClient = (p) => String(p.user_profile_id) === '1'
 
@@ -518,12 +562,27 @@ onBeforeUnmount(() => {
         <span v-if="r?.request && r.input.who" class="count">{{ r.input.who }}</span>
         <span v-if="r?.request" class="count">{{ r.request.status_id }} · {{ r.request.status }}</span>
         <div v-if="r?.request" class="region-actions">
+          <template v-if="r.order">
+            <button v-for="o in OUTCOMES" :key="o.status" type="button" class="btn btn-xs btn-ghost"
+              :disabled="Number(r.request.status_id) === o.status" :title="`Pasar a ${o.status} · ${o.name}: la tienda recibe ${o.store}`" @click="openMove(o)">{{ o.label }}</button>
+          </template>
           <button type="button" class="region-action" title="Borrar la solicitud" aria-label="Borrar la solicitud" @click="openDelete(r.request.id)">
             <span class="ui-icon" data-icon="trash" aria-hidden="true"></span>
           </button>
         </div>
       </div>
       <div ref="editorBody" class="region-body">
+        <div v-if="moved" class="alert done" data-level="ok">
+          <div class="alert-desc">
+            <p>La solicitud {{ moved.request }} pasó de {{ moved.previous }} a <b>{{ moved.status }} · {{ moved.name }}</b>. {{ moved.platform }} recibe <code>{{ moved.store.split(':')[0] }}</code>{{ moved.store.slice(moved.store.indexOf(':')) }}.</p>
+            <p class="links">
+              <a v-if="moved.returnUrl" :href="moved.returnUrl" target="_blank" rel="noopener">Volver a la tienda ↗</a>
+              <a v-if="moved.wizardUrl" :href="moved.wizardUrl" target="_blank" rel="noopener">Abrir el wizard ↗</a>
+              <span v-if="!moved.returnUrl" class="muted">el pedido no trae URL de vuelta</span>
+            </p>
+          </div>
+          <button type="button" class="region-action" title="Cerrar" aria-label="Cerrar" @click="moved = null"><span class="ui-icon" data-icon="close" aria-hidden="true"></span></button>
+        </div>
         <div v-if="deleted" class="alert done" data-level="ok">
           <div v-if="!deleted.requests.length && deleted.tables.some((t) => t.table === 'users')" class="alert-desc"><p>Se borró del todo al usuario {{ deleted.users.join(', ') }} ({{ deleted.total }} filas). Copia en <code>{{ deleted.backup }}</code>.</p></div>
           <div v-else-if="!deleted.requests.length" class="alert-desc"><p>Se dio de baja al usuario {{ deleted.users.join(', ') }}: su correo, celular y cédula quedan libres. Copia en <code>{{ deleted.backup }}</code>.</p></div>
@@ -770,6 +829,19 @@ onBeforeUnmount(() => {
       </form>
     </dialog>
 
+    <dialog ref="statusDialog" class="confirm-dialog" aria-labelledby="move-title" @close="move = null" @cancel="move = null">
+      <form v-if="move" method="dialog" @submit.prevent="runMove">
+        <h2 id="move-title">¿Pasar la solicitud {{ move.request }} a {{ move.outcome.status }} · {{ move.outcome.name }}?</h2>
+        <p>Sale de {{ r?.request?.status_id }} · {{ r?.request?.status }}. Lo hace el simulador del backend de <b>{{ target }}</b>, como si la entidad hubiera contestado, y le avisa a {{ r?.order?.platform || 'la tienda' }}: <code>{{ move.outcome.store.split(':')[0] }}</code>{{ move.outcome.store.slice(move.outcome.store.indexOf(':')) }}.</p>
+        <p class="muted small">No deja fila en el historial de estados. {{ target === 'local' ? '' : 'El backend de qa es interno: hace falta la VPN de dev.' }}</p>
+        <p v-if="move.error" class="hot">{{ move.error }}</p>
+        <div class="confirm-actions">
+          <button type="button" class="btn btn-sm btn-outline" @click="closeMove">Cancelar</button>
+          <button type="submit" class="btn btn-sm" :disabled="move.running">{{ move.running ? 'Pasando…' : move.outcome.label }}</button>
+        </div>
+      </form>
+    </dialog>
+
     <dialog ref="userDialog" class="confirm-dialog" aria-labelledby="baja-title" @close="baja = null" @cancel="baja = null">
       <form v-if="baja" method="dialog" @submit.prevent="runBaja">
         <h2 id="baja-title">¿{{ baja.purge ? 'Borrar del todo' : 'Dar de baja' }} a {{ baja.person.name || `usuario ${baja.person.id}` }}?</h2>
@@ -852,6 +924,8 @@ code.wrap { word-break: break-all }
 .log-line .status { flex: none; min-width: 200px }
 .log-line .what { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--fg-2) }
 .log-line.ghost .what { font-style: italic; color: var(--tests-warn) }
+.alert .links { display: flex; gap: var(--space-3); margin: 0 }
+
 /* Borrar: una ventana nativa (<dialog>) con la pregunta, el conteo y dos botones. */
 .confirm-dialog { width: min(440px, calc(100vw - 32px)); padding: var(--space-4); border: 1px solid var(--border);
   border-radius: var(--radius-control); background: var(--background); color: var(--foreground) }

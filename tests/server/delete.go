@@ -381,6 +381,19 @@ type dbConfig struct{ host, port, name, user, pass string }
 
 // writeConfig lee la base del harness: el proceso gana sobre `harness/.env.<target>`, como en harness/pkg/env.ts.
 func writeConfig(target string) (dbConfig, error) {
+	get := harnessEnv(target)
+	c := dbConfig{get("E2E_DB_HOST"), get("E2E_DB_PORT"), get("E2E_DB_NAME"), get("E2E_DB_USER"), get("E2E_DB_PASS")}
+	if c.host == "" || c.name == "" || c.user == "" {
+		return c, fmt.Errorf("faltan E2E_DB_HOST, E2E_DB_NAME o E2E_DB_USER en harness/.env.%s: sin ellos no se escribe", target)
+	}
+	if c.port == "" {
+		c.port = "3306"
+	}
+	return c, nil
+}
+
+// harnessEnv lee una clave de harness/.env.<target>; el proceso gana sobre el archivo.
+func harnessEnv(target string) func(string) string {
 	file := filepath.Join(repoRoot(), "harness", ".env."+target)
 	vals := map[string]string{}
 	if data, err := os.ReadFile(file); err == nil {
@@ -395,20 +408,12 @@ func writeConfig(target string) (dbConfig, error) {
 			}
 		}
 	}
-	get := func(k string) string {
+	return func(k string) string {
 		if v := os.Getenv(k); v != "" {
 			return v
 		}
 		return vals[k]
 	}
-	c := dbConfig{get("E2E_DB_HOST"), get("E2E_DB_PORT"), get("E2E_DB_NAME"), get("E2E_DB_USER"), get("E2E_DB_PASS")}
-	if c.host == "" || c.name == "" || c.user == "" {
-		return c, fmt.Errorf("faltan E2E_DB_HOST, E2E_DB_NAME o E2E_DB_USER en harness/.env.%s: sin ellos no se escribe", target)
-	}
-	if c.port == "" {
-		c.port = "3306"
-	}
-	return c, nil
 }
 
 func isLocalHost(h string) bool { return h == "127.0.0.1" || h == "localhost" || h == "::1" }

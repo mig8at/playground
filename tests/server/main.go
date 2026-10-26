@@ -204,6 +204,29 @@ func handler() http.Handler {
 		}
 		writeJSON(w, http.StatusOK, res)
 	})
+	// POST /api/request/status {target, request, status} — pasa la solicitud a un estado final por el simulador del
+	// backend, que le avisa a la tienda.
+	mux.HandleFunc("/api/request/status", func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost {
+			writeJSON(w, http.StatusMethodNotAllowed, map[string]string{"error": "POST"})
+			return
+		}
+		var body struct {
+			Target  string `json:"target"`
+			Request int    `json:"request"`
+			Status  int    `json:"status"`
+		}
+		if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+			writeJSON(w, http.StatusBadRequest, map[string]string{"error": err.Error()})
+			return
+		}
+		res, err := SimulateStatus(body.Target, body.Request, body.Status)
+		if err != nil {
+			writeJSON(w, http.StatusUnprocessableEntity, map[string]string{"error": err.Error()})
+			return
+		}
+		writeJSON(w, http.StatusOK, res)
+	})
 	// POST /api/user/purge {target, user} — borra del todo a un cliente dado de baja y sin solicitudes, con respaldo.
 	mux.HandleFunc("/api/user/purge", func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost {
