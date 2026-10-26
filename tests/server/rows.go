@@ -56,7 +56,7 @@ func RequestTableRows(target string, request int, table string) (*TableRows, err
 		}
 		for _, t := range children {
 			if t.name == table {
-				where = childWhere(t.name, list)
+				where = viewWhere(t.name, list)
 				if t.hasID {
 					order = "id"
 				}

@@ -437,7 +437,7 @@ onBeforeUnmount(() => {
               <!-- El título es un botón: abre a la derecha la consulta que trae estas filas. -->
               <button type="button" class="db-table-head" :class="{ on: openTable === t.table }" :title="`Ver la consulta de ${t.table}`" @click="showTable(t.table)">
                 <code>{{ t.table }}</code>
-                <span class="count">{{ t.rows }} {{ t.rows === 1 ? 'fila' : 'filas' }}{{ t.table === 'users' ? ' · el usuario de la solicitud: no se borra con ella' : '' }}</span>
+                <span class="count">{{ t.rows }} {{ t.rows === 1 ? 'fila' : 'filas' }}{{ t.table === 'users' ? ' · el usuario de la solicitud: no se borra con ella' : '' }}{{ t.table === 'kyc_name_checks' ? ' · incluye las del usuario sin solicitud (TusDatos): ésas no se borran con ella' : '' }}</span>
                 <span class="ui-icon" data-icon="console" aria-hidden="true"></span>
               </button>
               <p v-if="tableRows[t.table]?.loading" class="none">Leyendo…</p>

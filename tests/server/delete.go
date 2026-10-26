@@ -256,7 +256,7 @@ func BuildPlan(target string, request int, byPhone, freeUsers bool) (*Plan, erro
 		return plan, nil
 	}
 
-	counts, err := countTables(src, eligible)
+	counts, err := countTables(src, eligible, childWhere)
 	if err != nil {
 		return nil, err
 	}
@@ -276,7 +276,7 @@ func BuildPlan(target string, request int, byPhone, freeUsers bool) (*Plan, erro
 
 // countTables cuenta, tabla por tabla, las filas que cuelgan de esas solicitudes (sin la solicitud misma).
 // Sólo lee: es lo que muestra el editor y la base del plan.
-func countTables(src dbsql.Source, ids []int) ([]TableCount, error) {
+func countTables(src dbsql.Source, ids []int, where func(table, list string) string) ([]TableCount, error) {
 	tables, err := childTables(src)
 	if err != nil {
 		return nil, err
@@ -284,7 +284,7 @@ func countTables(src dbsql.Source, ids []int) ([]TableCount, error) {
 	list := intList(ids)
 	var parts []string
 	for _, t := range tables {
-		parts = append(parts, fmt.Sprintf("SELECT '%s' AS t, COUNT(*) AS n FROM `%s` WHERE %s", t.name, t.name, childWhere(t.name, list)))
+		parts = append(parts, fmt.Sprintf("SELECT '%s' AS t, COUNT(*) AS n FROM `%s` WHERE %s", t.name, t.name, where(t.name, list)))
 	}
 	parts = append(parts, fmt.Sprintf("SELECT 'device_locks' AS t, COUNT(*) AS n FROM device_locks WHERE %s", deviceLocksWhere(list)))
 	counts, err := rows(src, strings.Join(parts, " UNION ALL "))
@@ -311,7 +311,7 @@ func RequestTables(target string, request int) ([]TableCount, error) {
 	if err != nil {
 		return nil, err
 	}
-	out, err := countTables(src, []int{request})
+	out, err := countTables(src, []int{request}, viewWhere)
 	if err != nil {
 		return nil, err
 	}
@@ -350,6 +350,18 @@ func childWhere(table, list string) string {
 		return fmt.Sprintf("user_request_id IN (%s) OR id IN (SELECT ecommerce_request_id FROM user_requests_by_ecommerce_request WHERE user_request_id IN (%s))", list, list)
 	}
 	return fmt.Sprintf("user_request_id IN (%s)", list)
+}
+
+// viewWhere es childWhere más lo que se MUESTRA pero no se borra con la solicitud: los chequeos de identidad
+// que TusDatos guarda sin `user_request_id` (TusDatosService los registra con null), del usuario de la
+// solicitud. Sin solicitud no se sabe de cuál son —el usuario puede tener varias—, así que borrar una no los
+// toca; se van al borrar del todo al usuario.
+func viewWhere(table, list string) string {
+	if table == "kyc_name_checks" {
+		return fmt.Sprintf("%s OR (user_request_id IS NULL AND user_id IN (SELECT user_id FROM user_requests WHERE id IN (%s)))",
+			childWhere(table, list), list)
+	}
+	return childWhere(table, list)
 }
 
 func deviceLocksWhere(list string) string {
