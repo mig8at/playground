@@ -78,6 +78,16 @@ function readSelf() {
   try { const v = JSON.parse(localStorage.getItem(SELF_KEY) || 'null'); return v && Array.isArray(v.emails) ? v : { emails: [], names: [], githubs: [] } } catch { return { emails: [], names: [], githubs: [] } }
 }
 
+// El agente `journal` se retiró del CLI: ni sus preguntas ni su conversación se muestran, tampoco las ya guardadas.
+const isJournal = (m) => m?.agent === 'journal'
+function dropJournal(all) {
+  for (const [key, c] of Object.entries(all)) {
+    if (/\/journal$/.test(key)) { delete all[key]; continue }
+    if (Array.isArray(c?.messages)) c.messages = c.messages.filter((m) => !isJournal(m))
+  }
+  return all
+}
+
 async function api(path, options) {
   const res = await fetch(path, options)
   const body = await res.json().catch(() => ({}))
@@ -89,7 +99,7 @@ const post = (path, body) => api(path, { method: 'POST', headers: { 'content-typ
 export const useChatStore = defineStore('chat', () => {
   // clave → { person: {email, name, github, agent?, owner?, agentName?, detail?}, messages: [...], readAt }
   // mensaje: { id, sid?, re?, dir: 'in'|'out', kind?: 'asked', agent?, text, time, status?, error? }
-  const conversations = ref(readStored())
+  const conversations = ref(dropJournal(readStored()))
   const activeKey = ref('')
   const state = ref(null)        // la última respuesta de /api/state
   const stateError = ref('')
@@ -215,7 +225,7 @@ export const useChatStore = defineStore('chat', () => {
      - mandado desde la terminal (`dir: out`): con agente, la pregunta que quedó esperando; si no, un mensaje. */
   function absorb(messages) {
     for (const m of messages || []) {
-      if (!m?.time) continue
+      if (!m?.time || isJournal(m)) continue
       const cut = deleted[keyOf(m.dir === 'out' ? m.to : m.from?.email)]
       if (cut && m.time <= cut) continue
       const sid = m.id || ''
@@ -372,7 +382,8 @@ export const useChatStore = defineStore('chat', () => {
   async function loadTeamAgents() {
     if (!state.value?.installed) return
     try {
-      teamAgents.value = (await api('/api/team-agents')).people || []
+      teamAgents.value = ((await api('/api/team-agents')).people || [])
+        .map((p) => ({ ...p, agents: (p.agents || []).filter((x) => x.name !== 'journal') }))
       teamAgentsError.value = ''
     } catch (e) { teamAgentsError.value = e.message }
   }
