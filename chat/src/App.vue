@@ -726,7 +726,7 @@ code { font-family: var(--font-mono); font-size: .92em }
 .conv-del { position: absolute; top: 6px; right: 6px; width: 22px; height: 22px; padding: 0; border: 0; border-radius: 6px; background: var(--muted);
   color: var(--fg-2); font-size: 11px; cursor: pointer; opacity: 0; transition: opacity .12s }
 .conv-item:hover .conv-del, .conv-del:focus-visible { opacity: 1 }
-.conv-del:hover { color: var(--bad, #c0392b) }
+.conv-del:hover { color: var(--task-blocked) }
 .conversations { list-style: none; margin: 0; padding: var(--space-1) 0 }
 .conversation { display: flex; align-items: center; gap: 10px; width: 100%; padding: 8px var(--gutter);
   border: 0; background: transparent; color: inherit; text-align: left; cursor: pointer; font: inherit }
