@@ -33,6 +33,9 @@ const agentOpen = ref(readSize('chat.agente-open', 1) !== 0)
 const agentW = ref(readSize('chat.agente-w', 380))
 function setAgentOpen(v) { agentOpen.value = v; saveSize('chat.agente-open', v ? 1 : 0) }
 // «Mi chat»: tu bandeja en el editor y tu agente a la derecha.
+function deleteConversation(c) {
+  if (window.confirm(`¿Borrar la conversación con ${c.person.name || c.person.email}? Sólo se borra de este navegador.`)) chat.removeConversation(c.person.email)
+}
 function openMyChat() { chat.activeKey = ''; setAgentOpen(true) }
 const agentLabel = computed(() => mine.agent.name || 'Mi agente')
 /* LAS FOTOS DE GOOGLE: la de cada persona viene con ella (el home la manda en quién está conectado y en cada mensaje);
@@ -363,7 +366,7 @@ const statusText = computed(() => {
         <!-- Una sola lista: las conversaciones y, abajo, quien está conectado y todavía no tiene una (el punto verde
              dice quién está). -->
         <ul v-if="chat.list.length || onlineWithoutChat.length" class="conversations">
-          <li v-for="c in chat.list" :key="c.person.email">
+          <li v-for="c in chat.list" :key="c.person.email" class="conv-item">
             <button type="button" class="conversation" :class="{ on: c.person.email === chat.activeKey }" @click="chat.open(c.person)">
               <span class="avatar" aria-hidden="true"><img v-if="photoOf(c.person)" class="avatar-photo" :src="photoOf(c.person)" alt="" referrerpolicy="no-referrer"><template v-else>{{ initials(c.person) }}</template><i v-if="c.online" class="presence"></i></span>
               <span class="conversation-main">
@@ -377,6 +380,8 @@ const statusText = computed(() => {
                 </span>
               </span>
             </button>
+            <button type="button" class="conv-del" title="Borrar conversación" aria-label="Borrar conversación"
+                    @click.stop="deleteConversation(c)">✕</button>
           </li>
           <li v-for="p in onlineWithoutChat" :key="p.email">
             <button type="button" class="conversation" @click="chat.open(p)">
@@ -717,6 +722,11 @@ code { font-family: var(--font-mono); font-size: .92em }
 /* ── el sidebar ── */
 .side-note { margin: 0; padding: var(--space-3) var(--gutter); color: var(--fg-2); font-size: var(--text-sm); line-height: 1.5 }
 .side-note.center { text-align: center; padding-top: var(--space-6) }
+.conv-item { position: relative }
+.conv-del { position: absolute; top: 6px; right: 6px; width: 22px; height: 22px; padding: 0; border: 0; border-radius: 6px; background: var(--muted);
+  color: var(--fg-2); font-size: 11px; cursor: pointer; opacity: 0; transition: opacity .12s }
+.conv-item:hover .conv-del, .conv-del:focus-visible { opacity: 1 }
+.conv-del:hover { color: var(--bad, #c0392b) }
 .conversations { list-style: none; margin: 0; padding: var(--space-1) 0 }
 .conversation { display: flex; align-items: center; gap: 10px; width: 100%; padding: 8px var(--gutter);
   border: 0; background: transparent; color: inherit; text-align: left; cursor: pointer; font: inherit }

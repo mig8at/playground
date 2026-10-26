@@ -64,6 +64,13 @@ function readStored() {
   } catch { return {} }
 }
 
+// Las conversaciones que borraste: clave → hasta qué mensaje. Lo anterior no vuelve cuando el listen lo reenvía.
+const DELETED_KEY = 'chat:borradas:v1'
+function readDeleted() {
+  try { const v = JSON.parse(localStorage.getItem(DELETED_KEY) || '{}'); return v && typeof v === 'object' ? v : {} } catch { return {} }
+}
+const plain = (s) => String(s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim().toLowerCase().replace(/\s+/g, ' ')
+
 async function api(path, options) {
   const res = await fetch(path, options)
   const body = await res.json().catch(() => ({}))
@@ -94,6 +101,7 @@ export const useChatStore = defineStore('chat', () => {
   const cuadrilla = ref(null)
   const cuadrillaError = ref('')
   const cuadrillaSeen = readSeen()
+  const deleted = readDeleted()
   // Tu agente (`myAgent.js`): con él prendido, a lo que te llega le arma una propuesta de respuesta.
   const mine = useMyAgentStore()
 
@@ -104,6 +112,17 @@ export const useChatStore = defineStore('chat', () => {
   const me = computed(() => state.value?.me || null)
   // Quién sos: del listen si está prendido, si no de la sesión. Tu propia conversación no se lista: «Mi chat» sos vos.
   const meKey = computed(() => keyOf(me.value?.email || state.value?.session?.email))
+  // «Yo» es toda cuenta con mi nombre o mi GitHub, aunque llegue con otro correo (@creditop.com, personal…): se vinculan
+  // a «Mi chat» y no salen como otra persona.
+  const myNames = computed(() => new Set([me.value?.name, state.value?.session?.name].map(plain).filter(Boolean)))
+  const myGithub = computed(() => plain(cuadrilla.value?.me))
+  const isMe = (person) => {
+    const key = keyOf(person?.email)
+    if (!key || isAgentKey(key)) return false
+    if (key === meKey.value) return true
+    if (person.github && myGithub.value && plain(person.github) === myGithub.value) return true
+    return !!person.name && myNames.value.has(plain(person.name))
+  }
   const onlineKeys = computed(() => new Set(online.value.map((p) => keyOf(p.email))))
 
   function ensure(person) {
@@ -124,7 +143,7 @@ export const useChatStore = defineStore('chat', () => {
   }
   // Las conversaciones con personas (los agentes van en su propia sección).
   const list = computed(() => Object.values(conversations.value)
-    .filter((c) => !isAgentKey(c.person.email) && c.person.email !== meKey.value)
+    .filter((c) => !isAgentKey(c.person.email) && !isMe(c.person))
     .map(summarize)
     .sort((a, b) => (b.last?.time || '').localeCompare(a.last?.time || '')))
 
@@ -182,6 +201,8 @@ export const useChatStore = defineStore('chat', () => {
   function absorb(messages) {
     for (const m of messages || []) {
       if (!m?.time) continue
+      const cut = deleted[keyOf(m.dir === 'out' ? m.to : m.from?.email)]
+      if (cut && m.time <= cut) continue
       const sid = m.id || ''
       if (m.dir === 'out') {
         if (!m.to) continue
@@ -273,7 +294,7 @@ export const useChatStore = defineStore('chat', () => {
   const inbox = computed(() => {
     const out = []
     for (const c of Object.values(conversations.value)) {
-      if (isAgentKey(c.person.email) || c.person.email === meKey.value) continue
+      if (isAgentKey(c.person.email) || isMe(c.person)) continue
       const msgs = c.messages
       msgs.forEach((m, i) => {
         if (m.dir !== 'in' || (m.kind && m.kind !== 'asked')) return
@@ -340,6 +361,17 @@ export const useChatStore = defineStore('chat', () => {
     try { await post('/api/listen', {}); await loadState() }
     catch (e) { listenError.value = e.message }
     finally { listenBusy.value = false }
+  }
+
+  // Borrar una conversación: se va de la lista y lo que ya llegó no vuelve; lo nuevo sí, como una conversación nueva.
+  function removeConversation(key) {
+    const c = conversations.value[key]
+    if (!c) return
+    const last = c.messages.reduce((t, m) => (m.time > t ? m.time : t), '')
+    if (last) deleted[key] = last
+    try { localStorage.setItem(DELETED_KEY, JSON.stringify(deleted)) } catch { /* vale mientras la pestaña */ }
+    delete conversations.value[key]
+    if (activeKey.value === key) activeKey.value = ''
   }
 
   function open(person) {
@@ -538,7 +570,7 @@ export const useChatStore = defineStore('chat', () => {
   return {
     conversations, activeKey, state, stateError, online, onlineError, listenBusy, listenError, loginBusy, loginError, login,
     teamAgents, teamAgentsError, cuadrilla, cuadrillaError, myTasks, taskUrl, loadCuadrilla, noteTask, doneTask,
-    proposeReplies, sendProposal, discardProposal, ownerName, inbox,
+    removeConversation, isMe, proposeReplies, sendProposal, discardProposal, ownerName, inbox,
     me, meKey, list, active, unreadTotal, onlineKeys, agentList,
     loadState, loadOnline, loadTeamAgents, startListening, open, openAgent, send, retry, forget, findBySid, start, stop,
   }
