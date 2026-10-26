@@ -447,78 +447,15 @@ func Delete(target string, request int, byPhone, freeUsers bool, confirm string,
 		}
 	}()
 
-	counts := map[string]int{}
 	backup, keep := newBackup(tx)
-	exec := func(table, query string) error {
-		res, err := tx.Exec(query)
-		if err != nil {
-			return err
-		}
-		n, _ := res.RowsAffected()
-		counts[table] += int(n)
-		return nil
-	}
-	// Por llave primaria: primero los ids (lectura), después el borrado de a tandas.
-	byID := func(table, where string) error {
-		got, err := tx.Query(fmt.Sprintf("SELECT id FROM `%s` WHERE %s", table, where))
-		if err != nil {
-			return err
-		}
-		var pks []int
-		for got.Next() {
-			var id int
-			if err := got.Scan(&id); err != nil {
-				got.Close()
-				return err
-			}
-			pks = append(pks, id)
-		}
-		got.Close()
-		for start := 0; start < len(pks); start += 500 {
-			end := min(start+500, len(pks))
-			batch := intList(pks[start:end])
-			if err := keep(table, fmt.Sprintf("SELECT * FROM `%s` WHERE id IN (%s)", table, batch)); err != nil {
-				return err
-			}
-			if err := exec(table, fmt.Sprintf("DELETE FROM `%s` WHERE id IN (%s)", table, batch)); err != nil {
-				return err
-			}
-		}
-		return nil
-	}
+	del := &txDeleter{tx: tx, keep: keep, counts: map[string]int{}}
+	counts, exec, byID := del.counts, del.exec, del.byID
 
 	if err := byID("device_locks", deviceLocksWhere(list)); err != nil {
 		return nil, fmt.Errorf("device_locks: %w", err)
 	}
-	// Las tablas entre sí pueden tener llaves foráneas (firmas → codeudores): se reintenta en otra pasada lo
-	// que falló por una llave (1451) hasta que no avance más.
-	pending := tables
-	for pass := 0; len(pending) > 0; pass++ {
-		var retry []childTable
-		var lastErr error
-		for _, t := range pending {
-			var err error
-			if t.hasID {
-				err = byID(t.name, childWhere(t.name, list))
-			} else {
-				err = keep(t.name, fmt.Sprintf("SELECT * FROM `%s` WHERE %s", t.name, childWhere(t.name, list)))
-				if err == nil {
-					err = exec(t.name, fmt.Sprintf("DELETE FROM `%s` WHERE %s", t.name, childWhere(t.name, list)))
-				}
-			}
-			var me *mysql.MySQLError
-			if errors.As(err, &me) && me.Number == 1451 {
-				retry, lastErr = append(retry, t), fmt.Errorf("%s: %w", t.name, err)
-				continue
-			}
-			if err != nil {
-				return nil, fmt.Errorf("%s: %w", t.name, err)
-			}
-		}
-		if len(retry) == len(pending) {
-			return nil, fmt.Errorf("no se pudo borrar por una llave foránea sin cascada, no se borró nada: %w", lastErr)
-		}
-		pending = retry
+	if err := del.purge(tables, func(t childTable) string { return childWhere(t.name, list) }); err != nil {
+		return nil, err
 	}
 	if err := keep("ecommerce_requests (original_user_request_id)", fmt.Sprintf("SELECT id, original_user_request_id FROM ecommerce_requests WHERE original_user_request_id IN (%s)", list)); err != nil {
 		return nil, fmt.Errorf("respaldo de ecommerce_requests: %w", err)
@@ -575,6 +512,86 @@ func Delete(target string, request int, byPhone, freeUsers bool, confirm string,
 		journal(out)
 	}
 	return out, nil
+}
+
+// txDeleter borra filas dentro de una transacción, respaldando cada una antes y contando por tabla.
+type txDeleter struct {
+	tx     *stdsql.Tx
+	keep   func(table, query string) error
+	counts map[string]int
+}
+
+func (d *txDeleter) exec(table, query string) error {
+	res, err := d.tx.Exec(query)
+	if err != nil {
+		return err
+	}
+	n, _ := res.RowsAffected()
+	d.counts[table] += int(n)
+	return nil
+}
+
+// byID borra por llave primaria: primero los ids (lectura), después de a tandas, respaldando cada tanda.
+func (d *txDeleter) byID(table, where string) error {
+	got, err := d.tx.Query(fmt.Sprintf("SELECT id FROM `%s` WHERE %s", table, where))
+	if err != nil {
+		return err
+	}
+	var pks []int
+	for got.Next() {
+		var id int
+		if err := got.Scan(&id); err != nil {
+			got.Close()
+			return err
+		}
+		pks = append(pks, id)
+	}
+	got.Close()
+	for start := 0; start < len(pks); start += 500 {
+		end := min(start+500, len(pks))
+		batch := intList(pks[start:end])
+		if err := d.keep(table, fmt.Sprintf("SELECT * FROM `%s` WHERE id IN (%s)", table, batch)); err != nil {
+			return err
+		}
+		if err := d.exec(table, fmt.Sprintf("DELETE FROM `%s` WHERE id IN (%s)", table, batch)); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// purge borra en cada tabla lo que diga where. Las tablas entre sí pueden tener llaves foráneas (firmas →
+// codeudores): se reintenta en otra pasada lo que falló por una llave (1451) hasta que no avance más.
+func (d *txDeleter) purge(tables []childTable, where func(childTable) string) error {
+	pending := tables
+	for len(pending) > 0 {
+		var retry []childTable
+		var lastErr error
+		for _, t := range pending {
+			var err error
+			if t.hasID {
+				err = d.byID(t.name, where(t))
+			} else {
+				err = d.keep(t.name, fmt.Sprintf("SELECT * FROM `%s` WHERE %s", t.name, where(t)))
+				if err == nil {
+					err = d.exec(t.name, fmt.Sprintf("DELETE FROM `%s` WHERE %s", t.name, where(t)))
+				}
+			}
+			var me *mysql.MySQLError
+			if errors.As(err, &me) && me.Number == 1451 {
+				retry, lastErr = append(retry, t), fmt.Errorf("%s: %w", t.name, err)
+				continue
+			}
+			if err != nil {
+				return fmt.Errorf("%s: %w", t.name, err)
+			}
+		}
+		if len(retry) == len(pending) {
+			return fmt.Errorf("no se pudo borrar por una llave foránea sin cascada, no se borró nada: %w", lastErr)
+		}
+		pending = retry
+	}
+	return nil
 }
 
 // newBackup arma el respaldo de una transacción: keep lee y guarda cada fila tal como estaba, justo antes de
@@ -708,6 +725,115 @@ func DisableUser(target string, id int, confirm string, rollback bool) (*Deleted
 	} else {
 		err = tx.Commit()
 	}
+	if err != nil {
+		return nil, err
+	}
+	if !rollback {
+		journal(out)
+	}
+	return out, nil
+}
+
+// userTables son las tablas con `user_id` de ESTA base (menos users), como childTables con `user_request_id`.
+func userTables(src dbsql.Source) ([]childTable, error) {
+	list, err := rows(src, `SELECT c.TABLE_NAME AS t, (SELECT COUNT(*) FROM information_schema.COLUMNS i
+			WHERE i.TABLE_SCHEMA = c.TABLE_SCHEMA AND i.TABLE_NAME = c.TABLE_NAME AND i.COLUMN_NAME = 'id' AND i.COLUMN_KEY = 'PRI') AS has_id
+		FROM information_schema.COLUMNS c JOIN information_schema.TABLES tb
+			ON tb.TABLE_SCHEMA = c.TABLE_SCHEMA AND tb.TABLE_NAME = c.TABLE_NAME AND tb.TABLE_TYPE = 'BASE TABLE'
+		WHERE c.TABLE_SCHEMA = DATABASE() AND c.COLUMN_NAME = 'user_id' AND c.TABLE_NAME <> 'users' ORDER BY c.TABLE_NAME`)
+	if err != nil {
+		return nil, fmt.Errorf("tablas del usuario: %w", err)
+	}
+	var out []childTable
+	for _, r := range list {
+		if name := cell(r, "t"); reTable.MatchString(name) {
+			out = append(out, childTable{name, cell(r, "has_id") == "1"})
+		}
+	}
+	return out, nil
+}
+
+// PurgeUser borra DEL TODO a un cliente ya dado de baja: su fila de users y las filas suyas de toda tabla con
+// `user_id`, con respaldo y en una transacción. Sólo clientes, sólo dados de baja (el activo primero se da de
+// baja, que es lo que libera su correo y celular) y sólo sin solicitudes (esas se borran antes, con lo que
+// cuelga de ellas). confirm es el id.
+func PurgeUser(target string, id int, confirm string, rollback bool) (*Deleted, error) {
+	if !validTarget(target) {
+		return nil, fmt.Errorf("ambiente %q: tests mira %s", target, strings.Join(Targets, " o "))
+	}
+	if blocked := writeBlocked(target); blocked != "" {
+		return nil, errors.New(blocked)
+	}
+	if strings.TrimSpace(confirm) != strconv.Itoa(id) {
+		return nil, fmt.Errorf("la confirmación no coincide: hay que mandar el id del usuario, %d", id)
+	}
+	src, err := source(target)
+	if err != nil {
+		return nil, err
+	}
+	u, err := first(src, `SELECT id, status, user_profile_id, (SELECT COUNT(*) FROM user_requests q WHERE q.user_id = u.id) AS requests
+		FROM users u WHERE id = ?`, id)
+	if err != nil {
+		return nil, err
+	}
+	switch {
+	case u == nil:
+		return nil, fmt.Errorf("no existe el usuario %d en %s", id, target)
+	case cell(u, "user_profile_id") != "1":
+		return nil, fmt.Errorf("el usuario %d no es un cliente (perfil %s): no se borra desde tests", id, cell(u, "user_profile_id"))
+	case cell(u, "status") == "1":
+		return nil, fmt.Errorf("el usuario %d está activo: primero se da de baja", id)
+	case cell(u, "requests") != "0":
+		return nil, fmt.Errorf("el usuario %d todavía tiene %s solicitudes: borralas antes", id, cell(u, "requests"))
+	}
+	tables, err := userTables(src)
+	if err != nil {
+		return nil, err
+	}
+	db, err := openWrite(target)
+	if err != nil {
+		return nil, err
+	}
+	defer db.Close()
+	tx, err := db.Begin()
+	if err != nil {
+		return nil, err
+	}
+	done := false
+	defer func() {
+		if !done {
+			_ = tx.Rollback()
+		}
+	}()
+	backup, keep := newBackup(tx)
+	del := &txDeleter{tx: tx, keep: keep, counts: map[string]int{}}
+	if err := del.purge(tables, func(childTable) string { return fmt.Sprintf("user_id = %d", id) }); err != nil {
+		return nil, err
+	}
+	if err := keep("users", fmt.Sprintf("SELECT * FROM users WHERE id = %d", id)); err != nil {
+		return nil, fmt.Errorf("respaldo del usuario: %w", err)
+	}
+	if err := del.exec("users", fmt.Sprintf("DELETE FROM users WHERE id = %d AND status = 0 AND user_profile_id = 1", id)); err != nil {
+		return nil, fmt.Errorf("users: %w", err)
+	}
+	out := &Deleted{Target: target, Requests: []int{}, Users: []int{id}, Tables: []TableCount{}, RolledBack: rollback,
+		At: time.Now().Format("2006-01-02 15:04:05")}
+	for t, n := range del.counts {
+		if n > 0 {
+			out.Tables = append(out.Tables, TableCount{t, n})
+			out.Total += n
+		}
+	}
+	sort.SliceStable(out.Tables, func(i, j int) bool { return out.Tables[i].Rows > out.Tables[j].Rows })
+	if out.Backup, err = writeBackup(out, backup); err != nil {
+		return nil, fmt.Errorf("no se pudo guardar el respaldo, no se borró nada: %w", err)
+	}
+	if rollback {
+		err = tx.Rollback()
+	} else {
+		err = tx.Commit()
+	}
+	done = true
 	if err != nil {
 		return nil, err
 	}

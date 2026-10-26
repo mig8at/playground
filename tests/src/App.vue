@@ -164,9 +164,10 @@ async function runDelete() {
 // ── dar de baja a una persona sin pasar por una solicitud: la que no tiene ninguna y estorba (un correo, una
 // cédula o un celular tomados). Otra ventana, las mismas reglas en el servidor ──
 const userDialog = ref(null)
-const baja = ref(null) // { person, running, error }
+const baja = ref(null) // { person, purge, running, error }
+// Activo: se da de baja (libera correo, celular y cédula). Ya dado de baja: se borra del todo.
 function openBaja(person) {
-  baja.value = { person, running: false, error: '' }
+  baja.value = { person, purge: String(person.status) !== '1', running: false, error: '' }
   userDialog.value?.showModal()
 }
 function closeBaja() { userDialog.value?.close(); baja.value = null }
@@ -175,7 +176,7 @@ async function runBaja() {
   if (!b || b.running) return
   b.running = true; b.error = ''
   try {
-    const res = await fetch('/api/user/disable', {
+    const res = await fetch(b.purge ? '/api/user/purge' : '/api/user/disable', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ target: target.value, user: b.person.id }),
     })
@@ -190,7 +191,8 @@ async function runBaja() {
     if (baja.value === b) b.running = false
   }
 }
-const isActiveClient = (p) => String(p.status) === '1' && String(p.user_profile_id) === '1'
+// La basura va en todo cliente; una cuenta del equipo (administrador, asesor, operaciones…) no se toca acá.
+const isClient = (p) => String(p.user_profile_id) === '1'
 
 // ── las tablas de la solicitud que se mira: cuántas filas tiene en cada una. Sólo lee ──
 const tables = ref([])
@@ -350,8 +352,8 @@ onBeforeUnmount(() => {
             <i class="dot" :data-state="String(p.status) === '1' ? 'ok' : 'off'" aria-hidden="true"></i>
             <span class="label">{{ p.name || `usuario ${p.id}` }} <span class="muted">· {{ String(p.status) === '1' ? p.profile : 'dado de baja' }}</span></span>
             <span class="row-meta">{{ p.requests }} sol.</span>
-            <span v-if="isActiveClient(p)" class="row-actions">
-              <button type="button" class="region-action" :title="`Dar de baja a ${p.name}`" :aria-label="`Dar de baja a ${p.name}`" @click.stop="openBaja(p)">
+            <span v-if="isClient(p)" class="row-actions">
+              <button type="button" class="region-action" :title="`${String(p.status) === '1' ? 'Dar de baja' : 'Borrar del todo'} a ${p.name}`" :aria-label="`${String(p.status) === '1' ? 'Dar de baja' : 'Borrar del todo'} a ${p.name}`" @click.stop="openBaja(p)">
                 <span class="ui-icon" data-icon="trash" aria-hidden="true"></span>
               </button>
             </span>
@@ -386,7 +388,8 @@ onBeforeUnmount(() => {
       </div>
       <div ref="editorBody" class="region-body">
         <div v-if="deleted" class="alert done" data-level="ok">
-          <div v-if="!deleted.requests.length" class="alert-desc"><p>Se dio de baja al usuario {{ deleted.users.join(', ') }}: su correo, celular y cédula quedan libres. Copia en <code>{{ deleted.backup }}</code>.</p></div>
+          <div v-if="!deleted.requests.length && deleted.tables.some((t) => t.table === 'users')" class="alert-desc"><p>Se borró del todo al usuario {{ deleted.users.join(', ') }} ({{ deleted.total }} filas). Copia en <code>{{ deleted.backup }}</code>.</p></div>
+          <div v-else-if="!deleted.requests.length" class="alert-desc"><p>Se dio de baja al usuario {{ deleted.users.join(', ') }}: su correo, celular y cédula quedan libres. Copia en <code>{{ deleted.backup }}</code>.</p></div>
           <div v-else class="alert-desc"><p>Se borró {{ deleted.requests.length > 1 ? `las solicitudes ${deleted.requests.join(', ')}` : `la solicitud ${deleted.requests[0]}` }} ({{ deleted.total }} filas en {{ deleted.tables.length }} tablas){{ deleted.users.length ? ` y se dio de baja al usuario ${deleted.users.join(', ')}` : '' }}. Copia en <code>{{ deleted.backup }}</code>.</p></div>
           <button type="button" class="region-action" title="Cerrar" aria-label="Cerrar" @click="deleted = null"><span class="ui-icon" data-icon="close" aria-hidden="true"></span></button>
         </div>
@@ -401,7 +404,7 @@ onBeforeUnmount(() => {
         <div v-else-if="!r.request" class="empty">
           <div class="empty-head">
             <div class="empty-title">Sin solicitudes</div>
-            <div class="empty-desc">{{ r.people.length === 1 ? 'La persona' : `Las ${r.people.length} personas` }} con {{ r.input.who }} no {{ r.people.length === 1 ? 'tiene' : 'tienen' }} solicitudes. Si una está activa, puede estar tomando el correo, el celular o la cédula: con la basura de la izquierda se la da de baja y quedan libres. Sólo clientes: una cuenta de administrador o de asesor no se toca desde acá.</div>
+            <div class="empty-desc">{{ r.people.length === 1 ? 'La persona' : `Las ${r.people.length} personas` }} con {{ r.input.who }} no {{ r.people.length === 1 ? 'tiene' : 'tienen' }} solicitudes. Con la basura de la izquierda: a una activa se la da de baja (libera su correo, celular y cédula) y a una ya dada de baja se la borra del todo. Sólo clientes: una cuenta de administrador o de asesor no se toca desde acá.</div>
           </div>
         </div>
         <template v-else>
@@ -523,15 +526,17 @@ onBeforeUnmount(() => {
 
     <dialog ref="userDialog" class="confirm-dialog" aria-labelledby="baja-title" @close="baja = null" @cancel="baja = null">
       <form v-if="baja" method="dialog" @submit.prevent="runBaja">
-        <h2 id="baja-title">¿Dar de baja a {{ baja.person.name || `usuario ${baja.person.id}` }}?</h2>
-        <p>Queda como en la papelera del admin: dado de baja, la cédula pasa a <code>{{ baja.person.document_number }}-t…</code> y pierde el correo y el celular. Así quedan libres para registrarse de nuevo. Se guarda una copia antes.</p>
+        <h2 id="baja-title">¿{{ baja.purge ? 'Borrar del todo' : 'Dar de baja' }} a {{ baja.person.name || `usuario ${baja.person.id}` }}?</h2>
+        <p v-if="baja.purge">Ya está dado de baja (<code>{{ baja.person.document_number }}</code>). Se borra su fila de <code>users</code> y las suyas de toda tabla con <code>user_id</code> (códigos OTP, términos aceptados…). No se puede deshacer; se guarda una copia antes.</p>
+        <p v-else>Queda como en la papelera del admin: dado de baja, la cédula pasa a <code>{{ baja.person.document_number }}-t…</code> y pierde el correo y el celular. Así quedan libres para registrarse de nuevo. Se guarda una copia antes.</p>
+        <p v-if="baja.purge && Number(baja.person.requests) > 0" class="hot">Tiene {{ baja.person.requests }} solicitudes: borralas antes, con la basura de cada una.</p>
         <p class="muted small">{{ baja.person.email || 'sin correo' }} · {{ baja.person.cell_phone || 'sin celular' }} · {{ baja.person.requests }} solicitudes</p>
         <p v-if="target !== 'local' && String(baja.person.is_test) !== '1'" class="warn">⚠ No está marcado de prueba: puede ser de otra persona del equipo.</p>
         <p v-if="baja.error" class="hot">{{ baja.error }}</p>
         <div class="confirm-actions">
           <button type="button" class="btn btn-sm btn-outline" @click="closeBaja">Cancelar</button>
-          <button type="submit" class="btn btn-sm btn-danger" :disabled="baja.running">
-            <span class="ui-icon" data-icon="trash" aria-hidden="true"></span>{{ baja.running ? 'Dando de baja…' : 'Dar de baja' }}
+          <button type="submit" class="btn btn-sm btn-danger" :disabled="baja.running || (baja.purge && Number(baja.person.requests) > 0)">
+            <span class="ui-icon" data-icon="trash" aria-hidden="true"></span>{{ baja.running ? '…' : baja.purge ? 'Borrar del todo' : 'Dar de baja' }}
           </button>
         </div>
       </form>

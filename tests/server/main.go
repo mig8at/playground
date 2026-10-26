@@ -29,10 +29,20 @@ func main() {
 	phone := flag.Bool("phone", false, "con -delete: todas las solicitudes del celular de esa solicitud")
 	confirm := flag.String("confirm", "", "con -delete: el número de la solicitud (o el celular, con -phone)")
 	rollback := flag.Bool("rollback", false, "con -delete: hace todo dentro de la transacción y la deshace")
+	purge := flag.Int("purge-user", 0, "borra del todo a ese usuario (cliente dado de baja, sin solicitudes), con respaldo; con -rollback lo deshace")
 	disable := flag.Int("disable-user", 0, "da de baja a ese usuario (cliente, activo), con respaldo; con -rollback lo deshace")
 	freeUsers := flag.Bool("free-users", false, "con -delete: además da de baja a los usuarios del celular (con -phone) o al de la solicitud si era su última")
 	flag.Parse()
 
+	if *purge > 0 {
+		out, err := PurgeUser(*target, *purge, strconv.Itoa(*purge), *rollback)
+		if err != nil {
+			fmt.Fprintln(os.Stderr, "tests:", err)
+			os.Exit(1)
+		}
+		_ = json.NewEncoder(os.Stdout).Encode(out)
+		return
+	}
 	if *disable > 0 {
 		out, err := DisableUser(*target, *disable, strconv.Itoa(*disable), *rollback)
 		if err != nil {
@@ -148,6 +158,27 @@ func handler() http.Handler {
 		}
 		// La ventana de la interfaz es la confirmación: el id viaja solo y DisableUser vuelve a comprobar todo.
 		res, err := DisableUser(body.Target, body.User, strconv.Itoa(body.User), false)
+		if err != nil {
+			writeJSON(w, http.StatusUnprocessableEntity, map[string]string{"error": err.Error()})
+			return
+		}
+		writeJSON(w, http.StatusOK, res)
+	})
+	// POST /api/user/purge {target, user} — borra del todo a un cliente dado de baja y sin solicitudes, con respaldo.
+	mux.HandleFunc("/api/user/purge", func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost {
+			writeJSON(w, http.StatusMethodNotAllowed, map[string]string{"error": "POST"})
+			return
+		}
+		var body struct {
+			Target string `json:"target"`
+			User   int    `json:"user"`
+		}
+		if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+			writeJSON(w, http.StatusBadRequest, map[string]string{"error": err.Error()})
+			return
+		}
+		res, err := PurgeUser(body.Target, body.User, strconv.Itoa(body.User), false)
 		if err != nil {
 			writeJSON(w, http.StatusUnprocessableEntity, map[string]string{"error": err.Error()})
 			return
