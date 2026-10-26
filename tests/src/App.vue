@@ -294,8 +294,20 @@ const HIDDEN_COLUMNS = new Set(['created_at', 'updated_at'])
 // Las de `users` que son del EQUIPO, no del cliente: a qué comercio, sucursal o entidad pertenece un asesor o un
 // administrador. En un cliente vienen vacías (1 de 224.905 en qa las tiene), y si traen algo no es de la solicitud.
 const STAFF_COLUMNS = { users: new Set(['allied_id', 'allied_branch_id', 'lender_id', 'corporate_user_id', 'multiple_allieds']) }
-// Una columna vacía en TODAS las filas no dice nada de esta solicitud. «Mostrar todas las columnas» la trae de vuelta;
-// la preferencia se recuerda en el navegador.
+// Columnas que vacías son RUIDO: no dicen en qué va la solicitud (imágenes, rastros de un cambio de celular que no
+// hubo, adjuntos). Se ocultan sólo si están vacías en todas las filas. Todo lo demás se ve aunque esté vacío,
+// porque ahí el vacío ES el dato: `lender_id` sin entidad, `disbursed_at` sin desembolso, `products` sin productos,
+// `cognito_id` sin cuenta. Una tabla que no está acá se ve entera (menos las fechas de alta y cambio).
+const NOISE_WHEN_EMPTY = {
+  users: new Set(['identity_id', 'resource', 'issue_country', 'place_of_birth', 'face_model_url', 'front_url', 'back_url', 'profile_data']),
+  ecommerce_requests: new Set(['pending_cell_phone', 'previous_cell_phone', 'cell_phone_changed_at']),
+  user_field_values: new Set(['file', 'file_name']),
+  kyc_name_checks: new Set(['detail']),
+  user_request_records: new Set(['comment']),
+}
+// Se ocultan siempre: no son datos de la prueba sino un secreto derivado.
+const NEVER_SHOWN = { ecommerce_requests: new Set(['verification_token_hash']) }
+// «Mostrar todas las columnas» trae todo de vuelta; la preferencia se recuerda en el navegador.
 const ALL_COLUMNS_KEY = 'tests.all-columns'
 const allColumns = ref((() => { try { return localStorage.getItem(ALL_COLUMNS_KEY) === '1' } catch { return false } })())
 watch(allColumns, (v) => { try { localStorage.setItem(ALL_COLUMNS_KEY, v ? '1' : '0') } catch { /* sólo no se recuerda */ } })
@@ -303,7 +315,10 @@ const isEmptyValue = (v) => v === null || v === undefined || v === '' || v === '
 function shownColumns(data) {
   if (allColumns.value) return data.columns
   const staff = STAFF_COLUMNS[data.table]
-  return data.columns.filter((c) => !HIDDEN_COLUMNS.has(c) && !staff?.has(c) && data.rows.some((r) => !isEmptyValue(r[c])))
+  const noise = NOISE_WHEN_EMPTY[data.table]
+  const never = NEVER_SHOWN[data.table]
+  return data.columns.filter((c) => !HIDDEN_COLUMNS.has(c) && !staff?.has(c) && !never?.has(c)
+    && !(noise?.has(c) && data.rows.every((r) => isEmptyValue(r[c]))))
 }
 const hiddenColumns = (data) => data.columns.length - shownColumns(data).length
 const cellText = (v) => (v === null || v === undefined ? 'NULL' : typeof v === 'object' ? JSON.stringify(v) : String(v))
@@ -622,7 +637,7 @@ onBeforeUnmount(() => {
         <p v-if="!tables.length" class="none">Las tablas de la solicitud que se mira; las que se apagan acá no se muestran en el editor.</p>
         <label class="checkbox-row all-columns">
           <input v-model="allColumns" type="checkbox" class="checkbox" />
-          <span>Mostrar todas las columnas <span class="muted">(si no: sin las vacías, sin fechas de alta y cambio, y sin las de equipo en users)</span></span>
+          <span>Mostrar todas las columnas <span class="muted">(si no: sin fechas de alta y cambio, sin las de equipo en users y sin las de ruido cuando están vacías)</span></span>
         </label>
         <label v-for="t in tables" :key="t.table" class="checkbox-row table-toggle">
           <input type="checkbox" class="checkbox" :checked="isShown(t.table)" @change="toggleTable(t.table)" />
