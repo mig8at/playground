@@ -69,7 +69,6 @@ const DELETED_KEY = 'chat:borradas:v1'
 function readDeleted() {
   try { const v = JSON.parse(localStorage.getItem(DELETED_KEY) || '{}'); return v && typeof v === 'object' ? v : {} } catch { return {} }
 }
-const handleOf = (email) => { const m = /^([^@]+)@creditop\.com$/.exec(String(email || '')); return m ? m[1] : '' }
 const plain = (s) => String(s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim().toLowerCase().replace(/\s+/g, ' ')
 
 // Quién sos, recordado: la sesión puede estar vencida (sin nombre) y tus conversaciones de otra cuenta tuya
@@ -136,9 +135,6 @@ export const useChatStore = defineStore('chat', () => {
     const key = keyOf(person?.email)
     if (!key || isAgentKey(key)) return false
     if (key === meKey.value || self.value.emails.includes(key)) return true
-    // Tu @: en @creditop.com, la parte antes de la arroba (@miguel) es tu chat, venga como venga el resto.
-    const at = handleOf(key)
-    if (at && (at === handleOf(meKey.value) || self.value.emails.some((e) => handleOf(e) === at))) return true
     if (person.github && self.value.githubs.includes(plain(person.github))) return true
     return !!person.name && self.value.names.includes(plain(person.name))
   }

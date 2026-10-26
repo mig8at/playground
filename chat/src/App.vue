@@ -36,6 +36,8 @@ function setAgentOpen(v) { agentOpen.value = v; saveSize('chat.agente-open', v ?
 function deleteConversation(c) {
   if (window.confirm(`¿Borrar la conversación con ${c.person.name || c.person.email}? Sólo se borra de este navegador.`)) chat.removeConversation(c.person.email)
 }
+// Tu @ en el chat del equipo: la parte del correo antes de la arroba, como te escriben (`playground send @miguel`).
+const myHandle = computed(() => { const e = chat.state?.session?.email || chat.me?.email || ''; return e ? `@${e.split('@')[0]}` : '' })
 function openMyChat() { chat.activeKey = ''; setAgentOpen(true) }
 const agentLabel = computed(() => mine.agent.name || 'Mi agente')
 /* LAS FOTOS DE GOOGLE: la de cada persona viene con ella (el home la manda en quién está conectado y en cada mensaje);
@@ -463,7 +465,7 @@ const statusText = computed(() => {
           </div>
         </template>
         <template v-else>
-          <span>Mi chat</span>
+          <span class="head-who"><span class="head-title">Mi chat</span><span v-if="myHandle" class="count head-sub">{{ myHandle }}</span></span>
           <div class="region-actions">
             <button type="button" class="region-action" title="Vaciar Mi chat: oculta lo recibido hasta ahora"
                     aria-label="Vaciar Mi chat" :disabled="!chat.inbox.length" @click="clearInbox">
