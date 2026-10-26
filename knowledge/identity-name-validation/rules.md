@@ -44,7 +44,9 @@ de una: si `shouldValidateTusDatos` lo permite se consulta TusDatos, y sólo si 
 `ONB005`. `shouldValidateTusDatos` cuenta los fallos por usuario en caché y deja pasar hasta
 `personal_info_validation_error_max_attempts` (3 por defecto) dentro de
 `personal_info_validation_error_cache_duration` minutos (5 por defecto). Así, el primer no-match de
-Ágil Data termina decidido por lo que conteste TusDatos.
+Ágil Data termina decidido por lo que conteste TusDatos. Fue al revés hasta el 2026-06-18: la versión original devolvía
+`false` en los primeros intentos (el error de nombres iba al cliente para corregir) y consultaba TusDatos
+recién al agotarlos; el PR #850 invirtió los dos `return`.
 
 `kyc_name_checks` sólo monitorea: `KycNameCheckRecorder` registra ingresado contra devuelto y clasifica
 el motivo (`match`, `wrong_document` cuando no hay ninguna palabra en común, `token_order`,
