@@ -281,14 +281,40 @@ const panelTab = ref('states') // states · tables
 
 // ── el sidebar derecho: la consulta de la tabla cuyo título se tocó, para correrla en otro lado ──
 const openTable = ref(null) // nombre de la tabla
-function showTable(name) { openTable.value = openTable.value === name ? null : name }
+function showTable(name) { openCell.value = null; openTable.value = openTable.value === name ? null : name; if (openTable.value) auxOpen.value = true }
+
+// ── una celda abierta en el panel derecho: su valor entero; si es JSON, formateado ──
+const openCell = ref(null) // { table, column, rowKey, rowLabel, value }
+function showCell(table, column, row, i) {
+  const rowKey = row.id ?? row.audit_id ?? i
+  if (openCell.value && openCell.value.table === table && openCell.value.column === column && openCell.value.rowKey === rowKey) { openCell.value = null; return }
+  openTable.value = null
+  openCell.value = { table, column, rowKey, rowLabel: row.id !== undefined ? `id ${row.id}` : `fila ${i + 1}`, value: row[column] }
+  auxOpen.value = true
+}
+const isOpenCell = (table, column, row, i) => !!openCell.value && openCell.value.table === table && openCell.value.column === column
+  && openCell.value.rowKey === (row.id ?? row.audit_id ?? i)
+// El JSON llega como objeto (el conector ya lo parseó) o como texto que lo es: los dos se muestran con sangría.
+const cellJSON = computed(() => {
+  const v = openCell.value?.value
+  if (v !== null && typeof v === 'object') return JSON.stringify(v, null, 2)
+  if (typeof v === 'string' && /^\s*[[{]/.test(v)) {
+    try { return JSON.stringify(JSON.parse(v), null, 2) } catch { return null }
+  }
+  return null
+})
+const cellText2 = computed(() => (cellJSON.value ?? cellText(openCell.value?.value)))
+const cellCopied = ref(false)
+async function copyCell() {
+  try { await navigator.clipboard.writeText(cellText2.value); cellCopied.value = true; setTimeout(() => { cellCopied.value = false }, 1500) } catch { /* sin portapapeles */ }
+}
 const openQuery = computed(() => (openTable.value ? tableRows.value[openTable.value]?.data?.query || '' : ''))
 const copied = ref(false)
 async function copyQuery() {
   try { await navigator.clipboard.writeText(openQuery.value); copied.value = true; setTimeout(() => { copied.value = false }, 1500) } catch { /* sin portapapeles */ }
 }
 // Otra solicitud u otro ambiente: la consulta abierta era de la anterior.
-watch([() => result.value?.request?.id, target], () => { openTable.value = null })
+watch([() => result.value?.request?.id, target], () => { openTable.value = null; openCell.value = null })
 // Las fechas de alta y de cambio de cada fila son ruido para una prueba: no se muestran (la consulta las trae).
 const HIDDEN_COLUMNS = new Set(['created_at', 'updated_at'])
 // Las de `users` que son del EQUIPO, no del cliente: a qué comercio, sucursal o entidad pertenece un asesor o un
@@ -347,7 +373,7 @@ const shown = computed(() => {
   // Si no entran, se pliega primero el de las búsquedas: el de la derecha es lo que se acaba de abrir.
   const [sidebar, aux] = fitRegions(viewportW.value - cssSize('--editor-min', 360), [
     { size: sidebarOpen.value ? sidebarW.value : 0, min: cssSize('--sidebar-min', 240) },
-    { size: auxOpen.value || openTable.value ? auxW.value : 0, min: cssSize('--sidebar-min', 240) },
+    { size: auxOpen.value || openTable.value || openCell.value ? auxW.value : 0, min: cssSize('--sidebar-min', 240) },
   ])
   const [panel] = fitRegions(viewportH.value - 200, [
     { size: panelOpen.value ? panelH.value : 0, min: cssSize('--panel-min', 124) },
@@ -371,7 +397,7 @@ const auxResize = {
   min: () => cssSize('--sidebar-min', 240),
   max: () => viewportW.value - cssSize('--editor-min', 360) - shown.value.sidebar,
   get: () => shown.value.aux,
-  set: (v) => { if (!v) { openTable.value = null; auxOpen.value = false } else { auxOpen.value = true; auxW.value = v } },
+  set: (v) => { if (!v) { openTable.value = null; openCell.value = null; auxOpen.value = false } else { auxOpen.value = true; auxW.value = v } },
   reopen: () => auxW.value,
   commit: (v) => { saveSize('tests.aux-open', v ? 1 : 0); if (v) saveSize('tests.aux-w', auxW.value) },
 }
@@ -385,7 +411,7 @@ const panelResize = {
   commit: (v) => { saveSize('tests.panel-open', v ? 1 : 0); if (v) saveSize('tests.panel-h', panelH.value) },
 }
 function toggleSidebar() { sidebarOpen.value = !shown.value.sidebar; saveSize('tests.sidebar-open', sidebarOpen.value ? 1 : 0) }
-function toggleAux() { auxOpen.value = !shown.value.aux; if (!auxOpen.value) openTable.value = null; saveSize('tests.aux-open', auxOpen.value ? 1 : 0) }
+function toggleAux() { auxOpen.value = !shown.value.aux; if (!auxOpen.value) { openTable.value = null; openCell.value = null }; saveSize('tests.aux-open', auxOpen.value ? 1 : 0) }
 function togglePanel() { panelOpen.value = !shown.value.panel; saveSize('tests.panel-open', panelOpen.value ? 1 : 0) }
 
 const themeToggle = ref(null)
@@ -514,7 +540,8 @@ onBeforeUnmount(() => {
                   <thead><tr><th v-for="c in shownColumns(tableRows[t.table].data)" :key="c">{{ c }}</th></tr></thead>
                   <tbody>
                     <tr v-for="(row, i) in tableRows[t.table].data.rows" :key="row.id ?? i">
-                      <td v-for="c in shownColumns(tableRows[t.table].data)" :key="c" :class="{ muted: row[c] === null }" :title="cellText(row[c])">{{ cellText(row[c]) }}</td>
+                      <td v-for="c in shownColumns(tableRows[t.table].data)" :key="c" class="cell" :class="{ muted: row[c] === null, on: isOpenCell(t.table, c, row, i) }"
+                        :title="`${c}: clic para ver el valor entero`" @click="showCell(t.table, c, row, i)">{{ cellText(row[c]) }}</td>
                     </tr>
                   </tbody>
                 </table>
@@ -546,9 +573,27 @@ onBeforeUnmount(() => {
       </div>
     </main>
 
-    <aside v-if="shown.aux" class="auxiliarybar" :aria-label="openTable ? `Consulta de ${openTable}` : 'Centrales de prueba'">
+    <aside v-if="shown.aux" class="auxiliarybar" :aria-label="openCell ? `Valor de ${openCell.table}.${openCell.column}` : openTable ? `Consulta de ${openTable}` : 'Centrales de prueba'">
       <div class="rsz rsz-edge-left" v-resize="auxResize"></div>
-      <template v-if="openTable">
+      <template v-if="openCell">
+        <div class="region-head">
+          <code>{{ openCell.table }}.{{ openCell.column }}</code>
+          <span class="count">{{ openCell.rowLabel }}{{ cellJSON !== null ? ' · JSON' : '' }}</span>
+          <div class="region-actions">
+            <button type="button" class="region-action" :title="cellCopied ? 'Copiado' : 'Copiar el valor'" aria-label="Copiar el valor" @click="copyCell">
+              <span class="ui-icon" data-icon="copy" aria-hidden="true"></span>
+            </button>
+            <button type="button" class="region-action" title="Cerrar el valor" aria-label="Cerrar el valor" @click="openCell = null">
+              <span class="ui-icon" data-icon="close" aria-hidden="true"></span>
+            </button>
+          </div>
+        </div>
+        <div class="region-body">
+          <pre class="sql cell-value" :class="{ 'is-null': openCell.value === null }"><code>{{ cellText2 }}</code></pre>
+          <p v-if="cellCopied" class="none ok">Copiado.</p>
+        </div>
+      </template>
+      <template v-else-if="openTable">
         <div class="region-head">
           <code>{{ openTable }}</code>
           <span class="count">consulta</span>
@@ -799,6 +844,10 @@ code.wrap { word-break: break-all }
 .table.db tbody tr:last-child td { border-bottom: 0 }
 .table.db th { font-family: var(--font-sans); font-weight: 600; background: var(--muted); color: var(--foreground) }
 .table.db tbody tr:hover td { background: var(--hover) }
+/* Una celda se toca para ver su valor entero a la derecha; la abierta queda marcada. */
+.table.db td.cell { cursor: pointer }
+.table.db td.cell.on { background: var(--accent); color: var(--accent-foreground); box-shadow: inset 0 0 0 1px var(--ring) }
+.cell-value.is-null { color: var(--fg-3) }
 /* La consulta, en el sidebar derecho: mono, que se corta en renglones y se puede seleccionar. */
 .sql { margin: 0; padding: var(--space-3) var(--gutter); white-space: pre-wrap; word-break: break-word;
   font-family: var(--font-mono); font-size: var(--text-sm); line-height: 1.6; user-select: text }
