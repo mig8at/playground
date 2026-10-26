@@ -2,7 +2,7 @@
   "version": 1,
   "title": "Identidad: coincidencia y adopción de nombres",
   "summary": "Códigos de TusDatos, adopción de Ágil Data y Mareigua, y límites de la comparación de nombres.",
-  "reviewedAt": "2026-10-20T22:04:13+00:00",
+  "reviewedAt": "2026-10-26T16:05:00-05:00",
   "sources": [
     {
       "repo": "legacy-backend",
@@ -10,14 +10,15 @@
       "commit": "63123374a5d0875c908a83e3145f334b2ff913ee",
       "blob": "b03fe5ab99e950f98e2bfe45a8ef1e83f373f941",
       "sections": [
-        "tusdatos-distingue-ausencia-de-desacuerdo-para-cedula"
+        "tusdatos-distingue-ausencia-de-desacuerdo-para-cedula",
+        "un-no-match-de-nombres-no-rechaza-solo-la-cascada-sigue-a-tusdatos"
       ]
     },
     {
       "repo": "legacy-backend",
       "path": "Modules/Identity/App/Services/AgildataService.php",
-      "commit": "406bf8a28404f31524280acea1c0bb6b1cd29c05",
-      "blob": "f256894cc715ab8b2dd294165cfc37f300827791",
+      "commit": "47dd8bcb41c1130a1bfdf011844ae93b39336356",
+      "blob": "91c759bda20dc696cb4bd7f9dc1177e9530218a6",
       "sections": [
         "agil-data-y-mareigua-pueden-devolver-una-version-adoptada"
       ]
@@ -48,6 +49,24 @@
       "blob": "53a4ca5d99d8139623f1d3bf9809c69a54137efa",
       "sections": [
         "la-aplicacion-anterior-tiene-otro-camino-de-escritura"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/Onboarding/App/Services/OnboardingService.php",
+      "commit": "47dd8bcb41c1130a1bfdf011844ae93b39336356",
+      "blob": "2b8146b5aa65d80b144d70c774b1d12cce4c9fa3",
+      "sections": [
+        "un-no-match-de-nombres-no-rechaza-solo-la-cascada-sigue-a-tusdatos"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/Identity/App/Services/KycNameCheckRecorder.php",
+      "commit": "47dd8bcb41c1130a1bfdf011844ae93b39336356",
+      "blob": "e58b17f817f64e2058b8ba75299d0acca6194963",
+      "sections": [
+        "un-no-match-de-nombres-no-rechaza-solo-la-cascada-sigue-a-tusdatos"
       ]
     }
   ]

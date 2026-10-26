@@ -36,6 +36,22 @@ la central sí las trae, gana la central. La adopción también registra una fil
 servicios continúan por su validación anterior. Por tanto, no describir toda la identidad
 como una compuerta que siempre devuelve exactamente lo tecleado.
 
+## Un no-match de nombres no rechaza solo: la cascada sigue a TusDatos
+
+En `OnboardingService::storePersonalInfo` la identidad es una cascada Ágil Data → Mareigua → TusDatos.
+Cuando Ágil Data o Mareigua devuelven error **con** `errors` (los nombres no coinciden), no se rechaza
+de una: si `shouldValidateTusDatos` lo permite se consulta TusDatos, y sólo si no lo permite se responde
+`ONB005`. `shouldValidateTusDatos` cuenta los fallos por usuario en caché y deja pasar hasta
+`personal_info_validation_error_max_attempts` (3 por defecto) dentro de
+`personal_info_validation_error_cache_duration` minutos (5 por defecto). Así, el primer no-match de
+Ágil Data termina decidido por lo que conteste TusDatos.
+
+`kyc_name_checks` sólo monitorea: `KycNameCheckRecorder` registra ingresado contra devuelto y clasifica
+el motivo (`match`, `wrong_document` cuando no hay ninguna palabra en común, `token_order`,
+`token_mismatch`, `provider_no_data`), pero nunca decide ni lanza. Una fila `passed = 0` de Ágil Data
+no significa que la persona fue rechazada. TusDatos guarda sus filas con `user_request_id` en null:
+para ver todas las de una solicitud hay que buscarlas también por `user_id`.
+
 ## La tolerancia no certifica identidad ni completa todos los nombres
 
 `NameSimilarity::compare` normaliza a ASCII, mayúsculas y espacios simples. Acepta igualdad o las
