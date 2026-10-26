@@ -362,7 +362,8 @@ const statusText = computed(() => {
         <p v-if="!chat.list.length && !onlineWithoutChat.length" class="side-note">
           Todavía no hay conversaciones ni nadie más conectado. Cuando alguien abra <code>playground listen</code>, aparece acá.
         </p>
-        <p v-if="chat.onlineError" class="side-note bad">{{ chat.onlineError }}</p>
+        <p v-if="chat.loginBusy || chat.state?.login?.running" class="side-note">Entrando al playground…</p>
+        <p v-else-if="chat.onlineError" class="side-note bad">{{ chat.onlineError }}</p>
         <!-- Una sola lista: las conversaciones y, abajo, quien está conectado y todavía no tiene una (el punto verde
              dice quién está). -->
         <ul v-if="chat.list.length || onlineWithoutChat.length" class="conversations">

@@ -579,7 +579,12 @@ export const useChatStore = defineStore('chat', () => {
       if (document.visibilityState === 'visible') await Promise.all([loadOnline(), loadTeamAgents()])
       onlineTimer = setTimeout(tickOnline, POLL_ONLINE_MS)
     }
-    loadState().then(() => Promise.all([loadOnline(), loadTeamAgents(), loadCuadrilla()])).then(proposeReplies)
+    // Sin sesión al abrir, entra solo (una vez por carga: si lo cancelás, queda el botón «Entrar»).
+    const autoLogin = () => {
+      const st = state.value
+      if (st && !st.session && !st.login?.running && !loginBusy.value) login()
+    }
+    loadState().then(autoLogin).then(() => Promise.all([loadOnline(), loadTeamAgents(), loadCuadrilla()])).then(proposeReplies)
     cuadrillaTimer = setTimeout(tickCuadrilla, POLL_CUADRILLA_MS)
     stateTimer = setTimeout(tickState, POLL_STATE_MS)
     onlineTimer = setTimeout(tickOnline, POLL_ONLINE_MS)
