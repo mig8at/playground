@@ -201,9 +201,19 @@ const OUTCOMES = [
 ]
 // El wizard por ambiente, para volver a abrir la solicitud y ver en qué quedó.
 const WIZARD = { qa: 'https://originaciones-qa.dev.creditop.com', local: 'http://localhost:5174' }
+// Los enlaces de la solicitud abierta: a dónde vuelve el comprador (la tienda) y el wizard. Fijos en la barra, para
+// volver a mirar la compra después de recargar.
+const links = computed(() => {
+  const order = r.value?.order
+  if (!order || !r.value?.request) return null
+  return {
+    store: order.return_url || '',
+    wizard: order.branch_hash && WIZARD[target.value] ? `${WIZARD[target.value]}/ecommerce/${order.branch_hash}/${r.value.request.id}/lenders` : '',
+  }
+})
 const statusDialog = ref(null)
 const move = ref(null) // { request, outcome, running, error }
-const moved = ref(null) // el último cambio: { request, previous, status, name, store, returnUrl, wizardUrl }
+const moved = ref(null) // el último cambio: { request, previous, status, name, store, platform }
 function openMove(outcome) {
   move.value = { request: r.value.request.id, outcome, running: false, error: '' }
   statusDialog.value?.showModal()
@@ -223,8 +233,7 @@ async function runMove() {
     const order = r.value?.order || {}
     moved.value = {
       request: m.request, previous: body.previous, status: body.status, name: m.outcome.name, store: m.outcome.store,
-      platform: order.platform || 'la tienda', returnUrl: order.return_url || '',
-      wizardUrl: order.branch_hash && WIZARD[target.value] ? `${WIZARD[target.value]}/ecommerce/${order.branch_hash}/${m.request}/lenders` : '',
+      platform: order.platform || 'la tienda',
     }
     closeMove()
     lookup()
@@ -562,6 +571,11 @@ onBeforeUnmount(() => {
         <span v-if="r?.request && r.input.who" class="count">{{ r.input.who }}</span>
         <span v-if="r?.request" class="count">{{ r.request.status_id }} · {{ r.request.status }}</span>
         <div v-if="r?.request" class="region-actions">
+          <template v-if="links">
+            <a v-if="links.store" class="btn btn-xs btn-ghost" :href="links.store" target="_blank" rel="noopener" title="La página a la que vuelve el comprador: ahí se ve en qué quedó la compra">Tienda ↗</a>
+            <a v-if="links.wizard" class="btn btn-xs btn-ghost" :href="links.wizard" target="_blank" rel="noopener" title="La solicitud en el wizard">Wizard ↗</a>
+            <span class="bar-sep" aria-hidden="true"></span>
+          </template>
           <template v-if="r.order">
             <button v-for="o in OUTCOMES" :key="o.status" type="button" class="btn btn-xs btn-ghost"
               :disabled="Number(r.request.status_id) === o.status" :title="`Pasar a ${o.status} · ${o.name}: la tienda recibe ${o.store}`" @click="openMove(o)">{{ o.label }}</button>
@@ -575,11 +589,7 @@ onBeforeUnmount(() => {
         <div v-if="moved" class="alert done" data-level="ok">
           <div class="alert-desc">
             <p>La solicitud {{ moved.request }} pasó de {{ moved.previous }} a <b>{{ moved.status }} · {{ moved.name }}</b>. {{ moved.platform }} recibe <code>{{ moved.store.split(':')[0] }}</code>{{ moved.store.slice(moved.store.indexOf(':')) }}.</p>
-            <p class="links">
-              <a v-if="moved.returnUrl" :href="moved.returnUrl" target="_blank" rel="noopener">Volver a la tienda ↗</a>
-              <a v-if="moved.wizardUrl" :href="moved.wizardUrl" target="_blank" rel="noopener">Abrir el wizard ↗</a>
-              <span v-if="!moved.returnUrl" class="muted">el pedido no trae URL de vuelta</span>
-            </p>
+            <p class="muted">Con «Tienda ↗» de la barra ves en qué quedó la compra.</p>
           </div>
           <button type="button" class="region-action" title="Cerrar" aria-label="Cerrar" @click="moved = null"><span class="ui-icon" data-icon="close" aria-hidden="true"></span></button>
         </div>
@@ -924,7 +934,7 @@ code.wrap { word-break: break-all }
 .log-line .status { flex: none; min-width: 200px }
 .log-line .what { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--fg-2) }
 .log-line.ghost .what { font-style: italic; color: var(--tests-warn) }
-.alert .links { display: flex; gap: var(--space-3); margin: 0 }
+.bar-sep { width: 1px; height: 14px; margin: 0 var(--space-1); background: var(--border) }
 
 /* Borrar: una ventana nativa (<dialog>) con la pregunta, el conteo y dos botones. */
 .confirm-dialog { width: min(440px, calc(100vw - 32px)); padding: var(--space-4); border: 1px solid var(--border);
