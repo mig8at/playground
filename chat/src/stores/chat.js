@@ -71,6 +71,13 @@ function readDeleted() {
 }
 const plain = (s) => String(s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim().toLowerCase().replace(/\s+/g, ' ')
 
+// Quién sos, recordado: la sesión puede estar vencida (sin nombre) y tus conversaciones de otra cuenta tuya
+// siguen ahí. Se guardan tus correos, nombres y GitHub de cuando sí se sabían.
+const SELF_KEY = 'chat:yo:v1'
+function readSelf() {
+  try { const v = JSON.parse(localStorage.getItem(SELF_KEY) || 'null'); return v && Array.isArray(v.emails) ? v : { emails: [], names: [], githubs: [] } } catch { return { emails: [], names: [], githubs: [] } }
+}
+
 async function api(path, options) {
   const res = await fetch(path, options)
   const body = await res.json().catch(() => ({}))
@@ -102,6 +109,7 @@ export const useChatStore = defineStore('chat', () => {
   const cuadrillaError = ref('')
   const cuadrillaSeen = readSeen()
   const deleted = readDeleted()
+  const self = ref(readSelf())
   // Tu agente (`myAgent.js`): con él prendido, a lo que te llega le arma una propuesta de respuesta.
   const mine = useMyAgentStore()
 
@@ -114,14 +122,21 @@ export const useChatStore = defineStore('chat', () => {
   const meKey = computed(() => keyOf(me.value?.email || state.value?.session?.email))
   // «Yo» es toda cuenta con mi nombre o mi GitHub, aunque llegue con otro correo (@creditop.com, personal…): se vinculan
   // a «Mi chat» y no salen como otra persona.
-  const myNames = computed(() => new Set([me.value?.name, state.value?.session?.name].map(plain).filter(Boolean)))
-  const myGithub = computed(() => plain(cuadrilla.value?.me))
+  const remember = (list, v) => { const x = plain(v); if (x && !list.includes(x)) list.push(x) }
+  watch([me, () => state.value?.session, () => cuadrilla.value?.me], () => {
+    const next = { emails: [...self.value.emails], names: [...self.value.names], githubs: [...self.value.githubs] }
+    for (const who of [me.value, state.value?.session]) { remember(next.emails, who?.email); remember(next.names, who?.name) }
+    remember(next.githubs, cuadrilla.value?.me)
+    if (JSON.stringify(next) === JSON.stringify(self.value)) return
+    self.value = next
+    try { localStorage.setItem(SELF_KEY, JSON.stringify(next)) } catch { /* vale mientras la pestaña */ }
+  }, { immediate: true })
   const isMe = (person) => {
     const key = keyOf(person?.email)
     if (!key || isAgentKey(key)) return false
-    if (key === meKey.value) return true
-    if (person.github && myGithub.value && plain(person.github) === myGithub.value) return true
-    return !!person.name && myNames.value.has(plain(person.name))
+    if (key === meKey.value || self.value.emails.includes(key)) return true
+    if (person.github && self.value.githubs.includes(plain(person.github))) return true
+    return !!person.name && self.value.names.includes(plain(person.name))
   }
   const onlineKeys = computed(() => new Set(online.value.map((p) => keyOf(p.email))))
 
