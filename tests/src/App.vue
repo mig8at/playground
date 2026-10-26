@@ -12,6 +12,7 @@ import {
   vResize, readSize, saveSize, fitRegions, cssSize, bindThemeToggle, bindMenu,
   readHashRoute, hashRoute, setRoute,
 } from './workbench.js'
+import { TABLE_DOCS } from './table-docs.js'
 
 const DEFAULT_TARGET = 'qa'
 const TARGET_LABEL = { local: 'local · tu Docker', qa: 'qa · la base compartida de dev, qa y staging' }
@@ -277,11 +278,19 @@ function toggleTable(name) { tablePrefs.value = { ...tablePrefs.value, [name]: !
 function resetTables() { tablePrefs.value = {}; saveTablePrefs() }
 const visibleTables = computed(() => tables.value.filter((t) => isShown(t.table)))
 const hiddenCount = computed(() => tables.value.length - visibleTables.value.length)
-const panelTab = ref('states') // states · tables
+const panelTab = ref('states') // states · tables · table
+// La tabla cuya descripción se ve en la consola (la última cuyo título se tocó).
+const docTable = ref(null)
+const docOf = computed(() => (docTable.value ? TABLE_DOCS[docTable.value] || null : null))
+const SOURCE_LABEL = { 'código': 'leído en el código', 'base': 'medido en la base', 'código y base': 'leído en el código y medido en la base', columnas: 'por su nombre y sus columnas, sin verificar en el código' }
 
 // ── el sidebar derecho: la consulta de la tabla cuyo título se tocó, para correrla en otro lado ──
 const openTable = ref(null) // nombre de la tabla
-function showTable(name) { openCell.value = null; openTable.value = openTable.value === name ? null : name; if (openTable.value) auxOpen.value = true }
+function showTable(name) {
+  openCell.value = null
+  openTable.value = openTable.value === name ? null : name
+  if (openTable.value) { auxOpen.value = true; docTable.value = name; panelTab.value = 'table'; panelOpen.value = true }
+}
 
 // ── una celda abierta en el panel derecho: su valor entero; si es JSON, formateado ──
 const openCell = ref(null) // { table, column, rowKey, rowLabel, value }
@@ -331,7 +340,7 @@ async function copyQuery() {
   try { await navigator.clipboard.writeText(openQuery.value); copied.value = true; setTimeout(() => { copied.value = false }, 1500) } catch { /* sin portapapeles */ }
 }
 // Otra solicitud u otro ambiente: la consulta abierta era de la anterior.
-watch([() => result.value?.request?.id, target], () => { openTable.value = null; openCell.value = null })
+watch([() => result.value?.request?.id, target], () => { openTable.value = null; openCell.value = null; if (panelTab.value === 'table') panelTab.value = 'states'; docTable.value = null })
 // Las fechas de alta y de cambio de cada fila son ruido para una prueba: no se muestran (la consulta las trae).
 const HIDDEN_COLUMNS = new Set(['created_at', 'updated_at'])
 // Las de `users` que son del EQUIPO, no del cliente: a qué comercio, sucursal o entidad pertenece un asesor o un
@@ -688,6 +697,9 @@ onBeforeUnmount(() => {
         <button type="button" role="tab" class="tab" :class="{ on: panelTab === 'states' }" :aria-selected="panelTab === 'states'" @click="panelTab = 'states'">
           Estados <span v-if="r?.request" class="count">{{ lines.length }}</span>
         </button>
+        <button v-if="docTable" type="button" role="tab" class="tab" :class="{ on: panelTab === 'table' }" :aria-selected="panelTab === 'table'" @click="panelTab = 'table'">
+          Tabla <span class="count"><code>{{ docTable }}</code></span>
+        </button>
         <button type="button" role="tab" class="tab" :class="{ on: panelTab === 'tables' }" :aria-selected="panelTab === 'tables'" @click="panelTab = 'tables'">
           Tablas <span v-if="tables.length" class="count" :class="{ filtered: hiddenCount }">{{ visibleTables.length }} / {{ tables.length }}</span>
         </button>
@@ -697,7 +709,19 @@ onBeforeUnmount(() => {
           </button>
         </div>
       </nav>
-      <div v-if="panelTab === 'tables'" class="region-body">
+      <div v-if="panelTab === 'table' && docTable" class="region-body table-doc">
+        <template v-if="docOf">
+          <h3>{{ docOf.title }} <code class="muted">{{ docTable }}</code></h3>
+          <p>{{ docOf.what }}</p>
+          <p class="muted">{{ docOf.why }}</p>
+          <p class="small muted">Fuente: {{ SOURCE_LABEL[docOf.source] || docOf.source }}.</p>
+        </template>
+        <template v-else>
+          <h3><code>{{ docTable }}</code></h3>
+          <p class="muted">Todavía no tiene descripción. Se agrega en <code>tests/src/table-docs.js</code>.</p>
+        </template>
+      </div>
+      <div v-else-if="panelTab === 'tables'" class="region-body">
         <p v-if="!tables.length" class="none">Las tablas de la solicitud que se mira; las que se apagan acá no se muestran en el editor.</p>
         <label class="checkbox-row all-columns">
           <input v-model="allColumns" type="checkbox" class="checkbox" />
@@ -876,6 +900,10 @@ code.wrap { word-break: break-all }
 .table-toggle code { font-size: var(--text-sm) }
 .hidden-link { margin-left: var(--space-2); font-size: var(--text-xs) }
 .all-columns { display: flex; padding: var(--space-1) var(--gutter) var(--space-2) }
+/* La descripción de una tabla en la consola: título de negocio, qué es, para qué sirve y de dónde sale. */
+.table-doc { padding: var(--space-2) var(--gutter) }
+.table-doc h3 { margin: 0 0 var(--space-1); font-size: var(--text-base); font-weight: 600 }
+.table-doc p { margin: 0 0 var(--space-1); max-width: 90ch; line-height: 1.5 }
 /* El perfil de prueba en la barra: quién, el botón y una línea por central. */
 .profile { display: flex; flex-direction: column; align-items: flex-start; gap: var(--space-1); padding: var(--space-2) var(--gutter) var(--space-3) }
 .profile p { margin: 0 }
