@@ -15,6 +15,7 @@ export default defineConfig({
   server: {
     port: 5178,
     strictPort: true,
-    proxy: { '/api': { target: 'http://127.0.0.1:5179', changeOrigin: false } },
+    // TESTS_API deja levantar una segunda copia (tests-alt) sin pisar la que ya corre.
+    proxy: { '/api': { target: process.env.TESTS_API || 'http://127.0.0.1:5179', changeOrigin: false } },
   },
 })

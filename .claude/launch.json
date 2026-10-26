@@ -72,6 +72,17 @@
       "autoPort": false
     },
     {
+      "name": "tests-alt",
+      "runtimeExecutable": "sh",
+      "runtimeArgs": [
+        "-c",
+        "(cd .. && exec env -u I_KNOW_THIS_TOUCHES_SHARED_DEV go run ./tests/server -serve 127.0.0.1:5279) & TESTS_API=http://127.0.0.1:5279 exec npx vite --port 5278 --strictPort"
+      ],
+      "cwd": "tests",
+      "port": 5278,
+      "autoPort": false
+    },
+    {
       "name": "admin",
       "runtimeExecutable": "php",
       "runtimeArgs": [

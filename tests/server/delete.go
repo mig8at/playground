@@ -248,25 +248,13 @@ func BuildPlan(target string, request int, byPhone, freeUsers bool) (*Plan, erro
 		return plan, nil
 	}
 
-	tables, err := childTables(src)
+	counts, err := countTables(src, eligible)
 	if err != nil {
 		return nil, err
 	}
-	list := intList(eligible)
-	var parts []string
-	for _, t := range tables {
-		parts = append(parts, fmt.Sprintf("SELECT '%s' AS t, COUNT(*) AS n FROM `%s` WHERE %s", t.name, t.name, childWhere(t.name, list)))
-	}
-	parts = append(parts, fmt.Sprintf("SELECT 'device_locks' AS t, COUNT(*) AS n FROM device_locks WHERE %s", deviceLocksWhere(list)))
-	counts, err := rows(src, strings.Join(parts, " UNION ALL "))
-	if err != nil {
-		return nil, fmt.Errorf("contar lo que cuelga: %w", err)
-	}
 	for _, c := range counts {
-		if n, _ := strconv.Atoi(cell(c, "n")); n > 0 {
-			plan.Tables = append(plan.Tables, TableCount{cell(c, "t"), n})
-			plan.Total += n
-		}
+		plan.Tables = append(plan.Tables, c)
+		plan.Total += c.Rows
 	}
 	plan.Tables = append(plan.Tables, TableCount{"user_requests", len(eligible)})
 	plan.Total += len(eligible)
@@ -276,6 +264,50 @@ func BuildPlan(target string, request int, byPhone, freeUsers bool) (*Plan, erro
 	}
 	sort.SliceStable(plan.Tables, func(i, j int) bool { return plan.Tables[i].Rows > plan.Tables[j].Rows })
 	return plan, nil
+}
+
+// countTables cuenta, tabla por tabla, las filas que cuelgan de esas solicitudes (sin la solicitud misma).
+// Sólo lee: es lo que muestra el editor y la base del plan.
+func countTables(src dbsql.Source, ids []int) ([]TableCount, error) {
+	tables, err := childTables(src)
+	if err != nil {
+		return nil, err
+	}
+	list := intList(ids)
+	var parts []string
+	for _, t := range tables {
+		parts = append(parts, fmt.Sprintf("SELECT '%s' AS t, COUNT(*) AS n FROM `%s` WHERE %s", t.name, t.name, childWhere(t.name, list)))
+	}
+	parts = append(parts, fmt.Sprintf("SELECT 'device_locks' AS t, COUNT(*) AS n FROM device_locks WHERE %s", deviceLocksWhere(list)))
+	counts, err := rows(src, strings.Join(parts, " UNION ALL "))
+	if err != nil {
+		return nil, fmt.Errorf("contar lo que cuelga: %w", err)
+	}
+	out := []TableCount{}
+	for _, c := range counts {
+		if n, _ := strconv.Atoi(cell(c, "n")); n > 0 {
+			out = append(out, TableCount{cell(c, "t"), n})
+		}
+	}
+	sort.SliceStable(out, func(i, j int) bool { return out[i].Rows > out[j].Rows })
+	return out, nil
+}
+
+// RequestTables: las tablas con filas de UNA solicitud, para mostrarlas en el editor. Sólo lee, y vale para
+// cualquier solicitud (también las protegidas, que no se pueden borrar).
+func RequestTables(target string, request int) ([]TableCount, error) {
+	if !validTarget(target) {
+		return nil, fmt.Errorf("ambiente %q: tests mira %s", target, strings.Join(Targets, " o "))
+	}
+	src, err := source(target)
+	if err != nil {
+		return nil, err
+	}
+	out, err := countTables(src, []int{request})
+	if err != nil {
+		return nil, err
+	}
+	return append([]TableCount{{"user_requests", 1}}, out...), nil
 }
 
 // childTables son las tablas con `user_request_id` de ESTA base, y si tienen `id` de llave primaria.
