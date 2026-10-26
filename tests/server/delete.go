@@ -1,24 +1,29 @@
 package main
 
-/* Borrar de verdad una solicitud de prueba —o todas las de un celular— y todo lo que cuelga de ella.
+/* Borrar de verdad una solicitud —o todas las de un celular— y todo lo que cuelga de ella, para que una
+ * prueba empiece limpia.
  *
  * Es la ÚNICA escritura de tests, y por eso no pasa por el conector de SQL (que es de sólo lectura): usa la
  * base del harness (`E2E_DB_*` de `harness/.env.<target>`), la misma excepción que ya tiene el harness para
- * sembrar. Y lleva las mismas guardas que él, más las propias:
+ * sembrar.
  *
- *   · sólo local y qa; qa sólo si el proceso trae I_KNOW_THIS_TOUCHES_SHARED_DEV=1 exportado a mano (F-53:
- *     escrito en un .env desarma la guarda, así que acá se lee SÓLO del proceso);
- *   · sólo solicitudes de prueba: las de un comercio «PRUEBA AUTO…» o de un usuario marcado de prueba. Las
- *     demás se listan como protegidas y no se tocan;
- *   · un tope de solicitudes por borrado, y la confirmación escrita (el número o el celular), que se vuelve a
- *     comprobar en el servidor;
- *   · todo en UNA transacción: si una tabla falla, no se borra nada.
+ * DECISIÓN DE MIGUEL (2026-10-26): tests borra CUALQUIER solicitud de local o de la base compartida, sin
+ * I_KNOW_THIS_TOUCHES_SHARED_DEV y sin limitarse a las de prueba. Es la excepción a F-53, y sólo para esta
+ * operación de este servidor. Lo que la hace segura vive acá, no en una variable:
+ *
+ *   · nunca prod: sólo local y qa (`Targets`), con las credenciales del harness de ese ambiente;
+ *   · la confirmación (el número, o el celular) se vuelve a comprobar en el servidor, y el plan se rearma;
+ *   · lo que no es de prueba (otro comercio, un usuario sin marca) no se bloquea pero AVISA, con el nombre;
+ *   · un RESPALDO de cada fila antes de borrarla (y del usuario antes de su baja) en tests/.backups/, para
+ *     poder reponerla;
+ *   · un tope de solicitudes por borrado, nunca la baja de una cuenta que no es de cliente (asesor, admin), y
+ *     todo en UNA transacción: si una tabla falla, no se borra nada.
  *
  * Para empezar un flujo DE CERO con el mismo celular no alcanza con borrar las solicitudes: el OTP pega la
  * próxima al usuario que ya tiene ese número. Por eso, con el celular, se puede además dar de BAJA a sus
  * usuarios, igual que la papelera del admin (`UserController@disableUser` de legacy-application): status 0,
  * la cédula con -t<n> y sin correo ni celular. El usuario no se borra: queda la fila, como en el admin. Sólo
- * clientes (perfil 1) y, en la base compartida, marcados de prueba.
+ * clientes (perfil 1).
  *
  * «Lo que cuelga» se descubre en cada base, no se escribe a mano: toda tabla con la columna
  * `user_request_id` (69 en qa y 74 en local el 2026-10-26), más el pedido de la tienda unido por
@@ -67,6 +72,7 @@ type PlanRequest struct {
 	Status    string `json:"status"`
 	CreatedAt string `json:"createdAt"`
 	Protected string `json:"protected,omitempty"` // por qué NO se borra
+	Warning   string `json:"warning,omitempty"`   // se borra, pero conviene saber de quién es
 }
 
 // PlanUser es un usuario del celular que se daría de baja, con por qué no si está protegido.
@@ -77,6 +83,7 @@ type PlanUser struct {
 	Email     string `json:"email"`
 	IsTest    bool   `json:"isTest"`
 	Protected string `json:"protected,omitempty"`
+	Warning   string `json:"warning,omitempty"`
 }
 
 // TableCount es cuántas filas de una tabla caen.
@@ -111,6 +118,7 @@ type Deleted struct {
 	Total      int          `json:"total"`
 	RolledBack bool         `json:"rolledBack"`
 	At         string       `json:"at"`
+	Backup     string       `json:"backup"` // dónde quedó la copia de lo borrado
 }
 
 type childTable struct {
@@ -192,9 +200,9 @@ func BuildPlan(target string, request int, byPhone, freeUsers bool) (*Plan, erro
 		uid, _ := strconv.Atoi(cell(r, "user_id"))
 		pr := PlanRequest{ID: id, UserID: uid, User: cell(r, "user"), Document: cell(r, "document_number"),
 			Allied: cell(r, "allied"), Hash: cell(r, "hash"), Status: cell(r, "status"), CreatedAt: cell(r, "created_at")}
-		// En local todo es tuyo; en la base compartida, sólo lo que es de prueba.
+		// En la base compartida, lo que no es de prueba puede ser de otra persona del equipo: se borra, pero avisa.
 		if target != "local" && !strings.HasPrefix(strings.ToUpper(pr.Allied), TestAllied) && cell(r, "is_test") != "1" {
-			pr.Protected = fmt.Sprintf("ni el comercio es «%s…» ni el usuario está marcado de prueba", TestAllied)
+			pr.Warning = fmt.Sprintf("no es de prueba: comercio «%s» y el usuario %s no está marcado de prueba", pr.Allied, pr.User)
 		}
 		plan.Requests = append(plan.Requests, pr)
 	}
@@ -229,7 +237,7 @@ func BuildPlan(target string, request int, byPhone, freeUsers bool) (*Plan, erro
 			case cell(u, "user_profile_id") != "1":
 				pu.Protected = "no es un cliente (perfil " + cell(u, "user_profile_id") + ")"
 			case target != "local" && !pu.IsTest:
-				pu.Protected = "no está marcado de prueba"
+				pu.Warning = "no está marcado de prueba"
 			}
 			plan.Users = append(plan.Users, pu)
 		}
@@ -238,7 +246,7 @@ func BuildPlan(target string, request int, byPhone, freeUsers bool) (*Plan, erro
 	eligible := plan.eligible()
 	switch {
 	case len(eligible) == 0:
-		plan.Blocked = "ninguna de estas solicitudes es de prueba: no se borra nada"
+		plan.Blocked = "no hay nada que borrar"
 	case len(eligible) > MaxDelete:
 		plan.Blocked = fmt.Sprintf("son %d solicitudes y el tope es %d: algo no está bien con ese celular", len(eligible), MaxDelete)
 	default:
@@ -343,20 +351,13 @@ func deviceLocksWhere(list string) string {
 	return fmt.Sprintf("user_request_product_id IN (SELECT id FROM user_request_products WHERE user_request_id IN (%s))", list)
 }
 
-// writeBlocked dice por qué no se puede escribir en ese ambiente, o "" si se puede.
+// writeBlocked dice por qué no se puede escribir en ese ambiente, o "" si se puede. Sin variable de permiso a
+// propósito (decisión de Miguel, ver arriba): basta con que el ambiente sea local o qa y tenga credenciales.
 func writeBlocked(target string) string {
-	cfg, err := writeConfig(target)
-	if err != nil {
+	if _, err := writeConfig(target); err != nil {
 		return err.Error()
 	}
-	if target == "local" || isLocalHost(cfg.host) {
-		return ""
-	}
-	// Del PROCESO y nada más: escrito en un .env desarma la guarda (F-53).
-	if os.Getenv("I_KNOW_THIS_TOUCHES_SHARED_DEV") == "1" {
-		return ""
-	}
-	return "borrar en la base compartida pide levantar tests con I_KNOW_THIS_TOUCHES_SHARED_DEV=1 exportado en la shell (F-53)"
+	return ""
 }
 
 type dbConfig struct{ host, port, name, user, pass string }
@@ -448,6 +449,39 @@ func Delete(target string, request int, byPhone, freeUsers bool, confirm string,
 	}()
 
 	counts := map[string]int{}
+	// El respaldo: cada fila tal como estaba, leída en la misma transacción justo antes de tocarla.
+	backup := map[string][]map[string]any{}
+	keep := func(table, query string) error {
+		got, err := tx.Query(query)
+		if err != nil {
+			return err
+		}
+		defer got.Close()
+		cols, err := got.Columns()
+		if err != nil {
+			return err
+		}
+		for got.Next() {
+			vals := make([]any, len(cols))
+			ptrs := make([]any, len(cols))
+			for i := range vals {
+				ptrs[i] = &vals[i]
+			}
+			if err := got.Scan(ptrs...); err != nil {
+				return err
+			}
+			row := map[string]any{}
+			for i, c := range cols {
+				if b, ok := vals[i].([]byte); ok {
+					row[c] = string(b)
+				} else {
+					row[c] = vals[i]
+				}
+			}
+			backup[table] = append(backup[table], row)
+		}
+		return got.Err()
+	}
 	exec := func(table, query string) error {
 		res, err := tx.Exec(query)
 		if err != nil {
@@ -475,7 +509,11 @@ func Delete(target string, request int, byPhone, freeUsers bool, confirm string,
 		got.Close()
 		for start := 0; start < len(pks); start += 500 {
 			end := min(start+500, len(pks))
-			if err := exec(table, fmt.Sprintf("DELETE FROM `%s` WHERE id IN (%s)", table, intList(pks[start:end]))); err != nil {
+			batch := intList(pks[start:end])
+			if err := keep(table, fmt.Sprintf("SELECT * FROM `%s` WHERE id IN (%s)", table, batch)); err != nil {
+				return err
+			}
+			if err := exec(table, fmt.Sprintf("DELETE FROM `%s` WHERE id IN (%s)", table, batch)); err != nil {
 				return err
 			}
 		}
@@ -496,7 +534,10 @@ func Delete(target string, request int, byPhone, freeUsers bool, confirm string,
 			if t.hasID {
 				err = byID(t.name, childWhere(t.name, list))
 			} else {
-				err = exec(t.name, fmt.Sprintf("DELETE FROM `%s` WHERE %s", t.name, childWhere(t.name, list)))
+				err = keep(t.name, fmt.Sprintf("SELECT * FROM `%s` WHERE %s", t.name, childWhere(t.name, list)))
+				if err == nil {
+					err = exec(t.name, fmt.Sprintf("DELETE FROM `%s` WHERE %s", t.name, childWhere(t.name, list)))
+				}
 			}
 			var me *mysql.MySQLError
 			if errors.As(err, &me) && me.Number == 1451 {
@@ -512,8 +553,14 @@ func Delete(target string, request int, byPhone, freeUsers bool, confirm string,
 		}
 		pending = retry
 	}
+	if err := keep("ecommerce_requests (original_user_request_id)", fmt.Sprintf("SELECT id, original_user_request_id FROM ecommerce_requests WHERE original_user_request_id IN (%s)", list)); err != nil {
+		return nil, fmt.Errorf("respaldo de ecommerce_requests: %w", err)
+	}
 	if err := exec("ecommerce_requests", fmt.Sprintf("UPDATE ecommerce_requests SET original_user_request_id = NULL WHERE original_user_request_id IN (%s)", list)); err != nil {
 		return nil, fmt.Errorf("ecommerce_requests.original_user_request_id: %w", err)
+	}
+	if err := keep("user_requests", fmt.Sprintf("SELECT * FROM user_requests WHERE id IN (%s)", list)); err != nil {
+		return nil, fmt.Errorf("respaldo de user_requests: %w", err)
 	}
 	if err := exec("user_requests", fmt.Sprintf("DELETE FROM user_requests WHERE id IN (%s)", list)); err != nil {
 		return nil, fmt.Errorf("user_requests: %w", err)
@@ -525,6 +572,9 @@ func Delete(target string, request int, byPhone, freeUsers bool, confirm string,
 		if err := tx.QueryRow(`SELECT COALESCE(MAX(CAST(SUBSTRING_INDEX(document_number, '-t', -1) AS UNSIGNED)), 0) + 1
 			FROM users WHERE document_number LIKE CONCAT(?, '-t%')`, u.Document).Scan(&next); err != nil {
 			return nil, fmt.Errorf("baja del usuario %d: %w", u.ID, err)
+		}
+		if err := keep("users", fmt.Sprintf("SELECT * FROM users WHERE id = %d", u.ID)); err != nil {
+			return nil, fmt.Errorf("respaldo del usuario %d: %w", u.ID, err)
 		}
 		res, err := tx.Exec(`UPDATE users SET status = 0, document_number = CONCAT(document_number, '-t', ?), email = NULL,
 			cell_phone = NULL, updated_at = NOW() WHERE id = ? AND status = 1 AND user_profile_id = 1`, next, u.ID)
@@ -549,6 +599,11 @@ func Delete(target string, request int, byPhone, freeUsers bool, confirm string,
 	}
 	sort.SliceStable(out.Tables, func(i, j int) bool { return out.Tables[i].Rows > out.Tables[j].Rows })
 
+	// El respaldo se escribe ANTES de confirmar: si no se puede guardar, no se borra.
+	out.Backup, err = writeBackup(out, backup)
+	if err != nil {
+		return nil, fmt.Errorf("no se pudo guardar el respaldo, no se borró nada: %w", err)
+	}
 	if rollback {
 		err = tx.Rollback()
 	} else {
@@ -562,6 +617,30 @@ func Delete(target string, request int, byPhone, freeUsers bool, confirm string,
 		journal(out)
 	}
 	return out, nil
+}
+
+// writeBackup guarda en tests/.backups/ (fuera de git, sólo para vos) cada fila borrada o cambiada, por tabla,
+// tal como estaba. Con ellas se puede reponer lo borrado. Lleva datos personales: no se comparte.
+func writeBackup(d *Deleted, rows map[string][]map[string]any) (string, error) {
+	dir := filepath.Join(repoRoot(), "tests", ".backups")
+	if err := os.MkdirAll(dir, 0o700); err != nil {
+		return "", err
+	}
+	name := fmt.Sprintf("%s-%s-%d", time.Now().Format("20060102-150405"), d.Target, d.Requests[0])
+	if d.RolledBack {
+		name += "-rollback"
+	}
+	file := filepath.Join(dir, name+".json")
+	data, err := json.MarshalIndent(map[string]any{"target": d.Target, "at": d.At, "requests": d.Requests,
+		"users": d.Users, "rolledBack": d.RolledBack, "rows": rows}, "", "  ")
+	if err != nil {
+		return "", err
+	}
+	if err := os.WriteFile(file, data, 0o600); err != nil {
+		return "", err
+	}
+	rel, _ := filepath.Rel(repoRoot(), file)
+	return rel, nil
 }
 
 // journal deja constancia de cada borrado en tests/.deletions.ndjson (fuera de git): qué, dónde y cuánto.

@@ -99,7 +99,7 @@ keyring: ## @dia el llavero: ¿a qué tengo acceso AHORA y cuándo vence? Primer
 	@go run ./keyring/server $(if $(SOLO),-only "$(SOLO)") $(if $(JSON),-json)
 keyring-ui: ## @dia abre keyring, el llavero, visual (:5182 · API :5183): las mismas filas que `make keyring`, cada grupo apenas contesta
 	@cd keyring && npm run dev
-tests: ## @dia abre tests (:5178 · API :5179): escribís el celular de la prueba (o la URL del wizard o el número de solicitud) y dice de qué comercio viene, qué mandó la tienda, a qué usuario quedó pegada y con qué datos, y por qué estados pasó, contra local o qa (la base compartida). ⚠ El icono de basura BORRA de verdad una solicitud de prueba (o todas las del celular) y lo que cuelga de ella; en qa pide I_KNOW_THIS_TOUCHES_SHARED_DEV=1 exportado. Por consola: go run ./tests/server -target qa -q <url|número>
+tests: ## @dia abre tests (:5178 · API :5179): escribís el celular de la prueba (o la URL del wizard o el número de solicitud) y dice de qué comercio viene, qué mandó la tienda, a qué usuario quedó pegada y con qué datos, y por qué estados pasó, contra local o qa (la base compartida). ⚠ El icono de basura BORRA de verdad la solicitud y lo que cuelga de ella (y, si era la última, puede dar de baja al usuario), en local o qa, con confirmación y copia en tests/.backups/. Por consola: go run ./tests/server -target qa -q <url|número>
 	@cd tests && npm run dev
 chat: ## @dia abre chat (:5184 · API :5185), un mini WhatsApp del chat de la terminal del playground compartido: conversaciones, quién está conectado y contestar; prende también tus agentes (agents/*, los que no estén corriendo). Usa el CLI `playground` (login y listen); el historial queda en el navegador
 	@cd chat && npm run dev

@@ -380,7 +380,7 @@ onBeforeUnmount(() => {
       </div>
       <div ref="editorBody" class="region-body">
         <div v-if="deleted" class="alert done" data-level="ok">
-          <div class="alert-desc"><p>Se borró {{ deleted.requests.length > 1 ? `las solicitudes ${deleted.requests.join(', ')}` : `la solicitud ${deleted.requests[0]}` }} ({{ deleted.total }} filas en {{ deleted.tables.length }} tablas){{ deleted.users.length ? ` y se dio de baja al usuario ${deleted.users.join(', ')}` : '' }}.</p></div>
+          <div class="alert-desc"><p>Se borró {{ deleted.requests.length > 1 ? `las solicitudes ${deleted.requests.join(', ')}` : `la solicitud ${deleted.requests[0]}` }} ({{ deleted.total }} filas en {{ deleted.tables.length }} tablas){{ deleted.users.length ? ` y se dio de baja al usuario ${deleted.users.join(', ')}` : '' }}. Copia en <code>{{ deleted.backup }}</code>.</p></div>
           <button type="button" class="region-action" title="Cerrar" aria-label="Cerrar" @click="deleted = null"><span class="ui-icon" data-icon="close" aria-hidden="true"></span></button>
         </div>
         <p v-if="error" class="none hot">{{ error }}</p>
@@ -527,14 +527,16 @@ onBeforeUnmount(() => {
         <h2 id="del-title">¿Borrar la solicitud {{ del.request }}?</h2>
         <p v-if="del.loading && !del.plan" class="muted">Contando lo que cuelga…</p>
         <template v-if="del.plan">
-          <p v-if="!del.plan.requests[0]?.protected">Se eliminan la solicitud y sus <b>{{ otherRows }}</b> filas en otras tablas. No se puede deshacer.</p>
-          <p v-if="del.plan.requests[0]?.protected" class="hot">No se puede: {{ del.plan.requests[0].protected }}.</p>
+          <p>Se eliminan la solicitud y sus <b>{{ otherRows }}</b> filas en otras tablas. No se puede deshacer.</p>
+          <p v-if="del.plan.requests[0]?.warning" class="warn">⚠ Ojo, {{ del.plan.requests[0].warning }}. Puede ser de otra persona del equipo.</p>
           <label v-if="del.lastOf" class="checkbox-row">
             <input type="checkbox" class="checkbox" :checked="del.users" :disabled="del.loading || del.running" @change="toggleUsers" />
             <span>Es la última solicitud de <b>{{ del.lastOf }}</b>. ¿Borrar también al usuario? <span class="muted">(se da de baja, como en el admin, para empezar de cero)</span></span>
           </label>
           <p v-if="del.users && del.plan.users.some((u) => u.protected)" class="hot">El usuario no se puede dar de baja: {{ del.plan.users.find((u) => u.protected).protected }}.</p>
-          <p v-if="del.plan.blocked && !del.plan.requests[0]?.protected" class="hot">{{ del.plan.blocked }}</p>
+          <p v-if="del.users && del.plan.users.some((u) => u.warning)" class="warn">⚠ El usuario {{ del.plan.users.find((u) => u.warning).warning }}.</p>
+          <p class="muted small">Antes de borrar se guarda una copia de cada fila en <code>tests/.backups/</code>.</p>
+          <p v-if="del.plan.blocked" class="hot">{{ del.plan.blocked }}</p>
         </template>
         <p v-if="del.error" class="hot">{{ del.error }}</p>
         <div class="confirm-actions">
@@ -625,5 +627,7 @@ code.wrap { word-break: break-all }
 .alert.done > .region-action { grid-column: 2; grid-row: 1 }
 .alert[data-level="ok"] { border-left-color: var(--tests-ok); background: color-mix(in oklab, var(--tests-ok) 10%, transparent) }
 .kv.tables dd { font-variant-numeric: tabular-nums }
+.warn { color: var(--tests-warn) }
+.small { font-size: var(--text-sm) }
 .cell-action { width: 32px; text-align: right }
 </style>

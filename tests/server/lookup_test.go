@@ -54,10 +54,14 @@ func TestSameName(t *testing.T) {
 	}
 }
 
-// La guarda de la base compartida: sin I_KNOW_THIS_TOUCHES_SHARED_DEV=1 en el PROCESO, qa no se escribe (F-53).
-func TestWriteBlockedSharedDB(t *testing.T) {
+// Sin variable de permiso (decisión de Miguel, 2026-10-26): qa se puede borrar si tiene credenciales. Lo que
+// no puede es prod, que ni siquiera es un ambiente de tests.
+func TestWriteTargets(t *testing.T) {
 	t.Setenv("I_KNOW_THIS_TOUCHES_SHARED_DEV", "")
-	if writeBlocked("qa") == "" {
-		t.Fatal("qa quedó habilitado para borrar sin I_KNOW_THIS_TOUCHES_SHARED_DEV")
+	if validTarget("prod") {
+		t.Fatal("prod quedó como ambiente de tests")
+	}
+	if _, err := writeConfig("qa"); err == nil && writeBlocked("qa") != "" {
+		t.Fatalf("qa sigue bloqueado sin la variable: %s", writeBlocked("qa"))
 	}
 }
