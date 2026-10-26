@@ -53,7 +53,6 @@ async function lookup() {
     if (mine !== seq) return
     if (!res.ok) throw new Error(body.error || `HTTP ${res.status}`)
     result.value = body
-    remember(body)
     if (body.input?.phone && draft.value !== body.input.phone) draft.value = body.input.phone
     // Otra solicitud se lee desde arriba: los avisos son lo primero.
     nextTick(() => { if (editorBody.value) editorBody.value.scrollTop = 0 })
@@ -78,40 +77,6 @@ function open(id) {
   draft.value = String(id)
   query.value = String(id)
 }
-function openRecent(x) {
-  target.value = x.target
-  req.value = x.req || ''
-  // Las guardadas antes de buscar por celular no tienen `q`: eran por número.
-  const q = String(x.q ?? x.request)
-  draft.value = q
-  query.value = q
-}
-
-// ── las últimas búsquedas, en el navegador ──
-const RECENT_KEY = 'tests.recent'
-function readRecent() {
-  try { return JSON.parse(localStorage.getItem(RECENT_KEY) || '[]') } catch { return [] }
-}
-const recent = ref(readRecent())
-function remember(r) {
-  const phone = r.input?.phone || ''
-  const item = {
-    id: `${r.target}:${phone || r.request.id}`, target: r.target, request: r.request.id, phone,
-    q: phone || r.request.id, req: phone ? String(r.request.id) : '',
-    status: r.request.status, statusId: r.request.status_id, hash: r.branch?.hash || '',
-    who: r.user ? (r.user.full_name || `${r.user.first_name || ''} ${r.user.surname || ''}`).trim() : '',
-    warn: r.warnings.filter((w) => w.level === 'warn').length,
-  }
-  recent.value = [item, ...recent.value.filter((x) => x.id !== item.id)].slice(0, 30)
-  try { localStorage.setItem(RECENT_KEY, JSON.stringify(recent.value)) } catch { /* sin almacenamiento, sólo no se recuerda */ }
-}
-function clearRecent() {
-  recent.value = []
-  try { localStorage.removeItem(RECENT_KEY) } catch { /* nada que borrar */ }
-}
-// Las otras búsquedas: el celular que se mira ya tiene su lista arriba.
-const others = computed(() => recent.value.filter((x) => x.id !== currentId.value))
-const currentId = computed(() => (result.value ? `${result.value.target}:${result.value.input?.phone || result.value.request.id}` : ''))
 
 // ── lo que se pinta ──
 const r = computed(() => result.value)
@@ -214,10 +179,6 @@ async function runDelete() {
     if (!res.ok) throw new Error(body.error || `HTTP ${res.status}`)
     deleted.value = body
     closeDelete()
-    // Lo borrado sale de las últimas búsquedas; con celular se relee el número, con número ya no existe.
-    const gone = new Set(body.requests.map((x) => `${target.value}:${x}`))
-    recent.value = recent.value.filter((x) => !gone.has(x.id))
-    try { localStorage.setItem(RECENT_KEY, JSON.stringify(recent.value)) } catch { /* sólo no se recuerda */ }
     if (result.value?.input?.phone) { if (req.value) req.value = ''; else lookup() }
     else if (result.value && body.requests.includes(result.value.request.id)) { result.value = null; query.value = ''; draft.value = '' }
     else lookup()
@@ -323,13 +284,9 @@ onBeforeUnmount(() => {
       <div class="rsz rsz-edge-right" v-resize="sidebarResize"></div>
       <div class="region-head">
         <span>Solicitudes</span>
-        <span class="count">{{ recent.length }}</span>
         <div class="region-actions">
           <button type="button" class="region-action" :disabled="!query || loading" title="Volver a leer" aria-label="Volver a leer" @click="lookup">
             <span class="ui-icon" data-icon="refresh" aria-hidden="true"></span>
-          </button>
-          <button type="button" class="region-action" :disabled="!recent.length" title="Olvidar las búsquedas" aria-label="Olvidar las búsquedas" @click="clearRecent">
-            <span class="ui-icon" data-icon="trash" aria-hidden="true"></span>
           </button>
         </div>
       </div>
@@ -357,12 +314,6 @@ onBeforeUnmount(() => {
             </span>
           </div>
         </template>
-        <div v-if="others.length" class="region-head group"><span>Últimas</span></div>
-        <button v-for="x in others" :key="x.id" type="button" class="row recent" @click="openRecent(x)">
-          <i class="dot" :data-state="stateOf(x.statusId)" aria-hidden="true"></i>
-          <span class="label">{{ x.phone || x.request }} <span class="muted">· {{ x.who || 'sin usuario' }}</span></span>
-          <span class="row-meta">{{ x.target }}<span v-if="x.warn" class="hot"> · {{ x.warn }}⚠</span></span>
-        </button>
       </div>
     </aside>
 
@@ -582,7 +533,6 @@ code.wrap { word-break: break-all }
 /* El buscador: etiqueta, campo y botón, apilados en el ancho del sidebar. */
 .search { display: flex; flex-direction: column; gap: var(--space-2); padding: var(--space-3) var(--gutter) }
 .search .btn { align-self: flex-start }
-.recent .label { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap }
 /* La lista del celular: una fila por solicitud, con el comercio a la derecha y la basura al pasar. */
 .sidebar .row[role="button"] { cursor: pointer }
 .sidebar .row .label { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap }
