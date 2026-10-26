@@ -53,7 +53,9 @@ async function lookup() {
     if (mine !== seq) return
     if (!res.ok) throw new Error(body.error || `HTTP ${res.status}`)
     result.value = body
-    if (body.input?.phone && draft.value !== body.input.phone) draft.value = body.input.phone
+    // El campo queda con lo que se buscó, limpio: el celular sin indicativo, el correo en minúsculas.
+    const clean = body.input?.phone || body.input?.email || body.input?.document
+    if (clean && draft.value !== clean) draft.value = clean
     // Otra solicitud se lee desde arriba: los avisos son lo primero.
     nextTick(() => { if (editorBody.value) editorBody.value.scrollTop = 0 })
   } catch (e) {
@@ -71,9 +73,9 @@ function submit() {
   req.value = ''
   if (q === query.value) lookup(); else query.value = q
 }
-// Abrir otra solicitud: si la búsqueda es por celular, se queda en el celular y cambia `req`.
+// Abrir otra solicitud: si se buscó a una persona (celular, correo o cédula), se queda en ella y cambia `req`.
 function open(id) {
-  if (result.value?.input?.phone) { req.value = String(id); return }
+  if (result.value?.input?.who) { req.value = String(id); return }
   draft.value = String(id)
   query.value = String(id)
 }
@@ -81,7 +83,7 @@ function open(id) {
 // ── lo que se pinta ──
 const r = computed(() => result.value)
 // La tabla de abajo: con celular, todas las de ese número (de todos sus usuarios); si no, las del usuario.
-const listed = computed(() => (r.value?.input?.phone ? r.value.phoneRequests : r.value?.requests) || [])
+const listed = computed(() => (r.value?.input?.who ? r.value.phoneRequests : r.value?.requests) || [])
 
 const money = (v) => (v === null || v === undefined || v === '' ? '—'
   : `$${Number(v).toLocaleString('es-CO', { maximumFractionDigits: 0 })}`)
@@ -90,7 +92,7 @@ const stateOf = (id) => FINAL[id] || 'open'
 
 // La consola: el historial y, si el estado de hoy no está en él, una línea más que lo dice.
 const lines = computed(() => {
-  if (!r.value) return []
+  if (!r.value?.request) return []
   const out = r.value.records.map((x) => ({
     key: x.id, time: x.created_at, id: x.status_id, name: x.status,
     by: x.by_name ? `${x.by_name} (${PROFILE[x.by_profile] || `perfil ${x.by_profile}`})` : x.update_by ? `usuario ${x.update_by}` : '',
@@ -149,8 +151,8 @@ async function runDelete() {
     if (!res.ok) throw new Error(body.error || `HTTP ${res.status}`)
     deleted.value = body
     closeDelete()
-    if (result.value?.input?.phone) { if (req.value) req.value = ''; else lookup() }
-    else if (result.value && body.requests.includes(result.value.request.id)) { result.value = null; query.value = ''; draft.value = '' }
+    if (result.value?.input?.who) { if (req.value) req.value = ''; else lookup() }
+    else if (result.value?.request && body.requests.includes(result.value.request.id)) { result.value = null; query.value = ''; draft.value = '' }
     else lookup()
   } catch (e) {
     d.error = e.message
@@ -158,6 +160,37 @@ async function runDelete() {
     d.running = false
   }
 }
+
+// ── dar de baja a una persona sin pasar por una solicitud: la que no tiene ninguna y estorba (un correo, una
+// cédula o un celular tomados). Otra ventana, las mismas reglas en el servidor ──
+const userDialog = ref(null)
+const baja = ref(null) // { person, running, error }
+function openBaja(person) {
+  baja.value = { person, running: false, error: '' }
+  userDialog.value?.showModal()
+}
+function closeBaja() { userDialog.value?.close(); baja.value = null }
+async function runBaja() {
+  const b = baja.value
+  if (!b || b.running) return
+  b.running = true; b.error = ''
+  try {
+    const res = await fetch('/api/user/disable', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ target: target.value, user: b.person.id }),
+    })
+    const body = await res.json().catch(() => ({}))
+    if (!res.ok) throw new Error(body.error || `HTTP ${res.status}`)
+    deleted.value = body
+    closeBaja()
+    lookup()
+  } catch (e) {
+    b.error = e.message
+  } finally {
+    if (baja.value === b) b.running = false
+  }
+}
+const isActiveClient = (p) => String(p.status) === '1' && String(p.user_profile_id) === '1'
 
 // ── las tablas de la solicitud que se mira: cuántas filas tiene en cada una. Sólo lee ──
 const tables = ref([])
@@ -304,16 +337,27 @@ onBeforeUnmount(() => {
       </div>
       <div class="region-body">
         <form class="search" @submit.prevent="submit">
-          <label class="label" for="q">Celular</label>
+          <label class="label" for="q">Celular, correo o cédula</label>
           <div class="input-group">
             <span class="ui-icon" data-icon="search" aria-hidden="true"></span>
-            <input id="q" v-model="draft" class="input" placeholder="3016992677" inputmode="tel" autocomplete="off" spellcheck="false" />
+            <input id="q" v-model="draft" class="input" placeholder="3016992677 · correo · cédula" autocomplete="off" spellcheck="false" />
           </div>
           <button type="submit" class="btn btn-sm" :disabled="!draft.trim() || loading">{{ loading ? 'Leyendo…' : `Buscar en ${target}` }}</button>
         </form>
-        <template v-if="r?.input?.phone">
-          <div class="region-head group"><span>Solicitudes de {{ r.input.phone }}</span><span class="count">{{ r.phoneRequests.length }}</span></div>
-          <div v-for="q in r.phoneRequests" :key="q.id" class="row" role="button" tabindex="0" :class="{ on: q.id === r.request.id }"
+        <template v-if="r?.input?.who">
+          <div class="region-head group"><span>Personas con {{ r.input.who }}</span><span class="count">{{ r.people.length }}</span></div>
+          <div v-for="p in r.people" :key="p.id" class="row person" :title="`${p.document_number} · ${p.email || 'sin correo'} · ${p.cell_phone || 'sin celular'}`">
+            <i class="dot" :data-state="String(p.status) === '1' ? 'ok' : 'off'" aria-hidden="true"></i>
+            <span class="label">{{ p.name || `usuario ${p.id}` }} <span class="muted">· {{ String(p.status) === '1' ? p.profile : 'dado de baja' }}</span></span>
+            <span class="row-meta">{{ p.requests }} sol.</span>
+            <span v-if="isActiveClient(p)" class="row-actions">
+              <button type="button" class="region-action" :title="`Dar de baja a ${p.name}`" :aria-label="`Dar de baja a ${p.name}`" @click.stop="openBaja(p)">
+                <span class="ui-icon" data-icon="trash" aria-hidden="true"></span>
+              </button>
+            </span>
+          </div>
+          <div v-if="r.phoneRequests.length" class="region-head group"><span>Solicitudes</span><span class="count">{{ r.phoneRequests.length }}</span></div>
+          <div v-for="q in r.phoneRequests" :key="q.id" class="row" role="button" tabindex="0" :class="{ on: q.id === r.request?.id }"
             :title="`${q.user} · ${q.allied || 'sin comercio'}`" @click="open(q.id)" @keydown.enter="open(q.id)">
             <i class="dot" :data-state="stateOf(q.status_id)" aria-hidden="true"></i>
             <span class="label">{{ q.id }} <span class="muted">· {{ q.status }}</span></span>
@@ -331,10 +375,10 @@ onBeforeUnmount(() => {
 
     <main class="editor">
       <div class="region-head">
-        <span>{{ r ? `Solicitud ${r.request.id}` : 'tests' }}</span>
-        <span v-if="r?.input?.phone" class="count">celular {{ r.input.phone }}</span>
-        <span v-if="r" class="count">{{ r.request.status_id }} · {{ r.request.status }}</span>
-        <div v-if="r" class="region-actions">
+        <span>{{ r?.request ? `Solicitud ${r.request.id}` : r ? r.input.who : 'tests' }}</span>
+        <span v-if="r?.request && r.input.who" class="count">{{ r.input.who }}</span>
+        <span v-if="r?.request" class="count">{{ r.request.status_id }} · {{ r.request.status }}</span>
+        <div v-if="r?.request" class="region-actions">
           <button type="button" class="region-action" title="Borrar la solicitud" aria-label="Borrar la solicitud" @click="openDelete(r.request.id)">
             <span class="ui-icon" data-icon="trash" aria-hidden="true"></span>
           </button>
@@ -342,7 +386,8 @@ onBeforeUnmount(() => {
       </div>
       <div ref="editorBody" class="region-body">
         <div v-if="deleted" class="alert done" data-level="ok">
-          <div class="alert-desc"><p>Se borró {{ deleted.requests.length > 1 ? `las solicitudes ${deleted.requests.join(', ')}` : `la solicitud ${deleted.requests[0]}` }} ({{ deleted.total }} filas en {{ deleted.tables.length }} tablas){{ deleted.users.length ? ` y se dio de baja al usuario ${deleted.users.join(', ')}` : '' }}. Copia en <code>{{ deleted.backup }}</code>.</p></div>
+          <div v-if="!deleted.requests.length" class="alert-desc"><p>Se dio de baja al usuario {{ deleted.users.join(', ') }}: su correo, celular y cédula quedan libres. Copia en <code>{{ deleted.backup }}</code>.</p></div>
+          <div v-else class="alert-desc"><p>Se borró {{ deleted.requests.length > 1 ? `las solicitudes ${deleted.requests.join(', ')}` : `la solicitud ${deleted.requests[0]}` }} ({{ deleted.total }} filas en {{ deleted.tables.length }} tablas){{ deleted.users.length ? ` y se dio de baja al usuario ${deleted.users.join(', ')}` : '' }}. Copia en <code>{{ deleted.backup }}</code>.</p></div>
           <button type="button" class="region-action" title="Cerrar" aria-label="Cerrar" @click="deleted = null"><span class="ui-icon" data-icon="close" aria-hidden="true"></span></button>
         </div>
         <p v-if="error" class="none hot">{{ error }}</p>
@@ -351,6 +396,12 @@ onBeforeUnmount(() => {
           <div class="empty-head">
             <div class="empty-title">Pegá una solicitud</div>
             <div class="empty-desc">Escribí el celular con el que hiciste la prueba (<code>3016992677</code>, los 10 dígitos). Muestra su solicitud más nueva —de qué comercio viene, qué mandó la tienda, a qué usuario quedó pegada y por qué estados pasó— y la lista de todas las de ese número. Contra <b>local</b> o <b>qa</b> (la base compartida de dev, qa y staging). También sirve la URL del wizard o el número de solicitud.</div>
+          </div>
+        </div>
+        <div v-else-if="!r.request" class="empty">
+          <div class="empty-head">
+            <div class="empty-title">Sin solicitudes</div>
+            <div class="empty-desc">{{ r.people.length === 1 ? 'La persona' : `Las ${r.people.length} personas` }} con {{ r.input.who }} no {{ r.people.length === 1 ? 'tiene' : 'tienen' }} solicitudes. Si una está activa, puede estar tomando el correo, el celular o la cédula: con la basura de la izquierda se la da de baja y quedan libres. Sólo clientes: una cuenta de administrador o de asesor no se toca desde acá.</div>
           </div>
         </div>
         <template v-else>
@@ -381,7 +432,7 @@ onBeforeUnmount(() => {
             </div>
           </section>
 
-          <section v-if="listed.length && !r.input.phone">
+          <section v-if="listed.length && !r.input.who">
             <div class="region-head group"><span>{{ r.input.phone ? `Solicitudes del celular ${r.input.phone}` : 'Solicitudes del usuario' }}</span><span class="count">{{ listed.length }}</span></div>
             <table class="table">
               <thead><tr><th>solicitud</th><th v-if="r.input.phone">usuario</th><th>estado</th><th>sucursal</th><th>monto</th><th>creada</th><th></th></tr></thead>
@@ -465,6 +516,22 @@ onBeforeUnmount(() => {
           <button type="button" class="btn btn-sm btn-outline" @click="closeDelete">Cancelar</button>
           <button type="submit" class="btn btn-sm btn-danger" :disabled="!canDelete">
             <span class="ui-icon" data-icon="trash" aria-hidden="true"></span>{{ del.running ? 'Borrando…' : 'Borrar' }}
+          </button>
+        </div>
+      </form>
+    </dialog>
+
+    <dialog ref="userDialog" class="confirm-dialog" aria-labelledby="baja-title" @close="baja = null" @cancel="baja = null">
+      <form v-if="baja" method="dialog" @submit.prevent="runBaja">
+        <h2 id="baja-title">¿Dar de baja a {{ baja.person.name || `usuario ${baja.person.id}` }}?</h2>
+        <p>Queda como en la papelera del admin: dado de baja, la cédula pasa a <code>{{ baja.person.document_number }}-t…</code> y pierde el correo y el celular. Así quedan libres para registrarse de nuevo. Se guarda una copia antes.</p>
+        <p class="muted small">{{ baja.person.email || 'sin correo' }} · {{ baja.person.cell_phone || 'sin celular' }} · {{ baja.person.requests }} solicitudes</p>
+        <p v-if="target !== 'local' && String(baja.person.is_test) !== '1'" class="warn">⚠ No está marcado de prueba: puede ser de otra persona del equipo.</p>
+        <p v-if="baja.error" class="hot">{{ baja.error }}</p>
+        <div class="confirm-actions">
+          <button type="button" class="btn btn-sm btn-outline" @click="closeBaja">Cancelar</button>
+          <button type="submit" class="btn btn-sm btn-danger" :disabled="baja.running">
+            <span class="ui-icon" data-icon="trash" aria-hidden="true"></span>{{ baja.running ? 'Dando de baja…' : 'Dar de baja' }}
           </button>
         </div>
       </form>

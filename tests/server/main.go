@@ -29,9 +29,19 @@ func main() {
 	phone := flag.Bool("phone", false, "con -delete: todas las solicitudes del celular de esa solicitud")
 	confirm := flag.String("confirm", "", "con -delete: el número de la solicitud (o el celular, con -phone)")
 	rollback := flag.Bool("rollback", false, "con -delete: hace todo dentro de la transacción y la deshace")
+	disable := flag.Int("disable-user", 0, "da de baja a ese usuario (cliente, activo), con respaldo; con -rollback lo deshace")
 	freeUsers := flag.Bool("free-users", false, "con -delete: además da de baja a los usuarios del celular (con -phone) o al de la solicitud si era su última")
 	flag.Parse()
 
+	if *disable > 0 {
+		out, err := DisableUser(*target, *disable, strconv.Itoa(*disable), *rollback)
+		if err != nil {
+			fmt.Fprintln(os.Stderr, "tests:", err)
+			os.Exit(1)
+		}
+		_ = json.NewEncoder(os.Stdout).Encode(out)
+		return
+	}
 	if *addr != "" {
 		if err := serve(*addr); err != nil {
 			fmt.Fprintln(os.Stderr, "tests:", err)
@@ -45,7 +55,7 @@ func main() {
 		os.Exit(2)
 	}
 	// Con celular, -delete actúa sobre su solicitud más nueva (la misma que muestra la búsqueda).
-	if *del && in.Phone != "" {
+	if *del && in.Who != "" {
 		res, err := Lookup(*target, in)
 		if err != nil {
 			fmt.Fprintln(os.Stderr, "tests:", err)
@@ -91,7 +101,7 @@ func handler() http.Handler {
 			return
 		}
 		// Con celular, `request` elige cuál de sus solicitudes se muestra.
-		if n, _ := strconv.Atoi(r.URL.Query().Get("request")); in.Phone != "" && n > 0 {
+		if n, _ := strconv.Atoi(r.URL.Query().Get("request")); in.Who != "" && n > 0 {
 			in.Request = n
 		}
 		res, err := Lookup(r.URL.Query().Get("target"), in)
@@ -121,6 +131,28 @@ func handler() http.Handler {
 			return
 		}
 		writeJSON(w, http.StatusOK, out)
+	})
+	// POST /api/user/disable {target, user} — da de baja a un usuario suelto (cliente, activo), con respaldo.
+	mux.HandleFunc("/api/user/disable", func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost {
+			writeJSON(w, http.StatusMethodNotAllowed, map[string]string{"error": "POST"})
+			return
+		}
+		var body struct {
+			Target string `json:"target"`
+			User   int    `json:"user"`
+		}
+		if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+			writeJSON(w, http.StatusBadRequest, map[string]string{"error": err.Error()})
+			return
+		}
+		// La ventana de la interfaz es la confirmación: el id viaja solo y DisableUser vuelve a comprobar todo.
+		res, err := DisableUser(body.Target, body.User, strconv.Itoa(body.User), false)
+		if err != nil {
+			writeJSON(w, http.StatusUnprocessableEntity, map[string]string{"error": err.Error()})
+			return
+		}
+		writeJSON(w, http.StatusOK, res)
 	})
 	// GET /api/delete/plan?target=qa&request=504059&phone=1 — qué se borraría. Sólo lee.
 	mux.HandleFunc("/api/delete/plan", func(w http.ResponseWriter, r *http.Request) {

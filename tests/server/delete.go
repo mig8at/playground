@@ -419,17 +419,11 @@ func Delete(target string, request int, byPhone, freeUsers bool, confirm string,
 	if strings.TrimSpace(confirm) != plan.Confirm {
 		return nil, fmt.Errorf("la confirmación no coincide: hay que escribir %s", plan.Confirm)
 	}
-	cfg, err := writeConfig(target)
-	if err != nil {
-		return nil, err
-	}
-	db, err := stdsql.Open("mysql", fmt.Sprintf("%s:%s@tcp(%s:%s)/%s?timeout=10s&readTimeout=60s&writeTimeout=60s",
-		cfg.user, cfg.pass, cfg.host, cfg.port, cfg.name))
+	db, err := openWrite(target)
 	if err != nil {
 		return nil, err
 	}
 	defer db.Close()
-	db.SetMaxOpenConns(1)
 
 	src, err := source(target)
 	if err != nil {
@@ -454,39 +448,7 @@ func Delete(target string, request int, byPhone, freeUsers bool, confirm string,
 	}()
 
 	counts := map[string]int{}
-	// El respaldo: cada fila tal como estaba, leída en la misma transacción justo antes de tocarla.
-	backup := map[string][]map[string]any{}
-	keep := func(table, query string) error {
-		got, err := tx.Query(query)
-		if err != nil {
-			return err
-		}
-		defer got.Close()
-		cols, err := got.Columns()
-		if err != nil {
-			return err
-		}
-		for got.Next() {
-			vals := make([]any, len(cols))
-			ptrs := make([]any, len(cols))
-			for i := range vals {
-				ptrs[i] = &vals[i]
-			}
-			if err := got.Scan(ptrs...); err != nil {
-				return err
-			}
-			row := map[string]any{}
-			for i, c := range cols {
-				if b, ok := vals[i].([]byte); ok {
-					row[c] = string(b)
-				} else {
-					row[c] = vals[i]
-				}
-			}
-			backup[table] = append(backup[table], row)
-		}
-		return got.Err()
-	}
+	backup, keep := newBackup(tx)
 	exec := func(table, query string) error {
 		res, err := tx.Exec(query)
 		if err != nil {
@@ -573,20 +535,11 @@ func Delete(target string, request int, byPhone, freeUsers bool, confirm string,
 	// La baja, como la papelera del admin: el siguiente sufijo libre -t<n> de la cédula, y sin correo ni celular.
 	var freed []int
 	for _, u := range plan.freeable() {
-		var next int
-		if err := tx.QueryRow(`SELECT COALESCE(MAX(CAST(SUBSTRING_INDEX(document_number, '-t', -1) AS UNSIGNED)), 0) + 1
-			FROM users WHERE document_number LIKE CONCAT(?, '-t%')`, u.Document).Scan(&next); err != nil {
-			return nil, fmt.Errorf("baja del usuario %d: %w", u.ID, err)
-		}
-		if err := keep("users", fmt.Sprintf("SELECT * FROM users WHERE id = %d", u.ID)); err != nil {
-			return nil, fmt.Errorf("respaldo del usuario %d: %w", u.ID, err)
-		}
-		res, err := tx.Exec(`UPDATE users SET status = 0, document_number = CONCAT(document_number, '-t', ?), email = NULL,
-			cell_phone = NULL, updated_at = NOW() WHERE id = ? AND status = 1 AND user_profile_id = 1`, next, u.ID)
+		ok, err := disableUserTx(tx, keep, u.ID, u.Document)
 		if err != nil {
-			return nil, fmt.Errorf("baja del usuario %d: %w", u.ID, err)
+			return nil, err
 		}
-		if n, _ := res.RowsAffected(); n == 1 {
+		if ok {
 			counts["users (baja)"]++
 			freed = append(freed, u.ID)
 		}
@@ -624,6 +577,146 @@ func Delete(target string, request int, byPhone, freeUsers bool, confirm string,
 	return out, nil
 }
 
+// newBackup arma el respaldo de una transacción: keep lee y guarda cada fila tal como estaba, justo antes de
+// tocarla, en la misma transacción.
+func newBackup(tx *stdsql.Tx) (map[string][]map[string]any, func(table, query string) error) {
+	backup := map[string][]map[string]any{}
+	keep := func(table, query string) error {
+		got, err := tx.Query(query)
+		if err != nil {
+			return err
+		}
+		defer got.Close()
+		cols, err := got.Columns()
+		if err != nil {
+			return err
+		}
+		for got.Next() {
+			vals := make([]any, len(cols))
+			ptrs := make([]any, len(cols))
+			for i := range vals {
+				ptrs[i] = &vals[i]
+			}
+			if err := got.Scan(ptrs...); err != nil {
+				return err
+			}
+			row := map[string]any{}
+			for i, c := range cols {
+				if b, ok := vals[i].([]byte); ok {
+					row[c] = string(b)
+				} else {
+					row[c] = vals[i]
+				}
+			}
+			backup[table] = append(backup[table], row)
+		}
+		return got.Err()
+	}
+	return backup, keep
+}
+
+// disableUserTx da de baja a un cliente como la papelera del admin: el siguiente sufijo libre -t<n> de la cédula,
+// sin correo ni celular. Respalda la fila antes. Dice si de verdad cambió (sólo un cliente activo cambia).
+func disableUserTx(tx *stdsql.Tx, keep func(table, query string) error, id int, document string) (bool, error) {
+	var next int
+	if err := tx.QueryRow(`SELECT COALESCE(MAX(CAST(SUBSTRING_INDEX(document_number, '-t', -1) AS UNSIGNED)), 0) + 1
+		FROM users WHERE document_number LIKE CONCAT(?, '-t%')`, document).Scan(&next); err != nil {
+		return false, fmt.Errorf("baja del usuario %d: %w", id, err)
+	}
+	if err := keep("users", fmt.Sprintf("SELECT * FROM users WHERE id = %d", id)); err != nil {
+		return false, fmt.Errorf("respaldo del usuario %d: %w", id, err)
+	}
+	res, err := tx.Exec(`UPDATE users SET status = 0, document_number = CONCAT(document_number, '-t', ?), email = NULL,
+		cell_phone = NULL, updated_at = NOW() WHERE id = ? AND status = 1 AND user_profile_id = 1`, next, id)
+	if err != nil {
+		return false, fmt.Errorf("baja del usuario %d: %w", id, err)
+	}
+	n, _ := res.RowsAffected()
+	return n == 1, nil
+}
+
+// openWrite abre la base del harness de ese ambiente, la única con la que tests escribe.
+func openWrite(target string) (*stdsql.DB, error) {
+	cfg, err := writeConfig(target)
+	if err != nil {
+		return nil, err
+	}
+	db, err := stdsql.Open("mysql", fmt.Sprintf("%s:%s@tcp(%s:%s)/%s?timeout=10s&readTimeout=60s&writeTimeout=60s",
+		cfg.user, cfg.pass, cfg.host, cfg.port, cfg.name))
+	if err != nil {
+		return nil, err
+	}
+	db.SetMaxOpenConns(1)
+	return db, nil
+}
+
+// DisableUser da de baja a UN usuario suelto —uno sin solicitudes, o al que se busca por correo o cédula—,
+// con las mismas reglas que la baja dentro de un borrado: sólo un cliente activo, con respaldo, en una
+// transacción. confirm es el id del usuario.
+func DisableUser(target string, id int, confirm string, rollback bool) (*Deleted, error) {
+	if !validTarget(target) {
+		return nil, fmt.Errorf("ambiente %q: tests mira %s", target, strings.Join(Targets, " o "))
+	}
+	if blocked := writeBlocked(target); blocked != "" {
+		return nil, errors.New(blocked)
+	}
+	if strings.TrimSpace(confirm) != strconv.Itoa(id) {
+		return nil, fmt.Errorf("la confirmación no coincide: hay que mandar el id del usuario, %d", id)
+	}
+	src, err := source(target)
+	if err != nil {
+		return nil, err
+	}
+	u, err := first(src, `SELECT id, status, user_profile_id, document_number FROM users WHERE id = ?`, id)
+	if err != nil {
+		return nil, err
+	}
+	switch {
+	case u == nil:
+		return nil, fmt.Errorf("no existe el usuario %d en %s", id, target)
+	case cell(u, "status") != "1":
+		return nil, fmt.Errorf("el usuario %d ya está dado de baja", id)
+	case cell(u, "user_profile_id") != "1":
+		return nil, fmt.Errorf("el usuario %d no es un cliente (perfil %s): no se da de baja desde tests", id, cell(u, "user_profile_id"))
+	}
+	db, err := openWrite(target)
+	if err != nil {
+		return nil, err
+	}
+	defer db.Close()
+	tx, err := db.Begin()
+	if err != nil {
+		return nil, err
+	}
+	backup, keep := newBackup(tx)
+	ok, err := disableUserTx(tx, keep, id, cell(u, "document_number"))
+	if err != nil || !ok {
+		_ = tx.Rollback()
+		if err == nil {
+			err = fmt.Errorf("el usuario %d no cambió: ya no está activo o no es un cliente", id)
+		}
+		return nil, err
+	}
+	out := &Deleted{Target: target, Requests: []int{}, Users: []int{id}, Tables: []TableCount{{"users (baja)", 1}}, Total: 1,
+		RolledBack: rollback, At: time.Now().Format("2006-01-02 15:04:05")}
+	if out.Backup, err = writeBackup(out, backup); err != nil {
+		_ = tx.Rollback()
+		return nil, fmt.Errorf("no se pudo guardar el respaldo, no se dio de baja: %w", err)
+	}
+	if rollback {
+		err = tx.Rollback()
+	} else {
+		err = tx.Commit()
+	}
+	if err != nil {
+		return nil, err
+	}
+	if !rollback {
+		journal(out)
+	}
+	return out, nil
+}
+
 // writeBackup guarda en tests/.backups/ (fuera de git, sólo para vos) cada fila borrada o cambiada, por tabla,
 // tal como estaba. Con ellas se puede reponer lo borrado. Lleva datos personales: no se comparte.
 func writeBackup(d *Deleted, rows map[string][]map[string]any) (string, error) {
@@ -631,7 +724,13 @@ func writeBackup(d *Deleted, rows map[string][]map[string]any) (string, error) {
 	if err := os.MkdirAll(dir, 0o700); err != nil {
 		return "", err
 	}
-	name := fmt.Sprintf("%s-%s-%d", time.Now().Format("20060102-150405"), d.Target, d.Requests[0])
+	what := "solicitud"
+	if len(d.Requests) > 0 {
+		what = strconv.Itoa(d.Requests[0])
+	} else if len(d.Users) > 0 {
+		what = fmt.Sprintf("usuario-%d", d.Users[0])
+	}
+	name := fmt.Sprintf("%s-%s-%s", time.Now().Format("20060102-150405"), d.Target, what)
 	if d.RolledBack {
 		name += "-rollback"
 	}

@@ -29,7 +29,16 @@ func TestParseInput(t *testing.T) {
 			t.Errorf("ParseInput(%q) = %+v, %v; quería %d %q", c.raw, in, err, c.request, c.hash)
 		}
 	}
-	for _, bad := range []string{"", "hola", "https://originaciones-qa.dev.creditop.com/ecommerce/", "6011234567", "1234567890123"} {
+	// La cédula: cualquier número de 7 o más que no sea un celular. El correo, en minúsculas.
+	for raw, doc := range map[string]string{"45445435345": "45445435345", "1031138508": "1031138508", "6011234567": "6011234567"} {
+		if in, err := ParseInput(raw); err != nil || in.Document != doc || in.Phone != "" || in.Request != 0 {
+			t.Errorf("ParseInput(%q) = %+v, %v; quería la cédula %s", raw, in, err, doc)
+		}
+	}
+	if in, err := ParseInput(" Miguel@Creditop.com "); err != nil || in.Email != "miguel@creditop.com" {
+		t.Errorf("ParseInput(correo) = %+v, %v", in, err)
+	}
+	for _, bad := range []string{"", "hola", "https://originaciones-qa.dev.creditop.com/ecommerce/", "a'b@x.co", "x@y", "1234567890123456"} {
 		if _, err := ParseInput(bad); err == nil {
 			t.Errorf("ParseInput(%q) no dio error", bad)
 		}

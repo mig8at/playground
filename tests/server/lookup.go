@@ -24,9 +24,13 @@ var Targets = []string{"local", "qa"}
 
 // Input es lo que se pegó, ya separado.
 type Input struct {
-	Request int    `json:"request,omitempty"`
-	Hash    string `json:"hash,omitempty"`
-	Phone   string `json:"phone,omitempty"` // los 10 dígitos, sin indicativo
+	Request  int    `json:"request,omitempty"`
+	Hash     string `json:"hash,omitempty"`
+	Phone    string `json:"phone,omitempty"`    // los 10 dígitos, sin indicativo
+	Email    string `json:"email,omitempty"`    // en minúsculas
+	Document string `json:"document,omitempty"` // la cédula, sólo dígitos
+	// Who es lo que se buscó, para mostrarlo («3016992677», «miguel@creditop.com», «cédula 45445435345»).
+	Who string `json:"who,omitempty"`
 }
 
 // La URL del wizard: …/ecommerce/<sucursal>/<solicitud>/… (también la del asesor, /<sucursal>/<solicitud>).
@@ -35,31 +39,46 @@ var (
 	reNumber = regexp.MustCompile(`^\s*(\d{3,})\s*$`)
 	// Un celular como se copia: con espacios, guiones, paréntesis o el +57 adelante.
 	rePhone = regexp.MustCompile(`^\+?[\d\s().-]{10,18}$`)
+	// Un correo «simple»: sin comillas ni espacios, porque va escrito en la consulta (el conector sólo acepta
+	// argumentos de dígitos, por Redash).
+	reEmail = regexp.MustCompile(`^[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,}$`)
 )
 
-// ParseInput acepta el celular (lo que se pide), la URL completa del wizard o el número de solicitud.
-// Un celular de Colombia son 10 dígitos que empiezan con 3, con o sin el 57 adelante; una solicitud tiene
-// menos de 10 dígitos. Así no se confunden.
+// ParseInput acepta el celular, el correo o la cédula de la persona, la URL completa del wizard o el número de
+// solicitud. Un celular de Colombia son 10 dígitos que empiezan con 3 (con o sin el 57); una solicitud, hasta 6
+// dígitos; cualquier otro número de 7 o más es una cédula. Así no se confunden.
 func ParseInput(raw string) (Input, error) {
 	raw = strings.TrimSpace(raw)
+	if strings.Contains(raw, "@") {
+		e := strings.ToLower(raw)
+		if !reEmail.MatchString(e) {
+			return Input{}, fmt.Errorf("%q no parece un correo", raw)
+		}
+		return Input{Email: e, Who: e}, nil
+	}
 	if rePhone.MatchString(raw) {
 		d := onlyDigits(raw)
 		if len(d) == 12 && strings.HasPrefix(d, "57") {
 			d = d[2:]
 		}
 		if len(d) == 10 && strings.HasPrefix(d, "3") {
-			return Input{Phone: d}, nil
+			return Input{Phone: d, Who: d}, nil
 		}
 	}
-	if m := reNumber.FindStringSubmatch(raw); m != nil && len(m[1]) < 10 {
-		n, _ := strconv.Atoi(m[1])
-		return Input{Request: n}, nil
+	if m := reNumber.FindStringSubmatch(raw); m != nil {
+		if len(m[1]) <= 6 {
+			n, _ := strconv.Atoi(m[1])
+			return Input{Request: n}, nil
+		}
+		if len(m[1]) <= 15 {
+			return Input{Document: m[1], Who: "cédula " + m[1]}, nil
+		}
 	}
 	if m := reURL.FindStringSubmatch(raw); m != nil {
 		n, _ := strconv.Atoi(m[2])
 		return Input{Request: n, Hash: m[1]}, nil
 	}
-	return Input{}, fmt.Errorf("no reconozco %q: escribí el celular (10 dígitos, como 3016992677), o pegá la URL del wizard o el número de la solicitud", raw)
+	return Input{}, fmt.Errorf("no reconozco %q: escribí el celular (como 3016992677), el correo o la cédula, o pegá la URL del wizard o el número de la solicitud", raw)
 }
 
 // Warning es algo que no cuadra y que conviene ver primero.
@@ -73,6 +92,8 @@ type Result struct {
 	Target string `json:"target"`
 	Source string `json:"source"`
 	Input  Input  `json:"input"`
+	// Con celular, correo o cédula: las personas que coinciden, activas o dadas de baja, con o sin solicitudes.
+	People []dbsql.Row `json:"people"`
 	// Con búsqueda por celular: todas las solicitudes de los usuarios con ese número, de la más nueva a la
 	// más vieja. La que se muestra es la pedida o, si no se pidió una, la más nueva.
 	PhoneRequests []dbsql.Row `json:"phoneRequests"`
@@ -176,22 +197,34 @@ func Lookup(target string, in Input) (*Result, error) {
 
 func lookup(src dbsql.Source, target string, in Input) (*Result, error) {
 	res := &Result{Target: target, Source: src.Name(), Input: in, Warnings: []Warning{}, SamePhone: []dbsql.Row{},
-		Records: []dbsql.Row{}, Requests: []dbsql.Row{}, Fields: []dbsql.Row{}, PhoneRequests: []dbsql.Row{},
+		Records: []dbsql.Row{}, Requests: []dbsql.Row{}, Fields: []dbsql.Row{}, PhoneRequests: []dbsql.Row{}, People: []dbsql.Row{},
 		ReadAt: time.Now().Format("2006-01-02 15:04:05")}
 	var err error
 
-	if in.Phone != "" {
-		// Por cómo termina: el celular se guarda con y sin indicativo (+573016992677). Activos o dados de baja.
+	if in.Who != "" {
+		where, args := personWhere(in)
+		res.People, err = rows(src, `SELECT u.id, TRIM(CONCAT(COALESCE(u.first_name, ''), ' ', COALESCE(u.surname, ''))) AS name,
+				u.document_number, u.email, u.cell_phone, u.status, u.user_profile_id, p.name AS profile, u.is_test, u.created_at,
+				(SELECT COUNT(*) FROM user_requests x WHERE x.user_id = u.id) AS requests
+			FROM users u LEFT JOIN user_profiles p ON p.id = u.user_profile_id
+			WHERE `+where+` ORDER BY u.status DESC, u.id DESC LIMIT 20`, args...)
+		if err != nil {
+			return nil, fmt.Errorf("personas: %w", err)
+		}
+		if len(res.People) == 0 {
+			return nil, fmt.Errorf("nadie con %s en %s", in.Who, target)
+		}
 		res.PhoneRequests, err = rows(src, `SELECT q.id, q.user_id, TRIM(CONCAT(COALESCE(u.first_name, ''), ' ', COALESCE(u.surname, ''))) AS user,
 				u.status AS user_status, q.user_request_status_id AS status_id, s.name AS status, a.name AS allied, b.hash, q.amount, q.created_at
 			FROM user_requests q JOIN users u ON u.id = q.user_id LEFT JOIN user_request_statuses s ON s.id = q.user_request_status_id
 			LEFT JOIN allieds a ON a.id = q.allied_id LEFT JOIN allied_branches b ON b.id = q.allied_branch_id
-			WHERE u.cell_phone LIKE CONCAT('%', ?) ORDER BY q.id DESC LIMIT 50`, in.Phone)
+			WHERE `+where+` ORDER BY q.id DESC LIMIT 50`, args...)
 		if err != nil {
-			return nil, fmt.Errorf("solicitudes del celular: %w", err)
+			return nil, fmt.Errorf("solicitudes: %w", err)
 		}
+		// Sin solicitudes también se contesta: la persona existe y puede estar estorbando (un correo tomado).
 		if len(res.PhoneRequests) == 0 {
-			return nil, fmt.Errorf("ningún usuario con el celular %s tiene solicitudes en %s", in.Phone, target)
+			return res, nil
 		}
 		picked := false
 		for _, q := range res.PhoneRequests {
@@ -289,6 +322,20 @@ func lookup(src dbsql.Source, target string, in Input) (*Result, error) {
 
 	res.Warnings = warnings(res)
 	return res, nil
+}
+
+// personWhere es la condición sobre `users u` para buscar a una persona. El celular, por cómo termina (se guarda
+// con y sin indicativo); la cédula, también con sus bajas (-t1, -t2…); el correo, exacto. El correo va escrito
+// en la consulta: ParseInput ya lo validó contra reEmail, que no deja pasar comillas ni espacios.
+func personWhere(in Input) (string, []any) {
+	switch {
+	case in.Phone != "":
+		return "u.cell_phone LIKE CONCAT('%', ?)", []any{in.Phone}
+	case in.Document != "":
+		return "(u.document_number = ? OR u.document_number LIKE CONCAT(?, '-t%'))", []any{in.Document, in.Document}
+	default:
+		return "LOWER(u.email) = '" + in.Email + "'", nil
+	}
 }
 
 // warnings dice lo que no cuadra entre lo que mandó la tienda, la URL y el usuario que quedó.
