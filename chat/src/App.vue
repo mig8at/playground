@@ -414,7 +414,7 @@ const statusText = computed(() => {
       <div class="region-body">
         <p v-if="chat.teamAgentsError" class="side-note bad">{{ chat.teamAgentsError }}</p>
         <p v-else-if="!chat.agentList.length" class="side-note">
-          Nadie tiene agentes conectados ahora. Los tuyos los anuncia <code>playground listen</code>: tu journal y los de
+          Nadie tiene agentes conectados ahora. Los tuyos los anuncia <code>playground listen</code>: los de
           <code>~/playground/team/agents.json</code>.
         </p>
         <ul v-else class="conversations">
