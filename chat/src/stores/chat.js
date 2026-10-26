@@ -131,6 +131,14 @@ export const useChatStore = defineStore('chat', () => {
     self.value = next
     try { localStorage.setItem(SELF_KEY, JSON.stringify(next)) } catch { /* vale mientras la pestaña */ }
   }, { immediate: true })
+  // «Es mi cuenta»: vincula a mano una conversación que llegó con otro correo tuyo.
+  function claimAsMe(person) {
+    const next = { emails: [...self.value.emails], names: [...self.value.names], githubs: [...self.value.githubs] }
+    remember(next.emails, person?.email); remember(next.names, person?.name); remember(next.githubs, person?.github)
+    self.value = next
+    try { localStorage.setItem(SELF_KEY, JSON.stringify(next)) } catch { /* vale mientras la pestaña */ }
+    if (activeKey.value === keyOf(person?.email)) activeKey.value = ''
+  }
   const isMe = (person) => {
     const key = keyOf(person?.email)
     if (!key || isAgentKey(key)) return false
@@ -585,7 +593,7 @@ export const useChatStore = defineStore('chat', () => {
   return {
     conversations, activeKey, state, stateError, online, onlineError, listenBusy, listenError, loginBusy, loginError, login,
     teamAgents, teamAgentsError, cuadrilla, cuadrillaError, myTasks, taskUrl, loadCuadrilla, noteTask, doneTask,
-    removeConversation, isMe, proposeReplies, sendProposal, discardProposal, ownerName, inbox,
+    removeConversation, isMe, claimAsMe, proposeReplies, sendProposal, discardProposal, ownerName, inbox,
     me, meKey, list, active, unreadTotal, onlineKeys, agentList,
     loadState, loadOnline, loadTeamAgents, startListening, open, openAgent, send, retry, forget, findBySid, start, stop,
   }

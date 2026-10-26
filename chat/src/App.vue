@@ -444,6 +444,8 @@ const statusText = computed(() => {
             <span class="count head-sub">{{ activeSubtitle }}</span>
           </span>
           <div class="region-actions">
+            <button v-if="!activeIsAgent" type="button" class="btn btn-ghost btn-sm" title="Esta cuenta eres tú: se une a «Mi chat»"
+                    @click="chat.claimAsMe(chat.active.person)">Es mi cuenta</button>
             <button type="button" class="region-action" title="Borrar esta conversación de este navegador"
                     aria-label="Borrar esta conversación de este navegador" @click="forgetActive">
               <span class="ui-icon" data-icon="close" aria-hidden="true"></span>
