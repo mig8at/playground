@@ -192,47 +192,45 @@ async function runDelete() {
 // ── las tablas de la solicitud que se mira: cuántas filas tiene en cada una. Sólo lee ──
 const tables = ref([])
 const tablesError = ref('')
+// Las filas de cada tabla, para pintarlas en el editor: tabla → { loading, error, data }.
+const tableRows = ref({})
 async function loadTables() {
-  tables.value = []; tablesError.value = ''
+  tables.value = []; tablesError.value = ''; tableRows.value = {}
   const id = result.value?.request?.id
   if (!id) return
   try {
     const res = await fetch(`/api/tables?target=${encodeURIComponent(target.value)}&request=${id}`)
     const body = await res.json().catch(() => ({}))
     if (!res.ok) throw new Error(body.error || `HTTP ${res.status}`)
-    if (result.value?.request?.id === id) tables.value = body
+    if (result.value?.request?.id === id) { tables.value = body; body.forEach((t) => loadRows(t.table, id)) }
   } catch (e) {
     tablesError.value = e.message
+  }
+}
+async function loadRows(name, id) {
+  tableRows.value = { ...tableRows.value, [name]: { loading: true, error: '', data: null } }
+  try {
+    const res = await fetch(`/api/table-rows?target=${encodeURIComponent(target.value)}&request=${id}&table=${encodeURIComponent(name)}`)
+    const body = await res.json().catch(() => ({}))
+    if (!res.ok) throw new Error(body.error || `HTTP ${res.status}`)
+    if (result.value?.request?.id === id) tableRows.value = { ...tableRows.value, [name]: { loading: false, error: '', data: body } }
+  } catch (e) {
+    if (result.value?.request?.id === id) tableRows.value = { ...tableRows.value, [name]: { loading: false, error: e.message, data: null } }
   }
 }
 watch(() => result.value?.request?.id, loadTables)
 const tablesTotal = computed(() => tables.value.reduce((n, t) => n + t.rows, 0))
 
-// ── una tabla abierta en el sidebar derecho: sus filas de la solicitud, una por bloque, columna por renglón ──
-const openTable = ref(null)
-let tableSeq = 0
-async function showTable(name, reload = false) {
-  const id = result.value?.request?.id
-  if (!id) return
-  // Volver a tocar la tabla abierta la cierra; «Volver a leer» la relee.
-  if (!reload && openTable.value?.table === name && openTable.value.request === id) { openTable.value = null; return }
-  // Cada lectura lleva su número: si mientras tanto se abrió otra tabla, la respuesta vieja no la pisa.
-  // (No se compara el objeto: lo que guarda `ref` es un proxy, nunca el mismo.)
-  const seq = ++tableSeq
-  const t = { table: name, request: id, seq, loading: true, error: '', data: null }
-  openTable.value = t
-  try {
-    const res = await fetch(`/api/table-rows?target=${encodeURIComponent(target.value)}&request=${id}&table=${encodeURIComponent(name)}`)
-    const body = await res.json().catch(() => ({}))
-    if (!res.ok) throw new Error(body.error || `HTTP ${res.status}`)
-    if (openTable.value?.seq === seq) openTable.value = { ...t, loading: false, data: body }
-  } catch (e) {
-    if (openTable.value?.seq === seq) openTable.value = { ...t, loading: false, error: e.message }
-  }
+// ── el sidebar derecho: la consulta de la tabla cuyo título se tocó, para correrla en otro lado ──
+const openTable = ref(null) // nombre de la tabla
+function showTable(name) { openTable.value = openTable.value === name ? null : name }
+const openQuery = computed(() => (openTable.value ? tableRows.value[openTable.value]?.data?.query || '' : ''))
+const copied = ref(false)
+async function copyQuery() {
+  try { await navigator.clipboard.writeText(openQuery.value); copied.value = true; setTimeout(() => { copied.value = false }, 1500) } catch { /* sin portapapeles */ }
 }
-// Otra solicitud u otro ambiente: la tabla abierta era de la anterior.
+// Otra solicitud u otro ambiente: la consulta abierta era de la anterior.
 watch([() => result.value?.request?.id, target], () => { openTable.value = null })
-// NULL se distingue de la cadena vacía: en la base no son lo mismo.
 const cellText = (v) => (v === null || v === undefined ? 'NULL' : typeof v === 'object' ? JSON.stringify(v) : String(v))
 
 // ── el ambiente: el selector del pie ──
@@ -278,7 +276,7 @@ const sidebarResize = {
   commit: (v) => { saveSize('tests.sidebar-open', v ? 1 : 0); if (v) saveSize('tests.sidebar-w', sidebarW.value) },
 }
 const auxResize = {
-  label: 'Ancho de la tabla', sign: -1, defaultValue: 380,
+  label: 'Ancho de la consulta', sign: -1, defaultValue: 380,
   min: () => cssSize('--sidebar-min', 240),
   max: () => viewportW.value - cssSize('--editor-min', 360) - shown.value.sidebar,
   get: () => shown.value.aux,
@@ -458,15 +456,27 @@ onBeforeUnmount(() => {
             <div class="region-head group"><span>Tablas de esta solicitud</span><span class="count">{{ tables.length ? `${tablesTotal} filas en ${tables.length} tablas` : '' }}</span></div>
             <p v-if="tablesError" class="none hot">{{ tablesError }}</p>
             <p v-else-if="!tables.length" class="none">Contando…</p>
-            <dl v-else class="kv tables">
-              <template v-for="t in tables" :key="t.table">
-                <dt>
-                  <button type="button" class="btn-link" :class="{ on: openTable?.table === t.table }" :title="`Ver las filas de ${t.table}`" @click="showTable(t.table)">
-                    <code>{{ t.table }}</code>
-                  </button>
-                </dt><dd>{{ t.rows }}</dd>
-              </template>
-            </dl>
+            <div v-for="t in tables" v-else :key="t.table" class="db-table">
+              <!-- El título es un botón: abre a la derecha la consulta que trae estas filas. -->
+              <button type="button" class="db-table-head" :class="{ on: openTable === t.table }" :title="`Ver la consulta de ${t.table}`" @click="showTable(t.table)">
+                <code>{{ t.table }}</code>
+                <span class="count">{{ t.rows }} {{ t.rows === 1 ? 'fila' : 'filas' }}</span>
+                <span class="ui-icon" data-icon="console" aria-hidden="true"></span>
+              </button>
+              <p v-if="tableRows[t.table]?.loading" class="none">Leyendo…</p>
+              <p v-else-if="tableRows[t.table]?.error" class="none hot">{{ tableRows[t.table].error }}</p>
+              <div v-else-if="tableRows[t.table]?.data" class="table-scroll">
+                <table class="table db">
+                  <thead><tr><th v-for="c in tableRows[t.table].data.columns" :key="c">{{ c }}</th></tr></thead>
+                  <tbody>
+                    <tr v-for="(row, i) in tableRows[t.table].data.rows" :key="row.id ?? i">
+                      <td v-for="c in tableRows[t.table].data.columns" :key="c" :class="{ muted: row[c] === null }" :title="cellText(row[c])">{{ cellText(row[c]) }}</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+              <p v-if="tableRows[t.table]?.data?.truncated" class="none warn">Se muestran las primeras {{ tableRows[t.table].data.rows.length }}.</p>
+            </div>
           </section>
 
           <section v-if="r.fields.length">
@@ -501,14 +511,14 @@ onBeforeUnmount(() => {
       </div>
     </main>
 
-    <aside v-if="shown.aux" class="auxiliarybar" :aria-label="`Filas de ${openTable.table}`">
+    <aside v-if="shown.aux" class="auxiliarybar" :aria-label="`Consulta de ${openTable}`">
       <div class="rsz rsz-edge-left" v-resize="auxResize"></div>
       <div class="region-head">
-        <code>{{ openTable.table }}</code>
-        <span v-if="openTable.data" class="count">{{ openTable.data.rows.length }}{{ openTable.data.truncated ? '+' : '' }} {{ openTable.data.rows.length === 1 ? 'fila' : 'filas' }}</span>
+        <code>{{ openTable }}</code>
+        <span class="count">consulta</span>
         <div class="region-actions">
-          <button type="button" class="region-action" title="Volver a leer" aria-label="Volver a leer" :disabled="openTable.loading" @click="showTable(openTable.table, true)">
-            <span class="ui-icon" data-icon="refresh" aria-hidden="true"></span>
+          <button type="button" class="region-action" :title="copied ? 'Copiada' : 'Copiar la consulta'" aria-label="Copiar la consulta" :disabled="!openQuery" @click="copyQuery">
+            <span class="ui-icon" data-icon="copy" aria-hidden="true"></span>
           </button>
           <button type="button" class="region-action" title="Cerrar" aria-label="Cerrar" @click="openTable = null">
             <span class="ui-icon" data-icon="close" aria-hidden="true"></span>
@@ -516,18 +526,10 @@ onBeforeUnmount(() => {
         </div>
       </div>
       <div class="region-body">
-        <p v-if="openTable.loading" class="none">Leyendo…</p>
-        <p v-else-if="openTable.error" class="none hot">{{ openTable.error }}</p>
+        <p v-if="!openQuery" class="none">Leyendo…</p>
         <template v-else>
-          <p v-if="openTable.data.truncated" class="none warn">Se muestran las primeras {{ openTable.data.rows.length }}.</p>
-          <section v-for="(row, i) in openTable.data.rows" :key="row.id ?? i" class="db-row">
-            <div class="region-head group"><span>Fila {{ i + 1 }}</span><span v-if="row.id !== undefined" class="count">id {{ row.id }}</span></div>
-            <dl class="kv db">
-              <template v-for="c in openTable.data.columns" :key="c">
-                <dt><code>{{ c }}</code></dt><dd :class="{ muted: row[c] === null }"><code>{{ cellText(row[c]) }}</code></dd>
-              </template>
-            </dl>
-          </section>
+          <pre class="sql"><code>{{ openQuery }}</code></pre>
+          <p class="none">Sólo lee. Es la misma condición con que tests cuenta y borra las filas de esta tabla. <span v-if="copied" class="ok">Copiada.</span></p>
         </template>
       </div>
     </aside>
@@ -652,14 +654,22 @@ code.wrap { word-break: break-all }
 .alert.done .alert-desc { grid-column: 1 }
 .alert.done > .region-action { grid-column: 2; grid-row: 1 }
 .alert[data-level="ok"] { border-left-color: var(--tests-ok); background: color-mix(in oklab, var(--tests-ok) 10%, transparent) }
-/* Los nombres de tabla son largos (user_requests_by_ecommerce_request): la columna mide lo que el más largo. */
-.kv.tables { grid-template-columns: max-content 1fr }
-.kv.tables dd { font-variant-numeric: tabular-nums }
-.kv.tables .btn-link.on { text-decoration: underline }
-/* Las filas de una tabla, en el sidebar derecho: la columna a la izquierda, el valor tal cual lo guarda la base. */
-.kv.db { grid-template-columns: minmax(96px, 40%) 1fr }
-.kv.db dd code { white-space: pre-wrap; word-break: break-word }
-.kv.db dt { min-width: 0; overflow-wrap: anywhere }
+/* Cada tabla de la solicitud: su título (un botón que abre la consulta) y sus filas con todas las columnas.
+   Las tablas son anchas (user_requests tiene ~40 columnas): scrollea la tabla, no el editor. */
+.db-table { margin: 0 0 var(--space-3) }
+.db-table-head { display: flex; align-items: center; gap: var(--space-2); width: 100%; min-height: var(--row-h);
+  padding: 0 var(--gutter); border: 0; background: transparent; color: var(--foreground); font: inherit; text-align: left; cursor: pointer }
+.db-table-head:hover, .db-table-head.on { background: var(--hover) }
+.db-table-head code { font-weight: 600 }
+.db-table-head .ui-icon { margin-left: auto; color: var(--fg-3) }
+.table-scroll { overflow-x: auto; margin: 0 var(--gutter); border: 1px solid var(--border); border-radius: var(--radius-control) }
+.table.db th, .table.db td { white-space: nowrap; max-width: 260px; overflow: hidden; text-overflow: ellipsis;
+  font-family: var(--font-mono); font-size: var(--text-sm) }
+.table.db th { font-family: var(--font-sans) }
+/* La consulta, en el sidebar derecho: mono, que se corta en renglones y se puede seleccionar. */
+.sql { margin: 0; padding: var(--space-3) var(--gutter); white-space: pre-wrap; word-break: break-word;
+  font-family: var(--font-mono); font-size: var(--text-sm); line-height: 1.6; user-select: text }
+.ok { color: var(--tests-ok) }
 .warn { color: var(--tests-warn) }
 .small { font-size: var(--text-sm) }
 .cell-action { width: 32px; text-align: right }

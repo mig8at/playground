@@ -16,6 +16,7 @@ type TableRows struct {
 	Columns   []string    `json:"columns"`
 	Rows      []dbsql.Row `json:"rows"`
 	Truncated bool        `json:"truncated"`
+	Query     string      `json:"query"` // la consulta que trae estas filas, para correrla en otro lado
 }
 
 // RequestTableRows lee las filas de la solicitud en una tabla: la misma tabla y el mismo filtro con que se
@@ -74,6 +75,7 @@ func RequestTableRows(target string, request int, table string) (*TableRows, err
 	if order != "" {
 		query += " ORDER BY " + order
 	}
+	out.Query = query + ";"
 	// Una fila de más dice si hay más que el tope, sin contarlas aparte.
 	got, err := rows(src, fmt.Sprintf("%s LIMIT %d", query, maxTableRows+1))
 	if err != nil {
