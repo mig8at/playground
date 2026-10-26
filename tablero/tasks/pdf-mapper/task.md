@@ -7,7 +7,7 @@ knowledge: []
 canon: []
 jira: [CORE-818]
 jira_title: PDF mapper en backoffice
-ramas: frontend-monorepo:pdf-mapper, infrastructure:backoffice-pdf-mapper
+ramas: frontend-monorepo:pdf-mapper, infrastructure:backoffice-pdf-mapper, authz-policies:pdf-mapper-authorization
 ---
 
 ## Pendientes
@@ -15,8 +15,9 @@ ramas: frontend-monorepo:pdf-mapper, infrastructure:backoffice-pdf-mapper
 - [x] Sumar la sección «Mappers de PDF» al backoffice — PR frontend-monorepo#1235 mergeado a `lab` el 2026-10-26; el despliegue «Deploy Backoffice Develop» de ese merge terminó en success.
 - [x] Publicar en desarrollo las rutas del gateway hacia `pdf-mapper-service` — infrastructure#179 mergeado; el despliegue de development creó el target group y la regla del ALB interno (2 added) y registró el servicio (1 changed); el plan posterior de `api-gateway` da «No changes».
 - [ ] Probar la sección desplegada en el backoffice de desarrollo (listar, abrir, guardar, vista previa); termina cuando un documento real abre y se guarda sin diferencias contra el servicio de desarrollo.
-- [ ] Dar de alta los permisos `pdf_mapper:view`, `pdf_mapper:edit` y `pdf_mapper:delete` en el catálogo de autorización y asignarlos; termina cuando un staff sin el permiso cae en `/no-access` y uno con el permiso entra.
-  Depende de: quien administra el servicio de acceso — alta de los tres permisos.
+- [ ] Mergear authz-policies#14 (el recurso `pdf_mapper` y sus 13 rutas en `routes.json`, sólo para Administrador) y que salga al bucket de desarrollo; termina cuando la sección carga en el backoffice de desarrollo con un Administrador y un staff sin el permiso cae en `/no-access`.
+  Depende de: quien revisa authz-policies — aprobar y mergear #14.
+- [ ] Decidir qué roles además de Administrador llevan `pdf_mapper:view|edit|delete`, y si `pdf_mapper:delete` va a `protected_permissions`.
 - [ ] Abrir el PR de infra para producción, armado como #179: sólo dentro de `environments/prod` y sin tocar el módulo `internal-alb`; termina cuando el plan de prod muestra el target group, el registro del servicio en el lugar (no reemplazo) y las 13 rutas.
 - [ ] Llevar la sección de `lab` hacia `develop` y `main`; termina cuando el backoffice de producción la sirve.
 - [ ] Retirar el PDF Mapper Studio aparte cuando la sección funcione en producción; termina cuando nadie lo usa para publicar.
@@ -52,6 +53,16 @@ IndexedDB y publicaba en desarrollo y producción a la vez.
   - login local (ADR-0007): `utils/auth/local-login.server.ts`, el desvío en
     `routes/staff-auth.login.tsx`, `access-token.server.ts`, la franja en `protected-layout.tsx`,
     `.env.example` y `DECISIONS.md`.
+
+**authz-policies** (PR #14 → `develop`, rama `feat/pdf-mapper-authorization`): el autorizador del
+backoffice niega toda ruta que no esté en `routes.json`.
+
+- `roles/staff.yaml`: `pdf_mapper: [view, edit, delete]`, sin rol; sólo Administrador por `"*"`.
+- `tools/build_routes.py`: `PDF_MAPPER_SERVICE` con las 13 rutas y sus `map_` (7 view, 4 edit, 2 delete).
+- `tools/authzlib.py` (prefijo `/backoffice/pdf-mapper-service`) y `tools/gen_routes_json.py` (`idParam` = `project`).
+- `routes/gateway-backoffice-routes.tsv` y `routes/backoffice.csv` con SÓLO las 13 filas, a mano: el
+  refresh completo trae ~100 rutas de otros equipos y `task routes:build` falla por
+  `PUT …/config/credit-line`, que es del PR #13 de Abel.
 
 **infrastructure** (PR #179, sólo `environments/development`):
 
@@ -118,6 +129,7 @@ Verificado el 2026-10-26, contra el código mergeado:
 
 - [Creditop-SAS/frontend-monorepo#1235](https://github.com/Creditop-SAS/frontend-monorepo/pull/1235) — la sección (mergeado a `lab`).
 - [Creditop-SAS/infrastructure#179](https://github.com/Creditop-SAS/infrastructure/pull/179) — gateway en desarrollo (mergeado).
+- [Creditop-SAS/authz-policies#14](https://github.com/Creditop-SAS/authz-policies/pull/14) — permisos y rutas del autorizador (abierto).
 - [Creditop-SAS/infrastructure#178](https://github.com/Creditop-SAS/infrastructure/pull/178) — versión dev+prod, cerrada.
 
 ## Tarea (publicable)
