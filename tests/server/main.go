@@ -1,8 +1,11 @@
 // Command tests dice qué pasó con una solicitud de prueba: de qué comercio viene, qué mandó la tienda, a qué
-// usuario quedó pegada y con qué datos, y por qué estados pasó. Sólo lee, contra local o qa.
+// usuario quedó pegada y con qué datos, y por qué estados pasó, contra local o qa. Lee siempre; borra una
+// solicitud de prueba sólo con `-delete -confirm` (ver delete.go, que lleva las guardas).
 //
 //	go run ./tests/server -target qa -q 'https://…/ecommerce/8ffe96e2/504059/lenders'   la búsqueda, en JSON
 //	go run ./tests/server -serve 127.0.0.1:5179                                         la API de la interfaz
+//	go run ./tests/server -target local -q 467513 -delete [-phone] [-rollback] -confirm 467513
+//	                       sin -confirm sólo muestra el plan; con -rollback borra todo y lo deshace al final
 //
 // CONVENCIÓN: identificadores en inglés, comentarios y texto visible en español.
 package main
@@ -14,6 +17,7 @@ import (
 	"net"
 	"net/http"
 	"os"
+	"strconv"
 	"strings"
 )
 
@@ -21,6 +25,10 @@ func main() {
 	addr := flag.String("serve", "", "levanta la API para la interfaz en esta dirección (sólo 127.0.0.1)")
 	target := flag.String("target", "", "ambiente: "+strings.Join(Targets, " · "))
 	query := flag.String("q", "", "la URL del wizard o el número de la solicitud")
+	del := flag.Bool("delete", false, "borra la solicitud y lo que cuelga de ella (sin -confirm, sólo el plan)")
+	phone := flag.Bool("phone", false, "con -delete: todas las solicitudes del celular de esa solicitud")
+	confirm := flag.String("confirm", "", "con -delete: el número de la solicitud (o el celular, con -phone)")
+	rollback := flag.Bool("rollback", false, "con -delete: hace todo dentro de la transacción y la deshace")
 	flag.Parse()
 
 	if *addr != "" {
@@ -35,14 +43,22 @@ func main() {
 		fmt.Fprintln(os.Stderr, "tests:", err)
 		os.Exit(2)
 	}
-	res, err := Lookup(*target, in)
+	var out any
+	switch {
+	case *del && *confirm == "":
+		out, err = BuildPlan(*target, in.Request, *phone)
+	case *del:
+		out, err = Delete(*target, in.Request, *phone, *confirm, *rollback)
+	default:
+		out, err = Lookup(*target, in)
+	}
 	if err != nil {
 		fmt.Fprintln(os.Stderr, "tests:", err)
 		os.Exit(1)
 	}
 	enc := json.NewEncoder(os.Stdout)
 	enc.SetIndent("", "  ")
-	_ = enc.Encode(res)
+	_ = enc.Encode(out)
 }
 
 func writeJSON(w http.ResponseWriter, status int, v any) {
@@ -65,6 +81,40 @@ func handler() http.Handler {
 			return
 		}
 		res, err := Lookup(r.URL.Query().Get("target"), in)
+		if err != nil {
+			writeJSON(w, http.StatusUnprocessableEntity, map[string]string{"error": err.Error()})
+			return
+		}
+		writeJSON(w, http.StatusOK, res)
+	})
+	// GET /api/delete/plan?target=qa&request=504059&phone=1 — qué se borraría. Sólo lee.
+	mux.HandleFunc("/api/delete/plan", func(w http.ResponseWriter, r *http.Request) {
+		q := r.URL.Query()
+		request, _ := strconv.Atoi(q.Get("request"))
+		plan, err := BuildPlan(q.Get("target"), request, q.Get("phone") == "1")
+		if err != nil {
+			writeJSON(w, http.StatusUnprocessableEntity, map[string]string{"error": err.Error()})
+			return
+		}
+		writeJSON(w, http.StatusOK, plan)
+	})
+	// POST /api/delete {target, request, phone, confirm} — borra. Vuelve a armar el plan y a comprobar todo.
+	mux.HandleFunc("/api/delete", func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost {
+			writeJSON(w, http.StatusMethodNotAllowed, map[string]string{"error": "POST"})
+			return
+		}
+		var body struct {
+			Target  string `json:"target"`
+			Request int    `json:"request"`
+			Phone   bool   `json:"phone"`
+			Confirm string `json:"confirm"`
+		}
+		if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+			writeJSON(w, http.StatusBadRequest, map[string]string{"error": err.Error()})
+			return
+		}
+		res, err := Delete(body.Target, body.Request, body.Phone, body.Confirm, false)
 		if err != nil {
 			writeJSON(w, http.StatusUnprocessableEntity, map[string]string{"error": err.Error()})
 			return

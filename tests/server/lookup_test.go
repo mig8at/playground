@@ -46,3 +46,11 @@ func TestSameName(t *testing.T) {
 		t.Error("sameName dio true para dos personas distintas")
 	}
 }
+
+// La guarda de la base compartida: sin I_KNOW_THIS_TOUCHES_SHARED_DEV=1 en el PROCESO, qa no se escribe (F-53).
+func TestWriteBlockedSharedDB(t *testing.T) {
+	t.Setenv("I_KNOW_THIS_TOUCHES_SHARED_DEV", "")
+	if writeBlocked("qa") == "" {
+		t.Fatal("qa quedó habilitado para borrar sin I_KNOW_THIS_TOUCHES_SHARED_DEV")
+	}
+}

@@ -3,7 +3,8 @@
  * solicitud y dice, contra local o qa: de qué comercio y sucursal viene, qué mandó la tienda, a qué usuario
  * quedó pegada y con qué datos, y por qué estados pasó.
  *
- * Todo sale de la API en Go (`tests/server`), que sólo lee: acá no se calcula nada, se pinta. Los avisos
+ * Todo sale de la API en Go (`tests/server`): acá no se calcula nada, se pinta. Lo único que escribe es la
+ * basura (borrar una solicitud de prueba y lo que cuelga), y las guardas viven en el servidor (delete.go). Los avisos
  * («la tienda mandó otro nombre», «el celular lo tienen dos usuarios») también los arma el servidor.
  * El ambiente y la búsqueda viven en la URL; las últimas búsquedas, en el navegador. */
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
@@ -149,6 +150,60 @@ const lines = computed(() => {
   return out
 })
 
+// ── borrar: la ÚNICA escritura. El servidor arma el plan, comprueba las guardas y vuelve a comprobarlas al
+// borrar; acá sólo se muestra el plan y se pide la confirmación escrita ──
+const del = ref(null) // { request, phone, plan, loading, error, confirm, running, done }
+async function loadPlan() {
+  const d = del.value
+  if (!d) return
+  d.loading = true; d.error = ''; d.plan = null; d.confirm = ''
+  try {
+    const res = await fetch(`/api/delete/plan?target=${encodeURIComponent(target.value)}&request=${d.request}&phone=${d.phone ? 1 : 0}`)
+    const body = await res.json().catch(() => ({}))
+    if (!res.ok) throw new Error(body.error || `HTTP ${res.status}`)
+    if (del.value === d) d.plan = body
+  } catch (e) {
+    if (del.value === d) d.error = e.message
+  } finally {
+    if (del.value === d) d.loading = false
+  }
+}
+function openDelete(id) {
+  del.value = { request: Number(id), phone: false, plan: null, loading: false, error: '', confirm: '', running: false, done: null }
+  loadPlan()
+  nextTick(() => { if (editorBody.value) editorBody.value.scrollTop = 0 })
+}
+function togglePhone() { if (del.value) { del.value.phone = !del.value.phone; loadPlan() } }
+const canDelete = computed(() => {
+  const d = del.value
+  return !!(d?.plan && !d.plan.blocked && !d.running && d.confirm.trim() === d.plan.confirm)
+})
+async function runDelete() {
+  const d = del.value
+  if (!canDelete.value) return
+  d.running = true; d.error = ''
+  try {
+    const res = await fetch('/api/delete', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ target: target.value, request: d.request, phone: d.phone, confirm: d.confirm.trim() }),
+    })
+    const body = await res.json().catch(() => ({}))
+    if (!res.ok) throw new Error(body.error || `HTTP ${res.status}`)
+    d.done = body
+    // Lo borrado deja de estar en las últimas búsquedas y en la pantalla.
+    const gone = new Set(body.requests.map((x) => `${target.value}:${x}`))
+    recent.value = recent.value.filter((x) => !gone.has(x.id))
+    try { localStorage.setItem(RECENT_KEY, JSON.stringify(recent.value)) } catch { /* sólo no se recuerda */ }
+    if (result.value && body.requests.includes(result.value.request.id)) { result.value = null; query.value = ''; draft.value = '' }
+    else lookup()
+  } catch (e) {
+    d.error = e.message
+  } finally {
+    d.running = false
+  }
+}
+const userPhone = computed(() => r.value?.user?.cell_phone || '')
+
 // ── el ambiente: el selector del pie ──
 const targets = ref(['local', 'qa'])
 const targetTrigger = ref(null)
@@ -156,7 +211,7 @@ let targetMenu = null
 const targetItems = computed(() => targets.value.map((t) => ({ id: t, label: TARGET_LABEL[t] || t, selected: t === target.value })))
 watch(targetItems, () => targetMenu?.refresh(), { deep: true, flush: 'post' })
 
-watch(target, () => { writeRoute(true); lookup() })
+watch(target, () => { if (!del.value?.done) del.value = null; writeRoute(true); lookup() })
 watch(query, () => { writeRoute(true); lookup() })
 
 // ── las regiones: las búsquedas a la izquierda y los estados abajo, con el contrato de la base ──
@@ -258,8 +313,63 @@ onBeforeUnmount(() => {
         <span>{{ r ? `Solicitud ${r.request.id}` : 'tests' }}</span>
         <span v-if="r" class="count">{{ r.request.status_id }} · {{ r.request.status }}</span>
         <span v-if="r && warnCount" class="count hot">{{ warnCount }} sin cuadrar</span>
+        <div v-if="r" class="region-actions">
+          <button type="button" class="region-action" title="Borrar la solicitud" aria-label="Borrar la solicitud" @click="openDelete(r.request.id)">
+            <span class="ui-icon" data-icon="trash" aria-hidden="true"></span>
+          </button>
+        </div>
       </div>
       <div ref="editorBody" class="region-body">
+        <section v-if="del" class="danger" aria-label="Borrar">
+          <div class="region-head group">
+            <span>{{ del.done ? 'Borrado' : `Borrar la solicitud ${del.request}` }}</span>
+            <span class="count">{{ target }}</span>
+            <div class="region-actions">
+              <button type="button" class="region-action" title="Cerrar" aria-label="Cerrar" @click="del = null">
+                <span class="ui-icon" data-icon="close" aria-hidden="true"></span>
+              </button>
+            </div>
+          </div>
+          <div class="danger-body">
+            <template v-if="del.done">
+              <p>Se borraron <b>{{ del.done.requests.length }}</b> solicitud(es) ({{ del.done.requests.join(', ') }}) y <b>{{ del.done.total }}</b> filas en {{ del.done.tables.length }} tablas de {{ del.done.target }}.</p>
+              <p class="muted">Queda constancia en <code>tests/.deletions.ndjson</code>.</p>
+            </template>
+            <template v-else>
+              <div class="alert" data-level="danger">
+                <div class="alert-desc"><p>Elimina de verdad las filas: la solicitud y todo lo que cuelga de ella (historial, pedido de la tienda, datos del perfil, consultas a centrales…). No se puede deshacer. El usuario no se borra.</p></div>
+              </div>
+              <label class="checkbox-row">
+                <input type="checkbox" class="checkbox" :checked="del.phone" :disabled="del.loading || del.running" @change="togglePhone" />
+                <span>Borrar también todas las del celular{{ userPhone ? ` ${userPhone}` : '' }}</span>
+              </label>
+              <p v-if="del.loading" class="muted">Contando lo que cuelga…</p>
+              <p v-if="del.error" class="hot">{{ del.error }}</p>
+              <template v-if="del.plan">
+                <table class="table">
+                  <thead><tr><th>solicitud</th><th>usuario</th><th>comercio</th><th>estado</th><th></th></tr></thead>
+                  <tbody>
+                    <tr v-for="q in del.plan.requests" :key="q.id" :class="{ protected: q.protected }">
+                      <td>{{ q.id }}</td><td>{{ q.user }}</td><td>{{ dash(q.allied) }}</td><td>{{ q.status }}</td>
+                      <td>{{ q.protected ? `no se borra: ${q.protected}` : 'se borra' }}</td>
+                    </tr>
+                  </tbody>
+                </table>
+                <p v-if="del.plan.tables.length" class="muted">{{ del.plan.total }} filas en {{ del.plan.tables.length }} tablas: {{ del.plan.tables.map((t) => `${t.table} ${t.rows}`).join(' · ') }}</p>
+                <p v-if="del.plan.blocked" class="hot">{{ del.plan.blocked }}</p>
+                <form v-else class="confirm" @submit.prevent="runDelete">
+                  <label class="label" for="confirm">Para confirmar, escribí <code>{{ del.plan.confirm }}</code></label>
+                  <div class="confirm-row">
+                    <input id="confirm" v-model="del.confirm" class="input input-sm" autocomplete="off" spellcheck="false" :placeholder="del.plan.confirm" />
+                    <button type="submit" class="btn btn-sm btn-destructive" :disabled="!canDelete">
+                      <span class="ui-icon" data-icon="trash" aria-hidden="true"></span>{{ del.running ? 'Borrando…' : 'Borrar' }}
+                    </button>
+                  </div>
+                </form>
+              </template>
+            </template>
+          </div>
+        </section>
         <p v-if="error" class="none hot">{{ error }}</p>
         <p v-else-if="loading && !r" class="none">Leyendo la base de {{ target }}…</p>
         <div v-else-if="!r" class="empty">
@@ -351,12 +461,17 @@ onBeforeUnmount(() => {
           <section v-if="r.requests.length">
             <div class="region-head group"><span>Solicitudes del usuario</span><span class="count">{{ r.requests.length }}</span></div>
             <table class="table">
-              <thead><tr><th>solicitud</th><th>estado</th><th>sucursal</th><th>monto</th><th>creada</th></tr></thead>
+              <thead><tr><th>solicitud</th><th>estado</th><th>sucursal</th><th>monto</th><th>creada</th><th></th></tr></thead>
               <tbody>
                 <tr v-for="q in r.requests" :key="q.id" :class="{ on: q.id === r.request.id }">
                   <td><button type="button" class="btn-link" @click="open(q.id)">{{ q.id }}</button></td>
                   <td><i class="dot" :data-state="stateOf(q.status_id)" aria-hidden="true"></i>{{ q.status_id }} · {{ q.status }}</td>
                   <td><code>{{ dash(q.hash) }}</code></td><td>{{ money(q.amount) }}</td><td>{{ q.created_at }}</td>
+                  <td class="cell-action">
+                    <button type="button" class="region-action" :title="`Borrar la solicitud ${q.id}`" :aria-label="`Borrar la solicitud ${q.id}`" @click="openDelete(q.id)">
+                      <span class="ui-icon" data-icon="trash" aria-hidden="true"></span>
+                    </button>
+                  </td>
                 </tr>
               </tbody>
             </table>
@@ -390,7 +505,7 @@ onBeforeUnmount(() => {
       </button>
       <span v-if="loading">leyendo…</span>
       <span v-else-if="r" :title="r.source">leído a las {{ r.readAt.slice(11, 16) }} · {{ r.source }}</span>
-      <span class="muted">sólo lectura</span>
+      <span class="muted">lee siempre · borra sólo con confirmación</span>
       <div class="layout-controls" role="group" aria-label="Tema y regiones visibles">
         <button ref="themeToggle" type="button" class="region-action theme-toggle"><span class="ui-icon" aria-hidden="true"></span></button>
         <button type="button" class="region-action" :aria-pressed="!!shown.sidebar" title="Mostrar u ocultar las búsquedas" aria-label="Mostrar u ocultar las búsquedas" @click="toggleSidebar">
@@ -440,4 +555,16 @@ code.wrap { word-break: break-all }
 .log-line .status { flex: none; min-width: 200px }
 .log-line .what { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--fg-2) }
 .log-line.ghost .what { font-style: italic; color: var(--tests-warn) }
+/* Borrar: un bloque arriba del editor, con el aviso rojo de la base, la casilla, el plan y la confirmación. */
+.danger { border-bottom: 1px solid var(--border) }
+.danger-body { display: flex; flex-direction: column; gap: var(--space-2); padding: var(--space-2) var(--gutter) var(--space-3) }
+.danger-body p { margin: 0 }
+.danger .table td:not(:last-child) { white-space: nowrap; max-width: 200px; overflow: hidden; text-overflow: ellipsis }
+.danger .table tr.protected td { color: var(--fg-3) }
+/* El rojo es el de tests, no `--destructive`: en el tema Darkmatter ése es un verde azulado apagado. */
+.alert[data-level="danger"] { border-left-color: var(--tests-fail); background: color-mix(in oklab, var(--tests-fail) 10%, transparent) }
+.confirm { display: flex; flex-direction: column; gap: var(--space-2) }
+.confirm-row { display: flex; gap: var(--space-2); align-items: center }
+.confirm-row .input { max-width: 220px }
+.cell-action { width: 32px; text-align: right }
 </style>
