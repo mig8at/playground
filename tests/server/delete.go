@@ -14,6 +14,12 @@ package main
  *     comprobar en el servidor;
  *   · todo en UNA transacción: si una tabla falla, no se borra nada.
  *
+ * Para empezar un flujo DE CERO con el mismo celular no alcanza con borrar las solicitudes: el OTP pega la
+ * próxima al usuario que ya tiene ese número. Por eso, con el celular, se puede además dar de BAJA a sus
+ * usuarios, igual que la papelera del admin (`UserController@disableUser` de legacy-application): status 0,
+ * la cédula con -t<n> y sin correo ni celular. El usuario no se borra: queda la fila, como en el admin. Sólo
+ * clientes (perfil 1) y, en la base compartida, marcados de prueba.
+ *
  * «Lo que cuelga» se descubre en cada base, no se escribe a mano: toda tabla con la columna
  * `user_request_id` (69 en qa y 74 en local el 2026-10-26), más el pedido de la tienda unido por
  * `user_requests_by_ecommerce_request` y los `device_locks` de sus productos. Los nietos con llave foránea en
@@ -63,6 +69,16 @@ type PlanRequest struct {
 	Protected string `json:"protected,omitempty"` // por qué NO se borra
 }
 
+// PlanUser es un usuario del celular que se daría de baja, con por qué no si está protegido.
+type PlanUser struct {
+	ID        int    `json:"id"`
+	Name      string `json:"name"`
+	Document  string `json:"document"`
+	Email     string `json:"email"`
+	IsTest    bool   `json:"isTest"`
+	Protected string `json:"protected,omitempty"`
+}
+
 // TableCount es cuántas filas de una tabla caen.
 type TableCount struct {
 	Table string `json:"table"`
@@ -76,6 +92,7 @@ type Plan struct {
 	Request  int           `json:"request"`
 	Phone    string        `json:"phone,omitempty"`
 	Requests []PlanRequest `json:"requests"`
+	Users    []PlanUser    `json:"users"` // sólo si se pidió dar de baja a los usuarios del celular
 	Tables   []TableCount  `json:"tables"`
 	Total    int           `json:"total"`
 	Confirm  string        `json:"confirm"`           // lo que hay que escribir para confirmar
@@ -86,6 +103,7 @@ type Plan struct {
 type Deleted struct {
 	Target     string       `json:"target"`
 	Requests   []int        `json:"requests"`
+	Users      []int        `json:"users"` // los dados de baja
 	Tables     []TableCount `json:"tables"`
 	Total      int          `json:"total"`
 	RolledBack bool         `json:"rolledBack"`
@@ -95,6 +113,17 @@ type Deleted struct {
 type childTable struct {
 	name  string
 	hasID bool
+}
+
+// freeable son los usuarios que sí se dan de baja.
+func (p *Plan) freeable() []PlanUser {
+	var out []PlanUser
+	for _, u := range p.Users {
+		if u.Protected == "" {
+			out = append(out, u)
+		}
+	}
+	return out
 }
 
 // eligible son las solicitudes que sí se borran.
@@ -109,7 +138,7 @@ func (p *Plan) eligible() []int {
 }
 
 // BuildPlan lee (por el conector, sólo lectura) qué solicitudes caen y cuántas filas de cada tabla.
-func BuildPlan(target string, request int, byPhone bool) (*Plan, error) {
+func BuildPlan(target string, request int, byPhone, freeUsers bool) (*Plan, error) {
 	if !validTarget(target) {
 		return nil, fmt.Errorf("ambiente %q: tests mira %s", target, strings.Join(Targets, " o "))
 	}
@@ -117,7 +146,7 @@ func BuildPlan(target string, request int, byPhone bool) (*Plan, error) {
 	if err != nil {
 		return nil, err
 	}
-	plan := &Plan{Target: target, Scope: "request", Request: request, Requests: []PlanRequest{}, Tables: []TableCount{},
+	plan := &Plan{Target: target, Scope: "request", Request: request, Requests: []PlanRequest{}, Users: []PlanUser{}, Tables: []TableCount{},
 		Confirm: strconv.Itoa(request)}
 
 	ids := []int{request}
@@ -167,6 +196,25 @@ func BuildPlan(target string, request int, byPhone bool) (*Plan, error) {
 		plan.Requests = append(plan.Requests, pr)
 	}
 
+	if byPhone && freeUsers {
+		users, err := rows(src, `SELECT id, TRIM(CONCAT(COALESCE(first_name, ''), ' ', COALESCE(surname, ''))) AS name, document_number,
+				email, is_test, user_profile_id FROM users WHERE cell_phone LIKE CONCAT('%', ?) AND status = 1 ORDER BY id`, plan.Phone)
+		if err != nil {
+			return nil, fmt.Errorf("usuarios del celular: %w", err)
+		}
+		for _, u := range users {
+			id, _ := strconv.Atoi(cell(u, "id"))
+			pu := PlanUser{ID: id, Name: cell(u, "name"), Document: cell(u, "document_number"), Email: cell(u, "email"), IsTest: cell(u, "is_test") == "1"}
+			switch {
+			case cell(u, "user_profile_id") != "1":
+				pu.Protected = "no es un cliente (perfil " + cell(u, "user_profile_id") + ")"
+			case target != "local" && !pu.IsTest:
+				pu.Protected = "no está marcado de prueba"
+			}
+			plan.Users = append(plan.Users, pu)
+		}
+	}
+
 	eligible := plan.eligible()
 	switch {
 	case len(eligible) == 0:
@@ -202,6 +250,10 @@ func BuildPlan(target string, request int, byPhone bool) (*Plan, error) {
 	}
 	plan.Tables = append(plan.Tables, TableCount{"user_requests", len(eligible)})
 	plan.Total += len(eligible)
+	if n := len(plan.freeable()); n > 0 {
+		plan.Tables = append(plan.Tables, TableCount{"users (baja)", n})
+		plan.Total += n
+	}
 	sort.SliceStable(plan.Tables, func(i, j int) bool { return plan.Tables[i].Rows > plan.Tables[j].Rows })
 	return plan, nil
 }
@@ -298,8 +350,8 @@ func repoRoot() string {
 
 // Delete borra lo que dice el plan. Vuelve a armarlo y a comprobar las guardas: no le cree al navegador.
 // Con rollback=true hace todo y deshace al final: así se prueba el camino entero sin borrar nada.
-func Delete(target string, request int, byPhone bool, confirm string, rollback bool) (*Deleted, error) {
-	plan, err := BuildPlan(target, request, byPhone)
+func Delete(target string, request int, byPhone, freeUsers bool, confirm string, rollback bool) (*Deleted, error) {
+	plan, err := BuildPlan(target, request, byPhone, freeUsers)
 	if err != nil {
 		return nil, err
 	}
@@ -414,8 +466,29 @@ func Delete(target string, request int, byPhone bool, confirm string, rollback b
 	if err := exec("user_requests", fmt.Sprintf("DELETE FROM user_requests WHERE id IN (%s)", list)); err != nil {
 		return nil, fmt.Errorf("user_requests: %w", err)
 	}
+	// La baja, como la papelera del admin: el siguiente sufijo libre -t<n> de la cédula, y sin correo ni celular.
+	var freed []int
+	for _, u := range plan.freeable() {
+		var next int
+		if err := tx.QueryRow(`SELECT COALESCE(MAX(CAST(SUBSTRING_INDEX(document_number, '-t', -1) AS UNSIGNED)), 0) + 1
+			FROM users WHERE document_number LIKE CONCAT(?, '-t%')`, u.Document).Scan(&next); err != nil {
+			return nil, fmt.Errorf("baja del usuario %d: %w", u.ID, err)
+		}
+		res, err := tx.Exec(`UPDATE users SET status = 0, document_number = CONCAT(document_number, '-t', ?), email = NULL,
+			cell_phone = NULL, updated_at = NOW() WHERE id = ? AND status = 1 AND user_profile_id = 1`, next, u.ID)
+		if err != nil {
+			return nil, fmt.Errorf("baja del usuario %d: %w", u.ID, err)
+		}
+		if n, _ := res.RowsAffected(); n == 1 {
+			counts["users (baja)"]++
+			freed = append(freed, u.ID)
+		}
+	}
 
-	out := &Deleted{Target: target, Requests: ids, Tables: []TableCount{}, RolledBack: rollback, At: time.Now().Format("2006-01-02 15:04:05")}
+	out := &Deleted{Target: target, Requests: ids, Users: freed, Tables: []TableCount{}, RolledBack: rollback, At: time.Now().Format("2006-01-02 15:04:05")}
+	if out.Users == nil {
+		out.Users = []int{}
+	}
 	for t, n := range counts {
 		if n > 0 {
 			out.Tables = append(out.Tables, TableCount{t, n})

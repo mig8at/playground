@@ -54,6 +54,7 @@ async function lookup() {
     if (!res.ok) throw new Error(body.error || `HTTP ${res.status}`)
     result.value = body
     remember(body)
+    if (body.input?.phone && draft.value !== body.input.phone) draft.value = body.input.phone
     // Otra solicitud se lee desde arriba: los avisos son lo primero.
     nextTick(() => { if (editorBody.value) editorBody.value.scrollTop = 0 })
   } catch (e) {
@@ -168,13 +169,13 @@ const lines = computed(() => {
 
 // ── borrar: la ÚNICA escritura. El servidor arma el plan, comprueba las guardas y vuelve a comprobarlas al
 // borrar; acá sólo se muestra el plan y se pide la confirmación escrita ──
-const del = ref(null) // { request, phone, plan, loading, error, confirm, running, done }
+const del = ref(null) // { request, phone, users, plan, loading, error, confirm, running, done }
 async function loadPlan() {
   const d = del.value
   if (!d) return
   d.loading = true; d.error = ''; d.plan = null; d.confirm = ''
   try {
-    const res = await fetch(`/api/delete/plan?target=${encodeURIComponent(target.value)}&request=${d.request}&phone=${d.phone ? 1 : 0}`)
+    const res = await fetch(`/api/delete/plan?target=${encodeURIComponent(target.value)}&request=${d.request}&phone=${d.phone ? 1 : 0}&users=${d.phone && d.users ? 1 : 0}`)
     const body = await res.json().catch(() => ({}))
     if (!res.ok) throw new Error(body.error || `HTTP ${res.status}`)
     if (del.value === d) d.plan = body
@@ -185,11 +186,12 @@ async function loadPlan() {
   }
 }
 function openDelete(id) {
-  del.value = { request: Number(id), phone: false, plan: null, loading: false, error: '', confirm: '', running: false, done: null }
+  del.value = { request: Number(id), phone: false, users: false, plan: null, loading: false, error: '', confirm: '', running: false, done: null }
   loadPlan()
   nextTick(() => { if (editorBody.value) editorBody.value.scrollTop = 0 })
 }
-function togglePhone() { if (del.value) { del.value.phone = !del.value.phone; loadPlan() } }
+function togglePhone() { if (del.value) { del.value.phone = !del.value.phone; if (!del.value.phone) del.value.users = false; loadPlan() } }
+function toggleUsers() { if (del.value) { del.value.users = !del.value.users; loadPlan() } }
 const canDelete = computed(() => {
   const d = del.value
   return !!(d?.plan && !d.plan.blocked && !d.running && d.confirm.trim() === d.plan.confirm)
@@ -201,7 +203,7 @@ async function runDelete() {
   try {
     const res = await fetch('/api/delete', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ target: target.value, request: d.request, phone: d.phone, confirm: d.confirm.trim() }),
+      body: JSON.stringify({ target: target.value, request: d.request, phone: d.phone, users: d.phone && d.users, confirm: d.confirm.trim() }),
     })
     const body = await res.json().catch(() => ({}))
     if (!res.ok) throw new Error(body.error || `HTTP ${res.status}`)
@@ -352,15 +354,20 @@ onBeforeUnmount(() => {
           <div class="danger-body">
             <template v-if="del.done">
               <p>Se borraron <b>{{ del.done.requests.length }}</b> solicitud(es) ({{ del.done.requests.join(', ') }}) y <b>{{ del.done.total }}</b> filas en {{ del.done.tables.length }} tablas de {{ del.done.target }}.</p>
+              <p v-if="del.done.users.length">Se dio de baja a {{ del.done.users.length }} usuario(s) ({{ del.done.users.join(', ') }}): el próximo registro con ese celular crea uno nuevo.</p>
               <p class="muted">Queda constancia en <code>tests/.deletions.ndjson</code>.</p>
             </template>
             <template v-else>
               <div class="alert" data-level="danger">
-                <div class="alert-desc"><p>Elimina de verdad las filas: la solicitud y todo lo que cuelga de ella (historial, pedido de la tienda, datos del perfil, consultas a centrales…). No se puede deshacer. El usuario no se borra.</p></div>
+                <div class="alert-desc"><p>Elimina de verdad las filas: la solicitud y todo lo que cuelga de ella (historial, pedido de la tienda, datos del perfil, consultas a centrales…). No se puede deshacer. El usuario no se borra; con el celular, se lo puede dar de baja.</p></div>
               </div>
               <label class="checkbox-row">
                 <input type="checkbox" class="checkbox" :checked="del.phone" :disabled="del.loading || del.running" @change="togglePhone" />
                 <span>Borrar también todas las del celular{{ userPhone ? ` ${userPhone}` : '' }}</span>
+              </label>
+              <label v-if="del.phone" class="checkbox-row">
+                <input type="checkbox" class="checkbox" :checked="del.users" :disabled="del.loading || del.running" @change="toggleUsers" />
+                <span>Y dar de baja a sus usuarios, para empezar el flujo de cero <span class="muted">(como la papelera del admin)</span></span>
               </label>
               <p v-if="del.loading" class="muted">Contando lo que cuelga…</p>
               <p v-if="del.error" class="hot">{{ del.error }}</p>
@@ -370,10 +377,22 @@ onBeforeUnmount(() => {
                   <tbody>
                     <tr v-for="q in del.plan.requests" :key="q.id" :class="{ protected: q.protected }">
                       <td>{{ q.id }}</td><td>{{ q.user }}</td><td>{{ dash(q.allied) }}</td><td>{{ q.status }}</td>
-                      <td>{{ q.protected ? `no se borra: ${q.protected}` : 'se borra' }}</td>
+                      <td :title="q.protected || ''">{{ q.protected ? 'protegida' : 'se borra' }}</td>
                     </tr>
                   </tbody>
                 </table>
+                <p v-for="why in [...new Set(del.plan.requests.filter((q) => q.protected).map((q) => q.protected))]" :key="why" class="muted">Protegida: {{ why }}.</p>
+                <table v-if="del.plan.users.length" class="table">
+                  <thead><tr><th>usuario</th><th>nombre</th><th>cédula</th><th>correo</th><th></th></tr></thead>
+                  <tbody>
+                    <tr v-for="u in del.plan.users" :key="u.id" :class="{ protected: u.protected }">
+                      <td>{{ u.id }}</td><td>{{ u.name }}</td><td>{{ u.document }}</td><td>{{ dash(u.email) }}</td>
+                      <td :title="u.protected || ''">{{ u.protected ? 'protegido' : 'se da de baja' }}</td>
+                    </tr>
+                  </tbody>
+                </table>
+                <p v-for="u in del.plan.users.filter((x) => x.protected)" :key="`why-${u.id}`" class="muted">Protegido {{ u.id }}: {{ u.protected }}.</p>
+                <p v-if="del.plan.users.some((u) => u.protected)" class="hot">Mientras quede un usuario activo con este celular, el OTP puede pegarle la próxima solicitud: no es un flujo de cero.</p>
                 <p v-if="del.plan.tables.length" class="muted">{{ del.plan.total }} filas en {{ del.plan.tables.length }} tablas: {{ del.plan.tables.map((t) => `${t.table} ${t.rows}`).join(' · ') }}</p>
                 <p v-if="del.plan.blocked" class="hot">{{ del.plan.blocked }}</p>
                 <form v-else class="confirm" @submit.prevent="runDelete">
@@ -394,7 +413,7 @@ onBeforeUnmount(() => {
         <div v-else-if="!r" class="empty">
           <div class="empty-head">
             <div class="empty-title">Pegá una solicitud</div>
-            <div class="empty-desc">Escribí el celular con el que hiciste la prueba (<code>3016992677</code>, con o sin +57). Muestra su solicitud más nueva —de qué comercio viene, qué mandó la tienda, a qué usuario quedó pegada y por qué estados pasó— y la lista de todas las de ese número. Contra <b>local</b> o <b>qa</b> (la base compartida de dev, qa y staging). También sirve la URL del wizard o el número de solicitud.</div>
+            <div class="empty-desc">Escribí el celular con el que hiciste la prueba (<code>3016992677</code>, los 10 dígitos). Muestra su solicitud más nueva —de qué comercio viene, qué mandó la tienda, a qué usuario quedó pegada y por qué estados pasó— y la lista de todas las de ese número. Contra <b>local</b> o <b>qa</b> (la base compartida de dev, qa y staging). También sirve la URL del wizard o el número de solicitud.</div>
           </div>
         </div>
         <template v-else>

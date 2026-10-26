@@ -4,7 +4,7 @@
 //
 //	go run ./tests/server -target qa -q 3016992677                                      la búsqueda, en JSON (también la URL del wizard o el número)
 //	go run ./tests/server -serve 127.0.0.1:5179                                         la API de la interfaz
-//	go run ./tests/server -target local -q 467513 -delete [-phone] [-rollback] -confirm 467513
+//	go run ./tests/server -target local -q 467513 -delete [-phone [-free-users]] [-rollback] -confirm 467513
 //	                       sin -confirm sólo muestra el plan; con -rollback borra todo y lo deshace al final
 //
 // CONVENCIÓN: identificadores en inglés, comentarios y texto visible en español.
@@ -29,6 +29,7 @@ func main() {
 	phone := flag.Bool("phone", false, "con -delete: todas las solicitudes del celular de esa solicitud")
 	confirm := flag.String("confirm", "", "con -delete: el número de la solicitud (o el celular, con -phone)")
 	rollback := flag.Bool("rollback", false, "con -delete: hace todo dentro de la transacción y la deshace")
+	freeUsers := flag.Bool("free-users", false, "con -delete -phone: además da de baja a los usuarios del celular (para empezar de cero)")
 	flag.Parse()
 
 	if *addr != "" {
@@ -55,9 +56,9 @@ func main() {
 	var out any
 	switch {
 	case *del && *confirm == "":
-		out, err = BuildPlan(*target, in.Request, *phone)
+		out, err = BuildPlan(*target, in.Request, *phone, *freeUsers)
 	case *del:
-		out, err = Delete(*target, in.Request, *phone, *confirm, *rollback)
+		out, err = Delete(*target, in.Request, *phone, *freeUsers, *confirm, *rollback)
 	default:
 		out, err = Lookup(*target, in)
 	}
@@ -104,7 +105,7 @@ func handler() http.Handler {
 	mux.HandleFunc("/api/delete/plan", func(w http.ResponseWriter, r *http.Request) {
 		q := r.URL.Query()
 		request, _ := strconv.Atoi(q.Get("request"))
-		plan, err := BuildPlan(q.Get("target"), request, q.Get("phone") == "1")
+		plan, err := BuildPlan(q.Get("target"), request, q.Get("phone") == "1", q.Get("users") == "1")
 		if err != nil {
 			writeJSON(w, http.StatusUnprocessableEntity, map[string]string{"error": err.Error()})
 			return
@@ -121,13 +122,14 @@ func handler() http.Handler {
 			Target  string `json:"target"`
 			Request int    `json:"request"`
 			Phone   bool   `json:"phone"`
+			Users   bool   `json:"users"`
 			Confirm string `json:"confirm"`
 		}
 		if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
 			writeJSON(w, http.StatusBadRequest, map[string]string{"error": err.Error()})
 			return
 		}
-		res, err := Delete(body.Target, body.Request, body.Phone, body.Confirm, false)
+		res, err := Delete(body.Target, body.Request, body.Phone, body.Phone && body.Users, body.Confirm, false)
 		if err != nil {
 			writeJSON(w, http.StatusUnprocessableEntity, map[string]string{"error": err.Error()})
 			return
