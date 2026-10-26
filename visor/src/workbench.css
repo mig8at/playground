@@ -161,6 +161,68 @@
 .workbench > .auxiliarybar { width: var(--auxiliarybar-w) }
 .workbench > .panel        { height: var(--panel-h) }
 
+/* ── EL ESTILO: cómo se separan los bloques ───────────────────────────────────────────────────────
+   `data-style` en el <html> (workbench.js, `STYLES`). Sin atributo es `flat`: las regiones pegadas con su línea de
+   1px, como VS Code. `panels`: cada región es un panel apoyado sobre un LIENZO, con aire alrededor y esquinas
+   redondeadas. El markup no cambia —sólo cómo se separan las regiones—, así que vale en todas las herramientas.
+
+   ⚠ La elevación es por COLOR, no por sombra: el lienzo es un tono más oscuro que los paneles. En oscuro una sombra
+   no se ve, y así lo resuelve Material también. Y el aire es la mitad en el lienzo y la mitad en cada panel, para que
+   entre dos regiones haya lo mismo que en el borde de la ventana, y una región que no está no deje un hueco. */
+:root[data-style="panels"] {
+  --panels-gap: 8px;
+  /* El radio de afuera es el de adentro más medio aire (`--radius` + 4): las esquinas de un panel y las de las
+     tarjetas que lleva adentro se ven concéntricas, no dos curvas que no se hablan. ⚠ `--radius-lg` y compañía sólo
+     existen en el `@theme inline` de `theme.css` (Tailwind): como CSS no valen nada, y un radio con ellos da 0. */
+  --panels-radius: calc(var(--radius) + var(--panels-gap) / 2);
+  /* EL CONTRASTE lo da el color, no el borde: el lienzo, un gris; los paneles, la superficie de lectura. El borde
+     queda apenas insinuado, para el que no distingue bien los dos tonos. */
+  --canvas: color-mix(in oklab, var(--background) 90%, var(--foreground));
+  --panel-surface: var(--background);
+  --panel-border: color-mix(in oklab, var(--border) 60%, transparent);
+  --sidebar: var(--panel-surface);
+}
+/* En oscuro, al revés que una sombra: lo que está más arriba es MÁS CLARO (la elevación de Material). El lienzo baja
+   casi a negro y los paneles suben un tono. */
+:root.dark[data-style="panels"] {
+  --canvas: color-mix(in oklab, var(--background) 40%, black);
+  --panel-surface: color-mix(in oklab, var(--background) 93%, white);
+  --panel-border: color-mix(in oklab, var(--border) 50%, transparent);
+  /* Y lo que va DENTRO de un panel (tarjetas, el modal) sube otro tono: si quedara del color de antes, se leería
+     hundido en vez de encima. */
+  --card: color-mix(in oklab, var(--background) 86%, white);
+}
+:root[data-style="panels"] body { background: var(--canvas) }
+:root[data-style="panels"] .workbench { box-sizing: border-box; padding: calc(var(--panels-gap) / 2); background: var(--canvas) }
+/* Las regiones de PRIMER nivel, estén donde estén: en el grid de `.workbench` o en el contenedor propio de una
+   herramienta (el de tracer arma sus columnas en `.cols`). Una región dentro de otra no se enmarca dos veces. */
+:root[data-style="panels"] :is(.titlebar, .banner, .activitybar, .sidebar, .editor, .panel, .auxiliarybar):not(:is(.sidebar, .editor, .panel, .auxiliarybar, .activitybar, dialog) *) {
+  box-sizing: border-box; margin: calc(var(--panels-gap) / 2); border-radius: var(--panels-radius);
+  border: 1px solid var(--panel-border); background: var(--panel-surface); --region-bg: var(--panel-surface);
+}
+/* LO QUE PINTA SU PROPIO FONDO EN EL BORDE DE UN PANEL —la banda de arriba, una consola al pie— sigue la curva del
+   panel: si no, sus esquinas rectas tapan las redondas (pasaba en la banda del mapa de tracer). El radio de adentro es
+   el de afuera menos el borde. Un costado `en-bloques` no: sus bloques ya son paneles. */
+:root[data-style="panels"] :is(.titlebar, .banner, .activitybar, .sidebar, .editor, .panel, .auxiliarybar):not(.en-bloques) > :first-child {
+  border-top-left-radius: calc(var(--panels-radius) - 1px); border-top-right-radius: calc(var(--panels-radius) - 1px);
+}
+:root[data-style="panels"] :is(.titlebar, .banner, .activitybar, .sidebar, .editor, .panel, .auxiliarybar):not(.en-bloques) > :last-child {
+  border-bottom-left-radius: calc(var(--panels-radius) - 1px); border-bottom-right-radius: calc(var(--panels-radius) - 1px);
+}
+/* El pie no es un panel: es texto sobre el lienzo, sin fondo ni línea. */
+:root[data-style="panels"] .statusbar { background: none; border: 0 }
+/* UN COSTADO EN BLOQUES (`.sidebar.en-bloques > .wb-bloque`): el costado se arma en partes —la navegación, un grupo
+   aparte, tu sesión—. En «Plano» no se notan; con «Paneles» el costado deja de ser UN panel y cada bloque es uno sobre
+   el lienzo. Viene de la base del playground compartido (canon, cuadrilla); acá la usa el chat. ⚠ `wb-` adelante: canon ya tenía su propio `.bloque` (los de un documento,
+   con margen negativo), y el nombre suelto se le pegaba. */
+.en-bloques > .wb-bloque { display: flex; flex-direction: column; min-height: 0; min-width: 0 }
+:root[data-style="panels"] :is(.sidebar, .auxiliarybar).en-bloques { background: none; border: 0; border-radius: 0; box-shadow: none; gap: var(--panels-gap) }
+:root[data-style="panels"] .en-bloques > .wb-bloque {
+  background: var(--panel-surface); border: 1px solid var(--panel-border); border-radius: var(--panels-radius); overflow: hidden;
+}
+:root[data-style="panels"] .en-bloques > .wb-bloque > .sesion { margin: var(--space-1); width: calc(100% - 2 * var(--space-1));
+  border-radius: calc(var(--panels-radius) - var(--space-1)) }
+
 /* ── LAS REGIONES ─────────────────────────────────────────────────────────────────────────────── */
 .titlebar {
   flex: none;
