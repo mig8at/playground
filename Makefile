@@ -99,7 +99,7 @@ keyring: ## @dia el llavero: ¿a qué tengo acceso AHORA y cuándo vence? Primer
 	@go run ./keyring/server $(if $(SOLO),-only "$(SOLO)") $(if $(JSON),-json)
 keyring-ui: ## @dia abre keyring, el llavero, visual (:5182 · API :5183): las mismas filas que `make keyring`, cada grupo apenas contesta
 	@cd keyring && npm run dev
-chat: ## @dia abre chat (:5184 · API :5185), un mini WhatsApp del chat de la terminal del playground compartido: conversaciones, quién está conectado y contestar. Usa el CLI `playground` (login y listen); el historial queda en el navegador
+chat: ## @dia abre chat (:5184 · API :5185), un mini WhatsApp del chat de la terminal del playground compartido: conversaciones, quién está conectado y contestar; prende también tus agentes (agents/*, los que no estén corriendo). Usa el CLI `playground` (login y listen); el historial queda en el navegador
 	@cd chat && npm run dev
 agents: ## @dia prende tus agentes del chat del playground (agents/*, cada uno su proceso: time :5186). Se declaran en ~/playground/team/agents.json y los anuncia `playground listen`; `playground agents check` dice si contestan
 	@trap 'kill 0' INT TERM; for d in agents/*/; do go run ./$$d & done; wait

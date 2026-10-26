@@ -3,9 +3,10 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "concurrently -k -n server,web -c green,cyan \"npm:dev:server\" \"npm:dev:web\"",
+    "dev": "concurrently -k -n server,web,agents -c green,cyan,magenta \"npm:dev:server\" \"npm:dev:web\" \"npm:dev:agents\"",
     "dev:server": "cd .. && go run ./chat/server -serve 127.0.0.1:5185",
     "dev:web": "vite",
+    "dev:agents": "sh scripts/agents.sh",
     "build": "vite build"
   },
   "dependencies": {
