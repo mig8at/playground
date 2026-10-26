@@ -19,6 +19,7 @@ const apps = [
   ['harness', 'http://localhost:5195'], ['tablero', 'http://localhost:5191'],
   ['visor', 'http://localhost:5186'],
   ['keyring', 'http://localhost:5182'],
+  ['tests', 'http://localhost:5178'],
 ].filter(([name]) => !only.length || only.includes(name));
 const WIDTHS = [1440, 1024, 768, 640];
 

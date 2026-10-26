@@ -61,6 +61,17 @@
       "autoPort": false
     },
     {
+      "name": "tests",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": [
+        "run",
+        "dev"
+      ],
+      "cwd": "tests",
+      "port": 5178,
+      "autoPort": false
+    },
+    {
       "name": "admin",
       "runtimeExecutable": "php",
       "runtimeArgs": [
