@@ -226,6 +226,25 @@ async function loadRows(name, id) {
 watch(() => result.value?.request?.id, loadTables)
 const tablesTotal = computed(() => tables.value.reduce((n, t) => n + t.rows, 0))
 
+// ── qué tablas se ven en el editor. Por defecto todas menos las de logs y auditoría, que son ruido para una
+// prueba; lo que se prende o apaga a mano se recuerda en el navegador, por nombre de tabla ──
+const NOISY = /(^|_)logs?($|_)|audit|outbox/
+const isNoisy = (name) => NOISY.test(name)
+const TABLES_KEY = 'tests.tables'
+function readTablePrefs() {
+  try { return JSON.parse(localStorage.getItem(TABLES_KEY) || '{}') } catch { return {} }
+}
+const tablePrefs = ref(readTablePrefs()) // tabla → true (se ve) | false (oculta)
+function saveTablePrefs() {
+  try { localStorage.setItem(TABLES_KEY, JSON.stringify(tablePrefs.value)) } catch { /* sólo no se recuerda */ }
+}
+const isShown = (name) => (name in tablePrefs.value ? tablePrefs.value[name] : !isNoisy(name))
+function toggleTable(name) { tablePrefs.value = { ...tablePrefs.value, [name]: !isShown(name) }; saveTablePrefs() }
+function resetTables() { tablePrefs.value = {}; saveTablePrefs() }
+const visibleTables = computed(() => tables.value.filter((t) => isShown(t.table)))
+const hiddenCount = computed(() => tables.value.length - visibleTables.value.length)
+const panelTab = ref('states') // states · tables
+
 // ── el sidebar derecho: la consulta de la tabla cuyo título se tocó, para correrla en otro lado ──
 const openTable = ref(null) // nombre de la tabla
 function showTable(name) { openTable.value = openTable.value === name ? null : name }
@@ -409,10 +428,12 @@ onBeforeUnmount(() => {
         </div>
         <template v-else>
           <section>
-            <div class="region-head group"><span>Tablas de esta solicitud</span><span class="count">{{ tables.length ? `${tablesTotal} filas en ${tables.length} tablas` : '' }}</span></div>
+            <div class="region-head group"><span>Tablas de esta solicitud</span><span class="count">{{ tables.length ? `${tablesTotal} filas en ${tables.length} tablas` : '' }}</span>
+              <button v-if="hiddenCount" type="button" class="btn-link hidden-link" title="Elegir qué tablas se ven" @click="panelTab = 'tables'; panelOpen = true">{{ hiddenCount }} ocultas</button>
+            </div>
             <p v-if="tablesError" class="none hot">{{ tablesError }}</p>
             <p v-else-if="!tables.length" class="none">Contando…</p>
-            <div v-for="t in tables" v-else :key="t.table" class="db-table">
+            <div v-for="t in visibleTables" v-else :key="t.table" class="db-table">
               <!-- El título es un botón: abre a la derecha la consulta que trae estas filas. -->
               <button type="button" class="db-table-head" :class="{ on: openTable === t.table }" :title="`Ver la consulta de ${t.table}`" @click="showTable(t.table)">
                 <code>{{ t.table }}</code>
@@ -483,11 +504,28 @@ onBeforeUnmount(() => {
 
     <section v-if="shown.panel" class="panel" aria-label="Estados">
       <div class="rsz rsz-edge-top" v-resize="panelResize"></div>
-      <div class="region-head">
-        <span>Estados</span>
-        <span v-if="r" class="count">{{ lines.length }}</span>
+      <nav class="tabs" role="tablist" aria-label="Consola">
+        <button type="button" role="tab" class="tab" :class="{ on: panelTab === 'states' }" :aria-selected="panelTab === 'states'" @click="panelTab = 'states'">
+          Estados <span v-if="r?.request" class="count">{{ lines.length }}</span>
+        </button>
+        <button type="button" role="tab" class="tab" :class="{ on: panelTab === 'tables' }" :aria-selected="panelTab === 'tables'" @click="panelTab = 'tables'">
+          Tablas <span v-if="tables.length" class="count" :class="{ filtered: hiddenCount }">{{ visibleTables.length }} / {{ tables.length }}</span>
+        </button>
+        <div v-if="panelTab === 'tables'" class="region-actions">
+          <button type="button" class="region-action" title="Volver a lo de siempre: todas menos logs y auditorías" aria-label="Volver a lo de siempre" @click="resetTables">
+            <span class="ui-icon" data-icon="refresh" aria-hidden="true"></span>
+          </button>
+        </div>
+      </nav>
+      <div v-if="panelTab === 'tables'" class="region-body">
+        <p v-if="!tables.length" class="none">Las tablas de la solicitud que se mira; las que se apagan acá no se muestran en el editor.</p>
+        <label v-for="t in tables" :key="t.table" class="checkbox-row table-toggle">
+          <input type="checkbox" class="checkbox" :checked="isShown(t.table)" @change="toggleTable(t.table)" />
+          <code>{{ t.table }}</code>
+          <span class="muted">{{ t.rows }} {{ t.rows === 1 ? 'fila' : 'filas' }}{{ isNoisy(t.table) ? ' · log' : '' }}</span>
+        </label>
       </div>
-      <div class="region-body">
+      <div v-else class="region-body">
         <p v-if="!r" class="none">Por qué estados pasó la solicitud, quién la movió y cuándo.</p>
         <div v-for="l in lines" :key="l.key" class="log-line" :class="{ ghost: l.ghost }">
           <span class="log-time">{{ l.time }}</span>
@@ -635,6 +673,10 @@ code.wrap { word-break: break-all }
 .sql { margin: 0; padding: var(--space-3) var(--gutter); white-space: pre-wrap; word-break: break-word;
   font-family: var(--font-mono); font-size: var(--text-sm); line-height: 1.6; user-select: text }
 .ok { color: var(--tests-ok) }
+/* Las tablas de la consola: una casilla por tabla, en columnas que se acomodan al ancho. */
+.table-toggle { display: inline-flex; width: 280px; padding: 2px var(--gutter); gap: var(--space-2) }
+.table-toggle code { font-size: var(--text-sm) }
+.hidden-link { margin-left: var(--space-2); font-size: var(--text-xs) }
 .warn { color: var(--tests-warn) }
 .small { font-size: var(--text-sm) }
 .cell-action { width: 32px; text-align: right }
