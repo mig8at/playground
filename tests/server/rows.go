@@ -7,6 +7,11 @@ import (
 	dbsql "creditop/playground/connectors/sql"
 )
 
+// secretColumns no se muestran nunca: la contraseña y los tokens del usuario no le sirven a una prueba.
+var secretColumns = map[string]map[string]bool{
+	"users": {"password": true, "two_factor_secret": true, "two_factor_recovery_codes": true, "remember_token": true},
+}
+
 // maxTableRows es el tope de filas que se leen de una tabla: una solicitud normal tiene pocas por tabla.
 const maxTableRows = 200
 
@@ -38,6 +43,10 @@ func RequestTableRows(target string, request int, table string) (*TableRows, err
 	switch table {
 	case "user_requests":
 		where, order = fmt.Sprintf("id IN (%s)", list), "id"
+	case "users":
+		// El usuario de la solicitud: cuelga al revés (user_requests.user_id), por eso va aparte. No se borra
+		// con la solicitud; a lo sumo se da de baja.
+		where = fmt.Sprintf("id IN (SELECT user_id FROM user_requests WHERE id IN (%s))", list)
 	case "device_locks":
 		where = deviceLocksWhere(list)
 	default:
@@ -69,9 +78,16 @@ func RequestTableRows(target string, request int, table string) (*TableRows, err
 	}
 	out := &TableRows{Table: table, Columns: []string{}}
 	for _, c := range cols {
-		out.Columns = append(out.Columns, cell(c, "c"))
+		if !secretColumns[table][cell(c, "c")] {
+			out.Columns = append(out.Columns, cell(c, "c"))
+		}
 	}
-	query := fmt.Sprintf("SELECT * FROM `%s` WHERE %s", table, where)
+	// Con columnas secretas se piden por nombre; si no, `*`, que es lo que se copia y se corre más fácil.
+	pick := "*"
+	if len(secretColumns[table]) > 0 {
+		pick = "`" + strings.Join(out.Columns, "`, `") + "`"
+	}
+	query := fmt.Sprintf("SELECT %s FROM `%s` WHERE %s", pick, table, where)
 	if order != "" {
 		query += " ORDER BY " + order
 	}

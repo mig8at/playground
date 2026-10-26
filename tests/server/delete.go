@@ -315,7 +315,12 @@ func RequestTables(target string, request int) ([]TableCount, error) {
 	if err != nil {
 		return nil, err
 	}
-	return append([]TableCount{{"user_requests", 1}}, out...), nil
+	head := []TableCount{{"user_requests", 1}}
+	// El usuario va como una tabla más, para ver sus datos junto al resto; no se borra con la solicitud.
+	if u, err := first(src, `SELECT user_id FROM user_requests WHERE id = ?`, request); err == nil && cell(u, "user_id") != "" {
+		head = append(head, TableCount{"users", 1})
+	}
+	return append(head, out...), nil
 }
 
 // childTables son las tablas con `user_request_id` de ESTA base, y si tienen `id` de llave primaria.

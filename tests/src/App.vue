@@ -80,42 +80,12 @@ function open(id) {
 
 // ── lo que se pinta ──
 const r = computed(() => result.value)
-const billing = computed(() => r.value?.orderData?.billing || null)
-const orderExtra = computed(() => {
-  const d = r.value?.orderData
-  if (!d || typeof d !== 'object') return []
-  return Object.entries(d).filter(([k]) => k !== 'billing').map(([k, v]) => [k, typeof v === 'object' ? JSON.stringify(v) : v])
-})
-const userName = computed(() => {
-  const u = r.value?.user
-  return u ? (u.full_name || `${u.first_name || ''} ${u.surname || ''}`.trim()) : ''
-})
-const warns = computed(() => (r.value?.warnings || []))
 // La tabla de abajo: con celular, todas las de ese número (de todos sus usuarios); si no, las del usuario.
 const listed = computed(() => (r.value?.input?.phone ? r.value.phoneRequests : r.value?.requests) || [])
-const warnCount = computed(() => warns.value.filter((w) => w.level === 'warn').length)
-
-// Una fila del usuario se marca si contradice lo que mandó la tienda (el servidor ya dijo el porqué arriba).
-const norm = (s) => String(s || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').trim()
-const digitsOf = (s) => String(s || '').replace(/\D/g, '')
-const mismatch = computed(() => {
-  const b = billing.value
-  const u = r.value?.user
-  if (!b || !u) return {}
-  const shopWords = norm(`${b.first_name || ''} ${b.last_name || ''}`).split(/\s+/).filter(Boolean)
-  const userWords = new Set(norm(userName.value).split(/\s+/))
-  return {
-    name: shopWords.length > 0 && !shopWords.every((w) => userWords.has(w)),
-    email: !!b.email && norm(b.email) !== norm(u.email),
-    phone: !!b.phone && !digitsOf(u.cell_phone).endsWith(digitsOf(b.phone).slice(-10)),
-    document: !!b.document_number && !String(u.document_number || '').startsWith(digitsOf(b.document_number)),
-  }
-})
 
 const money = (v) => (v === null || v === undefined || v === '' ? '—'
   : `$${Number(v).toLocaleString('es-CO', { maximumFractionDigits: 0 })}`)
 const dash = (v) => (v === null || v === undefined || v === '' ? '—' : v)
-const yesNo = (v) => (v === null || v === undefined ? '—' : Number(v) ? 'sí' : 'no')
 const stateOf = (id) => FINAL[id] || 'open'
 
 // La consola: el historial y, si el estado de hoy no está en él, una línea más que lo dice.
@@ -361,7 +331,6 @@ onBeforeUnmount(() => {
         <span>{{ r ? `Solicitud ${r.request.id}` : 'tests' }}</span>
         <span v-if="r?.input?.phone" class="count">celular {{ r.input.phone }}</span>
         <span v-if="r" class="count">{{ r.request.status_id }} · {{ r.request.status }}</span>
-        <span v-if="r && warnCount" class="count hot">{{ warnCount }} sin cuadrar</span>
         <div v-if="r" class="region-actions">
           <button type="button" class="region-action" title="Borrar la solicitud" aria-label="Borrar la solicitud" @click="openDelete(r.request.id)">
             <span class="ui-icon" data-icon="trash" aria-hidden="true"></span>
@@ -382,76 +351,6 @@ onBeforeUnmount(() => {
           </div>
         </div>
         <template v-else>
-          <div v-if="warns.length" class="warnings">
-            <div v-for="(w, i) in warns" :key="i" class="alert" :data-level="w.level">
-              <span class="alert-icon"><span class="ui-icon" :data-icon="w.level === 'warn' ? 'alert' : 'detail'" aria-hidden="true"></span></span>
-              <div class="alert-desc"><p>{{ w.text }}</p></div>
-            </div>
-          </div>
-
-          <section>
-            <div class="region-head group"><span>Comercio</span><span class="count">sucursal {{ r.branch?.hash || '—' }}</span></div>
-            <dl class="kv">
-              <dt>Comercio</dt><dd>{{ dash(r.branch?.allied) }} <span class="muted">#{{ r.request.allied_id }}</span></dd>
-              <dt>Sucursal</dt><dd>{{ dash(r.branch?.name) }} <span class="muted">#{{ r.branch?.id }} · <code>{{ r.branch?.hash }}</code></span></dd>
-              <dt>Dirección</dt><dd>{{ dash(r.branch?.address) }}</dd>
-              <dt>Entidad</dt><dd>{{ r.request.lender ? `${r.request.lender} #${r.request.lender_id}` : 'sin elegir' }}</dd>
-              <dt>Monto</dt><dd>{{ money(r.request.amount) }}<span v-if="r.request.final_amount && Number(r.request.final_amount) !== Number(r.request.amount)" class="muted"> · final {{ money(r.request.final_amount) }}</span></dd>
-              <dt>Flujo</dt><dd>{{ dash(r.request.flow_id) }}<span class="muted"> · autogestión {{ yesNo(r.request.self_management) }} · prueba {{ yesNo(r.request.is_test) }}</span></dd>
-              <dt>Creada</dt><dd>{{ r.request.created_at }}<span class="muted"> · actualizada {{ r.request.updated_at }}</span></dd>
-            </dl>
-          </section>
-
-          <section>
-            <div class="region-head group"><span>Lo que mandó la tienda</span><span class="count">{{ r.order ? `pedido ${r.order.id}` : 'no hay pedido' }}</span></div>
-            <p v-if="!r.order" class="none">La solicitud no tiene pedido de ecommerce: no entró por una tienda.</p>
-            <dl v-else class="kv">
-              <dt>Plataforma</dt><dd><b>{{ dash(r.order.platform) }}</b> <span class="muted">· ecommerce_id {{ r.order.ecommerce_id }} · origen {{ dash(r.order.origin) }}</span></dd>
-              <dt>Sucursal del pedido</dt><dd><code>{{ dash(r.order.branch_hash) }}</code> <span class="muted">{{ r.order.branch_name }}</span></dd>
-              <dt>Pedido en la tienda</dt><dd><code>{{ dash(r.order.order_key) }}</code><span v-if="r.order.order_identifier" class="muted"> · {{ r.order.order_identifier }}</span></dd>
-              <dt>Referencia</dt><dd>{{ yesNo(r.order.has_reference) }}<span class="muted"> · vence {{ dash(r.order.reference_expires_at) }} · usada {{ dash(r.order.reference_used_at) }}</span></dd>
-              <template v-if="billing">
-                <dt>Nombre</dt><dd :class="{ hot: mismatch.name }">{{ dash(`${billing.first_name || ''} ${billing.last_name || ''}`.trim()) }}</dd>
-                <dt>Correo</dt><dd :class="{ hot: mismatch.email }">{{ dash(billing.email) }}</dd>
-                <dt>Celular</dt><dd :class="{ hot: mismatch.phone }">{{ dash(billing.phone) }}</dd>
-                <dt>Documento</dt><dd :class="{ hot: mismatch.document }">{{ billing.document_number ? `${billing.document_type || ''} ${billing.document_number}`.trim() : '—' }}</dd>
-              </template>
-              <template v-for="[k, v] in orderExtra" :key="k">
-                <dt>{{ k }}</dt><dd><code class="wrap">{{ k === 'total' ? money(v) : dash(v) }}</code></dd>
-              </template>
-              <dt>Vuelve a</dt><dd><code class="wrap">{{ dash(r.order.return_url) }}</code></dd>
-              <dt>Creado</dt><dd>{{ r.order.created_at }}</dd>
-            </dl>
-          </section>
-
-          <section>
-            <div class="region-head group"><span>Usuario registrado</span><span class="count">{{ r.user ? `#${r.user.id}` : 'sin usuario' }}</span></div>
-            <dl v-if="r.user" class="kv">
-              <dt>Nombre</dt><dd :class="{ hot: mismatch.name }"><b>{{ dash(userName) }}</b></dd>
-              <dt>Documento</dt><dd :class="{ hot: mismatch.document }">{{ r.user.document_type }} {{ r.user.document_number }}<span class="muted"> · expedida {{ dash(r.user.expedition_date) }}</span></dd>
-              <dt>Correo</dt><dd :class="{ hot: mismatch.email }">{{ dash(r.user.email) }}</dd>
-              <dt>Celular</dt><dd :class="{ hot: mismatch.phone }">{{ dash(r.user.cell_phone) }}<span class="muted"> · validado {{ yesNo(r.user.cellphone_validation) }}</span></dd>
-              <dt>Nacimiento</dt><dd>{{ dash(r.user.date_of_birth) }}<span class="muted"> · {{ dash(r.user.age) }} años · {{ dash(r.user.gender) }}</span></dd>
-              <dt>Cuenta</dt><dd>{{ Number(r.user.status) === 1 ? 'activa' : 'dada de baja' }}<span class="muted"> · {{ PROFILE[r.user.user_profile_id] || `perfil ${r.user.user_profile_id}` }} · validada {{ yesNo(r.user.validated) }} · manual {{ yesNo(r.user.manual_validation) }}</span></dd>
-              <dt>Prueba</dt><dd>{{ yesNo(r.user.is_test) }}<span v-if="r.user.test_reason" class="muted"> · {{ r.user.test_reason }}</span></dd>
-              <dt>Canal</dt><dd>{{ dash(r.user.onboarding_channel) }}<span class="muted"> · {{ dash(r.user.onboarding_backend) }}</span></dd>
-              <dt>Cognito</dt><dd><code>{{ dash(r.user.cognito_id) }}</code></dd>
-              <dt>Creado</dt><dd>{{ r.user.created_at }}<span class="muted"> · última validación {{ dash(r.user.last_validation) }}</span></dd>
-            </dl>
-            <template v-if="r.samePhone.length">
-              <p class="none hot">Otros usuarios activos con el celular {{ r.user.cell_phone }}:</p>
-              <table class="table">
-                <thead><tr><th>id</th><th>nombre</th><th>documento</th><th>correo</th><th>prueba</th><th>creado</th></tr></thead>
-                <tbody>
-                  <tr v-for="u in r.samePhone" :key="u.id">
-                    <td>{{ u.id }}</td><td>{{ u.first_name }} {{ u.surname }}</td><td>{{ u.document_number }}</td>
-                    <td>{{ dash(u.email) }}</td><td>{{ yesNo(u.is_test) }}</td><td>{{ u.created_at }}</td>
-                  </tr>
-                </tbody>
-              </table>
-            </template>
-          </section>
-
           <section>
             <div class="region-head group"><span>Tablas de esta solicitud</span><span class="count">{{ tables.length ? `${tablesTotal} filas en ${tables.length} tablas` : '' }}</span></div>
             <p v-if="tablesError" class="none hot">{{ tablesError }}</p>
@@ -460,7 +359,7 @@ onBeforeUnmount(() => {
               <!-- El título es un botón: abre a la derecha la consulta que trae estas filas. -->
               <button type="button" class="db-table-head" :class="{ on: openTable === t.table }" :title="`Ver la consulta de ${t.table}`" @click="showTable(t.table)">
                 <code>{{ t.table }}</code>
-                <span class="count">{{ t.rows }} {{ t.rows === 1 ? 'fila' : 'filas' }}</span>
+                <span class="count">{{ t.rows }} {{ t.rows === 1 ? 'fila' : 'filas' }}{{ t.table === 'users' ? ' · el usuario de la solicitud: no se borra con ella' : '' }}</span>
                 <span class="ui-icon" data-icon="console" aria-hidden="true"></span>
               </button>
               <p v-if="tableRows[t.table]?.loading" class="none">Leyendo…</p>
@@ -477,15 +376,6 @@ onBeforeUnmount(() => {
               </div>
               <p v-if="tableRows[t.table]?.data?.truncated" class="none warn">Se muestran las primeras {{ tableRows[t.table].data.rows.length }}.</p>
             </div>
-          </section>
-
-          <section v-if="r.fields.length">
-            <div class="region-head group"><span>Datos del perfil</span><span class="count">{{ r.fields.length }}</span></div>
-            <dl class="kv">
-              <template v-for="f in r.fields" :key="f.field_id">
-                <dt :title="`campo ${f.field_id} · solicitud ${f.user_request_id || '—'}`">{{ f.field }}</dt><dd>{{ dash(f.value) }}</dd>
-              </template>
-            </dl>
           </section>
 
           <section v-if="listed.length && !r.input.phone">
