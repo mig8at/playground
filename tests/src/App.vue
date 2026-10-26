@@ -6,7 +6,7 @@
  * Todo sale de la API en Go (`tests/server`): acá no se calcula nada, se pinta. Lo único que escribe es la
  * basura (borrar una solicitud de prueba y lo que cuelga), y las guardas viven en el servidor (delete.go). Los avisos
  * («la tienda mandó otro nombre», «el celular lo tienen dos usuarios») también los arma el servidor.
- * El ambiente y la búsqueda viven en la URL; las últimas búsquedas, en el navegador. */
+ * El ambiente y la búsqueda viven en la URL; el tamaño de las regiones, en el navegador. */
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import {
   vResize, readSize, saveSize, fitRegions, cssSize, bindThemeToggle, bindMenu,
@@ -208,6 +208,33 @@ async function loadTables() {
 watch(() => result.value?.request?.id, loadTables)
 const tablesTotal = computed(() => tables.value.reduce((n, t) => n + t.rows, 0))
 
+// ── una tabla abierta en el sidebar derecho: sus filas de la solicitud, una por bloque, columna por renglón ──
+const openTable = ref(null)
+let tableSeq = 0
+async function showTable(name, reload = false) {
+  const id = result.value?.request?.id
+  if (!id) return
+  // Volver a tocar la tabla abierta la cierra; «Volver a leer» la relee.
+  if (!reload && openTable.value?.table === name && openTable.value.request === id) { openTable.value = null; return }
+  // Cada lectura lleva su número: si mientras tanto se abrió otra tabla, la respuesta vieja no la pisa.
+  // (No se compara el objeto: lo que guarda `ref` es un proxy, nunca el mismo.)
+  const seq = ++tableSeq
+  const t = { table: name, request: id, seq, loading: true, error: '', data: null }
+  openTable.value = t
+  try {
+    const res = await fetch(`/api/table-rows?target=${encodeURIComponent(target.value)}&request=${id}&table=${encodeURIComponent(name)}`)
+    const body = await res.json().catch(() => ({}))
+    if (!res.ok) throw new Error(body.error || `HTTP ${res.status}`)
+    if (openTable.value?.seq === seq) openTable.value = { ...t, loading: false, data: body }
+  } catch (e) {
+    if (openTable.value?.seq === seq) openTable.value = { ...t, loading: false, error: e.message }
+  }
+}
+// Otra solicitud u otro ambiente: la tabla abierta era de la anterior.
+watch([() => result.value?.request?.id, target], () => { openTable.value = null })
+// NULL se distingue de la cadena vacía: en la base no son lo mismo.
+const cellText = (v) => (v === null || v === undefined ? 'NULL' : typeof v === 'object' ? JSON.stringify(v) : String(v))
+
 // ── el ambiente: el selector del pie ──
 const targets = ref(['local', 'qa'])
 const targetTrigger = ref(null)
@@ -223,19 +250,24 @@ const sidebarOpen = ref(readSize('tests.sidebar-open', 1) !== 0)
 const sidebarW = ref(readSize('tests.sidebar-w', 300))
 const panelOpen = ref(readSize('tests.panel-open', 1) !== 0)
 const panelH = ref(readSize('tests.panel-h', 200))
+const auxW = ref(readSize('tests.aux-w', 380))
 const viewportW = ref(window.innerWidth)
 const viewportH = ref(window.innerHeight)
 const onWindowResize = () => { viewportW.value = window.innerWidth; viewportH.value = window.innerHeight }
 const shown = computed(() => {
-  const [sidebar] = fitRegions(viewportW.value - cssSize('--editor-min', 360), [
+  // Si no entran, se pliega primero el de las búsquedas: el de la derecha es lo que se acaba de abrir.
+  const [sidebar, aux] = fitRegions(viewportW.value - cssSize('--editor-min', 360), [
     { size: sidebarOpen.value ? sidebarW.value : 0, min: cssSize('--sidebar-min', 240) },
+    { size: openTable.value ? auxW.value : 0, min: cssSize('--sidebar-min', 240) },
   ])
   const [panel] = fitRegions(viewportH.value - 200, [
     { size: panelOpen.value ? panelH.value : 0, min: cssSize('--panel-min', 124) },
   ])
-  return { sidebar, panel }
+  return { sidebar, panel, aux }
 })
-const layoutVars = computed(() => ({ '--sidebar-w': `${shown.value.sidebar}px`, '--panel-h': `${shown.value.panel}px` }))
+const layoutVars = computed(() => ({
+  '--sidebar-w': `${shown.value.sidebar}px`, '--panel-h': `${shown.value.panel}px`, '--auxiliarybar-w': `${shown.value.aux}px`,
+}))
 const sidebarResize = {
   label: 'Ancho de las búsquedas', sign: 1, defaultValue: 300,
   min: () => cssSize('--sidebar-min', 240),
@@ -244,6 +276,15 @@ const sidebarResize = {
   set: (v) => { if (!v) sidebarOpen.value = false; else { sidebarOpen.value = true; sidebarW.value = v } },
   reopen: () => sidebarW.value,
   commit: (v) => { saveSize('tests.sidebar-open', v ? 1 : 0); if (v) saveSize('tests.sidebar-w', sidebarW.value) },
+}
+const auxResize = {
+  label: 'Ancho de la tabla', sign: -1, defaultValue: 380,
+  min: () => cssSize('--sidebar-min', 240),
+  max: () => viewportW.value - cssSize('--editor-min', 360) - shown.value.sidebar,
+  get: () => shown.value.aux,
+  set: (v) => { if (!v) openTable.value = null; else auxW.value = v },
+  reopen: () => auxW.value,
+  commit: (v) => { if (v) saveSize('tests.aux-w', auxW.value) },
 }
 const panelResize = {
   label: 'Alto de los estados', axis: 'y', sign: -1, defaultValue: 200,
@@ -419,7 +460,11 @@ onBeforeUnmount(() => {
             <p v-else-if="!tables.length" class="none">Contando…</p>
             <dl v-else class="kv tables">
               <template v-for="t in tables" :key="t.table">
-                <dt><code>{{ t.table }}</code></dt><dd>{{ t.rows }}</dd>
+                <dt>
+                  <button type="button" class="btn-link" :class="{ on: openTable?.table === t.table }" :title="`Ver las filas de ${t.table}`" @click="showTable(t.table)">
+                    <code>{{ t.table }}</code>
+                  </button>
+                </dt><dd>{{ t.rows }}</dd>
               </template>
             </dl>
           </section>
@@ -455,6 +500,37 @@ onBeforeUnmount(() => {
         </template>
       </div>
     </main>
+
+    <aside v-if="shown.aux" class="auxiliarybar" :aria-label="`Filas de ${openTable.table}`">
+      <div class="rsz rsz-edge-left" v-resize="auxResize"></div>
+      <div class="region-head">
+        <code>{{ openTable.table }}</code>
+        <span v-if="openTable.data" class="count">{{ openTable.data.rows.length }}{{ openTable.data.truncated ? '+' : '' }} {{ openTable.data.rows.length === 1 ? 'fila' : 'filas' }}</span>
+        <div class="region-actions">
+          <button type="button" class="region-action" title="Volver a leer" aria-label="Volver a leer" :disabled="openTable.loading" @click="showTable(openTable.table, true)">
+            <span class="ui-icon" data-icon="refresh" aria-hidden="true"></span>
+          </button>
+          <button type="button" class="region-action" title="Cerrar" aria-label="Cerrar" @click="openTable = null">
+            <span class="ui-icon" data-icon="close" aria-hidden="true"></span>
+          </button>
+        </div>
+      </div>
+      <div class="region-body">
+        <p v-if="openTable.loading" class="none">Leyendo…</p>
+        <p v-else-if="openTable.error" class="none hot">{{ openTable.error }}</p>
+        <template v-else>
+          <p v-if="openTable.data.truncated" class="none warn">Se muestran las primeras {{ openTable.data.rows.length }}.</p>
+          <section v-for="(row, i) in openTable.data.rows" :key="row.id ?? i" class="db-row">
+            <div class="region-head group"><span>Fila {{ i + 1 }}</span><span v-if="row.id !== undefined" class="count">id {{ row.id }}</span></div>
+            <dl class="kv db">
+              <template v-for="c in openTable.data.columns" :key="c">
+                <dt><code>{{ c }}</code></dt><dd :class="{ muted: row[c] === null }"><code>{{ cellText(row[c]) }}</code></dd>
+              </template>
+            </dl>
+          </section>
+        </template>
+      </div>
+    </aside>
 
     <section v-if="shown.panel" class="panel" aria-label="Estados">
       <div class="rsz rsz-edge-top" v-resize="panelResize"></div>
@@ -576,7 +652,14 @@ code.wrap { word-break: break-all }
 .alert.done .alert-desc { grid-column: 1 }
 .alert.done > .region-action { grid-column: 2; grid-row: 1 }
 .alert[data-level="ok"] { border-left-color: var(--tests-ok); background: color-mix(in oklab, var(--tests-ok) 10%, transparent) }
+/* Los nombres de tabla son largos (user_requests_by_ecommerce_request): la columna mide lo que el más largo. */
+.kv.tables { grid-template-columns: max-content 1fr }
 .kv.tables dd { font-variant-numeric: tabular-nums }
+.kv.tables .btn-link.on { text-decoration: underline }
+/* Las filas de una tabla, en el sidebar derecho: la columna a la izquierda, el valor tal cual lo guarda la base. */
+.kv.db { grid-template-columns: minmax(96px, 40%) 1fr }
+.kv.db dd code { white-space: pre-wrap; word-break: break-word }
+.kv.db dt { min-width: 0; overflow-wrap: anywhere }
 .warn { color: var(--tests-warn) }
 .small { font-size: var(--text-sm) }
 .cell-action { width: 32px; text-align: right }

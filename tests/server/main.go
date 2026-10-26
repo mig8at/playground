@@ -111,6 +111,17 @@ func handler() http.Handler {
 		}
 		writeJSON(w, http.StatusOK, out)
 	})
+	// GET /api/table-rows?target=qa&request=504059&table=user_request_records — las filas de la solicitud en esa
+	// tabla, con las columnas en el orden de la base. Sólo lee.
+	mux.HandleFunc("/api/table-rows", func(w http.ResponseWriter, r *http.Request) {
+		request, _ := strconv.Atoi(r.URL.Query().Get("request"))
+		out, err := RequestTableRows(r.URL.Query().Get("target"), request, r.URL.Query().Get("table"))
+		if err != nil {
+			writeJSON(w, http.StatusUnprocessableEntity, map[string]string{"error": err.Error()})
+			return
+		}
+		writeJSON(w, http.StatusOK, out)
+	})
 	// GET /api/delete/plan?target=qa&request=504059&phone=1 — qué se borraría. Sólo lee.
 	mux.HandleFunc("/api/delete/plan", func(w http.ResponseWriter, r *http.Request) {
 		q := r.URL.Query()
