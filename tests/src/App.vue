@@ -229,10 +229,12 @@ const links = computed(() => {
 const MOVED_KEY = 'tests.moved'
 function readMoved() { try { return JSON.parse(localStorage.getItem(MOVED_KEY) || '{}') || {} } catch { return {} } }
 const movedLog = ref(readMoved()) // { 'qa:504068': { status, name, at } }
-const movedKey = (id) => `${target.value}:${id}`
-const lockedMove = computed(() => (r.value?.request ? movedLog.value[movedKey(r.value.request.id)] || null : null))
-function rememberMove(id, status, name) {
-  movedLog.value = { ...movedLog.value, [movedKey(id)]: { status, name, at: new Date().toLocaleString('es-CO') } }
+// La llave es solicitud + PEDIDO: una compra nueva con el mismo celular, sucursal y monto reabre la misma solicitud
+// (aunque estuviera negada) y la pega al pedido nuevo, que sí acepta su propio resultado.
+const movedKey = (id, order) => `${target.value}:${id}:${order ?? ''}`
+const lockedMove = computed(() => (r.value?.request ? movedLog.value[movedKey(r.value.request.id, r.value.order?.id)] || null : null))
+function rememberMove(id, order, status, name) {
+  movedLog.value = { ...movedLog.value, [movedKey(id, order)]: { status, name, at: new Date().toLocaleString('es-CO') } }
   try { localStorage.setItem(MOVED_KEY, JSON.stringify(movedLog.value)) } catch { /* sin almacenamiento: vale hasta recargar */ }
 }
 const statusDialog = ref(null)
@@ -255,7 +257,7 @@ async function runMove() {
     })
     const body = await res.json().catch(() => ({}))
     if (!res.ok) throw new Error(body.error || `HTTP ${res.status}`)
-    rememberMove(m.request, body.status, m.outcome.name)
+    rememberMove(m.request, r.value?.order?.id, body.status, m.outcome.name)
     const order = r.value?.order || {}
     moved.value = {
       request: m.request, previous: body.previous, status: body.status, name: m.outcome.name, store: m.outcome.store,
