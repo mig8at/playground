@@ -1,0 +1,29 @@
+{
+  "node": "cartera/context",
+  "kind": "addition",
+  "source": "verified",
+  "verified": "2026-10-27",
+  "section": "El subsidio se paga cuota por cuota de madrugada y no cuenta como recaudo",
+  "text_file": "aplicacion.md",
+  "as_asked": "¿Cómo se aplica el subsidio de intereses de Creditop a cada cuota y cuándo se pierde?",
+  "objetivo": "Pagar cada noche el interés de la cuota subsidiada sin confundirlo con lo que pagó el cliente.",
+  "se_deduce_leyendo": "qué cuota decide cada noche, cuánto cubre, cuándo se pierde o espera y cómo queda el pago registrado",
+  "archivos": {
+    "legacy-application": [
+      "app/Services/CreditopX/Benefits/CreditBenefitRunner.php",
+      "app/Support/CreditBenefits/Strategies/InterestSubsidyStrategy.php",
+      "app/Support/CreditBenefits/BenefitDecisionFlow.php",
+      "app/Console/Commands/ApplyCreditBenefitsCommand.php",
+      "app/Exports/CreditopSubsidySettlementExport.php"
+    ],
+    "legacy-backend": [
+      "database/migrations/2026_10_16_140000_create_creditop_x_credit_benefit_decisions_table.php",
+      "database/migrations/2026_10_22_210000_include_commercial_advisers_of_setting_allieds_in_views.php"
+    ]
+  },
+  "tablas": [
+    "creditop_x_credit_benefit_decisions",
+    "creditop_x_payments",
+    "creditop_x_requests_history"
+  ]
+}

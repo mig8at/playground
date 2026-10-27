@@ -1,0 +1,31 @@
+{
+  "node": "cartera/context",
+  "kind": "addition",
+  "source": "verified",
+  "verified": "2026-10-27",
+  "section": "Los meses sin interés de la app son un subsidio de Creditop que se fija al crear el crédito",
+  "text_file": "asignacion.md",
+  "as_asked": "¿De dónde sale el beneficio de \"3 meses sin interés\" en compras que vienen por la app de Creditop?",
+  "objetivo": "Decidir qué créditos CreditopX reciben el subsidio de intereses de Creditop y con qué condiciones.",
+  "se_deduce_leyendo": "qué programa queda fijado al crear el crédito, en qué orden se elige y qué créditos quedan afuera",
+  "archivos": {
+    "legacy-application": [
+      "app/Models/CreditBenefitProgram.php",
+      "app/Services/CreditopX/Benefits/CreditBenefitResolver.php",
+      "app/Support/CreditopInterestSubsidySwitch.php",
+      "database/seeders/CreditopInterestSubsidySettingSeeder.php",
+      "app/Http/Controllers/Admin/AlliedLenderController.php"
+    ],
+    "legacy-backend": [
+      "Modules/Loans/App/Support/CreditBenefitResolver.php",
+      "Modules/Loans/App/Services/CreditopXRequestHistoryService.php",
+      "database/migrations/2026_10_16_160000_create_creditop_x_credit_benefit_programs_table.php"
+    ]
+  },
+  "tablas": [
+    "creditop_x_credit_benefit_programs",
+    "creditop_x_requests_history",
+    "settings",
+    "user_request_records"
+  ]
+}
