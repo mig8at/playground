@@ -1,5 +1,5 @@
-// Los comandos de consola que hay que correr para que una tienda de prueba pueda comprar con CreditOp en qa, en
-// el orden en que se corren. La misma receta que `tests/README.md` §3; si cambia una, se cambia la otra.
+// Sólo los comandos que dejan una tienda de prueba lista para iniciar una compra con CreditOp en qa, en el orden en
+// que se corren. La misma receta que `tests/README.md` §3; si cambia una, se cambia la otra.
 export const STORE_COMMANDS = [
   {
     store: 'Shopify',
@@ -32,19 +32,9 @@ export const STORE_COMMANDS = [
         cmd: 'vtex use migueldev',
       },
       {
-        what: 'Comprobar que el conector responde',
-        why: 'Si da 200, el conector ya está linkeado y se puede comprar. Si no, va el paso siguiente.',
-        cmd: 'curl -s -o /dev/null -w "%{http_code}\\n" https://migueldev--creditop.myvtex.com/_v/creditop.creditop/v4/manifest',
-      },
-      {
         what: 'Linkear el conector',
-        why: 'Sube el conector de tu máquina al workspace y queda corriendo. Los cambios que deja en node/ no se commitean.',
+        why: 'Sube el conector de tu máquina al workspace: sin esto la tienda no ofrece pagar con CreditOp. Queda corriendo; los cambios que deja en node/ no se commitean.',
         cmd: 'cd ~/Desktop/CREDITOP/github/vtex && vtex link',
-      },
-      {
-        what: 'Cargar las bicicletas de prueba',
-        why: 'Deja en el catálogo los mismos 6 productos de Shopify, con nombre, precio, imagen y stock. Se puede repetir sin duplicar. El catálogo es de toda la cuenta, también master.',
-        cmd: 'cd ~/Desktop/CREDITOP/playground && python3 tablero/tasks/integracion-vtex/artifacts/cargar-bicicletas.py',
       },
     ],
   },
