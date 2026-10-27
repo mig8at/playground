@@ -1,5 +1,5 @@
 {
-  "node": "cartera/context",
+  "node": "creditopx/context",
   "kind": "addition",
   "source": "verified",
   "verified": "2026-10-27",
@@ -23,7 +23,6 @@
     ]
   },
   "tablas": [
-    "creditop_x_credit_benefit_programs",
     "creditop_x_requests_history",
     "settings",
     "user_request_records"
