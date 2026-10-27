@@ -1,0 +1,23 @@
+{
+  "node": "creditopx/context",
+  "section": "Un crédito CreditopX se busca por cédula dentro del comercio, y la lista de solicitudes del asesor sólo muestra las que él creó",
+  "text_file": "visibilidad-creditos.md",
+  "kind": "addition",
+  "source": "verified",
+  "verified": "2026-10-27",
+  "as_asked": "¿Por qué un crédito CreditopX no aparece en la plataforma del comercio o del asesor? ¿Quién ve los créditos?",
+  "objetivo": "Saber quién ve un crédito o una solicitud CreditopX en la plataforma del comercio y por qué puede no aparecer.",
+  "se_deduce_leyendo": "qué filtra la búsqueda de créditos propios, la lista de solicitudes del asesor y el listado de originadas por rol",
+  "archivos": {
+    "legacy-application": [
+      "app/Http/Controllers/Customer/CreditopXRequestHistoryController.php",
+      "app/Http/Controllers/Customer/UserRequestController.php",
+      "app/Services/CreditopX/OriginatedRequestsQuery.php"
+    ]
+  },
+  "tablas": [
+    "creditop_x_requests_history",
+    "user_requests",
+    "settings"
+  ]
+}

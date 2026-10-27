@@ -1,0 +1,27 @@
+{
+  "node": "creditopx/context",
+  "section": "Facturación y recaudo compara cuotas cortadas con pagos del mes, no cuota por cuota",
+  "text_file": "facturacion-recaudo.md",
+  "kind": "addition",
+  "source": "verified",
+  "verified": "2026-10-27",
+  "as_asked": "¿De dónde sale la información de la pantalla «Facturación y recaudo» y cómo se calcula cada columna?",
+  "objetivo": "Explicar las cifras mensuales de facturado y recaudado de un comercio CreditopX de consumo, y por qué el porcentaje puede no cuadrar.",
+  "se_deduce_leyendo": "qué filas suma cada columna, qué filtra cada filtro y qué recorta cada rol",
+  "archivos": {
+    "legacy-application": [
+      "app/Http/Controllers/Admin/CreditopXPaymentManageController.php",
+      "resources/js/pages/admin/paymentManageCreditopX/Index.vue",
+      "resources/js/components/organisms/paymentManageCreditopX/BaseFiltersCreditopx.vue"
+    ],
+    "legacy-backend": [
+      "database/migrations/2026_10_22_210000_include_commercial_advisers_of_setting_allieds_in_views.php",
+      "database/migrations/2026_09_25_120000_rebuild_vw_ctopx_payments_report.php"
+    ]
+  },
+  "tablas": [
+    "creditop_x_requests_history",
+    "creditop_x_payment_register",
+    "creditop_x_payments"
+  ]
+}

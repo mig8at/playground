@@ -1,0 +1,27 @@
+{
+  "node": "creditopx/context",
+  "section": "Los cargos del crédito y la comisión al comercio se configuran, pero el código no reparte el ingreso con Creditop",
+  "text_file": "cargos-comision.md",
+  "kind": "addition",
+  "source": "verified",
+  "verified": "2026-10-27",
+  "as_asked": "¿Cómo gana plata Creditop con un comercio en CreditopX? ¿Qué comisión se cobra al comercio y dónde se configura?",
+  "objetivo": "Saber qué se le cobra al cliente y al comercio por un crédito CreditopX, dónde se configura y qué no hace el código con eso.",
+  "se_deduce_leyendo": "qué campos de lenders_by_allieds son cargos, cómo se calcula la comisión al comercio y qué indicadores existen",
+  "archivos": {
+    "legacy-application": [
+      "app/Models/UserRequest.php",
+      "app/Models/LendersByAllied.php",
+      "resources/js/components/requests/RequestInfoCard.vue"
+    ],
+    "legacy-backend": [
+      "app/Models/UserRequest.php",
+      "resources/views/creditopxpdf/lenders/default.blade.php"
+    ]
+  },
+  "tablas": [
+    "lenders_by_allieds",
+    "credit_line_by_lenders",
+    "treasury_calculations"
+  ]
+}

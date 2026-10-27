@@ -1,0 +1,29 @@
+{
+  "node": "welli/context",
+  "section": "Welli Risk sale sólo si la sucursal la tiene habilitada y la consulta compartida de Welli trae comisión del aliado",
+  "text_file": "welli-risk.md",
+  "kind": "addition",
+  "source": "verified",
+  "verified": "2026-10-27",
+  "as_asked": "¿Qué se necesita para que el lender Welli Risk aparezca en un comercio o punto de venta?",
+  "objetivo": "Saber por qué Welli Risk aparece o no en el listado de un punto de venta.",
+  "se_deduce_leyendo": "qué habilitación y credencial necesita, cómo se decide entre Tasa Full y Risk y qué candado agrega el monolito viejo",
+  "archivos": {
+    "Creditop-SAS/frontend-monorepo": [
+      "modules/loan-request-wizard/lenders-marketplace/src/components/available-lenders/welli-shared-risk.service.ts",
+      "apps/loan-request-wizard/app/routes/lenders-marketplace/available-lenders.tsx"
+    ],
+    "legacy-application": [
+      "app/Services/lenders/PreApprovedLenderService.php"
+    ],
+    "legacy-backend": [
+      "Modules/Onboarding/App/Services/lenders/LenderListingService.php",
+      "Modules/Onboarding/App/Services/lenders/LenderCredentialService.php"
+    ]
+  },
+  "tablas": [
+    "lenders_by_allied_branches",
+    "lenders_by_allieds",
+    "lender_allied_credentials"
+  ]
+}

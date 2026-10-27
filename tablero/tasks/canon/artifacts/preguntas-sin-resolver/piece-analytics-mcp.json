@@ -1,0 +1,19 @@
+{
+  "node": "repos/operar",
+  "section": "creditop-analytics-mcp es el acceso de sólo lectura a Google Analytics desde un asistente, con la cuenta de cada persona",
+  "text_file": "analytics-mcp.md",
+  "kind": "addition",
+  "source": "verified",
+  "verified": "2026-10-27",
+  "as_asked": "¿Qué es creditop-analytics-mcp?",
+  "objetivo": "Saber qué es el servidor MCP de analítica, qué deja consultar y con qué permisos.",
+  "se_deduce_leyendo": "cómo autentica a cada persona, qué herramientas expone y de dónde sale el catálogo de eventos de la app",
+  "archivos": {
+    "Creditop-SAS/creditop-analytics-mcp": [
+      "README.md",
+      "docs/architecture.md",
+      "src/creditop_analytics_mcp/catalog_tools.py",
+      "src/creditop_analytics_mcp/credentials.py"
+    ]
+  }
+}

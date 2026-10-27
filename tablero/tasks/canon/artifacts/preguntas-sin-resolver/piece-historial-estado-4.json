@@ -1,0 +1,26 @@
+{
+  "node": "creditopx/context",
+  "section": "En el historial CreditopX, estado 4 con `status` 2 es un crédito anulado por el sistema viejo, y el nuevo cancela de otra forma",
+  "text_file": "historial-estado-4.md",
+  "kind": "addition",
+  "source": "verified",
+  "verified": "2026-10-27",
+  "as_asked": "En CreditopX, ¿qué significa creditop_x_requests_status_id = 4 (y status = 2) en creditop_x_requests_history? ¿Es cancelación del crédito?",
+  "objetivo": "Leer el historial de un crédito CreditopX: qué estado tiene el crédito, qué fila es la vigente y cómo se reconoce una anulación o cancelación.",
+  "se_deduce_leyendo": "qué escribe cada sistema al anular o cancelar un crédito y qué significa cada valor de status de la fila",
+  "archivos": {
+    "legacy-application": [
+      "app/Http/Controllers/Admin/CreditopXRequestHistoryController.php",
+      "app/Models/CreditopXUserRequestStatus.php"
+    ],
+    "legacy-backend": [
+      "Modules/Loans/App/Services/CreditopXRequestHistoryService.php",
+      "database/migrations/2026_09_27_000000_create_creditop_x_event_outbox.php"
+    ]
+  },
+  "tablas": [
+    "creditop_x_requests_history",
+    "creditop_x_user_request_statuses",
+    "creditop_x_log"
+  ]
+}
