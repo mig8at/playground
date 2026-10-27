@@ -14,9 +14,8 @@ ramas: legacy-backend:una-solicitud-por-pedido
 
 - [x] ~~Abrir el PR a `qa`~~ — [legacy-backend#1783](https://github.com/Creditop-SAS/legacy-backend/pull/1783), desde
       `fix/ecommerce-una-solicitud-por-pedido-qa` (tomada de `qa` al día), con pruebas unitarias en los dos módulos.
-- [ ] Probar en local el reintento: comprar, negar y volver a comprar el mismo carrito con el mismo celular; termina
-      cuando nace otra solicitud y la anterior sigue negada, ligada sólo a su pedido, y recargar el wizard del pedido
-      nuevo retoma la solicitud nueva.
+- [x] ~~Probar en local el reintento~~ — 2026-10-27, Amoblar: 7437 → 467514 negada; 7438 → 467515 nueva; un segundo
+      OTP sobre 7438 retoma la 467515.
 - [ ] Probar lo mismo en `qa` cuando #1783 esté mergeado y desplegado.
 - [x] ~~Crear el issue de Jira~~ — [CORE-819](https://creditop.atlassian.net/browse/CORE-819), en CORE Sprint 21.
 - [ ] Decidir cómo llega a `main`: PR propio desde `main` o junto a otro de ecommerce. Termina con el PR abierto.
