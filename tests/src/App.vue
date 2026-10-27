@@ -199,6 +199,18 @@ const OUTCOMES = [
   { status: 6, label: 'Negar', name: 'Negada', store: 'failed: el comprador vuelve al checkout' },
   { status: 8, label: 'Cancelar', name: 'Cancelado', store: 'cancelled: el pedido se cancela' },
 ]
+// Las tiendas de prueba (sólo desarrollo: en VTEX el workspace migueldev, nunca master) y sus admins.
+const STORES = [
+  { name: 'Shopify', links: [
+    { label: 'Tienda', href: 'https://creditop-dev-store.myshopify.com' },
+    { label: 'Admin · pedidos', href: 'https://admin.shopify.com/store/creditop-dev-store/orders' },
+  ] },
+  { name: 'VTEX', links: [
+    { label: 'Tienda (migueldev)', href: 'https://migueldev--creditop.myvtex.com' },
+    { label: 'Admin · pedidos', href: 'https://creditop.myvtex.com/admin/orders' },
+    { label: 'Admin · transacciones', href: 'https://creditop.myvtex.com/admin/pci-gateway/#/transactions' },
+  ] },
+]
 // El wizard por ambiente, para volver a abrir la solicitud y ver en qué quedó.
 const WIZARD = { qa: 'https://originaciones-qa.dev.creditop.com', local: 'http://localhost:5174' }
 // Los enlaces de la solicitud abierta: a dónde vuelve el comprador (la tienda) y el wizard. Fijos en la barra, para
@@ -577,6 +589,15 @@ onBeforeUnmount(() => {
           </div>
         </template>
       </div>
+      <!-- Las tiendas de prueba y sus admins, a mano: donde se compra y donde se ve el pedido. -->
+      <nav class="store-links" aria-label="Tiendas de prueba">
+        <template v-for="s in STORES" :key="s.name">
+          <div class="region-head group"><span>{{ s.name }}</span></div>
+          <a v-for="l in s.links" :key="l.href" class="row" :href="l.href" target="_blank" rel="noopener" :title="l.href">
+            <span class="label">{{ l.label }}</span><span class="row-meta">↗</span>
+          </a>
+        </template>
+      </nav>
     </aside>
 
     <main class="editor">
@@ -952,6 +973,8 @@ code.wrap { word-break: break-all }
 .log-line .status { flex: none; min-width: 200px }
 .log-line .what { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--fg-2) }
 .log-line.ghost .what { font-style: italic; color: var(--tests-warn) }
+.store-links { flex: none; padding-bottom: var(--space-2); border-top: 1px solid var(--sidebar-border) }
+.store-links a.row { color: inherit; text-decoration: none }
 .bar-sep { width: 1px; height: 14px; margin: 0 var(--space-1); background: var(--border) }
 
 /* Borrar: una ventana nativa (<dialog>) con la pregunta, el conteo y dos botones. */
