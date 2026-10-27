@@ -1,0 +1,20 @@
+{
+  "node": "infraestructura/operar",
+  "section": "En producción se despliegan los permisos del backoffice y el worker de cartera, y el worker sólo puede lanzar una familia de tareas",
+  "text_file": "infra-servicios-prod.md",
+  "kind": "addition",
+  "source": "verified",
+  "verified": "2026-10-27",
+  "as_asked": "¿Dónde corren access-service, cerbos y loan-servicing y qué permisos tienen en producción?",
+  "objetivo": "Desplegar en producción los permisos del backoffice y el worker de cartera, con lo que cada uno puede leer o lanzar.",
+  "se_deduce_leyendo": "qué buckets y bases lee cada servicio, cómo toma cerbos sus políticas y qué familia de tareas puede lanzar loan-servicing",
+  "archivos": {
+    "infrastructure": [
+      "environments/prod/ecs-application/terragrunt.hcl"
+    ],
+    "Creditop-SAS/loan-servicing": [
+      "internal/modules/nightlyportfolio/settings.go"
+    ]
+  },
+  "tablas": []
+}
