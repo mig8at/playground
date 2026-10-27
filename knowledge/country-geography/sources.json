@@ -2,13 +2,13 @@
   "version": 1,
   "title": "Catálogo geográfico y árbol de opciones",
   "summary": "Relaciones geográficas, país explícito o configurado, caché del árbol y límites de la migración de RD y Perú.",
-  "reviewedAt": "2026-10-03T20:24:47Z",
+  "reviewedAt": "2026-10-27T20:57:11+00:00",
   "sources": [
     {
       "repo": "application",
       "path": "app/Http/Controllers/Admin/AlliedAlliedBranchController.php",
-      "commit": "fc74ac8bc1b364191f859bb6830e8d47c15bb882",
-      "blob": "19c834fb1143725cf6bcc5f9cd6c73387467ec73",
+      "commit": "24dc86eb1eaabb4e4eee37750ab90e258c36ce78",
+      "blob": "be1146122a40887c03a1ddeba278f7c44c6308f7",
       "sections": [
         "relacion-entre-pais-zona-y-ciudad"
       ]

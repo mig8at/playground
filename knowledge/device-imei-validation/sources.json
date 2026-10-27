@@ -2,7 +2,7 @@
   "version": 1,
   "title": "Registro de IMEI y espera del titular",
   "summary": "Registro por asesor, persistencia del equipo y polling del titular; límites de la señal is_disbursed.",
-  "reviewedAt": "2026-10-20T22:04:38+00:00",
+  "reviewedAt": "2026-10-27T20:59:57+00:00",
   "sources": [
     {
       "repo": "frontend-monorepo",
@@ -61,8 +61,8 @@
     {
       "repo": "legacy-backend",
       "path": "Modules/Partner/App/Services/AlliedProductService.php",
-      "commit": "63123374a5d0875c908a83e3145f334b2ff913ee",
-      "blob": "9396a083e363c2bf2fc0e8a37cf5c1f2b2203a53",
+      "commit": "d21ab0ef275891025cd2a823552d5ec6c0cac283",
+      "blob": "d50c97bdfda295419183610c6c2339667b14d2a1",
       "sections": [
         "registro-del-equipo-desde-el-asesor"
       ]

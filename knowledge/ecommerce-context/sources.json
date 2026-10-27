@@ -2,7 +2,7 @@
   "version": 1,
   "title": "Ecommerce: entrada, contexto y monto",
   "summary": "Rehidratación del pedido sin cookie de contexto, tres vínculos con la solicitud y prioridad del canal sobre la sesión.",
-  "reviewedAt": "2026-10-20T22:04:48+00:00",
+  "reviewedAt": "2026-10-27T21:00:31+00:00",
   "sources": [
     {
       "repo": "application",
@@ -25,8 +25,8 @@
     {
       "repo": "frontend-monorepo",
       "path": "apps/loan-request-wizard/app/routes/ecommerce/checkout.tsx",
-      "commit": "3492b9059de25e6e9b809fda10dac30cfd306b53",
-      "blob": "9f71686a4723b4973a90542c399482c30950a8a7",
+      "commit": "1238d30ef1459fd1fb84ac8020fbacb64a658e55",
+      "blob": "e4574fa90c48f2cf4c3ec1d7ed4ebfefb2ee4b17",
       "sections": [
         "el-pedido-se-relee-por-id-antes-y-despues-del-otp"
       ]
@@ -34,8 +34,8 @@
     {
       "repo": "frontend-monorepo",
       "path": "apps/loan-request-wizard/app/server/services/ecommerce-context.server.ts",
-      "commit": "3492b9059de25e6e9b809fda10dac30cfd306b53",
-      "blob": "0f72f3fca3ac93807ece243212564bf6669f7d1a",
+      "commit": "1238d30ef1459fd1fb84ac8020fbacb64a658e55",
+      "blob": "0807575869585430e70be0fcad101fa845cf1fc7",
       "sections": [
         "el-pedido-se-relee-por-id-antes-y-despues-del-otp"
       ]
@@ -43,8 +43,8 @@
     {
       "repo": "legacy-backend",
       "path": "Modules/Onboarding/App/Services/EcommerceRequestService.php",
-      "commit": "406bf8a28404f31524280acea1c0bb6b1cd29c05",
-      "blob": "2eca9c5747ccf52e5bef7051920e0907e60e7a2a",
+      "commit": "d21ab0ef275891025cd2a823552d5ec6c0cac283",
+      "blob": "7e9e49301a35d68d81262d478b18e5889fc4affc",
       "sections": [
         "el-pedido-se-relee-por-id-antes-y-despues-del-otp",
         "el-vinculo-con-la-solicitud-vive-en-tres-lugares"
@@ -53,8 +53,8 @@
     {
       "repo": "legacy-backend",
       "path": "app/Models/EcommerceRequest.php",
-      "commit": "406bf8a28404f31524280acea1c0bb6b1cd29c05",
-      "blob": "c290d7fe42fb404aac6f41cb9825fe26040e4166",
+      "commit": "d21ab0ef275891025cd2a823552d5ec6c0cac283",
+      "blob": "bea3b19932ffacdddd675c7d6f2e6c4d0c5397eb",
       "sections": [
         "el-vinculo-con-la-solicitud-vive-en-tres-lugares"
       ]
@@ -71,8 +71,8 @@
     {
       "repo": "frontend-monorepo",
       "path": "apps/loan-request-wizard/app/routes/lenders-marketplace/available-lenders.tsx",
-      "commit": "3492b9059de25e6e9b809fda10dac30cfd306b53",
-      "blob": "1a22afbc184919c4e634e2fa7c30b4c54729692a",
+      "commit": "1238d30ef1459fd1fb84ac8020fbacb64a658e55",
+      "blob": "ea57f1789c8a1bf886f75695adf979adfb8d4d4a",
       "sections": [
         "el-canal-de-tienda-tiene-precedencia-y-gobierna-el-monto"
       ]
@@ -84,6 +84,24 @@
       "blob": "b5c813f1c70bc407b080d15a05c44ce3fdb0e681",
       "sections": [
         "el-canal-de-tienda-tiene-precedencia-y-gobierna-el-monto"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/Onboarding/routes/api.php",
+      "commit": "d21ab0ef275891025cd2a823552d5ec6c0cac283",
+      "blob": "968fd6daba900e2ee5a2542b1be460a9f319d0c6",
+      "sections": [
+        "el-pedido-se-relee-por-id-antes-y-despues-del-otp"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/Onboarding/App/Repositories/EcommerceRequestRepository.php",
+      "commit": "d21ab0ef275891025cd2a823552d5ec6c0cac283",
+      "blob": "ff4ff8864ee211f24192bab95cb1f6373414cd5c",
+      "sections": [
+        "el-pedido-se-relee-por-id-antes-y-despues-del-otp"
       ]
     }
   ]

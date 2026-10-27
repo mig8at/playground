@@ -2,7 +2,7 @@
   "version": 1,
   "title": "Identidad: coincidencia y adopción de nombres",
   "summary": "Códigos de TusDatos, adopción de Ágil Data y Mareigua, y límites de la comparación de nombres.",
-  "reviewedAt": "2026-10-26T16:05:00-05:00",
+  "reviewedAt": "2026-10-27T20:57:11+00:00",
   "sources": [
     {
       "repo": "legacy-backend",
@@ -45,8 +45,8 @@
     {
       "repo": "application",
       "path": "app/Http/Controllers/Customer/PersonalInfoController.php",
-      "commit": "fc74ac8bc1b364191f859bb6830e8d47c15bb882",
-      "blob": "53a4ca5d99d8139623f1d3bf9809c69a54137efa",
+      "commit": "24dc86eb1eaabb4e4eee37750ab90e258c36ce78",
+      "blob": "459a5b8efa12c208b69ee501a320378e5e55870c",
       "sections": [
         "la-aplicacion-anterior-tiene-otro-camino-de-escritura"
       ]

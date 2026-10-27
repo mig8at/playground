@@ -11,13 +11,13 @@ disponibilidad de una entidad para un cliente concreto.
 y cuatro dígitos; convierte las letras a mayúsculas después de validar.
 `ClientCodeRedemptionService` resuelve el comercio desde `partner_branch_hash` y, antes de
 consultar el código, pregunta a `OriginationGuard` si la sucursal y su comercio están habilitados
-(`ClientCodeRedemptionService.php:124`). Si no, responde 403 con `CCO008` y
+(`ClientCodeRedemptionService.php:126`). Si no, responde 403 con `CCO008` y
 `error_subcode: ALLIED_DISABLED`, sin tocar el servicio de códigos; el wizard normaliza ese
 rechazo a `ALLIED_DISABLED` (`client-code.repository.ts` con `toAlliedDisabledError`) y muestra
 su mensaje propio. Si la consulta de habilitación no da un veredicto conocido, `blockReason` lanza
 una excepción en vez del 403 (`OriginationGuard.php:77-78`). En `application`,
 `Customer/ClientCodeController::confirmCode` consulta el código sin esa guarda
-(`ClientCodeController.php:50-90`). Habilitado, consulta el código mediante `GenerateServiceProxyService`.
+(`ClientCodeController.php:51-131`). Habilitado, consulta el código mediante `GenerateServiceProxyService`.
 Exige ids positivos de usuario y entidad.
 No obtiene la identidad del cliente de la sesión del asesor: proviene de la consulta del código.
 
@@ -36,6 +36,10 @@ Primero se crea la solicitud y después se consume el código. Si el consumo dev
 HTTP distinto de 200, se intenta borrar la solicitud y se devuelve el error. Si el borrado
 falla se registra; no prometer una transacción atómica con el servicio externo.
 El registro de estado se intenta sólo después del consumo y su fallo no invalida el canje.
+Su comentario es `CreditopXRequestHistory::CLIENT_CODE_RECORD_COMMENT`, y la fila CREACIÓN del
+crédito lo busca para marcar `is_app` (`appFlagFor`, en los dos monolitos): sin ese registro el
+crédito canjeado nace sin la marca de app, que también entra en la elegibilidad del programa
+de beneficio (`CreditBenefitResolver`).
 
 ## El recorte del wizard depende de una marca de sesión
 
@@ -44,7 +48,10 @@ La pantalla del código llama al repositorio de canje y, al tener éxito, guarda
 El loader de `available-lenders` lee esa clave y recorta las opciones antes de iniciar las
 consultas de preaprobación por entidad. El backend sigue devolviendo el catálogo completo.
 
-Sin marca no hay recorte. Si la entidad del código no aparece en las opciones, el filtro
+Sin marca no hay recorte. La sesión conserva sólo las `MAX_PER_REQUEST_KEYS` (20) marcas
+`clientCodeLender:` más recientes: al canjear un código nuevo se podan las más viejas
+(`session.server.ts:68`, `pruneKeysByPrefix`), así que una solicitud vieja retomada en el mismo
+navegador puede quedar sin recorte. Si la entidad del código no aparece en las opciones, el filtro
 conserva el listado completo. Por tanto, «el cliente siempre ve una sola entidad» no es una
 garantía del comportamiento actual. Perder la cookie o no encontrar la entidad son casos
 que deben comprobarse por separado en la tarea.

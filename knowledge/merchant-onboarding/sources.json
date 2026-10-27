@@ -2,7 +2,7 @@
   "version": 1,
   "title": "Alta y baja de comercios",
   "summary": "Las dos entradas de alta, sus efectos explícitos y el alcance de la baja en la base.",
-  "reviewedAt": "2026-10-20T22:04:08+00:00",
+  "reviewedAt": "2026-10-27T20:57:12+00:00",
   "sources": [
     {
       "repo": "application",
@@ -26,8 +26,8 @@
     {
       "repo": "legacy-backend",
       "path": "Modules/Partner/App/Providers/RouteServiceProvider.php",
-      "commit": "63123374a5d0875c908a83e3145f334b2ff913ee",
-      "blob": "c3198cd3b61cdc1556d205b7e9a235642ba9a481",
+      "commit": "d21ab0ef275891025cd2a823552d5ec6c0cac283",
+      "blob": "be53e077937d3c7816a724207e2371d75efb17ba",
       "sections": [
         "la-api-modular-es-otra-entrada"
       ]
@@ -53,8 +53,8 @@
     {
       "repo": "legacy-backend",
       "path": "Modules/Partner/App/Services/AlliedManagementService.php",
-      "commit": "63123374a5d0875c908a83e3145f334b2ff913ee",
-      "blob": "6b076af1a82864ede0afc8bb193be8e3ccd74ef7",
+      "commit": "d21ab0ef275891025cd2a823552d5ec6c0cac283",
+      "blob": "12691defe028726550d2c0d772b0d994c6a2b4fe",
       "sections": [
         "la-api-modular-es-otra-entrada",
         "la-baja-modifica-usuarios-en-la-base-bajo-condiciones-concretas"

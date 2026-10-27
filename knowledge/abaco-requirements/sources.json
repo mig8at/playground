@@ -2,7 +2,7 @@
   "version": 1,
   "title": "Requisitos y consulta vigente de Ábaco",
   "summary": "Flag por entidad, vigencia configurable y alcance del salto de buró en el motor modular.",
-  "reviewedAt": "2026-10-20T22:04:13+00:00",
+  "reviewedAt": "2026-10-27T20:59:58+00:00",
   "sources": [
     {
       "repo": "legacy-backend",
@@ -44,8 +44,8 @@
     {
       "repo": "legacy-backend",
       "path": "Modules/Loans/App/Services/LenderUserCategoryService.php",
-      "commit": "406bf8a28404f31524280acea1c0bb6b1cd29c05",
-      "blob": "c49cd0d05d7748919e9038a40b70126854ce5e6d",
+      "commit": "d21ab0ef275891025cd2a823552d5ec6c0cac283",
+      "blob": "676fb1f28a999cf8bbff0c756328a656df7cd2f0",
       "sections": [
         "cupo-sin-reporte-de-buro"
       ]
@@ -62,8 +62,8 @@
     {
       "repo": "application",
       "path": "app/Services/lenders/LenderUserCategoryService.php",
-      "commit": "0c86754d79f825dc55556a5af7bbbd304e23d3c9",
-      "blob": "3abef665238e1d40f7678e97f478c959d5659662",
+      "commit": "24dc86eb1eaabb4e4eee37750ab90e258c36ce78",
+      "blob": "ba861e1778f9739607631d2b6b6aa60ea795c4f0",
       "sections": [
         "cupo-sin-reporte-de-buro"
       ]

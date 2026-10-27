@@ -19,22 +19,30 @@ El código permite leer el mecanismo; qué comercios están habilitados se mide 
 
 ## El pedido se relee por id antes y después del OTP
 
-El loader `/ecommerce/:partner_hash/checkout` reenvía `o`, `p`, `t`, `u`, `ps` y `config`
-al backend como `order`, `products`, `token`, `returnUrl`, `processUrl` y `config`.
-Necesita hash válido, orden y token. El backend valida el total positivo, la sucursal y su
-credencial, y devuelve `ecommerceRequestId`. El redirect lleva `?erId=`; sólo usa `?amount=`
+El loader `/ecommerce/:partner_hash/checkout` tiene dos entradas. Con el contrato en la URL
+reenvía `o`, `p`, `t`, `u`, `ps` y `config` al backend (`create/<hash>`) como `order`, `products`,
+`token`, `returnUrl`, `processUrl` y `config`, y `b` como `backUrl` si viene; necesita hash
+válido, orden y token. El backend valida el total positivo, la sucursal y su credencial, y
+devuelve `ecommerceRequestId`. Con `?ref=` (pedido creado por la tienda con `payment-link`) sólo
+envía esa referencia a `by-reference/<hash>`; el backend exige que sea de esa sucursal y abre el
+pedido ya guardado, sin crearlo (`EcommerceRequestService.php:294-336`). Las dos entradas siguen
+igual (`continueCheckout`, `checkout.tsx:184`): el redirect lleva `?erId=`; sólo usa `?amount=`
 como respaldo cuando la respuesta no contiene ese id.
 
-El loader también reenvía `sig` y `ts` como `signature` y `signatureTimestamp` cuando vienen
-los dos (`checkout.tsx:52`). El backend verifica esa firma del comercio sobre el `o` recibido
-(`EcommerceRequestService.php:326`, `MerchantOrderSignatureService`) y, si vale, marca el pedido
-y devuelve `merchantVerified` con un `verificationToken` de un solo uso. Además devuelve
-`autoOnboarding` según el setting `auto_onboarding_allied_branches` (`{"hashes": [...]}`;
-ausente o con otra forma no habilita). Con id de pedido y `autoOnboarding` verdadero, el
-redirect va a `/auto/<hash>/inicio?erId=` en vez de `solicitar` (`checkout.tsx:143`); sólo en
-ese camino el token se guarda en la cookie de sesión para entrar sin OTP. Un pedido firmado en
-una sucursal sin auto-onboarding sigue por `solicitar` y el token no se usa. Esa cookie lleva
-la verificación, no el contexto del pedido, que se sigue releyendo por `erId`.
+En la entrada por contrato el loader también reenvía `sig` y `ts` como `signature` y
+`signatureTimestamp` cuando vienen los dos (`checkout.tsx:52`). El backend verifica esa firma del
+comercio sobre el `o` recibido (`EcommerceRequestService.php:448`, `MerchantOrderSignatureService`)
+y, si vale, marca el pedido y devuelve `merchantVerified` con un `verificationToken` de un solo
+uso. En la entrada por referencia el token sale sólo si la sucursal tiene auto-onboarding, el
+pedido trae teléfono y aceptaciones (`termAccepted`, `policyAccepted`) y la referencia está
+vigente y sin usar, que se gasta en ese momento; si falta algo el pedido se abre igual y el
+comprador sigue por OTP. Las dos devuelven `autoOnboarding` según el setting
+`auto_onboarding_allied_branches` (`{"hashes": [...]}`; ausente o con otra forma no habilita).
+Con id de pedido y `autoOnboarding` verdadero, el redirect va a `/auto/<hash>/inicio?erId=` en vez
+de `solicitar` (`checkout.tsx:188-189`); sólo en ese camino el token se guarda en la cookie de
+sesión para entrar sin OTP. Un pedido verificado en una sucursal sin auto-onboarding sigue por
+`solicitar` y el token no se usa. Esa cookie lleva la verificación, no el contexto del pedido,
+que se sigue releyendo por `erId`.
 
 `ecommerce-context.server.ts` consulta `detail/<erId>` antes del OTP y
 `by-user-request/<loan_request_id>` después. Valida ids de uno a diecinueve dígitos antes del

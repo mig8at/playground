@@ -2,13 +2,13 @@
   "version": 1,
   "title": "País y documentos del flujo",
   "summary": "Origen del país, documentos permitidos y diferencias entre API modular, monolito y selector; país activo frente a país con operación.",
-  "reviewedAt": "2026-10-03T20:24:47Z",
+  "reviewedAt": "2026-10-27T20:57:11+00:00",
   "sources": [
     {
       "repo": "legacy-backend",
       "path": "Modules/Loans/App/Http/Controllers/Customer/AlliedInfoController.php",
-      "commit": "63123374a5d0875c908a83e3145f334b2ff913ee",
-      "blob": "3575c457121af054e02c5020c08494366435542f",
+      "commit": "d21ab0ef275891025cd2a823552d5ec6c0cac283",
+      "blob": "abde65949fd147db25712b52345fb7e901d0dc2c",
       "sections": [
         "pais-del-comercio"
       ]

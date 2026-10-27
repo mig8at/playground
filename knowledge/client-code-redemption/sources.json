@@ -2,13 +2,13 @@
   "version": 1,
   "title": "Canje del código de preaprobado",
   "summary": "Consulta, creación, consumo y filtro del listado; formatos y diferencias con el receptor anterior.",
-  "reviewedAt": "2026-10-20T22:04:48+00:00",
+  "reviewedAt": "2026-10-27T21:00:30+00:00",
   "sources": [
     {
       "repo": "legacy-backend",
       "path": "Modules/Onboarding/routes/api.php",
-      "commit": "406bf8a28404f31524280acea1c0bb6b1cd29c05",
-      "blob": "d621686ee85a8b0c96d74eac832194e640a42650",
+      "commit": "d21ab0ef275891025cd2a823552d5ec6c0cac283",
+      "blob": "968fd6daba900e2ee5a2542b1be460a9f319d0c6",
       "sections": [
         "el-receptor-admite-dos-formatos-y-consulta-por-comercio"
       ]
@@ -16,8 +16,8 @@
     {
       "repo": "legacy-backend",
       "path": "Modules/Onboarding/App/Services/ClientCodeRedemptionService.php",
-      "commit": "406bf8a28404f31524280acea1c0bb6b1cd29c05",
-      "blob": "821883f86a1f6e618c1b122a070c4d487ccccb62",
+      "commit": "d21ab0ef275891025cd2a823552d5ec6c0cac283",
+      "blob": "49e2fb77860073db72149b02c2dabbef0fcce86f",
       "sections": [
         "el-receptor-admite-dos-formatos-y-consulta-por-comercio",
         "se-crea-la-solicitud-antes-de-consumir-el-codigo"
@@ -36,8 +36,8 @@
     {
       "repo": "frontend-monorepo",
       "path": "apps/loan-request-wizard/app/routes/loan-application-form/client-code.tsx",
-      "commit": "3492b9059de25e6e9b809fda10dac30cfd306b53",
-      "blob": "5d05eb4f304ba0c9316e8097a02dbaaceb5efd71",
+      "commit": "1238d30ef1459fd1fb84ac8020fbacb64a658e55",
+      "blob": "c2579df69a0e0c8aff4315a888dc3a49b1295db5",
       "sections": [
         "el-recorte-del-wizard-depende-de-una-marca-de-sesion"
       ]
@@ -45,8 +45,8 @@
     {
       "repo": "frontend-monorepo",
       "path": "apps/loan-request-wizard/app/routes/lenders-marketplace/available-lenders.tsx",
-      "commit": "3492b9059de25e6e9b809fda10dac30cfd306b53",
-      "blob": "1a22afbc184919c4e634e2fa7c30b4c54729692a",
+      "commit": "1238d30ef1459fd1fb84ac8020fbacb64a658e55",
+      "blob": "ea57f1789c8a1bf886f75695adf979adfb8d4d4a",
       "sections": [
         "el-recorte-del-wizard-depende-de-una-marca-de-sesion"
       ]
@@ -54,8 +54,8 @@
     {
       "repo": "application",
       "path": "app/Http/Controllers/Customer/ClientCodeController.php",
-      "commit": "fc74ac8bc1b364191f859bb6830e8d47c15bb882",
-      "blob": "6d9f48c3e3920fc947986189872ae722e9b5235b",
+      "commit": "24dc86eb1eaabb4e4eee37750ab90e258c36ce78",
+      "blob": "495241674db44a3518c2afefd1d5d89271760a3a",
       "sections": [
         "el-receptor-anterior-conserva-cuatro-digitos-y-otro-estado-de-sesion"
       ]
@@ -67,6 +67,24 @@
       "blob": "dbcca80e12698d93c43a1d2dbd421430f2cce05a",
       "sections": [
         "el-receptor-anterior-conserva-cuatro-digitos-y-otro-estado-de-sesion"
+      ]
+    },
+    {
+      "repo": "frontend-monorepo",
+      "path": "apps/loan-request-wizard/app/server/services/session.server.ts",
+      "commit": "1238d30ef1459fd1fb84ac8020fbacb64a658e55",
+      "blob": "fb162382022aaebfbe471b5e0a41871c2d49237c",
+      "sections": [
+        "el-recorte-del-wizard-depende-de-una-marca-de-sesion"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "app/Models/CreditopXRequestHistory.php",
+      "commit": "d21ab0ef275891025cd2a823552d5ec6c0cac283",
+      "blob": "5e085b60333d06bae163438dd4256cc5296e5f4c",
+      "sections": [
+        "se-crea-la-solicitud-antes-de-consumir-el-codigo"
       ]
     }
   ]
