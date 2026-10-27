@@ -1,0 +1,21 @@
+{
+  "node": "creditopx/context",
+  "section": "El «cupo» que guarda cada corrida del perfilamiento CreditopX es lo que le queda al perfil, no el cupo del cliente",
+  "text_file": "cupo-del-log.md",
+  "kind": "addition",
+  "source": "verified",
+  "verified": "2026-10-27",
+  "as_asked": "¿Qué diferencia hay entre available_amount y current_available_amount de users_category_log?",
+  "archivos": {
+    "legacy-backend": [
+      "Modules/Loans/App/Support/MonthlyQuota.php",
+      "Modules/Backoffice/App/Services/ApplicationsService.php"
+    ],
+    "legacy-application": [
+      "app/Support/MonthlyQuota.php"
+    ]
+  },
+  "tablas": [
+    "users_category_log"
+  ]
+}

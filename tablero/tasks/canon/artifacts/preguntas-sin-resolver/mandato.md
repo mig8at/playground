@@ -1,0 +1,8 @@
+**«Mandato» es lo que una entidad CreditopX se propone colocar: la columna `lenders.amount_to_lend`.** Es un entero de pesos que no admite nulo y vale 0 por defecto, así que 0 significa «sin mandato» y no se distingue de un mandato cero.
+
+El mandato no frena ninguna originación: ni el listado, ni el motor, ni la autorización de los dos sistemas lo leen. Aparece en dos pantallas:
+
+- **El tablero CreditopX del sistema viejo**, tanto el del comercio como el de administración, lo muestra como meta mensual: «Estás a … de cumplir la meta mensual». Lo que falta se calcula al leer: la suma de los mandatos de las entidades de consumo (tipo de respuesta 2) que aparecen en las solicitudes filtradas, menos el monto final de las solicitudes en estado 10 u 11 creadas en el mes calendario. La meta vuelve a empezar sola cada mes; no hay nada que reiniciar a mano.
+- **El backoffice nuevo** lo muestra de sólo lectura junto a las reglas y al cupo de la entidad, y avisa cuando la suma de los topes de sus perfiles lo supera. Es sólo un aviso: el cambio se guarda igual. Con mandato 0 el aviso no aparece. Ninguno de los dos backoffices lo edita.
+
+**Lo que sí se reinicia es el cupo del mes de cada perfil, que es otra cosa** ([[creditopx/context#el-cupo-de-cada-perfil-es-mensual-se-carga-al-autorizar-y-se-reinicia-el-dia-1]]). Si una entidad CreditopX rechaza por cupo, el tope que se agotó es el de un perfil, no el mandato. Se revisa lo colocado de ese perfil y, si corresponde, se reinicia desde el backoffice ([[backoffice/context#el-cupo-mensual-de-un-perfil-se-reinicia-o-se-cambia-desde-el-backoffice-con-motivo-y-control-de-conflicto]]).

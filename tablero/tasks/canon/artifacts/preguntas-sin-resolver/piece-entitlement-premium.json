@@ -1,0 +1,23 @@
+{
+  "node": "salud-financiera/context",
+  "section": "El acceso premium sale de los grants vigentes que traen `premium.access`, y una suscripción sandbox no cuenta en producción",
+  "text_file": "entitlement-premium.md",
+  "kind": "addition",
+  "source": "verified",
+  "verified": "2026-10-27",
+  "as_asked": "¿Qué es el plan premium de la app y cómo se registra que un usuario lo pagó?",
+  "objetivo": "Saber si una persona tiene premium o salud financiera completa, si pagó y cómo se cuentan los suscriptores.",
+  "se_deduce_leyendo": "qué significan grants y store_subscriptions, cuándo un grant da acceso y qué suscripciones acepta producción",
+  "archivos": {
+    "Creditop-SAS/entitlement-service": [
+      "internal/infra/storage/postgres/migrations/000001_create_entitlement_tables.up.sql",
+      "internal/infra/storage/postgres/migrations/000002_seed_catalog.up.sql",
+      "internal/core/domain/access.go",
+      "internal/core/domain/grant.go",
+      "internal/core/domain/revenuecat_policy.go",
+      "internal/core/domain/revenuecat_projection.go",
+      "internal/infra/storage/postgres/support_metrics.go",
+      "internal/infra/storage/postgres/access_repository.go"
+    ]
+  }
+}

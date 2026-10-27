@@ -1,0 +1,26 @@
+{
+  "node": "creditopx/context",
+  "section": "El mandato de una entidad CreditopX es su meta de colocación, y nada lo hace cumplir ni lo reinicia",
+  "text_file": "mandato.md",
+  "kind": "addition",
+  "source": "verified",
+  "verified": "2026-10-27",
+  "as_asked": "¿Qué es el mandato en CreditopX y cuándo hay que reiniciarlo?",
+  "archivos": {
+    "legacy-application": [
+      "resources/js/content/creditopXDashboard/statistics/StatisticsCreditopXLegacy.vue"
+    ],
+    "Creditop-SAS/frontend-monorepo": [
+      "modules/backoffice/lender-rules/src/lib/domain/issues.ts",
+      "modules/backoffice/lender-rules/src/lib/domain/quota-preview.ts"
+    ],
+    "legacy-backend": [
+      "database/migrations/2025_01_15_232943_add_amount_to_lend_to_lenders_table.php"
+    ]
+  },
+  "tablas": [
+    "lenders"
+  ],
+  "objetivo": "Saber qué es el mandato de una entidad CreditopX, dónde se muestra y por qué no frena originaciones.",
+  "se_deduce_leyendo": "de dónde sale la meta mensual del tablero CreditopX y cuándo salta el aviso de mandato en el backoffice"
+}

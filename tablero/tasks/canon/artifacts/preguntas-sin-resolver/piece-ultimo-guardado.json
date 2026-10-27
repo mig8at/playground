@@ -1,0 +1,21 @@
+{
+  "node": "listado/context",
+  "section": "El último guardado del perfilamiento es lo que vio el cliente: una entidad oculta desaparece y una no aprobada queda en cero",
+  "text_file": "ultimo-guardado.md",
+  "kind": "addition",
+  "source": "verified",
+  "verified": "2026-10-27",
+  "as_asked": "¿Por qué una entidad aparece como «Probabilidad alta» en el perfilamiento y luego como «Rechazado» con monto 0, o desaparece?",
+  "archivos": {
+    "legacy-backend": [
+      "Modules/Risk/App/Http/Controllers/Customer/ProfilingReviewController.php",
+      "Modules/Onboarding/App/Http/Controllers/ListLenderController.php"
+    ],
+    "frontend-monorepo": [
+      "modules/loan-request-wizard/lenders-marketplace/src/components/available-lenders/lender-resolution.service.ts"
+    ]
+  },
+  "tablas": [
+    "profiling_reviews"
+  ]
+}

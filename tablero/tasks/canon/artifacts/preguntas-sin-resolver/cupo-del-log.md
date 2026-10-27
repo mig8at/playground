@@ -1,0 +1,7 @@
+**En `users_category_log`, `current_available_amount` es el disponible del mes del perfil que eligió el motor**: el tope del mes menos lo colocado, una bolsa que comparten todos los clientes y comercios de la entidad. Los dos sistemas lo escriben igual en cada corrida del motor de una entidad CreditopX. Cuando ningún perfil aplica, la fila queda con perfil 0 y monto 0.
+
+**El cupo del cliente es otro número.** Sale de topar la oferta del perfil con ese disponible, con el máximo por cliente del perfil (`max_amount`) y con lo demás que pida la regla ([[creditopx/context#un-perfil-sin-cupo-del-mes-rechaza-y-el-motor-no-pasa-al-siguiente-perfil]]). Va dentro de `category_rules_acceptance` como `available_amount`, y es el que llega a la tarjeta del listado (`displayed_lenders.available_amount`).
+
+Por eso un perfil recién reiniciado hace parecer que un cliente tiene un cupo del tamaño de la bolsa entera. El backoffice nuevo expone `current_available_amount` como `cupo` en cada corrida del perfilamiento. Además lo usa de respaldo para el «Cupo (maxAmount)» de la simulación de financiación cuando la tarjeta no trae monto. En ese caso la simulación toma la bolsa del perfil como si fuera el cupo del cliente.
+
+Para saber cuánto se le ofreció a una persona, se lee `available_amount`, no `current_available_amount`. La revisión de capacidad de endeudamiento del backoffice ya hace esa distinción.

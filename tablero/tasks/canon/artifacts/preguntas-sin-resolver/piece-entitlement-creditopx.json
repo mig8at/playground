@@ -1,0 +1,22 @@
+{
+  "node": "salud-financiera/context",
+  "section": "Un grant de CreditopX se decide releyendo la compra en legacy, da salud financiera y no premium, y una anulación lo revoca",
+  "text_file": "entitlement-creditopx.md",
+  "kind": "addition",
+  "source": "verified",
+  "verified": "2026-10-27",
+  "as_asked": "¿Cómo se sabe qué usuarios tienen la salud financiera completa por una compra CreditopX?",
+  "objetivo": "Explicar por qué una compra con el código de la app concedió o no salud financiera, y cómo se revierte.",
+  "se_deduce_leyendo": "el orden de los controles de calificación, los dos caminos de entrada de las compras, las campañas y las reversas",
+  "archivos": {
+    "Creditop-SAS/entitlement-service": [
+      "internal/core/domain/creditopx_decision.go",
+      "internal/infra/storage/legacy/app_code_marker.go",
+      "internal/core/usecases/creditopx/poller.go",
+      "internal/core/usecases/creditopx/event_processor.go",
+      "internal/infra/storage/postgres/migrations/000010_creditop_x_reward_rules.up.sql",
+      "internal/infra/storage/postgres/creditopx_reward_reversal_repository.go",
+      "internal/core/domain/catalog.go"
+    ]
+  }
+}
