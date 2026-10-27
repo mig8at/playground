@@ -1,4 +1,6 @@
-**Los «meses sin interés» de un crédito CreditopX son el subsidio de intereses de Creditop**: Creditop le paga a la entidad el interés corriente de unas cuotas del cliente. Hoy es el único beneficio de este tipo (código `INTEREST_SUBSIDY`). Por defecto cubre **3 cuotas desde la primera**.
+**El subsidio de intereses de Creditop deja sin interés unas cuotas de un crédito CreditopX**: Creditop le paga a la entidad el interés corriente de esas cuotas. Hoy es el único beneficio de este tipo (código `INTEREST_SUBSIDY`). Por defecto cubre **3 cuotas desde la primera**.
+
+**No es lo que promete el banner de la app.** Los «3 meses gratis» del banner son de Salud Financiera, los da el servicio de beneficios y no tocan la cuota: [[salud-financiera/context#los-3-meses-gratis-del-banner-de-la-app-son-de-salud-financiera-y-su-regla-nace-apagada]].
 
 **El programa se fija al crear el crédito**, en los dos monolitos, que aplican la misma regla. La fila de creación del histórico guarda qué programa le tocó (`benefit_program_id`), y cada fila nueva lo hereda. Cambiar o apagar un programa después no toca los créditos vivos: siguen con la versión con la que nacieron. Por eso los programas no se editan. Cada cambio cierra la vigencia actual y abre otra fila. Lo único que cambia el programa de un crédito vivo es la configuración manual (abajo).
 

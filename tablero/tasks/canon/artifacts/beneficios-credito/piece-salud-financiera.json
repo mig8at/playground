@@ -1,0 +1,21 @@
+{
+  "node": "salud-financiera/context",
+  "section": "Los 3 meses gratis del banner de la app son de Salud Financiera, y su regla nace apagada",
+  "text_file": "salud-financiera-3-meses.md",
+  "kind": "addition",
+  "source": "verified",
+  "verified": "2026-10-27",
+  "as_asked": "¿De dónde sale el beneficio de \"3 meses sin interés\" en compras que vienen por la app de Creditop?",
+  "objetivo": "Prometer en la app los tres meses de Salud Financiera que gana una compra hecha con el código de la app.",
+  "se_deduce_leyendo": "qué foto y qué nota muestra el banner de beneficios de cada comercio, y de dónde sale la nota por defecto",
+  "archivos": {
+    "Creditop-SAS/legacy-backend": [
+      "Modules/Backoffice/App/Services/MerchantAppBannerService.php",
+      "Modules/Backoffice/App/Services/MerchantAppBannerDefaults.php"
+    ]
+  },
+  "tablas": [
+    "allieds",
+    "settings"
+  ]
+}
