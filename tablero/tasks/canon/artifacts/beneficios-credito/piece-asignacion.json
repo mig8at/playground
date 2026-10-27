@@ -1,6 +1,6 @@
 {
   "node": "creditopx/context",
-  "kind": "addition",
+  "kind": "correction",
   "source": "verified",
   "verified": "2026-10-27",
   "section": "Los meses sin interés de la app son un subsidio de Creditop que se fija al crear el crédito",
@@ -23,6 +23,7 @@
     ]
   },
   "tablas": [
+    "creditop_x_credit_benefit_programs",
     "creditop_x_requests_history",
     "settings",
     "user_request_records"

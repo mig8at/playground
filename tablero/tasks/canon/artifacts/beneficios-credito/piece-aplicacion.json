@@ -1,6 +1,6 @@
 {
   "node": "creditopx/context",
-  "kind": "addition",
+  "kind": "correction",
   "source": "verified",
   "verified": "2026-10-27",
   "section": "El subsidio se paga cuota por cuota de madrugada y no cuenta como recaudo",
@@ -22,6 +22,7 @@
     ]
   },
   "tablas": [
+    "creditop_x_credit_benefit_decisions",
     "creditop_x_payments",
     "creditop_x_requests_history"
   ]
