@@ -54,6 +54,12 @@ Salvo donde se dice «corrido», salen de LEER el código: falta reproducirlos.
 
 ### Media — comportamiento distinto al esperado
 
+- [ ] Ponerle a `user_requests_by_ecommerce_request` una restricción única sobre (`ecommerce_request_id`,
+  `user_request_id`) y dejar escrito en el código que `ecommerce_requests.user_request_id` es «la solicitud actual
+  del pedido» y la tabla el historial. Hoy sólo el `updateOrCreate` evita duplicados (en qa no hay; en prod no se
+  midió). Termina con la migración en un PR y el conteo de duplicados de prod en 0 antes de aplicarla. La tabla se
+  queda: un pedido pasa por varias solicitudes (499 en prod probaron otra entidad) y la usan unos 74 archivos de
+  los dos monolitos; cambiarla por una columna en `user_requests` no compensa por ahora.
 - [ ] Corregir el `redirect-url` del cobro de cuota inicial, quemado a la ruta de ecommerce aunque la solicitud sea
   del asesor. CONFIRMADO (2026-10-13): en local el canal del asesor llega al cobro viejo (`initial-fee-payment`) con
   una entidad que no es CreditopX y cuota inicial tecleada en el listado (Pullman + Sistecrédito, 467337), y
