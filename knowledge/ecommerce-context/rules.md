@@ -74,3 +74,17 @@ El loader del listado relee el pedido por solicitud: con contexto ecommerce igno
 En `LenderListingService` el total conocido del pedido prevalece sobre el monto de entrada.
 El tema `lender-listing` detalla esa entrada. No extrapolar este bloqueo a una garantía
 de todos los endpoints de escritura ni usar una sesión abierta para reclasificar el canal.
+
+## El link «Volver a la tienda» siempre usa returnUrl
+
+`storeBackUrlOf` del wizard prefiere `backUrl` y cae en `returnUrl`, pero lee los dos del detalle del
+pedido, y `buildEcommerceRequestDetailData` sólo devuelve `returnUrl`. Ninguna de las dos entradas
+llega a guardar algo que el detalle devuelva como `backUrl`:
+
+- con la URL armada, el checkout manda `b` como `backUrl` en el create, pero `CreateEcommerceRequest`
+  no lo valida y el orquestador no lo lee: se descarta;
+- con `payment-link`, `back_url` se valida y queda dentro del JSON del pedido en `data`, pero el
+  detalle no lo extrae.
+
+El link del listado vacío lleva así a la `returnUrl` de la tienda, que suele ser la confirmación del
+pedido. Para que sirva el `backUrl`, el backend tiene que guardarlo y devolverlo en el detalle.

@@ -28,6 +28,7 @@
       "commit": "1238d30ef1459fd1fb84ac8020fbacb64a658e55",
       "blob": "e4574fa90c48f2cf4c3ec1d7ed4ebfefb2ee4b17",
       "sections": [
+        "el-link-volver-a-la-tienda-siempre-usa-returnurl",
         "el-pedido-se-relee-por-id-antes-y-despues-del-otp"
       ]
     },
@@ -37,6 +38,7 @@
       "commit": "1238d30ef1459fd1fb84ac8020fbacb64a658e55",
       "blob": "0807575869585430e70be0fcad101fa845cf1fc7",
       "sections": [
+        "el-link-volver-a-la-tienda-siempre-usa-returnurl",
         "el-pedido-se-relee-por-id-antes-y-despues-del-otp"
       ]
     },
@@ -46,6 +48,7 @@
       "commit": "d21ab0ef275891025cd2a823552d5ec6c0cac283",
       "blob": "7e9e49301a35d68d81262d478b18e5889fc4affc",
       "sections": [
+        "el-link-volver-a-la-tienda-siempre-usa-returnurl",
         "el-pedido-se-relee-por-id-antes-y-despues-del-otp",
         "el-vinculo-con-la-solicitud-vive-en-tres-lugares"
       ]
@@ -102,6 +105,24 @@
       "blob": "ff4ff8864ee211f24192bab95cb1f6373414cd5c",
       "sections": [
         "el-pedido-se-relee-por-id-antes-y-despues-del-otp"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/Onboarding/App/Http/Requests/CreateEcommerceRequest.php",
+      "commit": "d21ab0ef275891025cd2a823552d5ec6c0cac283",
+      "blob": "b4bdf3227eba5eac34180c9fdce94341d95d5343",
+      "sections": [
+        "el-link-volver-a-la-tienda-siempre-usa-returnurl"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/Onboarding/App/Services/EcommercePaymentLinkService.php",
+      "commit": "d21ab0ef275891025cd2a823552d5ec6c0cac283",
+      "blob": "1d84d85444f6f8f9cf43cb871e5a214d8595b840",
+      "sections": [
+        "el-link-volver-a-la-tienda-siempre-usa-returnurl"
       ]
     }
   ]
