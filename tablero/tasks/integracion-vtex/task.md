@@ -7,10 +7,14 @@ knowledge: [ecommerce-context]
 canon: []
 jira: [CORE-800, CORE-638]
 jira_title: "Integración VTEX: enlace de pago con referencia y pedidos atribuidos a la sucursal"
-ramas: core-800-vtex-payment-link
+ramas: core-800-vtex-payment-link, legacy-backend:una-solicitud-por-pedido
 ---
 
 ## Pendientes
+
+- [ ] Probar en qa el PR [#1783](https://github.com/Creditop-SAS/legacy-backend/pull/1783) (una solicitud por pedido):
+      comprar, negar con el simulador y volver a comprar el mismo carrito; termina cuando nace otra solicitud y la
+      anterior sigue en 6 ligada sólo a su pedido. Después decidir si va en un PR a `main` propio o con otro.
 
 - [x] ~~El conector pide la URL a `payment-link`~~ — rama `payment-link` del repo `vtex` (6eeeb83, local, sin push):
       `authorize` llama con AppKey = hash y AppToken = Bearer, redirige al `?ref=` y niega si falla; host por
