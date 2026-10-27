@@ -1,0 +1,24 @@
+{
+  "node": "creditopx/context",
+  "section": "En las entidades CreditopX, las consultas que hizo Creditop pueden no contar en el criterio de 6 meses",
+  "text_file": "creditopx-consultas-creditop.md",
+  "kind": "addition",
+  "source": "verified",
+  "verified": "2026-10-27",
+  "as_asked": "¿En CreditopX cuentan las consultas que hizo Creditop en el criterio de consultas de los últimos 6 meses?",
+  "objetivo": "Descontar las consultas de Creditop del criterio de consultas de 6 meses en las entidades CreditopX, detrás de un interruptor.",
+  "se_deduce_leyendo": "cómo se reconoce una consulta de Creditop en el reporte, en qué ventana, cuándo se descuenta y qué evaluadores la usan",
+  "archivos": {
+    "legacy-backend": [
+      "Modules/Loans/App/Services/datacredito/CreditopInquiryExclusion.php",
+      "Modules/Loans/App/Services/datacredito/CreditopInquiries.php",
+      "Modules/Loans/App/Services/datacredito/DTOs/ConsultedLast6Months.php",
+      "Modules/Loans/App/Services/RevolvingCredit/RevolvingCreditConditionsCalculatorService.php",
+      "Modules/Backoffice/App/Services/LenderRulesSimulatorService.php"
+    ]
+  },
+  "tablas": [
+    "settings",
+    "users_category_log"
+  ]
+}
