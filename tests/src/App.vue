@@ -13,6 +13,7 @@ import {
   readHashRoute, hashRoute, setRoute,
 } from './workbench.js'
 import { TABLE_DOCS } from './table-docs.js'
+import { STORE_COMMANDS } from './store-commands.js'
 
 const DEFAULT_TARGET = 'qa'
 const TARGET_LABEL = { local: 'local · tu Docker', qa: 'qa · la base compartida de dev, qa y staging' }
@@ -359,7 +360,7 @@ function toggleTable(name) { tablePrefs.value = { ...tablePrefs.value, [name]: !
 function resetTables() { tablePrefs.value = {}; saveTablePrefs() }
 const visibleTables = computed(() => tables.value.filter((t) => isShown(t.table)))
 const hiddenCount = computed(() => tables.value.length - visibleTables.value.length)
-const panelTab = ref('states') // states · tables · table
+const panelTab = ref('states') // states · tables · table · stores
 // La tabla cuya descripción se ve en la consola (la última cuyo título se tocó).
 const docTable = ref(null)
 const docOf = computed(() => (docTable.value ? TABLE_DOCS[docTable.value] || null : null))
@@ -419,6 +420,11 @@ const openQuery = computed(() => (openTable.value ? tableRows.value[openTable.va
 const copied = ref(false)
 async function copyQuery() {
   try { await navigator.clipboard.writeText(openQuery.value); copied.value = true; setTimeout(() => { copied.value = false }, 1500) } catch { /* sin portapapeles */ }
+}
+// El comando de tienda recién copiado, para marcar su botón un momento.
+const copiedCmd = ref('')
+async function copyCommand(cmd) {
+  try { await navigator.clipboard.writeText(cmd); copiedCmd.value = cmd; setTimeout(() => { copiedCmd.value = '' }, 1500) } catch { /* sin portapapeles */ }
 }
 // Otra solicitud u otro ambiente: la consulta abierta era de la anterior.
 watch([() => result.value?.request?.id, target], () => { openTable.value = null; openCell.value = null; if (panelTab.value === 'table') panelTab.value = 'states'; docTable.value = null })
@@ -813,6 +819,9 @@ onBeforeUnmount(() => {
         <button type="button" role="tab" class="tab" :class="{ on: panelTab === 'tables' }" :aria-selected="panelTab === 'tables'" @click="panelTab = 'tables'">
           Tablas <span v-if="tables.length" class="count" :class="{ filtered: hiddenCount }">{{ visibleTables.length }} / {{ tables.length }}</span>
         </button>
+        <button type="button" role="tab" class="tab" :class="{ on: panelTab === 'stores' }" :aria-selected="panelTab === 'stores'" @click="panelTab = 'stores'">
+          Tiendas
+        </button>
         <div v-if="panelTab === 'tables'" class="region-actions">
           <button type="button" class="region-action" title="Volver a lo de siempre: todas menos logs y auditorías" aria-label="Volver a lo de siempre" @click="resetTables">
             <span class="ui-icon" data-icon="refresh" aria-hidden="true"></span>
@@ -830,6 +839,22 @@ onBeforeUnmount(() => {
           <h3><code>{{ docTable }}</code></h3>
           <p class="muted">Todavía no tiene descripción. Se agrega en <code>tests/src/table-docs.js</code>.</p>
         </template>
+      </div>
+      <div v-else-if="panelTab === 'stores'" class="region-body store-commands">
+        <p class="muted">Lo que hay que tener corriendo para comprar en una tienda de prueba contra qa, en orden. Cada uno en su terminal.</p>
+        <section v-for="g in STORE_COMMANDS" :key="g.store" class="store-group">
+          <h3>{{ g.store }}</h3>
+          <p class="muted">{{ g.about }}</p>
+          <div v-for="(st, i) in g.steps" :key="st.cmd" class="store-step">
+            <p><b>{{ i + 1 }} · {{ st.what }}</b> <span class="muted">— {{ st.why }}</span></p>
+            <div class="cmd-row">
+              <code class="cmd">{{ st.cmd }}</code>
+              <button type="button" class="region-action" :title="copiedCmd === st.cmd ? 'Copiado' : 'Copiar el comando'" aria-label="Copiar el comando" @click="copyCommand(st.cmd)">
+                <span class="ui-icon" :data-icon="copiedCmd === st.cmd ? 'check' : 'copy'" aria-hidden="true"></span>
+              </button>
+            </div>
+          </div>
+        </section>
       </div>
       <div v-else-if="panelTab === 'tables'" class="region-body">
         <p v-if="!tables.length" class="none">Las tablas de la solicitud que se mira; las que se apagan acá no se muestran en el editor.</p>
@@ -1031,6 +1056,14 @@ code.wrap { word-break: break-all }
 .table-doc { padding: var(--space-2) var(--gutter) }
 .table-doc h3 { margin: 0 0 var(--space-1); font-size: var(--text-base); font-weight: 600 }
 .table-doc p { margin: 0 0 var(--space-1); max-width: 90ch; line-height: 1.5 }
+/* Los comandos de las tiendas: un grupo por tienda, un paso por comando, con su botón de copiar. */
+.store-commands { padding: var(--space-2) var(--gutter) }
+.store-commands p { margin: 0 0 var(--space-1); max-width: 90ch; line-height: 1.5 }
+.store-group { margin-top: var(--space-3) }
+.store-group h3 { margin: 0 0 var(--space-1); font-size: var(--text-base); font-weight: 600 }
+.store-step { margin-top: var(--space-2) }
+.cmd-row { display: flex; align-items: flex-start; gap: var(--space-1) }
+.cmd { flex: 1; min-width: 0; padding: var(--space-1) var(--space-2); border-radius: var(--radius-sm); background: var(--muted); white-space: pre-wrap; word-break: break-all; font-size: var(--text-sm) }
 /* El perfil de prueba en la barra: quién, el botón y una línea por central. */
 .profile { display: flex; flex-direction: column; align-items: flex-start; gap: var(--space-1); padding: var(--space-2) var(--gutter) var(--space-3) }
 .profile p { margin: 0 }

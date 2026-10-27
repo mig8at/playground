@@ -25,6 +25,9 @@ contar la hora. Salida: esperar, o usar otra cédula (y cargarla en el paso 2).
 
 ## 3 · Comprar
 
+Los comandos de esta sección están también en `tests`, pestaña **Tiendas** de la consola de abajo, cada uno con su
+botón de copiar (`tests/src/store-commands.js`: si cambia uno, se cambian los dos).
+
 Datos de la persona en las dos tiendas: celular `3016992677`, correo **`miguel-test@creditop.com`** (no
 `miguel@creditop.com`: es tu cuenta de administrador en qa y el registro dice «correo ya registrado»). El código
 OTP llega a Slack, canal `#qa-messages`.
