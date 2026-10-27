@@ -44,9 +44,14 @@ jira_title: "Sucursal y asesor de prueba al crear un comercio"
   Depende de: un Administrador del admin de prod; Miguel — VPN y sesión de AWS de prod para comprobar.
 - [x] Pasar staging a Merchants Dev (2026-10-22, decisión de Miguel): cliente `wizard-stg`, secret cambiado y marca
   aplicada con los scripts; el asesor de prueba entra a staging. Los tres wizards compartidos ya no usan el pool de prod.
-- [ ] Avisar a infra de que los secrets de los wizards de dev, qa y staging se editaron a mano y llevan la etiqueta de Terraform; termina
-  cuando infra confirma que un apply no los pisa o los deja en su código.
-  Depende de: Daniel Sánchez (infra).
+- [x] Avisar a infra de que los secrets de los wizards de dev, qa y staging se editaron a mano y llevan la etiqueta de Terraform:
+  superado el 2026-10-27 leyendo el repo `infrastructure` (`main` `e4b701c`): `modules/secrets` crea el secret con `{}` e ignora
+  `secret_string`, y `modules/ecs-application` ignora `container_definitions`, así que un apply no pisa ni el secret ni la tarea.
+- [ ] Que el admin de canary y el de staging creen la cuenta de Cognito: las tres claves ya están en `dev/legacy-application-canary`
+  y `dev/legacy-application-stg` (2026-10-27), falta una revisión de la tarea que las referencie (pide `iam:PassRole`, que el rol
+  de desarrollo no tiene; el CI de canary está frenado por Trivy). Termina cuando la tarjeta de un comercio nuevo de canary dice
+  «Cuenta en Cognito». En staging, además, falta el código: la rama `staging` no tiene el servicio.
+  Depende de: Daniel Sánchez (infra) — correr `admin-pool.sh canary` y `stg` de la carpeta `cognito`.
 - [x] Comprobar el login con clave contra la pantalla nueva de Merchants Dev: el asesor de prueba entra al wizard de qa
   (2026-10-05) y al de dev (2026-10-22) con la marca de prod.
 - [ ] Dar a QA sus propios asesores de prueba: sus cuentas de siempre (del pool de producción) ya no entran a qa ni a dev; termina
