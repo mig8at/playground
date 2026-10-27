@@ -1,13 +1,13 @@
 {
   "version": 1,
   "title": "Admin de legacy-application: secciones, roles y escrituras",
-  "summary": "Qué hace cada sección del admin por el negocio, quién entra con qué perfil, qué escribe, las bajas lógicas con -t<n> y las acciones que no piden permiso.",
-  "reviewedAt": "2026-10-20T22:04:08+00:00",
+  "summary": "Qué hace cada sección del admin por el negocio, quién entra con qué perfil, qué escribe, las bajas lógicas con -t<n> y las acciones que no piden permiso; historial, facturación y recaudo, y lo que ve el comercio de un crédito CreditopX.",
+  "reviewedAt": "2026-10-27T20:54:25+00:00",
   "sources": [
     {
       "repo": "application",
       "path": "app/Providers/FortifyServiceProvider.php",
-      "commit": "05e6ad4d86c9e15cc7f6fa88527cef94ff508caf",
+      "commit": "24dc86eb1eaabb4e4eee37750ab90e258c36ce78",
       "blob": "2c663e1e889b996e9c2ae7013dc21a8bdb391d09",
       "sections": [
         "quien-entra-y-que-es-cada-perfil"
@@ -16,8 +16,8 @@
     {
       "repo": "application",
       "path": "app/Models/UserProfile.php",
-      "commit": "05e6ad4d86c9e15cc7f6fa88527cef94ff508caf",
-      "blob": "0bd2b056cc41f9c13210e1dd3cd1c794db35ef7a",
+      "commit": "24dc86eb1eaabb4e4eee37750ab90e258c36ce78",
+      "blob": "d7a6dca0eb4e978fed1d6fe3e945d8a063437c84",
       "sections": [
         "quien-entra-y-que-es-cada-perfil"
       ]
@@ -25,7 +25,7 @@
     {
       "repo": "application",
       "path": "database/seeders/RolesTableSeeder.php",
-      "commit": "05e6ad4d86c9e15cc7f6fa88527cef94ff508caf",
+      "commit": "24dc86eb1eaabb4e4eee37750ab90e258c36ce78",
       "blob": "8075ea81d3641ada079670258913c30db78d41e3",
       "sections": [
         "quien-entra-y-que-es-cada-perfil"
@@ -34,7 +34,7 @@
     {
       "repo": "application",
       "path": "resources/js/navigation/vertical/index.js",
-      "commit": "05e6ad4d86c9e15cc7f6fa88527cef94ff508caf",
+      "commit": "24dc86eb1eaabb4e4eee37750ab90e258c36ce78",
       "blob": "1d1245be982d8c7c68dd9cc8c154cb0dd6ca518e",
       "sections": [
         "el-menu-y-el-backend-piden-permisos-distintos"
@@ -43,7 +43,7 @@
     {
       "repo": "application",
       "path": "resources/js/navigation/vertical/management.js",
-      "commit": "05e6ad4d86c9e15cc7f6fa88527cef94ff508caf",
+      "commit": "24dc86eb1eaabb4e4eee37750ab90e258c36ce78",
       "blob": "47957e8b0ced81b2eaa64468691ceeb7744f74b3",
       "sections": [
         "el-menu-y-el-backend-piden-permisos-distintos"
@@ -52,7 +52,7 @@
     {
       "repo": "application",
       "path": "app/Http/Requests/Admin/User/ListRequests.php",
-      "commit": "05e6ad4d86c9e15cc7f6fa88527cef94ff508caf",
+      "commit": "24dc86eb1eaabb4e4eee37750ab90e258c36ce78",
       "blob": "d6d83613d1861e9c423078b2870e2b7f88b74fb3",
       "sections": [
         "el-menu-y-el-backend-piden-permisos-distintos"
@@ -61,7 +61,7 @@
     {
       "repo": "application",
       "path": "app/Http/Kernel.php",
-      "commit": "05e6ad4d86c9e15cc7f6fa88527cef94ff508caf",
+      "commit": "24dc86eb1eaabb4e4eee37750ab90e258c36ce78",
       "blob": "071d6571bc023f91113c75c579d4993c571f95d9",
       "sections": [
         "el-menu-y-el-backend-piden-permisos-distintos"
@@ -70,8 +70,8 @@
     {
       "repo": "application",
       "path": "app/Http/Controllers/Admin/UserController.php",
-      "commit": "05e6ad4d86c9e15cc7f6fa88527cef94ff508caf",
-      "blob": "da774a7af1244aeb9137b98e50fc1ce32e796cb1",
+      "commit": "24dc86eb1eaabb4e4eee37750ab90e258c36ce78",
+      "blob": "ae8f8c479d630ca8119267649fe7bcd696b90ecf",
       "sections": [
         "gestion-usuarios-solicitudes-y-autorizaciones",
         "las-bajas-son-logicas"
@@ -80,8 +80,8 @@
     {
       "repo": "application",
       "path": "app/Http/Controllers/Admin/UserRequestController.php",
-      "commit": "05e6ad4d86c9e15cc7f6fa88527cef94ff508caf",
-      "blob": "652482b28864bd365f7fb6f5f14cbd4b155a298a",
+      "commit": "24dc86eb1eaabb4e4eee37750ab90e258c36ce78",
+      "blob": "1a390ba076f5fd7407f5eb785a97dd5efad9b629",
       "sections": [
         "gestion-usuarios-solicitudes-y-autorizaciones",
         "escrituras-que-no-piden-permiso"
@@ -90,8 +90,8 @@
     {
       "repo": "application",
       "path": "routes/admin.php",
-      "commit": "05e6ad4d86c9e15cc7f6fa88527cef94ff508caf",
-      "blob": "78612c26eea8a3deb00442266013891a9e0bc972",
+      "commit": "24dc86eb1eaabb4e4eee37750ab90e258c36ce78",
+      "blob": "edf18d66526265fbeb277453989eb2aee4f9b01d",
       "sections": [
         "gestion-usuarios-solicitudes-y-autorizaciones",
         "configuracion-comercios-entidades-y-reglas",
@@ -102,16 +102,17 @@
     {
       "repo": "application",
       "path": "app/Http/Controllers/Admin/CreditopXRequestHistoryController.php",
-      "commit": "0c86754d79f825dc55556a5af7bbbd304e23d3c9",
-      "blob": "a69dcdfa7297712e0022f1e5e685686e0fa509cb",
+      "commit": "24dc86eb1eaabb4e4eee37750ab90e258c36ce78",
+      "blob": "6fbf34ddf7777929fdfaa9c5aa87bdf3108b5c72",
       "sections": [
-        "creditos-creditopx"
+        "creditos-creditopx",
+        "el-historial-de-un-credito-creditopx-lleva-dos-estados"
       ]
     },
     {
       "repo": "application",
       "path": "resources/js/navigation/vertical/creditopX.js",
-      "commit": "05e6ad4d86c9e15cc7f6fa88527cef94ff508caf",
+      "commit": "24dc86eb1eaabb4e4eee37750ab90e258c36ce78",
       "blob": "1d84e2411011e4640d495052137061d6632f77e3",
       "sections": [
         "creditos-creditopx"
@@ -120,7 +121,7 @@
     {
       "repo": "application",
       "path": "app/Http/Controllers/Admin/AlliedController.php",
-      "commit": "05e6ad4d86c9e15cc7f6fa88527cef94ff508caf",
+      "commit": "24dc86eb1eaabb4e4eee37750ab90e258c36ce78",
       "blob": "ce2c8b8031cae3c33bee6606d20a627623e21e1d",
       "sections": [
         "configuracion-comercios-entidades-y-reglas"
@@ -129,8 +130,8 @@
     {
       "repo": "application",
       "path": "app/Http/Controllers/Admin/AlliedAlliedBranchController.php",
-      "commit": "05e6ad4d86c9e15cc7f6fa88527cef94ff508caf",
-      "blob": "19c834fb1143725cf6bcc5f9cd6c73387467ec73",
+      "commit": "24dc86eb1eaabb4e4eee37750ab90e258c36ce78",
+      "blob": "be1146122a40887c03a1ddeba278f7c44c6308f7",
       "sections": [
         "configuracion-comercios-entidades-y-reglas",
         "escrituras-que-no-piden-permiso"
@@ -139,7 +140,7 @@
     {
       "repo": "application",
       "path": "app/Http/Controllers/Admin/LenderController.php",
-      "commit": "05e6ad4d86c9e15cc7f6fa88527cef94ff508caf",
+      "commit": "24dc86eb1eaabb4e4eee37750ab90e258c36ce78",
       "blob": "9e954010be4a26e182a3cbb4781ff5eddcc5236c",
       "sections": [
         "configuracion-comercios-entidades-y-reglas",
@@ -149,7 +150,7 @@
     {
       "repo": "application",
       "path": "app/Http/Controllers/Admin/DatacreditoFrecuenciesController.php",
-      "commit": "05e6ad4d86c9e15cc7f6fa88527cef94ff508caf",
+      "commit": "24dc86eb1eaabb4e4eee37750ab90e258c36ce78",
       "blob": "a857b988128036a2e37dfd6b31ade96ec8c0bfb0",
       "sections": [
         "configuracion-comercios-entidades-y-reglas"
@@ -158,7 +159,7 @@
     {
       "repo": "application",
       "path": "resources/js/navigation/vertical/configuration.js",
-      "commit": "05e6ad4d86c9e15cc7f6fa88527cef94ff508caf",
+      "commit": "24dc86eb1eaabb4e4eee37750ab90e258c36ce78",
       "blob": "14c2ef90b5888117faa80fb257cfb44ec00d6a0d",
       "sections": [
         "configuracion-comercios-entidades-y-reglas"
@@ -167,7 +168,7 @@
     {
       "repo": "application",
       "path": "app/Http/Controllers/Admin/ExperianController.php",
-      "commit": "05e6ad4d86c9e15cc7f6fa88527cef94ff508caf",
+      "commit": "24dc86eb1eaabb4e4eee37750ab90e258c36ce78",
       "blob": "64e9ec2609888c220faf297d0f19ea6675d4daa0",
       "sections": [
         "centrales-de-riesgo-y-validacion-de-usuarios"
@@ -176,7 +177,7 @@
     {
       "repo": "application",
       "path": "app/Http/Controllers/Admin/ProfilingReviewController.php",
-      "commit": "05e6ad4d86c9e15cc7f6fa88527cef94ff508caf",
+      "commit": "24dc86eb1eaabb4e4eee37750ab90e258c36ce78",
       "blob": "5ce329bb69e613a58f184dec9beda0156ef3c3a0",
       "sections": [
         "centrales-de-riesgo-y-validacion-de-usuarios"
@@ -185,8 +186,8 @@
     {
       "repo": "application",
       "path": "app/Http/Controllers/Admin/AlliedCorporateUserController.php",
-      "commit": "05e6ad4d86c9e15cc7f6fa88527cef94ff508caf",
-      "blob": "0882ec2ff10910ab3900f67132e53f0d1b739f0e",
+      "commit": "24dc86eb1eaabb4e4eee37750ab90e258c36ce78",
+      "blob": "de913d190e641153dd385eca351938e473a62460",
       "sections": [
         "las-bajas-son-logicas"
       ]
@@ -194,7 +195,7 @@
     {
       "repo": "application",
       "path": "app/Http/Controllers/Admin/CredentialsController.php",
-      "commit": "05e6ad4d86c9e15cc7f6fa88527cef94ff508caf",
+      "commit": "24dc86eb1eaabb4e4eee37750ab90e258c36ce78",
       "blob": "ae32751332a2a75f6a9568f9c677020f72e9d89c",
       "sections": [
         "escrituras-que-no-piden-permiso"
@@ -203,10 +204,92 @@
     {
       "repo": "application",
       "path": "app/Http/Requests/Admin/MarketingMessages/MarketingMessagesRequest.php",
-      "commit": "05e6ad4d86c9e15cc7f6fa88527cef94ff508caf",
+      "commit": "24dc86eb1eaabb4e4eee37750ab90e258c36ce78",
       "blob": "912381f799b769541f797a03a77be8e20e1966a8",
       "sections": [
         "escrituras-que-no-piden-permiso"
+      ]
+    },
+    {
+      "repo": "application",
+      "path": "app/Support/Users/UserDisableGuard.php",
+      "commit": "24dc86eb1eaabb4e4eee37750ab90e258c36ce78",
+      "blob": "fc2c6800b0da1c68c1cef0e09a1cb1d2c959b27e",
+      "sections": [
+        "las-bajas-son-logicas",
+        "gestion-usuarios-solicitudes-y-autorizaciones"
+      ]
+    },
+    {
+      "repo": "application",
+      "path": "app/Models/CreditopXUserRequestStatus.php",
+      "commit": "24dc86eb1eaabb4e4eee37750ab90e258c36ce78",
+      "blob": "c9280295040696cdd854da77773c2effcde4a1a1",
+      "sections": [
+        "el-historial-de-un-credito-creditopx-lleva-dos-estados"
+      ]
+    },
+    {
+      "repo": "application",
+      "path": "app/Http/Controllers/Admin/CreditopXPaymentController.php",
+      "commit": "24dc86eb1eaabb4e4eee37750ab90e258c36ce78",
+      "blob": "d303605d9c94f03114ae8bd33658fef62f737d1b",
+      "sections": [
+        "el-historial-de-un-credito-creditopx-lleva-dos-estados"
+      ]
+    },
+    {
+      "repo": "application",
+      "path": "app/Http/Controllers/Admin/CreditopXPaymentManageController.php",
+      "commit": "24dc86eb1eaabb4e4eee37750ab90e258c36ce78",
+      "blob": "a250158cf42c6c567d181f4dc4ce0cbf999dc759",
+      "sections": [
+        "facturacion-y-recaudo-suma-por-mes-no-cuota-por-cuota"
+      ]
+    },
+    {
+      "repo": "application",
+      "path": "resources/js/components/organisms/paymentManageCreditopX/BaseFiltersCreditopx.vue",
+      "commit": "24dc86eb1eaabb4e4eee37750ab90e258c36ce78",
+      "blob": "7823fe48df62a2c888f1fe6a7761c5e1df92f3f7",
+      "sections": [
+        "facturacion-y-recaudo-suma-por-mes-no-cuota-por-cuota"
+      ]
+    },
+    {
+      "repo": "application",
+      "path": "app/Http/Controllers/Customer/CreditopXRequestHistoryController.php",
+      "commit": "24dc86eb1eaabb4e4eee37750ab90e258c36ce78",
+      "blob": "a41f27d4af5619a7e918eaf3b8cad4a6692c028c",
+      "sections": [
+        "el-comercio-ve-un-credito-por-cedula-y-sus-solicitudes-por-asesor"
+      ]
+    },
+    {
+      "repo": "application",
+      "path": "app/Http/Controllers/Customer/UserRequestController.php",
+      "commit": "24dc86eb1eaabb4e4eee37750ab90e258c36ce78",
+      "blob": "b5e3f9ac409434e391a721b3cc453d93662f8573",
+      "sections": [
+        "el-comercio-ve-un-credito-por-cedula-y-sus-solicitudes-por-asesor"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/Loans/App/Services/CreditopXRequestHistoryService.php",
+      "commit": "d21ab0ef275891025cd2a823552d5ec6c0cac283",
+      "blob": "23d19f284adb4502f8b25665bc9fff00f640937e",
+      "sections": [
+        "el-historial-de-un-credito-creditopx-lleva-dos-estados"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "database/migrations/2026_10_22_210000_include_commercial_advisers_of_setting_allieds_in_views.php",
+      "commit": "d21ab0ef275891025cd2a823552d5ec6c0cac283",
+      "blob": "32ee061261531f9d26e6c56ed7d5cdc0e1ccc982",
+      "sections": [
+        "facturacion-y-recaudo-suma-por-mes-no-cuota-por-cuota"
       ]
     }
   ]

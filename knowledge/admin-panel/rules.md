@@ -38,7 +38,8 @@ que su URL esté cerrada.
 - **Usuarios** (`/usuarios`) busca a CUALQUIER usuario —clientes y cuentas internas— por nombre, id,
   cédula, correo o celular, con una expresión regular. La lista sólo se recorta para Entidad Comercio:
   cualquier otro rol con el permiso ve a todos. Desde ahí se ven sus solicitudes, su formulario y sus
-  documentos de identidad, se edita, se valida o rechaza su identidad a mano y se da de baja.
+  documentos de identidad, se edita, se valida o rechaza su identidad a mano y se da de baja, salvo
+  que la guarda de baja lo impida (ver «Las bajas son lógicas»).
 - **Solicitudes** (`/solicitudes`) es la bandeja operativa: cada perfil gestiona su etapa (documentación,
   autorización, facturación, logística) y cambia el estado. Al «gestionar», el estado nuevo NO lo elige
   quien gestiona: sale de `status_per_profiles` del comercio y del perfil (la pestaña «Módulos» del
@@ -51,14 +52,50 @@ que su URL esté cerrada.
 «Créditos de consumo» (`/solicitudes-originadas`) es la cartera de los créditos que originó CreditOp:
 estado, amortización y pagos; registrar o reversar pagos; cambiar fecha de pago o plazo; anular,
 condonar o refinanciar; marcar el producto recuperado; bloquear o desbloquear el celular financiado y
-mandar el link de pago. Sin `see all ctopx request` se ve sólo el buscador por cédula. Funnel, Gestión de
+mandar el link de pago. Con `manage creditop interest subsidy` se fija el subsidio de intereses de un
+crédito y se descarga la liquidación del subsidio para conciliar con cada comercio. Sin `see all ctopx request` se ve sólo el buscador por cédula. Funnel, Gestión de
 cartera, Pagos y facturación y Cupos rotativos son vistas de la misma cartera.
+
+## El historial de un crédito CreditopX lleva dos estados
+
+En `creditop_x_requests_history`, `creditop_x_requests_status_id` es el estado del crédito, del catálogo
+`creditop_x_user_request_statuses` (1 al día, 2 en mora, 3 paz y salvo, 4 cancelado, 6 producto
+recuperado, 7 recuperado por fondo de garantías, 8 administrado externamente, 9 fallecido). `status` es
+el de la fila: 1 la vigente, 0 una reemplazada o desactivada, 5 una reversada por un pago revertido.
+
+Anular desde este admin (`disable`) pasa la solicitud a 8, deja la fila vigente en `status` 2 y estado
+4, pone en 0 los días de mora y registra un `ANNULMENT` en `creditop_x_log`. La cancelación del
+monolito nuevo (`CreditopXRequestHistoryService::disableCreditopXRequest`) sólo pone la fila en `status`
+0 y registra un `CANCELLATION`: no toca la solicitud ni el estado del crédito. Para saber si un crédito
+se anuló o canceló hay que mirar también `creditop_x_log`. Marcar recuperado (6 o 7) replica la fila
+vigente con el mismo número en `status` y en el estado, y deja la anterior en 0.
+
+## Facturación y recaudo suma por mes, no cuota por cuota
+
+La pantalla de facturación y recaudo de créditos de consumo (`CreditopXPaymentManageController::index`)
+cruza dos sumas mensuales. Facturado es `installment_value + next_payment_insurance` de las filas de
+corte del historial, de solicitudes 10 u 11, sin rotativos ni pruebas ni usuarios atípicos, con el mes
+de la fecha de corte más cinco días. Recaudado es `valor_pagado` de `VW_CtopX_Payments_Report` por mes
+de pago, sin cuota inicial ni rotativos; la vista no filtra por estado del pago, así que pendientes y
+reversados suman. El porcentaje es recaudado sobre facturado del mismo mes, y puede pasar de 100. Los
+filtros mandan comercio y las dos fechas.
+
+## El comercio ve un crédito por cédula y sus solicitudes por asesor
+
+En la plataforma del comercio, «Créditos propios» (`Customer\CreditopXRequestHistoryController`) no
+lista: busca por cédula un registro con `status` distinto de 0, de un cliente, cuya solicitud sea del
+mismo comercio del usuario y que no sea un rotativo. No filtra por sucursal, asesor ni estado del
+crédito. «Solicitudes» (`Customer\UserRequestController`) sólo muestra las que tienen como
+`corporate_user_id` al asesor que mira, salvo que el hash de su sucursal esté en
+`allowed_comerces_to_se_all` de `express_credit_study_configuration`: las de un asesor que se fue no
+las ve nadie más del comercio.
 
 ## Configuración: comercios, entidades y reglas
 
 - **Comercios** (`/aliados`): alta y datos del comercio, sus puntos de venta (con QR), zonas, entidades
   habilitadas por comercio y por punto de venta, módulos, credenciales de ecommerce, productos, usuarios
-  comerciales y el usuario de prueba. Guardar un punto de venta BORRA y recrea sus entidades. Pasar un
+  comerciales y el usuario de prueba. Guardar un punto de venta BORRA y recrea sus entidades, conservando los
+  `document_types` que cada una ya tenía ahí; una entidad recién sumada toma los de la propia entidad. Pasar un
   comercio a inactivo por «Churn» o «No implementado» apaga a todos sus usuarios activos.
 - **Entidades** (`/entidades`): el catálogo de entidades financieras, sus líneas de crédito y tasas, sus
   usuarios Entidad Comercio y el ajuste de la tasa de usura. Desactivar una entidad es `status = 0`.
@@ -86,6 +123,14 @@ además vacía `cognito_id`; las de usuarios comerciales y de entidad no. Sus so
 centrales quedan en la cuenta vieja: con la cédula libre, el próximo registro crea un cliente nuevo y
 las centrales se consultan otra vez. Por eso se usa para repetir pruebas (`bin/pg admin
 client-disable`). La baja de Usuarios es un **GET** sin chequeo de permiso.
+
+`UserDisableGuard` frena las dos bajas (la de Usuarios y la de usuarios comerciales) cuando la persona
+tiene algo que cuelga de su cuenta: un crédito CreditopX en el historial, un pagaré firmado, una
+solicitud en un estado posterior a la decisión (Desembolsada, Pendiente de autorización, Autorizada,
+Cuota Inicial, Pendiente de formalización, entre otros, buscados por nombre) o una transacción con una
+entidad que no esté en un estado terminal. Que el crédito esté al día, en mora o pagado no cambia nada.
+Antes de la baja, `usuarios/{id}/eliminacion` devuelve los motivos para el diálogo. Para repetir una
+prueba, la baja sólo funciona con clientes que no llegaron tan lejos.
 
 ## Escrituras que no piden permiso
 
