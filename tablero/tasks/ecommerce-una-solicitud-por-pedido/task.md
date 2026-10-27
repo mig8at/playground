@@ -16,7 +16,8 @@ ramas: legacy-backend:una-solicitud-por-pedido
       `fix/ecommerce-una-solicitud-por-pedido-qa` (tomada de `qa` al día), con pruebas unitarias en los dos módulos.
 - [x] ~~Probar en local el reintento~~ — 2026-10-27, Amoblar: 7437 → 467514 negada; 7438 → 467515 nueva; un segundo
       OTP sobre 7438 retoma la 467515.
-- [ ] Probar lo mismo en `qa` cuando #1783 esté mergeado y desplegado.
+- [x] ~~Probar lo mismo en `qa`~~ — 2026-10-27, Amoblar: 8006 → 504137 negada; 8007 → 504138 nueva; un segundo
+      OTP sobre 8007 retoma la 504138.
 - [x] ~~Crear el issue de Jira~~ — [CORE-819](https://creditop.atlassian.net/browse/CORE-819), en CORE Sprint 21.
 - [ ] Decidir cómo llega a `main`: PR propio desde `main` o junto a otro de ecommerce. Termina con el PR abierto.
 
