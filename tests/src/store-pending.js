@@ -30,8 +30,8 @@ export const STORE_PENDING = {
         title: 'Publicar en VTEX',
         items: [
           { text: 'Decidir si se restringe el modo Test Suite', blocks: true },
-          { text: 'Publicar la 5.0.0 (vtex publish)', done: true },
-          { text: 'Dejarla instalable (vtex deploy) e instalarla sólo en la cuenta piloto', blocks: true },
+          { text: 'Publicar la 5.0.0 y dejarla instalable (vtex publish + deploy)', done: true },
+          { text: 'Instalarla sólo en un workspace piloto, con una sucursal de producción', blocks: true },
           { text: 'Que VTEX homologue la versión nueva', blocks: true, by: 'VTEX' },
         ],
       },

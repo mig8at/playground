@@ -71,7 +71,7 @@ ramas: core-800-vtex-payment-link
 - [ ] Saber qué cuentas VTEX tienen instalada hoy `creditop.creditop` (la 4.x, con `/vtex/init`). En la base de prod
       el único `ecommerce_id=3` es la sucursal de prueba 1440, con el último pedido en marzo; termina con la lista de
       cuentas. Depende de: Oscar / Comercial — quién la instaló.
-- [ ] Publicada `creditop.creditop@5.0.0` (2026-10-28, `vtex publish` desde el tag); falta `vtex deploy creditop.creditop@5.0.0` (lo corre Miguel) e instalarla sólo en la
+- [ ] Publicada `creditop.creditop@5.0.0` (2026-10-28, `vtex publish` desde el tag y `vtex deploy` a las 17:16); falta instalarla sólo en la
       cuenta del comercio piloto: en VTEX IO las cuentas se actualizan solas dentro de la misma mayor, y en la 5 el
       AppToken pasa a ser el token de ecommerce de la sucursal, así que una 4.0.x nueva rompería las afiliaciones de
       las tiendas que ya la tienen. Termina con la 5 instalada en una sola cuenta y las demás en la 4.
