@@ -22,15 +22,16 @@ export const STORE_PENDING = {
       {
         title: 'Mergear',
         items: [
-          { text: 'Creditop-SAS/vtex#21 · el conector', blocks: true },
-          { text: 'Creditop-SAS/legacy-backend#1693 · alta de sucursales VTEX', blocks: true },
+          { text: 'Creditop-SAS/vtex#21 · el conector, en main con el tag v5.0.0', done: true },
+          { text: 'El alta de sucursales VTEX ya en main y en producción', done: true },
         ],
       },
       {
         title: 'Publicar en VTEX',
         items: [
           { text: 'Decidir si se restringe el modo Test Suite', blocks: true },
-          { text: 'Publicar la 5.0.0 e instalarla sólo en la cuenta piloto: una 4.x rompería las tiendas que ya la tienen', blocks: true },
+          { text: 'Publicar la 5.0.0 (vtex publish)', done: true },
+          { text: 'Dejarla instalable (vtex deploy) e instalarla sólo en la cuenta piloto', blocks: true },
           { text: 'Que VTEX homologue la versión nueva', blocks: true, by: 'VTEX' },
         ],
       },

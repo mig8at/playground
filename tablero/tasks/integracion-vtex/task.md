@@ -45,8 +45,9 @@ ramas: core-800-vtex-payment-link
       en qa para 7966, `ORDER_NOT_FOUND` para un pedido ajeno y `NOT_READY_TO_SETTLE` para uno sin solicitud. El
       conector ya no depende de application.
 
-- [ ] Revisar y mergear `Creditop-SAS/vtex#21` (el conector, `feat/core-800-vtex-payment-link` → `main`; reemplaza al #20, cerrado al renombrar la rama). Depende de
-      `Creditop-SAS/legacy-backend#1693` para dar de alta sucursales VTEX por la Partner API. Termina mergeado.
+- [x] ~~Mergear `Creditop-SAS/vtex#21`~~ — mergeado a `main` el 2026-10-28 (61e8995, tag `v5.0.0`) con el visto bueno de
+      Oscar. El alta de sucursales VTEX por la Partner API (legacy-backend#1693) ya estaba en `main` por 51181aaf3 y en
+      prod desde v0.6.29: prod tiene `ecommerces` id 4 = Shopify.
 
 - [x] ~~Confirmar el cobro real de un pedido VTEX~~ — 2026-10-22: el pedido `1670710500205-01`, facturado a mano por
       la API de OMS, cobró por el conector (`settlements` 200 con `settleId`) y la transacción quedó `Finished`. VTEX
@@ -70,7 +71,7 @@ ramas: core-800-vtex-payment-link
 - [ ] Saber qué cuentas VTEX tienen instalada hoy `creditop.creditop` (la 4.x, con `/vtex/init`). En la base de prod
       el único `ecommerce_id=3` es la sucursal de prueba 1440, con el último pedido en marzo; termina con la lista de
       cuentas. Depende de: Oscar / Comercial — quién la instaló.
-- [ ] Publicar el conector como versión MAYOR nueva (5.0.0, hoy el manifiesto dice 4.0.0) e instalarla sólo en la
+- [ ] Publicada `creditop.creditop@5.0.0` (2026-10-28, `vtex publish` desde el tag); falta `vtex deploy creditop.creditop@5.0.0` (lo corre Miguel) e instalarla sólo en la
       cuenta del comercio piloto: en VTEX IO las cuentas se actualizan solas dentro de la misma mayor, y en la 5 el
       AppToken pasa a ser el token de ecommerce de la sucursal, así que una 4.0.x nueva rompería las afiliaciones de
       las tiendas que ya la tienen. Termina con la 5 instalada en una sola cuenta y las demás en la 4.
