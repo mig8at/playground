@@ -70,6 +70,12 @@ primero `make canon-clones SYNC=1` (los refresca; `make canon-clones` dice a qu�
 `make canon-round FORCE=1`: el servidor cachea la ronda diez minutos y sin `FORCE` puede decir «al día» con un merge
 de hace minutos sin ver.
 
+**Para saber qué NO vigila:** la ronda sólo mira los archivos declarados; un módulo sin área envejece sin que nada
+avise. `make canon-eval` mide, sin modelo, el tamaño de cada tema (los que rozan el tope de 8000 palabras y los casi
+vacíos), las secciones sin área, los repos nombrados de dos formas en los mapas y, por módulo de cada repo, cuántos
+cambios de main cayeron en archivos que ningún área declara: esa lista, ordenada, son las áreas que faltan. Con
+`TARGET=prod` (VPN) suma lo que canon no supo contestar a la gente, en conteos y motivos, sin las preguntas.
+
 Por debajo es la API con la llave de escritura (`CANON_WRITE_KEY`, en el `.env` de `tools/canon`):
 `POST /api/draft` → una pieza por sección con `POST /api/draft/{id}` → `POST /api/draft/{id}/close`,
 que valida el corpus entero y guarda todo en una revisión. `POST /api/propose` ensaya sin escribir.

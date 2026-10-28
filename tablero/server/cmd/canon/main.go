@@ -11,6 +11,7 @@
 //	clones [-sync] [-repo R]             a qué commit de main está el clon de cada repo en el servidor; -sync le pide que los refresque
 //	patch -dir <carpeta> -reason R       publica los archivos que cambiaste en esa carpeta. Sin -apply sólo ensaya y muestra el diff
 //	corpus                               el corpus entero en JSON, para los cruces de `tools/canon.py`
+//	eval [-days N] [-target T] [-json]   organización del corpus y código que se mueve sin área (ver eval.go)
 //
 // El origen es CANON_URL —producción por defecto, que pide la VPN de prod—, el mismo del tablero. La
 // pieza es un JSON con las claves del borrador de canon; `text_file` en vez de `text` lee la prosa de
@@ -74,6 +75,8 @@ func main() {
 		err = corpus(ctx, client)
 	case "map":
 		err = topicMap(ctx, client)
+	case "eval":
+		err = evaluate(ctx, client, args)
 	default:
 		usage()
 	}
@@ -84,7 +87,7 @@ func main() {
 }
 
 func usage() {
-	fmt.Fprintln(os.Stderr, "uso: canon search|read|route|map|propose|write|export|patch|clones|round …  (ver `make canon-search` y sus vecinos)")
+	fmt.Fprintln(os.Stderr, "uso: canon search|read|route|map|propose|write|export|patch|clones|round|eval …  (ver `make canon-search` y sus vecinos)")
 	os.Exit(2)
 }
 
