@@ -30,6 +30,9 @@ jira_title: "Finandina: originación completa en Creditop"
   ve o recibe Finandina (dashboard, archivo, aviso) y con qué datos. Depende de: producto — el acuerdo con Finandina.
 - [ ] Confirmar si el aval (FGA) se financia dentro del capital (así lo hace hoy el motor de CreditopX) y quién
   lo cobra. Termina con la respuesta escrita en «Objetivo». Depende de: producto.
+- [ ] Confirmar los días de pago: los T&C de Finandina ofrecen los días 5, 10, 15 o 20, y el corte mensual de
+  CreditopX ofrece 5, 16 y 28 (un corte nuevo es código en los dos monolitos). Termina con los días elegidos y,
+  si no coinciden con un corte existente, con su pendiente técnico. Depende de: producto.
 - [ ] Confirmar la actividad económica: la política y el PRD excluyen independientes, pero el mapa de campos
   (versión 27-10) dice «Empleado, independiente y pensionado». Depende de: producto.
 
