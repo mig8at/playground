@@ -5,15 +5,13 @@ stage: evaluation
 created: "2026-10-28T10:38:26-05:00"
 knowledge: [lender-listing, field-scoring-policy, kyc-pipeline, identity-name-validation]
 canon: [credifamilia/context, perfilamiento/context, listado/context, documentos/context, entidad/context]
-jira: [LO-197]
-jira_title: "Finandina"
+jira: [CORE-845]
+jira_title: "Finandina: originación completa en Creditop"
 ---
 
 ## Pendientes
 
-- [ ] Confirmar que LO-197 (la épica «Finandina») es el issue de la tarea, o cambiarlo por CXCM-533, CXCM-521
-  o uno nuevo del sprint activo; termina con la clave definitiva en `jira:`. Depende de: Miguel — cuál es el
-  issue vigente.
+- [x] ~~Ligar la tarea a un issue de Jira~~ — CORE-845, creado en el sprint activo (CORE Sprint 21).
 - [ ] Confirmar qué política está vigente: el PRD de enero y la política de agosto no coinciden (monto mínimo,
   veces el ingreso, tope diario contra tope mensual, punto de corte del score); termina con la versión elegida
   escrita en «Objetivo». Depende de: producto (Maria Fernanda Parra) — la política acordada con Finandina.
@@ -104,7 +102,7 @@ Pendiente: se arma cuando la entidad esté configurada en un ambiente de prueba.
   vinculación, los T&C y el mapa de campos (versión del 2026-10-27). ⚠ La carpeta tiene tres archivos con
   credenciales: no se copian a la tarea.
 - Slack: canal `#finandina` y el hilo del PRD en `#producto-tech`.
-- Jira: LO-197 (épica), CXCM-533, CXCM-521 (políticas de entidades especiales), CRED-463 (certificación de
+- Jira: CORE-845 (la tarea); relacionados: LO-197 (épica «Finandina»), CXCM-533, CXCM-521 (políticas de entidades especiales), CRED-463 (certificación de
   Deceval).
 - Guía de integración de entidades en Confluence: «Integración originación en línea».
 
