@@ -1,0 +1,273 @@
+{
+  "version": 1,
+  "title": "De dónde sale cada credencial de una entidad",
+  "summary": "Las dos tablas de credenciales (lender_allied_credentials y risk_central_credentials), el orden en que cada monolito busca la fila, qué integraciones leen certificados y cómo, la ausencia de control de vencimiento y la elección POS/PAY de Sistecrédito.",
+  "reviewedAt": "2026-10-28T18:55:46+00:00",
+  "sources": [
+    {
+      "repo": "legacy-backend",
+      "path": "app/Models/LenderAlliedCredential.php",
+      "commit": "c03edaffa465bd07bceccd4076af5d1cec9916b9",
+      "blob": "871fcbc88f0f48c0fedb8f768e831ee2e5cf1bc9",
+      "sections": [
+        "dos-tablas-y-dos-formas-de-buscar",
+        "credencial-de-entidad-sucursal-primero-comercio-despues"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "app/Models/RiskCentralCredential.php",
+      "commit": "c03edaffa465bd07bceccd4076af5d1cec9916b9",
+      "blob": "7603bb4721a5386311ee286fed76e3dd21570a79",
+      "sections": [
+        "dos-tablas-y-dos-formas-de-buscar",
+        "credencial-de-central-la-entidad-primero-solo-en-legacy-backend"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "app/Actions/Lenders/Approbe.php",
+      "commit": "c03edaffa465bd07bceccd4076af5d1cec9916b9",
+      "blob": "d64583384f424022a7b09377b638f4e6814b547a",
+      "sections": [
+        "dos-tablas-y-dos-formas-de-buscar"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "app/Actions/Lenders/Wompi.php",
+      "commit": "c03edaffa465bd07bceccd4076af5d1cec9916b9",
+      "blob": "f55e77f01b460684e969bffd352b84bc40e5956c",
+      "sections": [
+        "dos-tablas-y-dos-formas-de-buscar"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "database/migrations/2024_05_14_155300_make_lender_allied_credential_relation_polymorphic.php",
+      "commit": "c03edaffa465bd07bceccd4076af5d1cec9916b9",
+      "blob": "3f7df85b9265a94223e72edbfe5e8a3eb37b4e6b",
+      "sections": [
+        "dos-tablas-y-dos-formas-de-buscar"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "database/migrations/2024_12_10_113238_create_risk_central_credentials_table.php",
+      "commit": "c03edaffa465bd07bceccd4076af5d1cec9916b9",
+      "blob": "304be479f2348ee0676127231306eace3d5577bf",
+      "sections": [
+        "dos-tablas-y-dos-formas-de-buscar",
+        "credencial-de-central-la-entidad-primero-solo-en-legacy-backend",
+        "ningun-codigo-mira-el-vencimiento"
+      ]
+    },
+    {
+      "repo": "application",
+      "path": "app/Models/LenderAlliedCredential.php",
+      "commit": "24dc86eb1eaabb4e4eee37750ab90e258c36ce78",
+      "blob": "871fcbc88f0f48c0fedb8f768e831ee2e5cf1bc9",
+      "sections": [
+        "dos-tablas-y-dos-formas-de-buscar"
+      ]
+    },
+    {
+      "repo": "application",
+      "path": "app/Models/RiskCentralCredential.php",
+      "commit": "24dc86eb1eaabb4e4eee37750ab90e258c36ce78",
+      "blob": "b268d45ed0c5418170bc5fbf84cc8b336859f89a",
+      "sections": [
+        "credencial-de-central-la-entidad-primero-solo-en-legacy-backend"
+      ]
+    },
+    {
+      "repo": "application",
+      "path": "app/Actions/DecevalSoap.php",
+      "commit": "24dc86eb1eaabb4e4eee37750ab90e258c36ce78",
+      "blob": "c80cf1c5d022be252d283c87e9e650f761c63004",
+      "sections": [
+        "credencial-de-central-la-entidad-primero-solo-en-legacy-backend"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "app/Actions/RiskCentrals/Experian.php",
+      "commit": "c03edaffa465bd07bceccd4076af5d1cec9916b9",
+      "blob": "cdad30514c866315d04a38cf7adfaffc13d29dee",
+      "sections": [
+        "credencial-de-central-la-entidad-primero-solo-en-legacy-backend"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "app/Actions/RiskCentrals/Ado.php",
+      "commit": "c03edaffa465bd07bceccd4076af5d1cec9916b9",
+      "blob": "b89765ee1b36443fe04b89c2815414c52b5297f6",
+      "sections": [
+        "credencial-de-central-la-entidad-primero-solo-en-legacy-backend"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "app/Actions/Lenders/Bancolombia.php",
+      "commit": "c03edaffa465bd07bceccd4076af5d1cec9916b9",
+      "blob": "4063150a4a6b4a3d569958125aefc5e74ef63134",
+      "sections": [
+        "quien-usa-certificado-y-como-lo-lee"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "app/Actions/Lenders/BancoDeBogota.php",
+      "commit": "c03edaffa465bd07bceccd4076af5d1cec9916b9",
+      "blob": "e32cad0a7b6780571ccf8e09b7ddd35a3c6cd581",
+      "sections": [
+        "quien-usa-certificado-y-como-lo-lee"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "app/Actions/Lenders/BancoDeBogotaCeroPay.php",
+      "commit": "c03edaffa465bd07bceccd4076af5d1cec9916b9",
+      "blob": "f6a15f8894a4090db678206a5fa12f909cba7536",
+      "sections": [
+        "quien-usa-certificado-y-como-lo-lee"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "app/Actions/Lenders/Credifamilia.php",
+      "commit": "c03edaffa465bd07bceccd4076af5d1cec9916b9",
+      "blob": "83439bc5561f088526b29482541d00182e8ff9c7",
+      "sections": [
+        "quien-usa-certificado-y-como-lo-lee"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "app/Actions/Lenders/CredifamiliaConsumo/CredifamiliaConsumo.php",
+      "commit": "c03edaffa465bd07bceccd4076af5d1cec9916b9",
+      "blob": "41451af4799a348e8ab5c8adf0729176b5f777de",
+      "sections": [
+        "quien-usa-certificado-y-como-lo-lee"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "app/Console/Commands/SeedCredifamiliaConsumoCredentialCommand.php",
+      "commit": "c03edaffa465bd07bceccd4076af5d1cec9916b9",
+      "blob": "b599db30e58887bcaf1d2f3adb7d8e2c73bd2004",
+      "sections": [
+        "quien-usa-certificado-y-como-lo-lee"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/Loans/App/Actions/DecevalSoap.php",
+      "commit": "c03edaffa465bd07bceccd4076af5d1cec9916b9",
+      "blob": "b27543f7ee801d79d4ad5e82af71e8ed3f4e4596",
+      "sections": [
+        "quien-usa-certificado-y-como-lo-lee"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "app/Actions/RiskCentrals/Agildata.php",
+      "commit": "c03edaffa465bd07bceccd4076af5d1cec9916b9",
+      "blob": "a32363e7b58829dd7ac9b8f9abac89d98e37a7e2",
+      "sections": [
+        "quien-usa-certificado-y-como-lo-lee"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/Risk/App/Repositories/RiskCentralCredentialRepository.php",
+      "commit": "c03edaffa465bd07bceccd4076af5d1cec9916b9",
+      "blob": "bebfa014e8bb44b8666289d0f80dde7ffb24a008",
+      "sections": [
+        "ningun-codigo-mira-el-vencimiento"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "database/migrations/2023_10_24_133600_create_lender_allied_credentials_table.php",
+      "commit": "c03edaffa465bd07bceccd4076af5d1cec9916b9",
+      "blob": "5b06671cc1ff5bd8a3e0a5ded8a54f92fa2ef0e1",
+      "sections": [
+        "ningun-codigo-mira-el-vencimiento"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "app/Actions/Lenders/Sistecredito.php",
+      "commit": "c03edaffa465bd07bceccd4076af5d1cec9916b9",
+      "blob": "0118d024f5d532a31e70d63aedb4022feeff6422",
+      "sections": [
+        "sistecredito-tres-llaves-y-la-marca-pos"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "app/Actions/Lenders/SistecreditoPos.php",
+      "commit": "c03edaffa465bd07bceccd4076af5d1cec9916b9",
+      "blob": "43d869c29a50f9c53d887142b41a237544f49e29",
+      "sections": [
+        "sistecredito-tres-llaves-y-la-marca-pos"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "app/Actions/Lenders/SistecreditoPay.php",
+      "commit": "c03edaffa465bd07bceccd4076af5d1cec9916b9",
+      "blob": "ff3314688869418baeda52c918f4fcb01aa44470",
+      "sections": [
+        "sistecredito-tres-llaves-y-la-marca-pos"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/Onboarding/App/Services/UserRequestService.php",
+      "commit": "c03edaffa465bd07bceccd4076af5d1cec9916b9",
+      "blob": "c93fa64508b12b995aaf5d44a1d3f84637933245",
+      "sections": [
+        "sistecredito-tres-llaves-y-la-marca-pos"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/System/App/Http/Controllers/Admin/CredentialsController.php",
+      "commit": "c03edaffa465bd07bceccd4076af5d1cec9916b9",
+      "blob": "d6d22f071002ea6faac8782e491bf3014195a66b",
+      "sections": [
+        "lo-que-ofrecen-los-formularios-de-administracion"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/Risk/App/Http/Controllers/Admin/RiskCentralCredentialController.php",
+      "commit": "c03edaffa465bd07bceccd4076af5d1cec9916b9",
+      "blob": "94a5f240d7cb6b6a5e028dc52d5d7b3a70316497",
+      "sections": [
+        "lo-que-ofrecen-los-formularios-de-administracion"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "app/Http/Requests/Admin/Credentials/StoreRequest.php",
+      "commit": "c03edaffa465bd07bceccd4076af5d1cec9916b9",
+      "blob": "c16af38f2f5efaf3ad741518684e194cf7c5c3d0",
+      "sections": [
+        "lo-que-ofrecen-los-formularios-de-administracion"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "app/Http/Requests/Admin/RiskCentralCredentials/StoreRequest.php",
+      "commit": "c03edaffa465bd07bceccd4076af5d1cec9916b9",
+      "blob": "ccce97d1143a38fa0619dc3b91af859c6aa22393",
+      "sections": [
+        "lo-que-ofrecen-los-formularios-de-administracion"
+      ]
+    }
+  ]
+}

@@ -204,6 +204,24 @@
       "sections": [
         "las-reglas-duras-solo-sacan-del-listado-a-algunas-entidades"
       ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/Onboarding/App/Services/lenders/RiskCentralValidationService.php",
+      "commit": "c03edaffa465bd07bceccd4076af5d1cec9916b9",
+      "blob": "81f9e92a11c0e8b6de6f9843e873b4d619e2b134",
+      "sections": [
+        "las-reglas-duras-solo-sacan-del-listado-a-algunas-entidades"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/Onboarding/App/Services/lenders/ProfilingRulesService.php",
+      "commit": "c03edaffa465bd07bceccd4076af5d1cec9916b9",
+      "blob": "4e95ed5fcb4616142d7d657d25506a5878f39553",
+      "sections": [
+        "las-reglas-duras-solo-sacan-del-listado-a-algunas-entidades"
+      ]
     }
   ]
 }

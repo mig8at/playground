@@ -1,0 +1,218 @@
+{
+  "version": 1,
+  "title": "Cómo entra y se aplica un pago CreditopX",
+  "summary": "La cascada del pago mínimo, qué se hace con el sobrante (pago total, abono o retenido), la idempotencia por transacción y cómo llega el pago por Wompi (intención, webhook, consulta de estado), la cuota inicial y la caja de Pullman, en los dos monolitos.",
+  "reviewedAt": "2026-10-28T18:54:18+00:00",
+  "sources": [
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/Loans/App/Services/CreditopXPaymentService.php",
+      "commit": "c03edaffa465bd07bceccd4076af5d1cec9916b9",
+      "blob": "796b6386460c4525005371afecc0d80d2ff4f81f",
+      "sections": [
+        "dos-motores-con-la-misma-cascada",
+        "el-pago-minimo-va-en-cascada",
+        "que-pasa-con-el-sobrante",
+        "un-cobro-de-pasarela-se-acredita-una-sola-vez"
+      ]
+    },
+    {
+      "repo": "application",
+      "path": "app/Http/Controllers/Admin/CreditopXPaymentController.php",
+      "commit": "24dc86eb1eaabb4e4eee37750ab90e258c36ce78",
+      "blob": "d303605d9c94f03114ae8bd33658fef62f737d1b",
+      "sections": [
+        "dos-motores-con-la-misma-cascada",
+        "el-pago-minimo-va-en-cascada",
+        "que-pasa-con-el-sobrante",
+        "un-cobro-de-pasarela-se-acredita-una-sola-vez",
+        "pago-en-caja-de-pullman",
+        "limites"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/Loans/App/Repositories/CreditopXRequestHistoryRepository.php",
+      "commit": "c03edaffa465bd07bceccd4076af5d1cec9916b9",
+      "blob": "de5974465bf51e3cc75f447071fc6a5a38275e11",
+      "sections": [
+        "dos-motores-con-la-misma-cascada"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/Loans/App/Support/PaymentWaterfall.php",
+      "commit": "c03edaffa465bd07bceccd4076af5d1cec9916b9",
+      "blob": "f66de5527ef54730d30b3313d57653efcfea77d4",
+      "sections": [
+        "el-pago-minimo-va-en-cascada"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/Loans/App/Support/ResidualBalance.php",
+      "commit": "c03edaffa465bd07bceccd4076af5d1cec9916b9",
+      "blob": "5fdfceda7d8b265c5ba6332da5fd9b2b384b659a",
+      "sections": [
+        "que-pasa-con-el-sobrante"
+      ]
+    },
+    {
+      "repo": "application",
+      "path": "app/Http/Controllers/Admin/CreditopXRevolvingCreditPaymentController.php",
+      "commit": "24dc86eb1eaabb4e4eee37750ab90e258c36ce78",
+      "blob": "a5feb11ee44da7ed5b496054035e8a0687ab39cb",
+      "sections": [
+        "un-cobro-de-pasarela-se-acredita-una-sola-vez"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/Loans/App/Services/PaymentIntentService.php",
+      "commit": "c03edaffa465bd07bceccd4076af5d1cec9916b9",
+      "blob": "a0df97789c6eec1f22650dfd30c474258c3a4c37",
+      "sections": [
+        "wompi-intencion-y-webhook",
+        "cuota-inicial"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/Loans/App/Http/Requests/WompiPayment/IntentRequest.php",
+      "commit": "c03edaffa465bd07bceccd4076af5d1cec9916b9",
+      "blob": "59df99a465cd0c61a1d5f2b9f6e51e6bc80074bb",
+      "sections": [
+        "wompi-intencion-y-webhook"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/Loans/App/Support/WompiSupport.php",
+      "commit": "c03edaffa465bd07bceccd4076af5d1cec9916b9",
+      "blob": "450986fa78f6462924ad8548241c026592c8b753",
+      "sections": [
+        "wompi-intencion-y-webhook"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "app/Models/LenderAlliedCredential.php",
+      "commit": "c03edaffa465bd07bceccd4076af5d1cec9916b9",
+      "blob": "871fcbc88f0f48c0fedb8f768e831ee2e5cf1bc9",
+      "sections": [
+        "wompi-intencion-y-webhook"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/Loans/App/Http/Requests/WompiPayment/WompiWebhookRequest.php",
+      "commit": "c03edaffa465bd07bceccd4076af5d1cec9916b9",
+      "blob": "d44867793ff8de5cee2ccc42966dc502a2e56138",
+      "sections": [
+        "wompi-intencion-y-webhook"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/Loans/App/Services/WompiWebhookService.php",
+      "commit": "c03edaffa465bd07bceccd4076af5d1cec9916b9",
+      "blob": "b89c830511fb48aeea2816722cb50251475e2198",
+      "sections": [
+        "wompi-intencion-y-webhook",
+        "cuota-inicial"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "app/Actions/Lenders/Wompi.php",
+      "commit": "c03edaffa465bd07bceccd4076af5d1cec9916b9",
+      "blob": "f55e77f01b460684e969bffd352b84bc40e5956c",
+      "sections": [
+        "wompi-consulta-de-estado-y-reconciliacion"
+      ]
+    },
+    {
+      "repo": "application",
+      "path": "app/Actions/Lenders/Wompi.php",
+      "commit": "24dc86eb1eaabb4e4eee37750ab90e258c36ce78",
+      "blob": "2705903fed2f451c8b2a10a371f75d6f51634378",
+      "sections": [
+        "wompi-consulta-de-estado-y-reconciliacion",
+        "cuota-inicial"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "app/Console/Commands/ReconcileWompiTransactionsCommand.php",
+      "commit": "c03edaffa465bd07bceccd4076af5d1cec9916b9",
+      "blob": "c718d34b99669fb374d259300b4b9e6f85b49171",
+      "sections": [
+        "wompi-consulta-de-estado-y-reconciliacion"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "app/Console/Kernel.php",
+      "commit": "c03edaffa465bd07bceccd4076af5d1cec9916b9",
+      "blob": "9ee74124d8db9ff4d1d0f902832eb1159dd863b7",
+      "sections": [
+        "wompi-consulta-de-estado-y-reconciliacion",
+        "limites"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/Loans/App/Support/DownPaymentRecalculation.php",
+      "commit": "c03edaffa465bd07bceccd4076af5d1cec9916b9",
+      "blob": "c7c9334fd60df61c6e8e53c36083991e0a65e714",
+      "sections": [
+        "cuota-inicial"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/Loans/App/Services/InitialFee/RecordOnlineInitialFeeService.php",
+      "commit": "c03edaffa465bd07bceccd4076af5d1cec9916b9",
+      "blob": "e7e94a05e638260f9a4c78ec6b83e071f6688b5a",
+      "sections": [
+        "cuota-inicial"
+      ]
+    },
+    {
+      "repo": "application",
+      "path": "app/Services/PullmanService.php",
+      "commit": "24dc86eb1eaabb4e4eee37750ab90e258c36ce78",
+      "blob": "bc5a36f5421b3f424857f3a61749d1136ab50d87",
+      "sections": [
+        "pago-en-caja-de-pullman"
+      ]
+    },
+    {
+      "repo": "application",
+      "path": "app/Repositories/PullmanRepository.php",
+      "commit": "24dc86eb1eaabb4e4eee37750ab90e258c36ce78",
+      "blob": "6db3b758f149457c04f95c81d9501f9321994d52",
+      "sections": [
+        "pago-en-caja-de-pullman"
+      ]
+    },
+    {
+      "repo": "application",
+      "path": "app/Jobs/ValidatePullmanPayment.php",
+      "commit": "24dc86eb1eaabb4e4eee37750ab90e258c36ce78",
+      "blob": "289efe83f27556697c507cf05d5ee0e4dc64f955",
+      "sections": [
+        "pago-en-caja-de-pullman"
+      ]
+    },
+    {
+      "repo": "application",
+      "path": "app/Console/Kernel.php",
+      "commit": "24dc86eb1eaabb4e4eee37750ab90e258c36ce78",
+      "blob": "a1df17f166609b5a6b6f0ba935b8160eb2bfced5",
+      "sections": [
+        "limites"
+      ]
+    }
+  ]
+}

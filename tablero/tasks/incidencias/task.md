@@ -69,6 +69,14 @@ Salvo donde se dice «corrido», salen de LEER el código: falta reproducirlos.
 
 ### Media — comportamiento distinto al esperado
 
+- [ ] Revisar que editar el convenio de UN comercio con una entidad borra y recrea las garantías y los medios de
+  pago de la ENTIDAD (`lender_guarantee_criteria` y `payment_methods_by_lender` no tienen comercio), así que
+  cambia los de todos sus comercios; y que quitar un convenio no corre en transacción. Está en los dos
+  monolitos (`knowledge/merchant-lender-agreement`). Termina con la decisión de producto y su tarea.
+- [ ] Corregir que el guardado de datos personales v1 rechace con ONB005 al dueño que reenvía su propio
+  documento: el pre-chequeo de duplicado sólo exime al codeudor; el v2 sí exime al dueño
+  (`knowledge/returning-client-personal-info`). Termina con el caso corrido y la corrección o el descarte.
+
 - [ ] Ponerle a `user_requests_by_ecommerce_request` una restricción única sobre (`ecommerce_request_id`,
   `user_request_id`) y dejar escrito en el código que `ecommerce_requests.user_request_id` es «la solicitud actual
   del pedido» y la tabla el historial. Hoy sólo el `updateOrCreate` evita duplicados (en qa no hay; en prod no se
@@ -114,6 +122,11 @@ Salvo donde se dice «corrido», salen de LEER el código: falta reproducirlos.
 - [ ] Corregir el comentario de `AbacoConsultStateResolver` («vale 1 mes»): el código usa 7 días por defecto.
 
 ### Seguridad — decidir con el equipo
+
+- [ ] Sacar la contraseña del certificado de Credifamilia Consumo del log: `CredifamiliaConsumo::makeClient`
+  (legacy-backend) manda `certPassword` al tracer en cada radicación. Termina cuando el log no la incluye y se
+  decide si hay que rotar el certificado. De paso: el comando de siembra de esa credencial escribe
+  `credifamilia_consumo_cert/key/cert_password`, pero la acción lee `credifamilia_cert/key/password`.
 
 - [ ] Decidir cómo frenar el abuso del pre-registro de comercios: el token de servicio viaja en la página y
   el único límite es por correo, así que un programa que cambie el correo en cada envío no tiene freno.

@@ -1,0 +1,131 @@
+{
+  "version": 1,
+  "title": "Oferta de CreditopX en la tarjeta: cupo, cuota inicial y cuota",
+  "summary": "Cómo calcula el asistente la oferta de una entidad CreditopX o rotativa (CalculateLoanFinancialsUc): de dónde llegan cupo, FGA, tasa y porcentaje, la cuota inicial como el mayor entre excedente y política, el valor a financiar sin FGA, los plazos por categoría y tramo, y en qué difiere el backend al liquidar.",
+  "reviewedAt": "2026-10-28T18:57:05+00:00",
+  "sources": [
+    {
+      "repo": "frontend-monorepo",
+      "path": "modules/loan-request-wizard/lenders-marketplace/src/lib/application/calculate-loan-financials.uc.ts",
+      "commit": "1238d30ef1459fd1fb84ac8020fbacb64a658e55",
+      "blob": "66dd5daad3abe2a5749dfc1df8226ecfb931abed",
+      "sections": [
+        "de-donde-salen-los-numeros-de-la-tarjeta",
+        "la-cuota-inicial-minima-es-el-mayor-de-dos-pisos",
+        "cuando-se-resta-la-cuota-inicial",
+        "valor-a-financiar-fga-y-cuota"
+      ]
+    },
+    {
+      "repo": "frontend-monorepo",
+      "path": "modules/loan-request-wizard/lenders-marketplace/src/lib/domain/constants/lender.constants.ts",
+      "commit": "1238d30ef1459fd1fb84ac8020fbacb64a658e55",
+      "blob": "fd2866668f3f42afcdc19609b14d4743329fc647",
+      "sections": [
+        "cuando-se-resta-la-cuota-inicial",
+        "valor-a-financiar-fga-y-cuota"
+      ]
+    },
+    {
+      "repo": "frontend-monorepo",
+      "path": "modules/loan-request-wizard/lenders-marketplace/src/components/available-lenders/lender-resolution.service.ts",
+      "commit": "1238d30ef1459fd1fb84ac8020fbacb64a658e55",
+      "blob": "e0141f859f87a85fc9dda2cf49cbf2632f41cc50",
+      "sections": [
+        "de-donde-salen-los-numeros-de-la-tarjeta"
+      ]
+    },
+    {
+      "repo": "frontend-monorepo",
+      "path": "modules/loan-request-wizard/lenders-marketplace/src/lib/infrastructure/repositories/loan-options.repository.ts",
+      "commit": "1238d30ef1459fd1fb84ac8020fbacb64a658e55",
+      "blob": "112c2e0444bce4136fbbc78d1f9315bf5060ead8",
+      "sections": [
+        "de-donde-salen-los-numeros-de-la-tarjeta"
+      ]
+    },
+    {
+      "repo": "frontend-monorepo",
+      "path": "apps/backoffice/app/components/profiling/Paso4Calculo.tsx",
+      "commit": "1238d30ef1459fd1fb84ac8020fbacb64a658e55",
+      "blob": "dfc43a5b907247f385ed436ab0dc1d062c5f9adf",
+      "sections": [
+        "de-donde-salen-los-numeros-de-la-tarjeta"
+      ]
+    },
+    {
+      "repo": "frontend-monorepo",
+      "path": "modules/loan-request-wizard/lenders-marketplace/src/components/available-lenders/hooks/useInstallmentOptions.ts",
+      "commit": "1238d30ef1459fd1fb84ac8020fbacb64a658e55",
+      "blob": "60bbe2da3d8f21a5a644aa71c0530c2cad758780",
+      "sections": [
+        "plazos-que-ofrece-la-tarjeta"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/Onboarding/App/Services/lenders/LenderListingService.php",
+      "commit": "c03edaffa465bd07bceccd4076af5d1cec9916b9",
+      "blob": "b5c813f1c70bc407b080d15a05c44ce3fdb0e681",
+      "sections": [
+        "de-donde-salen-los-numeros-de-la-tarjeta"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/Onboarding/App/Services/lenders/LenderRetrievalService.php",
+      "commit": "c03edaffa465bd07bceccd4076af5d1cec9916b9",
+      "blob": "aeb7c50ddd1e854c80fc088591439cc64769ca20",
+      "sections": [
+        "de-donde-salen-los-numeros-de-la-tarjeta",
+        "plazos-que-ofrece-la-tarjeta"
+      ]
+    },
+    {
+      "repo": "pre-approvals-service",
+      "path": "internal/infra/lending_products/creditop_x/adapter.go",
+      "commit": "8bfbee92f31a2520c94e371971d469cb399dc7a2",
+      "blob": "d86101577ee69cf776345775a54f045a7ab9bb7d",
+      "sections": [
+        "el-cupo-que-llega-como-available"
+      ]
+    },
+    {
+      "repo": "pre-approvals-service",
+      "path": "internal/infra/lending_products/contract_fields.go",
+      "commit": "8bfbee92f31a2520c94e371971d469cb399dc7a2",
+      "blob": "1e18c6c6b666e50bff8e84a0355e8099702131bb",
+      "sections": [
+        "el-cupo-que-llega-como-available"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/Loans/App/Http/Controllers/Customer/CreditopXQuotaController.php",
+      "commit": "c03edaffa465bd07bceccd4076af5d1cec9916b9",
+      "blob": "cce703d991d2da707ad774e624c2e410a55a318a",
+      "sections": [
+        "de-donde-salen-los-numeros-de-la-tarjeta",
+        "el-cupo-que-llega-como-available"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/Loans/App/Services/InitialFee/InitialFeePolicyResolver.php",
+      "commit": "c03edaffa465bd07bceccd4076af5d1cec9916b9",
+      "blob": "150ca8188384ec420b7f2deec841e1ace86d88fc",
+      "sections": [
+        "el-backend-repite-la-regla-con-iva-fijo"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/Loans/App/Services/PaymentSchedule/PaymentCalculationService.php",
+      "commit": "c03edaffa465bd07bceccd4076af5d1cec9916b9",
+      "blob": "c2dfb16c21dc9188f0fb087387eb103f3ba4b06d",
+      "sections": [
+        "el-backend-repite-la-regla-con-iva-fijo"
+      ]
+    }
+  ]
+}

@@ -103,7 +103,8 @@
       "commit": "3394193660a2ab7d2d923dda12421a5bdd867414",
       "blob": "310912ecce6f98a21e4a173cf26619658023dcc3",
       "sections": [
-        "que-cambia-en-el-wizard-segun-el-camino"
+        "que-cambia-en-el-wizard-segun-el-camino",
+        "como-termina-la-corrida-y-que-ve-el-wizard"
       ]
     },
     {
@@ -132,7 +133,8 @@
       "blob": "2a4480b83390337edf45a44bd3c0db59714ca750",
       "sections": [
         "el-servicio-recorre-un-grafo-por-tipo-y-pais",
-        "antes-de-validar-algo-de-identidad-o-centrales"
+        "antes-de-validar-algo-de-identidad-o-centrales",
+        "como-termina-la-corrida-y-que-ve-el-wizard"
       ]
     },
     {
@@ -176,6 +178,42 @@
       "path": "internal/infra/storage/postgres/migrations/000005_pipeline_type_by_partner.up.sql",
       "commit": "b17bd10260f339df256b14693788dac2293a7cb2",
       "blob": "185ab82281dad5ce00deee86236d69d530ced659",
+      "sections": [
+        "el-servicio-recorre-un-grafo-por-tipo-y-pais"
+      ]
+    },
+    {
+      "repo": "customer-profiling-service",
+      "path": "internal/core/workflows/legacykycpipeline/providers.go",
+      "commit": "09c0703ffe6e662bac6d4fc58fa715c1f808a914",
+      "blob": "bfb7c2040e32df61194c452b2c38203161680430",
+      "sections": [
+        "como-termina-la-corrida-y-que-ve-el-wizard"
+      ]
+    },
+    {
+      "repo": "frontend-monorepo",
+      "path": "apps/loan-request-wizard/app/routes/loan-application-form/kyc-pending-routing.ts",
+      "commit": "1238d30ef1459fd1fb84ac8020fbacb64a658e55",
+      "blob": "8e8375aaba763e9065603abeefad9b2aa119ca87",
+      "sections": [
+        "como-termina-la-corrida-y-que-ve-el-wizard"
+      ]
+    },
+    {
+      "repo": "customer-profiling-service",
+      "path": "internal/core/workflows/legacykycpipeline/workflow_test.go",
+      "commit": "09c0703ffe6e662bac6d4fc58fa715c1f808a914",
+      "blob": "bc3184bd4ca59c8b6eeac407f296ad301a259ec1",
+      "sections": [
+        "el-servicio-recorre-un-grafo-por-tipo-y-pais"
+      ]
+    },
+    {
+      "repo": "customer-profiling-service",
+      "path": "internal/core/workflows/legacykycpipeline/graph_specs_test.go",
+      "commit": "09c0703ffe6e662bac6d4fc58fa715c1f808a914",
+      "blob": "4dcc47f39d115915ae6aab4a4079047bd24a682c",
       "sections": [
         "el-servicio-recorre-un-grafo-por-tipo-y-pais"
       ]

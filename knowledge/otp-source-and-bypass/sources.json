@@ -1,0 +1,140 @@
+{
+  "version": 1,
+  "title": "OTP: origen, OTP del pagaré y bypass de QA",
+  "summary": "Cómo legacy-backend clasifica cada OTP por origen en otps.source, genera y valida el OTP de 6 dígitos del pagaré por el servicio de OTP, deriva el resultado en el backoffice y cuándo el bypass de QA salta el envío.",
+  "reviewedAt": "2026-10-28T18:58:19+00:00",
+  "sources": [
+    {
+      "repo": "legacy-backend",
+      "path": "database/migrations/2026_07_09_130000_add_source_and_qa_bypass_to_otps.php",
+      "commit": "c03edaffa465bd07bceccd4076af5d1cec9916b9",
+      "blob": "ff74ffbce0b689491ff721b71299265651c87167",
+      "sections": [
+        "el-origen-queda-en-la-fila-del-otp"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "app/Enums/OtpSource.php",
+      "commit": "c03edaffa465bd07bceccd4076af5d1cec9916b9",
+      "blob": "54bb106d242bc2f694b4bcddcfdb6c5cb9a601bd",
+      "sections": [
+        "el-origen-queda-en-la-fila-del-otp"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/Onboarding/App/Services/OtpService.php",
+      "commit": "c03edaffa465bd07bceccd4076af5d1cec9916b9",
+      "blob": "24139219ab32e0dd068baad39125ffd397de5a3b",
+      "sections": [
+        "el-origen-queda-en-la-fila-del-otp",
+        "el-otp-de-onboarding",
+        "el-bypass-de-qa"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/Onboarding/App/Services/MobileOnboardingService.php",
+      "commit": "c03edaffa465bd07bceccd4076af5d1cec9916b9",
+      "blob": "2cc3688440c9c5afa2554012559888753395c860",
+      "sections": [
+        "el-origen-queda-en-la-fila-del-otp"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/Auth/App/Services/AuthService.php",
+      "commit": "c03edaffa465bd07bceccd4076af5d1cec9916b9",
+      "blob": "b0b500b4542b4653800cc6b232e40b8a97d4aab2",
+      "sections": [
+        "el-origen-queda-en-la-fila-del-otp"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/Backoffice/App/Services/UsersService.php",
+      "commit": "c03edaffa465bd07bceccd4076af5d1cec9916b9",
+      "blob": "5b3273ab1b0c7d7cc80b9baa7bca8b747c4c0937",
+      "sections": [
+        "el-origen-queda-en-la-fila-del-otp"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/Loans/App/Services/OtpService.php",
+      "commit": "c03edaffa465bd07bceccd4076af5d1cec9916b9",
+      "blob": "691163e6ac4f5ceaaf56a5a36a2d2415ccc1f806",
+      "sections": [
+        "el-origen-queda-en-la-fila-del-otp",
+        "el-otp-del-pagare-se-genera-en-el-servicio-de-otp",
+        "el-bypass-de-qa"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/Loans/App/Services/OtpValidationService.php",
+      "commit": "c03edaffa465bd07bceccd4076af5d1cec9916b9",
+      "blob": "2903ca96df02352c738cc82237732fd7246d1676",
+      "sections": [
+        "el-otp-del-pagare-se-genera-en-el-servicio-de-otp",
+        "el-bypass-de-qa"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/Onboarding/App/Services/PhoneRoutingService.php",
+      "commit": "c03edaffa465bd07bceccd4076af5d1cec9916b9",
+      "blob": "60cec93cd04078d358bce2db1f6318f938ee988a",
+      "sections": [
+        "el-otp-del-pagare-se-genera-en-el-servicio-de-otp",
+        "el-otp-de-onboarding"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/Onboarding/App/Http/Requests/SendOtpCodeRequest.php",
+      "commit": "c03edaffa465bd07bceccd4076af5d1cec9916b9",
+      "blob": "4d402e58b3bc916f4800be03b53e30ea0e67cbfa",
+      "sections": [
+        "el-otp-de-onboarding"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/Onboarding/App/Services/OtpBypassService.php",
+      "commit": "c03edaffa465bd07bceccd4076af5d1cec9916b9",
+      "blob": "a2d611063e213f6939180b76cb1a69bdf8441ee3",
+      "sections": [
+        "el-bypass-de-qa"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/Onboarding/App/Services/QaModeService.php",
+      "commit": "c03edaffa465bd07bceccd4076af5d1cec9916b9",
+      "blob": "6b8fda8004c7c226c1bc5ab8c28b0866aadf29ec",
+      "sections": [
+        "el-bypass-de-qa"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/Onboarding/App/Services/QaMessageRoutingService.php",
+      "commit": "c03edaffa465bd07bceccd4076af5d1cec9916b9",
+      "blob": "89100218e4794b04dae2484a188b8e23fcdc2617",
+      "sections": [
+        "el-bypass-de-qa"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "config/onboarding.php",
+      "commit": "c03edaffa465bd07bceccd4076af5d1cec9916b9",
+      "blob": "65c6a8be07ab166e302ce25958c0bc8a58503465",
+      "sections": [
+        "el-bypass-de-qa"
+      ]
+    }
+  ]
+}

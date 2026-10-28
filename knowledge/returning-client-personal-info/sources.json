@@ -1,0 +1,122 @@
+{
+  "version": 1,
+  "title": "Cliente temporal y consolidado al validar el OTP y guardar datos personales",
+  "summary": "Qué decide legacy-backend al validar el OTP y al guardar datos personales según el usuario sea temporal o consolidado: desenlaces del OTP v2, guardas del formulario, el documento inmutable, el documento de otra persona y qué columnas puede corregir un consolidado.",
+  "reviewedAt": "2026-10-28T18:58:18+00:00",
+  "sources": [
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/Onboarding/App/Services/UserService.php",
+      "commit": "c03edaffa465bd07bceccd4076af5d1cec9916b9",
+      "blob": "800233eb8f163caca142cd682f81f0076f0f37f2",
+      "sections": [
+        "temporal-y-consolidado",
+        "quien-cambia-de-celular"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/Onboarding/App/Services/OnboardingService.php",
+      "commit": "c03edaffa465bd07bceccd4076af5d1cec9916b9",
+      "blob": "2b8146b5aa65d80b144d70c774b1d12cce4c9fa3",
+      "sections": [
+        "temporal-y-consolidado"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/RiskV2/App/Repositories/UserRepository.php",
+      "commit": "c03edaffa465bd07bceccd4076af5d1cec9916b9",
+      "blob": "93ec334504ecce1521123d04e615c3fc96caa557",
+      "sections": [
+        "temporal-y-consolidado"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/RiskV2/App/Services/StoreRiskCentralDataService.php",
+      "commit": "c03edaffa465bd07bceccd4076af5d1cec9916b9",
+      "blob": "bbc75b207fc41fee3b68f910c72838b9493bdfba",
+      "sections": [
+        "temporal-y-consolidado"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/OnboardingV2/App/Services/CompleteKycService.php",
+      "commit": "c03edaffa465bd07bceccd4076af5d1cec9916b9",
+      "blob": "6fd8bc9c9aef5bf06c2bfc19a4b059c9a1a6c7ba",
+      "sections": [
+        "temporal-y-consolidado"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/OnboardingV2/App/Services/ValidateOtpAuthService.php",
+      "commit": "c03edaffa465bd07bceccd4076af5d1cec9916b9",
+      "blob": "3bc3579d02b18312ec341a1d5470b93e26a97b57",
+      "sections": [
+        "los-desenlaces-al-validar-el-otp-v2"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/Onboarding/App/Http/Controllers/OnboardingController.php",
+      "commit": "c03edaffa465bd07bceccd4076af5d1cec9916b9",
+      "blob": "738415ab7825c6212177127c5fd8ccddc4c69f54",
+      "sections": [
+        "los-desenlaces-al-validar-el-otp-v2",
+        "diferencia-con-el-v1-en-el-documento-duplicado"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/OnboardingV2/App/Services/StorePersonalInfoService.php",
+      "commit": "c03edaffa465bd07bceccd4076af5d1cec9916b9",
+      "blob": "66f492e2ac8be8f42e3f422da06701a7e60127aa",
+      "sections": [
+        "temporal-y-consolidado",
+        "las-guardas-del-formulario-en-orden",
+        "que-puede-cambiar-un-consolidado",
+        "quien-cambia-de-celular"
+      ]
+    },
+    {
+      "repo": "frontend-monorepo",
+      "path": "apps/loan-request-wizard/app/routes/loan-application-form/loan-request-form.tsx",
+      "commit": "1238d30ef1459fd1fb84ac8020fbacb64a658e55",
+      "blob": "f173e5d63379afecf977f0ed703886cea68821f9",
+      "sections": [
+        "las-guardas-del-formulario-en-orden"
+      ]
+    },
+    {
+      "repo": "frontend-monorepo",
+      "path": "modules/loan-request-wizard/loan-application-form/src/lib/infrastructure/personal-info.repository.ts",
+      "commit": "1238d30ef1459fd1fb84ac8020fbacb64a658e55",
+      "blob": "f9211cd36673925be48bb15e642c41c068e2ba05",
+      "sections": [
+        "las-guardas-del-formulario-en-orden",
+        "que-puede-cambiar-un-consolidado"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/OnboardingV2/App/Http/Requests/StorePersonalInfoRequest.php",
+      "commit": "c03edaffa465bd07bceccd4076af5d1cec9916b9",
+      "blob": "abb0b5625deb54d6ee1e3ecbdd80e36f556e5a14",
+      "sections": [
+        "que-puede-cambiar-un-consolidado"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/Onboarding/App/Http/Requests/PersonalInfoRequest.php",
+      "commit": "c03edaffa465bd07bceccd4076af5d1cec9916b9",
+      "blob": "e403c4b841e24acd5fdea19ede280f83ac98c22a",
+      "sections": [
+        "que-puede-cambiar-un-consolidado"
+      ]
+    }
+  ]
+}

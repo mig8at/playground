@@ -1,0 +1,241 @@
+{
+  "version": 1,
+  "title": "KYC nuevo: qué camino toma una solicitud y cuándo se consulta Experian",
+  "summary": "Cómo el pipeline de KYC elige grafo (STANDARD, CREDITOP_X, PULLMAN, DFS) por sucursal, cuándo salta una central por dato vigente y en qué orden decide el disparador de Experian, con su bypass, su frecuencia y la variante que compra.",
+  "reviewedAt": "2026-10-28T18:54:53+00:00",
+  "sources": [
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/OnboardingV2/App/Services/ResolveKycRequirementsService.php",
+      "commit": "c03edaffa465bd07bceccd4076af5d1cec9916b9",
+      "blob": "a97b4f134c8d6e9e8ea2e8cfe5a8c5ba512ad70a",
+      "sections": [
+        "el-tipo-de-grafo-lo-deduce-el-backend-por-sucursal"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/OnboardingV2/App/Repositories/LenderByAlliedBranchRepository.php",
+      "commit": "c03edaffa465bd07bceccd4076af5d1cec9916b9",
+      "blob": "bb20843b742f0470cc5794e5568564ce7e425603",
+      "sections": [
+        "el-tipo-de-grafo-lo-deduce-el-backend-por-sucursal"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/OnboardingV2/App/Constants/KycParityConstants.php",
+      "commit": "c03edaffa465bd07bceccd4076af5d1cec9916b9",
+      "blob": "57c84d311455731595bba6eeab2d6121f278988b",
+      "sections": [
+        "el-tipo-de-grafo-lo-deduce-el-backend-por-sucursal"
+      ]
+    },
+    {
+      "repo": "customer-profiling-service",
+      "path": "internal/core/workflows/legacykycpipeline/workflow.go",
+      "commit": "09c0703ffe6e662bac6d4fc58fa715c1f808a914",
+      "blob": "2a4480b83390337edf45a44bd3c0db59714ca750",
+      "sections": [
+        "el-tipo-de-grafo-lo-deduce-el-backend-por-sucursal",
+        "pullman-y-dfs-un-override-en-el-servicio",
+        "lo-que-el-servicio-hace-con-el-veredicto"
+      ]
+    },
+    {
+      "repo": "customer-profiling-service",
+      "path": "internal/core/workflows/legacykycpipeline/providers.go",
+      "commit": "09c0703ffe6e662bac6d4fc58fa715c1f808a914",
+      "blob": "bfb7c2040e32df61194c452b2c38203161680430",
+      "sections": [
+        "el-tipo-de-grafo-lo-deduce-el-backend-por-sucursal",
+        "lo-que-el-servicio-hace-con-el-veredicto"
+      ]
+    },
+    {
+      "repo": "customer-profiling-service",
+      "path": "internal/infra/storage/postgres/migrations/000005_pipeline_type_by_partner.up.sql",
+      "commit": "09c0703ffe6e662bac6d4fc58fa715c1f808a914",
+      "blob": "185ab82281dad5ce00deee86236d69d530ced659",
+      "sections": [
+        "pullman-y-dfs-un-override-en-el-servicio"
+      ]
+    },
+    {
+      "repo": "customer-profiling-service",
+      "path": "internal/core/workflows/legacykycpipeline/activities.go",
+      "commit": "09c0703ffe6e662bac6d4fc58fa715c1f808a914",
+      "blob": "4ebc385832c7e870ad61a17a8cde070b8c796697",
+      "sections": [
+        "pullman-y-dfs-un-override-en-el-servicio"
+      ]
+    },
+    {
+      "repo": "customer-profiling-service",
+      "path": "internal/infra/storage/postgres/pipeline_repository.go",
+      "commit": "09c0703ffe6e662bac6d4fc58fa715c1f808a914",
+      "blob": "8ba0e004dbaaf3a28417df664f114831f3d14db6",
+      "sections": [
+        "pullman-y-dfs-un-override-en-el-servicio"
+      ]
+    },
+    {
+      "repo": "customer-profiling-service",
+      "path": "internal/infra/storage/postgres/migrations/000002_default_pipeline_cascade.up.sql",
+      "commit": "09c0703ffe6e662bac6d4fc58fa715c1f808a914",
+      "blob": "90c288ac3d18a6a4718368593eaf91c60c2bfd59",
+      "sections": [
+        "los-cuatro-grafos"
+      ]
+    },
+    {
+      "repo": "customer-profiling-service",
+      "path": "internal/infra/storage/postgres/migrations/000004_pipeline_type.up.sql",
+      "commit": "09c0703ffe6e662bac6d4fc58fa715c1f808a914",
+      "blob": "e80b48eedd47055972c56051552c0278fc566a74",
+      "sections": [
+        "los-cuatro-grafos"
+      ]
+    },
+    {
+      "repo": "customer-profiling-service",
+      "path": "internal/core/workflows/legacykycpipeline/workflow_test.go",
+      "commit": "09c0703ffe6e662bac6d4fc58fa715c1f808a914",
+      "blob": "bc3184bd4ca59c8b6eeac407f296ad301a259ec1",
+      "sections": [
+        "los-cuatro-grafos"
+      ]
+    },
+    {
+      "repo": "customer-profiling-service",
+      "path": "internal/core/workflows/legacykycpipeline/graph_specs_test.go",
+      "commit": "09c0703ffe6e662bac6d4fc58fa715c1f808a914",
+      "blob": "4dcc47f39d115915ae6aab4a4079047bd24a682c",
+      "sections": [
+        "los-cuatro-grafos"
+      ]
+    },
+    {
+      "repo": "customer-profiling-service",
+      "path": "internal/core/workflows/legacykycpipeline/walk.go",
+      "commit": "09c0703ffe6e662bac6d4fc58fa715c1f808a914",
+      "blob": "dac393794fe7f77a7d1838ef6f9c55fe8cd3a5bb",
+      "sections": [
+        "los-cuatro-grafos",
+        "antes-de-cada-central-el-dato-vigente",
+        "lo-que-el-servicio-hace-con-el-veredicto"
+      ]
+    },
+    {
+      "repo": "customer-profiling-service",
+      "path": "internal/infra/clients/legacy_client.go",
+      "commit": "09c0703ffe6e662bac6d4fc58fa715c1f808a914",
+      "blob": "601fcbe57e4d04b8f158fe12b043af4f116924cd",
+      "sections": [
+        "antes-de-cada-central-el-dato-vigente",
+        "lo-que-el-servicio-hace-con-el-veredicto"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/RiskV2/routes/api.php",
+      "commit": "c03edaffa465bd07bceccd4076af5d1cec9916b9",
+      "blob": "2a9610c9ba81cc47afc707da1c5e14d91616257f",
+      "sections": [
+        "antes-de-cada-central-el-dato-vigente",
+        "el-disparador-etapa-por-etapa"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/RiskV2/App/Http/Controllers/CheckRiskCentralDataController.php",
+      "commit": "c03edaffa465bd07bceccd4076af5d1cec9916b9",
+      "blob": "e5c99ed00bd0c5ebdf54f5c442b2f6fbeae62864",
+      "sections": [
+        "antes-de-cada-central-el-dato-vigente"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/RiskV2/App/Services/GetRiskCentralDataService.php",
+      "commit": "c03edaffa465bd07bceccd4076af5d1cec9916b9",
+      "blob": "e70c3916c09d2ce3d7f2b5785bf0395a32185392",
+      "sections": [
+        "antes-de-cada-central-el-dato-vigente"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/RiskV2/App/PreProcessors/RiskCentral/ExperianAciertaPreProcessor.php",
+      "commit": "c03edaffa465bd07bceccd4076af5d1cec9916b9",
+      "blob": "691acbf7b392c04839a46f5206dfe386a9cdaf4b",
+      "sections": [
+        "antes-de-cada-central-el-dato-vigente"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/RiskV2/App/Services/CheckExperianTriggerService.php",
+      "commit": "c03edaffa465bd07bceccd4076af5d1cec9916b9",
+      "blob": "f714ca17224a426d93afca58f485663741cf7f7b",
+      "sections": [
+        "el-disparador-etapa-por-etapa",
+        "frecuencia-uno-de-cada-n"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/RiskV2/App/Constants/CheckExperianTriggerServiceConstants.php",
+      "commit": "c03edaffa465bd07bceccd4076af5d1cec9916b9",
+      "blob": "2fc6e2ad7cd3d730283e3b749bc5081c424eea8a",
+      "sections": [
+        "el-disparador-etapa-por-etapa"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/RiskV2/App/ExperianAlliedValidators/Allied/PullmanExperianTriggerValidator.php",
+      "commit": "c03edaffa465bd07bceccd4076af5d1cec9916b9",
+      "blob": "321abdaca1a37ffeb4bd831d82c28e3e51463202",
+      "sections": [
+        "el-disparador-etapa-por-etapa"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/RiskV2/App/ExperianAlliedValidators/Base/ExperianTriggerValidatorResolver.php",
+      "commit": "c03edaffa465bd07bceccd4076af5d1cec9916b9",
+      "blob": "021bdf7a7c61311aae86c444b174fcc1f6e47ee4",
+      "sections": [
+        "el-disparador-etapa-por-etapa"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/RiskV2/App/ExperianLenderValidators/Base/ExperianLenderTriggerValidatorResolver.php",
+      "commit": "c03edaffa465bd07bceccd4076af5d1cec9916b9",
+      "blob": "576590d8ea586bbcc495562a06c54c685d75c4e8",
+      "sections": [
+        "el-disparador-etapa-por-etapa"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/RiskV2/App/ExperianLenderValidators/Lender/CredifamiliaExperianLenderTriggerValidator.php",
+      "commit": "c03edaffa465bd07bceccd4076af5d1cec9916b9",
+      "blob": "2864029474b16f693624949acb79d41da3ee4605",
+      "sections": [
+        "el-disparador-etapa-por-etapa"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/LenderV1/App/Repositories/LendersByAlliedBranchRepository.php",
+      "commit": "c03edaffa465bd07bceccd4076af5d1cec9916b9",
+      "blob": "3ee97e78aa987038799a4b72ce23842c04d9f4ba",
+      "sections": [
+        "el-disparador-etapa-por-etapa"
+      ]
+    }
+  ]
+}

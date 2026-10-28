@@ -1,0 +1,75 @@
+{
+  "version": 1,
+  "title": "Convenio comercio–entidad y su habilitación en sucursales",
+  "summary": "Qué escriben y borran crear, editar y quitar un convenio comercio–entidad en los dos admins (garantías y medios de pago por entidad, permisos CreditopX, subsidio) y cómo guardar la sucursal recrea sus habilitaciones y exige convenio por efecto lateral.",
+  "reviewedAt": "2026-10-28T18:58:19+00:00",
+  "sources": [
+    {
+      "repo": "application",
+      "path": "app/Http/Controllers/Admin/AlliedLenderController.php",
+      "commit": "24dc86eb1eaabb4e4eee37750ab90e258c36ce78",
+      "blob": "c938cc8e7dea9ade9b2e3ef7da993f030109ed94",
+      "sections": [
+        "crear-un-convenio",
+        "editar-un-convenio-cambia-datos-de-otros-comercios",
+        "quitar-un-convenio"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/Partner/App/Http/Controllers/AlliedLenderController.php",
+      "commit": "c03edaffa465bd07bceccd4076af5d1cec9916b9",
+      "blob": "b46a2ccda623ab92d15d928cad8d5341ef0356b9",
+      "sections": [
+        "crear-un-convenio",
+        "editar-un-convenio-cambia-datos-de-otros-comercios",
+        "quitar-un-convenio"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/Partner/routes/api.php",
+      "commit": "c03edaffa465bd07bceccd4076af5d1cec9916b9",
+      "blob": "29bc9b60adf04a7182ef2774c151522c121b029a",
+      "sections": [
+        "crear-un-convenio"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "database/migrations/2024_08_13_203416_create_lender_guarantee_criteria_table.php",
+      "commit": "c03edaffa465bd07bceccd4076af5d1cec9916b9",
+      "blob": "c1368c4ad385864f7ee8f4ebc034dcb8ccd9e3c2",
+      "sections": [
+        "editar-un-convenio-cambia-datos-de-otros-comercios"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "database/migrations/2024_08_27_122643_create_payment_methods_by_lender.php",
+      "commit": "c03edaffa465bd07bceccd4076af5d1cec9916b9",
+      "blob": "c1d6db391c727c807fecb1a7b632337369a29172",
+      "sections": [
+        "editar-un-convenio-cambia-datos-de-otros-comercios"
+      ]
+    },
+    {
+      "repo": "application",
+      "path": "app/Http/Controllers/Admin/AlliedAlliedBranchController.php",
+      "commit": "24dc86eb1eaabb4e4eee37750ab90e258c36ce78",
+      "blob": "be1146122a40887c03a1ddeba278f7c44c6308f7",
+      "sections": [
+        "habilitar-entidades-al-guardar-la-sucursal"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/Partner/App/Services/AlliedManagementService.php",
+      "commit": "c03edaffa465bd07bceccd4076af5d1cec9916b9",
+      "blob": "12691defe028726550d2c0d772b0d994c6a2b4fe",
+      "sections": [
+        "habilitar-entidades-al-guardar-la-sucursal"
+      ]
+    }
+  ]
+}

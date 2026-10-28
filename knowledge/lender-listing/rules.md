@@ -80,8 +80,11 @@ Por eso cargar en `lender_rules` la política de una entidad de respuesta extern
 listado. En el backend modular una regla con `status = 0` no se evalúa, como en el flujo de cupo;
 application la sigue evaluando.
 
-El umbral de score de `lender_datacredito_rules` (con `allow_0_score` para aceptar score 0) sólo lo
-aplican caminos de CreditopX: en el backend modular, el cupo de CreditopX y el rotativo
-(`DatacreditoRuleEvaluator`), porque en el listado esa evaluación está comentada; en application,
-el listado lo evalúa sólo para `response_type` 2. `cities_by_lender` existe como tabla en los dos
+El umbral de score de `lender_datacredito_rules` excluye sólo en caminos de CreditopX: en el backend
+modular, el cupo de CreditopX y el rotativo (`DatacreditoRuleEvaluator`, con `allow_0_score` para
+aceptar score 0); en application, el listado lo evalúa sólo para `response_type` 2. En el listado del
+backend modular el bloque de buró de las reglas duras está comentado, y la regla de la sucursal la
+evalúa en cambio `RiskCentralValidationService`, sólo si el comercio tiene fila en
+`datacredito_frequencies` y el cliente tiene score: sin `allow_0_score`, y una entidad que falla no sale,
+vuelve a la lista con probabilidad baja. `cities_by_lender` existe como tabla en los dos
 monolitos, pero ningún código la lee: no restringe por ciudad.

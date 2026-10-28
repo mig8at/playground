@@ -58,10 +58,12 @@ el `pipelineType` (`STANDARD` o `CREDITOP_X`) con el país. El grafo sale de su 
 por `(pipeline_type, country_code)` activo; la tabla `kyc_pipeline_type_by_partner` fuerza el tipo de
 algunos comercios (`PULLMAN`, `DFS`). Sin grafo para ese par, la corrida falla: no cae a `STANDARD`.
 
-El grafo `STANDARD` de la migración 000002: AgilData; con datos → Experian; sin datos o con error →
-Mareigua; con datos → Experian; sin datos → compuerta laboral (si la persona no declaró empleo e
-ingreso, la corrida espera ese formulario) → TusDatos → Experian. Un error técnico sigue la misma
-arista que «sin datos». Lo vigente es la fila de cada base, no la migración.
+El grafo `STANDARD` que los tests del servicio fijan como el de producción: AgilData; con datos →
+Experian; sin datos o con error → Mareigua; con datos → Experian; sin datos o con error → TusDatos →
+compuerta laboral (si la persona no declaró empleo e ingreso, la corrida espera ese formulario) →
+Experian. Un error técnico sigue la misma arista que «sin datos». La migración 000002 sembró otro
+orden, con la compuerta laboral antes de TusDatos, así que una base recién migrada (local, por
+ejemplo) puede tener ése. Lo vigente es la fila de cada base, no la migración.
 
 Al resolver el recorrido llama `POST /api/v2/onboarding/kyc-completion/{ur}`, que aplica lo que v1
 hacía dentro del guardado de datos personales: la firma de términos (si la persona ya no es temporal)
@@ -82,3 +84,21 @@ pipeline, en el grafo y en las actividades del servicio, y el backend sólo guar
 
 Un recorrido que llame directo al guardado v1 de datos personales corre la cascada vieja aunque el
 comercio esté en `kyc_pipeline_allieds`: lo que decide es qué endpoint se llama, no el setting.
+
+
+## Cómo termina la corrida y qué ve el wizard
+
+La corrida termina `COMPLETED` si el último resultado es `OK`, `SKIPPED`, `NO_DATA`, `INVALID_DATA` o
+`UNAVAILABLE`. Un error técnico en el nodo terminal (por ejemplo, Experian autorizado que falla) hace
+fallar el workflow en vez de seguir a entidades sin buró. Las actividades tienen 30 s y 2 intentos, con
+backoff de 1 a 20 s; el disparador de Experian, un solo intento.
+
+`kyc-processing` consulta el estado cada 2 s durante los primeros 10 s, cada 5 s hasta los 40 s y luego
+cada 10 s, durante 2 minutos como máximo. Un error de red pasajero no corta la espera.
+- `PENDING_USER_DATA`: va al formulario laboral o al personal, según el formulario y la razón;
+- `COMPLETED`: va al destino del comercio;
+- `EXPIRED`: «Se agotó el tiempo de espera», con botón para retomar;
+- `IDENTITY_MISMATCH`: «No pudimos confirmar tu identidad», sin reintento. Una corrida nueva vería el
+  dato reciente, saltaría el nodo y no volvería a juzgar la identidad;
+- `FAILED`, `CANCELED`, `TERMINATED`, o 2 minutos sin desenlace: «No pudimos verificar tu
+  información», con reintento.

@@ -1,0 +1,154 @@
+{
+  "version": 1,
+  "title": "Pagaré en Deceval: ruteo, credencial y depuración",
+  "summary": "Qué manda el pagaré de un lender a Deceval (promissory_types), qué campos de la credencial del depositante se usan y cómo se resuelve en cada monolito, qué datos del girador se envían, cómo se reutiliza el título y dónde depurarlo (deceval_logs, promissory_notes).",
+  "reviewedAt": "2026-10-28T18:55:47+00:00",
+  "sources": [
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/Loans/App/Services/PromissoryNote/PromissoryNoteSigningFactory.php",
+      "commit": "c03edaffa465bd07bceccd4076af5d1cec9916b9",
+      "blob": "70829790bb7520aedc329318b24cc422f8cf3715",
+      "sections": [
+        "que-manda-un-pagare-a-deceval"
+      ]
+    },
+    {
+      "repo": "application",
+      "path": "app/Services/PromissoryNote/PromissoryNoteSigningFactory.php",
+      "commit": "24dc86eb1eaabb4e4eee37750ab90e258c36ce78",
+      "blob": "14cf4b4973430c32ae78d4be8b0071da62400236",
+      "sections": [
+        "que-manda-un-pagare-a-deceval"
+      ]
+    },
+    {
+      "repo": "application",
+      "path": "app/Http/Controllers/Customer/PromissoryNoteController.php",
+      "commit": "24dc86eb1eaabb4e4eee37750ab90e258c36ce78",
+      "blob": "d1cf8f176f1d52de58b59da9468586db3443ff96",
+      "sections": [
+        "que-manda-un-pagare-a-deceval"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "database/migrations/2026_10_01_120000_add_deceval_promissory_note_to_altax_signing_documents.php",
+      "commit": "c03edaffa465bd07bceccd4076af5d1cec9916b9",
+      "blob": "4bf9361e2753419a0de9cb2110e1236166452e4c",
+      "sections": [
+        "que-manda-un-pagare-a-deceval",
+        "la-credencial-del-depositante"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "app/Models/RiskCentralCredential.php",
+      "commit": "c03edaffa465bd07bceccd4076af5d1cec9916b9",
+      "blob": "7603bb4721a5386311ee286fed76e3dd21570a79",
+      "sections": [
+        "la-credencial-del-depositante"
+      ]
+    },
+    {
+      "repo": "application",
+      "path": "app/Actions/DecevalSoap.php",
+      "commit": "24dc86eb1eaabb4e4eee37750ab90e258c36ce78",
+      "blob": "c80cf1c5d022be252d283c87e9e650f761c63004",
+      "sections": [
+        "la-credencial-del-depositante",
+        "como-falla",
+        "donde-mirar-un-caso"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/Loans/App/Actions/DecevalSoap.php",
+      "commit": "c03edaffa465bd07bceccd4076af5d1cec9916b9",
+      "blob": "b27543f7ee801d79d4ad5e82af71e8ed3f4e4596",
+      "sections": [
+        "la-credencial-del-depositante",
+        "las-cuatro-operaciones-y-los-datos-del-girador",
+        "reuso-e-idempotencia",
+        "como-falla",
+        "donde-mirar-un-caso"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/Loans/App/Actions/Concerns/Soap.php",
+      "commit": "c03edaffa465bd07bceccd4076af5d1cec9916b9",
+      "blob": "a1c88a227bdbf5d1b8567a69d7401189d8b4f1b2",
+      "sections": [
+        "la-credencial-del-depositante"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "config/services.php",
+      "commit": "c03edaffa465bd07bceccd4076af5d1cec9916b9",
+      "blob": "6a501817061b84474b8d11ae9ab0d17f37e7ba4f",
+      "sections": [
+        "la-credencial-del-depositante"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/Loans/App/Services/PromissoryNote/Exceptions/DecevalErrorCode.php",
+      "commit": "c03edaffa465bd07bceccd4076af5d1cec9916b9",
+      "blob": "18420eb11fd52b70137a89087386ab4c11c67332",
+      "sections": [
+        "la-credencial-del-depositante",
+        "como-falla"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/Loans/App/Services/PromissoryNote/DecevalPromissoryNoteService.php",
+      "commit": "c03edaffa465bd07bceccd4076af5d1cec9916b9",
+      "blob": "6ff31ce66c7b7a19b3f5a40f51ba2c9c06dc9524",
+      "sections": [
+        "las-cuatro-operaciones-y-los-datos-del-girador",
+        "reuso-e-idempotencia",
+        "donde-mirar-un-caso"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/Loans/App/Services/PromissoryNote/RevolvingMasterPromissoryNoteFinder.php",
+      "commit": "c03edaffa465bd07bceccd4076af5d1cec9916b9",
+      "blob": "1a8d4d7cf210c28b7f28b760b0c5f0a32cbe347f",
+      "sections": [
+        "reuso-e-idempotencia"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "app/Models/PromissoryNote.php",
+      "commit": "c03edaffa465bd07bceccd4076af5d1cec9916b9",
+      "blob": "953965cbd43b7a1d22263cf3268ca64dd153b69a",
+      "sections": [
+        "reuso-e-idempotencia",
+        "donde-mirar-un-caso"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "app/Models/DecevalLog.php",
+      "commit": "c03edaffa465bd07bceccd4076af5d1cec9916b9",
+      "blob": "c32da7895d11647f67a1eb7b7b2275fc7653bb82",
+      "sections": [
+        "donde-mirar-un-caso"
+      ]
+    },
+    {
+      "repo": "application",
+      "path": "app/Models/Log.php",
+      "commit": "24dc86eb1eaabb4e4eee37750ab90e258c36ce78",
+      "blob": "6a76787e66f985cdc8e14463641b3a8db638d6b0",
+      "sections": [
+        "donde-mirar-un-caso"
+      ]
+    }
+  ]
+}
