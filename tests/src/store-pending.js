@@ -43,7 +43,7 @@ export const STORE_PENDING = {
       {
         title: 'Después · no bloquea',
         items: [
-          { text: 'Reembolsos y cancelaciones reales (hoy: «hacerlo a mano», que VTEX acepta)', by: 'Producto' },
+          { text: 'Reembolso manual: el conector sigue contestando «hacerlo a mano» y además avisa a Creditop, que cancela el crédito aparte (el mismo procedimiento que Shopify)', by: 'Producto' },
           { text: 'Cuánto dura la referencia del link de pago', by: 'Producto' },
           { text: 'Revocar el token de la sucursal de prueba 530aa4f7' },
           { text: 'Devolverle la condición de pago a Oscar', by: 'Oscar' },
@@ -78,7 +78,7 @@ export const STORE_PENDING = {
         title: 'Aprobación de Shopify',
         items: [
           { text: 'Creditop como Payments Partner y el acuerdo de ingresos firmado', blocks: true, by: 'Shopify · Merchants' },
-          { text: 'Definir el reembolso manual: la app lo aprueba en Shopify y avisa a Creditop, que cancela el crédito aparte', blocks: true, by: 'Producto' },
+          { text: 'Definir el reembolso manual: la app lo aprueba en Shopify y avisa a Creditop, que cancela el crédito aparte (el mismo procedimiento que VTEX)', blocks: true, by: 'Producto' },
           { text: 'Pasar la revisión de la app de pagos', blocks: true, by: 'Shopify' },
         ],
       },

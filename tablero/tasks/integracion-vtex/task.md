@@ -56,8 +56,13 @@ ramas: core-800-vtex-payment-link
       Otros tipos de Colombia que VTEX pueda mandar (extranjería, pasaporte) no se vieron todavía: pasan tal cual.
 - [ ] Decidir si se restringe el modo Test Suite antes de producción (hoy cualquier llamada con
       `X-VTEX-API-Is-TestSuite: true` recibe respuestas de prueba); termina con la regla escrita y probada.
-- [ ] Cancelaciones y reembolsos reales: hoy el conector los niega. Depende de: Producto — qué es cancelar y reembolsar
-      una compra financiada. Termina con la regla escrita y el conector cumpliéndola.
+- [ ] Definir con Producto el reembolso manual, el mismo para VTEX y Shopify. VTEX no lo frena: el conector contesta
+      `refund-manually` y VTEX lo acepta. Pero con eso nadie en Creditop se entera y el crédito sigue vivo aunque la
+      tienda lo dé por reembolsado. La propuesta: el conector sigue contestando `refund-manually` y además avisa a
+      Creditop con el pedido y el monto; operaciones cancela o ajusta el crédito y le dice al comprador en cuántos días.
+      Ojo: VTEX tiene una falla conocida («No Fix») que puede registrar dos veces un reembolso con `refund-manually`;
+      probar una devolución en `migueldev` y ver cómo queda el pedido. Depende de: Producto — quién devuelve la plata,
+      el plazo y el canal para el comprador. Termina con la regla escrita acá y el conector avisando.
 - [ ] Revocar el token de `payment-link` de la sucursal de prueba `530aa4f7` (quedó visible en capturas y en logs de
       `vtex link`) y emitir otro; termina cuando el viejo responde 401.
 - [ ] Al terminar las pruebas en la cuenta, devolver la condición de pago: activar la de Oscar y apagar «CREDITOP DEV»
