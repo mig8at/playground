@@ -102,7 +102,7 @@ Pendiente: se arma cuando la entidad esté configurada en un ambiente de prueba.
   vinculación, los T&C y el mapa de campos (versión del 2026-10-27). ⚠ La carpeta tiene tres archivos con
   credenciales: no se copian a la tarea.
 - Slack: canal `#finandina` y el hilo del PRD en `#producto-tech`.
-- Jira: CORE-845 (la tarea), hija de la épica LO-197 «Finandina»; relacionados: CXCM-533, CXCM-521 (políticas de entidades especiales), CRED-463 (certificación de
+- Jira: CORE-845 (la tarea); relacionados: CXCM-533, CXCM-521 (políticas de entidades especiales), CRED-463 (certificación de
   Deceval).
 - Guía de integración de entidades en Confluence: «Integración originación en línea».
 
