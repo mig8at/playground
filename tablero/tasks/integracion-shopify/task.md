@@ -71,9 +71,12 @@ ramas: core-801-shopify-payment-link, core-689-shopify-platform
       sucursal ecommerce `8ffe96e2`, credencial tipo 4) en vez de pasar `c390eed9`, que usa también VTEX. Pedido 7963
       con `ecommerce_id=4` → #1012 `PAID`.
 
-- [ ] Reembolsos: Shopify los exige para aprobar la app y hoy la app los rechaza. Depende de: Producto — qué es
-      reembolsar una compra financiada (CreditopX y entidades externas, parciales, plazos). Termina con la regla escrita
-      y la app resolviendo el reembolso.
+- [ ] Definir con Producto el reembolso manual. Shopify sólo deja aprobar o rechazar un reembolso: no tiene el «hacelo
+      a mano» de VTEX (`refund-manually`), y rechazarlos todos (lo de hoy) choca con su requisito de que el comercio
+      pueda reembolsar. La propuesta: la app aprueba la sesión (`refundSessionResolve`) y avisa a Creditop con el pedido
+      y el monto, y operaciones cancela o ajusta el crédito aparte. Producto decide si la tienda puede mostrar
+      «reembolsado» antes de que se cancele el crédito y quién devuelve la plata (¿el comercio a la entidad?).
+      Depende de: Producto. Termina con la regla escrita acá y la app aprobando y avisando.
 - [ ] Alojar la app con URL fija (QA y después producción): en pausa hasta que Shopify apruebe a Creditop como Payments
       Partner; el plan y las variables están en `artifacts/creditop-para-shopify.html`. Ojo: desde el cambio a Postgres,
       `shopify app dev` en local necesita `DATABASE_URL`.

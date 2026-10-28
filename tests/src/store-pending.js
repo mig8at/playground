@@ -78,7 +78,7 @@ export const STORE_PENDING = {
         title: 'Aprobación de Shopify',
         items: [
           { text: 'Creditop como Payments Partner y el acuerdo de ingresos firmado', blocks: true, by: 'Shopify · Merchants' },
-          { text: 'Reembolsos: Shopify los pide y hoy la app los rechaza', blocks: true, by: 'Producto' },
+          { text: 'Definir el reembolso manual: la app lo aprueba en Shopify y avisa a Creditop, que cancela el crédito aparte', blocks: true, by: 'Producto' },
           { text: 'Pasar la revisión de la app de pagos', blocks: true, by: 'Shopify' },
         ],
       },
