@@ -123,6 +123,16 @@ Salvo donde se dice «corrido», salen de LEER el código: falta reproducirlos.
 
 ### Seguridad — decidir con el equipo
 
+- [ ] ⚠ URGENTE · Cerrar la inyección de objetos PHP del checkout ecommerce: `POST ecommerce-request/create/{partner_id}`
+  (legacy-backend, grupo sin autenticación en `Modules/Onboarding/routes/api.php`) llama a `unserialize()` sin
+  `allowed_classes` sobre el pedido, la vuelta, la config y la URL de proceso que llegan en base64 en la dirección
+  (`EcommerceRequestService::deserialize*`), antes de validar la credencial. Igual en legacy-application
+  (`WoocommerceController`, líneas 732-767). El checkout de Corbeta ya usa `allowed_classes => false`. No se probó
+  la explotación. Termina con `allowed_classes => false` (o JSON) en los dos monolitos y el contrato de los
+  complementos revisado. Depende de: el equipo — priorizar y avisar a seguridad.
+- [ ] Revisar la credencial de tienda ecommerce: se arma como `bin2hex(allied_id . hash . fecha)` y el hash de la
+  sucursal es público (viaja en las direcciones), así que es predecible; igual en los dos monolitos. Termina con
+  credenciales aleatorias y la rotación de las existentes decidida.
 - [ ] Sacar la contraseña del certificado de Credifamilia Consumo del log: `CredifamiliaConsumo::makeClient`
   (legacy-backend) manda `certPassword` al tracer en cada radicación. Termina cuando el log no la incluye y se
   decide si hay que rotar el certificado. De paso: el comando de siembra de esa credencial escribe
