@@ -73,3 +73,15 @@ func TestCorpusStats(t *testing.T) {
 		t.Error("no avisó que frontend-monorepo aparece con dos nombres")
 	}
 }
+
+// La cita de un área es `tema/capa#n=<posición>`; cualquier otra forma no se resuelve, sin fallar la búsqueda.
+func TestParseAreaCite(t *testing.T) {
+	if node, i, ok := parseAreaCite("creditopx/context#n=21"); !ok || node != "creditopx/context" || i != 21 {
+		t.Errorf("parseAreaCite = %q %d %v", node, i, ok)
+	}
+	for _, bad := range []string{"creditopx/context#ancla", "#n=3", "creditopx/context#n=x", "creditopx/context#n=-1"} {
+		if _, _, ok := parseAreaCite(bad); ok {
+			t.Errorf("%q no debería resolverse", bad)
+		}
+	}
+}

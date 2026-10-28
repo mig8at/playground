@@ -107,22 +107,73 @@ func search(ctx context.Context, client *canon.Client, query string) error {
 		fmt.Printf("    %s#%s  ·  %s\n", hit.Node, hit.Anchor, hit.Section)
 	}
 	fmt.Println("  mapa (dónde vive en el código):")
+	briefs := map[string]canon.Brief{}
 	for i, hit := range found.Map {
 		if i == 4 {
 			break
 		}
 		fmt.Printf("    %s  ·  %s\n", hit.Cite, clip(hit.Goal, 110))
+		// Un área encontrada por un archivo o una clase no sirve sola: lo que se lee son sus secciones.
+		if sections := areaSections(ctx, client, hit.Cite, briefs); len(sections) > 0 {
+			fmt.Printf("      → %s\n", strings.Join(sections, " · "))
+		}
 	}
 	if found.Uncovered != nil {
 		if text, _ := json.Marshal(found.Uncovered); len(text) > 4 {
 			fmt.Printf("  ⚠ sin cubrir: %s\n", text)
 		}
 	}
-	if len(found.Prose) == 0 {
+	switch {
+	case len(found.Prose) == 0 && len(found.Map) == 0:
 		fmt.Println("  ⚠ nada: probá otras palabras; si sigue vacío, canon no lo tiene (no es lo mismo que «no existe»)")
+	case len(found.Prose) == 0:
+		fmt.Println("  ⚠ ninguna sección nombra esas palabras, pero el código sí está en el mapa: leé las secciones de esas áreas")
 	}
 	fmt.Println("  → leer: make canon-read IDS='<tema/capa#ancla>'")
 	return nil
+}
+
+/* areaSections traduce la cita de un área (`tema/capa#n=8`, la posición del área en el mapa del tema) a las secciones
+ * que la explican, como ids listos para `canon-read`. Lee el mapa de cada tema una sola vez por búsqueda; si la cita
+ * no tiene esa forma o el tema no se puede leer, no muestra nada en vez de fallar la búsqueda. */
+func areaSections(ctx context.Context, client *canon.Client, cite string, briefs map[string]canon.Brief) []string {
+	node, index, ok := parseAreaCite(cite)
+	if !ok {
+		return nil
+	}
+	brief, seen := briefs[node]
+	if !seen {
+		var err error
+		if brief, err = client.Brief(ctx, node); err != nil {
+			return nil
+		}
+		briefs[node] = brief
+	}
+	if index >= len(brief.Areas) {
+		return nil
+	}
+	var out []string
+	for i, anchor := range brief.Areas[index].Sections {
+		if i == 3 {
+			out = append(out, fmt.Sprintf("(+%d)", len(brief.Areas[index].Sections)-3))
+			break
+		}
+		out = append(out, node+"#"+anchor)
+	}
+	return out
+}
+
+// parseAreaCite separa `tema/capa#n=8` en el tema y la posición del área.
+func parseAreaCite(cite string) (string, int, bool) {
+	node, rest, found := strings.Cut(cite, "#n=")
+	if !found || node == "" {
+		return "", 0, false
+	}
+	var index int
+	if _, err := fmt.Sscanf(rest, "%d", &index); err != nil || index < 0 {
+		return "", 0, false
+	}
+	return node, index, true
 }
 
 func read(ctx context.Context, client *canon.Client, args []string) error {
