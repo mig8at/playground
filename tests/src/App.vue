@@ -463,7 +463,6 @@ watch(panelTab, (tab) => {
   storesTimer = setInterval(loadStores, 5000)
 }, { immediate: true })
 onBeforeUnmount(() => clearInterval(storesTimer))
-}
 // Otra solicitud u otro ambiente: la consulta abierta era de la anterior.
 watch([() => result.value?.request?.id, target], () => { openTable.value = null; openCell.value = null; if (panelTab.value === 'table') panelTab.value = 'states'; docTable.value = null })
 // Las fechas de alta y de cambio de cada fila son ruido para una prueba: no se muestran (la consulta las trae).
