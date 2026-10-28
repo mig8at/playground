@@ -426,6 +426,44 @@ const copied = ref(false)
 async function copyQuery() {
   try { await navigator.clipboard.writeText(openQuery.value); copied.value = true; setTimeout(() => { copied.value = false }, 1500) } catch { /* sin portapapeles */ }
 }
+// El semáforo de las tiendas de prueba (`/api/stores`): se mide mientras la pestaña Tiendas está abierta. El botón
+// levanta en segundo plano lo que eran comandos de consola, y lo para si lo levantó tests.
+const STORE_NAMES = { shopify: 'Shopify', vtex: 'VTEX' }
+const stores = ref([])
+const storesError = ref('')
+const storeBusy = ref('')
+const storeLogOpen = ref('')
+let storesTimer = null
+async function loadStores() {
+  try {
+    const res = await fetch('/api/stores')
+    const body = await res.json()
+    if (!res.ok) throw new Error(body.error || `HTTP ${res.status}`)
+    stores.value = body
+    storesError.value = ''
+  } catch (e) { storesError.value = `No se pudo medir: ${e.message}` }
+}
+async function storeAction(store, action) {
+  storeBusy.value = store
+  try {
+    const res = await fetch(`/api/stores/${action}?store=${store}`, { method: 'POST' })
+    const body = await res.json()
+    if (!res.ok) throw new Error(body.error || `HTTP ${res.status}`)
+    storesError.value = ''
+    if (action === 'start') storeLogOpen.value = store
+  } catch (e) { storesError.value = e.message } finally {
+    storeBusy.value = ''
+    loadStores()
+  }
+}
+watch(panelTab, (tab) => {
+  clearInterval(storesTimer)
+  storesTimer = null
+  if (tab !== 'stores') return
+  loadStores()
+  storesTimer = setInterval(loadStores, 5000)
+}, { immediate: true })
+onBeforeUnmount(() => clearInterval(storesTimer))
 // El comando de tienda recién copiado, para marcar su botón un momento.
 const copiedCmd = ref('')
 async function copyCommand(cmd) {
@@ -863,7 +901,24 @@ onBeforeUnmount(() => {
         </template>
       </div>
       <div v-else-if="panelTab === 'stores'" class="region-body store-commands">
-        <p class="muted">Lo que hay que tener corriendo para comprar en una tienda de prueba contra qa, en orden. Cada uno en su terminal.</p>
+        <p v-if="storesError" class="hot">{{ storesError }}</p>
+        <section v-for="st in stores" :key="st.store" class="store-state">
+          <div class="store-state-head">
+            <i class="dot" :data-state="st.ready ? 'ok' : 'fail'" aria-hidden="true"></i>
+            <h3>{{ STORE_NAMES[st.store] }}</h3>
+            <span class="muted small">{{ st.ready ? 'lista para comprar' : 'falta algo' }}{{ st.external ? ' · corre en otra terminal' : st.managed ? ` · levantada desde tests a las ${st.started}` : '' }}</span>
+            <button v-if="st.managed" type="button" class="btn btn-xs btn-outline" :disabled="storeBusy === st.store" @click="storeAction(st.store, 'stop')">Parar</button>
+            <button v-else-if="!st.external" type="button" class="btn btn-xs" :disabled="storeBusy === st.store" @click="storeAction(st.store, 'start')">{{ storeBusy === st.store ? 'Levantando…' : 'Levantar' }}</button>
+            <button v-if="st.log.length" type="button" class="btn-link small" @click="storeLogOpen = storeLogOpen === st.store ? '' : st.store">{{ storeLogOpen === st.store ? 'Ocultar salida' : 'Ver salida' }}</button>
+          </div>
+          <ul class="store-checks">
+            <li v-for="c in st.checks" :key="c.name"><i class="dot" :data-state="c.ok ? 'ok' : 'fail'" aria-hidden="true"></i>{{ c.name }} <span class="muted">· {{ c.detail }}</span></li>
+          </ul>
+          <p v-if="st.exited" class="muted small">El proceso terminó a las {{ st.exited }}.</p>
+          <pre v-if="storeLogOpen === st.store" class="store-log">{{ st.log.slice(-40).join('\n') }}</pre>
+        </section>
+        <p v-if="!stores.length && !storesError" class="muted">Midiendo…</p>
+        <p class="muted store-manual">A mano, cada uno en su terminal (es lo mismo que hace el botón; el login de VTEX abre el navegador y va siempre a mano):</p>
         <section v-for="g in STORE_COMMANDS" :key="g.store" class="store-group">
           <h3>{{ g.store }}</h3>
           <p class="muted">{{ g.about }}</p>
@@ -1079,6 +1134,14 @@ code.wrap { word-break: break-all }
 .table-doc { padding: var(--space-2) var(--gutter) }
 .table-doc h3 { margin: 0 0 var(--space-1); font-size: var(--text-base); font-weight: 600 }
 .table-doc p { margin: 0 0 var(--space-1); max-width: 90ch; line-height: 1.5 }
+/* El semáforo de cada tienda: el punto, los chequeos y la salida del proceso. */
+.store-state { margin-bottom: var(--space-3) }
+.store-state-head { display: flex; align-items: center; gap: var(--space-2); flex-wrap: wrap }
+.store-state-head h3 { margin: 0; font-size: var(--text-base); font-weight: 600 }
+.store-checks { margin: var(--space-1) 0 0; padding: 0; list-style: none; font-size: var(--text-sm) }
+.store-checks li { display: flex; align-items: center; gap: var(--space-2); padding: 2px 0 }
+.store-log { max-height: 220px; overflow: auto; margin: var(--space-1) 0 0; padding: var(--space-2); border-radius: var(--radius-sm); background: var(--muted); font-size: 11px; line-height: 1.45; white-space: pre-wrap; word-break: break-all }
+.store-manual { margin-top: var(--space-3) !important; padding-top: var(--space-2); border-top: 1px solid var(--border) }
 /* Los comandos de las tiendas: un grupo por tienda, un paso por comando, con su botón de copiar. */
 .store-commands { padding: var(--space-2) var(--gutter) }
 .store-commands p { margin: 0 0 var(--space-1); max-width: 90ch; line-height: 1.5 }

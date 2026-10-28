@@ -110,6 +110,39 @@ func writeJSON(w http.ResponseWriter, status int, v any) {
 
 func handler() http.Handler {
 	mux := http.NewServeMux()
+	// GET /api/stores — el semáforo de las dos tiendas de prueba (ver stores.go). Sólo lee.
+	mux.HandleFunc("/api/stores", func(w http.ResponseWriter, r *http.Request) {
+		out := []*StoreStatus{}
+		for _, s := range []string{"shopify", "vtex"} {
+			st, err := StoreState(s)
+			if err != nil {
+				writeJSON(w, http.StatusInternalServerError, map[string]string{"error": err.Error()})
+				return
+			}
+			out = append(out, st)
+		}
+		writeJSON(w, http.StatusOK, out)
+	})
+	// POST /api/stores/start?store=shopify|vtex · /api/stores/stop?store=… — levanta o para lo que corre desde tests.
+	for _, action := range []string{"start", "stop"} {
+		action := action
+		mux.HandleFunc("/api/stores/"+action, func(w http.ResponseWriter, r *http.Request) {
+			if r.Method != http.MethodPost {
+				writeJSON(w, http.StatusMethodNotAllowed, map[string]string{"error": "POST"})
+				return
+			}
+			store := r.URL.Query().Get("store")
+			run := StartStore
+			if action == "stop" {
+				run = StopStore
+			}
+			if err := run(store); err != nil {
+				writeJSON(w, http.StatusConflict, map[string]string{"error": err.Error()})
+				return
+			}
+			writeJSON(w, http.StatusOK, map[string]string{"store": store, "action": action})
+		})
+	}
 	mux.HandleFunc("/api/targets", func(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusOK, Targets)
 	})
@@ -295,6 +328,7 @@ func serve(addr string) error {
 	if ip := net.ParseIP(host); host != "localhost" && (ip == nil || !ip.IsLoopback()) {
 		return fmt.Errorf("tests sólo escucha en esta máquina (127.0.0.1 o localhost), no en %q", host)
 	}
+	stopStoresOnExit()
 	fmt.Fprintf(os.Stderr, "tests · API en http://%s\n", addr)
 	return http.ListenAndServe(addr, handler())
 }
