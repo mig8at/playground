@@ -81,6 +81,15 @@ ramas: core-801-shopify-payment-link, core-689-shopify-platform
       Partner; el plan y las variables están en `artifacts/creditop-para-shopify.html`. Ojo: desde el cambio a Postgres,
       `shopify app dev` en local necesita `DATABASE_URL`.
 
+- [ ] Versión posterior · un aviso «Paga con Creditop» en la página del producto, antes del checkout, como el de Addi
+      (texto con cuotas y un modal que explica cómo comprar). En Shopify sería un bloque de tema de la app (theme app
+      extension). Termina con el aviso instalado en una tienda. Depende de: Producto — qué cuotas o monto mostrar.
+- [ ] Versión posterior · un formulario para pedir los datos que la tienda no trae (tipo y número de documento, fecha
+      de expedición), como el del pago con tarjeta, para que el wizard no los vuelva a pedir. Ojo: una extensión de
+      pago offsite no dibuja campos en el checkout (los campos de tarjeta son de otro tipo de extensión); habría que
+      ver si alcanza con una extensión de UI del checkout y en qué planes de Shopify existe. Termina con la forma
+      decidida. Depende de: Producto — qué datos se piden y si el wizard confía en ellos.
+
 ## Objetivo
 
 Que una compra en una tienda Shopify llegue a CreditOp por la misma puerta que VTEX y quede atribuida a su sucursal:

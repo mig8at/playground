@@ -77,6 +77,15 @@ ramas: core-800-vtex-payment-link
 - [ ] Homologar con VTEX la versión nueva de `creditop.creditop` (el modo Test Suite y cancelaciones/reembolsos
       resueltos antes): termina con VTEX aprobándola.
 
+- [ ] Versión posterior · un aviso «Paga con Creditop» en la página del producto, antes del checkout, como el de Addi
+      (texto con cuotas y un modal que explica cómo comprar). En VTEX sería un bloque del tema de la tienda. Termina
+      con el aviso instalado en una tienda. Depende de: Producto — qué cuotas o monto mostrar, si Creditop no sabe
+      todavía qué entidad le sale al comprador.
+- [ ] Versión posterior · un formulario en el checkout para pedir los datos que la tienda no trae (tipo y número de
+      documento, fecha de expedición), como el que trae el pago con tarjeta, para que el wizard no los vuelva a pedir.
+      En VTEX sería una Payment App del checkout. Termina con los datos llegando a `payment-link` y el wizard
+      saltando esas preguntas. Depende de: Producto — qué datos se piden y si el wizard confía en ellos.
+
 ## Objetivo
 
 Que el conector VTEX no exponga nada en la URL del comprador y que cada solicitud que entra por VTEX se pueda

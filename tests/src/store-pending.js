@@ -47,6 +47,13 @@ export const STORE_PENDING = {
           { text: 'Cuánto dura la referencia del link de pago', by: 'Producto' },
         ],
       },
+      {
+        title: 'Versión posterior',
+        items: [
+          { text: 'Aviso «Paga con Creditop» en la página del producto, como el de Addi (bloque del tema)', by: 'Producto' },
+          { text: 'Formulario para los datos que faltan: tipo y número de documento, expedición (Payment App del checkout)', by: 'Producto' },
+        ],
+      },
     ],
   },
   Shopify: {
@@ -91,6 +98,13 @@ export const STORE_PENDING = {
           { text: 'Tomar el celular de la dirección: el código está, falta una compra en qa' },
           { text: 'Ícono propio de Creditop en el checkout' },
           { text: 'Autenticación propia del aviso a la tienda', by: 'Oscar' },
+        ],
+      },
+      {
+        title: 'Versión posterior',
+        items: [
+          { text: 'Aviso «Paga con Creditop» en la página del producto, como el de Addi (bloque de tema de la app)', by: 'Producto' },
+          { text: 'Formulario para los datos que faltan: tipo y número de documento, expedición (falta ver cómo: el pago offsite no dibuja campos)', by: 'Producto' },
         ],
       },
     ],
