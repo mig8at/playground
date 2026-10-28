@@ -14,6 +14,8 @@ import {
 } from './workbench.js'
 import { TABLE_DOCS } from './table-docs.js'
 import { STORE_COMMANDS } from './store-commands.js'
+import { STORE_FLOWS } from './store-flows.js'
+import FlowDiagram from './FlowDiagram.vue'
 
 const DEFAULT_TARGET = 'qa'
 const TARGET_LABEL = { local: 'local · tu Docker', qa: 'qa · la base compartida de dev, qa y staging' }
@@ -212,6 +214,9 @@ const STORES = [
     { label: 'Admin · transacciones', href: 'https://creditop.myvtex.com/admin/pci-gateway/#/transactions' },
   ] },
 ]
+// El diagrama de una tienda abierto en el editor (VTEX · Shopify), o null. Buscar otra solicitud lo cierra.
+const diagram = ref(null)
+watch(() => result.value, () => { diagram.value = null })
 // El wizard por ambiente, para volver a abrir la solicitud y ver en qué quedó.
 const WIZARD = { qa: 'https://originaciones-qa.dev.creditop.com', local: 'http://localhost:5174' }
 // Los enlaces de la solicitud abierta: a dónde vuelve el comprador (la tienda) y el wizard. Fijos en la barra, para
@@ -601,6 +606,10 @@ onBeforeUnmount(() => {
       <nav class="store-links" aria-label="Tiendas de prueba">
         <template v-for="s in STORES" :key="s.name">
           <div class="region-head group"><span>{{ s.name }}</span></div>
+          <button v-if="STORE_FLOWS[s.name]" type="button" class="row" :class="{ on: diagram === s.name }" :aria-pressed="diagram === s.name"
+            title="Cómo se comunica una compra con legacy-backend y el wizard" @click="diagram = diagram === s.name ? null : s.name">
+            <span class="label">Diagrama</span><span class="row-meta">⇄</span>
+          </button>
           <a v-for="l in s.links" :key="l.href" class="row" :href="l.href" target="_blank" rel="noopener" :title="l.href">
             <span class="label">{{ l.label }}</span><span class="row-meta">↗</span>
           </a>
@@ -608,7 +617,20 @@ onBeforeUnmount(() => {
       </nav>
     </aside>
 
-    <main class="editor">
+    <main v-if="diagram" class="editor">
+      <div class="region-head">
+        <span>{{ STORE_FLOWS[diagram].title }}</span>
+        <div class="region-actions">
+          <button type="button" class="region-action" title="Cerrar el diagrama" aria-label="Cerrar el diagrama" @click="diagram = null">
+            <span class="ui-icon" data-icon="close" aria-hidden="true"></span>
+          </button>
+        </div>
+      </div>
+      <div class="region-body">
+        <FlowDiagram :flow="STORE_FLOWS[diagram]" />
+      </div>
+    </main>
+    <main v-else class="editor">
       <div class="region-head">
         <span>{{ r?.request ? `Solicitud ${r.request.id}` : r ? r.input.who : 'tests' }}</span>
         <span v-if="r?.request && r.input.who" class="count">{{ r.input.who }}</span>
@@ -1002,6 +1024,7 @@ code.wrap { word-break: break-all }
 .log-line.ghost .what { font-style: italic; color: var(--tests-warn) }
 .store-links { flex: none; padding-bottom: var(--space-2); border-top: 1px solid var(--sidebar-border) }
 .store-links a.row { color: inherit; text-decoration: none }
+.store-links button.row { width: 100%; border: 0; background: none; color: inherit; font: inherit; text-align: left; cursor: pointer }
 .bar-sep { width: 1px; height: 14px; margin: 0 var(--space-1); background: var(--border) }
 
 /* Borrar: una ventana nativa (<dialog>) con la pregunta, el conteo y dos botones. */

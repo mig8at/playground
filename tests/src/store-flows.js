@@ -1,0 +1,75 @@
+// Cómo habla cada tienda con legacy-backend y el wizard, paso a paso: lo que dibuja el diagrama del editor. Sale del
+// código de `main` de legacy-backend (payment-link, el aviso al estado final y la consulta de estado) y de las ramas de
+// los conectores (vtex#21, shopify#22). Si cambia un contrato, se cambia acá.
+//
+// Cada paso es un mensaje `from` → `to` (los ids de `actors`), o una nota sobre un actor (`note`). `phase` abre un
+// tramo con título.
+export const STORE_FLOWS = {
+  VTEX: {
+    title: 'VTEX · cómo se comunica una compra',
+    actors: [
+      { id: 'buyer', label: 'Comprador' },
+      { id: 'store', label: 'VTEX', sub: 'checkout y pagos' },
+      { id: 'app', label: 'Conector', sub: 'creditop.creditop (VTEX IO)' },
+      { id: 'back', label: 'legacy-backend', sub: 'API de comercios' },
+      { id: 'front', label: 'Wizard', sub: 'frontend-monorepo' },
+    ],
+    steps: [
+      { phase: '1 · La compra: la tienda pide el link' },
+      { from: 'buyer', to: 'store', text: 'Paga con Creditop' },
+      { from: 'store', to: 'app', text: 'authorize (paymentId, callbackUrl)' },
+      { from: 'app', to: 'back', text: 'POST /ecommerce/payment-link', sub: 'AppKey = hash · AppToken = token de la sucursal' },
+      { from: 'back', to: 'app', text: '200 · redirect_url ?ref=…, PENDING', sub: 'guarda el pedido (origin payment_link)', back: true },
+      { from: 'app', to: 'store', text: 'pending + redirect · cancela a las 6 h', back: true },
+      { from: 'store', to: 'buyer', text: 'Lo redirige a Creditop', back: true },
+      { phase: '2 · En Creditop: la solicitud' },
+      { from: 'buyer', to: 'front', text: '/ecommerce/{hash}/checkout?ref=…' },
+      { from: 'front', to: 'back', text: 'by-reference/{hash}: abre el pedido guardado' },
+      { from: 'front', to: 'back', text: 'OTP → nace la solicitud, atada al pedido', sub: 'un pedido, una solicitud' },
+      { from: 'front', to: 'back', text: 'listado, entidad, formularios…' },
+      { phase: '3 · El resultado: Creditop avisa' },
+      { note: 'back', text: 'La solicitud llega a 6 · 7 · 8 · 11', sub: 'el observer avisa una sola vez por pedido' },
+      { from: 'back', to: 'store', text: 'POST callbackUrl · approved / denied', sub: 'con AppKey y AppToken de la credencial' },
+      { from: 'store', to: 'app', text: 'authorize de nuevo (el retry)' },
+      { from: 'app', to: 'back', text: 'GET /ecommerce/status/{paymentId}' },
+      { from: 'back', to: 'app', text: 'completed · failed · cancelled · pending', back: true },
+      { from: 'app', to: 'store', text: 'approved / denied', back: true },
+      { phase: '4 · El cobro: al facturar' },
+      { from: 'store', to: 'app', text: 'settle (cuando la tienda factura)' },
+      { from: 'app', to: 'back', text: 'GET /ecommerce/status/{paymentId}' },
+      { from: 'app', to: 'store', text: 'settled · la transacción queda Finished', back: true },
+    ],
+  },
+  Shopify: {
+    title: 'Shopify · cómo se comunica una compra',
+    actors: [
+      { id: 'buyer', label: 'Comprador' },
+      { id: 'store', label: 'Shopify', sub: 'checkout' },
+      { id: 'app', label: 'App de pagos', sub: 'Creditop (Payments App)' },
+      { id: 'back', label: 'legacy-backend', sub: 'API de comercios' },
+      { id: 'front', label: 'Wizard', sub: 'frontend-monorepo' },
+    ],
+    steps: [
+      { phase: '1 · La compra: la app pide el link' },
+      { from: 'buyer', to: 'store', text: 'Paga con Creditop' },
+      { from: 'store', to: 'app', text: 'POST /payments/session' },
+      { from: 'app', to: 'back', text: 'POST /ecommerce/payment-link', sub: 'webhook_url firmado por sesión · return_url /payments/return/{s}' },
+      { from: 'back', to: 'app', text: '200 · redirect_url ?ref=…, PENDING', back: true },
+      { from: 'app', to: 'store', text: 'redirect_url', back: true },
+      { from: 'store', to: 'buyer', text: 'Lo redirige a Creditop', back: true },
+      { phase: '2 · En Creditop: la solicitud' },
+      { from: 'buyer', to: 'front', text: '/ecommerce/{hash}/checkout?ref=…' },
+      { from: 'front', to: 'back', text: 'by-reference/{hash}: abre el pedido guardado' },
+      { from: 'front', to: 'back', text: 'OTP → nace la solicitud, atada al pedido', sub: 'un pedido, una solicitud' },
+      { from: 'front', to: 'back', text: 'listado, entidad, formularios…' },
+      { phase: '3 · El resultado: Creditop avisa' },
+      { note: 'back', text: 'La solicitud llega a 6 · 7 · 8 · 11', sub: 'el observer avisa una sola vez por pedido' },
+      { from: 'back', to: 'app', text: 'POST /webhooks/creditop?s=…&sig=…', sub: 'completed · failed · cancelled' },
+      { from: 'app', to: 'store', text: 'paymentSessionResolve / Reject', sub: 'Resolve: pedido pagado · Reject: vuelve al checkout' },
+      { phase: '4 · La vuelta del comprador' },
+      { from: 'buyer', to: 'app', text: '«Volver a la tienda» → /payments/return/{s}' },
+      { from: 'app', to: 'store', text: 'sin resultado todavía: paymentSessionPending', sub: 'el pedido se crea como pendiente de pago' },
+      { from: 'app', to: 'buyer', text: 'a la confirmación del pedido (o al checkout)', back: true },
+    ],
+  },
+}
