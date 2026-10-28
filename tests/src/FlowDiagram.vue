@@ -5,7 +5,7 @@ import { computed } from 'vue'
 
 const props = defineProps({ flow: { type: Object, required: true } })
 
-const COL = 190 // ancho de cada columna
+const COL = 220 // ancho de cada columna
 const HEAD = 64 // alto de la cabecera de actores
 const ROW = 46 // alto de un mensaje con subtítulo
 const ROW_SHORT = 38 // alto de un mensaje sin subtítulo
@@ -56,7 +56,7 @@ const height = computed(() => {
         </template>
         <!-- una nota sobre un actor -->
         <template v-else-if="s.note">
-          <rect class="note" :x="xOf[s.note] - COL / 2 - 30" :y="s.y + 4" :width="COL + 60" :height="s.h - 8" rx="6" />
+          <rect class="note" :x="xOf[s.note] - COL / 2 - 60" :y="s.y + 4" :width="COL + 120" :height="s.h - 8" rx="6" />
           <text class="msg" :x="xOf[s.note]" :y="s.y + (s.sub ? 20 : 22)" text-anchor="middle">{{ s.text }}</text>
           <text v-if="s.sub" class="msg-sub" :x="xOf[s.note]" :y="s.y + 35" text-anchor="middle">{{ s.sub }}</text>
         </template>
