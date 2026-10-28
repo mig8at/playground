@@ -63,10 +63,11 @@ ramas: core-801-shopify-payment-link, core-689-shopify-platform
       campos y un pedido de qa con `billing.phone`. El código está (hoy en el commit único del PR #22, 2b14e52, con
       tests); falta el pedido de qa: pide la app corriendo con `npm run dev` y una compra en `creditop-dev-store` con
       contacto por correo y celular en la dirección.
-- [ ] Revisar y mergear los PRs abiertos: `Creditop-SAS/shopify#22` (la app, `feat/core-801-shopify-payment-link` → `develop`; reemplaza al #21, cerrado al renombrar la rama) y
-      `Creditop-SAS/legacy-backend#1693` (plataforma 4 → `main`; #1689 ya está en `qa`). El arreglo de la siembra
-      también está en la rama `-qa` (16ff8890, sin push), para un PR a `qa` cuando haga falta. Termina con los dos
-      mergeados.
+- [ ] Revisar y mergear `Creditop-SAS/shopify#22` (la app, `feat/core-801-shopify-payment-link` → `develop`; reemplaza
+      al #21, cerrado al renombrar la rama). Termina mergeado. La plataforma 4 de legacy-backend ya no espera a
+      `Creditop-SAS/legacy-backend#1693`: entró a `main` por 51181aaf3 y está en prod desde v0.6.29 (`ecommerces` id 4 =
+      Shopify). El #1693 quedó en conflicto con esa misma migración y sólo agregaría el `unguarded` de la siembra, que
+      en prod no hizo falta porque el autoincremental ya daba 4.
 - [x] ~~Que los pedidos de la tienda de prueba salgan atribuidos a Shopify en qa~~ — con un comercio propio (362,
       sucursal ecommerce `8ffe96e2`, credencial tipo 4) en vez de pasar `c390eed9`, que usa también VTEX. Pedido 7963
       con `ecommerce_id=4` → #1012 `PAID`.

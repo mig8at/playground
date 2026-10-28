@@ -76,7 +76,7 @@ export const STORE_PENDING = {
         title: 'Mergear',
         items: [
           { text: 'Creditop-SAS/shopify#22 · la app', blocks: true },
-          { text: 'Creditop-SAS/legacy-backend#1693 · la plataforma 4', blocks: true },
+          { text: 'Shopify como plataforma 4, ya en main y en producción', done: true },
         ],
       },
       {
