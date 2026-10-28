@@ -4,7 +4,7 @@ title: "Incidencias"
 clase: proyecto
 stage: evaluation
 created: "2026-10-09T15:30:00-05:00"
-knowledge: []
+knowledge: [weekly-collection-reminders, field-scoring-policy, motai-renting]
 canon: [kyc/context, ecommerce/context, cartera/context, creditopx/context, formalizacion/context]
 jira: []
 jira_title: ""
@@ -51,6 +51,21 @@ Salvo donde se dice «corrido», salen de LEER el código: falta reproducirlos.
   ONB002 («temporal user found»), así que la solicitud espera hasta vencer. CORRIDO en local (2026-10-19, caso 19 de
   `make harness-pipeline-run`). En el flujo viejo, según el código, se guarda el nombre escrito y sigue. Termina con la
   decisión y su tarea. Origen: `OnboardingController::storeLaboralInfoOrchestrator` rechaza temporales.
+
+- [ ] Decidir quién activa los recordatorios de cobranza de Motai (renting y Rent to Own). MEDIDO en prod
+  (2026-10-28): las 22 plantillas semanales están inactivas y el comando general ya excluye el corte semanal, así
+  que desde el 2026-09-17 ningún crédito de Motai recibe recordatorio; hoy hay 6 vivos, todos en mora. Termina
+  con las plantillas activas (aprobadas en Meta y registradas en el servicio de mensajería) o con la decisión de
+  no enviarlas. Depende de: producto/cobranza — el go-live de la cadencia semanal.
+- [ ] Corregir los dos textos de respuesta de SmartPay que no puntúan. MEDIDO en prod (2026-10-28): el asistente
+  manda «RD$40,001 - RD$50,000» (guion) y la política espera «RD$40,001 – RD$50,000» (raya), y manda «Conductor de
+  plataforma digital» donde la política espera «Trabajo en delivery o plataformas»; esas respuestas suman 0 (26 y 2
+  en 90 días). Termina cuando la política o el asistente usan el mismo texto y una consulta de 90 días no muestra
+  respuestas sin pareja.
+- [ ] Decidir qué firma un cliente del Rent to Own sin codeudor. MEDIDO en prod (2026-10-28): la categoría
+  «Codeudor» del RTO tiene `requires_cosigner = 0`, esa rama firma el contrato de renting (sin opción de compra) y
+  una solicitud llegó al estado 10 por ahí. Termina con plantillas propias para esa rama o la categoría cerrada.
+  Depende de: legal — las versiones sin codeudor del contrato RTO.
 
 ### Media — comportamiento distinto al esperado
 
