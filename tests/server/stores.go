@@ -55,7 +55,7 @@ type storeProc struct {
 	lines   []string
 	tunnel  string
 	since   time.Time // cuándo apareció el túnel
-	linked  bool // VTEX terminó de compilar lo que subió `vtex link` (la salida se recorta, el dato no)
+	linked  bool      // VTEX terminó de compilar lo que subió `vtex link` (la salida se recorta, el dato no)
 	exited  string
 }
 
