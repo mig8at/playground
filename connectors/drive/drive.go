@@ -240,6 +240,12 @@ func (c *Client) Search(ctx context.Context, text, folder string, limit int) ([]
 	return c.query(ctx, q, limit)
 }
 
+// All trae TODO lo que la cuenta ve (propio, compartido y unidades compartidas), sin la papelera. Puede
+// ser miles de archivos: es para inventariar, no para leer.
+func (c *Client) All(ctx context.Context) ([]File, error) {
+	return c.query(ctx, "trashed = false", 0)
+}
+
 func (c *Client) query(ctx context.Context, q string, limit int) ([]File, error) {
 	var all []File
 	page := ""

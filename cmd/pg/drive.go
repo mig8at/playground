@@ -8,6 +8,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -161,6 +162,55 @@ func runDriveSearch(args []string) int {
 	}
 	printFiles(files)
 	return 0
+}
+
+func runDriveInventory(args []string) int {
+	fs := flag.NewFlagSet("drive inventory", flag.ContinueOnError)
+	asJSON := fs.Bool("json", false, "cada archivo con su metadata, en JSON")
+	if fs.Parse(args) != nil {
+		return 2
+	}
+	cl, code := driveClient()
+	if cl == nil {
+		return code
+	}
+	files, err := cl.All(context.Background())
+	if err != nil {
+		return fail(1, "%v", err)
+	}
+	if *asJSON {
+		return printJSON(files)
+	}
+	byKind, byOwner := map[string]int{}, map[string]int{}
+	for _, f := range files {
+		k := shortMime(f.MimeType)
+		if f.IsFolder() {
+			k = "carpeta"
+		}
+		byKind[k]++
+		byOwner[ownerOf(f)]++
+	}
+	fmt.Printf("%d elementos que tu cuenta ve en Drive\n\npor tipo:\n", len(files))
+	printCounts(byKind)
+	fmt.Println("\npor dueño:")
+	printCounts(byOwner)
+	fmt.Println("\nel detalle: pg drive inventory --json")
+	return 0
+}
+
+func printCounts(m map[string]int) {
+	keys := make([]string, 0, len(m))
+	for k := range m {
+		keys = append(keys, k)
+	}
+	sort.Slice(keys, func(i, j int) bool { return m[keys[i]] > m[keys[j]] })
+	for _, k := range keys {
+		name := strings.TrimPrefix(k, " · de ")
+		if name == "" {
+			name = "(unidad compartida)"
+		}
+		fmt.Printf("  %6d  %s\n", m[k], name)
+	}
 }
 
 func runDriveRead(args []string) int {
