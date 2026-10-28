@@ -10,7 +10,12 @@ contestado. Todo contra la base compartida de dev, qa y staging: **hace falta la
 make tests
 ```
 
-Abre http://localhost:5178 (la API queda en :5179). Abajo a la izquierda, `Base: qa` o `local`.
+Abre http://localhost:5178 (la API queda en :5179). Abajo a la izquierda, `Base: qa`, `local` o `prod`.
+
+`prod` **sólo lee**, por Redash: busca la solicitud y sus tablas, pero el servidor rechaza borrar, dar de baja, pasar de
+estado y dictar las centrales, y la interfaz no los ofrece. Es lento (cada consulta pasa por Redash: una búsqueda
+tarda ~20 s y las tablas un poco más). Sirve para seguir la compra del piloto VTEX (`VTEX · prod (piloto)` en el
+sidebar: la tienda, y en el admin las afiliaciones, donde van el hash y el token de la sucursal).
 
 ## 2 · Antes de comprar: dictarle tu persona a las centrales
 

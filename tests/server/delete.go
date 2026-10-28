@@ -59,7 +59,7 @@ const MaxDelete = 50
 // TestAllied: el prefijo de los comercios creados para pruebas (`PRUEBA AUTO Shopify`, `PRUEBA AUTO VTEX`…).
 const TestAllied = "PRUEBA AUTO"
 
-var reTable = regexp.MustCompile(`^[a-z0-9_]+$`)
+var reTable = regexp.MustCompile(`^[A-Za-z0-9_]+$`)
 
 // PlanRequest es una solicitud del plan, con por qué se borra o no.
 type PlanRequest struct {
@@ -304,8 +304,8 @@ func countTables(src dbsql.Source, ids []int, where func(table, list string) str
 // RequestTables: las tablas con filas de UNA solicitud, para mostrarlas en el editor. Sólo lee, y vale para
 // cualquier solicitud (también las protegidas, que no se pueden borrar).
 func RequestTables(target string, request int) ([]TableCount, error) {
-	if !validTarget(target) {
-		return nil, fmt.Errorf("ambiente %q: tests mira %s", target, strings.Join(Targets, " o "))
+	if !validReadTarget(target) {
+		return nil, fmt.Errorf("ambiente %q: tests mira %s", target, strings.Join(ReadTargets, " o "))
 	}
 	src, err := source(target)
 	if err != nil {

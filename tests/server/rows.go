@@ -28,8 +28,8 @@ type TableRows struct {
 // cuentan (countTables) y se borran. Sólo lee. La tabla tiene que ser una de las que cuelgan de la solicitud
 // en ESTA base: el nombre no se arma con lo que llega por la URL.
 func RequestTableRows(target string, request int, table string) (*TableRows, error) {
-	if !validTarget(target) {
-		return nil, fmt.Errorf("ambiente %q: tests mira %s", target, strings.Join(Targets, " o "))
+	if !validReadTarget(target) {
+		return nil, fmt.Errorf("ambiente %q: tests mira %s", target, strings.Join(ReadTargets, " o "))
 	}
 	if request <= 0 {
 		return nil, fmt.Errorf("falta el número de solicitud")

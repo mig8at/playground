@@ -1,6 +1,9 @@
 package main
 
-import "testing"
+import (
+	"strings"
+	"testing"
+)
 
 // Lo que se pega sale de la barra del navegador: con o sin query, con o sin el tramo final.
 func TestParseInput(t *testing.T) {
@@ -72,5 +75,25 @@ func TestWriteTargets(t *testing.T) {
 	}
 	if _, err := writeConfig("qa"); err == nil && writeBlocked("qa") != "" {
 		t.Fatalf("qa sigue bloqueado sin la variable: %s", writeBlocked("qa"))
+	}
+}
+
+// prod se lee (por Redash) y nada más: cada escritura lo rechaza antes de abrir una conexión.
+func TestProdOnlyReads(t *testing.T) {
+	if !validReadTarget("prod") {
+		t.Fatal("prod no quedó entre los ambientes que se leen")
+	}
+	writes := map[string]func() error{
+		"BuildPlan":      func() error { _, err := BuildPlan("prod", 1, false, false); return err },
+		"Delete":         func() error { _, err := Delete("prod", 1, false, false, "1", true); return err },
+		"DisableUser":    func() error { _, err := DisableUser("prod", 1, "1", true); return err },
+		"PurgeUser":      func() error { _, err := PurgeUser("prod", 1, "1", true); return err },
+		"SimulateStatus": func() error { _, err := SimulateStatus("prod", 1, 11); return err },
+		"LoadProfile":    func() error { _, err := LoadProfile("prod", nil); return err },
+	}
+	for name, call := range writes {
+		if err := call(); err == nil || !strings.Contains(err.Error(), "tests mira local o qa") {
+			t.Errorf("%s aceptó prod: %v", name, err)
+		}
 	}
 }

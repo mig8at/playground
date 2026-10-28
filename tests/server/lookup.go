@@ -19,8 +19,13 @@ import (
 	dbsql "creditop/playground/connectors/sql"
 )
 
-// Targets son los ambientes que mira tests. `qa` lee la base compartida de dev, qa y staging.
+// Targets son los ambientes donde tests lee Y escribe (borrar, dar de baja, simular un estado, dictar las centrales).
+// `qa` lee la base compartida de dev, qa y staging.
 var Targets = []string{"local", "qa"}
+
+// ReadTargets son donde tests sólo LEE: los de arriba más prod, que va por Redash (el conector no tiene otro camino a
+// esa base) y no acepta nada que escriba. Las escrituras siguen preguntando a validTarget, que no conoce prod.
+var ReadTargets = append(append([]string{}, Targets...), "prod")
 
 // Input es lo que se pegó, ya separado.
 type Input struct {
@@ -181,8 +186,8 @@ func cell(r dbsql.Row, k string) string {
 
 // Lookup arma el Result de una solicitud en un ambiente.
 func Lookup(target string, in Input) (*Result, error) {
-	if !validTarget(target) {
-		return nil, fmt.Errorf("ambiente %q: tests mira %s", target, strings.Join(Targets, " o "))
+	if !validReadTarget(target) {
+		return nil, fmt.Errorf("ambiente %q: tests mira %s", target, strings.Join(ReadTargets, " o "))
 	}
 	src, err := source(target)
 	if err != nil {
@@ -412,6 +417,15 @@ var stripMarks = strings.NewReplacer("á", "a", "é", "e", "í", "i", "ó", "o",
 
 func words(s string) []string {
 	return strings.Fields(stripMarks.Replace(strings.ToLower(s)))
+}
+
+func validReadTarget(t string) bool {
+	for _, x := range ReadTargets {
+		if x == t {
+			return true
+		}
+	}
+	return false
 }
 
 func validTarget(t string) bool {

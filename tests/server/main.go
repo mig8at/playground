@@ -23,7 +23,7 @@ import (
 
 func main() {
 	addr := flag.String("serve", "", "levanta la API para la interfaz en esta dirección (sólo 127.0.0.1)")
-	target := flag.String("target", "", "ambiente: "+strings.Join(Targets, " · "))
+	target := flag.String("target", "", "ambiente: "+strings.Join(ReadTargets, " · ")+" (prod, sólo leer)")
 	query := flag.String("q", "", "la URL del wizard o el número de la solicitud")
 	del := flag.Bool("delete", false, "borra la solicitud y lo que cuelga de ella (sin -confirm, sólo el plan)")
 	phone := flag.Bool("phone", false, "con -delete: todas las solicitudes del celular de esa solicitud")
@@ -144,7 +144,7 @@ func handler() http.Handler {
 		})
 	}
 	mux.HandleFunc("/api/targets", func(w http.ResponseWriter, r *http.Request) {
-		writeJSON(w, http.StatusOK, Targets)
+		writeJSON(w, http.StatusOK, ReadTargets)
 	})
 	// GET /api/lookup?target=qa&q=<url o número>
 	mux.HandleFunc("/api/lookup", func(w http.ResponseWriter, r *http.Request) {

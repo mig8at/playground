@@ -19,7 +19,9 @@ import { STORE_PENDING } from './store-pending.js'
 import PendingWorkflow from './PendingWorkflow.vue'
 
 const DEFAULT_TARGET = 'qa'
-const TARGET_LABEL = { local: 'local · tu Docker', qa: 'qa · la base compartida de dev, qa y staging' }
+const TARGET_LABEL = { local: 'local · tu Docker', qa: 'qa · la base compartida de dev, qa y staging', prod: 'prod · sólo lectura, por Redash' }
+// En prod tests sólo lee: el servidor rechaza toda escritura y la interfaz no ofrece ninguna.
+const READ_ONLY = new Set(['prod'])
 // Estados finales: el color del estado en la consola y en la banda.
 const FINAL = { 11: 'ok', 5: 'ok', 6: 'fail', 7: 'fail', 8: 'fail' }
 const PROFILE = { 1: 'cliente', 2: 'asesor', 3: 'admin' }
@@ -27,6 +29,7 @@ const PROFILE = { 1: 'cliente', 2: 'asesor', 3: 'admin' }
 // ── la ruta: #/?target=qa&q=3016992677&req=504059 (con celular, `req` dice cuál de sus solicitudes se mira) ──
 const route = readHashRoute()
 const target = ref(route.params.get('target') || DEFAULT_TARGET)
+const readOnly = computed(() => READ_ONLY.has(target.value))
 const query = ref(route.params.get('q') || '')
 const req = ref(route.params.get('req') || '')
 const draft = ref(query.value)
@@ -213,6 +216,14 @@ const STORES = [
     { label: 'Tienda (migueldev)', href: 'https://migueldev--creditop.myvtex.com' },
     { label: 'Admin · pedidos', href: 'https://creditop.myvtex.com/admin/orders' },
     { label: 'Admin · transacciones', href: 'https://creditop.myvtex.com/admin/pci-gateway/#/transactions' },
+  ] },
+  // El piloto de producción: workspace `piloto` (production=true) con creditop.creditop 5.x, que le pide la URL al
+  // payment-link de producción. Afiliaciones y condiciones de pago son de TODA la cuenta: también se ven en master.
+  { name: 'VTEX · prod (piloto)', links: [
+    { label: 'Tienda (piloto)', href: 'https://piloto--creditop.myvtex.com' },
+    { label: 'Admin · afiliaciones (hash y token)', href: 'https://piloto--creditop.myvtex.com/admin/pci-gateway/#/affiliations' },
+    { label: 'Admin · condiciones de pago', href: 'https://piloto--creditop.myvtex.com/admin/pci-gateway/#/rules' },
+    { label: 'Admin · transacciones', href: 'https://piloto--creditop.myvtex.com/admin/pci-gateway/#/transactions' },
   ] },
 ]
 // Lo que se ve de una tienda en el editor —su diagrama o sus pendientes—, o null. Buscar otra solicitud lo cierra.
@@ -617,7 +628,7 @@ onBeforeUnmount(() => {
             <i class="dot" :data-state="String(p.status) === '1' ? 'ok' : 'off'" aria-hidden="true"></i>
             <span class="label">{{ p.name || `usuario ${p.id}` }} <span class="muted">· {{ String(p.status) === '1' ? p.profile : 'dado de baja' }}</span></span>
             <span class="row-meta">{{ p.requests }} sol.</span>
-            <span v-if="isClient(p)" class="row-actions">
+            <span v-if="isClient(p) && !readOnly" class="row-actions">
               <button type="button" class="region-action" :title="`${String(p.status) === '1' ? 'Dar de baja' : 'Borrar del todo'} a ${p.name}`" :aria-label="`${String(p.status) === '1' ? 'Dar de baja' : 'Borrar del todo'} a ${p.name}`" @click.stop="openBaja(p)">
                 <span class="ui-icon" data-icon="trash" aria-hidden="true"></span>
               </button>
@@ -629,7 +640,7 @@ onBeforeUnmount(() => {
             <i class="dot" :data-state="stateOf(q.status_id)" aria-hidden="true"></i>
             <span class="label">{{ q.id }} <span class="muted">· {{ q.status }}</span></span>
             <span class="row-meta">{{ q.allied }}</span>
-            <span class="row-actions">
+            <span v-if="!readOnly" class="row-actions">
               <button type="button" class="region-action" :title="`Borrar la solicitud ${q.id}`" :aria-label="`Borrar la solicitud ${q.id}`"
                 @click.stop="openDelete(q.id)">
                 <span class="ui-icon" data-icon="trash" aria-hidden="true"></span>
@@ -685,12 +696,12 @@ onBeforeUnmount(() => {
             <a v-if="links.wizard" class="btn btn-xs btn-ghost" :href="links.wizard" target="_blank" rel="noopener" title="La solicitud en el wizard">Wizard ↗</a>
             <span class="bar-sep" aria-hidden="true"></span>
           </template>
-          <template v-if="r.order && !lockedMove">
+          <template v-if="r.order && !lockedMove && !readOnly">
             <button v-for="o in OUTCOMES" :key="o.status" type="button" class="btn btn-xs btn-ghost"
               :disabled="Number(r.request.status_id) === o.status"
               :title="`Pasar a ${o.status} · ${o.name}: la tienda recibe ${o.store}`" @click="openMove(o)">{{ o.label }}</button>
           </template>
-          <button type="button" class="region-action" title="Borrar la solicitud" aria-label="Borrar la solicitud" @click="openDelete(r.request.id)">
+          <button v-if="!readOnly" type="button" class="region-action" title="Borrar la solicitud" aria-label="Borrar la solicitud" @click="openDelete(r.request.id)">
             <span class="ui-icon" data-icon="trash" aria-hidden="true"></span>
           </button>
         </div>
@@ -768,7 +779,7 @@ onBeforeUnmount(() => {
                   <td><i class="dot" :data-state="stateOf(q.status_id)" aria-hidden="true"></i>{{ q.status_id }} · {{ q.status }}</td>
                   <td><code>{{ dash(q.hash) }}</code></td><td>{{ money(q.amount) }}</td><td>{{ q.created_at }}</td>
                   <td class="cell-action">
-                    <button type="button" class="region-action" :title="`Borrar la solicitud ${q.id}`" :aria-label="`Borrar la solicitud ${q.id}`" @click="openDelete(q.id)">
+                    <button v-if="!readOnly" type="button" class="region-action" :title="`Borrar la solicitud ${q.id}`" :aria-label="`Borrar la solicitud ${q.id}`" @click="openDelete(q.id)">
                       <span class="ui-icon" data-icon="trash" aria-hidden="true"></span>
                     </button>
                   </td>
@@ -833,7 +844,8 @@ onBeforeUnmount(() => {
         </div>
         <div class="region-body">
           <p v-if="profile?.error" class="none hot">{{ profile.error }}</p>
-          <form class="profile" @submit.prevent="loadProfile">
+          <p v-if="readOnly" class="none">En {{ target }} las centrales son las de verdad: acá no se dictan.</p>
+          <form v-else class="profile" @submit.prevent="loadProfile">
             <p class="muted small">Lo que van a contestar las centrales para esa cédula. Cargalo justo antes de lanzar la compra.</p>
             <div class="field"><label class="label" for="pf-doc">Cédula</label>
               <input id="pf-doc" v-model="form.document" class="input input-sm" inputmode="numeric" autocomplete="off" /></div>
@@ -1010,7 +1022,7 @@ onBeforeUnmount(() => {
       </button>
       <span v-if="loading">leyendo…</span>
       <span v-else-if="r" :title="r.source">leído a las {{ r.readAt.slice(11, 16) }} · {{ r.source }}</span>
-      <span class="muted">lee siempre · borra sólo con confirmación</span>
+      <span class="muted">{{ readOnly ? 'sólo lee: en prod no se borra ni se pasa de estado' : 'lee siempre · borra sólo con confirmación' }}</span>
       <div class="layout-controls" role="group" aria-label="Tema y regiones visibles">
         <button ref="themeToggle" type="button" class="region-action theme-toggle"><span class="ui-icon" aria-hidden="true"></span></button>
         <button type="button" class="region-action" :aria-pressed="!!shown.sidebar" title="Mostrar u ocultar las búsquedas" aria-label="Mostrar u ocultar las búsquedas" @click="toggleSidebar">
