@@ -25,3 +25,14 @@ El wizard reconoce una oferta de calculadora por `calculated.plans` no vacío, c
 ## Simulación y documentos
 
 `CalculatorPaymentScheduleService::supports` decide por una matriz configurada, no por el nombre del producto. La simulación reutiliza `LenderCalculator`, toma `original_amount` con fallback a `amount` e incorpora el porcentaje de inicial de la categoría. El listado no pasa ese input adicional; compartir evaluador no garantiza importes iguales con bases o inputs distintos. El calendario depende del corte y de la fecha de pago elegida, separado de la etiqueta `weekly` del resultado. Para documentos, `CatalogDocumentPayloadResolver::builderClassFor` decide en el orden plantilla, slug, producto y onboarding (`CatalogDocumentPayloadResolver.php:172`): primero el prefijo de `lender_signing_documents.template` (hoy sólo `creditopxpdf.lenders.alta.`, Alta Fleet, porque su slug cambia entre ambientes), después el slug con builder propio y después el producto renting/RTO; el resto cae a onboarding. Una fila sin plantilla sigue la regla por slug y producto, así que una entidad `rto` sin plantilla ni slug propios recibe el builder de Motai. Un lender que lista y simula todavía necesita un catálogo y plantillas compatibles para firmar. Ninguno de estos archivos demuestra que esas filas estén cargadas en un ambiente.
+
+## Montos que se guardan al autorizar
+
+`CalculatorAuthorizationAmounts` decide los montos de autorización de las entidades cuyo `calculator`
+declara una matriz de opciones; sin ella devuelve `null` y la autorización sigue por el cálculo de
+crédito de siempre. Con matriz, `final_amount` es el precio calculado (el resultado de la fórmula
+`amount`), no el costo: ese valor es el que consume cupo de la categoría y del rotativo y el saldo que
+ve el cliente. `fee_value` es el pago periódico del plan elegido, no el total del plazo. En el
+histórico del crédito, `total_amount` toma el mismo precio, `fee_value` el pago periódico y
+`next_payment_date` la primera fecha del cronograma del corte de la entidad. La regla depende de la
+configuración, no de `product`: una entidad de crédito con matriz de opciones seguiría este camino.

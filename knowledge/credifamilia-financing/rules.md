@@ -77,3 +77,30 @@ no está en la tabla FNG; el resumen devuelve un error de cálculo. Si el compro
 resumen, usa el desglose genérico para el total y deja vacíos varios componentes de fianza. No
 inferir que hubo preaprobación válida o fianza financiada por encontrar un total en cualquiera de
 esas salidas.
+
+## El plan de pagos: tasas, fechas y cuotas
+
+El motor del plan (`CalculationContext` y `ScheduleGenerator`) convierte la TEA de la preaprobación
+a tasa mensual `(1+TEA)^(1/12) − 1` y a tasa diaria `(1+TEA)^(1/360) − 1`, sin redondear. La primera
+cuota cae el día de pago del mes siguiente al desembolso; si entre las dos fechas hay menos de 30
+días contados con Days360, se corre un mes más. Un día de pago mayor al último del mes se recorta a
+ese último día.
+
+- Los días de interés diario son `Days360(desembolso, primera cuota) − 30`, y ese interés (total a
+  desembolsar × tasa diaria × días) se cobra sólo en la cuota 1.
+- La cuota base es `PMT(tasa mensual, plazo, total a desembolsar)`; el abono a capital es la cuota
+  base menos el interés del saldo, y la última cuota toma el saldo que quede para cerrar en cero.
+- Cada cuota suma, fijos, el seguro de vida (total a desembolsar × `life_insurance_percentage`/100
+  de la preaprobación) y, si la fianza es Vencida, total de fianza / plazo. Con Anticipada la fianza
+  ya está en el capital y no se cobra por cuota.
+
+Sólo se aceptan los días de pago 2 y 16; el servicio de fechas ofrece las dos próximas que cumplen
+la regla de 30 días. El listado de plazos recorre los `fee_numbers` de la línea de crédito de la
+entidad de la solicitud, calcula con día 2 y desembolso hoy, y muestra la cuota 2 como
+representativa porque la 1 lleva el interés diario.
+
+Límites: el Days360 del código sólo ajusta el día 31, no el fin de febrero como DAYS360 de Excel, y
+la calculadora del proveedor cuenta los 30 días en días calendario: en los bordes de mes la primera
+fecha puede diferir. El seguro se calcula sobre el total a desembolsar, no sobre el monto
+solicitado. `max_amount` de la preaprobación debe ser mayor que cero, pero no topa el monto: sólo
+produce `available_amount` (total − máximo).

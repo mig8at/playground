@@ -141,6 +141,69 @@
       "sections": [
         "welli-risk-depende-de-la-sucursal-de-la-consulta-compartida-y-de-la-comision-del-aliado"
       ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/Onboarding/App/Services/lenders/LenderValidationService.php",
+      "commit": "c03edaffa465bd07bceccd4076af5d1cec9916b9",
+      "blob": "9ba2496d9f3797c5f1ea5bb9347aa7bcb73bc231",
+      "sections": [
+        "las-reglas-duras-solo-sacan-del-listado-a-algunas-entidades"
+      ]
+    },
+    {
+      "repo": "application",
+      "path": "app/Services/lenders/LenderValidationService.php",
+      "commit": "24dc86eb1eaabb4e4eee37750ab90e258c36ce78",
+      "blob": "b6007ba6c6578e6cdbf8f1d9eb11d64f91761d49",
+      "sections": [
+        "las-reglas-duras-solo-sacan-del-listado-a-algunas-entidades"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/Loans/App/Services/DatacreditoRuleEvaluator.php",
+      "commit": "c03edaffa465bd07bceccd4076af5d1cec9916b9",
+      "blob": "5879d6910e339be83e201cbcd376783533fcab33",
+      "sections": [
+        "las-reglas-duras-solo-sacan-del-listado-a-algunas-entidades"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/Loans/App/Http/Controllers/Customer/CreditopXQuotaController.php",
+      "commit": "c03edaffa465bd07bceccd4076af5d1cec9916b9",
+      "blob": "cce703d991d2da707ad774e624c2e410a55a318a",
+      "sections": [
+        "las-reglas-duras-solo-sacan-del-listado-a-algunas-entidades"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/Loans/App/Services/RevolvingCredit/RevolvingHardPolicyGate.php",
+      "commit": "c03edaffa465bd07bceccd4076af5d1cec9916b9",
+      "blob": "b263414d840d83f091fbd629ce9b9604a4a05a76",
+      "sections": [
+        "las-reglas-duras-solo-sacan-del-listado-a-algunas-entidades"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "database/migrations/2024_01_15_165803_create_cities_by_lender_table.php",
+      "commit": "c03edaffa465bd07bceccd4076af5d1cec9916b9",
+      "blob": "31eabf8f8201aa96191e4f2eef6948b463a5d579",
+      "sections": [
+        "las-reglas-duras-solo-sacan-del-listado-a-algunas-entidades"
+      ]
+    },
+    {
+      "repo": "application",
+      "path": "database/migrations/2024_01_15_165803_create_cities_by_lender_table.php",
+      "commit": "24dc86eb1eaabb4e4eee37750ab90e258c36ce78",
+      "blob": "31eabf8f8201aa96191e4f2eef6948b463a5d579",
+      "sections": [
+        "las-reglas-duras-solo-sacan-del-listado-a-algunas-entidades"
+      ]
     }
   ]
 }

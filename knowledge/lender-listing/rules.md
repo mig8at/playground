@@ -62,3 +62,26 @@ después la sucursal. El `PreApprovedLenderService` viejo, además, saca a la 16
 solicitud no es el `allied_id` 26, y la deja sólo si sale `approved` con monto máximo de al menos
 180.000 y sin una solicitud previa de esa entidad en estado 11.
 
+
+## Las reglas duras sólo sacan del listado a algunas entidades
+
+El listado evalúa las `lender_rules` de los grupos de la sucursal: por campo del formulario
+(`field_id`) o por tabla, donde sólo se leen `age` y `gender` del usuario (cualquier otra columna
+compara contra vacío). Los operadores son `=` (varios valores separados por `|`), `>=`, `<=` y `!=`.
+Lo que pasa cuando una entidad no cumple depende de su `response_type`:
+
+- Con 2 (CreditopX) sale del listado.
+- Con 3 (rotativo), en el backend modular, sale salvo que el cliente ya tenga un cupo rotativo
+  aprobado con esa entidad. application no tiene este caso y la deja.
+- Con cualquier otro valor se queda, marcada «Probabilidad muy baja» y ordenada al final. Las
+  entidades 5, 135, 136 y 137 quedan además con «0% de probabilidad».
+
+Por eso cargar en `lender_rules` la política de una entidad de respuesta externa no la saca del
+listado. En el backend modular una regla con `status = 0` no se evalúa, como en el flujo de cupo;
+application la sigue evaluando.
+
+El umbral de score de `lender_datacredito_rules` (con `allow_0_score` para aceptar score 0) sólo lo
+aplican caminos de CreditopX: en el backend modular, el cupo de CreditopX y el rotativo
+(`DatacreditoRuleEvaluator`), porque en el listado esa evaluación está comentada; en application,
+el listado lo evalúa sólo para `response_type` 2. `cities_by_lender` existe como tabla en los dos
+monolitos, pero ningún código la lee: no restringe por ciudad.

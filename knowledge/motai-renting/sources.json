@@ -1,0 +1,118 @@
+{
+  "version": 1,
+  "title": "Motai: tarifa, documentos por escenario y variables",
+  "summary": "Calculadora sembrada del renting de Motai (precio, inicial sobre el precio, tarifa semanal por plan), el RTO como clon, el catálogo de documentos por rama con y sin codeudor, y el origen de las variables de contrato y pagaré.",
+  "reviewedAt": "2026-10-28T15:13:44+00:00",
+  "sources": [
+    {
+      "repo": "legacy-backend",
+      "path": "database/migrations/2026_07_30_120000_seed_motai_renting_plans_calculator.php",
+      "commit": "c03edaffa465bd07bceccd4076af5d1cec9916b9",
+      "blob": "8b136d6a8c22ea39cc4db06812d8f007bf971fb1",
+      "sections": [
+        "la-tarifa-del-renting"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "database/migrations/2026_08_15_130000_add_initial_fee_formula_to_calculator_lenders.php",
+      "commit": "c03edaffa465bd07bceccd4076af5d1cec9916b9",
+      "blob": "f45f8d710b294bcd0092a15ba47364c855d90599",
+      "sections": [
+        "la-tarifa-del-renting"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "database/migrations/2026_08_15_140000_clone_motai_renting_lender_as_rent_to_own.php",
+      "commit": "c03edaffa465bd07bceccd4076af5d1cec9916b9",
+      "blob": "8516450dee8a6e137d5425e10e26c449283ce569",
+      "sections": [
+        "el-rent-to-own-nacio-como-clon"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "database/migrations/2026_08_25_120000_set_rent_to_own_product_to_rto.php",
+      "commit": "c03edaffa465bd07bceccd4076af5d1cec9916b9",
+      "blob": "90051daa16698ff03bcaa2fda34b97fc6bd11610",
+      "sections": [
+        "el-rent-to-own-nacio-como-clon"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/Loans/App/Services/DocumentGeneration/Payload/MotaiRentToOwnPayloadBuilder.php",
+      "commit": "c03edaffa465bd07bceccd4076af5d1cec9916b9",
+      "blob": "90d8924d42a6eefcbafdb1df11f724a177fcf67b",
+      "sections": [
+        "el-rent-to-own-nacio-como-clon",
+        "documentos-que-firma-cada-rama",
+        "de-donde-salen-las-variables"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "database/migrations/2026_08_16_100200_seed_renting_signing_documents_catalog.php",
+      "commit": "c03edaffa465bd07bceccd4076af5d1cec9916b9",
+      "blob": "a6836bb074f2f86ce86d9a59c4ea1b6d136deb66",
+      "sections": [
+        "documentos-que-firma-cada-rama"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "database/migrations/2026_08_16_110200_seed_motai_renting_cosigner_branch.php",
+      "commit": "c03edaffa465bd07bceccd4076af5d1cec9916b9",
+      "blob": "23eaf49d42cdc120d273b6d4f882f17344c4d267",
+      "sections": [
+        "documentos-que-firma-cada-rama"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "database/migrations/2026_08_20_120000_seed_rent_to_own_cosigner_documents.php",
+      "commit": "c03edaffa465bd07bceccd4076af5d1cec9916b9",
+      "blob": "332fe75801555e6d6443c2c122e46679a8e26189",
+      "sections": [
+        "documentos-que-firma-cada-rama"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "resources/views/creditopxpdf/lenders/motai/rto/contrato_rto_sin_codeudor.blade.php",
+      "commit": "c03edaffa465bd07bceccd4076af5d1cec9916b9",
+      "blob": "18c1ca3acf6245ebe2dc4b6aecf9f2274506a0f0",
+      "sections": [
+        "documentos-que-firma-cada-rama"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/Loans/App/Services/Signing/SigningDocumentResolver.php",
+      "commit": "c03edaffa465bd07bceccd4076af5d1cec9916b9",
+      "blob": "5533e96c1c7cf3ffcbe78c2c26d4bdfaf2a22f33",
+      "sections": [
+        "documentos-que-firma-cada-rama"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/Loans/App/Services/DocumentGeneration/Payload/MotaiRentingPayloadBuilder.php",
+      "commit": "c03edaffa465bd07bceccd4076af5d1cec9916b9",
+      "blob": "b01eb871045c1df72f74947dc6fba645f9280e1c",
+      "sections": [
+        "de-donde-salen-las-variables"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/Loans/App/Services/DocumentGeneration/CatalogDocumentGenerator.php",
+      "commit": "c03edaffa465bd07bceccd4076af5d1cec9916b9",
+      "blob": "6aacf052f3f488ef92b63725c2d4c5a13c8371e2",
+      "sections": [
+        "de-donde-salen-las-variables"
+      ]
+    }
+  ]
+}

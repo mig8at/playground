@@ -1,0 +1,45 @@
+{
+  "version": 1,
+  "title": "Categoría por puntaje de respuestas",
+  "summary": "Cuando ninguna regla de categoría aprueba, el backend modular suma puntos por respuestas del formulario y por capacidad de pago para elegir categoría; cuándo esa categoría aprueba, y cómo el formulario dinámico convierte rangos de ingreso y gasto en montos.",
+  "reviewedAt": "2026-10-28T15:17:04+00:00",
+  "sources": [
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/Loans/App/Services/LenderUserCategoryService.php",
+      "commit": "c03edaffa465bd07bceccd4076af5d1cec9916b9",
+      "blob": "676fb1f28a999cf8bbff0c756328a656df7cd2f0",
+      "sections": [
+        "cuando-se-usa-el-puntaje",
+        "una-categoria-por-puntaje-no-siempre-aprueba"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/Loans/App/Http/Controllers/Customer/CreditopXQuotaController.php",
+      "commit": "c03edaffa465bd07bceccd4076af5d1cec9916b9",
+      "blob": "cce703d991d2da707ad774e624c2e410a55a318a",
+      "sections": [
+        "una-categoria-por-puntaje-no-siempre-aprueba"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/Onboarding/App/Services/lenders/LenderListingService.php",
+      "commit": "c03edaffa465bd07bceccd4076af5d1cec9916b9",
+      "blob": "b5c813f1c70bc407b080d15a05c44ce3fdb0e681",
+      "sections": [
+        "una-categoria-por-puntaje-no-siempre-aprueba"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/Onboarding/App/Services/DynamicFormsService.php",
+      "commit": "c03edaffa465bd07bceccd4076af5d1cec9916b9",
+      "blob": "71eba7cf836cdc62aa360a41f3897b084390548f",
+      "sections": [
+        "rangos-declarados-que-se-vuelven-montos"
+      ]
+    }
+  ]
+}

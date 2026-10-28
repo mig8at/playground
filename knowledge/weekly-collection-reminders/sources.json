@@ -1,0 +1,111 @@
+{
+  "version": 1,
+  "title": "Corte semanal y recordatorios de cobranza",
+  "summary": "Cortes 3 (viernes) y 4 (martes): primera cuota, tasa semanal efectiva en los dos monolitos y el comando de recordatorios semanales de legacy-backend: offsets, días no hábiles, un mensaje diario y variables.",
+  "reviewedAt": "2026-10-28T15:12:55+00:00",
+  "sources": [
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/Loans/App/Support/CutoffCalendar.php",
+      "commit": "c03edaffa465bd07bceccd4076af5d1cec9916b9",
+      "blob": "ed6fa4afbea819cc75885a42b6e5847dfc023b8f",
+      "sections": [
+        "los-dos-cortes-semanales",
+        "la-tasa-semanal-es-efectiva-en-los-dos-monolitos"
+      ]
+    },
+    {
+      "repo": "application",
+      "path": "app/Helpers/CutoffCalendar.php",
+      "commit": "24dc86eb1eaabb4e4eee37750ab90e258c36ce78",
+      "blob": "c72345f5483b7d6943156caf7e34f26c28388b8e",
+      "sections": [
+        "la-tasa-semanal-es-efectiva-en-los-dos-monolitos"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "database/migrations/2026_08_15_120000_disable_payment_date_selection_for_renting_and_rto.php",
+      "commit": "c03edaffa465bd07bceccd4076af5d1cec9916b9",
+      "blob": "75d3291a9bc93adaa48b5f2c54f4f428a71b423d",
+      "sections": [
+        "los-dos-cortes-semanales"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/Loans/App/Services/DocumentGeneration/Payload/MotaiRentToOwnPayloadBuilder.php",
+      "commit": "c03edaffa465bd07bceccd4076af5d1cec9916b9",
+      "blob": "90d8924d42a6eefcbafdb1df11f724a177fcf67b",
+      "sections": [
+        "la-tasa-semanal-es-efectiva-en-los-dos-monolitos"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "app/Console/Kernel.php",
+      "commit": "c03edaffa465bd07bceccd4076af5d1cec9916b9",
+      "blob": "9ee74124d8db9ff4d1d0f902832eb1159dd863b7",
+      "sections": [
+        "quien-envia-cada-recordatorio"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "app/Console/Commands/ReminderWeeklyLoansCommand.php",
+      "commit": "c03edaffa465bd07bceccd4076af5d1cec9916b9",
+      "blob": "8314e26f298272852b58ab7a63eb022f94a9a550",
+      "sections": [
+        "quien-envia-cada-recordatorio",
+        "cuando-sale-cada-plantilla"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/Loans/App/Services/Reminders/WeeklyReminderQuery.php",
+      "commit": "c03edaffa465bd07bceccd4076af5d1cec9916b9",
+      "blob": "4fdd0523ddd3d4791ff45833e5b229ef17045fcf",
+      "sections": [
+        "quien-envia-cada-recordatorio",
+        "cuando-sale-cada-plantilla"
+      ]
+    },
+    {
+      "repo": "application",
+      "path": "app/Console/Commands/ReminderCreditopXRequestsCommand.php",
+      "commit": "24dc86eb1eaabb4e4eee37750ab90e258c36ce78",
+      "blob": "bdec571b8e0aba39f2f1a058bdab89e5a6018dbc",
+      "sections": [
+        "quien-envia-cada-recordatorio"
+      ]
+    },
+    {
+      "repo": "application",
+      "path": "config/reminders.php",
+      "commit": "24dc86eb1eaabb4e4eee37750ab90e258c36ce78",
+      "blob": "d97580cc642f4837240a425b122a74758ca12a0d",
+      "sections": [
+        "quien-envia-cada-recordatorio"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "database/migrations/2026_09_03_100300_plantillas_semanales_motai.php",
+      "commit": "c03edaffa465bd07bceccd4076af5d1cec9916b9",
+      "blob": "f35c909383ac96b7e30f7a782e07203ab65df839",
+      "sections": [
+        "cuando-sale-cada-plantilla",
+        "limites"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/Loans/App/Services/CreditopXPaymentService.php",
+      "commit": "c03edaffa465bd07bceccd4076af5d1cec9916b9",
+      "blob": "796b6386460c4525005371afecc0d80d2ff4f81f",
+      "sections": [
+        "variables-de-los-mensajes"
+      ]
+    }
+  ]
+}

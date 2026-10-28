@@ -1,0 +1,108 @@
+{
+  "version": 1,
+  "title": "Credifamilia: preaprobación, identidad y radicación",
+  "summary": "Cuándo aprueba la preaprobación de Credifamilia, cómo cae la identidad de CrossCore a un respaldo y cómo se radica por SOAP: estados, idempotencia, los nueve documentos del PDF y los datos derivados de la ocupación.",
+  "reviewedAt": "2026-10-28T15:15:38+00:00",
+  "sources": [
+    {
+      "repo": "pre-approvals-service",
+      "path": "internal/infra/lending_products/credifamilia/adapter.go",
+      "commit": "8bfbee92f31a2520c94e371971d469cb399dc7a2",
+      "blob": "c7ba974318655936117692cbf12001632a715da7",
+      "sections": [
+        "la-preaprobacion-solo-aprueba-con-estado-3-y-aprobado"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "app/Services/PaymentPlan/Credifamilia/CredifamiliaPayloadBuilder.php",
+      "commit": "c03edaffa465bd07bceccd4076af5d1cec9916b9",
+      "blob": "22623b5697c8b1d3ecbc8bab39553a20c546b26e",
+      "sections": [
+        "la-preaprobacion-solo-aprueba-con-estado-3-y-aprobado"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/Identity/App/Services/IdentityValidationProvidersService.php",
+      "commit": "c03edaffa465bd07bceccd4076af5d1cec9916b9",
+      "blob": "45eef771b41d3f739b00b7af4b7ee3f25a57a037",
+      "sections": [
+        "identidad-proveedor-primario-y-respaldos"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/Identity/App/Services/ValidationStatusService.php",
+      "commit": "c03edaffa465bd07bceccd4076af5d1cec9916b9",
+      "blob": "6c0e9d779c5fdb83df0e6d8f90f11150810c96b9",
+      "sections": [
+        "identidad-proveedor-primario-y-respaldos"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "app/Services/Lenders/CredifamiliaV2/CrossCore/CrossCoreDecisionMapper.php",
+      "commit": "c03edaffa465bd07bceccd4076af5d1cec9916b9",
+      "blob": "858ca8f2747c5211a0615d5771ef532ad9fe9e51",
+      "sections": [
+        "identidad-proveedor-primario-y-respaldos"
+      ]
+    },
+    {
+      "repo": "frontend-monorepo",
+      "path": "apps/loan-request-wizard/app/routes/identity-validation-status.tsx",
+      "commit": "1238d30ef1459fd1fb84ac8020fbacb64a658e55",
+      "blob": "b77ace6fe23217c390afd70cceef2802a98b6e0c",
+      "sections": [
+        "identidad-proveedor-primario-y-respaldos"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "app/Actions/Lenders/CredifamiliaConsumo/CredifamiliaConsumo.php",
+      "commit": "c03edaffa465bd07bceccd4076af5d1cec9916b9",
+      "blob": "41451af4799a348e8ab5c8adf0729176b5f777de",
+      "sections": [
+        "la-radicacion-tiene-dos-pasos-soap"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "app/Actions/Lenders/CredifamiliaConsumo/DocumentRequest.php",
+      "commit": "c03edaffa465bd07bceccd4076af5d1cec9916b9",
+      "blob": "e10f0523125ebcb788d4b48021e9bccbeeb93be4",
+      "sections": [
+        "la-radicacion-tiene-dos-pasos-soap"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "app/Services/Pdf/CredifamiliaLegalizationDocumentService.php",
+      "commit": "c03edaffa465bd07bceccd4076af5d1cec9916b9",
+      "blob": "6684d69df3923ddd42ae38f190564ffd2c5eb39a",
+      "sections": [
+        "la-radicacion-tiene-dos-pasos-soap"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "app/Services/Pdf/CredifamiliaFormalizationService.php",
+      "commit": "c03edaffa465bd07bceccd4076af5d1cec9916b9",
+      "blob": "f23e833aaf79ace277a5e2afdc55e3acff70e874",
+      "sections": [
+        "la-radicacion-tiene-dos-pasos-soap"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "app/Actions/Lenders/CredifamiliaConsumo/TransactionRequest.php",
+      "commit": "c03edaffa465bd07bceccd4076af5d1cec9916b9",
+      "blob": "abafef9adb06840a08dd2e68dec79358d08b6df4",
+      "sections": [
+        "la-radicacion-tiene-dos-pasos-soap",
+        "que-datos-manda-la-radicacion"
+      ]
+    }
+  ]
+}

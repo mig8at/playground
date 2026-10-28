@@ -1,7 +1,7 @@
 {
   "version": 1,
   "title": "Credifamilia: fianza y monto de radicación",
-  "summary": "Origen de la fianza, fórmula compartida y diferencias de entradas, formatos y respaldo entre SOAP, cuotas y comprobante; Salud y Materiales calculan la fianza distinto.",
+  "summary": "Origen de la fianza, fórmula compartida y diferencias de entradas, formatos y respaldo entre SOAP, cuotas y comprobante; Salud y Materiales calculan la fianza distinto. También el plan de pagos: tasas, fechas (días 2 y 16), interés diario, seguro y cuota representativa.",
   "reviewedAt": "2026-10-27T20:59:57+00:00",
   "sources": [
     {
@@ -12,7 +12,8 @@
       "sections": [
         "la-fianza-la-decide-el-perfil-de-la-entidad",
         "compartir-formula-no-garantiza-montos-ni-formatos-identicos",
-        "los-respaldos-tambien-son-distintos"
+        "los-respaldos-tambien-son-distintos",
+        "el-plan-de-pagos-tasas-fechas-y-cuotas"
       ]
     },
     {
@@ -52,7 +53,8 @@
       "commit": "d21ab0ef275891025cd2a823552d5ec6c0cac283",
       "blob": "4467b299f1c4e074536a4c28f40118872389f79a",
       "sections": [
-        "una-formula-compartida-con-dos-tratamientos-de-fianza"
+        "una-formula-compartida-con-dos-tratamientos-de-fianza",
+        "el-plan-de-pagos-tasas-fechas-y-cuotas"
       ]
     },
     {
@@ -121,6 +123,69 @@
       "blob": "d4005d80c9193717735db7ef434536a4b6b88052",
       "sections": [
         "una-formula-compartida-con-dos-tratamientos-de-fianza"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "app/Services/PaymentPlan/Credifamilia/Math/FinancialMath.php",
+      "commit": "c03edaffa465bd07bceccd4076af5d1cec9916b9",
+      "blob": "577bcef13c1122193df366597f190003058f2278",
+      "sections": [
+        "el-plan-de-pagos-tasas-fechas-y-cuotas"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "app/Services/PaymentPlan/Credifamilia/Math/DateCalculator.php",
+      "commit": "c03edaffa465bd07bceccd4076af5d1cec9916b9",
+      "blob": "f9b887d6fa02c9db034454f3b2a5d2da91465f66",
+      "sections": [
+        "el-plan-de-pagos-tasas-fechas-y-cuotas"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "app/Services/PaymentPlan/Credifamilia/Math/Days360Calculator.php",
+      "commit": "c03edaffa465bd07bceccd4076af5d1cec9916b9",
+      "blob": "bfc93836396ba4d253bfdd3ea7975da7e5d833e5",
+      "sections": [
+        "el-plan-de-pagos-tasas-fechas-y-cuotas"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "app/Services/PaymentPlan/Credifamilia/Engine/ScheduleGenerator.php",
+      "commit": "c03edaffa465bd07bceccd4076af5d1cec9916b9",
+      "blob": "b721c4495e68aa851eff59d7406ddd831b2300ef",
+      "sections": [
+        "el-plan-de-pagos-tasas-fechas-y-cuotas"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "app/Services/PaymentPlan/Credifamilia/InstallmentPlan/CredifamiliaInstallmentPlanService.php",
+      "commit": "c03edaffa465bd07bceccd4076af5d1cec9916b9",
+      "blob": "28f26310e28d4eac999d2f192bb11c275d86c206",
+      "sections": [
+        "el-plan-de-pagos-tasas-fechas-y-cuotas"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "app/Services/PaymentPlan/Credifamilia/PaymentDates/CredifamiliaPaymentDatesService.php",
+      "commit": "c03edaffa465bd07bceccd4076af5d1cec9916b9",
+      "blob": "42f1059c3efef290d18f2b99014f1b5b5c4f7bc7",
+      "sections": [
+        "el-plan-de-pagos-tasas-fechas-y-cuotas"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "app/Services/PaymentPlan/Credifamilia/LoanOptions/CredifamiliaLoanOptionsService.php",
+      "commit": "c03edaffa465bd07bceccd4076af5d1cec9916b9",
+      "blob": "35fb6133d9671e6b40b0c81c8eb30ea8a8880bdd",
+      "sections": [
+        "el-plan-de-pagos-tasas-fechas-y-cuotas"
       ]
     }
   ]
