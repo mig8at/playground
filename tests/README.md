@@ -28,8 +28,8 @@ contar la hora. Salida: esperar, o usar otra cédula (y cargarla en el paso 2).
 En `tests`, pestaña **Tiendas** de la consola de abajo, un semáforo dice si cada tienda está lista para comprar y el botón
 **Levantar** corre en segundo plano lo de esta sección: `shopify app dev` (y apunta la extensión al túnel nuevo solo) y
 `vtex link` (sólo con la sesión en `creditop · migueldev`). **Parar** corta lo que levantó tests, y cerrar `make tests`
-lo corta también. El login de VTEX abre el navegador: va siempre a mano. Los comandos siguen ahí con su botón de copiar
-(`tests/src/store-commands.js` y `tests/server/stores.go`: si cambia uno, se cambian los dos).
+lo corta también. El login de VTEX abre el navegador: va siempre a mano. Los comandos de abajo son lo que corre el
+botón (`tests/server/stores.go`): si cambia uno, se cambian los dos.
 
 Datos de la persona en las dos tiendas: celular `3016992677`, correo **`miguel-test@creditop.com`** (no
 `miguel@creditop.com`: es tu cuenta de administrador en qa y el registro dice «correo ya registrado»). El código

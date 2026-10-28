@@ -13,7 +13,6 @@ import {
   readHashRoute, hashRoute, setRoute,
 } from './workbench.js'
 import { TABLE_DOCS } from './table-docs.js'
-import { STORE_COMMANDS } from './store-commands.js'
 import { STORE_FLOWS } from './store-flows.js'
 import FlowDiagram from './FlowDiagram.vue'
 
@@ -464,10 +463,6 @@ watch(panelTab, (tab) => {
   storesTimer = setInterval(loadStores, 5000)
 }, { immediate: true })
 onBeforeUnmount(() => clearInterval(storesTimer))
-// El comando de tienda recién copiado, para marcar su botón un momento.
-const copiedCmd = ref('')
-async function copyCommand(cmd) {
-  try { await navigator.clipboard.writeText(cmd); copiedCmd.value = cmd; setTimeout(() => { copiedCmd.value = '' }, 1500) } catch { /* sin portapapeles */ }
 }
 // Otra solicitud u otro ambiente: la consulta abierta era de la anterior.
 watch([() => result.value?.request?.id, target], () => { openTable.value = null; openCell.value = null; if (panelTab.value === 'table') panelTab.value = 'states'; docTable.value = null })
@@ -918,20 +913,6 @@ onBeforeUnmount(() => {
           <pre v-if="storeLogOpen === st.store" class="store-log">{{ st.log.slice(-40).join('\n') }}</pre>
         </section>
         <p v-if="!stores.length && !storesError" class="muted">Midiendo…</p>
-        <p class="muted store-manual">A mano, cada uno en su terminal (es lo mismo que hace el botón; el login de VTEX abre el navegador y va siempre a mano):</p>
-        <section v-for="g in STORE_COMMANDS" :key="g.store" class="store-group">
-          <h3>{{ g.store }}</h3>
-          <p class="muted">{{ g.about }}</p>
-          <div v-for="(st, i) in g.steps" :key="st.cmd" class="store-step">
-            <p><b>{{ i + 1 }} · {{ st.what }}</b> <span class="muted">— {{ st.why }}</span></p>
-            <div class="cmd-row">
-              <code class="cmd">{{ st.cmd }}</code>
-              <button type="button" class="region-action" :title="copiedCmd === st.cmd ? 'Copiado' : 'Copiar el comando'" aria-label="Copiar el comando" @click="copyCommand(st.cmd)">
-                <span class="ui-icon" :data-icon="copiedCmd === st.cmd ? 'check' : 'copy'" aria-hidden="true"></span>
-              </button>
-            </div>
-          </div>
-        </section>
       </div>
       <div v-else-if="panelTab === 'tables'" class="region-body">
         <p v-if="!tables.length" class="none">Las tablas de la solicitud que se mira; las que se apagan acá no se muestran en el editor.</p>
@@ -1135,21 +1116,14 @@ code.wrap { word-break: break-all }
 .table-doc h3 { margin: 0 0 var(--space-1); font-size: var(--text-base); font-weight: 600 }
 .table-doc p { margin: 0 0 var(--space-1); max-width: 90ch; line-height: 1.5 }
 /* El semáforo de cada tienda: el punto, los chequeos y la salida del proceso. */
+.store-commands { padding: var(--space-2) var(--gutter) }
+.store-commands p { margin: 0 0 var(--space-1); max-width: 90ch; line-height: 1.5 }
 .store-state { margin-bottom: var(--space-3) }
 .store-state-head { display: flex; align-items: center; gap: var(--space-2); flex-wrap: wrap }
 .store-state-head h3 { margin: 0; font-size: var(--text-base); font-weight: 600 }
 .store-checks { margin: var(--space-1) 0 0; padding: 0; list-style: none; font-size: var(--text-sm) }
 .store-checks li { display: flex; align-items: center; gap: var(--space-2); padding: 2px 0 }
 .store-log { max-height: 220px; overflow: auto; margin: var(--space-1) 0 0; padding: var(--space-2); border-radius: var(--radius-sm); background: var(--muted); font-size: 11px; line-height: 1.45; white-space: pre-wrap; word-break: break-all }
-.store-manual { margin-top: var(--space-3) !important; padding-top: var(--space-2); border-top: 1px solid var(--border) }
-/* Los comandos de las tiendas: un grupo por tienda, un paso por comando, con su botón de copiar. */
-.store-commands { padding: var(--space-2) var(--gutter) }
-.store-commands p { margin: 0 0 var(--space-1); max-width: 90ch; line-height: 1.5 }
-.store-group { margin-top: var(--space-3) }
-.store-group h3 { margin: 0 0 var(--space-1); font-size: var(--text-base); font-weight: 600 }
-.store-step { margin-top: var(--space-2) }
-.cmd-row { display: flex; align-items: flex-start; gap: var(--space-1) }
-.cmd { flex: 1; min-width: 0; padding: var(--space-1) var(--space-2); border-radius: var(--radius-sm); background: var(--muted); white-space: pre-wrap; word-break: break-all; font-size: var(--text-sm) }
 /* El perfil de prueba en la barra: quién, el botón y una línea por central. */
 .profile { display: flex; flex-direction: column; align-items: flex-start; gap: var(--space-1); padding: var(--space-2) var(--gutter) var(--space-3) }
 .profile p { margin: 0 }
