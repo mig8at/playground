@@ -93,10 +93,12 @@ func (c *Client) Markdown(ctx context.Context, ids string) (string, error) {
 type Piece map[string]any
 
 type Proposal struct {
-	Ready   bool `json:"ready"`
-	Lint    any  `json:"lint"`
-	Missing any  `json:"needs_answers"`
-	Where   []struct {
+	Ready bool `json:"ready"`
+	Lint  any  `json:"lint"`
+	// Rejected es lo que el servidor de hoy devuelve en vez de `lint`: los problemas que harían rechazar el texto.
+	Rejected any `json:"would_be_rejected"`
+	Missing  any `json:"needs_answers"`
+	Where    []struct {
 		Read string `json:"read"`
 	} `json:"where_it_might_belong"`
 }

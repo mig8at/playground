@@ -201,9 +201,11 @@ func propose(ctx context.Context, client *canon.Client, args []string) error {
 		return err
 	}
 	lint := "sin objeciones"
-	if result.Lint != nil {
-		text, _ := json.Marshal(result.Lint)
-		lint = string(text)
+	for _, found := range []any{result.Lint, result.Rejected} {
+		// El servidor de hoy contesta en `would_be_rejected`; uno anterior, en `lint`. Una lista vacía es «sin objeciones».
+		if text, _ := json.Marshal(found); found != nil && string(text) != "[]" && string(text) != "null" {
+			lint = string(text)
+		}
 	}
 	fmt.Printf("  ready: %v  ·  lint: %s\n", result.Ready, lint)
 	if result.Missing != nil {
