@@ -15,6 +15,8 @@ import {
 import { TABLE_DOCS } from './table-docs.js'
 import { STORE_FLOWS } from './store-flows.js'
 import FlowDiagram from './FlowDiagram.vue'
+import { STORE_PENDING } from './store-pending.js'
+import PendingWorkflow from './PendingWorkflow.vue'
 
 const DEFAULT_TARGET = 'qa'
 const TARGET_LABEL = { local: 'local · tu Docker', qa: 'qa · la base compartida de dev, qa y staging' }
@@ -213,9 +215,11 @@ const STORES = [
     { label: 'Admin · transacciones', href: 'https://creditop.myvtex.com/admin/pci-gateway/#/transactions' },
   ] },
 ]
-// El diagrama de una tienda abierto en el editor (VTEX · Shopify), o null. Buscar otra solicitud lo cierra.
-const diagram = ref(null)
-watch(() => result.value, () => { diagram.value = null })
+// Lo que se ve de una tienda en el editor —su diagrama o sus pendientes—, o null. Buscar otra solicitud lo cierra.
+const storeView = ref(null) // { store: 'VTEX', kind: 'diagram' | 'pending' }
+watch(() => result.value, () => { storeView.value = null })
+const isStoreView = (store, kind) => storeView.value?.store === store && storeView.value?.kind === kind
+function toggleStoreView(store, kind) { storeView.value = isStoreView(store, kind) ? null : { store, kind } }
 // El wizard por ambiente, para volver a abrir la solicitud y ver en qué quedó.
 const WIZARD = { qa: 'https://originaciones-qa.dev.creditop.com', local: 'http://localhost:5174' }
 // Los enlaces de la solicitud abierta: a dónde vuelve el comprador (la tienda) y el wizard. Fijos en la barra, para
@@ -638,9 +642,13 @@ onBeforeUnmount(() => {
       <nav class="store-links" aria-label="Tiendas de prueba">
         <template v-for="s in STORES" :key="s.name">
           <div class="region-head group"><span>{{ s.name }}</span></div>
-          <button v-if="STORE_FLOWS[s.name]" type="button" class="row" :class="{ on: diagram === s.name }" :aria-pressed="diagram === s.name"
-            title="Cómo se comunica una compra con legacy-backend y el wizard" @click="diagram = diagram === s.name ? null : s.name">
+          <button v-if="STORE_FLOWS[s.name]" type="button" class="row" :class="{ on: isStoreView(s.name, 'diagram') }" :aria-pressed="isStoreView(s.name, 'diagram')"
+            title="Cómo se comunica una compra con legacy-backend y el wizard" @click="toggleStoreView(s.name, 'diagram')">
             <span class="label">Diagrama</span><span class="row-meta">⇄</span>
+          </button>
+          <button v-if="STORE_PENDING[s.name]" type="button" class="row" :class="{ on: isStoreView(s.name, 'pending') }" :aria-pressed="isStoreView(s.name, 'pending')"
+            title="Qué está hecho y qué falta para salir a producción" @click="toggleStoreView(s.name, 'pending')">
+            <span class="label">Pendientes</span><span class="row-meta">☰</span>
           </button>
           <a v-for="l in s.links" :key="l.href" class="row" :href="l.href" target="_blank" rel="noopener" :title="l.href">
             <span class="label">{{ l.label }}</span><span class="row-meta">↗</span>
@@ -649,17 +657,18 @@ onBeforeUnmount(() => {
       </nav>
     </aside>
 
-    <main v-if="diagram" class="editor">
+    <main v-if="storeView" class="editor">
       <div class="region-head">
-        <span>{{ STORE_FLOWS[diagram].title }}</span>
+        <span>{{ (storeView.kind === 'diagram' ? STORE_FLOWS : STORE_PENDING)[storeView.store].title }}</span>
         <div class="region-actions">
-          <button type="button" class="region-action" title="Cerrar el diagrama" aria-label="Cerrar el diagrama" @click="diagram = null">
+          <button type="button" class="region-action" title="Cerrar" aria-label="Cerrar" @click="storeView = null">
             <span class="ui-icon" data-icon="close" aria-hidden="true"></span>
           </button>
         </div>
       </div>
       <div class="region-body">
-        <FlowDiagram :flow="STORE_FLOWS[diagram]" />
+        <FlowDiagram v-if="storeView.kind === 'diagram'" :flow="STORE_FLOWS[storeView.store]" />
+        <PendingWorkflow v-else :plan="STORE_PENDING[storeView.store]" />
       </div>
     </main>
     <main v-else class="editor">
