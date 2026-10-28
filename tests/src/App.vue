@@ -219,13 +219,15 @@ const STORES = [
   ] },
   // El piloto de producción: workspace `piloto` (production=true) con creditop.creditop 5.x, que le pide la URL al
   // payment-link de producción. Afiliaciones y condiciones de pago son de TODA la cuenta: también se ven en master.
-  { name: 'VTEX · prod (piloto)', links: [
+  { name: 'VTEX · prod (piloto)', flow: 'VTEX', prod: true, links: [
     { label: 'Tienda (piloto)', href: 'https://piloto--creditop.myvtex.com' },
     { label: 'Admin · afiliaciones (hash y token)', href: 'https://piloto--creditop.myvtex.com/admin/pci-gateway/#/affiliations' },
     { label: 'Admin · condiciones de pago', href: 'https://piloto--creditop.myvtex.com/admin/pci-gateway/#/rules' },
     { label: 'Admin · transacciones', href: 'https://piloto--creditop.myvtex.com/admin/pci-gateway/#/transactions' },
   ] },
 ]
+// En prod sólo el piloto (y su diagrama y pendientes); fuera de prod, sólo las tiendas de desarrollo.
+const visibleStores = computed(() => STORES.filter((s) => !!s.prod === readOnly.value))
 // Lo que se ve de una tienda en el editor —su diagrama o sus pendientes—, o null. Buscar otra solicitud lo cierra.
 const storeView = ref(null) // { store: 'VTEX', kind: 'diagram' | 'pending' }
 watch(() => result.value, () => { storeView.value = null })
@@ -470,6 +472,12 @@ async function storeAction(store, action) {
     loadStores()
   }
 }
+// Al pasar a prod, lo que es sólo de desarrollo se cierra: la pestaña Tiendas y una vista de Shopify.
+watch(readOnly, (ro) => {
+  if (!ro) return
+  if (panelTab.value === 'stores') panelTab.value = 'states'
+  if (storeView.value && !visibleStores.value.some((s) => (s.flow || s.name) === storeView.value.store)) storeView.value = null
+}, { immediate: true })
 watch(panelTab, (tab) => {
   clearInterval(storesTimer)
   storesTimer = null
@@ -538,7 +546,8 @@ const shown = computed(() => {
   // Si no entran, se pliega primero el de las búsquedas: el de la derecha es lo que se acaba de abrir.
   const [sidebar, aux] = fitRegions(viewportW.value - cssSize('--editor-min', 360), [
     { size: sidebarOpen.value ? sidebarW.value : 0, min: cssSize('--sidebar-min', 240) },
-    { size: auxOpen.value || openTable.value || openCell.value ? auxW.value : 0, min: cssSize('--sidebar-min', 240) },
+    // En prod no hay centrales que dictar: el panel derecho sólo se abre para una consulta o un valor.
+    { size: (auxOpen.value && !readOnly.value) || openTable.value || openCell.value ? auxW.value : 0, min: cssSize('--sidebar-min', 240) },
   ])
   const [panel] = fitRegions(viewportH.value - 200, [
     { size: panelOpen.value ? panelH.value : 0, min: cssSize('--panel-min', 124) },
@@ -615,10 +624,10 @@ onBeforeUnmount(() => {
       </div>
       <div class="region-body">
         <form class="search" @submit.prevent="submit">
-          <label class="label" for="q">Celular, correo o cédula</label>
+          <label class="label" for="q">{{ readOnly ? 'Celular, cédula o solicitud' : 'Celular, correo o cédula' }}</label>
           <div class="input-group">
             <span class="ui-icon" data-icon="search" aria-hidden="true"></span>
-            <input id="q" v-model="draft" class="input" placeholder="3016992677 · correo · cédula" autocomplete="off" spellcheck="false" />
+            <input id="q" v-model="draft" class="input" :placeholder="readOnly ? '3016992677 · cédula · solicitud' : '3016992677 · correo · cédula'" autocomplete="off" spellcheck="false" />
           </div>
           <button type="submit" class="btn btn-sm" :disabled="!draft.trim() || loading">{{ loading ? 'Leyendo…' : `Buscar en ${target}` }}</button>
         </form>
@@ -651,14 +660,14 @@ onBeforeUnmount(() => {
       </div>
       <!-- Las tiendas de prueba y sus admins, a mano: donde se compra y donde se ve el pedido. -->
       <nav class="store-links" aria-label="Tiendas de prueba">
-        <template v-for="s in STORES" :key="s.name">
+        <template v-for="s in visibleStores" :key="s.name">
           <div class="region-head group"><span>{{ s.name }}</span></div>
-          <button v-if="STORE_FLOWS[s.name]" type="button" class="row" :class="{ on: isStoreView(s.name, 'diagram') }" :aria-pressed="isStoreView(s.name, 'diagram')"
-            title="Cómo se comunica una compra con legacy-backend y el wizard" @click="toggleStoreView(s.name, 'diagram')">
+          <button v-if="STORE_FLOWS[s.flow || s.name]" type="button" class="row" :class="{ on: isStoreView(s.flow || s.name, 'diagram') }" :aria-pressed="isStoreView(s.flow || s.name, 'diagram')"
+            title="Cómo se comunica una compra con legacy-backend y el wizard" @click="toggleStoreView(s.flow || s.name, 'diagram')">
             <span class="label">Diagrama</span><span class="row-meta">⇄</span>
           </button>
-          <button v-if="STORE_PENDING[s.name]" type="button" class="row" :class="{ on: isStoreView(s.name, 'pending') }" :aria-pressed="isStoreView(s.name, 'pending')"
-            title="Qué está hecho y qué falta para salir a producción" @click="toggleStoreView(s.name, 'pending')">
+          <button v-if="STORE_PENDING[s.flow || s.name]" type="button" class="row" :class="{ on: isStoreView(s.flow || s.name, 'pending') }" :aria-pressed="isStoreView(s.flow || s.name, 'pending')"
+            title="Qué está hecho y qué falta para salir a producción" @click="toggleStoreView(s.flow || s.name, 'pending')">
             <span class="label">Pendientes</span><span class="row-meta">☰</span>
           </button>
           <a v-for="l in s.links" :key="l.href" class="row" :href="l.href" target="_blank" rel="noopener" :title="l.href">
@@ -725,7 +734,8 @@ onBeforeUnmount(() => {
         <div v-else-if="!r" class="empty">
           <div class="empty-head">
             <div class="empty-title">Buscá una prueba</div>
-            <div class="empty-desc">Escribí el celular (<code>3016992677</code>), el correo o la cédula de la persona: muestra quiénes coinciden y sus solicitudes, con las tablas de cada una. Antes de lanzar una compra, el panel de la derecha le dicta al mock de centrales tu perfil (editable). Contra <b>local</b> o <b>qa</b> (la base compartida de dev, qa y staging). También sirve la URL del wizard o el número de solicitud.</div>
+            <div v-if="readOnly" class="empty-desc">Escribí el celular, la cédula o el número de solicitud (también la URL del wizard): muestra la solicitud, la tienda de la que vino y sus tablas, leídas de prod por Redash. Sólo lee, y cada búsqueda tarda unos 20 s. El correo no sirve acá: por Redash sólo se consulta con números.</div>
+            <div v-else class="empty-desc">Escribí el celular (<code>3016992677</code>), el correo o la cédula de la persona: muestra quiénes coinciden y sus solicitudes, con las tablas de cada una. Antes de lanzar una compra, el panel de la derecha le dicta al mock de centrales tu perfil (editable). Contra <b>local</b> o <b>qa</b> (la base compartida de dev, qa y staging). También sirve la URL del wizard o el número de solicitud.</div>
           </div>
         </div>
         <div v-else-if="!r.request" class="empty">
@@ -844,8 +854,7 @@ onBeforeUnmount(() => {
         </div>
         <div class="region-body">
           <p v-if="profile?.error" class="none hot">{{ profile.error }}</p>
-          <p v-if="readOnly" class="none">En {{ target }} las centrales son las de verdad: acá no se dictan.</p>
-          <form v-else class="profile" @submit.prevent="loadProfile">
+          <form class="profile" @submit.prevent="loadProfile">
             <p class="muted small">Lo que van a contestar las centrales para esa cédula. Cargalo justo antes de lanzar la compra.</p>
             <div class="field"><label class="label" for="pf-doc">Cédula</label>
               <input id="pf-doc" v-model="form.document" class="input input-sm" inputmode="numeric" autocomplete="off" /></div>
@@ -894,7 +903,7 @@ onBeforeUnmount(() => {
         <button type="button" role="tab" class="tab" :class="{ on: panelTab === 'tables' }" :aria-selected="panelTab === 'tables'" @click="panelTab = 'tables'">
           Tablas <span v-if="tables.length" class="count" :class="{ filtered: hiddenCount }">{{ visibleTables.length }} / {{ tables.length }}</span>
         </button>
-        <button type="button" role="tab" class="tab" :class="{ on: panelTab === 'stores' }" :aria-selected="panelTab === 'stores'" @click="panelTab = 'stores'">
+        <button v-if="!readOnly" type="button" role="tab" class="tab" :class="{ on: panelTab === 'stores' }" :aria-selected="panelTab === 'stores'" @click="panelTab = 'stores'">
           Tiendas
         </button>
         <div v-if="panelTab === 'tables'" class="region-actions">
