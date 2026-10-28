@@ -54,6 +54,7 @@ type storeProc struct {
 	started time.Time
 	lines   []string
 	tunnel  string
+	since   time.Time // cuándo apareció el túnel
 	linked  bool // VTEX terminó de compilar lo que subió `vtex link` (la salida se recorta, el dato no)
 	exited  string
 }
@@ -212,6 +213,16 @@ func StoreState(store string) (*StoreStatus, error) {
 		if base != "" {
 			ok, detail = reachable(base + "/payments/session")
 		}
+		// Un túnel recién abierto da 530 unos segundos; si sigue así pasado un minuto, cloudflared no lo registró y no
+		// se arregla esperando (medido el 2026-10-28: el siguiente arranque contestó a los 25 s).
+		if !ok && p != nil && st.Managed && tunnel != "" && base == tunnel {
+			p.mu.Lock()
+			stuck := time.Since(p.since) > time.Minute
+			p.mu.Unlock()
+			if stuck {
+				detail += " · el túnel no conectó: Parar y Levantar de nuevo"
+			}
+		}
 		st.Checks = append(st.Checks, Check{Name: "El túnel de la extensión contesta", OK: ok && running, Detail: detail})
 	case "vtex":
 		account, workspace := vtexWhoami()
@@ -311,6 +322,9 @@ func (p *storeProc) read(store string, out io.Reader) {
 			p.mu.Lock()
 			fresh := p.tunnel != t
 			p.tunnel = t
+			if fresh {
+				p.since = time.Now()
+			}
 			p.mu.Unlock()
 			if fresh && extensionBase() != t {
 				p.pointExtension(t)
