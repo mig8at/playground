@@ -69,6 +69,14 @@ Salvo donde se dice «corrido», salen de LEER el código: falta reproducirlos.
 
 ### Media — comportamiento distinto al esperado
 
+- [ ] Corregir los avisos de entidades del monolito viejo que no son idempotentes ni seguros (legacy-application):
+  la guarda de autogestión `$lender->id == 68 && $lender->id == 133` nunca se cumple, así que no rechaza un código
+  de compra ya usado (`SelfManagerController.php:87`); un «aprobado» repetido de Meddipay o Bancolombia rehace y
+  reenvía el voucher, y Meddipay y Welli pueden sacar de 11 una solicitud autorizada; Payvalida marca como
+  desembolsante el id fijo 8, que en la base local es Bancolombia; la ruta de Banco de Bogotá se llama
+  `approbe.webhook`; un voucher sin `request_number` se guarda como `<documento>-.pdf` y lo pisan las demás
+  solicitudes del cliente. Termina con cada caso corregido o descartado con evidencia.
+
 - [ ] Revisar que editar el convenio de UN comercio con una entidad borra y recrea las garantías y los medios de
   pago de la ENTIDAD (`lender_guarantee_criteria` y `payment_methods_by_lender` no tienen comercio), así que
   cambia los de todos sus comercios; y que quitar un convenio no corre en transacción. Está en los dos
