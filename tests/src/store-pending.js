@@ -45,9 +45,6 @@ export const STORE_PENDING = {
         items: [
           { text: 'Reembolso manual: el conector sigue contestando «hacerlo a mano» y además avisa a Creditop, que cancela el crédito aparte (el mismo procedimiento que Shopify)', by: 'Producto' },
           { text: 'Cuánto dura la referencia del link de pago', by: 'Producto' },
-          { text: 'Revocar el token de la sucursal de prueba 530aa4f7' },
-          { text: 'Devolverle la condición de pago a Oscar', by: 'Oscar' },
-          { text: 'Qué tiendas tienen hoy el conector viejo (4.x)', by: 'Oscar' },
         ],
       },
     ],
