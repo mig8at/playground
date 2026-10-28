@@ -29,7 +29,7 @@ contra qué ambiente**. Convención de nombres: los nombres propios se quedan (`
 `panel`) y los verbos van en inglés (`align`, `refs`, `seal`, `check`), como `proyecto-verbo`.
 
 ⚠ **Antes de decir «no tengo acceso a eso», mirá el catálogo.** Loki, Redash, las cuatro bases de
-datos, PostHog, Confluence, Jira y Slack ya están cableados y con credenciales. El error caro no es no
+datos, PostHog, Confluence, Jira, Slack y Google Drive (`bin/pg drive`, tras `drive login`) ya están cableados y con credenciales. El error caro no es no
 tener la herramienta: es suponer que no está y contestar de memoria.
 
 ### Qué herramienta según qué estás preguntando
@@ -217,7 +217,7 @@ de una tarea; `canon:` conserva las referencias opcionales del corpus del equipo
 | archivo | qué lleva |
 |---|---|
 | `connectors/.env.<target>` (`local` · `dev` · `qa` · `staging` · `prod`) | lo que depende del ambiente: la base (MySQL directo, o Redash en prod), Loki y PostHog |
-| `connectors/.env` | lo que no: Gemini, Atlassian (Jira y Confluence, un token para los dos), Slack, Jev, Twilio y Figma |
+| `connectors/.env` | lo que no: Gemini, Atlassian (Jira y Confluence, un token para los dos), Slack, Jev, Twilio, Figma y el cliente OAuth de Drive |
 | `<herramienta>/.env[.<target>]` | sólo las **perillas** de esa herramienta |
 
 Las claves de cada archivo son las de la tabla. **El proceso gana** sobre el archivo, y una variable vacía

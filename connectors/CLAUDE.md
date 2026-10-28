@@ -36,6 +36,27 @@ que llega a cada herramienta por la red interna.
 hay cookies del navegador que copiar: `AUTH_GOOGLE` y `PLAYGROUND_SESION` se sacaron de `.env.prod`. Sin sesión vigente,
 `make canon-*` y `pg canon yo` dicen «corré `playground login`».
 
+## Google Drive: con la cuenta de quien entra, sólo lectura
+
+`drive/` lee Drive con el OAuth de escritorio de una persona (PKCE, redirección a `127.0.0.1`) y el alcance
+`drive.readonly`: ve lo mismo que esa cuenta en drive.google.com y Google no lo deja escribir. El cliente OAuth
+(`DRIVE_CLIENT_ID`, `DRIVE_CLIENT_SECRET`) va en `connectors/.env`; el refresh token, en `connectors/.auth/drive.json`
+(600). `login` y `logout` los corre una persona y no están en el MCP.
+
+Para crear el cliente, una vez: en Google Cloud, un proyecto con la **Google Drive API** habilitada, la pantalla de
+consentimiento como **Interna** (sólo cuentas de creditop.com) y una credencial OAuth de tipo **App de escritorio**.
+
+```sh
+bin/pg drive login                                   # abre el navegador
+bin/pg drive ls 'https://drive.google.com/drive/folders/<id>'
+bin/pg drive search --q 'Finandina' [--folder <URL>]
+bin/pg drive read <URL|id>                           # Doc → Markdown · Sheet → CSV (1.ª hoja) · Slides → texto
+bin/pg drive read <URL|id> --out /ruta/              # PDF, xlsx, docx… se bajan
+```
+
+⚠ Hay carpetas compartidas con credenciales de terceros (la de Finandina tiene dos archivos así): lo que se lee de
+Drive no se copia a tareas, `knowledge/` ni Canon sin mirar qué es.
+
 ## Dar de baja un cliente de prueba
 
 `pg admin client-disable --target local|dev|staging --document <cédula> [--apply]` hace lo mismo que la papelera de
