@@ -91,7 +91,6 @@ export const STORE_PENDING = {
           { text: 'Tomar el celular de la dirección: el código está, falta una compra en qa' },
           { text: 'Ícono propio de Creditop en el checkout' },
           { text: 'Autenticación propia del aviso a la tienda', by: 'Oscar' },
-          { text: 'Revocar el token de c390eed9 y el que quedó en la historia del repo', by: 'Oscar · Infra' },
         ],
       },
     ],
