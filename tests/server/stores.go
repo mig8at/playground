@@ -231,6 +231,9 @@ func StoreState(store string) (*StoreStatus, error) {
 		if account != "" {
 			detail = account + " · " + workspace
 		}
+		if account == vtexAccount && workspace != vtexWorkspace {
+			detail += " · Levantar la pasa a " + vtexWorkspace
+		}
 		st.Checks = append(st.Checks, Check{Name: "Sesión en " + vtexAccount + " · " + vtexWorkspace, OK: session, Detail: detail})
 		st.External = runningElsewhere(vtexSignature, p)
 		running := st.Managed || st.External
@@ -272,7 +275,17 @@ func StartStore(store string) error {
 		if runningElsewhere(vtexSignature, nil) {
 			return fmt.Errorf("vtex link ya corre en otra terminal: cerralo ahí (Ctrl+C) para levantarlo desde acá")
 		}
-		// Nunca fuera del workspace de desarrollo: linkear en master cambia la tienda real.
+		// Nunca fuera del workspace de desarrollo: linkear en master cambia la tienda real. En la cuenta correcta pero en
+		// otro workspace (el piloto, master) se pasa a migueldev, que ya existe; la cuenta no se cambia acá porque pide
+		// login en el navegador.
+		if account, workspace := vtexWhoami(); account == vtexAccount && workspace != vtexWorkspace {
+			ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+			out, err := exec.CommandContext(ctx, "vtex", "use", vtexWorkspace).CombinedOutput()
+			cancel()
+			if err != nil {
+				return fmt.Errorf("no se pudo pasar a %s: %s", vtexWorkspace, strings.TrimSpace(ansiRe.ReplaceAllString(string(out), "")))
+			}
+		}
 		if account, workspace := vtexWhoami(); account != vtexAccount || workspace != vtexWorkspace {
 			return fmt.Errorf("la sesión de VTEX es %q · %q y tiene que ser %s · %s: en una terminal, `vtex login %s` (abre el navegador) y `vtex use %s`",
 				account, workspace, vtexAccount, vtexWorkspace, vtexAccount, vtexWorkspace)
