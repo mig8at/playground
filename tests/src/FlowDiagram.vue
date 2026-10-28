@@ -8,7 +8,7 @@ const props = defineProps({ flow: { type: Object, required: true } })
 const COL = 190 // ancho de cada columna
 const HEAD = 64 // alto de la cabecera de actores
 const ROW = 46 // alto de un mensaje con subtítulo
-const ROW_SHORT = 34 // alto de un mensaje sin subtítulo
+const ROW_SHORT = 38 // alto de un mensaje sin subtítulo
 const PHASE = 38 // alto del título de un tramo
 const PAD = 16
 
@@ -51,20 +51,20 @@ const height = computed(() => {
       <g v-for="(s, i) in rows" :key="i">
         <!-- el título de un tramo -->
         <template v-if="s.phase">
-          <rect class="phase-band" :x="PAD / 2" :y="s.y + 8" :width="width - PAD" :height="PHASE - 12" rx="6" />
-          <text class="phase" :x="PAD" :y="s.y + 26">{{ s.phase }}</text>
+          <line class="phase-rule" :x1="PAD" :x2="width - PAD" :y1="s.y + 30" :y2="s.y + 30" />
+          <text class="phase" :x="PAD" :y="s.y + 24">{{ s.phase }}</text>
         </template>
         <!-- una nota sobre un actor -->
         <template v-else-if="s.note">
           <rect class="note" :x="xOf[s.note] - COL / 2 - 30" :y="s.y + 4" :width="COL + 60" :height="s.h - 8" rx="6" />
-          <text class="msg" :x="xOf[s.note]" :y="s.y + (s.sub ? 20 : 22)" text-anchor="middle">{{ s.n }} · {{ s.text }}</text>
+          <text class="msg" :x="xOf[s.note]" :y="s.y + (s.sub ? 20 : 22)" text-anchor="middle">{{ s.text }}</text>
           <text v-if="s.sub" class="msg-sub" :x="xOf[s.note]" :y="s.y + 35" text-anchor="middle">{{ s.sub }}</text>
         </template>
         <!-- un mensaje entre dos actores -->
         <template v-else>
           <line class="msg-line" :class="{ back: s.back }" :x1="xOf[s.from]" :x2="xOf[s.to] + (xOf[s.to] > xOf[s.from] ? -3 : 3)"
             :y1="s.y + (s.sub ? 26 : 22)" :y2="s.y + (s.sub ? 26 : 22)" marker-end="url(#flow-arrow)" />
-          <text class="msg" :x="(xOf[s.from] + xOf[s.to]) / 2" :y="s.y + (s.sub ? 20 : 16)" text-anchor="middle">{{ s.n }} · {{ s.text }}</text>
+          <text class="msg" :x="(xOf[s.from] + xOf[s.to]) / 2" :y="s.y + (s.sub ? 20 : 16)" text-anchor="middle">{{ s.text }}</text>
           <text v-if="s.sub" class="msg-sub" :x="(xOf[s.from] + xOf[s.to]) / 2" :y="s.y + 40" text-anchor="middle">{{ s.sub }}</text>
         </template>
       </g>
@@ -80,10 +80,10 @@ const height = computed(() => {
 .actor { fill: var(--muted); stroke: var(--border) }
 .actor-name { fill: var(--foreground); font-size: 13px; font-weight: 600 }
 .actor-sub, .msg-sub { fill: var(--muted-foreground); font-size: 10.5px }
-.phase-band { fill: color-mix(in oklab, var(--primary) 8%, transparent) }
-.phase { fill: var(--foreground); font-size: 12px; font-weight: 600 }
+.phase-rule { stroke: var(--border) }
+.phase { fill: var(--muted-foreground); font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em }
 .note { fill: color-mix(in oklab, var(--primary) 14%, var(--background)); stroke: var(--primary) }
-.msg { fill: var(--foreground); font-size: 12px }
+.msg { fill: var(--foreground); font-size: 13px }
 /* Un halo del color del fondo: las líneas de vida no cortan el texto que las cruza. */
 .msg, .msg-sub { paint-order: stroke; stroke: var(--background); stroke-width: 4px; stroke-linejoin: round }
 .msg-line { stroke: var(--foreground); stroke-width: 1.25 }
