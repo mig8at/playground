@@ -1,6 +1,11 @@
 package main
 
-import "testing"
+import (
+	"os"
+	"path/filepath"
+	"strings"
+	"testing"
+)
 
 // El ancla tiene que ser la de canon: si no coincide, toda sección parece huérfana.
 func TestAnchorOfMatchesCanon(t *testing.T) {
@@ -83,5 +88,30 @@ func TestParseAreaCite(t *testing.T) {
 		if _, _, ok := parseAreaCite(bad); ok {
 			t.Errorf("%q no debería resolverse", bad)
 		}
+	}
+}
+
+// Un tema nuevo no viene en el export: newContentFiles lo encuentra, sin repetir lo conocido ni mirar fuera de content/.
+func TestNewContentFiles(t *testing.T) {
+	dir := t.TempDir()
+	write := func(p string) {
+		full := filepath.Join(dir, filepath.FromSlash(p))
+		if err := os.MkdirAll(filepath.Dir(full), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(full, []byte("x"), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	for _, p := range []string{"content/cartera/context.md", "content/recaudo/context.md", "content/recaudo/map.json", "content/.oculto", "otro/afuera.md"} {
+		write(p)
+	}
+	got, err := newContentFiles(dir, map[string]string{"content/cartera/context.md": "h"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := []string{"content/recaudo/context.md", "content/recaudo/map.json"}
+	if strings.Join(got, ",") != strings.Join(want, ",") {
+		t.Errorf("nuevos = %v, quería %v", got, want)
 	}
 }

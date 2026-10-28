@@ -415,6 +415,20 @@ func patch(ctx context.Context, client *canon.Client, args []string) error {
 			files[path] = &text
 		}
 	}
+	// Un tema nuevo no vino en el export: sus archivos también viajan, y canon decide si los acepta.
+	added, err := newContentFiles(*dir, base.Hashes)
+	if err != nil {
+		return err
+	}
+	for _, path := range added {
+		data, err := os.ReadFile(filepath.Join(*dir, filepath.FromSlash(path)))
+		if err != nil {
+			return err
+		}
+		text := string(data)
+		files[path] = &text
+		fmt.Printf("  + %s: nuevo (no vino en el export)\n", path)
+	}
 	if len(files) == 0 {
 		fmt.Println("  nada cambió respecto de lo que se bajó: no hay qué publicar")
 		return nil
@@ -446,6 +460,40 @@ func patch(ctx context.Context, client *canon.Client, args []string) error {
 	}
 	fmt.Printf("  ✓ revisión %d en %s\n", patched.Revision, canon.URL())
 	return nil
+}
+
+/* newContentFiles lista, como rutas `content/…` con «/», los archivos de la carpeta de export que no estaban en lo
+ * que se bajó: es como se agrega un tema nuevo. Sólo mira bajo `content/` y salta los archivos ocultos. */
+func newContentFiles(dir string, known map[string]string) ([]string, error) {
+	var out []string
+	root := filepath.Join(dir, "content")
+	err := filepath.WalkDir(root, func(path string, entry os.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+		if strings.HasPrefix(entry.Name(), ".") && path != root {
+			if entry.IsDir() {
+				return filepath.SkipDir
+			}
+			return nil
+		}
+		if entry.IsDir() {
+			return nil
+		}
+		rel, err := filepath.Rel(dir, path)
+		if err != nil {
+			return err
+		}
+		if rel = filepath.ToSlash(rel); known[rel] == "" {
+			out = append(out, rel)
+		}
+		return nil
+	})
+	if os.IsNotExist(err) {
+		return nil, nil
+	}
+	sort.Strings(out)
+	return out, err
 }
 
 /* corpus imprime el corpus entero en JSON —`{"url", "topics": {tema: {areas, prose}}}`— para los
