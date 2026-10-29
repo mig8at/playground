@@ -3,7 +3,7 @@ id: 108
 title: "Sucursal ecommerce de prueba y token de payment-link desde el admin"
 stage: work
 created: "2026-10-29T12:00:00-05:00"
-ramas: feat/sucursal-ecommerce-de-prueba
+ramas: feat/sucursal-ecommerce-de-prueba, application:editar-sucursal-ecommerce, application:laravel-12-cve-develop
 knowledge: [merchant-onboarding, ecommerce-context]
 canon: []
 jira: [CORE-913]
