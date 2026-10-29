@@ -17,19 +17,20 @@ ramas: originacion-delegada
   `artifacts/foto-antes.json` (ver «Cómo se comprueba»).
 - [ ] Sacar la foto de Credifamilia Materiales: la 216 no existe en la base local. Termina con la entidad
   creada en local, igual a la 214 de prod, y su foto antes del cambio.
-- [ ] Decidir cómo se generaliza el cálculo del plan (motor único con parámetros o un cálculo por entidad,
-  como el cierre ante la entidad). Termina con la decisión en la pila, después de leer
-  `CredifamiliaAmortizationEngine` y `CredifamiliaLenderProfile`.
+- [x] ~~Decidir cómo se generaliza el cálculo del plan~~ — un solo motor; por entidad, el perfil y la fuente
+  de insumos (aprobado por Miguel, en la pila).
 - [x] ~~Abrir `feat/originacion-delegada` desde `qa` actualizado~~ — local en legacy-backend (198387981) y
   frontend-monorepo (96741ec32), sin push; declarada en `ramas:`.
-- [ ] Generalizar el backend (ver «Cómo se ataca», paso 2). Termina con la foto de después igual a la de
-  antes y una entidad de prueba del riel 4 que no es Credifamilia que lista opciones, elige fecha y simula
-  cuotas.
+- [x] ~~Generalizar el backend~~ — pasos 1 a 4 en legacy-backend (26fe0cbe6, 05fc86d4a, e6d79b57c,
+  c8e1845ea); la foto de después es igual a la de antes en cada paso.
+- [ ] Probar una entidad del riel 4 que no es Credifamilia: listar opciones, elegir fecha, simular cuotas y
+  autorizar sin formalización. Termina con esos pasos corridos en local. Depende de: una fuente de insumos
+  para esa entidad (la de Finandina es de #107).
 - [ ] Correr las migraciones `2026_10_30_120000` y `2026_10_30_120100` en cada ambiente ANTES o junto con el
   despliegue: sin el perfil sembrado, Credifamilia deja de calcular el plan de pago. Termina con la fila de
   la 24 y la de Materiales en `delegated_origination_profiles` de cada base (dev/qa/staging comparten una).
-- [ ] Cambiar en el asistente la lista de ids por la señal del backend. Termina con `pnpm turbo run build`
-  en verde y la foto igual.
+- [x] ~~Cambiar en el asistente la lista de ids por el riel~~ — frontend-monorepo 437048054; build en verde y
+  la tarjeta de Credifamilia sigue mostrando el plan del backend.
 - [ ] Abrir un PR por repo contra `qa`, con lo medido antes y después. Depende de: Miguel — el visto bueno
   para pushear.
 
