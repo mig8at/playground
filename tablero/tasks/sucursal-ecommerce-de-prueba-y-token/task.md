@@ -6,14 +6,13 @@ created: "2026-10-29T12:00:00-05:00"
 ramas: feat/sucursal-ecommerce-de-prueba
 knowledge: [merchant-onboarding, ecommerce-context]
 canon: []
-jira: []
+jira: [CORE-913]
 jira_title: "Sucursal ecommerce de prueba y token de payment-link desde el admin"
 ---
 
 ## Pendientes
 
-- [ ] Crear el issue en Jira y ponerlo en `jira:`; termina cuando la tarea tiene su clave.
-      Depende de: Miguel — revisar el borrador antes de publicarlo.
+- [x] ~~Crear el issue en Jira~~ — [CORE-913](jira:CORE-913), sprint activo, en progreso (2026-10-29).
 - [ ] Emitir el token de payment-link desde el admin de legacy-application: al crear una credencial de ecommerce, y con
       «Emitir token nuevo» / «Revocar» en la pestaña de ecommerce; el token se muestra una sola vez. Termina con un token
       emitido desde el admin local que autentica contra `POST /api/ecommerce/payment-link` de legacy-backend local (422 con
