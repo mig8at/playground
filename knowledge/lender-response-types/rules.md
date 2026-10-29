@@ -5,19 +5,26 @@ Antes de modelar una entidad nueva, la pregunta no es quién ejecuta la evaluaci
 cómo se presta. Con los tipos 2 y 3, Creditop define las reglas. Con 0, 1 y 4, la entidad dice cómo
 presta. La cobranza es otro eje: la marca `externally_serviced`.
 
-| tipo | nombre en el código | política | preaprobación | origina y firma |
-|---|---|---|---|---|
-| 0 | `STANDARD` (referido, UTM) | de la entidad | no se consulta | la entidad, en su flujo |
-| 1 | `PRE_APPROVED` / `INTEGRATED_API` | de la entidad | su API, por el `slug` | la entidad, en su flujo |
-| 2 | `CREDITOP_X` (consumo) | de Creditop | motor de cupo (`creditop_x`) | rieles de Creditop |
-| 3 | `CREDITOP_X_REVOLVING` (rotativo) | de Creditop | motor de cupo (`creditop_x`) | rieles de Creditop |
-| 4 | `EXTERNALLY_MANAGED` (hoy Credifamilia) | de la entidad | por el `slug` | rieles de Creditop, y se radica ante la entidad |
+Cada tipo es un **riel** y se nombra por lo que hace, no por la entidad que lo usa hoy:
+
+| riel | nombre | en el código | política | preaprobación | origina y firma |
+|---|---|---|---|---|---|
+| 0 | **Redirección** | `STANDARD` (referido, UTM) | de la entidad | no se consulta | la entidad, en su sitio |
+| 1 | **Integrada** | `PRE_APPROVED` / `INTEGRATED_API` | de la entidad | su API, por el `slug` | la entidad, en su flujo |
+| 2 | **CreditopX consumo** | `CREDITOP_X` | de Creditop | motor de cupo (`creditop_x`) | rieles de Creditop |
+| 3 | **CreditopX rotativo** | `CREDITOP_X_REVOLVING` | de Creditop | motor de cupo (`creditop_x`) | rieles de Creditop |
+| 4 | **Originación delegada** | `EXTERNALLY_MANAGED`, `RESPONSE_TYPE_CREDIFAMILIA` | de la entidad | por el `slug` | rieles de Creditop, y se radica ante la entidad |
+
+En originación delegada, la entidad le delega a Creditop originar con su política: Creditop pone
+identidad, firma, pagaré y radicación, y la entidad desembolsa y cobra. No se le dice «gestión externa»
+ni «riel de Credifamilia»: lo primero se confunde con `externally_serviced`, que es la cobranza, y lo
+segundo confunde el riel con su primera entidad.
 
 ## La política es lo que separa a los rieles
 
 Es el criterio del equipo: si la entidad nos dice cómo presta, no es CreditopX,
 aunque Creditop ejecute la evaluación. Por eso una entidad que entrega su política para que la
-apliquemos, sin una API que decida, sigue siendo de tipo 4 y no de tipo 2.
+apliquemos, sin una API que decida, sigue siendo de originación delegada (riel 4) y no CreditopX (riel 2).
 
 El código lo refleja en tres lugares:
 
@@ -31,8 +38,8 @@ El código lo refleja en tres lugares:
 
 ## Tipos 0 y 1: la entidad origina en su flujo
 
-Con el tipo 0 el asistente no consulta preaprobación: el cliente sigue por la URL de la entidad
-(`url_utm` de la sucursal o del comercio). Con el tipo 1, pre-approvals-service consulta la API de la
+Con la redirección (tipo 0) el asistente no consulta preaprobación: el cliente sigue por la URL de la entidad
+(`url_utm` de la sucursal o del comercio). Con la integrada (tipo 1), pre-approvals-service consulta la API de la
 entidad por su `slug`, y sólo responde si conoce esa clave. Los tipos 1 y 4 exigen credencial propia
 de la entidad en el punto de venta (`LenderIntegrationRules::REQUIRES_OWN_CREDENTIAL`). El 0 no la usa,
 y CreditopX cobra con la credencial de Wompi del comercio.
@@ -48,7 +55,7 @@ a los tipos 2 y 3.
 
 ## Tipo 4: política de la entidad, rieles de Creditop
 
-La solicitud recorre nuestro flujo: identidad, firma y pagaré. La decisión sale de la preaprobación por
+Es la originación delegada. La solicitud recorre nuestro flujo: identidad, firma y pagaré. La decisión sale de la preaprobación por
 el `slug`. Las reglas duras del listado no lo excluyen: la política de la entidad tiene que expresarse
 en la preaprobación. En `legacy-backend`, el tipo 4 dispara tres ramas propias:
 
