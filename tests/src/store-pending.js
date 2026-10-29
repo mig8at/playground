@@ -29,16 +29,36 @@ export const STORE_PENDING = {
       {
         title: 'Publicar en VTEX',
         items: [
-          { text: 'Decidir si se restringe el modo Test Suite', blocks: true },
           { text: 'Publicar la 5.0.0 y dejarla instalable (vtex publish + deploy)', done: true },
-          { text: 'Instalarla sólo en un workspace piloto, con una sucursal de producción', blocks: true },
+          { text: 'La 5.x en master de la cuenta de pruebas; dos ambientes: develop (qa) y master (prod)', done: true },
+          { text: 'Compra en qa con la 5.0.0 publicada: aprobada y cobrada al facturar (Finished)', done: true },
+          { text: 'Decidir si se restringe el modo Test Suite', blocks: true },
           { text: 'Que VTEX homologue la versión nueva', blocks: true, by: 'VTEX' },
+        ],
+      },
+      {
+        title: 'Hash y token desde el admin (CORE-913)',
+        items: [
+          { text: 'Token versión 5 desde el admin: se emite, se ve una vez y se revoca', done: true },
+          { text: 'Sucursal ecommerce de prueba e<hash>-fake al crear el comercio, y botón para los existentes', done: true },
+          { text: 'En qa la tienda VTEX usa ecf9342be-fake y la compra se aprueba de punta a punta', done: true },
+          { text: 'Editar la sucursal ecommerce (URL, plataforma con Shopify, credenciales): PR #348 a develop', blocks: true, by: 'revisión' },
+          { text: 'Llevar el admin (#345, #348) y la columna is_test a main y a producción', blocks: true },
+          { text: 'Correr la migración de is_test en qa y en producción', by: 'quien corre las migraciones' },
+        ],
+      },
+      {
+        title: 'Prueba en producción',
+        items: [
+          { text: 'Sucursal ecommerce de prueba de Creditop en producción con su token versión 5', blocks: true },
+          { text: 'Afiliación «Creditop prod» en master (modo Production) y su condición de pago', blocks: true },
+          { text: 'Una compra en producción hasta el wizard', blocks: true },
         ],
       },
       {
         title: 'Primer comercio',
         items: [
-          { text: 'Sucursal ecommerce de Mario Hernández (comercio 350) con su token', blocks: true, by: 'Comercial' },
+          { text: 'Sucursal ecommerce de Mario Hernández (comercio 350) con su token versión 5', blocks: true, by: 'Comercial' },
         ],
       },
       {
