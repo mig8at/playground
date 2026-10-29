@@ -217,16 +217,16 @@ const STORES = [
     { label: 'Admin · pedidos', href: 'https://creditop.myvtex.com/admin/orders' },
     { label: 'Admin · transacciones', href: 'https://creditop.myvtex.com/admin/pci-gateway/#/transactions' },
   ] },
-  // El piloto de producción: workspace `piloto` (production=true) con creditop.creditop 5.x, que le pide la URL al
-  // payment-link de producción. Afiliaciones y condiciones de pago son de TODA la cuenta: también se ven en master.
-  { name: 'VTEX · prod (piloto)', prod: true, links: [
-    { label: 'Tienda (piloto)', href: 'https://piloto--creditop.myvtex.com' },
-    { label: 'Admin · afiliaciones (hash y token)', href: 'https://piloto--creditop.myvtex.com/admin/pci-gateway/#/affiliations' },
-    { label: 'Admin · condiciones de pago', href: 'https://piloto--creditop.myvtex.com/admin/pci-gateway/#/rules' },
-    { label: 'Admin · transacciones', href: 'https://piloto--creditop.myvtex.com/admin/pci-gateway/#/transactions' },
+  // Producción: `master`, con creditop.creditop 5.x y su ajuste en Producción, como lo tiene un comercio. Afiliaciones y
+  // condiciones de pago son de TODA la cuenta: la condición activa decide si una compra va a qa (develop) o a prod.
+  { name: 'VTEX · prod (master)', prod: true, links: [
+    { label: 'Tienda', href: 'https://creditop.myvtex.com' },
+    { label: 'Admin · afiliaciones (hash y token)', href: 'https://creditop.myvtex.com/admin/affiliations' },
+    { label: 'Admin · condiciones de pago', href: 'https://creditop.myvtex.com/admin/pci-gateway/#/rules' },
+    { label: 'Admin · transacciones', href: 'https://creditop.myvtex.com/admin/pci-gateway/#/transactions' },
   ] },
 ]
-// En prod sólo los enlaces del piloto; fuera de prod, las tiendas de desarrollo con su diagrama y sus pendientes.
+// En prod sólo los enlaces de master; fuera de prod, las tiendas de desarrollo con su diagrama y sus pendientes.
 const visibleStores = computed(() => STORES.filter((s) => !!s.prod === readOnly.value))
 // Lo que se ve de una tienda en el editor —su diagrama o sus pendientes—, o null. Buscar otra solicitud lo cierra.
 const storeView = ref(null) // { store: 'VTEX', kind: 'diagram' | 'pending' }

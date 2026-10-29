@@ -14,8 +14,12 @@ Abre http://localhost:5178 (la API queda en :5179). Abajo a la izquierda, `Base:
 
 `prod` **sólo lee**, por Redash: busca la solicitud y sus tablas, pero el servidor rechaza borrar, dar de baja, pasar de
 estado y dictar las centrales, y la interfaz no los ofrece. Es lento (cada consulta pasa por Redash: una búsqueda
-tarda ~20 s y las tablas un poco más). Sirve para seguir la compra del piloto VTEX (`VTEX · prod (piloto)` en el
+tarda ~20 s y las tablas un poco más). Sirve para seguir la prueba en producción de VTEX (`VTEX · prod (master)` en el
 sidebar: la tienda, y en el admin las afiliaciones, donde van el hash y el token de la sucursal).
+
+En la cuenta VTEX `creditop` hay dos ambientes: `develop` (la app con «Pruebas (develop)», contra qa; ahí también se
+linkea al desarrollar) y `master` (la app en «Producción»). Cada uno tiene su afiliación; la condición de pago activa
+decide a cuál va una compra, en cualquier tienda de la cuenta.
 
 ## 2 · Antes de comprar: dictarle tu persona a las centrales
 
