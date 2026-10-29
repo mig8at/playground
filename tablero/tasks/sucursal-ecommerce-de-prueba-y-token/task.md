@@ -23,7 +23,10 @@ jira_title: "Sucursal ecommerce de prueba y token de payment-link desde el admin
 - [ ] Agregar `allied_branches.is_test` con una migración de legacy-backend (es el dueño del esquema, como en CRED-367) y
       marcar las dos sucursales de prueba; la app la escribe sólo si la columna existe (`Schema::hasColumn`).
       Termina con la columna en local y las dos sucursales con `is_test = 1`.
-- [ ] Mergear los PRs (uno por repo) y llevarlos a prod; en prod, emitir el token de la sucursal de prueba de Creditop
+- [ ] Revisar y mergear [legacy-application#345](pr:application#345) (→ `develop`, el admin que usa qa) y
+      [legacy-backend#1806](pr:legacy-backend#1806) (→ `qa`, la migración de `is_test`, que además hay que correr en qa).
+      Termina con los dos mergeados y un comercio nuevo de dev/qa con sus dos sucursales de prueba.
+- [ ] Llevarlos a `main` (los dos PRs a `main` salen de las ramas `feat/sucursal-ecommerce-de-prueba`) y a prod; en prod, emitir el token de la sucursal de prueba de Creditop
       desde el admin para la prueba VTEX de la tarea #102.
 
 ## Objetivo
