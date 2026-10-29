@@ -49,6 +49,11 @@ Antes del 2026-10-20 la activa era la de Oscar; «CREDITOP DEV» la reemplazó p
 - 2026-10-29 · se borraron por la API las tres condiciones de pago de la tabla (`DELETE /api/pvt/rules/<id>`, 200).
   Las afiliaciones v4 no se borran por API (405): se borran en el admin.
 - Decidido el 2026-10-29: el desarrollo pasa del workspace `migueldev` a `develop`; `migueldev` y `oscarrinc` se borran.
+- 2026-10-29 09:51 · Miguel creó `develop` (production=false) y borró `migueldev` y `oscarrinc`. A las 10:03 borró
+  también `creditop`, `developfix`, `devworkspace`, `hk_d182c252`, `oscarrrinc`, `pruebavtex` y `staging` (de producción:
+  `creditop`, `developfix`, `hk_d182c252` y `staging`). Un workspace borrado no se recupera: lo que tuviera instalado
+  o linkeado se vuelve a poner a mano. Quedan `master`, `piloto` y `develop`.
+- Las afiliaciones v4 no se pueden borrar (ni la API ni el admin lo ofrecen): quedan sin condición de pago, sin uso.
 
 ## Cómo volver
 
