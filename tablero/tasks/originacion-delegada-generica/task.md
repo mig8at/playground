@@ -1,0 +1,140 @@
+---
+id: 109
+title: "Originación delegada: riel 4 para cualquier entidad"
+stage: evaluation
+created: "2026-10-29T17:10:00-05:00"
+knowledge: [lender-response-types, credifamilia-origination, credifamilia-financing]
+canon: [entidad/context]
+jira: []
+jira_title: "Originación delegada: riel 4 para cualquier entidad"
+---
+
+## Pendientes
+
+- [x] ~~Ligar la tarea a un issue de Jira~~ — CORE-918, creado en el sprint activo (CORE Sprint 21).
+- [ ] Sacar la foto de antes: Credifamilia Salud (24) y Materiales (216) de punta a punta en local con el
+  arnés (opciones, fecha, cuotas, firma, formalización). Termina con los comandos y lo que dieron en la pila.
+- [ ] Decidir cómo se generaliza el cálculo del plan (motor único con parámetros o un cálculo por entidad,
+  como el cierre ante la entidad). Termina con la decisión en la pila, después de leer
+  `CredifamiliaAmortizationEngine` y `CredifamiliaLenderProfile`.
+- [ ] Abrir `feat/originacion-delegada` desde `qa` actualizado en legacy-backend y en frontend-monorepo, y
+  declararla en `ramas:`.
+- [ ] Generalizar el backend (ver «Cómo se ataca», paso 2). Termina con la foto de después igual a la de
+  antes y una entidad de prueba del riel 4 que no es Credifamilia que lista opciones, elige fecha y simula
+  cuotas.
+- [ ] Cambiar en el asistente la lista de ids por la señal del backend. Termina con `pnpm turbo run build`
+  en verde y la foto igual.
+- [ ] Abrir un PR por repo contra `qa`, con lo medido antes y después. Depende de: Miguel — el visto bueno
+  para pushear.
+
+## Objetivo
+
+Que la originación delegada (riel 4, `response_type = 4`) sirva para cualquier entidad que delega en
+Creditop originar con su política, y no sólo para Credifamilia. Lo que es del riel (opciones de crédito,
+plan de cuotas, fechas de pago, continuar la solicitud, resumen, comprobante, firma, documentos de
+legalización y cierre ante la entidad) se resuelve por la configuración de la entidad y no por sus ids. Lo
+que es de la integración de Credifamilia se queda como está. Credifamilia tiene que comportarse igual que
+antes: es el primer usuario del riel y está en producción. Habilita a Finandina (#107).
+
+## Dónde se toca
+
+Inventario en `origin/main` de legacy-backend 174120193 (detalle en la pila y en
+`knowledge/lender-response-types`).
+
+**legacy-backend: las puertas ya van por tipo**
+- `Modules/Loans/App/Services/LoanAuthorizationService.php:402`
+- `Modules/Loans/App/Services/PaymentDateService.php:58`
+- `Modules/Loans/App/Services/PaymentSchedule/ExternallyManagedPaymentScheduleService.php:120`
+- `Modules/Loans/App/Http/Controllers/Customer/ContinueUserFlowController.php:226`
+
+**legacy-backend: lo de adentro, atado a Credifamilia**
+- Ids: `app/Services/PaymentPlan/Credifamilia/Constants/CredifamiliaLenders.php`, que filtran los servicios de
+  `ContinueRequest`, `InstallmentPlan`, `LoanOptions`, `PaymentDates` (días 2 y 16), `PaymentPlanSummary` y
+  `Voucher`.
+- Cálculo: `Lender/CredifamiliaLenderProfile.php`, que tira error si el id no es de Credifamilia,
+  `Engine/CredifamiliaAmortizationEngine.php` y `CredifamiliaPayloadBuilder.php` (`engineLenderIdFor`).
+- Rutas: `Modules/Onboarding/routes/api.php:285-303` (`payment-plan/credifamilia/*`).
+- Firma: `Modules/Loans/App/Http/Controllers/Customer/PromissoryNoteController.php:152` (`lender_id === 24`) y
+  `Modules/Loans/App/Services/Signing/Credifamilia/CredifamiliaDocumentsBuilder.php:90` (`lenderId: 24`).
+- Formalización: `app/Services/Pdf/CredifamiliaFormalizationService.php` y
+  `CredifamiliaLegalizationDocumentService.php`. El cierre ya es por entidad: `LenderServiceFactory`, con el
+  tag `lender.services`.
+- Nombres: `Modules/Backoffice/App/Support/LenderIntegrationRules.php:32` (`RESPONSE_TYPE_CREDIFAMILIA`).
+
+**frontend-monorepo**
+- `modules/loan-request-wizard/lenders-marketplace/src/lib/domain/constants/lender.constants.ts:1-14`:
+  `DYNAMIC_PAYMENT_PLAN_LENDER_IDS`, con un TODO que pide una señal del payload.
+- `apps/loan-request-wizard/app/routes/lenders-marketplace/available-lenders.tsx:272`: trato especial a
+  `CREDIFAMILIA_LENDER_ID` en la preaprobación.
+- `modules/loan-request-wizard/lenders-marketplace/src/lib/infrastructure/repositories/payment-plan.repository.ts`:
+  ya llama `payment-plan/{slug}/…`.
+
+## Cómo se ataca
+
+1. **Foto de antes**, en local con el arnés: Credifamilia Salud y Materiales de punta a punta.
+2. **Backend:**
+   - las entidades del riel se buscan por tipo y no por `CredifamiliaLenders::lenderIds()`;
+   - el perfil (fianza, plazos, días de pago) sale de la configuración de la entidad;
+   - el cálculo del plan se resuelve por entidad;
+   - las rutas pasan a `payment-plan/{slug}/…`, manteniendo las de Credifamilia mientras el front no cambie;
+   - la firma y los documentos de legalización salen de la configuración de la entidad;
+   - la constante pasa a llamarse «originación delegada».
+3. **Front:** la señal del backend reemplaza la lista de ids.
+4. **Foto de después** igual a la de antes, y una entidad de prueba del riel 4 que no es Credifamilia
+   recorre opciones, fecha y cuotas.
+
+## Lo que se evaluó y NO se eligió
+
+- **Hacerlo dentro de la tarea de Finandina (#107):** un solo PR por repo mezclaría el refactor del riel con
+  la configuración y el cierre de Finandina, y no se podría probar que Credifamilia sigue igual antes de
+  sumar otra entidad.
+- **Copiar las piezas de Credifamilia para Finandina:** duplica el riel y deja dos implementaciones que se
+  separan con el tiempo.
+
+## Lo que NO entra
+
+- La integración de Credifamilia: radicación SOAP, CrossCore, Evidente, Jumio, el reporte de bonificación,
+  su adaptador en pre-approvals-service y el disparo de Experian para la 24.
+- Lo propio de Finandina: su configuración, su clave en pre-approvals-service y su servicio de cierre (#107).
+
+## Cómo se comprueba — y el MATERIAL para volver a hacerlo
+
+Pendiente: los comandos de la foto de antes, cuando se corran.
+
+## Referencias
+
+- Tarea #107 (Finandina), que depende de esta.
+- `knowledge/lender-response-types`; canon `entidad/context#el-eje-que-decide-todo-es-el-tipo-de-respuesta`.
+
+
+## Tarea (publicable)
+
+## En una línea
+Que la originación delegada (riel 4) sirva para cualquier entidad que nos delega originar con su política, y no sólo para Credifamilia.
+
+## Por qué
+Hoy el riel 4 se activa por el tipo de la entidad, pero cada paso de adentro (opciones de crédito, plan de cuotas, fechas de pago, resumen, comprobante, firma y documentos de legalización) está atado a Credifamilia. Una segunda entidad de ese riel, como Banco Finandina, no puede usarlo sin duplicarlo.
+
+## Qué cambia
+- Los pasos del riel se resuelven por la configuración de la entidad, no por su identificador.
+- El cálculo del plan de cuotas puede ser distinto por entidad.
+- La firma y los documentos de legalización salen de la configuración de la entidad.
+- El asistente deja de decidir por una lista fija de entidades quién calcula la cuota.
+
+## Alcance
+No cambia la integración propia de Credifamilia (radicación, validación de identidad, reportes) ni incluye la configuración de Finandina, que va en su propia tarea.
+
+## Dónde probar
+En local primero; después en qa, con Credifamilia Salud y Materiales.
+
+## Cómo validar
+- Recorrer Credifamilia Salud y Materiales de punta a punta antes y después del cambio, y comparar opciones de crédito, fechas de pago, cuotas, documentos firmados y formalización: tienen que ser iguales.
+- Recorrer una entidad de prueba del riel 4 que no sea Credifamilia y comprobar que muestra opciones, deja elegir fecha y simula las cuotas con su configuración.
+
+## Criterios de aceptación
+- Credifamilia Salud y Materiales se comportan igual que antes en todo el recorrido.
+- Una entidad nueva del riel 4 recorre opciones, fecha de pago y plan de cuotas sin código propio de Credifamilia.
+- Ningún paso del riel depende de los identificadores de Credifamilia.
+
+## Dependencias / contraparte
+Ninguna externa. Habilita la integración de Banco Finandina.
