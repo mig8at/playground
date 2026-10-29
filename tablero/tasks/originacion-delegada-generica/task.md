@@ -33,6 +33,10 @@ ramas: originacion-delegada
   la tarjeta de Credifamilia sigue mostrando el plan del backend.
 - [x] ~~Abrir un PR por repo contra `qa`~~ — legacy-backend#1815 y frontend-monorepo#1314.
 - [ ] Conseguir la revisión de los dos PRs y mergearlos a `qa`. Depende de: el equipo — la revisión.
+- [ ] Avisarle a Laura del renombre de `PaymentPlan/Credifamilia` → `PaymentPlan/DelegatedOrigination` antes de
+  mergear: sus ramas abiertas sobre esos archivos van a tener conflictos. Termina con el aviso dado.
+- [ ] Al llegar a `main`, actualizar las fuentes de `knowledge/lender-response-types` a las rutas nuevas y correr
+  `make knowledge-check`.
 
 ## Objetivo
 
