@@ -228,6 +228,18 @@ test.describe('permisos del comercio de prueba (los que usa dev/allied-create.ts
             expect(blockReason(DEL_BRANCH, 'prueba-comercio', 0, [2185, 349], undefined)).toBeNull();
       });
 
+      test('las sucursales de prueba del admin (física p… o b…, ecommerce e…) y lo que cuelga de la ecommerce se borran', () => {
+            for (const prefix of ['p', 'b', 'e']) {
+                  expect(blockReason(DEL_BRANCH.replace("'b%-fake'", `'${prefix}%-fake'`), 'prueba-comercio', 0, [2185, 349], undefined)).toBeNull();
+            }
+            expect(blockReason('DELETE FROM allied_ecommerce_credentials WHERE allied_branch_id = ? AND allied_id = ?', 'prueba-comercio', 0, [2186, 349], undefined)).toBeNull();
+            expect(blockReason("DELETE FROM personal_access_tokens WHERE tokenable_type = 'App\\\\Models\\\\AlliedBranch' AND tokenable_id = ?", 'prueba-comercio', 0, [2186], undefined)).toBeNull();
+            expect(blockReason('DELETE FROM lenders_by_allied_branches WHERE allied_branch_id = ?', 'prueba-comercio', 0, [2186], undefined)).toBeNull();
+            // Otra letra, o los tokens de otra cosa (un usuario), no.
+            expect(blockReason(DEL_BRANCH.replace("'b%-fake'", "'x%-fake'"), 'prueba-comercio', 0, [2185, 349], undefined)).toMatch(/NO cubre esta sentencia/);
+            expect(blockReason("DELETE FROM personal_access_tokens WHERE tokenable_type = 'App\\\\Models\\\\User' AND tokenable_id = ?", 'prueba-comercio', 0, [1], undefined)).toMatch(/NO cubre esta sentencia/);
+      });
+
       // 🔴 Lo que impide que este permiso borre un comercio de verdad: sin el prefijo en la propia sentencia,
       // «DELETE FROM allieds WHERE id = ?» sirve para cualquiera.
       test('un DELETE de comercio o sucursal sin el marcador de la automatización se bloquea', () => {

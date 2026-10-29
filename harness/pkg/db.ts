@@ -83,12 +83,18 @@ const NARROW_PERMISSIONS: Record<string, NarrowPermission> = {
     'credencial-de-entidad': {
         patrones: [/^INSERT\s+INTO\s+lender_allied_credentials\s+\(lender_id,\s*allied_type,\s*allied_id,\s*credential,[\s\S]+$/i],
     },
-    // Borrar el COMERCIO DE PRUEBA que creó `dev/allied-create.ts` y su sucursal: tablas de CONFIG, sin datos
+    // Borrar el COMERCIO DE PRUEBA que creó `dev/allied-create.ts` y sus sucursales: tablas de CONFIG, sin datos
     // de personas. Va angosto en la propia sentencia: el comercio tiene que llevar el prefijo de la automatización
-    // en el nombre, y la sucursal el sufijo `-fake` que le pone el admin. Sólo DELETE por id, de a una fila.
+    // en el nombre, y la sucursal el nombre que le pone el admin (`p…-fake` la física —`b…-fake` en los comercios
+    // anteriores— y `e…-fake` la ecommerce). Sólo DELETE por id, de a una fila. La ecommerce arrastra su credencial,
+    // su token de payment-link y sus entidades, que se borran antes por el id de esa sucursal (la herramienta ya
+    // comprobó que es de un comercio de la automatización).
     'prueba-comercio': {
         patrones: [
-            /^DELETE\s+FROM\s+allied_branches\s+WHERE\s+id\s*=\s*\?\s+AND\s+allied_id\s*=\s*\?\s+AND\s+name\s+LIKE\s+'b%-fake'\s*$/i,
+            /^DELETE\s+FROM\s+allied_branches\s+WHERE\s+id\s*=\s*\?\s+AND\s+allied_id\s*=\s*\?\s+AND\s+name\s+LIKE\s+'[bpe]%-fake'\s*$/i,
+            /^DELETE\s+FROM\s+allied_ecommerce_credentials\s+WHERE\s+allied_branch_id\s*=\s*\?\s+AND\s+allied_id\s*=\s*\?\s*$/i,
+            /^DELETE\s+FROM\s+personal_access_tokens\s+WHERE\s+tokenable_type\s*=\s*'App\\\\Models\\\\AlliedBranch'\s+AND\s+tokenable_id\s*=\s*\?\s*$/i,
+            /^DELETE\s+FROM\s+lenders_by_allied_branches\s+WHERE\s+allied_branch_id\s*=\s*\?\s*$/i,
             /^DELETE\s+FROM\s+allieds\s+WHERE\s+id\s*=\s*\?\s+AND\s+name\s+LIKE\s+'PRUEBA AUTO %'\s*$/i,
         ],
     },

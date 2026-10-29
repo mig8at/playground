@@ -100,7 +100,7 @@ export interface CleanupResult {
     allied: number;
     /** Correos de las cuentas del pool que hay que borrar aparte (el pool no es la base). */
     emails: string[];
-    deleted: { roles: number; users: number; branches: number; allieds: number };
+    deleted: { roles: number; users: number; branches: number; allieds: number; ecommerce: number };
 }
 
 /**
@@ -122,10 +122,11 @@ export async function cleanupAllied(alliedId: number): Promise<CleanupResult> {
     if (requests > 0) throw new Error(`el comercio ${alliedId} tiene ${requests} solicitud(es): no se borra`);
 
     const branches = await query<{ id: number; name: string }>('SELECT id, name FROM allied_branches WHERE allied_id = ?', [alliedId]);
-    const odd = branches.filter((b) => !/^b.*-fake$/.test(b.name));
+    // Las del admin: la física (`p…-fake`, `b…-fake` en los comercios anteriores) y la ecommerce (`e…-fake`).
+    const odd = branches.filter((b) => !/^[bpe].*-fake$/.test(b.name));
     if (odd.length) throw new Error(`el comercio ${alliedId} tiene sucursales que no son de prueba (${odd.map((b) => b.id).join(', ')}): no se borra`);
 
-    const deleted = { roles: 0, users: 0, branches: 0, allieds: 0 };
+    const deleted = { roles: 0, users: 0, branches: 0, allieds: 0, ecommerce: 0 };
     for (const u of users) {
         await withSeedScope([u.id], async () => {
             deleted.roles += (await exec("DELETE FROM model_has_roles WHERE model_type LIKE '%User' AND model_id = ?", [u.id], { permiso: 'prueba-asesor', usuario: u.id })).affectedRows;
@@ -133,7 +134,12 @@ export async function cleanupAllied(alliedId: number): Promise<CleanupResult> {
         });
     }
     for (const b of branches) {
-        deleted.branches += (await exec("DELETE FROM allied_branches WHERE id = ? AND allied_id = ? AND name LIKE 'b%-fake'", [b.id, alliedId], { permiso: 'prueba-comercio' })).affectedRows;
+        // Lo que cuelga de la sucursal ecommerce: su credencial, su token de payment-link y sus entidades.
+        deleted.ecommerce += (await exec('DELETE FROM allied_ecommerce_credentials WHERE allied_branch_id = ? AND allied_id = ?', [b.id, alliedId], { permiso: 'prueba-comercio' })).affectedRows;
+        deleted.ecommerce += (await exec("DELETE FROM personal_access_tokens WHERE tokenable_type = 'App\\\\Models\\\\AlliedBranch' AND tokenable_id = ?", [b.id], { permiso: 'prueba-comercio' })).affectedRows;
+        deleted.ecommerce += (await exec('DELETE FROM lenders_by_allied_branches WHERE allied_branch_id = ?', [b.id], { permiso: 'prueba-comercio' })).affectedRows;
+        const prefix = b.name[0];
+        deleted.branches += (await exec(`DELETE FROM allied_branches WHERE id = ? AND allied_id = ? AND name LIKE '${prefix}%-fake'`, [b.id, alliedId], { permiso: 'prueba-comercio' })).affectedRows;
     }
     deleted.allieds += (await exec("DELETE FROM allieds WHERE id = ? AND name LIKE 'PRUEBA AUTO %'", [alliedId], { permiso: 'prueba-comercio' })).affectedRows;
 
