@@ -18,13 +18,7 @@ cuenta, ni la app publicada (las cuentas con la 4.x siguen en la 4).
 | `oscarrinc` | v4 | el workspace de Oscar |
 | `piloto` | v5 (la v4 da 404) | creado el 2026-10-28, production=true, con `creditop.creditop@5.x` |
 
-La versión exacta de la 4 en `master` no se pudo leer (la sesión de la consola había vencido). Publicadas había
-4.0.0, 4.0.1 y 4.0.2-beta.0; una cuenta se actualiza sola a la última estable de su mayor. Antes de tocar `master`,
-anotarla acá:
-
-```sh
-vtex use master && vtex ls | grep creditop
-```
+En `master`, `vtex ls` (2026-10-29, 08:59) decía **`creditop.creditop 4.0.1`** y `creditop.store-theme 5.2.0`.
 
 **Afiliaciones** (todas del conector `creditop-creditop-v4`):
 
@@ -53,8 +47,8 @@ Antes del 2026-10-20 la activa era la de Oscar; «CREDITOP DEV» la reemplazó p
 3. **`master` a la 4**:
    ```sh
    vtex use master
-   vtex install creditop.creditop@4.x
-   vtex ls | grep creditop      # tiene que decir la 4.x anotada arriba
+   vtex install creditop.creditop@4.0.1
+   vtex ls | grep creditop      # tiene que decir 4.0.1
    ```
 4. **El piloto** (si también se quiere sacar):
    ```sh
