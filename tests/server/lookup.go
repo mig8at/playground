@@ -38,9 +38,10 @@ type Input struct {
 	Who string `json:"who,omitempty"`
 }
 
-// La URL del wizard: …/ecommerce/<sucursal>/<solicitud>/… (también la del asesor, /<sucursal>/<solicitud>).
+// La URL del wizard: …/ecommerce/<sucursal>/<solicitud>/… (también la del asesor, /<sucursal>/<solicitud>). El hash de
+// una sucursal tiene ocho caracteres, salvo la ecommerce de prueba, que es `e` más el de la física (`e126fb235`).
 var (
-	reURL    = regexp.MustCompile(`/([0-9a-f]{8})/(\d{3,})(?:/|$|\?|#)`)
+	reURL    = regexp.MustCompile(`/(e?[0-9a-f]{8})/(\d{3,})(?:/|$|\?|#)`)
 	reNumber = regexp.MustCompile(`^\s*(\d{3,})\s*$`)
 	// Un celular como se copia: con espacios, guiones, paréntesis o el +57 adelante.
 	rePhone = regexp.MustCompile(`^\+?[\d\s().-]{10,18}$`)

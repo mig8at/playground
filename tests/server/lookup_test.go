@@ -18,6 +18,7 @@ func TestParseInput(t *testing.T) {
 		{"https://originaciones-qa.dev.creditop.com/ecommerce/8ffe96e2/504059", 504059, "8ffe96e2"},
 		{"https://originaciones-qa.dev.creditop.com/ecommerce/8ffe96e2/504059/lenders?x=1", 504059, "8ffe96e2"},
 		{"http://localhost:5174/c390eed9/467513/profile", 467513, "c390eed9"},
+		{"https://originaciones-qa.dev.creditop.com/ecommerce/e126fb235/504059/lenders", 504059, "e126fb235"},
 	}
 	// El celular, como se copia de cualquier lado: siempre los 10 dígitos sin indicativo.
 	for _, raw := range []string{"3016992677", "+573016992677", "57 301 699 2677", "301-699-2677", "(301) 699 2677"} {
