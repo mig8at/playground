@@ -8,64 +8,35 @@ export const STORE_PENDING = {
     title: 'VTEX · camino a producción',
     stages: [
       {
-        title: 'Construido y probado',
+        title: 'Hecho',
         items: [
-          { text: 'El conector pide la URL a payment-link y redirige al wizard', done: true },
-          { text: 'payment-link y status en main y en producción (v0.6.21)', done: true },
-          { text: 'La apertura por referencia (?ref=) en main del backend y del front', done: true },
-          { text: 'Compra real en la cuenta VTEX y Test Suite 7 de 7', done: true },
-          { text: 'Recorrido completo en qa: pedido → solicitud en 11 → VTEX recibe approved', done: true },
-          { text: 'El cobro al facturar: la transacción queda Finished', done: true },
-          { text: 'El tipo de documento de VTEX se traduce a CC', done: true },
+          { text: 'Conector 5.0.0: pide la URL a payment-link, redirige al wizard y cobra al facturar', done: true },
+          { text: 'payment-link y status en producción (legacy-backend v0.6.21)', done: true },
+          { text: 'Conector en main (vtex#21), publicado y desplegado como 5.0.0', done: true },
+          { text: 'Cuenta de pruebas con dos ambientes: develop contra qa y master contra prod', done: true },
+          { text: 'Admin en dev: token versión 5, sucursales de prueba p/e, botón y edición (#345, #348)', done: true },
+          { text: 'Compra en qa con la sucursal ecf9342be-fake: aprobada de punta a punta', done: true },
+          { text: 'Test Suite sin restringir: el modo prueba lo activa el header que manda VTEX y no aprueba pedidos reales', done: true },
         ],
       },
       {
-        title: 'Mergear',
+        title: 'Siguientes pasos, en orden',
         items: [
-          { text: 'Creditop-SAS/vtex#21 · el conector, en main con el tag v5.0.0', done: true },
-          { text: 'El alta de sucursales VTEX ya en main y en producción', done: true },
-        ],
-      },
-      {
-        title: 'Publicar en VTEX',
-        items: [
-          { text: 'Publicar la 5.0.0 y dejarla instalable (vtex publish + deploy)', done: true },
-          { text: 'La 5.x en master de la cuenta de pruebas; dos ambientes: develop (qa) y master (prod)', done: true },
-          { text: 'Compra en qa con la 5.0.0 publicada: aprobada y cobrada al facturar (Finished)', done: true },
-          { text: 'Test Suite sin restringir: el modo prueba lo activa el header que manda VTEX (estándar del framework) y no aprueba pedidos reales', done: true },
-        ],
-      },
-      {
-        title: 'Hash y token desde el admin (CORE-913)',
-        items: [
-          { text: 'Token versión 5 desde el admin: se emite, se ve una vez y se revoca', done: true },
-          { text: 'Sucursal ecommerce de prueba e<hash>-fake al crear el comercio, y botón para los existentes', done: true },
-          { text: 'En qa la tienda VTEX usa ecf9342be-fake y la compra se aprueba de punta a punta', done: true },
-          { text: 'Editar la sucursal ecommerce (URL, plataforma con Shopify, credenciales) en dev', done: true },
-          { text: 'Llevar el admin a main y a producción: PR #349, falta aprobación, merge y tag', blocks: true, by: 'Oscar' },
-          { text: 'Migración de is_test: diferida hasta que algún reporte la use (sin ella todo funciona)' },
-        ],
-      },
-      {
-        title: 'Prueba en producción',
-        items: [
-          { text: 'Sucursal ecommerce de prueba de Creditop en producción con su token versión 5', blocks: true },
-          { text: 'Afiliación «Creditop prod» en master (modo Production) y su condición de pago', blocks: true },
-          { text: 'Una compra en producción hasta el wizard', blocks: true },
-        ],
-      },
-      {
-        title: 'Primer comercio',
-        items: [
-          { text: 'Que VTEX homologue la 5.0.0 para que otras cuentas la instalen y la afilien (para nuestra cuenta no hace falta)', blocks: true, by: 'VTEX' },
-          { text: 'Sucursal ecommerce de Mario Hernández (comercio 350) con su token versión 5', blocks: true, by: 'Comercial' },
+          { text: '1 · Aprobar y mergear el PR #349 a main (todo el admin de la tarea)', blocks: true, by: 'Oscar' },
+          { text: '2 · Taguear legacy-application para desplegar a producción', blocks: true, by: 'Miguel' },
+          { text: '3 · Admin de prod: en un comercio de prueba de Creditop, crear la sucursal ecommerce de prueba, ponerla en Vtex y emitir su token versión 5 (guardar hash y token en tests/.env)', blocks: true, by: 'Miguel' },
+          { text: '4 · VTEX master: afiliación «Creditop prod» (v5, modo Production) con ese hash y token, y su condición de pago apagada', blocks: true, by: 'Miguel' },
+          { text: '5 · Prueba en prod: apagar «Creditop qa», prender «Creditop prod», comprar hasta el wizard, verla en tests (prod) y volver las condiciones', blocks: true, by: 'Miguel' },
+          { text: '6 · Homologación de la 5.0.0 en VTEX para que otras cuentas la instalen (preguntar si la 4.x pasó por eso)', blocks: true, by: 'VTEX · Oscar' },
+          { text: '7 · Primer comercio: sucursal ecommerce de Mario Hernández con su token versión 5 y la afiliación en su cuenta', blocks: true, by: 'Comercial' },
         ],
       },
       {
         title: 'Después · no bloquea',
         items: [
-          { text: 'Reembolso manual: el conector sigue contestando «hacerlo a mano» y además avisa a Creditop, que cancela el crédito aparte (el mismo procedimiento que Shopify)', by: 'Producto' },
+          { text: 'Reembolso manual: el conector sigue contestando «hacerlo a mano» y además avisa a Creditop, que cancela el crédito aparte', by: 'Producto' },
           { text: 'Cuánto dura la referencia del link de pago', by: 'Producto' },
+          { text: 'Migración de is_test: diferida hasta que algún reporte la use (sin ella todo funciona)' },
         ],
       },
       {
@@ -82,36 +53,24 @@ export const STORE_PENDING = {
     title: 'Shopify · camino a producción',
     stages: [
       {
-        title: 'Construido y probado',
+        title: 'Hecho',
         items: [
-          { text: 'La app abre la sesión de pago y pide la URL a payment-link', done: true },
-          { text: 'Checkout real en la tienda de desarrollo: el comprador cae en el wizard', done: true },
-          { text: 'Aprobado, negado y pendiente con el aviso firmado', done: true },
-          { text: 'Cierre en qa con una solicitud real, sin atarla a mano', done: true },
-          { text: 'Shopify como plataforma 4: pedidos atribuidos a Shopify en qa', done: true },
-          { text: 'payment-link publicado en el gateway de producción', done: true },
-          { text: 'La config publicable pide sólo permisos de pagos', done: true },
+          { text: 'La app abre la sesión de pago, pide la URL a payment-link y resuelve con el aviso firmado', done: true },
+          { text: 'Cierre en qa con una solicitud real: pedido pagado en Shopify', done: true },
+          { text: 'Shopify como plataforma 4, en main y en producción', done: true },
+          { text: 'Sucursal ecommerce de prueba e4a51ff3f-fake (tipo Shopify) con su token versión 5 en qa', done: true },
+          { text: 'Shopify se puede elegir al crear y editar una sucursal ecommerce en el admin (dev)', done: true },
         ],
       },
       {
-        title: 'Mergear',
+        title: 'Siguientes pasos, en orden',
         items: [
-          { text: 'Creditop-SAS/shopify#22 · la app', blocks: true },
-          { text: 'Shopify como plataforma 4, ya en main y en producción', done: true },
-        ],
-      },
-      {
-        title: 'Aprobación de Shopify',
-        items: [
-          { text: 'Creditop como Payments Partner y el acuerdo de ingresos firmado', blocks: true, by: 'Shopify · Merchants' },
-          { text: 'Definir el reembolso manual: la app lo aprueba en Shopify y avisa a Creditop, que cancela el crédito aparte (el mismo procedimiento que VTEX)', blocks: true, by: 'Producto' },
-          { text: 'Pasar la revisión de la app de pagos', blocks: true, by: 'Shopify' },
-        ],
-      },
-      {
-        title: 'Alojar',
-        items: [
-          { text: 'La app con URL fija en qa y en producción (en pausa hasta la aprobación)', blocks: true },
+          { text: '1 · Cargar el hash e4a51ff3f y su token en la app de pagos de creditop-dev-store y comprar en qa', blocks: true, by: 'Miguel' },
+          { text: '2 · Revisar y mergear Creditop-SAS/shopify#22 (la app)', blocks: true, by: 'Oscar' },
+          { text: '3 · Creditop como Payments Partner y el acuerdo de ingresos firmado', blocks: true, by: 'Shopify · Merchants' },
+          { text: '4 · Definir el reembolso manual: la app lo aprueba en Shopify y avisa a Creditop, que cancela el crédito aparte', blocks: true, by: 'Producto' },
+          { text: '5 · Alojar la app con URL fija en qa y en producción', blocks: true },
+          { text: '6 · Pasar la revisión de la app de pagos de Shopify', blocks: true, by: 'Shopify' },
         ],
       },
       {
