@@ -53,6 +53,9 @@ Antes del 2026-10-20 la activa era la de Oscar; «CREDITOP DEV» la reemplazó p
   también `creditop`, `developfix`, `devworkspace`, `hk_d182c252`, `oscarrrinc`, `pruebavtex` y `staging` (de producción:
   `creditop`, `developfix`, `hk_d182c252` y `staging`). Un workspace borrado no se recupera: lo que tuviera instalado
   o linkeado se vuelve a poner a mano. Quedan `master`, `piloto` y `develop`.
+- 2026-10-29 · quedan dos ambientes: `develop` (la app en «Pruebas (develop)») y `master` (en «Producción»). Afiliación
+  nueva «Creditop qa» (`03117030-34eb-4e21-9b92-ba6e7fd76577`, conector v5, Test, workspace `develop`, sucursal
+  `530aa4f7` con el token 18 de qa) y su condición de pago «Creditop qa», activa. A las 10:31 se borró `piloto`.
 - Las afiliaciones v4 no se pueden borrar (ni la API ni el admin lo ofrecen): quedan sin condición de pago, sin uso.
 
 ## Cómo volver
