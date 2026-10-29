@@ -82,6 +82,11 @@ ramas: core-800-vtex-payment-link
       (texto con cuotas y un modal que explica cómo comprar). En VTEX sería un bloque del tema de la tienda. Termina
       con el aviso instalado en una tienda. Depende de: Producto — qué cuotas o monto mostrar, si Creditop no sabe
       todavía qué entidad le sale al comprador.
+- [ ] Versión posterior · que Creditop sepa cuándo el comercio facturó el pedido. Hoy el conector recibe el `settle`
+      de VTEX (llega al facturar), consulta el estado y confirma, pero no se lo cuenta a Creditop: Creditop sabe si
+      aprobó, no si el comercio facturó. Ojo: facturar no es entregar; la entrega va por el seguimiento del envío del
+      pedido en VTEX, que hoy tampoco miramos. Termina con la decisión escrita y, si sirve, el aviso guardado en la
+      solicitud. Depende de: Producto — si a Creditop o a las entidades les sirve (p. ej. desembolsar contra despacho).
 - [ ] Versión posterior · un formulario en el checkout para pedir los datos que la tienda no trae (tipo y número de
       documento, fecha de expedición), como el que trae el pago con tarjeta, para que el wizard no los vuelva a pedir.
       En VTEX sería una Payment App del checkout. Termina con los datos llegando a `payment-link` y el wizard

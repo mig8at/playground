@@ -53,6 +53,7 @@ export const STORE_PENDING = {
         items: [
           { text: 'Aviso «Paga con Creditop» en la página del producto, como el de Addi (bloque del tema)', by: 'Producto' },
           { text: 'Formulario para los datos que faltan: tipo y número de documento, expedición (Payment App del checkout)', by: 'Producto' },
+          { text: 'Que Creditop sepa cuándo el comercio facturó (el settle de VTEX) y, aparte, cuándo se entregó', by: 'Producto' },
         ],
       },
     ],
