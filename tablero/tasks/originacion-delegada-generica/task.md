@@ -31,8 +31,8 @@ ramas: originacion-delegada
   la 24 y la de Materiales en `delegated_origination_profiles` de cada base (dev/qa/staging comparten una).
 - [x] ~~Cambiar en el asistente la lista de ids por el riel~~ — frontend-monorepo 437048054; build en verde y
   la tarjeta de Credifamilia sigue mostrando el plan del backend.
-- [ ] Abrir un PR por repo contra `qa`, con lo medido antes y después. Depende de: Miguel — el visto bueno
-  para pushear.
+- [x] ~~Abrir un PR por repo contra `qa`~~ — legacy-backend#1815 y frontend-monorepo#1314.
+- [ ] Conseguir la revisión de los dos PRs y mergearlos a `qa`. Depende de: el equipo — la revisión.
 
 ## Objetivo
 
