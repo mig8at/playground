@@ -7,18 +7,21 @@ knowledge: [lender-response-types, credifamilia-origination, credifamilia-financ
 canon: [entidad/context]
 jira: []
 jira_title: "Originación delegada: riel 4 para cualquier entidad"
+ramas: originacion-delegada
 ---
 
 ## Pendientes
 
 - [x] ~~Ligar la tarea a un issue de Jira~~ — CORE-918, creado en el sprint activo (CORE Sprint 21).
-- [ ] Sacar la foto de antes: Credifamilia Salud (24) y Materiales (216) de punta a punta en local con el
-  arnés (opciones, fecha, cuotas, firma, formalización). Termina con los comandos y lo que dieron en la pila.
+- [x] ~~Sacar la foto de antes de Credifamilia Salud (24)~~ — 3 de 3 cierran en 11 con radicación; foto en
+  `artifacts/foto-antes.json` (ver «Cómo se comprueba»).
+- [ ] Sacar la foto de Credifamilia Materiales: la 216 no existe en la base local. Termina con la entidad
+  creada en local, igual a la 214 de prod, y su foto antes del cambio.
 - [ ] Decidir cómo se generaliza el cálculo del plan (motor único con parámetros o un cálculo por entidad,
   como el cierre ante la entidad). Termina con la decisión en la pila, después de leer
   `CredifamiliaAmortizationEngine` y `CredifamiliaLenderProfile`.
-- [ ] Abrir `feat/originacion-delegada` desde `qa` actualizado en legacy-backend y en frontend-monorepo, y
-  declararla en `ramas:`.
+- [x] ~~Abrir `feat/originacion-delegada` desde `qa` actualizado~~ — local en legacy-backend (198387981) y
+  frontend-monorepo (96741ec32), sin push; declarada en `ramas:`.
 - [ ] Generalizar el backend (ver «Cómo se ataca», paso 2). Termina con la foto de después igual a la de
   antes y una entidad de prueba del riel 4 que no es Credifamilia que lista opciones, elige fecha y simula
   cuotas.
@@ -99,7 +102,25 @@ Inventario en `origin/main` de legacy-backend 174120193 (detalle en la pila y en
 
 ## Cómo se comprueba — y el MATERIAL para volver a hacerlo
 
-Pendiente: los comandos de la foto de antes, cuando se corran.
+En local, con legacy-backend en `feat/originacion-delegada`, la base migrada y los mocks de Credifamilia arriba
+(:8100 pdf-mapper, :8106 Deceval, :8107 Netco, :8108 radicación) más el de centrales (:8105):
+
+1. Cerrar casos de Credifamilia Salud en serie (sin `PAR=1`, que reproduce el deadlock de la firma):
+
+       E2E_TARGET=local make harness-suite SUITE=harness/suites/credifamilia.json CLOSE=1 LAMBDA=1 TARGET=local
+
+   Imprime el `uReq` de cada caso.
+2. Sacar la foto de esas solicitudes: los seis endpoints del plan de pago (continuar, fechas, cuotas,
+   opciones, resumen, comprobante), los documentos firmados, el pagaré y la radicación, sin los campos que
+   cambian en cada corrida:
+
+       python3 tablero/tasks/originacion-delegada-generica/artifacts/foto.py credifamilia <uReq…> > foto-despues.json
+
+3. Comparar con `diff` contra `artifacts/foto-antes.json`, el mismo día: las fechas de pago dependen de hoy.
+   Después del cambio de rutas, el `slug` del paso 2 pasa a ser el de la entidad.
+
+Dos migraciones de vistas de reportes (`2026_10_22_210000`, `2026_10_23_120000`) no corren en la base
+local porque la vista del dump es distinta a la esperada. No tocan el riel 4.
 
 ## Referencias
 

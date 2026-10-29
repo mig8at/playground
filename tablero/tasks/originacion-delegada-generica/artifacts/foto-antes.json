@@ -1,0 +1,2237 @@
+{
+ "467516": {
+  "continue-request": {
+   "body": {
+    "data": {
+     "annual_effective_rate": 0.2418,
+     "bond_fee": 0,
+     "bond_type": "Anticipada",
+     "capital": 81639,
+     "first_installment": 132710,
+     "interest_rate": 0.01821065637706165,
+     "life_insurance": 2430,
+     "monthly_installment": 128323
+    },
+    "success": true
+   },
+   "http": 200
+  },
+  "dia_de_pago": "2",
+  "documentos_firmados": [
+   {
+    "con_url": "1",
+    "document_type": "consent",
+    "signature_type": "otp",
+    "signer_role": "applicant",
+    "status": "signed"
+   },
+   {
+    "con_url": "1",
+    "document_type": "disbursement_authorization",
+    "signature_type": "otp",
+    "signer_role": "applicant",
+    "status": "signed"
+   },
+   {
+    "con_url": "1",
+    "document_type": "guarantee",
+    "signature_type": "otp",
+    "signer_role": "applicant",
+    "status": "signed"
+   },
+   {
+    "con_url": "1",
+    "document_type": "payment_schedule",
+    "signature_type": "otp",
+    "signer_role": "applicant",
+    "status": "signed"
+   },
+   {
+    "con_url": "1",
+    "document_type": "promissory_note",
+    "signature_type": "otp",
+    "signer_role": "applicant",
+    "status": "signed"
+   },
+   {
+    "con_url": "1",
+    "document_type": "regulation",
+    "signature_type": "otp",
+    "signer_role": "applicant",
+    "status": "signed"
+   },
+   {
+    "con_url": "1",
+    "document_type": "terms_conditions",
+    "signature_type": "otp",
+    "signer_role": "applicant",
+    "status": "signed"
+   }
+  ],
+  "fee_number": "24",
+  "installment-plan": {
+   "body": {
+    "data": [
+     {
+      "installments": [
+       {
+        "installment_number": 1,
+        "payment_date": "02-12-2026",
+        "total_installment": 438039
+       },
+       {
+        "installment_number": 2,
+        "payment_date": "02-01-2027",
+        "total_installment": 433652
+       },
+       {
+        "installment_number": 3,
+        "payment_date": "02-02-2027",
+        "total_installment": 433652
+       },
+       {
+        "installment_number": 4,
+        "payment_date": "02-03-2027",
+        "total_installment": 433652
+       },
+       {
+        "installment_number": 5,
+        "payment_date": "02-04-2027",
+        "total_installment": 433652
+       },
+       {
+        "installment_number": 6,
+        "payment_date": "02-05-2027",
+        "total_installment": 433652
+       }
+      ],
+      "payment_day": 2,
+      "term": 6
+     },
+     {
+      "installments": [
+       {
+        "installment_number": 1,
+        "payment_date": "02-12-2026",
+        "total_installment": 234090
+       },
+       {
+        "installment_number": 2,
+        "payment_date": "02-01-2027",
+        "total_installment": 229703
+       },
+       {
+        "installment_number": 3,
+        "payment_date": "02-02-2027",
+        "total_installment": 229703
+       },
+       {
+        "installment_number": 4,
+        "payment_date": "02-03-2027",
+        "total_installment": 229703
+       },
+       {
+        "installment_number": 5,
+        "payment_date": "02-04-2027",
+        "total_installment": 229703
+       },
+       {
+        "installment_number": 6,
+        "payment_date": "02-05-2027",
+        "total_installment": 229703
+       },
+       {
+        "installment_number": 7,
+        "payment_date": "02-06-2027",
+        "total_installment": 229703
+       },
+       {
+        "installment_number": 8,
+        "payment_date": "02-07-2027",
+        "total_installment": 229703
+       },
+       {
+        "installment_number": 9,
+        "payment_date": "02-08-2027",
+        "total_installment": 229703
+       },
+       {
+        "installment_number": 10,
+        "payment_date": "02-09-2027",
+        "total_installment": 229703
+       },
+       {
+        "installment_number": 11,
+        "payment_date": "02-10-2027",
+        "total_installment": 229703
+       },
+       {
+        "installment_number": 12,
+        "payment_date": "02-11-2027",
+        "total_installment": 229703
+       }
+      ],
+      "payment_day": 2,
+      "term": 12
+     },
+     {
+      "installments": [
+       {
+        "installment_number": 1,
+        "payment_date": "02-12-2026",
+        "total_installment": 166372
+       },
+       {
+        "installment_number": 2,
+        "payment_date": "02-01-2027",
+        "total_installment": 161985
+       },
+       {
+        "installment_number": 3,
+        "payment_date": "02-02-2027",
+        "total_installment": 161985
+       },
+       {
+        "installment_number": 4,
+        "payment_date": "02-03-2027",
+        "total_installment": 161985
+       },
+       {
+        "installment_number": 5,
+        "payment_date": "02-04-2027",
+        "total_installment": 161985
+       },
+       {
+        "installment_number": 6,
+        "payment_date": "02-05-2027",
+        "total_installment": 161985
+       },
+       {
+        "installment_number": 7,
+        "payment_date": "02-06-2027",
+        "total_installment": 161985
+       },
+       {
+        "installment_number": 8,
+        "payment_date": "02-07-2027",
+        "total_installment": 161985
+       },
+       {
+        "installment_number": 9,
+        "payment_date": "02-08-2027",
+        "total_installment": 161985
+       },
+       {
+        "installment_number": 10,
+        "payment_date": "02-09-2027",
+        "total_installment": 161985
+       },
+       {
+        "installment_number": 11,
+        "payment_date": "02-10-2027",
+        "total_installment": 161985
+       },
+       {
+        "installment_number": 12,
+        "payment_date": "02-11-2027",
+        "total_installment": 161985
+       },
+       {
+        "installment_number": 13,
+        "payment_date": "02-12-2027",
+        "total_installment": 161985
+       },
+       {
+        "installment_number": 14,
+        "payment_date": "02-01-2028",
+        "total_installment": 161985
+       },
+       {
+        "installment_number": 15,
+        "payment_date": "02-02-2028",
+        "total_installment": 161985
+       },
+       {
+        "installment_number": 16,
+        "payment_date": "02-03-2028",
+        "total_installment": 161985
+       },
+       {
+        "installment_number": 17,
+        "payment_date": "02-04-2028",
+        "total_installment": 161985
+       },
+       {
+        "installment_number": 18,
+        "payment_date": "02-05-2028",
+        "total_installment": 161985
+       }
+      ],
+      "payment_day": 2,
+      "term": 18
+     },
+     {
+      "installments": [
+       {
+        "installment_number": 1,
+        "payment_date": "02-12-2026",
+        "total_installment": 132710
+       },
+       {
+        "installment_number": 2,
+        "payment_date": "02-01-2027",
+        "total_installment": 128323
+       },
+       {
+        "installment_number": 3,
+        "payment_date": "02-02-2027",
+        "total_installment": 128323
+       },
+       {
+        "installment_number": 4,
+        "payment_date": "02-03-2027",
+        "total_installment": 128323
+       },
+       {
+        "installment_number": 5,
+        "payment_date": "02-04-2027",
+        "total_installment": 128323
+       },
+       {
+        "installment_number": 6,
+        "payment_date": "02-05-2027",
+        "total_installment": 128323
+       },
+       {
+        "installment_number": 7,
+        "payment_date": "02-06-2027",
+        "total_installment": 128323
+       },
+       {
+        "installment_number": 8,
+        "payment_date": "02-07-2027",
+        "total_installment": 128323
+       },
+       {
+        "installment_number": 9,
+        "payment_date": "02-08-2027",
+        "total_installment": 128323
+       },
+       {
+        "installment_number": 10,
+        "payment_date": "02-09-2027",
+        "total_installment": 128323
+       },
+       {
+        "installment_number": 11,
+        "payment_date": "02-10-2027",
+        "total_installment": 128323
+       },
+       {
+        "installment_number": 12,
+        "payment_date": "02-11-2027",
+        "total_installment": 128323
+       },
+       {
+        "installment_number": 13,
+        "payment_date": "02-12-2027",
+        "total_installment": 128323
+       },
+       {
+        "installment_number": 14,
+        "payment_date": "02-01-2028",
+        "total_installment": 128323
+       },
+       {
+        "installment_number": 15,
+        "payment_date": "02-02-2028",
+        "total_installment": 128323
+       },
+       {
+        "installment_number": 16,
+        "payment_date": "02-03-2028",
+        "total_installment": 128323
+       },
+       {
+        "installment_number": 17,
+        "payment_date": "02-04-2028",
+        "total_installment": 128323
+       },
+       {
+        "installment_number": 18,
+        "payment_date": "02-05-2028",
+        "total_installment": 128323
+       },
+       {
+        "installment_number": 19,
+        "payment_date": "02-06-2028",
+        "total_installment": 128323
+       },
+       {
+        "installment_number": 20,
+        "payment_date": "02-07-2028",
+        "total_installment": 128323
+       },
+       {
+        "installment_number": 21,
+        "payment_date": "02-08-2028",
+        "total_installment": 128323
+       },
+       {
+        "installment_number": 22,
+        "payment_date": "02-09-2028",
+        "total_installment": 128323
+       },
+       {
+        "installment_number": 23,
+        "payment_date": "02-10-2028",
+        "total_installment": 128323
+       },
+       {
+        "installment_number": 24,
+        "payment_date": "02-11-2028",
+        "total_installment": 128323
+       }
+      ],
+      "payment_day": 2,
+      "term": 24
+     }
+    ],
+    "success": true
+   },
+   "http": 200
+  },
+  "loan-options": {
+   "body": {
+    "data": {
+     "available_amount": 12000000,
+     "interest_rate": 0.01821065637706165,
+     "lender": "Credifamilia",
+     "plans": [
+      {
+       "monthly_installment": 433652,
+       "term": 6
+      },
+      {
+       "monthly_installment": 229703,
+       "term": 12
+      },
+      {
+       "monthly_installment": 161985,
+       "term": 18
+      },
+      {
+       "monthly_installment": 128323,
+       "term": 24
+      }
+     ]
+    },
+    "success": true
+   },
+   "http": 200
+  },
+  "pagare": [
+   {
+    "con_deceval": "1",
+    "con_pagare": "1",
+    "con_plan": "1",
+    "signing_method": "deceval"
+   }
+  ],
+  "payment-dates": {
+   "body": {
+    "data": {
+     "payment_dates": [
+      {
+       "date": "02-Dic 2026",
+       "day": 2,
+       "iso_date": "2026-12-02"
+      },
+      {
+       "date": "16-Dic 2026",
+       "day": 16,
+       "iso_date": "2026-12-16"
+      }
+     ]
+    },
+    "success": true
+   },
+   "http": 200
+  },
+  "payment-plan-summary": {
+   "body": {
+    "data": {
+     "credit_conditions": {
+      "annual_effective_rate": 0.2418,
+      "approved_amount": 2000000,
+      "bond_base": 360000,
+      "bond_iva": 68400,
+      "bond_percentage": 0.18,
+      "four_per_thousand": 1713.6000000000001,
+      "monthly_rate": 0.01821065637706165,
+      "payment_day": 2,
+      "term_months": 24,
+      "total_bond": 430113.6,
+      "total_disbursement": 2430113.6
+     },
+     "document": {},
+     "installment_conditions": {
+      "base_installment": 125893,
+      "bond_fee": 0,
+      "first_installment": 132710,
+      "life_insurance": 2430,
+      "monthly_installment": 128323
+     },
+     "payment_plan": [
+      {
+       "bond_fee": 0,
+       "closing_balance": 2348474,
+       "installment_number": 1,
+       "interest": 44254,
+       "life_insurance": 2430,
+       "opening_balance": 2430114,
+       "principal": 81639,
+       "total_installment": 132710
+      },
+      {
+       "bond_fee": 0,
+       "closing_balance": 2265348,
+       "installment_number": 2,
+       "interest": 42767,
+       "life_insurance": 2430,
+       "opening_balance": 2348474,
+       "principal": 83126,
+       "total_installment": 128323
+      },
+      {
+       "bond_fee": 0,
+       "closing_balance": 2180709,
+       "installment_number": 3,
+       "interest": 41253,
+       "life_insurance": 2430,
+       "opening_balance": 2265348,
+       "principal": 84640,
+       "total_installment": 128323
+      },
+      {
+       "bond_fee": 0,
+       "closing_balance": 2094528,
+       "installment_number": 4,
+       "interest": 39712,
+       "life_insurance": 2430,
+       "opening_balance": 2180709,
+       "principal": 86181,
+       "total_installment": 128323
+      },
+      {
+       "bond_fee": 0,
+       "closing_balance": 2006777,
+       "installment_number": 5,
+       "interest": 38143,
+       "life_insurance": 2430,
+       "opening_balance": 2094528,
+       "principal": 87750,
+       "total_installment": 128323
+      },
+      {
+       "bond_fee": 0,
+       "closing_balance": 1917429,
+       "installment_number": 6,
+       "interest": 36545,
+       "life_insurance": 2430,
+       "opening_balance": 2006777,
+       "principal": 89348,
+       "total_installment": 128323
+      },
+      {
+       "bond_fee": 0,
+       "closing_balance": 1826453,
+       "installment_number": 7,
+       "interest": 34918,
+       "life_insurance": 2430,
+       "opening_balance": 1917429,
+       "principal": 90976,
+       "total_installment": 128323
+      },
+      {
+       "bond_fee": 0,
+       "closing_balance": 1733821,
+       "installment_number": 8,
+       "interest": 33261,
+       "life_insurance": 2430,
+       "opening_balance": 1826453,
+       "principal": 92632,
+       "total_installment": 128323
+      },
+      {
+       "bond_fee": 0,
+       "closing_balance": 1639502,
+       "installment_number": 9,
+       "interest": 31574,
+       "life_insurance": 2430,
+       "opening_balance": 1733821,
+       "principal": 94319,
+       "total_installment": 128323
+      },
+      {
+       "bond_fee": 0,
+       "closing_balance": 1543465,
+       "installment_number": 10,
+       "interest": 29856,
+       "life_insurance": 2430,
+       "opening_balance": 1639502,
+       "principal": 96037,
+       "total_installment": 128323
+      },
+      {
+       "bond_fee": 0,
+       "closing_balance": 1445679,
+       "installment_number": 11,
+       "interest": 28108,
+       "life_insurance": 2430,
+       "opening_balance": 1543465,
+       "principal": 97786,
+       "total_installment": 128323
+      },
+      {
+       "bond_fee": 0,
+       "closing_balance": 1346113,
+       "installment_number": 12,
+       "interest": 26327,
+       "life_insurance": 2430,
+       "opening_balance": 1445679,
+       "principal": 99566,
+       "total_installment": 128323
+      },
+      {
+       "bond_fee": 0,
+       "closing_balance": 1244733,
+       "installment_number": 13,
+       "interest": 24514,
+       "life_insurance": 2430,
+       "opening_balance": 1346113,
+       "principal": 101380,
+       "total_installment": 128323
+      },
+      {
+       "bond_fee": 0,
+       "closing_balance": 1141507,
+       "installment_number": 14,
+       "interest": 22667,
+       "life_insurance": 2430,
+       "opening_balance": 1244733,
+       "principal": 103226,
+       "total_installment": 128323
+      },
+      {
+       "bond_fee": 0,
+       "closing_balance": 1036401,
+       "installment_number": 15,
+       "interest": 20788,
+       "life_insurance": 2430,
+       "opening_balance": 1141507,
+       "principal": 105106,
+       "total_installment": 128323
+      },
+      {
+       "bond_fee": 0,
+       "closing_balance": 929382,
+       "installment_number": 16,
+       "interest": 18874,
+       "life_insurance": 2430,
+       "opening_balance": 1036401,
+       "principal": 107020,
+       "total_installment": 128323
+      },
+      {
+       "bond_fee": 0,
+       "closing_balance": 820413,
+       "installment_number": 17,
+       "interest": 16925,
+       "life_insurance": 2430,
+       "opening_balance": 929382,
+       "principal": 108969,
+       "total_installment": 128323
+      },
+      {
+       "bond_fee": 0,
+       "closing_balance": 709460,
+       "installment_number": 18,
+       "interest": 14940,
+       "life_insurance": 2430,
+       "opening_balance": 820413,
+       "principal": 110953,
+       "total_installment": 128323
+      },
+      {
+       "bond_fee": 0,
+       "closing_balance": 596487,
+       "installment_number": 19,
+       "interest": 12920,
+       "life_insurance": 2430,
+       "opening_balance": 709460,
+       "principal": 112973,
+       "total_installment": 128323
+      },
+      {
+       "bond_fee": 0,
+       "closing_balance": 481456,
+       "installment_number": 20,
+       "interest": 10862,
+       "life_insurance": 2430,
+       "opening_balance": 596487,
+       "principal": 115031,
+       "total_installment": 128323
+      },
+      {
+       "bond_fee": 0,
+       "closing_balance": 364330,
+       "installment_number": 21,
+       "interest": 8768,
+       "life_insurance": 2430,
+       "opening_balance": 481456,
+       "principal": 117126,
+       "total_installment": 128323
+      },
+      {
+       "bond_fee": 0,
+       "closing_balance": 245072,
+       "installment_number": 22,
+       "interest": 6635,
+       "life_insurance": 2430,
+       "opening_balance": 364330,
+       "principal": 119259,
+       "total_installment": 128323
+      },
+      {
+       "bond_fee": 0,
+       "closing_balance": 123642,
+       "installment_number": 23,
+       "interest": 4463,
+       "life_insurance": 2430,
+       "opening_balance": 245072,
+       "principal": 121430,
+       "total_installment": 128323
+      },
+      {
+       "bond_fee": 0,
+       "closing_balance": 0,
+       "installment_number": 24,
+       "interest": 2252,
+       "life_insurance": 2430,
+       "opening_balance": 123642,
+       "principal": 123642,
+       "total_installment": 128323
+      }
+     ],
+     "personal_data": {
+      "birth_country": null,
+      "city": null,
+      "date_of_birth": "2001-05-10T00:00:00.000000Z",
+      "document_issue_date": null,
+      "gender": null,
+      "id_type": null,
+      "state": null
+     }
+    },
+    "success": true
+   },
+   "http": 200
+  },
+  "radicacion": [
+   {
+    "channel": "NULL",
+    "disbursed_amount": "NULL",
+    "status_id": "132"
+   }
+  ],
+  "solicitud": {
+   "amount": "2000000.0000",
+   "fee_number": "24",
+   "fee_value": "0.0000",
+   "final_amount": "2000000.0000",
+   "initial_fee": "0.0000",
+   "lender_id": "24",
+   "original_amount": "2000000.0000",
+   "rate": "0.00",
+   "user_request_status_id": "11"
+  },
+  "voucher": {
+   "body": {
+    "data": {
+     "advisor": {},
+     "client": {
+      "approved_amount": 2000000
+     },
+     "confirmation": {},
+     "credit_details": {
+      "annual_effective_rate": 0.2418,
+      "base_installment": 125893,
+      "first_installment": 132710,
+      "four_per_thousand": 1713.6000000000001,
+      "life_insurance": 2430,
+      "monthly_installment": 128323,
+      "monthly_rate": 0.01821065637706165,
+      "term_months": 24,
+      "total_bond": 430113.6
+     },
+     "header": {
+      "credit_type": "Crédito de consumo Credifamilia"
+     }
+    },
+    "success": true
+   },
+   "http": 200
+  }
+ },
+ "467517": {
+  "continue-request": {
+   "body": {
+    "data": {
+     "annual_effective_rate": 0.2418,
+     "bond_fee": 0,
+     "bond_type": "Anticipada",
+     "capital": 81639,
+     "first_installment": 132710,
+     "interest_rate": 0.01821065637706165,
+     "life_insurance": 2430,
+     "monthly_installment": 128323
+    },
+    "success": true
+   },
+   "http": 200
+  },
+  "dia_de_pago": "2",
+  "documentos_firmados": [
+   {
+    "con_url": "1",
+    "document_type": "consent",
+    "signature_type": "otp",
+    "signer_role": "applicant",
+    "status": "signed"
+   },
+   {
+    "con_url": "1",
+    "document_type": "disbursement_authorization",
+    "signature_type": "otp",
+    "signer_role": "applicant",
+    "status": "signed"
+   },
+   {
+    "con_url": "1",
+    "document_type": "guarantee",
+    "signature_type": "otp",
+    "signer_role": "applicant",
+    "status": "signed"
+   },
+   {
+    "con_url": "1",
+    "document_type": "payment_schedule",
+    "signature_type": "otp",
+    "signer_role": "applicant",
+    "status": "signed"
+   },
+   {
+    "con_url": "1",
+    "document_type": "promissory_note",
+    "signature_type": "otp",
+    "signer_role": "applicant",
+    "status": "signed"
+   },
+   {
+    "con_url": "1",
+    "document_type": "regulation",
+    "signature_type": "otp",
+    "signer_role": "applicant",
+    "status": "signed"
+   },
+   {
+    "con_url": "1",
+    "document_type": "terms_conditions",
+    "signature_type": "otp",
+    "signer_role": "applicant",
+    "status": "signed"
+   }
+  ],
+  "fee_number": "24",
+  "installment-plan": {
+   "body": {
+    "data": [
+     {
+      "installments": [
+       {
+        "installment_number": 1,
+        "payment_date": "02-12-2026",
+        "total_installment": 438039
+       },
+       {
+        "installment_number": 2,
+        "payment_date": "02-01-2027",
+        "total_installment": 433652
+       },
+       {
+        "installment_number": 3,
+        "payment_date": "02-02-2027",
+        "total_installment": 433652
+       },
+       {
+        "installment_number": 4,
+        "payment_date": "02-03-2027",
+        "total_installment": 433652
+       },
+       {
+        "installment_number": 5,
+        "payment_date": "02-04-2027",
+        "total_installment": 433652
+       },
+       {
+        "installment_number": 6,
+        "payment_date": "02-05-2027",
+        "total_installment": 433652
+       }
+      ],
+      "payment_day": 2,
+      "term": 6
+     },
+     {
+      "installments": [
+       {
+        "installment_number": 1,
+        "payment_date": "02-12-2026",
+        "total_installment": 234090
+       },
+       {
+        "installment_number": 2,
+        "payment_date": "02-01-2027",
+        "total_installment": 229703
+       },
+       {
+        "installment_number": 3,
+        "payment_date": "02-02-2027",
+        "total_installment": 229703
+       },
+       {
+        "installment_number": 4,
+        "payment_date": "02-03-2027",
+        "total_installment": 229703
+       },
+       {
+        "installment_number": 5,
+        "payment_date": "02-04-2027",
+        "total_installment": 229703
+       },
+       {
+        "installment_number": 6,
+        "payment_date": "02-05-2027",
+        "total_installment": 229703
+       },
+       {
+        "installment_number": 7,
+        "payment_date": "02-06-2027",
+        "total_installment": 229703
+       },
+       {
+        "installment_number": 8,
+        "payment_date": "02-07-2027",
+        "total_installment": 229703
+       },
+       {
+        "installment_number": 9,
+        "payment_date": "02-08-2027",
+        "total_installment": 229703
+       },
+       {
+        "installment_number": 10,
+        "payment_date": "02-09-2027",
+        "total_installment": 229703
+       },
+       {
+        "installment_number": 11,
+        "payment_date": "02-10-2027",
+        "total_installment": 229703
+       },
+       {
+        "installment_number": 12,
+        "payment_date": "02-11-2027",
+        "total_installment": 229703
+       }
+      ],
+      "payment_day": 2,
+      "term": 12
+     },
+     {
+      "installments": [
+       {
+        "installment_number": 1,
+        "payment_date": "02-12-2026",
+        "total_installment": 166372
+       },
+       {
+        "installment_number": 2,
+        "payment_date": "02-01-2027",
+        "total_installment": 161985
+       },
+       {
+        "installment_number": 3,
+        "payment_date": "02-02-2027",
+        "total_installment": 161985
+       },
+       {
+        "installment_number": 4,
+        "payment_date": "02-03-2027",
+        "total_installment": 161985
+       },
+       {
+        "installment_number": 5,
+        "payment_date": "02-04-2027",
+        "total_installment": 161985
+       },
+       {
+        "installment_number": 6,
+        "payment_date": "02-05-2027",
+        "total_installment": 161985
+       },
+       {
+        "installment_number": 7,
+        "payment_date": "02-06-2027",
+        "total_installment": 161985
+       },
+       {
+        "installment_number": 8,
+        "payment_date": "02-07-2027",
+        "total_installment": 161985
+       },
+       {
+        "installment_number": 9,
+        "payment_date": "02-08-2027",
+        "total_installment": 161985
+       },
+       {
+        "installment_number": 10,
+        "payment_date": "02-09-2027",
+        "total_installment": 161985
+       },
+       {
+        "installment_number": 11,
+        "payment_date": "02-10-2027",
+        "total_installment": 161985
+       },
+       {
+        "installment_number": 12,
+        "payment_date": "02-11-2027",
+        "total_installment": 161985
+       },
+       {
+        "installment_number": 13,
+        "payment_date": "02-12-2027",
+        "total_installment": 161985
+       },
+       {
+        "installment_number": 14,
+        "payment_date": "02-01-2028",
+        "total_installment": 161985
+       },
+       {
+        "installment_number": 15,
+        "payment_date": "02-02-2028",
+        "total_installment": 161985
+       },
+       {
+        "installment_number": 16,
+        "payment_date": "02-03-2028",
+        "total_installment": 161985
+       },
+       {
+        "installment_number": 17,
+        "payment_date": "02-04-2028",
+        "total_installment": 161985
+       },
+       {
+        "installment_number": 18,
+        "payment_date": "02-05-2028",
+        "total_installment": 161985
+       }
+      ],
+      "payment_day": 2,
+      "term": 18
+     },
+     {
+      "installments": [
+       {
+        "installment_number": 1,
+        "payment_date": "02-12-2026",
+        "total_installment": 132710
+       },
+       {
+        "installment_number": 2,
+        "payment_date": "02-01-2027",
+        "total_installment": 128323
+       },
+       {
+        "installment_number": 3,
+        "payment_date": "02-02-2027",
+        "total_installment": 128323
+       },
+       {
+        "installment_number": 4,
+        "payment_date": "02-03-2027",
+        "total_installment": 128323
+       },
+       {
+        "installment_number": 5,
+        "payment_date": "02-04-2027",
+        "total_installment": 128323
+       },
+       {
+        "installment_number": 6,
+        "payment_date": "02-05-2027",
+        "total_installment": 128323
+       },
+       {
+        "installment_number": 7,
+        "payment_date": "02-06-2027",
+        "total_installment": 128323
+       },
+       {
+        "installment_number": 8,
+        "payment_date": "02-07-2027",
+        "total_installment": 128323
+       },
+       {
+        "installment_number": 9,
+        "payment_date": "02-08-2027",
+        "total_installment": 128323
+       },
+       {
+        "installment_number": 10,
+        "payment_date": "02-09-2027",
+        "total_installment": 128323
+       },
+       {
+        "installment_number": 11,
+        "payment_date": "02-10-2027",
+        "total_installment": 128323
+       },
+       {
+        "installment_number": 12,
+        "payment_date": "02-11-2027",
+        "total_installment": 128323
+       },
+       {
+        "installment_number": 13,
+        "payment_date": "02-12-2027",
+        "total_installment": 128323
+       },
+       {
+        "installment_number": 14,
+        "payment_date": "02-01-2028",
+        "total_installment": 128323
+       },
+       {
+        "installment_number": 15,
+        "payment_date": "02-02-2028",
+        "total_installment": 128323
+       },
+       {
+        "installment_number": 16,
+        "payment_date": "02-03-2028",
+        "total_installment": 128323
+       },
+       {
+        "installment_number": 17,
+        "payment_date": "02-04-2028",
+        "total_installment": 128323
+       },
+       {
+        "installment_number": 18,
+        "payment_date": "02-05-2028",
+        "total_installment": 128323
+       },
+       {
+        "installment_number": 19,
+        "payment_date": "02-06-2028",
+        "total_installment": 128323
+       },
+       {
+        "installment_number": 20,
+        "payment_date": "02-07-2028",
+        "total_installment": 128323
+       },
+       {
+        "installment_number": 21,
+        "payment_date": "02-08-2028",
+        "total_installment": 128323
+       },
+       {
+        "installment_number": 22,
+        "payment_date": "02-09-2028",
+        "total_installment": 128323
+       },
+       {
+        "installment_number": 23,
+        "payment_date": "02-10-2028",
+        "total_installment": 128323
+       },
+       {
+        "installment_number": 24,
+        "payment_date": "02-11-2028",
+        "total_installment": 128323
+       }
+      ],
+      "payment_day": 2,
+      "term": 24
+     }
+    ],
+    "success": true
+   },
+   "http": 200
+  },
+  "loan-options": {
+   "body": {
+    "data": {
+     "available_amount": 12000000,
+     "interest_rate": 0.01821065637706165,
+     "lender": "Credifamilia",
+     "plans": [
+      {
+       "monthly_installment": 433652,
+       "term": 6
+      },
+      {
+       "monthly_installment": 229703,
+       "term": 12
+      },
+      {
+       "monthly_installment": 161985,
+       "term": 18
+      },
+      {
+       "monthly_installment": 128323,
+       "term": 24
+      }
+     ]
+    },
+    "success": true
+   },
+   "http": 200
+  },
+  "pagare": [
+   {
+    "con_deceval": "1",
+    "con_pagare": "1",
+    "con_plan": "1",
+    "signing_method": "deceval"
+   }
+  ],
+  "payment-dates": {
+   "body": {
+    "data": {
+     "payment_dates": [
+      {
+       "date": "02-Dic 2026",
+       "day": 2,
+       "iso_date": "2026-12-02"
+      },
+      {
+       "date": "16-Dic 2026",
+       "day": 16,
+       "iso_date": "2026-12-16"
+      }
+     ]
+    },
+    "success": true
+   },
+   "http": 200
+  },
+  "payment-plan-summary": {
+   "body": {
+    "data": {
+     "credit_conditions": {
+      "annual_effective_rate": 0.2418,
+      "approved_amount": 2000000,
+      "bond_base": 360000,
+      "bond_iva": 68400,
+      "bond_percentage": 0.18,
+      "four_per_thousand": 1713.6000000000001,
+      "monthly_rate": 0.01821065637706165,
+      "payment_day": 2,
+      "term_months": 24,
+      "total_bond": 430113.6,
+      "total_disbursement": 2430113.6
+     },
+     "document": {},
+     "installment_conditions": {
+      "base_installment": 125893,
+      "bond_fee": 0,
+      "first_installment": 132710,
+      "life_insurance": 2430,
+      "monthly_installment": 128323
+     },
+     "payment_plan": [
+      {
+       "bond_fee": 0,
+       "closing_balance": 2348474,
+       "installment_number": 1,
+       "interest": 44254,
+       "life_insurance": 2430,
+       "opening_balance": 2430114,
+       "principal": 81639,
+       "total_installment": 132710
+      },
+      {
+       "bond_fee": 0,
+       "closing_balance": 2265348,
+       "installment_number": 2,
+       "interest": 42767,
+       "life_insurance": 2430,
+       "opening_balance": 2348474,
+       "principal": 83126,
+       "total_installment": 128323
+      },
+      {
+       "bond_fee": 0,
+       "closing_balance": 2180709,
+       "installment_number": 3,
+       "interest": 41253,
+       "life_insurance": 2430,
+       "opening_balance": 2265348,
+       "principal": 84640,
+       "total_installment": 128323
+      },
+      {
+       "bond_fee": 0,
+       "closing_balance": 2094528,
+       "installment_number": 4,
+       "interest": 39712,
+       "life_insurance": 2430,
+       "opening_balance": 2180709,
+       "principal": 86181,
+       "total_installment": 128323
+      },
+      {
+       "bond_fee": 0,
+       "closing_balance": 2006777,
+       "installment_number": 5,
+       "interest": 38143,
+       "life_insurance": 2430,
+       "opening_balance": 2094528,
+       "principal": 87750,
+       "total_installment": 128323
+      },
+      {
+       "bond_fee": 0,
+       "closing_balance": 1917429,
+       "installment_number": 6,
+       "interest": 36545,
+       "life_insurance": 2430,
+       "opening_balance": 2006777,
+       "principal": 89348,
+       "total_installment": 128323
+      },
+      {
+       "bond_fee": 0,
+       "closing_balance": 1826453,
+       "installment_number": 7,
+       "interest": 34918,
+       "life_insurance": 2430,
+       "opening_balance": 1917429,
+       "principal": 90976,
+       "total_installment": 128323
+      },
+      {
+       "bond_fee": 0,
+       "closing_balance": 1733821,
+       "installment_number": 8,
+       "interest": 33261,
+       "life_insurance": 2430,
+       "opening_balance": 1826453,
+       "principal": 92632,
+       "total_installment": 128323
+      },
+      {
+       "bond_fee": 0,
+       "closing_balance": 1639502,
+       "installment_number": 9,
+       "interest": 31574,
+       "life_insurance": 2430,
+       "opening_balance": 1733821,
+       "principal": 94319,
+       "total_installment": 128323
+      },
+      {
+       "bond_fee": 0,
+       "closing_balance": 1543465,
+       "installment_number": 10,
+       "interest": 29856,
+       "life_insurance": 2430,
+       "opening_balance": 1639502,
+       "principal": 96037,
+       "total_installment": 128323
+      },
+      {
+       "bond_fee": 0,
+       "closing_balance": 1445679,
+       "installment_number": 11,
+       "interest": 28108,
+       "life_insurance": 2430,
+       "opening_balance": 1543465,
+       "principal": 97786,
+       "total_installment": 128323
+      },
+      {
+       "bond_fee": 0,
+       "closing_balance": 1346113,
+       "installment_number": 12,
+       "interest": 26327,
+       "life_insurance": 2430,
+       "opening_balance": 1445679,
+       "principal": 99566,
+       "total_installment": 128323
+      },
+      {
+       "bond_fee": 0,
+       "closing_balance": 1244733,
+       "installment_number": 13,
+       "interest": 24514,
+       "life_insurance": 2430,
+       "opening_balance": 1346113,
+       "principal": 101380,
+       "total_installment": 128323
+      },
+      {
+       "bond_fee": 0,
+       "closing_balance": 1141507,
+       "installment_number": 14,
+       "interest": 22667,
+       "life_insurance": 2430,
+       "opening_balance": 1244733,
+       "principal": 103226,
+       "total_installment": 128323
+      },
+      {
+       "bond_fee": 0,
+       "closing_balance": 1036401,
+       "installment_number": 15,
+       "interest": 20788,
+       "life_insurance": 2430,
+       "opening_balance": 1141507,
+       "principal": 105106,
+       "total_installment": 128323
+      },
+      {
+       "bond_fee": 0,
+       "closing_balance": 929382,
+       "installment_number": 16,
+       "interest": 18874,
+       "life_insurance": 2430,
+       "opening_balance": 1036401,
+       "principal": 107020,
+       "total_installment": 128323
+      },
+      {
+       "bond_fee": 0,
+       "closing_balance": 820413,
+       "installment_number": 17,
+       "interest": 16925,
+       "life_insurance": 2430,
+       "opening_balance": 929382,
+       "principal": 108969,
+       "total_installment": 128323
+      },
+      {
+       "bond_fee": 0,
+       "closing_balance": 709460,
+       "installment_number": 18,
+       "interest": 14940,
+       "life_insurance": 2430,
+       "opening_balance": 820413,
+       "principal": 110953,
+       "total_installment": 128323
+      },
+      {
+       "bond_fee": 0,
+       "closing_balance": 596487,
+       "installment_number": 19,
+       "interest": 12920,
+       "life_insurance": 2430,
+       "opening_balance": 709460,
+       "principal": 112973,
+       "total_installment": 128323
+      },
+      {
+       "bond_fee": 0,
+       "closing_balance": 481456,
+       "installment_number": 20,
+       "interest": 10862,
+       "life_insurance": 2430,
+       "opening_balance": 596487,
+       "principal": 115031,
+       "total_installment": 128323
+      },
+      {
+       "bond_fee": 0,
+       "closing_balance": 364330,
+       "installment_number": 21,
+       "interest": 8768,
+       "life_insurance": 2430,
+       "opening_balance": 481456,
+       "principal": 117126,
+       "total_installment": 128323
+      },
+      {
+       "bond_fee": 0,
+       "closing_balance": 245072,
+       "installment_number": 22,
+       "interest": 6635,
+       "life_insurance": 2430,
+       "opening_balance": 364330,
+       "principal": 119259,
+       "total_installment": 128323
+      },
+      {
+       "bond_fee": 0,
+       "closing_balance": 123642,
+       "installment_number": 23,
+       "interest": 4463,
+       "life_insurance": 2430,
+       "opening_balance": 245072,
+       "principal": 121430,
+       "total_installment": 128323
+      },
+      {
+       "bond_fee": 0,
+       "closing_balance": 0,
+       "installment_number": 24,
+       "interest": 2252,
+       "life_insurance": 2430,
+       "opening_balance": 123642,
+       "principal": 123642,
+       "total_installment": 128323
+      }
+     ],
+     "personal_data": {
+      "birth_country": null,
+      "city": null,
+      "date_of_birth": "2001-05-10T00:00:00.000000Z",
+      "document_issue_date": null,
+      "gender": null,
+      "id_type": null,
+      "state": null
+     }
+    },
+    "success": true
+   },
+   "http": 200
+  },
+  "radicacion": [
+   {
+    "channel": "NULL",
+    "disbursed_amount": "NULL",
+    "status_id": "132"
+   }
+  ],
+  "solicitud": {
+   "amount": "2000000.0000",
+   "fee_number": "24",
+   "fee_value": "0.0000",
+   "final_amount": "2000000.0000",
+   "initial_fee": "0.0000",
+   "lender_id": "24",
+   "original_amount": "2000000.0000",
+   "rate": "0.00",
+   "user_request_status_id": "11"
+  },
+  "voucher": {
+   "body": {
+    "data": {
+     "advisor": {},
+     "client": {
+      "approved_amount": 2000000
+     },
+     "confirmation": {},
+     "credit_details": {
+      "annual_effective_rate": 0.2418,
+      "base_installment": 125893,
+      "first_installment": 132710,
+      "four_per_thousand": 1713.6000000000001,
+      "life_insurance": 2430,
+      "monthly_installment": 128323,
+      "monthly_rate": 0.01821065637706165,
+      "term_months": 24,
+      "total_bond": 430113.6
+     },
+     "header": {
+      "credit_type": "Crédito de consumo Credifamilia"
+     }
+    },
+    "success": true
+   },
+   "http": 200
+  }
+ },
+ "467518": {
+  "continue-request": {
+   "body": {
+    "data": {
+     "annual_effective_rate": 0.2418,
+     "bond_fee": 0,
+     "bond_type": "Anticipada",
+     "capital": 183019,
+     "first_installment": 234090,
+     "interest_rate": 0.01821065637706165,
+     "life_insurance": 2430,
+     "monthly_installment": 229703
+    },
+    "success": true
+   },
+   "http": 200
+  },
+  "dia_de_pago": "2",
+  "documentos_firmados": [
+   {
+    "con_url": "1",
+    "document_type": "consent",
+    "signature_type": "otp",
+    "signer_role": "applicant",
+    "status": "signed"
+   },
+   {
+    "con_url": "1",
+    "document_type": "disbursement_authorization",
+    "signature_type": "otp",
+    "signer_role": "applicant",
+    "status": "signed"
+   },
+   {
+    "con_url": "1",
+    "document_type": "guarantee",
+    "signature_type": "otp",
+    "signer_role": "applicant",
+    "status": "signed"
+   },
+   {
+    "con_url": "1",
+    "document_type": "payment_schedule",
+    "signature_type": "otp",
+    "signer_role": "applicant",
+    "status": "signed"
+   },
+   {
+    "con_url": "1",
+    "document_type": "promissory_note",
+    "signature_type": "otp",
+    "signer_role": "applicant",
+    "status": "signed"
+   },
+   {
+    "con_url": "1",
+    "document_type": "regulation",
+    "signature_type": "otp",
+    "signer_role": "applicant",
+    "status": "signed"
+   },
+   {
+    "con_url": "1",
+    "document_type": "terms_conditions",
+    "signature_type": "otp",
+    "signer_role": "applicant",
+    "status": "signed"
+   }
+  ],
+  "fee_number": "12",
+  "installment-plan": {
+   "body": {
+    "data": [
+     {
+      "installments": [
+       {
+        "installment_number": 1,
+        "payment_date": "02-12-2026",
+        "total_installment": 438039
+       },
+       {
+        "installment_number": 2,
+        "payment_date": "02-01-2027",
+        "total_installment": 433652
+       },
+       {
+        "installment_number": 3,
+        "payment_date": "02-02-2027",
+        "total_installment": 433652
+       },
+       {
+        "installment_number": 4,
+        "payment_date": "02-03-2027",
+        "total_installment": 433652
+       },
+       {
+        "installment_number": 5,
+        "payment_date": "02-04-2027",
+        "total_installment": 433652
+       },
+       {
+        "installment_number": 6,
+        "payment_date": "02-05-2027",
+        "total_installment": 433652
+       }
+      ],
+      "payment_day": 2,
+      "term": 6
+     },
+     {
+      "installments": [
+       {
+        "installment_number": 1,
+        "payment_date": "02-12-2026",
+        "total_installment": 234090
+       },
+       {
+        "installment_number": 2,
+        "payment_date": "02-01-2027",
+        "total_installment": 229703
+       },
+       {
+        "installment_number": 3,
+        "payment_date": "02-02-2027",
+        "total_installment": 229703
+       },
+       {
+        "installment_number": 4,
+        "payment_date": "02-03-2027",
+        "total_installment": 229703
+       },
+       {
+        "installment_number": 5,
+        "payment_date": "02-04-2027",
+        "total_installment": 229703
+       },
+       {
+        "installment_number": 6,
+        "payment_date": "02-05-2027",
+        "total_installment": 229703
+       },
+       {
+        "installment_number": 7,
+        "payment_date": "02-06-2027",
+        "total_installment": 229703
+       },
+       {
+        "installment_number": 8,
+        "payment_date": "02-07-2027",
+        "total_installment": 229703
+       },
+       {
+        "installment_number": 9,
+        "payment_date": "02-08-2027",
+        "total_installment": 229703
+       },
+       {
+        "installment_number": 10,
+        "payment_date": "02-09-2027",
+        "total_installment": 229703
+       },
+       {
+        "installment_number": 11,
+        "payment_date": "02-10-2027",
+        "total_installment": 229703
+       },
+       {
+        "installment_number": 12,
+        "payment_date": "02-11-2027",
+        "total_installment": 229703
+       }
+      ],
+      "payment_day": 2,
+      "term": 12
+     },
+     {
+      "installments": [
+       {
+        "installment_number": 1,
+        "payment_date": "02-12-2026",
+        "total_installment": 166372
+       },
+       {
+        "installment_number": 2,
+        "payment_date": "02-01-2027",
+        "total_installment": 161985
+       },
+       {
+        "installment_number": 3,
+        "payment_date": "02-02-2027",
+        "total_installment": 161985
+       },
+       {
+        "installment_number": 4,
+        "payment_date": "02-03-2027",
+        "total_installment": 161985
+       },
+       {
+        "installment_number": 5,
+        "payment_date": "02-04-2027",
+        "total_installment": 161985
+       },
+       {
+        "installment_number": 6,
+        "payment_date": "02-05-2027",
+        "total_installment": 161985
+       },
+       {
+        "installment_number": 7,
+        "payment_date": "02-06-2027",
+        "total_installment": 161985
+       },
+       {
+        "installment_number": 8,
+        "payment_date": "02-07-2027",
+        "total_installment": 161985
+       },
+       {
+        "installment_number": 9,
+        "payment_date": "02-08-2027",
+        "total_installment": 161985
+       },
+       {
+        "installment_number": 10,
+        "payment_date": "02-09-2027",
+        "total_installment": 161985
+       },
+       {
+        "installment_number": 11,
+        "payment_date": "02-10-2027",
+        "total_installment": 161985
+       },
+       {
+        "installment_number": 12,
+        "payment_date": "02-11-2027",
+        "total_installment": 161985
+       },
+       {
+        "installment_number": 13,
+        "payment_date": "02-12-2027",
+        "total_installment": 161985
+       },
+       {
+        "installment_number": 14,
+        "payment_date": "02-01-2028",
+        "total_installment": 161985
+       },
+       {
+        "installment_number": 15,
+        "payment_date": "02-02-2028",
+        "total_installment": 161985
+       },
+       {
+        "installment_number": 16,
+        "payment_date": "02-03-2028",
+        "total_installment": 161985
+       },
+       {
+        "installment_number": 17,
+        "payment_date": "02-04-2028",
+        "total_installment": 161985
+       },
+       {
+        "installment_number": 18,
+        "payment_date": "02-05-2028",
+        "total_installment": 161985
+       }
+      ],
+      "payment_day": 2,
+      "term": 18
+     },
+     {
+      "installments": [
+       {
+        "installment_number": 1,
+        "payment_date": "02-12-2026",
+        "total_installment": 132710
+       },
+       {
+        "installment_number": 2,
+        "payment_date": "02-01-2027",
+        "total_installment": 128323
+       },
+       {
+        "installment_number": 3,
+        "payment_date": "02-02-2027",
+        "total_installment": 128323
+       },
+       {
+        "installment_number": 4,
+        "payment_date": "02-03-2027",
+        "total_installment": 128323
+       },
+       {
+        "installment_number": 5,
+        "payment_date": "02-04-2027",
+        "total_installment": 128323
+       },
+       {
+        "installment_number": 6,
+        "payment_date": "02-05-2027",
+        "total_installment": 128323
+       },
+       {
+        "installment_number": 7,
+        "payment_date": "02-06-2027",
+        "total_installment": 128323
+       },
+       {
+        "installment_number": 8,
+        "payment_date": "02-07-2027",
+        "total_installment": 128323
+       },
+       {
+        "installment_number": 9,
+        "payment_date": "02-08-2027",
+        "total_installment": 128323
+       },
+       {
+        "installment_number": 10,
+        "payment_date": "02-09-2027",
+        "total_installment": 128323
+       },
+       {
+        "installment_number": 11,
+        "payment_date": "02-10-2027",
+        "total_installment": 128323
+       },
+       {
+        "installment_number": 12,
+        "payment_date": "02-11-2027",
+        "total_installment": 128323
+       },
+       {
+        "installment_number": 13,
+        "payment_date": "02-12-2027",
+        "total_installment": 128323
+       },
+       {
+        "installment_number": 14,
+        "payment_date": "02-01-2028",
+        "total_installment": 128323
+       },
+       {
+        "installment_number": 15,
+        "payment_date": "02-02-2028",
+        "total_installment": 128323
+       },
+       {
+        "installment_number": 16,
+        "payment_date": "02-03-2028",
+        "total_installment": 128323
+       },
+       {
+        "installment_number": 17,
+        "payment_date": "02-04-2028",
+        "total_installment": 128323
+       },
+       {
+        "installment_number": 18,
+        "payment_date": "02-05-2028",
+        "total_installment": 128323
+       },
+       {
+        "installment_number": 19,
+        "payment_date": "02-06-2028",
+        "total_installment": 128323
+       },
+       {
+        "installment_number": 20,
+        "payment_date": "02-07-2028",
+        "total_installment": 128323
+       },
+       {
+        "installment_number": 21,
+        "payment_date": "02-08-2028",
+        "total_installment": 128323
+       },
+       {
+        "installment_number": 22,
+        "payment_date": "02-09-2028",
+        "total_installment": 128323
+       },
+       {
+        "installment_number": 23,
+        "payment_date": "02-10-2028",
+        "total_installment": 128323
+       },
+       {
+        "installment_number": 24,
+        "payment_date": "02-11-2028",
+        "total_installment": 128323
+       }
+      ],
+      "payment_day": 2,
+      "term": 24
+     }
+    ],
+    "success": true
+   },
+   "http": 200
+  },
+  "loan-options": {
+   "body": {
+    "data": {
+     "available_amount": 12000000,
+     "interest_rate": 0.01821065637706165,
+     "lender": "Credifamilia",
+     "plans": [
+      {
+       "monthly_installment": 433652,
+       "term": 6
+      },
+      {
+       "monthly_installment": 229703,
+       "term": 12
+      },
+      {
+       "monthly_installment": 161985,
+       "term": 18
+      },
+      {
+       "monthly_installment": 128323,
+       "term": 24
+      }
+     ]
+    },
+    "success": true
+   },
+   "http": 200
+  },
+  "pagare": [
+   {
+    "con_deceval": "1",
+    "con_pagare": "1",
+    "con_plan": "1",
+    "signing_method": "deceval"
+   }
+  ],
+  "payment-dates": {
+   "body": {
+    "data": {
+     "payment_dates": [
+      {
+       "date": "02-Dic 2026",
+       "day": 2,
+       "iso_date": "2026-12-02"
+      },
+      {
+       "date": "16-Dic 2026",
+       "day": 16,
+       "iso_date": "2026-12-16"
+      }
+     ]
+    },
+    "success": true
+   },
+   "http": 200
+  },
+  "payment-plan-summary": {
+   "body": {
+    "data": {
+     "credit_conditions": {
+      "annual_effective_rate": 0.2418,
+      "approved_amount": 2000000,
+      "bond_base": 360000,
+      "bond_iva": 68400,
+      "bond_percentage": 0.18,
+      "four_per_thousand": 1713.6000000000001,
+      "monthly_rate": 0.01821065637706165,
+      "payment_day": 2,
+      "term_months": 12,
+      "total_bond": 430113.6,
+      "total_disbursement": 2430113.6
+     },
+     "document": {},
+     "installment_conditions": {
+      "base_installment": 227273,
+      "bond_fee": 0,
+      "first_installment": 234090,
+      "life_insurance": 2430,
+      "monthly_installment": 229703
+     },
+     "payment_plan": [
+      {
+       "bond_fee": 0,
+       "closing_balance": 2247095,
+       "installment_number": 1,
+       "interest": 44254,
+       "life_insurance": 2430,
+       "opening_balance": 2430114,
+       "principal": 183019,
+       "total_installment": 234090
+      },
+      {
+       "bond_fee": 0,
+       "closing_balance": 2060743,
+       "installment_number": 2,
+       "interest": 40921,
+       "life_insurance": 2430,
+       "opening_balance": 2247095,
+       "principal": 186352,
+       "total_installment": 229703
+      },
+      {
+       "bond_fee": 0,
+       "closing_balance": 1870998,
+       "installment_number": 3,
+       "interest": 37527,
+       "life_insurance": 2430,
+       "opening_balance": 2060743,
+       "principal": 189745,
+       "total_installment": 229703
+      },
+      {
+       "bond_fee": 0,
+       "closing_balance": 1677797,
+       "installment_number": 4,
+       "interest": 34072,
+       "life_insurance": 2430,
+       "opening_balance": 1870998,
+       "principal": 193201,
+       "total_installment": 229703
+      },
+      {
+       "bond_fee": 0,
+       "closing_balance": 1481078,
+       "installment_number": 5,
+       "interest": 30554,
+       "life_insurance": 2430,
+       "opening_balance": 1677797,
+       "principal": 196719,
+       "total_installment": 229703
+      },
+      {
+       "bond_fee": 0,
+       "closing_balance": 1280776,
+       "installment_number": 6,
+       "interest": 26971,
+       "life_insurance": 2430,
+       "opening_balance": 1481078,
+       "principal": 200301,
+       "total_installment": 229703
+      },
+      {
+       "bond_fee": 0,
+       "closing_balance": 1076827,
+       "installment_number": 7,
+       "interest": 23324,
+       "life_insurance": 2430,
+       "opening_balance": 1280776,
+       "principal": 203949,
+       "total_installment": 229703
+      },
+      {
+       "bond_fee": 0,
+       "closing_balance": 869164,
+       "installment_number": 8,
+       "interest": 19610,
+       "life_insurance": 2430,
+       "opening_balance": 1076827,
+       "principal": 207663,
+       "total_installment": 229703
+      },
+      {
+       "bond_fee": 0,
+       "closing_balance": 657719,
+       "installment_number": 9,
+       "interest": 15828,
+       "life_insurance": 2430,
+       "opening_balance": 869164,
+       "principal": 211445,
+       "total_installment": 229703
+      },
+      {
+       "bond_fee": 0,
+       "closing_balance": 442424,
+       "installment_number": 10,
+       "interest": 11978,
+       "life_insurance": 2430,
+       "opening_balance": 657719,
+       "principal": 215295,
+       "total_installment": 229703
+      },
+      {
+       "bond_fee": 0,
+       "closing_balance": 223208,
+       "installment_number": 11,
+       "interest": 8057,
+       "life_insurance": 2430,
+       "opening_balance": 442424,
+       "principal": 219216,
+       "total_installment": 229703
+      },
+      {
+       "bond_fee": 0,
+       "closing_balance": 0,
+       "installment_number": 12,
+       "interest": 4065,
+       "life_insurance": 2430,
+       "opening_balance": 223208,
+       "principal": 223208,
+       "total_installment": 229703
+      }
+     ],
+     "personal_data": {
+      "birth_country": null,
+      "city": null,
+      "date_of_birth": "2001-05-10T00:00:00.000000Z",
+      "document_issue_date": null,
+      "gender": null,
+      "id_type": null,
+      "state": null
+     }
+    },
+    "success": true
+   },
+   "http": 200
+  },
+  "radicacion": [
+   {
+    "channel": "NULL",
+    "disbursed_amount": "NULL",
+    "status_id": "132"
+   }
+  ],
+  "solicitud": {
+   "amount": "2000000.0000",
+   "fee_number": "12",
+   "fee_value": "0.0000",
+   "final_amount": "2000000.0000",
+   "initial_fee": "0.0000",
+   "lender_id": "24",
+   "original_amount": "2000000.0000",
+   "rate": "0.00",
+   "user_request_status_id": "11"
+  },
+  "voucher": {
+   "body": {
+    "data": {
+     "advisor": {},
+     "client": {
+      "approved_amount": 2000000
+     },
+     "confirmation": {},
+     "credit_details": {
+      "annual_effective_rate": 0.2418,
+      "base_installment": 227273,
+      "first_installment": 234090,
+      "four_per_thousand": 1713.6000000000001,
+      "life_insurance": 2430,
+      "monthly_installment": 229703,
+      "monthly_rate": 0.01821065637706165,
+      "term_months": 12,
+      "total_bond": 430113.6
+     },
+     "header": {
+      "credit_type": "Crédito de consumo Credifamilia"
+     }
+    },
+    "success": true
+   },
+   "http": 200
+  }
+ }
+}
