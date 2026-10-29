@@ -179,6 +179,27 @@ SELECT id, allied_branch_id, ecommerce_id, origin, checkout_reference IS NOT NUL
 FROM ecommerce_requests WHERE order_key = 'vtx-<único>';
 ```
 
+**El piloto (la 5.0.0 publicada) contra qa, y después contra prod.** El workspace `piloto` (production=true) tiene
+instalada `creditop.creditop@5.x`; `migueldev` y `master` siguen en la 4. Una compra la atiende el conector que diga la
+AFILIACIÓN, no el workspace de la tienda: cada versión mayor tiene la suya (`creditop-creditop-v4`, `-v5`), y en modo
+*Test* lleva el campo `workspace` (README del conector, «Testing in production»). Afiliaciones y condiciones de pago
+son de toda la cuenta: también las ve master.
+
+| | contra qa (ahora) | contra prod (con la sucursal de Oscar) |
+|---|---|---|
+| afiliación | nueva, del conector v5, modo *Test*, workspace `piloto` | la misma |
+| AppKey / AppToken | `530aa4f7` y su token de qa | hash y token de la sucursal de prod |
+| `environment` de la app en `piloto` | develop | production |
+| condición de pago «Creditop» | apunta a la afiliación v5 | la misma |
+
+Pasar de qa a prod son DOS campos: AppKey/AppToken de la afiliación y `environment`. Volver a probar con `vtex link`
+en `migueldev` es devolver la condición a «Creditop Miguel (dev)» (v4).
+
+```sh
+curl -s -o /dev/null -w '%{http_code}' https://piloto--creditop.myvtex.com/_v/creditop.creditop/v5/manifest
+```
+Resultado: 200 (2026-10-28); `migueldev` y `master` contestan en `/v4/manifest`.
+
 **En la cuenta VTEX `creditop`, de punta a punta contra qa (verificado el 2026-10-22: compra, aprobación y cobro).**
 Sólo en el workspace de desarrollo `migueldev`; nada en `master`. Pide la VPN de dev (simulador y base de qa).
 
