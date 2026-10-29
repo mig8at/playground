@@ -631,11 +631,11 @@ onBeforeUnmount(() => {
 
 <template>
   <div class="workbench" :style="layoutVars">
-    <aside v-show="shown.sidebar" class="sidebar" aria-label="Búsquedas">
+    <aside v-show="shown.sidebar" class="sidebar en-bloques" aria-label="Búsquedas">
       <div class="rsz rsz-edge-right" v-resize="sidebarResize"></div>
-      <div class="views">
-        <!-- Vistas apiladas, como el sidebar de canon: un encabezado que pliega, y las abiertas se reparten el alto. -->
-        <section class="view" :class="{ open: isViewOpen('requests') }">
+      <!-- Vistas apiladas, como el sidebar de canon: un encabezado que pliega, y las abiertas se reparten el alto. Con el
+           estilo «Paneles» cada vista es su propio panel sobre el lienzo (`en-bloques`). -->
+        <section class="view wb-bloque" :class="{ open: isViewOpen('requests') }">
           <div class="region-head">
             <button type="button" class="view-tog" :aria-expanded="isViewOpen('requests')" @click="toggleSidebarView('requests')">
               <span class="ui-icon chev" data-icon="chevron" aria-hidden="true"></span><span>Solicitudes</span>
@@ -684,7 +684,7 @@ onBeforeUnmount(() => {
         </div>
         </section>
         <!-- Las tiendas de prueba y sus admins, a mano: donde se compra, donde se ve el pedido y dónde se cambian hash y token. -->
-        <section v-for="s in visibleStores" :key="s.name" class="view" :class="{ open: isViewOpen(s.name) }">
+        <section v-for="s in visibleStores" :key="s.name" class="view wb-bloque" :class="{ open: isViewOpen(s.name) }">
           <div class="region-head">
             <button type="button" class="view-tog" :aria-expanded="isViewOpen(s.name)" @click="toggleSidebarView(s.name)">
               <span class="ui-icon chev" data-icon="chevron" aria-hidden="true"></span><span>{{ s.name }}</span>
@@ -705,7 +705,6 @@ onBeforeUnmount(() => {
             </a>
           </nav>
         </section>
-      </div>
     </aside>
 
     <main v-if="storeView" class="editor">
@@ -1118,11 +1117,9 @@ code.wrap { word-break: break-all }
 .log-line .status { flex: none; min-width: 200px }
 .log-line .what { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--fg-2) }
 .log-line.ghost .what { font-style: italic; color: var(--tests-warn) }
-/* Las vistas del sidebar se reparten el alto que queda (`.view` de workbench.css); los enlaces y botones de una tienda
-   son filas como las demás. */
-.views { flex: 1; min-height: 0; display: flex; flex-direction: column }
-.views a.row { color: inherit; text-decoration: none }
-.views button.row { width: 100%; border: 0; background: none; color: inherit; font: inherit; text-align: left; cursor: pointer }
+/* Los enlaces y botones de una tienda en el sidebar son filas como las demás. */
+.sidebar a.row { color: inherit; text-decoration: none }
+.sidebar button.row { width: 100%; border: 0; background: none; color: inherit; font: inherit; text-align: left; cursor: pointer }
 .bar-sep { width: 1px; height: 14px; margin: 0 var(--space-1); background: var(--border) }
 
 /* Borrar: una ventana nativa (<dialog>) con la pregunta, el conteo y dos botones. */
