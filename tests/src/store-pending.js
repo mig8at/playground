@@ -60,17 +60,18 @@ export const STORE_PENDING = {
           { text: 'Shopify como plataforma 4, en main y en producción', done: true },
           { text: 'Sucursal ecommerce de prueba e4a51ff3f-fake (tipo Shopify) con su token versión 5 en qa', done: true },
           { text: 'Shopify se puede elegir al crear y editar una sucursal ecommerce en el admin (dev)', done: true },
+          { text: 'Compra en qa con la sucursal e4a51ff3f-fake: aprobada y la sesión resuelta como pagada', done: true },
         ],
       },
       {
         title: 'Siguientes pasos, en orden',
         items: [
-          { text: '1 · Cargar el hash e4a51ff3f y su token en la app de pagos de creditop-dev-store y comprar en qa', blocks: true, by: 'Miguel' },
-          { text: '2 · Revisar y mergear Creditop-SAS/shopify#22 (la app)', blocks: true, by: 'Oscar' },
-          { text: '3 · Creditop como Payments Partner y el acuerdo de ingresos firmado', blocks: true, by: 'Shopify · Merchants' },
-          { text: '4 · Definir el reembolso manual: la app lo aprueba en Shopify y avisa a Creditop, que cancela el crédito aparte', blocks: true, by: 'Producto' },
-          { text: '5 · Alojar la app con URL fija en qa y en producción', blocks: true },
-          { text: '6 · Pasar la revisión de la app de pagos de Shopify', blocks: true, by: 'Shopify' },
+
+          { text: '1 · Revisar y mergear Creditop-SAS/shopify#22 (la app)', blocks: true, by: 'Oscar' },
+          { text: '2 · Creditop como Payments Partner y el acuerdo de ingresos firmado', blocks: true, by: 'Shopify · Merchants' },
+          { text: '3 · Definir el reembolso manual: la app lo aprueba en Shopify y avisa a Creditop, que cancela el crédito aparte', blocks: true, by: 'Producto' },
+          { text: '4 · Alojar la app con URL fija en qa y en producción', blocks: true },
+          { text: '5 · Pasar la revisión de la app de pagos de Shopify', blocks: true, by: 'Shopify' },
         ],
       },
       {
