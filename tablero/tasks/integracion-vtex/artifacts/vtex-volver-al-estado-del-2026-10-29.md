@@ -22,11 +22,16 @@ En `master`, `vtex ls` (2026-10-29, 08:59) decía **`creditop.creditop 4.0.1`** 
 
 **Afiliaciones** (todas del conector `creditop-creditop-v4`):
 
-| nombre | id | modo | workspace |
-|---|---|---|---|
-| Creditop-test | `016cdf25-9bcb-4f67-ae13-e9c85fb80868` | producción | `master` |
-| Creditop BNPL (de Oscar) | `58fe8b30-87e2-49a9-9152-798e40ca75d3` | test | `oscarrinc` |
-| Creditop Miguel (dev) | `e362182a-5984-45cb-9821-461b83b60d24` | test | `migueldev` |
+| nombre | id | modo | workspace | AppKey (sucursal) |
+|---|---|---|---|---|
+| Creditop-test | `016cdf25-9bcb-4f67-ae13-e9c85fb80868` | producción | `master` | `6c402138` |
+| Creditop BNPL (de Oscar) | `58fe8b30-87e2-49a9-9152-798e40ca75d3` | test | `oscarrinc` | `638bd7f1` |
+| Creditop Miguel (dev) | `e362182a-5984-45cb-9821-461b83b60d24` | test | `migueldev` | `530aa4f7` |
+
+Para RECREAR una afiliación borrada: conector `creditop-creditop-v4`, el modo y el workspace de la tabla, AppKey = la
+sucursal de la última columna. El AppToken no se puede recuperar (VTEX lo tapa): para la v4 publicada es la
+credencial de ecommerce de la sucursal que muestra el admin («Token»); para `migueldev`, que corre el código nuevo,
+un token de payment-link (`ecommerce:issue-token <hash>`; en qa `530aa4f7` tiene el 16 y el 18).
 
 **Condiciones de pago** (medio de pago «Creditop», ninguna con condiciones especiales):
 
