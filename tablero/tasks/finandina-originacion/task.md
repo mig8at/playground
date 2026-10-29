@@ -22,17 +22,17 @@ jira_title: "Finandina: originación completa en Creditop"
 - [ ] Aclarar la tabla «veces el ingreso» de la política: tiene dos filas «AA» (la primera con 0 en «>4 SMMLV»),
   y no dice de dónde sale el segmento AA…Z (ningún repo lo conoce). Termina sabiendo qué fila es cuál y qué
   dato del buró da el segmento. Depende de: producto / riesgo de Finandina.
-- [ ] Decidir qué significa «autorizada» para Finandina: hoy autorizar deja la solicitud en 11 (desembolsada) al
-  firmar, y Finandina desembolsa después. Termina con la decisión: estado intermedio + confirmación del banco, o
-  aceptar 11 al firmar. Depende de: producto.
+- [ ] Decidir qué significa «autorizada» para Finandina: Finandina desembolsa después de la firma. Termina con
+  la decisión (estado intermedio + confirmación del banco, o aceptar el estado de autorizada al firmar) y con
+  lo que hoy hace el tipo 4 con el estado de Credifamilia medido en un ambiente de prueba. Depende de: producto.
 - [ ] Definir cómo se entrega la operación aprobada a Finandina: el flujo de la fase 1 es manual (el analista de
   Finandina descarga del dashboard de Creditop, concilia y crea los préstamos por PQR masiva). Termina con qué
   ve o recibe Finandina (dashboard, archivo, aviso) y con qué datos. Depende de: producto — el acuerdo con Finandina.
 - [ ] Confirmar si el aval (FGA) se financia dentro del capital (así lo hace hoy el motor de CreditopX) y quién
   lo cobra. Termina con la respuesta escrita en «Objetivo». Depende de: producto.
-- [ ] Confirmar los días de pago: los T&C de Finandina ofrecen los días 5, 10, 15 o 20, y el corte mensual de
-  CreditopX ofrece 5, 16 y 28 (un corte nuevo es código en los dos monolitos). Termina con los días elegidos y,
-  si no coinciden con un corte existente, con su pendiente técnico. Depende de: producto.
+- [ ] Confirmar los días de pago: los T&C de Finandina ofrecen los días 5, 10, 15 o 20. En el tipo 4 las
+  fechas salen de su propia rama, hoy fija en los días 2 y 16 de Credifamilia. Termina con los días elegidos.
+  Depende de: producto.
 - [ ] Confirmar la actividad económica: la política y el PRD excluyen independientes, pero el mapa de campos
   (versión 27-10) dice «Empleado, independiente y pensionado». Depende de: producto.
 
@@ -47,9 +47,18 @@ jira_title: "Finandina: originación completa en Creditop"
 
 ### Trabajo técnico
 
-- [ ] Configurar la 149 como CreditopX administrada afuera (ver «Cómo se ataca», paso 1) en un ambiente de
-  prueba y comprobar con el arnés que aparece en el listado de un comercio de la fase 1 y que la rechaza con un
-  cliente fuera de política.
+- [ ] Hacer que la preaprobación de la 149 corra el motor de cupo: en pre-approvals-service, la clave
+  `banco-finandina` hacia el adaptador `creditop_x`. Termina con una preaprobación aprobada y otra rechazada
+  para la 149 en un ambiente de prueba.
+- [ ] Configurar la 149 como tipo 4 (ver «Cómo se ataca», paso 1) en un ambiente de prueba y comprobar con el
+  arnés que aparece en el listado de un comercio de la fase 1 y que la preaprobación la rechaza con un cliente
+  fuera de política.
+- [ ] Generalizar las ramas del tipo 4 que hoy son de Credifamilia: fechas de pago (días 2 y 16, filtro por
+  ids), plan de cuotas (filtro por ids) y documentos de legalización. Termina con una solicitud de la 149 que
+  elige fecha y simula cuotas con las condiciones de Finandina.
+- [ ] Escribir el servicio de finalización de Finandina (lo que pasa al autorizar: entregarle la operación).
+  Termina cuando una autorización de la 149 deja la operación donde Finandina la recibe. Depende de: la
+  decisión de cómo se entrega la operación.
 - [ ] Resolver las observaciones del mapa de campos de los documentos: las dos preguntas PEP comparten el
   marcador `[SI/NO]`; si responde «Sí» no hay marcador para entidad y fechas; no hay segundo nombre; el aval no
   tiene monto. Termina con la plantilla corregida o cada observación descartada.
@@ -136,20 +145,27 @@ el giro al aliado.
 
 ## Dónde se toca
 
-### Modelo de la entidad
+### Modelo de la entidad: tipo 4
 
-La 149 hoy es `response_type = 1` (externa), `product = credit`, `promissory_type_id` sin definir para
-Finandina, sin reglas ni comercios (prod y local). Con `response_type = 1` no hay quién decida:
+El riel lo define de quién es la política (`knowledge/lender-response-types`):
+con los tipos 2 y 3 Creditop define cómo se presta; con 0, 1 y 4 la entidad lo dice. Finandina nos entrega su
+política para que la apliquemos, la firma va por nuestros rieles y la cartera es suya: **tipo 4**.
 
-- el asistente manda el slug (`banco-finandina`) como producto a pre-approvals-service, que sólo conoce las
-  claves de su `factory.go` (Bancolombia, Sistecrédito, Meddipay, CreditopX, Welli, Prami, Credifamilia, BCP,
-  Crédito365, Flamingo): habría que escribir un adaptador, y Finandina no tiene API de decisión;
-- fallar `lender_rules` o categorías no la saca del listado (`knowledge/lender-listing`).
+La 149 hoy es `response_type = 1`, `product = credit`, sin `promissory_type_id` para Finandina, sin reglas ni
+comercios (prod y local). Lo que el tipo 4 trae y lo que le falta (legacy-backend `origin/main` 174120193):
 
-Con `response_type = 2` decide el motor de CreditopX, y `lenders.externally_serviced = 1` deja la cartera
-afuera: el crédito nace en estado 8 «administrado externamente», sin pagos, cambios ni recordatorios en
-Creditop. Precedente en prod: DENTIX (139), Credi ASYCO (155), DFS Ortodoncia (181) y Alta Fleet (199). El
-`response_type = 4` (Credifamilia) no sirve de molde: decide afuera y su radicación está atada a sus ids.
+- **Decisión:** el asistente pide la preaprobación por el `slug` (`banco-finandina`), que pre-approvals-service
+  no conoce. El motor de cupo (`CreditopXQuotaController`) acepta un tipo 4, así que la clave de Finandina
+  puede apuntar al adaptador `creditop_x` y decidir con la política cargada en categorías y reglas.
+- **Listado:** las reglas duras no sacan a un tipo 4 (`LenderValidationService::dropsWhenRulesFail`): queda con
+  «Probabilidad muy baja». La política tiene que expresarse en la preaprobación.
+- **Fechas y cuotas:** `PaymentDateService` y `ExternallyManagedPaymentScheduleService` usan los servicios de
+  Credifamilia, que filtran por `CredifamiliaLenders::lenderIds()` y fijan los días 2 y 16. Con la 149 fallan.
+- **Formalización al autorizar:** `LoanAuthorizationService` llama a `CredifamiliaFormalizationService`, que
+  reúne documentos de Credifamilia y pide a `LenderServiceFactory::make(149)` un
+  `LenderFinalizationServiceInterface`. Ese es el lugar para la entrega a Finandina.
+- **Credencial:** los tipos 1 y 4 exigen credencial propia en el punto de venta (`LenderIntegrationRules`).
+- `application` no tiene ramas del tipo 4: el piloto lo atiende el backend modular.
 
 Cadena del cupo en legacy-backend (`Modules/Loans/App/Http/Controllers/Customer/CreditopXQuotaController.php`):
 crédito activo (`ActiveCreditRuleEvaluator`) → `lender_rules` (`LenderRuleEvaluator`) → buró
@@ -192,8 +208,7 @@ categoría no aparece y autorizar da 422; al autorizar se carga el cupo mensual 
 - Deceval en legacy-backend busca la credencial de la entidad y, si falta, cae a la del comercio o la sucursal
   (`RiskCentralCredential.php:86-108`): un pagaré podría salir a nombre de otro emisor sin error. application
   no usa la credencial de la entidad (`app/Actions/DecevalSoap.php:56`).
-- Con `response_type = 2` el listado la muestra como «Probabilidad alta», y autorizarla cancela las otras
-  solicitudes pendientes del cliente (`LoanAuthorizationService.php:228`).
+- Con el tipo 4, fallar `lender_rules` no la saca del listado: sólo la preaprobación la rechaza.
 - Por la cascada de KYC, Mareigua sólo se consulta si Ágil Data no trae datos: para esos clientes no hay
   ingreso, antigüedad ni riesgo del empleador de Mareigua.
 - La antigüedad en el sector es «<» en el cupo y «<=» en el listado; el criterio de género excluye si la regla
@@ -203,23 +218,28 @@ categoría no aparece y autorizar da 422; al autorizar se carga el cupo mensual 
 
 ## Cómo se ataca
 
-1. **Configurar lo que ya existe** en un ambiente de prueba: 149 con `response_type = 2`,
-   `externally_serviced = 1`, `promissory_type_id = 2`; línea de crédito (monto, plazo, tasa), categorías con
-   edad, ocupación, ingreso, antigüedad, experiencia y FGA; regla de buró con score y `allow_0_score`; seguro
-   por comercio; identidad ADO; asignación a los comercios de la fase 1. Probar con el arnés.
-2. **Cerrar las decisiones de producto** (política vigente, estado al autorizar, entrega a Finandina, FGA).
-3. **Construir lo que bloquea el flujo:** estado intermedio y confirmación de desembolso; entrega de la
-   operación a Finandina; pagaré con la credencial de Finandina; documentos (catálogo y plantillas).
-4. **Construir la política que falta:** capacidad de pago de Finandina (gastos y ley por SMMLV, cuota potencial,
+1. **Configurar lo que ya existe** en un ambiente de prueba: 149 con `response_type = 4`,
+   `promissory_type_id = 2`; línea de crédito (monto, plazo, tasa), categorías con edad, ocupación, ingreso,
+   antigüedad, experiencia y FGA; regla de buró con score y `allow_0_score`; seguro por comercio; identidad ADO;
+   credencial propia; asignación a los comercios de la fase 1.
+2. **Conectar la decisión:** la clave de Finandina en pre-approvals-service hacia el motor de cupo. Probar con
+   el arnés un caso dentro y otro fuera de política.
+3. **Cerrar las decisiones de producto** (política vigente, estado al autorizar, entrega a Finandina, FGA, días
+   de pago).
+4. **Generalizar el tipo 4:** fechas de pago y plan de cuotas por entidad, documentos de legalización por
+   entidad, y el servicio de finalización de Finandina (entrega de la operación). Pagaré con la credencial de
+   Finandina; formulario y T&C.
+5. **Construir la política que falta:** capacidad de pago de Finandina (gastos y ley por SMMLV, cuota potencial,
    tasa de modelación) con los componentes persistidos; veces el ingreso por segmento; experiencia por monto;
    riesgo del empleador; cobertura por DANE; límite de 2 al mes; tope de desembolsos por entidad.
 
 ## Lo que se evaluó y NO se eligió
 
-- **`response_type = 1` (externa):** Finandina no tiene una API que decida, pre-approvals-service no la conoce y
-  las reglas no la sacan del listado. No sirve para que Creditop decida.
-- **`response_type = 4` (como Credifamilia):** el proveedor decide en la preaprobación y la radicación SOAP está
-  atada a los ids de Credifamilia. Sólo se reutiliza el patrón de formalizar después de autorizar.
+- **`response_type = 2` con `externally_serviced = 1`** (lo que se propuso el 28-10): decide sin código nuevo,
+  pero es el riel de la política de Creditop con cartera de otro (DENTIX, DFS, Alta Fleet). Finandina dicta su
+  política y origina con su nombre; además no hay dónde enchufar la entrega de la operación, y autorizar cancela
+  las otras solicitudes pendientes del cliente. El criterio lo corrigieron Laura y Joel.
+- **`response_type = 1` (externa):** Finandina no tiene una API que decida ni firma en su propio flujo.
 - **La guía de Confluence «Integración originación en línea»:** describe el modelo externo (la entidad crea la
   orden, le manda un enlace al cliente y avisa por webhook). No es el modelo de Finandina.
 
@@ -244,7 +264,7 @@ con el arnés, y el cupo que da el motor).
 - Slack: `#finandina` (pendientes de llaves, CONFE y Deceval, enero–febrero) y el hilo del PRD en `#producto-tech`.
 - Jira: CORE-845 (la tarea); relacionados: CXCM-533, CXCM-521 (políticas de entidades especiales), CRED-463
   (certificación de Deceval).
-- Conocimiento: `knowledge/lender-listing`, `field-scoring-policy`, `creditopx-quota`, `kyc-pipeline`,
+- Conocimiento: `knowledge/lender-response-types`, `lender-listing`, `field-scoring-policy`, `creditopx-quota`, `kyc-pipeline`,
   `identity-name-validation`; en canon, `perfilamiento/context` y `creditopx/context`.
 
 ## Tarea (publicable)
