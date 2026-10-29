@@ -56,9 +56,8 @@ jira_title: "Finandina: originación completa en Creditop"
 - [ ] Generalizar las ramas del tipo 4 que hoy son de Credifamilia: fechas de pago (días 2 y 16, filtro por
   ids), plan de cuotas (filtro por ids) y documentos de legalización. Termina con una solicitud de la 149 que
   elige fecha y simula cuotas con las condiciones de Finandina.
-- [ ] Sacar del riel 4 los textos que dicen Credifamilia y que Finandina vería: `'lender' => 'Credifamilia'` en
-  las opciones de crédito, «Crédito de consumo Credifamilia» en el comprobante y el mensaje de `CP010`.
-  Termina con esos textos tomados de la entidad (CORE-918 los dejó a propósito para no cambiar a Credifamilia).
+- [x] ~~Sacar del riel 4 los textos que dicen Credifamilia~~ — resuelto en CORE-918 (legacy-backend 9081bb7fb):
+  opciones y comprobante toman el nombre de la entidad.
 - [ ] Escribir el servicio de finalización de Finandina (lo que pasa al autorizar: entregarle la operación).
   Termina cuando una autorización de la 149 deja la operación donde Finandina la recibe. Depende de: la
   decisión de cómo se entrega la operación.
