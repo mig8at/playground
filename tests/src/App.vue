@@ -239,6 +239,17 @@ const visibleStores = computed(() => STORES.filter((s) => !!s.prod === readOnly.
 // Lo que se ve de una tienda en el editor —su diagrama o sus pendientes—, o null. Buscar otra solicitud lo cierra.
 const storeView = ref(null) // { store: 'VTEX', kind: 'diagram' | 'pending' }
 watch(() => result.value, () => { storeView.value = null })
+// Las vistas del sidebar, como en canon: cada una se pliega y una cerrada ocupa una fila. Lo abierto se recuerda en este
+// navegador; sin almacenamiento, arrancan Solicitudes y la primera tienda abiertas.
+const SIDEBAR_VIEWS_KEY = 'tests.sidebar-views'
+const sidebarViews = ref((() => {
+  try { return JSON.parse(localStorage.getItem(SIDEBAR_VIEWS_KEY) || 'null') || { requests: true } } catch { return { requests: true } }
+})())
+const isViewOpen = (id) => sidebarViews.value[id] ?? false
+function toggleSidebarView(id) {
+  sidebarViews.value = { ...sidebarViews.value, [id]: !isViewOpen(id) }
+  try { localStorage.setItem(SIDEBAR_VIEWS_KEY, JSON.stringify(sidebarViews.value)) } catch { /* sólo no se recuerda */ }
+}
 const isStoreView = (store, kind) => storeView.value?.store === store && storeView.value?.kind === kind
 function toggleStoreView(store, kind) { storeView.value = isStoreView(store, kind) ? null : { store, kind } }
 // El wizard por ambiente, para volver a abrir la solicitud y ver en qué quedó.
@@ -622,67 +633,79 @@ onBeforeUnmount(() => {
   <div class="workbench" :style="layoutVars">
     <aside v-show="shown.sidebar" class="sidebar" aria-label="Búsquedas">
       <div class="rsz rsz-edge-right" v-resize="sidebarResize"></div>
-      <div class="region-head">
-        <span>Solicitudes</span>
-        <div class="region-actions">
-          <button type="button" class="region-action" :disabled="!query || loading" title="Volver a leer" aria-label="Volver a leer" @click="lookup">
-            <span class="ui-icon" data-icon="refresh" aria-hidden="true"></span>
-          </button>
+      <div class="views">
+        <!-- Vistas apiladas, como el sidebar de canon: un encabezado que pliega, y las abiertas se reparten el alto. -->
+        <section class="view" :class="{ open: isViewOpen('requests') }">
+          <div class="region-head">
+            <button type="button" class="view-tog" :aria-expanded="isViewOpen('requests')" @click="toggleSidebarView('requests')">
+              <span class="ui-icon chev" data-icon="chevron" aria-hidden="true"></span><span>Solicitudes</span>
+            </button>
+            <div class="region-actions">
+              <button type="button" class="region-action" :disabled="!query || loading" title="Volver a leer" aria-label="Volver a leer" @click="lookup">
+                <span class="ui-icon" data-icon="refresh" aria-hidden="true"></span>
+              </button>
+            </div>
+          </div>
+        <div v-if="isViewOpen('requests')" class="region-body">
+          <form class="search" @submit.prevent="submit">
+            <label class="label" for="q">{{ readOnly ? 'Celular, cédula o solicitud' : 'Celular, correo o cédula' }}</label>
+            <div class="input-group">
+              <span class="ui-icon" data-icon="search" aria-hidden="true"></span>
+              <input id="q" v-model="draft" class="input" :placeholder="readOnly ? '3016992677 · cédula · solicitud' : '3016992677 · correo · cédula'" autocomplete="off" spellcheck="false" />
+            </div>
+            <button type="submit" class="btn btn-sm" :disabled="!draft.trim() || loading">{{ loading ? 'Leyendo…' : `Buscar en ${target}` }}</button>
+          </form>
+          <template v-if="r?.input?.who">
+            <div class="region-head group"><span>Personas con {{ r.input.who }}</span><span class="count">{{ r.people.length }}</span></div>
+            <div v-for="p in r.people" :key="p.id" class="row person" :title="`${p.document_number} · ${p.email || 'sin correo'} · ${p.cell_phone || 'sin celular'}`">
+              <i class="dot" :data-state="String(p.status) === '1' ? 'ok' : 'off'" aria-hidden="true"></i>
+              <span class="label">{{ p.name || `usuario ${p.id}` }} <span class="muted">· {{ String(p.status) === '1' ? p.profile : 'dado de baja' }}</span></span>
+              <span class="row-meta">{{ p.requests }} sol.</span>
+              <span v-if="isClient(p) && !readOnly" class="row-actions">
+                <button type="button" class="region-action" :title="`${String(p.status) === '1' ? 'Dar de baja' : 'Borrar del todo'} a ${p.name}`" :aria-label="`${String(p.status) === '1' ? 'Dar de baja' : 'Borrar del todo'} a ${p.name}`" @click.stop="openBaja(p)">
+                  <span class="ui-icon" data-icon="trash" aria-hidden="true"></span>
+                </button>
+              </span>
+            </div>
+            <div v-if="r.phoneRequests.length" class="region-head group"><span>Solicitudes</span><span class="count">{{ r.phoneRequests.length }}</span></div>
+            <div v-for="q in r.phoneRequests" :key="q.id" class="row" role="button" tabindex="0" :class="{ on: q.id === r.request?.id }"
+              :title="`${q.user} · ${q.allied || 'sin comercio'}`" @click="open(q.id)" @keydown.enter="open(q.id)">
+              <i class="dot" :data-state="stateOf(q.status_id)" aria-hidden="true"></i>
+              <span class="label">{{ q.id }} <span class="muted">· {{ q.status }}</span></span>
+              <span class="row-meta">{{ q.allied }}</span>
+              <span v-if="!readOnly" class="row-actions">
+                <button type="button" class="region-action" :title="`Borrar la solicitud ${q.id}`" :aria-label="`Borrar la solicitud ${q.id}`"
+                  @click.stop="openDelete(q.id)">
+                  <span class="ui-icon" data-icon="trash" aria-hidden="true"></span>
+                </button>
+              </span>
+            </div>
+          </template>
         </div>
+        </section>
+        <!-- Las tiendas de prueba y sus admins, a mano: donde se compra, donde se ve el pedido y dónde se cambian hash y token. -->
+        <section v-for="s in visibleStores" :key="s.name" class="view" :class="{ open: isViewOpen(s.name) }">
+          <div class="region-head">
+            <button type="button" class="view-tog" :aria-expanded="isViewOpen(s.name)" @click="toggleSidebarView(s.name)">
+              <span class="ui-icon chev" data-icon="chevron" aria-hidden="true"></span><span>{{ s.name }}</span>
+            </button>
+            <span class="count">{{ s.links.length }}</span>
+          </div>
+          <nav v-if="isViewOpen(s.name)" class="region-body" :aria-label="s.name">
+            <button v-if="STORE_FLOWS[s.flow || s.name]" type="button" class="row" :class="{ on: isStoreView(s.flow || s.name, 'diagram') }" :aria-pressed="isStoreView(s.flow || s.name, 'diagram')"
+              title="Cómo se comunica una compra con legacy-backend y el wizard" @click="toggleStoreView(s.flow || s.name, 'diagram')">
+              <span class="label">Diagrama</span><span class="row-meta">⇄</span>
+            </button>
+            <button v-if="STORE_PENDING[s.flow || s.name]" type="button" class="row" :class="{ on: isStoreView(s.flow || s.name, 'pending') }" :aria-pressed="isStoreView(s.flow || s.name, 'pending')"
+              title="Qué está hecho y qué falta para salir a producción" @click="toggleStoreView(s.flow || s.name, 'pending')">
+              <span class="label">Pendientes</span><span class="row-meta">☰</span>
+            </button>
+            <a v-for="l in s.links" :key="l.href" class="row" :href="l.href" target="_blank" rel="noopener" :title="l.href">
+              <span class="label">{{ l.label }}</span><span class="row-meta">↗</span>
+            </a>
+          </nav>
+        </section>
       </div>
-      <div class="region-body">
-        <form class="search" @submit.prevent="submit">
-          <label class="label" for="q">{{ readOnly ? 'Celular, cédula o solicitud' : 'Celular, correo o cédula' }}</label>
-          <div class="input-group">
-            <span class="ui-icon" data-icon="search" aria-hidden="true"></span>
-            <input id="q" v-model="draft" class="input" :placeholder="readOnly ? '3016992677 · cédula · solicitud' : '3016992677 · correo · cédula'" autocomplete="off" spellcheck="false" />
-          </div>
-          <button type="submit" class="btn btn-sm" :disabled="!draft.trim() || loading">{{ loading ? 'Leyendo…' : `Buscar en ${target}` }}</button>
-        </form>
-        <template v-if="r?.input?.who">
-          <div class="region-head group"><span>Personas con {{ r.input.who }}</span><span class="count">{{ r.people.length }}</span></div>
-          <div v-for="p in r.people" :key="p.id" class="row person" :title="`${p.document_number} · ${p.email || 'sin correo'} · ${p.cell_phone || 'sin celular'}`">
-            <i class="dot" :data-state="String(p.status) === '1' ? 'ok' : 'off'" aria-hidden="true"></i>
-            <span class="label">{{ p.name || `usuario ${p.id}` }} <span class="muted">· {{ String(p.status) === '1' ? p.profile : 'dado de baja' }}</span></span>
-            <span class="row-meta">{{ p.requests }} sol.</span>
-            <span v-if="isClient(p) && !readOnly" class="row-actions">
-              <button type="button" class="region-action" :title="`${String(p.status) === '1' ? 'Dar de baja' : 'Borrar del todo'} a ${p.name}`" :aria-label="`${String(p.status) === '1' ? 'Dar de baja' : 'Borrar del todo'} a ${p.name}`" @click.stop="openBaja(p)">
-                <span class="ui-icon" data-icon="trash" aria-hidden="true"></span>
-              </button>
-            </span>
-          </div>
-          <div v-if="r.phoneRequests.length" class="region-head group"><span>Solicitudes</span><span class="count">{{ r.phoneRequests.length }}</span></div>
-          <div v-for="q in r.phoneRequests" :key="q.id" class="row" role="button" tabindex="0" :class="{ on: q.id === r.request?.id }"
-            :title="`${q.user} · ${q.allied || 'sin comercio'}`" @click="open(q.id)" @keydown.enter="open(q.id)">
-            <i class="dot" :data-state="stateOf(q.status_id)" aria-hidden="true"></i>
-            <span class="label">{{ q.id }} <span class="muted">· {{ q.status }}</span></span>
-            <span class="row-meta">{{ q.allied }}</span>
-            <span v-if="!readOnly" class="row-actions">
-              <button type="button" class="region-action" :title="`Borrar la solicitud ${q.id}`" :aria-label="`Borrar la solicitud ${q.id}`"
-                @click.stop="openDelete(q.id)">
-                <span class="ui-icon" data-icon="trash" aria-hidden="true"></span>
-              </button>
-            </span>
-          </div>
-        </template>
-      </div>
-      <!-- Las tiendas de prueba y sus admins, a mano: donde se compra y donde se ve el pedido. -->
-      <nav class="store-links" aria-label="Tiendas de prueba">
-        <template v-for="s in visibleStores" :key="s.name">
-          <div class="region-head group"><span>{{ s.name }}</span></div>
-          <button v-if="STORE_FLOWS[s.flow || s.name]" type="button" class="row" :class="{ on: isStoreView(s.flow || s.name, 'diagram') }" :aria-pressed="isStoreView(s.flow || s.name, 'diagram')"
-            title="Cómo se comunica una compra con legacy-backend y el wizard" @click="toggleStoreView(s.flow || s.name, 'diagram')">
-            <span class="label">Diagrama</span><span class="row-meta">⇄</span>
-          </button>
-          <button v-if="STORE_PENDING[s.flow || s.name]" type="button" class="row" :class="{ on: isStoreView(s.flow || s.name, 'pending') }" :aria-pressed="isStoreView(s.flow || s.name, 'pending')"
-            title="Qué está hecho y qué falta para salir a producción" @click="toggleStoreView(s.flow || s.name, 'pending')">
-            <span class="label">Pendientes</span><span class="row-meta">☰</span>
-          </button>
-          <a v-for="l in s.links" :key="l.href" class="row" :href="l.href" target="_blank" rel="noopener" :title="l.href">
-            <span class="label">{{ l.label }}</span><span class="row-meta">↗</span>
-          </a>
-        </template>
-      </nav>
     </aside>
 
     <main v-if="storeView" class="editor">
@@ -1095,9 +1118,11 @@ code.wrap { word-break: break-all }
 .log-line .status { flex: none; min-width: 200px }
 .log-line .what { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--fg-2) }
 .log-line.ghost .what { font-style: italic; color: var(--tests-warn) }
-.store-links { flex: none; padding-bottom: var(--space-2); border-top: 1px solid var(--sidebar-border) }
-.store-links a.row { color: inherit; text-decoration: none }
-.store-links button.row { width: 100%; border: 0; background: none; color: inherit; font: inherit; text-align: left; cursor: pointer }
+/* Las vistas del sidebar se reparten el alto que queda (`.view` de workbench.css); los enlaces y botones de una tienda
+   son filas como las demás. */
+.views { flex: 1; min-height: 0; display: flex; flex-direction: column }
+.views a.row { color: inherit; text-decoration: none }
+.views button.row { width: 100%; border: 0; background: none; color: inherit; font: inherit; text-align: left; cursor: pointer }
 .bar-sep { width: 1px; height: 14px; margin: 0 var(--space-1); background: var(--border) }
 
 /* Borrar: una ventana nativa (<dialog>) con la pregunta, el conteo y dos botones. */
