@@ -211,11 +211,19 @@ const STORES = [
   { name: 'Shopify', links: [
     { label: 'Tienda', href: 'https://creditop-dev-store.myshopify.com' },
     { label: 'Admin · pedidos', href: 'https://admin.shopify.com/store/creditop-dev-store/orders' },
+    // Dónde se cambian el hash y el token: se emiten en el admin de Creditop (comercio «PRUEBA AUTO Shopify», sucursal
+    // e4a51ff3f-fake, lápiz) y se cargan en la configuración de la app de pagos de la tienda.
+    { label: 'Creditop · hash y token', href: 'https://admin.dev.creditop.com/aliados/362/ecommerce' },
+    { label: 'Admin · pagos (app Creditop)', href: 'https://admin.shopify.com/store/creditop-dev-store/settings/payments' },
   ] },
   { name: 'VTEX', links: [
     { label: 'Tienda (develop)', href: 'https://develop--creditop.myvtex.com' },
     { label: 'Admin · pedidos', href: 'https://creditop.myvtex.com/admin/orders' },
     { label: 'Admin · transacciones', href: 'https://creditop.myvtex.com/admin/pci-gateway/#/transactions' },
+    // Dónde se cambian el hash y el token: se emiten en el admin de Creditop (comercio «PRUEBA AUTO VTEX», sucursal
+    // ecf9342be-fake, lápiz) y se cargan en la afiliación «Creditop qa» (App key y App token).
+    { label: 'Creditop · hash y token', href: 'https://admin.dev.creditop.com/aliados/363/ecommerce' },
+    { label: 'Admin · afiliación (hash y token)', href: 'https://creditop.myvtex.com/admin/affiliations' },
   ] },
   // Producción: `master`, con creditop.creditop 5.x y su ajuste en Producción, como lo tiene un comercio. Afiliaciones y
   // condiciones de pago son de TODA la cuenta: la condición activa decide si una compra va a qa (develop) o a prod.
