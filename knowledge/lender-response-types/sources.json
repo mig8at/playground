@@ -1,0 +1,220 @@
+{
+  "version": 1,
+  "title": "Rieles de una entidad: response_type",
+  "summary": "Qué separa a los tipos 0 a 4 de una entidad (de quién es la política y por qué riel se origina), qué dispara cada uno en el código y por qué la cobranza externa es otro eje.",
+  "reviewedAt": "2026-10-29T21:23:44+00:00",
+  "sources": [
+    {
+      "repo": "frontend-monorepo",
+      "path": "modules/loan-request-wizard/lenders-marketplace/src/lib/infrastructure/adapters/fetch-lender-preapproval.ts",
+      "commit": "ee5f92d91589b452e065c66e28600916ebad615b",
+      "blob": "a9490c35eae9f31c8707f7ee0fccf64a9bd90f90",
+      "sections": [
+        "la-politica-es-lo-que-separa-a-los-rieles",
+        "tipos-0-y-1-la-entidad-origina-en-su-flujo",
+        "tipo-4-politica-de-la-entidad-rieles-de-creditop"
+      ]
+    },
+    {
+      "repo": "frontend-monorepo",
+      "path": "modules/loan-request-wizard/lenders-marketplace/src/lib/domain/constants/lender.constants.ts",
+      "commit": "ee5f92d91589b452e065c66e28600916ebad615b",
+      "blob": "eca36a6562511af23bd611bc0b9e3378f2a607d8",
+      "sections": [
+        "la-politica-es-lo-que-separa-a-los-rieles"
+      ]
+    },
+    {
+      "repo": "frontend-monorepo",
+      "path": "apps/loan-request-wizard/app/modules/request-management/types/loan-request.ts",
+      "commit": "ee5f92d91589b452e065c66e28600916ebad615b",
+      "blob": "3a1ae106ae9691b76e92557beecc3f17e234bbcb",
+      "sections": [
+        "la-politica-es-lo-que-separa-a-los-rieles"
+      ]
+    },
+    {
+      "repo": "frontend-monorepo",
+      "path": "apps/loan-request-wizard/app/routes/lenders-marketplace/available-lenders.tsx",
+      "commit": "ee5f92d91589b452e065c66e28600916ebad615b",
+      "blob": "ea57f1789c8a1bf886f75695adf979adfb8d4d4a",
+      "sections": [
+        "tipos-0-y-1-la-entidad-origina-en-su-flujo"
+      ]
+    },
+    {
+      "repo": "frontend-monorepo",
+      "path": "modules/backoffice/lender-rules/src/components/LendersList.tsx",
+      "commit": "ee5f92d91589b452e065c66e28600916ebad615b",
+      "blob": "1a62c0f71d0582cd33022cdf7c1891b7af4cb23b",
+      "sections": [
+        "tipos-2-y-3-creditop-define-la-politica"
+      ]
+    },
+    {
+      "repo": "pre-approvals-service",
+      "path": "internal/infra/lending_products/creditop_x/adapter.go",
+      "commit": "8bfbee92f31a2520c94e371971d469cb399dc7a2",
+      "blob": "d86101577ee69cf776345775a54f045a7ab9bb7d",
+      "sections": [
+        "la-politica-es-lo-que-separa-a-los-rieles"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/Loans/App/Http/Controllers/Customer/CreditopXQuotaController.php",
+      "commit": "174120193b2aed6061cd0e8747afc25673223160",
+      "blob": "cce703d991d2da707ad774e624c2e410a55a318a",
+      "sections": [
+        "la-politica-es-lo-que-separa-a-los-rieles",
+        "tipos-2-y-3-creditop-define-la-politica"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/Backoffice/App/Support/LenderIntegrationRules.php",
+      "commit": "174120193b2aed6061cd0e8747afc25673223160",
+      "blob": "28bb5f228cea3ab2810460e216ad6a5ed81ae9bd",
+      "sections": [
+        "tipos-0-y-1-la-entidad-origina-en-su-flujo"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/Onboarding/App/Services/UserRequestService.php",
+      "commit": "174120193b2aed6061cd0e8747afc25673223160",
+      "blob": "c93fa64508b12b995aaf5d44a1d3f84637933245",
+      "sections": [
+        "tipos-0-y-1-la-entidad-origina-en-su-flujo"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/Onboarding/App/Services/lenders/LenderValidationService.php",
+      "commit": "174120193b2aed6061cd0e8747afc25673223160",
+      "blob": "9ba2496d9f3797c5f1ea5bb9347aa7bcb73bc231",
+      "sections": [
+        "tipos-2-y-3-creditop-define-la-politica",
+        "tipo-4-politica-de-la-entidad-rieles-de-creditop"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/Loans/App/Services/LoanAuthorizationService.php",
+      "commit": "174120193b2aed6061cd0e8747afc25673223160",
+      "blob": "dd7b9e624d08d12802e4c80893a12d6650ecf6f1",
+      "sections": [
+        "tipos-2-y-3-creditop-define-la-politica",
+        "tipo-4-politica-de-la-entidad-rieles-de-creditop"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/Loans/App/Services/PaymentDateService.php",
+      "commit": "174120193b2aed6061cd0e8747afc25673223160",
+      "blob": "d8138cb2bbecbf39b4529f4081d9846187736aa6",
+      "sections": [
+        "tipo-4-politica-de-la-entidad-rieles-de-creditop"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/Loans/App/Services/PaymentSchedule/ExternallyManagedPaymentScheduleService.php",
+      "commit": "174120193b2aed6061cd0e8747afc25673223160",
+      "blob": "49074b0e4b37cb51366f528ea1a22068e5377a82",
+      "sections": [
+        "tipo-4-politica-de-la-entidad-rieles-de-creditop"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "app/Services/PaymentPlan/Credifamilia/PaymentDates/CredifamiliaPaymentDatesService.php",
+      "commit": "174120193b2aed6061cd0e8747afc25673223160",
+      "blob": "42f1059c3efef290d18f2b99014f1b5b5c4f7bc7",
+      "sections": [
+        "tipo-4-politica-de-la-entidad-rieles-de-creditop"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "app/Services/PaymentPlan/Credifamilia/InstallmentPlan/CredifamiliaInstallmentPlanService.php",
+      "commit": "174120193b2aed6061cd0e8747afc25673223160",
+      "blob": "28f26310e28d4eac999d2f192bb11c275d86c206",
+      "sections": [
+        "tipo-4-politica-de-la-entidad-rieles-de-creditop"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "app/Services/PaymentPlan/Credifamilia/Constants/CredifamiliaLenders.php",
+      "commit": "174120193b2aed6061cd0e8747afc25673223160",
+      "blob": "aa075b81106803280599170ebabf7fe23880a62c",
+      "sections": [
+        "tipo-4-politica-de-la-entidad-rieles-de-creditop"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "app/Services/Pdf/CredifamiliaFormalizationService.php",
+      "commit": "174120193b2aed6061cd0e8747afc25673223160",
+      "blob": "f23e833aaf79ace277a5e2afdc55e3acff70e874",
+      "sections": [
+        "tipo-4-politica-de-la-entidad-rieles-de-creditop"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/Onboarding/App/Services/lenders/LenderServiceFactory.php",
+      "commit": "174120193b2aed6061cd0e8747afc25673223160",
+      "blob": "4e8b7cb8c281f9a7ee0cd1601462c545f1c63c5a",
+      "sections": [
+        "tipo-4-politica-de-la-entidad-rieles-de-creditop"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/Onboarding/App/Providers/OnboardingServiceProvider.php",
+      "commit": "174120193b2aed6061cd0e8747afc25673223160",
+      "blob": "b3a62e1f9244634c4fcb872f4b282160b754b641",
+      "sections": [
+        "tipo-4-politica-de-la-entidad-rieles-de-creditop"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/Backoffice/App/Services/LenderReadinessService.php",
+      "commit": "174120193b2aed6061cd0e8747afc25673223160",
+      "blob": "2af9c605fde4c0b8043c143aa12d2135f9827b10",
+      "sections": [
+        "la-cobranza-es-otro-eje"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/BroadcastV1/App/Constants/SendAppPaymentReminderServiceConstants.php",
+      "commit": "174120193b2aed6061cd0e8747afc25673223160",
+      "blob": "4a2e282465b7a5c9f50572882451a7fd509b5800",
+      "sections": [
+        "la-cobranza-es-otro-eje"
+      ]
+    },
+    {
+      "repo": "application",
+      "path": "app/Http/Controllers/Admin/LenderController.php",
+      "commit": "2ae5aaebe02e2d2185314e7c7ce3e03ff7cd256c",
+      "blob": "9e954010be4a26e182a3cbb4781ff5eddcc5236c",
+      "sections": [
+        "tipos-2-y-3-creditop-define-la-politica"
+      ]
+    },
+    {
+      "repo": "application",
+      "path": "app/Http/Controllers/Admin/UserController.php",
+      "commit": "2ae5aaebe02e2d2185314e7c7ce3e03ff7cd256c",
+      "blob": "ae8f8c479d630ca8119267649fe7bcd696b90ecf",
+      "sections": [
+        "tipo-4-politica-de-la-entidad-rieles-de-creditop"
+      ]
+    }
+  ]
+}
