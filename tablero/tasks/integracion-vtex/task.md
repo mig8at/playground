@@ -55,8 +55,9 @@ ramas: core-800-vtex-payment-link
 - [x] ~~Que el conector traduzca el tipo de documento de VTEX~~ — hoy en el commit único del PR #21 (182943a, junto con el conector):
       `cedulaCOL` → `CC` en `paymentLinkBody`; en qa el pedido 7983 guardó `CC` y su contexto lo devuelve como `CC`.
       Otros tipos de Colombia que VTEX pueda mandar (extranjería, pasaporte) no se vieron todavía: pasan tal cual.
-- [ ] Decidir si se restringe el modo Test Suite antes de producción (hoy cualquier llamada con
-      `X-VTEX-API-Is-TestSuite: true` recibe respuestas de prueba); termina con la regla escrita y probada.
+- [x] ~~Decidir si se restringe el modo Test Suite~~ — decidido el 2026-10-29: no. El modo prueba lo activa el header
+      `X-VTEX-API-Is-TestSuite` (framework `@vtex/payment-provider`, estándar) que manda VTEX al correr su Test Suite; una
+      llamada directa con el header no aprueba ningún pedido real, y la Test Suite hace falta para homologar.
 - [ ] Definir con Producto el reembolso manual, el mismo para VTEX y Shopify. VTEX no lo frena: el conector contesta
       `refund-manually` y VTEX lo acepta. Pero con eso nadie en Creditop se entera y el crédito sigue vivo aunque la
       tienda lo dé por reembolsado. La propuesta: el conector sigue contestando `refund-manually` y además avisa a

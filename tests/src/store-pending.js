@@ -32,8 +32,7 @@ export const STORE_PENDING = {
           { text: 'Publicar la 5.0.0 y dejarla instalable (vtex publish + deploy)', done: true },
           { text: 'La 5.x en master de la cuenta de pruebas; dos ambientes: develop (qa) y master (prod)', done: true },
           { text: 'Compra en qa con la 5.0.0 publicada: aprobada y cobrada al facturar (Finished)', done: true },
-          { text: 'Decidir si se restringe el modo Test Suite', blocks: true },
-          { text: 'Que VTEX homologue la versión nueva', blocks: true, by: 'VTEX' },
+          { text: 'Test Suite sin restringir: el modo prueba lo activa el header que manda VTEX (estándar del framework) y no aprueba pedidos reales', done: true },
         ],
       },
       {
@@ -58,6 +57,7 @@ export const STORE_PENDING = {
       {
         title: 'Primer comercio',
         items: [
+          { text: 'Que VTEX homologue la 5.0.0 para que otras cuentas la instalen y la afilien (para nuestra cuenta no hace falta)', blocks: true, by: 'VTEX' },
           { text: 'Sucursal ecommerce de Mario Hernández (comercio 350) con su token versión 5', blocks: true, by: 'Comercial' },
         ],
       },
