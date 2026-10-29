@@ -32,7 +32,7 @@ contar la hora. Salida: esperar, o usar otra cédula (y cargarla en el paso 2).
 
 En `tests`, pestaña **Tiendas** de la consola de abajo, un semáforo dice si cada tienda está lista para comprar y el botón
 **Levantar** corre en segundo plano lo de esta sección: `shopify app dev` (y apunta la extensión al túnel nuevo solo) y
-`vtex link` (sólo con la sesión en `creditop · migueldev`). **Parar** corta lo que levantó tests, y cerrar `make tests`
+`vtex link` (sólo con la sesión en `creditop · develop`). **Parar** corta lo que levantó tests, y cerrar `make tests`
 lo corta también. El login de VTEX abre el navegador: va siempre a mano. Los comandos de abajo son lo que corre el
 botón (`tests/server/stores.go`): si cambia uno, se cambian los dos.
 
@@ -52,17 +52,17 @@ El túnel cambia en cada arranque: con la URL `https://…trycloudflare.com` que
 cd ~/Desktop/CREDITOP/github/shopify && npm run extension:url -- https://<túnel>
 ```
 
-**VTEX** · tienda https://migueldev--creditop.myvtex.com (workspace de desarrollo; nunca `master`). Con sesión:
+**VTEX** · tienda https://develop--creditop.myvtex.com (workspace de desarrollo de la cuenta de pruebas). Con sesión:
 
 ```bash
 vtex login creditop
 ```
 
 ```bash
-vtex use migueldev
+vtex use develop
 ```
 
-Si https://migueldev--creditop.myvtex.com/_v/creditop.creditop/v4/manifest no da 200, el conector no está
+Si https://develop--creditop.myvtex.com/_v/creditop.creditop/v5/manifest no da 200, el conector no está
 linkeado: `cd ~/Desktop/CREDITOP/github/vtex && vtex link` (no se commitean los cambios que deja en `node/`).
 
 ## 4 · Mirar y cerrar la compra en tests

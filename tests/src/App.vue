@@ -206,14 +206,14 @@ const OUTCOMES = [
   { status: 6, label: 'Negar', name: 'Negada', store: 'failed: el comprador vuelve al checkout' },
   { status: 8, label: 'Cancelar', name: 'Cancelado', store: 'cancelled: el pedido se cancela' },
 ]
-// Las tiendas de prueba (sólo desarrollo: en VTEX el workspace migueldev, nunca master) y sus admins.
+// Las tiendas de prueba (sólo desarrollo: en VTEX el workspace develop) y sus admins.
 const STORES = [
   { name: 'Shopify', links: [
     { label: 'Tienda', href: 'https://creditop-dev-store.myshopify.com' },
     { label: 'Admin · pedidos', href: 'https://admin.shopify.com/store/creditop-dev-store/orders' },
   ] },
   { name: 'VTEX', links: [
-    { label: 'Tienda (migueldev)', href: 'https://migueldev--creditop.myvtex.com' },
+    { label: 'Tienda (develop)', href: 'https://develop--creditop.myvtex.com' },
     { label: 'Admin · pedidos', href: 'https://creditop.myvtex.com/admin/orders' },
     { label: 'Admin · transacciones', href: 'https://creditop.myvtex.com/admin/pci-gateway/#/transactions' },
   ] },

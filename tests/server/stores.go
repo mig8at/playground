@@ -9,7 +9,7 @@ package main
  *
  * Lo que levanta este servidor lo puede parar. Lo que corre en otra terminal se detecta y se respeta: no se mata ni
  * se levanta otro encima (dos `shopify app dev` se pisan la URL de la app). Los procesos van en su propio grupo y se
- * paran por ese grupo, nunca por un patrón. VTEX nunca se linkea fuera de `migueldev`: `master` es producción. */
+ * paran por ese grupo, nunca por un patrón. VTEX sólo se linkea en `develop`, el workspace de desarrollo de la cuenta de pruebas. */
 
 import (
 	"bufio"
@@ -30,8 +30,8 @@ import (
 
 const (
 	vtexAccount   = "creditop"
-	vtexWorkspace = "migueldev"
-	vtexManifest  = "https://migueldev--creditop.myvtex.com/_v/creditop.creditop/v4/manifest"
+	vtexWorkspace = "develop"
+	vtexManifest  = "https://develop--creditop.myvtex.com/_v/creditop.creditop/v5/manifest"
 	// La firma del proceso de cada tienda, para reconocerlo si lo levantó otra terminal (sólo se lee con pgrep).
 	shopifySignature = "shopify app dev --config shopify.app.creditop-ecommerce-payments-local.toml"
 	vtexSignature    = "vtex link"
@@ -276,7 +276,7 @@ func StartStore(store string) error {
 			return fmt.Errorf("vtex link ya corre en otra terminal: cerralo ahí (Ctrl+C) para levantarlo desde acá")
 		}
 		// Nunca fuera del workspace de desarrollo: linkear en master cambia la tienda real. En la cuenta correcta pero en
-		// otro workspace (el piloto, master) se pasa a migueldev, que ya existe; la cuenta no se cambia acá porque pide
+		// otro workspace (el piloto, master) se pasa a develop, que ya existe; la cuenta no se cambia acá porque pide
 		// login en el navegador.
 		if account, workspace := vtexWhoami(); account == vtexAccount && workspace != vtexWorkspace {
 			ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)

@@ -43,6 +43,13 @@ un token de payment-link (`ecommerce:issue-token <hash>`; en qa `530aa4f7` tiene
 
 Antes del 2026-10-20 la activa era la de Oscar; «CREDITOP DEV» la reemplazó para las pruebas de Miguel.
 
+## Lo que se cambió después de la foto
+
+- 2026-10-29 09:04 · `master` pasó a `creditop.creditop` 5.x (Miguel, `vtex install`).
+- 2026-10-29 · se borraron por la API las tres condiciones de pago de la tabla (`DELETE /api/pvt/rules/<id>`, 200).
+  Las afiliaciones v4 no se borran por API (405): se borran en el admin.
+- Decidido el 2026-10-29: el desarrollo pasa del workspace `migueldev` a `develop`; `migueldev` y `oscarrinc` se borran.
+
 ## Cómo volver
 
 1. **Condiciones de pago** (admin → Pagos → Configuración → Condiciones de pago): apagar y borrar la de la afiliación
