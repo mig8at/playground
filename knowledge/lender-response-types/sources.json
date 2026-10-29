@@ -21,7 +21,8 @@
       "commit": "ee5f92d91589b452e065c66e28600916ebad615b",
       "blob": "eca36a6562511af23bd611bc0b9e3378f2a607d8",
       "sections": [
-        "la-politica-es-lo-que-separa-a-los-rieles"
+        "la-politica-es-lo-que-separa-a-los-rieles",
+        "tipo-4-politica-de-la-entidad-rieles-de-creditop"
       ]
     },
     {
@@ -212,6 +213,60 @@
       "path": "app/Http/Controllers/Admin/UserController.php",
       "commit": "2ae5aaebe02e2d2185314e7c7ce3e03ff7cd256c",
       "blob": "ae8f8c479d630ca8119267649fe7bcd696b90ecf",
+      "sections": [
+        "tipo-4-politica-de-la-entidad-rieles-de-creditop"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "app/Services/PaymentPlan/Credifamilia/LoanOptions/CredifamiliaLoanOptionsService.php",
+      "commit": "174120193b2aed6061cd0e8747afc25673223160",
+      "blob": "35fb6133d9671e6b40b0c81c8eb30ea8a8880bdd",
+      "sections": [
+        "tipo-4-politica-de-la-entidad-rieles-de-creditop"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "app/Services/PaymentPlan/Credifamilia/Lender/CredifamiliaLenderProfile.php",
+      "commit": "174120193b2aed6061cd0e8747afc25673223160",
+      "blob": "1471eb9147577734097df740858979afca049067",
+      "sections": [
+        "tipo-4-politica-de-la-entidad-rieles-de-creditop"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/Loans/App/Http/Controllers/Customer/PromissoryNoteController.php",
+      "commit": "174120193b2aed6061cd0e8747afc25673223160",
+      "blob": "d41489500ec15614a2315455329ff700590e0aab",
+      "sections": [
+        "tipo-4-politica-de-la-entidad-rieles-de-creditop"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/Loans/App/Services/Signing/Credifamilia/CredifamiliaDocumentsBuilder.php",
+      "commit": "174120193b2aed6061cd0e8747afc25673223160",
+      "blob": "9806f22d88774b1f5263d9b1ac4469648370806e",
+      "sections": [
+        "tipo-4-politica-de-la-entidad-rieles-de-creditop"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/Onboarding/routes/api.php",
+      "commit": "174120193b2aed6061cd0e8747afc25673223160",
+      "blob": "968fd6daba900e2ee5a2542b1be460a9f319d0c6",
+      "sections": [
+        "tipo-4-politica-de-la-entidad-rieles-de-creditop"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "app/Services/PaymentPlan/Credifamilia/Voucher/CredifamiliaVoucherService.php",
+      "commit": "174120193b2aed6061cd0e8747afc25673223160",
+      "blob": "e3cba52d24cbaecebf990c289aa10ab5f27ec1c3",
       "sections": [
         "tipo-4-politica-de-la-entidad-rieles-de-creditop"
       ]

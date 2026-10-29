@@ -59,12 +59,24 @@ en la preaprobación. En `legacy-backend`, el tipo 4 dispara tres ramas propias:
   un servicio que implemente `LenderFinalizationServiceInterface`. Ese servicio es el punto de extensión
   por entidad: se registra con el tag `lender.services` y declara qué ids atiende con `supports()`.
 
-Hoy las tres ramas están implementadas sólo para Credifamilia. Las fechas de pago y el plan de cuotas
-buscan la solicitud entre `CredifamiliaLenders::lenderIds()`, y las fechas usan los días fijos 2 y 16.
-Los documentos de legalización son los de Credifamilia. Para una segunda entidad de tipo 4 hace falta
-generalizar las tres, además de agregar su clave en pre-approvals-service. `legacy-application` no
-tiene ramas del tipo 4; sólo lo agrupa con el 2 y el 3 al buscar la última solicitud de un usuario en
-el admin.
+La puerta es por tipo, pero lo que corre adentro está atado a Credifamilia:
+
+- **Opciones de crédito y amortización:** `CredifamiliaLoanOptionsService` y su motor usan
+  `CredifamiliaLenderProfile`, que tira error con cualquier id que no sea de Credifamilia. Las rutas son
+  `payment-plan/credifamilia/*`.
+- **Fechas, cuotas, continuar solicitud, resumen y comprobante:** cada servicio busca la solicitud sólo
+  entre `CredifamiliaLenders::lenderIds()`. Las fechas además fijan los días 2 y 16.
+- **Firma:** `PromissoryNoteController` usa el proveedor de firma y `CredifamiliaDocumentsBuilder` sólo
+  cuando `lender_id` es 24, y el builder genera los documentos con el id 24 fijo.
+- **Formalización:** los documentos de legalización son los de Credifamilia. El cierre ante la entidad sí
+  se resuelve por entidad.
+- **Asistente:** `DYNAMIC_PAYMENT_PLAN_LENDER_IDS` (24, 214 y 216) decide qué entidades calculan la cuota
+  en el backend.
+
+Son de Credifamilia, y está bien que lo sean, su radicación SOAP, CrossCore, Evidente y Jumio, y el
+adaptador `credifamilia` de pre-approvals-service. Para una segunda entidad de tipo 4 hay que generalizar
+las piezas de la lista y agregar su clave en pre-approvals-service. `legacy-application` no tiene ramas del
+tipo 4; sólo lo agrupa con el 2 y el 3 al buscar la última solicitud de un usuario en el admin.
 
 ## La cobranza es otro eje
 
