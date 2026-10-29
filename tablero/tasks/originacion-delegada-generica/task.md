@@ -25,6 +25,9 @@ ramas: originacion-delegada
 - [ ] Generalizar el backend (ver «Cómo se ataca», paso 2). Termina con la foto de después igual a la de
   antes y una entidad de prueba del riel 4 que no es Credifamilia que lista opciones, elige fecha y simula
   cuotas.
+- [ ] Correr las migraciones `2026_10_30_120000` y `2026_10_30_120100` en cada ambiente ANTES o junto con el
+  despliegue: sin el perfil sembrado, Credifamilia deja de calcular el plan de pago. Termina con la fila de
+  la 24 y la de Materiales en `delegated_origination_profiles` de cada base (dev/qa/staging comparten una).
 - [ ] Cambiar en el asistente la lista de ids por la señal del backend. Termina con `pnpm turbo run build`
   en verde y la foto igual.
 - [ ] Abrir un PR por repo contra `qa`, con lo medido antes y después. Depende de: Miguel — el visto bueno
@@ -151,6 +154,9 @@ En local primero; después en qa, con Credifamilia Salud y Materiales.
 ## Cómo validar
 - Recorrer Credifamilia Salud y Materiales de punta a punta antes y después del cambio, y comparar opciones de crédito, fechas de pago, cuotas, documentos firmados y formalización: tienen que ser iguales.
 - Recorrer una entidad de prueba del riel 4 que no sea Credifamilia y comprobar que muestra opciones, deja elegir fecha y simula las cuotas con su configuración.
+
+## Cambios en datos
+Una tabla nueva con la configuración de cada entidad de este riel, y una carga inicial con los valores de Credifamilia Salud y Materiales. Tiene que aplicarse en cada ambiente antes o junto con el despliegue del código: sin esa carga, Credifamilia no calcula su plan de pago.
 
 ## Criterios de aceptación
 - Credifamilia Salud y Materiales se comportan igual que antes en todo el recorrido.
