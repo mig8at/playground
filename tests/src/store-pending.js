@@ -42,9 +42,9 @@ export const STORE_PENDING = {
           { text: 'Token versión 5 desde el admin: se emite, se ve una vez y se revoca', done: true },
           { text: 'Sucursal ecommerce de prueba e<hash>-fake al crear el comercio, y botón para los existentes', done: true },
           { text: 'En qa la tienda VTEX usa ecf9342be-fake y la compra se aprueba de punta a punta', done: true },
-          { text: 'Editar la sucursal ecommerce (URL, plataforma con Shopify, credenciales): PR #348 a develop', blocks: true, by: 'revisión' },
-          { text: 'Llevar el admin (#345, #348) y la columna is_test a main y a producción', blocks: true },
-          { text: 'Correr la migración de is_test en qa y en producción', by: 'quien corre las migraciones' },
+          { text: 'Editar la sucursal ecommerce (URL, plataforma con Shopify, credenciales) en dev', done: true },
+          { text: 'Llevar el admin a main y a producción: PR #349, falta aprobación, merge y tag', blocks: true, by: 'Oscar' },
+          { text: 'Migración de is_test: diferida hasta que algún reporte la use (sin ella todo funciona)' },
         ],
       },
       {
