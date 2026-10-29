@@ -29,9 +29,10 @@ jira_title: "Sucursal ecommerce de prueba y token de payment-link desde el admin
 - [ ] Revisar y mergear [legacy-application#348](pr:application#348) (→ `develop`): editar la sucursal ecommerce
       —URL, plataforma con Shopify y credenciales— y todo en el lápiz, con «Token versión 5». Termina mergeado y
       desplegado en el admin de dev.
-- [ ] Llevarlos a `main` (los dos PRs a `main` salen de las ramas `feat/sucursal-ecommerce-de-prueba`) y a prod; en prod, emitir el token de la sucursal de prueba de Creditop
-      desde el admin para la prueba VTEX de la tarea #102.
-
+- [ ] Mergear [legacy-application#349](pr:application#349) (→ `main`: todo lo de #345 y #348) y taguear para producción;
+      después, en el admin de prod, emitir el token versión 5 de la sucursal de prueba de Creditop para la prueba VTEX de
+      la tarea #102. La migración de `is_test` (legacy-backend, rama `feat/sucursal-ecommerce-de-prueba` → `main`) es
+      opcional: sin la columna todo funciona, sólo no se marca qué sucursal es de prueba.
 ## Objetivo
 
 Que probar un comercio por tienda no dependa de nadie con acceso al contenedor:
