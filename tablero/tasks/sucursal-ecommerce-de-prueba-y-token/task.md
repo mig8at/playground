@@ -26,6 +26,9 @@ jira_title: "Sucursal ecommerce de prueba y token de payment-link desde el admin
 - [ ] Revisar y mergear [legacy-application#345](pr:application#345) (→ `develop`, el admin que usa qa) y
       [legacy-backend#1806](pr:legacy-backend#1806) (→ `qa`, la migración de `is_test`, que además hay que correr en qa).
       Termina con los dos mergeados y un comercio nuevo de dev/qa con sus dos sucursales de prueba.
+- [ ] Revisar y mergear [legacy-application#348](pr:application#348) (→ `develop`): editar la sucursal ecommerce
+      —URL, plataforma con Shopify y credenciales— y todo en el lápiz, con «Token versión 5». Termina mergeado y
+      desplegado en el admin de dev.
 - [ ] Llevarlos a `main` (los dos PRs a `main` salen de las ramas `feat/sucursal-ecommerce-de-prueba`) y a prod; en prod, emitir el token de la sucursal de prueba de Creditop
       desde el admin para la prueba VTEX de la tarea #102.
 
