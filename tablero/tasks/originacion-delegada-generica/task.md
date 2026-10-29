@@ -60,8 +60,10 @@ Inventario en `origin/main` de legacy-backend 174120193 (detalle en la pila y en
 - Cálculo: `Lender/CredifamiliaLenderProfile.php`, que tira error si el id no es de Credifamilia,
   `Engine/CredifamiliaAmortizationEngine.php` y `CredifamiliaPayloadBuilder.php` (`engineLenderIdFor`).
 - Rutas: `Modules/Onboarding/routes/api.php:285-303` (`payment-plan/credifamilia/*`).
-- Firma: `Modules/Loans/App/Http/Controllers/Customer/PromissoryNoteController.php:152` (`lender_id === 24`) y
-  `Modules/Loans/App/Services/Signing/Credifamilia/CredifamiliaDocumentsBuilder.php:90` (`lenderId: 24`).
+- Firma: ya es configurable por entidad y no se toca. `PromissoryNoteController::show` prueba primero el camino
+  de `SigningV1` (`netco_lender_settings.enabled`), después el juego fijo de Credifamilia
+  (`CredifamiliaDocumentsBuilder`, sólo sus ids) y después el catálogo `lender_signing_documents`. En prod la 24
+  firma por `SigningV1`.
 - Formalización: `app/Services/Pdf/CredifamiliaFormalizationService.php` y
   `CredifamiliaLegalizationDocumentService.php`. El cierre ya es por entidad: `LenderServiceFactory`, con el
   tag `lender.services`.
