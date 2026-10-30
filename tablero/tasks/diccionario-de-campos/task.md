@@ -18,8 +18,9 @@ jira_title: ""
   `artifacts/` y su comando.
 - [ ] Comprobar si el catálogo de pdf-mapper-service (`/api/fields`) y los campos de form-service comparten
   algún identificador hoy. Termina con la respuesta medida en un ambiente.
-- [ ] Medir qué aporta la caché Redis de form-service (aciertos, latencia contra S3 y MySQL) antes de
-  proponer quitarla. Termina con los números en la pila.
+- [x] ~~Medir qué aporta la caché Redis de form-service~~ — 2026-10-29: unas 10 lecturas de esquema por día,
+  31 % de aciertos (TTL 10 min) y unas 3 lecturas de S3 ahorradas por día. No aporta con este volumen (pila).
+- [ ] Proponerle a José quitar Redis de form-service, con esos números. Depende de: José.
 - [ ] Coordinar con José (form-service) antes de proponer cambios de contrato, y avisarle al equipo de #105
   (pdf-mapper en backoffice) que el editor de formularios va como proyecto aparte, no en el backoffice.
   Depende de: José.
