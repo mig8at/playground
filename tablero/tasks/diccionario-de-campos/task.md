@@ -20,8 +20,9 @@ jira_title: ""
   algún identificador hoy. Termina con la respuesta medida en un ambiente.
 - [ ] Medir qué aporta la caché Redis de form-service (aciertos, latencia contra S3 y MySQL) antes de
   proponer quitarla. Termina con los números en la pila.
-- [ ] Coordinar con #105 (pdf-mapper en backoffice) y con José (form-service) antes de proponer cambios de
-  contrato. Depende de: José y el equipo de #105.
+- [ ] Coordinar con José (form-service) antes de proponer cambios de contrato, y avisarle al equipo de #105
+  (pdf-mapper en backoffice) que el editor de formularios va como proyecto aparte, no en el backoffice.
+  Depende de: José.
 
 ## Objetivo
 
@@ -56,7 +57,8 @@ por ejemplo) llenaría sus documentos sin código: alcanza con marcar cada campo
 4. **Migrar sin romper.** Generar el payload viejo y el nuevo para varias solicitudes reales y comparar con
    `diff`, igual que la foto de CORE-918. Recién con el diff vacío se borra la tabla escrita a mano.
 5. **Ideas más grandes, a evaluar después de 1 a 4:**
-   - un editor de formularios dinámicos al estilo de PDF Mapper Studio que use el mismo catálogo;
+   - un editor de formularios dinámicos al estilo de PDF Mapper Studio, que use el mismo catálogo. **Decisión
+     de Miguel (2026-10-29): un proyecto Vue aparte, como `pdf-mapper-editor`; no va en el backoffice por ahora.**
    - que pdf-mapper tome sus campos del diccionario de form-service, para que haya un solo catálogo;
    - quitar Redis de form-service si la medición confirma que no aporta: MySQL es la verdad y S3 ya es caché.
 
