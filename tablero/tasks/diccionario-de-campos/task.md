@@ -58,16 +58,24 @@ por ejemplo) llenaría sus documentos sin código: alcanza con marcar cada campo
    clave que una plantilla usa no tiene campo que la llene.
 4. **Migrar sin romper.** Generar el payload viejo y el nuevo para varias solicitudes reales y comparar con
    `diff`, igual que la foto de CORE-918. Recién con el diff vacío se borra la tabla escrita a mano.
-5. **Ideas más grandes, a evaluar después de 1 a 4:**
-   - un editor de formularios dinámicos al estilo de PDF Mapper Studio, que use el mismo catálogo. **Decisión
-     de Miguel (2026-10-29): un proyecto Vue aparte, como `pdf-mapper-editor`; no va en el backoffice por ahora.**
-   - que pdf-mapper tome sus campos del diccionario de form-service, para que haya un solo catálogo;
-   - quitar Redis y S3 de form-service: la medición del 2026-10-29 muestra que no aportan (MySQL es la verdad).
+5. **Desacoplar form-service (propuesta del 2026-10-30).** Hoy el asistente va a form-service, que lee y
+   escribe la base de legacy (`legacy_mysql`, `creditop`): un camino circular. Destino:
+   - legacy-backend entrega el formulario publicado al asistente y guarda las respuestas (en su base, como hoy);
+   - form-service pasa a ser el catálogo: ver, editar y publicar formularios por entidad, como JSON versionado
+     en S3 (fuente de verdad, no caché), con un índice de versión vigente. Sin Redis ni tablas propias;
+   - un editor en Vue, como proyecto aparte al estilo de PDF Mapper Studio (no en el backoffice);
+   - cada campo del JSON lleva su `document_key`, validada contra el catálogo de pdf-mapper al publicar;
+   - cada respuesta registra el formulario y la versión que contestó.
+   Mongo no: S3 alcanza con este volumen y sigue el patrón de pdf-mapper. Se reconsidera si el editor necesita
+   consultas que S3 no resuelve.
 
 ## Lo que se evaluó y NO se eligió
 
 - **Seguir agregando ids a la tabla de `OnboardingPayloadBuilder` por cada formulario nuevo:** es lo de hoy.
   Escala mal (ids por ambiente, código por entidad) y el orden de respaldo no se ve.
+- **Mover definición y respuestas a un servicio propio con Mongo:** las respuestas son datos del crédito que
+  leen documentos, radicación y evaluación; sacarlas de la base de legacy crea dos fuentes de verdad y llamadas
+  de red por cada lectura. Sólo la definición se va al catálogo.
 
 ## Lo que NO entra
 

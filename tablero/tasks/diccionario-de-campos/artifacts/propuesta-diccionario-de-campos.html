@@ -52,8 +52,8 @@ th { font-size: 12px; text-transform: uppercase; letter-spacing: 0.06em; color: 
 tr:last-child td { border-bottom: 0; }
 td.num { font-family: var(--font-data); font-variant-numeric: tabular-nums; white-space: nowrap; text-align: right; }
 .compare { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 14px; }
-.compare > div { background: var(--paper); border: 1px solid var(--rule); border-radius: 10px; padding: 16px 18px; display: grid; gap: 8px; min-width: 0; }
-.compare pre { margin: 0; font-family: var(--font-data); font-size: 13px; line-height: 1.55; white-space: pre-wrap; overflow-wrap: anywhere; color: var(--ink); }
+.compare > div { background: var(--paper); border: 1px solid var(--rule); border-radius: 10px; padding: 16px 18px; display: grid; gap: 8px; align-content: start; min-width: 0; }
+.compare pre { margin: 0; font-family: var(--font-data); font-size: 13px; line-height: 1.6; white-space: pre-wrap; overflow-wrap: anywhere; color: var(--ink); }
 .tag { font-family: var(--font-data); font-size: 11.5px; letter-spacing: 0.04em; text-transform: uppercase; color: var(--muted); }
 .flag { background: var(--warn-soft); border-radius: 10px; padding: 14px 18px; color: var(--ink); }
 .flag b { color: var(--warn); }
@@ -66,61 +66,54 @@ footer code { font-size: 12px; }
 
 <div class="page">
   <header>
-    <div class="meta"><span>Propuesta para <b>Oscar</b></span><span>De <b>Miguel Ochoa</b></span><span>29 de octubre de 2026</span><span>Estado: <b>para decidir</b></span></div>
+    <div class="meta"><span>Propuesta para <b>Oscar</b></span><span>De <b>Miguel Ochoa</b></span><span>30 de octubre de 2026</span><span>Estado: <b>para decidir</b></span></div>
     <h1>Un solo id por dato, del formulario al PDF</h1>
-    <p class="lede">Hoy, que un dato del formulario dinámico llegue a su lugar en un documento depende de una tabla de ids escrita a mano en el código, y esos ids cambian entre ambientes. Proponemos que el formulario y los PDF compartan el mismo identificador de campo, y que form-service deje de mantener dos cachés que no se usan.</p>
+    <p class="lede">Hoy el formulario dinámico da una vuelta innecesaria: el asistente le pide el formulario a un microservicio que termina leyendo y escribiendo en la base de legacy-backend. Y que un dato del formulario llegue a su lugar en un documento depende de ids escritos a mano en el código, que cambian entre ambientes. Proponemos que legacy-backend atienda el formulario directamente, que form-service pase a ser el catálogo donde se ven y editan los formularios, y que formulario y PDF compartan el mismo identificador de campo.</p>
   </header>
 
   <section class="asks" aria-labelledby="pedido">
     <h3 id="pedido">Qué se pide</h3>
     <ol>
-      <li><strong>Aprobar el diccionario de campos único:</strong> cada campo del formulario dinámico declara la clave del catálogo de pdf-mapper que llena, y los documentos se arman por esa clave.</li>
-      <li><strong>Aprobar quitar Redis y S3 de form-service:</strong> MySQL ya es la fuente de verdad, y las mediciones muestran que las cachés casi no se usan.</li>
-      <li><strong>Priorizarlo antes de los documentos de Finandina,</strong> para que su formulario nazca con las claves y no sume más ids al código.</li>
+      <li><strong>Que legacy-backend atienda el formulario:</strong> entrega el formulario al asistente y guarda las respuestas, sin pasar por form-service.</li>
+      <li><strong>Que form-service sea el catálogo de formularios:</strong> donde se ven, se editan y se publican antes de llegar al asistente, guardados como JSON versionado en S3. Sin Redis ni tablas propias.</li>
+      <li><strong>Un diccionario de campos único:</strong> cada campo lleva la clave del catálogo de pdf-mapper que llena, y los documentos y la radicación se arman por esa clave, no por ids escritos en el código.</li>
+      <li><strong>Priorizar el paso 1 del plan antes de los documentos de Finandina,</strong> para que su formulario nazca con las claves.</li>
     </ol>
   </section>
 
   <section aria-labelledby="hoy">
-    <h2 id="hoy">Cómo funciona hoy</h2>
-    <p>El backend arma los datos de cada PDF en <code>OnboardingPayloadBuilder</code>. Por cada campo del documento lista, a mano, qué ids del formulario leer y en qué orden de respaldo:</p>
+    <h2 id="hoy">Cómo funciona hoy: un camino circular</h2>
     <div class="compare">
       <div>
-        <span class="tag">Hoy · por id, en el código</span>
-<pre>address ← campo 186, 175 o 44
-city    ← 185, 174, 10, 162 o 93
-company ← 199, 191 o 72
-…41 lecturas sobre 68 ids</pre>
+        <span class="tag">Hoy</span>
+<pre>asistente
+  → form-service
+      → Redis → S3 → MySQL de legacy
+  → respuestas en MySQL de legacy
+legacy-backend las lee de ahí
+  con ids escritos en el código</pre>
       </div>
       <div>
-        <span class="tag">Propuesta · por clave, en el campo</span>
-<pre>fields.document_key = "address"
-fields.document_key = "city"
-fields.document_key = "company_name"
-el documento lee la clave</pre>
+        <span class="tag">Propuesta</span>
+<pre>catálogo (form-service + S3)
+  → publica el JSON del formulario
+asistente → legacy-backend
+  entrega el formulario publicado
+  guarda las respuestas
+legacy-backend las lee por clave</pre>
       </div>
     </div>
     <ul>
-      <li><b>Los ids cambian por ambiente.</b> Son autoincrementales: en la base local, el 175 y el 174 de esa lista no existen.</li>
-      <li><b>Cada formulario nuevo es código nuevo.</b> Finandina obligaría a sumar sus ids a estas listas, ambiente por ambiente.</li>
-      <li><b>La misma comparación se repite en varios archivos.</b> La radicación de Credifamilia también lee ids a mano (la ocupación es el campo 29).</li>
-      <li><b>El orden de respaldo no se ve.</b> Si dos formularios preguntan la dirección, gana el que esté primero en la lista.</li>
+      <li><b>form-service no tiene base propia.</b> Se conecta a la base compartida de legacy (<code>legacy_mysql</code>, base <code>creditop</code>) y lee y escribe sus tablas. El asistente va a un microservicio para terminar en la misma base que ya atiende legacy-backend.</li>
+      <li><b>Cada formulario se arma con una migración de legacy-backend,</b> y después hay que reconstruir la caché de form-service para que se vea. No hay pantalla para crearlos ni editarlos.</li>
+      <li><b>Los documentos traducen ids a mano.</b> <code>OnboardingPayloadBuilder</code> lista qué ids leer para cada hueco del PDF (<code>address</code> ← 186, 175 o 44): 41 lecturas sobre 68 ids. La radicación hace lo mismo con su propia lista (ocupación ← campo 29).</li>
+      <li><b>Esos ids cambian por ambiente.</b> Son autoincrementales: en la base local, el 175 y el 174 de esa lista no existen.</li>
     </ul>
   </section>
 
-  <section aria-labelledby="propuesta">
-    <h2 id="propuesta">La propuesta</h2>
-    <ol class="steps">
-      <li><div><b>Marcar cada campo con su clave.</b> Una columna <code>document_key</code> en <code>fields</code>, con la clave del catálogo de pdf-mapper. Se carga por nombre de campo en cada ambiente, nunca por id.</div></li>
-      <li><div><b>Armar los documentos por clave.</b> «La respuesta del campo marcado <code>address</code>», con una regla de precedencia explícita: primero el formulario de la entidad de la solicitud, después la respuesta más reciente. Lo que se calcula (nombres partidos, fechas, moneda, valores traducidos) sigue en código, atado a la clave.</div></li>
-      <li><div><b>Un chequeo cruzado.</b> Avisa si una clave marcada no existe en el catálogo, o si una plantilla usa una clave que ningún campo llena.</div></li>
-      <li><div><b>Migrar sin romper.</b> Generar el payload viejo y el nuevo para varias solicitudes reales y comparar; sólo con diferencia cero se borra la tabla escrita a mano. Es el mismo método con el que validamos el riel 4 de Credifamilia.</div></li>
-    </ol>
-    <p>Con esto, un formulario nuevo llena sus documentos sin código: alcanza con marcar sus campos. Más adelante, un editor de formularios en Vue, como proyecto aparte al estilo de PDF Mapper Studio, puede usar el mismo catálogo, y pdf-mapper puede tomar sus campos del diccionario de form-service para que exista uno solo.</p>
-  </section>
-
   <section aria-labelledby="cache">
-    <h2 id="cache">Las cachés de form-service no aportan</h2>
-    <p>form-service guarda cada formulario en Redis (10 minutos) y en S3, delante de MySQL. Lo medimos en producción durante los últimos 7 días:</p>
+    <h2 id="cache">Las cachés actuales de form-service no aportan</h2>
+    <p>Medido en producción durante los últimos 7 días:</p>
     <div class="table-wrap">
       <table>
         <thead><tr><th>Qué se midió</th><th>7 días</th><th>Lectura</th></tr></thead>
@@ -134,21 +127,47 @@ el documento lee la clave</pre>
         </tbody>
       </table>
     </div>
-    <p>Para dimensionar el volumen: form-service atiende el formulario de Credifamilia (unos 9 envíos por día) y el de Alta (menos de 1). El «Formulario genérico», de unos 964 envíos diarios, no pasa por este servicio. A ese ritmo, armar el formulario desde MySQL cada vez cuesta milisegundos.</p>
-    <div class="flag"><b>Lo que sí cuestan las cachés.</b> Dos servicios más que pagar y mantener. Un paso extra cada vez que se cambia un campo: si no se reconstruye la caché, el formulario sigue mostrando la versión vieja. Y errores difíciles de validar, porque lo que se ve depende de qué copia respondió. Proponemos que form-service lea y escriba sólo en MySQL. El costo de infraestructura de Redis y S3 no está medido en este documento.</div>
+    <p>form-service atiende el formulario de Credifamilia (unos 9 envíos por día) y el de Alta (menos de 1). El «Formulario genérico», de unos 964 envíos diarios, no pasa por este servicio. A ese volumen, legacy-backend puede entregar el formulario sin caché.</p>
+    <div class="flag"><b>Lo que cuestan hoy las cachés.</b> Dos servicios más que mantener. Un paso extra cada vez que cambia un campo: si no se reconstruye la caché, el asistente sigue mostrando la versión vieja. Y errores difíciles de validar, porque lo que se ve depende de qué copia respondió. El costo de infraestructura no está medido en este documento.</div>
+  </section>
+
+  <section aria-labelledby="propuesta">
+    <h2 id="propuesta">Cómo queda</h2>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Pieza</th><th>Qué hace</th><th>Dónde guarda</th></tr></thead>
+        <tbody>
+          <tr><td>form-service</td><td>Catálogo: ver, editar y publicar formularios por entidad, con versiones</td><td>JSON en S3, como las plantillas de pdf-mapper</td></tr>
+          <tr><td>legacy-backend</td><td>Entrega al asistente la versión publicada y guarda las respuestas</td><td>las respuestas, en su base, como hoy</td></tr>
+          <tr><td>Diccionario de campos</td><td>Cada campo lleva su clave del catálogo de pdf-mapper</td><td>dentro del JSON de cada formulario</td></tr>
+          <tr><td>Documentos y radicación</td><td>Piden «la respuesta del campo <code>address</code>», no el id 186</td><td>sin listas de ids en el código</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p>El catálogo guarda <b>qué se pregunta</b>; la base de legacy guarda <b>qué contestó el cliente</b>. Cada respuesta registra el formulario y la versión que contestó, para poder decir después qué se le preguntó.</p>
+  </section>
+
+  <section aria-labelledby="plan">
+    <h2 id="plan">Plan, de lo más chico a lo más grande</h2>
+    <ol class="steps">
+      <li><div><b>Anclas de campo, sin cambiar de lugar nada.</b> Una columna <code>document_key</code> en <code>fields</code>, cargada por nombre en cada ambiente. El armador de documentos y la radicación leen por clave, con la lista vieja como respaldo mientras dure la migración. Se compara el payload viejo contra el nuevo en solicitudes reales; con diferencia cero, se borran las listas.</div></li>
+      <li><div><b>legacy-backend atiende el formulario.</b> Endpoints para entregar el formulario y guardar respuestas, con el mismo formato que hoy usa el asistente. El asistente cambia de dirección y form-service deja de tocar la base compartida. Desaparecen Redis y la caché en S3.</div></li>
+      <li><div><b>form-service se vuelve catálogo.</b> Los formularios pasan a JSON versionado en S3, con un índice de cuál está vigente para cada entidad. Un editor en Vue, como proyecto aparte al estilo de PDF Mapper Studio, permite verlos y editarlos antes de publicarlos. Al publicar se valida que toda clave exista en el catálogo de pdf-mapper. Crear o cambiar un formulario deja de ser una migración.</div></li>
+    </ol>
   </section>
 
   <section aria-labelledby="riesgos">
     <h2 id="riesgos">Riesgos y cómo se cubren</h2>
     <ul>
-      <li><b>Romper los documentos de Credifamilia,</b> que está en producción: se cubre con la comparación del paso 4 antes de borrar nada.</li>
-      <li><b>Claves mal escritas que dejan huecos vacíos en un PDF:</b> se cubre con el chequeo cruzado del paso 3.</li>
-      <li><b>Más carga en MySQL al quitar las cachés:</b> con unas 10 lecturas del formulario por día, es despreciable; se puede medir después del cambio con los mismos logs.</li>
+      <li><b>Romper los documentos de Credifamilia,</b> que está en producción: el paso 1 compara el payload viejo contra el nuevo antes de borrar nada.</li>
+      <li><b>Claves mal escritas que dejan huecos vacíos en un PDF:</b> la validación al publicar las rechaza.</li>
+      <li><b>Más trabajo para legacy-backend:</b> unas 10 lecturas del formulario y 9 envíos por día; se mide después del cambio con los mismos logs.</li>
+      <li><b>Respuestas viejas con ids de hoy:</b> no se migran. El paso 1 les da su clave a través del campo, así que las solicitudes anteriores se siguen leyendo.</li>
     </ul>
   </section>
 
   <footer>
     <span>Cifras medidas en producción el 29 de octubre de 2026, en sólo lectura: logs del servicio (operaciones de Redis, S3 y MySQL de form-service, 7 días) y base de datos (envíos de formularios y radicaciones, 30 días).</span>
-    <span>Código revisado: <code>OnboardingPayloadBuilder</code> en legacy-backend (rama qa).</span>
+    <span>Código revisado: <code>OnboardingPayloadBuilder</code> en legacy-backend (rama qa) y la configuración de base de form-service (rama main).</span>
   </footer>
 </div>
