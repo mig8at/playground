@@ -1,0 +1,413 @@
+diff --git a/Modules/Loans/App/Services/DocumentGeneration/Payload/OnboardingPayloadBuilder.php b/Modules/Loans/App/Services/DocumentGeneration/Payload/OnboardingPayloadBuilder.php
+index 935c2a3b1..2caa06c24 100644
+--- a/Modules/Loans/App/Services/DocumentGeneration/Payload/OnboardingPayloadBuilder.php
++++ b/Modules/Loans/App/Services/DocumentGeneration/Payload/OnboardingPayloadBuilder.php
+@@ -150,6 +150,11 @@ final class OnboardingPayloadBuilder implements DocumentPayloadBuilder
+             'advisor_name' => (string) ($userRequest->corporateUser?->full_name ?? ''),
+             'advisor_document_number' => $this->fmt->advisorDocumentNumber($userRequest->corporateUser?->document_number),
+ 
++            // Proveedor de materiales / beneficiario del giro directo: el comercio (allied) de la
++            // solicitud. NO es company_name, que es el empleador del cliente. allieds.nit es nullable.
++            'supplier_name' => (string) ($userRequest->allied?->name ?? ''),
++            'supplier_nit' => (string) ($userRequest->allied?->nit ?? ''),
++
+             'company_name' => $this->eavWithDefault($userId, [199, 191, 72]),
+             'job_position' => $this->eavWithDefault($userId, [193, 200, 71]), // antes estaba solo el 193; se agregan 200/71 como fallback
+             'ciiu_code' => $this->eavWithDefault($userId, [70]),
+@@ -264,6 +269,11 @@ final class OnboardingPayloadBuilder implements DocumentPayloadBuilder
+             'bond_base' => $voucherFinancials['bond_base'],
+             'bond_iva' => $voucherFinancials['bond_iva'],
+             'bond_fee' => $voucherFinancials['bond_fee'],
++            // Total Fianza = bond_base + bond_iva + 4x1000 (total_bond del motor). NO es
++            // fianza_amount, que no lleva el 4x1000.
++            'total_bond' => $voucherFinancials['total_bond'],
++            // % de fianza aplicado (preaprobado o tabla FNG), en porcentaje con punto: "3.76".
++            'bond_percentage' => $voucherFinancials['bond_percentage'],
+             // CORE-127: 4x1000 anticipado real (solo aplica a fianza Anticipada).
+             'four_per_thousand_amount' => $voucherFinancials['four_per_thousand_amount'],
+ 
+@@ -396,7 +406,7 @@ final class OnboardingPayloadBuilder implements DocumentPayloadBuilder
+      * Degrada al breakdown genérico + tasa anual derivada si el motor no responde.
+      *
+      * @param array<string, mixed> $breakdown
+-     * @return array{interest_rate: string, nominal_monthly_rate: string, first_quota_amount: string, capital_interest_quota: string, insurance_quota: string, fee_value: string, four_per_thousand_amount: string, bond_base: string, bond_iva: string, bond_fee: string, fianza_amount: string, fianza_amount_iva: string, fianza_type: string, monthly_fianza: string, total_financed_amount: string}
++     * @return array{interest_rate: string, nominal_monthly_rate: string, first_quota_amount: string, capital_interest_quota: string, insurance_quota: string, fee_value: string, four_per_thousand_amount: string, bond_base: string, bond_iva: string, bond_fee: string, total_bond: string, bond_percentage: string, fianza_amount: string, fianza_amount_iva: string, fianza_type: string, monthly_fianza: string, total_financed_amount: string}
+      */
+     private function resolveCredifamiliaVoucherFinancials(UserRequest $userRequest, array $breakdown): array
+     {
+@@ -418,6 +428,8 @@ final class OnboardingPayloadBuilder implements DocumentPayloadBuilder
+                 'bond_base' => '',
+                 'bond_iva' => '',
+                 'bond_fee' => '',
++                'total_bond' => '',
++                'bond_percentage' => '',
+                 'fianza_amount' => '',
+                 // Sin motor no sabemos Anticipada/Mensual → adaptativo y tipo quedan vacíos.
+                 'fianza_amount_iva' => '',
+@@ -453,6 +465,8 @@ final class OnboardingPayloadBuilder implements DocumentPayloadBuilder
+             'bond_base' => $this->fmt->currency((float) ($credit['bond_base'] ?? 0)),
+             'bond_iva' => $this->fmt->currency((float) ($credit['bond_iva'] ?? 0)),
+             'bond_fee' => $this->fmt->currency((float) ($plan['payment_plan'][0]['bond_fee'] ?? 0)),
++            'total_bond' => $this->fmt->currency((float) ($credit['total_bond'] ?? 0)),
++            'bond_percentage' => $this->rateString((float) ($credit['bond_percentage'] ?? 0)),
+             // Fianza anticipada = MONTO (fianza + IVA) en pesos, SOLO si el tipo de
+             // fianza es Anticipada. En Mensual (Vencida) no hay componente anticipado → 0.
+             'fianza_amount' => $isAnticipada
+diff --git a/app/Services/PaymentPlan/DelegatedOrigination/ValueObjects/BondBreakdown.php b/app/Services/PaymentPlan/DelegatedOrigination/ValueObjects/BondBreakdown.php
+index 13cb1b84b..9f2454423 100644
+--- a/app/Services/PaymentPlan/DelegatedOrigination/ValueObjects/BondBreakdown.php
++++ b/app/Services/PaymentPlan/DelegatedOrigination/ValueObjects/BondBreakdown.php
+@@ -18,8 +18,9 @@ namespace App\Services\PaymentPlan\DelegatedOrigination\ValueObjects;
+  *   total_disbursement = requested_amount + total_bond   (Anticipada)
+  *                      = requested_amount                (Vencida: charged per installment)
+  *
+- * The 4x1000 is optional: `applyFourPerThousand: false` (Credifamilia Materiales, lender 214) leaves
+- * four_per_thousand at 0.0, so total_bond is bond_base + bond_iva. The default keeps lender 24 as is.
++ * The 4x1000 is optional: `applyFourPerThousand: false` leaves four_per_thousand at 0.0, so
++ * total_bond is bond_base + bond_iva. Today every Credifamilia lender profile charges it (Materiales
++ * too, since Credifamilia confirmed it applies); the default keeps lender 24 as is.
+  */
+ final class BondBreakdown
+ {
+diff --git a/database/migrations/2026_10_30_120100_seed_delegated_origination_profiles_for_credifamilia.php b/database/migrations/2026_10_30_120100_seed_delegated_origination_profiles_for_credifamilia.php
+index fcf87d649..05cb8ae0f 100644
+--- a/database/migrations/2026_10_30_120100_seed_delegated_origination_profiles_for_credifamilia.php
++++ b/database/migrations/2026_10_30_120100_seed_delegated_origination_profiles_for_credifamilia.php
+@@ -7,7 +7,8 @@ use Illuminate\Support\Facades\DB;
+ /**
+  * Los perfiles de Credifamilia Salud y Materiales, con los mismos valores que tenía el `match` de
+  * CredifamiliaLenderProfile: Salud toma la fianza del preaprobado y cobra 4x1000; Materiales la toma
+- * de la tabla FNG, siempre anticipada y sin 4x1000. Los dos pagan el 2 o el 16.
++ * de la tabla FNG, siempre anticipada, y también cobra 4x1000 (Credifamilia confirmó por escrito que la
++ * fianza FNG lo genera, al revés del alcance inicial). Los dos pagan el 2 o el 16.
+  *
+  * ⚠ El id de Materiales cambia por ambiente (214 en producción, 216 fuera), así que sale de
+  * CredifamiliaLenders::materialesLenderId(), igual que la siembra de la tabla FNG.
+@@ -62,7 +63,7 @@ return new class extends Migration
+             CredifamiliaLenders::materialesLenderId() => [
+                 'bond_percentage_source'    => 'fng_table',
+                 'forced_bond_type'          => 'Anticipada',
+-                'applies_four_per_thousand' => false,
++                'applies_four_per_thousand' => true,
+             ],
+         ];
+     }
+diff --git a/tests/Unit/Lenders/CredifamiliaConsumo/MaterialesFourPerThousandOfficialCasesTest.php b/tests/Unit/Lenders/CredifamiliaConsumo/MaterialesFourPerThousandOfficialCasesTest.php
+new file mode 100644
+index 000000000..36350099c
+--- /dev/null
++++ b/tests/Unit/Lenders/CredifamiliaConsumo/MaterialesFourPerThousandOfficialCasesTest.php
+@@ -0,0 +1,220 @@
++<?php
++
++namespace Tests\Unit\Lenders\CredifamiliaConsumo;
++
++use App\Actions\Lenders\CredifamiliaConsumo\CredifamiliaConsumo;
++use App\Actions\Lenders\CredifamiliaConsumo\TransactionRequest;
++use App\Models\Allied;
++use App\Models\User;
++use App\Models\UserRequest;
++use App\Otel\TracerService;
++use App\Services\PaymentPlan\DelegatedOrigination\PaymentPlanPayloadBuilder;
++use App\Services\PaymentPlan\DelegatedOrigination\PaymentPlanCalculatorService;
++use App\Services\PaymentPlan\DelegatedOrigination\Engine\AmortizationEngine;
++use App\Services\PaymentPlan\DelegatedOrigination\Engine\ScheduleGenerator;
++use Illuminate\Database\Schema\Blueprint;
++use Illuminate\Http\Request;
++use Illuminate\Support\Facades\DB;
++use Illuminate\Support\Facades\Schema;
++use Modules\Loans\Contracts\Repositories\UserFieldValueRepositoryInterface;
++use Modules\Onboarding\App\Services\lenders\CredifamiliaConsumo\CredifamiliaConsumoService;
++use ReflectionMethod;
++use ReflectionProperty;
++use Tests\TestCase;
++
++/**
++ * Los casos de prueba oficiales de Credifamilia para Materiales, con 4x1000 (Credifamilia confirmó
++ * que aplica): el % sale de la tabla FNG al plazo, el motor calcula la fianza y la radicación SOAP
++ * lleva el mismo montoTotalCredito.
++ *
++ * Los valores van al centavo, como los calcula el motor hoy. El documento oficial redondea a pesos
++ * el montoTotalCredito (y el Total Fianza del caso 3); eso se fija aparte con round(…, 0).
++ *
++ * WHY sqlite in-memory: mismo montaje que SoapPayloadMaterialesTest (migraciones reales de la tabla
++ * FNG y promissory_notes para el SOAP).
++ */
++class MaterialesFourPerThousandOfficialCasesTest extends TestCase
++{
++    private const CONNECTION = 'sqlite_in_memory_materiales_official_cases_test';
++
++    private const MATERIALES_DEVELOP = 216;
++
++    /** Preaprobado de Materiales SIN guarantee_percentage ni guarantee_type. */
++    private const TRANSACTION_DATA = [
++        'annual_effective_rate'     => 28.17,
++        'monthly_rate'              => 0.020898,
++        'life_insurance_percentage' => 0.1307,
++        'max_amount'                => 12000000,
++    ];
++
++    protected function setUp(): void
++    {
++        parent::setUp();
++
++        config([
++            'database.default' => self::CONNECTION,
++            'database.connections.'.self::CONNECTION => [
++                'driver' => 'sqlite',
++                'database' => ':memory:',
++                'prefix' => '',
++                'foreign_key_constraints' => true,
++            ],
++        ]);
++
++        DB::purge();
++        DB::setDefaultConnection(self::CONNECTION);
++        $this->app['env'] = 'develop';
++
++        Schema::create('lenders', function (Blueprint $table) {
++            $table->id();
++            $table->timestamps();
++        });
++        Schema::create('promissory_notes', function (Blueprint $table) {
++            $table->id();
++            $table->unsignedBigInteger('user_request_id');
++            $table->text('deceval_response_data')->nullable();
++            $table->timestamps();
++        });
++        DB::table('lenders')->insert(['id' => self::MATERIALES_DEVELOP, 'created_at' => now(), 'updated_at' => now()]);
++
++        foreach ([
++            'database/migrations/2026_10_20_120000_create_lender_term_fng_percentages_table.php',
++            'database/migrations/2026_10_20_120100_seed_fng_percentages_for_credifamilia_materiales.php',
++            'database/migrations/2026_10_30_120000_create_delegated_origination_profiles_table.php',
++            'database/migrations/2026_10_30_120100_seed_delegated_origination_profiles_for_credifamilia.php',
++        ] as $migration) {
++            (require base_path($migration))->up();
++        }
++    }
++
++    protected function tearDown(): void
++    {
++        Schema::dropIfExists('delegated_origination_profiles');
++        Schema::dropIfExists('lender_term_fng_percentages');
++        Schema::dropIfExists('promissory_notes');
++        Schema::dropIfExists('lenders');
++        DB::purge(self::CONNECTION);
++
++        parent::tearDown();
++    }
++
++    /**
++     * @dataProvider officialCasesProvider
++     */
++    public function test_official_case_matches_engine_and_soap(
++        int $amount,
++        int $term,
++        float $fngPercentage,
++        float $bondBase,
++        float $bondIva,
++        float $fourPerThousand,
++        float $totalBond,
++        string $totalCreditAmount,
++        float $officialTotalCreditAmount,
++    ): void {
++        $userRequest = $this->userRequest($amount, $term);
++
++        $engine = $this->calculator()->calculate(
++            $this->builder()->build($userRequest, ['disbursement_date' => '2026-05-07', 'payment_day' => 16])
++        );
++
++        $this->assertTrue($engine['success']);
++        $this->assertSame($fngPercentage, $engine['inputs']['bond_percentage']);
++        $this->assertSame('Anticipada', $engine['inputs']['bond_type']);
++        $this->assertSame($bondBase, round($engine['derived']['bond_base'], 2));
++        $this->assertSame($bondIva, round($engine['derived']['bond_iva'], 2));
++        $this->assertSame($fourPerThousand, round($engine['derived']['four_per_thousand'], 2));
++        $this->assertSame($totalBond, round($engine['derived']['total_bond'], 2));
++
++        $payload = (new TransactionRequest(
++            $this->buildRequest($userRequest),
++            $this->user(),
++            $userRequest,
++            $this->createMock(UserFieldValueRepositoryInterface::class),
++        ))->build();
++
++        $this->assertSame($totalCreditAmount, $payload['montoTotalCredito']);
++        $this->assertSame(
++            number_format(round($engine['derived']['total_disbursement'], 2), 2, '.', ''),
++            $payload['montoTotalCredito']
++        );
++        $this->assertSame($officialTotalCreditAmount, round((float) $payload['montoTotalCredito'], 0));
++    }
++
++    public static function officialCasesProvider(): array
++    {
++        return [
++            // 95.692 + 18.181,48 = 113.873,48; 4x1000 = 455,49 → Total Fianza 114.328,97
++            'caso 1: 2.545.000 a 24 meses (3,76 %)' => [
++                2545000, 24, 0.0376, 95692.0, 18181.48, 455.49, 114328.97, '2659328.97', 2659329.0,
++            ],
++            // 598.683,93 + 113.749,95 = 712.433,87; 4x1000 = 2.849,74 → Total Fianza 715.283,61
++            'caso 2: 9.563.641 a 48 meses (6,26 %)' => [
++                9563641, 48, 0.0626, 598683.93, 113749.95, 2849.74, 715283.61, '10278924.61', 10278925.0,
++            ],
++            // 218.905,35 + 41.592,02 = 260.497,37; 4x1000 = 1.041,99 → Total Fianza 261.539,36
++            // (el documento oficial lo muestra redondeado: 261.539)
++            'caso 3: 8.756.214 a 12 meses (2,50 %)' => [
++                8756214, 12, 0.025, 218905.35, 41592.02, 1041.99, 261539.36, '9017753.36', 9017753.0,
++            ],
++        ];
++    }
++
++    private function buildRequest(UserRequest $userRequest): Request
++    {
++        $service = new CredifamiliaConsumoService(
++            $this->createMock(CredifamiliaConsumo::class),
++            $this->createMock(UserFieldValueRepositoryInterface::class),
++            $this->builder(),
++            $this->createMock(TracerService::class),
++        );
++
++        $method = new ReflectionMethod(CredifamiliaConsumoService::class, 'buildRequest');
++        $method->setAccessible(true);
++
++        return $method->invoke($service, $userRequest);
++    }
++
++    private function builder(): PaymentPlanPayloadBuilder
++    {
++        $builder = new PaymentPlanPayloadBuilder();
++        $cache = new ReflectionProperty(PaymentPlanPayloadBuilder::class, 'preApprovalCache');
++        $cache->setAccessible(true);
++        $cache->setValue($builder, [4242 => ['status' => 'approved', 'transaction_data' => self::TRANSACTION_DATA]]);
++
++        return $builder;
++    }
++
++    private function userRequest(int $amount, int $feeNumber): UserRequest
++    {
++        $userRequest = new UserRequest();
++        $userRequest->id = 4242;
++        $userRequest->user_id = 77;
++        $userRequest->lender_id = self::MATERIALES_DEVELOP;
++        $userRequest->allied_id = 5;
++        $userRequest->allied_branch_id = 9;
++        $userRequest->amount = $amount;
++        $userRequest->fee_number = $feeNumber;
++        $userRequest->selected_payment_date = '2026-06-16';
++        $allied = new Allied(['name' => 'Gaes', 'nit' => '900123456']);
++        $allied->setRelation('industry', null);
++        $userRequest->setRelation('allied', $allied);
++
++        return $userRequest;
++    }
++
++    private function user(): User
++    {
++        $user = new User();
++        $user->id = 77;
++        $user->document_type = 'CC';
++        $user->setRelation('datacredito', null);
++
++        return $user;
++    }
++
++    private function calculator(): PaymentPlanCalculatorService
++    {
++        return new PaymentPlanCalculatorService(new AmortizationEngine(new ScheduleGenerator()));
++    }
++}
+diff --git a/tests/Unit/Lenders/CredifamiliaConsumo/SoapPayloadMaterialesTest.php b/tests/Unit/Lenders/CredifamiliaConsumo/SoapPayloadMaterialesTest.php
+index 0e6f34eb7..ede88c308 100644
+--- a/tests/Unit/Lenders/CredifamiliaConsumo/SoapPayloadMaterialesTest.php
++++ b/tests/Unit/Lenders/CredifamiliaConsumo/SoapPayloadMaterialesTest.php
+@@ -25,7 +25,7 @@ use Tests\TestCase;
+ 
+ /**
+  * La radicación SOAP de Credifamilia Materiales toma la fianza de las mismas reglas que el motor:
+- * % FNG al plazo de la solicitud, fianza Anticipada, sin 4x1000 y verticalComercio 'Materiales'.
++ * % FNG al plazo de la solicitud, fianza Anticipada, con 4x1000 y verticalComercio 'Materiales'.
+  * Lo que se radica tiene que coincidir con lo que el cliente vio en el plan de pagos.
+  *
+  * WHY sqlite in-memory: corre las migraciones reales de la tabla FNG y el SOAP consulta
+@@ -104,7 +104,8 @@ class SoapPayloadMaterialesTest extends TestCase
+         $this->assertSame(self::MATERIALES_DEVELOP, $request->input('lender_id'));
+         $this->assertSame(0.0502, $request->input('bond_percentage'));
+         $this->assertSame('Anticipada', $request->input('bond_type'));
+-        $this->assertFalse($request->input('apply_four_per_thousand'));
++        // Como en Salud: sin la clave el total lleva el 4x1000.
++        $this->assertFalse($request->has('apply_four_per_thousand'));
+     }
+ 
+     public function test_the_soap_payload_matches_the_payment_plan_the_customer_saw(): void
+@@ -117,8 +118,8 @@ class SoapPayloadMaterialesTest extends TestCase
+             $this->createMock(UserFieldValueRepositoryInterface::class),
+         ))->build();
+ 
+-        // 5.000.000 × 5,02 % = 251.000; IVA 19 % = 47.690; sin 4x1000 → 5.298.690 financiados.
+-        $this->assertSame('5298690.00', $payload['montoTotalCredito']);
++        // 5.000.000 × 5,02 % = 251.000; IVA 19 % = 47.690; 4x1000 = 1.194,76 → 5.299.884,76 financiados.
++        $this->assertSame('5299884.76', $payload['montoTotalCredito']);
+         $this->assertSame('Anticipada', $payload['tipoFianza']);
+         $this->assertSame('Materiales', $payload['verticalComercio']);
+         $this->assertSame(36, $payload['plazo']);
+diff --git a/tests/Unit/PaymentPlan/Credifamilia/CredifamiliaPayloadBuilderFngTest.php b/tests/Unit/PaymentPlan/Credifamilia/CredifamiliaPayloadBuilderFngTest.php
+index 405a3f254..8ff2383e1 100644
+--- a/tests/Unit/PaymentPlan/Credifamilia/CredifamiliaPayloadBuilderFngTest.php
++++ b/tests/Unit/PaymentPlan/Credifamilia/CredifamiliaPayloadBuilderFngTest.php
+@@ -160,14 +160,15 @@ class CredifamiliaPayloadBuilderFngTest extends TestCase
+         $this->assertSame(0.0502, $payload['bond_percentage']);
+     }
+ 
+-    public function test_materiales_forces_advance_bond_and_turns_off_four_per_thousand(): void
++    public function test_materiales_forces_advance_bond_and_keeps_four_per_thousand(): void
+     {
+         $this->materialesReady();
+         $payload = $this->builderWithPreApproval(1, self::MATERIALES_TRANSACTION_DATA)
+             ->build($this->userRequest(1, lenderId: 216, feeNumber: 24));
+ 
+         $this->assertSame('Anticipada', $payload['bond_type']);
+-        $this->assertFalse($payload['apply_four_per_thousand']);
++        // Como en Salud: sin la clave el motor aplica el 4x1000.
++        $this->assertArrayNotHasKey('apply_four_per_thousand', $payload);
+     }
+ 
+     /**
+@@ -197,7 +198,7 @@ class CredifamiliaPayloadBuilderFngTest extends TestCase
+         ];
+     }
+ 
+-    public function test_materiales_payload_reaches_the_engine_without_four_per_thousand(): void
++    public function test_materiales_payload_reaches_the_engine_with_four_per_thousand(): void
+     {
+         $this->materialesReady();
+         $payload = $this->builderWithPreApproval(1, self::MATERIALES_TRANSACTION_DATA)
+@@ -210,10 +211,10 @@ class CredifamiliaPayloadBuilderFngTest extends TestCase
+         $result = $this->calculator()->calculate($payload);
+ 
+         $this->assertTrue($result['success']);
+-        // 5.000.000 × 5,02 % = 251.000; IVA 19 % = 47.690; sin 4x1000 → fianza 298.690, financiada.
+-        $this->assertSame(0.0, $result['derived']['four_per_thousand']);
+-        $this->assertSame(298690.0, $result['derived']['total_bond']);
+-        $this->assertSame(5298690.0, $result['derived']['total_disbursement']);
++        // 5.000.000 × 5,02 % = 251.000; IVA 19 % = 47.690; 4x1000 = 1.194,76 → fianza 299.884,76, financiada.
++        $this->assertSame(1194.76, $result['derived']['four_per_thousand']);
++        $this->assertSame(299884.76, $result['derived']['total_bond']);
++        $this->assertSame(5299884.76, $result['derived']['total_disbursement']);
+         $this->assertSame('Anticipada', $result['inputs']['bond_type']);
+     }
+ 
+diff --git a/tests/Unit/PaymentPlan/DelegatedOrigination/DelegatedOriginationLenderProfileTest.php b/tests/Unit/PaymentPlan/DelegatedOrigination/DelegatedOriginationLenderProfileTest.php
+index 611afdc2d..56c5fcb0a 100644
+--- a/tests/Unit/PaymentPlan/DelegatedOrigination/DelegatedOriginationLenderProfileTest.php
++++ b/tests/Unit/PaymentPlan/DelegatedOrigination/DelegatedOriginationLenderProfileTest.php
+@@ -106,7 +106,7 @@ class DelegatedOriginationLenderProfileTest extends TestCase
+ 
+         $this->assertSame(BondPercentageSource::FNG_TABLE, $profile->bondPercentageSource());
+         $this->assertSame('Anticipada', $profile->forcedBondType());
+-        $this->assertFalse($profile->appliesFourPerThousand());
++        $this->assertTrue($profile->appliesFourPerThousand());
+         $this->assertSame([2, 16], $profile->paymentDays());
+         $this->assertSame(DelegatedOriginationInputsSources::CREDIFAMILIA_PRE_APPROVAL, $profile->inputsSource());
+     }
