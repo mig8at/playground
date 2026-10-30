@@ -5,7 +5,7 @@ stage: evaluation
 created: "2026-10-29T17:10:00-05:00"
 knowledge: [lender-response-types, credifamilia-origination, credifamilia-financing]
 canon: [entidad/context]
-jira: []
+jira: [CORE-918]
 jira_title: "Originación delegada: riel 4 para cualquier entidad"
 ramas: originacion-delegada
 ---
