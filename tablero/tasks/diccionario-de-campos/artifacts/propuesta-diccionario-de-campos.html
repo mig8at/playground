@@ -1,0 +1,154 @@
+<title>Diccionario de campos único</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600&family=Newsreader:opsz,wght@6..72,500;6..72,600&family=JetBrains+Mono:wght@400;500&display=swap">
+<style>
+/* Memo de propuesta: una columna de lectura, cifras en tablas de datos, un solo acento azul petróleo. */
+:root {
+  --bg: #f6f8f8;
+  --paper: #ffffff;
+  --ink: #17222a;
+  --muted: #56636c;
+  --rule: #d9e1e4;
+  --accent: #0e5d6b;
+  --accent-soft: #e3f0f2;
+  --warn: #8a4b0f;
+  --warn-soft: #f8eedf;
+  --font-display: "Newsreader", "Iowan Old Style", Georgia, serif;
+  --font-body: "Instrument Sans", "Segoe UI", system-ui, sans-serif;
+  --font-data: "JetBrains Mono", ui-monospace, "SF Mono", Menlo, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #11181c; --paper: #172127; --ink: #e5ecef; --muted: #9aa8b0; --rule: #2a3840;
+    --accent: #6cc3d1; --accent-soft: #19343a; --warn: #f0b36a; --warn-soft: #3a2a17; color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #11181c; --paper: #172127; --ink: #e5ecef; --muted: #9aa8b0; --rule: #2a3840;
+  --accent: #6cc3d1; --accent-soft: #19343a; --warn: #f0b36a; --warn-soft: #3a2a17; color-scheme: dark;
+}
+body { background: var(--bg); color: var(--ink); font-family: var(--font-body); font-size: 16px; line-height: 1.6; }
+.page { max-width: 760px; margin: 0 auto; padding-block: 40px 64px; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); display: grid; gap: 36px; }
+header { display: grid; gap: 10px; border-bottom: 1px solid var(--rule); padding-bottom: 24px; }
+.meta { font-family: var(--font-data); font-size: 12.5px; color: var(--muted); display: flex; flex-wrap: wrap; gap: 6px 18px; letter-spacing: 0.02em; }
+.meta b { color: var(--ink); font-weight: 500; }
+h1 { font-family: var(--font-display); font-weight: 600; font-size: clamp(30px, 5vw, 40px); line-height: 1.12; margin: 0; text-wrap: balance; }
+.lede { font-size: 18px; color: var(--muted); margin: 0; max-width: 62ch; }
+section { display: grid; gap: 14px; }
+h2 { font-family: var(--font-display); font-weight: 600; font-size: 24px; line-height: 1.2; margin: 0; text-wrap: balance; }
+h3 { font-size: 15px; font-weight: 600; margin: 0; text-transform: uppercase; letter-spacing: 0.06em; color: var(--accent); }
+p { margin: 0; max-width: 66ch; }
+ul, ol { margin: 0; padding-left: 1.2em; display: grid; gap: 6px; max-width: 66ch; }
+code { font-family: var(--font-data); font-size: 0.86em; background: var(--accent-soft); color: var(--ink); padding: 1px 5px; border-radius: 4px; }
+.asks { background: var(--paper); border: 1px solid var(--rule); border-radius: 10px; padding: 20px 22px; display: grid; gap: 12px; }
+.asks ol { gap: 10px; }
+.asks strong { color: var(--accent); }
+.table-wrap { overflow-x: auto; border: 1px solid var(--rule); border-radius: 10px; background: var(--paper); }
+table { border-collapse: collapse; width: 100%; font-size: 14.5px; min-width: 520px; }
+th, td { text-align: left; padding: 10px 14px; border-bottom: 1px solid var(--rule); vertical-align: top; }
+th { font-size: 12px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); font-weight: 600; }
+tr:last-child td { border-bottom: 0; }
+td.num { font-family: var(--font-data); font-variant-numeric: tabular-nums; white-space: nowrap; text-align: right; }
+.compare { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 14px; }
+.compare > div { background: var(--paper); border: 1px solid var(--rule); border-radius: 10px; padding: 16px 18px; display: grid; gap: 8px; min-width: 0; }
+.compare pre { margin: 0; font-family: var(--font-data); font-size: 13px; line-height: 1.55; white-space: pre-wrap; overflow-wrap: anywhere; color: var(--ink); }
+.tag { font-family: var(--font-data); font-size: 11.5px; letter-spacing: 0.04em; text-transform: uppercase; color: var(--muted); }
+.flag { background: var(--warn-soft); border-radius: 10px; padding: 14px 18px; color: var(--ink); }
+.flag b { color: var(--warn); }
+.steps { counter-reset: s; list-style: none; padding: 0; display: grid; gap: 12px; }
+.steps li { counter-increment: s; display: grid; grid-template-columns: 32px 1fr; gap: 12px; align-items: start; }
+.steps li::before { content: counter(s); font-family: var(--font-data); font-size: 13px; width: 26px; height: 26px; border-radius: 50%; display: grid; place-items: center; background: var(--accent-soft); color: var(--accent); font-weight: 500; }
+footer { border-top: 1px solid var(--rule); padding-top: 18px; font-size: 13.5px; color: var(--muted); display: grid; gap: 6px; }
+footer code { font-size: 12px; }
+</style>
+
+<div class="page">
+  <header>
+    <div class="meta"><span>Propuesta para <b>Oscar</b></span><span>De <b>Miguel Ochoa</b></span><span>29 de octubre de 2026</span><span>Estado: <b>para decidir</b></span></div>
+    <h1>Un solo id por dato, del formulario al PDF</h1>
+    <p class="lede">Hoy, que un dato del formulario dinámico llegue a su lugar en un documento depende de una tabla de ids escrita a mano en el código, y esos ids cambian entre ambientes. Proponemos que el formulario y los PDF compartan el mismo identificador de campo, y que form-service deje de mantener dos cachés que no se usan.</p>
+  </header>
+
+  <section class="asks" aria-labelledby="pedido">
+    <h3 id="pedido">Qué se pide</h3>
+    <ol>
+      <li><strong>Aprobar el diccionario de campos único:</strong> cada campo del formulario dinámico declara la clave del catálogo de pdf-mapper que llena, y los documentos se arman por esa clave.</li>
+      <li><strong>Aprobar quitar Redis y S3 de form-service:</strong> MySQL ya es la fuente de verdad, y las mediciones muestran que las cachés casi no se usan.</li>
+      <li><strong>Priorizarlo antes de los documentos de Finandina,</strong> para que su formulario nazca con las claves y no sume más ids al código.</li>
+    </ol>
+  </section>
+
+  <section aria-labelledby="hoy">
+    <h2 id="hoy">Cómo funciona hoy</h2>
+    <p>El backend arma los datos de cada PDF en <code>OnboardingPayloadBuilder</code>. Por cada campo del documento lista, a mano, qué ids del formulario leer y en qué orden de respaldo:</p>
+    <div class="compare">
+      <div>
+        <span class="tag">Hoy · por id, en el código</span>
+<pre>address ← campo 186, 175 o 44
+city    ← 185, 174, 10, 162 o 93
+company ← 199, 191 o 72
+…41 lecturas sobre 68 ids</pre>
+      </div>
+      <div>
+        <span class="tag">Propuesta · por clave, en el campo</span>
+<pre>fields.document_key = "address"
+fields.document_key = "city"
+fields.document_key = "company_name"
+el documento lee la clave</pre>
+      </div>
+    </div>
+    <ul>
+      <li><b>Los ids cambian por ambiente.</b> Son autoincrementales: en la base local, el 175 y el 174 de esa lista no existen.</li>
+      <li><b>Cada formulario nuevo es código nuevo.</b> Finandina obligaría a sumar sus ids a estas listas, ambiente por ambiente.</li>
+      <li><b>La misma comparación se repite en varios archivos.</b> La radicación de Credifamilia también lee ids a mano (la ocupación es el campo 29).</li>
+      <li><b>El orden de respaldo no se ve.</b> Si dos formularios preguntan la dirección, gana el que esté primero en la lista.</li>
+    </ul>
+  </section>
+
+  <section aria-labelledby="propuesta">
+    <h2 id="propuesta">La propuesta</h2>
+    <ol class="steps">
+      <li><div><b>Marcar cada campo con su clave.</b> Una columna <code>document_key</code> en <code>fields</code>, con la clave del catálogo de pdf-mapper. Se carga por nombre de campo en cada ambiente, nunca por id.</div></li>
+      <li><div><b>Armar los documentos por clave.</b> «La respuesta del campo marcado <code>address</code>», con una regla de precedencia explícita: primero el formulario de la entidad de la solicitud, después la respuesta más reciente. Lo que se calcula (nombres partidos, fechas, moneda, valores traducidos) sigue en código, atado a la clave.</div></li>
+      <li><div><b>Un chequeo cruzado.</b> Avisa si una clave marcada no existe en el catálogo, o si una plantilla usa una clave que ningún campo llena.</div></li>
+      <li><div><b>Migrar sin romper.</b> Generar el payload viejo y el nuevo para varias solicitudes reales y comparar; sólo con diferencia cero se borra la tabla escrita a mano. Es el mismo método con el que validamos el riel 4 de Credifamilia.</div></li>
+    </ol>
+    <p>Con esto, un formulario nuevo llena sus documentos sin código: alcanza con marcar sus campos. Más adelante, un editor de formularios en Vue, como proyecto aparte al estilo de PDF Mapper Studio, puede usar el mismo catálogo, y pdf-mapper puede tomar sus campos del diccionario de form-service para que exista uno solo.</p>
+  </section>
+
+  <section aria-labelledby="cache">
+    <h2 id="cache">Las cachés de form-service no aportan</h2>
+    <p>form-service guarda cada formulario en Redis (10 minutos) y en S3, delante de MySQL. Lo medimos en producción durante los últimos 7 días:</p>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Qué se midió</th><th>7 días</th><th>Lectura</th></tr></thead>
+        <tbody>
+          <tr><td>Lecturas del formulario (esquema)</td><td class="num">70</td><td>unas 10 por día</td></tr>
+          <tr><td>Aciertos de Redis</td><td class="num">22 / 70</td><td>31 %; el resto se busca en S3</td></tr>
+          <tr><td>Lecturas de S3 que evita Redis</td><td class="num">≈ 22</td><td>unas 3 por día</td></tr>
+          <tr><td>Árbol de países escrito en Redis y en S3</td><td class="num">70</td><td>se escribe en cada pedido</td></tr>
+          <tr><td>Árbol de países leído de Redis o de S3</td><td class="num">0</td><td>nunca se lee: cada pedido lo arma desde MySQL</td></tr>
+          <tr><td>Pedidos totales a form-service</td><td class="num">327</td><td>unos 47 por día</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p>Para dimensionar el volumen: form-service atiende el formulario de Credifamilia (unos 9 envíos por día) y el de Alta (menos de 1). El «Formulario genérico», de unos 964 envíos diarios, no pasa por este servicio. A ese ritmo, armar el formulario desde MySQL cada vez cuesta milisegundos.</p>
+    <div class="flag"><b>Lo que sí cuestan las cachés.</b> Dos servicios más que pagar y mantener. Un paso extra cada vez que se cambia un campo: si no se reconstruye la caché, el formulario sigue mostrando la versión vieja. Y errores difíciles de validar, porque lo que se ve depende de qué copia respondió. Proponemos que form-service lea y escriba sólo en MySQL. El costo de infraestructura de Redis y S3 no está medido en este documento.</div>
+  </section>
+
+  <section aria-labelledby="riesgos">
+    <h2 id="riesgos">Riesgos y cómo se cubren</h2>
+    <ul>
+      <li><b>Romper los documentos de Credifamilia,</b> que está en producción: se cubre con la comparación del paso 4 antes de borrar nada.</li>
+      <li><b>Claves mal escritas que dejan huecos vacíos en un PDF:</b> se cubre con el chequeo cruzado del paso 3.</li>
+      <li><b>Más carga en MySQL al quitar las cachés:</b> con unas 10 lecturas del formulario por día, es despreciable; se puede medir después del cambio con los mismos logs.</li>
+    </ul>
+  </section>
+
+  <footer>
+    <span>Cifras medidas en producción el 29 de octubre de 2026, en sólo lectura: logs del servicio (operaciones de Redis, S3 y MySQL de form-service, 7 días) y base de datos (envíos de formularios y radicaciones, 30 días).</span>
+    <span>Código revisado: <code>OnboardingPayloadBuilder</code> en legacy-backend (rama qa).</span>
+  </footer>
+</div>

@@ -11,8 +11,9 @@ jira_title: ""
 
 ## Pendientes
 
-- [ ] Decidir el alcance: sólo marcar los campos con su clave del catálogo, o además un editor de formularios
-  y un catálogo único. Termina con la decisión en la pila. Depende de: Miguel.
+- [ ] Presentarle a Oscar la propuesta (`artifacts/propuesta-diccionario-de-campos.html`): un solo id de campo
+  entre formulario dinámico y PDF, y quitar Redis y S3 de form-service. Termina con su decisión en la pila.
+  Depende de: Oscar.
 - [ ] Medir el mapeo actual: qué claves del catálogo de pdf-mapper llena `OnboardingPayloadBuilder`, de qué
   ids de campo y cuáles se calculan (nombres partidos, fechas, moneda, enums). Termina con la tabla en
   `artifacts/` y su comando.
@@ -20,10 +21,10 @@ jira_title: ""
   algún identificador hoy. Termina con la respuesta medida en un ambiente.
 - [x] ~~Medir qué aporta la caché Redis de form-service~~ — 2026-10-29: unas 10 lecturas de esquema por día,
   31 % de aciertos (TTL 10 min) y unas 3 lecturas de S3 ahorradas por día. No aporta con este volumen (pila).
-- [ ] Proponerle a José quitar Redis de form-service, con esos números. Depende de: José.
-- [ ] Coordinar con José (form-service) antes de proponer cambios de contrato, y avisarle al equipo de #105
-  (pdf-mapper en backoffice) que el editor de formularios va como proyecto aparte, no en el backoffice.
-  Depende de: José.
+- [x] ~~Medir el uso de las cachés de form-service~~ — el árbol de países se escribe 70 veces por semana en
+  Redis y en S3 y no se lee nunca; el esquema acierta 31 % (pila).
+- [ ] Avisarle al equipo de #105 (pdf-mapper en backoffice) que el editor de formularios va como proyecto
+  aparte, no en el backoffice.
 
 ## Objetivo
 
@@ -61,7 +62,7 @@ por ejemplo) llenaría sus documentos sin código: alcanza con marcar cada campo
    - un editor de formularios dinámicos al estilo de PDF Mapper Studio, que use el mismo catálogo. **Decisión
      de Miguel (2026-10-29): un proyecto Vue aparte, como `pdf-mapper-editor`; no va en el backoffice por ahora.**
    - que pdf-mapper tome sus campos del diccionario de form-service, para que haya un solo catálogo;
-   - quitar Redis de form-service si la medición confirma que no aporta: MySQL es la verdad y S3 ya es caché.
+   - quitar Redis y S3 de form-service: la medición del 2026-10-29 muestra que no aportan (MySQL es la verdad).
 
 ## Lo que se evaluó y NO se eligió
 
