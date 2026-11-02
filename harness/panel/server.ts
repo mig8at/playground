@@ -560,7 +560,7 @@ async function dictateCompanyCase(order: any, target: string): Promise<{ ok: boo
     if (target === 'prod') return { ok: false, detalle: 'en prod no se dicta nada' };
     const doc = String(order?.doc || '').replace(/\D/g, '');
     if (!doc) return { ok: false, detalle: 'el caso no tiene cédula' };
-    const { dictateCompanyLambda } = await import('../pkg/risk-lambda.ts');
+    const { dictateCompanyLambda, CASE_BUREAU_DEFAULTS: D } = await import('../pkg/risk-lambda.ts');
     const num = (v: unknown, def: number) => { const n = Number(String(v ?? '').replace(/\D/g, '')); return String(v ?? '').trim() === '' || !Number.isFinite(n) ? def : n; };
     const data = (order?.bureauData || {}) as Record<string, any>;
     const exp = order?.experian || {};
@@ -572,9 +572,10 @@ async function dictateCompanyCase(order: any, target: string): Promise<{ ok: boo
         || `${typed.nombre} ${typed.apellido}`;
     const r = await dictateCompanyLambda(target, doc, {
         name, income: num(data.agildata?.income, 2_500_000), occupation: data.agildata?.occupation || 'Empleado',
-        months: Math.min(num(data.agildata?.months, 13), 24),
-        score: num(exp.score, 700), consulted: num(exp.consulted, 1), creditCards: Math.min(num(data.experian?.creditCards, 1), 10),
-        delinquencies: num(exp.delinquencies, 0), negatives: num(exp.negatives, 0), maturationSince: '2015-03-26',
+        // Lo no dicho es el cliente por defecto de la consola (`CASE_BUREAU_DEFAULTS`): un solo cliente para los dos caminos.
+        months: Math.min(num(data.agildata?.months, D.months), 24),
+        score: num(exp.score, 700), consulted: num(exp.consulted, D.consulted), creditCards: Math.min(num(data.experian?.creditCards, D.creditCards), 10),
+        delinquencies: num(exp.delinquencies, D.delinquencies), negatives: num(exp.negatives, D.negatives), maturationSince: D.maturationSince,
     });
     return { ok: r.ok, detalle: `cédula ${doc} · lambda de ${target}`, burós: r.lines };
 }

@@ -181,7 +181,9 @@ export interface DictatedCase {
  * el mismo caso caía en otra categoría según desde dónde se corriera.
  */
 export const CASE_BUREAU_DEFAULTS = {
-    months: 13, consulted: 1, creditCards: 1, delinquencies: 0, negatives: 0, maturationSince: '2015-03-26',
+    // La antigüedad es la misma fecha que siembra `pkg/inject.ts` (`MATURATION_SINCE`): el panel decía
+    // 2015-03-26 y el guiado 2015-01-01. Las dos superan cualquier regla, pero dos fechas son dos clientes.
+    months: 13, consulted: 1, creditCards: 1, delinquencies: 0, negatives: 0, maturationSince: '2015-01-01',
 } as const;
 
 /**

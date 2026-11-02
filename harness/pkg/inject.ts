@@ -30,6 +30,7 @@ const firstPipe = (s: string): string => (s.includes('|') ? s.slice(0, s.indexOf
 
 // El inicio de la historia en el sector financiero que lleva el reporte inyectado. Lo usan el reporte y la
 // traducción al simulador (`categoryApplicant`): una sola fuente, así la predicción no se aparta de lo inyectado.
+// Es la misma fecha de `CASE_BUREAU_DEFAULTS.maturationSince` (`pkg/risk-lambda.ts`): si cambia una, cambia la otra.
 export const MATURATION_SINCE = '2015-01-01';
 
 // datacreditoData: perfil que LenderUserCategoryService lee de `$user->datacredito->data`. Por defecto LIMPIO

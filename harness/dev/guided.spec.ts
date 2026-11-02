@@ -647,7 +647,7 @@ test('guided (semiautomático)', async ({ browser }) => {
         const negatives = o.negatives ?? 0;
         const done = await dictateCase(process.env.E2E_SYNTH_DOC, {
             income: o.income ?? 2_500_000, occupation: o.occupation, score: o.score ?? 700, negatives,
-            delinquencies: o.delinquencies ?? negatives, consulted: o.consulted ?? 1, maturationSince: MATURATION_SINCE,
+            delinquencies: o.delinquencies ?? negatives, consulted: o.consulted, maturationSince: MATURATION_SINCE,
         }).catch(() => ({ employment: false, bureau: false }));
         log(done.employment && done.bureau
             ? `buró dictado al mock de centrales para ${process.env.E2E_SYNTH_DOC}: la categoría la deciden las perillas del caso`
