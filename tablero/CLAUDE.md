@@ -160,7 +160,8 @@ le pasa al sistema) vive en `data/traps/doc.md` y se entra por su síntoma. `mak
 1. **Un bloque del día** con `make tarea-bloque`, en la tarea con `id`: el título con la conclusión y la
    descripción con lo que la sostiene. Lo descartado entra como bloque con su motivo.
 2. **`ramas:`** apenas exista la primera rama, y volvé a medir con `make tareas-ramas`.
-3. **La bitácora con `make bitacora-add`**, con los minutos de UNA fuente que queda escrita en la nota:
+3. **La bitácora con `make bitacora-add`**, con los minutos de UNA fuente que queda escrita en la nota
+   (un lapso que se pisa con otra entrada del mismo día, de cualquier tarea o sesión, se rechaza: es tiempo contado dos veces):
    `LAPSO=HH:MM-HH:MM`, `PULSO=HH:MM` o `MIN=N FUENTE='…'`. ⚠ **Los minutos se MIDEN, no se estiman**:
    suben a Jira. Si el pulso no tiene datos, decí de dónde salió el número.
 

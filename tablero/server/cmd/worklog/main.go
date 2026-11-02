@@ -19,9 +19,12 @@
 package main
 
 import (
+	"bufio"
+	"encoding/json"
 	"flag"
 	"fmt"
 	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
@@ -80,6 +83,55 @@ func slotsSince(data string, since time.Time) (slotCount int, happened bool) {
 		}
 	}
 	return len(slots), happened
+}
+
+// loggedSpan es una entrada ya escrita, con su tramo de reloj.
+type loggedSpan struct {
+	ID        int64  `json:"id"`
+	Day       string `json:"day"`
+	Minutes   int    `json:"minutes"`
+	StartedAt string `json:"startedAt"`
+	Title     string `json:"freeTitle"`
+	start     time.Time
+}
+
+func (e loggedSpan) end() time.Time { return e.start.Add(time.Duration(e.Minutes) * time.Minute) }
+
+// dayEntries lee las entradas del día de `at`, de cualquier tarea: la bitácora es el tiempo de UNA persona, así
+// que dos entradas no pueden ocupar el mismo minuto aunque sean de tareas o sesiones distintas.
+func dayEntries(data string, at time.Time) []loggedSpan {
+	f, err := os.Open(filepath.Join(data, "entries", at.Format("2006-01")+".jsonl"))
+	if err != nil {
+		return nil
+	}
+	defer f.Close()
+	day := at.Format("2006-01-02")
+	var out []loggedSpan
+	sc := bufio.NewScanner(f)
+	sc.Buffer(make([]byte, 1<<20), 1<<20)
+	for sc.Scan() {
+		var e loggedSpan
+		if json.Unmarshal(sc.Bytes(), &e) != nil || e.Day != day || e.Minutes <= 0 {
+			continue
+		}
+		if e.start, err = time.Parse(time.RFC3339, e.StartedAt); err == nil {
+			out = append(out, e)
+		}
+	}
+	return out
+}
+
+// overlapping devuelve la primera entrada cuyo tramo se pisa con [start, start+minutes). Tocarse en el borde
+// (una termina 12:09 y la otra empieza 12:09) no es pisarse. Hasta el 2026-11-02 no se miraba: dos entradas
+// del mismo día se solaparon cinco minutos y ese tiempo subió dos veces.
+func overlapping(entries []loggedSpan, start time.Time, minutes int) (loggedSpan, bool) {
+	end := start.Add(time.Duration(minutes) * time.Minute)
+	for _, e := range entries {
+		if start.Before(e.end()) && e.start.Before(end) {
+			return e, true
+		}
+	}
+	return loggedSpan{}, false
 }
 
 func main() {
@@ -193,6 +245,11 @@ func main() {
 		origin = "medidos: " + strings.TrimSpace(*source)
 	default:
 		fail("decí de dónde salen los minutos: -lapso HH:MM-HH:MM · -pulso HH:MM · -min N -fuente \"…\"")
+	}
+
+	if o, ok := overlapping(dayEntries(data, start), start, minutes); ok {
+		fail("el lapso se pisa con la entrada %d (%s a %s, «%s»): ese tiempo ya está contado y sube dos veces a Jira. Empezá a las %s o partilo",
+			o.ID, o.start.Format("15:04"), o.end().Format("15:04"), o.Title, o.end().Format("15:04"))
 	}
 
 	s, err := store.Open(data)

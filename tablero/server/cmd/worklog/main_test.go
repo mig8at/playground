@@ -34,3 +34,20 @@ func TestEntryDay(t *testing.T) {
 		t.Fatal("un formato distinto de AAAA-MM-DD debía fallar")
 	}
 }
+
+func TestOverlappingDetectaElSolape(t *testing.T) {
+	at := func(hm string) time.Time { v, _ := time.Parse("15:04", hm); return v }
+	entries := []loggedSpan{{ID: 663, Minutes: 15, start: at("11:47")}}
+	if _, ok := overlapping(entries, at("11:52"), 17); !ok {
+		t.Fatal("11:52 empieza dentro de 11:47-12:02: debía pisarse")
+	}
+	if _, ok := overlapping(entries, at("12:02"), 10); ok {
+		t.Fatal("empezar justo cuando termina la otra no es pisarse")
+	}
+	if _, ok := overlapping(entries, at("11:30"), 17); ok {
+		t.Fatal("11:30-11:47 sólo toca el borde de la otra: no debe pisarse")
+	}
+	if _, ok := overlapping(entries, at("11:30"), 18); !ok {
+		t.Fatal("11:30-11:48 entra un minuto en la otra: debía pisarse")
+	}
+}
