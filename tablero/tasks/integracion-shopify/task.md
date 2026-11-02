@@ -43,9 +43,15 @@ ramas: core-801-shopify-payment-link, core-689-shopify-platform
       rama `payment-link` salió del árbol junto con la PII y los artefactos (`dist/`, logs, `dev.sqlite`,
       `shopify-app-info.json`), pero sigue en 2 commits de la historia.
       Depende de: Infra — dónde se emitió el token y quién lo revoca.
-- [ ] Confirmar que Shopify admite una Payments App offsite para tiendas en Colombia con COP y que CreditOp es (o
-      puede ser) Payments Partner; termina con la respuesta escrita acá.
-      Depende de: Merchants — lo que respondió Shopify en MER-2, MER-54 y MER-96.
+- [ ] Confirmar con Shopify que la app offsite sirve para tiendas en Colombia con COP y en qué estado está hoy la cuenta
+      Partner 4296643. Ya se sabe, por el hilo con paymentspartners@shopify.com (bloque del 2026-11-02): Creditop fue
+      aprobado como Payments Partner (2025-06), el acuerdo de reparto se firmó (2026-01-21, según María Fernanda), la
+      app la pueden instalar todos los planes y sólo puede tener UNA extensión de pago. Retomar ese hilo, no empezar
+      otro. Termina con la respuesta escrita acá.
+      Depende de: María Fernanda / Manuela — el hilo con Shopify, que quedó sin respuesta desde el 2026-04-01.
+- [ ] Antes de `shopify app deploy`, comprobar en el Partner Dashboard que `CREDITOP-ECOMMERCE-PAYMENTS` tenga una sola
+      extensión de pago (la `creditop-offsite`) y no la vieja `creditop-ext-offside`, que sigue activa en `develop`.
+      Termina con la app desplegada y una sola extensión.
 - [x] ~~Probar contra el `payment-link` de verdad~~ — #1682 mergeado a `qa` el 2026-10-19; todo el recorrido en qa
       (aprobado, pendiente, negado, reembolso rechazado y la plataforma 4) corrió contra él.
 - [x] ~~Agregar Shopify al catálogo `ecommerces` (id 4) y poder marcar una credencial con `ecommerce_type_id=4`~~ —
