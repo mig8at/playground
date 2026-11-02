@@ -7,7 +7,7 @@
   "verified": "2026-11-02",
   "as_asked": "¿si la causación de la noche falla, Creditop igual paga el subsidio de intereses?",
   "archivos": {
-    "loan-servicing": [
+    "Creditop-SAS/loan-servicing": [
       "internal/modules/nightlyportfolio/core/domain/step.go",
       "internal/modules/nightlyportfolio/core/workflows/night_workflow.go"
     ],
@@ -16,5 +16,8 @@
       "app/Console/Commands/UpdateCreditopXApplyPaymentCommand.php"
     ]
   },
-  "tablas": ["creditop_x_credit_benefit_decisions", "creditop_x_payments"]
+  "tablas": [
+    "creditop_x_credit_benefit_decisions",
+    "creditop_x_payments"
+  ]
 }
