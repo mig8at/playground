@@ -11,6 +11,7 @@
 // deja el reinicio del mes. NO escribe el evento `month_reset` en `creditop_x_quota_events` ni quita el
 // override del período: no reemplaza a `MonthlyQuotaResetService`, sólo devuelve la base de pruebas a un
 // estado donde el cupo depende del caso. Sin APPLY sólo muestra. Sólo local: en cualquier otro ambiente sale.
+export {};
 const { TARGET, isLocalDb, query, exec, close } = await import('../pkg/db.ts');
 
 const args = process.argv.slice(2);
