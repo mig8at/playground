@@ -1,0 +1,21 @@
+{
+  "node": "mobile/context",
+  "section": "Entrada, OTP y vida de la sesión",
+  "text_file": "seccion.md",
+  "kind": "correction",
+  "source": "verified",
+  "verified": "2026-11-02",
+  "as_asked": "¿quién manda el código de entrada de la app y qué pasa cuando la persona no está registrada?",
+  "objetivo": "Hacer entrar a una persona a la app: qué proveedor manda el código, cuándo se registra y qué crea el registro.",
+  "se_deduce_leyendo": "el orden Cognito y monolito, el 409 que pide registro y la configuración móvil que fija el comercio por defecto",
+  "archivos": {
+    "Creditop-SAS/creditop_mobile": [
+      "app/lib/infrastructure/auth/gateways/cognito_auth_gateway_impl.dart",
+      "app/lib/infrastructure/auth/datasources/backend_lo_datasource.dart",
+      "app/lib/config/app_lifecycle_observer.dart"
+    ],
+    "legacy-backend": [
+      "Modules/Onboarding/App/Services/MobileOnboardingService.php"
+    ]
+  }
+}

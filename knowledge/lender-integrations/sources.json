@@ -2,7 +2,7 @@
   "version": 1,
   "title": "Entidades integradas: reglas propias de cada una",
   "summary": "Reglas por entidad con su porqué en Jira: la compuerta de buró de Prami, las cuatro variantes de Welli con Sonría aparte y el mapa de estados distinto en cada monolito, los reintentos de Meddipay, Sistecrédito oculto al moroso y en Energiteca, el NIT de Corbeta que marca el canal en Bancolombia BNPL, los estados de Crédito 365, UMA y la probabilidad oculta por convenio.",
-  "reviewedAt": "2026-11-02T16:19:23+00:00",
+  "reviewedAt": "2026-11-02T16:45:52+00:00",
   "sources": [
     {
       "repo": "legacy-backend",
@@ -136,7 +136,7 @@
       "commit": "69920f580f62ad35f0a555e3b8b8f2c247d758aa",
       "blob": "aeb7c50ddd1e854c80fc088591439cc64769ca20",
       "sections": [
-        "probabilidad-oculta-por-convenio"
+        "probabilidad-oculta-por-convenio-o-por-comercio"
       ]
     },
     {
@@ -145,7 +145,16 @@
       "commit": "1755ab4fa3a50cac5669cdff4826131979a15def",
       "blob": "c938cc8e7dea9ade9b2e3ef7da993f030109ed94",
       "sections": [
-        "probabilidad-oculta-por-convenio"
+        "probabilidad-oculta-por-convenio-o-por-comercio"
+      ]
+    },
+    {
+      "repo": "frontend-monorepo",
+      "path": "modules/loan-request-wizard/lenders-marketplace/src/lib/mappers/lender-response.mapper.ts",
+      "commit": "e0c370c299cf4a613c7282626a9977d635484616",
+      "blob": "e4f0b23c1ff2e90737fa8a8ca99eca80da495770",
+      "sections": [
+        "probabilidad-oculta-por-convenio-o-por-comercio"
       ]
     }
   ]

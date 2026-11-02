@@ -1,0 +1,18 @@
+{
+  "node": "cartera/context",
+  "section": "La condonación libre elige qué saldos perdonar y por cuánto",
+  "text_file": "text.md",
+  "kind": "addition",
+  "source": "verified",
+  "verified": "2026-11-02",
+  "as_asked": "¿cómo se aplica un acuerdo de pago que perdona sólo la mora o sólo los gastos de cobranza?",
+  "objetivo": "Perdonar a un crédito CreditopX sólo los saldos y montos que acordó el comercio, y decidir en qué estado queda.",
+  "se_deduce_leyendo": "qué saldos se pueden condonar, cómo se topan, qué pasa con la garantía y con el estado del crédito",
+  "archivos": {
+    "legacy-application": [
+      "app/Actions/CreditopX/CondoneCreditBalances.php",
+      "app/Http/Requests/Admin/CreditopX/CondoneBalancesRequest.php"
+    ]
+  },
+  "tablas": ["creditop_x_requests_history", "creditop_x_log"]
+}

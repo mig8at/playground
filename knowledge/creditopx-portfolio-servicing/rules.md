@@ -26,9 +26,17 @@ lanza cada comando como una tarea de ECS de una sola corrida, en orden y a hora 
 | beneficios del crédito | `app:apply-credit-benefits` | 04:15 | sí |
 | recordatorios | `app:reminder-creditop-x-requests-command` | 10:15 | sí |
 
-Un paso espera a que el anterior termine **y** a su hora; nunca corre encima de otro; se salta si la
-fecha de negocio ya no es hoy. La causación depende de las colillas y no se relanza si se muere a
-mitad: causar dos veces el mismo día duplica intereses. El worker arranca en modo sombra por defecto
+Un paso espera a su hora, nunca corre encima de otro y se salta si la fecha de negocio ya no es hoy.
+Además, algunos pasos **dependen** de otros y sólo se lanzan si el paso del que dependen terminó
+completo; si falló, se saltó o terminó con errores parciales, el dependiente no corre y queda una
+alerta:
+
+- la causación depende de las colillas;
+- los cupos rotativos y los beneficios dependen de la causación;
+- los recordatorios dependen de la causación, los pagos retenidos, los rotativos y los beneficios.
+
+Los pagos de Wompi no aplicados y los pagos retenidos no dependen de nadie. La causación no se relanza
+si se muere a mitad: causar dos veces el mismo día duplica intereses. El worker arranca en modo sombra por defecto
 (cada tarea corre `php artisan --version`); el valor de producción vive en su secreto
 (`prod/loan-servicing`), no en el código, así que salir de sombra es configuración y se comprueba en
 los logs del worker (cada lanzamiento registra `shadow`).
@@ -40,7 +48,9 @@ producción su rol de IAM sólo puede lanzar `legacy-application-worker-producti
 ## Gasto de cobranza por días de mora
 
 Cada entidad configura en `creditop_x_lender_collection_charges` tramos de días de mora con un monto
-fijo; los tramos son inclusivos y no se pueden solapar. En la causación, si los días de mora del
+fijo; los tramos son inclusivos. Existe una regla de validación para que no se solapen
+(`NonOverlappingCollectionChargeRange`), pero ningún formulario ni servicio la invoca: el código asume
+que no se solapan y no lo garantiza. En la causación, si los días de mora del
 crédito **coinciden exactamente** con el inicio de un tramo (`min_due_days`), se cobra ese monto una
 sola vez: se suma al pago mínimo exigible, al saldo de cobranza y al saldo total. Un crédito que
 salta el día de inicio (por ejemplo, porque la noche no corrió) no recibe el cargo de ese tramo.

@@ -1,0 +1,15 @@
+{
+  "node": "meddipay/context",
+  "section": "Los monolitos reintentan a Meddipay sólo ante caídas, y le mandan género y fecha en su formato",
+  "text_file": "seccion.md",
+  "kind": "addition",
+  "source": "verified",
+  "verified": "2026-11-02",
+  "as_asked": "¿Creditop reintenta cuando Meddipay falla?",
+  "objetivo": "Hablar con Meddipay desde los monolitos: cuánto se espera, qué se reintenta y en qué formato van los datos de la persona.",
+  "se_deduce_leyendo": "el tiempo límite, la condición de reintento de cada llamada y la conversión de género y fecha de nacimiento",
+  "archivos": {
+    "legacy-backend": ["app/Actions/Lenders/Meddipay.php"],
+    "legacy-application": ["app/Actions/Lenders/Meddipay.php"]
+  }
+}

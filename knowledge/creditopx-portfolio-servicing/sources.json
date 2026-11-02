@@ -2,7 +2,7 @@
   "version": 1,
   "title": "Cartera CreditopX: noche, cobranza, colilla y beneficios",
   "summary": "Qué le pasa a un crédito CreditopX sin que el cliente pague: la cadena nocturna que corre loan-servicing sobre los comandos de legacy-application, el gasto de cobranza por tramo de mora, la colilla que se condona en el corte, cuándo se puede cambiar la fecha de pago, recuperación, refinanciación y paz y salvo desde el admin, y el subsidio de intereses Creditop.",
-  "reviewedAt": "2026-11-02T15:56:59+00:00",
+  "reviewedAt": "2026-11-02T16:44:28+00:00",
   "sources": [
     {
       "repo": "application",
@@ -140,6 +140,24 @@
       "blob": "418fd74277d1f16f431148e7a1637dbcc1e713e0",
       "sections": [
         "la-noche-de-cartera-la-corre-loan-servicing"
+      ]
+    },
+    {
+      "repo": "loan-servicing",
+      "path": "internal/modules/nightlyportfolio/core/domain/status.go",
+      "commit": "113ec16fa49ccbe48dcf334bc083a100625d5e08",
+      "blob": "f578ba96876f9ccd3e52790b48b5c788bf143186",
+      "sections": [
+        "la-noche-de-cartera-la-corre-loan-servicing"
+      ]
+    },
+    {
+      "repo": "application",
+      "path": "app/Rules/NonOverlappingCollectionChargeRange.php",
+      "commit": "1755ab4fa3a50cac5669cdff4826131979a15def",
+      "blob": "d2166f9e6d7843be5cf72c11c570155500db93b2",
+      "sections": [
+        "gasto-de-cobranza-por-dias-de-mora"
       ]
     }
   ]

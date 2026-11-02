@@ -2,7 +2,7 @@
   "version": 1,
   "title": "Solicitud: estados, cierre y guardas contra el retroceso",
   "summary": "El catálogo de estados de user_requests con sus ids de producción y por qué se lee por nombre, qué estados cierran una solicitud en cada monolito, la cancelación en cascada de solicitudes CreditopX hermanas al autorizar, safeCancel, el webhook tardío contra Autorizada, la gestión manual del comercio y una solicitud por pedido en ecommerce, y Nequi, el pago de contado que puede salir de Autorizada al reversarse.",
-  "reviewedAt": "2026-11-02T16:20:09+00:00",
+  "reviewedAt": "2026-11-02T16:44:28+00:00",
   "sources": [
     {
       "repo": "legacy-backend",
@@ -138,6 +138,15 @@
       "path": "app/Services/ManualApproval/ManualApprovalService.php",
       "commit": "1755ab4fa3a50cac5669cdff4826131979a15def",
       "blob": "d0c63811fa4fd49c177fdad6e886b69e7aef6785",
+      "sections": [
+        "links-que-vencen-continuacion-y-aprobacion-manual"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/Loans/App/Http/Controllers/Customer/ContinueUserFlowController.php",
+      "commit": "69920f580f62ad35f0a555e3b8b8f2c247d758aa",
+      "blob": "63783c386ce3438d38928d8bb54efb169b6971a9",
       "sections": [
         "links-que-vencen-continuacion-y-aprobacion-manual"
       ]

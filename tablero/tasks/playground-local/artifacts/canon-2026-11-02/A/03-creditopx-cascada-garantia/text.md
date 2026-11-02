@@ -1,0 +1,14 @@
+**Un pago a un crédito de consumo CreditopX cubre primero el mínimo en cascada —gasto de cobranza, interés de mora, interés corriente, seguro de vida, seguro de garantía y capital, cada uno hasta lo que se debe— y lo que sobra lo decide el tipo de abono, salvo que el crédito esté en mora.** Lo aplican dos implementaciones sobre la misma base, una en cada monolito, y las dos escriben lo mismo: un registro del dinero recibido, una o varias imputaciones y, por cada movimiento, un histórico nuevo de cartera que deja inactivo el anterior.
+
+En la cascada, el seguro de vida sólo se cubre si queda saldo de seguro. **La garantía no es un paso aparte ni se cobra primero: viaja dentro del capital, en proporción.** De cada peso de capital que se paga, es garantía la misma proporción que tienen los saldos del crédito, saldo de garantía sobre saldo de capital, con tope en el propio capital pagado y en la garantía que queda, redondeada a dos decimales. Los dos monolitos aplican la misma regla, en una copia idéntica, al pago a cuota, al abono a capital, al pago total y a la liberación de retenidos; el viejo también al pronto pago. Por medirse sobre los saldos, un crédito llega a cero de garantía justo cuando llega a cero de capital. La garantía que declara el pago mínimo es informativa: sale de esa misma proporción sobre el capital exigido y no topa ni suma nada. El pago a cuota que se registra no suma el seguro de garantía en su importe pagado.
+
+Con el sobrante:
+
+- Si sobrante más umbral residual alcanzan el total con promociones, es pago total: condona los intereses si la cuota está dentro de las que la entidad perdona, aplica los retenidos y manda el resto a capital. El umbral es el residual de la entidad, 5.000 por defecto; en una compra de cupo rotativo es 1.
+- Si no alcanza y el crédito está al día, el tipo de abono decide: reducir plazo o reducir cuota abonan a capital, y retener deja el sobrante como pago retenido, sin histórico asociado.
+- Con mora y abono a capital, el sobrante no se imputa a nada: queda sólo en el registro del cobro, y el monolito nuevo lo deja en la traza como pago sin aplicar.
+
+Cuando el total queda en cero, el histórico nuevo queda en paz y salvo. Un cobro de pasarela se acredita una sola vez: si ya hay un registro con esa transacción, aplicarlo de nuevo no hace nada, en los dos monolitos; en un cupo rotativo el chequeo lo hace el reparto antes de llamar por cada compra, porque todas comparten la transacción.
+
+Los dos motores no son idénticos. El nuevo rechaza los pagos de ciclo de vida de una entidad cuyo crédito gestiona otro y falla si no hay cartera con `status` 1 u 8; el viejo lee sólo la de `status` 1 y es el único que aplica el descuento por pronto pago. Cómo pasa el crédito a «al día» con lo imputado: [[recaudo/context#reglas-contables-para-actualizar-el-estado]]; el reparto del rotativo entre compras: [[recaudo/context#el-pago-al-rotativo-se-reparte-en-dos-pasadas]].
+

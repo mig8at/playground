@@ -2,7 +2,7 @@
   "version": 1,
   "title": "CreditOp Mobile: la app del cliente final",
   "summary": "Qué hace la app Flutter del consumidor (rama main-pro) y qué valida el backend de cada paso: OTP por Cognito o legacy y el registro MOBA, comercios y preaprobación, canales de compra por sedes y el código de self-manager, Mis créditos y el cupo rotativo, Salud Financiera gratuita o premium por el beneficio de entitlement, identidad ADO sólo para premium y la campaña de cero interés quemada; el regalo de premium por reglas versionadas, la identidad que identity-service no aprueba al volver, y el registro de push sin backend.",
-  "reviewedAt": "2026-11-02T15:58:10+00:00",
+  "reviewedAt": "2026-11-02T16:45:52+00:00",
   "sources": [
     {
       "repo": "creditop-mobile",
@@ -317,6 +317,15 @@
       "blob": "6b1fa0ea171df6cb6bec0103f66932756b240a57",
       "sections": [
         "identidad-con-ado-solo-para-premium"
+      ]
+    },
+    {
+      "repo": "self-manager-api",
+      "path": "internal/infra/generate/qr-generator.go",
+      "commit": "f1d8002e1d88d6628f7a1172e5b704e15015beb6",
+      "blob": "b02948b5c25fa153a48b5e77f6376aeb2b2915a1",
+      "sections": [
+        "comprar-en-un-comercio-canal-y-codigo"
       ]
     }
   ]

@@ -1,0 +1,21 @@
+{
+  "node": "cartera/context",
+  "section": "La condonación conserva la fianza y el pago mínimo acumula sus cuotas",
+  "text_file": "text.md",
+  "kind": "correction",
+  "source": "verified",
+  "verified": "2026-11-02",
+  "as_asked": "¿por qué el pago mínimo muestra garantía pero no la suma al total a pagar?",
+  "archivos": {
+    "legacy-application": [
+      "app/Console/Commands/UpdateCreditopXRequestsCommand.php",
+      "app/Console/Commands/UpdateCreditopXRemoveOutstandingBalances.php",
+      "app/Actions/CreditopX/CondoneCreditBalances.php"
+    ],
+    "legacy-backend": [
+      "app/Audit/Checks/GuaranteeAttributionOffRuleCheck.php",
+      "app/Audit/Checks/GuaranteeLeftOnSettledCreditCheck.php"
+    ]
+  },
+  "tablas": ["creditop_x_requests_history"]
+}

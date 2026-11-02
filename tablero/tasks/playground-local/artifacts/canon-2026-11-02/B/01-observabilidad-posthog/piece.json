@@ -1,0 +1,21 @@
+{
+  "node": "observabilidad/operar",
+  "section": "Lo que vio el cliente: PostHog",
+  "text_file": "seccion.md",
+  "kind": "correction",
+  "source": "verified",
+  "verified": "2026-11-02",
+  "as_asked": "¿cómo encuentro en PostHog lo que vio un cliente del asistente?",
+  "objetivo": "Encontrar lo que vio un cliente en el asistente: con qué identidad se marca cada evento y qué queda anónimo.",
+  "se_deduce_leyendo": "cómo se resuelve la persona de PostHog a partir de la solicitud y qué pasa antes de que exista",
+  "archivos": {
+    "frontend-monorepo": [
+      "apps/loan-request-wizard/app/utils/analytics.server.ts",
+      "apps/loan-request-wizard/app/utils/customer-distinct-id.server.ts",
+      "apps/loan-request-wizard/app/utils/analytics-taxonomy.ts",
+      "apps/loan-request-wizard/app/hooks/use-customer-analytics-identify.ts",
+      "apps/loan-request-wizard/app/hooks/use-analytics-identify.ts",
+      "apps/loan-request-wizard/app/routes/api/analytics-customer.tsx"
+    ]
+  }
+}

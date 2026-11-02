@@ -1,0 +1,20 @@
+{
+  "node": "listado/context",
+  "section": "La probabilidad de la tarjeta se oculta por comercio o por convenio, y la marca del comercio gana",
+  "text_file": "seccion.md",
+  "kind": "addition",
+  "source": "verified",
+  "verified": "2026-11-02",
+  "as_asked": "¿cómo se le quita la etiqueta de probabilidad a las entidades en un comercio?",
+  "objetivo": "Decidir si la tarjeta de una entidad muestra su etiqueta de probabilidad, por comercio o por convenio comercio–entidad.",
+  "se_deduce_leyendo": "las dos marcas de configuración, cuál manda sobre la otra y qué listado las entrega al asistente",
+  "archivos": {
+    "frontend-monorepo": ["modules/loan-request-wizard/lenders-marketplace/src/lib/mappers/lender-response.mapper.ts"],
+    "legacy-backend": [
+      "database/migrations/2026_06_22_173546_add_hide_non_integrated_probability_to_allieds_table.php",
+      "database/migrations/2026_06_24_120000_add_hide_probability_to_lenders_by_allieds_table.php",
+      "Modules/Partner/App/Http/Controllers/AlliedLenderController.php"
+    ],
+    "legacy-application": ["app/Http/Controllers/Admin/AlliedLenderController.php"]
+  }
+}

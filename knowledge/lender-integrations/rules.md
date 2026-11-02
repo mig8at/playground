@@ -73,8 +73,16 @@ manual del comercio rechaza ese aliado y lo manda a su endpoint propio; en legac
 actualización del comercio sólo se acepta para ese aliado, y al pasar a Autorizada exige número y valor
 de cuota (LO-54).
 
-## Probabilidad oculta por convenio
+## Probabilidad oculta por convenio o por comercio
 
-`lenders_by_allieds.hide_probability` oculta, por par comercio–entidad, la etiqueta de probabilidad
-de la tarjeta. Se pidió para que Sonría no mostrara probabilidad de entidades sin integración, sin
-quemar el comercio en el código (QC-17). El listado la entrega en los dos monolitos.
+La etiqueta de probabilidad de una tarjeta se puede ocultar de dos formas, y la del comercio manda:
+
+- **por comercio** (`allieds.hide_non_integrated_probability`): prendida, oculta la probabilidad de
+  todas las entidades **no integradas** (riel 0) y deja ver la de las integradas, sin mirar el
+  convenio;
+- **por convenio** (`lenders_by_allieds.hide_probability`): con la del comercio apagada, oculta la
+  probabilidad de esa entidad en ese comercio, integrada o no.
+
+Se pidió para que Sonría no mostrara probabilidad de entidades sin integración, sin quemar el comercio
+en el código (QC-17). El convenio se configura en los dos admins, pero sólo el listado de
+legacy-backend entrega la marca al asistente, que es quien la aplica.

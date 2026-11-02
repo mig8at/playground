@@ -124,8 +124,9 @@ retrocede: si el pago se reversa y no queda ninguna vía aprobada, la solicitud 
 
 El link con el que el cliente retoma una solicitud (`/self-service/{hash}/{id}/confirmation`) puede
 vencer. Al enviarlo, legacy-backend escribe un marcador en `user_request_additional_information`
-(`type_data = link_expiration`, con `expires_at`), y al abrirlo responde **410** si venció; no
-cambia el estado de la solicitud. La política vive en el setting `link_expiration_config`: una lista
+(`type_data = link_expiration`, con `expires_at`). Al abrirlo, la continuación responde con el campo
+`linkExpired` para que el asistente lo muestre, sin cortar; sólo la entrega por POST de la
+redirección a la entidad responde **410** si venció. Ninguno cambia el estado de la solicitud. La política vive en el setting `link_expiration_config`: una lista
 de entidades donde aplica (`enabled_lender_ids`, sembrada vacía, así que se prende entidad por entidad
 sin deploy) y la vigencia en minutos (1440 por defecto). Si no puede evaluar, falla abierto: no corta
 el crédito por un problema propio.

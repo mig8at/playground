@@ -1,0 +1,23 @@
+{
+  "node": "mobile/context",
+  "section": "La identidad sólo se pide para premium, y «registrada previamente» aprueba una sesión y bloquea la siguiente",
+  "text_file": "seccion.md",
+  "kind": "addition",
+  "source": "verified",
+  "verified": "2026-11-02",
+  "as_asked": "¿por qué un cliente premium que ya veía Salud Financiera ahora queda bloqueado pidiendo soporte?",
+  "objetivo": "Decidir quién tiene que verificar su identidad en la app y qué estado de cuenta deja cada intento.",
+  "se_deduce_leyendo": "cuándo la app pide verificación, qué intento cuenta y cómo cada lado interpreta el «registrada previamente» de ADO",
+  "archivos": {
+    "Creditop-SAS/identity-service": [
+      "internal/core/usecases/identity/policy.go",
+      "internal/infra/clients/ado/decision.go",
+      "internal/infra/handlers/identity/response_codes.go"
+    ],
+    "Creditop-SAS/creditop_mobile": [
+      "app/lib/ui/identity_gate/identity_access_provider.dart",
+      "packages/feature_identity_verification/lib/domain/session/verification_step.dart",
+      "app/lib/ui/identity_gate/identity_verification_completion.dart"
+    ]
+  }
+}

@@ -1,0 +1,21 @@
+{
+  "node": "perfilamiento/context",
+  "section": "Qué categoría gana, cómo la capacidad se vuelve cupo y los criterios que no se leen como parecen",
+  "text_file": "text.md",
+  "kind": "addition",
+  "source": "verified",
+  "verified": "2026-11-02",
+  "as_asked": "¿por qué una regla que pide 8 meses de continuidad laboral rechaza a alguien con 10?",
+  "objetivo": "Asignarle a un cliente la categoría de una entidad CreditopX y convertir su capacidad de pago en cupo.",
+  "se_deduce_leyendo": "en qué orden se evalúan las reglas, qué hace el multiplicador, cómo se derivan la continuidad y la vigencia de la licencia, y qué rechaza antes",
+  "archivos": {
+    "legacy-backend": [
+      "Modules/Loans/App/Repositories/LenderUsersCategoryRuleRepository.php",
+      "Modules/Loans/App/Services/LenderUserCategoryService.php",
+      "Modules/Loans/App/Services/ActiveCreditRuleEvaluator.php",
+      "Modules/Loans/App/Repositories/ActiveCreditRepository.php"
+    ],
+    "legacy-application": ["app/Services/lenders/LenderUserCategoryService.php"]
+  },
+  "tablas": ["lender_users_categories", "lender_users_category_rules", "creditop_x_requests_history"]
+}

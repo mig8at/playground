@@ -1,0 +1,23 @@
+{
+  "node": "preaprobado/context",
+  "section": "La compuerta de preaprobación decide si se consulta",
+  "text_file": "seccion.md",
+  "kind": "correction",
+  "source": "verified",
+  "verified": "2026-11-02",
+  "as_asked": "¿por qué la tarjeta de Prami dice «No disponible para tu perfil» sin haberla consultado?",
+  "objetivo": "Decidir si se le paga la consulta de preaprobación a una entidad que cobra por consultar, según el buró del cliente.",
+  "se_deduce_leyendo": "qué entidades tienen compuerta, qué tres partes de la regla de datacrédito la abren y por qué falla cerrada",
+  "archivos": {
+    "legacy-backend": [
+      "Modules/Onboarding/App/Services/lenders/RiskCentralValidationService.php",
+      "Modules/Onboarding/App/Services/lenders/LenderListingService.php",
+      "Modules/Onboarding/App/Services/lenders/ProfilingRulesService.php",
+      "database/migrations/2026_08_20_120000_add_requires_preapproval_gate_to_lenders_table.php"
+    ],
+    "frontend-monorepo": [
+      "modules/loan-request-wizard/lenders-marketplace/src/components/available-lenders/preapproval-gate.service.ts",
+      "apps/loan-request-wizard/app/routes/lenders-marketplace/available-lenders.tsx"
+    ]
+  }
+}

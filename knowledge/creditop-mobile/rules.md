@@ -63,8 +63,9 @@ según su `point_of_sale_type`:
 
 Con más de un canal, el cliente elige. Después la app pide el código a self-manager-api
 (`POST /generate/code` con comercio, entidad y canal `assisted` o `physical`). El código tiene 4 o 6
-caracteres y sirve **hasta el final del día de vencimiento en hora de Colombia**; el cliente se lo da al
-comercio y ahí se canjea (ver `client-code-redemption`). `store_type` del comercio ya no decide el
+caracteres. self-manager-api fija su vencimiento en el **último día del mes** en que se generó, y la
+app lo cuenta válido hasta el final de ese día en hora de Colombia. El cliente se lo da al comercio y
+ahí se canjea (ver `client-code-redemption`). `store_type` del comercio ya no decide el
 flujo, y «online» dejó de ser un canal: la tienda virtual sigue registrada pero nada la abre.
 
 ## Mis créditos

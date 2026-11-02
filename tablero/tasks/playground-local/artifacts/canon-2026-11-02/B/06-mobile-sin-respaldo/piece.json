@@ -1,0 +1,19 @@
+{
+  "node": "mobile/context",
+  "section": "La campaña de cero interés y el registro de notificaciones no tienen backend",
+  "text_file": "seccion.md",
+  "kind": "addition",
+  "source": "verified",
+  "verified": "2026-11-02",
+  "as_asked": "¿quién decide en qué comercios sale el «0% intereses» de la app, y se le puede mandar una notificación a un cliente?",
+  "objetivo": "Saber qué promociones y notificaciones de la app dependen de la propia app y no de un servicio.",
+  "se_deduce_leyendo": "dónde se fija la campaña de cero interés y qué pasa con el registro de tokens de notificaciones",
+  "archivos": {
+    "Creditop-SAS/creditop_mobile": [
+      "app/lib/ui/home/home_promo_tag_decision.dart",
+      "app/lib/ui/home/home_promo_banners_decision.dart",
+      "app/lib/infrastructure/notifications/datasources/notifications_device_datasource.dart",
+      "app/lib/infrastructure/notifications/notifications_lifecycle.dart"
+    ]
+  }
+}

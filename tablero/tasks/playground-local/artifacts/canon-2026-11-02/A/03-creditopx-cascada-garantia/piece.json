@@ -1,0 +1,22 @@
+{
+  "node": "creditopx/context",
+  "section": "Un pago CreditopX cubre el mínimo en cascada, y el sobrante lo decide el tipo de abono salvo con mora",
+  "text_file": "text.md",
+  "kind": "correction",
+  "source": "verified",
+  "verified": "2026-11-02",
+  "as_asked": "¿cuánto de lo que paga el cliente se imputa al fondo de garantía?",
+  "objetivo": "Decidir qué parte del capital que se mueve en un pago o una condonación es fondo de garantía.",
+  "se_deduce_leyendo": "la proporción saldo de garantía sobre saldo de capital, sus topes y en qué caminos se aplica",
+  "archivos": {
+    "legacy-backend": [
+      "Modules/Loans/App/Support/GuaranteeAttribution.php",
+      "Modules/Loans/App/Services/CreditopXPaymentService.php"
+    ],
+    "legacy-application": [
+      "app/Support/GuaranteeAttribution.php",
+      "app/Http/Controllers/Admin/CreditopXPaymentController.php"
+    ]
+  },
+  "tablas": ["creditop_x_requests_history", "creditop_x_payments"]
+}

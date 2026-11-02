@@ -1,0 +1,19 @@
+{
+  "node": "mobile/context",
+  "section": "En la app, los canales de compra salen de las sedes del comercio",
+  "text_file": "seccion.md",
+  "kind": "addition",
+  "source": "verified",
+  "verified": "2026-11-02",
+  "as_asked": "¿por qué en la app a un comercio no le sale la opción de hablar con un vendedor?",
+  "objetivo": "Mostrarle al cliente de la app cómo comprar en un comercio: tienda física, venta asistida o sólo el código.",
+  "se_deduce_leyendo": "cómo el tipo de punto de venta y los contactos de cada sede producen los canales y cuál queda por defecto",
+  "archivos": {
+    "Creditop-SAS/creditop_mobile": [
+      "packages/feature_home/lib/domain/entities/purchase_channels.dart",
+      "app/lib/infrastructure/home/datasources/storefronts_datasource.dart",
+      "app/lib/infrastructure/home/datasources/lender_code_datasource.dart",
+      "packages/feature_home/lib/domain/entities/merchant.dart"
+    ]
+  }
+}

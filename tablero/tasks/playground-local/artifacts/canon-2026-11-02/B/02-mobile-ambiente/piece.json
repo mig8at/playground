@@ -1,0 +1,19 @@
+{
+  "node": "mobile/context",
+  "section": "Qué es y cómo encaja en el sistema",
+  "text_file": "seccion.md",
+  "kind": "correction",
+  "source": "verified",
+  "verified": "2026-11-02",
+  "as_asked": "¿contra qué ambiente habla la app móvil y qué rama es la publicada?",
+  "objetivo": "Saber qué versión de la app está publicada y contra qué backend habla cada compilación.",
+  "se_deduce_leyendo": "qué rama se publica, qué valor de ambiente queda versionado y cómo lo fija cada despliegue",
+  "archivos": {
+    "Creditop-SAS/creditop_mobile": [
+      "app/lib/current_environment.dart",
+      "app/lib/config/environment_config.dart",
+      ".github/workflows/deploy-prod.yaml",
+      ".github/workflows/deploy-dev.yaml"
+    ]
+  }
+}

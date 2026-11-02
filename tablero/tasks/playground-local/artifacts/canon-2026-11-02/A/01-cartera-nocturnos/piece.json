@@ -1,0 +1,21 @@
+{
+  "node": "cartera/context",
+  "section": "Los procesos nocturnos: si uno no corre, el crédito se queda como estaba",
+  "text_file": "text.md",
+  "kind": "correction",
+  "source": "verified",
+  "verified": "2026-11-02",
+  "as_asked": "¿si falla la causación de la noche, corren igual el subsidio, los rotativos y los recordatorios?",
+  "objetivo": "Correr cada noche, en orden y a su hora, los comandos que mueven la cartera CreditopX, sin lanzar un paso cuyo antecesor no terminó.",
+  "se_deduce_leyendo": "qué comandos lanza el worker, a qué hora, de cuál depende cada uno y qué pasa cuando uno falla",
+  "archivos": {
+    "loan-servicing": [
+      "internal/modules/nightlyportfolio/core/domain/step.go",
+      "internal/modules/nightlyportfolio/core/domain/status.go",
+      "internal/modules/nightlyportfolio/core/workflows/night_workflow.go"
+    ],
+    "legacy-application": ["app/Console/Kernel.php"],
+    "legacy-backend": ["app/Console/Kernel.php"]
+  },
+  "tablas": ["creditop_x_requests_history"]
+}
