@@ -11,6 +11,7 @@ import { AsyncLocalStorage } from 'node:async_hooks';
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { dirname } from 'node:path';
 import { TARGET, env } from './env.ts';
+import { dbHostBlockReason, dbWriteBlockReason } from './target-policy.ts';
 
 export { TARGET, env };
 
@@ -211,6 +212,11 @@ export function blockReason(sql: string, permission: string, user: number, param
  * `whatTriggers` es sólo para el mensaje: sin eso, el error decía «escritura bloqueada» y no de dónde.
  */
 export function assertWriteAllowed(whatTriggers = '', sql = '', permission = '', user = 0, params: any[] = []): void {
+    // Antes que todo: un ambiente de sólo lectura no se escribe nunca. Va primero porque `isLocalDb()` da
+    // verdadero con el host por defecto (127.0.0.1), y prod sin credenciales escribiría en la base local
+    // diciendo que es prod (`pkg/target-policy.ts`).
+    const readOnly = dbWriteBlockReason(TARGET, env('E2E_TARGET_READONLY'));
+    if (readOnly) throw new Error(`${readOnly}${whatTriggers ? `\n  la disparó: ${whatTriggers}` : ''}`);
     if (isLocalDb()) return;
     if (env('I_KNOW_THIS_TOUCHES_SHARED_DEV') === '1') return;
 
@@ -233,6 +239,8 @@ let _pool: Pool | null = null;
 
 export function pool(): Pool {
     if (_pool) return _pool;
+    const noHost = dbHostBlockReason(TARGET, env('E2E_DB_HOST'));
+    if (noHost) throw new Error(noHost);
     _pool = mysql.createPool({
         host: env('E2E_DB_HOST', '127.0.0.1'),
         port: Number(env('E2E_DB_PORT', '3306')),

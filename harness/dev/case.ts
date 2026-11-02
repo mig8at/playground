@@ -86,6 +86,7 @@ import { credifamiliaTestUser, dateParts, type CredifamiliaTestUser } from '../p
 export {};
 
 process.env.E2E_TARGET ||= 'local';
+(await import('../pkg/env.ts')).refuseReadOnlyTarget('case.ts');
 process.env.CFE_TARGET ||= 'local';
 
 // El desenlace que llega de afuera (rt=0 y rt=1) vive en `pkg/`: lo usan este runner y el panel, y dos

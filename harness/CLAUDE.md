@@ -344,6 +344,16 @@ tampoco dispara con ninguno de los dos valores. *(Vivía en el `CLAUDE.md` raíz
   interactivo (`testIgnore` solo saca `_scratch/` y los reportes — `playwright.config.ts:28`). Pasá rutas.
 - **En toda llamada por API mandá `x-cognito-identity-id`**: sin ese header `update-user-request` pone
   `corporate_user_id = NULL` y te borra el asesor de la solicitud en silencio (F-46).
+- **Qué puede hacer el harness en cada ambiente lo dice UN archivo: `pkg/target-policy.ts`.** Prod (y cualquier
+  target con `E2E_TARGET_READONLY=1`) es de sólo lectura POR REGLA: el `fetch` del proceso (lo instala `pkg/env.ts`)
+  rechaza todo lo que no sea GET/HEAD/OPTIONS, la guarda de la base no escribe ni con
+  `I_KNOW_THIS_TOUCHES_SHARED_DEV`, y `case`, `listing`, `sweep` y `walk-wizard` no arrancan (salida 2); la macro
+  `harness_target` del `Makefile` tampoco acepta `TARGET=prod`. Y un target remoto no le habla al backend local
+  (`http://localhost/api`) ni abre la base sin `E2E_DB_HOST`: las dos son una variable que falta y el resultado sería
+  de local con la etiqueta de otro ambiente. Hasta el 2026-11-02 prod era de sólo lectura por AUSENCIA —el
+  `.env.prod` del harness no traía API ni base, así que `TARGET=prod` corría contra localhost y lo reportaba como
+  prod—. Fuera de la regla: el navegador de Playwright, `bin/pg` (Go, ya de sólo lectura en prod) y
+  `dev/prod-run.ts`, que no importa `env.ts` a propósito: es la única excepción de prod y la corre una persona.
 - **Correr el arnés contra la compartida YA NO pide `I_KNOW_THIS_TOUCHES_SHARED_DEV`.** La guarda sigue
   entera; lo que cambió es que las escrituras del arnés tienen **permisos angostos**
   (`PERMISOS_ANGOSTOS` en `pkg/db.ts`) en vez de necesitar el permiso general, que abría CUALQUIER

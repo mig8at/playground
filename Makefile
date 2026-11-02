@@ -511,8 +511,9 @@ harness-plan: ## @har deja una corrida ARMADA en el panel: aparece arriba de los
 # EL AMBIENTE DE LOS RUNNERS DEL HARNESS: `TARGET=` manda y es obligatorio. Hasta el 2026-11-02 estos cuatro
 # targets no lo pasaban: el runner sólo lee `E2E_TARGET`, cuyo default es `dev`, así que `make harness-case
 # TARGET=local` corría contra la base COMPARTIDA y el bloque de la tarea decía `local`. `E2E_TARGET` exportado
-# sigue valiendo solo, pero si los dos están y no coinciden, no se corre.
-harness_target = $(strip $(if $(and $(TARGET),$(E2E_TARGET)),$(if $(filter-out $(TARGET),$(E2E_TARGET)),$(error TARGET=$(TARGET) y E2E_TARGET=$(E2E_TARGET) no coinciden: dejá uno)))$(or $(TARGET),$(E2E_TARGET),$(error falta TARGET=local|dev|qa|staging: sin él la corrida iría contra dev, que es compartido)))
+# sigue valiendo solo, pero si los dos están y no coinciden, no se corre. Y `prod` no se acepta: todos crean algo
+# (`pkg/target-policy.ts` lo frena también dentro del proceso).
+harness_target = $(strip $(if $(filter prod,$(TARGET) $(E2E_TARGET)),$(error TARGET=prod: estos comandos crean solicitudes y prod es de sólo lectura. Para leer prod: bin/pg sql · request timeline · client state))$(if $(and $(TARGET),$(E2E_TARGET)),$(if $(filter-out $(TARGET),$(E2E_TARGET)),$(error TARGET=$(TARGET) y E2E_TARGET=$(E2E_TARGET) no coinciden: dejá uno)))$(or $(TARGET),$(E2E_TARGET),$(error falta TARGET=local|dev|qa|staging: sin él la corrida iría contra dev, que es compartido)))
 
 harness-listing: ## @har del COMERCIO al listado de entidades, por API y sin browser: ¿cuáles le salen a un cliente y por qué NO las otras? [MERCHANT=pullman] [AMOUNT=2000000] [MD=1 la corrida como anotación fechada, con su comando adentro, para pegar en la tarea] [BLOQUE=<id|slug> la agrega sola, como bloque, a la pila de esa tarea] [TARGET=local|dev|qa|staging obligatorio: el ambiente]
 	@cd harness && E2E_TARGET=$(harness_target) MD=$(MD) BLOQUE=$(BLOQUE) node dev/listing.ts $(if $(MERCHANT),--merchant $(MERCHANT)) $(if $(AMOUNT),--amount $(AMOUNT)) $(if $(BRANCH),--branch $(BRANCH)) $(if $(V2),--v2)

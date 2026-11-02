@@ -55,3 +55,17 @@ export function env(key: string, fallback = ''): string {
 /** Ya no hay herencia entre targets (cada `.env.<target>` es autosuficiente). Se conserva el export
  *  vacío por compatibilidad con quien lo lea (p. ej. `bin/preflight.ts`, que lo muestra). */
 export const INHERITS = '';
+
+// La regla de qué puede hacer el harness en cada ambiente (prod de sólo lectura, nada de backend local
+// con otro target) se instala acá porque casi todo el harness importa este archivo: `pkg/target-policy.ts`.
+import { installFetchGuard, policyFor } from './target-policy.ts';
+installFetchGuard(TARGET, env('E2E_TARGET_READONLY'));
+
+/** Para los runners que CREAN solicitudes: en un ambiente de sólo lectura no arrancan (salida 2). El guard de
+ *  `fetch` ya frenaría cada llamada, pero el aviso quedaba enterrado entre los errores que eso causa. */
+export function refuseReadOnlyTarget(runner: string): void {
+    if (policyFor(TARGET, env('E2E_TARGET_READONLY')).apiWrites) return;
+    console.error(`  ✗ ${runner} crea solicitudes y ${TARGET} es de SÓLO LECTURA: no corre.`
+        + `\n    Para leer ${TARGET}: bin/pg sql · request timeline · client state (pkg/target-policy.ts).`);
+    process.exit(2);
+}

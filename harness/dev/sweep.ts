@@ -33,6 +33,7 @@ import { spawnSync } from 'node:child_process';
 import { readFileSync } from 'node:fs';
 
 process.env.E2E_TARGET ||= 'local';
+(await import('../pkg/env.ts')).refuseReadOnlyTarget('sweep.ts');
 process.env.CFE_TARGET ||= 'local';
 
 /* ⚠ ESTE IMPORT VA DINÁMICO, Y NO ES ESTILO. `pkg/merchants.ts` importa `pkg/db.ts`, que importa

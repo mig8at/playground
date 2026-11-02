@@ -50,6 +50,7 @@
 import '../pkg/cli-aliases.ts';   // los flags viejos (en español) siguen andando: ver ese archivo
 import { synthIdImageUrl } from '../pkg/synth-id-images.ts';
 process.env.E2E_TARGET ||= 'local';
+(await import('../pkg/env.ts')).refuseReadOnlyTarget('walk-wizard.ts');
 export {};
 
 /* ── EL ASESOR DE PRUEBA DEL COMERCIO ─────────────────────────────────────────────────────────────────────────────
