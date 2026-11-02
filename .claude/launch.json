@@ -61,24 +61,24 @@
       "autoPort": false
     },
     {
-      "name": "tests",
+      "name": "ecommerce",
       "runtimeExecutable": "npm",
       "runtimeArgs": [
         "run",
         "dev"
       ],
-      "cwd": "tests",
+      "cwd": "ecommerce",
       "port": 5178,
       "autoPort": false
     },
     {
-      "name": "tests-alt",
+      "name": "ecommerce-alt",
       "runtimeExecutable": "sh",
       "runtimeArgs": [
         "-c",
-        "(cd .. && exec go run ./tests/server -serve 127.0.0.1:5279) & TESTS_API=http://127.0.0.1:5279 exec npx vite --port 5278 --strictPort"
+        "(cd .. && exec go run ./ecommerce/server -serve 127.0.0.1:5279) & ECOMMERCE_API=http://127.0.0.1:5279 exec npx vite --port 5278 --strictPort"
       ],
-      "cwd": "tests",
+      "cwd": "ecommerce",
       "port": 5278,
       "autoPort": false
     },
@@ -301,6 +301,16 @@
         "VITE_PREAPPROVALS_ENDPOINT": "http://localhost:8095/v1/preapprovals/check",
         "VITE_FORM_SERVICE_BASE_URL": "http://localhost:8109"
       }
+    },
+    {
+      "name": "pdf-mapper-editor",
+      "runtimeExecutable": "sh",
+      "runtimeArgs": [
+        "-c",
+        "cd ../github/pdf-mapper-editor && exec npx vite --port 3000 --strictPort --open false"
+      ],
+      "port": 3000,
+      "autoPort": false
     }
   ]
 }
