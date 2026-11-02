@@ -67,7 +67,21 @@ Salvo donde se dice «corrido», salen de LEER el código: falta reproducirlos.
   una solicitud llegó al estado 10 por ahí. Termina con plantillas propias para esa rama o la categoría cerrada.
   Depende de: legal — las versiones sin codeudor del contrato RTO.
 
+- [ ] Crear en Jira el defecto de identidad «registrada previamente», con el borrador ya revisado por el guard en
+  `artifacts/jira-identidad-registrada-previamente.json` (`make jira-create JSON=…`). Verificado en el código de `main`
+  (2026-11-02): identity-service cierra el estado 14 de ADO como rechazo terminal no reintentable y su regla de
+  elegibilidad responde «requiere verificación» sin dejar reintentar; la app lo aprueba sólo en memoria, así que al volver
+  la persona premium queda bloqueada hasta una aprobación de soporte. Falta reproducirlo. Termina con el issue creado y su
+  clave aquí. Depende de: Miguel — revisar el borrador y decidir el proyecto (la app y la identidad son de otro equipo).
+
 ### Media — comportamiento distinto al esperado
+
+- [ ] Crear en Jira el defecto del registro de dispositivos para push sin servicio, con el borrador ya revisado por el
+  guard en `artifacts/jira-push-tokens-sin-servicio.json`. Verificado en el código (2026-11-02): la app (`main-pro`) llama
+  a alta, refresco y baja en `/v1/devices/push-tokens`, y ningún repo implementa esa ruta en `main`; messaging-service
+  sólo envía desde el admin. Termina con el issue creado y su clave aquí. Depende de: Miguel — revisar el borrador y
+  decidir el proyecto.
+
 
 - [ ] Corregir los avisos de entidades del monolito viejo que no son idempotentes ni seguros (legacy-application):
   la guarda de autogestión `$lender->id == 68 && $lender->id == 133` nunca se cumple, así que no rechaza un código
