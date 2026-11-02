@@ -1432,7 +1432,7 @@ function verifyWaits(res: Res[]): Array<{ res: Res; linea: string }> {
 
         if (e.entidades?.length) {
             if (r.listado === undefined) {
-                out.push({ res: r, linea: `${who}: espera entidades en el listado y el listado ni se obtuvo` });
+                out.push({ res: r, linea: `${who}: espera entidades en el listado y el listado ni se obtuvo (${r.conducta ?? ''}${r.detalle ? ` · ${r.detalle}` : ''})` });
             } else {
                 const missing = e.entidades.filter((x) => !r.listado!.includes(x));
                 if (missing.length) {
@@ -1462,7 +1462,7 @@ function verifyWaits(res: Res[]): Array<{ res: Res; linea: string }> {
 
         if (e.noEntidades?.length) {
             if (r.listado === undefined) {
-                out.push({ res: r, linea: `${who}: espera entidades AUSENTES y el listado ni se obtuvo` });
+                out.push({ res: r, linea: `${who}: espera entidades AUSENTES y el listado ni se obtuvo (${r.conducta ?? ''}${r.detalle ? ` · ${r.detalle}` : ''})` });
             } else {
                 const leaked = e.noEntidades.filter((x) => r.listado!.includes(x));
                 if (leaked.length) {

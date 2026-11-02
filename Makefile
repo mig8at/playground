@@ -570,6 +570,9 @@ harness-knowledge: ## @har ¿las reglas de knowledge/ que tienen suite siguen en
 harness-doctor: ## @har ¿el ambiente LOCAL está listo para que una corrida diga la verdad? Ramas de legacy-backend y del front contra origin/main, backend que contesta, artisan y migraciones pendientes, mocks caídos y perfiles CreditopX agotados, cada uno con el comando que lo arregla. Sólo lectura. Sale 1 si algo frena. TARGET=local [JSON=1 harness.doctor/v1 en stdout]
 	@cd harness && E2E_TARGET=$(harness_target) node dev/doctor.ts $(if $(JSON),--json)
 
+harness-regression: ## @har ¿mi cambio rompió OTRO flujo? Corre TODAS las suites del runner de casos (en serie: comparten la base local) después de harness-doctor, y compara cada una con la corrida anterior (`harness/.runs/regression-last.json`): nueva · igual · SE ROMPIÓ · SE ARREGLÓ. Sale 1 si alguna falla, 2 si el ambiente frena. TARGET=local [RESET=1 reinicia antes el cupo local de los perfiles] [ONLY=texto sólo las suites cuyo nombre lo contiene; no guarda] [JSON=1 harness.regression/v1]
+	@cd harness && E2E_TARGET=$(harness_target) node dev/regression.ts $(if $(RESET),--reset) $(if $(ONLY),--only $(ONLY)) $(if $(JSON),--json)
+
 harness-quota-reset: ## @har ⚠ ESCRIBE (sólo local): reinicia el cupo mensual de los perfiles CreditopX (`already_used_loan` en 0), que en local nadie reinicia y las corridas que cierran van agotando. TARGET=local [LENDER=169] [APPLY=1 escribe; sin él sólo muestra]
 	@cd harness && E2E_TARGET=$(harness_target) node dev/quota-reset.ts $(if $(LENDER),--lender $(LENDER)) $(if $(APPLY),--apply)
 
