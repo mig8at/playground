@@ -1,0 +1,34 @@
+{
+  "nombre": "La regla de buró de Prami ordena y cierra la consulta, pero no la saca del listado",
+  "requiere": ["lambda", "parallel"],
+  "porDefecto": {
+    "comercio": "#347f88a7",
+    "lender": null,
+    "amount": 2000000,
+    "income": 2500000,
+    "score": 700
+  },
+  "casos": [
+    {
+      "nombre": "pasa score, negativos y antigüedad: Prami con la consulta abierta",
+      "espera": { "conConsulta": [12] }
+    },
+    {
+      "nombre": "score por debajo del mínimo: sigue en el listado, con la consulta cerrada",
+      "score": 600,
+      "espera": { "sinConsulta": [12] }
+    },
+    {
+      "nombre": "dos meses en el sector: sigue, con la consulta cerrada",
+      "maturation": "2026-09-15",
+      "espera": { "sinConsulta": [12] }
+    },
+    {
+      "nombre": "más cuentas negativas que las permitidas: sigue, con la consulta cerrada",
+      "negatives": 11,
+      "delinquencies": 11,
+      "espera": { "sinConsulta": [12] }
+    }
+  ],
+  "nota": "Sucursal de Corona con la regla de datacrédito de Prami (lender 12): score mínimo 640, hasta 10 cuentas negativas y más de 3 meses en el sector. La regla no excluye: RiskCentralValidationService junta al final las entidades que no la pasan con las que sí (`$false_lenders`). Lo que cambia para Prami, que tiene `requires_preapproval_gate`, es `can_check_preapproval`: sólo queda en true si pasa las tres partes. Ver knowledge/lender-integrations y knowledge/lender-listing."
+}

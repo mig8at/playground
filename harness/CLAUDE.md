@@ -174,7 +174,9 @@ donde se dice otra cosa:
   meses, 1 consulta, 1 tarjeta, sin negativos ni mora), dictado entero con `dictateCase`. Hasta el 2026-11-02 la
   consola dictaba 8 meses y sólo el score: el resto quedaba en el reporte fijo del mock (59 consultas, ninguna
   tarjeta) y CrediPullman caía en «Segunda oportunidad» donde el panel daba Premium. Las suites aceptan las mismas
-  claves, por caso o en `porDefecto`.
+  claves, por caso o en `porDefecto`, y pueden afirmar además `categoria` (por entidad, contra `users_category_log`;
+  `null` es «ninguna») y `conConsulta`/`sinConsulta` (la compuerta de preaprobación de la tarjeta). Las suites que
+  respaldan reglas de `knowledge/` las nombran en su `nota` y el tema dice con qué suite se comprueba.
   En 3a y 2, `AMOUNT`, el score y el ingreso valen para **toda la tanda**: dos montos distintos son dos tandas.
 - **`TARGET=` es obligatorio** en `harness-case`, `-listing`, `-walk-wizard` y `-suite`, y es el que manda. Hasta el
   2026-11-02 esos cuatro no lo pasaban: el runner sólo lee `E2E_TARGET` (default `dev`), así que `TARGET=local`

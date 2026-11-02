@@ -428,6 +428,16 @@ type Wait = {
     estado?: number;          // estado final exacto (11 autorizada, 28 pendiente desembolso, …)
     entidades?: number[];     // estas entidades TIENEN que estar en el listado (subconjunto, no igualdad)
     noEntidades?: number[];   // estas entidades NO pueden estar — para «ya tiene un crédito acá»
+    /** La COMPUERTA DE PREAPROBACIÓN de la tarjeta (`can_check_preapproval`): `conConsulta` exige que estas
+     *  entidades estén en el listado con la consulta habilitada; `sinConsulta`, que estén pero con la consulta
+     *  cerrada («No disponible para tu perfil»). Una entidad AUSENTE no cumple ninguna de las dos: que la
+     *  regla la saque del listado es otro desenlace, y se declara con `noEntidades`. */
+    conConsulta?: number[];
+    sinConsulta?: number[];
+    /** LA CATEGORÍA que asignó el motor de perfiles a cada entidad, leída de `users_category_log` (la fila más
+     *  reciente del cliente para esa entidad): `{"77": "Premium"}`, o `null` para «ninguna categoría aplica».
+     *  Es la aserción de las reglas que no sacan a la entidad del listado pero cambian su oferta. */
+    categoria?: Record<string, string | null>;
     /** Estado de la RADICACIÓN al lender (`CREDIT_COMPLETED`, `CREDIT_ERROR`, …). Es un paso posterior
      *  al estado 11 y puede fallar sin moverlo: exigirlo acá es la única forma de que una suite note
      *  que el crédito quedó autorizado pero nunca se radicó. */
@@ -615,6 +625,8 @@ async function loadSuite(path: string, dflt: { amount: number; income: number; s
 type Res = {
     caso: Case; ok: boolean; ur?: number; phone: string; nombre?: string;
     enListado?: boolean; listado?: number[]; conducta?: string; detalle?: string;
+    /** Lo que la tarjeta de cada entidad trae del listado y alguna aserción mira. */
+    tarjetas?: Record<number, { can_check_preapproval?: unknown; probability?: unknown }>;
     com?: string;
     preaprobados?: { id: number; estado: string; cupo?: unknown }[];
     /** `radicacion` sólo existe cuando la entidad radica por transacción y el caso llegó hasta ahí;
@@ -1140,6 +1152,8 @@ async function traverse(c: Case, i: number): Promise<Res> {
     const raw = lis?.data ?? lis;
     const arr: any[] = Array.isArray(raw) ? raw : Array.isArray(raw?.lenders) ? raw.lenders : [];
     base.listado = arr.map((x) => Number(x.id ?? x.lender_id)).filter(Boolean);
+    base.tarjetas = Object.fromEntries(arr.map((x) => [Number(x.id ?? x.lender_id),
+        { can_check_preapproval: x.can_check_preapproval, probability: x.probability }]));
 
     // LO QUE HARÍA EL FRONT. Sin esto la corrida termina en el listado y la pre-aprobación NO ocurre
     // —sin fallar, que es lo peor (F-141)—. Se dispara una por entidad elegible y en paralelo, igual
@@ -1203,6 +1217,38 @@ async function traverse(c: Case, i: number): Promise<Res> {
  * salió bien y cada vez costó escribir la consulta. Acá queda declarada, y falla CERRADO: si la
  * solicitud no se creó, «no lo verifiqué» cuenta como desvío, igual que en `verifyWaits`.
  */
+/**
+ * LA CATEGORÍA, como aserción: lo que el motor de perfiles dejó en `users_category_log` para el cliente
+ * del caso, la fila más reciente por entidad. Contra la base y fallando cerrado, como el país: sin
+ * solicitud, o sin fila para esa entidad, es un desvío. `null` declara «ninguna categoría aplica»
+ * (`lender_users_category_id = 0`).
+ */
+async function verifyCategories(res: Res[]): Promise<Array<{ res: Res; linea: string }>> {
+    const out: Array<{ res: Res; linea: string }> = [];
+    for (const r of res) {
+        const e = r.caso.espera?.categoria;
+        if (!e) continue;
+        const who = r.caso.nombre ?? `${r.caso.comercio}${r.caso.lender ? ':' + r.caso.lender : ''}`;
+        if (!r.ur) { out.push({ res: r, linea: `${who}: espera \`categoria\` y la solicitud ni se creó (${r.detalle ?? 'sin detalle'})` }); continue; }
+        for (const [lender, want] of Object.entries(e)) {
+            const row = await one<{ cat: number; name: string | null }>(
+                `SELECT ucl.lender_users_category_id AS cat, c.name AS name
+                   FROM users_category_log ucl
+                   JOIN user_requests ur ON ur.user_id = ucl.user_id
+                   LEFT JOIN lender_users_categories c ON c.id = ucl.lender_users_category_id
+                  WHERE ur.id = ? AND ucl.lender_id = ?
+                  ORDER BY ucl.id DESC LIMIT 1`, [r.ur, Number(lender)]).catch(() => null);
+            if (!row) { out.push({ res: r, linea: `${who}: espera categoría para la entidad ${lender} y el motor no dejó ninguna fila` }); continue; }
+            const got = Number(row.cat) === 0 ? null : row.name;
+            if (got !== want) {
+                out.push({ res: r, linea: `${who}: la entidad ${lender} quedó en ${got === null ? 'ninguna categoría' : `«${got}»`}`
+                    + ` y se esperaba ${want === null ? 'ninguna' : `«${want}»`}` });
+            }
+        }
+    }
+    return out;
+}
+
 async function verifyCountries(res: Res[]): Promise<Array<{ res: Res; linea: string }>> {
     const out: Array<{ res: Res; linea: string }> = [];
     for (const r of res) {
@@ -1268,6 +1314,25 @@ function verifyWaits(res: Res[]): Array<{ res: Res; linea: string }> {
                 const missing = e.entidades.filter((x) => !r.listado!.includes(x));
                 if (missing.length) {
                     out.push({ res: r, linea: `${who}: faltaron en el listado [${missing.join(', ')}] — vino [${r.listado.join(', ')}]` });
+                }
+            }
+        }
+
+        for (const [key, open] of [['conConsulta', true], ['sinConsulta', false]] as const) {
+            const ids = e[key];
+            if (!ids?.length) continue;
+            if (r.listado === undefined) {
+                out.push({ res: r, linea: `${who}: espera \`${key}\` y el listado ni se obtuvo` });
+                continue;
+            }
+            for (const id of ids) {
+                const card = r.tarjetas?.[id];
+                if (!card) {
+                    out.push({ res: r, linea: `${who}: esperaba la entidad ${id} ${open ? 'CON' : 'SIN'} consulta de preaprobación`
+                        + ` y no estaba en el listado — vino [${r.listado.join(', ')}]` });
+                } else if ((card.can_check_preapproval === true) !== open) {
+                    out.push({ res: r, linea: `${who}: la entidad ${id} llegó con can_check_preapproval=${String(card.can_check_preapproval)}`
+                        + ` y se esperaba ${open}` });
                 }
             }
         }
@@ -1686,7 +1751,7 @@ async function main(): Promise<number> {
     console.log(`\n  ${res.length - badList}/${res.length} cerraron · ${((Date.now() - t0) / 1000).toFixed(1)}s`);
     await reconcileWithDb(baseline, res.length - badList);
 
-    const deviations = [...verifyWaits(res), ...await verifyCountries(res)];
+    const deviations = [...verifyWaits(res), ...await verifyCountries(res), ...await verifyCategories(res)];
     if (deviations.length) {
         console.log('\n  ⚠ NO CUMPLIERON LO QUE DECLARAN:\n');
         for (const d of deviations) console.log(`      · ${d.linea}`);

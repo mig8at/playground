@@ -18,6 +18,10 @@ sin perder el historial que explica decisiones pasadas. Cada etapa tiene su jueg
 `lender_users_category_type_id`: titular inicial (1), titular extendida (2, la que tiene formulario) y
 codeudor.
 
+Qué categoría quedó se lee en `users_category_log` (la fila más reciente por entidad; 0 es «ninguna»), y
+se comprueba corriendo con `make harness-suite TARGET=local SUITE=harness/suites/categorias-creditopx.json`,
+que mueve un dato del buró por caso (consultas, tarjetas, negativos, meses de aportes).
+
 ## De la capacidad mensual al cupo
 
 La capacidad mensual del perfil se convierte en cupo con la fórmula de anualidad sobre el plazo

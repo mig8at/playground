@@ -15,8 +15,14 @@ el sector. Si no, el listado de legacy-backend envía `can_check_preapproval = f
 queda «No disponible para tu perfil», sin selección ni reintento. Las entidades sin la marca no pueden
 salir en false por ese camino.
 
+No pasar la regla **no saca a Prami del listado**: como cualquier regla de datacrédito, la deja al final
+(ver `lender-listing`), y lo que cambia es que la consulta queda cerrada.
+
 Un webhook tardío de Prami no saca a una solicitud de Autorizada (ver `user-request-lifecycle`), y
 cada nueva consulta genera un `order_id` nuevo en Prami (CORE-738).
+
+Se comprueba corriendo con `make harness-suite TARGET=local SUITE=harness/suites/compuerta-prami.json`:
+un cliente que pasa, y uno por cada parte de la regla que falla.
 
 ## Welli: cuatro variantes, Sonría aparte y dos mapas de estado
 

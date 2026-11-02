@@ -1,0 +1,34 @@
+{
+  "nombre": "El buró decide la categoría de CrediPullman, no su presencia en el listado",
+  "requiere": ["lambda", "parallel"],
+  "porDefecto": {
+    "comercio": "pullman",
+    "lender": null,
+    "amount": 2000000,
+    "income": 2500000,
+    "score": 700
+  },
+  "casos": [
+    {
+      "nombre": "cliente por defecto (1 consulta, 1 tarjeta, 13 meses): Premium",
+      "espera": { "entidades": [77], "categoria": { "77": "Premium" } }
+    },
+    {
+      "nombre": "8 meses de aportes: sin continuidad de 12, y Premium no la exige",
+      "months": 8,
+      "espera": { "entidades": [77], "categoria": { "77": "Premium" } }
+    },
+    {
+      "nombre": "59 consultas y ninguna tarjeta (el reporte fijo del mock): Segunda oportunidad",
+      "consulted": 59,
+      "cards": 0,
+      "espera": { "entidades": [77], "categoria": { "77": "Segunda oportunidad" } }
+    },
+    {
+      "nombre": "3 negativos: ninguna categoría, y la entidad sigue en el listado",
+      "negatives": 3,
+      "espera": { "entidades": [77], "categoria": { "77": null } }
+    }
+  ],
+  "nota": "Las categorías se leen de users_category_log (la fila más reciente por entidad). El tercer caso es lo que recibía toda corrida por consola hasta el 2026-11-02, cuando harness-case dictaba sólo el score: el cliente caía en Segunda oportunidad (cuota inicial) sin decirlo. Ver knowledge/lender-profile-rules."
+}
