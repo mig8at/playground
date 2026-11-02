@@ -39,6 +39,7 @@ const StaleDays = 14
 type list struct {
 	Indexed     map[string]string `json:"indexed"`
 	CitableOnly map[string]string `json:"citable_only"`
+	Branches    map[string]string `json:"branches"`
 	Extensions  []string          `json:"extensions"`
 }
 
@@ -47,6 +48,7 @@ type Client struct {
 	Playground string
 	indexed    map[string]string // lo que se indexa: repos de la compañía y herramientas propias
 	citable    map[string]string // indexed + playground y playground-equipo, que una tarea cita
+	branches   map[string]string // carpeta → rama de producción, cuando no es `main`
 	exts       map[string]bool
 	order      []string // los alias indexados en el orden de la lista, que es el orden en que se recorren
 	loadErr    error
@@ -60,7 +62,7 @@ type refChoice struct{ ref, reason string }
 
 // New recibe la carpeta `tools/` del playground; `layout.Find().Tools()` dice dónde está.
 func New(tools string) *Client {
-	c := &Client{Playground: filepath.Dir(tools), indexed: map[string]string{}, citable: map[string]string{}, exts: map[string]bool{}}
+	c := &Client{Playground: filepath.Dir(tools), indexed: map[string]string{}, citable: map[string]string{}, branches: map[string]string{}, exts: map[string]bool{}}
 	raw, err := os.ReadFile(filepath.Join(tools, "repos.json"))
 	if err != nil {
 		c.loadErr = fmt.Errorf("no pude leer la lista de repos: %w", err)
@@ -78,6 +80,11 @@ func New(tools string) *Client {
 	c.order = keyOrder(raw, "indexed")
 	for alias, path := range l.CitableOnly {
 		c.citable[alias] = c.expand(path)
+	}
+	for alias, branch := range l.Branches {
+		if root, ok := c.citable[alias]; ok {
+			c.branches[root] = branch
+		}
 	}
 	for _, e := range l.Extensions {
 		c.exts[e] = true
@@ -226,13 +233,20 @@ func (c *Client) RefreshRemotes(timeout time.Duration) []string {
  * «main» local no alcanza: medido el 2026-09-18, `legacy-backend` estaba 14 commits detrás de
  * `origin/main`. Pero «siempre origin/main» es igual de falso: playground va ADELANTE de su origin a
  * propósito, porque el push lo decide Miguel. La regla que sirve para los dos es la relación: se mira
- * la ref que CONTIENE a la otra. ⚠ NO HACE FETCH: resuelve con lo que hay en disco. */
+ * la ref que CONTIENE a la otra. ⚠ NO HACE FETCH: resuelve con lo que hay en disco.
+ *
+ * La rama es `main` salvo que `branches` de la lista diga otra: en `creditop_mobile` producción es
+ * `main-pro` y su `main` quedó parado el 2026-10-15, así que mirarlo devolvería una app vieja sin avisar. */
 func (c *Client) RefToIndex(root string) (string, string) {
 	if cached, ok := c.refs.Load(root); ok {
 		choice := cached.(refChoice)
 		return choice.ref, choice.reason
 	}
-	ref, reason := refToIndex(root, "main")
+	branch := "main"
+	if b, ok := c.branches[root]; ok {
+		branch = b
+	}
+	ref, reason := refToIndex(root, branch)
 	c.refs.Store(root, refChoice{ref, reason})
 	return ref, reason
 }

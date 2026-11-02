@@ -37,7 +37,7 @@ func main() {
 			usage()
 		}
 		root := args[1]
-		if path, ok := client.Indexed()[root]; ok {
+		if path, ok := client.Citable()[root]; ok {
 			root = path
 		}
 		ref, reason := client.RefToIndex(root)

@@ -16,3 +16,18 @@ func TestIndexedOrderFollowsTheFile(t *testing.T) {
 		t.Errorf("orden = %s", got)
 	}
 }
+
+// Un repo cuya rama de producción no es `main` se resuelve contra esa rama, no contra un `main` parado.
+func TestBranchOverridesMain(t *testing.T) {
+	dir := t.TempDir()
+	repo := filepath.Join(dir, "app")
+	for _, args := range [][]string{{"init", "-q", "-b", "main", repo}, {"-C", repo, "commit", "-q", "--allow-empty", "-m", "a"}, {"-C", repo, "branch", "main-pro"}} {
+		if code, _ := git(dir, 10e9, args...); code != 0 {
+			t.Skip("sin git utilizable")
+		}
+	}
+	os.WriteFile(filepath.Join(dir, "repos.json"), []byte(`{"indexed":{},"citable_only":{"app":"`+repo+`"},"branches":{"app":"main-pro"},"extensions":[".go"]}`), 0o644)
+	if ref, _ := New(dir).RefToIndex(repo); ref != "main-pro" {
+		t.Errorf("ref = %q, quería main-pro", ref)
+	}
+}
