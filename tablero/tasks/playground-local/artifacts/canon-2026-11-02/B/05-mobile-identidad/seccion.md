@@ -1,4 +1,4 @@
-**La app sólo exige verificar la identidad para lo premium de Salud Financiera.** La verificación (selfie y documento por ambas caras con ADO, a través del servicio de identidad) aparece como compuerta antes del diagnóstico completo; la versión gratuita entra sin verificarse. Un documento que el proveedor no sabe leer tampoco pasa la compuerta, aunque el servicio no marque que haga falta verificar.
+**La app sólo exige verificar la identidad para lo premium de Salud Financiera.** La verificación (selfie y documento por ambas caras con ADO, a través del servicio de identidad) aparece como compuerta antes del diagnóstico completo; la versión gratuita no pasa por esa compuerta. Un documento que el proveedor no sabe leer tampoco pasa la compuerta, aunque el servicio no marque que haga falta verificar.
 
 El servicio de identidad decide con una sola regla el estado de la cuenta y si deja empezar un intento:
 

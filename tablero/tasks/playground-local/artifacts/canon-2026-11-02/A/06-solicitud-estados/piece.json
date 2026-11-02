@@ -9,14 +9,18 @@
   "objetivo": "Saber si una solicitud terminó, con o sin crédito, o sigue esperando algo, y leer su estado sin depender de un número que cambia entre ambientes.",
   "se_deduce_leyendo": "cómo agrupan los estados los dos monolitos, qué constantes tienen nombres engañosos y qué acciones bloquea cada grupo",
   "archivos": {
-    "legacy-backend": [
+    "Creditop-SAS/legacy-backend": [
       "app/Models/UserRequestStatus.php",
       "Modules/Partner/App/Services/UserRequestManagementService.php"
     ],
-    "legacy-application": [
+    "Creditop-SAS/legacy-application": [
       "app/Support/Users/UserDisableGuard.php",
       "app/Models/UserRequestStatus.php"
     ]
   },
-  "tablas": ["user_requests", "user_request_statuses", "user_request_records"]
+  "tablas": [
+    "user_requests",
+    "user_request_statuses",
+    "user_request_records"
+  ]
 }
