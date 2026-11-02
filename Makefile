@@ -567,6 +567,9 @@ harness-posthog-errors: ## @har qué pantallas del front fallan en el ambiente y
 harness-knowledge: ## @har ¿las reglas de knowledge/ que tienen suite siguen en pie CORRIENDO? Corre cada suite que un tema cita (`SUITE=harness/suites/x.json` en su prosa) y dice, por tema, cuál cumple. TARGET=local [TOPIC=lender-profile-rules] [LIST=1 sólo qué temas tienen suite y cuáles sólo están leídos]
 	@cd harness && $(if $(LIST),,E2E_TARGET=$(harness_target)) node dev/knowledge-suites.ts $(if $(TOPIC),--topic $(TOPIC)) $(if $(LIST),--list)
 
+harness-doctor: ## @har ¿el ambiente LOCAL está listo para que una corrida diga la verdad? Ramas de legacy-backend y del front contra origin/main, backend que contesta, artisan y migraciones pendientes, mocks caídos y perfiles CreditopX agotados, cada uno con el comando que lo arregla. Sólo lectura. Sale 1 si algo frena. TARGET=local [JSON=1 harness.doctor/v1 en stdout]
+	@cd harness && E2E_TARGET=$(harness_target) node dev/doctor.ts $(if $(JSON),--json)
+
 harness-quota-reset: ## @har ⚠ ESCRIBE (sólo local): reinicia el cupo mensual de los perfiles CreditopX (`already_used_loan` en 0), que en local nadie reinicia y las corridas que cierran van agotando. TARGET=local [LENDER=169] [APPLY=1 escribe; sin él sólo muestra]
 	@cd harness && E2E_TARGET=$(harness_target) node dev/quota-reset.ts $(if $(LENDER),--lender $(LENDER)) $(if $(APPLY),--apply)
 
