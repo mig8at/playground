@@ -1,0 +1,152 @@
+{
+  "version": 1,
+  "title": "Entidades integradas: reglas propias de cada una",
+  "summary": "Reglas por entidad con su porqué en Jira: la compuerta de buró de Prami, las cuatro variantes de Welli con Sonría aparte y el mapa de estados distinto en cada monolito, los reintentos de Meddipay, Sistecrédito oculto al moroso y en Energiteca, el NIT de Corbeta que marca el canal en Bancolombia BNPL, los estados de Crédito 365, UMA y la probabilidad oculta por convenio.",
+  "reviewedAt": "2026-11-02T16:19:23+00:00",
+  "sources": [
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/Onboarding/App/Services/lenders/RiskCentralValidationService.php",
+      "commit": "69920f580f62ad35f0a555e3b8b8f2c247d758aa",
+      "blob": "81f9e92a11c0e8b6de6f9843e873b4d619e2b134",
+      "sections": [
+        "prami-solo-se-consulta-si-pasa-sus-reglas-de-buro"
+      ]
+    },
+    {
+      "repo": "application",
+      "path": "app/Http/Controllers/Api/PramiController.php",
+      "commit": "1755ab4fa3a50cac5669cdff4826131979a15def",
+      "blob": "e1a178b971b69876a3c89ec85188660f336985ce",
+      "sections": [
+        "prami-solo-se-consulta-si-pasa-sus-reglas-de-buro"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "app/Actions/Lenders/Welli.php",
+      "commit": "69920f580f62ad35f0a555e3b8b8f2c247d758aa",
+      "blob": "be9e6cbf7f2918d3123b5e8c5ec680b6838a3fc7",
+      "sections": [
+        "welli-cuatro-variantes-sonria-aparte-y-dos-mapas-de-estado"
+      ]
+    },
+    {
+      "repo": "application",
+      "path": "app/Actions/Lenders/Welli.php",
+      "commit": "1755ab4fa3a50cac5669cdff4826131979a15def",
+      "blob": "93bdb449f2686144bb077592a4e40a0815f842c2",
+      "sections": [
+        "welli-cuatro-variantes-sonria-aparte-y-dos-mapas-de-estado"
+      ]
+    },
+    {
+      "repo": "application",
+      "path": "app/Http/Controllers/Api/WelliController.php",
+      "commit": "1755ab4fa3a50cac5669cdff4826131979a15def",
+      "blob": "12f80c1ab81d9f5be96f4990472696e861cfb43a",
+      "sections": [
+        "welli-cuatro-variantes-sonria-aparte-y-dos-mapas-de-estado"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/Onboarding/App/Services/UserRequestService.php",
+      "commit": "69920f580f62ad35f0a555e3b8b8f2c247d758aa",
+      "blob": "59d9df68806a6a1db8dc35f55cc6a19fd66dfb6b",
+      "sections": [
+        "welli-cuatro-variantes-sonria-aparte-y-dos-mapas-de-estado"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "app/Actions/Lenders/Meddipay.php",
+      "commit": "69920f580f62ad35f0a555e3b8b8f2c247d758aa",
+      "blob": "d23588e839c1a7b20a435eee6691c51f8c66ca50",
+      "sections": [
+        "meddipay-reintentos-solo-ante-caidas"
+      ]
+    },
+    {
+      "repo": "application",
+      "path": "app/Actions/Lenders/Meddipay.php",
+      "commit": "1755ab4fa3a50cac5669cdff4826131979a15def",
+      "blob": "b0fc93d8d7358c8b130770f4845058cb4babf23c",
+      "sections": [
+        "meddipay-reintentos-solo-ante-caidas"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/Onboarding/App/Services/lenders/PreApprovedLenderService.php",
+      "commit": "69920f580f62ad35f0a555e3b8b8f2c247d758aa",
+      "blob": "ebcf8cc1fc7425c42dd15efe1e19d34984139c1a",
+      "sections": [
+        "sistecredito-se-oculta-al-moroso"
+      ]
+    },
+    {
+      "repo": "application",
+      "path": "app/Services/lenders/PreApprovedLenderService.php",
+      "commit": "1755ab4fa3a50cac5669cdff4826131979a15def",
+      "blob": "38879f56087e88ec42971946581fd8f9a9a6d19a",
+      "sections": [
+        "sistecredito-se-oculta-al-moroso"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "app/Actions/Lenders/BancolombiaBnpl.php",
+      "commit": "69920f580f62ad35f0a555e3b8b8f2c247d758aa",
+      "blob": "a6276e820f27cf51554fbf9e25f72a85074f79c1",
+      "sections": [
+        "bancolombia-bnpl-el-canal-va-en-el-nit-de-corbeta"
+      ]
+    },
+    {
+      "repo": "pre-approvals-service",
+      "path": "internal/infra/lending_products/credito365/adapter.go",
+      "commit": "8bfbee92f31a2520c94e371971d469cb399dc7a2",
+      "blob": "3d6a48524cd96e40df2959412085297f840acaf3",
+      "sections": [
+        "credito-365-el-estado-va-en-el-cuerpo-no-en-el-http"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/Partner/App/Services/UserRequestManagementService.php",
+      "commit": "69920f580f62ad35f0a555e3b8b8f2c247d758aa",
+      "blob": "69c25adcd59a7f818caa5452b9128727ebf7425d",
+      "sections": [
+        "uma-el-aliado-que-gestiona-por-su-propio-endpoint"
+      ]
+    },
+    {
+      "repo": "application",
+      "path": "app/Http/Controllers/Customer/UserRequestController.php",
+      "commit": "1755ab4fa3a50cac5669cdff4826131979a15def",
+      "blob": "b5e3f9ac409434e391a721b3cc453d93662f8573",
+      "sections": [
+        "uma-el-aliado-que-gestiona-por-su-propio-endpoint"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/Onboarding/App/Services/lenders/LenderRetrievalService.php",
+      "commit": "69920f580f62ad35f0a555e3b8b8f2c247d758aa",
+      "blob": "aeb7c50ddd1e854c80fc088591439cc64769ca20",
+      "sections": [
+        "probabilidad-oculta-por-convenio"
+      ]
+    },
+    {
+      "repo": "application",
+      "path": "app/Http/Controllers/Admin/AlliedLenderController.php",
+      "commit": "1755ab4fa3a50cac5669cdff4826131979a15def",
+      "blob": "c938cc8e7dea9ade9b2e3ef7da993f030109ed94",
+      "sections": [
+        "probabilidad-oculta-por-convenio"
+      ]
+    }
+  ]
+}

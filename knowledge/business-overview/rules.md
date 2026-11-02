@@ -6,6 +6,10 @@ entidades le pueden financiar esa compra, lo lleva por la validación y la firma
 Este tema es el mapa: nombra las piezas, dice cómo encajan y remite al tema que explica cada una.
 Cada afirmación tiene su fuente, pero el detalle y los límites están en el tema enlazado.
 
+El porqué de negocio que el código no dice (quién trabaja en qué, decisiones de producto, modelo
+comercial, lo que más se rompe en soporte, lo que viene) está en [business-context.md](../business-context.md),
+sacado de Jira y sin verificar en código salvo donde lo indica.
+
 Para ir directo a una pregunta:
 
 | pregunta | tema |
@@ -18,6 +22,7 @@ Para ir directo a una pregunta:
 | ¿cómo se firma? | `deceval-promissory-note`, `cosigner-signature` |
 | ¿qué pasa con el crédito CreditopX después? | `creditopx-payment-application`, `creditopx-portfolio-servicing`, `weekly-collection-reminders`, `device-locking` |
 | ¿qué hace la app del cliente? | `creditop-mobile` |
+| ¿qué reglas propias tiene cada entidad (Prami, Welli, Meddipay, Sistecrédito, Bancolombia…)? | `lender-integrations` |
 | ¿cómo entra una tienda online o un código? | `ecommerce-context`, `client-code-redemption`, `purchase-code-lifecycle` |
 | ¿cómo se da de alta un comercio y su convenio? | `merchant-onboarding`, `merchant-lender-agreement`, `admin-panel` |
 

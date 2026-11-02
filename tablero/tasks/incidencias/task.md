@@ -76,6 +76,15 @@ Salvo donde se dice «corrido», salen de LEER el código: falta reproducirlos.
 
 ### Media — comportamiento distinto al esperado
 
+- [ ] Decidir con negocio a qué estado va `pendiente_desembolso` de Welli. Verificado en `main` (2026-11-02):
+  legacy-application lo lleva a 28 (Pendiente desembolso) y legacy-backend a 11 (Autorizada), con un TODO de paridad
+  que advierte que marca como desembolsado un crédito que no lo está y llena `final_amount`. El de legacy-backend corre
+  cuando el asistente nuevo reselecciona Welli. Termina con los dos mapas iguales. Depende de: negocio — confirmar el estado.
+- [ ] Decidir qué hacer con la auditoría de cambios de usuarios y solicitudes en la migración. Verificado en `main`
+  (2026-11-02): legacy-application registra antes y después, IP y agente en la tabla `log` con `ModelActivityLogger`
+  sobre `User` y `UserRequest`; legacy-backend no tiene ese trait, así que lo que se edita por el sistema nuevo no
+  queda auditado. Termina con la decisión de portarlo o reemplazarlo.
+
 - [ ] Crear en Jira el defecto del registro de dispositivos para push sin servicio, con el borrador ya revisado por el
   guard en `artifacts/jira-push-tokens-sin-servicio.json`. Verificado en el código (2026-11-02): la app (`main-pro`) llama
   a alta, refresco y baja en `/v1/devices/push-tokens`, y ningún repo implementa esa ruta en `main`; messaging-service
@@ -144,6 +153,11 @@ Salvo donde se dice «corrido», salen de LEER el código: falta reproducirlos.
 - [ ] Corregir el comentario de `AbacoConsultStateResolver` («vale 1 mes»): el código usa 7 días por defecto.
 
 ### Seguridad — decidir con el equipo
+
+- [ ] Rotar y borrar de Jira los secretos en texto plano que vio el barrido del 2026-11-02 (no se copió ningún valor):
+  credenciales de Twilio para República Dominicana en CRED-46, la llave interna del bloqueo de equipos en CRED-134 y un
+  certificado de Deceval en CRED-69. Termina con los secretos rotados y los issues editados. Depende de: Miguel /
+  infraestructura — rotar.
 
 - [ ] ⚠ URGENTE · Cerrar la inyección de objetos PHP del checkout ecommerce: `POST ecommerce-request/create/{partner_id}`
   (legacy-backend, grupo sin autenticación en `Modules/Onboarding/routes/api.php`) llama a `unserialize()` sin

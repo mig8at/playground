@@ -119,3 +119,22 @@ nombre) en la misma transacción, con `final_amount` igual a lo cobrado e `initi
 la vía y el id de la transacción en `user_request_records`. Es **la única excepción** a que 11 no
 retrocede: si el pago se reversa y no queda ninguna vía aprobada, la solicitud sale de 11 a 8
 (Cancelado), porque la plata volvió al cliente.
+
+## Links que vencen: continuación y aprobación manual
+
+El link con el que el cliente retoma una solicitud (`/self-service/{hash}/{id}/confirmation`) puede
+vencer. Al enviarlo, legacy-backend escribe un marcador en `user_request_additional_information`
+(`type_data = link_expiration`, con `expires_at`), y al abrirlo responde **410** si venció; no
+cambia el estado de la solicitud. La política vive en el setting `link_expiration_config`: una lista
+de entidades donde aplica (`enabled_lender_ids`, sembrada vacía, así que se prende entidad por entidad
+sin deploy) y la vigencia en minutos (1440 por defecto). Si no puede evaluar, falla abierto: no corta
+el crédito por un problema propio.
+
+Las entidades con `lender_requirements.manual_approval` dejan la solicitud en «Pendiente aprobación
+manual» hasta que alguien de la entidad decide en el admin de legacy-application. Aprobar la pasa a
+«Pendiente de formalización» y rechazar, a Negada; los estados se buscan por nombre. Al aprobar se
+manda por WhatsApp el **mismo link**, con vigencia de 3 horas, y sólo si la solicitud tiene menos de
+30 días; si es más vieja la decisión se guarda igual pero no se envía nada. Las dos claves viven en la
+misma fila de `link_expiration_config` (`manual_approval_ttl_minutes`,
+`manual_approval_max_request_age_days`), y como es la misma URL, el último link enviado es el que
+manda (CRED-443).

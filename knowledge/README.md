@@ -53,3 +53,6 @@ regla de `main` por aparecer en una tarea antigua.
 Cuando cambie una fuente, revisá la explicación antes de actualizar sus hashes. Si una pregunta
 depende de producto o negocio y no se puede comprobar localmente, consultá su fuente documental
 —Canon puede ser una— y conservá esa incertidumbre en la tarea.
+
+`business-context.md` no es un tema: junta el contexto de negocio que sólo cuenta Jira (decisiones,
+modelo comercial, soporte, lo que viene), con sus claves y sin verificar en código salvo donde lo dice.
