@@ -54,23 +54,23 @@ const blocking = computed(() => props.plan.stages.flatMap((s) => s.items).filter
 .summary { margin: 0 0 var(--space-3); font-weight: 600 }
 .stages { list-style: none; margin: 0; padding: 0 }
 .stage { position: relative; padding: 0 0 var(--space-4) 32px; --c: var(--fg-3) }
-.stage[data-state="ok"] { --c: var(--tests-ok) }
-.stage[data-state="block"] { --c: var(--tests-warn) }
+.stage[data-state="ok"] { --c: var(--ecommerce-ok) }
+.stage[data-state="block"] { --c: var(--ecommerce-warn) }
 /* La línea que une una etapa con la siguiente. */
 .stage:not(:last-child)::before { content: ''; position: absolute; left: 9px; top: 20px; bottom: 0; width: 2px; background: var(--border) }
-.stage[data-state="ok"]:not(:last-child)::before { background: var(--tests-ok) }
+.stage[data-state="ok"]:not(:last-child)::before { background: var(--ecommerce-ok) }
 .node { position: absolute; left: 0; top: 0; width: 20px; height: 20px; border-radius: 50%; border: 2px solid var(--c);
-  background: var(--background); display: grid; place-items: center; font-size: 11px; font-weight: 700; color: var(--tests-ok-ink, var(--background)) }
-.stage[data-state="ok"] .node { background: var(--tests-ok) }
+  background: var(--background); display: grid; place-items: center; font-size: 11px; font-weight: 700; color: var(--ecommerce-ok-ink, var(--background)) }
+.stage[data-state="ok"] .node { background: var(--ecommerce-ok) }
 .stage-head { display: flex; align-items: baseline; gap: var(--space-2); min-height: 20px }
 .stage-title { font-weight: 600 }
 .count { color: var(--fg-3); font-size: var(--text-sm) }
 .items { list-style: none; margin: var(--space-1) 0 0; padding: 0; display: grid; gap: 2px }
 .item { display: flex; align-items: baseline; gap: var(--space-2); font-size: var(--text-sm); line-height: 1.5 }
 .mark { flex: none; width: 14px; text-align: center; font-weight: 700; color: var(--fg-3) }
-.item[data-state="ok"] .mark { color: var(--tests-ok) }
+.item[data-state="ok"] .mark { color: var(--ecommerce-ok) }
 .item[data-state="ok"] .text { color: var(--fg-3) }
-.item[data-state="block"] .mark { color: var(--tests-warn) }
+.item[data-state="block"] .mark { color: var(--ecommerce-warn) }
 .by { flex: none; margin-left: auto; padding: 0 var(--space-2); border: 1px solid var(--border); border-radius: 999px;
   font-size: 11px; color: var(--fg-3); white-space: nowrap }
 .legend { display: flex; gap: var(--space-4); margin: 0; padding-top: var(--space-2); border-top: 1px solid var(--border) }

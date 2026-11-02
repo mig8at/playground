@@ -5,7 +5,7 @@ package main
  * (JUAN CARLOS PEREZ GOMEZ) y la identidad sale de una cascada que no se probó (ver el tema
  * identity-name-validation).
  *
- * Vive en tests/.profile.json, fuera de git: lleva datos de una persona. El dictado no se reescribe acá: lo hace
+ * Vive en ecommerce/.profile.json, fuera de git: lleva datos de una persona. El dictado no se reescribe acá: lo hace
  * el harness (`harness/bin/bureaus-profile.ts`, sobre `pkg/risk-lambda.ts`), el mismo código que usa el panel,
  * así hay una sola forma de dictar. */
 
@@ -47,17 +47,17 @@ type ProfileLoad struct {
 
 var reDoc = regexp.MustCompile(`^\d{5,15}$`)
 
-func profilePath() string { return filepath.Join(repoRoot(), "tests", ".profile.json") }
+func profilePath() string { return filepath.Join(repoRoot(), "ecommerce", ".profile.json") }
 
 // ReadProfile lee el perfil por defecto y completa lo que falte con los mismos valores por defecto del harness.
 func ReadProfile() (Profile, error) {
 	data, err := os.ReadFile(profilePath())
 	if err != nil {
-		return Profile{}, fmt.Errorf("no hay perfil: creá tests/.profile.json con {\"document\": \"…\", \"name\": \"…\"}")
+		return Profile{}, fmt.Errorf("no hay perfil: creá ecommerce/.profile.json con {\"document\": \"…\", \"name\": \"…\"}")
 	}
 	var p Profile
 	if err := json.Unmarshal(data, &p); err != nil {
-		return Profile{}, fmt.Errorf("tests/.profile.json no es JSON válido: %w", err)
+		return Profile{}, fmt.Errorf("ecommerce/.profile.json no es JSON válido: %w", err)
 	}
 	return p.normalized()
 }
@@ -101,7 +101,7 @@ func (p Profile) normalized() (Profile, error) {
 // nunca en la base.
 func LoadProfile(target string, given *Profile) (*ProfileLoad, error) {
 	if !validTarget(target) {
-		return nil, fmt.Errorf("ambiente %q: tests mira %s", target, strings.Join(Targets, " o "))
+		return nil, fmt.Errorf("ambiente %q: ecommerce mira %s", target, strings.Join(Targets, " o "))
 	}
 	var p Profile
 	var err error

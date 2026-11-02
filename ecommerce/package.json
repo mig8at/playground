@@ -1,10 +1,10 @@
 {
-  "name": "creditop-tests",
+  "name": "creditop-ecommerce",
   "private": true,
   "type": "module",
   "scripts": {
     "dev": "concurrently -k -n server,web -c green,cyan \"npm:dev:server\" \"npm:dev:web\"",
-    "dev:server": "cd .. && go run ./tests/server -serve 127.0.0.1:5179",
+    "dev:server": "cd .. && go run ./ecommerce/server -serve 127.0.0.1:5179",
     "dev:web": "vite",
     "build": "vite build"
   },

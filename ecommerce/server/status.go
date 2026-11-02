@@ -38,7 +38,7 @@ type StatusChange struct {
 // SimulateStatus le pide al backend del ambiente que pase la solicitud a un estado final.
 func SimulateStatus(target string, request, status int) (*StatusChange, error) {
 	if !validTarget(target) {
-		return nil, fmt.Errorf("ambiente %q: tests mira %s", target, strings.Join(Targets, " o "))
+		return nil, fmt.Errorf("ambiente %q: ecommerce mira %s", target, strings.Join(Targets, " o "))
 	}
 	if _, ok := FinalStatuses[status]; !ok {
 		return nil, fmt.Errorf("estado %d: el simulador sólo acepta 11, 6, 8 o 7", status)
@@ -86,9 +86,9 @@ func SimulateStatus(target string, request, status int) (*StatusChange, error) {
 	return change, nil
 }
 
-// journalStatus deja constancia del cambio junto a los borrados, en tests/.deletions.ndjson.
+// journalStatus deja constancia del cambio junto a los borrados, en ecommerce/.deletions.ndjson.
 func journalStatus(c *StatusChange) {
-	f, err := os.OpenFile(filepath.Join(repoRoot(), "tests", ".deletions.ndjson"), os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0o600)
+	f, err := os.OpenFile(filepath.Join(repoRoot(), "ecommerce", ".deletions.ndjson"), os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0o600)
 	if err != nil {
 		return
 	}

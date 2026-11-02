@@ -1,10 +1,10 @@
-// Command tests dice qué pasó con una solicitud de prueba: de qué comercio viene, qué mandó la tienda, a qué
+// Command ecommerce dice qué pasó con una solicitud de prueba: de qué comercio viene, qué mandó la tienda, a qué
 // usuario quedó pegada y con qué datos, y por qué estados pasó, contra local o qa. Lee siempre; borra una
 // solicitud de prueba sólo con `-delete -confirm` (ver delete.go, que lleva las guardas).
 //
-//	go run ./tests/server -target qa -q 3016992677                                      la búsqueda, en JSON (también la URL del wizard o el número)
-//	go run ./tests/server -serve 127.0.0.1:5179                                         la API de la interfaz
-//	go run ./tests/server -target local -q 467513 -delete [-phone] [-free-users] [-rollback] -confirm 467513
+//	go run ./ecommerce/server -target qa -q 3016992677                                      la búsqueda, en JSON (también la URL del wizard o el número)
+//	go run ./ecommerce/server -serve 127.0.0.1:5179                                         la API de la interfaz
+//	go run ./ecommerce/server -target local -q 467513 -delete [-phone] [-free-users] [-rollback] -confirm 467513
 //	                       sin -confirm sólo muestra el plan; con -rollback borra todo y lo deshace al final
 //
 // CONVENCIÓN: identificadores en inglés, comentarios y texto visible en español.
@@ -31,7 +31,7 @@ func main() {
 	phone := flag.Bool("phone", false, "con -delete: todas las solicitudes del celular de esa solicitud")
 	confirm := flag.String("confirm", "", "con -delete: el número de la solicitud (o el celular, con -phone)")
 	rollback := flag.Bool("rollback", false, "con -delete: hace todo dentro de la transacción y la deshace")
-	loadProfile := flag.Bool("load-profile", false, "le dicta a las centrales del ambiente el perfil de tests/.profile.json")
+	loadProfile := flag.Bool("load-profile", false, "le dicta a las centrales del ambiente el perfil de ecommerce/.profile.json")
 	purge := flag.Int("purge-user", 0, "borra del todo a ese usuario (cliente dado de baja, sin solicitudes), con respaldo; con -rollback lo deshace")
 	disable := flag.Int("disable-user", 0, "da de baja a ese usuario (cliente, activo), con respaldo; con -rollback lo deshace")
 	freeUsers := flag.Bool("free-users", false, "con -delete: además da de baja a los usuarios del celular (con -phone) o al de la solicitud si era su última")
@@ -40,7 +40,7 @@ func main() {
 	if *loadProfile {
 		out, err := LoadProfile(*target, nil)
 		if err != nil {
-			fmt.Fprintln(os.Stderr, "tests:", err)
+			fmt.Fprintln(os.Stderr, "ecommerce:", err)
 			os.Exit(1)
 		}
 		_ = json.NewEncoder(os.Stdout).Encode(out)
@@ -49,7 +49,7 @@ func main() {
 	if *purge > 0 {
 		out, err := PurgeUser(*target, *purge, strconv.Itoa(*purge), *rollback)
 		if err != nil {
-			fmt.Fprintln(os.Stderr, "tests:", err)
+			fmt.Fprintln(os.Stderr, "ecommerce:", err)
 			os.Exit(1)
 		}
 		_ = json.NewEncoder(os.Stdout).Encode(out)
@@ -58,7 +58,7 @@ func main() {
 	if *disable > 0 {
 		out, err := DisableUser(*target, *disable, strconv.Itoa(*disable), *rollback)
 		if err != nil {
-			fmt.Fprintln(os.Stderr, "tests:", err)
+			fmt.Fprintln(os.Stderr, "ecommerce:", err)
 			os.Exit(1)
 		}
 		_ = json.NewEncoder(os.Stdout).Encode(out)
@@ -66,21 +66,21 @@ func main() {
 	}
 	if *addr != "" {
 		if err := serve(*addr); err != nil {
-			fmt.Fprintln(os.Stderr, "tests:", err)
+			fmt.Fprintln(os.Stderr, "ecommerce:", err)
 			os.Exit(1)
 		}
 		return
 	}
 	in, err := ParseInput(*query)
 	if err != nil {
-		fmt.Fprintln(os.Stderr, "tests:", err)
+		fmt.Fprintln(os.Stderr, "ecommerce:", err)
 		os.Exit(2)
 	}
 	// Con celular, -delete actúa sobre su solicitud más nueva (la misma que muestra la búsqueda).
 	if *del && in.Who != "" {
 		res, err := Lookup(*target, in)
 		if err != nil {
-			fmt.Fprintln(os.Stderr, "tests:", err)
+			fmt.Fprintln(os.Stderr, "ecommerce:", err)
 			os.Exit(1)
 		}
 		in = res.Input
@@ -95,7 +95,7 @@ func main() {
 		out, err = Lookup(*target, in)
 	}
 	if err != nil {
-		fmt.Fprintln(os.Stderr, "tests:", err)
+		fmt.Fprintln(os.Stderr, "ecommerce:", err)
 		os.Exit(1)
 	}
 	enc := json.NewEncoder(os.Stdout)
@@ -132,7 +132,7 @@ func handler() http.Handler {
 		defer cancel()
 		writeJSON(w, http.StatusOK, MeasureStoreBranches(ctx))
 	})
-	// POST /api/stores/start?store=shopify|vtex · /api/stores/stop?store=… — levanta o para lo que corre desde tests.
+	// POST /api/stores/start?store=shopify|vtex · /api/stores/stop?store=… — levanta o para lo que corre desde ecommerce.
 	for _, action := range []string{"start", "stop"} {
 		action := action
 		mux.HandleFunc("/api/stores/"+action, func(w http.ResponseWriter, r *http.Request) {
@@ -216,7 +216,7 @@ func handler() http.Handler {
 		}
 		writeJSON(w, http.StatusOK, res)
 	})
-	// GET /api/profile — el perfil de prueba (tests/.profile.json). POST /api/profile/load {target} — se lo dicta a
+	// GET /api/profile — el perfil de prueba (ecommerce/.profile.json). POST /api/profile/load {target} — se lo dicta a
 	// las centrales del ambiente, por el harness.
 	mux.HandleFunc("/api/profile", func(w http.ResponseWriter, r *http.Request) {
 		p, err := ReadProfile()
@@ -335,10 +335,10 @@ func serve(addr string) error {
 		return err
 	}
 	if ip := net.ParseIP(host); host != "localhost" && (ip == nil || !ip.IsLoopback()) {
-		return fmt.Errorf("tests sólo escucha en esta máquina (127.0.0.1 o localhost), no en %q", host)
+		return fmt.Errorf("ecommerce sólo escucha en esta máquina (127.0.0.1 o localhost), no en %q", host)
 	}
 	stopStoresOnExit()
-	fmt.Fprintf(os.Stderr, "tests · API en http://%s\n", addr)
+	fmt.Fprintf(os.Stderr, "ecommerce · API en http://%s\n", addr)
 	return http.ListenAndServe(addr, handler())
 }
 

@@ -1,9 +1,9 @@
 <script setup>
-/* tests · la interfaz. Se escribe el celular del cliente de prueba (también sirve la URL del wizard o el número de la
+/* ecommerce · la interfaz. Se escribe el celular del cliente de prueba (también sirve la URL del wizard o el número de la
  * solicitud y dice, contra local o qa: de qué comercio y sucursal viene, qué mandó la tienda, a qué usuario
  * quedó pegada y con qué datos, y por qué estados pasó.
  *
- * Todo sale de la API en Go (`tests/server`): acá no se calcula nada, se pinta. Lo único que escribe es la
+ * Todo sale de la API en Go (`ecommerce/server`): acá no se calcula nada, se pinta. Lo único que escribe es la
  * basura (borrar una solicitud de prueba y lo que cuelga), y las guardas viven en el servidor (delete.go). Los avisos
  * («la tienda mandó otro nombre», «el celular lo tienen dos usuarios») también los arma el servidor.
  * El ambiente y la búsqueda viven en la URL; el tamaño de las regiones, en el navegador. */
@@ -20,7 +20,7 @@ import PendingWorkflow from './PendingWorkflow.vue'
 
 const DEFAULT_TARGET = 'qa'
 const TARGET_LABEL = { local: 'local · tu Docker', qa: 'qa · la base compartida de dev, qa y staging', prod: 'prod · sólo lectura, por Redash' }
-// En prod tests sólo lee: el servidor rechaza toda escritura y la interfaz no ofrece ninguna.
+// En prod ecommerce sólo lee: el servidor rechaza toda escritura y la interfaz no ofrece ninguna.
 const READ_ONLY = new Set(['prod'])
 // Estados finales: el color del estado en la consola y en la banda.
 const FINAL = { 11: 'ok', 5: 'ok', 6: 'fail', 7: 'fail', 8: 'fail' }
@@ -70,7 +70,7 @@ async function lookup() {
     if (mine !== seq) return
     result.value = null
     error.value = e.message === 'Failed to fetch'
-      ? 'No contesta la API. ¿Está arriba? (make tests levanta las dos partes)' : e.message
+      ? 'No contesta la API. ¿Está arriba? (make ecommerce levanta las dos partes)' : e.message
   } finally {
     if (mine === seq) loading.value = false
   }
@@ -244,7 +244,7 @@ const storeView = ref(null) // { store: 'VTEX', kind: 'diagram' | 'pending' }
 watch(() => result.value, () => { storeView.value = null })
 // Las vistas del sidebar, como en canon: cada una se pliega y una cerrada ocupa una fila. Lo abierto se recuerda en este
 // navegador; sin almacenamiento, arrancan Solicitudes y la primera tienda abiertas.
-const SIDEBAR_VIEWS_KEY = 'tests.sidebar-views'
+const SIDEBAR_VIEWS_KEY = 'ecommerce.sidebar-views'
 const sidebarViews = ref((() => {
   try { return JSON.parse(localStorage.getItem(SIDEBAR_VIEWS_KEY) || 'null') || { requests: true } } catch { return { requests: true } }
 })())
@@ -270,7 +270,7 @@ const links = computed(() => {
 // La tienda acepta UN resultado: con la sesión de pago ya resuelta o rechazada, la app de Shopify ignora el
 // segundo aviso, y la base quedaría distinta del pedido. Así que en una solicitud que ya se pasó sólo
 // queda el enlace de vuelta a la tienda, y se recuerda en este navegador para que aguante recargas.
-const MOVED_KEY = 'tests.moved'
+const MOVED_KEY = 'ecommerce.moved'
 function readMoved() { try { return JSON.parse(localStorage.getItem(MOVED_KEY) || '{}') || {} } catch { return {} } }
 const movedLog = ref(readMoved()) // { 'qa:504068': { status, name, at } }
 // La llave es solicitud + PEDIDO: una compra nueva con el mismo celular, sucursal y monto reabre la misma solicitud
@@ -320,7 +320,7 @@ watch([() => result.value?.request?.id, target], ([id]) => { if (moved.value && 
 // La basura va en todo cliente; una cuenta del equipo (administrador, asesor, operaciones…) no se toca acá.
 const isClient = (p) => String(p.user_profile_id) === '1'
 
-// ── el perfil de prueba (tests/.profile.json): un botón le dicta a las centrales del ambiente que contesten
+// ── el perfil de prueba (ecommerce/.profile.json): un botón le dicta a las centrales del ambiente que contesten
 // esa persona, antes de lanzar la compra. El dictado lo hace el harness ──
 const profile = ref(null)
 const profileLoad = ref(null) // { running, error, result }
@@ -390,7 +390,7 @@ const tablesTotal = computed(() => tables.value.reduce((n, t) => n + t.rows, 0))
 // prueba; lo que se prende o apaga a mano se recuerda en el navegador, por nombre de tabla ──
 const NOISY = /(^|_)logs?($|_)|audit|outbox/
 const isNoisy = (name) => NOISY.test(name)
-const TABLES_KEY = 'tests.tables'
+const TABLES_KEY = 'ecommerce.tables'
 function readTablePrefs() {
   try { return JSON.parse(localStorage.getItem(TABLES_KEY) || '{}') } catch { return {} }
 }
@@ -465,7 +465,7 @@ async function copyQuery() {
   try { await navigator.clipboard.writeText(openQuery.value); copied.value = true; setTimeout(() => { copied.value = false }, 1500) } catch { /* sin portapapeles */ }
 }
 // El semáforo de las tiendas de prueba (`/api/stores`): se mide mientras la pestaña Tiendas está abierta. El botón
-// levanta en segundo plano lo que eran comandos de consola, y lo para si lo levantó tests.
+// levanta en segundo plano lo que eran comandos de consola, y lo para si lo levantó ecommerce.
 const STORE_NAMES = { shopify: 'Shopify', vtex: 'VTEX' }
 const stores = ref([])
 const storesError = ref('')
@@ -550,7 +550,7 @@ const NOISE_WHEN_EMPTY = {
 // Se ocultan siempre: no son datos de la prueba sino un secreto derivado.
 const NEVER_SHOWN = { ecommerce_requests: new Set(['verification_token_hash']) }
 // «Mostrar todas las columnas» trae todo de vuelta; la preferencia se recuerda en el navegador.
-const ALL_COLUMNS_KEY = 'tests.all-columns'
+const ALL_COLUMNS_KEY = 'ecommerce.all-columns'
 const allColumns = ref((() => { try { return localStorage.getItem(ALL_COLUMNS_KEY) === '1' } catch { return false } })())
 watch(allColumns, (v) => { try { localStorage.setItem(ALL_COLUMNS_KEY, v ? '1' : '0') } catch { /* sólo no se recuerda */ } })
 const isEmptyValue = (v) => v === null || v === undefined || v === '' || v === '[]' || v === '{}'
@@ -576,12 +576,12 @@ watch(target, () => { deleted.value = null; writeRoute(true); lookup() })
 watch([query, req], () => { writeRoute(true); lookup() })
 
 // ── las regiones: las búsquedas a la izquierda y los estados abajo, con el contrato de la base ──
-const sidebarOpen = ref(readSize('tests.sidebar-open', 1) !== 0)
-const sidebarW = ref(readSize('tests.sidebar-w', 300))
-const panelOpen = ref(readSize('tests.panel-open', 1) !== 0)
-const panelH = ref(readSize('tests.panel-h', 200))
-const auxW = ref(readSize('tests.aux-w', 380))
-const auxOpen = ref(readSize('tests.aux-open', 1) !== 0)
+const sidebarOpen = ref(readSize('ecommerce.sidebar-open', 1) !== 0)
+const sidebarW = ref(readSize('ecommerce.sidebar-w', 300))
+const panelOpen = ref(readSize('ecommerce.panel-open', 1) !== 0)
+const panelH = ref(readSize('ecommerce.panel-h', 200))
+const auxW = ref(readSize('ecommerce.aux-w', 380))
+const auxOpen = ref(readSize('ecommerce.aux-open', 1) !== 0)
 const viewportW = ref(window.innerWidth)
 const viewportH = ref(window.innerHeight)
 const onWindowResize = () => { viewportW.value = window.innerWidth; viewportH.value = window.innerHeight }
@@ -607,7 +607,7 @@ const sidebarResize = {
   get: () => shown.value.sidebar,
   set: (v) => { if (!v) sidebarOpen.value = false; else { sidebarOpen.value = true; sidebarW.value = v } },
   reopen: () => sidebarW.value,
-  commit: (v) => { saveSize('tests.sidebar-open', v ? 1 : 0); if (v) saveSize('tests.sidebar-w', sidebarW.value) },
+  commit: (v) => { saveSize('ecommerce.sidebar-open', v ? 1 : 0); if (v) saveSize('ecommerce.sidebar-w', sidebarW.value) },
 }
 const auxResize = {
   label: 'Ancho del panel derecho', sign: -1, defaultValue: 380,
@@ -616,7 +616,7 @@ const auxResize = {
   get: () => shown.value.aux,
   set: (v) => { if (!v) { openTable.value = null; openCell.value = null; auxOpen.value = false } else { auxOpen.value = true; auxW.value = v } },
   reopen: () => auxW.value,
-  commit: (v) => { saveSize('tests.aux-open', v ? 1 : 0); if (v) saveSize('tests.aux-w', auxW.value) },
+  commit: (v) => { saveSize('ecommerce.aux-open', v ? 1 : 0); if (v) saveSize('ecommerce.aux-w', auxW.value) },
 }
 const panelResize = {
   label: 'Alto de los estados', axis: 'y', sign: -1, defaultValue: 200,
@@ -625,11 +625,11 @@ const panelResize = {
   get: () => shown.value.panel,
   set: (v) => { if (!v) panelOpen.value = false; else { panelOpen.value = true; panelH.value = v } },
   reopen: () => panelH.value,
-  commit: (v) => { saveSize('tests.panel-open', v ? 1 : 0); if (v) saveSize('tests.panel-h', panelH.value) },
+  commit: (v) => { saveSize('ecommerce.panel-open', v ? 1 : 0); if (v) saveSize('ecommerce.panel-h', panelH.value) },
 }
-function toggleSidebar() { sidebarOpen.value = !shown.value.sidebar; saveSize('tests.sidebar-open', sidebarOpen.value ? 1 : 0) }
-function toggleAux() { auxOpen.value = !shown.value.aux; if (!auxOpen.value) { openTable.value = null; openCell.value = null }; saveSize('tests.aux-open', auxOpen.value ? 1 : 0) }
-function togglePanel() { panelOpen.value = !shown.value.panel; saveSize('tests.panel-open', panelOpen.value ? 1 : 0) }
+function toggleSidebar() { sidebarOpen.value = !shown.value.sidebar; saveSize('ecommerce.sidebar-open', sidebarOpen.value ? 1 : 0) }
+function toggleAux() { auxOpen.value = !shown.value.aux; if (!auxOpen.value) { openTable.value = null; openCell.value = null }; saveSize('ecommerce.aux-open', auxOpen.value ? 1 : 0) }
+function togglePanel() { panelOpen.value = !shown.value.panel; saveSize('ecommerce.panel-open', panelOpen.value ? 1 : 0) }
 
 const themeToggle = ref(null)
 let themeBinding = null
@@ -747,7 +747,7 @@ onBeforeUnmount(() => {
     </main>
     <main v-else class="editor">
       <div class="region-head">
-        <span>{{ r?.request ? `Solicitud ${r.request.id}` : r ? r.input.who : 'tests' }}</span>
+        <span>{{ r?.request ? `Solicitud ${r.request.id}` : r ? r.input.who : 'ecommerce' }}</span>
         <span v-if="r?.request && r.input.who" class="count">{{ r.input.who }}</span>
         <span v-if="r?.request" class="count">{{ r.request.status_id }} · {{ r.request.status }}</span>
         <div v-if="r?.request" class="region-actions">
@@ -892,7 +892,7 @@ onBeforeUnmount(() => {
           <p v-if="!openQuery" class="none">Leyendo…</p>
           <template v-else>
             <pre class="sql"><code>{{ openQuery }}</code></pre>
-            <p class="none">Sólo lee. Es la misma condición con que tests cuenta y borra las filas de esta tabla. <span v-if="copied" class="ok">Copiada.</span></p>
+            <p class="none">Sólo lee. Es la misma condición con que ecommerce cuenta y borra las filas de esta tabla. <span v-if="copied" class="ok">Copiada.</span></p>
           </template>
         </div>
       </template>
@@ -983,7 +983,7 @@ onBeforeUnmount(() => {
         </template>
         <template v-else>
           <h3><code>{{ docTable }}</code></h3>
-          <p class="muted">Todavía no tiene descripción. Se agrega en <code>tests/src/table-docs.js</code>.</p>
+          <p class="muted">Todavía no tiene descripción. Se agrega en <code>ecommerce/src/table-docs.js</code>.</p>
         </template>
       </div>
       <div v-else-if="panelTab === 'stores'" class="region-body store-commands">
@@ -992,7 +992,7 @@ onBeforeUnmount(() => {
           <div class="store-state-head">
             <i class="dot" :data-state="st.ready ? 'ok' : 'fail'" aria-hidden="true"></i>
             <h3>{{ STORE_NAMES[st.store] }}</h3>
-            <span class="muted small">{{ st.ready ? 'lista para comprar' : 'falta algo' }}{{ st.external ? ' · corre en otra terminal' : st.managed ? ` · levantada desde tests a las ${st.started}` : '' }}</span>
+            <span class="muted small">{{ st.ready ? 'lista para comprar' : 'falta algo' }}{{ st.external ? ' · corre en otra terminal' : st.managed ? ` · levantada desde ecommerce a las ${st.started}` : '' }}</span>
             <button v-if="st.managed" type="button" class="btn btn-xs btn-outline" :disabled="storeBusy === st.store" @click="storeAction(st.store, 'stop')">Parar</button>
             <button v-else-if="!st.external" type="button" class="btn btn-xs" :disabled="storeBusy === st.store" @click="storeAction(st.store, 'start')">{{ storeBusy === st.store ? 'Levantando…' : 'Levantar' }}</button>
             <button v-if="st.log.length" type="button" class="btn-link small" @click="storeLogOpen = storeLogOpen === st.store ? '' : st.store">{{ storeLogOpen === st.store ? 'Ocultar salida' : 'Ver salida' }}</button>
@@ -1065,7 +1065,7 @@ onBeforeUnmount(() => {
           </label>
           <p v-if="del.users && del.plan.users.some((u) => u.protected)" class="hot">El usuario no se puede dar de baja: {{ del.plan.users.find((u) => u.protected).protected }}.</p>
           <p v-if="del.users && del.plan.users.some((u) => u.warning)" class="warn">⚠ El usuario {{ del.plan.users.find((u) => u.warning).warning }}.</p>
-          <p class="muted small">Antes de borrar se guarda una copia de cada fila en <code>tests/.backups/</code>.</p>
+          <p class="muted small">Antes de borrar se guarda una copia de cada fila en <code>ecommerce/.backups/</code>.</p>
           <p v-if="del.plan.blocked" class="hot">{{ del.plan.blocked }}</p>
         </template>
         <p v-if="del.error" class="hot">{{ del.error }}</p>
@@ -1138,7 +1138,7 @@ onBeforeUnmount(() => {
 /* Lo que la base no da. Bandas, filas, grupos, avisos, tablas, líneas de log y pie son de workbench.css. */
 .theme-toggle { margin-right: var(--space-1) }
 .none { margin: 0; padding: var(--space-2) var(--gutter); color: var(--fg-3); font-size: var(--text-sm) }
-.hot { color: var(--tests-fail) }
+.hot { color: var(--ecommerce-fail) }
 .muted { color: var(--fg-3) }
 code { font-family: var(--font-mono); font-size: var(--text-sm) }
 code.wrap { word-break: break-all }
@@ -1152,8 +1152,8 @@ code.wrap { word-break: break-all }
 .sidebar .row .row-meta { max-width: 45%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap }
 /* Los avisos: el de la base con la barra en ámbar (no cuadra) o en el color de la marca (para saber). */
 .warnings { display: flex; flex-direction: column; gap: var(--space-1); padding: var(--space-2) var(--gutter) }
-.alert[data-level="warn"] { border-left-color: var(--tests-warn); background: color-mix(in oklab, var(--tests-warn) 10%, transparent) }
-.alert[data-level="warn"] .alert-icon { color: var(--tests-warn) }
+.alert[data-level="warn"] { border-left-color: var(--ecommerce-warn); background: color-mix(in oklab, var(--ecommerce-warn) 10%, transparent) }
+.alert[data-level="warn"] .alert-icon { color: var(--ecommerce-warn) }
 .alert-desc p { color: var(--foreground) }
 /* Clave y valor en dos columnas; el valor que contradice a la tienda va en rojo. */
 .kv { display: grid; grid-template-columns: minmax(120px, 180px) 1fr; column-gap: var(--space-3); row-gap: var(--space-1);
@@ -1164,15 +1164,15 @@ code.wrap { word-break: break-all }
 .table .dot { margin-right: var(--space-1) }
 /* El estado es un punto (un <i>: la base estira todo <span> de una fila). */
 .dot { display: inline-block; flex: none; width: 8px; height: 8px; border-radius: 50%; background: var(--fg-3) }
-.dot[data-state="ok"] { background: var(--tests-ok) }
-.dot[data-state="fail"] { background: var(--tests-fail) }
+.dot[data-state="ok"] { background: var(--ecommerce-ok) }
+.dot[data-state="fail"] { background: var(--ecommerce-fail) }
 .row .dot { margin-right: var(--space-2) }
 /* La consola: hora, punto, estado y quién lo movió. La línea sin registro va atenuada y en cursiva. */
 .log-line { display: flex; gap: var(--space-2); align-items: baseline }
 .log-line .dot { align-self: center }
 .log-line .status { flex: none; min-width: 200px }
 .log-line .what { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--fg-2) }
-.log-line.ghost .what { font-style: italic; color: var(--tests-warn) }
+.log-line.ghost .what { font-style: italic; color: var(--ecommerce-warn) }
 /* Los enlaces y botones de una tienda en el sidebar son filas como las demás. */
 .sidebar a.row { color: inherit; text-decoration: none }
 .sidebar button.row { width: 100%; border: 0; background: none; color: inherit; font: inherit; text-align: left; cursor: pointer }
@@ -1186,14 +1186,14 @@ code.wrap { word-break: break-all }
 .confirm-dialog p { margin: 0 0 var(--space-2); line-height: 1.5 }
 .confirm-dialog .checkbox-row { align-items: flex-start; margin-bottom: var(--space-2) }
 .confirm-actions { display: flex; justify-content: flex-end; gap: var(--space-2); margin-top: var(--space-3) }
-/* El rojo es el de tests, no `--destructive`: en el tema Darkmatter ése es un verde azulado apagado. */
-.btn-danger { background: var(--tests-fail); color: var(--tests-fail-ink) }
-.btn-danger:hover { background: color-mix(in oklab, var(--tests-fail) 88%, transparent) }
+/* El rojo es el de ecommerce, no `--destructive`: en el tema Darkmatter ése es un verde azulado apagado. */
+.btn-danger { background: var(--ecommerce-fail); color: var(--ecommerce-fail-ink) }
+.btn-danger:hover { background: color-mix(in oklab, var(--ecommerce-fail) 88%, transparent) }
 /* El aviso de lo borrado, arriba del editor, con su ✕. */
 .alert.done { margin: var(--space-2) var(--gutter) 0; width: auto; grid-template-columns: 1fr auto }
 .alert.done .alert-desc { grid-column: 1 }
 .alert.done > .region-action { grid-column: 2; grid-row: 1 }
-.alert[data-level="ok"] { border-left-color: var(--tests-ok); background: color-mix(in oklab, var(--tests-ok) 10%, transparent) }
+.alert[data-level="ok"] { border-left-color: var(--ecommerce-ok); background: color-mix(in oklab, var(--ecommerce-ok) 10%, transparent) }
 /* Cada tabla de la solicitud: su título (un botón que abre la consulta) y sus filas con todas las columnas.
    Las tablas son anchas (user_requests tiene ~40 columnas): scrollea la tabla, no el editor. */
 .db-table { margin: 0 0 var(--space-3) }
@@ -1220,7 +1220,7 @@ code.wrap { word-break: break-all }
 /* La consulta, en el sidebar derecho: mono, que se corta en renglones y se puede seleccionar. */
 .sql { margin: 0; padding: var(--space-3) var(--gutter); white-space: pre-wrap; word-break: break-word;
   font-family: var(--font-mono); font-size: var(--text-sm); line-height: 1.6; user-select: text }
-.ok { color: var(--tests-ok) }
+.ok { color: var(--ecommerce-ok) }
 /* Las tablas de la consola: una casilla por tabla, en columnas que se acomodan al ancho. */
 .table-toggle { display: inline-flex; width: 280px; padding: 2px var(--gutter); gap: var(--space-2) }
 .table-toggle code { font-size: var(--text-sm) }
@@ -1247,14 +1247,14 @@ code.wrap { word-break: break-all }
 .branch-pr { font-size: 12px }
 .branch-envs { display: inline-flex; gap: 4px; margin-left: auto }
 .branch-env { padding: 0 6px; border-radius: var(--radius-sm); border: 1px solid var(--border); color: var(--muted-foreground); font-size: 11px }
-.branch-env.on { border-color: var(--tests-ok); color: var(--tests-ok) }
+.branch-env.on { border-color: var(--ecommerce-ok); color: var(--ecommerce-ok) }
 /* El perfil de prueba en la barra: quién, el botón y una línea por central. */
 .profile { display: flex; flex-direction: column; align-items: flex-start; gap: var(--space-1); padding: var(--space-2) var(--gutter) var(--space-3) }
 .profile p { margin: 0 }
 .profile { align-items: stretch }
 .profile .btn { align-self: flex-start }
 .field-row { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-2) }
-.warn { color: var(--tests-warn) }
+.warn { color: var(--ecommerce-warn) }
 .small { font-size: var(--text-sm) }
 .cell-action { width: 32px; text-align: right }
 </style>

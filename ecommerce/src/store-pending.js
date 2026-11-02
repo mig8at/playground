@@ -24,9 +24,9 @@ export const STORE_PENDING = {
         items: [
           { text: '1 · Aprobar y mergear el PR #349 a main (todo el admin de la tarea)', blocks: true, by: 'Oscar' },
           { text: '2 · Taguear legacy-application para desplegar a producción', blocks: true, by: 'Miguel' },
-          { text: '3 · Admin de prod: en un comercio de prueba de Creditop, crear la sucursal ecommerce de prueba, ponerla en Vtex y emitir su token versión 5 (guardar hash y token en tests/.env)', blocks: true, by: 'Miguel' },
+          { text: '3 · Admin de prod: en un comercio de prueba de Creditop, crear la sucursal ecommerce de prueba, ponerla en Vtex y emitir su token versión 5 (guardar hash y token en ecommerce/.env)', blocks: true, by: 'Miguel' },
           { text: '4 · VTEX master: afiliación «Creditop prod» (v5, modo Production) con ese hash y token, y su condición de pago apagada', blocks: true, by: 'Miguel' },
-          { text: '5 · Prueba en prod: apagar «Creditop qa», prender «Creditop prod», comprar hasta el wizard, verla en tests (prod) y volver las condiciones', blocks: true, by: 'Miguel' },
+          { text: '5 · Prueba en prod: apagar «Creditop qa», prender «Creditop prod», comprar hasta el wizard, verla en ecommerce (prod) y volver las condiciones', blocks: true, by: 'Miguel' },
           { text: '6 · Homologación de la 5.0.0 en VTEX para que otras cuentas la instalen (preguntar si la 4.x pasó por eso)', blocks: true, by: 'VTEX · Oscar' },
           { text: '7 · Primer comercio: sucursal ecommerce de Mario Hernández con su token versión 5 y la afiliación en su cuenta', blocks: true, by: 'Comercial' },
         ],

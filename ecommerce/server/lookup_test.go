@@ -93,7 +93,7 @@ func TestProdOnlyReads(t *testing.T) {
 		"LoadProfile":    func() error { _, err := LoadProfile("prod", nil); return err },
 	}
 	for name, call := range writes {
-		if err := call(); err == nil || !strings.Contains(err.Error(), "tests mira local o qa") {
+		if err := call(); err == nil || !strings.Contains(err.Error(), "ecommerce mira local o qa") {
 			t.Errorf("%s aceptó prod: %v", name, err)
 		}
 	}

@@ -86,7 +86,7 @@ type StoreStatus struct {
 	Store    string   `json:"store"`
 	Ready    bool     `json:"ready"`
 	Checks   []Check  `json:"checks"`
-	Managed  bool     `json:"managed"`  // lo levantó tests y lo puede parar
+	Managed  bool     `json:"managed"`  // lo levantó ecommerce y lo puede parar
 	External bool     `json:"external"` // corre en otra terminal
 	Started  string   `json:"started,omitempty"`
 	Exited   string   `json:"exited,omitempty"`
@@ -259,7 +259,7 @@ func StoreState(store string) (*StoreStatus, error) {
 // StartStore levanta la tienda en segundo plano. Se niega si ya corre (acá o en otra terminal).
 func StartStore(store string) error {
 	if p := procOf(store); p != nil && p.running() {
-		return fmt.Errorf("ya está corriendo desde tests")
+		return fmt.Errorf("ya está corriendo desde ecommerce")
 	}
 	var cmd *exec.Cmd
 	switch store {
@@ -358,9 +358,9 @@ func (p *storeProc) pointExtension(tunnel string) {
 	cmd := exec.Command("npm", "run", "--silent", "extension:url", "--", tunnel)
 	cmd.Dir = githubRepo("shopify")
 	out, err := cmd.CombinedOutput()
-	p.log("tests › " + strings.TrimSpace(string(out)))
+	p.log("ecommerce › " + strings.TrimSpace(string(out)))
 	if err != nil {
-		p.log("tests › no se pudo apuntar la extensión: " + err.Error())
+		p.log("ecommerce › no se pudo apuntar la extensión: " + err.Error())
 	}
 }
 
@@ -368,7 +368,7 @@ func (p *storeProc) pointExtension(tunnel string) {
 func StopStore(store string) error {
 	p := procOf(store)
 	if p == nil || !p.running() {
-		return fmt.Errorf("no hay nada levantado desde tests (si corre en otra terminal, se para ahí)")
+		return fmt.Errorf("no hay nada levantado desde ecommerce (si corre en otra terminal, se para ahí)")
 	}
 	return syscall.Kill(-p.cmd.Process.Pid, syscall.SIGTERM)
 }

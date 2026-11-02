@@ -1,13 +1,13 @@
-# tests · probar una compra de tienda en qa de punta a punta
+# ecommerce · probar una compra de tienda en qa de punta a punta
 
-Una compra de prueba en Shopify o VTEX contra qa, mirada y cerrada desde `tests`: qué comercio, qué mandó la tienda,
+Una compra de prueba en Shopify o VTEX contra qa, mirada y cerrada desde `ecommerce`: qué comercio, qué mandó la tienda,
 a qué usuario quedó pegada, sus tablas, y pasarla a aprobada, negada o cancelada como si la entidad hubiera
 contestado. Todo contra la base compartida de dev, qa y staging: **hace falta la VPN de dev**.
 
-## 1 · Levantar tests
+## 1 · Levantar ecommerce
 
 ```bash
-make tests
+make ecommerce
 ```
 
 Abre http://localhost:5178 (la API queda en :5179). Abajo a la izquierda, `Base: qa`, `local` o `prod`.
@@ -24,7 +24,7 @@ decide a cuál va una compra, en cualquier tienda de la cuenta.
 ## 2 · Antes de comprar: dictarle tu persona a las centrales
 
 El mock de centrales de qa contesta una persona por defecto (JUAN CARLOS PEREZ GOMEZ) para la cédula que no conoce.
-En el panel derecho de `tests` («Centrales de prueba», sin tabla abierta): cédula, nombres y apellidos tal como los
+En el panel derecho de `ecommerce` («Centrales de prueba», sin tabla abierta): cédula, nombres y apellidos tal como los
 vas a escribir en el wizard → **Cargar en las centrales de qa**. Cargalo justo antes de comprar.
 
 ⚠ **Cada cédula guarda datos personales 4 veces por hora**, como mucho. La quinta cae en la pantalla «Límite de
@@ -39,11 +39,11 @@ fetchea y se vuelve a medir con el botón.
 
 ## 3 · Comprar
 
-En `tests`, pestaña **Tiendas** de la consola de abajo, un semáforo dice si cada tienda está lista para comprar y el botón
+En `ecommerce`, pestaña **Tiendas** de la consola de abajo, un semáforo dice si cada tienda está lista para comprar y el botón
 **Levantar** corre en segundo plano lo de esta sección: `shopify app dev` (y apunta la extensión al túnel nuevo solo) y
-`vtex link` (sólo con la sesión en `creditop · develop`). **Parar** corta lo que levantó tests, y cerrar `make tests`
+`vtex link` (sólo con la sesión en `creditop · develop`). **Parar** corta lo que levantó ecommerce, y cerrar `make ecommerce`
 lo corta también. El login de VTEX abre el navegador: va siempre a mano. Los comandos de abajo son lo que corre el
-botón (`tests/server/stores.go`): si cambia uno, se cambian los dos.
+botón (`ecommerce/server/stores.go`): si cambia uno, se cambian los dos.
 
 Datos de la persona en las dos tiendas: celular `3016992677`, correo **`miguel-test@creditop.com`** (no
 `miguel@creditop.com`: es tu cuenta de administrador en qa y el registro dice «correo ya registrado»). El código
@@ -74,7 +74,7 @@ vtex use develop
 Si https://develop--creditop.myvtex.com/_v/creditop.creditop/v5/manifest no da 200, el conector no está
 linkeado: `cd ~/Desktop/CREDITOP/github/vtex && vtex link` (no se commitean los cambios que deja en `node/`).
 
-## 4 · Mirar y cerrar la compra en tests
+## 4 · Mirar y cerrar la compra en ecommerce
 
 Escribí el celular (`3016992677`) o pegá la URL del wizard. Se ven las solicitudes del celular, y de la abierta sus
 tablas; tocar el título de una tabla muestra abajo qué es en palabras de negocio, y a la derecha su consulta.
@@ -97,7 +97,7 @@ a donde vuelve el comprador y ahí se ve en qué quedó la compra. El bloqueo se
 
 ## 5 · Repetir de cero
 
-- La **basura** de una solicitud la borra con lo que cuelga de ella (con copia en `tests/.backups/`). Si es la última
+- La **basura** de una solicitud la borra con lo que cuelga de ella (con copia en `ecommerce/.backups/`). Si es la última
   del usuario, pregunta si darlo de baja: así su celular, correo y cédula quedan libres para registrarse de nuevo.
 - La basura al lado de una **persona** (buscando por celular, correo o cédula) da de baja a un cliente sin
   solicitudes, o lo borra del todo si ya estaba dado de baja. Las cuentas del equipo no se tocan.
@@ -113,11 +113,11 @@ cuenta, también `master`). Un producto nuevo de VTEX tarda en aparecer en la ti
 ## Por consola
 
 ```bash
-go run ./tests/server -target qa -q 504073
+go run ./ecommerce/server -target qa -q 504073
 ```
 
-Más: `go run ./tests/server -h` (borrar con plan y `-rollback`, dar de baja, cargar el perfil de
-`tests/.profile.json`). Consultas SQL sueltas para qa: `~/Desktop/CREDITOP/shopping/pruebas-qa.sql`.
+Más: `go run ./ecommerce/server -h` (borrar con plan y `-rollback`, dar de baja, cargar el perfil de
+`ecommerce/.profile.json`). Consultas SQL sueltas para qa: `~/Desktop/CREDITOP/shopping/pruebas-qa.sql`.
 
 ## Lo que ya confundió
 

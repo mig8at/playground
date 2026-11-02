@@ -29,7 +29,7 @@ type TableRows struct {
 // en ESTA base: el nombre no se arma con lo que llega por la URL.
 func RequestTableRows(target string, request int, table string) (*TableRows, error) {
 	if !validReadTarget(target) {
-		return nil, fmt.Errorf("ambiente %q: tests mira %s", target, strings.Join(ReadTargets, " o "))
+		return nil, fmt.Errorf("ambiente %q: ecommerce mira %s", target, strings.Join(ReadTargets, " o "))
 	}
 	if request <= 0 {
 		return nil, fmt.Errorf("falta el número de solicitud")

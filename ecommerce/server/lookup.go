@@ -1,6 +1,6 @@
 package main
 
-/* Lo que tests dice de UNA solicitud: de qué comercio y sucursal viene, qué mandó la tienda, a qué usuario
+/* Lo que ecommerce dice de UNA solicitud: de qué comercio y sucursal viene, qué mandó la tienda, a qué usuario
  * quedó pegada y con qué datos, y por qué estados pasó. Todo es lectura por el conector (`connectors/sql`),
  * con `ValidateReadOnly` antes de cada consulta.
  *
@@ -19,11 +19,11 @@ import (
 	dbsql "creditop/playground/connectors/sql"
 )
 
-// Targets son los ambientes donde tests lee Y escribe (borrar, dar de baja, simular un estado, dictar las centrales).
+// Targets son los ambientes donde ecommerce lee Y escribe (borrar, dar de baja, simular un estado, dictar las centrales).
 // `qa` lee la base compartida de dev, qa y staging.
 var Targets = []string{"local", "qa"}
 
-// ReadTargets son donde tests sólo LEE: los de arriba más prod, que va por Redash (el conector no tiene otro camino a
+// ReadTargets son donde ecommerce sólo LEE: los de arriba más prod, que va por Redash (el conector no tiene otro camino a
 // esa base) y no acepta nada que escriba. Las escrituras siguen preguntando a validTarget, que no conoce prod.
 var ReadTargets = append(append([]string{}, Targets...), "prod")
 
@@ -188,7 +188,7 @@ func cell(r dbsql.Row, k string) string {
 // Lookup arma el Result de una solicitud en un ambiente.
 func Lookup(target string, in Input) (*Result, error) {
 	if !validReadTarget(target) {
-		return nil, fmt.Errorf("ambiente %q: tests mira %s", target, strings.Join(ReadTargets, " o "))
+		return nil, fmt.Errorf("ambiente %q: ecommerce mira %s", target, strings.Join(ReadTargets, " o "))
 	}
 	src, err := source(target)
 	if err != nil {

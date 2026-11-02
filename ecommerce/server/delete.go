@@ -3,18 +3,18 @@ package main
 /* Borrar de verdad una solicitud —o todas las de un celular— y todo lo que cuelga de ella, para que una
  * prueba empiece limpia.
  *
- * Es la ÚNICA escritura de tests, y por eso no pasa por el conector de SQL (que es de sólo lectura): usa la
+ * Es la ÚNICA escritura de ecommerce, y por eso no pasa por el conector de SQL (que es de sólo lectura): usa la
  * base del harness (`E2E_DB_*` de `harness/.env.<target>`), la misma excepción que ya tiene el harness para
  * sembrar.
  *
- * DECISIÓN DE MIGUEL (2026-10-26): tests borra CUALQUIER solicitud de local o de la base compartida, sin
+ * DECISIÓN DE MIGUEL (2026-10-26): ecommerce borra CUALQUIER solicitud de local o de la base compartida, sin
  * I_KNOW_THIS_TOUCHES_SHARED_DEV y sin limitarse a las de prueba. Es la excepción a F-53, y sólo para esta
  * operación de este servidor. Lo que la hace segura vive acá, no en una variable:
  *
  *   · nunca prod: sólo local y qa (`Targets`), con las credenciales del harness de ese ambiente;
  *   · la confirmación (el número, o el celular) se vuelve a comprobar en el servidor, y el plan se rearma;
  *   · lo que no es de prueba (otro comercio, un usuario sin marca) no se bloquea pero AVISA, con el nombre;
- *   · un RESPALDO de cada fila antes de borrarla (y del usuario antes de su baja) en tests/.backups/, para
+ *   · un RESPALDO de cada fila antes de borrarla (y del usuario antes de su baja) en ecommerce/.backups/, para
  *     poder reponerla;
  *   · un tope de solicitudes por borrado, nunca la baja de una cuenta que no es de cliente (asesor, admin), y
  *     todo en UNA transacción: si una tabla falla, no se borra nada.
@@ -151,7 +151,7 @@ func (p *Plan) eligible() []int {
 // BuildPlan lee (por el conector, sólo lectura) qué solicitudes caen y cuántas filas de cada tabla.
 func BuildPlan(target string, request int, byPhone, freeUsers bool) (*Plan, error) {
 	if !validTarget(target) {
-		return nil, fmt.Errorf("ambiente %q: tests mira %s", target, strings.Join(Targets, " o "))
+		return nil, fmt.Errorf("ambiente %q: ecommerce mira %s", target, strings.Join(Targets, " o "))
 	}
 	src, err := source(target)
 	if err != nil {
@@ -305,7 +305,7 @@ func countTables(src dbsql.Source, ids []int, where func(table, list string) str
 // cualquier solicitud (también las protegidas, que no se pueden borrar).
 func RequestTables(target string, request int) ([]TableCount, error) {
 	if !validReadTarget(target) {
-		return nil, fmt.Errorf("ambiente %q: tests mira %s", target, strings.Join(ReadTargets, " o "))
+		return nil, fmt.Errorf("ambiente %q: ecommerce mira %s", target, strings.Join(ReadTargets, " o "))
 	}
 	src, err := source(target)
 	if err != nil {
@@ -669,7 +669,7 @@ func disableUserTx(tx *stdsql.Tx, keep func(table, query string) error, id int, 
 	return n == 1, nil
 }
 
-// openWrite abre la base del harness de ese ambiente, la única con la que tests escribe.
+// openWrite abre la base del harness de ese ambiente, la única con la que ecommerce escribe.
 func openWrite(target string) (*stdsql.DB, error) {
 	cfg, err := writeConfig(target)
 	if err != nil {
@@ -689,7 +689,7 @@ func openWrite(target string) (*stdsql.DB, error) {
 // transacción. confirm es el id del usuario.
 func DisableUser(target string, id int, confirm string, rollback bool) (*Deleted, error) {
 	if !validTarget(target) {
-		return nil, fmt.Errorf("ambiente %q: tests mira %s", target, strings.Join(Targets, " o "))
+		return nil, fmt.Errorf("ambiente %q: ecommerce mira %s", target, strings.Join(Targets, " o "))
 	}
 	if blocked := writeBlocked(target); blocked != "" {
 		return nil, errors.New(blocked)
@@ -711,7 +711,7 @@ func DisableUser(target string, id int, confirm string, rollback bool) (*Deleted
 	case cell(u, "status") != "1":
 		return nil, fmt.Errorf("el usuario %d ya está dado de baja", id)
 	case cell(u, "user_profile_id") != "1":
-		return nil, fmt.Errorf("el usuario %d no es un cliente (perfil %s): no se da de baja desde tests", id, cell(u, "user_profile_id"))
+		return nil, fmt.Errorf("el usuario %d no es un cliente (perfil %s): no se da de baja desde ecommerce", id, cell(u, "user_profile_id"))
 	}
 	db, err := openWrite(target)
 	if err != nil {
@@ -776,7 +776,7 @@ func userTables(src dbsql.Source) ([]childTable, error) {
 // cuelga de ellas). confirm es el id.
 func PurgeUser(target string, id int, confirm string, rollback bool) (*Deleted, error) {
 	if !validTarget(target) {
-		return nil, fmt.Errorf("ambiente %q: tests mira %s", target, strings.Join(Targets, " o "))
+		return nil, fmt.Errorf("ambiente %q: ecommerce mira %s", target, strings.Join(Targets, " o "))
 	}
 	if blocked := writeBlocked(target); blocked != "" {
 		return nil, errors.New(blocked)
@@ -797,7 +797,7 @@ func PurgeUser(target string, id int, confirm string, rollback bool) (*Deleted, 
 	case u == nil:
 		return nil, fmt.Errorf("no existe el usuario %d en %s", id, target)
 	case cell(u, "user_profile_id") != "1":
-		return nil, fmt.Errorf("el usuario %d no es un cliente (perfil %s): no se borra desde tests", id, cell(u, "user_profile_id"))
+		return nil, fmt.Errorf("el usuario %d no es un cliente (perfil %s): no se borra desde ecommerce", id, cell(u, "user_profile_id"))
 	case cell(u, "status") == "1":
 		return nil, fmt.Errorf("el usuario %d está activo: primero se da de baja", id)
 	case cell(u, "requests") != "0":
@@ -860,10 +860,10 @@ func PurgeUser(target string, id int, confirm string, rollback bool) (*Deleted, 
 	return out, nil
 }
 
-// writeBackup guarda en tests/.backups/ (fuera de git, sólo para vos) cada fila borrada o cambiada, por tabla,
+// writeBackup guarda en ecommerce/.backups/ (fuera de git, sólo para vos) cada fila borrada o cambiada, por tabla,
 // tal como estaba. Con ellas se puede reponer lo borrado. Lleva datos personales: no se comparte.
 func writeBackup(d *Deleted, rows map[string][]map[string]any) (string, error) {
-	dir := filepath.Join(repoRoot(), "tests", ".backups")
+	dir := filepath.Join(repoRoot(), "ecommerce", ".backups")
 	if err := os.MkdirAll(dir, 0o700); err != nil {
 		return "", err
 	}
@@ -890,9 +890,9 @@ func writeBackup(d *Deleted, rows map[string][]map[string]any) (string, error) {
 	return rel, nil
 }
 
-// journal deja constancia de cada borrado en tests/.deletions.ndjson (fuera de git): qué, dónde y cuánto.
+// journal deja constancia de cada borrado en ecommerce/.deletions.ndjson (fuera de git): qué, dónde y cuánto.
 func journal(d *Deleted) {
-	f, err := os.OpenFile(filepath.Join(repoRoot(), "tests", ".deletions.ndjson"), os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0o600)
+	f, err := os.OpenFile(filepath.Join(repoRoot(), "ecommerce", ".deletions.ndjson"), os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0o600)
 	if err != nil {
 		return
 	}
