@@ -215,6 +215,9 @@ const STORES = [
     // e4a51ff3f-fake, lápiz) y se cargan en la configuración de la app de pagos de la tienda.
     { label: 'Creditop · hash y token', href: 'https://admin.dev.creditop.com/aliados/362/ecommerce' },
     { label: 'Admin · pagos (app Creditop)', href: 'https://admin.shopify.com/store/creditop-dev-store/settings/payments' },
+    // La app CREDITOP-ECOMMERCE-PAYMENTS en el Dev Dashboard (organización CREDITOP): sus versiones desplegadas y cuál
+    // está activa. `shopify app dev` no crea versiones: lo activo cambia sólo con `shopify app deploy`.
+    { label: 'Dev Dashboard · versiones de la app', href: 'https://dev.shopify.com/dashboard/167881494/apps/317076176897/versions' },
   ] },
   { name: 'VTEX', links: [
     { label: 'Tienda (develop)', href: 'https://develop--creditop.myvtex.com' },

@@ -61,17 +61,20 @@ export const STORE_PENDING = {
           { text: 'Sucursal ecommerce de prueba e4a51ff3f-fake (tipo Shopify) con su token versión 5 en qa', done: true },
           { text: 'Shopify se puede elegir al crear y editar una sucursal ecommerce en el admin (dev)', done: true },
           { text: 'Compra en qa con la sucursal e4a51ff3f-fake: aprobada y la sesión resuelta como pagada', done: true },
+          { text: 'Creditop aprobado como Payments Partner (2025-06) y acuerdo de ingresos firmado (2026-01-21, según el hilo con Shopify)', done: true },
+          { text: 'La app de pagos se instala en cualquier plan: probada en una tienda Basic', done: true },
         ],
       },
       {
         title: 'Siguientes pasos, en orden',
         items: [
 
-          { text: '1 · Revisar y mergear Creditop-SAS/shopify#22 (la app)', blocks: true, by: 'Oscar' },
-          { text: '2 · Creditop como Payments Partner y el acuerdo de ingresos firmado', blocks: true, by: 'Shopify · Merchants' },
-          { text: '3 · Definir el reembolso manual: la app lo aprueba en Shopify y avisa a Creditop, que cancela el crédito aparte', blocks: true, by: 'Producto' },
-          { text: '4 · Alojar la app con URL fija en qa y en producción', blocks: true },
-          { text: '5 · Pasar la revisión de la app de pagos de Shopify', blocks: true, by: 'Shopify' },
+          { text: '1 · Retomar el hilo con Shopify: Colombia y COP, estado de la cuenta Partner 4296643 y qué exigen a un BNPL (liquidación en 5 días, reembolsos)', blocks: true, by: 'Manuela' },
+          { text: '2 · Revisar y mergear Creditop-SAS/shopify#22 (la app)', blocks: true, by: 'Oscar' },
+          { text: '3 · Alojar la app con URL fija en qa (después producción) y decidir dónde va el mTLS', blocks: true, by: 'Dani' },
+          { text: '4 · shopify app deploy con las URLs de qa: versión nueva con una sola extensión de pago, avisando antes a Juan (dueño de las versiones de marzo)', blocks: true },
+          { text: '5 · Definir el reembolso manual: la app lo aprueba en Shopify y avisa a Creditop, que cancela el crédito aparte', blocks: true, by: 'Producto' },
+          { text: '6 · Pasar la revisión de la app de pagos de Shopify (2 a 3 semanas)', blocks: true, by: 'Shopify' },
         ],
       },
       {

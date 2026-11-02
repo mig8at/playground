@@ -49,9 +49,14 @@ ramas: core-801-shopify-payment-link, core-689-shopify-platform
       app la pueden instalar todos los planes y sólo puede tener UNA extensión de pago. Retomar ese hilo, no empezar
       otro. Termina con la respuesta escrita acá.
       Depende de: María Fernanda / Manuela — el hilo con Shopify, que quedó sin respuesta desde el 2026-04-01.
-- [ ] Antes de `shopify app deploy`, comprobar en el Partner Dashboard que `CREDITOP-ECOMMERCE-PAYMENTS` tenga una sola
-      extensión de pago (la `creditop-offsite`) y no la vieja `creditop-ext-offside`, que sigue activa en `develop`.
-      Termina con la app desplegada y una sola extensión.
+- [ ] Desplegar la app (`shopify app deploy`) cuando exista el host de qa, no antes: hoy la configuración publicable
+      apunta a `api.2272.canary.creditop.com`, que no resuelve, y lo activo en Shopify sigue siendo la versión 7 de Juan
+      (2026-03-03). Antes: avisarle a Juan (las versiones son suyas) y pasar las URLs al dominio de qa
+      (`npm run extension:url`). Al desplegar, aceptar que se borren las extensiones que no están en el código. Termina
+      con una versión nueva activa, con una sola extensión de pago (en
+      https://dev.shopify.com/dashboard/167881494/apps/317076176897/versions), y una compra en `creditop-dev-store` sin
+      `shopify app dev`.
+      Depende de: Dani — el host de qa.
 - [x] ~~Probar contra el `payment-link` de verdad~~ — #1682 mergeado a `qa` el 2026-10-19; todo el recorrido en qa
       (aprobado, pendiente, negado, reembolso rechazado y la plataforma 4) corrió contra él.
 - [x] ~~Agregar Shopify al catálogo `ecommerces` (id 4) y poder marcar una credencial con `ecommerce_type_id=4`~~ —
