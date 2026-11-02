@@ -1,0 +1,44 @@
+{
+  "nombre": "Un crédito CreditopX vigente niega el cupo de esa misma entidad, no el de las otras",
+  "requiere": [
+    "close",
+    "lambda",
+    "parallel"
+  ],
+  "porDefecto": {
+    "amount": 2000000,
+    "income": 2500000,
+    "score": 700
+  },
+  "casos": [
+    {
+      "nombre": "cierra en Motai R y vuelve a pedir cupo",
+      "comercio": "motai",
+      "pasos": [
+        {
+          "nombre": "primera solicitud: cierra en Motai R",
+          "lender": 169,
+          "espera": {
+            "cierra": true,
+            "estado": 11
+          }
+        },
+        {
+          "nombre": "segunda: Motai R sigue en el listado, pero su cupo se niega por el crédito vigente; Motai RB no",
+          "lender": null,
+          "espera": {
+            "entidades": [
+              169,
+              170
+            ],
+            "cupo": {
+              "169": "active_credit_exists",
+              "170": "ok"
+            }
+          }
+        }
+      ]
+    }
+  ],
+  "nota": "El cupo se pide como lo hace pre-approvals-service (POST /api/loans/lender/available-quota); en local la preaprobación la contesta un mock que no llama al backend, así que sin esta aserción ninguna corrida ejercita esta negativa. active_credit_exists mira sólo la misma entidad de riel 2 con saldo de capital de $1.000 o más (ActiveCreditRuleEvaluator). Con `close` todos los casos cierran: el control sin crédito está en cupo-sin-credito.json. Ver knowledge/lender-profile-rules#lo-que-niega-el-cupo-antes-de-mirar-perfiles."
+}

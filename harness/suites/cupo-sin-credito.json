@@ -1,0 +1,37 @@
+{
+  "nombre": "Sin crédito previo: hay cupo de CreditopX, y las entidades de riel 0 y 1 no tienen cupo de Creditop",
+  "requiere": [
+    "lambda",
+    "parallel"
+  ],
+  "porDefecto": {
+    "amount": 2000000,
+    "income": 2500000,
+    "score": 700
+  },
+  "casos": [
+    {
+      "nombre": "cliente nuevo en Motai: Motai R con cupo",
+      "comercio": "motai",
+      "lender": null,
+      "espera": {
+        "cupo": {
+          "169": "ok"
+        }
+      }
+    },
+    {
+      "nombre": "Pullman: CrediPullman con cupo; Credifamilia-addi (riel 0) y Sistecrédito (riel 1) no son de Creditop",
+      "comercio": "pullman",
+      "lender": null,
+      "espera": {
+        "cupo": {
+          "77": "ok",
+          "6": "lender_not_creditop_x",
+          "9": "lender_not_creditop_x"
+        }
+      }
+    }
+  ],
+  "nota": "Compañera de cupo-creditopx.json, sin cierre. lender_not_creditop_x lo devuelve available-quota para response_type 0 y 1 (CreditopXQuotaController). Ver knowledge/lender-profile-rules#lo-que-niega-el-cupo-antes-de-mirar-perfiles."
+}

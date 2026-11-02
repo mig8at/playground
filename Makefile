@@ -564,6 +564,9 @@ harness-posthog: ## @har ¿qué VIO el cliente y en qué PANTALLA se rompió? ev
 harness-posthog-errors: ## @har qué pantallas del front fallan en el ambiente y con qué mensaje (`bin/pg events errors`). [TARGET=qa|staging|prod] [DAYS=7]
 	@bin/pg events errors --target $(or $(TARGET),qa) --days $(or $(DAYS),$(DIAS),7)
 
+harness-quota-reset: ## @har ⚠ ESCRIBE (sólo local): reinicia el cupo mensual de los perfiles CreditopX (`already_used_loan` en 0), que en local nadie reinicia y las corridas que cierran van agotando. TARGET=local [LENDER=169] [APPLY=1 escribe; sin él sólo muestra]
+	@cd harness && E2E_TARGET=$(harness_target) node dev/quota-reset.ts $(if $(LENDER),--lender $(LENDER)) $(if $(APPLY),--apply)
+
 harness-suite: ## @har corre una SUITE de casos declarada en JSON y falla si alguno no cumple lo que declara. SUITE=harness/suites/x.json [PARALLEL=1] [CLOSE=1] [LAMBDA=1] [MANUAL=1] [MD=1 la corrida como anotación fechada, con su comando adentro, para pegar en la tarea] [BLOQUE=<id|slug> la agrega sola, como bloque, a la pila de esa tarea] [TARGET=local|dev|qa|staging obligatorio: el ambiente]
 	@cd harness && E2E_TARGET=$(harness_target) MD=$(MD) BLOQUE=$(BLOQUE) node dev/case.ts --suite '$(patsubst harness/%,%,$(SUITE))' $(if $(PARALLEL),--parallel) $(if $(CLOSE),--close) $(if $(LAMBDA),--lambda) $(if $(PRE),--preapprovals) $(if $(MANUAL),--manual)
 

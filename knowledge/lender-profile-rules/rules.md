@@ -63,6 +63,11 @@ categoría caerá el cliente. El resto del requisito está en `abaco-requirement
   vivo (fila vigente del histórico) con saldo de capital de $1.000 o más. Por debajo se trata como
   residuo y no bloquea. Otras entidades y el rotativo no cuentan.
 
+Se comprueba corriendo con `make harness-suite TARGET=local SUITE=harness/suites/cupo-creditopx.json` (cierra
+en Motai R y vuelve: Motai R niega el cupo, Motai RB no) y su compañera sin cierre, `cupo-sin-credito.json`
+(cliente nuevo con cupo; entidades de riel 0 y 1 con `lender_not_creditop_x`). En local, el cupo mensual del
+perfil se agota con las corridas que cierran: `make harness-quota-reset TARGET=local APPLY=1` lo reinicia.
+
 ## La periodicidad de corte se congela
 
 En el backoffice, el tipo de corte de una entidad deja de poder cambiarse: siempre en un rotativo,

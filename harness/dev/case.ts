@@ -92,7 +92,7 @@ process.env.CFE_TARGET ||= 'local';
 // definiciones de «cómo contesta una entidad» derivarían hacia estados distintos.
 const { integrationWebhook, webhookSelfManager, WELLI_IDS, OLD_APP } =
     await import('../pkg/entity-webhook.ts');
-const { scalar, one, exec, close, withSeedScope } = await import('../pkg/db.ts');
+const { scalar, one, query, exec, close, withSeedScope } = await import('../pkg/db.ts');
 const { synthFill, manualValidation, injectIncomeFields } = await import('../pkg/inject.ts');
 const e2eConfigMod = await import('../pkg/config.ts');
 const { config: e2eConfig } = e2eConfigMod;
@@ -438,6 +438,12 @@ type Wait = {
      *  reciente del cliente para esa entidad): `{"77": "Premium"}`, o `null` para «ninguna categoría aplica».
      *  Es la aserción de las reglas que no sacan a la entidad del listado pero cambian su oferta. */
     categoria?: Record<string, string | null>;
+    /** EL CUPO, como lo pide pre-approvals-service: `POST /api/loans/lender/available-quota` para el cliente
+     *  del caso y cada entidad, al terminar el caso. El valor esperado es el `reason` del rechazo
+     *  (`active_credit_exists`, `lender_not_creditop_x`…) u `ok` si devuelve cupo. Hace falta porque en
+     *  local la preaprobación la contesta un mock que no llama al backend: sin esto ninguna corrida
+     *  ejercita las negativas del cupo. */
+    cupo?: Record<string, string>;
     /** Estado de la RADICACIÓN al lender (`CREDIT_COMPLETED`, `CREDIT_ERROR`, …). Es un paso posterior
      *  al estado 11 y puede fallar sin moverlo: exigirlo acá es la única forma de que una suite note
      *  que el crédito quedó autorizado pero nunca se radicó. */
@@ -623,7 +629,7 @@ async function loadSuite(path: string, dflt: { amount: number; income: number; s
 }
 
 type Res = {
-    caso: Case; ok: boolean; ur?: number; phone: string; nombre?: string;
+    caso: Case; ok: boolean; ur?: number; uid?: number; phone: string; nombre?: string;
     enListado?: boolean; listado?: number[]; conducta?: string; detalle?: string;
     /** Lo que la tarjeta de cada entidad trae del listado y alguna aserción mira. */
     tarjetas?: Record<number, { can_check_preapproval?: unknown; probability?: unknown }>;
@@ -1009,6 +1015,7 @@ async function traverse(c: Case, i: number): Promise<Res> {
         otp_length: 4, otpLength: 4, partner_branch_hash: br.hash, partnerBranchHash: br.hash });
     const uid = reg.json?.data?.user?.id;
     if (!uid) return { ...base, detalle: `register HTTP ${reg.status}` };
+    base.uid = Number(uid);
 
     const otp = await post(`/api/onboarding/loan-application/otp-validate/${br.hash}`, {
         cell_phone: tel, otp_code: tel.slice(-4),
@@ -1243,6 +1250,31 @@ async function verifyCategories(res: Res[]): Promise<Array<{ res: Res; linea: st
             if (got !== want) {
                 out.push({ res: r, linea: `${who}: la entidad ${lender} quedó en ${got === null ? 'ninguna categoría' : `«${got}»`}`
                     + ` y se esperaba ${want === null ? 'ninguna' : `«${want}»`}` });
+            }
+        }
+    }
+    return out;
+}
+
+/** El cupo de cada entidad que el caso declara, pedido al backend como lo hace pre-approvals-service. */
+async function verifyQuota(res: Res[]): Promise<Array<{ res: Res; linea: string }>> {
+    const out: Array<{ res: Res; linea: string }> = [];
+    for (const r of res) {
+        const e = r.caso.espera?.cupo;
+        if (!e) continue;
+        const who = r.caso.nombre ?? `${r.caso.comercio}${r.caso.lender ? ':' + r.caso.lender : ''}`;
+        if (!r.uid) { out.push({ res: r, linea: `${who}: espera \`cupo\` y el cliente ni se registró (${r.detalle ?? 'sin detalle'})` }); continue; }
+        for (const [lender, want] of Object.entries(e)) {
+            const resp = await fetch(`${API}/api/loans/lender/available-quota`, {
+                method: 'POST', headers: { 'content-type': 'application/json', accept: 'application/json' },
+                body: JSON.stringify({ user_id: r.uid, lender_id: Number(lender), ...(r.ur ? { user_request_id: r.ur } : {}) }),
+                signal: AbortSignal.timeout(30_000),
+            }).catch((err) => ({ ok: false, status: 0, json: async () => ({ message: String(err) }) } as any));
+            const body = await resp.json().catch(() => ({}));
+            const data = body?.data ?? body;
+            const got = data?.has_quota === true ? 'ok' : String(data?.reason ?? body?.reason ?? `HTTP ${resp.status} sin reason`);
+            if (got !== want) {
+                out.push({ res: r, linea: `${who}: el cupo de la entidad ${lender} dio «${got}» y se esperaba «${want}»` });
             }
         }
     }
@@ -1522,6 +1554,37 @@ async function runSteps(c: Case, i: number): Promise<Res[]> {
  *    · `CREDIFAMILIA_HOST_OAUTH` ausente → el listado revienta → «el comercio no ofrece nada» (F-142)
  *  Las tres se leen como hechos del negocio. Por eso esto avisa ANTES, en vez de dejar que el próximo
  *  las descubra una por una como pasó el 2026-08-18. */
+/**
+ * PERFILES AGOTADOS EN ESTE AMBIENTE. Cada crédito CreditopX que una corrida cierra suma su monto a
+ * `already_used_loan` del perfil, y en local nadie corre el reinicio del día 1 (lo agenda el scheduler de
+ * legacy-application). Así, las suites que cierran van llenando la bolsa del mes hasta que el cupo de
+ * cualquier cliente nuevo sale `profile_quota_exhausted` —medido el 2026-11-02: Premium de Motai R con
+ * $111 M colocados sobre un tope de $100 M—, y eso se lee como una regla del caso cuando es el estado de
+ * la base. No frena la corrida: avisa, y dice cómo reiniciar en local.
+ */
+async function exhaustedProfiles(cases: Case[]): Promise<string[]> {
+    const allieds = new Set<number>();
+    for (const c of cases) {
+        const br = await findBranch(c.comercio).catch(() => null);
+        if (br?.allied) allieds.add(Number(br.allied));
+    }
+    if (!allieds.size) return [];
+    const ids = [...allieds];
+    const rows = await query<{ lender: string; perfil: string; usado: number; tope: number }>(
+        `SELECT DISTINCT l.name AS lender, c.name AS perfil, c.already_used_loan AS usado,
+                COALESCE(c.period_loan_limit, c.loan_limit) AS tope
+           FROM lender_users_categories c
+           JOIN lenders l ON l.id = c.lender_id AND l.response_type IN (2, 3)
+           JOIN lenders_by_allieds lba ON lba.lender_id = l.id AND lba.status = 1
+          WHERE lba.allied_id IN (${ids.map(() => '?').join(',')})
+            AND COALESCE(c.period_loan_limit, c.loan_limit) > 0
+            AND c.already_used_loan >= COALESCE(c.period_loan_limit, c.loan_limit)`, ids).catch(() => []);
+    if (!rows.length) return [];
+    const fix = (process.env.E2E_TARGET || 'dev').toLowerCase() === 'local' ? ' En local: make harness-quota-reset TARGET=local APPLY=1.' : '';
+    return [`perfiles CreditopX AGOTADOS en este ambiente: su cupo dará profile_quota_exhausted por el estado de la base, no por el caso.${fix}\n      `
+        + rows.map((r) => `${r.lender} · ${r.perfil}: $${Number(r.usado).toLocaleString('es-CO')} de $${Number(r.tope).toLocaleString('es-CO')}`).join('\n      ')];
+}
+
 async function preflightCheck(cases: Case[] = []): Promise<string[]> {
     const missing: string[] = [];
     const alive = async (url: string) =>
@@ -1622,6 +1685,7 @@ async function main(): Promise<number> {
         console.log('');
         return 2;
     }
+    for (const l of await exhaustedProfiles(cases)) console.log(`  ⚠ ${l}\n`);
     if (flag('lambda')) {
         const failures = await dictateAll(cases);
         console.log(`  respuestas del buró pedidas a la lambda: ${cases.length - failures.length}/${cases.length}`
@@ -1751,7 +1815,7 @@ async function main(): Promise<number> {
     console.log(`\n  ${res.length - badList}/${res.length} cerraron · ${((Date.now() - t0) / 1000).toFixed(1)}s`);
     await reconcileWithDb(baseline, res.length - badList);
 
-    const deviations = [...verifyWaits(res), ...await verifyCountries(res), ...await verifyCategories(res)];
+    const deviations = [...verifyWaits(res), ...await verifyCountries(res), ...await verifyCategories(res), ...await verifyQuota(res)];
     if (deviations.length) {
         console.log('\n  ⚠ NO CUMPLIERON LO QUE DECLARAN:\n');
         for (const d of deviations) console.log(`      · ${d.linea}`);
