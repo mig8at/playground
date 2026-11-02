@@ -48,13 +48,23 @@ Meddipay (crédito de salud) reintenta 3 veces con 1 segundo de espera, **sólo*
 conexión o respuestas 5xx; un 4xx o un rechazo no se reintenta (LEN-282). Exige el género en
 mayúscula y la fecha de nacimiento en formato `Y-m-d` (LEN-269). Es igual en los dos monolitos.
 
-## Sistecrédito: se oculta al moroso
+## Sistecrédito: al moroso lo oculta sólo el camino viejo
 
-Al consultar la preaprobación de Sistecrédito, si la respuesta es aprobada pero marca al cliente como
-**moroso** (`defaulter`), la entidad se quita del listado. Aprobada con cupo disponible 0 también se
-quita; con cupo, pasa a «Pre aprobado» arriba del listado. Si no es aprobada, se mantiene como opción
-normal, **salvo en Energiteca (aliado 153)**, donde se quita: ese comercio sólo quiere mostrarla a
-clientes de Sistecrédito (CACM-380). La regla de Energiteca existe en los dos monolitos.
+Hay dos caminos que deciden la tarjeta de Sistecrédito, y no aplican la misma regla:
+
+- **El camino viejo** (`PreApprovedLenderService` de legacy-backend, que usa el listado v1, y su par en
+  legacy-application): si la respuesta es aprobada pero marca al cliente como **moroso** (`defaulter`), la
+  entidad se quita del listado; aprobada con cupo disponible 0 también se quita; con cupo, pasa a «Pre
+  aprobado» arriba. Si no es aprobada se mantiene como opción normal, **salvo en Energiteca (aliado 153)**,
+  donde se quita: ese comercio sólo quiere mostrarla a clientes de Sistecrédito (CACM-380).
+- **El asistente nuevo** usa el listado v2 y pide la preaprobación a pre-approvals-service. Su adaptador de
+  Sistecrédito lee `defaulter` pero no lo usa: aprueba si el estado es 1 y la cuenta está activa, y el monto
+  es el cupo disponible si es mayor que 0. Un cliente moroso con cuenta activa sale **aprobado**, y la regla
+  de Energiteca tampoco existe ahí.
+
+En local y development el monolito ni siquiera llama al camino viejo al guardar los datos laborales: lo
+reemplaza por un valor al azar (F-246). Por eso no hay suite local de esta regla: en el camino que usa el
+cliente no existe.
 
 ## Bancolombia BNPL: el canal va en el NIT de Corbeta
 

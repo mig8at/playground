@@ -232,6 +232,7 @@ orden de archivo — el ancla `### F-xx` es la única dirección.)
 | **«en qa el OTP de Mediarte dice que la validación del código falló con un teléfono del bypass, y en Pullman el mismo bypass anda»** | **F-243** |
 | **«en qa el pipeline de KYC gira y termina en "No pudimos verificar tu información"»** / `run_open: false` pidiendo un dato que ya se guardó | **F-244** |
 | **«dicté el caso a la lambda de qa, salió ✓, y la central contestó otra persona»** / `JUAN CARLOS PEREZ GOMEZ` | **F-245** · F-139 |
+| **«en local el mismo caso consulta Experian una vez sí y otra no»** · «la categoría cambia entre corridas idénticas» (comercio sin CreditopX ni disparador) | **F-246** |
 | **«el backend se cayó bajo carga»** / muchos 504 a los 60 s exactos que igual terminaron escribiendo | **F-180** |
 | **«el código serializa»** / medir concurrencia en local y ver las peticiones de a una | **F-181** |
 | **«genera el documento en prod y en local tira 500»** / `Undefined variable` en una plantilla de Rent to Own | **F-182** · F-150 |
@@ -251,6 +252,7 @@ distinto según con qué pregunta llegues.
 | F-243 | En la base compartida, un comercio del pipeline de KYC (`kyc_pipeline_allieds`, hoy sólo Mediarte) **no pasa el OTP con un teléfono de `qa_otp_bypass_phones`**: el bypass viejo desvía el envío y el código nunca llega al servicio de OTP ni a **#qa-messages**, que es el mecanismo de hoy; la validación v2 le pregunta al servicio. Con un teléfono FUERA de la lista, el código sale en #qa-messages y valida | ABIERTO · en `main` |
 | F-244 | El pipeline de KYC **termina** cuando falta un dato personal, y el arranque que sigue al formulario, si llega antes de 30 s, da **429**: el wizard no reintenta y a los 120 s muestra «No pudimos verificar tu información». Además, el guardado v2 de datos personales acepta 4 por cédula y por hora | ABIERTO · en `develop` y `main` |
 | F-245 | Lo dictado a la lambda de centrales de qa vive en UN contenedor: la confirmación sale verde y la consulta del pipeline cae en otro y contesta la persona por defecto | TRAMPA |
+| F-246 | En `local` y `development`, `validatePreApproveLender` se reemplaza por un booleano al azar al guardar los datos laborales: en un comercio que no dispara Experian, la consulta de viabilidad al buró corre o no según una moneda | TRAMPA |
 | F-01 | El loader SSR esconde los 5xx del backend | TRAMPA |
 | F-02 | "Firmar" rebota a los documentos sin ningún mensaje | TRAMPA |
 | F-03 | Un `.catch(() => {})` convirtió una corrida rota en "1 passed" | cerrado |
@@ -6427,3 +6429,22 @@ dos. **No se sabe cuántos diagnósticos viejos eran esto.**
 - **Para el harness:** un «✓» confirmado de a una lectura dice que UN contenedor lo tiene; el de `spreadDictation`
   dice cuántas lecturas a la vez lo devolvieron (`11/11 lecturas`).
 - **Estado:** vivo.
+
+### F-246 · En local y development, consultar o no Experian al guardar los datos laborales es una moneda al aire
+
+- **Síntoma:** en un comercio sin CreditopX y sin disparador de Experian, dos corridas idénticas del mismo cliente
+  dejan buró distinto: en una hay consulta de viabilidad a Experian y en la otra no, y la categoría o la oferta
+  cambian sin que haya cambiado el caso.
+- **Causa raíz (verificada en `main` 69920f58):** `OnboardingController::storeLaboralInfoOrchestrator`
+  (legacy-backend `Modules/Onboarding/App/Http/Controllers/OnboardingController.php:401-404`) reemplaza
+  `validatePreApproveLender` por `(bool) random_int(0, 1)` cuando `app()->environment('local', 'development')`, para no
+  repetir en el monolito las consultas a las entidades que ya hace pre-approvals-service. Ese booleano decide más
+  abajo, junto con `alliedsLendersValidator`, si se llama a la viabilidad de Experian
+  (`!hadPreApproveLender && !experianTriggered`). El mismo reemplazo está en el orquestador del OTP (`:1413-1415`).
+- **Evidencia:** sólo de código; no reproducido corriendo. Las suites del 2026-11-02 (Pullman, Motai, Corona, TRACK)
+  no lo sufren porque esos comercios disparan Experian por su cuenta (`experian_triggered = true`).
+- **Para el harness:** antes de concluir sobre buró o categoría en un comercio sin disparador, correr el caso más de
+  una vez, o leer en Loki el `source: stub_random` del log `validatePreApproveLender resolved`. Qué ambiente usa
+  `development` depende del `APP_ENV` efectivo, en disputa para los remotos (`harness/CLAUDE.md`).
+- **Estado:** vivo, por diseño del código.
+

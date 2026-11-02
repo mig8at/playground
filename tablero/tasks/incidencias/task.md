@@ -76,6 +76,12 @@ Salvo donde se dice «corrido», salen de LEER el código: falta reproducirlos.
 
 ### Media — comportamiento distinto al esperado
 
+- [ ] Decidir con producto si el asistente nuevo debe ocultar Sistecrédito al cliente moroso. Verificado en `main`
+  (2026-11-02): el camino viejo (`PreApprovedLenderService`, listado v1 y legacy-application) lo quita si Sistecrédito
+  lo marca `defaulter` y también en Energiteca (153) si no es aprobado; el adaptador de pre-approvals-service, que usa
+  el asistente nuevo, lee `defaulter` y no lo usa, así que el moroso con cuenta activa sale aprobado. Termina con la
+  decisión y, si aplica, la regla portada al adaptador. Depende de: producto — si el moroso se oculta o lo decide Sistecrédito.
+
 - [ ] Decidir con negocio a qué estado va `pendiente_desembolso` de Welli. Verificado en `main` (2026-11-02):
   legacy-application lo lleva a 28 (Pendiente desembolso) y legacy-backend a 11 (Autorizada), con un TODO de paridad
   que advierte que marca como desembolsado un crédito que no lo está y llena `final_amount`. El de legacy-backend corre

@@ -1,0 +1,29 @@
+{
+  "nombre": "La continuidad laboral va por escalones: un perfil que pide 9 meses exige 12",
+  "requiere": ["lambda", "parallel"],
+  "porDefecto": {
+    "comercio": "TRACK",
+    "lender": null,
+    "amount": 2000000,
+    "income": 2500000,
+    "score": 700
+  },
+  "casos": [
+    {
+      "nombre": "13 meses de aportes (continuidad 12): Premium",
+      "months": 13,
+      "espera": { "entidades": [146], "categoria": { "146": "Premium" } }
+    },
+    {
+      "nombre": "11 meses de aportes: supera los 9 que pide la regla, pero cuenta como continuidad 6 y no entra",
+      "months": 11,
+      "espera": { "entidades": [146], "categoria": { "146": "Recuperar mejores" } }
+    },
+    {
+      "nombre": "4 meses de aportes (continuidad 3): la categoría sin continuidad",
+      "months": 4,
+      "espera": { "entidades": [146], "categoria": { "146": "Recuperar mejores" } }
+    }
+  ],
+  "nota": "CREDI TRACK (146) pide 9 meses de continuidad para Premium; Recuperar mejores y Segunda oportunidad piden 0. El motor no mide meses: deriva 12, 6, 3 o 0 de las banderas continuity_*_months de Agildata (LenderUserCategoryService::getContinuity), así que cualquier cosa entre 7 y 12 exige en la práctica 12. Ver knowledge/lender-profile-rules#la-continuidad-laboral-va-por-escalones."
+}

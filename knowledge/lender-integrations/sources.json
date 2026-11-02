@@ -1,8 +1,8 @@
 {
   "version": 1,
   "title": "Entidades integradas: reglas propias de cada una",
-  "summary": "Reglas por entidad con su porqué en Jira: la compuerta de buró de Prami, las cuatro variantes de Welli con Sonría aparte y el mapa de estados distinto en cada monolito, los reintentos de Meddipay, Sistecrédito oculto al moroso y en Energiteca, el NIT de Corbeta que marca el canal en Bancolombia BNPL, los estados de Crédito 365, UMA y la probabilidad oculta por convenio.",
-  "reviewedAt": "2026-11-02T16:45:52+00:00",
+  "summary": "Reglas por entidad con su porqué en Jira: la compuerta de buró de Prami, las cuatro variantes de Welli con Sonría aparte y el mapa de estados distinto en cada monolito, los reintentos de Meddipay, Sistecrédito oculto al moroso sólo en el camino viejo (el asistente nuevo lo aprueba), el NIT de Corbeta que marca el canal en Bancolombia BNPL, los estados de Crédito 365, UMA y la probabilidad oculta por convenio.",
+  "reviewedAt": "2026-11-02T17:41:47+00:00",
   "sources": [
     {
       "repo": "legacy-backend",
@@ -82,7 +82,7 @@
       "commit": "69920f580f62ad35f0a555e3b8b8f2c247d758aa",
       "blob": "ebcf8cc1fc7425c42dd15efe1e19d34984139c1a",
       "sections": [
-        "sistecredito-se-oculta-al-moroso"
+        "sistecredito-al-moroso-lo-oculta-solo-el-camino-viejo"
       ]
     },
     {
@@ -91,7 +91,7 @@
       "commit": "1755ab4fa3a50cac5669cdff4826131979a15def",
       "blob": "38879f56087e88ec42971946581fd8f9a9a6d19a",
       "sections": [
-        "sistecredito-se-oculta-al-moroso"
+        "sistecredito-al-moroso-lo-oculta-solo-el-camino-viejo"
       ]
     },
     {
@@ -155,6 +155,33 @@
       "blob": "e4f0b23c1ff2e90737fa8a8ca99eca80da495770",
       "sections": [
         "probabilidad-oculta-por-convenio-o-por-comercio"
+      ]
+    },
+    {
+      "repo": "pre-approvals-service",
+      "path": "internal/infra/lending_products/sistecredito/adapter.go",
+      "commit": "8bfbee92f31a2520c94e371971d469cb399dc7a2",
+      "blob": "667002305d8570a2c2b79ef2e3258457c44f87bb",
+      "sections": [
+        "sistecredito-al-moroso-lo-oculta-solo-el-camino-viejo"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/Onboarding/App/Http/Controllers/OnboardingController.php",
+      "commit": "69920f580f62ad35f0a555e3b8b8f2c247d758aa",
+      "blob": "738415ab7825c6212177127c5fd8ccddc4c69f54",
+      "sections": [
+        "sistecredito-al-moroso-lo-oculta-solo-el-camino-viejo"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "app/Actions/Lenders/SistecreditoPos.php",
+      "commit": "69920f580f62ad35f0a555e3b8b8f2c247d758aa",
+      "blob": "43d869c29a50f9c53d887142b41a237544f49e29",
+      "sections": [
+        "sistecredito-al-moroso-lo-oculta-solo-el-camino-viejo"
       ]
     }
   ]
