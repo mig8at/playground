@@ -20,14 +20,23 @@ y es el único que aplica el descuento por pronto pago (registro tipo 9).
 Si la fila vigente tiene `next_payment_amount > 0`, el dinero se imputa en este orden, cada componente
 hasta lo que se debe: gasto de cobranza, interés de mora, interés corriente, seguro de vida (sólo si
 queda saldo de seguro), seguro de garantía y capital. Se crea un pago tipo 3 (PAGO A CUOTA); su
-`paid_amount` no suma el seguro de garantía. La garantía FGA no es un paso: es la parte del capital
-pagado, topada en `next_payment_guarantee`. Lo que sobra sigue al paso siguiente.
+`paid_amount` no suma el seguro de garantía. Lo que sobra sigue al paso siguiente.
+
+La garantía FGA no es un paso ni toma dinero propio: vive dentro del capital. De cada peso de capital
+que se mueve, es garantía la proporción que tienen los saldos, `guarantee_amount_balance /
+principal_amount_balance`, topada por el propio capital y por el saldo de garantía y redondeada a dos
+decimales (`GuaranteeAttribution::forPrincipal`, una copia idéntica en cada monolito). Es la misma regla
+para la cuota, el abono a capital, el pago total, la liberación de retenidos y el pronto pago de
+application, y el pago a cuota guarda la suya en `paid_guarantee`. `next_payment_guarantee` ya no topa
+nada: es informativo, la garantía que lleva el capital del mínimo con esa misma proporción.
 
 ## Qué pasa con el sobrante
 
 Si sobrante + umbral residual ≥ total con promociones, es pago total: se condonan los intereses cuando
 la cuota está dentro de `installments_waived_interest` (tipo 5), se aplican los retenidos y el resto va a
-capital (tipo 4 si salda el capital, tipo 2 si no). El umbral sale de
+capital (tipo 4 si salda el capital, tipo 2 si no). El abono mide su garantía sobre lo que dejó la
+cuota del mismo pago, y el saldo de garantía baja por la suma de las dos. Cuando la fila nueva queda en
+`status` 3 o sin capital, el saldo de garantía se escribe en cero sin sumar ese resto a lo pagado. El umbral sale de
 `creditop_x_lender_residual_balances` con 5000 por defecto; en una utilización de cupo rotativo es 1.
 
 Si no alcanza, decide el tipo de abono (`principal_payment_type`): con el crédito al día, 1 abona a
@@ -47,12 +56,16 @@ utilización, porque todas comparten la transacción.
 La API nueva vive en legacy-backend (`/api/loans/payments`). La intención acepta `down_payment`,
 `installment` y `revolving_installment`; el monto en centavos debe ser múltiplo de 100 y, en cuota,
 al menos 100.100 centavos y con cartera activa. Una cuota reutiliza un PENDING del TTL sólo con igual
-monto y tipo de abono; la cuota inicial reutiliza cualquier PENDING suyo. La firma usa la credencial de
+monto y tipo de abono; la cuota inicial reutiliza cualquier PENDING suyo. El pago de cupo bloquea la
+fila del cupo, revalida el tope contra su saldo y recién ahí busca el PENDING más reciente con concepto
+`revolving_installment`, igual monto y tipo de abono, para que dos intenciones simultáneas no creen dos. La firma usa la credencial de
 la sucursal y, si no tiene, la del comercio; sin llaves pública, privada y de integridad no se cobra.
 
 El webhook valida el checksum con `wompi_events` de esa credencial, bloquea la transacción y sólo
 procesa estados nuevos: un replay o una transacción sin `concept` (creada por application) no hace
-nada. En APPROVED rutea por concepto dentro de la misma transacción de base: si el post-proceso lanza,
+nada. Una misma referencia puede tener varios intentos en Wompi (el cliente reintenta con otro medio):
+una vez APPROVED, sólo el evento del intento que aprobó puede moverla; los de otro intento, o todos si
+no se conoce el id aprobado, se ignoran y se registran como `wompi.webhook.foreign_transaction_ignored`. En APPROVED rutea por concepto dentro de la misma transacción de base: si el post-proceso lanza,
 todo vuelve atrás. Una cuota sin cartera activa o un concepto desconocido se registra en el log y se
 corta, para reconciliar a mano.
 
@@ -60,7 +73,9 @@ corta, para reconciliar a mano.
 
 Las transacciones sin `concept` las aplica `Wompi::updateStatus` por consulta a Wompi, en los dos
 monolitos y sólo al pasar a APPROVED: tipo 1 de `creditop_x_payment_type_id` es cuota inicial; si no,
-cuota de consumo o pago de cupo. `app:reconcile-wompi-transactions` de legacy-backend reconsulta los
+cuota de consumo o pago de cupo. Entre los intentos que Wompi devuelve para la referencia, legacy-backend
+decide por el aprobado si hay alguno (si no, el más reciente) y toma de él estado y monto; application
+sigue leyendo el primero de la lista. `app:reconcile-wompi-transactions` de legacy-backend reconsulta los
 PENDING de las últimas horas, pero no está agendado.
 
 ## Cuota inicial

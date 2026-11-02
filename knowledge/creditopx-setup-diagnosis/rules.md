@@ -17,7 +17,11 @@ El listado y el cupo leen filas distintas de las mismas tablas:
 - `available-quota` (`LenderRuleEvaluator`) evalúa la plantilla: las `lender_rules` con
   `group_rule_id` nulo y `status = 1`. Si al cliente le falta el valor de un campo de la regla,
   rechaza (`missing_field_value_<id>`). `DatacreditoRuleEvaluator` lee la única fila de
-  `lender_datacredito_rules` con `allied_branch_id` nulo; sin esa fila el filtro no aplica.
+  `lender_datacredito_rules` con `allied_branch_id` nulo; sin esa fila el filtro no aplica. Sin
+  datos de buró rechaza con `no_datacredito_data`, y el log dice además si la última consulta de
+  DataCrédito (Acierta o Acierta+Quanto) de esa persona falló en las últimas 24 horas
+  (`datacredito_consult_failed`), para separar un timeout o un 503 de alguien sin historial. La
+  razón y el resultado no cambian.
 
 Por eso una entidad puede salir en el listado y fallar al pedir cupo, o al revés, cuando la
 plantilla y las copias de la sucursal no coinciden.
@@ -35,7 +39,16 @@ reglas de su catálogo; las demás se listan como no gestionadas. La regla de da
 en la fila sin sucursal (la crea si falta) y se copia a las filas por sucursal. Los perfiles
 (`lender_users_categories` y sus `lender_users_category_rules`) se sincronizan con el orden de la
 pantalla en `priority`, que es lo que ordena la evaluación; `order` es sólo un espejo.
-`already_used_loan` nunca se escribe desde ahí.
+`already_used_loan` nunca se escribe desde ahí. Un perfil se puede desactivar
+(`lender_users_categories.active`): conserva sus filas para el historial de asignaciones, pero el
+motor de categorías sólo carga reglas de categorías activas, y el readiness no lo cuenta como perfil
+evaluable. Un perfil con asignaciones o productos no se puede borrar; se desactiva.
+
+Los montos mínimo y máximo de la entidad (`credit_line_by_lenders`, el rango de monto que acepta el
+wizard) se editan desde la configuración del backoffice (`PUT lenders/{lender}/config/credit-line`)
+y quedan versionados en el mismo historial que la política; una entidad sin fila de línea de crédito
+se rechaza en vez de crearle una. La misma configuración guarda el método de pago de la entidad
+(`payment_methods_by_lender`, ver `lender-response-types`).
 
 ## Identidad y NIT
 
@@ -81,7 +94,8 @@ anterior al momento que se diagnostica.
 evaluada, en orden de `priority` y luego id de categoría, y por cada una sus criterios en verdadero
 o falso (`occupation`, `age`, `min_income`, `score`, `debt_capacity`, `datacredito`…). Gana la
 primera que cumple todo: las anteriores muestran por qué no. Con aprobación la fila trae la
-categoría y `available_amount`; si nada aprobó ni por puntaje, `lender_users_category_id` es 0. Un
+categoría y `available_amount`; si nada aprobó ni por puntaje, `lender_users_category_id` es 0. Las
+reglas de un perfil desactivado no aparecen: no se evalúan. Un
 `datacredito` en falso es un cliente sin consulta de buró, que corta la evaluación de esa regla
 salvo que la entidad valide ingresos con Ábaco o el país no tenga centrales activas.
 `legacy-application` tiene su propio servicio que escribe la misma tabla con otras claves (por

@@ -52,5 +52,7 @@ del tamaño de la bolsa entera.
 listado, motor ni autorización lo lee. El tablero CreditopX del monolito viejo lo muestra como meta
 mensual: la suma de los mandatos de las entidades de consumo de las solicitudes filtradas, menos el
 `final_amount` de las solicitudes en estado 10 u 11 creadas en el mes. El backoffice nuevo lo muestra
-de sólo lectura y avisa, sin bloquear el guardado, cuando la suma de los topes de los perfiles lo
-supera. Una entidad que rechaza por cupo agotó el de un perfil, no el mandato.
+de sólo lectura y avisa, sin bloquear el guardado, cuando la suma de los topes de los perfiles
+activos lo supera; un perfil desactivado no cuenta. También avisa, sin bloquear, cuando un perfil
+activo financia más que el monto máximo de la entidad (`credit_line_by_lenders.max_amount`), porque
+el wizard (`ValidateLoanAmountUc`) usa ese máximo como tope del monto pedido. Una entidad que rechaza por cupo agotó el de un perfil, no el mandato.

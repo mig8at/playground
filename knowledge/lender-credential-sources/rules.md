@@ -35,6 +35,13 @@ lender devuelve a lo sumo una fila, pero si el comercio y la sucursal tienen cad
 al azar. Experian y ADO, cuando no encuentran fila, arman una credencial en memoria desde
 `config('services.experian.<producto>.*')` o `config('services.ado.*')`; Deceval no tiene ese respaldo.
 
+En ADO de legacy-backend, la búsqueda vale para crear la transacción: el enroll guarda en el `request`
+del registro de `risk_central_user_data` el `credential_id` con que la creó (null si salió de config).
+La consulta de estado y la descarga de imágenes de ese registro (`Ado::credentialsFor`) usan esa misma
+credencial, aunque esté borrada lógicamente, y vuelven a config si el id es null o ya no existe, para no
+consultar un proyecto de ADO distinto del de la transacción. Los registros sin esa clave se resuelven con
+la búsqueda normal.
+
 ## Quién usa certificado y cómo lo lee
 
 Los certificados viven como texto PEM dentro del mismo JSON cifrado. Bancolombia los usa en memoria con

@@ -2,7 +2,7 @@
   "version": 1,
   "title": "Cliente temporal y consolidado al validar el OTP y guardar datos personales",
   "summary": "Qué decide legacy-backend al validar el OTP y al guardar datos personales según el usuario sea temporal o consolidado: desenlaces del OTP v2, guardas del formulario, el documento inmutable, el documento de otra persona y qué columnas puede corregir un consolidado.",
-  "reviewedAt": "2026-10-28T18:58:18+00:00",
+  "reviewedAt": "2026-11-02T15:33:55+00:00",
   "sources": [
     {
       "repo": "legacy-backend",
@@ -84,8 +84,8 @@
     {
       "repo": "frontend-monorepo",
       "path": "apps/loan-request-wizard/app/routes/loan-application-form/loan-request-form.tsx",
-      "commit": "1238d30ef1459fd1fb84ac8020fbacb64a658e55",
-      "blob": "f173e5d63379afecf977f0ed703886cea68821f9",
+      "commit": "e0c370c299cf4a613c7282626a9977d635484616",
+      "blob": "7035b7d8eaaf8832f14632739e98d73ecd52a15e",
       "sections": [
         "las-guardas-del-formulario-en-orden"
       ]

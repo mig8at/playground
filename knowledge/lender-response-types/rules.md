@@ -74,7 +74,9 @@ La puerta es por tipo, pero lo que corre adentro está atado a Credifamilia:
 - **Fechas, cuotas, continuar solicitud, resumen y comprobante:** cada servicio busca la solicitud sólo
   entre `CredifamiliaLenders::lenderIds()`. Las fechas además fijan los días 2 y 16.
 - **Firma:** `PromissoryNoteController` usa el proveedor de firma y `CredifamiliaDocumentsBuilder` sólo
-  cuando `lender_id` es 24, y el builder genera los documentos con el id 24 fijo.
+  para las entidades de `CredifamiliaLenders` (Salud, 24, y Materiales, 214 en producción y 216 en los
+  demás ambientes), y genera los documentos con la configuración de pdf-mapper de la entidad de la
+  solicitud; cualquier otra cae a la del 24.
 - **Formalización:** los documentos de legalización son los de Credifamilia. El cierre ante la entidad sí
   se resuelve por entidad.
 - **Asistente:** `DYNAMIC_PAYMENT_PLAN_LENDER_IDS` (24, 214 y 216) decide qué entidades calculan la cuota
@@ -89,6 +91,11 @@ tipo 4; sólo lo agrupa con el 2 y el 3 al buscar la última solicitud de un usu
 
 `lenders.externally_serviced` dice si el ciclo de vida del crédito lo gestiona Creditop: pagos,
 recordatorios y recaudo. Es independiente del tipo. Con `externally_serviced = 1` el chequeo de pagos
-del backoffice no aplica y las campañas de recordatorio dejan afuera a la entidad. Un tipo 2 con
+del backoffice no aplica y las campañas de recordatorio dejan afuera a la entidad. Con cobranza de
+Creditop, el chequeo de pagos del readiness depende del método de pago de la entidad
+(`payment_methods_by_lender`, el que mandan los recordatorios y que ahora se guarda desde la
+configuración del backoffice): sin fila bloquea; si es externo (el portal de la entidad, o `N/A` con
+instrucciones) pasa sin pedir cuentas de Wompi; si es el checkout de Creditop exige al menos un
+comercio que pueda cobrar. Un tipo 2 con
 cobranza externa sigue siendo política de Creditop con cartera administrada por otro. No sirve para
 modelar una entidad que dicta su propia política.

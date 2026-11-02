@@ -2,13 +2,13 @@
   "version": 1,
   "title": "Cómo entra y se aplica un pago CreditopX",
   "summary": "La cascada del pago mínimo, qué se hace con el sobrante (pago total, abono o retenido), la idempotencia por transacción y cómo llega el pago por Wompi (intención, webhook, consulta de estado), la cuota inicial y la caja de Pullman, en los dos monolitos.",
-  "reviewedAt": "2026-10-28T18:54:18+00:00",
+  "reviewedAt": "2026-11-02T15:34:48+00:00",
   "sources": [
     {
       "repo": "legacy-backend",
       "path": "Modules/Loans/App/Services/CreditopXPaymentService.php",
-      "commit": "c03edaffa465bd07bceccd4076af5d1cec9916b9",
-      "blob": "796b6386460c4525005371afecc0d80d2ff4f81f",
+      "commit": "69920f580f62ad35f0a555e3b8b8f2c247d758aa",
+      "blob": "501a79b976b71a77543ce9efc9452e8d2f4e269e",
       "sections": [
         "dos-motores-con-la-misma-cascada",
         "el-pago-minimo-va-en-cascada",
@@ -19,8 +19,8 @@
     {
       "repo": "application",
       "path": "app/Http/Controllers/Admin/CreditopXPaymentController.php",
-      "commit": "24dc86eb1eaabb4e4eee37750ab90e258c36ce78",
-      "blob": "d303605d9c94f03114ae8bd33658fef62f737d1b",
+      "commit": "1755ab4fa3a50cac5669cdff4826131979a15def",
+      "blob": "13ad4f4b84f6a96a8699e82639f8450ea6a1ac7e",
       "sections": [
         "dos-motores-con-la-misma-cascada",
         "el-pago-minimo-va-en-cascada",
@@ -42,8 +42,8 @@
     {
       "repo": "legacy-backend",
       "path": "Modules/Loans/App/Support/PaymentWaterfall.php",
-      "commit": "c03edaffa465bd07bceccd4076af5d1cec9916b9",
-      "blob": "f66de5527ef54730d30b3313d57653efcfea77d4",
+      "commit": "69920f580f62ad35f0a555e3b8b8f2c247d758aa",
+      "blob": "d369d37bdf203e38034cfaf141edeaa6b0174e51",
       "sections": [
         "el-pago-minimo-va-en-cascada"
       ]
@@ -69,8 +69,8 @@
     {
       "repo": "legacy-backend",
       "path": "Modules/Loans/App/Services/PaymentIntentService.php",
-      "commit": "c03edaffa465bd07bceccd4076af5d1cec9916b9",
-      "blob": "a0df97789c6eec1f22650dfd30c474258c3a4c37",
+      "commit": "69920f580f62ad35f0a555e3b8b8f2c247d758aa",
+      "blob": "e04470439c1765b2ba236fdccb58735a30191f09",
       "sections": [
         "wompi-intencion-y-webhook",
         "cuota-inicial"
@@ -115,8 +115,8 @@
     {
       "repo": "legacy-backend",
       "path": "Modules/Loans/App/Services/WompiWebhookService.php",
-      "commit": "c03edaffa465bd07bceccd4076af5d1cec9916b9",
-      "blob": "b89c830511fb48aeea2816722cb50251475e2198",
+      "commit": "69920f580f62ad35f0a555e3b8b8f2c247d758aa",
+      "blob": "90541241fd3d1e1aad52852904d45557a33b87fd",
       "sections": [
         "wompi-intencion-y-webhook",
         "cuota-inicial"
@@ -125,8 +125,8 @@
     {
       "repo": "legacy-backend",
       "path": "app/Actions/Lenders/Wompi.php",
-      "commit": "c03edaffa465bd07bceccd4076af5d1cec9916b9",
-      "blob": "f55e77f01b460684e969bffd352b84bc40e5956c",
+      "commit": "69920f580f62ad35f0a555e3b8b8f2c247d758aa",
+      "blob": "eabda91cba3d6d570cfe4f2bfeaee5b0385ed1ec",
       "sections": [
         "wompi-consulta-de-estado-y-reconciliacion"
       ]
@@ -134,7 +134,7 @@
     {
       "repo": "application",
       "path": "app/Actions/Lenders/Wompi.php",
-      "commit": "24dc86eb1eaabb4e4eee37750ab90e258c36ce78",
+      "commit": "1755ab4fa3a50cac5669cdff4826131979a15def",
       "blob": "2705903fed2f451c8b2a10a371f75d6f51634378",
       "sections": [
         "wompi-consulta-de-estado-y-reconciliacion",
@@ -212,6 +212,35 @@
       "blob": "a1df17f166609b5a6b6f0ba935b8160eb2bfced5",
       "sections": [
         "limites"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/Loans/App/Support/GuaranteeAttribution.php",
+      "commit": "69920f580f62ad35f0a555e3b8b8f2c247d758aa",
+      "blob": "2b3191bf9bba8c8e5b53d861f56d072d5d6caf42",
+      "sections": [
+        "el-pago-minimo-va-en-cascada",
+        "que-pasa-con-el-sobrante"
+      ]
+    },
+    {
+      "repo": "application",
+      "path": "app/Support/GuaranteeAttribution.php",
+      "commit": "1755ab4fa3a50cac5669cdff4826131979a15def",
+      "blob": "94fc8285f98d2465121191418d9cfec552779223",
+      "sections": [
+        "el-pago-minimo-va-en-cascada"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/Loans/App/Support/PaymentStatusTransition.php",
+      "commit": "69920f580f62ad35f0a555e3b8b8f2c247d758aa",
+      "blob": "dc7776f36168ac8048851c61c77f97d0c978197d",
+      "sections": [
+        "wompi-intencion-y-webhook",
+        "wompi-consulta-de-estado-y-reconciliacion"
       ]
     }
   ]

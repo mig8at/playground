@@ -2,7 +2,7 @@
   "version": 1,
   "title": "Bloqueo y desbloqueo de equipos IMEI por mora",
   "summary": "Los dos motores de bloqueo IMEI de legacy-backend (legacy y DeviceLockingV1), el umbral de mora de cada uno, las capas contra el doble bloqueo, cómo se lee la respuesta del gateway y los caminos de desbloqueo y liberación con sus interruptores.",
-  "reviewedAt": "2026-10-28T18:58:19+00:00",
+  "reviewedAt": "2026-11-02T15:34:59+00:00",
   "sources": [
     {
       "repo": "legacy-backend",
@@ -196,8 +196,8 @@
     {
       "repo": "application",
       "path": "app/Http/Controllers/Admin/CreditopXPaymentController.php",
-      "commit": "24dc86eb1eaabb4e4eee37750ab90e258c36ce78",
-      "blob": "d303605d9c94f03114ae8bd33658fef62f737d1b",
+      "commit": "1755ab4fa3a50cac5669cdff4826131979a15def",
+      "blob": "13ad4f4b84f6a96a8699e82639f8450ea6a1ac7e",
       "sections": [
         "desbloqueo-y-liberacion"
       ]

@@ -25,13 +25,13 @@ reenvía `o`, `p`, `t`, `u`, `ps` y `config` al backend (`create/<hash>`) como `
 válido, orden y token. El backend valida el total positivo, la sucursal y su credencial, y
 devuelve `ecommerceRequestId`. Con `?ref=` (pedido creado por la tienda con `payment-link`) sólo
 envía esa referencia a `by-reference/<hash>`; el backend exige que sea de esa sucursal y abre el
-pedido ya guardado, sin crearlo (`EcommerceRequestService.php:294-336`). Las dos entradas siguen
+pedido ya guardado, sin crearlo (`EcommerceRequestService.php:294-337`). Las dos entradas siguen
 igual (`continueCheckout`, `checkout.tsx:184`): el redirect lleva `?erId=`; sólo usa `?amount=`
 como respaldo cuando la respuesta no contiene ese id.
 
 En la entrada por contrato el loader también reenvía `sig` y `ts` como `signature` y
 `signatureTimestamp` cuando vienen los dos (`checkout.tsx:52`). El backend verifica esa firma del
-comercio sobre el `o` recibido (`EcommerceRequestService.php:448`, `MerchantOrderSignatureService`)
+comercio sobre el `o` recibido (`EcommerceRequestService.php:452`, `MerchantOrderSignatureService`)
 y, si vale, marca el pedido y devuelve `merchantVerified` con un `verificationToken` de un solo
 uso. En la entrada por referencia el token sale sólo si la sucursal tiene auto-onboarding, el
 pedido trae teléfono y aceptaciones (`termAccepted`, `policyAccepted`) y la referencia está
@@ -58,6 +58,12 @@ solicitud no tenga pedido: al depurar, contrastar el vínculo en backend.
 `by-user-request` utiliza esa misma resolución. Buscar sólo el primer campo puede perder
 una solicitud recreada o vinculada por la tabla puente.
 
+Al crear la solicitud en una sucursal ecommerce con el pedido identificado (`ecommerce_request_id`
+en la petición o en la sesión), legacy-backend (`UserRequestService::handleEcommerceUserRequest`)
+retoma la solicitud más reciente del mismo usuario vinculada a ESE pedido por la tabla puente, sólo
+si sigue en 1, 3 o 9; si no la hay, o ya terminó, crea otra. Nunca reutiliza la de otro pedido ni
+reabre un estado final. Sin pedido identificado sigue la búsqueda anterior por usuario y monto.
+
 El total se obtiene de la orden guardada en `data`, antes del separador `config`.
 Si no es numérico y positivo, `orderTotalFromData` devuelve `null`. La ausencia de total
 verificable exige revisar el pedido, no inventar un monto desde un dato del navegador.
@@ -75,16 +81,18 @@ En `LenderListingService` el total conocido del pedido prevalece sobre el monto 
 El tema `lender-listing` detalla esa entrada. No extrapolar este bloqueo a una garantía
 de todos los endpoints de escritura ni usar una sesión abierta para reclasificar el canal.
 
-## El link «Volver a la tienda» siempre usa returnUrl
+## El link «Volver a la tienda» prefiere backUrl
 
-`storeBackUrlOf` del wizard prefiere `backUrl` y cae en `returnUrl`, pero lee los dos del detalle del
-pedido, y `buildEcommerceRequestDetailData` sólo devuelve `returnUrl`. Ninguna de las dos entradas
-llega a guardar algo que el detalle devuelva como `backUrl`:
+`storeBackUrlOf` del wizard prefiere `backUrl` y cae en `returnUrl`; lee los dos del detalle del
+pedido (`buildEcommerceRequestDetailData`). El `backUrl` es a dónde vuelve el comprador si sale a pagar
+con otro medio, y viaja dentro del JSON del pedido en `data` como `back_url`:
 
-- con la URL armada, el checkout manda `b` como `backUrl` en el create, pero `CreateEcommerceRequest`
-  no lo valida y el orquestador no lo lee: se descarta;
-- con `payment-link`, `back_url` se valida y queda dentro del JSON del pedido en `data`, pero el
-  detalle no lo extrae.
+- con la URL armada, el checkout manda `b` como `backUrl` en el create; `CreateEcommerceRequest` lo
+  acepta opcional y el orquestador lo decodifica como la `returnUrl` y lo guarda en el pedido después
+  de verificar la firma del comercio, que sigue siendo sobre el `o` recibido;
+- con `payment-link`, `back_url` se valida y queda en el pedido sólo si llegó.
 
-El link del listado vacío lleva así a la `returnUrl` de la tienda, que suele ser la confirmación del
-pedido. Para que sirva el `backUrl`, el backend tiene que guardarlo y devolverlo en el detalle.
+El detalle y la respuesta del create devuelven `backUrl` sólo si es una URL absoluta `http` o `https`
+(`storeUrlOrNull`); vacía, sin protocolo o con otro esquema llega como `null`, y entonces el link del
+listado vacío lleva a la `returnUrl` de la tienda, que suele ser la confirmación del pedido. Los
+pedidos guardados antes de este cambio por la URL armada no tienen `back_url`.

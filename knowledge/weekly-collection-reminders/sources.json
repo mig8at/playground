@@ -2,7 +2,7 @@
   "version": 1,
   "title": "Corte semanal y recordatorios de cobranza",
   "summary": "Cortes 3 (viernes) y 4 (martes): primera cuota, tasa semanal efectiva en los dos monolitos y el comando de recordatorios semanales de legacy-backend: offsets, días no hábiles, un mensaje diario y variables.",
-  "reviewedAt": "2026-10-28T15:12:55+00:00",
+  "reviewedAt": "2026-11-02T15:34:59+00:00",
   "sources": [
     {
       "repo": "legacy-backend",
@@ -101,8 +101,8 @@
     {
       "repo": "legacy-backend",
       "path": "Modules/Loans/App/Services/CreditopXPaymentService.php",
-      "commit": "c03edaffa465bd07bceccd4076af5d1cec9916b9",
-      "blob": "796b6386460c4525005371afecc0d80d2ff4f81f",
+      "commit": "69920f580f62ad35f0a555e3b8b8f2c247d758aa",
+      "blob": "501a79b976b71a77543ce9efc9452e8d2f4e269e",
       "sections": [
         "variables-de-los-mensajes"
       ]

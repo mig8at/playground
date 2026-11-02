@@ -10,10 +10,19 @@ No dar por creado un acceso al wizard sólo porque exista el comercio.
 En `application`, `Admin/AlliedController::store` (`AlliedController.php:100`) abre una transacción,
 genera slug y hash, sube la imagen a S3 y crea el comercio con los campos validados, incluidos `nit`
 y `country_id`, y confirma la transacción. Después, ya fuera de ella, llama a
-`TestAdvisorProvisioner::provision` (`AlliedController.php:133`): crea una sucursal `b<hash>-fake`
-con la ciudad comodín del país (si existe) y un asesor de perfil Comercial (4) con correo
-`c<hash>-fake@<dominio>`, marcado como de prueba si la base ya tiene `users.is_test`; luego intenta
-su cuenta en el pool de Cognito de comercios (`TestAdvisorProvisioner.php:258` y `:316`).
+`TestAdvisorProvisioner::provision` (`AlliedController.php:133`): crea una sucursal física
+`p<hash>-fake` con la ciudad comodín del país (si existe) y un asesor de perfil Comercial (4) con
+correo `c<hash>-fake@<dominio>`, marcados como de prueba si la base ya tiene `users.is_test` y
+`allied_branches.is_test`; luego intenta su cuenta en el pool de Cognito de comercios
+(`TestAdvisorProvisioner.php:379` y `:442`). Los comercios dados de alta antes conservan la sucursal
+con el nombre `b<hash>-fake`; al asesor se lo encuentra por el correo, no por ese nombre.
+
+Del mismo hash base sale también una sucursal ecommerce de prueba `e<hash>-fake`, con hash `e<hash>`,
+plataforma «Desarrollo propio» y un token de payment-link que se muestra una sola vez. Va separada de la
+física porque en legacy-backend una solicitud es ecommerce cuando su sucursal tiene credencial de
+ecommerce: compartirla cambiaría el canal asesor. El hash distinto evita, según el comentario del
+provisionador (no verificado en legacy-backend), que una compra por la tienda caiga en la física. Para comercios que no la tienen, `provisionEcommerce` la crea sin tocar al
+asesor y no crea otra si ya existe.
 
 Ese paso nunca rompe el alta: atrapa toda excepción y devuelve qué quedó. Si el ambiente no tiene el
 pool configurado o Cognito falla, el asesor queda en la base sin poder entrar al wizard; si el correo

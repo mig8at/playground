@@ -2,7 +2,7 @@
   "version": 1,
   "title": "De dónde sale cada credencial de una entidad",
   "summary": "Las dos tablas de credenciales (lender_allied_credentials y risk_central_credentials), el orden en que cada monolito busca la fila, qué integraciones leen certificados y cómo, la ausencia de control de vencimiento y la elección POS/PAY de Sistecrédito.",
-  "reviewedAt": "2026-10-28T18:55:46+00:00",
+  "reviewedAt": "2026-11-02T15:37:24+00:00",
   "sources": [
     {
       "repo": "legacy-backend",
@@ -36,8 +36,8 @@
     {
       "repo": "legacy-backend",
       "path": "app/Actions/Lenders/Wompi.php",
-      "commit": "c03edaffa465bd07bceccd4076af5d1cec9916b9",
-      "blob": "f55e77f01b460684e969bffd352b84bc40e5956c",
+      "commit": "69920f580f62ad35f0a555e3b8b8f2c247d758aa",
+      "blob": "eabda91cba3d6d570cfe4f2bfeaee5b0385ed1ec",
       "sections": [
         "dos-tablas-y-dos-formas-de-buscar"
       ]
@@ -92,8 +92,8 @@
     {
       "repo": "legacy-backend",
       "path": "app/Actions/RiskCentrals/Experian.php",
-      "commit": "c03edaffa465bd07bceccd4076af5d1cec9916b9",
-      "blob": "cdad30514c866315d04a38cf7adfaffc13d29dee",
+      "commit": "69920f580f62ad35f0a555e3b8b8f2c247d758aa",
+      "blob": "dc39ec3cfb5b50c9dacc95f28f364227cf00122d",
       "sections": [
         "credencial-de-central-la-entidad-primero-solo-en-legacy-backend"
       ]
@@ -101,8 +101,8 @@
     {
       "repo": "legacy-backend",
       "path": "app/Actions/RiskCentrals/Ado.php",
-      "commit": "c03edaffa465bd07bceccd4076af5d1cec9916b9",
-      "blob": "b89765ee1b36443fe04b89c2815414c52b5297f6",
+      "commit": "69920f580f62ad35f0a555e3b8b8f2c247d758aa",
+      "blob": "0d312e18a43932558d793fc08ac61413ecd8251a",
       "sections": [
         "credencial-de-central-la-entidad-primero-solo-en-legacy-backend"
       ]
@@ -227,8 +227,8 @@
     {
       "repo": "legacy-backend",
       "path": "Modules/Onboarding/App/Services/UserRequestService.php",
-      "commit": "c03edaffa465bd07bceccd4076af5d1cec9916b9",
-      "blob": "c93fa64508b12b995aaf5d44a1d3f84637933245",
+      "commit": "69920f580f62ad35f0a555e3b8b8f2c247d758aa",
+      "blob": "59d9df68806a6a1db8dc35f55cc6a19fd66dfb6b",
       "sections": [
         "sistecredito-tres-llaves-y-la-marca-pos"
       ]
@@ -267,6 +267,15 @@
       "blob": "ccce97d1143a38fa0619dc3b91af859c6aa22393",
       "sections": [
         "lo-que-ofrecen-los-formularios-de-administracion"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/Identity/App/Http/Controllers/Customer/AdoController.php",
+      "commit": "69920f580f62ad35f0a555e3b8b8f2c247d758aa",
+      "blob": "2fa37c53cfc2e8df3ac370db84997872d24545cd",
+      "sections": [
+        "credencial-de-central-la-entidad-primero-solo-en-legacy-backend"
       ]
     }
   ]

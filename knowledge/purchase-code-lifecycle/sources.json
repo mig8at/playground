@@ -2,13 +2,13 @@
   "version": 1,
   "title": "Código de compra y conciliación",
   "summary": "Emisión y reuso del PIN, disponibilidad y reloj del wizard; factura local, confirmación bancaria y límites de conciliación.",
-  "reviewedAt": "2026-10-27T20:57:12+00:00",
+  "reviewedAt": "2026-11-02T15:33:55+00:00",
   "sources": [
     {
       "repo": "legacy-backend",
       "path": "Modules/Onboarding/routes/api.php",
-      "commit": "d21ab0ef275891025cd2a823552d5ec6c0cac283",
-      "blob": "968fd6daba900e2ee5a2542b1be460a9f319d0c6",
+      "commit": "69920f580f62ad35f0a555e3b8b8f2c247d758aa",
+      "blob": "b51f912eef9e592e842d09e27cd9a4c7bffb7108",
       "sections": [
         "entrada-y-emisor"
       ]
@@ -167,8 +167,8 @@
     {
       "repo": "frontend-monorepo",
       "path": "apps/loan-request-wizard/app/routes/bancolombia/purchase-code.tsx",
-      "commit": "68ce7349c4e2a52c83fe4ee174a23ac71fe667cc",
-      "blob": "d850653ac8753cd72905fc5c7c820da29f83c66c",
+      "commit": "e0c370c299cf4a613c7282626a9977d635484616",
+      "blob": "56a93ba239f1d36fa3db71d7464dcd2c07b7d663",
       "sections": [
         "disponibilidad-y-vigencia-visual",
         "fecha-limite-y-relojes"
@@ -177,8 +177,8 @@
     {
       "repo": "frontend-monorepo",
       "path": "modules/loan-request-wizard/bancolombia-origination/src/ui/components/origination/shared/finalize-purchase/FinalizePurchase.tsx",
-      "commit": "68ce7349c4e2a52c83fe4ee174a23ac71fe667cc",
-      "blob": "8b720920647a14e019e2aca95d10f37a414a7783",
+      "commit": "e0c370c299cf4a613c7282626a9977d635484616",
+      "blob": "fd8f2ec6dee9063daf471f78a517eb0c3747aafd",
       "sections": [
         "disponibilidad-y-vigencia-visual"
       ]
@@ -195,8 +195,8 @@
     {
       "repo": "frontend-monorepo",
       "path": "modules/loan-request-wizard/bancolombia-origination/src/ui/components/origination/shared/finalize-purchase/ExpiredView.tsx",
-      "commit": "68ce7349c4e2a52c83fe4ee174a23ac71fe667cc",
-      "blob": "15466132dcb671b2e70994a576e328007897b625",
+      "commit": "e0c370c299cf4a613c7282626a9977d635484616",
+      "blob": "ce9391d1be647ac5562b9f9fa8027b23e8d4baa5",
       "sections": [
         "disponibilidad-y-vigencia-visual"
       ]
@@ -204,8 +204,8 @@
     {
       "repo": "frontend-monorepo",
       "path": "modules/loan-request-wizard/bancolombia-origination/src/ui/components/origination/shared/finalize-purchase/CountdownDisplay.tsx",
-      "commit": "68ce7349c4e2a52c83fe4ee174a23ac71fe667cc",
-      "blob": "bb185c7b8ae818a22801898107a156954072ccca",
+      "commit": "e0c370c299cf4a613c7282626a9977d635484616",
+      "blob": "a0a6fd7f08d59083cab0390ea3766d7fb1413750",
       "sections": [
         "disponibilidad-y-vigencia-visual",
         "fecha-limite-y-relojes"
@@ -214,8 +214,8 @@
     {
       "repo": "frontend-monorepo",
       "path": "modules/loan-request-wizard/bancolombia-origination/src/ui/components/origination/shared/finalize-purchase/CodeDisplay.tsx",
-      "commit": "68ce7349c4e2a52c83fe4ee174a23ac71fe667cc",
-      "blob": "cc773bb75ee41257dfab4558f3696b63f268ec12",
+      "commit": "e0c370c299cf4a613c7282626a9977d635484616",
+      "blob": "132a3fcd653cafdd279ab638446f6804299848f6",
       "sections": [
         "disponibilidad-y-vigencia-visual"
       ]

@@ -2,13 +2,13 @@
   "version": 1,
   "title": "Categoría por puntaje de respuestas",
   "summary": "Cuando ninguna regla de categoría aprueba, el backend modular suma puntos por respuestas del formulario y por capacidad de pago para elegir categoría; cuándo esa categoría aprueba, y cómo el formulario dinámico convierte rangos de ingreso y gasto en montos.",
-  "reviewedAt": "2026-10-28T15:17:04+00:00",
+  "reviewedAt": "2026-11-02T15:32:42+00:00",
   "sources": [
     {
       "repo": "legacy-backend",
       "path": "Modules/Loans/App/Services/LenderUserCategoryService.php",
-      "commit": "c03edaffa465bd07bceccd4076af5d1cec9916b9",
-      "blob": "676fb1f28a999cf8bbff0c756328a656df7cd2f0",
+      "commit": "69920f580f62ad35f0a555e3b8b8f2c247d758aa",
+      "blob": "24cd36736a87e88e1ff69ffe625cd4b3518bdc58",
       "sections": [
         "cuando-se-usa-el-puntaje",
         "una-categoria-por-puntaje-no-siempre-aprueba"

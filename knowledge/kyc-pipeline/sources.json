@@ -2,7 +2,7 @@
   "version": 1,
   "title": "Pipeline de KYC por comercio",
   "summary": "Cómo kyc_pipeline_allieds elige por comercio entre la cascada dentro de legacy-backend y el pipeline de customer-profiling-service sobre Temporal, y qué cambia en OTP, datos personales y kyc-processing.",
-  "reviewedAt": "2026-10-20T22:03:54+00:00",
+  "reviewedAt": "2026-11-02T15:33:55+00:00",
   "sources": [
     {
       "repo": "legacy-backend",
@@ -82,8 +82,8 @@
     {
       "repo": "frontend-monorepo",
       "path": "apps/loan-request-wizard/app/routes/loan-application-form/otp-verification.tsx",
-      "commit": "3492b9059de25e6e9b809fda10dac30cfd306b53",
-      "blob": "52a3d57e39db091542c8605e75981716b60db38c",
+      "commit": "e0c370c299cf4a613c7282626a9977d635484616",
+      "blob": "3959e6ddbb85d5a5ed54e674827baffa41a6a2ae",
       "sections": [
         "que-cambia-en-el-wizard-segun-el-camino"
       ]
@@ -91,8 +91,8 @@
     {
       "repo": "frontend-monorepo",
       "path": "apps/loan-request-wizard/app/routes/loan-application-form/loan-request-form.tsx",
-      "commit": "3492b9059de25e6e9b809fda10dac30cfd306b53",
-      "blob": "f173e5d63379afecf977f0ed703886cea68821f9",
+      "commit": "e0c370c299cf4a613c7282626a9977d635484616",
+      "blob": "7035b7d8eaaf8832f14632739e98d73ecd52a15e",
       "sections": [
         "que-cambia-en-el-wizard-segun-el-camino"
       ]
@@ -100,8 +100,8 @@
     {
       "repo": "frontend-monorepo",
       "path": "apps/loan-request-wizard/app/routes/loan-application-form/kyc-processing.tsx",
-      "commit": "3394193660a2ab7d2d923dda12421a5bdd867414",
-      "blob": "310912ecce6f98a21e4a173cf26619658023dcc3",
+      "commit": "e0c370c299cf4a613c7282626a9977d635484616",
+      "blob": "67765863cbdc641fec2640cf458830d899a5dc63",
       "sections": [
         "que-cambia-en-el-wizard-segun-el-camino",
         "como-termina-la-corrida-y-que-ve-el-wizard"

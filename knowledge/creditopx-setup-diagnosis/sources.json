@@ -2,7 +2,7 @@
   "version": 1,
   "title": "CreditopX: alta de una entidad y por qué no aparece",
   "summary": "Qué filas necesita una entidad CreditopX (plantilla de reglas y copias por sucursal, regla de datacrédito sin sucursal, perfiles por priority, proveedor de identidad order 1) y cómo leer hard_rules, la razón de available-quota y users_category_log para saber por qué un cliente no la vio o la vio sin cupo.",
-  "reviewedAt": "2026-10-28T18:57:06+00:00",
+  "reviewedAt": "2026-11-02T15:35:39+00:00",
   "sources": [
     {
       "repo": "legacy-backend",
@@ -35,8 +35,8 @@
     {
       "repo": "legacy-backend",
       "path": "Modules/Loans/App/Services/DatacreditoRuleEvaluator.php",
-      "commit": "c03edaffa465bd07bceccd4076af5d1cec9916b9",
-      "blob": "5879d6910e339be83e201cbcd376783533fcab33",
+      "commit": "69920f580f62ad35f0a555e3b8b8f2c247d758aa",
+      "blob": "066257010729a9f2f3e4a1004b2b6e41d7c01c16",
       "sections": [
         "dos-puertas-evaluan-la-misma-politica",
         "diagnostico-salio-sin-cupo"
@@ -63,8 +63,8 @@
     {
       "repo": "legacy-backend",
       "path": "Modules/Backoffice/App/Services/LenderRulesWriterService.php",
-      "commit": "c03edaffa465bd07bceccd4076af5d1cec9916b9",
-      "blob": "bc57352e84b6c9fe2cb074519eddc839e38be8a6",
+      "commit": "69920f580f62ad35f0a555e3b8b8f2c247d758aa",
+      "blob": "53604368c1324954884f412d17d0ebe735c7aa80",
       "sections": [
         "alta-plantilla-copias-y-perfiles"
       ]
@@ -72,8 +72,8 @@
     {
       "repo": "legacy-backend",
       "path": "Modules/Backoffice/routes/backoffice.php",
-      "commit": "c03edaffa465bd07bceccd4076af5d1cec9916b9",
-      "blob": "f55b6f7db732fece087931eac269e1bf2d923e39",
+      "commit": "69920f580f62ad35f0a555e3b8b8f2c247d758aa",
+      "blob": "fc74cf4b77646b167e0cbcfa3a4b09452aa9c4c0",
       "sections": [
         "alta-plantilla-copias-y-perfiles"
       ]
@@ -108,10 +108,11 @@
     {
       "repo": "legacy-backend",
       "path": "Modules/Backoffice/App/Services/LenderConfigService.php",
-      "commit": "c03edaffa465bd07bceccd4076af5d1cec9916b9",
-      "blob": "c38902f35dba1051f8e821a6e9862d84c2d8e1bc",
+      "commit": "69920f580f62ad35f0a555e3b8b8f2c247d758aa",
+      "blob": "af218af50c736862f34062307fdf28c4decd8706",
       "sections": [
-        "identidad-y-nit"
+        "identidad-y-nit",
+        "alta-plantilla-copias-y-perfiles"
       ]
     },
     {
@@ -135,8 +136,8 @@
     {
       "repo": "legacy-backend",
       "path": "Modules/Loans/App/Services/LenderUserCategoryService.php",
-      "commit": "c03edaffa465bd07bceccd4076af5d1cec9916b9",
-      "blob": "676fb1f28a999cf8bbff0c756328a656df7cd2f0",
+      "commit": "69920f580f62ad35f0a555e3b8b8f2c247d758aa",
+      "blob": "24cd36736a87e88e1ff69ffe625cd4b3518bdc58",
       "sections": [
         "diagnostico-salio-sin-cupo",
         "leer-users-category-log"
@@ -154,8 +155,8 @@
     {
       "repo": "legacy-backend",
       "path": "Modules/Loans/App/Repositories/LenderUsersCategoryRuleRepository.php",
-      "commit": "c03edaffa465bd07bceccd4076af5d1cec9916b9",
-      "blob": "38f02669e97a3d7523573d2c9db138e4b1f1b870",
+      "commit": "69920f580f62ad35f0a555e3b8b8f2c247d758aa",
+      "blob": "5584a64e9765f7823b6425ecab533520142378ed",
       "sections": [
         "alta-plantilla-copias-y-perfiles",
         "leer-users-category-log"
@@ -177,6 +178,24 @@
       "blob": "ba861e1778f9739607631d2b6b6aa60ea795c4f0",
       "sections": [
         "leer-users-category-log"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "app/Support/RiskCentrals/DatacreditoConsultFailure.php",
+      "commit": "69920f580f62ad35f0a555e3b8b8f2c247d758aa",
+      "blob": "88a855be57e68b4db8205f6f1c6ec567a9a0b835",
+      "sections": [
+        "dos-puertas-evaluan-la-misma-politica"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/Backoffice/App/Services/LenderReadinessService.php",
+      "commit": "69920f580f62ad35f0a555e3b8b8f2c247d758aa",
+      "blob": "f35369005a7607e85c5ed6a1440a52a38c0f612c",
+      "sections": [
+        "alta-plantilla-copias-y-perfiles"
       ]
     }
   ]

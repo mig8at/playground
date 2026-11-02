@@ -1,0 +1,83 @@
+{
+  "version": 1,
+  "title": "Solicitud: estados, cierre y guardas contra el retroceso",
+  "summary": "El catálogo de estados de user_requests con sus ids de producción y por qué se lee por nombre, qué estados cierran una solicitud en cada monolito, la cancelación en cascada de solicitudes CreditopX hermanas al autorizar, safeCancel, el webhook tardío contra Autorizada, la gestión manual del comercio y una solicitud por pedido en ecommerce.",
+  "reviewedAt": "2026-11-02T15:34:07+00:00",
+  "sources": [
+    {
+      "repo": "legacy-backend",
+      "path": "app/Models/UserRequestStatus.php",
+      "commit": "69920f580f62ad35f0a555e3b8b8f2c247d758aa",
+      "blob": "8f4e22887e1fc446d4bf768ee63fdf83c41cdf91",
+      "sections": [
+        "el-catalogo-no-esta-versionado-y-se-lee-por-nombre"
+      ]
+    },
+    {
+      "repo": "application",
+      "path": "app/Support/Users/UserDisableGuard.php",
+      "commit": "1755ab4fa3a50cac5669cdff4826131979a15def",
+      "blob": "fc2c6800b0da1c68c1cef0e09a1cb1d2c959b27e",
+      "sections": [
+        "el-catalogo-no-esta-versionado-y-se-lee-por-nombre",
+        "que-estados-cierran-una-solicitud"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/Partner/App/Services/UserRequestManagementService.php",
+      "commit": "69920f580f62ad35f0a555e3b8b8f2c247d758aa",
+      "blob": "69c25adcd59a7f818caa5452b9128727ebf7425d",
+      "sections": [
+        "el-catalogo-no-esta-versionado-y-se-lee-por-nombre",
+        "que-estados-cierran-una-solicitud",
+        "el-comercio-solo-gestiona-a-mano-las-entidades-que-originan-afuera"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/Loans/App/Repositories/UserRequestRepository.php",
+      "commit": "69920f580f62ad35f0a555e3b8b8f2c247d758aa",
+      "blob": "d9a90d0bd79ac538035b3419b23f1c1d091f883d",
+      "sections": [
+        "al-autorizar-se-cancelan-las-solicitudes-hermanas-creditopx"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/Loans/App/Services/LoanAuthorizationService.php",
+      "commit": "69920f580f62ad35f0a555e3b8b8f2c247d758aa",
+      "blob": "dd7b9e624d08d12802e4c80893a12d6650ecf6f1",
+      "sections": [
+        "al-autorizar-se-cancelan-las-solicitudes-hermanas-creditopx"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/Loans/App/Services/CancelRequestService.php",
+      "commit": "69920f580f62ad35f0a555e3b8b8f2c247d758aa",
+      "blob": "281b4b3554077ad55770b0b36035534e89cee49a",
+      "sections": [
+        "al-autorizar-se-cancelan-las-solicitudes-hermanas-creditopx"
+      ]
+    },
+    {
+      "repo": "application",
+      "path": "app/Http/Controllers/Api/PramiController.php",
+      "commit": "1755ab4fa3a50cac5669cdff4826131979a15def",
+      "blob": "e1a178b971b69876a3c89ec85188660f336985ce",
+      "sections": [
+        "un-webhook-tardio-no-saca-a-una-solicitud-de-autorizada"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/Onboarding/App/Services/UserRequestService.php",
+      "commit": "69920f580f62ad35f0a555e3b8b8f2c247d758aa",
+      "blob": "59d9df68806a6a1db8dc35f55cc6a19fd66dfb6b",
+      "sections": [
+        "en-ecommerce-hay-una-solicitud-por-pedido"
+      ]
+    }
+  ]
+}

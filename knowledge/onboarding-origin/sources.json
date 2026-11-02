@@ -2,7 +2,7 @@
   "version": 1,
   "title": "Origen del onboarding: canal y backend del usuario",
   "summary": "Quién escribe users.onboarding_channel y users.onboarding_backend en cada front y backend, por qué el canal es write-once a nivel de modelo y por qué el backend puede cambiar después.",
-  "reviewedAt": "2026-10-28T18:58:18+00:00",
+  "reviewedAt": "2026-11-02T15:34:14+00:00",
   "sources": [
     {
       "repo": "legacy-backend",
@@ -16,8 +16,8 @@
     {
       "repo": "legacy-backend",
       "path": "Modules/Backoffice/App/Services/UsersService.php",
-      "commit": "c03edaffa465bd07bceccd4076af5d1cec9916b9",
-      "blob": "5b3273ab1b0c7d7cc80b9baa7bca8b747c4c0937",
+      "commit": "69920f580f62ad35f0a555e3b8b8f2c247d758aa",
+      "blob": "86f6dcd29908689123501c74379946bf6a618e6a",
       "sections": [
         "las-dos-columnas-y-sus-valores"
       ]
@@ -34,8 +34,8 @@
     {
       "repo": "frontend-monorepo",
       "path": "apps/loan-request-wizard/app/routes/loan-application-form/phone-number.tsx",
-      "commit": "1238d30ef1459fd1fb84ac8020fbacb64a658e55",
-      "blob": "df68305501ad0c3f645386714a975b2b554646fd",
+      "commit": "e0c370c299cf4a613c7282626a9977d635484616",
+      "blob": "1aaf37eb3743ae84954a124fc0fb895526cb5b75",
       "sections": [
         "quien-declara-el-canal"
       ]

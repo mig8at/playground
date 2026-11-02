@@ -34,7 +34,7 @@ URV27000 incluye `userRequestAuthorized` según esa autorización. El schema del
 
 ## Respuesta del proveedor de OTP
 
-AuthV1 decide por HTTP: 200 acepta sin exigir `payload.success:true`; 429 limita intentos; otro estado con `error:expired` indica vencimiento; el resto rechaza. UserRequestV1 traduce a URV27000, URV27008, URV27007 y URV27006. Un proveedor de prueba que siempre devuelve 200 no permite comprobar códigos incorrectos.
+AuthV1 decide por HTTP: 200 acepta sin exigir `payload.success:true`; 429 limita intentos; otro estado con `error:expired` indica vencimiento; el resto rechaza. UserRequestV1 traduce a URV27000, URV27008, URV27007 y URV27006. Un proveedor de prueba que siempre devuelve 200 no permite comprobar códigos incorrectos. Excepción: si la fila del OTP quedó con `qa_bypass` (el envío lo saltó el bypass de QA) y el ambiente no es producción, AuthV1 no llama al proveedor y compara el código ingresado contra el guardado cifrado en la fila; ahí un código incorrecto sí se rechaza.
 
 ## Estado del saga y sincronización de la espera
 

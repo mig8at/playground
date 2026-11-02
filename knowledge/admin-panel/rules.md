@@ -94,7 +94,11 @@ las ve nadie más del comercio.
 
 - **Comercios** (`/aliados`): alta y datos del comercio, sus puntos de venta (con QR), zonas, entidades
   habilitadas por comercio y por punto de venta, módulos, credenciales de ecommerce, productos, usuarios
-  comerciales y el usuario de prueba. Guardar un punto de venta BORRA y recrea sus entidades, conservando los
+  comerciales y el usuario de prueba. En la pestaña de ecommerce se editan la plataforma, la URL y las
+  llaves de una sucursal ecommerce, y se emiten (el token se muestra una sola vez) o revocan los tokens de
+  payment-link de la sucursal; revocarlos deja a la tienda sin poder generar enlaces de pago. El alta del
+  usuario de prueba crea además una sucursal ecommerce de prueba aparte (ver `merchant-onboarding`), y
+  hay una acción para crearla en comercios que no la tienen. Guardar un punto de venta BORRA y recrea sus entidades, conservando los
   `document_types` que cada una ya tenía ahí; una entidad recién sumada toma los de la propia entidad. Pasar un
   comercio a inactivo por «Churn» o «No implementado» apaga a todos sus usuarios activos.
 - **Entidades** (`/entidades`): el catálogo de entidades financieras, sus líneas de crédito y tasas, sus
@@ -136,7 +140,8 @@ prueba, la baja sólo funciona con clientes que no llegaron tan lejos.
 
 Varias acciones que escriben se apoyan sólo en que el usuario está logueado: la baja de usuarios (de
 Usuarios y de comercio), desactivar una entidad, borrar credenciales de integración (borrado real),
-desactivar un link de pago, guardar las reglas y la frecuencia de Datacrédito, el disparador de un
+desactivar un link de pago, emitir o revocar los tokens de payment-link de una sucursal ecommerce,
+guardar las reglas y la frecuencia de Datacrédito, el disparador de un
 punto de venta, cambiar el estado de una solicitud al gestionarla y mandar mensajes de marketing.
 Cualquier rol que entre al admin puede ejecutarlas llamando a la URL. Antes de automatizar una acción
 del admin, comprobá en el controlador qué chequea, en vez de suponer que el menú la protege.

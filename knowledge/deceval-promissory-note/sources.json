@@ -2,7 +2,7 @@
   "version": 1,
   "title": "Pagaré en Deceval: ruteo, credencial y depuración",
   "summary": "Qué manda el pagaré de un lender a Deceval (promissory_types), qué campos de la credencial del depositante se usan y cómo se resuelve en cada monolito, qué datos del girador se envían, cómo se reutiliza el título y dónde depurarlo (deceval_logs, promissory_notes).",
-  "reviewedAt": "2026-10-28T18:55:47+00:00",
+  "reviewedAt": "2026-11-02T15:35:47+00:00",
   "sources": [
     {
       "repo": "legacy-backend",
@@ -86,8 +86,8 @@
     {
       "repo": "legacy-backend",
       "path": "config/services.php",
-      "commit": "c03edaffa465bd07bceccd4076af5d1cec9916b9",
-      "blob": "6a501817061b84474b8d11ae9ab0d17f37e7ba4f",
+      "commit": "69920f580f62ad35f0a555e3b8b8f2c247d758aa",
+      "blob": "885cd59dc8581496fbc0d64e5bc53046f644c2a2",
       "sections": [
         "la-credencial-del-depositante"
       ]

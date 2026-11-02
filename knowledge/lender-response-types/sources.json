@@ -2,7 +2,7 @@
   "version": 1,
   "title": "Rieles de una entidad: response_type",
   "summary": "Qué separa a los tipos 0 a 4 de una entidad (de quién es la política y por qué riel se origina), qué dispara cada uno en el código y por qué la cobranza externa es otro eje.",
-  "reviewedAt": "2026-10-29T21:23:44+00:00",
+  "reviewedAt": "2026-11-02T15:37:24+00:00",
   "sources": [
     {
       "repo": "frontend-monorepo",
@@ -37,8 +37,8 @@
     {
       "repo": "frontend-monorepo",
       "path": "apps/loan-request-wizard/app/routes/lenders-marketplace/available-lenders.tsx",
-      "commit": "ee5f92d91589b452e065c66e28600916ebad615b",
-      "blob": "ea57f1789c8a1bf886f75695adf979adfb8d4d4a",
+      "commit": "e0c370c299cf4a613c7282626a9977d635484616",
+      "blob": "f5e1461f85f1b7bbae4ee7d1ac95255be15ace0f",
       "sections": [
         "tipos-0-y-1-la-entidad-origina-en-su-flujo"
       ]
@@ -83,8 +83,8 @@
     {
       "repo": "legacy-backend",
       "path": "Modules/Onboarding/App/Services/UserRequestService.php",
-      "commit": "174120193b2aed6061cd0e8747afc25673223160",
-      "blob": "c93fa64508b12b995aaf5d44a1d3f84637933245",
+      "commit": "69920f580f62ad35f0a555e3b8b8f2c247d758aa",
+      "blob": "59d9df68806a6a1db8dc35f55cc6a19fd66dfb6b",
       "sections": [
         "tipos-0-y-1-la-entidad-origina-en-su-flujo"
       ]
@@ -148,7 +148,7 @@
     {
       "repo": "legacy-backend",
       "path": "app/Services/PaymentPlan/Credifamilia/Constants/CredifamiliaLenders.php",
-      "commit": "174120193b2aed6061cd0e8747afc25673223160",
+      "commit": "69920f580f62ad35f0a555e3b8b8f2c247d758aa",
       "blob": "aa075b81106803280599170ebabf7fe23880a62c",
       "sections": [
         "tipo-4-politica-de-la-entidad-rieles-de-creditop"
@@ -184,8 +184,8 @@
     {
       "repo": "legacy-backend",
       "path": "Modules/Backoffice/App/Services/LenderReadinessService.php",
-      "commit": "174120193b2aed6061cd0e8747afc25673223160",
-      "blob": "2af9c605fde4c0b8043c143aa12d2135f9827b10",
+      "commit": "69920f580f62ad35f0a555e3b8b8f2c247d758aa",
+      "blob": "f35369005a7607e85c5ed6a1440a52a38c0f612c",
       "sections": [
         "la-cobranza-es-otro-eje"
       ]
@@ -238,8 +238,8 @@
     {
       "repo": "legacy-backend",
       "path": "Modules/Loans/App/Http/Controllers/Customer/PromissoryNoteController.php",
-      "commit": "174120193b2aed6061cd0e8747afc25673223160",
-      "blob": "d41489500ec15614a2315455329ff700590e0aab",
+      "commit": "69920f580f62ad35f0a555e3b8b8f2c247d758aa",
+      "blob": "69321ed45358e3baa72cff2b04f4b951ebafac01",
       "sections": [
         "tipo-4-politica-de-la-entidad-rieles-de-creditop"
       ]
@@ -247,8 +247,8 @@
     {
       "repo": "legacy-backend",
       "path": "Modules/Loans/App/Services/Signing/Credifamilia/CredifamiliaDocumentsBuilder.php",
-      "commit": "174120193b2aed6061cd0e8747afc25673223160",
-      "blob": "9806f22d88774b1f5263d9b1ac4469648370806e",
+      "commit": "69920f580f62ad35f0a555e3b8b8f2c247d758aa",
+      "blob": "67092391260bfcce94bd5df5689bd01a1a14c983",
       "sections": [
         "tipo-4-politica-de-la-entidad-rieles-de-creditop"
       ]
@@ -256,8 +256,8 @@
     {
       "repo": "legacy-backend",
       "path": "Modules/Onboarding/routes/api.php",
-      "commit": "174120193b2aed6061cd0e8747afc25673223160",
-      "blob": "968fd6daba900e2ee5a2542b1be460a9f319d0c6",
+      "commit": "69920f580f62ad35f0a555e3b8b8f2c247d758aa",
+      "blob": "b51f912eef9e592e842d09e27cd9a4c7bffb7108",
       "sections": [
         "tipo-4-politica-de-la-entidad-rieles-de-creditop"
       ]
@@ -269,6 +269,15 @@
       "blob": "e3cba52d24cbaecebf990c289aa10ab5f27ec1c3",
       "sections": [
         "tipo-4-politica-de-la-entidad-rieles-de-creditop"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/Backoffice/App/Services/LenderPaymentMethodService.php",
+      "commit": "69920f580f62ad35f0a555e3b8b8f2c247d758aa",
+      "blob": "82238338f3ee39675adf6d268470db93189d1efb",
+      "sections": [
+        "la-cobranza-es-otro-eje"
       ]
     }
   ]

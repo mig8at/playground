@@ -2,7 +2,7 @@
   "version": 1,
   "title": "Admin de legacy-application: secciones, roles y escrituras",
   "summary": "Qué hace cada sección del admin por el negocio, quién entra con qué perfil, qué escribe, las bajas lógicas con -t<n> y las acciones que no piden permiso; historial, facturación y recaudo, y lo que ve el comercio de un crédito CreditopX.",
-  "reviewedAt": "2026-10-27T20:54:25+00:00",
+  "reviewedAt": "2026-11-02T15:33:07+00:00",
   "sources": [
     {
       "repo": "application",
@@ -90,8 +90,8 @@
     {
       "repo": "application",
       "path": "routes/admin.php",
-      "commit": "24dc86eb1eaabb4e4eee37750ab90e258c36ce78",
-      "blob": "edf18d66526265fbeb277453989eb2aee4f9b01d",
+      "commit": "1755ab4fa3a50cac5669cdff4826131979a15def",
+      "blob": "331696df154357eb6b9664a17491c8524a9a456b",
       "sections": [
         "gestion-usuarios-solicitudes-y-autorizaciones",
         "configuracion-comercios-entidades-y-reglas",
@@ -232,8 +232,8 @@
     {
       "repo": "application",
       "path": "app/Http/Controllers/Admin/CreditopXPaymentController.php",
-      "commit": "24dc86eb1eaabb4e4eee37750ab90e258c36ce78",
-      "blob": "d303605d9c94f03114ae8bd33658fef62f737d1b",
+      "commit": "1755ab4fa3a50cac5669cdff4826131979a15def",
+      "blob": "13ad4f4b84f6a96a8699e82639f8450ea6a1ac7e",
       "sections": [
         "el-historial-de-un-credito-creditopx-lleva-dos-estados"
       ]
@@ -290,6 +290,16 @@
       "blob": "32ee061261531f9d26e6c56ed7d5cdc0e1ccc982",
       "sections": [
         "facturacion-y-recaudo-suma-por-mes-no-cuota-por-cuota"
+      ]
+    },
+    {
+      "repo": "application",
+      "path": "app/Http/Controllers/Admin/AlliedEcommerceCredentialsController.php",
+      "commit": "1755ab4fa3a50cac5669cdff4826131979a15def",
+      "blob": "86b90ed9bdfdb38a8a59b6fb593a93cddb673739",
+      "sections": [
+        "configuracion-comercios-entidades-y-reglas",
+        "escrituras-que-no-piden-permiso"
       ]
     }
   ]

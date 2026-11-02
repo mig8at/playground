@@ -2,13 +2,13 @@
   "version": 1,
   "title": "Listado de entidades",
   "summary": "Puertas del listado en ambos monolitos, resolución del monto en lenders-v2, reescritura del perfilamiento guardado y requisitos de Welli Risk.",
-  "reviewedAt": "2026-10-27T20:52:02+00:00",
+  "reviewedAt": "2026-11-02T15:35:39+00:00",
   "sources": [
     {
       "repo": "legacy-backend",
       "path": "Modules/Onboarding/routes/api.php",
-      "commit": "d21ab0ef275891025cd2a823552d5ec6c0cac283",
-      "blob": "968fd6daba900e2ee5a2542b1be460a9f319d0c6",
+      "commit": "69920f580f62ad35f0a555e3b8b8f2c247d758aa",
+      "blob": "b51f912eef9e592e842d09e27cd9a4c7bffb7108",
       "sections": [
         "dos-puertas-en-el-backend-modular"
       ]
@@ -100,8 +100,8 @@
     {
       "repo": "frontend-monorepo",
       "path": "apps/loan-request-wizard/app/routes/lenders-marketplace/available-lenders.tsx",
-      "commit": "1238d30ef1459fd1fb84ac8020fbacb64a658e55",
-      "blob": "ea57f1789c8a1bf886f75695adf979adfb8d4d4a",
+      "commit": "e0c370c299cf4a613c7282626a9977d635484616",
+      "blob": "f5e1461f85f1b7bbae4ee7d1ac95255be15ace0f",
       "sections": [
         "welli-risk-depende-de-la-sucursal-de-la-consulta-compartida-y-de-la-comision-del-aliado"
       ]
@@ -163,8 +163,8 @@
     {
       "repo": "legacy-backend",
       "path": "Modules/Loans/App/Services/DatacreditoRuleEvaluator.php",
-      "commit": "c03edaffa465bd07bceccd4076af5d1cec9916b9",
-      "blob": "5879d6910e339be83e201cbcd376783533fcab33",
+      "commit": "69920f580f62ad35f0a555e3b8b8f2c247d758aa",
+      "blob": "066257010729a9f2f3e4a1004b2b6e41d7c01c16",
       "sections": [
         "las-reglas-duras-solo-sacan-del-listado-a-algunas-entidades"
       ]

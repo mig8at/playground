@@ -59,7 +59,9 @@ Un JSON roto deja la lista vacía y lo reporta con `Log::error`.
 
 - El código esperado son los **últimos 4** dígitos en onboarding y los **últimos 6** en el pagaré.
 - No se llama al proveedor, pero se persiste la fila cifrada con `qa_bypass = true` y el mismo
-  `source`, para que la validación y la firma la encuentren por el camino normal.
+  `source`, para que la validación y la firma la encuentren por el camino normal. La validación de
+  AuthV1 (`ValidateOtpService`) lee esa marca de la fila, no el setting: con `qa_bypass` y fuera de
+  producción descifra el código guardado y lo compara, sin consultar al servicio de OTP.
 - La comparación es en tiempo constante (`hash_equals`).
 
 El bypass sólo actúa si `QaModeService::enabled()`: falso siempre con `APP_ENV=production`, y en

@@ -1,0 +1,233 @@
+{
+  "version": 1,
+  "title": "CreditOp Mobile: la app del cliente final",
+  "summary": "Qué hace la app Flutter del consumidor (rama main-pro) y qué valida el backend de cada paso: OTP por Cognito o legacy y el registro MOBA, comercios y preaprobación, canales de compra por sedes y el código de self-manager, Mis créditos y el cupo rotativo, Salud Financiera gratuita o premium por el beneficio de entitlement, identidad ADO sólo para premium y la campaña de cero interés quemada.",
+  "reviewedAt": "2026-11-02T15:38:09+00:00",
+  "sources": [
+    {
+      "repo": "creditop-mobile",
+      "path": "app/lib/config/environment_config.dart",
+      "commit": "23838f6058b6bd29c4262efa99c81117c303e801",
+      "blob": "fdccb41c173804d5c031b5befe92edb683ddd54f",
+      "sections": [
+        "con-que-servicios-habla"
+      ]
+    },
+    {
+      "repo": "creditop-mobile",
+      "path": "app/lib/config/router/app_routes.dart",
+      "commit": "23838f6058b6bd29c4262efa99c81117c303e801",
+      "blob": "f8d684f08af95ffec4652c47b5b4dadf2393cfe8",
+      "sections": [
+        "con-que-servicios-habla"
+      ]
+    },
+    {
+      "repo": "creditop-mobile",
+      "path": "app/lib/infrastructure/auth/gateways/cognito_auth_gateway_impl.dart",
+      "commit": "23838f6058b6bd29c4262efa99c81117c303e801",
+      "blob": "f651ae4ea1d60c85d9fbc192e0122e355e4c9a32",
+      "sections": [
+        "entrada-otp-por-celular-y-registro-en-legacy"
+      ]
+    },
+    {
+      "repo": "creditop-mobile",
+      "path": "app/lib/infrastructure/auth/datasources/backend_lo_datasource.dart",
+      "commit": "23838f6058b6bd29c4262efa99c81117c303e801",
+      "blob": "42f79ca7095eb1d4148dd4a5b42b226a5da413ef",
+      "sections": [
+        "entrada-otp-por-celular-y-registro-en-legacy"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/Onboarding/routes/api.php",
+      "commit": "69920f580f62ad35f0a555e3b8b8f2c247d758aa",
+      "blob": "b51f912eef9e592e842d09e27cd9a4c7bffb7108",
+      "sections": [
+        "entrada-otp-por-celular-y-registro-en-legacy"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/Onboarding/App/Services/MobileOnboardingService.php",
+      "commit": "69920f580f62ad35f0a555e3b8b8f2c247d758aa",
+      "blob": "2cc3688440c9c5afa2554012559888753395c860",
+      "sections": [
+        "entrada-otp-por-celular-y-registro-en-legacy"
+      ]
+    },
+    {
+      "repo": "creditop-mobile",
+      "path": "app/lib/infrastructure/home/datasources/merchants_datasource.dart",
+      "commit": "23838f6058b6bd29c4262efa99c81117c303e801",
+      "blob": "3ab48225fabaea2ef825d1ea76c921bee8d6e689",
+      "sections": [
+        "home-comercios-preaprobacion-y-sin-cupo"
+      ]
+    },
+    {
+      "repo": "creditop-mobile",
+      "path": "app/lib/infrastructure/home/datasources/preapprovals_datasource.dart",
+      "commit": "23838f6058b6bd29c4262efa99c81117c303e801",
+      "blob": "2ce33c74f4db887f023185b475a0436af7387f87",
+      "sections": [
+        "home-comercios-preaprobacion-y-sin-cupo"
+      ]
+    },
+    {
+      "repo": "creditop-mobile",
+      "path": "app/lib/infrastructure/home/gateways/home_gateway_impl.dart",
+      "commit": "23838f6058b6bd29c4262efa99c81117c303e801",
+      "blob": "46317cbb92d2ab5829f13f1d5e81b41eec9a73b7",
+      "sections": [
+        "home-comercios-preaprobacion-y-sin-cupo"
+      ]
+    },
+    {
+      "repo": "creditop-mobile",
+      "path": "packages/feature_home/lib/domain/entities/purchase_channels.dart",
+      "commit": "23838f6058b6bd29c4262efa99c81117c303e801",
+      "blob": "b1ae8e4fe7cb27a99a8b7739625662c90c230e53",
+      "sections": [
+        "comprar-en-un-comercio-canal-y-codigo"
+      ]
+    },
+    {
+      "repo": "creditop-mobile",
+      "path": "app/lib/infrastructure/home/datasources/lender_code_datasource.dart",
+      "commit": "23838f6058b6bd29c4262efa99c81117c303e801",
+      "blob": "dc083eb520132dec7b997b0dc415e1448a1e7f03",
+      "sections": [
+        "comprar-en-un-comercio-canal-y-codigo"
+      ]
+    },
+    {
+      "repo": "creditop-mobile",
+      "path": "packages/feature_home/lib/domain/entities/lender_code.dart",
+      "commit": "23838f6058b6bd29c4262efa99c81117c303e801",
+      "blob": "92231dba6d5e36ae532946eaaf625ddd636b1c11",
+      "sections": [
+        "comprar-en-un-comercio-canal-y-codigo"
+      ]
+    },
+    {
+      "repo": "creditop-mobile",
+      "path": "app/lib/infrastructure/credits/datasources/credits_datasource.dart",
+      "commit": "23838f6058b6bd29c4262efa99c81117c303e801",
+      "blob": "e2ca322e341617ee70ab8f7c676475d1f6d6151c",
+      "sections": [
+        "mis-creditos"
+      ]
+    },
+    {
+      "repo": "creditop-mobile",
+      "path": "packages/feature_credits/lib/domain/entities/credit_status.dart",
+      "commit": "23838f6058b6bd29c4262efa99c81117c303e801",
+      "blob": "bfa4925c0fbbcab230d0cfc486d1df898fc4600a",
+      "sections": [
+        "mis-creditos"
+      ]
+    },
+    {
+      "repo": "creditop-mobile",
+      "path": "app/lib/infrastructure/credits/models/response/debt_summary_response_dto.dart",
+      "commit": "23838f6058b6bd29c4262efa99c81117c303e801",
+      "blob": "7e0e26eb361ed95386d39c304ee786924a6c5175",
+      "sections": [
+        "mis-creditos"
+      ]
+    },
+    {
+      "repo": "creditop-mobile",
+      "path": "packages/feature_credits/lib/domain/enums/revolving_line_state.dart",
+      "commit": "23838f6058b6bd29c4262efa99c81117c303e801",
+      "blob": "8b62c05818e11de62d2d0b74176148c65bdd4317",
+      "sections": [
+        "mis-creditos"
+      ]
+    },
+    {
+      "repo": "financial-health-service",
+      "path": "internal/core/usecases/financial_health/get_financial_health/usecase.go",
+      "commit": "7909c80caabdb016543e18cd3c3649182ef886e1",
+      "blob": "efd5c95d8015defb4cac7cacc95e1aa9e0dee03a",
+      "sections": [
+        "salud-financiera-gratuita-y-premium"
+      ]
+    },
+    {
+      "repo": "financial-health-service",
+      "path": "internal/core/usecases/financial_tips/get_financial_tips/usecase.go",
+      "commit": "7909c80caabdb016543e18cd3c3649182ef886e1",
+      "blob": "bbed3a08ab3756994b1087dc4719b57850a12163",
+      "sections": [
+        "salud-financiera-gratuita-y-premium"
+      ]
+    },
+    {
+      "repo": "creditop-mobile",
+      "path": "packages/feature_financial_health/lib/domain/entities/ai_tips_quota.dart",
+      "commit": "23838f6058b6bd29c4262efa99c81117c303e801",
+      "blob": "0ef6b7925878fabd3a9e917f5e273b035ead7645",
+      "sections": [
+        "salud-financiera-gratuita-y-premium"
+      ]
+    },
+    {
+      "repo": "creditop-mobile",
+      "path": "app/lib/infrastructure/subscriptions/gateways/revenue_cat_subscription_gateway.dart",
+      "commit": "23838f6058b6bd29c4262efa99c81117c303e801",
+      "blob": "e7d1fde118cca32d6e5baafa34356395fdb07db0",
+      "sections": [
+        "salud-financiera-gratuita-y-premium"
+      ]
+    },
+    {
+      "repo": "creditop-mobile",
+      "path": "packages/feature_financial_health/lib/domain/enums/entitlement_source.dart",
+      "commit": "23838f6058b6bd29c4262efa99c81117c303e801",
+      "blob": "87552298f5276e67813316d7b3c1b1eaf32f4a08",
+      "sections": [
+        "salud-financiera-gratuita-y-premium"
+      ]
+    },
+    {
+      "repo": "creditop-mobile",
+      "path": "app/lib/config/router/financial_health_router.dart",
+      "commit": "23838f6058b6bd29c4262efa99c81117c303e801",
+      "blob": "85908f6c378c5ae8a56c19dc1322de3b31285d9e",
+      "sections": [
+        "identidad-con-ado-solo-para-premium"
+      ]
+    },
+    {
+      "repo": "creditop-mobile",
+      "path": "packages/feature_identity_verification/lib/domain/session/verification_step.dart",
+      "commit": "23838f6058b6bd29c4262efa99c81117c303e801",
+      "blob": "b6779f1eec63e563b19391e2b08a0200a7c017e4",
+      "sections": [
+        "identidad-con-ado-solo-para-premium"
+      ]
+    },
+    {
+      "repo": "creditop-mobile",
+      "path": "app/lib/ui/home/home_promo_tag_decision.dart",
+      "commit": "23838f6058b6bd29c4262efa99c81117c303e801",
+      "blob": "f980150c501295463c9853e33570295ad2522bf1",
+      "sections": [
+        "campana-de-cero-interes"
+      ]
+    },
+    {
+      "repo": "creditop-mobile",
+      "path": "app/lib/ui/home/home_promo_banners_decision.dart",
+      "commit": "23838f6058b6bd29c4262efa99c81117c303e801",
+      "blob": "15d8d5d996b2e915c5a135ee9526a19b662f7620",
+      "sections": [
+        "campana-de-cero-interes"
+      ]
+    }
+  ]
+}
