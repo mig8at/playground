@@ -167,8 +167,18 @@ donde se dice otra cosa:
 
 **Las diferencias que hacen equivocarse de camino:**
 - **Canales.** 3a y 2 entran por `FLOW=self-service|merchant|ecommerce`. **3b no tiene la tienda.**
-- **Las perillas del cliente.** En 3b cada caso lleva las suyas (`CASES='pullman@score=700;pullman@score=300,income=900000'`).
+- **Las perillas del cliente.** En 3b cada caso lleva las suyas (`CASES='pullman@score=700;pullman@score=300,income=900000'`),
+  y con `LAMBDA=1` también el resto del buró que deciden las reglas: `negatives`, `delinquencies`, `consulted`,
+  `cards`, `months` (meses de aportes en Agildata, de donde sale la continuidad) y `maturation=AAAA-MM-DD`. Lo que
+  no se dice es **el mismo cliente por defecto del panel** (`CASE_BUREAU_DEFAULTS` en `pkg/risk-lambda.ts`: 13
+  meses, 1 consulta, 1 tarjeta, sin negativos ni mora), dictado entero con `dictateCase`. Hasta el 2026-11-02 la
+  consola dictaba 8 meses y sólo el score: el resto quedaba en el reporte fijo del mock (59 consultas, ninguna
+  tarjeta) y CrediPullman caía en «Segunda oportunidad» donde el panel daba Premium. Las suites aceptan las mismas
+  claves, por caso o en `porDefecto`.
   En 3a y 2, `AMOUNT`, el score y el ingreso valen para **toda la tanda**: dos montos distintos son dos tandas.
+- **`TARGET=` es obligatorio** en `harness-case`, `-listing`, `-walk-wizard` y `-suite`, y es el que manda. Hasta el
+  2026-11-02 esos cuatro no lo pasaban: el runner sólo lee `E2E_TARGET` (default `dev`), así que `TARGET=local`
+  corría contra la base compartida. `E2E_TARGET` exportado sigue valiendo; si los dos difieren, no se corre.
 - **Dos tandas lanzadas a la vez comparten identidad** (skill `harness-caminador`): los casos que tienen
   que ir juntos van en UNA tanda, con `PARALLEL=1`.
 - **En paralelo sale casi gratis** en 2 y 3a: la tanda tarda lo que su caso más lento, y un caso completo

@@ -105,7 +105,7 @@ const { findBranch, merchantDocumentType: documentType } = await import('../pkg/
 const API = e2eConfig.mockUrl;
 const UA = 'Mozilla/5.0 (iPhone; CPU iPhone OS 16_5 like Mac OS X) AppleWebKit/605.1.15 '
     + '(KHTML, like Gecko) Version/16.5 Mobile/15E148 Safari/604.1';
-const { LAMBDA, dictate, dictateEmployment, dictateBureauMode } = await import('../pkg/risk-lambda.ts');
+const { LAMBDA, dictate, dictateCase, dictateBureauMode } = await import('../pkg/risk-lambda.ts');
 
 
 // El mock de integraciones de entidades (`mock-lenders`), donde se dicta qué contesta cada proveedor.
@@ -473,6 +473,11 @@ type Case = {
     /** Solicitudes SUCESIVAS del mismo cliente. Ver `runSteps`. */
     pasos?: Array<{ nombre?: string; lender?: number | null; amount?: number; espera?: Wait }>;
     amount?: number; income?: number; score?: number;
+    /** El resto del buró que deciden las reglas de las entidades (`@negatives=2,months=8`). Sin decirlo, el
+     *  cliente por defecto de `CASE_BUREAU_DEFAULTS`, el mismo del panel. `months` son los meses de aportes en
+     *  Agildata (la continuidad sale de ahí: 12, 6, 3 o 0); `maturation`, desde cuándo está en el sector,
+     *  `AAAA-MM-DD`. Sólo cuentan con `--lambda`, que es cuando se dicta el buró. */
+    negatives?: number; delinquencies?: number; consulted?: number; cards?: number; months?: number; maturation?: string;
     // qué debe contestar cada integración PARA ESTE CASO: `pullman@meddipay=rechaza`
     escenarios?: Record<string, string>;
 };
@@ -483,6 +488,27 @@ type Case = {
  * comparar: dos corridas idénticas sólo prueban que el sistema es determinista (útil una vez), y
  * dos que difieren en UN dato muestran qué mueve ese dato. Medido: con `score=300,income=900000`
  * CrediPullman desaparece del listado y con el default no — el cupo rt=2 filtra de verdad. */
+const BUREAU_KNOBS = ['negatives', 'delinquencies', 'consulted', 'cards', 'months'] as const;
+type BureauKnob = typeof BUREAU_KNOBS[number];
+/** Un dato de buró es un entero ≥ 0: un valor mal escrito no puede convertirse en 0 sin avisar. */
+function bureauNumber(k: string, v: unknown): number {
+    const n = Number(v);
+    if (!Number.isInteger(n) || n < 0) throw new Error(`${k}=${v}: va un entero mayor o igual a 0`);
+    return n;
+}
+function maturationDate(v: unknown): string {
+    const s = String(v);
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(s)) throw new Error(`maturation=${s}: va la fecha AAAA-MM-DD desde la que está en el sector`);
+    return s;
+}
+
+/** Las perillas de buró que el caso dijo, para el encabezado: sin ellas dos casos distintos se leen iguales. */
+function bureauKnobsLabel(c: Case): string {
+    const said = [...BUREAU_KNOBS.filter((k) => c[k] != null).map((k) => `${k} ${c[k]}`),
+                  ...(c.maturation ? [`maturation ${c.maturation}`] : [])];
+    return said.length ? ` · ${said.join(' · ')}` : '';
+}
+
 function parseCase(spec: string, dflt: { amount: number; income: number; score: number }): Case {
     const [left, params] = spec.split('@');
     const [merchant, l] = left.split(':');
@@ -490,6 +516,8 @@ function parseCase(spec: string, dflt: { amount: number; income: number; score: 
     for (const kv of (params ?? '').split(',').filter(Boolean)) {
         const [k, v] = kv.split('=');
         if (k === 'amount' || k === 'income' || k === 'score') { c[k] = Number(v); continue; }
+        if (BUREAU_KNOBS.includes(k as BureauKnob)) { c[k as BureauKnob] = bureauNumber(k, v); continue; }
+        if (k === 'maturation') { c.maturation = maturationDate(v); continue; }
         if (k === 'ocupacion') { c.ocupacion = v; continue; }
         if (k === 'cuotas') { c.cuotas = Number(v); continue; }
         if (k === 'cliente') { c.cliente = credifamiliaTestUser(v); c.ocupacion ??= c.cliente.ocupacion; continue; }
@@ -577,6 +605,9 @@ async function loadSuite(path: string, dflt: { amount: number; income: number; s
             amount: Number(c.amount ?? base.amount),
             income: Number(c.income ?? base.income),
             score: Number(c.score ?? base.score),
+            ...Object.fromEntries(BUREAU_KNOBS.filter((k) => (c[k] ?? (base as any)[k]) != null)
+                .map((k) => [k, bureauNumber(k, c[k] ?? (base as any)[k])])),
+            ...((c.maturation ?? (base as any).maturation) ? { maturation: maturationDate(c.maturation ?? (base as any).maturation) } : {}),
         } as Case;
     });
 }
@@ -814,19 +845,6 @@ async function dictateAll(cases: Case[]): Promise<string[]> {
             }).catch(() => null);
             if (!r?.ok) failures.push(`${lender}=${mode}`);
         }
-        // ⚠ EL `score` DEL CASO NO LLEGABA A NINGÚN LADO en este camino: el buró lo sirve el mock y
-        // devolvía siempre el del fixture (707). O sea que `score=750` era un **no-op silencioso** —el
-        // caso corría, terminaba bien, y uno concluía «el score no mueve el listado» cuando el score
-        // nunca cambió. Es la misma familia que F-139. El mock ya sabe pisarlo por cédula.
-        if (cases[i].score) {
-            // ⚠ Antes iba con `.catch(() => {})`: si el dictado del score fallaba, el caso seguía con el
-            // score por defecto del mock y el reporte decía igual «buró dictado». Agildata sí se
-            // verificaba; Experian no. Un caso que declara score 700 y corre con otro no prueba lo que
-            // dice — y nada avisaba. Ahora cuenta como dictado fallido, igual que Agildata.
-            const okScore = await dictate(doc, 'experian_score', String(cases[i].score)).catch(() => false);
-            if (!okScore) failures.push(`${doc}:experian_score`);
-        }
-
         // La pre-aprobación de Credifamilia, dictada a su lambda con la misma cédula. Varias veces, por
         // la misma razón que el empleo de abajo: cada POST puede caer en otro contenedor.
         if (arg('cf-fianza') && !CF_DOC_PREFIX[arg('cf-fianza')]) {
@@ -836,10 +854,21 @@ async function dictateAll(cases: Case[]): Promise<string[]> {
             if (!took) failures.push(`${doc}:credifamilia`);
         }
 
-        // hasta 4 intentos: cada POST puede caer en un contenedor distinto, así que reintentar
-        // NO es supersticioso — es lo que hace que alguno pegue en el que después atiende la lectura
-        const ok = await dictateEmployment(doc, cases[i].income!, cases[i].ocupacion, 8, cases[i].agilname);
-        if (ok) dictatedOnes.add(doc); else failures.push(doc);
+        // EL CASO ENTERO, como lo dicta el panel: empleo a Agildata (con sus meses, que dan la continuidad) y
+        // el perfil de Experian (score, consultas, tarjetas, negativos, mora, antigüedad). Lo no dicho toma
+        // `CASE_BUREAU_DEFAULTS`. Hasta el 2026-11-02 acá iban 8 meses y sólo el score: el resto quedaba en el
+        // fijo del mock (59 consultas, ninguna tarjeta) y el mismo cliente caía en otra categoría que en el
+        // panel. El score que no llegaba a ningún lado (un no-op silencioso, familia de F-139) va ahora en el
+        // perfil, y si el dictado falla el caso lo cuenta como fallido.
+        // El empleo reintenta 4 veces adentro: cada POST puede caer en un contenedor distinto.
+        const c = cases[i];
+        const done = await dictateCase(doc, {
+            income: c.income!, occupation: c.ocupacion, name: c.agilname, score: c.score!,
+            negatives: c.negatives, delinquencies: c.delinquencies ?? c.negatives, consulted: c.consulted,
+            creditCards: c.cards, months: c.months, maturationSince: c.maturation,
+        }).catch(() => ({ employment: false, bureau: false }));
+        if (done.employment) dictatedOnes.add(doc); else failures.push(doc);
+        if (!done.bureau) failures.push(`${doc}:experian_profile`);
 
         // Que una central NO resuelva, para ver la cascada. Va DESPUÉS del empleo, que dicta Ágil «ok»
         // y lo pisaría. Se dicta varias veces: en el lambda serverless cada POST puede caer en otro
@@ -1317,7 +1346,9 @@ async function dumpLogbook(res: Res, calls: Call[]): Promise<void> {
         await writeFile(new URL(name, dir), JSON.stringify({
             caso: res.caso.nombre ?? `${res.caso.comercio}${res.caso.lender ? ':' + res.caso.lender : ''}`,
             comercio: res.caso.comercio, lender: res.caso.lender,
-            parametros: { amount: res.caso.amount, income: res.caso.income, score: res.caso.score },
+            parametros: { amount: res.caso.amount, income: res.caso.income, score: res.caso.score,
+                          ...Object.fromEntries(BUREAU_KNOBS.filter((k) => res.caso[k] != null).map((k) => [k, res.caso[k]])),
+                          ...(res.caso.maturation ? { maturation: res.caso.maturation } : {}) },
             uReq: res.ur ?? null, telefono: res.phone,
             resultado: { ok: res.ok, conducta: res.conducta ?? null, detalle: res.detalle ?? null,
                          listado: res.listado ?? null, cierre: res.cierre ?? null },
@@ -1585,7 +1616,7 @@ async function main(): Promise<number> {
         const c = r.caso;
         const cab = `${c.comercio} → ${c.lender === null ? 'listado' : (r.nombre ?? c.lender)}`
             + `   [monto ${(c.amount ?? 0).toLocaleString('es-CO')} · ingreso `
-            + `${(c.income ?? 0).toLocaleString('es-CO')} · score ${c.score}]`;
+            + `${(c.income ?? 0).toLocaleString('es-CO')} · score ${c.score}${bureauKnobsLabel(c)}]`;
         console.log(`  ${r.ok ? '✓' : '✗'} ${cab}`);
         console.log(`      uReq ${r.ur ?? '—'} · tel ${r.phone}`
             + (r.listado ? ` · listado: [${r.listado.join(', ')}]`

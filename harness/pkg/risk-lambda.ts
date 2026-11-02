@@ -164,11 +164,25 @@ export async function dictateBureauProfile(doc: string, profile: BureauProfile):
     return dictate(doc, 'experian_profile', profile);
 }
 
-/** El caso del panel, tal como lo dicta `dictateCase`. */
+/** El caso del panel, tal como lo dicta `dictateCase`. Lo que no se dice toma `CASE_BUREAU_DEFAULTS`. */
 export interface DictatedCase {
-    income: number; occupation?: string;
-    score: number; negatives: number; delinquencies: number; consulted: number; maturationSince: string;
+    income: number; occupation?: string; name?: string;
+    score: number; negatives?: number; delinquencies?: number; consulted?: number; maturationSince?: string;
+    /** Meses de aportes en Agildata: de ahí sale la continuidad laboral (12, 6, 3 o 0). */
+    months?: number;
+    /** Tarjetas de crédito activas en el reporte de Experian. */
+    creditCards?: number;
 }
+
+/**
+ * EL CLIENTE POR DEFECTO, UNO SOLO para el panel y para la consola. Hasta el 2026-11-02 `dev/case.ts`
+ * dictaba 8 meses de Agildata (continuidad de 6) y sólo el score, así que el resto del reporte quedaba en
+ * el fijo del mock (59 consultas, ninguna tarjeta), mientras el panel dictaba 13 meses y el perfil entero:
+ * el mismo caso caía en otra categoría según desde dónde se corriera.
+ */
+export const CASE_BUREAU_DEFAULTS = {
+    months: 13, consulted: 1, creditCards: 1, delinquencies: 0, negatives: 0, maturationSince: '2015-03-26',
+} as const;
 
 /**
  * Le dicta al mock el caso ENTERO del panel —empleo e ingreso a Agildata, el perfil de buró a Experian—
@@ -184,11 +198,12 @@ export interface DictatedCase {
  * entero de pagos. Una tarjeta activa con vector, como la que forja la inyección.
  */
 export async function dictateCase(doc: string, c: DictatedCase): Promise<{ employment: boolean; bureau: boolean }> {
-    const employment = await dictateEmployment(doc, c.income, c.occupation, 13);
+    const d = CASE_BUREAU_DEFAULTS;
+    const employment = await dictateEmployment(doc, c.income, c.occupation, c.months ?? d.months, c.name);
     const bureau = await dictateBureauProfile(doc, {
-        score: c.score, consultedLast6Months: c.consulted, creditCards: 1,
-        negativeHistoricalLast12Months: c.negatives, currentNegativeCredits: c.delinquencies,
-        maturationSince: c.maturationSince,
+        score: c.score, consultedLast6Months: c.consulted ?? d.consulted, creditCards: c.creditCards ?? d.creditCards,
+        negativeHistoricalLast12Months: c.negatives ?? d.negatives, currentNegativeCredits: c.delinquencies ?? d.delinquencies,
+        maturationSince: c.maturationSince ?? d.maturationSince,
     });
     return { employment, bureau };
 }
