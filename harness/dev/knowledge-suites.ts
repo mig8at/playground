@@ -49,13 +49,15 @@ for (const [suite, topics] of suites) {
         continue;
     }
     process.stdout.write(`  ▸ ${suite} …`);
-    const run = spawnSync('node', ['dev/case.ts', '--suite', suite], { cwd: HARNESS, env: process.env, encoding: 'utf8' });
-    const out = `${run.stdout ?? ''}${run.stderr ?? ''}`;
-    const ok = out.match(/✓ (\d+) casos cumplieron lo que declaran/);
-    const bad = out.match(/NO CUMPLIERON[^\n]*\n\n((?:\s+· [^\n]+\n?)+)/);
-    const line = ok ? `${ok[1]} casos cumplen`
-        : bad ? bad[1].trim().split('\n').map((l) => l.trim()).join(' | ')
-        : (out.match(/PREVUELO[\s\S]*?· ([^\n]+)/)?.[1] ?? `salió ${run.status} sin veredicto legible`);
+    // El veredicto sale del JSON del runner (`--json`, `harness.case/v1`), no del texto: así no se rompe cuando
+    // cambia una palabra de la salida para humanos.
+    const run = spawnSync('node', ['dev/case.ts', '--suite', suite, '--json'], { cwd: HARNESS, env: process.env, encoding: 'utf8', maxBuffer: 64 << 20 });
+    let report: any = null;
+    try { report = JSON.parse((run.stdout ?? '').trim().split('\n').pop() || 'null'); } catch { report = null; }
+    const line = !report ? `salió ${run.status} sin informe JSON`
+        : report.sinVeredicto ? `sin veredicto: ${(run.stderr ?? '').match(/PREVUELO[\s\S]*?· ([^\n]+)/)?.[1] ?? report.detalle}`
+        : report.ok ? `${report.casos.length} casos cumplen`
+        : report.desvios.join(' | ') || `${report.fallidos} caso(s) no cerraron`;
     results.push({ suite, topics: [...topics], code: run.status ?? 2, line });
     process.stdout.write(` ${run.status === 0 ? '✓' : '✗'}\n`);
 }

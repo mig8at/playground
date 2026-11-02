@@ -409,6 +409,15 @@ const arg = (n: string, d = ''): string => {
 const implicit = new Set<string>();
 const flag = (n: string) => process.argv.includes(`--${n}`) || implicit.has(n);
 
+/**
+ * `--json` (`JSON=1`): la salida para un AGENTE. El texto de siempre va a stderr y stdout lleva un solo objeto
+ * JSON al final (`REPORT`), con un formato que no cambia cuando cambia una palabra del texto. Sin esto, quien
+ * quería el veredicto tenía que buscar «✓ N casos cumplieron» con una expresión regular.
+ */
+const JSON_OUT = process.argv.includes('--json');
+if (JSON_OUT) console.log = (...a: unknown[]) => console.error(...a);
+let REPORT: Record<string, unknown> | null = null;
+
 // Base 313 + 7 dígitos. El índice del caso va al final para que dos casos NUNCA compartan usuario;
 // se imprime en el reporte porque es lo que hace falta para ir a mirar la solicitud después.
 /** La forma del celular de cada país donde se opera. */
@@ -581,6 +590,45 @@ function parseCase(spec: string, dflt: { amount: number; income: number; score: 
  *
  *  `byDefault` de la suite pisa a los flags de la corrida, y lo de cada caso pisa a `byDefault`:
  *  así una suite es reproducible sin depender de con qué flags la invocaron. */
+/**
+ * LA FORMA DE UNA SUITE, cerrada. Hasta el 2026-11-02 una clave mal escrita —`"estadoAnterior"` por
+ * `"estadoAnteriores"`, `"catgoria"`— se ignoraba sin avisar: la expectativa no se evaluaba y la suite daba
+ * verde. Es un falso verde de los que este runner dice evitar (falla cerrado), así que cualquier clave que no
+ * esté acá es un error. Al agregar una aserción o una perilla, se agrega también a su lista.
+ */
+const SUITE_KEYS = {
+    top: ['nombre', 'requiere', 'porDefecto', 'casos', 'nota'],
+    caso: ['comercio', 'lender', 'nombre', 'nota', 'espera', 'ocupacion', 'cuotas', 'webhook', 'name', 'surname', 'agilname',
+           'doc', 'agildata', 'mareigua', 'tusdatos', 'pasos', 'escenarios', 'amount', 'income', 'score',
+           'negatives', 'delinquencies', 'consulted', 'cards', 'months', 'maturation'],
+    paso: ['nombre', 'lender', 'amount', 'espera', 'cerrar'],
+    espera: ['enListado', 'cierra', 'estado', 'entidades', 'noEntidades', 'radicacion', 'pais', 'conConsulta',
+             'sinConsulta', 'categoria', 'cupo', 'estadoAnteriores'],
+    pais: ['iso', 'documento', 'celular', 'moneda'],
+};
+function suiteShapeErrors(json: any): string[] {
+    const out: string[] = [];
+    const check = (obj: any, allowed: readonly string[], where: string) => {
+        if (!obj || typeof obj !== 'object' || Array.isArray(obj)) return;
+        for (const k of Object.keys(obj)) if (!allowed.includes(k)) out.push(`${where}.${k}`);
+    };
+    const checkWait = (e: any, where: string) => {
+        check(e, SUITE_KEYS.espera, where);
+        if (e?.pais && typeof e.pais === 'object') check(e.pais, SUITE_KEYS.pais, `${where}.pais`);
+    };
+    check(json, SUITE_KEYS.top, 'suite');
+    check(json.porDefecto, SUITE_KEYS.caso, 'porDefecto');
+    (json.casos ?? []).forEach((c: any, i: number) => {
+        check(c, SUITE_KEYS.caso, `casos[${i}]`);
+        checkWait(c?.espera, `casos[${i}].espera`);
+        (c?.pasos ?? []).forEach((st: any, k: number) => {
+            check(st, SUITE_KEYS.paso, `casos[${i}].pasos[${k}]`);
+            checkWait(st?.espera, `casos[${i}].pasos[${k}].espera`);
+        });
+    });
+    return out;
+}
+
 async function loadSuite(path: string, dflt: { amount: number; income: number; score: number }): Promise<Case[]> {
     const { readFile } = await import('node:fs/promises');
     let json: any;
@@ -591,6 +639,11 @@ async function loadSuite(path: string, dflt: { amount: number; income: number; s
     }
     if (!Array.isArray(json?.casos) || json.casos.length === 0) {
         throw new Error(`la suite ${path} no tiene un array \`casos\` con al menos un caso`);
+    }
+    const unknown = suiteShapeErrors(json);
+    if (unknown.length) {
+        throw new Error(`la suite ${path} tiene claves que este runner no conoce, y una clave que no se lee es una`
+            + ` expectativa que no se comprueba (daría verde sin mirar):\n      ${unknown.join('\n      ')}`);
     }
     // `requiere` deja que la suite prenda lo que necesita: `["cerrar", "lambda"]`.
     for (const f of (Array.isArray(json.requiere) ? json.requiere : [])) implicit.add(canonicalFlag(String(f)));   // una suite vieja puede decir «cerrar»
@@ -1856,6 +1909,23 @@ async function main(): Promise<number> {
     await reconcileWithDb(baseline, res.length - badList);
 
     const deviations = [...verifyWaits(res), ...await verifyCountries(res), ...await verifyCategories(res), ...await verifyQuota(res), ...await verifyPrevious(res)];
+    REPORT = {
+        formato: 'harness.case/v1',
+        target: process.env.E2E_TARGET || 'dev',
+        suite: arg('suite') || null,
+        ok: deviations.length === 0 && badList === 0,
+        casos: res.map((r) => ({
+            nombre: r.caso.nombre ?? null, comercio: r.caso.comercio, lender: r.caso.lender,
+            parametros: { amount: r.caso.amount, income: r.caso.income, score: r.caso.score,
+                ...Object.fromEntries(BUREAU_KNOBS.filter((k) => r.caso[k] != null).map((k) => [k, r.caso[k]])),
+                ...(r.caso.maturation ? { maturation: r.caso.maturation } : {}) },
+            ok: r.ok, userRequest: r.ur ?? null, userId: r.uid ?? null, listado: r.listado ?? null,
+            enListado: r.enListado ?? null, cierre: r.cierre ?? null, conducta: r.conducta ?? null, detalle: r.detalle ?? null,
+            desvios: deviations.filter((d) => d.res === r).map((d) => d.linea),
+        })),
+        desvios: deviations.map((d) => d.linea),
+        fallidos: badList,
+    };
     if (deviations.length) {
         console.log('\n  ⚠ NO CUMPLIERON LO QUE DECLARAN:\n');
         for (const d of deviations) console.log(`      · ${d.linea}`);
@@ -1927,4 +1997,10 @@ async function annotate(res: Res[], badList: number): Promise<void> {
 const code = await main().catch((e) => { console.error('\n  ✗', e); return 1; });
 await restoreBypass(bypassSet);
 await close().catch(() => {});
+if (JSON_OUT) {
+    // Sin veredicto (prevuelo, suite mal formada, error) el objeto lo dice igual: un agente nunca recibe stdout vacío.
+    process.stdout.write(JSON.stringify(REPORT ?? { formato: 'harness.case/v1', target: process.env.E2E_TARGET || 'dev',
+        suite: arg('suite') || null, ok: false, sinVeredicto: true, salida: code,
+        detalle: 'la corrida no llegó al veredicto (prevuelo, suite inválida o error): el porqué está en stderr' }) + '\n');
+}
 process.exit(code);
