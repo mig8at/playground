@@ -56,3 +56,8 @@ depende de producto o negocio y no se puede comprobar localmente, consultá su f
 
 `business-context.md` no es un tema: junta el contexto de negocio que sólo cuenta Jira (decisiones,
 modelo comercial, soporte, lo que viene), con sus claves y sin verificar en código salvo donde lo dice.
+
+Algunos temas además se comprueban corriendo: su prosa cita una suite del harness (`SUITE=harness/suites/…`).
+`make harness-knowledge TARGET=local` las corre todas y dice qué regla sigue en pie; `LIST=1` muestra qué temas
+tienen suite. Un verde de `knowledge-check` dice que las fuentes no cambiaron; uno de `harness-knowledge`, que la
+regla se cumple en el ambiente corrido.

@@ -564,6 +564,9 @@ harness-posthog: ## @har ¿qué VIO el cliente y en qué PANTALLA se rompió? ev
 harness-posthog-errors: ## @har qué pantallas del front fallan en el ambiente y con qué mensaje (`bin/pg events errors`). [TARGET=qa|staging|prod] [DAYS=7]
 	@bin/pg events errors --target $(or $(TARGET),qa) --days $(or $(DAYS),$(DIAS),7)
 
+harness-knowledge: ## @har ¿las reglas de knowledge/ que tienen suite siguen en pie CORRIENDO? Corre cada suite que un tema cita (`SUITE=harness/suites/x.json` en su prosa) y dice, por tema, cuál cumple. TARGET=local [TOPIC=lender-profile-rules] [LIST=1 sólo qué temas tienen suite y cuáles sólo están leídos]
+	@cd harness && $(if $(LIST),,E2E_TARGET=$(harness_target)) node dev/knowledge-suites.ts $(if $(TOPIC),--topic $(TOPIC)) $(if $(LIST),--list)
+
 harness-quota-reset: ## @har ⚠ ESCRIBE (sólo local): reinicia el cupo mensual de los perfiles CreditopX (`already_used_loan` en 0), que en local nadie reinicia y las corridas que cierran van agotando. TARGET=local [LENDER=169] [APPLY=1 escribe; sin él sólo muestra]
 	@cd harness && E2E_TARGET=$(harness_target) node dev/quota-reset.ts $(if $(LENDER),--lender $(LENDER)) $(if $(APPLY),--apply)
 

@@ -179,6 +179,10 @@ donde se dice otra cosa:
   `reason` de `POST /api/loans/lender/available-quota` por entidad, u `ok`: en local la preaprobación la contesta un
   mock que no llama al backend, y sin esto ninguna corrida ejercita las negativas del cupo). Las suites que
   respaldan reglas de `knowledge/` las nombran en su `nota` y el tema dice con qué suite se comprueba.
+  `make harness-knowledge TARGET=local` corre todas las suites que algún tema cita (`SUITE=harness/suites/…` en su
+  prosa) y dice, por tema, qué regla sigue en pie; `LIST=1` sólo muestra qué temas tienen suite y cuáles sólo están
+  leídos en el código. Es la pareja de `make knowledge-check`: aquél avisa que una fuente cambió, éste contesta si
+  la regla sigue siendo cierta corriendo.
   En 3a y 2, `AMOUNT`, el score y el ingreso valen para **toda la tanda**: dos montos distintos son dos tandas.
 - **Las corridas que cierran agotan el cupo mensual del perfil en local**: cada crédito CreditopX suma a
   `already_used_loan` y el reinicio del día 1 no corre en local. El prevuelo avisa los perfiles agotados del
