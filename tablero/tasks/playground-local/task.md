@@ -89,6 +89,16 @@ jira_title: ""
 - [ ] ensayo · el primer uso: las diez correcciones de los CLAUDE.md del frente «Reglas vigentes» de #90,
   la raíz recortada contra la actual. Termina cuando cada corrección queda adoptada o descartada con su
   bloque y la tabla de `make ensayo-comparar`.
+- [ ] ODD · specs en las tareas de código: una sección opcional `## Specs` en la plantilla, con `S#`, la cita textual
+  de quien pidió (Miguel, producto, Jira) y la suite o comando que la comprueba. Idea tomada de Organic Driven
+  Development de gentle-ai, que ya usa el equipo de la app (`creditop_mobile/odd/tasks/`). Termina cuando una tarea
+  real con código la usa y su bloque dice si ayudó a retomar. No se instala gentle-ai en el playground.
+- [ ] ODD · veredicto por spec: `make tarea-verify N=…` (o `harness-knowledge` apuntado a una tarea) lee las `S#` de
+  la tarea, corre lo que cada una cita y responde `S1 ✓ · S2 ✗`. Termina cuando la tarea piloto da su veredicto
+  por spec. Depende de: la sección `## Specs`.
+- [ ] ODD · proporcionalidad del cierre: que una sesión chica (sin rama, pocos minutos) no exija bloque, sólo
+  bitácora, como ODD no deja artefactos para lo trivial. Termina cuando `make cierre` distingue los dos casos y
+  la regla queda en `tablero/CLAUDE.md`.
 
 ## Alcance
 
