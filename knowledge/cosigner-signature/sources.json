@@ -2,7 +2,7 @@
   "version": 1,
   "title": "Firma y cierre del codeudor",
   "summary": "Firma del codeudor, autorización y documentos; política de entrada, saga, confirmación persistida y límites de recuperación.",
-  "reviewedAt": "2026-11-02T15:34:27+00:00",
+  "reviewedAt": "2026-11-02T19:15:30+00:00",
   "sources": [
     {
       "repo": "legacy-backend",
@@ -359,10 +359,11 @@
     {
       "repo": "legacy-backend",
       "path": "Modules/Loans/App/Services/LoanAuthorizationService.php",
-      "commit": "d21ab0ef275891025cd2a823552d5ec6c0cac283",
+      "commit": "69920f580f62ad35f0a555e3b8b8f2c247d758aa",
       "blob": "dd7b9e624d08d12802e4c80893a12d6650ecf6f1",
       "sections": [
-        "reanudar-autorizacion-y-efectos-posteriores"
+        "reanudar-autorizacion-y-efectos-posteriores",
+        "catalogo-y-evidencia-de-documentos"
       ]
     },
     {

@@ -114,6 +114,26 @@ if (exhausted) {
               : 'ningún perfil agotado',
           arreglo: exhausted.length ? 'make harness-quota-reset TARGET=local APPLY=1' : undefined });
 }
+// 6 · CODEUDOR SIN CATÁLOGO. Una entidad cuyas categorías activas exigen codeudor pero que sólo tiene catálogo de
+// documentos para la rama SIN codeudor deja la solicitud trabada en el estado intermedio: `authorize` contesta 200,
+// difiere al codeudor y no numera ni genera nada (`LoanAuthorizationService::authorize`, «SOLO PARA ENTIDADES CON
+// CATÁLOGO»). Medido el 2026-11-02: AltaX en la base local (en prod sus categorías no piden codeudor). Avisa, no
+// frena: es un dato de la base, y una suite de esa entidad va a fallar por él y no por el código.
+const mismatch = await query<{ lender: string; id: number }>(
+    `SELECT DISTINCT l.name AS lender, l.id
+       FROM lenders l
+       JOIN lender_users_categories c ON c.lender_id = l.id AND c.requires_cosigner = 1 AND COALESCE(c.active, 1) = 1
+      WHERE l.response_type IN (2, 3)
+        AND EXISTS (SELECT 1 FROM lender_signing_documents d WHERE d.lender_id = l.id AND d.status = 1)
+        AND NOT EXISTS (SELECT 1 FROM lender_signing_documents d WHERE d.lender_id = l.id AND d.status = 1 AND d.requires_cosigner = 1)
+      ORDER BY l.name`).catch(() => null);
+if (mismatch) {
+    add({ id: 'codeudor-sin-catalogo', ok: mismatch.length === 0, frena: false,
+          detalle: mismatch.length ? `exigen codeudor y su catálogo sólo trae la rama sin codeudor (la firma queda trabada en el intermedio): `
+              + mismatch.map((r) => `${r.lender} (${r.id})`).join(', ')
+              : 'ninguna entidad exige codeudor sin catálogo para esa rama',
+          arreglo: mismatch.length ? 'comparar con prod (`bin/pg sql --target prod`) y alinear `lender_users_categories.requires_cosigner` o el catálogo de esa entidad en la base local' : undefined });
+}
 await close().catch(() => {});
 
 const blocking = checks.filter((c) => !c.ok && c.frena);

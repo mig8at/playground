@@ -76,6 +76,12 @@ Salvo donde se dice «corrido», salen de LEER el código: falta reproducirlos.
 
 ### Media — comportamiento distinto al esperado
 
+- [ ] Validar en el backoffice que una entidad cuyas categorías exigen codeudor tenga catálogo de documentos para esa
+  rama. Verificado en `main` (2026-11-02): sin filas `requires_cosigner = 1` en `lender_signing_documents`, la
+  autorización del titular difiere al codeudor sin numerar ni generar y la solicitud queda en el estado intermedio con
+  HTTP 200, sin error. Visto en la base local con AltaX (sus categorías piden codeudor y su catálogo no); en prod AltaX
+  es coherente. Termina con la validación en el readiness o con la decisión de no hacerla.
+
 - [ ] Decidir con producto si el asistente nuevo debe ocultar Sistecrédito al cliente moroso. Verificado en `main`
   (2026-11-02): el camino viejo (`PreApprovedLenderService`, listado v1 y legacy-application) lo quita si Sistecrédito
   lo marca `defaulter` y también en Energiteca (153) si no es aprobado; el adaptador de pre-approvals-service, que usa

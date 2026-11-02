@@ -506,6 +506,8 @@ type Case = {
         cerrar?: boolean }>;
     /** Lo arma `runSteps`: el paso no cierra (`cerrar: false`) y las solicitudes de los pasos anteriores. */
     noClose?: boolean; previos?: number[];
+    /** La cédula sintética del caso, ya ajustada al largo del tipo de documento de su país (`fitSyntheticDocs`). */
+    synthDoc?: string;
     amount?: number; income?: number; score?: number;
     /** El resto del buró que deciden las reglas de las entidades (`@negatives=2,months=8`). Sin decirlo, el
      *  cliente por defecto de `CASE_BUREAU_DEFAULTS`, el mismo del panel. `months` son los meses de aportes en
@@ -880,6 +882,31 @@ let bypassSet: { agregados: string[]; comodin: boolean } | null = null;
  */
 const merchantDocumentType = (hash: string) => documentType(API, hash);
 
+/**
+ * LA CÉDULA SINTÉTICA RESPETA EL LARGO DEL PAÍS. Desde `d6d24002d` (2026-09-04) legacy-backend valida el número
+ * contra `document_types` (`DocumentTypesService::validateNumber`): CC de 5 a 10, CED dominicana de 11 exactos, DNI
+ * peruano de 8. El generador da 10 dígitos, así que todo caso de RD moría en personal-info con un 422 («debe tener
+ * exactamente 11 dígitos») y `paises.json` llevaba rota desde septiembre sin que nadie lo viera. Se ajusta UNA vez,
+ * antes de dictar el buró, para que el dictado y el registro usen la misma cédula: corta por la izquierda si sobra,
+ * completa con los dígitos del final si falta. Sin regla en la base (tabla ausente o tipo sin fila), queda igual.
+ */
+async function fitSyntheticDocs(cases: Case[]): Promise<void> {
+    for (let i = 0; i < cases.length; i++) {
+        const c = cases[i];
+        if (c.doc || c.cliente || CF_DOC_PREFIX[arg('cf-fianza')]) continue;
+        const br = await findBranch(c.comercio).catch(() => null);
+        if (!br) continue;
+        const kind = await merchantDocumentType(br.hash).catch(() => 'CC');
+        const rule = await one<{ mn: number; mx: number }>(
+            `SELECT dt.min_length mn, dt.max_length mx FROM document_types dt JOIN allieds a ON a.country_id = dt.country_id
+              WHERE a.id = ? AND dt.code = ? LIMIT 1`, [Number(br.allied), kind]).catch(() => null);
+        let doc = idNumberOf(i);
+        if (rule?.mx && doc.length > Number(rule.mx)) doc = doc.slice(-Number(rule.mx));
+        if (rule?.mn && doc.length < Number(rule.mn)) doc = (doc + doc.slice(-Number(rule.mn))).slice(0, Number(rule.mn));
+        if (doc !== idNumberOf(i)) c.synthDoc = doc;
+    }
+}
+
 /** EL recorrido: register → otp-validate → personal-info. No usa `synthFill` — justamente porque
  *  synthFill escribe la fila de `risk_central_user_data` y entonces el backend la reusa (caché de un
  *  mes) y NO llama a la central. Es la trampa 1 del documento de la tarea. */
@@ -911,7 +938,7 @@ const dictatedOnes = new Set<string>();
 async function dictateAll(cases: Case[]): Promise<string[]> {
     const failures: string[] = [];
     for (let i = 0; i < cases.length; i++) {
-        const doc = cases[i].doc ?? cases[i].cliente?.documento ?? idNumberOf(i);
+        const doc = cases[i].doc ?? cases[i].cliente?.documento ?? cases[i].synthDoc ?? idNumberOf(i);
         // el escenario de cada integración va acá también: es preparación del caso, y se dicta
         // POR CÉDULA para que dos casos en paralelo puedan pedir cosas opuestas de la misma entidad
         for (const [lender, mode] of Object.entries(cases[i].escenarios ?? {})) {
@@ -997,7 +1024,7 @@ async function correr(c: Case, i: number): Promise<Res> {
 }
 
 async function traverse(c: Case, i: number): Promise<Res> {
-    const doc = c.doc ?? c.cliente?.documento ?? idNumberOf(i);
+    const doc = c.doc ?? c.cliente?.documento ?? c.synthDoc ?? idNumberOf(i);
     const base: Res = { caso: c, ok: false, phone: '' };
     // Un cliente de la lista que YA existe en la base (otra prueba lo registró) no se puede dar de alta de nuevo:
     // el backend contesta ONB005 «document number already in use». Se corre como cliente que vuelve.
@@ -1779,6 +1806,7 @@ async function main(): Promise<number> {
         return 2;
     }
     for (const l of await exhaustedProfiles(cases)) console.log(`  ⚠ ${l}\n`);
+    await fitSyntheticDocs(cases);
     if (flag('lambda')) {
         const failures = await dictateAll(cases);
         console.log(`  respuestas del buró pedidas a la lambda: ${cases.length - failures.length}/${cases.length}`

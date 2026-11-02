@@ -28,6 +28,12 @@ URV27000 incluye `userRequestAuthorized` según esa autorización. El schema del
 
 ## Catálogo y evidencia de documentos
 
+Si las categorías activas de una entidad exigen codeudor pero su catálogo sólo tiene filas con
+`requires_cosigner = 0`, la autorización del titular difiere al codeudor sin numerar ni generar documentos
+(`LoanAuthorizationService::authorize` sólo lo hace con catálogo para esa política) y la solicitud queda en
+el estado intermedio con HTTP 200, sin error. El backoffice no cruza las dos cosas; `make harness-doctor
+TARGET=local` lo avisa en la base local.
+
 `lender_signing_documents` elige política por `requires_cosigner` y firmantes por `signed_by_applicant`/`signed_by_cosigner`; la columna histórica `signer_role` no decide ese filtro. Documentos prefiere catálogo y vuelve a configuración del módulo si no hay filas para el rol. Lee URLs de `user_request_signing_documents`, priorizando codeudor y última fila del rol; consulta Netco sólo si ese mapa está vacío. Puede omitir tipos sin PDF y devolver lista parcial: HTTP 200 no acredita el juego completo.
 
 `signedDocuments` cuenta filas del codeudor en `cosigner_signed_documents` para tipos de `userrequestv1.cosigner.signature.documents`, sin exigir URL. No certifica cantidad de PDF del catálogo. El cierre escribe archivos finales en `user_request_signing_documents`, registra la llave OTP del codeudor y actualiza al titular a la misma URL sin cambiar su llave. Ambas firmas se comprueban cruzando filas con contenido descargado. Plan de pagos y documentos sólo del titular no requieren render de dos firmas.
