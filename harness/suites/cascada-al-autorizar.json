@@ -1,0 +1,27 @@
+{
+  "nombre": "Al autorizar un CreditopX se cancelan las solicitudes hermanas CreditopX del mismo cliente en el comercio, y sólo ésas",
+  "requiere": ["close", "lambda"],
+  "porDefecto": {
+    "comercio": "motai",
+    "amount": 2000000,
+    "income": 2500000,
+    "score": 700
+  },
+  "casos": [
+    {
+      "nombre": "hermana en Motai RB (CreditopX) y cierre en Motai R",
+      "pasos": [
+        { "nombre": "elige Motai RB y se queda ahí", "lender": 170, "cerrar": false, "espera": { "enListado": true } },
+        { "nombre": "cierra en Motai R", "lender": 169, "espera": { "cierra": true, "estado": 11, "estadoAnteriores": 8 } }
+      ]
+    },
+    {
+      "nombre": "control: hermana en Credifamilia-addi (riel 0) y cierre en Motai R",
+      "pasos": [
+        { "nombre": "elige Credifamilia-addi y se queda ahí", "lender": 6, "cerrar": false, "espera": { "enListado": true } },
+        { "nombre": "cierra en Motai R", "lender": 169, "espera": { "cierra": true, "estado": 11, "estadoAnteriores": 3 } }
+      ]
+    }
+  ],
+  "nota": "UserRequestRepository::cancelOtherClientLoansIfOneDisbursed: al autorizar, las solicitudes del mismo usuario y comercio cuya entidad es response_type 2 y no están en 11 pasan a 8 por safeCancel. La de riel 0 no se toca. Sin `parallel`: los pasos del mismo cliente van en orden. Ver knowledge/user-request-lifecycle#al-autorizar-se-cancelan-las-solicitudes-hermanas-creditopx."
+}

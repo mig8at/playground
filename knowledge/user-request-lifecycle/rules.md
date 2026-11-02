@@ -80,6 +80,10 @@ si `safeCancel` no cancela, responde 403, con `INITIAL_FEE_PAID` cuando el motiv
 La cancelación además registra el código de motivo (voluntaria o no) en
 `creditop_x_user_requests_records`.
 
+Se comprueba corriendo con `make harness-suite TARGET=local SUITE=harness/suites/cascada-al-autorizar.json`:
+una hermana en Motai RB queda en 8 con el comentario de la cascada al cerrar en Motai R, y una hermana de
+riel 0 queda intacta.
+
 ## Un webhook tardío no saca a una solicitud de Autorizada
 
 Las entidades que originan en su propio flujo avisan el resultado por webhook, y a veces el aviso

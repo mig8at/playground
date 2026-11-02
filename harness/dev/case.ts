@@ -444,6 +444,10 @@ type Wait = {
      *  local la preaprobación la contesta un mock que no llama al backend: sin esto ninguna corrida
      *  ejercita las negativas del cupo. */
     cupo?: Record<string, string>;
+    /** El estado en que quedan, al terminar el caso, las solicitudes de los PASOS ANTERIORES del mismo cliente
+     *  (`user_request_status_id`). Es la aserción de lo que un paso le hace a otro: la cancelación en cascada
+     *  de las hermanas CreditopX al autorizar, por ejemplo, deja las anteriores en 8. */
+    estadoAnteriores?: number;
     /** Estado de la RADICACIÓN al lender (`CREDIT_COMPLETED`, `CREDIT_ERROR`, …). Es un paso posterior
      *  al estado 11 y puede fallar sin moverlo: exigirlo acá es la única forma de que una suite note
      *  que el crédito quedó autorizado pero nunca se radicó. */
@@ -487,7 +491,12 @@ type Case = {
     /** Este caso es una vuelta POSTERIOR del mismo cliente: ya está registrado. Ver `runSteps`. */
     recurrente?: boolean;
     /** Solicitudes SUCESIVAS del mismo cliente. Ver `runSteps`. */
-    pasos?: Array<{ nombre?: string; lender?: number | null; amount?: number; espera?: Wait }>;
+    pasos?: Array<{ nombre?: string; lender?: number | null; amount?: number; espera?: Wait;
+        /** `false`: este paso ELIGE la entidad pedida y se queda ahí, aunque la suite cierre. Sirve para dejar
+         *  una solicitud hermana abierta y ver qué le hace el cierre de un paso posterior. */
+        cerrar?: boolean }>;
+    /** Lo arma `runSteps`: el paso no cierra (`cerrar: false`) y las solicitudes de los pasos anteriores. */
+    noClose?: boolean; previos?: number[];
     amount?: number; income?: number; score?: number;
     /** El resto del buró que deciden las reglas de las entidades (`@negatives=2,months=8`). Sin decirlo, el
      *  cliente por defecto de `CASE_BUREAU_DEFAULTS`, el mismo del panel. `months` son los meses de aportes en
@@ -1179,7 +1188,16 @@ async function traverse(c: Case, i: number): Promise<Res> {
     if (c.lender !== null) base.enListado = base.listado!.includes(c.lender);
 
     let closing = '';
-    if (flag('close')) {
+    // Un paso con `cerrar: false` ELIGE la entidad y se queda ahí, con la misma llamada con que el cierre la
+    // elige. Sin elegirla la solicitud queda sin entidad, y entonces ninguna regla que mire la entidad de la
+    // solicitud (la cascada mira `response_type = 2`) la cuenta.
+    if (c.noClose && c.lender !== null) {
+        const sel = await post(`/api/onboarding/loan-application/update-user-request/${ur}`, {
+            lender_id: c.lender, fee_number: c.cuotas ?? 4, original_amount: c.amount, amount: c.amount,
+            initial_fee: 0, rate: '0', transaction_data: null });
+        closing = ` · eligió la entidad ${c.lender} sin cerrar (HTTP ${sel.status})`;
+    }
+    if (flag('close') && !c.noClose) {
         const r = await closeCreditopX(arr, ur, tel, c.amount!, post, get, c.lender, c.cuotas ?? 4);
         base.cierre = r;
         closing = r.cerro ? ` · CERRÓ en estado ${r.estado} (${r.motivo})`
@@ -1251,6 +1269,26 @@ async function verifyCategories(res: Res[]): Promise<Array<{ res: Res; linea: st
                 out.push({ res: r, linea: `${who}: la entidad ${lender} quedó en ${got === null ? 'ninguna categoría' : `«${got}»`}`
                     + ` y se esperaba ${want === null ? 'ninguna' : `«${want}»`}` });
             }
+        }
+    }
+    return out;
+}
+
+/** El estado de las solicitudes de los pasos anteriores, leído de la base al terminar. */
+async function verifyPrevious(res: Res[]): Promise<Array<{ res: Res; linea: string }>> {
+    const out: Array<{ res: Res; linea: string }> = [];
+    for (const r of res) {
+        const want = r.caso.espera?.estadoAnteriores;
+        if (want === undefined) continue;
+        const who = r.caso.nombre ?? r.caso.comercio;
+        const ids = r.caso.previos ?? [];
+        if (!ids.length) { out.push({ res: r, linea: `${who}: espera \`estadoAnteriores\` y no hay solicitudes de pasos anteriores` }); continue; }
+        const rows = await query<{ id: number; st: number }>(
+            `SELECT id, user_request_status_id AS st FROM user_requests WHERE id IN (${ids.map(() => '?').join(',')})`, ids);
+        for (const id of ids) {
+            const row = rows.find((x) => Number(x.id) === id);
+            if (!row) out.push({ res: r, linea: `${who}: la solicitud ${id} de un paso anterior no está en la base` });
+            else if (Number(row.st) !== want) out.push({ res: r, linea: `${who}: la solicitud ${id} de un paso anterior quedó en estado ${row.st} y se esperaba ${want}` });
         }
     }
     return out;
@@ -1540,6 +1578,8 @@ async function runSteps(c: Case, i: number): Promise<Res[]> {
             lender: step.lender === undefined ? c.lender : step.lender,
             amount: step.amount ?? c.amount,
             espera: step.espera,
+            noClose: step.cerrar === false,
+            previos: out.map((r) => r.ur).filter((x): x is number => !!x),
         };
         out.push(await correr(sub, i));
     }
@@ -1815,7 +1855,7 @@ async function main(): Promise<number> {
     console.log(`\n  ${res.length - badList}/${res.length} cerraron · ${((Date.now() - t0) / 1000).toFixed(1)}s`);
     await reconcileWithDb(baseline, res.length - badList);
 
-    const deviations = [...verifyWaits(res), ...await verifyCountries(res), ...await verifyCategories(res), ...await verifyQuota(res)];
+    const deviations = [...verifyWaits(res), ...await verifyCountries(res), ...await verifyCategories(res), ...await verifyQuota(res), ...await verifyPrevious(res)];
     if (deviations.length) {
         console.log('\n  ⚠ NO CUMPLIERON LO QUE DECLARAN:\n');
         for (const d of deviations) console.log(`      · ${d.linea}`);

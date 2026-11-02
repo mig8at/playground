@@ -177,7 +177,9 @@ donde se dice otra cosa:
   claves, por caso o en `porDefecto`, y pueden afirmar además `categoria` (por entidad, contra `users_category_log`;
   `null` es «ninguna»), `conConsulta`/`sinConsulta` (la compuerta de preaprobación de la tarjeta) y `cupo` (el
   `reason` de `POST /api/loans/lender/available-quota` por entidad, u `ok`: en local la preaprobación la contesta un
-  mock que no llama al backend, y sin esto ninguna corrida ejercita las negativas del cupo). Las suites que
+  mock que no llama al backend, y sin esto ninguna corrida ejercita las negativas del cupo) y `estadoAnteriores` (el
+  estado en que quedan las solicitudes de los pasos previos del mismo cliente). Un paso con `"cerrar": false` elige la
+  entidad pedida y se queda ahí aunque la suite cierre: es como se deja una solicitud hermana abierta. Las suites que
   respaldan reglas de `knowledge/` las nombran en su `nota` y el tema dice con qué suite se comprueba.
   `make harness-knowledge TARGET=local` corre todas las suites que algún tema cita (`SUITE=harness/suites/…` en su
   prosa) y dice, por tema, qué regla sigue en pie; `LIST=1` sólo muestra qué temas tienen suite y cuáles sólo están
