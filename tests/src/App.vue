@@ -508,6 +508,27 @@ watch(panelTab, (tab) => {
   storesTimer = setInterval(loadStores, 5000)
 }, { immediate: true })
 onBeforeUnmount(() => clearInterval(storesTimer))
+// Las ramas de las tareas de cada tienda (`/api/branches`, la medición del tablero): en qué ambientes está cada una y su
+// PR, para saber cuándo se mergeó. Mide git al abrir la pestaña y con «Medir»; lee el último `git fetch` de cada repo.
+const BRANCH_ENVS = ['develop', 'qa', 'staging', 'main']
+const branches = ref(null)
+const branchesBusy = ref(false)
+const branchesError = ref('')
+async function loadBranches() {
+  branchesBusy.value = true
+  try {
+    const res = await fetch('/api/branches')
+    const body = await res.json()
+    if (!res.ok) throw new Error(body.error || `HTTP ${res.status}`)
+    branches.value = body
+    branchesError.value = ''
+  } catch (e) { branchesError.value = `No se pudo medir: ${e.message}` } finally { branchesBusy.value = false }
+}
+// Lo que falta arriba: una rama está entregada cuando ya está en main o su PR se mergeó o cerró.
+function branchDelivered(b) { return b.in?.main || ['MERGED', 'CLOSED'].includes(b.pr?.state) }
+function sortedBranches(list) { return [...list].sort((a, b) => branchDelivered(a) - branchDelivered(b)) }
+const branchesPending = computed(() => (branches.value?.stores || []).reduce((n, s) => n + s.branches.filter((b) => !branchDelivered(b)).length, 0))
+watch(panelTab, (tab) => { if (tab === 'branches' && !branches.value && !branchesBusy.value) loadBranches() })
 // Otra solicitud u otro ambiente: la consulta abierta era de la anterior.
 watch([() => result.value?.request?.id, target], () => { openTable.value = null; openCell.value = null; if (panelTab.value === 'table') panelTab.value = 'states'; docTable.value = null })
 // Las fechas de alta y de cambio de cada fila son ruido para una prueba: no se muestran (la consulta las trae).
@@ -939,6 +960,14 @@ onBeforeUnmount(() => {
         <button v-if="!readOnly" type="button" role="tab" class="tab" :class="{ on: panelTab === 'stores' }" :aria-selected="panelTab === 'stores'" @click="panelTab = 'stores'">
           Tiendas
         </button>
+        <button type="button" role="tab" class="tab" :class="{ on: panelTab === 'branches' }" :aria-selected="panelTab === 'branches'" @click="panelTab = 'branches'">
+          Ramas <span v-if="branches" class="count" title="ramas por mergear">{{ branchesPending }}</span>
+        </button>
+        <div v-if="panelTab === 'branches'" class="region-actions">
+          <button type="button" class="region-action" :disabled="branchesBusy" title="Volver a medir las ramas (lee el último git fetch de cada repo)" aria-label="Medir las ramas" @click="loadBranches">
+            <span class="ui-icon" data-icon="refresh" aria-hidden="true"></span>
+          </button>
+        </div>
         <div v-if="panelTab === 'tables'" class="region-actions">
           <button type="button" class="region-action" title="Volver a lo de siempre: todas menos logs y auditorías" aria-label="Volver a lo de siempre" @click="resetTables">
             <span class="ui-icon" data-icon="refresh" aria-hidden="true"></span>
@@ -975,6 +1004,30 @@ onBeforeUnmount(() => {
           <pre v-if="storeLogOpen === st.store" class="store-log">{{ st.log.slice(-40).join('\n') }}</pre>
         </section>
         <p v-if="!stores.length && !storesError" class="muted">Midiendo…</p>
+      </div>
+      <div v-else-if="panelTab === 'branches'" class="region-body store-commands">
+        <p v-if="branchesError" class="hot">{{ branchesError }}</p>
+        <p v-if="branchesBusy" class="muted small">Midiendo las ramas…</p>
+        <p v-else-if="branches" class="muted small">Medido a las {{ branches.measuredAt.slice(11, 16) }}, con el último <code>git fetch</code> de cada repo.</p>
+        <section v-for="s in branches?.stores || []" :key="s.store" class="store-state">
+          <div class="store-state-head">
+            <h3>{{ s.store }}</h3>
+            <span class="muted small">tarea <code>{{ s.task }}</code> · <code>ramas: {{ s.pattern }}</code></span>
+          </div>
+          <p v-if="s.error" class="hot small">{{ s.error }}</p>
+          <p v-else-if="!s.branches.length" class="muted small">Ninguna rama coincide con el patrón.</p>
+          <ul class="branch-list">
+            <li v-for="b in sortedBranches(s.branches)" :key="b.repo + b.branch" :class="{ delivered: branchDelivered(b) }">
+              <i class="dot" :data-state="branchDelivered(b) ? 'ok' : 'fail'" aria-hidden="true"></i>
+              <span class="branch-name"><span class="muted">{{ b.repo }}</span> · <code>{{ b.branch }}</code></span>
+              <a v-if="b.pr" class="branch-pr" :href="b.pr.url" target="_blank" rel="noopener">#{{ b.pr.number }} {{ b.pr.state === 'OPEN' ? (b.pr.draft ? 'borrador' : 'abierto') : b.pr.state === 'MERGED' ? 'mergeado' : 'cerrado' }} → {{ b.pr.base }}</a>
+              <span v-else class="branch-pr muted">sin PR</span>
+              <span class="branch-envs">
+                <span v-for="env in BRANCH_ENVS" :key="env" class="branch-env" :class="{ on: b.in?.[env] }" :title="b.in?.[env] ? `ya está en ${env}` : `no está en ${env}`">{{ env }}</span>
+              </span>
+            </li>
+          </ul>
+        </section>
       </div>
       <div v-else-if="panelTab === 'tables'" class="region-body">
         <p v-if="!tables.length" class="none">Las tablas de la solicitud que se mira; las que se apagan acá no se muestran en el editor.</p>
@@ -1186,6 +1239,15 @@ code.wrap { word-break: break-all }
 .store-checks { margin: var(--space-1) 0 0; padding: 0; list-style: none; font-size: var(--text-sm) }
 .store-checks li { display: flex; align-items: center; gap: var(--space-2); padding: 2px 0 }
 .store-log { max-height: 220px; overflow: auto; margin: var(--space-1) 0 0; padding: var(--space-2); border-radius: var(--radius-sm); background: var(--muted); font-size: 11px; line-height: 1.45; white-space: pre-wrap; word-break: break-all }
+/* Las ramas de cada tienda: rama, PR y los ambientes donde ya está. Lo entregado va atenuado, al final. */
+.branch-list { margin: var(--space-1) 0 0; padding: 0; list-style: none; font-size: var(--text-sm) }
+.branch-list li { display: flex; align-items: center; gap: var(--space-2); flex-wrap: wrap; padding: 3px 0 }
+.branch-list li.delivered { opacity: .55 }
+.branch-name { min-width: 0; overflow-wrap: anywhere }
+.branch-pr { font-size: 12px }
+.branch-envs { display: inline-flex; gap: 4px; margin-left: auto }
+.branch-env { padding: 0 6px; border-radius: var(--radius-sm); border: 1px solid var(--border); color: var(--muted-foreground); font-size: 11px }
+.branch-env.on { border-color: var(--tests-ok); color: var(--tests-ok) }
 /* El perfil de prueba en la barra: quién, el botón y una línea por central. */
 .profile { display: flex; flex-direction: column; align-items: flex-start; gap: var(--space-1); padding: var(--space-2) var(--gutter) var(--space-3) }
 .profile p { margin: 0 }

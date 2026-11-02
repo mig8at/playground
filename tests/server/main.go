@@ -11,6 +11,7 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"flag"
 	"fmt"
@@ -19,6 +20,7 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"time"
 )
 
 func main() {
@@ -122,6 +124,13 @@ func handler() http.Handler {
 			out = append(out, st)
 		}
 		writeJSON(w, http.StatusOK, out)
+	})
+	// GET /api/branches — las ramas de las tareas de cada tienda y hasta dónde llegaron (ver branches.go). Mide git
+	// en el momento (unos segundos), así que la UI lo pide al abrir la pestaña y con «Medir».
+	mux.HandleFunc("/api/branches", func(w http.ResponseWriter, r *http.Request) {
+		ctx, cancel := context.WithTimeout(r.Context(), 90*time.Second)
+		defer cancel()
+		writeJSON(w, http.StatusOK, MeasureStoreBranches(ctx))
 	})
 	// POST /api/stores/start?store=shopify|vtex · /api/stores/stop?store=… — levanta o para lo que corre desde tests.
 	for _, action := range []string{"start", "stop"} {

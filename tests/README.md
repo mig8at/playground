@@ -32,6 +32,11 @@ intentos alcanzado» (`/rate-limit-exceeded`). El contador vive en el Redis del 
 solicitudes o usuarios no lo reinicia, y desde acá no hay acceso para borrarlo. Cada intento que pasa vuelve a
 contar la hora. Salida: esperar, o usar otra cédula (y cargarla en el paso 2).
 
+La pestaña **Ramas** de la misma consola dice qué falta mergear de las integraciones: las ramas que declaran las
+tareas `integracion-shopify` e `integracion-vtex` en su `ramas:`, con su PR y los ambientes donde ya está cada una
+(la medición del tablero, `bin/pg tarea ramas`). Lee el último `git fetch` de cada repo: si algo se ve viejo, se
+fetchea y se vuelve a medir con el botón.
+
 ## 3 · Comprar
 
 En `tests`, pestaña **Tiendas** de la consola de abajo, un semáforo dice si cada tienda está lista para comprar y el botón
