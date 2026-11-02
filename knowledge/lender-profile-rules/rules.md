@@ -38,6 +38,9 @@ El motor no mide meses de continuidad: los deriva de banderas de AgilData (o, si
 y sólo puede valer 12, 6, 3 o 0. Una regla que pide 8 meses exige en la práctica 12, y una que pide
 más de 12 no la cumple nadie. Sin datos, la continuidad es 0.
 
+Se comprueba corriendo con `make harness-suite TARGET=local SUITE=harness/suites/continuidad-escalones.json`:
+en CREDI TRACK, que pide 9 meses para Premium, un cliente con 11 meses de aportes no entra.
+
 ## Vigencia de la licencia, sólo en la etapa extendida
 
 `min_license_validity_years` sólo se evalúa en reglas de la etapa extendida (tipo 2) con un valor
