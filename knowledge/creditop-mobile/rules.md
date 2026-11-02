@@ -14,6 +14,11 @@ La app no tiene backend propio: llama por el API Gateway (`v2.api.creditop.com` 
 merchant-api, pre-approvals-service, self-manager-api, financial-health-service,
 entitlement-service e identity-service. Pagar abre los portales web `aliados.` y `pagos.creditop.com`.
 
+La app además registra el token de notificaciones del dispositivo en `/v1/devices/push-tokens`
+(alta al iniciar sesión, refresco y baja al salir), pero **ningún servicio implementa esa ruta** en
+`main`: messaging-service sólo expone el envío de notificaciones push desde el admin. Hasta que exista, el registro de
+dispositivos no llega a ningún lado.
+
 ## Entrada: OTP por celular y registro en legacy
 
 El cliente entra con su celular. La app intenta primero el inicio de sesión de Cognito (Custom Auth):
@@ -69,6 +74,11 @@ créditos y capacidad de endeudamiento. El estado de cada crédito es «Al día�
 (uno desconocido se muestra como «Pagar»), y el tipo es `consumer` o `revolving`. La capacidad se pinta
 por porcentaje: más de 70 saludable, de 30 a 70 moderado, menos de 30 en riesgo.
 
+Ese porcentaje es la capacidad **disponible**: legacy calcula salario menos cuotas mensuales (ajustadas
+y sin las deudas que ignora) sobre el salario, entre 0 y 100. El comentario del DTO de la app que lo
+llama «capacidad utilizada» está mal; el color sí lo lee bien. Sin reporte de Datacrédito o sin salario,
+legacy devuelve 0, y la app lo pinta en riesgo aunque no sea una deuda alta sino falta de datos.
+
 De un crédito de consumo se puede consultar el resumen y los documentos, y pedir cambio de fecha de
 pago o de número de cuotas (legacy dice primero si se puede). Del cupo rotativo se ven sus compras,
 movimientos y documentos. El estado del **cupo** (`active`, `blocked`, `annulled`, `inactive`) es
@@ -88,20 +98,47 @@ Antes de leer, pide a legacy un refresco del buró, que legacy sólo hace para q
 El documento se guarda en caché por cliente y la caché se lee antes que el beneficio: un cambio de
 plan tarda hasta su vencimiento, salvo que se avise el cambio de suscripción.
 
-Los consejos con IA se piden a financial-health-service, que manda el historial a un análisis
-externo. La versión gratuita tiene **una consulta por mes calendario de Colombia**; premium, sin tope.
+Los consejos con IA se piden a financial-health-service, que proyecta los **dos últimos reportes de
+Experian exitosos** del cliente y los manda por POST a un workflow de n8n
+(`/webhook/financial-analysis`; la URL de ejemplo es `n8n.creditop.com`), que el propio código describe
+como fuera de la infraestructura de la compañía. Es el único flujo del servicio que saca datos. La
+versión gratuita tiene **una consulta por mes calendario de Colombia** (configurable, contada en
+`financial_tips_queries`); premium, sin tope.
 
 Premium se obtiene de dos maneras (`EntitlementSource`): la suscripción `creditop_premium` de
 RevenueCat (mensual o anual), o como regalo por un crédito CreditopX originado con el código de la
 app. La compra en la tienda no desbloquea nada por sí sola: lo confirma entitlement-service.
 
+En entitlement-service, la suscripción es el plan `premium_subscription` (da `premium.access` y
+`financial_health.full`) y el regalo es el plan `creditop_x` (sólo `financial_health.full`). El regalo
+lo deciden **reglas versionadas** (`creditop_x_rule_versions`) que se publican desde el backoffice: la
+regla original da 3 meses por la primera compra desde el lanzamiento, y las campañas pueden pedir
+cantidad o monto de compras en una ventana. Para calificar, la compra debe estar Autorizada en legacy,
+no anulada, con entidad y con un código de la app válido para esa compra; cada persona recibe el regalo
+**una vez por regla**, y el periodo arranca en la fecha de autorización aunque el sondeo llegue tarde.
+La migración siembra la regla original **apagada**: qué versión está prendida es dato del servicio, no
+código. Una anulación confirmada revoca el regalo.
+
 ## Identidad con ADO: sólo para premium
 
 La verificación de identidad (selfie y documento por ambas caras, contra identity-service) se exige
-**sólo a premium** antes del diagnóstico completo; la versión gratuita entra sin verificarse. Un
-`rejected` con `reason_code = previously_registered` (ADO ya tiene enrolados ese documento y ese
-rostro) se trata como aprobado, pero sólo por la sesión: que quede verificado después depende de que
-identity-service responda `verification_required: false`.
+**sólo a premium** antes del diagnóstico completo; la versión gratuita entra sin verificarse.
+
+identity-service decide con una sola regla (`Eligibility`) tanto el estado de la cuenta como si deja
+empezar un intento:
+
+- un intento **aprobado con prueba de vida para el documento actual** verifica a la persona para
+  siempre, sin ventana de tiempo; un cambio de documento es una persona nueva para el proveedor;
+- un documento que el servicio no sabe verificar no recibe verificación;
+- tras un **rechazo terminal** del mismo documento, la cuenta queda «requiere verificación» con motivo
+  `identity_rejected` y no se puede empezar otro intento;
+- staff puede registrar una aprobación de soporte, que pasa por la misma regla.
+
+ADO responde «registrada previamente» (documento y rostro ya enrolados) y identity-service lo cierra
+como **rechazo terminal no reintentable** (`previously_registered`). La app lo trata como aprobado,
+pero sólo por la sesión, porque esa aprobación vive en memoria. En la sesión siguiente el servicio
+vuelve a responder `verification_required` con `identity_rejected`, y la persona no puede reintentar:
+sólo la destraba una aprobación de soporte.
 
 ## Campaña de cero interés
 

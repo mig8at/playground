@@ -2,7 +2,7 @@
   "version": 1,
   "title": "Negocio: cómo funciona CreditOp",
   "summary": "El mapa del negocio: quién es quién (cliente, comercio y sucursal, asesor, entidad, solicitud), los rieles por response_type, los cuatro canales de entrada, las etapas de una originación hasta Autorizada, qué pasa después según la entidad, qué sistema hace qué, y qué tema de esta biblioteca contesta cada pregunta.",
-  "reviewedAt": "2026-11-02T15:42:31+00:00",
+  "reviewedAt": "2026-11-02T15:59:04+00:00",
   "sources": [
     {
       "repo": "legacy-backend",
@@ -140,6 +140,15 @@
       "blob": "efd5c95d8015defb4cac7cacc95e1aa9e0dee03a",
       "sections": [
         "que-sistema-hace-que"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "app/Services/Lenders/Nequi/NequiUserRequestSealer.php",
+      "commit": "69920f580f62ad35f0a555e3b8b8f2c247d758aa",
+      "blob": "7ae251cd2b0c18f228e61db76b3941db2efb59e1",
+      "sections": [
+        "el-recorrido-de-una-solicitud"
       ]
     }
   ]

@@ -37,7 +37,7 @@ Trampas del catálogo:
 - En `Partner/UserRequestManagementService` hay constantes con nombres engañosos:
   `STATUS_APPROVED = 10` es «Pendiente de autorización», `STATUS_DISBURSED = 11` es «Autorizada» y
   `STATUS_NOT_DISBURSED = 20` es «Aprobada no desembolsada». El propio archivo lo advierte.
-- **11 «Autorizada» es el estado de éxito de la originación** y es terminal: el crédito existe. Para
+- **11 «Autorizada» es el estado de éxito de la originación** y es terminal: el crédito existe (con Nequi no hay crédito sino un pago de contado; ver abajo). Para
   contar desembolsos se usa `user_requests.disbursed_at`, no el estado.
 
 ## Qué estados cierran una solicitud
@@ -105,3 +105,17 @@ Cuando la entrada trae `ecommerce_request_id`, legacy-backend (módulo Onboardin
 solicitud **de ese mismo pedido** que siga abierta en 1, 3 o 9. Si no la hay —pedido nuevo, o la de
 este pedido ya terminó— crea otra, nacida en 1 y sin entidad. Nunca reutiliza la solicitud de otro
 pedido ni reabre un estado final. Sin pedido identificado se conserva el flujo viejo por sesión.
+
+## Nequi: un pago de contado que puede salir de Autorizada
+
+Nequi aparece en el listado de entidades como una entidad de riel 0, pero **no presta**: cobra la
+compra completa por cuenta de Nequi, con CreditOp como agregador y los datos del comercio viajando en
+cada operación. El asistente abre su pantalla de cobro por el id de la entidad (no hay configuración
+que lo diga), y legacy-backend decide la vía por contexto: notificación push en autogestión, QR
+dinámico en el punto de venta. Crear el intento es idempotente.
+
+Cuando el cobro queda aprobado, `NequiUserRequestSealer` pasa la solicitud a 11 (resuelto por
+nombre) en la misma transacción, con `final_amount` igual a lo cobrado e `initial_fee` en 0, y deja
+la vía y el id de la transacción en `user_request_records`. Es **la única excepción** a que 11 no
+retrocede: si el pago se reversa y no queda ninguna vía aprobada, la solicitud sale de 11 a 8
+(Cancelado), porque la plata volvió al cliente.

@@ -82,6 +82,8 @@ catálogo `user_request_statuses`):
    CreditopX del cliente en ese comercio.
 
 En los rieles 0 y 1 el desenlace lo cuenta la entidad por webhook o lo marca el comercio a mano.
+Nequi también figura en el listado como entidad de riel 0, pero es un **pago de contado**: un cobro
+aprobado lleva la solicitud a 11 sin crédito detrás (ver `user-request-lifecycle`).
 
 ## Después de originar
 

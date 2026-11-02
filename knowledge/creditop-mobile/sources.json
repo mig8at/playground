@@ -1,8 +1,8 @@
 {
   "version": 1,
   "title": "CreditOp Mobile: la app del cliente final",
-  "summary": "Qué hace la app Flutter del consumidor (rama main-pro) y qué valida el backend de cada paso: OTP por Cognito o legacy y el registro MOBA, comercios y preaprobación, canales de compra por sedes y el código de self-manager, Mis créditos y el cupo rotativo, Salud Financiera gratuita o premium por el beneficio de entitlement, identidad ADO sólo para premium y la campaña de cero interés quemada.",
-  "reviewedAt": "2026-11-02T15:38:09+00:00",
+  "summary": "Qué hace la app Flutter del consumidor (rama main-pro) y qué valida el backend de cada paso: OTP por Cognito o legacy y el registro MOBA, comercios y preaprobación, canales de compra por sedes y el código de self-manager, Mis créditos y el cupo rotativo, Salud Financiera gratuita o premium por el beneficio de entitlement, identidad ADO sólo para premium y la campaña de cero interés quemada; el regalo de premium por reglas versionadas, la identidad que identity-service no aprueba al volver, y el registro de push sin backend.",
+  "reviewedAt": "2026-11-02T15:58:10+00:00",
   "sources": [
     {
       "repo": "creditop-mobile",
@@ -227,6 +227,96 @@
       "blob": "15d8d5d996b2e915c5a135ee9526a19b662f7620",
       "sections": [
         "campana-de-cero-interes"
+      ]
+    },
+    {
+      "repo": "creditop-mobile",
+      "path": "app/lib/infrastructure/notifications/datasources/notifications_device_datasource.dart",
+      "commit": "23838f6058b6bd29c4262efa99c81117c303e801",
+      "blob": "5dd7b2d03cd6e25d96e27f815b9243bf5cba8cec",
+      "sections": [
+        "con-que-servicios-habla"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/Loans/App/Services/DebtSummaryService.php",
+      "commit": "69920f580f62ad35f0a555e3b8b8f2c247d758aa",
+      "blob": "bca93a9c7263c04d5969233112999d890885d50d",
+      "sections": [
+        "mis-creditos"
+      ]
+    },
+    {
+      "repo": "entitlement-service",
+      "path": "internal/infra/storage/postgres/migrations/000002_seed_catalog.up.sql",
+      "commit": "15e9dcbc501b75050a525c4871a9fc8d25e17b9b",
+      "blob": "9693ec09520bc861ab9261ce4053c8864090a47e",
+      "sections": [
+        "salud-financiera-gratuita-y-premium"
+      ]
+    },
+    {
+      "repo": "entitlement-service",
+      "path": "internal/infra/storage/postgres/migrations/000010_creditop_x_reward_rules.up.sql",
+      "commit": "15e9dcbc501b75050a525c4871a9fc8d25e17b9b",
+      "blob": "b57fa0e253b3e187aef299affce7b5484e5787dc",
+      "sections": [
+        "salud-financiera-gratuita-y-premium"
+      ]
+    },
+    {
+      "repo": "entitlement-service",
+      "path": "internal/core/domain/creditopx_decision.go",
+      "commit": "15e9dcbc501b75050a525c4871a9fc8d25e17b9b",
+      "blob": "3576c2239856cad1fa3b6d59cf05d38c4f54bf0b",
+      "sections": [
+        "salud-financiera-gratuita-y-premium"
+      ]
+    },
+    {
+      "repo": "entitlement-service",
+      "path": "internal/core/usecases/creditopx/reversal.go",
+      "commit": "15e9dcbc501b75050a525c4871a9fc8d25e17b9b",
+      "blob": "b2fe01bf3eb98f23a8afbbf470410ce4261e5ff1",
+      "sections": [
+        "salud-financiera-gratuita-y-premium"
+      ]
+    },
+    {
+      "repo": "financial-health-service",
+      "path": "config/config.example.yaml",
+      "commit": "7909c80caabdb016543e18cd3c3649182ef886e1",
+      "blob": "9e5252d8c9f3bf3a5335637d017c21747eedcabd",
+      "sections": [
+        "salud-financiera-gratuita-y-premium"
+      ]
+    },
+    {
+      "repo": "identity-service",
+      "path": "internal/core/usecases/identity/policy.go",
+      "commit": "36c3fc7523634c94032098a0790527dd63c38843",
+      "blob": "fca13c1f5cfb5a9f88d5c2c5db42ca932facb4a7",
+      "sections": [
+        "identidad-con-ado-solo-para-premium"
+      ]
+    },
+    {
+      "repo": "identity-service",
+      "path": "internal/infra/clients/ado/decision.go",
+      "commit": "36c3fc7523634c94032098a0790527dd63c38843",
+      "blob": "fd458d98389c297cc6a1a28a9dba234e31f12cb4",
+      "sections": [
+        "identidad-con-ado-solo-para-premium"
+      ]
+    },
+    {
+      "repo": "identity-service",
+      "path": "internal/infra/handlers/identity/staff.go",
+      "commit": "36c3fc7523634c94032098a0790527dd63c38843",
+      "blob": "6b1fa0ea171df6cb6bec0103f66932756b240a57",
+      "sections": [
+        "identidad-con-ado-solo-para-premium"
       ]
     }
   ]

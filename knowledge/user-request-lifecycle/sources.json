@@ -1,8 +1,8 @@
 {
   "version": 1,
   "title": "Solicitud: estados, cierre y guardas contra el retroceso",
-  "summary": "El catálogo de estados de user_requests con sus ids de producción y por qué se lee por nombre, qué estados cierran una solicitud en cada monolito, la cancelación en cascada de solicitudes CreditopX hermanas al autorizar, safeCancel, el webhook tardío contra Autorizada, la gestión manual del comercio y una solicitud por pedido en ecommerce.",
-  "reviewedAt": "2026-11-02T15:34:07+00:00",
+  "summary": "El catálogo de estados de user_requests con sus ids de producción y por qué se lee por nombre, qué estados cierran una solicitud en cada monolito, la cancelación en cascada de solicitudes CreditopX hermanas al autorizar, safeCancel, el webhook tardío contra Autorizada, la gestión manual del comercio y una solicitud por pedido en ecommerce, y Nequi, el pago de contado que puede salir de Autorizada al reversarse.",
+  "reviewedAt": "2026-11-02T15:58:57+00:00",
   "sources": [
     {
       "repo": "legacy-backend",
@@ -77,6 +77,42 @@
       "blob": "59d9df68806a6a1db8dc35f55cc6a19fd66dfb6b",
       "sections": [
         "en-ecommerce-hay-una-solicitud-por-pedido"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "app/Services/Lenders/Nequi/NequiUserRequestSealer.php",
+      "commit": "69920f580f62ad35f0a555e3b8b8f2c247d758aa",
+      "blob": "7ae251cd2b0c18f228e61db76b3941db2efb59e1",
+      "sections": [
+        "nequi-un-pago-de-contado-que-puede-salir-de-autorizada"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/Onboarding/App/Http/Controllers/NequiPaymentController.php",
+      "commit": "69920f580f62ad35f0a555e3b8b8f2c247d758aa",
+      "blob": "9ec8634b100f733d04c9ca31a22fbdf7de817967",
+      "sections": [
+        "nequi-un-pago-de-contado-que-puede-salir-de-autorizada"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "docs/lenders/nequi/README.md",
+      "commit": "69920f580f62ad35f0a555e3b8b8f2c247d758aa",
+      "blob": "2b17fb492d01a0d57fb7ce2f9ee9c864f3d61df0",
+      "sections": [
+        "nequi-un-pago-de-contado-que-puede-salir-de-autorizada"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/Onboarding/App/Services/lenders/CardComposer.php",
+      "commit": "69920f580f62ad35f0a555e3b8b8f2c247d758aa",
+      "blob": "e3b2542ec683c954de8d6ef40932bcfed38b1906",
+      "sections": [
+        "nequi-un-pago-de-contado-que-puede-salir-de-autorizada"
       ]
     }
   ]

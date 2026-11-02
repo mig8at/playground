@@ -547,9 +547,11 @@ harness-prod-advisor: ## @har ¿el ASESOR DE PRUEBA de un comercio de PRODUCCIÓ
 harness-login-check: ## @har ¿el ASESOR DE PRUEBA de un comercio ENTRA al wizard de cada ambiente? Por ambiente: 1) a qué login alojado manda el front (sin clave ni navegador), 2) el asesor `c…-fake@` del comercio en la base, 3) con clave, entra de verdad en una ventana limpia —acomodada como la del panel—, sin tocar el cache de sesión del harness. La clave compartida sale de ALLIED_TEST_ADVISOR_PASSWORD de connectors/.env.<target>, nunca de la línea de comandos. Sin ALLIED/ACCOUNT sólo descubre el login. Con ventana por defecto (HEADLESS=1 la quita, salvo en qa y staging, F-66); prod no se prueba. Exit 0 todos entraron · 1 alguno no · 2 alguno sin probar. TARGETS=dev,qa,staging [ALLIED=346|last last = el asesor de prueba más reciente del ambiente] [ACCOUNT=correo] [HEADLESS=1] [NORESTART=1 no reinicia el wizard local aunque esté viejo] [JSON=1] [BLOQUE=<id|slug> agrega la corrida a la pila de esa tarea, sólo si hubo un intento real de login]
 	@cd harness && MD=$(MD) BLOQUE=$(BLOQUE) node dev/login-check.ts --targets '$(or $(TARGETS),dev)' $(if $(ALLIED),--allied $(ALLIED)) $(if $(ACCOUNT),--user '$(ACCOUNT)') $(if $(HEADLESS),--headless) $(if $(NORESTART),--no-restart) $(if $(JSON),--json)
 
-# ⚠ TEL no es un lujo: la fase de AUTH ocurre ANTES de que exista la solicitud, así que PostHog la identifica por
-# `phone_<e164>` y no por `loan_request_<n>`: sin TEL se ve la mitad.
-harness-posthog: ## @har ¿qué VIO el cliente y en qué PANTALLA se rompió? eventos del front, su bitácora y el replay (`bin/pg events request`). UREQ=n [TARGET=qa|staging|prod] [VENTANA=1d] [TEL=3001234567 ⚠ sin esto se ve la MITAD] [LIMIT=n]
+# ⚠ TEL sólo sirve para sesiones de hasta el 2026-10-29: hasta ahí el wizard identificaba la fase de AUTH (antes de que
+# exista la solicitud) por `phone_<e164>`. Desde el despliegue del 2026-10-30 (frontend-monorepo 8fc1a6b15) ya no lo
+# hace: esos eventos quedan con el id anónimo de la sesión y TEL no los trae (medido en prod: 2 eventos de AUTH con
+# `phone_` contra ~7.500 anónimos en dos días). Lo de la solicitud sigue llegando por `loan_request_id`.
+harness-posthog: ## @har ¿qué VIO el cliente y en qué PANTALLA se rompió? eventos del front, su bitácora y el replay (`bin/pg events request`). UREQ=n [TARGET=qa|staging|prod] [VENTANA=1d] [TEL=3001234567 sólo sesiones hasta el 2026-10-29] [LIMIT=n]
 	@test -n "$(UREQ)" || { echo "falta UREQ=<n>  ·  ej: make harness-posthog UREQ=502060 TARGET=qa"; exit 2; }
 	@bin/pg events request --target $(or $(TARGET),qa) --ureq $(UREQ) --since $(or $(VENTANA),1d) $(if $(TEL),--tel $(TEL)) $(if $(LIMIT),--limit $(LIMIT))
 

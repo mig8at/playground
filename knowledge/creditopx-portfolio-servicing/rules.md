@@ -29,9 +29,13 @@ lanza cada comando como una tarea de ECS de una sola corrida, en orden y a hora 
 Un paso espera a que el anterior termine **y** a su hora; nunca corre encima de otro; se salta si la
 fecha de negocio ya no es hoy. La causación depende de las colillas y no se relanza si se muere a
 mitad: causar dos veces el mismo día duplica intereses. El worker arranca en modo sombra por defecto
-(cada tarea corre `php artisan --version`); si en producción ya salió de sombra no se lee en el código.
+(cada tarea corre `php artisan --version`); el valor de producción vive en su secreto
+(`prod/loan-servicing`), no en el código, así que salir de sombra es configuración y se comprueba en
+los logs del worker (cada lanzamiento registra `shadow`).
+
 legacy-backend tiene copias de algunos de estos comandos, pero el worker invoca los de
-legacy-application.
+legacy-application: su familia de tarea por defecto es la del scheduler de ese monolito, y en
+producción su rol de IAM sólo puede lanzar `legacy-application-worker-production`.
 
 ## Gasto de cobranza por días de mora
 

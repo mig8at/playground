@@ -2,7 +2,7 @@
   "version": 1,
   "title": "Cartera CreditopX: noche, cobranza, colilla y beneficios",
   "summary": "Qué le pasa a un crédito CreditopX sin que el cliente pague: la cadena nocturna que corre loan-servicing sobre los comandos de legacy-application, el gasto de cobranza por tramo de mora, la colilla que se condona en el corte, cuándo se puede cambiar la fecha de pago, recuperación, refinanciación y paz y salvo desde el admin, y el subsidio de intereses Creditop.",
-  "reviewedAt": "2026-11-02T15:36:05+00:00",
+  "reviewedAt": "2026-11-02T15:56:59+00:00",
   "sources": [
     {
       "repo": "application",
@@ -122,6 +122,24 @@
       "sections": [
         "subsidio-de-intereses-creditop",
         "cambio-de-fecha-de-pago"
+      ]
+    },
+    {
+      "repo": "loan-servicing",
+      "path": "internal/modules/nightlyportfolio/settings.go",
+      "commit": "113ec16fa49ccbe48dcf334bc083a100625d5e08",
+      "blob": "ebafa17338339cde5206a8eff9d724c9c54e75f1",
+      "sections": [
+        "la-noche-de-cartera-la-corre-loan-servicing"
+      ]
+    },
+    {
+      "repo": "infrastructure",
+      "path": "environments/prod/ecs-application/terragrunt.hcl",
+      "commit": "c276d1c181f695e9242ff057604543469336e511",
+      "blob": "418fd74277d1f16f431148e7a1637dbcc1e713e0",
+      "sections": [
+        "la-noche-de-cartera-la-corre-loan-servicing"
       ]
     }
   ]
