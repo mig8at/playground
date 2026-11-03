@@ -293,6 +293,129 @@ devuelva datos del titular.
 
 ---
 
+## 16 · El pre-registro de comercios no tiene freno contra un programa que cambie el correo (Seguridad · decisión)
+
+**Qué pasa.** El formulario público de pre-registro de comercios manda un token que, por ir en la página, cualquiera
+puede ver; el propio código lo dice: filtra llamadas anónimas pero no protege contra abuso. El único límite es de 10
+envíos por minuto **por correo**, así que un programa que cambie el correo en cada envío no tiene límite. Tampoco hay
+captcha. El mismo código lo reconoce («para eso hace falta un captcha»).
+
+**Cuánto cuesta el abuso.** Cada envío guarda una fila de pre-registro (sin deduplicar) y registra en los logs el
+nombre, correo, teléfono y documento del prospecto. No crea comercios, usuarios ni cuentas, ni manda correos o SMS.
+O sea: el costo es llenar la base y los logs con datos personales, no gastos de mensajería.
+
+**Cómo se comprobó.** Leyendo `main` del backend y del front (sin llamar al endpoint). No se revisó si el API Gateway o
+CloudFront tienen un límite propio: eso vive en el repositorio de infraestructura.
+
+**Propuesta.** Decidir entre captcha en el formulario o un límite por origen en el gateway, y revisar si hace falta
+registrar los datos personales completos en cada envío.
+
+---
+
+## 17 · En el admin viejo, tres listados muestran todo a roles que no deberían (Seguridad)
+
+**Qué pasa.** Tres pantallas del admin de `legacy-application` no recortan lo que muestran según el rol de quien entra:
+
+- **Usuarios:** sólo recorta para «Entidad Comercio» (y ni eso si ese usuario no tiene entidad asignada). Cualquier
+  otro rol con el permiso de ver usuarios ve a todos.
+- **Links de pago:** sólo recorta para un perfil (el 6). Admin comercio, Comercial, Entidad Comercio y los demás con el
+  permiso ven los links de todos los comercios.
+- **Revisión de perfilamiento:** no tiene chequeo de permiso (sólo el menú la esconde) y los datos se filtran por el
+  comercio que llega en la petición, no por el del usuario. El rol sólo recorta la lista desplegable de comercios, así
+  que cualquier usuario del admin puede pedir los datos de un comercio que no es suyo.
+
+**Cómo se comprobó.** Leyendo `main` (el mismo commit que el último tag de producción). No se corrió: falta saber qué
+roles tienen de verdad los permisos de ver usuarios y ver links en la base.
+
+**Propuesta.** Decidir qué ve cada rol y aplicarlo en la consulta (no sólo en el menú o en el desplegable).
+
+---
+
+## 18 · El admin viejo tiene rutas de prueba en producción, y una escribe en la base (Seguridad)
+
+**Qué pasa.** Tres rutas de prueba del admin de `legacy-application` siguen registradas en producción (están en el
+último tag), sin ninguna condición de ambiente. Todas piden sesión iniciada:
+
+- **`/create-profiling`:** pide además un permiso del tablero. Recorre todas las solicitudes autorizadas o en estado 3,
+  **crea registros de perfilamiento**, se quita el límite de memoria y de tiempo, y termina con un volcado de depuración
+  en la respuesta. En producción eso es una carga pesada y escrituras disparables desde el navegador.
+- **`/pruebas-modelo`:** sin permiso específico. Busca un usuario por cédula con sus datos de centrales y llama a un
+  modelo de predicción alojado en un servicio externo de pruebas (un dominio de replit).
+- **`/test-perfilamiento`:** sin permiso específico; por la forma del método, una llamada debería fallar antes de
+  ejecutar nada (leído, no corrido).
+
+**Cómo se comprobó.** Leyendo `main` (igual al último tag). No se llamó a ninguna ruta.
+
+**Propuesta.** Sacar las tres del registro de rutas (o limitarlas a ambientes locales), y revisar con quien la mantenga
+si `/pruebas-modelo` todavía se usa y si sus datos deben salir a ese servicio externo.
+
+---
+
+## 19 · El bloqueo y desbloqueo de celulares financiados se puede pedir sin sesión (Seguridad · alta)
+
+**Qué pasa.** En el backend nuevo, las rutas que bloquean, desbloquean, quitan el PIN y consultan el estado del celular
+financiado (la garantía de los créditos IMEI) están **fuera del grupo que exige sesión**. Reciben el IMEI y la llave del
+comercio ante el proveedor de bloqueo directamente en la petición, y la reenvían sin comprobar que ese equipo sea de ese
+comercio; sólo dejan registro de quién lo pidió. Lo único que se interpone es conocer esa llave.
+
+**Cómo se comprobó.** Leyendo `main`: las cuatro rutas están después del cierre del grupo autenticado, con sólo la
+observabilidad y el grupo base, que no autentica; el servicio dice explícitamente que toma la llave «del request HTTP,
+no de la base». Está así desde marzo de 2026. **No se probó contra ningún ambiente.**
+
+**Falta comprobar:** si la llave del comercio llega al navegador (el admin viejo la manda en el cuerpo de la petición,
+así que el front la tiene) y si el API Gateway le pone una autorización delante a estas rutas (eso vive en el
+repositorio de infraestructura).
+
+**Propuesta.** Meter las cuatro rutas en el grupo autenticado y resolver la llave del comercio desde la base a partir
+del equipo, no desde la petición.
+
+---
+
+## 20 · En el admin viejo, los datos de un cliente se abren por id sin mirar de qué comercio es (Seguridad)
+
+**Qué pasa.** En el admin de `legacy-application`, varias pantallas que reciben el id en la dirección no comprueban que
+el registro sea del comercio de quien está conectado. Un usuario de un comercio (Admin o Superadmin comercio) que
+escriba el id de otro cliente puede ver:
+
+- **los documentos de identidad** (las dos caras de la cédula y la foto del rostro) y el resultado de listas de control;
+- **el formulario** que llenó el cliente;
+- **sus solicitudes**, incluidas las de otros comercios;
+- **el detalle de un crédito CreditopX** (el listado sí mira un permiso, el detalle no).
+
+**Cómo se comprobó.** Leyendo `main` (igual al último tag): ninguna de esas rutas lleva chequeo de permiso ni compara
+el comercio del registro con el del usuario, y el grupo del admin sólo exige sesión. No se corrió; falta saber si el
+menú las esconde a esos roles (el servidor no lo impide) y si esos roles tienen usuarios en producción.
+
+**Propuesta.** Añadir una política que compare el comercio del registro con el del usuario conectado (o restringir
+estas pantallas a roles internos).
+
+---
+
+## 21 · En el admin viejo, acciones que cambian datos sólo piden estar conectado (Seguridad)
+
+**Qué pasa.** Varias acciones del admin de `legacy-application` que **escriben** no revisan ningún permiso: alcanza con
+tener sesión en el admin, aunque el menú sí las esconda a quien no tiene el permiso. Las verificadas:
+
+- dar de baja a un usuario y a un usuario comercial, las dos **por un enlace (GET)**;
+- desactivar una entidad;
+- **borrar de verdad** (sin papelera) las credenciales de integración de una entidad;
+- cambiar las reglas y la frecuencia de consulta a Datacrédito, y el disparador de Datacrédito del punto de venta
+  (con una opción que lo reescribe en todas las sucursales del comercio);
+- cambiar el estado de una solicitud al gestionarla;
+- la validación manual (pasa la solicitud a 10 o a 6 y le manda un mensaje al cliente);
+- los envíos de mensajes de marketing (sólo la pantalla pide el permiso; el envío no).
+
+El backend nuevo tiene equivalentes de cuatro de ellas (baja de usuario comercial, disparador, desactivar entidad y
+reglas de Datacrédito) que tampoco miran permisos: confían en la identidad que pone el gateway.
+
+**Cómo se comprobó.** Leyendo `main` (igual al último tag): esas rutas sólo están en el grupo que exige sesión, sin el
+chequeo de permiso que otras rutas del mismo archivo sí tienen, y sus controladores no autorizan. No se corrió nada.
+Falta saber cuántos usuarios no administradores pueden entrar al admin (un comentario del código habla de unos 790).
+
+**Propuesta.** Ponerle a cada acción el mismo permiso que ya usa su menú, y pasar las bajas de GET a POST/DELETE.
+
+---
+
 ## Sobre originación delegada (CORE-918)
 
 Lo que sigue va con la tarea de originación delegada, no con incidencias, pero conviene conversarlo junto:

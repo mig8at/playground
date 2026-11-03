@@ -283,7 +283,9 @@ Salvo donde se dice «corrido», salen de LEER el código: falta reproducirlos.
 
 - [ ] Decidir cómo frenar el abuso del pre-registro de comercios: el token de servicio viaja en la página y
   el único límite es por correo, así que un programa que cambie el correo en cada envío no tiene freno.
-  Termina con la decisión (captcha, límite por origen detrás del gateway u otro).
+  Termina con la decisión (captcha, límite por origen detrás del gateway u otro). **Confirmado en `main` (2026-11-03):** token Sanctum `PUBLIC_MERCHANT_SIGNUP_TOKEN` en el bundle de la landing;
+  `throttle` 10/min sólo por email (`AlliedV1/RouteServiceProvider`); sin captcha; cada envío crea una fila y loguea
+  los datos personales. El propio código pide captcha. Falta mirar el gateway/WAF. Borrador 16.
 - [ ] Encender el interruptor que exige el identificador firmado en la vista previa del pago: apagado por
   omisión, el número de solicitud (consecutivo) sigue devolviendo el nombre completo del titular. **Confirmado por
   lectura de `main` (2026-11-03):** `WompiPaymentController` acepta un id numérico cuando
@@ -299,16 +301,26 @@ Salvo donde se dice «corrido», salen de LEER el código: falta reproducirlos.
   las reglas y la frecuencia de Datacrédito, el disparador del punto de venta (`updateTrigger`), cambiar el estado de
   una solicitud al gestionarla (`UserRequestController::update`), la validación manual (`/validacion-manual`, pasa a
   10 o a 6) y los envíos de mensajes de marketing. Termina cuando cada una tiene su FormRequest o policy con el
-  permiso que ya usa el menú, o se descarta con el motivo.
+  permiso que ya usa el menú, o se descarta con el motivo. **Confirmadas las nueve en `main` 1755ab4f = tag v1.2.8
+  (2026-11-03):** sin `can:` ni `authorize`; las bajas van por GET (`admin.php:37`, `:50`); `CredentialsController::destroy`
+  es borrado duro; la validación manual además manda Twilio. legacy-backend tiene cuatro equivalentes en Partner sin
+  permiso, detrás de `auth.cognito`, que no rechaza. Borrador 21.
 - [ ] Cerrar el alcance de las lecturas y acciones por id en la URL: el detalle de un crédito CreditopX y el
   bloqueo, desbloqueo y PIN del celular financiado (`deviceManagement`, `devicePinUnlock`), los documentos de
   identidad de un usuario (`getUserDocument`), su formulario y sus solicitudes. Termina cuando un rol de comercio no
-  puede abrirlas para un cliente de otro comercio.
+  puede abrirlas para un cliente de otro comercio. **Confirmado en `main` (2026-11-03):** ninguna compara el comercio;
+  `getUserDocument` devuelve AML e imágenes de ADO. **Y más grave:** en legacy-backend `lock-device`, `unlock-device`,
+  `unlock-pin-device` y `get-device-status` (`Partner/routes/api.php:211-214`) están FUERA de `auth.cognito` y toman el
+  tenant del request. Borradores 19 (equipos) y 20 (datos por id).
 - [ ] Revisar las listas que no filtran por rol: Usuarios (sólo recorta a Entidad Comercio), Links de pago (sólo al
-  perfil 6) y Revisión de perfilamiento. Termina con la decisión de qué ve cada rol.
+  perfil 6) y Revisión de perfilamiento. Termina con la decisión de qué ve cada rol. **Confirmado en `main` (2026-11-03):** Revisión de
+  perfilamiento además no tiene permiso y filtra por el `allied_id` del request (el rol sólo recorta el desplegable).
+  Borrador 17.
 - [ ] Sacar las rutas de desarrollo del admin o protegerlas: `/test-perfilamiento`, `/create-profiling` (termina en
   `dd()` y sube el límite de memoria) y `/pruebas-modelo`, las tres sin chequeo. Termina cuando no responden en un
-  ambiente desplegado.
+  ambiente desplegado. **PARCIAL en `main` = tag v1.2.8 (2026-11-03):** las tres piden sesión y
+  `create-profiling` además `view dashboard module`; pero no hay chequeo de ambiente, `create-profiling` escribe
+  (`Profiling::create`) y `/pruebas-modelo` llama a un servicio externo de replit. Borrador 18.
 
 ### Admin — comportamiento distinto al esperado
 
