@@ -210,9 +210,10 @@ Salvo donde se dice «corrido», salen de LEER el código: falta reproducirlos.
 - [ ] Que el desembolso IMEI (`POST api/loans/requests/device/{id}/disburse`) mire el estado de la solicitud y quién
   lo pide. La ruta quita al grupo `requests` sus tres middlewares, entre ellos `validate.authorized.status`, y ese grupo
   no tiene autenticación. El controlador sólo exige un IMEI guardado. Para SmartPay, `disburseImeiRequest` lleva la
-  solicitud a estado 11 y crea el primer registro del histórico sin mirar el estado previo, así que una solicitud con
-  IMEI cancelada o ya desembolsada se puede volver a mover con su id, que es secuencial. Sale de LEER `main`: no se
-  corrió. Termina cuando se decide con el equipo qué guarda va (estado esperado, sesión o token del flujo) y está.
+  solicitud a estado 11 sin mirar el estado previo; `createFirstRegister` no duplica el histórico, pero con la solicitud
+  ya en 11 se repiten el registro de estado, el PDF, el plan de pagos, el correo, el voucher y la cancelación de los
+  otros créditos del cliente. Para las demás entidades, `authorize()` tampoco mira el estado y toma el último OTP
+  validado del usuario, sin atarlo a la solicitud. El id es secuencial. Sale de LEER `main`: no se corrió. Termina cuando se decide con el equipo qué guarda va (estado esperado, sesión o token del flujo) y está.
 - [ ] Rotar y borrar de Jira los secretos en texto plano que vio el barrido del 2026-11-02 (no se copió ningún valor):
   credenciales de Twilio para República Dominicana en CRED-46, la llave interna del bloqueo de equipos en CRED-134 y un
   certificado de Deceval en CRED-69. Termina con los secretos rotados y los issues editados. Depende de: Miguel /
