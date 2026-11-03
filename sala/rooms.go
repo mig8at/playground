@@ -50,7 +50,7 @@ func (rs *rooms) create(name, kind string) *hub {
 		id = fmt.Sprintf("%s-%d", base, n)
 	}
 	h := &hub{subs: map[chan []byte]bool{}, root: rs.root, srv: rs}
-	h.st = state{Room: id, Name: name, Kind: kind, Participants: roster(nil), Messages: []message{}, Claims: []claim{}}
+	h.st = state{Room: id, Name: name, Kind: kind, Participants: roster(nil), Messages: []message{}, Claims: []claim{}, Questions: []question{}}
 	rs.byID[id] = h
 	rs.order = append(rs.order, id)
 	return h

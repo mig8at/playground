@@ -47,13 +47,23 @@ func (h *hub) channelNote(p *participant) string {
 			work = append(work, fmt.Sprintf("%s → %s", q.Name, q.Work))
 		}
 	}
+	var questions []string
+	for _, q := range h.st.Questions {
+		if q.Status == "abierta" {
+			questions = append(questions, fmt.Sprintf("%s (%s): %s", q.ID, q.Who, q.Text))
+		}
+	}
 	h.mu.Unlock()
 	var b strings.Builder
+	if len(questions) > 0 {
+		b.WriteString("Preguntas abiertas (si podés contestar una con evidencia, RESPONDO: Q<n> | … | COMANDO: …):\n" + strings.Join(questions, "\n") + "\n\n")
+	}
 	if len(work) > 0 {
 		b.WriteString("Ahora mismo están trabajando en:\n" + strings.Join(work, "\n") + "\n(no repitas eso: esperá su resultado)\n\n")
 	}
 	if p.ID == "coordinador" {
-		b.WriteString("Nadie tiene nada nuevo que aportar. Decidí el siguiente paso (con @id) o cerrá con «CIERRO: <por qué>».")
+		b.WriteString("Nadie tiene nada nuevo que aportar. Si hay preguntas abiertas, elegí la más importante y asignala con @id " +
+			"(«@probador tomá Q2»), o descartala con «DESCARTO: Q<n> | por qué». Si no queda nada útil, cerrá con «CIERRO: <por qué>».")
 		return b.String()
 	}
 	if h.isChecker(p) {
@@ -73,12 +83,31 @@ func (h *hub) notice(p *participant, text string) {
 	}
 	h.mu.Lock()
 	already := p.Work == m[1]
+	var owner *participant
 	if !already {
+		for _, q := range h.st.Participants {
+			if q != p && q.Work != "" && sameWork(q.Work, m[1]) {
+				owner = q
+			}
+		}
+	}
+	if owner != nil {
+		// Dos avisaron lo mismo casi a la vez (en la primera sala de entendimiento real, el probador y el verificador
+		// repitieron juntos la consulta de datos): sigue el primero, al segundo se le corta el turno y se le avisa.
+		p.dupCut = true
+		if p.cancelTurn != nil {
+			p.cancelTurn()
+		}
+	} else if !already {
 		p.Work = m[1]
 	}
 	h.publish()
 	h.mu.Unlock()
-	if !already {
+	switch {
+	case owner != nil:
+		h.post(message{Who: "moderador", Name: "Moderador", Kind: "aviso",
+			Text: fmt.Sprintf("@%s: eso ya lo toma %s («%s»). Esperá su resultado.", p.ID, owner.Name, owner.Work)})
+	case !already:
 		h.post(message{Who: p.ID, Name: p.Name, Text: "AVISO: " + m[1], Kind: "aviso"})
 	}
 }
@@ -149,6 +178,12 @@ func (h *hub) channel(outer context.Context, task string) {
 	h.onSay = func(m message) { go h.route(ctx, m, listeners, isListener, want, wake, &routing) }
 	h.mu.Unlock()
 
+	// El coordinador tiene su parte apartada desde el arranque: en la primera sala de entendimiento real el tope llegó
+	// antes de que hablara, y la pregunta más importante quedó sin dueño. Con lo apartado siempre puede cerrar.
+	coordReserve := 0.0
+	if h.st.Budget >= 1.5 {
+		coordReserve = 0.4
+	}
 	// take: si a p le toca y queda presupuesto libre, aparta el tope de su turno. Reservar ANTES de empezar es lo
 	// que evita lo de la primera llamada en canal: cinco turnos en paralelo gastaban a la vez, el tope cortaba uno a
 	// la mitad y su gasto se perdía. Acá, sin presupuesto libre, el turno no empieza y nadie se corta.
@@ -159,7 +194,7 @@ func (h *hub) channel(outer context.Context, task string) {
 			return 0, false
 		}
 		want[p.ID] = false
-		avail := h.st.Budget - h.st.Spent - reserved
+		avail := h.st.Budget - h.st.Spent - reserved - coordReserve // lo del coordinador no se toca
 		if p.Turns >= maxTurnsPerAgent || avail < 0.1 {
 			return 0, false
 		}
@@ -220,6 +255,7 @@ func (h *hub) channel(outer context.Context, task string) {
 			idle = false
 		}
 		avail := h.st.Budget - h.st.Spent - reserved
+		workers := avail - coordReserve
 		h.mu.Unlock()
 		// En una sala de entendimiento, con suficientes hallazgos comprobados se cierra: lo que sigue es revisarlos.
 		h.mu.Lock()
@@ -246,7 +282,13 @@ func (h *hub) channel(outer context.Context, task string) {
 			finish("el coordinador llegó a su tope de intervenciones")
 			return
 		}
-		if avail < 0.1 {
+		if workers < 0.1 {
+			// Se acabó lo de los demás: el coordinador usa lo suyo para cerrar diciendo qué quedó y qué falta.
+			if avail >= 0.1 {
+				h.say("moderador", "Moderador", "Se terminó el presupuesto de trabajo. @coordinador: es tu último turno: "+
+					"resumí qué quedó comprobado, qué preguntas siguen abiertas y por qué, y cerrá con CIERRO.")
+				h.turn(ctx, coord, task, avail)
+			}
 			finish(fmt.Sprintf("se llegó al tope de US$%.2f", h.st.Budget))
 			return
 		}
@@ -296,7 +338,7 @@ func mockChannelReply(ctx context.Context, h *hub, p *participant) (string, floa
 	h.mu.Unlock()
 	named := strings.Contains(last.Text, "@"+p.ID)
 	if h.st.Kind == "entendimiento" {
-		return mockUnderstanding(p, coordRuns, checks, pause), 0
+		return mockUnderstanding(h, p, coordRuns, checks, pause), 0
 	}
 
 	switch p.ID {
@@ -342,29 +384,96 @@ func mockChannelReply(ctx context.Context, h *hub, p *participant) (string, floa
 	return "PASO", 0
 }
 
-// mockUnderstanding: una sala de entendimiento simulada: tres hallazgos, el verificador los revisa y el coordinador cierra.
-func mockUnderstanding(p *participant, coordRuns int, checks []string, pause func(time.Duration) bool) string {
-	if p.Turns > 0 && p.ID != "verificador" && p.ID != "coordinador" {
-		return "PASO"
+// mockUnderstanding: una sala de entendimiento simulada que ejercita las cuatro piezas: dos AVISO iguales (el segundo
+// se corta), una PREGUNTA que el coordinador asigna y alguien contesta, un hallazgo del verificador que comprueba otro, y
+// el cierre.
+func mockUnderstanding(h *hub, p *participant, coordRuns int, checks []string, pause func(time.Duration) bool) string {
+	h.mu.Lock()
+	var openQ, lastText string
+	for _, q := range h.st.Questions {
+		if q.Status == "abierta" {
+			openQ = q.ID
+		}
 	}
+	for i := len(h.st.Messages) - 1; i >= 0; i-- {
+		if k := h.st.Messages[i].Kind; k != "aviso" && k != "portero" {
+			lastText = h.st.Messages[i].Text
+			break
+		}
+	}
+	h.mu.Unlock()
+	named := strings.Contains(lastText, "@"+p.ID)
 	switch p.ID {
-	case "investigador":
+	case "investigador", "arquitecto":
+		if p.Turns > 0 {
+			return "PASO"
+		}
+		h.notice(p, "AVISO: busco los filtros TEMPORAL del listado en main")
+		h.mu.Lock()
+		cut := p.dupCut
+		p.dupCut = false
+		h.mu.Unlock()
+		if cut {
+			return "PASO"
+		}
+		pause(1200 * time.Millisecond)
+		return "HALLAZGO: hueco | LenderRetrievalService.php:739 pisa la línea de Bancolombia en Sonría | lender-listing | COMANDO: git -C legacy-backend grep -n Sonria origin/main"
+	case "datos":
+		if p.Turns > 0 {
+			return "PASO"
+		}
 		pause(900 * time.Millisecond)
-		return "La biblioteca no menciona el filtro del listado v1.\nHALLAZGO: hueco | LenderRetrievalService.php:273 saca a 12, 23, 141, 142 y 166 del listado v1 | lender-listing | COMANDO: git -C legacy-backend grep -n TEMPORAL origin/main"
-	case "arquitecto":
-		pause(1300 * time.Millisecond)
-		return "HALLAZGO: contradicción | el tema dice que la 166 sale sólo por comercio; en main también la saca el filtro temporal | lender-listing | COMANDO: git -C legacy-backend show origin/main:Modules/Onboarding/App/Services/OnboardingService.php"
+		return "Hay filas para las cinco entidades excluidas, pero no sé qué puerta atiende el tráfico.\nPREGUNTA: ¿qué puerta del listado, v1 o v2, atiende hoy el tráfico real?"
 	case "probador":
-		pause(1600 * time.Millisecond)
-		return "HALLAZGO: sin prueba | ninguna suite comprueba que Welli Risk se oculta con comision_aliado > 0 | harness/suites/welli-risk.json | COMANDO: grep -l 166 harness/suites/*.json"
+		if named && openQ != "" {
+			h.notice(p, "AVISO: mido qué ruta del listado recibe el tráfico en los logs de prod")
+			pause(1500 * time.Millisecond)
+			return "RESPONDO: " + openQ + " | v2: lenders-v2 recibe el 98% de los pedidos en 7 días | COMANDO: bin/pg logs --target prod --query 'sum by (path) (…)'\n" + strings.Join(checks, "\n")
+		}
+		if len(checks) > 0 {
+			return strings.Join(checks, "\n")
+		}
+		return "PASO"
 	case "verificador":
+		if p.Turns == 0 {
+			pause(700 * time.Millisecond)
+			return "HALLAZGO: defecto | el filtro temporal de Prami sigue en main desde junio | incidencia | COMANDO: git -C legacy-backend log -S excludedPreApproveLenderIds origin/main"
+		}
 		if len(checks) == 0 {
 			return "PASO"
 		}
 		pause(700 * time.Millisecond)
 		return strings.Join(checks, "\n")
 	case "coordinador":
-		return "Los tres hallazgos quedaron comprobados.\nCIERRO: no aparece nada nuevo sobre el tema"
+		if openQ != "" {
+			return "Lo más importante es saber qué puerta atiende el tráfico. @probador tomá " + openQ + "."
+		}
+		return "Quedó contestado y comprobado.\nCIERRO: no queda nada abierto sobre el tema"
 	}
 	return "PASO"
+}
+
+var reWord = regexp.MustCompile(`[\p{L}0-9_./-]{4,}`)
+
+// sameWork: si dos avisos son el mismo trabajo: comparten el comando entre comillas invertidas, o la mitad de sus palabras.
+func sameWork(a, b string) bool {
+	ca, cb := regexp.MustCompile("`([^`]+)`").FindStringSubmatch(a), regexp.MustCompile("`([^`]+)`").FindStringSubmatch(b)
+	if ca != nil && cb != nil && ca[1] == cb[1] {
+		return true
+	}
+	wa, wb := map[string]bool{}, map[string]bool{}
+	for _, w := range reWord.FindAllString(strings.ToLower(a), -1) {
+		wa[w] = true
+	}
+	for _, w := range reWord.FindAllString(strings.ToLower(b), -1) {
+		wb[w] = true
+	}
+	inter := 0
+	for w := range wa {
+		if wb[w] {
+			inter++
+		}
+	}
+	union := len(wa) + len(wb) - inter
+	return union > 0 && float64(inter)/float64(union) >= 0.5
 }

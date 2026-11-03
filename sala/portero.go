@@ -62,7 +62,21 @@ func (h *hub) route(ctx context.Context, m message, listeners []*participant, is
 			fixed = append(fixed, mm[1])
 		}
 	}
-	if (reClaim.MatchString(m.Text) || reFinding.MatchString(m.Text)) && isListener["verificador"] && m.Who != "verificador" {
+	// Una respuesta despierta a quien hizo la pregunta (h.mu: se lee la lista de preguntas).
+	h.mu.Lock()
+	for _, a := range reAnswer.FindAllStringSubmatch(m.Text, -1) {
+		for _, q := range h.st.Questions {
+			if q.ID == a[1] {
+				for _, p := range listeners {
+					if p.Name == q.Who {
+						fixed = append(fixed, p.ID)
+					}
+				}
+			}
+		}
+	}
+	h.mu.Unlock()
+	if (reClaim.MatchString(m.Text) || reFinding.MatchString(m.Text) || reAnswer.MatchString(m.Text)) && isListener["verificador"] && m.Who != "verificador" {
 		fixed = append(fixed, "verificador")
 	}
 
@@ -84,6 +98,15 @@ func (h *hub) route(ctx context.Context, m message, listeners []*participant, is
 		}
 		return got
 	}
+	if m.Who == "verificador" && (reClaim.MatchString(m.Text) || reFinding.MatchString(m.Text)) {
+		for _, id := range []string{"probador", "arquitecto"} {
+			if isListener[id] {
+				fixed = append(fixed, id) // lo del verificador lo comprueba otro
+				break
+			}
+		}
+	}
+
 	mark(fixed)
 
 	h.mu.Lock()

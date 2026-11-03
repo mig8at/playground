@@ -46,21 +46,23 @@ import (
 var indexHTML []byte
 
 type participant struct {
-	ID      string  `json:"id"`
-	Name    string  `json:"name"`
-	Role    string  `json:"role"`
-	Status  string  `json:"status"` // esperando · pensando · hablando · pasó · error
-	Doing   string  `json:"doing"`
-	Cost    float64 `json:"cost"` // equivalente a precio de API: la sala corre con la suscripción, no se cobra por token
-	Turns   int     `json:"turns"`
-	Model   string  `json:"model"`
-	Effort  string  `json:"effort"`
-	Use     usage   `json:"use"`
-	Work    string  `json:"work"` // modo canal: lo que avisó que está haciendo (AVISO)
-	session string
-	system  string
-	tools   []string
-	seen    int // cuántos mensajes de la transcripción ya vio
+	ID         string  `json:"id"`
+	Name       string  `json:"name"`
+	Role       string  `json:"role"`
+	Status     string  `json:"status"` // esperando · pensando · hablando · pasó · error
+	Doing      string  `json:"doing"`
+	Cost       float64 `json:"cost"` // equivalente a precio de API: la sala corre con la suscripción, no se cobra por token
+	Turns      int     `json:"turns"`
+	Model      string  `json:"model"`
+	Effort     string  `json:"effort"`
+	Use        usage   `json:"use"`
+	Work       string  `json:"work"` // modo canal: lo que avisó que está haciendo (AVISO)
+	session    string
+	cancelTurn func() // corta el turno en curso (un AVISO duplicado)
+	dupCut     bool   // el turno se cortó por duplicar un AVISO: no es un error
+	system     string
+	tools      []string
+	seen       int // cuántos mensajes de la transcripción ya vio
 }
 
 /* usage: lo que consumió un participante. Los US$ que devuelve `claude -p` son el EQUIVALENTE a precio de API: la
@@ -88,6 +90,19 @@ func (u *usage) add(v usage) {
 	u.Cost += v.Cost
 	u.Passes += v.Passes
 	u.PassCost += v.PassCost
+}
+
+/* question: lo que alguien no sabe y otro tiene que averiguar. En la primera sala de entendimiento real la pregunta
+ * que más importaba («¿qué puerta atiende el tráfico real?») la hizo datos y nadie la retomó: quedó en la prosa. Con
+ * dueño y estado, el coordinador elige de acá el siguiente paso, y la llamada no cierra con preguntas importantes
+ * abiertas sin decir por qué. */
+type question struct {
+	ID     string `json:"id"`
+	Who    string `json:"who"`
+	Text   string `json:"text"`
+	Status string `json:"status"` // abierta · contestada · descartada
+	Answer string `json:"answer,omitempty"`
+	By     string `json:"by,omitempty"`
 }
 
 type message struct {
@@ -130,6 +145,7 @@ type state struct {
 	Participants []*participant `json:"participants"`
 	Messages     []message      `json:"messages"`
 	Claims       []claim        `json:"claims"`
+	Questions    []question     `json:"questions"`
 }
 
 // Lo que ninguno puede hacer, además de lo que su rol no permite.
@@ -148,6 +164,8 @@ const common = `Estás en una LLAMADA de trabajo con otros agentes y con Miguel,
 	`contestá sólo «CONFORME» o «OBJECIÓN: <qué queda abierto y con qué se comprobaría>». ` +
 	`No edites archivos, no commitees y no corras nada contra producción salvo lecturas de bin/pg. ` +
 	`Lo que afirma otro no lo des por cierto: queda «sin comprobar» hasta que lo revisa alguien que no lo dijo. ` +
+	`Si queda una duda que otro tiene que averiguar, dejala en una línea «PREGUNTA: <la duda>»; para contestar una abierta, ` +
+	`«RESPONDO: Q<n> | <la respuesta> | COMANDO: <el comando que la muestra>». ` +
 	`Un comando por llamada a Bash, sin cd, sin ;, && ni |: usá git -C <repo> y bin/pg con ruta relativa (lo compuesto pide un permiso que acá nadie da).`
 
 /* LOS ROLES. Cada uno tiene algo que sólo él hace: dos con las mismas herramientas se repiten y se paga dos veces.
@@ -214,7 +232,7 @@ func definitions() map[string]*participant {
 				`las revisás vos, sin repetir el razonamiento de quien las dijo: volvés a la fuente (git grep / git show contra origin/main en los dos ` +
 				`monolitos, bin/pg, leer el archivo entero). Comprobá también la PREMISA (qué ids, qué rama, qué clave), no sólo que el comando corre. ` +
 				`Por cada una, una línea «COMPRUEBO: C<n> | ✓, ✗ o — | <el comando que corriste>», donde — es «no trae comando y no se puede comprobar». ` +
-				`No hagas afirmaciones propias (no uses AFIRMO): lo que revisás va en COMPRUEBO.`,
+				`Si encontrás algo nuevo, dejalo como HALLAZGO o AFIRMO: lo comprueba otro, nunca vos.`,
 			tools: with(append(gitMain, "Bash(bin/pg sql *)", "Bash(bin/pg request *)", "Bash(grep *)", "Bash(lsof -nP -iTCP*)", "Bash(make harness-doctor *)")...)},
 		"coordinador": coordinatorDefinition(),
 		"escriba": {ID: "escriba", Name: "Escriba", Role: "deja el bloque en la tarea al cierre",
@@ -340,8 +358,11 @@ var (
 	reCheck = regexp.MustCompile(`(?m)^\s*COMPRUEBO:\s*(C[0-9]+)\b[^|\n]*\|\s*(✓|✗|—)\s*(?:\|\s*(.+?))?\s*$`)
 	// Una corrección dicha al pasar: la de la primera llamada real («la nota de la suite cita mal…») era falsa y
 	// no entró a la pizarra porque no venía como AFIRMO. Léxico a propósito: mejor una de más, punteada.
-	reFinding = regexp.MustCompile(`(?m)^\s*HALLAZGO:\s*([^|\n]+?)\s*\|\s*([^|\n]+?)\s*\|\s*([^|\n]+?)\s*(?:\|\s*COMANDO:\s*(.+?))?\s*$`)
-	reProse   = regexp.MustCompile(`(?i)[^.\n]*(corrección|corrijo|hay que corregir|cita mal|no es correcto|es incorrect|se equivoc)[^.\n]*`)
+	reQuestion = regexp.MustCompile(`(?m)^\s*PREGUNTA:\s*(.+?)\s*$`)
+	reAnswer   = regexp.MustCompile(`(?m)^\s*RESPONDO:\s*(Q[0-9]+)\b[^|\n]*\|\s*(.+?)(?:\s*\|\s*COMANDO:\s*(.+?))?\s*$`)
+	reDiscard  = regexp.MustCompile(`(?m)^\s*DESCARTO:\s*(Q[0-9]+)\b[^|\n]*(?:\|\s*(.+?))?\s*$`)
+	reFinding  = regexp.MustCompile(`(?m)^\s*HALLAZGO:\s*([^|\n]+?)\s*\|\s*([^|\n]+?)\s*\|\s*([^|\n]+?)\s*(?:\|\s*COMANDO:\s*(.+?))?\s*$`)
+	reProse    = regexp.MustCompile(`(?i)[^.\n]*(corrección|corrijo|hay que corregir|cita mal|no es correcto|es incorrect|se equivoc)[^.\n]*`)
 )
 
 func main() {
@@ -473,7 +494,7 @@ func (h *hub) start(w http.ResponseWriter, r *http.Request) {
 	ctx, cancel := context.WithCancel(context.Background())
 	h.cancel = cancel
 	h.st = state{Room: room, Name: name, Kind: kind, Goals: in.Goals, Task: in.Task, Mock: in.Mock, Running: true, Rounds: in.Rounds,
-		Budget: in.Budget, Participants: roster(in.Roles), Messages: []message{}, Claims: []claim{}}
+		Budget: in.Budget, Participants: roster(in.Roles), Messages: []message{}, Claims: []claim{}, Questions: []question{}}
 	h.publish()
 	h.mu.Unlock()
 	if in.Mode == "canal" {
@@ -624,6 +645,20 @@ func (h *hub) objections(ctx context.Context, parts []*participant, task string,
 	return !objected && ctx.Err() == nil
 }
 
+// secondChecker: quién comprueba lo que afirma el verificador: el probador, o el arquitecto si no hay probador.
+func (h *hub) secondChecker(p *participant) bool {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	has := map[string]bool{}
+	for _, q := range h.st.Participants {
+		has[q.ID] = true
+	}
+	if !has["verificador"] {
+		return false
+	}
+	return p.ID == "probador" || (p.ID == "arquitecto" && !has["probador"])
+}
+
 // isChecker: quién revisa la pizarra. El verificador si está convocado; si no, el probador (que no revisa lo suyo).
 func (h *hub) isChecker(p *participant) bool {
 	if p.ID == "verificador" {
@@ -720,10 +755,14 @@ func (h *hub) turn(ctx context.Context, p *participant, task string, budget floa
 	for _, m := range msgs {
 		fmt.Fprintf(&b, "[%s] %s\n\n", m.Name, m.Text)
 	}
-	if h.isChecker(p) {
+	if h.isChecker(p) || h.secondChecker(p) {
+		onlyVerifier := !h.isChecker(p)
 		h.mu.Lock()
 		var open []string
 		for _, c := range h.st.Claims {
+			if onlyVerifier && c.Who != "Verificador" {
+				continue
+			}
 			if c.Status == "sin comprobar" && c.Who != p.Name { // nadie revisa lo suyo
 				open = append(open, fmt.Sprintf("%s · %s: %s (comando: %s)", c.ID, c.Who, c.Claim, orNone(c.Command)))
 			}
@@ -740,7 +779,7 @@ func (h *hub) turn(ctx context.Context, p *participant, task string, budget floa
 		b.WriteString("Es tu turno.")
 	}
 
-	checker := h.isChecker(p)
+	checker, second := h.isChecker(p), h.secondChecker(p)
 	var text, errText string
 	var cost float64
 	var use usage
@@ -780,25 +819,41 @@ func (h *hub) turn(ctx context.Context, p *participant, task string, budget floa
 			c.ID, c.Who, c.Status = fmt.Sprintf("C%d", len(s.Claims)+1), p.Name, "sin comprobar"
 			s.Claims = append(s.Claims, c)
 		}
+		// Lo que dice el verificador también entra: en la primera sala de entendimiento real fue él quien encontró primero
+		// el filtro de Sonría, y descartarlo lo dejó atribuido a otro. Lo suyo lo comprueba otro (secondChecker).
 		for _, m := range reClaim.FindAllStringSubmatch(text, -1) {
-			if p.ID == "verificador" {
-				break // lo que revisa va en COMPRUEBO: una afirmación suya no la revisaría nadie
-			}
 			add(claim{Claim: m[1], Command: m[2]})
 		}
-		if p.ID != "verificador" {
-			for _, m := range reFinding.FindAllStringSubmatch(text, -1) {
-				add(claim{Kind: "hallazgo", Type: strings.ToLower(m[1]), Claim: m[2], Dest: m[3], Command: m[4]})
+		for _, m := range reFinding.FindAllStringSubmatch(text, -1) {
+			add(claim{Kind: "hallazgo", Type: strings.ToLower(m[1]), Claim: m[2], Dest: m[3], Command: m[4]})
+		}
+		for _, m := range reQuestion.FindAllStringSubmatch(text, -1) {
+			s.Questions = append(s.Questions, question{ID: fmt.Sprintf("Q%d", len(s.Questions)+1), Who: p.Name, Text: m[1], Status: "abierta"})
+		}
+		for _, m := range reAnswer.FindAllStringSubmatch(text, -1) {
+			for i := range s.Questions {
+				if s.Questions[i].ID == m[1] && s.Questions[i].Status == "abierta" {
+					s.Questions[i].Status, s.Questions[i].Answer, s.Questions[i].By = "contestada", m[2], p.Name
+					add(claim{Claim: m[1] + ": " + m[2], Command: m[3]}) // la respuesta también se comprueba
+				}
 			}
 		}
-		prose := reFinding.ReplaceAllString(reClaim.ReplaceAllString(reCheck.ReplaceAllString(text, ""), ""), "")
+		for _, m := range reDiscard.FindAllStringSubmatch(text, -1) {
+			for i := range s.Questions {
+				if s.Questions[i].ID == m[1] && s.Questions[i].Status == "abierta" && (p.ID == "coordinador" || s.Questions[i].Who == p.Name) {
+					s.Questions[i].Status, s.Questions[i].Answer, s.Questions[i].By = "descartada", m[2], p.Name
+				}
+			}
+		}
+		prose := reAnswer.ReplaceAllString(reQuestion.ReplaceAllString(reFinding.ReplaceAllString(reClaim.ReplaceAllString(reCheck.ReplaceAllString(text, ""), ""), ""), ""), "")
 		for _, m := range reProse.FindAllString(prose, -1) {
 			add(claim{Claim: strings.TrimSpace(m), Prose: true})
 		}
-		if checker {
+		if checker || second {
 			for _, m := range reCheck.FindAllStringSubmatch(text, -1) {
 				for i := range s.Claims {
-					if s.Claims[i].ID == m[1] && s.Claims[i].Who != p.Name {
+					mine := checker || (second && s.Claims[i].Who == "Verificador")
+					if s.Claims[i].ID == m[1] && s.Claims[i].Who != p.Name && mine {
 						s.Claims[i].Status = map[string]string{"✓": "comprobada", "✗": "refutada", "—": "sin comando"}[m[2]]
 						s.Claims[i].Check = m[3]
 					}
@@ -807,7 +862,16 @@ func (h *hub) turn(ctx context.Context, p *participant, task string, budget floa
 		}
 	})
 	if errText != "" {
-		h.say(p.ID, p.Name, "⚠ "+errText)
+		h.mu.Lock()
+		cut := p.dupCut
+		p.dupCut = false
+		if cut {
+			p.Status = "escuchando"
+		}
+		h.mu.Unlock()
+		if !cut {
+			h.say(p.ID, p.Name, "⚠ "+errText)
+		}
 		return ""
 	}
 	// En el canal el PASO no se publica (escuchar no es hablar) y el AVISO ya salió en vivo.
@@ -841,6 +905,10 @@ func (h *hub) claude(ctx context.Context, p *participant, prompt string, budget 
 	}
 	tctx, cancel := context.WithTimeout(ctx, 15*time.Minute)
 	defer cancel()
+	h.mu.Lock()
+	p.cancelTurn = cancel
+	h.mu.Unlock()
+	defer func() { h.mu.Lock(); p.cancelTurn = nil; h.mu.Unlock() }()
 	cmd := exec.CommandContext(tctx, "claude", args...)
 	cmd.Dir = h.root
 	cmd.Env = childEnv()
@@ -854,7 +922,7 @@ func (h *hub) claude(ctx context.Context, p *participant, prompt string, budget 
 	h.update(func(*state) { p.Status = "pensando" })
 	var result string
 	var cost float64
-	var use usage
+	var use, partial usage
 	var failed string
 	sc := bufio.NewScanner(out)
 	sc.Buffer(make([]byte, 1<<20), 32<<20)
@@ -873,6 +941,12 @@ func (h *hub) claude(ctx context.Context, p *participant, prompt string, budget 
 			} `json:"usage"`
 			IsError bool `json:"is_error"`
 			Message struct {
+				Usage struct {
+					In         int `json:"input_tokens"`
+					CacheWrite int `json:"cache_creation_input_tokens"`
+					CacheRead  int `json:"cache_read_input_tokens"`
+					Out        int `json:"output_tokens"`
+				} `json:"usage"`
 				Content []struct {
 					Type  string          `json:"type"`
 					Text  string          `json:"text"`
@@ -889,6 +963,10 @@ func (h *hub) claude(ctx context.Context, p *participant, prompt string, budget 
 		}
 		switch ev.Type {
 		case "assistant":
+			// Lo que va gastando, por si el turno se corta antes del resultado (un AVISO duplicado).
+			mu := ev.Message.Usage
+			partial.In, partial.CacheRead, partial.CacheWrite = partial.In+mu.In, partial.CacheRead+mu.CacheRead, partial.CacheWrite+mu.CacheWrite
+			partial.Out += mu.Out
 			for _, c := range ev.Message.Content {
 				if c.Type == "text" {
 					h.notice(p, c.Text)
@@ -912,6 +990,10 @@ func (h *hub) claude(ctx context.Context, p *participant, prompt string, budget 
 	}
 	if err := cmd.Wait(); err != nil && failed == "" && result == "" {
 		failed = "claude -p: " + err.Error()
+	}
+	if use.Calls == 0 && partial.In+partial.CacheRead+partial.Out > 0 {
+		partial.Calls = 1 // sin resultado no hay US$ eq.: quedan los tokens
+		use = partial
 	}
 	if failed != "" && result != "" {
 		return result, cost, use, ""
