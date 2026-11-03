@@ -84,6 +84,17 @@ preaprobado.
 Qué puerta atendió un caso, y por lo tanto si estas entidades se ofrecieron, se mira en el caso, no en este
 tema: que un filtro marcado temporal siga en `main` no dice qué recorre hoy cada cliente.
 
+## Bancolombia tiene otra oferta en Sonría, sólo en la puerta v1
+
+En los dos monolitos, `LenderRetrievalService::processLendersWithAdditionalInfo`, que arma las tarjetas de la puerta
+v1, trae un «Filtro temporal para Sonria y Bancolombia». Cuando la solicitud es de Sonría (comercio 26) y la entidad
+es Bancolombia (8), pisa la línea de crédito antes de mostrarla: plazos `1,2,3,4,6,12,18,24,30,36,48,60`, monto
+máximo de 30.000.000 y tasa de 2,31. Lo que diga la configuración de esa línea no se ve en esa puerta.
+
+La puerta v2 (`LenderListingService`) no tiene ese reemplazo, así que el mismo cliente de Sonría ve otra oferta de
+Bancolombia según por qué puerta entre. Antes de diagnosticar una tasa, un plazo o un monto de Bancolombia en Sonría,
+hay que saber qué puerta atendió el caso.
+
 ## Las reglas duras sólo sacan del listado a algunas entidades
 
 El listado evalúa las `lender_rules` de los grupos de la sucursal: por campo del formulario

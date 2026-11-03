@@ -1,8 +1,8 @@
 {
   "version": 1,
   "title": "Listado de entidades",
-  "summary": "Puertas del listado en ambos monolitos, resolución del monto en lenders-v2, reescritura del perfilamiento guardado, requisitos de Welli Risk y las entidades excluidas del preaprobado y del listado v1.",
-  "reviewedAt": "2026-11-03T02:38:26+00:00",
+  "summary": "Puertas del listado en ambos monolitos, resolución del monto en lenders-v2, reescritura del perfilamiento guardado, requisitos de Welli Risk, las entidades excluidas del preaprobado y del listado v1, y la oferta especial de Bancolombia en Sonría.",
+  "reviewedAt": "2026-11-03T02:56:33+00:00",
   "sources": [
     {
       "repo": "legacy-backend",
@@ -41,7 +41,8 @@
       "sections": [
         "el-monto-del-listado-v2-se-resuelve-antes-del-calculo",
         "welli-risk-depende-de-la-sucursal-de-la-consulta-compartida-y-de-la-comision-del-aliado",
-        "prami-welli-y-la-166-quedan-fuera-del-preaprobado-y-del-listado-v1"
+        "prami-welli-y-la-166-quedan-fuera-del-preaprobado-y-del-listado-v1",
+        "bancolombia-tiene-otra-oferta-en-sonria-solo-en-la-puerta-v1"
       ]
     },
     {
@@ -59,7 +60,8 @@
       "commit": "24dc86eb1eaabb4e4eee37750ab90e258c36ce78",
       "blob": "b7a567c9c07f8f4a4552d623baf8a4856589187c",
       "sections": [
-        "el-monolito-anterior-tiene-su-propia-entrada"
+        "el-monolito-anterior-tiene-su-propia-entrada",
+        "bancolombia-tiene-otra-oferta-en-sonria-solo-en-la-puerta-v1"
       ]
     },
     {
@@ -239,7 +241,8 @@
       "commit": "69920f580f62ad35f0a555e3b8b8f2c247d758aa",
       "blob": "aeb7c50ddd1e854c80fc088591439cc64769ca20",
       "sections": [
-        "prami-welli-y-la-166-quedan-fuera-del-preaprobado-y-del-listado-v1"
+        "prami-welli-y-la-166-quedan-fuera-del-preaprobado-y-del-listado-v1",
+        "bancolombia-tiene-otra-oferta-en-sonria-solo-en-la-puerta-v1"
       ]
     },
     {
