@@ -12,87 +12,96 @@ ramas: legacy-backend:finandina-originacion
 
 ## Pendientes
 
-- [x] ~~Ligar la tarea a un issue de Jira~~ — CORE-845, creado en el sprint activo (CORE Sprint 21).
+El plan va por fases, y cada requisito está trazado a su documento en
+`artifacts/finandina-matriz-requisitos.md`. Las fases 1 y 2 se pueden hacer sin esperar a producto; la 3 en
+adelante depende de las respuestas de la fase 0.
 
-### Decisiones de producto (bloquean el diseño)
+### Hecho
 
-- [ ] Confirmar qué política está vigente: el PRD (enero) y la política (agosto) no coinciden en monto mínimo
-  (1 MM / 3 MM), veces el ingreso (3–16 / 3–10 por riesgo), tope de desembolso (500 MM diario / 2.000 MM mensual)
-  y en lo que agrega la de agosto (score 646, FGA por score, tabla de riesgo, CIIU). Termina con la versión
-  elegida. Depende de: producto (Maria Fernanda Parra) — la política firmada con Finandina.
-- [ ] Aclarar la tabla «veces el ingreso» de la política: tiene dos filas «AA» (la primera con 0 en «>4 SMMLV»),
-  y no dice de dónde sale el segmento AA…Z (ningún repo lo conoce). Termina sabiendo qué fila es cuál y qué
-  dato del buró da el segmento. Depende de: producto / riesgo de Finandina.
-- [ ] Decidir qué significa «autorizada» para Finandina: Finandina desembolsa después de la firma. Termina con
-  la decisión (estado intermedio + confirmación del banco, o aceptar el estado de autorizada al firmar) y con
-  lo que hoy hace el tipo 4 con el estado de Credifamilia medido en un ambiente de prueba. Depende de: producto.
-- [ ] Definir cómo se entrega la operación aprobada a Finandina: el flujo de la fase 1 es manual (el analista de
-  Finandina descarga del dashboard de Creditop, concilia y crea los préstamos por PQR masiva). Termina con qué
-  ve o recibe Finandina (dashboard, archivo, aviso) y con qué datos. Depende de: producto — el acuerdo con Finandina.
-- [ ] Confirmar si el aval (FGA) se financia dentro del capital (así lo hace hoy el motor de CreditopX) y quién
-  lo cobra. Termina con la respuesta escrita en «Objetivo». Depende de: producto.
-- [ ] Confirmar los días de pago: los T&C de Finandina ofrecen los días 5, 10, 15 o 20. En el tipo 4 las
-  fechas salen de su propia rama, hoy fija en los días 2 y 16 de Credifamilia. Termina con los días elegidos.
-  Depende de: producto.
-- [ ] Confirmar la actividad económica: la política y el PRD excluyen independientes, pero el mapa de campos
-  (versión 27-10) dice «Empleado, independiente y pensionado». Depende de: producto.
+- [x] ~~Ligar la tarea a un issue de Jira~~ — CORE-845 (CORE Sprint 21).
+- [x] ~~Generalizar el riel 4~~ — CORE-918 (#109), en qa desde el 2026-11-03.
+- [x] ~~Sacar del riel 4 los textos que dicen Credifamilia~~ — CORE-918 (legacy-backend 9081bb7fb).
+- [x] ~~Armar Finandina en local como entidad del riel 4~~ — comercio «Finandina Pruebas»
+  (`harness/merchant-specs/finandina.json`) y la 149 con `artifacts/finandina-local-149.sql`.
+- [x] ~~Llegar a 11 sin formalización en local~~ — fuente de insumos `lender_configuration` y plan por la entidad
+  de la solicitud (legacy-backend 519495056, rama local `feat/finandina-originacion-delegada`). Suite
+  `harness/suites/finandina.json` 3 de 3; Salud y Materiales siguen 3 de 3 con radicación.
+- [x] ~~Releer los documentos requisito por requisito~~ — PRD, diagrama, política, formulario, T&C, mapa de
+  campos y notas: `artifacts/finandina-matriz-requisitos.md`.
 
-### Insumos de Finandina
+### Fase 0 · Decisiones de producto (bloquean las fases 3 a 5)
 
-- [ ] Decidir si Experian y Mareigua se consultan con la cuenta de Finandina o si basta aplicar su política
-  sobre la consulta de Creditop (ver «Credenciales de la entidad»). Termina con la respuesta y con quién paga
-  cada consulta. Depende de: producto — el acuerdo con Finandina.
-- [ ] Confirmar qué llaves están entregadas (Experian, Mareigua y Deceval de Finandina; en Drive hay archivos
-  de credenciales de prueba) y que lleguen por un canal que no sea Drive. Termina con las llaves cargadas
-  desde el admin como credencial de la 149 en un ambiente de prueba. Depende de: producto — el traspaso de
-  llaves.
-- [ ] Destrabar la certificación de Deceval (CRED-463, bloqueada); termina con un pagaré con Finandina como
-  primer beneficiario creado y firmado en certificación. Depende de: Hans — el motivo del bloqueo.
-- [ ] Conseguir el diseño (Figma) de las pantallas que nombra el PRD. Depende de: producto.
+- [ ] Llevar a producto las 15 contradicciones de la matriz (sección «Contradicciones para producto») en una sola
+  reunión. La más importante es la segunda: la política calcula la capacidad de pago pero no dice cómo se
+  compara con la cuota, y sin eso el motor no puede fijar el monto. Termina con cada una respondida por escrito
+  en «Objetivo». Depende de: producto (Maria Fernanda Parra) y riesgo de Finandina.
+- [ ] Decidir qué significa «autorizada» para Finandina y cómo se le entrega la operación: el diagrama habla de
+  aviso automático, dashboard semanal y PQR masiva. Termina con el estado final y el canal. Depende de:
+  producto — el acuerdo con Finandina.
+- [ ] Conseguir el diseño de las pantallas (el PRD pide «UX alineado con Figma» y no lo enlaza). Depende de:
+  producto.
 
-### Trabajo técnico
+### Fase 1 · Decisión de crédito en el motor (sin esperar a producto, con valores provisionales)
 
-- [x] ~~Generalizar las ramas del tipo 4 que hoy son de Credifamilia~~ — CORE-918 (#109), en qa desde el
-  2026-11-03: rutas por slug, perfil por entidad en `delegated_origination_profiles` (días de pago, fianza,
-  4x1000), registros de fuentes de insumos y de formalización, y el asistente por riel. Salud y Materiales
-  llegan a 11 en qa.
-- [x] ~~Sacar del riel 4 los textos que dicen Credifamilia~~ — resuelto en CORE-918 (legacy-backend 9081bb7fb):
-  opciones y comprobante toman el nombre de la entidad.
-- [x] ~~Armar Finandina en local como entidad del riel 4~~ — comercio «Finandina Pruebas» (spec
-  `harness/merchant-specs/finandina.json`) y la 149 cableada con `artifacts/finandina-local-149.sql`; sale en
-  el listado.
-- [x] ~~Llegar a 11 sin formalización en local~~ — fuente de insumos `lender_configuration` (línea de crédito y
-  convenio con el comercio) y el plan por la entidad de la solicitud cuando tiene perfil del riel
-  (legacy-backend 519495056, rama local `feat/finandina-originacion-delegada` desde `qa`). Suite
-  `harness/suites/finandina.json`: 3 de 3 en 11; Salud y Materiales siguen 3 de 3 con radicación. Cubre el
-  pendiente de #109 de «probar una entidad del riel 4 que no es Credifamilia».
-- [ ] Que el monto máximo sea el cupo del cliente y no el tope de la línea: hoy `max_amount` sale de
-  `credit_line_by_lenders` (15 MM para todos). Termina con la fuente de insumos leyendo el cupo del motor (o de
-  la preaprobación de la 149) y un caso con cupo menor que el tope en local.
-- [ ] Revisar con la 149 los huecos que quedan de CORE-918: los que llaman sin entidad fuera del plan
-  (pagaré y documentos de Credifamilia usan `CredifamiliaLenders::engineLenderIdFor`), 500 sin perfil, y
-  firma Netco sin SigningV1. La 149 corre sin proveedor de firma y no tocó ninguno. Termina con cada uno
+- [ ] Conectar la preaprobación de la 149 al motor de cupo: la clave de Finandina hacia `creditop_x` en
+  pre-approvals-service (en local, el alias en el mock) y la fuente de insumos tomando el cupo del cliente en vez
+  del tope de la línea. Termina con un caso aprobado con cupo menor que 15 MM y uno rechazado, en local.
+- [ ] Cargar en las categorías del motor lo que ya existe como criterio: edad 21–64, ocupación empleado o
+  pensionado, ingreso ≥ 1 SMMLV, antigüedad 6 meses, experiencia de 12 meses, y score 646 con score 0. Termina
+  con un caso fuera de política por cada criterio rechazado por la preaprobación (las reglas del listado no
+  rechazan en el riel 4).
+- [ ] Hacer configurable cuántas fechas de pago se ofrecen (`DATES_TO_RETURN = 2` en
+  `PaymentPlanDatesService`), para que Finandina muestre 5, 10, 15 y 20 sin cambiar Credifamilia. Termina con
+  las cuatro fechas en la 149 y las dos de siempre en Salud.
+- [ ] Revisar con la 149 los huecos de CORE-918 fuera del plan: pagaré y documentos de Credifamilia por
+  `CredifamiliaLenders::engineLenderIdFor`, 500 sin perfil, y firma Netco sin SigningV1. Termina con cada uno
   corregido o descartado.
-- [ ] Decidir con producto el FGA: el motor le suma IVA (9 % de 5 MM = 450.000 + 85.500 de IVA, dentro del
-  capital) y el 5 % con score ≥ 856 no tiene dónde vivir (el convenio tiene un solo %). Depende de: producto.
-- [ ] Hacer que la preaprobación de la 149 corra el motor de cupo: en pre-approvals-service, la clave de
-  Finandina hacia el adaptador `creditop_x`. Termina con una preaprobación aprobada y otra rechazada
-  para la 149 en un ambiente de prueba.
-- [ ] Comprobar con el arnés que la preaprobación rechaza a un cliente fuera de política y aprueba a uno dentro.
-- [ ] Si producto decide consultar con la cuenta de Finandina: que la consulta de Experian del cupo use la
-  credencial de la entidad (hoy la del pipeline nuevo sale de config, deuda RKV2TD024) y que Mareigua acepte
-  una cuenta por entidad (hoy hay una sola, global). Termina con una consulta en local que registra la
-  credencial de la 149. Depende de: la decisión de las cuentas.
-- [ ] Avisar al equipo de `POST /api/onboarding/credentials/get-by-lender`: devuelve el JSON descifrado de la
-  credencial de cualquier entidad y comercio, sin autenticación. Lo agregó Santiago (2025-12-15) y lo usa
-  pre-approvals-service por la red interna. Termina con quien conoce el gateway y el BFF confirmando que no
-  se alcanza desde afuera, o con el endpoint protegido.
-- [ ] Escribir el servicio de finalización de Finandina (lo que pasa al autorizar: entregarle la operación).
-  Termina cuando una autorización de la 149 deja la operación donde Finandina la recibe. Depende de: la
-  decisión de cómo se entrega la operación.
-- [ ] Resolver las observaciones del mapa de campos de los documentos: las dos preguntas PEP comparten el
-  marcador `[SI/NO]`; si responde «Sí» no hay marcador para entidad y fechas; no hay segundo nombre; el aval no
-  tiene monto. Termina con la plantilla corregida o cada observación descartada.
+
+### Fase 2 · Política que no existe (diseño técnico ya, valores cuando responda producto)
+
+- [ ] Capacidad de pago de Finandina: gastos (Tabla 1) y descuentos de ley (Tabla 2) por SMMLV, cuota real y
+  potencial por tipo de cartera (Tabla 3, con SBG y la regla del 50 %), tasa de modelación configurable y
+  componentes persistidos para auditoría. Termina con el cálculo de un caso conocido igual al de una planilla.
+- [ ] Veces el ingreso por segmento de riesgo y SMMLV. Depende de: fase 0 (origen del segmento y la fila AA).
+- [ ] Cobertura por código DANE con las 99 zonas de la Tabla 5 (normalizadas a 5 dígitos, Bosa corregida), y la
+  captura de la ciudad de residencia. Termina con un caso fuera de zona rechazado.
+- [ ] Riesgo del empleador de Mareigua (alto y «document» rechazan) y experiencia por monto (≥ 3 MM, 48 meses;
+  sin experiencia, tope 5 MM). Depende de: fase 0 para los estados no concluyentes y la regla de experiencia.
+- [ ] Límites: 2 créditos al mes por cliente y tope de desembolsos por entidad. Depende de: fase 0 (alcance y
+  ventana).
+- [ ] FGA por score (5 % con ≥ 856, 9 % el resto) y si el IVA va dentro del porcentaje. Depende de: fase 0.
+
+### Fase 3 · Documentos, firma y pagaré
+
+- [ ] Agregar al formulario dinámico de la 149 dirección, ciudad, departamento, PEP A y PEP B, y, si responde
+  «Sí», la entidad y las fechas.
+- [ ] Plantillas del formulario de vinculación (24 marcadores) y de los T&C (15), con los montos en letras y las
+  observaciones del mapa resueltas (PEP con marcadores propios, monto del aval en el formulario, segundo nombre,
+  fecha y ciudad de firma). Termina con los tres documentos generados para una solicitud local con todos los
+  datos llenos. Depende de: fase 0 (Protección Financiera, libranza, desembolso, versión final de los T&C).
+- [ ] Pagaré en Deceval con la credencial real de Finandina y la certificación. Depende de: Hans — CRED-463.
+
+### Fase 4 · Entrega a Finandina y después del 11
+
+- [ ] Clase de formalización de Finandina: el aviso o payload con confirmación de recepción y manejo de errores.
+  Depende de: fase 0 (canal y estado).
+- [ ] La vista o export para el analista de Finandina (préstamos de la semana, valor a girar) y la vista del
+  comercio en el admin. Depende de: fase 0.
+- [ ] Pantalla final y mensaje de rechazo. Depende de: diseño.
+
+### Fase 5 · Credenciales y salida a qa
+
+- [ ] Decidir si Experian y Mareigua se consultan con la cuenta de Finandina (el PRD dice que la consulta «no la
+  cobra Creditop»). Si es así, que la consulta nueva de Experian lea la credencial de la entidad (RKV2TD024) y
+  que Mareigua acepte una cuenta por entidad. Depende de: producto.
+- [ ] Recibir las llaves de Experian, Mareigua y Deceval por un canal seguro (hoy están en Drive) y cargarlas
+  desde el admin en la base compartida. Depende de: producto — el traspaso.
+- [ ] Avisar al equipo de `POST /api/onboarding/credentials/get-by-lender`: devuelve credenciales descifradas
+  sin autenticación; lo agregó Santiago (2025-12-15) y lo usa pre-approvals-service por la red interna. Termina
+  con la exposición confirmada o descartada, o con el endpoint protegido.
+- [ ] Un PR por repo contra `qa` con todo lo de la tarea, la 149 configurada en la base compartida para un
+  comercio de prueba, y la validación de Duncan. Termina con la suite verde en qa.
+- [ ] Definir quién monitorea que el motor sea «espejo» de la política, y con qué reporte. Depende de: producto.
 
 ## Objetivo
 
