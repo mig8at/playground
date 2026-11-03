@@ -265,7 +265,10 @@ Salvo donde se dice «corrido», salen de LEER el código: falta reproducirlos.
   (`EcommerceRequestService::deserialize*`), antes de validar la credencial. Igual en legacy-application
   (`WoocommerceController`, líneas 732-767). El checkout de Corbeta ya usa `allowed_classes => false`. No se probó
   la explotación. Termina con `allowed_classes => false` (o JSON) en los dos monolitos y el contrato de los
-  complementos revisado. Depende de: el equipo — priorizar y avisar a seguridad.
+  complementos revisado. Depende de: el equipo — priorizar y avisar a seguridad. **Confirmado por lectura de `main`
+  (2026-11-03):** los cuatro `unserialize()` de `EcommerceRequestService` (640, 651, 660, 670) y los de
+  `WoocommerceController` (732-767) no pasan `allowed_classes`, en un grupo sin auth y antes de validar la credencial;
+  `CorbetaCheckoutController` (950) ya usa `allowed_classes => false`. NO se intentó explotarlo. Borrador 12.
 - [ ] Revisar la credencial de tienda ecommerce: se arma como `bin2hex(allied_id . hash . fecha)` y el hash de la
   sucursal es público (viaja en las direcciones), así que es predecible; igual en los dos monolitos. Termina con
   credenciales aleatorias y la rotación de las existentes decidida.

@@ -229,6 +229,25 @@ y no como concepto aparte. Conviene además saber qué cambió en septiembre en 
 
 ---
 
+## 12 · El checkout de ecommerce deserializa datos de la dirección sin restringir clases (Seguridad · urgente)
+
+**Qué pasa.** El endpoint que crea una solicitud desde una tienda recibe el pedido, la URL de vuelta, la configuración
+y la URL de proceso codificados en la dirección, y los reconstruye con `unserialize()` **sin restringir qué clases
+puede instanciar**. Reconstruir datos que vienen de afuera permitiendo cualquier clase es un riesgo conocido de PHP
+(inyección de objetos): una entrada preparada puede hacer que se creen objetos que el código no espera. El endpoint
+está en un grupo **sin autenticación** y la reconstrucción ocurre **antes** de validar la credencial de la tienda, así
+que cualquiera que llegue a la URL pasa por ahí.
+
+**Cómo se comprobó.** Leyendo el código de `main` (no se intentó explotarlo): en `legacy-backend`,
+`EcommerceRequestService` llama a `unserialize()` en cuatro puntos sin la opción `allowed_classes`; en
+`legacy-application`, `WoocommerceController` hace lo mismo. El checkout de Corbeta, en el mismo repositorio, ya usa la
+forma segura (`allowed_classes => false`), así que la corrección ya tiene precedente adentro.
+
+**Propuesta.** Usar `allowed_classes => false` (o pasar el contenido a JSON) en los dos monolitos, y revisar el
+contrato con los complementos de las tiendas. Conviene avisar a seguridad y priorizarlo.
+
+---
+
 ## Sobre originación delegada (CORE-918)
 
 Lo que sigue va con la tarea de originación delegada, no con incidencias, pero conviene conversarlo junto:
