@@ -277,92 +277,42 @@ y en la sesión del 2026-11-02 los errores no fueron de velocidad sino de verifi
   y uno que escribe, coordinados por un workflow. Termina cuando una tarea sale con los tres y su verificación
   automática no encuentra afirmaciones sin comando.
 
-## Frente: sala — varios agentes en una llamada (experimental)
+## Frente: sala — agentes independientes que barren temas en paralelo
 
-**Objetivo.** Probar si varios agentes con roles distintos, sentados en la misma «llamada» sobre una tarea, la
-resuelven mejor o más barato que uno solo. Nace del ensayo del 2026-11-02: el agente solo no descubría las
-herramientas que más le ahorraban (`harness-doctor`, `make agente`); un participante cuyo trabajo sea decir
-«con qué se hace esto» ataca justo eso.
+**Objetivo.** Encontrar contradicciones entre knowledge/ y `main`, huecos de la biblioteca, reglas sin prueba y
+posibles defectos con varios agentes a la vez, sin que Miguel tenga que guiar cada uno, y verlos trabajar.
 
-**Cómo está armada** (`sala/`, `make sala` → :5201). Una página con un recuadro por participante (quién habla,
-qué está corriendo, cuánto lleva gastado), la transcripción común y una pizarra de afirmaciones. Miguel entra
-como un participante más: escribe, interrumpe o corta.
-- **Moderador:** es código, no un modelo. Da la palabra por turnos y corta por tope de rondas, tope de gasto, o
-  cuando el probador dice que terminó.
-- **Experto en herramientas:** arranca con `make agente N=…` y dice qué comando conviene para cada paso. Sólo
-  catálogo, `agente`, `doctor`, `knowledge-*` y `retomar`.
-- **Arquitecto:** dónde se decide algo en `main`, en los dos monolitos. Sólo lectura (`git grep`, `knowledge/`).
-- **Probador:** escribe y corre las comprobaciones (harness contra local, `tarea-verify`, lecturas de `bin/pg`) y
-  avisa cuando termina.
-- **Verificador** (desde el 2026-11-02): no propone nada; revisa las afirmaciones ajenas volviendo a la fuente
-  (`git grep`/`git show` contra main, `bin/pg`), premisa incluida. Nadie revisa lo suyo: todo entra «sin comprobar».
-- **Investigador** (`knowledge/`, trampas, tareas viejas, Confluence, Jira), **Negocio** (`business-context`,
-  Confluence, Canon), **Diseño** (`make visor-*`, `estilo-check`, `estilo-contraste`), **Datos** (prod en sólo
-  lectura, sin datos de personas) y **Escriba** (al cierre deja UN bloque con lo comprobado; es el único que escribe,
-  y sólo en la tarea).
-- **Modo canal** (de partida desde el 2026-11-02, idea de Miguel): nadie da la palabra. Cada mensaje le llega a todos y
-  cada uno decide si aporta, si avisa que va a trabajar en algo (`AVISO:`, que sale en vivo, reserva el trabajo y no
-  despierta a nadie) o si calla (`PASO`, que no se publica). Varios trabajan a la vez. Cuando nadie aporta, habla el
-  **coordinador**: nombra a quién le toca el siguiente paso (`@id`) o cierra con `CIERRO:`. Topes: 8 turnos por agente,
-  5 intervenciones del coordinador y el gasto de la llamada. El modo por rondas sigue disponible.
-- **El portero** (`sala/portero.go`, Claude Haiku 5.5 por decisión de Miguel): en el canal decide a quién despertar
-  con cada mensaje, en vez de despertar a todos. Recibe sólo los roles, quién trabaja en qué y el mensaje nuevo. No
-  pasan por él: lo de Miguel y el moderador (despierta a todos), las menciones `@id`, el verificador ante una
-  afirmación, las comprobaciones (sólo una refutación despierta al autor). Si falla o tarda más de 20 s, despierta a
-  todos. Cada turno reserva su tope de gasto antes de empezar: sin presupuesto libre no arranca, y nadie se corta.
-  `SALA_PORTERO=1` (configuración `sala-portero`) usa el portero real con agentes simulados.
-- **Qué gasta, de verdad (medido el 2026-11-02).** `claude -p` entra con la sesión de claude.ai de Miguel (plan de equipo
-  de Creditop): no se cobra por token, gasta el límite de uso del asiento (ventana de 5 horas y semanal), el mismo de
-  su trabajo diario. Los US$ que muestran la sala y el ensayo son el EQUIVALENTE a precio de API, para comparar entre
-  llamadas. Lo que pesa es la carga fija de cada turno, ~66k tokens de entrada: ~40k de Claude Code base, ~21k del
-  proyecto (`CLAUDE.md`, memoria, el hook de arranque, skills) y ~4,6k de los servidores MCP; desde el segundo turno
-  casi todo se lee de caché. Un turno que sólo dice PASO pesa lo mismo que uno que habla. La llamada real en canal
-  con el portero: ~500k tokens de entrada nuevos, ~890k de caché y sólo 6,7k de salida, todos en Opus. Palancas:
-  menos turnos (el portero), modelo y esfuerzo por rol (`roleModel` en `sala/main.go`, cambiable por llamada) y los
-  agentes sin MCP. Al cerrar, el moderador publica el consumo por rol y lo guarda en `sala/.llamadas/`.
-  Con modelos por rol (Opus para verificador y arquitecto, Sonnet para el resto) la entrada nueva bajó de ~500k a
-  ~244k tokens en la misma tarea. ⚠ Los US$ de la CLI no sirven para comparar modelos 5.5: no reconoce sus ids y les
-  aplica otra tarifa (el experto en Sonnet figuró con US$0,98 y el arquitecto en Opus con US$0,33); comparar tokens.
-- **Esperar una llamada:** `sala/esperar.sh [minutos]` consulta `/api/state` cada 5 s; sale 0 al cerrar (con el
-  consumo) y 3 si sigue abierta sin mensajes en ese lapso. El flujo de eventos podía perder el último estado (la cola
-  de cada pestaña descartaba lo que no cabía); ahora descarta lo viejo y entrega lo último.
-- **Convocatoria:** una casilla por rol y elencos por tipo de tarea (`defecto`: herramientas, arquitecto, probador,
-  datos y verificador · `pantalla` · `negocio` · `clasico`).
-- Cada agente es una sesión de `claude -p` que se retoma turno a turno (`--resume`), con su rol en el prompt de
-  sistema, sus herramientas permitidas y un tope de gasto por turno. Nadie edita archivos, commitea ni corre el
-  harness contra prod.
-- **La pizarra:** una afirmación entra con el comando que la sostiene (`AFIRMO: … | COMANDO: …`). La que no lo
-  trae queda marcada: tres agentes de acuerdo no prueban nada.
-- `MOCK=1` corre la llamada con respuestas simuladas, sin gastar, para la interfaz.
+**Cómo está armada** (`sala/`, `make sala` → :5201; por consola `make barrido [TEMAS=a,b] [N=3]`). A la izquierda,
+los temas de knowledge/ de la revisión más vieja a la más nueva, los topes y «Simulado». Se lanza y aparece un panel
+por agente con lo que va corriendo (cada herramienta y cada cosa que dice), y uno más para el verificador.
+- **Un agente por tema**, en paralelo y sin turnos: una sesión larga de `claude -p` (Opus 5.5, esfuerzo medio) con
+  todas las herramientas de lectura (main de los dos monolitos, `knowledge-*`, `bin/pg` en sólo lectura, el harness).
+  No hablan entre ellos. Cada uno termina con su lista de `HALLAZGO: <tipo> | <qué, con archivo:línea> | <destino> |
+  COMANDO: <cmd>`.
+- **El verificador** (Opus 5.5, esfuerzo alto) arranca cuando terminan todos, no escribió nada y pone un veredicto por
+  hallazgo (✓, ✗ o —) con el comando que corrió.
+- **Retroalimentación:** lo que el verificador confirma queda en `sala/.barridos/conocidos/<tema>.md` y entra al brief
+  del próximo barrido de ese tema. Cada barrido deja su informe y su `barrido.json` en `sala/.barridos/<id>/` (fuera de
+  git), y la página los muestra en «Barridos anteriores».
+- **Nada se escribe solo en knowledge/.** Pasar los hallazgos a un tema es otra pasada, con una segunda mirada.
+- **Qué gasta (medido el 2026-11-02).** `claude -p` entra con la sesión de claude.ai de Miguel (plan de equipo): gasta
+  el límite del asiento (ventana de 5 horas y semanal), no se cobra por token. Los US$ son el equivalente a precio de
+  API, para comparar. Cada sesión arranca con ~66k tokens de carga fija (Claude Code, el proyecto, MCP); por eso
+  conviene una sesión larga y no muchos turnos cortos. ⚠ La CLI no reconoce los ids 5.5 y su US$ no sirve para
+  comparar modelos: comparar tokens.
 
-- **Varias salas** (desde el 2026-11-02, idea de Miguel; `sala/rooms.go`): una barra lateral con las salas, cada una
-  con su estado, y una sola llamada activa a la vez entre todas (cada una gasta el límite del asiento). La de tareas
-  queda como «Demo · tarea». La sala de **entendimiento** no tiene tarea sino un TEMA (un id de `knowledge/` o texto
-  libre) y una lista de lo que se busca: contradicciones con main, huecos de la biblioteca, reglas sin prueba y
-  posibles defectos. Cada uno escribe `HALLAZGO: <tipo> | <qué, con archivo:línea> | <destino> | COMANDO: <cmd>`; el
-  verificador los comprueba y, al cerrar, los comprobados van a un borrador en `sala/.hallazgos/` (fuera de git) para
-  que Miguel decida. Nada se escribe solo en `knowledge/` ni en el harness. Cierra con 8 hallazgos comprobados.
+**Lo que se evaluó y NO se eligió: la sala de llamadas** (2026-11-02 y 03, retirada el 2026-11-03). Varios agentes con
+roles (investigador, arquitecto, datos, probador, verificador, coordinador) en una «llamada» por turnos o en canal, con
+un portero en Haiku que decidía a quién despertar, pizarra de afirmaciones, preguntas con dueño y varias salas. Se
+compararon con el mismo tema (`lender-profile-rules`), el mismo brief y el mismo tope: un agente solo dio 10
+hallazgos (9 comprobados ciertos) con US$2,13 eq.; la llamada, 0 con US$2,49 eq. Cada turno volvía a pagar el
+contexto base y cada rol alcanzó a trabajar una vez. Coordinar agentes cuesta más de lo que aportan mientras cada
+turno cueste un contexto entero; lo que sirvió de ella (que lo afirmado lo compruebe otro) quedó en el verificador.
 
 **Pendientes del frente:**
-- [x] Una llamada real de entendimiento sobre un tema conocido (`lender-listing`), el 2026-11-02: trajo UN hallazgo
-  nuevo y cierto (el override de Bancolombia en Sonría en la puerta v1), una medición mal planteada que el
-  verificador refutó bien, y ruido del ambiente. El tope cortó antes de que el verificador llegara al hallazgo bueno:
-  lo verifiqué yo. Bloque del día.
-- [x] Una llamada real sobre una tarea del tablero, con tope de US$3 (hecho el 2026-11-02: tarea 86, una ronda,
-  US$1,25; bloque del día). Salieron dos arreglos para el moderador y la pizarra (abajo).
-- [ ] El moderador no cierra con un «TERMINÉ» que deja cosas abiertas: abre una ronda de objeciones antes de
-  cortar. Y una corrección a algo existente (una nota, un tema, una suite) va a la pizarra aunque venga en prosa.
-  Termina cuando una llamada real lo muestra. Hecho en el código y probado simulado el 2026-11-02 (objeción → la
-  llamada sigue; corrección en prosa → C3, refutada por el probador con COMPRUEBO); falta verlo en una llamada real.
-  La segunda llamada real se cortó por el tope de gasto antes de un TERMINÉ: la ronda de objeciones sigue sin
-  verse con agentes reales.
-- [ ] (hecho en el código y probado simulado el 2026-11-02; falta una llamada real) Un VERIFICADOR que sólo lee (`git grep`/`git show` contra main, `bin/pg`), separado del probador: «comprobada» sólo
-  cuando la revisa alguien que no la dijo. En la segunda llamada el probador no pudo revisar ningún `git grep` (su rol
-  no lo tenía) y marcó «comprobada» una consulta propia con el rango de ids equivocado. Una afirmación en prosa sin
-  comando queda «sin comando», no «refutada». Termina cuando una llamada real no deja ninguna afirmación propia
-  marcada como comprobada.
 - [ ] Barrido · un verificador que no firme todo: marcó 28 de 28 con ✓ y la pasada a knowledge descartó partes de
   H16 y H17. Termina cuando un barrido real tiene algún ✗ o —, o una segunda mirada no encuentra nada que él aprobó.
 - [ ] Barrido · las suites que señaló el primero: reemplazo de respuestas del formulario dinámico, cascada
   zona→ciudad en el wizard, formas de `alignedSplit`, cascada Ágil Data→TusDatos con `ONB005`, y tipos de documento
   por país. Termina cuando cada una corre con `make harness-suite` o queda descartada con su motivo.
+

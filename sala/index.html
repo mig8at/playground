@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Sala</title>
+<title>Sala · barrido</title>
 <link rel="stylesheet" href="/theme.css">
 <style>
   /* Todo color sale de theme.css (tools/ui): esta página no declara colores propios. */
@@ -11,276 +11,268 @@
   html, body { height: 100%; margin: 0; }
   body {
     background: var(--background); color: var(--foreground); font-family: var(--font-sans); font-size: 13px;
-    display: grid; grid-template-columns: 210px 1fr; height: 100vh;
+    display: grid; grid-template-columns: 260px 1fr; height: 100vh;
   }
-  .app { display: grid; grid-template-rows: auto 1fr auto; min-height: 0; min-width: 0; }
-  nav { border-right: 1px solid var(--border); background: var(--card); display: flex; flex-direction: column; min-height: 0; }
-  nav h2 { font-size: 12px; font-weight: 600; margin: 0; padding: 10px 12px; min-height: 40px; border-bottom: 1px solid var(--border); }
-  nav .list { overflow-y: auto; flex: 1; padding: 6px; }
-  nav .room { padding: 8px; border-radius: var(--radius-md); cursor: pointer; margin-bottom: 4px; }
-  nav .room:hover { background: var(--accent); color: var(--accent-foreground); }
-  nav .room.active { background: var(--secondary); color: var(--secondary-foreground); }
-  nav .room .kind { font-size: 11px; color: var(--muted-foreground); }
-  nav form { display: grid; gap: 6px; padding: 10px; border-top: 1px solid var(--border); }
-  .goals { display: flex; flex-wrap: wrap; gap: 4px 14px; padding: 6px 12px; border-bottom: 1px solid var(--border); background: var(--card); }
-  .goals label { font-size: 12px; }
-  .hide { display: none !important; }
-  header {
-    display: flex; gap: 8px; align-items: center; padding: 8px 12px; min-height: 40px;
-    border-bottom: 1px solid var(--border); background: var(--card);
-  }
-  header .title { font-weight: 600; margin-right: 8px; white-space: nowrap; }
-  header input { width: 140px; }
-  select { font: inherit; color: var(--foreground); background: var(--background); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 4px 6px; }
-  .roles { display: flex; flex-wrap: wrap; gap: 4px 14px; padding: 6px 12px; border-bottom: 1px solid var(--border); background: var(--card); }
-  .roles label { font-size: 12px; }
-  .roles label span { color: var(--foreground); }
-  .roles select.model { font-size: 11px; padding: 1px 4px; }
+  nav { border-right: 1px solid var(--border); background: var(--sidebar); color: var(--sidebar-foreground); display: grid; grid-template-rows: auto auto 1fr auto 1fr; min-height: 0; }
+  h2 { font-size: 12px; font-weight: 600; margin: 0; padding: 10px 12px; min-height: 40px; display: flex; align-items: center; gap: 8px; border-bottom: 1px solid var(--border); }
+  h2 .count { margin-left: auto; font-weight: 400; color: var(--muted-foreground); }
+  .topics { overflow-y: auto; padding: 6px; min-height: 0; }
+  .topic { display: grid; grid-template-columns: auto 1fr; gap: 2px 8px; padding: 6px; border-radius: var(--radius-md); cursor: pointer; }
+  .topic:hover { background: var(--sidebar-accent); color: var(--sidebar-accent-foreground); }
+  .topic input { grid-row: span 2; margin-top: 2px; }
+  .topic .id { font-family: var(--font-mono); font-size: 12px; word-break: break-all; }
+  .topic .when { font-size: 11px; color: var(--muted-foreground); }
+  .controls { display: grid; gap: 8px; padding: 10px 12px; border-top: 1px solid var(--border); border-bottom: 1px solid var(--border); }
+  .controls .row { display: flex; gap: 8px; align-items: center; }
+  .controls label { color: var(--muted-foreground); display: flex; gap: 6px; align-items: center; }
+  .controls input[type=number] { width: 64px; }
   input, button {
     font: inherit; color: var(--foreground); background: var(--background);
     border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 4px 8px;
   }
   button { cursor: pointer; background: var(--secondary); color: var(--secondary-foreground); }
-  button.primary { background: var(--primary); color: var(--primary-foreground); border-color: var(--primary); }
+  button.primary { background: var(--primary); color: var(--primary-foreground); border-color: var(--primary); flex: 1; }
   button:disabled { opacity: .5; cursor: default; }
-  label { display: flex; gap: 4px; align-items: center; color: var(--muted-foreground); }
-  .meta { margin-left: auto; color: var(--muted-foreground); }
-  main { display: grid; grid-template-columns: 1fr 340px; min-height: 0; }
-  .stage { display: grid; grid-template-rows: auto 1fr; min-height: 0; border-right: 1px solid var(--border); }
-  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 8px; padding: 8px 12px; max-height: 45vh; overflow-y: auto; }
-  .tile {
-    background: var(--card); color: var(--card-foreground); border: 1px solid var(--border);
-    border-radius: var(--radius-lg); padding: 8px 10px; min-height: 84px; display: flex; flex-direction: column; gap: 4px;
-    transition: box-shadow .2s, border-color .2s;
+  .hint { font-size: 11px; color: var(--muted-foreground); }
+  .history { overflow-y: auto; padding: 6px; min-height: 0; }
+  .past { padding: 6px 8px; border-radius: var(--radius-md); cursor: pointer; }
+  .past:hover, .past.active { background: var(--sidebar-accent); color: var(--sidebar-accent-foreground); }
+  .past .ts { font-family: var(--font-mono); font-size: 11px; }
+  .past .what { font-size: 12px; }
+  .past .nums { font-size: 11px; color: var(--muted-foreground); }
+
+  .app { display: grid; grid-template-rows: auto auto 1fr; min-height: 0; min-width: 0; }
+  header { display: flex; gap: 14px; align-items: center; padding: 8px 14px; min-height: 40px; border-bottom: 1px solid var(--border); background: var(--card); }
+  header .title { font-weight: 600; }
+  header .meta { color: var(--muted-foreground); }
+  .phases { display: flex; gap: 6px; margin-left: auto; }
+  .phase { padding: 2px 10px; border-radius: 999px; border: 1px solid var(--border); color: var(--muted-foreground); font-size: 12px; }
+  .phase.now { border-color: var(--ring); color: var(--foreground); box-shadow: 0 0 0 1px var(--ring); }
+  .phase.done { background: var(--secondary); color: var(--secondary-foreground); }
+  .empty { padding: 40px; color: var(--muted-foreground); line-height: 1.6; max-width: 640px; }
+  .empty b { color: var(--foreground); }
+
+  .lanes { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 10px; padding: 10px 14px; border-bottom: 1px solid var(--border); max-height: 55vh; overflow-y: auto; }
+  .lane {
+    background: var(--card); color: var(--card-foreground); border: 1px solid var(--border); border-radius: var(--radius-lg);
+    display: grid; grid-template-rows: auto auto auto 1fr; min-height: 0; height: 210px; transition: box-shadow .2s, border-color .2s;
   }
-  .tile.speaking { border-color: var(--ring); box-shadow: 0 0 0 2px var(--ring); }
-  .avatar {
-    width: 32px; height: 32px; flex: none; border-radius: 50%; display: grid; place-items: center; font-weight: 700; font-size: 12px;
-    background: var(--accent); color: var(--accent-foreground);
-  }
-  .tile .who { display: flex; gap: 10px; align-items: center; }
-  .tile .name { font-weight: 600; }
-  .tile .role, .tile .stat { color: var(--muted-foreground); font-size: 12px; }
-  .tile .doing { font-family: var(--font-mono); font-size: 11px; color: var(--muted-foreground); word-break: break-all; }
-  .dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: var(--muted); margin-right: 4px; }
-  .speaking .dot { background: var(--primary); animation: pulse 1s infinite; }
-  .error .dot { background: var(--destructive); }
+  .lane.trabajando { border-color: var(--ring); box-shadow: 0 0 0 1px var(--ring); }
+  .lane.verifier { border-style: dashed; }
+  .lane .head { display: flex; gap: 8px; align-items: center; padding: 8px 10px 4px; }
+  .lane .name { font-weight: 600; font-family: var(--font-mono); font-size: 12px; word-break: break-all; }
+  .lane .status { margin-left: auto; font-size: 11px; color: var(--muted-foreground); white-space: nowrap; }
+  .lane .stats { display: flex; gap: 10px; flex-wrap: wrap; padding: 0 10px 6px; font-size: 11px; color: var(--muted-foreground); border-bottom: 1px solid var(--border); }
+  .lane .stats b { color: var(--foreground); font-weight: 600; }
+  .lane .log { overflow-y: auto; padding: 6px 10px; min-height: 0; display: flex; flex-direction: column; gap: 3px; }
+  .lane .step { font-size: 11px; line-height: 1.4; display: grid; grid-template-columns: 52px 1fr; gap: 6px; }
+  .lane .step .at { color: var(--muted-foreground); font-family: var(--font-mono); }
+  .lane .step.tool .what { font-family: var(--font-mono); word-break: break-all; }
+  .lane .step.text .what { color: var(--muted-foreground); font-style: italic; }
+  .lane .step.last .what { color: var(--foreground); }
+  .lane .err { color: var(--destructive); font-size: 11px; padding: 4px 10px; }
+  .dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: var(--muted); flex: none; }
+  .trabajando .dot { background: var(--primary); animation: pulse 1s infinite; }
+  .listo .dot { background: var(--chart-2); }
+  .error .dot, .cortado .dot { background: var(--destructive); }
   @keyframes pulse { 50% { opacity: .3; } }
-  .transcript { overflow-y: auto; padding: 0 12px 12px; min-height: 0; }
-  .msg { padding: 8px 0; border-top: 1px solid var(--border); white-space: pre-wrap; line-height: 1.45; }
-  .msg .from { font-weight: 600; margin-right: 6px; }
-  .msg .at { color: var(--muted-foreground); font-size: 11px; }
-  .msg.moderador { color: var(--muted-foreground); }
-  .msg.aviso { color: var(--muted-foreground); font-style: italic; }
-  .msg.portero { color: var(--muted-foreground); font-size: 11px; padding: 2px 0; border-top: none; }
-  .tile .work { font-size: 12px; color: var(--foreground); }
-  aside { display: grid; grid-template-rows: auto 1fr; min-height: 0; }
-  aside h2 { font-size: 12px; font-weight: 600; margin: 0; padding: 10px 12px; min-height: 40px; border-bottom: 1px solid var(--border); }
-  .claims { overflow-y: auto; padding: 8px 12px; min-height: 0; }
-  .claim { padding: 8px; border: 1px solid var(--border); border-radius: var(--radius-md); margin-bottom: 8px; background: var(--card); }
-  .claim .cmd { font-family: var(--font-mono); font-size: 11px; color: var(--muted-foreground); margin-top: 4px; word-break: break-all; }
-  .claim.nocmd { border-style: dashed; }
-  .qhead { font-size: 11px; font-weight: 600; color: var(--muted-foreground); margin: 6px 0; text-transform: none; }
-  .claim.question.abierta { border-color: var(--ring); }
-  .claim.question.descartada { opacity: .7; }
-  .claim .tag { font-size: 11px; color: var(--muted-foreground); }
-  .claim .head { display: flex; gap: 6px; align-items: baseline; }
-  .claim .id { font-family: var(--font-mono); font-size: 11px; color: var(--muted-foreground); }
-  .badge { font-size: 11px; padding: 0 6px; border-radius: var(--radius-sm); border: 1px solid var(--border); color: var(--muted-foreground); white-space: nowrap; }
-  .badge.comprobada { border-color: var(--primary); color: var(--foreground); }
-  .badge.refutada { border-color: var(--destructive); color: var(--foreground); }
-  .badge.sin.comando { border-style: dashed; }
-  .claim.refutada > div:not(.cmd):not(.tag):not(.head) { text-decoration: line-through; }
-  footer { display: flex; gap: 8px; padding: 8px 12px; border-top: 1px solid var(--border); background: var(--card); min-height: 30px; }
-  footer input { flex: 1; }
-  .empty { color: var(--muted-foreground); padding: 12px 0; }
-  @media (max-width: 800px) { body { grid-template-columns: 1fr; } nav { display: none; } main { grid-template-columns: 1fr; } aside { border-top: 1px solid var(--border); } }
+
+  .findings { display: grid; grid-template-rows: auto 1fr; min-height: 0; }
+  .filters { margin-left: 12px; display: flex; gap: 4px; }
+  .filters button { padding: 1px 8px; font-size: 11px; background: var(--background); color: var(--muted-foreground); }
+  .filters button.on { background: var(--secondary); color: var(--secondary-foreground); }
+  .flist { overflow-y: auto; padding: 8px 14px 14px; min-height: 0; }
+  .f { display: grid; grid-template-columns: 44px 1fr; gap: 4px 10px; padding: 10px; border: 1px solid var(--border); border-radius: var(--radius-md); background: var(--card); margin-bottom: 8px; }
+  .f .badge { grid-row: span 3; display: grid; place-items: center; align-self: start; height: 44px; border-radius: var(--radius-md); font-size: 18px; font-weight: 700; background: var(--muted); color: var(--muted-foreground); }
+  .f.ok .badge { background: var(--secondary); color: var(--secondary-foreground); box-shadow: inset 0 0 0 2px var(--chart-2); }
+  .f.bad .badge { background: var(--destructive); color: var(--primary-foreground); }
+  .f .tags { display: flex; gap: 6px; align-items: center; font-size: 11px; color: var(--muted-foreground); }
+  .f .tags .kind { padding: 0 6px; border-radius: 999px; border: 1px solid var(--border); color: var(--foreground); }
+  .f .tags .fid { font-family: var(--font-mono); color: var(--foreground); }
+  .f .text { line-height: 1.45; word-break: break-word; }
+  .f .check { font-size: 12px; color: var(--muted-foreground); border-left: 2px solid var(--border); padding-left: 8px; word-break: break-word; }
+  code { font-family: var(--font-mono); font-size: 12px; }
 </style>
 </head>
 <body>
 <nav>
-  <h2>Salas</h2>
-  <div class="list" id="rooms"></div>
-  <form id="newroom">
-    <input id="roomname" placeholder="Nombre de la sala nueva" required>
-    <select id="roomkind"><option value="entendimiento">entendimiento: un tema</option><option value="tarea">tarea del tablero</option></select>
-    <button type="submit">Nueva sala</button>
-  </form>
+  <h2>Temas de knowledge <span class="count" id="tcount"></span></h2>
+  <div class="hint" style="padding:6px 12px 0">De la revisión más vieja a la más nueva. Un agente por tema.</div>
+  <div class="topics" id="topics"></div>
+  <div class="controls">
+    <div class="row">
+      <label title="Tope de cada agente, en US$ equivalentes">Agente US$ <input type="number" id="budget" value="2.5" min="0.5" max="6" step="0.5"></label>
+      <label title="Tope del verificador, en US$ equivalentes">Verif. <input type="number" id="check" value="3" min="0.5" max="8" step="0.5"></label>
+    </div>
+    <label><input type="checkbox" id="mock" checked> Simulado (no gasta)</label>
+    <div class="row">
+      <button class="primary" id="start">Lanzar barrido</button>
+      <button id="stop" disabled>Cortar</button>
+    </div>
+    <div class="hint" id="cost"></div>
+  </div>
+  <div class="history"><h2 style="padding-left:6px">Barridos anteriores</h2><div id="history"></div></div>
 </nav>
+
 <div class="app">
-<div class="top">
-<header>
-  <span class="title" id="roomtitle">Sala</span>
-  <label id="tasklabel">Tarea <input id="task" placeholder="id o slug" value="86"></label>
-  <label id="topiclabel" class="hide">Tema <input id="topic" list="topics" placeholder="id de knowledge/ o texto libre" style="width:220px"></label>
-  <datalist id="topics"></datalist>
-  <label>Rondas <input id="rounds" type="number" min="1" max="6" value="3" style="width:56px"></label>
-  <label title="Equivalente a precio de API: la sala corre con la suscripción, no se cobra por token; gasta el límite de uso del asiento">Tope US$ eq. <input id="budget" type="number" min="0.5" max="10" step="0.5" value="3" style="width:64px"></label>
-  <label>Modo <select id="mode"><option value="canal">canal</option><option value="rondas">rondas</option></select></label>
-  <label>Elenco <select id="preset"></select></label>
-  <label><input id="mock" type="checkbox"> Simulada</label>
-  <button class="primary" id="start">Empezar llamada</button>
-  <button id="stop" disabled>Cortar</button>
-  <span class="meta" id="meta">sin llamada</span>
-</header>
-<div class="goals hide" id="goals">
-  <span style="color:var(--muted-foreground)">Busca:</span>
-  <label><input type="checkbox" value="contradicciones" checked> contradicciones con main</label>
-  <label><input type="checkbox" value="huecos" checked> huecos de la biblioteca</label>
-  <label><input type="checkbox" value="sin-prueba" checked> reglas sin prueba</label>
-  <label><input type="checkbox" value="defectos" checked> posibles defectos</label>
+  <header>
+    <span class="title">Barrido</span>
+    <span class="meta" id="meta"></span>
+    <div class="phases" id="phases"></div>
+  </header>
+  <div class="lanes" id="lanes"></div>
+  <div class="findings" id="fpanel">
+    <h2>Hallazgos <span class="filters" id="filters"></span><span class="count" id="fcount"></span></h2>
+    <div class="flist" id="flist"></div>
+  </div>
 </div>
-<div class="roles" id="roles"></div>
-</div>
-<main>
-  <section class="stage">
-    <div class="grid" id="grid"></div>
-    <div class="transcript" id="transcript"><div class="empty">La transcripción aparece acá.</div></div>
-  </section>
-  <aside>
-    <h2 id="boardtitle">Pizarra · afirmaciones</h2>
-    <div class="claims" id="claims"><div class="empty">Cada afirmación entra con el comando que la sostiene; la que no lo trae queda punteada.</div></div>
-  </aside>
-</main>
-<footer>
-  <input id="say" placeholder="Hablá en la llamada (llega a cada agente en su próximo turno)">
-  <button id="send">Enviar</button>
-</footer>
-</div>
+
 <script>
 const $ = (id) => document.getElementById(id);
-const tk = (n) => (n >= 1000 ? (n / 1000).toFixed(1) + 'k' : String(n || 0));
 const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
-let last = null;
+const code = (s) => esc(s).replace(/`([^`]+)`/g, '<code>$1</code>');
+let viewing = null, filter = 'todos', lastState = null;
 
-function render(st) {
-  st.messages = st.messages || [];
-  st.claims = st.claims || [];
-  last = st;
-  const understanding = st.kind === 'entendimiento';
-  $('roomtitle').textContent = st.name || 'Sala';
-  $('tasklabel').classList.toggle('hide', understanding);
-  $('topiclabel').classList.toggle('hide', !understanding);
-  $('goals').classList.toggle('hide', !understanding);
-  $('boardtitle').textContent = understanding ? 'Pizarra · hallazgos y afirmaciones' : 'Pizarra · afirmaciones';
-  if (understanding && st.task && !$('topic').value) $('topic').value = st.task;
-  $('start').disabled = st.running;
-  $('stop').disabled = !st.running;
-  $('meta').textContent = st.task
-    ? `#${st.task} · ${st.mode === 'canal' ? 'canal' : `ronda ${Math.min(st.round, st.rounds)}/${st.rounds}`} · US$${st.spent.toFixed(2)} eq. API de ${st.budget.toFixed(2)}${st.mock ? ' · simulada' : ''}${st.ended ? ' · ' + st.ended : ''}`
-    : 'sin llamada';
-  if (st.objecting) $('meta').textContent += ' · ronda de objeciones';
+async function loadTopics() {
+  const topics = await (await fetch('/api/topics')).json();
+  $('tcount').textContent = topics.length;
+  $('topics').innerHTML = topics.map((t, i) => `
+    <label class="topic" title="${esc(t.title)}">
+      <input type="checkbox" value="${esc(t.id)}" ${i < 3 ? 'checked' : ''}>
+      <span class="id">${esc(t.id)}</span>
+      <span class="when">revisado ${esc((t.reviewed || '—').slice(0, 10))}</span>
+    </label>`).join('');
+  updateCost();
+}
+const chosen = () => [...document.querySelectorAll('#topics input:checked')].map((i) => i.value);
+function updateCost() {
+  const n = chosen().length, b = Number($('budget').value), c = Number($('check').value);
+  $('cost').textContent = $('mock').checked
+    ? `Simulado: ${n} agente(s), sin gasto.`
+    : `Hasta US$${(n * b + c).toFixed(2)} eq. (${n} × ${b} + verificador ${c}), del límite del asiento.`;
+  $('start').disabled = n === 0 || n > 6 || Boolean(lastState && !lastState.ended);
+}
+$('topics').addEventListener('change', updateCost);
+['budget', 'check', 'mock'].forEach((id) => $(id).addEventListener('input', updateCost));
 
-  const people = [...st.participants, { id: 'miguel', name: 'Miguel', role: 'tú', status: 'esperando', doing: '', cost: 0, turns: 0 }];
-  $('grid').innerHTML = people.map((p) => {
-    const speaking = p.status === 'pensando';
-    const initials = p.name.split(' ').filter((w) => /^\p{L}/u.test(w) && w.length > 2).map((w) => w[0]).slice(0, 2).join('').toUpperCase() || p.name[0];
-    return `<div class="tile ${speaking ? 'speaking' : ''} ${p.status === 'error' ? 'error' : ''}">
-      <div class="who"><div class="avatar">${esc(initials)}</div>
-        <div><div class="name">${esc(p.name)}</div><div class="role">${esc(p.role)}</div></div></div>
-      <div class="stat"><span class="dot"></span>${esc(p.status)}${p.id !== 'miguel' ? ` · ${p.turns} turno(s) · US$${p.cost.toFixed(2)} eq.` : ''}</div>
-      ${p.model ? `<div class="stat">${esc(p.model.replace('claude-', ''))} · ${esc(p.effort || '')}${p.use && p.use.calls ? ` · ${tk(p.use.in + p.use.cacheWrite + p.use.cacheRead)} entrada · ${tk(p.use.out)} salida${p.use.passes ? ` · ${p.use.passes} PASO` : ''}` : ''}</div>` : ''}
-      ${p.work ? `<div class="work">trabajando en: ${esc(p.work)}</div>` : ''}
-      ${p.doing ? `<div class="doing">▸ ${esc(p.doing)}</div>` : ''}
+$('start').onclick = async () => {
+  const body = { topics: chosen(), budget: Number($('budget').value), checkBudget: Number($('check').value), mock: $('mock').checked };
+  if (!body.mock && !confirm(`Lanzar ${body.topics.length} agente(s) reales: hasta US$${(body.topics.length * body.budget + body.checkBudget).toFixed(2)} eq. del asiento.`)) return;
+  const r = await fetch('/api/start', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) });
+  if (!r.ok) { alert(await r.text()); return; }
+  viewing = null; filter = 'todos';
+  poll();
+};
+$('stop').onclick = () => fetch('/api/stop', { method: 'POST' });
+
+const phaseName = { agentes: 'Agentes en paralelo', verificador: 'Verificador', terminado: 'Terminado', cortado: 'Cortado' };
+
+function render(s) {
+  if (!s) {
+    $('meta').textContent = '';
+    $('phases').innerHTML = '';
+    $('lanes').innerHTML = `<div class="empty">
+      Cada agente toma <b>un tema</b> de knowledge/ y trabaja solo, en paralelo con los otros, con todas las herramientas
+      de lectura: el código de main de los dos monolitos, la base y los logs de prod en sólo lectura, el harness.
+      No hablan entre ellos ni esperan turno. Cuando terminan todos, un <b>verificador</b> que no escribió nada
+      comprueba cada hallazgo.<br><br>Elegí temas a la izquierda y lanzá el barrido. Con «Simulado» se ve el recorrido sin gastar.</div>`;
+    $('fpanel').style.display = 'none';
+    return;
+  }
+  $('fpanel').style.display = '';
+  const live = !s.ended;
+  const secs = Math.max(0, Math.round(((s.ended ? new Date(s.ended) : new Date()) - new Date(s.started)) / 1000));
+  const cost = [...(s.agents || []), s.verifier].reduce((a, x) => a + (x?.cost || 0), 0);
+  const clock = s.started && s.started !== s.ended ? ` · ${Math.floor(secs / 60)}:${String(secs % 60).padStart(2, '0')}` : '';
+  $('meta').textContent = `${s.id}${s.mock ? ' · simulado' : ''}${clock} · US$${cost.toFixed(2)} eq.`;
+  const order = ['agentes', 'verificador', s.phase === 'cortado' ? 'cortado' : 'terminado'];
+  const at = order.indexOf(s.phase);
+  $('phases').innerHTML = order.map((p, i) => `<span class="phase ${i < at ? 'done' : i === at ? 'now' : ''}">${i + 1}. ${phaseName[p]}</span>`).join('');
+
+  const lanes = [...(s.agents || [])];
+  if (s.verifier) lanes.push({ ...s.verifier, isVerifier: true });
+  $('lanes').innerHTML = lanes.map((a) => {
+    const steps = a.steps || [];
+    const log = steps.length
+      ? steps.map((st, i) => `<div class="step ${st.kind} ${i === steps.length - 1 ? 'last' : ''}"><span class="at">${esc(st.at)}</span><span class="what">${esc(st.text)}</span></div>`).join('')
+      : `<div class="hint">${a.status === 'esperando' ? (a.isVerifier ? 'Espera a que terminen los agentes.' : 'En cola.') : a.status === 'trabajando' ? 'Arrancando…' : 'Este barrido no guardó los pasos.'}</div>`;
+    return `<div class="lane ${esc(a.status)} ${a.isVerifier ? 'verifier' : ''}">
+      <div class="head"><span class="dot"></span><span class="name">${a.isVerifier ? 'verificador' : esc(a.topic)}</span><span class="status">${esc(a.status)}</span></div>
+      <div class="stats">
+        <span><b>${a.tools || 0}</b> herramientas</span>
+        ${a.isVerifier ? '' : `<span><b>${a.findings || 0}</b> hallazgos</span>`}
+        ${a.tokensIn ? `<span>${Math.round(a.tokensIn / 1000)}k entrada</span>` : ''}
+        ${a.cost ? `<span>US$${a.cost.toFixed(2)}</span>` : ''}
+        ${a.seconds ? `<span>${a.seconds} s</span>` : ''}
+      </div>
+      <div class="err">${esc(a.err || '')}</div>
+      <div class="log">${log}</div>
     </div>`;
   }).join('');
+  document.querySelectorAll('.lane .log').forEach((el) => { el.scrollTop = el.scrollHeight; });
 
-  const t = $('transcript');
-  const atBottom = t.scrollHeight - t.scrollTop - t.clientHeight < 40;
-  t.innerHTML = st.messages.length
-    ? st.messages.map((m) => `<div class="msg ${esc(m.who)} ${esc(m.kind || '')}"><span class="from">${esc(m.name)}</span><span class="at">${esc(m.at)}</span>\n${esc(m.text)}</div>`).join('')
-    : '<div class="empty">La transcripción aparece acá.</div>';
-  if (atBottom) t.scrollTop = t.scrollHeight;
-
-  const qs = st.questions || [];
-  const qhtml = qs.length ? `<div class="qhead">Preguntas</div>` + qs.map((q) => `<div class="claim question ${esc(q.status)}">
-        <div class="head"><span class="id">${esc(q.id)}</span><span class="badge ${q.status === 'contestada' ? 'comprobada' : ''}">${esc(q.status)}</span></div>
-        <div>${esc(q.text)}</div>
-        <div class="tag">${esc(q.who)}${q.by ? ` · ${q.status === 'descartada' ? 'descartó' : 'contestó'} ${esc(q.by)}` : ''}</div>
-        ${q.answer ? `<div class="cmd">${esc(q.answer)}</div>` : ''}
-      </div>`).join('') + `<div class="qhead">Afirmaciones y hallazgos</div>` : '';
-  $('claims').innerHTML = qhtml + (st.claims.length
-    ? st.claims.map((c) => `<div class="claim ${c.command ? '' : 'nocmd'} ${esc(c.status)}">
-        <div class="head"><span class="id">${esc(c.id)}</span><span class="badge ${esc(c.status)}">${esc(c.status)}</span>${c.kind === 'hallazgo' ? `<span class="badge">${esc(c.type)}</span>` : ''}</div>
-        <div>${esc(c.claim)}</div>
-        <div class="tag">${esc(c.who)}${c.prose ? ' · dicho en prosa' : ''}${c.command ? '' : ' · sin comando: vale como opinión'}</div>
-        ${c.dest ? `<div class="tag">destino: ${esc(c.dest)}</div>` : ''}
-        ${c.command ? `<div class="cmd">$ ${esc(c.command)}</div>` : ''}
-        ${c.check && c.check !== c.command ? `<div class="cmd">comprobado con: ${esc(c.check)}</div>` : ''}
-      </div>`).join('')
-    : '<div class="empty">Cada afirmación entra con el comando que la sostiene; la que no lo trae queda punteada.</div>');
+  const fs = s.findings || [];
+  const n = (v) => fs.filter((f) => (f.verdict || '') === v).length;
+  const filters = [['todos', `Todos ${fs.length}`], ['✓', `✓ ${n('✓')}`], ['✗', `✗ ${n('✗')}`], ['—', `— ${n('—')}`], ['', `Sin veredicto ${n('')}`]];
+  $('filters').innerHTML = filters.map(([v, l]) => `<button data-v="${esc(v)}" class="${filter === v ? 'on' : ''}">${esc(l)}</button>`).join('');
+  $('fcount').textContent = live && s.phase === 'agentes' ? 'aparecen cuando terminan los agentes' : '';
+  const shown = fs.filter((f) => filter === 'todos' || (f.verdict || '') === filter);
+  $('flist').innerHTML = shown.length ? shown.map((f) => {
+    const cls = f.verdict === '✓' ? 'ok' : f.verdict === '✗' ? 'bad' : '';
+    const text = f.text.replace(/^HALLAZGO:\s*[^|]+\|\s*/, '');
+    return `<div class="f ${cls}">
+      <div class="badge">${esc(f.verdict || '·')}</div>
+      <div class="tags"><span class="fid">${esc(f.id)}</span><span class="kind">${esc(f.kind || (f.text.match(/^HALLAZGO:\s*([^|]+?)\s*\|/) || [])[1] || 'hallazgo')}</span><span>${esc(f.topic)}</span></div>
+      <div class="text">${code(text)}</div>
+      ${f.check ? `<div class="check">${code(f.check)}</div>` : ''}
+    </div>`;
+  }).join('') : `<div class="hint" style="padding:8px 0">${fs.length ? 'Nada con ese filtro.' : live ? 'Todavía no hay hallazgos.' : 'Este barrido no dejó hallazgos.'}</div>`;
 }
-
-let room = (() => { try { return localStorage.getItem('sala-room') || 'demo'; } catch { return 'demo'; } })();
-const inRoom = (url) => `${url}?room=${encodeURIComponent(room)}`;
-const post = (url, body) => fetch(inRoom(url), { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body || {}) })
-  .then(async (r) => { if (!r.ok) alert(await r.text()); });
-
-const roles = () => [...document.querySelectorAll('#roles input:checked')].map((i) => i.value);
-let presets = {};
-fetch('/api/roles').then((r) => r.json()).then((d) => {
-  presets = d.presets;
-  const models = ['claude-opus-5-5', 'claude-sonnet-5-5', 'claude-haiku-5-5'];
-  $('roles').innerHTML = d.roles.map((r) => `<label title="${esc(r.role)} · esfuerzo ${esc(r.effort)}">${r.id === 'coordinador' ? '' : `<input type="checkbox" value="${esc(r.id)}">`} <span>${esc(r.name)}</span>
-    <select class="model" data-role="${esc(r.id)}">${models.map((m) => `<option value="${m}" ${m === r.model ? 'selected' : ''}>${m.replace('claude-', '')}</option>`).join('')}</select></label>`).join('');
-  $('preset').innerHTML = Object.keys(presets).map((k) => `<option value="${esc(k)}">${esc(k)}</option>`).join('') + '<option value="">a mano</option>';
-  $('preset').value = last && last.kind === 'entendimiento' ? 'entendimiento' : 'defecto';
-  const apply = () => { const ids = presets[$('preset').value]; if (!ids) return; document.querySelectorAll('#roles input').forEach((i) => { i.checked = ids.includes(i.value); }); };
-  $('preset').onchange = apply;
-  $('roles').addEventListener('change', (e) => { if (e.target.tagName === 'INPUT') $('preset').value = ''; });
-  apply();
+$('filters').addEventListener('click', (e) => {
+  const v = e.target?.dataset?.v;
+  if (v === undefined) return;
+  filter = v;
+  render(viewing || lastState);
 });
-$('start').onclick = () => {
-  if (!roles().length) { alert('Convocá al menos un rol.'); return; }
-  const models = Object.fromEntries([...document.querySelectorAll('#roles select.model')].map((s) => [s.dataset.role, s.value]));
-  const understanding = last && last.kind === 'entendimiento';
-  const task = understanding ? $('topic').value.trim() : $('task').value.trim();
-  if (!task) { alert(understanding ? 'Elegí un tema.' : 'Falta la tarea.'); return; }
-  const goals = [...document.querySelectorAll('#goals input:checked')].map((i) => i.value);
-  post('/api/start', { task, rounds: Number($('rounds').value), budget: Number($('budget').value), mock: $('mock').checked, roles: roles(), mode: $('mode').value, models, goals });
-};
-$('stop').onclick = () => post('/api/stop');
-const send = () => { const v = $('say').value.trim(); if (!v) return; post('/api/say', { text: v }); $('say').value = ''; };
-$('send').onclick = send;
-$('say').addEventListener('keydown', (e) => { if (e.key === 'Enter') send(); });
 
-let es = null;
-function openRoom(id) {
-  room = id;
-  try { localStorage.setItem('sala-room', id); } catch {}
-  if (es) es.close();
-  $('topic').value = '';
-  es = new EventSource(inRoom('/api/events'));
-  es.onmessage = (e) => {
-    const st = JSON.parse(e.data);
-    const first = !last || last.room !== st.room;
-    render(st);
-    if (first && presets[st.kind === 'entendimiento' ? 'entendimiento' : 'defecto'] && !st.running) {
-      $('preset').value = st.kind === 'entendimiento' ? 'entendimiento' : 'defecto';
-      $('preset').onchange && $('preset').onchange();
-    }
-  };
-  loadRooms();
+async function loadHistory() {
+  const list = await (await fetch('/api/history')).json();
+  $('history').innerHTML = list.length ? list.map((p) => `
+    <div class="past ${viewing?.id === p.id ? 'active' : ''}" data-id="${esc(p.id)}">
+      <div class="ts">${esc(p.id)}${p.mock ? ' · simulado' : ''}</div>
+      <div class="what">${esc(p.topics || '—')}</div>
+      <div class="nums">${p.findings} hallazgos · ${p.verified} ✓ · US$${(p.cost || 0).toFixed(2)}</div>
+    </div>`).join('') : '<div class="hint" style="padding:6px">Todavía no hay.</div>';
 }
-function loadRooms() {
-  fetch('/api/rooms').then((r) => r.json()).then((list) => {
-    if (!list.some((x) => x.id === room)) { openRoom('demo'); return; }
-    $('rooms').innerHTML = list.map((x) => `<div class="room ${x.id === room ? 'active' : ''}" data-id="${esc(x.id)}">
-      <div>${esc(x.name)}${x.running ? ' · en curso' : ''}</div>
-      <div class="kind">${x.kind === 'entendimiento' ? 'entendimiento' : 'tarea'}${x.task ? ' · ' + esc(x.task) : ''}${x.claims ? ` · ${x.claims} en pizarra` : ''}</div></div>`).join('');
-    document.querySelectorAll('#rooms .room').forEach((el) => { el.onclick = () => openRoom(el.dataset.id); });
-  });
-}
-setInterval(loadRooms, 4000);
-$('newroom').onsubmit = (e) => {
-  e.preventDefault();
-  fetch('/api/rooms', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ name: $('roomname').value.trim(), kind: $('roomkind').value }) })
-    .then((r) => r.json()).then((d) => { $('roomname').value = ''; openRoom(d.id); });
-};
-fetch('/api/topics').then((r) => r.json()).then((ts) => {
-  $('topics').innerHTML = (ts || []).map((t) => `<option value="${esc(t.ID || t.id)}">${esc(t.Title || t.title)}</option>`).join('');
+$('history').addEventListener('click', async (e) => {
+  const el = e.target.closest('.past');
+  if (!el) return;
+  const raw = await (await fetch('/api/history?id=' + encodeURIComponent(el.dataset.id))).json();
+  if (!raw.agents?.length && raw.runs) raw.agents = raw.runs.map((r) => ({ ...r, status: 'listo', steps: [] })); // el primer barrido, antes de la página
+  if (raw.verifier && !raw.verifier.status) raw.verifier.status = 'listo';
+  const now = new Date().toISOString();
+  viewing = { findings: [], agents: [], started: raw.started || now, ended: raw.ended || raw.started || now,
+    ...raw, id: el.dataset.id, phase: raw.phase || 'terminado' };
+  filter = 'todos';
+  render(viewing);
+  loadHistory();
 });
-openRoom(room);
+
+let wasLive = false;
+async function poll() {
+  try { lastState = await (await fetch('/api/state')).json(); } catch { lastState = null; }
+  const live = Boolean(lastState && !lastState.ended);
+  $('stop').disabled = !live;
+  updateCost();
+  if (live) viewing = null;
+  if (!viewing) render(lastState);
+  if (wasLive && !live) loadHistory();
+  wasLive = live;
+}
+loadTopics();
+loadHistory();
+poll();
+setInterval(poll, 1000);
 </script>
 </body>
 </html>

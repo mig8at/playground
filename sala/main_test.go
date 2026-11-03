@@ -5,25 +5,6 @@ import (
 	"testing"
 )
 
-// El verificador de la llamada real escribió «COMPRUEBO: C2 · descripción | — | …»: con o sin descripción tiene que
-// leerse, y una línea que no es una comprobación no.
-func TestCheckLineTolerant(t *testing.T) {
-	cases := map[string][2]string{
-		"COMPRUEBO: C2 | ✓ | git grep x":                          {"C2", "✓"},
-		"COMPRUEBO: C2 · el ambiente local no está listo | — | x": {"C2", "—"},
-		"COMPRUEBO: C1 (los archivos de S1 y S3) | ✗ | git ls":    {"C1", "✗"},
-	}
-	for line, want := range cases {
-		m := reCheck.FindStringSubmatch(line)
-		if m == nil || m[1] != want[0] || m[2] != want[1] {
-			t.Errorf("%q: quería %v, vino %v", line, want, m)
-		}
-	}
-	if reCheck.MatchString("COMPRUEBO: después veo") {
-		t.Error("una línea sin id ni marca no es una comprobación")
-	}
-}
-
 // Un hallazgo partido en viñetas sigue siendo uno; lo que viene después de la lista no se le pega.
 func TestParseFindings(t *testing.T) {
 	text := "Intro.\n\nHALLAZGO: hueco | uno | tema | COMANDO: a\n" +
@@ -35,5 +16,13 @@ func TestParseFindings(t *testing.T) {
 	}
 	if !strings.Contains(got[1], "B.php:9") || !strings.Contains(got[1], "COMANDO: b") || strings.Contains(got[1], "nada raro") {
 		t.Fatalf("el segundo quedó mal armado: %q", got[1])
+	}
+}
+
+// El verificador escribe una línea por hallazgo; el veredicto y lo que vio tienen que leerse.
+func TestVerdictLine(t *testing.T) {
+	m := reVerdict.FindStringSubmatch("VEREDICTO: H12 | ✗ | git -C x show origin/main:a.php | el comentario no dice eso")
+	if m == nil || m[1] != "H12" || m[2] != "✗" || !strings.Contains(m[3], "no dice eso") {
+		t.Fatalf("no se leyó el veredicto: %v", m)
 	}
 }
