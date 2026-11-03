@@ -49,6 +49,21 @@ jira_title: ""
   experiencia propuesta es realista.
 - **Una consulta por ambiente, en `connectors/`:** fases 0 a 3 hechas (`sql`, `logs`, `events` y
   `bin/pg`); sigue la 4, mudar canon, Jira y Slack a `connectors/`.
+- **Cómo gana CreditOp: lo que falta preguntar a comercial (Fabi).** Lo que ya se sabe está en
+  `knowledge/business-context.md` § «Cómo gana CreditOp», armado desde `forecast`, el Excel de revenue del Q4, el
+  artifact «Forecast KAM Creditop» y Confluence; ninguno contesta esto. Cada respuesta va a esa sección con quién
+  la confirmó y la fecha.
+  - [ ] Por qué 38 de 65 acuerdos del agregador tienen comisión 0 % (¿atraer a la entidad, otro cobro, una capa
+    gratuita para comercios nuevos?). Termina cuando la sección dice el motivo. Depende de: comercial.
+  - [ ] Qué es «IC» en el MRR del Excel (13 M al mes, fijo). Termina cuando la sección lo define. Depende de: comercial.
+  - [ ] Qué parte de los intereses y de los gastos de cobranza de CreditopX queda para CreditOp y qué parte para el
+    comercio, que pone el capital. Termina cuando la sección lo dice. Depende de: comercial.
+  - [ ] Si `lenders_by_allieds.comission_percentage` es lo que el comercio le paga a la entidad (y por eso Welli con
+    Sonría figura 9 % ahí y 1 % en las tarifas de CreditOp). Termina cuando la sección deja de marcarlo como
+    inferencia. Depende de: comercial.
+  - [ ] Si sigue el cobro por perfilamiento o consulta del modelo de 2024, y qué es «recaudo y dispersión» (5 M al
+    mes en el Excel). Termina cuando la sección lo confirma o lo descarta. Depende de: comercial.
+
 - **Acceso a las herramientas del playground compartido** (mergeado en `Creditop-SAS/playground#316`;
   el código está en producción, falta la configuración):
   - [ ] Activar el login de GitHub del home: se sabe que terminó cuando la galería muestra «Entrar con
