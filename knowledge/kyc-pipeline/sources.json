@@ -2,7 +2,7 @@
   "version": 1,
   "title": "Pipeline de KYC por comercio",
   "summary": "Cómo kyc_pipeline_allieds elige por comercio entre la cascada dentro de legacy-backend y el pipeline de customer-profiling-service sobre Temporal, y qué cambia en OTP, datos personales y kyc-processing.",
-  "reviewedAt": "2026-11-02T15:33:55+00:00",
+  "reviewedAt": "2026-11-03T16:52:20Z",
   "sources": [
     {
       "repo": "legacy-backend",
@@ -10,7 +10,8 @@
       "commit": "1dc937f31999aa1ff37f68f1d9ec2b780e4a8dbc",
       "blob": "fe289ca39ed4f3d69549fc2aa654a26a73275d13",
       "sections": [
-        "un-setting-elige-el-camino-comercio-por-comercio"
+        "un-setting-elige-el-camino-comercio-por-comercio",
+        "como-termina-la-corrida-y-que-ve-el-wizard"
       ]
     },
     {
@@ -134,7 +135,8 @@
       "sections": [
         "el-servicio-recorre-un-grafo-por-tipo-y-pais",
         "antes-de-validar-algo-de-identidad-o-centrales",
-        "como-termina-la-corrida-y-que-ve-el-wizard"
+        "como-termina-la-corrida-y-que-ve-el-wizard",
+        "que-cambia-en-el-wizard-segun-el-camino"
       ]
     },
     {
@@ -197,7 +199,8 @@
       "commit": "1238d30ef1459fd1fb84ac8020fbacb64a658e55",
       "blob": "8e8375aaba763e9065603abeefad9b2aa119ca87",
       "sections": [
-        "como-termina-la-corrida-y-que-ve-el-wizard"
+        "como-termina-la-corrida-y-que-ve-el-wizard",
+        "que-cambia-en-el-wizard-segun-el-camino"
       ]
     },
     {
@@ -216,6 +219,60 @@
       "blob": "4dcc47f39d115915ae6aab4a4079047bd24a682c",
       "sections": [
         "el-servicio-recorre-un-grafo-por-tipo-y-pais"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/OnboardingV2/App/Services/ResolveEmploymentRequirementService.php",
+      "commit": "69920f580f62ad35f0a555e3b8b8f2c247d758aa",
+      "blob": "3dd43a83f79496f3114d8cb2e6aab7d60eef7ecb",
+      "sections": [
+        "el-servicio-recorre-un-grafo-por-tipo-y-pais"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/OnboardingV2/App/Constants/KycParityConstants.php",
+      "commit": "69920f580f62ad35f0a555e3b8b8f2c247d758aa",
+      "blob": "57c84d311455731595bba6eeab2d6121f278988b",
+      "sections": [
+        "el-servicio-recorre-un-grafo-por-tipo-y-pais"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/Onboarding/App/Http/Controllers/ListLenderController.php",
+      "commit": "69920f580f62ad35f0a555e3b8b8f2c247d758aa",
+      "blob": "7de4791a0bd3ac77187346f853644df19bf04e26",
+      "sections": [
+        "como-termina-la-corrida-y-que-ve-el-wizard"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/Onboarding/routes/api.php",
+      "commit": "69920f580f62ad35f0a555e3b8b8f2c247d758aa",
+      "blob": "b51f912eef9e592e842d09e27cd9a4c7bffb7108",
+      "sections": [
+        "como-termina-la-corrida-y-que-ve-el-wizard"
+      ]
+    },
+    {
+      "repo": "customer-profiling-service",
+      "path": "internal/core/workflows/legacykycpipeline/walk.go",
+      "commit": "09c0703ffe6e662bac6d4fc58fa715c1f808a914",
+      "blob": "dac393794fe7f77a7d1838ef6f9c55fe8cd3a5bb",
+      "sections": [
+        "el-servicio-recorre-un-grafo-por-tipo-y-pais"
+      ]
+    },
+    {
+      "repo": "customer-profiling-service",
+      "path": "internal/core/domain/provider_requirements.go",
+      "commit": "09c0703ffe6e662bac6d4fc58fa715c1f808a914",
+      "blob": "2dc9662528693ec0dab31febf6da61e16b463407",
+      "sections": [
+        "que-cambia-en-el-wizard-segun-el-camino"
       ]
     }
   ]

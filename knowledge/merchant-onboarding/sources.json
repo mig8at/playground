@@ -1,8 +1,8 @@
 {
   "version": 1,
   "title": "Alta y baja de comercios",
-  "summary": "Las dos entradas de alta, sus efectos explícitos y el alcance de la baja en la base.",
-  "reviewedAt": "2026-11-02T15:33:26+00:00",
+  "summary": "Las dos entradas de alta, sus efectos y diferencias, los hashes que se repiten, la clave del asesor de prueba y la baja y reactivación en la base.",
+  "reviewedAt": "2026-11-03T16:52:49Z",
   "sources": [
     {
       "repo": "application",
@@ -11,7 +11,10 @@
       "blob": "ce2c8b8031cae3c33bee6606d20a627623e21e1d",
       "sections": [
         "el-admin-anterior-tiene-su-propia-alta",
-        "la-baja-modifica-usuarios-en-la-base-bajo-condiciones-concretas"
+        "los-hashes-de-alta-se-repiten-dentro-del-mismo-segundo",
+        "la-api-modular-es-otra-entrada",
+        "la-baja-modifica-usuarios-en-la-base-bajo-condiciones-concretas",
+        "la-reactivacion-devuelve-el-acceso-a-todos-los-usuarios-inactivos"
       ]
     },
     {
@@ -20,7 +23,9 @@
       "commit": "1755ab4fa3a50cac5669cdff4826131979a15def",
       "blob": "96c1ebb2188a40dd73b0a421539c65021a07924b",
       "sections": [
-        "el-admin-anterior-tiene-su-propia-alta"
+        "el-admin-anterior-tiene-su-propia-alta",
+        "la-clave-del-asesor-de-prueba-puede-ser-compartida-por-el-ambiente",
+        "la-api-modular-es-otra-entrada"
       ]
     },
     {
@@ -56,8 +61,129 @@
       "commit": "d21ab0ef275891025cd2a823552d5ec6c0cac283",
       "blob": "12691defe028726550d2c0d772b0d994c6a2b4fe",
       "sections": [
+        "los-hashes-de-alta-se-repiten-dentro-del-mismo-segundo",
         "la-api-modular-es-otra-entrada",
-        "la-baja-modifica-usuarios-en-la-base-bajo-condiciones-concretas"
+        "la-baja-modifica-usuarios-en-la-base-bajo-condiciones-concretas",
+        "la-reactivacion-devuelve-el-acceso-a-todos-los-usuarios-inactivos"
+      ]
+    },
+    {
+      "repo": "application",
+      "path": "app/Http/Controllers/Admin/AlliedAlliedBranchController.php",
+      "commit": "1755ab4fa3a50cac5669cdff4826131979a15def",
+      "blob": "be1146122a40887c03a1ddeba278f7c44c6308f7",
+      "sections": [
+        "los-hashes-de-alta-se-repiten-dentro-del-mismo-segundo",
+        "la-api-modular-es-otra-entrada"
+      ]
+    },
+    {
+      "repo": "application",
+      "path": "app/Services/Allied/TestAdvisorResult.php",
+      "commit": "1755ab4fa3a50cac5669cdff4826131979a15def",
+      "blob": "f58010323955a96ce04e4f4344b80fb30995f2f5",
+      "sections": [
+        "la-clave-del-asesor-de-prueba-puede-ser-compartida-por-el-ambiente"
+      ]
+    },
+    {
+      "repo": "application",
+      "path": "app/Services/Allied/EcommerceBranchCreator.php",
+      "commit": "1755ab4fa3a50cac5669cdff4826131979a15def",
+      "blob": "5a4d3c45042b2cb22dc45f6f5f6db7b0e4fca8be",
+      "sections": [
+        "los-hashes-de-alta-se-repiten-dentro-del-mismo-segundo"
+      ]
+    },
+    {
+      "repo": "application",
+      "path": "config/services.php",
+      "commit": "1755ab4fa3a50cac5669cdff4826131979a15def",
+      "blob": "5a0207b2f506e17cd61d3b32ff759121b697f923",
+      "sections": [
+        "la-clave-del-asesor-de-prueba-puede-ser-compartida-por-el-ambiente"
+      ]
+    },
+    {
+      "repo": "application",
+      "path": "database/migrations/2023_04_20_193419_create_allieds_table.php",
+      "commit": "1755ab4fa3a50cac5669cdff4826131979a15def",
+      "blob": "6392b6706d98a0f1f643ac899da1f7b169fd3ee5",
+      "sections": [
+        "los-hashes-de-alta-se-repiten-dentro-del-mismo-segundo"
+      ]
+    },
+    {
+      "repo": "application",
+      "path": "database/migrations/2023_07_17_161110_create_allied_branches_table.php",
+      "commit": "1755ab4fa3a50cac5669cdff4826131979a15def",
+      "blob": "b8f97d7dae5b5917e509535a6a595a61eb3e587f",
+      "sections": [
+        "los-hashes-de-alta-se-repiten-dentro-del-mismo-segundo"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/Partner/App/Repositories/SettingRepository.php",
+      "commit": "69920f580f62ad35f0a555e3b8b8f2c247d758aa",
+      "blob": "45ce37da6c77afdcae60dee355214f193eb5810d",
+      "sections": [
+        "la-api-modular-es-otra-entrada"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "app/Models/Setting.php",
+      "commit": "69920f580f62ad35f0a555e3b8b8f2c247d758aa",
+      "blob": "44688b5e1d308759db214fcccb8af625da720e1a",
+      "sections": [
+        "la-api-modular-es-otra-entrada"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/Partner/App/Repositories/AlliedBranchRepository.php",
+      "commit": "69920f580f62ad35f0a555e3b8b8f2c247d758aa",
+      "blob": "9414eb78dd39733b1695ecb0ffa0771c1ff5e0bc",
+      "sections": [
+        "los-hashes-de-alta-se-repiten-dentro-del-mismo-segundo"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/Onboarding/App/Repositories/AlliedBranchRepository.php",
+      "commit": "69920f580f62ad35f0a555e3b8b8f2c247d758aa",
+      "blob": "926350a02df7d97974807a788d2a98efd0c71f54",
+      "sections": [
+        "el-admin-anterior-tiene-su-propia-alta",
+        "los-hashes-de-alta-se-repiten-dentro-del-mismo-segundo"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/Loans/App/Repositories/AlliedRepository.php",
+      "commit": "69920f580f62ad35f0a555e3b8b8f2c247d758aa",
+      "blob": "25750ee683b117c9f1e4692b6434c8eef586177e",
+      "sections": [
+        "los-hashes-de-alta-se-repiten-dentro-del-mismo-segundo"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "database/migrations/2023_04_20_193419_create_allieds_table.php",
+      "commit": "69920f580f62ad35f0a555e3b8b8f2c247d758aa",
+      "blob": "6392b6706d98a0f1f643ac899da1f7b169fd3ee5",
+      "sections": [
+        "los-hashes-de-alta-se-repiten-dentro-del-mismo-segundo"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "database/migrations/2023_07_17_161110_create_allied_branches_table.php",
+      "commit": "69920f580f62ad35f0a555e3b8b8f2c247d758aa",
+      "blob": "b8f97d7dae5b5917e509535a6a595a61eb3e587f",
+      "sections": [
+        "los-hashes-de-alta-se-repiten-dentro-del-mismo-segundo"
       ]
     }
   ]

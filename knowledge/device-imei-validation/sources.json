@@ -1,25 +1,27 @@
 {
   "version": 1,
   "title": "Registro de IMEI y espera del titular",
-  "summary": "Registro por asesor, persistencia del equipo y polling del titular; límites de la señal is_disbursed.",
-  "reviewedAt": "2026-11-02T15:33:55+00:00",
+  "summary": "Paso del asesor a IMEI, registro y reintento, ruta de desembolso sin autenticación ni chequeo de estado, y polling del titular.",
+  "reviewedAt": "2026-11-03T16:53:26Z",
   "sources": [
     {
       "repo": "frontend-monorepo",
       "path": "apps/loan-request-wizard/app/routes/imei/imei.tsx",
-      "commit": "68ce7349c4e2a52c83fe4ee174a23ac71fe667cc",
+      "commit": "e0c370c299cf4a613c7282626a9977d635484616",
       "blob": "9a0a9c04cd7cd85e4f27882e57d8ad84ccf6cae9",
       "sections": [
-        "registro-del-equipo-desde-el-asesor"
+        "registro-del-equipo-desde-el-asesor",
+        "reintento-despues-de-un-desembolso-fallido"
       ]
     },
     {
       "repo": "frontend-monorepo",
       "path": "apps/loan-request-wizard/app/routes/imei/register-imei-action.server.ts",
-      "commit": "68ce7349c4e2a52c83fe4ee174a23ac71fe667cc",
+      "commit": "e0c370c299cf4a613c7282626a9977d635484616",
       "blob": "9cefcb5ed1916d61c78531ef748738bb5674a0f9",
       "sections": [
-        "registro-del-equipo-desde-el-asesor"
+        "registro-del-equipo-desde-el-asesor",
+        "reintento-despues-de-un-desembolso-fallido"
       ]
     },
     {
@@ -52,7 +54,7 @@
     {
       "repo": "legacy-backend",
       "path": "Modules/Loans/App/Http/Requests/Customer/AssociateImeiRequest.php",
-      "commit": "63123374a5d0875c908a83e3145f334b2ff913ee",
+      "commit": "69920f580f62ad35f0a555e3b8b8f2c247d758aa",
       "blob": "69e103ae0706f0bffc9a080841fb8941070fd961",
       "sections": [
         "registro-del-equipo-desde-el-asesor"
@@ -61,19 +63,22 @@
     {
       "repo": "legacy-backend",
       "path": "Modules/Partner/App/Services/AlliedProductService.php",
-      "commit": "d21ab0ef275891025cd2a823552d5ec6c0cac283",
+      "commit": "69920f580f62ad35f0a555e3b8b8f2c247d758aa",
       "blob": "d50c97bdfda295419183610c6c2339667b14d2a1",
       "sections": [
-        "registro-del-equipo-desde-el-asesor"
+        "registro-del-equipo-desde-el-asesor",
+        "reintento-despues-de-un-desembolso-fallido"
       ]
     },
     {
       "repo": "legacy-backend",
       "path": "Modules/Loans/App/Http/Controllers/Customer/DeviceController.php",
-      "commit": "63123374a5d0875c908a83e3145f334b2ff913ee",
+      "commit": "69920f580f62ad35f0a555e3b8b8f2c247d758aa",
       "blob": "d4aced89c87106c3302318f98228b8aa85ba406f",
       "sections": [
-        "registro-del-equipo-desde-el-asesor"
+        "registro-del-equipo-desde-el-asesor",
+        "reintento-despues-de-un-desembolso-fallido",
+        "ruta-de-desembolso-del-dispositivo"
       ]
     },
     {
@@ -97,19 +102,124 @@
     {
       "repo": "frontend-monorepo",
       "path": "apps/loan-request-wizard/app/modules/imei/infrastructure/device-imei.repository.ts",
-      "commit": "68ce7349c4e2a52c83fe4ee174a23ac71fe667cc",
+      "commit": "e0c370c299cf4a613c7282626a9977d635484616",
       "blob": "adcdcb53d434393d82bfa053cbcec6fe1d4ba713",
       "sections": [
-        "espera-del-titular-y-senal-de-finalizacion"
+        "espera-del-titular-y-senal-de-finalizacion",
+        "registro-del-equipo-desde-el-asesor"
       ]
     },
     {
       "repo": "legacy-backend",
       "path": "Modules/Loans/App/Http/Controllers/Customer/AdvisorStatusController.php",
-      "commit": "63123374a5d0875c908a83e3145f334b2ff913ee",
+      "commit": "69920f580f62ad35f0a555e3b8b8f2c247d758aa",
       "blob": "0e3f221b102215d067a4cf151bcb91aec0f5aefd",
       "sections": [
-        "espera-del-titular-y-senal-de-finalizacion"
+        "espera-del-titular-y-senal-de-finalizacion",
+        "paso-del-asesor-al-formulario-de-imei"
+      ]
+    },
+    {
+      "repo": "frontend-monorepo",
+      "path": "apps/loan-request-wizard/app/routes/loan-continue.tsx",
+      "commit": "e0c370c299cf4a613c7282626a9977d635484616",
+      "blob": "53b311bbe2d906de909570c693c8ca543e7a5887",
+      "sections": [
+        "paso-del-asesor-al-formulario-de-imei"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/Loans/App/Services/NotificationService.php",
+      "commit": "69920f580f62ad35f0a555e3b8b8f2c247d758aa",
+      "blob": "f297653ca3d83f6ac8326a587bd33b4a618ea970",
+      "sections": [
+        "paso-del-asesor-al-formulario-de-imei",
+        "registro-del-equipo-desde-el-asesor"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/Loans/App/Http/Controllers/Customer/ValidateOtpPromissoryNoteController.php",
+      "commit": "69920f580f62ad35f0a555e3b8b8f2c247d758aa",
+      "blob": "4d4c0e353191281a6a79426b504dd72fe4cd9420",
+      "sections": [
+        "paso-del-asesor-al-formulario-de-imei",
+        "ruta-de-desembolso-del-dispositivo"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/Loans/App/Services/LoanAuthorizationService.php",
+      "commit": "69920f580f62ad35f0a555e3b8b8f2c247d758aa",
+      "blob": "dd7b9e624d08d12802e4c80893a12d6650ecf6f1",
+      "sections": [
+        "paso-del-asesor-al-formulario-de-imei",
+        "ruta-de-desembolso-del-dispositivo"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/Loans/routes/api.php",
+      "commit": "69920f580f62ad35f0a555e3b8b8f2c247d758aa",
+      "blob": "6f4a52fc5ded27a1b21ac9c7c870cfa91a50f030",
+      "sections": [
+        "ruta-de-desembolso-del-dispositivo",
+        "paso-del-asesor-al-formulario-de-imei"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/Loans/App/Providers/RouteServiceProvider.php",
+      "commit": "69920f580f62ad35f0a555e3b8b8f2c247d758aa",
+      "blob": "7155d23d617a2653ecf8d7b6813858c3e4b0f6ee",
+      "sections": [
+        "ruta-de-desembolso-del-dispositivo"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "app/Http/Kernel.php",
+      "commit": "69920f580f62ad35f0a555e3b8b8f2c247d758aa",
+      "blob": "e59fdd5fa47411673a3e06ad8bd6edd63a1fbd3a",
+      "sections": [
+        "ruta-de-desembolso-del-dispositivo"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "app/Http/Middleware/RedirectIdValidationIfDesktop.php",
+      "commit": "69920f580f62ad35f0a555e3b8b8f2c247d758aa",
+      "blob": "4d77c3e9b697026cb1e8656097dc1a0f33351410",
+      "sections": [
+        "ruta-de-desembolso-del-dispositivo"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "app/Http/Middleware/ValidateAuthorizedStatus.php",
+      "commit": "69920f580f62ad35f0a555e3b8b8f2c247d758aa",
+      "blob": "d0941921c33e6c64133f317a012bc8b01e9711f6",
+      "sections": [
+        "ruta-de-desembolso-del-dispositivo"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/Loans/App/Services/CreditopXRequestHistoryService.php",
+      "commit": "69920f580f62ad35f0a555e3b8b8f2c247d758aa",
+      "blob": "23d19f284adb4502f8b25665bc9fff00f640937e",
+      "sections": [
+        "ruta-de-desembolso-del-dispositivo"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/Loans/App/Repositories/OtpRepository.php",
+      "commit": "69920f580f62ad35f0a555e3b8b8f2c247d758aa",
+      "blob": "e718eec6bf7f95ba89133a053acb4fecd1d30c92",
+      "sections": [
+        "ruta-de-desembolso-del-dispositivo"
       ]
     }
   ]

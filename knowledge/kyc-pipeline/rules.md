@@ -46,6 +46,14 @@ comercio (casi siempre `lenders`).
   corrección de identidad), al volver lo DESPIERTA con `…/{workflowId}/user-data` en vez de arrancar
   otro. Arrancar otro puede volver a comprar un buró.
 
+La corrida que arranca tras el OTP (`kyc-processing?start=1`) puede llegar antes del formulario
+personal. Si a la persona le faltan los datos que piden las centrales del grafo que van a correr
+(tipo y número de documento, nombre, apellido, fecha de expedición), la corrida no se suspende:
+TERMINA en `PENDING_USER_DATA` con el formulario personal y razón `MISSING_DATA`, sin consultar
+ninguna central (`workflow.go`, `missingUserFields`). El wizard manda al formulario personal sin
+`resume=1`, y al guardarlo arranca una corrida NUEVA (`kycFlagAfterSave` → `start`). Sólo la razón
+`IDENTITY_MISMATCH` lleva `resume=1` y despierta la corrida suspendida.
+
 `kyc-processing` está registrada para todos los comercios; a uno que no va por el pipeline lo
 devuelve a su destino.
 
@@ -60,10 +68,25 @@ algunos comercios (`PULLMAN`, `DFS`). Sin grafo para ese par, la corrida falla: 
 
 El grafo `STANDARD` que los tests del servicio fijan como el de producción: AgilData; con datos →
 Experian; sin datos o con error → Mareigua; con datos → Experian; sin datos o con error → TusDatos →
-compuerta laboral (si la persona no declaró empleo e ingreso, la corrida espera ese formulario) →
-Experian. Un error técnico sigue la misma arista que «sin datos». La migración 000002 sembró otro
-orden, con la compuerta laboral antes de TusDatos, así que una base recién migrada (local, por
-ejemplo) puede tener ése. Lo vigente es la fila de cada base, no la migración.
+compuerta laboral → Experian. Un error técnico sigue la misma arista que «sin datos». La migración
+000002 sembró otro orden, con la compuerta laboral antes de TusDatos, así que una base recién migrada
+(local, por ejemplo) puede tener ése. Lo vigente es la fila de cada base, no la migración.
+
+La compuerta laboral no mira sólo si la persona declaró empleo e ingreso: le pregunta al backend
+`POST /api/v2/onboarding/employment-requirement/{ur}` (`ResolveEmploymentRequirementService`), que
+repite lo que v1 hacía antes de pedir el formulario. Primero deriva los campos laborales del resumen
+del buró (AgilData/Mareigua); si siguen faltando y el comercio es corbeta (`corbeta_allieds`) o uno de
+`KycParityConstants::DEFAULT_EMPLOYMENT_ALLIED_IDS`, escribe el empleo por defecto (1,5 M, «Empleado»,
+continuidad 3); y si el comercio tiene `collect_employment_info` apagado no lo exige aunque falte. Es
+una lectura que escribe: cada llamada deriva de nuevo los campos del buró. Si la lectura de esa
+bandera falla, la trata como encendida; cualquier otro error responde `OBV25003` (500) y la corrida
+falla en la compuerta.
+
+Si el formulario hace falta, la corrida publica `PENDING_USER_DATA` con el formulario laboral y razón
+`MISSING_DATA` y queda suspendida, sin terminar. La señal del wizard sólo la hace volver a preguntar
+al backend; si el backend sigue sin el dato, sigue esperando dentro del mismo plazo. El plazo es de
+2 horas (`defaultUserDataTimeout`, ajustable con `pipeline.user_data_timeout`); vencido, la corrida
+termina `EXPIRED`.
 
 Al resolver el recorrido llama `POST /api/v2/onboarding/kyc-completion/{ur}`, que aplica lo que v1
 hacía dentro del guardado de datos personales: la firma de términos (si la persona ya no es temporal)
@@ -102,3 +125,11 @@ cada 10 s, durante 2 minutos como máximo. Un error de red pasajero no corta la 
   dato reciente, saltaría el nodo y no volvería a juzgar la identidad;
 - `FAILED`, `CANCELED`, `TERMINATED`, o 2 minutos sin desenlace: «No pudimos verificar tu
   información», con reintento.
+
+Esa navegación es la única que ata el listado al desenlace. En `legacy-backend` el único que lee
+`kyc_pipeline_allieds` es `ResolveKycFlowService`, y ni el listado de entidades
+(`GET /api/onboarding/loan-application/lenders/{ur}`, `ListLenderController`) ni la solicitud
+consultan el estado de la corrida ni si la cuenta sigue temporal. Si una solicitud de un comercio en
+el pipeline llega al listado sin una corrida `COMPLETED` (por ejemplo, mientras la corrida espera la
+corrección de identidad), el backend arma el listado igual, con la cuenta todavía como
+`TEMPORAL USER`.
