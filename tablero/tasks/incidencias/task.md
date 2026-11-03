@@ -208,12 +208,15 @@ Salvo donde se dice «corrido», salen de LEER el código: falta reproducirlos.
   los movidos hasta agosto no; el comentario de `RefinanceCredit::preview` («NO entran», del 2026-08-31) quedó viejo.
   Borrador 11. Falta saber qué cambió en septiembre.
 - [ ] Decidir si la regla `NonOverlappingCollectionChargeRange` se usa: existe, nada la invoca, y los tramos
-  de cobranza no tienen pantalla, así que dos tramos traslapados se cobrarían los dos.
+  de cobranza no tienen pantalla, así que dos tramos traslapados se cobrarían los dos. **Medido en prod (2026-11-03): hoy no
+  hay traslapes** en `creditop_x_lender_collection_charges` (380 tramos de 95 entidades). Queda latente.
 - [ ] Revisar que la refinanciación calcula la primera fecha con lógica mensual aun en créditos semanales o
   quincenales. Termina con la decisión de si debe usar el calendario de cortes de la entidad.
 - [ ] Revisar los avisos de CreditopX que quedan pendientes: ya no hay tarea programada que los reintente,
   y sólo salen si otra petición toca a la misma persona o alguien llama la ruta interna. Termina con la
-  decisión de quién los recupera (Entitlement por Temporal, según su repo) y la guía actualizada.
+  decisión de quién los recupera (Entitlement por Temporal, según su repo) y la guía actualizada. **Medido en prod
+  (2026-11-03): hoy no quedan colgados.** Los 11.973 eventos de `creditop_x_event_outbox` (desde el 2026-10-02) están
+  entregados, 0 pendientes y 0 en cuarentena; el máximo de intentos es 13, así que algo los reintenta. Falta saber qué.
 - [ ] Sacar del front la llamada a las rutas de cambio de celular de la firma, que se revirtieron del
   backend junto con el auto-onboarding de ecommerce: hoy cada carga de la pantalla del código pide una ruta
   que no existe (la pantalla lo tolera y no ofrece el cambio).
