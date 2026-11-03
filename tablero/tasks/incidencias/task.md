@@ -217,9 +217,10 @@ Salvo donde se dice «corrido», salen de LEER el código: falta reproducirlos.
   decisión de quién los recupera (Entitlement por Temporal, según su repo) y la guía actualizada. **Medido en prod
   (2026-11-03): hoy no quedan colgados.** Los 11.973 eventos de `creditop_x_event_outbox` (desde el 2026-10-02) están
   entregados, 0 pendientes y 0 en cuarentena; el máximo de intentos es 13, así que algo los reintenta. Falta saber qué.
-- [ ] Sacar del front la llamada a las rutas de cambio de celular de la firma, que se revirtieron del
-  backend junto con el auto-onboarding de ecommerce: hoy cada carga de la pantalla del código pide una ruta
-  que no existe (la pantalla lo tolera y no ofrece el cambio).
+- [x] ~~Sacar del front la llamada a las rutas de cambio de celular de la firma, que se revirtieron del
+  backend~~ — descartado (2026-11-03): el revert se revirtió el mismo 2026-10-07 (`57283ffa4`); `phone-change` y
+  `change-phone` están en `main` de legacy-backend y en el tag `v0.6.41`, y en local la ruta que llama el front
+  contesta 200.
 
 ### Baja — documentación y comentarios que dicen lo contrario del código
 
