@@ -36,24 +36,19 @@ sólo de su comercio. El Administrador sigue viendo a cualquier cliente.
 
 ## Dónde se toca
 
-`legacy-application`, contra `origin/main` 1755ab4f:
+`legacy-application`, rama `feat/perfil-de-riesgo-por-comercio` (commit 1050eddb) sobre `main`:
 
-- `routes/admin.php` ~l. 185: `validacion-usuario` con `->middleware('can:view user validation module')`.
-  ~l. 165: `centrales-de-riesgo/datacredito` (`ExperianController`).
-- `app/Http/Requests/Admin/RiskCentral/ExperianRequest.php` ~l. 19: `authorize()` exige
-  `view risk centrals module` (antes de #170 era `true`).
-- `app/Http/Controllers/Admin/ProfilingReviewController.php` ~l. 243 `userValidation`: busca el
-  usuario por cédula SIN filtro de comercio, carga `datacredito`, `agildata`, `mareigua`, `tusDatos`, y
-  deja rastro en `logs` (quién consulta, qué cédula). Acá va el recorte por comercio.
-- `resources/js/pages/shared/user-profiling/Index.vue` l. 102: `canViewUserValidation` sale de
-  `user.allPermissionsNames` en el CLIENTE; l. 107, 247, 368: la columna «Perfil» y el ojo. Tiene que
-  pasar a un booleano que mande el servidor con la regla nueva.
-- `app/Http/Controllers/Admin/AlliedController.php` ~l. 197-214: los campos que guarda «Editar
-  comercio» (`only([...])`); `resources/js/components/allieds/AlliedInfoEdit.vue` ~l. 384: los
-  interruptores del comercio. `app/Models/Allied.php`: `$casts` y `$fillable` (también en
-  `legacy-backend`, que comparte la tabla).
-- `database/migrations/2026_09_17_120000_grant_user_validation_permission_to_administrator.php`: el
-  molde para la migración nueva (por nombre, invalida la caché de Spatie).
+- `app/Policies/RiskProfilePolicy.php` (nuevo): `canViewClient` (Administrador ve todo; el resto, sólo
+  clientes con solicitudes en sus comercios, vía `UserRequestPolicy::alliedIdsOf`) y `seesEveryClient`.
+- `app/Http/Controllers/Admin/ProfilingReviewController.php` `userValidation`: 403 antes de armar la
+  respuesta, historial por comercio recortado, `is_same_allied` con `multiple_allieds`,
+  `can_query_datacredito`.
+- `resources/js/pages/admin/profiling-review/user-validation/Index.vue`: «Ver datacredito» sólo con
+  `userData.can_query_datacredito`.
+- `routes/admin.php` ~l. 180: sólo el comentario; la ruta sigue con `can:view user validation module`.
+- Sin tocar, como en `main`: `shared/user-profiling/Index.vue` (el ojo lee `allPermissionsNames`),
+  `UserProfilingController`, `AuthServiceProvider`, el menú (`navigation/vertical/configuration.js`:
+  «Validar usuario» también se muestra con el permiso).
 - Roles por número de perfil: 6 Superadmin comercio, 7 Admin comercio
   ([admin-panel](knowledge:admin-panel)).
 
@@ -69,26 +64,27 @@ sólo de su comercio. El Administrador sigue viendo a cualquier cliente.
 
 ## Lo que se evaluó y NO se eligió
 
-Dar el permiso a los roles sin tocar el controlador: es una migración de una línea, pero devuelve a
-483 + 251 usuarios de prod (medido el 2026-09-17) los datos de buró de cualquier cédula, que es
-exactamente lo que cerró #170.
+Dar el permiso sin tocar el controlador: el usuario de comercio vería el perfil de cualquier cédula,
+que es exactamente lo que cerró #170. El recorte por cliente es indispensable.
 
-Dar `view user validation module` a los roles 6 y 7: el permiso de un rol vale para TODOS los
-comercios, y no hay forma de decir «sólo en estos». Habría que filtrar igual en el código, así que el
-permiso del rol no aporta nada y sí deja abierto todo lo que mire ese permiso sin el recorte (el menú,
-cualquier ruta nueva).
+Columna `allieds.allow_risk_profile_view` con interruptor en «Editar comercio» (primera versión, #365):
+se quitó el interruptor porque Oscar quería algo simple por base de datos, y luego la columna porque
+`allieds` ya tiene demasiados flags.
 
-Dar el permiso usuario por usuario (`model_has_permissions`): sirve para «algunos comercios», pero se
-asigna a mano, los usuarios nuevos del comercio no lo heredan y quitarlo a un comercio es buscar
-usuario por usuario. Además no recorta por comercio.
+Lista de comercios en el setting `allied_ids_with_risk_profile_view` con una regla propia
+(`viewRiskProfile`) en la ruta: Oscar pidió que, si se usa un permiso, vaya igual que el resto del admin.
+Con el permiso por usuario ya decidiendo quién lo ve, la lista sólo agregaba un segundo paso.
 
-Reusar `allieds.show_profiling`: el nombre engaña, es «Priorizar orden comercio» (ordena el listado
-de entidades por puntaje, `ListLenderController` ~l. 183, y muestra el porcentaje en el listado). Está
-prendido en 3 de 384 comercios en prod; reusarlo cambiaría el listado de esos o ataría dos cosas
-distintas al mismo interruptor.
+Dar `view user validation module` al ROL (6 y 7): vale para los administradores de todos los
+comercios; no permite elegir comercios.
+
+Un permiso nuevo y propio para comercios (p. ej. `view allied risk profile`), para que no les aparezca
+«Validar usuario» en el menú: se propuso y no se eligió; el buscador queda protegido por el mismo recorte.
+
+Reusar `allieds.show_profiling`: es «Priorizar orden comercio» (orden del listado de entidades).
 
 Usar la pestaña «Perfilamiento» del detalle de solicitud (`UserRequestPolicy::viewProfiling`,
-CRED-350): es otra pantalla, ligada a la aprobación manual por entidad; no es lo que se pidió.
+CRED-350): es otra pantalla, ligada a la aprobación manual por entidad.
 
 ## Lo que NO entra
 
@@ -97,21 +93,44 @@ CRED-350): es otra pantalla, ligada a la aprobación manual por entidad; no es l
 
 ## Cómo se comprueba — y el MATERIAL para volver a hacerlo
 
-Qué rol tiene cada permiso (dev/qa/staging comparten base):
+Verificado en local el 2026-11-03 sobre 1050eddb. Falta dev.
 
-```sql dev
-SELECT p.name, r.name AS rol FROM permissions p
-LEFT JOIN role_has_permissions rp ON rp.permission_id = p.id
-LEFT JOIN roles r ON r.id = rp.role_id
-WHERE p.name IN ('view user validation module', 'view risk centrals module')
+**Dar el permiso** a los Admin comercio de un comercio (para incluir a los Superadmin:
+`r.name IN ('Admin comercio', 'Superadmin comercio')` y
+`(u.allied_id = 94 OR JSON_CONTAINS(COALESCE(u.multiple_allieds, '[]'), '94'))`):
+
+```text
+INSERT IGNORE INTO model_has_permissions (permission_id, model_type, model_id)
+SELECT p.id, 'App\\Models\\User', u.id
+FROM users u
+JOIN model_has_roles mr ON mr.model_id = u.id AND mr.model_type = 'App\\Models\\User'
+JOIN roles r ON r.id = mr.role_id
+JOIN permissions p ON p.name = 'view user validation module' AND p.guard_name = 'web'
+WHERE r.name = 'Admin comercio' AND u.status = 1 AND u.allied_id = 94;
 ```
 
-Si alguien sigue con 403 tras migrar: caché de permisos de Spatie (`php artisan permission:cache-reset`
-o reiniciar el servicio).
+A un solo usuario: `SELECT p.id, 'App\\Models\\User', 12345 FROM permissions p WHERE p.name = 'view user validation module' AND p.guard_name = 'web'`.
 
-Prueba: admin de staging con un Admin comercio del comercio 94 → *Perfilamiento Usuarios* → ojo de un
-cliente de su listado (ve el perfil) → `/validacion-usuario?document_number=<cédula de otro comercio>`
-(403) → `/centrales-de-riesgo/datacredito?q=<cédula>` (403, sin consulta nueva al buró).
+**Quitarlo:**
+
+```text
+DELETE mp FROM model_has_permissions mp
+JOIN permissions p ON p.id = mp.permission_id AND p.name = 'view user validation module'
+JOIN users u ON u.id = mp.model_id AND mp.model_type = 'App\\Models\\User'
+WHERE u.allied_id = 94 AND u.user_profile_id IN (6, 7);
+```
+
+Después de dar o quitar: `php artisan permission:cache-reset`. Antes de correrlo en prod, un `SELECT`
+con el mismo `WHERE` para ver a quién le cae.
+
+**Prueba:** entrar con un Admin comercio con el permiso → *Perfilamiento Usuarios* → el ojo de un
+cliente de su listado (ve el perfil, sin «Ver datacredito») → `/validacion-usuario?document_number=<cédula
+de otro comercio>` (403, la respuesta sin datos) → `/centrales-de-riesgo/datacredito?q=<cédula>` (403).
+Con un usuario sin el permiso: sin ojo y 403.
+
+**En local** hay cinco usuarios de prueba (sólo en la base de Docker), anotados en los artifacts de esta
+tarea. Los clientes con historial en varios comercios no se descifran con la llave de la copia
+(`The MAC is invalid`), así que ese recorte no se ve en local.
 
 ## Referencias
 
