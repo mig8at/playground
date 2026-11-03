@@ -197,7 +197,10 @@ Salvo donde se dice «corrido», salen de LEER el código: falta reproducirlos.
   «No pudimos iniciar tu pago. Intenta de nuevo.», que invita a reintentar algo que nunca va a funcionar.
 - [ ] Revisar la elección de credencial de Deceval: crear y firmar el pagaré eligen la credencial cada uno
   por su cuenta y al azar (`inRandomOrder`) cuando califican varias, así que la firma puede usar otra que la
-  que creó el pagaré. Termina sabiendo si Deceval lo rechaza y cuántos comercios tienen más de una.
+  que creó el pagaré. Termina sabiendo si Deceval lo rechaza y cuántos comercios tienen más de una. **Medido en prod
+  (2026-11-03): hoy no pasa.** Hay 5 credenciales de Deceval, ninguna repetida por dueño: comercios 24, 189 y 346,
+  entidades 24 y 181, ninguna de sucursal; cada solicitud califica para una sola. Queda latente (una segunda
+  credencial lo activa); no va al borrador.
 - [ ] Corregir el resumen de una refinanciación, que cuenta dos veces los gastos de cobranza (como concepto
   propio y dentro del descuadre, porque el total ya los incluye). Lo que se escribe en el crédito sale bien;
   lo que se ve en la simulación y en la bitácora, no.
