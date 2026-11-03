@@ -30,10 +30,10 @@ Salvo donde se dice «corrido», salen de LEER el código: falta reproducirlos.
   pagar una cuota inicial mayor que la compra y el backend la cobraba; la solicitud recién se frenaba al firmar.
 - [ ] Probar en `qa` el tope de la cuota inicial cuando se mergeen #1643 y #1169. Termina con una compra donde una
   cuota inicial mayor que el total se rechaza en la pantalla y, por API, con `AMOUNT_ABOVE_TOTAL`.
-- [ ] Reproducir que, en el sistema nuevo, los estados 8, 9 y 16 de ADO (documento alterado, documento
-  falso, persona en listas de control) terminan en error de servidor en vez de en un rechazo. Termina
-  cuando un caso con ADO dictado a cada estado muestra qué responde la consulta de estado y qué pantalla
-  ve el cliente. Origen: `match` sin `default` y `catch (\Exception)` que no atrapa `UnhandledMatchError`.
+- [x] ~~Reproducir que, en el sistema nuevo, los estados 8, 9 y 16 de ADO terminan en error de servidor~~ — descartado
+  corriendo (2026-11-03): `mapAdoState` tiene `default => 'unknown'` desde `3f7ee90ad` (2026-10-28), y en local
+  `check-status` contesta 200 «unknown», terminado y no validado, para los tres; el wizard lo trata como rechazo
+  (`completed && !validated`). application los atiende aparte (`[8, 9, 16]` en `ValidateIdentityController`).
 - [x] ~~Reproducir que fuera de la tienda se firma el pagaré sin la cuota inicial pagada~~ — descartado corriendo
   (2026-10-13): fuera de la tienda el asistente NUNCA manda a la pasarela, porque sólo va a la cuota inicial cuando el
   backend contesta «cuota inicial pendiente», y eso sólo pasa con orden de tienda. No hay pago que saltarse.
