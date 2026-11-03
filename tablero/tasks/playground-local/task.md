@@ -322,5 +322,7 @@ turno cueste un contexto entero; lo que sirvió de ella (que lo afirmado lo comp
   por país, el árbol de ciudades de form-service, la ciudad de cada sucursal contra el país de su comercio, la fianza
   y el plan de Credifamilia, las fórmulas del renting, el catálogo de firmas de Motai, editar un convenio que pisa la
   garantía de otros comercios, guardar una sucursal con una entidad sin convenio, Ábaco según `abaco_is_enabled` y su
-  salto de buró, y que las opciones del formulario de SmartPay coincidan con su política de puntaje. Termina cuando cada una corre con `make harness-suite` o queda descartada con su motivo.
+  salto de buró, que las opciones del formulario de SmartPay coincidan con su política de puntaje, la baja y la
+  reactivación de un comercio, la espera del asesor y del titular en IMEI, un desembolso IMEI fallido, la guarda
+  `ALLIED_DISABLED` del OTP v2 y la elección de camino del KYC (`OBV23000`/`OBV23001`/`OBV23003`). Termina cuando cada una corre con `make harness-suite` o queda descartada con su motivo.
 
