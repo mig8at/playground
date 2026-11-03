@@ -30,10 +30,9 @@ jira_title: "Perfil de riesgo visible para Superadmin y Admin comercio"
 
 ## Objetivo
 
-Los usuarios Superadmin comercio (perfil 6) y Admin comercio (perfil 7) **de los comercios que lo
-tengan habilitado** vuelven a ver, desde *Perfilamiento Usuarios*, el perfil de riesgo de los
-clientes **de su comercio**, y sólo de su comercio. En los demás comercios nada cambia. Lo que cerró #170 para ellos (ver datos de buró de cualquier cédula y disparar consultas a
-Experian) sigue cerrado salvo que producto decida otra cosa.
+Los Superadmin comercio y Admin comercio a los que se les dé el permiso `view user validation
+module` ven, desde *Perfilamiento Usuarios*, el perfil de riesgo de los clientes **de su comercio**, y
+sólo de su comercio. El Administrador sigue viendo a cualquier cliente.
 
 ## Dónde se toca
 
@@ -60,24 +59,13 @@ Experian) sigue cerrado salvo que producto decida otra cosa.
 
 ## Cómo se ataca
 
-Se habilita por COMERCIO, no por rol: un interruptor en `allieds` y una regla en el servidor que lo
-lee. El permiso de Spatie del rol no se toca.
-
-1. **Columna en `allieds`** (booleana, `false` por defecto). Sin pantalla: se habilita con un
-   `UPDATE` por comercio (decisión de Oscar).
-2. **Regla única** (Gate o policy `viewRiskProfile(User $viewer, ?User $client)`):
-   - Administrador: como hoy, con `view user validation module`.
-   - Superadmin o Admin comercio: algún comercio suyo (`allied_id` o `multiple_allieds`) con el
-     interruptor prendido y, si hay cliente, que tenga solicitudes en ESE comercio.
-   - Cualquier otro: no.
-3. **Usarla en los tres lugares**: el middleware de `validacion-usuario` (`can:viewRiskProfile`), el
-   recorte dentro de `userValidation` y el booleano que dibuja el ojo, que deja de leerse de los
-   permisos del cliente.
-4. `view risk centrals module` (consulta manual a Experian, que se factura) queda sólo para
-   Administrador, salvo que producto pida lo contrario.
-
-Se entrega por partes: la columna con su interruptor puede ir primero (no cambia nada mientras esté
-apagada), y la regla después.
+1. **El permiso de siempre** en la ruta y en el ojo (`view user validation module`), como el resto del
+   admin; se habilita usuario por usuario con un `INSERT` en `model_has_permissions`.
+2. **Recorte en `userValidation`** (`RiskProfilePolicy::canViewClient`): quien no es Administrador sólo
+   ve clientes con solicitudes en sus comercios; si no, 403 antes de armar la respuesta. El historial
+   por comercio también se recorta.
+3. **«Ver datacredito»** sólo con `view risk centrals module`: la consulta manual sigue siendo del
+   Administrador.
 
 ## Lo que se evaluó y NO se eligió
 
