@@ -15,16 +15,17 @@ jira_title: "Perfil de riesgo visible para Superadmin y Admin comercio"
 - [x] Versión final: permiso `view user validation module` + recorte a los clientes del comercio, sin setting
   ni migración — 1050eddb, en [#366](https://github.com/Creditop-SAS/legacy-application/pull/366) (main) y
   [#367](https://github.com/Creditop-SAS/legacy-application/pull/367) (develop).
-- [ ] Mergear #367 y validar en dev: dar el permiso a un Admin comercio del 37, comprobar que ve sólo a su
-  cliente y revocarlo; termina con la medición en la pila.
+- [x] Mergear #367 — 6f10efbe, desplegado en dev; el recorte se validó en dev con usuarios reales (sólo lectura).
+- [ ] Probar en dev de punta a punta con el permiso dado a un Admin comercio del 37 (ojo + su cliente 200,
+  cliente ajeno 403) y revocarlo; termina con la medición en la pila.
+  Depende de: Miguel — dar el permiso o autorizarlo en la sesión.
 - [ ] Mergear #366 a `main` y taguear; termina con el despliegue en prod.
   Depende de: Oscar — aprobar #366.
 - [ ] Dar el permiso a los Admin y Superadmin comercio de los comercios que diga Oscar, en cada ambiente;
   termina con la lista en la pila.
   Depende de: Oscar — qué comercios.
-- [ ] Quitar de la base compartida la columna `allieds.allow_risk_profile_view` que dejó #365, cuando #367
-  esté en dev; termina con la columna fuera.
-  Depende de: Miguel — permiso para escribir en la base compartida.
+- [x] Quitar de la base compartida la columna `allieds.allow_risk_profile_view` y su registro en `migrations`
+  — 2026-11-03, después del despliegue de #367.
 - [ ] Cerrar `legacy-application#171`: su contenido ya está en `main` por el merge de `develop`
   (#170); termina con el PR cerrado y una nota de por qué.
 
