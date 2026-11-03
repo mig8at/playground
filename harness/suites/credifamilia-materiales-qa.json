@@ -1,7 +1,10 @@
 {
-  "nombre": "Credifamilia Materiales (216, rt=4) · el ciclo completo sobre originación delegada: slug propio, fianza FNG anticipada con 4x1000, firma y radicación",
-  "nota": "⚠ La base local no trae a Materiales: el 216 se crea clonando la configuración local del 24 con los datos propios de Materiales de prod (nombre, documento CC, línea 12–60 meses, 100.000–10.000.000). Después se corren las siembras de FNG y del perfil, y la migración del slug propio (legacy-backend #1831). El mock de preaprobación acepta `credifamilia-materiales` como alias de `credifamilia`, igual que pre-approvals-service en develop. Corré en serie, como la de Salud (F-166).",
-  "requiere": ["close", "lambda"],
+  "nombre": "Credifamilia Materiales (216, rt=4) en qa · listado, estado 11 y radicación sobre originación delegada",
+  "nota": "Para qa. Corre en la sucursal de prueba de Amoblando Pullman (#036610aa): Amoblando Pullman es el único comercio con credencial del 216 en la base compartida, y en Creditop Calle 127 el listado sale vacío. ⚠ La radicación da 422 por falta de las imágenes de la cédula en los clientes sintéticos de qa (ya pasaba antes de CORE-918). Corré en serie (F-166).",
+  "requiere": [
+    "close",
+    "lambda"
+  ],
   "porDefecto": {
     "comercio": "#036610aa",
     "lender": 216,
