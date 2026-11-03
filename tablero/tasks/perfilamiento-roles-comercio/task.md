@@ -147,41 +147,40 @@ cliente de su listado (ve el perfil) → `/validacion-usuario?document_number=<c
 ## Tarea (publicable)
 
 ## En una línea
-En los comercios que lo tengan habilitado, los roles Superadmin comercio y Admin comercio pueden ver el perfil de riesgo de los clientes de su comercio desde Perfilamiento Usuarios.
+En los comercios habilitados, los roles Superadmin comercio y Admin comercio pueden ver el perfil de riesgo de los clientes de su comercio desde Perfilamiento Usuarios.
 
 ## Por qué
-En septiembre se restringió el perfil de riesgo del cliente sólo al administrador de CreditOp, porque cualquier usuario de comercio podía ver los datos de buró de cualquier cliente. Algunos comercios necesitan que sus administradores vuelvan a verlo para sus propios clientes, pero no todos: debe poder activarse comercio por comercio.
+En septiembre se restringió el perfil de riesgo del cliente sólo al administrador de CreditOp, porque cualquier usuario de comercio podía ver los datos de buró de cualquier cliente. Algunos comercios necesitan que sus administradores vuelvan a verlo para sus propios clientes, pero no todos: debe poder habilitarse comercio por comercio.
 
 ## Qué cambia
-- En la edición del comercio aparece un interruptor nuevo para habilitar el perfil de riesgo a sus administradores. Viene apagado y sólo lo puede cambiar el administrador de CreditOp.
-- En los comercios con el interruptor prendido, Superadmin comercio y Admin comercio vuelven a ver en Perfilamiento Usuarios la columna Perfil y el ojo, y pueden abrir el perfil de riesgo de los clientes de su comercio.
-- En los comercios con el interruptor apagado no cambia nada.
+- Cada comercio tiene un indicador nuevo, apagado por defecto, que se habilita directamente en la base de datos. No hay pantalla para cambiarlo.
+- En los comercios habilitados, Superadmin comercio y Admin comercio ven en Perfilamiento Usuarios la columna Perfil y el ojo, y pueden abrir el perfil de riesgo de los clientes de su comercio.
+- En los demás comercios no cambia nada.
 
 ## Alcance
-No pueden ver clientes de otros comercios. No se habilita para otros roles del comercio. La consulta manual a Datacrédito sigue sólo para el administrador de CreditOp, salvo que producto decida lo contrario.
+No pueden ver clientes de otros comercios. No se habilita para otros roles del comercio. La consulta manual a Datacrédito sigue sólo para el administrador de CreditOp.
 
 ## Dónde probar
-Staging, comercio 94 con el interruptor prendido y otro comercio con el interruptor apagado, cada uno con un usuario Admin comercio y uno Superadmin comercio.
+Staging, comercio 94 habilitado y otro comercio sin habilitar, con un usuario Admin comercio y uno Superadmin comercio.
 
 ## Cómo validar
-1. Como administrador de CreditOp, prender el interruptor en el comercio 94 y dejarlo apagado en el otro.
+1. Habilitar el comercio 94 en la base de datos.
 2. Entrar con un Admin comercio del comercio 94 y abrir Perfilamiento Usuarios: se ven la columna Perfil y el ojo.
-3. Abrir el ojo de un cliente del listado: se ve su perfil de riesgo.
+3. Abrir el ojo de un cliente del listado: se ve su perfil de riesgo, sin el botón de consultar Datacrédito.
 4. Abrir la validación de usuario con la cédula de un cliente de otro comercio: acceso denegado y la respuesta no trae datos del cliente.
-5. Abrir la consulta de Datacrédito: acceso denegado y ninguna consulta nueva al buró.
+5. Abrir la consulta de Datacrédito: acceso denegado.
 6. Repetir con un Superadmin comercio del comercio 94.
-7. Entrar con un Admin comercio del comercio con el interruptor apagado: no se ven la columna Perfil ni el ojo, y la validación de usuario responde acceso denegado.
-8. Apagar el interruptor en el comercio 94: sus administradores dejan de ver el perfil.
+7. Entrar con un Admin comercio del comercio sin habilitar, o con Mesa de servicio: no se ven la columna Perfil ni el ojo, y la validación de usuario responde acceso denegado.
+8. Deshabilitar el comercio 94: sus administradores dejan de ver el perfil.
 
 ## Cambios en datos
-Una migración que agrega el interruptor a los comercios, apagado en todos. Mergear no la aplica: hay que correrla en cada ambiente. Después, prender el interruptor en los comercios que producto indique.
+Una migración que agrega el indicador a los comercios, apagado en todos. Mergear no la aplica: hay que correrla en cada ambiente. Después, habilitar en la base de datos los comercios que se indiquen.
 
 ## Criterios de aceptación
-- Con el interruptor prendido, Superadmin comercio y Admin comercio ven el perfil de los clientes de su comercio.
-- Con el interruptor apagado, no lo ven.
+- Con el comercio habilitado, Superadmin comercio y Admin comercio ven el perfil de los clientes de su comercio.
+- Con el comercio sin habilitar, no lo ven.
 - Nunca ven el de clientes de otros comercios.
 - La consulta manual a Datacrédito sigue cerrada para ellos.
-- Sólo el administrador de CreditOp puede cambiar el interruptor.
 
 ## Dependencias / contraparte
-Producto: en qué comercios se habilita primero, si el perfil muestra el historial del cliente en otros comercios y si estos roles deben poder consultar Datacrédito.
+Oscar: la lista de comercios a habilitar.
