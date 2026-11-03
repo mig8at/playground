@@ -1,8 +1,8 @@
 {
   "version": 1,
   "title": "Identidad: coincidencia y adopción de nombres",
-  "summary": "Códigos de TusDatos, adopción de Ágil Data y Mareigua, y límites de la comparación de nombres.",
-  "reviewedAt": "2026-10-27T20:57:11+00:00",
+  "summary": "Códigos de TusDatos, adopción de Ágil Data y Mareigua, la cascada web y la móvil, kyc_name_checks, la reparación por lotes y los límites de la comparación de nombres.",
+  "reviewedAt": "2026-11-03T14:51:37Z",
   "sources": [
     {
       "repo": "legacy-backend",
@@ -11,7 +11,8 @@
       "blob": "b03fe5ab99e950f98e2bfe45a8ef1e83f373f941",
       "sections": [
         "tusdatos-distingue-ausencia-de-desacuerdo-para-cedula",
-        "un-no-match-de-nombres-no-rechaza-solo-la-cascada-sigue-a-tusdatos"
+        "un-no-match-de-nombres-no-rechaza-solo-la-cascada-sigue-a-tusdatos",
+        "el-motivo-registrado-no-dice-si-el-nombre-cambio"
       ]
     },
     {
@@ -20,7 +21,8 @@
       "commit": "47dd8bcb41c1130a1bfdf011844ae93b39336356",
       "blob": "91c759bda20dc696cb4bd7f9dc1177e9530218a6",
       "sections": [
-        "agil-data-y-mareigua-pueden-devolver-una-version-adoptada"
+        "agil-data-y-mareigua-pueden-devolver-una-version-adoptada",
+        "el-motivo-registrado-no-dice-si-el-nombre-cambio"
       ]
     },
     {
@@ -29,7 +31,8 @@
       "commit": "406bf8a28404f31524280acea1c0bb6b1cd29c05",
       "blob": "9624f333250c1677c4df35be1742fc28f0d6bd8d",
       "sections": [
-        "agil-data-y-mareigua-pueden-devolver-una-version-adoptada"
+        "agil-data-y-mareigua-pueden-devolver-una-version-adoptada",
+        "el-motivo-registrado-no-dice-si-el-nombre-cambio"
       ]
     },
     {
@@ -39,7 +42,8 @@
       "blob": "037fb448ad47cfbf234922f55a11f02c16110959",
       "sections": [
         "agil-data-y-mareigua-pueden-devolver-una-version-adoptada",
-        "la-tolerancia-no-certifica-identidad-ni-completa-todos-los-nombres"
+        "la-tolerancia-no-certifica-identidad-ni-completa-todos-los-nombres",
+        "el-motivo-registrado-no-dice-si-el-nombre-cambio"
       ]
     },
     {
@@ -52,12 +56,22 @@
       ]
     },
     {
+      "repo": "application",
+      "path": "app/Http/Controllers/Customer/TusDatosController.php",
+      "commit": "1755ab4fa3a50cac5669cdff4826131979a15def",
+      "blob": "9f903852e046e54feaec7c231080d6b43eacfe83",
+      "sections": [
+        "la-aplicacion-anterior-tiene-otro-camino-de-escritura"
+      ]
+    },
+    {
       "repo": "legacy-backend",
       "path": "Modules/Onboarding/App/Services/OnboardingService.php",
       "commit": "47dd8bcb41c1130a1bfdf011844ae93b39336356",
       "blob": "2b8146b5aa65d80b144d70c774b1d12cce4c9fa3",
       "sections": [
-        "un-no-match-de-nombres-no-rechaza-solo-la-cascada-sigue-a-tusdatos"
+        "un-no-match-de-nombres-no-rechaza-solo-la-cascada-sigue-a-tusdatos",
+        "el-registro-movil-corta-en-el-primer-veredicto"
       ]
     },
     {
@@ -66,7 +80,109 @@
       "commit": "47dd8bcb41c1130a1bfdf011844ae93b39336356",
       "blob": "e58b17f817f64e2058b8ba75299d0acca6194963",
       "sections": [
-        "un-no-match-de-nombres-no-rechaza-solo-la-cascada-sigue-a-tusdatos"
+        "el-motivo-registrado-no-dice-si-el-nombre-cambio"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/RiskV2/App/Services/ValidateUserPersonalInfoAgainstIdentityBurosService.php",
+      "commit": "69920f580f62ad35f0a555e3b8b8f2c247d758aa",
+      "blob": "dd38bfe04047d8b0e353bcb60684ae32cf9de92f",
+      "sections": [
+        "el-registro-movil-corta-en-el-primer-veredicto"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/RiskV2/App/Constants/ValidateUserPersonalInfoAgainstIdentityBurosServiceConstants.php",
+      "commit": "69920f580f62ad35f0a555e3b8b8f2c247d758aa",
+      "blob": "7a40d4010ff01eeaafa566160bb5cee9cba93872",
+      "sections": [
+        "el-registro-movil-corta-en-el-primer-veredicto"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/MobileOnboardingV1/App/Services/UpdateInfoService.php",
+      "commit": "69920f580f62ad35f0a555e3b8b8f2c247d758aa",
+      "blob": "5845034668ea8656ca3eb5d88781141f62272f64",
+      "sections": [
+        "el-registro-movil-corta-en-el-primer-veredicto"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/RiskV2/App/Services/StoreRiskCentralDataService.php",
+      "commit": "69920f580f62ad35f0a555e3b8b8f2c247d758aa",
+      "blob": "bbc75b207fc41fee3b68f910c72838b9493bdfba",
+      "sections": [
+        "riskv2-adopta-con-su-propia-copia-y-no-deja-registro"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/RiskV2/App/Services/CheckIdentityService.php",
+      "commit": "69920f580f62ad35f0a555e3b8b8f2c247d758aa",
+      "blob": "37fda6337cfd80b5c8815f601cc5b35567bafcab",
+      "sections": [
+        "riskv2-adopta-con-su-propia-copia-y-no-deja-registro"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/CommonsV1/App/Utils/NameUtils.php",
+      "commit": "69920f580f62ad35f0a555e3b8b8f2c247d758aa",
+      "blob": "ed05721754bbbce59babe195427c9d8da7640f55",
+      "sections": [
+        "la-tolerancia-no-certifica-identidad-ni-completa-todos-los-nombres",
+        "riskv2-adopta-con-su-propia-copia-y-no-deja-registro"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/RiskV2/App/Identity/RiskCentral/AgildataIdentityValidator.php",
+      "commit": "69920f580f62ad35f0a555e3b8b8f2c247d758aa",
+      "blob": "443ae32ba803bf171874f1db5589e886e4918b3c",
+      "sections": [
+        "riskv2-adopta-con-su-propia-copia-y-no-deja-registro"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/RiskV2/App/Identity/RiskCentral/MareiguaIdentityValidator.php",
+      "commit": "69920f580f62ad35f0a555e3b8b8f2c247d758aa",
+      "blob": "3fb58791058ea94dcfabda05fd87e5d59f5afc0e",
+      "sections": [
+        "riskv2-adopta-con-su-propia-copia-y-no-deja-registro"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/RiskV2/App/Identity/RiskCentral/TusDatosIdentityValidator.php",
+      "commit": "69920f580f62ad35f0a555e3b8b8f2c247d758aa",
+      "blob": "7884814877209d7a93af98635ca9aa0998733003",
+      "sections": [
+        "riskv2-adopta-con-su-propia-copia-y-no-deja-registro"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/Identity/App/Services/StoredNameRepairService.php",
+      "commit": "69920f580f62ad35f0a555e3b8b8f2c247d758aa",
+      "blob": "d8b51529fcb5cd0db2cae7ba64c5a2d62f83c01f",
+      "sections": [
+        "una-reparacion-por-lotes-reescribe-nombres-con-lo-guardado",
+        "el-motivo-registrado-no-dice-si-el-nombre-cambio"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "app/Console/Commands/RepairAdoptedNamesCommand.php",
+      "commit": "69920f580f62ad35f0a555e3b8b8f2c247d758aa",
+      "blob": "c1898ab66ed2ef82bfcca199db08392a74ce4fde",
+      "sections": [
+        "una-reparacion-por-lotes-reescribe-nombres-con-lo-guardado",
+        "el-motivo-registrado-no-dice-si-el-nombre-cambio"
       ]
     }
   ]

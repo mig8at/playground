@@ -1,34 +1,119 @@
 {
   "version": 1,
   "title": "País y documentos del flujo",
-  "summary": "Origen del país, documentos permitidos y diferencias entre API modular, monolito y selector; país activo frente a país con operación.",
-  "reviewedAt": "2026-10-27T20:57:11+00:00",
+  "summary": "Origen del país, documentos permitidos y diferencias entre API modular, monolito y selector; largo del celular, tipo de documento en el alta y validación de datos personales; país activo frente a país con operación.",
+  "reviewedAt": "2026-11-03T14:50:32Z",
   "sources": [
     {
       "repo": "legacy-backend",
       "path": "Modules/Loans/App/Http/Controllers/Customer/AlliedInfoController.php",
-      "commit": "d21ab0ef275891025cd2a823552d5ec6c0cac283",
+      "commit": "69920f580f62ad35f0a555e3b8b8f2c247d758aa",
       "blob": "abde65949fd147db25712b52345fb7e901d0dc2c",
+      "sections": [
+        "pais-del-comercio",
+        "largo-del-celular"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/CountryV1/App/Domain/CountryData.php",
+      "commit": "69920f580f62ad35f0a555e3b8b8f2c247d758aa",
+      "blob": "b3be52eb836d85f0418b1397551bffb78805e452",
       "sections": [
         "pais-del-comercio"
       ]
     },
     {
       "repo": "legacy-backend",
+      "path": "Modules/Onboarding/App/Rules/CellPhoneLengthForCountry.php",
+      "commit": "69920f580f62ad35f0a555e3b8b8f2c247d758aa",
+      "blob": "858988349e466a6edbafb58cdd9bc1819a259671",
+      "sections": [
+        "largo-del-celular"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/Onboarding/App/Http/Requests/CreateAndAuthUser.php",
+      "commit": "69920f580f62ad35f0a555e3b8b8f2c247d758aa",
+      "blob": "2c0e9688640b322a7a1026a35620212fecaa8672",
+      "sections": [
+        "largo-del-celular"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
       "path": "app/Services/DocumentTypesService.php",
-      "commit": "63123374a5d0875c908a83e3145f334b2ff913ee",
+      "commit": "69920f580f62ad35f0a555e3b8b8f2c247d758aa",
       "blob": "93d93cdfd539f898a4917d3da71ac794dfd7f2ee",
       "sections": [
-        "documentos-del-backend-modular"
+        "documentos-del-backend-modular",
+        "tipo-de-documento-en-el-alta",
+        "validacion-del-documento-en-datos-personales"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/Onboarding/App/Services/RegisterCellPhoneService.php",
+      "commit": "69920f580f62ad35f0a555e3b8b8f2c247d758aa",
+      "blob": "577217af200266a640f9bfe8d8b0b0fa695ce05c",
+      "sections": [
+        "tipo-de-documento-en-el-alta"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/Onboarding/App/Services/UserService.php",
+      "commit": "69920f580f62ad35f0a555e3b8b8f2c247d758aa",
+      "blob": "800233eb8f163caca142cd682f81f0076f0f37f2",
+      "sections": [
+        "tipo-de-documento-en-el-alta"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/UsersV1/App/Constants/ModuleConstants.php",
+      "commit": "69920f580f62ad35f0a555e3b8b8f2c247d758aa",
+      "blob": "2f2f61bfc75795392bd902520a3e1fcf34127a83",
+      "sections": [
+        "tipo-de-documento-en-el-alta"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/Onboarding/App/Http/Requests/PersonalInfoRequest.php",
+      "commit": "69920f580f62ad35f0a555e3b8b8f2c247d758aa",
+      "blob": "e403c4b841e24acd5fdea19ede280f83ac98c22a",
+      "sections": [
+        "validacion-del-documento-en-datos-personales"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/OnboardingV2/App/Http/Requests/StorePersonalInfoRequest.php",
+      "commit": "69920f580f62ad35f0a555e3b8b8f2c247d758aa",
+      "blob": "abb0b5625deb54d6ee1e3ecbdd80e36f556e5a14",
+      "sections": [
+        "validacion-del-documento-en-datos-personales"
+      ]
+    },
+    {
+      "repo": "application",
+      "path": "app/Http/Requests/Customer/Onboarding/PersonalInfoRequest.php",
+      "commit": "1755ab4fa3a50cac5669cdff4826131979a15def",
+      "blob": "05b9ab92688b872c9a22386820af98143cd706bc",
+      "sections": [
+        "validacion-del-documento-en-datos-personales"
       ]
     },
     {
       "repo": "application",
       "path": "app/Services/DocumentTypesService.php",
-      "commit": "fc74ac8bc1b364191f859bb6830e8d47c15bb882",
+      "commit": "1755ab4fa3a50cac5669cdff4826131979a15def",
       "blob": "a405baff204400c9cd2a28d763bc9974e5aa0862",
       "sections": [
-        "diferencias-del-monolito"
+        "diferencias-del-monolito",
+        "validacion-del-documento-en-datos-personales"
       ]
     },
     {
@@ -45,6 +130,51 @@
       "path": "app/Models/Country.php",
       "commit": "fc74ac8bc1b364191f859bb6830e8d47c15bb882",
       "blob": "51736b69d658a28a21538fd5fa3e4fe702aa8296",
+      "sections": [
+        "pais-activo-y-pais-con-operacion"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "app/Http/Requests/Admin/Allied/StoreRequest.php",
+      "commit": "69920f580f62ad35f0a555e3b8b8f2c247d758aa",
+      "blob": "c90d562529a3449f6e35bad1f84e4ddf213adf82",
+      "sections": [
+        "pais-activo-y-pais-con-operacion"
+      ]
+    },
+    {
+      "repo": "application",
+      "path": "app/Http/Requests/Admin/Allied/StoreRequest.php",
+      "commit": "1755ab4fa3a50cac5669cdff4826131979a15def",
+      "blob": "c4ee10d77adf19aea7efc7167e6f9888b70c12f3",
+      "sections": [
+        "pais-activo-y-pais-con-operacion"
+      ]
+    },
+    {
+      "repo": "application",
+      "path": "app/Http/Requests/Admin/Allied/UpdateRequest.php",
+      "commit": "1755ab4fa3a50cac5669cdff4826131979a15def",
+      "blob": "4257eb2d2036c701fbbf2d67ab9207b9228408e0",
+      "sections": [
+        "pais-activo-y-pais-con-operacion"
+      ]
+    },
+    {
+      "repo": "application",
+      "path": "app/Http/Requests/Admin/Lender/StoreRequest.php",
+      "commit": "1755ab4fa3a50cac5669cdff4826131979a15def",
+      "blob": "9f0facee8b1872db7cbbb600153d9806d8065edc",
+      "sections": [
+        "pais-activo-y-pais-con-operacion"
+      ]
+    },
+    {
+      "repo": "application",
+      "path": "app/Http/Requests/Admin/Lender/UpdateRequest.php",
+      "commit": "1755ab4fa3a50cac5669cdff4826131979a15def",
+      "blob": "17bf39593cf37df3e469dc07e1d9851efb992541",
       "sections": [
         "pais-activo-y-pais-con-operacion"
       ]

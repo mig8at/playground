@@ -2,7 +2,7 @@
   "version": 1,
   "title": "Esquema y respuestas de formularios dinámicos",
   "summary": "Form types, campos y vínculos, caché del esquema, cascada geográfica y reemplazo de respuestas en form-service.",
-  "reviewedAt": "2026-10-03T20:24:47Z",
+  "reviewedAt": "2026-11-03T14:50:19Z",
   "sources": [
     {
       "repo": "form-service",
@@ -83,7 +83,8 @@
       "blob": "b5ea2f9d387bc211938d805d1e8fa8262113762a",
       "sections": [
         "lectura-y-reconstruccion",
-        "persistencia-de-respuestas"
+        "persistencia-de-respuestas",
+        "lectura-de-respuestas"
       ]
     },
     {
@@ -110,7 +111,8 @@
       "commit": "cfd0f02ede473649498f47b87218fb9ab075bdb3",
       "blob": "74c85c160626fb196bef270dae5fec0af61af088",
       "sections": [
-        "persistencia-de-respuestas"
+        "persistencia-de-respuestas",
+        "alcance-del-reemplazo-y-cambio-de-titular"
       ]
     },
     {
@@ -128,7 +130,92 @@
       "commit": "cfd0f02ede473649498f47b87218fb9ab075bdb3",
       "blob": "59af3bc486749ac05537d05ca82595b188dcc005",
       "sections": [
-        "persistencia-de-respuestas"
+        "persistencia-de-respuestas",
+        "alcance-del-reemplazo-y-cambio-de-titular",
+        "lectores-en-los-monolitos"
+      ]
+    },
+    {
+      "repo": "form-service",
+      "path": "internal/core/usecases/dynamic_forms/get_responses/usecase.go",
+      "commit": "cfd0f02ede473649498f47b87218fb9ab075bdb3",
+      "blob": "0521d5ac22d2c6c0b45ac3e3e4b238327d129eb9",
+      "sections": [
+        "lectura-de-respuestas",
+        "alcance-del-reemplazo-y-cambio-de-titular"
+      ]
+    },
+    {
+      "repo": "form-service",
+      "path": "internal/infra/storage/s3/repositories/response_repository.go",
+      "commit": "cfd0f02ede473649498f47b87218fb9ab075bdb3",
+      "blob": "855dab27b99c5778e871a0c375a832c077755882",
+      "sections": [
+        "lectura-de-respuestas"
+      ]
+    },
+    {
+      "repo": "form-service",
+      "path": "internal/infra/storage/redis/repositories/response_cache_repository.go",
+      "commit": "cfd0f02ede473649498f47b87218fb9ab075bdb3",
+      "blob": "ffea2f98a998121bbe65d0aa781ec63a6579d43f",
+      "sections": [
+        "lectura-de-respuestas"
+      ]
+    },
+    {
+      "repo": "form-service",
+      "path": "internal/infra/storage/mysql/queries/user_request_queries.sql",
+      "commit": "cfd0f02ede473649498f47b87218fb9ab075bdb3",
+      "blob": "0a30b6a58bd9b33807a6d06f424a62a98ea25291",
+      "sections": [
+        "lectura-de-respuestas",
+        "lectores-en-los-monolitos"
+      ]
+    },
+    {
+      "repo": "form-service",
+      "path": "internal/infra/storage/settings/repositories/dynamic_forms_settings_repository.go",
+      "commit": "cfd0f02ede473649498f47b87218fb9ab075bdb3",
+      "blob": "67ebc4726d306531ae5ba7553733ffbe6e11a205",
+      "sections": [
+        "lectura-y-reconstruccion"
+      ]
+    },
+    {
+      "repo": "form-service",
+      "path": "internal/infra/storage/mysql/repositories/setting_repository.go",
+      "commit": "cfd0f02ede473649498f47b87218fb9ab075bdb3",
+      "blob": "4202b1c9ce2ce65ce97515388c0611424aa7ad6f",
+      "sections": [
+        "lectura-y-reconstruccion"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/Onboarding/App/Services/DynamicFormsService.php",
+      "commit": "69920f580f62ad35f0a555e3b8b8f2c247d758aa",
+      "blob": "71eba7cf836cdc62aa360a41f3897b084390548f",
+      "sections": [
+        "alcance-del-reemplazo-y-cambio-de-titular"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "app/Support/FormService/FormServiceClient.php",
+      "commit": "69920f580f62ad35f0a555e3b8b8f2c247d758aa",
+      "blob": "0889baa832fcae09e8e54ac3d9a503905d5ef921",
+      "sections": [
+        "lectores-en-los-monolitos"
+      ]
+    },
+    {
+      "repo": "application",
+      "path": "app/Services/Profiling/RequestDynamicFormsService.php",
+      "commit": "1755ab4fa3a50cac5669cdff4826131979a15def",
+      "blob": "fc9f79b65c17e67ed510092cb9b3064f7e680b8e",
+      "sections": [
+        "lectores-en-los-monolitos"
       ]
     }
   ]
