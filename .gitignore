@@ -59,3 +59,4 @@ sala/.hallazgos/
 /game/before/
 /game/capturas/
 tablero/tasks/*/artifacts/*.log.json
+sala/.barridos/

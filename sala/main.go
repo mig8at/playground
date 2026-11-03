@@ -368,10 +368,30 @@ var (
 
 func main() {
 	addr := flag.String("addr", "127.0.0.1:5201", "dónde escucha")
+	sweepTopics := flag.String("barrido", "", "corre un barrido y sale: temas separados por coma, o «auto» para los de revisión más vieja")
+	sweepN := flag.Int("n", 3, "cuántos temas toma el barrido en «auto»")
+	sweepBudget := flag.Float64("tope", 2.5, "tope de cada agente del barrido, en US$ equivalentes")
+	sweepCheck := flag.Float64("tope-verificador", 3, "tope del verificador del barrido, en US$ equivalentes")
 	flag.Parse()
 	root, _ := os.Getwd()
 	if _, err := os.Stat(filepath.Join(root, "tools", "ui", "theme.css")); err != nil {
 		log.Fatal("corré la sala desde la raíz del playground (make sala)")
+	}
+	if *sweepTopics != "" {
+		var topics []string
+		if *sweepTopics != "auto" {
+			for _, t := range strings.Split(*sweepTopics, ",") {
+				if t = strings.TrimSpace(t); t != "" {
+					topics = append(topics, t)
+				}
+			}
+		}
+		path, err := sweep(root, topics, *sweepN, *sweepBudget, *sweepCheck, os.Getenv("SALA_MOCK") == "1")
+		if err != nil {
+			log.Fatal(err)
+		}
+		fmt.Println("\ninforme:", path)
+		return
 	}
 	rs := newRooms(root)
 
