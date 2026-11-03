@@ -99,7 +99,10 @@ Salvo donde se dice «corrido», salen de LEER el código: falta reproducirlos.
   `COMPLETED`. El único que lee `kyc_pipeline_allieds` es `ResolveKycFlowService`; ni el listado ni la solicitud miran
   la corrida, así que la única guarda es el wizard. **Medido en prod (2026-11-03):** en el comercio 26, que va por el
   pipeline, 5 solicitudes llegaron a estado 11 desde octubre con el cliente todavía como `TEMPORAL USER` (entidades
-  6, 19, 23 y 39). Falta saber si esas entidades validan identidad por su lado. Termina cuando se decide con producto
+  6, 19, 23 y 39). Esas cuatro son de riel 0 y 1 (Addi, Brilla, Welli, Meddipay): originan y validan de su lado, así
+  que no hubo crédito originado por Creditop sin identidad. **Corrido en local (2026-11-03, uReq 468088):** con la
+  identidad pendiente y la cuenta en `TEMPORAL USER`, `lenders` y `lenders-v2` devuelven el listado, con 24 y 216
+  incluidas. Falta comprobar si una de riel 2 o 4 deja firmar así. Termina cuando se decide con producto
   si el backend tiene que frenar el listado sin identidad, y se corrige o se descarta con el motivo.
 - [ ] Que dos altas en el mismo segundo no den el mismo hash de sucursal o de comercio. Los dos monolitos lo arman con
   `hash('crc32', date('Y-m-d H:i:s'))`, sin unicidad, y el backend resuelve la sucursal por hash con `->first()`.

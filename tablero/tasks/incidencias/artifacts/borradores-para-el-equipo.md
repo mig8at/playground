@@ -71,15 +71,24 @@ sesión o un token del flujo.
 
 ---
 
-## 4 · Créditos autorizados sin que la identidad haya terminado (Media)
+## 4 · El listado se le muestra a un cliente cuya identidad no terminó (Media → Baja)
 
 **Qué pasa.** En los comercios que usan el KYC nuevo, ni el listado de entidades ni la solicitud revisan que la
-validación de identidad haya terminado: la única guarda es la pantalla. En el comercio 26 hay 5 solicitudes
-autorizadas desde octubre con el cliente todavía como «TEMPORAL USER».
+validación de identidad haya terminado: la única guarda es la pantalla.
 
-**Falta saber** si esas entidades validan identidad por su lado.
+**Cómo se comprobó.** Corrido en local: un cliente del comercio 26 cuya identidad quedó sin confirmar (la corrida
+pidió corregir los datos y la cuenta sigue como «TEMPORAL USER») recibe igual el listado completo por los dos
+servicios de listado, con Credifamilia Salud y Materiales incluidas.
 
-**Propuesta.** Decidir con producto si el backend debe frenar el listado sin identidad terminada.
+**Por qué baja.** Las 5 solicitudes de producción autorizadas desde octubre con el cliente todavía temporal son
+todas de entidades que originan de su lado (Addi y Brilla por redirección; Welli y Meddipay integradas): la
+entidad valida la identidad y marca el estado. Ninguna es de las que origina Creditop.
+
+**Falta comprobar** si una entidad que origina Creditop (CreditopX u originación delegada) deja firmar a un
+cliente sin identidad terminada, si alguien llega al listado salteando la pantalla.
+
+**Propuesta.** Decidir con producto si el listado (o la elección de entidad) debe exigir la identidad terminada en
+los comercios del KYC nuevo.
 
 ---
 
