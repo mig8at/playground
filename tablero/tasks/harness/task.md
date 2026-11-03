@@ -19,8 +19,9 @@ ramas: ["risk-services-mockery-lambda:dictado-compartido"]
 - [x] ~~Que el cierre no dé verde con la autorización en 500~~ (hecho el 2026-11-03: un 11 con 4xx/5xx es «autorizada a medias» y la fecha de pago que no se confirma corta el caso): con la 172 sin perfil, la autorización respondió 500, la
   solicitud quedó en 11 sin radicar y el runner contó «CERRÓ». También se traga el fallo de la fecha de pago
   (`selected_payment_date` en NULL). Termina con el estado HTTP de la autorización y la fecha de pago como aserciones.
-- [ ] Aserciones que le faltan al runner de casos: estado y campos de un endpoint cualquiera (`payment-plan/<slug>/*`),
-  el plazo guardado (`fee_number`) y preparar estado desde la suite (perfil prendido o apagado).
+- [x] ~~Aserciones que le faltan al runner de casos: estado y campos de un endpoint, el plazo guardado y preparar estado
+  desde la suite~~ — hecho (2026-11-03): `espera.consulta`, `espera.plazo` y `preparar.perfiles` en `dev/case.ts`, con
+  `pkg/profile-prep.ts`. Probado en local con suites que deben dar verde y rojo, y con un perfil apagado y restaurado.
 - [x] ~~Que `LAMBDA=1` dicte a Ágil Data el mismo nombre que el caminador escribe~~ — hecho (2026-11-03): el dictado
   usa por defecto `--name`/`--surname` (`dictatedName` en `dev/walk-wizard.ts`), en local y fuera de local; `--agilname`
   sigue forzando otro nombre. Corrido en local por el comercio 26 (pipeline v2): KYC completo, consolidado «CARLOS RUIZ».

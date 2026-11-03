@@ -180,7 +180,14 @@ donde se dice otra cosa:
   `null` es «ninguna»), `conConsulta`/`sinConsulta` (la compuerta de preaprobación de la tarjeta) y `cupo` (el
   `reason` de `POST /api/loans/lender/available-quota` por entidad, u `ok`: en local la preaprobación la contesta un
   mock que no llama al backend, y sin esto ninguna corrida ejercita las negativas del cupo) y `estadoAnteriores` (el
-  estado en que quedan las solicitudes de los pasos previos del mismo cliente). Un paso con `"cerrar": false` elige la
+  estado en que quedan las solicitudes de los pasos previos del mismo cliente), `plazo` (el `fee_number` GUARDADO; sin
+  entidad elegida falla, porque la columna nace en 1) y `consulta` (un GET al backend con `{ur}`, `{uid}` o `{lender}`
+  en la ruta, con el user-agent de celular del caso: el `http` esperado —200 si no se dice—, `campos` por ruta de punto
+  con igualdad exacta y `existen`; un campo ausente es falla, y conviene pedir al menos uno, porque un 200 genérico sin
+  campos pasaría). Arriba de todo, `"preparar": {"perfiles": [{"lender": 77, "perfil": "Premium", "activo": false}]}`
+  prende o apaga un perfil (`lender_users_categories.active`) antes de correr y lo restaura al final, con foto en
+  `.runs/profiles/` y comparar-y-cambiar (`pkg/profile-prep.ts`); sólo en una suite con `"ambientes": ["local"]`, y si
+  no se pudo restaurar la corrida sale en rojo. Un paso con `"cerrar": false` elige la
   entidad pedida y se queda ahí aunque la suite cierre: es como se deja una solicitud hermana abierta. Las suites que
   respaldan reglas de `knowledge/` las nombran en su `nota` y el tema dice con qué suite se comprueba.
   Una suite que depende de los datos de UNA base (qué entidades tiene cada comercio) declara dónde vale con

@@ -488,6 +488,11 @@ type Wait = {
      *  `documento`, `celular` (largo), `moneda`— para que la suite grite si un comercio cambia de país
      *  sin que nadie lo haya decidido. Se evalúa contra la BASE, no contra la respuesta: es lo que quedó. */
     pais?: boolean | { iso?: string; documento?: string | string[]; celular?: number; moneda?: string };
+    /** Un GET al backend al terminar el caso, con `{ur}`, `{uid}` y `{lender}` sustituidos: el HTTP (200 si no se dice)
+     *  y campos por ruta de punto (`data.items.0.id`). `campos` exige igualdad exacta; `existen`, que la clave esté. */
+    consulta?: Array<{ ruta: string; http?: number; campos?: Record<string, unknown>; existen?: string[] }>;
+    /** El plazo que quedó GUARDADO (`user_requests.fee_number`), no el pedido. */
+    plazo?: number;
 };
 
 type Case = {
@@ -619,15 +624,22 @@ function parseCase(spec: string, dflt: { amount: number; income: number; score: 
  * verde. Es un falso verde de los que este runner dice evitar (falla cerrado), así que cualquier clave que no
  * esté acá es un error. Al agregar una aserción o una perilla, se agrega también a su lista.
  */
+/** Lo que la suite pide preparar antes de correr (`preparar`), y la foto para volverlo atrás. */
+let prepare: { perfiles?: Array<{ lender: number; perfil: string; activo: boolean }> } | null = null;
+let profileSnap: import('../pkg/profile-prep.ts').ProfileSnap | null = null;
+
 const SUITE_KEYS = {
-    top: ['nombre', 'requiere', 'porDefecto', 'casos', 'nota', 'ambientes'],
+    top: ['nombre', 'requiere', 'porDefecto', 'casos', 'nota', 'ambientes', 'preparar'],
     caso: ['comercio', 'lender', 'nombre', 'nota', 'espera', 'ocupacion', 'cuotas', 'webhook', 'name', 'surname', 'agilname',
            'doc', 'agildata', 'mareigua', 'tusdatos', 'pasos', 'escenarios', 'amount', 'income', 'score',
            'negatives', 'delinquencies', 'consulted', 'cards', 'months', 'maturation'],
     paso: ['nombre', 'lender', 'amount', 'espera', 'cerrar'],
     espera: ['enListado', 'cierra', 'estado', 'entidades', 'noEntidades', 'radicacion', 'pais', 'conConsulta',
-             'sinConsulta', 'categoria', 'cupo', 'estadoAnteriores'],
+             'sinConsulta', 'categoria', 'cupo', 'estadoAnteriores', 'consulta', 'plazo'],
     pais: ['iso', 'documento', 'celular', 'moneda'],
+    consulta: ['ruta', 'http', 'campos', 'existen'],
+    preparar: ['perfiles'],
+    perfil: ['lender', 'perfil', 'activo'],
 };
 function suiteShapeErrors(json: any): string[] {
     const out: string[] = [];
@@ -638,8 +650,16 @@ function suiteShapeErrors(json: any): string[] {
     const checkWait = (e: any, where: string) => {
         check(e, SUITE_KEYS.espera, where);
         if (e?.pais && typeof e.pais === 'object') check(e.pais, SUITE_KEYS.pais, `${where}.pais`);
+        (Array.isArray(e?.consulta) ? e.consulta : []).forEach((q: any, k: number) => {
+            check(q, SUITE_KEYS.consulta, `${where}.consulta[${k}]`);
+            // Un comodín que no se sustituye deja la URL mal armada: se rechaza al cargar, no al correr.
+            for (const m of String(q?.ruta ?? '').matchAll(/\{(\w+)\}/g))
+                if (!['ur', 'uid', 'lender'].includes(m[1])) out.push(`${where}.consulta[${k}].ruta{${m[1]}}`);
+        });
     };
     check(json, SUITE_KEYS.top, 'suite');
+    check(json.preparar, SUITE_KEYS.preparar, 'preparar');
+    (json.preparar?.perfiles ?? []).forEach((p: any, i: number) => check(p, SUITE_KEYS.perfil, `preparar.perfiles[${i}]`));
     check(json.porDefecto, SUITE_KEYS.caso, 'porDefecto');
     (json.casos ?? []).forEach((c: any, i: number) => {
         check(c, SUITE_KEYS.caso, `casos[${i}]`);
@@ -677,6 +697,13 @@ async function loadSuite(path: string, dflt: { amount: number; income: number; s
             + ` expectativa que no se comprueba (daría verde sin mirar):\n      ${unknown.join('\n      ')}`);
     }
     if (scope.kind === 'not-for-target') return { notForTarget: scope.targets };
+    // `preparar` ESCRIBE config de la base (prende o apaga un perfil): sólo en una suite atada a local.
+    if (json.preparar) {
+        const t = Array.isArray(json.ambientes) ? json.ambientes : [];
+        if (t.length !== 1 || t[0] !== 'local')
+            throw new Error(`la suite ${path} declara \`preparar\` y no \`"ambientes": ["local"]\`: escribe config de la base`);
+        prepare = json.preparar;
+    }
     // `requiere` deja que la suite prenda lo que necesita: `["cerrar", "lambda"]`.
     for (const f of (Array.isArray(json.requiere) ? json.requiere : [])) implicit.add(canonicalFlag(String(f)));   // una suite vieja puede decir «cerrar»
 
@@ -1407,6 +1434,67 @@ async function verifyPrevious(res: Res[]): Promise<Array<{ res: Res; linea: stri
 }
 
 /** El cupo de cada entidad que el caso declara, pedido al backend como lo hace pre-approvals-service. */
+/** Lee una ruta de punto (`data.items.0.id`). `found` distingue «no está» de «vale null». */
+function pick(obj: unknown, path: string): { found: boolean; value: unknown } {
+    let cur: any = obj;
+    for (const k of path.split('.')) {
+        if (cur === null || typeof cur !== 'object' || !(k in cur)) return { found: false, value: undefined };
+        cur = cur[k];
+    }
+    return { found: true, value: cur };
+}
+
+/** Un GET al backend con el id del caso, y el HTTP y los campos que declara la suite. */
+async function verifyEndpoints(res: Res[]): Promise<Array<{ res: Res; linea: string }>> {
+    const out: Array<{ res: Res; linea: string }> = [];
+    for (const r of res) {
+        const qs = r.caso.espera?.consulta;
+        if (!qs?.length) continue;
+        const who = r.caso.nombre ?? r.caso.comercio;
+        if (!r.ur) { out.push({ res: r, linea: `${who}: espera \`consulta\` y la solicitud ni se creó (${r.detalle ?? 'sin detalle'})` }); continue; }
+        for (const q of qs) {
+            // Un comodín sin valor dejaría la URL mal armada y el 404 se leería como respuesta del backend.
+            if (q.ruta.includes('{uid}') && !r.uid) { out.push({ res: r, linea: `${who}: \`consulta\` usa {uid} y el caso no tiene usuario` }); continue; }
+            if (q.ruta.includes('{lender}') && r.caso.lender == null) { out.push({ res: r, linea: `${who}: \`consulta\` usa {lender} y el caso no elige entidad` }); continue; }
+            const path = q.ruta.replaceAll('{ur}', String(r.ur)).replaceAll('{uid}', String(r.uid ?? ''))
+                               .replaceAll('{lender}', String(r.caso.lender ?? ''));
+            // Los mismos encabezados que el resto del caso (user-agent de celular): sin él, una ruta móvil contesta 403 por el aparato.
+            const resp = await fetch(`${API}${path}`, { headers: { accept: 'application/json', 'user-agent': UA }, signal: AbortSignal.timeout(30_000) })
+                .catch(() => null);
+            const st = resp?.status ?? 0;
+            const body = resp ? await resp.json().catch(() => undefined) : undefined;
+            const want = q.http ?? 200;
+            if (st !== want) { out.push({ res: r, linea: `${who}: GET ${path} dio HTTP ${st} y se esperaba ${want}` }); continue; }
+            for (const f of q.existen ?? [])
+                if (!pick(body, f).found) out.push({ res: r, linea: `${who}: GET ${path} → \`${f}\` no está en la respuesta` });
+            for (const [f, w] of Object.entries(q.campos ?? {})) {
+                const p = pick(body, f);
+                if (!p.found) out.push({ res: r, linea: `${who}: GET ${path} → \`${f}\` no está en la respuesta` });
+                else if (JSON.stringify(p.value) !== JSON.stringify(w))
+                    out.push({ res: r, linea: `${who}: GET ${path} → \`${f}\` dio ${JSON.stringify(p.value)} y se esperaba ${JSON.stringify(w)}` });
+            }
+        }
+    }
+    return out;
+}
+
+/** El plazo GUARDADO. ⚠ `fee_number` nace en 1 (default de la columna): sin entidad elegida, ese 1 no es un plazo. */
+async function verifyTerm(res: Res[]): Promise<Array<{ res: Res; linea: string }>> {
+    const out: Array<{ res: Res; linea: string }> = [];
+    for (const r of res) {
+        const want = r.caso.espera?.plazo;
+        if (want === undefined) continue;
+        const who = r.caso.nombre ?? r.caso.comercio;
+        if (!r.ur) { out.push({ res: r, linea: `${who}: espera \`plazo\` y la solicitud ni se creó (${r.detalle ?? 'sin detalle'})` }); continue; }
+        const row = await one<{ fee: number; lender: number | null }>(
+            'SELECT fee_number AS fee, lender_id AS lender FROM user_requests WHERE id = ?', [r.ur]).catch(() => null);
+        if (!row) out.push({ res: r, linea: `${who}: espera \`plazo\` y no pude leer la solicitud ${r.ur}` });
+        else if (!row.lender) out.push({ res: r, linea: `${who}: la solicitud ${r.ur} no tiene entidad elegida: el plazo ${row.fee} es el valor por defecto, no uno guardado` });
+        else if (Number(row.fee) !== want) out.push({ res: r, linea: `${who}: la solicitud ${r.ur} quedó con plazo ${row.fee} y se esperaba ${want}` });
+    }
+    return out;
+}
+
 async function verifyQuota(res: Res[]): Promise<Array<{ res: Res; linea: string }>> {
     const out: Array<{ res: Res; linea: string }> = [];
     for (const r of res) {
@@ -1848,6 +1936,11 @@ async function main(): Promise<number> {
         return 2;
     }
     for (const l of await exhaustedProfiles(cases)) console.log(`  ⚠ ${l}\n`);
+    if (prepare?.perfiles?.length) {
+        const { applyProfiles } = await import('../pkg/profile-prep.ts');
+        profileSnap = await applyProfiles(prepare.perfiles);   // lanza si no es local: la corrida no arranca
+        for (const p of profileSnap.cambios) console.log(`  preparar: ${p.lender}·«${p.perfil}» active ${p.before} → ${p.after}`);
+    }
     await fitSyntheticDocs(cases);
     if (flag('lambda')) {
         const failures = await dictateAll(cases);
@@ -1978,7 +2071,8 @@ async function main(): Promise<number> {
     console.log(`\n  ${res.length - badList}/${res.length} cerraron · ${((Date.now() - t0) / 1000).toFixed(1)}s`);
     await reconcileWithDb(baseline, res.length - badList);
 
-    const deviations = [...verifyWaits(res), ...await verifyCountries(res), ...await verifyCategories(res), ...await verifyQuota(res), ...await verifyPrevious(res)];
+    const deviations = [...verifyWaits(res), ...await verifyCountries(res), ...await verifyCategories(res), ...await verifyQuota(res), ...await verifyPrevious(res),
+                        ...await verifyEndpoints(res), ...await verifyTerm(res)];
     REPORT = {
         formato: 'harness.case/v1',
         target: process.env.E2E_TARGET || 'dev',
@@ -2064,8 +2158,12 @@ async function annotate(res: Res[], badList: number): Promise<void> {
     }), evidence);
 }
 
-const code = await main().catch((e) => { console.error('\n  ✗', e); return 1; });
+const mainCode = await main().catch((e) => { console.error('\n  ✗', e); return 1; });
 await restoreBypass(bypassSet);
+// Igual que el bypass: corre aunque main() haya lanzado, y DESPUÉS de las aserciones (que miden el perfil preparado).
+// Si no restauró, la base local quedó distinta y no hay verde: envenena las corridas siguientes.
+const restored = profileSnap ? await (await import('../pkg/profile-prep.ts')).restoreProfiles(profileSnap) : true;
+const code = restored ? mainCode : Math.max(mainCode, 1);
 await close().catch(() => {});
 if (JSON_OUT) {
     // Sin veredicto (prevuelo, suite mal formada, error) el objeto lo dice igual: un agente nunca recibe stdout vacío.
