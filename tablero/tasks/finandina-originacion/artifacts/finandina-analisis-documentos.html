@@ -1,0 +1,290 @@
+<title>Finandina en el riel 4</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Newsreader:opsz,wght@6..72,500;6..72,600&family=Public+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: una columna de lectura (~72ch) con tablas anchas en su propio scroll; un índice fijo arriba en pantallas grandes. */
+:root {
+  --bg: #f7f8f7;
+  --surface: #ffffff;
+  --fg: #1c2321;
+  --muted: #5b6662;
+  --line: #d9dfdc;
+  --accent: #0f6b5c;
+  --accent-soft: #e2f0ec;
+  --ok: #1d7a3e; --ok-bg: #e3f3e8;
+  --warn: #9a5b00; --warn-bg: #fbf0dc;
+  --bad: #b3261e; --bad-bg: #fbe5e3;
+  --ask: #4b4fb0; --ask-bg: #e9e9f8;
+  --ext: #5b6662; --ext-bg: #eceeed;
+  --display: "Newsreader", Georgia, "Times New Roman", serif;
+  --body: "Public Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --mono: "JetBrains Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #121715; --surface: #1a201e; --fg: #e4ebe8; --muted: #9aa8a3; --line: #2e3734;
+  --accent: #5cc3ad; --accent-soft: #1d3a33;
+  --ok: #6fd08f; --ok-bg: #173323; --warn: #f0b85a; --warn-bg: #3a2c12; --bad: #ff8a80; --bad-bg: #3d1c1a;
+  --ask: #a9acff; --ask-bg: #262848; --ext: #9aa8a3; --ext-bg: #262d2a; color-scheme: dark; } }
+:root[data-theme="dark"] {
+  --bg: #121715; --surface: #1a201e; --fg: #e4ebe8; --muted: #9aa8a3; --line: #2e3734;
+  --accent: #5cc3ad; --accent-soft: #1d3a33;
+  --ok: #6fd08f; --ok-bg: #173323; --warn: #f0b85a; --warn-bg: #3a2c12; --bad: #ff8a80; --bad-bg: #3d1c1a;
+  --ask: #a9acff; --ask-bg: #262848; --ext: #9aa8a3; --ext-bg: #262d2a; color-scheme: dark; }
+
+body { background: var(--bg); color: var(--fg); font: 15px/1.6 var(--body); }
+.wrap { max-width: 980px; margin: 0 auto; padding-block: 40px 80px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px));
+  display: grid; gap: 44px; }
+header { display: grid; gap: 12px; }
+.eyebrow { font: 500 12px/1 var(--mono); letter-spacing: .08em; text-transform: uppercase; color: var(--accent); }
+h1 { font: 600 clamp(30px, 5vw, 44px)/1.1 var(--display); margin: 0; text-wrap: balance; }
+h2 { font: 600 26px/1.2 var(--display); margin: 0; text-wrap: balance; }
+h3 { font: 600 16px/1.3 var(--body); margin: 0; }
+p { margin: 0; max-width: 72ch; }
+.lede { font-size: 17px; color: var(--muted); max-width: 70ch; }
+.meta { font: 13px/1.5 var(--mono); color: var(--muted); }
+section { display: grid; gap: 16px; }
+nav.toc { display: flex; flex-wrap: wrap; gap: 8px; }
+nav.toc a { font: 500 13px/1 var(--body); color: var(--accent); text-decoration: none; padding: 8px 12px;
+  border: 1px solid var(--line); border-radius: 999px; background: var(--surface); }
+nav.toc a:hover, nav.toc a:focus-visible { background: var(--accent-soft); outline: none; }
+.scroll { overflow-x: auto; border: 1px solid var(--line); border-radius: 8px; background: var(--surface); }
+table { border-collapse: collapse; width: 100%; min-width: 760px; font-size: 14px; }
+th, td { text-align: left; vertical-align: top; padding: 10px 12px; border-bottom: 1px solid var(--line); }
+th { font: 600 12px/1.3 var(--body); letter-spacing: .04em; text-transform: uppercase; color: var(--muted); background: var(--bg); }
+tr:last-child td { border-bottom: 0; }
+td.stage { font-weight: 600; white-space: nowrap; }
+code, .src { font-family: var(--mono); font-size: 12.5px; }
+.src { color: var(--muted); }
+.pill { display: inline-block; font: 600 11px/1 var(--body); letter-spacing: .04em; text-transform: uppercase;
+  padding: 4px 7px; border-radius: 4px; white-space: nowrap; }
+.ok { color: var(--ok); background: var(--ok-bg); }
+.warn { color: var(--warn); background: var(--warn-bg); }
+.bad { color: var(--bad); background: var(--bad-bg); }
+.ask { color: var(--ask); background: var(--ask-bg); }
+.ext { color: var(--ext); background: var(--ext-bg); }
+.legend { display: flex; flex-wrap: wrap; gap: 10px 16px; font-size: 13px; color: var(--muted); align-items: center; }
+.docs { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 12px; }
+.doc { background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 14px 16px; display: grid; gap: 6px; align-content: start; min-width: 0; }
+.doc .n { font: 500 12px/1.2 var(--mono); color: var(--accent); }
+.doc p { font-size: 14px; color: var(--muted); }
+.callout { border-left: 3px solid var(--accent); background: var(--accent-soft); padding: 14px 16px; border-radius: 0 8px 8px 0; display: grid; gap: 6px; }
+ol.qs { margin: 0; padding-left: 22px; display: grid; gap: 10px; max-width: 78ch; }
+ol.qs li::marker { font-family: var(--mono); color: var(--muted); }
+.phases { display: grid; gap: 14px; }
+.phase { background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 16px 18px; display: grid; gap: 10px; }
+.phase header { display: flex; flex-wrap: wrap; gap: 8px 12px; align-items: baseline; }
+.phase h3 { font-size: 17px; }
+.phase ul { margin: 0; padding-left: 20px; display: grid; gap: 6px; }
+.phase li { max-width: 80ch; }
+.dep { color: var(--muted); font-size: 13.5px; }
+.cred { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px; }
+footer { font-size: 13px; color: var(--muted); border-top: 1px solid var(--line); padding-top: 16px; }
+@media (prefers-reduced-motion: no-preference) { nav.toc a { transition: background .15s; } }
+</style>
+
+<div class="wrap">
+  <header>
+    <span class="eyebrow">Tarea #107 · CORE-845 · Originación delegada</span>
+    <h1>Finandina en el riel 4: qué piden los documentos y cómo se construye</h1>
+    <p class="lede">Lectura completa de lo que envió Finandina, comparada con cómo funciona hoy Credifamilia en el mismo riel. Cada afirmación sobre Finandina cita el documento de donde sale. Al final está el plan de acción.</p>
+    <p class="meta">Actualizado el 3 de noviembre de 2026 · código de referencia: legacy-backend en qa, rama local feat/finandina-originacion-delegada</p>
+    <nav class="toc" aria-label="Secciones">
+      <a href="#documentos">Los documentos</a>
+      <a href="#comparacion">Credifamilia vs Finandina</a>
+      <a href="#politica">La política en cifras</a>
+      <a href="#firma">Qué se firma</a>
+      <a href="#credenciales">Credenciales</a>
+      <a href="#preguntas">Preguntas a producto</a>
+      <a href="#plan">Plan de acción</a>
+    </nav>
+  </header>
+
+  <section id="documentos">
+    <h2>Los documentos que nos enviaron</h2>
+    <p>Se leyó todo, incluidas las tablas que vienen como imagen y los archivos de credenciales. Los códigos (PRD-12, POL-22, TYC-06…) son los de la matriz de requisitos de la tarea, que traza cada línea a su documento.</p>
+    <div class="docs">
+      <div class="doc"><span class="n">PRD · enero 2026</span><h3>PRD Integración Banco Finandina</h3><p>108 requisitos y 15 historias de usuario. Modelo de originación completa, flujo de 9 pasos, capacidad de pago y tope diario de 500 MM. No trae pantallas ni Figma, y falta la sección 11.</p></div>
+      <div class="doc"><span class="n">POL · agosto 2026</span><h3>Políticas de otorgamiento, aliado Creditop</h3><p>43 reglas en 8 páginas: perfil, score 646, monto 3–15 MM, FGA del 5 o el 9 %, veces el ingreso por riesgo, capacidad de pago (Tablas 1 a 3) y 99 zonas financiables (Tabla 5).</p></div>
+      <div class="doc"><span class="n">FLUJO · abril 2026</span><h3>Proceso de originación, fase 1.0</h3><p>El diagrama: filtros, T&amp;C, consultas con llaves de Finandina, identidad, firma de tres documentos, pagaré en Deceval, desembolso y el proceso manual de Finandina.</p></div>
+      <div class="doc"><span class="n">FORM · septiembre 2026</span><h3>Formulario de vinculación</h3><p>24 marcadores: datos personales, condiciones, desembolso, PEP, autorización de datos (Finandina responsable, Creditop encargado), origen de fondos y pagaré en Deceval.</p></div>
+      <div class="doc"><span class="n">TYC · septiembre 2026</span><h3>T&amp;C del crédito de libre inversión</h3><p>15 marcadores: tasa fija, aval con IVA incluido, aplazamientos, prepago, libranza, seguro de vida mensual y días de pago 5, 10, 15 o 20. El docx tiene control de cambios sin aceptar.</p></div>
+      <div class="doc"><span class="n">MAPA · 27 de octubre 2026</span><h3>Campos dinámicos de los documentos</h3><p>Cruza los 39 marcadores y pide agregar al formulario dinámico dirección, ciudad, departamento y las dos preguntas PEP. Deja en «N/A» la Protección Financiera.</p></div>
+    </div>
+  </section>
+
+  <section id="comparacion">
+    <h2>Cómo lo hace Credifamilia y cómo se haría con Finandina</h2>
+    <p>Las dos son del riel 4: Creditop origina con la política de la entidad, la firma va por nuestros rieles y la cartera es de ellos. Lo que cambia es dónde vive la decisión y qué pasa después de autorizar.</p>
+    <div class="legend">
+      <span><span class="pill ok">listo</span> funciona en local</span>
+      <span><span class="pill warn">a medias</span> el mecanismo existe, falta completarlo</span>
+      <span><span class="pill bad">no existe</span> hay que construirlo</span>
+      <span><span class="pill ask">decisión</span> espera a producto o a Finandina</span>
+    </div>
+    <div class="scroll">
+      <table>
+        <thead><tr><th>Etapa</th><th>Credifamilia (Salud 24, Materiales 214)</th><th>Finandina (149)</th><th>Estado</th></tr></thead>
+        <tbody>
+          <tr><td class="stage">Riel</td><td><code>response_type = 4</code>, con perfil en <code>delegated_origination_profiles</code>.</td><td>Lo mismo. En local tiene su perfil y su comercio de prueba, y llega a estado 11. <span class="src">PRD-01, 09</span></td><td><span class="pill ok">listo</span></td></tr>
+          <tr><td class="stage">Quién decide</td><td>Credifamilia, en su servicio. pre-approvals-service le pregunta el estado: con 3 y «APROBADO» aprueba, y el monto es su <code>MontoMaximo</code>.</td><td>Creditop, con la política de Finandina cargada en el motor de cupo. Finandina no tiene API que decida. <span class="src">PRD-10, 19 · POL-37</span></td><td><span class="pill bad">no existe</span></td></tr>
+          <tr><td class="stage">Listado</td><td>Sale en el listado. Las reglas duras no la sacan: la dejan con «Probabilidad muy baja».</td><td>Igual. Por eso toda regla que deba rechazar tiene que vivir en la preaprobación. En local ya sale.</td><td><span class="pill ok">listo</span></td></tr>
+          <tr><td class="stage">Monto</td><td>El que aprueba Credifamilia, con tope de línea.</td><td>El menor entre veces el ingreso por riesgo (de 3 a 10), la capacidad de pago y 15 MM; sin experiencia, 5 MM. Hoy en local es el tope de 15 MM para todos. <span class="src">POL-13, 18, 24</span></td><td><span class="pill warn">a medias</span></td></tr>
+          <tr><td class="stage">Insumos del plan</td><td>La tasa, la fianza y el máximo vienen en el <code>transaction_data</code> de su preaprobación.</td><td>Salen de la configuración de la 149 (fuente <code>lender_configuration</code>): línea a 1,79 % N.M. y convenio con seguro y FGA. <span class="src">POL-19, 21–23</span></td><td><span class="pill ok">listo</span></td></tr>
+          <tr><td class="stage">Fianza o aval</td><td>Salud: el % de la preaprobación, con 4x1000. Materiales: tabla FNG por plazo, anticipada, sin 4x1000. Se suma el IVA.</td><td>FGA del 5 % con Advance ≥ 856 y del 9 % para el resto, «IVA incluido», financiado y sin devolución en prepago. Hoy en local: 9 % fijo más IVA aparte. <span class="src">POL-22, 23 · TYC-06, 08</span></td><td><span class="pill ask">decisión</span></td></tr>
+          <tr><td class="stage">Seguro de vida</td><td>El % de la preaprobación.</td><td>1.660 por millón desembolsado, prima mensual. Así está en local. <span class="src">POL-21 · TYC-10</span></td><td><span class="pill ok">listo</span></td></tr>
+          <tr><td class="stage">Días de pago</td><td>2 y 16; se muestran las dos próximas fechas.</td><td>5, 10, 15 o 20, a elección del cliente, y puede cambiarlos. El riel muestra sólo dos fechas (<code>DATES_TO_RETURN = 2</code>). <span class="src">TYC-15</span></td><td><span class="pill warn">a medias</span></td></tr>
+          <tr><td class="stage">Identidad</td><td>Proveedores de la entidad en orden, con respaldo (ADO, CrossCore, Evidente).</td><td>ADO: biometría, listas restrictivas y antifraude, más OTP. El diagrama la pone después de aprobar y el PRD antes. <span class="src">POL-41, 42 · FLUJO-07 · PRD-56</span></td><td><span class="pill warn">a medias</span></td></tr>
+          <tr><td class="stage">Consultas de buró</td><td>Con la cuenta de Creditop.</td><td>Experian y Mareigua con las llaves de Finandina, y «Creditop no genera cobro por esta consulta». Las llaves de Experian son de otro servicio (SOAP HC2), que pide certificado de cliente. <span class="src">PRD-11, 43, 80 · FLUJO-05</span></td><td><span class="pill bad">no existe</span></td></tr>
+          <tr><td class="stage">Documentos</td><td>Nueve documentos de Credifamilia por pdf-mapper, firmados con Netco.</td><td>Tres: formulario de vinculación, T&amp;C y pagaré. Con 39 marcadores y campos nuevos en el formulario dinámico. <span class="src">FLUJO-08 · FORM · TYC · MAPA</span></td><td><span class="pill bad">no existe</span></td></tr>
+          <tr><td class="stage">Pagaré</td><td>Deceval con la credencial de la entidad.</td><td>Deceval con Banco Finandina como único beneficiario, Ley 527. En local corre contra el mock con una credencial de prueba; la real no llegó y la certificación está bloqueada. <span class="src">POL-39, 40 · FORM-47</span></td><td><span class="pill warn">a medias</span></td></tr>
+          <tr><td class="stage">Al autorizar</td><td>Radica por SOAP: registra el crédito y envía un PDF con los nueve documentos.</td><td>Enviar la operación a Finandina con confirmación de recepción, o un aviso automático y un dashboard semanal que su analista concilia y crea por PQR masiva. Hoy queda en 11 sin formalización. <span class="src">PRD-62, 103–105 · FLUJO-11–15</span></td><td><span class="pill ask">decisión</span></td></tr>
+          <tr><td class="stage">Desembolso</td><td>Credifamilia desembolsa.</td><td>Contradicción: el diagrama dice que desembolsa Creditop en línea al comercio, y después que Finandina gira al aliado. El formulario fija «pago en línea» al subcomercio y los T&amp;C dejan elegir al cliente. <span class="src">FLUJO-10, 15 · FORM-27 · TYC-14</span></td><td><span class="pill ask">decisión</span></td></tr>
+          <tr><td class="stage">Después del 11</td><td>Credifamilia administra.</td><td>Finandina administra cartera, recaudo, cobranza y aplazamientos. Creditop: pantalla final, vista del comercio en el admin y métricas. <span class="src">PRD-17, 18, 106–108</span></td><td><span class="pill warn">a medias</span></td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section id="politica">
+    <h2>La política en cifras</h2>
+    <p>Lo que hay que cargar en el motor, tal cual lo dice «Políticas de otorgamiento» de agosto. Entre paréntesis, lo que dice distinto el PRD de enero.</p>
+    <div class="scroll">
+      <table>
+        <thead><tr><th>Regla</th><th>Valor</th><th>Fuente</th><th>Hoy</th></tr></thead>
+        <tbody>
+          <tr><td>Perfil</td><td>Persona natural, un titular, cédula; de 21 a 64 años; empleados (0010) y pensionados (0020), sin independientes</td><td class="src">POL-02–06</td><td><span class="pill warn">a medias</span> regla dura que sólo clasifica</td></tr>
+          <tr><td>Ingreso</td><td>Desde 1 SMMLV, confirmado por Mareigua o SOI</td><td class="src">POL-08, 27</td><td><span class="pill warn">a medias</span></td></tr>
+          <tr><td>Antigüedad</td><td>Empleados 6 meses; pensionados no aplica</td><td class="src">POL-09, 10</td><td><span class="pill warn">a medias</span></td></tr>
+          <tr><td>Cobertura</td><td>99 zonas con código DANE (Tabla 5). Bosa aparece con el código de Bogotá y a los de Antioquia les falta el 0 inicial</td><td class="src">POL-07, 43</td><td><span class="pill bad">no existe</span></td></tr>
+          <tr><td>Experiencia</td><td>Más de 12 meses con una obligación de 3 MM, o deudas de los últimos 48 meses por 3 MM; sin experiencia, máximo 5 MM</td><td class="src">POL-11–13</td><td><span class="pill bad">no existe</span></td></tr>
+          <tr><td>Score</td><td>Advance 1.1 ≥ 646, y también score 0</td><td class="src">POL-14, 15</td><td><span class="pill warn">a medias</span> el sistema usa el promedio del HDC+</td></tr>
+          <tr><td>Mareigua</td><td>Riesgo del empleador: aceptar bajo y medio, rechazar alto y «document»</td><td class="src">PRD-44–46</td><td><span class="pill bad">no existe</span></td></tr>
+          <tr><td>Producto</td><td>3 a 15 MM (PRD: 1 a 15), 6 a 36 meses, tasa mensual que confirma Finandina</td><td class="src">POL-16–19</td><td><span class="pill ok">listo</span> con tasa provisional</td></tr>
+          <tr><td>Veces el ingreso</td><td>De 3 a 10 según el segmento AA…Z y los SMMLV (PRD: de 3 a 16). La fila AA está duplicada</td><td class="src">POL-24</td><td><span class="pill bad">no existe</span></td></tr>
+          <tr><td>Capacidad de pago</td><td>Ingresos − descuentos de ley (8 % o 9 %) − gastos personales (del 65 % al 30 % según SMMLV) − cuotas (máximo entre la real y la potencial por tipo de cartera)</td><td class="src">POL-27–36</td><td><span class="pill bad">no existe</span></td></tr>
+          <tr><td>Límites</td><td>2 créditos al mes por cliente; 2.000 MM al mes en total (PRD: 500 MM al día)</td><td class="src">POL-25, 26</td><td><span class="pill bad">no existe</span></td></tr>
+          <tr><td>Control</td><td>Política «espejo» en el motor, con monitoreo, y el cálculo persistido para auditoría</td><td class="src">POL-37, 38 · PRD-92</td><td><span class="pill warn">a medias</span></td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section id="firma">
+    <h2>Qué se firma y qué datos faltan</h2>
+    <div class="callout">
+      <h3>Tres documentos, 39 marcadores</h3>
+      <p>El formulario de vinculación (24 marcadores), los T&amp;C (15) y el pagaré en Deceval. El mapa de campos del 27 de octubre los cruza, pero no dice de qué sistema sale cada dato.</p>
+    </div>
+    <div class="scroll">
+      <table>
+        <thead><tr><th>Lo que falta</th><th>Por qué importa</th><th>Fuente</th></tr></thead>
+        <tbody>
+          <tr><td>Dirección, ciudad y departamento de residencia</td><td>El formulario dinámico no los pide. La ciudad también la usa la cobertura</td><td class="src">MAPA 7–9</td></tr>
+          <tr><td>PEP A y PEP B con marcadores propios, y entidad y fechas si responde «Sí»</td><td>Hoy las dos preguntas comparten <code>[SI/NO]</code> y saldrían con la misma respuesta</td><td class="src">FORM-29–31 · MAPA obs. 1–2</td></tr>
+          <tr><td>Monto del aval en el formulario</td><td>El texto lo menciona y no hay marcador; en los T&amp;C sí está</td><td class="src">FORM-24 · TYC-06</td></tr>
+          <tr><td>Segundo nombre</td><td>El formulario no tiene dónde ponerlo</td><td class="src">MAPA obs. 3</td></tr>
+          <tr><td>Día de pago, fecha y ciudad de la firma, y huella en los T&amp;C</td><td>Son espacios en blanco, sin marcador</td><td class="src">TYC-15, 20</td></tr>
+          <tr><td>Forma de desembolso y cuenta del débito automático</td><td>Los T&amp;C dejan elegir y el formulario fija «pago en línea»</td><td class="src">TYC-14 · FORM-27, 64</td></tr>
+          <tr><td>Versión final de los T&amp;C</td><td>El docx tiene cambios sin aceptar; el pdf ya los acepta</td><td class="src">TYC</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section id="credenciales">
+    <h2>Credenciales que entregó Finandina</h2>
+    <p>Se usan las de prueba que vienen en la carpeta. Están guardadas fuera del repositorio y aquí no se muestran los valores.</p>
+    <div class="cred">
+      <div class="doc"><span class="n">Experian</span><h3>Servicio SOAP HC2, ambiente demo</h3><p>Usuario, clave y producto 64 para <code>consultarHC2</code>. Creditop hoy consulta Experian por REST, así que hace falta un cliente nuevo. El servidor exige certificado de cliente: falta pedírselo a Finandina, con su clave y si hay que autorizar la IP.</p></div>
+      <div class="doc"><span class="n">Mareigua</span><h3>Validador de ingresos y empleo</h3><p>Usuario y contraseña restablecidos por soporte de Mareigua en mayo. Es el mismo producto que usa Creditop: falta que el cliente acepte una cuenta por entidad.</p></div>
+      <div class="doc"><span class="n">Deceval</span><h3>Sin credencial</h3><p>No hay ninguna en la carpeta. Sin ella el pagaré no se genera; la certificación sigue bloqueada (CRED-463).</p></div>
+    </div>
+  </section>
+
+  <section id="preguntas">
+    <h2>Preguntas para producto y para Finandina</h2>
+    <p>Son las contradicciones y huecos que impiden seguir al pie de la letra. La primera bloquea el cálculo del monto.</p>
+    <ol class="qs">
+      <li><strong>Capacidad de pago frente a la cuota.</strong> La política calcula la capacidad pero no dice cómo se compara con la cuota del crédito nuevo, ni con qué plazo y tasa. <span class="src">POL-33</span></li>
+      <li><strong>Qué versión manda.</strong> Monto mínimo de 1 o 3 MM; de 3 a 16 o de 3 a 10 veces el ingreso; tope de 500 MM al día o 2.000 MM al mes. <span class="src">PRD-37, 40, 36 · POL-17, 24, 26</span></li>
+      <li><strong>Segmentos de riesgo AA…Z.</strong> De dónde salen, qué fila AA vale y si un 0 es rechazo. <span class="src">POL-24</span></li>
+      <li><strong>Experiencia crediticia.</strong> Si los criterios se combinan con Y u O, si es saldo o monto original, y qué es «sin experiencia». <span class="src">POL-11–13</span></li>
+      <li><strong>FGA.</strong> Si el IVA va dentro del 5 o el 9 %, y qué tarifa le toca a un cliente con score 0. <span class="src">POL-22, 23 · TYC-06</span></li>
+      <li><strong>Cobertura.</strong> Si manda la Tabla 5 o la lista de «ciudades principales», y la corrección de Bosa. <span class="src">POL-07, 43</span></li>
+      <li><strong>Independientes.</strong> El mapa de campos los incluye y la política no. <span class="src">MAPA-12 · POL-05, 06</span></li>
+      <li><strong>Desembolso.</strong> Quién le paga al comercio y cuándo, y si el cliente elige la forma de desembolso. <span class="src">FLUJO-10, 15 · FORM-27 · TYC-14</span></li>
+      <li><strong>Identidad.</strong> Si va antes o después de la decisión. <span class="src">PRD-56 · FLUJO-07</span></li>
+      <li><strong>Consultas con la cuenta de Finandina.</strong> El certificado de cliente de Experian, su clave y la IP autorizada; y quién paga cada consulta. <span class="src">PRD-80</span></li>
+      <li><strong>Mareigua.</strong> Qué son los estados no concluyentes y el «document». <span class="src">PRD-46, 84</span></li>
+      <li><strong>Seguros y costos.</strong> Protección Financiera en «N/A» o no, si aplica la cláusula de libranza, y si se suman estudio, ACH y GMF. <span class="src">TYC-09, 11, 13 · MAPA</span></li>
+      <li><strong>Límites.</strong> Los 2 créditos al mes: si son sólo de Finandina o de todas las entidades, y en qué ventana; y la regla de obligaciones activas con Finandina. <span class="src">POL-25 · PRD-34, 35</span></li>
+      <li><strong>Entrega de la operación.</strong> Qué estado es «autorizada» y por dónde recibe Finandina la operación. <span class="src">PRD-103 · FLUJO-11–13</span></li>
+      <li><strong>Arranque.</strong> Con qué comercios, quién confirma la tasa de cada mes y quién monitorea la política espejo. <span class="src">PRD-08 · POL-28, 38</span></li>
+    </ol>
+  </section>
+
+  <section id="plan">
+    <h2>Plan de acción</h2>
+    <p>En orden. La fase 0 se envía ya, porque es la que más tarda en volver. Las fases 1 y 2 no esperan a nadie: avanzan con valores provisionales y se ajustan cuando lleguen las respuestas.</p>
+    <div class="phases">
+      <div class="phase">
+        <header><span class="pill ask">fase 0</span><h3>Preguntas, en paralelo</h3></header>
+        <ul>
+          <li>Llevarle a producto las 15 preguntas en una sola reunión, empezando por la capacidad de pago frente a la cuota.</li>
+          <li>Pedirle a Finandina, por producto: el certificado de cliente de Experian y su clave, si hay que autorizar la IP, y la credencial de Deceval.</li>
+          <li>Conseguir el diseño de las pantallas: el PRD pide «UX alineado con Figma» y no lo enlaza.</li>
+        </ul>
+      </div>
+      <div class="phase">
+        <header><span class="pill warn">fase 1</span><h3>La decisión en el motor</h3></header>
+        <ul>
+          <li>Conectar la preaprobación de la 149 al motor de cupo, para que el monto sea el cupo del cliente y pueda rechazar.</li>
+          <li>Cargar en el motor los criterios que ya existen: edad, ocupación, ingreso, antigüedad y score. Probar un caso fuera de política por cada uno.</li>
+          <li>Que el número de fechas de pago salga del perfil, para mostrar 5, 10, 15 y 20 sin cambiar Credifamilia.</li>
+          <li>Revisar los huecos que quedan de CORE-918 con la 149: pagaré y documentos de Credifamilia, el 500 cuando falta el perfil, y la firma.</li>
+        </ul>
+      </div>
+      <div class="phase">
+        <header><span class="pill bad">fase 2</span><h3>La política que no existe</h3></header>
+        <ul>
+          <li>Capacidad de pago con las Tablas 1, 2 y 3, con la tasa configurable y el cálculo guardado para auditoría.</li>
+          <li>Veces el ingreso por segmento y SMMLV; cobertura por código DANE; riesgo del empleador en Mareigua; experiencia por monto.</li>
+          <li>Límites de 2 créditos al mes y tope de desembolsos; FGA por score.</li>
+        </ul>
+        <p class="dep">Se diseña ya; los valores dependen de las respuestas 1 a 7, 11 y 13.</p>
+      </div>
+      <div class="phase">
+        <header><span class="pill bad">fase 3</span><h3>Documentos, firma y pagaré</h3></header>
+        <ul>
+          <li>Campos nuevos en el formulario dinámico: dirección, ciudad, departamento y las dos preguntas PEP, con su detalle.</li>
+          <li>Plantillas del formulario y de los T&amp;C con sus 39 marcadores, montos en letras y las observaciones del mapa resueltas.</li>
+          <li>Pagaré en Deceval con la credencial real de Finandina y la certificación.</li>
+        </ul>
+        <p class="dep">Depende de las respuestas 8 y 12, y de la credencial de Deceval.</p>
+      </div>
+      <div class="phase">
+        <header><span class="pill bad">fase 4</span><h3>Entrega a Finandina</h3></header>
+        <ul>
+          <li>La formalización de Finandina: enviar la operación con confirmación de recepción, o el aviso y el export semanal para su analista.</li>
+          <li>La vista del comercio en el admin, la pantalla final y el mensaje de rechazo.</li>
+        </ul>
+        <p class="dep">Depende de la respuesta 14 y del diseño.</p>
+      </div>
+      <div class="phase">
+        <header><span class="pill ok">fase 5</span><h3>Consultas con llaves propias y salida a qa</h3></header>
+        <ul>
+          <li>Cliente SOAP HC2 de Experian con el certificado de Finandina, y su respuesta convertida a lo que lee el motor; Mareigua con una cuenta por entidad.</li>
+          <li>Cargar las credenciales de prueba desde el admin en la base compartida.</li>
+          <li>Un PR por repositorio contra qa, la 149 configurada para un comercio de prueba, y la validación de QA.</li>
+        </ul>
+        <p class="dep">Depende de la respuesta 10 y del certificado.</p>
+      </div>
+    </div>
+  </section>
+
+  <footer>
+    Fuentes: la carpeta «Finandina» de Drive (PRD, política, diagrama, formulario, T&amp;C, mapa de campos y credenciales de prueba) y el código de legacy-backend en qa. La traza línea a línea está en la matriz de requisitos de la tarea #107.
+  </footer>
+</div>

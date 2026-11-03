@@ -27,7 +27,8 @@ adelante depende de las respuestas de la fase 0.
   de la solicitud (legacy-backend 519495056, rama local `feat/finandina-originacion-delegada`). Suite
   `harness/suites/finandina.json` 3 de 3; Salud y Materiales siguen 3 de 3 con radicación.
 - [x] ~~Releer los documentos requisito por requisito~~ — PRD, diagrama, política, formulario, T&C, mapa de
-  campos y notas: `artifacts/finandina-matriz-requisitos.md`.
+  campos y notas: `artifacts/finandina-matriz-requisitos.md`, y el resumen con la comparación con Credifamilia
+  y el plan en `artifacts/finandina-analisis-documentos.html`.
 
 ### Fase 0 · Decisiones de producto (bloquean las fases 3 a 5)
 
@@ -100,10 +101,8 @@ adelante depende de las respuestas de la fase 0.
   desde local y su respuesta convertida a lo que lee el motor. Depende de: Finandina — el certificado de cliente
   (el servidor demo exige TLS mutuo), su clave y si hay que autorizar la IP de salida; y la decisión de las cuentas.
 - [ ] Cargar las llaves desde el admin en la base compartida: las de prueba (Experian HC2 y Mareigua «Validador
-  I/E») están en `connectors/.env.finandina`, sin versionar; las de Deceval todavía no llegaron. Depende de:
-  producto — las de Deceval.
-- [ ] Al cerrar el proyecto, pedirle a Finandina que revoque las credenciales de prueba y emita otras: estuvieron
-  en Drive y en local. Termina con la confirmación de Finandina y las nuevas cargadas. Depende de: producto.
+  I/E») están en `connectors/.env.finandina`, sin versionar, y se siguen usando las que entregó Finandina; las
+  de Deceval todavía no llegaron. Depende de: producto — las de Deceval.
 - [ ] Avisar al equipo de `POST /api/onboarding/credentials/get-by-lender`: devuelve credenciales descifradas
   sin autenticación; lo agregó Santiago (2025-12-15) y lo usa pre-approvals-service por la red interna. Termina
   con la exposición confirmada o descartada, o con el endpoint protegido.
@@ -352,6 +351,9 @@ Falta: un caso fuera de política (necesita la preaprobación por el motor de cu
 
 ## Referencias
 
+- Análisis de los documentos, Credifamilia frente a Finandina y plan de acción:
+  `artifacts/finandina-analisis-documentos.html`, publicado en https://claude.ai/artifact/9o1MPrSEKsN9vTU7DKiT5L
+  (privado). La traza línea a línea: `artifacts/finandina-matriz-requisitos.md`.
 - PRD «PRD – Integración Banco Finandina» (Google Doc `1utJdnxfmL8Zre7ihll6Zvq9VraA57JDQpopGYybgUb0`).
 - Carpeta de Drive «Finandina» (`17AcO2PoM2U_5MCzpFtvA9bJDbbTwc0th`): «Politicas Creditop.pdf» (la Tabla 3 es
   una imagen en la página 4), `image.png` (el flujo), y «Documentos formalización de crédito» con el formulario,
