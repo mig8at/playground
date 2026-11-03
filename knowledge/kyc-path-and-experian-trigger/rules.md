@@ -3,8 +3,8 @@
 Para una solicitud que ya va por el pipeline (`kyc-pipeline` cubre cómo se elige entre pipeline y
 flujo viejo, y también cómo termina la corrida en el wizard): qué grafo recorre, cuándo se salta una
 central por dato vigente y qué decide el disparador de Experian. Describe `legacy-backend` y
-`customer-profiling-service` en `main`; `application` tiene su propio disparador, más viejo y con otras
-reglas (última sección). Los grafos vigentes son filas de cada base: aquí está lo que siembran las migraciones y
+`customer-profiling-service` en `main`. Al lado vive el disparador viejo, con otras reglas, copiado en
+los dos monolitos (última sección). Los grafos vigentes son filas de cada base: aquí está lo que siembran las migraciones y
 lo que fijan los tests, no lo que tiene un ambiente.
 
 ## El tipo de grafo lo deduce el backend por sucursal
@@ -94,19 +94,30 @@ como cierre válido. El disparador corre con un solo intento, sin reintentos. Si
 compra la variante que devolvió `data.variant` aunque el nodo pidiera otra; por eso una sucursal con
 bypass compra el combinado sea cual sea el grafo.
 
-## El disparador viejo de application
+## El disparador viejo, en los dos monolitos
 
-`application` decide aparte, en `DatacreditoQueryByAlliedController::userViability`, que llaman el
-listado de entidades, la información personal y la validación del OTP. No pasa por el pipeline ni por
-los códigos `RKV`, y en dos puntos decide al revés que `legacy-backend`:
+Fuera del pipeline decide `DatacreditoQueryByAlliedController::userViability`, con dos copias de la
+misma lógica:
 
-- **Sin reglas `datacredito_trigger` en la sucursal, no consulta nunca**
-  (`no_datacredito_trigger_configured`). `legacy-backend` consulta en ese caso (`RKV24007`).
-- **No tiene bypass:** comercio en la lista, entidad de la lista o `response_type = 2` no fuerzan nada.
+- en `legacy-backend`, `Modules/Risk` (no `RiskV2`), que llaman `OnboardingController`,
+  `OnboardingService` y `CreditStudyService`;
+- en `application`, que llaman el listado de entidades, la información personal y la validación del OTP.
+
+La copia de `legacy-backend` agrega una puerta antes de todo: si el país del comercio no tiene
+centrales de riesgo habilitadas, no consulta (`no_active_risk_centrals_for_country`). Las dos dejan cada
+decisión en la tabla `logs` (`controller = 'DatacreditoQueryByAlliedController'`, `name`
+`EXPERIAN_TRIGGERED` o `EXPERIAN_NOT_TRIGGERED`, el motivo en `request.reason`), con el mismo formato:
+la fila no dice qué monolito la escribió. En Loki sí: lo dice `service_name`.
+
+No usan los códigos `RKV` y en dos puntos deciden al revés que el disparador de `RiskV2`:
+
+- **Sin reglas `datacredito_trigger` en la sucursal, no consultan nunca**
+  (`no_datacredito_trigger_configured`). `RiskV2` consulta en ese caso (`RKV24007`).
+- **No tienen bypass:** comercio en la lista, entidad de la lista o `response_type = 2` no fuerzan nada.
   En cambio, **Prami (12)** hace evaluar la consulta aunque las reglas fallen
   (`datacredito_evaluated_by_prami_despite_failed_rules`) si está activa como entidad, en la sucursal y
   en el comercio, y tiene credencial de integración de la sucursal o del comercio. Con esa Prami
-  compra Acierta+Quanto (también cuando las reglas pasan). Sin Prami compra `creditScore`.
+  compran Acierta+Quanto (también cuando las reglas pasan). Sin Prami compran `creditScore`.
 
 Con reglas, falla si no se cumple alguna: Pullman (94) con monto ≤ 600.000, situación laboral (29),
 género, reportes (160), ingreso mínimo (87) o edad, que debe quedar estrictamente entre el mínimo y el

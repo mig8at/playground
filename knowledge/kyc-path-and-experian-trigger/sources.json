@@ -2,7 +2,7 @@
   "version": 1,
   "title": "KYC nuevo: qué camino toma una solicitud y cuándo se consulta Experian",
   "summary": "Cómo el pipeline de KYC elige grafo (STANDARD, CREDITOP_X, PULLMAN, DFS) por sucursal, cuándo salta una central por dato vigente y en qué orden decide el disparador de Experian, con su bypass, su frecuencia y la variante que compra.",
-  "reviewedAt": "2026-11-03T03:13:04+00:00",
+  "reviewedAt": "2026-11-03T03:19:35+00:00",
   "sources": [
     {
       "repo": "legacy-backend",
@@ -243,7 +243,25 @@
       "commit": "1755ab4fa3a50cac5669cdff4826131979a15def",
       "blob": "c616a8f73fd3ead8641e9d37bea6f0636ea38369",
       "sections": [
-        "el-disparador-viejo-de-application"
+        "el-disparador-viejo-en-los-dos-monolitos"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/Risk/App/Http/Controllers/DatacreditoQueryByAlliedController.php",
+      "commit": "69920f580f62ad35f0a555e3b8b8f2c247d758aa",
+      "blob": "f7a45502d44e4d17e6d4c4f1871310a12b957f0a",
+      "sections": [
+        "el-disparador-viejo-en-los-dos-monolitos"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/Onboarding/App/Http/Controllers/OnboardingController.php",
+      "commit": "69920f580f62ad35f0a555e3b8b8f2c247d758aa",
+      "blob": "738415ab7825c6212177127c5fd8ccddc4c69f54",
+      "sections": [
+        "el-disparador-viejo-en-los-dos-monolitos"
       ]
     }
   ]
