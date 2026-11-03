@@ -653,6 +653,16 @@
           "allied_slug": "alpeluche"
         }
       }
+    },
+    "finandina": {
+      "name": "Finandina Pruebas",
+      "bases": {
+        "local": {
+          "branch": "03751a1d",
+          "branch_id": 2309,
+          "allied_id": 547
+        }
+      }
     }
   }
 }

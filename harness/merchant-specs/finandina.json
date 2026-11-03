@@ -1,0 +1,15 @@
+{
+  "nombre": "Finandina Pruebas",
+  "slug": "finandina-pruebas",
+  "porque": "Comercio LOCAL para armar Banco Finandina (149) como entidad del riel 4, originación delegada (tarea 107). Sólo el comercio y su sucursal: la 149 ya existe en la base local y se cablea con la receta `tablero/tasks/finandina-originacion/artifacts/finandina-local-149.sql`, porque esta siembra BORRA y vuelve a crear las entidades que declara y la 149 no se clona de ningún molde.",
+  "pais": 47,
+  "molde_comercio": 158,
+  "comercio": {},
+  "sucursales": [
+    {
+      "nombre": "Bogotá",
+      "ciudad": 149
+    }
+  ],
+  "entidades": []
+}

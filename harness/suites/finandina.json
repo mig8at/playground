@@ -1,0 +1,30 @@
+{
+  "nombre": "Banco Finandina (149, rt=4) · originación delegada sin formalización: listado, plan con insumos de su configuración y autorización a 11",
+  "nota": "⚠ La base local no trae a Finandina en el riel 4: se arma con `make harness-merchant MERCHANT=finandina` y la receta `tablero/tasks/finandina-originacion/artifacts/finandina-local-149.sql`. Su perfil no tiene formalización, así que llega a 11 sin radicar. Los insumos salen de su configuración (línea de crédito y convenio), no de un preaprobado. Corré en serie (F-166).",
+  "requiere": ["close", "lambda"],
+  "porDefecto": {
+    "comercio": "finandina",
+    "lender": 149,
+    "amount": 5000000,
+    "income": 2500000,
+    "ocupacion": "Empleado",
+    "score": 760,
+    "cuotas": 24
+  },
+  "casos": [
+    {
+      "nombre": "aparece en el listado",
+      "espera": { "enListado": true }
+    },
+    {
+      "nombre": "cierra en 11 a 24 cuotas",
+      "cuotas": 24,
+      "espera": { "cierra": true, "estado": 11 }
+    },
+    {
+      "nombre": "y a 6 cuotas, el plazo más corto",
+      "cuotas": 6,
+      "espera": { "cierra": true, "estado": 11 }
+    }
+  ]
+}

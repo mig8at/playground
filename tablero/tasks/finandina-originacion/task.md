@@ -7,6 +7,7 @@ knowledge: [lender-response-types, lender-credential-sources, lender-listing, fi
 canon: [perfilamiento/context, creditopx/context, listado/context, documentos/context, entidad/context, formalizacion/context]
 jira: [CORE-845]
 jira_title: "Finandina: originación completa en Creditop"
+ramas: legacy-backend:finandina-originacion
 ---
 
 ## Pendientes
@@ -57,16 +58,23 @@ jira_title: "Finandina: originación completa en Creditop"
   llegan a 11 en qa.
 - [x] ~~Sacar del riel 4 los textos que dicen Credifamilia~~ — resuelto en CORE-918 (legacy-backend 9081bb7fb):
   opciones y comprobante toman el nombre de la entidad.
-- [ ] Armar Finandina en local como entidad del riel 4: la 149 con `response_type = 4`, slug propio, su fila en
-  `delegated_origination_profiles` (días 5/10/15/20 provisionales), línea de crédito y un comercio de prueba
-  con la 149 asignada y credencial. Termina con la 149 en el listado de ese comercio con el arnés.
-- [ ] Escribir la fuente de insumos de Finandina (clase de `DelegatedOriginationInputs` registrada en
-  `DelegatedOriginationInputsSources`) sobre el motor de cupo. Termina con opciones, fecha, cuotas y una
-  autorización sin formalización de la 149 en local; cubre también el pendiente de #109 de «probar una entidad
-  del riel 4 que no es Credifamilia».
-- [ ] Revisar con la 149 los huecos que dejó CORE-918 para una entidad que no es Credifamilia: los que llaman
-  al armador sin entidad caen a Salud (`engineLenderIdFor`), sin perfil da 500, y con firma Netco sin SigningV1
-  firma el juego de Credifamilia. Termina con cada uno corregido o descartado para la 149.
+- [x] ~~Armar Finandina en local como entidad del riel 4~~ — comercio «Finandina Pruebas» (spec
+  `harness/merchant-specs/finandina.json`) y la 149 cableada con `artifacts/finandina-local-149.sql`; sale en
+  el listado.
+- [x] ~~Llegar a 11 sin formalización en local~~ — fuente de insumos `lender_configuration` (línea de crédito y
+  convenio con el comercio) y el plan por la entidad de la solicitud cuando tiene perfil del riel
+  (legacy-backend 519495056, rama local `feat/finandina-originacion-delegada` desde `qa`). Suite
+  `harness/suites/finandina.json`: 3 de 3 en 11; Salud y Materiales siguen 3 de 3 con radicación. Cubre el
+  pendiente de #109 de «probar una entidad del riel 4 que no es Credifamilia».
+- [ ] Que el monto máximo sea el cupo del cliente y no el tope de la línea: hoy `max_amount` sale de
+  `credit_line_by_lenders` (15 MM para todos). Termina con la fuente de insumos leyendo el cupo del motor (o de
+  la preaprobación de la 149) y un caso con cupo menor que el tope en local.
+- [ ] Revisar con la 149 los huecos que quedan de CORE-918: los que llaman sin entidad fuera del plan
+  (pagaré y documentos de Credifamilia usan `CredifamiliaLenders::engineLenderIdFor`), 500 sin perfil, y
+  firma Netco sin SigningV1. La 149 corre sin proveedor de firma y no tocó ninguno. Termina con cada uno
+  corregido o descartado.
+- [ ] Decidir con producto el FGA: el motor le suma IVA (9 % de 5 MM = 450.000 + 85.500 de IVA, dentro del
+  capital) y el 5 % con score ≥ 856 no tiene dónde vivir (el convenio tiene un solo %). Depende de: producto.
 - [ ] Hacer que la preaprobación de la 149 corra el motor de cupo: en pre-approvals-service, la clave de
   Finandina hacia el adaptador `creditop_x`. Termina con una preaprobación aprobada y otra rechazada
   para la 149 en un ambiente de prueba.
@@ -307,8 +315,22 @@ Detalle de tablas y orden de búsqueda en `knowledge/lender-credential-sources`.
 
 ## Cómo se comprueba — y el MATERIAL para volver a hacerlo
 
-Pendiente: se arma cuando la 149 esté configurada en un ambiente de prueba (caso dentro y fuera de política
-con el arnés, y el cupo que da el motor).
+**En local (verificado el 2026-11-03).** Se arma con:
+
+    make harness-merchant MERCHANT=finandina
+    docker exec -i legacy-backend-mysql-1 sh -c 'mysql -uroot -p"$MYSQL_ROOT_PASSWORD" creditop' < tablero/tasks/finandina-originacion/artifacts/finandina-local-149.sql
+
+más la credencial de entidad y la de Deceval de prueba (cifradas, por tinker: ver la cabecera del SQL y la pila).
+Se comprueba con:
+
+    make harness-suite SUITE=harness/suites/finandina.json CLOSE=1 LAMBDA=1 TARGET=local
+    curl -s localhost/api/onboarding/payment-plan/banco-finandina/payment-plan-summary/<uReq>
+
+Lo que tiene que dar: 3 de 3 en 11 sin radicación; en el resumen, tasa 1,79 % N.M., FGA 0,09 con IVA, 4x1000 en
+0, seguro de 1.660 por millón y día de pago 5. Salud (`credifamilia.json`) y Materiales
+(`credifamilia-materiales.json`) siguen cerrando con radicación.
+
+Falta: un caso fuera de política (necesita la preaprobación por el motor de cupo) y un ambiente compartido.
 
 ## Referencias
 
