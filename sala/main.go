@@ -215,7 +215,7 @@ type hub struct {
 	subs   map[chan []byte]bool
 	cancel context.CancelFunc
 	root   string
-	onSay  func() // modo canal: despierta a los que escuchan cuando entra un mensaje
+	onSay  func(message) // modo canal: decide a quién despertar cuando entra un mensaje
 }
 
 func (h *hub) snapshot() []byte {
@@ -247,14 +247,14 @@ func (h *hub) say(who, name, text string) { h.post(message{Who: who, Name: name,
 func (h *hub) post(m message) {
 	m.At = time.Now().Format("15:04:05")
 	h.update(func(s *state) { s.Messages = append(s.Messages, m) })
-	if m.Kind == "aviso" {
+	if m.Kind == "aviso" || m.Kind == "portero" {
 		return
 	}
 	h.mu.Lock()
 	wake := h.onSay
 	h.mu.Unlock()
 	if wake != nil {
-		wake()
+		wake(m)
 	}
 }
 

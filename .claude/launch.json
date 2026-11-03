@@ -321,6 +321,19 @@
       ],
       "port": 5201,
       "autoPort": false
+    },
+    {
+      "name": "sala-portero",
+      "runtimeExecutable": "go",
+      "runtimeArgs": [
+        "run",
+        "./sala"
+      ],
+      "port": 5201,
+      "autoPort": false,
+      "env": {
+        "SALA_PORTERO": "1"
+      }
     }
   ]
 }

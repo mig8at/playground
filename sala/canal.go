@@ -134,25 +134,36 @@ func (h *hub) channel(outer context.Context, task string) {
 		}
 	}
 	wake := map[string]chan struct{}{}
+	isListener := map[string]bool{}
 	for _, p := range listeners {
 		wake[p.ID] = make(chan struct{}, 1)
+		isListener[p.ID] = true
 	}
-	h.onSay = func() {
-		for _, c := range wake {
-			select {
-			case c <- struct{}{}:
-			default:
-			}
-		}
-	}
+	want := map[string]bool{} // a quién le toca reaccionar (h.mu)
+	reserved := 0.0           // lo apartado por los turnos en curso (h.mu)
+	routing := 0              // decisiones del portero en curso (h.mu)
+	h.onSay = func(m message) { go h.route(ctx, m, listeners, isListener, want, wake, &routing) }
 	h.mu.Unlock()
 
-	left := func() float64 {
+	// take: si a p le toca y queda presupuesto libre, aparta el tope de su turno. Reservar ANTES de empezar es lo
+	// que evita lo de la primera llamada en canal: cinco turnos en paralelo gastaban a la vez, el tope cortaba uno a
+	// la mitad y su gasto se perdía. Acá, sin presupuesto libre, el turno no empieza y nadie se corta.
+	take := func(p *participant) (float64, bool) {
 		h.mu.Lock()
 		defer h.mu.Unlock()
-		return h.st.Budget - h.st.Spent
+		if !want[p.ID] {
+			return 0, false
+		}
+		want[p.ID] = false
+		avail := h.st.Budget - h.st.Spent - reserved
+		if p.Turns >= maxTurnsPerAgent || avail < 0.1 {
+			return 0, false
+		}
+		cap := min(avail, 0.6)
+		reserved += cap
+		return cap, true
 	}
-	var busy sync.WaitGroup
+	release := func(cap float64) { h.mu.Lock(); reserved -= cap; h.mu.Unlock() }
 	var running sync.Map // id → true mientras trabaja
 	for _, p := range listeners {
 		go func(p *participant) {
@@ -162,22 +173,15 @@ func (h *hub) channel(outer context.Context, task string) {
 					return
 				case <-wake[p.ID]:
 				}
-				for ctx.Err() == nil && h.unseen(p) {
-					if left() < 0.1 {
-						go finish(fmt.Sprintf("se llegó al tope de US$%.2f", h.st.Budget))
-						return
-					}
-					if p.Turns >= maxTurnsPerAgent {
-						h.mu.Lock()
-						p.seen = len(h.st.Messages) // ya habló todo lo que podía: escucha sin contestar
-						h.mu.Unlock()
+				for ctx.Err() == nil {
+					cap, ok := take(p)
+					if !ok {
 						break
 					}
-					busy.Add(1)
 					running.Store(p.ID, true)
-					h.turn(ctx, p, task, min(left(), 0.6))
+					h.turn(ctx, p, task, cap)
 					running.Delete(p.ID)
-					busy.Done()
+					release(cap)
 				}
 			}
 		}(p)
@@ -202,11 +206,17 @@ func (h *hub) channel(outer context.Context, task string) {
 		}
 		idle := true
 		running.Range(func(_, _ any) bool { idle = false; return false })
+		h.mu.Lock()
 		for _, p := range listeners {
-			if h.unseen(p) && p.Turns < maxTurnsPerAgent {
+			if want[p.ID] && p.Turns < maxTurnsPerAgent {
 				idle = false
 			}
 		}
+		if routing > 0 {
+			idle = false
+		}
+		avail := h.st.Budget - h.st.Spent - reserved
+		h.mu.Unlock()
 		if !idle {
 			quiet = 0
 			continue
@@ -219,12 +229,12 @@ func (h *hub) channel(outer context.Context, task string) {
 			finish("el coordinador llegó a su tope de intervenciones")
 			return
 		}
-		if left() < 0.1 {
+		if avail < 0.1 {
 			finish(fmt.Sprintf("se llegó al tope de US$%.2f", h.st.Budget))
 			return
 		}
 		runs++
-		text := h.turn(ctx, coord, task, min(left(), 0.4))
+		text := h.turn(ctx, coord, task, min(avail, 0.4))
 		if m := regexp.MustCompile(`(?m)^\s*CIERRO:\s*(.+?)\s*$`).FindStringSubmatch(text); m != nil {
 			finish("el coordinador cerró: " + m[1])
 			return
@@ -247,7 +257,13 @@ func mockChannelReply(ctx context.Context, h *hub, p *participant) (string, floa
 		}
 	}
 	h.mu.Lock()
-	last := h.st.Messages[len(h.st.Messages)-1]
+	var last message
+	for i := len(h.st.Messages) - 1; i >= 0; i-- { // el último que dijo algo: no un aviso ni la línea del portero
+		if k := h.st.Messages[i].Kind; k != "aviso" && k != "portero" {
+			last = h.st.Messages[i]
+			break
+		}
+	}
 	var checks []string
 	for _, c := range h.st.Claims {
 		if c.Status == "sin comprobar" && c.Who != p.Name {

@@ -305,6 +305,12 @@ como un participante más: escribe, interrumpe o corta.
   despierta a nadie) o si calla (`PASO`, que no se publica). Varios trabajan a la vez. Cuando nadie aporta, habla el
   **coordinador**: nombra a quién le toca el siguiente paso (`@id`) o cierra con `CIERRO:`. Topes: 8 turnos por agente,
   5 intervenciones del coordinador y el gasto de la llamada. El modo por rondas sigue disponible.
+- **El portero** (`sala/portero.go`, Claude Haiku 5.5 por decisión de Miguel): en el canal decide a quién despertar
+  con cada mensaje, en vez de despertar a todos. Recibe sólo los roles, quién trabaja en qué y el mensaje nuevo. No
+  pasan por él: lo de Miguel y el moderador (despierta a todos), las menciones `@id`, el verificador ante una
+  afirmación, las comprobaciones (sólo una refutación despierta al autor). Si falla o tarda más de 20 s, despierta a
+  todos. Cada turno reserva su tope de gasto antes de empezar: sin presupuesto libre no arranca, y nadie se corta.
+  `SALA_PORTERO=1` (configuración `sala-portero`) usa el portero real con agentes simulados.
 - **Convocatoria:** una casilla por rol y elencos por tipo de tarea (`defecto`: herramientas, arquitecto, probador,
   datos y verificador · `pantalla` · `negocio` · `clasico`).
 - Cada agente es una sesión de `claude -p` que se retoma turno a turno (`--resume`), con su rol en el prompt de
