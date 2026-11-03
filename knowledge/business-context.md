@@ -113,6 +113,26 @@ del que salió `forecast`: misma regla de tres componentes, y nada de App, inter
 - Trae además un análisis de CreditopX: clientes que cumplen la política de la entidad y no originaron, y los
   motivos de no cumplimiento (score, ocupación, ingresos reales, capacidad de endeudamiento).
 
+### La App y lo que falta preguntar
+
+Lo que Miguel escuchó del equipo (2026-11-02), contrastado con lo que ya está leído en el código:
+
+- **Suscripción mensual de Salud Financiera:** existe. Premium es la suscripción `creditop_premium` de RevenueCat
+  (mensual o anual) y da el reporte completo de Experian y consejos sin tope; la versión gratuita da nombre y
+  score, y una consulta de consejos al mes [código: [creditop-mobile](creditop-mobile/rules.md#salud-financiera-gratuita-y-premium)].
+  Es la línea «App» del Excel.
+- **Meses sin intereses por comprar con el código de la app:** existe, y es un **costo**, no un ingreso. Con un
+  programa de beneficio, CreditOp le paga a la entidad el interés corriente de las primeras cuotas (3 por
+  defecto); un programa puede exigir que el crédito venga de canjear el código de la app. Además, la primera
+  compra con el código regala 3 meses de premium [código: [creditopx-portfolio-servicing](creditopx-portfolio-servicing/rules.md#subsidio-de-intereses-creditop),
+  [client-code-redemption](client-code-redemption/rules.md)]. Sirve para atraer clientes a la app, que después
+  pueden suscribirse.
+- **Una capa gratuita de algunas entidades para comercios nuevos**, para atraer más comercios: sin confirmar y
+  sin rastro en el código leído. Puede explicar parte de los acuerdos en 0 %.
+- **Pendiente de preguntar a comercial:** por qué tantos acuerdos del agregador están en 0 % (no hay seguimiento
+  ni en el Excel ni en `forecast`), qué es «IC», y qué parte de los intereses y la cobranza de CreditopX queda
+  para CreditOp.
+
 ## Modelo comercial (2024, sin confirmar vigencia)
 
 Del CRM de 2024 (PIP); conviene contrastarlo con Confluence o comercial antes de usarlo:
