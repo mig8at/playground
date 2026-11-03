@@ -241,7 +241,18 @@ async function closeCreditopX(arr: any[], ur: number, tel: string, amount: numbe
     const dates = await get(`${PN}/${ur}/select-payment-date`);
     const dOpts = dates.json?.data?.nextPaymentDates ?? dates.json?.data?.dates ?? [];
     const firstDate = Array.isArray(dOpts) ? (dOpts[0]?.date ?? dOpts[0]) : null;
-    await post(`${PN}/${ur}/confirm-payment-date`, { user_request_id: ur, payment_date: firstDate, date: firstDate });
+    // ⚠ Hay que MIRAR la respuesta. Hasta el 2026-11-03 se ignoraba: con una entidad del riel 4 sin perfil
+    // esta llamada falló, la solicitud siguió sin `selected_payment_date` y el resumen y el comprobante
+    // respondían 500 más adelante, lejos de la causa. Sin fecha de pago el cierre no es un cierre.
+    const conf = await post(`${PN}/${ur}/confirm-payment-date`, { user_request_id: ur, payment_date: firstDate, date: firstDate });
+    if (conf.status < 200 || conf.status > 299) {
+        const why = String(conf.json?.message ?? conf.json?.raw ?? '').split('\n')[0].slice(0, 90);
+        const e = await one<{ e: number }>('SELECT user_request_status_id e FROM user_requests WHERE id=?', [ur])
+            .catch(() => null);
+        return { cerro: false, estado: e?.e ?? null,
+                 motivo: `${ctopx.name}: confirmar la fecha de pago devolvió HTTP ${conf.status}${why ? ` · ${why}` : ''}`
+                     + (firstDate ? '' : ' (la entidad no ofreció ninguna fecha)') };
+    }
 
     const sim = await get(`${PN}/${ur}/simulate-payment-schedule`);
     // La clave es `paymentSchedule` (`PaymentScheduleController::simulatePaymentSchedule`). Antes se
@@ -356,12 +367,20 @@ async function closeCreditopX(arr: any[], ur: number, tel: string, amount: numbe
            LEFT JOIN lender_transaction_statuses s ON s.id = t.status_id
           WHERE t.user_request_id = ? ORDER BY t.id DESC LIMIT 1`, [ur]).catch(() => null);
 
+    // ⚠ ESTADO 11 NO ES «CERRÓ» SI LA AUTORIZACIÓN FALLÓ. El estado se compromete ANTES de radicar y de los
+    // efectos posteriores (comprobante, avisos), así que un error en esa parte deja la solicitud en 11 con
+    // un 4xx/5xx. Hasta el 2026-11-03 esto contaba como cierre: con una entidad del riel 4 sin perfil la
+    // autorización respondió 500, la solicitud quedó en 11 sin radicar, y el runner dijo «CERRÓ».
+    const authOk = aut.status >= 200 && aut.status <= 299;
     return {
-        cerro: end?.e === 11,
-        motivo: `${ctopx.name} · HTTP ${aut.status}${why}`
+        cerro: end?.e === 11 && authOk,
+        motivo: (end?.e === 11 && !authOk ? `${ctopx.name}: quedó en 11 pero la autorización respondió HTTP ${aut.status}`
+                    + ' — autorizada a medias (sin radicar ni efectos posteriores)' : `${ctopx.name} · HTTP ${aut.status}`)
+            + why
             + (rad?.n ? ` · radicación ${rad.n}${rad.n === 'CREDIT_COMPLETED' ? '' : ' ⚠'}` : ''),
         estado: end?.e ?? null,
         radicacion: rad?.n ?? null,
+        autorizacion: aut.status,
     };
 }
 
@@ -713,6 +732,8 @@ type Res = {
     /** `radicacion` sólo existe cuando la entidad radica por transacción y el caso llegó hasta ahí;
      *  en los cortes tempranos no hay fila que consultar. */
     cierre?: { cerro: boolean; motivo: string; estado: number | null; radicacion?: string | null;
+               /** HTTP de la autorización: un 11 con 4xx/5xx no es cierre (quedó autorizada a medias). */
+               autorizacion?: number;
                /** rt=0/1: la decisión la toma alguien afuera. NO es un fallo del caso. */
                fueraDePlataforma?: boolean;
                /** Resultado del webhook de la entidad, si el caso lo pidió con `@webhook=`. */
