@@ -302,7 +302,10 @@ como un participante más: escribe, interrumpe o corta.
 - `MOCK=1` corre la llamada con respuestas simuladas, sin gastar, para la interfaz.
 
 **Pendientes del frente:**
-- [ ] Una llamada real sobre una tarea del tablero, con tope de US$3. Termina cuando hay un bloque con lo que dijo
-  cada uno, qué afirmaciones traían comando y cuánto costó.
+- [x] Una llamada real sobre una tarea del tablero, con tope de US$3 (hecho el 2026-11-02: tarea 86, una ronda,
+  US$1,25; bloque del día). Salieron dos arreglos para el moderador y la pizarra (abajo).
+- [ ] El moderador no cierra con un «TERMINÉ» que deja cosas abiertas: abre una ronda de objeciones antes de
+  cortar. Y una corrección a algo existente (una nota, un tema, una suite) va a la pizarra aunque venga en prosa.
+  Termina cuando una llamada real lo muestra.
 - [ ] Compararla con el agente solo en las tres preguntas de tarea del ensayo. Termina cuando hay una tabla de
   aciertos, turnos y costo; si la sala no gana, queda como experimento y se dice por qué.
