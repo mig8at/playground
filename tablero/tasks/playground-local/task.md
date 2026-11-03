@@ -313,9 +313,12 @@ turno cueste un contexto entero; lo que sirvió de ella (que lo afirmado lo comp
 - [x] Barrido · un verificador que no firme todo: marcó 28 de 28 con ✓ y la pasada a knowledge descartó partes de
   H16 y H17. Termina cuando un barrido real tiene algún ✗ o —, o una segunda mirada no encuentra nada que él aprobó.
   Con el prompt que le pide abrir cada cita y tomar como ✗ una parte falsa, el segundo barrido real dio 3 ✗ de 26.
-- [ ] Barrido · pasar a knowledge los hallazgos del segundo (country-geography, credifamilia-financing, motai-renting),
-  con una segunda mirada como en el primero. Termina cuando los ✓ que se sostienen están en sus temas.
-- [ ] Barrido · las suites que señaló el primero: reemplazo de respuestas del formulario dinámico, cascada
-  zona→ciudad en el wizard, formas de `alignedSplit`, cascada Ágil Data→TusDatos con `ONB005`, y tipos de documento
-  por país. Termina cuando cada una corre con `make harness-suite` o queda descartada con su motivo.
+- [ ] Barrido · lo que el segundo dejó para la tarea, que son datos de prod: la tabla FNG de Credifamilia Materiales
+  vacía con su migración aplicada (¿corrió con otro `APP_ENV`?), dos sucursales de comercios peruanos en Bogotá y una
+  en el comodín de Colombia, y el RTO de Motai que firma la prenda. Termina cuando cada uno tiene dueño en
+  `incidencias` o queda descartado con su motivo.
+- [ ] Barrido · las suites que señalaron los dos: reemplazo de respuestas del formulario dinámico, cascada
+  zona→ciudad en el wizard, formas de `alignedSplit`, cascada Ágil Data→TusDatos con `ONB005`, tipos de documento
+  por país, el árbol de ciudades de form-service, la ciudad de cada sucursal contra el país de su comercio, la fianza
+  y el plan de Credifamilia, las fórmulas del renting y el catálogo de firmas de Motai. Termina cuando cada una corre con `make harness-suite` o queda descartada con su motivo.
 
