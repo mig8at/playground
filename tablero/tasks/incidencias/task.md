@@ -102,7 +102,9 @@ Salvo donde se dice «corrido», salen de LEER el código: falta reproducirlos.
   6, 19, 23 y 39). Esas cuatro son de riel 0 y 1 (Addi, Brilla, Welli, Meddipay): originan y validan de su lado, así
   que no hubo crédito originado por Creditop sin identidad. **Corrido en local (2026-11-03, uReq 468088):** con la
   identidad pendiente y la cuenta en `TEMPORAL USER`, `lenders` y `lenders-v2` devuelven el listado, con 24 y 216
-  incluidas. Falta comprobar si una de riel 2 o 4 deja firmar así. Termina cuando se decide con producto
+  incluidas. **Y llega a 11:** por API, la misma solicitud eligió Credifamilia Salud (24), firmó con OTP y la
+  autorización la dejó en 11 con la cuenta todavía en `TEMPORAL USER`; sólo la radicación dio 422 por la cédula que
+  falta. Falta probarlo con una CreditopX (riel 2), que no radica. Termina cuando se decide con producto
   si el backend tiene que frenar el listado sin identidad, y se corrige o se descarta con el motivo.
 - [ ] Que dos altas en el mismo segundo no den el mismo hash de sucursal o de comercio. Los dos monolitos lo arman con
   `hash('crc32', date('Y-m-d H:i:s'))`, sin unicidad, y el backend resuelve la sucursal por hash con `->first()`.

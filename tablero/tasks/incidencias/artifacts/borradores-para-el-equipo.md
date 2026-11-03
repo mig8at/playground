@@ -71,24 +71,26 @@ sesión o un token del flujo.
 
 ---
 
-## 4 · El listado se le muestra a un cliente cuya identidad no terminó (Media → Baja)
+## 4 · Una solicitud llega a «autorizada» sin que la identidad haya terminado (Media)
 
-**Qué pasa.** En los comercios que usan el KYC nuevo, ni el listado de entidades ni la solicitud revisan que la
-validación de identidad haya terminado: la única guarda es la pantalla.
+**Qué pasa.** En los comercios que usan el KYC nuevo, ni el listado, ni la elección de entidad, ni la firma, ni la
+autorización revisan que la validación de identidad haya terminado: la única guarda es la pantalla.
 
-**Cómo se comprobó.** Corrido en local: un cliente del comercio 26 cuya identidad quedó sin confirmar (la corrida
-pidió corregir los datos y la cuenta sigue como «TEMPORAL USER») recibe igual el listado completo por los dos
-servicios de listado, con Credifamilia Salud y Materiales incluidas.
+**Cómo se comprobó.** Corrido en local con un cliente del comercio 26 cuya identidad quedó sin confirmar: la corrida
+dijo que la cédula es de otra persona y pidió corregir, y la cuenta sigue como «TEMPORAL USER» con el nombre que tecleó.
+Con llamadas directas, sin pasar por la pantalla, recibió el listado completo, eligió Credifamilia Salud, confirmó
+fecha y plan, se le generó el pagaré, validó el OTP y la autorización la dejó en **estado 11 (autorizada)**. Lo
+único que frenó fue la radicación ante Credifamilia, que exige las imágenes de la cédula (y no las había porque la
+identidad nunca terminó): la solicitud quedó autorizada sin radicar.
 
-**Por qué baja.** Las 5 solicitudes de producción autorizadas desde octubre con el cliente todavía temporal son
-todas de entidades que originan de su lado (Addi y Brilla por redirección; Welli y Meddipay integradas): la
-entidad valida la identidad y marca el estado. Ninguna es de las que origina Creditop.
+**En producción.** Las 5 solicitudes autorizadas desde octubre con el cliente todavía temporal son de entidades que
+originan y validan de su lado (Addi, Brilla, Welli, Meddipay). No se vio en entidades que origina Creditop.
 
-**Falta comprobar** si una entidad que origina Creditop (CreditopX u originación delegada) deja firmar a un
-cliente sin identidad terminada, si alguien llega al listado salteando la pantalla.
+**Falta comprobar** con una entidad CreditopX, que no radica ante nadie: ahí no habría ni siquiera el freno de las
+imágenes.
 
-**Propuesta.** Decidir con producto si el listado (o la elección de entidad) debe exigir la identidad terminada en
-los comercios del KYC nuevo.
+**Propuesta.** Que la autorización (o la elección de entidad) exija la identidad terminada en los comercios del KYC
+nuevo, y no sólo la pantalla.
 
 ---
 
