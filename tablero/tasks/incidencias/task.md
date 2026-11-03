@@ -91,6 +91,12 @@ Salvo donde se dice «corrido», salen de LEER el código: falta reproducirlos.
 
 ### Media — comportamiento distinto al esperado
 
+- [ ] Que una solicitud de un comercio con pipeline de KYC no llegue al listado ni se autorice sin la corrida
+  `COMPLETED`. El único que lee `kyc_pipeline_allieds` es `ResolveKycFlowService`; ni el listado ni la solicitud miran
+  la corrida, así que la única guarda es el wizard. **Medido en prod (2026-11-03):** en el comercio 26, que va por el
+  pipeline, 5 solicitudes llegaron a estado 11 desde octubre con el cliente todavía como `TEMPORAL USER` (entidades
+  6, 19, 23 y 39). Falta saber si esas entidades validan identidad por su lado. Termina cuando se decide con producto
+  si el backend tiene que frenar el listado sin identidad, y se corrige o se descarta con el motivo.
 - [ ] Que dos altas en el mismo segundo no den el mismo hash de sucursal o de comercio. Los dos monolitos lo arman con
   `hash('crc32', date('Y-m-d H:i:s'))`, sin unicidad, y el backend resuelve la sucursal por hash con `->first()`.
   **Medido en prod (2026-11-03):** hay 4 pares de sucursales y 1 de comercios con el mismo hash. En cada par, la segunda
