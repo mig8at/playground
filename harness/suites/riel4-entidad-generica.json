@@ -1,0 +1,31 @@
+{
+  "nombre": "Riel 4 (originación delegada) con una entidad que NO es Credifamilia — QA Externo (172) en DENTIX LAURELES",
+  "nota": "Vale sólo en la base LOCAL, con la 172 configurada a mano (2026-11-03): convenio con DENTIX (lenders_by_allieds 1302, fondo de garantía 10 %, seguro 0,2 %), la sucursal 913 (lenders_by_allied_branches 38315), las 6 reglas duras de Credifamilia copiadas al grupo 5943 (lender_rules 40489-40494; sin ninguna regla en un grupo de la sucursal, validateRulesByLender la descarta en silencio), una línea de crédito propia (credit_line_by_lenders 222: 2,10 % N.M., plazos 12,24,36, para distinguirla de Salud: 1,82 %, 6-24) y su perfil del riel (delegated_origination_profiles 4: inputs_source lender_configuration, formalization null, días de pago [5, 20], sin 4x1000). Con ese perfil el plan se calcula con la 172 también en los endpoints que no reciben la entidad (continuar, resumen, comprobante), y la autorización cierra en 11 con HTTP 200 y SIN radicación (formalization null). SIN el perfil (DELETE FROM delegated_origination_profiles WHERE lender_id=172), el cierre sigue dando 11 pero la autorización contesta 500 «Lender 172 has no delegated-origination profile» después del commit, y por slug loan-options, payment-dates e installment-plan dan 500 y continue-request da 200 calculado con Salud (tasa 24,18 % E.A. del preaprobado de Credifamilia): el runner no puede afirmar ni el HTTP de la autorización ni los endpoints del plan, así que esas dos mitades se comprueban con curl a /api/onboarding/payment-plan/qa-externo-rt4/<endpoint>/<uReq>. El preaprobado de la tarjeta por su slug da 400 en el mock (:8095) y en el servicio real: qa-externo-rt4 no es una lending_product_key conocida.",
+  "ambientes": ["local"],
+  "requiere": ["close", "lambda"],
+  "porDefecto": {
+    "comercio": "#82e8961e",
+    "lender": 172,
+    "amount": 2000000,
+    "income": 2500000,
+    "ocupacion": "Empleado",
+    "score": 760,
+    "cuotas": 24
+  },
+  "casos": [
+    {
+      "nombre": "la 172 sale en el listado de DENTIX LAURELES",
+      "espera": { "enListado": true }
+    },
+    {
+      "nombre": "con perfil y sin formalización: cierra en 11 y NO radica (no hay transacción con la entidad)",
+      "cuotas": 24,
+      "espera": { "cierra": true, "estado": 11, "radicacion": null }
+    },
+    {
+      "nombre": "a 36 cuotas, un plazo que ofrece la 172 y Salud no — si el cronograma se calculara con Salud, el runner avisaría que el plazo no se ofrece",
+      "cuotas": 36,
+      "espera": { "cierra": true, "estado": 11, "radicacion": null }
+    }
+  ]
+}
