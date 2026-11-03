@@ -98,7 +98,9 @@ Salvo donde se dice «corrido», salen de LEER el código: falta reproducirlos.
   toleran (`?? []`, `isset`). El lambda de mocks de qa y dev contesta `"creditCard": null` en `hdcplus/acierta-quanto`
   y `hdcplus/quanto`; Experian real no lo manda (0 errores en prod contra 18.889 consultas de cupo en 24 h). Termina
   cuando la línea 1298 tolera el null (o el mock manda `[]`, como Experian real) y el cupo de CrediPullman responde en
-  qa. Depende de: backend (una línea) o de quien mantiene `risk-services-mockery-lambda`.
+  qa. Depende de: backend (una línea) o de quien mantiene `risk-services-mockery-lambda`. En qa lo disparaba el harness:
+  el runner de casos no le dictaba Experian al lambda y el backend recibía su default. Ya corregido en el harness, el
+  cupo responde en qa; la línea 1298 sigue sin tolerar el null, y queda para cuando el equipo decida tocarla.
 - [ ] Que una solicitud de un comercio con pipeline de KYC no llegue al listado ni se autorice sin la corrida
   `COMPLETED`. El único que lee `kyc_pipeline_allieds` es `ResolveKycFlowService`; ni el listado ni la solicitud miran
   la corrida, así que la única guarda es el wizard. **Medido en prod (2026-11-03):** en el comercio 26, que va por el
