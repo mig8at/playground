@@ -97,7 +97,8 @@ adelante depende de las respuestas de la fase 0.
 - [ ] Integrar la consulta de Experian de Finandina: sus llaves de prueba son del servicio SOAP HC2
   (`DHServicePlus`, `consultarHC2`, producto 64, usuario = NIT y clave corta), que ningún repo implementa; el
   Experian de Creditop es el REST con OAuth. Termina con una consulta HC2 en el ambiente demo de Experian
-  desde local y su respuesta convertida a lo que lee el motor. Depende de: la decisión de las cuentas.
+  desde local y su respuesta convertida a lo que lee el motor. Depende de: Finandina — el certificado de cliente
+  (el servidor demo exige TLS mutuo), su clave y si hay que autorizar la IP de salida; y la decisión de las cuentas.
 - [ ] Cargar las llaves desde el admin en la base compartida: las de prueba (Experian HC2 y Mareigua «Validador
   I/E») están en `connectors/.env.finandina`, sin versionar; las de Deceval todavía no llegaron. Depende de:
   producto — las de Deceval.
