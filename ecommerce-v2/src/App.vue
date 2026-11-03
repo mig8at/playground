@@ -204,11 +204,12 @@ const OUTCOMES = [
   { status: 6, label: 'Negar', name: 'Negada', store: 'failed: el comprador vuelve al checkout' },
   { status: 8, label: 'Cancelar', name: 'Cancelado', store: 'cancelled: el pedido se cancela' },
 ]
-// La tienda de prueba (VTEX, workspace develop, con la app publicada) y dónde se ven sus pedidos. El admin pide un
+// La tienda de prueba (VTEX, la de master: la condición «Creditop qa» manda el pago al conector v5 de develop) y dónde se
+// ven sus pedidos. El admin pide un
 // usuario en la cuenta creditop. Shopify vuelve cuando su app esté desplegada: hoy sólo corre con `shopify app dev`.
 const STORES = [
   { name: 'VTEX', links: [
-    { label: 'Tienda (develop)', href: 'https://develop--creditop.myvtex.com' },
+    { label: 'Tienda', href: 'https://creditop.myvtex.com' },
     { label: 'Admin · pedidos', href: 'https://creditop.myvtex.com/admin/orders' },
     { label: 'Admin · transacciones', href: 'https://creditop.myvtex.com/admin/pci-gateway/#/transactions' },
   ] },

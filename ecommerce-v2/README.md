@@ -36,19 +36,20 @@ contar la hora. Salida: esperar, o usar otra cédula (y cargarla en el paso 2).
 
 ## 3 · Comprar en VTEX
 
-Tienda https://develop--creditop.myvtex.com: el workspace de desarrollo de la cuenta de pruebas `creditop`, con la app
-`creditop.creditop` v5 instalada y apuntando a qa. No hace falta ninguna consola, pero sí sesión: es un workspace de
-desarrollo y sólo abre con un usuario de la cuenta. Entrá primero a la raíz (pide el login de VTEX); sin sesión, el
-carrito (`/checkout/#/cart`) da «Sorry, an error occurred while processing your request». Con sesión, se elige
-Creditop como medio de pago y el checkout lleva al wizard de qa.
+Tienda https://creditop.myvtex.com, la de la cuenta de pruebas `creditop`. No hace falta consola ni sesión: se elige
+Creditop como medio de pago y el checkout lleva al wizard de qa. Que vaya a qa lo decide la condición de pago activa,
+«Creditop qa», cuya afiliación usa el conector v5 del workspace `develop` (la afiliación decide qué conector atiende,
+no la tienda).
+
+No uses `develop--creditop.myvtex.com` para comprar: es un workspace de desarrollo y su carrito da «Sorry, an error
+occurred while processing your request» (ya pasaba el 2026-10-29; el de master da 200).
 
 Datos de la persona: un celular y un correo de prueba tuyos. El correo no puede ser el de una cuenta de administrador en
 qa (el registro dice «correo ya registrado»): usá uno aparte, como `tu-nombre-test@creditop.com`. El código OTP llega a
 Slack, canal `#qa-messages`.
 
 Para ver el pedido y su estado del lado de la tienda: el admin de VTEX (enlaces del sidebar), con un usuario en la cuenta
-`creditop`. Si https://develop--creditop.myvtex.com/_v/creditop.creditop/v5/manifest no da 200, la app no está en el
-workspace: avisale a Miguel.
+`creditop`. Si al pagar no aparece Creditop, o el wizard no es el de qa, alguien cambió la condición de pago: avisale a Miguel.
 
 Shopify todavía no: su app no está desplegada y sólo corre mientras alguien tiene `shopify app dev` levantado.
 
