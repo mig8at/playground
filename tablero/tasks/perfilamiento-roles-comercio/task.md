@@ -20,8 +20,8 @@ jira_title: "Perfil de riesgo visible para Superadmin y Admin comercio"
   historial del cliente en TODOS los comercios por los que pasó; termina con la respuesta en la pila.
   Depende de: producto — recorte por comercio.
 - [ ] Conseguir la lista de comercios a habilitar y cargarla con
-  `UPDATE allieds SET allow_risk_profile_view = 1 WHERE id IN (...)` en cada ambiente; termina con
-  la lista en la pila.
+  `UPDATE settings SET value = '[...]' WHERE \`key\` = 'allied_ids_with_risk_profile_view'` en cada
+  ambiente; termina con la lista en la pila.
   Depende de: Oscar — qué comercios.
 - [x] Confirmar en qué repo va la migración de la columna nueva de `allieds` — en `legacy-application`,
   como `2026_06_03_120000_add_production_date_to_allieds_table`; la decisión está en la pila.
@@ -35,6 +35,9 @@ jira_title: "Perfil de riesgo visible para Superadmin y Admin comercio"
   comercios habilitados (bloque en la pila). Falta en prod, al pasar a `main`.
 - [x] Validar en dev con el comercio 37 habilitado y en 0 — 2026-11-03, sólo sus administradores ven a su
   cliente; el flag quedó en 0 (bloques en la pila). La pantalla de dev no se recorrió con sesión.
+- [ ] Pushear 063a1136 (columna → settings), abrir su PR a `develop` y correr la migración nueva en la
+  base compartida (quita la columna del batch 331 y crea el setting); termina con el PR abierto y la
+  base verificada.
 - [ ] Mergear [#366](https://github.com/Creditop-SAS/legacy-application/pull/366) (gemelo de #365 directo a
   `main`) y taguear; en prod, correr la migración y el `UPDATE` con los comercios de Oscar.
   Depende de: Oscar — aprobar el PR a `main` y la lista de comercios.
