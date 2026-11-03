@@ -63,6 +63,27 @@ solicitud no es el `allied_id` 26, y la deja sólo si sale `approved` con monto 
 180.000 y sin una solicitud previa de esa entidad en estado 11.
 
 
+## Prami, Welli y la 166 quedan fuera del preaprobado, y del listado v1
+
+En `legacy-backend`, el paso que decide si hay un preaprobado después de guardar la información laboral o
+validar el OTP (`OnboardingController::storeLaboralInfoOrchestrator` y
+`validateOtpCodeAndRedirectOrchestrator`, que llaman a `OnboardingService::validatePreApproveLender`) consulta
+a las entidades de la sucursal, pero excluye a Prami (12), a las tres Welli (23, 141, 142) y a Welli Risk
+(166) con un `whereNotIn` marcado «TEMPORAL» mientras se valida su paridad. A la 23 la volvió a excluir
+CORE-553: crea la orden sin costos administrativos antes que el microservicio.
+
+La puerta v1 del listado va más allá. `LenderRetrievalService::getLenders` saca esas cinco de la lista
+armada antes de validar los preaprobados, así que **en esa puerta no aparecen en el listado**. El comentario
+dice «del preaprobado», pero el filtro se aplica al listado entero. La puerta v2 (`LenderListingService`) no
+tiene ese filtro.
+
+En `legacy-application`, el mismo paso (`PersonalInfoController`) excluye 12, 141, 142 y 166, pero no la 23.
+Prami queda afuera por diseño: necesita datacrédito y se dispara por `experian_trigger_allieds`, no como
+preaprobado.
+
+Qué puerta atendió un caso, y por lo tanto si estas entidades se ofrecieron, se mira en el caso, no en este
+tema: que un filtro marcado temporal siga en `main` no dice qué recorre hoy cada cliente.
+
 ## Las reglas duras sólo sacan del listado a algunas entidades
 
 El listado evalúa las `lender_rules` de los grupos de la sucursal: por campo del formulario

@@ -1,8 +1,8 @@
 {
   "version": 1,
   "title": "Listado de entidades",
-  "summary": "Puertas del listado en ambos monolitos, resolución del monto en lenders-v2, reescritura del perfilamiento guardado y requisitos de Welli Risk.",
-  "reviewedAt": "2026-11-02T15:35:39+00:00",
+  "summary": "Puertas del listado en ambos monolitos, resolución del monto en lenders-v2, reescritura del perfilamiento guardado, requisitos de Welli Risk y las entidades excluidas del preaprobado y del listado v1.",
+  "reviewedAt": "2026-11-03T02:38:26+00:00",
   "sources": [
     {
       "repo": "legacy-backend",
@@ -40,7 +40,8 @@
       "blob": "b5c813f1c70bc407b080d15a05c44ce3fdb0e681",
       "sections": [
         "el-monto-del-listado-v2-se-resuelve-antes-del-calculo",
-        "welli-risk-depende-de-la-sucursal-de-la-consulta-compartida-y-de-la-comision-del-aliado"
+        "welli-risk-depende-de-la-sucursal-de-la-consulta-compartida-y-de-la-comision-del-aliado",
+        "prami-welli-y-la-166-quedan-fuera-del-preaprobado-y-del-listado-v1"
       ]
     },
     {
@@ -221,6 +222,42 @@
       "blob": "4e95ed5fcb4616142d7d657d25506a5878f39553",
       "sections": [
         "las-reglas-duras-solo-sacan-del-listado-a-algunas-entidades"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/Onboarding/App/Services/OnboardingService.php",
+      "commit": "69920f580f62ad35f0a555e3b8b8f2c247d758aa",
+      "blob": "2b8146b5aa65d80b144d70c774b1d12cce4c9fa3",
+      "sections": [
+        "prami-welli-y-la-166-quedan-fuera-del-preaprobado-y-del-listado-v1"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/Onboarding/App/Services/lenders/LenderRetrievalService.php",
+      "commit": "69920f580f62ad35f0a555e3b8b8f2c247d758aa",
+      "blob": "aeb7c50ddd1e854c80fc088591439cc64769ca20",
+      "sections": [
+        "prami-welli-y-la-166-quedan-fuera-del-preaprobado-y-del-listado-v1"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/Onboarding/App/Http/Controllers/OnboardingController.php",
+      "commit": "69920f580f62ad35f0a555e3b8b8f2c247d758aa",
+      "blob": "738415ab7825c6212177127c5fd8ccddc4c69f54",
+      "sections": [
+        "prami-welli-y-la-166-quedan-fuera-del-preaprobado-y-del-listado-v1"
+      ]
+    },
+    {
+      "repo": "application",
+      "path": "app/Http/Controllers/Customer/PersonalInfoController.php",
+      "commit": "1755ab4fa3a50cac5669cdff4826131979a15def",
+      "blob": "459a5b8efa12c208b69ee501a320378e5e55870c",
+      "sections": [
+        "prami-welli-y-la-166-quedan-fuera-del-preaprobado-y-del-listado-v1"
       ]
     }
   ]
