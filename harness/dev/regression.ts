@@ -11,11 +11,17 @@
 // RESET=1 reinicia antes el cupo de los perfiles en la base local (`dev/quota-reset.ts --apply`): las suites
 // que cierran lo van agotando y la siguiente corrida saldría `profile_quota_exhausted` por la base.
 //
+// SALTEADAS. Una suite que declara `"ambientes"` sin `local` (p. ej. `credifamilia-materiales-qa.json`) no se
+// corre: se cuenta como «salteada (vale en …)», no como rojo. Lo mismo una que no es de este runner (las de
+// `dev/ecommerce.ts`, o una sin `casos`): antes se apartaban por prefijo de nombre. La decisión es
+// `pkg/suite-scope.ts`, la misma que usa `case.ts`.
+//
 // Salida: 0 todas en pie · 1 alguna falla · 2 el ambiente frena o no es local.
 export {};
 import { readdirSync, readFileSync, writeFileSync, mkdirSync, existsSync } from 'node:fs';
 import { spawnSync } from 'node:child_process';
 import { resolve } from 'node:path';
+import { suiteScope } from '../pkg/suite-scope.ts';
 
 const HARNESS = resolve(import.meta.dirname, '..');
 const LAST = resolve(HARNESS, '.runs/regression-last.json');
@@ -44,18 +50,26 @@ const notOnMain = (doctor.checks ?? []).filter((c: any) => c.id.startsWith('rama
 if (notOnMain.length) say(`  ⚠ no es main lo que se mide — ${notOnMain.join(' · ')}`);
 if (args.includes('--reset')) say(`  ${node('dev/quota-reset.ts', ['--apply']).stdout.trim().split('\n').pop()}`);
 
-// 2 · Las suites del runner de casos: las que tienen `casos` y no son de otro runner (ecommerce las corre
-// `dev/ecommerce.ts`, con su propia forma).
+// 2 · Las suites del runner de casos que valen en este target. Las demás se saltean con su motivo. Un JSON
+// que no parsea o un `ambientes` mal escrito NO se saltea: va a correr y `case.ts` lo da en rojo.
+const skipped: Array<{ suite: string; motivo: string }> = [];
 const suites = readdirSync(resolve(HARNESS, 'suites')).filter((f) => f.endsWith('.json')).sort()
-    .filter((f) => !f.startsWith('ecommerce'))
-    .filter((f) => { try { return Array.isArray(JSON.parse(readFileSync(resolve(HARNESS, 'suites', f), 'utf8')).casos); } catch { return false; } })
-    .filter((f) => !only || f.includes(only));
+    .filter((f) => !only || f.includes(only))
+    .filter((f) => {
+        let json: unknown;
+        try { json = JSON.parse(readFileSync(resolve(HARNESS, 'suites', f), 'utf8')); } catch { return true; }
+        let scope;
+        try { scope = suiteScope(json, process.env.E2E_TARGET || ''); } catch { return true; }
+        if (scope.kind === 'run') return true;
+        skipped.push({ suite: f, motivo: scope.kind === 'not-for-target' ? `salteada (vale en ${scope.targets.join(', ')})` : `salteada (${scope.reason})` });
+        return false;
+    });
 
 const previous: Record<string, { ok: boolean; casos: number; desvios: string[]; cuando: string }> =
     existsSync(LAST) ? (JSON.parse(readFileSync(LAST, 'utf8')).suites ?? {}) : {};
 const now: typeof previous = {};
 const started = new Date().toISOString();
-say(`\n  REGRESIÓN · ${suites.length} suite(s) contra local\n`);
+say(`\n  REGRESIÓN · ${suites.length} suite(s) contra local${skipped.length ? ` · ${skipped.length} salteada(s)` : ''}\n`);
 for (const f of suites) {
     process.stderr.write(`  ▸ ${f} …`);
     const t0 = Date.now();
@@ -76,8 +90,10 @@ for (const f of suites) {
 }
 say('\n  QUÉ CAMBIÓ DESDE LA CORRIDA ANTERIOR' + (Object.keys(previous).length ? '' : ' (no había una: ésta es la base)') + '\n');
 for (const l of lines) say(l);
+for (const s of skipped) say(`  ⤼ ${s.suite.padEnd(34)} ${s.motivo}`);
 const broken = suites.filter((f) => !now[f].ok);
 say(`\n  ${suites.length - broken.length}/${suites.length} suites en pie`
+    + (skipped.length ? ` · ${skipped.length} salteada(s)` : '')
     + (suites.filter((f) => previous[f]?.ok && !now[f].ok).length ? ` · ${suites.filter((f) => previous[f]?.ok && !now[f].ok).length} SE ROMPIERON` : '') + '\n');
 
 // Se guarda la corrida entera (sin ONLY), para que la próxima compare contra algo completo.
@@ -86,5 +102,5 @@ if (!only) {
     writeFileSync(LAST, JSON.stringify({ cuando: started, ramas: notOnMain, suites: now }, null, 2));
 }
 if (JSON_OUT) process.stdout.write(JSON.stringify({ formato: 'harness.regression/v1', ok: broken.length === 0, ramas: notOnMain,
-    suites: suites.map((f) => ({ suite: f, ...now[f], antes: previous[f]?.ok ?? null })) }) + '\n');
+    suites: suites.map((f) => ({ suite: f, ...now[f], antes: previous[f]?.ok ?? null })), salteadas: skipped }) + '\n');
 process.exit(broken.length ? 1 : 0);

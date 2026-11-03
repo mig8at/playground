@@ -1,5 +1,6 @@
 {
   "nombre": "La continuidad laboral va por escalones: un perfil que pide 9 meses exige 12",
+  "ambientes": ["local"],
   "requiere": ["lambda", "parallel"],
   "porDefecto": {
     "comercio": "TRACK",

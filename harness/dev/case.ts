@@ -83,6 +83,7 @@ import { canonicalFlag } from '../pkg/cli-aliases.ts';   // los flags viejos (en
 import { synthIdImageUrl } from '../pkg/synth-id-images.ts';
 import { credifamiliaFormFields, isCredifamilia } from '../pkg/credifamilia-form.ts';
 import { credifamiliaTestUser, dateParts, type CredifamiliaTestUser } from '../pkg/credifamilia-test-users.ts';
+import { suiteScope, suiteTargets, EXIT_NOT_FOR_TARGET } from '../pkg/suite-scope.ts';   // lógica pura: no toca la base
 export {};
 
 process.env.E2E_TARGET ||= 'local';
@@ -600,7 +601,7 @@ function parseCase(spec: string, dflt: { amount: number; income: number; score: 
  * esté acá es un error. Al agregar una aserción o una perilla, se agrega también a su lista.
  */
 const SUITE_KEYS = {
-    top: ['nombre', 'requiere', 'porDefecto', 'casos', 'nota'],
+    top: ['nombre', 'requiere', 'porDefecto', 'casos', 'nota', 'ambientes'],
     caso: ['comercio', 'lender', 'nombre', 'nota', 'espera', 'ocupacion', 'cuotas', 'webhook', 'name', 'surname', 'agilname',
            'doc', 'agildata', 'mareigua', 'tusdatos', 'pasos', 'escenarios', 'amount', 'income', 'score',
            'negatives', 'delinquencies', 'consulted', 'cards', 'months', 'maturation'],
@@ -632,7 +633,10 @@ function suiteShapeErrors(json: any): string[] {
     return out;
 }
 
-async function loadSuite(path: string, dflt: { amount: number; income: number; score: number }): Promise<Case[]> {
+/** Lo que devuelve `loadSuite` cuando la suite declara `ambientes` y el target de la corrida no está: no se corre. */
+type NotForTarget = { notForTarget: string[] };
+
+async function loadSuite(path: string, dflt: { amount: number; income: number; score: number }): Promise<Case[] | NotForTarget> {
     const { readFile } = await import('node:fs/promises');
     let json: any;
     try {
@@ -643,11 +647,17 @@ async function loadSuite(path: string, dflt: { amount: number; income: number; s
     if (!Array.isArray(json?.casos) || json.casos.length === 0) {
         throw new Error(`la suite ${path} no tiene un array \`casos\` con al menos un caso`);
     }
+    // ¿Es de este runner, y vale en este ambiente? (`pkg/suite-scope.ts`). La forma se valida ANTES de
+    // saltear: una clave mal escrita falla en cualquier ambiente, no sólo en el suyo.
+    try { suiteTargets(json); } catch (e) { throw new Error(`la suite ${path}: ${(e as Error).message}`); }
+    const scope = suiteScope(json, process.env.E2E_TARGET || 'local');
+    if (scope.kind === 'other-runner') throw new Error(`la suite ${path} ${scope.reason}`);
     const unknown = suiteShapeErrors(json);
     if (unknown.length) {
         throw new Error(`la suite ${path} tiene claves que este runner no conoce, y una clave que no se lee es una`
             + ` expectativa que no se comprueba (daría verde sin mirar):\n      ${unknown.join('\n      ')}`);
     }
+    if (scope.kind === 'not-for-target') return { notForTarget: scope.targets };
     // `requiere` deja que la suite prenda lo que necesita: `["cerrar", "lambda"]`.
     for (const f of (Array.isArray(json.requiere) ? json.requiere : [])) implicit.add(canonicalFlag(String(f)));   // una suite vieja puede decir «cerrar»
 
@@ -1787,8 +1797,18 @@ async function main(): Promise<number> {
         income: Number(arg('income', '2500000')),
         score: Number(arg('score', '700')),
     };
-    const cases: Case[] = arg('suite')
-        ? await loadSuite(arg('suite'), dflt)
+    const loaded = arg('suite') ? await loadSuite(arg('suite'), dflt) : null;
+    if (loaded && !Array.isArray(loaded)) {
+        // No corre NADA: ni línea base, ni bypass, ni siembra. Es un no-veredicto, no un rojo (salida 3).
+        const target = process.env.E2E_TARGET || 'local';
+        console.log(`\n  ⤼ esta suite vale en: ${loaded.notForTarget.join(', ')} — no en ${target}. No se corrió nada.\n`);
+        REPORT = { formato: 'harness.case/v1', target, suite: arg('suite'), ok: false, sinVeredicto: true,
+                   salteada: true, valeEn: loaded.notForTarget, salida: EXIT_NOT_FOR_TARGET,
+                   detalle: `la suite vale en: ${loaded.notForTarget.join(', ')}`, casos: [], desvios: [] };
+        return EXIT_NOT_FOR_TARGET;
+    }
+    const cases: Case[] = loaded
+        ? loaded
         : arg('cases')
             ? arg('cases').split(';').map((x) => parseCase(x, dflt))
             : [parseCase(`${arg('merchant', 'pullman')}${arg('lender') ? ':' + arg('lender') : ''}`, dflt)];

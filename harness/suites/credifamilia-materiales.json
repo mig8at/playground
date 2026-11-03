@@ -1,5 +1,6 @@
 {
   "nombre": "Credifamilia Materiales (216, rt=4) · el ciclo completo sobre originación delegada: slug propio, fianza FNG anticipada con 4x1000, firma y radicación",
+  "ambientes": ["local"],
   "nota": "⚠ La base local no trae a Materiales: el 216 se crea clonando la configuración local del 24 con los datos propios de Materiales de prod (nombre, documento CC, línea 12–60 meses, 100.000–10.000.000). Después se corren las siembras de FNG y del perfil, y la migración del slug propio (legacy-backend #1831). El mock de preaprobación acepta `credifamilia-materiales` como alias de `credifamilia`, igual que pre-approvals-service en develop. Corré en serie, como la de Salud (F-166).",
   "requiere": ["close", "lambda"],
   "porDefecto": {

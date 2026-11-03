@@ -1,5 +1,6 @@
 {
   "nombre": "Un crédito CreditopX vigente niega el cupo de esa misma entidad, no el de las otras",
+  "ambientes": ["local"],
   "requiere": [
     "close",
     "lambda",

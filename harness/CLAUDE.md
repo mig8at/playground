@@ -183,6 +183,12 @@ donde se dice otra cosa:
   estado en que quedan las solicitudes de los pasos previos del mismo cliente). Un paso con `"cerrar": false` elige la
   entidad pedida y se queda ahí aunque la suite cierre: es como se deja una solicitud hermana abierta. Las suites que
   respaldan reglas de `knowledge/` las nombran en su `nota` y el tema dice con qué suite se comprueba.
+  Una suite que depende de los datos de UNA base (qué entidades tiene cada comercio) declara dónde vale con
+  `"ambientes": ["local"]` (o `["local", "qa"]`); sin la clave vale en todos. En otro target `harness-suite` no
+  corre nada, dice «esta suite vale en: …» y sale **3** (ni verde ni rojo); `harness-regression` y
+  `harness-knowledge` la cuentan como «salteada», igual que las que son de otro runner (las `ecommerce*.json` las
+  corre `make harness-ecommerce`). La decisión es `pkg/suite-scope.ts`. Medido el 2026-11-03: en qa, 11 de 18
+  suites fallaban sin regresión por esto.
   `make harness-knowledge TARGET=local` corre todas las suites que algún tema cita (`SUITE=harness/suites/…` en su
   prosa) y dice, por tema, qué regla sigue en pie; `LIST=1` sólo muestra qué temas tienen suite y cuáles sólo están
   leídos en el código. Es la pareja de `make knowledge-check`: aquél avisa que una fuente cambió, éste contesta si
@@ -211,7 +217,7 @@ y sin el nombre viejo no se podría repetir. Los traducen `HARNESS_OLD_TARGETS` 
 ## Dos caminos, y cada uno tiene su dueño
 
 - **Rápido — es TU camino (el del agente), por CLI.** El flujo por API, sin navegador, en segundos.
-  **Exit code = veredicto**: `0` cerró · `1` desenlace malo o el front mintió · `2` quedó a mitad.
+  **Exit code = veredicto**: `0` cerró · `1` desenlace malo o el front mintió · `2` quedó a mitad · `3` la suite no vale en ese target (`"ambientes"`) y no se corrió.
   **Para un agente, `JSON=1`** en `harness-case` y `harness-suite`: el texto va a stderr y stdout lleva un solo
   objeto `harness.case/v1` (casos con su solicitud, listado, cierre y desvíos; `ok`; `sinVeredicto` si no llegó
   a decidir). No busques el veredicto en el texto: cambia. Una suite con una clave que el runner no conoce

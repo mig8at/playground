@@ -1,5 +1,6 @@
 {
   "nombre": "Sin crédito previo: hay cupo de CreditopX, y las entidades de riel 0 y 1 no tienen cupo de Creditop",
+  "ambientes": ["local"],
   "requiere": [
     "lambda",
     "parallel"

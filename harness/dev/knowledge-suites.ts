@@ -10,6 +10,7 @@ export {};
 import { readdirSync, readFileSync, existsSync } from 'node:fs';
 import { spawnSync } from 'node:child_process';
 import { resolve } from 'node:path';
+import { suiteScope } from '../pkg/suite-scope.ts';
 
 const HARNESS = resolve(import.meta.dirname, '..');
 const KNOWLEDGE = resolve(HARNESS, '../knowledge');
@@ -42,10 +43,19 @@ if (!process.env.E2E_TARGET) {
     process.exit(2);
 }
 
-const results: Array<{ suite: string; topics: string[]; code: number; line: string }> = [];
+// Una suite que no vale en este target (`"ambientes"`) o que no es del runner de casos se saltea: no es una
+// regla rota, es una regla que no se puede comprobar ACÁ (`pkg/suite-scope.ts`). Un JSON roto sí se corre y da rojo.
+const results: Array<{ suite: string; topics: string[]; code: number; line: string; skipped?: boolean }> = [];
 for (const [suite, topics] of suites) {
     if (!existsSync(resolve(HARNESS, suite))) {
         results.push({ suite, topics: [...topics], code: 2, line: 'la suite citada no existe' });
+        continue;
+    }
+    let scope: ReturnType<typeof suiteScope> | null = null;
+    try { scope = suiteScope(JSON.parse(readFileSync(resolve(HARNESS, suite), 'utf8')), process.env.E2E_TARGET || ''); } catch { scope = null; }
+    if (scope && scope.kind !== 'run') {
+        results.push({ suite, topics: [...topics], code: 0, skipped: true,
+            line: scope.kind === 'not-for-target' ? `salteada (vale en ${scope.targets.join(', ')})` : `salteada (${scope.reason})` });
         continue;
     }
     process.stdout.write(`  ▸ ${suite} …`);
@@ -64,9 +74,12 @@ for (const [suite, topics] of suites) {
 
 console.log('\n  QUÉ REGLA SIGUE EN PIE\n');
 for (const r of results) {
-    console.log(`  ${r.code === 0 ? '✓' : '✗'} ${r.topics.join(', ')}  ·  ${r.suite}`);
+    console.log(`  ${r.skipped ? '⤼' : r.code === 0 ? '✓' : '✗'} ${r.topics.join(', ')}  ·  ${r.suite}`);
     console.log(`      ${r.line}`);
 }
 const failed = results.filter((r) => r.code !== 0);
-console.log(`\n  ${results.length - failed.length}/${results.length} suites en pie contra ${process.env.E2E_TARGET}\n`);
+const ran = results.filter((r) => !r.skipped);
+const nSkipped = results.length - ran.length;
+console.log(`\n  ${ran.length - failed.length}/${ran.length} suites en pie contra ${process.env.E2E_TARGET}`
+    + (nSkipped ? ` · ${nSkipped} salteada(s)` : '') + '\n');
 process.exit(failed.length ? 1 : 0);

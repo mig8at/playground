@@ -1,5 +1,6 @@
 {
   "nombre": "El buró decide la categoría de CrediPullman, no su presencia en el listado",
+  "ambientes": ["local"],
   "requiere": ["lambda", "parallel"],
   "porDefecto": {
     "comercio": "pullman",

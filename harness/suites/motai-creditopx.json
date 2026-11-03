@@ -1,5 +1,6 @@
 {
   "nombre": "Motai · los tres productos de CreditopX",
+  "ambientes": ["local"],
   "requiere": ["close", "lambda", "parallel"],
   "porDefecto": {
     "amount": 2000000,
