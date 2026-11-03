@@ -34,42 +34,21 @@ intentos alcanzado» (`/rate-limit-exceeded`). El contador vive en el Redis del 
 solicitudes o usuarios no lo reinicia, y desde acá no hay acceso para borrarlo. Cada intento que pasa vuelve a
 contar la hora. Salida: esperar, o usar otra cédula (y cargarla en el paso 2).
 
-## 3 · Comprar
+## 3 · Comprar en VTEX
 
-En `ecommerce`, pestaña **Tiendas** de la consola de abajo, un semáforo dice si cada tienda está lista para comprar y el botón
-**Levantar** corre en segundo plano lo de esta sección: `shopify app dev` (y apunta la extensión al túnel nuevo solo) y
-`vtex link` (sólo con la sesión en `creditop · develop`). **Parar** corta lo que levantó ecommerce, y cerrar `npm run dev`
-lo corta también. El login de VTEX abre el navegador: va siempre a mano. Los comandos de abajo son lo que corre el
-botón (`server/stores.go`): si cambia uno, se cambian los dos.
+Tienda https://develop--creditop.myvtex.com: el workspace de desarrollo de la cuenta de pruebas `creditop`, con la app
+`creditop.creditop` v5 instalada y apuntando a qa. No hace falta ninguna consola ni login de VTEX para comprar: se
+elige Creditop como medio de pago y el checkout lleva al wizard de qa.
 
-Datos de la persona en las dos tiendas: un celular y un correo de prueba tuyos. El correo no puede ser el de una cuenta
-de administrador en qa (el registro dice «correo ya registrado»): usá uno aparte, como `tu-nombre-test@creditop.com`.
-El código OTP llega a Slack, canal `#qa-messages`.
+Datos de la persona: un celular y un correo de prueba tuyos. El correo no puede ser el de una cuenta de administrador en
+qa (el registro dice «correo ya registrado»): usá uno aparte, como `tu-nombre-test@creditop.com`. El código OTP llega a
+Slack, canal `#qa-messages`.
 
-**Shopify** · tienda https://creditop-dev-store.myshopify.com. La app tiene que estar corriendo:
+Para ver el pedido y su estado del lado de la tienda: el admin de VTEX (enlaces del sidebar), con un usuario en la cuenta
+`creditop`. Si https://develop--creditop.myvtex.com/_v/creditop.creditop/v5/manifest no da 200, la app no está en el
+workspace: avisale a Miguel.
 
-```bash
-cd <clon de shopify> && CREDITOP_LOCAL=1 CREDITOP_ENVIRONMENT=develop npx shopify app dev --config shopify.app.creditop-ecommerce-payments-local.toml --store creditop-dev-store.myshopify.com
-```
-
-El túnel cambia en cada arranque: con la URL `https://…trycloudflare.com` que imprime,
-
-```bash
-cd <clon de shopify> && npm run extension:url -- https://<túnel>
-```
-
-**VTEX** · tienda https://develop--creditop.myvtex.com (workspace de desarrollo de la cuenta de pruebas). Con sesión:
-
-```bash
-vtex login creditop
-```
-
-```bash
-vtex use develop
-```
-
-Si https://develop--creditop.myvtex.com/_v/creditop.creditop/v5/manifest no da 200, el conector no está
-linkeado: `cd <clon de vtex> && vtex link` (no se commitean los cambios que deja en `node/`).
+Shopify todavía no: su app no está desplegada y sólo corre mientras alguien tiene `shopify app dev` levantado.
 
 ## 4 · Mirar y cerrar la compra en ecommerce
 
@@ -88,7 +67,6 @@ Va por el simulador del backend de qa, que le avisa a la tienda (un `UPDATE` a m
 solicitud**: la tienda no acepta un segundo resultado, así que después queda sólo **Volver a la tienda ↗**, que lleva
 a donde vuelve el comprador y ahí se ve en qué quedó la compra. El bloqueo se recuerda en el navegador.
 
-- Shopify: «Volver a la tienda» pasa por el túnel de `shopify app dev`; con la app apagada o reiniciada no abre.
 - VTEX: aprobada, el pedido queda 30 minutos en `window-to-cancel` y no cobra hasta facturarlo (`start-handling` +
   `invoice`; pedile el comando a Miguel).
 

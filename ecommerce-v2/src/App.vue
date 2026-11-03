@@ -204,13 +204,9 @@ const OUTCOMES = [
   { status: 6, label: 'Negar', name: 'Negada', store: 'failed: el comprador vuelve al checkout' },
   { status: 8, label: 'Cancelar', name: 'Cancelado', store: 'cancelled: el pedido se cancela' },
 ]
-// Las tiendas de prueba (sólo desarrollo: en VTEX el workspace develop) y dónde se ven sus pedidos. Los admins piden
-// un usuario en cada tienda.
+// La tienda de prueba (VTEX, workspace develop, con la app publicada) y dónde se ven sus pedidos. El admin pide un
+// usuario en la cuenta creditop. Shopify vuelve cuando su app esté desplegada: hoy sólo corre con `shopify app dev`.
 const STORES = [
-  { name: 'Shopify', links: [
-    { label: 'Tienda', href: 'https://creditop-dev-store.myshopify.com' },
-    { label: 'Admin · pedidos', href: 'https://admin.shopify.com/store/creditop-dev-store/orders' },
-  ] },
   { name: 'VTEX', links: [
     { label: 'Tienda (develop)', href: 'https://develop--creditop.myvtex.com' },
     { label: 'Admin · pedidos', href: 'https://creditop.myvtex.com/admin/orders' },
@@ -383,7 +379,7 @@ function toggleTable(name) { tablePrefs.value = { ...tablePrefs.value, [name]: !
 function resetTables() { tablePrefs.value = {}; saveTablePrefs() }
 const visibleTables = computed(() => tables.value.filter((t) => isShown(t.table)))
 const hiddenCount = computed(() => tables.value.length - visibleTables.value.length)
-const panelTab = ref('states') // states · tables · table · stores
+const panelTab = ref('states') // states · tables · table
 // La tabla cuya descripción se ve en la consola (la última cuyo título se tocó).
 const docTable = ref(null)
 const docOf = computed(() => (docTable.value ? TABLE_DOCS[docTable.value] || null : null))
@@ -444,50 +440,11 @@ const copied = ref(false)
 async function copyQuery() {
   try { await navigator.clipboard.writeText(openQuery.value); copied.value = true; setTimeout(() => { copied.value = false }, 1500) } catch { /* sin portapapeles */ }
 }
-// El semáforo de las tiendas de prueba (`/api/stores`): se mide mientras la pestaña Tiendas está abierta. El botón
-// levanta en segundo plano lo que eran comandos de consola, y lo para si lo levantó ecommerce.
-const STORE_NAMES = { shopify: 'Shopify', vtex: 'VTEX' }
-const stores = ref([])
-const storesError = ref('')
-const storeBusy = ref('')
-const storeLogOpen = ref('')
-let storesTimer = null
-async function loadStores() {
-  try {
-    const res = await fetch('/api/stores')
-    const body = await res.json()
-    if (!res.ok) throw new Error(body.error || `HTTP ${res.status}`)
-    stores.value = body
-    storesError.value = ''
-  } catch (e) { storesError.value = `No se pudo medir: ${e.message}` }
-}
-async function storeAction(store, action) {
-  storeBusy.value = store
-  try {
-    const res = await fetch(`/api/stores/${action}?store=${store}`, { method: 'POST' })
-    const body = await res.json()
-    if (!res.ok) throw new Error(body.error || `HTTP ${res.status}`)
-    storesError.value = ''
-    if (action === 'start') storeLogOpen.value = store
-  } catch (e) { storesError.value = e.message } finally {
-    storeBusy.value = ''
-    loadStores()
-  }
-}
-// Al pasar a prod, lo que es sólo de desarrollo se cierra: la pestaña Tiendas y una vista de Shopify.
+// Al pasar a prod, lo que es sólo de desarrollo se cierra: el diagrama de una tienda.
 watch(readOnly, (ro) => {
   if (!ro) return
-  if (panelTab.value === 'stores') panelTab.value = 'states'
   if (storeView.value && !visibleStores.value.some((s) => (s.flow || s.name) === storeView.value.store)) storeView.value = null
 }, { immediate: true })
-watch(panelTab, (tab) => {
-  clearInterval(storesTimer)
-  storesTimer = null
-  if (tab !== 'stores') return
-  loadStores()
-  storesTimer = setInterval(loadStores, 5000)
-}, { immediate: true })
-onBeforeUnmount(() => clearInterval(storesTimer))
 // Otra solicitud u otro ambiente: la consulta abierta era de la anterior.
 watch([() => result.value?.request?.id, target], () => { openTable.value = null; openCell.value = null; if (panelTab.value === 'table') panelTab.value = 'states'; docTable.value = null })
 // Las fechas de alta y de cambio de cada fila son ruido para una prueba: no se muestran (la consulta las trae).
@@ -911,9 +868,6 @@ onBeforeUnmount(() => {
         <button type="button" role="tab" class="tab" :class="{ on: panelTab === 'tables' }" :aria-selected="panelTab === 'tables'" @click="panelTab = 'tables'">
           Tablas <span v-if="tables.length" class="count" :class="{ filtered: hiddenCount }">{{ visibleTables.length }} / {{ tables.length }}</span>
         </button>
-        <button v-if="!readOnly" type="button" role="tab" class="tab" :class="{ on: panelTab === 'stores' }" :aria-selected="panelTab === 'stores'" @click="panelTab = 'stores'">
-          Tiendas
-        </button>
         <div v-if="panelTab === 'tables'" class="region-actions">
           <button type="button" class="region-action" title="Volver a lo de siempre: todas menos logs y auditorías" aria-label="Volver a lo de siempre" @click="resetTables">
             <span class="ui-icon" data-icon="refresh" aria-hidden="true"></span>
@@ -931,25 +885,6 @@ onBeforeUnmount(() => {
           <h3><code>{{ docTable }}</code></h3>
           <p class="muted">Todavía no tiene descripción. Se agrega en <code>ecommerce/src/table-docs.js</code>.</p>
         </template>
-      </div>
-      <div v-else-if="panelTab === 'stores'" class="region-body store-commands">
-        <p v-if="storesError" class="hot">{{ storesError }}</p>
-        <section v-for="st in stores" :key="st.store" class="store-state">
-          <div class="store-state-head">
-            <i class="dot" :data-state="st.ready ? 'ok' : 'fail'" aria-hidden="true"></i>
-            <h3>{{ STORE_NAMES[st.store] }}</h3>
-            <span class="muted small">{{ st.ready ? 'lista para comprar' : 'falta algo' }}{{ st.external ? ' · corre en otra terminal' : st.managed ? ` · levantada desde ecommerce a las ${st.started}` : '' }}</span>
-            <button v-if="st.managed" type="button" class="btn btn-xs btn-outline" :disabled="storeBusy === st.store" @click="storeAction(st.store, 'stop')">Parar</button>
-            <button v-else-if="!st.external" type="button" class="btn btn-xs" :disabled="storeBusy === st.store" @click="storeAction(st.store, 'start')">{{ storeBusy === st.store ? 'Levantando…' : 'Levantar' }}</button>
-            <button v-if="st.log.length" type="button" class="btn-link small" @click="storeLogOpen = storeLogOpen === st.store ? '' : st.store">{{ storeLogOpen === st.store ? 'Ocultar salida' : 'Ver salida' }}</button>
-          </div>
-          <ul class="store-checks">
-            <li v-for="c in st.checks" :key="c.name"><i class="dot" :data-state="c.ok ? 'ok' : 'fail'" aria-hidden="true"></i>{{ c.name }} <span class="muted">· {{ c.detail }}</span></li>
-          </ul>
-          <p v-if="st.exited" class="muted small">El proceso terminó a las {{ st.exited }}.</p>
-          <pre v-if="storeLogOpen === st.store" class="store-log">{{ st.log.slice(-40).join('\n') }}</pre>
-        </section>
-        <p v-if="!stores.length && !storesError" class="muted">Midiendo…</p>
       </div>
       <div v-else-if="panelTab === 'tables'" class="region-body">
         <p v-if="!tables.length" class="none">Las tablas de la solicitud que se mira; las que se apagan acá no se muestran en el editor.</p>
@@ -1152,16 +1087,6 @@ code.wrap { word-break: break-all }
 .table-doc { padding: var(--space-2) var(--gutter) }
 .table-doc h3 { margin: 0 0 var(--space-1); font-size: var(--text-base); font-weight: 600 }
 .table-doc p { margin: 0 0 var(--space-1); max-width: 90ch; line-height: 1.5 }
-/* El semáforo de cada tienda: el punto, los chequeos y la salida del proceso. */
-.store-commands { padding: var(--space-2) var(--gutter) }
-.store-commands p { margin: 0 0 var(--space-1); max-width: 90ch; line-height: 1.5 }
-.store-state { margin-bottom: var(--space-3) }
-.store-state-head { display: flex; align-items: center; gap: var(--space-2); flex-wrap: wrap }
-.store-state-head h3 { margin: 0; font-size: var(--text-base); font-weight: 600 }
-.store-checks { margin: var(--space-1) 0 0; padding: 0; list-style: none; font-size: var(--text-sm) }
-.store-checks li { display: flex; align-items: center; gap: var(--space-2); padding: 2px 0 }
-.store-log { max-height: 220px; overflow: auto; margin: var(--space-1) 0 0; padding: var(--space-2); border-radius: var(--radius-sm); background: var(--muted); font-size: 11px; line-height: 1.45; white-space: pre-wrap; word-break: break-all }
-/* Las ramas de cada tienda: rama, PR y los ambientes donde ya está. Lo entregado va atenuado, al final. */
 /* El perfil de prueba en la barra: quién, el botón y una línea por central. */
 .profile { display: flex; flex-direction: column; align-items: flex-start; gap: var(--space-1); padding: var(--space-2) var(--gutter) var(--space-3) }
 .profile p { margin: 0 }
