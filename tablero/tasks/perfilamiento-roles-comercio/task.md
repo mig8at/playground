@@ -16,9 +16,8 @@ jira_title: "Perfil de riesgo visible para Superadmin y Admin comercio"
   ni migración — 1050eddb, en [#366](https://github.com/Creditop-SAS/legacy-application/pull/366) (main) y
   [#367](https://github.com/Creditop-SAS/legacy-application/pull/367) (develop).
 - [x] Mergear #367 — 6f10efbe, desplegado en dev; el recorte se validó en dev con usuarios reales (sólo lectura).
-- [ ] Probar en dev de punta a punta con el permiso dado a un Admin comercio del 37 (ojo + su cliente 200,
-  cliente ajeno 403) y revocarlo; termina con la medición en la pila.
-  Depende de: Miguel — dar el permiso o autorizarlo en la sesión.
+- [x] Probar en dev con el permiso dado al Admin comercio 564 del 37 — ve a su cliente, 403 con el del 53;
+  permiso quitado (bloque en la pila). La pantalla de dev no se recorrió con su sesión.
 - [ ] Mergear #366 a `main` y taguear; termina con el despliegue en prod.
   Depende de: Oscar — aprobar #366.
 - [ ] Dar el permiso a los Admin y Superadmin comercio de los comercios que diga Oscar, en cada ambiente;
@@ -94,7 +93,7 @@ CRED-350): es otra pantalla, ligada a la aprobación manual por entidad.
 
 ## Cómo se comprueba — y el MATERIAL para volver a hacerlo
 
-Verificado en local el 2026-11-03 sobre 1050eddb. Falta dev.
+Verificado en local y en dev (con el permiso dado y quitado al Admin comercio 564) el 2026-11-03.
 
 **Dar el permiso** a los Admin comercio de un comercio (para incluir a los Superadmin:
 `r.name IN ('Admin comercio', 'Superadmin comercio')` y
