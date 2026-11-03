@@ -94,8 +94,15 @@ adelante depende de las respuestas de la fase 0.
 - [ ] Decidir si Experian y Mareigua se consultan con la cuenta de Finandina (el PRD dice que la consulta «no la
   cobra Creditop»). Si es así, que la consulta nueva de Experian lea la credencial de la entidad (RKV2TD024) y
   que Mareigua acepte una cuenta por entidad. Depende de: producto.
-- [ ] Recibir las llaves de Experian, Mareigua y Deceval por un canal seguro (hoy están en Drive) y cargarlas
-  desde el admin en la base compartida. Depende de: producto — el traspaso.
+- [ ] Integrar la consulta de Experian de Finandina: sus llaves de prueba son del servicio SOAP HC2
+  (`DHServicePlus`, `consultarHC2`, producto 64, usuario = NIT y clave corta), que ningún repo implementa; el
+  Experian de Creditop es el REST con OAuth. Termina con una consulta HC2 en el ambiente demo de Experian
+  desde local y su respuesta convertida a lo que lee el motor. Depende de: la decisión de las cuentas.
+- [ ] Cargar las llaves desde el admin en la base compartida: las de prueba (Experian HC2 y Mareigua «Validador
+  I/E») están en `connectors/.env.finandina`, sin versionar; las de Deceval todavía no llegaron. Depende de:
+  producto — las de Deceval.
+- [ ] Al cerrar el proyecto, pedirle a Finandina que revoque las credenciales de prueba y emita otras: estuvieron
+  en Drive y en local. Termina con la confirmación de Finandina y las nuevas cargadas. Depende de: producto.
 - [ ] Avisar al equipo de `POST /api/onboarding/credentials/get-by-lender`: devuelve credenciales descifradas
   sin autenticación; lo agregó Santiago (2025-12-15) y lo usa pre-approvals-service por la red interna. Termina
   con la exposición confirmada o descartada, o con el endpoint protegido.
