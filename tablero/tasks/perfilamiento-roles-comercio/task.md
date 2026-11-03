@@ -31,6 +31,11 @@ jira_title: "Perfil de riesgo visible para Superadmin y Admin comercio"
   y para dibujar el ojo — commit 30df4c71, probado en local (bloque del 2026-11-03).
 - [x] Abrir el PR en `legacy-application` — [#365](https://github.com/Creditop-SAS/legacy-application/pull/365), contra `develop`.
 - [ ] Llevar #365 a revisión y mergearlo; termina con el PR mergeado en `develop`.
+- [x] Correr la migración del flag en la base compartida de dev, qa y staging — 2026-11-03, batch 331, 0
+  comercios habilitados (bloque en la pila). Falta en prod, al pasar a `main`.
+- [ ] Tras el merge a `develop`, habilitar un comercio de prueba en dev
+  (`UPDATE allieds SET allow_risk_profile_view = 1 WHERE id = 94`) y seguir los pasos de QA del PR;
+  termina con la medición en la pila.
 - [x] Recortar `userValidation` a clientes con solicitudes en los comercios habilitados del usuario,
   y si no, 403 sin datos — probado en local; el recorte del historial por comercio no se pudo ver
   por HTTP (ver bloque).
