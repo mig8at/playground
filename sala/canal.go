@@ -221,6 +221,19 @@ func (h *hub) channel(outer context.Context, task string) {
 		}
 		avail := h.st.Budget - h.st.Spent - reserved
 		h.mu.Unlock()
+		// En una sala de entendimiento, con suficientes hallazgos comprobados se cierra: lo que sigue es revisarlos.
+		h.mu.Lock()
+		verified := 0
+		for _, c := range h.st.Claims {
+			if c.Kind == "hallazgo" && c.Status == "comprobada" {
+				verified++
+			}
+		}
+		h.mu.Unlock()
+		if verified >= maxFindings {
+			finish(fmt.Sprintf("se juntaron %d hallazgos comprobados", verified))
+			return
+		}
 		if !idle {
 			quiet = 0
 			continue
@@ -282,6 +295,9 @@ func mockChannelReply(ctx context.Context, h *hub, p *participant) (string, floa
 	}
 	h.mu.Unlock()
 	named := strings.Contains(last.Text, "@"+p.ID)
+	if h.st.Kind == "entendimiento" {
+		return mockUnderstanding(p, coordRuns, checks, pause), 0
+	}
 
 	switch p.ID {
 	case "coordinador":
@@ -324,4 +340,31 @@ func mockChannelReply(ctx context.Context, h *hub, p *participant) (string, floa
 		return "El reordenamiento se decide en LenderValidationService.\nAFIRMO: sólo rt=2 sale del listado al fallar | COMANDO: git -C legacy-backend grep -n dropsWhenRulesFail origin/main", 0
 	}
 	return "PASO", 0
+}
+
+// mockUnderstanding: una sala de entendimiento simulada: tres hallazgos, el verificador los revisa y el coordinador cierra.
+func mockUnderstanding(p *participant, coordRuns int, checks []string, pause func(time.Duration) bool) string {
+	if p.Turns > 0 && p.ID != "verificador" && p.ID != "coordinador" {
+		return "PASO"
+	}
+	switch p.ID {
+	case "investigador":
+		pause(900 * time.Millisecond)
+		return "La biblioteca no menciona el filtro del listado v1.\nHALLAZGO: hueco | LenderRetrievalService.php:273 saca a 12, 23, 141, 142 y 166 del listado v1 | lender-listing | COMANDO: git -C legacy-backend grep -n TEMPORAL origin/main"
+	case "arquitecto":
+		pause(1300 * time.Millisecond)
+		return "HALLAZGO: contradicción | el tema dice que la 166 sale sólo por comercio; en main también la saca el filtro temporal | lender-listing | COMANDO: git -C legacy-backend show origin/main:Modules/Onboarding/App/Services/OnboardingService.php"
+	case "probador":
+		pause(1600 * time.Millisecond)
+		return "HALLAZGO: sin prueba | ninguna suite comprueba que Welli Risk se oculta con comision_aliado > 0 | harness/suites/welli-risk.json | COMANDO: grep -l 166 harness/suites/*.json"
+	case "verificador":
+		if len(checks) == 0 {
+			return "PASO"
+		}
+		pause(700 * time.Millisecond)
+		return strings.Join(checks, "\n")
+	case "coordinador":
+		return "Los tres hallazgos quedaron comprobados.\nCIERRO: no aparece nada nuevo sobre el tema"
+	}
+	return "PASO"
 }

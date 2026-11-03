@@ -62,7 +62,7 @@ func (h *hub) route(ctx context.Context, m message, listeners []*participant, is
 			fixed = append(fixed, mm[1])
 		}
 	}
-	if reClaim.MatchString(m.Text) && isListener["verificador"] && m.Who != "verificador" {
+	if (reClaim.MatchString(m.Text) || reFinding.MatchString(m.Text)) && isListener["verificador"] && m.Who != "verificador" {
 		fixed = append(fixed, "verificador")
 	}
 

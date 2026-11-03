@@ -11,13 +11,25 @@
   html, body { height: 100%; margin: 0; }
   body {
     background: var(--background); color: var(--foreground); font-family: var(--font-sans); font-size: 13px;
-    display: grid; grid-template-rows: auto auto 1fr auto; height: 100vh;
+    display: grid; grid-template-columns: 210px 1fr; height: 100vh;
   }
+  .app { display: grid; grid-template-rows: auto 1fr auto; min-height: 0; min-width: 0; }
+  nav { border-right: 1px solid var(--border); background: var(--card); display: flex; flex-direction: column; min-height: 0; }
+  nav h2 { font-size: 12px; font-weight: 600; margin: 0; padding: 10px 12px; min-height: 40px; border-bottom: 1px solid var(--border); }
+  nav .list { overflow-y: auto; flex: 1; padding: 6px; }
+  nav .room { padding: 8px; border-radius: var(--radius-md); cursor: pointer; margin-bottom: 4px; }
+  nav .room:hover { background: var(--accent); color: var(--accent-foreground); }
+  nav .room.active { background: var(--secondary); color: var(--secondary-foreground); }
+  nav .room .kind { font-size: 11px; color: var(--muted-foreground); }
+  nav form { display: grid; gap: 6px; padding: 10px; border-top: 1px solid var(--border); }
+  .goals { display: flex; flex-wrap: wrap; gap: 4px 14px; padding: 6px 12px; border-bottom: 1px solid var(--border); background: var(--card); }
+  .goals label { font-size: 12px; }
+  .hide { display: none !important; }
   header {
     display: flex; gap: 8px; align-items: center; padding: 8px 12px; min-height: 40px;
     border-bottom: 1px solid var(--border); background: var(--card);
   }
-  header .title { font-weight: 600; margin-right: 8px; }
+  header .title { font-weight: 600; margin-right: 8px; white-space: nowrap; }
   header input { width: 140px; }
   select { font: inherit; color: var(--foreground); background: var(--background); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 4px 6px; }
   .roles { display: flex; flex-wrap: wrap; gap: 4px 14px; padding: 6px 12px; border-bottom: 1px solid var(--border); background: var(--card); }
@@ -79,13 +91,26 @@
   footer { display: flex; gap: 8px; padding: 8px 12px; border-top: 1px solid var(--border); background: var(--card); min-height: 30px; }
   footer input { flex: 1; }
   .empty { color: var(--muted-foreground); padding: 12px 0; }
-  @media (max-width: 800px) { main { grid-template-columns: 1fr; } aside { border-top: 1px solid var(--border); } }
+  @media (max-width: 800px) { body { grid-template-columns: 1fr; } nav { display: none; } main { grid-template-columns: 1fr; } aside { border-top: 1px solid var(--border); } }
 </style>
 </head>
 <body>
+<nav>
+  <h2>Salas</h2>
+  <div class="list" id="rooms"></div>
+  <form id="newroom">
+    <input id="roomname" placeholder="Nombre de la sala nueva" required>
+    <select id="roomkind"><option value="entendimiento">entendimiento: un tema</option><option value="tarea">tarea del tablero</option></select>
+    <button type="submit">Nueva sala</button>
+  </form>
+</nav>
+<div class="app">
+<div class="top">
 <header>
-  <span class="title">Sala</span>
-  <label>Tarea <input id="task" placeholder="id o slug" value="86"></label>
+  <span class="title" id="roomtitle">Sala</span>
+  <label id="tasklabel">Tarea <input id="task" placeholder="id o slug" value="86"></label>
+  <label id="topiclabel" class="hide">Tema <input id="topic" list="topics" placeholder="id de knowledge/ o texto libre" style="width:220px"></label>
+  <datalist id="topics"></datalist>
   <label>Rondas <input id="rounds" type="number" min="1" max="6" value="3" style="width:56px"></label>
   <label title="Equivalente a precio de API: la sala corre con la suscripción, no se cobra por token; gasta el límite de uso del asiento">Tope US$ eq. <input id="budget" type="number" min="0.5" max="10" step="0.5" value="3" style="width:64px"></label>
   <label>Modo <select id="mode"><option value="canal">canal</option><option value="rondas">rondas</option></select></label>
@@ -95,14 +120,22 @@
   <button id="stop" disabled>Cortar</button>
   <span class="meta" id="meta">sin llamada</span>
 </header>
+<div class="goals hide" id="goals">
+  <span style="color:var(--muted-foreground)">Busca:</span>
+  <label><input type="checkbox" value="contradicciones" checked> contradicciones con main</label>
+  <label><input type="checkbox" value="huecos" checked> huecos de la biblioteca</label>
+  <label><input type="checkbox" value="sin-prueba" checked> reglas sin prueba</label>
+  <label><input type="checkbox" value="defectos" checked> posibles defectos</label>
+</div>
 <div class="roles" id="roles"></div>
+</div>
 <main>
   <section class="stage">
     <div class="grid" id="grid"></div>
     <div class="transcript" id="transcript"><div class="empty">La transcripción aparece acá.</div></div>
   </section>
   <aside>
-    <h2>Pizarra · afirmaciones</h2>
+    <h2 id="boardtitle">Pizarra · afirmaciones</h2>
     <div class="claims" id="claims"><div class="empty">Cada afirmación entra con el comando que la sostiene; la que no lo trae queda punteada.</div></div>
   </aside>
 </main>
@@ -110,6 +143,7 @@
   <input id="say" placeholder="Hablá en la llamada (llega a cada agente en su próximo turno)">
   <button id="send">Enviar</button>
 </footer>
+</div>
 <script>
 const $ = (id) => document.getElementById(id);
 const tk = (n) => (n >= 1000 ? (n / 1000).toFixed(1) + 'k' : String(n || 0));
@@ -120,6 +154,13 @@ function render(st) {
   st.messages = st.messages || [];
   st.claims = st.claims || [];
   last = st;
+  const understanding = st.kind === 'entendimiento';
+  $('roomtitle').textContent = st.name || 'Sala';
+  $('tasklabel').classList.toggle('hide', understanding);
+  $('topiclabel').classList.toggle('hide', !understanding);
+  $('goals').classList.toggle('hide', !understanding);
+  $('boardtitle').textContent = understanding ? 'Pizarra · hallazgos y afirmaciones' : 'Pizarra · afirmaciones';
+  if (understanding && st.task && !$('topic').value) $('topic').value = st.task;
   $('start').disabled = st.running;
   $('stop').disabled = !st.running;
   $('meta').textContent = st.task
@@ -150,16 +191,19 @@ function render(st) {
 
   $('claims').innerHTML = st.claims.length
     ? st.claims.map((c) => `<div class="claim ${c.command ? '' : 'nocmd'} ${esc(c.status)}">
-        <div class="head"><span class="id">${esc(c.id)}</span><span class="badge ${esc(c.status)}">${esc(c.status)}</span></div>
+        <div class="head"><span class="id">${esc(c.id)}</span><span class="badge ${esc(c.status)}">${esc(c.status)}</span>${c.kind === 'hallazgo' ? `<span class="badge">${esc(c.type)}</span>` : ''}</div>
         <div>${esc(c.claim)}</div>
         <div class="tag">${esc(c.who)}${c.prose ? ' · dicho en prosa' : ''}${c.command ? '' : ' · sin comando: vale como opinión'}</div>
+        ${c.dest ? `<div class="tag">destino: ${esc(c.dest)}</div>` : ''}
         ${c.command ? `<div class="cmd">$ ${esc(c.command)}</div>` : ''}
         ${c.check && c.check !== c.command ? `<div class="cmd">comprobado con: ${esc(c.check)}</div>` : ''}
       </div>`).join('')
     : '<div class="empty">Cada afirmación entra con el comando que la sostiene; la que no lo trae queda punteada.</div>';
 }
 
-const post = (url, body) => fetch(url, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body || {}) })
+let room = (() => { try { return localStorage.getItem('sala-room') || 'demo'; } catch { return 'demo'; } })();
+const inRoom = (url) => `${url}?room=${encodeURIComponent(room)}`;
+const post = (url, body) => fetch(inRoom(url), { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body || {}) })
   .then(async (r) => { if (!r.ok) alert(await r.text()); });
 
 const roles = () => [...document.querySelectorAll('#roles input:checked')].map((i) => i.value);
@@ -170,7 +214,7 @@ fetch('/api/roles').then((r) => r.json()).then((d) => {
   $('roles').innerHTML = d.roles.map((r) => `<label title="${esc(r.role)} · esfuerzo ${esc(r.effort)}">${r.id === 'coordinador' ? '' : `<input type="checkbox" value="${esc(r.id)}">`} <span>${esc(r.name)}</span>
     <select class="model" data-role="${esc(r.id)}">${models.map((m) => `<option value="${m}" ${m === r.model ? 'selected' : ''}>${m.replace('claude-', '')}</option>`).join('')}</select></label>`).join('');
   $('preset').innerHTML = Object.keys(presets).map((k) => `<option value="${esc(k)}">${esc(k)}</option>`).join('') + '<option value="">a mano</option>';
-  $('preset').value = 'defecto';
+  $('preset').value = last && last.kind === 'entendimiento' ? 'entendimiento' : 'defecto';
   const apply = () => { const ids = presets[$('preset').value]; if (!ids) return; document.querySelectorAll('#roles input').forEach((i) => { i.checked = ids.includes(i.value); }); };
   $('preset').onchange = apply;
   $('roles').addEventListener('change', (e) => { if (e.target.tagName === 'INPUT') $('preset').value = ''; });
@@ -179,15 +223,54 @@ fetch('/api/roles').then((r) => r.json()).then((d) => {
 $('start').onclick = () => {
   if (!roles().length) { alert('Convocá al menos un rol.'); return; }
   const models = Object.fromEntries([...document.querySelectorAll('#roles select.model')].map((s) => [s.dataset.role, s.value]));
-  post('/api/start', { task: $('task').value.trim(), rounds: Number($('rounds').value), budget: Number($('budget').value), mock: $('mock').checked, roles: roles(), mode: $('mode').value, models });
+  const understanding = last && last.kind === 'entendimiento';
+  const task = understanding ? $('topic').value.trim() : $('task').value.trim();
+  if (!task) { alert(understanding ? 'Elegí un tema.' : 'Falta la tarea.'); return; }
+  const goals = [...document.querySelectorAll('#goals input:checked')].map((i) => i.value);
+  post('/api/start', { task, rounds: Number($('rounds').value), budget: Number($('budget').value), mock: $('mock').checked, roles: roles(), mode: $('mode').value, models, goals });
 };
 $('stop').onclick = () => post('/api/stop');
 const send = () => { const v = $('say').value.trim(); if (!v) return; post('/api/say', { text: v }); $('say').value = ''; };
 $('send').onclick = send;
 $('say').addEventListener('keydown', (e) => { if (e.key === 'Enter') send(); });
 
-const es = new EventSource('/api/events');
-es.onmessage = (e) => render(JSON.parse(e.data));
+let es = null;
+function openRoom(id) {
+  room = id;
+  try { localStorage.setItem('sala-room', id); } catch {}
+  if (es) es.close();
+  $('topic').value = '';
+  es = new EventSource(inRoom('/api/events'));
+  es.onmessage = (e) => {
+    const st = JSON.parse(e.data);
+    const first = !last || last.room !== st.room;
+    render(st);
+    if (first && presets[st.kind === 'entendimiento' ? 'entendimiento' : 'defecto'] && !st.running) {
+      $('preset').value = st.kind === 'entendimiento' ? 'entendimiento' : 'defecto';
+      $('preset').onchange && $('preset').onchange();
+    }
+  };
+  loadRooms();
+}
+function loadRooms() {
+  fetch('/api/rooms').then((r) => r.json()).then((list) => {
+    if (!list.some((x) => x.id === room)) { openRoom('demo'); return; }
+    $('rooms').innerHTML = list.map((x) => `<div class="room ${x.id === room ? 'active' : ''}" data-id="${esc(x.id)}">
+      <div>${esc(x.name)}${x.running ? ' · en curso' : ''}</div>
+      <div class="kind">${x.kind === 'entendimiento' ? 'entendimiento' : 'tarea'}${x.task ? ' · ' + esc(x.task) : ''}${x.claims ? ` · ${x.claims} en pizarra` : ''}</div></div>`).join('');
+    document.querySelectorAll('#rooms .room').forEach((el) => { el.onclick = () => openRoom(el.dataset.id); });
+  });
+}
+setInterval(loadRooms, 4000);
+$('newroom').onsubmit = (e) => {
+  e.preventDefault();
+  fetch('/api/rooms', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ name: $('roomname').value.trim(), kind: $('roomkind').value }) })
+    .then((r) => r.json()).then((d) => { $('roomname').value = ''; openRoom(d.id); });
+};
+fetch('/api/topics').then((r) => r.json()).then((ts) => {
+  $('topics').innerHTML = (ts || []).map((t) => `<option value="${esc(t.ID || t.id)}">${esc(t.Title || t.title)}</option>`).join('');
+});
+openRoom(room);
 </script>
 </body>
 </html>

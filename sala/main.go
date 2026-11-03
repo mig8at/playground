@@ -103,13 +103,20 @@ type claim struct {
 	Who     string `json:"who"`
 	Claim   string `json:"claim"`
 	Command string `json:"command"`
-	Prose   bool   `json:"prose"`  // salió de la prosa (una corrección dicha al pasar), no de una línea AFIRMO
-	Status  string `json:"status"` // sin comprobar · comprobada · refutada
-	Check   string `json:"check"`  // con qué la comprobó el probador
+	Prose   bool   `json:"prose"`          // salió de la prosa (una corrección dicha al pasar), no de una línea AFIRMO
+	Status  string `json:"status"`         // sin comprobar · comprobada · refutada
+	Check   string `json:"check"`          // con qué la comprobó el probador
+	Kind    string `json:"kind,omitempty"` // hallazgo: salió de una línea HALLAZGO en una sala de entendimiento
+	Type    string `json:"type,omitempty"` // contradicción · hueco · sin prueba · defecto
+	Dest    string `json:"dest,omitempty"` // a dónde iría si se confirma
 }
 
 type state struct {
-	Task         string         `json:"task"`
+	Room         string         `json:"room"`
+	Name         string         `json:"name"`
+	Kind         string         `json:"kind"`  // tarea · entendimiento
+	Goals        []string       `json:"goals"` // entendimiento: qué se busca
+	Task         string         `json:"task"`  // la tarea, o el tema en una sala de entendimiento
 	Mock         bool           `json:"mock"`
 	Running      bool           `json:"running"`
 	Round        int            `json:"round"`
@@ -148,10 +155,11 @@ const common = `Estás en una LLAMADA de trabajo con otros agentes y con Miguel,
 var (
 	order   = []string{"investigador", "negocio", "herramientas", "arquitecto", "diseno", "datos", "probador", "verificador"}
 	presets = map[string][]string{
-		"defecto":  {"herramientas", "arquitecto", "probador", "datos", "verificador"},
-		"pantalla": {"diseno", "arquitecto", "probador", "verificador"},
-		"negocio":  {"investigador", "negocio", "datos", "verificador"},
-		"clasico":  {"herramientas", "arquitecto", "probador"},
+		"defecto":       {"herramientas", "arquitecto", "probador", "datos", "verificador"},
+		"pantalla":      {"diseno", "arquitecto", "probador", "verificador"},
+		"negocio":       {"investigador", "negocio", "datos", "verificador"},
+		"clasico":       {"herramientas", "arquitecto", "probador"},
+		"entendimiento": {"investigador", "arquitecto", "datos", "probador", "verificador"},
 	}
 	read = []string{"Read", "Grep", "Glob"}
 )
@@ -271,6 +279,7 @@ type hub struct {
 	cancel context.CancelFunc
 	root   string
 	onSay  func(message) // modo canal: decide a quién despertar cuando entra un mensaje
+	srv    *rooms
 }
 
 func (h *hub) snapshot() []byte {
@@ -331,7 +340,8 @@ var (
 	reCheck = regexp.MustCompile(`(?m)^\s*COMPRUEBO:\s*(C[0-9]+)\b[^|\n]*\|\s*(✓|✗|—)\s*(?:\|\s*(.+?))?\s*$`)
 	// Una corrección dicha al pasar: la de la primera llamada real («la nota de la suite cita mal…») era falsa y
 	// no entró a la pizarra porque no venía como AFIRMO. Léxico a propósito: mejor una de más, punteada.
-	reProse = regexp.MustCompile(`(?i)[^.\n]*(corrección|corrijo|hay que corregir|cita mal|no es correcto|es incorrect|se equivoc)[^.\n]*`)
+	reFinding = regexp.MustCompile(`(?m)^\s*HALLAZGO:\s*([^|\n]+?)\s*\|\s*([^|\n]+?)\s*\|\s*([^|\n]+?)\s*(?:\|\s*COMANDO:\s*(.+?))?\s*$`)
+	reProse   = regexp.MustCompile(`(?i)[^.\n]*(corrección|corrijo|hay que corregir|cita mal|no es correcto|es incorrect|se equivoc)[^.\n]*`)
 )
 
 func main() {
@@ -341,8 +351,7 @@ func main() {
 	if _, err := os.Stat(filepath.Join(root, "tools", "ui", "theme.css")); err != nil {
 		log.Fatal("corré la sala desde la raíz del playground (make sala)")
 	}
-	h := &hub{subs: map[chan []byte]bool{}, root: root}
-	h.st = state{Participants: roster(nil), Messages: []message{}, Claims: []claim{}}
+	rs := newRooms(root)
 
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path != "/" {
@@ -366,30 +375,32 @@ func main() {
 		w.Header().Set("content-type", "application/json")
 		_ = json.NewEncoder(w).Encode(map[string]any{"roles": roles, "presets": presets})
 	})
-	http.HandleFunc("/api/state", func(w http.ResponseWriter, r *http.Request) {
+	http.HandleFunc("/api/rooms", rs.list)
+	http.HandleFunc("/api/topics", rs.topicsJSON)
+	http.HandleFunc("/api/state", rs.inRoom(func(h *hub, w http.ResponseWriter, r *http.Request) {
 		h.mu.Lock()
 		b := h.snapshot()
 		h.mu.Unlock()
 		w.Header().Set("content-type", "application/json")
 		_, _ = w.Write(b)
-	})
-	http.HandleFunc("/api/events", h.events)
-	http.HandleFunc("/api/start", h.start)
-	http.HandleFunc("/api/say", func(w http.ResponseWriter, r *http.Request) {
+	}))
+	http.HandleFunc("/api/events", rs.inRoom(func(h *hub, w http.ResponseWriter, r *http.Request) { h.events(w, r) }))
+	http.HandleFunc("/api/start", rs.inRoom(func(h *hub, w http.ResponseWriter, r *http.Request) { h.start(w, r) }))
+	http.HandleFunc("/api/say", rs.inRoom(func(h *hub, w http.ResponseWriter, r *http.Request) {
 		var in struct{ Text string }
 		if json.NewDecoder(r.Body).Decode(&in) != nil || strings.TrimSpace(in.Text) == "" {
 			http.Error(w, "falta el texto", 400)
 			return
 		}
 		h.say("miguel", "Miguel", strings.TrimSpace(in.Text))
-	})
-	http.HandleFunc("/api/stop", func(w http.ResponseWriter, r *http.Request) {
+	}))
+	http.HandleFunc("/api/stop", rs.inRoom(func(h *hub, w http.ResponseWriter, r *http.Request) {
 		h.mu.Lock()
 		if h.cancel != nil {
 			h.cancel()
 		}
 		h.mu.Unlock()
-	})
+	}))
 	log.Printf("sala en http://%s", *addr)
 	log.Fatal(http.ListenAndServe(*addr, nil))
 }
@@ -430,6 +441,7 @@ func (h *hub) start(w http.ResponseWriter, r *http.Request) {
 		Roles  []string          `json:"roles"`
 		Mode   string            `json:"mode"`
 		Models map[string]string `json:"models"`
+		Goals  []string          `json:"goals"`
 	}
 	if json.NewDecoder(r.Body).Decode(&in) != nil || strings.TrimSpace(in.Task) == "" {
 		http.Error(w, "falta la tarea", 400)
@@ -444,16 +456,24 @@ func (h *hub) start(w http.ResponseWriter, r *http.Request) {
 	if os.Getenv("SALA_MOCK") == "1" {
 		in.Mock = true
 	}
+	if other := h.srv.busy(h); other != "" {
+		http.Error(w, "ya hay una llamada en curso en «"+other+"»: una a la vez, cada una gasta el límite del asiento", 409)
+		return
+	}
 	h.mu.Lock()
 	if h.st.Running {
 		h.mu.Unlock()
 		http.Error(w, "ya hay una llamada en curso", 409)
 		return
 	}
+	room, name, kind := h.st.Room, h.st.Name, h.st.Kind
+	if kind == "entendimiento" && len(in.Goals) == 0 {
+		in.Goals = []string{"contradicciones", "huecos", "sin-prueba", "defectos"}
+	}
 	ctx, cancel := context.WithCancel(context.Background())
 	h.cancel = cancel
-	h.st = state{Task: in.Task, Mock: in.Mock, Running: true, Rounds: in.Rounds, Budget: in.Budget, Participants: roster(in.Roles),
-		Messages: []message{}, Claims: []claim{}}
+	h.st = state{Room: room, Name: name, Kind: kind, Goals: in.Goals, Task: in.Task, Mock: in.Mock, Running: true, Rounds: in.Rounds,
+		Budget: in.Budget, Participants: roster(in.Roles), Messages: []message{}, Claims: []claim{}}
 	h.publish()
 	h.mu.Unlock()
 	if in.Mode == "canal" {
@@ -465,6 +485,9 @@ func (h *hub) start(w http.ResponseWriter, r *http.Request) {
 	for _, p := range h.st.Participants {
 		if m := in.Models[p.ID]; allowedModels[m] {
 			p.Model = m
+		}
+		if kind == "entendimiento" {
+			p.system += understandingNote(in.Task, in.Goals)
 		}
 	}
 	if in.Mode == "canal" {
@@ -653,6 +676,13 @@ func (h *hub) brief(task string) (string, error) {
 	h.mu.Lock()
 	mock := h.st.Mock
 	h.mu.Unlock()
+	kind, goals := h.st.Kind, h.st.Goals
+	if kind == "entendimiento" {
+		if mock {
+			return "(simulado) tema " + task, nil
+		}
+		return h.understandingBrief(task, goals), nil
+	}
 	if mock {
 		return "(simulado) #" + task + " · 3 pendientes · specs S1–S2 · trampas F-246", nil
 	}
@@ -680,7 +710,9 @@ func (h *hub) turn(ctx context.Context, p *participant, task string, budget floa
 	h.mu.Unlock()
 
 	var b strings.Builder
-	if p.session == "" {
+	if p.session == "" && h.st.Kind == "entendimiento" {
+		fmt.Fprintf(&b, "El tema de la llamada es «%s». Lo dicho hasta ahora:\n\n", task)
+	} else if p.session == "" {
 		fmt.Fprintf(&b, "La tarea de la llamada es la %s del tablero. Lo dicho hasta ahora:\n\n", task)
 	} else {
 		b.WriteString("Lo dicho desde tu último turno:\n\n")
@@ -754,7 +786,12 @@ func (h *hub) turn(ctx context.Context, p *participant, task string, budget floa
 			}
 			add(claim{Claim: m[1], Command: m[2]})
 		}
-		prose := reClaim.ReplaceAllString(reCheck.ReplaceAllString(text, ""), "")
+		if p.ID != "verificador" {
+			for _, m := range reFinding.FindAllStringSubmatch(text, -1) {
+				add(claim{Kind: "hallazgo", Type: strings.ToLower(m[1]), Claim: m[2], Dest: m[3], Command: m[4]})
+			}
+		}
+		prose := reFinding.ReplaceAllString(reClaim.ReplaceAllString(reCheck.ReplaceAllString(text, ""), ""), "")
 		for _, m := range reProse.FindAllString(prose, -1) {
 			add(claim{Claim: strings.TrimSpace(m), Prose: true})
 		}
@@ -997,8 +1034,13 @@ func (h *hub) report(task, why string) {
 	rec := map[string]any{"task": task, "mode": h.st.Mode, "mock": h.st.Mock, "ended": why, "at": time.Now().Format(time.RFC3339),
 		"budget": h.st.Budget, "participants": rows, "gate": h.st.Gate, "total": total, "claims": h.st.Claims}
 	mock := h.st.Mock
+	kind, topic := h.st.Kind, h.st.Task
+	findings := append([]claim(nil), h.st.Claims...)
 	h.mu.Unlock()
 	h.say("moderador", "Moderador", b.String())
+	if kind == "entendimiento" {
+		h.findingsDraft(topic, findings, mock)
+	}
 	if mock {
 		return
 	}
@@ -1014,4 +1056,45 @@ func kTokens(n int) string {
 		return fmt.Sprintf("%.1fk", float64(n)/1000)
 	}
 	return fmt.Sprint(n)
+}
+
+/* findingsDraft: la salida de una sala de entendimiento. Los hallazgos COMPROBADOS por alguien que no los dijo, cada
+ * uno con su comando y su destino, en un borrador de sala/.hallazgos/ (fuera de git) que revisa Miguel: nada pasa a
+ * knowledge/ ni al harness sin su sí. Lo que no se comprobó va aparte, como pendiente. */
+func (h *hub) findingsDraft(topic string, claims []claim, mock bool) {
+	var ok, open []claim
+	for _, c := range claims {
+		if c.Kind != "hallazgo" {
+			continue
+		}
+		if c.Status == "comprobada" {
+			ok = append(ok, c)
+		} else {
+			open = append(open, c)
+		}
+	}
+	var b strings.Builder
+	fmt.Fprintf(&b, "# Hallazgos sobre «%s»\n\nSala de entendimiento del %s. Borrador: nada de esto se aplicó.\n\n## Comprobados\n\n", topic, time.Now().Format("2006-01-02 15:04"))
+	if len(ok) == 0 {
+		b.WriteString("(ninguno)\n")
+	}
+	for _, c := range ok {
+		fmt.Fprintf(&b, "- **%s** (%s) · %s\n  - destino: %s\n  - lo muestra: `%s`\n  - comprobado con: `%s`\n", c.Type, c.Who, c.Claim, c.Dest, orNone(c.Command), orNone(c.Check))
+	}
+	b.WriteString("\n## Sin comprobar (no usar sin revisar)\n\n")
+	if len(open) == 0 {
+		b.WriteString("(ninguno)\n")
+	}
+	for _, c := range open {
+		fmt.Fprintf(&b, "- [%s] **%s** (%s) · %s · destino: %s\n", c.Status, c.Type, c.Who, c.Claim, c.Dest)
+	}
+	where := "(simulada: no se guardó)"
+	if !mock {
+		dir := filepath.Join(h.root, "sala", ".hallazgos")
+		name := time.Now().Format("20060102-150405") + "-" + strings.Trim(reSlug.ReplaceAllString(strings.ToLower(topic), "-"), "-") + ".md"
+		if os.MkdirAll(dir, 0o755) == nil && os.WriteFile(filepath.Join(dir, name), []byte(b.String()), 0o644) == nil {
+			where = filepath.Join("sala", ".hallazgos", name)
+		}
+	}
+	h.say("moderador", "Moderador", fmt.Sprintf("Hallazgos: %d comprobados y %d sin comprobar. Borrador para revisar: %s", len(ok), len(open), where))
 }
