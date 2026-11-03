@@ -15,9 +15,13 @@ caer en Salud.
 ## La fianza la decide el perfil de la entidad
 
 `CredifamiliaPayloadBuilder` consulta `/v1/preapprovals/check` con el id de la entidad de la
-solicitud y conserva el resultado por solicitud dentro de la instancia. Del `transaction_data`
-toma las tasas; el plan convierte la TEA porcentual a decimal. El IVA predeterminado del builder
-es `0.19`.
+solicitud y conserva el resultado por solicitud dentro de la instancia. Sólo acepta la respuesta
+si es 2xx, trae `status === 'approved'` y su `lending_product_id` es idéntico, como texto, al id de
+la entidad que envió (un id numérico no coincide); un fallo de conexión, otro estado o un id
+distinto se tratan igual que no haber preaprobación. Del `transaction_data` toma las tasas; el
+plan convierte la TEA porcentual a decimal. El IVA predeterminado del builder es `0.19`. El
+`max_amount` se guarda en `partner_limits` bajo el nombre del comercio de la solicitud, o `Gaes`
+si no tiene comercio; es sólo la clave con la que el motor lo vuelve a leer, no cambia el valor.
 
 `resolveBond` es la única fuente de la fianza para el plan y para la radicación:
 
@@ -25,8 +29,14 @@ es `0.19`.
   preaprobación, y cobra 4x1000.
 - Materiales toma el porcentaje de `lender_term_fng_percentages` según el plazo, fuerza el tipo
   `Anticipada` sin mirar la preaprobación y no cobra 4x1000. Un plazo sin fila en esa tabla falla
-  explícito, nunca calcula con cero. El plan resuelve el porcentaje con el plazo de cada opción que
-  recorre; la radicación, con `fee_number` de la solicitud.
+  explícito (`INVALID_TERM`, con los plazos configurados en el mensaje, o «ninguno»), nunca
+  calcula con cero. El plan resuelve el porcentaje con el plazo de cada opción que recorre; la
+  radicación, con `fee_number` de la solicitud.
+
+Las filas de Materiales las siembra una migración con los plazos 12, 18, 24, 36, 48 y 60, para el
+id de Materiales del ambiente según `APP_ENV`. Si esa entidad no existe en la base cuando corre, no
+inserta nada y no falla; no vuelve a correr cuando la entidad aparece después. Sin filas para la
+entidad, todo plazo falla, en el plan y en la radicación; con la siembra, 6 y 9 siguen sin fila.
 
 `CredifamiliaConsumoService::buildRequest` transporta tipo y porcentaje de fianza al SOAP, y marca
 `apply_four_per_thousand=false` cuando la entidad no lo cobra. Por eso la fianza participa también
@@ -56,9 +66,11 @@ se resuelve leyendo el código y sigue en #97.
 
 La radicación calcula sobre `(int) user_requests.amount` y expone `montoTotalCredito` como
 texto con dos decimales (`round` seguido de `number_format`). `montoSolicitado` también se
-convierte a entero. El builder predeterminado del plan usa entero, pero
-`CredifamiliaPaymentPlanSummaryService` lo sobrescribe con `(float) user_requests.amount`.
-Si el monto tiene centavos, las bases pueden diferir aunque ambos usen `BondBreakdown`.
+convierte a entero. `(int)` trunca, no redondea: si `amount` tiene centavos, el SOAP los
+descarta y `montoSolicitado` y la base de `montoTotalCredito` quedan por debajo de `amount`. El
+builder predeterminado del plan usa entero, pero `CredifamiliaPaymentPlanSummaryService` lo
+sobrescribe con `(float) user_requests.amount`. Con centavos, las bases difieren aunque ambos
+usen `BondBreakdown`. Sólo el respaldo a `final_amount` (sección siguiente) conserva decimales.
 
 El comprobante toma `credit_conditions.total_disbursement` del resumen cuando éste existe,
 y lo pasa a `PayloadFormatters::currency`: convierte a entero y muestra cero decimales.
@@ -67,10 +79,20 @@ antes de comparar el texto del PDF; no afirmar igualdad exacta por usar la misma
 
 ## Los respaldos también son distintos
 
-En Salud, si falta monto, porcentaje numérico o tipo de fianza de texto, el SOAP avisa por log y
-usa `final_amount` con dos decimales, o `null` si tampoco existe. Un tipo desconocido de texto
-no activa la suma anticipada y su traducción SOAP puede quedar en `null`. En Materiales no hay ese
-modo blando para el porcentaje: un plazo sin fila FNG hace fallar la radicación.
+La radicación llama a `resolveBond` en modo blando. En Salud, si falta monto, porcentaje numérico
+o tipo de fianza, el SOAP avisa por log y usa `final_amount` con dos decimales, o `null` si
+tampoco existe; `tipoFianza` va en `null`. Ese modo blando sólo cubre un `guarantee_type` ausente,
+`null` o vacío. Un valor presente que no sea `1`, `2`, `FIANZA_VENCIDA` o `FIANZA_ANTICIPADA`
+lanza `Unknown guarantee_type` al armar el pedido, y `finalize` lo registra y lo vuelve a lanzar:
+no se radica. En Materiales no hay modo blando para el porcentaje: un plazo sin fila FNG hace
+fallar la radicación.
+
+La radicación no exige preaprobación. Si `getLastPreApprovalData` devuelve `null` (cualquiera de
+los rechazos de la sección anterior), sigue con `transaction_data` vacío: `tasaEfectivaAnual` va
+en `null` y `tasaMensual` cae a `user_requests.rate` redondeada a dos decimales. En Salud la fianza
+cae al respaldo de `final_amount`. En Materiales, el tipo forzado `Anticipada` y el porcentaje de
+la tabla FNG no dependen de la preaprobación, así que `montoTotalCredito` igual se calcula con la
+fianza financiada.
 
 El builder del plan falla cuando no obtiene preaprobación o `transaction_data`, o cuando el plazo
 no está en la tabla FNG; el resumen devuelve un error de cálculo. Si el comprobante no consigue el

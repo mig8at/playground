@@ -1,8 +1,8 @@
 {
   "version": 1,
   "title": "Motai: tarifa, documentos por escenario y variables",
-  "summary": "Calculadora sembrada del renting de Motai (precio, inicial sobre el precio, tarifa semanal por plan), el RTO como clon, el catálogo de documentos por rama con y sin codeudor, y el origen de las variables de contrato y pagaré.",
-  "reviewedAt": "2026-10-28T15:13:44+00:00",
+  "summary": "Calculadora sembrada del renting de Motai (precio, inicial sobre el precio, tarifa semanal por plan), el RTO como clon, el catálogo de documentos por rama con y sin codeudor, el origen de las variables de contrato y pagaré, y qué comando manda los recordatorios de cobro semanales.",
+  "reviewedAt": "2026-11-03T15:49:28Z",
   "sources": [
     {
       "repo": "legacy-backend",
@@ -112,6 +112,106 @@
       "blob": "6aacf052f3f488ef92b63725c2d4c5a13c8371e2",
       "sections": [
         "de-donde-salen-las-variables"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/Loans/App/Services/DocumentGeneration/CatalogDocumentPayloadResolver.php",
+      "commit": "69920f580f62ad35f0a555e3b8b8f2c247d758aa",
+      "blob": "53eff617408e64f2425037835de677e2d0ce33bd",
+      "sections": [
+        "documentos-que-firma-cada-rama"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "resources/views/creditopxpdf/lenders/motai/contrato_renting_sin_codeudor.blade.php",
+      "commit": "69920f580f62ad35f0a555e3b8b8f2c247d758aa",
+      "blob": "009b556b64ed911a92276b9b0105e9fd3ca00b8c",
+      "sections": [
+        "documentos-que-firma-cada-rama"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "resources/views/creditopxpdf/lenders/motai/pagare_carta_sin_codeudor.blade.php",
+      "commit": "69920f580f62ad35f0a555e3b8b8f2c247d758aa",
+      "blob": "9e5f6b4d9f946516e6684501ffb793b567519a9d",
+      "sections": [
+        "documentos-que-firma-cada-rama"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "resources/views/creditopxpdf/lenders/motai/rto/garantia_mobiliaria_con_codeudor.blade.php",
+      "commit": "69920f580f62ad35f0a555e3b8b8f2c247d758aa",
+      "blob": "277a760b0621647e75f3e302b9bfe0de611b36f9",
+      "sections": [
+        "documentos-que-firma-cada-rama",
+        "de-donde-salen-las-variables"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "database/migrations/2026_08_20_130000_set_motai_payment_schedule_template.php",
+      "commit": "69920f580f62ad35f0a555e3b8b8f2c247d758aa",
+      "blob": "ca28204dd7a2492a7c7c4b1c709585f1ba21adec",
+      "sections": [
+        "de-donde-salen-las-variables"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "app/Console/Commands/ReminderWeeklyLoansCommand.php",
+      "commit": "69920f580f62ad35f0a555e3b8b8f2c247d758aa",
+      "blob": "8314e26f298272852b58ab7a63eb022f94a9a550",
+      "sections": [
+        "los-recordatorios-de-cobro"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "app/Console/Kernel.php",
+      "commit": "69920f580f62ad35f0a555e3b8b8f2c247d758aa",
+      "blob": "9ee74124d8db9ff4d1d0f902832eb1159dd863b7",
+      "sections": [
+        "los-recordatorios-de-cobro"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/Loans/App/Services/Reminders/WeeklyReminderQuery.php",
+      "commit": "69920f580f62ad35f0a555e3b8b8f2c247d758aa",
+      "blob": "4fdd0523ddd3d4791ff45833e5b229ef17045fcf",
+      "sections": [
+        "los-recordatorios-de-cobro"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/Loans/App/Support/CutoffCalendar.php",
+      "commit": "69920f580f62ad35f0a555e3b8b8f2c247d758aa",
+      "blob": "ed6fa4afbea819cc75885a42b6e5847dfc023b8f",
+      "sections": [
+        "los-recordatorios-de-cobro"
+      ]
+    },
+    {
+      "repo": "application",
+      "path": "config/reminders.php",
+      "commit": "1755ab4fa3a50cac5669cdff4826131979a15def",
+      "blob": "d97580cc642f4837240a425b122a74758ca12a0d",
+      "sections": [
+        "los-recordatorios-de-cobro"
+      ]
+    },
+    {
+      "repo": "application",
+      "path": "app/Console/Commands/ReminderCreditopXRequestsCommand.php",
+      "commit": "1755ab4fa3a50cac5669cdff4826131979a15def",
+      "blob": "bdec571b8e0aba39f2f1a058bdab89e5a6018dbc",
+      "sections": [
+        "los-recordatorios-de-cobro"
       ]
     }
   ]

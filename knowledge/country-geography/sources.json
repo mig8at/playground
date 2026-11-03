@@ -1,8 +1,8 @@
 {
   "version": 1,
   "title": "Catálogo geográfico y árbol de opciones",
-  "summary": "Relaciones geográficas, país explícito o configurado, caché del árbol y límites de la migración de RD y Perú.",
-  "reviewedAt": "2026-10-27T20:57:11+00:00",
+  "summary": "Relaciones geográficas, selectores y validación de la ciudad de una sucursal, comodines, auditoría, árbol de form-service y límites de la migración de RD y Perú.",
+  "reviewedAt": "2026-11-03T15:48:29Z",
   "sources": [
     {
       "repo": "application",
@@ -10,7 +10,8 @@
       "commit": "24dc86eb1eaabb4e4eee37750ab90e258c36ce78",
       "blob": "be1146122a40887c03a1ddeba278f7c44c6308f7",
       "sections": [
-        "relacion-entre-pais-zona-y-ciudad"
+        "relacion-entre-pais-zona-y-ciudad",
+        "selectores-y-validacion-al-guardar"
       ]
     },
     {
@@ -102,7 +103,174 @@
       "commit": "63123374a5d0875c908a83e3145f334b2ff913ee",
       "blob": "28f6b08bbc36f5ab44cb8215e1763b92bf491b83",
       "sections": [
-        "migracion-de-rd-y-peru"
+        "migracion-de-rd-y-peru",
+        "el-comodin-todas-las-ciudades"
+      ]
+    },
+    {
+      "repo": "application",
+      "path": "app/Services/Allied/EcommerceBranchCreator.php",
+      "commit": "1755ab4fa3a50cac5669cdff4826131979a15def",
+      "blob": "5a4d3c45042b2cb22dc45f6f5f6db7b0e4fca8be",
+      "sections": [
+        "quien-escribe-la-ciudad-de-una-sucursal",
+        "auditoria-de-sucursales"
+      ]
+    },
+    {
+      "repo": "application",
+      "path": "app/Services/Allied/TestAdvisorProvisioner.php",
+      "commit": "1755ab4fa3a50cac5669cdff4826131979a15def",
+      "blob": "96c1ebb2188a40dd73b0a421539c65021a07924b",
+      "sections": [
+        "quien-escribe-la-ciudad-de-una-sucursal",
+        "el-comodin-todas-las-ciudades"
+      ]
+    },
+    {
+      "repo": "application",
+      "path": "app/Http/Controllers/Admin/CityController.php",
+      "commit": "1755ab4fa3a50cac5669cdff4826131979a15def",
+      "blob": "a1608517922d8538dc9457691ac603ac9eb195f9",
+      "sections": [
+        "selectores-y-validacion-al-guardar"
+      ]
+    },
+    {
+      "repo": "application",
+      "path": "app/Http/Requests/Admin/AlliedBranch/StoreRequest.php",
+      "commit": "1755ab4fa3a50cac5669cdff4826131979a15def",
+      "blob": "d59c36bac4331c4702054f4c51070f669bec571b",
+      "sections": [
+        "selectores-y-validacion-al-guardar"
+      ]
+    },
+    {
+      "repo": "application",
+      "path": "app/Http/Requests/Admin/AlliedBranch/UpdateRequest.php",
+      "commit": "1755ab4fa3a50cac5669cdff4826131979a15def",
+      "blob": "fb81380331c5ebd095cd7a0680f92310e0fbdfae",
+      "sections": [
+        "selectores-y-validacion-al-guardar"
+      ]
+    },
+    {
+      "repo": "application",
+      "path": "app/Http/Controllers/Customer/PromissoryNoteController.php",
+      "commit": "1755ab4fa3a50cac5669cdff4826131979a15def",
+      "blob": "d1cf8f176f1d52de58b59da9468586db3443ff96",
+      "sections": [
+        "el-comodin-todas-las-ciudades"
+      ]
+    },
+    {
+      "repo": "application",
+      "path": "app/Http/Controllers/Customer/GuaranteeController.php",
+      "commit": "1755ab4fa3a50cac5669cdff4826131979a15def",
+      "blob": "d7843f422b5f446781b68ac504e81a98cee6346d",
+      "sections": [
+        "el-comodin-todas-las-ciudades"
+      ]
+    },
+    {
+      "repo": "application",
+      "path": "app/Http/Controllers/Admin/DashboardController.php",
+      "commit": "1755ab4fa3a50cac5669cdff4826131979a15def",
+      "blob": "5e2d7321ee7a9f72f1c993dd8782a5fe2d7367d2",
+      "sections": [
+        "el-comodin-todas-las-ciudades"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/Partner/App/Services/AlliedManagementService.php",
+      "commit": "69920f580f62ad35f0a555e3b8b8f2c247d758aa",
+      "blob": "12691defe028726550d2c0d772b0d994c6a2b4fe",
+      "sections": [
+        "selectores-y-validacion-al-guardar",
+        "quien-escribe-la-ciudad-de-una-sucursal",
+        "auditoria-de-sucursales"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/Partner/App/Http/Controllers/AlliedAlliedBranchController.php",
+      "commit": "69920f580f62ad35f0a555e3b8b8f2c247d758aa",
+      "blob": "9d00603e4b4f9dc0ba833780e82f2932ee260a73",
+      "sections": [
+        "selectores-y-validacion-al-guardar"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "app/Http/Requests/Admin/AlliedBranch/StoreRequest.php",
+      "commit": "69920f580f62ad35f0a555e3b8b8f2c247d758aa",
+      "blob": "9dcefc97293e33f6af92ea828e0e7efc5a02686a",
+      "sections": [
+        "selectores-y-validacion-al-guardar"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "app/Http/Requests/Admin/AlliedBranch/UpdateRequest.php",
+      "commit": "69920f580f62ad35f0a555e3b8b8f2c247d758aa",
+      "blob": "f8977a91e666e34e58805a1323088905be6e5c0e",
+      "sections": [
+        "selectores-y-validacion-al-guardar"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "app/Http/Controllers/Admin/CityController.php",
+      "commit": "69920f580f62ad35f0a555e3b8b8f2c247d758aa",
+      "blob": "f8dcca62ec0931996694dd6f67f9de36f864d9be",
+      "sections": [
+        "selectores-y-validacion-al-guardar"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "app/Console/Commands/AuditBranchCountryCommand.php",
+      "commit": "69920f580f62ad35f0a555e3b8b8f2c247d758aa",
+      "blob": "4e0ec307001f1f6c4f64f22bd4b3225df61889f6",
+      "sections": [
+        "auditoria-de-sucursales"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/Loans/App/Services/PromissoryNoteService.php",
+      "commit": "69920f580f62ad35f0a555e3b8b8f2c247d758aa",
+      "blob": "6d171e392990eb74d46c374f7832157ad998a82a",
+      "sections": [
+        "el-comodin-todas-las-ciudades"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/Loans/App/Services/ConsentService.php",
+      "commit": "69920f580f62ad35f0a555e3b8b8f2c247d758aa",
+      "blob": "1c1fcbd92f2f6fb77939e3a3baedee5f79d7f40d",
+      "sections": [
+        "el-comodin-todas-las-ciudades"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/Loans/App/Services/DocumentGeneration/Payload/CrediAsycoPayloadBuilder.php",
+      "commit": "69920f580f62ad35f0a555e3b8b8f2c247d758aa",
+      "blob": "ab1c9f9a21d264c311ba96375d5cb5df5209f0c3",
+      "sections": [
+        "el-comodin-todas-las-ciudades"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/Risk/App/Services/CreditBureauAggregatorService.php",
+      "commit": "69920f580f62ad35f0a555e3b8b8f2c247d758aa",
+      "blob": "d651b984f887429cd081c03aae275735384e7ec4",
+      "sections": [
+        "el-comodin-todas-las-ciudades"
       ]
     }
   ]

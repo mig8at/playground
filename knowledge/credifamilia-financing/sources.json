@@ -2,7 +2,7 @@
   "version": 1,
   "title": "Credifamilia: fianza y monto de radicación",
   "summary": "Origen de la fianza, fórmula compartida y diferencias de entradas, formatos y respaldo entre SOAP, cuotas y comprobante; Salud y Materiales calculan la fianza distinto. También el plan de pagos: tasas, fechas (días 2 y 16), interés diario, seguro y cuota representativa.",
-  "reviewedAt": "2026-10-27T20:59:57+00:00",
+  "reviewedAt": "2026-11-03T15:48:06Z",
   "sources": [
     {
       "repo": "legacy-backend",
@@ -22,7 +22,8 @@
       "commit": "d21ab0ef275891025cd2a823552d5ec6c0cac283",
       "blob": "15f84de28feed47e298a7b16f8d9b6afcaeb147a",
       "sections": [
-        "la-fianza-la-decide-el-perfil-de-la-entidad"
+        "la-fianza-la-decide-el-perfil-de-la-entidad",
+        "los-respaldos-tambien-son-distintos"
       ]
     },
     {
@@ -53,6 +54,7 @@
       "commit": "d21ab0ef275891025cd2a823552d5ec6c0cac283",
       "blob": "4467b299f1c4e074536a4c28f40118872389f79a",
       "sections": [
+        "la-fianza-la-decide-el-perfil-de-la-entidad",
         "una-formula-compartida-con-dos-tratamientos-de-fianza",
         "el-plan-de-pagos-tasas-fechas-y-cuotas"
       ]
@@ -114,6 +116,15 @@
       "sections": [
         "la-fianza-la-decide-el-perfil-de-la-entidad",
         "los-respaldos-tambien-son-distintos"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "database/migrations/2026_10_20_120100_seed_fng_percentages_for_credifamilia_materiales.php",
+      "commit": "69920f580f62ad35f0a555e3b8b8f2c247d758aa",
+      "blob": "e8269d064e3d9295415903eefad92841026cbfe3",
+      "sections": [
+        "la-fianza-la-decide-el-perfil-de-la-entidad"
       ]
     },
     {
