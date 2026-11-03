@@ -262,7 +262,7 @@ y en la sesión del 2026-11-02 los errores no fueron de velocidad sino de verifi
 - **Un verde no es el caso.** Una suite que pasa con datos sembrados no prueba la regla en prod.
 
 **Pendientes del frente:**
-- [ ] `make agente N=…` (o `bin/pg tarea plan`): en una sola salida JSON lo que hoy son cinco comandos — la tarea y
+- [x] `make agente N=…` (`tablero/server/cmd/agent`, hecho el 2026-11-02): en una sola salida JSON lo que hoy son cinco comandos — la tarea y
   su pila, sus temas de `knowledge:`, las trampas cuyo síntoma coincide, el estado del ambiente (`harness-doctor`) y
   las ramas. Termina cuando un agente arranca una tarea con esa sola llamada.
 - [ ] El criterio de «hecho» por tarea, como corrida: depende de las `S#` de ODD (arriba). Termina cuando

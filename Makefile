@@ -91,6 +91,10 @@ retomar: ## @dia retomar UNA tarea: pila, documento, pendientes, ramas y conocim
 	@test -n "$(N)" || { echo "falta N=<id|slug>  ·  ej: make retomar N=84"; exit 2; }
 	@cd tablero/server && go run ./cmd/today -n "$(N)" $(if $(JSON),-json) $(if $(BRIEF),-brief "$(BRIEF)")
 
+agente: ## @dia ARRANCAR una tarea como agente, en una sola salida: la tarea (retomar), las trampas que pueden tocarla (por síntoma y citadas), si las fuentes de sus temas de knowledge: siguen al día y qué suites los comprueban, y el recorrido de trabajo con los comandos puestos. N=<id|slug> [ENV=1 corre harness-doctor contra local] [JSON=1 tablero.agent-brief/v1]
+	@test -n "$(N)" || { echo "falta N=<id|slug>  ·  ej: make agente N=86"; exit 2; }
+	@cd tablero/server && go run ./cmd/agent -n "$(N)" $(if $(JSON),-json) $(if $(ENV),-env)
+
 deploys: ## @dia ¿qué se desplegó y a qué ambiente? FALLAS=1 deja SÓLO lo que falló, con el error del log. DIAS=7 · REPO=legacy-backend · JSON=1
 	@cd tablero/server && go run ./cmd/deploys $(if $(DIAS),-dias $(DIAS)) $(if $(REPO),-repo $(REPO)) $(if $(FALLAS),-fallas) $(if $(JSON),-json)
 

@@ -38,6 +38,7 @@ tener la herramienta: es suponer que no está y contestar de memoria.
 |---|---|
 | **¿cómo funciona X técnicamente?** | `make knowledge-search Q='…'` → `make knowledge-read ID=…`, si hay un tema local. Verificá su alcance en el código de `main`; si falta el tema, investigá el código directamente. La biblioteca es una ayuda, no un paso obligatorio |
 | **me falta conocimiento de negocio o producto que no puedo comprobar en local** | Canon es una consulta opcional: `make canon-search Q='…'` → `make canon-read IDS=…` (o, con la sesión de Miguel y sin llave, `playground canon search|read|topics|ask`). Contrastá con documentación del equipo si necesitás política o contrato. Citá la fuente y señalá lo que queda sin verificar |
+| **arranco una tarea como agente** | `make agente N=…` (`ENV=1` mira el ambiente local, `JSON=1` para un agente): la tarea, las trampas que pueden tocarla, si las fuentes de sus temas siguen al día y qué suites los comprueban, y el recorrido de trabajo con los comandos puestos |
 | **retomo una tarea del tablero** | `make retomar N=…`: pila, documento y temas locales declarados en `knowledge:`. No pide Canon ni VPN. Las referencias históricas `canon:` se conservan; `BRIEF=1` consulta su API sólo cuando se elige explícitamente; Canon no tiene copia local |
 | **¿ya nos pasó?** | `tablero/data/traps/doc.md`, entrando por su índice de síntomas |
 | **¿por qué existe esta regla?** (política, contrato, qué se le ofreció al comercio) | `make confluence`: el porqué del negocio no está en el código |
