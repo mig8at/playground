@@ -66,6 +66,20 @@ jira_title: ""
 
 <!-- Qué tiene que ser CIERTO cuando esto esté hecho. No cómo se logra: eso es «Cómo se ataca». -->
 
+## Specs
+
+<!-- Opcional, y lo que hace que «hecho» no dependa de quien cierra: cada S# es algo que tiene que ser
+cierto, con la cita textual de quien lo pidió (Miguel, producto, Jira) y el comando que lo comprueba.
+`make tarea-verify N=…` las corre y contesta S1 ✓ · S2 ✗. Sólo admite corridas del harness contra local,
+chequeos y lecturas de bin/pg, sin shell (la lista: tablero/server/cmd/verify).
+
+- **S1** · lo que tiene que ser cierto — «la cita» (quién, AAAA-MM-DD)
+  `make harness-case TARGET=local SUITE=suites/<suite>.json`
+  sale: 0          (opcional: la salida esperada)
+  dice: <texto>    (opcional: un texto que la salida tiene que contener)
+  dir: harness     (opcional: desde dónde se corre)
+-->
+
 ## Dónde se toca
 
 <!-- Repos, módulos y archivos con ruta y línea — acá SÍ se puede, el cuerpo es privado.

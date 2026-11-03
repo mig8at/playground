@@ -29,6 +29,7 @@ import (
 
 	"creditop/playground/lib/text"
 	"creditop/playground/tablero/server/internal/layout"
+	"creditop/playground/tablero/server/internal/specs"
 )
 
 const format = "tablero.agent-brief/v1"
@@ -38,6 +39,7 @@ type brief struct {
 	Task        json.RawMessage `json:"task"`
 	Traps       traps           `json:"traps"`
 	Knowledge   []topicState    `json:"knowledge"`
+	Specs       []specs.Spec    `json:"specs"`
 	Environment json.RawMessage `json:"environment,omitempty"`
 	Steps       []step          `json:"steps"`
 	Warnings    []string        `json:"warnings"`
@@ -126,6 +128,12 @@ func main() {
 		b.Traps = matchTraps(text.SplitLines(string(doc)), task)
 	}
 	b.Knowledge, b.Warnings = knowledgeState(root, task, b.Warnings)
+	b.Specs = []specs.Spec{}
+	if doc, err := os.ReadFile(filepath.Join(root, "tablero", "tasks", task.Slug, "task.md")); err == nil {
+		if list := specs.Parse(string(doc)); list != nil {
+			b.Specs = list
+		}
+	}
 	if *withEnv {
 		out, err := run(filepath.Join(root, "harness"), []string{"E2E_TARGET=local"}, "node", "dev/doctor.ts", "--json")
 		if line := lastLine(out); json.Valid(line) {
@@ -295,11 +303,11 @@ func steps(task taskView) []step {
 	id := fmt.Sprint(task.ID)
 	return []step{
 		{1, "¿qué pide, qué se hizo y qué se sabe?", "make retomar N=" + id + " · make knowledge-search Q='…'"},
-		{2, "¿qué corrida dice «hecho», y contra qué ambiente?", "escribirla antes de tocar nada: make harness-case TARGET=local CASES='…' JSON=1 (el ambiente más chico)"},
+		{2, "¿qué corrida dice «hecho», y contra qué ambiente?", "escribirla antes de tocar nada como S# en `## Specs` de la tarea, con su comando (el ambiente más chico)"},
 		{3, "¿una corrida ahora diría la verdad?", "make harness-doctor TARGET=local · make keyring · en remoto, make harness-env-drift TARGET=…"},
 		{4, "¿pasa, y cuánto?", "make harness-case|harness-listing|harness-walk-wizard TARGET=… JSON=1 · prod sólo lectura: bin/pg request timeline|events request|sql --target prod"},
 		{5, "¿dónde se decide?", "git grep contra main en los DOS monolitos, o el subagente main-verifier"},
-		{6, "¿lo arreglé sin romper otro flujo?", "la corrida del paso 2 otra vez · make harness-regression TARGET=local"},
+		{6, "¿lo arreglé sin romper otro flujo?", "make tarea-verify N=" + id + " (las S# del paso 2) · make harness-regression TARGET=local"},
 		{7, "¿lo encuentra el próximo?", "BLOQUE=" + id + " en las corridas · make tarea-bloque N=" + id + " · knowledge/ si es mecanismo · traps/doc.md si es trampa"},
 		{8, "¿quedó medido y entregado?", "make bitacora-add TAREA=" + id + " PULSO=HH:MM · make cierre · commit por ruta; push, PR, Jira o Canon sólo con el sí de Miguel"},
 	}
@@ -324,6 +332,21 @@ func printText(b brief, task taskView) {
 	}
 	for _, c := range b.Traps.Cited {
 		fmt.Printf("    %s  (citada en la tarea) %s\n", c.ID, truncate(c.What, 110))
+	}
+
+	fmt.Println("\n  CRITERIO DE HECHO")
+	if len(b.Specs) == 0 {
+		fmt.Println("    la tarea no tiene `## Specs`: escribí cada S# con su cita y su comando antes de tocar nada (tablero/TASK-TEMPLATE.md)")
+	}
+	for _, sp := range b.Specs {
+		cmd := sp.Command
+		if cmd == "" {
+			cmd = "(sin comando)"
+		}
+		fmt.Printf("    %s · %s\n        %s\n", sp.ID, truncate(sp.What, 100), cmd)
+	}
+	if len(b.Specs) > 0 {
+		fmt.Printf("    el veredicto: make tarea-verify N=%d\n", task.ID)
 	}
 
 	fmt.Println("\n  CONOCIMIENTO declarado")

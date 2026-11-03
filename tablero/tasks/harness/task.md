@@ -45,6 +45,20 @@ ramas: ["risk-services-mockery-lambda:dictado-compartido"]
 - [x] Comprobar en qa el sidebar del panel: con Refurbi elegido y canal Asesor, la línea bajo la fila dice «el asesor entra por 6e377fa6 · 3 entidades»; Celucambio, DENTIX, Smart y BCP (Perú) salen con ⚠ y ▶ apagado, con el comando `bin/pg admin test-advisor` en el tooltip. Termina cuando las dos cosas se ven así. Depende de: Miguel — la VPN de dev.
 - [x] Comprobar en qa que el panel trae las excepciones del front de PostHog a la consola del celular (`✗ PostHog …`) en una corrida que falle. Termina con una excepción real en la consola. Depende de: Miguel — la VPN de dev.
 
+## Specs
+
+- **S1** · prod es de sólo lectura por regla en el harness — «operaciones rápidas, consistentes en cualquier ambiente, excepto en prod, donde sólo son operaciones de lectura» (Miguel, 2026-11-02)
+  `npx playwright test pkg/target-policy.spec.ts`
+  dir: harness
+- **S2** · un runner que crea solicitudes no arranca en un ambiente de sólo lectura — misma cita
+  `E2E_TARGET_READONLY=1 make harness-case TARGET=local CASES=pullman`
+  sale: 2
+  dice: SÓLO LECTURA
+- **S3** · la compuerta de Prami reordena el listado, no excluye — «¿esta regla excluye, o sólo reordena?» (CLAUDE.md raíz)
+  `make harness-case TARGET=local SUITE=suites/compuerta-prami.json`
+- **S4** · el caminador atraviesa el pipeline de KYC hasta el listado — «agrégalos» (los manejadores de `/abaco` y `/kyc-processing`, Miguel, 2026-11-02)
+  `make harness-walk-wizard TARGET=local FLOW=merchant MANUAL=1 LAMBDA=1 CASES=sonria`
+
 ## Sesiones compartidas
 
 El harness delega las sesiones a `connectors/admin` y `connectors/advisor`. La configuración de login

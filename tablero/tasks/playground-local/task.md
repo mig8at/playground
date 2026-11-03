@@ -89,11 +89,11 @@ jira_title: ""
 - [ ] ensayo · el primer uso: las diez correcciones de los CLAUDE.md del frente «Reglas vigentes» de #90,
   la raíz recortada contra la actual. Termina cuando cada corrección queda adoptada o descartada con su
   bloque y la tabla de `make ensayo-comparar`.
-- [ ] ODD · specs en las tareas de código: una sección opcional `## Specs` en la plantilla, con `S#`, la cita textual
+- [x] ODD · specs en las tareas de código (hecho el 2026-11-02, piloto en harness #86): una sección opcional `## Specs` en la plantilla, con `S#`, la cita textual
   de quien pidió (Miguel, producto, Jira) y la suite o comando que la comprueba. Idea tomada de Organic Driven
   Development de gentle-ai, que ya usa el equipo de la app (`creditop_mobile/odd/tasks/`). Termina cuando una tarea
   real con código la usa y su bloque dice si ayudó a retomar. No se instala gentle-ai en el playground.
-- [ ] ODD · veredicto por spec: `make tarea-verify N=…` (o `harness-knowledge` apuntado a una tarea) lee las `S#` de
+- [x] ODD · veredicto por spec (hecho el 2026-11-02, `make tarea-verify`): `make tarea-verify N=…` (o `harness-knowledge` apuntado a una tarea) lee las `S#` de
   la tarea, corre lo que cada una cita y responde `S1 ✓ · S2 ✗`. Termina cuando la tarea piloto da su veredicto
   por spec. Depende de: la sección `## Specs`.
 - [ ] ODD · proporcionalidad del cierre: que una sesión chica (sin rama, pocos minutos) no exija bloque, sólo
@@ -265,8 +265,8 @@ y en la sesión del 2026-11-02 los errores no fueron de velocidad sino de verifi
 - [x] `make agente N=…` (`tablero/server/cmd/agent`, hecho el 2026-11-02): en una sola salida JSON lo que hoy son cinco comandos — la tarea y
   su pila, sus temas de `knowledge:`, las trampas cuyo síntoma coincide, el estado del ambiente (`harness-doctor`) y
   las ramas. Termina cuando un agente arranca una tarea con esa sola llamada.
-- [ ] El criterio de «hecho» por tarea, como corrida: depende de las `S#` de ODD (arriba). Termina cuando
-  `make tarea-verify N=…` da `S1 ✓ · S2 ✗` para una tarea real.
+- [x] El criterio de «hecho» por tarea, como corrida (hecho el 2026-11-02): `## Specs` en la plantilla y
+  `make tarea-verify N=…`; el piloto es harness (#86), que da `S1 ✓ · S2 ✓ · S3 ✓ · S4 ✓`.
 - [ ] Probar el recorrido con dos o tres tareas reales de distinto tipo (un defecto, una regla de negocio, una
   herramienta), con `make ensayo` para comparar con y sin la guía. Termina cuando hay una tabla con tiempo,
   correcciones de Miguel y afirmaciones que resultaron falsas, por tarea.

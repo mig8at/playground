@@ -95,6 +95,10 @@ agente: ## @dia ARRANCAR una tarea como agente, en una sola salida: la tarea (re
 	@test -n "$(N)" || { echo "falta N=<id|slug>  ·  ej: make agente N=86"; exit 2; }
 	@cd tablero/server && go run ./cmd/agent -n "$(N)" $(if $(JSON),-json) $(if $(ENV),-env)
 
+tarea-verify: ## @dia el VEREDICTO de una tarea por spec: corre el comando de cada S# de su `## Specs` y contesta S1 ✓ · S2 ✗. Sólo comandos de una lista cerrada (harness local, chequeos, lecturas de bin/pg), sin shell. N=<id|slug> [ONLY=S1,S3] [JSON=1 tablero.verify/v1]
+	@test -n "$(N)" || { echo "falta N=<id|slug>  ·  ej: make tarea-verify N=86"; exit 2; }
+	@cd tablero/server && go run ./cmd/verify -n "$(N)" $(if $(ONLY),-only "$(ONLY)") $(if $(JSON),-json)
+
 deploys: ## @dia ¿qué se desplegó y a qué ambiente? FALLAS=1 deja SÓLO lo que falló, con el error del log. DIAS=7 · REPO=legacy-backend · JSON=1
 	@cd tablero/server && go run ./cmd/deploys $(if $(DIAS),-dias $(DIAS)) $(if $(REPO),-repo $(REPO)) $(if $(FALLAS),-fallas) $(if $(JSON),-json)
 
