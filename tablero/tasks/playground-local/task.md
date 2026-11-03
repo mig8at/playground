@@ -361,5 +361,8 @@ como un participante más: escribe, interrumpe o corta.
   no lo tenía) y marcó «comprobada» una consulta propia con el rango de ids equivocado. Una afirmación en prosa sin
   comando queda «sin comando», no «refutada». Termina cuando una llamada real no deja ninguna afirmación propia
   marcada como comprobada.
-- [ ] Compararla con el agente solo en las tres preguntas de tarea del ensayo. Termina cuando hay una tabla de
-  aciertos, turnos y costo; si la sala no gana, queda como experimento y se dice por qué.
+- [ ] Barrido · un verificador que no firme todo: marcó 28 de 28 con ✓ y la pasada a knowledge descartó partes de
+  H16 y H17. Termina cuando un barrido real tiene algún ✗ o —, o una segunda mirada no encuentra nada que él aprobó.
+- [ ] Barrido · las suites que señaló el primero: reemplazo de respuestas del formulario dinámico, cascada
+  zona→ciudad en el wizard, formas de `alignedSplit`, cascada Ágil Data→TusDatos con `ONB005`, y tipos de documento
+  por país. Termina cuando cada una corre con `make harness-suite` o queda descartada con su motivo.
