@@ -15,8 +15,6 @@ import {
 import { TABLE_DOCS } from './table-docs.js'
 import { STORE_FLOWS } from './store-flows.js'
 import FlowDiagram from './FlowDiagram.vue'
-import { STORE_PENDING } from './store-pending.js'
-import PendingWorkflow from './PendingWorkflow.vue'
 
 const DEFAULT_TARGET = 'qa'
 const TARGET_LABEL = { local: 'local · tu Docker', qa: 'qa · la base compartida de dev, qa y staging', prod: 'prod · sólo lectura, por Redash' }
@@ -206,41 +204,23 @@ const OUTCOMES = [
   { status: 6, label: 'Negar', name: 'Negada', store: 'failed: el comprador vuelve al checkout' },
   { status: 8, label: 'Cancelar', name: 'Cancelado', store: 'cancelled: el pedido se cancela' },
 ]
-// Las tiendas de prueba (sólo desarrollo: en VTEX el workspace develop) y sus admins.
+// Las tiendas de prueba (sólo desarrollo: en VTEX el workspace develop) y dónde se ven sus pedidos. Los admins piden
+// un usuario en cada tienda.
 const STORES = [
   { name: 'Shopify', links: [
     { label: 'Tienda', href: 'https://creditop-dev-store.myshopify.com' },
     { label: 'Admin · pedidos', href: 'https://admin.shopify.com/store/creditop-dev-store/orders' },
-    // Dónde se cambian el hash y el token: se emiten en el admin de Creditop (comercio «PRUEBA AUTO Shopify», sucursal
-    // e4a51ff3f-fake, lápiz) y se cargan en la configuración de la app de pagos de la tienda.
-    { label: 'Creditop · hash y token', href: 'https://admin.dev.creditop.com/aliados/362/ecommerce' },
-    { label: 'Admin · pagos (app Creditop)', href: 'https://admin.shopify.com/store/creditop-dev-store/settings/payments' },
-    // La app CREDITOP-ECOMMERCE-PAYMENTS en el Dev Dashboard (organización CREDITOP): sus versiones desplegadas y cuál
-    // está activa. `shopify app dev` no crea versiones: lo activo cambia sólo con `shopify app deploy`.
-    { label: 'Dev Dashboard · versiones de la app', href: 'https://dev.shopify.com/dashboard/167881494/apps/317076176897/versions' },
   ] },
   { name: 'VTEX', links: [
     { label: 'Tienda (develop)', href: 'https://develop--creditop.myvtex.com' },
     { label: 'Admin · pedidos', href: 'https://creditop.myvtex.com/admin/orders' },
     { label: 'Admin · transacciones', href: 'https://creditop.myvtex.com/admin/pci-gateway/#/transactions' },
-    // Dónde se cambian el hash y el token: se emiten en el admin de Creditop (comercio «PRUEBA AUTO VTEX», sucursal
-    // ecf9342be-fake, lápiz) y se cargan en la afiliación «Creditop qa» (App key y App token).
-    { label: 'Creditop · hash y token', href: 'https://admin.dev.creditop.com/aliados/363/ecommerce' },
-    { label: 'Admin · afiliación (hash y token)', href: 'https://creditop.myvtex.com/admin/affiliations' },
-  ] },
-  // Producción: `master`, con creditop.creditop 5.x y su ajuste en Producción, como lo tiene un comercio. Afiliaciones y
-  // condiciones de pago son de TODA la cuenta: la condición activa decide si una compra va a qa (develop) o a prod.
-  { name: 'VTEX · prod (master)', prod: true, links: [
-    { label: 'Tienda', href: 'https://creditop.myvtex.com' },
-    { label: 'Admin · afiliaciones (hash y token)', href: 'https://creditop.myvtex.com/admin/affiliations' },
-    { label: 'Admin · condiciones de pago', href: 'https://creditop.myvtex.com/admin/pci-gateway/#/rules' },
-    { label: 'Admin · transacciones', href: 'https://creditop.myvtex.com/admin/pci-gateway/#/transactions' },
   ] },
 ]
-// En prod sólo los enlaces de master; fuera de prod, las tiendas de desarrollo con su diagrama y sus pendientes.
+// En prod no se muestran las tiendas: son de desarrollo.
 const visibleStores = computed(() => STORES.filter((s) => !!s.prod === readOnly.value))
-// Lo que se ve de una tienda en el editor —su diagrama o sus pendientes—, o null. Buscar otra solicitud lo cierra.
-const storeView = ref(null) // { store: 'VTEX', kind: 'diagram' | 'pending' }
+// El diagrama de una tienda en el editor, o null. Buscar otra solicitud lo cierra.
+const storeView = ref(null) // { store: 'VTEX', kind: 'diagram' }
 watch(() => result.value, () => { storeView.value = null })
 // Las vistas del sidebar, como en canon: cada una se pliega y una cerrada ocupa una fila. Lo abierto se recuerda en este
 // navegador; sin almacenamiento, arrancan Solicitudes y la primera tienda abiertas.
@@ -699,10 +679,6 @@ onBeforeUnmount(() => {
               title="Cómo se comunica una compra con legacy-backend y el wizard" @click="toggleStoreView(s.flow || s.name, 'diagram')">
               <span class="label">Diagrama</span><span class="row-meta">⇄</span>
             </button>
-            <button v-if="STORE_PENDING[s.flow || s.name]" type="button" class="row" :class="{ on: isStoreView(s.flow || s.name, 'pending') }" :aria-pressed="isStoreView(s.flow || s.name, 'pending')"
-              title="Qué está hecho y qué falta para salir a producción" @click="toggleStoreView(s.flow || s.name, 'pending')">
-              <span class="label">Pendientes</span><span class="row-meta">☰</span>
-            </button>
             <a v-for="l in s.links" :key="l.href" class="row" :href="l.href" target="_blank" rel="noopener" :title="l.href">
               <span class="label">{{ l.label }}</span><span class="row-meta">↗</span>
             </a>
@@ -712,7 +688,7 @@ onBeforeUnmount(() => {
 
     <main v-if="storeView" class="editor">
       <div class="region-head">
-        <span>{{ (storeView.kind === 'diagram' ? STORE_FLOWS : STORE_PENDING)[storeView.store].title }}</span>
+        <span>{{ STORE_FLOWS[storeView.store].title }}</span>
         <div class="region-actions">
           <button type="button" class="region-action" title="Cerrar" aria-label="Cerrar" @click="storeView = null">
             <span class="ui-icon" data-icon="close" aria-hidden="true"></span>
@@ -720,8 +696,7 @@ onBeforeUnmount(() => {
         </div>
       </div>
       <div class="region-body">
-        <FlowDiagram v-if="storeView.kind === 'diagram'" :flow="STORE_FLOWS[storeView.store]" />
-        <PendingWorkflow v-else :plan="STORE_PENDING[storeView.store]" />
+        <FlowDiagram :flow="STORE_FLOWS[storeView.store]" />
       </div>
     </main>
     <main v-else class="editor">
