@@ -70,6 +70,30 @@ El ingreso de un comercio en un mes es la suma de tres componentes:
   la planilla, difiere (Welli con Sonría: 9 % frente a 1 %). La lista de entidades CTX (`response_type` 2 y
   3) también está pendiente de confirmar con comercial.
 
+### Lo que agrega el Excel de revenue del Q4
+
+Fuente: «Forecast_Rev_4Q_Resumen Rev JT FG» (Excel de comercial que compartió Miguel el 2026-11-02; hojas
+Resumen, PIPELINE AJUSTADO 2026 y Forecast Actuales 4Q). Es una **proyección** para oct–dic de 2026, no lo cobrado.
+
+- **Hay más líneas de ingreso que las tres de `forecast`.** El MRR del Resumen suma, además de SaaS, CTX y la
+  comisión del agregador: **App** (la que más crece en la proyección: de ~16 a ~70 millones al mes), **intereses
+  de créditos**, **gastos de cobranza**, **IC** y **facturación de recaudo y dispersión**. Las últimas cuatro van
+  como montos fijos por mes, sin fórmula. Con todo, el MRR proyectado pasa de ~178 a ~310 millones de pesos
+  (ARR de ~USD 1,1 M en diciembre, a TRM 3.300). ⚠ Qué es «IC» y qué cobra la App no lo dice el Excel.
+- **Gastos de cobranza e intereses** son de la cartera CreditopX. El cargo de cobranza existe en el código: un
+  monto fijo por tramo de días de mora, configurado por entidad y causado en la noche (ver
+  [creditopx-portfolio-servicing](creditopx-portfolio-servicing/rules.md#gasto-de-cobranza-por-días-de-mora)).
+  ⚠ Como en CreditopX el capital es del comercio, no está claro qué parte de esos cobros e intereses queda para
+  CreditOp: el Excel sólo pone un monto fijo por mes.
+- **Cómo proyecta la comisión del agregador:** `desembolsos del agregador × share TX × ~1,2 %`. El «share TX» es la
+  parte del volumen del comercio que va por entidades que pagan comisión (Sonría: 35 %), y el 1,2 % es una
+  comisión promedio de las entidades (1,5 % en el pipeline de comercios nuevos). `forecast` lo reemplazó por la
+  tasa real de cada pareja comercio–entidad.
+- **Comercios nuevos (pipeline):** cada uno lleva un potencial de desembolsos de agregador y de CTX, y entra con
+  una rampa de **5 % → 40 % → 80 %** de ese potencial en sus tres primeros meses. En la proyección del Q4, los
+  comercios existentes ponen la mayor parte de los desembolsos; los nuevos crecen hasta ~1/3 en diciembre.
+- Cada comercio tiene una **calificación** comercial (Power customer, Potencial, …) y un KAM.
+
 ## Modelo comercial (2024, sin confirmar vigencia)
 
 Del CRM de 2024 (PIP); conviene contrastarlo con Confluence o comercial antes de usarlo:
