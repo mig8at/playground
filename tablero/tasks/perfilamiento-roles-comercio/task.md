@@ -123,40 +123,40 @@ cliente de su listado (ve el perfil) → `/validacion-usuario?document_number=<c
 ## Tarea (publicable)
 
 ## En una línea
-En los comercios habilitados, los roles Superadmin comercio y Admin comercio pueden ver el perfil de riesgo de los clientes de su comercio desde Perfilamiento Usuarios.
+Los administradores de un comercio (Superadmin comercio y Admin comercio) a los que se les dé el permiso pueden ver el perfil de riesgo de los clientes de su comercio desde Perfilamiento Usuarios.
 
 ## Por qué
-En septiembre se restringió el perfil de riesgo del cliente sólo al administrador de CreditOp, porque cualquier usuario de comercio podía ver los datos de buró de cualquier cliente. Algunos comercios necesitan que sus administradores vuelvan a verlo para sus propios clientes, pero no todos: debe poder habilitarse comercio por comercio.
+En septiembre se restringió el perfil de riesgo del cliente sólo al administrador de CreditOp, porque cualquier usuario de comercio podía ver los datos de buró de cualquier cliente. Los administradores de algunos comercios necesitan volver a verlo, pero sólo para sus propios clientes.
 
 ## Qué cambia
-- Cada comercio tiene un indicador nuevo, apagado por defecto, que se habilita directamente en la base de datos. No hay pantalla para cambiarlo.
-- En los comercios habilitados, Superadmin comercio y Admin comercio ven en Perfilamiento Usuarios la columna Perfil y el ojo, y pueden abrir el perfil de riesgo de los clientes de su comercio.
-- En los demás comercios no cambia nada.
+- Se usa el mismo permiso del módulo de validación de usuario que ya tiene el administrador de CreditOp. Se asigna por usuario a los administradores del comercio que corresponda.
+- Con el permiso, ven en Perfilamiento Usuarios la columna Perfil y el ojo, y pueden abrir el perfil de riesgo sólo de los clientes que tienen solicitudes en su comercio.
+- Con la cédula de un cliente de otro comercio reciben acceso denegado, y la respuesta no trae datos del cliente.
+- El botón para consultar Datacrédito no se les muestra: esa consulta sigue siendo del administrador de CreditOp.
+- Quien no tenga el permiso no ve ningún cambio.
 
 ## Alcance
-No pueden ver clientes de otros comercios. No se habilita para otros roles del comercio. La consulta manual a Datacrédito sigue sólo para el administrador de CreditOp.
+No cambia qué solicitudes ve cada comercio, ni la consulta manual a Datacrédito. No hay pantalla para asignar el permiso: se asigna en la base de datos. No requiere migración.
 
 ## Dónde probar
-Staging, comercio 94 habilitado y otro comercio sin habilitar, con un usuario Admin comercio y uno Superadmin comercio.
+Dev, con un Admin comercio y un Superadmin comercio de un comercio con clientes, y un usuario de otro comercio.
 
 ## Cómo validar
-1. Habilitar el comercio 94 en la base de datos.
-2. Entrar con un Admin comercio del comercio 94 y abrir Perfilamiento Usuarios: se ven la columna Perfil y el ojo.
+1. Asignar el permiso al Admin comercio del comercio elegido.
+2. Entrar con ese usuario y abrir Perfilamiento Usuarios: se ven la columna Perfil y el ojo.
 3. Abrir el ojo de un cliente del listado: se ve su perfil de riesgo, sin el botón de consultar Datacrédito.
 4. Abrir la validación de usuario con la cédula de un cliente de otro comercio: acceso denegado y la respuesta no trae datos del cliente.
 5. Abrir la consulta de Datacrédito: acceso denegado.
-6. Repetir con un Superadmin comercio del comercio 94.
-7. Entrar con un Admin comercio del comercio sin habilitar, o con Mesa de servicio: no se ven la columna Perfil ni el ojo, y la validación de usuario responde acceso denegado.
-8. Deshabilitar el comercio 94: sus administradores dejan de ver el perfil.
-
-## Cambios en datos
-Una migración que agrega el indicador a los comercios, apagado en todos. Mergear no la aplica: hay que correrla en cada ambiente. Después, habilitar en la base de datos los comercios que se indiquen.
+6. Entrar con un Superadmin comercio sin el permiso: no se ven la columna Perfil ni el ojo, y la validación de usuario responde acceso denegado.
+7. Quitar el permiso al Admin comercio: deja de ver el perfil.
+8. Con el administrador de CreditOp: todo funciona como antes.
 
 ## Criterios de aceptación
-- Con el comercio habilitado, Superadmin comercio y Admin comercio ven el perfil de los clientes de su comercio.
-- Con el comercio sin habilitar, no lo ven.
-- Nunca ven el de clientes de otros comercios.
+- Un administrador de comercio con el permiso ve el perfil de los clientes de su comercio.
+- Nunca ve el de clientes de otros comercios.
+- Sin el permiso, no ve nada nuevo.
 - La consulta manual a Datacrédito sigue cerrada para ellos.
+- El administrador de CreditOp no tiene cambios.
 
 ## Dependencias / contraparte
-Oscar: la lista de comercios a habilitar.
+Oscar: a qué comercios se les asigna el permiso.
