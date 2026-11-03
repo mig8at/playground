@@ -38,6 +38,38 @@ playground.
   Addi, Sistecrédito, Crédito 365, Brilla, Lagobo, Davivienda, Nequi (cobro de contado), Banco de
   Bogotá, Crediteame (pendiente) y Banco Finandina (en curso, originación delegada).
 
+## Cómo gana CreditOp (vigente a oct-2026)
+
+Fuente: la herramienta `forecast` del playground del equipo (`Creditop-SAS/playground`, `tools/forecast`:
+`README.md`, `revenue.js` y las semillas de `seeds/`, leídas en `origin/main` el 2026-11-02). Lleva la regla
+del Excel de revenue de Fabi y las planillas «Tarifas .xlsx» cargadas en octubre de 2026. **No está en los
+monolitos**: ni el SaaS ni las tasas viven en legacy-backend o application, sino en la base propia de
+`forecast`. Lo que no se verificó queda marcado.
+
+El ingreso de un comercio en un mes es la suma de tres componentes:
+
+| componente | quién paga | cómo se calcula |
+|---|---|---|
+| **SaaS** | el comercio | una cuota mensual fija; si hay un pago registrado del mes, vale ése |
+| **comisión del agregador** | la entidad que prestó (rt 0, 1 y 4: Welli, Addi, Meddipay, Credifamilia…) | `max(0, desembolsado − base mínima) × tasa`, por pareja comercio–entidad, cada mes |
+| **comisión de CreditopX** | el comercio, que pone el capital (rt 2 y 3) | lo desembolsado con sus entidades CreditopX × la tasa CTX del comercio |
+
+- **La tasa es por pareja comercio–entidad.** Sin tasa propia se usa la general del comercio (CTX o
+  agregador); sin ninguna, ese monto no deja ingreso y la herramienta lo marca «sin tasa».
+- **La base mínima** existe en pocos acuerdos del agregador: la comisión se cobra sólo sobre lo que pase de
+  esa base, cada mes. El ejemplo de la planilla: Dentix con Welli.
+- **Mucho volumen no es mucho ingreso.** En la planilla del agregador de oct-2026, 38 de 65 parejas tienen
+  tasa 0 % (acuerdos sin comisión, no tasas que falten); las demás van de 0,5 % a 5 %, casi todas en 1 % o
+  1,5 %. Las tasas CTX por comercio van de 0 % a 6 %, casi todas en 1 % o 3 % (Motai, 6 %).
+- **Las metas de los KAM son de MONTO desembolsado** (agregador y CTX por separado) y de revenue (SaaS +
+  agregador + CTX). Sin meta puesta, la de partida es el promedio real de los 3 meses cerrados anteriores.
+- **Un desembolso se cuenta por `user_requests.disbursed_at`**, nunca por el estado 11, y los montos no se suman
+  entre países.
+- ⚠ **Sin confirmar:** `lenders_by_allieds.comission_percentage`, la comisión que guarda el back-office por
+  comercio–entidad, **no** entra en el cálculo. No se sabe si es la que gana CreditOp, y donde coincide con
+  la planilla, difiere (Welli con Sonría: 9 % frente a 1 %). La lista de entidades CTX (`response_type` 2 y
+  3) también está pendiente de confirmar con comercial.
+
 ## Modelo comercial (2024, sin confirmar vigencia)
 
 Del CRM de 2024 (PIP); conviene contrastarlo con Confluence o comercial antes de usarlo:
