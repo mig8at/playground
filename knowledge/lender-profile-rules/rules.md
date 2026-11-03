@@ -7,16 +7,22 @@ tasa. Este tema cubre, en legacy-backend, el orden de evaluación, cómo se conv
 cupo, criterios que no se leen como parecen (continuidad laboral, licencia, Ábaco) y lo que niega
 el cupo antes de mirar perfiles. El alta de perfiles está en `creditopx-setup-diagnosis`; el puntaje
 por respuestas, en `field-scoring-policy`; la tarjeta de oferta, en `creditopx-offer-calculation`.
-Lo de legacy-application no se revisó acá.
+`legacy-application` tiene su propio motor de perfiles, con otras reglas (última sección).
 
 ## Gana la primera regla que se cumple
 
-Las reglas de la entidad se ordenan por `priority` y, a igual prioridad (o todas en NULL, que es lo
-habitual), por `lender_users_category_id`. Sólo entran las reglas de categorías **activas**: un perfil
+Las reglas de la entidad se ordenan por `priority` y, a igual prioridad, por
+`lender_users_category_id`. No hay que suponer `priority` en NULL, como asume el comentario del
+repositorio: las reglas cargadas la traen informada y es común que varias empaten, y entonces decide el
+id de la categoría. Sólo entran las reglas de categorías **activas**: un perfil
 que ya asignó clientes no se borra, se apaga con `lender_users_categories.active`, y deja de evaluarse
 sin perder el historial que explica decisiones pasadas. Cada etapa tiene su juego de reglas por
 `lender_users_category_type_id`: titular inicial (1), titular extendida (2, la que tiene formulario) y
 codeudor.
+
+Un caso quemado se salta todo esto: un cliente con documento `CE` en la entidad 84 (Magnocell) recibe la
+categoría 22 sin evaluar reglas, y no se escribe `users_category_log`. Si esa categoría no está cargada,
+no hay nada que lo ataje.
 
 Qué categoría quedó se lee en `users_category_log` (la fila más reciente por entidad; 0 es «ninguna»), y
 se comprueba corriendo con `make harness-suite TARGET=local SUITE=harness/suites/categorias-creditopx.json`,
@@ -35,7 +41,9 @@ del perfil, pero se topa con el `max_amount` de la categoría si está configura
 ## La continuidad laboral va por escalones
 
 El motor no mide meses de continuidad: los deriva de banderas de AgilData (o, si no hay, de Mareigua)
-y sólo puede valer 12, 6, 3 o 0. Una regla que pide 8 meses exige en la práctica 12, y una que pide
+y sólo puede valer 12, 6, 3 o 0. «Si no hay» es un `??` sobre la columna, que el modelo convierte en
+colección: un `agildata` guardado como `[]` es una colección vacía, no null, así que **no cae a
+Mareigua** y la continuidad da 0 aunque Mareigua traiga meses. Una regla que pide 8 meses exige en la práctica 12, y una que pide
 más de 12 no la cumple nadie. Sin datos, la continuidad es 0.
 
 Se comprueba corriendo con `make harness-suite TARGET=local SUITE=harness/suites/continuidad-escalones.json`:
@@ -59,12 +67,22 @@ categoría caerá el cliente. El resto del requisito está en `abaco-requirement
 
 ## Lo que niega el cupo antes de mirar perfiles
 
-`available-quota` (y sus variantes de etapa extendida y codeudor) rechaza antes de evaluar reglas:
+`available-quota` (y sus variantes de etapa extendida y codeudor) decide en este orden antes de mirar
+perfiles:
 
+- **riel 3 (rotativo):** sale por `RevolvingCreditsService`, que evalúa la misma política dura y no pasa
+  por el crédito activo ni por la categoría.
 - **`lender_not_creditop_x`** si la entidad es de riel 0 o 1: no tienen cupo financiado por Creditop.
 - **`active_credit_exists`** si el cliente ya tiene con **esa misma entidad** de riel 2 un crédito
   vivo (fila vigente del histórico) con saldo de capital de $1.000 o más. Por debajo se trata como
   residuo y no bloquea. Otras entidades y el rotativo no cuentan.
+- **la política dura de la entidad:** `LenderRuleEvaluator` (`lender_rules`) y después
+  `DatacreditoRuleEvaluator` (`lender_datacredito_rules`), los mismos de `lender-listing` y
+  `creditopx-setup-diagnosis`.
+
+Si después ninguna categoría sale y es la etapa extendida de una entidad **sin reglas de esa etapa**,
+no se rechaza: se aprueba sin política (`no_type_policy_approved`) y el cupo vigente es el de la etapa
+inicial.
 
 Se comprueba corriendo con `make harness-suite TARGET=local SUITE=harness/suites/cupo-creditopx.json` (cierra
 en Motai R y vuelve: Motai R niega el cupo, Motai RB no) y su compañera sin cierre,
@@ -77,3 +95,22 @@ perfil se agota con las corridas que cierran: `make harness-quota-reset TARGET=l
 En el backoffice, el tipo de corte de una entidad deja de poder cambiarse: siempre en un rotativo,
 porque el cupo y todas sus compras se facturan con ese corte, y en consumo apenas la entidad originó
 un crédito, porque cambiarlo movería las fechas de pago de créditos firmados.
+
+## El motor de legacy-application
+
+`application` calcula la categoría con su propio `LenderUserCategoryService`, que llaman el
+consentimiento, el pagaré, la garantía (de ahí sale el FGA), el pago de la cuota inicial, el listado y
+dos pantallas del admin. Para el mismo cliente puede dar otra categoría que `legacy-backend`:
+
+- **No filtra:** toma todas las reglas de la entidad, ordenadas por `priority` y categoría, sin mirar
+  `active` ni la etapa (`lender_users_category_type_id`). Una categoría apagada o de otra etapa puede
+  ganar.
+- **Lista negra:** un documento en `CreditopXBlacklistedDocument` para esa entidad deja sin categoría y
+  escribe `users_category_log` con categoría 0. `legacy-backend` no la consulta.
+- **Continuidad e ingreso:** usa AgilData sólo si trae `approximate_real_salary`; si no, Mareigua con
+  esa misma condición, y si no, Quanto (con continuidad 0). Así un `agildata` vacío sí cae a Mareigua.
+  Una regla con `verified_income` exige que el ingreso salga de una de esas tres fuentes.
+- **Edad:** la evalúa siempre. `legacy-backend` la da por cumplida cuando el comercio no pide la fecha de
+  expedición; acá una edad vacía no pasa.
+- **Magnocell (84) con `CE`:** también usa la categoría 22, pero escribe la 2 en `users_category_log`.
+

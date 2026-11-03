@@ -2,7 +2,7 @@
   "version": 1,
   "title": "Perfiles de una entidad: orden, criterios y bloqueos del cupo",
   "summary": "En legacy-backend: la primera regla activa por priority asigna la categoría, la capacidad se vuelve cupo por anualidad o por multiplicador, el otorgamiento especial se topa con max_amount, la continuidad laboral en escalones 0/3/6/12, la vigencia de la licencia sólo en la etapa extendida, cuándo se puede saltar Ábaco, el rechazo por riel 0/1 y por crédito vigente con la misma entidad, y el corte que se congela.",
-  "reviewedAt": "2026-11-02T15:40:06+00:00",
+  "reviewedAt": "2026-11-03T14:26:50+00:00",
   "sources": [
     {
       "repo": "legacy-backend",
@@ -19,6 +19,7 @@
       "commit": "69920f580f62ad35f0a555e3b8b8f2c247d758aa",
       "blob": "24cd36736a87e88e1ff69ffe625cd4b3518bdc58",
       "sections": [
+        "gana-la-primera-regla-que-se-cumple",
         "de-la-capacidad-mensual-al-cupo",
         "la-continuidad-laboral-va-por-escalones",
         "vigencia-de-la-licencia-solo-en-la-etapa-extendida"
@@ -68,6 +69,51 @@
       "blob": "af218af50c736862f34062307fdf28c4decd8706",
       "sections": [
         "la-periodicidad-de-corte-se-congela"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "app/Models/UserSummary.php",
+      "commit": "69920f580f62ad35f0a555e3b8b8f2c247d758aa",
+      "blob": "4372f90b4e754d298b4ed4512ccc608d365f2e60",
+      "sections": [
+        "la-continuidad-laboral-va-por-escalones"
+      ]
+    },
+    {
+      "repo": "application",
+      "path": "app/Services/lenders/LenderUserCategoryService.php",
+      "commit": "1755ab4fa3a50cac5669cdff4826131979a15def",
+      "blob": "ba861e1778f9739607631d2b6b6aa60ea795c4f0",
+      "sections": [
+        "el-motor-de-legacy-application"
+      ]
+    },
+    {
+      "repo": "application",
+      "path": "app/Http/Controllers/Customer/ConsentController.php",
+      "commit": "1755ab4fa3a50cac5669cdff4826131979a15def",
+      "blob": "45035467b3e271db4f05c42da7cd5b477cc15014",
+      "sections": [
+        "el-motor-de-legacy-application"
+      ]
+    },
+    {
+      "repo": "application",
+      "path": "app/Http/Controllers/Customer/GuaranteeController.php",
+      "commit": "1755ab4fa3a50cac5669cdff4826131979a15def",
+      "blob": "d7843f422b5f446781b68ac504e81a98cee6346d",
+      "sections": [
+        "el-motor-de-legacy-application"
+      ]
+    },
+    {
+      "repo": "application",
+      "path": "app/Http/Controllers/Customer/PromissoryNoteController.php",
+      "commit": "1755ab4fa3a50cac5669cdff4826131979a15def",
+      "blob": "d1cf8f176f1d52de58b59da9468586db3443ff96",
+      "sections": [
+        "el-motor-de-legacy-application"
       ]
     }
   ]
