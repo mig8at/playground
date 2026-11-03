@@ -276,3 +276,33 @@ y en la sesión del 2026-11-02 los errores no fueron de velocidad sino de verifi
 - [ ] Recién con eso, multiagente: un agente que investiga (sólo lectura, `main-verifier`), uno que corre (harness)
   y uno que escribe, coordinados por un workflow. Termina cuando una tarea sale con los tres y su verificación
   automática no encuentra afirmaciones sin comando.
+
+## Frente: sala — varios agentes en una llamada (experimental)
+
+**Objetivo.** Probar si varios agentes con roles distintos, sentados en la misma «llamada» sobre una tarea, la
+resuelven mejor o más barato que uno solo. Nace del ensayo del 2026-11-02: el agente solo no descubría las
+herramientas que más le ahorraban (`harness-doctor`, `make agente`); un participante cuyo trabajo sea decir
+«con qué se hace esto» ataca justo eso.
+
+**Cómo está armada** (`sala/`, `make sala` → :5201). Una página con un recuadro por participante (quién habla,
+qué está corriendo, cuánto lleva gastado), la transcripción común y una pizarra de afirmaciones. Miguel entra
+como un participante más: escribe, interrumpe o corta.
+- **Moderador:** es código, no un modelo. Da la palabra por turnos y corta por tope de rondas, tope de gasto, o
+  cuando el probador dice que terminó.
+- **Experto en herramientas:** arranca con `make agente N=…` y dice qué comando conviene para cada paso. Sólo
+  catálogo, `agente`, `doctor`, `knowledge-*` y `retomar`.
+- **Arquitecto:** dónde se decide algo en `main`, en los dos monolitos. Sólo lectura (`git grep`, `knowledge/`).
+- **Probador:** escribe y corre las comprobaciones (harness contra local, `tarea-verify`, lecturas de `bin/pg`) y
+  avisa cuando termina.
+- Cada agente es una sesión de `claude -p` que se retoma turno a turno (`--resume`), con su rol en el prompt de
+  sistema, sus herramientas permitidas y un tope de gasto por turno. Nadie edita archivos, commitea ni corre el
+  harness contra prod.
+- **La pizarra:** una afirmación entra con el comando que la sostiene (`AFIRMO: … | COMANDO: …`). La que no lo
+  trae queda marcada: tres agentes de acuerdo no prueban nada.
+- `MOCK=1` corre la llamada con respuestas simuladas, sin gastar, para la interfaz.
+
+**Pendientes del frente:**
+- [ ] Una llamada real sobre una tarea del tablero, con tope de US$3. Termina cuando hay un bloque con lo que dijo
+  cada uno, qué afirmaciones traían comando y cuánto costó.
+- [ ] Compararla con el agente solo en las tres preguntas de tarea del ensayo. Termina cuando hay una tabla de
+  aciertos, turnos y costo; si la sala no gana, queda como experimento y se dice por qué.

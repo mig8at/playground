@@ -99,6 +99,9 @@ tarea-verify: ## @dia el VEREDICTO de una tarea por spec: corre el comando de ca
 	@test -n "$(N)" || { echo "falta N=<id|slug>  ·  ej: make tarea-verify N=86"; exit 2; }
 	@cd tablero/server && go run ./cmd/verify -n "$(N)" $(if $(ONLY),-only "$(ONLY)") $(if $(JSON),-json)
 
+sala: ## @dia EXPERIMENTAL · varios agentes en una «llamada» sobre una tarea (herramientas, arquitecto, probador; Miguel participa). GASTA modelo por turno, con tope por llamada. http://127.0.0.1:5201 · MOCK=1 simula sin gastar
+	@$(if $(MOCK),SALA_MOCK=1) go run ./sala
+
 deploys: ## @dia ¿qué se desplegó y a qué ambiente? FALLAS=1 deja SÓLO lo que falló, con el error del log. DIAS=7 · REPO=legacy-backend · JSON=1
 	@cd tablero/server && go run ./cmd/deploys $(if $(DIAS),-dias $(DIAS)) $(if $(REPO),-repo $(REPO)) $(if $(FALLAS),-fallas) $(if $(JSON),-json)
 
