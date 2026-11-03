@@ -33,10 +33,8 @@ jira_title: "Perfil de riesgo visible para Superadmin y Admin comercio"
 - [x] Mergear #365 en `develop` — a21fcfbc, desplegado en dev el 2026-11-03.
 - [x] Correr la migración del flag en la base compartida de dev, qa y staging — 2026-11-03, batch 331, 0
   comercios habilitados (bloque en la pila). Falta en prod, al pasar a `main`.
-- [ ] Habilitar un comercio de prueba en dev (`UPDATE allieds SET allow_risk_profile_view = 1 WHERE
-  id = 37`), comprobar que Admin y Superadmin comercio del 37 ven el perfil y volverlo a 0; termina con
-  la medición en la pila. El caso con el flag en 0 ya está medido en dev.
-  Depende de: Miguel — correr el UPDATE o autorizarlo en la sesión.
+- [x] Validar en dev con el comercio 37 habilitado y en 0 — 2026-11-03, sólo sus administradores ven a su
+  cliente; el flag quedó en 0 (bloques en la pila). La pantalla de dev no se recorrió con sesión.
 - [ ] Pasar a `main` con un PR `develop` → `main` y taguear; en prod, correr la migración y el
   `UPDATE` con los comercios de Oscar.
   Depende de: Oscar — aprobar el PR a `main` y la lista de comercios.
