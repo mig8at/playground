@@ -2,7 +2,7 @@
   "version": 1,
   "title": "KYC nuevo: qué camino toma una solicitud y cuándo se consulta Experian",
   "summary": "Cómo el pipeline de KYC elige grafo (STANDARD, CREDITOP_X, PULLMAN, DFS) por sucursal, cuándo salta una central por dato vigente y en qué orden decide el disparador de Experian, con su bypass, su frecuencia y la variante que compra.",
-  "reviewedAt": "2026-10-28T18:54:53+00:00",
+  "reviewedAt": "2026-11-03T03:13:04+00:00",
   "sources": [
     {
       "repo": "legacy-backend",
@@ -235,6 +235,15 @@
       "blob": "3ee97e78aa987038799a4b72ce23842c04d9f4ba",
       "sections": [
         "el-disparador-etapa-por-etapa"
+      ]
+    },
+    {
+      "repo": "application",
+      "path": "app/Http/Controllers/Customer/DatacreditoQueryByAlliedController.php",
+      "commit": "1755ab4fa3a50cac5669cdff4826131979a15def",
+      "blob": "c616a8f73fd3ead8641e9d37bea6f0636ea38369",
+      "sections": [
+        "el-disparador-viejo-de-application"
       ]
     }
   ]

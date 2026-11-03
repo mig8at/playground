@@ -3,7 +3,8 @@
 Para una solicitud que ya va por el pipeline (`kyc-pipeline` cubre cómo se elige entre pipeline y
 flujo viejo, y también cómo termina la corrida en el wizard): qué grafo recorre, cuándo se salta una
 central por dato vigente y qué decide el disparador de Experian. Describe `legacy-backend` y
-`customer-profiling-service` en `main`; `application` no tiene nada de esto. Los grafos vigentes son filas de cada base: aquí está lo que siembran las migraciones y
+`customer-profiling-service` en `main`; `application` tiene su propio disparador, más viejo y con otras
+reglas (última sección). Los grafos vigentes son filas de cada base: aquí está lo que siembran las migraciones y
 lo que fijan los tests, no lo que tiene un ambiente.
 
 ## El tipo de grafo lo deduce el backend por sucursal
@@ -63,8 +64,11 @@ nunca responde por el combinado.
 3. bypass: las mismas tres condiciones de `CREDITOP_X` → consultar (`RKV24020`, `RKV24021`,
    `RKV24030`) con la variante forzada a Acierta+Quanto, sin tocar el contador;
 4. frecuencia del comercio (siguiente sección);
-5. si la sucursal no tiene reglas `datacredito_trigger` → consultar (`RKV24007`). Si las tiene: perfil
-   cliente, documento `CC` o `CE` y los campos 160, 29 y 87;
+5. si la sucursal no tiene reglas `datacredito_trigger` → consultar (`RKV24007`). Si las tiene, exige
+   y rechaza en este orden: usuario existente y habilitado (`RKV24004`, `RKV24005`), perfil cliente
+   (`RKV24026`), documento `CC` o `CE` (`RKV24028`: cualquier otro tipo no se consulta), algún valor de
+   campo (`RKV24006`) y los campos 160 reportes, 29 situación laboral y 87 ingreso (`RKV24013`,
+   `RKV24014`, `RKV24015`);
 6. regla del comercio (hoy sólo Pullman: monto ≤ 600.000 → `RKV24019`) y regla de cada entidad activa
    en comercio y sucursal (hoy sólo Credifamilia → `RKV24025`);
 7. reglas de la sucursal: situación laboral, género, reportes, ingreso mínimo y edad → `RKV24000`.
@@ -89,3 +93,26 @@ un código desconocido, un status distinto de 200 o un error de red dejan Experi
 como cierre válido. El disparador corre con un solo intento, sin reintentos. Si autoriza, el servicio
 compra la variante que devolvió `data.variant` aunque el nodo pidiera otra; por eso una sucursal con
 bypass compra el combinado sea cual sea el grafo.
+
+## El disparador viejo de application
+
+`application` decide aparte, en `DatacreditoQueryByAlliedController::userViability`, que llaman el
+listado de entidades, la información personal y la validación del OTP. No pasa por el pipeline ni por
+los códigos `RKV`, y en dos puntos decide al revés que `legacy-backend`:
+
+- **Sin reglas `datacredito_trigger` en la sucursal, no consulta nunca**
+  (`no_datacredito_trigger_configured`). `legacy-backend` consulta en ese caso (`RKV24007`).
+- **No tiene bypass:** comercio en la lista, entidad de la lista o `response_type = 2` no fuerzan nada.
+  En cambio, **Prami (12)** hace evaluar la consulta aunque las reglas fallen
+  (`datacredito_evaluated_by_prami_despite_failed_rules`) si está activa como entidad, en la sucursal y
+  en el comercio, y tiene credencial de integración de la sucursal o del comercio. Con esa Prami
+  compra Acierta+Quanto (también cuando las reglas pasan). Sin Prami compra `creditScore`.
+
+Con reglas, falla si no se cumple alguna: Pullman (94) con monto ≤ 600.000, situación laboral (29),
+género, reportes (160), ingreso mínimo (87) o edad, que debe quedar estrictamente entre el mínimo y el
+máximo. La vía «por entidad» está apagada: la lista de entidades con credencial de Datacrédito está
+vacía en el código, así que nunca suma.
+
+Frecuencia: sin fila de frecuencia del comercio, no consulta (`no_datacredito_frequency_for_allied`).
+Con `frequency` nulo, consulta siempre. Si no, avanza el contador **antes** de comparar y consulta
+cuando `contador % every == 0`. Un `every` menor que 1 se toma como «no consultar».
