@@ -91,6 +91,18 @@ Salvo donde se dice «corrido», salen de LEER el código: falta reproducirlos.
 
 ### Media — comportamiento distinto al esperado
 
+- [ ] Que dos altas en el mismo segundo no den el mismo hash de sucursal o de comercio. Los dos monolitos lo arman con
+  `hash('crc32', date('Y-m-d H:i:s'))`, sin unicidad, y el backend resuelve la sucursal por hash con `->first()`.
+  **Medido en prod (2026-11-03):** hay 4 pares de sucursales y 1 de comercios con el mismo hash. En cada par, la segunda
+  tiene 0 solicitudes, también las activas «CC CENTRO MAYOR» (comercio 76) y «1402-Bqlla Cl 76» (comercio 41): su URL
+  lleva a la otra sucursal. Termina con un hash único y las dos activas con su propio enlace.
+- [ ] Reproducir los tres defectos del registro IMEI que salen de LEER `main`:
+  - si el desembolso falla después de un registro exitoso, el wizard no puede reintentarlo sin volver a inscribir el
+    equipo;
+  - `enroll` inscribe en el MDM antes de exigir modelo, y si después lo rechaza el equipo queda inscrito sin fila en la
+    base;
+  - un rechazo de negocio del gateway (422 «TAC not found», 409 «Device UID already exists») vuelve como 500.
+  Termina con cada uno corrido en local con `mock-mdm` o descartado.
 - [ ] Que la sucursal ecommerce de un comercio que no es colombiano nazca en una ciudad de su país. **Corrido en local
   (2026-11-03):** `storeEcommerceCredential` de Partner sobre un comercio peruano crea la sucursal en la 1123, «TODAS LAS
   CIUDADES» de Colombia. `EcommerceBranchCreator` de application la tiene igual de fija. Los documentos imprimen
@@ -189,6 +201,12 @@ Salvo donde se dice «corrido», salen de LEER el código: falta reproducirlos.
 
 ### Seguridad — decidir con el equipo
 
+- [ ] Que el desembolso IMEI (`POST api/loans/requests/device/{id}/disburse`) mire el estado de la solicitud y quién
+  lo pide. La ruta quita al grupo `requests` sus tres middlewares, entre ellos `validate.authorized.status`, y ese grupo
+  no tiene autenticación. El controlador sólo exige un IMEI guardado. Para SmartPay, `disburseImeiRequest` lleva la
+  solicitud a estado 11 y crea el primer registro del histórico sin mirar el estado previo, así que una solicitud con
+  IMEI cancelada o ya desembolsada se puede volver a mover con su id, que es secuencial. Sale de LEER `main`: no se
+  corrió. Termina cuando se decide con el equipo qué guarda va (estado esperado, sesión o token del flujo) y está.
 - [ ] Rotar y borrar de Jira los secretos en texto plano que vio el barrido del 2026-11-02 (no se copió ningún valor):
   credenciales de Twilio para República Dominicana en CRED-46, la llave interna del bloqueo de equipos en CRED-134 y un
   certificado de Deceval en CRED-69. Termina con los secretos rotados y los issues editados. Depende de: Miguel /
