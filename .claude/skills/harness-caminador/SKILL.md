@@ -159,10 +159,13 @@ los 5 resembraron y los 5 llegaron a la selección.
   destino del onboarding · `IDENTITY_MISMATCH`/`EXPIRED`/`FAILED` → fin). Un 429 de perfilamiento es el límite de
   corridas por solicitud y trae cuándo reintentar: se espera, como la cuenta regresiva de la pantalla. La espera
   total es `E2E_KYC_WAIT_MS` (default 180 s). En local pide `make harness-pipeline` levantado.
-- Lo que destaparon, medido en local con legacy-backend y el front en `feat/originacion-delegada` (no en `main`):
-  Motai por el wizard pasa Ábaco y la fecha de pago, y se cae con 500 en `payment-schedule`. El backend devuelve los
-  planes de renting con `schedule: []` y sin `isRevolvingIncrement`, y el esquema del front exige las dos cosas.
-  `main` sí manda `isRevolvingIncrement`: medilo contra `main` antes de darlo por defecto del producto.
+- Lo que destapó: Motai R (169) por el wizard pasa Ábaco y la fecha de pago, y se cae con 500 en `payment-schedule`
+  (`INVALID_PAYLOAD`). **Es un dato de la base local, no del producto.** El número de cuotas de cada plan de renting
+  sale de `count` o `weeks` en `lenders.calculator` (`app/Support/LenderCalculator.php::optionCount`), y la 169 —que
+  sólo existe en la base de dev, no en prod— no declara ninguno: sus planes salen con 0 cuotas y `schedule: []`, y el
+  esquema del front exige al menos una. En prod, Motai Renting, Rent to Own y Alta Fleet declaran `weeks`, y ninguna de
+  las excepciones de esa pantalla en 14 días es `INVALID_PAYLOAD` (medido el 2026-11-02). `harness-doctor` lo avisa
+  (`calculator-sin-plazo`). Para recorrer renting por el wizard en local, usá una entidad que declare `weeks`.
 
 ## El login de ASESOR por consola
 

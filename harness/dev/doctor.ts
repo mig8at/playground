@@ -134,6 +134,25 @@ if (mismatch) {
               : 'ninguna entidad exige codeudor sin catálogo para esa rama',
           arreglo: mismatch.length ? 'comparar con prod (`bin/pg sql --target prod`) y alinear `lender_users_categories.requires_cosigner` o el catálogo de esa entidad en la base local' : undefined });
 }
+// 7 · RENTING SIN PLAZO. El número de cuotas de cada plan sale de `count` o `weeks` en `lenders.calculator`
+// (`LenderCalculator::optionCount`, legacy-backend). Un plan sin ninguno sale con 0 cuotas y `schedule: []`, y el
+// front rechaza el plan entero: `payment-schedule` da 500 con INVALID_PAYLOAD, lejos de su causa. Medido el
+// 2026-11-02: Motai R (169) en la base local; en prod todas declaran `weeks`. Avisa, no frena.
+const calculators = await query<{ id: number; lender: string; calculator: string }>(
+    `SELECT id, name AS lender, calculator FROM lenders WHERE calculator IS NOT NULL`).catch(() => null);
+if (calculators) {
+    const noTerm = calculators.filter((r) => {
+        try {
+            const plans: any[] = (typeof r.calculator === 'string' ? JSON.parse(r.calculator) : r.calculator)?.plans ?? [];
+            return plans.some((p) => !Number.isFinite(Number(p?.count ?? p?.weeks)));
+        } catch { return false; }
+    });
+    add({ id: 'calculator-sin-plazo', ok: noTerm.length === 0, frena: false,
+          detalle: noTerm.length ? `planes de renting sin \`count\` ni \`weeks\` (salen con 0 cuotas y payment-schedule da 500): `
+              + noTerm.map((r) => `${r.lender} (${r.id})`).join(', ')
+              : 'todos los planes de renting declaran su plazo',
+          arreglo: noTerm.length ? 'usar en la prueba una entidad que declare `weeks`, o alinear su `lenders.calculator` con prod (`bin/pg sql --target prod`)' : undefined });
+}
 await close().catch(() => {});
 
 const blocking = checks.filter((c) => !c.ok && c.frena);
