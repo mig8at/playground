@@ -160,6 +160,39 @@ cancelar la solicitud (o cancelarla con un motivo propio que se pueda contar).
 
 ---
 
+## 9 · Registrar el equipo de un crédito IMEI: tres formas de quedar trabado (Media)
+
+**Qué pasa.** Después de la firma, el asesor registra el IMEI del equipo y el sistema lo inscribe en la plataforma de
+bloqueo y desembolsa. Tres cosas salen mal:
+
+1. **Un rechazo del proveedor de bloqueo sale como error del servidor.** «El equipo ya está inscrito» o «IMEI no
+   reconocido» son respuestas de negocio del proveedor, pero el backend las devuelve como error 500. Para el monitoreo
+   se ven igual que una caída.
+2. **El equipo queda inscrito afuera sin quedar guardado acá.** El sistema inscribe primero y después pide el modelo
+   del equipo; si el proveedor no lo reporta, responde error, pero la inscripción ya se hizo y en nuestra base no hay
+   ningún registro del IMEI.
+3. **Si el desembolso falla, el reintento no puede funcionar.** La pantalla dice «El IMEI quedó registrado, pero no
+   pudimos desembolsar… Intenta nuevamente», y el reintento vuelve a registrar el equipo desde cero en vez de sólo
+   desembolsar. Si el proveedor rechaza la segunda inscripción, el reintento termina en «El dispositivo ya está
+   registrado» y nunca llega al desembolso: la solicitud queda firmada, con el equipo guardado, sin desembolsar.
+
+**Cómo se comprobó.** Corrido en local con una solicitud de SmartPay firmada, simulando las respuestas del proveedor:
+
+| caso | respuesta del sistema | qué quedó |
+|---|---|---|
+| el proveedor dice «equipo ya inscrito» (409) | 500 «El dispositivo ya está registrado» | — |
+| el proveedor dice «IMEI no reconocido» (422) | 500 «El dispositivo no es reconocido» | — |
+| el proveedor inscribe pero no reporta modelo | 500 «El dispositivo no reporta modelo» | inscripción hecha afuera, ningún registro del IMEI acá |
+| registro correcto y después el reintento | primero 200; el reintento, 500 «El dispositivo ya está registrado» | solicitud en «Autorizado pendiente desembolso», con el IMEI guardado |
+
+Que el reintento vuelve a registrar está leído en el código del asistente. **Falta confirmar** con el proveedor real
+qué contesta al inscribir dos veces el mismo equipo: en local esa respuesta se simuló.
+
+**Propuesta.** Responder los rechazos del proveedor como 4xx; guardar el registro antes de dar por buena la
+inscripción (o deshacerla si falta el modelo); y que el reintento después de un desembolso fallido sólo desembolse.
+
+---
+
 ## Sobre originación delegada (CORE-918)
 
 Lo que sigue va con la tarea de originación delegada, no con incidencias, pero conviene conversarlo junto:

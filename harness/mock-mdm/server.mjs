@@ -27,6 +27,15 @@
 //   POST /admin/limpiar                        → borra lo dictado
 // Los `resultCode` y sus textos están COPIADOS de `device_locks.api_response` de producción, para que
 // lo que se prueba acá sea lo que de verdad contesta el proveedor.
+//
+// REGISTRO DICTADO (2026-11-03). El registro del equipo también se rompe de dos formas que antes no se
+// podían provocar: el gateway rechaza el enroll, o lo acepta pero la consulta de estado no trae modelo.
+//   POST /admin/dictar-registro  { imei, status, error }  → el enroll de ese IMEI responde `status` con
+//        `{ error }` (el backend lee `error` en `mapDeviceError`: «Device UID already exists», «Invalid IMEI»,
+//        «TAC not found in database»)
+//   POST /admin/dictar-registro  { imei, sinModelo: true } → el enroll pasa y el status trae el equipo sin
+//        `marketName` ni `model`
+//   POST /admin/limpiar borra también estos.
 
 import http from 'node:http';
 
@@ -55,6 +64,7 @@ const FAILURES = {
     external_service: 'External service error',
 };
 const dictated = new Map();   // imei → resultCode
+const enrollDictated = new Map();   // imei → { status, error } | { sinModelo: true }
 
 const json = (res, code, body) => {
     res.writeHead(code, { 'content-type': 'application/json' });
@@ -68,7 +78,7 @@ const server = http.createServer((req, res) => {
     if (req.method === 'GET' && url.pathname === '/') {
         return json(res, 200, {
             mock: 'mdm/device-locking', port: PORT, empty: EMPTY,
-            tenantRequired: TENANT_REQUIRED, dictados: Object.fromEntries(dictated),
+            tenantRequired: TENANT_REQUIRED, dictados: Object.fromEntries(dictated), registro: Object.fromEntries(enrollDictated),
         });
     }
 
@@ -84,6 +94,10 @@ const server = http.createServer((req, res) => {
     if (req.method === 'GET' && url.pathname === '/device-locking/devices/status') {
         const imei = url.searchParams.get('deviceIds') || '';
         if (EMPTY) { log(`status imei=${imei} → devices:[] (MOCK_MDM_EMPTY)`); return json(res, 200, { devices: [] }); }
+        if (enrollDictated.get(imei)?.sinModelo) {
+            log(`status imei=${imei} → equipo sin marketName ni model (dictado)`);
+            return json(res, 200, { devices: [{ deviceId: imei, state: 'ENROLLED', locked: false, manufacturer: 'Samsung' }] });
+        }
         const eq = deviceOf(imei);
         log(`status imei=${imei} tenant=${tenant} → ${eq.manufacturer} ${eq.marketName}`);
         return json(res, 200, { devices: [{ deviceId: imei, state: 'ENROLLED', locked: false, ...eq }] });
@@ -103,14 +117,24 @@ const server = http.createServer((req, res) => {
             log(`dictado imei=${p.imei} → ${code}`);
             return json(res, 200, { imei: p.imei, resultCode: code });
         }
+        if (req.method === 'POST' && url.pathname === '/admin/dictar-registro') {
+            if (!p.imei || !(p.sinModelo || (p.status && p.error))) return json(res, 400, { error: 'pedí { imei, status, error } o { imei, sinModelo: true }' });
+            const d = p.sinModelo ? { sinModelo: true } : { status: Number(p.status), error: String(p.error) };
+            enrollDictated.set(String(p.imei), d);
+            log(`dictado registro imei=${p.imei} → ${JSON.stringify(d)}`);
+            return json(res, 200, { imei: p.imei, ...d });
+        }
         if (req.method === 'POST' && url.pathname === '/admin/limpiar') {
             dictated.clear();
+            enrollDictated.clear();
             return json(res, 200, { limpiado: true });
         }
 
         if (req.method === 'POST') {
             // 1) enroll: inscribe el equipo en el MDM (el backend solo verifica que no tire).
             if (url.pathname === '/device-locking/devices/enroll') {
+                const d = enrollDictated.get(String(imei));
+                if (d?.status) { log(`enroll imei=${imei} → ${d.status} ${d.error} (dictado)`); return json(res, d.status, { error: d.error }); }
                 log(`enroll imei=${imei} tenant=${tenant}`);
                 return json(res, 200, { deviceId: imei, state: 'ENROLLED', enrolled: true });
             }

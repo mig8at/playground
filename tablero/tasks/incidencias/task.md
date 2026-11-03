@@ -121,7 +121,10 @@ Salvo donde se dice «corrido», salen de LEER el código: falta reproducirlos.
   - `enroll` inscribe en el MDM antes de exigir modelo, y si después lo rechaza el equipo queda inscrito sin fila en la
     base;
   - un rechazo de negocio del gateway (422 «TAC not found», 409 «Device UID already exists») vuelve como 500.
-  Termina con cada uno corrido en local con `mock-mdm` o descartado.
+  Termina con cada uno corrido en local con `mock-mdm` o descartado. **Corridos los tres en local (2026-11-03)**, con el
+  mock dictando el registro (`POST /admin/dictar-registro`): 409 y 422 del gateway → 500; sin modelo → 500 con el
+  enroll hecho y 0 filas con ese IMEI; registro bien y reintento → 500 «ya está registrado» con la solicitud en 28.
+  Borrador 9. Falta medir qué contesta el gateway real a una reinscripción (en local es dictado).
 - [ ] Que la sucursal ecommerce de un comercio que no es colombiano nazca en una ciudad de su país. **Corrido en local
   (2026-11-03):** `storeEcommerceCredential` de Partner sobre un comercio peruano crea la sucursal en la 1123, «TODAS LAS
   CIUDADES» de Colombia. `EcommerceBranchCreator` de application la tiene igual de fija. Los documentos imprimen
