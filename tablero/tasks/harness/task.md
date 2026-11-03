@@ -12,6 +12,17 @@ ramas: ["risk-services-mockery-lambda:dictado-compartido"]
 
 ## Pendientes
 
+- [ ] Que el caminador con `ENGINE=browser` espere en `kyc-processing` como el motor HTTP (hasta `E2E_KYC_WAIT_MS`). Hoy
+  lo trata como una pantalla más y se rinde a los 5 intentos sin avance. Visto en qa con Pullman (94), que va por el
+  pipeline. Termina con un recorrido por navegador que espera al pipeline y avanza o dice por qué no.
+- [ ] Marcar las suites por ambiente. `harness-regression` corre `credifamilia-materiales-qa.json` en local y la da en
+  rojo, y `categorias-creditopx`, `cupo-creditopx` y `compuerta-prami` están calibradas para local: en la base
+  compartida fallan igual en qa y en dev, porque Pullman no deja categoría para la 77, Prami no sale en ese comercio y
+  Motai R no sale en el listado. Termina cuando cada suite declara dónde vale y los runners saltan las que no.
+- [ ] Que `TARGET=dev` del caminador pueda usar un front desplegado. Hoy usa el local (:5174) y no sirve como control de
+  qa: falla en la primera pantalla.
+- [ ] Una suite con la entidad 172 «QA Externo (rt=4)» de local, sin perfil y con perfil: es el caso de una entidad de
+  originación delegada que no es Credifamilia (la que va a ser Finandina), que hoy no corre ninguna suite.
 - [ ] Que dev y staging le dicten el caso al lambda de centrales como qa: sus backends consultan el lambda viejo
   (`ub79ck0htd`, sin dictado, F-149). Termina con la llamada a Agil Data de una solicitud nueva de dev y de staging yendo a
   `9b6r8ticg0`, y `dev` y `staging` sumados a `COMPANY_LAMBDA` y a `CAPS.lambdaDictado` del panel. Depende de: infra —
