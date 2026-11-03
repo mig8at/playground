@@ -211,6 +211,24 @@ formulario salvo que use el botón atrás o envíe dos veces.
 
 ---
 
+## 11 · La simulación de una refinanciación CreditopX cuenta dos veces los gastos de cobranza (Baja)
+
+**Qué pasa.** Al refinanciar un crédito CreditopX, la simulación muestra cuánto se condona: intereses, mora, gastos de
+cobranza y el «descuadre» entre el saldo total y sus componentes. El código supone que el saldo total no incluye la
+cobranza, pero hoy sí la incluye en los créditos que se actualizan. Entonces la cobranza aparece dos veces en lo
+condonado: una como concepto propio y otra dentro del descuadre. Lo que queda escrito en el crédito refinanciado sale
+bien; lo que ve quien simula y lo que queda en la bitácora del movimiento, no.
+
+**Cuánto.** Medido en producción sobre el último registro de cada crédito con gastos de cobranza: los 1.113 créditos
+vigentes que se movieron en noviembre incluyen la cobranza en el saldo total; los que se movieron por última vez hasta
+agosto (unos 1.100) no la incluyen. Septiembre está mezclado. O sea, la suposición del código era cierta cuando se
+escribió (finales de agosto) y dejó de serlo.
+
+**Propuesta.** Calcular el descuadre sumando también los gastos de cobranza a los componentes, o tomarlos del descuadre
+y no como concepto aparte. Conviene además saber qué cambió en septiembre en cómo se arma el saldo total.
+
+---
+
 ## Sobre originación delegada (CORE-918)
 
 Lo que sigue va con la tarea de originación delegada, no con incidencias, pero conviene conversarlo junto:

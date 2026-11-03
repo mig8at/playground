@@ -203,7 +203,10 @@ Salvo donde se dice «corrido», salen de LEER el código: falta reproducirlos.
   credencial lo activa); no va al borrador.
 - [ ] Corregir el resumen de una refinanciación, que cuenta dos veces los gastos de cobranza (como concepto
   propio y dentro del descuadre, porque el total ya los incluye). Lo que se escribe en el crédito sale bien;
-  lo que se ve en la simulación y en la bitácora, no.
+  lo que se ve en la simulación y en la bitácora, no. **Medido en prod (2026-11-03):** sobre el último registro de cada
+  crédito con cobranza, los movidos en noviembre (1.113, estado 2) traen la cobranza dentro de `total_payment_amount` y
+  los movidos hasta agosto no; el comentario de `RefinanceCredit::preview` («NO entran», del 2026-08-31) quedó viejo.
+  Borrador 11. Falta saber qué cambió en septiembre.
 - [ ] Decidir si la regla `NonOverlappingCollectionChargeRange` se usa: existe, nada la invoca, y los tramos
   de cobranza no tienen pantalla, así que dos tramos traslapados se cobrarían los dos.
 - [ ] Revisar que la refinanciación calcula la primera fecha con lógica mensual aun en créditos semanales o
