@@ -94,6 +94,25 @@ Resumen, PIPELINE AJUSTADO 2026 y Forecast Actuales 4Q). Es una **proyección** 
   comercios existentes ponen la mayor parte de los desembolsos; los nuevos crecen hasta ~1/3 en diciembre.
 - Cada comercio tiene una **calificación** comercial (Power customer, Potencial, …) y un KAM.
 
+### Lo que agrega el artifact «Forecast KAM Creditop»
+
+Fuente: el artifact de comercial `claude.ai/artifact/98LJyPCB7AAkYZdRPkA5iB` (leído el 2026-11-02). Es el prototipo
+del que salió `forecast`: misma regla de tres componentes, y nada de App, intereses, cobranza ni IC.
+
+- **CreditopX, en palabras de comercial:** «línea con marca propia, comercio fondea, Creditop gestiona originación
+  y cobranza». Al comercio que sólo usa el agregador se le propone pasar a CreditopX.
+- **Comisión del agregador en el artifact:** `desembolsos del agregador (menos la base mínima) × share TX × 1 %`
+  cuando la pareja no tiene tasa propia; con tasa por entidad, ésa manda. El Excel usa 1,2 % y `forecast`, sólo
+  las tasas por pareja: tres cuentas distintas para la misma línea.
+- **El SaaS no se proyecta:** es tarifa fija y se mide lo digitado como pagado.
+- **Se le factura al comercio:** el módulo «Cartera B2B» sigue las cuentas por cobrar a comercios (facturas,
+  vencimiento, aging), cargadas desde el Excel `CARTERA_B2B_MASTER`, aparte del revenue.
+- **Comisión variable del KAM** sobre su revenue (real contra meta): 0 por debajo del 90 %; **2 %** del real entre
+  90 % y 100 %; **3 %** entre 100 % y 120 %; desde 120 %, **4 % de 1,2 × la meta** (con tope). El «cumplimiento
+  operativo» es el promedio de los cumplimientos de desembolsos, SaaS, CTX y agregador.
+- Trae además un análisis de CreditopX: clientes que cumplen la política de la entidad y no originaron, y los
+  motivos de no cumplimiento (score, ocupación, ingresos reales, capacidad de endeudamiento).
+
 ## Modelo comercial (2024, sin confirmar vigencia)
 
 Del CRM de 2024 (PIP); conviene contrastarlo con Confluence o comercial antes de usarlo:
