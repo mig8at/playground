@@ -12,6 +12,9 @@ ramas: ["risk-services-mockery-lambda:dictado-compartido"]
 
 ## Pendientes
 
+- [ ] Que `LAMBDA=1` en qa dicte también `hdcplus/acierta-quanto` y `hdcplus/quanto`, no sólo `hdcplus`: los comercios que
+  disparan Experian con Acierta+Quanto (Pullman, por `allied_in_trigger_list`) leen el default del lambda, no el
+  score ni las tarjetas del caso. Ese default trae `creditCard: null` y tumba el cupo CreditopX (ver `incidencias`).
 - [x] ~~Que el cierre no dé verde con la autorización en 500~~ (hecho el 2026-11-03: un 11 con 4xx/5xx es «autorizada a medias» y la fecha de pago que no se confirma corta el caso): con la 172 sin perfil, la autorización respondió 500, la
   solicitud quedó en 11 sin radicar y el runner contó «CERRÓ». También se traga el fallo de la fecha de pago
   (`selected_payment_date` en NULL). Termina con el estado HTTP de la autorización y la fecha de pago como aserciones.

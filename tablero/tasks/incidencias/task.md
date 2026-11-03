@@ -91,12 +91,14 @@ Salvo donde se dice «corrido», salen de LEER el código: falta reproducirlos.
 
 ### Media — comportamiento distinto al esperado
 
-- [ ] Encontrar el `foreach() argument must be of type array|object, null given` que tumba el cupo CreditopX
-  (`QUOTA_CHECK_ERROR`, sale como `internal_error`) y el sello del listado (`stampCreditopXApproval failed`) en el
-  ambiente compartido. **Medido el 2026-11-03:** pasa en qa y en dev, con CrediPullman (77), Motai R (169) y My Tech YA
-  (170); en prod hay 0 en 24 h contra 18.889 consultas de cupo. Mientras siga, en qa no se puede probar el cupo
-  CreditopX. No es de CORE-918, que no toca el cupo ni el listado. Termina con el archivo y la línea, y la causa: la
-  rama o un dato de la base compartida.
+- [ ] Que el cupo CreditopX no se caiga con `creditCard: null` en el reporte de Experian. **Causa (2026-11-03):**
+  `LenderUserCategoryService.php:1298`, en `main`, `qa` y `develop`, pregunta `->has('creditCard')`, que da verdadero
+  aunque el valor sea null, y recorre ese null: `QUOTA_CHECK_ERROR` («foreach() … null given», sale como
+  `internal_error`), y lo mismo `stampCreditopXApproval` en el listado. Las líneas 1133 y 1225 del mismo archivo sí lo
+  toleran (`?? []`, `isset`). El lambda de mocks de qa y dev contesta `"creditCard": null` en `hdcplus/acierta-quanto`
+  y `hdcplus/quanto`; Experian real no lo manda (0 errores en prod contra 18.889 consultas de cupo en 24 h). Termina
+  cuando la línea 1298 tolera el null (o el mock manda `[]`, como Experian real) y el cupo de CrediPullman responde en
+  qa. Depende de: backend (una línea) o de quien mantiene `risk-services-mockery-lambda`.
 - [ ] Que una solicitud de un comercio con pipeline de KYC no llegue al listado ni se autorice sin la corrida
   `COMPLETED`. El único que lee `kyc_pipeline_allieds` es `ResolveKycFlowService`; ni el listado ni la solicitud miran
   la corrida, así que la única guarda es el wizard. **Medido en prod (2026-11-03):** en el comercio 26, que va por el
