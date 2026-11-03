@@ -21,8 +21,9 @@ ramas: ["risk-services-mockery-lambda:dictado-compartido"]
   (`selected_payment_date` en NULL). Termina con el estado HTTP de la autorización y la fecha de pago como aserciones.
 - [ ] Aserciones que le faltan al runner de casos: estado y campos de un endpoint cualquiera (`payment-plan/<slug>/*`),
   el plazo guardado (`fee_number`) y preparar estado desde la suite (perfil prendido o apagado).
-- [ ] Que `LAMBDA=1` dicte a Ágil Data el mismo nombre que el caminador escribe: hoy dicta «CARLOS RUIZ MENDOZA», escribe
-  «CARLOS / RUIZ», y el pipeline de KYC v2 lo da por otra persona (IDENTITY_MISMATCH). Con `AGILNAME='CARLOS RUIZ'` pasa.
+- [x] ~~Que `LAMBDA=1` dicte a Ágil Data el mismo nombre que el caminador escribe~~ — hecho (2026-11-03): el dictado
+  usa por defecto `--name`/`--surname` (`dictatedName` en `dev/walk-wizard.ts`), en local y fuera de local; `--agilname`
+  sigue forzando otro nombre. Corrido en local por el comercio 26 (pipeline v2): KYC completo, consolidado «CARLOS RUIZ».
 - [x] ~~Que el caminador con `ENGINE=browser` espere en `kyc-processing`~~ (`83c1f93c`: espera hasta `E2E_KYC_WAIT_MS`, aprieta «Intentar nuevamente» hasta 2 veces; en qa llegó al listado) — como el motor HTTP (hasta `E2E_KYC_WAIT_MS`). Hoy
   lo trata como una pantalla más y se rinde a los 5 intentos sin avance. Visto en qa con Pullman (94), que va por el
   pipeline. Termina con un recorrido por navegador que espera al pipeline y avanza o dice por qué no.

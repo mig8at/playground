@@ -289,6 +289,17 @@ async function seed(ur: number, doc: string, log: (s: string) => void, lender?: 
  * En local se le dicta al mock de esta máquina; en otro ambiente, al lambda de la empresa que consulta su backend
  * (`dictateCompanyLambda`; hoy sólo qa tiene uno con dictado, F-149).
  */
+/** Lo que el caminador teclea en datos personales: `--name`/`--surname`, o CARLOS / RUIZ. */
+const typedName = () => arg('name') || 'CARLOS';
+const typedSurname = () => arg('surname') || 'RUIZ';
+
+/**
+ * El nombre que se le dicta a Ágil Data: por defecto, el MISMO que se teclea. Antes se dictaba «CARLOS RUIZ MENDOZA»
+ * y se tecleaba «CARLOS / RUIZ», y el pipeline de KYC v2 lo daba por otra persona (IDENTITY_MISMATCH). `--agilname`
+ * sigue forzando otro nombre, que es como se prueba justamente el desacuerdo.
+ */
+const dictatedName = () => arg('agilname') || `${typedName()} ${typedSurname()}`;
+
 async function employmentFor(doc: string, log: (s: string) => void): Promise<void> {
     if (!DICTATES) return;
     const occupation = arg('occupation', 'Empleado');
@@ -296,12 +307,12 @@ async function employmentFor(doc: string, log: (s: string) => void): Promise<voi
     // y el reporte de Experian ENTERO—, porque ese lambda no conoce la clave `experian_profile` del mock local.
     if (TARGET !== 'local') {
         const { dictateCompanyLambda } = await import('../pkg/risk-lambda.ts');
-        const r = await dictateCompanyLambda(TARGET, doc, { name: arg('agilname') || 'CARLOS RUIZ MENDOZA', income: INCOME, occupation, months: 13,
+        const r = await dictateCompanyLambda(TARGET, doc, { name: dictatedName(), income: INCOME, occupation, months: 13,
             score: SCORE, consulted: 1, creditCards: 1, delinquencies: 0, negatives: 0, maturationSince: '2015-03-26' });
         for (const line of r.lines) log(`centrales de ${TARGET} para ${doc}: ${line}`);
         return;
     }
-    const ok = await dictateEmployment(doc, INCOME, occupation, 8, arg('agilname') || undefined);   // `--agilname`: el nombre que devuelve Ágil Data
+    const ok = await dictateEmployment(doc, INCOME, occupation, 8, dictatedName());   // `--agilname`: el nombre que devuelve Ágil Data
     log(ok
         ? `empleo dictado al mock de centrales para ${doc}: ${occupation} · ${INCOME}`
         : `⚠ el empleo NO quedó dictado para ${doc} (${RISK_LAMBDA}): Agildata va a contestar su default`);
@@ -564,7 +575,7 @@ async function correr(c: Case, i: number): Promise<Result> {
                 else return finish('malo', 'personal-info llegó SIN prefill del comercio: el loader no encontró el pedido de esta solicitud');
             }
             form = sheet === 'personal-info'
-                ? { intent: 'save-personal-info', documentType: docType, documentNumber: doc, name: arg('name') || 'CARLOS', surname: arg('surname') || 'RUIZ',   // `--name`/`--surname`: lo que escribe el asesor
+                ? { intent: 'save-personal-info', documentType: docType, documentNumber: doc, name: typedName(), surname: typedSurname(),   // `--name`/`--surname`: lo que escribe el asesor
                     email: `qa${doc}@gmail.com`, address: 'Calle 1 # 2-3', stratum: '3',
                     ...issueOf(arg('expedition') || '2019-05-10'), birthDay: '10', birthMonth: '5', birthYear: '2001' }   // `--expedition AAAA-MM-DD`: la fecha que escribe el asesor
                 : { employmentStatus: 'Empleado', monthlyIncome: String(INCOME) };
@@ -887,7 +898,7 @@ async function ecommerceEntry(br: { hash: string; com: string }, ref: string, te
     // la tienda lo firma (sin OTP): las mismas perillas que `dev/auto-onboarding.ts` y el panel.
     const auto = process.env.E2E_AUTO_ONBOARDING === '1';
     const c64 = ecommerceContract(br.hash, token, tel, webhook, returnValue,
-        { docType, doc, name: arg('name') || 'CARLOS', surname: arg('surname') || 'RUIZ', email: `qa${doc}@gmail.com`,
+        { docType, doc, name: typedName(), surname: typedSurname(), email: `qa${doc}@gmail.com`,
             ...(auto ? { expeditionDate: process.env.E2E_SYNTH_EXP || '2010-01-01', birthDate: process.env.E2E_SYNTH_DOB || '1990-01-01' } : {}) },
         AMOUNT, await merchantSigningSecret(br.hash, br.com));
     return { path: `/ecommerce/${br.hash}/checkout?${checkoutQuery(c64)}` };
