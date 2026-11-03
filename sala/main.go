@@ -11,8 +11,12 @@
 // sus herramientas permitidas y un tope de gasto por turno (`--max-budget-usd`). Lo que se dijo desde su último
 // turno le llega como prompt. Sale en `stream-json` para mostrar en vivo qué comando está corriendo.
 //
-// LA PIZARRA. Una afirmación entra con `AFIRMO: … | COMANDO: …`; la que no trae comando queda marcada. Tres
-// agentes de acuerdo no prueban nada: lo que cierra la tarea es su verificación (`make tarea-verify`).
+// LA PIZARRA. Una afirmación entra con `AFIRMO: … | COMANDO: …`, y también una corrección dicha en prosa (`reProse`);
+// la que no trae comando queda marcada. Cada una tiene id (C1, C2…) y estado: el probador recibe en cada turno las
+// que nadie comprobó y contesta `COMPRUEBO: C2 | ✓|✗ | comando`. Tres agentes de acuerdo no prueban nada.
+//
+// EL CIERRE. Un TERMINÉ del probador abre una ronda de objeciones (CONFORME u OBJECIÓN); con una objeción la
+// llamada sigue. En la primera llamada real (2026-11-02) el TERMINÉ cerró con dos pendientes a la vista.
 //
 // ⚠ Nadie edita archivos, commitea, publica ni corre el harness contra prod (`denied`). La sala corre en la raíz
 // del playground, como el ensayo, y suma los repos reales con `--add-dir` para que `git -C` a main funcione.
@@ -61,9 +65,13 @@ type message struct {
 }
 
 type claim struct {
+	ID      string `json:"id"`
 	Who     string `json:"who"`
 	Claim   string `json:"claim"`
 	Command string `json:"command"`
+	Prose   bool   `json:"prose"`  // salió de la prosa (una corrección dicha al pasar), no de una línea AFIRMO
+	Status  string `json:"status"` // sin comprobar · comprobada · refutada
+	Check   string `json:"check"`  // con qué la comprobó el probador
 }
 
 type state struct {
@@ -75,6 +83,7 @@ type state struct {
 	Budget       float64        `json:"budget"`
 	Spent        float64        `json:"spent"`
 	Ended        string         `json:"ended"`
+	Objecting    bool           `json:"objecting"` // ronda de objeciones abierta tras un TERMINÉ
 	Participants []*participant `json:"participants"`
 	Messages     []message      `json:"messages"`
 	Claims       []claim        `json:"claims"`
@@ -90,7 +99,10 @@ var denied = []string{
 const common = `Estás en una LLAMADA de trabajo con otros agentes y con Miguel, sobre una tarea del tablero del playground de CreditOp. ` +
 	`Hablás en español, en primera persona, como en una reunión: corto (120 palabras como máximo), concreto y sin repetir lo que otro ya dijo. ` +
 	`Cuando afirmes algo verificable, agregá una línea aparte con la forma exacta «AFIRMO: <la afirmación> | COMANDO: <el comando que la sostiene>». ` +
-	`Una afirmación sin comando vale como opinión. Si no tenés nada útil que agregar en tu turno, decí sólo «PASO». ` +
+	`Una afirmación sin comando vale como opinión. Si corregís algo que ya existe (una nota, un tema de knowledge, una suite, una trampa), ` +
+	`va SIEMPRE como AFIRMO con su comando: una corrección dicha en prosa no se comprueba. ` +
+	`Si no tenés nada útil que agregar en tu turno, decí sólo «PASO». Cuando el moderador abra una RONDA DE OBJECIONES, ` +
+	`contestá sólo «CONFORME» o «OBJECIÓN: <qué queda abierto y con qué se comprobaría>». ` +
 	`No edites archivos, no commitees y no corras nada contra producción salvo lecturas de bin/pg.`
 
 func roster() []*participant {
@@ -109,6 +121,8 @@ func roster() []*participant {
 		{ID: "probador", Name: "Probador", Role: "comprueba corriendo y avisa al terminar",
 			system: common + ` TU ROL: probador. Lo que se afirma lo comprobás CORRIENDO, contra el ambiente local (harness-case, harness-listing, ` +
 				`harness-suite, harness-walk-wizard, tarea-verify) o leyendo con bin/pg. Antes de concluir, mirá el ambiente con make harness-doctor TARGET=local. ` +
+				`En cada turno recibís las afirmaciones de la pizarra que nadie comprobó: comprobá las que puedas y respondé por cada una con una línea ` +
+				`«COMPRUEBO: C<n> | ✓ o ✗ | <el comando que corriste>». ` +
 				`Cuando la tarea esté comprobada (o no se pueda), empezá tu mensaje con «TERMINÉ» y decí qué quedó probado y con qué comando.`,
 			tools: []string{"Read", "Grep", "Glob", "Bash(make harness-case *)", "Bash(make harness-listing *)", "Bash(make harness-suite *)",
 				"Bash(make harness-walk-wizard *)", "Bash(make harness-doctor *)", "Bash(make tarea-verify *)", "Bash(make agente *)",
@@ -153,7 +167,13 @@ func (h *hub) say(who, name, text string) {
 	})
 }
 
-var reClaim = regexp.MustCompile(`(?m)^\s*AFIRMO:\s*(.+?)(?:\s*\|\s*COMANDO:\s*(.+?))?\s*$`)
+var (
+	reClaim = regexp.MustCompile(`(?m)^\s*AFIRMO:\s*(.+?)(?:\s*\|\s*COMANDO:\s*(.+?))?\s*$`)
+	reCheck = regexp.MustCompile(`(?m)^\s*COMPRUEBO:\s*(C[0-9]+)\s*\|\s*(✓|✗)\s*(?:\|\s*(.+?))?\s*$`)
+	// Una corrección dicha al pasar: la de la primera llamada real («la nota de la suite cita mal…») era falsa y
+	// no entró a la pizarra porque no venía como AFIRMO. Léxico a propósito: mejor una de más, punteada.
+	reProse = regexp.MustCompile(`(?i)[^.\n]*(corrección|corrijo|hay que corregir|cita mal|no es correcto|es incorrect|se equivoc)[^.\n]*`)
+)
 
 func main() {
 	addr := flag.String("addr", "127.0.0.1:5201", "dónde escucha")
@@ -310,8 +330,18 @@ func (h *hub) meeting(ctx context.Context, task string) {
 			case strings.HasPrefix(strings.TrimSpace(text), "PASO"):
 				passes++
 			case p.ID == "probador" && strings.HasPrefix(strings.TrimSpace(text), "TERMINÉ"):
-				end("el probador dio la tarea por comprobada")
-				return
+				if h.objections(ctx, parts, task) {
+					end("el probador la dio por comprobada y nadie objetó")
+					return
+				}
+				if round >= rounds {
+					end("quedaron objeciones abiertas al llegar al tope de rondas")
+					return
+				}
+				passes = -1 // hubo objeciones: la ronda no cuenta como «nadie tenía nada»
+			}
+			if passes < 0 {
+				break
 			}
 		}
 		if passes == len(parts) {
@@ -319,6 +349,41 @@ func (h *hub) meeting(ctx context.Context, task string) {
 			return
 		}
 	}
+}
+
+/* objections: antes de cerrar por un TERMINÉ, cada uno de los otros dice CONFORME u OBJECIÓN. En la primera
+ * llamada real el probador cerró con dos pendientes a la vista (S3 contra main, F-246) y nadie pudo objetar.
+ * Devuelve true si nadie objetó. */
+func (h *hub) objections(ctx context.Context, parts []*participant, task string) bool {
+	h.update(func(s *state) { s.Objecting = true })
+	defer h.update(func(s *state) { s.Objecting = false })
+	h.say("moderador", "Moderador", "El probador da la tarea por terminada. Ronda de objeciones: ¿queda algo abierto? CONFORME u OBJECIÓN.")
+	objected := false
+	for _, q := range parts {
+		if q.ID == "probador" || ctx.Err() != nil {
+			continue
+		}
+		h.mu.Lock()
+		left := h.st.Budget - h.st.Spent
+		h.mu.Unlock()
+		if left < 0.1 {
+			break
+		}
+		if strings.HasPrefix(strings.TrimSpace(h.turn(ctx, q, task, min(left, 0.5))), "OBJECIÓN") {
+			objected = true
+		}
+	}
+	if objected {
+		h.say("moderador", "Moderador", "Hay objeciones: sigue la llamada y el probador las atiende en su próximo turno.")
+	}
+	return !objected && ctx.Err() == nil
+}
+
+func orNone(s string) string {
+	if s == "" {
+		return "ninguno"
+	}
+	return s
 }
 
 // brief: el arranque de la tarea, el mismo de `make agente` (texto, que es más corto que el JSON).
@@ -361,6 +426,19 @@ func (h *hub) turn(ctx context.Context, p *participant, task string, budget floa
 	for _, m := range msgs {
 		fmt.Fprintf(&b, "[%s] %s\n\n", m.Name, m.Text)
 	}
+	if p.ID == "probador" {
+		h.mu.Lock()
+		var open []string
+		for _, c := range h.st.Claims {
+			if c.Status == "sin comprobar" {
+				open = append(open, fmt.Sprintf("%s · %s: %s (comando: %s)", c.ID, c.Who, c.Claim, orNone(c.Command)))
+			}
+		}
+		h.mu.Unlock()
+		if len(open) > 0 {
+			b.WriteString("Afirmaciones de la pizarra que nadie comprobó (respondé con COMPRUEBO por las que puedas):\n" + strings.Join(open, "\n") + "\n\n")
+		}
+	}
 	b.WriteString("Es tu turno.")
 
 	var text, errText string
@@ -383,8 +461,34 @@ func (h *hub) turn(ctx context.Context, p *participant, task string, budget floa
 		default:
 			p.Status = "esperando"
 		}
+		add := func(c claim) {
+			for _, prev := range s.Claims { // repetir una afirmación no la hace más cierta
+				if prev.Who == p.Name && prev.Claim == c.Claim {
+					return
+				}
+			}
+			c.ID, c.Who, c.Status = fmt.Sprintf("C%d", len(s.Claims)+1), p.Name, "sin comprobar"
+			if p.ID == "probador" && c.Command != "" {
+				c.Status, c.Check = "comprobada", c.Command // lo afirma quien lo corrió
+			}
+			s.Claims = append(s.Claims, c)
+		}
 		for _, m := range reClaim.FindAllStringSubmatch(text, -1) {
-			s.Claims = append(s.Claims, claim{Who: p.Name, Claim: m[1], Command: m[2]})
+			add(claim{Claim: m[1], Command: m[2]})
+		}
+		prose := reClaim.ReplaceAllString(reCheck.ReplaceAllString(text, ""), "")
+		for _, m := range reProse.FindAllString(prose, -1) {
+			add(claim{Claim: strings.TrimSpace(m), Prose: true})
+		}
+		if p.ID == "probador" {
+			for _, m := range reCheck.FindAllStringSubmatch(text, -1) {
+				for i := range s.Claims {
+					if s.Claims[i].ID == m[1] {
+						s.Claims[i].Status = map[string]string{"✓": "comprobada", "✗": "refutada"}[m[2]]
+						s.Claims[i].Check = m[3]
+					}
+				}
+			}
 		}
 	})
 	if errText != "" {
@@ -508,15 +612,21 @@ func mockReply(ctx context.Context, h *hub, p *participant) (string, float64) {
 		}
 	}
 	h.mu.Lock()
-	round := h.st.Round
+	round, objecting := h.st.Round, h.st.Objecting
 	h.mu.Unlock()
 	switch {
+	case objecting && p.ID == "herramientas" && round < 3:
+		return "OBJECIÓN: S3 se midió en la rama local, no en main.", 0
+	case objecting:
+		return "CONFORME", 0
 	case p.ID == "probador" && round >= 2:
 		return "TERMINÉ: las cuatro specs pasan.\nAFIRMO: la tarea cumple su criterio de hecho | COMANDO: make tarea-verify N=86", 0
+	case p.ID == "probador":
+		return "Corrí el doctor y la suite.\nCOMPRUEBO: C3 | ✗ | git -C legacy-backend grep -n false_lenders origin/main", 0
 	case p.ID == "herramientas":
 		return "Antes de leer código, el doctor ya dice qué está mal en local.\nAFIRMO: Motai R no declara plazo en su calculadora | COMANDO: make harness-doctor TARGET=local", 0
 	case p.ID == "arquitecto":
-		return "El número de cuotas sale de count o weeks en lenders.calculator.\nAFIRMO: el plazo de renting sale de LenderCalculator::optionCount", 0
+		return "El número de cuotas sale de count o weeks en lenders.calculator. Corrección: la nota de la suite cita mal RiskCentralValidationService.\nAFIRMO: el plazo de renting sale de LenderCalculator::optionCount", 0
 	}
 	return "PASO", 0
 }
