@@ -5,8 +5,10 @@
 //	make sala                 → http://127.0.0.1:5201
 //	make sala MOCK=1          → respuestas simuladas, sin gastar modelo
 //
-// Cómo funciona. El MODERADOR es este código, no un modelo: da la palabra por turnos (herramientas →
-// arquitecto → probador), y corta por tope de rondas, tope de gasto o cuando el probador dice TERMINÉ. Cada
+// DOS MODOS. «canal» (canal.go, el de partida): nadie da la palabra; cada mensaje le llega a todos, cada uno decide si
+// aporta, avisa que va a trabajar (AVISO) o calla (PASO), varios trabajan a la vez, y un COORDINADOR decide cómo
+// seguir cuando nadie aporta, o cierra. «rondas»: el MODERADOR, que es este código, da la palabra por turnos y corta
+// por tope de rondas, tope de gasto o cuando el probador dice TERMINÉ. Cada
 // participante es una sesión de `claude -p` que se retoma con `--resume`, con su rol en el prompt de sistema,
 // sus herramientas permitidas y un tope de gasto por turno (`--max-budget-usd`). Lo que se dijo desde su último
 // turno le llega como prompt. Sale en `stream-json` para mostrar en vivo qué comando está corriendo.
@@ -51,6 +53,7 @@ type participant struct {
 	Doing   string  `json:"doing"`
 	Cost    float64 `json:"cost"`
 	Turns   int     `json:"turns"`
+	Work    string  `json:"work"` // modo canal: lo que avisó que está haciendo (AVISO)
 	session string
 	system  string
 	tools   []string
@@ -62,6 +65,7 @@ type message struct {
 	Name string `json:"name"`
 	Text string `json:"text"`
 	At   string `json:"at"`
+	Kind string `json:"kind,omitempty"` // aviso: informa quién toma qué; no despierta a nadie
 }
 
 type claim struct {
@@ -84,6 +88,7 @@ type state struct {
 	Spent        float64        `json:"spent"`
 	Ended        string         `json:"ended"`
 	Objecting    bool           `json:"objecting"` // ronda de objeciones abierta tras un TERMINÉ
+	Mode         string         `json:"mode"`      // rondas · canal
 	Participants []*participant `json:"participants"`
 	Messages     []message      `json:"messages"`
 	Claims       []claim        `json:"claims"`
@@ -171,6 +176,7 @@ func definitions() map[string]*participant {
 				`monolitos, bin/pg, leer el archivo entero). Comprobá también la PREMISA (qué ids, qué rama, qué clave), no sólo que el comando corre. ` +
 				`Por cada una, una línea «COMPRUEBO: C<n> | ✓, ✗ o — | <el comando que corriste>», donde — es «no trae comando y no se puede comprobar».`,
 			tools: with(append(gitMain, "Bash(bin/pg sql *)", "Bash(bin/pg request *)", "Bash(grep *)", "mcp__playground__sql")...)},
+		"coordinador": coordinatorDefinition(),
 		"escriba": {ID: "escriba", Name: "Escriba", Role: "deja el bloque en la tarea al cierre",
 			system: common + ` TU ROL: escriba. Hablás una sola vez, cuando la llamada terminó: escribís UN bloque en la tarea con ` +
 				`bin/pg tarea bloque --tarea <N> --titulo '<la conclusión, menos de 120 caracteres>' --cuerpo '<lo que la sostiene>'. ` +
@@ -209,6 +215,7 @@ type hub struct {
 	subs   map[chan []byte]bool
 	cancel context.CancelFunc
 	root   string
+	onSay  func() // modo canal: despierta a los que escuchan cuando entra un mensaje
 }
 
 func (h *hub) snapshot() []byte {
@@ -234,10 +241,21 @@ func (h *hub) update(f func(*state)) {
 	h.publish()
 }
 
-func (h *hub) say(who, name, text string) {
-	h.update(func(s *state) {
-		s.Messages = append(s.Messages, message{Who: who, Name: name, Text: text, At: time.Now().Format("15:04:05")})
-	})
+func (h *hub) say(who, name, text string) { h.post(message{Who: who, Name: name, Text: text}) }
+
+// post agrega un mensaje al canal y despierta a los que escuchan, salvo que sea un aviso.
+func (h *hub) post(m message) {
+	m.At = time.Now().Format("15:04:05")
+	h.update(func(s *state) { s.Messages = append(s.Messages, m) })
+	if m.Kind == "aviso" {
+		return
+	}
+	h.mu.Lock()
+	wake := h.onSay
+	h.mu.Unlock()
+	if wake != nil {
+		wake()
+	}
 }
 
 var (
@@ -334,6 +352,7 @@ func (h *hub) start(w http.ResponseWriter, r *http.Request) {
 		Budget float64  `json:"budget"`
 		Mock   bool     `json:"mock"`
 		Roles  []string `json:"roles"`
+		Mode   string   `json:"mode"`
 	}
 	if json.NewDecoder(r.Body).Decode(&in) != nil || strings.TrimSpace(in.Task) == "" {
 		http.Error(w, "falta la tarea", 400)
@@ -360,6 +379,13 @@ func (h *hub) start(w http.ResponseWriter, r *http.Request) {
 		Messages: []message{}, Claims: []claim{}}
 	h.publish()
 	h.mu.Unlock()
+	if in.Mode == "canal" {
+		h.st.Mode = "canal"
+		h.st.Participants = append(h.st.Participants, definitions()["coordinador"])
+		go h.channel(ctx, in.Task)
+		return
+	}
+	h.st.Mode = "rondas"
 	go h.meeting(ctx, in.Task)
 }
 
@@ -559,7 +585,7 @@ func (h *hub) brief(task string) (string, error) {
 // turn: un turno de un participante. Le llega lo que se dijo desde su último turno.
 func (h *hub) turn(ctx context.Context, p *participant, task string, budget float64) string {
 	h.mu.Lock()
-	mock := h.st.Mock
+	mock, canal := h.st.Mock, h.st.Mode == "canal"
 	msgs := append([]message(nil), h.st.Messages[p.seen:]...)
 	p.seen = len(h.st.Messages)
 	p.Status, p.Doing = "pensando", ""
@@ -588,12 +614,18 @@ func (h *hub) turn(ctx context.Context, p *participant, task string, budget floa
 			b.WriteString("Afirmaciones de la pizarra que nadie comprobó (respondé con COMPRUEBO por las que puedas):\n" + strings.Join(open, "\n") + "\n\n")
 		}
 	}
-	b.WriteString("Es tu turno.")
+	if canal {
+		b.WriteString(h.channelNote(p))
+	} else {
+		b.WriteString("Es tu turno.")
+	}
 
 	checker := h.isChecker(p)
 	var text, errText string
 	var cost float64
-	if mock {
+	if mock && canal {
+		text, cost = mockChannelReply(ctx, h, p)
+	} else if mock {
 		text, cost = mockReply(ctx, h, p)
 	} else {
 		text, cost, errText = h.claude(ctx, p, b.String(), budget)
@@ -607,10 +639,11 @@ func (h *hub) turn(ctx context.Context, p *participant, task string, budget floa
 		case errText != "":
 			p.Status = "error"
 		case strings.HasPrefix(strings.TrimSpace(text), "PASO"):
-			p.Status = "pasó"
+			p.Status = map[bool]string{true: "escuchando", false: "pasó"}[canal]
 		default:
-			p.Status = "esperando"
+			p.Status = map[bool]string{true: "escuchando", false: "esperando"}[canal]
 		}
+		p.Work = ""
 		add := func(c claim) {
 			for _, prev := range s.Claims { // repetir una afirmación no la hace más cierta
 				if prev.Who == p.Name && prev.Claim == c.Claim {
@@ -644,7 +677,12 @@ func (h *hub) turn(ctx context.Context, p *participant, task string, budget floa
 		h.say(p.ID, p.Name, "⚠ "+errText)
 		return ""
 	}
-	h.say(p.ID, p.Name, strings.TrimSpace(text))
+	// En el canal el PASO no se publica (escuchar no es hablar) y el AVISO ya salió en vivo.
+	shown := strings.TrimSpace(reNotice.ReplaceAllString(text, ""))
+	if canal && (strings.HasPrefix(shown, "PASO") || shown == "") {
+		return text
+	}
+	h.say(p.ID, p.Name, shown)
 	return text
 }
 
@@ -688,6 +726,7 @@ func (h *hub) claude(ctx context.Context, p *participant, prompt string, budget 
 			Message   struct {
 				Content []struct {
 					Type  string          `json:"type"`
+					Text  string          `json:"text"`
 					Name  string          `json:"name"`
 					Input json.RawMessage `json:"input"`
 				} `json:"content"`
@@ -702,6 +741,9 @@ func (h *hub) claude(ctx context.Context, p *participant, prompt string, budget 
 		switch ev.Type {
 		case "assistant":
 			for _, c := range ev.Message.Content {
+				if c.Type == "text" {
+					h.notice(p, c.Text)
+				}
 				if c.Type == "tool_use" {
 					doing := c.Name
 					var in struct{ Command string }

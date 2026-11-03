@@ -300,6 +300,11 @@ como un participante más: escribe, interrumpe o corta.
   Confluence, Canon), **Diseño** (`make visor-*`, `estilo-check`, `estilo-contraste`), **Datos** (prod en sólo
   lectura, sin datos de personas) y **Escriba** (al cierre deja UN bloque con lo comprobado; es el único que escribe,
   y sólo en la tarea).
+- **Modo canal** (de partida desde el 2026-11-02, idea de Miguel): nadie da la palabra. Cada mensaje le llega a todos y
+  cada uno decide si aporta, si avisa que va a trabajar en algo (`AVISO:`, que sale en vivo, reserva el trabajo y no
+  despierta a nadie) o si calla (`PASO`, que no se publica). Varios trabajan a la vez. Cuando nadie aporta, habla el
+  **coordinador**: nombra a quién le toca el siguiente paso (`@id`) o cierra con `CIERRO:`. Topes: 8 turnos por agente,
+  5 intervenciones del coordinador y el gasto de la llamada. El modo por rondas sigue disponible.
 - **Convocatoria:** una casilla por rol y elencos por tipo de tarea (`defecto`: herramientas, arquitecto, probador,
   datos y verificador · `pantalla` · `negocio` · `clasico`).
 - Cada agente es una sesión de `claude -p` que se retoma turno a turno (`--resume`), con su rol en el prompt de
