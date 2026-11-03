@@ -1,7 +1,8 @@
 ---
 id: 111
 title: "Perfil de riesgo visible para Superadmin y Admin comercio"
-stage: evaluation
+ramas: feat/perfil-de-riesgo-por-comercio
+stage: work
 created: "2026-11-03T10:00:00-05:00"
 knowledge: [admin-panel]
 canon: []
@@ -21,14 +22,20 @@ jira_title: "Perfil de riesgo visible para Superadmin y Admin comercio"
 - [ ] Confirmar quién prende el interruptor del comercio (sólo Administrador) y en qué comercios va
   primero; termina con la lista de comercios en la pila.
   Depende de: producto — qué comercios.
-- [ ] Confirmar en qué repo va la migración de la columna nueva de `allieds`: las de `allieds`
-  recientes (`show_authorizations`) están en `legacy-backend`; termina con la decisión en la pila.
-- [ ] Agregar la columna booleana al comercio (p. ej. `allow_risk_profile_view`, por defecto `false`)
-  y su interruptor en «Editar comercio»; termina con el campo guardando desde el admin.
-- [ ] Crear la regla de acceso (Gate o policy, p. ej. `viewRiskProfile`) y usarla en la ruta, en
-  `userValidation` y para dibujar el ojo; termina con el PR en `legacy-application`.
-- [ ] Recortar `userValidation` a clientes con solicitudes en los comercios del usuario que tengan
-  el interruptor prendido, y si no, 403 sin datos en la respuesta.
+- [x] Confirmar en qué repo va la migración de la columna nueva de `allieds` — en `legacy-application`,
+  como `2026_06_03_120000_add_production_date_to_allieds_table`; la decisión está en la pila.
+- [x] Agregar la columna `allow_risk_profile_view` (por defecto `false`) y su interruptor en «Editar
+  comercio», sólo para el Administrador — commit 30df4c71; el guardado desde la pantalla no se probó.
+- [x] Crear la regla `viewRiskProfile` (`RiskProfilePolicy`) y usarla en la ruta, en `userValidation`
+  y para dibujar el ojo — commit 30df4c71, probado en local (bloque del 2026-11-03).
+- [ ] Abrir el PR en `legacy-application` con la rama `feat/perfil-de-riesgo-por-comercio`; termina
+  con el PR abierto.
+  Depende de: Miguel — permiso para pushear y abrir el PR.
+- [ ] Probar el interruptor de punta a punta desde «Editar comercio» (guardar con Administrador; con
+  otro rol con `update allied` no cambia); termina con la medición en la pila.
+- [x] Recortar `userValidation` a clientes con solicitudes en los comercios habilitados del usuario,
+  y si no, 403 sin datos — probado en local; el recorte del historial por comercio no se pudo ver
+  por HTTP (ver bloque).
 - [ ] Cerrar `legacy-application#171`: su contenido ya está en `main` por el merge de `develop`
   (#170); termina con el PR cerrado y una nota de por qué.
 - [ ] Probar en staging con un Admin comercio del comercio 94: ve el ojo y el perfil de un cliente de
