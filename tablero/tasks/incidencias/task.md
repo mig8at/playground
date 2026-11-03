@@ -271,17 +271,25 @@ Salvo donde se dice «corrido», salen de LEER el código: falta reproducirlos.
   `CorbetaCheckoutController` (950) ya usa `allowed_classes => false`. NO se intentó explotarlo. Borrador 12.
 - [ ] Revisar la credencial de tienda ecommerce: se arma como `bin2hex(allied_id . hash . fecha)` y el hash de la
   sucursal es público (viaja en las direcciones), así que es predecible; igual en los dos monolitos. Termina con
-  credenciales aleatorias y la rotación de las existentes decidida.
+  credenciales aleatorias y la rotación de las existentes decidida. **Confirmado por lectura de `main` (2026-11-03):**
+  `AlliedManagementService.php:1418` (legacy-backend) y `EcommerceBranchCreator.php:91` (application) hacen
+  `bin2hex($allied->id . $branch->hash . date('Y-m-d'))`. Borrador 13.
 - [ ] Sacar la contraseña del certificado de Credifamilia Consumo del log: `CredifamiliaConsumo::makeClient`
   (legacy-backend) manda `certPassword` al tracer en cada radicación. Termina cuando el log no la incluye y se
   decide si hay que rotar el certificado. De paso: el comando de siembra de esa credencial escribe
-  `credifamilia_consumo_cert/key/cert_password`, pero la acción lee `credifamilia_cert/key/password`.
+  `credifamilia_consumo_cert/key/cert_password`, pero la acción lee `credifamilia_cert/key/password`. **Confirmado y
+  ACTIVO (2026-11-03):** `CredifamiliaConsumo::makeClient` (línea 438) loguea `certPassword` al tracer; la traza
+  «making SoapClient for CredifamiliaConsumo» salió 14 veces en 24 h en prod (sin traer el cuerpo). Borrador 14.
 
 - [ ] Decidir cómo frenar el abuso del pre-registro de comercios: el token de servicio viaja en la página y
   el único límite es por correo, así que un programa que cambie el correo en cada envío no tiene freno.
   Termina con la decisión (captcha, límite por origen detrás del gateway u otro).
 - [ ] Encender el interruptor que exige el identificador firmado en la vista previa del pago: apagado por
-  omisión, el número de solicitud (consecutivo) sigue devolviendo el nombre completo del titular.
+  omisión, el número de solicitud (consecutivo) sigue devolviendo el nombre completo del titular. **Confirmado por
+  lectura de `main` (2026-11-03):** `WompiPaymentController` acepta un id numérico cuando
+  `services.wompi.payments.require_credit_token` es falso (default en `config/services.php:352`), y
+  `PaymentIntentService::preview` devuelve `user_full_name`; la ruta `payments/{credit}/preview` es pública. En local
+  una llamada sin sesión llegó a la lógica. Borrador 15.
 
 ### Seguridad — el admin de legacy-application (salen de LEER `main` 05e6ad4d; mapa en `knowledge/admin-panel`)
 

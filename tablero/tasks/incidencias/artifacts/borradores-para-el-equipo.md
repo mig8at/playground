@@ -248,6 +248,51 @@ contrato con los complementos de las tiendas. Conviene avisar a seguridad y prio
 
 ---
 
+## 13 · La credencial de las tiendas de ecommerce es predecible (Seguridad)
+
+**Qué pasa.** La credencial con la que una tienda se identifica para crear solicitudes se arma juntando el id del
+comercio, el código (hash) de la sucursal y la fecha de creación, y convirtiéndolo a hexadecimal. El código de la
+sucursal es público (viaja en las direcciones de las compras) y el id del comercio es un número bajo y secuencial, así
+que quien conozca esos dos datos y la fecha puede reconstruir la credencial. Es igual en los dos monolitos.
+
+**Cómo se comprobó.** Leyendo el código de `main`: la credencial se genera con `bin2hex(id + hash + fecha)` al crear
+la sucursal de ecommerce. Hay una forma segura de generar credenciales (bytes al azar) ya usada en el mismo sistema
+para otros secretos.
+
+**Propuesta.** Generar la credencial con bytes aleatorios y decidir la rotación de las que ya existen.
+
+---
+
+## 14 · La contraseña del certificado de Credifamilia Consumo queda en los registros (Seguridad · activo)
+
+**Qué pasa.** Cada vez que se radica un crédito de Credifamilia Consumo, el sistema escribe en los registros (que van a
+la herramienta de observabilidad del equipo) la contraseña del certificado con que se firma, en texto plano. El resto
+del mismo archivo evita a propósito registrar esos secretos; una sola traza se quedó con la contraseña.
+
+**Cómo se comprobó.** Leyendo el código de `main` (el método que arma el cliente de firma registra la contraseña) y
+contando en los registros de producción: esa traza salió **14 veces en las últimas 24 horas**, así que está ocurriendo
+hoy. No se trajo el contenido para no exponer el valor.
+
+**Propuesta.** Sacar la contraseña de esa traza y decidir con seguridad si el certificado se rota. Aparte, el comando
+que siembra esa credencial usa nombres de campo distintos a los que lee la radicación.
+
+---
+
+## 15 · La vista previa de pago devuelve el nombre del titular con solo el número de solicitud (Seguridad)
+
+**Qué pasa.** La pantalla de pago tiene una consulta pública (sin sesión) que, dado el número de una solicitud,
+devuelve el nombre completo del titular junto con el monto y la entidad. El número de solicitud es consecutivo. Hay un
+interruptor que exigiría un identificador firmado en vez del número pelado, pero viene **apagado por omisión**.
+
+**Cómo se comprobó.** Leyendo el código de `main`: el interruptor `require_credit_token` es falso por defecto, la
+consulta acepta un id numérico y devuelve el nombre del titular, y la ruta es pública. En local, una llamada sin sesión
+llegó a la lógica de negocio (no la frenó ninguna autenticación).
+
+**Propuesta.** Encender el interruptor del identificador firmado (o exigirlo siempre) para que el número consecutivo no
+devuelva datos del titular.
+
+---
+
 ## Sobre originación delegada (CORE-918)
 
 Lo que sigue va con la tarea de originación delegada, no con incidencias, pero conviene conversarlo junto:
