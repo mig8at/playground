@@ -19,15 +19,6 @@ Salvo donde se dice «corrido», salen de LEER el código: falta reproducirlos.
 
 ### Alta — el cliente o el dinero se ven afectados
 
-- [ ] Corregir en la política de puntaje de SmartPay (160) el rango de ingreso «RD$40,001 – RD$50,000», escrito con
-  raya larga «–» mientras el formulario guarda guion «-». La comparación es `==` exacta
-  (`LenderUserCategoryService::evaluateUserFieldsScoring`), así que nadie suma esos 15 puntos. **Medido en prod con
-  una evaluación real (2026-11-03):** el log guardó 90 puntos de campos, y recalculado da 90 con la raya y 105 sin
-  ella. De 38 clientes con esa respuesta, 14 quedaron en una categoría peor (más cuota inicial y más tasa). En la
-  misma política, «Trabajo en delivery o plataformas» (10 puntos) no lo iguala ninguna respuesta, y los rangos de
-  capacidad de pago se pisan en 50 (15 o 10 puntos según el orden en que lleguen las filas). Termina cuando la política
-  usa los textos exactos del formulario y no tiene rangos que se pisen. Depende de: quien configura la política de
-  SmartPay — corregir los textos y rangos.
 - [ ] Que la continuidad laboral caiga a Mareigua cuando Ágil Data vino vacía en el pipeline de KYC v2. **Corrido en
   local (2026-11-03):** con Ágil Data sin información, el pipeline guarda `user_summaries.agildata = []`
   (`AgildataExtractor::summarise` devuelve `[]`). `LenderUserCategoryService::getContinuity` hace `agildata ?? mareigua`
@@ -75,7 +66,10 @@ Salvo donde se dice «corrido», salen de LEER el código: falta reproducirlos.
 - [ ] Corregir los dos textos de respuesta de SmartPay que no puntúan. MEDIDO en prod (2026-10-28): el asistente
   manda «RD$40,001 - RD$50,000» (guion) y la política espera «RD$40,001 – RD$50,000» (raya), y manda «Conductor de
   plataforma digital» donde la política espera «Trabajo en delivery o plataformas»; esas respuestas suman 0 (26 y 2
-  en 90 días). Termina cuando la política o el asistente usan el mismo texto y una consulta de 90 días no muestra
+  en 90 días). **Medido otra vez el 2026-11-03:** sobre la última evaluación de cada uno de los 38 clientes con ese
+  rango, sumar los 15 puntos cambia la categoría de 14, y los 14 mejoran (menos inicial y menos tasa). En la misma
+  política, los rangos de capacidad se pisan en 50 (15 o 10 puntos según el orden de las filas: `first()` sin orden).
+  Termina cuando la política o el asistente usan el mismo texto y una consulta de 90 días no muestra
   respuestas sin pareja.
 - [ ] Decidir qué firma un cliente del Rent to Own sin codeudor. MEDIDO en prod (2026-10-28): la categoría
   «Codeudor» del RTO tiene `requires_cosigner = 0`, esa rama firma el contrato de renting (sin opción de compra) y
@@ -223,7 +217,10 @@ Salvo donde se dice «corrido», salen de LEER el código: falta reproducirlos.
   solicitud a estado 11 sin mirar el estado previo; `createFirstRegister` no duplica el histórico, pero con la solicitud
   ya en 11 se repiten el registro de estado, el PDF, el plan de pagos, el correo, el voucher y la cancelación de los
   otros créditos del cliente. Para las demás entidades, `authorize()` tampoco mira el estado y toma el último OTP
-  validado del usuario, sin atarlo a la solicitud. El id es secuencial. Sale de LEER `main`: no se corrió. Termina cuando se decide con el equipo qué guarda va (estado esperado, sesión o token del flujo) y está.
+  validado del usuario, sin atarlo a la solicitud. El id es secuencial. **Corrido en local (2026-11-03, uReq 468087,
+  SmartPay 152):** repetido sobre una autorizada da 200 y deja otro registro de «Desembolso IMEI»; sobre una cancelada
+  (8) la vuelve a 11 con 200; la ruta normal de autorización la frena con 403 `CREDIT_ALREADY_DISBURSED`. Todo sin
+  sesión. Termina cuando se decide con el equipo qué guarda va (estado esperado, sesión o token del flujo) y está.
 - [ ] Rotar y borrar de Jira los secretos en texto plano que vio el barrido del 2026-11-02 (no se copió ningún valor):
   credenciales de Twilio para República Dominicana en CRED-46, la llave interna del bloqueo de equipos en CRED-134 y un
   certificado de Deceval en CRED-69. Termina con los secretos rotados y los issues editados. Depende de: Miguel /
