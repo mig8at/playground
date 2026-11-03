@@ -86,14 +86,10 @@ Salvo donde se dice «corrido», salen de LEER el código: falta reproducirlos.
   (2026-11-03):** `storeEcommerceCredential` de Partner sobre un comercio peruano crea la sucursal en la 1123, «TODAS LAS
   CIUDADES» de Colombia. `EcommerceBranchCreator` de application la tiene igual de fija. Los documentos imprimen
   «BOGOTÁ» sobre la 1123. Termina cuando la ciudad sale del comodín del país del comercio.
-- [ ] Sembrar en prod la comisión FNG por plazo de Credifamilia Materiales (214), antes de que la entidad tenga
-  comercios. `lender_term_fng_percentages` está vacía en prod aunque su migración
-  (`2026_10_20_120100_seed_fng_percentages_for_credifamilia_materiales`) figura aplicada. El id lo elige
-  `app()->isProduction()`: corrió fuera de producción, buscó la 216, que entonces no existía, y salió sin insertar
-  ni fallar. Sin filas, todo plazo de Materiales da `INVALID_TERM`. ⚠ Hoy la 216 de prod es Keygo: volver a correr
-  esa migración con la misma imagen le cargaría la tabla FNG a Keygo. Termina cuando prod tiene los seis plazos del 214
-  y quien corre las migraciones de prod sabe que la imagen tiene que traer `APP_ENV=production`.
-  Depende de: quien aplica migraciones en prod — la siembra y el porqué.
+- [x] ~~Sembrar en prod la comisión FNG de Credifamilia Materiales (214)~~ — descartado como incidencia (2026-11-03):
+  Materiales está en desarrollo y lo valida otra sesión de Miguel; que su tabla esté vacía en prod es esperable. Para
+  cuando se despliegue: la siembra elige 214 o 216 con `app()->isProduction()` y en prod la 216 es Keygo, así que
+  tiene que correr con `APP_ENV=production`.
 - [ ] Validar en el backoffice que una entidad cuyas categorías exigen codeudor tenga catálogo de documentos para esa
   rama. Verificado en `main` (2026-11-02): sin filas `requires_cosigner = 1` en `lender_signing_documents`, la
   autorización del titular difiere al codeudor sin numerar ni generar y la solicitud queda en el estado intermedio con
