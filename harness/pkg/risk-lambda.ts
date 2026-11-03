@@ -201,6 +201,22 @@ export const CASE_BUREAU_DEFAULTS = {
  */
 export async function dictateCase(doc: string, c: DictatedCase): Promise<{ employment: boolean; bureau: boolean }> {
     const d = CASE_BUREAU_DEFAULTS;
+    // ⚠ EL LAMBDA DE LA EMPRESA NO ENTIENDE `experian_profile_<cédula>`: ese perfil lo mezcla sólo el mock local.
+    // Allá hay que dictar el reporte ENTERO bajo `experian_<cédula>`, que leen `hdcplus`, `hdcplus/acierta-quanto` y
+    // `hdcplus/quanto`. Hasta el 2026-11-03 el runner de casos dictaba el perfil también en qa: no llegaba, el
+    // backend recibía el reporte por defecto del lambda (con `creditCard: null` en Acierta+Quanto) y el cupo
+    // CreditopX de Pullman se caía con «foreach() … null given». El caminador ya dictaba bien (dictateCompanyLambda).
+    const company = Object.entries(COMPANY_LAMBDA).find(([, url]) => url === LAMBDA)?.[0];
+    if (company) {
+        const r = await dictateCompanyLambda(company, doc, {
+            name: c.name ?? 'CARLOS RUIZ MENDOZA', income: c.income, occupation: c.occupation ?? 'Empleado',
+            months: c.months ?? d.months, score: c.score, consulted: c.consulted ?? d.consulted,
+            creditCards: c.creditCards ?? d.creditCards, delinquencies: c.delinquencies ?? d.delinquencies,
+            negatives: c.negatives ?? d.negatives, maturationSince: c.maturationSince ?? d.maturationSince,
+        });
+        return { employment: !r.lines.some((l) => l.startsWith('Ágil Data ✗')),
+                 bureau: !r.lines.some((l) => l.startsWith('Experian ✗')) };
+    }
     const employment = await dictateEmployment(doc, c.income, c.occupation, c.months ?? d.months, c.name);
     const bureau = await dictateBureauProfile(doc, {
         score: c.score, consultedLast6Months: c.consulted ?? d.consulted, creditCards: c.creditCards ?? d.creditCards,
