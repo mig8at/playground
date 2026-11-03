@@ -19,6 +19,12 @@ Salvo donde se dice «corrido», salen de LEER el código: falta reproducirlos.
 
 ### Alta — el cliente o el dinero se ven afectados
 
+- [ ] Que la continuidad laboral caiga a Mareigua cuando Ágil Data vino vacía en el pipeline de KYC v2. **Corrido en
+  local (2026-11-03):** con Ágil Data sin información, el pipeline guarda `user_summaries.agildata = []`
+  (`AgildataExtractor::summarise` devuelve `[]`). `LenderUserCategoryService::getContinuity` hace `agildata ?? mareigua`
+  sobre una colección vacía que no es null, y da **0** aunque Mareigua traiga continuidad 6. Los perfiles con regla de
+  continuidad dejan afuera a ese cliente. application sí cae a Mareigua. En prod se escriben así ~2.700 resúmenes por
+  mes. Termina cuando el `??` mira «vacía» y no sólo null, o cuando el pipeline guarda null, y la corrida da 6.
 - [x] ~~Abrir los PRs del tope de la cuota inicial~~ — [legacy-backend#1643](https://github.com/Creditop-SAS/legacy-backend/pull/1643)
   y [frontend-monorepo#1169](https://github.com/Creditop-SAS/frontend-monorepo/pull/1169), contra `qa`: la pantalla dejaba
   pagar una cuota inicial mayor que la compra y el backend la cobraba; la solicitud recién se frenaba al firmar.
@@ -76,6 +82,10 @@ Salvo donde se dice «corrido», salen de LEER el código: falta reproducirlos.
 
 ### Media — comportamiento distinto al esperado
 
+- [ ] Que la sucursal ecommerce de un comercio que no es colombiano nazca en una ciudad de su país. **Corrido en local
+  (2026-11-03):** `storeEcommerceCredential` de Partner sobre un comercio peruano crea la sucursal en la 1123, «TODAS LAS
+  CIUDADES» de Colombia. `EcommerceBranchCreator` de application la tiene igual de fija. Los documentos imprimen
+  «BOGOTÁ» sobre la 1123. Termina cuando la ciudad sale del comodín del país del comercio.
 - [ ] Sembrar en prod la comisión FNG por plazo de Credifamilia Materiales (214), antes de que la entidad tenga
   comercios. `lender_term_fng_percentages` está vacía en prod aunque su migración
   (`2026_10_20_120100_seed_fng_percentages_for_credifamilia_materiales`) figura aplicada. El id lo elige
