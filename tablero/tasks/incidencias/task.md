@@ -137,7 +137,9 @@ Salvo donde se dice «corrido», salen de LEER el código: falta reproducirlos.
   rama. Verificado en `main` (2026-11-02): sin filas `requires_cosigner = 1` en `lender_signing_documents`, la
   autorización del titular difiere al codeudor sin numerar ni generar y la solicitud queda en el estado intermedio con
   HTTP 200, sin error. Visto en la base local con AltaX (sus categorías piden codeudor y su catálogo no); en prod AltaX
-  es coherente. Termina con la validación en el readiness o con la decisión de no hacerla.
+  es coherente. Termina con la validación en el readiness o con la decisión de no hacerla. **Medido (2026-11-03): hoy no
+  pasa** ni en prod ni en la base compartida de dev/qa/staging; en prod sólo Motai Renting (158) y Rent to Own (193)
+  exigen codeudor y las dos tienen catálogo para esa rama. Queda latente: la validación sería para la próxima.
 
 - [ ] Decidir con producto si el asistente nuevo debe ocultar Sistecrédito al cliente moroso. Verificado en `main`
   (2026-11-02): el camino viejo (`PreApprovedLenderService`, listado v1 y legacy-application) lo quita si Sistecrédito
