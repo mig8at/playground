@@ -193,6 +193,24 @@ inscripción (o deshacerla si falta el modelo); y que el reintento después de u
 
 ---
 
+## 10 · En el formulario de datos de siempre, el cliente choca consigo mismo si reenvía sus datos (Baja)
+
+**Qué pasa.** En los comercios que no usan el KYC nuevo, si el cliente vuelve a mandar su propio formulario de datos
+personales (por ejemplo, volviendo atrás después de enviarlo), el sistema lo rechaza como si fuera otra persona:
+primero por el correo («El correo electrónico ya se encuentra registrado») y, si cambia el correo, por el documento
+(«El número de documento ya se encuentra registrado con el celular *******200», que es su propio celular). El
+formulario del KYC nuevo no tiene este problema: ahí el dueño de la solicitud está exento de los dos chequeos.
+
+**Cómo se comprobó.** Corrido en local con un cliente de Pullman que ya había completado el formulario: reenviar los
+mismos datos dio el error del correo (422), y con otro correo, el del documento con su propio celular.
+
+**Falta medir** cuántas veces le pasa a un cliente real: no está claro que el asistente lo lleve de vuelta al
+formulario salvo que use el botón atrás o envíe dos veces.
+
+**Propuesta.** Eximir al dueño de la solicitud, como ya hace el formulario nuevo.
+
+---
+
 ## Sobre originación delegada (CORE-918)
 
 Lo que sigue va con la tarea de originación delegada, no con incidencias, pero conviene conversarlo junto:

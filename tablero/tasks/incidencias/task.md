@@ -175,7 +175,10 @@ Salvo donde se dice «corrido», salen de LEER el código: falta reproducirlos.
   monolitos (`knowledge/merchant-lender-agreement`). Termina con la decisión de producto y su tarea.
 - [ ] Corregir que el guardado de datos personales v1 rechace con ONB005 al dueño que reenvía su propio
   documento: el pre-chequeo de duplicado sólo exime al codeudor; el v2 sí exime al dueño
-  (`knowledge/returning-client-personal-info`). Termina con el caso corrido y la corrección o el descarte.
+  (`knowledge/returning-client-personal-info`). Termina con el caso corrido y la corrección o el descarte. **Corrido en
+  local (2026-11-03):** reenviar el propio formulario por v1 da 422 por el correo (`unique:users,email` sin excepción)
+  y, con otro correo, ONB005 con el celular enmascarado del propio cliente. Borrador 10 (Baja): falta medir si el
+  wizard lleva de vuelta al formulario fuera del botón atrás o el doble envío.
 
 - [ ] Ponerle a `user_requests_by_ecommerce_request` una restricción única sobre (`ecommerce_request_id`,
   `user_request_id`) y dejar escrito en el código que `ecommerce_requests.user_request_id` es «la solicitud actual
