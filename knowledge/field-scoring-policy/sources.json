@@ -1,8 +1,8 @@
 {
   "version": 1,
   "title": "Categoría por puntaje de respuestas",
-  "summary": "Cuando ninguna regla de categoría aprueba, el backend modular suma puntos por respuestas del formulario y por capacidad de pago para elegir categoría; cuándo esa categoría aprueba, y cómo el formulario dinámico convierte rangos de ingreso y gasto en montos.",
-  "reviewedAt": "2026-11-02T15:32:42+00:00",
+  "summary": "Cuando ninguna regla de categoría aprueba, el backend modular suma puntos por respuestas del formulario (comparadas como texto exacto) y por capacidad de pago para elegir categoría; qué consumidores respetan o ignoran que sea un respaldo, y cómo el formulario dinámico convierte rangos de ingreso y gasto en montos.",
+  "reviewedAt": "2026-11-03T16:27:31Z",
   "sources": [
     {
       "repo": "legacy-backend",
@@ -11,13 +11,34 @@
       "blob": "24cd36736a87e88e1ff69ffe625cd4b3518bdc58",
       "sections": [
         "cuando-se-usa-el-puntaje",
+        "la-respuesta-se-compara-como-texto",
+        "la-capacidad-de-pago",
         "una-categoria-por-puntaje-no-siempre-aprueba"
       ]
     },
     {
       "repo": "legacy-backend",
+      "path": "Modules/Loans/App/Repositories/UserFieldValueRepository.php",
+      "commit": "69920f580f62ad35f0a555e3b8b8f2c247d758aa",
+      "blob": "84df7e8233dc304cf713565e6e572c291d7d4936",
+      "sections": [
+        "la-respuesta-se-compara-como-texto",
+        "la-capacidad-de-pago"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/Loans/App/Repositories/LenderPaymentCapacityScoringPolicyRepository.php",
+      "commit": "69920f580f62ad35f0a555e3b8b8f2c247d758aa",
+      "blob": "cbde755ee2de71ff32def9196fe748a940a8a66f",
+      "sections": [
+        "la-capacidad-de-pago"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
       "path": "Modules/Loans/App/Http/Controllers/Customer/CreditopXQuotaController.php",
-      "commit": "c03edaffa465bd07bceccd4076af5d1cec9916b9",
+      "commit": "69920f580f62ad35f0a555e3b8b8f2c247d758aa",
       "blob": "cce703d991d2da707ad774e624c2e410a55a318a",
       "sections": [
         "una-categoria-por-puntaje-no-siempre-aprueba"
@@ -26,7 +47,7 @@
     {
       "repo": "legacy-backend",
       "path": "Modules/Onboarding/App/Services/lenders/LenderListingService.php",
-      "commit": "c03edaffa465bd07bceccd4076af5d1cec9916b9",
+      "commit": "69920f580f62ad35f0a555e3b8b8f2c247d758aa",
       "blob": "b5c813f1c70bc407b080d15a05c44ce3fdb0e681",
       "sections": [
         "una-categoria-por-puntaje-no-siempre-aprueba"
@@ -34,8 +55,71 @@
     },
     {
       "repo": "legacy-backend",
+      "path": "Modules/Onboarding/App/Services/lenders/LenderRetrievalService.php",
+      "commit": "69920f580f62ad35f0a555e3b8b8f2c247d758aa",
+      "blob": "aeb7c50ddd1e854c80fc088591439cc64769ca20",
+      "sections": [
+        "donde-se-usa-sin-la-guarda"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/Onboarding/App/Http/Controllers/ListLenderController.php",
+      "commit": "69920f580f62ad35f0a555e3b8b8f2c247d758aa",
+      "blob": "7de4791a0bd3ac77187346f853644df19bf04e26",
+      "sections": [
+        "donde-se-usa-sin-la-guarda"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/Onboarding/routes/api.php",
+      "commit": "69920f580f62ad35f0a555e3b8b8f2c247d758aa",
+      "blob": "b51f912eef9e592e842d09e27cd9a4c7bffb7108",
+      "sections": [
+        "donde-se-usa-sin-la-guarda"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/Loans/App/Services/GuaranteeService.php",
+      "commit": "69920f580f62ad35f0a555e3b8b8f2c247d758aa",
+      "blob": "c1d12da446b69c15b1734c3c7d8e6e904f8e3b53",
+      "sections": [
+        "donde-se-usa-sin-la-guarda"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/Loans/App/Services/InitialFee/InitialFeePolicyResolver.php",
+      "commit": "69920f580f62ad35f0a555e3b8b8f2c247d758aa",
+      "blob": "150ca8188384ec420b7f2deec841e1ace86d88fc",
+      "sections": [
+        "donde-se-usa-sin-la-guarda"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/Loans/App/Services/Signing/CosignerRequirementService.php",
+      "commit": "69920f580f62ad35f0a555e3b8b8f2c247d758aa",
+      "blob": "506e98e432e87140d02dc4b6b0d19bd1146b6fc4",
+      "sections": [
+        "donde-se-usa-sin-la-guarda"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/Loans/App/Support/GrantingCategory.php",
+      "commit": "69920f580f62ad35f0a555e3b8b8f2c247d758aa",
+      "blob": "b42969572d4d592316c4594601d4d3c56874f1c0",
+      "sections": [
+        "donde-se-usa-sin-la-guarda"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
       "path": "Modules/Onboarding/App/Services/DynamicFormsService.php",
-      "commit": "c03edaffa465bd07bceccd4076af5d1cec9916b9",
+      "commit": "69920f580f62ad35f0a555e3b8b8f2c247d758aa",
       "blob": "71eba7cf836cdc62aa360a41f3897b084390548f",
       "sections": [
         "rangos-declarados-que-se-vuelven-montos"

@@ -1,13 +1,13 @@
 {
   "version": 1,
   "title": "Convenio comercio–entidad y su habilitación en sucursales",
-  "summary": "Qué escriben y borran crear, editar y quitar un convenio comercio–entidad en los dos admins (garantías y medios de pago por entidad, permisos CreditopX, subsidio) y cómo guardar la sucursal recrea sus habilitaciones y exige convenio por efecto lateral.",
-  "reviewedAt": "2026-10-28T18:58:19+00:00",
+  "summary": "Qué escriben y borran crear, editar y quitar un convenio comercio–entidad en los dos admins (garantías y medios de pago por entidad, tope y cobranza, permisos CreditopX, subsidio), cómo guardar la sucursal recrea sus habilitaciones y exige convenio por efecto lateral, y cómo la sucursal ecommerce habilita por credencial sin mirar el convenio.",
+  "reviewedAt": "2026-11-03T16:27:46Z",
   "sources": [
     {
       "repo": "application",
       "path": "app/Http/Controllers/Admin/AlliedLenderController.php",
-      "commit": "24dc86eb1eaabb4e4eee37750ab90e258c36ce78",
+      "commit": "1755ab4fa3a50cac5669cdff4826131979a15def",
       "blob": "c938cc8e7dea9ade9b2e3ef7da993f030109ed94",
       "sections": [
         "crear-un-convenio",
@@ -18,7 +18,7 @@
     {
       "repo": "legacy-backend",
       "path": "Modules/Partner/App/Http/Controllers/AlliedLenderController.php",
-      "commit": "c03edaffa465bd07bceccd4076af5d1cec9916b9",
+      "commit": "69920f580f62ad35f0a555e3b8b8f2c247d758aa",
       "blob": "b46a2ccda623ab92d15d928cad8d5341ef0356b9",
       "sections": [
         "crear-un-convenio",
@@ -54,6 +54,97 @@
       ]
     },
     {
+      "repo": "legacy-backend",
+      "path": "database/migrations/2025_01_06_150922_add_limit_amounts_to_lender_by_allieds_table.php",
+      "commit": "69920f580f62ad35f0a555e3b8b8f2c247d758aa",
+      "blob": "6460f8b37b9e4ebf206956bab2eab345ea5b8a9d",
+      "sections": [
+        "crear-un-convenio",
+        "editar-un-convenio-cambia-datos-de-otros-comercios"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "database/migrations/2025_08_11_215648_add_enable_collection_to_lenders_by_allieds_table.php",
+      "commit": "69920f580f62ad35f0a555e3b8b8f2c247d758aa",
+      "blob": "d133f152f30f540f13430c085e4c4a0aadd180cc",
+      "sections": [
+        "crear-un-convenio"
+      ]
+    },
+    {
+      "repo": "application",
+      "path": "app/Http/Requests/Admin/AlliedLender/UpdateRequest.php",
+      "commit": "1755ab4fa3a50cac5669cdff4826131979a15def",
+      "blob": "9f8f453cdd17f0756bcfdd3d0c08d7a561c53653",
+      "sections": [
+        "editar-un-convenio-cambia-datos-de-otros-comercios"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "app/Http/Requests/Admin/AlliedLender/UpdateRequest.php",
+      "commit": "69920f580f62ad35f0a555e3b8b8f2c247d758aa",
+      "blob": "b2f6d38a1e296e371ee0061a0f949fb1fe7a673d",
+      "sections": [
+        "editar-un-convenio-cambia-datos-de-otros-comercios"
+      ]
+    },
+    {
+      "repo": "application",
+      "path": "app/Services/lenders/LenderRetrievalService.php",
+      "commit": "1755ab4fa3a50cac5669cdff4826131979a15def",
+      "blob": "b7a567c9c07f8f4a4552d623baf8a4856589187c",
+      "sections": [
+        "editar-un-convenio-cambia-datos-de-otros-comercios"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/Onboarding/App/Services/lenders/LenderRetrievalService.php",
+      "commit": "69920f580f62ad35f0a555e3b8b8f2c247d758aa",
+      "blob": "aeb7c50ddd1e854c80fc088591439cc64769ca20",
+      "sections": [
+        "editar-un-convenio-cambia-datos-de-otros-comercios"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/Loans/App/Services/ConsentService.php",
+      "commit": "69920f580f62ad35f0a555e3b8b8f2c247d758aa",
+      "blob": "1c1fcbd92f2f6fb77939e3a3baedee5f79d7f40d",
+      "sections": [
+        "crear-un-convenio"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/Loans/App/Repositories/LenderGuaranteeCriteriaRepository.php",
+      "commit": "69920f580f62ad35f0a555e3b8b8f2c247d758aa",
+      "blob": "dcc8e45293d4797c5e96948eb0b1cf34873990b1",
+      "sections": [
+        "crear-un-convenio"
+      ]
+    },
+    {
+      "repo": "application",
+      "path": "app/Http/Controllers/Customer/ConsentController.php",
+      "commit": "1755ab4fa3a50cac5669cdff4826131979a15def",
+      "blob": "45035467b3e271db4f05c42da7cd5b477cc15014",
+      "sections": [
+        "crear-un-convenio"
+      ]
+    },
+    {
+      "repo": "application",
+      "path": "app/Http/Controllers/Customer/GuaranteeController.php",
+      "commit": "1755ab4fa3a50cac5669cdff4826131979a15def",
+      "blob": "d7843f422b5f446781b68ac504e81a98cee6346d",
+      "sections": [
+        "crear-un-convenio"
+      ]
+    },
+    {
       "repo": "application",
       "path": "app/Http/Controllers/Admin/AlliedAlliedBranchController.php",
       "commit": "24dc86eb1eaabb4e4eee37750ab90e258c36ce78",
@@ -65,10 +156,47 @@
     {
       "repo": "legacy-backend",
       "path": "Modules/Partner/App/Services/AlliedManagementService.php",
-      "commit": "c03edaffa465bd07bceccd4076af5d1cec9916b9",
+      "commit": "69920f580f62ad35f0a555e3b8b8f2c247d758aa",
       "blob": "12691defe028726550d2c0d772b0d994c6a2b4fe",
       "sections": [
-        "habilitar-entidades-al-guardar-la-sucursal"
+        "habilitar-entidades-al-guardar-la-sucursal",
+        "habilitar-entidades-al-crear-una-sucursal-ecommerce"
+      ]
+    },
+    {
+      "repo": "application",
+      "path": "app/Services/Allied/EcommerceBranchCreator.php",
+      "commit": "1755ab4fa3a50cac5669cdff4826131979a15def",
+      "blob": "5a4d3c45042b2cb22dc45f6f5f6db7b0e4fca8be",
+      "sections": [
+        "habilitar-entidades-al-crear-una-sucursal-ecommerce"
+      ]
+    },
+    {
+      "repo": "application",
+      "path": "app/Http/Controllers/Admin/AlliedEcommerceCredentialsController.php",
+      "commit": "1755ab4fa3a50cac5669cdff4826131979a15def",
+      "blob": "86b90ed9bdfdb38a8a59b6fb593a93cddb673739",
+      "sections": [
+        "habilitar-entidades-al-crear-una-sucursal-ecommerce"
+      ]
+    },
+    {
+      "repo": "application",
+      "path": "app/Services/Allied/TestAdvisorProvisioner.php",
+      "commit": "1755ab4fa3a50cac5669cdff4826131979a15def",
+      "blob": "96c1ebb2188a40dd73b0a421539c65021a07924b",
+      "sections": [
+        "habilitar-entidades-al-crear-una-sucursal-ecommerce"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/Partner/App/Http/Controllers/AlliedEcommerceCredentialsController.php",
+      "commit": "69920f580f62ad35f0a555e3b8b8f2c247d758aa",
+      "blob": "7d9a782d27afd58028de29e1cc7e12e213d8b87c",
+      "sections": [
+        "habilitar-entidades-al-crear-una-sucursal-ecommerce"
       ]
     }
   ]

@@ -2,7 +2,7 @@
   "version": 1,
   "title": "Requisitos y consulta vigente de Ábaco",
   "summary": "Flag por entidad, vigencia configurable y alcance del salto de buró en el motor modular.",
-  "reviewedAt": "2026-11-02T15:32:42+00:00",
+  "reviewedAt": "2026-11-03T16:28:33Z",
   "sources": [
     {
       "repo": "legacy-backend",
@@ -38,7 +38,123 @@
       "commit": "63123374a5d0875c908a83e3145f334b2ff913ee",
       "blob": "ff4684ac498887ff15d82f17cf62d821cdfa82b6",
       "sections": [
+        "vigencia-de-la-consulta",
+        "salto-del-paso"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/Onboarding/Contracts/Services/AbacoStepResolverInterface.php",
+      "commit": "69920f580f62ad35f0a555e3b8b8f2c247d758aa",
+      "blob": "2897fc355e6c8a70e3eb990df097b2414d9d953d",
+      "sections": [
         "vigencia-de-la-consulta"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/Onboarding/App/Services/AbacoConsultStateResolver.php",
+      "commit": "69920f580f62ad35f0a555e3b8b8f2c247d758aa",
+      "blob": "63c9f18c597255eb7d2fa58dcd876f4174e44816",
+      "sections": [
+        "requisito-por-entidad",
+        "vigencia-de-la-consulta"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/Onboarding/routes/api.php",
+      "commit": "69920f580f62ad35f0a555e3b8b8f2c247d758aa",
+      "blob": "b51f912eef9e592e842d09e27cd9a4c7bffb7108",
+      "sections": [
+        "requisito-por-entidad",
+        "salto-del-paso"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/Loans/App/Services/CreditopXFlowService.php",
+      "commit": "69920f580f62ad35f0a555e3b8b8f2c247d758aa",
+      "blob": "07b48b30765d5cb0fd35294bf7019ba4f728e75a",
+      "sections": [
+        "donde-se-pide-el-paso",
+        "vigencia-de-la-consulta"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/Loans/App/Http/Controllers/Customer/ContinueUserFlowController.php",
+      "commit": "69920f580f62ad35f0a555e3b8b8f2c247d758aa",
+      "blob": "63783c386ce3438d38928d8bb54efb169b6971a9",
+      "sections": [
+        "donde-se-pide-el-paso"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/Loans/routes/api.php",
+      "commit": "69920f580f62ad35f0a555e3b8b8f2c247d758aa",
+      "blob": "6f4a52fc5ded27a1b21ac9c7c870cfa91a50f030",
+      "sections": [
+        "donde-se-pide-el-paso"
+      ]
+    },
+    {
+      "repo": "application",
+      "path": "app/Models/LenderRequirement.php",
+      "commit": "1755ab4fa3a50cac5669cdff4826131979a15def",
+      "blob": "46c586c904fc4569e3e30b342b197f9476095c5d",
+      "sections": [
+        "donde-se-pide-el-paso"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/Onboarding/App/Services/AbacoSkipService.php",
+      "commit": "69920f580f62ad35f0a555e3b8b8f2c247d758aa",
+      "blob": "5f1a17746b8bf2719f74fe53956446acd32112c4",
+      "sections": [
+        "vigencia-de-la-consulta",
+        "salto-del-paso"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/Loans/App/Services/Income/AbacoSkipPolicy.php",
+      "commit": "69920f580f62ad35f0a555e3b8b8f2c247d758aa",
+      "blob": "895450c7529e4c26f7e9a4690059625557363e66",
+      "sections": [
+        "requisito-por-entidad",
+        "salto-del-paso"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/Loans/App/Services/Income/AbacoGigProfileReader.php",
+      "commit": "69920f580f62ad35f0a555e3b8b8f2c247d758aa",
+      "blob": "e548acdd0b6912f6d436308551a7d7b47af8f2cf",
+      "sections": [
+        "salto-del-paso"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/Loans/App/Services/Income/GigCriteria.php",
+      "commit": "69920f580f62ad35f0a555e3b8b8f2c247d758aa",
+      "blob": "3cf2f96ad63fd06f4b9585a0ec5d6a5f5dfbf9d1",
+      "sections": [
+        "salto-del-paso"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/Onboarding/App/Services/AbacoService.php",
+      "commit": "69920f580f62ad35f0a555e3b8b8f2c247d758aa",
+      "blob": "23c25fc4f0d5315652e61ff91e765d52030a99de",
+      "sections": [
+        "requisito-por-entidad",
+        "vigencia-de-la-consulta",
+        "proveedor-simulado-en-produccion"
       ]
     },
     {
@@ -47,7 +163,8 @@
       "commit": "69920f580f62ad35f0a555e3b8b8f2c247d758aa",
       "blob": "24cd36736a87e88e1ff69ffe625cd4b3518bdc58",
       "sections": [
-        "cupo-sin-reporte-de-buro"
+        "cupo-sin-reporte-de-buro",
+        "salto-del-paso"
       ]
     },
     {
