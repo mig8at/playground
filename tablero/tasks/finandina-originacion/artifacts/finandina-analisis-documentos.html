@@ -89,14 +89,14 @@ footer { font-size: 13px; color: var(--muted); border-top: 1px solid var(--line)
     <span class="eyebrow">Tarea #107 · CORE-845 · Originación delegada</span>
     <h1>Finandina en el riel 4: qué piden los documentos y cómo se construye</h1>
     <p class="lede">Lectura completa de lo que envió Finandina, comparada con cómo funciona hoy Credifamilia en el mismo riel. Cada afirmación sobre Finandina cita el documento de donde sale. Al final está el plan de acción.</p>
-    <p class="meta">Actualizado el 3 de noviembre de 2026 · código de referencia: legacy-backend en qa, rama local feat/finandina-originacion-delegada</p>
+    <p class="meta">Actualizado el 3 de noviembre de 2026 · preguntas ordenadas por rondas · código de referencia: legacy-backend en qa, rama local feat/finandina-originacion-delegada</p>
     <nav class="toc" aria-label="Secciones">
       <a href="#documentos">Los documentos</a>
       <a href="#comparacion">Credifamilia vs Finandina</a>
       <a href="#politica">La política en cifras</a>
       <a href="#firma">Qué se firma</a>
       <a href="#credenciales">Credenciales</a>
-      <a href="#preguntas">Preguntas a producto</a>
+      <a href="#preguntas">Preguntas por rondas</a>
       <a href="#plan">Plan de acción</a>
     </nav>
   </header>
@@ -204,37 +204,54 @@ footer { font-size: 13px; color: var(--muted); border-top: 1px solid var(--line)
   </section>
 
   <section id="preguntas">
-    <h2>Preguntas para producto y para Finandina</h2>
-    <p>Son las contradicciones y huecos que impiden seguir al pie de la letra. La primera bloquea el cálculo del monto.</p>
-    <ol class="qs">
-      <li><strong>Capacidad de pago frente a la cuota.</strong> La política calcula la capacidad pero no dice cómo se compara con la cuota del crédito nuevo, ni con qué plazo y tasa. <span class="src">POL-33</span></li>
-      <li><strong>Qué versión manda.</strong> Monto mínimo de 1 o 3 MM; de 3 a 16 o de 3 a 10 veces el ingreso; tope de 500 MM al día o 2.000 MM al mes. <span class="src">PRD-37, 40, 36 · POL-17, 24, 26</span></li>
-      <li><strong>Segmentos de riesgo AA…Z.</strong> De dónde salen, qué fila AA vale y si un 0 es rechazo. <span class="src">POL-24</span></li>
-      <li><strong>Experiencia crediticia.</strong> Si los criterios se combinan con Y u O, si es saldo o monto original, y qué es «sin experiencia». <span class="src">POL-11–13</span></li>
-      <li><strong>FGA.</strong> Si el IVA va dentro del 5 o el 9 %, y qué tarifa le toca a un cliente con score 0. <span class="src">POL-22, 23 · TYC-06</span></li>
-      <li><strong>Cobertura.</strong> Si manda la Tabla 5 o la lista de «ciudades principales», y la corrección de Bosa. <span class="src">POL-07, 43</span></li>
-      <li><strong>Independientes.</strong> El mapa de campos los incluye y la política no. <span class="src">MAPA-12 · POL-05, 06</span></li>
-      <li><strong>Desembolso.</strong> Quién le paga al comercio y cuándo, y si el cliente elige la forma de desembolso. <span class="src">FLUJO-10, 15 · FORM-27 · TYC-14</span></li>
-      <li><strong>Identidad.</strong> Si va antes o después de la decisión. <span class="src">PRD-56 · FLUJO-07</span></li>
-      <li><strong>Consultas con la cuenta de Finandina.</strong> El certificado de cliente de Experian, su clave y la IP autorizada; y quién paga cada consulta. <span class="src">PRD-80</span></li>
-      <li><strong>Mareigua.</strong> Qué son los estados no concluyentes y el «document». <span class="src">PRD-46, 84</span></li>
-      <li><strong>Seguros y costos.</strong> Protección Financiera en «N/A» o no, si aplica la cláusula de libranza, y si se suman estudio, ACH y GMF. <span class="src">TYC-09, 11, 13 · MAPA</span></li>
-      <li><strong>Límites.</strong> Los 2 créditos al mes: si son sólo de Finandina o de todas las entidades, y en qué ventana; y la regla de obligaciones activas con Finandina. <span class="src">POL-25 · PRD-34, 35</span></li>
-      <li><strong>Entrega de la operación.</strong> Qué estado es «autorizada» y por dónde recibe Finandina la operación. <span class="src">PRD-103 · FLUJO-11–13</span></li>
-      <li><strong>Arranque.</strong> Con qué comercios, quién confirma la tasa de cada mes y quién monitorea la política espejo. <span class="src">PRD-08 · POL-28, 38</span></li>
-    </ol>
+    <h2>Preguntas para producto y para Finandina, por rondas</h2>
+    <p>Van de lo más grave a lo menos grave. La ronda 1 es lo único que se necesita para empezar a construir la decisión; las otras dos se mandan después, sin frenar el trabajo. En la ronda 3 cada pregunta trae el supuesto con el que arrancamos si todavía no hay respuesta.</p>
+
+    <div class="phase">
+      <header><span class="pill bad">ronda 1</span><h3>Para poder empezar: sin esto no hay cómo decidir</h3></header>
+      <ol class="qs">
+        <li><strong>¿Qué documento manda, el PRD de enero o la política de agosto?</strong> No coinciden en el monto mínimo (1 o 3 MM), en las veces el ingreso (hasta 16 o hasta 10) ni en el tope de desembolsos (500 MM al día o 2.000 MM al mes). Una respuesta resuelve las tres. <span class="src">PRD-36, 37, 40 · POL-17, 24, 26</span></li>
+        <li><strong>¿Cómo se compara la capacidad de pago con la cuota?</strong> La política explica cómo calcular cuánto le sobra al cliente cada mes, pero no qué hacer con ese número: si la cuota nueva tiene que caber completa, en qué proporción, y con qué plazo y tasa se calcula. Sin esto no se puede fijar el monto de nadie. <span class="src">POL-27–33</span></li>
+        <li><strong>¿De dónde salen las letras de riesgo AA, B, C, S, Y, YG, YZ y Z?</strong> Ningún documento lo dice. Además, en la tabla la fila AA está dos veces (con 0 y con 10 en «más de 4 mínimos») y los bordes 1,5, 2 y 4 caen en dos columnas. <span class="src">POL-24</span></li>
+        <li><strong>¿Las consultas a Experian y Mareigua van con la cuenta de Finandina o con la de Creditop, y quién las paga?</strong> El PRD dice que Creditop no las cobra. Si son con la de Finandina, falta el certificado de cliente de Experian con su clave, y saber si hay que autorizar nuestra IP. <span class="src">PRD-11, 43, 80</span></li>
+      </ol>
+    </div>
+
+    <div class="phase">
+      <header><span class="pill ask">ronda 2</span><h3>Antes de los documentos y la entrega</h3></header>
+      <ol class="qs">
+        <li><strong>Desembolso.</strong> ¿Quién le paga al comercio y cuándo? El diagrama dice que Creditop en línea y después que Finandina gira al aliado. El formulario fija el pago al comercio y los T&amp;C dejan elegir al cliente. <span class="src">FLUJO-10, 15 · FORM-27 · TYC-14</span></li>
+        <li><strong>Entrega de la operación.</strong> ¿Qué estado es «autorizada» para Finandina, y por dónde recibe el crédito: aviso automático, archivo semanal o servicio? <span class="src">PRD-103 · FLUJO-11–13</span></li>
+        <li><strong>Aval FGA.</strong> ¿El IVA va dentro del 5 o el 9 % («IVA incluido» en los T&amp;C) o se suma aparte? ¿Qué tarifa le toca a un cliente con score 0? <span class="src">POL-22, 23 · TYC-06</span></li>
+        <li><strong>Seguros y costos.</strong> ¿Protección Financiera va en «N/A»? ¿Aplica la cláusula de libranza? ¿Se suman estudio de crédito, ACH y GMF? <span class="src">TYC-09, 11, 13 · MAPA</span></li>
+        <li><strong>Deceval.</strong> La credencial de Finandina y el desbloqueo de la certificación (CRED-463).</li>
+        <li><strong>Diseño.</strong> El Figma de las pantallas que pide el PRD. <span class="src">PRD-76, 99</span></li>
+      </ol>
+    </div>
+
+    <div class="phase">
+      <header><span class="pill warn">ronda 3</span><h3>Afinan reglas; arrancamos con un supuesto</h3></header>
+      <ol class="qs">
+        <li><strong>Independientes.</strong> El Excel los incluye y la política no. Supuesto: no se les presta, como dice la política. <span class="src">MAPA-12 · POL-05, 06</span></li>
+        <li><strong>Experiencia crediticia.</strong> ¿Los criterios se combinan con Y u O, los 3 MM son saldo o monto original, y qué es «sin experiencia»? Supuesto: basta con uno de los dos criterios, sobre el monto original; sin ninguno, tope de 5 MM. <span class="src">POL-11–13</span></li>
+        <li><strong>Cobertura.</strong> ¿Manda la Tabla 5 o la lista de «ciudades principales»? Supuesto: la Tabla 5, con Bosa dentro de Bogotá. <span class="src">POL-07, 43</span></li>
+        <li><strong>Mareigua.</strong> ¿Qué son los estados no concluyentes y el «document»? Supuesto: «document» rechaza; sin respuesta de Mareigua, no se aprueba. <span class="src">PRD-46, 84</span></li>
+        <li><strong>Identidad.</strong> ¿Antes o después de decidir? Supuesto: como hoy en el riel, antes de firmar. <span class="src">PRD-56 · FLUJO-07</span></li>
+        <li><strong>Límites.</strong> Los 2 créditos al mes, ¿son sólo de Finandina o de todas las entidades, por mes calendario o 30 días? ¿Existe la regla de las obligaciones activas con Finandina? Supuesto: sólo Finandina, mes calendario. <span class="src">POL-25 · PRD-34, 35</span></li>
+        <li><strong>Arranque.</strong> ¿Con qué comercios empieza, quién confirma la tasa de cada mes y quién monitorea la política espejo? <span class="src">PRD-08 · POL-28, 38</span></li>
+      </ol>
+    </div>
   </section>
 
   <section id="plan">
     <h2>Plan de acción</h2>
-    <p>En orden. La fase 0 se envía ya, porque es la que más tarda en volver. Las fases 1 y 2 no esperan a nadie: avanzan con valores provisionales y se ajustan cuando lleguen las respuestas.</p>
+    <p>En orden. La ronda 1 de preguntas se envía ya, porque es la que más tarda en volver. Las fases 1 y 2 no esperan a nadie: avanzan con valores provisionales y se ajustan cuando lleguen las respuestas.</p>
     <div class="phases">
       <div class="phase">
         <header><span class="pill ask">fase 0</span><h3>Preguntas, en paralelo</h3></header>
         <ul>
-          <li>Llevarle a producto las 15 preguntas en una sola reunión, empezando por la capacidad de pago frente a la cuota.</li>
-          <li>Pedirle a Finandina, por producto: el certificado de cliente de Experian y su clave, si hay que autorizar la IP, y la credencial de Deceval.</li>
-          <li>Conseguir el diseño de las pantallas: el PRD pide «UX alineado con Figma» y no lo enlaza.</li>
+          <li>Mandar ya la ronda 1: las cuatro preguntas sin las que no se puede decidir.</li>
+          <li>Cuando vuelva, la ronda 2 (documentos, entrega, Deceval y diseño) y la ronda 3 (afinar reglas que ya arrancan con supuesto).</li>
         </ul>
       </div>
       <div class="phase">
@@ -253,7 +270,7 @@ footer { font-size: 13px; color: var(--muted); border-top: 1px solid var(--line)
           <li>Veces el ingreso por segmento y SMMLV; cobertura por código DANE; riesgo del empleador en Mareigua; experiencia por monto.</li>
           <li>Límites de 2 créditos al mes y tope de desembolsos; FGA por score.</li>
         </ul>
-        <p class="dep">Se diseña ya; los valores dependen de las respuestas 1 a 7, 11 y 13.</p>
+        <p class="dep">Se diseña ya; los valores dependen de la ronda 1 y se afinan con la ronda 3.</p>
       </div>
       <div class="phase">
         <header><span class="pill bad">fase 3</span><h3>Documentos, firma y pagaré</h3></header>
@@ -262,7 +279,7 @@ footer { font-size: 13px; color: var(--muted); border-top: 1px solid var(--line)
           <li>Plantillas del formulario y de los T&amp;C con sus 39 marcadores, montos en letras y las observaciones del mapa resueltas.</li>
           <li>Pagaré en Deceval con la credencial real de Finandina y la certificación.</li>
         </ul>
-        <p class="dep">Depende de las respuestas 8 y 12, y de la credencial de Deceval.</p>
+        <p class="dep">Depende de la ronda 2: desembolso, seguros y costos, y Deceval.</p>
       </div>
       <div class="phase">
         <header><span class="pill bad">fase 4</span><h3>Entrega a Finandina</h3></header>
@@ -270,7 +287,7 @@ footer { font-size: 13px; color: var(--muted); border-top: 1px solid var(--line)
           <li>La formalización de Finandina: enviar la operación con confirmación de recepción, o el aviso y el export semanal para su analista.</li>
           <li>La vista del comercio en el admin, la pantalla final y el mensaje de rechazo.</li>
         </ul>
-        <p class="dep">Depende de la respuesta 14 y del diseño.</p>
+        <p class="dep">Depende de la ronda 2: la entrega de la operación y el diseño.</p>
       </div>
       <div class="phase">
         <header><span class="pill ok">fase 5</span><h3>Consultas con llaves propias y salida a qa</h3></header>
@@ -279,7 +296,7 @@ footer { font-size: 13px; color: var(--muted); border-top: 1px solid var(--line)
           <li>Cargar las credenciales de prueba desde el admin en la base compartida.</li>
           <li>Un PR por repositorio contra qa, la 149 configurada para un comercio de prueba, y la validación de QA.</li>
         </ul>
-        <p class="dep">Depende de la respuesta 10 y del certificado.</p>
+        <p class="dep">Depende de la ronda 1: la cuenta de las consultas y el certificado.</p>
       </div>
     </div>
   </section>

@@ -32,10 +32,13 @@ adelante depende de las respuestas de la fase 0.
 
 ### Fase 0 · Decisiones de producto (bloquean las fases 3 a 5)
 
-- [ ] Llevar a producto las 15 contradicciones de la matriz (sección «Contradicciones para producto») en una sola
-  reunión. La más importante es la segunda: la política calcula la capacidad de pago pero no dice cómo se
-  compara con la cuota, y sin eso el motor no puede fijar el monto. Termina con cada una respondida por escrito
-  en «Objetivo». Depende de: producto (Maria Fernanda Parra) y riesgo de Finandina.
+- [ ] Mandar la ronda 1 de preguntas (las que bloquean empezar): qué documento manda (PRD de enero o política
+  de agosto), cómo se compara la capacidad de pago con la cuota, de dónde salen las letras de riesgo AA…Z, y con
+  qué cuenta se consulta el buró (si es la de Finandina, el certificado de cliente de Experian). Termina con las
+  cuatro respondidas por escrito en «Objetivo». Depende de: producto (Maria Fernanda Parra) y Finandina.
+- [ ] Después, la ronda 2 (desembolso, entrega de la operación, FGA, seguros y costos, Deceval y diseño) y la
+  ronda 3 (independientes, experiencia, cobertura, Mareigua, identidad, límites y arranque), que arranca con
+  los supuestos escritos en el análisis publicado. Depende de: producto.
 - [ ] Decidir qué significa «autorizada» para Finandina y cómo se le entrega la operación: el diagrama habla de
   aviso automático, dashboard semanal y PQR masiva. Termina con el estado final y el canal. Depende de:
   producto — el acuerdo con Finandina.
