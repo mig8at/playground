@@ -227,14 +227,20 @@ Salvo donde se dice «corrido», salen de LEER el código: falta reproducirlos.
 ### Baja — documentación y comentarios que dicen lo contrario del código
 
 - [ ] Corregir el comentario de `ValidateInitialFeePaid` («fuera de ecommerce la cuota inicial nunca pasa
-  por la pasarela»): el front nuevo y la autogestión del viejo sí la cobran por la pasarela.
+  por la pasarela»): el front nuevo y la autogestión del viejo sí la cobran por la pasarela. Sigue en `main`
+  (2026-11-03), línea 82.
 - [ ] Corregir el comentario de `RefinanceCredit` que dice que el total no incluye la cobranza (sí la
-  incluye desde que el proceso nocturno la suma al total).
-- [ ] Actualizar la guía y la configuración del outbox de CreditopX, que describen una entrega cada minuto
-  que ya no existe.
-- [ ] Corregir el comentario de `LenderRetrievalService` (legacy-backend, cerca de la línea 62), que dice que
-  el motor suma lo colocado en memoria.
-- [ ] Corregir el comentario de `AbacoConsultStateResolver` («vale 1 mes»): el código usa 7 días por defecto.
+  incluye desde que el proceso nocturno la suma al total). Sigue en `main` de application (2026-11-03); medido en
+  prod: los créditos movidos desde septiembre la traen (borrador 11).
+- [x] ~~Actualizar la guía y la configuración del outbox de CreditopX, que describen una entrega cada minuto
+  que ya no existe~~ — ya corregido en `main` (2026-11-03): `docs/creditopx-event-outbox.md` no habla de cada minuto
+  y dice que Temporal pide el envío cada 30 segundos (cambio del 2026-10-06); la config no trae intervalo.
+- [x] ~~Corregir el comentario de `LenderRetrievalService` (legacy-backend, cerca de la línea 62), que dice que
+  el motor suma lo colocado en memoria~~ — ya no está en `main` (2026-11-03): ese bloque ahora explica la memoización
+  de categorías por instancia.
+- [ ] Corregir el comentario de `AbacoConsultStateResolver` («vale 1 mes»): el código usa 7 días por defecto. Sigue
+  en `main` (2026-11-03): `AbacoConsultRepository::DEFAULT_VALIDITY_DAYS = 7`, y prod no define
+  `consult_validity_days`.
 
 ### Seguridad — decidir con el equipo
 
