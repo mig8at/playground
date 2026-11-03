@@ -84,8 +84,9 @@ ramas: legacy-backend:finandina-originacion
   una cuenta por entidad (hoy hay una sola, global). Termina con una consulta en local que registra la
   credencial de la 149. Depende de: la decisión de las cuentas.
 - [ ] Avisar al equipo de `POST /api/onboarding/credentials/get-by-lender`: devuelve el JSON descifrado de la
-  credencial de cualquier entidad y comercio, y el middleware no exige sesión. Termina con la exposición
-  confirmada o descartada por quien conoce el gateway y el BFF.
+  credencial de cualquier entidad y comercio, sin autenticación. Lo agregó Santiago (2025-12-15) y lo usa
+  pre-approvals-service por la red interna. Termina con quien conoce el gateway y el BFF confirmando que no
+  se alcanza desde afuera, o con el endpoint protegido.
 - [ ] Escribir el servicio de finalización de Finandina (lo que pasa al autorizar: entregarle la operación).
   Termina cuando una autorización de la 149 deja la operación donde Finandina la recibe. Depende de: la
   decisión de cómo se entrega la operación.
