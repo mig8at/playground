@@ -344,8 +344,10 @@ como un participante más: escribe, interrumpe o corta.
   que Miguel decida. Nada se escribe solo en `knowledge/` ni en el harness. Cierra con 8 hallazgos comprobados.
 
 **Pendientes del frente:**
-- [ ] Una llamada real de entendimiento sobre un tema conocido (`lender-listing`). Termina cuando su borrador de
-  hallazgos se compara contra lo que ya sabíamos: si no trae nada nuevo y cierto, la sala de entendimiento no vale.
+- [x] Una llamada real de entendimiento sobre un tema conocido (`lender-listing`), el 2026-11-02: trajo UN hallazgo
+  nuevo y cierto (el override de Bancolombia en Sonría en la puerta v1), una medición mal planteada que el
+  verificador refutó bien, y ruido del ambiente. El tope cortó antes de que el verificador llegara al hallazgo bueno:
+  lo verifiqué yo. Bloque del día.
 - [x] Una llamada real sobre una tarea del tablero, con tope de US$3 (hecho el 2026-11-02: tarea 86, una ronda,
   US$1,25; bloque del día). Salieron dos arreglos para el moderador y la pizarra (abajo).
 - [ ] El moderador no cierra con un «TERMINÉ» que deja cosas abiertas: abre una ronda de objeciones antes de

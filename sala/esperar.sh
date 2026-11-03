@@ -1,16 +1,17 @@
 #!/bin/sh
 # esperar.sh — espera a que la llamada de la sala cierre o quede inactiva, consultando /api/state cada 5 s.
 #
-#   sala/esperar.sh [minutos-de-inactividad=3] [puerto=5201]
+#   sala/esperar.sh [minutos-de-inactividad=3] [puerto=5201] [sala=demo]
 #
 # Sale 0 cuando la llamada cerró (imprime por qué y el consumo), 3 si sigue abierta pero nadie dijo nada en ese lapso
 # (agentes detenidos sin cerrar) y 2 si la sala no contesta. Existe porque el flujo de eventos podía perder el último
 # estado, y quien esperaba el cierre se quedaba esperando (2026-11-02).
 IDLE=${1:-3}
 PORT=${2:-5201}
+ROOM=${3:-demo}
 last="" ; since=$(date +%s)
 while :; do
-  st=$(curl -s -m 5 "http://127.0.0.1:$PORT/api/state") || { echo "la sala no contesta en :$PORT"; exit 2; }
+  st=$(curl -s -m 5 "http://127.0.0.1:$PORT/api/state?room=$ROOM") || { echo "la sala no contesta en :$PORT"; exit 2; }
   out=$(printf '%s' "$st" | python3 -c '
 import json,sys
 d=json.load(sys.stdin)
