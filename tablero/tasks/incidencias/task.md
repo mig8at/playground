@@ -19,6 +19,15 @@ Salvo donde se dice «corrido», salen de LEER el código: falta reproducirlos.
 
 ### Alta — el cliente o el dinero se ven afectados
 
+- [ ] Corregir en la política de puntaje de SmartPay (160) el rango de ingreso «RD$40,001 – RD$50,000», escrito con
+  raya larga «–» mientras el formulario guarda guion «-». La comparación es `==` exacta
+  (`LenderUserCategoryService::evaluateUserFieldsScoring`), así que nadie suma esos 15 puntos. **Medido en prod con
+  una evaluación real (2026-11-03):** el log guardó 90 puntos de campos, y recalculado da 90 con la raya y 105 sin
+  ella. De 38 clientes con esa respuesta, 14 quedaron en una categoría peor (más cuota inicial y más tasa). En la
+  misma política, «Trabajo en delivery o plataformas» (10 puntos) no lo iguala ninguna respuesta, y los rangos de
+  capacidad de pago se pisan en 50 (15 o 10 puntos según el orden en que lleguen las filas). Termina cuando la política
+  usa los textos exactos del formulario y no tiene rangos que se pisen. Depende de: quien configura la política de
+  SmartPay — corregir los textos y rangos.
 - [ ] Que la continuidad laboral caiga a Mareigua cuando Ágil Data vino vacía en el pipeline de KYC v2. **Corrido en
   local (2026-11-03):** con Ágil Data sin información, el pipeline guarda `user_summaries.agildata = []`
   (`AgildataExtractor::summarise` devuelve `[]`). `LenderUserCategoryService::getContinuity` hace `agildata ?? mareigua`
