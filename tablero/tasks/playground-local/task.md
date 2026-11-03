@@ -320,6 +320,12 @@ como un participante más: escribe, interrumpe o corta.
   con el portero: ~500k tokens de entrada nuevos, ~890k de caché y sólo 6,7k de salida, todos en Opus. Palancas:
   menos turnos (el portero), modelo y esfuerzo por rol (`roleModel` en `sala/main.go`, cambiable por llamada) y los
   agentes sin MCP. Al cerrar, el moderador publica el consumo por rol y lo guarda en `sala/.llamadas/`.
+  Con modelos por rol (Opus para verificador y arquitecto, Sonnet para el resto) la entrada nueva bajó de ~500k a
+  ~244k tokens en la misma tarea. ⚠ Los US$ de la CLI no sirven para comparar modelos 5.5: no reconoce sus ids y les
+  aplica otra tarifa (el experto en Sonnet figuró con US$0,98 y el arquitecto en Opus con US$0,33); comparar tokens.
+- **Esperar una llamada:** `sala/esperar.sh [minutos]` consulta `/api/state` cada 5 s; sale 0 al cerrar (con el
+  consumo) y 3 si sigue abierta sin mensajes en ese lapso. El flujo de eventos podía perder el último estado (la cola
+  de cada pestaña descartaba lo que no cabía); ahora descarta lo viejo y entrega lo último.
 - **Convocatoria:** una casilla por rol y elencos por tipo de tarea (`defecto`: herramientas, arquitecto, probador,
   datos y verificador · `pantalla` · `negocio` · `clasico`).
 - Cada agente es una sesión de `claude -p` que se retoma turno a turno (`--resume`), con su rol en el prompt de

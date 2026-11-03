@@ -200,13 +200,14 @@ func definitions() map[string]*participant {
 				`Cuando la tarea esté comprobada (o no se pueda), empezá tu mensaje con «TERMINÉ» y decí qué quedó probado y con qué comando.`,
 			tools: with("Bash(make harness-case *)", "Bash(make harness-listing *)", "Bash(make harness-suite *)",
 				"Bash(make harness-walk-wizard *)", "Bash(make harness-doctor *)", "Bash(make tarea-verify *)", "Bash(make agente *)",
-				"Bash(bin/pg sql *)", "Bash(bin/pg request *)", "Bash(bin/pg client *)")},
+				"Bash(bin/pg sql *)", "Bash(bin/pg request *)", "Bash(bin/pg client *)", "Bash(lsof -nP -iTCP*)")},
 		"verificador": {ID: "verificador", Name: "Verificador", Role: "comprueba lo que dicen los demás",
 			system: common + ` TU ROL: verificador. No proponés nada propio: en cada turno recibís las afirmaciones de la pizarra que nadie comprobó y ` +
 				`las revisás vos, sin repetir el razonamiento de quien las dijo: volvés a la fuente (git grep / git show contra origin/main en los dos ` +
 				`monolitos, bin/pg, leer el archivo entero). Comprobá también la PREMISA (qué ids, qué rama, qué clave), no sólo que el comando corre. ` +
-				`Por cada una, una línea «COMPRUEBO: C<n> | ✓, ✗ o — | <el comando que corriste>», donde — es «no trae comando y no se puede comprobar».`,
-			tools: with(append(gitMain, "Bash(bin/pg sql *)", "Bash(bin/pg request *)", "Bash(grep *)")...)},
+				`Por cada una, una línea «COMPRUEBO: C<n> | ✓, ✗ o — | <el comando que corriste>», donde — es «no trae comando y no se puede comprobar». ` +
+				`No hagas afirmaciones propias (no uses AFIRMO): lo que revisás va en COMPRUEBO.`,
+			tools: with(append(gitMain, "Bash(bin/pg sql *)", "Bash(bin/pg request *)", "Bash(grep *)", "Bash(lsof -nP -iTCP*)", "Bash(make harness-doctor *)")...)},
 		"coordinador": coordinatorDefinition(),
 		"escriba": {ID: "escriba", Name: "Escriba", Role: "deja el bloque en la tarea al cierre",
 			system: common + ` TU ROL: escriba. Hablás una sola vez, cuando la llamada terminó: escribís UN bloque en la tarea con ` +
@@ -281,9 +282,20 @@ func (h *hub) snapshot() []byte {
 func (h *hub) publish() {
 	b := h.snapshot()
 	for c := range h.subs {
-		select {
-		case c <- b:
-		default:
+		// Si la cola de una pestaña está llena se descarta lo viejo y entra lo último: cada mensaje es el estado
+		// ENTERO, así que perder uno intermedio no importa, pero perder el último dejaba la llamada «colgada» en
+		// pantalla sin el cierre (2026-11-02).
+		for {
+			select {
+			case c <- b:
+			default:
+				select {
+				case <-c:
+					continue
+				default:
+				}
+			}
+			break
 		}
 	}
 }
@@ -314,7 +326,9 @@ func (h *hub) post(m message) {
 
 var (
 	reClaim = regexp.MustCompile(`(?m)^\s*AFIRMO:\s*(.+?)(?:\s*\|\s*COMANDO:\s*(.+?))?\s*$`)
-	reCheck = regexp.MustCompile(`(?m)^\s*COMPRUEBO:\s*(C[0-9]+)\s*\|\s*(✓|✗|—)\s*(?:\|\s*(.+?))?\s*$`)
+	// Con o sin descripción entre el id y la barra: en la llamada real del 2026-11-02 el verificador escribió
+	// «COMPRUEBO: C2 · el ambiente… | — | …» y su trabajo se perdía porque sólo se aceptaba «C2 |».
+	reCheck = regexp.MustCompile(`(?m)^\s*COMPRUEBO:\s*(C[0-9]+)\b[^|\n]*\|\s*(✓|✗|—)\s*(?:\|\s*(.+?))?\s*$`)
 	// Una corrección dicha al pasar: la de la primera llamada real («la nota de la suite cita mal…») era falsa y
 	// no entró a la pizarra porque no venía como AFIRMO. Léxico a propósito: mejor una de más, punteada.
 	reProse = regexp.MustCompile(`(?i)[^.\n]*(corrección|corrijo|hay que corregir|cita mal|no es correcto|es incorrect|se equivoc)[^.\n]*`)
@@ -351,6 +365,13 @@ func main() {
 		}
 		w.Header().Set("content-type", "application/json")
 		_ = json.NewEncoder(w).Encode(map[string]any{"roles": roles, "presets": presets})
+	})
+	http.HandleFunc("/api/state", func(w http.ResponseWriter, r *http.Request) {
+		h.mu.Lock()
+		b := h.snapshot()
+		h.mu.Unlock()
+		w.Header().Set("content-type", "application/json")
+		_, _ = w.Write(b)
 	})
 	http.HandleFunc("/api/events", h.events)
 	http.HandleFunc("/api/start", h.start)
@@ -728,6 +749,9 @@ func (h *hub) turn(ctx context.Context, p *participant, task string, budget floa
 			s.Claims = append(s.Claims, c)
 		}
 		for _, m := range reClaim.FindAllStringSubmatch(text, -1) {
+			if p.ID == "verificador" {
+				break // lo que revisa va en COMPRUEBO: una afirmación suya no la revisaría nadie
+			}
 			add(claim{Claim: m[1], Command: m[2]})
 		}
 		prose := reClaim.ReplaceAllString(reCheck.ReplaceAllString(text, ""), "")
