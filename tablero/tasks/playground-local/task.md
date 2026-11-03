@@ -232,3 +232,44 @@ secreto: sólo si hay, de quién es y cuándo vence. Sale 1 si algo falla. Conso
 portal de SSO: no lo declaran (lo fija el permission set), así que la fila dice cuándo se pegaron y no
 inventa una hora.
 
+
+## Frente: un agente saca una tarea solo, antes de pasar a multiagente
+
+**Objetivo.** Que un agente, con una tarea del tablero y nada más, la lleve hasta un cierre comprobado usando
+las herramientas del playground, sin que Miguel tenga que corregirle el ambiente, la fuente o la conclusión.
+Multiagente viene después: varios agentes sin verificación automática multiplican afirmaciones sin comprobar,
+y en la sesión del 2026-11-02 los errores no fueron de velocidad sino de verificación.
+
+**El recorrido, paso a paso** (lo que hoy funciona, armado con las corridas de esa sesión):
+
+| paso | pregunta | con qué |
+|---|---|---|
+| 1 · entender | ¿qué pide la tarea, qué se hizo, qué se sabe? | `make retomar N=…` (documento, pila, pendientes, ramas y `knowledge:`), `make knowledge-search`, el índice de síntomas de `tablero/data/traps/doc.md` |
+| 2 · delimitar | ¿qué comando dice «hecho»? ¿contra qué ambiente? | escribir el criterio como una corrida (`harness-case`, una suite, una consulta) antes de tocar nada; el ambiente más chico que conteste |
+| 3 · el ambiente | ¿una corrida ahora diría la verdad? | `make harness-doctor TARGET=local`, `make keyring`; en remoto, `make harness-env-drift` |
+| 4 · reproducir | ¿pasa, y cuánto? | `harness-case`, `-listing`, `-walk-wizard` (con `JSON=1`); en prod sólo lectura: `bin/pg request timeline`, `events request`, `sql` |
+| 5 · localizar | ¿dónde se decide? | `git grep` contra `main` en los dos monolitos, o el subagente `main-verifier`; el texto de un error lleva al archivo |
+| 6 · cambiar y probar | ¿lo arreglé sin romper otro flujo? | la misma corrida del paso 2, y `make harness-regression TARGET=local` |
+| 7 · registrar | ¿lo encuentra el próximo? | `BLOQUE=<tarea>` en las corridas, `make tarea-bloque`; un mecanismo verificado a `knowledge/`; una trampa a `traps/doc.md` |
+| 8 · cerrar | ¿quedó medido y entregado? | `make bitacora-add PULSO=…`, `make cierre`; commit por ruta; push, PR, Jira o Canon sólo con el sí de Miguel |
+
+**Los tropiezos que el recorrido tiene que atajar** (todos del 2026-11-02):
+- **Local no es prod.** La base local viene de dev: ids y configuraciones distintas (Motai R sin plazo, AltaX
+  pidiendo codeudor). Antes de llamar defecto a algo visto en local, mirar el mismo dato en prod (sólo lectura).
+- **Una salida cortada se lee como «no está».** `isRevolvingIncrement` «faltaba» porque se leyeron 900
+  caracteres. Leer la respuesta entera o preguntar por la clave.
+- **Una rama que no es `main` mide esa rama.** `harness-doctor` lo avisa; la conclusión dice qué rama se midió.
+- **Un verde no es el caso.** Una suite que pasa con datos sembrados no prueba la regla en prod.
+
+**Pendientes del frente:**
+- [ ] `make agente N=…` (o `bin/pg tarea plan`): en una sola salida JSON lo que hoy son cinco comandos — la tarea y
+  su pila, sus temas de `knowledge:`, las trampas cuyo síntoma coincide, el estado del ambiente (`harness-doctor`) y
+  las ramas. Termina cuando un agente arranca una tarea con esa sola llamada.
+- [ ] El criterio de «hecho» por tarea, como corrida: depende de las `S#` de ODD (arriba). Termina cuando
+  `make tarea-verify N=…` da `S1 ✓ · S2 ✗` para una tarea real.
+- [ ] Probar el recorrido con dos o tres tareas reales de distinto tipo (un defecto, una regla de negocio, una
+  herramienta), con `make ensayo` para comparar con y sin la guía. Termina cuando hay una tabla con tiempo,
+  correcciones de Miguel y afirmaciones que resultaron falsas, por tarea.
+- [ ] Recién con eso, multiagente: un agente que investiga (sólo lectura, `main-verifier`), uno que corre (harness)
+  y uno que escribe, coordinados por un workflow. Termina cuando una tarea sale con los tres y su verificación
+  automática no encuentra afirmaciones sin comando.
