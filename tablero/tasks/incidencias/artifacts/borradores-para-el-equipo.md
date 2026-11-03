@@ -86,8 +86,14 @@ identidad nunca terminó): la solicitud quedó autorizada sin radicar.
 **En producción.** Las 5 solicitudes autorizadas desde octubre con el cliente todavía temporal son de entidades que
 originan y validan de su lado (Addi, Brilla, Welli, Meddipay). No se vio en entidades que origina Creditop.
 
-**Falta comprobar** con una entidad CreditopX, que no radica ante nadie: ahí no habría ni siquiera el freno de las
-imágenes.
+**Con una CreditopX no llega.** Repetido con un cliente de Mediarte en la misma situación: las CreditopX del
+comercio no salen en el listado, y al elegir una igual por llamada directa todo pasa hasta el código de firma, pero la
+autorización la rechaza («el usuario no tiene una categoría vigente con la entidad») y queda en estado 28. La
+categoría exige la consulta a centrales, que nunca corrió. O sea que lo expuesto son las entidades de riel 4, cuyo
+freno es la radicación.
+
+**De paso.** El backend acepta elegir una entidad que no estaba en el listado del cliente, y avanza con ella hasta
+generar el pagaré.
 
 **Propuesta.** Que la autorización (o la elección de entidad) exija la identidad terminada en los comercios del KYC
 nuevo, y no sólo la pantalla.

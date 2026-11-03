@@ -104,7 +104,8 @@ Salvo donde se dice «corrido», salen de LEER el código: falta reproducirlos.
   identidad pendiente y la cuenta en `TEMPORAL USER`, `lenders` y `lenders-v2` devuelven el listado, con 24 y 216
   incluidas. **Y llega a 11:** por API, la misma solicitud eligió Credifamilia Salud (24), firmó con OTP y la
   autorización la dejó en 11 con la cuenta todavía en `TEMPORAL USER`; sólo la radicación dio 422 por la cédula que
-  falta. Falta probarlo con una CreditopX (riel 2), que no radica. Termina cuando se decide con producto
+  falta. Con una CreditopX (Mediarte, 46) no llega: la autorización exige categoría vigente y queda en 28; pero el
+  backend aceptó elegirla sin que estuviera en el listado. Termina cuando se decide con producto
   si el backend tiene que frenar el listado sin identidad, y se corrige o se descarta con el motivo.
 - [ ] Que dos altas en el mismo segundo no den el mismo hash de sucursal o de comercio. Los dos monolitos lo arman con
   `hash('crc32', date('Y-m-d H:i:s'))`, sin unicidad, y el backend resuelve la sucursal por hash con `->first()`.
