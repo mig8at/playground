@@ -311,6 +311,15 @@ como un participante más: escribe, interrumpe o corta.
   afirmación, las comprobaciones (sólo una refutación despierta al autor). Si falla o tarda más de 20 s, despierta a
   todos. Cada turno reserva su tope de gasto antes de empezar: sin presupuesto libre no arranca, y nadie se corta.
   `SALA_PORTERO=1` (configuración `sala-portero`) usa el portero real con agentes simulados.
+- **Qué gasta, de verdad (medido el 2026-11-02).** `claude -p` entra con la sesión de claude.ai de Miguel (plan de equipo
+  de Creditop): no se cobra por token, gasta el límite de uso del asiento (ventana de 5 horas y semanal), el mismo de
+  su trabajo diario. Los US$ que muestran la sala y el ensayo son el EQUIVALENTE a precio de API, para comparar entre
+  llamadas. Lo que pesa es la carga fija de cada turno, ~66k tokens de entrada: ~40k de Claude Code base, ~21k del
+  proyecto (`CLAUDE.md`, memoria, el hook de arranque, skills) y ~4,6k de los servidores MCP; desde el segundo turno
+  casi todo se lee de caché. Un turno que sólo dice PASO pesa lo mismo que uno que habla. La llamada real en canal
+  con el portero: ~500k tokens de entrada nuevos, ~890k de caché y sólo 6,7k de salida, todos en Opus. Palancas:
+  menos turnos (el portero), modelo y esfuerzo por rol (`roleModel` en `sala/main.go`, cambiable por llamada) y los
+  agentes sin MCP. Al cerrar, el moderador publica el consumo por rol y lo guarda en `sala/.llamadas/`.
 - **Convocatoria:** una casilla por rol y elencos por tipo de tarea (`defecto`: herramientas, arquitecto, probador,
   datos y verificador · `pantalla` · `negocio` · `clasico`).
 - Cada agente es una sesión de `claude -p` que se retoma turno a turno (`--resume`), con su rol en el prompt de

@@ -23,6 +23,7 @@
   .roles { display: flex; flex-wrap: wrap; gap: 4px 14px; padding: 6px 12px; border-bottom: 1px solid var(--border); background: var(--card); }
   .roles label { font-size: 12px; }
   .roles label span { color: var(--foreground); }
+  .roles select.model { font-size: 11px; padding: 1px 4px; }
   input, button {
     font: inherit; color: var(--foreground); background: var(--background);
     border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 4px 8px;
@@ -86,7 +87,7 @@
   <span class="title">Sala</span>
   <label>Tarea <input id="task" placeholder="id o slug" value="86"></label>
   <label>Rondas <input id="rounds" type="number" min="1" max="6" value="3" style="width:56px"></label>
-  <label>Tope US$ <input id="budget" type="number" min="0.5" max="10" step="0.5" value="3" style="width:64px"></label>
+  <label title="Equivalente a precio de API: la sala corre con la suscripción, no se cobra por token; gasta el límite de uso del asiento">Tope US$ eq. <input id="budget" type="number" min="0.5" max="10" step="0.5" value="3" style="width:64px"></label>
   <label>Modo <select id="mode"><option value="canal">canal</option><option value="rondas">rondas</option></select></label>
   <label>Elenco <select id="preset"></select></label>
   <label><input id="mock" type="checkbox"> Simulada</label>
@@ -111,6 +112,7 @@
 </footer>
 <script>
 const $ = (id) => document.getElementById(id);
+const tk = (n) => (n >= 1000 ? (n / 1000).toFixed(1) + 'k' : String(n || 0));
 const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 let last = null;
 
@@ -121,7 +123,7 @@ function render(st) {
   $('start').disabled = st.running;
   $('stop').disabled = !st.running;
   $('meta').textContent = st.task
-    ? `#${st.task} · ${st.mode === 'canal' ? 'canal' : `ronda ${Math.min(st.round, st.rounds)}/${st.rounds}`} · US$${st.spent.toFixed(2)} de ${st.budget.toFixed(2)}${st.mock ? ' · simulada' : ''}${st.ended ? ' · ' + st.ended : ''}`
+    ? `#${st.task} · ${st.mode === 'canal' ? 'canal' : `ronda ${Math.min(st.round, st.rounds)}/${st.rounds}`} · US$${st.spent.toFixed(2)} eq. API de ${st.budget.toFixed(2)}${st.mock ? ' · simulada' : ''}${st.ended ? ' · ' + st.ended : ''}`
     : 'sin llamada';
   if (st.objecting) $('meta').textContent += ' · ronda de objeciones';
 
@@ -132,7 +134,8 @@ function render(st) {
     return `<div class="tile ${speaking ? 'speaking' : ''} ${p.status === 'error' ? 'error' : ''}">
       <div class="who"><div class="avatar">${esc(initials)}</div>
         <div><div class="name">${esc(p.name)}</div><div class="role">${esc(p.role)}</div></div></div>
-      <div class="stat"><span class="dot"></span>${esc(p.status)}${p.id !== 'miguel' ? ` · ${p.turns} turno(s) · US$${p.cost.toFixed(2)}` : ''}</div>
+      <div class="stat"><span class="dot"></span>${esc(p.status)}${p.id !== 'miguel' ? ` · ${p.turns} turno(s) · US$${p.cost.toFixed(2)} eq.` : ''}</div>
+      ${p.model ? `<div class="stat">${esc(p.model.replace('claude-', ''))} · ${esc(p.effort || '')}${p.use && p.use.calls ? ` · ${tk(p.use.in + p.use.cacheWrite + p.use.cacheRead)} entrada · ${tk(p.use.out)} salida${p.use.passes ? ` · ${p.use.passes} PASO` : ''}` : ''}</div>` : ''}
       ${p.work ? `<div class="work">trabajando en: ${esc(p.work)}</div>` : ''}
       ${p.doing ? `<div class="doing">▸ ${esc(p.doing)}</div>` : ''}
     </div>`;
@@ -163,17 +166,20 @@ const roles = () => [...document.querySelectorAll('#roles input:checked')].map((
 let presets = {};
 fetch('/api/roles').then((r) => r.json()).then((d) => {
   presets = d.presets;
-  $('roles').innerHTML = d.roles.map((r) => `<label title="${esc(r.role)}"><input type="checkbox" value="${esc(r.id)}"> <span>${esc(r.name)}</span></label>`).join('');
+  const models = ['claude-opus-5-5', 'claude-sonnet-5-5', 'claude-haiku-5-5'];
+  $('roles').innerHTML = d.roles.map((r) => `<label title="${esc(r.role)} · esfuerzo ${esc(r.effort)}">${r.id === 'coordinador' ? '' : `<input type="checkbox" value="${esc(r.id)}">`} <span>${esc(r.name)}</span>
+    <select class="model" data-role="${esc(r.id)}">${models.map((m) => `<option value="${m}" ${m === r.model ? 'selected' : ''}>${m.replace('claude-', '')}</option>`).join('')}</select></label>`).join('');
   $('preset').innerHTML = Object.keys(presets).map((k) => `<option value="${esc(k)}">${esc(k)}</option>`).join('') + '<option value="">a mano</option>';
   $('preset').value = 'defecto';
   const apply = () => { const ids = presets[$('preset').value]; if (!ids) return; document.querySelectorAll('#roles input').forEach((i) => { i.checked = ids.includes(i.value); }); };
   $('preset').onchange = apply;
-  $('roles').addEventListener('change', () => { $('preset').value = ''; });
+  $('roles').addEventListener('change', (e) => { if (e.target.tagName === 'INPUT') $('preset').value = ''; });
   apply();
 });
 $('start').onclick = () => {
   if (!roles().length) { alert('Convocá al menos un rol.'); return; }
-  post('/api/start', { task: $('task').value.trim(), rounds: Number($('rounds').value), budget: Number($('budget').value), mock: $('mock').checked, roles: roles(), mode: $('mode').value });
+  const models = Object.fromEntries([...document.querySelectorAll('#roles select.model')].map((s) => [s.dataset.role, s.value]));
+  post('/api/start', { task: $('task').value.trim(), rounds: Number($('rounds').value), budget: Number($('budget').value), mock: $('mock').checked, roles: roles(), mode: $('mode').value, models });
 };
 $('stop').onclick = () => post('/api/stop');
 const send = () => { const v = $('say').value.trim(); if (!v) return; post('/api/say', { text: v }); $('say').value = ''; };

@@ -118,8 +118,8 @@ func (h *hub) route(ctx context.Context, m message, listeners []*participant, is
 	case mock && os.Getenv("SALA_PORTERO") != "1": // SALA_PORTERO=1: agentes simulados con el portero de verdad
 		ids, why = everyone(), "simulada: sin portero"
 	default:
-		gate, reason, cost, err := h.gatekeeper(ctx, m, listeners)
-		h.update(func(s *state) { s.Spent += cost })
+		gate, reason, use, err := h.gatekeeper(ctx, m, listeners)
+		h.update(func(s *state) { s.Spent += use.Cost; s.Gate.add(use) })
 		if err != nil {
 			ids, why = everyone(), "el portero no contestó ("+err.Error()+"): despierto a todos"
 		} else {
@@ -148,7 +148,7 @@ func (h *hub) route(ctx context.Context, m message, listeners []*participant, is
 }
 
 // gatekeeper le pregunta a Haiku a quién despertar. Sólo recibe los roles, quién trabaja en qué y el mensaje nuevo.
-func (h *hub) gatekeeper(ctx context.Context, m message, listeners []*participant) ([]string, string, float64, error) {
+func (h *hub) gatekeeper(ctx context.Context, m message, listeners []*participant) ([]string, string, usage, error) {
 	var b strings.Builder
 	b.WriteString("ROLES:\n")
 	h.mu.Lock()
@@ -180,16 +180,23 @@ func (h *hub) gatekeeper(ctx context.Context, m message, listeners []*participan
 	cmd.Env = childEnv()
 	out, err := cmd.Output()
 	if err != nil {
-		return nil, "", 0, fmt.Errorf("claude -p: %v", err)
+		return nil, "", usage{}, fmt.Errorf("claude -p: %v", err)
 	}
 	lines := strings.Split(strings.TrimSpace(string(out)), "\n") // la CLI puede anteponer un aviso de modelo
 	var res struct {
 		Result string  `json:"result"`
 		Cost   float64 `json:"total_cost_usd"`
+		Usage  struct {
+			In         int `json:"input_tokens"`
+			CacheWrite int `json:"cache_creation_input_tokens"`
+			CacheRead  int `json:"cache_read_input_tokens"`
+			Out        int `json:"output_tokens"`
+		} `json:"usage"`
 	}
 	if json.Unmarshal([]byte(lines[len(lines)-1]), &res) != nil {
-		return nil, "", 0, fmt.Errorf("salida sin JSON")
+		return nil, "", usage{}, fmt.Errorf("salida sin JSON")
 	}
+	use := usage{Calls: 1, In: res.Usage.In, CacheRead: res.Usage.CacheRead, CacheWrite: res.Usage.CacheWrite, Out: res.Usage.Out, Cost: res.Cost}
 	raw := res.Result
 	if i, j := strings.Index(raw, "{"), strings.LastIndex(raw, "}"); i >= 0 && j > i {
 		raw = raw[i : j+1]
@@ -199,7 +206,7 @@ func (h *hub) gatekeeper(ctx context.Context, m message, listeners []*participan
 		Why  string   `json:"why"`
 	}
 	if json.Unmarshal([]byte(raw), &d) != nil {
-		return nil, "", res.Cost, fmt.Errorf("respuesta sin la forma pedida")
+		return nil, "", use, fmt.Errorf("respuesta sin la forma pedida")
 	}
-	return d.Wake, d.Why, res.Cost, nil
+	return d.Wake, d.Why, use, nil
 }

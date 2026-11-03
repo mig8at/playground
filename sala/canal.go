@@ -56,6 +56,9 @@ func (h *hub) channelNote(p *participant) string {
 		b.WriteString("Nadie tiene nada nuevo que aportar. Decidí el siguiente paso (con @id) o cerrá con «CIERRO: <por qué>».")
 		return b.String()
 	}
+	if h.isChecker(p) {
+		b.WriteString("Sos quien comprueba: si arriba hay afirmaciones sin comprobar, NO contestes PASO; respondé COMPRUEBO por cada una.\n\n")
+	}
 	b.WriteString("Entró contexto nuevo al canal. Decidí vos si aportás: si no tenés algo pertinente y nuevo, contestá sólo «PASO» (no se publica). " +
 		"Si vas a correr o leer algo que tarda, empezá tu respuesta con una línea «AVISO: <qué vas a hacer>» ANTES de usar herramientas, " +
 		"así el resto sabe que lo tomaste y no lo duplica; después contestá con el resultado. Si alguien te nombra con @" + p.ID + ", te toca.")
@@ -103,6 +106,7 @@ func (h *hub) channel(outer context.Context, task string) {
 			h.mu.Unlock()
 			h.say("moderador", "Moderador", "Se cierra la llamada: "+why+".")
 			h.scribe(outer, task)
+			h.report(task, why)
 			h.update(func(s *state) {
 				s.Running, s.Ended = false, why
 				for _, p := range s.Participants {

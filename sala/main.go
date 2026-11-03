@@ -51,13 +51,43 @@ type participant struct {
 	Role    string  `json:"role"`
 	Status  string  `json:"status"` // esperando · pensando · hablando · pasó · error
 	Doing   string  `json:"doing"`
-	Cost    float64 `json:"cost"`
+	Cost    float64 `json:"cost"` // equivalente a precio de API: la sala corre con la suscripción, no se cobra por token
 	Turns   int     `json:"turns"`
+	Model   string  `json:"model"`
+	Effort  string  `json:"effort"`
+	Use     usage   `json:"use"`
 	Work    string  `json:"work"` // modo canal: lo que avisó que está haciendo (AVISO)
 	session string
 	system  string
 	tools   []string
 	seen    int // cuántos mensajes de la transcripción ya vio
+}
+
+/* usage: lo que consumió un participante. Los US$ que devuelve `claude -p` son el EQUIVALENTE a precio de API: la
+ * sala entra con la sesión de claude.ai (plan de equipo de Creditop), así que no se cobra por token sino que gasta los
+ * límites de uso del asiento (la ventana de 5 horas y la semanal). Lo que cuenta contra ese límite son los tokens.
+ * Medido el 2026-11-02: un turno que sólo dice PASO cuesta lo mismo que uno que habla (~US$0,30 eq.), porque cada turno
+ * levanta un Claude Code entero con su prompt de sistema y sus herramientas. */
+type usage struct {
+	Calls      int     `json:"calls"`
+	In         int     `json:"in"`
+	CacheRead  int     `json:"cacheRead"`
+	CacheWrite int     `json:"cacheWrite"`
+	Out        int     `json:"out"`
+	Cost       float64 `json:"cost"`
+	Passes     int     `json:"passes"`
+	PassCost   float64 `json:"passCost"`
+}
+
+func (u *usage) add(v usage) {
+	u.Calls += v.Calls
+	u.In += v.In
+	u.CacheRead += v.CacheRead
+	u.CacheWrite += v.CacheWrite
+	u.Out += v.Out
+	u.Cost += v.Cost
+	u.Passes += v.Passes
+	u.PassCost += v.PassCost
 }
 
 type message struct {
@@ -89,6 +119,7 @@ type state struct {
 	Ended        string         `json:"ended"`
 	Objecting    bool           `json:"objecting"` // ronda de objeciones abierta tras un TERMINÉ
 	Mode         string         `json:"mode"`      // rondas · canal
+	Gate         usage          `json:"gate"`      // lo que consumió el portero
 	Participants []*participant `json:"participants"`
 	Messages     []message      `json:"messages"`
 	Claims       []claim        `json:"claims"`
@@ -109,7 +140,8 @@ const common = `Estás en una LLAMADA de trabajo con otros agentes y con Miguel,
 	`Si no tenés nada útil que agregar en tu turno, decí sólo «PASO». Cuando el moderador abra una RONDA DE OBJECIONES, ` +
 	`contestá sólo «CONFORME» o «OBJECIÓN: <qué queda abierto y con qué se comprobaría>». ` +
 	`No edites archivos, no commitees y no corras nada contra producción salvo lecturas de bin/pg. ` +
-	`Lo que afirma otro no lo des por cierto: queda «sin comprobar» hasta que lo revisa alguien que no lo dijo.`
+	`Lo que afirma otro no lo des por cierto: queda «sin comprobar» hasta que lo revisa alguien que no lo dijo. ` +
+	`Un comando por llamada a Bash, sin cd, sin ;, && ni |: usá git -C <repo> y bin/pg con ruta relativa (lo compuesto pide un permiso que acá nadie da).`
 
 /* LOS ROLES. Cada uno tiene algo que sólo él hace: dos con las mismas herramientas se repiten y se paga dos veces.
  * Se convocan por tarea (`presets`); el orden de palabra es el de `order`, y el escriba habla una sola vez, al cierre. */
@@ -160,8 +192,7 @@ func definitions() map[string]*participant {
 			system: common + ` TU ROL: datos. Contestás «¿esto pasa de verdad, y cuánto?» midiendo producción en SÓLO LECTURA: bin/pg sql --target prod, ` +
 				`bin/pg events errors|request, bin/pg request timeline, bin/pg logs. Decís siempre la ventana que mediste. Nunca traés a la llamada datos ` +
 				`de personas (nombres, cédulas, celulares, correos): sólo conteos y estados.`,
-			tools: with("Bash(bin/pg sql *)", "Bash(bin/pg events *)", "Bash(bin/pg request *)", "Bash(bin/pg logs *)",
-				"mcp__playground__sql", "mcp__playground__events_errors", "mcp__playground__request_timeline")},
+			tools: with("Bash(bin/pg sql *)", "Bash(bin/pg events *)", "Bash(bin/pg request *)", "Bash(bin/pg logs *)")},
 		"probador": {ID: "probador", Name: "Probador", Role: "comprueba corriendo y avisa al terminar",
 			system: common + ` TU ROL: probador. Lo que se afirma lo comprobás CORRIENDO, contra el ambiente local (harness-case, harness-listing, ` +
 				`harness-suite, harness-walk-wizard, tarea-verify) o leyendo con bin/pg. Antes de concluir, mirá el ambiente con make harness-doctor TARGET=local. ` +
@@ -169,13 +200,13 @@ func definitions() map[string]*participant {
 				`Cuando la tarea esté comprobada (o no se pueda), empezá tu mensaje con «TERMINÉ» y decí qué quedó probado y con qué comando.`,
 			tools: with("Bash(make harness-case *)", "Bash(make harness-listing *)", "Bash(make harness-suite *)",
 				"Bash(make harness-walk-wizard *)", "Bash(make harness-doctor *)", "Bash(make tarea-verify *)", "Bash(make agente *)",
-				"Bash(bin/pg sql *)", "Bash(bin/pg request *)", "Bash(bin/pg client *)", "mcp__playground__sql", "mcp__playground__request_timeline")},
+				"Bash(bin/pg sql *)", "Bash(bin/pg request *)", "Bash(bin/pg client *)")},
 		"verificador": {ID: "verificador", Name: "Verificador", Role: "comprueba lo que dicen los demás",
 			system: common + ` TU ROL: verificador. No proponés nada propio: en cada turno recibís las afirmaciones de la pizarra que nadie comprobó y ` +
 				`las revisás vos, sin repetir el razonamiento de quien las dijo: volvés a la fuente (git grep / git show contra origin/main en los dos ` +
 				`monolitos, bin/pg, leer el archivo entero). Comprobá también la PREMISA (qué ids, qué rama, qué clave), no sólo que el comando corre. ` +
 				`Por cada una, una línea «COMPRUEBO: C<n> | ✓, ✗ o — | <el comando que corriste>», donde — es «no trae comando y no se puede comprobar».`,
-			tools: with(append(gitMain, "Bash(bin/pg sql *)", "Bash(bin/pg request *)", "Bash(grep *)", "mcp__playground__sql")...)},
+			tools: with(append(gitMain, "Bash(bin/pg sql *)", "Bash(bin/pg request *)", "Bash(grep *)")...)},
 		"coordinador": coordinatorDefinition(),
 		"escriba": {ID: "escriba", Name: "Escriba", Role: "deja el bloque en la tarea al cierre",
 			system: common + ` TU ROL: escriba. Hablás una sola vez, cuando la llamada terminó: escribís UN bloque en la tarea con ` +
@@ -186,9 +217,32 @@ func definitions() map[string]*participant {
 	}
 }
 
+/* EL MODELO Y EL ESFUERZO DE CADA ROL (Miguel, 2026-11-02): el caro para quien juzga, lo barato para quien ejecuta o
+ * resume. Todo lo que afirman los demás pasa por el verificador, así que bajar el modelo del probador o del experto en
+ * herramientas es un riesgo controlado; el verificador va en el más capaz porque, si es menos que lo que revisa,
+ * confirma errores que no entiende. Se cambian por llamada desde la sala; acá van los de partida. */
+var (
+	roleModel = map[string][2]string{
+		"verificador":  {"claude-opus-5-5", "high"},
+		"arquitecto":   {"claude-opus-5-5", "medium"},
+		"coordinador":  {"claude-opus-5-5", "medium"},
+		"probador":     {"claude-sonnet-5-5", "medium"},
+		"datos":        {"claude-sonnet-5-5", "medium"},
+		"investigador": {"claude-sonnet-5-5", "medium"},
+		"negocio":      {"claude-sonnet-5-5", "medium"},
+		"diseno":       {"claude-sonnet-5-5", "medium"},
+		"herramientas": {"claude-sonnet-5-5", "low"},
+		"escriba":      {"claude-haiku-5-5", "low"},
+	}
+	allowedModels = map[string]bool{"claude-opus-5-5": true, "claude-sonnet-5-5": true, "claude-haiku-5-5": true}
+)
+
 // roster: los convocados, en el orden de palabra. Sin selección válida, el elenco clásico.
 func roster(selected []string) []*participant {
 	defs := definitions()
+	for id, p := range defs {
+		p.Model, p.Effort = roleModel[id][0], roleModel[id][1]
+	}
 	want := map[string]bool{}
 	for _, id := range selected {
 		if defs[id] != nil {
@@ -291,8 +345,9 @@ func main() {
 	http.HandleFunc("/api/roles", func(w http.ResponseWriter, r *http.Request) {
 		defs := definitions()
 		var roles []map[string]string
-		for _, id := range append(append([]string{}, order...), "escriba") {
-			roles = append(roles, map[string]string{"id": id, "name": defs[id].Name, "role": defs[id].Role})
+		for _, id := range append(append([]string{}, order...), "escriba", "coordinador") {
+			roles = append(roles, map[string]string{"id": id, "name": defs[id].Name, "role": defs[id].Role,
+				"model": roleModel[id][0], "effort": roleModel[id][1]})
 		}
 		w.Header().Set("content-type", "application/json")
 		_ = json.NewEncoder(w).Encode(map[string]any{"roles": roles, "presets": presets})
@@ -347,12 +402,13 @@ func (h *hub) events(w http.ResponseWriter, r *http.Request) {
 
 func (h *hub) start(w http.ResponseWriter, r *http.Request) {
 	var in struct {
-		Task   string   `json:"task"`
-		Rounds int      `json:"rounds"`
-		Budget float64  `json:"budget"`
-		Mock   bool     `json:"mock"`
-		Roles  []string `json:"roles"`
-		Mode   string   `json:"mode"`
+		Task   string            `json:"task"`
+		Rounds int               `json:"rounds"`
+		Budget float64           `json:"budget"`
+		Mock   bool              `json:"mock"`
+		Roles  []string          `json:"roles"`
+		Mode   string            `json:"mode"`
+		Models map[string]string `json:"models"`
 	}
 	if json.NewDecoder(r.Body).Decode(&in) != nil || strings.TrimSpace(in.Task) == "" {
 		http.Error(w, "falta la tarea", 400)
@@ -381,7 +437,16 @@ func (h *hub) start(w http.ResponseWriter, r *http.Request) {
 	h.mu.Unlock()
 	if in.Mode == "canal" {
 		h.st.Mode = "canal"
-		h.st.Participants = append(h.st.Participants, definitions()["coordinador"])
+		coord := definitions()["coordinador"]
+		coord.Model, coord.Effort = roleModel["coordinador"][0], roleModel["coordinador"][1]
+		h.st.Participants = append(h.st.Participants, coord)
+	}
+	for _, p := range h.st.Participants {
+		if m := in.Models[p.ID]; allowedModels[m] {
+			p.Model = m
+		}
+	}
+	if in.Mode == "canal" {
 		go h.channel(ctx, in.Task)
 		return
 	}
@@ -394,6 +459,7 @@ func (h *hub) meeting(ctx context.Context, task string) {
 	end := func(why string) {
 		h.say("moderador", "Moderador", "Se cierra la llamada: "+why+".")
 		h.scribe(ctx, task)
+		h.report(task, why)
 		h.update(func(s *state) {
 			s.Running, s.Ended = false, why
 			for _, p := range s.Participants {
@@ -611,7 +677,8 @@ func (h *hub) turn(ctx context.Context, p *participant, task string, budget floa
 		}
 		h.mu.Unlock()
 		if len(open) > 0 {
-			b.WriteString("Afirmaciones de la pizarra que nadie comprobó (respondé con COMPRUEBO por las que puedas):\n" + strings.Join(open, "\n") + "\n\n")
+			b.WriteString("Afirmaciones de la pizarra que nadie comprobó. NO contestes PASO mientras queden: respondé con una línea COMPRUEBO " +
+				"por cada una (✓ o ✗ con tu comando, o — si no trae comando o no se puede comprobar):\n" + strings.Join(open, "\n") + "\n\n")
 		}
 	}
 	if canal {
@@ -623,17 +690,22 @@ func (h *hub) turn(ctx context.Context, p *participant, task string, budget floa
 	checker := h.isChecker(p)
 	var text, errText string
 	var cost float64
+	var use usage
 	if mock && canal {
 		text, cost = mockChannelReply(ctx, h, p)
 	} else if mock {
 		text, cost = mockReply(ctx, h, p)
 	} else {
-		text, cost, errText = h.claude(ctx, p, b.String(), budget)
+		text, cost, use, errText = h.claude(ctx, p, b.String(), budget)
 	}
 	h.update(func(s *state) {
 		p.Turns++
 		p.Cost += cost
 		s.Spent += cost
+		if strings.HasPrefix(strings.TrimSpace(text), "PASO") {
+			use.Passes, use.PassCost = 1, cost
+		}
+		p.Use.add(use)
 		p.Doing = ""
 		switch {
 		case errText != "":
@@ -687,13 +759,22 @@ func (h *hub) turn(ctx context.Context, p *participant, task string, budget floa
 }
 
 // claude corre el turno con `claude -p` en stream-json: cada herramienta que usa se ve en su recuadro.
-func (h *hub) claude(ctx context.Context, p *participant, prompt string, budget float64) (string, float64, string) {
+func (h *hub) claude(ctx context.Context, p *participant, prompt string, budget float64) (string, float64, usage, string) {
 	args := []string{"-p", prompt, "--output-format", "stream-json", "--verbose",
 		"--max-budget-usd", fmt.Sprintf("%.2f", budget),
 		"--append-system-prompt", p.system,
 		"--allowedTools", strings.Join(p.tools, ","),
 		"--disallowedTools", strings.Join(denied, ","),
-		"--add-dir", filepath.Join(os.Getenv("HOME"), "Desktop", "CREDITOP", "github")}
+		"--add-dir", filepath.Join(os.Getenv("HOME"), "Desktop", "CREDITOP", "github"),
+		// Sin servidores MCP: cada turno cargaba sus definiciones (~4.600 tokens, medido el 2026-11-02) y los agentes
+		// tienen bin/pg para lo mismo. El CLAUDE.md y los hooks del proyecto se quedan: traen las guardas.
+		"--strict-mcp-config"}
+	if p.Model != "" {
+		args = append(args, "--model", p.Model)
+	}
+	if p.Effort != "" {
+		args = append(args, "--effort", p.Effort)
+	}
 	if p.session != "" {
 		args = append(args, "--resume", p.session)
 	}
@@ -704,14 +785,15 @@ func (h *hub) claude(ctx context.Context, p *participant, prompt string, budget 
 	cmd.Env = childEnv()
 	out, err := cmd.StdoutPipe()
 	if err != nil {
-		return "", 0, err.Error()
+		return "", 0, usage{}, err.Error()
 	}
 	if err := cmd.Start(); err != nil {
-		return "", 0, "no pude lanzar claude: " + err.Error()
+		return "", 0, usage{}, "no pude lanzar claude: " + err.Error()
 	}
 	h.update(func(*state) { p.Status = "pensando" })
 	var result string
 	var cost float64
+	var use usage
 	var failed string
 	sc := bufio.NewScanner(out)
 	sc.Buffer(make([]byte, 1<<20), 32<<20)
@@ -722,8 +804,14 @@ func (h *hub) claude(ctx context.Context, p *participant, prompt string, budget 
 			SessionID string  `json:"session_id"`
 			Result    string  `json:"result"`
 			Cost      float64 `json:"total_cost_usd"`
-			IsError   bool    `json:"is_error"`
-			Message   struct {
+			Usage     struct {
+				In         int `json:"input_tokens"`
+				CacheWrite int `json:"cache_creation_input_tokens"`
+				CacheRead  int `json:"cache_read_input_tokens"`
+				Out        int `json:"output_tokens"`
+			} `json:"usage"`
+			IsError bool `json:"is_error"`
+			Message struct {
 				Content []struct {
 					Type  string          `json:"type"`
 					Text  string          `json:"text"`
@@ -755,6 +843,7 @@ func (h *hub) claude(ctx context.Context, p *participant, prompt string, budget 
 			}
 		case "result":
 			result, cost = ev.Result, ev.Cost
+			use = usage{Calls: 1, In: ev.Usage.In, CacheRead: ev.Usage.CacheRead, CacheWrite: ev.Usage.CacheWrite, Out: ev.Usage.Out, Cost: ev.Cost}
 			if ev.IsError {
 				failed = "el turno terminó con error: " + ev.Subtype
 			}
@@ -764,9 +853,9 @@ func (h *hub) claude(ctx context.Context, p *participant, prompt string, budget 
 		failed = "claude -p: " + err.Error()
 	}
 	if failed != "" && result != "" {
-		return result, cost, ""
+		return result, cost, use, ""
 	}
-	return result, cost, failed
+	return result, cost, use, failed
 }
 
 func childEnv() []string {
@@ -849,4 +938,56 @@ func mockReply(ctx context.Context, h *hub, p *participant) (string, float64) {
 		return "El número de cuotas sale de count o weeks en lenders.calculator. Corrección: la nota de la suite cita mal RiskCentralValidationService.\nAFIRMO: el plazo de renting sale de LenderCalculator::optionCount", 0
 	}
 	return "PASO", 0
+}
+
+/* report: el consumo de la llamada, por participante y del portero, en el canal y en sala/.llamadas/ (fuera de git),
+ * para comparar llamadas entre sí: elenco, modelos, modo. Los tokens son lo que cuenta contra el límite del asiento;
+ * los US$ son el equivalente a precio de API. */
+func (h *hub) report(task, why string) {
+	h.mu.Lock()
+	var b strings.Builder
+	var total usage
+	b.WriteString("Consumo de la llamada (tokens; US$ equivalentes a precio de API, no cobrados: corre con la suscripción):\n")
+	type row struct {
+		ID, Name, Model, Effort string
+		Use                     usage
+	}
+	var rows []row
+	for _, p := range h.st.Participants {
+		if p.Use.Calls == 0 {
+			continue
+		}
+		total.add(p.Use)
+		rows = append(rows, row{p.ID, p.Name, p.Model, p.Effort, p.Use})
+		fmt.Fprintf(&b, "· %s (%s, %s): %d turno(s), %d en PASO · entrada %s (+%s de caché) · salida %s · US$%.2f eq., %.2f en PASO\n",
+			p.Name, strings.TrimPrefix(p.Model, "claude-"), p.Effort, p.Use.Calls, p.Use.Passes,
+			kTokens(p.Use.In+p.Use.CacheWrite), kTokens(p.Use.CacheRead), kTokens(p.Use.Out), p.Use.Cost, p.Use.PassCost)
+	}
+	if h.st.Gate.Calls > 0 {
+		total.add(h.st.Gate)
+		fmt.Fprintf(&b, "· Portero (haiku-5-5): %d decisión(es) · entrada %s (+%s de caché) · salida %s · US$%.2f eq.\n",
+			h.st.Gate.Calls, kTokens(h.st.Gate.In+h.st.Gate.CacheWrite), kTokens(h.st.Gate.CacheRead), kTokens(h.st.Gate.Out), h.st.Gate.Cost)
+	}
+	fmt.Fprintf(&b, "Total: %d llamada(s) al modelo · entrada %s (+%s de caché) · salida %s · US$%.2f eq.; %d turno(s) fueron sólo PASO (US$%.2f eq.).",
+		total.Calls, kTokens(total.In+total.CacheWrite), kTokens(total.CacheRead), kTokens(total.Out), total.Cost, total.Passes, total.PassCost)
+	rec := map[string]any{"task": task, "mode": h.st.Mode, "mock": h.st.Mock, "ended": why, "at": time.Now().Format(time.RFC3339),
+		"budget": h.st.Budget, "participants": rows, "gate": h.st.Gate, "total": total, "claims": h.st.Claims}
+	mock := h.st.Mock
+	h.mu.Unlock()
+	h.say("moderador", "Moderador", b.String())
+	if mock {
+		return
+	}
+	dir := filepath.Join(h.root, "sala", ".llamadas")
+	if os.MkdirAll(dir, 0o755) == nil {
+		raw, _ := json.MarshalIndent(rec, "", "  ")
+		_ = os.WriteFile(filepath.Join(dir, time.Now().Format("20060102-150405")+"-"+task+".json"), raw, 0o644)
+	}
+}
+
+func kTokens(n int) string {
+	if n >= 1000 {
+		return fmt.Sprintf("%.1fk", float64(n)/1000)
+	}
+	return fmt.Sprint(n)
 }
