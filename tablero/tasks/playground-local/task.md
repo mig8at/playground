@@ -320,5 +320,7 @@ turno cueste un contexto entero; lo que sirvió de ella (que lo afirmado lo comp
 - [ ] Barrido · las suites que señalaron los dos: reemplazo de respuestas del formulario dinámico, cascada
   zona→ciudad en el wizard, formas de `alignedSplit`, cascada Ágil Data→TusDatos con `ONB005`, tipos de documento
   por país, el árbol de ciudades de form-service, la ciudad de cada sucursal contra el país de su comercio, la fianza
-  y el plan de Credifamilia, las fórmulas del renting y el catálogo de firmas de Motai. Termina cuando cada una corre con `make harness-suite` o queda descartada con su motivo.
+  y el plan de Credifamilia, las fórmulas del renting, el catálogo de firmas de Motai, editar un convenio que pisa la
+  garantía de otros comercios, guardar una sucursal con una entidad sin convenio, Ábaco según `abaco_is_enabled` y su
+  salto de buró, y que las opciones del formulario de SmartPay coincidan con su política de puntaje. Termina cuando cada una corre con `make harness-suite` o queda descartada con su motivo.
 
