@@ -131,7 +131,29 @@ Lo que Miguel escuchó del equipo (2026-11-02), contrastado con lo que ya está 
   sin rastro en el código leído. Puede explicar parte de los acuerdos en 0 %.
 - **Pendiente de preguntar a comercial:** por qué tantos acuerdos del agregador están en 0 % (no hay seguimiento
   ni en el Excel ni en `forecast`), qué es «IC», y qué parte de los intereses y la cobranza de CreditopX queda
-  para CreditOp.
+  para CreditOp. Confluence no contesta ninguna de las tres (buscado el 2026-11-02).
+
+### Lo que dice Confluence (leído el 2026-11-02)
+
+- **Gastos de cobranza de CreditopX** («Modelo de Cobro de Gastos en Cartera en Mora para Creditop X», id
+  587268098, jun-2026): la cobranza era un centro de costo (WhatsApp y llamadas con agentes de IA), y el gasto de
+  cobranza se propuso para recuperarlo y dar «revenue incremental para Creditop y el comercio», **sin decir cómo
+  se reparte**. Tarifa escalonada por días de mora, parametrizable por entidad y cobrada una vez por ciclo: gracia
+  de 1 a 5 días, $8.000 de 6 a 30, $20.000 de 31 a 60, $30.000 de 61 a 90 y $40.000 desde 90. Sólo CreditopX,
+  nunca el agregador, y sólo a créditos con la cláusula en el contrato. Estimaba ~$13,6 M por ciclo, del orden de
+  los 10 M al mes del Excel. En el pago del cliente, el gasto de cobranza es lo primero que se cubre (página «6.2 ·
+  Cartera CreditopX»). ⚠ El código cobra cuando los días de mora coinciden con el inicio del tramo, no «una vez por
+  ciclo» (ver [creditopx-portfolio-servicing](creditopx-portfolio-servicing/rules.md#gasto-de-cobranza-por-días-de-mora)).
+- **`lenders_by_allieds.comission_percentage` es del convenio comercio–entidad** («3.4 · Partner Management» y
+  «6.5 · Red comercial»): el convenio se firma entre el comercio y la entidad, y fija la comisión, costos
+  administrativos, seguros, fondo de garantía, IVA, cuota inicial y el subsidio de intereses que paga el comercio.
+  Inferencia sin confirmar: es lo que el comercio le paga a la entidad, no lo que gana CreditOp. Explicaría que
+  Welli con Sonría figure con 9 % ahí y con 1 % en la planilla de tarifas de CreditOp.
+- **Hay dos subsidios de intereses:** el que paga CreditOp, que es una promoción del producto de crédito
+  (`creditop_interest_subsidy`), y el que paga el comercio, que va en el convenio.
+- **Salud Financiera es la línea de negocio para el consumidor final** («6.6 · Salud financiera y beneficios»),
+  con su propio modelo de ingresos: la suscripción, más el beneficio por comprar con CreditopX. El precio y las
+  pruebas gratuitas los define la tienda de aplicaciones.
 
 ## Modelo comercial (2024, sin confirmar vigencia)
 
