@@ -313,9 +313,9 @@ turno cueste un contexto entero; lo que sirvió de ella (que lo afirmado lo comp
 - [x] Barrido · un verificador que no firme todo: marcó 28 de 28 con ✓ y la pasada a knowledge descartó partes de
   H16 y H17. Termina cuando un barrido real tiene algún ✗ o —, o una segunda mirada no encuentra nada que él aprobó.
   Con el prompt que le pide abrir cada cita y tomar como ✗ una parte falsa, el segundo barrido real dio 3 ✗ de 26.
-- [ ] Barrido · lo que el segundo dejó para la tarea, que son datos de prod: la tabla FNG de Credifamilia Materiales
-  vacía con su migración aplicada (¿corrió con otro `APP_ENV`?), dos sucursales de comercios peruanos en Bogotá y una
-  en el comodín de Colombia, y el RTO de Motai que firma la prenda. Termina cuando cada uno tiene dueño en
+- [ ] Barrido · lo que el segundo dejó para la tarea, que son datos de prod: dos sucursales de comercios peruanos en
+  Bogotá y una en el comodín de Colombia, y el RTO de Motai que firma la prenda. (La tabla FNG vacía ya está en
+  `incidencias`.) Termina cuando cada uno tiene dueño en
   `incidencias` o queda descartado con su motivo.
 - [ ] Barrido · las suites que señalaron los dos: reemplazo de respuestas del formulario dinámico, cascada
   zona→ciudad en el wizard, formas de `alignedSplit`, cascada Ágil Data→TusDatos con `ONB005`, tipos de documento

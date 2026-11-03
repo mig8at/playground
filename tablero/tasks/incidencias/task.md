@@ -76,6 +76,14 @@ Salvo donde se dice «corrido», salen de LEER el código: falta reproducirlos.
 
 ### Media — comportamiento distinto al esperado
 
+- [ ] Sembrar en prod la comisión FNG por plazo de Credifamilia Materiales (214), antes de que la entidad tenga
+  comercios. `lender_term_fng_percentages` está vacía en prod aunque su migración
+  (`2026_10_20_120100_seed_fng_percentages_for_credifamilia_materiales`) figura aplicada. El id lo elige
+  `app()->isProduction()`: corrió fuera de producción, buscó la 216, que entonces no existía, y salió sin insertar
+  ni fallar. Sin filas, todo plazo de Materiales da `INVALID_TERM`. ⚠ Hoy la 216 de prod es Keygo: volver a correr
+  esa migración con la misma imagen le cargaría la tabla FNG a Keygo. Termina cuando prod tiene los seis plazos del 214
+  y quien corre las migraciones de prod sabe que la imagen tiene que traer `APP_ENV=production`.
+  Depende de: quien aplica migraciones en prod — la siembra y el porqué.
 - [ ] Validar en el backoffice que una entidad cuyas categorías exigen codeudor tenga catálogo de documentos para esa
   rama. Verificado en `main` (2026-11-02): sin filas `requires_cosigner = 1` en `lender_signing_documents`, la
   autorización del titular difiere al codeudor sin numerar ni generar y la solicitud queda en el estado intermedio con
