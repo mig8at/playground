@@ -28,9 +28,8 @@ jira_title: "Perfil de riesgo visible para Superadmin y Admin comercio"
   comercio», sólo para el Administrador — commit 30df4c71; el guardado desde la pantalla no se probó.
 - [x] Crear la regla `viewRiskProfile` (`RiskProfilePolicy`) y usarla en la ruta, en `userValidation`
   y para dibujar el ojo — commit 30df4c71, probado en local (bloque del 2026-11-03).
-- [ ] Abrir el PR en `legacy-application` con la rama `feat/perfil-de-riesgo-por-comercio`; termina
-  con el PR abierto.
-  Depende de: Miguel — permiso para pushear y abrir el PR.
+- [x] Abrir el PR en `legacy-application` — [#365](https://github.com/Creditop-SAS/legacy-application/pull/365), contra `develop`.
+- [ ] Llevar #365 a revisión y mergearlo; termina con el PR mergeado en `develop`.
 - [ ] Probar el interruptor de punta a punta desde «Editar comercio» (guardar con Administrador; con
   otro rol con `update allied` no cambia); termina con la medición en la pila.
 - [x] Recortar `userValidation` a clientes con solicitudes en los comercios habilitados del usuario,
@@ -141,7 +140,7 @@ cliente de su listado (ve el perfil) → `/validacion-usuario?document_number=<c
 
 ## Referencias
 
-- [#170](pr:application#170) · [#171](pr:application#171)
+- [#170](pr:application#170) · [#171](pr:application#171) · [#365](pr:application#365)
 - [admin-panel](knowledge:admin-panel)
 - Comercio de ejemplo: https://admin.staging.creditop.com/aliados/94/usuarios
 
