@@ -147,6 +147,23 @@ los 5 resembraron y los 5 llegaron a la selección.
 
 ⚠ **Y con `lender` NO se le pasan `income`/`score`**: pisarían justo lo que la derivación calculó.
 
+## Ábaco y el pipeline de KYC: dos pantallas que el motor HTTP ya recorre (2026-11-02)
+
+- **`/abaco`** (Motai, ingresos de plataformas gig): el caminador aprieta «Continuar sin validar». El action de
+  esa pantalla registra el salto y le pregunta al backend a dónde sigue (`routes/abaco/index.tsx`). Si la solicitud
+  no puede saltarlo (`canSkip=false`, en los datos de `abaco-layout`), se detiene y lo dice: todavía no recorre
+  plataformas y OTP. ⚠ `abaco` es la ruta ÍNDICE de su layout: el POST va con `?index`, o React Router contesta 405.
+- **`/kyc-processing`** (comercios con pipeline de KYC v2, como Sonría): la pantalla no tiene botón. El caminador
+  hace lo que hace ella: postea el action (arranca la corrida, o la despierta con `intent=resume`), consulta
+  `kyc-status` y sigue a donde mande la respuesta (`PENDING_USER_DATA` → el formulario que pide · `COMPLETED` → el
+  destino del onboarding · `IDENTITY_MISMATCH`/`EXPIRED`/`FAILED` → fin). Un 429 de perfilamiento es el límite de
+  corridas por solicitud y trae cuándo reintentar: se espera, como la cuenta regresiva de la pantalla. La espera
+  total es `E2E_KYC_WAIT_MS` (default 180 s). En local pide `make harness-pipeline` levantado.
+- Lo que destaparon, medido en local con legacy-backend y el front en `feat/originacion-delegada` (no en `main`):
+  Motai por el wizard pasa Ábaco y la fecha de pago, y se cae con 500 en `payment-schedule`. El backend devuelve los
+  planes de renting con `schedule: []` y sin `isRevolvingIncrement`, y el esquema del front exige las dos cosas.
+  `main` sí manda `isRevolvingIncrement`: medilo contra `main` antes de darlo por defecto del producto.
+
 ## El login de ASESOR por consola
 
 El canal de asesor (`FLOW=merchant`, y el panel en ese canal) pide una sesión de Cognito. **No hace falta

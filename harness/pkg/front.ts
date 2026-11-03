@@ -333,4 +333,19 @@ export class FrontSession {
     enviar(path: string, form: Record<string, string | number | null | undefined> = {}): Promise<Answer> { return this.llamar('POST', path, form); }
     /** El `action` de una pantalla que espera JSON (el form dinámico backend-driven). */
     enviarJson(path: string, reqBody: unknown): Promise<Answer> { return this.llamar('POST', path, undefined, reqBody); }
+
+    /** Una ruta de RECURSO (sólo loader, devuelve JSON): lo que la pantalla pide con `fetch` desde el navegador,
+     *  como `kyc-status`. Va sin `.data` y con las cookies de la sesión. `null` si no contesta JSON. */
+    async recurso(path: string): Promise<{ status: number; json: any } | null> {
+        const headers: Record<string, string> = { accept: 'application/json', 'user-agent': UA_MOBILE };
+        const cookie = this.cookieHeader();
+        if (cookie) headers.cookie = cookie;
+        const t0 = Date.now();
+        const res = await fetch(`${this.base}${path}`, { headers, redirect: 'manual', signal: AbortSignal.timeout(this.timeoutGetMs) }).catch(() => null);
+        if (!res) return null;
+        this.guardarCookies(res);
+        this.bitacora.push({ t: Date.now() - this.t0, metodo: 'GET', ruta: path, status: res.status, ms: Date.now() - t0 });
+        const json = await res.json().catch(() => null);
+        return json === null ? null : { status: res.status, json };
+    }
 }

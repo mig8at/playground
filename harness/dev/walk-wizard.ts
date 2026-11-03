@@ -479,6 +479,7 @@ async function correr(c: Case, i: number): Promise<Result> {
     let phoneChanged = false;   // `E2E_CHANGE_PHONE`: corregir el celular en la firma, una vez
     let chosenLender: any = null;
     let reseeded = false;
+    let kycAnswered = '';   // el último pedido del pipeline de KYC que ya se atendió: al volver, ese mismo no cuenta
 
     for (let step = 0; step < MAX_STEPS && routePath; step++) {
         { const u = urOf(routePath); if (u) r.ur = u; }
@@ -523,6 +524,7 @@ async function correr(c: Case, i: number): Promise<Result> {
         const amount = q.get('amount') ?? String(AMOUNT);
         let form: Form | null = null;
         let jumpTo: string | null = null;
+        let postTo: string | null = null;   // a dónde va el POST si no es la misma ruta (el action de una ruta ÍNDICE)
 
         // ── cada pantalla: qué manda el navegador al apretar el botón ──
         if (sheet === 'solicitar') {
@@ -700,6 +702,74 @@ async function correr(c: Case, i: number): Promise<Result> {
             if (bad) return finish('trabado', `la firma del codeudor: ${bad}`);
             routePath = `${path.replace(/\/cosigner\/waiting-signature$/, '')}/loan-approved`;
             continue;
+        } else if (sheet === 'abaco') {
+            // Ábaco (ingresos de plataformas gig, Motai): la pantalla ofrece «Ir a Abaco» (plataformas + OTP) o
+            // «Continuar sin validar», cuyo action registra el salto y le pregunta al backend a dónde sigue
+            // (`routes/abaco/index.tsx`). El caminador salta, salvo que la solicitud no pueda (`canSkip`, que
+            // viene en los datos del layout): ahí lo dice en vez de adivinar.
+            const layout = Object.entries<any>(res.cuerpo ?? {}).find(([id]) => /abaco/.test(id) && /layout/.test(id))?.[1];
+            const ld = layout?.data ?? layout;
+            if (ld?.canSkip === false) {
+                return finish('trabado', 'ábaco: esta solicitud NO puede saltar la validación de ingresos (canSkip=false) y el caminador todavía no recorre plataformas y OTP');
+            }
+            log(`ábaco: «Continuar sin validar» (${Array.isArray(ld?.platforms) ? ld.platforms.length : '?'} plataforma(s) ofrecidas) — el salto lo registra el backend y él dice a dónde sigue`);
+            form = {};
+            // `abaco` es la ruta ÍNDICE de `abaco-layout`: sin `?index` el POST le llega al layout, que no tiene
+            // action, y React Router contesta 405. El navegador lo agrega solo; acá hay que pedirlo.
+            postTo = `${routePath}${routePath.includes('?') ? '&' : '?'}index`;
+        } else if (sheet === 'kyc-processing') {
+            // EL PIPELINE DE KYC v2 (comercios con `resolveKycFlow` = pipeline). La pantalla no tiene botón: al
+            // llegar postea su action (arranca la corrida, o la despierta con `intent=resume` si vuelve de un
+            // formulario), pollea `kyc-status` y navega según la respuesta (`kyc-processing.tsx`):
+            // PENDING_USER_DATA → el formulario que pide · COMPLETED → el destino del onboarding · el resto, fin.
+            const d = res.datos ?? {};
+            if (!d.statusUrl) return finish('trabado', `kyc-processing sin statusUrl: ${JSON.stringify(d).slice(0, 160)}`);
+            const deadline = Date.now() + Number(process.env.E2E_KYC_WAIT_MS ?? 180_000);
+            type Start = { started?: boolean; runId?: string; rateLimited?: boolean; notWaiting?: boolean; rateLimit?: { retryAfter?: number } | null };
+            let sb: Start = {};
+            for (;;) {
+                const started = await s.enviar(routePath, d.resumeRequested ? { intent: 'resume' } : {});
+                sb = (started.cuerpo?.data ?? started.cuerpo ?? {}) as Start;
+                // Un 429 de perfilamiento NO es una falla: limita las corridas por solicitud (cada una puede comprar
+                // centrales) y trae cuándo se puede volver a intentar. La pantalla muestra la cuenta regresiva y
+                // reintenta; acá se espera lo mismo, si cabe en la espera del caso.
+                const wait = (sb.rateLimit?.retryAfter ?? 0) * 1000 + 1_000;
+                if (!sb.rateLimited || !sb.rateLimit?.retryAfter || Date.now() + wait > deadline) break;
+                log(`kyc: límite de corridas por solicitud — la pantalla espera ${sb.rateLimit.retryAfter} s y reintenta; igual acá`);
+                await new Promise((ok) => setTimeout(ok, wait));
+            }
+            if (!sb.started && !sb.notWaiting) {
+                return finish('trabado', `kyc-processing: el pipeline no ${d.resumeRequested ? 'despertó' : 'arrancó'}${sb.rateLimited ? ' (límite de corridas por solicitud)' : ''} — en local hace falta \`make harness-pipeline\` (Temporal + perfilamiento + kyc-gateway)`);
+            }
+            log(`kyc: ${d.resumeRequested ? 'corrida despertada' : `corrida ${sb.runId || '(sin id)'} arrancada`} · consultando ${d.statusUrl}`);
+            const watched = d.resumeRequested ? '' : (sb.runId ?? '');
+            let next: string | null = null;
+            while (!next && Date.now() < deadline) {
+                const st = await s.recurso(`${d.statusUrl}${watched ? `?run_id=${encodeURIComponent(watched)}` : ''}`);
+                const b = st?.json ?? {};
+                const status = String(b.status ?? 'RUNNING');
+                const ask = `${b.pendingForm ?? ''}|${b.pendingReason ?? ''}|${b.pendingAttempt ?? 0}`;
+                if (status === 'PENDING_USER_DATA' && ask !== kycAnswered) {
+                    const url = b.pendingForm === 'employment' ? d.employmentInfoUrl
+                        : (b.pendingForm === 'personal' || !b.pendingForm) ? d.personalInfoUrl : null;
+                    if (url) {
+                        kycAnswered = ask;
+                        log(`kyc: pide el formulario ${b.pendingForm || 'personal'}${b.pendingReason ? ` (${b.pendingReason})` : ''}`);
+                        next = url;
+                        break;
+                    }
+                } else if (status === 'COMPLETED') {
+                    log('kyc: corrida COMPLETA → destino del onboarding');
+                    next = d.destinationUrl;
+                    break;
+                } else if (['IDENTITY_MISMATCH', 'EXPIRED', 'FAILED', 'CANCELED', 'TERMINATED'].includes(status)) {
+                    return finish(status === 'IDENTITY_MISMATCH' ? 'malo' : 'trabado', `kyc: la corrida terminó en ${status}`);
+                }
+                await new Promise((ok) => setTimeout(ok, 2_000));
+            }
+            if (!next) return finish('trabado', `kyc: la corrida no contestó en ${Math.round(Number(process.env.E2E_KYC_WAIT_MS ?? 180_000) / 1000)} s`);
+            routePath = next;
+            continue;
         } else if (/^identity-validation/.test(sheet)) {
             return finish('trabado', `pide validar identidad (${sheet})${flag('manual') ? ' A PESAR de la validación manual — eso es un hallazgo' : ' — corré con --manual para saltarla como lo haría el admin'}`);
         } else {
@@ -707,7 +777,7 @@ async function correr(c: Case, i: number): Promise<Result> {
         }
 
         // ── el POST (el botón) ──
-        const acc = await s.enviar(routePath, form!);
+        const acc = await s.enviar(postTo ?? routePath, form!);
         if (acc.status === 0) {
             // ⚠ UN TIMEOUT NO ES UNA CAÍDA: el backend sigue y suele terminar (F-180). Antes de decir
             // «no cerró» se vuelve a mirar la BD: si ya está sellada, cerró y lo que falló fue la espera.
