@@ -1,0 +1,271 @@
+<title>Finandina sobre originación delegada</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Newsreader:opsz,wght@6..72,500;6..72,600&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Documento técnico de una columna; el corte entre equipos se dibuja como dos carriles. */
+:root{
+  --bg:#f6f7f5; --paper:#ffffff; --fg:#1d2420; --muted:#5b665f; --line:#dde2dd;
+  --accent:#1f6b4f; --accent-soft:#e3efe8;
+  --core:#2f5d8a; --core-soft:#e4ecf5; --cx:#8a5a1f; --cx-soft:#f5ece0;
+  --warn:#9a3b2b; --warn-soft:#f6e6e2; --code:#eef1ee;
+  --display:"Newsreader", Georgia, serif;
+  --body:"IBM Plex Sans", system-ui, -apple-system, sans-serif;
+  --mono:"IBM Plex Mono", ui-monospace, Menlo, monospace;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#141917; --paper:#1b211e; --fg:#e4e9e5; --muted:#9aa69f; --line:#2e3833;
+  --accent:#6fc3a0; --accent-soft:#1f3229; --core:#8db5df; --core-soft:#1d2a38; --cx:#ddb07a; --cx-soft:#33281b;
+  --warn:#e8907d; --warn-soft:#3a221d; --code:#232b27; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#141917; --paper:#1b211e; --fg:#e4e9e5; --muted:#9aa69f; --line:#2e3833;
+  --accent:#6fc3a0; --accent-soft:#1f3229; --core:#8db5df; --core-soft:#1d2a38; --cx:#ddb07a; --cx-soft:#33281b;
+  --warn:#e8907d; --warn-soft:#3a221d; --code:#232b27; color-scheme:dark}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--fg);font:15px/1.6 var(--body);
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:40px 64px}
+.wrap{max-width:860px;margin:0 auto;display:flex;flex-direction:column;gap:40px}
+h1,h2,h3{font-family:var(--display);font-weight:600;text-wrap:balance;line-height:1.2;margin:0}
+h1{font-size:2.3rem}
+h2{font-size:1.55rem;padding-top:8px;border-top:1px solid var(--line)}
+h3{font-size:1.15rem}
+p,ul,ol{margin:0}
+section{display:flex;flex-direction:column;gap:14px;min-width:0}
+ul,ol{padding-left:1.2em;display:flex;flex-direction:column;gap:6px}
+code{font:0.86em var(--mono);background:var(--code);padding:1px 5px;border-radius:4px;overflow-wrap:anywhere}
+a{color:var(--accent)}
+.eyebrow{font:500 0.75rem var(--mono);letter-spacing:.08em;text-transform:uppercase;color:var(--accent)}
+.meta{display:grid;grid-template-columns:auto 1fr;gap:4px 16px;font-size:.9rem;color:var(--muted)}
+.meta b{color:var(--fg);font-weight:500}
+.lead{font-size:1.05rem}
+.tl{background:var(--paper);border:1px solid var(--line);border-radius:10px;padding:18px 20px}
+.tl ul{gap:10px}
+.table{overflow-x:auto;border:1px solid var(--line);border-radius:10px;background:var(--paper)}
+table{border-collapse:collapse;width:100%;font-size:.9rem;min-width:560px}
+th,td{text-align:left;vertical-align:top;padding:9px 12px;border-bottom:1px solid var(--line)}
+th{font-weight:600;font-size:.78rem;letter-spacing:.04em;text-transform:uppercase;color:var(--muted);background:var(--bg)}
+tr:last-child td{border-bottom:0}
+tr.hl td{background:var(--accent-soft)}
+td.num{font-family:var(--mono);white-space:nowrap}
+.pill{display:inline-block;font:500 .72rem var(--mono);padding:2px 8px;border-radius:99px;white-space:nowrap}
+.pill.no{background:var(--accent-soft);color:var(--accent)}
+.pill.si{background:var(--warn-soft);color:var(--warn)}
+.pill.core{background:var(--core-soft);color:var(--core)}
+.pill.cx{background:var(--cx-soft);color:var(--cx)}
+.note{border-left:3px solid var(--accent);background:var(--paper);padding:12px 16px;border-radius:0 8px 8px 0}
+.note.warn{border-color:var(--warn)}
+.note.ask{border-color:var(--cx)}
+/* carriles */
+.lanes{display:grid;grid-template-columns:1fr 1fr;gap:0;border-radius:10px;overflow:hidden;border:1px solid var(--line)}
+.lane{padding:16px 18px;display:flex;flex-direction:column;gap:10px;min-width:0}
+.lane.core{background:var(--core-soft)} .lane.cx{background:var(--cx-soft);border-left:2px dashed var(--fg)}
+.lane h3{font-family:var(--mono);font-size:.8rem;letter-spacing:.08em;text-transform:uppercase}
+.lane.core h3{color:var(--core)} .lane.cx h3{color:var(--cx)}
+.steps{list-style:none;padding:0;display:flex;flex-wrap:wrap;gap:6px}
+.steps li{background:var(--paper);border:1px solid var(--line);border-radius:6px;padding:4px 9px;font-size:.85rem}
+.steps li.cut{border-color:var(--fg);font-weight:600}
+@media (max-width:620px){.lanes{grid-template-columns:1fr}.lane.cx{border-left:0;border-top:2px dashed var(--fg)}h1{font-size:1.85rem}}
+.checks{counter-reset:c;list-style:none;padding:0}
+.checks li{counter-increment:c;position:relative;padding-left:30px}
+.checks li::before{content:counter(c);position:absolute;left:0;top:1px;width:20px;height:20px;border-radius:50%;background:var(--accent-soft);color:var(--accent);font:600 .72rem/20px var(--mono);text-align:center}
+</style>
+
+<div class="wrap">
+
+<header style="display:flex;flex-direction:column;gap:14px">
+  <span class="eyebrow">CORE-845 · CORE-918 · Loan Origination</span>
+  <h1>Banco Finandina sobre la originación delegada</h1>
+  <p class="lead">Cómo se atacó la tarea, qué cambió en el riel 4 para que sirva a cualquier entidad, cómo encaja Finandina y cómo se reparte el trabajo entre Core y CreditopX.</p>
+  <div class="meta">
+    <span>Para</span><b>Oscar</b>
+    <span>De</span><b>Miguel Ochoa</b>
+    <span>Fecha</span><b>3 de noviembre de 2026</b>
+    <span>PRs</span><b><a href="https://github.com/Creditop-SAS/legacy-backend/pull/1815">legacy-backend#1815</a> · <a href="https://github.com/Creditop-SAS/frontend-monorepo/pull/1314">frontend-monorepo#1314</a> · rama <code>feat/originacion-delegada</code>, contra <code>qa</code></b>
+  </div>
+  <p style="color:var(--muted);font-size:.9rem">Cada afirmación técnica lleva la ruta y la rama donde se comprueba. La última sección es una lista para que un agente lo verifique. Lo que no está comprobado se dice.</p>
+</header>
+
+<section>
+  <h2>Resumen</h2>
+  <div class="tl"><ul>
+    <li><b>Finandina es del tipo 4, no del 2.</b> El tipo de una entidad (<code>lenders.response_type</code>) dice de quién es la política de crédito. En el 2 y el 3 Creditop define cómo se presta. En el 4 la entidad nos dice cómo presta y Creditop origina por ella. Finandina dicta su política, origina con su nombre y desembolsa.</li>
+    <li><b>El tipo 4 sólo servía para Credifamilia.</b> Se entraba por el tipo, pero todo lo de adentro filtraba por los ids de Credifamilia. Al autorizar, cualquier otra entidad del tipo 4 recibía la radicación de Credifamilia y fallaba con un 422.</li>
+    <li><b>Primero se generalizó el riel (CORE-918, en PR); después va Finandina (CORE-845).</b> Ahora sumar Finandina es una fila de configuración más dos clases: de dónde salen sus insumos y cómo se le entrega la operación.</li>
+    <li><b>Reparto:</b> el corte es el listado de entidades. Core lleva a Finandina hasta el listado con una oferta preaprobada. CreditopX la lleva desde que el cliente la elige hasta el estado 11. El contrato entre los dos es qué devuelve la preaprobación.</li>
+  </ul></div>
+</section>
+
+<section>
+  <h2>El criterio de los rieles</h2>
+  <p>Lo acordado con Laura y Joel: el tipo se decide por de quién es la política, no por quién firma.</p>
+  <div class="table"><table>
+    <tr><th>Tipo</th><th>Nombre</th><th>Política</th><th>Quién origina</th><th>Ejemplos</th></tr>
+    <tr><td class="num">0</td><td>Redirección</td><td>de la entidad</td><td>la entidad, en su sitio</td><td>Addi, Sistecrédito</td></tr>
+    <tr><td class="num">1</td><td>Integrada</td><td>de la entidad</td><td>la entidad, por su API</td><td>Welli, Meddipay</td></tr>
+    <tr><td class="num">2</td><td>CreditopX consumo</td><td><b>de Creditop</b></td><td>Creditop</td><td></td></tr>
+    <tr><td class="num">3</td><td>CreditopX rotativo</td><td><b>de Creditop</b></td><td>Creditop</td><td></td></tr>
+    <tr class="hl"><td class="num">4</td><td><b>Originación delegada</b></td><td><b>de la entidad</b></td><td><b>Creditop, por la entidad</b></td><td>Credifamilia, Finandina</td></tr>
+  </table></div>
+  <p><code>externally_serviced</code> es otro eje: quién cobra la cartera. Un tipo 2 con cartera de otro (DENTIX, DFS, Alta Fleet) sigue con la política de Creditop. En canon: <code>entidad/context#el-eje-que-decide-todo-es-el-tipo-de-respuesta</code>.</p>
+</section>
+
+<section>
+  <h2>Cómo se atacó</h2>
+  <ol>
+    <li><b>Primera propuesta (28-10): tipo 2 con <code>externally_serviced = 1</code>.</b> Se descartó: el tipo 2 aplica la política de Creditop, no tiene dónde entregarle la operación a la entidad y, al autorizar, cancela las otras solicitudes pendientes del cliente.</li>
+    <li><b>El tipo 1 tampoco sirve:</b> Finandina no tiene una API que decida, y la firma no ocurre en su flujo.</li>
+    <li><b>Se midió el tipo 4 en el código.</b> Las puertas ya preguntaban por el tipo (<code>LoanAuthorizationService</code>, <code>PaymentDateService</code>, <code>ExternallyManagedPaymentScheduleService</code>, <code>ContinueUserFlowController</code>). Pero lo de adentro filtraba por los ids de Credifamilia: <code>CredifamiliaLenders::lenderIds()</code>, <code>CredifamiliaLenderProfile</code> (fallaba con otro id), las rutas <code>payment-plan/credifamilia/*</code>, la lista <code>DYNAMIC_PAYMENT_PLAN_LENDER_IDS</code> del front y la radicación SOAP al autorizar. Sin refactor, Finandina no completa el plan de pago y falla al autorizar.</li>
+    <li><b>El refactor fue en su propia tarea (CORE-918).</b> Así se prueba que Credifamilia, que está en producción, queda igual antes de sumar otra entidad. Copiar las piezas para Finandina se descartó porque deja dos implementaciones que divergen.</li>
+    <li><b>Por pasos, con foto de antes y después.</b> Antes de tocar nada se tomó una foto de Credifamilia Salud de punta a punta: seis endpoints del plan de pago, documentos firmados, pagaré y radicación. Después de cada paso salió idéntica.</li>
+  </ol>
+</section>
+
+<section>
+  <h2>El PR: originación delegada</h2>
+  <h3>legacy-backend #1815</h3>
+  <div class="table"><table>
+    <tr><th>Commit</th><th>Cambio</th></tr>
+    <tr><td class="num">26fe0cbe6</td><td><b>Rutas por slug:</b> <code>payment-plan/{lender_slug}/…</code>. La entidad debe existir y ser del tipo 4 (<code>DelegatedOriginationLenders::findBySlug</code>); si no, error <code>CP011</code>. Las rutas de Credifamilia siguen funcionando.</td></tr>
+    <tr><td class="num">05fc86d4a</td><td><b>El perfil pasa a una tabla:</b> <code>delegated_origination_profiles</code>, una fila por entidad. Dos migraciones: crearla y sembrar Credifamilia Salud y Materiales.</td></tr>
+    <tr><td class="num">e6d79b57c</td><td><b>Fuentes de insumos:</b> tasa, seguro, monto máximo y fianza salen de la fuente que nombra el perfil (<code>DelegatedOriginationInputs</code> y su registro). Credifamilia usa <code>CredifamiliaPreApprovalInputs</code>.</td></tr>
+    <tr><td class="num">c8e1845ea</td><td><b>Formalización por registro:</b> al autorizar se usa la que nombra el perfil (<code>DelegatedOriginationFormalization</code> y su registro). Sin formalización configurada no radica y deja un log. Ya no le aplica a otra entidad el paquete de Credifamilia.</td></tr>
+    <tr><td class="num">ce45c5d72</td><td><b>Renombre:</b> <code>PaymentPlan/Credifamilia/</code> pasa a <code>PaymentPlan/DelegatedOrigination/</code>. Lo propio de Credifamilia queda en su lugar.</td></tr>
+    <tr><td class="num">9081bb7fb</td><td><b>Limpieza:</b> una sola constante <code>RESPONSE_TYPE = 4</code>, pruebas en la carpeta del riel y textos con el nombre de la entidad.</td></tr>
+  </table></div>
+
+  <h3>La tabla del perfil</h3>
+  <p>Lo que cambia entre entidades sin escribir código. Valores de la migración <code>2026_10_30_120100_seed_delegated_origination_profiles_for_credifamilia</code>.</p>
+  <div class="table"><table>
+    <tr><th>Columna</th><th>Qué decide</th><th>Salud (24)</th><th>Materiales (214 prod · 216)</th></tr>
+    <tr><td><code>bond_percentage_source</code></td><td>de dónde sale el % de fianza</td><td><code>pre_approval</code></td><td><code>fng_table</code></td></tr>
+    <tr><td><code>forced_bond_type</code></td><td>tipo de fianza fijo</td><td>—</td><td><code>Anticipada</code></td></tr>
+    <tr><td><code>applies_four_per_thousand</code></td><td>si cobra 4x1000</td><td><code>true</code></td><td><code>false</code> (Santi lo pasa a <code>true</code>)</td></tr>
+    <tr><td><code>payment_days</code></td><td>días de pago ofrecidos</td><td><code>[2, 16]</code></td><td><code>[2, 16]</code></td></tr>
+    <tr><td><code>inputs_source</code></td><td>fuente de insumos</td><td colspan="2"><code>credifamilia_pre_approval</code></td></tr>
+    <tr><td><code>formalization</code></td><td>entrega al autorizar</td><td colspan="2"><code>credifamilia_radication</code></td></tr>
+  </table></div>
+
+  <h3>frontend-monorepo #1314</h3>
+  <p><code>supportsDynamicPaymentPlan(responseType)</code> pregunta por el riel (<code>LENDER_RESPONSE_TYPE.DELEGATED_ORIGINATION</code>, que vale 4) en vez de la lista de ids de Credifamilia. <code>LenderResponseType</code> ahora incluye el 4.</p>
+
+  <h3>Cómo se validó</h3>
+  <ul>
+    <li><b>Credifamilia Salud de punta a punta, en local:</b> tres casos llegan al estado 11 con radicación. Endpoints, documentos, pagaré y radicación salen idénticos antes y después de cada commit. La cuota de la tarjeta no cambia ($433.652 a 6 meses, $128.323 a 24).</li>
+    <li><b>Pruebas del área:</b> las del riel pasan. Las fallas que quedan ya existen en <code>qa</code>: 7 de la radicación SOAP, más las de <code>PaymentDateServiceTest</code> y <code>OnboardingPayloadBuilderTest</code>.</li>
+    <li><b>Front:</b> <code>build</code> y <code>tsc</code> en verde. Vitest falla en local también sobre <code>qa</code> limpio, así que no lo causa este cambio.</li>
+  </ul>
+  <div class="note warn"><b>Falta validar:</b> un recorrido con una entidad del tipo 4 que no sea Credifamilia (la primera será Finandina en qa) y el PR en qa con QA (Duncan).</div>
+
+  <h3>Despliegue</h3>
+  <ol>
+    <li><b>Correr las dos migraciones del perfil antes del código.</b> Mergear no las aplica, y sin la siembra Credifamilia no calcula su plan de pago. Dev, qa y staging comparten base: basta una vez. Prod, aparte.</li>
+    <li>Mergear el PR de Santi, después #1815 y #1314.</li>
+    <li>Validar en qa con Credifamilia Salud y Materiales.</li>
+  </ol>
+  <p><b>No cambia</b> la integración propia de Credifamilia: radicación SOAP, CrossCore, Evidente, Jumio, el reporte de bonificación, su adaptador en pre-approvals-service y el disparo de Experian.</p>
+
+  <h3>Lo que sigue atado a Credifamilia, fuera de este PR</h3>
+  <ul>
+    <li><code>available-lenders.tsx:271</code> (front): en el listado, sólo la preaprobación de Credifamilia no se cancela con la señal de la petición, porque es lenta.</li>
+    <li><code>lender-transaction-status.entity.ts:64</code> (front): caso propio de Credifamilia al leer el estado de la transacción.</li>
+    <li><code>PreApprovedLenderService.php:309-319</code> (backend): el registro de Credifamilia en la preaprobación, propio de su integración.</li>
+  </ul>
+</section>
+
+<section>
+  <h2>Cómo encaja Finandina</h2>
+  <div class="table"><table>
+    <tr><th>Pieza del riel</th><th>Cómo la resuelve Finandina</th><th>¿Código?</th></tr>
+    <tr><td>Pertenecer al riel</td><td>lender 149 con <code>response_type = 4</code></td><td><span class="pill no">configuración</span></td></tr>
+    <tr><td>Rutas del plan de pago</td><td><code>payment-plan/{slug}/…</code> funcionan solas</td><td><span class="pill no">no</span></td></tr>
+    <tr><td>Días de pago</td><td><code>payment_days = [5, 10, 15, 20]</code>, los de sus T&amp;C; falta que producto lo confirme</td><td><span class="pill no">fila</span></td></tr>
+    <tr><td>Fianza (aval FGA)</td><td><code>bond_percentage_source = pre_approval</code>; el 5 % o el 9 % según el score lo da la preaprobación</td><td><span class="pill no">fila</span></td></tr>
+    <tr><td>4x1000</td><td><code>applies_four_per_thousand</code>, según su política</td><td><span class="pill no">fila</span></td></tr>
+    <tr><td>Insumos</td><td>clase nueva que implementa <code>DelegatedOriginationInputs</code> y lee su preaprobación</td><td><span class="pill si">una clase</span></td></tr>
+    <tr><td>Firma</td><td>ya configurable por entidad: SigningV1 (<code>netco_lender_settings</code>) o el catálogo <code>lender_signing_documents</code>. Pagaré en Deceval con Finandina como beneficiaria (<code>promissory_type_id = 2</code>)</td><td><span class="pill no">configuración</span> + plantillas</td></tr>
+    <tr><td>Entrega al autorizar</td><td>clase nueva que implementa <code>DelegatedOriginationFormalization</code>, según cómo se acuerde la entrega</td><td><span class="pill si">una clase</span></td></tr>
+    <tr><td>Textos</td><td>salen con el nombre de la entidad</td><td><span class="pill no">no</span></td></tr>
+  </table></div>
+  <div class="note"><b>Lo que destraba la fase 1.</b> En la fase 1 la entrega es manual: el analista de Finandina descarga las operaciones del dashboard de Creditop. Con <code>formalization = null</code>, la autorización llega al 11 sin radicar y sin fallar. Así Finandina sale sin esperar la integración de la entrega. Producto tiene que aceptarlo, porque depende de qué significa «autorizada» para Finandina.</div>
+</section>
+
+<section>
+  <h2>Reparto entre equipos</h2>
+  <p>El corte es el listado. Core lleva a Finandina hasta que el cliente la ve con una oferta preaprobada, o no la ve porque no cumple. CreditopX la lleva desde que el cliente la elige hasta el estado 11 con la operación entregada.</p>
+  <div class="lanes">
+    <div class="lane core"><h3>Core</h3>
+      <ul class="steps"><li>Entrada del comercio</li><li>KYC e identidad</li><li>Buró: Experian, Mareigua</li><li class="cut">Listado + preaprobación</li></ul></div>
+    <div class="lane cx"><h3>CreditopX</h3>
+      <ul class="steps"><li class="cut">Elige Finandina</li><li>Plan de pago</li><li>Firma</li><li>Autorización (11)</li><li>Entrega a Finandina</li></ul></div>
+  </div>
+
+  <h3>Core: hasta el listado</h3>
+  <div class="table"><table>
+    <tr><th></th><th>Trabajo</th><th>Depende de</th></tr>
+    <tr><td><span class="pill core">C1</span></td><td>Configurar la 149 como tipo 4 y asignarla a los comercios de la fase 1</td><td>—</td></tr>
+    <tr><td><span class="pill core">C2</span></td><td>Filtros del listado: edad 21–64, empleado o pensionado, ingreso ≥ 1 SMMLV, municipios de la tabla de zonas (DANE)</td><td>si entran los independientes</td></tr>
+    <tr><td><span class="pill core">C3</span></td><td>Experian y Mareigua con las llaves de Finandina, y el riesgo del empleador de Mareigua</td><td>entrega de las llaves</td></tr>
+    <tr><td><span class="pill core">C4</span></td><td>Identidad ADO (biometría, listas, fraude)</td><td>—</td></tr>
+    <tr><td><span class="pill core">C5</span></td><td>Llamar a la preaprobación con la clave <code>banco-finandina</code> y mostrar la oferta o el rechazo</td><td>el contrato de la preaprobación</td></tr>
+    <tr><td><span class="pill core">C6</span></td><td>Revisar el trato de preaprobación lenta de <code>available-lenders.tsx:271</code> para Finandina</td><td>medir su latencia</td></tr>
+  </table></div>
+
+  <h3>CreditopX: del listado al 11</h3>
+  <div class="table"><table>
+    <tr><th></th><th>Trabajo</th><th>Depende de</th></tr>
+    <tr><td><span class="pill cx">X1</span></td><td>La fila de Finandina en <code>delegated_origination_profiles</code></td><td>días de pago y FGA</td></tr>
+    <tr><td><span class="pill cx">X2</span></td><td>Fuente de insumos: convierte su preaprobación en <code>annual_effective_rate</code>, <code>life_insurance_percentage</code>, <code>max_amount</code>, <code>guarantee_percentage</code>, <code>guarantee_type</code></td><td>el contrato de la preaprobación</td></tr>
+    <tr><td><span class="pill cx">X3</span></td><td>Plan de pago (opciones, fechas, cuotas, resumen, comprobante): ya funciona por el riel; falta configurar y validar en qa</td><td>X1, X2</td></tr>
+    <tr><td><span class="pill cx">X4</span></td><td>Firma: formulario de vinculación, T&amp;C y pagaré en Deceval</td><td>plantillas corregidas, certificación de Deceval (CRED-463)</td></tr>
+    <tr><td><span class="pill cx">X5</span></td><td>Autorización y entrega: <code>formalization = null</code> en la fase 1, o la clase de entrega</td><td>qué es «autorizada», cómo se entrega</td></tr>
+    <tr><td><span class="pill cx">X6</span></td><td>Lo que Finandina ve después: dashboard o archivo semanal</td><td>acuerdo con Finandina</td></tr>
+  </table></div>
+
+  <h3>El contrato entre los dos: la preaprobación</h3>
+  <p>La política de Finandina (capacidad de pago, veces el ingreso por segmento, experiencia por monto, score 646, FGA) se decide en la preaprobación. Corre en el listado, pero la propuesta es que la ejecute el motor de cupo de CreditopX: el adaptador <code>creditop_x</code> en pre-approvals-service, con la clave <code>banco-finandina</code>. La respuesta aprobada tiene que traer en <code>transaction_data</code> la tasa, el seguro de vida, el monto máximo y el % y tipo de fianza. Es la misma frontera que ya usa Credifamilia.</p>
+  <div class="note ask"><b>Decisión para Oscar.</b> ¿La política de Finandina dentro del motor de cupo la lleva CreditopX, por ser su motor, o Core, porque se ejecuta antes del listado? La propuesta es CreditopX: Core entrega los datos (C3, C4) y la llamada (C5), y así política y plan de pago quedan en el mismo equipo.</div>
+
+  <h3>Orden sugerido</h3>
+  <ol>
+    <li>CORE-918 a qa: migraciones, luego los PRs; validar Credifamilia con QA.</li>
+    <li>En paralelo: Core arranca C1–C4; CreditopX define el contrato y arranca X1–X2 con una preaprobación simulada.</li>
+    <li>Integración en qa: un caso dentro de la política llega al 11; uno fuera no recibe oferta.</li>
+    <li>Firma y entrega (X4–X6) a medida que se destraben Deceval y las decisiones de producto.</li>
+  </ol>
+</section>
+
+<section>
+  <h2>Decisiones abiertas</h2>
+  <div class="table"><table>
+    <tr><th>Decisión</th><th>Afecta</th><th>Dueño</th></tr>
+    <tr><td>Qué política rige: la de agosto o el PRD de enero (monto mínimo, veces el ingreso, topes, score)</td><td>contrato</td><td>producto + Finandina</td></tr>
+    <tr><td>De qué dato del buró sale el segmento AA…Z, y la fila «AA» duplicada</td><td>contrato</td><td>riesgo de Finandina</td></tr>
+    <tr><td>Qué significa «autorizada»: 11 al firmar, o un estado intermedio hasta que Finandina confirme</td><td>X5</td><td>producto</td></tr>
+    <tr><td>Cómo se entrega la operación: dashboard manual o canal automático</td><td>X5, X6</td><td>producto + Finandina</td></tr>
+    <tr><td>Si el FGA se financia dentro del capital y quién lo cobra</td><td>X1, X2</td><td>producto</td></tr>
+    <tr><td>Días de pago: 5, 10, 15 o 20</td><td>X1</td><td>producto</td></tr>
+    <tr><td>Si los independientes entran</td><td>C2</td><td>producto</td></tr>
+    <tr><td>Llaves de Experian y Mareigua</td><td>C3</td><td>producto + Finandina</td></tr>
+    <tr><td>Certificación de Deceval (CRED-463, bloqueada)</td><td>X4</td><td>Hans</td></tr>
+  </table></div>
+</section>
+
+<section>
+  <h2>La rama de Santi</h2>
+  <p><code>feature/credifamilia-materiales</code>. El front ya está en qa y nuestro chequeo por riel lo reemplaza. En el backend hay dos commits sin PR: agregar proveedor y fianza a los documentos entra limpio; el 4x1000 de Materiales se resuelve poniendo <code>applies_four_per_thousand = true</code> en la siembra. Los 3 casos oficiales de Credifamilia pasan sobre nuestra rama. Abre su PR contra <code>feat/originacion-delegada</code> y entra antes de migrar qa; si la siembra ya corrió, hace falta una migración que actualice Materiales.</p>
+</section>
+
+<section>
+  <h2>Para verificar este documento</h2>
+  <p>Contra la rama <code>feat/originacion-delegada</code> de cada repo, salvo que se diga otra cosa.</p>
+  <ol class="checks">
+    <li>En <code>origin/qa</code>, las puertas del tipo 4 preguntan por el tipo: <code>Modules/Loans/App/Services/LoanAuthorizationService.php</code>, <code>PaymentDateService.php</code>, <code>PaymentSchedule/ExternallyManagedPaymentScheduleService.php</code>, <code>Customer/ContinueUserFlowController.php</code>.</li>
+    <li>En <code>origin/qa</code>, el riel filtraba por <code>CredifamiliaLenders::lenderIds()</code> y la autorización radicaba con <code>CredifamiliaFormalizationService</code> para cualquier tipo 4.</li>
+    <li>En la rama, <code>app/Services/PaymentPlan/DelegatedOrigination/</code> no filtra por ids; <code>findBySlug</code> exige el tipo 4; <code>DelegatedOriginationLenderProfile::forLender</code> lee la tabla; los registros de insumos y formalizaciones resuelven por clave.</li>
+    <li>En <code>LoanAuthorizationService::formalizeExternalManagedIfApplicable</code>, con <code>formalization() === null</code> se escribe un log y se retorna sin excepción.</li>
+    <li>En el front, <code>supportsDynamicPaymentPlan</code> compara con <code>LENDER_RESPONSE_TYPE.DELEGATED_ORIGINATION</code>.</li>
+    <li><code>git grep -i finandina origin/qa</code> en legacy-backend no devuelve nada: lo de Finandina está por construir.</li>
+    <li><b>No comprobado:</b> que <code>creditop_x</code> devuelva hoy esos campos en <code>transaction_data</code>; los días de pago de Finandina; un recorrido con una entidad del tipo 4 distinta de Credifamilia.</li>
+  </ol>
+</section>
+
+</div>
