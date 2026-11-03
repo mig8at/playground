@@ -19,19 +19,18 @@ jira_title: "Perfil de riesgo visible para Superadmin y Admin comercio"
 - [ ] Definir con producto si el perfil se recorta a los datos del propio comercio: hoy muestra el
   historial del cliente en TODOS los comercios por los que pasó; termina con la respuesta en la pila.
   Depende de: producto — recorte por comercio.
-- [ ] Confirmar quién prende el interruptor del comercio (sólo Administrador) y en qué comercios va
-  primero; termina con la lista de comercios en la pila.
-  Depende de: producto — qué comercios.
+- [ ] Conseguir la lista de comercios a habilitar y cargarla con
+  `UPDATE allieds SET allow_risk_profile_view = 1 WHERE id IN (...)` en cada ambiente; termina con
+  la lista en la pila.
+  Depende de: Oscar — qué comercios.
 - [x] Confirmar en qué repo va la migración de la columna nueva de `allieds` — en `legacy-application`,
   como `2026_06_03_120000_add_production_date_to_allieds_table`; la decisión está en la pila.
-- [x] Agregar la columna `allow_risk_profile_view` (por defecto `false`) y su interruptor en «Editar
-  comercio», sólo para el Administrador — commit 30df4c71; el guardado desde la pantalla no se probó.
+- [x] Agregar la columna `allow_risk_profile_view` (por defecto `false`) — commit 30df4c71. El
+  interruptor en «Editar comercio» se quitó en 09ef13bc: Oscar quiere habilitarlo por base de datos.
 - [x] Crear la regla `viewRiskProfile` (`RiskProfilePolicy`) y usarla en la ruta, en `userValidation`
   y para dibujar el ojo — commit 30df4c71, probado en local (bloque del 2026-11-03).
 - [x] Abrir el PR en `legacy-application` — [#365](https://github.com/Creditop-SAS/legacy-application/pull/365), contra `develop`.
 - [ ] Llevar #365 a revisión y mergearlo; termina con el PR mergeado en `develop`.
-- [ ] Probar el interruptor de punta a punta desde «Editar comercio» (guardar con Administrador; con
-  otro rol con `update allied` no cambia); termina con la medición en la pila.
 - [x] Recortar `userValidation` a clientes con solicitudes en los comercios habilitados del usuario,
   y si no, 403 sin datos — probado en local; el recorte del historial por comercio no se pudo ver
   por HTTP (ver bloque).
@@ -76,8 +75,8 @@ Experian) sigue cerrado salvo que producto decida otra cosa.
 Se habilita por COMERCIO, no por rol: un interruptor en `allieds` y una regla en el servidor que lo
 lee. El permiso de Spatie del rol no se toca.
 
-1. **Columna en `allieds`** (booleana, `false` por defecto) con su interruptor en «Editar comercio»,
-   que sólo ve y guarda el Administrador.
+1. **Columna en `allieds`** (booleana, `false` por defecto). Sin pantalla: se habilita con un
+   `UPDATE` por comercio (decisión de Oscar).
 2. **Regla única** (Gate o policy `viewRiskProfile(User $viewer, ?User $client)`):
    - Administrador: como hoy, con `view user validation module`.
    - Superadmin o Admin comercio: algún comercio suyo (`allied_id` o `multiple_allieds`) con el
