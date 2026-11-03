@@ -35,8 +35,8 @@ jira_title: "Perfil de riesgo visible para Superadmin y Admin comercio"
   comercios habilitados (bloque en la pila). Falta en prod, al pasar a `main`.
 - [x] Validar en dev con el comercio 37 habilitado y en 0 — 2026-11-03, sólo sus administradores ven a su
   cliente; el flag quedó en 0 (bloques en la pila). La pantalla de dev no se recorrió con sesión.
-- [ ] Pasar a `main` con un PR `develop` → `main` y taguear; en prod, correr la migración y el
-  `UPDATE` con los comercios de Oscar.
+- [ ] Mergear [#366](https://github.com/Creditop-SAS/legacy-application/pull/366) (gemelo de #365 directo a
+  `main`) y taguear; en prod, correr la migración y el `UPDATE` con los comercios de Oscar.
   Depende de: Oscar — aprobar el PR a `main` y la lista de comercios.
 - [x] Recortar `userValidation` a clientes con solicitudes en los comercios habilitados del usuario,
   y si no, 403 sin datos — probado en local; el recorte del historial por comercio no se pudo ver
@@ -146,7 +146,7 @@ cliente de su listado (ve el perfil) → `/validacion-usuario?document_number=<c
 
 ## Referencias
 
-- [#170](pr:application#170) · [#171](pr:application#171) · [#365](pr:application#365)
+- [#170](pr:application#170) · [#171](pr:application#171) · [#365](pr:application#365) · [#366](pr:application#366)
 - [admin-panel](knowledge:admin-panel)
 - Comercio de ejemplo: https://admin.staging.creditop.com/aliados/94/usuarios
 
