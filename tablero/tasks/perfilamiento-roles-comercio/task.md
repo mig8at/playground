@@ -12,45 +12,21 @@ jira_title: "Perfil de riesgo visible para Superadmin y Admin comercio"
 
 ## Pendientes
 
-- [ ] Definir con producto qué ven Superadmin comercio y Admin comercio: sólo el perfil del cliente
-  (`validacion-usuario`) o también la consulta manual a Datacrédito, que dispara una consulta nueva y
-  facturable al buró; termina con la respuesta en la pila.
-  Depende de: producto — alcance (perfil sí/no, consulta a Experian sí/no).
-- [ ] Definir con producto si el perfil se recorta a los datos del propio comercio: hoy muestra el
-  historial del cliente en TODOS los comercios por los que pasó; termina con la respuesta en la pila.
-  Depende de: producto — recorte por comercio.
-- [ ] Conseguir la lista de comercios a habilitar; en cada ambiente, cargarla en el setting
-  `allied_ids_with_risk_profile_view` y darles `view user validation module` a sus Superadmin y Admin
-  comercio (los dos pasos están en #366); termina con la lista en la pila.
+- [x] Versión final: permiso `view user validation module` + recorte a los clientes del comercio, sin setting
+  ni migración — 1050eddb, en [#366](https://github.com/Creditop-SAS/legacy-application/pull/366) (main) y
+  [#367](https://github.com/Creditop-SAS/legacy-application/pull/367) (develop).
+- [ ] Mergear #367 y validar en dev: dar el permiso a un Admin comercio del 37, comprobar que ve sólo a su
+  cliente y revocarlo; termina con la medición en la pila.
+- [ ] Mergear #366 a `main` y taguear; termina con el despliegue en prod.
+  Depende de: Oscar — aprobar #366.
+- [ ] Dar el permiso a los Admin y Superadmin comercio de los comercios que diga Oscar, en cada ambiente;
+  termina con la lista en la pila.
   Depende de: Oscar — qué comercios.
-- [x] Confirmar en qué repo va la migración de la columna nueva de `allieds` — en `legacy-application`,
-  como `2026_06_03_120000_add_production_date_to_allieds_table`; la decisión está en la pila.
-- [x] Agregar la columna `allow_risk_profile_view` (por defecto `false`) — commit 30df4c71. El
-  interruptor en «Editar comercio» se quitó en 09ef13bc: Oscar quiere habilitarlo por base de datos.
-- [x] Crear la regla `viewRiskProfile` (`RiskProfilePolicy`) y usarla en la ruta, en `userValidation`
-  y para dibujar el ojo — commit 30df4c71, probado en local (bloque del 2026-11-03).
-- [x] Abrir el PR en `legacy-application` — [#365](https://github.com/Creditop-SAS/legacy-application/pull/365), contra `develop`.
-- [x] Mergear #365 en `develop` — a21fcfbc, desplegado en dev el 2026-11-03.
-- [x] Correr la migración del flag en la base compartida de dev, qa y staging — 2026-11-03, batch 331, 0
-  comercios habilitados (bloque en la pila). Falta en prod, al pasar a `main`.
-- [x] Validar en dev con el comercio 37 habilitado y en 0 — 2026-11-03, sólo sus administradores ven a su
-  cliente; el flag quedó en 0 (bloques en la pila). La pantalla de dev no se recorrió con sesión.
-- [x] Pushear 063a1136 (columna → settings) — actualiza #366 a `main`; PR a `develop`:
-  [#367](https://github.com/Creditop-SAS/legacy-application/pull/367).
-- [x] Dejar todo en un solo PR con las dos reglas (permiso + comercio) — d5cc7fde en #366; #367 cerrado.
-- [ ] Cuando #366 llegue a `develop` (sincronización `main` → `develop`), correr su migración en la base
-  compartida (quita la columna del batch 331 y crea el setting) y validar en dev con permiso + `[37]`.
-- [ ] Mergear [#366](https://github.com/Creditop-SAS/legacy-application/pull/366) (gemelo de #365 directo a
-  `main`) y taguear; en prod, correr la migración y el `UPDATE` con los comercios de Oscar.
-  Depende de: Oscar — aprobar el PR a `main` y la lista de comercios.
-- [x] Recortar `userValidation` a clientes con solicitudes en los comercios habilitados del usuario,
-  y si no, 403 sin datos — probado en local; el recorte del historial por comercio no se pudo ver
-  por HTTP (ver bloque).
+- [ ] Quitar de la base compartida la columna `allieds.allow_risk_profile_view` que dejó #365, cuando #367
+  esté en dev; termina con la columna fuera.
+  Depende de: Miguel — permiso para escribir en la base compartida.
 - [ ] Cerrar `legacy-application#171`: su contenido ya está en `main` por el merge de `develop`
   (#170); termina con el PR cerrado y una nota de por qué.
-- [ ] Probar en staging con un Admin comercio del comercio 94: ve el ojo y el perfil de un cliente de
-  su listado, recibe 403 con un cliente de otro comercio; termina con la medición en la pila.
-  Depende de: que `staging` traiga el cambio de #170 (hoy su ruta no lleva el `can:`).
 
 ## Objetivo
 
