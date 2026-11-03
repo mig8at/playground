@@ -37,8 +37,10 @@ contar la hora. Salida: esperar, o usar otra cédula (y cargarla en el paso 2).
 ## 3 · Comprar en VTEX
 
 Tienda https://develop--creditop.myvtex.com: el workspace de desarrollo de la cuenta de pruebas `creditop`, con la app
-`creditop.creditop` v5 instalada y apuntando a qa. No hace falta ninguna consola ni login de VTEX para comprar: se
-elige Creditop como medio de pago y el checkout lleva al wizard de qa.
+`creditop.creditop` v5 instalada y apuntando a qa. No hace falta ninguna consola, pero sí sesión: es un workspace de
+desarrollo y sólo abre con un usuario de la cuenta. Entrá primero a la raíz (pide el login de VTEX); sin sesión, el
+carrito (`/checkout/#/cart`) da «Sorry, an error occurred while processing your request». Con sesión, se elige
+Creditop como medio de pago y el checkout lleva al wizard de qa.
 
 Datos de la persona: un celular y un correo de prueba tuyos. El correo no puede ser el de una cuenta de administrador en
 qa (el registro dice «correo ya registrado»): usá uno aparte, como `tu-nombre-test@creditop.com`. El código OTP llega a
