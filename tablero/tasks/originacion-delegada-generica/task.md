@@ -19,7 +19,12 @@ ramas: originacion-delegada
   Keygo, y el 214 queda sin perfil). Termina con las cuatro cosas medidas en prod.
 - [ ] Que el front sondee la preaprobación de Materiales como la de Salud: `fetchLenderPreApproval` sólo hace polling
   con `lender.id === 24`, y un `pending` de Credifamilia vía el alias deja la tarjeta de Materiales en error.
-  Termina con una tarjeta de Materiales en qa que espera y resuelve. Depende de: front.
+  Termina con una tarjeta de Materiales en qa que espera y resuelve. Depende de: front. **Visto en el front de qa
+  (2026-11-03, uReq 504414):** la tarjeta de Materiales mostró «No pudimos consultar esta entidad · Reintentar»,
+  mientras pre-approvals contestaba `approved` con el alias al consultarlo directo.
+- [ ] Comprobar en prod si el SSR del front llama a `GET customer/requests/{id}` sin user-agent de celular: en qa ese
+  pedido sale con `user-agent: node`, `RedirectIdValidationIfDesktop` lo toma por escritorio, responde 403 y puede
+  mandarle al cliente el enlace de «continuar en el celular» (una vez por día).
 - [ ] Que el comprobante PDF de Materiales use el payload del riel: `VoucherService` lo arma sólo para el 24 y
   `config/documents.php` enruta `voucher-disbursement` al pdf-mapper sólo para el 24; Materiales sale con el Blade
   genérico, sin fianza ni 4x1000. Revisar también `client_code` (busca la transacción del 24).
