@@ -294,6 +294,14 @@ como un participante más: escribe, interrumpe o corta.
 - **Arquitecto:** dónde se decide algo en `main`, en los dos monolitos. Sólo lectura (`git grep`, `knowledge/`).
 - **Probador:** escribe y corre las comprobaciones (harness contra local, `tarea-verify`, lecturas de `bin/pg`) y
   avisa cuando termina.
+- **Verificador** (desde el 2026-11-02): no propone nada; revisa las afirmaciones ajenas volviendo a la fuente
+  (`git grep`/`git show` contra main, `bin/pg`), premisa incluida. Nadie revisa lo suyo: todo entra «sin comprobar».
+- **Investigador** (`knowledge/`, trampas, tareas viejas, Confluence, Jira), **Negocio** (`business-context`,
+  Confluence, Canon), **Diseño** (`make visor-*`, `estilo-check`, `estilo-contraste`), **Datos** (prod en sólo
+  lectura, sin datos de personas) y **Escriba** (al cierre deja UN bloque con lo comprobado; es el único que escribe,
+  y sólo en la tarea).
+- **Convocatoria:** una casilla por rol y elencos por tipo de tarea (`defecto`: herramientas, arquitecto, probador,
+  datos y verificador · `pantalla` · `negocio` · `clasico`).
 - Cada agente es una sesión de `claude -p` que se retoma turno a turno (`--resume`), con su rol en el prompt de
   sistema, sus herramientas permitidas y un tope de gasto por turno. Nadie edita archivos, commitea ni corre el
   harness contra prod.
@@ -310,7 +318,7 @@ como un participante más: escribe, interrumpe o corta.
   llamada sigue; corrección en prosa → C3, refutada por el probador con COMPRUEBO); falta verlo en una llamada real.
   La segunda llamada real se cortó por el tope de gasto antes de un TERMINÉ: la ronda de objeciones sigue sin
   verse con agentes reales.
-- [ ] Un VERIFICADOR que sólo lee (`git grep`/`git show` contra main, `bin/pg`), separado del probador: «comprobada» sólo
+- [ ] (hecho en el código y probado simulado el 2026-11-02; falta una llamada real) Un VERIFICADOR que sólo lee (`git grep`/`git show` contra main, `bin/pg`), separado del probador: «comprobada» sólo
   cuando la revisa alguien que no la dijo. En la segunda llamada el probador no pudo revisar ningún `git grep` (su rol
   no lo tenía) y marcó «comprobada» una consulta propia con el rango de ids equivocado. Una afirmación en prosa sin
   comando queda «sin comando», no «refutada». Termina cuando una llamada real no deja ninguna afirmación propia

@@ -11,7 +11,7 @@
   html, body { height: 100%; margin: 0; }
   body {
     background: var(--background); color: var(--foreground); font-family: var(--font-sans); font-size: 13px;
-    display: grid; grid-template-rows: auto 1fr auto; height: 100vh;
+    display: grid; grid-template-rows: auto auto 1fr auto; height: 100vh;
   }
   header {
     display: flex; gap: 8px; align-items: center; padding: 8px 12px; min-height: 40px;
@@ -19,6 +19,10 @@
   }
   header .title { font-weight: 600; margin-right: 8px; }
   header input { width: 140px; }
+  select { font: inherit; color: var(--foreground); background: var(--background); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 4px 6px; }
+  .roles { display: flex; flex-wrap: wrap; gap: 4px 14px; padding: 6px 12px; border-bottom: 1px solid var(--border); background: var(--card); }
+  .roles label { font-size: 12px; }
+  .roles label span { color: var(--foreground); }
   input, button {
     font: inherit; color: var(--foreground); background: var(--background);
     border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 4px 8px;
@@ -30,15 +34,15 @@
   .meta { margin-left: auto; color: var(--muted-foreground); }
   main { display: grid; grid-template-columns: 1fr 340px; min-height: 0; }
   .stage { display: grid; grid-template-rows: auto 1fr; min-height: 0; border-right: 1px solid var(--border); }
-  .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; padding: 12px; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 8px; padding: 8px 12px; max-height: 45vh; overflow-y: auto; }
   .tile {
     background: var(--card); color: var(--card-foreground); border: 1px solid var(--border);
-    border-radius: var(--radius-lg); padding: 12px; min-height: 140px; display: flex; flex-direction: column; gap: 6px;
+    border-radius: var(--radius-lg); padding: 8px 10px; min-height: 84px; display: flex; flex-direction: column; gap: 4px;
     transition: box-shadow .2s, border-color .2s;
   }
   .tile.speaking { border-color: var(--ring); box-shadow: 0 0 0 2px var(--ring); }
   .avatar {
-    width: 40px; height: 40px; border-radius: 50%; display: grid; place-items: center; font-weight: 700;
+    width: 32px; height: 32px; flex: none; border-radius: 50%; display: grid; place-items: center; font-weight: 700; font-size: 12px;
     background: var(--accent); color: var(--accent-foreground);
   }
   .tile .who { display: flex; gap: 10px; align-items: center; }
@@ -66,6 +70,7 @@
   .badge { font-size: 11px; padding: 0 6px; border-radius: var(--radius-sm); border: 1px solid var(--border); color: var(--muted-foreground); white-space: nowrap; }
   .badge.comprobada { border-color: var(--primary); color: var(--foreground); }
   .badge.refutada { border-color: var(--destructive); color: var(--foreground); }
+  .badge.sin.comando { border-style: dashed; }
   .claim.refutada > div:not(.cmd):not(.tag):not(.head) { text-decoration: line-through; }
   footer { display: flex; gap: 8px; padding: 8px 12px; border-top: 1px solid var(--border); background: var(--card); min-height: 30px; }
   footer input { flex: 1; }
@@ -79,11 +84,13 @@
   <label>Tarea <input id="task" placeholder="id o slug" value="86"></label>
   <label>Rondas <input id="rounds" type="number" min="1" max="6" value="3" style="width:56px"></label>
   <label>Tope US$ <input id="budget" type="number" min="0.5" max="10" step="0.5" value="3" style="width:64px"></label>
+  <label>Elenco <select id="preset"></select></label>
   <label><input id="mock" type="checkbox"> Simulada</label>
   <button class="primary" id="start">Empezar llamada</button>
   <button id="stop" disabled>Cortar</button>
   <span class="meta" id="meta">sin llamada</span>
 </header>
+<div class="roles" id="roles"></div>
 <main>
   <section class="stage">
     <div class="grid" id="grid"></div>
@@ -117,7 +124,7 @@ function render(st) {
   const people = [...st.participants, { id: 'miguel', name: 'Miguel', role: 'tú', status: 'esperando', doing: '', cost: 0, turns: 0 }];
   $('grid').innerHTML = people.map((p) => {
     const speaking = p.status === 'pensando';
-    const initials = p.name.split(' ').map((w) => w[0]).slice(0, 2).join('').toUpperCase();
+    const initials = p.name.split(' ').filter((w) => /^\p{L}/u.test(w) && w.length > 2).map((w) => w[0]).slice(0, 2).join('').toUpperCase() || p.name[0];
     return `<div class="tile ${speaking ? 'speaking' : ''} ${p.status === 'error' ? 'error' : ''}">
       <div class="who"><div class="avatar">${esc(initials)}</div>
         <div><div class="name">${esc(p.name)}</div><div class="role">${esc(p.role)}</div></div></div>
@@ -147,9 +154,22 @@ function render(st) {
 const post = (url, body) => fetch(url, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body || {}) })
   .then(async (r) => { if (!r.ok) alert(await r.text()); });
 
-$('start').onclick = () => post('/api/start', {
-  task: $('task').value.trim(), rounds: Number($('rounds').value), budget: Number($('budget').value), mock: $('mock').checked,
+const roles = () => [...document.querySelectorAll('#roles input:checked')].map((i) => i.value);
+let presets = {};
+fetch('/api/roles').then((r) => r.json()).then((d) => {
+  presets = d.presets;
+  $('roles').innerHTML = d.roles.map((r) => `<label title="${esc(r.role)}"><input type="checkbox" value="${esc(r.id)}"> <span>${esc(r.name)}</span></label>`).join('');
+  $('preset').innerHTML = Object.keys(presets).map((k) => `<option value="${esc(k)}">${esc(k)}</option>`).join('') + '<option value="">a mano</option>';
+  $('preset').value = 'defecto';
+  const apply = () => { const ids = presets[$('preset').value]; if (!ids) return; document.querySelectorAll('#roles input').forEach((i) => { i.checked = ids.includes(i.value); }); };
+  $('preset').onchange = apply;
+  $('roles').addEventListener('change', () => { $('preset').value = ''; });
+  apply();
 });
+$('start').onclick = () => {
+  if (!roles().length) { alert('Convocá al menos un rol.'); return; }
+  post('/api/start', { task: $('task').value.trim(), rounds: Number($('rounds').value), budget: Number($('budget').value), mock: $('mock').checked, roles: roles() });
+};
 $('stop').onclick = () => post('/api/stop');
 const send = () => { const v = $('say').value.trim(); if (!v) return; post('/api/say', { text: v }); $('say').value = ''; };
 $('send').onclick = send;

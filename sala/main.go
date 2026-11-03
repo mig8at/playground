@@ -103,31 +103,104 @@ const common = `Estás en una LLAMADA de trabajo con otros agentes y con Miguel,
 	`va SIEMPRE como AFIRMO con su comando: una corrección dicha en prosa no se comprueba. ` +
 	`Si no tenés nada útil que agregar en tu turno, decí sólo «PASO». Cuando el moderador abra una RONDA DE OBJECIONES, ` +
 	`contestá sólo «CONFORME» o «OBJECIÓN: <qué queda abierto y con qué se comprobaría>». ` +
-	`No edites archivos, no commitees y no corras nada contra producción salvo lecturas de bin/pg.`
+	`No edites archivos, no commitees y no corras nada contra producción salvo lecturas de bin/pg. ` +
+	`Lo que afirma otro no lo des por cierto: queda «sin comprobar» hasta que lo revisa alguien que no lo dijo.`
 
-func roster() []*participant {
-	return []*participant{
-		{ID: "herramientas", Name: "Experto en herramientas", Role: "dice con qué se hace cada paso",
-			system: common + ` TU ROL: experto en las herramientas del playground. Arrancás con «make agente N=<tarea>» y, en cada turno, ` +
+/* LOS ROLES. Cada uno tiene algo que sólo él hace: dos con las mismas herramientas se repiten y se paga dos veces.
+ * Se convocan por tarea (`presets`); el orden de palabra es el de `order`, y el escriba habla una sola vez, al cierre. */
+var (
+	order   = []string{"investigador", "negocio", "herramientas", "arquitecto", "diseno", "datos", "probador", "verificador"}
+	presets = map[string][]string{
+		"defecto":  {"herramientas", "arquitecto", "probador", "datos", "verificador"},
+		"pantalla": {"diseno", "arquitecto", "probador", "verificador"},
+		"negocio":  {"investigador", "negocio", "datos", "verificador"},
+		"clasico":  {"herramientas", "arquitecto", "probador"},
+	}
+	read = []string{"Read", "Grep", "Glob"}
+)
+
+func definitions() map[string]*participant {
+	with := func(extra ...string) []string { return append(append([]string{}, read...), extra...) }
+	gitMain := []string{"Bash(git grep *)", "Bash(git -C *)", "Bash(git show *)", "Bash(git log *)", "Bash(go run ./cmd/repos *)"}
+	return map[string]*participant{
+		"investigador": {ID: "investigador", Name: "Investigador", Role: "trae lo que ya se sabe",
+			system: common + ` TU ROL: investigador. Traés lo que ya se sabe antes de que alguien lo redescubra: temas de knowledge/ (make knowledge-search, ` +
+				`knowledge-read, knowledge-check), las trampas del tablero (tablero/data/traps/doc.md, por su índice de síntomas), tareas viejas (make tareas, ` +
+				`make retomar) y la documentación del equipo (bin/pg confluence search|read, bin/pg jira search). Citás la fuente de cada cosa. Si un tema tiene ` +
+				`fuentes cambiadas en main, lo decís antes de usarlo. El silencio de la biblioteca no es «no existe».`,
+			tools: with("Bash(make knowledge-*)", "Bash(make retomar *)", "Bash(make tareas *)", "Bash(make trampas *)",
+				"Bash(bin/pg confluence *)", "Bash(bin/pg jira search *)", "Bash(bin/pg tareas *)", "Bash(bin/pg tarea pila *)")},
+		"negocio": {ID: "negocio", Name: "Negocio", Role: "el porqué: política, contrato, comercio",
+			system: common + ` TU ROL: negocio. Explicás el porqué de una regla: política, contrato, qué se le prometió al comercio, cómo gana CreditOp. ` +
+				`Fuentes: knowledge/business-context.md, bin/pg confluence y, si hace falta, Canon (make canon-search / canon-read). Separás siempre lo ` +
+				`comprobado en código de lo que es documento o comentario, y lo que nadie sabe lo dejás como pregunta para comercial.`,
+			tools: with("Bash(bin/pg confluence *)", "Bash(make canon-search *)", "Bash(make canon-read *)", "Bash(make knowledge-*)")},
+		"herramientas": {ID: "herramientas", Name: "Experto en herramientas", Role: "dice con qué se hace cada paso",
+			system: common + ` TU ROL: experto en las herramientas del playground. Arrancás con «make agente N=<tarea> ENV=1» y, en cada turno, ` +
 				`decís qué comando conviene para lo que se está discutiendo (make harness-doctor, harness-case, tarea-verify, knowledge-search, bin/pg…) ` +
-				`y qué trampa del tablero puede tocarlo. No investigás el código ni corrés pruebas: eso es de los otros.`,
-			tools: []string{"Read", "Grep", "Glob", "Bash(make agente *)", "Bash(make harness-doctor *)", "Bash(make knowledge-*)",
-				"Bash(make retomar *)", "Bash(make trampas *)", "Bash(make tareas *)", "Bash(make)", "Bash(grep *)"}},
-		{ID: "arquitecto", Name: "Arquitecto", Role: "dónde se decide en main",
+				`y qué trampa del tablero puede tocarlo. Antes de afirmar qué dice un archivo, leelo entero o buscá por la clave que usa de verdad. ` +
+				`No investigás el código ni corrés pruebas: eso es de los otros.`,
+			tools: with("Bash(make agente *)", "Bash(make harness-doctor *)", "Bash(make knowledge-*)",
+				"Bash(make retomar *)", "Bash(make trampas *)", "Bash(make tareas *)", "Bash(make)", "Bash(grep *)")},
+		"arquitecto": {ID: "arquitecto", Name: "Arquitecto", Role: "dónde se decide en main",
 			system: common + ` TU ROL: arquitecto. Decís dónde se decide lo que se discute en el código de main, mirando SIEMPRE los dos monolitos ` +
 				`(legacy-backend y legacy-application) con git grep / git show contra origin/main, y qué patrón seguir. Citás archivo:línea. Sólo lees.`,
-			tools: []string{"Read", "Grep", "Glob", "Bash(git grep *)", "Bash(git -C *)", "Bash(git show *)", "Bash(git log *)",
-				"Bash(make knowledge-*)", "Bash(go run ./cmd/repos *)"}},
-		{ID: "probador", Name: "Probador", Role: "comprueba corriendo y avisa al terminar",
+			tools: with(append(gitMain, "Bash(make knowledge-*)")...)},
+		"diseno": {ID: "diseno", Name: "Diseño", Role: "la pantalla contra Figma y el sistema visual",
+			system: common + ` TU ROL: diseño. Para tareas de pantalla comparás lo que hay con Figma y con el sistema visual: make visor-url U='<lo que ` +
+				`pegó Miguel>' (lo que pega es el ANCLA: no salís a buscar otras pantallas), visor-pantalla, visor-tokens, visor-componentes, visor-fidelidad; ` +
+				`y en las herramientas del playground, make estilo-check y estilo-contraste. Los colores salen de los tokens, nunca a mano.`,
+			tools: with("Bash(make visor-*)", "Bash(make estilo-check*)", "Bash(make estilo-contraste*)", "Bash(bin/pg figma *)")},
+		"datos": {ID: "datos", Name: "Datos (prod)", Role: "¿pasa de verdad, y cuánto?",
+			system: common + ` TU ROL: datos. Contestás «¿esto pasa de verdad, y cuánto?» midiendo producción en SÓLO LECTURA: bin/pg sql --target prod, ` +
+				`bin/pg events errors|request, bin/pg request timeline, bin/pg logs. Decís siempre la ventana que mediste. Nunca traés a la llamada datos ` +
+				`de personas (nombres, cédulas, celulares, correos): sólo conteos y estados.`,
+			tools: with("Bash(bin/pg sql *)", "Bash(bin/pg events *)", "Bash(bin/pg request *)", "Bash(bin/pg logs *)",
+				"mcp__playground__sql", "mcp__playground__events_errors", "mcp__playground__request_timeline")},
+		"probador": {ID: "probador", Name: "Probador", Role: "comprueba corriendo y avisa al terminar",
 			system: common + ` TU ROL: probador. Lo que se afirma lo comprobás CORRIENDO, contra el ambiente local (harness-case, harness-listing, ` +
 				`harness-suite, harness-walk-wizard, tarea-verify) o leyendo con bin/pg. Antes de concluir, mirá el ambiente con make harness-doctor TARGET=local. ` +
-				`En cada turno recibís las afirmaciones de la pizarra que nadie comprobó: comprobá las que puedas y respondé por cada una con una línea ` +
-				`«COMPRUEBO: C<n> | ✓ o ✗ | <el comando que corriste>». ` +
+				`Antes de consultar por ids, sacalos de la salida de tu corrida: no los adivines por rango. ` +
 				`Cuando la tarea esté comprobada (o no se pueda), empezá tu mensaje con «TERMINÉ» y decí qué quedó probado y con qué comando.`,
-			tools: []string{"Read", "Grep", "Glob", "Bash(make harness-case *)", "Bash(make harness-listing *)", "Bash(make harness-suite *)",
+			tools: with("Bash(make harness-case *)", "Bash(make harness-listing *)", "Bash(make harness-suite *)",
 				"Bash(make harness-walk-wizard *)", "Bash(make harness-doctor *)", "Bash(make tarea-verify *)", "Bash(make agente *)",
-				"Bash(bin/pg sql *)", "Bash(bin/pg request *)", "Bash(bin/pg client *)", "mcp__playground__sql", "mcp__playground__request_timeline"}},
+				"Bash(bin/pg sql *)", "Bash(bin/pg request *)", "Bash(bin/pg client *)", "mcp__playground__sql", "mcp__playground__request_timeline")},
+		"verificador": {ID: "verificador", Name: "Verificador", Role: "comprueba lo que dicen los demás",
+			system: common + ` TU ROL: verificador. No proponés nada propio: en cada turno recibís las afirmaciones de la pizarra que nadie comprobó y ` +
+				`las revisás vos, sin repetir el razonamiento de quien las dijo: volvés a la fuente (git grep / git show contra origin/main en los dos ` +
+				`monolitos, bin/pg, leer el archivo entero). Comprobá también la PREMISA (qué ids, qué rama, qué clave), no sólo que el comando corre. ` +
+				`Por cada una, una línea «COMPRUEBO: C<n> | ✓, ✗ o — | <el comando que corriste>», donde — es «no trae comando y no se puede comprobar».`,
+			tools: with(append(gitMain, "Bash(bin/pg sql *)", "Bash(bin/pg request *)", "Bash(grep *)", "mcp__playground__sql")...)},
+		"escriba": {ID: "escriba", Name: "Escriba", Role: "deja el bloque en la tarea al cierre",
+			system: common + ` TU ROL: escriba. Hablás una sola vez, cuando la llamada terminó: escribís UN bloque en la tarea con ` +
+				`bin/pg tarea bloque --tarea <N> --titulo '<la conclusión, menos de 120 caracteres>' --cuerpo '<lo que la sostiene>'. ` +
+				`Entra SÓLO lo que la pizarra tiene comprobado por alguien que no lo dijo, cada cosa con su comando en una caja «sh» seguida de «Resultado: …». ` +
+				`Lo refutado o sin comprobar va aparte, como lo que quedó abierto. Es lo único que escribís.`,
+			tools: with("Bash(bin/pg tarea bloque *)")},
 	}
+}
+
+// roster: los convocados, en el orden de palabra. Sin selección válida, el elenco clásico.
+func roster(selected []string) []*participant {
+	defs := definitions()
+	want := map[string]bool{}
+	for _, id := range selected {
+		if defs[id] != nil {
+			want[id] = true
+		}
+	}
+	if len(want) == 0 {
+		for _, id := range presets["clasico"] {
+			want[id] = true
+		}
+	}
+	var out []*participant
+	for _, id := range append(append([]string{}, order...), "escriba") {
+		if want[id] {
+			out = append(out, defs[id])
+		}
+	}
+	return out
 }
 
 type hub struct {
@@ -169,7 +242,7 @@ func (h *hub) say(who, name, text string) {
 
 var (
 	reClaim = regexp.MustCompile(`(?m)^\s*AFIRMO:\s*(.+?)(?:\s*\|\s*COMANDO:\s*(.+?))?\s*$`)
-	reCheck = regexp.MustCompile(`(?m)^\s*COMPRUEBO:\s*(C[0-9]+)\s*\|\s*(✓|✗)\s*(?:\|\s*(.+?))?\s*$`)
+	reCheck = regexp.MustCompile(`(?m)^\s*COMPRUEBO:\s*(C[0-9]+)\s*\|\s*(✓|✗|—)\s*(?:\|\s*(.+?))?\s*$`)
 	// Una corrección dicha al pasar: la de la primera llamada real («la nota de la suite cita mal…») era falsa y
 	// no entró a la pizarra porque no venía como AFIRMO. Léxico a propósito: mejor una de más, punteada.
 	reProse = regexp.MustCompile(`(?i)[^.\n]*(corrección|corrijo|hay que corregir|cita mal|no es correcto|es incorrect|se equivoc)[^.\n]*`)
@@ -183,7 +256,7 @@ func main() {
 		log.Fatal("corré la sala desde la raíz del playground (make sala)")
 	}
 	h := &hub{subs: map[chan []byte]bool{}, root: root}
-	h.st = state{Participants: roster(), Messages: []message{}, Claims: []claim{}}
+	h.st = state{Participants: roster(nil), Messages: []message{}, Claims: []claim{}}
 
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path != "/" {
@@ -196,6 +269,15 @@ func main() {
 	// El tema es UNO para todas las herramientas: se sirve desde su fuente, no se copia.
 	http.HandleFunc("/theme.css", func(w http.ResponseWriter, r *http.Request) {
 		http.ServeFile(w, r, filepath.Join(root, "tools", "ui", "theme.css"))
+	})
+	http.HandleFunc("/api/roles", func(w http.ResponseWriter, r *http.Request) {
+		defs := definitions()
+		var roles []map[string]string
+		for _, id := range append(append([]string{}, order...), "escriba") {
+			roles = append(roles, map[string]string{"id": id, "name": defs[id].Name, "role": defs[id].Role})
+		}
+		w.Header().Set("content-type", "application/json")
+		_ = json.NewEncoder(w).Encode(map[string]any{"roles": roles, "presets": presets})
 	})
 	http.HandleFunc("/api/events", h.events)
 	http.HandleFunc("/api/start", h.start)
@@ -247,10 +329,11 @@ func (h *hub) events(w http.ResponseWriter, r *http.Request) {
 
 func (h *hub) start(w http.ResponseWriter, r *http.Request) {
 	var in struct {
-		Task   string  `json:"task"`
-		Rounds int     `json:"rounds"`
-		Budget float64 `json:"budget"`
-		Mock   bool    `json:"mock"`
+		Task   string   `json:"task"`
+		Rounds int      `json:"rounds"`
+		Budget float64  `json:"budget"`
+		Mock   bool     `json:"mock"`
+		Roles  []string `json:"roles"`
 	}
 	if json.NewDecoder(r.Body).Decode(&in) != nil || strings.TrimSpace(in.Task) == "" {
 		http.Error(w, "falta la tarea", 400)
@@ -273,7 +356,7 @@ func (h *hub) start(w http.ResponseWriter, r *http.Request) {
 	}
 	ctx, cancel := context.WithCancel(context.Background())
 	h.cancel = cancel
-	h.st = state{Task: in.Task, Mock: in.Mock, Running: true, Rounds: in.Rounds, Budget: in.Budget, Participants: roster(),
+	h.st = state{Task: in.Task, Mock: in.Mock, Running: true, Rounds: in.Rounds, Budget: in.Budget, Participants: roster(in.Roles),
 		Messages: []message{}, Claims: []claim{}}
 	h.publish()
 	h.mu.Unlock()
@@ -283,6 +366,8 @@ func (h *hub) start(w http.ResponseWriter, r *http.Request) {
 // meeting es el moderador: arma el contexto de la tarea, da la palabra por turnos y decide cuándo se corta.
 func (h *hub) meeting(ctx context.Context, task string) {
 	end := func(why string) {
+		h.say("moderador", "Moderador", "Se cierra la llamada: "+why+".")
+		h.scribe(ctx, task)
 		h.update(func(s *state) {
 			s.Running, s.Ended = false, why
 			for _, p := range s.Participants {
@@ -292,19 +377,32 @@ func (h *hub) meeting(ctx context.Context, task string) {
 				p.Doing = ""
 			}
 		})
-		h.say("moderador", "Moderador", "Se cierra la llamada: "+why+".")
 	}
 	brief, err := h.brief(task)
 	if err != nil {
 		end("no pude leer la tarea: " + err.Error())
 		return
 	}
-	h.say("moderador", "Moderador", fmt.Sprintf("Arranca la llamada sobre la tarea %s. Orden de palabra: herramientas → arquitecto → probador.", task))
+	h.mu.Lock()
+	var names []string
+	for _, p := range h.st.Participants {
+		if p.ID != "escriba" {
+			names = append(names, p.Name)
+		}
+	}
+	h.mu.Unlock()
+	h.say("moderador", "Moderador", fmt.Sprintf("Arranca la llamada sobre la tarea %s. Orden de palabra: %s.", task, strings.Join(names, " → ")))
 	h.say("moderador", "Moderador", "Contexto de la tarea (make agente):\n"+brief)
 
 	for round := 1; ; round++ {
 		h.mu.Lock()
-		rounds, parts := h.st.Rounds, h.st.Participants
+		rounds := h.st.Rounds
+		var parts []*participant
+		for _, p := range h.st.Participants {
+			if p.ID != "escriba" { // el escriba habla una vez, al cierre
+				parts = append(parts, p)
+			}
+		}
 		h.st.Round = round
 		h.publish()
 		h.mu.Unlock()
@@ -325,12 +423,15 @@ func (h *hub) meeting(ctx context.Context, task string) {
 				end(fmt.Sprintf("se llegó al tope de US$%.2f", h.st.Budget))
 				return
 			}
+			h.mu.Lock()
+			before := len(h.st.Claims)
+			h.mu.Unlock()
 			text := h.turn(ctx, p, task, min(left, 1.0))
 			switch {
 			case strings.HasPrefix(strings.TrimSpace(text), "PASO"):
 				passes++
 			case p.ID == "probador" && strings.HasPrefix(strings.TrimSpace(text), "TERMINÉ"):
-				if h.objections(ctx, parts, task) {
+				if h.objections(ctx, parts, task, before) {
 					end("el probador la dio por comprobada y nadie objetó")
 					return
 				}
@@ -354,7 +455,7 @@ func (h *hub) meeting(ctx context.Context, task string) {
 /* objections: antes de cerrar por un TERMINÉ, cada uno de los otros dice CONFORME u OBJECIÓN. En la primera
  * llamada real el probador cerró con dos pendientes a la vista (S3 contra main, F-246) y nadie pudo objetar.
  * Devuelve true si nadie objetó. */
-func (h *hub) objections(ctx context.Context, parts []*participant, task string) bool {
+func (h *hub) objections(ctx context.Context, parts []*participant, task string, since int) bool {
 	h.update(func(s *state) { s.Objecting = true })
 	defer h.update(func(s *state) { s.Objecting = false })
 	h.say("moderador", "Moderador", "El probador da la tarea por terminada. Ronda de objeciones: ¿queda algo abierto? CONFORME u OBJECIÓN.")
@@ -373,10 +474,58 @@ func (h *hub) objections(ctx context.Context, parts []*participant, task string)
 			objected = true
 		}
 	}
+	// Lo que el probador afirmó al cerrar se revisa en esta misma ronda: si el verificador lo refuta, es una objeción.
+	h.mu.Lock()
+	for _, c := range h.st.Claims[min(since, len(h.st.Claims)):] {
+		if c.Status == "refutada" {
+			objected = true
+		}
+	}
+	h.mu.Unlock()
 	if objected {
 		h.say("moderador", "Moderador", "Hay objeciones: sigue la llamada y el probador las atiende en su próximo turno.")
 	}
 	return !objected && ctx.Err() == nil
+}
+
+// isChecker: quién revisa la pizarra. El verificador si está convocado; si no, el probador (que no revisa lo suyo).
+func (h *hub) isChecker(p *participant) bool {
+	if p.ID == "verificador" {
+		return true
+	}
+	if p.ID != "probador" {
+		return false
+	}
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	for _, q := range h.st.Participants {
+		if q.ID == "verificador" {
+			return false
+		}
+	}
+	return true
+}
+
+/* scribe: si el escriba está convocado, habla una vez al cierre y deja el bloque en la tarea con lo que la pizarra
+ * tiene comprobado. Corre aunque la llamada se haya cortado por tope: lo que se gastó tiene que quedar escrito. */
+func (h *hub) scribe(ctx context.Context, task string) {
+	h.mu.Lock()
+	var sc *participant
+	for _, p := range h.st.Participants {
+		if p.ID == "escriba" {
+			sc = p
+		}
+	}
+	var board []string
+	for _, c := range h.st.Claims {
+		board = append(board, fmt.Sprintf("%s [%s] %s: %s · comando: %s · revisado con: %s", c.ID, c.Status, c.Who, c.Claim, orNone(c.Command), orNone(c.Check)))
+	}
+	h.mu.Unlock()
+	if sc == nil || ctx.Err() != nil {
+		return
+	}
+	h.say("moderador", "Moderador", "Pizarra final para el escriba:\n"+strings.Join(board, "\n"))
+	h.turn(ctx, sc, task, 0.5)
 }
 
 func orNone(s string) string {
@@ -426,11 +575,11 @@ func (h *hub) turn(ctx context.Context, p *participant, task string, budget floa
 	for _, m := range msgs {
 		fmt.Fprintf(&b, "[%s] %s\n\n", m.Name, m.Text)
 	}
-	if p.ID == "probador" {
+	if h.isChecker(p) {
 		h.mu.Lock()
 		var open []string
 		for _, c := range h.st.Claims {
-			if c.Status == "sin comprobar" {
+			if c.Status == "sin comprobar" && c.Who != p.Name { // nadie revisa lo suyo
 				open = append(open, fmt.Sprintf("%s · %s: %s (comando: %s)", c.ID, c.Who, c.Claim, orNone(c.Command)))
 			}
 		}
@@ -441,6 +590,7 @@ func (h *hub) turn(ctx context.Context, p *participant, task string, budget floa
 	}
 	b.WriteString("Es tu turno.")
 
+	checker := h.isChecker(p)
 	var text, errText string
 	var cost float64
 	if mock {
@@ -467,10 +617,9 @@ func (h *hub) turn(ctx context.Context, p *participant, task string, budget floa
 					return
 				}
 			}
+			// Todo entra sin comprobar, también lo que corrió el probador: en la segunda llamada real una consulta suya
+			// con el rango de ids equivocado quedó «comprobada» porque corrió. La revisa alguien que no la dijo.
 			c.ID, c.Who, c.Status = fmt.Sprintf("C%d", len(s.Claims)+1), p.Name, "sin comprobar"
-			if p.ID == "probador" && c.Command != "" {
-				c.Status, c.Check = "comprobada", c.Command // lo afirma quien lo corrió
-			}
 			s.Claims = append(s.Claims, c)
 		}
 		for _, m := range reClaim.FindAllStringSubmatch(text, -1) {
@@ -480,11 +629,11 @@ func (h *hub) turn(ctx context.Context, p *participant, task string, budget floa
 		for _, m := range reProse.FindAllString(prose, -1) {
 			add(claim{Claim: strings.TrimSpace(m), Prose: true})
 		}
-		if p.ID == "probador" {
+		if checker {
 			for _, m := range reCheck.FindAllStringSubmatch(text, -1) {
 				for i := range s.Claims {
-					if s.Claims[i].ID == m[1] {
-						s.Claims[i].Status = map[string]string{"✓": "comprobada", "✗": "refutada"}[m[2]]
+					if s.Claims[i].ID == m[1] && s.Claims[i].Who != p.Name {
+						s.Claims[i].Status = map[string]string{"✓": "comprobada", "✗": "refutada", "—": "sin comando"}[m[2]]
 						s.Claims[i].Check = m[3]
 					}
 				}
@@ -613,8 +762,37 @@ func mockReply(ctx context.Context, h *hub, p *participant) (string, float64) {
 	}
 	h.mu.Lock()
 	round, objecting := h.st.Round, h.st.Objecting
+	var checks []string
+	for _, c := range h.st.Claims {
+		if c.Status == "sin comprobar" && c.Who != p.Name {
+			mark := "✓"
+			if c.Prose {
+				mark = "—"
+			}
+			checks = append(checks, fmt.Sprintf("COMPRUEBO: %s | %s | git -C legacy-backend grep -n … origin/main", c.ID, mark))
+		}
+	}
 	h.mu.Unlock()
 	switch {
+	case p.ID == "verificador":
+		if len(checks) == 0 {
+			return map[bool]string{true: "CONFORME", false: "PASO"}[objecting], 0
+		}
+		lead := "Revisé lo que quedó abierto."
+		if objecting {
+			lead = "CONFORME, después de revisar lo que afirmó el probador."
+		}
+		return lead + "\n" + strings.Join(checks, "\n"), 0
+	case p.ID == "escriba":
+		return "Dejé el bloque en la tarea con lo comprobado (simulado: no se escribió nada).", 0
+	case p.ID == "investigador" && !objecting:
+		return "La biblioteca ya lo cubre.\nAFIRMO: lender-listing explica qué excluye y qué reordena | COMANDO: make knowledge-read ID=lender-listing", 0
+	case p.ID == "negocio" && !objecting:
+		return "Del lado de negocio, la compuerta existe para no gastar una consulta de preaprobación que no va a pasar. Eso no está en el código: queda como pregunta para comercial.", 0
+	case p.ID == "datos" && !objecting:
+		return "AFIRMO: en los últimos 30 días Prami se mostró en el listado de 1.204 solicitudes | COMANDO: bin/pg sql --target prod --query 'SELECT COUNT(*) …'", 0
+	case p.ID == "diseno" && !objecting:
+		return "PASO", 0
 	case objecting && p.ID == "herramientas" && round < 3:
 		return "OBJECIÓN: S3 se midió en la rama local, no en main.", 0
 	case objecting:
