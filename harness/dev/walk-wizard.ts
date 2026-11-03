@@ -192,6 +192,12 @@ const LIMIT_MS = Number(arg('timeout', '480')) * 1000;   // 8 min: un caso enter
 /** Vueltas seguidas sin que cambie la pantalla antes de darla por trabada. Varias pantallas tienen pasos
  *  internos con la MISMA URL (`personal-info` son dos), así que no alcanza con «la URL no cambió». */
 const MAX_WITHOUT_PROGRESS = 4;
+/** Las pantallas de ESPERA que el front resuelve solo, sondeando (`kyc-processing` pollea `kyc-status`;
+ *  las de `processing`/`validating`/`waiting` esperan a un proceso del backend). No tienen botón, así que
+ *  «la URL no cambió» no es falta de avance: es la espera. Se les da el plazo de `E2E_KYC_WAIT_MS`, el mismo
+ *  que usa el motor HTTP para la corrida del pipeline. */
+const WAIT_SCREEN = /processing|validating|waiting|kyc-processing/;
+const WAIT_SCREEN_MS = Number(process.env.E2E_KYC_WAIT_MS ?? 180_000);
 /** `http` (default) habla el protocolo del front; `navegador` abre Chromium sin ventana y clickea.
  *  Mismo caso, misma siembra, misma traza, mismo forense: lo único distinto es cómo se opera la pantalla. */
 // `browser` y no `navegador`: el valor viejo lo traduce `cli-aliases.ts` antes de llegar acá.
@@ -724,7 +730,7 @@ async function correr(c: Case, i: number): Promise<Result> {
             // PENDING_USER_DATA → el formulario que pide · COMPLETED → el destino del onboarding · el resto, fin.
             const d = res.datos ?? {};
             if (!d.statusUrl) return finish('trabado', `kyc-processing sin statusUrl: ${JSON.stringify(d).slice(0, 160)}`);
-            const deadline = Date.now() + Number(process.env.E2E_KYC_WAIT_MS ?? 180_000);
+            const deadline = Date.now() + WAIT_SCREEN_MS;
             type Start = { started?: boolean; runId?: string; rateLimited?: boolean; notWaiting?: boolean; rateLimit?: { retryAfter?: number } | null };
             let sb: Start = {};
             for (;;) {
@@ -750,8 +756,16 @@ async function correr(c: Case, i: number): Promise<Result> {
                 const status = String(b.status ?? 'RUNNING');
                 const ask = `${b.pendingForm ?? ''}|${b.pendingReason ?? ''}|${b.pendingAttempt ?? 0}`;
                 if (status === 'PENDING_USER_DATA' && ask !== kycAnswered) {
+                    // ⚠ La pausa de IDENTIDAD (la central contestó por otra persona) deja la corrida VIVA esperando
+                    // la corrección: el formulario va con `resume=1`, que al guardar vuelve con `intent=resume` y la
+                    // despierta (`pendingFormTarget` en `kyc-pending-routing.ts`). Sin la bandera el caminador
+                    // arrancaba OTRA corrida, perfilamiento le devolvía la suspendida y se quedaba sondeándola hasta
+                    // vencer el plazo (uReq 504388, qa, 2026-11-03).
+                    const personal = b.pendingReason === 'identity_mismatch' && d.personalInfoUrl
+                        ? (() => { const [p, q = ''] = String(d.personalInfoUrl).split('?'); const sp = new URLSearchParams(q); sp.set('resume', '1'); return `${p}?${sp}`; })()
+                        : d.personalInfoUrl;
                     const url = b.pendingForm === 'employment' ? d.employmentInfoUrl
-                        : (b.pendingForm === 'personal' || !b.pendingForm) ? d.personalInfoUrl : null;
+                        : (b.pendingForm === 'personal' || !b.pendingForm) ? personal : null;
                     if (url) {
                         kycAnswered = ask;
                         log(`kyc: pide el formulario ${b.pendingForm || 'personal'}${b.pendingReason ? ` (${b.pendingReason})` : ''}`);
@@ -767,7 +781,7 @@ async function correr(c: Case, i: number): Promise<Result> {
                 }
                 await new Promise((ok) => setTimeout(ok, 2_000));
             }
-            if (!next) return finish('trabado', `kyc: la corrida no contestó en ${Math.round(Number(process.env.E2E_KYC_WAIT_MS ?? 180_000) / 1000)} s`);
+            if (!next) return finish('trabado', `kyc: la corrida no contestó en ${Math.round(WAIT_SCREEN_MS / 1000)} s`);
             routePath = next;
             continue;
         } else if (/^identity-validation/.test(sheet)) {
@@ -1003,8 +1017,11 @@ async function runBrowser(c: Case, i: number, browser: any): Promise<Result> {
     let lastOne = '';
 
     let withoutProgress = 0;
+    /** Lo que se fue esperando en pantallas de espera. NO cuenta contra el tope del caso: ese tope existe
+     *  para cortar vueltas sin progreso, y la espera tiene su propio plazo (`WAIT_SCREEN_MS`). */
+    let waitedMs = 0;
     for (let step = 0; step < MAX_STEPS; step++) {
-        if (Date.now() - t0 > LIMIT_MS) {
+        if (Date.now() - t0 - waitedMs > LIMIT_MS) {
             return finish('trabado', `se pasó del tope de ${Math.round(LIMIT_MS / 1000)} s en ${lastOne || 'la primera pantalla'} (subilo con --timeout <segundos> si de verdad tarda tanto)`);
         }
         // La pantalla la dice el navegador. Se espera a que la red se calme para no medir una a medio pintar.
@@ -1022,7 +1039,8 @@ async function runBrowser(c: Case, i: number, browser: any): Promise<Result> {
             else return finish('malo', `la solicitud ${r.ur} nació SIN atarse al pedido: el comercio no recibiría el veredicto`);
         }
 
-        if (routePath === lastOne) {
+        // Una pantalla de espera no suma «sin avance»: su guarda es el plazo de la espera (abajo).
+        if (routePath === lastOne && !WAIT_SCREEN.test(path)) {
             withoutProgress += 1;
             if (withoutProgress > MAX_WITHOUT_PROGRESS) {
                 const errs = await screenErrors(page).catch(() => [] as string[]);
@@ -1085,10 +1103,61 @@ async function runBrowser(c: Case, i: number, browser: any): Promise<Result> {
             await seed(r.ur, doc, log); seeded = true;
         }
 
-        // Pantalla de espera: navega sola. Se le da tiempo en vez de clickear.
-        if (/processing|validating|waiting|kyc-processing/.test(path)) {
-            const before = page.url();
-            await page.waitForURL((x) => x.href !== before, { timeout: 60_000 }).catch(() => {});
+        // PANTALLA DE ESPERA: navega sola cuando el proceso de atrás contesta (`kyc-processing` sondea
+        // `kyc-status`). No se cuenta como «sin avance»: se espera hasta `E2E_KYC_WAIT_MS`, mirando la URL y
+        // la BD. Hasta el 2026-11-03 esto esperaba 60 s por vuelta y el contador de vueltas la daba por
+        // trabada («5 intentos sin que la pantalla avance»), cuando el motor HTTP espera la corrida entera.
+        //
+        // ⚠ Y `kyc-processing` NO reintenta sola un 429. Al volver de datos personales arranca una corrida
+        // NUEVA (`?start=1`), y perfilamiento limita las corridas por solicitud (~30 s entre una y otra): el
+        // caminador llena el formulario en segundos y choca con el límite. Con el 429 la pantalla sigue
+        // sondeando la corrida vieja hasta su ventana (`POLL_WINDOW_MS`, 120 s) y después muestra «Intentar
+        // nuevamente», que espera un click (uReq 504387, qa). Acá se aprieta, como haría la persona.
+        if (WAIT_SCREEN.test(path)) {
+            // Cada llegada empieza su plazo: sólo se vuelve a entrar acá después de haber salido de la pantalla.
+            let since = Date.now();
+            const stillHere = (x: URL) => x.pathname === path;
+            let dbStatus: number | null = null;
+            let retries = 0;
+            const started = Date.now();
+            while (Date.now() - since < WAIT_SCREEN_MS) {
+                const left = WAIT_SCREEN_MS - (Date.now() - since);
+                const moved = await page.waitForURL((x) => !stillHere(x), { timeout: Math.min(10_000, Math.max(left, 1)) })
+                    .then(() => true).catch(() => false);
+                if (moved) break;
+                const sn = r.ur ? await one<{ st: number }>('SELECT user_request_status_id st FROM user_requests WHERE id=?', [r.ur]).catch(() => null) : null;
+                if (sn && sn.st !== dbStatus) {
+                    if (dbStatus !== null) log(`   … ${sheet}: la BD pasó de ${dbStatus} a ${sn.st} mientras la pantalla espera`);
+                    dbStatus = sn.st;
+                }
+                // El pipeline juzgó que el documento es de OTRA persona y se agotaron las correcciones: la
+                // pantalla lo dice y no ofrece seguir. No es una espera: es el desenlace.
+                if (await page.getByText(/No pudimos confirmar tu identidad/i).first().isVisible().catch(() => false)) {
+                    waitedMs += Date.now() - started;
+                    return finish('malo', `${sheet}: «No pudimos confirmar tu identidad» — la central contestó por otra persona (IDENTITY_MISMATCH) · solicitud ${r.ur ?? '—'} en estado ${sn?.st ?? '—'}`);
+                }
+                const retry = page.getByRole('button', { name: /^\s*(Intentar nuevamente|Retomar mi solicitud)\s*$/i }).first();
+                if (await retry.isVisible().catch(() => false) && await retry.isEnabled().catch(() => false)) {
+                    if (retries >= 2) {
+                        waitedMs += Date.now() - started;
+                        return finish('trabado', `${sheet}: la pantalla pidió reintentar ${retries + 1} veces y el pipeline no contestó · solicitud ${r.ur ?? '—'} en estado ${sn?.st ?? '—'}`);
+                    }
+                    retries += 1;
+                    log(`   ↻ ${sheet}: la pantalla ofrece «${(await retry.textContent().catch(() => '') ?? '').trim()}» (tras ${Math.round((Date.now() - since) / 1000)} s) — lo aprieto (${retries}/2)`);
+                    await retry.click({ timeout: 10_000 }).catch(() => {});
+                    since = Date.now();   // el reintento arranca otra corrida: su plazo es nuevo
+                }
+            }
+            waitedMs += Date.now() - started;
+            if (stillHere(new URL(page.url()))) {
+                const sn = r.ur ? await one<{ st: number }>('SELECT user_request_status_id st FROM user_requests WHERE id=?', [r.ur]).catch(() => null) : null;
+                const errs = await screenErrors(page).catch(() => [] as string[]);
+                return finish('trabado', `${sheet}: esperé ${Math.round((Date.now() - started) / 1000)} s (plazo E2E_KYC_WAIT_MS=${Math.round(WAIT_SCREEN_MS / 1000)} s${retries ? `, ${retries} reintento(s)` : ''}) y la pantalla no avanzó`
+                    + ` · la solicitud ${r.ur ?? '—'} quedó en estado ${sn?.st ?? '—'}`
+                    + (errs.length ? ` · lo que dice: ${errs.slice(0, 3).join(' | ')}` : '')
+                    + (sheet === 'kyc-processing' ? ' · el front sondea kyc-status: mirá customer-profiling-service y kyc-gateway en Loki' : ''));
+            }
+            log(`   ⏳ ${sheet}: avanzó sola después de ${Math.round((Date.now() - started) / 1000)} s${retries ? ` y ${retries} reintento(s)` : ''}`);
             continue;
         }
 
