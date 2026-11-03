@@ -43,7 +43,10 @@ Salvo donde se dice «corrido», salen de LEER el código: falta reproducirlos.
   comercio por fuera (y alguien lo registra), o la compuerta de pago debe aplicar a todos los canales?
 - [ ] Reproducir que, al pasarse del tope de ADO (5 validaciones por persona en 24 horas), el asistente
   manda a «solicitud cancelada» y cancela la solicitud del titular sin decir por qué ni dejar un código
-  que distinga el tope. Termina con el caso corrido y la decisión de cómo mostrarlo.
+  que distinga el tope. Termina con el caso corrido y la decisión de cómo mostrarlo. **Corrido en local (2026-11-03):**
+  el enroll da 429 `TOO_MANY_ATTEMPTS` (tope 8 en 24 h, de `ado_validation_config`); el wizard manda toda falla del enroll
+  a `request-canceled`, cuyo loader cancela (`DELETE identity/request`): la solicitud quedó en 8 con el mensaje 5001 de
+  políticas internas. Va al borrador 8; falta la decisión.
 - [x] ~~Confirmar que, si al autorizar ningún perfil aplica, el sistema viejo autoriza el crédito CreditopX sin cargarle
   cupo mensual~~ — confirmado en el código de los dos monolitos y medido en prod (2026-10-13): el viejo lo deja pasar a
   propósito con un aviso en el log; el nuevo rechaza con 422. El camino viejo está vivo (338 créditos en 60 días, 31 en

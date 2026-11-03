@@ -137,6 +137,29 @@ hoy (Experian real no manda ese nulo: 0 casos en 24 horas), pero el simulador de
 
 ---
 
+## 8 · Pasarse del tope de validaciones de identidad cancela la solicitud sin decir por qué (Media)
+
+**Qué pasa.** Cuando un cliente supera el tope de validaciones de identidad con ADO (hoy 8 en 24 horas, configurable),
+el backend responde con un código claro («demasiados intentos, intente más tarde»). El asistente no lo mira: cualquier
+falla al iniciar la validación lo manda a la pantalla de «solicitud cancelada», que al cargar **cancela la solicitud**
+y le muestra «Debido a nuestras políticas internas, no podemos continuar con tu solicitud». El cliente no sabe que
+podía volver a intentarlo al día siguiente, y la solicitud ya no sirve.
+
+**Cómo se comprobó.** Corrido en local con un cliente de prueba con 8 intentos en las últimas 24 horas:
+
+| paso | respuesta |
+|---|---|
+| iniciar la validación de identidad | 429 «Ha excedido el número máximo de intentos… intente nuevamente más tarde» (`TOO_MANY_ATTEMPTS`) |
+| lo que llama la pantalla de cancelación | 200, la solicitud pasa a **8 (cancelada)** con el mensaje de políticas internas |
+
+El paso del asistente que une los dos (cualquier falla → pantalla de cancelación) está leído en el código; la analítica
+lo registra como «enroll_failed», sin el motivo.
+
+**Propuesta.** Que el asistente distinga el tope: un mensaje de «intentaste demasiadas veces, vuelve mañana» sin
+cancelar la solicitud (o cancelarla con un motivo propio que se pueda contar).
+
+---
+
 ## Sobre originación delegada (CORE-918)
 
 Lo que sigue va con la tarea de originación delegada, no con incidencias, pero conviene conversarlo junto:
