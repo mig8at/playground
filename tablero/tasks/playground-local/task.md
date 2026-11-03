@@ -270,6 +270,9 @@ y en la sesión del 2026-11-02 los errores no fueron de velocidad sino de verifi
 - [ ] Probar el recorrido con dos o tres tareas reales de distinto tipo (un defecto, una regla de negocio, una
   herramienta), con `make ensayo` para comparar con y sin la guía. Termina cuando hay una tabla con tiempo,
   correcciones de Miguel y afirmaciones que resultaron falsas, por tarea.
+  Primera tanda («agente», 2026-11-02, US$3,08): 5 de 6 aciertos; las fallas fueron del juez y del permiso del
+  ensayo, no de la guía (bloque del día). Falta la tanda «sin»: medirla sin `make agente` pide un checkout aparte,
+  y este worktree es compartido.
 - [ ] Recién con eso, multiagente: un agente que investiga (sólo lectura, `main-verifier`), uno que corre (harness)
   y uno que escribe, coordinados por un workflow. Termina cuando una tarea sale con los tres y su verificación
   automática no encuentra afirmaciones sin comando.

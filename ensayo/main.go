@@ -47,11 +47,17 @@ var batchName = regexp.MustCompile(`^[a-z0-9][a-z0-9-]*$`)
 var allowed = []string{
 	"Read", "Grep", "Glob", "Skill",
 	"Bash(make harness-*)", "Bash(E2E_TARGET=local make harness-*)", "Bash(make knowledge-*)",
-	"Bash(make tablero-db *)", "Bash(make retomar *)", "Bash(make trampas *)",
+	"Bash(make tablero-db *)", "Bash(make retomar *)", "Bash(make trampas *)", "Bash(make agente *)", "Bash(make tarea-verify *)",
 	"Bash(bin/pg sql *)", "Bash(bin/pg logs *)", "Bash(bin/pg events *)",
 	"Bash(git grep *)", "Bash(git -C *)", "Bash(git show *)", "Bash(git log *)",
 	"Bash(grep *)", "Bash(ls *)", "Bash(cat *)", "Bash(head *)", "Bash(tail *)",
 	"Bash(go run ./cmd/repos *)",
+	// Las mismas lecturas por el MCP del playground (`bin/pg mcp`): un agente las prefiere a la consola, y
+	// negarlas contaba como fricción del cambio medido (tanda «agente», 2026-11-02).
+	"mcp__playground__sql", "mcp__playground__request_timeline", "mcp__playground__client_state",
+	"mcp__playground__client_fields", "mcp__playground__experian_check", "mcp__playground__settings_diff",
+	"mcp__playground__jobs_failed", "mcp__playground__events_request", "mcp__playground__events_errors",
+	"mcp__playground__logs", "mcp__playground__tareas", "mcp__playground__tarea_pila",
 }
 
 var denied = []string{

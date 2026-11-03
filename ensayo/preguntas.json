@@ -35,6 +35,36 @@
         "legacy-application[\\s\\S]*(origin/)?main\\b"
       ],
       "must_not": []
+    },
+    {
+      "id": "defecto-motai-local",
+      "why": "un 500 en local se leyó como defecto del producto y era un dato de la base local (Motai R sin plazo); se distingue mirando prod antes de concluir (2026-11-02)",
+      "prompt": "En local, la pantalla de cuotas (payment-schedule) del wizard da 500 al elegir la entidad Motai R (id 169). ¿Por qué pasa, y pasa también en producción? Contestá en dos o tres frases.",
+      "judge": "printf 'weeks\\n'",
+      "must": [
+        "--target prod"
+      ],
+      "must_not": []
+    },
+    {
+      "id": "regla-prami",
+      "why": "una regla que «debería» excluir y sólo reordena es el error más caro del dominio (F-162): se contesta corriendo, no leyendo",
+      "prompt": "¿La compuerta de preaprobación de Prami saca a Prami del listado de entidades o sólo lo reordena? Comprobalo en el ambiente local y contestá «excluye» o «reordena», con una frase de evidencia.",
+      "judge": "printf 'reordena\\n'",
+      "must": [
+        "harness-(case|listing|suite)"
+      ],
+      "must_not": []
+    },
+    {
+      "id": "herramienta-specs",
+      "why": "el criterio de «hecho» de una tarea se corre con make tarea-verify, no se deduce leyendo la tarea (frente del agente, 2026-11-02)",
+      "prompt": "¿La tarea harness (#86) del tablero cumple hoy su criterio de «hecho»? Contestá sí o no y nombrá las specs que pasaron.",
+      "judge": "make tarea-verify N=86 2>/dev/null | sed -nE 's/^  ✓ (S[0-9]+) .*/\\1/p'",
+      "must": [
+        "tarea-verify"
+      ],
+      "must_not": []
     }
   ]
 }
