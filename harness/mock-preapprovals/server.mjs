@@ -162,7 +162,14 @@ const KNOWN_KEYS = new Set([
       "flamingo",
       "bcp_consumo",
       "bcp_vehicular",
+      "credito365",
 ]);
+
+/* Los alias de entrada, como `lendingProductKeyAliases` del servicio (en `develop` desde su #97): el
+ * front manda `lenders.slug` como clave, y Materiales tiene slug propio. El servicio lo normaliza a
+ * `credifamilia` ANTES de validar, así que Salud y Materiales comparten la fila y se distinguen por
+ * `lending_product_id`. Hacé lo mismo acá: sin esto el preaprobado de Materiales da 400 en local. */
+const KEY_ALIASES = { "credifamilia-materiales": "credifamilia" };
 
 function norm(s) {
       const v = String(s || "").toLowerCase();
@@ -189,7 +196,9 @@ const server = http.createServer((r, res) => {
 
                   // La clave primero, como el servicio real: si no está en su catálogo, nada de lo de
                   // abajo llega a pasar. Mismo código y misma forma que devuelve él.
-                  const keyValue = String(req.lending_product_key ?? "");
+                  const requestedKey = String(req.lending_product_key ?? "");
+                  const keyValue = KEY_ALIASES[requestedKey] ?? requestedKey;
+                  req.lending_product_key = keyValue;
                   if (!KNOWN_KEYS.has(keyValue)) {
                         console.log(`[mock-pa] ${keyValue || "(vacía)"}#${req.lending_product_id ?? "-"} → 400 clave desconocida`);
                         res.writeHead(400, { "content-type": "application/json" });
