@@ -3,7 +3,7 @@ id: 107
 title: "Finandina: originación completa en Creditop"
 stage: evaluation
 created: "2026-10-28T10:38:26-05:00"
-knowledge: [lender-response-types, lender-listing, field-scoring-policy, creditopx-quota, kyc-pipeline, identity-name-validation, credifamilia-origination]
+knowledge: [lender-response-types, lender-credential-sources, lender-listing, field-scoring-policy, creditopx-quota, kyc-pipeline, identity-name-validation, credifamilia-origination]
 canon: [perfilamiento/context, creditopx/context, listado/context, documentos/context, entidad/context, formalizacion/context]
 jira: [CORE-845]
 jira_title: "Finandina: originación completa en Creditop"
@@ -38,26 +38,46 @@ jira_title: "Finandina: originación completa en Creditop"
 
 ### Insumos de Finandina
 
-- [ ] Confirmar qué llaves están entregadas (Experian y Mareigua de Finandina; en Drive hay archivos de
-  credenciales de prueba) y cargarlas como credencial de la entidad en un ambiente de prueba. Depende de:
-  producto — el traspaso de llaves.
+- [ ] Decidir si Experian y Mareigua se consultan con la cuenta de Finandina o si basta aplicar su política
+  sobre la consulta de Creditop (ver «Credenciales de la entidad»). Termina con la respuesta y con quién paga
+  cada consulta. Depende de: producto — el acuerdo con Finandina.
+- [ ] Confirmar qué llaves están entregadas (Experian, Mareigua y Deceval de Finandina; en Drive hay archivos
+  de credenciales de prueba) y que lleguen por un canal que no sea Drive. Termina con las llaves cargadas
+  desde el admin como credencial de la 149 en un ambiente de prueba. Depende de: producto — el traspaso de
+  llaves.
 - [ ] Destrabar la certificación de Deceval (CRED-463, bloqueada); termina con un pagaré con Finandina como
   primer beneficiario creado y firmado en certificación. Depende de: Hans — el motivo del bloqueo.
 - [ ] Conseguir el diseño (Figma) de las pantallas que nombra el PRD. Depende de: producto.
 
 ### Trabajo técnico
 
-- [ ] Hacer que la preaprobación de la 149 corra el motor de cupo: en pre-approvals-service, la clave
-  `banco-finandina` hacia el adaptador `creditop_x`. Termina con una preaprobación aprobada y otra rechazada
-  para la 149 en un ambiente de prueba.
-- [ ] Configurar la 149 como tipo 4 (ver «Cómo se ataca», paso 1) en un ambiente de prueba y comprobar con el
-  arnés que aparece en el listado de un comercio de la fase 1 y que la preaprobación la rechaza con un cliente
-  fuera de política.
-- [ ] Generalizar las ramas del tipo 4 que hoy son de Credifamilia: fechas de pago (días 2 y 16, filtro por
-  ids), plan de cuotas (filtro por ids) y documentos de legalización. Termina con una solicitud de la 149 que
-  elige fecha y simula cuotas con las condiciones de Finandina.
+- [x] ~~Generalizar las ramas del tipo 4 que hoy son de Credifamilia~~ — CORE-918 (#109), en qa desde el
+  2026-11-03: rutas por slug, perfil por entidad en `delegated_origination_profiles` (días de pago, fianza,
+  4x1000), registros de fuentes de insumos y de formalización, y el asistente por riel. Salud y Materiales
+  llegan a 11 en qa.
 - [x] ~~Sacar del riel 4 los textos que dicen Credifamilia~~ — resuelto en CORE-918 (legacy-backend 9081bb7fb):
   opciones y comprobante toman el nombre de la entidad.
+- [ ] Armar Finandina en local como entidad del riel 4: la 149 con `response_type = 4`, slug propio, su fila en
+  `delegated_origination_profiles` (días 5/10/15/20 provisionales), línea de crédito y un comercio de prueba
+  con la 149 asignada y credencial. Termina con la 149 en el listado de ese comercio con el arnés.
+- [ ] Escribir la fuente de insumos de Finandina (clase de `DelegatedOriginationInputs` registrada en
+  `DelegatedOriginationInputsSources`) sobre el motor de cupo. Termina con opciones, fecha, cuotas y una
+  autorización sin formalización de la 149 en local; cubre también el pendiente de #109 de «probar una entidad
+  del riel 4 que no es Credifamilia».
+- [ ] Revisar con la 149 los huecos que dejó CORE-918 para una entidad que no es Credifamilia: los que llaman
+  al armador sin entidad caen a Salud (`engineLenderIdFor`), sin perfil da 500, y con firma Netco sin SigningV1
+  firma el juego de Credifamilia. Termina con cada uno corregido o descartado para la 149.
+- [ ] Hacer que la preaprobación de la 149 corra el motor de cupo: en pre-approvals-service, la clave de
+  Finandina hacia el adaptador `creditop_x`. Termina con una preaprobación aprobada y otra rechazada
+  para la 149 en un ambiente de prueba.
+- [ ] Comprobar con el arnés que la preaprobación rechaza a un cliente fuera de política y aprueba a uno dentro.
+- [ ] Si producto decide consultar con la cuenta de Finandina: que la consulta de Experian del cupo use la
+  credencial de la entidad (hoy la del pipeline nuevo sale de config, deuda RKV2TD024) y que Mareigua acepte
+  una cuenta por entidad (hoy hay una sola, global). Termina con una consulta en local que registra la
+  credencial de la 149. Depende de: la decisión de las cuentas.
+- [ ] Avisar al equipo de `POST /api/onboarding/credentials/get-by-lender`: devuelve el JSON descifrado de la
+  credencial de cualquier entidad y comercio, y el middleware no exige sesión. Termina con la exposición
+  confirmada o descartada por quien conoce el gateway y el BFF.
 - [ ] Escribir el servicio de finalización de Finandina (lo que pasa al autorizar: entregarle la operación).
   Termina cuando una autorización de la 149 deja la operación donde Finandina la recibe. Depende de: la
   decisión de cómo se entrega la operación.
@@ -161,11 +181,13 @@ comercios (prod y local). Lo que el tipo 4 trae y lo que le falta (legacy-backen
   puede apuntar al adaptador `creditop_x` y decidir con la política cargada en categorías y reglas.
 - **Listado:** las reglas duras no sacan a un tipo 4 (`LenderValidationService::dropsWhenRulesFail`): queda con
   «Probabilidad muy baja». La política tiene que expresarse en la preaprobación.
-- **Fechas y cuotas:** `PaymentDateService` y `ExternallyManagedPaymentScheduleService` usan los servicios de
-  Credifamilia, que filtran por `CredifamiliaLenders::lenderIds()` y fijan los días 2 y 16. Con la 149 fallan.
-- **Formalización al autorizar:** `LoanAuthorizationService` llama a `CredifamiliaFormalizationService`, que
-  reúne documentos de Credifamilia y pide a `LenderServiceFactory::make(149)` un
-  `LenderFinalizationServiceInterface`. Ese es el lugar para la entrega a Finandina.
+- **Plan de pago (resuelto por CORE-918, en qa):** opciones, fechas, cuotas, resumen y comprobante van por
+  `payment-plan/{slug}/…` y leen el perfil de la entidad en `delegated_origination_profiles` (días de pago,
+  origen de la fianza, 4x1000, fuente de insumos, formalización). Sumar Finandina es una fila de perfil y una
+  clase de insumos; la entidad tiene que tener slug propio, porque `findBySlug` toma la primera.
+- **Formalización al autorizar:** `LoanAuthorizationService` usa la clase que nombra el perfil (registro
+  `DelegatedOriginationFormalizations`). Sin formalización la solicitud llega a 11 sin radicar y lo deja en el
+  log: Finandina puede llegar a 11 antes de que exista su entrega, que será su clase de formalización.
 - **Credencial:** los tipos 1 y 4 exigen credencial propia en el punto de venta (`LenderIntegrationRules`).
 - `application` no tiene ramas del tipo 4: el piloto lo atiende el backend modular.
 
@@ -205,6 +227,29 @@ categoría no aparece y autorizar da 422; al autorizar se carga el cupo mensual 
 | formulario y T&C | config + plantillas | filas en `lender_signing_documents` con generador blade (como Alta Fleet) y plantillas nuevas |
 | entrega a Finandina | nuevo | al autorizar sólo se le avisa al cliente (`NotificationService.php:129`) |
 
+### Credenciales de la entidad (legacy-backend `origin/main` 69920f580)
+
+Detalle de tablas y orden de búsqueda en `knowledge/lender-credential-sources`. Lo que cambia para Finandina:
+
+| central | ¿acepta una cuenta por entidad? | dónde |
+|---|---|---|
+| Experian, consulta vieja | sí: busca primero la fila de la entidad en `risk_central_credentials` y cae a comercio, sucursal y config | `app/Actions/RiskCentrals/Experian.php:73`; sólo una ruta la llama con entidad (`DatacreditoQueryByAlliedController.php:472`) |
+| Experian, pipeline nuevo (Acierta) | no: lee sólo config | `Modules/RiskV2/App/Http/Clients/ExperianAciertaClient.php:136`, deuda `RKV2TD024` |
+| Mareigua | no: una sola cuenta, global, en los dos clientes | `config/services.php:289`, `app/Actions/RiskCentrals/Mareigua.php:192`, `Modules/RiskV2/App/Http/Clients/MareiguaClient.php:206` |
+| Deceval | sí, sólo en legacy-backend; si falta, cae a comercio o sucursal | `RiskCentralCredential.php:82`, `Modules/Loans/App/Actions/DecevalSoap.php:55` |
+| ADO | sí: la entidad primero, luego config | `app/Actions/RiskCentrals/Ado.php:47` |
+| la propia entidad (API) | sí, por sucursal o comercio, en `lender_allied_credentials` | `LenderAlliedCredential::findOrFailByLenderAndAlly` |
+
+- Además, los datos del buró se guardan por cliente y el pipeline no vuelve a consultar si ya hay un dato
+  vigente (`CheckExperianTriggerService.php:361`). Una consulta con la llave de Finandina tiene que pedirse
+  aparte, aunque el cliente ya tenga la de Creditop.
+- En prod hay precedentes de credencial colgada de una entidad: ADO (CreditopX 37, Motai X 62, SmartPay 160),
+  Deceval (Credifamilia 24, DFS 181) y un Experian de Credifamilia, hoy borrado.
+- **Cómo se cargan hoy:** desde el admin de legacy-application (`credenciales` para la entidad,
+  `risk-central/credenciales` para las centrales), que cifra el JSON. Las listas de llaves son sólo sugerencia,
+  y no traen Deceval ni Mareigua. El backoffice de legacy-backend (`PUT {lender}/config/credentials`) sólo
+  escribe las de Wompi. No hay vencimiento en ninguna tabla.
+
 ### Trampas para tener en cuenta
 
 - Deceval en legacy-backend busca la credencial de la entidad y, si falta, cae a la del comercio o la sucursal
@@ -220,18 +265,22 @@ categoría no aparece y autorizar da 422; al autorizar se carga el cupo mensual 
 
 ## Cómo se ataca
 
-1. **Configurar lo que ya existe** en un ambiente de prueba: 149 con `response_type = 4`,
-   `promissory_type_id = 2`; línea de crédito (monto, plazo, tasa), categorías con edad, ocupación, ingreso,
-   antigüedad, experiencia y FGA; regla de buró con score y `allow_0_score`; seguro por comercio; identidad ADO;
-   credencial propia; asignación a los comercios de la fase 1.
-2. **Conectar la decisión:** la clave de Finandina en pre-approvals-service hacia el motor de cupo. Probar con
-   el arnés un caso dentro y otro fuera de política.
+1. **Armar Finandina en local, sobre el riel ya generalizado (CORE-918):** la 149 con `response_type = 4`,
+   `promissory_type_id = 2` y slug propio; su perfil en `delegated_origination_profiles`; línea de crédito,
+   categorías con edad, ocupación, ingreso, antigüedad, experiencia y FGA; regla de buró con score y
+   `allow_0_score`; seguro por comercio; identidad ADO; un comercio de prueba con la 149 asignada y credencial.
+   Se empieza en local y no en la base compartida para no mostrar la 149 a nadie antes de tiempo.
+2. **Su fuente de insumos y la decisión:** la clase de insumos de Finandina sobre el motor de cupo, y la clave
+   de Finandina en pre-approvals-service hacia ese motor. Probar con el arnés un caso dentro y otro fuera de
+   política, y llegar a 11 sin formalización.
 3. **Cerrar las decisiones de producto** (política vigente, estado al autorizar, entrega a Finandina, FGA, días
-   de pago).
-4. **Generalizar el tipo 4:** fechas de pago y plan de cuotas por entidad, documentos de legalización por
-   entidad, y el servicio de finalización de Finandina (entrega de la operación). Pagaré con la credencial de
-   Finandina; formulario y T&C.
-5. **Construir la política que falta:** capacidad de pago de Finandina (gastos y ley por SMMLV, cuota potencial,
+   de pago, con qué cuenta se consulta el buró).
+4. **Credenciales:** las llaves llegan por un canal seguro y se cargan desde el admin como credencial de la 149
+   (Deceval y ADO ya la leen). Si la consulta va con la cuenta de Finandina, Experian del pipeline nuevo y
+   Mareigua necesitan leer la credencial de la entidad.
+5. **Formalización de Finandina:** su clase de formalización (la entrega de la operación), el pagaré con su
+   credencial de Deceval, y el formulario y los T&C.
+6. **Construir la política que falta:** capacidad de pago de Finandina (gastos y ley por SMMLV, cuota potencial,
    tasa de modelación) con los componentes persistidos; veces el ingreso por segmento; experiencia por monto;
    riesgo del empleador; cobertura por DANE; límite de 2 al mes; tope de desembolsos por entidad.
 
@@ -242,6 +291,12 @@ categoría no aparece y autorizar da 422; al autorizar se carga el cupo mensual 
   política y origina con su nombre; además no hay dónde enchufar la entrega de la operación, y autorizar cancela
   las otras solicitudes pendientes del cliente. El criterio lo corrigieron Laura y Joel.
 - **`response_type = 1` (externa):** Finandina no tiene una API que decida ni firma en su propio flujo.
+- **Que la entidad cargue sus llaves en un portal propio** (extender el backoffice, que hoy sólo escribe las de
+  Wompi): evita que alguien de Creditop las vea, pero no hay portal de entidades en uso ni una segunda entidad
+  que lo pida. Para la fase 1 alcanza con el admin y un canal seguro; se reconsidera si las entidades del riel
+  4 se multiplican.
+- **Guardar las llaves en un gestor de secretos y sólo la referencia en la base:** ninguna integración lee de
+  ahí, y las dos tablas de credenciales ya cifran con la llave de la app.
 - **La guía de Confluence «Integración originación en línea»:** describe el modelo externo (la entidad crea la
   orden, le manda un enlace al cliente y avisa por webhook). No es el modelo de Finandina.
 
