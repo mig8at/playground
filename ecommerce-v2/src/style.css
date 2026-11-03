@@ -1,0 +1,30 @@
+/* EL VOCABULARIO VISUAL DE TESTS.
+ *
+ * Las mismas capas que keyring y radar, en el mismo orden: Tailwind (utilidades, sin preflight), el tema
+ * compartido —que se REEMPLAZA entero— y la base (`workbench.css`). Abajo, lo único que significa algo
+ * sólo acá: el color de un aviso que no cuadra y el de un estado final.
+ */
+@import "tailwindcss/theme.css" layer(theme);
+@import "tailwindcss/utilities.css" layer(utilities);
+@import "./theme.css";
+@import "./workbench.css";
+
+/* El ámbar y el rojo son los de keyring, uno por tema: el ámbar para fondo oscuro sobre blanco no se lee. */
+:root {
+  --ecommerce-ok: #15803d;
+  --ecommerce-warn: #b45309;
+  --ecommerce-fail: #b91c1c;
+  /* El texto sobre el rojo de borrar: blanco sobre el rojo oscuro, casi negro sobre el claro. */
+  --ecommerce-fail-ink: #ffffff;
+}
+.dark {
+  --ecommerce-ok: #4ade80;
+  --ecommerce-warn: #fbbf24;
+  --ecommerce-fail: #f87171;
+  --ecommerce-fail-ink: #1f0a0a;
+}
+
+/* La página no scrollea: scrollea cada región (el contrato de `.workbench`). La letra es la de la base. */
+html, body { margin: 0; height: 100%; overflow: hidden; background: var(--background); color: var(--foreground);
+  font: var(--text-base)/1.4 var(--font-sans) }
+#app { height: 100% }

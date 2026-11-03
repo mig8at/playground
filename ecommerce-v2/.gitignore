@@ -1,0 +1,6 @@
+.deletions.ndjson
+.backups/
+.profile.json
+.env
+node_modules/
+dist/
