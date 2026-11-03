@@ -12,6 +12,24 @@ ramas: originacion-delegada
 
 ## Pendientes
 
+- [ ] Antes de prender Materiales (214) en prod: alias `credifamilia-materiales` de pre-approvals-service en `main`
+  (hoy sólo en `develop`); los 8 `lender_transaction_statuses` del 214 (sólo los tiene el 24; se cargan con
+  `CredifamiliaConsumoSeeder`, a mano); las filas FNG del 214 (la siembra figura corrida y dejó 0); y las migraciones
+  de perfil y slug corridas con `APP_ENV=production` (con otro valor siembran el perfil sobre el 216, que en prod es
+  Keygo, y el 214 queda sin perfil). Termina con las cuatro cosas medidas en prod.
+- [ ] Que el front sondee la preaprobación de Materiales como la de Salud: `fetchLenderPreApproval` sólo hace polling
+  con `lender.id === 24`, y un `pending` de Credifamilia vía el alias deja la tarjeta de Materiales en error.
+  Termina con una tarjeta de Materiales en qa que espera y resuelve. Depende de: front.
+- [ ] Que el comprobante PDF de Materiales use el payload del riel: `VoucherService` lo arma sólo para el 24 y
+  `config/documents.php` enruta `voucher-disbursement` al pdf-mapper sólo para el 24; Materiales sale con el Blade
+  genérico, sin fianza ni 4x1000. Revisar también `client_code` (busca la transacción del 24).
+- [ ] Quitar los `TEMP DEBUG` de `CredifamiliaPreApprovalInputs`: el `base_url` del servicio y hasta 300 caracteres de
+  su respuesta vuelven al cliente en `details.reason` de CALCULATION_ERROR por `payment-plan/{slug}/*`.
+- [ ] Para una entidad del riel 4 que no sea Credifamilia: los que llaman al armador sin entidad (continuar solicitud,
+  cuotas, resumen, comprobante, agenda de autorización, documentos) caen a Salud por `engineLenderIdFor`; una
+  entidad sin perfil da 500 y, en la autorización, después del commit (queda en 11 sin radicar ni efectos); con
+  firma Netco sin SigningV1 firma el juego de Credifamilia; y necesita clases propias de insumos y formalización.
+  Termina cuando el pendiente de «probar una entidad del riel 4 que no es Credifamilia» lo cubre.
 - [x] ~~Ligar la tarea a un issue de Jira~~ — CORE-918, creado en el sprint activo (CORE Sprint 21).
 - [x] ~~Sacar la foto de antes de Credifamilia Salud (24)~~ — 3 de 3 cierran en 11 con radicación; foto en
   `artifacts/foto-antes.json` (ver «Cómo se comprueba»).
