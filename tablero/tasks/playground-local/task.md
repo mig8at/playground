@@ -310,8 +310,11 @@ contexto base y cada rol alcanzó a trabajar una vez. Coordinar agentes cuesta m
 turno cueste un contexto entero; lo que sirvió de ella (que lo afirmado lo compruebe otro) quedó en el verificador.
 
 **Pendientes del frente:**
-- [ ] Barrido · un verificador que no firme todo: marcó 28 de 28 con ✓ y la pasada a knowledge descartó partes de
+- [x] Barrido · un verificador que no firme todo: marcó 28 de 28 con ✓ y la pasada a knowledge descartó partes de
   H16 y H17. Termina cuando un barrido real tiene algún ✗ o —, o una segunda mirada no encuentra nada que él aprobó.
+  Con el prompt que le pide abrir cada cita y tomar como ✗ una parte falsa, el segundo barrido real dio 3 ✗ de 26.
+- [ ] Barrido · pasar a knowledge los hallazgos del segundo (country-geography, credifamilia-financing, motai-renting),
+  con una segunda mirada como en el primero. Termina cuando los ✓ que se sostienen están en sus temas.
 - [ ] Barrido · las suites que señaló el primero: reemplazo de respuestas del formulario dinámico, cascada
   zona→ciudad en el wizard, formas de `alignedSplit`, cascada Ágil Data→TusDatos con `ONB005`, y tipos de documento
   por país. Termina cuando cada una corre con `make harness-suite` o queda descartada con su motivo.
