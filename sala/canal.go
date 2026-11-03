@@ -22,7 +22,10 @@ import (
 )
 
 const (
-	maxTurnsPerAgent  = 8
+	maxTurnsPerAgent = 8
+	// minTurnCap: con menos no arranca un turno. Sólo el contexto base cuesta US$0,30-0,45 por turno, y en la segunda
+	// sala de entendimiento dos turnos arrancaron con US$0,29 y murieron por tope sin decir nada (pero gastaron).
+	minTurnCap        = 0.45
 	maxCoordinatorRun = 5
 )
 
@@ -182,7 +185,7 @@ func (h *hub) channel(outer context.Context, task string) {
 	// antes de que hablara, y la pregunta más importante quedó sin dueño. Con lo apartado siempre puede cerrar.
 	coordReserve := 0.0
 	if h.st.Budget >= 1.5 {
-		coordReserve = 0.4
+		coordReserve = 0.6 // un turno de Opus midió US$0,43 en la segunda: con 0,40 murió por tope sin hablar
 	}
 	// take: si a p le toca y queda presupuesto libre, aparta el tope de su turno. Reservar ANTES de empezar es lo
 	// que evita lo de la primera llamada en canal: cinco turnos en paralelo gastaban a la vez, el tope cortaba uno a
@@ -195,7 +198,7 @@ func (h *hub) channel(outer context.Context, task string) {
 		}
 		want[p.ID] = false
 		avail := h.st.Budget - h.st.Spent - reserved - coordReserve // lo del coordinador no se toca
-		if p.Turns >= maxTurnsPerAgent || avail < 0.1 {
+		if p.Turns >= maxTurnsPerAgent || avail < minTurnCap {
 			return 0, false
 		}
 		cap := min(avail, 0.6)
@@ -282,18 +285,17 @@ func (h *hub) channel(outer context.Context, task string) {
 			finish("el coordinador llegó a su tope de intervenciones")
 			return
 		}
-		if workers < 0.1 {
+		if workers < minTurnCap {
 			// Se acabó lo de los demás: el coordinador usa lo suyo para cerrar diciendo qué quedó y qué falta.
-			if avail >= 0.1 {
-				h.say("moderador", "Moderador", "Se terminó el presupuesto de trabajo. @coordinador: es tu último turno: "+
-					"resumí qué quedó comprobado, qué preguntas siguen abiertas y por qué, y cerrá con CIERRO.")
-				h.turn(ctx, coord, task, avail)
-			}
+			// Siempre habla: los turnos se pasan de su tope y lo apartado puede no alcanzar, pero el cierre no queda sin piso.
+			h.say("moderador", "Moderador", "Se terminó el presupuesto de trabajo. @coordinador: es tu último turno: "+
+				"resumí qué quedó comprobado, qué preguntas siguen abiertas y por qué, y cerrá con CIERRO.")
+			h.turn(ctx, coord, task, max(avail, minTurnCap))
 			finish(fmt.Sprintf("se llegó al tope de US$%.2f", h.st.Budget))
 			return
 		}
 		runs++
-		text := h.turn(ctx, coord, task, min(avail, 0.4))
+		text := h.turn(ctx, coord, task, min(avail, 0.7))
 		if m := regexp.MustCompile(`(?m)^\s*CIERRO:\s*(.+?)\s*$`).FindStringSubmatch(text); m != nil {
 			finish("el coordinador cerró: " + m[1])
 			return

@@ -191,8 +191,8 @@ func definitions() map[string]*participant {
 				`knowledge-read, knowledge-check), las trampas del tablero (tablero/data/traps/doc.md, por su índice de síntomas), tareas viejas (make tareas, ` +
 				`make retomar) y la documentación del equipo (bin/pg confluence search|read, bin/pg jira search). Citás la fuente de cada cosa. Si un tema tiene ` +
 				`fuentes cambiadas en main, lo decís antes de usarlo. El silencio de la biblioteca no es «no existe».`,
-			tools: with("Bash(make knowledge-*)", "Bash(make retomar *)", "Bash(make tareas *)", "Bash(make trampas *)",
-				"Bash(bin/pg confluence *)", "Bash(bin/pg jira search *)", "Bash(bin/pg tareas *)", "Bash(bin/pg tarea pila *)")},
+			tools: with(append(gitMain, "Bash(make knowledge-*)", "Bash(make retomar *)", "Bash(make tareas *)", "Bash(make trampas *)",
+				"Bash(bin/pg confluence *)", "Bash(bin/pg jira search *)", "Bash(bin/pg tareas *)", "Bash(bin/pg tarea pila *)")...)},
 		"negocio": {ID: "negocio", Name: "Negocio", Role: "el porqué: política, contrato, comercio",
 			system: common + ` TU ROL: negocio. Explicás el porqué de una regla: política, contrato, qué se le prometió al comercio, cómo gana CreditOp. ` +
 				`Fuentes: knowledge/business-context.md, bin/pg confluence y, si hace falta, Canon (make canon-search / canon-read). Separás siempre lo ` +
@@ -232,6 +232,7 @@ func definitions() map[string]*participant {
 				`las revisás vos, sin repetir el razonamiento de quien las dijo: volvés a la fuente (git grep / git show contra origin/main en los dos ` +
 				`monolitos, bin/pg, leer el archivo entero). Comprobá también la PREMISA (qué ids, qué rama, qué clave), no sólo que el comando corre. ` +
 				`Por cada una, una línea «COMPRUEBO: C<n> | ✓, ✗ o — | <el comando que corriste>», donde — es «no trae comando y no se puede comprobar». ` +
+				`COMPRUEBO es SÓLO para los ids de la pizarra: lo que revisás del tema o del brief no tiene id; si sale bien no se dice, y si no, es HALLAZGO. ` +
 				`Si encontrás algo nuevo, dejalo como HALLAZGO o AFIRMO: lo comprueba otro, nunca vos.`,
 			tools: with(append(gitMain, "Bash(bin/pg sql *)", "Bash(bin/pg request *)", "Bash(grep *)", "Bash(lsof -nP -iTCP*)", "Bash(make harness-doctor *)")...)},
 		"coordinador": coordinatorDefinition(),
