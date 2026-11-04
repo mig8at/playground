@@ -208,7 +208,8 @@ Salvo donde se dice «corrido», salen de LEER el código: falta reproducirlos.
   lo que se ve en la simulación y en la bitácora, no. **Medido en prod (2026-11-03):** sobre el último registro de cada
   crédito con cobranza, los movidos en noviembre (1.113, estado 2) traen la cobranza dentro de `total_payment_amount` y
   los movidos hasta agosto no; el comentario de `RefinanceCredit::preview` («NO entran», del 2026-08-31) quedó viejo.
-  Borrador 11. Falta saber qué cambió en septiembre.
+  Borrador 11. La causa: `c24b9316` (2026-09-16) sumó la cobranza al total en `UpdateCreditopXRequestsCommand.php:333`;
+  `RefinanceCredit` es de dos semanas antes y no se actualizó (`knowledge/creditopx-portfolio-servicing`).
 - [ ] Decidir si la regla `NonOverlappingCollectionChargeRange` se usa: existe, nada la invoca, y los tramos
   de cobranza no tienen pantalla, así que dos tramos traslapados se cobrarían los dos. **Medido en prod (2026-11-03): hoy no
   hay traslapes** en `creditop_x_lender_collection_charges` (380 tramos de 95 entidades). Queda latente.

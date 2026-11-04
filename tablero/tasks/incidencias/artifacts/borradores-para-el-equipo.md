@@ -224,8 +224,12 @@ vigentes que se movieron en noviembre incluyen la cobranza en el saldo total; lo
 agosto (unos 1.100) no la incluyen. Septiembre está mezclado. O sea, la suposición del código era cierta cuando se
 escribió (finales de agosto) y dejó de serlo.
 
+**Por qué cambió en septiembre.** El 16 de septiembre se corrigió el proceso nocturno para que el saldo total incluyera
+la cobranza (antes el cliente veía una cifra menor a la que iba a pagar). Ese arreglo es correcto, pero la refinanciación
+se había escrito dos semanas antes con el supuesto contrario y no se actualizó.
+
 **Propuesta.** Calcular el descuadre sumando también los gastos de cobranza a los componentes, o tomarlos del descuadre
-y no como concepto aparte. Conviene además saber qué cambió en septiembre en cómo se arma el saldo total.
+y no como concepto aparte.
 
 ---
 
