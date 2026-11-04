@@ -1,0 +1,91 @@
+{
+  "version": 1,
+  "title": "Roles de usuario: quién es quién y qué alcance tiene",
+  "summary": "Los trece perfiles agrupados en cliente, comercio (asesor, admin y superadmin), entidad y Creditop; las tres formas en que el código decide qué puede hacer cada uno (permisos por rol, por usuario y comparaciones con el número de perfil) y el alcance que recorta cada controlador.",
+  "reviewedAt": "2026-11-04T11:40:27+00:00",
+  "sources": [
+    {
+      "repo": "application",
+      "path": "app/Providers/FortifyServiceProvider.php",
+      "commit": "1755ab4fa3a50cac5669cdff4826131979a15def",
+      "blob": "2c663e1e889b996e9c2ae7013dc21a8bdb391d09",
+      "sections": [
+        "cuatro-familias-de-perfiles"
+      ]
+    },
+    {
+      "repo": "application",
+      "path": "app/Models/UserProfile.php",
+      "commit": "1755ab4fa3a50cac5669cdff4826131979a15def",
+      "blob": "d7a6dca0eb4e978fed1d6fe3e945d8a063437c84",
+      "sections": [
+        "cuatro-familias-de-perfiles",
+        "el-alcance-de-cada-perfil-del-comercio"
+      ]
+    },
+    {
+      "repo": "application",
+      "path": "app/Http/Controllers/Admin/AlliedCorporateUserController.php",
+      "commit": "1755ab4fa3a50cac5669cdff4826131979a15def",
+      "blob": "de913d190e641153dd385eca351938e473a62460",
+      "sections": [
+        "tres-formas-de-decidir-que-puede-hacer-cada-uno"
+      ]
+    },
+    {
+      "repo": "application",
+      "path": "app/Http/Controllers/Admin/EndOfMonthReportController.php",
+      "commit": "1755ab4fa3a50cac5669cdff4826131979a15def",
+      "blob": "757fb593e9ff9e352774dba776734128a0cada7e",
+      "sections": [
+        "el-alcance-de-cada-perfil-del-comercio"
+      ]
+    },
+    {
+      "repo": "application",
+      "path": "app/Http/Requests/Admin/User/UpdateRequest.php",
+      "commit": "1755ab4fa3a50cac5669cdff4826131979a15def",
+      "blob": "7db796c46ba6bc2831376053190922a8bd9f50dd",
+      "sections": [
+        "el-alcance-de-cada-perfil-del-comercio"
+      ]
+    },
+    {
+      "repo": "application",
+      "path": "app/Http/Controllers/Admin/PaymentLinkController.php",
+      "commit": "1755ab4fa3a50cac5669cdff4826131979a15def",
+      "blob": "454f83187ff41fcd596c1619526d8e0ea9785fb9",
+      "sections": [
+        "el-alcance-de-cada-perfil-del-comercio"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/Onboarding/App/Services/lenders/LenderRetrievalService.php",
+      "commit": "dd1365e85b9cf825bc46991e0b513630c1a74da1",
+      "blob": "aeb7c50ddd1e854c80fc088591439cc64769ca20",
+      "sections": [
+        "tres-formas-de-decidir-que-puede-hacer-cada-uno",
+        "el-alcance-de-cada-perfil-del-comercio"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/Loans/App/Http/Controllers/Customer/CreditopXRequestHistoryController.php",
+      "commit": "dd1365e85b9cf825bc46991e0b513630c1a74da1",
+      "blob": "6890b15c4965c627bd314e72dbe852bcf611ff1d",
+      "sections": [
+        "el-alcance-de-cada-perfil-del-comercio"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/Loans/App/Services/UserRequestService.php",
+      "commit": "dd1365e85b9cf825bc46991e0b513630c1a74da1",
+      "blob": "d0c4ed2064a158021b3847a919805fcee98dacaa",
+      "sections": [
+        "el-alcance-de-cada-perfil-del-comercio"
+      ]
+    }
+  ]
+}
