@@ -54,6 +54,43 @@ function toggleView(id) {
   sidebarViews.value = { ...sidebarViews.value, [id]: !isViewOpen(id) }
   try { localStorage.setItem(SIDEBAR_VIEWS_KEY, JSON.stringify(sidebarViews.value)) } catch { /* sólo no se recuerda */ }
 }
+/* LA SEGURIDAD (server/safety.go): prender y apagar tus agentes del equipo (time, fact) y «Mi agente», uno por uno
+   o todos de una vez. Apagado, un agente tuyo deja de contestarle al equipo; «Mi agente» apagado es «contesto yo». */
+const safety = ref({ agents: [], file: '' })
+const safetyError = ref('')
+const safetyBusy = ref('')
+let safetyTimer = null
+async function loadSafety() {
+  clearTimeout(safetyTimer)
+  try {
+    const res = await fetch('/api/safety')
+    const body = await res.json()
+    if (!res.ok) throw new Error(body.error || `HTTP ${res.status}`)
+    safety.value = body
+    safetyError.value = ''
+  } catch (e) { safetyError.value = e.message }
+  safetyTimer = setTimeout(loadSafety, 15000)
+}
+async function safetyPost(path, body, busy) {
+  safetyBusy.value = busy
+  try {
+    const res = await fetch(path, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body || {}) })
+    const out = await res.json().catch(() => ({}))
+    if (!res.ok) throw new Error(out.error || `HTTP ${res.status}`)
+    safetyError.value = ''
+  } catch (e) { safetyError.value = e.message } finally {
+    safetyBusy.value = ''
+    await loadSafety()
+    chat.loadTeamAgents()
+  }
+}
+const toggleOwnAgent = (a) => safetyPost(`/api/safety/agents/${encodeURIComponent(a.name)}`, { on: !a.on }, a.name)
+const anythingOn = computed(() => safety.value.agents.some((a) => a.on) || mine.agent.mode === 'agente')
+function shutDownAll() {
+  if (!window.confirm('¿Apagar todo? Tus agentes dejan de contestarle al equipo y «Mi agente» deja de contestar por vos.')) return
+  mine.setMode('yo')
+  safetyPost('/api/safety/off', {}, 'todo')
+}
 const servers = ref([])
 const serverOpen = ref('')
 const openServer = computed(() => servers.value.find((s) => s.id === serverOpen.value) || null)
@@ -431,6 +468,7 @@ onMounted(() => {
   applyRoute()
   chat.start()
   loadServers()
+  loadSafety()
   window.addEventListener('resize', onWindowResize)
   window.addEventListener('popstate', applyRoute)
   if (themeToggle.value) themeBinding = bindThemeToggle(themeToggle.value)
@@ -438,6 +476,7 @@ onMounted(() => {
 onBeforeUnmount(() => {
   chat.stop()
   clearTimeout(serversTimer)
+  clearTimeout(safetyTimer)
   window.removeEventListener('resize', onWindowResize)
   window.removeEventListener('popstate', applyRoute)
   themeBinding?.destroy?.()
@@ -580,6 +619,38 @@ const statusText = computed(() => {
             </button>
           </li>
         </ul>
+      </div>
+      </section>
+
+      <!-- La seguridad: prender y apagar tus agentes y «Mi agente», o todo de una vez. -->
+      <section class="view wb-bloque bloque-seguridad" :class="{ open: isViewOpen('safety') }">
+      <div class="region-head">
+        <button type="button" class="view-tog" :aria-expanded="isViewOpen('safety')" @click="toggleView('safety')">
+          <span class="ui-icon chev" data-icon="chevron" aria-hidden="true"></span><span>Seguridad</span>
+        </button>
+        <span class="count" :class="{ filtered: anythingOn }" :title="anythingOn ? 'hay agentes prendidos' : 'todo apagado'">{{ anythingOn ? 'prendido' : 'apagado' }}</span>
+      </div>
+      <div v-if="isViewOpen('safety')" class="region-body safety">
+        <p v-if="safetyError" class="side-note bad">{{ safetyError }}</p>
+        <ul class="safety-list">
+          <li>
+            <span class="safety-main"><b>{{ agentLabel }}</b><span class="safety-sub">contesta por vos en tus conversaciones</span></span>
+            <button type="button" class="switch" role="switch" :aria-checked="mine.agent.mode === 'agente'" @click="toggleMode"
+                    :aria-label="mine.agent.mode === 'agente' ? `Apagar a ${agentLabel}` : `Prender a ${agentLabel}`"></button>
+          </li>
+          <li v-for="a in safety.agents" :key="a.name">
+            <span class="safety-main">
+              <b>{{ a.name }}</b>
+              <span class="safety-sub" :title="a.url">{{ a.on ? (a.listening ? 'le contesta al equipo' : 'prendido, pero su puerto no contesta') : 'apagado: el equipo no lo ve' }}</span>
+            </span>
+            <button type="button" class="switch" role="switch" :aria-checked="a.on" :disabled="!!safetyBusy" @click="toggleOwnAgent(a)"
+                    :aria-label="a.on ? `Apagar a ${a.name}` : `Prender a ${a.name}`"></button>
+          </li>
+        </ul>
+        <p v-if="!safety.agents.length && !safetyError" class="side-note">No tenés agentes en <code>~/playground/team/agents.json</code>.</p>
+        <button type="button" class="btn btn-outline btn-sm safety-off" :disabled="!anythingOn || !!safetyBusy" @click="shutDownAll">
+          {{ safetyBusy === 'todo' ? 'Apagando…' : 'Apagar todo' }}
+        </button>
       </div>
       </section>
     </aside>
@@ -1043,6 +1114,12 @@ code { font-family: var(--font-mono); font-size: .92em }
 
 /* Lo que publicó un agente al que estás anotado: una burbuja ajena con su etiqueta arriba. */
 .note-del { align-self: center; opacity: 0 }
+.safety { padding: var(--space-2) var(--gutter) var(--space-3); display: flex; flex-direction: column; gap: var(--space-2) }
+.safety-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--space-2) }
+.safety-list li { display: flex; align-items: center; gap: var(--space-3) }
+.safety-main { flex: 1; min-width: 0; display: flex; flex-direction: column }
+.safety-sub { color: var(--fg-2); font-size: var(--text-xs); overflow: hidden; text-overflow: ellipsis; white-space: nowrap }
+.safety-off { align-self: flex-start }
 .agent-row { gap: var(--space-2); align-items: flex-end }
 .agent-avatar { flex: none; width: 28px; height: 28px; border-radius: 8px; object-fit: cover; background: var(--office-bg) }
 .thinking { color: var(--fg-2); font-style: italic }

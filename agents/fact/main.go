@@ -5,7 +5,7 @@
 // POST { text, from } y contesta { reply } en lenguaje natural (el contrato está en docs/agents.md del
 // playground compartido). Se declara en ~/playground/team/agents.json y lo anuncia `playground listen`:
 //
-//	{ "name": "fact", "description": "un dato curioso, al azar o de un tema (espacio, animales, cuerpo, historia, ciencia)", "url": "http://127.0.0.1:5187/" }
+//	{ "name": "fact", "description": "un dato curioso, al azar o de un tema (espacio, animales, cuerpo, historia, ciencia)", "url": "http://127.0.0.1:5292/" }
 //
 // No lee nada de la persona ni de CreditOp: al modelo sólo le llega el texto de la pregunta.
 package main
@@ -143,7 +143,7 @@ func reply(ctx context.Context, text string, pick func(n int) int) string {
 }
 
 func main() {
-	addr := flag.String("serve", "127.0.0.1:5187", "dónde escucha (sólo esta máquina)")
+	addr := flag.String("serve", "127.0.0.1:5292", "dónde escucha (sólo esta máquina)")
 	flag.Parse()
 	http.HandleFunc("POST /", func(w http.ResponseWriter, r *http.Request) {
 		var in struct {

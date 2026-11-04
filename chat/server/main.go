@@ -255,6 +255,7 @@ func handler() http.Handler {
 	cuadrillaHandlers(mux)
 	serverHandlers(mux)
 	myAgentHandlers(mux)
+	safetyHandlers(mux)
 	return mux
 }
 

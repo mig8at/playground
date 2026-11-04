@@ -4,7 +4,7 @@
 // POST { text, from } y contesta { reply } en lenguaje natural (el contrato está en docs/agents.md del
 // playground compartido). Se declara en ~/playground/team/agents.json y lo anuncia `playground listen`:
 //
-//	{ "name": "time", "description": "qué hora es en Bogotá o en otra ciudad", "url": "http://127.0.0.1:5186/" }
+//	{ "name": "time", "description": "qué hora es en Bogotá o en otra ciudad", "url": "http://127.0.0.1:5291/" }
 //
 // No lee nada de la persona ni de CreditOp: sólo el reloj de esta máquina y la base de zonas horarias de Go.
 package main
@@ -110,7 +110,7 @@ func reply(text string, now time.Time) string {
 }
 
 func main() {
-	addr := flag.String("serve", "127.0.0.1:5186", "dónde escucha (sólo esta máquina)")
+	addr := flag.String("serve", "127.0.0.1:5291", "dónde escucha (sólo esta máquina)")
 	flag.Parse()
 	http.HandleFunc("POST /", func(w http.ResponseWriter, r *http.Request) {
 		var in struct {
