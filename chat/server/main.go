@@ -253,6 +253,7 @@ func handler() http.Handler {
 	})
 	agentHandlers(mux)
 	cuadrillaHandlers(mux)
+	serverHandlers(mux)
 	return mux
 }
 

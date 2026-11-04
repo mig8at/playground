@@ -20,6 +20,7 @@ import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useChatStore } from './stores/chat.js'
 import { useMyAgentStore } from './stores/myAgent.js'
 import MyAgent from './MyAgent.vue'
+import ServerPanel from './ServerPanel.vue'
 import {
   vResize, readSize, saveSize, fitRegions, cssSize, bindThemeToggle, readHashRoute, hashRoute, setRoute,
 } from './workbench.js'
@@ -38,7 +39,22 @@ function deleteConversation(c) {
 }
 // Tu @ en el chat del equipo: la parte del correo antes de la arroba, como te escriben (`playground send @miguel`).
 const myHandle = computed(() => { const e = chat.state?.session?.email || chat.me?.email || ''; return e ? `@${e.split('@')[0]}` : '' })
-function openMyChat() { chat.activeKey = ''; setAgentOpen(true) }
+function openMyChat() { serverOpen.value = ''; chat.activeKey = ''; setAgentOpen(true) }
+/* LOS SERVERS (server/servers.go): lo que hay que tener prendido en esta máquina para que otra persona pruebe contra
+   ella. Su estado se mira cada 15 s, y cada 2 s mientras se levanta; abierto, ocupa el editor. Abrir una
+   conversación lo cierra. */
+const servers = ref([])
+const serverOpen = ref('')
+const openServer = computed(() => servers.value.find((s) => s.id === serverOpen.value) || null)
+let serversTimer = null
+async function loadServers() {
+  clearTimeout(serversTimer)
+  try {
+    servers.value = (await (await fetch('/api/servers')).json()).servers || []
+  } catch { /* el servidor del chat no contestó: se reintenta */ }
+  serversTimer = setTimeout(loadServers, servers.value.some((s) => s.busy) ? 2000 : 15000)
+}
+watch(() => chat.activeKey, () => { serverOpen.value = '' })
 const agentLabel = computed(() => mine.agent.name || 'Mi agente')
 /* LAS FOTOS DE GOOGLE: la de cada persona viene con ella (el home la manda en quién está conectado y en cada mensaje);
    la tuya, de tu sesión. Sin foto, las iniciales de siempre. Se piden sin «referer»: así las sirve Google. */
@@ -316,12 +332,14 @@ let themeBinding = null
 onMounted(() => {
   applyRoute()
   chat.start()
+  loadServers()
   window.addEventListener('resize', onWindowResize)
   window.addEventListener('popstate', applyRoute)
   if (themeToggle.value) themeBinding = bindThemeToggle(themeToggle.value)
 })
 onBeforeUnmount(() => {
   chat.stop()
+  clearTimeout(serversTimer)
   window.removeEventListener('resize', onWindowResize)
   window.removeEventListener('popstate', applyRoute)
   themeBinding?.destroy?.()
@@ -359,7 +377,7 @@ const statusText = computed(() => {
       <div class="region-body">
         <ul class="conversations">
           <li>
-            <button type="button" class="conversation" :class="{ on: !chat.activeKey }" @click="openMyChat">
+            <button type="button" class="conversation" :class="{ on: !chat.activeKey && !serverOpen }" @click="openMyChat">
               <span class="avatar" aria-hidden="true"><img v-if="myPhoto" class="avatar-photo" :src="myPhoto" alt="" referrerpolicy="no-referrer"><template v-else>{{ initials(chat.me || chat.state?.session) }}</template></span>
               <span class="conversation-main">
                 <span class="conversation-top"><b class="name">Mi chat</b></span>
@@ -439,9 +457,34 @@ const statusText = computed(() => {
         </ul>
       </div>
       </div>
+
+      <!-- Los servers: lo que hay que prender acá para que otra persona pruebe contra esta máquina. -->
+      <div class="wb-bloque bloque-servers">
+      <div class="region-head">
+        <span>Servers</span>
+        <span class="count">{{ servers.length }}</span>
+      </div>
+      <div class="region-body">
+        <ul class="conversations">
+          <li v-for="s in servers" :key="s.id">
+            <button type="button" class="conversation" :class="{ on: serverOpen === s.id }" @click="serverOpen = serverOpen === s.id ? '' : s.id">
+              <span class="avatar tool" aria-hidden="true">S<i v-if="s.ready" class="presence"></i></span>
+              <span class="conversation-main">
+                <span class="conversation-top"><b class="name">{{ s.name }}</b></span>
+                <span class="conversation-bottom"><span class="snippet">{{ s.busy ? s.step || 'levantando…' : s.ready ? 'listo · ' + s.tunnelUrl : (s.checks.find((c) => !c.ok)?.name || '') + ': ' + (s.checks.find((c) => !c.ok)?.detail || '') }}</span></span>
+              </span>
+            </button>
+          </li>
+        </ul>
+      </div>
+      </div>
     </aside>
 
-    <main class="editor">
+    <main v-if="openServer" class="editor">
+      <ServerPanel :server="openServer" @changed="loadServers" @close="serverOpen = ''" @sent="serverOpen = ''" />
+    </main>
+
+    <main v-else class="editor">
       <div class="region-head conversation-head">
         <template v-if="chat.active">
           <!-- Un solo primer hijo: la base le da a ese el ancho que sobra y lo recorta con «…». -->
@@ -832,6 +875,7 @@ code { font-family: var(--font-mono); font-size: .92em }
    mitad. Cada uno scrollea su cuerpo. */
 .bloque-conversaciones { flex: 1 1 auto }
 .bloque-agentes { flex: 0 1 auto; max-height: 45% }
+.bloque-servers { flex: 0 0 auto }
 
 .mode-toggle { border: 0; background: none; font: inherit; color: inherit; cursor: pointer; display: inline-flex; align-items: center; gap: 6px }
 .mode-toggle.on { color: var(--office-accent); font-weight: 600 }
