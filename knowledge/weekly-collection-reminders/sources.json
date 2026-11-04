@@ -1,13 +1,13 @@
 {
   "version": 1,
   "title": "Corte semanal y recordatorios de cobranza",
-  "summary": "Cortes 3 (viernes) y 4 (martes): primera cuota, tasa semanal efectiva en los dos monolitos y el comando de recordatorios semanales de legacy-backend: offsets, días no hábiles, un mensaje diario y variables.",
-  "reviewedAt": "2026-11-02T15:34:59+00:00",
+  "summary": "Cortes 3 (viernes) y 4 (martes): primera cuota y tasa semanal en los dos monolitos; quién agenda cada comando de recordatorios, qué excluyen los generales, qué tiene que ser cierto para que salga una plantilla semanal y sus variables.",
+  "reviewedAt": "2026-11-04T01:00:58Z",
   "sources": [
     {
       "repo": "legacy-backend",
       "path": "Modules/Loans/App/Support/CutoffCalendar.php",
-      "commit": "c03edaffa465bd07bceccd4076af5d1cec9916b9",
+      "commit": "dd1365e85b9cf825bc46991e0b513630c1a74da1",
       "blob": "ed6fa4afbea819cc75885a42b6e5847dfc023b8f",
       "sections": [
         "los-dos-cortes-semanales",
@@ -15,9 +15,18 @@
       ]
     },
     {
+      "repo": "legacy-backend",
+      "path": "Modules/Loans/App/Services/PaymentSchedule/CalculatorPaymentScheduleService.php",
+      "commit": "dd1365e85b9cf825bc46991e0b513630c1a74da1",
+      "blob": "be5c946694f63565dcc2bfa932db3e7bce90dccc",
+      "sections": [
+        "los-dos-cortes-semanales"
+      ]
+    },
+    {
       "repo": "application",
       "path": "app/Helpers/CutoffCalendar.php",
-      "commit": "24dc86eb1eaabb4e4eee37750ab90e258c36ce78",
+      "commit": "1755ab4fa3a50cac5669cdff4826131979a15def",
       "blob": "c72345f5483b7d6943156caf7e34f26c28388b8e",
       "sections": [
         "la-tasa-semanal-es-efectiva-en-los-dos-monolitos"
@@ -26,7 +35,7 @@
     {
       "repo": "legacy-backend",
       "path": "database/migrations/2026_08_15_120000_disable_payment_date_selection_for_renting_and_rto.php",
-      "commit": "c03edaffa465bd07bceccd4076af5d1cec9916b9",
+      "commit": "dd1365e85b9cf825bc46991e0b513630c1a74da1",
       "blob": "75d3291a9bc93adaa48b5f2c54f4f428a71b423d",
       "sections": [
         "los-dos-cortes-semanales"
@@ -35,7 +44,7 @@
     {
       "repo": "legacy-backend",
       "path": "Modules/Loans/App/Services/DocumentGeneration/Payload/MotaiRentToOwnPayloadBuilder.php",
-      "commit": "c03edaffa465bd07bceccd4076af5d1cec9916b9",
+      "commit": "dd1365e85b9cf825bc46991e0b513630c1a74da1",
       "blob": "90d8924d42a6eefcbafdb1df11f724a177fcf67b",
       "sections": [
         "la-tasa-semanal-es-efectiva-en-los-dos-monolitos"
@@ -44,7 +53,7 @@
     {
       "repo": "legacy-backend",
       "path": "app/Console/Kernel.php",
-      "commit": "c03edaffa465bd07bceccd4076af5d1cec9916b9",
+      "commit": "dd1365e85b9cf825bc46991e0b513630c1a74da1",
       "blob": "9ee74124d8db9ff4d1d0f902832eb1159dd863b7",
       "sections": [
         "quien-envia-cada-recordatorio"
@@ -53,17 +62,18 @@
     {
       "repo": "legacy-backend",
       "path": "app/Console/Commands/ReminderWeeklyLoansCommand.php",
-      "commit": "c03edaffa465bd07bceccd4076af5d1cec9916b9",
+      "commit": "dd1365e85b9cf825bc46991e0b513630c1a74da1",
       "blob": "8314e26f298272852b58ab7a63eb022f94a9a550",
       "sections": [
         "quien-envia-cada-recordatorio",
-        "cuando-sale-cada-plantilla"
+        "cuando-sale-cada-plantilla",
+        "que-tiene-que-ser-cierto-para-que-un-credito-reciba-algo"
       ]
     },
     {
       "repo": "legacy-backend",
       "path": "Modules/Loans/App/Services/Reminders/WeeklyReminderQuery.php",
-      "commit": "c03edaffa465bd07bceccd4076af5d1cec9916b9",
+      "commit": "dd1365e85b9cf825bc46991e0b513630c1a74da1",
       "blob": "4fdd0523ddd3d4791ff45833e5b229ef17045fcf",
       "sections": [
         "quien-envia-cada-recordatorio",
@@ -71,27 +81,67 @@
       ]
     },
     {
-      "repo": "application",
+      "repo": "legacy-backend",
+      "path": "app/Models/CreditopXReminderMessage.php",
+      "commit": "dd1365e85b9cf825bc46991e0b513630c1a74da1",
+      "blob": "d239a9b0710a28cf1c34807b227c0b3ad6785f49",
+      "sections": [
+        "quien-envia-cada-recordatorio",
+        "que-tiene-que-ser-cierto-para-que-un-credito-reciba-algo"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
       "path": "app/Console/Commands/ReminderCreditopXRequestsCommand.php",
-      "commit": "24dc86eb1eaabb4e4eee37750ab90e258c36ce78",
-      "blob": "bdec571b8e0aba39f2f1a058bdab89e5a6018dbc",
+      "commit": "dd1365e85b9cf825bc46991e0b513630c1a74da1",
+      "blob": "d9adb4924ddeb3de67f628e4548270c50f24919c",
+      "sections": [
+        "quien-envia-cada-recordatorio",
+        "que-tiene-que-ser-cierto-para-que-un-credito-reciba-algo"
+      ]
+    },
+    {
+      "repo": "application",
+      "path": "app/Console/Kernel.php",
+      "commit": "1755ab4fa3a50cac5669cdff4826131979a15def",
+      "blob": "a1df17f166609b5a6b6f0ba935b8160eb2bfced5",
       "sections": [
         "quien-envia-cada-recordatorio"
       ]
     },
     {
       "repo": "application",
+      "path": "app/Console/Commands/ReminderCreditopXRequestsCommand.php",
+      "commit": "1755ab4fa3a50cac5669cdff4826131979a15def",
+      "blob": "bdec571b8e0aba39f2f1a058bdab89e5a6018dbc",
+      "sections": [
+        "quien-envia-cada-recordatorio",
+        "que-tiene-que-ser-cierto-para-que-un-credito-reciba-algo"
+      ]
+    },
+    {
+      "repo": "application",
       "path": "config/reminders.php",
-      "commit": "24dc86eb1eaabb4e4eee37750ab90e258c36ce78",
+      "commit": "1755ab4fa3a50cac5669cdff4826131979a15def",
       "blob": "d97580cc642f4837240a425b122a74758ca12a0d",
       "sections": [
         "quien-envia-cada-recordatorio"
       ]
     },
     {
+      "repo": "loan-servicing",
+      "path": "internal/modules/nightlyportfolio/core/domain/step.go",
+      "commit": "113ec16fa49ccbe48dcf334bc083a100625d5e08",
+      "blob": "6e9d9fd77fe4e22acbf172a6182ffe2c4003b6c0",
+      "sections": [
+        "quien-envia-cada-recordatorio",
+        "limites"
+      ]
+    },
+    {
       "repo": "legacy-backend",
       "path": "database/migrations/2026_09_03_100300_plantillas_semanales_motai.php",
-      "commit": "c03edaffa465bd07bceccd4076af5d1cec9916b9",
+      "commit": "dd1365e85b9cf825bc46991e0b513630c1a74da1",
       "blob": "f35c909383ac96b7e30f7a782e07203ab65df839",
       "sections": [
         "cuando-sale-cada-plantilla",
@@ -101,9 +151,10 @@
     {
       "repo": "legacy-backend",
       "path": "Modules/Loans/App/Services/CreditopXPaymentService.php",
-      "commit": "69920f580f62ad35f0a555e3b8b8f2c247d758aa",
+      "commit": "dd1365e85b9cf825bc46991e0b513630c1a74da1",
       "blob": "501a79b976b71a77543ce9efc9452e8d2f4e269e",
       "sections": [
+        "que-tiene-que-ser-cierto-para-que-un-credito-reciba-algo",
         "variables-de-los-mensajes"
       ]
     }
