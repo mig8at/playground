@@ -280,7 +280,20 @@ function startReply(item) {
 }
 
 // ── el campo para escribir: Enter manda, Shift+Enter baja de renglón, Esc deja de responder ──
-const draft = ref('')
+/* EL BORRADOR, uno por conversación, como en WhatsApp: lo que dejaste escrito en una vuelve cuando la abrís otra vez,
+   aunque pases por otra, por un server o recargues. Vive en este navegador; al mandar se borra. */
+const DRAFTS_KEY = 'chat.drafts'
+const drafts = (() => { try { return JSON.parse(localStorage.getItem(DRAFTS_KEY) || '{}') || {} } catch { return {} } })()
+const draftKey = (key) => key || 'mi-chat'
+const draft = ref(drafts[draftKey(chat.activeKey)] || '')
+let saveDraftTimer = null
+watch(draft, (text) => {
+  const key = draftKey(chat.activeKey)
+  if (text) drafts[key] = text
+  else delete drafts[key]
+  clearTimeout(saveDraftTimer)
+  saveDraftTimer = setTimeout(() => { try { localStorage.setItem(DRAFTS_KEY, JSON.stringify(drafts)) } catch { /* sólo no se recuerda */ } }, 300)
+})
 const composer = ref(null)
 const threadEl = ref(null)
 async function submit() {
@@ -350,7 +363,12 @@ async function scrollToEnd() {
   if (threadEl.value) threadEl.value.scrollTop = threadEl.value.scrollHeight
 }
 watch(() => [chat.activeKey, chat.active?.messages.length], scrollToEnd)
-watch(() => chat.activeKey, async () => { draft.value = ''; replyTo.value = null; await nextTick(); composer.value?.focus() })
+watch(() => chat.activeKey, async (key) => {
+  // El de la conversación que se abre (el de la anterior ya quedó guardado al escribirlo).
+  draft.value = drafts[draftKey(key)] || ''
+  replyTo.value = null
+  await nextTick(); autosize(); composer.value?.focus()
+})
 const activeIsCanon = computed(() => chat.active?.person.tool === 'canon')
 const placeholder = computed(() => {
   if (agentAnswers.value) return `Contesta ${agentLabel.value}: apagalo para escribir vos`
@@ -455,7 +473,7 @@ const statusText = computed(() => {
              dice quién está). -->
         <ul v-if="chat.list.length || onlineWithoutChat.length" class="conversations">
           <li v-for="c in chat.list" :key="c.person.email" class="conv-item">
-            <button type="button" class="conversation" :class="{ on: c.person.email === chat.activeKey }" @click="chat.open(c.person)">
+            <button type="button" class="conversation" :class="{ on: c.person.email === chat.activeKey }" @click="serverOpen = ''; chat.open(c.person)">
               <span class="avatar" aria-hidden="true"><img v-if="photoOf(c.person)" class="avatar-photo" :src="photoOf(c.person)" alt="" referrerpolicy="no-referrer"><template v-else>{{ initials(c.person) }}</template><i v-if="c.online" class="presence"></i></span>
               <span class="conversation-main">
                 <span class="conversation-top">
@@ -472,7 +490,7 @@ const statusText = computed(() => {
                     @click.stop="deleteConversation(c)">✕</button>
           </li>
           <li v-for="p in onlineWithoutChat" :key="p.email">
-            <button type="button" class="conversation" @click="chat.open(p)">
+            <button type="button" class="conversation" @click="serverOpen = ''; chat.open(p)">
               <span class="avatar" aria-hidden="true"><img v-if="photoOf(p)" class="avatar-photo" :src="photoOf(p)" alt="" referrerpolicy="no-referrer"><template v-else>{{ initials(p) }}</template><i class="presence"></i></span>
               <span class="conversation-main">
                 <span class="conversation-top"><b class="name">{{ p.name || p.email }}</b></span>
@@ -501,7 +519,7 @@ const statusText = computed(() => {
         </p>
         <ul v-else class="conversations">
           <li v-for="a in chat.agentList" :key="a.key">
-            <button type="button" class="conversation" :class="{ on: a.key === chat.activeKey }" @click="chat.openAgent(a)">
+            <button type="button" class="conversation" :class="{ on: a.key === chat.activeKey }" @click="serverOpen = ''; chat.openAgent(a)">
               <span class="avatar agent" :class="{ mine: a.mine, tool: a.tool }" aria-hidden="true">{{ (a.agentName || '?')[0].toUpperCase() }}</span>
               <span class="conversation-main">
                 <span class="conversation-top">
