@@ -1,8 +1,8 @@
 // Package repos es la fuente ÚNICA de los repos del playground: dónde está clonado cada uno, qué ref
 // mirar, qué existe en `main` y cómo se cita un archivo.
 //
-// La LISTA vive en `tools/repos.json`, que leen este paquete y `tools/repos.py` (el lado Python, que
-// para todo lo que toca git le pregunta a `cmd/repos`). La lógica vive acá.
+// La LISTA vive en `tools/repos.json`, que lee este paquete; `cmd/repos` la expone en JSON para las
+// herramientas que no son Go. La lógica vive acá.
 //
 // ⚠ POR QUÉ UNA SOLA COPIA. No es prolijidad: está medido. El 2026-09-18 el código se resolvía contra
 // el `main` LOCAL de cada clon —que nadie actualiza— y de esa ÚNICA causa salieron cinco mentiras en
@@ -144,7 +144,7 @@ func (c *Client) expand(path string) string {
 	return filepath.Clean(filepath.Join(c.Playground, path))
 }
 
-// Indexed: alias → carpeta, de lo que se indexa (el lado Python de tools/repos.py).
+// Indexed: alias → carpeta, de lo que se indexa.
 func (c *Client) Indexed() map[string]string { return c.indexed }
 
 // Citable: alias → carpeta, de todo lo que un bloque del tablero puede citar.

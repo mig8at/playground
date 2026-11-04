@@ -34,6 +34,10 @@ jira_title: ""
       borrada sólo después de salir idéntica contra la vieja: `tools/{confluence,estilo,ui-sync}.py` y `trazador/tools/huella.py` · `workers/` (~7.100 líneas, que es lo que mantiene vivo `tools/repos.py` y `tools/canon.py`) ·
       (`twilio/` pasó a `connectors/twilio` y `flow/` salió del repo a `~/Desktop/CREDITOP/temp/`, los dos el 2026-09-24). Termina cuando `git ls-files '*.py'` no
       devuelve nada fuera de lo que se decida conservar (hoy `jev_transport.py`, la conexión con Jev).
+      **Avance (2026-11-03):** se borraron `tools/canon.py` y `tools/repos.py`, que ya nadie importaba (sus
+      usuarios eran `workers/` y el trazador); `jev_transport.py` ya no existe. Queda: `tools/style.py` y
+      `tools/ui-sync.py` (los corren `make estilo-sync`/`estilo-check`), y `tablero/tools/rename/py/{ren,free}.py`,
+      que se van con ellos. `tablero/tools/rename/ab-py.sh` corre archivos que ya no existen: borrarlo con ellos.
 - [x] **El cierre reclamaba de más.** La bitácora de un barrido ya la eximía el marcador «sin avance»
       (el 21/9; la pista de deducirlo del diff se había descartado porque el barrido también escribe su
       nota). Lo que quedaba, medido el 2026-09-23: a #46 y #47, tocadas sólo por barridos y declaradas

@@ -10,7 +10,7 @@
 //	round [-force]                       qué archivos que el corpus declara cambiaron en main (contra los clones del servidor)
 //	clones [-sync] [-repo R]             a qué commit de main está el clon de cada repo en el servidor; -sync le pide que los refresque
 //	patch -dir <carpeta> -reason R       publica los archivos que cambiaste en esa carpeta. Sin -apply sólo ensaya y muestra el diff
-//	corpus                               el corpus entero en JSON, para los cruces de `tools/canon.py`
+//	corpus                               el corpus entero en JSON, para cruzarlo con otra herramienta
 //	eval [-days N] [-target T] [-json]   organización del corpus y código que se mueve sin área (ver eval.go)
 //
 // El origen es CANON_URL —producción por defecto, que pide la VPN de prod—, el mismo del tablero. La
@@ -499,7 +499,7 @@ func newContentFiles(dir string, known map[string]string) ([]string, error) {
 }
 
 /* corpus imprime el corpus entero en JSON —`{"url", "topics": {tema: {areas, prose}}}`— para los
- * cruces en Python (`tools/canon.py`). Es la única lectura del corpus completo del playground. */
+ * cruces con otras herramientas. Es la única lectura del corpus completo del playground. */
 func corpus(ctx context.Context, client *canon.Client) error {
 	topics, err := client.Corpus(ctx)
 	if err != nil {

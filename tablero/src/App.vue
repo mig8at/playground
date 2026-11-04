@@ -34,7 +34,7 @@ const SERVER = import.meta.env.VITE_TABLERO_API || 'http://localhost:8787';
 const BOARD = 384;            // CORE — el proyecto donde están MIS tareas (no LO / Loans Origination)
 const CANON_DEFAULT_URL = 'https://canon.playground.creditop.com';
 const canonUrl = ref(CANON_DEFAULT_URL);
-// Dónde se ve cada repo que un bloque puede citar (alias → web y carpeta). Sale de tools/repos.py, la
+// Dónde se ve cada repo que un bloque puede citar (alias → web y carpeta). Sale de tools/repos.json, la
 // lista única, vía /api/config; sin ella, un archivo citado se muestra igual pero sin enlace.
 const repos = ref({});
 

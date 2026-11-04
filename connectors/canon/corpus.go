@@ -8,9 +8,9 @@ import (
 )
 
 /* EL CORPUS ENTERO, para cruzarlo con lo que otra herramienta mide: qué tema declara qué archivo y qué
- * tabla, y su prosa para buscar una tabla que se explica sin figurar en el mapa. Lo consume la huella
- * del trazador —que es Python— a través de `canon corpus` y `tools/canon.py`: la lectura de
- * canon tiene UNA implementación, ésta, y el lado Python sólo reparte lo que devuelve. */
+ * tabla, y su prosa para buscar una tabla que se explica sin figurar en el mapa. Lo expone
+ * `canon corpus` (`tablero/server/cmd/canon`) en JSON: la lectura del corpus entero tiene UNA
+ * implementación, ésta. */
 
 // readBatch es cuántos temas se piden por `/api/read`: el corpus entero en pocas vueltas.
 const readBatch = 20

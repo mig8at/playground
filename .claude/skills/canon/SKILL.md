@@ -30,9 +30,8 @@ trabajar archivos enteros (un `map.json`), `make canon-export` baja el corpus de
 4. En una tarea, lo que se usó se cita en su bloque como `[texto](canon:tema#ancla)` y el tema entra a
    `canon:` del frontmatter.
 
-Los comandos son `tablero/server/cmd/canon` (Go, sobre el conector `connectors/canon`). Para
-Python, `tools/canon.py` da `maps()`, `prose()`, `files_by_topic()`, `topics_by_repo()` y
-`tables_by_topic()`: no lee canon, se lo pide a `canon corpus`, así que hay un solo cliente.
+Los comandos son `tablero/server/cmd/canon` (Go, sobre el conector `connectors/canon`). Para cruzar
+el corpus entero con otra herramienta, `canon corpus` lo imprime en JSON: hay un solo cliente.
 
 ## Escribir — cuando Miguel solicita publicar o mantener Canon
 

@@ -1,5 +1,5 @@
-// repos contesta, en JSON, lo que las herramientas en Python necesitan de la lista de repos
-// (`tools/repos.py` le pregunta acá para todo lo que toca git). La lógica es `connectors/repos`.
+// repos contesta, en JSON, lo que las herramientas que no son Go necesitan de la lista de repos
+// (la ref a mirar, la carpeta, la web). La lógica es `connectors/repos`.
 //
 //	roots                          la lista: indexados, citables, extensiones y la raíz del playground
 //	ref <alias|carpeta>            la ref que se mira en ese repo y por qué
