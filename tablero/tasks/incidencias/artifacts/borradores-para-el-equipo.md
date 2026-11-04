@@ -507,7 +507,9 @@ sitio, se pueden sobrescribir el correo y los datos de perfil de otra solicitud.
 
 **Cómo se comprobó.** Leyendo `main` (igual al último tag de producción): la ruta está antes del bloque con sesión en el
 archivo de rutas del sitio de comercios, el grupo de ese sitio no autentica, la validación del formulario autoriza siempre y el
-controlador hace `UserRequest::find` con el número del cuerpo. No se corrió.
+controlador hace `UserRequest::find` con el número del cuerpo. **Reproducido en local el 2026-11-04**: sin iniciar
+sesión, con sólo la cookie que entrega el sitio al visitarlo, el envío del formulario con el número de una solicitud de
+prueba cambió el correo de su cliente y respondió con la redirección al listado de entidades.
 
 **Falta comprobar:** si esa pantalla sigue en uso en producción o quedó del onboarding anterior.
 
@@ -531,7 +533,10 @@ preaprobación de una entidad. El admin de `legacy-application` llama algunas de
 
 **Cómo se comprobó.** Leyendo `main`: el `RouteServiceProvider` de Loans monta el grupo con `['otel', 'api']`, y el
 grupo `api` sólo enlaza modelos, traza y marca el tipo de flujo. En el repositorio de infraestructura, el API Gateway
-de producción no publica ninguna ruta `loans/admin`, y el backend sí está detrás del balanceador interno. No se corrió.
+de producción no publica ninguna ruta `loans/admin`, y el backend sí está detrás del balanceador interno.
+**Reproducido en local el 2026-11-04**, sin ninguna credencial: marcar la validación manual de un usuario de prueba
+respondió 200, y la confirmación siguiente de su solicitud ya no pidió identidad (`no_validation_required`); la revisión
+de política y la capacidad de endeudamiento también contestaron 200.
 
 **Falta comprobar:** si hay otra entrada pública al backend además del gateway, y quién tiene acceso a la red interna.
 Si sólo se llega por la red interna, el riesgo es de quien tenga acceso a ella; igual, nada en la aplicación lo frena.
@@ -558,7 +563,10 @@ En el sitio del comercio, el menú «Perfilamiento» además se muestra sin cheq
 Son de la misma familia que el 17 (la revisión de perfilamiento) y el 20 (lecturas por id sin mirar el comercio).
 
 **Cómo se comprobó.** Leyendo `main` (igual al último tag): las rutas `usuarios-perfilamiento` y `validar-perfil/{id}`
-no llevan `can:`, y sus controladores no autorizan. No se corrió.
+no llevan `can:`, y sus controladores no autorizan. **Reproducido en local el 2026-11-04** con un usuario de rol
+«Entidad», que no tiene el permiso del menú: el listado se abrió con 522 filas (como esa cuenta no tiene entidad
+asignada, el filtro por entidad termina mostrando las solicitudes sin entidad de todos los comercios), y «Validar
+perfil» llegó al controlador. Como control, «Validar usuario», que sí pide permiso, devolvió 403.
 
 **Propuesta.** Ponerles el permiso que usa su menú, y que «Validar perfil» compare el comercio de la solicitud con el
 del usuario.
@@ -575,7 +583,10 @@ asistente sólo las suyas (salvo los comercios del setting que les deja ver todo
 
 **Cómo se comprobó.** Leyendo `main` de los dos monolitos y del asistente: el servicio nuevo lo dice en su comentario
 («scoped to the "Comercial" role only»), el menú tiene `show: true`, y los dos filtros del asesor difieren en las
-solicitudes sin asesor. No se corrió.
+solicitudes sin asesor. **Reproducido en local el 2026-11-04** corriendo los dos servicios con el mismo asesor y la
+misma base: la aplicación anterior le muestra 5 solicitudes (2 suyas y 3 sin asesor) y el backend, 2. Además, para un
+superadmin de comercio el backend devuelve 0 filas, pero el filtro de comercios le lista los 195 comercios de la base:
+el recorte de ese filtro también es sólo del asesor.
 
 **Propuesta.** Decidir si la pantalla nueva es sólo para el asesor (y entonces esconder el menú a los demás) o portar
 los filtros del resto de los perfiles; y alinear el del asesor con el de la aplicación anterior o anotar por qué cambia.
