@@ -83,6 +83,11 @@ fecha y plan, se le generó el pagaré, validó el OTP y la autorización la dej
 único que frenó fue la radicación ante Credifamilia, que exige las imágenes de la cédula (y no las había porque la
 identidad nunca terminó): la solicitud quedó autorizada sin radicar.
 
+**Y queda trabada.** Leído en el código: la autorización se guarda primero y la radicación corre después, aparte.
+Cuando la radicación falla por la cédula, la solicitud ya está autorizada pero no se mandan las notificaciones ni el
+comprobante, y las pantallas del pagaré ya no dejan reintentar porque la solicitud está en «autorizada». Hay una ruta del
+admin para volver a radicar.
+
 **En producción.** Las 5 solicitudes autorizadas desde octubre con el cliente todavía temporal son de entidades que
 originan y validan de su lado (Addi, Brilla, Welli, Meddipay). No se vio en entidades que origina Creditop.
 
