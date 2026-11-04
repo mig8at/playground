@@ -629,7 +629,8 @@ let prepare: { perfiles?: Array<{ lender: number; perfil: string; activo: boolea
 let profileSnap: import('../pkg/profile-prep.ts').ProfileSnap | null = null;
 
 const SUITE_KEYS = {
-    top: ['nombre', 'requiere', 'porDefecto', 'casos', 'nota', 'ambientes', 'preparar'],
+    // `recorrido`: en qué recorrido del catálogo (journeys.json) cae la suite; lo lee `make agente` para decir qué la cubre.
+    top: ['nombre', 'recorrido', 'requiere', 'porDefecto', 'casos', 'nota', 'ambientes', 'preparar'],
     caso: ['comercio', 'lender', 'nombre', 'nota', 'espera', 'ocupacion', 'cuotas', 'webhook', 'name', 'surname', 'agilname',
            'doc', 'agildata', 'mareigua', 'tusdatos', 'pasos', 'escenarios', 'amount', 'income', 'score',
            'negatives', 'delinquencies', 'consulted', 'cards', 'months', 'maturation'],
@@ -751,7 +752,7 @@ async function loadSuite(path: string, dflt: { amount: number; income: number; s
 
 type Res = {
     caso: Case; ok: boolean; ur?: number; uid?: number; phone: string; nombre?: string;
-    /** El recorrido de la entidad pedida, en el vocabulario del catálogo (`recorridos.json`). */
+    /** El recorrido de la entidad pedida, en el vocabulario del catálogo (`journeys.json`). */
     recorrido?: string[];
     enListado?: boolean; listado?: number[]; conducta?: string; detalle?: string;
     /** Lo que la tarjeta de cada entidad trae del listado y alguna aserción mira. */
@@ -1341,7 +1342,7 @@ async function traverse(c: Case, i: number): Promise<Res> {
     // El recorrido que le toca a la entidad pedida, para leer la corrida en el vocabulario del negocio. Este runner
     // habla con la API como el asesor, así que el canal es el del asesor.
     if (c.lender !== null && c.lender !== undefined) {
-        const { routeSummary } = await import('../pkg/recorridos.ts');
+        const { routeSummary } = await import('../pkg/journeys.ts');
         base.recorrido = await routeSummary(Number(c.lender), br.hash, 'merchant');
     }
     if (flag('close') && !c.noClose) {

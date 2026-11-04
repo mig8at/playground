@@ -84,7 +84,7 @@ export type TraceOpts = {
      *  el runner visual, cuyas rutas son cortas; el de endpoints camina rutas con flujo, hash y query,
      *  y con 54 la columna se desalinea. */
     ancho?: number;
-    /** A qué pieza del recorrido pertenece una ruta (`pieceOfRoute` de `pkg/recorridos.ts`): va al final de la
+    /** A qué pieza del recorrido pertenece una ruta (`pieceOfRoute` de `pkg/journeys.ts`): va al final de la
      *  línea, para leer la corrida en el vocabulario del negocio y no sólo en rutas. */
     pieza?: (path: string) => string | null;
 };

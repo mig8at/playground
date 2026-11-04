@@ -1,5 +1,6 @@
 {
   "nombre": "La regla de buró de Prami ordena y cierra la consulta, pero no la saca del listado",
+  "recorrido": ["advisor", "riel-1"],
   "ambientes": ["local"],
   "requiere": ["lambda", "parallel"],
   "porDefecto": {

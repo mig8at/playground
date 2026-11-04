@@ -28,6 +28,7 @@ import (
 	"strings"
 
 	"creditop/playground/lib/text"
+	"creditop/playground/tablero/server/internal/journeys"
 	"creditop/playground/tablero/server/internal/layout"
 	"creditop/playground/tablero/server/internal/specs"
 )
@@ -40,6 +41,7 @@ type brief struct {
 	Traps       traps           `json:"traps"`
 	Knowledge   []topicState    `json:"knowledge"`
 	Specs       []specs.Spec    `json:"specs"`
+	Journey     *journeyState   `json:"journey,omitempty"`
 	Environment json.RawMessage `json:"environment,omitempty"`
 	Steps       []step          `json:"steps"`
 	Warnings    []string        `json:"warnings"`
@@ -66,6 +68,20 @@ type topicState struct {
 	Title   string   `json:"title"`
 	Changed []string `json:"changed"`
 	Suites  []string `json:"suites"`
+}
+
+// journeyState: el `recorrido:` de la tarea frente al catálogo del harness, y qué suites lo cubren.
+type journeyState struct {
+	Declared  []string       `json:"declared"`
+	Route     journeys.Route `json:"route"`
+	Errors    []string       `json:"errors"`
+	Suites    []suiteCover   `json:"suites"`
+	Uncovered []string       `json:"uncovered"`
+}
+
+type suiteCover struct {
+	File   string   `json:"file"`
+	Covers []string `json:"covers"`
 }
 
 type step struct {
@@ -142,6 +158,7 @@ func main() {
 			b.Warnings = append(b.Warnings, fmt.Sprintf("harness-doctor no devolvió JSON: %v", err))
 		}
 	}
+	b.Journey = journeyOf(root, task.Slug)
 	b.Steps = steps(task)
 
 	if *asJSON {
@@ -298,6 +315,107 @@ func knowledgeState(root string, task taskView, warnings []string) ([]topicState
 	return out, warnings
 }
 
+/* journeyOf: el `recorrido:` del frontmatter de la tarea, validado contra el catálogo del harness, y las suites
+ * que lo cubren. Una suite cubre la tarea si es del mismo riel y comparte un canal; de las variaciones y la
+ * formalización que la tarea declara, las que ninguna de esas suites trae quedan «sin suite»: el recorrido
+ * existe, pero esa pieza no se comprueba corriéndola. nil si la tarea no declara recorrido. */
+func journeyOf(root, slug string) *journeyState {
+	doc, err := os.ReadFile(filepath.Join(root, "tablero", "tasks", slug, "task.md"))
+	if err != nil {
+		return nil
+	}
+	parts := strings.SplitN(string(doc), "---", 3)
+	if len(parts) < 3 {
+		return nil
+	}
+	var declared []string
+	for _, l := range strings.Split(parts[1], "\n") {
+		if strings.HasPrefix(l, "recorrido:") {
+			v := strings.Trim(strings.TrimSpace(strings.TrimPrefix(l, "recorrido:")), "[]")
+			for _, x := range strings.Split(v, ",") {
+				if x = strings.TrimSpace(x); x != "" {
+					declared = append(declared, x)
+				}
+			}
+		}
+	}
+	if len(declared) == 0 {
+		return nil
+	}
+	st := &journeyState{Declared: declared, Errors: []string{}, Suites: []suiteCover{}, Uncovered: []string{}}
+	catalog, err := journeys.Load(root)
+	if err != nil {
+		st.Errors = append(st.Errors, "no pude leer el catálogo: "+err.Error())
+		return st
+	}
+	st.Route, st.Errors = journeys.Parse(catalog, declared)
+	if st.Errors == nil {
+		st.Errors = []string{}
+	}
+	pieces := append([]string{}, prefixed("+", st.Route.Variations)...)
+	if st.Route.Formalization != "" {
+		pieces = append(pieces, "formalizacion:"+st.Route.Formalization)
+	}
+	covered := map[string]bool{}
+	files, _ := filepath.Glob(filepath.Join(root, "harness", "suites", "*.json"))
+	for _, f := range files {
+		raw, err := os.ReadFile(f)
+		if err != nil {
+			continue
+		}
+		var suite struct {
+			Journey []string `json:"recorrido"`
+		}
+		if json.Unmarshal(raw, &suite) != nil || len(suite.Journey) == 0 {
+			continue
+		}
+		r, errs := journeys.Parse(catalog, suite.Journey)
+		if len(errs) > 0 || r.Rail != st.Route.Rail || !shareAny(r.Channels, st.Route.Channels) {
+			continue
+		}
+		have := map[string]bool{}
+		for _, p := range prefixed("+", r.Variations) {
+			have[p] = true
+		}
+		if r.Formalization != "" {
+			have["formalizacion:"+r.Formalization] = true
+		}
+		cover := suiteCover{File: "harness/suites/" + filepath.Base(f), Covers: []string{}}
+		for _, p := range pieces {
+			if have[p] {
+				cover.Covers = append(cover.Covers, p)
+				covered[p] = true
+			}
+		}
+		st.Suites = append(st.Suites, cover)
+	}
+	for _, p := range pieces {
+		if !covered[p] {
+			st.Uncovered = append(st.Uncovered, p)
+		}
+	}
+	return st
+}
+
+func prefixed(prefix string, in []string) []string {
+	out := make([]string, 0, len(in))
+	for _, x := range in {
+		out = append(out, prefix+x)
+	}
+	return out
+}
+
+func shareAny(a, b []string) bool {
+	for _, x := range a {
+		for _, y := range b {
+			if x == y {
+				return true
+			}
+		}
+	}
+	return false
+}
+
 // steps: el recorrido del frente «un agente saca una tarea solo», con la tarea ya puesta en cada comando.
 func steps(task taskView) []step {
 	id := fmt.Sprint(task.ID)
@@ -386,7 +504,9 @@ func printText(b brief, task taskView) {
 		fmt.Println("\n  AMBIENTE · no se miró (ENV=1 corre harness-doctor contra local)")
 	}
 
-	fmt.Println("\n  RECORRIDO")
+	printJourney(b.Journey, task)
+
+	fmt.Println("\n  RECORRIDO DE TRABAJO")
 	for _, s := range b.Steps {
 		fmt.Printf("    %d · %s\n        %s\n", s.N, s.Question, s.Command)
 	}
@@ -394,6 +514,44 @@ func printText(b brief, task taskView) {
 		fmt.Println("\n  ⚠", w)
 	}
 	fmt.Println()
+}
+
+var fitText = map[journeys.Fit]string{
+	journeys.Fits:              "encaja: el recorrido y todas sus piezas ya están en el catálogo",
+	journeys.FitsWithVariation: "encaja con variación: el recorrido existe, pero trae una pieza que el catálogo no tiene",
+	journeys.NewJourney:        "recorrido nuevo: el catálogo no tiene ese canal o ese riel",
+}
+
+func printJourney(j *journeyState, task taskView) {
+	fmt.Println("\n  RECORRIDO EN LA PLATAFORMA")
+	if j == nil {
+		fmt.Printf("    la tarea no declara `recorrido:` — ubicala con make harness-recorrido TARGET=local LENDER=… y declarala en el frontmatter\n")
+		return
+	}
+	if len(j.Errors) > 0 {
+		for _, e := range j.Errors {
+			fmt.Printf("    ✗ %s\n", e)
+		}
+		return
+	}
+	fmt.Printf("    %s\n", j.Route.Line)
+	fmt.Printf("    %s\n", fitText[j.Route.Fit])
+	if len(j.Route.New) > 0 {
+		fmt.Printf("    nuevo: %s — al construirlo, sumalo al catálogo (harness/journeys.json) y a knowledge/origination-paths\n", strings.Join(j.Route.New, ", "))
+	}
+	if len(j.Suites) == 0 {
+		fmt.Println("    ninguna suite cubre este riel y canal: el recorrido está leído, no corrido")
+	}
+	for _, s := range j.Suites {
+		what := "el riel y el canal"
+		if len(s.Covers) > 0 {
+			what = strings.Join(s.Covers, ", ")
+		}
+		fmt.Printf("    se comprueba con %s (%s)\n", s.File, what)
+	}
+	if len(j.Uncovered) > 0 {
+		fmt.Printf("    sin suite: %s\n", strings.Join(j.Uncovered, ", "))
+	}
 }
 
 func truncate(s string, n int) string {

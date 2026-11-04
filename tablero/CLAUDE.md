@@ -25,8 +25,14 @@ lugar: el paquete `server/internal/layout`**; no armes `../data/<algo>` a mano e
   objetivo y condición de cierre; al terminar, lo que pasó queda en un bloque y el frente sale de los
   pendientes. No apiles una tarea nueva por cada mejora de la misma herramienta.
 - **Frontmatter**: `id` · `title` · `clase?` (`tarea`|`proyecto`) · `stage` (`evaluation`|`work`|`tasks`) ·
-  `created` · `archived?` · `knowledge[]?` · `canon[]` · `jira[]` · `jira_title` · `ramas?`. Archivar es poner `archived`,
+  `created` · `archived?` · `knowledge[]?` · `recorrido[]?` · `canon[]` · `jira[]` · `jira_title` · `ramas?`. Archivar es poner `archived`,
   no mover el archivo. **`id: 0` no aparece en el tablero.**
+- **`recorrido:`** dice en qué camino de la plataforma cae la tarea, con los ids del catálogo del harness
+  (`harness/journeys.json`, explicado en `knowledge/origination-paths`):
+  `recorrido: [advisor|self-service, riel-4, credit, +dynamic-form, formalizacion:radicacion]`. Lo que el catálogo
+  no tiene se escribe con `nuevo-`/`nueva-` (`formalizacion:nueva-entrega-finandina`); sin ese prefijo, el lint lo
+  toma como tipeo. `make agente` dice si la tarea **encaja**, **encaja con variación** o pide un **recorrido nuevo**,
+  y qué suites lo cubren (las que declaran su `recorrido` en el JSON).
 - **Renombrar o mover una tarea NO es tocarla**: «días sin tocar» y el cierre siguen las mudanzas de git.
 - **JSON es una proyección, no otro archivo**: `make tarea-json N=<slug|id>` deriva `tablero.task.v3` del
   Markdown y la pila. No crees sidecars manuales.

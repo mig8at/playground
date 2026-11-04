@@ -102,7 +102,7 @@ const { findBranch: findBranchIn, merchantDocumentType: documentType } = await i
 const { postHogForensic } = await import('../pkg/posthog.ts');
 const { createTrace, EXPECTED_STATUS } = await import('../pkg/trace.ts');
 // El vocabulario de los recorridos en el log: cada paso dice su pieza y, al elegir la entidad, su recorrido entero.
-const { pieceOfRoute, routeSummary } = await import('../pkg/recorridos.ts');
+const { pieceOfRoute, routeSummary } = await import('../pkg/journeys.ts');
 const { openBrowser, openContext, evidenceNotice, closeContext, advance, chooseEntity, errorBanner, waitForChange, screenPrint } =
     await import('../pkg/wizard-browser.ts');
 const { validationErrors: screenErrors } = await import('../pkg/autofill-qr.ts');
@@ -612,7 +612,7 @@ async function correr(c: Case, i: number): Promise<Result> {
                 continue;
             }
             if (!chosenLender) return finish('trabado', `la entidad ${order || '(ninguna rt=2)'} no salió en el listado${reseeded ? ' (ni después de resembrar para ella: la exclusión es del comercio)' : ''}`);
-            // El recorrido que le toca a la entidad elegida, en el vocabulario del catálogo (recorridos.json).
+            // El recorrido que le toca a la entidad elegida, en el vocabulario del catálogo (journeys.json).
             for (const l of await routeSummary(Number(chosenLender.id), br.hash, FLOW)) log(l);
             if (!flag('close')) return finish('listo', `listó ${options.length} entidad(es), con la pedida (${order})`);
             // El mismo payload que arma `useLenderSelection.ts`. `amount` va igual al pedido: el

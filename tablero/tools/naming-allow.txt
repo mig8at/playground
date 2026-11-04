@@ -81,3 +81,7 @@ hfov vfov idf inm intruder lateral lcs lightbulb lightness llp merch migs naviga
 revalidate revalidates rise rope spheres stopwords telescope tomorrow topple traceability twin twins vocab weave weigh withdrawals yardstick yesterday arn
 homonym
 sslmode
+origination
+formalization
+formalizations
+stratum

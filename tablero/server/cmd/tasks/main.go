@@ -35,6 +35,7 @@ import (
 	"creditop/playground/connectors/guard"
 	"creditop/playground/knowledge"
 	"creditop/playground/tablero/server/internal/env"
+	"creditop/playground/tablero/server/internal/journeys"
 	"creditop/playground/tablero/server/internal/layout"
 	"creditop/playground/tablero/server/internal/store"
 	"creditop/playground/tablero/server/internal/taskcontext"
@@ -51,6 +52,9 @@ type Task struct {
 	Jira      []string `json:"jira,omitempty"`
 	Nodes     []string `json:"canon,omitempty"`
 	Knowledge []string `json:"knowledge,omitempty"`
+	// Journey es el `recorrido:` del frontmatter: en qué camino de la plataforma cae la tarea, con los ids del
+	// catálogo del harness (`harness/journeys.json`). Lo valida `internal/journeys`.
+	Journey []string `json:"journey,omitempty"`
 	// OldNodes es el `context_nodes:` de antes del 2026-09-21. No se usa para nada salvo para
 	// poder FALLAR nombrándolo: un campo que se ignora en silencio se lee como un campo vacío.
 	OldNodes []string `json:"-"`
@@ -250,6 +254,8 @@ func readTaskFile(path string) (Task, string, error) {
 			t.Nodes = list(l)
 		case strings.HasPrefix(l, "knowledge:"):
 			t.Knowledge = list(l)
+		case strings.HasPrefix(l, "recorrido:"):
+			t.Journey = list(l)
 		case strings.HasPrefix(l, "context_nodes:"):
 			// El campo se renombró el 2026-09-21, cuando el árbol de `context/` empezó a apagarse y su
 			// contenido pasó a canon. Se sigue LEYENDO para poder decirlo: si se ignorara, una tarea
@@ -337,6 +343,18 @@ func showLint(path string) int {
 				if _, err := library.Read(reference); err != nil {
 					failure("knowledge: %v", err)
 				}
+			}
+		}
+	}
+	// El recorrido se valida contra el catálogo del harness: un id mal escrito sería un recorrido que no existe y
+	// que nadie nota. Lo que el catálogo no tiene se declara con `nuevo-`/`nueva-`.
+	if len(t.Journey) > 0 {
+		catalog, err := journeys.Load(filepath.Dir(layout.Find().Tools()))
+		if err != nil {
+			failure("recorrido: no pude leer el catálogo: %v", err)
+		} else if _, errs := journeys.Parse(catalog, t.Journey); len(errs) > 0 {
+			for _, e := range errs {
+				failure("recorrido: %s", e)
 			}
 		}
 	}

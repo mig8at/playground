@@ -1,5 +1,6 @@
 {
   "nombre": "Alta Fleet · el comercio nuevo con su entidad Rent to Own propia",
+  "recorrido": ["advisor", "riel-2", "rto", "+abaco"],
   "ambientes": ["local"],
   "requiere": ["close", "lambda"],
   "porDefecto": {

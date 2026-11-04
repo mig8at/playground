@@ -1,5 +1,6 @@
 {
   "nombre": "El buró decide la categoría de CrediPullman, no su presencia en el listado",
+  "recorrido": ["advisor", "riel-2", "credit"],
   "ambientes": ["local"],
   "requiere": ["lambda", "parallel"],
   "porDefecto": {

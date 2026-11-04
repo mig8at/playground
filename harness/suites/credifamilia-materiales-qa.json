@@ -1,5 +1,6 @@
 {
   "nombre": "Credifamilia Materiales (216, rt=4) en qa · listado, estado 11 y radicación sobre originación delegada",
+  "recorrido": ["advisor", "riel-4", "credit", "+dynamic-form", "formalizacion:radicacion"],
   "ambientes": ["qa"],
   "nota": "Para qa. Corre en la sucursal de prueba de Amoblando Pullman (#036610aa): Amoblando Pullman es el único comercio con credencial del 216 en la base compartida, y en Creditop Calle 127 el listado sale vacío. ⚠ La radicación da 422 por falta de las imágenes de la cédula en los clientes sintéticos de qa (ya pasaba antes de CORE-918). Corré en serie (F-166).",
   "requiere": [

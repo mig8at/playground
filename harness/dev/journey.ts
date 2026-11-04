@@ -1,16 +1,16 @@
-// recorrido.ts — ¿en qué RECORRIDO cae cada entidad de un comercio, o una entidad suelta, en ESTE ambiente?
+// journey.ts — ¿en qué RECORRIDO cae cada entidad de un comercio, o una entidad suelta, en ESTE ambiente?
 //
-//   node dev/recorrido.ts --merchant sonria          las entidades de la sucursal, agrupadas por riel
-//   node dev/recorrido.ts --lender 149,172           entidades sueltas, sin sucursal
+//   node dev/journey.ts --merchant sonria          las entidades de la sucursal, agrupadas por riel
+//   node dev/journey.ts --lender 149,172           entidades sueltas, sin sucursal
 //   [--channel advisor|self-service|store|bancolombia] [--json]
 //
-// Sólo lee. Los nombres salen de `recorridos.json` y el porqué de knowledge/origination-paths. Una variación
+// Sólo lee. Los nombres salen de `journeys.json` y el porqué de knowledge/origination-paths. Una variación
 // marcada con `?` es POR CLIENTE: la entidad la tiene configurada, pero sólo aparece si la categoría que le toca al
 // cliente la pide. El canal no se mide: sale de `channels` del comercio en `harness.json`, si lo declara.
 //
 // Los imports de la base van DINÁMICOS: `pkg/db.ts` resuelve el ambiente al cargarse (F-187).
 export {};
-const { readCatalog, measureLenders, measureFields, classify } = await import('../pkg/recorridos.ts');
+const { readCatalog, measureLenders, measureFields, classify } = await import('../pkg/journeys.ts');
 const { readFlows, baseOf } = await import('../pkg/flows.ts');
 const { resolveMerchant } = await import('../pkg/merchants.ts');
 const { close } = await import('../pkg/db.ts');

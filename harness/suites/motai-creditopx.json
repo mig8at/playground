@@ -1,5 +1,6 @@
 {
   "nombre": "Motai · los tres productos de CreditopX",
+  "recorrido": ["advisor", "riel-2"],
   "ambientes": ["local"],
   "requiere": ["close", "lambda", "parallel"],
   "porDefecto": {

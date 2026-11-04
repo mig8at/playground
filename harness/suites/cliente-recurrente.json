@@ -1,5 +1,6 @@
 {
   "nombre": "El cliente que vuelve: la entidad SIGUE ahí — lo que se gasta es el cupo, no la elegibilidad",
+  "recorrido": ["advisor", "riel-2"],
   "ambientes": ["local"],
   "requiere": ["close", "lambda", "parallel"],
   "porDefecto": {

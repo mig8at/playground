@@ -105,7 +105,7 @@ Los specs de `channel/` corren contra **local** por defecto (`playwright.config.
 ## Recorridos: cómo se nombra lo que se prueba
 
 Un recorrido es `canal · riel · producto · +variación · desenlace`. Los nombres viven en
-`recorridos.json` y el porqué, con sus fuentes en `main`, en `knowledge/origination-paths`. Los
+`journeys.json` y el porqué, con sus fuentes en `main`, en `knowledge/origination-paths`. Los
 rieles se agrupan por dos ejes: **dueño de la política** (la entidad o Creditop) y **dónde se origina**
 (afuera o en casa). El riel 4 se origina en casa y no es CreditopX. Una **variación** cambia el camino;
 un **ajuste** (reglas, categorías, plazos, perfil) cambia valores en el mismo camino.

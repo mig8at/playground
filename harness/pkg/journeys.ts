@@ -1,4 +1,4 @@
-// recorridos.ts — el catálogo de RECORRIDOS (`harness/recorridos.json`) y el clasificador que lo MIDE.
+// journeys.ts — el catálogo de RECORRIDOS (`harness/journeys.json`) y el clasificador que lo MIDE.
 //
 // El catálogo nombra las piezas (canal, riel, producto, variación, desenlace); este módulo lee la base de un
 // ambiente y dice en qué recorrido cae cada entidad. Lo que mide NO se guarda: el riel y las banderas de una
@@ -12,7 +12,7 @@ import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { query } from './db.ts';
 
-export const CATALOG_FILE = fileURLToPath(new URL('../recorridos.json', import.meta.url));
+export const CATALOG_FILE = fileURLToPath(new URL('../journeys.json', import.meta.url));
 
 interface Named { name: string }
 export interface Catalog {

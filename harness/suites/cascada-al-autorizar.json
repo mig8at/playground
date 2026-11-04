@@ -1,5 +1,6 @@
 {
   "nombre": "Al autorizar un CreditopX se cancelan las solicitudes hermanas CreditopX del mismo cliente en el comercio, y sólo ésas",
+  "recorrido": ["advisor", "riel-2"],
   "ambientes": ["local"],
   "requiere": ["close", "lambda"],
   "porDefecto": {
