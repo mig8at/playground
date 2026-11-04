@@ -198,14 +198,22 @@ Pide la VPN de dev para el simulador y la base de qa.
 | la tienda donde se compra | https://creditop-dev-store.myshopify.com |
 | el admin de la tienda (la app, pagos, pedidos, pantalla de pago) | https://admin.shopify.com/store/creditop-dev-store |
 | la app en tu máquina (cambia en cada arranque) | `https://<túnel>.trycloudflare.com`, el que imprime `shopify app dev` |
-| el wizard al que llega el comprador | `https://originaciones-qa.dev.creditop.com/ecommerce/8ffe96e2/<solicitud>/lenders` |
+| el wizard al que llega el comprador | `https://originaciones-qa.dev.creditop.com/ecommerce/e4a51ff3f/checkout?ref=<ref>` |
 | payment-link de qa (lo llama la app) | https://api.dev.creditop.com/legacy-api/ecommerce/payment-link |
 | aprobar la solicitud (simulador; sólo por la dirección interna) | `POST http://legacy-backend-qa.inertia-develop/simulator/aggregator-result` |
 | qué recibe el wizard para prellenar | `GET http://legacy-backend-qa.inertia-develop/api/onboarding/ecommerce-request/by-user-request/<solicitud>` |
 
-La sucursal de prueba es `8ffe96e2` («Ecommerce-PRUEBA AUTO Shopify», id 2219, comercio propio de estas pruebas). Su
-token de ecommerce está en `harness/.env.qa` como `ECOMMERCE_TOKEN_8ffe96e2` (fuera de git; id 17 en
-`personal_access_tokens`). Un token se ve una sola vez al emitirlo: la base guarda sólo su sha256 y no se recupera.
+La sucursal de prueba es `e4a51ff3f` (`e4a51ff3f-fake`, id 2227, del comercio 362 «PRUEBA AUTO Shopify», propio de
+estas pruebas), con la credencial tipo 4 (Shopify) y el token 28 en `personal_access_tokens`. La anterior, `8ffe96e2`
+(id 2219), está deshabilitada y sin token: el `ECOMMERCE_TOKEN_8ffe96e2` de `harness/.env.qa` (id 17) ya no existe en
+qa y no sirve. Un token se ve una sola vez al emitirlo: la base guarda sólo su sha256 y no se recupera.
+
+El token 28 no está en ningún `.env`: vive cifrado en la base local de la app (`creditop-shopify-pg`, tabla
+`CreditopShop`, tienda `creditop-dev-store.myshopify.com`), con la llave que la app deriva de `SHOPIFY_API_SECRET`.
+Ese secreto no está en `.env`: lo pasa `shopify app dev` y se lee con
+`cd ~/Desktop/CREDITOP/github/shopify && npx shopify app env show --config shopify.app.creditop-ecommerce-payments.toml`.
+Para llevarlo a otra base (el host de `temp-shopify`, por ejemplo) se descifra con esa llave y se vuelve a cifrar con la
+del destino, sin imprimirlo.
 
 1. **Levantar la app** (la rama de #22), en una terminal propia porque es interactiva:
    ```sh
@@ -216,10 +224,10 @@ token de ecommerce está en `harness/.env.qa` como `ECOMMERCE_TOKEN_8ffe96e2` (f
 2. **Apuntar la extensión al túnel:** `payment_session_url` y `refund_session_url` de
    `extensions/creditop-offsite/shopify.extension.toml` → `<túnel>/payments/session` y `<túnel>/payments/refund`. No se
    commitea; `shopify app dev` lo toma solo (`creditop-offsite │ Configuration accepted`).
-3. **Cargar la sucursal en la app** (admin → Apps → CREDITOP-ECOMMERCE-PAYMENTS, o la tecla `p` en la terminal):
-   sucursal `8ffe96e2` y el token, copiado con
-   `grep '^ECOMMERCE_TOKEN_8ffe96e2=' ~/Desktop/CREDITOP/playground/harness/.env.qa | cut -d= -f2- | pbcopy`; «Guardar».
-   La app guarda la tienda en su Postgres local (`creditop-shopify-pg`, tabla `CreditopShop`).
+3. **Revisar la sucursal en la app** (admin → Apps → CREDITOP-ECOMMERCE-PAYMENTS, o la tecla `p` en la terminal): ya
+   está cargada con `e4a51ff3f` y el token 28, guardados en su Postgres local (`creditop-shopify-pg`, tabla
+   `CreditopShop`). La pantalla muestra el final del token; si dice que no se puede leer (cambió la llave) o el pago
+   responde 401, hay que emitir un token nuevo para `e4a51ff3f` en qa (`ecommerce:issue-token`), pegarlo y «Guardar».
 4. **Comprar** en la tienda, mercado Colombia, eligiendo «Creditop» (no el método manual «creditop»). El contacto es
    «correo o celular»: llega a Creditop sólo el que se dé. Para que llegue el celular con contacto por correo, la tienda
    tiene que pedir el teléfono en la dirección (Configuración → Pantalla de pago).
