@@ -103,6 +103,7 @@ const { postHogForensic } = await import('../pkg/posthog.ts');
 const { createTrace, EXPECTED_STATUS } = await import('../pkg/trace.ts');
 // El vocabulario de los recorridos en el log: cada paso dice su pieza y, al elegir la entidad, su recorrido entero.
 const { pieceOfRoute, routeSummary } = await import('../pkg/journeys.ts');
+const { answersFromSchema } = await import('../pkg/dynamic-form-answers.ts');
 const { openBrowser, openContext, evidenceNotice, closeContext, advance, chooseEntity, errorBanner, waitForChange, screenPrint } =
     await import('../pkg/wizard-browser.ts');
 const { validationErrors: screenErrors } = await import('../pkg/autofill-qr.ts');
@@ -543,7 +544,9 @@ async function correr(c: Case, i: number): Promise<Result> {
         const amount = q.get('amount') ?? String(AMOUNT);
         let form: Form | null = null;
         let jumpTo: string | null = null;
-        let postTo: string | null = null;   // a dónde va el POST si no es la misma ruta (el action de una ruta ÍNDICE)
+        let postTo: string | null = null;
+        // Las pantallas de formulario dinámico postean JSON (`{ answers }`), no un formulario: con esto, el POST va así.
+        let jsonBody: unknown = null;   // a dónde va el POST si no es la misma ruta (el action de una ruta ÍNDICE)
 
         // ── cada pantalla: qué manda el navegador al apretar el botón ──
         if (sheet === 'solicitar') {
@@ -803,6 +806,13 @@ async function correr(c: Case, i: number): Promise<Result> {
             if (!next) return finish('trabado', `kyc: la corrida no contestó en ${Math.round(WAIT_SCREEN_MS / 1000)} s`);
             routePath = next;
             continue;
+        } else if (seg.at(-2) === 'additional-info' && /^\d+$/.test(sheet)) {
+            // EL FORMULARIO ADICIONAL (form-service): el de Credifamilia antes de firmar es el 6. Se contesta lo mínimo
+            // con el esquema que trae el loader (`pkg/dynamic-form-answers.ts`) y el action lo guarda y manda a firmar.
+            const answers = answersFromSchema(res.datos, { occupation: arg('occupation', 'Empleado') });
+            if (!Object.keys(answers).length) return finish('trabado', `additional-info/${sheet}: el loader no trajo el esquema del formulario`);
+            log(`formulario adicional ${sheet}: ${Object.keys(answers).length} respuestas`);
+            jsonBody = { answers };
         } else if (/^identity-validation/.test(sheet)) {
             return finish('trabado', `pide validar identidad (${sheet})${flag('manual') ? ' A PESAR de la validación manual — eso es un hallazgo' : ' — corré con --manual para saltarla como lo haría el admin'}`);
         } else {
@@ -810,7 +820,7 @@ async function correr(c: Case, i: number): Promise<Result> {
         }
 
         // ── el POST (el botón) ──
-        const acc = await s.enviar(postTo ?? routePath, form!);
+        const acc = jsonBody != null ? await s.enviarJson(postTo ?? routePath, jsonBody) : await s.enviar(postTo ?? routePath, form!);
         if (acc.status === 0) {
             // ⚠ UN TIMEOUT NO ES UNA CAÍDA: el backend sigue y suele terminar (F-180). Antes de decir
             // «no cerró» se vuelve a mirar la BD: si ya está sellada, cerró y lo que falló fue la espera.

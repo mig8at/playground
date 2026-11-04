@@ -63,11 +63,15 @@ async function capture() {
     const pieces = [
         ['dynamic-form/8/schema', 'esquema-8.json', 'GET'],
         ['dynamic-form/9/schema', 'esquema-9.json', 'GET'],
+        // El formulario adicional de Credifamilia (antes de firmar): sin él, su recorrido se corta en additional-info/6.
+        ['dynamic-form/6/schema', 'esquema-6.json', 'GET'],
         ['field-options/bcp/cars-tree', 'cars-tree.json', 'GET'],
         ['field-options/countries', 'countries.json', 'GET'],
         // ⚠ El árbol de un país se pide con PUT, no con GET: lo CONSTRUYE si no está cacheado.
         // Es una lectura para quien llama, pero el verbo no lo parece.
         ['field-options/country-tree/167', 'country-tree-167.json', 'PUT'],
+        // Colombia (47): el árbol de ubicaciones del formulario de Credifamilia. El 167 es Perú, el de BCP.
+        ['field-options/country-tree/47', 'country-tree-47.json', 'PUT'],
     ];
     for (const [path, file, method] of pieces) {
         const r = await fetch(`${ORIGIN}/v1/${path}`, { method: method, headers: { 'content-type': 'application/json' } });
