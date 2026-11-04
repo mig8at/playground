@@ -666,6 +666,33 @@ puede probar Materiales hasta la autorización, pero no la radicación.
 
 ---
 
+## 32 · La aprobación manual sólo la exige el paso que pregunta a dónde seguir (Media)
+
+**Qué pasa.** Cuando una entidad tiene aprobación manual, la solicitud se detiene en «Pendiente aprobación manual» (30)
+hasta que alguien la apruebe en el admin. Esa marca la pone una sola llamada: la consulta del cupo extendido que hace el
+asistente después de la identidad para saber a dónde sigue el cliente. Ninguno de los pasos siguientes la revisa: ni la
+fecha de pago, ni el plan, ni la firma del pagaré, ni la autorización. La protección de esas rutas sólo frena las
+solicitudes autorizadas (11) y canceladas (8). Si alguien se salta esa consulta, la solicitud cierra sin aprobación.
+
+El codeudor, en cambio, sí tiene una barrera en el backend: la autorización difiere la solicitud hasta que firme el
+codeudor, aunque el cliente no haya pasado por la pantalla del codeudor.
+
+**Cómo se comprobó, el 2026-11-04.**
+- **En local:** con la aprobación manual prendida en Alta Fleet (como está en producción), una solicitud que fue de la
+  selección de la entidad a la fecha de pago, la firma y la autorización sin pedir el cupo extendido pasó por 3, 28 y
+  11 en menos de un minuto. Pidiendo el cupo extendido, como hace el asistente, quedó en 30 y no avanzó.
+- **En el código de `main`:** la marca se pone sólo al responder el cupo extendido; la validación de las rutas de cierre
+  revisa los estados 11 y 8. No se probó en local mandar una solicitud que ya está en 30 a la fecha de pago y la firma:
+  por el código pasaría, pero no está medido.
+
+Por el asistente no pasa: siempre hace esa consulta. El riesgo es quien llame a la API directo con la sesión del
+cliente o del asesor, o un cambio futuro del asistente que mueva o saltee esa llamada.
+
+**Propuesta.** Que las rutas de cierre (fecha de pago, plan, firma y autorización) rechacen una solicitud de una entidad
+con aprobación manual que no tenga la aprobación registrada, igual que la autorización hace con el codeudor.
+
+---
+
 ## Sobre originación delegada (CORE-918)
 
 Lo que sigue va con la tarea de originación delegada, no con incidencias, pero conviene conversarlo junto:
