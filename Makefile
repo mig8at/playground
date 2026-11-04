@@ -587,6 +587,9 @@ harness-doctor: ## @har ¿el ambiente LOCAL está listo para que una corrida dig
 harness-regression: ## @har ¿mi cambio rompió OTRO flujo? Corre TODAS las suites del runner de casos (en serie: comparten la base local) después de harness-doctor, y compara cada una con la corrida anterior (`harness/.runs/regression-last.json`): nueva · igual · SE ROMPIÓ · SE ARREGLÓ. Sale 1 si alguna falla, 2 si el ambiente frena. TARGET=local [RESET=1 reinicia antes el cupo local de los perfiles] [ONLY=texto sólo las suites cuyo nombre lo contiene; no guarda] [JSON=1 harness.regression/v1]
 	@cd harness && E2E_TARGET=$(harness_target) node dev/regression.ts $(if $(RESET),--reset) $(if $(ONLY),--only $(ONLY)) $(if $(JSON),--json)
 
+harness-fallas: ## @har ¿qué FALLA, desde cuándo, en qué ambiente y con qué comercio? Resume el registro que deja cada corrida del runner de casos (`.runs/registry/cases.ndjson`, de esta máquina): por caso y ambiente, rojo · intermitente · sin veredicto · verde, con la historia, el último desvío y el comando para repetirlo. Sólo lectura. [TARGET=qa] [ESTADO=rojo|intermitente|verde|todos — default: lo que no está verde] [DIAS=7] [JSON=1 para un agente] [HTML=1 escribe el dashboard y dice dónde]
+	@cd harness && node bin/failures.ts $(if $(TARGET),--target $(TARGET)) $(if $(ESTADO),--estado $(ESTADO)) $(if $(DIAS),--dias $(DIAS)) $(if $(JSON),--json) $(if $(HTML),--html)
+
 harness-quota-reset: ## @har ⚠ ESCRIBE (sólo local): reinicia el cupo mensual de los perfiles CreditopX (`already_used_loan` en 0), que en local nadie reinicia y las corridas que cierran van agotando. TARGET=local [LENDER=169] [APPLY=1 escribe; sin él sólo muestra]
 	@cd harness && E2E_TARGET=$(harness_target) node dev/quota-reset.ts $(if $(LENDER),--lender $(LENDER)) $(if $(APPLY),--apply)
 

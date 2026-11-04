@@ -2164,6 +2164,35 @@ await restoreBypass(bypassSet);
 // Si no restauró, la base local quedó distinta y no hay verde: envenena las corridas siguientes.
 const restored = profileSnap ? await (await import('../pkg/profile-prep.ts')).restoreProfiles(profileSnap) : true;
 const code = restored ? mainCode : Math.max(mainCode, 1);
+// EL REGISTRO DE FALLAS (`pkg/failure-log.ts`): cada caso de la corrida, verde o rojo, a `.runs/registry/`, para ver
+// después qué falla siempre, qué es intermitente y desde cuándo (`make harness-fallas`). Va DESPUÉS de restaurar, con el
+// veredicto final, y nunca le cambia el código de salida a la corrida.
+await (async () => {
+    const { appendCases, repoRef, repoPath } = await import('../pkg/failure-log.ts');
+    const rep = REPORT as any;
+    const target = process.env.E2E_TARGET || 'dev';
+    const suite = arg('suite') ? String(arg('suite')).split('/').pop()! : null;
+    const { cmdMake } = await import('../pkg/annotation.ts');
+    const comando = suite
+        ? cmdMake('harness-suite', target, { SUITE: arg('suite') })
+        : cmdMake('harness-case', target, { CASES: arg('cases'), MERCHANT: arg('merchant'), LENDER: arg('lender'),
+            AMOUNT: arg('amount'), LAMBDA: flag('lambda') ? 1 : '', CLOSE: flag('close') ? 1 : '' });
+    const lb = repoPath('legacy-backend');
+    const base = { v: 1 as const, at: new Date().toISOString(), run: `${Date.now().toString(36)}-${process.pid}`,
+        runner: 'case' as const, target, suite, canal: 'api', comando, backend: lb ? repoRef(lb) : null };
+    const casos: any[] = Array.isArray(rep?.casos) ? rep.casos : [];
+    const records = casos.length
+        ? casos.map((c) => ({ ...base, caso: c.nombre ?? null, comercio: String(c.comercio), lender: c.lender ?? null,
+            ur: c.userRequest ?? null, ok: Boolean(c.ok) && !(c.desvios?.length), detalle: c.detalle ?? null,
+            desvios: c.desvios ?? [] }))
+        // Sin veredicto (prevuelo, suite inválida, error): una línea igual, para que el registro no calle una corrida rota.
+        // (una suite que no vale en este ambiente sale con 3 y no corrió: no es una falla, no se anota).
+        : code !== EXIT_NOT_FOR_TARGET && (rep?.sinVeredicto || code !== 0) && (suite || arg('cases'))
+            ? [{ ...base, caso: null, comercio: String(arg('merchant') ?? arg('cases') ?? '?'), lender: null, ur: null,
+                ok: false, sinVeredicto: true, detalle: rep?.detalle ?? 'la corrida no llegó al veredicto', desvios: [] }]
+            : [];
+    appendCases(records);
+})().catch(() => {});
 await close().catch(() => {});
 if (JSON_OUT) {
     // Sin veredicto (prevuelo, suite mal formada, error) el objeto lo dice igual: un agente nunca recibe stdout vacío.
