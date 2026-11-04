@@ -475,8 +475,8 @@ function clearActive() {
 }
 // Lo poco frecuente, al menú «⋯» de cada región (la base: en la barra, lo frecuente; en el menú, lo demás).
 const conversationMenu = computed(() => [
-  { id: 'clear', label: 'Vaciar chat', icon: 'trash' },
-  { id: 'forget', label: 'Borrar la conversación de este navegador', icon: 'close' },
+  { id: 'clear', label: 'Vaciar chat (la conversación queda, sin mensajes)', icon: 'trash' },
+  { id: 'forget', label: 'Borrar conversación (sale de la lista)', icon: 'close' },
 ])
 function onConversationMenu(id) { if (id === 'clear') clearActive(); else if (id === 'forget') forgetActive() }
 const myChatMenu = computed(() => [{ id: 'clear', label: 'Vaciar tu conversación con tu agente', icon: 'trash', disabled: !chat.notes.length }])
@@ -486,8 +486,10 @@ function onOwnAgentMenu(id) { if (id === 'off-all') shutDownOwnAgents() }
 function clearNotes() {
   if (window.confirm('¿Vaciar tu conversación con tu agente? Sólo está en este navegador: no se puede recuperar.')) chat.clearNotes()
 }
+// Borrar la conversación, igual que su ✕ del sidebar: sale de la lista y lo ya recibido no vuelve (forget sola la sacaba
+// de la lista, pero `listen` la traía de nuevo con todos sus mensajes).
 function forgetActive() {
-  if (chat.active) chat.forget(chat.active.person.email)
+  if (chat.active) deleteConversation(chat.active)
 }
 
 // El título de la pestaña dice cuántos no leídos hay, como cualquier chat.
