@@ -322,7 +322,7 @@ const STEPS_FILE = fileURLToPath(new URL('../panel/steps.json', import.meta.url)
 const EXTRA_PIECES: Array<[RegExp, string]> = [
     [/\/cosigner(\/|$)/, 'variación Codeudor'],
     [/\/down-payment(\/|$)|\/initial-fee-payment|\/down-payment-validation/, 'variación Cuota inicial'],
-    [/\/dynamic-form\/|\/formulario\//, 'variación Formulario adicional'],
+    [/\/dynamic-form\/|\/formulario\/|\/additional-info\/\d+/, 'variación Formulario adicional'],
     [/\/imei(\/|$)/, 'variación IMEI'],
     [/\/manual-approval-pending/, 'variación Aprobación manual'],
     [/\/additional-identity-validation/, 'en casa · Identidad: cuestionario (Evidente)'],

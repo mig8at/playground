@@ -1,0 +1,49 @@
+{
+  "columns": [
+    "allied_branch_id",
+    "allow_0_score",
+    "consulted_last_6_months",
+    "created_at",
+    "current_dues",
+    "id",
+    "lender_id",
+    "negative_historical_last_12_months",
+    "probability_levels",
+    "score",
+    "time_finance_sector",
+    "updated_at"
+  ],
+  "query": "SELECT * FROM lender_datacredito_rules WHERE lender_id IN (24,216) AND allied_branch_id IS NULL",
+  "rows": [
+    {
+      "allied_branch_id": null,
+      "allow_0_score": 0,
+      "consulted_last_6_months": 10,
+      "created_at": "2024-06-18T08:37:52Z",
+      "current_dues": 10,
+      "id": 1,
+      "lender_id": 24,
+      "negative_historical_last_12_months": 1,
+      "probability_levels": "[{\"sort\": 1, \"max_score\": 1000, \"min_score\": 680, \"color_text\": \"text-success\", \"probability\": \"Probabilidad alta\"}, {\"sort\": 2, \"max_score\": 679, \"min_score\": 650, \"color_text\": \"text-warning\", \"probability\": \"Probabilidad media\"}, {\"sort\": 3, \"max_score\": 649, \"min_score\": 0, \"color_text\": \"text-error\", \"probability\": \"Probabilidad baja\"}]",
+      "score": 710,
+      "time_finance_sector": 12,
+      "updated_at": "2024-06-18T08:37:54Z"
+    },
+    {
+      "allied_branch_id": null,
+      "allow_0_score": 0,
+      "consulted_last_6_months": 10,
+      "created_at": "2024-06-18T08:37:52Z",
+      "current_dues": 10,
+      "id": 7347,
+      "lender_id": 216,
+      "negative_historical_last_12_months": 1,
+      "probability_levels": "[{\"sort\": 1, \"max_score\": 1000, \"min_score\": 680, \"color_text\": \"text-success\", \"probability\": \"Probabilidad alta\"}, {\"sort\": 2, \"max_score\": 679, \"min_score\": 650, \"color_text\": \"text-warning\", \"probability\": \"Probabilidad media\"}, {\"sort\": 3, \"max_score\": 649, \"min_score\": 0, \"color_text\": \"text-error\", \"probability\": \"Probabilidad baja\"}]",
+      "score": 710,
+      "time_finance_sector": 12,
+      "updated_at": "2024-06-18T08:37:54Z"
+    }
+  ],
+  "source": "mysql 127.0.0.1",
+  "target": "local"
+}
