@@ -185,11 +185,6 @@ export const useChatStore = defineStore('chat', () => {
     await loadOwnAgents()
     loadTeamAgents()
   }
-  async function shutDownOwnAgents() {
-    try { await post('/api/safety/off', {}); ownAgentsError.value = '' } catch (e) { ownAgentsError.value = e.message }
-    await loadOwnAgents()
-    loadTeamAgents()
-  }
   const ownAgentOf = (row) => (row?.mine ? ownAgents.value.find((a) => a.name === row.agentName) || null : null)
 
   const agentList = computed(() => {
@@ -653,7 +648,7 @@ export const useChatStore = defineStore('chat', () => {
   return {
     conversations, activeKey, state, stateError, online, onlineError, listenBusy, listenError, loginBusy, loginError, login,
     teamAgents, teamAgentsError, cuadrilla, cuadrillaError, myTasks, taskUrl, loadCuadrilla, noteTask, doneTask,
-    removeConversation, clearMessages, isMe, proposeReplies, ownerName, notes, askMyAgent, removeNote, clearNotes, ownAgents, ownAgentsError, loadOwnAgents, setOwnAgent, shutDownOwnAgents, ownAgentOf,
+    removeConversation, clearMessages, isMe, proposeReplies, ownerName, notes, askMyAgent, removeNote, clearNotes, ownAgents, ownAgentsError, loadOwnAgents, setOwnAgent, ownAgentOf,
     me, meKey, list, active, unreadTotal, onlineKeys, agentList,
     loadState, loadOnline, loadTeamAgents, startListening, open, openAgent, send, retry, forget, findBySid, start, stop,
   }

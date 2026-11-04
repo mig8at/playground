@@ -260,11 +260,6 @@ async function toggleOwnAgent() {
   ownBusy.value = true
   try { await chat.setOwnAgent(a.name, !a.on) } finally { ownBusy.value = false }
 }
-async function shutDownOwnAgents() {
-  if (!window.confirm('¿Apagar todos tus agentes? Dejan de contestarle al equipo hasta que los prendas.')) return
-  ownBusy.value = true
-  try { await chat.shutDownOwnAgents() } finally { ownBusy.value = false }
-}
 const activeTitle = computed(() => {
   const p = chat.active?.person
   if (!p) return 'chat'
@@ -893,10 +888,6 @@ const statusText = computed(() => {
             <button type="button" class="switch" role="switch" :aria-checked="activeOwnAgent.on" :disabled="ownBusy" @click="toggleOwnAgent"
                     :title="activeOwnAgent.on ? 'Apagar: deja de contestarle al equipo' : 'Prender: el equipo lo vuelve a ver'"
                     :aria-label="activeOwnAgent.on ? `Apagar a ${activeOwnAgent.name}` : `Prender a ${activeOwnAgent.name}`"></button>
-            <button type="button" class="region-action" title="Apagar todos tus agentes" aria-label="Apagar todos tus agentes"
-                    :disabled="ownBusy || !chat.ownAgents.some((a) => a.on)" @click="shutDownOwnAgents">
-              <span class="ui-icon" data-icon="stop" aria-hidden="true"></span>
-            </button>
             <button type="button" class="region-action" title="Ocultar" aria-label="Ocultar" @click="setOwnPanelOpen(false)">
               <span class="ui-icon" data-icon="close" aria-hidden="true"></span>
             </button>

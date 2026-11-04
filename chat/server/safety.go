@@ -1,6 +1,6 @@
 package main
 
-// LA SEGURIDAD DE TUS AGENTES: prenderlos y apagarlos desde el chat, uno por uno o todos de una vez.
+// LA SEGURIDAD DE TUS AGENTES: prenderlos y apagarlos desde el chat, uno por uno (el interruptor de su ficha).
 //
 // Tus agentes (agents/*: time, fact) se le anuncian al equipo con `playground listen`, que lee
 // ~/playground/team/agents.json en cada pregunta que llega. Apagar uno es moverlo de `agents` a `off` en ese mismo
@@ -9,7 +9,7 @@ package main
 // El proceso del agente sigue prendido (sólo escucha en esta máquina): lo que se corta es que le llegue el equipo.
 //
 // «Mi agente» (el que contesta por vos en tus conversaciones) vive en el navegador: su interruptor lo maneja la
-// interfaz, y «Apagar todo» lo pasa a «contesto yo».
+// interfaz.
 
 import (
 	"bytes"
@@ -196,14 +196,6 @@ func safetyHandlers(mux *http.ServeMux) {
 		}
 		if err := setAgentsOn(r.PathValue("name"), in.On); err != nil {
 			fail(w, http.StatusBadRequest, err)
-			return
-		}
-		writeJSON(w, http.StatusOK, map[string]bool{"ok": true})
-	})
-	// «Apagar todo»: tus agentes dejan de contestarle al equipo. (Mi agente lo apaga la interfaz.)
-	mux.HandleFunc("POST /api/safety/off", func(w http.ResponseWriter, r *http.Request) {
-		if err := setAgentsOn("", false); err != nil && err.Error() != "no tenés un agente con ese nombre en agents.json" {
-			fail(w, http.StatusInternalServerError, err)
 			return
 		}
 		writeJSON(w, http.StatusOK, map[string]bool{"ok": true})
