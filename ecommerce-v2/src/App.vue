@@ -15,6 +15,8 @@ import {
 import { TABLE_DOCS } from './table-docs.js'
 import { STORE_FLOWS } from './store-flows.js'
 import FlowDiagram from './FlowDiagram.vue'
+import ShopifyStore from './ShopifyStore.vue'
+import ShopifyLog from './ShopifyLog.vue'
 
 const DEFAULT_TARGET = 'qa'
 const TARGET_LABEL = { local: 'local · tu Docker', qa: 'qa · la base compartida de dev, qa y staging', prod: 'prod · sólo lectura, por Redash' }
@@ -36,6 +38,7 @@ function writeRoute(push) {
 }
 function onHashChange() {
   const r = readHashRoute()
+  if (demoFromRoute(r)) return
   target.value = r.params.get('target') || DEFAULT_TARGET
   const q = r.params.get('q') || ''
   const n = r.params.get('req') || ''
@@ -206,19 +209,21 @@ const OUTCOMES = [
 ]
 // La tienda de prueba (VTEX, la de master: la condición «Creditop qa» manda el pago al conector v5 de develop) y dónde se
 // ven sus pedidos. El admin pide un
-// usuario en la cuenta creditop. Shopify vuelve cuando su app esté desplegada: hoy sólo corre con `shopify app dev`.
+// usuario en la cuenta creditop. Shopify todavía no tiene tienda con la app desplegada: su bloque trae la Store demo
+// (ShopifyStore.vue), una tienda de mentira que paga con el host de temp-shopify por los canales del playground.
 const STORES = [
   { name: 'VTEX', links: [
     { label: 'Tienda', href: 'https://creditop.myvtex.com' },
     { label: 'Admin · pedidos', href: 'https://creditop.myvtex.com/admin/orders' },
     { label: 'Admin · transacciones', href: 'https://creditop.myvtex.com/admin/pci-gateway/#/transactions' },
   ] },
+  { name: 'Shopify', demo: true, links: [] },
 ]
 // En prod no se muestran las tiendas: son de desarrollo.
 const visibleStores = computed(() => STORES.filter((s) => !!s.prod === readOnly.value))
 // El diagrama de una tienda en el editor, o null. Buscar otra solicitud lo cierra.
-const storeView = ref(null) // { store: 'VTEX', kind: 'diagram' }
-watch(() => result.value, () => { storeView.value = null })
+const storeView = ref(null) // { store: 'VTEX', kind: 'diagram' } · { store: 'Shopify', kind: 'demo', order }
+watch(() => result.value, () => { if (storeView.value?.kind !== 'demo') storeView.value = null })
 // Las vistas del sidebar, como en canon: cada una se pliega y una cerrada ocupa una fila. Lo abierto se recuerda en este
 // navegador; sin almacenamiento, arrancan Solicitudes y la primera tienda abiertas.
 const SIDEBAR_VIEWS_KEY = 'ecommerce.sidebar-views'
@@ -231,7 +236,20 @@ function toggleSidebarView(id) {
   try { localStorage.setItem(SIDEBAR_VIEWS_KEY, JSON.stringify(sidebarViews.value)) } catch { /* sólo no se recuerda */ }
 }
 const isStoreView = (store, kind) => storeView.value?.store === store && storeView.value?.kind === kind
-function toggleStoreView(store, kind) { storeView.value = isStoreView(store, kind) ? null : { store, kind } }
+function toggleStoreView(store, kind) {
+  storeView.value = isStoreView(store, kind) ? null : { store, kind }
+  // La Store demo tiene su ruta (#/shopify-demo) para volver a ella, y usa el panel derecho para sus peticiones.
+  if (kind === 'demo') {
+    if (storeView.value) { auxOpen.value = true; setRoute('#/shopify-demo') } else writeRoute()
+  }
+}
+// `#/shopify-demo?order=<id>`: la Store demo abierta, en ese pedido. Es a donde vuelve el comprador desde Creditop.
+function demoFromRoute(r = readHashRoute()) {
+  if (r.parts[0] !== 'shopify-demo') return false
+  storeView.value = { store: 'Shopify', kind: 'demo', order: r.params.get('order') || '' }
+  auxOpen.value = true
+  return true
+}
 // El wizard por ambiente, para volver a abrir la solicitud y ver en qué quedó.
 const WIZARD = { qa: 'https://originaciones-qa.dev.creditop.com', local: 'http://localhost:5174' }
 // Los enlaces de la solicitud abierta: a dónde vuelve el comprador (la tienda) y el wizard. Fijos en la barra, para
@@ -554,6 +572,7 @@ onMounted(async () => {
   window.addEventListener('resize', onWindowResize)
   window.addEventListener('hashchange', onHashChange)
   if (themeToggle.value) themeBinding = bindThemeToggle(themeToggle.value)
+  demoFromRoute()
   targetMenu = bindMenu(targetTrigger.value, {
     label: 'Contra qué base se busca', getItems: () => targetItems.value,
     onSelect: (id) => { target.value = id },
@@ -630,12 +649,16 @@ onBeforeUnmount(() => {
             <button type="button" class="view-tog" :aria-expanded="isViewOpen(s.name)" @click="toggleSidebarView(s.name)">
               <span class="ui-icon chev" data-icon="chevron" aria-hidden="true"></span><span>{{ s.name }}</span>
             </button>
-            <span class="count">{{ s.links.length }}</span>
+            <span class="count">{{ s.links.length + (s.demo ? 1 : 0) }}</span>
           </div>
           <nav v-if="isViewOpen(s.name)" class="region-body" :aria-label="s.name">
             <button v-if="STORE_FLOWS[s.flow || s.name]" type="button" class="row" :class="{ on: isStoreView(s.flow || s.name, 'diagram') }" :aria-pressed="isStoreView(s.flow || s.name, 'diagram')"
               title="Cómo se comunica una compra con legacy-backend y el wizard" @click="toggleStoreView(s.flow || s.name, 'diagram')">
               <span class="label">Diagrama</span><span class="row-meta">⇄</span>
+            </button>
+            <button v-if="s.demo" type="button" class="row" :class="{ on: isStoreView(s.name, 'demo') }" :aria-pressed="isStoreView(s.name, 'demo')"
+              title="Una tienda de mentira que paga con la app de Creditop: productos, carrito y pago, y abajo lo que pasa" @click="toggleStoreView(s.name, 'demo')">
+              <span class="label">Store demo</span><span class="row-meta">▸</span>
             </button>
             <a v-for="l in s.links" :key="l.href" class="row" :href="l.href" target="_blank" rel="noopener" :title="l.href">
               <span class="label">{{ l.label }}</span><span class="row-meta">↗</span>
@@ -644,7 +667,10 @@ onBeforeUnmount(() => {
         </section>
     </aside>
 
-    <main v-if="storeView" class="editor">
+    <main v-if="storeView?.kind === 'demo'" class="editor">
+      <ShopifyStore :order="storeView.order || ''" @close="toggleStoreView('Shopify', 'demo')" />
+    </main>
+    <main v-else-if="storeView" class="editor">
       <div class="region-head">
         <span>{{ STORE_FLOWS[storeView.store].title }}</span>
         <div class="region-actions">
@@ -769,7 +795,10 @@ onBeforeUnmount(() => {
 
     <aside v-if="shown.aux" class="auxiliarybar" :aria-label="openCell ? `Valor de ${openCell.table}.${openCell.column}` : openTable ? `Consulta de ${openTable}` : 'Centrales de prueba'">
       <div class="rsz rsz-edge-left" v-resize="auxResize"></div>
-      <template v-if="openCell">
+      <template v-if="storeView?.kind === 'demo' && !openCell && !openTable">
+        <ShopifyLog />
+      </template>
+      <template v-else-if="openCell">
         <div class="region-head">
           <code>{{ openCell.table }}.{{ openCell.column }}</code>
           <span class="count">{{ openCell.rowLabel }}{{ cellJSON !== null ? ' · JSON' : '' }}</span>

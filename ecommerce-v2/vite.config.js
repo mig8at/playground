@@ -12,8 +12,6 @@ const themeBoot = {
 // :5186 la interfaz y :5187 la API (Go). El proxy deja la app en un solo origen.
 export default defineConfig({
   plugins: [themeBoot, vue(), tailwindcss()],
-  // Dos páginas: la consola de siempre y la tienda Shopify demo (shopify-demo.html).
-  build: { rollupOptions: { input: { main: 'index.html', shopify: 'shopify-demo.html' } } },
   server: {
     port: 5186,
     strictPort: true,

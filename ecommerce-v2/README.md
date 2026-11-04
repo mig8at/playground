@@ -55,10 +55,18 @@ Shopify todavía no tiene una tienda que pague con la app desplegada. Mientras t
 
 ## 3b · Comprar en la Shopify demo
 
-http://localhost:5186/shopify-demo.html: una tienda Shopify de mentira que paga con la app de Creditop de verdad (el host
-de temp-shopify), que corre en la máquina de quien la está cambiando. No hace falta tener ese repo: el host se usa por
-la dirección de su canal del playground. A la izquierda, si se llega a todo; abajo, el checkout; a la derecha, los
-pedidos como los vería el comercio en Shopify, con lo que pasó en cada uno.
+En el sidebar, bloque **Shopify → Store demo** (o http://localhost:5186/#/shopify-demo): una tienda Shopify de mentira que
+paga con la app de Creditop de verdad (el host de temp-shopify), que corre en la máquina de quien la está cambiando. No
+hace falta tener ese repo: el host se usa por la dirección de su canal del playground.
+
+- **El editor es la tienda**: productos en tarjetas, el carrito, los datos del comprador y «Pagar con Creditop». La
+  pestaña **Pedidos** los muestra como los vería el comercio en Shopify, con lo que pasó en cada uno y los botones para
+  avisar el resultado.
+- **El panel derecho es lo que pasa por debajo**: si se llega a todo (las tres conexiones) y cada petición HTTP y cada
+  webhook, en orden —la sesión de pago a la app, el aviso de Creditop y el `paymentSessionResolve` que la app le manda al
+  Shopify falso—, con su cuerpo al tocarla. La lupa deja sólo las del pedido elegido.
+
+El comprador vuelve de Creditop a `#/shopify-demo?order=<id>`, que abre la demo en ese pedido.
 
 ```text
 la demo ──sesión de pago──► canal del host ──► el host (en la máquina de su dueño) ──► Creditop ──► el wizard

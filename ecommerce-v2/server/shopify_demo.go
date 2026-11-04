@@ -44,8 +44,55 @@ type demoEvent struct {
 	Detail string `json:"detail"`
 }
 
+type demoItem struct {
+	Title string `json:"title"`
+	Qty   int    `json:"qty"`
+	Price int    `json:"price"`
+}
+
+// demoExchange es una petición HTTP de la demo, en cualquier sentido: lo que se ve en el panel derecho.
+type demoExchange struct {
+	At       string          `json:"at"`
+	Dir      string          `json:"dir"` // out: la demo llama · in: le llaman a la demo
+	Kind     string          `json:"kind"`
+	Method   string          `json:"method"`
+	URL      string          `json:"url"`
+	Status   int             `json:"status"`
+	Ms       int64           `json:"ms"`
+	Order    string          `json:"order,omitempty"`
+	Request  json.RawMessage `json:"request,omitempty"`
+	Response json.RawMessage `json:"response,omitempty"`
+	Text     string          `json:"text,omitempty"`
+	Error    string          `json:"error,omitempty"`
+}
+
+var (
+	demoLogMu sync.Mutex
+	demoLog   []demoExchange
+)
+
+// demoRecord guarda un intercambio (los últimos 200, en memoria).
+func demoRecord(e demoExchange) {
+	e.At = time.Now().Format(time.RFC3339Nano)
+	demoLogMu.Lock()
+	defer demoLogMu.Unlock()
+	demoLog = append(demoLog, e)
+	if len(demoLog) > 200 {
+		demoLog = demoLog[len(demoLog)-200:]
+	}
+}
+
+func rawJSON(v any) json.RawMessage {
+	data, err := json.Marshal(v)
+	if err != nil {
+		return nil
+	}
+	return data
+}
+
 type demoOrder struct {
 	ID          string      `json:"id"`
+	Items       []demoItem  `json:"items,omitempty"`
 	GID         string      `json:"gid"`
 	Amount      string      `json:"amount"`
 	Email       string      `json:"email"`
@@ -298,17 +345,23 @@ func demoPaymentsAPI(w http.ResponseWriter, r *http.Request) {
 			o.Status = next
 		}
 	})
+	var answer map[string]any
+	order := ""
 	if o == nil {
-		writeJSON(w, http.StatusOK, map[string]any{"data": map[string]any{m: map[string]any{
-			"paymentSession": nil, "userErrors": []map[string]string{{"field": "id", "message": "esa sesión de pago no es de esta tienda demo"}}}}})
-		return
+		answer = map[string]any{"data": map[string]any{m: map[string]any{
+			"paymentSession": nil, "userErrors": []map[string]string{{"field": "id", "message": "esa sesión de pago no es de esta tienda demo"}}}}}
+	} else {
+		order = o.ID
+		// A dónde manda Shopify al comprador: la confirmación del pedido (pagado) o el checkout (rechazado).
+		redirect := fmt.Sprintf("%s/#/shopify-demo?order=%s", c.PublicURL, url.QueryEscape(o.ID))
+		answer = map[string]any{"data": map[string]any{m: map[string]any{
+			"paymentSession": map[string]any{"id": gid, "nextAction": map[string]any{"action": "REDIRECT", "context": map[string]any{"redirectUrl": redirect}}},
+			"userErrors":     []any{},
+		}}}
 	}
-	// A dónde manda Shopify al comprador: la confirmación del pedido (pagado) o el checkout (rechazado).
-	redirect := fmt.Sprintf("%s/shopify-demo.html#/order/%s", c.PublicURL, url.PathEscape(o.ID))
-	writeJSON(w, http.StatusOK, map[string]any{"data": map[string]any{m: map[string]any{
-		"paymentSession": map[string]any{"id": gid, "nextAction": map[string]any{"action": "REDIRECT", "context": map[string]any{"redirectUrl": redirect}}},
-		"userErrors":     []any{},
-	}}})
+	demoRecord(demoExchange{Dir: "in", Kind: m + " (app → Shopify)", Method: r.Method, URL: r.URL.Path, Status: http.StatusOK, Order: order,
+		Request: rawJSON(map[string]any{"shop": shop, "query": in.Query, "variables": in.Variables}), Response: rawJSON(answer)})
+	writeJSON(w, http.StatusOK, answer)
 }
 
 // ── la tienda demo ─────────────────────────────────────────────────────────────────────────────────────
@@ -316,6 +369,7 @@ func demoPaymentsAPI(w http.ResponseWriter, r *http.Request) {
 func demoCheckout(w http.ResponseWriter, r *http.Request) {
 	var in struct {
 		Amount, Email, Phone, FirstName, LastName string
+		Items                                     []demoItem
 	}
 	if err := json.NewDecoder(io.LimitReader(r.Body, 16*1024)).Decode(&in); err != nil {
 		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "el cuerpo no es JSON"})
@@ -328,15 +382,17 @@ func demoCheckout(w http.ResponseWriter, r *http.Request) {
 	}
 	id := demoID()
 	o := &demoOrder{ID: id, GID: "gid://shopify/PaymentSession/" + id, Amount: or2(in.Amount, "100000"), Email: in.Email, Phone: in.Phone,
-		FirstName: in.FirstName, LastName: in.LastName, Status: "pending", CreatedAt: time.Now().Format(time.RFC3339)}
+		FirstName: in.FirstName, LastName: in.LastName, Items: in.Items, Status: "pending", CreatedAt: time.Now().Format(time.RFC3339)}
 	// La sesión de pago con la forma que la manda Shopify a `payment_session_url`.
 	session := map[string]any{
 		"id": o.ID, "gid": o.GID, "group": "grp_" + o.ID, "amount": o.Amount + ".00", "currency": "COP", "test": true,
-		"payment_method": map[string]any{"type": "offsite", "data": map[string]any{"cancel_url": fmt.Sprintf("%s/shopify-demo.html#/order/%s", c.PublicURL, o.ID)}},
+		"payment_method": map[string]any{"type": "offsite", "data": map[string]any{"cancel_url": fmt.Sprintf("%s/#/shopify-demo?order=%s", c.PublicURL, o.ID)}},
 		"customer": map[string]any{"email": o.Email, "phone_number": o.Phone,
 			"billing_address": map[string]any{"given_name": o.FirstName, "family_name": o.LastName, "phone_number": o.Phone}},
 	}
 	reply := demoCall("POST", c.HostURL+"/payments/session", map[string]string{"Shopify-Shop-Domain": c.Shop}, session)
+	demoRecord(demoExchange{Dir: "out", Kind: "Sesión de pago (Shopify → app)", Method: "POST", URL: c.HostURL + "/payments/session", Status: reply.Status,
+		Ms: reply.Ms, Order: o.ID, Request: rawJSON(session), Response: reply.Body, Text: reply.Text, Error: reply.Error})
 	var got struct {
 		RedirectURL string `json:"redirect_url"`
 		Error       string `json:"error"`
@@ -394,7 +450,10 @@ func demoNotify(w http.ResponseWriter, r *http.Request, id string) {
 		path = path[i:]
 	}
 	target := c.HostURL + path + "?" + u.RawQuery
-	reply := demoCall("POST", target, nil, map[string]any{"orderId": id, "status": status})
+	notice := map[string]any{"orderId": id, "status": status}
+	reply := demoCall("POST", target, nil, notice)
+	demoRecord(demoExchange{Dir: "out", Kind: "Aviso de Creditop (webhook → app)", Method: "POST", URL: target, Status: reply.Status,
+		Ms: reply.Ms, Order: id, Request: rawJSON(notice), Response: reply.Body, Text: reply.Text, Error: reply.Error})
 	o := demoUpdate(func(o *demoOrder) bool { return o.ID == id }, func(o *demoOrder) {
 		o.log("creditop", fmt.Sprintf("aviso «%s» (pedido %v de Creditop) → host %s en %d ms", status, rows[0]["id"], or2(reply.Error, fmt.Sprint(reply.Status)), reply.Ms))
 	})
@@ -408,6 +467,13 @@ func registerShopifyDemo(mux *http.ServeMux) {
 	mux.HandleFunc("/api/shopify-demo/status", func(w http.ResponseWriter, r *http.Request) {
 		c := shopifyDemoConfig()
 		writeJSON(w, http.StatusOK, map[string]any{"config": c, "checks": demoChecks(c)})
+	})
+	// Las peticiones de la demo, las que hace y las que le hacen: lo que muestra el panel derecho.
+	mux.HandleFunc("/api/shopify-demo/log", func(w http.ResponseWriter, r *http.Request) {
+		demoLogMu.Lock()
+		out := append([]demoExchange{}, demoLog...)
+		demoLogMu.Unlock()
+		writeJSON(w, http.StatusOK, map[string]any{"exchanges": out})
 	})
 	mux.HandleFunc("/api/shopify-demo/orders", func(w http.ResponseWriter, r *http.Request) {
 		demoMu.Lock()
