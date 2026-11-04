@@ -18,9 +18,15 @@
 // defecto vive ENTERO en el paso `personal-info`, antes de /lenders. El camino visual es el
 // del panel y lo corre Miguel.
 //
-// Requisitos (los verifica y los dice si faltan):
-//   · stack local arriba y los drivers de KYC en fake → `cd legacy-backend && make mock-all && make drivers`
-//   · `ONBOARDING_FAKES_ALLOW_HEADER=true` en el .env del backend (si no, todo cae al escenario default)
+// LAS CENTRALES SE DICTAN AL SIMULADOR (F-139). Hasta el 2026-11-03 este script pedía cada veredicto con el
+// encabezado `X-Fake-Scenario` a los drivers «fake» del backend; el backend local ya consulta el simulador de
+// centrales (`*_MOCK_HOST`), así que el encabezado no hacía nada y los tres casos corrían con la misma respuesta.
+// Ahora cada caso dicta lo suyo para SU cédula y comprueba en el log que contestó el simulador y no la respuesta
+// fija de respaldo del backend: sin esa marca, el veredicto no prueba nada.
+//
+// Requisitos (los dice si faltan):
+//   · backend local arriba, con el simulador de centrales (`mock-bureaus`, :8105)
+//   · Loki local (`make harness-obs-up`): el origen de cada respuesta se lee del log
 //
 // ⚠ NO usa el teléfono de bypass ni llama a `scrubphone`: cada corrida genera su propio
 // teléfono y su propio documento, así que no destruye la corrida anterior (ver §«Cada corrida
@@ -38,9 +44,13 @@ process.env.CFE_TARGET ||= 'local';
 const { config } = await import('../pkg/config.ts');
 const { one, close } = await import('../pkg/db.ts');
 const { createCustomer } = await import('../pkg/http.ts');
+const { dictate, agildataAnswer, dictateBureauMode } = await import('../pkg/risk-lambda.ts');
+const { bureauSources, bureauSourceProblem } = await import('../pkg/loki.ts');
 
 const API = config.mockUrl;
-const PARTNER = config.partnerHash;
+// Un comercio estándar, sin Experian forzado: Quanto pisaría el nombre y la cascada de identidad no se vería sola.
+const PARTNER = process.env.E2E_KYC_STANDARD_HASH || '802df3ce';   // Tu Colchón (112) en la base local
+void config.partnerHash;
 // UA de iPhone SIEMPRE: `onlyMobileValidation` responde 403 a un UA de escritorio.
 const UA = 'Mozilla/5.0 (iPhone; CPU iPhone OS 16_5 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.5 Mobile/15E148 Safari/604.1';
 
@@ -48,19 +58,41 @@ const UA = 'Mozilla/5.0 (iPhone; CPU iPhone OS 16_5 like Mac OS X) AppleWebKit/6
 const NAME = 'ANDREA';
 const SURNAMES = 'MUSUSU NEMPEGIE';
 
-/** Lo que devuelve `AgildataHttpFake::employeeSuccess()`. Para probar la ADOPCIÓN hay que teclear
- *  un nombre parecido a ése: la regla corrige la ortografía, no inventa el nombre. */
-const AGIL_NAME = 'FAKE';
-const AGIL_SURNAMES_OK = 'EMPLOYEE NAME';
-const AGIL_SURNAMES_BAD = 'EMPLOYEE NAMES';   // una letra de más, dentro del umbral de 3
+/** La adopción, con el caso real: Ágil Data conoce a la persona como «ANDREA MUSUSU NEMPEQUE» y se teclea con una
+ *  letra cambiada. La regla corrige la ortografía, no inventa el nombre: lo tecleado tiene que parecerse. */
+const AGIL_NAME = 'ANDREA';
+const AGIL_SURNAMES_OK = 'MUSUSU NEMPEQUE';
+const AGIL_SURNAMES_BAD = 'MUSUSU NEMPEGIE';   // dos letras de diferencia, dentro del umbral de 3
 
 type Resp = { status: number; json: any };
 
-// El cliente vive en `pkg/http.ts`. `x-fake-scenario` va por llamada: es lo que le dicta al mock
-// qué contestar en ESE paso, así que no puede ser una cabecera del cliente.
+// El cliente vive en `pkg/http.ts`.
 const customer = createCustomer({ base: API, headers: { 'user-agent': UA }, timeoutMs: 60_000, recorte: 200 });
-const http = (method: string, path: string, body?: unknown, scenario?: string): Promise<Resp> =>
-    customer.llamar(method, path, body, scenario ? { 'x-fake-scenario': scenario } : {});
+const http = (method: string, path: string, body?: unknown): Promise<Resp> => customer.llamar(method, path, body, {});
+
+/** Lo que contesta TusDatos para cada caso: las formas de `TusdatosHttpFake` del backend. Primer nombre, primer
+ *  apellido y fecha van SIEMPRE: un `match_code` ausente en ellos se lee como «no coincide». */
+const TUSDATOS = {
+    'second-surname-mismatch': { status: 'success', data: { findings: {
+        first_name: { match_code: 1 }, first_surname: { match_code: 1 }, second_surname: { match_code: 0 },
+        issue_date: { match_code: 1 } } } },
+    'single-name-and-surname': { status: 'success', data: { findings: {
+        first_name: { match_code: 1 }, first_surname: { match_code: 1 }, issue_date: { match_code: 1 } } } },
+};
+type Scenario = keyof typeof TUSDATOS | 'agildata-resolves';
+
+/** Dicta las centrales de identidad para la cédula y dice cuál tiene que contestar. Con TusDatos, Ágil Data y
+ *  Mareigua van «sin información» para que la cascada llegue hasta ella. */
+async function dictateScenario(doc: string, scenario: Scenario): Promise<'agildata' | 'tusdatos' | null> {
+    if (scenario === 'agildata-resolves') {
+        const ok = await dictate(doc, 'agildata', agildataAnswer(doc, 2_500_000, 'Empleado', 13, `${AGIL_NAME} ${AGIL_SURNAMES_OK}`));
+        return ok ? 'agildata' : null;
+    }
+    const ok = (await dictateBureauMode(doc, 'agildata', 'empty')).ok
+        && (await dictateBureauMode(doc, 'mareigua', 'empty')).ok
+        && await dictate(doc, 'tusdatos', TUSDATOS[scenario]);
+    return ok ? 'tusdatos' : null;
+}
 
 function unique(): { phone: string; doc: string; email: string } {
     const n = Math.floor(Math.random() * 9_000_000) + 1_000_000;
@@ -100,13 +132,16 @@ async function seed(phone: string): Promise<number | null> {
     return id;
 }
 
-type Outcome = { aceptado: boolean; status: number; subcode: string; mensaje: string; guardado: string };
+type Outcome = { aceptado: boolean; status: number; subcode: string; mensaje: string; guardado: string; origen: string | null };
 
-async function correr(scenario: string, name = NAME, surnames = SURNAMES): Promise<Outcome | null> {
+async function correr(scenario: Scenario, name = NAME, surnames = SURNAMES): Promise<Outcome | null> {
     const { phone, doc, email } = unique();
+    const central = await dictateScenario(doc, scenario);
+    if (!central) { console.log(`    ✘ el simulador de centrales no tomó el dictado de «${scenario}»`); return null; }
     const ureq = await seed(phone);
     if (ureq === null) return null;
 
+    const from = Date.now();
     const r = await http('POST', `/api/onboarding/loan-application/personal-info/${PARTNER}/${ureq}`, {
         document_type: 'CC', document_number: doc,
         name: name, surname: surnames, email,
@@ -116,7 +151,7 @@ async function correr(scenario: string, name = NAME, surnames = SURNAMES): Promi
         // fechas reales del caso (nacimiento 1995-03-22, expedición 2013-03-27).
         birth_day: 22, birth_month: 3, birth_year: 1995,
         original_amount: 1_500_000, amount: 1_500_000,
-    }, scenario);
+    });
 
     // `KYC_DEBUG=1` vuelca el cuerpo entero: el mensaje de arriba es genérico
     // («personal info validation failed») y la causa real viaja en `errors`/`payload`.
@@ -135,7 +170,17 @@ async function correr(scenario: string, name = NAME, surnames = SURNAMES): Promi
     const code = r.json?.errors?.error_code ?? r.json?.error_code ?? r.json?.data?.error_code ?? null;
     const accepted = r.status < 400 && code !== 'ONB005';
 
+    // De dónde salió la respuesta de identidad: si cayó al respaldo del backend, el caso no se ejercitó.
+    await new Promise((res) => setTimeout(res, 4_000));
+    let origen: string | null;
+    try {
+        origen = bureauSourceProblem(await bureauSources(from - 1_000, Date.now() + 1_000), [central]);
+    } catch (e) {
+        origen = `no se pudo leer el log: ${(e as Error).message}`;
+    }
+
     return {
+        origen,
         aceptado: accepted,
         status: r.status,
         subcode: `${code ?? '—'}${r.json?.errors?.error_subcode ? ' / ' + r.json.errors.error_subcode : ''}`,
@@ -148,7 +193,8 @@ async function correr(scenario: string, name = NAME, surnames = SURNAMES): Promi
 function print(title: string, expected: string, d: Outcome | null): void {
     console.log(`\n  ${title}`);
     console.log(`    esperado    ${expected}`);
-    if (!d) { console.log('    ✘ no se pudo sembrar la solicitud'); return; }
+    if (!d) { console.log('    ✘ no se pudo preparar el caso'); return; }
+    console.log(`    contestó    ${d.origen ? '✘ ' + d.origen : 'el simulador ✓'}`);
     console.log(`    HTTP        ${d.status}${d.aceptado ? '  → ACEPTADO' : '  → RECHAZADO'}`);
     console.log(`    subcode     ${d.subcode}`);
     console.log(`    mensaje     ${String(d.mensaje).slice(0, 90)}`);
@@ -160,19 +206,19 @@ console.log(`     target local · API ${API} · comercio ${PARTNER}`);
 console.log(`     nombre de prueba: «${NAME} ${SURNAMES}» (el segundo apellido es el que la central rechaza)`);
 
 const badOne = await correr('second-surname-mismatch');
-print('escenario  second-surname-mismatch', 'RECHAZADO, con el error en el campo apellido', badOne);
+print('TusDatos: el segundo apellido no coincide', 'RECHAZADO, con el error en el campo apellido', badOne);
 
 const good = await correr('single-name-and-surname');
-print('escenario  single-name-and-surname', 'ACEPTADO (no tener segundo apellido es legítimo)', good);
+print('TusDatos: un nombre y un apellido, todo coincide', 'ACEPTADO (no tener segundo apellido es legítimo)', good);
 
-// La regla de adopción: con el escenario `success` Ágil Data resuelve y devuelve su nombre, así que lo
+// La regla de adopción: Ágil Data resuelve y devuelve su nombre, así que lo
 // que quede en `users` tiene que ser el de la CENTRAL y no el que se tecleó. Se prueba acá y no sólo en
 // un test porque es el único lugar donde se ve el recorrido entero: la cascada elige la central, el
 // servicio decide, y `OnboardingService` escribe.
 //
 // ⚠ El bypass de `verifyCoincidence` en local NO estorba: la adopción decide por `NameSimilarity`, que
 // no pasa por ahí. Por eso este chequeo sí discrimina en local.
-const adoption = await correr('success', AGIL_NAME, AGIL_SURNAMES_BAD);
+const adoption = await correr('agildata-resolves', AGIL_NAME, AGIL_SURNAMES_BAD);
 print(
     'regla de adopción (Ágil Data resuelve)',
     `ACEPTADO y guardado como «${AGIL_NAME} / ${AGIL_SURNAMES_OK}», corrigiendo lo tecleado`,
@@ -185,6 +231,14 @@ const adopted = adoption?.guardado === `${AGIL_NAME} / ${AGIL_SURNAMES_OK}`;
 
 if (!badOne || !good || !adoption) {
     console.log('\n  ⇒ NO CONCLUYENTE: no se pudo completar el recorrido.\n');
+    process.exit(2);
+}
+
+const notExercised = [badOne, good, adoption].filter((d) => d.origen);
+if (notExercised.length) {
+    console.log('\n  ⇒ NO CONCLUYENTE: alguna central no contestó desde el simulador, así que ese caso no se probó.');
+    for (const d of notExercised) console.log(`     ${d.origen}`);
+    console.log('');
     process.exit(2);
 }
 
