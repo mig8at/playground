@@ -17,7 +17,10 @@ columnas, ambas `nullable`. `application` no tiene migración propia: escribe so
   de la migración dice `legacy | application`, pero el código también escribe `refactor` (abajo).
 
 El backoffice las devuelve como `onboardingChannel` y `onboardingBackend` en el detalle del usuario
-(`UsersService`).
+(`UsersService`). El único lector con lógica es `UserRequestService::warnIfCounterRequestHasNoAdvisor`
+de legacy: al crear una solicitud sin asesor (`corporate_user_id` nulo) para un usuario con canal
+`merchant`, deja un warning en el log. No bloquea, y el propio código advierte que el canal es una
+aproximación (el del primer registro, no el de esta solicitud).
 
 ## Quién declara el canal
 
@@ -25,13 +28,21 @@ El backoffice las devuelve como `onboardingChannel` y `onboardingBackend` en el 
   la ruta empieza por `/merchant`, `ecommerce` si el flujo es `ecommerce`, y `self_service` en todo
   lo demás (autogestión, consumer-hub, Bancolombia). Sólo lo usa el envío del celular de
   `phone-number.tsx`, que lo agrega al cuerpo de `POST /api/onboarding/phone/register`.
+- **Auto-onboarding del wizard** (`auto-onboarding/start.tsx`): manda el literal `ecommerce` al mismo
+  `phone/register`. Si el pedido viene firmado por la tienda, antes entra por `merchant-verified`, y
+  ahí es legacy quien pone `ecommerce` (abajo).
+- **Otras pantallas del wizard que llaman a `phone/register`** sin canal: el registro de Bancolombia
+  (`bancolombia/onboarding/register.tsx`) y el celular del codeudor en autogestión
+  (`cosigner/self-service-phone.tsx`). Si crean el usuario, queda con canal `null`.
 - **`onboarding-forms-service`** (flujo dinámico): `send_otp.go` toma `onboarding_channel` del
   payload y, si viene vacío, usa `merchant`; lo reenvía a `create-temporary-user` de legacy.
 - **Front de `application`** (`RegisterCellPhone.vue`): `ecommerce` si es ecommerce, `self_service`
   si es autogestión y `merchant` en el resto.
 - **Validación**: `SendOtpCodeRequest` y `BackDoorPhoneNumberRequest` de legacy, y
   `StoreRegisterCellPhoneRequest` de `application`, aceptan sólo `ecommerce`, `merchant` y
-  `self_service`. Un `mobile` enviado por un cliente web se rechaza.
+  `self_service`. Un `mobile` enviado a esos endpoints se rechaza. `ResendOtpCodeEmailRequest`
+  (el OTP por correo, `OtpService::sendOtpCodeViaEmail`) no tiene regla para el campo: lo que llegue
+  en `onboarding_channel` pasa sin validar a la creación del usuario.
 
 ## Dónde se escribe en legacy-backend
 
@@ -42,8 +53,10 @@ El canal entra al crear el usuario temporal y no después:
   cuando no encuentra usuario por celular: un usuario existente conserva lo que tenía.
 - Los que llaman pasan su canal: `OtpService::sendOtpCode` y `sendOtpCodeViaEmail` el del request,
   `RegisterCellPhoneService` el del request, `BackDoorUserService` (el `create-temporary-user` del
-  flujo dinámico) el de `BackDoorPhoneNumberRequest`, y `MobileOnboardingService` el literal
-  `mobile`. `BackDoorService` y `CreditStudyService` pasan `null`.
+  flujo dinámico) el de `BackDoorPhoneNumberRequest`, `MobileOnboardingService` el literal
+  `mobile` y `OnboardingController::startMerchantVerifiedSession` (pedido firmado, sin OTP) el literal
+  `ecommerce`. `BackDoorService` y `CreditStudyService` pasan `null`, y
+  `DynamicFormsService::createUserForAdvisorDrivenIntake` no lo pasa (queda `null`).
 - `MobileOnboardingService::markMobileCreated`, al final del registro móvil, escribe
   `onboarding_channel = 'mobile'` y `onboarding_backend = 'refactor'`, cada uno sólo si estaba en
   `null`.

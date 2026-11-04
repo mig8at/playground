@@ -2,12 +2,12 @@
   "version": 1,
   "title": "Origen del onboarding: canal y backend del usuario",
   "summary": "Quién escribe users.onboarding_channel y users.onboarding_backend en cada front y backend, por qué el canal es write-once a nivel de modelo y por qué el backend puede cambiar después.",
-  "reviewedAt": "2026-11-02T15:34:14+00:00",
+  "reviewedAt": "2026-11-04T01:00:13+00:00",
   "sources": [
     {
       "repo": "legacy-backend",
       "path": "database/migrations/2026_07_02_120000_add_onboarding_origin_to_users.php",
-      "commit": "c03edaffa465bd07bceccd4076af5d1cec9916b9",
+      "commit": "dd1365e85b9cf825bc46991e0b513630c1a74da1",
       "blob": "5835629f1cc5d49fc9ce824d4480726ceb65e9cd",
       "sections": [
         "las-dos-columnas-y-sus-valores"
@@ -16,7 +16,7 @@
     {
       "repo": "legacy-backend",
       "path": "Modules/Backoffice/App/Services/UsersService.php",
-      "commit": "69920f580f62ad35f0a555e3b8b8f2c247d758aa",
+      "commit": "dd1365e85b9cf825bc46991e0b513630c1a74da1",
       "blob": "86f6dcd29908689123501c74379946bf6a618e6a",
       "sections": [
         "las-dos-columnas-y-sus-valores"
@@ -25,7 +25,7 @@
     {
       "repo": "frontend-monorepo",
       "path": "apps/loan-request-wizard/app/utils/onboarding-channel.ts",
-      "commit": "1238d30ef1459fd1fb84ac8020fbacb64a658e55",
+      "commit": "e0c370c299cf4a613c7282626a9977d635484616",
       "blob": "4889d98b48cda9bbca7f2c1980edc28ea1a6e48f",
       "sections": [
         "quien-declara-el-canal"
@@ -43,7 +43,7 @@
     {
       "repo": "frontend-monorepo",
       "path": "modules/loan-request-wizard/loan-application-form/src/lib/infrastructure/phone-number.repository.ts",
-      "commit": "1238d30ef1459fd1fb84ac8020fbacb64a658e55",
+      "commit": "e0c370c299cf4a613c7282626a9977d635484616",
       "blob": "3787ebbb540613db92af456949061524e9d57417",
       "sections": [
         "quien-declara-el-canal"
@@ -61,7 +61,7 @@
     {
       "repo": "application",
       "path": "resources/js/pages/customer/onboarding/RegisterCellPhone.vue",
-      "commit": "24dc86eb1eaabb4e4eee37750ab90e258c36ce78",
+      "commit": "1755ab4fa3a50cac5669cdff4826131979a15def",
       "blob": "3285b4c6808c34fdaf9ca5cf6e0ba625a2459c4d",
       "sections": [
         "quien-declara-el-canal"
@@ -70,7 +70,7 @@
     {
       "repo": "legacy-backend",
       "path": "Modules/Onboarding/App/Http/Requests/SendOtpCodeRequest.php",
-      "commit": "c03edaffa465bd07bceccd4076af5d1cec9916b9",
+      "commit": "dd1365e85b9cf825bc46991e0b513630c1a74da1",
       "blob": "4d402e58b3bc916f4800be03b53e30ea0e67cbfa",
       "sections": [
         "quien-declara-el-canal"
@@ -79,7 +79,7 @@
     {
       "repo": "legacy-backend",
       "path": "Modules/Onboarding/App/Http/Requests/BackDoorPhoneNumberRequest.php",
-      "commit": "c03edaffa465bd07bceccd4076af5d1cec9916b9",
+      "commit": "dd1365e85b9cf825bc46991e0b513630c1a74da1",
       "blob": "b9a6e8b9827122e121484ccb8da6bd732cde649b",
       "sections": [
         "quien-declara-el-canal",
@@ -89,7 +89,7 @@
     {
       "repo": "application",
       "path": "app/Http/Requests/Customer/Onboarding/StoreRegisterCellPhoneRequest.php",
-      "commit": "24dc86eb1eaabb4e4eee37750ab90e258c36ce78",
+      "commit": "1755ab4fa3a50cac5669cdff4826131979a15def",
       "blob": "7630f6093251c3844c269677dc573a5df7656b39",
       "sections": [
         "quien-declara-el-canal"
@@ -98,7 +98,7 @@
     {
       "repo": "legacy-backend",
       "path": "Modules/Onboarding/App/Services/UserService.php",
-      "commit": "c03edaffa465bd07bceccd4076af5d1cec9916b9",
+      "commit": "dd1365e85b9cf825bc46991e0b513630c1a74da1",
       "blob": "800233eb8f163caca142cd682f81f0076f0f37f2",
       "sections": [
         "donde-se-escribe-en-legacy-backend",
@@ -108,7 +108,7 @@
     {
       "repo": "legacy-backend",
       "path": "Modules/Onboarding/App/Services/RegisterCellPhoneService.php",
-      "commit": "c03edaffa465bd07bceccd4076af5d1cec9916b9",
+      "commit": "dd1365e85b9cf825bc46991e0b513630c1a74da1",
       "blob": "577217af200266a640f9bfe8d8b0b0fa695ce05c",
       "sections": [
         "donde-se-escribe-en-legacy-backend"
@@ -117,16 +117,17 @@
     {
       "repo": "legacy-backend",
       "path": "Modules/Onboarding/App/Services/OtpService.php",
-      "commit": "c03edaffa465bd07bceccd4076af5d1cec9916b9",
+      "commit": "dd1365e85b9cf825bc46991e0b513630c1a74da1",
       "blob": "24139219ab32e0dd068baad39125ffd397de5a3b",
       "sections": [
+        "quien-declara-el-canal",
         "donde-se-escribe-en-legacy-backend"
       ]
     },
     {
       "repo": "legacy-backend",
       "path": "Modules/Onboarding/App/Services/BackDoorUserService.php",
-      "commit": "c03edaffa465bd07bceccd4076af5d1cec9916b9",
+      "commit": "dd1365e85b9cf825bc46991e0b513630c1a74da1",
       "blob": "a0c27454418d6150e061ac5256215c59ba9802e1",
       "sections": [
         "donde-se-escribe-en-legacy-backend"
@@ -135,7 +136,7 @@
     {
       "repo": "legacy-backend",
       "path": "Modules/Onboarding/App/Services/BackDoorService.php",
-      "commit": "c03edaffa465bd07bceccd4076af5d1cec9916b9",
+      "commit": "dd1365e85b9cf825bc46991e0b513630c1a74da1",
       "blob": "9d2de122f104f9b44f0094ffd3529c3df97bfb15",
       "sections": [
         "donde-se-escribe-en-legacy-backend"
@@ -144,7 +145,7 @@
     {
       "repo": "legacy-backend",
       "path": "Modules/Onboarding/App/Services/CreditStudyService.php",
-      "commit": "c03edaffa465bd07bceccd4076af5d1cec9916b9",
+      "commit": "dd1365e85b9cf825bc46991e0b513630c1a74da1",
       "blob": "607cba8b414540a3cd6996dcaadf318b73a8c10c",
       "sections": [
         "donde-se-escribe-en-legacy-backend"
@@ -153,7 +154,7 @@
     {
       "repo": "legacy-backend",
       "path": "Modules/Onboarding/App/Services/MobileOnboardingService.php",
-      "commit": "c03edaffa465bd07bceccd4076af5d1cec9916b9",
+      "commit": "dd1365e85b9cf825bc46991e0b513630c1a74da1",
       "blob": "2cc3688440c9c5afa2554012559888753395c860",
       "sections": [
         "donde-se-escribe-en-legacy-backend",
@@ -163,7 +164,7 @@
     {
       "repo": "legacy-backend",
       "path": "Modules/UsersV1/App/Repositories/UserRepository.php",
-      "commit": "c03edaffa465bd07bceccd4076af5d1cec9916b9",
+      "commit": "dd1365e85b9cf825bc46991e0b513630c1a74da1",
       "blob": "01aeea09ee2edf53ccbe4558562dae15bf3e26e2",
       "sections": [
         "donde-se-escribe-en-legacy-backend",
@@ -173,7 +174,7 @@
     {
       "repo": "legacy-backend",
       "path": "app/Models/User.php",
-      "commit": "c03edaffa465bd07bceccd4076af5d1cec9916b9",
+      "commit": "dd1365e85b9cf825bc46991e0b513630c1a74da1",
       "blob": "0c0a94200d800005f15b218b4fc5d54dfab0eb71",
       "sections": [
         "el-canal-se-escribe-una-sola-vez-el-backend-no"
@@ -182,7 +183,7 @@
     {
       "repo": "application",
       "path": "app/Models/User.php",
-      "commit": "24dc86eb1eaabb4e4eee37750ab90e258c36ce78",
+      "commit": "1755ab4fa3a50cac5669cdff4826131979a15def",
       "blob": "a5390759c3d5c096f4def56a2d9d37f652ef3e5d",
       "sections": [
         "el-canal-se-escribe-una-sola-vez-el-backend-no"
@@ -191,10 +192,74 @@
     {
       "repo": "application",
       "path": "app/Http/Controllers/Customer/RegisterCellPhoneController.php",
-      "commit": "24dc86eb1eaabb4e4eee37750ab90e258c36ce78",
+      "commit": "1755ab4fa3a50cac5669cdff4826131979a15def",
       "blob": "765631219ef7c8a68c7c27e60fb138dc4b6b42e5",
       "sections": [
         "el-canal-se-escribe-una-sola-vez-el-backend-no"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/Onboarding/App/Services/UserRequestService.php",
+      "commit": "dd1365e85b9cf825bc46991e0b513630c1a74da1",
+      "blob": "59d9df68806a6a1db8dc35f55cc6a19fd66dfb6b",
+      "sections": [
+        "las-dos-columnas-y-sus-valores"
+      ]
+    },
+    {
+      "repo": "frontend-monorepo",
+      "path": "apps/loan-request-wizard/app/routes/auto-onboarding/start.tsx",
+      "commit": "e0c370c299cf4a613c7282626a9977d635484616",
+      "blob": "582bf9b00d07a86387053bebaf0dc245eb152fcb",
+      "sections": [
+        "quien-declara-el-canal"
+      ]
+    },
+    {
+      "repo": "frontend-monorepo",
+      "path": "apps/loan-request-wizard/app/routes/bancolombia/onboarding/register.tsx",
+      "commit": "e0c370c299cf4a613c7282626a9977d635484616",
+      "blob": "57e6be14863e61ae5eb977f62cd8005ed7bc9708",
+      "sections": [
+        "quien-declara-el-canal"
+      ]
+    },
+    {
+      "repo": "frontend-monorepo",
+      "path": "apps/loan-request-wizard/app/routes/cosigner/self-service-phone.tsx",
+      "commit": "e0c370c299cf4a613c7282626a9977d635484616",
+      "blob": "0de9af009b719ebc2d41c0a3f5b29c3857b4ae68",
+      "sections": [
+        "quien-declara-el-canal"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/Onboarding/App/Http/Requests/ResendOtpCodeEmailRequest.php",
+      "commit": "dd1365e85b9cf825bc46991e0b513630c1a74da1",
+      "blob": "897aeaa4da7374aa02386c7d9f4b0f8b222a8e22",
+      "sections": [
+        "quien-declara-el-canal"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/Onboarding/App/Http/Controllers/OnboardingController.php",
+      "commit": "dd1365e85b9cf825bc46991e0b513630c1a74da1",
+      "blob": "738415ab7825c6212177127c5fd8ccddc4c69f54",
+      "sections": [
+        "quien-declara-el-canal",
+        "donde-se-escribe-en-legacy-backend"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/Onboarding/App/Services/DynamicFormsService.php",
+      "commit": "dd1365e85b9cf825bc46991e0b513630c1a74da1",
+      "blob": "71eba7cf836cdc62aa360a41f3897b084390548f",
+      "sections": [
+        "donde-se-escribe-en-legacy-backend"
       ]
     }
   ]
