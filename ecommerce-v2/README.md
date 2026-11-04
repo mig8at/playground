@@ -101,6 +101,20 @@ la demo ──sesión de pago──► canal del host ──► el host (en la m
 
 Cada día sólo hace falta que tu `playground serve` esté corriendo (y el del dueño del host).
 
+**Probarlo solo, con las dos puntas en tu máquina:** un único `services.json` con el host y el Shopify falso, y un solo
+`playground serve`:
+
+```json
+[
+  { "alias": "shopify.app", "to": "http://localhost:8121", "description": "host de la app de pagos (temp-shopify)" },
+  { "alias": "shopify", "to": "http://127.0.0.1:5187", "description": "Shopify falso (Store demo)" }
+]
+```
+
+`SHOPIFY_DEMO_HOST_URL` va a `…/s/shopify.app.<vos>.com`, `SHOPIFY_DEMO_CHANNEL_URL` a `…/s/shopify.<vos>.com`, y el
+`SHOPIFY_PAYMENTS_API_URL` del host también a `…/s/shopify.<vos>.com`. Cuando lo pruebe otra persona, sólo cambia ese
+último: a `…/s/shopify.<esa persona>.com`. El host le avisa a un solo Shopify falso a la vez.
+
 Las tres conexiones de la pestaña Conexiones tienen que estar en verde antes de comprar: **playground** (contesta su `/health`),
 **host de la app** (su nombre contesta; 503 = su dueño no está corriendo `playground serve`) y **este Shopify falso** (el playground
 llega a este servidor por tu nombre: se comprueba con un ping que sólo este proceso sabe contestar).
