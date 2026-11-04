@@ -751,6 +751,8 @@ async function loadSuite(path: string, dflt: { amount: number; income: number; s
 
 type Res = {
     caso: Case; ok: boolean; ur?: number; uid?: number; phone: string; nombre?: string;
+    /** El recorrido de la entidad pedida, en el vocabulario del catálogo (`recorridos.json`). */
+    recorrido?: string[];
     enListado?: boolean; listado?: number[]; conducta?: string; detalle?: string;
     /** Lo que la tarjeta de cada entidad trae del listado y alguna aserción mira. */
     tarjetas?: Record<number, { can_check_preapproval?: unknown; probability?: unknown }>;
@@ -1335,6 +1337,12 @@ async function traverse(c: Case, i: number): Promise<Res> {
             lender_id: c.lender, fee_number: c.cuotas ?? 4, original_amount: c.amount, amount: c.amount,
             initial_fee: 0, rate: '0', transaction_data: null });
         closing = ` · eligió la entidad ${c.lender} sin cerrar (HTTP ${sel.status})`;
+    }
+    // El recorrido que le toca a la entidad pedida, para leer la corrida en el vocabulario del negocio. Este runner
+    // habla con la API como el asesor, así que el canal es el del asesor.
+    if (c.lender !== null && c.lender !== undefined) {
+        const { routeSummary } = await import('../pkg/recorridos.ts');
+        base.recorrido = await routeSummary(Number(c.lender), br.hash, 'merchant');
     }
     if (flag('close') && !c.noClose) {
         const r = await closeCreditopX(arr, ur, tel, c.amount!, post, get, c.lender, c.cuotas ?? 4);
@@ -2007,6 +2015,7 @@ async function main(): Promise<number> {
             + (r.listado ? ` · listado: [${r.listado.join(', ')}]`
                 + (r.caso.lender === null ? '' : ` · la pedida ${r.enListado ? 'SÍ' : '**NO**'} estaba`) : ''));
         console.log(`      ${r.conducta ?? '—'}${r.detalle ? ` · ${r.detalle}` : ''}`);
+        for (const l of r.recorrido ?? []) console.log(`      ${l}`);
         if (r.preaprobados?.length) {
             console.log(`      PRE-APROBADOS (lo que dispara el front · ${r.preaprobados.length} entidades):`);
             for (const q of r.preaprobados) {

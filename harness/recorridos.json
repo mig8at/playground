@@ -81,7 +81,61 @@
       "name": "Originación delegada",
       "policyOwner": "entidad",
       "origination": "en-casa",
-      "outcome": "autorizacion-y-formalizacion"
+      "outcome": "autorizacion-y-formalizacion",
+      "steps": [
+        {
+          "name": "preaprobación",
+          "tie": "rail",
+          "note": "por el slug; el adaptador de cada entidad es propio"
+        },
+        {
+          "name": "identidad",
+          "tie": "config"
+        },
+        {
+          "name": "fecha de pago y plan",
+          "tie": "credifamilia"
+        },
+        {
+          "name": "formulario adicional",
+          "tie": "config"
+        },
+        {
+          "name": "documentos",
+          "tie": "credifamilia",
+          "note": "CredifamiliaDocumentsBuilder llena los PDF con pdf-mapper"
+        },
+        {
+          "name": "firma",
+          "tie": "config",
+          "note": "la firma configurable por entidad (netco_lender_settings) va antes que la fija de Credifamilia"
+        },
+        {
+          "name": "pagaré",
+          "tie": "config",
+          "note": "Deceval con la credencial de la entidad"
+        },
+        {
+          "name": "autorización",
+          "tie": "rail"
+        },
+        {
+          "name": "formalización",
+          "tie": "credifamilia",
+          "note": "la autorización llama a CredifamiliaFormalizationService para todo tipo 4"
+        }
+      ],
+      "credifamiliaLenderIds": {
+        "_comentario": "copia de CredifamiliaLenders (backend): el tema origination-paths cita ese archivo, así que un cambio allá lo avisa make knowledge-check",
+        "production": [
+          24,
+          214
+        ],
+        "other": [
+          24,
+          216
+        ]
+      }
     }
   },
   "railAxes": {

@@ -19,7 +19,9 @@ export interface Catalog {
     version: number;
     knowledge: string;
     channels: Record<string, Named & { routes: string; harness?: string }>;
-    rails: Record<string, Named & { policyOwner: string; origination: string; outcome: string }>;
+    rails: Record<string, Named & { policyOwner: string; origination: string; outcome: string;
+        steps?: Array<{ name: string; tie: 'rail' | 'config' | 'credifamilia'; note?: string }>;
+        credifamiliaLenderIds?: { production: number[]; other: number[] } }>;
     railAxes: Record<string, Named & { values: Record<string, string> }>;
     products: Record<string, Named>;
     variations: Record<string, Named & { scope: string; when: string; measured?: string; channels?: string[]; rails?: string[]; byChannel?: Record<string, string> }>;
@@ -358,6 +360,17 @@ export async function routeSummary(lenderId: number, branchHash: string, flow: s
             `recorrido: ${cat.channels[channel]?.name.toLowerCase() ?? channel} · ${p.line}`,
             `   riel ${p.rail} ${p.railName}: política ${p.policyOwner}, se origina ${p.origination.replace('-', ' ')}`,
         ];
+        // El riel 4, paso a paso: qué sirve para cualquier entidad del riel y qué está atado a Credifamilia en main.
+        const rail = cat.rails[p.rail];
+        if (rail?.steps?.length) {
+            out.push(`   paso a paso: ${rail.steps.map((s) => s.name + (s.tie === 'credifamilia' ? '*' : '')).join(' → ')}`);
+            const ids = rail.credifamiliaLenderIds;
+            const isCf = ids ? [...ids.production, ...ids.other].includes(lenderId) : false;
+            const tied = rail.steps.filter((s) => s.tie === 'credifamilia').map((s) => s.name);
+            out.push(isCf
+                ? '   * = atado a Credifamilia en main; esta entidad es de Credifamilia, así que corre por ahí'
+                : `   ⚠ * = atado a Credifamilia en main: con esta entidad, ${tied.join(', ')} se resuelven como Credifamilia o fallan`);
+        }
         for (const n of p.notes) out.push(`   ${n}`);
         for (const w of p.warnings) out.push(`   ⚠ ${w}`);
         const fields = await measureFields(branchHash, cat).catch(() => []);

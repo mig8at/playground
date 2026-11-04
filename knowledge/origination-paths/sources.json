@@ -2,7 +2,7 @@
   "version": 1,
   "title": "Recorrido de una solicitud: canal, riel y variaciones",
   "summary": "El vocabulario para describir el camino de una solicitud —canal, tramo común, riel, producto, variaciones, campos, ajustes y desenlace—, qué activa cada variación y qué decide cada campo del formulario.",
-  "reviewedAt": "2026-11-04T11:20:59+00:00",
+  "reviewedAt": "2026-11-04T11:30:05+00:00",
   "sources": [
     {
       "repo": "frontend-monorepo",
@@ -147,7 +147,8 @@
       "commit": "dd1365e85b9cf825bc46991e0b513630c1a74da1",
       "blob": "dd7b9e624d08d12802e4c80893a12d6650ecf6f1",
       "sections": [
-        "desenlace-como-termina"
+        "desenlace-como-termina",
+        "el-riel-4-paso-a-paso-que-es-del-riel-y-que-es-de-credifamilia"
       ]
     },
     {
@@ -266,6 +267,69 @@
       "blob": "19f35ced9282fe60a20de5e657440f5ecad24ba4",
       "sections": [
         "variaciones-y-ajustes"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/Loans/App/Http/Controllers/Customer/PromissoryNoteController.php",
+      "commit": "dd1365e85b9cf825bc46991e0b513630c1a74da1",
+      "blob": "69321ed45358e3baa72cff2b04f4b951ebafac01",
+      "sections": [
+        "el-riel-4-paso-a-paso-que-es-del-riel-y-que-es-de-credifamilia"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/Loans/App/Services/Signing/Credifamilia/CredifamiliaDocumentsBuilder.php",
+      "commit": "dd1365e85b9cf825bc46991e0b513630c1a74da1",
+      "blob": "67092391260bfcce94bd5df5689bd01a1a14c983",
+      "sections": [
+        "el-riel-4-paso-a-paso-que-es-del-riel-y-que-es-de-credifamilia"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/Loans/App/Services/DocumentGeneration/Payload/OnboardingPayloadBuilder.php",
+      "commit": "dd1365e85b9cf825bc46991e0b513630c1a74da1",
+      "blob": "076477f0a5b81c4a0b8d982fc5c915810e720e60",
+      "sections": [
+        "el-riel-4-paso-a-paso-que-es-del-riel-y-que-es-de-credifamilia"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/Loans/App/Services/FormTypeService.php",
+      "commit": "dd1365e85b9cf825bc46991e0b513630c1a74da1",
+      "blob": "79a9846a3a2ef7415dd2690b3e3551d688ccb9b3",
+      "sections": [
+        "el-riel-4-paso-a-paso-que-es-del-riel-y-que-es-de-credifamilia"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "app/Services/Pdf/CredifamiliaFormalizationService.php",
+      "commit": "dd1365e85b9cf825bc46991e0b513630c1a74da1",
+      "blob": "f23e833aaf79ace277a5e2afdc55e3acff70e874",
+      "sections": [
+        "el-riel-4-paso-a-paso-que-es-del-riel-y-que-es-de-credifamilia"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/Onboarding/App/Services/lenders/CredifamiliaConsumo/CredifamiliaConsumoService.php",
+      "commit": "dd1365e85b9cf825bc46991e0b513630c1a74da1",
+      "blob": "15f84de28feed47e298a7b16f8d9b6afcaeb147a",
+      "sections": [
+        "el-riel-4-paso-a-paso-que-es-del-riel-y-que-es-de-credifamilia"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "app/Services/PaymentPlan/Credifamilia/Constants/CredifamiliaLenders.php",
+      "commit": "dd1365e85b9cf825bc46991e0b513630c1a74da1",
+      "blob": "aa075b81106803280599170ebabf7fe23880a62c",
+      "sections": [
+        "el-riel-4-paso-a-paso-que-es-del-riel-y-que-es-de-credifamilia"
       ]
     }
   ]
