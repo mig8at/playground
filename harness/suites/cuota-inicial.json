@@ -1,0 +1,42 @@
+{
+  "nombre": "Cuota inicial · la categoría del cliente fija el porcentaje; con el asesor la cobra el comercio y la firma no espera la pasarela",
+  "recorrido": ["advisor", "riel-2", "credit", "+down-payment"],
+  "ambientes": ["local"],
+  "requiere": ["close", "lambda"],
+  "nota": "El porcentaje sale de `min_initial_fee` de la categoría (InitialFeePolicyResolver). El mínimo en pesos suma además lo que el monto pasa del cupo disponible de la categoría y el fondo de garantía; como el cupo local se gasta con cada corrida, se compara el porcentaje y no los pesos. El resumen es la consulta pública que usa la pantalla de pago (/api/loans/payments/{ur}/preview). El canal tienda, donde la firma sí espera el pago, lo recorre el caminador.",
+  "porDefecto": {
+    "comercio": "pullman",
+    "lender": 77,
+    "amount": 2000000,
+    "income": 2500000,
+    "cuotas": 6
+  },
+  "casos": [
+    {
+      "nombre": "score 620: «Recuperar mejores» pide 15 % y la solicitud cierra en 11 sin pago por pasarela",
+      "score": 620,
+      "espera": {
+        "categoria": { "77": "Recuperar mejores" },
+        "cierra": true,
+        "estado": 11,
+        "consulta": [{
+          "ruta": "/api/loans/payments/{ur}/preview?concept=down_payment",
+          "campos": { "data.initial_fee_percentage": 0.15, "data.is_ecommerce": false }
+        }]
+      }
+    },
+    {
+      "nombre": "score 560: «Segunda oportunidad» pide 25 %",
+      "score": 560,
+      "espera": {
+        "categoria": { "77": "Segunda oportunidad" },
+        "cierra": true,
+        "estado": 11,
+        "consulta": [{
+          "ruta": "/api/loans/payments/{ur}/preview?concept=down_payment",
+          "campos": { "data.initial_fee_percentage": 0.25, "data.is_ecommerce": false }
+        }]
+      }
+    }
+  ]
+}

@@ -1,0 +1,26 @@
+{
+  "nombre": "IMEI · el equipo financiado es la garantía: el crédito se desembolsa al inscribirlo",
+  "recorrido": ["advisor", "riel-2", "credit", "+imei"],
+  "ambientes": ["local"],
+  "requiere": ["close", "lambda"],
+  "nota": "SmartPay (152) es la única entidad con ruta IMEI en local, en un comercio de República Dominicana. El cierre IMEI es device/register → device/{ur}/disburse; el `authorize` estándar también deja 11 pero sin equipo (F-157), por eso se mira `imei`.",
+  "porDefecto": {
+    "comercio": "#1bfb8cd0",
+    "amount": 2000000,
+    "income": 2500000,
+    "score": 700
+  },
+  "casos": [
+    {
+      "nombre": "el crédito IMEI cierra en 11 con el equipo inscrito",
+      "lender": 152,
+      "cuotas": 3,
+      "espera": {
+        "enListado": true,
+        "cierra": true,
+        "estado": 11,
+        "imei": true
+      }
+    }
+  ]
+}

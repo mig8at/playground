@@ -219,6 +219,23 @@ async function closeCreditopX(arr: any[], ur: number, tel: string, amount: numbe
     await get(`/api/loans/requests/${ur}`);
     await post('/api/loans/requests/confirm', { user_request_id: ur });
 
+    // EL CUPO EXTENDIDO, como lo pide el front después de la identidad: su `next_step` decide si la
+    // solicitud sigue (codeudor o fecha de pago), se rechaza o se detiene a esperar la aprobación
+    // manual de la entidad (`ManualApprovalNextStepResolver`). Hasta el 2026-11-04 el runner no lo
+    // pedía y cerraba en 11 a una entidad con aprobación manual: ni la fecha de pago, ni la firma ni
+    // `authorize` miran esa marca, así que saltarse este paso salta la aprobación.
+    const ext = await post('/api/loans/lender/available-quota/extended', { user_request_id: ur });
+    const nextStep = String(ext.json?.data?.next_step ?? '');
+    if (nextStep === 'manual_approval' || nextStep === 'rejected') {
+        const e = await one<{ e: number }>('SELECT user_request_status_id e FROM user_requests WHERE id=?', [ur])
+            .catch(() => null);
+        return { cerro: false, estado: e?.e ?? null, siguiente: nextStep,
+                 motivo: nextStep === 'manual_approval'
+                     ? `${ctopx.name}: espera la aprobación manual de la entidad (cupo extendido → manual_approval)`
+                     : `${ctopx.name}: el cupo extendido rechazó — el front manda esto a «solicitud cancelada»`
+                       + ` (${String(ext.json?.data?.message ?? ext.json?.message ?? 'sin mensaje').slice(0, 120)})` };
+    }
+
     // ¿ESTA SOLICITUD EXIGE CODEUDOR? Lo decide la POLÍTICA de la categoría en la que cayó el usuario,
     // no que exista un codeudor. Se pregunta a la BD en vez de deducirlo del estado porque el estado
     // recién se mueve cuando el flujo arranca — y arrancarlo «para ver» sobre una solicitud que no lo
@@ -493,6 +510,9 @@ type Wait = {
     consulta?: Array<{ ruta: string; http?: number; campos?: Record<string, unknown>; existen?: string[] }>;
     /** El plazo que quedó GUARDADO (`user_requests.fee_number`), no el pedido. */
     plazo?: number;
+    /** Si el equipo financiado quedó inscrito (`user_request_products.imei`). Una entidad IMEI que cierra
+     *  por el `authorize` estándar también llega a 11, pero sin equipo (F-157): el estado solo no lo distingue. */
+    imei?: boolean;
 };
 
 type Case = {
@@ -625,7 +645,8 @@ function parseCase(spec: string, dflt: { amount: number; income: number; score: 
  * esté acá es un error. Al agregar una aserción o una perilla, se agrega también a su lista.
  */
 /** Lo que la suite pide preparar antes de correr (`preparar`), y la foto para volverlo atrás. */
-let prepare: { perfiles?: Array<{ lender: number; perfil: string; activo: boolean }> } | null = null;
+let prepare: { perfiles?: Array<{ lender: number; perfil: string; activo: boolean }>;
+               aprobacionManual?: Array<{ lender: number; activo: boolean }> } | null = null;
 let profileSnap: import('../pkg/profile-prep.ts').ProfileSnap | null = null;
 
 const SUITE_KEYS = {
@@ -636,11 +657,12 @@ const SUITE_KEYS = {
            'negatives', 'delinquencies', 'consulted', 'cards', 'months', 'maturation'],
     paso: ['nombre', 'lender', 'amount', 'espera', 'cerrar'],
     espera: ['enListado', 'cierra', 'estado', 'entidades', 'noEntidades', 'radicacion', 'pais', 'conConsulta',
-             'sinConsulta', 'categoria', 'cupo', 'estadoAnteriores', 'consulta', 'plazo'],
+             'sinConsulta', 'categoria', 'cupo', 'estadoAnteriores', 'consulta', 'plazo', 'imei'],
     pais: ['iso', 'documento', 'celular', 'moneda'],
     consulta: ['ruta', 'http', 'campos', 'existen'],
-    preparar: ['perfiles'],
+    preparar: ['perfiles', 'aprobacionManual'],
     perfil: ['lender', 'perfil', 'activo'],
+    aprobacionManual: ['lender', 'activo'],
 };
 function suiteShapeErrors(json: any): string[] {
     const out: string[] = [];
@@ -661,6 +683,7 @@ function suiteShapeErrors(json: any): string[] {
     check(json, SUITE_KEYS.top, 'suite');
     check(json.preparar, SUITE_KEYS.preparar, 'preparar');
     (json.preparar?.perfiles ?? []).forEach((p: any, i: number) => check(p, SUITE_KEYS.perfil, `preparar.perfiles[${i}]`));
+    (json.preparar?.aprobacionManual ?? []).forEach((p: any, i: number) => check(p, SUITE_KEYS.aprobacionManual, `preparar.aprobacionManual[${i}]`));
     check(json.porDefecto, SUITE_KEYS.caso, 'porDefecto');
     (json.casos ?? []).forEach((c: any, i: number) => {
         check(c, SUITE_KEYS.caso, `casos[${i}]`);
@@ -1504,6 +1527,24 @@ async function verifyTerm(res: Res[]): Promise<Array<{ res: Res; linea: string }
     return out;
 }
 
+/** El equipo inscrito. Mira la base y no la respuesta: el cierre IMEI y el estándar devuelven los dos 200 y 11. */
+async function verifyImei(res: Res[]): Promise<Array<{ res: Res; linea: string }>> {
+    const out: Array<{ res: Res; linea: string }> = [];
+    for (const r of res) {
+        const want = r.caso.espera?.imei;
+        if (want === undefined) continue;
+        const who = r.caso.nombre ?? r.caso.comercio;
+        if (!r.ur) { out.push({ res: r, linea: `${who}: espera \`imei\` y la solicitud ni se creó (${r.detalle ?? 'sin detalle'})` }); continue; }
+        const row = await one<{ n: number }>(
+            "SELECT COUNT(*) AS n FROM user_request_products WHERE user_request_id = ? AND imei IS NOT NULL AND imei <> ''", [r.ur])
+            .catch(() => null);
+        if (!row) { out.push({ res: r, linea: `${who}: espera \`imei\` y no pude leer los productos de la solicitud ${r.ur}` }); continue; }
+        const got = Number(row.n) > 0;
+        if (got !== want) out.push({ res: r, linea: `${who}: la solicitud ${r.ur} ${got ? 'tiene' : 'NO tiene'} equipo inscrito y se esperaba que ${want ? 'sí' : 'no'}` });
+    }
+    return out;
+}
+
 async function verifyQuota(res: Res[]): Promise<Array<{ res: Res; linea: string }>> {
     const out: Array<{ res: Res; linea: string }> = [];
     for (const r of res) {
@@ -1950,6 +1991,13 @@ async function main(): Promise<number> {
         profileSnap = await applyProfiles(prepare.perfiles);   // lanza si no es local: la corrida no arranca
         for (const p of profileSnap.cambios) console.log(`  preparar: ${p.lender}·«${p.perfil}» active ${p.before} → ${p.after}`);
     }
+    if (prepare?.aprobacionManual?.length) {
+        const { applyManualApproval } = await import('../pkg/profile-prep.ts');
+        const snap = await applyManualApproval(prepare.aprobacionManual);
+        for (const p of snap.cambios) console.log(`  preparar: entidad ${p.lender} · aprobación manual ${p.before} → ${p.after}`);
+        // Una sola foto para volver atrás: se suma a la de los perfiles.
+        profileSnap = profileSnap ? { cambios: [...profileSnap.cambios, ...snap.cambios], file: `${profileSnap.file} y ${snap.file}` } : snap;
+    }
     await fitSyntheticDocs(cases);
     if (flag('lambda')) {
         const failures = await dictateAll(cases);
@@ -2082,7 +2130,7 @@ async function main(): Promise<number> {
     await reconcileWithDb(baseline, res.length - badList);
 
     const deviations = [...verifyWaits(res), ...await verifyCountries(res), ...await verifyCategories(res), ...await verifyQuota(res), ...await verifyPrevious(res),
-                        ...await verifyEndpoints(res), ...await verifyTerm(res)];
+                        ...await verifyEndpoints(res), ...await verifyTerm(res), ...await verifyImei(res)];
     REPORT = {
         formato: 'harness.case/v1',
         target: process.env.E2E_TARGET || 'dev',

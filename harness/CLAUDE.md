@@ -203,10 +203,14 @@ donde se dice otra cosa:
   entidad elegida falla, porque la columna nace en 1) y `consulta` (un GET al backend con `{ur}`, `{uid}` o `{lender}`
   en la ruta, con el user-agent de celular del caso: el `http` esperado —200 si no se dice—, `campos` por ruta de punto
   con igualdad exacta y `existen`; un campo ausente es falla, y conviene pedir al menos uno, porque un 200 genérico sin
-  campos pasaría). Arriba de todo, `"preparar": {"perfiles": [{"lender": 77, "perfil": "Premium", "activo": false}]}`
-  prende o apaga un perfil (`lender_users_categories.active`) antes de correr y lo restaura al final, con foto en
+  campos pasaría) e `imei` (si el equipo quedó inscrito en `user_request_products`: el cierre IMEI y el estándar
+  llegan los dos a 11, F-157). Arriba de todo, `"preparar": {"perfiles": [{"lender": 77, "perfil": "Premium", "activo": false}]}`
+  prende o apaga un perfil (`lender_users_categories.active`), y `"aprobacionManual": [{"lender": 211, "activo": true}]`
+  la aprobación manual de una entidad (`lender_requirements.manual_approval`), antes de correr y lo restaura al final, con foto en
   `.runs/profiles/` y comparar-y-cambiar (`pkg/profile-prep.ts`); sólo en una suite con `"ambientes": ["local"]`, y si
-  no se pudo restaurar la corrida sale en rojo. Un paso con `"cerrar": false` elige la
+  no se pudo restaurar la corrida sale en rojo. El cierre pide el cupo extendido después de la identidad, como el front
+  (`post-validation-step.server.ts`): `manual_approval` deja la solicitud en «Pendiente aprobación manual» (30) y
+  `rejected` no cierra, porque el front la mandaría a «solicitud cancelada». Un paso con `"cerrar": false` elige la
   entidad pedida y se queda ahí aunque la suite cierre: es como se deja una solicitud hermana abierta. Las suites que
   respaldan reglas de `knowledge/` las nombran en su `nota` y el tema dice con qué suite se comprueba.
   Una suite que depende de los datos de UNA base (qué entidades tiene cada comercio) declara dónde vale con

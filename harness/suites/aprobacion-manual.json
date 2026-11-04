@@ -1,0 +1,28 @@
+{
+  "nombre": "Aprobación manual · la entidad detiene la solicitud hasta que alguien la apruebe",
+  "recorrido": ["advisor", "riel-2", "rto", "+manual-approval"],
+  "ambientes": ["local"],
+  "requiere": ["close", "lambda"],
+  "nota": "Alta Fleet tiene aprobación manual en producción (199) y no en local (211): la suite la prende y la vuelve atrás. La marca la pone la consulta de cupo extendido (next_step manual_approval); ni la fecha de pago, ni la firma ni authorize la miran.",
+  "preparar": {
+    "aprobacionManual": [{ "lender": 211, "activo": true }]
+  },
+  "porDefecto": {
+    "comercio": "alta",
+    "amount": 2000000,
+    "income": 2500000,
+    "score": 700
+  },
+  "casos": [
+    {
+      "nombre": "con cupo, la solicitud queda en «Pendiente aprobación manual» y no cierra",
+      "lender": 211,
+      "cuotas": 52,
+      "espera": {
+        "enListado": true,
+        "cierra": false,
+        "estado": 30
+      }
+    }
+  ]
+}
