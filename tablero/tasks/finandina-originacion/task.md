@@ -35,7 +35,8 @@ adelante depende de las respuestas de la fase 0.
 - [ ] Mandar la ronda 1 de preguntas (las que bloquean empezar): qué documento manda (PRD de enero o política
   de agosto), cómo se compara la capacidad de pago con la cuota, de dónde salen las letras de riesgo AA…Z, y con
   qué cuenta se consulta el buró (si es la de Finandina, el certificado de cliente de Experian). Termina con las
-  cuatro respondidas por escrito en «Objetivo». Depende de: producto (Maria Fernanda Parra) y Finandina.
+  cuatro respondidas por escrito en «Objetivo». El mensaje está redactado y sin enviar en
+  `artifacts/finandina-ronda-1-mensaje.md`. Depende de: producto (Maria Fernanda Parra) y Finandina.
 - [ ] Después, la ronda 2 (desembolso, entrega de la operación, FGA, seguros y costos, Deceval y diseño) y la
   ronda 3 (independientes, experiencia, cobertura, Mareigua, identidad, límites y arranque), que arranca con
   los supuestos escritos en el análisis publicado. Depende de: producto.
