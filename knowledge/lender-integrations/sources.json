@@ -1,14 +1,43 @@
 {
   "version": 1,
   "title": "Entidades integradas: reglas propias de cada una",
-  "summary": "Reglas por entidad con su porqué en Jira: la compuerta de buró de Prami, las cuatro variantes de Welli con Sonría aparte y el mapa de estados distinto en cada monolito, los reintentos de Meddipay, Sistecrédito oculto al moroso sólo en el camino viejo (el asistente nuevo lo aprueba), el NIT de Corbeta que marca el canal en Bancolombia BNPL, los estados de Crédito 365, UMA y la probabilidad oculta por convenio.",
-  "reviewedAt": "2026-11-02T17:41:47+00:00",
+  "summary": "Reglas por entidad con su porqué en Jira: la compuerta de buró de Prami y su policy_blocked en el asistente, las cuatro variantes de Welli con Sonría aparte y pendiente_desembolso en 28 (application) o 11 (legacy-backend), los reintentos y el 401 de Meddipay, Sistecrédito oculto al moroso sólo en el camino viejo (el asistente nuevo lo aprueba), el NIT de Corbeta que marca el canal en Bancolombia BNPL, los estados de Crédito 365, el endpoint de UMA y la probabilidad oculta por convenio o comercio.",
+  "reviewedAt": "2026-11-04T01:04:25+00:00",
   "sources": [
     {
       "repo": "legacy-backend",
       "path": "Modules/Onboarding/App/Services/lenders/RiskCentralValidationService.php",
-      "commit": "69920f580f62ad35f0a555e3b8b8f2c247d758aa",
+      "commit": "dd1365e85b9cf825bc46991e0b513630c1a74da1",
       "blob": "81f9e92a11c0e8b6de6f9843e873b4d619e2b134",
+      "sections": [
+        "prami-solo-se-consulta-si-pasa-sus-reglas-de-buro"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/Onboarding/App/Services/lenders/LenderListingService.php",
+      "commit": "dd1365e85b9cf825bc46991e0b513630c1a74da1",
+      "blob": "b5c813f1c70bc407b080d15a05c44ce3fdb0e681",
+      "sections": [
+        "prami-solo-se-consulta-si-pasa-sus-reglas-de-buro",
+        "sistecredito-al-moroso-lo-oculta-solo-el-camino-viejo",
+        "probabilidad-oculta-por-convenio-o-por-comercio"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "app/Actions/Lenders/Concerns/SyncsLenderOrderId.php",
+      "commit": "dd1365e85b9cf825bc46991e0b513630c1a74da1",
+      "blob": "19a13c4c2f71a8e7e3cba953af35ff365356791d",
+      "sections": [
+        "prami-solo-se-consulta-si-pasa-sus-reglas-de-buro"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "app/Actions/Lenders/Prami.php",
+      "commit": "dd1365e85b9cf825bc46991e0b513630c1a74da1",
+      "blob": "10445ea3a7a6f20ccdaeb1eac49937987a0182d2",
       "sections": [
         "prami-solo-se-consulta-si-pasa-sus-reglas-de-buro"
       ]
@@ -23,10 +52,64 @@
       ]
     },
     {
+      "repo": "application",
+      "path": "app/Actions/Lenders/Prami.php",
+      "commit": "1755ab4fa3a50cac5669cdff4826131979a15def",
+      "blob": "b8432de14b99d889ad51df053ef3775e3e66525f",
+      "sections": [
+        "prami-solo-se-consulta-si-pasa-sus-reglas-de-buro"
+      ]
+    },
+    {
+      "repo": "frontend-monorepo",
+      "path": "modules/loan-request-wizard/lenders-marketplace/src/components/available-lenders/preapproval-gate.service.ts",
+      "commit": "e0c370c299cf4a613c7282626a9977d635484616",
+      "blob": "9e930f963a1c2f2e4cb6c1451435b6e9efeea65e",
+      "sections": [
+        "prami-solo-se-consulta-si-pasa-sus-reglas-de-buro"
+      ]
+    },
+    {
+      "repo": "frontend-monorepo",
+      "path": "modules/loan-request-wizard/lenders-marketplace/src/components/available-lenders/hooks/useProgressiveLenderResolution.ts",
+      "commit": "e0c370c299cf4a613c7282626a9977d635484616",
+      "blob": "bf160c07c0f5158f55613f1cf700a2da288960d5",
+      "sections": [
+        "prami-solo-se-consulta-si-pasa-sus-reglas-de-buro"
+      ]
+    },
+    {
+      "repo": "frontend-monorepo",
+      "path": "modules/loan-request-wizard/lenders-marketplace/src/components/lender-card/LenderCardProcessing.tsx",
+      "commit": "e0c370c299cf4a613c7282626a9977d635484616",
+      "blob": "90c5323ec9d5f330ad2fd61838c03d128e2ea2a9",
+      "sections": [
+        "prami-solo-se-consulta-si-pasa-sus-reglas-de-buro"
+      ]
+    },
+    {
       "repo": "legacy-backend",
       "path": "app/Actions/Lenders/Welli.php",
-      "commit": "69920f580f62ad35f0a555e3b8b8f2c247d758aa",
+      "commit": "dd1365e85b9cf825bc46991e0b513630c1a74da1",
       "blob": "be9e6cbf7f2918d3123b5e8c5ec680b6838a3fc7",
+      "sections": [
+        "welli-cuatro-variantes-sonria-aparte-y-dos-mapas-de-estado"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "app/Jobs/Lenders/Welli/StatusCheck.php",
+      "commit": "dd1365e85b9cf825bc46991e0b513630c1a74da1",
+      "blob": "d879c049bfdef929506ca9cc12450f9ecde16e8e",
+      "sections": [
+        "welli-cuatro-variantes-sonria-aparte-y-dos-mapas-de-estado"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/Onboarding/App/Services/UserRequestService.php",
+      "commit": "dd1365e85b9cf825bc46991e0b513630c1a74da1",
+      "blob": "59d9df68806a6a1db8dc35f55cc6a19fd66dfb6b",
       "sections": [
         "welli-cuatro-variantes-sonria-aparte-y-dos-mapas-de-estado"
       ]
@@ -50,10 +133,10 @@
       ]
     },
     {
-      "repo": "legacy-backend",
-      "path": "Modules/Onboarding/App/Services/UserRequestService.php",
-      "commit": "69920f580f62ad35f0a555e3b8b8f2c247d758aa",
-      "blob": "59d9df68806a6a1db8dc35f55cc6a19fd66dfb6b",
+      "repo": "application",
+      "path": "app/Http/Requests/Api/Welli/WebhookRequest.php",
+      "commit": "1755ab4fa3a50cac5669cdff4826131979a15def",
+      "blob": "255a3729c4ae0e438146dd8ac8709d95e1d960da",
       "sections": [
         "welli-cuatro-variantes-sonria-aparte-y-dos-mapas-de-estado"
       ]
@@ -61,7 +144,7 @@
     {
       "repo": "legacy-backend",
       "path": "app/Actions/Lenders/Meddipay.php",
-      "commit": "69920f580f62ad35f0a555e3b8b8f2c247d758aa",
+      "commit": "dd1365e85b9cf825bc46991e0b513630c1a74da1",
       "blob": "d23588e839c1a7b20a435eee6691c51f8c66ca50",
       "sections": [
         "meddipay-reintentos-solo-ante-caidas"
@@ -77,12 +160,31 @@
       ]
     },
     {
+      "repo": "frontend-monorepo",
+      "path": "modules/loan-request-wizard/lenders-marketplace/src/components/available-lenders/lender-resolution.service.ts",
+      "commit": "e0c370c299cf4a613c7282626a9977d635484616",
+      "blob": "e0141f859f87a85fc9dda2cf49cbf2632f41cc50",
+      "sections": [
+        "meddipay-reintentos-solo-ante-caidas"
+      ]
+    },
+    {
       "repo": "legacy-backend",
       "path": "Modules/Onboarding/App/Services/lenders/PreApprovedLenderService.php",
-      "commit": "69920f580f62ad35f0a555e3b8b8f2c247d758aa",
+      "commit": "dd1365e85b9cf825bc46991e0b513630c1a74da1",
       "blob": "ebcf8cc1fc7425c42dd15efe1e19d34984139c1a",
       "sections": [
         "sistecredito-al-moroso-lo-oculta-solo-el-camino-viejo"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/Onboarding/App/Services/lenders/LenderRetrievalService.php",
+      "commit": "dd1365e85b9cf825bc46991e0b513630c1a74da1",
+      "blob": "aeb7c50ddd1e854c80fc088591439cc64769ca20",
+      "sections": [
+        "sistecredito-al-moroso-lo-oculta-solo-el-camino-viejo",
+        "probabilidad-oculta-por-convenio-o-por-comercio"
       ]
     },
     {
@@ -95,9 +197,54 @@
       ]
     },
     {
+      "repo": "pre-approvals-service",
+      "path": "internal/infra/lending_products/sistecredito/adapter.go",
+      "commit": "8bfbee92f31a2520c94e371971d469cb399dc7a2",
+      "blob": "667002305d8570a2c2b79ef2e3258457c44f87bb",
+      "sections": [
+        "sistecredito-al-moroso-lo-oculta-solo-el-camino-viejo"
+      ]
+    },
+    {
+      "repo": "frontend-monorepo",
+      "path": "modules/loan-request-wizard/lenders-marketplace/src/lib/infrastructure/repositories/loan-options.repository.ts",
+      "commit": "e0c370c299cf4a613c7282626a9977d635484616",
+      "blob": "112c2e0444bce4136fbbc78d1f9315bf5060ead8",
+      "sections": [
+        "sistecredito-al-moroso-lo-oculta-solo-el-camino-viejo"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/Onboarding/App/Http/Controllers/OnboardingController.php",
+      "commit": "dd1365e85b9cf825bc46991e0b513630c1a74da1",
+      "blob": "738415ab7825c6212177127c5fd8ccddc4c69f54",
+      "sections": [
+        "sistecredito-al-moroso-lo-oculta-solo-el-camino-viejo"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/Onboarding/App/Services/OnboardingService.php",
+      "commit": "dd1365e85b9cf825bc46991e0b513630c1a74da1",
+      "blob": "2b8146b5aa65d80b144d70c774b1d12cce4c9fa3",
+      "sections": [
+        "sistecredito-al-moroso-lo-oculta-solo-el-camino-viejo"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "app/Actions/Lenders/SistecreditoPos.php",
+      "commit": "dd1365e85b9cf825bc46991e0b513630c1a74da1",
+      "blob": "43d869c29a50f9c53d887142b41a237544f49e29",
+      "sections": [
+        "sistecredito-al-moroso-lo-oculta-solo-el-camino-viejo"
+      ]
+    },
+    {
       "repo": "legacy-backend",
       "path": "app/Actions/Lenders/BancolombiaBnpl.php",
-      "commit": "69920f580f62ad35f0a555e3b8b8f2c247d758aa",
+      "commit": "dd1365e85b9cf825bc46991e0b513630c1a74da1",
       "blob": "a6276e820f27cf51554fbf9e25f72a85074f79c1",
       "sections": [
         "bancolombia-bnpl-el-canal-va-en-el-nit-de-corbeta"
@@ -115,7 +262,7 @@
     {
       "repo": "legacy-backend",
       "path": "Modules/Partner/App/Services/UserRequestManagementService.php",
-      "commit": "69920f580f62ad35f0a555e3b8b8f2c247d758aa",
+      "commit": "dd1365e85b9cf825bc46991e0b513630c1a74da1",
       "blob": "69c25adcd59a7f818caa5452b9128727ebf7425d",
       "sections": [
         "uma-el-aliado-que-gestiona-por-su-propio-endpoint"
@@ -131,10 +278,28 @@
       ]
     },
     {
+      "repo": "application",
+      "path": "app/Http/Requests/Customer/UserRequest/UpdateUmaRequestStatusAndAmount.php",
+      "commit": "1755ab4fa3a50cac5669cdff4826131979a15def",
+      "blob": "4fc4d6ae0d6986bfaf9ebf4a5040376d62cccd99",
+      "sections": [
+        "uma-el-aliado-que-gestiona-por-su-propio-endpoint"
+      ]
+    },
+    {
       "repo": "legacy-backend",
-      "path": "Modules/Onboarding/App/Services/lenders/LenderRetrievalService.php",
-      "commit": "69920f580f62ad35f0a555e3b8b8f2c247d758aa",
-      "blob": "aeb7c50ddd1e854c80fc088591439cc64769ca20",
+      "path": "Modules/Partner/App/Http/Controllers/AlliedController.php",
+      "commit": "dd1365e85b9cf825bc46991e0b513630c1a74da1",
+      "blob": "c0b92e90ac417386651b2b03d1ec1eb7ce331c60",
+      "sections": [
+        "probabilidad-oculta-por-convenio-o-por-comercio"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/Partner/App/Http/Controllers/AlliedLenderController.php",
+      "commit": "dd1365e85b9cf825bc46991e0b513630c1a74da1",
+      "blob": "b46a2ccda623ab92d15d928cad8d5341ef0356b9",
       "sections": [
         "probabilidad-oculta-por-convenio-o-por-comercio"
       ]
@@ -155,33 +320,6 @@
       "blob": "e4f0b23c1ff2e90737fa8a8ca99eca80da495770",
       "sections": [
         "probabilidad-oculta-por-convenio-o-por-comercio"
-      ]
-    },
-    {
-      "repo": "pre-approvals-service",
-      "path": "internal/infra/lending_products/sistecredito/adapter.go",
-      "commit": "8bfbee92f31a2520c94e371971d469cb399dc7a2",
-      "blob": "667002305d8570a2c2b79ef2e3258457c44f87bb",
-      "sections": [
-        "sistecredito-al-moroso-lo-oculta-solo-el-camino-viejo"
-      ]
-    },
-    {
-      "repo": "legacy-backend",
-      "path": "Modules/Onboarding/App/Http/Controllers/OnboardingController.php",
-      "commit": "69920f580f62ad35f0a555e3b8b8f2c247d758aa",
-      "blob": "738415ab7825c6212177127c5fd8ccddc4c69f54",
-      "sections": [
-        "sistecredito-al-moroso-lo-oculta-solo-el-camino-viejo"
-      ]
-    },
-    {
-      "repo": "legacy-backend",
-      "path": "app/Actions/Lenders/SistecreditoPos.php",
-      "commit": "69920f580f62ad35f0a555e3b8b8f2c247d758aa",
-      "blob": "43d869c29a50f9c53d887142b41a237544f49e29",
-      "sections": [
-        "sistecredito-al-moroso-lo-oculta-solo-el-camino-viejo"
       ]
     }
   ]
